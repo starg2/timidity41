@@ -157,6 +157,8 @@ void clear_magic_instruments(void)
     }
 }
 
+#define GUS_ENVRATE_MAX (int32)(0x3FFFFFFF >> 9)
+
 static int32 convert_envelope_rate(uint8 rate)
 {
   int32 r;
@@ -166,8 +168,9 @@ static int32 convert_envelope_rate(uint8 rate)
   r = (int32)(rate & 0x3f) << r; /* 6.9 fixed point */
 
   /* 15.15 fixed point. */
-  return (((r * 44100) / play_mode->rate) * control_ratio)
-    << ((fast_decay) ? 10 : 9);
+  r = r * 44100 / play_mode->rate * control_ratio * (1 << fast_decay);
+  if(r > GUS_ENVRATE_MAX) {r = GUS_ENVRATE_MAX;}
+  return (r << 9);
 }
 
 static int32 convert_envelope_offset(uint8 offset)
@@ -572,6 +575,24 @@ static Instrument *load_gus_instrument(char *name,
 
       sp->low_vel = 0;
       sp->high_vel = 127;
+	  sp->cutoff_freq = sp->resonance = sp->tremolo_to_pitch = 
+		  sp->tremolo_to_fc = sp->modenv_to_pitch = sp->modenv_to_fc =
+	  sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
+	  sp->envelope_velf_bpo = sp->modenv_velf_bpo = sp->vel_to_fc_threshold = 64;
+	  sp->key_to_fc_bpo = 60;
+	  sp->envelope_delay = sp->modenv_delay =
+	  sp->tremolo_delay = sp->vibrato_delay = 0;
+	  sp->scale_tuning = 100;
+	  sp->inst_type = INST_GUS;
+
+	memset(sp->envelope_velf, 0, sizeof(sp->envelope_velf));
+	memset(sp->envelope_keyf, 0, sizeof(sp->envelope_keyf));
+	memset(sp->modenv_velf, 0, sizeof(sp->modenv_velf));
+	memset(sp->modenv_keyf, 0, sizeof(sp->modenv_keyf));
+	memset(sp->modenv_rate, 0, sizeof(sp->modenv_rate));
+	memset(sp->modenv_offset, 0, sizeof(sp->modenv_offset));
+
+
 
       READ_LONG(sp->data_length);
       READ_LONG(sp->loop_start);
@@ -726,7 +747,7 @@ static Instrument *load_gus_instrument(char *name,
       }
 
       /* Then read the sample data */
-      sp->data = (sample_t *)safe_malloc(sp->data_length+2);
+      sp->data = (sample_t *)safe_malloc(sp->data_length + 4);
       sp->data_alloced = 1;
       if ((j = tf_read(sp->data, 1, sp->data_length, tf)) != sp->data_length)
       {
@@ -739,7 +760,7 @@ static Instrument *load_gus_instrument(char *name,
 	  int32 i = sp->data_length, j;
 	  uint8 *cp = (uint8 *)sp->data;
 	  uint16 *tmp, *new;
-	  tmp = new = (uint16 *)safe_malloc(sp->data_length*2+2);
+	  tmp = new = (uint16 *)safe_malloc(sp->data_length * 2 + 4);
 	  for(j = 0; j < i; j++)
 	      tmp[j] = (uint16)(cp[j]) << 8;
 	  cp=(uint8 *)(sp->data);
@@ -827,10 +848,17 @@ static Instrument *load_gus_instrument(char *name,
       sp->loop_start /= 2;
       sp->loop_end /= 2;
 
-      /* The sample must be padded out by 1 extra sample, so that
+      /* The sample must be padded out by 2 extra sample, so that
          round off errors in the offsets used in interpolation will not
          cause a "pop" by reading random data beyond data_length */
-      sp->data[sp->data_length] = sp->data[sp->data_length-1];
+      sp->data[sp->data_length] = sp->data[sp->data_length + 1] = 0;
+
+	  /* Remove abnormal loops which cause pop noise in long sustain stage */
+	  if(!(sp->modes & MODES_LOOPING)) {
+		  sp->loop_start = sp->data_length - 1;
+		  sp->loop_end = sp->data_length;
+		  sp->data[sp->data_length - 1] = 0;
+	  }
 
       /* Then fractional samples */
       sp->data_length <<= FRACTION_BITS;
@@ -885,6 +913,18 @@ Instrument *load_instrument(int dr, int b, int prog)
     char infomsg[256];
     int font_bank, font_preset, font_keynote;
 
+#ifndef CFG_FOR_SF
+	if(play_system_mode == GS_SYSTEM_MODE) {
+		if(b == 64 || b == 65) {
+			if(dr) {	/* User Drumset */
+				recompute_userdrum(b, prog);
+			} else {	/* User Instrument */
+				recompute_userinst(b, prog);
+			}
+		}
+	}
+#endif
+
     if(bank->tone[prog].instype == 1
 	|| bank->tone[prog].instype == 2)
     {
@@ -920,18 +960,12 @@ Instrument *load_instrument(int dr, int b, int prog)
 	}
 	if(ip != NULL && bank->tone[prog].pan != -1)	/* panning */
 	{
-	    int i,pan,pan_average,panning;
-		/* calculate average of soundfont default panning */
-		pan_average = 0;
-		for(i = 0; i < ip->samples; i++) {
-			pan_average += ip->sample[i].panning;
-		}
-		pan_average /= ip->samples;
+	    int i, pan, panning;
 
-		pan = (uint8)bank->tone[prog].pan & 0x7F;
+		pan = ((int)bank->tone[prog].pan & 0x7F) - 64;
 
 		for(i = 0; i < ip->samples; i++) {
-			panning = ip->sample[i].panning + pan - pan_average;
+			panning = (int)ip->sample[i].panning + pan;
 			if(panning < 0) {panning = 0;}
 			else if(panning > 127) {panning = 127;}
 			ip->sample[i].panning = panning;
@@ -949,31 +983,6 @@ Instrument *load_instrument(int dr, int b, int prog)
 	    int i;
 		for(i = 0; i < ip->samples; i++) {
 			ip->sample[i].data_length = ip->sample[i].loop_end;
-		}
-	}
-	/* #extension cutoff / resonance */
-	if(opt_resonance && ip != NULL) {
-		int i,cutoff_freq = 0,resonance = 0;
-		for(i = 0; i < ip->samples; i++) {
-			if(cutoff_freq < ip->sample[i].cutoff_freq) {
-				cutoff_freq = ip->sample[i].cutoff_freq;
-			}/* else if(ip->sample[i].cutoff_freq == 0) {
-				cutoff_freq = 0;
-				resonance = 0;
-				break;
-			}*/
-			if(ip->sample[i].resonance != 0) {
-				if(resonance == 0) {resonance = ip->sample[i].resonance;}
-				else if(resonance > ip->sample[i].resonance) {
-					resonance = ip->sample[i].resonance;
-				}
-			}
-		}	
-		if(bank->tone[prog].cutoff_freq == 0) {
-			bank->tone[prog].cutoff_freq = cutoff_freq;
-		}
-		if(bank->tone[prog].resonance == 0) {
-			bank->tone[prog].resonance = resonance;
 		}
 	}
 	if (ip != NULL) {
@@ -1222,6 +1231,7 @@ void free_special_patch(int id)
 
 	    if(special_patch[i]->name != NULL)
 		free(special_patch[i]->name);
+			special_patch[i]->name = NULL;
 	    n = special_patch[i]->samples;
 	    sp = special_patch[i]->sample;
 	    if(sp)

@@ -29,10 +29,14 @@ extern FLOAT_T lookup_sine(int x);
 #include <math.h>
 #define lookup_sine(x) (sin((2*M_PI/1024.0) * (x)))
 #endif
+extern FLOAT_T lookup_triangular(int x);
+extern FLOAT_T lookup_log(int x);
 
 #define SINE_CYCLE_LENGTH 1024
 extern int32 freq_table[];
-extern int32 freq_table2[][128];
+extern int32 freq_table_pytha[][128];
+extern int32 freq_table_meantone[][128];
+extern int32 freq_table_pureint[][128];
 extern FLOAT_T *vol_table;
 extern FLOAT_T def_vol_table[];
 extern FLOAT_T gs_vol_table[];
@@ -55,20 +59,30 @@ extern uint8 delay_macro_presets[];
 extern FLOAT_T delay_time_center_table[];
 extern FLOAT_T pre_delay_time_table[];
 extern FLOAT_T rate1_table[];
-extern uint8 velocity_table[];
-extern int opt_velocity_table;
-extern FLOAT_T linear_vol_table[];
-extern FLOAT_T log_vol_table[];
-extern FLOAT_T exp_vol_table[];
-extern FLOAT_T *attack_vol_table;
-extern FLOAT_T envelope_coef[];
+extern FLOAT_T attack_vol_table[];
+extern FLOAT_T sc_eg_attack_table[];
+extern FLOAT_T sc_eg_decay_table[];
+extern FLOAT_T sc_eg_release_table[];
 extern FLOAT_T sc_vel_table[];
 extern FLOAT_T sc_vol_table[];
 extern FLOAT_T sc_pan_table[];
-extern FLOAT_T vel_to_cutoff[];
-extern FLOAT_T vel_to_envelope[];
+extern FLOAT_T sc_drum_level_table[];
+extern FLOAT_T sb_vol_table[];
+extern FLOAT_T convex_vol_table[];
+extern FLOAT_T cb_to_amp_table[];
+extern FLOAT_T reverb_time_table[];
 
-extern void init_freq_table2(void);
+extern void init_freq_table(void);
+extern void init_freq_table_pytha(void);
+extern void init_freq_table_meantone(void);
+extern void init_freq_table_pureint(void);
+extern void init_bend_fine(void);
+extern void init_bend_coarse(void);
 extern void init_tables(void);
+extern void init_attack_vol_table(void);
+extern void init_sb_vol_table(void);
+extern void init_convex_vol_table(void);
+extern void init_def_vol_table(void);
+extern void init_gs_vol_table(void);
 
 #endif /* ___TABLES_H_ */

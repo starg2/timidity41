@@ -378,9 +378,11 @@ static void ctl_pass_playing_list(int n, char *args[])
     else
 	data_port = 0;
 
-    sock = pasv_open(&control_port);
-    if(sock == -1)
-	return;
+    if (control_port) {
+	sock = pasv_open(&control_port);
+	if(sock == -1)
+	    return;
+    }
     opt_realtime_playing = 2; /* Enable loading patch while playing */
     allocate_cache_size = 0; /* Don't use pre-calclated samples */
 /*  aq_set_soft_queue(-1.0, 0.0); */
@@ -395,16 +397,19 @@ static void ctl_pass_playing_list(int n, char *args[])
 	addrlen = sizeof(control_client);
 	memset(&control_client, 0, addrlen);
 
-	if((control_fd = accept(sock,
+	if (control_port) {
+	    if((control_fd = accept(sock,
 				(struct sockaddr *)&control_client,
 				&addrlen)) < 0)
-	{
-	    if(errno == EINTR)
-		continue;
-	    perror("accept");
-	    close(sock);
-	    return;
+	    {
+		if(errno == EINTR)
+		    continue;
+		perror("accept");
+		close(sock);
+		return;
+	    }
 	}
+	else control_fd = 0;
 
 	if(play_mode->open_output() < 0)
 	{
@@ -413,8 +418,10 @@ static void ctl_pass_playing_list(int n, char *args[])
 		     play_mode->id_name, play_mode->id_character);
 	    send_status(510, "Couldn't open %s (`%c')",
 			play_mode->id_name, play_mode->id_character);
-	    close(control_fd);
-	    control_fd = 1;
+	    if (control_port) {
+		close(control_fd);
+		control_fd = 1;
+	    }
 	    continue;
 	}
 
@@ -426,7 +433,7 @@ static void ctl_pass_playing_list(int n, char *args[])
 
 	play_mode->close_output();
 
-	if(control_fd != -1)
+	if(control_fd != -1 && control_port)
 	{
 	    close(control_fd);
 	    control_fd = -1;
@@ -438,6 +445,8 @@ static void ctl_pass_playing_list(int n, char *args[])
 	}
 	free_instruments(0);
 	free_global_mblock();
+	if (!control_port)
+	    break;
     }
 }
 
@@ -621,15 +630,11 @@ static void doit(void)
 
 	    if(data_fd != -1)
 	    {
-		if(upper_voices == 0 || !IS_STREAM_TRACE)
-		    usec = -1;
-		else
-		{
 		    double wait_time;
 		    int32 filled;
 
 		    filled = aq_filled();
-		    if(tmr_running && filled <= 0)
+		    if(!tmr_running && filled <= 0)
 			usec = -1;
 		    else
 		    {
@@ -640,7 +645,6 @@ static void doit(void)
 			else
 			    usec = (long)(wait_time * 1000000);
 		    }
-		}
 	    }
 	    else
 		usec = -1;
@@ -1179,6 +1183,7 @@ static int do_sequencer(void)
 		READ_ADVBUF(4);
 		break;
 	    }
+	    READ_NEEDBUF(2);
 	    switch(data_buffer[offset + 1] & 0xf0)
 	    {
 	      case MIDI_NOTEON:

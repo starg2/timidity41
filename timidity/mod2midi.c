@@ -519,7 +519,7 @@ void shrink_huge_sample (Sample *sp)
         data_length, new_data_length);
     
     orig_data = sp->data;
-    new_data = calloc(new_data_length + 2, sizeof(sample_t));
+    new_data = calloc(new_data_length + 1, sizeof(sample_t));
 
     new_data[0] = orig_data[0];
     for (i = 1; i < new_data_length; i++)
@@ -569,7 +569,7 @@ void shrink_huge_sample (Sample *sp)
 
 void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 {
-    int i;
+    int i, j;
 
     for(i = 1; numsamples--; i++, s++)
     {
@@ -603,6 +603,14 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->data_length = s->length;
 	sp->loop_start = s->loopstart;
 	sp->loop_end   = s->loopend;
+
+        /* The sample must be padded out by 1 extra sample, so that
+           the interpolation routines won't cause a "pop" by reading
+           random data beyond data_length */
+	sp->data = (sample_t *) realloc(sp->data,
+					(sp->data_length + 1) *
+					sizeof(sample_t));
+        sp->data[sp->data_length] = 0;
 
 	/* Stereo instruments (SF_STEREO) are dithered by libunimod into mono */
 	sp->modes = MODES_UNSIGNED;
@@ -639,8 +647,27 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->root_freq = freq_table[MOD_ROOT_NOTE];
 	sp->volume = 1.0;		/* I guess it should use globvol... */
 	sp->panning = s->panning == PAN_SURROUND ? 64 : s->panning * 128 / 255;
+	sp->note_to_use = 0;
 	sp->low_vel = 0;
 	sp->high_vel = 127;
+	sp->tremolo_sweep_increment =
+		sp->tremolo_phase_increment = sp->tremolo_depth =
+		sp->vibrato_sweep_increment = sp->vibrato_control_ratio = sp->vibrato_depth = 0;
+	sp->cutoff_freq = sp->resonance = sp->tremolo_to_pitch = 
+		sp->tremolo_to_fc = sp->modenv_to_pitch = sp->modenv_to_fc =
+		sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
+	sp->envelope_velf_bpo = sp->modenv_velf_bpo =
+		sp->vel_to_fc_threshold = 64;
+	sp->key_to_fc_bpo = 60;
+	sp->scale_tuning = 100;
+	memset(sp->envelope_velf, 0, sizeof(sp->envelope_velf));
+	memset(sp->envelope_keyf, 0, sizeof(sp->envelope_keyf));
+	memset(sp->modenv_velf, 0, sizeof(sp->modenv_velf));
+	memset(sp->modenv_keyf, 0, sizeof(sp->modenv_keyf));
+	memset(sp->modenv_rate, 0, sizeof(sp->modenv_rate));
+	memset(sp->modenv_offset, 0, sizeof(sp->modenv_offset));
+	sp->envelope_delay = sp->modenv_delay =
+		sp->tremolo_delay = sp->vibrato_delay = 0;
 
 	if (sp->data_length >= (1 << (31 - FRACTION_BITS)) - 1)
 	    shrink_huge_sample(sp);

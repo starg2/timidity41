@@ -69,6 +69,8 @@ enum midi_event_t
     ME_DATA_ENTRY_LSB,
     ME_SOSTENUTO,
     ME_SOFT_PEDAL,
+	ME_LEGATO_FOOTSWITCH,
+	ME_HOLD2,
     ME_HARMONIC_CONTENT,
     ME_RELEASE_TIME,
     ME_ATTACK_TIME,
@@ -118,6 +120,17 @@ enum midi_event_t
 
     ME_TIMESIG,			/* Time signature */
     ME_KEYSIG,			/* Key signature */
+    ME_SCALE_TUNING,		/* Scale tuning */
+    ME_TEMPER_KEYSIG,		/* Temperament key signature */
+    ME_TEMPER_TYPE,		/* Temperament type */
+    ME_MASTER_TEMPER_TYPE,	/* Master Temperament type */
+
+	ME_SYSEX_LSB,	/* Universal system exclusive message (LSB) */
+	ME_SYSEX_MSB,	/* Universal system exclusive message (MSB) */
+	ME_SYSEX_GS_LSB,	/* GS system exclusive message (LSB) */
+	ME_SYSEX_GS_MSB,	/* GS system exclusive message (MSB) */
+	ME_SYSEX_XG_LSB,	/* XG system exclusive message (LSB) */
+	ME_SYSEX_XG_MSB,	/* XG system exclusive message (MSB) */
 
     ME_WRD,			/* for MIMPI WRD tracer */
     ME_SHERRY,			/* for Sherry WRD tracer */
@@ -154,8 +167,6 @@ enum rpn_data_address_t /* NRPN/RPN */
     NRPN_ADDR_1D00,
     NRPN_ADDR_1E00,
     NRPN_ADDR_1F00,
-	NRPN_ADDR_3000,
-	NRPN_ADDR_3001,
     RPN_ADDR_0000,
     RPN_ADDR_0001,
     RPN_ADDR_0002,
@@ -171,12 +182,8 @@ struct DrumParts
     int8 pan_random;    /* flag for drum random pan */
 	FLOAT_T drum_level;
 
-	int8 chorus_level, reverb_level, delay_level, coarse, fine, play_note, rx_note_off;
-
-/* Not supported:
- * Drum Filter Cutoff
- * Drum Filter Resonance 
- */
+	int8 chorus_level, reverb_level, delay_level, coarse, fine,
+		play_note, rx_note_off, drum_cutoff_freq, drum_resonance;
 };
 
 typedef struct {
@@ -213,8 +220,7 @@ typedef struct {
   struct DrumParts *drums[128];
 
   /* For vibrato */
-  FLOAT_T vibrato_ratio,vibrato_depth;
-  int32 vibrato_delay;
+  int32 vibrato_ratio, vibrato_depth, vibrato_delay;
 
   /* For RPN */
   uint8 rpnmap[RPN_MAX_DATA_ADDR]; /* pseudo RPN address map */
@@ -222,11 +228,11 @@ typedef struct {
   int8  nrpn; /* 0:RPN, 1:NRPN, -1:Undefined */
   int rpn_7f7f_flag;		/* Boolean flag used for RPN 7F/7F */
 
-  /* For channel envelope, but this is not used yet. */
-  int32 envelope_rate[6]; /* for Envelope Generator
-			   * 0: Attack rate
-			   * 1: Decay rate
-			   * 3: Release rate
+  /* For channel envelope */
+  int32 envelope_rate[6]; /* for Envelope Generator in mix.c
+			   * 0: value for attack rate
+			   * 1: value for decay rate
+			   * 3: value for release rate
 			   */
 
   int mapID;			/* Program map ID */
@@ -236,50 +242,70 @@ typedef struct {
   /* flag for random pan */
   int pan_random;
 
-  /* for Channel LPF / Resonance */
-  int16 cutoff_freq;	/* 0 ~ 22050 */
-  int16 resonance;	/* 0 ~ 127 */
-  int8 param_resonance,param_cutoff_freq;	/* -64 ~ 63 */
-  int32 lpf_val[8];
-  int32 lpf_coef[5];
-
+  /* for Voice LPF / Resonance */
+  int8 param_resonance, param_cutoff_freq;	/* -64 ~ 63 */
   double cutoff_freq_coef;
   double resonance_dB;
 
-  int8 velocity_sense_depth,velocity_sense_offset;
+  int8 velocity_sense_depth, velocity_sense_offset;
   
-  int8 scale_tuning[12];
+  int8 scale_tuning[12], prev_scale_tuning;
+  int8 temper_type;
 
-  int8 soft_pedal;	/* for CC# Soft */
+  int8 soft_pedal;
 
-  int8 tone_map0_number;	/* for GS SysEx. */
+  int8 tone_map0_number;
   FLOAT_T pitch_offset_fine;	/* in Hz */
   int8 assign_mode;
 
-  int8 legato;	/* Legato: 0 or 1 */
-  int8 note_on;	/* for Legato */
+  int8 legato;	/* legato footswitch */
+  int8 legato_flag;	/* note-on flag for legato */
 
-  int8 env_velf;	/* envelope velocity follow */
+  int8 mod_pitch_ctl;	/* in semitones */
+  int8 mod_amp_ctl, mod_lfo1_rate_ctl, mod_lfo2_rate_ctl, mod_lfo2_tva_depth;
+  int16 mod_tvf_cutoff_ctl, mod_lfo1_pitch_depth,
+	  mod_lfo2_pitch_depth, mod_lfo2_tvf_depth;	/* in cents */
 
+  int8 caf_pitch_ctl;	/* in semitones */
+  int8 caf_amp_ctl, caf_lfo1_rate_ctl, caf_lfo2_rate_ctl, caf_lfo2_tva_depth;
+  int16 caf_tvf_cutoff_ctl, caf_lfo1_pitch_depth,
+	  caf_lfo2_pitch_depth, caf_lfo2_tvf_depth;	/* in cents */
+
+  int8 paf_pitch_ctl;	/* in semitones */
+  int8 paf_amp_ctl, paf_lfo1_rate_ctl, paf_lfo2_rate_ctl, paf_lfo2_tva_depth;
+  int16 paf_tvf_cutoff_ctl, paf_lfo1_pitch_depth,
+	  paf_lfo2_pitch_depth, paf_lfo2_tvf_depth;	/* in cents */
+
+  int8 *channel_layer;
+
+  int8 sysex_gs_msb_addr, sysex_gs_msb_val,
+		sysex_xg_msb_addr, sysex_xg_msb_val, sysex_msb_addr, sysex_msb_val;
 } Channel;
 
 /* Causes the instrument's default panning to be used. */
 #define NO_PANNING -1
 
 typedef struct {
-	int16 freq, last_freq;
-	double reso_dB, last_reso_dB, reso_lin, filter_gain; 
-	int32 a1, a2, b0, b1, b2, hist1, hist2;
+	int16 freq, last_freq, orig_freq;
+	double reso_dB, last_reso_dB, orig_reso_dB, reso_lin, filter_gain; 
+	int32 a1, a2, b02, b1, hist1, hist2;
+	int32 a1_incr, a2_incr, b02_incr, b1_incr;
+	int8 filter_calculated;
+	int32 filter_coeff_incr_count;
 } FilterCoefficients;
 
 typedef struct {
   uint8
     status, channel, note, velocity;
-  int vid;
+  int vid, temper_instant;
   Sample *sample;
+#if SAMPLE_LENGTH_BITS == 32 && TIMIDITY_HAVE_INT64
+  int64 sample_offset;	/* sample_offset must be signed */
+#else
+  splen_t sample_offset;
+#endif
   int32
-    orig_frequency, frequency,
-    sample_offset, sample_increment,
+    orig_frequency, frequency, sample_increment,
     envelope_volume, envelope_target, envelope_increment,
     tremolo_sweep, tremolo_sweep_position,
     tremolo_phase, tremolo_phase_increment,
@@ -300,6 +326,7 @@ typedef struct {
     vibrato_phase, orig_vibrato_control_ratio, vibrato_control_ratio,
     vibrato_depth, vibrato_control_counter,
     envelope_stage, control_counter, panning, panned, modulation_wheel;
+  int16 tremolo_depth;
 
   /* for portamento */
   int porta_control_ratio, porta_control_counter, porta_dpb;
@@ -312,7 +339,23 @@ typedef struct {
   uint8 chorus_link;	/* Chorus link */
   int8 proximate_flag;
 
+  int sample_panning_average;
+
   FilterCoefficients fc;
+
+  FLOAT_T envelope_scale, last_envelope_volume;
+  int32 inv_envelope_scale;
+
+  int modenv_stage;
+  int32
+    modenv_volume, modenv_target, modenv_increment;
+  FLOAT_T last_modenv_volume;
+  int32 tremolo_delay, modenv_delay;
+  int32 prev_tuning;
+
+  int32 delay_counter;
+
+  int8 key_pressure;
 } Voice;
 
 /* Voice status options: */
@@ -352,6 +395,7 @@ extern int opt_reverb_control;
 extern int opt_chorus_control;
 extern int opt_surround_chorus;
 extern int opt_channel_pressure;
+extern int opt_lpf_def;
 extern int opt_overlap_voice_allow;
 extern int opt_tva_attack;
 extern int opt_tva_decay;
@@ -359,12 +403,9 @@ extern int opt_tva_release;
 extern int opt_delay_control;
 extern int opt_eq_control;
 extern int opt_insertion_effect;
-extern int opt_resonance;
-extern int opt_lpf_def;
-extern int opt_sf_lpf;
 extern int opt_drum_effect;
 extern int opt_env_attack;
-extern int opt_random_expression;
+extern int opt_modulation_envelope;
 extern int noise_sharp_type;
 extern int32 current_play_tempo;
 extern int opt_realtime_playing;
@@ -377,18 +418,21 @@ extern int effect_lr_mode;
 extern int effect_lr_delay_msec;
 extern int auto_reduce_polyphony;
 extern int play_pause_flag;
-#if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
+#if defined(LAGRANGE_INTERPOLATION) || defined(CSPLINE_INTERPOLATION) || defined(NEWTON_INTERPOLATION) || defined(GAUSS_INTERPOLATION)
 extern int reduce_quality_flag;
 extern int no_4point_interpolation;
 #endif
 extern ChannelBitMask channel_mute;
+extern int temper_type_mute;
 extern int8 current_keysig;
+extern int8 current_temper_keysig;
 extern int8 opt_init_keysig;
 extern int8 opt_force_keysig;
 extern int key_adjust;
 extern int opt_pure_intonation;
 extern int current_freq_table;
-extern double opt_drum_power;
+extern int32 opt_drum_power;
+extern int opt_amp_compensation;
 
 extern int play_midi_file(char *fn);
 extern void dumb_pass_playing_list(int number_of_files, char *list_of_files[]);
@@ -414,5 +458,7 @@ extern int play_event(MidiEvent *ev);
 
 extern void dup_tone_bank_element(int,int,int);
 extern void free_tone_bank_element(int,int,int);
+
+extern void recompute_voice_filter(int);
 
 #endif /* ___PLAYMIDI_H_ */

@@ -128,7 +128,8 @@ extern int set_extension_modes(char *flag);
 
 static struct
 {
-    int bank, bank_lsb, bank_msb, prog, vol, exp, pan, sus, pitch, wheel;
+    int mute, bank, bank_lsb, bank_msb, prog;
+    int tt, vol, exp, pan, sus, pitch, wheel;
     int is_drum;
     int bend_mark;
 
@@ -194,6 +195,9 @@ static const char note_name_char[12] =
 };
 
 static void ctl_note(int status, int ch, int note, int vel);
+static void ctl_temper_keysig(int8 tk, int ko);
+static void ctl_temper_type(int ch, int8 tt);
+static void ctl_mute(int ch, int mute);
 static void ctl_drumpart(int ch, int is_drum);
 static void ctl_program(int ch, int prog, char *vp, unsigned int banks);
 static void ctl_volume(int channel, int val);
@@ -486,7 +490,7 @@ static void N_ctl_scrinit(void)
 
 	wmove(dftwin, TITLE_LINE, 0);
 	waddstr(dftwin, "Ch ");
-	o = (COLS - 24) / 12;
+	o = (COLS - 28) / 12;
 	for(i = 0; i < o; i++)
 	{
 	    int j;
@@ -530,20 +534,16 @@ static void init_trace_window_chan(int ch)
 	return;
 
     N_ctl_clrtoeol(NOTE_LINE + ch);
+    ctl_mute(ch, CTL_STATUS_UPDATE);
+    waddch(dftwin, ' ');
     if(ch != selected_channel)
     {
-	c = (COLS - 24) / 12 * 12;
+	c = (COLS - 28) / 12 * 12;
 	if(c <= 0)
 	    c = 1;
-	if (IS_SET_CHANNELMASK(channel_mute, ch))
-		wattron(dftwin, A_REVERSE);
-	wprintw(dftwin, "%02d", ch + 1);
-	if (IS_SET_CHANNELMASK(channel_mute, ch))
-		wattroff(dftwin, A_REVERSE);
-	waddch(dftwin, ' ');
-
 	for(i = 0; i < c; i++)
 	    waddch(dftwin, '.');
+	ctl_temper_type(ch, CTL_STATUS_UPDATE);
 	ctl_program(ch, CTL_STATUS_UPDATE, NULL, 0);
 	ctl_volume(ch, CTL_STATUS_UPDATE);
 	ctl_expression(ch, CTL_STATUS_UPDATE);
@@ -557,13 +557,6 @@ static void init_trace_window_chan(int ch)
 	ToneBankElement *prog;
 	ToneBank *bank;
 	int b, type, pr;
-
-	wattron(dftwin, A_BOLD
-			| ((IS_SET_CHANNELMASK(channel_mute, ch)) ? A_REVERSE : 0));
-	wprintw(dftwin, "%02d", ch + 1);
-	wattroff(dftwin, A_BOLD
-			| ((IS_SET_CHANNELMASK(channel_mute, ch)) ? A_REVERSE : 0));
-	waddch(dftwin, ' ');
 
 	b = ChannelStatus[ch].bank;
 	pr = ChannelStatus[ch].prog;
@@ -669,10 +662,12 @@ static void init_chan_status(void)
 
     for(ch = 0; ch < MAX_CHANNELS; ch++)
     {
+	ChannelStatus[ch].mute = temper_type_mute & 1;
 	ChannelStatus[ch].bank = 0;
 	ChannelStatus[ch].bank_msb = 0;
 	ChannelStatus[ch].bank_lsb = 0;
 	ChannelStatus[ch].prog = 0;
+	ChannelStatus[ch].tt = 0;
 	ChannelStatus[ch].is_drum = ISDRUMCHANNEL(ch);
 	ChannelStatus[ch].vol = 0;
 	ChannelStatus[ch].exp = 0;
@@ -1026,6 +1021,7 @@ static void redraw_all(void)
     ctl_metronome(CTL_STATUS_UPDATE, CTL_STATUS_UPDATE);
     ctl_keysig(CTL_STATUS_UPDATE, CTL_STATUS_UPDATE);
     ctl_tempo(CTL_STATUS_UPDATE, CTL_STATUS_UPDATE);
+    ctl_temper_keysig(CTL_STATUS_UPDATE, CTL_STATUS_UPDATE);
     display_key_helpmsg();
     ctl_file_name(NULL);
     ctl_ncurs_mode_init();
@@ -1069,12 +1065,22 @@ static void ctl_event(CtlEvent *e)
 		break;
 	case CTLE_KEY_OFFSET:
 		ctl_keysig(CTL_STATUS_UPDATE, (int) e->v1);
+		ctl_temper_keysig(CTL_STATUS_UPDATE, (int) e->v1);
 		break;
 	case CTLE_TEMPO:
 		ctl_tempo((int) e->v1, CTL_STATUS_UPDATE);
 		break;
 	case CTLE_TIME_RATIO:
 		ctl_tempo(CTL_STATUS_UPDATE, (int) e->v1);
+		break;
+	case CTLE_TEMPER_KEYSIG:
+		ctl_temper_keysig((int8) e->v1, CTL_STATUS_UPDATE);
+		break;
+	case CTLE_TEMPER_TYPE:
+		ctl_temper_type((int) e->v1, (int8) e->v2);
+		break;
+	case CTLE_MUTE:
+		ctl_mute((int) e->v1, (int) e->v2);
 		break;
       case CTLE_PROGRAM:
 	ctl_program((int)e->v1, (int)e->v2, (char *)e->v3, (unsigned int)e->v4);
@@ -1322,7 +1328,7 @@ static void ctl_note(int status, int ch, int note, int vel)
 	n = '0' + (10 * vel) / 128;
     else
 	n = note_name_char[note % 12];
-    c = (COLS - 24) / 12 * 12;
+    c = (COLS - 28) / 12 * 12;
     if(c <= 0)
 	c = 1;
     note = note % c;
@@ -1394,6 +1400,96 @@ static void ctl_note(int status, int ch, int note, int vel)
 	    waddch(dftwin, ' ');
 	}
     }
+}
+
+static void ctl_temper_keysig(int8 tk, int ko)
+{
+	static int8 lastkeysig = CTL_STATUS_UPDATE;
+	static int lastoffset = CTL_STATUS_UPDATE;
+	static const char *keysig_name[] = {
+		"Cb", "Gb", "Db", "Ab", "Eb", "Bb", " F", " C",
+		" G", " D", " A", " E", " B", "F#", "C#", "G#",
+		"D#", "A#"
+	};
+	int i, j;
+	
+	if (tk == CTL_STATUS_UPDATE)
+		tk = lastkeysig;
+	else
+		lastkeysig = tk;
+	if (ko == CTL_STATUS_UPDATE)
+		ko = lastoffset;
+	else
+		lastoffset = ko;
+	if (ctl_ncurs_mode != NCURS_MODE_TRACE)
+		return;
+	i = tk + ((tk < 8) ? 7 : -6);
+	if (ko > 0)
+		for (j = 0; j < ko; j++)
+			i += (i > 10) ? -5 : 7;
+	else
+		for (j = 0; j < abs(ko); j++)
+			i += (i < 7) ? 5 : -7;
+	wmove(dftwin, TITLE_LINE, COLS - 24);
+	wprintw(dftwin, "%s%c", keysig_name[i], (tk < 8) ? ' ' : 'm');
+	N_ctl_refresh();
+}
+
+static void ctl_temper_type(int ch, int8 tt)
+{
+	if (ch >= display_channels)
+		return;
+	if (tt != CTL_STATUS_UPDATE) {
+		if (ChannelStatus[ch].tt == tt)
+			return;
+		ChannelStatus[ch].tt = tt;
+	} else
+		tt = ChannelStatus[ch].tt;
+	if (ctl_ncurs_mode != NCURS_MODE_TRACE || ch == selected_channel)
+		return;
+	wmove(dftwin, NOTE_LINE + ch, COLS - 23);
+	switch (tt) {
+	case 0:
+		waddch(dftwin, ' ');
+		break;
+	case 1:
+		waddch(dftwin, 'P');
+		break;
+	case 2:
+		waddch(dftwin, 'm');
+		break;
+	case 3:
+		wattron(dftwin, A_BOLD);
+		waddch(dftwin, 'p');
+		wattroff(dftwin, A_BOLD);
+		break;
+	}
+	scr_modified_flag = 1;
+}
+
+static void ctl_mute(int ch, int mute)
+{
+	if (ch >= display_channels)
+		return;
+	if (mute != CTL_STATUS_UPDATE) {
+		if (ChannelStatus[ch].mute == mute)
+			return;
+		ChannelStatus[ch].mute = mute;
+	} else
+		mute = ChannelStatus[ch].mute;
+	if (ctl_ncurs_mode != NCURS_MODE_TRACE)
+		return;
+	wmove(dftwin, NOTE_LINE + ch, 0);
+	if (ch != selected_channel) {
+		wattron(dftwin, (mute) ? A_REVERSE : 0);
+		wprintw(dftwin, "%02d", ch + 1);
+		wattroff(dftwin, (mute) ? A_REVERSE : 0);
+	} else {
+		wattron(dftwin, A_BOLD | ((mute) ? A_REVERSE : 0));
+		wprintw(dftwin, "%02d", ch + 1);
+		wattroff(dftwin, A_BOLD | ((mute) ? A_REVERSE : 0));
+	}
+	scr_modified_flag = 1;
 }
 
 static void ctl_drumpart(int ch, int is_drum)
@@ -1702,7 +1798,7 @@ static void ctl_lcd_mark(int status, int x, int y)
 	return;
     }
 
-    w = (COLS - 24) / 12 * 12;
+    w = (COLS - 28) / 12 * 12;
     if(status == GS_LCD_MARK_CLEAR)
       {
 	int x, y;

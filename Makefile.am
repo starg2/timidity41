@@ -19,31 +19,25 @@
 # This Makefile is known to work with GNU make.
 
 SUBDIRS = \
+	autoconf \
+	configs \
+	doc \
+	script \
 	utils \
 	libarc \
-	interface \
 	libunimod \
-	timidity \
-	doc \
-	script
+	interface \
+	timidity
 
 EXTRA_DIST = \
-	autoconf \
-	AUTHORS \
-	COPYING \
-	ChangeLog \
 	ChangeLog.1 \
-	INSTALL \
 	INSTALL.jp \
-	NEWS \
-	README \
 	README.jp \
 	timidity.ide \
 	timidity.mak \
 	TiMidity-uj.ad \
 	TiMidity.ad \
-	bootstrap.sh \
-	configs
+	bootstrap.sh
 
 TOOLSDIR = timidity-tools
 UMPDIR = ump
@@ -64,10 +58,9 @@ install.bin:
 	cd timidity; $(MAKE) install
 
 dist-hook:
-	CONFIG_HEADERS='' CONFIG_FILES=configs/msc-config.h $(SHELL) ./config.status
-	cp -r configs $(distdir)
-	chmod -R a+r $(distdir)
-	$(AMTAR) chof - $(distdir) | bzip2 -9 - > $(distdir).tar.bz2
+	echo '$(SHELL) ./config.status ; cp $$CONFIG_FILES $(distdir)/$$CONFIG_FILES' \
+	| env CONFIG_HEADERS='' CONFIG_FILES=configs/msc-config.h \
+	$(SHELL) -x
 
 ##
 ## Targets for timidity-tools

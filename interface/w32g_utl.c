@@ -41,6 +41,7 @@
 #include "instrum.h"
 #include "playmidi.h"
 #include "readmidi.h"
+#include "reverb.h"
 #include "output.h"
 #include "controls.h"
 #include "recache.h"
@@ -110,6 +111,19 @@ IniGetKeyInt(char *section, char *key,int *n)
     (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
   if(strcasecmp(buffer,INI_INVALID)){
     *n =atoi(buffer);
+    return 0;
+  } else
+    return 1;
+}
+
+int
+IniGetKeyInt8(char *section, char *key,int8 *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  GetPrivateProfileString
+    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
+  if(strcasecmp(buffer,INI_INVALID)){
+    *n = (int8)atoi(buffer);
     return 0;
   } else
     return 1;
@@ -221,6 +235,16 @@ IniPutKeyInt(char *section, char *key,int *n)
 {
   CHAR buffer[INI_MAXLEN];
   sprintf(buffer,"%ld",*n);
+  WritePrivateProfileString
+    (section,key,buffer,IniFile);
+  return 0;
+}
+
+int
+IniPutKeyInt8(char *section, char *key,int8 *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  sprintf(buffer,"%ld",(int)(*n));
   WritePrivateProfileString
     (section,key,buffer,IniFile);
   return 0;
@@ -458,6 +482,7 @@ static int is_device_output_ID(int id)
 extern int w32g_syn_id_port[];
 extern int syn_ThreadPriority;
 extern int w32g_syn_port_num;
+extern int volatile stream_max_compute;
 #endif
 
 void
@@ -492,19 +517,17 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     opt_chorus_control = st->opt_chorus_control;
 	opt_surround_chorus = st->opt_surround_chorus;
     noise_sharp_type = st->noise_sharp_type;
+	opt_effect_quality = st->opt_effect_quality;
     opt_evil_mode = st->opt_evil_mode;
 	opt_tva_attack = st->opt_tva_attack;
 	opt_tva_decay = st->opt_tva_decay;
 	opt_tva_release = st->opt_tva_release;
 	opt_delay_control = st->opt_delay_control;
-	opt_resonance = st->opt_resonance;
 	opt_lpf_def = st->opt_lpf_def;
-	opt_sf_lpf = st->opt_sf_lpf;
 	opt_drum_effect = st->opt_drum_effect;
+	opt_modulation_envelope = st->opt_modulation_envelope;
 	opt_eq_control = st->opt_eq_control;
 	opt_insertion_effect = st->opt_insertion_effect;
-	opt_env_attack = st->opt_env_attack;
-	opt_velocity_table = st->opt_velocity_table;
     adjust_panning_immediately = SetFlag(st->adjust_panning_immediately);
     fast_decay = SetFlag(st->fast_decay);
 #ifdef SUPPORT_SOUNDSPEC
@@ -537,6 +560,7 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     voices = SetValue(st->voices, 1, MAX_VOICES);
 	auto_reduce_polyphony = st->auto_reduce_polyphony;
     quietchannels = st->quietchannels;
+    temper_type_mute = st->temper_type_mute;
     if(opt_aq_max_buff)
 	free(opt_aq_max_buff);
     if(opt_aq_fill_buff)
@@ -570,7 +594,8 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
 	control_ratio = SetValue(control_ratio, 1, MAX_CONTROL_RATIO);
     }
-	opt_drum_power = st->opt_drum_power;
+	opt_drum_power = SetValue(st->opt_drum_power, 0, MAX_AMPLIFICATION);
+	opt_amp_compensation = st->opt_amp_compensation;
     data_block_bits = st->data_block_bits;
     data_block_num = st->data_block_num;
 
@@ -580,6 +605,7 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	}
 	syn_ThreadPriority = st->syn_ThreadPriority;
 	w32g_syn_port_num = st->SynPortNum;
+	stream_max_compute = st->SynShTime;
 #endif
 }
 
@@ -612,15 +638,13 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_tva_decay = opt_tva_decay;
 	st->opt_tva_release = opt_tva_release;
 	st->opt_delay_control = opt_delay_control;
-	st->opt_resonance = opt_resonance;
 	st->opt_lpf_def = opt_lpf_def;
-	st->opt_sf_lpf = opt_sf_lpf;
 	st->opt_drum_effect = opt_drum_effect;
+	st->opt_modulation_envelope = opt_modulation_envelope;
 	st->opt_eq_control = opt_eq_control;
 	st->opt_insertion_effect = opt_insertion_effect;
-	st->opt_env_attack = opt_env_attack;
-	st->opt_velocity_table = opt_velocity_table;
     st->noise_sharp_type = noise_sharp_type;
+	st->opt_effect_quality = opt_effect_quality;
     st->opt_evil_mode = SetFlag(opt_evil_mode);
     st->adjust_panning_immediately = SetFlag(adjust_panning_immediately);
     st->fast_decay = SetFlag(fast_decay);
@@ -685,11 +709,13 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
     st->voices = SetValue(voices, 1, MAX_VOICES);
 	st->auto_reduce_polyphony = auto_reduce_polyphony;
     st->quietchannels = quietchannels;
+    st->temper_type_mute = temper_type_mute;
     snprintf(st->opt_qsize,sizeof(st->opt_qsize),"%s/%s",
 	     opt_aq_max_buff,opt_aq_fill_buff);
     st->modify_release = SetValue(modify_release, 0, MAX_MREL);
     st->allocate_cache_size = allocate_cache_size;
-	st->opt_drum_power = opt_drum_power;
+	st->opt_drum_power = SetValue(opt_drum_power, 0, MAX_AMPLIFICATION);
+	st->opt_amp_compensation = opt_amp_compensation;
 	st->key_adjust = key_adjust;
 	st->opt_force_keysig = opt_force_keysig;
 	st->opt_pure_intonation = opt_pure_intonation;
@@ -721,6 +747,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	}
 	st->syn_ThreadPriority = syn_ThreadPriority;
 	st->SynPortNum = w32g_syn_port_num;
+	st->SynShTime = stream_max_compute;
 #endif
 }
 

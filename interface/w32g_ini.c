@@ -139,15 +139,13 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_tva_decay",&(st->opt_tva_decay));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_tva_release",&(st->opt_tva_release));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_delay_control",&(st->opt_delay_control));
-	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_resonance",&(st->opt_resonance));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_lpf_def",&(st->opt_lpf_def));
-	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_sf_lpf",&(st->opt_sf_lpf));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_drum_effect",&(st->opt_drum_effect));
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_modulation_envelope",&(st->opt_modulation_envelope));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_eq_control",&(st->opt_eq_control));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_insertion_effect",&(st->opt_insertion_effect));
-	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_velocity_table",&(st->opt_velocity_table));
-	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_env_attack",&(st->opt_env_attack));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"noise_sharp_type",&(st->noise_sharp_type));
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_effect_quality",&(st->opt_effect_quality));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_evil_mode",&(st->opt_evil_mode));
     IniGetKeyInt(INI_SEC_TIMIDITY,"adjust_panning_immediately",&(st->adjust_panning_immediately));
     IniGetKeyInt(INI_SEC_TIMIDITY,"fast_decay",&(st->fast_decay));
@@ -158,7 +156,8 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 #endif
     IniGetKeyIntArray(INI_SEC_TIMIDITY,"default_program",st->default_program,MAX_CHANNELS);
     IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_ctl",st->opt_ctl,sizeof(st->opt_ctl)-1);
-	IniGetKeyFloat(INI_SEC_TIMIDITY,"opt_drum_power",&(st->opt_drum_power));
+	IniGetKeyInt32(INI_SEC_TIMIDITY,"opt_drum_power",&(st->opt_drum_power));
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_amp_compensation",&(st->opt_amp_compensation));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_realtime_playing",&(st->opt_realtime_playing));
     IniGetKeyInt(INI_SEC_TIMIDITY,"reduce_voice_threshold",&(st->reduce_voice_threshold));
     IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode)-1);
@@ -168,14 +167,15 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
     IniGetKeyInt(INI_SEC_TIMIDITY,"auto_reduce_polyphony",&(st->auto_reduce_polyphony));
     IniGetKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
+	IniGetKeyInt(INI_SEC_TIMIDITY,"temper_type_mute",&(st->temper_type_mute));
     IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize)-1);
     IniGetKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
     IniGetKeyStringN(INI_SEC_TIMIDITY,"allocate_cache_size",buff,sizeof(buff)-1);
     st->allocate_cache_size = str2size(buff);
 	IniGetKeyInt(INI_SEC_TIMIDITY,"key_adjust",&(st->key_adjust));
-	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_force_keysig",&(st->opt_force_keysig));
+	IniGetKeyInt8(INI_SEC_TIMIDITY,"opt_force_keysig",&(st->opt_force_keysig));
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_pure_intonation",&(st->opt_pure_intonation));
-	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_init_keysig",&(st->opt_init_keysig));
+	IniGetKeyInt8(INI_SEC_TIMIDITY,"opt_init_keysig",&(st->opt_init_keysig));
     IniGetKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
     IniGetKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,sizeof(st->output_text_code)-1);
     IniGetKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
@@ -191,6 +191,8 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyIntArray(INI_SEC_TIMIDITY,"SynIDPort",st->SynIDPort,MAX_PORT);
     IniGetKeyInt(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
     IniGetKeyInt(INI_SEC_TIMIDITY,"SynPortNum",&(st->SynPortNum));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
+		if ( st->SynShTime < 0 ) st->SynShTime = 0;
 #endif
 }
 
@@ -273,15 +275,13 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_tva_decay",&(st->opt_tva_decay));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_tva_release",&(st->opt_tva_release));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_delay_control",&(st->opt_delay_control));
-	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_resonance",&(st->opt_resonance));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_lpf_def",&(st->opt_lpf_def));
-	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_sf_lpf",&(st->opt_sf_lpf));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_drum_effect",&(st->opt_drum_effect));
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_modulation_envelope",&(st->opt_modulation_envelope));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_eq_control",&(st->opt_eq_control));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_insertion_effect",&(st->opt_insertion_effect));
-	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_velocity_table",&(st->opt_velocity_table));
-	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_env_attack",&(st->opt_env_attack));
     IniPutKeyInt(INI_SEC_TIMIDITY,"noise_sharp_type",&(st->noise_sharp_type));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_effect_quality",&(st->opt_effect_quality));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_evil_mode",&(st->opt_evil_mode));
     IniPutKeyInt(INI_SEC_TIMIDITY,"adjust_panning_immediately",&(st->adjust_panning_immediately));
     IniPutKeyInt(INI_SEC_TIMIDITY,"fast_decay",&(st->fast_decay));
@@ -292,7 +292,8 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 #endif
     IniPutKeyIntArray(INI_SEC_TIMIDITY,"default_program",st->default_program,MAX_CHANNELS);
     IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_ctl",st->opt_ctl,sizeof(st->opt_ctl));
-    IniPutKeyFloat(INI_SEC_TIMIDITY,"opt_drum_power",st->opt_drum_power);
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"opt_drum_power",&(st->opt_drum_power));
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_amp_compensation",&(st->opt_amp_compensation));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_realtime_playing",&(st->opt_realtime_playing));
     IniPutKeyInt(INI_SEC_TIMIDITY,"reduce_voice_threshold",&(st->reduce_voice_threshold));
     IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode));
@@ -302,13 +303,14 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
     IniPutKeyInt(INI_SEC_TIMIDITY,"auto_reduce_polyphony",&(st->auto_reduce_polyphony));
     IniPutKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
+	IniPutKeyInt(INI_SEC_TIMIDITY,"temper_type_mute",&(st->temper_type_mute));
     IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize));
     IniPutKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
     IniPutKeyInt32(INI_SEC_TIMIDITY,"allocate_cache_size",&(st->allocate_cache_size));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"key_adjust",&(st->key_adjust)); 
-	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_force_keysig",&(st->opt_force_keysig));
+	IniPutKeyInt8(INI_SEC_TIMIDITY,"opt_force_keysig",&(st->opt_force_keysig));
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_pure_intonation",&(st->opt_pure_intonation));
-	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_init_keysig",&(st->opt_init_keysig));
+	IniPutKeyInt8(INI_SEC_TIMIDITY,"opt_init_keysig",&(st->opt_init_keysig));
     IniPutKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
     if(st->output_rate == 0)
 	st->output_rate = play_mode->rate;
@@ -324,6 +326,7 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyIntArray(INI_SEC_TIMIDITY,"SynIDPort",st->SynIDPort,MAX_PORT);
     IniPutKeyInt(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynPortNum",&(st->SynPortNum));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
 #endif
 	IniFlush();
 		 w32g_has_ini_file = 1;

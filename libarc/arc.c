@@ -74,6 +74,7 @@ static struct
     {".tar.gz",	ARCHIVE_TGZ},
     {".tgz",	ARCHIVE_TGZ},
     {".zip",	ARCHIVE_ZIP},
+    {".neo",	ARCHIVE_ZIP},
     {".lzh",	ARCHIVE_LZH},
     {".lha",	ARCHIVE_LZH},
     {".mime",	ARCHIVE_MIME},

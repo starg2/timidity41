@@ -113,7 +113,9 @@ struct midi_file_info
 extern int32 readmidi_set_track(int trackno, int rewindp);
 extern void readmidi_add_event(MidiEvent *newev);
 extern void readmidi_add_ctl_event(int32 at, int ch, int control, int val);
+extern void readmidi_add_ctl_event_layer(int32 at, int ch, int control, int val);
 extern int parse_sysex_event(uint8 *data, int32 datalen, MidiEvent *ev_ret);
+extern int parse_sysex_event_multi(uint8 *data, int32 datalen, MidiEvent *ev_ret);
 extern int convert_midi_control_change(int chn, int type, int val,
 				       MidiEvent *ev_ret);
 extern char *readmidi_make_string_event(int type, char *string, MidiEvent *ev,
@@ -143,5 +145,21 @@ extern int readmidi_error_flag;
 extern int readmidi_wrd_mode;
 extern int play_system_mode;
 extern FLOAT_T tempo_adjust;
+
+extern void recompute_delay_status();
+extern void set_delay_macro(int macro);
+extern void recompute_chorus_status();
+extern void set_chorus_macro(int macro);
+extern void recompute_reverb_status();
+extern void set_reverb_macro(int macro);
+extern void recompute_eq_status();
+extern void set_insertion_effect_default_parameter();
+extern void recompute_insertion_effect();
+
+extern void recompute_userdrum(int bank, int prog);
+extern void free_userdrum();
+
+extern void recompute_userinst(int bank, int prog);
+extern void free_userinst();
 
 #endif /* ___READMIDI_H_ */

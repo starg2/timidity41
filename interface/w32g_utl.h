@@ -118,19 +118,17 @@ typedef struct SETTING_TIMIDITY_ {
     int opt_reverb_control;	// E Freverb
     int opt_chorus_control;	// E Fchorus
     int noise_sharp_type;	// E Fns
+	int opt_effect_quality;	// E ?
 	int opt_surround_chorus; // E ?
 	int opt_tva_attack;			// E ?
 	int opt_tva_decay;			// E ?
 	int opt_tva_release;		// E ?
 	int opt_delay_control;		// E ?
-	int opt_resonance;			// E ?
 	int opt_lpf_def;			// E ?
-	int opt_sf_lpf;			// E ?
 	int opt_drum_effect;			// E ?
+	int opt_modulation_envelope;			// E ?
 	int opt_eq_control;			// E ?
 	int opt_insertion_effect;	// E ?
-	int opt_env_attack;			// E ?
-	int opt_velocity_table;		// E ?
     int opt_evil_mode;		// e
     int adjust_panning_immediately; // F
     int fast_decay;		// f
@@ -152,10 +150,12 @@ typedef struct SETTING_TIMIDITY_ {
     int voices;			// p
     int auto_reduce_polyphony;  // pa
     ChannelBitMask quietchannels; // Q
+    int temper_type_mute;	// Q
     char opt_qsize[16];		// q
     int32 modify_release;	// R
     int32 allocate_cache_size;	// S
-	double opt_drum_power;	// ?
+	int32 opt_drum_power;	// ?
+	int32 opt_amp_compensation;	// ?
 	int key_adjust;		// K
 	int8 opt_force_keysig;	// H
 	int opt_pure_intonation;	// Z
@@ -177,6 +177,7 @@ typedef struct SETTING_TIMIDITY_ {
 		int SynIDPort[MAX_PORT];
 		int syn_ThreadPriority;
 		int SynPortNum;
+		int SynShTime;
 #endif
 } SETTING_TIMIDITY;
 
@@ -220,6 +221,7 @@ extern int TracerFontSize;
 extern int IniGetKeyInt32(char *section, char *key,int32 *n);
 extern int IniGetKeyInt32Array(char *section, char *key, int32 *n, int arraysize);
 extern int IniGetKeyInt(char *section, char *key, int *n);
+extern int IniGetKeyInt8(char *section, char *key, int8 *n);
 extern int IniGetKeyChar(char *section, char *key, char *c);
 extern int IniGetKeyIntArray(char *section, char *key, int *n, int arraysize);
 extern int IniGetKeyString(char *section, char *key,char *str);
@@ -228,6 +230,7 @@ extern int IniGetKeyFloat(char *section, char *key, FLOAT_T *n);
 extern int IniPutKeyInt32(char *section, char *key,int32 *n);
 extern int IniPutKeyInt32Array(char *section, char *key, int32 *n, int arraysize);
 extern int IniPutKeyInt(char *section, char *key, int *n);
+extern int IniPutKeyInt8(char *section, char *key, int8 *n);
 extern int IniPutKeyChar(char *section, char *key, char *c);
 extern int IniPutKeyIntArray(char *section, char *key, int *n, int arraysize);
 extern int IniPutKeyString(char *section, char *key, char *str);

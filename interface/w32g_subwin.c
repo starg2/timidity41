@@ -541,9 +541,12 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				break;
 			case IDM_LISTWND_PLAY:
 				{
-					HWND hListBox = GetDlgItem(hListWnd, IDC_LISTBOX_PLAYLIST);
-					if(hListBox)
-						w32g_send_rc(RC_EXT_JUMP_FILE, ListBox_GetCurSel(hListBox));
+					int new_cursel =  SendDlgItemMessage(hwnd,IDC_LISTBOX_PLAYLIST,LB_GETCURSEL,0,0);
+					int selected, nfiles, cursel;
+					w32g_get_playlist_index(&selected, &nfiles, &cursel);
+					if ( nfiles <= new_cursel ) new_cursel = nfiles - 1;
+					if ( new_cursel >= 0 )
+						w32g_send_rc(RC_EXT_JUMP_FILE, new_cursel );
 				}
 				return FALSE;
 			case IDM_LISTWND_CHOOSEFONT:
@@ -835,19 +838,18 @@ static int ListWndInfoReset(HWND hwnd)
 	ListWndInfo.hwnd = hwnd;
 	if ( hwnd != NULL )
 		ListWndInfo.hwndListBox = GetDlgItem(hwnd,IDC_LISTBOX_PLAYLIST);
+	strcpy(ListWndInfo.fontNameEN,"Times New Roman");
+	strcpy(ListWndInfo.fontNameJA,"‚l‚r –¾’©");
+	ListWndInfo.fontHeight = 12;
+	ListWndInfo.fontWidth = 6;
+	ListWndInfo.fontFlags = FONT_FLAGS_FIXED;
 	switch(PlayerLanguage){
 	case LANGUAGE_ENGLISH:
-		strcpy(ListWndInfo.fontName,"Times New Roman");
-		ListWndInfo.fontHeight = 12;
-		ListWndInfo.fontWidth = 6;
-		ListWndInfo.fontFlags = FONT_FLAGS_NONE;
+		ListWndInfo.fontName = ListWndInfo.fontNameEN;
 		break;
 	default:
 	case LANGUAGE_JAPANESE:
-		strcpy(ListWndInfo.fontName,"‚l‚r –¾’©");
-		ListWndInfo.fontHeight = 12;
-		ListWndInfo.fontWidth = 6;
-		ListWndInfo.fontFlags = FONT_FLAGS_FIXED;
+		ListWndInfo.fontName = ListWndInfo.fontNameJA;
 		break;
 	}
 	return 0;
@@ -1193,20 +1195,19 @@ static int DocWndInfoReset2(HWND hwnd)
 	DocWndInfo.hPopupMenu = NULL;
 	DocWndInfo.hwnd = hwnd;
 	if ( hwnd != NULL )
-		DocWndInfo.hwndEdit = GetDlgItem(hwnd,IDC_EDIT);
+	DocWndInfo.hwndEdit = GetDlgItem(hwnd,IDC_EDIT);
+	strcpy(DocWndInfo.fontNameEN,"Times New Roman");
+	strcpy(DocWndInfo.fontNameJA,"‚l‚r –¾’©");
+	DocWndInfo.fontHeight = 12;
+	DocWndInfo.fontWidth = 6;
+	DocWndInfo.fontFlags = FONT_FLAGS_FIXED;
 	switch(PlayerLanguage){
 	case LANGUAGE_ENGLISH:
-		strcpy(DocWndInfo.fontName,"Times New Roman");
-		DocWndInfo.fontHeight = 12;
-		DocWndInfo.fontWidth = 6;
-		DocWndInfo.fontFlags = FONT_FLAGS_NONE;
+		DocWndInfo.fontName = DocWndInfo.fontNameEN; 
 		break;
 	default:
 	case LANGUAGE_JAPANESE:
-		strcpy(DocWndInfo.fontName,"‚l‚r –¾’©");
-		DocWndInfo.fontHeight = 12;
-		DocWndInfo.fontWidth = 6;
-		DocWndInfo.fontFlags = FONT_FLAGS_FIXED;
+		DocWndInfo.fontName = DocWndInfo.fontNameJA; 
 		break;
 	}
 	return 0;

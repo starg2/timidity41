@@ -1,6 +1,6 @@
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
-/* Define to 1 if you use cubic-spline complemention. */
+/* Define to 1 if you use cubic-spline interpolation. */
 #undef CSPLINE_INTERPOLATION
 
 /* Define to 1 if you are in debug mode */
@@ -14,6 +14,9 @@
 
 /* Define to 1 if you enable Sherry WRD */
 #undef ENABLE_SHERRY
+
+/* Define to 1 if you use Gauss interpolation. */
+#undef GAUSS_INTERPOLATION
 
 /* Define to 1 if you have the `alarm' function. */
 #undef HAVE_ALARM
@@ -112,9 +115,6 @@
 /* Define to 1 if you have the <machine/endian.h> header file. */
 #undef HAVE_MACHINE_ENDIAN_H
 
-/* Define to 1 if your system has a working `malloc' function. */
-#undef HAVE_MALLOC
-
 /* Define to 1 if you have the <malloc.h> header file. */
 #undef HAVE_MALLOC_H
 
@@ -193,6 +193,9 @@
 /* Define to 1 if you have the `sqrt' function. */
 #undef HAVE_SQRT
 
+/* Define to 1 if stdbool.h conforms to C99. */
+#undef HAVE_STDBOOL_H
+
 /* Define to 1 if you have the <stddef.h> header file. */
 #undef HAVE_STDDEF_H
 
@@ -213,6 +216,9 @@
 
 /* Define to 1 if you have the `strerror' function. */
 #undef HAVE_STRERROR
+
+/* Define to 1 if cpp supports the ANSI # stringizing operator. */
+#undef HAVE_STRINGIZE
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -327,14 +333,20 @@
 /* Define to 1 if you have the `XShmCreatePixmap' function. */
 #undef HAVE_XSHMCREATEPIXMAP
 
-/* Define to 1 if you use lagrange complemention. */
+/* Define to 1 if the system has the type `_Bool'. */
+#undef HAVE__BOOL
+
+/* Define to 1 if you use Lagrange-polynomial interpolation. */
 #undef LAGRANGE_INTERPOLATION
 
-/* Define to 1 if you use linear complemention. */
+/* Define to 1 if you use linear interpolation. */
 #undef LINEAR_INTERPOLATION
 
 /* Define to 1 if you are NOT in debug mode */
 #undef NDEBUG
+
+/* Define to 1 if you use Newton-polynomial interpolation. */
+#undef NEWTON_INTERPOLATION
 
 /* Define to 1 if you do not use complemention. */
 #undef NO_INTERPOLATION
@@ -374,6 +386,9 @@
 
 /* place to install modules */
 #undef PKGLIBDIR
+
+/* Define to 1 if the C compiler supports function prototypes. */
+#undef PROTOTYPES
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
@@ -431,6 +446,9 @@
 # undef __CHAR_UNSIGNED__
 #endif
 
+/* Define like PROTOTYPES; this can be used by system headers. */
+#undef __PROTOTYPES
+
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
@@ -449,3 +467,7 @@
 
 /* Define as `fork' if `vfork' does not work. */
 #undef vfork
+
+/* Define to empty if the keyword `volatile' does not work. Warning: valid
+   code using `volatile' can become incorrect without. Disable with care. */
+#undef volatile

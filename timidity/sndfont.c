@@ -69,7 +69,7 @@
 /*#define SF_SUPPRESS_ENVELOPE*/
 /*#define SF_SUPPRESS_TREMOLO*/
 /*#define SF_SUPPRESS_VIBRATO*/
-#define CUTOFF_AMPTUNING 0.6
+#define SF_EMULATE_SBLIVE
 
 /* return value */
 #define AWE_RET_OK		0	/* successfully loaded */
@@ -92,21 +92,24 @@ typedef struct _SampleList {
 	int32 start;
 	int32 len;
 	int32 cutoff_freq;
-	FLOAT_T resonance;
-	double resonance_dB;
-	int16 param_resonance;
-	int16 scaleTuning;	/* pitch scale tuning(%), normally 100 */
+	int16 resonance;
 	int16 root, tune;
 	char low, high;		/* key note range */
 	int8 reverb_send,chorus_send;
 
 	/* Depend on play_mode->rate */
 	int32 vibrato_freq;
-	double attack;
-	double hold;
-	int sustain;
-	double decay;
-	double release;
+	int32 attack;
+	int32 hold;
+	int32 sustain;
+	int32 decay;
+	int32 release;
+
+	int32 modattack;
+	int32 modhold;
+	int32 modsustain;
+	int32 moddecay;
+	int32 modrelease;
 } SampleList;
 
 typedef struct _InstList {
@@ -188,14 +191,14 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl);
 static int abscent_to_Hz(int abscents);
 static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl);
 static void set_rootfreq(SampleList *vp);
+static int32 to_offset(int32 offset);
+static int32 to_rate(int32 diff, int timecent);
+static int32 calc_rate(int32 diff, double msec);
 static double to_msec(int timecent);
-static int32 to_offset(int offset);
-static int32 calc_rate(int diff, double msec);
 static int32 calc_sustain(int sust_cB);
 static void convert_volume_envelope(SampleList *vp, LayerTable *tbl);
 static void convert_tremolo(SampleList *vp, LayerTable *tbl);
 static void convert_vibrato(SampleList *vp, LayerTable *tbl);
-static void do_lowpass(Sample *sp, int32 freq, FLOAT_T resonance);
 
 /*----------------------------------------------------------------*/
 
@@ -476,17 +479,58 @@ Instrument *load_soundfont_inst(int order,
 static FLOAT_T calc_volume(LayerTable *tbl)
 {
     int v;
+
     if(!tbl->set[SF_initAtten] || tbl->val[SF_initAtten] == 0)
 	return (FLOAT_T)1.0;
-    v = tbl->val[SF_initAtten];
-    if(v < 0)
-	return (FLOAT_T)1.0;
-    if(v > 956)
-	return (FLOAT_T)0.0;
 
-    v = v * 127 / 956;		/* 0..127 */
+	v = tbl->val[SF_initAtten];
+    if(v < 0) {v = 0;}
+    else if(v > 960) {v = 960;}
+	return cb_to_amp_table[v];
+}
 
-    return vol_table[127 - v];
+/* convert from 16bit value to fractional offset (15.15) */
+static int32 to_offset(int32 offset)
+{
+	return offset << 14;
+}
+
+#define SF_ENVRATE_MAX (0x3FFFFFFFL)
+#define SF_ENVRATE_MIN (1L)
+
+/* calculate ramp rate in fractional unit;
+ * diff = 16bit, time = msec
+ */
+static int32 calc_rate(int32 diff, double msec)
+{
+    double rate;
+
+    if(msec == 0) {return (int32)SF_ENVRATE_MAX + 1;}
+    if(diff <= 0) {diff = 1;}
+    diff <<= 14;
+    rate = ((double)diff / play_mode->rate) * control_ratio * 1000.0 / msec;
+    if(fast_decay) {rate *= 2;}
+	if(rate > SF_ENVRATE_MAX) {rate = SF_ENVRATE_MAX;}
+	else if(rate < SF_ENVRATE_MIN) {rate = SF_ENVRATE_MIN;}
+    return (int32)rate;
+}
+
+/* calculate ramp rate in fractional unit;
+ * diff = 16bit, timecent
+ */
+static int32 to_rate(int32 diff, int timecent)
+{
+    double rate;
+
+    if(timecent == -12000)	/* instantaneous attack */
+	{return (int32)SF_ENVRATE_MAX + 1;}
+    if(diff <= 0) {diff = 1;}
+    diff <<= 14;
+    rate = (double)diff * control_ratio / play_mode->rate / pow(2.0, (double)timecent / 1200.0);
+    if(fast_decay) {rate *= 2;}
+	if(rate > SF_ENVRATE_MAX) {rate = SF_ENVRATE_MAX;}
+	else if(rate < SF_ENVRATE_MIN) {rate = SF_ENVRATE_MIN;}
+    return (int32)rate;
 }
 
 /*
@@ -494,31 +538,7 @@ static FLOAT_T calc_volume(LayerTable *tbl)
  */
 static double to_msec(int timecent)
 {
-    return 1000.0 * pow(2.0, (double)timecent / 1200.0);
-}
-
-/* convert from 8bit value to fractional offset (15.15) */
-static int32 to_offset(int offset)
-{
-	return (int32)offset << (7+15);
-}
-
-/* calculate ramp rate in fractional unit;
- * diff = 8bit, time = msec
- */
-static int32 calc_rate(int diff, double msec)
-{
-    double rate;
-
-    if(msec < 6)
-	msec = 6;
-    if(diff == 0)
-	diff = 255;
-    diff <<= (7+15);
-    rate = ((double)diff / play_mode->rate) * control_ratio * 1000.0 / msec;
-    if(fast_decay)
-	rate *= 2;
-    return (int32)rate;
+    return timecent == -12000 ? 0 : 1000.0 * pow(2.0, (double)timecent / 1200.0);
 }
 
 /*
@@ -528,13 +548,10 @@ static int32 calc_rate(int diff, double msec)
  */
 static int32 calc_sustain(int sust_cB)
 {
-    double level;
-    if(sust_cB <= 0)
-	return 255;
-    level = (double)sust_cB;
-    if(level >= 1000)
-	return 1;
-    return TO_VOLUME(level);
+	int32 sustain;
+	if(sust_cB <= 0) {return 65533;}
+	else if(sust_cB >= 1000) {return 0;}
+	else {return (1000 - sust_cB) * 65533 / 1000;}
 }
 
 static Instrument *load_from_file(SFInsts *rec, InstList *ip)
@@ -542,6 +559,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 	SampleList *sp;
 	Instrument *inst;
 	int i;
+	int32 len;
 
 	if(ip->pat.bank == 128)
 	    ctl->cmsg(CMSG_INFO, VERB_NOISY,
@@ -579,40 +597,43 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 			  sp->v.panning);
 		memcpy(sample, &sp->v, sizeof(Sample));
 
-		/* convert mHz to control ratio */
-		sample->vibrato_control_ratio = sp->vibrato_freq *
-		    (VIBRATO_RATE_TUNING * play_mode->rate) /
-			(2 * VIBRATO_SAMPLE_INCREMENTS);
+		/* convert envelope parameters */
+		sample->envelope_offset[0] = to_offset(65535);
+		sample->envelope_rate[0] = sp->attack;
 
-		/* convert envelop parameters */
-		sample->envelope_offset[0] = to_offset(255);
-		sample->envelope_rate[0] = calc_rate(255, sp->attack);
-
-		sample->envelope_offset[1] = to_offset(250);
-		sample->envelope_rate[1] = calc_rate(5, sp->hold);
+		sample->envelope_offset[1] = to_offset(65534);
+		sample->envelope_rate[1] = sp->hold;
 
 		sample->envelope_offset[2] = to_offset(sp->sustain);
-		sample->envelope_rate[2] = calc_rate(250 - sp->sustain, sp->decay);
+		sample->envelope_rate[2] = sp->decay;
 
-		sample->envelope_offset[3] = to_offset(5);
-		sample->envelope_rate[3] = calc_rate(255, sp->release);
+		sample->envelope_offset[3] = 0;
+		sample->envelope_rate[3] = sp->release;
 
-		sample->envelope_offset[4] = to_offset(4);
-		sample->envelope_rate[4] = to_offset(200);
+		sample->envelope_offset[4] = 0;
+		sample->envelope_rate[4] = sp->release;
 
-		sample->envelope_offset[5] = to_offset(4);
-		sample->envelope_rate[5] = to_offset(200);
+		sample->envelope_offset[5] = 0;
+		sample->envelope_rate[5] = sp->release;
 
-#if 0
-		sample->envelope_offset[3] = to_offset(1);
-		sample->envelope_rate[3] = calc_rate(sp->sustain, sp->release);
+		/* convert modulation envelope parameters */
+		sample->modenv_offset[0] = to_offset(65535);
+		sample->modenv_rate[0] = sp->modattack;
 
-		sample->envelope_offset[4] = sp->v.envelope_offset[3];
-		sample->envelope_rate[4] = sp->v.envelope_rate[3];
+		sample->modenv_offset[1] = to_offset(65534);
+		sample->modenv_rate[1] = sp->modhold;
 
-		sample->envelope_offset[5] = sp->v.envelope_offset[4];
-		sample->envelope_rate[5] = sp->v.envelope_rate[4];
-#endif
+		sample->modenv_offset[2] = to_offset(sp->modsustain);
+		sample->modenv_rate[2] = sp->moddecay;
+
+		sample->modenv_offset[3] = 0;
+		sample->modenv_rate[3] = sp->modrelease;
+
+		sample->modenv_offset[4] = 0;
+		sample->modenv_rate[4] = sp->modrelease;
+
+		sample->modenv_offset[5] = 0;
+		sample->modenv_rate[5] = sp->modrelease;
 
 		if(i > 0 && (!sample->note_to_use ||
 			     (sample->modes & MODES_LOOPING)))
@@ -629,7 +650,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 			if(sp->start == sps->start)
 			{
 			    if(sp->cutoff_freq != sps->cutoff_freq ||
-			       sp->resonance != sps->cutoff_freq)
+			       sp->resonance != sps->resonance)
 				continue;
 			    if(antialiasing_allowed)
 			    {
@@ -652,7 +673,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 		    }
 		}
 
-		sample->data = (sample_t *)safe_malloc(sp->len);
+		sample->data = (sample_t *)safe_malloc(sp->len + 2 * 3);
 		sample->data_alloced = 1;
 
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
@@ -668,33 +689,21 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 
 		tf_seek(rec->tf, sp->start, SEEK_SET);
 		tf_read(sample->data, sp->len, 1, rec->tf);
+
 #ifndef LITTLE_ENDIAN
 		tmp = (int16*)sample->data;
-		k = sp->len/2;
+		k = sp->len / 2;
 		for (j = 0; j < k; j++) {
 			s = LE_SHORT(*tmp);
 			*tmp++ = s;
 		}
 #endif
+		/* set a small blank loop at the tail for avoiding abnormal loop. */
+		len = sp->len / 2;
+		sample->data[len] = sample->data[len + 1] = sample->data[len + 2] = 0;
 
-		/* #extension cutoff / resonance */
-		if(opt_lpf_def) {
-			if(sp->cutoff_freq > 0) {sample->cutoff_freq = sp->cutoff_freq;}
-			if(sp->param_resonance > 0) {sample->resonance = sp->param_resonance;}
-			if(sp->resonance_dB > 0) {sample->resonance_dB = sp->resonance_dB;}
-		}
-
-		/* do some filtering if necessary */
-		if (opt_sf_lpf && !opt_lpf_def && sp->cutoff_freq > 0) {
-			/* restore the normal value */
-			sample->data_length >>= FRACTION_BITS;
-			ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-				  " * Filter: cutoff=%dHz resonance=%g",
-				  ip->pat.bank, ip->pat.preset, ip->pat.keynote, sp->cutoff_freq, sp->resonance);
-			do_lowpass(sample, sp->cutoff_freq, sp->resonance);
-			/* convert again to the fractional value */
-			sample->data_length <<= FRACTION_BITS;
-		}
+		if(sp->cutoff_freq > 0) {sample->cutoff_freq = sp->cutoff_freq;}
+		if(sp->resonance > 0) {sample->resonance = sp->resonance;}
 
 		if (antialiasing_allowed)
 		    antialiasing((int16 *)sample->data,
@@ -1171,6 +1180,7 @@ static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
 
 	} /* for(;;) */
 
+
 	if(done==0)
 	return AWE_RET_SKIP;
 	else
@@ -1204,6 +1214,7 @@ static void make_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
     SFSampleInfo *sp = &sf->sample[tbl->val[SF_sampleId]];
+	int i;
 
     /* set sample position */
     vp->start = (tbl->val[SF_startAddrsHi] << 15)
@@ -1225,11 +1236,13 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	+ sp->endloop - vp->start;
 
     /* set data length */
-    vp->v.data_length = vp->len;
-    if(vp->v.loop_end > vp->len)
-	vp->v.loop_end = vp->len;
+    vp->v.data_length = vp->len + 1;
+    if(vp->v.loop_end > vp->len + 1)
+	vp->v.loop_end = vp->len + 1;
 
     /* Sample rate */
+	if(sp->samplerate > 50000) {sp->samplerate = 50000;}
+	else if(sp->samplerate < 400) {sp->samplerate = 400;}
     vp->v.sample_rate = sp->samplerate;
 
     /* sample mode */
@@ -1237,28 +1250,23 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 
     /* volume envelope & total volume */
     vp->v.volume = calc_volume(tbl) * current_sfrec->amptune;
-    if(tbl->val[SF_sampleFlags] == 1 || tbl->val[SF_sampleFlags] == 3)
-    {
-	/* looping */
-	vp->v.modes |= MODES_LOOPING|MODES_SUSTAIN;
+
 #ifndef SF_SUPPRESS_ENVELOPE
 	convert_volume_envelope(vp, tbl);
 #endif /* SF_SUPPRESS_ENVELOPE */
-	if(tbl->val[SF_sampleFlags] == 3)
-	    vp->v.data_length = vp->v.loop_end; /* strip the tail */
-    }
+
+    if(tbl->val[SF_sampleFlags] == 1 || tbl->val[SF_sampleFlags] == 3)
+    {
+		/* looping */
+		vp->v.modes |= MODES_LOOPING | MODES_SUSTAIN;
+		if(tbl->val[SF_sampleFlags] == 3)
+			vp->v.data_length = vp->v.loop_end; /* strip the tail */
+	}
     else
     {
-#if 0 /* What?? */
-	/* short-shot; set a small blank loop at the tail */
-	if (sp->loopshot > 8) {
-	    vp->loopstart = sp->endsample + 8 - sp->startloop;
-	    vp->loopend = sp->endsample + sp->loopshot - 8 - sp->endloop;
-	} else {
-	    fprintf(stderr, "loop size is too short: %d\n", sp->loopshot);
-	    exit(1);
-	}
-#endif
+		/* set a small blank loop at the tail for avoiding abnormal loop. */
+		vp->v.loop_start = vp->len;
+		vp->v.loop_end = vp->len + 1;
     }
 
     /* convert to fractional samples */
@@ -1269,6 +1277,16 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     /* point to the file position */
     vp->start = vp->start * 2 + sf->samplepos;
     vp->len *= 2;
+
+	vp->v.vel_to_fc = -2400;	/* SF2 default value */
+	vp->v.key_to_fc = vp->v.vel_to_resonance = 0;
+	vp->v.envelope_velf_bpo = vp->v.modenv_velf_bpo =
+		vp->v.vel_to_fc_threshold = 64;
+	vp->v.key_to_fc_bpo = 60;
+	memset(vp->v.envelope_velf, 0, sizeof(vp->v.envelope_velf));
+	memset(vp->v.modenv_velf, 0, sizeof(vp->v.modenv_velf));
+
+	vp->v.inst_type = INST_SF2;
 }
 
 /*----------------------------------------------------------------*/
@@ -1276,7 +1294,7 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 /* set global information */
 static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
-    int val,pan;
+    int val, pan, i;
     SFSampleInfo *sample;
     sample = &sf->sample[tbl->val[SF_sampleId]];
 
@@ -1304,63 +1322,44 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     /* fixed key & velocity */
     if(tbl->set[SF_keynum])
 	vp->v.note_to_use = tbl->val[SF_keynum];
-#if 0 /* Not supported */
-    vp->fixvel = tbl->val[SF_velocity];
-#endif
+	if(tbl->set[SF_velocity] && tbl->val[SF_velocity] != 0) {
+		ctl->cmsg(CMSG_INFO,VERB_DEBUG,"error: fixed-velocity is not supported.");
+	}
 
 	/* panning position: 0 to 127 */
 	val = (int)tbl->val[SF_panEffectsSend];
-    if(sample->sampletype == 1) {
+    if(sample->sampletype == 1 || val != 0) {	/* monoSample = 1 */
 		if(val < -500)
 		vp->v.panning = 0;
 		else if(val > 500)
 		vp->v.panning = 127;
 		else
 		vp->v.panning = (int8)((val + 500) * 127 / 1000);
-		/* vp->fixpan = -1; */
-	} else if(sample->sampletype == 2) {
-		if(val < -500) {val = -500;}
-		else if(val > 500) {val = 500;}
-		pan = 127 + ((val + 500) * 127 / 1000) - 64;
-		if(pan > 127) {pan = 127;}
-		vp->v.panning = pan;
-	} else if(sample->sampletype == 4) {
-		if(val < -500) {val = -500;}
-		else if(val > 500) {val = 500;}
-		pan = ((val + 500) * 127 / 1000) - 64;
-		if(pan < 0) {pan = 0;}
-		vp->v.panning = pan;
+	} else if(sample->sampletype == 2) {	/* rightSample = 2 */
+		vp->v.panning = 127;
+	} else if(sample->sampletype == 4) {	/* leftSample = 4 */
+		vp->v.panning = 0;
+	} else if(sample->sampletype == 8) {	/* linkedSample = 8 */
+		ctl->cmsg(CMSG_ERROR,VERB_NOISY,"error: linkedSample is not supported.");
 	}
 
-#if 0 /* Not supported */
-
-    /* initial volume */
-
-    vp->amplitude = awe_option.default_volume * 127 / 100;
-    /* this is not a centibel? */
-    vp->attenuation = awe_calc_attenuation((int)(tbl->val[SF_initAtten] / awe_option.atten_sense));
-	
-    /* chorus & reverb effects */
-    if (tbl->set[SF_chorusEffectsSend])
-	vp->parm.chorus = awe_calc_chorus(tbl->val[SF_chorusEffectsSend]);
-    else
-	vp->parm.chorus = awe_option.default_chorus * 255 / 100;
-    if (tbl->set[SF_reverbEffectsSend])
-	vp->parm.reverb = awe_calc_reverb(tbl->val[SF_chorusEffectsSend]);
-    else
-	vp->parm.reverb = awe_option.default_reverb * 255 / 100;
-#endif
-
-	/*	if(tbl->set[SF_chorusEffectsSend] && tbl->val[SF_chorusEffectsSend]) {
-		vp->chorus_send = (int8)(tbl->val[SF_chorusEffectsSend] / 8) & 0x7F;
-	} else {vp->chorus_send = 0;}
-
-	if(tbl->set[SF_reverbEffectsSend] && tbl->val[SF_reverbEffectsSend]) {
-		vp->reverb_send = (int8)(tbl->val[SF_reverbEffectsSend] / 8) & 0x7F;
-	} else {vp->reverb_send = 0;}*/
+	memset(vp->v.envelope_keyf, 0, sizeof(vp->v.envelope_keyf));
+	memset(vp->v.modenv_keyf, 0, sizeof(vp->v.modenv_keyf));
+	if(tbl->set[SF_autoHoldEnv2]) {
+		vp->v.envelope_keyf[1] = (int16)tbl->val[SF_autoHoldEnv2];
+	}
+	if(tbl->set[SF_autoDecayEnv2]) {
+		vp->v.envelope_keyf[2] = (int16)tbl->val[SF_autoDecayEnv2];
+	}
+	if(tbl->set[SF_autoHoldEnv1]) {
+		vp->v.modenv_keyf[1] = (int16)tbl->val[SF_autoHoldEnv1];
+	}
+	if(tbl->set[SF_autoDecayEnv1]) {
+		vp->v.modenv_keyf[2] = (int16)tbl->val[SF_autoDecayEnv1];
+	}
 
 #ifndef CFG_FOR_SF
-	if(opt_sf_lpf || opt_lpf_def) {
+	if(opt_lpf_def) {
 		current_sfrec->def_cutoff_allowed = 1;
 		current_sfrec->def_resonance_allowed = 1;
 	}
@@ -1378,22 +1377,25 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	else
 	    val = tbl->val[SF_initialFilterFc];
 
-	if(tbl->set[SF_env1ToFilterFc] && tbl->val[SF_env1ToFilterFc] > 0)
-	{
-	    val += (int)tbl->val[SF_env1ToFilterFc];
-	}
+	val = abscent_to_Hz(val);
 
-	vp->cutoff_freq = abscent_to_Hz(val);
+#ifndef CFG_FOR_SF
+	if(!opt_modulation_envelope) {
+		if(tbl->set[SF_env1ToFilterFc] && tbl->val[SF_env1ToFilterFc] > 0)
+		{
+			val *= pow(2.0,(double)tbl->val[SF_env1ToFilterFc] / 1200.0f);
+			if(val > 20000) {val = 20000;}
+		}
+	}
+#endif
+
+	vp->cutoff_freq = val;
     }
 
-    vp->resonance = 0;
     if(current_sfrec->def_resonance_allowed && tbl->set[SF_initialFilterQ])
     {
 	val = tbl->val[SF_initialFilterQ];
-	vp->resonance_dB = (FLOAT_T)val / 10.0;
-	vp->resonance = 1.0 / pow(10.0,(FLOAT_T)val / 2.0 / 200.0);
-	vp->param_resonance = val * 127 / 960;
-	if(val = 0) {vp->resonance = 0;}
+	vp->resonance = val;
 	}
 
 #if 0 /* Not supported */
@@ -1413,9 +1415,14 @@ static int abscent_to_Hz(int abscents)
 static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
     SFSampleInfo *sp = &sf->sample[tbl->val[SF_sampleId]];
+	int val;
 
     /* scale tuning */
-    vp->scaleTuning = tbl->val[SF_scaleTuning];
+#ifdef SF_EMULATE_SBLIVE
+	vp->v.scale_tuning = 100;
+#else
+	vp->v.scale_tuning = tbl->val[SF_scaleTuning];
+#endif
 
     /* set initial root key & fine tune */
     if(sf->version == 1 && tbl->set[SF_samplePitch])
@@ -1428,7 +1435,7 @@ static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	    vp->root++;
 	    vp->tune = 100 + vp->tune;
 	}
-	if(vp->scaleTuning == 50)
+	if(vp->v.scale_tuning == 50)
 	    vp->tune /= 2;
     }
     else
@@ -1444,19 +1451,31 @@ static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     if(tbl->set[SF_rootKey])
 	vp->root += tbl->val[SF_rootKey] - sp->originalPitch;
 
-    vp->tune += tbl->val[SF_coarseTune] * vp->scaleTuning +
-	(int)tbl->val[SF_fineTune] * (int)vp->scaleTuning / 100;
+    vp->tune += tbl->val[SF_coarseTune] * 100 +
+	(int)tbl->val[SF_fineTune];
 
     /* correct too high pitch */
     if(vp->root >= vp->high + 60)
       vp->root -= 60;
 
+#ifndef CFG_FOR_SF
     /* correct tune with the sustain level of modulation envelope */
-    vp->tune += ((int)tbl->val[SF_env1ToPitch] * (1000 - (int)tbl->val[SF_sustainEnv1])) / 1000;
+	if(!opt_modulation_envelope) {
+	    vp->tune += ((int)tbl->val[SF_env1ToPitch] * (1000 - (int)tbl->val[SF_sustainEnv1])) / 1000;
+	}
+#endif
 
-    /* correct tune */
-    vp->tune += (int)tbl->val[SF_lfo1ToPitch];
-    vp->tune += (int)tbl->val[SF_lfo2ToPitch];
+	vp->v.tremolo_to_pitch = vp->v.tremolo_to_fc = 
+	vp->v.modenv_to_pitch = vp->v.modenv_to_fc = 0;
+
+	if(tbl->set[SF_lfo1ToPitch])
+		vp->v.tremolo_to_pitch = (int)tbl->val[SF_lfo1ToPitch];
+	if(tbl->set[SF_lfo1ToFilterFc])
+		vp->v.tremolo_to_fc = (int)tbl->val[SF_lfo1ToFilterFc];
+	if(tbl->set[SF_env1ToPitch])
+		vp->v.modenv_to_pitch = (int)tbl->val[SF_env1ToPitch];
+	if(tbl->set[SF_env1ToFilterFc])
+		vp->v.modenv_to_fc = (int)tbl->val[SF_env1ToFilterFc];
 }
 
 static void set_rootfreq(SampleList *vp)
@@ -1515,22 +1534,47 @@ extern int32 modify_release;
 /* volume envelope parameters */
 static void convert_volume_envelope(SampleList *vp, LayerTable *tbl)
 {
-    vp->attack  = to_msec(tbl->val[SF_attackEnv2]);
-    vp->hold    = to_msec(tbl->val[SF_holdEnv2]);
-    vp->sustain = calc_sustain(tbl->val[SF_sustainEnv2]);
-    if(vp->sustain > 250)
-	vp->sustain = 250;
-    vp->decay   = to_msec(tbl->val[SF_decayEnv2]);
-    if(modify_release)
-	vp->release = modify_release;
-    else
-	vp->release = to_msec(tbl->val[SF_releaseEnv2]); /* Pseudo Reverb */
-
-#if 0 /* Not supported */
-    /* key hold/decay */
-    vp->parm.volkeyhold = tbl->val[SF_autoHoldEnv2];
-    vp->parm.volkeydecay = tbl->val[SF_autoDecayEnv2];
+	double attack, hold, delay, to_fc;
+#ifdef SF_EMULATE_SBLIVE
+	attack = to_msec(tbl->val[SF_attackEnv2]);
+	if(attack < 6) {attack = 6;}
+	vp->attack  = calc_rate(65535, attack);
+#else
+    vp->attack  = to_rate(65535, tbl->val[SF_attackEnv2]);
 #endif
+    vp->hold    = to_rate(1, tbl->val[SF_holdEnv2]);
+    vp->sustain = calc_sustain(tbl->val[SF_sustainEnv2]);
+    vp->decay   = to_rate(65533 - vp->sustain, tbl->val[SF_decayEnv2]);
+    if(modify_release) /* Pseudo Reverb */
+	vp->release = calc_rate(65535, modify_release);
+    else
+	vp->release = to_rate(65535, tbl->val[SF_releaseEnv2]);
+	vp->v.envelope_delay = play_mode->rate * 
+		to_msec(tbl->val[SF_delayEnv2]) * 0.001;
+
+	/* convert modulation envelope */
+	attack = to_msec(tbl->val[SF_attackEnv1]);
+	hold = to_msec(tbl->val[SF_holdEnv1]);
+	delay = play_mode->rate * 
+		to_msec(tbl->val[SF_delayEnv1]) * 0.001;
+	to_fc = tbl->val[SF_env1ToFilterFc];
+	if(attack != 0 && to_fc / attack > 300) {
+		hold += attack;
+		attack = 0;
+	}
+	if(delay != 0 && to_fc > 1200) {
+		hold += delay;
+		delay = 0;
+	}
+    vp->modattack  = calc_rate(65535, attack);
+    vp->modhold    = calc_rate(1, hold);
+    vp->modsustain = calc_sustain(tbl->val[SF_sustainEnv1]);
+    vp->moddecay   = to_rate(65533 - vp->modsustain, tbl->val[SF_decayEnv1]);
+    if(modify_release) /* Pseudo Reverb */
+	vp->modrelease = calc_rate(65535, modify_release);
+    else
+	vp->modrelease = to_rate(65535, tbl->val[SF_releaseEnv1]);
+	vp->v.modenv_delay = delay;
 
     vp->v.modes |= MODES_ENVELOPE;
 }
@@ -1543,20 +1587,15 @@ static void convert_volume_envelope(SampleList *vp, LayerTable *tbl)
 
 static void convert_tremolo(SampleList *vp, LayerTable *tbl)
 {
-    int32 level, freq;
+    int32 freq;
+	double level;
 
     if(!tbl->set[SF_lfo1ToVolume])
 	return;
 
-    level = tbl->val[SF_lfo1ToVolume];
-    level = (level * 0x80) / 120;
-    if(level < -128)
-	level = -128;
-    if(level > 127)
-	level = 127;
-    if(level < 0)
-	level += 0x100;
-    vp->v.tremolo_depth = (uint8)level;
+    level = pow(10.0, (double)abs(tbl->val[SF_lfo1ToVolume]) / -200.0);
+    vp->v.tremolo_depth = 256 * (1.0 - level);
+	if(tbl->val[SF_lfo1ToVolume] < 0) {vp->v.tremolo_depth = -vp->v.tremolo_depth;}
 
     /* frequency in mHz */
     if(!tbl->set[SF_freqLfo1])
@@ -1568,8 +1607,9 @@ static void convert_tremolo(SampleList *vp, LayerTable *tbl)
     }
 
     /* convert mHz to sine table increment; 1024<<rate_shift=1wave */
-    vp->v.tremolo_phase_increment = (freq * 1024) << RATE_SHIFT;
-    vp->v.tremolo_sweep_increment = 0;
+    vp->v.tremolo_phase_increment = ((play_mode->rate / 1000 * freq) >> RATE_SHIFT) / control_ratio;
+    vp->v.tremolo_delay = play_mode->rate * 
+		to_msec(tbl->val[SF_delayLfo1]) * 0.001;
 }
 #endif
 
@@ -1582,16 +1622,18 @@ static void convert_vibrato(SampleList *vp, LayerTable *tbl)
 {
     int32 shift, freq;
 
-    if(!tbl->set[SF_lfo2ToPitch])
-	return;
+    if(!tbl->set[SF_lfo2ToPitch]) {
+		vp->v.vibrato_control_ratio = 0;
+		return;
+	}
 
     shift = tbl->val[SF_lfo2ToPitch];
 
     /* cents to linear; 400cents = 256 */
     shift = shift * 256 / 400;
-    if(shift < 0)
-      shift = -shift;
-    vp->v.vibrato_depth = (uint8)shift;
+	if(shift > 255) {shift = 255;}
+    else if(shift < -255) {shift = -255;}
+    vp->v.vibrato_depth = (int16)shift;
 
     /* frequency in mHz */
     if(!tbl->set[SF_freqLfo2])
@@ -1600,83 +1642,16 @@ static void convert_vibrato(SampleList *vp, LayerTable *tbl)
     {
 	freq = tbl->val[SF_freqLfo2];
 	freq = TO_MHZ(freq);
+	if(freq == 0) {freq = 1;}
+	/* convert mHz to control ratio */
+	vp->v.vibrato_control_ratio = (1000 * play_mode->rate) /
+			(freq * 2 * VIBRATO_SAMPLE_INCREMENTS);
     }
-    vp->vibrato_freq = freq;
-    vp->v.vibrato_sweep_increment = 0;
+
+    vp->v.vibrato_delay = play_mode->rate * 
+		to_msec(tbl->val[SF_delayLfo2]) * 0.001;
 }
 #endif
-
-
-/*----------------------------------------------------------------
- * low-pass filter:
- * 	y(n) = A * x(n) + B * y(n-1)
- * 	A = 2.0 * pi * center
- * 	B = exp(-A / frequency)
- *----------------------------------------------------------------
- * resonance filter:
- *	y(n) = a * x(n) - b * y(n-1) - c * y(n-2)
- *	c = exp(-2 * pi * width / rate)
- *	b = -4 * c / (1+c) * cos(2 * pi * center / rate)
- *	a = sqt(1-b*b/(4 * c)) * (1-c)
- *----------------------------------------------------------------*/
-
-#ifdef LOOKUP_HACK
-#define MAX_DATAVAL 127
-#define MIN_DATAVAL -128
-#else
-#define MAX_DATAVAL 32767
-#define MIN_DATAVAL -32768
-#endif
-
-static void do_lowpass(Sample *sp, int32 freq, FLOAT_T resonance)
-{
-	int32 i,length;
-	int32 i_a1,i_a2,i_b0,x1,y1,y2,yout;
-	FLOAT_T a1,a2,b0,w0,T,k;
-	sample_t *buf;
-
-	if (freq > sp->sample_rate / 2) {
-		ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
-			  "Lowpass: center freq must be < data rate / 2");
-		return;
-	}
-
-	if(resonance == 0) {resonance = 0.999999f;}
-
-	T = 1.0 / (FLOAT_T)sp->sample_rate;
-	w0 = 2.0 * M_PI * (FLOAT_T)freq;
-	k = resonance;
-	a1 = 2.0 * exp(-w0 * k / sqrt(1.0 - k * k) * T) * cos(w0 * T);
-	a2 = -exp(-2.0 * w0 * k / sqrt(1.0 - k * k) * T);
-	b0 = 1.0 - a1 - a2;
-
-#if OPT_MODE != 0
-	i_a1 = a1 * 0x10000;
-	i_a2 = a2 * 0x10000;
-	i_b0 = b0 * 0x10000;
-#endif
-
-	buf = sp->data;
-	length = sp->data_length;
-	x1 = 0;
-	y1 = 0;
-	y2 = 0;
-	yout = 0;
-
-	for(i=0;i<length;i++) {
-#if OPT_MODE != 0
-		yout = imuldiv16(y1,i_a1) + imuldiv16(y2,i_a2) + imuldiv16(x1,i_b0);
-#else
-		yout = a1 * y1 + a2 * y2 + b0 * x1;
-#endif
-		x1 = buf[i];
-		y2 = y1;
-		y1 = yout;
-		if(yout > MAX_DATAVAL) {yout = MAX_DATAVAL;}
-		else if(yout < MIN_DATAVAL) {yout = MIN_DATAVAL;}
-		buf[i] = yout;
-	}
-}
 
 #ifdef CFG_FOR_SF
 
@@ -1694,11 +1669,8 @@ static void do_lowpass(Sample *sp, int32 freq, FLOAT_T resonance)
 
  *********************************************************************/
 
-int opt_resonance = 0;		/* realtime resonant LPF control */
-int opt_sf_lpf = 0;	/* soundfont pre-lpf */
-
 static FILE *x_out;
-static char *x_sf_file_name = NULL;
+static char x_sf_file_name[1024];
 static int x_pre_bank = -1;
 static int x_pre_preset = -1;
 static int x_sort = 1;
@@ -1818,8 +1790,6 @@ static int cfg_for_sf_scan(char *x_name, int x_bank, int x_preset, int x_keynote
 	x_pre_preset = x_preset;
 	return 0;
 }
-
-
 int32 control_ratio = 0;
 PlayMode *play_mode = NULL;
 int32 freq_table[1];
@@ -1904,6 +1874,8 @@ static struct URL_module *url_module_list[] =
 #endif /* main */
     NULL
 };
+
+
 int main(int argc, char **argv)
 {
     SFInsts *sf;
@@ -1942,13 +1914,16 @@ int main(int argc, char **argv)
 #endif /* SUPPORT_SOCKET */
 	for(i = 0; url_module_list[i]; i++)
 	    url_add_module(url_module_list[i]);
-	x_sf_file_name = argv[1];
+	strncpy(x_sf_file_name, argv[1], 1024);
     sf = new_soundfont(x_sf_file_name);
     sf->next = NULL;
     sf->def_order = 2;
     sfrecs = sf;
 	x_cfg_info_init();
 	init_sf(sf);
+	if(strstr(x_sf_file_name, " ") != NULL) {
+		sprintf(x_sf_file_name, "\"%s\"", argv[1]);
+	}
 	if(x_sort){
 	for(x_bank=0;x_bank<=127;x_bank++){
 		int flag = 0;

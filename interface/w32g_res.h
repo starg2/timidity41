@@ -20,6 +20,7 @@
 #define IDB_BITMAP_TRACER               125
 #define IDD_PREF_SYN1                   127
 #define IDD_PREF_SYN1_EN                128
+#define IDD_DIALOG_PREF                 132
 #define IDC_CHECK_SEACHDIRRECURSIVE     1001
 #define IDC_CHECK_DOCWNDINDEPENDENT     1002
 #define IDC_CHECK_INIFILE_AUTOSAVE      1003
@@ -41,6 +42,7 @@
 #define IDC_CHECKBOX_LPF_DEF            1012
 #define IDC_CHECKBOX_CH06               1013
 #define IDC_CHECKBOX_INIT_MI            1013
+#define IDC_CHECKBOX_MOD_ENV            1013
 #define IDC_CHECKBOX_CH07               1014
 #define IDC_CHECKBOX_CH08               1015
 #define IDC_CHECKBOX_CH09               1016
@@ -90,6 +92,7 @@
 #define IDD_PREF_TIMIDITY3              1062
 #define IDC_CHECKBOX_FORCE_KEYSIG       1062
 #define IDC_BUTTON_4                    1063
+#define IDC_CHECKBOX_AMP_COMPENSATION   1063
 #define IDC_BUTTON_8                    1064
 #define IDC_BUTTON_16                   1065
 #define IDC_BUTTON_24                   1066
@@ -177,6 +180,7 @@
 #define IDD_DIALOG_WRD                  1141
 #define IDD_DIALOG_SOUNDSPEC            1142
 #define IDFLUSH                         1143
+#define IDD_DIALOG_PREF_EN              1143
 #define IDCLEAR                         1144
 #define IDC_BUTTON_PREV                 1145
 #define IDC_BUTTON_NEXT                 1146
@@ -227,6 +231,7 @@
 #define IDC_CHECKBOX_CHPRESS            1191
 #define IDC_CHECKBOX_OVOICE             1192
 #define IDC_CHECKBOX_LOADINST_PLAYING   1193
+#define IDC_EDIT_EFFECT_QUALITY         1193
 #define IDC_RADIOBUTTON_GM              1194
 #define IDC_RADIOBUTTON_GS              1195
 #define IDC_RADIOBUTTON_XG              1196
@@ -302,6 +307,13 @@
 #define IDC_COMBO_IDPORT3               2088
 #define IDC_COMBO_SYN_THREAD_PRIORITY   2089
 #define IDC_COMBO_PORT_NUM              2090
+#define IDC_EDIT_SYN_SH_TIME            2091
+#define IDC_TAB_MAIN                    2093
+#define IDC_CHECKBOX_TEMPER_EQUAL       2094
+#define IDC_CHECKBOX_TEMPER_PYTHA       2095
+#define IDC_BUTTON_CFG_RELOAD           2095
+#define IDC_CHECKBOX_TEMPER_MEANTONE    2096
+#define IDC_CHECKBOX_TEMPER_PUREINT     2097
 #define IDM_MHSUPPLEMENT                40002
 #define IDC_STATIC                      -1
 
@@ -309,9 +321,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        129
+#define _APS_NEXT_RESOURCE_VALUE        133
 #define _APS_NEXT_COMMAND_VALUE         40003
-#define _APS_NEXT_CONTROL_VALUE         2091
+#define _APS_NEXT_CONTROL_VALUE         2097
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -25,13 +25,14 @@
 #define ___INSTRUM_H_
 
 typedef struct _Sample {
-  uint32
+  splen_t
     loop_start, loop_end, data_length;
   int32
     sample_rate, low_freq, high_freq, root_freq;
   int8 panning, note_to_use;
   int32
-    envelope_rate[6], envelope_offset[6];
+    envelope_rate[6], envelope_offset[6],
+	modenv_rate[6], modenv_offset[6];
   FLOAT_T
     volume;
   sample_t
@@ -39,14 +40,24 @@ typedef struct _Sample {
   int32
     tremolo_sweep_increment, tremolo_phase_increment,
     vibrato_sweep_increment, vibrato_control_ratio;
-  uint16
+  int16
     tremolo_depth;
+  int16 vibrato_depth;
   uint8
-    vibrato_depth,
     modes, data_alloced,
     low_vel, high_vel;
-  int16 cutoff_freq,resonance;
-  double resonance_dB;
+  int32 cutoff_freq;	/* in Hz, [1, 20000] */
+  int16 resonance;	/* in centibels, [0, 960] */
+  /* in cents, [-12000, 12000] */
+  int16 tremolo_to_pitch, tremolo_to_fc, modenv_to_pitch, modenv_to_fc,
+	  envelope_keyf[6], envelope_velf[6], modenv_keyf[6], modenv_velf[6],
+	  vel_to_fc, key_to_fc;
+  int16 vel_to_resonance;	/* in centibels, [-960, 960] */
+  int8 envelope_velf_bpo, modenv_velf_bpo,
+	  key_to_fc_bpo, vel_to_fc_threshold;	/* in notes */
+  int32 vibrato_delay, tremolo_delay, envelope_delay, modenv_delay;	/* in samples */
+  int16 scale_tuning;	/* in cents/key */
+  int8 inst_type;
 } Sample;
 
 /* Bits in modes: */

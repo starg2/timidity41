@@ -44,8 +44,11 @@
 #endif /* BORLANDC_EXCEPTION */
 #include <signal.h>
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) && !defined(__alpha__)
 #include <floatingpoint.h> /* For FP exceptions */
+#endif
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <ieeefp.h> /* For FP exceptions */
 #endif
 
 #ifdef HAVE_GETOPT_H
@@ -85,7 +88,7 @@ extern char *optarg;
 #include "w32g_utl.h"
 #endif
 
-#define OPTCOMMANDS "4A:aB:b:C:c:D:d:E:eFfg:H:hI:i:jK:k:L:M:m:n:O:o:P:p:Q:q:R:rS:s:t:T:UW:w:x:Z:"	/* Only GJlNuVvXz are remain... */
+#define OPTCOMMANDS "4A:aB:b:C:c:D:d:E:eFfg:H:hI:i:jK:k:L:M:m:N:n:O:o:P:p:Q:q:R:rS:s:t:T:UW:w:x:Z:"	/* Only GJluVvXz are remain... */
 #define INTERACTIVE_INTERFACE_IDS "kmqagrwAW"
 
 /* main interfaces (To be used another main) */
@@ -128,6 +131,19 @@ extern struct URL_module URL_module_newsgroup;
 #ifdef HAVE_POPEN
 extern struct URL_module URL_module_pipe;
 #endif /* HAVE_POPEN */
+
+#ifdef GAUSS_INTERPOLATION
+extern double newt_coeffs[58][58];
+extern void initialize_newton_coeffs(void);
+extern void initialize_gauss_table(int32 gauss_n);
+extern int gauss_n;
+extern float *gauss_table[(1<<FRACTION_BITS)];
+#endif
+#ifdef NEWTON_INTERPOLATION
+extern double newt_coeffs[58][58];
+extern void initialize_newton_coeffs(void);
+extern int newt_n, newt_max;
+#endif
 
 MAIN_INTERFACE struct URL_module *url_module_list[] =
 {
@@ -331,6 +347,7 @@ static void help(void)
 "Options:",
 #if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
 "  -4      Toggle 4-point interpolation (default on)",
+"          Linear interpolation is used if audio queue < 99%%",
 #endif
 "  -A n    Amplify volume by n percent (may cause clipping)",
 "  -a      Enable the antialiasing filter",
@@ -346,6 +363,8 @@ static void help(void)
 "                   p/P : Enable/Disable Portamento.",
 "                   v/V : Enable/Disable NRPN Vibrato.",
 "                   s/S : Enable/Disable Channel pressure.",
+"                   l/L : Enable/Disable voice-by-voice LPF.",
+"                   e/E : Enable/Disable Modulation Envelope.",
 "                   t/T : Enable/Disable Trace Text Meta Event at playing",
 "                   o/O : Enable/Disable Overlapped voice",
 "                   m<HH>: Define default Manufacture ID <HH> in two hex",
@@ -377,6 +396,18 @@ static void help(void)
 #else
 "S"
 #endif /* GM_CHANNEL_PRESSURE_ALLOW */
+
+#ifdef VOICE_BY_VOICE_LPF_ALLOW
+"l"
+#else
+"L"
+#endif /* VOICE_BY_VOICE_LPF_ALLOW */
+
+#ifdef MODULATION_ENVELOPE_ALLOW
+"e"
+#else
+"E"
+#endif /* MODULATION_ENVELOPE_ALLOW */
 
 #ifdef ALWAYS_TRACE_TEXT_META_EVENT
 "t"
@@ -416,6 +447,14 @@ static void help(void)
 "          \"auto\": Play *.mid.wav or *.mid.aiff",
 "          \"none\": Disable this feature (default)",
 "  -m msec Minimum time for a full volume sustained note to decay, 0 disables",
+#ifdef GAUSS_INTERPOLATION
+"  -N n    n+1 point Gauss-like interpolation, n=1-34 (default 25), 0 disables",
+"          Linear interpolation is used if audio queue < 99%%",
+#endif
+#ifdef NEWTON_INTERPOLATION
+"  -N n    n'th order Newton polynomial interpolation, n=1-57 odd, 0 disables",
+"          Linear interpolation is used if audio queue < 99%%",
+#endif
 "  -O mode Select output mode and format (see below for list)",
 "  -o file Output to another file (or device/server)  (Use \"-\" for stdout)",
 "  -P file Use patch file for all programs",
@@ -550,18 +589,21 @@ NULL
 "  -EFdelay=0 : Disabled delay effect" NLS
 "  -EFchorus=0 : Disable MIDI chorus effect control" NLS
 "  -EFchorus=1[,level] : Enable MIDI chorus effect control" NLS
-"                        `level' is optional to specify chorus level [0..127]"  NLS
+"                        `level' is optional to specify chorus level [0..127]" NLS
 "  -EFchorus=2[,level] : Surround sound, chorus detuned to a lesser degree." NLS
 "                        `level' is optional to specify chorus level [0..127]" NLS
 "                        (default)" NLS
 "  -EFreverb=0 : Disable MIDI reverb effect control" NLS
 "  -EFreverb=1[,level] : Enable MIDI reverb effect control" NLS
-"                        `level' is optional to specify reverb level [0..127]"  NLS
-"                        This effect is only available in stereo"  NLS
-"                        (default)" NLS
+"                        `level' is optional to specify reverb level [0..127]" NLS
+"                        This effect is only available in stereo" NLS
 "  -EFreverb=2 : Global reverb effect" NLS
-"  -EFns=n : Enable the n th degree noiseshaping filter. n:[0..4]" NLS
-"            This effect is only available for 8-bit linear encoding" NLS
+"  -EFreverb=3 : Enable NEW MIDI reverb effect control (freeverb)" NLS
+"                This effect is only available in stereo" NLS
+"                (default)" NLS
+"  -EFns=n : Enable the n th degree noiseshaping filter." NLS
+"            n:[0..4] (for 8-bit linear encoding)" NLS
+"            n:[0..2] (for 16-bit linear encoding)" NLS
 NLS
 , fp);
 
@@ -602,7 +644,7 @@ timidity_version
 static int set_channel_flag(ChannelBitMask *flags, int32 i, char *name)
 {
     if(i == 0)
-	CLEAR_CHANNELMASK(*flags);
+	FILL_CHANNELMASK(*flags);
     else if((i < 1 || i > MAX_CHANNELS) && (i < -MAX_CHANNELS || i > -1))
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -895,8 +937,10 @@ static void copybank(ToneBank *to, ToneBank *from)
 
 	if(toelm->name)
 	    free(toelm->name);
+	toelm->name = NULL;
 	if(toelm->comment)
 	    free(toelm->comment);
+	toelm->comment = NULL;
 	memcpy(toelm, fromelm, sizeof(ToneBankElement));
 	if(toelm->name)
 	    toelm->name = safe_strdup(toelm->name);
@@ -909,6 +953,7 @@ static void copybank(ToneBank *to, ToneBank *from)
 	toelm->envratenum = toelm->envofsnum = 0;
 	toelm->trem = toelm->vib = NULL;
 	toelm->tremnum = toelm->vibnum = 0;
+	toelm->instype = 0;
     }
 }
 
@@ -1006,6 +1051,7 @@ static Quantity **config_parse_modulation(const char *name, int line, const char
 				ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: line %d: %s: parameter %d of item %d: %s (%s)",
 						name, line, qtypestr[mod_type], j+1, i+1, err, buf);
 				free_ptr_list(mod_list, *num);
+				mod_list = NULL;
 				*num = 0;
 				return NULL;
 			}
@@ -1195,11 +1241,17 @@ static void reinit_tone_bank_element(ToneBankElement *tone)
     tone->tva_level = -1;
 }
 
+#define SET_GUS_PATCHCONF_COMMENT
 static int set_gus_patchconf(char *name, int line,
 			     ToneBankElement *tone, char *pat, char **opts)
 {
     int j;
+#ifdef SET_GUS_PATCHCONF_COMMENT
+		char *old_name = NULL;
 
+		if(tone != NULL && tone->name != NULL)
+			old_name = safe_strdup(tone->name);
+#endif
     reinit_tone_bank_element(tone);
 
     if(strcmp(pat, "%font") == 0) /* Font extention */
@@ -1267,8 +1319,20 @@ static int set_gus_patchconf(char *name, int line,
 	if((err = set_gus_patchconf_opts(name, line, opts[j], tone)) != 0)
 	    return err;
     }
+#ifdef SET_GUS_PATCHCONF_COMMENT
+		if(tone->comment == NULL ||
+			(old_name != NULL && strcmp(old_name,tone->comment) == 0))
+		{
+			if(tone->comment != NULL )
+				free(tone->comment);
+			tone->comment = safe_strdup(tone->name);
+		}
+		if(old_name != NULL)
+			free(old_name);
+#else
     if(tone->comment == NULL)
 	tone->comment = safe_strdup(tone->name);
+#endif
     return 0;
 }
 
@@ -1339,7 +1403,8 @@ static int mapname2id(char *name, int *isdrum)
 /* string[0] should not be '#' */
 static int strip_trailing_comment(char *string, int next_token_index)
 {
-    if (string[next_token_index - 1] == '#')	/* strip \1 in /^\S+(#*\s.*)/ */
+    if (string[next_token_index - 1] == '#'	/* strip \1 in /^\S+(#*[ \t].*)/ */
+	&& (string[next_token_index] == ' ' || string[next_token_index] == '\t'))
     {
 	string[next_token_index] = '\0';	/* new c-string terminator */
 	while(string[--next_token_index - 1] == '#')
@@ -1748,6 +1813,7 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
 		free(bank->tone[i].comment);
 		bank->tone[i].comment = NULL;
 	    }
+			bank->tone[i].instype = 0;
 	}
 	/* #extension altassign numbers... */
 	else if(strcmp(w[0], "altassign") == 0)
@@ -1808,60 +1874,6 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
 		continue;
 	    }
 	    bank->tone[i].legato = atoi(w[2]);
-	}	/* #extension cutoff program cutoff-frequency */
-	else if(strcmp(w[0], "cutoff") == 0)
-	{
-	    if(words != 3)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: line %d: syntax error", name, line);
-		CHECKERRLIMIT;
-		continue;
-	    }
-	    if(!bank)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-			  "%s: line %d: Must specify tone bank or drum set "
-			  "before assignment", name, line);
-		CHECKERRLIMIT;
-		continue;
-	    }
-	    i = atoi(w[1]);
-	    if(i < 0 || i > 127)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-			  "%s: line %d: extension cutoff "
-			  "must be between 0 and 127", name, line);
-		CHECKERRLIMIT;
-		continue;
-	    }
-		bank->tone[i].cutoff_freq = atoi(w[2]);
-	}	/* #extension resonance program resonance */
-	else if(strcmp(w[0], "resonance") == 0)
-	{
-	    if(words != 3)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: line %d: syntax error", name, line);
-		CHECKERRLIMIT;
-		continue;
-	    }
-	    if(!bank)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-			  "%s: line %d: Must specify tone bank or drum set "
-			  "before assignment", name, line);
-		CHECKERRLIMIT;
-		continue;
-	    }
-	    i = atoi(w[1]);
-	    if(i < 0 || i > 127)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-			  "%s: line %d: extension resonance "
-			  "must be between 0 and 127", name, line);
-		CHECKERRLIMIT;
-		continue;
-	    }
-		bank->tone[i].resonance = atoi(w[2]);
 	}	/* #extension level program tva_level */
 	else if(strcmp(w[0], "level") == 0)
 	{
@@ -2444,18 +2456,30 @@ MAIN_INTERFACE void tmdy_free_config(void)
       elm = &bank->tone[j];
       if (elm->name)
 	free(elm->name);
+	elm->name = NULL;
       if (elm->comment)
 	free(elm->comment);
+	elm->comment = NULL;
 	if (elm->tune)
 		free(elm->tune);
+	elm->tune = NULL;
 	if (elm->envrate)
 		free_ptr_list(elm->envrate, elm->envratenum);
+	elm->envrate = NULL;
+	elm->envratenum = 0;
 	if (elm->envofs)
 		free_ptr_list(elm->envofs, elm->envofsnum);
+	elm->envofs = NULL;
+	elm->envofsnum = 0;
 	if (elm->trem)
 		free_ptr_list(elm->trem, elm->tremnum);
+	elm->trem = NULL;
+	elm->tremnum = 0;
 	if (elm->vib)
 		free_ptr_list(elm->vib, elm->vibnum);
+	elm->vib = NULL;
+	elm->vibnum = 0;
+	elm->instype = 0;
     }
     if (i > 0) {
       free(bank);
@@ -2471,18 +2495,30 @@ MAIN_INTERFACE void tmdy_free_config(void)
       elm = &bank->tone[j];
       if (elm->name)
 	free(elm->name);
+	elm->name = NULL;
       if (elm->comment)
 	free(elm->comment);
+	elm->comment = NULL;
 	if (elm->tune)
 		free(elm->tune);
+	elm->tune = NULL;
 	if (elm->envrate)
 		free_ptr_list(elm->envrate, elm->envratenum);
+	elm->envrate = NULL;
+	elm->envratenum = 0;
 	if (elm->envofs)
 		free_ptr_list(elm->envofs, elm->envofsnum);
+	elm->envofs = NULL;
+	elm->envofsnum = 0;
 	if (elm->trem)
 		free_ptr_list(elm->trem, elm->tremnum);
+	elm->trem = NULL;
+	elm->tremnum = 0;
 	if (elm->vib)
 		free_ptr_list(elm->vib, elm->vibnum);
+	elm->vib = NULL;
+	elm->vibnum = 0;
+	elm->instype = 0;
     }
     if (i > 0) {
       free(bank);
@@ -2566,30 +2602,31 @@ static int parse_effect_option(char *effect_opts)
 	return 0;
     }
 
-    if(strncmp(effect_opts, "reverb=", 7) == 0)
-    {
-	effect_opts += 7;
-	switch(*effect_opts)
-	{
-	  case '0':
-	    opt_reverb_control = 0;
-	    break;
-	  case '1':
-	    if(*(effect_opts + 1) == ',')
-		opt_reverb_control = -(atoi(effect_opts + 2) & 0x7f);
-	    else
-		opt_reverb_control = 1;
-	    break;
-	  case '2':
-	    opt_reverb_control = 2;
-	    break;
-	  default:
-	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		      "Invalid -EFreverb parameter.");
-	    return 1;
+	if (strncmp(effect_opts, "reverb=", 7) == 0) {
+		effect_opts += 7;
+		switch(*effect_opts) {
+		case '0':
+			opt_reverb_control = 0;
+			break;
+		case '1':
+			if (*(effect_opts + 1) == ',')
+				opt_reverb_control = -(atoi(effect_opts + 2) & 0x7f);
+			else
+				opt_reverb_control = 1;
+			break;
+		case '2':
+			opt_reverb_control = 2;
+			break;
+		case '3':
+			opt_reverb_control = 3;
+			break;
+		default:
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+					"Invalid -EFreverb parameter.");
+			return 1;
+		}
+		return 0;
 	}
-	return 0;
-    }
 
     if(strncmp(effect_opts, "chorus=", 7) == 0)
     {
@@ -2695,6 +2732,17 @@ int set_extension_modes(char *flag)
 	    break;
 	  case 'S':
 	    opt_channel_pressure = 0;
+	    break;
+	  case 'l':
+	    opt_lpf_def = 1;
+	    break;
+	  case 'L':
+	    opt_lpf_def = 0;
+	  case 'e':
+	    opt_modulation_envelope = 1;
+	    break;
+	  case 'E':
+	    opt_modulation_envelope = 0;
 	    break;
 	  case 't':
 	    opt_trace_text_meta_event = 1;
@@ -2872,11 +2920,19 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
         break;
 #endif
 
-      case 'A':
-	if(set_value(&amplification, atoi(optarg), 0, MAX_AMPLIFICATION,
-		     "Amplification"))
-	    return 1;
-	break;
+	case 'A':	/* amplify volume by n percent */
+		if (*optarg != ',' && *optarg != 'a')
+			if (set_value(&amplification, atoi(optarg), 0,
+					MAX_AMPLIFICATION, "Amplification"))
+				return 1;
+		/* drum power */
+		if (strchr(optarg, ','))
+			if (set_value(&opt_drum_power, atoi(strchr(optarg, ',') + 1), 0,
+					MAX_AMPLIFICATION, "Drum power"))
+				return 1;
+		if (strchr(optarg, 'a'))
+			opt_amp_compensation = 1;
+		break;
 
       case 'a':
 	antialiasing_allowed = 1;
@@ -3018,6 +3074,46 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
         if(min_sustain_time < 0) min_sustain_time = 0;
         break;
 
+#ifdef GAUSS_INTERPOLATION
+      case 'N':
+        gauss_n = atoi(optarg);
+        if (gauss_n < 0 || gauss_n > 34)
+        {
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "Gauss interpolation: -N value must be from 1 to 34.");
+	    return 1;
+	}
+	if (gauss_n == 0)
+	{
+	    gauss_n = 5;
+	    no_4point_interpolation = 1;
+	    reduce_quality_flag = 1;
+	}
+	break;
+#endif
+#ifdef NEWTON_INTERPOLATION
+      case 'N':
+        newt_n = atoi(optarg);
+        if ((newt_n > 0 && newt_n % 2 == 0) || newt_n < 0 || newt_n > 57)
+        {
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "Newton interpolation: -N value must be an odd number from 1 to 57.");
+	    return 1;
+	}
+	if (newt_n == 0)
+	{
+	    newt_n = 5;
+	    no_4point_interpolation = 1;
+	    reduce_quality_flag = 1;
+	}
+
+	/* set optimal value for newt_max */
+	newt_max = -1.875328947 + 1.57730263158 * newt_n;
+	if (newt_max < newt_n) newt_max = newt_n;
+	if (newt_max > 57) newt_max = 57;
+	break;
+#endif
+
       case 'n': 
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "-n option is obsoleted.  Please use -EFns=<n>");
@@ -3049,10 +3145,16 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 	}
 	break;
 
-      case 'Q':
-	if(set_channel_flag(&quietchannels, atoi(optarg), "Quiet channel"))
-	    return 1;
-	break;
+	case 'Q':
+		if (strchr(optarg, 't')) {
+			if (set_value(&tmpi32, atoi(optarg), 0, 3, "Quiet temperament"))
+				return 1;
+			temper_type_mute |= 1 << tmpi32;
+		} else
+			if (set_channel_flag(
+					&quietchannels, atoi(optarg), "Quiet channel"))
+				return 1;
+		break;
 
       case 'q':
 	if(strchr(optarg, '/') == NULL)
@@ -3168,7 +3270,7 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 			opt_pure_intonation = 1;
 			if (*(optarg + 4)) {
 				if (set_value(&tmpi32, atoi(optarg + 4), -7, 7,
-						"Initial keysig (number of #(+)/b(-)[m(minor)]"))
+						"Initial keysig (number of #(+)/b(-)[m(minor)])"))
 					return 1;
 				if (strchr(optarg + 4, 'm'))
 					opt_init_keysig = tmpi32 + 16;
@@ -3200,13 +3302,7 @@ static RETSIGTYPE sigterm_exit(int sig)
     s[2] = '\n';
     write(2, s, 3);
 
-    if(sig == SIGINT && intr < 1)
-    {
-	intr++;
-	signal(SIGINT, sigterm_exit); /* For SysV base */
-    }
-    else
-	safe_exit(1);
+    safe_exit(1);
 }
 #endif /* HAVE_SIGNAL */
 
@@ -3222,9 +3318,13 @@ MAIN_INTERFACE void timidity_start_initialize(void)
     int i;
     static int drums[] = DEFAULT_DRUMCHANNELS;
     static int is_first = 1;
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) && !defined(__alpha__)
     fp_except_t fpexp;
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+    fp_except fpexp;
+#endif
 
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
     fpexp = fpgetmask();
     fpsetmask(fpexp & ~(FP_X_INV|FP_X_DZ));
 #endif
@@ -3309,8 +3409,18 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 	for(i = 0; url_module_list[i]; i++)
 	    url_add_module(url_module_list[i]);
 	init_string_table(&opt_config_string);
-	init_freq_table2();
+	init_freq_table();
+	init_freq_table_pytha();
+	init_freq_table_meantone();
+	init_freq_table_pureint();
+	init_bend_fine();
+	init_bend_coarse();
 	init_tables();
+	init_attack_vol_table();
+	init_sb_vol_table();
+	init_convex_vol_table();
+	init_def_vol_table();
+	init_gs_vol_table();
 #ifdef SUPPORT_SOCKET
 	url_news_connection_cache(URL_NEWS_CONN_CACHE);
 #endif /* SUPPORT_SOCKET */
@@ -3837,6 +3947,15 @@ int main(int argc, char **argv)
 #endif
     }
 
+#if defined(NEWTON_INTERPOLATION) || defined(GAUSS_INTERPOLATION)
+    initialize_newton_coeffs();
+#endif
+#ifdef GAUSS_INTERPOLATION
+    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Initializing Gauss table...");
+    initialize_gauss_table(gauss_n);
+    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Done");
+#endif
+
     timidity_init_player();
 
     nfiles = argc - optind;
@@ -3866,7 +3985,10 @@ int main(int argc, char **argv)
     free_instruments(0);
     free_global_mblock();
     free_all_midi_file_info();
+	free_userdrum();
+	free_userinst();
     tmdy_free_config();
+	free_effect_buffers();
     return main_ret;
 }
 #endif /* __MACOS__ */

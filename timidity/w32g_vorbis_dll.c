@@ -65,7 +65,7 @@ static struct vorbis_dll_ {
 	 type_vorbis_info_clear vorbis_info_clear;
 	 type_vorbis_comment_init vorbis_comment_init;
 	 type_vorbis_comment_add vorbis_comment_add;
-//	 type_vorbis_comment_add_tag vorbis_comment_add_tag;
+	 type_vorbis_comment_add_tag vorbis_comment_add_tag;
 //	 type_vorbis_comment_query vorbis_comment_query;
 //	 type_vorbis_comment_query_count vorbis_comment_query_count;
 	 type_vorbis_comment_clear vorbis_comment_clear;
@@ -111,8 +111,8 @@ int load_vorbis_dll(void)
 	if(!vorbis_dll.vorbis_comment_init){ free_vorbis_dll(); return -1; }
 	vorbis_dll.vorbis_comment_add = (type_vorbis_comment_add)GetProcAddress(h_vorbis_dll,"vorbis_comment_add");
 	if(!vorbis_dll.vorbis_comment_add){ free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_comment_add_tag = (type_vorbis_comment_add_tag)GetProcAddress(h_vorbis_dll,"vorbis_comment_add_tag");
-//	if(!vorbis_dll.vorbis_comment_add_tag){ free_vorbis_dll(); return -1; }
+	vorbis_dll.vorbis_comment_add_tag = (type_vorbis_comment_add_tag)GetProcAddress(h_vorbis_dll,"vorbis_comment_add_tag");
+	if(!vorbis_dll.vorbis_comment_add_tag){ free_vorbis_dll(); return -1; }
 //	vorbis_dll.vorbis_comment_query = (type_vorbis_comment_query)GetProcAddress(h_vorbis_dll,"vorbis_comment_query");
 //	if(!vorbis_dll.vorbis_comment_query){ free_vorbis_dll(); return -1; }
 //	vorbis_dll.vorbis_comment_query_count = (type_vorbis_comment_query_count)GetProcAddress(h_vorbis_dll,"vorbis_comment_query_count");
@@ -182,7 +182,6 @@ void    vorbis_comment_add(vorbis_comment *vc, char *comment)
 	}
 }
 
-#if 0
 void    vorbis_comment_add_tag(vorbis_comment *vc, char *tag, char *contents)
 {
 	if(h_vorbis_dll){
@@ -190,6 +189,7 @@ void    vorbis_comment_add_tag(vorbis_comment *vc, char *tag, char *contents)
 	}
 }
 
+#if 0
 char   *vorbis_comment_query(vorbis_comment *vc, char *tag, int count)
 {
 	if(h_vorbis_dll){

@@ -582,7 +582,18 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PLAY, "Play");
 			DrawMenuBar(hwnd);
     	}
-		SetWindowPosSize(GetDesktopWindow(),hwnd,MainWndInfo.PosX, MainWndInfo.PosY );
+			{
+				RECT d_rc, w_rc;
+				GetClientRect ( GetDesktopWindow (), &d_rc );
+				GetWindowRect ( hwnd, &w_rc );
+				d_rc.right -= w_rc.right - w_rc.left;
+				d_rc.bottom -= w_rc.bottom - w_rc.top;
+				if ( MainWndInfo.PosX < d_rc.left ) MainWndInfo.PosX = d_rc.left; 
+				if ( MainWndInfo.PosX > d_rc.right ) MainWndInfo.PosX = d_rc.right; 
+				if ( MainWndInfo.PosY < d_rc.top ) MainWndInfo.PosY = d_rc.top; 
+				if ( MainWndInfo.PosY > d_rc.bottom ) MainWndInfo.PosY = d_rc.bottom; 
+				SetWindowPosSize(GetDesktopWindow(),hwnd,MainWndInfo.PosX, MainWndInfo.PosY );
+			}
 		return FALSE;
 	  HANDLE_MSG(hwnd,WM_COMMAND,MainCmdProc);
 
@@ -617,9 +628,7 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 		return FALSE;
 	  case WM_MOVE:
-//		MainWndInfo.PosX = (int) LOWORD(lParam);
-//		MainWndInfo.PosY = (int) HIWORD(lParam);
-		{
+		if ( ! IsIconic(hwnd) ) {
 			RECT rc;
 			GetWindowRect(hwnd,&rc);
 			MainWndInfo.PosX = rc.left;
@@ -3133,6 +3142,9 @@ void MPanelUpdate(void)
 		case  IS_PTM_FILE:
 			strcat(buffer,"[PTM]");
 			break;
+		case  IS_MFI_FILE:
+			strcat(buffer,"[MFI]");
+			break;
 		default:
 		case  IS_OTHER_FILE:
 			strcat(buffer,"[---]");
@@ -4006,8 +4018,8 @@ static char *DlgFileOpen(HWND hwnd, char *title, char *filter, char *dir)
 static void DlgMidiFileOpen(HWND hwnd)
 {
     char *dir, *file;
-    char *filter = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.lzh;*.zip;*.gz\0"
-		"midi file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36\0"
+    char *filter = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.lzh;*.zip;*.gz\0"
+		"midi file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi\0"
 		"archive file\0*.lzh;*.zip;*.gz\0"
 		"playlist file\0*.pls;*.m3u;*.asx\0"
 		"all files\0*.*\0"
@@ -4164,7 +4176,8 @@ static void DlgPlaylistSave(HWND hwnd)
 	ofn.lpstrInitialDir	= dir;
 	ofn.lpstrTitle	= "Save Playlist File";
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_HIDEREADONLY;
-	ofn.lpstrDefExt = 0;
+// ofn.lpstrDefExt = 0;
+	ofn.lpstrDefExt = "pls";
 	ofn.lCustData = 0;
 	ofn.lpfnHook = 0;
 	ofn.lpTemplateName= 0;
@@ -4495,8 +4508,8 @@ void w32g_show_console(void)
 // GDI アクセスを単一スレッドに限定するためのロック機構
 
 static HANDLE volatile hMutexGDI = NULL;
-static volatile lock_num = 0;
-int gdi_lock(void)
+// static int volatile lock_num = 0;
+int gdi_lock_ex ( DWORD timeout )
 {
 // lock_num++;
 // ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
@@ -4506,10 +4519,14 @@ int gdi_lock(void)
 		if(hMutexGDI==NULL)
 			return -1;
 	}
-	if(WaitForSingleObject(hMutexGDI,INFINITE)==WAIT_FAILED){
+	if(WaitForSingleObject(hMutexGDI,timeout)==WAIT_FAILED){
 		return -1;
 	}
 	return 0;
+}
+int gdi_lock(void)
+{
+	return gdi_lock_ex ( INFINITE );
 }
 
 extern int gdi_unlock(void)

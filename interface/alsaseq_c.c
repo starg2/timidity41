@@ -46,7 +46,11 @@
 #include <math.h>
 #include <signal.h>
 
+#if HAHE_ALSA_ASOUNDLIB_H
+#include <alsa/asoundlib.h>
+#else
 #include <sys/asoundlib.h>
+#endif
 
 #include "timidity.h"
 #include "common.h"
@@ -289,7 +293,7 @@ static void ctl_pass_playing_list(int n, char *args[])
 
 	opt_realtime_playing = 2; /* Enable loading patch while playing */
 	allocate_cache_size = 0; /* Don't use pre-calclated samples */
-	current_keysig = opt_init_keysig;
+	current_keysig = current_temper_keysig = opt_init_keysig;
 	note_key_offset = 0;
 
 	/* set the audio queue size as minimum as possible, since
@@ -444,8 +448,8 @@ static void stop_sequencer(struct seq_context *ctxp)
 
 static int do_sequencer(struct seq_context *ctxp)
 {
-	int n;
-	MidiEvent ev;
+	int n, ne, i;
+	MidiEvent ev, evm[16];
 	snd_seq_event_t *aevp;
 
 	n = snd_seq_event_input(ctxp->handle, &aevp);
@@ -569,8 +573,13 @@ static int do_sequencer(struct seq_context *ctxp)
 		break;
 
 	case SND_SEQ_EVENT_SYSEX:
-		if (parse_sysex_event(aevp->data.ext.ptr + 1, aevp->data.ext.len - 1, &ev))
+		if (parse_sysex_event(aevp->data.ext.ptr + 1,
+				 aevp->data.ext.len - 1, &ev))
 			seq_play_event(&ev);
+		if (ne = parse_sysex_event_multi(aevp->data.ext.ptr + 1,
+				aevp->data.ext.len - 1, evm))
+			for (i = 0; i < ne; i++)
+				seq_play_event(&evm[i]);
 		break;
 
 #if SND_LIB_MINOR >= 6

@@ -48,15 +48,16 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 dnl		  (such as -fPIC)
 
 # This is a autoscan-generated configure.scan.
-AC_PREREQ(2.50)
+AC_PREREQ(2.56)
 
-dnl "AC_INIT(timidity/timidity.c)" is obsolate yet.
-AC_INIT(TiMidity++,2.12.0-pre1b)
-AC_CONFIG_AUX_DIR(autoconf)
+# "AC_INIT(timidity/timidity.c)" is obsolate yet.
+AC_INIT([TiMidity++],[2.12.0-pre1b],[root@mput.dip.jp],[TiMidity++])
+AC_CONFIG_AUX_DIR([autoconf])
 AC_CANONICAL_TARGET
-AM_INIT_AUTOMAKE(TiMidity++,2.12.0-pre1b)
+AM_INIT_AUTOMAKE([gnu dist-bzip2])
 AC_CONFIG_SRCDIR([timidity/timidity.c])
-AM_CONFIG_HEADER([config.h interface.h])
+AC_CONFIG_HEADERS([config.h interface.h])
+AM_MAINTAINER_MODE
 
 SHELL=${CONFIG_SHELL-"/bin/sh"}
 WISH=${WISH-"wish"}
@@ -157,6 +158,7 @@ AC_DEFINE_UNQUOTED(PKGLIBDIR,"$tmplibdir",place to install modules)
 # Checks for programs.
 AM_PATH_LISPDIR
 AC_PROG_CC
+AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 AC_PROG_AWK
 AC_PROG_RANLIB
@@ -278,7 +280,7 @@ case "$target" in
 esac
 
 dnl For .exe
-dnl AC_EXEEX
+dnl AC_EXEEX # obsolate
 
 # Checks for libraries.
 AC_CHECK_LIB(m,sqrt)
@@ -314,11 +316,11 @@ if test "x$with_x" = xyes -a "x$have_x" = xyes; then
   AC_CHECK_LIB(X11,XOpenDisplay)
   AC_MSG_CHECKING(X11 version 6)
   AC_CACHE_VAL(timidity_cv_x11_version_6,
-    AC_TRY_LINK([#include <X11/Xlib.h>],
-[#if XlibSpecificationRelease < 6
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <X11/Xlib.h>]], [[
+#if XlibSpecificationRelease < 6
 fail;
 #endif
-], timidity_cv_x11_version_6=yes, timidity_cv_x11_version_6=no))
+]])],[timidity_cv_x11_version_6=yes],[timidity_cv_x11_version_6=no]))
   if test "$timidity_cv_x11_version_6" = "yes"; then
     AC_MSG_RESULT(6 or newer)
     dnl AC_DEFINE(HAVE_X11R6)
@@ -343,9 +345,11 @@ fi
 dnl End of X configure
 
 # Checks for header files.
-AC_HEADER_DIRENT
 AC_HEADER_STDC
+AC_HEADER_STDBOOL
 AC_HEADER_SYS_WAIT
+AC_HEADER_TIME
+AC_HEADER_DIRENT
 AC_CHECK_HEADERS( \
   [arpa/inet.h \
   errno.h \
@@ -353,6 +357,7 @@ AC_CHECK_HEADERS( \
   glob.h \
   dlfcn.h \
   fcntl.h \
+  inttypes.h \
   limits.h \
   machine/endian.h \
   malloc.h \
@@ -362,6 +367,7 @@ AC_CHECK_HEADERS( \
   nlist.h \
   stddef.h \
   stdlib.h \
+  stdint.h \
   string.h \
   strings.h \
   stropts.h \
@@ -387,32 +393,32 @@ AC_CHECK_HEADERS( \
 AC_CHECK_HEADER(string.h,, [ AC_DEFINE(NO_STRING_H,1,Define to 1 if you do not have <string.h>.)])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
-AC_C_CHAR_UNSIGNED
 AC_C_BIGENDIAN
+AC_C_CHAR_UNSIGNED
+AC_C_CONST
 AC_C_INLINE
+AC_C_VOLATILE
+AC_C_STRINGIZE
+AC_C_PROTOTYPES
+AC_STRUCT_TM
+AC_TYPE_SIZE_T
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
-AC_TYPE_SIZE_T
-AC_HEADER_TIME
-AC_STRUCT_TM
 
 dnl keyword "volatile" check
 AC_CACHE_CHECK(volatile declaration,timidity_cv_type_volatile,
-  AC_TRY_COMPILE(,volatile int x,
-    timidity_cv_type_volatile=yes,timidity_cv_type_volatile=no))
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(, [[volatile int x]])],[timidity_cv_type_volatile=yes],[timidity_cv_type_volatile=no]))
 if test $timidity_cv_type_volatile = no; then
   AC_DEFINE(NO_VOLATILE,1,Define to 1 if you cannot use volatile keyword)
 fi
 
 dnl union usenum check
 AC_CACHE_CHECK(union semun declaration,timidity_cv_type_union_semun,
-  AC_TRY_COMPILE(
-[#include <sys/types.h>
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/types.h>
 #include <sys/ipc.h>
-#include <sys/sem.h>],
-    union semun x,
-    timidity_cv_type_union_semun=yes,timidity_cv_type_union_semun=no))
+#include <sys/sem.h>
+]], [[union semun x]])],[timidity_cv_type_union_semun=yes],[timidity_cv_type_union_semun=no]))
 if test $timidity_cv_type_union_semun = yes; then
   AC_DEFINE(HAVE_UNION_SEMUN,1,Define to 1 if you use semun keyword)
 fi
@@ -420,11 +426,10 @@ fi
 dnl Cygnus mmsystem check
 if test "x$CYGNUS" = xyes; then
   AC_CACHE_CHECK(Cygwin new mmsystem,timidity_cv_header_new_mmsystem,
-    AC_TRY_COMPILE(
-[#include <windows.h>
-#include <mmsystem.h>],
-    return WOM_OPEN != 0x3BB,
-    timidity_cv_header_new_mmsystem=yes,timidity_cv_header_new_mmsystem=no))
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <windows.h>
+#include <mmsystem.h>
+]], [[return WOM_OPEN != 0x3BB]])],[timidity_cv_header_new_mmsystem=yes],[timidity_cv_header_new_mmsystem=no]))
   if test $timidity_cv_header_new_mmsystem = yes; then
     AC_DEFINE(HAVE_NEW_MMSYSTEM,1,Define to 1 if you have <mmsystem.h> file)
   fi
@@ -433,11 +438,10 @@ fi
 dnl MINGW mmsystem check
 if test "x$MINGW" = xyes; then
   AC_CACHE_CHECK(Mingw new mmsystem,timidity_cv_header_new_mmsystem,
-    AC_TRY_COMPILE(
-[#include <windows.h>
-#include <mmsystem.h>],
-    return WOM_OPEN != 0x3BB,
-    timidity_cv_header_new_mmsystem=yes,timidity_cv_header_new_mmsystem=no))
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <windows.h>
+#include <mmsystem.h>
+]], [[return WOM_OPEN != 0x3BB]])],[timidity_cv_header_new_mmsystem=yes],[timidity_cv_header_new_mmsystem=no]))
   if test $timidity_cv_header_new_mmsystem = yes; then
     AC_DEFINE(HAVE_NEW_MMSYSTEM,1,Define to 1 if you have <mmsystem.h> file)
   fi
@@ -446,8 +450,6 @@ fi
 # Checks for library functions.
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK
-AC_PROG_GCC_TRADITIONAL
-AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_MMAP
 AC_FUNC_SETVBUF_REVERSED
@@ -1258,18 +1260,18 @@ dnl configure must check ncurses header with -I/usr/include/ncurses option.
   ],
   [ LIBS="$LIBS $lib_curses_opt"
     case "$target" in
-      *-*-freebsd*)
-	EXTRALIBS="$EXTRALIBS -lmytinfo"
-	;;
-    esac
+       *-*-freebsd[123]*)
+         EXTRALIBS="$EXTRALIBS -lmytinfo"
+         ;;
+     esac
     INTERFACE_SRCS="$INTERFACE_SRCS ncurs_c.c"
   ],
   [ n_so_libs="$lib_curses_opt"
     case "$target" in
-      *-*-freebsd*)
-	n_so_libs="$n_so_libs -lmytinfo"
-	;;
-    esac ])
+       *-*-freebsd[123]*)
+         EXTRALIBS="$EXTRALIBS -lmytinfo"
+         ;;
+     esac])
 
 dnl slang
 AM_CONDITIONAL(ENABLE_SLANG, false)
@@ -1573,17 +1575,24 @@ AM_CONDITIONAL(ENABLE_SOUND_SPEC, test "x$enable_spectrogram" = "xyes")
 
 dnl Wave Spline Interpolations
 AC_ARG_ENABLE(spline,
-  [  --enable-spline=[method]  Specify spline method: no|linear|cubic|lagrange
+  [  --enable-spline=[method]  Specify spline method.
+                                  one of no,linear,cubic,lagrange,newton,gauss
                                                           (default is linear)],
   [ case "x$enableval" in
       xlinear)
-	AC_DEFINE(LINEAR_INTERPOLATION,1,Define to 1 if you use linear complemention.)
+	AC_DEFINE(LINEAR_INTERPOLATION,1,Define to 1 if you use linear interpolation.)
 	;;
       xcubic)
-	AC_DEFINE(CSPLINE_INTERPOLATION,1,Define to 1 if you use cubic-spline complemention.)
+	AC_DEFINE(CSPLINE_INTERPOLATION,1,Define to 1 if you use cubic-spline interpolation.)
 	;;
       xlagrange)
-	AC_DEFINE(LAGRANGE_INTERPOLATION,1,Define to 1 if you use lagrange complemention.)
+	AC_DEFINE(LAGRANGE_INTERPOLATION,1,Define to 1 if you use Lagrange-polynomial interpolation.)
+	;;
+      xnewton)
+	AC_DEFINE(NEWTON_INTERPOLATION,1,Define to 1 if you use Newton-polynomial interpolation.)
+	;;
+      xgauss)
+	AC_DEFINE(GAUSS_INTERPOLATION,1,Define to 1 if you use Gauss interpolation.)
 	;;
       xno)
 	AC_DEFINE(NO_INTERPOLATION,1,Define to 1 if you do not use complemention.)
@@ -1670,7 +1679,12 @@ AC_SUBST(pkglibdir)
 
 AC_CONFIG_FILES([
   Makefile
+  autoconf/Makefile
   common.makefile
+  configs/Makefile
+  doc/Makefile
+  doc/C/Makefile
+  doc/ja_JP.ujis/Makefile
   interface/Makefile
   interface/motif_bitmaps/Makefile
   interface/bitmaps/Makefile
@@ -1679,9 +1693,6 @@ AC_CONFIG_FILES([
   libunimod/Makefile
   timidity/Makefile
   utils/Makefile
-  doc/Makefile
-  doc/C/Makefile
-  doc/ja_JP.ujis/Makefile
   script/Makefile
 ])
 AC_OUTPUT
