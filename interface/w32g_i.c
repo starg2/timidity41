@@ -3244,7 +3244,7 @@ static void DlgDirOpen(HWND hwnd)
 	if(!itemidlist)
 		return; /* Cancel */
 	SHGetPathFromIDList(itemidlist, Buffer);
-	strncpy(biBuffer, Buffer, sizeof(biBuffer));
+	strncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
     w32g_lock_open_file = 1;
 	directory_form(Buffer);
     w32g_send_rc(RC_EXT_LOAD_FILE, (int32)Buffer);

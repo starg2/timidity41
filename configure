@@ -110,7 +110,7 @@ ac_help="$ac_help
 ac_help="$ac_help
   --enable-spectrogram    Enable Sound Spectrogram Viewer (default is no)"
 ac_help="$ac_help
-  --enable-spline=[method]  Specify spline method: no|linear|cubic|lanrange
+  --enable-spline=[method]  Specify spline method: no|linear|cubic|lagrange
                                                           (default is linear)"
 ac_help="$ac_help
   --enable-wrd            Enable WRD interface for X      (default is no)"
@@ -884,7 +884,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.8.0
+VERSION=2.8.1
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -7638,7 +7638,7 @@ if test "${enable_spline+set}" = set; then
       xcubic)
 	EXTRADEFS="$EXTRADEFS -DCSPLINE_INTERPOLATION"
 	;;
-      xlanrange)
+      xlagrange)
 	EXTRADEFS="$EXTRADEFS -DLAGRANGE_INTERPOLATION"
 	;;
       xno)

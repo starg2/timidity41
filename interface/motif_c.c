@@ -184,14 +184,14 @@ static void ctl_lyric(int lyricid)
 	    }
 	    else
 	    {
-		strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
+		strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf) - 1);
 		m_pipe_int_write(LYRIC_MESSAGE);
 		m_pipe_string_write(lyric_buf);
 	    }
 	}
 	else
 	{
-	    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
+	    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf) - 1);
 	    m_pipe_int_write(LYRIC_MESSAGE);
 	    m_pipe_string_write(lyric_buf);
 	}

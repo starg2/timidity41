@@ -757,7 +757,7 @@ static void borlandc_esc(char *str)
 	char local[201];
 	local[0] = '\033';
 	local[1] = '[';
-	strncpy(local+2,str,200-2);
+	strncpy(local+2,str,sizeof(local)-3);
 	local[200] = '\0';
 	putstring_with_esc(local);
 }

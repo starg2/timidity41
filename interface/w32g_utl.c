@@ -563,7 +563,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
     if(play_mode->encoding & PE_BYTESWAP)
 	st->opt_playmode[j++] = 'x';
     st->opt_playmode[j] = '\0';
-    strncpy(st->OutputName,OutputName,sizeof(st->OutputName));
+    strncpy(st->OutputName,OutputName,sizeof(st->OutputName)-1);
     st->voices = SetValue(voices, 1, MAX_VOICES);
 	st->auto_reduce_polyphony = auto_reduce_polyphony;
     st->quietchannels = quietchannels;
@@ -579,11 +579,11 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	    st->output_rate = DEFAULT_RATE;
     }
     st->output_rate = SetValue(st->output_rate,MIN_OUTPUT_RATE,MAX_OUTPUT_RATE);
-    strncpy(st->output_text_code,output_text_code,sizeof(st->output_text_code));
+    strncpy(st->output_text_code,output_text_code,sizeof(st->output_text_code)-1);
     st->free_instruments_afterwards = free_instruments_afterwards;
     st->opt_wrd[0] = wrdt->id;
     if(wrdt_open_opts)
-	strncpy(st->opt_wrd + 1, wrdt_open_opts, sizeof(st->opt_wrd) - 1);
+	strncpy(st->opt_wrd + 1, wrdt_open_opts, sizeof(st->opt_wrd) - 2);
     else
 	st->opt_wrd[1] = '\0';
 #if defined(__W32__) && defined(SMFCONV)
@@ -745,7 +745,7 @@ void w32g_initialize(void)
 int IniVersionCheck(void)
 {
     char version[INI_MAXLEN];
-    if(IniGetKeyStringN(INI_SEC_PLAYER,"IniVersion",version,sizeof(version)) == 0 &&
+    if(IniGetKeyStringN(INI_SEC_PLAYER,"IniVersion",version,sizeof(version)-1) == 0 &&
        strcmp(version, IniVersion) == 0)
 	return 1; // UnChanged
     return 0;

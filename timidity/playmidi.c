@@ -701,6 +701,11 @@ Instrument *play_midi_load_instrument(int dr, int bk, int prog)
     return ip;
 }
 
+#if 0
+/* reduce_voice_CPU() may not have any speed advantage over reduce_voice().
+ * So this function is not used, now.
+ */
+
 /* The goal of this routine is to free as much CPU as possible without
    loosing too much sound quality.  We would like to know how long a note
    has been playing, but since we usually can't calculate this, we guess at
@@ -928,6 +933,7 @@ static int reduce_voice_CPU(void)
 
     return lowest;
 }
+#endif
 
 /* this reduces voices while maintaining sound quality */
 static int reduce_voice(void)
@@ -3691,14 +3697,7 @@ static int compute_data(int32 count)
 		  }
 
 		  for(i = 0; i < kill_nv; i++)
-		  {
-		      v = reduce_voice_CPU();
-
-		      /* Tell VOICE_DIE to interface */
-		      voice[v].status = VOICE_DIE;
-		      ctl_note_event(v);
-		      free_voice(v);
-		  }
+		      v = reduce_voice();
 
 		  /* lower max # of allowed voices to let the buffer recover */
 		  if (auto_reduce_polyphony) {

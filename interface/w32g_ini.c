@@ -116,7 +116,7 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_channel_pressure",&(st->opt_channel_pressure));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_trace_text_meta_event",&(st->opt_trace_text_meta_event));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_overlap_voice_allow",&(st->opt_overlap_voice_allow));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_default_mid",buff,sizeof(buff));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_default_mid",buff,sizeof(buff)-1);
     st->opt_default_mid = str2mID(buff);
     IniGetKeyInt(INI_SEC_TIMIDITY,"default_tonebank",&(st->default_tonebank));
     IniGetKeyInt(INI_SEC_TIMIDITY,"special_tonebank",&(st->special_tonebank));
@@ -134,22 +134,22 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     st->spectrogram_update_sec = v_float;
 #endif
     IniGetKeyIntArray(INI_SEC_TIMIDITY,"default_program",st->default_program,MAX_CHANNELS);
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_ctl",st->opt_ctl,sizeof(st->opt_ctl));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_ctl",st->opt_ctl,sizeof(st->opt_ctl)-1);
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_realtime_playing",&(st->opt_realtime_playing));
     IniGetKeyInt(INI_SEC_TIMIDITY,"reduce_voice_threshold",&(st->reduce_voice_threshold));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,sizeof(st->OutputName));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode)-1);
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,sizeof(st->OutputName)-1);
     IniGetKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
     IniGetKeyInt(INI_SEC_TIMIDITY,"auto_reduce_polyphony",&(st->auto_reduce_polyphony));
     IniGetKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize)-1);
     IniGetKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"allocate_cache_size",buff,sizeof(buff));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"allocate_cache_size",buff,sizeof(buff)-1);
     st->allocate_cache_size = str2size(buff);
     IniGetKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,sizeof(st->output_text_code));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,sizeof(st->output_text_code)-1);
     IniGetKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"out_wrd",st->opt_wrd,sizeof(st->opt_wrd));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"out_wrd",st->opt_wrd,sizeof(st->opt_wrd)-1);
 #if defined(__W32__) && defined(SMFCONV)
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
 #endif

@@ -2854,7 +2854,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
     extern char *ConfigFile;
     if(!ConfigFile[0])
 	strcpy(ConfigFile, W32G_TIMIDITY_CFG);
-    strncpy(local, ConfigFile, sizeof(local));
+    strncpy(local, ConfigFile, sizeof(local) - 1);
 #else
     /* !IA_W32GUI */
     GetWindowsDirectory(local, 1023 - 13);
@@ -3285,7 +3285,7 @@ int main(int argc, char **argv)
 #ifdef IA_W32GUI
 	    {
 		extern char *ConfigFile;
-		strncpy(config1, ConfigFile, sizeof(config1));
+		strncpy(config1, ConfigFile, sizeof(config1) - 1);
 	    }
 #else
 	    /* !IA_W32GUI */

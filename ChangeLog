@@ -1,3 +1,21 @@
+1999-11-29  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.8.1 released.
+
+1999-11-29  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/timidity.c,interface/{gtk_c.c,motif_c.c,w32g_i.c,w32g_util.c,
+      w32g_ini.c,wrdt_wcon.c,xaw_c.c}:  Bug fixes about overrunning in strncpy.
+
+1999-11-24  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in: Fix typoes
+
+1999-11-19  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c (reduce_voice_CPU):  Obsoleted.  Use reduce_voice()
+      instead of reduce_voice_CPU().
+
 1999-11-24  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.8.0 released.
@@ -45,7 +63,7 @@
       wave interpolation in resampling.
 	--enable-spline=linear		Linear interpolation (default)
 	--enable-spline=cubic		Cubic interpolation
-	--enable-spline=lanrange	Langrange interpolation
+	--enable-spline=lagrange	Lagrange interpolation
 	--enable-spline=no		No interplation
 
 1999-11-12  Masanao Izumo <mo@goice.co.jp>

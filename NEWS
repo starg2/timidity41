@@ -1,3 +1,6 @@
+11/29, 1999
+    * Version 2.8.1 released.
+
 11/24, 1999
     * Version 2.8.0 released.
     * In GTK, added support for printing the lyrics from .kar files
@@ -13,7 +16,7 @@
     * New configure option to choose wave interpolation in resampling.
 	--with-spline=linear	Linear interpolation (default)
 	--with-spline=cubic	Cubic interpolation
-	--with-spline=lanrange	Langrange interpolation
+	--with-spline=lagrange	Lagrange interpolation
 	--with-spline=no	No interplation
     * New command line option `-m N' to specify sustain time (msec).
 	-m 1	Effectively behaves as if all sustains are ignored,

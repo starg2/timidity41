@@ -263,13 +263,13 @@ static void ctl_lyric(int lyricid)
                 else if(lyric[2] == 'T')
                     snprintf(lyric_buf, sizeof(lyric_buf), "Title: %s", lyric + 3);
                 else
-                    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
+                    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf) - 1);
                 a_pipe_write_msg(lyric_buf);
                 lyric_col = 0;
             }
             else
             {
-                strncpy(lyric_buf + lyric_col, lyric + 1, sizeof(lyric_buf) - lyric_col);
+                strncpy(lyric_buf + lyric_col, lyric + 1, sizeof(lyric_buf) - lyric_col - 1);
                 a_pipe_write_msg(lyric_buf);
                 lyric_col += strlen(lyric + 1);
             }
