@@ -1,3 +1,64 @@
+-- 1.3.2
+Wed Feb 10 1999
+Summary:
+    * Patched for BSD/OS.
+    * Changed icons of motif interface.
+    * Changed sorting algorithm for xaw and Tck/Tk interface.
+    * Fixed bugs and probrems of Tcl/Tk interface
+
+Date: Wed Feb 10 1999
+From: Masanao Izumo <mog@goice.co.jp>
+Files: configure.h timidity/timidity.h
+    Included <machine/endian.h> from timidity.h if configure finds it.
+Files: interface/tkpanel.tcl
+    Fixed bug of Tcl/Tk interface: If a file is added on suffle, it is
+    possible to be error.  Tck may access to out of range of Stat(SuffleList).
+
+Date: Tue, 09 Feb 1999 04:11:55 +0900
+From: (Masahiko Kimoto) <kimoto@ohnolab.org>
+Files: configure.in timidity/linux_a.c timidity/timidity.h
+    Patched for BSD/OS.
+
+Date: Mon, 08 Feb 1999 07:42:46 -0500
+From: Roger Fujii <rmf@unixbox.lookhere.com>
+Files: interface/motif_i.c
+	interface/motif_bitmaps/{Makefile.in,Makefile.am,back.xbm,fwd.xbm,
+	next.xbm,pause.xbm,prev.xbm,quit.xbm,restart.xbm,timidity.xbm,Makefile}
+    Attached is better looking xbms for the motif interface
+    plus a fix to prevent the last button from resizing
+    when the window is resized.
+
+Date: Mon Feb  8 JST 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/ncurs_c.c
+    Modified ncurs_c.c.
+
+Date: Sun Feb 7 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/vt100_c.c
+    Bug fixed for Windows.  select() from Windows API is not available for file
+    descriptor, but from EGCS is ok.
+Files: interface/browser.tcl
+    Changed `lsort -dictionary' to `lsort -ascii'.
+
+Date: Sat, 6 Feb 1999 10:44:42 +0100 (CET)
+From: Peter Kleiweg <kleiweg@let.rug.nl>
+Files: interface/xaw_i.c
+    Changed the sorting algorithm for the xaw interface. Now, directories
+    are listed before regular files.
+
+Date: Sat, 6 Feb 1999 01:45:20 +0100 (CET)
+From: Peter Kleiweg <kleiweg@let.rug.nl>
+Files: interface/tkpanel.tcl
+    Fixed Tck/Tk interface probrem:
+	The proc MakeShuffleList is broken. The list of numbers it generates
+	has a `hole' in it. This generates an error when the last number in
+	the list has been played.
+	Also, with Tk, whenever a new song starts, the global X11 selection is
+	changed. This is very annoying when I'm just doing some cut-and-paste
+	in another application. I can even loose the data I was attempting to
+	move. So I changed this behavior in tkpanel.
+
 -- 1.3.1
 Fri Feb 5 1999
 Summary:

@@ -432,6 +432,19 @@ emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/miditrace.h
+gtk_c.o: gtk_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/output.h \
+	../timidity/controls.h gtk_h.h
+gtk_i.o: gtk_i.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h gtk_h.h pixmaps/playpaus.xpm \
+	pixmaps/prevtrk.xpm pixmaps/nexttrk.xpm pixmaps/rew.xpm \
+	pixmaps/ff.xpm pixmaps/restart.xpm pixmaps/quit.xpm \
+	pixmaps/quiet.xpm pixmaps/loud.xpm pixmaps/open.xpm \
+	pixmaps/keyup.xpm pixmaps/keydown.xpm pixmaps/slow.xpm \
+	pixmaps/fast.xpm
+gtk_p.o: gtk_p.c ../config.h ../timidity/timidity.h \
+	../timidity/controls.h gtk_h.h
 motif_c.o: motif_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
@@ -677,8 +690,8 @@ install.el: $(ELFILES)
 @NEEDDLOPEN_TRUE@interface_g.$(so): gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so)
 @NEEDDLOPEN_TRUE@	$(SHLD) -o $@ gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
 
-@NEEDDLOPEN_TRUE@clean-compile:
-@NEEDDLOPEN_TRUE@	-rm -f *.$(so)
+clean-compile:
+	-rm -f *.$(so)
 
 install-exec-local: $(install_tk) $(install_xaw) $(install_el) $(install_dynamics)
 ########## End of Makefile

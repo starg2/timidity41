@@ -20,31 +20,8 @@
 
 #SHELL=/bin/sh
 
-########### Compiler and flags.
 
-#srcdir = @srcdir@
-#top_srcdir = @top_srcdir@
-#VPATH = @srcdir@
-#prefix = @prefix@
-#exec_prefix = @exec_prefix@
-
-#bindir = @bindir@
-#sbindir = @sbindir@
-#libexecdir = @libexecdir@
-#datadir = @datadir@
-#sysconfdir = @sysconfdir@
-#sharedstatedir = @sharedstatedir@
-#localstatedir = @localstatedir@
-#libdir = @libdir@
-#infodir = @infodir@
-#mandir = @mandir@
-#includedir = @includedir@
-#oldincludedir = /usr/include
-
-pkgdatadir = $(datadir)/timidity
-pkglibdir = $(libdir)/timidity
-pkgincludedir = $(includedir)/timidity
-
+## Package compilations:
 #CC= @CC@
 #CFLAGS = @CFLAGS@
 CPPFLAGS = @CPPFLAGS@ @EXTRADEFS@ -DDEFAULT_PATH=\"$(TIMID_DIR)\"
@@ -55,17 +32,23 @@ SHLD = @SHLD@
 SHCFLAGS = @SHCFLAGS@
 #@SET_MAKE@
 
-########### Install.
+
+## Package installations:
+#prefix = @prefix@
+#exec_prefix = @exec_prefix@
+#bindir = @bindir@
+#libdir = @libdir@
+#mandir = @mandir@
+pkglibdir = $(libdir)/timidity
 #INSTALL = @INSTALL@
 
 # Where to install the patches, config files, and MIDI files.
 # If you change this, it's a good idea to recompile the binary,
 # or you'll need to invoke timidity with the -L option.
-#TIMID_DIR = $(prefix)/lib/timidity
 TIMID_DIR = $(pkglibdir)
 
 # Where to install the Tcl code, if you use the Tcl code that is.
-TCL_DIR = $(TIMID_DIR)
-#TCL_DIR = $(pkgdatadir)
+TCL_DIR = $(pkglibdir)
+
 
 .SUFFIXES: .c .h .ptcl .tcl .o .1 .txt .ps .@so@

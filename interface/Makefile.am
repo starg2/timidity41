@@ -292,11 +292,10 @@ interface_i.$(so): xskin_c.$(so) support.$(so) xskin_i.$(so) xskin_loadBMP.$(so)
 interface_g.$(so): gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so)
 	$(SHLD) -o $@ gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
 
+endif
 
 clean-compile:
 	-rm -f *.$(so)
-
-endif
 
 install-exec-local: $(install_tk) $(install_xaw) $(install_el) $(install_dynamics)
 ########## End of Makefile

@@ -1,3 +1,9 @@
+* 2/10, 1999
+    Released TiMidity++ v1.3.2.
+    * Fixed some bugs and probrems.
+    * Changed icons of motif interface.
+    * Changed sorting algorithm for xaw and tcktl interface.
+
 * 2/5, 1999
     Released TiMidity++ v1.3.1.
     * Fixed some bugs.

@@ -1059,7 +1059,7 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNtopOffset, 10); ac++;
     XtSetArg(al[ac], XmNbottomOffset, 10); ac++;
     XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
-    XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
+//    XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
     XtSetArg(al[ac],XmNtopAttachment,XmATTACH_WIDGET); ac++;
     XtSetArg(al[ac], XmNtopWidget, locator_scale); ac++;
     btnForm = XmCreateForm(mainForm,"btnForm", al, ac);
@@ -1071,6 +1071,7 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
     XtSetArg(al[ac], XmNleftOffset, 10); ac++;
     XtSetArg(al[ac], XmNshadowType, XmSHADOW_OUT); ac++;
+    XtSetArg(al[ac], XmNshadowThickness, 2); ac++;
     XtSetArg(al[ac], XmNlabelType, XmPIXMAP); ac++;
     XtSetArg(al[ac], XmNlabelPixmap, prevPixmap); ac++;
     XtSetArg(al[ac], XmNhighlightThickness, 2); ac++;
@@ -1085,8 +1086,9 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNtopAttachment, XmATTACH_FORM); ac++;
     XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
     XtSetArg(al[ac], XmNleftWidget, prevBtn); ac++;
-    XtSetArg(al[ac], XmNleftOffset, 10); ac++;
+    XtSetArg(al[ac], XmNleftOffset, 2); ac++;
     XtSetArg(al[ac], XmNshadowType, XmSHADOW_OUT); ac++;
+    XtSetArg(al[ac], XmNshadowThickness, 2); ac++;
     XtSetArg(al[ac], XmNlabelType, XmPIXMAP); ac++;
     XtSetArg(al[ac], XmNlabelPixmap, backPixmap); ac++;
     XtSetArg(al[ac], XmNhighlightThickness, 2); ac++;

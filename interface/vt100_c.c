@@ -89,6 +89,7 @@ static void indicator_set_prog(int ch, int val, char *comm);
 static void display_lyric(char *lyric, int sep);
 static void display_title(char *title);
 static void init_lyric(char *lang);
+static char *vt100_getline(void);
 
 #define LYRIC_WORD_NOSEP	0
 #define LYRIC_WORD_SEP		' '
@@ -102,7 +103,6 @@ static const char note_name_char[12] =
 {
     'c', 'C', 'd', 'D', 'e', 'f', 'F', 'g', 'G', 'a', 'A', 'b'
 };
-static int read_ready(int fd);
 
 static void ctl_note(int status, int ch, int note, int vel);
 static void ctl_program(int ch, int val, void *vp);
@@ -627,13 +627,11 @@ static void move_select_channel(int diff)
 
 static int ctl_read(int32 *valp)
 {
-    char cmd[VT100_COLS];
+    char *cmd;
 
-    if(read_ready(0) > 0)
-    {
-	if(fgets(cmd, VT100_COLS, stdin) == NULL)
-	    return RC_NONE;
-	switch(cmd[0])
+    if((cmd = vt100_getline()) == NULL)
+	return RC_NONE;
+    switch(cmd[0])
 	{
 	  case 'q':
 	    trace_flush();
@@ -705,7 +703,7 @@ static int ctl_read(int32 *valp)
 	    return RC_TOGGLE_SNDSPEC;
 	}
 
-	if(cmd[0] == '\033' && cmd[1] == '[')
+    if(cmd[0] == '\033' && cmd[1] == '[')
 	{
 	    switch(cmd[2])
 	    {
@@ -724,7 +722,6 @@ static int ctl_read(int32 *valp)
 	    }
 	    return RC_NONE;
 	}
-    }
     return RC_NONE;
 }
 
@@ -792,23 +789,64 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
     return 0;
 }
 
-static int read_ready(int fd)
+#if !defined(__WIN32__) || defined(__CYGWIN32__)
+/* UNIX */
+static char *vt100_getline(void)
 {
+    static char cmd[VT100_COLS];
     fd_set fds;
     int cnt;
     struct timeval timeout;
 
     FD_ZERO(&fds);
-    FD_SET(fd, &fds);
+    FD_SET(0, &fds);
     timeout.tv_sec = timeout.tv_usec = 0;
-    if((cnt = select(fd + 1, &fds, NULL, NULL, &timeout)) < 0)
+    if((cnt = select(1, &fds, NULL, NULL, &timeout)) < 0)
     {
 	perror("select");
-	return -1;
+	return NULL;
     }
 
-    return cnt > 0 && FD_ISSET(fd, &fds) != 0;
+    if(cnt > 0 && FD_ISSET(0, &fds) != 0)
+    {
+	if(fgets(cmd, sizeof(cmd), stdin) == NULL)
+	{
+	    rewind(stdin);
+	    return NULL;
+	}
+	return cmd;
+    }
+
+    return NULL;
 }
+#else
+#include <conio.h>
+static char *vt100_getline(void)
+{
+    static char cmd[VT100_COLS];
+    static int cmdlen = 0;
+    int c;
+
+    if(kbhit())
+    {
+	c = getch();
+	if(c == 'q' || c == 3 || c == 4)
+	    return "q";
+	if(c == '\r')
+	    c = '\n';
+	if(cmdlen < sizeof(cmd) - 1)
+	    cmd[cmdlen++] = (char)c;
+	if(c == '\n')
+	{
+	    cmd[cmdlen] = '\0';
+	    cmdlen = 0;
+	    return cmd;
+	}
+    }
+    return NULL;
+}
+#endif
+
 
 /* Indicator */
 

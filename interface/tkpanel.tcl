@@ -142,7 +142,6 @@ proc HandleInput {} {
 	    .body.file.list insert end $file
 	    lappend Stat(FileList) $file
 	}
-	# MakeShuffleList
 
 	set Stat(CurIdx) -1
 	SelectNumber
@@ -154,6 +153,9 @@ proc HandleInput {} {
 	for {} {$i < $Stat(MaxFiles)} {incr i} {
 	    set file [gets stdin]
 	    .body.file.list insert end $file
+	    if {$Config(ShufflePlay)} {
+		lappend Stat(ShuffleList) [llength $Stat(FileList)]
+	    }
 	    lappend Stat(FileList) $file
 	}
 	.body.file.list select set $Stat(CurIdx)
@@ -235,17 +237,17 @@ proc HandleInput {} {
 #
 proc MakeShuffleList {} {
     global Stat
-    set tmplist {}
-    for {set i 0} {$i < $Stat(MaxFiles)} {incr i} {
-	lappend tmplist $i
-    }
     set Stat(ShuffleList) {}
-    set len $Stat(MaxFiles)
+    for {set i 0} {$i < $Stat(MaxFiles)} {incr i} {
+	lappend Stat(ShuffleList) $i
+    }
+    set len [expr $Stat(MaxFiles) - 1]
     while {$len > 0} {
-	set pos [my-random $len]
-	lappend Stat(ShuffleList) [lindex $tmplist $pos]
-	set tmplist [lreplace $tmplist $pos $pos]
-	lappend Stat(ShuffleList) [lindex $tmplist $pos]
+	set pos [my-random [expr $len + 1]]
+	set tmp [lindex $Stat(ShuffleList) $pos]
+	set Stat(ShuffleList) [lreplace $Stat(ShuffleList) $pos $pos \
+					[lindex $Stat(ShuffleList) $len]]
+	set Stat(ShuffleList) [lreplace $Stat(ShuffleList) $len $len $tmp]
 	set len [expr $len - 1]
     }
 }
@@ -299,10 +301,10 @@ proc SelectNumber {} {
 
     if {$idx >= 0} {
 	if {$Stat(new_tcltk)} {
-	    .body.file.list select set $idx
+#	    .body.file.list select set $idx
 	} else {
-	    .body.file.list select from $idx
-	    .body.file.list select to $idx
+#	    .body.file.list select from $idx
+#	    .body.file.list select to $idx
 	}
 	.body.curfile configure -text\
 		"Playing: [lindex $Stat(FileList) $idx]"
@@ -672,7 +674,7 @@ proc CloseFiles {} {
 	.body.file.list delete 0 end
 	set Stat(MaxFiles) 0
 	set Stat(FileList) {}
-	set Stat(SuffleList) {}
+	set Stat(ShuffleList) {}
     }
 }
 
@@ -722,7 +724,11 @@ proc CreateWindow {} {
 	    -variable Config(RepeatPlay)
     .menu.mode.m add check -label "Shuffle" -underline 0\
 	    -variable Config(ShufflePlay) -command {
-	if {$Config(ShufflePlay)} {MakeShuffleList}
+	if {$Config(ShufflePlay)} {
+	    MakeShuffleList
+	} else {
+	    set Stat(ShuffleList) {}
+	}
     }
     .menu.mode.m add check -label "Auto Start" -underline 5\
 	    -variable Config(AutoStart)

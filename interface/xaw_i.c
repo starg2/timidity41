@@ -94,12 +94,6 @@ int strncasecmp(char *s1, char *s2, unsigned int len);
 static int currwidth = 2;
 static int rotatewidth[] = {TRACE_WIDTH_SHORT, 592, 638};
 
-int dirlist_cmp (const void *p1, const void *p2)
-{
-    return strcasecmp (*((char **)p1), *((char **)p2));
-}
-
-
 typedef struct {
   int			col;	/* column number */
   char			**cap;	/* caption strings array */
@@ -1149,6 +1143,28 @@ static void setDirAction(Widget w,XEvent *e,String *v,Cardinal *n) {
 	lrs.string = ""; dirlist[0] = (char *)NULL;
 	setDirList(load_flist, cwd_l, &lrs);
   }
+}
+
+/*
+ * sort algorithm for DirList:
+ * - directories before files
+ */
+static int dirlist_cmp (const void *p1, const void *p2)
+{
+    int i1, i2;
+    char *s1, *s2;
+
+    s1 = *((char **)p1);
+    s2 = *((char **)p2);
+    i1 = strlen (s1) - 1;
+    i2 = strlen (s2) - 1;
+    if (i1 >= 0 && i2 >= 0) {
+	if (s1 [i1] == '/' && s2 [i2] != '/')
+	    return -1;
+	if (s1 [i1] != '/' && s2 [i2] == '/')
+	    return  1;
+    }
+    return strcmp (s1, s2);
 }
 
 static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {

@@ -46,11 +46,11 @@
 #else
 #include <curses.h>
 #endif
-#define HAVE_VWPRINTW
 #else
 /* Windows */
 #include <windows.h>
 #include <curses.h>
+#define PD_curses
 #endif /* __WIN32__ */
 
 #include "timidity.h"
@@ -1431,9 +1431,9 @@ static int ctl_open(int using_stdin, int using_stdout)
     SCREEN *dftscr;
 #endif
 
-#ifdef __WIN32__
+#ifdef PDCURSES
     PDC_set_ctrl_break(1);
-#endif /* __WIN32__ */
+#endif /* PD_curses */
 
     if(!open_init_flag)
     {
@@ -2346,7 +2346,7 @@ static int ctl_read(int32 *valp)
   return RC_NONE;
 }
 
-#ifndef HAVE_VWPRINTW
+#ifdef PDCURSES
 static void vwprintw(WINDOW *w, char *fmt, va_list ap)
 {
     char *buff;
@@ -2359,7 +2359,7 @@ static void vwprintw(WINDOW *w, char *fmt, va_list ap)
     waddstr(w, buff);
     reuse_mblock(&pool);
 }
-#endif /* HAVE_VWPRINTW */
+#endif /* PDCURSES */
 
 static int cmsg(int type, int verbosity_level, char *fmt, ...)
 {

@@ -233,6 +233,7 @@ proc fs:changedir {w} {
 proc fs:update {w} {
     global fs
 
+    set sortOption -ascii
     if ![file isdirectory $fs(curdir)] {
 	if {[file exists $fs(curdir)] || $fs(creatable)} {
 	    set fs(found) $fs(curdir)
@@ -260,7 +261,7 @@ proc fs:update {w} {
 	set patbase ""
     }
 
-    foreach i [lsort -dictionary [glob -nocomplain $patbase$filter]] {
+    foreach i [lsort $sortOption [glob -nocomplain $patbase$filter]] {
 	if ![regexp "^.*/(\[^/\]+)$" $i full base] {
 	    set base $i
 	}
@@ -271,7 +272,7 @@ proc fs:update {w} {
 
     set prev ".."
     $dir insert end $prev
-    foreach i [lsort -dictionary [glob -nocomplain $patbase$lookall $patbase$filter]] {
+    foreach i [lsort $sortOption [glob -nocomplain $patbase$lookall $patbase$filter]] {
 	if {$i == $prev} {continue}
 	if ![regexp "^.*/(\[^/\]+)$" $i full base] {
 	    set base $i

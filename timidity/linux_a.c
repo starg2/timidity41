@@ -48,6 +48,10 @@
 #include <sys/filio.h>
 #endif
 
+#ifdef __bsdi__
+#include <sys/soundcard.h>
+#endif
+
 #include "timidity.h"
 #include "common.h"
 #include "output.h"

@@ -343,6 +343,16 @@ typedef double FLOAT_T;
    to a new machine with other than 32-bit, big-endian words. */
 /**************************************************************************/
 
+
+#include <stdio.h>
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif /* HAVE_ERRNO_H */
+#ifdef HAVE_MACHINE_ENDIAN_H
+#include <machine/endian.h> /* for __byte_swap_*() */
+#endif
+
+
 #ifndef NO_VOLATILE
 #define VOLATILE_TOUCH(val) /* do nothing */
 #define VOLATILE volatile
@@ -368,11 +378,15 @@ extern int volatile_touch(void* dmy);
 
 /* Byte order */
 #ifdef WORDS_BIGENDIAN
-#define BIG_ENDIAN
+#ifndef BIG_ENDIAN
+#define BIG_ENDIAN 4321
+#endif
 #undef LITTLE_ENDIAN
 #else
 #undef BIG_ENDIAN
-#define LITTLE_ENDIAN
+#ifndef LITTLE_ENDIAN
+#define LITTLE_ENDIAN 1234
+#endif
 #endif
 
 /* DEC MMS has 64 bit long words */
@@ -505,11 +519,6 @@ typedef struct _ChannelBitMask
 /* #define MODULATION_WHEEL_RATE (current_play_tempo/500000.0/32.0) */
 
 #define VIBRATO_DEPTH_TUNING (1.0/4.0)
-
-#include <stdio.h>
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif /* HAVE_ERRNO_H */
 
 #ifdef HPUX
 #undef mono

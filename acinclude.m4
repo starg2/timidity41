@@ -345,3 +345,14 @@ ifelse([$6], , , [$6
 ])dnl
 fi
 ])
+
+
+dnl EXTRACT_CPPFLAGS(CPPFLAGS-to-append,others-to-append,FLAGS)
+AC_DEFUN(EXTRACT_CPPFLAGS,
+[for f in $3; do
+    case ".$f" in
+	.-I?*|.-D?*)	$1="[$]$1 $f" ;;
+	*)		$2="[$]$1 $f" ;;
+    esac
+done
+])
