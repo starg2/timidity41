@@ -766,8 +766,7 @@ char *strdup(const char *s)
     len = strlen(s);
     if((p = (char *)malloc(len + 1)) == NULL)
 	return NULL;
-    p[len] = '\0';
-    return p;
+    return strcpy(p, s);
 }
 #endif /* HAVE_STRDUP */
 

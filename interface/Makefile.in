@@ -442,7 +442,7 @@ gtk_i.o: gtk_i.c ../config.h ../timidity/timidity.h ../timidity/common.h \
 	pixmaps/ff.xpm pixmaps/restart.xpm pixmaps/quit.xpm \
 	pixmaps/quiet.xpm pixmaps/loud.xpm pixmaps/open.xpm \
 	pixmaps/keyup.xpm pixmaps/keydown.xpm pixmaps/slow.xpm \
-	pixmaps/fast.xpm
+	pixmaps/fast.xpm pixmaps/timidity.xpm
 gtk_p.o: gtk_p.c ../config.h ../timidity/timidity.h \
 	../timidity/controls.h gtk_h.h
 motif_c.o: motif_c.c ../config.h ../timidity/timidity.h \

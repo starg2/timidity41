@@ -448,9 +448,12 @@ static void ctl_pass_playing_list(int init_number_of_files,
   for (;;) {
     /* Play file */
     if (command==RC_LOAD_FILE&&number_of_files!=0) {
+      char *title;
       snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[current_no]]);
       a_pipe_write(local_buf);
-	  snprintf(local_buf,sizeof(local_buf),"e %s",get_midi_title(list_of_files[current_no]));
+      if((title = get_midi_title(list_of_files[current_no])) == NULL)
+	  title = list_of_files[current_no];
+	  snprintf(local_buf,sizeof(local_buf),"e %s", title);
 	  a_pipe_write(local_buf);
       command=play_midi_file(list_of_files[file_table[current_no]]);
     } else {

@@ -50,6 +50,7 @@
 #include "pixmaps/keydown.xpm"
 #include "pixmaps/slow.xpm"
 #include "pixmaps/fast.xpm"
+#include "pixmaps/timidity.xpm"
 
 static GtkWidget *create_menubar(void);
 static GtkWidget *create_button_with_pixmap(GtkWidget *, gchar **, gint, gchar *);
@@ -66,6 +67,7 @@ static void filer_cb(GtkWidget *, gpointer);
 static void tt_toggle_cb(GtkWidget *, gpointer);
 static void locate_update_cb(GtkWidget *, GdkEventButton *, gpointer);
 static void my_adjustment_set_value(GtkAdjustment *, gint);
+static void set_icon_pixmap(GtkWidget *, gchar **);
 
 static GtkWidget *window, *clist, *text, *vol_scale, *locator;
 static GtkWidget *filesel = NULL;
@@ -229,8 +231,9 @@ Launch_Gtk_Process(int pipe_number)
 
     ttip = create_yellow_tooltips();
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_widget_set_name(window, "Timidity - MIDI Player");
-    gtk_window_set_title(GTK_WINDOW(window), "Timidity - MIDI Player");
+    gtk_widget_set_name(window, "TiMidity");
+    gtk_window_set_title(GTK_WINDOW(window), "TiMidity - MIDI Player");
+    gtk_window_set_wmclass(GTK_WINDOW(window), "timidity", "TiMidity");
 
     gtk_signal_connect(GTK_OBJECT(window), "delete_event",
 		       GTK_SIGNAL_FUNC (delete_event), NULL);
@@ -315,6 +318,7 @@ Launch_Gtk_Process(int pipe_number)
 
     /* This is so the pixmap creation works properly. */
     gtk_widget_realize(window);
+    set_icon_pixmap(window, timidity_xpm);
 
     gtk_box_pack_start(GTK_BOX(vbox2),
 		       create_pixmap_label(window, loud_xpm),
@@ -430,7 +434,7 @@ create_button_with_pixmap(GtkWidget *window, gchar **bits, gint data, gchar *the
 					  &mask,
 					  &style->bg[GTK_STATE_NORMAL],
 					  bits);
-    pw = gtk_pixmap_new(pixmap, NULL);
+    pw = gtk_pixmap_new(pixmap, mask);
     gtk_widget_show(pw);
 
     button = gtk_button_new();
@@ -457,10 +461,27 @@ create_pixmap_label(GtkWidget *window, gchar **bits)
 					  &mask,
 					  &style->bg[GTK_STATE_NORMAL],
 					  bits);
-    pw = gtk_pixmap_new(pixmap, NULL);
+    pw = gtk_pixmap_new(pixmap, mask);
     gtk_widget_show(pw);
 
     return pw;
+}
+
+static void
+set_icon_pixmap(GtkWidget *window, gchar **bits)
+{
+    GtkWidget	*pw;
+    GdkPixmap	*pixmap;
+    GdkBitmap	*mask;
+    GtkStyle	*style;
+
+    style = gtk_widget_get_style(window);
+    pixmap = gdk_pixmap_create_from_xpm_d(window->window,
+					  &mask,
+					  &style->bg[GTK_STATE_NORMAL],
+					  bits);
+    gdk_window_set_icon(window->window, NULL, pixmap, mask);
+    gdk_window_set_icon_name(window->window, "TiMidity");
 }
 
 static GtkWidget *

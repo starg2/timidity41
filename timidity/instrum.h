@@ -100,7 +100,7 @@ typedef struct _SpecialPatch /* To be used MIDI Module play mode */
 
 enum instrument_mapID
 {
-    INST_NO_MAP = -1,
+    INST_NO_MAP = 0,
     SC_55_TONE_MAP,
     SC_55_DRUM_MAP,
     SC_88_TONE_MAP,

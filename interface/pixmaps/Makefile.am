@@ -33,6 +33,7 @@ PIXMAPS = \
 	slow.xpm \
 	restart.xpm \
 	keyup.xpm \
-	keydown.xpm
+	keydown.xpm \
+	timidity.xpm
 
 EXTRA_DIST = $(PIXMAPS)

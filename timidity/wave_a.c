@@ -171,7 +171,14 @@ static int open_output(void)
 
   if (!(dpm.encoding & PE_16BIT)) RIFFheader[34]='\010';
 
-  write(dpm.fd, RIFFheader, 44);
+  if(write(dpm.fd, RIFFheader, 44) == -1)
+  {
+      ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
+		dpm.name, strerror(errno));
+      close(dpm.fd);
+      dpm.fd = -1;
+      return -1;
+  }
 
   /* Reset the length counter */
   bytes_output=0;

@@ -1916,7 +1916,7 @@ static void leaveSubmenu(Widget w, XEvent *e, String *v, Cardinal *n) {
 static void checkRightAndPopupSubmenu(Widget w, XEvent *e, String *v, Cardinal *n) {
   XLeaveWindowEvent *leave_ev = (XLeaveWindowEvent *)e;
   Dimension nheight,height,width;
-  Position y;
+  Position x,y;
   int i;
 
   if(!maxentry_on_a_menu) return;
@@ -1937,11 +1937,12 @@ static void checkRightAndPopupSubmenu(Widget w, XEvent *e, String *v, Cardinal *
   
   /* neighbor menu height */
   XtVaGetValues((i>0)? psmenu[i-1]:title_sm,
-                XtNwidth,&width,XtNheight,&nheight,XtNy,&y,NULL);
+                XtNwidth,&width,XtNheight,&nheight,XtNx,&x,XtNy,&y,NULL);
   if(leave_ev->x > 0 && leave_ev->y > nheight - 22) {
-	XtVaSetValues(psmenu[i],XtNx,leave_ev->x_root-60,
-				  XtNy,y +((height)? nheight-height:0),NULL);
+	XtVaSetValues(psmenu[i],XtNx,x+80,NULL);
 	XtPopup(psmenu[i],XtGrabNone);  
+	XtVaGetValues(psmenu[i],XtNheight,&height,NULL);
+	XtVaSetValues(psmenu[i],XtNy,y +((height)? nheight-height:0),NULL);
   }
 }
 

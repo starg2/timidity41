@@ -1,3 +1,42 @@
+-- 1.3.4
+Mon Mar 1 1999
+Summary:
+    * In XAW interface, fixed bug about MIDI title displaying.
+    * In GTK interface:
+      Fixed the button highlight problem.
+      Added a new WM-icon provided by Tim Allen.
+      Defined the wmclass & wmname to make TiMidity friendlier to window
+      managers.
+    * Fixed otner bugs or probrems.
+
+Date: Sat Feb 27 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/xaw_c.c
+    In XAW interface, fixed bug about MIDI title displaying.
+
+Fri Feb 26 JST 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity/au_a.c timidity/wave_a.c timidity/aiff_a.c
+    Handled write error at opening.
+Files: timidity/instrum.h
+    Fixed bug of buffer over-run of inst_map_table.
+Files: utils/support.c
+    Fixed bug of strdup implementation.
+
+Date: Fri, 26 Feb 1999 22:45:34 +1100 (EST)
+From: ggt@netspace.net.au (Glenn Trigg), thristian@usa.net (Tim Allen)
+Files: interface/gtk_i.c
+    In GTK interface:
+      Fixed the button highlight problem. I'd forgotten about the mask!
+      Added a nice colorful icon provided by Tim Allen.
+      Defined the wmclass & wmname to make TiMidity friendlier to window
+      managers.
+
+Date: Thu, 25 Feb 1999 01:17:45 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: interface/xaw_i.c
+    Fixed probrem of cascade file selection popup menu.
+
 -- 1.3.3
 Wed Feb 24 1999
 Summary:

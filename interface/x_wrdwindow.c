@@ -150,7 +150,7 @@ static int ppixel2pal(unsigned long ppixel){
   i++;
   while(ppixel!=1){
     i++;
-    ppixel >> 1; // statement with no effect?? (Masanao Izumo <mo@goice.co.jp>)
+    ppixel >> 1; // statement with no effect??
   }
   return i;
 }

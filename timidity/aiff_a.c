@@ -57,8 +57,8 @@ static int flush_output(void);
 static void purge_output(void);
 static int32 current_samples(void);
 static int play_loop(void);
-static int write_u32(int fd, uint32 value);
-static int write_u16(int fd, uint16 value);
+static int write_u32(uint32 value);
+static int write_u16(uint16 value);
 static void ConvertToIeeeExtended(double num, char *bytes);
 
 extern int default_play_event(void *);
@@ -90,35 +90,74 @@ PlayMode dpm = {
 static uint32 bytes_output;
 static int32  play_counter;
 
-static int write_u32(int fd, uint32 value)
+static int write_u32(uint32 value)
 {
+    int n;
     value = BE_LONG(value);
-    return write(fd, (char *)&value, 4);
+    if((n = write(dpm.fd, (char *)&value, 4)) == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
+		  dpm.name, strerror(errno));
+	close(dpm.fd);
+	dpm.fd = -1;
+	return -1;
+    }
+    return n;
 }
 
-static int write_u16(int fd, uint16 value)
+static int write_u16(uint16 value)
 {
+    int n;
     value = BE_SHORT(value);
-    return write(fd, (char *)&value, 2);
+    if((n = write(dpm.fd, (char *)&value, 2)) == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
+		  dpm.name, strerror(errno));
+	close(dpm.fd);
+	dpm.fd = -1;
+	return -1;
+    }
+    return n;
 }
 
-static int write_ieee_80bitfloat(int fd, double num)
+static int write_str(char *s)
+{
+    int n;
+    if((n = write(dpm.fd, s, strlen(s))) == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
+		  dpm.name, strerror(errno));
+	close(dpm.fd);
+	dpm.fd = -1;
+	return -1;
+    }
+    return n;
+}
+
+static int write_ieee_80bitfloat(double num)
 {
     char bytes[10];
+    int n;
     ConvertToIeeeExtended(num, bytes);
-    return write(fd, bytes, 10);
+
+    if((n = write(dpm.fd, bytes, 10)) == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
+		  dpm.name, strerror(errno));
+	close(dpm.fd);
+	dpm.fd = -1;
+	return -1;
+    }
+    return n;
 }
 
-static int chunk_start(int fd, char *id, uint32 chunk_len)
+static int chunk_start(char *id, uint32 chunk_len)
 {
     int i, j;
 
-    i = write(fd, id, 4);
-    if(i < 4)
-	return i;
-
-    j = write_u32(fd, chunk_len);
-    if(j == -1)
+    if((i = write_str(id)) == -1)
+	return -1;
+    if((j = write_u32(chunk_len)) == -1)
 	return -1;
     return i + j;
 }
@@ -149,43 +188,51 @@ static int open_output(void)
     }
 
     /* magic */
-    write(dpm.fd, "FORM", 4);
+    if(write_str("FORM") == -1) return -1;
 
     /* file size - 8 (dmy) */
-    write_u32(dpm.fd, (uint32)0xffffffff);
+    if(write_u32((uint32)0xffffffff) == -1) return -1;
 
     /* chunk start tag */
-    write(dpm.fd, "AIFF", (int32)4);
+    if(write_str("AIFF") == -1) return -1;
 
     /* COMM chunk */
-    chunk_start(dpm.fd, "COMM", 18);
+    if(chunk_start("COMM", 18) == -1) return -1;
 
     /* number of channels */
     if(dpm.encoding & PE_MONO)
-	write_u16(dpm.fd, (uint16)1);
+    {
+	if(write_u16((uint16)1) == -1) return -1;
+    }
     else
-	write_u16(dpm.fd, (uint16)2);
+    {
+	if(write_u16((uint16)2) == -1) return -1;
+    }
 
     /* number of frames (dmy) */
-    write_u32(dpm.fd, (uint32)0xffffffff);
+    if(write_u32((uint32)0xffffffff) == -1) return -1;
 
     /* bits per sample */
     if(dpm.encoding & PE_16BIT)
-	write_u16(dpm.fd, (uint16)16);
+    {
+	if(write_u16((uint16)16) == -1) return -1;
+    }
     else
-	write_u16(dpm.fd, (uint16)8);
+    {
+	if(write_u16((uint16)8) == -1) return -1;
+    }
 
     /* sample rate */
-    write_ieee_80bitfloat(dpm.fd, (double)dpm.rate);
+    if(write_ieee_80bitfloat((double)dpm.rate) == -1) return -1;
 
     /* SSND chunk */
-    chunk_start(dpm.fd, "SSND", (int32)0xffffffff);
+    if(chunk_start("SSND", (int32)0xffffffff) == -1) return -1;
 
     /* offset */
-    write_u32(dpm.fd, (uint32)0);
+    if(write_u32((uint32)0) == -1) return -1;
 
     /* block size */
-    write_u32(dpm.fd, (uint32)0);
+    if(write_u32((uint32)0) == -1) return -1;
 
     play_counter = 0;
     return 0;
@@ -224,10 +271,11 @@ static void close_output(void)
 	    uint32 f;
 
 	    /* file size - 8 */
-	    write_u32(dpm.fd, (uint32)(4		/* "AIFF" */
-				       + 26		/* COMM chunk */
-				       + 16 + bytes_output/* SSND chunk */
-				       ));
+	    if(write_u32((uint32)(4		/* "AIFF" */
+				  + 26		/* COMM chunk */
+				  + 16 + bytes_output/* SSND chunk */
+				  )) == -1) return;
+
 	    /* COMM chunk */
 	    /* number of frames */
 	    lseek(dpm.fd, 12+10, SEEK_SET);
@@ -236,11 +284,11 @@ static void close_output(void)
 		f /= 2;
 	    if(dpm.encoding & PE_16BIT)
 		f /= 2;
-	    write_u32(dpm.fd, f);
+	    if(write_u32(f) == -1) return;
 
 	    /* SSND chunk */
 	    lseek(dpm.fd, 12+26+4, SEEK_SET);
-	    write_u32(dpm.fd, (uint32)(8 + bytes_output));
+	    if(write_u32((uint32)(8 + bytes_output)) == -1) return;
 	}
 	close(dpm.fd);
     }

@@ -836,7 +836,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=1.3.3
+VERSION=1.3.4
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -1039,7 +1039,7 @@ LDFLAGS="$LDFLAGS -L/usr/local/lib"
 CPPFLAGS="$CPPFLAGS -I/usr/local/include"
 SHLDFLAGS=${SHLDFLAGS:-$LDFLAGS}
 
-if test "x$prefix" != xNONE -a "x$prefix" != "x$ac_default_prefix"; then
+if test "x$prefix" != xNONE -a "x$prefix" != "x$ac_default_prefix" -a "x$prefix" != "x/usr"; then
   LDFLAGS="-L$prefix/lib $LDFLAGS"
   SHLDFLAGS="-L$prefix/lib $SHLDFLAGS"
   CPPFLAGS="-I$prefix/include $CPPFLAGS"

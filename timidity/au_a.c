@@ -61,7 +61,7 @@ static int flush_output(void);
 static void purge_output(void);
 static int32 current_samples(void);
 static int play_loop(void);
-static int write_u32(int fd, uint32 value);
+static int write_u32(uint32 value);
 
 extern int default_play_event(void *);
 
@@ -91,10 +91,33 @@ PlayMode dpm = {
    closing the file */
 static uint32 bytes_output;
 
-static int write_u32(int fd, uint32 value)
+static int write_u32(uint32 value)
 {
+    int n;
     value = BE_LONG(value);
-    return write(fd, &value, 4);
+    if((n = write(dpm.fd, &value, 4)) == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
+		  dpm.name, strerror(errno));
+	close(dpm.fd);
+	dpm.fd = -1;
+	return -1;
+    }
+    return n;
+}
+
+static int write_str(char *s)
+{
+    int n;
+    if((n = write(dpm.fd, s, strlen(s))) == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
+		  dpm.name, strerror(errno));
+	close(dpm.fd);
+	dpm.fd = -1;
+	return -1;
+    }
+    return n;
 }
 
 /* Sun Audio File Encoding Tags */
@@ -105,8 +128,7 @@ static int write_u32(int fd, uint32 value)
 
 static int open_output(void)
 {
-    int32 comment_len = 0;
-    char *comment = "";
+    char *comment;
 
     dpm.encoding &= ~PE_BYTESWAP;
     dpm.encoding |= PE_SIGNED;
@@ -118,8 +140,8 @@ static int open_output(void)
 
     if(dpm.name && dpm.name[0] == '-' && dpm.name[1] == '\0')
     {
-	dpm.fd=1; /* data to stdout */
-	comment_len = 0;
+	dpm.fd = 1; /* data to stdout */
+	comment = "(stdout)";
     }
     else
     {
@@ -132,41 +154,51 @@ static int open_output(void)
 	    return -1;
 	}
 	comment = dpm.name;
-	comment_len = (int32)strlen(comment);
     }
 
     /* magic */
-    write(dpm.fd, ".snd", 4);
+    if(write_str(".snd") == -1) return -1;
 
     /* header size */
-    write_u32(dpm.fd, (uint32)(24 + comment_len));
+    if(write_u32((uint32)(24 + strlen(comment))) == -1) return -1;
 
     /* sample data size */
-    write_u32(dpm.fd, (uint32)0xffffffff);
+    if(write_u32((uint32)0xffffffff) == -1) return -1;
 
     /* audio file encoding */
     if(dpm.encoding & PE_ULAW)
-	write_u32(dpm.fd, (uint32)AUDIO_FILE_ENCODING_MULAW_8);
+    {
+	if(write_u32((uint32)AUDIO_FILE_ENCODING_MULAW_8) == -1) return -1;
+    }
     else if(dpm.encoding & PE_ALAW)
-	write_u32(dpm.fd, (uint32)AUDIO_FILE_ENCODING_ALAW_8);
+    {
+	if(write_u32((uint32)AUDIO_FILE_ENCODING_ALAW_8) == -1) return -1;
+    }
     else if(dpm.encoding & PE_16BIT)
-	write_u32(dpm.fd, (uint32)AUDIO_FILE_ENCODING_LINEAR_16);
+    {
+	if(write_u32((uint32)AUDIO_FILE_ENCODING_LINEAR_16) == -1) return -1;
+    }
     else
-	write_u32(dpm.fd, (uint32)AUDIO_FILE_ENCODING_LINEAR_8);
+    {
+	if(write_u32((uint32)AUDIO_FILE_ENCODING_LINEAR_8) == -1) return -1;
+    }
 
     /* sample rate */
-    write_u32(dpm.fd, (uint32)dpm.rate);
+    if(write_u32((uint32)dpm.rate) == -1) return -1;
 
     /* number of channels */
     if(dpm.encoding & PE_MONO)
-	write_u32(dpm.fd, (uint32)1);
-    else
-	write_u32(dpm.fd, (uint32)2);
-    if(write(dpm.fd, comment, comment_len) != comment_len)
     {
-	close(dpm.fd);
-	return -1;
+	if(write_u32((uint32)1) == -1) return -1;
     }
+    else
+    {
+	if(write_u32((uint32)2) == -1) return -1;
+    }
+
+    /* comment */
+    if(write_str(comment) == -1) return -1;
+
     return 0;
 }
 
@@ -204,7 +236,7 @@ static void close_output(void)
 	/* It's not stdout, so it's probably a file, and we can try
 	   fixing the block lengths in the header before closing. */
 	if(lseek(dpm.fd, 8, SEEK_SET) >= 0)
-	    write_u32(dpm.fd, bytes_output);
+	    write_u32(bytes_output);
 	close(dpm.fd);
     }
     dpm.fd = -1;
