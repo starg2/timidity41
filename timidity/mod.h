@@ -22,7 +22,7 @@
 #ifndef ___MOD_H_
 #define ___MOD_H_
 
-#define MOD_NUM_VOICES	16
+#define MOD_NUM_VOICES	MAX_CHANNELS
 
 extern int get_module_type (char *fn);
 extern int load_module_file (struct timidity_file *tf, int mod_type);

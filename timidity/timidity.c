@@ -76,6 +76,7 @@ extern char *optarg;
 #include "mid.defs"
 #include "aq.h"
 #include "mix.h"
+#include "unimod.h"
 
 #ifdef IA_W32GUI
 #include "w32g.h"
@@ -2835,6 +2836,7 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 	init_midi_trace();
 	int_rand(-1);	/* initialize random seed */
 	int_rand(42);	/* the 1st number generated is not very random */
+	ML_RegisterAllLoaders ();
     }
 
     is_first = 0;

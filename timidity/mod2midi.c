@@ -23,13 +23,14 @@
 
  */
 
-/* THIS IS BETA -- DOES NOT YET MAP SAME MOD INSTRUMENTS TO SAME MIDI
- * CHANNEL (needed for Impulse Tracker)! */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
-
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -81,10 +82,10 @@ typedef struct _ModVoice
 ModVoice;
 
 static void mod_change_tempo (int32 at, int bpm);
-static void mod_period_move (int32 at, int v, int diff);
+static int mod_pitch_bend (int tune);
 static int period2note (int period, int *finetune);
 
-static ModVoice ModV[16];
+static ModVoice ModV[MOD_NUM_VOICES];
 static int at;
 
 static int period_table[84] =
@@ -110,6 +111,20 @@ mod_change_tempo (int32 at, int bpm)
   a = ((tempo >> 8) & 0xff);
   b = ((tempo >> 16) & 0xff);
   MIDIEVENT (at, ME_TEMPO, c, b, a);
+}
+
+int
+mod_pitch_bend(int tune)
+{
+  int bend;
+
+  bend = tune * (8192 / 256) / MOD_BEND_SENSITIVE + 8192;
+  if (bend <= 0)
+    bend = 1;
+  else if (bend >= 2 * 8192)
+    bend = 2 * 8192 - 1;
+
+  return bend;
 }
 
 int
@@ -157,39 +172,57 @@ period2note (int period, int *finetune)
 /********** Interface to mod.c */
 
 void
-Voice_SetVolume (SBYTE v, UWORD vol)
+Voice_SetVolume (UBYTE v, UWORD vol)
 {
-  if ((v < 0) || (v >= MOD_NUM_VOICES))
+  if (v >= MOD_NUM_VOICES)
     return;
 
   if (vol != ModV[v].vol) {
     ModV[v].vol = vol;
-    vol = ModV[v].vol >> 1;
-    if(vol > 127)
-	vol = 127;
+    vol = vol > 254 ? 127 : vol >> 1;
     MIDIEVENT (at, ME_EXPRESSION, v, vol, 0);
   }
 }
 
 void
-Voice_SetFrequency (SBYTE v, ULONG frq)
+Voice_SetPeriod (UBYTE v, ULONG period)
 {
-  if ((v < 0) || (v >= MOD_NUM_VOICES))
+  int tune, new_noteon, bend;
+
+  if (v >= MOD_NUM_VOICES)
     return;
 
-  /* this is redundant, as we are doing the same in mod.c!! */
-  ModV[v].period = (8363L * 1712L) / frq;
+  ModV[v].period = period;
+  new_noteon = period2note (ModV[v].period, &tune);
+  if (new_noteon < 0)
+    {
+      return;
+    }
+
+  if (ModV[v].noteon != new_noteon)
+    MIDIEVENT(at, ME_NOTEOFF, v, ModV[v].noteon, 0);
+
+  if (ModV[v].tuneon != tune)
+    {
+      ModV[v].tuneon = tune;
+      bend = mod_pitch_bend(tune);
+      MIDIEVENT (at, ME_PITCHWHEEL, v, bend & 0x7F, (bend >> 7) & 0x7F);
+    }
+ 
+  if (ModV[v].noteon != new_noteon)
+    {
+      ModV[v].noteon = new_noteon;
+      MIDIEVENT(at, ME_NOTEON, v, ModV[v].noteon, 0x7f);
+    }
 }
 
 void
-Voice_SetPanning (SBYTE v, ULONG pan)
+Voice_SetPanning (UBYTE v, ULONG pan)
 {
-  if ((v < 0) || (v >= MOD_NUM_VOICES))
+  if (v >= MOD_NUM_VOICES)
     return;
   if (pan == PAN_SURROUND)
-    {
-      pan = PAN_CENTER; /* :-( */
-    }
+    pan = PAN_CENTER; /* :-( */
 
   if (pan != ModV[v].pan) {
     ModV[v].pan = pan;
@@ -198,20 +231,14 @@ Voice_SetPanning (SBYTE v, ULONG pan)
 }
 
 void
-Voice_Play (SBYTE v, SAMPLE * s, ULONG start)
+Voice_Play (UBYTE v, SAMPLE * s, ULONG start)
 {
   int tune, new_noteon, new_sample, bend;
-  if ((v < 0) || (v >= MOD_NUM_VOICES))
+  if (v >= MOD_NUM_VOICES)
     return;
 
   new_noteon = period2note (ModV[v].period, &tune);
   new_sample = s->id;
-
-  if (ModV[v].noteon != -1 &&
-      (ModV[v].noteon != new_noteon || ModV[v].sample != new_sample))
-    {
-      MIDIEVENT (at, ME_NOTEOFF, v, ModV[v].noteon, 0);
-    }
 
   ModV[v].noteon = new_noteon;
   if (ModV[v].noteon < 0)
@@ -231,28 +258,23 @@ Voice_Play (SBYTE v, SAMPLE * s, ULONG start)
       ModV[v].start = start;
       a = (ModV[v].start & 0xff);
       b = ((ModV[v].start >> 8) & 0xff);
-      MIDIEVENT (at, ME_PATCH_OFFS,
-		 v + 1, a, b);
+      MIDIEVENT (at, ME_PATCH_OFFS, v, a, b);
     }
 
   if (ModV[v].tuneon != tune)
     {
       ModV[v].tuneon = tune;
-      bend = tune * (8192 / 256) / MOD_BEND_SENSITIVE + 8192;
-      if (bend <= 0)
-	bend = 1;
-      else if (bend >= 2 * 8192)
-	bend = 2 * 8192 - 1;
+      bend = mod_pitch_bend(tune);
       MIDIEVENT (at, ME_PITCHWHEEL, v, bend & 0x7F, (bend >> 7) & 0x7F);
     }
- 
+
   MIDIEVENT (at, ME_NOTEON, v, ModV[v].noteon, 0x7f);
 }
 
 void
-Voice_Stop (SBYTE v)
+Voice_Stop (UBYTE v)
 {
-  if ((v < 0) || (v >= MOD_NUM_VOICES))
+  if (v >= MOD_NUM_VOICES)
     return;
 
   if (ModV[v].noteon != -1)
@@ -263,11 +285,9 @@ Voice_Stop (SBYTE v)
 }
 
 BOOL
-Voice_Stopped (SBYTE v)
+Voice_Stopped (UBYTE v)
 {
-  if ((v < 0) || (v >= MOD_NUM_VOICES))
-    return 0;
-  return (ModV[v].noteon == -1);
+  return (v >= MOD_NUM_VOICES) ? 1 : (ModV[v].noteon == -1);
 }
 
 void
@@ -307,20 +327,46 @@ Voice_StartPlaying ()
 	ModV[v].noteon = -1;
 	ModV[v].period = 0;
 	ModV[v].tuneon = 0;
+	ModV[v].pan = (v & 1) ? 127 : 0;
 	ModV[v].vol = 64;
 	ModV[v].start = 0;
 
-	MIDIEVENT(0, ME_PAN, v, (v & 1) ? 127 : 0, 0);
+	MIDIEVENT(0, ME_PAN, v, ModV[v].pan, 0);
         MIDIEVENT(0, ME_SET_PATCH, v, 1, 0);
         MIDIEVENT(0, ME_MAINVOLUME, v, 127, 0);
-	MIDIEVENT(0, ME_MONO, v, 0, 0);
 	MIDIEVENT(0, ME_RPN_LSB, v, 0, 0);
 	MIDIEVENT(0, ME_RPN_MSB, v, 0, 0);
 	MIDIEVENT(0, ME_DATA_ENTRY_MSB, v, MOD_BEND_SENSITIVE, 0);
+	MIDIEVENT(0, ME_DRUMPART, v, 0, 0);
     }
 
   at = 1;
 }
+
+/* convert from 8bit value to fractional offset (15.15) */
+static int32 env_offset(int offset)
+{
+    return (int32)offset << (7+15);
+}
+
+/* calculate ramp rate in fractional unit;
+ * diff = 8bit, time = msec
+ */
+static int32 env_rate(int diff, double msec)
+{
+    double rate;
+
+    if(msec < 6)
+	msec = 6;
+    if(diff == 0)
+	diff = 255;
+    diff <<= (7+15);
+    rate = ((double)diff / play_mode->rate) * control_ratio * 1000.0 / msec;
+    if(fast_decay)
+	rate *= 2;
+    return (int32)rate;
+}
+
 
 void load_module_samples (SAMPLE * s, int numsamples)
 {
@@ -367,14 +413,28 @@ void load_module_samples (SAMPLE * s, int numsamples)
 	if (s->flags & SF_REVERSE) sp->modes ^= MODES_REVERSE;
 	if (s->flags & SF_16BITS)  sp->modes ^= MODES_16BIT;
 
-#if 0
-	if (sp->modes & MODES_LOOPING)
-	  sp->modes |= MODES_SUSTAIN;
-#endif
-
 	/* libunimod sets *both* SF_LOOP and SF_BIDI/SF_REVERSE */
 	if (sp->modes & (MODES_PINGPONG | MODES_REVERSE))
 	  sp->modes &= ~MODES_LOOPING;
+
+	/* envelope (0,1:attack, 2:sustain, 3,4,5:release) */
+	sp->modes |= MODES_ENVELOPE;
+	/* attack */
+	sp->envelope_offset[0] = env_offset(255);
+	sp->envelope_rate[0]   = env_rate(255, 0.0);	/* fastest */
+	sp->envelope_offset[1] = sp->envelope_offset[0];
+	sp->envelope_rate[1]   = 0; /* skip this stage */
+	/* sustain */
+	sp->envelope_offset[2] = sp->envelope_offset[1];
+	sp->envelope_rate[2]   = 0;
+	/* release */
+	sp->envelope_offset[3] = env_offset(0);
+	sp->envelope_rate[3]   = env_rate(255, 200.0);	/* 200 msec */
+	sp->envelope_offset[4] = sp->envelope_offset[3];
+	sp->envelope_rate[4]   = 0; /* skip this stage */
+	sp->envelope_offset[5] = sp->envelope_offset[4];
+	sp->envelope_rate[5]   = 0; /* skip this stage, then the voice is
+				       disappeared */
 
 	sp->sample_rate = ((int32)PAL_RATE) >> s->divfactor;
 	sp->low_freq = 0;

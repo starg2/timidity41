@@ -293,7 +293,7 @@ static int new_vidq(int ch, int note)
 {
     int i;
 
-    if(opt_overlap_voice_allow)
+    if(opt_overlap_voice_allow && !IS_CURRENT_MOD_FILE)
     {
 	i = ch * 128 + note;
 	return vidq_head[i]++;
@@ -305,7 +305,7 @@ static int last_vidq(int ch, int note)
 {
     int i;
 
-    if(opt_overlap_voice_allow)
+    if(opt_overlap_voice_allow && !IS_CURRENT_MOD_FILE)
     {
 	i = ch * 128 + note;
 	if(vidq_head[i] == vidq_tail[i])
@@ -1142,7 +1142,7 @@ static int find_voice(MidiEvent *e)
   note = MIDI_EVENT_NOTE(e);
   ch = e->channel;
 
-  if(opt_overlap_voice_allow)
+  if(opt_overlap_voice_allow && !IS_CURRENT_MOD_FILE)
       status_check = (VOICE_OFF | VOICE_SUSTAINED);
   else
       status_check = 0xFF;

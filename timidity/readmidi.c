@@ -2606,7 +2606,11 @@ char *get_midi_title(char *filename)
     if(tf == NULL)
 	return NULL;
 
-    check_cache = check_need_cache(tf->url, filename);
+    mtype = get_module_type(filename);
+    if(mtype > 0)
+	check_cache = 1;
+    else
+	check_cache = check_need_cache(tf->url, filename);
 
     if(check_cache)
     {
@@ -2620,7 +2624,7 @@ char *get_midi_title(char *filename)
 	}
     }
 
-    if((mtype = get_module_type(filename)) > 0)
+    if(mtype > 0)
     {
 	char *title, *str;
 

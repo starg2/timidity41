@@ -25,12 +25,12 @@
 
 #include "unimod.h"
 
-void Voice_SetVolume (SBYTE, UWORD);
-void Voice_SetFrequency (SBYTE, ULONG);
-void Voice_SetPanning (SBYTE, ULONG);
-void Voice_Play (SBYTE, SAMPLE *, ULONG);
-void Voice_Stop (SBYTE);
-BOOL Voice_Stopped (SBYTE);
+void Voice_SetVolume (UBYTE, UWORD);
+void Voice_SetFrequency (UBYTE, ULONG);
+void Voice_SetPanning (UBYTE, ULONG);
+void Voice_Play (UBYTE, SAMPLE *, ULONG);
+void Voice_Stop (UBYTE);
+BOOL Voice_Stopped (UBYTE);
 void Voice_NewTempo (UWORD, UWORD);
 void Voice_TickDone ();
 void Voice_StartPlaying ();

@@ -476,6 +476,13 @@ typedef struct MODULE
 }
   MODULE;
 
+/* used to convert c4spd to linear XM periods (IT and IMF loaders). */
+extern UWORD finetune[];
+extern UWORD getlinearperiod (UWORD, ULONG);
+extern UWORD getoldperiod (UWORD, ULONG);
+extern ULONG getfrequency (UBYTE, ULONG);
+extern ULONG getAmigaPeriod (UBYTE, ULONG);
+
 /*
  *    ========== External interface
  */

@@ -1003,10 +1003,13 @@ void free_special_patch(int id)
 		free(special_patch[i]->name);
 	    n = special_patch[i]->samples;
 	    sp = special_patch[i]->sample;
-	    for(j = 0; j < n; j++)
-		if(sp[j].data_alloced)
-		    free(sp[j].data);
-	    free(sp);
+	    if(sp)
+	    {
+		for(j = 0; j < n; j++)
+		    if(sp[j].data_alloced && sp[j].data)
+			free(sp[j].data);
+		free(sp);
+	    }
 	    free(special_patch[i]);
 	    special_patch[i] = NULL;
 	}

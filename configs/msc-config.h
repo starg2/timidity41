@@ -217,7 +217,7 @@
 #define HAVE_MMSYSTEM_H
 
 /* In VDS Macro AAA=BBB is not available. */
-#define TIMID_VERSION	"2.9.0a1"
+#define TIMID_VERSION	"2.9.0a2"
 #define DEFAULT_PATH	".\\"
 #define AU_W32
 #define WINSOCK

@@ -117,7 +117,8 @@
 #  define INTERPVARS
 #endif
 
-#define FINALINTERP if (ofs == le) *dest++=src[(ofs>>FRACTION_BITS)-1]/2;
+/* #define FINALINTERP if (ofs < le) *dest++=src[(ofs>>FRACTION_BITS)-1]/2; */
+#define FINALINTERP /* Nothing to do after TiMidity++ 2.9.0 */
 /* So it isn't interpolation. At least it's final. */
 
 static sample_t resample_buffer[AUDIO_BUFFER_SIZE];

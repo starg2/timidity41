@@ -1,3 +1,9 @@
+2000-02-18  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/resample.c (FINALINTERP): Ignore.
+      Now, TiMidity does not hit the end of data, and ignores a final
+      interpolation.
+
 2000-02-16  Paolo Bonzini <bonzini@gnu.org>
 
     * configure.in,libunimod/*,timidity/{Makefile.am,mod.c,mod.h,mod2midi.c,

@@ -144,10 +144,6 @@ extern int speed_to_finetune (ULONG, int);
 extern void S3MIT_ProcessCmd (UBYTE, UBYTE, BOOL);
 extern void S3MIT_CreateOrders (BOOL);
 
-/* used to convert c4spd to linear XM periods (IT and IMF loaders). */
-extern UWORD getlinearperiod (UWORD, ULONG);
-extern ULONG getfrequency (UBYTE, ULONG);
-
 #ifdef __cplusplus
 }
 #endif
