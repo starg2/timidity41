@@ -1,3 +1,24 @@
+/* Masanao Izumo <mo@goice.co.jp>:
+ *
+ * There is probrem if both -lXm and -lXaw are linked.
+ * This source code to re-define XAW vendorShell.
+ * To change motif vendorShell to XAW vendorShell in runtime.
+ * 
+ * #define vendorShellClassRec xaw_vendorShellClassRec
+ * #define vendorShellWidgetClass xaw_vendorShellWidgetClass
+ * #include "xaw_redef.c"
+ * #undef vendorShellClassRec
+ * #undef vendorShellWidgetClass
+ * extern WidgetClass vendorShellWidgetClass;
+ * extern VendorShellClassRec vendorShellClassRec;
+ * static void xaw_vendor_setup(void)
+ * {
+ *     memcpy(&vendorShellClassRec, &xaw_vendorShellClassRec,
+ * 	   sizeof(VendorShellClassRec));
+ *     vendorShellWidgetClass = (WidgetClass)&xaw_vendorShellWidgetClass;
+ * }
+ */
+
 /* $XConsortium: Vendor.c,v 1.27 94/04/17 20:13:25 kaleb Exp $ */
 
 /***********************************************************
@@ -65,7 +86,26 @@ SOFTWARE.
 #include <X11/Xmu/Converters.h>
 #include <X11/Xmu/Atoms.h>
 #include <X11/Xmu/Editres.h>
+
+
+#ifdef HAVE_XMUREGISTEREXTERNALAGENT
+#ifdef HAVE_X11_XMU_EXTAGENT_H
 #include <X11/Xmu/ExtAgent.h>
+#else
+/* There is no ExtAgent.h in openwin package, but XmuRegisterExternalAgent
+ * is surely defined in libXmu on Solaris 7.
+ */
+extern void XmuRegisterExternalAgent(
+#if NeedFunctionPrototypes
+    Widget /* w */,
+    XtPointer /* data */,
+    XEvent* /* event */,
+    Boolean* /* cont */
+#endif
+);
+#endif /* HAVE_X11_XMU_EXTAGENT_H */
+#endif /* HAVE_XMUREGISTEREXTERNALAGENT */
+
 
 /* The following two headers are for the input method. */
 
@@ -642,7 +682,10 @@ static void XawVendorShellInitialize(req, new, args, num_args)
 	Cardinal    *num_args;
 {
     XtAddEventHandler(new, (EventMask) 0, TRUE, _XEditResCheckMessages, NULL);
+#ifdef HAVE_XMUREGISTEREXTERNALAGENT
     XtAddEventHandler(new, (EventMask) 0, TRUE, XmuRegisterExternalAgent, NULL);
+#endif /* HAVE_XMUREGISTEREXTERNALAGENT */
+
     XtCreateWidget("shellext", xawvendorShellExtWidgetClass,
 		   new, args, *num_args);
 }

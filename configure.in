@@ -53,7 +53,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.0.0, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.0.1, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -254,6 +254,7 @@ fail;
     have_xprelibs=no)
   AC_CHECK_LIB(Xt,XtVaAppInitialize,have_xt=yes; LIBS="-lXt $LIBS",have_xt=no)
   AC_CHECK_LIB(Xmu,XmuInternAtom,LIBS="-lXmu $LIBS")
+  AC_CHECK_FUNCS(XmuRegisterExternalAgent)
   AC_CHECK_LIB(Xaw3d,XawInitializeWidgetSet,have_xaw=3d,
    [ AC_CHECK_LIB(Xaw,XawInitializeWidgetSet,have_xaw=yes,have_xaw=no) ])
   AC_CHECK_LIB(Xm,XmCreateForm,have_xm=yes,have_xm=no)
@@ -269,7 +270,8 @@ AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h limits.h malloc.h strings.h sys/ioctl.h sys/time.h \
 	unistd.h dlfcn.h glob.h getopt.h errno.h machine/endian.h \
 	stropts.h sys/audioio.h sun/audioio.h sys/types.h \
-	sys/ipc.h sys/shm.h sys/param.h X11/extensions/XShm.h)
+	sys/ipc.h sys/shm.h sys/param.h X11/extensions/XShm.h \
+	X11/Xmu/ExtAgent.h)
 AC_CHECK_HEADER(string.h,, [ EXTRADEFS="$EXTRADEFS -DNO_STRING_H " ])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -530,8 +532,8 @@ fi
 
 dnl Dynamic link configuration
 
-AC_ARG_WITH(enable-dynamic,
-  [  --enable-dynamic        Enable dynamic link interface ],
+AC_ARG_ENABLE(enable-dynamic,
+  [  --enable-dynamic        Enable dynamic link interface   (default is no)],
   [ dnl --enable-dynamic=yes to --enable-dynamic=dynamic
     test "x$enable_dynamic" = xyes && enable_dynamic=dynamic
   ])
@@ -886,7 +888,7 @@ CONFIG_INTERFACE(ump, PLUGIN, p,
 dnl TiMidity Network MIDI Server
 AM_CONDITIONAL(ENABLE_SERVER, false)
 CONFIG_INTERFACE(server,SERVER,r,
-  [  --enable-server         Enable Server interface          (default is no)],
+  [  --enable-server         Enable server interface         (default is no)],
   ,
   [ INTERFACE_SRCS="$INTERFACE_SRCS server_c.c"
     AC_CHECK_HEADERS(sys/soundcard.h)

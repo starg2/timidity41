@@ -56,6 +56,9 @@
 /* Define if you have the XShmCreatePixmap function.  */
 #undef HAVE_XSHMCREATEPIXMAP
 
+/* Define if you have the XmuRegisterExternalAgent function.  */
+#undef HAVE_XMUREGISTEREXTERNALAGENT
+
 /* Define if you have the getcwd function.  */
 #undef HAVE_GETCWD
 
@@ -106,6 +109,9 @@
 
 /* Define if you have the vsnprintf function.  */
 #undef HAVE_VSNPRINTF
+
+/* Define if you have the <X11/Xmu/ExtAgent.h> header file.  */
+#undef HAVE_X11_XMU_EXTAGENT_H
 
 /* Define if you have the <X11/extensions/XShm.h> header file.  */
 #undef HAVE_X11_EXTENSIONS_XSHM_H

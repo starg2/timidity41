@@ -110,6 +110,8 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+SUFFIXES = .1 .5 .txt .ps
+
 SUBDIRS = C ja_JP.ujis
 lang_target = C
 
@@ -132,6 +134,7 @@ TAR = gtar
 GZIP_ENV = --best
 all: all-redirect
 .SUFFIXES:
+.SUFFIXES: .1 .5 .ps .txt
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
 	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps doc/Makefile
 
@@ -401,8 +404,11 @@ include $(top_builddir)/common.makefile
 
 .1.txt:
 	groff -man -Tlatin1 -P-b -P-u $< >$@
-
 .1.ps:
+	groff -man $< >$@
+.5.txt:
+	groff -man -Tlatin1 -P-b -P-u $< >$@
+.5.ps:
 	groff -man $< >$@
 
 timidity.1:

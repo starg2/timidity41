@@ -51,6 +51,3 @@ TIMID_DIR = $(pkglibdir)
 
 # Where to install the Tcl code, if you use the Tcl code that is.
 TCL_DIR = $(pkglibdir)
-
-
-.SUFFIXES: .c .h .ptcl .tcl .o .1 .5 .txt .ps .@so@

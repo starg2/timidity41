@@ -45,12 +45,12 @@ following:
 	PREFIX is "/usr/local/".
 	Any files are installed in : 
 	  PREFIX/bin : executable file
-	  PREFIX/lib : configuration files and patches
+	  PREFIX/lib/timidity : configuration files and patches
 	  PREFIX/man : online manual
-	
+
 	Example:
 	% sh configure --prefix=/opt/gnu
-	# installs to /opt/gnu/bin, /opt/gnu/lib, /opt/gnu/man
+	# installs to /opt/gnu/bin, /opt/gnu/lib/timidity, /opt/gnu/man
 
   --x-includes=DIR
 	Specifies include directory of X library.
@@ -60,9 +60,6 @@ following:
 
   --enable-debug
 	Compiles TiMidity++ with debugging methods/informations.
-
-  --disable-dynamic
-	Disables the feature of dynamic loading interface.
 
   --with-x
 	You should specify this option if you have X Window environment.
@@ -97,6 +94,9 @@ following:
 
   --enable-esd
 	Enables TiMidity++ to play MIDI files using EsounD.
+
+  --enable-dynamic
+	Enables the feature of dynamic loading interface.
 
   --enable-ncurses
 	Includes Ncurses interface.  If you build this interface as dinamic
@@ -160,7 +160,7 @@ following:
 	contents format.
 
 
-  For example, including all functions:
+  For example:
 
 % sh configure --with-x --enable-audio \
                --enable-ncurses --enable-slang  --enable-motif \
@@ -176,10 +176,10 @@ smoothly. Optimizing options can specify in configuration:
  (for example : super-sparc/gcc)
 
  (csh, tcsh)
-% env CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc -DAUDIO_FILLING_MILSEC=5000' sh configure [configure-options]...
+% env CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc sh configure [configure-options]...
 
 (sh, bash)
-% CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc -DAUDIO_FILLING_MILSEC=5000' sh configure [configure-options]...
+% CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc sh configure [configure-options]...
 
 
 

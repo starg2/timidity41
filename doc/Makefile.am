@@ -17,6 +17,8 @@
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 include $(top_builddir)/common.makefile
+SUFFIXES = .1 .5 .txt .ps
+
 SUBDIRS = C ja_JP.ujis
 lang_target = C
 
@@ -26,8 +28,11 @@ man_MANS = \
 
 .1.txt:
 	groff -man -Tlatin1 -P-b -P-u $< >$@
-
 .1.ps:
+	groff -man $< >$@
+.5.txt:
+	groff -man -Tlatin1 -P-b -P-u $< >$@
+.5.ps:
 	groff -man $< >$@
 
 timidity.1:

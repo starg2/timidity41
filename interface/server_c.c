@@ -84,6 +84,7 @@
 #define DONT_STOP_AUDIO	1
 #define DEFAULT_TIMEBASE	100 /* HZ? */
 #define MAXTICKDIFF		150
+#define SIG_TIMEOUT_SEC		3
 
 
 static int cmd_help(int argc, char **argv);
@@ -124,8 +125,8 @@ struct
 	"CLOSE\tShutdown current data connection",
 	1, 1, cmd_close},
     {"TIMEBASE",
-	"TIMEBASE <timebase>\n\tSet time base",
-	1, 1, cmd_timebase},
+	"TIMEBASE [timebase]\n\tSet time base",
+	1, 2, cmd_timebase},
     {"RESET",
 	"RESET\tInitialize all of MIDI status",
 	1, 1, cmd_reset},
@@ -347,6 +348,12 @@ static int pasv_open(int *port)
     return sfd;
 }
 
+static RETSIGTYPE sig_timeout(int sig)
+{
+    signal(SIGALRM, sig_timeout); /* For SysV base */
+    /* Expect EINTR */
+}
+
 static void doit(void);
 static int send_status(int status, char *message, ...);
 static void compute_sample_increment(void);
@@ -378,6 +385,8 @@ static void ctl_pass_playing_list(int n, char *args[])
     opt_realtime_playing = 2; /* Enable loading patch while playing */
     allocate_cache_size = 0; /* Don't use pre-calclated samples */
 /*  aq_set_soft_queue(-1.0, 0.0); */
+    alarm(0);
+    signal(SIGALRM, sig_timeout);
 
     play_mode->close_output();
     while(1)
@@ -512,7 +521,7 @@ static void tmr_reset(void)
 
 static void compute_sample_increment(void)
 {
-    double a;    
+    double a;
     a = (double)current_play_tempo * (double)play_mode->rate
 	* (65536.0/500000.0) / (double)curr_timebase,
     sample_correction = (int32)(a) & 0xFFFF;
@@ -856,7 +865,11 @@ static int cmd_open(int argc, char **argv)
     memset(&in, 0, addrlen);
     send_status(200, "%d is ready acceptable", port);
 
-    if((data_fd = accept(sock, (struct sockaddr *)&in, &addrlen)) < 0)
+    alarm(SIG_TIMEOUT_SEC);
+    data_fd = accept(sock, (struct sockaddr *)&in, &addrlen);
+    alarm(0);
+
+    if(data_fd < 0)
     {
 	send_status(512, "Accept error");
 	close(sock);
@@ -917,13 +930,18 @@ static int cmd_quit(int argc, char **argv)
 
 static int cmd_timebase(int argc, char **argv)
 {
-    int i = atoi(argv[1]);
+    int i;
+
+    if(argc == 1)
+	return send_status(200, "%d OK", curr_timebase);
+    i = atoi(argv[1]);
     if(i < 1)
 	i = 1;
     else if(i > 1000)
 	i = 1000;
     if(i != curr_timebase)
     {
+	curr_timebase = i;
 	compute_sample_increment();
 	tick_offs = curr_tick;
 	start_time = get_current_calender_time();
@@ -1279,6 +1297,7 @@ static int do_sequencer(void)
 		     "Undefined data 0x%02x", data_buffer[offset - 1]);
 	    send_status(401, "Wrong data is recieved (seqcmd=0x%02x)",
 			cmd);
+	    stop_playing();
 	    return 1;
 	}
 #undef READ_NEEDBUF
@@ -1443,12 +1462,14 @@ static void do_timing(uint8 *data)
 	break;
 
       case TMR_TEMPO:
+#if 0 /* What should TMR_TEMPO work ? */
 	if(val < 8)
 	    val = 8;
 	else if(val > 250)
 	    val = 250;
-	current_play_tempo = 60 * 500000 / val;
+	current_play_tempo = 60 * 1000000 / val;
 	compute_sample_increment();
+#endif
 	break;
 
       case TMR_WAIT_ABS:

@@ -3472,6 +3472,13 @@ int play_midi_file(char *fn)
     /* Reset restart offset */
     midi_restart_time = 0;
 
+#ifdef REDUCE_VOICE_TIME_TUNING
+    /* Reset voice reduction stuff */
+    min_bad_nv = 256;
+    max_good_nv = 1;
+    old_rate = -1;
+#endif
+
   play_reload: /* Come here to reload MIDI file */
     rc = play_midi_load_file(fn, &event, &nsamples);
     if(RC_IS_SKIP_FILE(rc))

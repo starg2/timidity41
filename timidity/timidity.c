@@ -1127,7 +1127,7 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
 	    i = 0;
 	}
 	if((cp = strchr(tmp + i, '#')) != NULL) {
-	    if(cp == tmp + i || isspace(cp[-1]) || isspace(cp[1]))
+	    if(cp == tmp + i || isspace((int)cp[-1]) || isspace((int)cp[1]))
 		*cp = '\0';
 	}
 

@@ -866,6 +866,13 @@ void pre_resample(Sample * sp)
 
   a = ((double) (sp->sample_rate) * freq_table[(int) (sp->note_to_use)]) /
     ((double) (sp->root_freq) * play_mode->rate);
+  if(sp->data_length / a >= 0x7fffffffL)
+  {
+      /* Too large to compute */
+      ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d",
+		sp->note_to_use);
+      return;
+  }
   newlen = (int32)(sp->data_length / a);
   dest = newdata = (int16 *)safe_malloc((newlen >> (FRACTION_BITS - 1)) + 2);
 

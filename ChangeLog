@@ -1,3 +1,39 @@
+1999-04-25  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.0.1 released.
+
+1999-04-24  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in (--enable-dynamic): Bug fix.
+
+1999-04-23  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/server_c.c (cmd_timebase): Bug fix.
+    * interface/server_c.c (TMR_TEMPO): Ignore. (What is TMR_TEMPO ?)
+
+1999-04-21  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in (HAVE_XMUREGISTEREXTERNALAGENT): Test for
+      XmuRegisterExternalAgent()
+    * configure.in (HAVE_X11_XMU_EXTAGENT_H): Test for <X11/Xmu/ExtAgent.h>
+    * interface/xaw_redef.c: Don't use if XmuRegisterExternalAgent is
+      not undefined.
+    * xaw_i.c: Fix bug about directory browsing.
+    * timidity/timidity.c (read_config_file): Avoid compiler warnings.
+      timidity/aq.c (do_effect): Likewise.
+
+1999-04-19  Eric A. Welsh <ewelsh@gpc.ibc.wustl.edu>
+
+    * timidity/playmidi.c (play_midi_file): Reset the voice reduction
+      variables at the beginning of each midi.
+
+1999-04-18  Masanao Izumo <mo@goice.co.jp>
+
+    * common.makefile interface/Makefile.am doc/Makefile.am:
+      Use variable `SUFFIXES', not target `.SUFFIXES' (for automake 1.4)
+    * timidity/resample.c (pre_resample): Fixed interger overflow bug.
+    * timidity/recache.c (resamp_cache_refer_off): Likewise.
+
 1999-04-17  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.0.0 released.

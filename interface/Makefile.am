@@ -18,6 +18,9 @@
 
 include $(top_builddir)/common.makefile
 
+SUFFIXES = .ptcl .tcl .@so@
+
+
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
 INCLUDES = \

@@ -109,6 +109,8 @@ program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
 
+SUFFIXES = .ptcl .tcl .@so@
+
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
 INCLUDES =  	-I$(top_srcdir) 	-I$(top_srcdir)/timidity 	-I$(top_srcdir)/libarc 	-I$(top_srcdir)/utils 	$(EXTRAINCS)
@@ -203,7 +205,7 @@ OBJECTS = $(libinterface_a_OBJECTS)
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .S .c .o .s
+.SUFFIXES: .@so@ .S .c .o .ptcl .s .tcl
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
 	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps interface/Makefile
 
@@ -471,7 +473,7 @@ xaw_i.o: xaw_i.c ../config.h xaw.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/controls.h ../utils/timer.h \
-	../interface.h xaw_redef.c
+	../utils/strtab.h ../interface.h xaw_redef.c
 xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \

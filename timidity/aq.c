@@ -88,7 +88,7 @@ static int32 estimate_queue_size(void);
 
 /* effect.c */
 extern void init_effect(void);
-extern do_effect(int32* buf, int32 count);
+extern int do_effect(int32* buf, int32 count);
 
 void aq_setup(void)
 {
