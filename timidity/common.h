@@ -1,8 +1,6 @@
-#ifndef ___COMMON_H_
-#define ___COMMON_H_
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -22,6 +20,9 @@
 
    common.h
 */
+
+#ifndef ___COMMON_H_
+#define ___COMMON_H_
 
 #include "url.h"
 #include "mblock.h"

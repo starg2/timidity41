@@ -1,6 +1,6 @@
 /*
 	TiMidity++ -- MIDI to WAVE converter and player
-	Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+	Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
 	Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
 	This program is free software; you can redistribute it and/or modify
@@ -82,7 +82,8 @@ static BOOL APIENTRY PrefTiMidity4DialogProc(HWND hwnd, UINT uMess, WPARAM wPara
 static int DlgOpenConfigFile(char *Filename, HWND hwnd);
 static int DlgOpenOutputFile(char *Filename, HWND hwnd);
 
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
+//#if defined(__CYGWIN32__) || defined(__MINGW32__)
+#if 0 /* New version of mingw */
 //#define pszTemplate	u1.pszTemplate
 //#define pszIcon		u2.pszIcon
 #ifndef NONAMELESSUNION

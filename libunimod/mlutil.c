@@ -51,7 +51,7 @@ FILTER filtersettings[256]; /* computed filter settings */
 /* tracker identifiers */
 CHAR *STM_Signatures[STM_NTRACKERS] =
 {
-  "!Scream",
+  "!Scream!",
   "BMOD2STM",
   "WUZAMOD!"
 };

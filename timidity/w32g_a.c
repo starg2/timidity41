@@ -1,6 +1,6 @@
 /*
    TiMidity++ -- MIDI to WAVE converter and player
-   Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+   Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
    Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
    This program is free software; you can redistribute it and/or modify
@@ -42,6 +42,9 @@
 // #define USE_WAVEOUT_EVENT
 
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
+#ifdef HAVE_NEW_MMSYSTEM
+#include <mmsystem.h>
+#else
 /* On cygnus, there is not mmsystem.h for Multimedia API's.
  * mmsystem.h can not distribute becase of Microsoft Lisence
  * Then declare some of them here.
@@ -113,6 +116,7 @@ MMRESULT WINAPI waveOutGetDevCaps(UINT, LPWAVEOUTCAPS, UINT);
 MMRESULT WINAPI waveOutGetDevCapsA(UINT, LPWAVEOUTCAPS, UINT);
 #define waveOutGetDevCaps waveOutGetDevCapsA
 MMRESULT WINAPI waveOutGetID(HWAVEOUT, UINT*);
+#endif
 #else
 #include <process.h>
 #ifdef HAVE_MMSYSTEM_H

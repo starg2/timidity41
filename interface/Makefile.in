@@ -11,7 +11,7 @@
 # PARTICULAR PURPOSE.
 
 # TiMidity++ -- MIDI to WAVE converter and player
-# Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+# Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
 # Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -284,7 +284,7 @@ maintainer-clean-recursive:
 	  rev="$$subdir $$rev"; \
 	  test "$$subdir" = "." && dot_seen=yes; \
 	done; \
-	test "$$dot_seen" = "no" && rev="$$rev ."; \
+	test "$$dot_seen" = "no" && rev=". $$rev"; \
 	target=`echo $@ | sed s/-recursive//`; \
 	for subdir in $$rev; do \
 	  echo "Making $$target in $$subdir"; \
@@ -343,7 +343,7 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pr $$/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
@@ -361,21 +361,11 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 VTPrsTbl.o: VTPrsTbl.c VTparse.h
-alsaseq_c.o: alsaseq_c.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/controls.h ../timidity/instrum.h \
-	../timidity/playmidi.h ../timidity/readmidi.h \
-	../timidity/recache.h ../timidity/output.h ../timidity/aq.h \
-	../utils/timer.h
 dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
-dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/output.h ../timidity/controls.h \
-	../timidity/dlutils.h
 emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/output.h ../timidity/controls.h \
@@ -395,21 +385,6 @@ gtk_i.o: gtk_i.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	pixmaps/slow.xpm pixmaps/fast.xpm pixmaps/timidity.xpm
 gtk_p.o: gtk_p.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/controls.h gtk_h.h
-motif_c.o: motif_c.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/output.h \
-	../timidity/controls.h motif.h ../timidity/miditrace.h
-motif_i.o: motif_i.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/output.h ../timidity/controls.h motif.h \
-	motif_bitmaps/back.xbm motif_bitmaps/next.xbm \
-	motif_bitmaps/prev.xbm motif_bitmaps/restart.xbm \
-	motif_bitmaps/fwd.xbm motif_bitmaps/pause.xbm \
-	motif_bitmaps/quit.xbm motif_bitmaps/timidity.xbm
-motif_p.o: motif_p.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/controls.h motif.h
 ncurs_c.o: ncurs_c.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
@@ -481,7 +456,7 @@ xaw_i.o: xaw_i.c ../config.h xaw.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/controls.h ../utils/timer.h \
-	../utils/strtab.h ../interface.h xaw_redef.c
+	../utils/strtab.h ../interface.h
 xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \

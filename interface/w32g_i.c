@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -33,18 +33,21 @@
 #include <shlobj.h>
 // #include <prsht.h>
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
+#ifndef HAVE_NEW_MMSYSTEM
 #include <commdlg.h>
 #ifndef TPM_TOPALIGN
 #define TPM_TOPALIGN	0x0000L	/* for old version of cygwin */
 #endif
 #define TIME_ONESHOT 0
 #define TIME_PERIODIC 1
-WINAPI int timeSetEvent(UINT uDelay, UINT uResolution,
-								void *fptc, DWORD dwUser, UINT fuEvent);
-WINAPI int timeKillEvent(UINT uTimerID);
+int WINAPI timeSetEvent(UINT uDelay, UINT uResolution,
+			     void *fptc, DWORD dwUser, UINT fuEvent);
+int WINAPI timeKillEvent(UINT uTimerID);
+#endif
 #else
 #include <commctrl.h>
 #endif /* __CYGWIN32__ */
+
 #include <commctrl.h>
 #ifndef NO_STRING_H
 #include <string.h>

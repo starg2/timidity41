@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -45,8 +45,6 @@
 #elif defined(__FreeBSD__)
 #include <machine/soundcard.h>
 #include <sys/filio.h>
-#elif defined(HAVE_SOUNDCARD_H)
-#include <soundcard.h>
 #else
 #include <sys/soundcard.h>
 #endif /* HAVE_SYS_SOUNDCARD_H */
@@ -86,11 +84,7 @@ PlayMode dpm = {
     -1,
     {0}, /* default: get all the buffer fragments you can */
     "dsp device", 'd',
-#ifdef OSS_DEVICE
-    OSS_DEVICE,
-#else
     "/dev/dsp",
-#endif
     open_output,
     close_output,
     output_data,
@@ -319,11 +313,11 @@ static int acntl(int request, void *arg)
 #ifdef SNDCTL_DSP_GETODELAY
       case PM_REQ_DISCARD:
 	output_counter = 0;
-	return ioctl(dpm.fd, SNDCTL_DSP_RESET, NULL);
+	return ioctl(dpm.fd, SNDCTL_DSP_RESET);
 
       case PM_REQ_FLUSH:
 	output_counter = 0;
-	return ioctl(dpm.fd, SNDCTL_DSP_SYNC, NULL);
+	return ioctl(dpm.fd, SNDCTL_DSP_SYNC);
 
       case PM_REQ_GETFILLED:
 	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
@@ -355,7 +349,7 @@ static int acntl(int request, void *arg)
 
 #else /* SNDCTL_DSP_GETODELAY */
       case PM_REQ_DISCARD:
-	if(ioctl(dpm.fd, SNDCTL_DSP_RESET, NULL) == -1)
+	if(ioctl(dpm.fd, SNDCTL_DSP_RESET) == -1)
 	    return -1;
 	if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
 	    return -1;
@@ -363,7 +357,7 @@ static int acntl(int request, void *arg)
 	return 0;
 
       case PM_REQ_FLUSH:
-	if(ioctl(dpm.fd, SNDCTL_DSP_SYNC, NULL) == -1)
+	if(ioctl(dpm.fd, SNDCTL_DSP_SYNC) == -1)
 	    return -1;
 	if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
 	    return -1;

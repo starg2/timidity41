@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -2131,13 +2131,8 @@ void midi_program_change(int ch, int prog)
 	switch(channel[ch].bank_msb)
 	{
 	  case 0: /* Normal */
-	    if(ch == 9  && channel[ch].bank_lsb == 127 && channel[ch].mapID == XG_DRUM_MAP) {
-	      /* FIXME: Why this part is drum?  Is this correct? */
-	      ;
-	    } else {
-	      midi_drumpart_change(ch, 0);
-	      channel[ch].mapID = XG_NORMAL_MAP;
-	    }
+	    midi_drumpart_change(ch, 0);
+	    channel[ch].mapID = XG_NORMAL_MAP;
 	    break;
 	  case 64: /* SFX voice */
 	    midi_drumpart_change(ch, 0);
@@ -2170,7 +2165,6 @@ void midi_program_change(int ch, int prog)
 	    channel[ch].altassign = drumset[0]->alt;
 	else
 	    channel[ch].altassign = drumset[prog]->alt;
-	ctl_mode_event(CTLE_DRUMPART, 1, ch, 1);
     }
     else
     {
@@ -2178,7 +2172,6 @@ void midi_program_change(int ch, int prog)
 	    newbank = special_tonebank;
 	channel[ch].bank = newbank;
 	channel[ch].altassign = NULL;
-	ctl_mode_event(CTLE_DRUMPART, 1, ch, 0);
     }
 
     if(!dr && default_program[ch] == SPECIAL_PROGRAM)
@@ -4245,12 +4238,6 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
 	return rc;
 
     skip_to(midi_restart_time);
-
-    if(midi_restart_time > 0) { /* Need to update interface display */
-      int i;
-      for(i = 0; i < MAX_CHANNELS; i++)
-	redraw_controllers(i);
-    }
     rc = RC_NONE;
     for(;;)
     {
@@ -4538,7 +4525,6 @@ int play_midi_file(char *fn)
 	free(event);
     if(rc == RC_RELOAD)
 	goto play_reload;
-
     if(rc == RC_ERROR)
     {
 	if(current_file_info->file_type == IS_OTHER_FILE)

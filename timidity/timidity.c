@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -308,7 +308,7 @@ static void help(void)
   static char *help_args[3];
   FILE *fp;
   static char *help_list[] = {
-" TiMidity++ version %s (C) 1999 Masanao Izumo <mo@goice.co.jp>",
+" TiMidity++ version %s (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>",
 " The original version (C) 1995 Tuukka Toivonen <tt@cgs.fi>",
 " TiMidity is free software and comes with ABSOLUTELY NO WARRANTY.",
 "",
@@ -564,7 +564,7 @@ static void interesting_message(void)
   printf(
 NLS
 " TiMidity++ version %s -- MIDI to WAVE converter and player" NLS
-" Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>" NLS
+" Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 NLS
 #ifdef __W32__

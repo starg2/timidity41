@@ -1,8 +1,6 @@
-#ifndef ___AQ_H_
-#define ___AQ_H_
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -23,6 +21,8 @@
 	   Written by Masanao Izumo <mo@goice.co.jp>
 */
 
+#ifndef ___AQ_H_
+#define ___AQ_H_
 
 /* interfaces */
 

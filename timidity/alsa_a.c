@@ -1,6 +1,6 @@
 /* -*- c-file-style: "gnu" -*-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
     ALSA 0.[56] support by Katsuhiro Ueno <katsu@blue.sky.or.jp>
 

@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -1058,18 +1058,27 @@ static void popdownLoad(Widget w,XtPointer s,XtPointer data) {
   char *p, *p2;
   DirPath full;
   char local_buf[300],tmp[PATH_MAX];
+#ifndef	ORIGINAL
+  int	Aflag = 0; /* RAKK/HIOENS: adding All files in directory */
+#endif	/*RAKK/HIOENS*/
 
   /* tricky way for both use of action and callback */
   if (s != NULL && data == NULL){
     if(*(char *)s == 'A') {
       snprintf(tmp,sizeof(tmp),"%s%c",basepath,'/');
       p = tmp;
+#ifndef	ORIGINAL
+      Aflag = 1;
+#endif	/*RAKK/HIOENS*/
     } else {
       p = XawDialogGetValueString(load_d);
     }
     if (NULL != (p2 = expandDir(p, &full)))
       p = p2;
     if(IsEffectiveFile(p)) {
+#ifndef	ORIGINAL
+      if(Aflag == 1) strcat(p,"/");
+#endif	/*RAKK/HIOENS*/
       snprintf(local_buf,sizeof(local_buf),"X %s\n",p);
       a_pipe_write(local_buf);
     }
@@ -1671,6 +1680,15 @@ static int dirlist_cmp (const void *p1, const void *p2)
     return strcmp (s1, s2);
 }
 
+#ifndef	ORIGINAL
+/* RAKK/HIOENS: Save a string on the heap. Addition for 'common.c' ? */
+static  char  * strsav( char  * str ) {
+    char  * tp = safe_malloc( strlen(str)+1 );
+    strcpy(tp, str);
+    return tp;
+}
+#endif	/* RAKK/HIOENS */
+
 static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
   URL dirp;
   struct stat st;
@@ -1681,7 +1699,11 @@ static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
   canonicalize_path(currdir);
   if(stat(currdir, &st) == -1) return;
   if(!S_ISDIR(st.st_mode)) {
+#ifdef	ORIGINAL
       XtVaSetValues(load_d,XtNvalue,currdir,NULL);
+#else	/* RAKK/HIOENS */
+      XtVaSetValues(load_d,XtNvalue,strsav(currdir),NULL);
+#endif	/* ORIGINAL */
       return;
   }
 
@@ -1723,11 +1745,19 @@ static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
     strcpy(local_buf, "Can't read directry");
 
   XtVaSetValues(load_info,XtNlabel,local_buf,NULL);
+#ifdef	ORIGINAL
   XtVaSetValues(label,XtNlabel,currdir,NULL);
+#else	/* RAKK/HIOENS */
+  XtVaSetValues(label,XtNlabel,strsav(currdir),NULL);
+#endif	/* RAKK/HIOENS */
   strcpy(basepath, currdir);
   if(currdir[strlen(currdir) - 1] != '/')
       strcat(currdir, "/");
+#ifdef	ORIGINAL
   XtVaSetValues(load_d,XtNvalue,currdir,NULL);
+#else	/* RAKK/HIOENS */
+  XtVaSetValues(load_d,XtNvalue,strsav(currdir),NULL);
+#endif	/* RAKK/HIOENS */
 }
 
 static void drawBar(int ch,int len, int xofs, int column, Pixel color) {

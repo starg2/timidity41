@@ -294,6 +294,7 @@ STX_Load (BOOL curious)
   int t, u, track = 0;
   int version = 0;
   SAMPLE *q;
+  char *tracker;
 
   /* try to read module header */
   _mm_read_string (mh->songname, 20, modreader);
@@ -323,15 +324,19 @@ STX_Load (BOOL curious)
       return 0;
     }
 
+  tracker = "unknown tracker";
   for (t = 0; t < STM_NTRACKERS; t++)
     if (!memcmp (mh->trackername, STM_Signatures[t], 8))
-      break;
+      {
+	tracker = STM_Version[t];
+	break;
+      }
 
   of.modtype = _mm_malloc(
-    strlen(STM_Version[t]) +
+    strlen(tracker) +
     strlen("STM2STX 1.x ()") + 1);
 
-  sprintf(of.modtype, "STM2STX 1.x (%s)", STM_Version[t]);
+  sprintf(of.modtype, "STM2STX 1.x (%s)", tracker);
 
   /* set module variables */
   of.songname = DupStr (mh->songname, 20, 1);

@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -542,6 +542,8 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 	current_file_info->mid = val[0];
 
     /* XG Multi Part Data parameter change */
+    /* There are two ways to do this, neither of which match the XG spec... */
+    /* All variables given in a single big block */
     if(len >= 10 &&
        val[0] == 0x43 && /* Yamaha ID */
        val[2] == 0x4C && /* XG Model ID */
@@ -606,6 +608,61 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 	    }
 	    num_events++;
 	}
+    }
+    /* Or you can specify them one SYSEX event at a time... */
+    else if(len == 8 &&
+       val[0] == 0x43 && /* Yamaha ID */
+       val[2] == 0x4C && /* XG Model ID */
+       val[3] == 0x08)   /* Multi Part Data parameter change */
+    {
+	uint8 p;				/* Channel part number [0..15] */
+	int ent;				/* Entry # of sub-event */
+
+	p = val[4];
+	ent = val[5];
+
+	switch(ent) {
+
+		case 0x01:	/* bank select MSB */
+		  MIDIEVENT(at, ME_TONE_BANK_MSB, p, val[6], 0);
+		  break;
+
+		case 0x02:	/* bank select LSB */
+		  MIDIEVENT(at, ME_TONE_BANK_LSB, p, val[6], 0);
+		  break;
+
+		case 0x03:	/* program number */
+		  MIDIEVENT(at, ME_PROGRAM, p, val[6], 0);
+		  break;
+
+		case 0x08:	/* note shift ? */
+		  MIDIEVENT(at, ME_KEYSHIFT, p, val[6], 0);
+
+		case 0x0B:	/* volume */
+		  MIDIEVENT(at, ME_MAINVOLUME, p, val[6], 0);
+		  break;
+
+		case 0x0E:	/* pan */
+		  if(val[6] == 0) {
+			MIDIEVENT(at, ME_RANDOM_PAN, p, 0, 0);
+		  }
+		  else {
+			MIDIEVENT(at, ME_PAN, p, val[6], 0);
+		  }
+		  break;
+
+		case 0x12:	/* chorus send */
+		  MIDIEVENT(at, ME_CHORUS_EFFECT, p, val[6], 0);
+		  break;
+
+		case 0x13:	/* reverb send */
+		  MIDIEVENT(at, ME_REVERB_EFFECT, p, val[6], 0);
+		  break;
+
+		default:
+		  break;
+	}
+	num_events++;
     }
 
     /* GS bank+program change */
@@ -1788,17 +1845,10 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		switch(bank_msb[ch])
 		{
 		  case 0: /* Normal */
-		    if(ch == 9  && bank_lsb[ch] == 127 && mapID[ch] == XG_DRUM_MAP) {
-		      /* FIXME: Why this part is drum?  Is this correct? */
-		      ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
-				"Warning: XG bank 0/127 is found. It may be not correctly played.");
-		      ;
-		    } else {
-		      ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(XG ch=%d Normal voice)",
-				ch);
-		      midi_drumpart_change(ch, 0);
-		      mapID[ch] = XG_NORMAL_MAP;
-		    }
+		    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(XG ch=%d Normal voice)",
+			      ch);
+		    midi_drumpart_change(ch, 0);
+		    mapID[ch] = XG_NORMAL_MAP;
 		    break;
 		  case 64: /* SFX voice */
 		    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(XG ch=%d SFX voice)",
