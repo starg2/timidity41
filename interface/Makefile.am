@@ -228,6 +228,15 @@ w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
 	w32g_btn.bmp w32g_icon.ico w32g_sleep.bmp w32g_subbtn.bmp
 	windres -o $@ -O coff w32g_res.rc
 
+## This needs to build japanese resource.
+#BRCC32 = c:/borland/bcc55/bin/brcc32.exe
+#BRCC32_FLAGS = -ic:/mingw/include
+#w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
+#	w32g_btn.bmp w32g_icon.ico w32g_sleep.bmp w32g_subbtn.bmp
+#	$(BRCC32) $(BRCC32_FLAGS) w32g_res.rc
+#	windres -o tmp.res -O coff w32g_res.RES
+#	mv tmp.res w32g_res.res
+
 ###
 ### For dynamic interfaces
 ###

@@ -460,6 +460,8 @@ static int output_data(char * Data, int32 Size)
 
 static int acntl(int request, void *arg)
 {
+  static char dummy_sounds[4*AUDIO_BUFFER_SIZE];
+
     switch(request)
     {
         case PM_REQ_GETQSIZ:
@@ -477,17 +479,18 @@ static int acntl(int request, void *arg)
             { CHAR  b[256]; wsprintf(b, "Resetting audio device.\n"); OutputDebugString(b); }
 
             waveOutReset(hDevice);
+	    close_output();
+	    open_output();
 
             { CHAR  b[256]; wsprintf(b, "Audio device reset.\n"); OutputDebugString(b); }
-
-            WaitForBuffer(1);
 
             return 0;
         }
 
         case PM_REQ_FLUSH:
         {
-            WaitForBuffer(1);
+	    close_output();
+	    open_output();
             return 0;
         }
     }
@@ -688,12 +691,27 @@ static void PutBuffer(struct MMBuffer * b)
 
 static void WaitForBuffer(int WaitForAllBuffers)
 {
+  int numbuf;
+
     if (WaitForAllBuffers)
     {
         { CHAR  b[256]; wsprintf(b, "%2d: Waiting for all buffers to be dequeued...\n", NumBuffersInUse); OutputDebugString(b); }
 
-        while (NumBuffersInUse)
-            Sleep(BufferDelay);
+	while (1) {
+	  EnterCriticalSection(&critSect);
+	  numbuf = NumBuffersInUse;
+	  if (numbuf) {
+            LeaveCriticalSection(&critSect);
+	    Sleep(BufferDelay);
+	    continue;
+	  }
+	  break;
+	}
+	LeaveCriticalSection(&critSect);
+
+
+//        while (NumBuffersInUse)
+//            Sleep(BufferDelay);
 
         { CHAR  b[256]; wsprintf(b, "%2d: All buffers dequeued.\n", NumBuffersInUse); OutputDebugString(b); }
 

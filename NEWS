@@ -1,4 +1,20 @@
     * Version 2.11.0 released.
+    * (ncursese interface) Chaged from 3 to 4 digits in audio queue monitor.
+    * (Sun audio): Enabled specify audio device file with AUDIODEV environment.
+    * Updates Win32GUI version.
+    * Improved GS SysEx
+    * Added attack/release/decay-time(CC/NRPN tone/NRPN dram)
+    * Added drum level
+    * Added CC#94 pseudo delay (like chorus method)
+    * Adjusted reverb level
+    * Added resonance filter
+    * Modified enverope attack
+    * Adjusted velocity
+    * Supported user drumset (SC-88)
+    * Added some GS SysEx'es.
+    * Upgrade develop environment:
+	automake 1.5 +  autoconf 2.5x + libtool 1.4.x
+    * Vorbis 1.0 support
     * MOD to MIDI conversion.
     * -EFchorus=2 is default.
     * Support RIFF MIDI.

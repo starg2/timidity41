@@ -82,9 +82,22 @@ static	vorbis_comment	 vc; /* struct that stores all the user comments */
 
 /*************************************************************************/
 
+static int
+choose_bitrate(int nch, int rate)
+{
+  int target;
+
+  /* 44.1kHz 2ch --> 128kbps */
+  target = (int)(nch * rate * (128000.0 / (2.0 * 44100.0)) + 0.5); /* +0.5 for rounding */
+
+  return target;
+}
+
 static int ogg_output_open(const char *fname, const char *comment)
 {
   int fd;
+  int nch;
+  int bitrate;
 
   if(strcmp(fname, "-") == 0) {
     fd = 1; /* data to stdout */
@@ -102,10 +115,13 @@ static int ogg_output_open(const char *fname, const char *comment)
       comment = fname;
   }
 
+  nch = (dpm.encoding & PE_MONO) ? 1 : 2;
+
   /* choose an encoding mode */
-  /* (mode 0: 44kHz stereo uncoupled, roughly 128kbps VBR) */
   vorbis_info_init(&vi);
-  vorbis_encode_init(&vi, (dpm.encoding & PE_MONO)?1:2, 44100, -1, 128000, -1);
+  bitrate = choose_bitrate(nch, dpm.rate);
+  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Target encoding bitrate: %dbps", bitrate);
+  vorbis_encode_init(&vi, nch, dpm.rate, -1, bitrate, -1);
 
   {
     /* add a comment */

@@ -616,7 +616,7 @@ int aq_flush(int discard)
 
     trace_flush();
     play_mode->acntl(PM_REQ_FLUSH, NULL);
-    play_counter = play_offset_counter = 0;
+    flush_buckets();
     return RC_NONE;
 }
 

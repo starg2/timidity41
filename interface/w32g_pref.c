@@ -964,7 +964,12 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 // IDC_COMBO_OUTPUT_MODE
 static char *cb_info_IDC_COMBO_OUTPUT_MODE[]= {
 	"以下のファイルに出力",(char *)0,
+#if defined(__CYGWIN32__) || defined(__MINGW32__)
+	"ファイル名を自動で決定し、ソ\ースと同じフォルダに出力",(char *)1,
+#else
 	"ファイル名を自動で決定し、ソースと同じフォルダに出力",(char *)1,
+#endif
+
 	"ファイル名を自動で決定し、以下のフォルダに出力",(char *)2,
 	"ファイル名を自動で決定し、以下のフォルダに出力(フォルダ名付き)",(char *)3,
 	NULL

@@ -1,3 +1,12 @@
+2001-12-25  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/w32_a.c: Close&Open to reset/flush the audio device.
+
+2001-12-23  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/aq.c (aq_flush): Bug fixed.
+  	* timidity/vorbis_a.c: Enable to encode to variable sample rates.
+
 2001-12-20  Masanao Izumo <mo@goice.co.jp>
 
 	* timidity/playmidi.c: Bug fix.
@@ -18,7 +27,6 @@
 
 	* timidity/mod.c:
 	  Portas are now handled correctly for Ultimate Soundtracker mods.
-
 
 2001-11-10  Daisuke Nagano <breeze.nagano@nifty.ne.jp>
 
@@ -42,18 +50,20 @@
 2001-10-19  Saito <timidity@flashmail.com>
 
 	* timidity/{mix.c,mix.h,playmidi.c,playmidi.h,readmidi.c,readmidi.h,
-	  reverb.c,reverb.h,tables.c,tables.h}:
-	- Updates Win32GUI version.
-	- Improved GS SysEx
-	- Added attack/release/decay-time(CC/NRPN tone/NRPN dram)
-	- Added drum level
-	- Added CC#94 pseudo delay (like chorus method)
-	- Adjusted reverb level
-	- Added resonance filter
-	- Modified enverope attack
-	- Adjusted velocity
-	- Supported user drumset (SC-88)
-	- Added some GS SysEx'es.
+	  reverb.c,reverb.h,tables.c,tables.h},
+	  interface/{w32g_ini.c,w32g_utl.c,w32g_utl.h,w32g_pref.c,w32g_res.h,
+	  w32g_res.rc,w32g_res.rc}:
+	  - Updates Win32GUI version.
+	  - Improved GS SysEx
+	  - Added attack/release/decay-time(CC/NRPN tone/NRPN dram)
+	  - Added drum level
+	  - Added CC#94 pseudo delay (like chorus method)
+	  - Adjusted reverb level
+	  - Added resonance filter
+	  - Modified enverope attack
+	  - Adjusted velocity
+	  - Supported user drumset (SC-88)
+	  - Added some GS SysEx'es.
 
 2001-10-10  Frederic LOYER <loyer@ensta.fr>
 
@@ -72,10 +82,8 @@
 
 	* Upgrade develop environment:
 	  - automake 1.5
-	  - autoconf 2.52
-	  - libtool 1.4.2
-
-
+	  - autoconf 2.5x
+	  - libtool 1.4.x
 
 2001-06-25  Forever shall I be. <zinx@magenet.net>
 

@@ -4680,6 +4680,8 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     if(RC_IS_SKIP_FILE(rc))
 	return rc;
 
+    //aq_flush(1);/* ###### TODO CHECK */
+
     skip_to(midi_restart_time);
 
     if(midi_restart_time > 0) { /* Need to update interface display */
