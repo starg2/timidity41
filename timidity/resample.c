@@ -207,7 +207,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
     {
       FINALINTERP;
       vp->timeout = 1;
-      *countptr-=count+1;
+      *countptr-=count;
     }
 #else /* PRECALC_LOOPS */
     while (count--)
@@ -218,7 +218,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
 	{
 	  FINALINTERP;
 	  vp->timeout = 1;
-	  *countptr-=count+1;
+	  *countptr-=count;
 	  break;
 	}
     }
@@ -546,7 +546,7 @@ static sample_t *rs_vib_plain(int v, int32 *countptr)
 	{
 	  FINALINTERP;
 	  vp->timeout = 1;
-	  *countptr-=count+1;
+	  *countptr-=count;
 	  break;
 	}
     }
@@ -834,7 +834,7 @@ static sample_t *porta_resample_voice(int v, int32 *countptr, int mode)
 	resampler(v, &i, mode);
 	resample_buffer_offset += i;
 
-	if(!loop && vp->status == VOICE_FREE)
+	if(!loop && (i == 0 || vp->status == VOICE_FREE))
 	    break;
 	cc -= i;
     }
@@ -873,7 +873,7 @@ sample_t *resample_voice(int v, int32 *countptr)
 
     if(vp->sample->sample_rate == play_mode->rate &&
        vp->sample->root_freq == freq_table[vp->sample->note_to_use] &&
-       (vp->frequency == vp->orig_frequency || vp->porta_control_ratio))
+       vp->frequency == vp->orig_frequency)
     {
 	int32 ofs;
 

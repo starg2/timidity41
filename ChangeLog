@@ -1,3 +1,26 @@
+2000-05-24  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.9.4 released.
+
+2000-05-17  Masanao Izumo <mo@goice.co.jp>
+
+    * Fixed automake 1.4 bug, and updated Makfile.in files using this fixed
+      version of automake.  The automake patch is available from:
+	http://www.goice.co.jp/member/mo/timidity/dist/automake-1.4-bugfix1.pat
+
+2000-05-17  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * resample.c: Fixed drum portament bug.
+    * timidity/{instrum.c,sndfont.c}: Enable pre_resampling().
+
+2000-05-12  Katsuhiro Ueno <katsu@blue.sky.or.jp>
+
+    * timidity/alsa_a.c: Support for ALSA 0.6
+
+2000-05-09  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/resample.c: Fixed drum portament bug.
+
 2000-05-08  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.9.3 released.

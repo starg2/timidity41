@@ -2,6 +2,7 @@
     TiMidity++ -- MIDI to WAVE converter and player
     Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+    ALSA 0.[56] support by Katsuhiro Ueno <katsu@blue.sky.or.jp>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,9 +18,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-    linux_audio.c
+    alsa_a.c
 
-    Functions to play sound on the VoxWare audio driver (Linux or FreeBSD)
+    Functions to play sound on the ALSA audio driver
 
 */
 
@@ -50,7 +51,6 @@
 #if ALSA_LIB < 4
 typedef void  snd_pcm_t;
 #endif
-
 
 #include "timidity.h"
 #include "common.h"
@@ -222,7 +222,9 @@ static int set_playback_info (snd_pcm_t* handle__,
 			      const int32 extra_param[5])
 {
   int ret_val = 0;
+#if ALSA_LIB < 5
   const int32 orig_encoding = *encoding__;
+#endif
   const int32 orig_rate = *rate__;
   int tmp;
 #if ALSA_LIB >= 5
@@ -400,14 +402,35 @@ static int set_playback_info (snd_pcm_t* handle__,
 
   /* Set buffer fragments (in extra_param[0]) */
 #if ALSA_LIB >= 5
+#if ALSA_LIB >= 6
+  pparams.frag_size = tmp;
+  if (extra_param[0] == 0)
+    pparams.buffer_size = pinfo.buffer_size;
+  else
+   {
+     int frags = extra_param[0] - (extra_param[0] % pinfo.fragment_align);
+     if (frags > pinfo.max_fragment_size)
+       frags = pinfo.max_fragment_size;
+     if (frags < pinfo.min_fragment_size)
+       frags = pinfo.min_fragment_size; 
+     pparams.buffer_size = tmp * frags;
+   }
+  pparams.buf.block.frags_xrun_max = 0;
+  pparams.buf.block.frags_min = 1;
+#else
   pparams.buf.block.frag_size = tmp;
   pparams.buf.block.frags_max = (extra_param[0] == 0) ? -1 : extra_param[0];
   pparams.buf.block.frags_min = 1;
+#endif
 
   pparams.mode = SND_PCM_MODE_BLOCK;
   pparams.channel = SND_PCM_CHANNEL_PLAYBACK;
   pparams.start_mode = SND_PCM_START_GO;
+#if ALSA_LIB >= 6
+  pparams.xrun_mode  = SND_PCM_XRUN_FLUSH;
+#else
   pparams.stop_mode  = SND_PCM_STOP_STOP;
+#endif
   pparams.format.interleave = 1;
 
   snd_pcm_channel_flush (handle__, SND_PCM_CHANNEL_PLAYBACK);
@@ -417,10 +440,18 @@ static int set_playback_info (snd_pcm_t* handle__,
   pparams.fragments_max  = (extra_param[0] == 0) ? -1 : extra_param[0];
   pparams.fragments_room = 1;
   tmp = snd_pcm_playback_params (handle__, &pparams);
-#endif
+#endif /* ALSA_LIB >= 5 */
   if (tmp < 0)
     {
-#if ALSA_LIB >= 5
+#if ALSA_LIB >= 6
+      ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+		"%s doesn't support buffer fragments"
+		":request frag_size=%d, buffer_size=%d, min=%d\n",
+		dpm.name,
+		pparams.frag_size,
+		pparams.buffer_size,
+		pparams.buf.block.frags_min);
+#elif ALSA_LIB == 5
       ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		"%s doesn't support buffer fragments"
 		":request size=%d, max=%d, min=%d\n",
@@ -464,8 +495,13 @@ static int set_playback_info (snd_pcm_t* handle__,
 	  dpm.rate = psetup.format.rate;
 	  ret_val = 1;
 	}
+#if ALSA_LIB >= 6
+      frag_size = psetup.frag_size;
+      total_bytes = frag_size * psetup.frags;
+#else
       frag_size = psetup.buf.block.frag_size;
       total_bytes = frag_size * psetup.buf.block.frags;
+#endif
       bytes_to_go = total_bytes;
     }
 #else /* ALSA_LIB < 5 */
@@ -550,12 +586,11 @@ static void close_output(void)
 static int output_data(char *buf, int32 nbytes)
 {
   int n;
-
 #if ALSA_LIB >= 5
   snd_pcm_channel_status_t status;
 
   n = snd_pcm_write (handle, buf, nbytes);
-  if (n < 0)
+  if (n <= 0)
     {
       memset (&status, 0, sizeof(status));
       status.channel = SND_PCM_CHANNEL_PLAYBACK;
@@ -565,17 +600,27 @@ static int output_data(char *buf, int32 nbytes)
 		    "%s: could not get channel status", dpm.name);
 	  return -1;
 	}
+#if ALSA_LIB >= 6
+      if (status.status == SND_PCM_STATUS_XRUN)
+#else
       if (status.status == SND_PCM_STATUS_UNDERRUN)
+#endif
 	{
+#if ALSA_LIB >= 6
+	  ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+		    "%s: underrun at %d", dpm.name, status.pos_io);
+	  output_counter += status.pos_io;
+#else
 	  ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		    "%s: underrun at %d", dpm.name, status.scount);
 	  output_counter += status.scount;
+#endif
 	  snd_pcm_channel_flush (handle, SND_PCM_CHANNEL_PLAYBACK);
 	  snd_pcm_channel_prepare (handle, SND_PCM_CHANNEL_PLAYBACK);
 	  bytes_to_go = total_bytes;
 	  n = snd_pcm_write (handle, buf, nbytes);
 	}
-      if (n < 0)
+      if (n <= 0)
 	{
 	  ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
 		    "%s: %s", dpm.name,
@@ -648,7 +693,11 @@ static int acntl(int request, void *arg)
 #if ALSA_LIB >= 5
 	if (snd_pcm_channel_status(handle, &pstatus) < 0)
 	  return -1;
+#if ALSA_LIB >= 6
+	i = pstatus.bytes_free;
+#else
 	i = pstatus.free;
+#endif
 #else /* ALSA_LIB < 5 */
 	if (snd_pcm_playback_status(handle, &pstatus) < 0)
 	  return -1;
@@ -665,7 +714,11 @@ static int acntl(int request, void *arg)
 #if ALSA_LIB >= 5
 	if (snd_pcm_channel_status(handle, &pstatus) < 0)
 	  return -1;
+#if ALSA_LIB >= 6
+	i = pstatus.bytes_used;
+#else
 	i = pstatus.count;
+#endif
 #else /* ALSA_LIB < 5 */
 	if (snd_pcm_playback_status(handle, &pstatus) < 0)
 	  return -1;
@@ -682,7 +735,11 @@ static int acntl(int request, void *arg)
 #if ALSA_LIB >= 5
 	if (snd_pcm_channel_status(handle, &pstatus) < 0)
 	  return -1;
+#if ALSA_LIB >= 6
+	i = output_counter + pstatus.pos_io;
+#else
 	i = output_counter + pstatus.scount;
+#endif
 #else
 	if (snd_pcm_playback_status(handle, &pstatus) < 0)
 	  return -1;

@@ -687,11 +687,9 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 				 sample->sample_rate,
 				 play_mode->rate);
 
-#ifdef DISALLOW_DRUM_BENDS
 		/* resample it if possible */
 		if (sample->note_to_use && !(sample->modes & MODES_LOOPING))
 			pre_resample(sample);
-#endif
 
 #ifdef LOOKUP_HACK
 		/* squash the 16-bit data into 8 bits. */
