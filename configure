@@ -1400,7 +1400,7 @@ fi
 
 # Define the identity of the package.
 PACKAGE=TiMidity++
-VERSION=2.11.0
+VERSION=2.11.1
 
 cat >>confdefs.h <<EOF
 #define PACKAGE "$PACKAGE"

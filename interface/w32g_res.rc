@@ -301,7 +301,7 @@ BEGIN
     EDITTEXT        IDC_EDIT_CONFIG_FILE,62,10,137,14,ES_AUTOHSCROLL | 
                     ES_OEMCONVERT
     GROUPBOX        "Player",IDC_GROUPBOX_PLAYERMODE,2,32,106,61,WS_GROUP
-    CONTROL         "Not Looping",IDC_CHECKBOX_AUTOQUIT,"Button",
+    CONTROL         "Auto Quit",IDC_CHECKBOX_AUTOQUIT,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,117,44,77,8
     CONTROL         "Auto Uniq",IDC_CHECKBOX_AUTOUNIQ,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,117,56,76,8
@@ -312,8 +312,8 @@ BEGIN
                     BS_AUTORADIOBUTTON | WS_TABSTOP,152,112,42,8
     CONTROL         "English",IDC_RADIOBUTTON_ENGLISH,"Button",
                     BS_AUTORADIOBUTTON | WS_TABSTOP,152,124,43,8
-    CONTROL         "Auto Quit",IDC_CHECKBOX_NOT_CONTINUE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,7,44,64,8
+    CONTROL         "Not Continue",IDC_CHECKBOX_NOT_CONTINUE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,44,97,8
     CONTROL         "Not Drag Start",IDC_CHECKBOX_NOT_DRAG_START,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,56,97,8
     GROUPBOX        "Directory",IDC_STATIC,77,101,67,23
@@ -325,10 +325,10 @@ BEGIN
     GROUPBOX        "INI File",IDC_STATIC,77,125,67,24
     CONTROL         "Auto Save",IDC_CHECK_INIFILE_AUTOSAVE,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,83,134,53,10
-    CONTROL         "Not Continue",IDC_CHECKBOX_NOT_LOOPING,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,7,68,51,8
+    CONTROL         "Not Looping",IDC_CHECKBOX_NOT_LOOPING,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,68,97,8
     CONTROL         "Auto Start",IDC_CHECKBOX_AUTOSTART,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,7,80,56,8
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,80,97,8
     CONTROL         "Random Mode",IDC_CHECKBOX_RANDOM,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,117,80,75,8
     CONTROL         "Popup",IDC_CHECK_DOCWNDAUTOPOPUP,"Button",

@@ -72,8 +72,10 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_PLAYER,"SoundSpecWndFlag",&(sp->SoundSpecWndFlag));
     IniGetKeyInt(INI_SEC_PLAYER,"SubWindowMax",&(sp->SubWindowMax));
     IniGetKeyStringN(INI_SEC_PLAYER,"ConfigFile",sp->ConfigFile,MAXPATH + 32);
-    if(!sp->ConfigFile[0])
-	strcpy(sp->ConfigFile, W32G_TIMIDITY_CFG);
+    if(!sp->ConfigFile[0]) {
+      GetWindowsDirectory(sp->ConfigFile, sizeof(sp->ConfigFile) - 14);
+      strcat(sp->ConfigFile, "\\TIMIDITY.CFG");
+    }
     IniGetKeyStringN(INI_SEC_PLAYER,"PlaylistFile",sp->PlaylistFile,MAXPATH + 32);
     IniGetKeyStringN(INI_SEC_PLAYER,"PlaylistHistoryFile",sp->PlaylistHistoryFile,MAXPATH + 32);
     IniGetKeyStringN(INI_SEC_PLAYER,"MidiFileOpenDir",sp->MidiFileOpenDir,MAXPATH + 32);

@@ -31,6 +31,7 @@
 #ifdef __W32__
 #include <windows.h>
 #include <io.h>
+#include <shlobj.h>
 #endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -2897,8 +2898,10 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 
 #ifdef IA_W32GUI
     extern char *ConfigFile;
-    if(!ConfigFile[0])
-	strcpy(ConfigFile, W32G_TIMIDITY_CFG);
+    if(!ConfigFile[0]) {
+      GetWindowsDirectory(ConfigFile, 1023 - 13);
+      strcat(ConfigFile, "\\TIMIDITY.CFG");
+    }
     strncpy(local, ConfigFile, sizeof(local) - 1);
 #else
     /* !IA_W32GUI */
@@ -3124,18 +3127,17 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 		      "requesting fragment size: %d",
 		      play_mode->extra_param[1]);
 	}
+#ifndef IA_W32GUI
 	if(play_mode->open_output() < 0)
 	{
 	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
 		      "Couldn't open %s (`%c')",
 		      play_mode->id_name, play_mode->id_character);
 	    output_fail = 1;
-#ifndef IA_W32GUI
 	    ctl->close();
 	    return 2;
-#endif /* IA_W32GUI */
 	}
-
+#endif /* IA_W32GUI */
 	if(!control_ratio)
 	{
 	    control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
@@ -3214,6 +3216,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 int w32gSecondTiMidity(int opt, int argc, char **argv);
 int w32gSecondTiMidityExit(void);
 extern int SecondMode;
+static int CoInitializeOK = 0;
 #endif /* IA_W32GUI */
 
 #ifndef __MACOS__
@@ -3244,9 +3247,6 @@ int main(int argc, char **argv)
     extern int setpriority(int which, id_t who, int prio);
     extern int setreuid(int ruid, int euid);
 #endif
-
-puts("#### WINMAIN");
-sleep(3);
 
     uid = getuid();
     if(setpriority(PRIO_PROCESS, 0, DANGEROUS_RENICE) < 0)
@@ -3308,6 +3308,8 @@ sleep(3);
 
     timidity_start_initialize();
 #ifdef IA_W32GUI
+    if(CoInitialize(NULL)==S_OK)
+      CoInitializeOK = 1;
     w32g_initialize();
 
 	/* Secondary TiMidity Execute */
@@ -3386,7 +3388,9 @@ sleep(3);
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		      "Try %s -h for help", program_name);
 	}
+#ifndef IA_W32GUI /* Try to continue if it is Windows version */
 	return 1; /* problems with command line */
+#endif
     }
 
     timidity_init_player();
@@ -3404,6 +3408,8 @@ sleep(3);
 	{
 		int res = timidity_play_main(nfiles, files);
 		w32gSecondTiMidityExit();
+		if(CoInitializeOK)
+		  CoUninitialize();
 		return res;
 	}
 #endif /* IA_W32GUI */

@@ -1,3 +1,15 @@
+2001-12-29  Masanao Izumo <mo@goice.co.jp>
+
+	* Version 2.11.1 released.
+
+2001-12-29  Masanao Izumo <mo@goice.co.jp>
+
+	* interface/w32g_res.rc: fixed.
+	* timidity/timidity.c (Windows): fixed.
+	* timidity/timidity.c: Try to continue even if any configuration
+	  file is not found.
+	* interface/{w32g_ini.c,w32g.h}: fixed.
+
 2001-12-27  Masanao Izumo <mo@goice.co.jp>
 
 	* Version 2.11.0 released.

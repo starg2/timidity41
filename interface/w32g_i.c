@@ -258,7 +258,6 @@ LPSTR lpCmdLine, int nCmdShow)
 {
 	int argc;
 	CHAR **argv = NULL;
-puts("#### WINMAIN");
 	CmdLineToArgv(lpCmdLine,&argc,&argv);
 #if 0
 	FirstLoadIniFile();
