@@ -240,8 +240,8 @@ int main(int argc, char **argv)
   /* hammer together something that looks like a GUS patch header */
 
 #define pound(a) *point++=(a);
-#define pounds(a) { *((int16 *)point)=LE_SHORT(a); point+=2; }
-#define poundl(a) { *((int32 *)point)=LE_LONG(a); point+=4; }
+#define pounds(a) { int16 x = LE_SHORT(a); memcpy(point, &x, 2); point+=2; }
+#define poundl(a) { int32 x = LE_LONG(a);  memcpy(point, &x, 4); point+=4; }
 #define bounce(a) point += a;
   
   memset(thing, 0, 335);

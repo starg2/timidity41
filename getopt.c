@@ -129,8 +129,10 @@ gopEOF:
 	return EOF;
  
 gopError:
-	optarg = NULL;
-	errno  = EINVAL;
+	if (argc > optind)
+		optind++;
+        optarg = letP = NULL;
+        errno  = EINVAL;
 	if (opterr)
 		perror ("get command line option");
 	return ('?');

@@ -474,11 +474,41 @@ static void pipe_open()
 }
 
 
-static int pipe_read_ready()
+#if defined(sgi)
+#include <sys/time.h>
+#endif
+
+#if defined(SOLARIS)
+#include <sys/filio.h>
+#endif
+
+int pipe_read_ready(void)
 {
+#if defined(sgi)
+    fd_set fds;
+    int cnt;
+    struct timeval timeout;
+
+    FD_ZERO(&fds);
+    FD_SET(fpip_in, &fds);
+    timeout.tv_sec = timeout.tv_usec = 0;
+    if((cnt = select(fpip_in + 1, &fds, NULL, NULL, &timeout)) < 0)
+    {
+	perror("select");
+	return -1;
+    }
+
+    return cnt > 0 && FD_ISSET(fpip_in, &fds) != 0;
+#else
     int num;
-    ioctl(fpip_in,FIONREAD,&num); /* see how many chars in buffer. */
+
+    if(ioctl(fpip_in,FIONREAD,&num) < 0) /* see how many chars in buffer. */
+    {
+	perror("ioctl: FIONREAD");
+	return -1;
+    }
     return num;
+#endif
 }
 
 

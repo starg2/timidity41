@@ -135,7 +135,9 @@ static int open_output(void)
 
   if ((dpm.encoding & (PE_MONO | PE_16BIT)) == PE_MONO)
     RIFFheader[32]='\001';
-  else if (!(dpm.encoding & PE_MONO) || (dpm.encoding & PE_16BIT))
+  else if (!(dpm.encoding & PE_MONO) && (dpm.encoding & PE_16BIT))
+    RIFFheader[32]='\004';
+  else 
     RIFFheader[32]='\002';
 
   if (!(dpm.encoding & PE_16BIT)) RIFFheader[34]='\010';

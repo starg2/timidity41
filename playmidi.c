@@ -969,8 +969,6 @@ void dumb_pass_playing_list(int number_of_files, char *list_of_files[])
 		/* else fall through */
 		
 	    case RC_QUIT:
-		play_mode->close_output();
-		ctl->close();
 		return;
 	    }
 	}

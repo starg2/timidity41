@@ -75,7 +75,7 @@ typedef struct {
 
   void (*note)(int v);
   void (*master_volume)(int mv);
-  void (*program)(int channel, int val); /* val<0 means drum set -val */
+  void (*program)(int channel, int val);
   void (*volume)(int channel, int val);
   void (*expression)(int channel, int val);
   void (*panning)(int channel, int val);

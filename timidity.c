@@ -324,9 +324,12 @@ static int read_config_file(char *name)
 		 }
 	  for (i=1; i<words; i++)
 	    {
+	      int status;
 	      rcf_count++;
-			read_config_file(w[i]);
+	      status = read_config_file(w[i]);
 	      rcf_count--;
+	      if(status != 0)
+		return status;
 	    }
 	}
       else if (!strcmp(w[0], "default"))
@@ -566,9 +569,9 @@ int main(int argc, char **argv)
 			"e"	/* evil (be careful) */
 #endif
 			))>0)
+    {
 	 switch(c)
-		{
-		case 'U': free_instruments_afterwards=1; break;
+		{		case 'U': free_instruments_afterwards=1; break;
 		case 'L': add_to_pathlist(optarg); try_config_again=1; break;
 		case 'c':
 	if (read_config_file(optarg)) cmderr++;
@@ -662,6 +665,7 @@ int main(int argc, char **argv)
 		default:
 	cmderr++; break;
 		}
+	if(cmderr) break;
 
   if (!got_a_configuration)
 	 {

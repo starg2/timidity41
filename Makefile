@@ -75,7 +75,6 @@ SYSEXTRAS += linux_a.c
 #SYSTEM += -DSUN -DSOLARIS -DAU_SUN
 #SYSEXTRAS += sun_a.c
 #EXTRAINCS += -I/usr/demo/SOUND/include
-#EXTRALIBS += -L/usr/demo/SOUND/lib -laudio -lsocket
 
 ## Select the DEC MMS audio server
 #SYSTEM += -DDEC -DAU_DEC
@@ -228,10 +227,10 @@ bag: bag.c
 wav2pat: wav2pat.c
 	$(CC) $(CFLAGS) -o wav2pat wav2pat.c
 
-depends depend dep:
-	$(CC) $(CFLAGS) -MM $(CSRCS) $(OPTSRCS) $(TOOLSRCS) > depends
-
-include depends
+#depends depend dep:
+#	$(CC) $(CFLAGS) -MM $(CSRCS) $(OPTSRCS) $(TOOLSRCS) > depends
+#
+#include depends
 
 ########### Installation targets
 

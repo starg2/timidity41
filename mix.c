@@ -66,7 +66,9 @@ int recompute_envelope(int v)
     }
   voice[v].envelope_stage=stage+1;
 
-  if (voice[v].envelope_volume==voice[v].sample->envelope_offset[stage])
+  if (voice[v].envelope_volume==voice[v].sample->envelope_offset[stage] ||
+      (stage > 2 && voice[v].envelope_volume <
+       voice[v].sample->envelope_offset[stage]))
     return recompute_envelope(v);
   voice[v].envelope_target=voice[v].sample->envelope_offset[stage];
   voice[v].envelope_increment = voice[v].sample->envelope_rate[stage];
@@ -520,7 +522,8 @@ void mix_voice(int32 *buf, int v, int32 c)
       if (c>=MAX_DIE_TIME)
 	c=MAX_DIE_TIME;
       sp=resample_voice(v, &c);
-      ramp_out(sp, buf, v, c);
+      if(c > 0)
+	ramp_out(sp, buf, v, c);
       vp->status=VOICE_FREE;
     }
   else

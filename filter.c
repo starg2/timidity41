@@ -103,6 +103,10 @@ static void designfir(float *g , float fc)
  * Note that we simulate leading and trailing 0 at the border of the 
  * data buffer
  */
+
+/* This is quick hack for antialiasing filter's bug fix. */
+#define sample_t int16
+
 static void filter(sample_t *result,sample_t *data, int32 length,float coef[])
 {
     int32 sample,i,sample_window;
@@ -197,7 +201,7 @@ void antialiasing(Sample *sp, int32 output_rate )
     temp = safe_malloc(sp->data_length);
     memcpy(temp,sp->data,sp->data_length);
     
-    filter(sp->data,temp,sp->data_length/sizeof(sample_t),fir_symetric);
+    filter((int16 *)sp->data,temp,sp->data_length/sizeof(sample_t),fir_symetric);
     
     free(temp);
 }

@@ -46,14 +46,14 @@
       v2=src[(ofs>>FRACTION_BITS)+1];\
       *dest++ = v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS);
 # endif
-#  define INTERPVARS sample_t v1, v2
+#  define INTERPVARS sample_t v1, v2;
 #else
 /* Earplugs recommended for maximum listening enjoyment */
 #  define RESAMPLATION *dest++=src[ofs>>FRACTION_BITS];
 #  define INTERPVARS
 #endif
 
-#define FINALINTERP if (ofs == le) *dest++=src[ofs>>FRACTION_BITS];
+#define FINALINTERP if (ofs == le) *dest++=src[(ofs>>FRACTION_BITS)-1]/2;
 /* So it isn't interpolation. At least it's final. */
 
 static sample_t resample_buffer[AUDIO_BUFFER_SIZE];
@@ -65,7 +65,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
 
   /* Play sample until end, then free the voice. */
 
-  INTERPVARS;
+  INTERPVARS
   Voice 
     *vp=&voice[v];
   sample_t 
@@ -132,7 +132,7 @@ static sample_t *rs_loop(Voice *vp, int32 count)
 
   /* Play sample until end-of-loop, skip back and continue. */
 
-  INTERPVARS;
+  INTERPVARS
   int32 
     ofs=vp->sample_offset, 
     incr=vp->sample_increment,
@@ -147,8 +147,7 @@ static sample_t *rs_loop(Voice *vp, int32 count)
   
   while (count) 
     {
-      if (ofs >= le)
-	/* NOTE: Assumes that ll > incr and that incr > 0. */
+      while (ofs >= le)
 	ofs -= ll;
       /* Precalc how many times we should go through the loop */
       i = (le - ofs) / incr + 1;
@@ -180,7 +179,7 @@ static sample_t *rs_loop(Voice *vp, int32 count)
 
 static sample_t *rs_bidir(Voice *vp, int32 count)
 {
-  INTERPVARS;
+  INTERPVARS
   int32 
     ofs=vp->sample_offset,
     incr=vp->sample_increment,
@@ -367,7 +366,7 @@ static sample_t *rs_vib_plain(int v, int32 *countptr)
 
   /* Play sample until end, then free the voice. */
 
-  INTERPVARS;
+  INTERPVARS
   Voice *vp=&voice[v];
   sample_t 
     *dest=resample_buffer, 
@@ -414,7 +413,7 @@ static sample_t *rs_vib_loop(Voice *vp, int32 count)
 
   /* Play sample until end-of-loop, skip back and continue. */
   
-  INTERPVARS;
+  INTERPVARS
   int32 
     ofs=vp->sample_offset, 
     incr=vp->sample_increment, 
@@ -434,7 +433,7 @@ static sample_t *rs_vib_loop(Voice *vp, int32 count)
   while (count) 
     {
       /* Hopefully the loop is longer than an increment */
-      if(ofs >= le)
+      while(ofs >= le)
 	ofs -= ll;
       /* Precalc how many times to go through the loop, taking
 	 the vibrato control ratio into account this time. */
@@ -483,7 +482,7 @@ static sample_t *rs_vib_loop(Voice *vp, int32 count)
 
 static sample_t *rs_vib_bidir(Voice *vp, int32 count)
 {
-  INTERPVARS;
+  INTERPVARS
   int32 
     ofs=vp->sample_offset, 
     incr=vp->sample_increment,
@@ -681,8 +680,9 @@ void pre_resample(Sample * sp)
 {
   double a, xdiff;
   int32 incr, ofs, newlen, count;
-  int16 *newdata, *dest, *src = (int16 *) sp->data;
-  int16 v1, v2, v3, v4, *vptr;
+  int16 *newdata, *dest, *src = (int16 *) sp->data, *vptr;
+  int32 v, v1, v2, v3, v4, i;
+
   static const char note_name[12][3] =
   {
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
@@ -694,8 +694,8 @@ void pre_resample(Sample * sp)
 
   a = ((double) (sp->sample_rate) * freq_table[(int) (sp->note_to_use)]) /
     ((double) (sp->root_freq) * play_mode->rate);
-  newlen = sp->data_length / a;
-  dest = newdata = safe_malloc(newlen >> (FRACTION_BITS - 1));
+  newlen = (int32)(sp->data_length / a);
+  dest = newdata = safe_malloc((newlen >> (FRACTION_BITS - 1)) + 2);
 
   count = (newlen >> FRACTION_BITS) - 1;
   ofs = incr = (sp->data_length - (1 << FRACTION_BITS)) / count;
@@ -705,7 +705,8 @@ void pre_resample(Sample * sp)
 
   /* Since we're pre-processing and this doesn't have to be done in
      real-time, we go ahead and do the full sliding cubic interpolation. */
-  while (--count)
+  count--;
+  for(i = 0; i < count; i++)
     {
       vptr = src + (ofs >> FRACTION_BITS);
       v1 = *(vptr - 1);
@@ -713,8 +714,14 @@ void pre_resample(Sample * sp)
       v3 = *(vptr + 1);
       v4 = *(vptr + 2);
       xdiff = FSCALENEG(ofs & FRACTION_MASK, FRACTION_BITS);
-      *dest++ = v2 + (xdiff / 6.0) * (-2 * v1 - 3 * v2 + 6 * v3 - v4 +
-      xdiff * (3 * (v1 - 2 * v2 + v3) + xdiff * (-v1 + 3 * (v2 - v3) + v4)));
+      v = (int32)(v2 + (xdiff / 6.0) * (-2 * v1 - 3 * v2 + 6 * v3 - v4 +
+       xdiff * (3 * (v1 - 2 * v2 + v3) + xdiff * (-v1 + 3 * (v2 - v3) + v4))));
+      if(v < -32768)
+	  *dest++ = -32768;
+      else if(v > 32767)
+	  *dest++ = 32767;
+      else
+	  *dest++ = (int16)v;
       ofs += incr;
     }
 
@@ -722,14 +729,16 @@ void pre_resample(Sample * sp)
     {
       v1 = src[ofs >> FRACTION_BITS];
       v2 = src[(ofs >> FRACTION_BITS) + 1];
-      *dest++ = v1 + (((v2 - v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS);
+      *dest++ = (int16)(v1 + (((v2 - v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS));
     }
   else
     *dest++ = src[ofs >> FRACTION_BITS];
+  *dest = *(dest - 1) / 2;
+  *dest = *(dest - 1) / 2;
 
   sp->data_length = newlen;
-  sp->loop_start = sp->loop_start / a;
-  sp->loop_end = sp->loop_end / a;
+  sp->loop_start = (int32)(sp->loop_start / a);
+  sp->loop_end = (int32)(sp->loop_end / a);
   free(sp->data);
   sp->data = (sample_t *) newdata;
   sp->sample_rate = 0;
