@@ -116,13 +116,13 @@ INCLUDES =  	-I$(top_srcdir) 	-I$(top_srcdir)/timidity 	-I$(top_srcdir)/utils 	$
 
 noinst_LIBRARIES = libarc.a
 
-libarc_a_SOURCES =  	arc.c 	arc.h 	arc_dir.c 	arc_lzh.c 	arc_mime.c 	arc_tar.c 	arc_zip.c 	deflate.c 	explode.c 	explode.h 	inflate.c 	unlzh.c 	unlzh.h 	url.c 	url.h 	url_b64decode.c 	url_buff.c 	url_cache.c 	url_dir.c 	url_file.c 	url_hqxdecode.c 	url_inflate.c 	url_mem.c 	url_pipe.c 	url_qsdecode.c 	url_uudecode.c 	zip.h
+libarc_a_SOURCES =  	arc.c 	arc.h 	arc_lzh.c 	arc_mime.c 	arc_tar.c 	arc_zip.c 	deflate.c 	explode.c 	explode.h 	inflate.c 	unlzh.c 	unlzh.h 	url.c 	url.h 	url_b64decode.c 	url_buff.c 	url_cache.c 	url_dir.c 	url_file.c 	url_hqxdecode.c 	url_inflate.c 	url_mem.c 	url_pipe.c 	url_qsdecode.c 	url_uudecode.c 	zip.h
 
 
-EXTRA_libarc_a_SOURCES =  	url_http.c 	url_ftp.c 	url_news.c 	url_newsgroup.c 	arc_newsgroup.c
+EXTRA_libarc_a_SOURCES =  	url_http.c 	url_ftp.c 	url_news.c 	url_newsgroup.c
 
 
-@ENABLE_NETWORK_TRUE@NET_OBJS = 	url_http.o 	url_ftp.o 	url_news.o 	url_newsgroup.o 	arc_newsgroup.o
+@ENABLE_NETWORK_TRUE@NET_OBJS = 	url_http.o 	url_ftp.o 	url_news.o 	url_newsgroup.o
 
 libarc_a_LIBADD = $(NET_OBJS)
 libarc_a_DEPENDENCIES = $(NET_OBJS)
@@ -140,10 +140,10 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libarc_a_OBJECTS =  arc.o arc_dir.o arc_lzh.o arc_mime.o arc_tar.o \
-arc_zip.o deflate.o explode.o inflate.o unlzh.o url.o url_b64decode.o \
-url_buff.o url_cache.o url_dir.o url_file.o url_hqxdecode.o \
-url_inflate.o url_mem.o url_pipe.o url_qsdecode.o url_uudecode.o
+libarc_a_OBJECTS =  arc.o arc_lzh.o arc_mime.o arc_tar.o arc_zip.o \
+deflate.o explode.o inflate.o unlzh.o url.o url_b64decode.o url_buff.o \
+url_cache.o url_dir.o url_file.o url_hqxdecode.o url_inflate.o \
+url_mem.o url_pipe.o url_qsdecode.o url_uudecode.o
 AR = ar
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -247,27 +247,23 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-arc.o: arc.c ../config.h ../timidity/timidity.h ../utils/support.h arc.h \
-	../utils/memb.h ../utils/mblock.h url.h zip.h unlzh.h explode.h \
-	../utils/strtab.h
+arc.o: arc.c ../config.h ../timidity/timidity.h ../utils/support.h \
+	../timidity/common.h url.h ../utils/mblock.h arc.h \
+	../utils/strtab.h zip.h unlzh.h explode.h
 arc_dir.o: arc_dir.c ../config.h ../timidity/timidity.h \
 	../utils/support.h arc.h ../utils/memb.h ../utils/mblock.h \
 	url.h
 arc_lzh.o: arc_lzh.c ../config.h ../timidity/timidity.h \
-	../utils/support.h arc.h ../utils/memb.h ../utils/mblock.h \
-	url.h
+	../utils/support.h arc.h url.h ../utils/mblock.h
 arc_mime.o: arc_mime.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h arc.h \
-	../utils/memb.h url.h
+	../utils/support.h ../utils/mblock.h zip.h arc.h url.h
 arc_newsgroup.o: arc_newsgroup.c ../config.h ../timidity/timidity.h \
 	../utils/support.h arc.h ../utils/memb.h ../utils/mblock.h \
 	url.h
 arc_tar.o: arc_tar.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h arc.h \
-	../utils/memb.h url.h
+	../utils/support.h ../utils/mblock.h zip.h arc.h url.h
 arc_zip.o: arc_zip.c ../config.h ../timidity/timidity.h \
-	../utils/support.h arc.h ../utils/memb.h ../utils/mblock.h \
-	url.h
+	../utils/support.h arc.h url.h ../utils/mblock.h
 deflate.o: deflate.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../utils/mblock.h zip.h
 explode.o: explode.c ../config.h ../timidity/timidity.h \

@@ -6,7 +6,7 @@
  * http://www.goice.co.jp/member/mo/release/index.html#liburl
  */
 
-#define URL_LIB_VERSION "1.8.8"
+#define URL_LIB_VERSION "1.9.0"
 
 /* Define if you want to enable pipe command scheme ("command|") */
 #define PIPE_SCHEME_ENABLE
@@ -84,6 +84,9 @@ extern void url_skip(URL url, long n);
 
 /* seek to first position */
 extern void url_rewind(URL url);
+
+/* dump */
+void *url_dump(URL url, long nbytes, long *real_read);
 
 /* set read limit */
 void url_set_readlimit(URL url, long readlimit);
@@ -190,8 +193,8 @@ enum url_types
     URL_hqxdecode_t,		/* HQX decoder */
     URL_cgi_escape_t,		/* WWW CGI Escape */
     URL_cgi_unescape_t,		/* WWW CGI Unescape */
+    URL_arc_t,			/* arc stream */
 
-    URL_arc_stream_t = 98,	/* arc stream */
     URL_inflate_t = 99,		/* LZ77 decode stream */
 
     URL_extension_t = 100	/* extentional stream >= 100 */

@@ -52,6 +52,9 @@
 #include "mac_main.h"
 #include "mac_util.h"
 #include "mac_c.h"
+#ifdef MAC_USE_OMS
+#include "mac_oms.h"
+#endif
 
 // *******************************
 
@@ -858,6 +861,7 @@ static void mac_AdjustMenus(short modifiers)
 	if( modifiers & optionKey ){
 		//EnableItem(filenemu, iSkinWindow);
 		EnableItem(synthemu, iQuickTime);
+		EnableItem(synthemu, iOMS);
 	}
 }
 
@@ -876,7 +880,7 @@ void HandleMouseDown(EventRecord *event)
 	{
 	case inMenuBar:
 		mac_AdjustMenus(event->modifiers);
-		mac_HandleMenuSelect(MenuSelect(event->where));
+		mac_HandleMenuSelect(MenuSelect(event->where), event->modifiers);
 		HiliteMenu(0);
 		break;
 	case inContent:
@@ -951,6 +955,18 @@ static void ctl_pass_playing_list(int init_number_of_files,
 		cmsg(CMSG_FATAL, VERB_NORMAL,
 		  "ctl_pass_playing_list: Sorry. Fatal error.");
 	}
+	
+#ifdef MAC_USE_OMS
+	mac_oms_setup();
+#endif
+	
+	{
+		FSSpec	spec;
+		OSErr	err;
+		err=FSMakeFSSpec(0, 0, MAC_STARTUP_FOLDER_NAME, &spec);
+		if( err==noErr ){ mac_add_fsspec( &spec ); }
+	}
+	
 	gQuit=false;
 	while(!gQuit)
 	{
@@ -967,7 +983,7 @@ static Boolean UserWantsControl()
 
 	GetKeys(km);
 	km[1] &= ~0x02; /* exclude caps lock */
-	return Button() || km[0]|| km[1] || km[2] || km[3];
+	return   Button() || km[0]|| km[1] || km[2] || km[3] || skin_state==PAUSE;
 }
 
 static int ctl_read(int32* /*valp*/)
@@ -976,11 +992,46 @@ static int ctl_read(int32* /*valp*/)
 	
 	//if( gCursorIsWatch ){ gCursorIsWatch=false; InitCursor(); }
 	if( gQuit ) DoQuit();	/* Quit Apple event occured */
+	if( mac_rc ){ret=mac_rc; mac_rc=0; return ret;}
 	if( !gBusy || UserWantsControl()){
 		YieldToAnyThread();
 	}
-	if( mac_rc ){ret=mac_rc; mac_rc=0; return ret;}
 	return RC_NONE;
+}
+
+static void ctl_lyric(int lyricid)
+{
+	char *lyric;
+
+	lyric = event2string(lyricid);
+	if(lyric == NULL) return;
+	
+	if( strncmp(lyric+1, "gslcd: ",7)==0 ){
+		int i,j, data, mask;
+		char tmp[3]= "00";
+		
+		lyric+=8;
+		for( j=0; j<4; j++ ){
+		for( i=0; i<16; i++ ){
+			tmp[0]= lyric[0]; tmp[1]= lyric[1]; lyric+=2;
+			sscanf(tmp, "%X", &data);
+			mask=0x10;
+			ctl_note((data&mask)? VOICE_ON:-1, i, 40+j*10, 127);
+			ctl_note((data&mask)? VOICE_ON:-1, i, 41+j*10, 127); mask>>=1;
+			ctl_note((data&mask)? VOICE_ON:-1, i, 42+j*10, 127);
+			ctl_note((data&mask)? VOICE_ON:-1, i, 43+j*10, 127); mask>>=1;
+			ctl_note((data&mask)? VOICE_ON:-1, i, 44+j*10, 127);
+			ctl_note((data&mask)? VOICE_ON:-1, i, 45+j*10, 127); mask>>=1;
+			ctl_note((data&mask)? VOICE_ON:-1, i, 46+j*10, 127);
+			ctl_note((data&mask)? VOICE_ON:-1, i, 47+j*10, 127); mask>>=1;
+			ctl_note((data&mask)? VOICE_ON:-1, i, 48+j*10, 127);
+			ctl_note((data&mask)? VOICE_ON:-1, i, 49+j*10, 127); mask>>=1;
+		}
+		}
+		return;
+	}
+	//else normal text
+	ctl.cmsg(CMSG_TEXT, VERB_VERBOSE, "%s", lyric + 1);
 }
 
 static int cmsg(int type, int verbosity_level, char * fmt, ...)
@@ -1152,7 +1203,7 @@ static void ctl_event(CtlEvent *e)
       case CTLE_REVERB_EFFECT:
 	break;
       case CTLE_LYRIC:
-	default_ctl_lyric((int)e->v1);
+	ctl_lyric((int)e->v1);
 	break;
       case CTLE_REFRESH:
 	ctl_refresh();

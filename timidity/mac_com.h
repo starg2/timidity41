@@ -27,10 +27,9 @@
 #define	MAC_COM_H
 
 #define SUPPORT_SOUNDSPEC
-//#undef  DECOMPRESSOR_LIST
-//#define DECOMPRESSOR_LIST { 0 }
 #undef  PATCH_EXT_LIST
 #define PATCH_EXT_LIST { ".pat", 0 }
+#define URL_DIR_CACHE_DISABLE
 
 #undef  DEFAULT_RATE
 #define DEFAULT_RATE	22050
@@ -42,6 +41,8 @@
 #define DEFAULT_PATH	""
 #undef  CONFIG_FILE
 #define CONFIG_FILE DEFAULT_PATH "timidity.cfg"
+#define MAC_SIGNATURE 'TIMI'
+#define MAC_STARTUP_FOLDER_NAME "\pStartup items"
 
 #define ENABLE_SHERRY
 #define MAC_SOUNDBUF_QLENGTH (stdQLength*4)

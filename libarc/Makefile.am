@@ -30,7 +30,6 @@ noinst_LIBRARIES = libarc.a
 libarc_a_SOURCES = \
 	arc.c \
 	arc.h \
-	arc_dir.c \
 	arc_lzh.c \
 	arc_mime.c \
 	arc_tar.c \
@@ -60,16 +59,14 @@ EXTRA_libarc_a_SOURCES = \
 	url_http.c \
 	url_ftp.c \
 	url_news.c \
-	url_newsgroup.c \
-	arc_newsgroup.c
+	url_newsgroup.c
 
 if ENABLE_NETWORK
 NET_OBJS = \
 	url_http.o \
 	url_ftp.o \
 	url_news.o \
-	url_newsgroup.o \
-	arc_newsgroup.o
+	url_newsgroup.o
 endif
 
 libarc_a_LIBADD = $(NET_OBJS)

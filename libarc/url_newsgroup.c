@@ -499,6 +499,8 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
 }
 
 #ifdef NEWSGROUP_MAIN
+void *safe_malloc(int n) { return malloc(n); }
+void *safe_realloc(void *p, int n) { return realloc(p, n); }
 void main(int argc, char **argv)
 {
     URL url;

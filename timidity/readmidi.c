@@ -242,6 +242,45 @@ char *readmidi_make_string_event(int type, char *string, MidiEvent *ev,
     return text;
 }
 
+static char *readmidi_make_lcd_event(int type, const uint8 *data, MidiEvent *ev)
+{
+    char *text;
+    int len;
+    StringTableNode *st;
+    int a, b, i;
+
+    if(string_event_strtab.nstring == 0)
+	put_string_table(&string_event_strtab, "", 0);
+    else if(string_event_strtab.nstring == 0x7FFE)
+    {
+	SETMIDIEVENT(*ev, 0, type, 0, 0, 0);
+	return NULL; /* Over flow */
+    }
+    a = (string_event_strtab.nstring & 0xff);
+    b = ((string_event_strtab.nstring >> 8) & 0xff);
+
+    len = 7+128;
+    
+	text = (char *)new_segment(&tmpbuffer, len + 1);
+
+    strcpy(text+1, "gslcd: ");
+    for( i=0; i<64; i++){
+	const char tbl[]= "0123456789ABCDEF";
+	text[8+i*2  ]=tbl[data[i]>>4];
+	text[8+i*2+1]=tbl[data[i]&0xF];
+    }
+    text[len + 1] = '\0';
+    
+    
+    st = put_string_table(&string_event_strtab, text, strlen(text + 1) + 1);
+    reuse_mblock(&tmpbuffer);
+
+    text = st->string;
+    *text = type;
+    SETMIDIEVENT(*ev, 0, type, 0, a, b);
+    return text;
+}
+
 /* Computes how many (fractional) samples one MIDI delta-time unit contains */
 static void compute_sample_increment(int32 tempo, int32 divisions)
 {
@@ -434,6 +473,11 @@ int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
       case  65: type = ME_PORTAMENTO; break;
       case  66: type = ME_SOSTENUTO; break;
       case  67: type = ME_SOFT_PEDAL; break;
+      case  71: type = ME_HARMONIC_CONTENT; break;
+      case  72: type = ME_RELEASE_TIME; break;
+      case  73: type = ME_ATTACK_TIME; break;
+      case  74: type = ME_BRIGHTNESS; break;
+      case  84: type = ME_PORTAMENTO_CONTROL; break;
       case  91: type = ME_REVERB_EFFECT; break;
       case  92: type = ME_TREMOLO_EFFECT; break;
       case  93: type = ME_CHORUS_EFFECT; break;
@@ -450,13 +494,6 @@ int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
       case 123: type = ME_ALL_NOTES_OFF; break;
       case 126: type = ME_MONO; break;
       case 127: type = ME_POLY; break;
-#if 0 /* Not supported */
-      case 71: type = ME_HARMONIC_CONTENT; break;
-      case 72: type = ME_RELEASE_TIME; break;
-      case 73: type = ME_ATTACK_TIME; break;
-      case 74: type = ME_BRIGHTNESS; break;
-      case 94: type = ME_VARIATION_EFFECT; break;
-#endif
       default: type = -1; break;
     }
 
@@ -642,6 +679,30 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 	return 0;
     }
 
+    if(len > 9 &&                     /* GS lcd event. by T.Nogami*/
+       val[0] == 0x41 && /* Roland ID */
+       val[1] == 0x10 && /* Device ID */
+       val[2] == 0x45 && 
+       val[3] == 0x12 && 
+       val[4] == 0x10 && 
+       val[5] == 0x01 && 
+       val[6] == 0x00)
+    {
+	/* Text Insert for SC */
+	uint8 save;
+
+	len -= 2;
+	save = val[len];
+	val[len] = '\0';
+	if(readmidi_make_lcd_event(ME_INSERT_TEXT, (uint8 *)val + 7, ev))
+	{
+	    val[len] = save;
+	    return 1;
+	}
+	val[len] = save;
+	return 0;
+    }
+    
     if(len >= 8 &&
        val[0] == 0x43 &&
        val[1] == 0x10 &&
@@ -2211,7 +2272,7 @@ static int check_need_cache(URL url, char *filename)
     t1 = url_check_type(filename);
     t2 = url->type;
     return (t1 == URL_http_t || t1 == URL_ftp_t || t1 == URL_news_t)
-	 && t2 != URL_arc_stream_t;
+	 && t2 != URL_arc_t;
 }
 #else
 /*ARGSUSED*/

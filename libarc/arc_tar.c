@@ -2,6 +2,7 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #ifndef NO_STRING_H
 #include <string.h>
@@ -19,7 +20,7 @@
 static long octal_value(char *s, int len);
 static int tar_checksum(char *hdr);
 
-ArchiveEntryNode *next_tar_entry(ArchiveHandler archiver)
+ArchiveEntryNode *next_tar_entry(void)
 {
     char hdr[TARHDRSIZ];
     long size, sizeb;
@@ -28,77 +29,81 @@ ArchiveEntryNode *next_tar_entry(ArchiveHandler archiver)
     int flen;
     int macbin_check;
 
-    url = archiver->decode_stream;
-    macbin_check = (archiver->nfiles == 0);
+    url = arc_handler.url;
+    macbin_check = (arc_handler.counter == 0);
 
   retry_read:
-    if(url_read(url, hdr, TARHDRSIZ) != TARHDRSIZ)
-	return NULL;
-    if(macbin_check && hdr[0] == 0 && hdr[128] != 0)
-    {
-	int i;
-
-	macbin_check = 0;
-	if(memcmp(hdr + 128 + 257, "ustar", 5) != 0)
-	    return NULL;
-	for(i = 0; i < TARHDRSIZ - 128; i++)
-	    hdr[i] = hdr[i + 128];
-	if(url_read(url, hdr + TARHDRSIZ - 128, 128) != 128)
-	    return NULL;
-	if(archiver->type == AHANDLER_SEEK)
-	    archiver->pos += 128;
-    }
+    if(!macbin_check)
+      {
+	if(url_read(url, hdr, TARHDRSIZ) != TARHDRSIZ)
+	  return NULL;
+      }
     else
-    {
-	if(hdr[0] == '\0')
-	    return NULL;
-	if(!tar_checksum(hdr))
-	    return NULL;
-    }
+      {
+	int c = url_getc(url);
+	if(c == 0)
+	  {
+	    url_skip(url, 127);
+	    if(arc_handler.isfile)
+	      arc_handler.pos += 128;
+	    if(url_read(url, hdr, TARHDRSIZ) != TARHDRSIZ)
+	      return NULL;
+	  }
+	else
+	  {
+	    hdr[0] = c;
+	    if(url_read(url, hdr+1, TARHDRSIZ-1) != TARHDRSIZ-1)
+	      return NULL;
+	  }
+      }
+
+    macbin_check = 0;
+
+    if(hdr[0] == '\0')
+      return NULL;
+    if(!tar_checksum(hdr))
+      return NULL;
     size = octal_value(hdr + 124, 12);
     flen = strlen(hdr);
     if(size == 0 && flen > 0 && hdr[flen - 1] == '/')
     {
-	if(archiver->type == AHANDLER_SEEK)
-	    archiver->pos += TARHDRSIZ;
+	if(arc_handler.isfile)
+	    arc_handler.pos += TARHDRSIZ;
 	goto retry_read;
     }
 
-    entry = new_entry_node(&archiver->pool, hdr, flen);
+    entry = new_entry_node(hdr, flen);
     if(entry == NULL)
 	return NULL;
     sizeb = (((size) + (TARBLKSIZ-1)) & ~(TARBLKSIZ-1));
 
-    if(archiver->type == AHANDLER_SEEK)
+    if(arc_handler.isfile)
     {
-	archiver->pos += TARHDRSIZ;
-	entry->strmtype = ARCSTRM_SEEK_URL;
+	arc_handler.pos += TARHDRSIZ;
 	entry->comptype = ARCHIVEC_STORED;
 	entry->compsize = entry->origsize = size;
-	entry->u.seek_start = archiver->pos;
+	entry->start = arc_handler.pos;
 	url_skip(url, sizeb);
-	archiver->pos += sizeb;
+	arc_handler.pos += sizeb;
     }
     else
     {
-	DeflateHandler encoder;
-	char buff[BUFSIZ];
-	long compsize, n;
+      void *data;
+      long n;
 
-	archiver->pos = entry->origsize = size;
-	compsize = 0;
-	encoder = open_deflate_handler(archiver_read_func, archiver,
-				       ARC_DEFLATE_LEVEL);
-	while((n = zip_deflate(encoder, buff, sizeof(buff))) > 0)
+      data = url_dump(url, size, &n);
+      if(size != n)
 	{
-	    push_memb(&entry->u.compdata, buff, n);
-	    compsize += n;
+	  free_entry_node(entry);
+	  return NULL;
 	}
-	close_deflate_handler(encoder);
-	entry->strmtype = ARCSTRM_MEMBUFFER;
-	entry->comptype = ARCHIVEC_DEFLATED;
-	entry->compsize = compsize;
-	url_skip(url, sizeb - size);
+      entry->cache = arc_compress(data, size, ARC_DEFLATE_LEVEL,
+				  &entry->compsize);
+      free(data);
+      entry->comptype = ARCHIVEC_DEFLATED;
+      entry->origsize = size;
+      entry->start = 0;
+      url_skip(url, sizeb - size);
     }
 
     return entry;

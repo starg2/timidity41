@@ -1036,6 +1036,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_SPEANA:
 	break;
+      case CTLE_PAUSE:
+	ctl_current_time((int)e->v2, 0);
+	N_ctl_refresh();
+	break;
     }
 }
 
@@ -1234,6 +1238,9 @@ static void ctl_program(int ch, int val, char *comm)
     if(ch >= 16)
 	return;
 
+    if(comm != NULL)
+	indicator_set_prog(ch, val, comm);
+
     if(!ctl.trace_playing)
 	return;
 
@@ -1260,11 +1267,7 @@ static void ctl_program(int ch, int val, char *comm)
 	}
     }
 
-    if(comm != NULL)
-	indicator_set_prog(ch, val, comm);
     scr_modified_flag = 1;
-
-
 }
 
 static void ctl_volume(int ch, int vol)
@@ -1716,9 +1719,10 @@ static int ctl_cmd_L_enter(void)
     char *text;
     MFnode *mfp;
     int i, rc = RC_NONE;
-    extern ArchiveFileList *archive_file_list;
-    ArchiveFileList *lp;
     struct double_list_string *hist;
+    int nfiles;
+    char *files[1], **new_files;
+    MFnode *tail, *head;
 
     ctl_cmd_dir_close();
     text = mini_buff_gets(command_buffer);
@@ -1742,36 +1746,18 @@ static int ctl_cmd_L_enter(void)
 	i--;
     ctl_mode_L_lastenter[i] = '\0';
 
-    archive_file_list = add_archive_list(archive_file_list, text);
-    lp = find_archiver(archive_file_list, text, NULL);
 
-    if(lp == NULL || lp->archiver == NULL)
-    {
-	if(last_archive_file_list != NULL &&
-	   last_archive_file_list->errstatus != 0)
-	{
-	    errno = last_archive_file_list->errstatus;
-	    mfp = NULL;
-	}
-	else
-	{
-	    mfp = make_new_MFnode_entry(text);
-	    if(mfp != NULL)
-		mfp->file = safe_strdup(mfp->file);
-	}
-    }
+    /* Add new files */
+    files[0] = text;
+    nfiles  = 1;
+    new_files = expand_file_archives(files, &nfiles);
+    if(new_files == NULL)
+      {
+	rc = RC_NONE;
+	beep();
+      }
     else
-    {
-	int nfiles;
-	char *files[1], **new_files;
-	MFnode *tail, *head;
-	int i;
-
-	/* make archive file table */
-	files[0] = text;
-	nfiles  = 1;
-	new_files = expand_archive_names(archive_file_list, &nfiles, files);
-
+      {
 	head = tail = NULL;
 	for(i = 0; i < nfiles; i++)
 	{
@@ -1784,20 +1770,9 @@ static int ctl_cmd_L_enter(void)
 	    }
 	}
 	mfp = head;
-	if(new_files != files && new_files != NULL)
-	{
-	    free(new_files[0]);
-	    free(new_files);
-	}
-    }
+	free(new_files[0]);
+	free(new_files);
 
-    if(mfp == NULL)
-    {
-	rc = RC_NONE;
-	beep();
-    }
-    else
-    {
 	insert_MFnode_entrys(mfp, nc_playfile);
 	ctl_list_mode(NC_LIST_NEW);
 	rc = RC_NEXT;
@@ -2780,6 +2755,7 @@ static void reset_indicator(void)
 
 static void display_aq_ratio(void)
 {
+#if 1
     static int last_rate = -1;
     int rate, devsiz;
 
@@ -2800,6 +2776,11 @@ static void display_aq_ratio(void)
 	    wprintw(dftwin, " Audio queue:%3d%% ", rate);
 	scr_modified_flag = 1;
     }
+#else
+    wmove(dftwin, VOICE_LINE + 1, 30);
+    wprintw(dftwin, " Audio queue: %d %d %d %d",
+	    aq_get_dev_queuesize(), aq_filled(), aq_soft_filled(), aq_fillable());
+#endif
 }
 
 static void update_indicator(void)

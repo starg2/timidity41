@@ -13,6 +13,8 @@
 #include "zip.h"
 #include "arc.h"
 
+extern char *safe_strdup(char *);
+
 #ifndef MAX_CHECK_LINES
 #define MAX_CHECK_LINES 1024
 #endif /* MAX_CHECK_LINES */
@@ -49,12 +51,12 @@ struct MIMEHeaderStream
 static void init_mime_stream(struct MIMEHeaderStream *hdr, URL url);
 static int  next_mime_header(struct MIMEHeaderStream *hdr);
 static void end_mime_stream(struct MIMEHeaderStream *hdr);
-
 static int seek_next_boundary(URL url, char *boundary, long *endpoint);
 static int whole_read_line(URL url, char *buff, int bufsiz);
-static MemBuffer *url_memb_dump(URL url, int encoding);
+static void *arc_mime_decode(void *data, long size,
+			     int comptype, long *newsize);
 
-ArchiveEntryNode *next_mime_entry(ArchiveHandler archiver)
+ArchiveEntryNode *next_mime_entry(void)
 {
     ArchiveEntryNode *head, *tail;
     URL url;
@@ -63,11 +65,11 @@ ArchiveEntryNode *next_mime_entry(ArchiveHandler archiver)
     struct MIMEHeaderStream hdr;
     int c;
 
-    if(archiver->nfiles != 0)
+    if(arc_handler.counter != 0)
 	return NULL;
 
     head = tail = NULL;
-    url = archiver->decode_stream; /* url_seek must be safety */
+    url = arc_handler.url; /* url_seek must be safety */
 
     init_string_stack(&boundary);
     url_rewind(url);
@@ -85,6 +87,8 @@ ArchiveEntryNode *next_mime_entry(ArchiveHandler archiver)
 	MBlockList pool;
 	long data_start, data_end, savepoint;
 	int last_check, comptype, arctype;
+	void *part_data;
+	long part_data_size;
 
 	new_boundary = encoding = name = filename = NULL;
 	init_mblock(&pool);
@@ -276,68 +280,105 @@ ArchiveEntryNode *next_mime_entry(ArchiveHandler archiver)
 	else
 	{
 	    arctype = get_archive_type(filename);
-	    if(arctype == ARCHIVE_DIR || arctype == ARCHIVE_MIME)
+	    switch(arctype)
+	      {
+	      case ARCHIVE_TAR:
+	      case ARCHIVE_TGZ:
+	      case ARCHIVE_ZIP:
+	      case ARCHIVE_LZH:
+		break;
+	      default:
 		arctype = -1;
+		break;
+	      }
 	}
+
+	if(data_start == data_end)
+	  {
+	    ArchiveEntryNode *entry;
+	    entry = new_entry_node(filename, strlen(filename));
+	    entry->comptype = ARCHIVEC_STORED;
+	    entry->compsize = 0;
+	    entry->origsize = 0;
+	    entry->start = 0;
+	    entry->cache = safe_strdup("");
+	    if(head == NULL)
+		head = tail = entry;
+	    else
+		tail = tail->next = entry;
+	    goto next_entry;
+	  }
+
+	url_seek(url, data_start, SEEK_SET);
+	part_data = url_dump(url, data_end - data_start, &part_data_size);
+	part_data = arc_mime_decode(part_data, part_data_size,
+				    comptype, &part_data_size);
+	if(part_data == NULL)
+	  goto next_entry;
 
 	if(arctype == -1)
 	{
+	  int gzmethod, gzhdrsiz, len, gz;
+	  ArchiveEntryNode *entry;
+
+	  len = strlen(filename);
+	  if(len >= 3 && strcasecmp(filename + len - 3, ".gz") == 0)
+	    {
+	      gz = 1;
+	      filename[len - 3] = '\0';
+	    }
+	  else
+	    gz = 0;
+	  entry = new_entry_node(filename, strlen(filename));
+
+	  if(gz)
+	    gzmethod = parse_gzip_header_bytes(part_data, part_data_size,
+					       &gzhdrsiz);
+	  else
+	    gzmethod = -1;
+	  if(gzmethod == ARCHIVEC_DEFLATED)
+	    {
+	      entry->comptype = ARCHIVEC_DEFLATED;
+	      entry->compsize = part_data_size - gzhdrsiz;
+	      entry->origsize = -1;
+	      entry->start = gzhdrsiz;
+	      entry->cache = part_data;
+	    }
+	  else
+	    {
+	      entry->comptype = ARCHIVEC_DEFLATED;
+	      entry->origsize = part_data_size;
+	      entry->start = 0;
+	      entry->cache = arc_compress(part_data, part_data_size,
+					 ARC_DEFLATE_LEVEL, &entry->compsize);
+	      free(part_data);
+	      if(entry->cache == NULL)
+		{
+		  free_entry_node(entry);
+		  goto next_entry;
+		}
+	    }
 	    if(head == NULL)
-		head = tail = new_entry_node(&archiver->pool, filename,
-					     strlen(filename));
+		head = tail = entry;
 	    else
-		tail = tail->next = new_entry_node(&archiver->pool, filename,
-						   strlen(filename));
-	    tail->comptype = comptype;
-	    tail->strmtype = ARCSTRM_SEEK_URL;
-	    tail->compsize = data_end - data_start;
-	    tail->origsize = -1;
-	    tail->u.seek_start = data_start;
+		tail = tail->next = entry;
 	}
 	else
 	{
-	    MemBuffer *b;
-	    URL newurl;
-	    ArchiveHandler subarc;
+	    URL arcurl;
 	    ArchiveEntryNode *entry;
-	    int idx;
+	    ArchiveHandler orig;
 
-	    url_seek(url, data_start, SEEK_SET);
-	    url_set_readlimit(url, data_end - data_start);
-	    b = url_memb_dump(url, comptype);
-	    url_set_readlimit(url, -1);
-	    if(b == NULL)
-		goto next_entry;
-	    if((newurl = memb_open_stream(b, 1)) == NULL)
-		goto next_entry;
-	    if((subarc = open_archive_handler(newurl, arctype)) == NULL)
-		goto next_entry;
-
-	    idx = 0;
-	    entry = subarc->entry_head;
-	    while(entry != NULL)
-	    {
-		char *fn;
-
-		fn = entry->filename;
-		if(head == NULL)
-		    head = tail = new_entry_node(&archiver->pool, fn,
-						 strlen(fn));
-		else
-		    tail = tail->next =
-			new_entry_node(&archiver->pool, fn, strlen(fn));
-		tail->comptype = entry->comptype;
-		tail->strmtype = ARCSTRM_URL;
-		tail->compsize = entry->compsize;
-		tail->origsize = entry->origsize;
-		tail->u.aurl.idx = idx++;
-		tail->u.aurl.seek_start = entry->u.seek_start;
-		tail->u.aurl.url = newurl;
-		entry = entry->next;
-	    }
-	    subarc->entry_head = NULL;
-	    subarc->decode_stream = subarc->seek_stream = NULL;
-	    close_archive_handler(subarc);
+	    arcurl = url_mem_open(part_data, part_data_size, 1);
+	    orig = arc_handler; /* save */
+	    entry = arc_parse_entry(arcurl, arctype);
+	    arc_handler = orig; /* restore */
+	    if(head == NULL)
+		head = tail = entry;
+	    else
+		tail = tail->next = entry;
+	    while(tail->next)
+	      tail = tail->next;
 	}
 
       next_entry:
@@ -468,7 +509,7 @@ static int next_mime_header(struct MIMEHeaderStream *hdr)
 	    break;
 	}
 	c = *hdr->line;
-	if(('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z'))
+	if(c == '>' || ('A' <= c && c <= 'Z') ||  ('a' <= c && c <= 'z'))
 	    break;
 	if(c != ' ' && c != '\t')
 	    return 0; /* ?? */
@@ -548,45 +589,39 @@ static int seek_next_boundary(URL url, char *boundary, long *endpoint)
     return ret;
 }
 
-static MemBuffer *url_memb_dump(URL url, int encoding)
+static void *arc_mime_decode(void *data, long size,
+			     int comptype, long *newsize)
 {
-    MemBuffer *b;
-    char buff[BUFSIZ];
-    long n;
+  URL url;
 
-    if((b = (MemBuffer *)malloc(sizeof(MemBuffer))) == NULL)
-	return NULL;
-    init_memb(b);
+  if(comptype == ARCHIVEC_STORED)
+    return data;
 
-    switch(encoding)
+  if(data == NULL)
+    return NULL;
+
+  if((url = url_mem_open(data, size, 1)) == NULL)
+    return NULL;
+
+  switch(comptype)
     {
-      case ARCHIVEC_UU:		/* uu encoded */
-	url = url_uudecode_open(url, 0);
-	break;
-      case ARCHIVEC_B64:	/* base64 encoded */
-	url = url_b64decode_open(url, 0);
-	break;
-      case ARCHIVEC_QS:		/* quoted string encoded */
-	url = url_qsdecode_open(url, 0);
-	break;
-      case ARCHIVEC_HQX:	/* HQX encoded */
-	url = url_hqxdecode_open(url, 1, 0);
-	break;
-      case ARCHIVEC_STORED:
-	break;
-      default:
-	url = NULL;
-	break;
+    case ARCHIVEC_UU:		/* uu encoded */
+      url = url_uudecode_open(url, 1);
+      break;
+    case ARCHIVEC_B64:		/* base64 encoded */
+      url = url_b64decode_open(url, 1);
+      break;
+    case ARCHIVEC_QS:		/* quoted string encoded */
+      url = url_hqxdecode_open(url, 1, 1);
+      break;
+    case ARCHIVEC_HQX:		/* HQX encoded */
+      url = url_qsdecode_open(url, 1);
+      break;
+    default:
+      url_close(url);
+      return NULL;
     }
-
-    if(url == NULL)
-    {
-	free(b);
-	return NULL;
-    }
-
-    while((n = url_read(url, buff, sizeof(buff))) > 0)
-	push_memb(b, buff, n);
-
-    return b;
+  data = url_dump(url, -1, newsize);
+  url_close(url);
+  return data;
 }

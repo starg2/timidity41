@@ -64,16 +64,15 @@ enum midi_event_t
     ME_PORTAMENTO_TIME_MSB,
     ME_PORTAMENTO_TIME_LSB,
     ME_PORTAMENTO,
+    ME_PORTAMENTO_CONTROL,
     ME_DATA_ENTRY_MSB,
     ME_DATA_ENTRY_LSB,
     ME_SOSTENUTO,
     ME_SOFT_PEDAL,
-#if 0
-    ME_HARMONIC_CONTENT,	/* Not supported */
-    ME_RELEASE_TIME,		/* Not supported */
-    ME_ATTACK_TIME,		/* Not supported */
-    ME_BRIGHTNESS,		/* Not supported */
-#endif
+    ME_HARMONIC_CONTENT,
+    ME_RELEASE_TIME,
+    ME_ATTACK_TIME,
+    ME_BRIGHTNESS,
     ME_REVERB_EFFECT,
     ME_TREMOLO_EFFECT,
     ME_CHORUS_EFFECT,
@@ -120,6 +119,8 @@ enum midi_event_t
 
     ME_WRD,			/* for MIMPI WRD tracer */
     ME_SHERRY,			/* for Sherry WRD tracer */
+    ME_BARMARKER,
+    ME_STEP,
 
     ME_LAST = 254,		/* Last sequence of MIDI list.
 				 * This event is reserved for realtime player.

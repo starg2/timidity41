@@ -185,6 +185,9 @@ URL url_file_open(char *fname)
 	mac_TransPathSeparater(fname, cnvname);
 	fp = fopen(cnvname, "rb");
 	reuse_mblock(&pool);
+	if( fp==NULL ){ /*try original name*/
+		fp = fopen(fname, "rb");
+	}
 #else
 	fp = fopen(fname, "rb");
 #endif

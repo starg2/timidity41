@@ -55,7 +55,7 @@ void	mac_ErrorExit(Str255 msg);
 void	mac_HandleEvent(EventRecord*);
 void	mac_HandleControl();
 void	HandleMouseDown(EventRecord *event);
-void	mac_HandleMenuSelect(long select);
+void	mac_HandleMenuSelect(long select, short modifiers);
 
 OSErr	mac_SetPlayOption();
 void	mac_DefaultOption();
@@ -74,13 +74,7 @@ void	init_ListWin();
 void 	HandleSpecKeydownEvent(long message, short /*modifiers*/);
 void	ShuffleList(int start, int end);
 
-//int		isMidiFile(const FSSpec *spec);
-//int		isArchiveFile(const FSSpec *spec);
-//void	mac_add_midi_file(const FSSpec *spec);
-//void	mac_add_midi_file(const char *fullpath);
-//oid	mac_add_archive_file(const FSSpec *spec);
 void	mac_add_fsspec( FSSpec *spec );
-//void mac_add_file(const char *fullpath);
 void	read_viscolor(const char * viscolor_file);
 /******************************/
 enum{
@@ -123,7 +117,8 @@ enum{
 	
 	mSynth=0x00A0,
 	iTiMidity=0x00A00001,
-	iQuickTime=0x00A00002
+	iQuickTime=0x00A00002,
+	iOMS=0x00A00003
 	
 };
 
@@ -135,6 +130,7 @@ enum{
 #define kSpecWinID		133
 #define kTraceWinID		134
 #define kSkinWinID		135
+#define kOmsWinID		136
 
 enum{
 	MW_NOMSG=0,
@@ -167,11 +163,11 @@ extern MacWindow 	mac_PlayerWindow,
 #define SHOW_WINDOW(mwin) {ShowWindow(mwin.ref);SelectWindow(mwin.ref);mwin.show=true;}
 
 #ifdef __POWERPC__
-#define PREF_FILENAME "\pTiMidity pref"
+#define PREF_FILENAME "\pTiMidity++ pref"
 #elif __MC68881__
-#define PREF_FILENAME "\pTiMidity68kFPU pref"
+#define PREF_FILENAME "\pTiMidity++68kFPU pref"
 #else
-#define PREF_FILENAME "\pTiMidity68k pref"
+#define PREF_FILENAME "\pTiMidity++68k pref"
 #endif
 
 extern int evil_level;
@@ -180,5 +176,6 @@ extern int evil_level;
 #define EVIL_SPECIAL 	3
 
 extern int		do_initial_filling;
+extern volatile int	mac_buf_using_num, mac_flushing_flag;
 
 #endif //MAC_MAIN_H

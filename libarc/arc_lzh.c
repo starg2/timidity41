@@ -209,7 +209,7 @@ static unsigned char *convdelim(unsigned char *path, unsigned char delim)
     return path;
 }
 
-ArchiveEntryNode *next_lzh_entry(ArchiveHandler archiver)
+ArchiveEntryNode *next_lzh_entry(void)
 {
     ArchiveEntryNode *entry;
     URL url;
@@ -228,8 +228,8 @@ ArchiveEntryNode *next_lzh_entry(ArchiveHandler archiver)
     int macbin_check;
     extern char *lzh_methods[];
 
-    url = archiver->decode_stream;
-    macbin_check = (archiver->nfiles == 0);
+    url = arc_handler.url;
+    macbin_check = (arc_handler.counter == 0);
 
   retry_read:
     dir_length = 0;
@@ -242,8 +242,8 @@ ArchiveEntryNode *next_lzh_entry(ArchiveHandler archiver)
 	{
 	    macbin_check = 0;
 	    url_skip(url, 128-1);
-	    if(archiver->type == AHANDLER_SEEK)
-		archiver->pos += 128;
+	    if(arc_handler.isfile)
+		arc_handler.pos += 128;
 	    goto retry_read;
 	}
 	return NULL;
@@ -453,8 +453,8 @@ ArchiveEntryNode *next_lzh_entry(ArchiveHandler archiver)
   parse_ok:
     if(strncmp("-lhd-", method_id, 5) == 0)
     {
-	if(archiver->type == AHANDLER_SEEK)
-	    archiver->pos += hdrsiz;
+	if(arc_handler.isfile)
+	    arc_handler.pos += hdrsiz;
 	goto retry_read; /* Skip directory entry */
     }
 
@@ -463,38 +463,30 @@ ArchiveEntryNode *next_lzh_entry(ArchiveHandler archiver)
 	    break;
     if(!lzh_methods[i])
 	return NULL;
-    entry = new_entry_node(&archiver->pool, filename, name_length);
+    entry = new_entry_node(filename, name_length);
     if(entry == NULL)
 	return NULL;
     entry->comptype = i + ARCHIVEC_LZHED + 1;
     entry->compsize = compsize;
     entry->origsize = origsize;
 
-    if(archiver->type == AHANDLER_SEEK)
+    if(arc_handler.isfile)
     {
-	entry->strmtype = ARCSTRM_SEEK_URL;
-	archiver->pos += hdrsiz;
-	entry->u.seek_start = archiver->pos;
+	arc_handler.pos += hdrsiz;
+	entry->start = arc_handler.pos;
+	entry->cache = NULL;
 	url_skip(url, compsize);
-	archiver->pos += compsize;
+	arc_handler.pos += compsize;
     }
     else
     {
-	char buff[BUFSIZ];
-	long rest, n;
-
-	entry->strmtype = ARCSTRM_MEMBUFFER;
-	rest = compsize;
-	while(rest > 0)
+      long n;
+      entry->start = 0;
+      entry->cache = url_dump(url, compsize, &n);
+      if(n != compsize)
 	{
-	    n = rest;
-	    if(n > sizeof(buff))
-		n = sizeof(buff);
-	    n = url_read(url, buff, n);
-	    if(n <= 0)
-		break;
-	    push_memb(&entry->u.compdata, buff, n);
-	    rest -= n;
+	  free_entry_node(entry);
+	  return NULL;
 	}
     }
     return entry;

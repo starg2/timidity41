@@ -214,6 +214,9 @@ static int w32g_ext_control(int rc, int32 value)
 	rc = ctl_delete_playlist(value);
 	TmPanelUpdateList();
 	return rc;
+      case RC_EXT_UPDATE_PLAYLIST:
+	w32g_update_playlist();
+	return rc;
     }
     return RC_NONE;
 }
@@ -257,7 +260,8 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
     w32g_play_active = 0;
     errcnt = 0;
 
-    if(w32g_valid_playlist() && (ctl.flags & CTLF_AUTOSTART))
+    if(play_mode->fd != -1 &&
+       w32g_valid_playlist() && (ctl.flags & CTLF_AUTOSTART))
 	rc = RC_LOAD_FILE;
     else
 	rc = RC_NONE;

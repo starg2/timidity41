@@ -1,3 +1,8 @@
+8/9, 1999
+    * Version 2.4.0 released.
+    * Make archive library (libarc) code more simple.
+    * On linux, fixed probrem of audio queue analysing.
+
 8/1, 1999
     * Version 2.3.0 released.
     * Make Windows GUI code elegant.

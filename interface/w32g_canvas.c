@@ -84,7 +84,7 @@ static struct
     Bitset channel_on_flags[TCTM_MAX_CHANNELS];
 } TmCanvas;
 
-static int TmCanvasMode = TMCM_SLEEP;
+int TmCanvasMode = TMCM_SLEEP;
 
 static HWND hCanvasWnd;
 static char CanvasWndClassName[] = "TiMidity Canvas";

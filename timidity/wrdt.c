@@ -207,7 +207,7 @@ static struct timidity_file *try_wrd_open_file(char *prefix, char *fn)
 	path[len1] = '\0';
     }
     strcat(path, fn);
-    tf = open_file(path, 0, OF_NORMAL);
+    tf = open_file(path, 0, OF_SILENT);
     reuse_mblock(&buf);
     return tf;
 }

@@ -438,9 +438,13 @@ int32 aq_samples(void)
 int32 aq_filled(void)
 {
     double realtime, es;
+    int filled;
 
     if(!IS_STREAM_TRACE)
 	return 0;
+
+    if(play_mode->acntl(PM_REQ_GETFILLED, &filled) != -1)
+      return filled;
 
     realtime = get_current_calender_time();
     if(play_counter == 0)
@@ -473,8 +477,11 @@ int32 aq_soft_filled(void)
 
 int32 aq_fillable(void)
 {
+  int fillable;
     if(!IS_STREAM_TRACE)
 	return 0;
+    if(play_mode->acntl(PM_REQ_GETFILLABLE, &fillable) != -1)
+      return fillable;
     return device_qsize / Bps - aq_filled();
 }
 
@@ -523,7 +530,7 @@ int aq_flush(int discard)
     int more_trace;
 
     /* to avoid infinite loop */
-    double t1, t2;
+    double t1, t2, timeout_expect;
     int32 last_point;
 
     aq_add_count = 0;
@@ -554,6 +561,8 @@ int aq_flush(int discard)
     more_trace = 1;
     t1 = get_current_calender_time();
     last_point = aq_samples();
+    timeout_expect = t1 + (double)aq_filled() / play_mode->rate;
+
     while(more_trace || aq_filled() > 0)
     {
 	rc = check_apply_control();
@@ -566,16 +575,26 @@ int aq_flush(int discard)
 	aq_wait_ticks();
 	more_trace = trace_loop();
 	t2 = get_current_calender_time();
-	if(t2 - t1 > 1.0 && more_trace)
-	{
-	    int32 cur;
-	    cur = aq_samples();
-	    if(last_point == cur)
-		break; /* Must be bug */
-	    last_point = cur;
-	    t1 = t2;
-	}
+
+	if(more_trace)
+	  {
+	    if(t2 - t1 > 1.0)
+	      {
+		int32 cur;
+		cur = aq_samples();
+		if(last_point == cur)
+		  break; /* Must be bug */
+		last_point = cur;
+		t1 = t2;
+	      }
+	  }
+	else
+	  {
+	    if(t2 > timeout_expect)
+	      break;
+	  }
     }
+    trace_flush();
     play_mode->acntl(PM_REQ_FLUSH, NULL);
     play_counter = play_offset_counter = 0;
     return RC_NONE;

@@ -14,6 +14,7 @@ enum {
     RC_EXT_MODE_CHANGE,
     RC_EXT_APPLY_SETTING,
     RC_EXT_DELETE_PLAYLIST,
+    RC_EXT_UPDATE_PLAYLIST,
 };
 
 #define W32G_TIMIDITY_CFG "C:\\WINDOWS\\TIMIDITY.CFG"
@@ -86,6 +87,7 @@ extern void PutsConsoleWnd(char *str);
 extern void w32g_ctle_play_start(int sec);
 extern void SettingWndApply(void);
 extern int w32g_lock_open_file;
+extern void w32g_i_init();
 extern HINSTANCE hInst;
 
 
@@ -123,6 +125,7 @@ extern void TmCanvasRefresh(void);
 extern void TmCanvasReset(void);
 extern void TmCanvasNote(int status, int ch, int note, int vel);
 extern int TmCanvasChange(void);
+extern int TmCanvasMode;
 
 /* w32g_c.c */
 extern int w32g_play_active;

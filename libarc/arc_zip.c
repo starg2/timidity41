@@ -25,7 +25,7 @@ static unsigned long get_long(char *s)
 	    (unsigned long)p[3]<<24);
 }
 
-ArchiveEntryNode *next_zip_entry(ArchiveHandler archiver)
+ArchiveEntryNode *next_zip_entry(void)
 {
     unsigned long magic;
     unsigned short flen, elen, hdrsiz;
@@ -37,8 +37,8 @@ ArchiveEntryNode *next_zip_entry(ArchiveHandler archiver)
     unsigned short flags;
     int macbin_check;
 
-    url = archiver->decode_stream;
-    macbin_check = (archiver->nfiles == 0);
+    url = arc_handler.url;
+    macbin_check = (arc_handler.counter == 0);
 
   retry_read:
     if(url_read(url, buff, 4) != 4)
@@ -59,8 +59,8 @@ ArchiveEntryNode *next_zip_entry(ArchiveHandler archiver)
     {
 	macbin_check = 0;
 	url_skip(url, 128-4);
-	if(archiver->type == AHANDLER_SEEK)
-	    archiver->pos += 128;
+	if(arc_handler.isfile)
+	    arc_handler.pos += 128;
 	goto retry_read;
     }
 
@@ -175,12 +175,12 @@ ArchiveEntryNode *next_zip_entry(ArchiveHandler archiver)
     {
 	url_skip(url, elen);
 	hdrsiz += elen;
-	if(archiver->type == AHANDLER_SEEK)
-	    archiver->pos += hdrsiz;
+	if(arc_handler.isfile)
+	  arc_handler.pos += hdrsiz;
 	goto retry_read;
     }
 
-    entry = new_entry_node(&archiver->pool, buff, flen);
+    entry = new_entry_node(buff, flen);
     if(entry == NULL)
 	return NULL;
 
@@ -192,31 +192,23 @@ ArchiveEntryNode *next_zip_entry(ArchiveHandler archiver)
     url_skip(url, elen);
     hdrsiz += elen;
 
-    if(archiver->type == AHANDLER_SEEK)
+    if(arc_handler.isfile)
     {
-	entry->strmtype = ARCSTRM_SEEK_URL;
-	archiver->pos += hdrsiz;
-	entry->u.seek_start = archiver->pos;
+      arc_handler.pos += hdrsiz;
+	entry->start = arc_handler.pos;
+	entry->cache = NULL;
 	url_skip(url, compsize);
-	archiver->pos += compsize;
+	arc_handler.pos += compsize;
     }
     else
     {
-	char buff[BUFSIZ];
-	long rest, n;
-
-	entry->strmtype = ARCSTRM_MEMBUFFER;
-	rest = compsize;
-	while(rest > 0)
+      long n;
+      entry->start = 0;
+      entry->cache = url_dump(url, compsize, &n);
+      if(n != compsize)
 	{
-	    n = rest;
-	    if(n > sizeof(buff))
-		n = sizeof(buff);
-	    n = url_read(url, buff, n);
-	    if(n <= 0)
-		break;
-	    push_memb(&entry->u.compdata, buff, n);
-	    rest -= n;
+	  free_entry_node(entry);
+	  return NULL;
 	}
     }
 

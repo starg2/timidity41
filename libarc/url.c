@@ -15,6 +15,7 @@
 
 #ifdef HAVE_SAFE_MALLOC
 extern void *safe_malloc(size_t count);
+extern void *safe_realloc(void *old_ptr, size_t new_size);
 #endif /* HAVE_SAFE_MALLOC */
 
 /* #define DEBUG */
@@ -491,4 +492,52 @@ char *url_strerror(int no)
     if(no >= URLERR_MAXNO)
 	return "Internal error";
     return url_strerror_txt[no - URLERR_NONE];
+}
+
+void *url_dump(URL url, long nbytes, long *read_size)
+{
+    long allocated, offset, read_len;
+    char *buff;
+
+    if(read_size != NULL)
+      *read_size = 0;
+    if(nbytes == 0)
+	return NULL;
+    if(nbytes > 0)
+    {
+	buff = (void *)safe_malloc(nbytes);
+	read_len = url_nread(url, buff, nbytes);
+	if(read_size != NULL)
+	  *read_size = read_len;
+	if(read_len <= 0)
+	{
+	    free(buff);
+	    return NULL;
+	}
+	return buff;
+    }
+
+    allocated = 1024;
+    buff = (char *)safe_malloc(allocated);
+    offset = 0;
+    read_len = allocated;
+    while((nbytes = url_read(url, buff + offset, read_len)) > 0)
+    {
+	offset += nbytes;
+	read_len -= nbytes;
+	if(offset == allocated)
+	{
+	    read_len = allocated;
+	    allocated *= 2;
+	    buff = (char *)safe_realloc(buff, allocated);
+	}
+    }
+    if(offset == 0)
+    {
+	free(buff);
+	return NULL;
+    }
+    if(read_size != NULL)
+      *read_size = offset;
+    return buff;
 }

@@ -66,12 +66,19 @@ void mac_DefaultOption()
 	opt_modulation_wheel = 1;
 	opt_portamento = 1;
 	opt_nrpn_vibrato = 1;
+#ifdef REVERB_CONTROL_ALLOW
+	opt_reverb_control = 1;
+#else
 	opt_reverb_control = 0;
+#endif
+#ifdef CHORUS_CONTROL_ALLOW
+	opt_chorus_control = 1;
+#else
 	opt_chorus_control = 0;
+#endif
 	opt_channel_pressure = 0;
 	opt_trace_text_meta_event = 0;
 	opt_overlap_voice_allow = 1;
-	//do_reverb_flag = 0;
 	
 	effect_lr_mode=-1; //no effect
 	modify_release=0;
@@ -81,6 +88,7 @@ void mac_DefaultOption()
 	
 	evil_level=EVIL_NORMAL;
 	do_initial_filling=0;
+	reduce_voice_threshold = -1;
 }
 
 enum{iOK=1, iCancel=2, iDefault=3, iRate=5, iMono=6, iStereo=7,
@@ -100,7 +108,7 @@ enum{iOK=1, iCancel=2, iDefault=3, iRate=5, iMono=6, iStereo=7,
 			iPresence_balance=32,
 			iManufacture=33,
 			iEvil_level=34,
-			iDo_initial_filling=35,
+			/*iDo_initial_filling=35,*/
 			iShuffle= 36
 			};
 
@@ -147,7 +155,7 @@ static void SetDialogValue(DialogRef theDialog)
 				opt_default_mid==0x43? 2:3	);		//XG:GM
 	SetDialogItemValue(theDialog, iManufacture, value);
 	SetDialogItemValue(theDialog, iEvil_level, evil_level);
-	SetDialogItemValue(theDialog, iDo_initial_filling, do_initial_filling);
+	//SetDialogItemValue(theDialog, iDo_initial_filling, do_initial_filling);
 	SetDialogItemValue(theDialog, iShuffle, gShuffle);
 }
 
@@ -296,7 +304,7 @@ OSErr mac_SetPlayOption()
 				case iText_meta_event:	ToggleDialogItem(dialog, iText_meta_event);	break;
 				case iOverlap_voice:	ToggleDialogItem(dialog, iOverlap_voice);	break;
 				case iPReverb:			ToggleDialogItem(dialog, iPReverb);	break;
-				case iDo_initial_filling:	ToggleDialogItem(dialog, iDo_initial_filling);	break;
+				//case iDo_initial_filling:	ToggleDialogItem(dialog, iDo_initial_filling);	break;
 				case iShuffle:			ToggleDialogItem(dialog, iShuffle);	break;
 				}
 			}
@@ -338,9 +346,9 @@ struct{
 }Preference;
 
 
-#define	PREF_VER	12
+#define	PREF_VER	13
+						/* ++ 2.1.0        ->prefver=13 */
 						/* ++ beta1        ->prefver=12 */
-						/* Mac release 3.24->prefver=11 */
 #define	PREF_NUM	(sizeof(Preference))	/*pref data bytes*/
 
 OSErr mac_GetPreference()

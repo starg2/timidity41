@@ -710,6 +710,7 @@ void w32g_initialize(void)
     memcpy(sp_default, sp_current, sizeof(SETTING_PLAYER));
     memcpy(st_default, st_current, sizeof(SETTING_TIMIDITY));
 
+    w32g_i_init();
 }
 
 int IniVersionCheck(void)

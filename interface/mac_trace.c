@@ -38,6 +38,7 @@
 #include "miditrace.h"
 #include "bitset.h"
 #include "mfnode.h"
+#include "aq.h"
 
 #include "mac_main.h"
 #include "mac_util.h"
@@ -107,6 +108,7 @@ static void mac_ctl_refresh_trc()
 	RGBColor	black={0,0,0},
 				darkGray={0x2000,0x2000,0x2000};
 
+	if( !win.show ) return;
 	SetPortWindowPort(win.ref);
 	for( i=0; i<16; i++ ){
 		DrawInstrumentName(i, instr_comment[i].comm);
@@ -228,17 +230,23 @@ static void update_title()
 void mac_trc_update_time( int cur_sec, int tot_sec )
 {
 	static int	save_tot_sec=0, save_cur_sec;
+	int rate;
 	char		buf[80];
 	
 	if( cur_sec!=-1 ) save_cur_sec=tot_sec;
 	if( tot_sec!=-1 ) save_tot_sec=tot_sec;
+	if( cur_sec==-1 ) cur_sec=0;
 	if( cur_sec > save_tot_sec ) cur_sec=save_tot_sec;
+	
+	if( !win.show ) return;
+	rate = (int)(aq_filled_ratio() * 100 + 0.5);
 
 	SetPortWindowPort(win.ref);
-	snprintf(buf, 80," %3d:%02d /%3d:%02d   buffering=?? sec    ",
-		cur_sec/60, cur_sec%60, save_tot_sec/60,save_tot_sec%60 );
+	snprintf(buf, 80," %3d:%02d /%3d:%02d   buffering=%3d %% " "buffer %d/256  ",
+		cur_sec/60, cur_sec%60, save_tot_sec/60,save_tot_sec%60,
+		rate ,mac_buf_using_num );
 	RGBForeColor(&black);
-	MoveTo(450,12); DrawText(buf, 0, strlen(buf));
+	MoveTo(400,12); DrawText(buf, 0, strlen(buf));
 }
 
 void mac_trc_update_voices()
@@ -337,11 +345,12 @@ static unsigned int UpdateNote(int status, int ch, int note, int vel)
 	//int	vel;
 	Rect r1,r2;
     unsigned int onoff=0 /*, check, prev_check*/;
-	const RGBColor dieColor=	{0x3000,0x3000,0x3000},	//dark gray
+	const RGBColor	dieColor=	{0x3000,0x3000,0x3000},	//dark gray
 					freeColor=	{0x3000,0x3000,0x3000},	//dark gray
-					onColor=	{0xffff,0xffff,0}, 		//yellow
+			onColor=	{0xffff,0xffff,0}, 	//yellow
 					sustainedColor={0x8000,0x8000,0},	//dark yellow
-					offColor=	{0x4000,0x4000,0};		//dark yellow
+			offColor=	{0x4000,0x4000,0},	//dark yellow
+			noColor=	{0x2000,0x2000,0x2000};
 	RGBColor	color;
 	
 	vel=(10 * vel) / 128; /* 0-9 */
@@ -363,7 +372,8 @@ static unsigned int UpdateNote(int status, int ch, int note, int vel)
 	case VOICE_FREE: color=freeColor; onoff = 0;	break;
 	case VOICE_SUSTAINED:DARKEN2(color); onoff = 1;	break;
 	case VOICE_OFF:	DARKEN4(color); onoff = 1;		break;
-	case VOICE_ON:					onoff = 1;		break;
+	case VOICE_ON:			onoff = 1;		break;
+	default:	color= noColor; break;
     }
     RGBForeColor(&freeColor);
     PaintRect(&r1);    

@@ -49,21 +49,25 @@
 #include "mac_wrdwindow.h"
 #include "mac_mag.h"
 #include "mac_wrd.h"
+#include "aq.h"
 
 static int wrd_argc;
 //static int wrd_args[WRD_MAXPARAM];
 static int inkey_flag;
+//#define WRD_DEBUG(x)	ctl->cmsg x 
+#define WRD_DEBUG(x)	/*nothing*/
 
 static int wrdt_open(char *wrdt_opts);
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[]);
 static void wrdt_update_events(void);
-static void wrdt_start(int wrdflag)
+static int wrdt_start(int wrdflag)
 {
 	if( wrdflag ){
 		sry_start();
 		ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 			  "WRD START");
 	}
+	return 0;
 }
 
 static void wrdt_end(void)
@@ -102,10 +106,17 @@ void dev_set_height(int height)
 	SizeWindow(win.ref, WRD_GSCR_WIDTH, height, false);
 }
 
+static void mac_RedrawControl(int flag)
+{
+	dev_redrawflag=flag;
+}
+
 void dev_redisp(Rect rect)
 {
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
+	
+	if( !dev_redrawflag ) return;
 	
 	//ActivatePalette(win.ref);
 	LOCK_ALL_PIXMAP();
@@ -121,9 +132,26 @@ void dev_redisp(Rect rect)
 	UNLOCK_ALL_PIXMAP();
 }
 
+static void reverse_helper(int x, int y, int byte)
+{
+	Rect rect;
+
+	rect.left=WRD_LOCX(x); //erase upper
+	rect.top=WRD_LOCY(y-1)+3;
+	rect.right=rect.left+BASE_X*byte;
+	rect.bottom=rect.top+1;
+	PaintRect(&rect);
+	
+	rect.left=WRD_LOCX(x)+7*byte; //erase right
+	//rect.top=WRD_LOCY(y-1)+2;
+	rect.right=rect.left+byte;
+	rect.bottom=WRD_LOCY(y)+3;
+	PaintRect(&rect);
+}
+
 static void dev_text_redraw(int locx1, int locy1, int locx2, int locy2)
 {
-	int x,y,startx, mode,color;
+	int x,y,startx, mode,color, len;
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
 
@@ -131,8 +159,12 @@ static void dev_text_redraw(int locx1, int locy1, int locx2, int locy2)
 	
 	if( locx1<1 ) locx1=1;
 	if( locx2>80 ) locx2=80;
-	if( locy1>1 ) locy1=1;
+	if( locy1<1 ) locy1=1;
 	if( locy2>25 ) locy2=25;
+	if( wrd_ton==2 ){
+		//locx1-= (locx1-1)%4;
+		locx1=1;
+	}
 	
 	LOCK_ALL_PIXMAP();
 	GetGWorld(&oldGW, &oldGD);
@@ -148,10 +180,28 @@ static void dev_text_redraw(int locx1, int locy1, int locx2, int locy2)
 				SET_T_RGBFORECOLOR_TMP(CHAR_COLOR_VRAM(x,y)&CATTR_TXTCOL_MASK);
 				mode= (CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED)? 2:1;
 				color= TCODE2INDEX(CHAR_COLOR_VRAM(x,y));
+				len= MULTI_BYTE_FLAG(x,y)? 2:1;
+				if( wrd_ton==2 ){
+					char *cp;
+					if( MULTI_BYTE_FLAG(x-1,y) ){
+						cp= &CHAR_VRAM(x-1,y); len=2;
+						SET_T_RGBFORECOLOR_TMP(CHAR_COLOR_VRAM(x-1,y)&CATTR_TXTCOL_MASK);
+						mode= (CHAR_COLOR_VRAM(x-1,y)&CATTR_BGCOLORED)? 2:1;
+						color= TCODE2INDEX(CHAR_COLOR_VRAM(x-1,y));
+					}else{
+						cp= &CHAR_VRAM(x,y);
+					}
+					dev_draw_text_gmode( dispWorld->portPixMap, WRD_LOCX(x), WRD_LOCY(y-1)+3,
+						cp, len, 0xFF, mode, color, color, wrd_ton );
+					x+= len*2;
+					continue;
+				}
+				(CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED)?
+					TextMode(notSrcOr) : TextMode(srcOr);
 				WRD_MOVE_COURSOR_TMP(x,y);
 				if( MULTI_BYTE_FLAG(x,y) ){
-					dev_draw_text_gmode( dispWorld->portPixMap, WRD_LOCX(x), WRD_LOCY(y-1)+3,
-						&CHAR_VRAM(x,y), 2, 0xFF, mode, color, color );
+					DrawText(&CHAR_VRAM(x,y), 0, 2);
+					if(CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED) reverse_helper(x,y, 2);
 					x+=2;
 				}else{
 					if( CHAR_VRAM(x,y)==' ' && (CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED) ){
@@ -162,9 +212,8 @@ static void dev_text_redraw(int locx1, int locy1, int locx2, int locy2)
 						rect.right=rect.left+BASE_X;
 						PaintRect(&rect); x++;
 					}else{
-						dev_draw_text_gmode( dispWorld->portPixMap, WRD_LOCX(x), WRD_LOCY(y-1)+3,
-							&CHAR_VRAM(x,y), 1, 0xFF, mode, color, color );
-						x++;
+						DrawText(&CHAR_VRAM(x,y), 0, 1);			
+						if(CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED) reverse_helper(x,y, 1); x++;
 					}
 				}
 			}
@@ -185,7 +234,7 @@ void dev_remake_disp(Rect rect)
 	LOCK_ALL_PIXMAP();
 		if( dev_gon_flag) MyCopyBits(GDISP_PIX, DISP_PIX,
 						rect, rect, 0, 0, 0xFF, 0,0,0);
-			else dev_box(DISP_PIX, rect, 16, 0xFF);
+			else dev_box(DISP_PIX, rect, 0, 0xFF); //all pal=0 color
 	UNLOCK_ALL_PIXMAP();
 	
 	dev_text_redraw_rect(rect);
@@ -271,6 +320,7 @@ static void dev_text_output(const char* text, int n)
 		}
 	}
 	wrd_coursor_x+=n;
+	if( wrd_ton==2) endx+=2;
 
 	dev_remake_disp(loc2rect(startx-1, wrd_coursor_y, endx+1, wrd_coursor_y));
 	dev_redisp(loc2rect(startx-1, wrd_coursor_y, endx+1, wrd_coursor_y));
@@ -285,21 +335,21 @@ static void dev_text_scroll(int x1, int y1, int x2, int y2, int mode, int color,
 	{
 	case 0: //scroll upper
 		for( y=y1; y<=y2 && y<=LINES; y++ ){
-			if( y-num <1 ) continue;
+			if( y-num <y1 ) continue;
 			memcpy(&CHAR_VRAM(1,y-num),&CHAR_VRAM(1,y),COLS);
 			memcpy(&CHAR_COLOR_VRAM(1,y-num),&CHAR_COLOR_VRAM(1,y),COLS);
 			memcpy(&MULTI_BYTE_FLAG(1,y-num),&MULTI_BYTE_FLAG(1,y),COLS);
 		}
-		dev_text_clear(x1, y2-num+1, x2, LINES, color, ch, false);
+		dev_text_clear(x1, y2-num+1, x2, y2, color, ch, false);
 		break;
 	case 1: //scroll down
 		for( y=y2; y>=y1 && y>=1; y-- ){
-			if( y+num> LINES ) continue;
+			if( y+num> y2 ) continue;
 			memcpy(&CHAR_VRAM(1,y+num),&CHAR_VRAM(1,y),COLS);
 			memcpy(&CHAR_COLOR_VRAM(1,y+num),&CHAR_COLOR_VRAM(1,y),COLS);
 			memcpy(&MULTI_BYTE_FLAG(1,y+num),&MULTI_BYTE_FLAG(1,y),COLS);
 		}
-		dev_text_clear(x1, 1, x2, y1+num-1, color, ch, false);
+		dev_text_clear(x1, y1, x2, y1+num-1, color, ch, false);
 		break;
 	case 2: //scroll right
 	case 3: //scroll left
@@ -469,23 +519,26 @@ void dev_gline(int x1, int y1, int x2, int y2, int p1, int sw, int p2, GWorldPtr
 	switch(sw)
 	{
 	case 0: //line
-		dev_line(x1, y1, x2, y2, p1, gmode_mask_gline,
+		if( p2==0 || p2==WRD_NOARG ) p2= 0xFF;
+		dev_line(x1, y1, x2, y2, p1,p2, gmode_mask_gline,
 			world->portPixMap );
 		break;
 	case 1: //rect
-		dev_line(x1, y1, x2, y1, p1, gmode_mask_gline,world->portPixMap );
-		dev_line(x1, y1, x1, y2, p1, gmode_mask_gline,world->portPixMap );
-		dev_line(x2, y1, x2, y2, p1, gmode_mask_gline,world->portPixMap );
-		dev_line(x1, y2, x2, y2, p1, gmode_mask_gline,world->portPixMap );
+		if( p2==0 || p2==WRD_NOARG ) p2= 0xFF;
+		dev_line(x1, y1, x2, y1, p1,p2, gmode_mask_gline,world->portPixMap );
+		dev_line(x1, y1, x1, y2, p1,p2, gmode_mask_gline,world->portPixMap );
+		dev_line(x2, y1, x2, y2, p1,p2, gmode_mask_gline,world->portPixMap );
+		dev_line(x1, y2, x2, y2, p1,p2, gmode_mask_gline,world->portPixMap );
 		break;
 	case 2:	//filled rect
+	      	if( p2==WRD_NOARG ) p2= p1;
 		rect.right++; rect.bottom++;
 		dev_box(world->portPixMap, rect, p2, gmode_mask_gline);
 		if( p1!=p2 ){
-			dev_line(x1, y1, x2, y1, p1, gmode_mask_gline,world->portPixMap );
-			dev_line(x1, y1, x1, y2, p1, gmode_mask_gline,world->portPixMap );
-			dev_line(x2, y1, x2, y2, p1, gmode_mask_gline,world->portPixMap );
-			dev_line(x1, y2, x2, y2, p1, gmode_mask_gline,world->portPixMap );
+			dev_line(x1, y1, x2, y1, p1,0xFF, gmode_mask_gline,world->portPixMap );
+			dev_line(x1, y1, x1, y2, p1,0xFF, gmode_mask_gline,world->portPixMap );
+			dev_line(x2, y1, x2, y2, p1,0xFF, gmode_mask_gline,world->portPixMap );
+			dev_line(x1, y2, x2, y2, p1,0xFF, gmode_mask_gline,world->portPixMap );
 		}
 		break;
 	}
@@ -536,6 +589,7 @@ static void dev_gcircle(int x, int y, int r, int p1, int sw, int p2)
 	}
 }
 
+static void dev_set_text_attr(int esccode);
 static int Parse(int c);
 
 void dev_init(int version)
@@ -544,7 +598,7 @@ void dev_init(int version)
 	
 	inkey_flag = 0;
 	dev_gon_flag=1;
-    SET_T_COLOR(37); //white
+	dev_set_text_attr(37); //white
 	dev_change_1_palette(0, black);
 	dev_change_1_palette(16, black); //for gon(0)
 	
@@ -604,8 +658,6 @@ static OSErr dev_setup()
 	static OSErr	err=0;
 	int		i;
 	Rect		destRect;
-	GDHandle	oldGD;
-	GWorldPtr	oldGW;
 	
 	if( err ) return err; // once errored, do not retry
 	
@@ -621,7 +673,7 @@ static OSErr dev_setup()
 	Rect charbufRect={0,0,16,32};
 	err=NewGWorld(&charbufWorld, 8, &charbufRect,0,0,0);
 	if( err ) return err;
-	mac_setfont(charbufWorld, "\pOsakaÅ|ìôïù");
+	mac_setfont(charbufWorld, WRD_FONTNAME);
 	}
 	
 	//wrd_palette= NewPalette( 33, 0, pmTolerant, 0x0000);
@@ -634,18 +686,7 @@ static OSErr dev_setup()
 	
 	dev_init_text_color();
 	
-	GetGWorld(&oldGW, &oldGD);
-	LockPixels(DISP_PIX);
-	{
-		//short		fontID;
-		//SetGWorld(dispWorld,0);
-		//GetFNum("\pOsakaÅ|ìôïù", &fontID);
-		mac_setfont(dispWorld, "\pOsakaÅ|ìôïù");
-		//TextFont(fontID);
-		//TextSize(14);
-	}
-	SetGWorld(oldGW, oldGD);
-	UnlockPixels(DISP_PIX);
+	mac_setfont(dispWorld, WRD_FONTNAME);
 
 	dev_init(-1);
 	return 0; //noErr
@@ -695,7 +736,7 @@ static void dev_set_text_attr(int esccode)
 {
 start:
 	switch(esccode){
-	  default:
+	default:
 	  esccode=37; goto start;
 
 	case 17: esccode=31; goto start;
@@ -778,6 +819,9 @@ static int Parse(int c)
     if(nparam<MAXPARAM){
       if(params[nparam]==DEFAULT){
 	params[nparam]=0;
+      }
+      if( c==' ' ){
+      	c='0';
       }
       params[nparam]*=10;
       params[nparam]+=c-'0';
@@ -1134,11 +1178,26 @@ static void wrd_fadestep(int nowstep, int maxstep)
 	RGBColor	pal[16];
 	int code;
 	//static unsigned long	lasttick=0;
+	static int	skip_num;
 	
 	//if( nowstep!=1 && nowstep!=maxstep /*&& (nowstep%4)==0*/ && lasttick==TickCount() ){
 	//	return;  //too fast fade. skip fading.
 	//}
 	
+	if( nowstep==1 ){
+		skip_num=0;
+	}
+	
+	if( nowstep!=maxstep && !mac_flushing_flag){	//consider skipping
+		const int	skip_threshold[11]={99,99,6,5,4, 2,1,0,0,0,0};
+		int	threshold= skip_threshold[ (int)(aq_filled_ratio()*10) ];
+		if( skip_num<threshold ){
+			skip_num++;
+			return;     // system is busy
+		}
+	}
+	
+	skip_num=0;
 	for( code=0; code<16; code++ ){
 		pal[code].red=
 			(dev_palette[startpal][code].red*(maxstep-nowstep) +
@@ -1151,7 +1210,6 @@ static void wrd_fadestep(int nowstep, int maxstep)
 				dev_palette[endpal][code].blue*nowstep)/maxstep;
 	}
 	dev_change_palette(pal);
-	//dev_remake_disp(portRect);
 	dev_redisp(portRect);
 	if( nowstep==maxstep ) fading=false;
 	//lasttick=TickCount();
@@ -1218,7 +1276,7 @@ static int wrd_mag(char* filename, int x, int y, int /*s*/, int p)
 		dev_remake_disp(rect);
 		dev_redisp(rect);
 	}
-	memcpy(&dev_palette[18+ (activeGraphics==dispGraphics? 0:1)]
+	memcpy(&dev_palette[18+ (activeGraphics==0? 0:1)]
 					, &dev_palette[17], 16*sizeof(RGBColor));
 	return 0; //no error
 }
@@ -1289,7 +1347,7 @@ static void print_ecmd(char *cmd, int *args, int narg)
 	narg--;
     }
     strcat(p, ")");
-    ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "%s", p);
+    WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "%s", p));
     reuse_mblock(&tmpbuffer);
 }
 
@@ -1306,9 +1364,14 @@ static void mac_wrd_DrawText(const char* str, int len)
 	int i;
 	
 	for( i=0; i<=len; ){
-		if( str[i]==0 ){
+		if( str[i]==0 || i==len ){
 			dev_text_output(str, i);
 			break;
+		}else if( wrd_coursor_x+i>80 ){
+			dev_text_output(str, i);
+			dev_newline();
+			//i++;
+			str+=i; len-=i; i=0;		
 		}else if( str[i]=='\x1b' ){ //esc sequence
 			if( i ){
 				dev_text_output(str, i);
@@ -1347,20 +1410,6 @@ static void mac_wrd_event_esc(int esc)
 	mac_wrd_doESC(event2string(esc)+1);
 }
 
-static int sry_decode_bindata( char *data )
-{
-	int i;
-	for( i=0; data[i*2]; i++ ){
-		if( data[i*2]==1 ){
-			data[i]=0;
-		}else{
-			data[i]=data[i*2+1];
-		}
-	}
-	data[i]='\0';
-	return i;
-}
-
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 {
     char *p;
@@ -1375,8 +1424,8 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
     if(cmd == WRD_MAGPRELOAD){
 	//char *p = wrd_event2string(arg);
 	 /* Load MAG file */
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@WRD_MAGPRELOAD");
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@WRD_MAGPRELOAD"));
     wrd_argc = 0;
 	return;
 	}
@@ -1395,67 +1444,69 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 			code_convert(p, text, SAFE_CONVERT_LENGTH(len), NULL, NULL);
 		}
 		len = strlen(text);
+		if( len ){
 		mac_wrd_DrawText(text, text[len-1]=='\n'? len-1:len);
 		if( text[len-1]=='\n' ){
 			dev_newline();
 		}
 		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "%s", text);
+		}
 		reuse_mblock(&tmpbuffer);
 		break;
       case WRD_COLOR:
 		mac_wrd_color(wrd_args[0]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "@COLOR(%d)", wrd_args[0]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "@COLOR(%d)", wrd_args[0]));
 	break;
       case WRD_END: /* Never call */
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,"@END");
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,"@END"));
 	break;
       case WRD_ESC:
       	mac_wrd_event_esc(wrd_args[0]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@ESC(%s)", wrd_event2string(wrd_args[0]));
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@ESC(%s)", wrd_event2string(wrd_args[0])));
 	break;
       case WRD_EXEC:
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@EXEC(%s)", wrd_event2string(wrd_args[0]));
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@EXEC(%s)", wrd_event2string(wrd_args[0])));
 	break;
       case WRD_FADE:
 	mac_wrd_fade(wrd_args[0], wrd_args[1], wrd_args[2]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@FADE(%d,%d,%d)", wrd_args[0], wrd_args[1], wrd_args[2]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@FADE(%d,%d,%d)", wrd_args[0], wrd_args[1], wrd_args[2]));
 	break;
       case WRD_FADESTEP:
 	wrd_fadestep(wrd_args[0], WRD_MAXFADESTEP);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@FADESTEP(%d/%d)", wrd_args[0], WRD_MAXFADESTEP);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@FADESTEP(%d/%d)", wrd_args[0], WRD_MAXFADESTEP));
 	break;
       case WRD_GCIRCLE:
 	dev_gcircle(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
 		  wrd_args[4], wrd_args[5]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
 		  "@GCIRCLE(%d,%d,%d,%d,%d,%d)",
 		  wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
-		  wrd_args[4], wrd_args[5]);
+		  wrd_args[4], wrd_args[5]));
 	break;
       case WRD_GCLS:
 	dev_clear_graphics(wrd_args[0]? wrd_args[0]:0xFF);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@GCLS(%d)", wrd_args[0]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@GCLS(%d)", wrd_args[0]));
 	break;
       case WRD_GINIT:
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "@GINIT()");
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "@GINIT()"));
 	break;
       case WRD_GLINE:
 	dev_gline(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
 	       wrd_args[5], wrd_args[6],graphicWorld[activeGraphics]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
 		  "@GLINE(%d,%d,%d,%d,%d,%d,%d)",
 	       wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
-	       wrd_args[5], wrd_args[6]);
+	       wrd_args[5], wrd_args[6]));
 	break;
       case WRD_GMODE:
 	DEV_SET_GMODE(wrd_args[0]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@GMODE(%d)", wrd_args[0]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@GMODE(%d)", wrd_args[0]));
 	break;
       case WRD_GMOVE:
 	wrd_args[0] &= ~0x7;  wrd_args[4] &= ~0x7;  
@@ -1463,33 +1514,33 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	dev_gmove(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
 	       wrd_args[5], graphicWorld[wrd_args[6]], graphicWorld[wrd_args[7]],
 	       wrd_args[8], 0, gmode_mask, 0,0,0);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
 		  "@GMOVE(%d,%d, %d,%d, %d,%d, %d,%d,%d)",
 	       wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
-	       wrd_args[5], wrd_args[6], wrd_args[7], wrd_args[8]);
+	       wrd_args[5], wrd_args[6], wrd_args[7], wrd_args[8]));
 	break;
       case WRD_GON:
 	dev_gon(wrd_args[0]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@GON(%d)", wrd_args[0]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@GON(%d)", wrd_args[0]));
 	break;
       case WRD_GSCREEN:
 	dev_gscreen(wrd_args[0], wrd_args[1]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@GSCREEN(%d,%d)", wrd_args[0], wrd_args[1]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@GSCREEN(%d,%d)", wrd_args[0], wrd_args[1]));
 	break;
       case WRD_INKEY:
 	inkey_flag = 1;
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "@INKEY - begin");
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "@INKEY - begin"));
 	break;
       case WRD_OUTKEY:
 	inkey_flag = 0;
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "@INKEY - end");
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "@INKEY - end"));
 	break;
       case WRD_LOCATE:
 		dev_move_coursor(wrd_args[0], wrd_args[1]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@LOCATE(%d,%d)", wrd_args[0], wrd_args[1]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@LOCATE(%d,%d)", wrd_args[0], wrd_args[1]));
 	break;
       case WRD_LOOP: /* Never call */
 	break;
@@ -1507,7 +1558,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 		sprintf(p + strlen(p), "%d,", wrd_args[i]);
 	}
 	sprintf(p + strlen(p), "%d,%d)", wrd_args[3], wrd_args[4]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "%s", p);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "%s", p));
 	reuse_mblock(&tmpbuffer);
 	break;
       case WRD_MIDI: /* Never call */
@@ -1521,38 +1572,38 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	for(i = 1; i < 17; i++)
 	    sprintf(p + strlen(p), ",%03x", wrd_args[i]);
 	strcat(p, ")");
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "%s", p);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "%s", p));
 	reuse_mblock(&tmpbuffer);
 	break;
       case WRD_PALCHG:
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@PALCHG(%s)", wrd_event2string(wrd_args[0]));
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@PALCHG(%s)", wrd_event2string(wrd_args[0])));
 	break;
       case WRD_PALREV:
 	dev_palrev(wrd_args[0]);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@PALREV(%d)", wrd_args[0]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@PALREV(%d)", wrd_args[0]));
 	break;
       case WRD_PATH:
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@PATH(%s)", wrd_event2string(wrd_args[0]));
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@PATH(%s)", wrd_event2string(wrd_args[0])));
 	break;
       case WRD_PLOAD:
    	wrd_pho(wrd_event2string(wrd_args[0]));
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@PLOAD(%s)", wrd_event2string(wrd_args[0]));
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@PLOAD(%s)", wrd_event2string(wrd_args[0])));
 	break;
       case WRD_REM:
 	p = wrd_event2string(wrd_args[0]);
 	len = strlen(p);
 	text = (char *)new_segment(&tmpbuffer, SAFE_CONVERT_LENGTH(len));
 	code_convert(p, text, SAFE_CONVERT_LENGTH(len), NULL, NULL);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "@REM %s", text);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE, "@REM %s", text));
 	reuse_mblock(&tmpbuffer);
 	break;
       case WRD_REMARK:
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@REMARK(%s)", wrd_event2string(wrd_args[0]));
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@REMARK(%s)", wrd_event2string(wrd_args[0])));
 	break;
       case WRD_REST: /* Never call */
 	break;
@@ -1563,10 +1614,10 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 					wrd_args[4], wrd_args[5], wrd_args[6], 1);
 	dev_remake_disp(portRect);
 	dev_redisp(portRect);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
 		  "@SCROLL(%d,%d,%d,%d,%d,%d,%d)",
 		  wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
-		  wrd_args[4], wrd_args[5], wrd_args[6]);
+		  wrd_args[4], wrd_args[5], wrd_args[6]));
 	break;
       case WRD_STARTUP:
 	dev_init(wrd_args[0]);
@@ -1574,24 +1625,24 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	wrd_load_default_image();
 	inkey_flag = 0;
 	dev_set_height(400);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@STARTUP(%d)", wrd_args[0]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@STARTUP(%d)", wrd_args[0]));
 	break;
       case WRD_STOP: /* Never call */
 	break;
       case WRD_TCLS:
 	dev_text_clear(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],wrd_args[4],wrd_args[5], true);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
 		  "@TCLS(%d,%d,%d,%d,%d,%d)",
 		  wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
-		  wrd_args[4], wrd_args[5]);
+		  wrd_args[4], wrd_args[5]));
 	break;
       case WRD_TON:
 	wrd_ton=wrd_args[0];
 	dev_remake_disp(portRect);
 	dev_redisp(portRect);
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@TON(%d)", wrd_args[0]);
+	WRD_DEBUG((CMSG_INFO, VERB_VERBOSE,
+		  "@TON(%d)", wrd_args[0]));
 	break;
       case WRD_WAIT: /* Never call */
 	break;
@@ -1633,6 +1684,8 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	print_ecmd("TSCRL", wrd_args, 0);
 	break;
       case WRD_eVCOPY:
+	wrd_args[0] &= ~0x7;  wrd_args[4] &= ~0x7;  
+	wrd_args[2] |= 0x7;
 	dev_gmove(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
 		wrd_args[4],wrd_args[5],
 	       graphicWorld[wrd_args[6]+(wrd_args[8]? 2:0)],
@@ -1657,24 +1710,18 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 
 	/* Extensionals */
       case WRD_START_SKIP:
+	    mac_RedrawControl(0);
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 		  "WRD START SKIP");
 	break;
       case WRD_END_SKIP:
+	    mac_RedrawControl(1);
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 		  "WRD END SKIP");
 	break;
       case WRD_SHERRY_UPDATE:
 	sry_update();
 	break;
-      /*case WRD_SHERRY:
-		{
-			char*	data= wrd_event2string(wrd_args[0]);
-			int	len= strlen(data)/2; //decoded length
-			sry_decode_bindata(data);
-			sry_wrdt_apply(data, len);
-		}
-		break;*/
     }
     wrd_argc = 0;
 }

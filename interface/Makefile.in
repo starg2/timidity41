@@ -403,8 +403,8 @@ ncurs_c.o: ncurs_c.c ../config.h ../timidity/timidity.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/output.h \
 	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h \
-	../utils/bitset.h ../libarc/arc.h ../utils/memb.h \
-	../timidity/aq.h ../timidity/mid-j.defs
+	../utils/bitset.h ../libarc/arc.h ../timidity/aq.h \
+	../timidity/mid-j.defs
 server_c.o: server_c.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/controls.h ../timidity/instrum.h \
@@ -483,8 +483,7 @@ xskin_i.o: xskin_i.c xskin.h ../config.h ../timidity/timidity.h \
 xskin_loadBMP.o: xskin_loadBMP.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/controls.h ../timidity/output.h ../libarc/arc.h \
-	../utils/memb.h
+	../timidity/controls.h ../timidity/output.h ../libarc/arc.h
 xskin_spectrum.o: xskin_spectrum.c xskin.h ../config.h \
 	../timidity/timidity.h ../utils/support.h ../timidity/common.h \
 	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \

@@ -50,7 +50,7 @@ EXTERN GWorldPtr	graphicWorld[8], dispWorld, charbufWorld;
 #define	GACTIVE_PIX	(graphicWorld[activeGraphics]->portPixMap)
 #define	GDISP_PIX	(graphicWorld[dispGraphics]->portPixMap)
 #define	DISP_PIX	(dispWorld->portPixMap)
-EXTERN int			gmode_mask, gmode_mask_gline, dev_gon_flag;
+EXTERN int			gmode_mask, gmode_mask_gline, dev_gon_flag, dev_redrawflag;
 #define				DEV_SET_GMODE(mask)  (gmode_mask=gmode_mask_gline=(mask))
 EXTERN RGBColor		dev_palette[20][17];
 EXTERN int			startpal, endpal; //for @FADE
@@ -78,8 +78,8 @@ EXTERN int			activeGraphics, dispGraphics, gvram_bank_num;
 EXTERN int pallette_exist, fading;
 
 
-EXTERN int					wrd_coursor_x,wrd_coursor_y;
-EXTERN int					wrd_text_color_attr;
+EXTERN int		wrd_coursor_x,wrd_coursor_y;
+EXTERN int		wrd_text_color_attr;
 #define CATTR_LPART (1)
 #define CATTR_16FONT (1<<1)
 #define CATTR_COLORED (1<<2)
@@ -97,7 +97,7 @@ void dev_set_height(int height);
 void dev_redisp(Rect rect);
 void dev_remake_disp(Rect rect);
 void dev_draw_text_gmode(PixMapHandle pixmap, int x, int y, const char* s, int len,
-			int pmask, int mode, int fgcolor, int bgcolor );
+		int pmask, int mode, int fgcolor, int bgcolor, int ton_mode);
 
 void dev_change_palette(RGBColor pal[16]);
 void dev_change_1_palette(int code, RGBColor color);
@@ -109,10 +109,12 @@ void dev_gmove(int x1, int y1, int x2, int y2, int xd, int yd,
 			GWorldPtr srcworld, GWorldPtr destworld, int sw, int trans, int mask,
 			int maskx, int masky, const uint8 maskdata[]);
 void dev_box(PixMapHandle pixmap, Rect rect, int color, int pmask);
-void dev_line(int x1, int y1, int x2, int y2, int color, int pmask,
-			PixMapHandle pixmap );
+void dev_line(int x1, int y1, int x2, int y2, int color, int style,
+	int pmask, PixMapHandle pixmap );
 void dev_gline(int x1, int y1, int x2, int y2, int p1, int sw, int p2, GWorldPtr world);
 void mac_setfont(GWorldPtr world, Str255 fontname);
+//#define WRD_FONTNAME "\p“™•–¾’©"
+#define WRD_FONTNAME "\pOsaka|“™•"
 
 void sry_start();
 void sry_end();

@@ -83,6 +83,7 @@ static char StartWndClassName[] = "MainWindow";
 HINSTANCE hInst;
 
 // HWND
+static HWND hStartWnd;
 static HWND hMainWnd = 0;
 static HWND hConsoleWnd = 0;
 static HWND hTracerWnd = 0;
@@ -120,6 +121,7 @@ static WINBOOL CALLBACK MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lP
 static WINBOOL CALLBACK ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static WINBOOL CALLBACK ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void ConsoleWndVerbosityApplyIncDec(int diff);
+static void InitListWnd(HWND hParentWnd);
 static void InitSettingWnd(HWND hParentWnd);
 static void OpenSettingWnd(HWND hwnd);
 static void SettingWndSetup(SETTING_TIMIDITY *st);
@@ -248,15 +250,41 @@ static void NotImplemented(char *msg)
     w32g_msg_box(buff, "TiMidity Notice", MB_OK);
 }
 
+
+#define MAX_PLAY_MODE_LIST 8
+extern PlayMode w32_play_mode, wave_play_mode, raw_play_mode, au_play_mode,
+	aiff_play_mode;
+static struct
+{
+    PlayMode *play_mode;
+    int32 orig_encoding;
+} w32g_play_mode_list[] =
+{
+{&w32_play_mode,0},
+{&wave_play_mode,0},
+{&au_play_mode,0},
+{&aiff_play_mode,0},
+{&raw_play_mode,0},
+{NULL,0}
+};
+
+void w32g_i_init(void)
+{
+    int i;
+    /* Save the original encoding */
+    for(i = 0; w32g_play_mode_list[i].play_mode != NULL; i++)
+    {
+	w32g_play_mode_list[i].orig_encoding =
+	    w32g_play_mode_list[i].play_mode->encoding;
+    }
+}
+
 void PutsConsoleWnd(char *str)
 {
     HWND hwnd;
 
-// #### for debug
-//    fputs(str, stdout);
-//    fflush(stdout);
-
-    if(!IsWindow(hConsoleWnd) ||
+    if(!hConsoleWnd ||
+       !IsWindow(hConsoleWnd) ||
        !IsDlgButtonChecked(hConsoleWnd,IDC_CHECKBOX_VALID))
 	return;
 
@@ -294,15 +322,7 @@ static void ToggleSubWindow(int id)
     if(IsWindowVisible(hwnd))
 	ShowWindow(hwnd,SW_HIDE);
     else
-    {
 	ShowWindow(hwnd,SW_SHOW);
-	switch(id)
-	{
-	  case IDM_LIST:
-	    w32g_update_playlist();
-	    break;
-	}
-    }
     update_subwindow(id);
     MainWndUpdateButton(id);
 }
@@ -432,6 +452,11 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 	break;
       case IDM_LIST:
       case IDM_MWPLAYLIST:
+	if(!hListWnd)
+	{
+	    InitListWnd(hStartWnd);
+	    w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+	}
 	ToggleSubWindow(IDM_LIST);
 	break;
       case IDM_DOC:
@@ -476,6 +501,8 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 	OnExit();
 	break;
       case IDM_SETTING:
+	if(!hSettingWnd)
+	    InitSettingWnd(hStartWnd);
 	OpenSettingWnd(hwnd);
 	break;
       case IDM_MCSAVEINIFILE:
@@ -693,7 +720,6 @@ StartWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 static void GUIThread(void *arglist)
 {
     MSG msg;
-    HWND hStartWnd;
     HICON hIcon;
     WNDCLASSEX wcl;
 
@@ -735,11 +761,9 @@ static void GUIThread(void *arglist)
 
     InitToolbar(hMainWnd);
 
-    /* ListWnd */
-    hListWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_SIMPLE_LIST),
-			    hStartWnd, ListWndProc);
-    ShowWindow(hListWnd,SW_HIDE);
-    UpdateWindow(hListWnd);
+//    /* ListWnd */
+//    ShowWindow(hListWnd,SW_HIDE);
+//    UpdateWindow(hListWnd);
 
     /* ConsoleWnd */
     hConsoleWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_CONSOLE),
@@ -757,9 +781,6 @@ static void GUIThread(void *arglist)
 		   0, W32G_VOLUME_MAX, TRUE);
     SetScrollPos(hMainWndScrollbarVolumeWnd, SB_CTL,
 		 W32G_VOLUME_MAX - amplification, TRUE);
-
-    /* TiMidity Setting */
-    InitSettingWnd(hStartWnd);
 
     update_subwindow(-1);
 
@@ -895,7 +916,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
     switch(uMess)
     {
       case WM_INITDIALOG:
-	w32g_update_playlist();
+	w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
 	break;
       case WM_COMMAND:
 	switch(HIWORD(wParam))
@@ -1063,6 +1084,12 @@ void MainWndScrollbarProgressUpdate(int sec)
     lastsec = sec;
 }
 
+static void InitListWnd(HWND hParentWnd)
+{
+    hListWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_SIMPLE_LIST),
+			    hStartWnd, ListWndProc);
+}
+
 // *****************************************************************************
 // TiMidity settings
 
@@ -1071,31 +1098,14 @@ static BOOL CALLBACK SettingWndProc(HWND hwnd, UINT uMess,
 static HWND hComboOutput, hOutputEdit, hOutputRefBtn;
 
 
-#define MAX_PLAY_MODE_LIST 8
-extern PlayMode w32_play_mode, wave_play_mode, raw_play_mode, au_play_mode,
-	aiff_play_mode;
-static struct
-{
-    PlayMode *play_mode;
-    int32 orig_encoding;
-} w32g_play_mode_list[] =
-{
-{&w32_play_mode,0},
-{&wave_play_mode,0},
-{&au_play_mode,0},
-{&aiff_play_mode,0},
-{&raw_play_mode,0},
-{NULL,0}
-};
-
 static void InitSettingWnd(HWND hParentWnd)
 {
     int i, selected, output_enabled;
 
     hSettingWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_SETTING),
 			       hParentWnd, SettingWndProc);
-    ShowWindow(hSettingWnd,SW_HIDE);
-    UpdateWindow(hSettingWnd);
+//    ShowWindow(hSettingWnd,SW_HIDE);
+//    UpdateWindow(hSettingWnd);
 
     hComboOutput = GetDlgItem(hSettingWnd, IDC_COMBO_OUTPUT_MODE);
     hOutputEdit = GetDlgItem(hSettingWnd, IDC_EDIT_OUTPUT_FILE);
@@ -1104,8 +1114,6 @@ static void InitSettingWnd(HWND hParentWnd)
     selected = 0;
     for(i = 0; w32g_play_mode_list[i].play_mode != NULL; i++)
     {
-	w32g_play_mode_list[i].orig_encoding =
-	    w32g_play_mode_list[i].play_mode->encoding;
 	ComboBox_InsertString(hComboOutput, i,
 			      w32g_play_mode_list[i].play_mode->id_name);
 	if(w32g_play_mode_list[i].play_mode->id_character ==
@@ -1122,9 +1130,9 @@ static void InitSettingWnd(HWND hParentWnd)
 
 static void OpenSettingWnd(HWND hParentWnd)
 {
+    SettingWndSetup(st_current);
     ShowWindow(hSettingWnd,SW_SHOW);
     UpdateWindow(hSettingWnd);
-    SettingWndSetup(st_current);
 }
 
 #define IS_CHECKED(hwnd, id) (SendDlgItemMessage(hwnd, id, BM_GETCHECK, 0, 0) == BST_CHECKED)
@@ -1272,9 +1280,16 @@ void SettingWndApply(void)
     }
 
     free_instruments(1);
-    play_mode->close_output();
+    if(play_mode->fd != -1)
+    {
+	play_mode->close_output();
+//	w32g_msg_box("Stopped playing because the parameters are changed.",
+//		     "Warning", MB_OK);
+    }
 
     ApplySettingTiMidity(st_current);
+    ctl->trace_playing = (TmCanvasMode != TMCM_SLEEP);
+    restore_voices(1);
 }
 
 static void DlgSelectOutputFile(void)
@@ -1323,23 +1338,8 @@ static void DlgSelectOutputFile(void)
 
 static BOOL CALLBACK SettingWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-    static int setting_warning_displayed = 0;
-
     switch(uMess)
     {
-      case WM_SHOWWINDOW:
-	if(wParam)
-	{
-	    if(w32g_play_active &&
-	       !setting_warning_displayed)
-		w32g_msg_box("Don't change parameter while playing",
-			     "Warning", MB_OK);
-	    setting_warning_displayed = 1;
-	    SettingWndSetup(st_current);
-	}
-	else
-	    setting_warning_displayed = 0;
-	break;
       case WM_COMMAND:
     	switch (LOWORD(wParam))
 	{

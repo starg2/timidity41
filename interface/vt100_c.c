@@ -1,7 +1,7 @@
 /*
-
-    TiMidity -- Experimental MIDI to WAVE converter
-    Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
+    TiMidity++ -- MIDI to WAVE converter and player
+    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     vt_100_c.c - written by Masanao Izumo <mo@goice.co.jp>
-
     */
 
 #ifdef HAVE_CONFIG_H
@@ -509,7 +508,7 @@ static int ctl_open(int using_stdin, int using_stdout)
     vt100_move(0, 0);
     fprintf(stdout, "TiMidity++ v%s" NLS, timidity_version);
     vt100_move(0, VT100_COLS-45);
-    fputs("(C) 1995 Tuukka Toivonen <toivonen@clinet.fi>", stdout);
+    fputs("(C) 1995 Tuukka Toivonen <tt@cgs.fi>", stdout);
     vt100_move(1,0);
     fputs("vt100 Interface mode - Written by Masanao Izumo <mo@goice.co.jp>", stdout);
 

@@ -61,7 +61,6 @@
 
 char *program_name, current_filename[1024];
 MBlockList tmpbuffer;
-ArchiveFileList *archive_file_list = NULL;
 char *output_text_code = NULL;
 
 #ifdef DEFAULT_PATH
@@ -123,24 +122,9 @@ struct timidity_file *try_to_open(char *name, int decompress)
     URL url;
     int len;
 
-    archive_file_list = add_archive_list(archive_file_list, name);
-    errno = 0;
-    url = archive_file_extract_open(archive_file_list, name);
-    if(url == NULL)
-    {
-	if(last_archive_file_list != NULL &&
-	   last_archive_file_list->errstatus != 0)
-	{
-	    errno = last_archive_file_list->errstatus;
-	    return NULL;
-	}
-
-	if(strchr(name, '#') != NULL)
-	    return NULL;
-
-	if((url = url_open(name)) == NULL)
-	    return NULL;
-    }
+    if((url = url_arc_open(name)) == NULL)
+      if((url = url_open(name)) == NULL)
+	return NULL;
 
     tf = (struct timidity_file *)safe_malloc(sizeof(struct timidity_file));
     tf->url = url;
@@ -177,6 +161,11 @@ struct timidity_file *try_to_open(char *name, int decompress)
 	url_rewind(tf->url);
 	url_cache_disable(tf->url);
     }
+
+#ifdef __W32__
+    /* Sorry, DECOMPRESSOR_LIST and PATCH_CONVERTERS are not worked yet. */
+    return tf;
+#endif /* __W32__ */
 
 #if defined(DECOMPRESSOR_LIST)
     if(decompress)
@@ -828,7 +817,7 @@ static char **expand_file_lists(char **files, int *nfiles_in_out)
     }
     nfiles = *nfiles_in_out;
 
-    /* count number of new files to add */
+    /* Expand playlist recursively */
     for(i = 0; i < nfiles; i++)
     {
 	/* extract the file extension */
@@ -873,29 +862,26 @@ static char **expand_file_lists(char **files, int *nfiles_in_out)
 char **expand_file_archives(char **files, int *nfiles_in_out)
 {
     int nfiles;
+    char **new_files;
+    int    new_nfiles;
 
+    /* First, expand playlist files */
     nfiles = *nfiles_in_out;
     files = expand_file_lists(files, &nfiles);
+    if(files == NULL)
+      {
+	*nfiles_in_out = 0;
+	return NULL;
+      }
 
-    archive_file_list = make_archive_list(archive_file_list, nfiles, files);
-    if(archive_file_list != NULL)
-    {
-	char **new_files;
-	int    new_nfiles;
+    /* Second, expand archive files */
+    new_nfiles = nfiles;
+    new_files = expand_archive_names(&new_nfiles, files);
+    free(files[0]);
+    free(files);
 
-	new_nfiles = nfiles;
-	new_files = expand_archive_names(archive_file_list,
-					 &new_nfiles, files);
-	if(new_files != NULL)
-	{
-	    free(files[0]);
-	    free(files);
-	    nfiles = new_nfiles;
-	    files  = new_files;
-	}
-    }
-    *nfiles_in_out = nfiles;
-    return files;
+    *nfiles_in_out = new_nfiles;
+    return new_files;
 }
 
 #ifdef RAND_MAX

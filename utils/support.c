@@ -33,8 +33,12 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #include <stdarg.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif /* HAVE_SYS_TIME_H */
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif /* HAVE_SYS_TYPES_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -47,10 +51,13 @@
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif /* HAVE_SYS_PARAM_H */
+#include <ctype.h>
 
 #include "timidity.h"
 #include "mblock.h"
-
+#ifdef __MACOS__
+#include <Threads.h>
+#endif
 
 #ifndef HAVE_VSNPRINTF
 /* From glib-1.1.13:gstrfuncs.c
@@ -745,6 +752,12 @@ char *strerror(int errnum)
 int usleep(unsigned int usec)
 {
     Sleep(usec / 1000);
+    return 0;
+}
+#elif __MACOS__
+int usleep(unsigned int /*usec*/)
+{
+    YieldToAnyThread();
     return 0;
 }
 #else

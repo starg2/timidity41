@@ -2670,12 +2670,20 @@ static RETSIGTYPE sigterm_exit(int sig)
     s[2] = '\n';
     write(2, s, 3);
 
-    if(sig == SIGINT)
-	intr = 1;
+    if(sig == SIGINT && intr < 5)
+    {
+	intr++;
+	signal(SIGINT, sigterm_exit); /* For SysV base */
+    }
     else
 	safe_exit(1);
 }
 #endif /* HAVE_SIGNAL */
+
+static void timidity_arc_error_handler(char *error_message)
+{
+    ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "%s", error_message);
+}
 
 MAIN_INTERFACE void timidity_start_initialize(void)
 {
@@ -2727,6 +2735,7 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 	default_program[i] = DEFAULT_PROGRAM;
 	memset(channel[i].drums, 0, sizeof(channel[i].drums));
     }
+    arc_error_handler = timidity_arc_error_handler;
 
     if(is_first) /* initialize once time */
     {
@@ -2762,37 +2771,61 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 
 MAIN_INTERFACE int timidity_pre_load_configuration(void)
 {
-#ifdef IA_W32GUI
-    extern char *ConfigFile;
-    if(!read_config_file(ConfigFile, 0))
-	got_a_configuration=1;
-#elif defined(__W32__)
+#if defined(__W32__)
+    /* Windows */
     char *strp;
     int check;
-	char local[1024];
+    char local[1024];
 
- 	if(GetModuleFileName(NULL,local,1023)){
-        local[1023]='\0';
-		if(strp=strrchr(local,'\\')){
-			*(++strp)='\0';
-			strcat(local,"TIMIDITY.CFG");
-			if((check = open(local, 0)) >= 0){
-	    		close(check);
-	    		if(!read_config_file(local, 0))
-					got_a_configuration=1;
-			}
-	   	}
-	}
-   	if(!got_a_configuration){
-		GetWindowsDirectory(local,1023 - 13);
-		strcat(local,"\\TIMIDITY.CFG");
-      	if(!read_config_file(local, 0))
-		got_a_configuration=1;
-	}
+#ifdef IA_W32GUI
+    extern char *ConfigFile;
+    strncpy(local, ConfigFile, sizeof(local));
 #else
-    if(!read_config_file(CONFIG_FILE, 0))
-	got_a_configuration=1;
+    /* !IA_W32GUI */
+    GetWindowsDirectory(local, 1023 - 13);
+    strcat(local, "\\TIMIDITY.CFG");
 #endif
+
+    /* First, try read system configuration file.
+     * Default is C:\WINDOWS\TIMIDITY.CFG
+     */
+    if((check = open(local, 0)) >= 0)
+    {
+	close(check);
+	if(!read_config_file(local, 0))
+	    got_a_configuration = 1;
+    }
+
+    /* Next, try read configuration file which is in the
+     * TiMidity directory.
+     */
+    if(GetModuleFileName(NULL, local, 1023))
+    {
+        local[1023] = '\0';
+	if(strp = strrchr(local, '\\'))
+	{
+	    *(++strp)='\0';
+	    strcat(local,"TIMIDITY.CFG");
+	    if((check = open(local, 0)) >= 0)
+	    {
+		close(check);
+		if(!read_config_file(local, 0))
+		    got_a_configuration = 1;
+	    }
+	}
+    }
+
+#else
+    /* UNIX */
+    if(!read_config_file(CONFIG_FILE, 0))
+	got_a_configuration = 1;
+#endif
+
+    /* Try read configuration file which is in the
+     * $HOME (or %HOME% for DOS) directory.
+     * Please setup each user preference in $HOME/.timidity.cfg
+     * (or %HOME%/timidity.cfg for DOS)
+     */
 
     if(read_user_config_file())
 	ctl->cmsg(CMSG_INFO, VERB_NOISY,
@@ -2807,8 +2840,8 @@ MAIN_INTERFACE int timidity_post_load_configuration(void)
     cmderr = 0;
     if(!got_a_configuration)
     {
-	if(!try_config_again || read_config_file(CONFIG_FILE, 0))
-	    cmderr++;
+	if(try_config_again && !read_config_file(CONFIG_FILE, 0))
+	    got_a_configuration = 1;
     }
 
     if(opt_config_string.nstring > 0)
@@ -2820,13 +2853,19 @@ MAIN_INTERFACE int timidity_post_load_configuration(void)
 	if(config_string_list != NULL)
 	{
 	    for(i = 0; config_string_list[i]; i++)
-		if(read_config_file(config_string_list[i], 1))
+	    {
+		if(!read_config_file(config_string_list[i], 1))
+		    got_a_configuration = 1;
+		else
 		    cmderr++;
+	    }
 	    free(config_string_list[0]);
 	    free(config_string_list);
 	}
     }
 
+    if(!got_a_configuration)
+	cmderr++;
     return cmderr;
 }
 
@@ -2888,7 +2927,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 {
     int need_stdin = 0, need_stdout = 0;
     int i;
-    extern ArchiveFileList *archive_file_list;
+    int output_fail = 0;
 
     if(nfiles == 0 && !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character))
 	return 0;
@@ -2963,8 +3002,11 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
 		      "Couldn't open %s (`%c')",
 		      play_mode->id_name, play_mode->id_character);
+	    output_fail = 1;
+#ifndef IA_W32GUI
 	    ctl->close();
 	    return 2;
+#endif /* IA_W32GUI */
 	}
 
 	if(!control_ratio)
@@ -2977,8 +3019,11 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	}
 
 	init_load_soundfont();
-	aq_setup();
-	timidity_init_aq_buff();
+	if(!output_fail)
+	{
+	    aq_setup();
+	    timidity_init_aq_buff();
+	}
 	if(allocate_cache_size > 0)
 	    resamp_cache_reset();
 
@@ -3027,7 +3072,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	close_soundspec();
 #endif /* SUPPORT_SOUNDSPEC */
 
-    close_archive_files(archive_file_list);
+    free_archive_files();
 #ifdef SUPPORT_SOCKET
     url_news_connection_cache(URL_NEWS_CLOSE_CACHE);
 #endif /* SUPPORT_SOCKET */
@@ -3066,18 +3111,6 @@ int main(int argc, char **argv)
     }
     setreuid(uid, uid);
 #endif
-
-#if 0 /* For console redirect */
-    memcpy(stdout, fopen("/tmp/console", "a"), sizeof(*_iob));
-    memcpy(stderr, stdout, sizeof(*_iob));
-    printf("## TiMidity++ starts\n");
-    { int i;
-	for(i = 0; i < argc; i++)
-	    printf("[%d]: <%s>\n", i, argv[i]);
-    }
-    fflush(stdout);
-#endif
-
 
 #ifdef main
     {
@@ -3152,8 +3185,50 @@ int main(int argc, char **argv)
     if(err || (optind >= argc &&
 	       !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character)))
     {
-	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		  "Try %s -h for help", program_name);
+	if(!got_a_configuration)
+	{
+#ifdef __W32__
+	    char config1[1024];
+	    char config2[1024];
+
+	    memset(config1, 0, sizeof(config1));
+	    memset(config2, 0, sizeof(config2));
+#ifdef IA_W32GUI
+	    {
+		extern char *ConfigFile;
+		strncpy(config1, ConfigFile, sizeof(config1));
+	    }
+#else
+	    /* !IA_W32GUI */
+	    GetWindowsDirectory(config1, 1023 - 13);
+	    strcat(config1, "\\TIMIDITY.CFG");
+#endif
+
+	    if(GetModuleFileName(NULL, config2, 1023))
+	    {
+		char *strp;
+		config2[1023] = '\0';
+		if(strp = strrchr(config2, '\\'))
+		{
+		    *(++strp)='\0';
+		    strcat(config2,"TIMIDITY.CFG");
+		}
+	    }
+
+	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+		      "%s: Can't read any configuration file.\nPlease check "
+		      "%s or %s", program_name, config1, config2);
+#else
+	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+		      "%s: Can't read any configuration file.\nPlease check "
+		      CONFIG_FILE, program_name);
+#endif /* __W32__ */
+	}
+	else
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Try %s -h for help", program_name);
+	}
 	return 1; /* problems with command line */
     }
 

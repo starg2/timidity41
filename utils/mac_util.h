@@ -57,12 +57,12 @@ void	TEReadFile(char* filename, TEHandle te);
   Because CodeWarrior does not support sys_errlist[].
   If your compiler supports, you need not applend this file.
 */
-char** sys_errlist_();
-#define sys_errlist sys_errlist_()
+//char** sys_errlist_();
+//#define sys_errlist sys_errlist_()
 char* strdup(const char*);
 //char* strncasecmp(const char*, const char*, int);
 #define	strcasecmp mac_strcasecmp
-#define	strncasecmp mac_strncasecmp
+//#define	strncasecmp mac_strncasecmp
 int mac_strcasecmp(const char *s1, const char *s2);
 int mac_strncasecmp(const char *s1, const char *s2, size_t n );
 int strtailcasecmp(const char *s1, const char *s2);

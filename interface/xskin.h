@@ -29,10 +29,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef __MACOS__
 #include <sys/time.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
+#endif /* __MACOS__ */
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -40,11 +42,12 @@
 #include <strings.h>
 #endif /* NO_STRING_H */
 
+#ifndef __MACOS__
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-
+#endif /* __MACOS__ */
 
 #define XSKIN_WINDOW_NAME "Timidity"
 #define XSKIN_RES_CLASS   "timidity"
@@ -150,8 +153,8 @@ extern void ts_spectrum( int, unsigned char * );
 #define BITRATE_Y        43
 #define SAMPLE_X         156
 #define SAMPLE_Y         43
-#define MESSAGE_X        110
-#define MESSAGE_Y        24
+#define MESSAGE_X        112
+#define MESSAGE_Y        27
 
 /* numbers */
 

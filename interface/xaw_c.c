@@ -306,14 +306,13 @@ static void ctl_close(void)
 static void xaw_add_midi_file(char *additional_path) {
     char *files[1],**ret,**tmp;
     int i,nfiles,nfit;
-    char *p,*elem;
+    char *p;
 
     files[0] = additional_path;
     nfiles = 1;
-    if((elem = strrchr(additional_path,'#')) != NULL)
-        ret = files;
-    else
-        ret = expand_file_archives(files, &nfiles);
+    ret = expand_file_archives(files, &nfiles);
+    if(ret == NULL)
+      return;
     tmp = list_of_files;
     titles=(char **)safe_realloc(titles,(number_of_files+nfiles)*sizeof(char *));
     list_of_files=(char **)safe_malloc((number_of_files+nfiles)*sizeof(char *));
@@ -340,7 +339,8 @@ static void xaw_add_midi_file(char *additional_path) {
         for (i=0;i<nfit;i++)
             a_pipe_write(titles[number_of_files-nfit+i]);
     }
-    if(ret != files) free(ret);
+    free(ret[0]);
+    free(ret);
 }
 
 static void xaw_delete_midi_file(int delete_num) {

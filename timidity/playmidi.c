@@ -190,6 +190,7 @@ static void update_portamento_controls(int ch);
 static void update_rpn_map(int ch, int addr, int update_now);
 static void ctl_prog_event(int ch);
 static void ctl_timestamp(void);
+static void ctl_updatetime(int32 samples);
 static void ctl_pause_event(int pause, int32 samples);
 
 static char *event_name(int type)
@@ -214,19 +215,18 @@ static char *event_name(int type)
 	EVENT_NAME(ME_PAN);
 	EVENT_NAME(ME_EXPRESSION);
 	EVENT_NAME(ME_SUSTAIN);
-	EVENT_NAME(ME_PORTAMENTO_TIME_LSB);
 	EVENT_NAME(ME_PORTAMENTO_TIME_MSB);
+	EVENT_NAME(ME_PORTAMENTO_TIME_LSB);
 	EVENT_NAME(ME_PORTAMENTO);
+	EVENT_NAME(ME_PORTAMENTO_CONTROL);
 	EVENT_NAME(ME_DATA_ENTRY_MSB);
 	EVENT_NAME(ME_DATA_ENTRY_LSB);
 	EVENT_NAME(ME_SOSTENUTO);
 	EVENT_NAME(ME_SOFT_PEDAL);
-#if 0
 	EVENT_NAME(ME_HARMONIC_CONTENT);
 	EVENT_NAME(ME_RELEASE_TIME);
 	EVENT_NAME(ME_ATTACK_TIME);
 	EVENT_NAME(ME_BRIGHTNESS);
-#endif
 	EVENT_NAME(ME_REVERB_EFFECT);
 	EVENT_NAME(ME_TREMOLO_EFFECT);
 	EVENT_NAME(ME_CHORUS_EFFECT);
@@ -243,13 +243,13 @@ static char *event_name(int type)
 	EVENT_NAME(ME_ALL_NOTES_OFF);
 	EVENT_NAME(ME_MONO);
 	EVENT_NAME(ME_POLY);
+#if 0
+	EVENT_NAME(ME_VOLUME_ONOFF);		/* Not supported */
+#endif
 	EVENT_NAME(ME_RANDOM_PAN);
 	EVENT_NAME(ME_SET_PATCH);
 	EVENT_NAME(ME_DRUMPART);
 	EVENT_NAME(ME_KEYSHIFT);
-#if 0
-	EVENT_NAME(ME_VOLUME_ONOFF);
-#endif
 	EVENT_NAME(ME_TEMPO);
 	EVENT_NAME(ME_CHORUS_TEXT);
 	EVENT_NAME(ME_LYRIC);
@@ -261,8 +261,11 @@ static char *event_name(int type)
 	EVENT_NAME(ME_RESET);
 	EVENT_NAME(ME_NOTE_STEP);
 	EVENT_NAME(ME_PATCH_OFFS);
-	EVENT_NAME(ME_WRD);
 	EVENT_NAME(ME_TIMESIG);
+	EVENT_NAME(ME_WRD);
+	EVENT_NAME(ME_SHERRY);
+	EVENT_NAME(ME_BARMARKER);
+	EVENT_NAME(ME_STEP);
 	EVENT_NAME(ME_LAST);
 	EVENT_NAME(ME_EOT);
     }
@@ -1957,7 +1960,11 @@ static void midi_program_change(int ch, int prog)
 	channel[ch].bank = newbank;
 	channel[ch].altassign = NULL;
     }
-    channel[ch].program = prog;
+
+    if(!ISDRUMCHANNEL(ch) && default_program[ch] == SPECIAL_PROGRAM)
+      channel[ch].program = SPECIAL_PROGRAM;
+    else
+      channel[ch].program = prog;      
 
     if(opt_realtime_playing == 2 && !dr)
     {
@@ -2835,6 +2842,7 @@ static int apply_controls(void)
 	    }
 	    aq_flush(1);
 	    skip_to(0);
+	    ctl_updatetime(0);
 	    jump_flag = 1;
 	    continue;
 
@@ -2849,6 +2857,7 @@ static int apply_controls(void)
 	    if (val >= sample_count)
 		return RC_NEXT;
 	    skip_to(val);
+	    ctl_updatetime(val);
 	    return rc;
 
 	  case RC_FORWARD:	/* >> */
@@ -2867,6 +2876,7 @@ static int apply_controls(void)
 	    if(val + cur >= sample_count)
 		return RC_NEXT;
 	    skip_to(val + cur);
+	    ctl_updatetime(val + cur);
 	    return RC_JUMP;
 
 	  case RC_BACK:		/* << */
@@ -2883,9 +2893,15 @@ static int apply_controls(void)
 	    if(cur == -1)
 		cur = current_sample;
 	    if(cur > val)
+	    {
 		skip_to(cur - val);
+		ctl_updatetime(cur - val);
+	    }
 	    else
+	    {
 		skip_to(0);
+		ctl_updatetime(0);
+	    }
 	    return RC_JUMP;
 
 	  case RC_TOGGLE_PAUSE:
@@ -3022,11 +3038,13 @@ static int apply_controls(void)
 	    playmidi_output_changed(0);
 	    return RC_RELOAD;
 	}
+	if(intr)
+	    return RC_QUIT;
 	if(play_pause_flag)
 #ifdef HAVE_USLEEP
 	    usleep(300000);
 #else
-	sleep(1);
+	    sleep(1);
 #endif
     } while (rc != RC_NONE || play_pause_flag);
     return jump_flag ? RC_JUMP : RC_NONE;
@@ -4161,8 +4179,24 @@ static void ctl_timestamp(void)
     ce.v2 = last_voices = voices;
     if(ctl->trace_playing && !midi_trace.flush_flag)
 	push_midi_trace_ce(ctl->event, &ce);
-    else
+    else if(ctl->event)
 	ctl->event(&ce);
+}
+
+static void ctl_updatetime(int32 samples)
+{
+    long secs;
+    CtlEvent ce;
+
+    secs = (long)(samples / (midi_time_ratio * play_mode->rate));
+    ce.type = CTLE_CURRENT_TIME;
+    ce.v1 = secs;
+    ce.v2 = 0;
+    if(ctl->event)
+    {
+	ctl->event(&ce);
+	ctl_mode_event(CTLE_REFRESH, 0, 0, 0);
+    }
 }
 
 static void ctl_prog_event(int ch)

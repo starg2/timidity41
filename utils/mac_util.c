@@ -22,6 +22,9 @@
 	
     mac_util.c
 */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include 	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -183,6 +186,7 @@ void    mac_TransPathSeparater(const char str[], char out[])
 		}
 	}
 }
+#if 0
 
 char** sys_errlist_()
 {
@@ -195,25 +199,13 @@ char** sys_errlist_()
 	if( errno==ENOSPC )
 		strcpy(s,"Out of Space.");
 	else
-		sprintf(s, "error no.%d", errno);
+		snprintf(s, 80, "error no.%d", errno);
 	
 	return(ret-errno);
 }
-
+#endif /*0*/
 // **************************************************
 #pragma mark -
-
-char* strdup(const char* org)
-{
-	char* newstring;
-	
-	newstring=(char*)malloc(strlen(org)+1);
-	if( newstring==0 ){
-		return 0;
-	}
-	strcpy(newstring, org);
-	return newstring;
-}
 
 /* special fgets */
 /* allow \r as return code */
@@ -229,7 +221,9 @@ char* mac_fgets( char buf[], int n, FILE* file)
 	}
 	
 	buf[i]=0;
-	if( buf[0]==EOF && feof(file) ) return 0;
+	if( i>0 && buf[i-1]==EOF ){ buf[i-1]=0; i--; }
+	
+	if( i==0 && c==EOF && feof(file) ) return 0;
 	
 	
 	if( i==1 && buf[0]=='\n' ){ /* probably dos LF (Unix blank line?)*/

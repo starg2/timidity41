@@ -1,3 +1,65 @@
+1999-08-09  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.4.0 released.
+
+1999-08-09  Masanao Izumo <mo@goice.co.jp>
+            Takaya Nogami <t-nogami@happy.email.ne.jp>
+    * utils/{support.c,mac_readdir.c,mac_util.c,mac_util.h},
+      interface/{xskin.h,VTPrsTbl.c,mac_c.c,mac_loadBMP.c,mac_loadBMP.h,
+	mac_loadpng.c,mac_oms.c,mac_oms.h,mac_sherry.c,mac_skin.c,mac_skin.h,
+	mac_trace.c,mac_wrd.h,mac_wrdwindow.c,mac_wrdwindow.h,wrdt_mac.c},
+      timidity/{output.h,playmidi.h,playmidi.c,readmidi.c,wrdt.c,
+	mac_a.c,mac_com.h,mac_dlog.c,mac_main.c,mac_main.h,mac_oms_a.c
+	mac_qt_a.c}
+      Imported Macinotsh sources from the 1999.8.7 of T.Nogami released
+      Added GS lcd event by T.Nogami.
+
+1999-08-08  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/playmidi.c (ctl_updatetime): New function to
+      update interface time.
+    * timidity/common.c (DECOMPRESSOR_LIST, PATCH_CONVERTERS):
+      Ignored for Windows.  These filters are not worked yet.
+    * interface/w32g.h (RC_EXT_UPDATE_PLAYLIST): New macro.
+    * interface/{w32g_c.c,w32g_i.c}: w32g_update_playlist() only
+      called from w32g_c.c.  Don't call it from w32g_i.c.
+    * interface/vt100_c.c: Change a old copyright to new one.
+
+1999-08-07  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc: Make archive library code more simple.
+      Some interfaces are changed.
+      New archive library can expand more archive files.
+    * timidity/{timidity.c,common.c} interface/{ncurs_c.c,xaw_c.c}:
+      Change to new libarc interface.
+    * timidity/playmidi.c (midi_program_change):
+      Don't change the instrument of SPECIAL_PROGRAM channel.
+    * timidity/output.h (PM_REQ_GETFILLABLE): New macro.
+      play_mode->acntl(PM_REQ_GETFILLABLE, &fillable) gets
+      number of samples can write.
+    * timidity/output.h (PM_REQ_GETFILLED): New macro.
+      play_mode->acntl(PM_REQ_GETFILLED, &filled) gets
+      number of samples in audio device.
+    * timidity/aq.c (aq_fillable): Check PM_REQ_GETFILLABLE.
+    * timidity/aq.c (aq_filled): Check PM_REQ_GETFILLED.
+    * timidity/linux_a.c (acntl):
+      PM_REQ_GETQSIZ, PM_REQ_GETFILLABLE, PM_REQ_GETFILLED,
+      PM_REQ_GETSAMPLES, and PM_REQ_FLUSH are implemented.
+      (Tested SOUND_VERSION 0x030802)
+    * timidity/aq.c (aq_flush): Avoid unterminated loop.
+    * interface/ncurs_c.c: Bug fixed about displaying instrum name scroll.
+
+1999-08-02  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/w32g_i.c (hListWnd, hSettingWnd): Create at first open.
+    * interface/w32g_i.c (w32g_i_init): New function.  It is called just
+      last of w32g_initialize().
+    * interface/w32g_canvas.c (TmCanvasMode): Global.
+    * interface/w32g_i.c (SettingWndApply): Restore ctl->trace_playing after
+      ApplySettingTiMidity().
+    * interface/w32g_i.c: Remove warning message that was displayed when
+      a user tries to change the timidity parameter.
+
 1999-08-01  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.3.0 released.
@@ -448,7 +510,7 @@ Files: libarc/arc_lzh.c libarc/url_dir.c timidity/common.c utils/timer.c
 
 Date: Fri Mar 26 1999
 From: Masanao Izumo <mo@goice.co.jp>
-    Imported macinotsh sources from the 1999.3.13 of T.Nogami released
+    Imported Macinotsh sources from the 1999.3.13 of T.Nogami released
 
 Date: Fri Mar 26 1999
 From: Masanao Izumo <mo@goice.co.jp>

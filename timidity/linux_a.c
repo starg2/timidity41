@@ -205,13 +205,13 @@ static int open_output(void)
     tmp = AUDIO_BUFFER_BITS;
     if(!(dpm.encoding & PE_MONO)) tmp++;
     if(dpm.encoding & PE_16BIT) tmp++;
-    tmp |= (dpm.extra_param[0] << 16);
     i = tmp;
+    tmp |= (dpm.extra_param[0] << 16);
     if(ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &tmp) < 0)
     {
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
-		  "%s doesn't support %d-byte buffer fragments",
-		  dpm.name, (1<<i));
+		  "%s doesn't support %d-byte buffer fragments (%d)",
+		  dpm.name, 1<<i, i);
 	/* It should still work in some fashion. We should use a
 	   secondary buffer anyway -- 64k isn't enough. */
 	warnings = 1;
@@ -272,21 +272,67 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
+    audio_buf_info info;
+    count_info cinfo;
+    int total, bytes;
+
     switch(request)
     {
+    case PM_REQ_GETQSIZ:
+      if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	return -1;
+      total = info.fragstotal * info.fragsize;
+      *((int *)arg) = total;
+      return 0;
+
       case PM_REQ_DISCARD:
 	return ioctl(dpm.fd, SNDCTL_DSP_RESET);
 
       case PM_REQ_RATE: {
-	  /* audio_info_t auinfo; */
 	  int rate;
-
 	  rate = *(int *)arg;
 	  if(ioctl(dpm.fd, SNDCTL_DSP_SPEED, &rate) < 0)
 	      return -1;
 	  play_mode->rate = rate;
 	  return 0;
 	}
+
+    case PM_REQ_GETFILLABLE:
+      if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	return -1;
+      total = info.fragstotal * info.fragsize;
+      bytes = info.bytes;
+      if(bytes > total)
+	bytes = total;
+      if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
+      if(dpm.encoding & PE_16BIT) bytes >>= 1;
+      *((int *)arg) = bytes;
+      return 0;
+
+    case PM_REQ_GETFILLED:
+      if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	return -1;
+      total = info.fragstotal * info.fragsize;
+      bytes = info.bytes;
+      if(bytes > total)
+	bytes = total;
+      bytes = total - bytes;
+      if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
+      if(dpm.encoding & PE_16BIT) bytes >>= 1;
+      *((int *)arg) = bytes;
+      return 0;
+
+    case PM_REQ_GETSAMPLES:
+      if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
+	return -1;
+      bytes = cinfo.bytes;
+      if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
+      if(dpm.encoding & PE_16BIT) bytes >>= 1;
+      *((int *)arg) = bytes;
+      return 0;
+
+    case PM_REQ_FLUSH:
+      return ioctl(dpm.fd, SNDCTL_DSP_SYNC);
     }
     return -1;
 }

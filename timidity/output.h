@@ -43,6 +43,10 @@ enum {
 			 * with this request.
 			 */
 
+    PM_REQ_INST_NAME,	/* ARG: char**
+			 * Get Instrument name of channel.
+			 */
+
     PM_REQ_DISCARD,	/* ARG: not-used
 			 * Discard the audio device buffer and returns
 			 * immediatly.
@@ -78,6 +82,14 @@ enum {
 
     PM_REQ_PLAY_START,	/* ARG: not-used
 			 * PM_REQ_PLAY_START is called just before playing.
+			 */
+
+    PM_REQ_GETFILLABLE,	/* ARG: int
+			 * Get fillable device queue size
+			 */
+
+    PM_REQ_GETFILLED	/* ARG: int
+			 * Get filled device queue size
 			 */
 };
 

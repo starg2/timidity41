@@ -81,12 +81,26 @@ void dev_init_text_color()
 	}
 }
 
+static void expand_horizontality( PixMapHandle pixmap, int width, int height )
+{			//pixmap must be locked	//for @TON(2)
+	int	x,y;
+	Ptr	baseAdr= GetPixBaseAddr(pixmap), xbase;
+	int	rowBytes= (**pixmap).rowBytes & 0x1FFF;
+	
+	for( y=0; y<height; y++){
+		xbase= baseAdr+ rowBytes*y;
+		for( x=width-1; x>=0; x-- ){
+			xbase[x*2]= xbase[x*2+1]= xbase[x];
+		}
+	}
+}
+
 void dev_draw_text_gmode(PixMapHandle pixmap, int x, int y, const char* s, int len,
-			int pmask, int mode, int fgcolor, int bgcolor )
+		int pmask, int mode, int fgcolor, int bgcolor, int ton_mode)
 {			//pixmap must be already locked
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
-	int		color, trans;
+	int		color, trans, width;
 	Rect		rect= {0,0,16,32},
 			destrect;
 	
@@ -106,10 +120,16 @@ void dev_draw_text_gmode(PixMapHandle pixmap, int x, int y, const char* s, int l
 		TextMode(srcOr);
 		MoveTo(0,13);
 		DrawText(s,0,len);
+		if( ton_mode==2 ){
+			expand_horizontality(charbufWorld->portPixMap, len*8, 16);
+		}
 		
-		rect.right=len*8;
+		width= len*8;
+		if( ton_mode==2 ) width*=2;
+		
+		rect.right=width;
 		destrect.left=x; destrect.top=y;
-		destrect.right=x+len*8; destrect.bottom=destrect.top+16;
+		destrect.right=x+width; destrect.bottom=destrect.top+16;
 		
 		MyCopyBits(charbufWorld->portPixMap, pixmap,
 			rect, destrect, 0x11/*trans*/, trans, pmask,
@@ -218,7 +238,7 @@ void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
 	//check left
 	if( srcRect.left  <srcBounds.left ){
 		cut= srcBounds.left-srcRect.left;
-		srcRect.left+= cut; dstRect.top+=cut;
+		srcRect.left+= cut; dstRect.left+=cut;
 	}
 	if( srcRect.left>srcBounds.right ) return;
 	//chech src bottom
@@ -252,7 +272,7 @@ void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
 	//check left
 	if( dstRect.left <dstBounds.left ){
 		cut= dstBounds.left-dstRect.left;
-		srcRect.left+= cut; dstRect.top+=cut;
+		srcRect.left+= cut; dstRect.left+=cut;
 	}
 	if( dstRect.left>dstBounds.right ) return;
 	//check width
@@ -313,13 +333,19 @@ void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
 	}
 }
 
-void dev_line(int x1, int y1, int x2, int y2, int color, int pmask,
-			PixMapHandle pixmap )
+void dev_line(int x1, int y1, int x2, int y2, int color, int style,
+	int pmask, PixMapHandle pixmap )
 {
 	int	i, dx, dy, s, step;
 	int	rowBytes= (**pixmap).rowBytes & 0x1FFF;
 	Ptr	baseAdr= GetPixBaseAddr(pixmap);
-#define DOT(x,y) {Ptr p=&baseAdr[y*rowBytes+x]; (*p)&=~pmask; (*p)|=color; }
+	Rect	bounds=  (**pixmap).bounds;
+	Point	pt;
+	static const int mask[8]={0x80,0x40,0x20,0x10, 0x08,0x04,0x02,0x01};
+	int	style_count=0;
+
+#define DOT(x,y,col) {Ptr p=&baseAdr[y*rowBytes+x]; pt.h=x;pt.v=y;    \
+		if(PtInRect(pt,&bounds)){(*p)&=~pmask; (*p)|=col;} }
 	
 	color &= pmask;
 	step= ( (x1<x2)==(y1<y2) ) ? 1:-1;
@@ -327,21 +353,29 @@ void dev_line(int x1, int y1, int x2, int y2, int color, int pmask,
 	
 	if( dx>dy ){
 		if( x1>x2 ){ x1=x2; y1=y2; }
-		DOT(x1,y1);
+		if(style & mask[style_count]){ DOT(x1,y1,color); }
+					//else { DOT(x1,y1,0); }
+		style_count= (style_count+1)%8;
 		s= dx/2;
 		for(i=x1+1; i<x1+dx; i++){
 			s-= dy;
 			if( s<0 ){ s+=dx; y1+=step;}
-			DOT(i,y1);
+			if(style & mask[style_count]){ DOT(i,y1,color); }
+						//else{ DOT(i,y1,0); }
+			style_count= (style_count+1)%8;
 		}
 	}else{
 		if( y1>y2 ){ x1=x2; y1=y2; }
-		DOT(x1,y1);
+		if(style & mask[style_count]){ DOT(x1,y1,color); }
+					//else{ DOT(x1,y1,0); }
+		style_count= (style_count+1)%8;
 		s= dy/2;
 		for(i=y1+1; i<y1+dy; i++){
 			s-= dx;
 			if( s<0 ){ s+=dy; x1+=step;}
-			DOT(x1,i);
+			if(style & mask[style_count]){ DOT(x1,i,color); }
+						//else{ DOT(x1,i,0); }
+			style_count= (style_count+1)%8;
 		}
 	}
 }
@@ -402,7 +436,7 @@ void mac_setfont(GWorldPtr world, Str255 fontname)
 		GetFNum(fontname, &fontID);
 		TextFont(fontID);
 		TextSize(14);
-		TextFace(/*extend|*/bold);
+		TextFace(extend/*|bold*/);
 	}
 	SetGWorld(oldGW, oldGD);
 	UnlockPixels(world->portPixMap);

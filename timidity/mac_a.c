@@ -49,7 +49,7 @@
 extern int default_play_event(void *);
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static void output_data(char *buf, int32 nbytes);
+static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 
 
@@ -82,7 +82,8 @@ SndChannelPtr	gSndCannel=0;
 short			mac_amplitude=0x00FF;
 unsigned long	start_tic;
 volatile static int32	play_counter;
-static int				filling_flag, flushing_flag;
+volatile int	mac_buf_using_num, mac_flushing_flag;
+static int	filling_flag;
 /* ******************************************************************* */
 static SndChannelPtr MyCreateSndChannel(short synth, long initOptions,
 					SndCallBackUPP userRoutine,	short	queueLength)
@@ -111,18 +112,20 @@ static void initCounter()
 {
 	start_tic=TickCount();
 	play_counter=0;
+	mac_buf_using_num=0;
 	filling_flag=0;
 	play_mode->extra_param[0]=0;
-	flushing_flag=0;
+	mac_flushing_flag=0;
 }
 
 static pascal void callback( SndChannelPtr /*chan*/, SndCommand * cmd)
 {
 	if( cmd->param2==FLUSH_END ){
-		flushing_flag=0;
+		mac_flushing_flag=0;
 	}else{
 		play_counter+= cmd->param2;
 	}
+	mac_buf_using_num--;
 }
 
 static int open_output (void)
@@ -152,6 +155,7 @@ static int open_output (void)
 	theCmd.param1=mac_amplitude;
 	SndDoCommand(gSndCannel, &theCmd, 0);
 	initCounter();
+	do_initial_filling=1; //experimental
 	return 0;
 }
 
@@ -190,7 +194,7 @@ static void QuingSndCommand(SndChannelPtr chan, const SndCommand *cmd)
 	}
 }
 
-static void output_data (char *buf, int32 nbytes)
+static int output_data (char *buf, int32 nbytes)
 {
 	short			err,headerLen;
 	//long			len = count;
@@ -198,6 +202,10 @@ static void output_data (char *buf, int32 nbytes)
 	long			offset;
 	SndCommand		theCmd;
 	
+	if( gCursorIsWatch ){
+		InitCursor();	gCursorIsWatch=false;
+	}
+
 			// start INITIAL FILLING
 	if( play_counter==0 && filling_flag==0 && do_initial_filling){
 		filling_flag=1;
@@ -221,7 +229,6 @@ static void output_data (char *buf, int32 nbytes)
 	
 	//s32tos16 (buf, count);	/*power mac always 16bit*/
 	
-	
 	if( nbytes>MACBUFSIZE)
 		mac_ErrorExit("\pTiMidity Error--sound packet is too large");	
 	err= SetupSndHeader((SndListHandle)soundHandle[nextBuf],
@@ -239,13 +246,14 @@ static void output_data (char *buf, int32 nbytes)
 	theCmd.param2=(long)( *(soundHandle[nextBuf])+offset);
 	
 	QuingSndCommand(gSndCannel, &theCmd);
-	nextBuf++;	if( nextBuf>=MACBUFNUM ) nextBuf=0;
+	nextBuf++; mac_buf_using_num++;	if( nextBuf>=MACBUFNUM ) nextBuf=0;
 
 	theCmd.cmd= callBackCmd;	// post set
 	theCmd.param1= 0;
 	theCmd.param2= samples;
 	QuingSndCommand(gSndCannel, &theCmd);
 	play_mode->extra_param[0] += samples;
+	return 0; /*good*/
 }
 
 static void fade_output()
@@ -267,8 +275,9 @@ static void purge_output (void)
 {
 	OSErr		err;
 	SndCommand	theCmd;
-	
+#if FADE_AT_PURGE
 	if( skin_state==PLAYING ) fade_output();
+#endif
 	theCmd.cmd=flushCmd;	/*clear buffer*/
 	err= SndDoImmediate(gSndCannel, &theCmd);
 	theCmd.cmd=quietCmd;
@@ -311,7 +320,7 @@ static int flush_output (void)
 	int			ret=RC_NONE;
 	SndCommand	theCmd;
 
-	flushing_flag=1;
+	mac_flushing_flag=1;
 	theCmd.cmd= callBackCmd;
 	theCmd.param1= 0;
 	theCmd.param2= FLUSH_END;
@@ -322,7 +331,7 @@ static int flush_output (void)
 		trace_loop();
 		YieldToAnyThread();
 		//ctl->current_time(current_samples());
-   		if( ! flushing_flag ){ //end of midi
+   		if( ! mac_flushing_flag ){ //end of midi
    			ret= RC_NONE;
    			break;
    		}else if( mac_rc!=RC_NONE ){
@@ -339,16 +348,19 @@ static int32 current_samples(void)
 	return play_counter;
 }
 
-static int acntl(int request, void *arg)
+static int acntl(int request, void * arg)
 {
     switch(request)
     {
       case PM_REQ_DISCARD:
 	purge_output();
 	return 0;
-      /*case PM_REQ_GETQSIZ:
-        *(int32*)arg= MACBUFNUM*AUDIO_BUFFER_SIZE*40;
-      	return 0;*/
+      case PM_REQ_GETQSIZ:
+        *(int32*)arg= MACBUFNUM*AUDIO_BUFFER_SIZE*10;
+      	return 0;
+      case PM_REQ_GETSAMPLES:
+      	*(int*)arg= current_samples();
+      	return 0;
     }
     return -1;
 }
