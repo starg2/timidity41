@@ -140,7 +140,7 @@ INTERFACE_OBJS = $(INTERFACE_SRCS:.c=.o)
 libinterface_a_LIBADD =  	$(INTERFACE_OBJS) 	$(WRD_OBJS) 	$(WRD_WINCON_OBJS) 	$(DYNAMIC_OBJS) 	$(SOUND_SPEC_OBJS)
 
 
-libinterface_a_DEPENDENCIES =  	$(top_srcdir)/interface.h 	$(libinterface_a_LIBADD) 	$(tcltk_dep) 	$(W32GUI_DEPS)
+libinterface_a_DEPENDENCIES =  	$(top_builddir)/interface.h 	$(libinterface_a_LIBADD) 	$(tcltk_dep) 	$(W32GUI_DEPS)
 
 
 # Tcl interface sources
@@ -149,7 +149,7 @@ TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
 TCLF = tkmidity.tcl tkpanel.tcl browser.tcl misc.tcl
 ALLTCLF = $(TCLF) tclIndex
 
-EXTRA_DIST =  	tkmidity.ptcl 	tkpanel.tcl 	browser.tcl 	misc.tcl 	timidity.el
+EXTRA_DIST =  	tkmidity.ptcl 	tkpanel.tcl 	browser.tcl 	misc.tcl 	timidity.el 	tclIndex
 
 @ENABLE_TCLTK_TRUE@install_tk = install.tk
 @ENABLE_DYNAMIC_TCLTK_TRUE@install_tk = install.tk
@@ -582,6 +582,7 @@ clean:
 	rm -f *.$(so)
 
 tclIndex: $(TCLF)
+	rm -f tclIndex
 	echo 'auto_mkindex . *.tcl; exit' | $(WISH)
 
 install.tk: $(ALLTCLF) install.bitmaps

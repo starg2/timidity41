@@ -537,7 +537,7 @@ static void play_event_prescan(void *p)
 		for(;; ev++){
 			ch = ev->channel;
 		if(ev->type == ME_NOTEON && note_channel[ch] == NULL){
-			MidiEvent *ev;
+			//MidiEvent *ev;
 
 			ev->channel = ch;
 			ev->a = 0;
@@ -555,7 +555,7 @@ static void play_event_prescan(void *p)
 				drum_part[ch] = true;
 		}
 		else if(ev->type == ME_DRUMPART && !drum_part[ch]){
-			MidiEvent *ev;
+			//MidiEvent *ev;
 
 			ev->channel = ch;
 			ev->a = channel[ch].program;
@@ -829,7 +829,7 @@ static void qt_play_event(void *p)
 		break;
 	case ME_DRUMPART:
 		if(!drum_part[ch]){
-			MidiEvent *ev;
+			//MidiEvent *ev;
 
 			ev->channel = ch;
 			ev->a = channel[ch].program;

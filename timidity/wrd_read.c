@@ -2003,6 +2003,11 @@ static void sry_read_headerblock(struct wrd_step_tracer* wrdstep,
 		{
 		  case 0x00: /* end of header */
 		    return;
+		  case 0x20:
+		    if( mimpi_bug_emulation_level >= 1 ){
+		      sry_timebase21(wrdstep, SRY_GET_SHORT(packet.data+1));
+		    }
+		    break;
 		  case 0x21:
 		    sry_timebase21(wrdstep, SRY_GET_SHORT(packet.data+1));
 		    break;

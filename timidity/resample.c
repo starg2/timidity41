@@ -126,6 +126,9 @@ static int resample_buffer_offset;
 static sample_t *vib_resample_voice(int, int32 *, int);
 static sample_t *normal_resample_voice(int, int32 *, int);
 
+#ifdef PRECALC_LOOPS
+#define PRECALC_LOOP_COUNT(start, end, incr) (((end) - (start) + (incr) - 1) / (incr))
+#endif /* PRECALC_LOOPS */
 
 /*************** resampling with fixed increment *****************/
 
@@ -149,7 +152,7 @@ static sample_t *rs_plain_c(int v, int32 *countptr)
     ofs += count;
     if(ofs == le)
     {
-	vp->status=VOICE_FREE;
+	free_voice(v);
 	ctl_note_event(v);
 	*countptr = count;
     }
@@ -186,7 +189,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
 
   /* Precalc how many times we should go through the loop.
      NOTE: Assumes that incr > 0 and that ofs <= le */
-  i = (le - ofs) / incr + 1;
+  i = PRECALC_LOOP_COUNT(ofs, le, incr);
 
   if (i > count)
     {
@@ -204,7 +207,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
   if (ofs >= le)
     {
       FINALINTERP;
-      vp->status=VOICE_FREE;
+      free_voice(v);
       ctl_note_event(v);
       *countptr-=count+1;
     }
@@ -216,7 +219,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
       if (ofs >= le)
 	{
 	  FINALINTERP;
-	  vp->status=VOICE_FREE;
+	  free_voice(v);
  	  ctl_note_event(v);
 	  *countptr-=count+1;
 	  break;
@@ -287,7 +290,7 @@ static sample_t *rs_loop(Voice *vp, int32 count)
       while (ofs >= le)
 	ofs -= ll;
       /* Precalc how many times we should go through the loop */
-      i = (le - ofs) / incr + 1;
+      i = PRECALC_LOOP_COUNT(ofs, le, incr);
       if (i > count)
 	{
 	  i = count;
@@ -333,12 +336,12 @@ static sample_t *rs_bidir(Voice *vp, int32 count)
     i, j;
   /* Play normally until inside the loop region */
 
-  if (ofs <= ls)
+  if (incr > 0 && ofs < ls)
     {
       /* NOTE: Assumes that incr > 0, which is NOT always the case
 	 when doing bidirectional looping.  I have yet to see a case
 	 where both ofs <= ls AND incr < 0, however. */
-      i = (ls - ofs) / incr + 1;
+      i = PRECALC_LOOP_COUNT(ofs, ls, incr);
       if (i > count)
 	{
 	  i = count;
@@ -357,7 +360,7 @@ static sample_t *rs_bidir(Voice *vp, int32 count)
   while(count)
     {
       /* Precalc how many times we should go through the loop */
-      i = ((incr > 0 ? le : ls) - ofs) / incr + 1;
+      i = PRECALC_LOOP_COUNT(ofs, incr > 0 ? le : ls, incr);
       if (i > count)
 	{
 	  i = count;
@@ -545,7 +548,7 @@ static sample_t *rs_vib_plain(int v, int32 *countptr)
       if (ofs >= le)
 	{
 	  FINALINTERP;
-	  vp->status=VOICE_FREE;
+	  free_voice(v);
  	  ctl_note_event(v);
 	  *countptr-=count+1;
 	  break;
@@ -588,7 +591,7 @@ static sample_t *rs_vib_loop(Voice *vp, int32 count)
 	ofs -= ll;
       /* Precalc how many times to go through the loop, taking
 	 the vibrato control ratio into account this time. */
-      i = (le - ofs) / incr + 1;
+      i = PRECALC_LOOP_COUNT(ofs, le, incr);
       if(i > count) i = count;
       if(i > cc)
 	{
@@ -654,9 +657,9 @@ static sample_t *rs_vib_bidir(Voice *vp, int32 count)
     vibflag = 0;
 
   /* Play normally until inside the loop region */
-  while (count && (ofs <= ls))
+  while (count && incr > 0 && ofs < ls)
     {
-      i = (ls - ofs) / incr + 1;
+      i = PRECALC_LOOP_COUNT(ofs, ls, incr);
       if (i > count) i = count;
       if (i > cc)
 	{
@@ -683,7 +686,7 @@ static sample_t *rs_vib_bidir(Voice *vp, int32 count)
   while (count)
     {
       /* Precalc how many times we should go through the loop */
-      i = ((incr > 0 ? le : ls) - ofs) / incr + 1;
+      i = PRECALC_LOOP_COUNT(ofs, incr > 0 ? le : ls, incr);
       if(i > count) i = count;
       if(i > cc)
 	{
@@ -883,7 +886,7 @@ sample_t *resample_voice(int v, int32 *countptr)
 	if(*countptr >= (vp->sample->data_length>>FRACTION_BITS) - ofs)
 	{
 	    /* Note finished. Free the voice. */
-	    vp->status = VOICE_FREE;
+	    free_voice(v);
 	    ctl_note_event(v);
 
 	    /* Let the caller know how much data we had left */
@@ -902,13 +905,13 @@ sample_t *resample_voice(int v, int32 *countptr)
 	if(mode & MODES_PINGPONG)
 	{
 	    vp->cache = NULL;
-	    mode = 2;
+	    mode = 2;	/* Bidir loop */
 	}
 	else
-	    mode = 0;
+	    mode = 0;	/* loop */
     }
     else
-	mode = 1;
+	mode = 1;	/* no loop */
 
     if(vp->porta_control_ratio)
 	return porta_resample_voice(v, countptr, mode);

@@ -45,6 +45,7 @@
 #define NEXT_FILE_MESSAGE 18
 #define PREV_FILE_MESSAGE 19
 #define TUNE_END_MESSAGE 20
+#define LYRIC_MESSAGE 21
 
 typedef enum {
     GTK_CHANGE_VOLUME = 1,

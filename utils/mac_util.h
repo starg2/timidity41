@@ -31,10 +31,13 @@ void	StopAlertMessage(Str255);
 
 void	SetDialogItemValue(DialogPtr dialog, short item, short value);
 short	GetDialogItemValue(DialogPtr dialog, short item );
+void	SetDialogTEValue(DialogRef dialog, short item, int value);
+int	GetDialogTEValue(DialogRef dialog, short item );
 short	ToggleDialogItem(DialogPtr dialog, short item );
 void	myGetDialogItemText(DialogPtr theDialog, short itemNo, Str255 s);
 void	mySetDialogItemText(DialogRef theDialog, short itemNo, const Str255 text);
 void	SetDialogControlTitle(DialogRef theDialog, short itemNo, const Str255 text);
+void	SetDialogItemHilite(DialogRef dialog, short item, short value);
 void	mac_TransPathSeparater(const char str[], char out[]);
 void	LDeselectAll(ListHandle);
 void	TEReadFile(char* filename, TEHandle te);

@@ -143,6 +143,10 @@ typedef double FLOAT_T;
 #define CONTROLS_PER_SECOND 1000
 
 
+#if !defined(LINEAR_INTERPOLATION) && \
+    !defined(CSPLINE_INTERPOLATION) && \
+    !defined(LAGRANGE_INTERPOLATION) && \
+    !defined(NO_INTERPOLATION)
 /* Strongly recommended. This option increases CPU usage by half, but
    without it sound quality is very poor. */
 #define LINEAR_INTERPOLATION
@@ -153,6 +157,7 @@ typedef double FLOAT_T;
    interpolation by Lagrange method. */
 /* #define CSPLINE_INTERPOLATION */
 /* #define LAGRANGE_INTERPOLATION */
+#endif
 
 
 /* This is an experimental kludge that needs to be done right, but if

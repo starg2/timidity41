@@ -61,6 +61,14 @@ enum play_system_modes
     XG_SYSTEM_MODE
 };
 
+enum {
+    PCM_MODE_NON = 0,
+    PCM_MODE_WAV,
+    PCM_MODE_AIFF,
+    PCM_MODE_AU,
+    PCM_MODE_MP3
+};
+
 #define IS_CURRENT_MOD_FILE \
 	(current_file_info && \
 	current_file_info->file_type >= 700 && \
@@ -94,6 +102,10 @@ struct midi_file_info
     char *midi_data;
     int32 midi_data_size;
     int file_type;
+    
+    int pcm_mode;
+    char *pcm_filename;
+    struct timidity_file *pcm_tf;
 };
 
 extern int32 readmidi_set_track(int trackno, int rewindp);

@@ -175,10 +175,15 @@ double envelope_modify_rate = 1.0;
 int reduce_quality_flag=0;
 int no_4point_interpolation=0;
 #endif
+char* pcm_alternate_file = NULL; /* NULL or "none": Nothing (default)
+				  * "auto": Auto select
+				  * filename: Use it
+				  */
 
 static int32 lost_notes, cut_notes;
 static int32 common_buffer[AUDIO_BUFFER_SIZE*2], /* stereo samples */
              *buffer_pointer;
+static int16 wav_buffer[AUDIO_BUFFER_SIZE*2];
 static int32 buffered_count;
 static char *reverb_buffer = NULL; /* MAX_CHANNELS*AUDIO_BUFFER_SIZE*8 */
 
@@ -319,7 +324,10 @@ static void reset_voices(void)
 {
     int i;
     for(i = 0; i < MAX_VOICES; i++)
+    {
 	voice[i].status = VOICE_FREE;
+	voice[i].chorus_link = i;
+    }
     upper_voices = 0;
     memset(vidq_head, 0, sizeof(vidq_head));
     memset(vidq_tail, 0, sizeof(vidq_tail));
@@ -827,7 +835,7 @@ static int reduce_voice_CPU(void)
     {
       if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
 	    continue;
-      if(voice[j].delay)
+      if(voice[j].chorus_link < j)
       {
 	/* score notes based on both volume AND duration */
 	/* this scoring function needs some more tweaking... */
@@ -850,23 +858,14 @@ static int reduce_voice_CPU(void)
     }
     if(lowest != -0x7FFFFFFF)
     {
-	int low_channel, low_note;
-
 	cut_notes++;
 
-	/* hack - double volume of chorus partner */
-	low_channel = voice[lowest].channel;
-	low_note = voice[lowest].note;
-	for (j = 0; j < i; j++) {
-		if (voice[j].status & VOICE_FREE) continue;
-		if (voice[j].channel == low_channel &&
-		    voice[j].note == low_note &&
-		    j != lowest) {
-		    	voice[j].left_mix <<= 1;
-		    	voice[j].right_mix <<= 1;
-		    	break;
-		}
-	}
+	/* hack - double volume of chorus partner, fix pan */
+	j = voice[lowest].chorus_link;
+	voice[j].velocity <<= 1;
+    	voice[j].panning = channel[voice[lowest].channel].panning;
+    	recompute_amp(j);
+    	apply_envelope_to_amp(j);
 
 	return lowest;
     }
@@ -969,7 +968,7 @@ static int reduce_voice(void)
 	   we could use a reserve of voices to play dying notes only. */
 
 	cut_notes++;
-	voice[lowest].status = VOICE_FREE;
+	free_voice(lowest);
 	if(!prescanning_flag)
 	    ctl_note_event(lowest);
 	return lowest;
@@ -1002,7 +1001,7 @@ static int reduce_voice(void)
     if(lowest != -1)
     {
 	cut_notes++;
-	voice[lowest].status = VOICE_FREE;
+	free_voice(lowest);
 	if(!prescanning_flag)
 	    ctl_note_event(lowest);
 	return lowest;
@@ -1031,7 +1030,7 @@ static int reduce_voice(void)
     if(lowest != -0x7FFFFFFF)
     {
 	cut_notes++;
-	voice[lowest].status = VOICE_FREE;
+	free_voice(lowest);
 	if(!prescanning_flag)
 	    ctl_note_event(lowest);
 	return lowest;
@@ -1042,9 +1041,9 @@ static int reduce_voice(void)
     lowest = -0x7FFFFFFF;
     for(j = 0; j < i; j++)
     {
-      if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
+      if(voice[j].status & VOICE_FREE)
 	    continue;
-      if(voice[j].delay)
+      if(voice[j].chorus_link < j)
       {
 	/* find lowest volume */
 	v = voice[j].left_mix;
@@ -1059,25 +1058,16 @@ static int reduce_voice(void)
     }
     if(lowest != -0x7FFFFFFF)
     {
-	int low_channel, low_note;
-
 	cut_notes++;
 
-	/* hack - double volume of chorus partner */
-	low_channel = voice[lowest].channel;
-	low_note = voice[lowest].note;
-	for (j = 0; j < i; j++) {
-		if (voice[j].status & VOICE_FREE) continue;
-		if (voice[j].channel == low_channel &&
-		    voice[j].note == low_note &&
-		    j != lowest) {
-		    	voice[j].left_mix <<= 1;
-		    	voice[j].right_mix <<= 1;
-			break;
-		}
-	}
+	/* hack - double volume of chorus partner, fix pan */
+	j = voice[lowest].chorus_link;
+	voice[j].velocity <<= 1;
+    	voice[j].panning = channel[voice[lowest].channel].panning;
+    	recompute_amp(j);
+    	apply_envelope_to_amp(j);
 
-	voice[lowest].status = VOICE_FREE;
+	free_voice(lowest);
 	if(!prescanning_flag)
 	    ctl_note_event(lowest);
 	return lowest;
@@ -1106,7 +1096,7 @@ static int reduce_voice(void)
     }
     if(lowest != -0x7FFFFFFF)
     {
-	voice[lowest].status = VOICE_FREE;
+	free_voice(lowest);
 	if(!prescanning_flag)
 	    ctl_note_event(lowest);
 	return lowest;
@@ -1129,8 +1119,8 @@ static int reduce_voice(void)
 	    lowest = j;
 	}
     }
-    
-    voice[lowest].status = VOICE_FREE;
+
+    free_voice(lowest);
     if(!prescanning_flag)
 	ctl_note_event(lowest);
     return lowest;
@@ -1187,6 +1177,20 @@ static int find_voice(MidiEvent *e)
   return reduce_voice();
 }
 
+void free_voice(int v1)
+{
+    int v2;
+
+    v2 = voice[v1].chorus_link;
+    if(v1 != v2)
+    {
+	/* Unlink chorus link */
+	voice[v1].chorus_link = v1;
+	voice[v2].chorus_link = v2;
+    }
+    voice[v1].status = VOICE_FREE;
+}
+
 static int find_free_voice(void)
 {
     int i, nv = voices, lowest;
@@ -1222,7 +1226,7 @@ static int find_free_voice(void)
     }
     if(lowest != -1 && !prescanning_flag)
     {
-	voice[lowest].status = VOICE_FREE;
+	free_voice(lowest);
 	ctl_note_event(lowest);
     }
     return lowest;
@@ -1377,10 +1381,12 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt)
   ch = e->channel;
 
   note = MIDI_EVENT_NOTE(e);
-  voice[i].status=VOICE_ON;
-  voice[i].channel=ch;
-  voice[i].note=note;
-  voice[i].velocity=e->b;
+  voice[i].status = VOICE_ON;
+  voice[i].channel = ch;
+  voice[i].note = note;
+  voice[i].velocity = e->b;
+  voice[i].chorus_link = i;	/* No link */
+
   j = channel[ch].special_sample;
   if(j == 0 || special_patch[j] == NULL)
       voice[i].sample_offset = 0;
@@ -1395,7 +1401,7 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt)
       }
       else if(voice[i].sample_offset > voice[i].sample->data_length)
       {
-	  voice[i].status = VOICE_FREE;
+	  free_voice(i);
 	  return;
       }
   }
@@ -1441,6 +1447,7 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt)
   else
       voice[i].panning = voice[i].sample->panning;
 
+  voice[i].porta_control_counter = 0;
   if(channel[ch].portamento && !channel[ch].porta_control_ratio)
       update_portamento_controls(ch);
   if(channel[ch].porta_control_ratio)
@@ -1489,131 +1496,197 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt)
 
 static void finish_note(int i)
 {
-  if (voice[i].sample->modes & MODES_ENVELOPE)
+    if (voice[i].sample->modes & MODES_ENVELOPE)
     {
-      /* We need to get the envelope out of Sustain stage. */
-      /* Note that voice[i].envelope_stage < 3 */
-      voice[i].status=VOICE_OFF;
-      voice[i].envelope_stage=3;
-      recompute_envelope(i);
-      apply_envelope_to_amp(i);
-      ctl_note_event(i);
+	/* We need to get the envelope out of Sustain stage. */
+	/* Note that voice[i].envelope_stage < 3 */
+	voice[i].status=VOICE_OFF;
+	voice[i].envelope_stage=3;
+	recompute_envelope(i);
+	apply_envelope_to_amp(i);
+	ctl_note_event(i);
     }
-  else
+    else
     {
-      /* Set status to OFF so resample_voice() will let this voice out
-         of its loop, if any. In any case, this voice dies when it
-         hits the end of its data (ofs>=data_length). */
-	if(voice[i].status != VOICE_OFF)
+	if(current_file_info->pcm_mode != PCM_MODE_NON)
 	{
-	    voice[i].status=VOICE_OFF;
+	    free_voice(i);
 	    ctl_note_event(i);
+	}
+	else
+	{
+	    /* Set status to OFF so resample_voice() will let this voice out
+		of its loop, if any. In any case, this voice dies when it
+		    hits the end of its data (ofs>=data_length). */
+	    if(voice[i].status != VOICE_OFF)
+	    {
+		voice[i].status = VOICE_OFF;
+		ctl_note_event(i);
+	    }
 	}
     }
 }
 
-static void new_chorus_voice(int v, int level)
+static void new_chorus_voice(int v1, int level)
 {
-    int cv, ch;
+    int v2, ch;
     uint8 vol;
 
-    if((cv = find_free_voice()) == -1)
+    if((v2 = find_free_voice()) == -1)
 	return;
-    ch = voice[v].channel;
+    ch = voice[v1].channel;
+    vol = voice[v1].velocity;
+    voice[v2] = voice[v1];	/* copy all parameters */
 
-    vol = voice[v].velocity;
-    voice[cv] = voice[v];
-    voice[v].velocity  = (uint8)(vol * CHORUS_VELOCITY_TUNING1);
-    voice[cv].velocity = (uint8)(vol * CHORUS_VELOCITY_TUNING2);
-    if (level > 42) level = 42;    /* higher levels detune notes too much */
+    /* Choose lower voice index for base voice (v1) */
+    if(v1 > v2)
+    {
+	int tmp;
+	tmp = v1;
+	v1 = v2;
+	v2 = v1;
+    }
+
+    /* v1: Base churos voice
+     * v2: Sub chorus voice (detuned)
+     */
+
+    voice[v1].velocity = (uint8)(vol * CHORUS_VELOCITY_TUNING1);
+    voice[v2].velocity = (uint8)(vol * CHORUS_VELOCITY_TUNING2);
+
+    /* Make doubled link v1 and v2 */
+    voice[v1].chorus_link = v2;
+    voice[v2].chorus_link = v1;
+
+    level >>= 2;		     /* scale level to a "better" value */
     if(channel[ch].pitchbend + level < 0x2000)
-        voice[cv].orig_frequency *= bend_fine[level];
+        voice[v2].orig_frequency *= bend_fine[level];
     else
-	voice[cv].orig_frequency /= bend_fine[level];
-    voice[cv].cache = NULL;
+	voice[v2].orig_frequency /= bend_fine[level];
+    voice[v2].cache = NULL;
 
     /* set panning & delay */
-    if(play_mode->encoding & PE_MONO)
-	voice[cv].delay = 0;
-    else
+    if(!(play_mode->encoding & PE_MONO))
     {
 	double delay;
 
-	if(voice[cv].panned == PANNED_CENTER)
+	if(voice[v2].panned == PANNED_CENTER)
 	{
-	    static int cpan[MAX_CHANNELS];
-	    voice[cv].panning = 32 + cpan[ch];
-	    cpan[ch] = (((cpan[ch] + 1) & 63));
-	    delay = DEFAULT_CHORUS_DELAY2;
+	    voice[v2].panning = 64 + int_rand(40) - 20; /* 64 +- rand(20) */
+	    delay = 0;
 	}
 	else
 	{
-	    int panning = voice[cv].panning;
+	    int panning = voice[v2].panning;
 
 	    if(panning < CHORUS_OPPOSITE_THRESHOLD)
 	    {
-		voice[cv].panning = 127;
+		voice[v2].panning = 127;
 		delay = DEFAULT_CHORUS_DELAY1;
 	    }
 	    else if(panning > 127 - CHORUS_OPPOSITE_THRESHOLD)
 	    {
-		voice[cv].panning = 0;
+		voice[v2].panning = 0;
 		delay = DEFAULT_CHORUS_DELAY1;
 	    }
 	    else
 	    {
-		voice[cv].panning = (panning < 64 ? 0 : 127);
+		voice[v2].panning = (panning < 64 ? 0 : 127);
 		delay = DEFAULT_CHORUS_DELAY2;
 	    }
 	}
-	voice[cv].delay = (int)(play_mode->rate * delay);
+	voice[v2].delay += (int)(play_mode->rate * delay);
     }
 
-    recompute_amp(v);
-    apply_envelope_to_amp(v);
-    recompute_amp(cv);
-    apply_envelope_to_amp(cv);
-    recompute_freq(cv);
+    recompute_amp(v1);
+    apply_envelope_to_amp(v1);
+    recompute_amp(v2);
+    apply_envelope_to_amp(v2);
+
+    /* voice[v2].orig_frequency is changed.
+     * Update the depened parameters.
+     */
+    recompute_freq(v2);
 }
 
 /* Yet another chorus implementation
  *	by Eric A. Welsh <ewelsh@gpc.wustl.edu>.
  */
-static void new_chorus_voice_alternate(int v, int level)
+static void new_chorus_voice_alternate(int v1, int level)
 {
-    int cv, ch;
+    int v2, ch, panlevel;
     uint8 vol, pan;
+    double delay;
 
-    if((cv = find_free_voice()) == -1)
-      return;
-    ch = voice[v].channel;
+    if((v2 = find_free_voice()) == -1)
+	return;
+    ch = voice[v1].channel;
+    voice[v2] = voice[v1];
 
-    vol = voice[v].velocity;
-    voice[cv] = voice[v];
-    voice[v].velocity  = (uint8)(vol * CHORUS_VELOCITY_TUNING1);
-    voice[cv].velocity = (uint8)(vol * CHORUS_VELOCITY_TUNING2);
-
-    /* set panning & delay */
-    if(play_mode->encoding & PE_MONO)
-      voice[cv].delay = 0;
-    else
+    /* Choose lower voice index for base voice (v1) */
+    if(v1 > v2)
     {
-      double delay;
-
-      pan = voice[v].panning;
-      if (pan - level < 0) level = pan;
-      if (pan + level > 127) level = 127 - pan;
-      voice[v].panning -= level;
-      voice[cv].panning += level;
-      delay = DEFAULT_CHORUS_DELAY2;
-
-      voice[cv].delay = (int)(play_mode->rate * delay);
+	int tmp;
+	tmp = v1;
+	v1 = v2;
+	v2 = v1;
     }
 
-    recompute_amp(v);
-    apply_envelope_to_amp(v);
-    recompute_amp(cv);
-    apply_envelope_to_amp(cv);
+    /* lower the volumes so that the two notes add to roughly the orig. vol */
+    vol = voice[v1].velocity;
+    voice[v1].velocity  = (uint8)(vol * CHORUS_VELOCITY_TUNING2);
+    voice[v2].velocity  = (uint8)(vol * CHORUS_VELOCITY_TUNING2);
+
+    /* Make doubled link v1 and v2 */
+    voice[v1].chorus_link = v2;
+    voice[v2].chorus_link = v1;
+
+    /* detune notes for chorus effect */
+    level >>= 2;		/* scale to a "better" value */
+    if (level)
+    {
+        if(channel[ch].pitchbend + level < 0x2000)
+            voice[v2].orig_frequency *= bend_fine[level];
+        else
+	    voice[v2].orig_frequency /= bend_fine[level];
+        voice[v2].cache = NULL;
+    }
+
+    /* set panning & delay for pseudo-surround effect */
+    if(play_mode->encoding & PE_MONO)
+        voice[v2].delay += DEFAULT_CHORUS_DELAY2;   /* delay sounds good */
+    else
+    {
+        pan = voice[v1].panning;
+        panlevel = 63;
+        if (pan - panlevel < 1) panlevel = pan - 1;
+        if (pan + panlevel > 127) panlevel = 127 - pan;
+        voice[v1].panning -= panlevel;
+        voice[v2].panning += panlevel;
+
+        delay = DEFAULT_CHORUS_DELAY2;
+
+        /* choose which voice is delayed based on panning */
+        if (voice[v1].panned == PANNED_CENTER) {
+            /* randomly choose which voice is delayed */
+            if (int_rand(2))
+                voice[v1].delay += (int)(play_mode->rate * delay);
+            else
+                voice[v2].delay += (int)(play_mode->rate * delay);
+        }
+        else if (pan - 64 < 0) {
+            voice[v2].delay += (int)(play_mode->rate * delay);
+        }
+        else {
+            voice[v1].delay += (int)(play_mode->rate * delay);
+        }
+    }
+
+    recompute_amp(v1);
+    apply_envelope_to_amp(v1);
+    recompute_amp(v2);
+    apply_envelope_to_amp(v2);
+    if (level) recompute_freq(v2);
 }
 
 static void note_on(MidiEvent *e)
@@ -1640,7 +1713,8 @@ static void note_on(MidiEvent *e)
 	    ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
 	}
 	start_note(e, v, vid, nv - i - 1);
-	if(channel[ch].chorus_level && voice[v].sample->sample_rate)
+	if((channel[ch].chorus_level || opt_surround_chorus) &&
+	    voice[v].sample->sample_rate)
 	{
 	    if(opt_surround_chorus)
 		new_chorus_voice_alternate(v, channel[ch].chorus_level);
@@ -1786,15 +1860,62 @@ static void adjust_channel_pressure(MidiEvent *e)
 
 static void adjust_panning(int c)
 {
-  int i, uv = upper_voices, pan = channel[c].panning;
-  for(i = 0; i < uv; i++)
-    if ((voice[i].channel==c) &&
-	(voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
-      {
-	voice[i].panning = pan;
-	recompute_amp(i);
-	apply_envelope_to_amp(i);
-      }
+    int i, uv = upper_voices, pan = channel[c].panning;
+    for(i = 0; i < uv; i++)
+    {
+	if ((voice[i].channel==c) &&
+	    (voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
+	{
+	    /* Hack to handle -EFchorus=2 in a "reasonable" way */
+	    if((channel[c].chorus_level || opt_surround_chorus) &&
+	       voice[i].sample->sample_rate &&
+	       voice[i].chorus_link != i)
+	    {
+		int v1, v2;
+
+		if(i >= voice[i].chorus_link)
+		    /* `i' is not base chorus voice.
+		     *  This sub voice is already updated.
+		     */
+		    continue;
+
+		v1 = i;				/* base voice */
+		v2 = voice[i].chorus_link;	/* sub voice (detuned) */
+
+		if(opt_surround_chorus) /* Surround chorus mode by Eric. */
+		{
+		    int panlevel;
+
+		    panlevel = 63;
+		    if (pan - panlevel < 1) panlevel = pan - 1;
+		    if (pan + panlevel > 127) panlevel = 127 - pan;
+		    voice[v1].panning = pan - panlevel;
+		    voice[v2].panning = pan + panlevel;
+		}
+		else
+		{
+		    voice[v1].panning = pan;
+		    if(pan > 60 && pan < 68) /* PANNED_CENTER */
+			voice[v2].panning =
+			    64 + int_rand(40) - 20; /* 64 +- rand(20) */
+		    else if(pan < CHORUS_OPPOSITE_THRESHOLD)
+			voice[v2].panning = 127;
+		    else if(pan > 127 - CHORUS_OPPOSITE_THRESHOLD)
+			voice[v2].panning = 0;
+		    else
+			voice[v2].panning = (pan < 64 ? 0 : 127);
+		}
+		recompute_amp(v2);
+		apply_envelope_to_amp(v2);
+		/* v1 == i, so v1 will be updated next */
+	    }
+	    else
+		voice[i].panning = pan;
+
+	    recompute_amp(i);
+	    apply_envelope_to_amp(i);
+	}
+    }
 }
 
 static void play_midi_setup_drums(int ch, int note)
@@ -2722,7 +2843,9 @@ static void voice_increment(int n)
     {
 	if(voices == MAX_VOICES)
 	    break;
-	voice[voices++].status = VOICE_FREE;
+	voice[voices].status = VOICE_FREE;
+	voice[voices].chorus_link = voices;
+	voices++;
     }
     if(n > 0)
 	ctl_mode_event(CTLE_MAXVOICES, 1, voices, 0);
@@ -2771,7 +2894,7 @@ static void voice_decrement(int n)
 	if(lowest != -1)
 	{
 	    cut_notes++;
-	    voice[lowest].status = VOICE_FREE;
+	    free_voice(lowest);
 	    ctl_note_event(lowest);
 	    voice[lowest] = voice[voices];
 	}
@@ -2834,7 +2957,7 @@ static void voice_decrement_conservative(int n)
 	{
 	    voices--;
 	    cut_notes++;
-	    voice[lowest].status = VOICE_FREE;
+	    free_voice(lowest);
 	    ctl_note_event(lowest);
 	    voice[lowest] = voice[voices];
 	}
@@ -3120,7 +3243,7 @@ static int apply_controls(void)
     return jump_flag ? RC_JUMP : RC_NONE;
 }
 
-static void do_compute_data(int32 count)
+static void do_compute_data_midi(int32 count)
 {
     int i, uv, stereo, n;
     int32 *vpblist[MAX_CHANNELS];
@@ -3218,6 +3341,66 @@ static void do_compute_data(int32 count)
     }
 
     current_sample += count;
+}
+
+static void do_compute_data_wav(int32 count)
+{
+    int i, stereo, n, file_byte, samples;
+
+    stereo = !(play_mode->encoding & PE_MONO);
+    samples = (stereo ? (count * 2) : count );
+    n = samples*4; /* in bytes */
+    file_byte = samples*2; /*regard as 16bit*/
+
+    memset(buffer_pointer, 0, n);
+
+    tf_read(wav_buffer, 1, file_byte, current_file_info->pcm_tf);
+    for( i=0; i<samples; i++ ){
+    	buffer_pointer[i] = (LE_SHORT(wav_buffer[i])) << 16;
+    	buffer_pointer[i] /=4; /*level down*/
+    }
+
+    current_sample += count;
+}
+
+static void do_compute_data_aiff(int32 count)
+{
+    int i, stereo, n, file_byte, samples;
+
+    stereo = !(play_mode->encoding & PE_MONO);
+    samples = (stereo ? (count * 2) : count );
+    n = samples*4; /* in bytes */
+    file_byte = samples*2; /*regard as 16bit*/
+
+    memset(buffer_pointer, 0, n);
+
+    tf_read(wav_buffer, 1, file_byte, current_file_info->pcm_tf);
+    for( i=0; i<samples; i++ ){
+    	buffer_pointer[i] = (BE_SHORT(wav_buffer[i])) << 16;
+    	buffer_pointer[i] /=4; /*level down*/
+    }
+
+    current_sample += count;
+}
+
+static void do_compute_data(int32 count)
+{
+    switch(current_file_info->pcm_mode)
+    {
+      case PCM_MODE_NON:
+    	do_compute_data_midi(count);
+      	break;
+      case PCM_MODE_WAV:
+    	do_compute_data_wav(count);
+        break;
+      case PCM_MODE_AIFF:
+    	do_compute_data_aiff(count);
+        break;
+      case PCM_MODE_AU:
+        break;
+      case PCM_MODE_MP3:
+        break;
+    }    
 }
 
 static int check_midi_play_end(MidiEvent *e, int len)
@@ -3514,7 +3697,7 @@ static int compute_data(int32 count)
 		      /* Tell VOICE_DIE to interface */
 		      voice[v].status = VOICE_DIE;
 		      ctl_note_event(v);
-		      voice[v].status = VOICE_FREE;
+		      free_voice(v);
 		  }
 
 		  /* lower max # of allowed voices to let the buffer recover */
@@ -4040,6 +4223,111 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     return rc;
 }
 
+static void read_header_wav(struct timidity_file* tf)
+{
+    char buff[44];
+    tf_read( buff, 1, 44, tf);
+}
+
+static int read_header_aiff(struct timidity_file* tf)
+{
+    char buff[5]="    ";
+    int i;
+    
+    for( i=0; i<100; i++ ){
+    	buff[0]=buff[1]; buff[1]=buff[2]; buff[2]=buff[3];
+    	tf_read( &buff[3], 1, 1, tf);
+    	if( strcmp(buff,"SSND")==0 ){
+            /*SSND chunk found */
+    	    tf_read( &buff[0], 1, 4, tf);
+    	    tf_read( &buff[0], 1, 4, tf);
+	    ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "aiff header read OK.");
+	    return 0;
+    	}
+    }
+    /*SSND chunk not found */
+    return -1;
+}
+
+static int load_pcm_file_wav()
+{
+    char *filename;
+
+    if(strcmp(pcm_alternate_file, "auto") == 0)
+    {
+	filename = safe_malloc(strlen(current_file_info->filename)+5);
+	strcpy(filename, current_file_info->filename);
+	strcat(filename, ".wav");
+    }
+    else if(strlen(pcm_alternate_file) >= 5 &&
+	    strncasecmp(pcm_alternate_file + strlen(pcm_alternate_file) - 4,
+			".wav", 4) == 0)
+	filename = safe_strdup(pcm_alternate_file);
+    else
+	return -1;
+
+    ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "wav filename: %s", filename);
+    current_file_info->pcm_tf = open_file(filename, 0, OF_SILENT);
+    if( current_file_info->pcm_tf ){
+	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "open successed.");
+	read_header_wav(current_file_info->pcm_tf);
+	current_file_info->pcm_filename = filename;
+	current_file_info->pcm_mode = PCM_MODE_WAV;
+	return 0;
+    }else{
+	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "open failed.");
+	free(filename);
+	current_file_info->pcm_filename = NULL;
+	return -1;
+    }
+}
+
+static int load_pcm_file_aiff()
+{
+    char *filename;
+
+    if(strcmp(pcm_alternate_file, "auto") == 0)
+    {
+	filename = safe_malloc(strlen(current_file_info->filename)+6);
+	strcpy(filename, current_file_info->filename);
+	strcat( filename, ".aiff");
+    }
+    else if(strlen(pcm_alternate_file) >= 6 &&
+	    strncasecmp(pcm_alternate_file + strlen(pcm_alternate_file) - 5,
+			".aiff", 5) == 0)
+	filename = safe_strdup(pcm_alternate_file);
+    else
+	return -1;
+
+    ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "aiff filename: %s", filename);
+    current_file_info->pcm_tf = open_file(filename, 0, OF_SILENT);
+    if( current_file_info->pcm_tf ){
+	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "open successed.");
+	read_header_aiff(current_file_info->pcm_tf);
+	current_file_info->pcm_filename = filename;
+	current_file_info->pcm_mode = PCM_MODE_AIFF;
+	return 0;
+    }else{
+	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "open failed.");
+	free(filename);
+	current_file_info->pcm_filename = NULL;
+	return -1;
+    }
+}
+
+static void load_pcm_file()
+{
+    if( load_pcm_file_wav()==0 ) return; /*load OK*/
+    if( load_pcm_file_aiff()==0 ) return; /*load OK*/
+}
+
 static int play_midi_load_file(char *fn,
 			       MidiEvent **event,
 			       int32 *nsamples)
@@ -4087,19 +4375,35 @@ static int play_midi_load_file(char *fn,
 	      *nsamples / play_mode->rate / 60,
 	      (*nsamples / play_mode->rate) % 60);
 
-    rc = RC_NONE;
-    if(!opt_realtime_playing && !IS_CURRENT_MOD_FILE
-       && (play_mode->flag&PF_PCM_STREAM))
+    current_file_info->pcm_mode = PCM_MODE_NON; /*initialize*/
+    if(pcm_alternate_file != NULL &&
+       strcmp(pcm_alternate_file, "none") != 0 &&
+       (play_mode->flag&PF_PCM_STREAM))
+	load_pcm_file();
+
+    if(!IS_CURRENT_MOD_FILE &&
+       (play_mode->flag&PF_PCM_STREAM))
     {
-	load_missing_instruments(&rc);
-	if(RC_IS_SKIP_FILE(rc))
+	/* FIXME: Instruments is not need for pcm_alternate_file. */
+
+	/* Load instruments
+	 * If opt_realtime_playing, the instruments will be loaded later.
+	 */
+	if(!opt_realtime_playing)
 	{
-	    /* Interupted instrument loading */
-	    ctl_mode_event(CTLE_LOADING_DONE, 0, 1, 0);
-	    clear_magic_instruments();
-	    return rc;
+	    rc = RC_NONE;
+	    load_missing_instruments(&rc);
+	    if(RC_IS_SKIP_FILE(rc))
+	    {
+		/* Instrument loading is terminated */
+		ctl_mode_event(CTLE_LOADING_DONE, 0, 1, 0);
+		clear_magic_instruments();
+		return rc;
+	    }
 	}
     }
+    else
+	clear_magic_instruments();	/* Clear load markers */
 
     ctl_mode_event(CTLE_LOADING_DONE, 0, 0, 0);
 
@@ -4159,6 +4463,13 @@ int play_midi_file(char *fn)
 	memset(channel[i].drums, 0, sizeof(channel[i].drums));
 
   play_end:
+    if(current_file_info->pcm_tf){
+    	close_file(current_file_info->pcm_tf);
+    	current_file_info->pcm_tf = NULL;
+    	free( current_file_info->pcm_filename );
+    	current_file_info->pcm_filename = NULL;
+    }
+    
     if(wrdt->opened)
 	wrdt->end();
 

@@ -706,7 +706,7 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
 
     case FILENAME_MESSAGE:
 	{
-	    char filename[255], separator[255], title[255];
+	    char filename[255], title[255];
 	    char *pc;
 	    int i;
 
@@ -722,12 +722,12 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
 	    sprintf(title, "Timidity %s - %s", timidity_version, pc);
 	    gtk_window_set_title(GTK_WINDOW(window), title);
 
-	    for (i = 0; i < 30; i++)
-		separator[i]='*';
-	    separator[i++]='\n';
-	    separator[i]='\0';
-	    gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL,
-			    separator, -1);
+	    /* Clear the text area. */
+	    gtk_text_freeze(GTK_TEXT(text));
+	    gtk_text_set_point(GTK_TEXT(text), 0);
+	    gtk_text_forward_delete(GTK_TEXT(text),
+				    gtk_text_get_length(GTK_TEXT(text)));
+	    gtk_text_thaw(GTK_TEXT(text));
 	}
 	break;
 
@@ -917,6 +917,16 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
 			    message, -1);
 	    gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL,
 			    "\n", 1);
+	}
+	break;
+    case LYRIC_MESSAGE:
+	{
+	    char message[1000];
+
+	    gtk_pipe_string_read(message);
+
+	    gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL,
+			    message, -1);
 	}
 	break;
     default:

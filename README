@@ -13,53 +13,52 @@
   either version 2 of the License, or (at your  option)  any
   later version.
 
-  Original version of this program is written by Tuuka Tiovonen <tt@cgs.fi>
-  until TiMidity 0.2i. (he discontinued to develop it because of his busy
-  work)  And Masanao Izumo <mo@goice.co.jp> and other people has begun to
-  hack it, then we decided TiMidity++ officially release.
+  This program is free software; you can redistribute it and/or
+  modify it under  the  terms  of  the  GNU  General  Public
+  License  as  published  by  the  Free Software Foundation;
+  either version 2 of the License, or (at your  option)  any
+  later version.
 
-  TiMidity has originally been a converter that converts MIDI files to WAV
-  audio file. But now TiMidity++ is not only a converter but also the
+  The original version of this program was written by Tuuka Tiovonen
+  <tt@cgs.fi> until TiMidity 0.2i (he discontinued development
+  because he was too busy with work). Masanao Izumo <mo@goice.co.jp> and
+  other people began to hack it, then we officially released the new
+  version, which is called TiMidity++.
+
+  TiMidity was originally a converter that converted MIDI files to WAV
+  audio files. But now TiMidity++ is not only a converter but also a
   real-time player that can play a MIDI file in real time. TiMidity does
-  not requires external MIDI instrument module to play MIDI file, performs
-  with software power.
+  not requires an external MIDI instrument module to play MIDI file; it can
+  perform with software power only.
 
   TiMidity++ uses GUS/patch (Glavis Ultrasound) as the voice data to play.
-  And it can also handle SoundFont data for voice data.
+  It can also handle SoundFont data for voice data.
 
 *Features of TiMidity++:
-
   - Plays MIDI files without external MIDI instruments
-  - Converts MIDI file to various formatted audio file (ex. wav, au, etc..)
+  - Converts MIDI files to various audio file formats
+    (ex. wav, au, etc.)
   - Uses GUS/patch and SoundFont for voice data
-  - Displays some of information of Music data during the playing
-  - Various user interface are available (ncurses, motif, xaw, etc..)
-  - Can load dynamic shared user interface
-  - Plays the MIDI file via network
-  - Plays the MIDI file in archive file (zip, lzh, tar, tgz)
-  - Plays not only SMF file but also MOD, RCP/R36/G18/G36
+  - Displays some information about the music data during playback
+  - Various user interfaces are available (ncurses, motif, xaw, etc..)
+  - Plays MIDI files over a network
+  - Plays MIDI files in archive files
+  - Plays not only SMF files but also MOD, RCP/R36/G18/G36
   - Can handle 32 channel data
-  - Can handle user interfaces as dynamic link modules
-  - Can display the sound spectrogram
-  - Automatically detects the mode of MIDI file (GM/GS/XG)
+  - Can handle user interfaces as dynamically linked modules
+  - Can display a sound spectrogram
+  - Automatically detects the mode of a MIDI file (GM/GS/XG)
   - Automatically detects drum channels (GS/XG)
   - Trace playing
   - Low load
-  - Supports durm alternate assignment.
-  - Automatically reduce voices if there is no enough CPU power to play MIDI
-    in realtime.
-  - Can play the streamed MIDI via TCP/IP
   - The following MIDI events are supported:
-	NoteOn/Off, KeyPressure, Program, ChannelPressure, Pitchwheel,
-	ToneBank, ModulationWheel, MainVolume, Panning, Expression,
-	Sustain, Portamento, DataEntry, ReverbEffect, ChorusEffect,
-	RPN+/-, NRPN, RPN, AllSoundsOff, ResetControllers, AllNotesOff,
-	Mono/Poly Part, RandomPan, KeyShift,
-	TempoChange, Lyric, InsertText, KARAOKE-Part(@KMIDI),
-	MasterVolume, MIDI-Reset, SystemExclusiveMessages
-
-(NOTE: Features that are Japanese local are not described in this file for simplify.
-       Please refer to timidity.1/timidity.cfg.1 for these features )
+    NoteOn/Off, KeyPressure, Program, ChannelPressure, Pitchwheel,
+    ToneBank, ModulationWheel, MainVolume, Panning, Expression,
+    Sustain, Portamento, DataEntry, ReverbEffect, ChorusEffect,
+    RPN+/-, NRPN, RPN, AllSoundsOff, ResetControllers, AllNotesOff,
+    Mono/Poly Part, RandomPan, KeyShift,
+    TempoChange, Lyric, InsertText, KARAOKE-Part(@KMIDI),
+    MasterVolume, MIDI-Reset, SystemExclusiveMessages
 
 *Usage:
   -format: timidity [options] midi-filenames
@@ -346,46 +345,47 @@
 
 *Play the MIDI file in archive file:
 
- TiMidity++ can play a file contained in various archive file. The
- following archive format are supported:
+ TiMidity++ can play a file contained in various kinds of archive file. The
+ following archive formats are supported:
 
   - tar           (*.tar)
-  - tar + gzip'ed (*.tar.gz, *.tgz)
+  - gzipped tar   (*.tar.gz, *.tgz)
   - zip file      (*.zip)
   - lzh file      (*.lzh)
 
- If you  want  to  specify  a  certain MIDI file in the archive, describe
- the  #<MIDI-filename>  expression following  to  the  archive  name.  The
- expressions after the # is allowed to use  regular  expressions
- (case insensitive). For example:
+ If you want to specify a certain MIDI file in the archive, describe the
+ #<MIDI-filename> expression following the archive name.  The
+ expressions after the # are allowed to use regular expressions (case
+ insensitive).  Note that the single quotes are needed to prevent the
+ shell from misinterpreting the # character.  For example:
 
-              timidity'file.zip#file.mid'
+              timidity 'file.zip#file.mid'
                      Plays file.mid in file.zip
 
-              timidity'file.lzh#*.mid'
-                     Plays  any  files  that  match  the  regular
+              timidity 'file.lzh#*.mid'
+                     Plays  any  files that  match  the  regular
                      expression '*.mid' in file.zip
 
-              timidity'file.tgz#*'
-                     This  expression   is   same   as   timidity
-                     'file.tgz'
+              timidity 'file.tgz#*'
+                     This  expression is the same as 
+                     timidity 'file.tgz'
 
-*Play the MIDI file via network
- TiMidity++ can access a file via networks. Supported network protocol is
- HTTP, FTP and NNTP(NetNews). And specify these as
- http://foo, ftp://foo, and news://foo respectively.
- An archived file also accessible via network.
+*Play the MIDI file over a network
+ TiMidity++ can access a file over a network. Supported network protocols
+ include HTTP, FTP and NNTP(NetNews); specify these as http://foo,
+ ftp://foo, and news://foo respectively.  An archived file is also
+ accessible over a network.
 
- On NNTP access, if you specify newsgroup in the message-ID field
- TiMidity++ plays all MIDI files posted in specified newsgroup. These MIDI
- files must be encoded in uuencode or the Multipart encoded uuencode /
- base64 / hexbin.
+ With NNTP, if you specify a newsgroup in the message-ID field TiMidity++
+ plays all MIDI files posted in the specified newsgroup. These MIDI files
+ must be encoded using uuencode or the Multipart encoded
+ uuencode/base64/hexbin.
 
 *Availability:
  The latest release of TiMidity++ are available in these sites:
 
      http://www.goice.co.jp/member/mo/timidity/
-        (unix version, and developer's site)
+        (Unix version; the developer's site)
 
      http://www.asahi-net.or.jp/~gb7t-ngm/timidity/
         (Macintosh version)
@@ -393,13 +393,11 @@
      http://www2.off.ne.jp/~dai/timidity/timidity-izumo.html
         (Windows version)
 
- Now, the original release of Tuukka Toivonen is discontinued.  If you
- want to get the original, please download from follow.
-     http://www.goice.co.jp/member/mo/timidity/dist/timidity-0.2i.tar.gz
-
 
 -------------------------------------------------------------------------
-This document is translated from original README.jp (written in Japanese).
+This document was translated from the original README.jp (written in Japanese).
 Translator: NAGANO Daisuke <breeze_geo@geocities.co.jp>
             (And modified by Masanao Izumo <mo@goice.co.jp>)
-If you have any comment for this translation, please tell me.
+Proofreader: Mike Vanier (mvanier@bbb.caltech.edu)
+If you have any comments on or corrections for this translation,
+please tell us.

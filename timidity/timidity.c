@@ -77,13 +77,14 @@ extern char *optarg;
 #define DEFINE_GLOBALS
 #include "mid.defs"
 #include "aq.h"
+#include "mix.h"
 
 #ifdef IA_W32GUI
 #include "w32g.h"
 #include "w32g_utl.h"
 #endif
 
-#define OPTCOMMANDS "4A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:q:R:rS:s:t:UW:w:x:Z:"
+#define OPTCOMMANDS "4A:aB:b:C:c:D:d:E:eFfg:hI:i:jk:L:M:m:n:O:o:P:p:Q:q:R:rS:s:t:UW:w:x:Z:"
 #define INTERACTIVE_INTERFACE_IDS "kmqagrw"
 
 /* main interfaces (To be used another main) */
@@ -190,6 +191,12 @@ int effect_lr_mode = -1;
  * -1: not use
  */
 int effect_lr_delay_msec = 25;
+
+extern char* pcm_alternate_file;
+/* NULL, "none": disabled (default)
+ * "auto":       automatically selected
+ * filename:     use the one.
+ */
 
 #ifndef atof
 extern double atof(const char *);
@@ -400,6 +407,10 @@ static void help(void)
 "  -j      Realtime load instrument (toggle on/off)",
 "  -k msec Specify audio queue time limit to reduce voice",
 "  -L dir  Append dir to search path",
+"  -M name Specify PCM filename (*.wav or *.aiff) to be played or:",
+"          \"auto\": Play *.mid.wav or *.mid.aiff",
+"          \"none\": Disable this feature (default)",
+"  -m msec Minimum time for a full volume sustained note to decay, 0 disables",
 "  -O mode Select output mode and format (see below for list)",
 "  -o file Output to another file (or device/server)  (Use \"-\" for stdout)",
 "  -P file Use patch file for all programs",
@@ -531,8 +542,8 @@ NULL
 "  -EFchorus=0 : Disable MIDI chorus effect control" NLS
 "  -EFchorus=1[,level] : Enable MIDI chorus effect control" NLS
 "                        `level' is optional to specify chorus level [0..127]"  NLS
-"  -EFchorus=2[,level] : Use the surround sound instead of detuned chorus." NLS
-"                        `level' is optional to specify level [0..63]" NLS
+"  -EFchorus=2[,level] : Surround sound, chorus detuned to a lesser degree." NLS
+"                        `level' is optional to specify chorus level [0..127]" NLS
 "  -EFreverb=0 : Disable MIDI reverb effect control" NLS
 "  -EFreverb=1[,level] : Enable MIDI reverb effect control" NLS
 "                        `level' is optional to specify reverb level [0..127]"  NLS
@@ -2209,11 +2220,6 @@ static int parse_effect_option(char *effect_opts)
     return 1;
 }
 
-static int str2mid(char *s)
-{
-    
-}
-
 int set_extension_modes(char *flag)
 {
     int err;
@@ -2542,6 +2548,17 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 	add_to_pathlist(optarg);
 	try_config_again = 1;
 	break;
+
+      case 'M':
+	if(pcm_alternate_file != NULL)
+	    free(pcm_alternate_file);
+	pcm_alternate_file = safe_strdup(optarg);
+	break;
+
+      case 'm':
+        min_sustain_time = atoi(optarg);
+        if(min_sustain_time < 0) min_sustain_time = 0;
+        break;
 
       case 'n': 
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,

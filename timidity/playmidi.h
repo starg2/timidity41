@@ -271,6 +271,8 @@ typedef struct {
   int delay; /* Note ON delay samples */
   int32 timeout;
   struct cache_hash *cache;
+
+  uint8 chorus_link;	/* Chorus link */
 } Voice;
 
 /* Voice status options: */
@@ -342,6 +344,7 @@ extern int get_chorus_level(int ch);
 extern void playmidi_output_changed(int play_state);
 extern Instrument *play_midi_load_instrument(int dr, int bk, int prog);
 extern void midi_program_change(int ch, int prog);
+extern void free_voice(int v);
 
 /* For stream player */
 extern void playmidi_stream_init(void);

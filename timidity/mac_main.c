@@ -184,7 +184,7 @@ static void mac_init()
 	InitMenuBar();
 }
 
-
+extern char *opt_aq_max_buff,*opt_aq_fill_buff;
 int  main()
 {
 	int32	output_rate=DEFAULT_RATE;
@@ -196,7 +196,13 @@ int  main()
 	
 	mac_DefaultOption();
 	mac_GetPreference();
-	
+
+#ifdef MAC_INITIAL_FILLING
+	if(!opt_aq_max_buff)
+		opt_aq_max_buff = safe_strdup("0.0");
+	if(!opt_aq_fill_buff)
+		opt_aq_fill_buff = safe_strdup("100%");
+#endif
 	
 	timidity_start_initialize();
 	if((err = timidity_pre_load_configuration()) != 0)
@@ -645,53 +651,6 @@ static int isBMPFilename(const char *fn)
 		return 0;
 	}
 }
-
-/*int isMidiFile(const FSSpec *spec)
-{
-	int len;
-
-	//err= FSpGetFInfo(spec, &fndrInfo);
-	len=spec->name[0];	//strlen
-	if( memcmp( &spec->name[len-3], ".mid", 4)==0 ||
-		memcmp( &spec->name[len-3], ".MID", 4)==0 ||
-		memcmp( &spec->name[len-3], ".rcp", 4)==0 ||
-		memcmp( &spec->name[len-3], ".RCP", 4)==0 ||
-		memcmp( &spec->name[len-3], ".R36", 4)==0 ||
-		memcmp( &spec->name[len-3], ".r36", 4)==0 ||
-		memcmp( &spec->name[len-3], ".G18", 4)==0 ||		
-		memcmp( &spec->name[len-3], ".g18", 4)==0 ||
-		memcmp( &spec->name[len-3], ".G36", 4)==0 ||
-		memcmp( &spec->name[len-3], ".g36", 4)==0 ||
-		memcmp( &spec->name[len-2], ".gz",  3)==0 ||
-		memcmp( &spec->name[len-3], ".mod", 4)==0 ||
-		memcmp( &spec->name[len-3], ".hqx", 4)==0 ||
-		memcmp( &spec->name[len-4], ".mime", 5)==0
-		){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}*/
-
-/*int isArchiveFile(const FSSpec *spec)
-{
-	int len;
-
-	len=spec->name[0];	//strlen
-	if( memcmp( &spec->name[len-3], ".lzh", 4)==0 ||
-		memcmp( &spec->name[len-3], ".LZH", 4)==0 ||
-		memcmp( &spec->name[len-3], ".zip", 4)==0 ||
-		memcmp( &spec->name[len-3], ".ZIP", 4)==0
-		//memcmp( &spec->name[len-3], ".hqx", 4)==0 ||
-		//memcmp( &spec->name[len-4], ".mime", 5)==0		
-		){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}*/
 
 static void AddFolderFSSpec2PlayList(const FSSpec *spec)
 {

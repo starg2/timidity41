@@ -38,7 +38,7 @@
 #include "miditrace.h"
 #include "bitset.h"
 #include "mfnode.h"
-#include "aq.h"
+//#include "aq.h"
 
 #include "mac_main.h"
 #include "mac_util.h"
@@ -230,7 +230,7 @@ static void update_title()
 void mac_trc_update_time( int cur_sec, int tot_sec )
 {
 	static int	save_tot_sec=0, save_cur_sec;
-	int rate;
+	//int rate;
 	char		buf[80];
 	
 	if( cur_sec!=-1 ) save_cur_sec=tot_sec;
@@ -239,12 +239,12 @@ void mac_trc_update_time( int cur_sec, int tot_sec )
 	if( cur_sec > save_tot_sec ) cur_sec=save_tot_sec;
 	
 	if( !win.show ) return;
-	rate = (int)(aq_filled_ratio() * 100 + 0.5);
+	//rate = (int)(aq_filled_ratio() * 100 + 0.5);
 
 	SetPortWindowPort(win.ref);
-	snprintf(buf, 80," %3d:%02d /%3d:%02d   buffering=%3d %% " "buffer %d/256  ",
+	snprintf(buf, 80," %3d:%02d /%3d:%02d   " /*"buffering=%3d %% "*/ "buffer %d/256  ",
 		cur_sec/60, cur_sec%60, save_tot_sec/60,save_tot_sec%60,
-		rate ,mac_buf_using_num );
+		/*rate,*/ mac_buf_using_num );
 	RGBForeColor(&black);
 	MoveTo(400,12); DrawText(buf, 0, strlen(buf));
 }

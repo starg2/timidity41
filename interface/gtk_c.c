@@ -71,6 +71,7 @@ static void ctl_panning(int channel, int val);
 static void ctl_sustain(int channel, int val);
 static void ctl_pitch_bend(int channel, int val);
 static void ctl_reset(void);
+static void ctl_lyric(int);
 
 
 /**********************************************/
@@ -176,6 +177,7 @@ static void ctl_event(CtlEvent *e)
       case CTLE_REVERB_EFFECT:
 	break;
       case CTLE_LYRIC:
+	ctl_lyric((int)e->v1);
 	break;
       case CTLE_REFRESH:
 	ctl_refresh();
@@ -351,6 +353,52 @@ ctl_reset(void)
     }
   ctl_refresh();
   */
+}
+
+static void
+ctl_lyric(int lyricid)
+{
+    char	*lyric;
+    static char	lyric_buf[300];
+
+    lyric = event2string(lyricid);
+    if(lyric != NULL)
+    {
+	if(lyric[0] == ME_KARAOKE_LYRIC)
+	{
+	    if(!lyric[1])
+		return;
+	    if(lyric[1] == '/' || lyric[1] == '\\')
+	    {
+		snprintf(lyric_buf, sizeof(lyric_buf), "\n%s", lyric + 2);
+		gtk_pipe_int_write(LYRIC_MESSAGE);
+		gtk_pipe_string_write(lyric_buf);
+	    }
+	    else if(lyric[1] == '@')
+	    {
+		if(lyric[2] == 'L')
+		    snprintf(lyric_buf, sizeof(lyric_buf), "Language: %s\n", lyric + 3);
+		else if(lyric[2] == 'T')
+		    snprintf(lyric_buf, sizeof(lyric_buf), "Title: %s\n", lyric + 3);
+		else
+		    snprintf(lyric_buf, sizeof(lyric_buf), "%s\n", lyric + 1);
+		gtk_pipe_int_write(LYRIC_MESSAGE);
+		gtk_pipe_string_write(lyric_buf);
+	    }
+	    else
+	    {
+		strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
+		gtk_pipe_int_write(LYRIC_MESSAGE);
+		gtk_pipe_string_write(lyric_buf);
+	    }
+	}
+	else
+	{
+	    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
+	    gtk_pipe_int_write(LYRIC_MESSAGE);
+	    gtk_pipe_string_write(lyric_buf);
+	}
+    }
 }
 
 /***********************************************************************/

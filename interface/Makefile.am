@@ -147,7 +147,7 @@ libinterface_a_LIBADD = \
 	$(SOUND_SPEC_OBJS)
 
 libinterface_a_DEPENDENCIES = \
-	$(top_srcdir)/interface.h \
+	$(top_builddir)/interface.h \
 	$(libinterface_a_LIBADD) \
 	$(tcltk_dep) \
 	$(W32GUI_DEPS)
@@ -163,7 +163,8 @@ EXTRA_DIST = \
 	tkpanel.tcl \
 	browser.tcl \
 	misc.tcl \
-	timidity.el
+	timidity.el \
+	tclIndex
 
 .ptcl.tcl:
 	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@
@@ -173,6 +174,7 @@ clean:
 	rm -f *.$(so)
 
 tclIndex: $(TCLF)
+	rm -f tclIndex
 	echo 'auto_mkindex . *.tcl; exit' | $(WISH)
 
 if ENABLE_TCLTK

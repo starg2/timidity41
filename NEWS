@@ -1,3 +1,30 @@
+11/24, 1999
+    * Version 2.8.0 released.
+    * In GTK, added support for printing the lyrics from .kar files
+      and also make the text area clear between files.
+    * New command line option: -M <name>
+	-M auto: Use *.mid.wav or *.mid.aiff instread of MIDI to WAVE
+		 convertion.  The PCM file format must be 16bit sample and
+		 the sampling rate equals as timidity's rate.
+        -M none: Disable this feature (default)
+        -M <filename>: Use the specified file.
+    * In GTK interface, added support for printing the lyrics from .kar files
+      and also make the text area clear between files.
+    * New configure option to choose wave interpolation in resampling.
+	--with-spline=linear	Linear interpolation (default)
+	--with-spline=cubic	Cubic interpolation
+	--with-spline=lanrange	Langrange interpolation
+	--with-spline=no	No interplation
+    * New command line option `-m N' to specify sustain time (msec).
+	-m 1	Effectively behaves as if all sustains are ignored,
+		volume ramping is the same as normal stage 3.
+	-m 0	Disable sustain ramping, causes constant volume sustains.
+		(default)
+	-m 3000	A note at full volume will decay for 3 seconds once it begins
+		to be sustained (assuming the regular stage 3 rate would not
+		cause it to decay even longer). Softer notes will of course
+		die sooner.
+
 10/12, 1999
     * Version 2.7.0 released.
     * adjust_panning_immediately (-F) is true by default.

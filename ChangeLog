@@ -1,3 +1,110 @@
+1999-11-24  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.8.0 released.
+
+1999-11-24  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/playmidi.c (start_note): Reset porta_control_counter.
+
+1999-11-19  Masanao Izumo <mo@goice.co.jp>
+            Takaya Nogami <t-nogami@happy.email.ne.jp>
+    * Imported Macinotsh sources from the 1999.10.31 of T.Nogami released.
+
+1999-11-19  Masanao Izumo <mo@goice.co.jp>
+    * timidity/resample.c (rs_plain): Bug fixed about PRECALC_LOOPS counter.
+      This bug from the original of TiMidity.
+	Original form: i = (le - ofs) / incr + 1;		(Original)
+	Fixed form:    i = (le - ofs + incr - 1) / incr;	(Correct)
+    * timidity/wrd_read.c: Check 0x20 command in the header block.
+
+1999-11-18  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/timidity.c (-M name): New command line switch.
+	-M auto: Use *.mid.wav or *.mid.aiff instread of MIDI to WAVE
+		 convertion.  The PCM file format must be 16bit sample and
+		 the sampling rate equals as timidity's rate.
+        -M none: Disable this feature (default)
+        -M <filename>: Use the specified file.
+
+1999-11-17  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c (reduce_voice(), reduce_voice_CPU()):
+      Improved chorus reduction.
+    * timidity/timidity.c: Changed the -h information displayed for -EFchorus=2
+
+1999-11-16  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/playmidi.c: New variable `char *pcm_alternate_file'.
+      NULL or "none":  Don't use any pre-converted pcm files.
+      "auto": Automatically select *.mid.wav or *.mid.aiff
+      filename: Use the specified file.
+
+1999-11-16  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in,timidity/timidity.h: New configure option to choose
+      wave interpolation in resampling.
+	--enable-spline=linear		Linear interpolation (default)
+	--enable-spline=cubic		Cubic interpolation
+	--enable-spline=lanrange	Langrange interpolation
+	--enable-spline=no		No interplation
+
+1999-11-12  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{playmidi.h,playmidi.c}: Modified chorus implementations
+    * interface/{Makefile.am,Makefile.in}: Added tclIndex in the package.
+      If *.tcl are updated, tclIndex is automatically update with make.
+
+1999-11-07  Takaya Nogami <t-nogami@happy.email.ne.jp>
+
+    * timidity/{playmidi.c,readmidi.h}: 
+      Use pre-converted file *.mid.wav or *.mid.aiff file to play *.mid
+      if it is exists.
+
+1999-11-06  Glenn Trigg <ggt@netspace.net.au>
+
+    * interface/{gtk_c.c,gtk_h.h,gtk_i.c}:
+      Added support for printing the lyrics from .kar files
+      and also make the text area clear between files.
+
+1999-10-26  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/instrum.c: Bug fixes.
+      It is possible that (OFS>>FRACTION_BITS)+1 will yield a value which is 1
+      beyond the length of the sample.  This happens when OFS < data_length,
+      but (OFS>>FRACTION_BITS) == (data_length>>FRACTION_BITS).
+
+1999-10-25  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c: Support adjust panning for chorus'd notes.
+      This fix would remove "popping" noises.
+
+1999-10-24  Michael Vanier <mvanier@bbb.caltech.edu>
+
+    * README: Proofread.
+
+1999-10-17  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/{mix.h,mix.c,timidity.c} (-m N): New command line switch, and
+      implemented envelope_volume decay.
+      N is the minimum number of msec to sustain a sustained note.
+
+	-m 1	Effectively behaves as if all sustains are ignored,
+		volume ramping is the same as normal stage 3.
+	-m 0	Disable sustain ramping, causes constant volume sustains.
+		(default)
+	-m 3000	A note at full volume will decay for 3 seconds once it begins
+		to be sustained (assuming the regular stage 3 rate would not
+		cause it to decay even longer). Softer notes will of course
+		die sooner.
+
+1999-10-15  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c: Improvement to -EFchorus=2
+
+1999-10-15  Tomoki Aono <a9601m@almn.is.osaka-kyoiku.ac.jp>
+
+    * interface/{Makefile.am,Makefile.in}: Fixed a mistake of Makefile
+
 1999-10-12  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.7.0 released.

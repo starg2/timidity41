@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.7.0, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.8.0, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -451,7 +451,7 @@ dnl Turn on default output mode
 DEFAULT_PLAYMODE=
 AC_ARG_WITH(default-output,
   [  --with-default-output=<mode>  Specify default output mode (optional):
-                              default|alsa|alib|nas|esd|wav|au|aiff|list],
+                                default|alsa|alib|nas|esd|wav|au|aiff|list],
   [ if test "$enable_audio" != no; then
       DEFAULT_PLAYMODE=$withval
       eval "au_enable_$DEFAULT_PLAYMODE=yes"
@@ -1220,6 +1220,29 @@ AC_ARG_ENABLE(spectrogram,
       EXTRADEFS="$EXTRADEFS -DSUPPORT_SOUNDSPEC"
     fi ])
 AM_CONDITIONAL(ENABLE_SOUND_SPEC, test "x$enable_spectrogram" = "xyes")
+
+dnl Wave Spline Interpolations
+AC_ARG_ENABLE(spline,
+  [  --enable-spline=[method]  Specify spline method: no|linear|cubic|lanrange
+                                                          (default is linear)],
+  [ case "x$enableval" in
+      xlinear)
+	EXTRADEFS="$EXTRADEFS -DLINEAR_INTERPOLATION"
+	;;
+      xcubic)
+	EXTRADEFS="$EXTRADEFS -DCSPLINE_INTERPOLATION"
+	;;
+      xlanrange)
+	EXTRADEFS="$EXTRADEFS -DLAGRANGE_INTERPOLATION"
+	;;
+      xno)
+	EXTRADEFS="$EXTRADEFS -DNO_INTERPOLATION"
+	;;
+      *)
+	AC_MSG_ERROR(Invalid method of --enable-spline)
+	;;
+    esac ])
+
 
 dnl WRD interface
 AC_ARG_ENABLE(wrd,

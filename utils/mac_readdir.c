@@ -28,3 +28,19 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include "mac_readdir.h"
+
+DIR *opendir(const char * /*name*/)
+{
+	return NULL; //dummy
+}
+
+int closedir(DIR * /*dir*/)
+{
+	return 0; //dummy
+}
+
+struct dirent* readdir( DIR * /*p*/)
+{
+	return NULL; //dummy
+}
+

@@ -123,6 +123,22 @@ short GetDialogItemValue(DialogPtr dialog, short item )
 	return GetControlValue(itemHandle);
 }
 
+void SetDialogTEValue(DialogRef dialog, short item, int value)
+{
+	Str255		s;
+	
+	NumToString(value, s);
+	mySetDialogItemText(dialog, item, s);
+}
+
+int GetDialogTEValue(DialogRef dialog, short item )
+{
+	Str255		s;
+	
+	myGetDialogItemText(dialog, item, s);
+	return atof(p2cstr(s));
+}
+
 short ToggleDialogItem(DialogPtr dialog, short item )
 {
 	short			itemType, value;
@@ -164,17 +180,18 @@ void SetDialogControlTitle(DialogRef theDialog, short itemNo, const Str255 text)
 	GetDialogItem(theDialog, itemNo, &itemType, &item, &box);
 	SetControlTitle((ControlRef)item, text);
 }
-// ************************************************
-/*void	mac_TransPathSeparater(char str[])
-{
-	int i;
-	for( i=0; str[i]!=0; i++ ){
-		if( str[i]=='/' ){
-			str[i]=':';
-		}
-	}
-}*/
 
+void SetDialogItemHilite(DialogRef dialog, short item, short value)
+{
+	short		itemType;
+	ControlRef	itemHandle;
+	Rect		itemRect;
+	
+	GetDialogItem(dialog, item, &itemType, &itemHandle, &itemRect);
+	HiliteControl(itemHandle, value);
+}
+
+// ************************************************
 void    mac_TransPathSeparater(const char str[], char out[])
 {
 	int i;

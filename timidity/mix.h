@@ -28,5 +28,6 @@
 extern void mix_voice(int32 *buf, int v, int32 c);
 extern int recompute_envelope(int v);
 extern int apply_envelope_to_amp(int v);
+extern int min_sustain_time;  /* time (ms) for full vol note to sustain */
 
 #endif /* ___MIX_H_ */

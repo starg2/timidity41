@@ -132,18 +132,24 @@ static int open_output (void)
 {
 	int		i;
 	SndCommand	theCmd;
-
+	int include_enc, exclude_enc;
+	
 	gSndCannel=MyCreateSndChannel(sampledSynth, 0,
 					NewSndCallBackProc(callback), MAC_SOUNDBUF_QLENGTH);
 	if( gSndCannel==0 )
 			{ StopAlertMessage("\pCan't open Sound Channel"); ExitToShell(); }
 					
-	dpm.encoding |= PE_16BIT;
-	dpm.encoding |= PE_SIGNED;
-	dpm.encoding &= ~PE_ULAW;
-	dpm.encoding &= ~PE_ALAW;
-	dpm.encoding &= ~PE_BYTESWAP;
-
+	dpm.encoding = include_enc = exclude_enc = 0;
+	
+	include_enc |= PE_16BIT;
+	include_enc |= PE_SIGNED;
+	
+	exclude_enc |= PE_ULAW;
+	exclude_enc |= PE_ALAW;
+	exclude_enc |= PE_BYTESWAP;
+	dpm.encoding = include_enc;
+	dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
+    
 	for( i=0; i<MACBUFNUM; i++) /*making sound buffer*/
 	{
 		soundHandle[i]=NewHandle(MACBUFSIZE);
@@ -155,7 +161,11 @@ static int open_output (void)
 	theCmd.param1=mac_amplitude;
 	SndDoCommand(gSndCannel, &theCmd, 0);
 	initCounter();
-	do_initial_filling=1; //experimental
+#ifdef MAC_INITIAL_FILLING
+	do_initial_filling=1;
+#else
+	do_initial_filling=0;
+#endif
 	return 0;
 }
 
@@ -185,7 +195,9 @@ static void QuingSndCommand(SndChannelPtr chan, const SndCommand *cmd)
 		{
 			gBusy=false;
 				//end of INITIAL FILLING
+#ifdef MAC_INITIAL_FILLING
 			filling_end();
+#endif
 			trace_loop();
 			YieldToAnyThread();
 		}
@@ -206,11 +218,12 @@ static int output_data (char *buf, int32 nbytes)
 		InitCursor();	gCursorIsWatch=false;
 	}
 
-			// start INITIAL FILLING
+#ifdef MAC_INITIAL_FILLING	// start INITIAL FILLING
 	if( play_counter==0 && filling_flag==0 && do_initial_filling){
 		filling_flag=1;
 		theCmd.cmd=pauseCmd; SndDoImmediate(gSndCannel, &theCmd);
 	}
+#endif
 	
 	samples = nbytes;
 	if (!(dpm.encoding & PE_MONO)) /* Stereo sample */
@@ -317,7 +330,7 @@ static void close_output (void)
 
 static int flush_output (void)
 {
-	int			ret=RC_NONE;
+	int		ret=RC_NONE;
 	SndCommand	theCmd;
 
 	mac_flushing_flag=1;
@@ -355,11 +368,18 @@ static int acntl(int request, void * arg)
       case PM_REQ_DISCARD:
 	purge_output();
 	return 0;
+      case PM_REQ_FLUSH:
+      case PM_REQ_OUTPUT_FINISH:
+      	flush_output();
+	return 0;
       case PM_REQ_GETQSIZ:
         *(int32*)arg= MACBUFNUM*AUDIO_BUFFER_SIZE*10;
       	return 0;
       case PM_REQ_GETSAMPLES:
       	*(int*)arg= current_samples();
+      	return 0;
+      case PM_REQ_PLAY_START:
+	initCounter();
       	return 0;
     }
     return -1;
