@@ -164,18 +164,20 @@ enum rpn_data_address_t /* NRPN/RPN */
 struct DrumParts
 {
     int drum_panning;
-    int32 drum_envelope_rate[6]; /* Not supported */
+    int32 drum_envelope_rate[6]; /* Drum Attack,Delay Time */
 
     /* flag for drum random pan */
     int pan_random;
+	
+	/* Level of Drum (0~127[Level of Drum] / 100[GS default]) */
+	double drum_level;
+
+	int8 chorus_level, reverb_level, delay_level, note;
 
 /* Not supported:
  * Drum Filter Cutoff
  * Drum Filter Resonance
- * Drum Attack Time
- * Drum Decay Time
  * Coarse Pitch of Drum/Fine Pitch of Drum
- * Level of Drum
  * Reverb Send Level of Drum
  * Chorus Send Level of Drum
  * Variation Send Level of Drum
@@ -195,6 +197,7 @@ typedef struct {
 			   >=0 reverb_level
 			   -1: DEFAULT_REVERB_SEND_LEVEL
 			   */
+  int8 delay_level;	/* Delay Send Level */
 
   /* Special sample ID. (0 means Normal sample) */
   uint8 special_sample;
@@ -235,6 +238,11 @@ typedef struct {
 
   /* flag for random pan */
   int pan_random;
+
+  /* for Cutoff,Resonance */
+  int cutoff_freq;
+  int resonance_level;
+
 } Channel;
 
 /* Causes the instrument's default panning to be used. */
@@ -318,6 +326,12 @@ extern int opt_chorus_control;
 extern int opt_surround_chorus;
 extern int opt_channel_pressure;
 extern int opt_overlap_voice_allow;
+extern int opt_tva_attack;
+extern int opt_tva_decay;
+extern int opt_tva_release;
+extern int opt_delay_control;
+extern int opt_resonance;
+extern int opt_env_attack;
 extern int noise_sharp_type;
 extern int32 current_play_tempo;
 extern int opt_realtime_playing;

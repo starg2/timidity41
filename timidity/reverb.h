@@ -30,7 +30,8 @@
 #ifndef ___REVERB_H_
 #define ___REVERB_H_
 
-#define DEFAULT_REVERB_SEND_LEVEL   54
+/* #define DEFAULT_REVERB_SEND_LEVEL   54 */
+#define DEFAULT_REVERB_SEND_LEVEL 40
 
 extern void do_reverb(int32 *, int32);
 extern void do_ch_reverb(int32 *, int32);

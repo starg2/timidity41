@@ -1484,6 +1484,8 @@ static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	/* from sample info */
 	vp->root = sp->originalPitch;
 	vp->tune = sp->pitchCorrection;
+	if (vp->tune >= 0x80)
+		vp->tune -= 0x100; /* correct sign */
     }
 
     /* orverride root key */
@@ -1496,6 +1498,9 @@ static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     /* correct too high pitch */
     if(vp->root >= vp->high + 60)
 	vp->root -= 60;
+
+    /* correct tune with the sustain level of modulation envelope */
+    vp->tune += ((int)tbl->val[SF_env1ToPitch] * (1000 - (int)tbl->val[SF_sustainEnv1])) / 1000;
 }
 
 static void set_rootfreq(SampleList *vp)
@@ -1653,55 +1658,46 @@ static void convert_vibrato(SampleList *vp, LayerTable *tbl)
 #define MIN_DATAVAL -32768
 #endif
 
-/* ## FIXME */
 static void do_lowpass(Sample *sp, int32 freq, FLOAT_T resonance)
 {
-	double A, B, C;
-	sample_t *buf, pv1, pv2;
-	int32 i;
+	int32 i,length;
+	FLOAT_T f,k,p,r,scale;
+	sample_t *buf;
+	sample_t y1,y2,y3,y4,oldy1,oldy2,oldy3,oldx,x;
 
 	if (freq > sp->sample_rate * 2) {
 		ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
-			  "Lowpass: center must be < data rate*2");
+			  "Lowpass: center freq must be < data rate * 2");
 		return;
 	}
-	A = 2.0 * M_PI * freq * 2.5 / sp->sample_rate;
-	B = exp(-A / sp->sample_rate);
-	A *= 0.8;
-	B *= 0.8;
-	C = 0;
 
-	if (resonance) {
-		double a, b, c;
-		int32 width;
-		width = freq / 5;
-		c = exp(-2.0 * M_PI * width / sp->sample_rate);
-		b = -4.0 * c / (1+c) * cos(2.0 * M_PI * freq / sp->sample_rate);
-		a = sqrt(1 - b * b / (4 * c)) * (1 - c);
-		b = -b; c = -c;
-
-		A += a * resonance;
-		B += b;
-		C = c;
-	}
-
-	pv1 = 0;
-	pv2 = 0;
 	buf = sp->data;
+	length = sp->data_length;
 
-	for (i = 0; i < sp->data_length; i++) {
-		sample_t l = *buf;
-		double d = A * l + B * pv1 + C * pv2;
-		if (d > MAX_DATAVAL)
-			d = MAX_DATAVAL;
-		else if (d < MIN_DATAVAL)
-			d = MIN_DATAVAL;
-		pv2 = pv1;
-#ifndef CUTOFF_AMPTUNING
-		pv1 = *buf++ = (sample_t)d;
-#else
-		pv1 = (sample_t)d;
-		*buf++ = (sample_t)(d * CUTOFF_AMPTUNING);
-#endif
+	y1=y2=y3=y4=oldx=oldy1=oldy2=oldy3=0;
+
+	f = 2.0 * freq / sp->sample_rate;
+	k = 3.6*f - 1.6*f*f - 1;
+	p = (k+1)*0.5;
+	scale = exp((1-p)*1.386249);
+	r = resonance * scale;
+	r /= 4;
+	y4 = buf[0];
+
+	for(i=0;i<length;i++) {
+		buf[i] -= r * y4;
+		x = buf[i];
+
+		y1=(x+oldx)*p - k*y1;
+		y2=(y1+oldy1)*p - k*y2;
+		y3=(y2+oldy2)*p - k*y3;
+		y4=(y3+oldy3)*p - k*y4;
+
+		y4 -= y4 * y4 * y4 * 0.166667;
+
+		oldx = x;
+		oldy1 = y1;
+		oldy2 = y2;
+		oldy3 = y3;
 	}
 }

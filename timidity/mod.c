@@ -53,6 +53,7 @@ extern long int random (void);
 #include "output.h"
 #include "controls.h"
 #include "unimod.h"
+#include "unimod_priv.h"
 #include "mod2midi.h"
 
 static BOOL mod_do_play (MODULE *);
@@ -1720,13 +1721,29 @@ DoMEDSpeed (void)
 static void 
 pt_playeffects (void)
 {
-  UBYTE dat, c;
+  UBYTE dat, c, oldc = 0;
 
   while ((c = UniGetByte ()))
     {
       int oldsliding = a->sliding;
 
       a->sliding = 0;
+
+      /* libunimod doesn't *quite* do Ultimate Soundtracker portas correctly */
+      if (strcmp(of.modtype, "Ultimate Soundtracker") == 0)
+        {
+      if (c == 5 && oldc == 4)
+        {
+          oldc = 5;
+          a->sliding = oldsliding;
+          UniSkipOpcode (c);
+          continue;
+        }
+        oldc = c;
+        if (c == 3 || c == 4)
+            c++;
+      }
+
       switch (c)
 	{
 	case UNI_PTEFFECT0:

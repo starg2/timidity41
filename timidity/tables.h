@@ -48,6 +48,17 @@ extern int32 *mixup;
 extern int8 *iplookup;
 #endif
 #endif
+extern uint8 reverb_macro_presets[];
+extern uint8 chorus_macro_presets[];
+extern uint8 delay_macro_presets[];
+extern FLOAT_T delay_time_center_table[];
+extern FLOAT_T pre_delay_time_table[];
+extern uint8 velocity_table[];
+extern int opt_velocity_table;
+extern FLOAT_T linear_vol_table[];
+extern FLOAT_T log_vol_table[];
+extern FLOAT_T *attack_vol_table;
+
 
 extern void init_tables(void);
 

@@ -2962,17 +2962,17 @@ static void display_aq_ratio(void)
 	return;
     rate = (int)(((double)(aq_filled() + aq_soft_filled()) /
 		  devsiz) * 100 + 0.5);
-    if(rate > 999)
-	rate = 1000;
+    if(rate > 9999)
+	rate = 10000;
 
     if(last_rate != rate)
     {
 	last_rate = rate;
 	wmove(dftwin, VOICE_LINE + 1, 34);
-	if(rate > 999)
-	    wprintw(dftwin, " Audio queue:***%% ");
+	if(rate > 9999)
+	    wprintw(dftwin, " Audio queue:****%% ");
 	else
-	    wprintw(dftwin, " Audio queue:%3d%% ", rate);
+	    wprintw(dftwin, " Audio queue:%4d%% ", rate);
 	scr_modified_flag = 1;
     }
 }

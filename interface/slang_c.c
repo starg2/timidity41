@@ -962,7 +962,7 @@ static void display_lyric(char *lyric, int sep)
 	}
     }
 
-    SLsmg_printfrc(lyric_row,0,comment_indicator_buffer);
+    SLsmg_printfrc(lyric_row,0,"%s",comment_indicator_buffer);
     ctl_refresh();
     reuse_mblock(&tmpbuffer);
     indicator_last_update = get_current_calender_time();

@@ -55,19 +55,7 @@ int read_rcp_file(struct timidity_file *tf, char *magic0, char *fn);
 #define MARKER_END_CHAR		')'
 #define REDUCE_CHANNELS		16
 
-struct chorus_status_t
-{
-    int status;
-    uint8 voice_reserve[18];
-    uint8 macro[3];
-    uint8 pre_lpf[3];
-    uint8 level[3];
-    uint8 feed_back[3];
-    uint8 delay[3];
-    uint8 rate[3];
-    uint8 depth[3];
-    uint8 send_level[3];
-};
+
 enum
 {
     CHORUS_ST_NOT_OK = 0,
@@ -97,10 +85,21 @@ static StringTable string_event_strtab;
 static int current_read_track;
 static int karaoke_format, karaoke_title_flag;
 static struct chorus_status_t chorus_status;
+static struct delay_status_t delay_status;
+static struct reverb_status_t reverb_status;
+static struct insertion_effect_t insertion_effect;
 static struct midi_file_info *midi_file_info = NULL;
 static char **string_event_table = NULL;
 static int    string_event_table_size = 0;
 int    default_channel_program[256];
+
+void init_delay_status();
+void set_delay_macro(int macro);
+void recompute_delay_status();
+void init_reverb_status();
+void set_reverb_macro(int macro);
+void set_chorus_macro(int macro);
+void init_chorus_status();
 
 /* MIDI ports will be merged in several channels in the future. */
 static int midi_port_number;
@@ -131,6 +130,9 @@ int32 readmidi_set_track(int trackno, int rewindp)
 {
     current_read_track = trackno;
     memset(&chorus_status, 0, sizeof(chorus_status));
+	init_reverb_status();
+	init_delay_status();
+	init_chorus_status();
     if(karaoke_format == 1 && current_read_track == 2)
 	karaoke_format = 2; /* Start karaoke lyric */
     else if(karaoke_format == 2 && current_read_track == 3)
@@ -665,31 +667,303 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 	num_events++;
     }
 
-    /* GS bank+program change */
-    /* I could not find any documentation on this, so I reverse engineered
-       which bytes do what from midi I have.  It appears to work correctly. */
-    else if(len == 11 &&
-       val[0] == 0x41 && /* Roland ID */
+    /* parsing GS System Exclusive Message... */
+	/* val[4] == Parameter Address(High)
+	   val[5] == Parameter Address(Middle)
+	   val[6] == Parameter Address(Low)
+	   val[7]... == Data...
+	   val[last] == Checksum(== 128 - (sum of addresses&data bytes % 128)) 
+	*/
+    else if(len >= 9 &&
+	   val[0] == 0x41 && /* Roland ID */
        val[1] == 0x10 && /* Device ID */
        val[2] == 0x42 && /* GS Model ID */
-       val[3] == 0x12 && /* Data Set Command */
-       val[4] == 0x40 && /* I wish I knew what this was... */
-       (val[5] >= 0x10 && val[5] < 0x20))   /* channel command */
+       val[3] == 0x12) /* Data Set Command */
     {
-	uint8 p;				/* Channel part number [0..15] */
+		static uint8 userdrum_prog,userdrum_map;
+		uint8 p,dp,udn;
+		int i,addr,addr_h,addr_m,addr_l;
+		p = val[5] & 0x0F;
+		if(p == 0) {p = 9;}
+		else if(p <= 9) {p--;}
+		p = MERGE_CHANNEL_PORT(p);
 
-	p = val[5] & 0x0F;
-	if(p == 0)
-	    p = 9;
-	else if(p <= 9)
-	    p--;
-	p = MERGE_CHANNEL_PORT(p);
+		dp = (val[5] & 0xF0) >> 4;
+		for(i=0;i<16;i++) {
+			if(ISDRUMCHANNEL(i)) {
+				if(dp == 0) {
+					dp = i;
+					break;
+				}
+				dp = 0;
+			}
+		}
+		if(dp == 0) {dp = 9;}
 
-	MIDIEVENT(at, ME_TONE_BANK_MSB, p, val[7], 0);
-	MIDIEVENT(at, ME_TONE_BANK_LSB, p, 1, 0);     /* assume SC-55 ??? */
-	MIDIEVENT(at, ME_PROGRAM, p, val[8], 0);
+		udn = (val[5] & 0xF0) >> 4;
 
-	num_events = 3;
+		addr = (((int32)val[4])<<16 | ((int32)val[5])<<8 | (int32)val[6]);
+		addr_h = val[4];
+		addr_m = val[5];
+		addr_l = val[6];
+
+		switch(addr_h) {	
+		case 0x40:
+			if((addr & 0xFFF000) == 0x401000) {
+				switch(addr & 0xFF) {
+				case 0x00:
+					MIDIEVENT(at, ME_TONE_BANK_MSB,p,val[7],0);
+					MIDIEVENT(at, ME_TONE_BANK_LSB,p,3,0);
+					MIDIEVENT(at, ME_PROGRAM,p,val[8],0);
+					num_events += 3;
+					break;
+				case 0x19:
+					MIDIEVENT(at,ME_MAINVOLUME,p,val[7],0);
+					num_events++;
+					break;
+				case 0x1A:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Velocity Sense Depth: %02X",val[7]);
+					break;
+				case 0x1B:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Velocity Sense Offset: %02X",val[7]);
+					break;
+				case 0x1C:
+					MIDIEVENT(at,ME_PAN,p,val[7],0);
+					num_events++;
+					break;
+				case 0x21:
+					MIDIEVENT(at,ME_CHORUS_EFFECT,p,val[7],0);
+					num_events++;
+					break;
+				case 0x22:
+					MIDIEVENT(at,ME_REVERB_EFFECT,p,val[7],0);
+					num_events++;
+					break;
+				case 0x2C:
+					MIDIEVENT(at,ME_CELESTE_EFFECT,p,val[7],0);
+					num_events++;
+					break;
+				case 0x2A:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x00,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x01,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					MIDIEVENT(at,ME_DATA_ENTRY_LSB,p,val[8],0);
+					num_events += 4;
+					break;
+				case 0x30:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x08,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				case 0x31:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x09,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				case 0x32:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x20,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				case 0x33:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x21,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				case 0x34:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x63,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				case 0x35:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x64,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				case 0x36:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x66,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				case 0x37:
+					MIDIEVENT(at,ME_NRPN_MSB,p,0x01,0);
+					MIDIEVENT(at,ME_NRPN_LSB,p,0x0A,0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,p,val[7],0);
+					num_events += 3;
+					break;
+				}
+			} else if((addr & 0xFFFF00) == 0x400100) {
+				switch(addr & 0xFF) {
+				case 0x30:
+					set_reverb_macro(val[7]);
+					break;
+				case 0x31:
+					reverb_status.character = val[7];
+					break;
+				case 0x32:
+					reverb_status.pre_lpf = val[7];
+					break;
+				case 0x33:
+					reverb_status.level = val[7];
+					break;
+				case 0x34:
+					reverb_status.time = val[7];
+					break;
+				case 0x35:
+					reverb_status.delay_feedback = val[7];
+					break;
+				case 0x36:
+					reverb_status.pre_delay_time = val[7];
+					break;
+				case 0x50:
+					set_delay_macro(val[7]);
+					recompute_delay_status();
+					break;
+				case 0x52:
+					delay_status.time_center = delay_time_center_table[val[7]];
+					recompute_delay_status();
+					break;
+				case 0x53:
+					delay_status.time_ratio_left = (double)val[7] / 24;
+					recompute_delay_status();
+					break;
+				case 0x54:
+					delay_status.time_ratio_right = (double)val[7] / 24;
+					recompute_delay_status();
+					break;
+				case 0x55:
+					delay_status.level_center = val[7];
+					recompute_delay_status();
+					break;
+				case 0x56:
+					delay_status.level_left = val[7];
+					recompute_delay_status();
+					break;
+				case 0x57:
+					delay_status.level_right = val[7];
+					recompute_delay_status();
+					break;
+				case 0x58:
+					delay_status.level = val[7];
+					recompute_delay_status();
+					break;
+				}
+			}
+			break;
+		case 0x41:
+			switch(addr & 0xF00) {
+			case 0x100:
+				MIDIEVENT(at,ME_NRPN_MSB,dp,0x18,0);
+				MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+				MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+				num_events += 3;
+				break;
+			case 0x200:
+				MIDIEVENT(at,ME_NRPN_MSB,dp,0x1A,0);
+				MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+				MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+				num_events += 3;
+				break;
+			case 0x400:
+				MIDIEVENT(at,ME_NRPN_MSB,dp,0x1C,0);
+				MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+				MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+				num_events += 3;
+				break;
+			case 0x500:
+				MIDIEVENT(at,ME_NRPN_MSB,dp,0x1D,0);
+				MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+				MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+				num_events += 3;
+				break;
+			case 0x600:
+				MIDIEVENT(at,ME_NRPN_MSB,dp,0x1E,0);
+				MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+				MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+				num_events += 3;
+				break;
+			case 0x900:
+				MIDIEVENT(at,ME_NRPN_MSB,dp,0x1F,0);
+				MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+				MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+				num_events += 3;
+				break;
+			}
+			break;
+		case 0x21:	/* User Drumset */
+			switch(addr & 0xF00) {
+				case 0x100:	/* Pitch Coarse */
+					MIDIEVENT(at,ME_NRPN_MSB,dp,0x18,0);
+					MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+					num_events += 3;
+					break;
+				case 0x200:	/* Level */
+					MIDIEVENT(at,ME_NRPN_MSB,dp,0x1A,0);
+					MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+					num_events += 3;
+					break;
+				case 0x400:	/* Panpot */
+					MIDIEVENT(at,ME_NRPN_MSB,dp,0x1C,0);
+					MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+					num_events += 3;
+					break;
+				case 0x500:	/* Reverb Send Level */
+					MIDIEVENT(at,ME_NRPN_MSB,dp,0x1D,0);
+					MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+					num_events += 3;
+					break;
+				case 0x600:	/* Chorus Send Level */
+					MIDIEVENT(at,ME_NRPN_MSB,dp,0x1E,0);
+					MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+					num_events += 3;
+					break;
+				case 0x900:	/* Delay Send Level */
+					MIDIEVENT(at,ME_NRPN_MSB,dp,0x1F,0);
+					MIDIEVENT(at,ME_NRPN_LSB,dp,val[6],0);
+					MIDIEVENT(at,ME_DATA_ENTRY_MSB,dp,val[7],0);
+					num_events += 3;
+					break;
+				case 0xA00:	/* Source Map */
+					userdrum_map = val[7];
+					break;
+				case 0xB00:	/* Source Prog */
+					userdrum_prog = val[7];
+					break;
+				case 0xC00:	/* Source Note */
+					alloc_instrument_bank(1,64+udn);
+					if(drumset[userdrum_prog]) {
+						if(drumset[userdrum_prog]->tone[val[6]].name) {
+							drumset[64+udn]->tone[val[6]].instrument = load_instrument(1, userdrum_prog, val[7]);
+						} else {
+							drumset[64+udn]->tone[val[6]].instrument = load_instrument(1, 0, val[7]);
+						}
+					} else {
+						drumset[64+udn]->tone[val[6]].instrument = load_instrument(1, 0, val[7]);
+					}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Drumset (%d %d -> %d %d)",userdrum_prog,val[7],udn+64,val[6]);
+					userdrum_prog = 0;
+					userdrum_map = 0;
+					break;
+			}
+			break;
+		}
+		if(!num_events) {
+			if((addr & 0xFFF0F0) == 0x401040) { 
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS SysEx Scale Tuning: Not Supported");
+			}
+		}
     }
 
     return(num_events);
@@ -792,6 +1066,7 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 	    {
 	      case 0x8: /* macro */
 		memcpy(chorus_status.macro, body, 3);
+		set_chorus_macro(val[7]);
 		break;
 	      case 0x9: /* PRE-LPF */
 		memcpy(chorus_status.pre_lpf, body, 3);
@@ -1613,6 +1888,25 @@ void change_system_mode(int mode)
 {
     int mid;
 
+	switch(opt_env_attack) {
+	case 1:
+		attack_vol_table = def_vol_table;
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Attack Type: Exponential1");
+		break;
+	case 2:
+		attack_vol_table = gs_vol_table;
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Attack Type: Exponential2");
+		break;
+	case 3:
+		attack_vol_table = log_vol_table;
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Attack Type: Logarithmic");
+		break;
+	default:
+		attack_vol_table = linear_vol_table;
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Attack Type: Linear");
+		break;
+	}
+
     if(opt_system_mid)
     {
 	mid = opt_system_mid;
@@ -1620,7 +1914,6 @@ void change_system_mode(int mode)
     }
     else
 	mid = current_file_info->mid;
-
     switch(mode)
     {
       case GM_SYSTEM_MODE:
@@ -1655,7 +1948,7 @@ void change_system_mode(int mode)
 	    break;
 	  default:
 	    play_system_mode = DEFAULT_SYSTEM_MODE;
-	    vol_table = def_vol_table;
+		vol_table = def_vol_table;
 	    break;
 	}
 	break;
@@ -1959,7 +2252,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    bank_lsb[ch] = meep->event.a;
 	    break;
 
-	  case ME_CHORUS_TEXT:
+	  case ME_CHORUS_TEXT:		  		  
 	  case ME_LYRIC:
 	  case ME_MARKER:
 	  case ME_INSERT_TEXT:
@@ -3010,4 +3303,109 @@ char *event2string(int id)
     if(string_event_table == NULL || id < 0 || id >= string_event_table_size)
 	return NULL;
     return string_event_table[id];
+}
+
+void init_delay_status()
+{
+	delay_status.level = 0x40;
+	delay_status.level_center = 0x7F;
+	delay_status.level_left = 0;
+	delay_status.level_right = 0;
+	delay_status.time_center = 340.0;
+	delay_status.time_ratio_left = 1 / 24;
+	delay_status.time_ratio_right = 1 / 24;
+	delay_status.feed_back = 0x40;
+	delay_status.fb_loop = 0;
+	if(play_system_mode == XG_SYSTEM_MODE) {
+		delay_status.level_left = 0x7F;
+		delay_status.level_right = 0x7F;
+	}
+}
+
+void recompute_delay_status()
+{
+	delay_status.level_ratio_center = delay_status.level * delay_status.level_center / 2048383;
+	delay_status.level_ratio_left = delay_status.level * delay_status.level_left / 2048383;
+	delay_status.level_ratio_right = delay_status.level * delay_status.level_right / 2048383;
+	delay_status.time_left = delay_status.time_center * delay_status.time_ratio_left;
+	delay_status.time_right = delay_status.time_center * delay_status.time_ratio_right;
+	delay_status.time_left = delay_status.time_left & 1000;
+	delay_status.time_right = delay_status.time_right & 1000;
+	delay_status.fb_loop = delay_status.feed_back - 64;
+	if(delay_status.fb_loop < 0) {delay_status.fb_loop = -delay_status.fb_loop;}
+	delay_status.fb_ratio = 0.5 + (double)delay_status.fb_loop / 128.0;
+	delay_status.fb_loop = delay_status.fb_loop / 8;
+}
+
+void set_delay_macro(int macro)
+{
+	macro *= 10;
+	delay_status.time_center = delay_time_center_table[delay_macro_presets[macro+1]];
+	delay_status.time_ratio_left = delay_macro_presets[macro+2] / 24;
+	delay_status.time_ratio_right = delay_macro_presets[macro+3] / 24;
+	delay_status.level_center = delay_macro_presets[macro+4];
+	delay_status.level_left = delay_macro_presets[macro+5];
+	delay_status.level_right = delay_macro_presets[macro+6];
+	delay_status.level = delay_macro_presets[macro+7];
+	delay_status.feed_back = delay_macro_presets[macro+8];
+}
+
+struct delay_status_t *get_delay_status()
+{
+	return &delay_status;
+}
+
+void init_reverb_status()
+{
+	reverb_status.character = 0x04;
+	reverb_status.pre_lpf = 0;
+	reverb_status.level = 0x40;
+	reverb_status.time = 0x40;
+	reverb_status.delay_feedback = 0;
+	reverb_status.pre_delay_time = 0;
+}
+
+void set_reverb_macro(int macro)
+{
+	macro *= 6;
+	reverb_status.character = reverb_macro_presets[macro];
+	reverb_status.pre_lpf = reverb_macro_presets[macro+1];
+	reverb_status.level = reverb_macro_presets[macro+2];
+	reverb_status.time = reverb_macro_presets[macro+3];
+	reverb_status.delay_feedback = reverb_macro_presets[macro+4];
+	reverb_status.pre_delay_time = reverb_macro_presets[macro+5];
+}
+
+struct reverb_status_t *get_reverb_status()
+{
+	return &reverb_status;
+}
+
+void init_chorus_status()
+{
+	chorus_status.macro[0] = 0;
+	chorus_status.pre_lpf[0] = 0;
+	chorus_status.level[0] = 0x40;
+	chorus_status.feed_back[0] = 0x08;
+	chorus_status.delay[0] = 0x50;
+	chorus_status.rate[0] = 0x03;
+	chorus_status.depth[0] = 0x13;
+	chorus_status.send_level[0] = 0;
+}
+
+void set_chorus_macro(int macro)
+{
+	macro *= 8;
+	chorus_status.pre_lpf[0] = chorus_macro_presets[macro];
+	chorus_status.level[0] = chorus_macro_presets[macro+1];
+	chorus_status.feed_back[0] = chorus_macro_presets[macro+2];
+	chorus_status.delay[0] = chorus_macro_presets[macro+3];
+	chorus_status.rate[0] = chorus_macro_presets[macro+4];
+	chorus_status.depth[0] = chorus_macro_presets[macro+5];
+	chorus_status.send_level[0] = chorus_macro_presets[macro+6];
+}
+
+struct chorus_status_t *get_chorus_status()
+{
+	return &chorus_status;
 }

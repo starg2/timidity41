@@ -75,6 +75,7 @@ typedef struct SETTING_PLAYER_ {
 // End.
 	int PlayerLanguage;
 	int DocWndIndependent; 
+	int DocWndAutoPopup; 
 	int SeachDirRecursive;
 	int IniFileAutoSave;
 	int SecondMode;
@@ -107,7 +108,14 @@ typedef struct SETTING_TIMIDITY_ {
     int opt_reverb_control;	// E Freverb
     int opt_chorus_control;	// E Fchorus
     int noise_sharp_type;	// E Fns
-
+	int opt_surround_chorus; // E ?
+	int opt_tva_attack;			// E ?
+	int opt_tva_decay;			// E ?
+	int opt_tva_release;		// E ?
+	int opt_delay_control;		// E ?
+	int opt_resonance;			// E ?
+	int opt_env_attack;			// E ?
+	int opt_velocity_table;		// E ?
     int opt_evil_mode;		// e
     int adjust_panning_immediately; // F
     int fast_decay;		// f
@@ -117,12 +125,14 @@ typedef struct SETTING_TIMIDITY_ {
 #endif
 				// h (ignore)
     int default_program[MAX_CHANNELS]; // I
-    char opt_ctl[16];		// i
+    char opt_ctl[30];		// i
     int opt_realtime_playing;	// j
     int reduce_voice_threshold; // k
 				// L (ignore)
     char opt_playmode[16];	// O
     char OutputName[MAXPATH + 32]; // o : string
+    char OutputDirName[MAXPATH + 32]; // o : string
+	int auto_output_mode;
 				// P (ignore)
     int voices;			// p
     int auto_reduce_polyphony;  // pa
@@ -215,5 +225,8 @@ extern void TmFillRect(HDC hdc, RECT *rc, int color);
 extern void w32g_initialize(void);
 extern int is_directory(char *path);
 extern int directory_form(char *path_in_out);
+
+extern char *timidity_window_inifile;
+extern char *timidity_output_inifile;
 
 #endif /* ___W32G_UTL_H_ */

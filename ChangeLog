@@ -1,3 +1,65 @@
+2001-12-20  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/playmidi.c: Bug fix.
+	* interface/ncurs_c.c: Chaged from 3 to 4 digits in audio queue
+	  monitor.
+	* timidity/common.c: Fixed security probrem
+
+2001-11-28  Miloslav Trmac <mitr@volny.cz>
+
+	* interface/{dumb_c.c,slang_c.c,xaw_c.c,xskin_c.c}:
+	  Fixed some probrems.
+
+2001-11-19  Eric A. Welsh <ewelsh@ccb.wustl.edu>
+
+	* timidity/playmidi.c:
+	  Fixed a bug and reduced voice cancellation in Chorus Mode 2.
+	  Mod files and drums can still cancel on some full Left/Right pans.
+
+	* timidity/mod.c:
+	  Portas are now handled correctly for Ultimate Soundtracker mods.
+
+
+2001-11-10  Daisuke Nagano <breeze.nagano@nifty.ne.jp>
+
+	* doc/C/timidity.1: Updated.
+	
+2001-11-05  Saito <timidity@flashmail.com>
+
+	* timidity/sndfont.c:
+	  Updates do_lowpass().
+
+2001-10-25  Takashi Iwai <tiwai@suse.de>
+
+	* timidity/sndfont.c: Bug fix.
+
+2001-10-23  Lalit Chhabra <LChhabra@iee.org>
+
+	* timidity/sun_a.c:
+	  Modified the sun_a.c file so that it checks for the AUDIODEV
+	  environment variable and sets the sun audio device accordingly.
+
+2001-10-19  Saito <timidity@flashmail.com>
+
+	* timidity/{mix.c,mix.h,playmidi.c,playmidi.h,readmidi.c,readmidi.h,
+	  reverb.c,reverb.h,tables.c,tables.h}:
+	- Updates Win32GUI version.
+	- Improved GS SysEx
+	- Added attack/release/decay-time(CC/NRPN tone/NRPN dram)
+	- Added drum level
+	- Added CC#94 pseudo delay (like chorus method)
+	- Adjusted reverb level
+	- Added resonance filter
+	- Modified enverope attack
+	- Adjusted velocity
+	- Supported user drumset (SC-88)
+	- Added some GS SysEx'es.
+
+2001-10-10  Frederic LOYER <loyer@ensta.fr>
+
+	* timidity/sffile.h: Bug fix.
+	  Change uint8 pitchCorrection to int8 pitchCorrection.
+	
 2001-10-09  Masanao Izumo <mo@goice.co.jp>
 
 	* Windows: Use w32_a.c instead of w32g_a.c
@@ -12,6 +74,8 @@
 	  - automake 1.5
 	  - autoconf 2.52
 	  - libtool 1.4.2
+
+
 
 2001-06-25  Forever shall I be. <zinx@magenet.net>
 

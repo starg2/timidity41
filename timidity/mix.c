@@ -92,113 +92,98 @@ static void voice_ran_out(int v)
 /* Returns 1 if envelope runs out */
 int recompute_envelope(int v)
 {
-    int stage, ch;
-    int32 rate, offset;
+    int stage,ch;
+    int32 rate,offset,ch_rate;
     Voice *vp = &voice[v];
 
     stage = vp->envelope_stage;
-    if(stage > 5)
-    {
-	voice_ran_out(v);
-	return 1;
+    if(stage > 5) {
+		voice_ran_out(v);
+		return 1;
     }
 
-    if(stage > 2 && vp->envelope_volume <= 0)
-    {
-	/* Remove silent voice in the release stage */
-	voice_ran_out(v);
-	return 1;
+    if(stage > 2 && vp->envelope_volume <= 0) {
+		voice_ran_out(v);	/* Remove silent voice in the release stage */
+		return 1;
+    }
+  
+	if(stage == 3 &&
+	(vp->sample->modes & MODES_ENVELOPE) &&
+	(vp->status & (VOICE_ON | VOICE_SUSTAINED))) {
+		 /* EAW -- Routine to decay the sustain envelope
+		 *
+		 * Disabled if !min_sustain_time or if there is no loop.
+		 * If calculated decay rate is larger than the regular
+		 *  stage 3 rate, use the stage 3 rate instead.
+		 * min_sustain_time is given in msec, and is the time
+		 *  it will take to decay a note at maximum volume.
+		 * 2000-3000 msec seem to be decent values to use.
+		 *
+		 * 08/24/00 changed behavior to not begin the decay until
+		 *  after the sample plays past it's loop start
+		 *
+		 */
+		if(min_sustain_time <= 0) {	/* Default behavior */
+			vp->envelope_increment = 0;	/* Freeze envelope until note turns off */
+		} else if((vp->status & VOICE_SUSTAINED) &&
+			(vp->sample->modes & MODES_LOOPING) &&
+			(vp->sample_offset - vp->sample->loop_start >= 0)) {
+			if(min_sustain_time == 1) {goto next_stage;} /* The sustain stage is ignored. */
+			vp->envelope_target = 0;
+			/* Calculate the release phase speed.
+			 * (1073741823000 == (2^(15+15)-1) * 1000) */
+			rate = (int32)(-1073741823000.0 * control_ratio /
+				   (min_sustain_time * play_mode->rate));
+			ch = vp->channel;
+			vp->envelope_increment = -vp->sample->envelope_rate[2];
+			/* use the slower of the two rates */
+			if(vp->envelope_increment < rate) {vp->envelope_increment = rate;}
+			if(!vp->envelope_increment) {vp->envelope_increment = -1;} /* Avoid freezing */
+		} else { /* it's not decaying, so freeze it */
+			/* tiny value to make other functions happy, freeze note */
+			vp->envelope_increment = 1;
+			/* this will cause update_envelope(v) to undo the +1 inc. */
+			vp->envelope_target = vp->envelope_volume;
+		}
+		return 0;
     }
 
-    if(stage == 3 &&
-       (vp->sample->modes & MODES_ENVELOPE) &&
-       (vp->status & (VOICE_ON | VOICE_SUSTAINED)))
-    {
-	/* EAW -- Routine to decay the sustain envelope
-	 *
-	 * Disabled if !min_sustain_time or if there is no loop.
-	 * If calculated decay rate is larger than the regular
-	 *  stage 3 rate, use the stage 3 rate instead.
-	 * min_sustain_time is given in msec, and is the time
-	 *  it will take to decay a note at maximum volume.
-	 * 2000-3000 msec seem to be decent values to use.
-	 *
-	 * 08/24/00 changed behavior to not begin the decay until
-	 *  after the sample plays past it's loop start
-	 *
-	 */
+next_stage:
+	vp->envelope_stage = stage + 1;
 
-	if(min_sustain_time <= 0)	/* Default behavior */
-	{
-	    /* Freeze envelope until note turns off */
-	    vp->envelope_increment = 0;
+	offset = vp->sample->envelope_offset[stage];
+	if(vp->envelope_volume == offset ||	(stage > 2 && vp->envelope_volume < offset)) {
+		return recompute_envelope(v);
 	}
-	else if((vp->status & VOICE_SUSTAINED) &&
-		(vp->sample->modes & MODES_LOOPING) &&
-		(vp->sample_offset - vp->sample->loop_start >= 0))
-	{
-	    if(min_sustain_time == 1)
-		goto next_stage; /* Go to next stage.
-				  * The sustain stage is ignored.
-				  */
 
-	    /* Set envelope volume target to zero.
-	     * This cause to be vp->envelope_volume <= 0, then the
-	     * voice will be removed.  The next stage never come.
-	     */
-	    vp->envelope_target = 0;
-
-	    /* Calculate the release phase speed.
-	     * (1073741823000 == (2^(15+15)-1) * 1000)
-	     */
-	    rate = (int32)(-1073741823000.0 * control_ratio /
-			   (min_sustain_time * play_mode->rate));
-	    vp->envelope_increment = -vp->sample->envelope_rate[3];
-	    /* use the slower of the two rates */
-	    if(vp->envelope_increment < rate)
-		vp->envelope_increment = rate;
-	    if(!vp->envelope_increment)
-		vp->envelope_increment = -1; /* Avoid freezing */
-	}
-	else /* it's not decaying, so freeze it */
-	{
-	    /* tiny value to make other functions happy, freeze note */
-	    vp->envelope_increment = 1;
-
-	    /* this will cause update_envelope(v) to undo the +1 inc. */
-	    vp->envelope_target = vp->envelope_volume;
-	}
-	return 0;
-    }
-
-  next_stage:
-    vp->envelope_stage = stage + 1;
-
-    offset = vp->sample->envelope_offset[stage];
-    if(vp->envelope_volume == offset ||
-       (stage > 2 && vp->envelope_volume < offset))
-	return recompute_envelope(v);
-
-    rate = 0;
-    ch = vp->channel;
-    if(ISDRUMCHANNEL(ch))
-    {
-	int note;
-
-	note = vp->note;
-	if(channel[ch].drums[note] != NULL)
-	    rate = channel[ch].drums[note]->drum_envelope_rate[stage];
-    }
-    else
-	rate = channel[ch].envelope_rate[stage];
-    if(rate == 0)
+	rate = 0;
+	ch_rate = 0;
+	ch = vp->channel;
 	rate = vp->sample->envelope_rate[stage];
+	if(ISDRUMCHANNEL(ch)) {
+		int note;
+		note = vp->note;
+		if(channel[ch].drums[note] != NULL) {
+			ch_rate = channel[ch].drums[note]->drum_envelope_rate[stage];
+			if(ch_rate > 0) {rate = rate * 63 / (63 + ch_rate);}
+			else if(ch_rate < 0) {
+				if(ch_rate == -64) {return recompute_envelope(v);}
+				rate = rate * 64 / (64 + ch_rate);
+			}
+		}
+	} else {
+		ch_rate = channel[ch].envelope_rate[stage];
+		if(ch_rate > 0) {rate = rate * 63 / (63 + ch_rate);}
+		else if(channel[ch].envelope_rate[stage] < 0) {
+			if(channel[ch].envelope_rate[stage] == -64) {return recompute_envelope(v);}
+			rate = rate * 64 / (64 + ch_rate);
+		}
+	}
 
-    vp->envelope_target    = offset;
-    vp->envelope_increment = rate;
-    if(vp->envelope_target < vp->envelope_volume)
-	vp->envelope_increment = -vp->envelope_increment;
-    return 0;
+	vp->envelope_target    = offset;
+	vp->envelope_increment = rate;
+	if(vp->envelope_target < vp->envelope_volume) {vp->envelope_increment = -vp->envelope_increment;}
+	return 0;
 }
 
 int apply_envelope_to_amp(int v)
@@ -215,12 +200,16 @@ int apply_envelope_to_amp(int v)
 	}
       if (voice[v].sample->modes & MODES_ENVELOPE)
 	{
-	  lamp *= vol_table[voice[v].envelope_volume>>23];
-	  ramp *= vol_table[voice[v].envelope_volume>>23];
+	  if(voice[v].envelope_stage > 1) {
+		  lamp *= vol_table[voice[v].envelope_volume>>23];
+		  ramp *= vol_table[voice[v].envelope_volume>>23];
+	  } else {
+		  lamp *= attack_vol_table[voice[v].envelope_volume>>23];
+		  ramp *= attack_vol_table[voice[v].envelope_volume>>23];
+	  }
 	}
 
       la = (int32)TIM_FSCALE(lamp,AMP_BITS);
-
       if (la>MAX_AMP_VALUE)
 	la=MAX_AMP_VALUE;
 
@@ -242,11 +231,15 @@ int apply_envelope_to_amp(int v)
     {
       if (voice[v].tremolo_phase_increment)
 	lamp *= voice[v].tremolo_volume;
-      if (voice[v].sample->modes & MODES_ENVELOPE)
-	lamp *= vol_table[voice[v].envelope_volume>>23];
+	  if (voice[v].sample->modes & MODES_ENVELOPE) {
+		  if(voice[v].envelope_stage > 1) {
+			  lamp *= vol_table[voice[v].envelope_volume>>23];
+		  } else {
+			  lamp *= attack_vol_table[voice[v].envelope_volume>>23];
+		  }
+	  }
 
       la = (int32)TIM_FSCALE(lamp,AMP_BITS);
-
       if (la>MAX_AMP_VALUE)
 	la=MAX_AMP_VALUE;
       if((voice[v].status & (VOICE_OFF | VOICE_SUSTAINED)) &&

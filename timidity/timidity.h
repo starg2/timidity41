@@ -500,7 +500,7 @@ typedef struct _ChannelBitMask
 /* Greatly reduces popping due to large volume/pan changes.
  * This is definately worth the slight increase in CPU usage.
  */
-#define SMOOTH_MIXING
+/*#define SMOOTH_MIXING */
 
 #ifdef LOOKUP_HACK
    typedef int8 sample_t;

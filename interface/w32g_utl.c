@@ -43,6 +43,7 @@
 #include "output.h"
 #include "controls.h"
 #include "recache.h"
+#include "tables.h"
 #ifdef SUPPORT_SOUNDSPEC
 #include "soundspec.h"
 #endif /* SUPPORT_SOUNDSPEC */
@@ -67,6 +68,7 @@ extern int PlayerLanguage;
 extern volatile int data_block_bits;
 extern volatile int data_block_num;
 extern int DocWndIndependent;
+extern int DocWndAutoPopup;
 extern int SeachDirRecursive;
 extern int IniFileAutoSave;
 extern int SecondMode;
@@ -312,8 +314,12 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
   TracerFont[255] = '\0';
   // Apply font functions ...
 
+  DocMaxSize = sp->DocMaxSize;
+  strncpy(DocFileExt,sp->DocFileExt,255);
+  DocFileExt[255] = '\0';
   PlayerLanguage = sp->PlayerLanguage;
   DocWndIndependent = sp->DocWndIndependent; 
+  DocWndAutoPopup = sp->DocWndAutoPopup; 
   SeachDirRecursive = sp->SeachDirRecursive;
   IniFileAutoSave = sp->IniFileAutoSave;
   SecondMode = sp->SecondMode;
@@ -372,8 +378,12 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   sp->ListFont[255] = '\0';
   strncpy(sp->TracerFont,TracerFont,255);
   sp->TracerFont[255] = '\0';
+  sp->DocMaxSize = DocMaxSize;
+  strncpy(sp->DocFileExt,DocFileExt,255);
+  sp->DocFileExt[255] = '\0';
   sp->PlayerLanguage = PlayerLanguage;
   sp->DocWndIndependent = DocWndIndependent; 
+  sp->DocWndAutoPopup = DocWndAutoPopup; 
   sp->SeachDirRecursive = SeachDirRecursive;
   sp->IniFileAutoSave = IniFileAutoSave;
   sp->SecondMode = SecondMode;
@@ -424,8 +434,16 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     effect_lr_delay_msec = st->effect_lr_delay_msec;
     opt_reverb_control = st->opt_reverb_control;
     opt_chorus_control = st->opt_chorus_control;
+	opt_surround_chorus = st->opt_surround_chorus;
     noise_sharp_type = st->noise_sharp_type;
     opt_evil_mode = st->opt_evil_mode;
+	opt_tva_attack = st->opt_tva_attack;
+	opt_tva_decay = st->opt_tva_decay;
+	opt_tva_release = st->opt_tva_release;
+	opt_delay_control = st->opt_delay_control;
+	opt_resonance = st->opt_resonance;
+	opt_env_attack = st->opt_env_attack;
+	opt_velocity_table = st->opt_velocity_table;
     adjust_panning_immediately = SetFlag(st->adjust_panning_immediately);
     fast_decay = SetFlag(st->fast_decay);
 #ifdef SUPPORT_SOUNDSPEC
@@ -440,7 +458,10 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     set_play_mode(st->opt_playmode);
     strncpy(OutputName,st->OutputName,MAXPATH);
     if(OutputName[0] && !is_device_output_ID(play_mode->id_character))
-	play_mode->name = OutputName;
+		play_mode->name = strdup(OutputName);		// ƒƒ‚ƒŠƒŠ[ƒN‚·‚é‚©‚ÈH ‚Í‚¸‚·‚Æ‚¾‚ß‚¾‚µB
+    strncpy(w32g_output_dir,st->OutputDirName,MAXPATH);
+	w32g_output_dir[MAXPATH-1] = '\0';
+	w32g_auto_output_mode = st->auto_output_mode;
     opt_output_rate = st->output_rate;
     if(st->output_rate)
 	play_mode->rate = SetValue(st->output_rate,
@@ -507,6 +528,14 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
     st->effect_lr_delay_msec = effect_lr_delay_msec;
     st->opt_reverb_control = opt_reverb_control;
     st->opt_chorus_control = opt_chorus_control;
+	st->opt_surround_chorus = opt_surround_chorus;
+	st->opt_tva_attack = opt_tva_attack;
+	st->opt_tva_decay = opt_tva_decay;
+	st->opt_tva_release = opt_tva_release;
+	st->opt_delay_control = opt_delay_control;
+	st->opt_resonance = opt_resonance;
+	st->opt_env_attack = opt_env_attack;
+	st->opt_velocity_table = opt_velocity_table;
     st->noise_sharp_type = noise_sharp_type;
     st->opt_evil_mode = SetFlag(opt_evil_mode);
     st->adjust_panning_immediately = SetFlag(adjust_panning_immediately);
@@ -566,6 +595,9 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_playmode[j++] = 'x';
     st->opt_playmode[j] = '\0';
     strncpy(st->OutputName,OutputName,sizeof(st->OutputName)-1);
+	strncpy(st->OutputDirName,w32g_output_dir,MAXPATH);
+	st->OutputDirName[MAXPATH-1] = '\0';
+	st->auto_output_mode = w32g_auto_output_mode;
     st->voices = SetValue(voices, 1, MAX_VOICES);
 	st->auto_reduce_polyphony = auto_reduce_polyphony;
     st->quietchannels = quietchannels;
@@ -605,6 +637,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 
 static char S_IniFile[MAXPATH + 32];
 static char S_timidity_window_inifile[MAXPATH + 32];
+static char S_timidity_output_inifile[MAXPATH + 32];
 static char S_ConfigFile[MAXPATH + 32];
 static char S_PlaylistFile[MAXPATH + 32];
 static char S_PlaylistHistoryFile[MAXPATH + 32];
@@ -614,6 +647,7 @@ static char S_PlaylistFileOpenDir[MAXPATH + 32];
 static char S_DocFileExt[256];
 static char S_OutputName[MAXPATH + 32];
 static char *OutputName;
+static char S_w32g_output_dir[1024 + 32];
 static char S_SystemFont[256];
 static char S_PlayerFont[256];
 static char S_WrdFont[256];
@@ -644,7 +678,19 @@ static int TracerFontSize = 16;
 
 SETTING_PLAYER *sp_default, *sp_current, *sp_temp;
 SETTING_TIMIDITY *st_default, *st_current, *st_temp;
-extern char *timidity_window_inifile;
+char *timidity_window_inifile;
+char *timidity_output_inifile;
+
+#ifdef AU_GOGO
+extern int gogo_ConfigDialogInfoInit(void);
+extern int gogo_ConfigDialogInfoSaveINI(void);
+extern int gogo_ConfigDialogInfoLoadINI(void);
+#endif
+#ifdef AU_VORBIS
+extern int vorbis_ConfigDialogInfoInit(void);
+extern int vorbis_ConfigDialogInfoSaveINI(void);
+extern int vorbis_ConfigDialogInfoLoadINI(void);
+#endif
 
 void w32g_initialize(void)
 {
@@ -662,6 +708,7 @@ void w32g_initialize(void)
     PlaylistFileOpenDir = S_PlaylistFileOpenDir;
     DocFileExt = S_DocFileExt;
     OutputName = S_OutputName;
+	w32g_output_dir = S_w32g_output_dir;
   
     IniFile[0] = '\0';
     ConfigFile[0] = '\0';
@@ -671,6 +718,8 @@ void w32g_initialize(void)
     ConfigFileOpenDir[0] = '\0';
     PlaylistFileOpenDir[0] = '\0';
     OutputName[0] = '\0';
+	w32g_output_dir[0] = '\0';
+
     strcpy(DocFileExt,DEFAULT_DOCFILEEXT);
     strcpy(SystemFont,"‚l‚r –¾’©");
     strcpy(PlayerFont,"‚l‚r –¾’©");
@@ -699,19 +748,53 @@ void w32g_initialize(void)
 	buffer[1] = PATH_SEP;
 	buffer[2] = '\0';
     }
+	// timpp32g.ini
     strncpy(IniFile, buffer, MAXPATH);
     IniFile[MAXPATH] = '\0';
     strcat(IniFile,"timpp32g.ini");
+	// timidity_window.ini
 	timidity_window_inifile = S_timidity_window_inifile;
 	strncpy(timidity_window_inifile, buffer, 200);
     timidity_window_inifile[200] = '\0';
     strcat(timidity_window_inifile,"timidity_window.ini");
+	// timidity_output.ini
+	timidity_output_inifile = S_timidity_output_inifile;
+	strncpy(timidity_output_inifile, buffer, 200);
+    timidity_output_inifile[200] = '\0';
+    strcat(timidity_output_inifile,"timidity_output.ini");
+	//
     st_default = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
     sp_default = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
     st_current = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
     sp_current = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
     st_temp = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
     sp_temp = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+
+	{
+		DWORD dwRes;
+#ifdef AU_GOGO
+		gogo_ConfigDialogInfoInit();
+#endif
+#ifdef AU_VORBIS
+		vorbis_ConfigDialogInfoInit();
+#endif
+		dwRes = GetFileAttributes(timidity_output_inifile);
+		if(dwRes==0xFFFFFFFF || dwRes & FILE_ATTRIBUTE_DIRECTORY){
+#ifdef AU_GOGO
+			gogo_ConfigDialogInfoSaveINI();
+#endif
+#ifdef AU_VORBIS
+			vorbis_ConfigDialogInfoSaveINI();
+#endif
+		} else {
+#ifdef AU_GOGO
+			gogo_ConfigDialogInfoLoadINI();
+#endif
+#ifdef AU_VORBIS
+			vorbis_ConfigDialogInfoLoadINI();
+#endif
+ 		}
+ 	}
 
     SaveSettingPlayer(sp_current);
     SaveSettingTiMidity(st_current);

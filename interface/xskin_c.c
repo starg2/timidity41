@@ -192,7 +192,7 @@ static void ctl_lyric(int lyricid)
 	    {
 		lyric_buf[0] = 'L';
 		lyric_buf[1] = ' ';
-		sprintf(lyric_buf + 2, "%s", lyric + 2);
+		snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "%s", lyric + 2);
 		xskin_pipe_write(lyric_buf);
 		lyric_col = strlen(lyric + 2) + 2;
 	    }
@@ -201,18 +201,18 @@ static void ctl_lyric(int lyricid)
 		lyric_buf[0] = 'L';
 		lyric_buf[1] = ' ';
 		if(lyric[2] == 'L')
-		    sprintf(lyric_buf + 2, "Language: %s", lyric + 3);
+		    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "Language: %s", lyric + 3);
 		else if(lyric[2] == 'T')
-		    sprintf(lyric_buf + 2, "Title: %s", lyric + 3);
+		    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "Title: %s", lyric + 3);
 		else
-		    sprintf(lyric_buf + 2, "%s", lyric + 1);
+		    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "%s", lyric + 1);
 		xskin_pipe_write(lyric_buf);
 	    }
 	    else
 	    {
 		lyric_buf[0] = 'L';
 		lyric_buf[1] = ' ';
-		sprintf(lyric_buf + lyric_col, lyric + 1);
+		snprintf(lyric_buf + lyric_col, sizeof (lyric_buf) - lyric_col, "%s", lyric + 1);
 		xskin_pipe_write(lyric_buf);
 		lyric_col += strlen(lyric + 1);
 	    }
@@ -221,7 +221,7 @@ static void ctl_lyric(int lyricid)
 	{
 	    if(lyric[0] == ME_CHORUS_TEXT || lyric[0] == ME_INSERT_TEXT)
 		lyric_col = 0;
-	    sprintf(lyric_buf + lyric_col, lyric + 1);
+	    snprintf(lyric_buf + lyric_col, sizeof (lyric_buf) - lyric_col, "%s", lyric + 1);
 	    xskin_pipe_write(lyric_buf);
 	}
     }

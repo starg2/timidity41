@@ -195,6 +195,7 @@ static void ctl_lyric(int lyricid)
 	    if(lyric[0] == ME_CHORUS_TEXT || lyric[0] == ME_INSERT_TEXT)
 		fprintf(outfp, "\r");
 	    fputs(lyric + 1, outfp);
+	    fflush(outfp);
 	}
     }
 }

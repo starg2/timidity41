@@ -34,6 +34,7 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#include <math.h>
 #include "timidity.h"
 #include "common.h"
 #include "tables.h"
@@ -460,8 +461,9 @@ int8 *iplookup;
 
 void init_tables(void)
 {
+  int i;
 #ifdef LOOKUP_HACK
-  int i,j,v;
+  int j,v;
   mixup = (int32 *)safe_malloc(1<<(7+8+2)); /* Give your cache a workout! */
 
   for (i=0; i<128; i++)
@@ -483,6 +485,32 @@ void init_tables(void)
 #endif
 
 #endif
+
+	for(i=0;i<128;i++)
+	{
+		linear_vol_table[i] = (FLOAT_T)i / 127.0;
+		log_vol_table[i] = log10((FLOAT_T)i * 9.0 / 127.0 + 1);
+	}
+	for(i=0;i<128;i++)
+	{
+		switch(opt_velocity_table) {
+		case 0:
+			velocity_table[i] = i;
+			break;
+		case 1:
+			velocity_table[i] = ((sqrt((FLOAT_T)i/127) * 127) + i) / 2;
+			break;
+		case 2:
+			velocity_table[i] = sqrt((FLOAT_T)i/127) * 127;
+			break;
+		case 3:
+			velocity_table[i] = (((FLOAT_T)i * (FLOAT_T)i / 127) + i) / 2;
+			break;
+		case 4:
+			velocity_table[i] = (FLOAT_T)i * (FLOAT_T)i / 127;
+			break;
+		}
+	}
 }
 
 #ifdef LOOKUP_HACK
@@ -1003,3 +1031,73 @@ uint8 _l2u_[] =
 };
 uint8 *_l2u = _l2u_ + 4096;
 #endif /* LOOKUP_HACK */
+
+uint8 reverb_macro_presets[] =
+{	/* CHARACTER,PRE-LPF,LEVEL,TIME,DELAY FEEDBACK,PREDELAY TIME */
+	0,3,64,80,0,0,		/* 00: Room1 */
+	1,4,64,56,0,0,		/* 01: Room2 */
+	2,0,64,64,0,0,		/* 02: Room3 */
+	3,4,64,72,0,0,		/* 03: Hall1 */
+	4,0,64,64,0,0,		/* 04: Hall2 */
+	5,0,64,88,0,0,		/* 05: Plate */
+	6,0,64,32,40,0,		/* 06: Delay */
+	7,0,64,64,32,0,		/* 07: Panning Delay */
+};
+
+uint8 chorus_macro_presets[] =
+{	/* PRE-LPF,LEVEL,FEEDBACK,DELAY,RATE,DEPTH,SEND TO REVERB,SEND TO DELAY */
+	0,64,0,112,3,5,0,0,		/* 00: Chorus1 */
+	0,64,5,80,9,19,0,0,		/* 01: Chorus2 */
+	0,64,8,80,3,19,0,0,		/* 02: Chorus3 */
+	0,64,16,64,9,16,0,0,	/* 03: Chorus4 */
+	0,64,64,127,2,24,0,0,	/* 04: Feedback Chorus */
+	0,64,112,127,1,5,0,0,	/* 05: Flanger */
+	0,64,0,127,0,127,0,0,	/* 06: Short Delay */
+	0,64,80,127,0,127,0,0,	/* 07: Short Delay(Feedback) */
+};
+
+uint8 delay_macro_presets[] = 
+{	/* PRE-LPF,TIME(C),RATIO(L),RATIO(R),LEVEL(C),LEVEL(L),LEVEL(R),LEVEL,FEEDBACK,LEVEL TO REVERB */
+	0,97,1,1,127,0,0,64,79,0,		/* 00: Delay1 */
+	0,106,1,1,127,0,0,64,79,0,		/* 01: Delay2 */
+	0,115,1,1,127,0,0,64,63,0,		/* 02: Delay3 */
+	0,83,1,1,127,0,0,64,71,0,		/* 03: Delay4 */
+	0,90,12,24,0,125,60,64,73,0,	/* 04: Pan Delay1 */
+	0,109,12,24,0,125,60,64,70,0,	/* 05: Pan Delay2 */
+	0,115,12,24,0,120,64,64,72,0,	/* 06: Pan Delay3 */
+	0,93,12,24,0,120,64,64,63,0,	/* 07: Pan Delay4 */
+	0,109,12,24,0,114,60,64,60,36,	/* 08: Delay to Reverb */
+	0,110,21,31,97,127,67,64,39,0,	/* 09: Pan Repeat */
+};
+
+FLOAT_T delay_time_center_table[] =
+{	/* 0x00~0x73, 0.1ms~1000ms */
+	0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
+	2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,
+	5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5,
+	10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+	20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48,
+	50, 55, 60, 65, 70, 75, 80, 85, 90, 95,
+	100, 110, 120, 130, 140, 150, 160, 170, 180, 190,
+	200, 220, 240, 260, 280, 300, 320, 340, 360, 380, 400, 420, 440, 460, 480,
+	500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
+};
+
+FLOAT_T pre_delay_time_table[] =
+{
+	0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
+	2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9,
+	4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9,
+	5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5,
+	10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+	30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+	50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88,
+	90, 92, 94, 96, 98, 100, 100, 100,
+};
+
+uint8 velocity_table[128];
+
+FLOAT_T linear_vol_table[128];
+FLOAT_T log_vol_table[128];
+FLOAT_T *attack_vol_table;
+int opt_velocity_table = 0;

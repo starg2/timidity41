@@ -252,7 +252,7 @@ static void ctl_lyric(int lyricid)
         {
             if(lyric[1] == '/' || lyric[1] == '\\')
             {
-                strcpy(lyric_buf, lyric + 2);
+                strncpy(lyric_buf, lyric + 2, sizeof(lyric_buf) - 1);
                 a_pipe_write_msg(lyric_buf);
                 lyric_col = strlen(lyric_buf);
             }

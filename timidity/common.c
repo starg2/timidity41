@@ -28,6 +28,11 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -48,12 +53,17 @@
 #include "nkflib.h"
 #include "wrd.h"
 #include "strtab.h"
+#include "support.h"
 
 /* RAND_MAX must defined in stdlib.h
  * Why RAND_MAX is not defined at SunOS?
  */
 #if defined(sun) && !defined(SOLARIS) && !defined(RAND_MAX)
 #define RAND_MAX ((1<<15)-1)
+#endif
+
+#ifndef O_BINARY
+#define O_BINARY 0
 #endif
 
 /* #define MIME_CONVERSION */
@@ -76,43 +86,117 @@ const char *note_name[] =
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
 };
 
-static int url_copyfile(URL url, char *path)
-{
-    FILE *fp;
-    char buff[BUFSIZ];
-    int n;
 
-    if((fp = fopen(path, "wb")) == NULL)
-	return -1;
-    while((n = url_read(url, buff, sizeof(buff))) > 0)
-	fwrite(buff, 1, n, fp);
-    fclose(fp);
-    return 0;
+#ifndef TMP_MAX
+#define TMP_MAX 238328
+#endif
+
+int
+tmdy_mkstemp(char *tmpl)
+{
+  char *XXXXXX;
+  static uint32 value;
+  uint32 random_time_bits;
+  int count, fd = -1;
+  int save_errno = errno;
+
+  /* These are the characters used in temporary filenames.  */
+  static const char letters[] =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+  /* This is where the Xs start.  */
+  XXXXXX = strstr(tmpl, "XXXXXX");
+  if (XXXXXX == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  /* Get some more or less random data.  */
+#if HAVE_GETTIMEOFDAY
+  {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    random_time_bits = (uint32)((tv.tv_usec << 16) ^ tv.tv_sec);
+  }
+#else
+  random_time_bits = (uint32)time(NULL);
+#endif
+
+  value += random_time_bits ^ getpid();
+
+  for (count = 0; count < TMP_MAX; value += 7777, ++count) {
+    uint32 v = value;
+
+    /* Fill in the random bits.  */
+    XXXXXX[0] = letters[v % 62];
+    v /= 62;
+    XXXXXX[1] = letters[v % 62];
+    v /= 62;
+    XXXXXX[2] = letters[v % 62];
+
+    v = (v << 16) ^ value;
+    XXXXXX[3] = letters[v % 62];
+    v /= 62;
+    XXXXXX[4] = letters[v % 62];
+    v /= 62;
+    XXXXXX[5] = letters[v % 62];
+
+    fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, S_IRUSR | S_IWUSR);
+
+    if (fd >= 0) {
+      errno = save_errno;
+      return fd;
+    }
+    if (errno != EEXIST)
+      return -1;
+  }
+
+  /* We got out of the loop because we ran out of combinations to try.  */
+  errno = EEXIST;
+  return -1;
 }
 
-static char *make_temp_filename(char *ext)
-{
-    static char buff[1024], *tmpdir;
-    static int cnt;
 
-    if(ext == NULL)
-	ext = "";
+static char *
+url_dumpfile(URL url, const char *ext)
+{
+  char filename[1024];
+  char *tmpdir;
+  int fd;
+  FILE *fp;
+  int n;
+  char buff[BUFSIZ];
 
 #ifdef TMPDIR
-    tmpdir = TMPDIR;
+  tmpdir = TMPDIR;
 #else
-    tmpdir = getenv("TMPDIR");
+  tmpdir = getenv("TMPDIR");
 #endif
-    if(tmpdir == NULL || strlen(tmpdir) == 0)
-	tmpdir = PATH_STRING "tmp" PATH_STRING;
-    if(IS_PATH_SEP(tmpdir[strlen(tmpdir) - 1]))
-	sprintf(buff, "%stimidity-tmp%d-%d%s",
-		tmpdir, cnt++, (int)getpid(), ext);
-    else
-	sprintf(buff, "%s" PATH_STRING "timidity-tmp%d-%d%s",
-		tmpdir, cnt++, (int)getpid(), ext);
-    return buff;
+  if(tmpdir == NULL || strlen(tmpdir) == 0)
+    tmpdir = PATH_STRING "tmp" PATH_STRING;
+  if(IS_PATH_SEP(tmpdir[strlen(tmpdir) - 1]))
+    snprintf(filename, sizeof(filename), "%sXXXXXX.%s", tmpdir, ext);
+  else
+    snprintf(filename, sizeof(filename), "%s" PATH_STRING "XXXXXX.%s",
+	     tmpdir, ext);
+
+  fd = tmdy_mkstemp(filename);
+
+  if (fd == -1)
+    return NULL;
+
+  if ((fp = fdopen(fd, "w")) == NULL) {
+    close(fd);
+    unlink(filename);
+    return NULL;
+  }
+
+  while((n = url_read(url, buff, sizeof(buff))) > 0)
+    fwrite(buff, 1, n, fp);
+  fclose(fp);
+  return safe_strdup(filename);
 }
+
 
 /* Try to open a file for reading. If the filename ends in one of the
    defined compressor extensions, pipe the file through the decompressor */
@@ -178,16 +262,15 @@ struct timidity_file *try_to_open(char *name, int decompress)
 	{
 	    if(!check_file_extension(name, *dec, 0))
 		continue;
-	    tmpname = make_temp_filename(*dec);
-	    unlink(tmpname); /* For security */
-	    tf->tmpname = safe_strdup(tmpname);
-	    if(url_copyfile(tf->url, tmpname) == -1)
-	    {
+
+	    tf->tmpname = url_dumpfile(tf->url, *dec);
+	    if (tf->tmpname == NULL) {
 		close_file(tf);
 		return NULL;
 	    }
+
 	    url_close(tf->url);
-	    sprintf(tmp, *(dec+1), tf->tmpname);
+	    snprintf(tmp, sizeof(tmp), *(dec+1), tf->tmpname);
 	    if((tf->url = url_pipe_open(tmp)) == NULL)
 	    {
 		close_file(tf);
@@ -210,14 +293,13 @@ struct timidity_file *try_to_open(char *name, int decompress)
 	{
 	    if(!check_file_extension(name, *dec, 0))
 		continue;
-	    tmpname = make_temp_filename(*dec);
-	    unlink(tmpname); /* For security */
-	    tf->tmpname = safe_strdup(tmpname);
-	    if(url_copyfile(tf->url, tmpname) == -1)
-	    {
+
+	    tf->tmpname = url_dumpfile(tf->url, *dec);
+	    if (tf->tmpname == NULL) {
 		close_file(tf);
 		return NULL;
 	    }
+
 	    url_close(tf->url);
 	    sprintf(tmp, *(dec+1), tf->tmpname);
 	    if((tf->url = url_pipe_open(tmp)) == NULL)

@@ -136,14 +136,37 @@ static int open_output(void)
     int include_enc = 0, exclude_enc = PE_BYTESWAP;
     struct stat sb;
     audio_info_t auinfo;
+    char *audio_dev, *audio_ctl_dev, *tmp_audio;
+
+
+    /* See if the AUDIODEV environment variable is defined, and set the
+       audio device accordingly  - Lalit Chhabra 23/Oct/2001 */
+    if((audio_dev  = getenv("AUDIODEV")) != NULL)
+    {
+      dpm.id_name = malloc(strlen(audio_dev));
+      dpm.name = malloc(strlen(audio_dev));
+      strcpy(dpm.name, audio_dev);
+      strcpy(dpm.id_name, audio_dev);
+
+      tmp_audio = malloc(strlen(audio_dev) + 3);
+      audio_ctl_dev = malloc(strlen(audio_dev) + 3);
+
+      strcpy(tmp_audio, audio_dev);
+      strcpy(audio_ctl_dev, strcat(tmp_audio, "ctl"));
+    }
+    else
+    {
+      audio_ctl_dev = malloc(strlen(AUDIO_CTLDEV) + 3);
+      strcpy(audio_ctl_dev, AUDIO_CTLDEV);
+    }
 
     output_counter = play_samples_offset = 0;
 
     /* Open the audio device */
-    if((audioctl_fd = open(AUDIO_CTLDEV, O_RDWR)) < 0)
+    if((audioctl_fd = open(audio_ctl_dev, O_RDWR)) < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		  "%s: %s", AUDIO_CTLDEV, strerror(errno));
+		  "%s: %s", audio_ctl_dev, strerror(errno));
 	return -1;
     }
 

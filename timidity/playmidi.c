@@ -53,6 +53,10 @@
 #include "reverb.h"
 #include "wrd.h"
 #include "aq.h"
+#include "freq.h"
+
+#define ABORT_AT_FATAL 1 /*#################*/
+#define MYCHECK(s) do { if(s == 0) { printf("## L %d\n", __LINE__); abort(); } } while(0)
 
 extern VOLATILE int intr;
 
@@ -70,11 +74,15 @@ int usleep(unsigned int useconds);
 #define PLAY_INTERLEAVE_SEC		1.0
 #define PORTAMENTO_TIME_TUNING		(1.0 / 5000.0)
 #define PORTAMENTO_CONTROL_RATIO	256	/* controls per sec */
-#define DEFAULT_CHORUS_DELAY1		0.02
-#define DEFAULT_CHORUS_DELAY2		0.003
+/*#define DEFAULT_CHORUS_DELAY1		0.02
+#define DEFAULT_CHORUS_DELAY2		0.003*/
+double DEFAULT_CHORUS_DELAY1 = 0.02;
+double DEFAULT_CHORUS_DELAY2 = 0.003;
 #define CHORUS_OPPOSITE_THRESHOLD	32
-#define CHORUS_VELOCITY_TUNING1		0.7
-#define CHORUS_VELOCITY_TUNING2		0.6
+/*#define CHORUS_VELOCITY_TUNING1		0.7
+#define CHORUS_VELOCITY_TUNING2		0.6*/
+double CHORUS_VELOCITY_TUNING1 = 0.7;
+double CHORUS_VELOCITY_TUNING2 = 0.6;
 #define EOT_PRESEARCH_LEN		32
 #define SPEED_CHANGE_RATE		1.0594630943592953  /* 2^(1/12) */
 
@@ -136,11 +144,11 @@ int opt_reverb_control = 0;
 #endif /* REVERB_CONTROL_ALLOW */
 
 #ifdef CHORUS_CONTROL_ALLOW
-int opt_chorus_control = 2;
+int opt_chorus_control = 1;
 #else
 int opt_chorus_control = 0;
 #endif /* CHORUS_CONTROL_ALLOW */
-int opt_surround_chorus = 0;
+int opt_surround_chorus = 1;
 
 #ifdef GM_CHANNEL_PRESSURE_ALLOW
 int opt_channel_pressure = 1;
@@ -153,6 +161,15 @@ int opt_overlap_voice_allow = 1;
 #else
 int opt_overlap_voice_allow = 0;
 #endif /* OVERLAP_VOICE_ALLOW */
+
+/* TVA Env. Attack,Decay,Release... */
+int opt_tva_attack = 0;
+int opt_tva_decay = 0;
+int opt_tva_release = 0;
+int opt_delay_control = 0;
+int opt_resonance = 0;
+int opt_env_attack = 0;	/* 0:linear, 1:exponential1, 2:exponential2, 3:logarithmic */
+
 
 int voices=DEFAULT_VOICES, upper_voices;
 
@@ -363,6 +380,11 @@ static void reset_drum_controllers(struct DrumParts *d[], int note)
 		d[i]->drum_panning = NO_PANNING;
 		memset(d[i]->drum_envelope_rate, 0,
 		       sizeof(d[i]->drum_envelope_rate));
+		d[i]->drum_level = 1;
+		d[i]->note = 0;
+		d[i]->delay_level = 0;
+		d[i]->chorus_level = 0;
+		d[i]->reverb_level = 0;
 	    }
     }
     else
@@ -370,6 +392,11 @@ static void reset_drum_controllers(struct DrumParts *d[], int note)
 	d[note]->drum_panning = NO_PANNING;
 	memset(d[note]->drum_envelope_rate, 0,
 	       sizeof(d[note]->drum_envelope_rate));
+	d[note]->drum_level = 1;
+	d[note]->note = 0;
+	d[note]->delay_level = 0;
+	d[note]->chorus_level = 0;
+	d[note]->reverb_level = 0;
     }
 }
 
@@ -406,6 +433,8 @@ static void reset_controllers(int c)
   else
       channel[c].chorus_level = -opt_chorus_control;
   channel[c].mono = 0;
+  channel[c].delay_level = 0;
+  channel[c].resonance_level = 0;
 }
 
 static void redraw_controllers(int c)
@@ -482,12 +511,13 @@ static void reset_midi(int playing)
 
 void recompute_freq(int v)
 {
-  int ch=voice[v].channel;
+  int ch=voice[v].channel,note=voice[v].note;
   int
     sign=(voice[v].sample_increment < 0), /* for bidirectional loops */
     pb=channel[ch].pitchbend;
   double a;
   int32 tuning = 0;
+
 
   if(!voice[v].sample->sample_rate)
       return;
@@ -524,8 +554,9 @@ void recompute_freq(int v)
 
   if(!voice[v].porta_control_ratio)
   {
-      if(tuning == 0 && pb == 0x2000)
-	  voice[v].frequency = voice[v].orig_frequency;
+      if(tuning == 0 && pb == 0x2000) {
+	voice[v].frequency = voice[v].orig_frequency;
+      }
       else
       {
 	  pb -= 0x2000;
@@ -569,12 +600,17 @@ void recompute_freq(int v)
       voice[v].cache = NULL;
   }
 
+
   a = TIM_FSCALE(((double)voice[v].sample->sample_rate * voice[v].frequency) /
 		 ((double)voice[v].sample->root_freq * play_mode->rate),
 		 FRACTION_BITS) + 0.5;
+
+  if(sign)
+      a = -a; /* need to preserve the loop direction */
+
+  voice[v].sample_increment = (int32)a;
 #ifdef ABORT_AT_FATAL
-  if((int32)a == 0)
-  {
+  if (voice[v].sample_increment == 0) {
       fprintf(stderr, "Invalid sample increment a=%e %ld %ld %ld %ld%s\n",
 	      a, (long)voice[v].sample->sample_rate, (long)voice[v].frequency,
 	      (long)voice[v].sample->root_freq, (long)play_mode->rate,
@@ -582,22 +618,24 @@ void recompute_freq(int v)
       abort();
   }
 #endif /* ABORT_AT_FATAL */
-
-  if(sign)
-      a = -a; /* need to preserve the loop direction */
-
-  voice[v].sample_increment = (int32)a;
 }
 
 static void recompute_amp(int v)
 {
     FLOAT_T tempamp;
 
-    tempamp = ((FLOAT_T)master_volume *
-	       voice[v].velocity *
-	       voice[v].sample->volume *
-	       channel[voice[v].channel].volume *
-	       channel[voice[v].channel].expression); /* 21 bits */
+	tempamp = ((FLOAT_T)master_volume *
+		   velocity_table[voice[v].velocity] *
+		   voice[v].sample->volume *
+		   channel[voice[v].channel].volume *
+		   channel[voice[v].channel].expression); /* 21 bits */
+
+	/* Level of Drum */
+	if(ISDRUMCHANNEL(voice[v].channel)
+		&& channel[voice[v].channel].drums[voice[v].note] != NULL
+		&& channel[voice[v].channel].drums[voice[v].note]->drum_level != 1) {
+		tempamp *= channel[voice[v].channel].drums[voice[v].note]->drum_level;
+	}
 
     if(!(play_mode->encoding & PE_MONO))
     {
@@ -1250,6 +1288,7 @@ static int select_play_sample(Sample *splist, int nsp,
     {
 	j = vlist[0] = find_voice(e);
 	voice[j].orig_frequency = f;
+	MYCHECK(voice[j].orig_frequency);
 	voice[j].sample = splist;
 	voice[j].status = VOICE_ON;
 	return 1;
@@ -1264,6 +1303,7 @@ static int select_play_sample(Sample *splist, int nsp,
 	{
 	    j = vlist[nv] = find_voice(e);
 	    voice[j].orig_frequency = f;
+	    MYCHECK(voice[j].orig_frequency);
 	    voice[j].sample = sp;
 	    voice[j].status = VOICE_ON;
 	    nv++;
@@ -1333,6 +1373,12 @@ static int find_samples(MidiEvent *e, int *vlist)
 		note = ip->sample->note_to_use;
 	    i = vlist[0] = find_voice(e);
 	    voice[i].orig_frequency = freq_table[note];
+        /* NRPN Coarse Pitch of Drum (GS) */
+		if(ISDRUMCHANNEL(ch) &&
+		    channel[ch].drums[note] != NULL &&
+			channel[ch].drums[note]->note) {
+	        voice[i].orig_frequency = freq_table[channel[ch].drums[note]->note];
+		}
 	    voice[i].sample = ip->sample;
 	    voice[i].status = VOICE_ON;
 	    return 1;
@@ -1381,7 +1427,6 @@ static int find_samples(MidiEvent *e, int *vlist)
 		    voice[j].cache = NULL;
 	    }
 	}
-
 	return nv;
 }
 
@@ -1541,16 +1586,219 @@ static void finish_note(int i)
     }
 }
 
+static void set_envelope_time(int ch,int val,int stage)
+{
+	val = val & 0x7F;
+	if(play_system_mode != GS_SYSTEM_MODE) {
+		val = val / 2 + 32;
+	}
+	val -= 64;
+	if(channel[ch].mapID == SC_55_TONE_MAP) {
+		val *= 1.23;
+		if(val > 63) {val = 63;}
+		else if(val < -64) {val = -64;}
+	}
+	switch(stage) {
+	case 0:	// Attack
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Attack Time (CH:%d VALUE:%d)",ch,val);
+		break;
+	case 1: // Decay
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Decay Time (CH:%d VALUE:%d)",ch,val);
+		break;
+	case 3:	// Release
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Release Time (CH:%d VALUE:%d)",ch,val);
+		break;
+	default:
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"? Time (CH:%d VALUE:%d)",ch,val);
+	}
+	channel[ch].envelope_rate[stage] = val;
+}
+
+static void new_flanger_voice(int v1, int level1,int level2)
+{
+    int v2,i,fb_loop,level,ch,pan;
+	double delay,width;
+	int32 orig_frequency;
+
+	ch = voice[v1].channel;
+	fb_loop = abs(level2) / 16;
+	level = (level2 + 64) >> 2;
+	level1 += rand() % 64 - 32;
+	width = 1.0 - level1 * 0.01;
+
+	delay = 0;
+	if((v2 = find_free_voice()) == -1) {return;}
+	delay += width;
+	voice[v2] = voice[v1];	/* copy all parameters */
+	voice[v2].delay += (int)(play_mode->rate * delay / 1000);
+	pan = rand() % 8 - 4;
+	voice[v2].panning += pan;
+	orig_frequency = voice[v1].orig_frequency;
+	orig_frequency *= bend_fine[level];
+	voice[v2].orig_frequency = orig_frequency;
+	voice[v2].cache = NULL;
+	recompute_amp(v2);
+	apply_envelope_to_amp(v2);
+	recompute_freq(v2);
+	for(i=0;i<fb_loop;i++) {
+		delay += width;
+		if((v2 = find_free_voice()) == -1) {return;}
+		voice[v2] = voice[v1];
+		voice[v2].delay += (int)(play_mode->rate * delay / 1000);
+		pan = rand() % 8 - 4;
+		voice[v2].panning += pan;
+		orig_frequency *= bend_fine[level];
+		voice[v2].orig_frequency = orig_frequency;
+		voice[v2].cache = NULL;
+		recompute_amp(v2);
+		apply_envelope_to_amp(v2);
+		recompute_freq(v2);
+	}
+}
+
+
+static void new_delay_voice(int v1, int level)
+{
+    int v2,i,fb_loop,ch=voice[v1].channel;
+	int32 orig_frequency;
+	double delay,vol,fb_ratio;
+	uint8 pan;
+	struct delay_status_t *status = get_delay_status();
+	double threshold = 1.0;
+
+	/* NRPN Delay Send Level of Drum */
+	if(ISDRUMCHANNEL(ch) &&	channel[ch].drums[voice[v1].note] != NULL) {
+		level *= (FLOAT_T)channel[ch].drums[voice[v1].note]->delay_level / 127.0;
+	}
+
+	fb_loop = status->fb_loop;
+	fb_ratio = status->fb_ratio;
+
+	vol = voice[v1].velocity * level * status->level_ratio_center;
+	if (vol > threshold) {	/* First Delay */
+		delay = 0;
+		if((v2 = find_free_voice()) == -1) {return;}
+		orig_frequency = voice[v1].orig_frequency;
+		orig_frequency *= bend_fine[level >> 2];
+		voice[v2].orig_frequency = orig_frequency;
+		voice[v2].cache = NULL;
+		delay += status->time_center;
+		voice[v2] = voice[v1];	/* copy all parameters */
+		voice[v2].velocity = (uint8)vol;
+		voice[v2].delay += (int)(play_mode->rate * delay / 1000);
+		recompute_amp(v2);
+		apply_envelope_to_amp(v2);
+		recompute_freq(v2);
+		for(i=0;i<fb_loop;i++) {	/* Feedback */
+			vol *= fb_ratio;
+			delay += status->time_center;
+			if(vol < threshold) {break;}
+			if((v2 = find_free_voice()) == -1) {return;}
+			orig_frequency *= bend_fine[level >> 2];
+			voice[v2].orig_frequency = orig_frequency;
+			voice[v2].cache = NULL;
+			voice[v2] = voice[v1];	/* copy all parameters */
+			voice[v2].velocity = (uint8)vol;
+			voice[v2].delay += (int)(play_mode->rate * delay / 1000);
+			recompute_amp(v2);
+			apply_envelope_to_amp(v2);
+			recompute_freq(v2);
+		}
+	}
+
+	if(status->level_left) {
+		vol = voice[v1].velocity * level * status->level_ratio_left;
+		if (vol > threshold) {	/* First Delay */
+			delay = 0;
+			pan = voice[v1].panning - 64;
+			if((v2 = find_free_voice()) == -1) {return;}
+			orig_frequency = voice[v1].orig_frequency;
+			orig_frequency *= bend_fine[level >> 2];
+			voice[v2].orig_frequency = orig_frequency;
+			voice[v2].cache = NULL;
+			delay += status->time_left;
+			voice[v2] = voice[v1];	/* copy all parameters */
+			voice[v2].velocity = (uint8)vol;
+			voice[v2].delay += (int)(play_mode->rate * delay / 1000);	
+			voice[v2].panning = pan;
+			recompute_amp(v2);
+			apply_envelope_to_amp(v2);
+			recompute_freq(v2);
+			for(i=0;i<fb_loop;i++) {	/* Feedback */
+				vol *= fb_ratio;
+				delay += status->time_left;
+				if(vol < threshold) {break;}
+				if((v2 = find_free_voice()) == -1) {return;}
+				orig_frequency *= bend_fine[level >> 2];
+				voice[v2].orig_frequency = orig_frequency;
+				voice[v2].cache = NULL;
+				voice[v2] = voice[v1];	/* copy all parameters */
+				voice[v2].velocity = (uint8)vol;
+				voice[v2].delay += (int)(play_mode->rate * delay / 1000);
+				voice[v2].panning = pan;
+				recompute_amp(v2);
+				apply_envelope_to_amp(v2);
+				recompute_freq(v2);
+			}
+		}
+	}
+
+	if(status->level_right) {
+		vol = voice[v1].velocity * level * status->level_ratio_right;
+		if (vol > threshold) {	/* First Delay */
+			delay = 0;
+			pan = voice[v1].panning - 64;
+			if((v2 = find_free_voice()) == -1) {return;}
+			orig_frequency = voice[v1].orig_frequency;
+			orig_frequency *= bend_fine[level >> 2];
+			voice[v2].orig_frequency = orig_frequency;
+			voice[v2].cache = NULL;
+			delay += status->time_right;
+			voice[v2] = voice[v1];	/* copy all parameters */
+			voice[v2].velocity = (uint8)vol;
+			voice[v2].delay += (int)(play_mode->rate * delay / 1000);	
+			voice[v2].panning = pan;
+			recompute_amp(v2);
+			apply_envelope_to_amp(v2);
+			recompute_freq(v2);
+			for(i=0;i<fb_loop;i++) {	/* Feedback */
+				vol *= fb_ratio;
+				delay += status->time_right;
+				if(vol < threshold) {break;}
+				if((v2 = find_free_voice()) == -1) {return;}
+				orig_frequency *= bend_fine[level >> 2];
+				voice[v2].orig_frequency = orig_frequency;
+				voice[v2].cache = NULL;
+				voice[v2] = voice[v1];	/* copy all parameters */
+				voice[v2].velocity = (uint8)vol;
+				voice[v2].delay += (int)(play_mode->rate * delay / 1000);
+				voice[v2].panning = pan;
+				recompute_amp(v2);
+				apply_envelope_to_amp(v2);
+				recompute_freq(v2);
+			}
+		}
+	}
+}
+
 static void new_chorus_voice(int v1, int level)
 {
     int v2, ch;
     uint8 vol;
+    struct chorus_status_t *status = get_chorus_status();
+
+    printf("## level %d\n", level);
 
     if((v2 = find_free_voice()) == -1)
 	return;
     ch = voice[v1].channel;
     vol = voice[v1].velocity;
     voice[v2] = voice[v1];	/* copy all parameters */
+
+	/* NRPN Chorus Send Level of Drum */
+	if(ISDRUMCHANNEL(ch) && channel[ch].drums[voice[v1].note] != NULL) {
+		level *= (FLOAT_T)channel[ch].drums[voice[v1].note]->chorus_level / 127.0;
+	}
 
     /* Choose lower voice index for base voice (v1) */
     if(v1 > v2)
@@ -1577,6 +1825,9 @@ static void new_chorus_voice(int v1, int level)
         voice[v2].orig_frequency *= bend_fine[level];
     else
 	voice[v2].orig_frequency /= bend_fine[level];
+
+    MYCHECK(voice[v2].orig_frequency);
+
     voice[v2].cache = NULL;
 
     /* set panning & delay */
@@ -1631,11 +1882,21 @@ static void new_chorus_voice_alternate(int v1, int level)
     int v2, ch, panlevel;
     uint8 vol, pan;
     double delay;
+	struct chorus_status_t *status = get_chorus_status();
 
     if((v2 = find_free_voice()) == -1)
 	return;
     ch = voice[v1].channel;
     voice[v2] = voice[v1];
+
+	/* NRPN Chorus Send Level of Drum */
+	if(ISDRUMCHANNEL(ch) && channel[ch].drums[voice[v1].note] != NULL) {
+		level *= (FLOAT_T)channel[ch].drums[voice[v1].note]->chorus_level / 127.0;
+	}
+
+    /* for our purposes, hard left will be equal to 1 instead of 0 */
+    pan = voice[v1].panning;
+    if (!pan) pan = 1;
 
     /* Choose lower voice index for base voice (v1) */
     if(v1 > v2)
@@ -1666,19 +1927,50 @@ static void new_chorus_voice_alternate(int v1, int level)
         voice[v2].cache = NULL;
     }
 
+    MYCHECK(voice[v2].orig_frequency);
+
+    /* Try to keep the delayed voice from cancelling out the other voice */
+    /* Don't bother with trying to figure out drum pitches... */
+    /* Don't bother with mod files for the same reason... */
+    /* Drums and mods could be fixed, but pitch detection is too expensive */
+    delay = DEFAULT_CHORUS_DELAY2;
+    if (!ISDRUMCHANNEL(voice[v1].channel) &&
+    	current_file_info->file_type != IS_MOD_FILE &&
+    	current_file_info->file_type != IS_S3M_FILE)
+    {
+    	double freq, frac;
+    
+    	freq = pitch_freq_table[voice[v1].note];
+    	delay = DEFAULT_CHORUS_DELAY2 * freq;
+    	frac = delay - floor(delay);
+
+	/* force the delay away from 0.5 period */
+    	if (frac < 0.5 && frac > 0.40)
+    	{
+    	    delay = (floor(delay) + 0.40) / freq;
+    	    if (play_mode->encoding & ~PE_MONO)
+    	    	delay += (0.5 - frac) * (1.0 - labs(64 - pan) / 63.0) / freq;
+    	}
+    	else if (frac >= 0.5 && frac < 0.60)
+    	{
+    	    delay = (floor(delay) + 0.60) / freq;
+    	    if (play_mode->encoding & ~PE_MONO)
+    	    	delay += (0.5 - frac) * (1.0 - labs(64 - pan) / 63.0) / freq;
+    	}
+    	else
+    	    delay = DEFAULT_CHORUS_DELAY2;
+    }
+
     /* set panning & delay for pseudo-surround effect */
-    if(play_mode->encoding & PE_MONO)
-        voice[v2].delay += DEFAULT_CHORUS_DELAY2;   /* delay sounds good */
+    if(play_mode->encoding & PE_MONO)    /* delay sounds good */
+        voice[v2].delay += (int)(play_mode->rate * delay);
     else
     {
-        pan = voice[v1].panning;
         panlevel = 63;
         if (pan - panlevel < 1) panlevel = pan - 1;
         if (pan + panlevel > 127) panlevel = 127 - pan;
         voice[v1].panning -= panlevel;
         voice[v2].panning += panlevel;
-
-        delay = DEFAULT_CHORUS_DELAY2;
 
         /* choose which voice is delayed based on panning */
         if (voice[v1].panned == PANNED_CENTER) {
@@ -1734,12 +2026,20 @@ static void note_on(MidiEvent *e)
 #endif
 	if((channel[ch].chorus_level || opt_surround_chorus))
 	{
-	    if(opt_surround_chorus)
+		if(opt_surround_chorus)
 		new_chorus_voice_alternate(v, channel[ch].chorus_level);
-	    else
+		else
 		new_chorus_voice(v, channel[ch].chorus_level);
 	}
-    }
+	if(channel[ch].delay_level)
+	{
+		new_delay_voice(v, channel[ch].delay_level);
+	}
+	if(channel[ch].resonance_level)
+	{
+		new_flanger_voice(v, channel[ch].cutoff_freq,channel[ch].resonance_level);
+	}
+	}
 }
 
 static void set_voice_timeout(Voice *vp, int ch, int note)
@@ -1913,6 +2213,7 @@ static void adjust_panning(int c)
 		{
 		    int panlevel;
 
+		    if (!pan) pan = 1;	/* make hard left be 1 instead of 0 */
 		    panlevel = 63;
 		    if (pan - panlevel < 1) panlevel = pan - 1;
 		    if (pan + panlevel > 127) panlevel = 127 - pan;
@@ -2409,41 +2710,80 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	    update_channel_freq(ch);
 	break;
       case NRPN_ADDR_0120:	/* Filter cutoff frequency */
+	if(opt_resonance) {
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Pseudo Cutoff Freq (CH:%d VALUE:%d)",ch,val);
+		channel[ch].cutoff_freq = val - 64;
+	}
 	break;
       case NRPN_ADDR_0121:	/* Filter Resonance */
+	if(opt_resonance) {
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Pseudo Resonance (CH:%d VALUE:%d)",ch,val);
+		channel[ch].resonance_level = val - 64;
+	}
 	break;
       case NRPN_ADDR_0163:	/* Attack Time */
+	if(!opt_tva_attack) {break;}
+	set_envelope_time(ch,val,0);
 	break;
       case NRPN_ADDR_0164:	/* EG Decay Time */
+	if(!opt_tva_decay) { break; }
+	set_envelope_time(ch,val,1);
 	break;
       case NRPN_ADDR_0166:	/* EG Release Time */
+	if(!opt_tva_release) { break; }
+	set_envelope_time(ch,val,3);
 	break;
       case NRPN_ADDR_1400:	/* Drum Filter Cutoff (XG) */
 	if(play_system_mode != GS_SYSTEM_MODE)
-	    drumflag = 1;
+	drumflag = 1;
 	break;
       case NRPN_ADDR_1500:	/* Drum Filter Resonance (XG) */
 	if(play_system_mode != GS_SYSTEM_MODE)
-	    drumflag = 1;
+	drumflag = 1;
 	break;
       case NRPN_ADDR_1600:	/* Drum EG Attack Time (XG) */
 	if(play_system_mode != GS_SYSTEM_MODE)
-	    drumflag = 1;
+	drumflag = 1;
+	if(!opt_tva_attack) { break; }
+	val = val & 0x7F;
+	note = channel[ch].lastlrpn;
+	val	-= 64;
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG Drum Attack Time (CH:%d NOTE:%d VALUE:%d)",ch,note,val);
+	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	channel[ch].drums[note]->drum_envelope_rate[0] = val / 2;
 	break;
       case NRPN_ADDR_1700:	/* Drum EG Decay Time (XG) */
 	if(play_system_mode != GS_SYSTEM_MODE)
-	    drumflag = 1;
+    drumflag = 1;
+	if(!opt_tva_decay) { break; }
+	val = val & 0x7F;
+	note = channel[ch].lastlrpn;
+	val	-= 64;
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG Drum Decay Time (CH:%d NOTE:%d VALUE:%d)",ch,note,val);
+	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	channel[ch].drums[note]->drum_envelope_rate[1] = val / 2;
 	break;
-      case NRPN_ADDR_1800:	/* Coarse Pitch of Drum (GS)
-				   Fine Pitch of Drum (XG) */
+      case NRPN_ADDR_1800:	/* Coarse Pitch of Drum (GS) */
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Coarse Pitch of Drum (CH:%d VALUE:%d)",ch,val);
+	drumflag = 1;
+	note = channel[ch].lastlrpn;		
+	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	val = val - 64 + note;
+	val = val & 0x7F;
+	channel[ch].drums[note]->note = val;
+	break;
+      case NRPN_ADDR_1900:	/* Fine Pitch of Drum (XG) */
+  	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Fine Pitch of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
 	break;
-      case NRPN_ADDR_1900:	/* Coarse Pitch of Drum (XG) */
-	if(play_system_mode != GS_SYSTEM_MODE)
-	    drumflag = 1;
-	break;
-      case NRPN_ADDR_1A00:	/* Level of Drum */
+      case NRPN_ADDR_1A00:	/* Level of Drum */	 
 	drumflag = 1;
+	note = channel[ch].lastlrpn;
+	if(val > 127) {val = 127;}
+	else if(val < 0) {val = 0;}
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Drum Instrument TVA Level (CH:%d NOTE:%d VALUE:%d)",ch,note,val);
+	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	channel[ch].drums[note]->drum_level = (double)val / 127;
 	break;
       case NRPN_ADDR_1C00:	/* Panpot of Drum */
 	drumflag = 1;
@@ -2462,21 +2802,36 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	    adjust_drum_panning(ch, note);
 	break;
       case NRPN_ADDR_1D00:	/* Reverb Send Level of Drum */
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Reverb Send Level of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
+	note = channel[ch].lastlrpn;		
+	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	channel[ch].drums[note]->reverb_level = val;
 	break;
       case NRPN_ADDR_1E00:	/* Chorus Send Level of Drum */
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Chorus Send Level of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
+	note = channel[ch].lastlrpn;		
+	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	channel[ch].drums[note]->chorus_level = val;
 	break;
       case NRPN_ADDR_1F00:	/* Variation Send Level of Drum */
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Variation Send Level of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
+	note = channel[ch].lastlrpn;		
+	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	channel[ch].drums[note]->delay_level = val;
 	break;
       case RPN_ADDR_0000: /* Pitch bend sensitivity */
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Pitch Bend Sensitivity (CH:%d VALUE:%d)",ch,val);
 	channel[ch].pitchfactor = 0;
 	break;
-      case RPN_ADDR_0001:
+      case RPN_ADDR_0001: /* Master Fine Tuning */
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Master Fine Tuning (CH:%d VALUE:%d)",ch,val);
 	channel[ch].pitchfactor = 0;
 	break;
-      case RPN_ADDR_0002:
+      case RPN_ADDR_0002: /* Master Coarse Tuning */
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Master Coarse Tuning (CH:%d VALUE:%d)",ch,val);
 	channel[ch].pitchfactor = 0;
 	break;
       case RPN_ADDR_7F7F: /* RPN reset */
@@ -2560,6 +2915,11 @@ static void seek_forward(int32 until_time)
 	    break;
 
 	  case ME_MODULATION_WHEEL:
+		if(play_system_mode == XG_SYSTEM_MODE) {
+			current_event->a *= 1.2;
+		} else if(channel[ch].mapID == SC_55_TONE_MAP) {
+			current_event->a *= 0.7;
+		}
 	    channel[ch].modulation_wheel =
 		midi_cnv_vib_depth(current_event->a);
 	    break;
@@ -2647,6 +3007,31 @@ static void seek_forward(int32 until_time)
 	    else
 		channel[ch].chorus_level = -opt_chorus_control;
 	    break;
+
+	  case ME_TREMOLO_EFFECT:
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Tremolo Send (CH:%d LEVEL:%d)",ch,current_event->a);
+		break;
+
+	  case ME_CELESTE_EFFECT:
+		if(opt_chorus_control) {
+			channel[ch].delay_level = current_event->a;
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Delay Send (CH:%d LEVEL:%d)",ch,current_event->a);
+		}
+	    break;
+
+	  case ME_ATTACK_TIME:
+	  	if(!opt_tva_attack) { break; }
+		set_envelope_time(ch,current_event->a,0);
+		break;
+
+	  case ME_RELEASE_TIME:
+	  	if(!opt_tva_release) { break; }
+		set_envelope_time(ch,current_event->a,3);
+		break;
+
+	  case ME_PHASER_EFFECT:
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Phaser Send (CH:%d LEVEL:%d)",ch,current_event->a);
+		break;
 
 	  case ME_RANDOM_PAN:
 	    channel[ch].panning = int_rand(128);
@@ -3084,7 +3469,7 @@ static int apply_controls(void)
 	    skip_to(0);
 	    ctl_updatetime(0);
 	    jump_flag = 1;
-	    midi_restart_time = 0;
+		midi_restart_time = 0;
 	    continue;
 
 	  case RC_JUMP:
@@ -3981,6 +4366,11 @@ int play_event(MidiEvent *ev)
 	break;
 
       case ME_MODULATION_WHEEL:
+	if(play_system_mode == XG_SYSTEM_MODE) {
+		ev->a *= 1.2;
+	} else if(channel[ch].mapID == SC_55_TONE_MAP) {
+		ev->a *= 0.7;
+	}
 	channel[ch].modulation_wheel =
 	    midi_cnv_vib_depth(ev->a);
 	update_modulation_wheel(ch, channel[ch].modulation_wheel);
@@ -4064,6 +4454,31 @@ int play_event(MidiEvent *ev)
 		channel[ch].chorus_level = -opt_chorus_control;
 	    ctl_mode_event(CTLE_CHORUS_EFFECT, 1, ch, get_chorus_level(ch));
 	}
+	break;
+
+      case ME_TREMOLO_EFFECT:
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Tremolo Send (CH:%d LEVEL:%d)",ch,ev->a);
+	break;
+
+      case ME_CELESTE_EFFECT:
+	if(opt_chorus_control) {
+		channel[ch].delay_level = ev->a;
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Delay Send (CH:%d LEVEL:%d)",ch,ev->a);
+	}
+	break;
+
+	  case ME_ATTACK_TIME:
+  	if(!opt_tva_attack) { break; }
+	set_envelope_time(ch,ev->a,0);
+	break;
+
+	  case ME_RELEASE_TIME:
+  	if(!opt_tva_release) { break; }
+	set_envelope_time(ch,ev->a,3);
+	break;
+
+      case ME_PHASER_EFFECT:
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Phaser Send (CH:%d LEVEL:%d)",ch,ev->a);
 	break;
 
       case ME_RPN_INC:
@@ -4275,7 +4690,7 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     rc = RC_NONE;
     for(;;)
     {
-        midi_restart_time = 1;
+	midi_restart_time = 1;
 	rc = play_event(current_event);
 	if(rc != RC_NONE)
 	    break;

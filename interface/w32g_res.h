@@ -3,15 +3,27 @@
 // Used by w32g_res.rc
 //
 #define IDD_DIALOG_SEARCHBOX            102
+#define IDD_DIALOG_VORBIS               103
+#define IDD_DIALOG_GOGO                 104
+#define IDD_PREF_PLAYER_EN              106
+#define IDD_PREF_TIMIDITY1_EN           107
+#define IDD_PREF_TIMIDITY2_EN           108
+#define IDD_PREF_TIMIDITY3_EN           109
+#define IDD_PREF_TIMIDITY4_EN           110
+#define IDD_DIALOG_MAIN_EN              111
+#define IDM_MENU_MAIN_EN                112
 #define IDC_CHECK_SEACHDIRRECURSIVE     1001
 #define IDC_CHECK_DOCWNDINDEPENDENT     1002
 #define IDC_CHECK_INIFILE_AUTOSAVE      1003
 #define IDD_DIALOG_WAVEFORM             1004
+#define IDC_CHECK_DOCWNDAUTOPOPUP       1004
 #define IDC_CHECKBOX_CHORUS_LEVEL       1005
 #define IDC_CHECKBOX_GLOBAL_REVERB      1006
 #define IDC_CHECKBOX_REVERB_LEVEL       1007
 #define IDC_CHECKBOX_CH01               1008
+#define IDC_CHECKBOX_SRCHORUS           1008
 #define IDC_CHECKBOX_CH02               1009
+#define IDC_CHECKBOX_RESONANCE          1009
 #define IDC_CHECKBOX_CH03               1010
 #define IDC_CHECKBOX_CH04               1011
 #define IDC_CHECKBOX_CH05               1012
@@ -95,11 +107,16 @@
 #define IDC_EDIT_CONTROL_RATIO          1092
 #define IDC_EDIT_MODIFY_RELEASE         1093
 #define IDC_EDIT_AMPLIFICATION          1094
+#define IDC_EDIT_ENV_ATTACK             1094
 #define IDC_EDIT_CACHE_SIZE             1095
+#define IDC_EDIT_AUTOMAXIMIZE           1095
+#define IDC_EDIT_VELOCITYTABLE          1095
 #define IDC_EDIT_SPECIAL_TONEBANK       1097
 #define IDC_CHECKBOX_NOT_LOOPING        1097
 #define IDC_EDIT_DEFAULT_TONEBANK       1098
+#define IDC_CHECKBOX_AUTOSTART          1098
 #define IDC_EDIT_REDUCE_VOICE           1099
+#define IDC_CHECKBOX_RANDOM             1099
 #define IDC_EDIT_CTL_VEBOSITY           1100
 #define IDC_EDIT_DELAY                  1101
 #define IDC_RADIOBUTTON_DELAY_LEFT      1102
@@ -198,16 +215,63 @@
 #define IDC_RADIOBUTTON_GS              1195
 #define IDC_RADIOBUTTON_XG              1196
 #define IDC_EDIT1                       2000
+#define IDC_EDIT2                       2001
 #define IDC_EDIT_NUM                    2002
+#define IDC_EDIT3                       2002
+#define IDC_BUTTON_REVERSE              2003
+#define IDC_COMBO_OUTPUT                2004
+#define IDC_BUTTON_OUTPUT_OPTIONS       2005
+#define IDC_CHECK_DEFAULT               2007
+#define IDC_COMBO_MODE                  2008
+#define IDC_CHECK_USE_TAG               2009
+#define IDC_COMBO_OUTPUT_FORMAT         2013
+#define IDC_CHECK_COMMANDLINE_OPTS      2015
+#define IDC_EDIT_COMMANDLINE_OPTION     2016
+#define IDC_COMBO_MPEG1_AUDIO_BITRATE   2017
+#define IDC_COMBO_MPEG2_AUDIO_BITRATE   2018
+#define IDC_COMBO_VBR_BITRATE_LOW       2019
+#define IDC_COMBO_VBR_BITRATE_HIGH      2020
+#define IDC_CHECK_16KHZ_LOW_PASS_FILTER 2021
+#define IDC_CHECK_ENHANCED_LOW_PASS_FILTER 2022
+#define IDC_EDIT_LPF_PARA1              2023
+#define IDC_EDIT_LPF_PARA2              2024
+#define IDC_COMBO_ENCODE_MODE           2025
+#define IDC_CHECK_USEPSY                2026
+#define IDC_CHECK_CPUMMX                2027
+#define IDC_CHECK_CPUSSE                2028
+#define IDC_CHECK_CPU3DNOW              2029
+#define IDC_CHECK_CPUE3DNOW             2030
+#define IDC_COMBO_EMPHASIS_TYPE         2031
+#define IDC_COMBO_VBR                   2033
+#define IDC_CHECK_VBR                   2034
+#define IDC_CHECK_OUTFREQ               2035
+#define IDC_EDIT_OUTFREQ                2036
+#define IDC_CHECK_MSTHRESHOLD           2037
+#define IDC_EDIT_MSTHRESHOLD_THRESHOLD  2038
+#define IDC_EDIT_MSTHRESHOLD_MSPOWER    2039
+#define IDC_CHECK_VERIFY                2040
+#define IDC_BUTTON_APPLY                2041
+#define IDC_COMBO_OUTPUT_MODE           2042
+#define IDC_CHECK_USE_CPU_OPTS          2043
+#define IDC_CHECK_MPEG1AUDIOBITRATE     2045
+#define IDC_CHECK_MPEG2AUDIOBITRATE     2046
+#define IDC_CHECK_VBR_BITRATE           2047
+#define IDC_CHECK_OUTPUT_FORMAT         2048
+#define IDC_CHECK_ENCODE_MODE           2049
+#define IDC_CHECK_EMPHASIS_TYPE         2050
+#define IDC_CHECKBOX_TVAA               2057
+#define IDC_CHECKBOX_TVAD               2058
+#define IDC_CHECKBOX_TVAR               2059
+#define IDC_CHECKBOX_PDELAY             2060
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        103
-#define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         2003
+#define _APS_NEXT_RESOURCE_VALUE        113
+#define _APS_NEXT_COMMAND_VALUE         40002
+#define _APS_NEXT_CONTROL_VALUE         2061
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

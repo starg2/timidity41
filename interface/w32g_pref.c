@@ -42,6 +42,9 @@
 #include <strings.h>
 #endif
 //#include <dir.h>
+#ifdef AU_GOGO
+#include <musenc.h>		/* for gogo */
+#endif
 
 #include "timidity.h"
 #include "common.h"
@@ -66,8 +69,14 @@
 #include "w32g_res.h"
 #include "w32g_utl.h"
 #include "w32g_pref.h"
+#include "gogo_a.h"
 
 /* TiMidity Win32GUI preference / PropertySheet */
+
+extern void w32g_restart(void);
+extern void set_gogo_opts_use_commandline_options(char *commandline);
+
+extern void restore_voices(int save_voices);
 
 volatile int PrefWndDoing = 0;
 
@@ -81,6 +90,9 @@ static BOOL APIENTRY PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wPara
 static BOOL APIENTRY PrefTiMidity4DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static int DlgOpenConfigFile(char *Filename, HWND hwnd);
 static int DlgOpenOutputFile(char *Filename, HWND hwnd);
+
+static int vorbisCofigDialog(void);
+static int gogoCofigDialog(void);
 
 //#if defined(__CYGWIN32__) || defined(__MINGW32__)
 #if 0 /* New version of mingw */
@@ -124,14 +136,31 @@ void PrefWndCreate(HWND hwnd)
 	psp[0].DUMMYUNIONNAME.pszTemplate = MAKEINTRESOURCE(IDD_PREF_PLAYER);
 	psp[0].DUMMYUNIONNAME2.pszIcon = NULL;
 #else
-	psp[0].pszTemplate = MAKEINTRESOURCE(IDD_PREF_PLAYER);
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[0].pszTemplate = MAKEINTRESOURCE(IDD_PREF_PLAYER);
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[0].pszTemplate = MAKEINTRESOURCE(IDD_PREF_PLAYER_EN);
+			break;
+	}
 	psp[0].pszIcon = NULL;
 #endif
 #endif
 	psp[0].pfnDlgProc = PrefPlayerDialogProc;
-	psp[0].pszTitle = (LPSTR)TEXT("Player");
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[0].pszTitle = (LPSTR)TEXT("プレイヤー");
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[0].pszTitle = (LPSTR)TEXT("Player");
+			break;
+	}
 	psp[0].lParam = 0;
 	psp[0].pfnCallback = NULL;
+
 // TiMidity page1.
 	psp[1].dwSize = sizeof(PROPSHEETPAGE);
 	psp[1].dwFlags = PSP_USETITLE;
@@ -144,12 +173,28 @@ void PrefWndCreate(HWND hwnd)
 	psp[1].DUMMYUNIONNAME.pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY1);
 	psp[1].DUMMYUNIONNAME2.pszIcon = NULL;
 #else
-	psp[1].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY1);
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[1].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY1);
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[1].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY1_EN);
+			break;
+	}
 	psp[1].pszIcon = NULL;
 #endif
 #endif
 	psp[1].pfnDlgProc = PrefTiMidity1DialogProc;
-	psp[1].pszTitle = (LPSTR)TEXT("Effect");
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[1].pszTitle = (LPSTR)TEXT("エフェクト");
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[1].pszTitle = (LPSTR)TEXT("Effect");
+			break;
+	}
 	psp[1].lParam = 0;
 	psp[1].pfnCallback = NULL;
 // TiMidity page2.
@@ -164,12 +209,28 @@ void PrefWndCreate(HWND hwnd)
 	psp[2].DUMMYUNIONNAME.pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY2);
 	psp[2].DUMMYUNIONNAME2.pszIcon = NULL;
 #else
-	psp[2].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY2);
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[2].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY2);
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[2].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY2_EN);
+			break;
+	}
 	psp[2].pszIcon = NULL;
 #endif
 #endif
 	psp[2].pfnDlgProc = PrefTiMidity2DialogProc;
-	psp[2].pszTitle = (LPSTR)TEXT("Misc");
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[2].pszTitle = (LPSTR)TEXT("その他");
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[2].pszTitle = (LPSTR)TEXT("Misc");
+			break;
+	}
 	psp[2].lParam = 0;
 	psp[2].pfnCallback = NULL;
 // TiMidity page3.
@@ -184,12 +245,28 @@ void PrefWndCreate(HWND hwnd)
 	psp[3].DUMMYUNIONNAME.pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY3);
 	psp[3].DUMMYUNIONNAME2.pszIcon = NULL;
 #else
-	psp[3].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY3);
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[3].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY3);
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[3].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY3_EN);
+			break;
+	}
 	psp[3].pszIcon = NULL;
 #endif
 #endif
 	psp[3].pfnDlgProc = PrefTiMidity3DialogProc;
-	psp[3].pszTitle = (LPSTR)TEXT("Output");
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[3].pszTitle = (LPSTR)TEXT("出力");
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[3].pszTitle = (LPSTR)TEXT("Output");
+			break;
+	}
 	psp[3].lParam = 0;
 	psp[3].pfnCallback = NULL;
 // TiMidity page4.
@@ -204,12 +281,28 @@ void PrefWndCreate(HWND hwnd)
 	psp[4].DUMMYUNIONNAME.pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY4);
 	psp[4].DUMMYUNIONNAME2.pszIcon = NULL;
 #else
-	psp[4].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY4);
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[4].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY4);
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[4].pszTemplate = MAKEINTRESOURCE(IDD_PREF_TIMIDITY4_EN);
+			break;
+	}
 	psp[4].pszIcon = NULL;
 #endif
 #endif
 	psp[4].pfnDlgProc = PrefTiMidity4DialogProc;
-	psp[4].pszTitle = (LPSTR)TEXT("Channel");
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psp[4].pszTitle = (LPSTR)TEXT("チャンネル");
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psp[4].pszTitle = (LPSTR)TEXT("Channel");
+			break;
+	}
 	psp[4].lParam = 0;
 	psp[4].pfnCallback = NULL;
 // Propsheetheader
@@ -218,7 +311,15 @@ void PrefWndCreate(HWND hwnd)
 	psh.dwFlags = PSH_USEHICON | PSH_PROPSHEETPAGE | PSH_USECALLBACK;
 	psh.hwndParent = hwnd;
 	psh.hInstance = hInst;
-	psh.pszCaption = (LPSTR)TEXT("TiMidity Win32GUI Preference");
+	switch(PlayerLanguage) {	// 言語切替
+		case LANGUAGE_JAPANESE:
+			psh.pszCaption = (LPSTR)TEXT("TiMidity++ Win32GUI - 詳細設定");
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			psh.pszCaption = (LPSTR)TEXT("TiMidity++ Win32GUI - Preference");
+			break;
+	}
 	psh.nPages = sizeof(psp) / sizeof(PROPSHEETPAGE);
 #if defined (__cplusplus)
 	psh.nStartPage = 0;
@@ -390,17 +491,23 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 								DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_AUTOUNIQ,flag));
 			SettingCtlFlag(st_temp, 'R',
 								DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_AUTOREFINE,flag));
+			SettingCtlFlag(st_temp, 'a',
+								DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_AUTOSTART,flag));
 			SettingCtlFlag(st_temp, 'C',
 								DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NOT_CONTINUE,flag));
 			SettingCtlFlag(st_temp, 'd',
 								!DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NOT_DRAG_START,flag));
 			SettingCtlFlag(st_temp, 'l',
 								!DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NOT_LOOPING,flag));
+			SettingCtlFlag(st_temp, 'r',
+								DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_RANDOM,flag));
 			}
 			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECK_SEACHDIRRECURSIVE,
 				sp_temp->SeachDirRecursive);
 			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECK_DOCWNDINDEPENDENT,
 				sp_temp->DocWndIndependent);
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECK_DOCWNDAUTOPOPUP,
+				sp_temp->DocWndAutoPopup);
 			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECK_INIFILE_AUTOSAVE,
 				sp_temp->IniFileAutoSave);
 			SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
@@ -432,17 +539,23 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 									strchr(st_temp->opt_ctl + 1, 'u'));
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_AUTOREFINE,
 									strchr(st_temp->opt_ctl + 1, 'R'));
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_AUTOSTART,
+									strchr(st_temp->opt_ctl + 1, 'a'));
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NOT_CONTINUE,
 									strchr(st_temp->opt_ctl + 1, 'C'));
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NOT_DRAG_START,
 									!strchr(st_temp->opt_ctl + 1, 'd'));
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NOT_LOOPING,
 									!strchr(st_temp->opt_ctl + 1, 'l'));
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_RANDOM,
+									strchr(st_temp->opt_ctl + 1, 'r'));
 
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_SEACHDIRRECURSIVE,
 									sp_temp->SeachDirRecursive);
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_DOCWNDINDEPENDENT,
 									sp_temp->DocWndIndependent);
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_DOCWNDAUTOPOPUP,
+									sp_temp->DocWndAutoPopup);
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_INIFILE_AUTOSAVE,
 									sp_temp->IniFileAutoSave);
 			break;
@@ -544,7 +657,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			// CHORUS
 			if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_CHORUS,BM_GETCHECK,0,0)){
 				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_CHORUS_LEVEL,BM_GETCHECK,0,0)){
-					st_temp->opt_chorus_control = -GetDlgItemInt(hwnd,IDC_EDIT_CHORUS,NULL,TRUE);
+					st_temp->opt_chorus_control = -(int)GetDlgItemInt(hwnd,IDC_EDIT_CHORUS,NULL,TRUE);
 				} else {
 					st_temp->opt_chorus_control = 1;
 				}
@@ -556,7 +669,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_GLOBAL_REVERB,BM_GETCHECK,0,0)){
 					st_temp->opt_reverb_control = 2;
 				} else if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_REVERB_LEVEL,BM_GETCHECK,0,0)){
-					st_temp->opt_reverb_control = -GetDlgItemInt(hwnd,IDC_EDIT_REVERB,NULL,TRUE);
+					st_temp->opt_reverb_control = -(int)GetDlgItemInt(hwnd,IDC_EDIT_REVERB,NULL,TRUE);
 				} else {
 					st_temp->opt_reverb_control = 1;
 				}
@@ -578,6 +691,8 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		 }
 			// NOISESHARPING
 		 st_temp->noise_sharp_type = GetDlgItemInt(hwnd,IDC_EDIT_NOISESHARPING,NULL,FALSE);
+		 st_temp->opt_env_attack = GetDlgItemInt(hwnd,IDC_EDIT_ENV_ATTACK,NULL,FALSE);
+		 st_temp->opt_velocity_table = GetDlgItemInt(hwnd,IDC_EDIT_VELOCITYTABLE,NULL,FALSE);
 			// Misc
 			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_MODWHEEL,st_temp->opt_modulation_wheel);
 			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_PORTAMENTO,st_temp->opt_portamento);
@@ -586,6 +701,12 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_OVOICE,st_temp->opt_overlap_voice_allow);
 			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_TRACETEXT,st_temp->opt_trace_text_meta_event);
 		 st_temp->modify_release = GetDlgItemInt(hwnd,IDC_EDIT_MODIFY_RELEASE,NULL,FALSE);
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_TVAA,st_temp->opt_tva_attack);
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_TVAD,st_temp->opt_tva_decay);
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_TVAR,st_temp->opt_tva_release);
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_PDELAY,st_temp->opt_delay_control);
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_RESONANCE,st_temp->opt_resonance);
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_SRCHORUS,st_temp->opt_surround_chorus);
 			SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
 			return TRUE;
 		case PSN_RESET:
@@ -658,6 +779,8 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendMessage(hwnd,WM_COMMAND,IDC_CHECKBOX_DELAY,0);
 			// NOISESHARPING
 		 SetDlgItemInt(hwnd,IDC_EDIT_NOISESHARPING,st_temp->noise_sharp_type,TRUE);
+		 SetDlgItemInt(hwnd,IDC_EDIT_ENV_ATTACK,st_temp->opt_env_attack,TRUE);
+		 SetDlgItemInt(hwnd,IDC_EDIT_VELOCITYTABLE,st_temp->opt_velocity_table,TRUE);
 			// Misc
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_MODWHEEL,st_temp->opt_modulation_wheel);
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_PORTAMENTO,st_temp->opt_portamento);
@@ -665,11 +788,18 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_CHPRESS,st_temp->opt_channel_pressure);
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_OVOICE,st_temp->opt_overlap_voice_allow);
 			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_TRACETEXT,st_temp->opt_trace_text_meta_event);
-		 SetDlgItemInt(hwnd,IDC_EDIT_MODIFY_RELEASE,st_temp->modify_release,TRUE);
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_TVAA,st_temp->opt_tva_attack);
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_TVAD,st_temp->opt_tva_decay);
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_TVAR,st_temp->opt_tva_release);
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_PDELAY,st_temp->opt_delay_control);
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_RESONANCE,st_temp->opt_resonance);
+			DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_SRCHORUS,st_temp->opt_surround_chorus);
+			SetDlgItemInt(hwnd,IDC_EDIT_MODIFY_RELEASE,st_temp->modify_release,TRUE);
 			break;
 		default:
 			return FALSE;
 		}
+		break;
    case WM_SIZE:
 		return FALSE;
 	case WM_CLOSE:
@@ -812,6 +942,7 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		default:
 			return FALSE;
 		}
+		break;
    case WM_SIZE:
 		return FALSE;
 	case WM_CLOSE:
@@ -822,13 +953,43 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
+
+
+// IDC_COMBO_OUTPUT_MODE
+static char *cb_info_IDC_COMBO_OUTPUT_MODE[]= {
+	"以下のファイルに出力",(char *)0,
+	"ファイル名を自動で決定し、ソースと同じフォルダに出力",(char *)1,
+	"ファイル名を自動で決定し、以下のフォルダに出力",(char *)2,
+	"ファイル名を自動で決定し、以下のフォルダに出力(フォルダ名付き)",(char *)3,
+	NULL
+};
+
 static BOOL APIENTRY
 PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
    case WM_INITDIALOG:
-		SendDlgItemMessage(hwnd,IDC_EDIT_OUTPUT_FILE,
-		WM_SETFONT,(WPARAM)hFontPrefWnd,MAKELPARAM(TRUE,0));
+		{
+			int i;
+			SendDlgItemMessage(hwnd,IDC_EDIT_OUTPUT_FILE,WM_SETFONT,(WPARAM)hFontPrefWnd,MAKELPARAM(TRUE,0));
+			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_RESETCONTENT,(WPARAM)0,(LPARAM)0);
+			for(i=0;play_mode_list[i]!=0;i++){
+				SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)play_mode_list[i]->id_name);
+			}
+			for(i=0;cb_info_IDC_COMBO_OUTPUT_MODE[i];i+=2){
+				SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_OUTPUT_MODE[i]);
+			}
+			{
+				int cb_num;
+				for(cb_num=0;(int)cb_info_IDC_COMBO_OUTPUT_MODE[cb_num];cb_num+=2){
+					SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_SETCURSEL,(WPARAM)0,(LPARAM)0);
+					if(st_temp->auto_output_mode==(int)cb_info_IDC_COMBO_OUTPUT_MODE[cb_num+1]){
+						SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_SETCURSEL,(WPARAM)cb_num/2,(LPARAM)0);
+						break;
+					}
+				}
+			}
+		}
 		break;
 	case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -849,6 +1010,9 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			{
 			char filename[MAXPATH+1];
 			DWORD res;
+			if(st_temp->auto_output_mode>0){
+				break;
+			}
 			GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,filename,(WPARAM)MAX_PATH);
 		 res = GetFileAttributes(filename);
 		 if(res!=0xFFFFFFFF && !(res & FILE_ATTRIBUTE_DIRECTORY)){
@@ -1020,6 +1184,41 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendDlgItemMessage(hwnd,IDC_RADIO_MONO,BM_SETCHECK,0,0);
 		 }
 			break;
+		case IDC_BUTTON_OUTPUT_OPTIONS:
+			{
+				int num;
+				num = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
+				if(num>=0){
+					st_temp->opt_playmode[0]=play_mode_list[num]->id_character;
+				} else {
+					st_temp->opt_playmode[0]='d';
+				}
+				if(st_temp->opt_playmode[0]=='v'){
+					vorbisConfigDialog();
+				} else if(st_temp->opt_playmode[0]=='g'){
+					gogoConfigDialog();
+				}
+			}
+			break;
+		case IDC_COMBO_OUTPUT_MODE:
+			{
+				int cb_num1, cb_num2;
+				cb_num1 = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
+				for(cb_num2=0;(int)cb_info_IDC_COMBO_OUTPUT_MODE[cb_num2];cb_num2+=2){
+					if(cb_num1*2==cb_num2){
+						st_temp->auto_output_mode = (int)cb_info_IDC_COMBO_OUTPUT_MODE[cb_num2+1];
+						break;
+					}
+				}
+				if(st_temp->auto_output_mode>0){
+					SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力先");
+					SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
+				} else {
+					SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力ファイル");
+					SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
+				}
+			}
+			break;
 		default:
 		break;
 	  }
@@ -1030,22 +1229,13 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		switch (((NMHDR FAR *) lParam)->code){
 		case PSN_KILLACTIVE: {
 			int i = 0;
-			if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_RIFF_WAVE,BM_GETCHECK,0,0)){
-			 st_temp->opt_playmode[i] = 'w';
-		 } else
-			if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_LIST_MIDI_EVENT,BM_GETCHECK,0,0)){
-			 st_temp->opt_playmode[i] = 'l';
-		 } else
-			if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_RAW_WAVEFORM,BM_GETCHECK,0,0)){
-		  st_temp->opt_playmode[i] = 'r';
-		 } else
-			if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_SUN_AUDIO,BM_GETCHECK,0,0)){
-		   st_temp->opt_playmode[i] = 'u';
-		 } else
-			if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_AIFF,BM_GETCHECK,0,0)){
-			st_temp->opt_playmode[i] = 'a';
-		 } else
-			st_temp->opt_playmode[i] = 'd';
+			int num;
+			num = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
+			if(num>=0){
+				st_temp->opt_playmode[i]=play_mode_list[num]->id_character;
+			} else {
+				st_temp->opt_playmode[i]='d';
+			}
 			i++;
 			if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_ULAW,BM_GETCHECK,0,0))
 				st_temp->opt_playmode[i++] = 'U';
@@ -1069,7 +1259,11 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				st_temp->opt_playmode[i++] = 'M';
 			st_temp->opt_playmode[i] = '\0';
 			st_temp->output_rate = GetDlgItemInt(hwnd,IDC_EDIT_SAMPLE_RATE,NULL,FALSE);
-			GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName,(WPARAM)sizeof(st_temp->OutputName));
+ 			if(st_temp->auto_output_mode==0)
+				GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName,(WPARAM)sizeof(st_temp->OutputName));
+			else
+				GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName,(WPARAM)sizeof(st_temp->OutputDirName));
+
 			SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
 			}
 			return TRUE;
@@ -1082,37 +1276,22 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		case PSN_SETACTIVE: {
 			char *opt;
-			switch(st_temp->opt_playmode[0]){
-		 case 'w':
-				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WIN32AUDIO,IDC_RADIOBUTTON_AIFF,
-				IDC_RADIOBUTTON_RIFF_WAVE);
-				break;
-		 case 'r':
-				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WIN32AUDIO,IDC_RADIOBUTTON_AIFF,
-				IDC_RADIOBUTTON_RAW_WAVEFORM);
-				break;
-		 case 'u':
-				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WIN32AUDIO,IDC_RADIOBUTTON_AIFF,
-				IDC_RADIOBUTTON_SUN_AUDIO);
-				break;
-		 case 'a':
-				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WIN32AUDIO,IDC_RADIOBUTTON_AIFF,
-				IDC_RADIOBUTTON_AIFF);
-				break;
-		 case 'l':
-				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WIN32AUDIO,IDC_RADIOBUTTON_AIFF,
-				IDC_RADIOBUTTON_LIST_MIDI_EVENT);
-				break;
-		 case 'd':
-			default:
-				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WIN32AUDIO,IDC_RADIOBUTTON_AIFF,
-				IDC_RADIOBUTTON_WIN32AUDIO);
+			int num = 0;
+			int i;
+			for(i=0;play_mode_list[i]!=0;i++){
+				if(st_temp->opt_playmode[0]==play_mode_list[i]->id_character){
+					num = i;
 				break;
 			}
+			}
+			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_SETCURSEL,(WPARAM)num,(LPARAM)0);
+			if(st_temp->auto_output_mode==0){
 			if(st_temp->OutputName[0]=='\0')
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,TEXT("output.wav"));
 			else
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,TEXT(st_temp->OutputName));
+			} else
+				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
 
 			opt = st_temp->opt_playmode + 1;
 			if(strchr(opt, 'U')){
@@ -1163,6 +1342,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		default:
 			return FALSE;
 		}
+		break;
    case WM_SIZE:
 		return FALSE;
 	case WM_CLOSE:
@@ -1227,6 +1407,27 @@ PrefTiMidity4DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendMessage(hwnd,WM_NOTIFY,0,(LPARAM)&nmhdr);
 			}
 		break;
+		case IDC_BUTTON_REVERSE:
+			{
+			NMHDR nmhdr;
+			nmhdr.code = PSN_KILLACTIVE;
+			SendMessage(hwnd,WM_NOTIFY,0,(LPARAM)&nmhdr);
+			switch(pref_channel_mode){
+			case PREF_CHANNEL_MODE_DRUM_CHANNEL_MASK:
+				st_temp->default_drumchannel_mask = ~st_temp->default_drumchannel_mask;
+				break;
+			case PREF_CHANNEL_MODE_QUIET_CHANNEL:
+				st_temp->quietchannels = ~st_temp->quietchannels;
+				break;
+			default:
+			case PREF_CHANNEL_MODE_DRUM_CHANNEL:
+				st_temp->default_drumchannels = ~st_temp->default_drumchannels;
+				break;
+			}
+			nmhdr.code = PSN_SETACTIVE;
+			SendMessage(hwnd,WM_NOTIFY,0,(LPARAM)&nmhdr);
+			}
+			break;
 		default:
 		break;
 	  }
@@ -1357,6 +1558,7 @@ PrefTiMidity4DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		default:
 			return FALSE;
 		}
+		break;
    case WM_SIZE:
 		return FALSE;
 	case WM_CLOSE:
@@ -1476,3 +1678,1204 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 	return -1;
 	}
 }
+
+volatile int w32g_interactive_id3_tag_set = 0;
+int w32g_gogo_id3_tag_dialog(void)
+{
+	return 0;
+}
+
+
+#ifdef AU_GOGO
+///////////////////////////////////////////////////////////////////////
+//
+// gogo ConfigDialog
+//
+///////////////////////////////////////////////////////////////////////
+
+// id のコンボボックスの情報の定義
+#define CB_INFO_TYPE1_BEGIN(id) static int cb_info_ ## id [] = {
+#define CB_INFO_TYPE1_END };
+#define CB_INFO_TYPE2_BEGIN(id) static char * cb_info_ ## id [] = {
+#define CB_INFO_TYPE2_END };
+
+// cb_info_type1_ＩＤ  cb_info_type2_ＩＤ というふうになる。
+
+// IDC_COMBO_OUTPUT_FORMAT
+CB_INFO_TYPE2_BEGIN(IDC_COMBO_OUTPUT_FORMAT)
+	"MP3+TAG",(char *)MC_OUTPUT_NORMAL,
+	"RIFF/WAVE",(char *)MC_OUTPUT_RIFF_WAVE,
+	"RIFF/RMP",(char *)MC_OUTPUT_RIFF_RMP,
+	NULL
+CB_INFO_TYPE2_END
+
+// IDC_COMBO_MPEG1_AUDIO_BITRATE
+CB_INFO_TYPE1_BEGIN(IDC_COMBO_MPEG1_AUDIO_BITRATE)
+	32,40,48,56,64,80,96,112,128,160,192,224,256,320,-1
+CB_INFO_TYPE1_END
+
+// IDC_COMBO_MPEG2_AUDIO_BITRATE
+CB_INFO_TYPE1_BEGIN(IDC_COMBO_MPEG2_AUDIO_BITRATE)
+	8,16,24,32,40,48,56,64,80,96,112,128,144,160,-1
+CB_INFO_TYPE1_END
+
+// IDC_COMBO_ENCODE_MODE
+CB_INFO_TYPE2_BEGIN(IDC_COMBO_ENCODE_MODE)
+	"monoral",(char *)MC_MODE_MONO,
+	"stereo",(char *)MC_MODE_STEREO,
+	"joint stereo",(char *)MC_MODE_JOINT,
+	"mid/side stereo",(char *)MC_MODE_MSSTEREO,
+	"dual channel",(char *)MC_MODE_DUALCHANNEL,
+	NULL
+CB_INFO_TYPE2_END
+
+// IDC_COMBO_EMPHASIS_TYPE
+CB_INFO_TYPE2_BEGIN(IDC_COMBO_EMPHASIS_TYPE)
+	"NONE",(char *)MC_EMP_NONE,
+	"50/15ms (normal CD-DA emphasis)",(char *)MC_EMP_5015MS,
+	"CCITT",(char *)MC_EMP_CCITT,
+	NULL
+CB_INFO_TYPE2_END
+
+// IDC_COMBO_VBR_BITRATE_LOW
+CB_INFO_TYPE1_BEGIN(IDC_COMBO_VBR_BITRATE_LOW)
+	32,40,48,56,64,80,96,112,128,160,192,224,256,320,-1
+CB_INFO_TYPE1_END
+
+// IDC_COMBO_VBR_BITRATE_HIGH
+CB_INFO_TYPE1_BEGIN(IDC_COMBO_VBR_BITRATE_HIGH)
+	32,40,48,56,64,80,96,112,128,160,192,224,256,320,-1
+CB_INFO_TYPE1_END
+
+// IDC_COMBO_VBR
+CB_INFO_TYPE2_BEGIN(IDC_COMBO_VBR)
+	"Quality 0 (320 - 32 kbps)",(char *)0,
+	"Quality 1 (256 - 32 kbps)",(char *)1,
+	"Quality 2 (256 - 32 kbps)",(char *)2,
+	"Quality 3 (256 - 32 kbps)",(char *)3,
+	"Quality 4 (256 - 32 kbps)",(char *)4,
+	"Quality 5 (224 - 32 kbps)",(char *)5,
+	"Quality 6 (192 - 32 kbps)",(char *)6,
+	"Quality 7 (160 - 32 kbps)",(char *)7,
+	"Quality 8 (128 - 32 kbps)",(char *)8,
+	"Quality 9 (128 - 32 kbps)",(char *)9,
+	NULL
+CB_INFO_TYPE2_END
+
+// id のコンボボックスを選択の設定する。
+#define CB_SETCURSEL_TYPE1(id) \
+{ \
+	int cb_num; \
+	for(cb_num=0;(int)cb_info_ ## id [cb_num]>=0;cb_num++){ \
+		SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)0,(LPARAM)0); \
+		if(gogo_ConfigDialogInfo.opt ## id == (int) cb_info_ ## id [cb_num]){ \
+			SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)cb_num,(LPARAM)0); \
+			break; \
+		} \
+	} \
+}
+#define CB_SETCURSEL_TYPE2(id) \
+{ \
+	int cb_num; \
+	for(cb_num=0;(int)cb_info_ ## id [cb_num];cb_num+=2){ \
+		SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)0,(LPARAM)0); \
+	    if(gogo_ConfigDialogInfo.opt ## id == (int) cb_info_ ## id [cb_num+1]){ \
+			SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)cb_num/2,(LPARAM)0); \
+			break; \
+		} \
+	} \
+}
+// id のコンボボックスの選択を変数に代入する。
+#define CB_GETCURSEL_TYPE1(id) \
+{ \
+	int cb_num1, cb_num2; \
+	cb_num1 = SendDlgItemMessage(hwnd,id,CB_GETCURSEL,(WPARAM)0,(LPARAM)0); \
+	for(cb_num2=0;(int)cb_info_ ## id [cb_num2]>=0;cb_num2++) \
+		if(cb_num1==cb_num2){ \
+			gogo_ConfigDialogInfo.opt ## id = (int)cb_info_ ## id [cb_num2]; \
+			break; \
+		} \
+}
+#define CB_GETCURSEL_TYPE2(id) \
+{ \
+	int cb_num1, cb_num2; \
+	cb_num1 = SendDlgItemMessage(hwnd,id,CB_GETCURSEL,(WPARAM)0,(LPARAM)0); \
+	for(cb_num2=0;(int)cb_info_ ## id [cb_num2];cb_num2+=2) \
+		if(cb_num1*2==cb_num2){ \
+			gogo_ConfigDialogInfo.opt ## id = (int)cb_info_ ## id [cb_num2+1]; \
+			break; \
+		} \
+}
+// チェックされているか。
+#define IS_CHECK(id) SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)
+// チェックする。
+#define CHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0)
+// チェックをはずす。
+#define UNCHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0)
+// id のチェックボックスを設定する。
+#define CHECKBOX_SET(id) \
+	if(gogo_ConfigDialogInfo.opt ## id>0) \
+		SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0); \
+	else \
+		SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0); \
+// id のチェックボックスを変数に代入する。
+#define CHECKBOX_GET(id) \
+	if(SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)) \
+		gogo_ConfigDialogInfo.opt ## id = 1; \
+	else \
+		gogo_ConfigDialogInfo.opt ## id = 0; \
+// id のエディットを設定する。
+#define EDIT_SET(id) SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)gogo_ConfigDialogInfo.opt ## id);
+// id のエディットを変数に代入する。
+#define EDIT_GET(id,size) SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)gogo_ConfigDialogInfo.opt ## id);
+#define EDIT_GET_RANGE(id,size,min,max) \
+{ \
+	char tmpbuf[64]; \
+	int value; \
+	SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)gogo_ConfigDialogInfo.opt ## id); \
+	value = atoi((char *)gogo_ConfigDialogInfo.opt ## id); \
+	if(value<min) value = min; \
+	if(value>max) value = max; \
+	sprintf(tmpbuf,"%d",value); \
+	strncpy((char *)gogo_ConfigDialogInfo.opt ## id,tmpbuf,size); \
+	(gogo_ConfigDialogInfo.opt ## id)[size] = '\0'; \
+}
+// コントロールの有効化
+#define ENABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),TRUE);
+// コントロールの無効化
+#define DISABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),FALSE);
+
+static void gogoConfigDialogProcControlEnableDisable(HWND hwnd);
+static void gogoConfigDialogProcControlApply(HWND hwnd);
+static void gogoConfigDialogProcControlReset(HWND hwnd);
+static int gogo_ConfigDialogInfoLock();
+static int gogo_ConfigDialogInfoUnLock();
+static HANDLE hgogoConfigDailog = NULL;
+static BOOL APIENTRY gogoConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+{
+	char buff[1024];
+	switch (uMess){
+	case WM_INITDIALOG:
+	{
+		int i;
+		// コンボボックスの初期化
+		for(i=0;cb_info_IDC_COMBO_OUTPUT_FORMAT[i];i+=2){
+			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_FORMAT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_OUTPUT_FORMAT[i]);
+		}
+		for(i=0;cb_info_IDC_COMBO_MPEG1_AUDIO_BITRATE[i]>=0;i++){
+			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_MPEG1_AUDIO_BITRATE[i]);
+			SendDlgItemMessage(hwnd,IDC_COMBO_MPEG1_AUDIO_BITRATE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
+		}
+		for(i=0;cb_info_IDC_COMBO_MPEG2_AUDIO_BITRATE[i]>=0;i++){
+			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_MPEG2_AUDIO_BITRATE[i]);
+			SendDlgItemMessage(hwnd,IDC_COMBO_MPEG2_AUDIO_BITRATE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
+		}
+		for(i=0;cb_info_IDC_COMBO_ENCODE_MODE[i];i+=2){
+			SendDlgItemMessage(hwnd,IDC_COMBO_ENCODE_MODE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_ENCODE_MODE[i]);
+		}
+		for(i=0;cb_info_IDC_COMBO_EMPHASIS_TYPE[i];i+=2){
+			SendDlgItemMessage(hwnd,IDC_COMBO_EMPHASIS_TYPE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_EMPHASIS_TYPE[i]);
+		}
+		for(i=0;cb_info_IDC_COMBO_VBR_BITRATE_LOW[i]>=0;i++){
+			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_VBR_BITRATE_LOW[i]);
+			SendDlgItemMessage(hwnd,IDC_COMBO_VBR_BITRATE_LOW,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
+		}
+		for(i=0;cb_info_IDC_COMBO_VBR_BITRATE_HIGH[i]>=0;i++){
+			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_VBR_BITRATE_HIGH[i]);
+			SendDlgItemMessage(hwnd,IDC_COMBO_VBR_BITRATE_HIGH,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
+		}
+		for(i=0;cb_info_IDC_COMBO_VBR[i];i+=2){
+			SendDlgItemMessage(hwnd,IDC_COMBO_VBR,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_VBR[i]);
+		}
+		// 設定
+		gogoConfigDialogProcControlReset(hwnd);
+	}
+		break;
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDCLOSE:
+			SendMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+			break;
+		case IDOK:
+			gogoConfigDialogProcControlApply(hwnd);
+			SendMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+			break;
+		case IDCANCEL:
+			SendMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+			break;
+		case IDC_BUTTON_APPLY:
+			gogoConfigDialogProcControlApply(hwnd);
+			break;
+		case IDC_CHECK_DEFAULT:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_CHECK_COMMANDLINE_OPTS:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_EDIT_COMMANDLINE_OPTION:
+			break;
+		case IDC_CHECK_OUTPUT_FORMAT:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_OUTPUT_FORMAT:
+			break;
+		case IDC_CHECK_MPEG1AUDIOBITRATE:
+			if(IS_CHECK(IDC_CHECK_MPEG1AUDIOBITRATE)){
+				CHECK(IDC_CHECK_MPEG2AUDIOBITRATE);
+				UNCHECK(IDC_CHECK_VBR);
+				UNCHECK(IDC_CHECK_VBR_BITRATE);
+			} else {
+				UNCHECK(IDC_CHECK_MPEG2AUDIOBITRATE);
+			}
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_MPEG1_AUDIO_BITRATE:
+			break;
+		case IDC_CHECK_MPEG2AUDIOBITRATE:
+			if(IS_CHECK(IDC_CHECK_MPEG2AUDIOBITRATE)){
+				CHECK(IDC_CHECK_MPEG1AUDIOBITRATE);
+				UNCHECK(IDC_CHECK_VBR);
+				UNCHECK(IDC_CHECK_VBR_BITRATE);
+			} else {
+				UNCHECK(IDC_CHECK_MPEG1AUDIOBITRATE);
+			}
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_MPEG2_AUDIO_BITRATE:
+			break;
+		case IDC_CHECK_ENHANCED_LOW_PASS_FILTER:
+			if(IS_CHECK(IDC_CHECK_ENHANCED_LOW_PASS_FILTER)){
+				UNCHECK(IDC_CHECK_16KHZ_LOW_PASS_FILTER);
+			}
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_EDIT_LPF_PARA1:
+			break;
+		case IDC_EDIT_LPF_PARA2:
+			break;
+		case IDC_CHECK_ENCODE_MODE:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_ENCODE_MODE:
+			break;
+		case IDC_CHECK_EMPHASIS_TYPE:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_EMPHASIS_TYPE:
+			break;
+		case IDC_CHECK_OUTFREQ:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_EDIT_OUTFREQ:
+			break;
+		case IDC_CHECK_MSTHRESHOLD:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_EDIT_MSTHRESHOLD_THRESHOLD:
+			break;
+		case IDC_EDIT_MSTHRESHOLD_MSPOWER:
+			break;
+		case IDC_CHECK_USE_CPU_OPTS:
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_CHECK_CPUMMX:
+			break;
+		case IDC_CHECK_CPUSSE:
+			break;
+		case IDC_CHECK_CPU3DNOW:
+			break;
+		case IDC_CHECK_CPUE3DNOW:
+			break;
+		case IDC_CHECK_VBR:
+			if(IS_CHECK(IDC_CHECK_VBR)){
+				UNCHECK(IDC_COMBO_MPEG1_AUDIO_BITRATE);
+				UNCHECK(IDC_COMBO_MPEG2_AUDIO_BITRATE);
+			}
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_VBR:
+			break;
+		case IDC_CHECK_VBR_BITRATE:
+			if(IS_CHECK(IDC_CHECK_VBR_BITRATE)){
+				CHECK(IDC_CHECK_VBR);
+				UNCHECK(IDC_COMBO_MPEG1_AUDIO_BITRATE);
+				UNCHECK(IDC_COMBO_MPEG2_AUDIO_BITRATE);
+			}
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_VBR_BITRATE_LOW:
+			break;
+		case IDC_COMBO_VBR_BITRATE_HIGH:
+			break;
+		case IDC_CHECK_USEPSY:
+			break;
+		case IDC_CHECK_VERIFY:
+			break;
+		case IDC_CHECK_16KHZ_LOW_PASS_FILTER:
+			if(IS_CHECK(IDC_CHECK_16KHZ_LOW_PASS_FILTER)){
+				UNCHECK(IDC_CHECK_ENHANCED_LOW_PASS_FILTER);
+			}
+			gogoConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		default:
+			break;
+		}
+		break;
+	case WM_NOTIFY:
+		break;
+	case WM_SIZE:
+		return FALSE;
+	case WM_CLOSE:
+		gogo_ConfigDialogInfoSaveINI();
+//MessageBox(NULL,"CLOSE","CLOSE",MB_OK);
+		DestroyWindow(hwnd);
+		break;
+	case WM_DESTROY:
+		hgogoConfigDailog = NULL;
+//MessageBox(NULL,"DESTROY","DESTROY",MB_OK);
+		break;
+	default:
+		break;
+	}
+	return FALSE;
+}
+
+// コントロールの有効 / 無効化
+static void gogoConfigDialogProcControlEnableDisable(HWND hwnd)
+{
+	ENABLE_CONTROL(IDC_CHECK_DEFAULT);
+	if(IS_CHECK(IDC_CHECK_DEFAULT)){
+		DISABLE_CONTROL(IDC_CHECK_COMMANDLINE_OPTS);
+		DISABLE_CONTROL(IDC_EDIT_COMMANDLINE_OPTION);
+		DISABLE_CONTROL(IDC_CHECK_OUTPUT_FORMAT);
+		DISABLE_CONTROL(IDC_COMBO_OUTPUT_FORMAT);
+		DISABLE_CONTROL(IDC_CHECK_MPEG1AUDIOBITRATE);
+		DISABLE_CONTROL(IDC_COMBO_MPEG1_AUDIO_BITRATE);
+		DISABLE_CONTROL(IDC_CHECK_MPEG2AUDIOBITRATE);
+		DISABLE_CONTROL(IDC_COMBO_MPEG2_AUDIO_BITRATE);
+		DISABLE_CONTROL(IDC_CHECK_ENHANCED_LOW_PASS_FILTER);
+		DISABLE_CONTROL(IDC_EDIT_LPF_PARA1);
+		DISABLE_CONTROL(IDC_EDIT_LPF_PARA2);
+		DISABLE_CONTROL(IDC_CHECK_ENCODE_MODE);
+		DISABLE_CONTROL(IDC_COMBO_ENCODE_MODE);
+		DISABLE_CONTROL(IDC_CHECK_EMPHASIS_TYPE);
+		DISABLE_CONTROL(IDC_COMBO_EMPHASIS_TYPE);
+		DISABLE_CONTROL(IDC_CHECK_OUTFREQ);
+		DISABLE_CONTROL(IDC_EDIT_OUTFREQ);
+		DISABLE_CONTROL(IDC_CHECK_MSTHRESHOLD);
+		DISABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_THRESHOLD);
+		DISABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_MSPOWER);
+		DISABLE_CONTROL(IDC_CHECK_USE_CPU_OPTS);
+		DISABLE_CONTROL(IDC_CHECK_CPUMMX);
+		DISABLE_CONTROL(IDC_CHECK_CPUSSE);
+		DISABLE_CONTROL(IDC_CHECK_CPU3DNOW);
+		DISABLE_CONTROL(IDC_CHECK_CPUE3DNOW);
+		DISABLE_CONTROL(IDC_CHECK_VBR);
+		DISABLE_CONTROL(IDC_COMBO_VBR);
+		DISABLE_CONTROL(IDC_CHECK_VBR_BITRATE);
+		DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_LOW);
+		DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_HIGH);
+		DISABLE_CONTROL(IDC_CHECK_USEPSY);
+		DISABLE_CONTROL(IDC_CHECK_VERIFY);
+		DISABLE_CONTROL(IDC_CHECK_16KHZ_LOW_PASS_FILTER);
+	} else {
+		ENABLE_CONTROL(IDC_CHECK_COMMANDLINE_OPTS);
+		if(IS_CHECK(IDC_CHECK_COMMANDLINE_OPTS)){
+			ENABLE_CONTROL(IDC_EDIT_COMMANDLINE_OPTION);
+			DISABLE_CONTROL(IDC_CHECK_OUTPUT_FORMAT);
+			DISABLE_CONTROL(IDC_COMBO_OUTPUT_FORMAT);
+			DISABLE_CONTROL(IDC_CHECK_MPEG1AUDIOBITRATE);
+			DISABLE_CONTROL(IDC_COMBO_MPEG1_AUDIO_BITRATE);
+			DISABLE_CONTROL(IDC_CHECK_MPEG2AUDIOBITRATE);
+			DISABLE_CONTROL(IDC_COMBO_MPEG2_AUDIO_BITRATE);
+			DISABLE_CONTROL(IDC_CHECK_ENHANCED_LOW_PASS_FILTER);
+			DISABLE_CONTROL(IDC_EDIT_LPF_PARA1);
+			DISABLE_CONTROL(IDC_EDIT_LPF_PARA2);
+			DISABLE_CONTROL(IDC_CHECK_ENCODE_MODE);
+			DISABLE_CONTROL(IDC_COMBO_ENCODE_MODE);
+			DISABLE_CONTROL(IDC_CHECK_EMPHASIS_TYPE);
+			DISABLE_CONTROL(IDC_COMBO_EMPHASIS_TYPE);
+			DISABLE_CONTROL(IDC_CHECK_OUTFREQ);
+			DISABLE_CONTROL(IDC_EDIT_OUTFREQ);
+			DISABLE_CONTROL(IDC_CHECK_MSTHRESHOLD);
+			DISABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_THRESHOLD);
+			DISABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_MSPOWER);
+			DISABLE_CONTROL(IDC_CHECK_USE_CPU_OPTS);
+			DISABLE_CONTROL(IDC_CHECK_CPUMMX);
+			DISABLE_CONTROL(IDC_CHECK_CPUSSE);
+			DISABLE_CONTROL(IDC_CHECK_CPU3DNOW);
+			DISABLE_CONTROL(IDC_CHECK_CPUE3DNOW);
+			DISABLE_CONTROL(IDC_CHECK_VBR);
+			DISABLE_CONTROL(IDC_COMBO_VBR);
+			DISABLE_CONTROL(IDC_CHECK_VBR_BITRATE);
+			DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_LOW);
+			DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_HIGH);
+			DISABLE_CONTROL(IDC_CHECK_USEPSY);
+			DISABLE_CONTROL(IDC_CHECK_VERIFY);
+			DISABLE_CONTROL(IDC_CHECK_16KHZ_LOW_PASS_FILTER);
+		} else {
+			DISABLE_CONTROL(IDC_EDIT_COMMANDLINE_OPTION);
+			ENABLE_CONTROL(IDC_CHECK_OUTPUT_FORMAT);
+			if(IS_CHECK(IDC_CHECK_OUTPUT_FORMAT)){
+				ENABLE_CONTROL(IDC_COMBO_OUTPUT_FORMAT);
+			} else {
+				DISABLE_CONTROL(IDC_COMBO_OUTPUT_FORMAT);
+			}
+			ENABLE_CONTROL(IDC_CHECK_16KHZ_LOW_PASS_FILTER);
+			ENABLE_CONTROL(IDC_CHECK_ENHANCED_LOW_PASS_FILTER);
+			if(IS_CHECK(IDC_CHECK_16KHZ_LOW_PASS_FILTER)){
+				UNCHECK(IDC_CHECK_ENHANCED_LOW_PASS_FILTER);
+				DISABLE_CONTROL(IDC_EDIT_LPF_PARA1);
+				DISABLE_CONTROL(IDC_EDIT_LPF_PARA2);
+			} else {
+				if(IS_CHECK(IDC_CHECK_ENHANCED_LOW_PASS_FILTER)){
+					UNCHECK(IDC_CHECK_16KHZ_LOW_PASS_FILTER);
+					ENABLE_CONTROL(IDC_EDIT_LPF_PARA1);
+					ENABLE_CONTROL(IDC_EDIT_LPF_PARA2);
+				} else {
+					DISABLE_CONTROL(IDC_EDIT_LPF_PARA1);
+					DISABLE_CONTROL(IDC_EDIT_LPF_PARA2);
+				}
+			}
+			ENABLE_CONTROL(IDC_CHECK_ENCODE_MODE);
+			if(IS_CHECK(IDC_CHECK_ENCODE_MODE)){
+				ENABLE_CONTROL(IDC_COMBO_ENCODE_MODE);
+			} else {
+				DISABLE_CONTROL(IDC_COMBO_ENCODE_MODE);
+			}
+			ENABLE_CONTROL(IDC_CHECK_EMPHASIS_TYPE);
+			if(IS_CHECK(IDC_CHECK_EMPHASIS_TYPE)){
+				ENABLE_CONTROL(IDC_COMBO_EMPHASIS_TYPE);
+			} else {
+				DISABLE_CONTROL(IDC_COMBO_EMPHASIS_TYPE);
+			}
+			ENABLE_CONTROL(IDC_CHECK_OUTFREQ);
+			if(IS_CHECK(IDC_CHECK_OUTFREQ)){
+				ENABLE_CONTROL(IDC_EDIT_OUTFREQ);
+			} else {
+				DISABLE_CONTROL(IDC_EDIT_OUTFREQ);
+			}
+			ENABLE_CONTROL(IDC_CHECK_MSTHRESHOLD);
+			if(IS_CHECK(IDC_CHECK_MSTHRESHOLD)){
+				ENABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_THRESHOLD);
+				ENABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_MSPOWER);
+			} else {
+				DISABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_THRESHOLD);
+				DISABLE_CONTROL(IDC_EDIT_MSTHRESHOLD_MSPOWER);
+			}
+			ENABLE_CONTROL(IDC_CHECK_USE_CPU_OPTS);
+			if(IS_CHECK(IDC_CHECK_USE_CPU_OPTS)){
+				ENABLE_CONTROL(IDC_CHECK_CPUMMX);
+				ENABLE_CONTROL(IDC_CHECK_CPUSSE);
+				ENABLE_CONTROL(IDC_CHECK_CPU3DNOW);
+				ENABLE_CONTROL(IDC_CHECK_CPUE3DNOW);
+			} else {
+				DISABLE_CONTROL(IDC_CHECK_CPUMMX);
+				DISABLE_CONTROL(IDC_CHECK_CPUSSE);
+				DISABLE_CONTROL(IDC_CHECK_CPU3DNOW);
+				DISABLE_CONTROL(IDC_CHECK_CPUE3DNOW);
+			}
+			ENABLE_CONTROL(IDC_CHECK_VBR);
+			ENABLE_CONTROL(IDC_CHECK_MPEG1AUDIOBITRATE);
+			ENABLE_CONTROL(IDC_CHECK_MPEG2AUDIOBITRATE);
+			if(IS_CHECK(IDC_CHECK_VBR)){
+				ENABLE_CONTROL(IDC_COMBO_VBR);
+				ENABLE_CONTROL(IDC_CHECK_VBR_BITRATE);
+				if(IS_CHECK(IDC_CHECK_VBR_BITRATE)){
+					ENABLE_CONTROL(IDC_COMBO_VBR_BITRATE_LOW);
+					ENABLE_CONTROL(IDC_COMBO_VBR_BITRATE_HIGH);
+				} else {
+					DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_LOW);
+					DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_HIGH);
+				}
+				UNCHECK(IDC_CHECK_MPEG1AUDIOBITRATE);
+				UNCHECK(IDC_CHECK_MPEG2AUDIOBITRATE);
+				DISABLE_CONTROL(IDC_COMBO_MPEG1_AUDIO_BITRATE);
+				DISABLE_CONTROL(IDC_COMBO_MPEG2_AUDIO_BITRATE);
+			} else {
+				UNCHECK(IDC_CHECK_VBR_BITRATE);
+				DISABLE_CONTROL(IDC_COMBO_VBR);
+				DISABLE_CONTROL(IDC_CHECK_VBR_BITRATE);
+				DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_LOW);
+				DISABLE_CONTROL(IDC_COMBO_VBR_BITRATE_HIGH);
+				if(IS_CHECK(IDC_CHECK_MPEG1AUDIOBITRATE)){
+					ENABLE_CONTROL(IDC_COMBO_MPEG1_AUDIO_BITRATE);
+				} else {
+					DISABLE_CONTROL(IDC_COMBO_MPEG1_AUDIO_BITRATE);
+				}
+				if(IS_CHECK(IDC_CHECK_MPEG2AUDIOBITRATE)){
+					ENABLE_CONTROL(IDC_COMBO_MPEG2_AUDIO_BITRATE);
+				} else {
+					DISABLE_CONTROL(IDC_COMBO_MPEG2_AUDIO_BITRATE);
+				}
+			}
+			ENABLE_CONTROL(IDC_CHECK_USEPSY);
+			ENABLE_CONTROL(IDC_CHECK_VERIFY);
+		}
+	}
+}
+
+static void gogoConfigDialogProcControlReset(HWND hwnd)
+{
+	// コンボボックスの選択設定
+	CB_SETCURSEL_TYPE2(IDC_COMBO_OUTPUT_FORMAT)
+	CB_SETCURSEL_TYPE1(IDC_COMBO_MPEG1_AUDIO_BITRATE)
+	CB_SETCURSEL_TYPE1(IDC_COMBO_MPEG2_AUDIO_BITRATE)
+	CB_SETCURSEL_TYPE2(IDC_COMBO_ENCODE_MODE)
+	CB_SETCURSEL_TYPE2(IDC_COMBO_EMPHASIS_TYPE)
+	CB_SETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_LOW)
+	CB_SETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_HIGH)
+	CB_SETCURSEL_TYPE2(IDC_COMBO_VBR)
+	// チェックボックスの設定
+	CHECKBOX_SET(IDC_CHECK_DEFAULT)
+	CHECKBOX_SET(IDC_CHECK_COMMANDLINE_OPTS)
+	CHECKBOX_SET(IDC_CHECK_OUTPUT_FORMAT)
+	CHECKBOX_SET(IDC_CHECK_MPEG1AUDIOBITRATE)
+	CHECKBOX_SET(IDC_CHECK_MPEG2AUDIOBITRATE)
+	CHECKBOX_SET(IDC_CHECK_ENHANCED_LOW_PASS_FILTER)
+	CHECKBOX_SET(IDC_CHECK_ENCODE_MODE)
+	CHECKBOX_SET(IDC_CHECK_EMPHASIS_TYPE)
+	CHECKBOX_SET(IDC_CHECK_OUTFREQ)
+	CHECKBOX_SET(IDC_CHECK_MSTHRESHOLD)
+	CHECKBOX_SET(IDC_CHECK_USE_CPU_OPTS)
+	CHECKBOX_SET(IDC_CHECK_CPUMMX)
+	CHECKBOX_SET(IDC_CHECK_CPUSSE)
+	CHECKBOX_SET(IDC_CHECK_CPU3DNOW)
+	CHECKBOX_SET(IDC_CHECK_CPUE3DNOW)
+	CHECKBOX_SET(IDC_CHECK_VBR)
+	CHECKBOX_SET(IDC_CHECK_VBR_BITRATE)
+	CHECKBOX_SET(IDC_CHECK_USEPSY)
+	CHECKBOX_SET(IDC_CHECK_VERIFY)
+	CHECKBOX_SET(IDC_CHECK_16KHZ_LOW_PASS_FILTER)
+	// エディットの設定
+	EDIT_SET(IDC_EDIT_OUTFREQ)
+	EDIT_SET(IDC_EDIT_MSTHRESHOLD_THRESHOLD)
+	EDIT_SET(IDC_EDIT_MSTHRESHOLD_MSPOWER)
+	EDIT_SET(IDC_EDIT_COMMANDLINE_OPTION)
+	EDIT_SET(IDC_EDIT_LPF_PARA1)
+	EDIT_SET(IDC_EDIT_LPF_PARA2)
+	// コントロールの有効 / 無効化
+	gogoConfigDialogProcControlEnableDisable(hwnd);
+}
+
+static void gogoConfigDialogProcControlApply(HWND hwnd)
+{
+	// コンボボックスの選択設定
+	CB_GETCURSEL_TYPE2(IDC_COMBO_OUTPUT_FORMAT)
+	CB_GETCURSEL_TYPE1(IDC_COMBO_MPEG1_AUDIO_BITRATE)
+	CB_GETCURSEL_TYPE1(IDC_COMBO_MPEG2_AUDIO_BITRATE)
+	CB_GETCURSEL_TYPE2(IDC_COMBO_ENCODE_MODE)
+	CB_GETCURSEL_TYPE2(IDC_COMBO_EMPHASIS_TYPE)
+	CB_GETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_LOW)
+	CB_GETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_HIGH)
+	CB_GETCURSEL_TYPE2(IDC_COMBO_VBR)
+	// チェックボックスの設定
+	CHECKBOX_GET(IDC_CHECK_DEFAULT)
+	CHECKBOX_GET(IDC_CHECK_COMMANDLINE_OPTS)
+	CHECKBOX_GET(IDC_CHECK_OUTPUT_FORMAT)
+	CHECKBOX_GET(IDC_CHECK_MPEG1AUDIOBITRATE)
+	CHECKBOX_GET(IDC_CHECK_MPEG2AUDIOBITRATE)
+	CHECKBOX_GET(IDC_CHECK_ENHANCED_LOW_PASS_FILTER)
+	CHECKBOX_GET(IDC_CHECK_ENCODE_MODE)
+	CHECKBOX_GET(IDC_CHECK_EMPHASIS_TYPE)
+	CHECKBOX_GET(IDC_CHECK_OUTFREQ)
+	CHECKBOX_GET(IDC_CHECK_MSTHRESHOLD)
+	CHECKBOX_GET(IDC_CHECK_USE_CPU_OPTS)
+	CHECKBOX_GET(IDC_CHECK_CPUMMX)
+	CHECKBOX_GET(IDC_CHECK_CPUSSE)
+	CHECKBOX_GET(IDC_CHECK_CPU3DNOW)
+	CHECKBOX_GET(IDC_CHECK_CPUE3DNOW)
+	CHECKBOX_GET(IDC_CHECK_VBR)
+	CHECKBOX_GET(IDC_CHECK_VBR_BITRATE)
+	CHECKBOX_GET(IDC_CHECK_USEPSY)
+	CHECKBOX_GET(IDC_CHECK_VERIFY)
+	CHECKBOX_GET(IDC_CHECK_16KHZ_LOW_PASS_FILTER)
+	// エディットの設定
+	EDIT_GET_RANGE(IDC_EDIT_OUTFREQ,6,4000,65000)
+	EDIT_GET_RANGE(IDC_EDIT_MSTHRESHOLD_THRESHOLD,4,0,100)
+	EDIT_GET_RANGE(IDC_EDIT_MSTHRESHOLD_MSPOWER,4,0,100)
+	EDIT_GET(IDC_EDIT_COMMANDLINE_OPTION,1024)
+	EDIT_GET_RANGE(IDC_EDIT_LPF_PARA1,4,0,100)
+	EDIT_GET_RANGE(IDC_EDIT_LPF_PARA2,4,0,100)
+	// コントロールの有効 / 無効化
+	gogoConfigDialogProcControlEnableDisable(hwnd);
+	// リセット
+	gogoConfigDialogProcControlReset(hwnd);
+}
+
+#undef CB_INFO_TYPE1_BEGIN
+#undef CB_INFO_TYPE1_END
+#undef CB_INFO_TYPE2_BEGIN
+#undef CB_INFO_TYPE2_END
+#undef CB_SETCURSEL_TYPE1
+#undef CB_SETCURSEL_TYPE2
+#undef CB_GETCURSEL_TYPE1
+#undef CB_GETCURSEL_TYPE2
+#undef CHECKBOX_SET
+#undef CHECKBOX_GET
+#undef EDIT_SET
+#undef EDIT_GET
+#undef EDIT_GET_RANGE
+
+#endif
+
+int gogoConfigDialog(void)
+{
+#ifdef AU_GOGO
+	if(!IsWindow(hgogoConfigDailog))
+		hgogoConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_GOGO),(HWND)hPrefWnd,gogoConfigDialogProc);
+	ShowWindow(hgogoConfigDailog,SW_SHOW);
+#endif
+	return 0;
+}
+
+#ifdef AU_GOGO
+
+static int gogo_ConfigDialogInfoLock()
+{
+	return 0;
+}
+static int gogo_ConfigDialogInfoUnLock()
+{
+	return 0;
+}
+
+volatile gogo_ConfigDialogInfo_t gogo_ConfigDialogInfo;
+
+int gogo_ConfigDialogInfoInit(void)
+{
+	gogo_ConfigDialogInfo.optIDC_CHECK_DEFAULT = 1;
+	gogo_ConfigDialogInfo.optIDC_CHECK_COMMANDLINE_OPTS = 0;
+	gogo_ConfigDialogInfo.optIDC_EDIT_COMMANDLINE_OPTION[0] = '\0';
+	gogo_ConfigDialogInfo.optIDC_CHECK_OUTPUT_FORMAT = 1;
+	gogo_ConfigDialogInfo.optIDC_COMBO_OUTPUT_FORMAT = MC_OUTPUT_NORMAL;
+	gogo_ConfigDialogInfo.optIDC_CHECK_MPEG1AUDIOBITRATE = 1;
+	gogo_ConfigDialogInfo.optIDC_COMBO_MPEG1_AUDIO_BITRATE = 160;
+	gogo_ConfigDialogInfo.optIDC_CHECK_MPEG2AUDIOBITRATE = 1;
+	gogo_ConfigDialogInfo.optIDC_COMBO_MPEG2_AUDIO_BITRATE = 80;
+	gogo_ConfigDialogInfo.optIDC_CHECK_ENHANCED_LOW_PASS_FILTER = 0;
+	strcpy((char *)gogo_ConfigDialogInfo.optIDC_EDIT_LPF_PARA1,"55");
+	strcpy((char *)gogo_ConfigDialogInfo.optIDC_EDIT_LPF_PARA2,"70");
+	gogo_ConfigDialogInfo.optIDC_CHECK_ENCODE_MODE = 1;
+	gogo_ConfigDialogInfo.optIDC_COMBO_ENCODE_MODE = MC_MODE_STEREO;
+	gogo_ConfigDialogInfo.optIDC_CHECK_EMPHASIS_TYPE = 1;
+	gogo_ConfigDialogInfo.optIDC_COMBO_EMPHASIS_TYPE = MC_EMP_NONE;
+	gogo_ConfigDialogInfo.optIDC_CHECK_OUTFREQ = 0;
+	strcpy((char *)gogo_ConfigDialogInfo.optIDC_EDIT_OUTFREQ,"44100");
+	gogo_ConfigDialogInfo.optIDC_CHECK_MSTHRESHOLD = 0;
+	strcpy((char *)gogo_ConfigDialogInfo.optIDC_EDIT_MSTHRESHOLD_THRESHOLD,"75");
+	strcpy((char *)gogo_ConfigDialogInfo.optIDC_EDIT_MSTHRESHOLD_MSPOWER,"66");
+	gogo_ConfigDialogInfo.optIDC_CHECK_USE_CPU_OPTS = 0;
+	gogo_ConfigDialogInfo.optIDC_CHECK_CPUMMX = 0;
+	gogo_ConfigDialogInfo.optIDC_CHECK_CPUSSE = 0;
+	gogo_ConfigDialogInfo.optIDC_CHECK_CPU3DNOW = 0;
+	gogo_ConfigDialogInfo.optIDC_CHECK_CPUE3DNOW = 0;
+	gogo_ConfigDialogInfo.optIDC_CHECK_VBR = 0;
+	gogo_ConfigDialogInfo.optIDC_COMBO_VBR = 0;
+	gogo_ConfigDialogInfo.optIDC_CHECK_VBR_BITRATE = 0;
+	gogo_ConfigDialogInfo.optIDC_COMBO_VBR_BITRATE_LOW = 32;
+	gogo_ConfigDialogInfo.optIDC_COMBO_VBR_BITRATE_HIGH = 320;
+	gogo_ConfigDialogInfo.optIDC_CHECK_USEPSY = 1;
+	gogo_ConfigDialogInfo.optIDC_CHECK_VERIFY = 0;
+	gogo_ConfigDialogInfo.optIDC_CHECK_16KHZ_LOW_PASS_FILTER = 1;
+	return 0;
+}
+
+int gogo_ConfigDialogInfoApply(void)
+{
+	gogo_ConfigDialogInfoLock();
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_DEFAULT>0){
+		gogo_opts_reset();
+		gogo_ConfigDialogInfoUnLock();
+		return 0;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_COMMANDLINE_OPTS>0){
+		gogo_opts_reset();
+		set_gogo_opts_use_commandline_options((char *)gogo_ConfigDialogInfo.optIDC_EDIT_COMMANDLINE_OPTION);
+		gogo_ConfigDialogInfoUnLock();
+		return 0;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_OUTPUT_FORMAT>0){
+		gogo_opts.optOUTPUT_FORMAT = gogo_ConfigDialogInfo.optIDC_COMBO_OUTPUT_FORMAT;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_MPEG1AUDIOBITRATE>0){
+		gogo_opts.optBITRATE1 = gogo_ConfigDialogInfo.optIDC_COMBO_MPEG1_AUDIO_BITRATE;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_MPEG2AUDIOBITRATE>0){
+		gogo_opts.optBITRATE2 = gogo_ConfigDialogInfo.optIDC_COMBO_MPEG2_AUDIO_BITRATE;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_ENHANCED_LOW_PASS_FILTER>0){
+		gogo_opts.optENHANCEDFILTER_A = atoi((char *)gogo_ConfigDialogInfo.optIDC_EDIT_LPF_PARA1);
+		gogo_opts.optENHANCEDFILTER_B = atoi((char *)gogo_ConfigDialogInfo.optIDC_EDIT_LPF_PARA2);
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_ENCODE_MODE>0){
+		gogo_opts.optENCODEMODE = gogo_ConfigDialogInfo.optIDC_COMBO_ENCODE_MODE;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_EMPHASIS_TYPE>0){
+		gogo_opts.optEMPHASIS = gogo_ConfigDialogInfo.optIDC_COMBO_EMPHASIS_TYPE;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_OUTFREQ>0){
+		gogo_opts.optOUTFREQ = atoi((char *)gogo_ConfigDialogInfo.optIDC_EDIT_OUTFREQ);
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_MSTHRESHOLD>0){
+		gogo_opts.optMSTHRESHOLD_threshold = atoi((char *)gogo_ConfigDialogInfo.optIDC_EDIT_MSTHRESHOLD_THRESHOLD);
+		gogo_opts.optMSTHRESHOLD_mspower = atoi((char *)gogo_ConfigDialogInfo.optIDC_EDIT_MSTHRESHOLD_MSPOWER);
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_USE_CPU_OPTS>0){
+		gogo_opts.optUSEMMX = gogo_ConfigDialogInfo.optIDC_CHECK_CPUMMX;
+		gogo_opts.optUSEKNI = gogo_ConfigDialogInfo.optIDC_CHECK_CPUSSE;
+		gogo_opts.optUSE3DNOW = gogo_ConfigDialogInfo.optIDC_CHECK_CPU3DNOW;
+		gogo_opts.optUSEE3DNOW = gogo_ConfigDialogInfo.optIDC_CHECK_CPUE3DNOW;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_VBR>0){
+		gogo_opts.optVBR = gogo_ConfigDialogInfo.optIDC_COMBO_VBR;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_VBR_BITRATE>0){
+		gogo_opts.optVBRBITRATE_low = gogo_ConfigDialogInfo.optIDC_COMBO_VBR_BITRATE_LOW;
+		gogo_opts.optVBRBITRATE_high = gogo_ConfigDialogInfo.optIDC_COMBO_VBR_BITRATE_HIGH;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_USEPSY>0){
+		gogo_opts.optUSEPSY = TRUE;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_VERIFY>0){
+		gogo_opts.optVERIFY = TRUE;
+	}
+	if(gogo_ConfigDialogInfo.optIDC_CHECK_16KHZ_LOW_PASS_FILTER>0){
+		gogo_opts.optUSELPF16 = TRUE;
+	}
+//	gogo_opts.optINPFREQ;			// SYSTEM USE(システムで使用するから指定できない)
+//	gogo_opts.optSTARTOFFSET;	// SYSTEM USE
+//	gogo_opts.optADDTAGnum;		// SYSTEM USE
+//	gogo_opts.optADDTAG_len[64];	// SYSTEM USE
+//	gogo_opts.optADDTAG_buf[64];	// SYSTEM USE
+//	gogo_opts.optCPU;					// PREPAIRING(準備中)
+//	gogo_opts.optBYTE_SWAP;			// SYSTEM USE
+//	gogo_opts.opt8BIT_PCM;			// SYSTEM USE
+//	gogo_opts.optMONO_PCM;		// SYSTEM USE
+//	gogo_opts.optTOWNS_SND;			// SYSTEM USE
+//	gogo_opts.optTHREAD_PRIORITY;	// PREPARING
+//	gogo_opts.optREADTHREAD_PRIORITY;	// PREPARING
+//	gogo_opts.optOUTPUTDIR[1024];			// SYSTEM USE
+//	gogo_opts.output_name[1024];				// SYSTEM USE
+	gogo_ConfigDialogInfoUnLock();
+	return 0;
+}
+
+#define SEC_GOGO	"gogo"
+int gogo_ConfigDialogInfoSaveINI(void)
+{
+	char *section = SEC_GOGO;
+	char *inifile = timidity_output_inifile;
+	char buffer[1024];
+#define NUMSAVE(name) \
+		sprintf(buffer,"%d",gogo_ConfigDialogInfo. ## name ); \
+		WritePrivateProfileString(section, #name ,buffer,inifile);
+#define STRSAVE(name) \
+		WritePrivateProfileString(section,(char *) #name ,(char *)gogo_ConfigDialogInfo. ## name ,inifile);
+	NUMSAVE(optIDC_CHECK_DEFAULT)
+	NUMSAVE(optIDC_CHECK_COMMANDLINE_OPTS)
+	STRSAVE(optIDC_EDIT_COMMANDLINE_OPTION)
+	NUMSAVE(optIDC_CHECK_OUTPUT_FORMAT)
+	NUMSAVE(optIDC_COMBO_OUTPUT_FORMAT)
+	NUMSAVE(optIDC_CHECK_MPEG1AUDIOBITRATE)
+	NUMSAVE(optIDC_COMBO_MPEG1_AUDIO_BITRATE)
+	NUMSAVE(optIDC_CHECK_MPEG2AUDIOBITRATE)
+	NUMSAVE(optIDC_COMBO_MPEG2_AUDIO_BITRATE)
+	NUMSAVE(optIDC_CHECK_ENHANCED_LOW_PASS_FILTER)
+	STRSAVE(optIDC_EDIT_LPF_PARA1)
+	STRSAVE(optIDC_EDIT_LPF_PARA2)
+	NUMSAVE(optIDC_CHECK_ENCODE_MODE)
+	NUMSAVE(optIDC_COMBO_ENCODE_MODE)
+	NUMSAVE(optIDC_CHECK_EMPHASIS_TYPE)
+	NUMSAVE(optIDC_COMBO_EMPHASIS_TYPE)
+	NUMSAVE(optIDC_CHECK_OUTFREQ)
+	STRSAVE(optIDC_EDIT_OUTFREQ)
+	NUMSAVE(optIDC_CHECK_MSTHRESHOLD)
+	STRSAVE(optIDC_EDIT_MSTHRESHOLD_THRESHOLD)
+	STRSAVE(optIDC_EDIT_MSTHRESHOLD_MSPOWER)
+	NUMSAVE(optIDC_CHECK_USE_CPU_OPTS)
+	NUMSAVE(optIDC_CHECK_CPUMMX)
+	NUMSAVE(optIDC_CHECK_CPUSSE)
+	NUMSAVE(optIDC_CHECK_CPU3DNOW)
+	NUMSAVE(optIDC_CHECK_CPUE3DNOW)
+	NUMSAVE(optIDC_CHECK_VBR)
+	NUMSAVE(optIDC_COMBO_VBR)
+	NUMSAVE(optIDC_CHECK_VBR_BITRATE)
+	NUMSAVE(optIDC_COMBO_VBR_BITRATE_LOW)
+	NUMSAVE(optIDC_COMBO_VBR_BITRATE_HIGH)
+	NUMSAVE(optIDC_CHECK_USEPSY)
+	NUMSAVE(optIDC_CHECK_VERIFY)
+	NUMSAVE(optIDC_CHECK_16KHZ_LOW_PASS_FILTER)
+	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+#undef NUMSAVE
+#undef STRSAVE
+	return 0;
+}
+int gogo_ConfigDialogInfoLoadINI(void)
+{
+	char *section = SEC_GOGO;
+	char *inifile = timidity_output_inifile;
+	int num;
+	char buffer[1024];
+#define NUMLOAD(name) \
+		num = GetPrivateProfileInt(section, #name ,-1,inifile); \
+		if(num!=-1) gogo_ConfigDialogInfo. ## name = num;
+#define STRLOAD(name,len) \
+		GetPrivateProfileString(section,(char *) #name ,"",buffer,len,inifile); \
+		buffer[len-1] = '\0'; \
+		if(buffer[0]!=0) \
+			strcpy((char *)gogo_ConfigDialogInfo. ## name ,buffer);
+	gogo_ConfigDialogInfoLock();
+	NUMLOAD(optIDC_CHECK_DEFAULT)
+	NUMLOAD(optIDC_CHECK_COMMANDLINE_OPTS)
+	STRLOAD(optIDC_EDIT_COMMANDLINE_OPTION,1024)
+	NUMLOAD(optIDC_CHECK_OUTPUT_FORMAT)
+	NUMLOAD(optIDC_COMBO_OUTPUT_FORMAT)
+	NUMLOAD(optIDC_CHECK_MPEG1AUDIOBITRATE)
+	NUMLOAD(optIDC_COMBO_MPEG1_AUDIO_BITRATE)
+	NUMLOAD(optIDC_CHECK_MPEG2AUDIOBITRATE)
+	NUMLOAD(optIDC_COMBO_MPEG2_AUDIO_BITRATE)
+	NUMLOAD(optIDC_CHECK_ENHANCED_LOW_PASS_FILTER)
+	STRLOAD(optIDC_EDIT_LPF_PARA1,4)
+	STRLOAD(optIDC_EDIT_LPF_PARA2,4)
+	NUMLOAD(optIDC_CHECK_ENCODE_MODE)
+	NUMLOAD(optIDC_COMBO_ENCODE_MODE)
+	NUMLOAD(optIDC_CHECK_EMPHASIS_TYPE)
+	NUMLOAD(optIDC_COMBO_EMPHASIS_TYPE)
+	NUMLOAD(optIDC_CHECK_OUTFREQ)
+	STRLOAD(optIDC_EDIT_OUTFREQ,6)
+	NUMLOAD(optIDC_CHECK_MSTHRESHOLD)
+	STRLOAD(optIDC_EDIT_MSTHRESHOLD_THRESHOLD,4)
+	STRLOAD(optIDC_EDIT_MSTHRESHOLD_MSPOWER,4)
+	NUMLOAD(optIDC_CHECK_USE_CPU_OPTS)
+	NUMLOAD(optIDC_CHECK_CPUMMX)
+	NUMLOAD(optIDC_CHECK_CPUSSE)
+	NUMLOAD(optIDC_CHECK_CPU3DNOW)
+	NUMLOAD(optIDC_CHECK_CPUE3DNOW)
+	NUMLOAD(optIDC_CHECK_VBR)
+	NUMLOAD(optIDC_COMBO_VBR)
+	NUMLOAD(optIDC_CHECK_VBR_BITRATE)
+	NUMLOAD(optIDC_COMBO_VBR_BITRATE_LOW)
+	NUMLOAD(optIDC_COMBO_VBR_BITRATE_HIGH)
+	NUMLOAD(optIDC_CHECK_USEPSY)
+	NUMLOAD(optIDC_CHECK_VERIFY)
+	NUMLOAD(optIDC_CHECK_16KHZ_LOW_PASS_FILTER)
+#undef NUMLOAD
+#undef STRLOAD
+	gogo_ConfigDialogInfoUnLock();
+	return 0;
+}
+
+#endif	// AU_GOGO
+
+
+#ifdef AU_VORBIS
+///////////////////////////////////////////////////////////////////////
+//
+// vorbis ConfigDialog
+//
+///////////////////////////////////////////////////////////////////////
+
+volatile vorbis_ConfigDialogInfo_t vorbis_ConfigDialogInfo;
+
+// id のコンボボックスの情報の定義
+#define CB_INFO_TYPE1_BEGIN(id) static int cb_info_ ## id [] = {
+#define CB_INFO_TYPE1_END };
+#define CB_INFO_TYPE2_BEGIN(id) static char * cb_info_ ## id [] = {
+#define CB_INFO_TYPE2_END };
+
+// cb_info_type1_ＩＤ  cb_info_type2_ＩＤ というふうになる。
+
+// IDC_COMBO_MODE
+CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE)
+	"デフォルト(約128kbps VBR)",(char *)0,
+	"約112kbps VBR",(char *)1,
+	"約128kbps VBR",(char *)2,
+	"約160kbps VBR",(char *)3,
+	"約192kbps VBR",(char *)4,
+	"約256kbps VBR",(char *)5,
+	"約350kbps VBR",(char *)6,
+	NULL
+CB_INFO_TYPE2_END
+
+// id のコンボボックスを選択の設定する。
+#define CB_SETCURSEL_TYPE1(id) \
+{ \
+	int cb_num; \
+	for(cb_num=0;(int)cb_info_ ## id [cb_num]>=0;cb_num++){ \
+		SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)0,(LPARAM)0); \
+		if(vorbis_ConfigDialogInfo.opt ## id == (int) cb_info_ ## id [cb_num]){ \
+			SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)cb_num,(LPARAM)0); \
+			break; \
+		} \
+	} \
+}
+#define CB_SETCURSEL_TYPE2(id) \
+{ \
+	int cb_num; \
+	for(cb_num=0;(int)cb_info_ ## id [cb_num];cb_num+=2){ \
+		SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)0,(LPARAM)0); \
+	    if(vorbis_ConfigDialogInfo.opt ## id == (int) cb_info_ ## id [cb_num+1]){ \
+			SendDlgItemMessage(hwnd,id,CB_SETCURSEL,(WPARAM)cb_num/2,(LPARAM)0); \
+			break; \
+		} \
+	} \
+}
+// id のコンボボックスの選択を変数に代入する。
+#define CB_GETCURSEL_TYPE1(id) \
+{ \
+	int cb_num1, cb_num2; \
+	cb_num1 = SendDlgItemMessage(hwnd,id,CB_GETCURSEL,(WPARAM)0,(LPARAM)0); \
+	for(cb_num2=0;(int)cb_info_ ## id [cb_num2]>=0;cb_num2++) \
+		if(cb_num1==cb_num2){ \
+			vorbis_ConfigDialogInfo.opt ## id = (int)cb_info_ ## id [cb_num2]; \
+			break; \
+		} \
+}
+#define CB_GETCURSEL_TYPE2(id) \
+{ \
+	int cb_num1, cb_num2; \
+	cb_num1 = SendDlgItemMessage(hwnd,id,CB_GETCURSEL,(WPARAM)0,(LPARAM)0); \
+	for(cb_num2=0;(int)cb_info_ ## id [cb_num2];cb_num2+=2) \
+		if(cb_num1*2==cb_num2){ \
+			vorbis_ConfigDialogInfo.opt ## id = (int)cb_info_ ## id [cb_num2+1]; \
+			break; \
+		} \
+}
+// チェックされているか。
+#define IS_CHECK(id) SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)
+// チェックする。
+#define CHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0)
+// チェックをはずす。
+#define UNCHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0)
+// id のチェックボックスを設定する。
+#define CHECKBOX_SET(id) \
+	if(vorbis_ConfigDialogInfo.opt ## id>0) \
+		SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0); \
+	else \
+		SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0); \
+// id のチェックボックスを変数に代入する。
+#define CHECKBOX_GET(id) \
+	if(SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)) \
+		vorbis_ConfigDialogInfo.opt ## id = 1; \
+	else \
+		vorbis_ConfigDialogInfo.opt ## id = 0; \
+// id のエディットを設定する。
+#define EDIT_SET(id) SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)vorbis_ConfigDialogInfo.opt ## id);
+// id のエディットを変数に代入する。
+#define EDIT_GET(id,size) SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)vorbis_ConfigDialogInfo.opt ## id);
+#define EDIT_GET_RANGE(id,size,min,max) \
+{ \
+	char tmpbuf[64]; \
+	int value; \
+	SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)vorbis_ConfigDialogInfo.opt ## id); \
+	value = atoi((char *)vorbis_ConfigDialogInfo.opt ## id); \
+	if(value<min) value = min; \
+	if(value>max) value = max; \
+	sprintf(tmpbuf,"%d",value); \
+	strncpy((char *)vorbis_ConfigDialogInfo.opt ## id,tmpbuf,size); \
+	(vorbis_ConfigDialogInfo.opt ## id)[size] = '\0'; \
+}
+// コントロールの有効化
+#define ENABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),TRUE);
+// コントロールの無効化
+#define DISABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),FALSE);
+
+
+static void vorbisConfigDialogProcControlEnableDisable(HWND hwnd);
+static void vorbisConfigDialogProcControlApply(HWND hwnd);
+static void vorbisConfigDialogProcControlReset(HWND hwnd);
+static int vorbis_ConfigDialogInfoLock();
+static int vorbis_ConfigDialogInfoUnLock();
+static HANDLE hvorbisConfigDailog = NULL;
+static BOOL APIENTRY vorbisConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+{
+	switch (uMess){
+	case WM_INITDIALOG:
+	{
+		int i;
+		// コンボボックスの初期化
+		for(i=0;cb_info_IDC_COMBO_MODE[i];i+=2){
+			SendDlgItemMessage(hwnd,IDC_COMBO_MODE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_MODE[i]);
+		}
+		// 設定
+		vorbisConfigDialogProcControlReset(hwnd);
+	}
+		break;
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDCLOSE:
+			SendMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+			break;
+		case IDOK:
+			vorbisConfigDialogProcControlApply(hwnd);
+			SendMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+			break;
+		case IDCANCEL:
+			SendMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+			break;
+		case IDC_BUTTON_APPLY:
+			vorbisConfigDialogProcControlApply(hwnd);
+			break;
+		case IDC_CHECK_DEFAULT:
+			vorbisConfigDialogProcControlEnableDisable(hwnd);
+			break;
+		case IDC_COMBO_MODE:
+			break;
+		default:
+			break;
+		}
+		break;
+	case WM_NOTIFY:
+		break;
+	case WM_SIZE:
+		return FALSE;
+	case WM_CLOSE:
+		vorbis_ConfigDialogInfoSaveINI();
+		DestroyWindow(hwnd);
+		break;
+	case WM_DESTROY:
+		hvorbisConfigDailog = NULL;
+		break;
+	default:
+		break;
+	}
+	return FALSE;
+}
+
+// コントロールの有効 / 無効化
+static void vorbisConfigDialogProcControlEnableDisable(HWND hwnd)
+{
+	ENABLE_CONTROL(IDC_CHECK_DEFAULT);
+	if(IS_CHECK(IDC_CHECK_DEFAULT)){
+		DISABLE_CONTROL(IDC_COMBO_MODE);
+	} else {
+		ENABLE_CONTROL(IDC_COMBO_MODE);
+	}
+}
+
+static void vorbisConfigDialogProcControlReset(HWND hwnd)
+{
+	// コンボボックスの選択設定
+	CB_SETCURSEL_TYPE2(IDC_COMBO_MODE)
+	// チェックボックスの設定
+	CHECKBOX_SET(IDC_CHECK_DEFAULT)
+	// エディットの設定
+	// コントロールの有効 / 無効化
+	vorbisConfigDialogProcControlEnableDisable(hwnd);
+}
+
+static void vorbisConfigDialogProcControlApply(HWND hwnd)
+{
+	// コンボボックスの選択設定
+	CB_GETCURSEL_TYPE2(IDC_COMBO_MODE)
+	// チェックボックスの設定
+	CHECKBOX_GET(IDC_CHECK_DEFAULT)
+	// エディットの設定
+	// コントロールの有効 / 無効化
+	vorbisConfigDialogProcControlEnableDisable(hwnd);
+	// リセット
+	vorbisConfigDialogProcControlReset(hwnd);
+}
+
+#undef CB_INFO_TYPE1_BEGIN
+#undef CB_INFO_TYPE1_END
+#undef CB_INFO_TYPE2_BEGIN
+#undef CB_INFO_TYPE2_END
+#undef CB_SETCURSEL_TYPE1
+#undef CB_SETCURSEL_TYPE2
+#undef CB_GETCURSEL_TYPE1
+#undef CB_GETCURSEL_TYPE2
+#undef CHECKBOX_SET
+#undef CHECKBOX_GET
+#undef EDIT_SET
+#undef EDIT_GET
+#undef EDIT_GET_RANGE
+
+#endif
+
+int vorbisConfigDialog(void)
+{
+#ifdef AU_VORBIS
+	if(!IsWindow(hvorbisConfigDailog))
+		hvorbisConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_VORBIS),(HWND)hPrefWnd,vorbisConfigDialogProc);
+	ShowWindow(hvorbisConfigDailog,SW_SHOW);
+#endif
+	return 0;
+}
+
+#ifdef AU_VORBIS
+
+static int vorbis_ConfigDialogInfoLock()
+{
+	return 0;
+}
+static int vorbis_ConfigDialogInfoUnLock()
+{
+	return 0;
+}
+
+int vorbis_ConfigDialogInfoInit(void)
+{
+	vorbis_ConfigDialogInfo.optIDC_CHECK_DEFAULT = 1;
+	vorbis_ConfigDialogInfo.optIDC_COMBO_MODE = 0;
+	return 0;
+}
+
+extern volatile int ogg_vorbis_mode;
+int vorbis_ConfigDialogInfoApply(void)
+{
+	vorbis_ConfigDialogInfoLock();
+	if(vorbis_ConfigDialogInfo.optIDC_CHECK_DEFAULT>0){
+//		vorbis_opts_reset();
+		vorbis_ConfigDialogInfoUnLock();
+		return 0;
+	}
+	ogg_vorbis_mode = vorbis_ConfigDialogInfo.optIDC_COMBO_MODE;
+	vorbis_ConfigDialogInfoUnLock();
+	return 0;
+}
+
+#define SEC_VORBIS	"vorbis"
+int vorbis_ConfigDialogInfoSaveINI(void)
+{
+	char *section = SEC_VORBIS;
+	char *inifile = timidity_output_inifile;
+	char buffer[1024];
+//	int len;
+#define NUMSAVE(name) \
+		sprintf(buffer,"%d",vorbis_ConfigDialogInfo. ## name ); \
+		WritePrivateProfileString(section, #name ,buffer,inifile);
+//#define STRSAVE(name,len) \
+//		WritePrivateProfileString(section,(char *) #name ,(char *)vorbis_ConfigDialogInfo. ## name ,inifile);
+	NUMSAVE(optIDC_CHECK_DEFAULT)
+	NUMSAVE(optIDC_COMBO_MODE)
+	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+#undef NUMSAVE
+//#undef STRSAVE
+	return 0;
+}
+int vorbis_ConfigDialogInfoLoadINI(void)
+{
+	char *section = SEC_VORBIS;
+	char *inifile = timidity_output_inifile;
+	int num;
+//	char buffer[1024];
+#define NUMLOAD(name) \
+		num = GetPrivateProfileInt(section, #name ,-1,inifile); \
+		if(num!=-1) vorbis_ConfigDialogInfo. ## name = num;
+//#define STRLOAD(name,len) \
+//		GetPrivateProfileString(section,(char *) #name ,"",buffer,len,inifile); \
+//		buffer[len-1] = '\0'; \
+//		if(buffer[0]!=0) \
+//			strcpy((char *)vorbis_ConfigDialogInfo. ## name ,buffer);
+	vorbis_ConfigDialogInfoLock();
+	NUMLOAD(optIDC_CHECK_DEFAULT)
+	NUMLOAD(optIDC_COMBO_MODE)
+#undef NUMLOAD
+//#undef STRLOAD
+	vorbis_ConfigDialogInfoUnLock();
+	return 0;
+}
+
+#endif	// AU_VORBIS

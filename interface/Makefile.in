@@ -125,15 +125,15 @@ so = @so@
 tcltk_dep = @tcltk_dep@
 timidity_LDFLAGS = @timidity_LDFLAGS@
 
-@ENABLE_EMACS_TRUE@ELFILES = @ELFILES@
 ELFILES = @ELFILES@
+@ENABLE_EMACS_TRUE@ELFILES = @ELFILES@
 
 
 ###
 ### For dynamic interfaces
 ###
-@NEEDDLOPEN_TRUE@dynamic_targets = @dynamic_targets@
 dynamic_targets = @dynamic_targets@
+@NEEDDLOPEN_TRUE@dynamic_targets = @dynamic_targets@
 
 SUFFIXES = .ptcl .tcl .@so@
 

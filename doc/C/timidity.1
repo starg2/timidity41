@@ -1,4 +1,4 @@
-.TH TiMidity++ 1 "Jan 06 1999" "1.0.0"
+.TH TiMidity++ 1 "Nov 10 2001" "2.11.0"
 .SH NAME
 TiMidity++ \- MIDI to WAV converter and player
 .SH SYNOPSIS
@@ -20,7 +20,7 @@ in KAR file or WRD file.
 
 .P
 .SH FILENAME
-You can use the following expressions in \fBfilename\fP fields
+You can use following expressions in \fBfilename\fP fields
 to specify the location of the file:
 .TP
 .B \-
@@ -61,7 +61,7 @@ Since these mechanism are contained in TiMidity itself,
 you can use it even if on MS Windows environment.
 .PP
 
-TiMidity can handle the following archive format:
+TiMidity can handle following archive formats:
 .RS
 .TP
 \fBtar\fP (*.tar)
@@ -70,7 +70,7 @@ TiMidity can handle the following archive format:
 .TP
 \fBzip\fP (*.zip)
 .TP
-.fBlzh\fP (*.lzh, *.lha)
+\fBlzh\fP (*.lzh, *.lha)
 (lh0, lh1, lh2, lh3, lh4, lh5, lh6, lzs, lz5, lz4 are available)
 .RE
 .RE
@@ -88,7 +88,7 @@ MIDI files posted in the newsgroup.
 In this case TiMidity recognize the MIME Multi\-part message, and
 extract the articles contains MIDI files and play.
 .br
-The following MIME\-type are allowed:
+Following MIME\-types are allowed:
 .RS
 .TP
 .B uu\-encoded file
@@ -124,7 +124,7 @@ patch\-files or else on the remote machines.
 
 .P
 .SH INPUT FILE
-Timidity can handle the following file formats:
+Timidity can handle following file formats:
 .TP
 \fB .MID\fP ( Format 0, 1, 2 )
 Standard MIDI File
@@ -141,7 +141,7 @@ Displays lylics same as Lylic Meta Event message.
 
 .P
 .SH OPTIONS
-The following command line optinos are accepted by TiMidity:
+Following command line optinos are accepted by TiMidity:
 
 .TP
 .B \-A \fIamplification\fP
@@ -205,36 +205,27 @@ expense of slowing all other tasks down.
 
 .TP
 .BI \-E " mode"
-Set TiMidity extend modes. The following modes are available
+Set TiMidity extend modes. Following modes are available
 (capitalized switch means disable this feature):
 .RS
 .TP
 .B w/W
-Enables/disables modulation controlling.
+Enable/disable modulation controlling.
 .TP
 .B p/P
-Enables/disables portamento controlling.
+Enable/disable portamento controlling.
 .TP
 .B v/V
-Enables/disables NRPM vibration.
-.TP
-.B r/R
-Enables/disables reverb effect controlling.
-.TP
-.B c/C
-Enables/disables chorus effect controlling.
-.TP
-.BI c " ratio"
-Sets the chorus effect value of all channels to \fIratio\fP.
+Enable/disable NRPM vibration.
 .TP
 .B s/S
-Enables/disables channel pressure controlling.
+Enable/disable channel pressure controlling.
 .TP
 .B t/T
-Enables/disables tracing all Text Meta Events.
+Enable/disable tracing all Text Meta Events.
 .TP
 .B o/O
-Accepts/rejects pronouncing multiple same notes.
+Accept/reject pronouncing multiple same notes.
 .TP
 .BI m " HH"
 Sets the manufacture ID to \fIHH\fP ( \fIHH\fP is the two hex-digits ).
@@ -242,8 +233,14 @@ Sets the manufacture ID to \fIHH\fP ( \fIHH\fP is the two hex-digits ).
 In addition if \fIHH\fP is \fIGM/gm\fP , \fIGS/gs\fP or  \fIXG/xg\fP
 that are same as to \fI41\fP , \fI43\fP and \fI7e\fP.
 .TP
+.BI b " n"
+Use tone bank \fIn\fP as the default.
+.TP
 .BI B " bank"
 Sets the bank number of all channels to \fIbank\fP.
+.TP
+.BI F " args"
+For effects. See below.
 .RE
 
 .TP
@@ -269,7 +266,7 @@ the system has support for X Window System.
 
 .TP
 .B \-h
-Show this help message.
+Show help message.
 
 .TP
 .BI \-I " voice" [/c]
@@ -285,7 +282,7 @@ of the channel \fIc\fP is specified by the \fIvoice\fP.
 Selects the user interfaces from the compiled\-in
 alternatives. \fIinterface\fP must be begun with one of the 
 supported interface identifiers.  Run TiMidity with
-the \-h option to see a list.  The following identifiers
+the \-h option to see a list.  Following identifiers
 may be available: 
 .RS
 .TP
@@ -331,7 +328,7 @@ Launch timidity as ALSA sequencer client.
 .TP
 .B Interface options
 Option characters may be  added  immediately
-after the interface identifier.  The following
+after the interface identifier. Following
 options are recognized:
 .PP
 .TP
@@ -382,8 +379,8 @@ Enables Noise Shaping Filter. \fIdegree\fP is from
 Selects the output mode from the compiled-in alternatives. 
 mode must begin with one of the supported
 output mode identifiers.  Run TiMidity with the  -h
-option  to  see  a list.  The following identifiers
-should be available in all versions:
+option  to  see the list.  Following identifiers
+are available in all versions:
 .RS
 .TP
 .B \-Od
@@ -422,7 +419,7 @@ sox for on\-the\-fly conversion to other formats.
 .TP
 .B "Format options"
 Option characters may be added immediately after the mode identifier
-to change the output format.  The following options are recognized:
+to change the output format.  Following options are recognized:
 .RS
 .LP
 .TP
@@ -467,24 +464,35 @@ option. The special filename ``\-'' causes output to be placed on
 stdout.
 
 .TP
+.BI \-P
+Use patch file for all programs.
+
+.TP
 .BI \-p " voices"
 Sets polyphony (maximum number of simultaneous voices) to
 \fIvoices\fP.
+
+.TP
+.BI \-p " a"
+Toggle automatic polyphony reduction.
 
 .TP
 .BI \-Q " channel"
 Causes \fIchannel\fP to be quiet.
 If \fIchannel\fP is negative, channel \-\fIchannel\fP is turned back on.
 If \fIchannel\fP is 0, all channels are turned on.
- 
-.TP
-.BI \-R " msec"
-Enables Pseudo Reverb Mode. \fImsec\fP are envelope release time.
-.RE
 
 .TP
-.B \-r
-This options causes another reverb effects.
+.BI \-q " m/n"
+Specify audio buffer in seconds.
+m:Maxmum buffer, n:Filled to start   (default is 5.0/100%)
+(size of 100% equals device buffer size)
+ 
+.TP
+.BI \-R " n"
+Enables Pseudo Reverb Mode.
+It sets every instrument's release to n ms. If n=0, n is set to 800(default).
+.RE
 
 .TP
 .BI \-S " size"
@@ -500,7 +508,7 @@ frequency may be selected, depending on the implementation.
 
 .TP
 .BI -t " code"
-Sets output coding of Japanese text. \fIcode\fP are the following:
+Sets output coding of Japanese text. \fIcode\fP are following:
 .RS
 .TP
 .B auto
@@ -508,6 +516,12 @@ determined by \fILANG\fP environment variable.
 .TP
 .B ascii
 Transrates non-ascii code to period.
+.TP
+.B nocnv
+No conversion
+.TP
+.B 1251
+Convert from windows-1251 to koi8-r
 .TP
 .B euc
 Outputs by EUC(Japan) coding.
@@ -520,14 +534,18 @@ Outputs by SJIS coding.
 .RE
 
 .TP
+.BI \-T " n"
+Adjust tempo to n%; 120=play MOD files with an NTSC Amiga's timing
+
+.TP
 .B \-U
-Instructs TiMidity to unload all instruments from memory between
-MIDI files.  This can reduce memory requirements when playing many
+Unload all instruments from memory between MIDI files.
+This can reduce memory requirements when playing many
 files in succession.
 
 .TP
 .BI \-w " mode"
-Extend mode for MS\-Windows. The following options are available:
+Extend mode for MS\-Windows. Following options are available:
 .RS
 .TP
 .BI \-w "r"
@@ -569,7 +587,7 @@ value.
 .TP
 .BI d="n"
 Emulates timing(\fB@WAIT\fP,\fB@WMODE\fP) bugs of the original MIMPI player.
-The emulate level is following:
+The emulate level are following:
 .RS
 .TP
 .B -WRd=0
@@ -612,6 +630,52 @@ as carridge return.
 .BI \-Z " file"
 Causes the table of frequencies to be read from \fIfile\fP. This is
 useful to define a tuning different from the occidental temperate scale.
+
+.P
+.SH EFFECT OPTIONS
+In \fI-EF <arg>\fP option, you can specify following effect options:
+.br
+.RS
+.TP
+.BI -EFdelay= "l"
+Left delay
+.TP
+.BI -EFdelay= "r"
+Right delay
+.TP
+.BI -EFdelay= "b"
+Rotate left & right
+.TP
+.BI -EFdelay= "0"
+Disabled delay effect
+.TP
+.BI -EFchorus= "1[,level]"
+Enable MIDI chorus effect control
+.br
+`level' is optional to specify chorus level [0..127]
+.TP
+.BI -EFchorus= "2[,level]"
+Surround sound, chorus detuned to a lesser degree.
+.br
+`level' is optional to specify chorus level [0..127] (default).
+.TP
+.BI -EFreverb= "0"
+Disable MIDI reverb effect control
+.TP
+.BI -EFreverb= "1[,level]"
+Enable MIDI reverb effect control
+.br
+`level' is optional to specify reverb level [0..127]
+This effect is only available in stereo (default).
+.TP
+.BI -EFreverb= "2"
+Global reverb effect
+.TP
+.BI -EFns= "n"
+Enable the n th degree noiseshaping filter. n:[0..4]
+.br
+This effect is only available for 8-bit linear encoding
+.RE
 
 .P
 .SH SEE ALSO
@@ -709,7 +773,7 @@ and other many people sends information and bug\-fix codes.
 .P
 
 English version of this man page is written by
-NAGANO Daisuke <breeze_geo@geocities.co.jp>.
+NAGANO Daisuke breeze.nagano@nifty.ne.jp>.
 .br
 If any comments or suggestions or claims :) about this man page you have,
 please tell me it.
