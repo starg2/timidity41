@@ -529,8 +529,8 @@ static void ctl_pass_playing_list(int init_number_of_files,
       char *title;
       snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[current_no]]);
       a_pipe_write(local_buf);
-      if((title = get_midi_title(list_of_files[current_no])) == NULL)
-      title = list_of_files[current_no];
+      if((title = get_midi_title(list_of_files[file_table[current_no]])) == NULL)
+      title = list_of_files[file_table[current_no]];
       snprintf(local_buf,sizeof(local_buf),"e %s", title);
       a_pipe_write(local_buf);
       command=play_midi_file(list_of_files[file_table[current_no]]);

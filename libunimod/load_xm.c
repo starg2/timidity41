@@ -552,24 +552,24 @@ LoadInstruments (void)
 
 #define XM_ProcessEnvelope(name) 											\
  				for (u = 0; u < (XMENVCNT / 2); u++) {						\
- 					d->##name##env[u].pos = pth.##name##env[2*u];		\
- 					d->##name##env[u].val = pth.##name##env[2*u + 1];	\
+ 					d->name##env[u].pos = pth.name##env[2*u];		\
+ 					d->name##env[u].val = pth.name##env[2*u + 1];	\
  				}															\
-				memcpy(d->##name##env,pth.##name##env,XMENVCNT);			\
-				if (pth.##name##flg&1) d->##name##flg|=EF_ON;				\
-				if (pth.##name##flg&2) d->##name##flg|=EF_SUSTAIN;			\
-				if (pth.##name##flg&4) d->##name##flg|=EF_LOOP;				\
-				d->##name##susbeg=d->##name##susend=pth.##name##sus;		\
-				d->##name##beg=pth.##name##beg;								\
-				d->##name##end=pth.##name##end;								\
-				d->##name##pts=pth.##name##pts;								\
+				memcpy(d->name##env,pth.name##env,XMENVCNT);			\
+				if (pth.name##flg&1) d->name##flg|=EF_ON;				\
+				if (pth.name##flg&2) d->name##flg|=EF_SUSTAIN;			\
+				if (pth.name##flg&4) d->name##flg|=EF_LOOP;				\
+				d->name##susbeg=d->name##susend=pth.name##sus;		\
+				d->name##beg=pth.name##beg;								\
+				d->name##end=pth.name##end;								\
+				d->name##pts=pth.name##pts;								\
 																			\
 				/* scale envelope */										\
 				for (p=0;p<XMENVCNT/2;p++)									\
-					d->##name##env[p].val<<=2;								\
+					d->name##env[p].val<<=2;								\
 																			\
-				if ((d->##name##flg&EF_ON)&&(d->##name##pts<2))				\
-					d->##name##flg&=~EF_ON;
+				if ((d->name##flg&EF_ON)&&(d->name##pts<2))				\
+					d->name##flg&=~EF_ON;
 
 	      XM_ProcessEnvelope (vol);
 	      XM_ProcessEnvelope (pan);

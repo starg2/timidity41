@@ -139,12 +139,17 @@ timidity_LDADD = \
 	$(top_builddir)/utils/libutils.a \
 	$(W32GUI_RES)
 
-timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
+timidity_dep = $(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \
 	$(top_builddir)/libarc/libarc.a \
 	$(top_builddir)/libunimod/libunimod.a \
 	$(top_builddir)/utils/libutils.a \
 	$(W32GUI_RES)
+
+timidity$(EXEEXT): $(timidity_OBJECTS) $(timidity_DEPENDENCIES) $(timidity_dep)
+	@rm -f timidity$(EXEEXT)
+	$(LINK) $(timidity_LDFLAGS) $(timidity_OBJECTS) $(timidity_LDADD) $(LIBS)
+
 
 version.o: version.c ../configure
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c

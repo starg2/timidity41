@@ -16,19 +16,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-include $(top_builddir)/common.makefile
-
 SUFFIXES = .ptcl .tcl .@so@
 
 
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
 INCLUDES = \
-	-I$(top_srcdir) \
 	-I$(top_srcdir)/timidity \
 	-I$(top_srcdir)/libarc \
-	-I$(top_srcdir)/utils \
-	$(EXTRAINCS)
+	-I$(top_srcdir)/utils
 
 noinst_LIBRARIES = libinterface.a
 
@@ -148,11 +144,17 @@ libinterface_a_LIBADD = \
 	$(DYNAMIC_OBJS) \
 	$(SOUND_SPEC_OBJS)
 
-libinterface_a_DEPENDENCIES = \
+libinterface_dep = \
 	$(top_builddir)/interface.h \
 	$(libinterface_a_LIBADD) \
 	$(tcltk_dep) \
 	$(W32GUI_DEPS)
+
+libinterface.a: $(libinterface_a_OBJECTS) $(libinterface_a_DEPENDENCIES) $(libinterface_dep)
+	-rm -f libinterface.a
+	$(AR) cru libinterface.a $(libinterface_a_OBJECTS) $(libinterface_a_LIBADD)
+	$(RANLIB) libinterface.a
+
 
 # Tcl interface sources
 TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl

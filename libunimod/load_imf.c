@@ -569,11 +569,11 @@ IMF_Load (BOOL curious)
       _mm_read_I_UWORDS (ih.pitenv, IMFENVCNT, modreader);
 
 #define IMF_FinishLoadingEnvelope(name)					\
-		ih.##name##pts=_mm_read_UBYTE(modreader);		\
-		ih.##name##sus=_mm_read_UBYTE(modreader);		\
-		ih.##name##beg=_mm_read_UBYTE(modreader);		\
-		ih.##name##end=_mm_read_UBYTE(modreader);		\
-		ih.##name##flg=_mm_read_UBYTE(modreader);		\
+		ih.name##pts=_mm_read_UBYTE(modreader);		\
+		ih.name##sus=_mm_read_UBYTE(modreader);		\
+		ih.name##beg=_mm_read_UBYTE(modreader);		\
+		ih.name##end=_mm_read_UBYTE(modreader);		\
+		ih.name##flg=_mm_read_UBYTE(modreader);		\
 		_mm_read_UBYTE(modreader);						\
 		_mm_read_UBYTE(modreader);						\
 		_mm_read_UBYTE(modreader);
@@ -612,19 +612,19 @@ IMF_Load (BOOL curious)
 
 #define IMF_ProcessEnvelope(name) 										\
 		for (u = 0; u < (IMFENVCNT >> 1); u++) {						\
-			d->##name##env[u].pos = ih.##name##env[u << 1];				\
-			d->##name##env[u].val = ih.##name##env[(u << 1)+ 1];		\
+			d->name##env[u].pos = ih.name##env[u << 1];				\
+			d->name##env[u].val = ih.name##env[(u << 1)+ 1];		\
 		}																\
-		if (ih.##name##flg&1) d->##name##flg|=EF_ON;					\
-		if (ih.##name##flg&2) d->##name##flg|=EF_SUSTAIN;				\
-		if (ih.##name##flg&4) d->##name##flg|=EF_LOOP;					\
-		d->##name##susbeg=d->##name##susend=ih.##name##sus;				\
-		d->##name##beg=ih.##name##beg;									\
-		d->##name##end=ih.##name##end;									\
-		d->##name##pts=ih.##name##pts;									\
+		if (ih.name##flg&1) d->name##flg|=EF_ON;					\
+		if (ih.name##flg&2) d->name##flg|=EF_SUSTAIN;				\
+		if (ih.name##flg&4) d->name##flg|=EF_LOOP;					\
+		d->name##susbeg=d->name##susend=ih.name##sus;				\
+		d->name##beg=ih.name##beg;									\
+		d->name##end=ih.name##end;									\
+		d->name##pts=ih.name##pts;									\
 																		\
-		if ((d->##name##flg&EF_ON)&&(d->##name##pts<2))					\
-			d->##name##flg&=~EF_ON;
+		if ((d->name##flg&EF_ON)&&(d->name##pts<2))					\
+			d->name##flg&=~EF_ON;
 
       IMF_ProcessEnvelope (vol);
       IMF_ProcessEnvelope (pan);

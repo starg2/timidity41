@@ -42,7 +42,7 @@
 #include <strings.h>
 #endif
 #include <fcntl.h>
-#include <vorbis/modes.h>
+#include <vorbis/vorbisenc.h>
 
 #include "timidity.h"
 #include "common.h"
@@ -72,22 +72,19 @@ PlayMode dpm = {
     acntl
 };
 
-static  ogg_stream_state os; /* take physical pages, weld into a logical
+static	ogg_stream_state os; /* take physical pages, weld into a logical
 				stream of packets */
-static  vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
-static  vorbis_block     vb; /* local working space for packet->PCM decode */
-
+static	vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
+static	vorbis_block	 vb; /* local working space for packet->PCM decode */
+static	vorbis_info	 vi; /* struct that stores all the static vorbis bitstream
+				settings */
+static	vorbis_comment	 vc; /* struct that stores all the user comments */
 
 /*************************************************************************/
 
 static int ogg_output_open(const char *fname, const char *comment)
 {
   int fd;
-  static vorbis_info ogg_info;
-  vorbis_info *vi; /* struct that stores all the static vorbis bitstream
-		      settings */
-  vorbis_comment vc; /* struct that stores all the user comments */
-
 
   if(strcmp(fname, "-") == 0) {
     fd = 1; /* data to stdout */
@@ -107,21 +104,15 @@ static int ogg_output_open(const char *fname, const char *comment)
 
   /* choose an encoding mode */
   /* (mode 0: 44kHz stereo uncoupled, roughly 128kbps VBR) */
-  memcpy(&ogg_info, &info_A, sizeof(ogg_info));
-  if(dpm.encoding & PE_MONO)
-    ogg_info.channels = 1;
-  else
-    ogg_info.channels = 2;
-  ogg_info.rate = dpm.rate;
-
-  vi = &ogg_info;
+  vorbis_info_init(&vi);
+  vorbis_encode_init(&vi, (dpm.encoding & PE_MONO)?1:2, 44100, -1, 128000, -1);
 
   /* add a comment */
   vorbis_comment_init(&vc);
   vorbis_comment_add(&vc, (char *)comment);
 
   /* set up the analysis state and auxiliary encoding storage */
-  vorbis_analysis_init(&vd, vi);
+  vorbis_analysis_init(&vd, &vi);
   vorbis_block_init(&vd, &vb);
 
   /* set up our packet->stream encoder */
@@ -219,7 +210,7 @@ static int open_output(void)
 static int output_data(char *readbuffer, int32 bytes)
 {
   int i, j, ch = ((dpm.encoding & PE_MONO) ? 1 : 2);
-  double **buffer;
+  float **buffer;
   int16 *samples = (int16 *)readbuffer;
   int nsamples = bytes / (2 * ch);
   ogg_page   og; /* one Ogg bitstream page.  Vorbis packets are inside */

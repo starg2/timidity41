@@ -16,12 +16,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-include $(top_builddir)/common.makefile
-
 INCLUDES = \
 	-I$(top_srcdir)/libarc \
-	-I$(top_srcdir)/timidity \
-	$(EXTRAINCS)
+	-I$(top_srcdir)/timidity
 
 noinst_LIBRARIES = libutils.a
 
@@ -72,5 +69,3 @@ libutils_a_LIBADD = \
 	$(NET_OBJS) \
 	$(W32READDIR_OBJS) \
 	$(SOUND_SPEC_OBJS)
-
-libutils_a_DEPENDENCIES = $(libutils_a_LIBADD)

@@ -825,15 +825,15 @@ IT_Load (BOOL curious)
 	    {
 	      /* load IT 2xx volume, pan and pitch envelopes */
 #define IT_LoadEnvelope(name,type) 											\
-				ih.##name##flg   =_mm_read_UBYTE(modreader);				\
-				ih.##name##pts   =_mm_read_UBYTE(modreader);				\
-				ih.##name##beg   =_mm_read_UBYTE(modreader);				\
-				ih.##name##end   =_mm_read_UBYTE(modreader);				\
-				ih.##name##susbeg=_mm_read_UBYTE(modreader);				\
-				ih.##name##susend=_mm_read_UBYTE(modreader);				\
+				ih.name##flg   =_mm_read_UBYTE(modreader);				\
+				ih.name##pts   =_mm_read_UBYTE(modreader);				\
+				ih.name##beg   =_mm_read_UBYTE(modreader);				\
+				ih.name##end   =_mm_read_UBYTE(modreader);				\
+				ih.name##susbeg=_mm_read_UBYTE(modreader);				\
+				ih.name##susend=_mm_read_UBYTE(modreader);				\
 				for(lp=0;lp<ITENVCNT;lp++) {								\
-					ih.##name##node[lp]=_mm_read_##type##(modreader);		\
-					ih.##name##tick[lp]=_mm_read_I_UWORD(modreader);		\
+					ih.name##node[lp]=_mm_read_##type(modreader);		\
+					ih.name##tick[lp]=_mm_read_I_UWORD(modreader);		\
 				}															\
 				_mm_read_UBYTE(modreader);
 
@@ -912,20 +912,20 @@ IT_Load (BOOL curious)
 		}
 
 #define IT_ProcessEnvelope(name) 											\
-				if(ih.##name##flg&1) d->##name##flg|=EF_ON;					\
-				if(ih.##name##flg&2) d->##name##flg|=EF_LOOP;				\
-				if(ih.##name##flg&4) d->##name##flg|=EF_SUSTAIN;			\
-				d->##name##pts=ih.##name##pts;								\
-				d->##name##beg=ih.##name##beg;								\
-				d->##name##end=ih.##name##end;								\
-				d->##name##susbeg=ih.##name##susbeg;						\
-				d->##name##susend=ih.##name##susend;						\
+				if(ih.name##flg&1) d->name##flg|=EF_ON;					\
+				if(ih.name##flg&2) d->name##flg|=EF_LOOP;				\
+				if(ih.name##flg&4) d->name##flg|=EF_SUSTAIN;			\
+				d->name##pts=ih.name##pts;								\
+				d->name##beg=ih.name##beg;								\
+				d->name##end=ih.name##end;								\
+				d->name##susbeg=ih.name##susbeg;						\
+				d->name##susend=ih.name##susend;						\
 																			\
-				for(u=0;u<ih.##name##pts;u++)								\
-					d->##name##env[u].pos=ih.##name##tick[u];				\
+				for(u=0;u<ih.name##pts;u++)								\
+					d->name##env[u].pos=ih.name##tick[u];				\
 																			\
-				if((d->##name##flg&EF_ON)&&(d->##name##pts<2))				\
-					d->##name##flg&=~EF_ON;
+				if((d->name##flg&EF_ON)&&(d->name##pts<2))				\
+					d->name##flg&=~EF_ON;
 
 	      IT_ProcessEnvelope (vol);
 	      for (u = 0; u < ih.volpts; u++)

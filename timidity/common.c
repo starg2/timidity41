@@ -459,31 +459,18 @@ void *safe_malloc(size_t count)
 		  "Strange, I feel like allocating %d bytes. "
 		  "This must be a bug.", count);
     }
-#ifndef	ORIGINAL
-    else if(count == 0) {
-	/* To be safe: don't ever try to allocate 0 bytes
-	 * Different malloc's behave differently.
+    else {
+      if(count == 0)
+	/* Some malloc routine return NULL if count is zero, such as
+	 * malloc routine from libmalloc.a of Solaris.
+	 * But TiMidity doesn't want to return NULL even if count is zero.
 	 */
-	return safe_malloc(1);
-    }
-#endif	/* Not ORIGINAL (RAKK/HIOENS) */
-    else if((p = (void *)malloc(count)) != NULL)
+	count = 1;
+      if((p = (void *)malloc(count)) != NULL)
 	return p;
-    else
-    {
-#ifdef	ORIGINAL
-	if(count == 0) {
-	    /* Some malloc routine return NULL if count is zero, such as
-	     * malloc routine from libmalloc.a of Solaris.
-	     * But TiMidity doesn't want to return NULL even if count is zero.
-	     */
-	    return safe_malloc(1);
-	}
-#endif	/* ORIGINAL */
-
-	errflag = 1;
-	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
-		  "Sorry. Couldn't malloc %d bytes.", count);
+      errflag = 1;
+      ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+		"Sorry. Couldn't malloc %d bytes.", count);
     }
 #ifdef ABORT_AT_FATAL
     abort();
@@ -499,19 +486,18 @@ void *safe_large_malloc(size_t count)
 
     if(errflag)
 	safe_exit(10);
-#ifndef	ORIGINAL
-    if(count == 0) {
-	/* To be safe: don't ever try to allocate 0 bytes
-	 * Different malloc's behave differently.
-	 */
-	return safe_large_malloc(1);
-    } else
-#endif	/* Not ORIGINAL (RAKK/HIOENS) */
+    if(count == 0)
+      /* Some malloc routine return NULL if count is zero, such as
+       * malloc routine from libmalloc.a of Solaris.
+       * But TiMidity doesn't want to return NULL even if count is zero.
+       */
+      count = 1;
     if((p = (void *)malloc(count)) != NULL)
-	return p;
+      return p;
     errflag = 1;
     ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
 	      "Sorry. Couldn't malloc %d bytes.", count);
+
 #ifdef ABORT_AT_FATAL
     abort();
 #endif /* ABORT_AT_FATAL */
@@ -533,26 +519,20 @@ void *safe_realloc(void *ptr, size_t count)
 		  "Strange, I feel like allocating %d bytes. "
 		  "This must be a bug.", count);
     }
-#ifndef	ORIGINAL
-    else if(count == 0) {
-	/* To be safe: don't ever try to allocate 0 bytes
-	 * Different malloc's behave differently.
+    else {
+      if (ptr == NULL)
+	return safe_malloc(count);
+      if(count == 0)
+	/* Some malloc routine return NULL if count is zero, such as
+	 * malloc routine from libmalloc.a of Solaris.
+	 * But TiMidity doesn't want to return NULL even if count is zero.
 	 */
-	return safe_realloc(ptr, 1);
-    }
-#endif	/* ORIGINAL */
-    else if((p = (void *)realloc(ptr, count)) != NULL)
+	count = 1;
+      if((p = (void *)realloc(ptr, count)) != NULL)
 	return p;
-    else
-    {
-#ifdef	ORIGINAL
-	if(count == 0)
-	    return safe_malloc(1);
-	    /* RAKK/HIOENS: Hmm, should that have been safe_realloc(ptr,1) ? */
-#endif	/* ORIGINAL */
-	errflag = 1;
-	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
-		  "Sorry. Couldn't realloc %d bytes.", count);
+      errflag = 1;
+      ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+		"Sorry. Couldn't malloc %d bytes.", count);
     }
 #ifdef ABORT_AT_FATAL
     abort();

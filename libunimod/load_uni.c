@@ -339,15 +339,15 @@ loadinstr6 (void)
       i->volfade = _mm_read_M_UWORD (modreader);
 
 #define UNI_LoadEnvelope6(name) 											\
-		i->##name##flg=_mm_read_UBYTE(modreader);							\
-		i->##name##pts=_mm_read_UBYTE(modreader);							\
-		i->##name##susbeg=_mm_read_UBYTE(modreader);						\
-		i->##name##susend=_mm_read_UBYTE(modreader);						\
-		i->##name##beg=_mm_read_UBYTE(modreader);							\
-		i->##name##end=_mm_read_UBYTE(modreader);							\
-		for(w=0;w<(universion>=0x100?32:i->##name##pts);w++) {				\
-			i->##name##env[w].pos=_mm_read_M_SWORD(modreader);				\
-			i->##name##env[w].val=_mm_read_M_SWORD(modreader);				\
+		i->name##flg=_mm_read_UBYTE(modreader);							\
+		i->name##pts=_mm_read_UBYTE(modreader);							\
+		i->name##susbeg=_mm_read_UBYTE(modreader);						\
+		i->name##susend=_mm_read_UBYTE(modreader);						\
+		i->name##beg=_mm_read_UBYTE(modreader);							\
+		i->name##end=_mm_read_UBYTE(modreader);							\
+		for(w=0;w<(universion>=0x100?32:i->name##pts);w++) {				\
+			i->name##env[w].pos=_mm_read_M_SWORD(modreader);				\
+			i->name##env[w].val=_mm_read_M_SWORD(modreader);				\
 		}
 
       UNI_LoadEnvelope6 (vol);
@@ -393,15 +393,15 @@ loadinstr5 (void)
 	i->samplenumber[u] = of.numsmp + _mm_read_UBYTE (modreader);
 
 #define UNI_LoadEnvelope5(name) 										\
-		i->##name##flg=_mm_read_UBYTE(modreader);						\
-		i->##name##pts=_mm_read_UBYTE(modreader);						\
-		i->##name##susbeg=_mm_read_UBYTE(modreader);					\
-		i->##name##susend=i->##name##susbeg;							\
-		i->##name##beg=_mm_read_UBYTE(modreader);						\
-		i->##name##end=_mm_read_UBYTE(modreader);						\
+		i->name##flg=_mm_read_UBYTE(modreader);						\
+		i->name##pts=_mm_read_UBYTE(modreader);						\
+		i->name##susbeg=_mm_read_UBYTE(modreader);					\
+		i->name##susend=i->name##susbeg;							\
+		i->name##beg=_mm_read_UBYTE(modreader);						\
+		i->name##end=_mm_read_UBYTE(modreader);						\
 		for(u=0;u<12;u++) {												\
-			i->##name##env[u].pos=_mm_read_I_SWORD(modreader);			\
-			i->##name##env[u].val=_mm_read_I_SWORD(modreader);			\
+			i->name##env[u].pos=_mm_read_I_SWORD(modreader);			\
+			i->name##env[u].val=_mm_read_I_SWORD(modreader);			\
 		}
 
       UNI_LoadEnvelope5 (vol);

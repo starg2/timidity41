@@ -1,13 +1,32 @@
+2001-10-09  Masanao Izumo <mo@goice.co.jp>
+
+	* Windows: Use w32_a.c instead of w32g_a.c
+
+	* timidity/common.c: safe_malloc(), safe_large_malloc(): Modified to
+	  avoid malloc(0).
+
+	* libunimod/{load_xm.c,load_imf.c,load_it.c,load_uni.c}:
+	  Strip gcc warnings.
+
+	* Upgrade develop environment:
+	  - automake 1.5
+	  - autoconf 2.52
+	  - libtool 1.4.2
+
+2001-06-25  Forever shall I be. <zinx@magenet.net>
+
+	* Vorbis 1.0 support.
+
 2001-06-25  Masanao Izumo <mo@goice.co.jp>
 
 	* timidity/{m2m.c,freq.c}:
 	  Change global variables to static.
+	* interface/xaw_c.c: Bugfix for displaying title in random play mode.
 
 2001-06-24  Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
 
 	* timidity/{instrum.c,instrum.h,playmidi.c,sndfont.c}:
 	  Enable to display SoundFont name.
-
 	* interface/{xaw_c.c,xaw_i.c}:
 	  Support CTLE_DRUMPART message in xaw interface.
 
@@ -16,7 +35,7 @@
 	* timidity/{m2m.c,freq.c}:
 	  Remove some unused variables, and recast one of the
 	  functions to void.
-	
+
 2001-05-31  Eric A. Welsh <ewelsh@ccb.wustl.edu>
 
 	* timidity/readmidi.c: Bugfix about restarting.
@@ -34,18 +53,15 @@
 	* timidity/instrum.c:
 	  GUS sample pans are calculated correctly now.  The old method
 	  resulted in most pans being off by -4.
-
 	* timidity/{mix.c,playmidi.c,playmidi.h,timidity.h}:
 	  New SMOOTH_MIXING define.  Any changes to left_mix or right_mix are
 	  now smoothed over a 0.5 msec window, eliminating "cliffs" which
 	  could result in popping noises.  This should be defined by default.
-
 	* timidity/mod2midi.c:
 	  period2note patch from Paolo Bonzini (you should already have this).
 	  New shrink_huge_sample(Sample *sp) function.  Some mod samples are
 	  bigger than 1 meg (the maximum size in TiMidity++) and need to be
 	  resampled down to fit under the limit.
-
 	* timidity/mod.c:
 	  Tempo/BPM events are implemented more "correctly" now.
 	  Sample pans are no longer applied twice (which was usually resulting
@@ -59,7 +75,7 @@
 2001-05-05  Paolo Bonzini <bonzini@gnu.org>
 
         * timidity/mod2midi.c (period2note): always pick the
-        closest note instead of the lowest one.
+	  closest note instead of the lowest one.
 
 2001-04-06  Takaya Nogami <t-nogami@happy.email.ne.jp>
 
@@ -104,7 +120,6 @@
 	     free local var 'currdir' (which was nevered malloced)
 	     Solution: Copy 'currdir' to heapspace (new strsav routine).
 	     Of course this may have introduced a memory leak 8-)
-
 	* timidity/common.c: Bug fix.
 	  Electric Fence doesn't like it if you try to alloc 0 bytes.
 	  Besides, why first malloc 0 bytes and then check for a 0

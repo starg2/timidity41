@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.11.0-pre1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.11.0-pre2)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -670,18 +670,13 @@ AC_MSG_CHECKING(enable_audio=w32)
 if test "x$au_enable_w32" = xyes; then
   case "$target" in
     *-*-cygwin*)
-     if test "x$enable_w32gui" = xyes; then
-	SYSEXTRAS="$SYSEXTRAS w32g_a.c"
-     else
-	SYSEXTRAS="$SYSEXTRAS w32_a.c"
-     fi
      AC_MSG_RESULT(yes)
      ;;
-   *)
+    *)
      AC_MSG_WARN(may not work on $target)
-     SYSEXTRAS="$SYSEXTRAS w32_a.c"
      ;;
   esac
+  SYSEXTRAS="$SYSEXTRAS w32_a.c"
   EXTRALIBS="$EXTRALIBS -lwinmm"
   EXTRADEFS="$EXTRADEFS -DAU_W32"
 else
@@ -791,18 +786,20 @@ fi
 
 AC_MSG_CHECKING(enable_audio=vorbis)
 if test "x$au_enable_vorbis" = xyes; then
-  AC_MSG_RESULT()
-  have_vorbis=yes
-  AC_CHECK_HEADER(vorbis/modes.h,,have_vorbis=no)
-  AC_CHECK_LIB(vorbis,vorbis_analysis_init,,have_vorbis=no)
-  if test "$have_vorbis" = "yes"; then
-    SYSEXTRAS="$SYSEXTRAS vorbis_a.c"
-    EXTRADEFS="$EXTRADEFS -DAU_VORBIS"
-    EXTRALIBS="$EXTRALIBS -lvorbis"
-    AC_MSG_RESULT(Ogg Vorbis: Enabled)
-  else
-    AC_MSG_WARN(Ogg Vorbis: Couldn't configure)
-  fi
+  AC_MSG_RESULT(yes, configuring vorbis)
+  AM_PATH_OGG([
+    AM_PATH_VORBIS([
+      have_vorbis=yes
+      SYSEXTRAS="$SYSEXTRAS vorbis_a.c"
+      EXTRADEFS="$EXTRADEFS -DAU_VORBIS $OGG_CFLAGS $VORBIS_CFLAGS"
+      EXTRALIBS="$EXTRALIBS $OGG_LIBS $VORBIS_LIBS $VORBISENC_LIBS"
+    ],[
+      AC_MSG_WARN([Unable to configure vorbis, but ogg is there (???)])
+    ])
+  ],[
+    AC_MSG_WARN(Unable to configure vorbis!)
+    have_vorbis=no
+  ])
 else
   AC_MSG_RESULT(no)
 fi
