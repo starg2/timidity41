@@ -229,6 +229,9 @@ typedef struct {
   int mapID;			/* Program map ID */
   AlternateAssign *altassign;	/* Alternate assign patch table */
   int32 lasttime;     /* Last sample time of computed voice on this channel */
+
+  /* flag for random pan */
+  int pan_random;
 } Channel;
 
 /* Causes the instrument's default panning to be used. */

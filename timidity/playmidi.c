@@ -422,6 +422,7 @@ static void reset_midi(int playing)
 	   event */
 	channel[i].program = default_program[i];
 	channel[i].panning = NO_PANNING;
+	channel[i].pan_random = 0;
 	/* tone bank or drum set */
 	if(ISDRUMCHANNEL(i))
 	{
@@ -435,7 +436,9 @@ static void reset_midi(int playing)
 	    else
 		channel[i].bank = default_tonebank;
 	}
-	channel[i].bank_lsb = channel[i].bank_msb = -1;
+	channel[i].bank_lsb = channel[i].bank_msb = 0;
+	if(play_system_mode == XG_SYSTEM_MODE && i % 16 == 9)
+	    channel[i].bank_msb = 127; /* Use MSB=127 for XG */
 	update_rpn_map(i, RPN_ADDR_FFFF, 0);
 	channel[i].special_sample = 0;
 	channel[i].key_shift = 0;
@@ -1626,6 +1629,11 @@ static void note_on(MidiEvent *e)
     for(i = 0; i < nv; i++)
     {
 	v = vlist[i];
+	if(channel[ch].pan_random)
+	{
+	    channel[ch].panning = int_rand(128);
+	    ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
+	}
 	start_note(e, v, vid, nv - i - 1);
 	if(channel[ch].chorus_level && voice[v].sample->sample_rate)
 	{
@@ -1960,13 +1968,10 @@ void midi_program_change(int ch, int prog)
 	  default:
 	    break;
 	}
-	if(channel[ch].bank_msb >= 0)
-	    newbank = channel[ch].bank_msb;
+	newbank = channel[ch].bank_msb;
 	break;
 
       case XG_SYSTEM_MODE: /* XG */
-	if(channel[ch].bank_lsb == -1)
-	    return;
 	switch(channel[ch].bank_msb)
 	{
 	  case 0: /* Normal */
@@ -1993,8 +1998,7 @@ void midi_program_change(int ch, int prog)
 	break;
 
       default:
-	if(channel[ch].bank_msb >= 0)
-	    newbank = channel[ch].bank_msb;
+	newbank = channel[ch].bank_msb;
 	break;
     }
 
@@ -2279,7 +2283,12 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	if(channel[ch].drums[note] == NULL)
 	    play_midi_setup_drums(ch, note);
 	if(val == 0)
+	{
 	    val = int_rand(128);
+	    channel[ch].pan_random = 1;
+	}
+	else
+	    channel[ch].pan_random = 0;
 	channel[ch].drums[note]->drum_panning = val;
 	if(update_now)
 	    adjust_drum_panning(ch, note);
@@ -2354,7 +2363,8 @@ static void seek_forward(int32 until_time)
 	    break;
 
 	  case ME_PAN:
-	    channel[ch].panning=current_event->a;
+	    channel[ch].panning = current_event->a;
+	    channel[ch].pan_random = 0;
 	    break;
 
 	  case ME_EXPRESSION:
@@ -2472,6 +2482,7 @@ static void seek_forward(int32 until_time)
 
 	  case ME_RANDOM_PAN:
 	    channel[ch].panning = int_rand(128);
+	    channel[ch].pan_random = 1;
 	    break;
 
 	  case ME_SET_PATCH:
@@ -3747,6 +3758,7 @@ int play_event(MidiEvent *ev)
 
       case ME_PAN:
 	channel[ch].panning = ev->a;
+	channel[ch].pan_random = 0;
 	if(adjust_panning_immediately)
 	    adjust_panning(ch);
 	ctl_mode_event(CTLE_PANNING, 1, ch, ev->a);
@@ -3885,9 +3897,9 @@ int play_event(MidiEvent *ev)
 	/* TiMidity Extensionals */
       case ME_RANDOM_PAN:
 	channel[ch].panning = int_rand(128);
+	channel[ch].pan_random = 1;
 	if(adjust_panning_immediately)
 	    adjust_panning(ch);
-	ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
 	break;
 
       case ME_SET_PATCH:

@@ -509,6 +509,91 @@ int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
     return 0;
 }
 
+/* XG SysEx parsing function by Eric A. Welsh
+ *
+ * This function provides basic support for XG Multi Part Data
+ * parameter change SysEx events
+ *
+ * NOTE - val[1] is documented as only being 0x10, but this rule is not
+ * followed in real life, since I have midi that set it to 0x00 and are
+ * interpreted correctly on my SW60XG ...
+ */
+int parse_sysex_event_xg(uint8 *val, int32 len, MidiEvent *ev, int32 at)
+{
+    int num_events = 0;				/* Number of events added */
+
+    if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
+	current_file_info->mid = val[0];
+
+    if(len >= 10 &&
+       val[0] == 0x43 && /* Yamaha ID */
+       val[2] == 0x4C && /* XG Model ID */
+       val[4] == 0x29 && /* Total size of data body to be analyzed */
+       val[5] == 0x08)   /* Multi Part Data parameter change */
+    {
+	uint8 addhigh, addmid, addlow;		/* Addresses */
+	uint8 *body;				/* SysEx body */
+	uint8 p;				/* Channel part number [0..15] */
+	int ent;				/* Entry # of sub-event */
+	uint8 *body_end;			/* End of SysEx body */
+
+	addhigh = val[3];
+	addmid = val[4];
+	addlow = val[5];
+	body = val + 8;
+	p = val[6];
+	body_end = val + len-3;
+
+	for (ent=0; body <= body_end; body++, ent++) {
+	    switch(ent) {
+
+		case 0x01:	/* bank select MSB */
+		  MIDIEVENT(at+ent, ME_TONE_BANK_MSB, p, *body, 0);
+		  break;
+
+		case 0x02:	/* bank select LSB */
+		  MIDIEVENT(at+ent, ME_TONE_BANK_LSB, p, *body, 0);
+		  break;
+
+		case 0x03:	/* program number */
+		  MIDIEVENT(at+ent, ME_PROGRAM, p, *body, 0);
+		  break;
+
+		case 0x08:	/* note shift ? */
+		  MIDIEVENT(at+ent, ME_KEYSHIFT, p, *body, 0);
+
+		case 0x0B:	/* volume */
+		  MIDIEVENT(at+ent, ME_MAINVOLUME, p, *body, 0);
+		  break;
+
+		case 0x0E:	/* pan */
+		  if(*body == 0) {
+			MIDIEVENT(at+ent, ME_RANDOM_PAN, p, 0, 0);
+		  }
+		  else {
+			MIDIEVENT(at+ent, ME_PAN, p, *body, 0);
+		  }
+		  break;
+
+		case 0x12:	/* chorus send */
+		  MIDIEVENT(at+ent, ME_CHORUS_EFFECT, p, *body, 0);
+		  break;
+
+		case 0x13:	/* reverb send */
+		  MIDIEVENT(at+ent, ME_REVERB_EFFECT, p, *body, 0);
+		  break;
+
+		default:
+		  continue;
+		  break;
+	    }
+	    num_events++;
+	}
+    }
+
+return(num_events);
+}
+
 int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 {
     if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
@@ -812,6 +897,8 @@ static int read_sysex_event(int32 at, int me, int32 len,
 	ev.time = at;
 	readmidi_add_event(&ev);
     }
+    parse_sysex_event_xg(val, len, &ev, at);
+    
     reuse_mblock(&tmpbuffer);
 
     return 0;
@@ -1529,7 +1616,9 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    }
 
 	}
-	bank_lsb[j] = bank_msb[j] = -1;
+	bank_lsb[j] = bank_msb[j] = 0;
+	if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
+	    channel[j].bank_msb = 127; /* Use MSB=127 for XG */
 	current_program[j] = default_program[j];
     }
 
@@ -1586,7 +1675,9 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		    if(tonebank[current_set[j]] == NULL)
 			current_set[j] = 0;
 		}
-		bank_lsb[j] = bank_msb[j] = -1;
+		bank_lsb[j] = bank_msb[j] = 0;
+		if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
+		    channel[j].bank_msb = 127; /* Use MSB=127 for XG */
 		current_program[j] = default_program[j];
 	    }
 	    break;
@@ -1628,13 +1719,10 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 			      ch, bank_lsb[ch]);
 		    break;
 		}
-		if(bank_msb[ch] >= 0)
-		    newbank = bank_msb[ch];
+		newbank = bank_msb[ch];
 		break;
 
 	      case XG_SYSTEM_MODE: /* XG */
-		if(bank_lsb[ch] == -1)
-		    goto end_of_event_switch;
 		switch(bank_msb[ch])
 		{
 		  case 0: /* Normal */
@@ -1666,13 +1754,11 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 			      ch, bank_msb[ch]);
 		    break;
 		}
-		if(bank_lsb[ch] >= 0)
-		    newbank = bank_lsb[ch];
+		newbank = bank_lsb[ch];
 		break;
 
 	      default:
-		if(bank_msb[ch] >= 0)
-		    newbank = bank_msb[ch];
+		newbank = bank_msb[ch];
 		break;
 	    }
 

@@ -1,20 +1,53 @@
-1999-09/21  Masanao Izumo <mo@goice.co.jp>
+1999-09-27  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.6.1 released.
+
+1999-09-27  Masanao Izumo <mo@goice.co.jp>
+
+    * AUTHORS,timidity/timidity.c,timidity/w32g_i.c:
+      Changed E-mail address of Davide Moretti from <dmoretti@iper.net>
+      to <dave@rimini.com>
+
+1999-09-27  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/{playmidi.h,playmidi.c}: Fixed bug of random panning.
+      Added new Channel structure member `int pan_random' for random pan flag.
+      Note that all of dynamic interfaces must be re-compiled,
+      because the size of `Channel' structure is changed.
+      
+1999-09-26  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/readmidi.c (XG SysEx): Support for XG Multi Part Data
+      parameter change SysEx events.
+
+1999-09-25  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{readmidi.c,playmidi.c}:
+      Set MSB/LSB bank zero by default, except that XG MSB Bank of channel 10
+      is 127 by default.
+
+1999-09-21  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/timidity.c (-EFchorus=2): Bug fix.
+      Typo in timidity.c 2.6.0, opt_surround_chorus never set.
+
+1999-09-21  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.6.0 released.
 
-1999-09/21  Masanao Izumo <mo@goice.co.jp>
+1999-09-21  Masanao Izumo <mo@goice.co.jp>
 
     * timidity/rcp.c: Bug fix of SameMeassure.
     * interface/vt100_c.c (ctl_current_time): Bug fix of displaying bold.
 
-1999-09/20  Masanao Izumo <mo@goice.co.jp>
+1999-09-20  Masanao Izumo <mo@goice.co.jp>
 
     * timidity/aq.c (aq_samples): Save PM_REQ_GETSAMPLES value if the acntl()
       succeeds.
     * timidity/sun_a.c: Implement PM_REQ_GETFILLED and PM_REQ_GETSAMPLES of
       acntl().
 
-1999-09/17  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+1999-09-17  Eric A. Welsh <ewelsh@gpc.wustl.edu>
 
     * timidity/{timidity.c,playmidi.c,playmidi.h} (new_chorus_voice_alternate):
       To use the surround sound instead of detuned chorus.

@@ -307,7 +307,7 @@ static void help(void)
 " TiMidity is free software and comes with ABSOLUTELY NO WARRANTY.",
 "",
 #ifdef __W32__
-" Win32 version by Davide Moretti <dmoretti@iper.net>",
+" Win32 version by Davide Moretti <dave@rimini.com>",
 "              and Daisuke Aoki <dai@y7.net>",
 #endif /* __W32__ */
 "",
@@ -2175,7 +2175,7 @@ static int parse_effect_option(char *effect_opts)
 
 	  case '1':
 	  case '2':
-          opt_surround_chorus = (*effect_opts == '2');
+	    opt_surround_chorus = (*effect_opts == '2');
 	    if(*(effect_opts + 1) == ',')
 		opt_chorus_control = -(atoi(effect_opts + 2) & 0x7f);
 	    else

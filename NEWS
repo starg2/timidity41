@@ -1,3 +1,11 @@
+9/27, 1999
+    * Version 2.6.1 released.
+    * Support for XG Multi Part Data parameter change SysEx events.
+    * Added new Channel structure member `int pan_random' for random pan flag.
+      Note that all of dynamic interfaces must be re-compiled,
+      because the size of `Channel' structure is changed.
+    * Bug fix.
+
 9/21, 1999
     * Version 2.6.0 released.
     * Some configurations and installations are changed.

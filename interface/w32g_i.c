@@ -2826,7 +2826,7 @@ static void VersionWnd(HWND hParentWnd)
   sprintf(VersionText,
 "TiMidity++ version %s" NLS NLS
 "TiMidity-0.2i by Tuukka Toivonen <tt@cgs.fi>." NLS
-"TiMidity Win32 version by Davide Moretti <dmoretti@iper.net>." NLS
+"TiMidity Win32 version by Davide Moretti <dave@rimini.com>." NLS
 "TiMidity Windows 95 port by Nicolas Witczak." NLS
 "TiMidity Win32 GUI by Daisuke Aoki <dai@y7.net>." NLS
 "TiMidity++ by Masanao Izumo <mo@goice.co.jp>." NLS
