@@ -88,7 +88,7 @@ enum {
     CTLE_CURRENT_TIME,		/* v1:secs, v2:voices */
     CTLE_NOTE,			/* v1:status, v2:ch, v3:note, v4:velo */
     CTLE_MASTER_VOLUME,		/* v1:amp(%) */
-    CTLE_PROGRAM,		/* v1:ch, v2:prog, v3:name */
+    CTLE_PROGRAM,		/* v1:ch, v2:prog, v3:name, v4:bank,lsb.msb */
     CTLE_VOLUME,		/* v1:ch, v2:value */
     CTLE_EXPRESSION,		/* v1:ch, v2:value */
     CTLE_PANNING,		/* v1:ch, v2:value */
@@ -103,7 +103,8 @@ enum {
     CTLE_SPEANA,		/* v1:double[] v2:len */
     CTLE_PAUSE,			/* v1:pause on/off v2:time of pause */
     CTLE_GSLCD,			/* GS L.C.D. */
-    CTLE_MAXVOICES		/* v1:voices, Change voices */
+    CTLE_MAXVOICES,		/* v1:voices, Change voices */
+    CTLE_DRUMPART		/* v1:ch, v2:is_drum */
 };
 
 typedef struct _CtlEvent {

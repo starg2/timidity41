@@ -60,7 +60,6 @@ static BOOL mod_do_play (MODULE *);
 int 
 load_module_file (struct timidity_file *tf, int mod_type)
 {
-  int i, err;
   MODULE *mf;
 
 #ifdef LOOKUP_HACK
@@ -85,8 +84,6 @@ load_module_file (struct timidity_file *tf, int mod_type)
 int 
 get_module_type (char *fn)
 {
-  char *p;
-
   if (check_file_extension (fn, ".xm", 1)	/* Most common first */
       || check_file_extension (fn, ".s3m", 1)
       || check_file_extension (fn, ".mod", 1)

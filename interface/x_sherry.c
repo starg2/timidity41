@@ -161,6 +161,9 @@ static ImagePixmap *create_shm_image_pixmap(int width, int height, int depth);
 static int isRealPaletteChanged, isRealScreenChanged;
 static int updateClipX1, updateClipY1, updateClipX2, updateClipY2;
 
+static int check_range(VirtualScreen *scr, int x1, int y1, int x2, int y2);
+
+
 static Window try_create_window(Display *disp, int width, int height,
 				int want_class, int want_depth,
 				Visual **newVisual,

@@ -568,8 +568,6 @@ RealSpeed (SAMPLOAD * s)
 BOOL 
 SL_LoadSamples (void)
 {
-  SAMPLOAD *c2smp = NULL;
-  ULONG maxsize, speed;
   SAMPLOAD *s;
 
   if (!musiclist)
@@ -593,6 +591,9 @@ SL_LoadSamples (void)
          the highest speed and dither it by half. */
       if (!s)
 	{
+	  SAMPLOAD *c2smp = NULL;
+	  ULONG maxsize, speed;
+
 	  s = musiclist;
 	  speed = 0;
 	  while (s)
@@ -1007,8 +1008,6 @@ ML_AllocUniMod (void)
 CHAR *
 ML_LoadTitle (URL reader)
 {
-  CHAR *result = NULL;
-  FILE *fp;
   MLOADER *l;
 
   modreader = reader;
@@ -1035,10 +1034,7 @@ ML_LoadTitle (URL reader)
 BOOL 
 ML_Test (URL reader)
 {
-  int t;
   MLOADER *l;
-  BOOL ok;
-  MODULE *mf;
 
   modreader = reader;
   _mm_errno = 0;
@@ -1155,7 +1151,6 @@ ML_Load (URL reader, int maxchan, BOOL curious)
 void 
 ML_RegisterAllLoaders (void)
 {
-  static BOOL registered = 0;
   MLOADER *last = NULL;
 
   if (firstloader)

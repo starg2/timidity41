@@ -38,14 +38,14 @@ extern "C"
 #include <malloc.h>
 #endif
 #include <stdarg.h>
-#if defined(__OS2__)||defined(__EMX__)||defined(WIN32)
+#if defined(__OS2__)||defined(__EMX__)||defined(__W32__)
 #define strcasecmp(s,t) stricmp(s,t)
 #endif
 
 #include "unimod.h"
 #include "url.h"
 
-#ifdef WIN32
+#ifdef __W32__
 #pragma warning(disable:4761)
 #endif
 

@@ -1,13 +1,37 @@
+2000-02-27  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.9.0 released.
+
+2000-02-24  Masanao Izumo <mo@goice.co.jp>
+
+    * doc/C/timidity.cfg.5,doc/ja_JP.ujis/timidity.cfg.5 (#extension opt):
+      Fixed documentation error.
+    * libunimod/unimod.h (CHAR): Fixed redefiend error on Windows.
+
+2000-02-19  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{playmidi.c,controls.h (CTLE_PROGRAM): Change control interface
+      of program event.
+    * timidity/{playmidi.c,controls.h (CTLE_DRUMPART): New event interface.
+    * interface/ncurs_c.c: Change somethings...
+    * interface/{gtk_c.cx_sherry.c},libunimod/{mloader.c,unimod.h},
+      timidity/mod2midi.h:
+	Shut gcc warning up.
+    * libunimod/{unimod.h,unimod_priv.h}: WIN32 => __W32__
+    * timidity/playmici.c: Fixed key up/down for MOD file playing.
+
 2000-02-18  Masanao Izumo <mo@goice.co.jp>
 
     * timidity/resample.c (FINALINTERP): Ignore.
-      Now, TiMidity does not hit the end of data, and ignores a final
+      Now, TiMidity does not hit the end out of data, and ignores a final
       interpolation.
+    * timidity/playmidi.c: Avoid overlapped voice when MOD file is playing.
+    * interface/ncurs_c.c,timidity/playmidi.c: Fixed a indicator probrem.
 
 2000-02-16  Paolo Bonzini <bonzini@gnu.org>
 
     * configure.in,libunimod/*,timidity/{Makefile.am,mod.c,mod.h,mod2midi.c,
-	mod2midi.h,readmici.c}: Support full module player.
+	mod2midi.h,readmici.c,readmidi.c}: Support full module player.
 
 2000-02-16  Paolo Bonzini <bonzini@gnu.org>
 

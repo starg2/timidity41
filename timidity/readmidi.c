@@ -2607,12 +2607,8 @@ char *get_midi_title(char *filename)
 	return NULL;
 
     mtype = get_module_type(filename);
-    if(mtype > 0)
-	check_cache = 1;
-    else
-	check_cache = check_need_cache(tf->url, filename);
-
-    if(check_cache)
+    check_cache = check_need_cache(tf->url, filename);
+    if(check_cache || mtype > 0)
     {
 	if(!IS_URL_SEEK_SAFE(tf->url))
 	{

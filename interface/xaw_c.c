@@ -723,9 +723,7 @@ static void ctl_program(int ch, int val, void *comm)
   if(ch >= MAX_XAW_MIDI_CHANNELS) return;
   if(!ctl.trace_playing) return;
 
-  if(channel[ch].special_sample)
-    val = channel[ch].special_sample;
-  else
+  if(!IS_CURRENT_MOD_FILE)
     val += progbase;
   sprintf(local_buf, "PP%c%d", ch+'A', val);
   a_pipe_write(local_buf);

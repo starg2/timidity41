@@ -41,7 +41,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
-
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -49,6 +53,7 @@
 #include "output.h"
 #include "controls.h"
 #include "gtk_h.h"
+#include "readmidi.h"
 
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);

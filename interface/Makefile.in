@@ -374,7 +374,8 @@ emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 gtk_c.o: gtk_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/output.h ../timidity/controls.h gtk_h.h
+	../timidity/output.h ../timidity/controls.h gtk_h.h \
+	../timidity/readmidi.h
 gtk_i.o: gtk_i.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h gtk_h.h \
 	pixmaps/playpaus.xpm pixmaps/prevtrk.xpm pixmaps/nexttrk.xpm \

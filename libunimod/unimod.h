@@ -42,13 +42,11 @@ extern "C"
  *    ========== Platform independent-type definitions
  */
 
-#ifdef WIN32
+#ifdef __W32__
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <io.h>
-#endif
-
-#if defined(__OS2__)||defined(__EMX__)
+#elif defined(__OS2__)||defined(__EMX__)
 #define INCL_DOSSEMAPHORES
 #include <os2.h>
 #else
@@ -74,7 +72,7 @@ typedef unsigned char UBYTE;	/* 1 byte, unsigned */
 typedef signed short SWORD;	/* 2 bytes, signed */
 typedef unsigned short UWORD;	/* 2 bytes, unsigned */
 typedef signed long SLONG;	/* 4 bytes, signed */
-#if !defined(__OS2__)&&!defined(__EMX__)&&!defined(WIN32)
+#if !defined(__OS2__)&&!defined(__EMX__)&&!defined(__W32__)
 typedef unsigned long ULONG;	/* 4 bytes, unsigned */
 typedef int BOOL;		/* 0=false, <>0 true */
 #endif
@@ -479,6 +477,7 @@ typedef struct MODULE
 /* used to convert c4spd to linear XM periods (IT and IMF loaders). */
 extern UWORD finetune[];
 extern UWORD getlinearperiod (UWORD, ULONG);
+extern UWORD getlogperiod (UWORD note, ULONG fine);
 extern UWORD getoldperiod (UWORD, ULONG);
 extern ULONG getfrequency (UBYTE, ULONG);
 extern ULONG getAmigaPeriod (UBYTE, ULONG);

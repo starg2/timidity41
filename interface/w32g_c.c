@@ -38,6 +38,7 @@
 #include "output.h"
 #include "instrum.h"
 #include "playmidi.h"
+#include "readmidi.h"
 #include "controls.h"
 #include "miditrace.h"
 #include "strtab.h"
@@ -758,9 +759,7 @@ static void ctl_program(int ch, int val)
 	return;
     if(!ctl.trace_playing)
 	return;
-    if(channel[ch].special_sample)
-	val = channel[ch].special_sample;
-    else
+    if(!IS_CURRENT_MOD_FILE)
 	val += progbase;
 
     Panel->channel[ch].program = val;

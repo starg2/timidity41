@@ -1308,7 +1308,12 @@ static int find_samples(MidiEvent *e, int *vlist)
 			  channel[ch].special_sample);
 		return 0;
 	    }
-	    return select_play_sample(s->sample, s->samples, e->a, vlist, e);
+	    note = e->a + note_key_offset;
+	    if(note < 0)
+		note = 0;
+	    else if(note > 127)
+		note = 127;
+	    return select_play_sample(s->sample, s->samples, note, vlist, e);
 	}
 
 	bk = channel[ch].bank;
@@ -4146,8 +4151,9 @@ int play_event(MidiEvent *ev)
 	{
 	    /* Update bank information */
 	    midi_program_change(ch, channel[ch].program);
+	    ctl_mode_event(CTLE_DRUMPART, 1, ch, ISDRUMCHANNEL(ch));
+	    ctl_prog_event(ch);
 	}
-	ctl_prog_event(ch);
 	break;
 
       case ME_KEYSHIFT:
@@ -4598,10 +4604,26 @@ static void ctl_updatetime(int32 samples)
 static void ctl_prog_event(int ch)
 {
     CtlEvent ce;
+    int bank, prog;
+
+    if(IS_CURRENT_MOD_FILE)
+    {
+	bank = 0;
+	prog = channel[ch].special_sample;
+    }
+    else
+    {
+	bank = channel[ch].bank;
+	prog = channel[ch].program;
+    }
+
     ce.type = CTLE_PROGRAM;
     ce.v1 = ch;
-    ce.v2 = channel[ch].program;
+    ce.v2 = prog;
     ce.v3 = (long)channel_instrum_name(ch);
+    ce.v4 = (bank |
+	     (channel[ch].bank_lsb << 8) |
+	     (channel[ch].bank_msb << 16));
     if(ctl->trace_playing)
 	push_midi_trace_ce(ctl->event, &ce);
     else
@@ -4618,7 +4640,7 @@ static void ctl_pause_event(int pause, int32 s)
 char *channel_instrum_name(int ch)
 {
     char *comm;
-    int bank;
+    int bank, prog;
 
     if(ISDRUMCHANNEL(ch))
 	return "";
@@ -4637,11 +4659,13 @@ char *channel_instrum_name(int ch)
     }
 
     bank = channel[ch].bank;
+    prog = channel[ch].program;
+    instrument_map(channel[ch].mapID, &bank, &prog);
     if(tonebank[bank] == NULL)
 	bank = 0;
-    comm = tonebank[bank]->tone[channel[ch].program].comment;
+    comm = tonebank[bank]->tone[prog].comment;
     if(comm == NULL)
-	comm = tonebank[0]->tone[channel[ch].program].comment;
+	comm = tonebank[0]->tone[prog].comment;
     return comm;
 }
 

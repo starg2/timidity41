@@ -161,8 +161,8 @@ void mac_ctl_program(int ch, int val, void *comm)
     if(!ctl->trace_playing)
 	return;
 
-    if(channel[ch].special_sample)
-		pr = val = channel[ch].special_sample;
+    if(IS_CURRENT_MOD_FILE)
+		pr = val;
     else
 		pr = val + progbase;
 
