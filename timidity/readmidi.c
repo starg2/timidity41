@@ -1788,10 +1788,17 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		switch(bank_msb[ch])
 		{
 		  case 0: /* Normal */
-		    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(XG ch=%d Normal voice)",
-			      ch);
-		    midi_drumpart_change(ch, 0);
-		    mapID[ch] = XG_NORMAL_MAP;
+		    if(ch == 9  && bank_lsb[ch] == 127 && mapID[ch] == XG_DRUM_MAP) {
+		      /* FIXME: Why this part is drum?  Is this correct? */
+		      ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+				"Warning: XG bank 0/127 is found. It may be not correctly played.");
+		      ;
+		    } else {
+		      ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(XG ch=%d Normal voice)",
+				ch);
+		      midi_drumpart_change(ch, 0);
+		      mapID[ch] = XG_NORMAL_MAP;
+		    }
 		    break;
 		  case 64: /* SFX voice */
 		    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(XG ch=%d SFX voice)",

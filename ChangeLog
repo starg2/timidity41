@@ -1,3 +1,19 @@
+2000-11-09  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/playmidi.c: Fixed to update interface display.
+	* configure.in, timidity/oss_a.c: Added new test for <soundcard.h>
+	* timidity/oss_a.c: ioctl() has three arguments.
+	* configure.in, timidity/oss_a.c: In OpenBSD OSS,
+	  use /dev/audio instead of /dev/dsp
+	* configure.in, In OpenBSD, Added new test for -lcurses for ncurses
+	* configure.in, Added new test for -lossaudio
+	* timidity/{readmidi.c,playmidi.c}: Trial change for GX.
+
+2000-11-06  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+	* timidity/mod.c: The XM E1,E2,EA,EB,X1,X2 effects were all
+	  implemented improperly before.
+	
 2000-11-02  Masanao Izumo <mo@goice.co.jp>
 
 	* Version 2.10.2 released.
