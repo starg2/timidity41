@@ -241,7 +241,7 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$/$$file $(distdir)/$$file; \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
@@ -278,20 +278,12 @@ url_dir.o: url_dir.c ../config.h ../timidity/timidity.h \
 	../utils/support.h url.h ../utils/strtab.h ../utils/mblock.h
 url_file.o: url_file.c ../config.h ../timidity/timidity.h \
 	../utils/support.h url.h
-url_ftp.o: url_ftp.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
 url_hqxdecode.o: url_hqxdecode.c ../config.h ../timidity/timidity.h \
 	../utils/support.h url.h
-url_http.o: url_http.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
 url_inflate.o: url_inflate.c ../config.h ../timidity/timidity.h \
 	../utils/support.h url.h ../utils/mblock.h zip.h
 url_mem.o: url_mem.c ../config.h ../timidity/timidity.h \
 	../utils/support.h url.h
-url_news.o: url_news.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
-url_newsgroup.o: url_newsgroup.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
 url_pipe.o: url_pipe.c ../config.h ../timidity/timidity.h \
 	../utils/support.h url.h
 url_qsdecode.o: url_qsdecode.c ../config.h ../timidity/timidity.h \

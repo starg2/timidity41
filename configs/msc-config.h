@@ -261,7 +261,7 @@
 
 /* In VDS Macro AAA=BBB is not available. */
 #define __W32__
-#define TIMID_VERSION	"2.10.3"
+#define TIMID_VERSION	"2.10.4"
 #define DEFAULT_PATH	".\\"
 #define AU_W32
 #define WINSOCK

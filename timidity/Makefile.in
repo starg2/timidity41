@@ -259,7 +259,7 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$/$$file $(distdir)/$$file; \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
@@ -284,9 +284,6 @@ controls.o: controls.c ../config.h ../interface.h timidity.h \
 	../utils/support.h controls.h
 effect.o: effect.c ../config.h timidity.h ../utils/support.h instrum.h \
 	playmidi.h output.h reverb.h
-esd_a.o: esd_a.c ../config.h timidity.h ../utils/support.h common.h \
-	../libarc/url.h ../utils/mblock.h output.h controls.h \
-	../utils/timer.h instrum.h playmidi.h miditrace.h
 filter.o: filter.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h controls.h instrum.h filter.h
 instrum.o: instrum.c ../config.h timidity.h ../utils/support.h common.h \

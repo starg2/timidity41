@@ -463,14 +463,13 @@ static int acntl(int request, void *arg)
     switch(request)
     {
         case PM_REQ_GETQSIZ:
-            *(int *)arg = DATA_BLOCK_NUM * AUDIO_BUFFER_SIZE;
+            *(int *)arg = (DATA_BLOCK_NUM-1) * AUDIO_BUFFER_SIZE;
 
             if (NOT (dpm.encoding & PE_MONO))
                 *(int *)arg *= 2;
 
             if (dpm.encoding & PE_16BIT)
                 *(int *)arg *= 2;
-
             return 0;
 
         case PM_REQ_DISCARD:

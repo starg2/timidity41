@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.10.3, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.10.4, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -78,6 +78,7 @@ EXTRADEFS=
 EXTRALIBS=
 SYSEXTRAS=
 timidity_LDFLAGS=
+oss_device=
 
 dnl Optional library dependent
 lib_xm_opt=
@@ -306,7 +307,7 @@ AC_CHECK_HEADERS(fcntl.h limits.h malloc.h strings.h sys/ioctl.h sys/time.h \
 	unistd.h dlfcn.h glob.h getopt.h errno.h machine/endian.h \
 	stropts.h sys/audioio.h sun/audioio.h sys/types.h \
 	sys/ipc.h sys/shm.h sys/param.h X11/extensions/XShm.h \
-	X11/Xmu/ExtAgent.h sys/soundcard.h sys/awe_voice.h)
+	X11/Xmu/ExtAgent.h sys/soundcard.h soundcard.h sys/awe_voice.h)
 AC_CHECK_HEADER(string.h,, [ EXTRADEFS="$EXTRADEFS -DNO_STRING_H " ])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -342,7 +343,7 @@ if test "x$CYGNUS" = xyes; then
     AC_TRY_COMPILE(
   [#include <windows.h>
   #include <mmsystem.h>],
-    return WOM_OPEN == 0x3BB,
+    return WOM_OPEN != 0x3BB,
     timidity_cv_header_new_mmsystem=yes,timidity_cv_header_new_mmsystem=no))
   if test $timidity_cv_header_new_mmsystem = yes; then
     EXTRADEFS="$EXTRADEFS -DHAVE_NEW_MMSYSTEM=1"
@@ -558,10 +559,24 @@ if test "x$au_enable_oss" = xyes; then
 	AC_MSG_RESULT(yes)
 	;;
       *)
-	AC_MSG_WARN(<sys/soundcard.h> is not found)
+	if test "x$ac_cv_header_soundcard_h" = xyes; then
+	  AC_MSG_RESULT(yes - <soundcard.h>)
+	else
+	  AC_MSG_WARN(<sys/soundcard.h> is not found)
+	fi
 	;;
     esac
   fi
+  AC_CHECK_LIB(ossaudio,open)
+
+  dnl Why OpenBSD use /dev/audio instead of /dev/dsp for OSS
+  case "$target" in
+    *openbsd*)
+      if test ! -e "/dev/dsp"; then
+	oss_device=/dev/audio
+      fi
+      ;;
+  esac
 else
   AC_MSG_RESULT(no)
 fi
@@ -972,8 +987,17 @@ dnl configure must check ncurses header with -I/usr/include/ncurses option.
 			  CPPFLAGS="$CPPFLAGS -DUSE_PDCURSES=1"
 			  lib_user32_opt="$lib_user32_test"
 			],
-			[ AC_MSG_WARN(ncurses interface is not enabled) 
-			  enable_ncurses=no
+			[ dnl OpenBSD use -lcurses instead of -lncurses.
+			  case "$target" in
+			    *openbsd*)
+				AC_CHECK_LIB(curses,initscr,lib_curses_opt=-lcurses,
+					[ AC_MSG_WARN(ncurses interface is not enabled) 
+					  enable_ncurses=no ])
+				;;
+			    *)	AC_MSG_WARN(ncurses interface is not enabled) 
+				enable_ncurses=no
+				;;
+			  esac
 			])
 		],
 		$lib_user32_test)
@@ -1346,6 +1370,10 @@ SET_UNIQ_WORDS(CFLAGS,$EXTRACFLAGS $CFLAGS)
 SET_UNIQ_WORDS(CPPFLAGS,$CPPFLAGS $EXTRADEFS)
 
 CPPFLAGS="$CPPFLAGS \$(DEF_PKGDATADIR) \$(DEF_PKGLIBDIR) \$(DEF_DEFAULT_PATH)"
+
+if test "x$oss_device" != x; then
+  CPPFLAGS="$CPPFLAGS -DOSS_DEVICE=\\\"$oss_device\\\""
+fi
 
 if test "x$TIMIDITY_OUTPUT_ID" != x; then
   CPPFLAGS="$CPPFLAGS -DTIMIDITY_OUTPUT_ID=\\\"$TIMIDITY_OUTPUT_ID\\\""

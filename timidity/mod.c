@@ -1998,6 +1998,8 @@ pt_playeffects (void)
 	  DoXMVolSlide (UniGetByte ());
 	  break;
 	case UNI_XMEFFECTE1:	/* XM fineslide up */
+	  if (mp.vbtick)
+	    break;
 	  dat = UniGetByte ();
 	  if (!mp.vbtick)
 	    {
@@ -2008,6 +2010,8 @@ pt_playeffects (void)
 	    }
 	  break;
 	case UNI_XMEFFECTE2:	/* XM fineslide dn */
+	  if (mp.vbtick)
+	    break;
 	  dat = UniGetByte ();
 	  if (!mp.vbtick)
 	    {
@@ -2018,19 +2022,21 @@ pt_playeffects (void)
 	    }
 	  break;
 	case UNI_XMEFFECTEA:	/* fine volume slide up */
+	  if (mp.vbtick)
+	    break;
 	  dat = UniGetByte ();
-	  if (!mp.vbtick)
-	    if (dat)
-	      a->fslideupspd = dat;
+	  if (dat)
+	    a->fslideupspd = dat;
 	  a->tmpvolume += a->fslideupspd;
 	  if (a->tmpvolume > 64)
 	    a->tmpvolume = 64;
 	  break;
 	case UNI_XMEFFECTEB:	/* fine volume slide dn */
+	  if (mp.vbtick)
+	    break;
 	  dat = UniGetByte ();
-	  if (!mp.vbtick)
-	    if (dat)
-	      a->fslidednspd = dat;
+	  if (dat)
+	    a->fslidednspd = dat;
 	  a->tmpvolume -= a->fslidednspd;
 	  if (a->tmpvolume < 0)
 	    a->tmpvolume = 0;
@@ -2069,6 +2075,8 @@ pt_playeffects (void)
 	  DoXMPanSlide (dat);
 	  break;
 	case UNI_XMEFFECTX1:
+	  if (mp.vbtick)
+	    break;
 	  dat = UniGetByte ();
 	  if (dat)
 	    a->ffportupspd = dat;
@@ -2081,6 +2089,8 @@ pt_playeffects (void)
 	    }
 	  break;
 	case UNI_XMEFFECTX2:
+	  if (mp.vbtick)
+	    break;
 	  dat = UniGetByte ();
 	  if (dat)
 	    a->ffportdnspd = dat;

@@ -85,7 +85,7 @@ typedef struct {
     WORD    nBlockAlign;
     WORD    wBitsPerSample;
     WORD    cbSize;
-} WAVEFORMAT;
+} WAVEFORMATEX;
 
 typedef struct waveoutcaps_tag {
     WORD    wMid;
@@ -99,12 +99,12 @@ typedef struct waveoutcaps_tag {
 } WAVEOUTCAPS;
 
 typedef WAVEHDR *LPWAVEHDR;
-typedef WAVEFORMAT *LPWAVEFORMAT;
+typedef WAVEFORMATEX *LPWAVEFORMATEX;
 typedef WAVEOUTCAPS *LPWAVEOUTCAPS;
 typedef UINT MMRESULT;
 
 MMRESULT WINAPI waveOutOpen(LPHWAVEOUT, UINT,
-			    LPWAVEFORMAT, DWORD, DWORD, DWORD);
+			    LPWAVEFORMATEX, DWORD, DWORD, DWORD);
 MMRESULT WINAPI waveOutClose(HWAVEOUT);
 MMRESULT WINAPI waveOutPrepareHeader(HWAVEOUT, LPWAVEHDR, UINT);
 MMRESULT WINAPI waveOutUnprepareHeader(HWAVEOUT, LPWAVEHDR, UINT);
@@ -119,17 +119,6 @@ MMRESULT WINAPI waveOutGetID(HWAVEOUT, UINT*);
 #endif
 #else
 #include <process.h>
-#ifdef HAVE_MMSYSTEM_H
-typedef struct {
-    WORD    wFormatTag;
-    WORD    nChannels;
-    DWORD   nSamplesPerSec;
-    DWORD   nAvgBytesPerSec;
-    WORD    nBlockAlign;
-    WORD    wBitsPerSample;
-    WORD    cbSize;
-} WAVEFORMAT_;
-#endif /* HAVE_MMSYSTEM_H */
 #endif /* __CYGWIN32__ */
 
 #include "timidity.h"
@@ -296,11 +285,7 @@ static void CALLBACK wave_callback(HWAVE hWave, UINT uMsg,
 static int open_output(void)
 {
     int i, j, mono, eight_bit, warnings = 0;
-#ifdef HAVE_MMSYSTEM_H
-    WAVEFORMAT_ wf;
-#else
-    WAVEFORMAT wf;
-#endif /* HAVE_MMSYSTEM_H */
+    WAVEFORMATEX wf;
     WAVEOUTCAPS caps;
     MMRESULT res;
     UINT devid;
@@ -348,22 +333,18 @@ static int open_output(void)
     wf.nAvgBytesPerSec = i;
     wf.nBlockAlign = j;
     wf.wBitsPerSample = eight_bit ? 8 : 16;
-#ifdef HAVE_MMSYSTEM_H
-    wf.cbSize=sizeof(WAVEFORMAT_);
-#else
-    wf.cbSize=sizeof(WAVEFORMAT);
-#endif /* HAVE_MMSYSTEM_H */
+    wf.cbSize=sizeof(WAVEFORMATEX);
 
     dev = 0;
 #ifdef USE_WAVEFORMTHREAD
 	InitWaveformThread();
 #endif
     if (w32_wave_allowsync)
-	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&wf,
+	res = waveOutOpen (&dev, WAVE_MAPPER, &wf,
 			   (DWORD)wave_callback, 0,
 			   CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
     else
-	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&wf,
+	res = waveOutOpen (&dev, WAVE_MAPPER, &wf,
 			   (DWORD)wave_callback, 0, CALLBACK_FUNCTION);
     if (res)
     {
