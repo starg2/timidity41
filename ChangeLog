@@ -1,3 +1,36 @@
+2002-01-18  Masanao Izumo <mo@goice.co.jp>
+
+	* Version 2.11.3 released.
+
+2002-01-17  Daisuke Aoki <dai@sweetparty.ne.jp>
+
+	* configs/msc-config.h,interface/{w32g_i.c,w32g_pref.c,w32g_res.h,
+	  w32g_res.rc},
+	  timidity/{common.c,gogo_a.c,vorbis_a.c,w32g_vorbisenc_dll.c}:
+	  - Updated windows version.
+	  - Bug fixed about gogo dll.
+	  - Bug fixed about dialog menu.
+	* script/{dllutl.rb,script/readme.txt}:
+	  Dynamic import source generator for dll (vorbis, gogo).
+
+2002-01-17  Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at>
+
+	* timidity/C/timidity.1: Document fixed.
+
+2002-01-16  Saito <timidity@flashmail.com>
+
+	* timidity/{playmidi.c,readmidi.c}: Bug fixed
+
+2002-01-16  Kentaro Sato <kentaro@ps.catv.ne.jp>
+
+	* timidity/{playmidi.c,readmidi.c}: Bug fixed
+
+2002-01-16  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/instrum.c: Bug fixed.
+	* timidity/readmidi.c: Added TIMIDITY_TOOLS macro to build for timidity
+	  tools.
+
 2002-01-12  Masanao Izumo <mo@goice.co.jp>
 
 	* Version 2.11.2 released.

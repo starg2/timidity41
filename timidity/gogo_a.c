@@ -950,14 +950,19 @@ static int __stdcall MPGEthread(void)
 {
 	MERET	rval;
 	struct MCP_INPDEV_USERFUNC mcp_inpdev_userfunc;
+	unsigned long gogo_vercode;
+	char gogo_verstring[1024];
 
 	gogo_buffer_reset();
 	rval = MPGE_initializeWork();
 	if(rval != ME_NOERR){
 		gogo_error(rval);
 		gogo_buffer_termination  = -1;
+		MPGE_endCoder();
 		return -1;
 	}
+	MPGE_getVersion(&gogo_vercode,gogo_verstring);
+	ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Gogo: %s", gogo_verstring);
 	memset(&mcp_inpdev_userfunc,0,sizeof(struct MCP_INPDEV_USERFUNC));
 	mcp_inpdev_userfunc.pUserFunc = gogoUserFunc;
 	mcp_inpdev_userfunc.nSize = MC_INPDEV_MEMORY_NOSIZE;
@@ -977,43 +982,55 @@ static int __stdcall MPGEthread(void)
 	if(rval != ME_NOERR){
 		gogo_error(rval);
 		gogo_buffer_termination  = -1;
+		MPGE_endCoder();
 		return -1;
 	}
-	rval = MPGE_setConfigure(MC_STARTOFFSET,(UPARAM)0,(UPARAM)0);
-	if(rval != ME_NOERR){
-		gogo_error(rval);
-		gogo_buffer_termination  = -1;
-		return -1;
+	if(gogo_vercode<300){
+		rval = MPGE_setConfigure(MC_STARTOFFSET,(UPARAM)0,(UPARAM)0);
+		if(rval != ME_NOERR){
+			gogo_error(rval);
+			gogo_buffer_termination  = -1;
+			MPGE_endCoder();
+			return -1;
+		}
 	}
 #if 0
 	rval = MPGE_setConfigure(MC_INPFREQ,(UPARAM)dpm.rate,(UPARAM)0);
 	if(rval != ME_NOERR){
 		gogo_error(rval);
 		gogo_buffer_termination  = -1;
+		MPGE_endCoder();
 		return -1;
 	}
 #endif
+	if(gogo_vercode<300){
 	rval = MPGE_setConfigure(MC_BYTE_SWAP,(UPARAM)((dpm.encoding & PE_BYTESWAP) ? TRUE : FALSE),(UPARAM)0);
 	if(rval != ME_NOERR){
 		gogo_error(rval);
 		gogo_buffer_termination  = -1;
+		MPGE_endCoder();
 		return -1;
 	}
 	rval = MPGE_setConfigure(MC_8BIT_PCM,(UPARAM)((dpm.encoding & PE_16BIT) ? FALSE : TRUE),(UPARAM)0);
 	if(rval != ME_NOERR){
 		gogo_error(rval);
 		gogo_buffer_termination  = -1;
+		MPGE_endCoder();
 		return -1;
 	}
 	rval = MPGE_setConfigure(MC_MONO_PCM,(UPARAM)((dpm.encoding & PE_MONO) ? TRUE : FALSE),(UPARAM)0);
 	if(rval != ME_NOERR){
 		gogo_error(rval);
 		gogo_buffer_termination  = -1;
+		MPGE_endCoder();
 		return -1;
+	}
 	}
 	rval = MPGE_detectConfigure();
 	if( rval != ME_NOERR ){
 		gogo_error(rval);
+		gogo_buffer_termination  = -1;
+		MPGE_endCoder();
 		return -1;
 	} else {
 //		UPARAM curFrame;

@@ -93,7 +93,7 @@ static	vorbis_comment	 vc; /* struct that stores all the user comments */
 extern char *w32g_output_dir;
 extern int w32g_auto_output_mode;
 extern int vorbis_ConfigDialogInfoApply(void);
-int ogg_vorbis_mode = 0;	/* initial mode. */
+int ogg_vorbis_mode = 8;	/* initial mode. */
 #endif
 
 /*************************************************************************/
@@ -104,6 +104,7 @@ choose_bitrate(int nch, int rate)
 {
   int bitrate;
 
+#if 0
   /* choose an encoding mode */
   /* (mode 0: -> mode2 */
   /* (mode 1: 44kHz stereo uncoupled, N/A\n */
@@ -132,6 +133,14 @@ choose_bitrate(int nch, int rate)
     bitrate = 160 * 1000; break;
   }
   return bitrate;
+#else
+	if (ogg_vorbis_mode<1 || ogg_vorbis_mode > 10)
+		bitrate = 8;
+	else
+		bitrate = ogg_vorbis_mode;
+	return bitrate;
+#endif
+  return (int)(nch * rate * (128000.0 / (2.0 * 44100.0)) + 0.5); /* +0.5 for rounding */
 }
 #else
 static int
@@ -192,9 +201,15 @@ static int ogg_output_open(const char *fname, const char *comment)
 
   /* choose an encoding mode */
   vorbis_info_init(&vi);
+#ifndef IA_W32GUI
   bitrate = choose_bitrate(nch, dpm.rate);
   ctl->cmsg(CMSG_INFO,VERB_NOISY,"Target encoding bitrate: %dbps", bitrate);
   vorbis_encode_init(&vi, nch, dpm.rate, -1, bitrate, -1);
+#else
+  bitrate = choose_bitrate(nch, dpm.rate);
+  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Target encoding VBR quality: %d", bitrate);
+  vorbis_encode_init_vbr(&vi, nch, dpm.rate, (float)bitrate/10);
+#endif
 
   {
     /* add a comment */
@@ -203,7 +218,7 @@ static int ogg_output_open(const char *fname, const char *comment)
     vorbis_comment_init(&vc);
 
     location_string =
-      (char *)safe_malloc(strlen(comment) + sizeof("LOCATION="));
+      (char *)safe_malloc(strlen(comment) + sizeof("LOCATION=") + 2);
     strcpy(location_string, "LOCATION=");
     strcat(location_string, comment);
     vorbis_comment_add(&vc, (char *)location_string);

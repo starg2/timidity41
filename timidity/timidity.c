@@ -2809,7 +2809,7 @@ static RETSIGTYPE sigterm_exit(int sig)
     s[2] = '\n';
     write(2, s, 3);
 
-    if(sig == SIGINT && intr < 0)
+    if(sig == SIGINT && intr < 1)
     {
 	intr++;
 	signal(SIGINT, sigterm_exit); /* For SysV base */

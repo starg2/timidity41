@@ -28,7 +28,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif /* HAVE_SYS_TIME_H */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -141,7 +143,12 @@ tmdy_mkstemp(char *tmpl)
     v /= 62;
     XXXXXX[5] = letters[v % 62];
 
-    fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, S_IRUSR | S_IWUSR);
+#ifdef _MSC_VER
+#define S_IRUSR 0
+#define S_IWUSR 0
+#endif
+
+	fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, S_IRUSR | S_IWUSR);
 
     if (fd >= 0) {
       errno = save_errno;

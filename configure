@@ -1400,7 +1400,7 @@ fi
 
 # Define the identity of the package.
 PACKAGE=TiMidity++
-VERSION=2.11.2
+VERSION=2.11.3
 
 cat >>confdefs.h <<EOF
 #define PACKAGE "$PACKAGE"
@@ -11109,7 +11109,7 @@ fi
 LIBS="$LIBS $lib_dl_opt $lib_png_opt $lib_zip_opt $lib_user32_opt $lib_w32gui_opt $EXTRALIBS"
 SHLD="$SHLD $SHLDFLAGS"
 
-ac_config_files="$ac_config_files Makefile common.makefile interface/Makefile interface/motif_bitmaps/Makefile interface/bitmaps/Makefile interface/pixmaps/Makefile libarc/Makefile libunimod/Makefile timidity/Makefile utils/Makefile doc/Makefile doc/C/Makefile doc/ja_JP.ujis/Makefile"
+ac_config_files="$ac_config_files Makefile common.makefile interface/Makefile interface/motif_bitmaps/Makefile interface/bitmaps/Makefile interface/pixmaps/Makefile libarc/Makefile libunimod/Makefile timidity/Makefile utils/Makefile doc/Makefile doc/C/Makefile doc/ja_JP.ujis/Makefile script/Makefile"
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure
@@ -11442,10 +11442,11 @@ do
   "doc/Makefile" ) CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
   "doc/C/Makefile" ) CONFIG_FILES="$CONFIG_FILES doc/C/Makefile" ;;
   "doc/ja_JP.ujis/Makefile" ) CONFIG_FILES="$CONFIG_FILES doc/ja_JP.ujis/Makefile" ;;
+  "script/Makefile" ) CONFIG_FILES="$CONFIG_FILES script/Makefile" ;;
   "default-1" ) CONFIG_COMMANDS="$CONFIG_COMMANDS default-1" ;;
   "config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
   "interface.h" ) CONFIG_HEADERS="$CONFIG_HEADERS interface.h" ;;
-  *) { { echo "$as_me:11448: error: invalid argument: $ac_config_target" >&5
+  *) { { echo "$as_me:11449: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
    { (exit 1); exit 1; }; };;
   esac
@@ -11774,7 +11775,7 @@ done; }
   esac
 
   if test x"$ac_file" != x-; then
-    { echo "$as_me:11777: creating $ac_file" >&5
+    { echo "$as_me:11778: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
     rm -f "$ac_file"
   fi
@@ -11792,7 +11793,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:11795: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:11796: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -11805,7 +11806,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:11808: error: cannot find input file: $f" >&5
+           { { echo "$as_me:11809: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -11866,7 +11867,7 @@ for ac_file in : $CONFIG_HEADERS; do test "x$ac_file" = x: && continue
   * )   ac_file_in=$ac_file.in ;;
   esac
 
-  test x"$ac_file" != x- && { echo "$as_me:11869: creating $ac_file" >&5
+  test x"$ac_file" != x- && { echo "$as_me:11870: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
 
   # First look for the input files in the build tree, otherwise in the
@@ -11877,7 +11878,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:11880: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:11881: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -11890,7 +11891,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:11893: error: cannot find input file: $f" >&5
+           { { echo "$as_me:11894: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -12007,7 +12008,7 @@ cat >>$CONFIG_STATUS <<\EOF
   rm -f $tmp/in
   if test x"$ac_file" != x-; then
     if cmp -s $ac_file $tmp/config.h 2>/dev/null; then
-      { echo "$as_me:12010: $ac_file is unchanged" >&5
+      { echo "$as_me:12011: $ac_file is unchanged" >&5
 echo "$as_me: $ac_file is unchanged" >&6;}
     else
       ac_dir=`$as_expr X"$ac_file" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \

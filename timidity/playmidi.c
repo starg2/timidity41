@@ -380,6 +380,7 @@ static void reset_drum_controllers(struct DrumParts *d[], int note)
 		d[i]->drum_panning = NO_PANNING;
 		memset(d[i]->drum_envelope_rate, 0,
 		       sizeof(d[i]->drum_envelope_rate));
+		d[i]->pan_random = 0;
 		d[i]->drum_level = 1;
 		d[i]->note = 0;
 		d[i]->delay_level = 0;
@@ -392,6 +393,7 @@ static void reset_drum_controllers(struct DrumParts *d[], int note)
 	d[note]->drum_panning = NO_PANNING;
 	memset(d[note]->drum_envelope_rate, 0,
 	       sizeof(d[note]->drum_envelope_rate));
+	d[note]->pan_random = 0;
 	d[note]->drum_level = 1;
 	d[note]->note = 0;
 	d[note]->delay_level = 0;
@@ -2745,9 +2747,10 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	if(!opt_tva_attack) { break; }
 	val = val & 0x7F;
 	note = channel[ch].lastlrpn;
+
+	if(channel[ch].drums[note] == NULL) {break;}
 	val	-= 64;
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG Drum Attack Time (CH:%d NOTE:%d VALUE:%d)",ch,note,val);
-	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
 	channel[ch].drums[note]->drum_envelope_rate[0] = val / 2;
 	break;
       case NRPN_ADDR_1700:	/* Drum EG Decay Time (XG) */
@@ -2756,16 +2759,18 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	if(!opt_tva_decay) { break; }
 	val = val & 0x7F;
 	note = channel[ch].lastlrpn;
+
+	if(channel[ch].drums[note] == NULL) {break;}
 	val	-= 64;
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG Drum Decay Time (CH:%d NOTE:%d VALUE:%d)",ch,note,val);
-	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
 	channel[ch].drums[note]->drum_envelope_rate[1] = val / 2;
 	break;
       case NRPN_ADDR_1800:	/* Coarse Pitch of Drum (GS) */
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Coarse Pitch of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
-	note = channel[ch].lastlrpn;		
-	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	note = channel[ch].lastlrpn;
+
+	if(channel[ch].drums[note] == NULL) {break;}
 	val = val - 64 + note;
 	val = val & 0x7F;
 	channel[ch].drums[note]->note = val;
@@ -2777,10 +2782,11 @@ static void update_rpn_map(int ch, int addr, int update_now)
       case NRPN_ADDR_1A00:	/* Level of Drum */	 
 	drumflag = 1;
 	note = channel[ch].lastlrpn;
+
+	if(channel[ch].drums[note] == NULL) {break;}
 	if(val > 127) {val = 127;}
 	else if(val < 0) {val = 0;}
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Drum Instrument TVA Level (CH:%d NOTE:%d VALUE:%d)",ch,note,val);
-	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
 	channel[ch].drums[note]->drum_level = (double)val / 127;
 	break;
       case NRPN_ADDR_1C00:	/* Panpot of Drum */
@@ -2802,22 +2808,26 @@ static void update_rpn_map(int ch, int addr, int update_now)
       case NRPN_ADDR_1D00:	/* Reverb Send Level of Drum */
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Reverb Send Level of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
-	note = channel[ch].lastlrpn;		
-	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	note = channel[ch].lastlrpn;
+
+	if(channel[ch].drums[note] == NULL) {break;}
 	channel[ch].drums[note]->reverb_level = val;
 	break;
       case NRPN_ADDR_1E00:	/* Chorus Send Level of Drum */
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Chorus Send Level of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
 	note = channel[ch].lastlrpn;		
-	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+
+	if(channel[ch].drums[note] == NULL) {break;}
 	channel[ch].drums[note]->chorus_level = val;
 	break;
       case NRPN_ADDR_1F00:	/* Variation Send Level of Drum */
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Variation Send Level of Drum (CH:%d VALUE:%d)",ch,val);
 	drumflag = 1;
-	note = channel[ch].lastlrpn;		
-	if(channel[ch].drums[note] == NULL) {play_midi_setup_drums(ch, note);}
+	note = channel[ch].lastlrpn;
+
+	if(channel[ch].drums[note] == NULL) {break;}
+
 	channel[ch].drums[note]->delay_level = val;
 	break;
       case RPN_ADDR_0000: /* Pitch bend sensitivity */

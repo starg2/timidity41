@@ -413,6 +413,7 @@ void PrefSettingApplyReally(void)
 		play_mode->close_output();
 
 	restart = (PlayerLanguage != sp_temp->PlayerLanguage);
+//	restart |= (strcmp(sp_temp->ConfigFile,ConfigFile) != 0);
 	if(sp_temp->PlayerLanguage == LANGUAGE_JAPANESE)
 		strcpy(st_temp->output_text_code, "SJIS");
 	else
@@ -2628,6 +2629,17 @@ volatile vorbis_ConfigDialogInfo_t vorbis_ConfigDialogInfo;
 
 // IDC_COMBO_MODE_jp
 CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE_jp)
+	"VBR 品質 1 (低)",(char *)1,
+	"VBR 品質 2",(char *)2,
+	"VBR 品質 3",(char *)3,
+	"VBR 品質 4",(char *)4,
+	"VBR 品質 5",(char *)5,
+	"VBR 品質 6",(char *)6,
+	"VBR 品質 7",(char *)7,
+	"VBR 品質 8 (デフォルト)",(char *)8,
+	"VBR 品質 9",(char *)9,
+	"VBR 品質 10 (高)",(char *)10,
+#if 0
 	"デフォルト(約128kbps VBR)",(char *)0,
 	"約112kbps VBR",(char *)1,
 	"約128kbps VBR",(char *)2,
@@ -2635,11 +2647,23 @@ CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE_jp)
 	"約192kbps VBR",(char *)4,
 	"約256kbps VBR",(char *)5,
 	"約350kbps VBR",(char *)6,
+#endif
 	NULL
 CB_INFO_TYPE2_END
 
 // IDC_COMBO_MODE_en
 CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE_en)
+	"VBR Quality 1 (low)",(char *)1,
+	"VBR Quality 2",(char *)2,
+	"VBR Quality 3",(char *)3,
+	"VBR Quality 4",(char *)4,
+	"VBR Quality 5",(char *)5,
+	"VBR Quality 6",(char *)6,
+	"VBR Quality 7",(char *)7,
+	"VBR Quality 8 (default)",(char *)8,
+	"VBR Quality 9",(char *)9,
+	"VBR Quality 10 (high)",(char *)10,
+#if 0
 	"Default (About 128kbps VBR)",(char *)0,
 	"About 112kbps VBR",(char *)1,
 	"About 128kbps VBR",(char *)2,
@@ -2647,6 +2671,7 @@ CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE_en)
 	"About 192kbps VBR",(char *)4,
 	"About 256kbps VBR",(char *)5,
 	"About 350kbps VBR",(char *)6,
+#endif
 	NULL
 CB_INFO_TYPE2_END
 

@@ -24,7 +24,8 @@ SUBDIRS = \
 	interface \
 	libunimod \
 	timidity \
-	doc
+	doc \
+	script
 
 EXTRA_DIST = \
 	AUTHORS \

@@ -2953,6 +2953,7 @@ static void VersionWnd(HWND hParentWnd)
 "TiMidity Win32 version by Davide Moretti <dave@rimini.com>." NLS
 "TiMidity Windows 95 port by Nicolas Witczak." NLS
 "TiMidity Win32 GUI by Daisuke Aoki <dai@y7.net>." NLS
+" Japanese menu, dialog, etc by Saito <timidity@flashmail.com>." NLS
 "TiMidity++ by Masanao Izumo <mo@goice.co.jp>." NLS
 ,timidity_version);
 	MessageBox(hParentWnd, VersionText, "Version", MB_OK);

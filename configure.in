@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.11.2)
+AM_INIT_AUTOMAKE(TiMidity++, 2.11.3)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -1431,4 +1431,5 @@ timidity/Makefile
 utils/Makefile
 doc/Makefile
 doc/C/Makefile
-doc/ja_JP.ujis/Makefile])
+doc/ja_JP.ujis/Makefile
+script/Makefile])

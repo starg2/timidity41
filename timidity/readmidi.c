@@ -727,7 +727,11 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Velocity Sense Offset: %02X",val[7]);
 					break;
 				case 0x1C:
-					MIDIEVENT(at,ME_PAN,p,val[7],0);
+					if (val[7] == 0) {
+						MIDIEVENT(at, ME_RANDOM_PAN, p, 0, 0);
+					} else {
+						MIDIEVENT(at,ME_PAN,p,val[7],0);
+					}
 					num_events++;
 					break;
 				case 0x21:
@@ -940,6 +944,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 				case 0xB00:	/* Source Prog */
 					userdrum_prog = val[7];
 					break;
+#if !defined(TIMIDITY_TOOLS)
 				case 0xC00:	/* Source Note */
 					alloc_instrument_bank(1,64+udn);
 					if(drumset[userdrum_prog]) {
@@ -955,6 +960,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 					userdrum_prog = 0;
 					userdrum_map = 0;
 					break;
+#endif
 			}
 			break;
 		}
@@ -1045,12 +1051,6 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 	    SETMIDIEVENT(*ev, 0, ME_RECEIVE_CHANNEL, (uint8)p, *body >= 64, 0);
 #endif
 	    return 0;
-	}
-
-	if((addr & 0xFFF0FF) == 0x40101C) /* Random pan */
-	{
-	    SETMIDIEVENT(*ev, 0, ME_RANDOM_PAN, p, 0, 0);
-	    return 1;
 	}
 
 	if(0x402000 <= addr && addr <= 0x402F5A) /* Controller Routing */
