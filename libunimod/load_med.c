@@ -36,18 +36,18 @@
 
 /*========== Module information */
 
-typedef struct MMD0
+typedef struct MEDHEADER
   {
     ULONG id;
     ULONG modlen;
-    ULONG MMD0songP;		/* struct MMD0song *song; */
+    ULONG pMEDSONG;		/* struct MEDSONG *song; */
     UWORD psecnum;		/* for the player routine, MMD2 only */
     UWORD pseq;			/*  "   "   "   " */
-    ULONG MMD0BlockPP;		/* struct MMD0Block **blockarr; */
+    ULONG pMEDBLOCKP;		/* struct MMD0Block **blockarr; */
     ULONG reserved1;
-    ULONG InstrHdrPP;		/* struct InstrHdr **smplarr; */
+    ULONG ppMedInstrHdr;		/* struct InstrHdr **smplarr; */
     ULONG reserved2;
-    ULONG MMD0expP;		/* struct MMD0exp *expdata; */
+    ULONG pMEDEXP;		/* struct MEDEXP *expdata; */
     ULONG reserved3;
     UWORD pstate;		/* some data for the player routine */
     UWORD pblock;
@@ -57,9 +57,9 @@ typedef struct MMD0
     UBYTE counter;
     UBYTE extra_songs;		/* number of songs - 1 */
   }
-MMD0;
+MEDHEADER;
 
-typedef struct MMD0sample
+typedef struct MEDSAMPLE
   {
     UWORD rep, replen;		/* offs: 0(s), 2(s) */
     UBYTE midich;		/* offs: 4(s) */
@@ -67,11 +67,11 @@ typedef struct MMD0sample
     UBYTE svol;			/* offs: 6(s) */
     SBYTE strans;		/* offs: 7(s) */
   }
-MMD0sample;
+MEDSAMPLE;
 
-typedef struct MMD0song
+typedef struct MEDSONG
   {
-    MMD0sample sample[63];	/* 63 * 8 bytes = 504 bytes */
+    MEDSAMPLE sample[63];	/* 63 * 8 bytes = 504 bytes */
     UWORD numblocks;		/* offs: 504 */
     UWORD songlen;		/* offs: 506 */
     UBYTE playseq[256];		/* offs: 508 */
@@ -84,9 +84,9 @@ typedef struct MMD0song
     UBYTE mastervol;		/* offs: 786 */
     UBYTE numsamples;		/* offs: 787 */
   }
-MMD0song;
+MEDSONG;
 
-typedef struct MMD0exp
+typedef struct MEDEXP
   {
     ULONG nextmod;		/* pointer to next module */
     ULONG exp_smp;		/* pointer to InstrExt array */
@@ -106,7 +106,7 @@ typedef struct MMD0exp
     ULONG dumps;
     ULONG reserved2[7];
   }
-MMD0exp;
+MEDEXP;
 
 typedef struct MMD0NOTE
   {
@@ -120,37 +120,37 @@ typedef struct MMD1NOTE
   }
 MMD1NOTE;
 
-typedef struct InstrHdr
+typedef struct MEDINSTHEADER
   {
     ULONG length;
     SWORD type;
     /* Followed by actual data */
   }
-InstrHdr;
+MEDINSTHEADER;
 
-typedef struct InstrExt
+typedef struct MEDINSTEXT
   {
     UBYTE hold;
     UBYTE decay;
     UBYTE suppress_midi_off;
     SBYTE finetune;
   }
-InstrExt;
+MEDINSTEXT;
 
-typedef struct InstrInfo
+typedef struct MEDINSTINFO
   {
     UBYTE name[40];
   }
-InstrInfo;
+MEDINSTINFO;
 
 /*========== Loader variables */
 
 #define MMD0_string 0x4D4D4430
 #define MMD1_string 0x4D4D4431
 
-static MMD0 *mh = NULL;
-static MMD0song *ms = NULL;
-static MMD0exp *me = NULL;
+static MEDHEADER *mh = NULL;
+static MEDSONG *ms = NULL;
+static MEDEXP *me = NULL;
 static ULONG *ba = NULL;
 static MMD0NOTE *mmd0pat = NULL;
 static MMD1NOTE *mmd1pat = NULL;
@@ -180,11 +180,11 @@ MED_Test (void)
 BOOL 
 MED_Init (void)
 {
-  if (!(me = (MMD0exp *) _mm_malloc (sizeof (MMD0exp))))
+  if (!(me = (MEDEXP *) _mm_malloc (sizeof (MEDEXP))))
     return 0;
-  if (!(mh = (MMD0 *) _mm_malloc (sizeof (MMD0))))
+  if (!(mh = (MEDHEADER *) _mm_malloc (sizeof (MEDHEADER))))
     return 0;
-  if (!(ms = (MMD0song *) _mm_malloc (sizeof (MMD0song))))
+  if (!(ms = (MEDSONG *) _mm_malloc (sizeof (MEDSONG))))
     return 0;
   return 1;
 }
@@ -459,21 +459,21 @@ MED_Load (BOOL curious)
 {
   int t;
   ULONG sa[64];
-  InstrHdr s;
+  MEDINSTHEADER s;
   SAMPLE *q;
-  MMD0sample *mss;
+  MEDSAMPLE *mss;
 
   /* try to read module header */
   mh->id = _mm_read_M_ULONG (modreader);
   mh->modlen = _mm_read_M_ULONG (modreader);
-  mh->MMD0songP = _mm_read_M_ULONG (modreader);
+  mh->pMEDSONG = _mm_read_M_ULONG (modreader);
   mh->psecnum = _mm_read_M_UWORD (modreader);
   mh->pseq = _mm_read_M_UWORD (modreader);
-  mh->MMD0BlockPP = _mm_read_M_ULONG (modreader);
+  mh->pMEDBLOCKP = _mm_read_M_ULONG (modreader);
   mh->reserved1 = _mm_read_M_ULONG (modreader);
-  mh->InstrHdrPP = _mm_read_M_ULONG (modreader);
+  mh->ppMedInstrHdr = _mm_read_M_ULONG (modreader);
   mh->reserved2 = _mm_read_M_ULONG (modreader);
-  mh->MMD0expP = _mm_read_M_ULONG (modreader);
+  mh->pMEDEXP = _mm_read_M_ULONG (modreader);
   mh->reserved3 = _mm_read_M_ULONG (modreader);
   mh->pstate = _mm_read_M_UWORD (modreader);
   mh->pblock = _mm_read_M_UWORD (modreader);
@@ -483,8 +483,8 @@ MED_Load (BOOL curious)
   mh->counter = _mm_read_UBYTE (modreader);
   mh->extra_songs = _mm_read_UBYTE (modreader);
 
-  /* Seek to MMD0song struct */
-  _mm_fseek (modreader, mh->MMD0songP, SEEK_SET);
+  /* Seek to MEDSONG struct */
+  _mm_fseek (modreader, mh->pMEDSONG, SEEK_SET);
 
   /* Load the MMD0 Song Header */
   mss = ms->sample;		/* load the sample data first */
@@ -518,9 +518,9 @@ MED_Load (BOOL curious)
     }
 
   /* load extension structure */
-  if (mh->MMD0expP)
+  if (mh->pMEDEXP)
     {
-      _mm_fseek (modreader, mh->MMD0expP, SEEK_SET);
+      _mm_fseek (modreader, mh->pMEDEXP, SEEK_SET);
       me->nextmod = _mm_read_M_ULONG (modreader);
       me->exp_smp = _mm_read_M_ULONG (modreader);
       me->s_ext_entries = _mm_read_M_UWORD (modreader);
@@ -540,7 +540,7 @@ MED_Load (BOOL curious)
     }
 
   /* seek to and read the samplepointer array */
-  _mm_fseek (modreader, mh->InstrHdrPP, SEEK_SET);
+  _mm_fseek (modreader, mh->ppMedInstrHdr, SEEK_SET);
   if (!_mm_read_M_ULONGS (sa, ms->numsamples, modreader))
     {
       _mm_errno = MMERR_LOADING_HEADER;
@@ -550,7 +550,7 @@ MED_Load (BOOL curious)
   /* alloc and read the blockpointer array */
   if (!(ba = (ULONG *) _mm_calloc (ms->numblocks, sizeof (ULONG))))
     return 0;
-  _mm_fseek (modreader, mh->MMD0BlockPP, SEEK_SET);
+  _mm_fseek (modreader, mh->pMEDBLOCKP, SEEK_SET);
   if (!_mm_read_M_ULONGS (ba, ms->numblocks, modreader))
     {
       _mm_errno = MMERR_LOADING_HEADER;
@@ -619,7 +619,7 @@ MED_Load (BOOL curious)
   of.numins = ms->numsamples;
   of.numsmp = of.numins;
   of.reppos = 0;
-  if ((mh->MMD0expP) && (me->songname) && (me->songnamelen))
+  if ((mh->pMEDEXP) && (me->songname) && (me->songnamelen))
     {
       char *name;
 
@@ -631,7 +631,7 @@ MED_Load (BOOL curious)
     }
   else
     of.songname = DupStr (NULL, 0, 0);
-  if ((mh->MMD0expP) && (me->annotxt) && (me->annolen))
+  if ((mh->pMEDEXP) && (me->annotxt) && (me->annolen))
     {
       _mm_fseek (modreader, me->annotxt, SEEK_SET);
       ReadComment (me->annolen);
@@ -685,10 +685,10 @@ MED_Load (BOOL curious)
       else
 	q->length = 0;
 
-      if ((mh->MMD0expP) && (me->exp_smp) &&
+      if ((mh->pMEDEXP) && (me->exp_smp) &&
 	  (t < me->s_ext_entries) && (me->s_ext_entrsz >= 4))
 	{
-	  InstrExt ie;
+	  MEDINSTEXT ie;
 
 	  _mm_fseek (modreader, me->exp_smp + t * me->s_ext_entrsz, SEEK_SET);
 	  ie.hold = _mm_read_UBYTE (modreader);
@@ -701,10 +701,10 @@ MED_Load (BOOL curious)
       else
 	q->speed = 8363;
 
-      if ((mh->MMD0expP) && (me->iinfo) &&
+      if ((mh->pMEDEXP) && (me->iinfo) &&
 	  (t < me->i_ext_entries) && (me->i_ext_entrsz >= 40))
 	{
-	  InstrInfo ii;
+	  MEDINSTINFO ii;
 
 	  _mm_fseek (modreader, me->iinfo + t * me->i_ext_entrsz, SEEK_SET);
 	  _mm_read_UBYTES (ii.name, 40, modreader);

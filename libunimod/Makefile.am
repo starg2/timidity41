@@ -40,6 +40,7 @@ libunimod_a_SOURCES = \
 	load_med.c \
 	load_mod.c \
 	load_mtm.c \
+	load_okt.c \
 	load_s3m.c \
 	load_stm.c \
 	load_stx.c \

@@ -240,10 +240,10 @@ M15_Test (void)
 	    return 0;
 	}
 
-      if (!ust_loader)
-	return 1;
-
-      if ((mh.samples[t].reppos + mh.samples[t].replen) > (mh.samples[t].length + 10))
+      /* if loop information is incorrect as words, but correct as bytes,
+	 this is likely to be an ust-style module */
+      if((mh.samples[t].reppos + mh.samples[t].replen > mh.samples[t].length) &&
+	 (mh.samples[t].reppos + mh.samples[t].replen < (mh.samples[t].length << 1)))
 	{
 	  ust_loader = 1;
 	  return 1;
@@ -370,6 +370,10 @@ M15_ConvertNote (MODNOTE * n)
       lastnote = note;
     }
 
+  /* Handle ``heavy'' volumes correctly */
+  if ((effect == 0xc) && (effdat > 0x40))
+    effdat = 0x40;
+
   /* Convert pattern jump from Dec to Hex */
   if (effect == 0xd)
     effdat = (((effdat & 0xf0) >> 4) * 10) + (effdat & 0xf);
@@ -399,8 +403,13 @@ M15_ConvertNote (MODNOTE * n)
 	  break;
 	}
     }
-  else
+  else {
+    /* Ignore 100, 200 and 300 (there is no porta memory in mod files) */
+    if ((!effdat) && ((effect == 1)||(effect == 2)||(effect == 3)))
+      effect = 0;
+
     UniPTEffect (effect, effdat);
+  }
 }
 
 static UBYTE *
@@ -529,9 +538,11 @@ M15_Load (BOOL curious)
       q->loopend = q->loopstart + (s->replen << 1);
       q->length = s->length << 1;
 
-      q->flags = SF_SIGNED | SF_UST_LOOP;
-      if (s->replen > 1)
-	q->flags |= SF_LOOP;
+      q->flags = SF_SIGNED;
+      if(ust_loader)
+        q->flags |= SF_UST_LOOP;
+      if(s->replen > 2)
+        q->flags |= SF_LOOP;
 
       /* fix replen if repend>length */
       if (q->loopend > q->length)
@@ -566,7 +577,7 @@ MLOADER load_m15 =
 {
   NULL,
   "15-instrument module",
-  "MOD (15 instrument)",
+  "MOD (15 instruments)",
   M15_Init,
   M15_Test,
   M15_Load,

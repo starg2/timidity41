@@ -83,41 +83,25 @@ STMNOTE;
 static STMNOTE *stmbuf = NULL;
 static STMHEADER *mh = NULL;
 
-/* tracker identifiers */
-#define NUMTRACKERS 3
-static CHAR mod2stm_sig[] = "BMOD2STM";
-static CHAR scream_sig[] = "!Scream!";
-static CHAR wuzamod_sig[] = "WUZAMOD!";
-static CHAR *STM_Signatures[NUMTRACKERS] =
-{
-  scream_sig,
-  mod2stm_sig,
-  wuzamod_sig
-};
-static CHAR *STM_Version[NUMTRACKERS] =
-{
-  "Screamtracker 2",
-  "Converted by MOD2STM (STM format)",
-  "Wuzamod (STM format)"
-};
-
 /*========== Loader code */
 
 BOOL 
 STM_Test (void)
 {
   UBYTE str[44];
+  int t;
 
   _mm_fseek (modreader, 20, SEEK_SET);
   _mm_read_UBYTES (str, 44, modreader);
   if (str[9] != 2)
     return 0;			/* STM Module = filetype 2 */
 
-  if (!memcmp (str, mod2stm_sig, 8))
-    return 1;
+  if(!memcmp (str + 40, "SCRM", 4))
+    return 0;
 
-  if ((!memcmp (str, scream_sig, 8)) && (memcmp (str + 40, "SCRM", 4)))
-    return 1;
+  for (t=0;t<STM_NTRACKERS;t++)
+    if(!memcmp (str, STM_Signatures[t], 8))
+      return 1;
 
   return 0;
 }
@@ -323,7 +307,7 @@ STM_Load (BOOL curious)
     }
 
   /* set module variables */
-  for (t = 0; t < NUMTRACKERS; t++)
+  for (t = 0; t < STM_NTRACKERS; t++)
     if (!memcmp (mh->trackername, STM_Signatures[t], 8))
       break;
   of.modtype = strdup (STM_Version[t]);
@@ -361,7 +345,7 @@ STM_Load (BOOL curious)
     {
       /* load sample info */
       q->samplename = DupStr (mh->sample[t].filename, 12, 1);
-      q->speed = mh->sample[t].c2spd;
+      q->speed = (mh->sample[t].c2spd * 8363L) / 8448;
       q->volume = mh->sample[t].volume;
       q->length = mh->sample[t].length;
       if ( /*(!mh->sample[t].volume)|| */ (q->length == 1))
@@ -380,7 +364,7 @@ STM_Load (BOOL curious)
       if (q->loopstart >= q->length)
 	q->loopstart = q->loopend = 0;
 
-      if ((q->loopend > 0) && (q->loopend != 0xffff))
+      if ((q->loopend > 0) && (q->loopend != 0xffff) && (q->loopend!=q->loopstart))
 	q->flags |= SF_LOOP;
       /* fix replen if repend>length */
       if (q->loopend > q->length)

@@ -149,7 +149,7 @@ TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
 TCLF = tkmidity.tcl tkpanel.tcl browser.tcl misc.tcl
 ALLTCLF = $(TCLF) tclIndex
 
-EXTRA_DIST =  	tkmidity.ptcl 	tkpanel.tcl 	browser.tcl 	misc.tcl 	timidity.el 	tclIndex
+EXTRA_DIST =  	tkmidity.ptcl 	tkpanel.tcl 	browser.tcl 	misc.tcl 	timidity.el 	tclIndex 	interface_T.txt 	interface_a.txt 	interface_e.txt 	interface_g.txt 	interface_i.txt 	interface_m.txt 	interface_n.txt 	interface_s.txt
 
 @ENABLE_TCLTK_TRUE@install_tk = install.tk
 @ENABLE_DYNAMIC_TCLTK_TRUE@install_tk = install.tk
@@ -656,6 +656,12 @@ w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
 
 @NEEDDLOPEN_TRUE@interface_g.$(so): gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so)
 @NEEDDLOPEN_TRUE@	$(SHLD) -o $@ gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
+
+@NEEDDLOPEN_TRUE@interface_r.$(so): server_c.$(so) support.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ server_c.$(so) support.$(so)
+
+@NEEDDLOPEN_TRUE@interface_A.$(so): alsaseq_c.$(so) support.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ alsaseq_c.$(so) support.$(so)
 
 clean-compile:
 	-rm -f *.$(so)

@@ -93,7 +93,7 @@ ump: ump-targets
 ump-targets: $(UMPDIR)/Makefile
 
 $(UMPDIR)/Makefile: $(UMPDIR)/Makefile.in config.status
-	CONFIG_HEADERS='' CONFIG_FILES=ump/Makefile $(SHELL) ./config.status 
+	CONFIG_HEADERS='' CONFIG_FILES=ump/Makefile $(SHELL) ./config.status
 
 ## for developers
 #$(UMPDIR)/Makefile.in: $(UMPDIR)/Makefile.am

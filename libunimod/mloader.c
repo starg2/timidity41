@@ -1181,6 +1181,7 @@ ML_RegisterAllLoaders (void)
   LOADER (load_imf);
   LOADER (load_med);
   LOADER (load_mtm);
+  LOADER (load_okt);
   LOADER (load_stm);
   LOADER (load_stx);
   LOADER (load_ult);

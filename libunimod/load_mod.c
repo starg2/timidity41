@@ -259,6 +259,14 @@ ConvertNote (MODNOTE * n)
   if ((effect == 0xa) && (effdat & 0xf) && (effdat & 0xf0))
     effdat &= 0xf0;
 
+  /* Handle ``heavy'' volumes correctly */
+  if ((effect == 0xc) && (effdat > 0x40))
+    effdat = 0x40;
+
+  /* Ignore 100, 200 and 300 (there is no porta memory in mod files) */
+  if ((!effdat) && ((effect == 1)||(effect == 2)||(effect ==3)))
+    effect = 0;
+
   UniPTEffect (effect, effdat);
 }
 
@@ -443,7 +451,7 @@ MLOADER load_mod =
 {
   NULL,
   "Standard module",
-  "MOD (31 instrument)",
+  "MOD (31 instruments)",
   MOD_Init,
   MOD_Test,
   MOD_Load,

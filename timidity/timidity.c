@@ -504,7 +504,7 @@ NULL
   while(*cmp)
   {
 #ifdef IA_DYNAMIC
-      if((*cmp)->id_character != 0)
+      if((*cmp)->id_character != dynamic_interface_id)
 #endif /* IA_DYNAMIC */
 	  fprintf(fp, "  -i%c     %s" NLS,
 		  (*cmp)->id_character, (*cmp)->id_name);
@@ -521,6 +521,7 @@ NULL
       for(cmp = ctl_list; *cmp; cmp++)
 	  mark[(int)(*cmp)->id_character] = 1;
 
+      if (dynamic_interface_id != 0) mark[(int)dynamic_interface_id] = 0;
       list_dyna_interface(fp, dynamic_lib_root, mark);
   }
 #endif /* IA_DYNAMIC */
@@ -777,7 +778,7 @@ int set_ctl(char *cp)
 	    return 0;
 	}
 #ifdef IA_DYNAMIC
-	else if(cmp->id_character == 0) /* Dynamic interface loader */
+	else if(cmp->id_character == dynamic_interface_id) /* Dynamic interface loader */
 	{
 	    if(dynamic_interface_module(*cp) != NULL)
 	    {

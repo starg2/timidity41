@@ -465,7 +465,7 @@ ump: ump-targets
 ump-targets: $(UMPDIR)/Makefile
 
 $(UMPDIR)/Makefile: $(UMPDIR)/Makefile.in config.status
-	CONFIG_HEADERS='' CONFIG_FILES=ump/Makefile $(SHELL) ./config.status 
+	CONFIG_HEADERS='' CONFIG_FILES=ump/Makefile $(SHELL) ./config.status
 
 #$(UMPDIR)/Makefile.in: $(UMPDIR)/Makefile.am
 #	$(AUTOMAKE) --gnu $(UMPSDIR)/Makefile

@@ -126,6 +126,12 @@ extern FILTER filtersettings[256];	/* computed filter settings */
 
 extern int *noteindex;
 
+/* tracker identifiers */
+#define STM_NTRACKERS 3
+extern CHAR *STM_Signatures[];
+extern CHAR *STM_Version[];
+
+
 /*========== Internal loader interface */
 
 extern BOOL ReadComment (UWORD);

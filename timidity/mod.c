@@ -370,9 +370,15 @@ MP_FindEmptyChannel (void)
   ULONG t, k, tvol, pp;
 
   for (t = 0; t < MOD_NUM_VOICES; t++)
-    if (((mp.voice[t].kick == KICK_ABSENT) || (mp.voice[t].kick == KICK_ENV)) &&
-	Voice_Stopped (t))
-      return t;
+    {
+      /* allow us to take over a nonexisting sample */
+      if (!a->s)
+        return k;
+
+      if (((mp.voice[t].kick == KICK_ABSENT) || (mp.voice[t].kick == KICK_ENV)) &&
+	  Voice_Stopped (t))
+        return t;
+    }
 
   tvol = 0xffffffUL;
   t = 0;
@@ -393,6 +399,7 @@ MP_FindEmptyChannel (void)
 
   if (tvol > 8000 * 7)
     return -1;
+
   return t;
 }
 
@@ -843,8 +850,6 @@ static void
 DoS3MVolSlide (UBYTE inf)
 {
   UBYTE lo, hi;
-
-  mp.explicitslides = 1;
 
   if (inf)
     a->s3mvolslide = inf;
@@ -1354,7 +1359,7 @@ DoITTempo (UBYTE tempo)
 {
   SWORD temp = mp.newbpm;
 
-  if (mp.vbtick || mp.patdly2)
+  if (mp.patdly2)
     return;
 
   if (tempo & 0x10)
@@ -1585,7 +1590,7 @@ DoSSEffects (UBYTE dat)
     case SS_PANNING:		/* S8x set panning position */
       DoEEffects (0x80 | inf);
       break;
-    case SS_SURROUND:		/* S9x set surround Sound */
+    case SS_SURROUND:		/* S9x set surround sound */
       a->panning = pf->panning[mp.channel] = PAN_SURROUND;
       break;
     case SS_HIOFFSET:		/* SAy set high order sample offset yxx00h */
@@ -1727,18 +1732,14 @@ pt_playeffects (void)
       a->sliding = 0;
       switch (c)
 	{
-	case UNI_NOTE:
-	case UNI_INSTRUMENT:
-	  a->sliding = oldsliding;
-	  UniSkipOpcode (c);
-	  break;
 	case UNI_PTEFFECT0:
 	  dat = UniGetByte ();
 	  if (!mp.vbtick)
 	    {
 	      if ((!dat) && (pf->flags & UF_ARPMEM))
 		dat = a->arpmem;
-	      a->arpmem = dat;
+	      else
+	        a->arpmem = dat;
 	    }
 	  if (a->period)
 	    DoArpeggio (a->arpmem);
@@ -2055,10 +2056,14 @@ pt_playeffects (void)
 
 	      if ((aout = a->slave))
 		{
-		  points = i->volenv[i->volpts - 1].pos;
-		  aout->venv.p = aout->venv.env[(dat > points) ? points : dat].pos;
-		  points = i->panenv[i->panpts - 1].pos;
-		  aout->penv.p = aout->penv.env[(dat > points) ? points : dat].pos;
+		  if (aout->venv.env) {
+		    points = i->volenv[i->volpts - 1].pos;
+		    aout->venv.p = aout->venv.env[(dat > points) ? points : dat].pos;
+		  }
+		  if (aout->penv.env) {
+		    points = i->panenv[i->panpts - 1].pos;
+		    aout->penv.p = aout->penv.env[(dat > points) ? points : dat].pos;
+		  }
 		}
 	    }
 	  break;
@@ -2196,6 +2201,8 @@ pt_playeffects (void)
 	case UNI_MEDEFFECTF3:
 	  DoEEffects (0x90 | (mp.sngspd / 3));
 	  break;
+	/* case UNI_NOTE: */
+	/* case UNI_INSTRUMENT: */
 	default:
 	  a->sliding = oldsliding;
 	  UniSkipOpcode (c);
@@ -2310,6 +2317,10 @@ pt_UpdateVoices ()
 	  aout->fadevol = 32768;
 	  aout->aswppos = 0;
 	}
+
+      /* check for a dead note (fadevol=0) */
+      if (!aout->fadevol || kick_voice)
+	Voice_Stop (mp.channel);
 
       if (i && ((aout->kick == KICK_NOTE) || (aout->kick == KICK_ENV)))
 	{
@@ -2454,16 +2465,12 @@ pt_UpdateVoices ()
 
       if (!aout->fadevol)
 	{			/* check for a dead note (fadevol=0) */
-	  Voice_Stop (mp.channel);
 	  mp.totalchn--;
 	  if ((tmpvol) && (aout->master) && (aout->master->slave == aout))
 	    mp.realchn--;
 	}
       else
 	{
-	  if (kick_voice)
-	    Voice_Stop (mp.channel);
-
 	  Voice_SetPeriod (mp.channel,
 		      getAmigaPeriod (pf->flags, playperiod));
 
@@ -2546,6 +2553,7 @@ pt_Notes (void)
 	    a->i = (pf->flags & UF_INST) ? &pf->instruments[inst] : NULL;
 	    a->retrig = 0;
 	    a->s3mtremor = 0;
+	    a->ultoffset = 0;
 	    a->sample = inst;
 	    break;
 	  default:
@@ -2613,7 +2621,7 @@ pt_Notes (void)
 	      a->panflg = 0;
 	      a->nna = 0;
 	      a->dca = 0;
-	      a->dct = 0;
+	      a->dct = DCT_OFF;
 	    }
 
 	  if (funky & 2)	/* instrument change */
@@ -2680,16 +2688,8 @@ pt_EffectsPass1 (void)
       /* continue volume slide if necessary for XM and IT */
       if (pf->flags & UF_BGSLIDES)
 	{
-	  if (!mp.explicitslides)
-	    switch (a->sliding)
-	      {
-	      case 1:
-		DoS3MVolSlide (0);
-		break;
-	      case 2:
-		DoXMVolSlide (0);
-		break;
-	      }
+	  if (!mp.explicitslides && a->sliding)
+	    DoS3MVolSlide(0);
 	  else if (a->tmpvolume)
 	    a->sliding = mp.explicitslides;
 	}
@@ -2829,13 +2829,13 @@ pt_SetupVoices (void)
 	  else
 	    a->slave = &mp.voice[a->slavechn = mp.channel];
 
-	  /* assign parts of MP_VOICE only done for a KICK ! */
+	  /* assign parts of MP_VOICE only done for a KICK_NOTE */
 	  if ((aout = a->slave))
 	    {
 	      if (aout->mflag && aout->master)
 		aout->master->slave = NULL;
-	      a->slave = aout;
 	      aout->master = a;
+	      a->slave = aout;
 	      aout->masterchn = mp.channel;
 	      aout->mflag = 1;
 	    }
@@ -2845,7 +2845,6 @@ pt_SetupVoices (void)
 
       if (aout)
 	{
-	  aout->kick = a->kick;
 	  aout->i = a->i;
 	  aout->s = a->s;
 	  aout->sample = a->sample;
@@ -2854,6 +2853,7 @@ pt_SetupVoices (void)
 	  aout->panning = a->panning;
 	  aout->chanvol = a->chanvol;
 	  aout->fadevol = a->fadevol;
+	  aout->kick = a->kick;
 	  aout->start = a->start;
 	  aout->volflg = a->volflg;
 	  aout->panflg = a->panflg;

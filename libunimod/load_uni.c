@@ -118,7 +118,7 @@ UNI_Test (void)
   /* UNIMod created by APlayer */
   if (!(memcmp (id, "APUN\01", 5)))
     {
-      if ((id[5] >= 1) && (id[5] <= 3))
+      if ((id[5] >= 1) && (id[5] <= 4))
 	return 1;
     }
   return 0;

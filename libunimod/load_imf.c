@@ -611,7 +611,10 @@ IMF_Load (BOOL curious)
       d->volfade = ih.volfade;
 
 #define IMF_ProcessEnvelope(name) 										\
-		memcpy(d->##name##env,ih.##name##env,IMFENVCNT);				\
+		for (u = 0; u < (IMFENVCNT >> 1); u++) {						\
+			d->##name##env[u].pos = ih.##name##env[u << 1];				\
+			d->##name##env[u].val = ih.##name##env[(u << 1)+ 1];		\
+		}																\
 		if (ih.##name##flg&1) d->##name##flg|=EF_ON;					\
 		if (ih.##name##flg&2) d->##name##flg|=EF_SUSTAIN;				\
 		if (ih.##name##flg&4) d->##name##flg|=EF_LOOP;					\

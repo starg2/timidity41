@@ -117,7 +117,7 @@ INCLUDES =  	-I$(top_srcdir) 	-I$(top_srcdir)/timidity 	-I$(top_srcdir)/utils 	-
 
 noinst_LIBRARIES = libunimod.a
 
-libunimod_a_SOURCES =  	load_669.c 	load_amf.c 	load_dsm.c 	load_far.c 	load_gdm.c 	load_imf.c 	load_it.c 	load_m15.c 	load_med.c 	load_mod.c 	load_mtm.c 	load_s3m.c 	load_stm.c 	load_stx.c 	load_ult.c 	load_uni.c 	load_xm.c 	mloader.c 	mlutil.c 	mmsup.c 	munitrk.c 	unimod.h 	unimod_priv.h
+libunimod_a_SOURCES =  	load_669.c 	load_amf.c 	load_dsm.c 	load_far.c 	load_gdm.c 	load_imf.c 	load_it.c 	load_m15.c 	load_med.c 	load_mod.c 	load_mtm.c 	load_okt.c 	load_s3m.c 	load_stm.c 	load_stx.c 	load_ult.c 	load_uni.c 	load_xm.c 	mloader.c 	mlutil.c 	mmsup.c 	munitrk.c 	unimod.h 	unimod_priv.h
 
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../config.h ../interface.h
@@ -136,8 +136,8 @@ X_PRE_LIBS = @X_PRE_LIBS@
 libunimod_a_LIBADD = 
 libunimod_a_OBJECTS =  load_669.o load_amf.o load_dsm.o load_far.o \
 load_gdm.o load_imf.o load_it.o load_m15.o load_med.o load_mod.o \
-load_mtm.o load_s3m.o load_stm.o load_stx.o load_ult.o load_uni.o \
-load_xm.o mloader.o mlutil.o mmsup.o munitrk.o
+load_mtm.o load_okt.o load_s3m.o load_stm.o load_stx.o load_ult.o \
+load_uni.o load_xm.o mloader.o mlutil.o mmsup.o munitrk.o
 AR = ar
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -261,6 +261,8 @@ load_med.o: load_med.c ../config.h unimod_priv.h unimod.h \
 load_mod.o: load_mod.c ../config.h unimod_priv.h unimod.h \
 	../libarc/url.h
 load_mtm.o: load_mtm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_okt.o: load_okt.c ../config.h unimod_priv.h unimod.h \
 	../libarc/url.h
 load_s3m.o: load_s3m.c ../config.h unimod_priv.h unimod.h \
 	../libarc/url.h

@@ -113,7 +113,6 @@ EXTRA_libinterface_a_SOURCES = \
 	w32g_sleep.bmp \
 	w32g_subbtn.bmp
 
-
 if ENABLE_WRD
 WRD_OBJS = \
 	wrdt_x.o \
@@ -167,7 +166,15 @@ EXTRA_DIST = \
 	browser.tcl \
 	misc.tcl \
 	timidity.el \
-	tclIndex
+	tclIndex \
+	interface_T.txt \
+	interface_a.txt \
+	interface_e.txt \
+	interface_g.txt \
+	interface_i.txt \
+	interface_m.txt \
+	interface_n.txt \
+	interface_s.txt
 
 .ptcl.tcl:
 	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@
@@ -281,6 +288,12 @@ interface_i.$(so): xskin_c.$(so) support.$(so) xskin_i.$(so) xskin_loadBMP.$(so)
 
 interface_g.$(so): gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so)
 	$(SHLD) -o $@ gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
+
+interface_r.$(so): server_c.$(so) support.$(so)
+	$(SHLD) -o $@ server_c.$(so) support.$(so)
+
+interface_A.$(so): alsaseq_c.$(so) support.$(so)
+	$(SHLD) -o $@ alsaseq_c.$(so) support.$(so)
 
 endif
 

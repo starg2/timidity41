@@ -48,6 +48,21 @@ UBYTE  activemacro;         /* active midi macro number for Sxx,xx<80h */
 UBYTE  filtermacros[16];    /* midi macros settings */
 FILTER filtersettings[256]; /* computed filter settings */
 
+/* tracker identifiers */
+CHAR *STM_Signatures[STM_NTRACKERS] =
+{
+  "!Scream",
+  "BMOD2STM",
+  "WUZAMOD!"
+};
+CHAR *STM_Version[STM_NTRACKERS] =
+{
+  "Screamtracker 2",
+  "Converted by MOD2STM (STM format)",
+  "Wuzamod (STM format)"
+};
+
+
 /*========== Linear periods stuff */
 
 
@@ -328,7 +343,7 @@ void S3MIT_CreateOrders(BOOL curious)
 		if(origpositions[t]<254) of.numpos++;
 		else
 			/* end of song special order */
-			if((of.positions[t]==255)&&(!(curious--))) break;
+			if((origpositions[t]==255)&&(!(curious--))) break;
 	}
 }
 
@@ -506,7 +521,7 @@ void UniPTEffect(UBYTE eff, UBYTE dat)
 		fprintf(stderr,"UniPTEffect called with incorrect eff value %d\n",eff);
 	else
 #endif
-	if((eff)||(dat)) UniEffect(UNI_PTEFFECT0+eff,dat);
+	if((eff)||(dat)||(of.flags & UF_ARPMEM)) UniEffect(UNI_PTEFFECT0+eff,dat);
 }
 
 /* Appends UNI_VOLEFFECT + effect/dat to unistream. */

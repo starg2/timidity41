@@ -83,6 +83,9 @@ int recompute_envelope(int v)
 	 *  it will take to decay a note at maximum volume.
 	 * 2000-3000 msec seem to be decent values to use.
 	 *
+	 * 08/24/00 changed behavior to not begin the decay until
+	 *  after the sample plays past it's loop start
+	 *
 	 */
 
 	if(min_sustain_time <= 0)	/* Default behavior */
@@ -91,7 +94,8 @@ int recompute_envelope(int v)
 	    vp->envelope_increment = 0;
 	}
 	else if((vp->status & VOICE_SUSTAINED) &&
-		(vp->sample->modes & MODES_LOOPING))
+		(vp->sample->modes & MODES_LOOPING) &&
+		(vp->sample_offset - vp->sample->loop_start >= 0))
 	{
 	    if(min_sustain_time == 1)
 		goto next_stage; /* Go to next stage.

@@ -46,7 +46,7 @@
 typedef struct STXHEADER
   {
     CHAR songname[20];
-    CHAR scream[8];
+    CHAR trackername[8];
     UWORD patsize;
     UWORD unknown1;
     UWORD patptr;
@@ -107,14 +107,16 @@ static BOOL
 STX_Test (void)
 {
   UBYTE id[8];
+  int t;
 
-  _mm_fseek (modreader, 0x14, SEEK_SET);
-  if (!_mm_read_UBYTES (id, 8, modreader))
-    return 0;
-  if (memcmp (id, "!Scream!", 8))
+  _mm_fseek(modreader,0x14,SEEK_SET);
+  if(!_mm_read_UBYTES(id, 8, modreader))
     return 0;
 
-  _mm_fseek (modreader, 0x20, SEEK_CUR);
+  for(t=0;t<STM_NTRACKERS;t++)
+    if(!memcmp(id,STM_Signatures[t],8)) return 1;
+
+  _mm_fseek (modreader, 0x3C, SEEK_SET);
   if (!_mm_read_UBYTES (id, 4, modreader))
     return 0;
   if (memcmp (id, "SCRM", 4))
@@ -180,7 +182,11 @@ STX_ReadPattern (void)
 	      n->ins = _mm_read_UBYTE (modreader);
 	    }
 	  if (flag & 64)
-	    n->vol = _mm_read_UBYTE (modreader);
+	    {
+	      n->vol = _mm_read_UBYTE (modreader);
+	      if (n->vol > 64)
+	        n->vol = 64;
+	    }
 	  if (flag & 128)
 	    {
 	      n->cmd = _mm_read_UBYTE (modreader);
@@ -291,7 +297,7 @@ STX_Load (BOOL curious)
 
   /* try to read module header */
   _mm_read_string (mh->songname, 20, modreader);
-  _mm_read_string (mh->scream, 8, modreader);
+  _mm_read_string (mh->trackername, 8, modreader);
   mh->patsize = _mm_read_I_UWORD (modreader);
   mh->unknown1 = _mm_read_I_UWORD (modreader);
   mh->patptr = _mm_read_I_UWORD (modreader);
@@ -316,6 +322,16 @@ STX_Load (BOOL curious)
       _mm_errno = MMERR_LOADING_HEADER;
       return 0;
     }
+
+  for (t = 0; t < STM_NTRACKERS; t++)
+    if (!memcmp (mh->trackername, STM_Signatures[t], 8))
+      break;
+
+  of.modtype = _mm_malloc(
+    strlen(STM_Version[t]) +
+    strlen("STM2STX 1.x ()") + 1);
+
+  sprintf(of.modtype, "STM2STX 1.x (%s)", STM_Version[t]);
 
   /* set module variables */
   of.songname = DupStr (mh->songname, 20, 1);
@@ -342,12 +358,12 @@ STX_Load (BOOL curious)
   if (version == mh->patsize)
     {
       version = 0x10;
-      of.modtype = strdup ("STMIK 0.2 (STM2STX 1.0)");
+      of.modtype[10] = '0';
     }
   else
     {
       version = 0x11;
-      of.modtype = strdup ("STMIK 0.2 (STM2STX 1.1)");
+      of.modtype[10] = '1';
     }
 
   /* read the order data */
@@ -413,7 +429,7 @@ STX_Load (BOOL curious)
 	}
 
       q->samplename = DupStr (s.sampname, 28, 1);
-      q->speed = s.c2spd;
+      q->speed = (s.c2spd * 8363) / 8448;
       q->length = s.length;
       q->loopstart = s.loopbeg;
       q->loopend = s.loopend;
@@ -423,12 +439,11 @@ STX_Load (BOOL curious)
 
       /* fix for bad converted STMs */
       if (q->loopstart >= q->length)
-	{
-	  q->loopstart = q->loopend = 0;
-	  s.flags &= ~1;
-	}
+	q->loopstart = q->loopend = 0;
 
-      if (s.flags & 1)
+      /* some modules come with loopstart == loopend == 0, yet have the
+       * looping flag set */
+      if ((s.flags & 1) && (q->loopstart != q->loopend))
 	{
 	  q->flags |= SF_LOOP;
 	  if (q->loopend > q->length)

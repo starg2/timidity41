@@ -1956,6 +1956,7 @@ void x_sry_wrdt_apply(uint8 *data, int len)
       case 0x1d:
       case 0x1e:
       case 0x1f:
+      case 0x20:
       case 0x71:
       case 0x72:
       case 0x7f:
@@ -2051,10 +2052,6 @@ static ImagePixmap *create_shm_image_pixmap(int width, int height, int depth)
 	    shm_error = -1;
 	goto done;
     }
-
-    /* allocate n-depth Z image data structure */
-    ip->im->data = (char *)safe_large_malloc(ip->im->bytes_per_line *
-					     ip->im->height);
 
     /* The next step is to create the shared memory segment.
      * The return value of shmat() should be stored both

@@ -524,9 +524,11 @@ LoadInstruments (void)
 	      for (u = headend - _mm_ftell (modreader); u; u--)
 		_mm_read_UBYTE (modreader);
 
-	      /* #@!$&% fix for K_OSPACE.XM */
-	      if (pth.volpts == 32)
-		pth.volpts = XMENVCNT / 2;
+	      /* #@!$&% fix for K_OSPACE.XM and possibly others */
+	      if(pth.volpts > XMENVCNT/2)
+	        pth.volpts = XMENVCNT/2;
+	      if(pth.panpts > XMENVCNT/2)
+	        pth.panpts = XMENVCNT/2;
 
 	      if ((_mm_eof (modreader)) || (pth.volpts > XMENVCNT / 2) || (pth.panpts > XMENVCNT / 2))
 		{
@@ -549,6 +551,10 @@ LoadInstruments (void)
 	      d->volfade = pth.volfade;
 
 #define XM_ProcessEnvelope(name) 											\
+ 				for (u = 0; u < (XMENVCNT / 2); u++) {						\
+ 					d->##name##env[u].pos = pth.##name##env[2*u];		\
+ 					d->##name##env[u].val = pth.##name##env[2*u + 1];	\
+ 				}															\
 				memcpy(d->##name##env,pth.##name##env,XMENVCNT);			\
 				if (pth.##name##flg&1) d->##name##flg|=EF_ON;				\
 				if (pth.##name##flg&2) d->##name##flg|=EF_SUSTAIN;			\
