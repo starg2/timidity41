@@ -88,8 +88,10 @@ extern PlayMode nas_play_mode;
 /* These are always compiled in. */
 extern PlayMode raw_play_mode, wave_play_mode, au_play_mode, aiff_play_mode;
 extern PlayMode list_play_mode;
+#ifdef AU_OGG
+extern PlayMode ogg_play_mode;
+#endif /* AU_OGG */
 #endif /* !__MACOS__ */
-
 
 PlayMode *play_mode_list[] = {
 #ifdef DEV_PLAY_MODE
@@ -117,6 +119,9 @@ PlayMode *play_mode_list[] = {
   &raw_play_mode,
   &au_play_mode,
   &aiff_play_mode,
+#ifdef AU_OGG
+  &ogg_play_mode,
+#endif /* AU_OGG */
   &list_play_mode,
 #endif /* __MACOS__ */
   0

@@ -313,6 +313,9 @@ int aq_add(int32 *samples, int32 count)
     nbytes = general_output_convert(samples, count);
     buff = (char *)samples;
 
+    if(device_qsize == 0)
+      return play_mode->output_data(buff, nbytes);
+
     aq_fill_buffer_flag = (aq_add_count <= aq_start_count);
 
     if(!aq_fill_buffer_flag)

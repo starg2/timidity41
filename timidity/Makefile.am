@@ -118,6 +118,7 @@ EXTRA_timidity_SOURCES = \
 	mfnode.h \
 	nas_a.c \
 	sun_a.c \
+	vorbis_a.c \
 	w32_a.c \
 	w32g_a.c \
 	timpp32g.ini

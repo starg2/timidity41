@@ -1,3 +1,18 @@
+2000-07-20  Masanao Izumo <mo@goice.co.jp>
+
+    * vorbis_a.c: Supported Ogg Vorbis output: -Ov
+	(enabled if TiMidity is configured with --enabel-vorbis=yes option)
+
+2000-07-18  Takashi Iwai <tiwai@suse.de>
+
+    * interface/alsaseq_c.c: Enabled OSS emulation.
+
+2000-07-15  Takashi Iwai <tiwai@suse.de>
+
+    * interface/alsaseq_c.c: Added new interface:
+	TiMidity as ALSA sequencer client.  This interface enabled if
+	the timidity is configured with --enable-alsaseq.
+
 2000-07-15  Masanao Izumo <mo@goice.co.jp>
 
     * option -Bn,m sets audio buffer fragments as n, and audio buffer size
@@ -7,8 +22,6 @@
 	are parameter.
 
     * timidity/aq.c: Modified.
-
-    * timidity/nas_a.c: Remove PF_CAN_TRACE flag from PlayMode.
 
 2000-07-05  Masanao Izumo <mo@goice.co.jp>
 

@@ -360,6 +360,13 @@ distdir: $(DISTFILES)
 	      || exit 1; \
 	  fi; \
 	done
+alsaseq_c.o: alsaseq_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/controls.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/readmidi.h \
+	../timidity/recache.h ../timidity/output.h ../timidity/aq.h \
+	../utils/timer.h
+
 info-am:
 info: info-recursive
 dvi-am:

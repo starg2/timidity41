@@ -32,7 +32,7 @@
     by ALSA seqeuncer core.
 
     For invoking ALSA sequencer interface, run timidity as folows:
-      % timidity -iA -B2
+      % timidity -iA -B2,8
     The fragment size can be adjustable.  The smaller number gives
     better real-time response.  Then timidity shows new port numbers
     which were newly created (128:0 and 128:1 below).
@@ -40,7 +40,7 @@
       % timidity -iA -B2,8
       TiMidity starting in ALSA server mode
       Opening sequencer port 128:0 128:1
-    ----------------------------
+    ---------------------------------------
     These ports can be connected with any other sequencer ports.
     For example, playing a MIDI file via pmidi (what's an overkill :-),
       % pmidi -p128:0 foo.mid
@@ -52,6 +52,45 @@
     The interface tries to reset process scheduling as SCHED_FIFO
     and as high priority as possible.  For enabling this feature,
     timidity must be invoked by root or installed with set-uid root.
+    The SCHED_FIFO'd program shows much better real-time response.
+    For example, without rescheduled, timidity may cause pauses at
+    every time /proc is accessed.
+
+    Timidity loads instruments dynamically at each time a PRM_CHANGE
+    event is received.  This causes sometimes pauses during playback.
+    It occurs often in the playback via pmidi.
+    Furthermore, timidity resets the loaded instruments when the all
+    subscriptions are disconnected.  Thus for keeping all loaded
+    instruments also after playback is finished, you need to connect a
+    dummy port (e.g. midi input port) to timidity port via aconnect:
+      % aconnect 64:0 128:0
+
+    If you prefer a bit more fancy visual output, use my tiny program, 
+    aseqview.
+      % aseqview -p2 &amp;
+    Then connect two ports to timidity ports:
+      % aconnect 129:0 128:0
+      % aconnect 129:1 128:1
+    The outputs ought to be redirected to 129:0,1 instead of 128:0,1.
+
+    You may access to timidity also via OSS MIDI emulation on ALSA
+    sequencer.  Take a look at /proc/asound/seq/oss for checking the
+    device number to be accessed.
+    ---------------------------------------
+      % cat /proc/asound/seq/oss
+      OSS sequencer emulation version 0.1.8
+      ALSA client number 63
+      ALSA receiver port 0
+      ...
+      midi 1: [TiMidity port 0] ALSA port 128:0
+        capability write / opened none
+
+      midi 2: [TiMidity port 1] ALSA port 128:1
+        capability write / opened none
+    ---------------------------------------
+    In the case above, the MIDI devices 1 and 2 are assigned to
+    timidity.  Now, play with playmidi:
+      % playmidi -e -D1 foo.mid
 
 
     BUGS
@@ -238,15 +277,17 @@ static void ctl_pass_playing_list(int n, char *args[])
 
 	printf("Opening sequencer port:");
 	for (i = 0; i < NUM_PORTS; i++) {
-		char portname[32];
-		sprintf(portname, "TiMidity port %d", i);
-		ctxp->port[i] = snd_seq_create_simple_port(ctxp->handle, portname,
-							   SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,
-							   SND_SEQ_PORT_TYPE_MIDI_GENERIC);
-		if (ctxp->port[i] < 0) {
+		snd_seq_port_info_t pinfo;
+		memset(&pinfo, 0, sizeof(pinfo));
+		sprintf(pinfo.name, "TiMidity port %d", i);
+		pinfo.capability = SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE;
+		pinfo.type = SND_SEQ_PORT_TYPE_MIDI_GENERIC;
+		strcpy(pinfo.group, SND_SEQ_GROUP_DEVICE);
+		if (snd_seq_create_port(ctxp->handle, &pinfo) < 0) {
 			fprintf(stderr, "error in snd_seq_create_simple_port\n");
 			return;
 		}
+		ctxp->port[i] = pinfo.port;
 		printf(" %d:%d", ctxp->client, ctxp->port[i]);
 	}
 	printf("\n");

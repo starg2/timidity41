@@ -157,8 +157,8 @@ lowpass filter before playing, which reduces aliasing
 noise at low resampling frequencies.
 
 .TP
-.B \-B \fIfragments\fP
-For the Linux / FreeBSD / OSS / Windows sound driver,
+.B \-B \fIfragments\fP[,\fIbuffer-bits\fP]
+For the Linux / FreeBSD / OSS / ALSA / Windows sound driver,
 selects the number  of
 buffer  fragments  in interactive mode.  Increasing
 the number of fragments may reduce choppiness  when
@@ -170,22 +170,7 @@ the maximum number of fragments available.
 
 .TP
 .B \-b \fImode\fP
-
-Enables pseudo surround effects.
-\fImode\fP parameters are the following:
-.RS
-.TP
-.B \-bl
-Sounds are comes mainly from left.
-.TP
-.B \-br
-Sounds are comes mainly from right.
-.TP
-.B \-bb
-Sounds are comes left and right in random.
-.TP
-.B \-bc
-Disables this feature.
+(obsoleted)
 .RE
 
 .TP
@@ -308,10 +293,7 @@ may be available:
 dumb interface
 .TP
 .B \-in
-ncurses interface(old version)
-.TP
-.B \-iN
-NEW ncurses interface
+ncurses interface
 .TP
 .B \-is
 slang interface
@@ -337,6 +319,16 @@ skin interface
 Environment variable \fBTIMIDITY_SKIN\fP must be specified with
 path of the skin data(compressed data are also available).
 .TP
+.B \-ig
+gtk interface
+.TP
+.B \-ir
+Launch timidity as MIDI server.
+.TP
+.B \-iA
+Launch timidity as ALSA sequencer client.
+.br
+.TP
 .B Interface options
 Option characters may be  added  immediately
 after the interface identifier.  The following
@@ -357,6 +349,15 @@ Linux  sound  driver, this is accomplished
 through the use of short DMA
 buffer fragments, which can be tuned
 via the -B option.
+.TP
+.B l
+Loop playing (some interface ignore this option)
+.TP
+.B r
+Randomize file list arguments before playing
+.TP
+.B s
+Sorting file list arguments before playing
 .RE
 
 .TP
@@ -477,21 +478,8 @@ If \fIchannel\fP is negative, channel \-\fIchannel\fP is turned back on.
 If \fIchannel\fP is 0, all channels are turned on.
  
 .TP
-.BI \-R " value"
-Enables Pseudo Reverb Mode. \fIvalue\fP are the following:
-.RS
-.TP
-.B 0
-Long slight release
-.TP
-.B 1
-Long loud release
-.TP
-.B 2
-Short release
-.TP
-.B 3
-No release
+.BI \-R " msec"
+Enables Pseudo Reverb Mode. \fImsec\fP are envelope release time.
 .RE
 
 .TP
@@ -631,7 +619,7 @@ lsmidiprog(1), mididump(1), patinfo(1), sf2text(1), wav2pat(1), timidity.cfg(5)
 
 .P
 .SH COPYRIGHT
-Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
 Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 .P
 Original version was developed under the name of Tuukka Toivonen

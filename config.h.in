@@ -179,6 +179,9 @@
 /* Define if you have the <sys/audioio.h> header file.  */
 #undef HAVE_SYS_AUDIOIO_H
 
+/* Define if you have the <sys/awe_voice.h> header file.  */
+#undef HAVE_SYS_AWE_VOICE_H
+
 /* Define if you have the <sys/dir.h> header file.  */
 #undef HAVE_SYS_DIR_H
 

@@ -172,6 +172,9 @@ following:
   --enable-w32gui
 	Build TiMidity++ as Windows GUI.
 
+  --enable-alsaseq
+	Build TiMidity++ as ALSA sequencer client.
+
   --enable-network
 	This option allows TiMidity++ to play MIDI file getting via 
 	network. You can specify the location of MIDI files by

@@ -106,10 +106,10 @@ static void effect_left_right_delay(int32* buff, int32 count)
     if(backoff > count)
 	backoff = count;
 
-    if(count < AUDIO_BUFFER_SIZE * 2)
+    if(count < audio_buffer_size * 2)
     {
-	memset(buff + count, 0, 4 * (AUDIO_BUFFER_SIZE * 2 - count));
-	count = AUDIO_BUFFER_SIZE * 2;
+	memset(buff + count, 0, 4 * (audio_buffer_size * 2 - count));
+	count = audio_buffer_size * 2;
     }
 
     memcpy(save, buff, 4 * count);

@@ -120,7 +120,7 @@ bin_PROGRAMS = timidity
 timidity_SOURCES =  	aenc.h 	aiff_a.c 	aq.c 	aq.h 	au_a.c 	audio_cnv.c 	audio_cnv.h 	common.c 	common.h 	controls.c 	controls.h 	dlutils.h 	effect.c 	filter.c 	filter.h 	instrum.c 	instrum.h 	list_a.c 	loadtab.c 	mid-j.defs 	mid.defs 	miditrace.c 	miditrace.h 	mix.c 	mix.h 	mod.c 	mod.h 	mod2midi.c 	mod2midi.h 	output.c 	output.h 	playmidi.c 	playmidi.h 	raw_a.c 	rcp.c 	readmidi.c 	readmidi.h 	recache.c 	recache.h 	resample.c 	resample.h 	reverb.c 	reverb.h 	sbkconv.c 	sffile.c 	sffile.h 	sfitem.c 	sfitem.h 	sflayer.h 	smfconv.c 	smfconv.h 	sndfont.c 	tables.c 	tables.h 	timidity.c 	timidity.h 	version.c 	wave_a.c 	wrd.h 	wrd_read.c 	wrdt.c
 
 
-EXTRA_timidity_SOURCES =  	alsa_a.c 	audriv.h 	audriv_a.c 	audriv_al.c 	audriv_mme.c 	audriv_none.c 	dl_w32.c 	dl_dld.c 	dl_dlopen.c 	dl_hpux.c 	bsd20_a.c 	esd_a.c 	hpux_a.c 	hpux_d_a.c 	oss_a.c 	mac_a.c 	mac_qt_a.c 	mac_com.h 	mac_dlog.c 	mac_main.c 	mac_main.h 	mac_soundspec.c 	mfnode.c 	mfnode.h 	nas_a.c 	sun_a.c 	w32_a.c 	w32g_a.c 	timpp32g.ini
+EXTRA_timidity_SOURCES =  	alsa_a.c 	audriv.h 	audriv_a.c 	audriv_al.c 	audriv_mme.c 	audriv_none.c 	dl_w32.c 	dl_dld.c 	dl_dlopen.c 	dl_hpux.c 	bsd20_a.c 	esd_a.c 	hpux_a.c 	hpux_d_a.c 	oss_a.c 	mac_a.c 	mac_qt_a.c 	mac_com.h 	mac_dlog.c 	mac_main.c 	mac_main.h 	mac_soundspec.c 	mfnode.c 	mfnode.h 	nas_a.c 	sun_a.c 	vorbis_a.c 	w32_a.c 	w32g_a.c 	timpp32g.ini
 
 
 @ENABLE_W32GUI_TRUE@W32GUI_RES = $(top_builddir)/interface/w32g_res.res
@@ -266,6 +266,17 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
+aq.o: aq.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h aq.h \
+	../utils/timer.h controls.h miditrace.h instrum.h playmidi.h
+ogg_a.o: ogg_a.c ../config.h timidity.h ../utils/support.h output.h \
+	controls.h
+oss_a.o: oss_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h \
+	../utils/timer.h instrum.h playmidi.h miditrace.h
+vorbis_a.o: vorbis_a.c ../config.h timidity.h ../utils/support.h \
+	output.h controls.h
+
 info-am:
 info: info-am
 dvi-am:

@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.10.0a, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.10.0a2, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -288,7 +288,7 @@ AC_CHECK_HEADERS(fcntl.h limits.h malloc.h strings.h sys/ioctl.h sys/time.h \
 	unistd.h dlfcn.h glob.h getopt.h errno.h machine/endian.h \
 	stropts.h sys/audioio.h sun/audioio.h sys/types.h \
 	sys/ipc.h sys/shm.h sys/param.h X11/extensions/XShm.h \
-	X11/Xmu/ExtAgent.h sys/soundcard.h)
+	X11/Xmu/ExtAgent.h sys/soundcard.h sys/awe_voice.h)
 AC_CHECK_HEADER(string.h,, [ EXTRADEFS="$EXTRADEFS -DNO_STRING_H " ])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -410,8 +410,9 @@ dnl alsa(s):	ALSA pcm device
 dnl alib(A):	HPUX network audio (Alib)
 dnl nas(n):	Network Audio System
 dnl esd(e):	EsounD
+dnl vorbis(v):	Ogg Vorbis
 
-audio_targets='default oss alsa sun hpux irix mme sb_dsp w32 alib nas esd'
+audio_targets='default oss alsa sun hpux irix mme sb_dsp w32 alib nas esd vorbis'
 
 AC_ARG_WITH(nas-library,
   [  --with-nas-library=library  NAS absolute library path (Don't use -laudio)])
@@ -432,7 +433,8 @@ AC_ARG_ENABLE(audio,
                               alsa: ALSA pcm device
                               alib: HPUX network audio (Alib)
                               nas:  NAS - Network Audio System
-                              esd:  EsounD],
+                              esd:  EsounD
+                              vorbis: Ogg Vorbis],
   [ enable_audio=$enableval
     have_audio_opt=yes ],
   [ enable_audio=yes
@@ -451,7 +453,7 @@ dnl Turn on default output mode
 DEFAULT_PLAYMODE=
 AC_ARG_WITH(default-output,
   [  --with-default-output=<mode>  Specify default output mode (optional):
-                                default|alsa|alib|nas|esd|wav|au|aiff|list],
+                            default|alsa|alib|nas|esd|wav|au|aiff|list|vorbis],
   [ if test "$enable_audio" != no; then
       DEFAULT_PLAYMODE=$withval
       eval "au_enable_$DEFAULT_PLAYMODE=yes"
@@ -742,6 +744,17 @@ else
   AC_MSG_RESULT(no)
 fi
 
+AC_MSG_CHECKING(enable_audio=vorbis)
+if test "x$au_enable_vorbis" = xyes; then
+  SYSEXTRAS="$SYSEXTRAS vorbis_a.c"
+  EXTRADEFS="$EXTRADEFS -DAU_VORBIS"
+  EXTRALIBS="$EXTRALIBS -lvorbis"
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+fi
+
+
 dnl Pseudo audio device (Undocumented).
 if test "x$au_enable_none" = xyes; then
     EXTRADEFS="$EXTRADEFS -DAU_NONE -DAU_AUDRIV"
@@ -773,6 +786,7 @@ case ".$DEFAULT_PLAYMODE" in
   .au)   TIMIDITY_OUTPUT_ID=u ;;
   .aiff) TIMIDITY_OUTPUT_ID=a ;;
   .list) TIMIDITY_OUTPUT_ID=l ;;
+  .vorbis) TIMIDITY_OUTPUT_ID=v ;;
   *)     TIMIDITY_OUTPUT_ID= ;;
 esac
 AC_MSG_RESULT($DEFAULT_PLAYMODE/$TIMIDITY_OUTPUT_ID)
@@ -1157,7 +1171,7 @@ CONFIG_INTERFACE(server,SERVER,r,
 dnl TiMidity ALSA sequencer server
 AM_CONDITIONAL(ENABLE_ALSASEQ, false)
 CONFIG_INTERFACE(alsaseq,ALSASEQ,A,
-  [  --enable-alsaseq         Enable ALSA sequencer server interface  (default is no)],
+  [  --enable-alsaseq        Enable ALSA sequencer server interface (default is no)],
   ,
   [ INTERFACE_SRCS="$INTERFACE_SRCS alsaseq_c.c"
     AC_CHECK_HEADERS(sys/asoundlib.h)

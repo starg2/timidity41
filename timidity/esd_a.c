@@ -60,7 +60,7 @@ static int acntl(int request, void *arg);
 PlayMode dpm = {
     DEFAULT_RATE,
     PE_16BIT|PE_SIGNED,
-    PF_PCM_STREAM|PF_CAN_TRACE|PF_BUFF_FRAGM_OPT,
+    PF_PCM_STREAM/*|PF_CAN_TRACE*/,
     -1,
     {0}, /* default: get all the buffer fragments you can */
     "Enlightened sound daemon", 'e',
@@ -109,6 +109,8 @@ static int open_output(void)
 static int output_data(char *buf, int32 nbytes)
 {
     int n;
+
+    //    write(1, buf, nbytes);return 0;
 
     while(nbytes > 0)
     {

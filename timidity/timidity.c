@@ -2436,7 +2436,7 @@ static int parse_opt_B(char *opt)
 
   /* bits */
   if((p = strchr(opt, ',')) != NULL) {
-    if(set_value(&val, atoi(p + 1), 0, AUDIO_BUFFER_BITS-1, "Buffer fragments (bit)"))
+    if(set_value(&val, atoi(p + 1), 0, AUDIO_BUFFER_BITS, "Buffer fragments (bit)"))
       return -1;
     if(val >= 0)
       audio_buffer_bits = val;
@@ -2760,7 +2760,7 @@ static RETSIGTYPE sigterm_exit(int sig)
     s[2] = '\n';
     write(2, s, 3);
 
-    if(sig == SIGINT && intr < 3)
+    if(sig == SIGINT && intr < 0)
     {
 	intr++;
 	signal(SIGINT, sigterm_exit); /* For SysV base */

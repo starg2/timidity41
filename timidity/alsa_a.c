@@ -625,7 +625,8 @@ static int output_data(char *buf, int32 nbytes)
 	  ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
 		    "%s: %s", dpm.name,
 		    (n < 0) ? snd_strerror(n) : "write error");
-	  /* return -1; ?? */
+	  if (n != -EPIPE)  /* buffer underrun is ignored */
+	    return -1;
 	}
     }
 
