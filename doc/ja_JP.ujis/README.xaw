@@ -6,7 +6,7 @@ TiMidity++ の Xaw インタフェース は、X Window System の標準のツールキット
 す。
 
 
-* WHAT'S NEW in 1.3
+* バージョン 1.3 での変更
 
 - ショートカットキーの導入
 - キーボード表示を含むトレースウィンドウ
@@ -14,9 +14,12 @@ TiMidity++ の Xaw インタフェース は、X Window System の標準のツールキット
 - OffiX アプリケーションのドラッグアンドドロップがサポートされた
 - 起動後に MIDI ファイルの追加／削除ができるようになった
 - 起動後に timidity の拡張オプション設定を変更できるようにした
+- 演奏曲リストを ~/.xtimidity にできるようにした。
+- メニューやダイアログラベルも国際化され、日本語表示も可能となった。
+- リソースファイルを付属するようになった。
 
 
-* USAGE
+* 使用法
 
 新 Xaw インタフェースには以下のファイルメニューがあります。
 
@@ -51,9 +54,11 @@ TiMidity++ の Xaw インタフェース は、X Window System の標準のツールキット
   EXTEND MODES
     拡張モード制御ウィンドウの表示
 
+  ABOUT
+    TiMidity++ の Xaw インターフェースについて
+
   QUIT
     timidityの終了
-
 
 ver.1.3 から、ファイルの Load メニューと File List ウィンドウから演奏ファイル
 の追加と削除ができるようになっています。演奏ファイルの選択は、タイトルボタ
@@ -61,9 +66,9 @@ ver.1.3 から、ファイルの Load メニューと File List ウィンドウから演奏ファイル
 各ウィンドウにおけるキーボードショートカットは以下のようになっています:
 
 《メインウィンドウ》
-	[Enter]		: 演奏開始
+	[Enter] or [r]	: 演奏開始
 	[Space]		: 一時停止 / 演奏再開
-	[c]		: 停止
+	[s]		: 停止
 	[q]		: TiMidity++ の終了
 	[p] or [Left]	: 前の曲
 	[n] or [Right]	: 次の曲
@@ -110,11 +115,11 @@ ver.1.3 から、ファイルの Load メニューと File List ウィンドウから演奏ファイル
 各 MIDI チャンネル毎のボリューム、Expression, パンポット、ピッチベンド、リ
 バーブ、コーラスの動きやインストルメント指定をリアルタイムに見ることができ、
 各チャンネルの演奏はキーボード上に表示されます。トレース画面上でマウス左ボ
-タンをクリックすると、「ピッチベンド、楽器名」と「トーンバンク、リバーブ、」
+タンをクリックすると、「ピッチベンド、楽器名」と「トーンバンク、リバーブ、
 コーラス」の表示を切り替えることができます。
 
 
-* INSTALLATION
+* インストール方法
 
 TiMidity++ では GNU configure でソースの build を行ないますが、libXaw3d が
 システムに存在すると、デフォルトでそれを使うようになります。Xaw を使いたい
@@ -126,23 +131,40 @@ TiMidity++ では GNU configure でソースの build を行ないますが、libXaw3d が
 
 行が有効になるようにコメント(/* */)を外してから make clean, make して下さ
 い。
-localeのサポートが無いシステムで、かつ X が国際化されていない(X_LOCALE無しでコ
-ンパイルされている Xサーバを使っている)場合は、xaw.h の
+localeのサポートが無いシステムで、かつ X が国際化されていない (X_LOCALE
+無しでコ ンパイルされている Xサーバを使っている)場合は、xaw.h の
 
  #define I18N
 
 を #undef I18N に書き換えてから TiMidity++ をコンパイルして下さい。
-初期設定ファイルはデフォルトで $(HOME)/.xtimidity となっていますが、このファイ
-ル名を変えたい場合は、
+初期設定ファイルはデフォルトで $(HOME)/.xtimidity となっていますが、
+このファイル名を変えたい場合は、
 
  #define INITIAL_CONFIG ".xtimidity"
 
 行を変更して下さい。
 
+  ********
+  * 注意 *
+  ********
+バージョン 1.3.6 から、Xaw interface にリソースファイルが付きました。
+現在英語と日本語のリソースしかないので、他の言語についてリソースファイル
+を作られた方がいれば、荒井 <ryo2@on.rim.or.jp> または出雲 <mo@goice.co.jp>
+まで連絡をいただけるとありがたいです。
+ソースをコンパイルした後、例えば、英語リソース TiMidity.ad は、
+ $(X11R6)/lib/X11/app-defaults のような X のリソースファイル置場に、
+日本語リソース TiMidity-uj.ad は、
+ $(X11R6)/lib/X11/$(LANG)/app-defaults のような国際化クライアントの
+リソース置場に置いて下さい。
+例えば、日本語 locale が ja_JP.EUC の場合(FreeBSD等)
+ # cp TiMidity.ad /usr/X11R6/lib/X11/app-defaults/TiMidity 
+ # cp TiMidity-uj.ad /usr/X11R6/lib/X11/app-defaults/ja_JP.EUC/TiMidity
+することになります。
 
-* RESOURCES
 
-アプリケーションクラス名は TiMidity ですので、ホームディレクトリの
+* リソース
+
+アプリケーションクラス名は TiMidity です。ホームディレクトリの
 .Xdefaults または .Xresource の中で、以下の例のような指定ができます。
 
   TiMidity*textbackground: LemonChiffon    
@@ -177,12 +199,21 @@ volumefont          VolumeFont      -adobe-helvetica-bold-r-*-*-12-*-75-75-*-*-*
   volume ラベルのフォント
 tracefont           TraceFont       -*-*-medium-r-normal--14-*-*-*-*-*-*-*
   トレース画面のフォント
+textfontset         TextFontSet     -*-*-medium-r-normal--14-*-*-*-*-*-*-*
+  メッセージ欄のフォントなど
+ttitlefont          TtitleFont      -*-fixed-medium-r-normal--14-*-*-*-*-*-*-*
+  トレース画面最下行の MIDI タイトル表示用フォント
+
+国際化された X 上で、コンパイル時に -DI18N を付けた TiMidity++ の Xaw イ
+ンタフェースを使う場合、フォントリソース textfontset と ttitlefont は
+FontSet で指定することに気をつけて下さい。
 
 
-* BUGS
+* 連絡先
 
-現在の Xaw インタフェースでは、MIDI ファイルのリスト表示の際に、ファイル
-の有無や MIDI ファイルであるかどうかのチェックをしていません。
+Xaw インターフェースに関する動作の不具合や要望、バグ報告、御意見などがあ
+れば、TiMidityメーリングリスト timidity@goice.co.jp または、私まで連絡し
+て下さい。
 
 
 			荒井良重 (Yoshishige Arai)  <ryo2@on.rim.or.jp>

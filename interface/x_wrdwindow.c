@@ -1697,8 +1697,7 @@ static int Parse(int c)
       int i;
       for(i=0;i<nparam+1;i++)
 	switch(params[i]){
-	case 0:
-	case DEFAULT:
+	  default:
 	  mywin.curattr&=~(CATTR_COLORED|CATTR_BGCOLORED|CATTR_TXTCOL_MASK);
 	  break;
 	case 16:

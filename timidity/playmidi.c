@@ -1779,10 +1779,11 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	channel[ch].pitchfactor = 0;
 	break;
     }
-    if(drumflag && midi_drumpart_change(ch, 1) && update_now)
+    if(drumflag && midi_drumpart_change(ch, 1))
     {
 	midi_program_change(ch, channel[ch].program);
-	ctl_prog_event(ch);
+	if(update_now)
+	    ctl_prog_event(ch);
     }
 }
 

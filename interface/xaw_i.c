@@ -2139,7 +2139,7 @@ static void a_saveconfig (char *file) {
           flags |= ((s1)? option_num[i].bit:0);
         }
         XtVaGetValues(chorus_b,XtNstate,&s1,NULL);
-        if(s1) flags = (init_chorus)? init_chorus:1;
+        if(s1) cflag = (init_chorus)? init_chorus:1;
       } else {
         flags = init_options; cflag = init_chorus;
       }

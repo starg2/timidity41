@@ -430,6 +430,10 @@ dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
+dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/dlutils.h
 emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/output.h ../timidity/controls.h \

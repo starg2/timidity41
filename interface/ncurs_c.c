@@ -412,6 +412,10 @@ static void N_ctl_scrinit(void)
 #else
     waddch(dftwin, '_');
 #endif
+
+    indicator_width = COLS - 2;
+    if(indicator_width < 40)
+	indicator_width = 40;
     if(comment_indicator_buffer == NULL)
       {
 	memset(comment_indicator_buffer =
@@ -449,10 +453,6 @@ static void N_ctl_scrinit(void)
 #endif
 	for(i = 0; i < 16; i++)
 	    init_bitset(channel_program_flags + i, 128);
-
-	indicator_width = COLS - 2;
-	if(indicator_width < 40)
-	    indicator_width = 40;
     }
     N_ctl_refresh();
 }
@@ -1384,8 +1384,10 @@ static void ctl_lyric(int lyricid)
             while (strchr(lyric, '\r')) {
             	*(strchr(lyric, '\r')) = ' ';
             }
-            while (strchr(lyric, '\n')) {
-                *(strchr(lyric, '\n')) = '\r';
+ 	    if (ctl.trace_playing) {
+		while (strchr(lyric, '\n')) {
+		    *(strchr(lyric, '\n')) = '\r';
+		}
             }
         }
 
@@ -2388,7 +2390,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
     }
     else
     {
-#if defined(__WIN32__) && !defined(__CYGWIN32__)
+#if defined( __BORLANDC__) || (defined(__WIN32__) && !defined(__CYGWIN32__))
 	nl();
 #endif
 	if(ctl.trace_playing)

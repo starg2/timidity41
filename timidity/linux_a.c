@@ -170,7 +170,7 @@ static int open_output(void)
   play_counter = reset_samples = 0;
 
   /* Open the audio device */
-  fd=open(dpm.name, O_RDWR | O_NDELAY);
+  fd=open(dpm.name, O_WRONLY | O_NDELAY);
   if (fd<0)
     {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
@@ -196,11 +196,11 @@ static int open_output(void)
   /* Set sample width to whichever the user wants. If it fails, try
      the other one. */
 
-  i=tmp=(dpm.encoding & PE_16BIT) ? 16 : 8;
+  i=tmp=(dpm.encoding & PE_16BIT) ? AFMT_S16_NE : AFMT_U8;
   if (ioctl(fd, SNDCTL_DSP_SAMPLESIZE, &tmp)<0 || tmp!=i)
     {
       /* Try the other one */
-      i=tmp=(dpm.encoding & PE_16BIT) ? 8 : 16;
+      i=tmp=(dpm.encoding & PE_16BIT) ? AFMT_U8 : AFMT_S16_NE;
       if (ioctl(fd, SNDCTL_DSP_SAMPLESIZE, &tmp)<0 || tmp!=i)
 	{
 	  ctl->cmsg(CMSG_ERROR, VERB_NORMAL,

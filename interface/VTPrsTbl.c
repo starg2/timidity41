@@ -510,7 +510,11 @@ CASE_TBC,
 /*	h		i		j		k	*/
 CASE_SET,
 CASE_GROUND_STATE,
+#ifndef BUGGY_VTPARSE
 CASE_GROUND_STATE,
+#else
+CASE_ED,
+#endif
 CASE_GROUND_STATE,
 /*	l		m		n		o	*/
 CASE_RST,

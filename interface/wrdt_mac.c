@@ -682,8 +682,7 @@ static void dev_set_text_attr(int esccode)
 {
 start:
 	switch(esccode){
-	case 0:
-	case DEFAULT:
+	case default:
 	  esccode=37; goto start;
 
 	case 17: esccode=31; goto start;
