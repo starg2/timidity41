@@ -497,6 +497,11 @@ typedef struct _ChannelBitMask
 #define GUARD_BITS 3
 #define AMP_BITS (15-GUARD_BITS)
 
+/* Greatly reduces popping due to large volume/pan changes.
+ * This is definately worth the slight increase in CPU usage.
+ */
+#define SMOOTH_MIXING
+
 #ifdef LOOKUP_HACK
    typedef int8 sample_t;
    typedef uint8 final_volume_t;

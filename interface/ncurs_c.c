@@ -786,7 +786,7 @@ NULL
 	helpwin = newwin(LIST_TITLE_LINES, COLS, TITLE_LINE, 0);
 	N_ctl_werase(helpwin);
 	wattron(helpwin, A_BOLD);
-	waddstr(helpwin, "                 NEW ncurses interface Help");
+	waddstr(helpwin, "                 ncurses interface Help");
 	wattroff(helpwin, A_BOLD);
 
 	for(i = 0; help_message_list[i]; i++)
@@ -797,7 +797,7 @@ NULL
 	wmove(helpwin, i+2,0);
 	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,
-		"                   Type `h' to go to privious screen");
+		"                   Type `h' to go to previous screen");
 	wattroff(helpwin, A_BOLD);
 	wrefresh(helpwin);
 	N_ctl_clrtoeol(LINES - 1);

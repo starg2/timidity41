@@ -175,10 +175,9 @@
               with  the  -h  option to see a list.  The following
               identifiers may be available:
               -id    dumb interface
-              -in    ncurses interface(old version)
-              -iN    NEW ncurses interface
+              -in    ncurses interface
               -is    slang interface
-              -ia    X Ahtena Widget interface
+              -ia    X Athena Widget interface
               -ik    Tcl/Tk interface
               -im    motif interface
               -iT    vt100 interface

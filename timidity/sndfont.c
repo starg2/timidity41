@@ -551,6 +551,11 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 		      ip->pat.bank, ip->pat.preset + progbase,
 		      rec->inst_namebuf[ip->pr_idx]);
 	inst = (Instrument *)safe_malloc(sizeof(Instrument));
+/*
+	inst->instname = (char *)safe_malloc(strlen(rec->inst_namebuf[ip->pr_idx]));
+	strcpy(inst->instname,rec->inst_namebuf[ip->pr_idx]);
+*/
+	inst->instname = rec->inst_namebuf[ip->pr_idx];
 	inst->type = INST_SF2;
 	inst->samples = ip->samples;
 	inst->sample = (Sample *)safe_malloc(sizeof(Sample) * ip->samples);

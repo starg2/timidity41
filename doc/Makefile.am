@@ -26,6 +26,8 @@ man_MANS = \
 	timidity.1 \
 	timidity.cfg.5
 
+EXTRA_DIST = m2m.txt
+
 .1.txt:
 	groff -man -Tlatin1 -P-b -P-u $< >$@
 .1.ps:

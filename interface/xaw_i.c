@@ -198,7 +198,7 @@ typedef struct {
 void a_print_text(Widget,char *);
 static void drawProg(int,int,int,int,Boolean),drawPan(int,int,Boolean),
   draw1Chan(int,int,char),drawVol(int,int),drawExp(int,int),drawPitch(int,int),
-  drawInstname(int,char *),drawBank(int,int),
+  drawInstname(int,char *),drawDrumPart(int,int),drawBank(int,int),
   drawReverb(int,int),drawChorus(int,int),drawVoices(void),drawTitle(char *),
   quitCB(),playCB(),pauseCB(),stopCB(),prevCB(),nextCB(),
   optionsCB(),optionspopupCB(),optionscloseCB(),chorusCB(),optionsdestroyCB(),
@@ -300,6 +300,7 @@ typedef struct {
   int16 reverb[MAX_XAW_MIDI_CHANNELS];  
   char c_flags[MAX_XAW_MIDI_CHANNELS];
   Channel channel[MAX_XAW_MIDI_CHANNELS];
+  int is_drum[MAX_XAW_MIDI_CHANNELS];
 } PanelInfo;
 
 /* Default configuration to execute Xaw interface */
@@ -1367,6 +1368,13 @@ static void handle_input(XtPointer data,int *source,XtInputId *id) {
       drawInstname(ch, inst_name[ch]);
     }
     break;
+  case 'i':
+    if(IsTracePlaying()) {
+      ch= *(local_buf+1) - 'A';
+      Panel->is_drum[ch]= *(local_buf+2) - 'A';
+      drawDrumPart(ch, Panel->is_drum[ch]);
+    }
+    break;
   case 'P':
     if(IsTracePlaying()) {
       c= *(local_buf+1);
@@ -1863,11 +1871,19 @@ static void drawInstname(int ch, char *name) {
   XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,
                  pl[plane].ofs[CL_IN]+2,TRACEV_OFS+BAR_SPACE*ch+2,
                  pl[plane].w[CL_IN] -4,BAR_HEIGHT);
-  XSetForeground(disp, gct, ((ISDRUMCHANNEL(ch))? capcolor:black));
+  XSetForeground(disp, gct, ((Panel->is_drum[ch])? capcolor:black));
   len = strlen(name);
   XDrawString(XtDisplay(trace), XtWindow(trace), gct,
               pl[plane].ofs[CL_IN]+4,TRACEV_OFS+BAR_SPACE*ch+15,
               name,(len>disp_inst_name_len)? disp_inst_name_len:len);
+}
+
+static void drawDrumPart(int ch, int is_drum) {
+  if(!ctl->trace_playing) return;
+  if(plane!=0) return;
+
+  if (is_drum) barcol[ch]=app_resources.drumvelocity_color;
+  else         barcol[ch]=app_resources.velocity_color;
 }
 
 static void draw1Note(int ch,int note,int flag) {
@@ -2092,6 +2108,7 @@ static void initStatus(void) {
     Panel->channel[i].chorus_level = 0;
     Panel->v_flags[i] = 0;
     Panel->c_flags[i] = 0;
+    Panel->is_drum[i] = 0;
     *inst_name[i] = '\0';
   }
   last_voice = 0;
@@ -3410,10 +3427,13 @@ void a_start_interface(int pipe_in) {
     gct = XCreateGC(disp, RootWindow(disp, screen), 0, NULL);
     gc = XCreateGC(disp, RootWindow(disp, screen), 0, NULL);
     for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
-      if(ISDRUMCHANNEL(i))
+      if(ISDRUMCHANNEL(i)) {
+        Panel->is_drum[i]=1;
         barcol[i]=app_resources.drumvelocity_color;
-      else
+      }
+      else {
         barcol[i]=app_resources.velocity_color;
+      }
       inst_name[i] = (char *)safe_malloc(sizeof(char) * INST_NAME_SIZE);
     }
     rimcolor = app_resources.rim_color;

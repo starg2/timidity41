@@ -118,6 +118,8 @@ lang_target = C
 
 man_MANS =  	timidity.1 	timidity.cfg.5
 
+
+EXTRA_DIST = m2m.txt
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../config.h ../interface.h
 CONFIG_CLEAN_FILES = 
@@ -254,7 +256,7 @@ maintainer-clean-recursive:
 	  rev="$$subdir $$rev"; \
 	  test "$$subdir" = "." && dot_seen=yes; \
 	done; \
-	test "$$dot_seen" = "no" && rev="$$rev ."; \
+	test "$$dot_seen" = "no" && rev=". $$rev"; \
 	target=`echo $@ | sed s/-recursive//`; \
 	for subdir in $$rev; do \
 	  echo "Making $$target in $$subdir"; \
@@ -313,7 +315,7 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pr $$/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \

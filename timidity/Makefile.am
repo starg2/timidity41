@@ -44,10 +44,13 @@ timidity_SOURCES = \
 	effect.c \
 	filter.c \
 	filter.h \
+	freq.c \
+	freq.h \
 	instrum.c \
 	instrum.h \
 	list_a.c \
 	loadtab.c \
+	m2m.c \
 	mid-j.defs \
 	mid.defs \
 	miditrace.c \
@@ -58,6 +61,7 @@ timidity_SOURCES = \
 	mod.h \
 	mod2midi.c \
 	mod2midi.h \
+	modmid_a.c \
 	output.c \
 	output.h \
 	playmidi.c \

@@ -276,7 +276,7 @@ ArchiveEntryNode *next_lzh_entry(void)
 	return NULL;
 #else	/* a little cleverer lzh check */
 	if(macbin_check){
-//	for(i=0;i<LZHEADER_STRAGE;i++){
+/*	for(i=0;i<LZHEADER_STRAGE;i++){ */
 	for(i=0;i<1024;i++){
 		if((header_size = url_getc(url)) == EOF)
 			return NULL;

@@ -314,8 +314,15 @@ static void ctl_pass_playing_list(int n, char *args[])
 
 static void seq_play_event(MidiEvent *ev)
 {
-	ev->time = event_time_offset;
-	play_event(ev);
+  //JAVE  make channel -Q channels quiet, modified some code from readmidi.c
+  int gch;
+  gch = GLOBAL_CHANNEL_EVENT_TYPE(ev->type);
+
+  if(gch || !IS_SET_CHANNELMASK(quietchannels, ev->channel)){
+    //if its a global event or not a masked event
+    ev->time = event_time_offset;
+    play_event(ev);
+  }
 }
 
 static void stop_playing(void)

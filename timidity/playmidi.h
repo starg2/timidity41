@@ -254,6 +254,11 @@ typedef struct {
     vibrato_sweep, vibrato_sweep_position;
 
   final_volume_t left_mix, right_mix;
+#ifdef SMOOTH_MIXING
+  final_volume_t old_left_mix, old_right_mix,
+     left_mix_offset, right_mix_offset,
+     left_mix_inc, right_mix_inc;
+#endif
 
   FLOAT_T
     left_amp, right_amp, tremolo_volume;

@@ -179,7 +179,6 @@ GPL のファイル (バージョン 2 以降) を取り寄せ、本プログラムと一緒に配
 			 mode が存在します．
 			 -id  dumb interface
 			 -in  ncurses interface
-			 -iN  NEW ncurses interface (拡張版のみ)
 			 -is  slang interface
 			 -ia  X Athena Widget interface (拡張版のみ)
 			 -ik  Tcl/Tk interface

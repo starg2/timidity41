@@ -708,7 +708,7 @@ MED_Load (BOOL curious)
 
 	  _mm_fseek (modreader, me->iinfo + t * me->i_ext_entrsz, SEEK_SET);
 	  _mm_read_UBYTES (ii.name, 40, modreader);
-	  q->samplename = DupStr (ii.name, 40, 1);
+	  q->samplename = DupStr ((CHAR *) ii.name, 40, 1);
 	}
       else
 	q->samplename = NULL;

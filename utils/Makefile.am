@@ -28,6 +28,8 @@ noinst_LIBRARIES = libutils.a
 libutils_a_SOURCES = \
 	bitset.c \
 	bitset.h \
+	fft4g.c \
+	fft4g.h \
 	mblock.c \
 	mblock.h \
 	memb.c \

@@ -962,7 +962,7 @@ void pre_resample(Sample * sp)
   for(i = 0; i < count; i++)
     {
       vptr = src + (ofs >> FRACTION_BITS);
-      v1 = *(vptr - 1);
+      v1 = ((vptr>=src+1)? *(vptr - 1):0);
       v2 = *vptr;
       v3 = *(vptr + 1);
       v4 = *(vptr + 2);

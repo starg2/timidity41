@@ -546,10 +546,12 @@ NULL
 "                        `level' is optional to specify chorus level [0..127]"  NLS
 "  -EFchorus=2[,level] : Surround sound, chorus detuned to a lesser degree." NLS
 "                        `level' is optional to specify chorus level [0..127]" NLS
+"                        (default)" NLS
 "  -EFreverb=0 : Disable MIDI reverb effect control" NLS
 "  -EFreverb=1[,level] : Enable MIDI reverb effect control" NLS
 "                        `level' is optional to specify reverb level [0..127]"  NLS
 "                        This effect is only available in stereo"  NLS
+"                        (default)" NLS
 "  -EFreverb=2 : Global reverb effect" NLS
 "  -EFns=n : Enable the n th degree noiseshaping filter. n:[0..4]" NLS
 "            This effect is only available for 8-bit linear encoding" NLS

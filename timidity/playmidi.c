@@ -136,7 +136,7 @@ int opt_reverb_control = 0;
 #endif /* REVERB_CONTROL_ALLOW */
 
 #ifdef CHORUS_CONTROL_ALLOW
-int opt_chorus_control = 1;
+int opt_chorus_control = 2;
 #else
 int opt_chorus_control = 0;
 #endif /* CHORUS_CONTROL_ALLOW */
@@ -1727,6 +1727,11 @@ static void note_on(MidiEvent *e)
 	    ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
 	}
 	start_note(e, v, vid, nv - i - 1);
+#ifdef SMOOTH_MIXING
+	voice[v].old_left_mix = voice[v].old_right_mix =
+	voice[v].left_mix_inc = voice[v].left_mix_offset =
+	voice[v].right_mix_inc = voice[v].right_mix_offset = 0;
+#endif
 	if((channel[ch].chorus_level || opt_surround_chorus))
 	{
 	    if(opt_surround_chorus)
@@ -3079,6 +3084,7 @@ static int apply_controls(void)
 	    skip_to(0);
 	    ctl_updatetime(0);
 	    jump_flag = 1;
+	    midi_restart_time = 0;
 	    continue;
 
 	  case RC_JUMP:
@@ -3136,6 +3142,7 @@ static int apply_controls(void)
 	    {
 		skip_to(0);
 		ctl_updatetime(0);
+		midi_restart_time = 0;
 	    }
 	    return RC_JUMP;
 
@@ -4224,6 +4231,19 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     int rc;
     static int play_count = 0;
 
+    if (play_mode->id_character == 'm') {
+	int cnt;
+
+	convert_mod_to_midi_file(eventlist);
+
+	play_count = 0;
+	cnt = free_global_mblock();	/* free unused memory */
+	if(cnt > 0)
+	    ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+		      "%d memory blocks are free", cnt);
+	return rc;
+    }
+
     sample_count = samples;
     event_list = eventlist;
     lost_notes = cut_notes = 0;
@@ -4255,10 +4275,12 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     rc = RC_NONE;
     for(;;)
     {
+        midi_restart_time = 1;
 	rc = play_event(current_event);
 	if(rc != RC_NONE)
 	    break;
-	current_event++;
+	if (midi_restart_time)    /* don't skip the first event if == 0 */
+	    current_event++;
     }
 
     if(play_count++ > 3)
@@ -4689,8 +4711,15 @@ char *channel_instrum_name(int ch)
     char *comm;
     int bank, prog;
 
-    if(ISDRUMCHANNEL(ch))
-	return "";
+    if(ISDRUMCHANNEL(ch)) {
+	bank = channel[ch].bank;
+	if (drumset[bank] == NULL) return "";
+	prog = 0;
+	comm = drumset[bank]->tone[prog].comment;
+	if (comm == NULL) return "";
+	return comm;
+    }
+
     if(channel[ch].program == SPECIAL_PROGRAM)
 	return "Special Program";
 

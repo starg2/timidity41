@@ -44,6 +44,7 @@
 #include "unimod.h"
 #include "mod2midi.h"
 #include "filter.h"
+#include "math.h"
 
 
 /* Define this to show all the notes touched by a bending in the
@@ -172,7 +173,7 @@ mod_change_tempo (int32 at, int bpm)
 int
 period2note (int period, int *finetune)
 {
-  static int period_table[120] =
+  static int period_table[121] =
   {
   /*  C     C#    D     D#    E     F     F#    G     G#    A     A#    B  */
      13696,12928,12192,11520,10848,10240, 9664, 9120, 8608, 8096, 7680, 7248,
@@ -184,7 +185,9 @@ period2note (int period, int *finetune)
        214,  202,  190,  180,  170,  160,  151,  143,  135,  127,  120,  113,
        107,  101,   95,   90,   85,   80,   75,   71,   67,   63,   60,   56,
 	53,   50,   47,   45,   42,   40,   37,   35,   33,   31,   30,   28,
-	27,   25,   24,   22,   21,   20,   19,   18,   17,   16,   15,   14
+	27,   25,   24,   22,   21,   20,   19,   18,   17,   16,   15,   14,
+	  
+	-100 /* just a guard */
   };
 
   int note;
@@ -216,12 +219,18 @@ period2note (int period, int *finetune)
 
   if (period_table[note] == period)
     *finetune = 0;
-  else
+  else {
+    /* Pick the closest note even if it is higher than this one.
+     * (e.g. 721 - 720 < 762 - 721 ----> pick 720)    */
+    if (period - period_table[note + 1] < period_table[note] - period)
+      note++;
+    
     /* fine tune completion */
     *finetune = ((period_table[note] - period) << 8) /
 		   (period_table[note] - period_table[note + 1]);
 
-  *finetune <<= 5;
+    *finetune <<= 5;
+  }
   return note;
 }
 
@@ -235,7 +244,7 @@ Voice_SetVolume (UBYTE v, UWORD vol)
 
   /* MOD volume --> MIDI volume */
   vol >>= 1;
-  if (vol < 1) vol = 1;
+  if (vol < 0) vol = 0;
   if (vol > 127) vol = 127;
 
   if (ModV[v].vol != vol) {
@@ -477,6 +486,87 @@ static int32 env_rate(int diff, double msec)
     return (int32)rate;
 }
 
+void shrink_huge_sample (Sample *sp)
+{
+    sample_t *orig_data;
+    sample_t *new_data;
+    unsigned int rate, new_rate;
+    uint32 data_length, new_data_length;
+    double loop_start, loop_end;
+    double scale, scale2;
+    double x, xfrac;
+    double y;
+    sample_t y1, y2, y3, y4;
+    uint32 i, xtrunc;
+
+    data_length = sp->data_length;
+    if (data_length < (1 << FRACTION_BITS) - 1)
+	return;
+    loop_start = sp->loop_start;
+    loop_end = sp->loop_end;
+    rate = sp->sample_rate;
+
+    scale = ((1 << (31 - FRACTION_BITS)) - 2.0) / data_length;
+    new_rate = rate * scale;
+    scale = new_rate / (float) rate;
+    scale2 = (float) rate / new_rate;
+
+    new_data_length = data_length * scale;
+    loop_start *= scale;
+    loop_end *= scale;
+
+    ctl->cmsg(CMSG_INFO, VERB_NORMAL,
+        "Sample too large (%ld): resampling down to %ld samples",
+        data_length, new_data_length);
+    
+    orig_data = sp->data;
+    new_data = calloc(new_data_length + 2, sizeof(sample_t));
+
+    new_data[0] = orig_data[0];
+    for (i = 1; i < new_data_length; i++)
+    {
+	x = i * scale2;
+	xtrunc = (uint32) x;
+	xfrac = x - xtrunc;
+	
+	if (xtrunc >= data_length - 1)
+	{
+	    if (xtrunc == data_length)
+	    	new_data[i] = orig_data[data_length];
+	    else	/* linear interpolation */
+	    {
+	        y2 = orig_data[data_length - 1];
+	        y3 = orig_data[data_length];
+	        new_data[i] = ceil((y2 + (y3 - y2) * xfrac) - 0.5);
+	    }
+	}
+	else		/* cspline interpolation */
+	{
+	    y1 = orig_data[xtrunc - 1];
+	    y2 = orig_data[xtrunc];
+	    y3 = orig_data[xtrunc + 1];
+	    y4 = orig_data[xtrunc + 2];
+
+	    y = (6*y3 + (5*y4 - 11*y3 + 7*y2 - y1) *
+		0.25 * (xfrac+1) * (xfrac-1)) * xfrac;
+	    y = (((6*y2 + (5*y1 - 11*y2 + 7*y3 - y4) * 
+		0.25 * xfrac * (xfrac-2)) * (1-xfrac)) + y) / 6.0;
+
+	    if (y > 32767) y = 32767;
+	    if (y < -32767) y = -32767;
+
+	    new_data[i] = ceil(y - 0.5);
+	}
+    }
+
+    free(sp->data);
+    sp->data = new_data;
+    sp->sample_rate = new_rate;
+
+    sp->data_length = new_data_length << FRACTION_BITS;
+    sp->loop_start = loop_start * (1 << FRACTION_BITS);
+    sp->loop_end = loop_end * (1 << FRACTION_BITS);
+}
 
 void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 {
@@ -552,9 +642,15 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->panning = s->panning == PAN_SURROUND ? 64 : s->panning * 128 / 255;
 	sp->low_vel = 0;
 	sp->high_vel = 127;
-	sp->data_length <<= FRACTION_BITS;
-	sp->loop_start <<= FRACTION_BITS;
-	sp->loop_end <<= FRACTION_BITS;
+
+	if (sp->data_length >= (1 << (31 - FRACTION_BITS)) - 1)
+	    shrink_huge_sample(sp);
+	else
+	{
+	    sp->data_length <<= FRACTION_BITS;
+	    sp->loop_start <<= FRACTION_BITS;
+	    sp->loop_end <<= FRACTION_BITS;
+	}
 
 	/* If necessary do some anti-aliasing filtering  */
 	if (antialiasing_allowed)

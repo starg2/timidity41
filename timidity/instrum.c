@@ -470,7 +470,13 @@ static Instrument *load_gus_instrument(char *name,
 		sp->sample_rate, sp->low_freq, sp->high_freq, sp->root_freq);
 
       if (panning==-1)
-	sp->panning = (tmp[0] * 8 + 4) & 0x7f;
+        {
+          /* 0x07 and 0x08 are both center panning */
+          if (tmp[0] <= 7)
+            sp->panning = 64 + ((tmp[0] - 7) * 63) / 7;
+          else if (tmp[0] >= 8)
+            sp->panning = 64 + ((tmp[0] - 8) * 63) / 7;
+	}
       else
 	sp->panning=(uint8)(panning & 0x7F);
 
@@ -776,6 +782,7 @@ Instrument *load_instrument(int dr, int b, int prog)
 	    for(i = 0; i < ip->samples; i++)
 		ip->sample[i].volume = bank->tone[prog].amp / 100.0;
 	}
+	if(ip != NULL) bank->tone[((dr)?0:prog)].comment = ip->instname;
 	return ip;
     }
 
@@ -794,6 +801,8 @@ Instrument *load_instrument(int dr, int b, int prog)
 
     /* preload soundfont */
     ip = load_soundfont_inst(0, font_bank, font_preset, font_keynote);
+    if(ip != NULL) bank->tone[prog].comment = ip->instname;
+
 
     if(ip == NULL)
     {
@@ -807,8 +816,10 @@ Instrument *load_instrument(int dr, int b, int prog)
 	ip = load_gus_instrument(bank->tone[prog].name, bank, dr, prog,
 				 infomsg);
 
-	if(ip == NULL) /* no patch; search soundfont again */
+	if(ip == NULL) { /* no patch; search soundfont again */
 	    ip = load_soundfont_inst(1, font_bank, font_preset, font_keynote);
+            if(ip != NULL) bank->tone[0].comment = ip->instname;
+	}
     }
 
     return ip;

@@ -241,56 +241,13 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pr $$/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-arc.o: arc.c ../config.h ../timidity/timidity.h ../utils/support.h \
-	../timidity/common.h url.h ../utils/mblock.h arc.h \
-	../utils/strtab.h zip.h unlzh.h explode.h
-arc_lzh.o: arc_lzh.c ../config.h ../timidity/timidity.h \
-	../utils/support.h arc.h url.h ../utils/mblock.h
-arc_mime.o: arc_mime.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h arc.h url.h
-arc_tar.o: arc_tar.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h arc.h url.h
-arc_zip.o: arc_zip.c ../config.h ../timidity/timidity.h \
-	../utils/support.h arc.h url.h ../utils/mblock.h
-deflate.o: deflate.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h
-explode.o: explode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h explode.h zip.h
-inflate.o: inflate.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h
-unlzh.o: unlzh.c ../config.h ../timidity/timidity.h ../utils/support.h \
-	unlzh.h
-url.o: url.c ../config.h ../timidity/timidity.h ../utils/support.h url.h
-url_b64decode.o: url_b64decode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_buff.o: url_buff.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_cache.o: url_cache.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/memb.h ../utils/mblock.h
-url_dir.o: url_dir.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/strtab.h ../utils/mblock.h
-url_file.o: url_file.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_hqxdecode.o: url_hqxdecode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_inflate.o: url_inflate.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/mblock.h zip.h
-url_mem.o: url_mem.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_pipe.o: url_pipe.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_qsdecode.o: url_qsdecode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_uudecode.o: url_uudecode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-
 info-am:
 info: info-am
 dvi-am:

@@ -117,7 +117,7 @@ INCLUDES =  	-I$(top_srcdir)/libarc 	-I$(top_srcdir)/timidity 	$(EXTRAINCS)
 
 noinst_LIBRARIES = libutils.a
 
-libutils_a_SOURCES =  	bitset.c 	bitset.h 	mblock.c 	mblock.h 	memb.c 	memb.h 	nkflib.c 	nkflib.h 	strtab.c 	strtab.h 	support.c 	support.h 	timer.c 	timer.h
+libutils_a_SOURCES =  	bitset.c 	bitset.h 	fft4g.c 	fft4g.h 	mblock.c 	mblock.h 	memb.c 	memb.h 	nkflib.c 	nkflib.h 	strtab.c 	strtab.h 	support.c 	support.h 	timer.c 	timer.h
 
 
 EXTRA_libutils_a_SOURCES =  	fft.c 	fft.h 	support.c 	net.c 	net.h 	mac_util.c 	mac_util.h 	mac_readdir.c 	mac_readdir.h 	readdir.h 	readdir_win.c
@@ -147,7 +147,7 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libutils_a_OBJECTS =  bitset.o mblock.o memb.o nkflib.o strtab.o \
+libutils_a_OBJECTS =  bitset.o fft4g.o mblock.o memb.o nkflib.o strtab.o \
 support.o timer.o
 AR = ar
 CFLAGS = @CFLAGS@
@@ -245,26 +245,13 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pr $$/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-bitset.o: bitset.c ../config.h ../timidity/timidity.h support.h \
-	../timidity/common.h ../libarc/url.h mblock.h bitset.h
-mblock.o: mblock.c ../config.h ../timidity/timidity.h support.h mblock.h
-memb.o: memb.c ../config.h ../timidity/timidity.h support.h memb.h \
-	mblock.h ../libarc/url.h
-nkflib.o: nkflib.c ../config.h ../timidity/timidity.h support.h \
-	../timidity/common.h ../libarc/url.h mblock.h nkflib.h
-strtab.o: strtab.c ../config.h ../timidity/timidity.h support.h mblock.h \
-	strtab.h
-support.o: support.c ../config.h ../timidity/timidity.h support.h \
-	mblock.h
-timer.o: timer.c ../config.h ../timidity/timidity.h support.h timer.h
-
 info-am:
 info: info-am
 dvi-am:

@@ -1,3 +1,78 @@
+2001-06-25  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/{m2m.c,freq.c}:
+	  Change global variables to static.
+
+2001-06-24  Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+	* timidity/{instrum.c,instrum.h,playmidi.c,sndfont.c}:
+	  Enable to display SoundFont name.
+
+	* interface/{xaw_c.c,xaw_i.c}:
+	  Support CTLE_DRUMPART message in xaw interface.
+
+2001-06-16  Eric A. Welsh <ewelsh@ccb.wustl.edu>
+
+	* timidity/{m2m.c,freq.c}:
+	  Remove some unused variables, and recast one of the
+	  functions to void.
+	
+2001-05-31  Eric A. Welsh <ewelsh@ccb.wustl.edu>
+
+	* timidity/readmidi.c: Bugfix about restarting.
+
+2001-05-29  Eric A. Welsh <ewelsh@ccb.wustl.edu>
+
+	* timidity/{output.c,playmidi.c,modmid_a.c,freq.c,freq.h,m2m.c},
+	  utils/{fft4g.c,fft4g.h},
+	  doc/m2m.txt;
+	  New feature: MOD to MIDI conversion.
+	
+
+2001-05-29  Eric A. Welsh <ewelsh@ccb.wustl.edu>
+
+	* timidity/instrum.c:
+	  GUS sample pans are calculated correctly now.  The old method
+	  resulted in most pans being off by -4.
+
+	* timidity/{mix.c,playmidi.c,playmidi.h,timidity.h}:
+	  New SMOOTH_MIXING define.  Any changes to left_mix or right_mix are
+	  now smoothed over a 0.5 msec window, eliminating "cliffs" which
+	  could result in popping noises.  This should be defined by default.
+
+	* timidity/mod2midi.c:
+	  period2note patch from Paolo Bonzini (you should already have this).
+	  New shrink_huge_sample(Sample *sp) function.  Some mod samples are
+	  bigger than 1 meg (the maximum size in TiMidity++) and need to be
+	  resampled down to fit under the limit.
+
+	* timidity/mod.c:
+	  Tempo/BPM events are implemented more "correctly" now.
+	  Sample pans are no longer applied twice (which was usually resulting
+	  in everything coming out of the left speaker).
+
+2001-05-26  Marcus Herbert <rhoenie@spam-filter.de>
+
+	* timidity/mod.h, libunimod/load_okt.c: Change CR/LF -> LF
+	* libunimod/load_med.c, timidity/wrd_read.c: Fix cast probrems.
+
+2001-05-05  Paolo Bonzini <bonzini@gnu.org>
+
+        * timidity/mod2midi.c (period2note): always pick the
+        closest note instead of the lowest one.
+
+2001-04-06  Takaya Nogami <t-nogami@happy.email.ne.jp>
+
+	* timidity/resample.c: Bug fix.
+
+2001-04-05  Joakim Verona <joakim@verona.se>
+
+	* interface/alsaseq_c.c: Bug fix about quiet channel
+
+2001-03-24  David Lawrence Ramsey <pooka_regent@hotmail.com>
+
+	* timidity/readmidi.c: support for RMI/RMID/RMIDI files.
+
 2001-03-18  Masanao Izumo <mo@goice.co.jp>
 
 	* Version 2.10.4 released.

@@ -1,3 +1,8 @@
+    * Version 2.11.0 released.
+    * MOD to MIDI conversion.
+    * -EFchorus=2 is default.
+    * Support RIFF MIDI.
+
 03/18, 2001
     * Version 2.10.4 released.
 

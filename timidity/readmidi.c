@@ -2297,6 +2297,12 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 	    skip(tf, 128 - 4);
 	    goto retry_read;
 	}
+	else if(strncmp(magic, "RIFF", 4) == 0)
+	{
+	    /* RIFF MIDI file */
+	    skip(tf, 20 - 4);
+	    goto retry_read;
+	}
 	err = 1;
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		  "%s: Not a MIDI file!", current_filename);

@@ -71,6 +71,7 @@ static void ctl_refresh(void);
 static void ctl_total_time(int tt);
 static void ctl_note(int status, int ch, int note, int velocity);
 static void ctl_program(int ch, int val, void *vp);
+static void ctl_drumpart(int ch, int is_drum);
 static void ctl_volume(int ch, int val);
 static void ctl_expression(int ch, int val);
 static void ctl_panning(int ch, int val);
@@ -735,6 +736,14 @@ static void ctl_program(int ch, int val, void *comm)
     a_pipe_write(local_buf);
   }
 }
+static void ctl_drumpart(int ch, int is_drum)
+{
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
+  if(!ctl.trace_playing) return;
+
+  sprintf(local_buf, "i%c%c", ch+'A', is_drum+'A');;
+  a_pipe_write(local_buf);
+}
 
 static void ctl_event(CtlEvent *e)
 {
@@ -759,6 +768,9 @@ static void ctl_event(CtlEvent *e)
       break;
     case CTLE_PROGRAM:
       ctl_program((int)e->v1, (int)e->v2, (char *)e->v3);
+      break;
+    case CTLE_DRUMPART:
+      ctl_drumpart((int)e->v1, (int)e->v2);
       break;
     case CTLE_VOLUME:
       ctl_volume((int)e->v1, (int)e->v2);

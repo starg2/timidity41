@@ -62,6 +62,7 @@ typedef struct {
   int type;
   int samples;
   Sample *sample;
+  char *instname;
 } Instrument;
 
 typedef struct {

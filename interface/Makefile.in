@@ -284,7 +284,7 @@ maintainer-clean-recursive:
 	  rev="$$subdir $$rev"; \
 	  test "$$subdir" = "." && dot_seen=yes; \
 	done; \
-	test "$$dot_seen" = "no" && rev="$$rev ."; \
+	test "$$dot_seen" = "no" && rev=". $$rev"; \
 	target=`echo $@ | sed s/-recursive//`; \
 	for subdir in $$rev; do \
 	  echo "Making $$target in $$subdir"; \
@@ -343,7 +343,7 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pr $$/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
@@ -360,44 +360,6 @@ distdir: $(DISTFILES)
 	      || exit 1; \
 	  fi; \
 	done
-VTPrsTbl.o: VTPrsTbl.c VTparse.h
-dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/output.h ../timidity/controls.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h
-ncurs_c.o: ncurs_c.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/output.h \
-	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h \
-	../utils/bitset.h ../libarc/arc.h ../timidity/aq.h \
-	../timidity/mid-j.defs
-wrdt_dumb.o: wrdt_dumb.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
-wrdt_tty.o: wrdt_tty.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
-wrdt_x.o: wrdt_x.c ../config.h ../timidity/timidity.h ../utils/support.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h \
-	x_wrdwindow.h x_mag.h x_sherry.h
-x_mag.o: x_mag.c ../config.h ../timidity/timidity.h ../utils/support.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h x_mag.h \
-	../timidity/controls.h ../timidity/wrd.h
-x_sherry.o: x_sherry.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/controls.h ../timidity/wrd.h \
-	../timidity/aq.h x_sherry.h
-x_wrdwindow.o: x_wrdwindow.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h x_mag.h x_wrdwindow.h VTparse.h \
-	../timidity/wrd.h ../timidity/controls.h ../timidity/aq.h
-
 info-am:
 info: info-recursive
 dvi-am:

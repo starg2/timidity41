@@ -851,7 +851,7 @@ int import_wrd_file(char *fn)
 		    if(*val == '\\')
 		    {
 			lyric = ++val;
-			wrd_add_lyric(step_at, lyric, 1);
+			wrd_add_lyric(step_at, (char *) lyric, 1);
 			wrdstep_inc(&wrdstep, wrdstep.step_inc);
 		    }
 		    else if(*val == '|')
@@ -870,7 +870,7 @@ int import_wrd_file(char *fn)
 			i = val - lyric;
 			if(*val == '|')
 			    val++;
-			wrd_add_lyric(step_at, lyric, i);
+			wrd_add_lyric(step_at, (char *) lyric, i);
 
 			/* Why does /^\|[^\|]+\|$/ takes only one waiting ? */
 			if(mimpi_bug_emulation_level >= 2 &&
@@ -895,7 +895,7 @@ int import_wrd_file(char *fn)
 			    break;
 			i = val - lyric;
 			if(*lyric != '_')
-			    wrd_add_lyric(step_at, lyric, i);
+			    wrd_add_lyric(step_at, (char *) lyric, i);
 			wrdstep_inc(&wrdstep, wrdstep.step_inc);
 		    }
 		}
@@ -1427,7 +1427,7 @@ static int wrd_nexttok(struct timidity_file *tf)
 #ifdef IS_SJIS_ZENKAKU_SPACE
 	if(IS_SJIS_ZENKAKU_SPACE(linebuf + tokp)) {
 	    /* nop */
-	    mimpi_bug_emu(-1, linebuf);
+	    mimpi_bug_emu(-1, (char *) linebuf);
 	    tokp += 2;
 	    goto retry_parse;
 	}
@@ -1439,7 +1439,7 @@ static int wrd_nexttok(struct timidity_file *tf)
 	   linebuf[tokp] == ';')
 	{
 	    /* nop */
-	    mimpi_bug_emu(-1, linebuf);
+	    mimpi_bug_emu(-1, (char *) linebuf);
 	    goto retry_parse;
 	}
 
@@ -1515,7 +1515,7 @@ static int wrd_nexttok(struct timidity_file *tf)
 	    wrd_tokval[len++] = c;
 	}
 	wrd_tokval[len] = '\0';
-	mimpi_bug_emu(wrd_tokval[0], linebuf);
+	mimpi_bug_emu(wrd_tokval[0], (char *) linebuf);
 
 	if(c == WRDENDCHAR)
 	{

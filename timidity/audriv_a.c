@@ -237,7 +237,7 @@ static void close_output(void)
     if(dpm.fd != -1)
     {
 	audriv_play_close();
-	dpm.fd == -1;
+	dpm.fd = -1;
     }
 }
 

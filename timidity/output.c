@@ -93,6 +93,8 @@ extern PlayMode vorbis_play_mode;
 #endif /* AU_VORBIS */
 #endif /* !__MACOS__ */
 
+extern PlayMode modmidi_play_mode;
+
 PlayMode *play_mode_list[] = {
 #ifdef DEV_PLAY_MODE
   DEV_PLAY_MODE,
@@ -124,6 +126,7 @@ PlayMode *play_mode_list[] = {
 #endif /* AU_VORBIS */
   &list_play_mode,
 #endif /* __MACOS__ */
+  &modmidi_play_mode,
   0
 };
 

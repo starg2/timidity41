@@ -1914,11 +1914,11 @@ pt_playeffects (void)
 	  dat = UniGetByte ();
 	  if (mp.vbtick || mp.patdly2)
 	    break;
-	  if (dat >= 0x20)
+	  if (dat > 0x20)
 	    mp.newbpm = dat;
 	  else if (dat)
 	    {
-	      mp.sngspd = (dat >= 32) ? 32 : dat;
+	      mp.sngspd = (dat > 32) ? 32 : dat;
 	      mp.vbtick = 0;
 	    }
 	  break;
@@ -2987,14 +2987,14 @@ mod_do_play (MODULE * mf)
 
   mp.pat_repcrazy = 0;
   mp.sngpos = 0;
-  mp.sngspd = mf->initspeed ? (mf->initspeed < 32 ? mf->initspeed : 32) : 6;
+  mp.sngspd = mf->initspeed ? (mf->initspeed <= 32 ? mf->initspeed : 32) : 6;
   mp.volume = mf->initvolume > 128 ? 128 : mf->initvolume;
 
   mp.oldsngspd = mp.sngspd;
   mp.vbtick = mp.sngspd;
   mp.patdly = 0;
   mp.patdly2 = 0;
-  mp.bpm = mf->inittempo < 32 ? 32 : mf->inittempo;
+  mp.bpm = mf->inittempo <= 32 ? 32 : mf->inittempo;
   mp.newbpm = mp.bpm;
 
   mp.patpos = 0;
@@ -3010,6 +3010,15 @@ mod_do_play (MODULE * mf)
   while (HandleTick ());
   Voice_TickDone ();
   Voice_EndPlaying ();
+
+  /* reset all sample pans to center */
+  /* mod routines have already adjusted the pan events, so we don't want
+     the regular mixing routines to apply them yet again */
+  for (t = 0; t < 256; t++)
+  {
+    if (special_patch[t])
+      special_patch[t]->sample->panning = 64;
+  }
 
   /* Done! */
   free (mp.control);
