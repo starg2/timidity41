@@ -11,19 +11,31 @@
 #include "timidity.h"
 #include "url.h"
 
-#ifdef __WIN32__
+
+#ifdef __W32_READDIR__
 #include "readdir.h"
+# define NAMLEN(dirent) strlen((dirent)->d_name)
 #else
-#include <sys/types.h>
-#if defined(sun)
-#include <dirent.h>
-#elif defined(SVR4) || defined(SYSTYPE_SVR4) || defined(__svr4__)
-#include <sys/dir.h>
-#define dirent direct
+
+#if HAVE_DIRENT_H
+# include <dirent.h>
+# define NAMLEN(dirent) strlen((dirent)->d_name)
 #else
-#include <dirent.h>
+# define dirent direct
+# define NAMLEN(dirent) (dirent)->d_namlen
+# if HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# if HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# if HAVE_NDIR_H
+#  include <ndir.h>
+# endif
 #endif
+
 #endif
+
 
 #ifdef URL_DIR_CACHE_ENABLE
 #include <sys/stat.h>
@@ -79,12 +91,16 @@ static struct dir_cache_t *scan_cached_files(struct dir_cache_t *p,
     init_string_table(&stab);
     while((d = readdir(dirp)) != NULL)
     {
+	int dlen;
+
 	/* Skip removed file. */
 	if(d->d_ino == 0)
 	    continue;
+	if((dlen = NAMLEN(d)) == 0)
+	    continue;
 
 	/* put into string table */
-	if(put_string_table(&stab, d->d_name, strlen(d->d_name)) == NULL)
+	if(put_string_table(&stab, d->d_name, dlen) == NULL)
 	{
 	    url_errno = errno;
 	    delete_string_table(&stab);
@@ -376,6 +392,7 @@ static char *url_dir_gets(URL url, char *buff, int n)
 	}
 	urlp->ptr = *urlp->fptr;
 	urlp->fptr++;
+	urlp->len = strlen(urlp->ptr);
 #else
 
 	do
@@ -384,9 +401,10 @@ static char *url_dir_gets(URL url, char *buff, int n)
 		urlp->endp = 1;
 		return NULL;
 	    }
-	while (urlp->d->d_ino == 0);
+	while (urlp->d->d_ino == 0 ||
+	       NAMLEN(urlp->d) == 0);
 	urlp->ptr = urlp->d->d_name;
+	urlp->len = NAMLEN(urlp->d);
 #endif
-	urlp->len = strlen(urlp->ptr);
     }
 }

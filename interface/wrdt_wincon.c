@@ -39,9 +39,10 @@
 #else
 #include <strings.h>
 #endif
-#ifdef __WIN32__
+#ifndef __CYGWIN32__
 #include <conio.h>
 #endif
+
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -51,10 +52,21 @@
 #include "wrd.h"
 
 // #define DEBUG1
-// #define USE_ESC
-#ifndef __WIN32__
+#ifdef __CYGWIN32__
 #define USE_ESC
-#endif /* __WIN32__ */
+
+#define NULL_STMT do ; while(0)
+#define gotoxy(x, y) NULL_STMT
+#define wherex() 1
+#define wherey() 1
+#define putch putchar
+#define cputs puts
+#define delline() NULL_STMT
+#define clrscr() NULL_STMT
+#define clreol() NULL_STMT
+
+
+#endif /* __CYGWIN32__ */
 
 static int wrdt_open(char *dummy);
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[]);
@@ -81,6 +93,7 @@ static int wrd_argc;
 static int wrd_args[WRD_MAXPARAM];
 static int inkey_flag;
 
+#ifdef __BORLANDC__
 static struct text_info text_info;
 static struct conattr {
 	int attr;
@@ -132,6 +145,15 @@ static void borlandc_con_reset(void)
 {
 	borlandc_con_reset_attr();
 }
+#else
+struct {
+    int winleft, winright;
+    int wintop, winbottom;
+} text_info = {
+  1,25,
+  1,80,
+};
+#endif
 
 #define CANNOC_X(x) \
 {\
@@ -155,6 +177,7 @@ static void putstringn(char *str, int n)
 		putch(*(str++));
 }
 
+#ifdef __BORLANDC__
 static void borlandc_con_color(int color)
 {
 	switch(color){
@@ -292,6 +315,7 @@ static void borlandc_con_color(int color)
 	}
 	return;
 }
+#endif
 
 /* Escape sequence */
 
@@ -456,17 +480,23 @@ void esc_setcursorposition(void)
 
 void esc_enablecursordisplay(void)
 {
+#ifdef __BORLANDC__
 	_setcursortype(_NORMALCURSOR);
+#endif /* __BORLANDC__ */
 }
 
 void esc_disablecursordisplay(void)
 {
+#ifdef __BORLANDC__
 	_setcursortype(_NOCURSOR);
+#endif /* __BORLANDC__ */
 }
 
 void esc_characterattribute(int n)
 {
+#ifdef __BORLANDC__
 	borlandc_con_color(n);
+#endif
 }
 
 /* return figures */
@@ -723,6 +753,7 @@ static void borlandc_esc(char *str)
 }
 */
 
+#ifdef __BORLANDC__
 static void borlandc_esc(char *str)
 {
 	char local[201];
@@ -732,6 +763,7 @@ static void borlandc_esc(char *str)
 	local[200] = '\0';
 	putstring_with_esc(local);
 }
+#endif /* __BORLANDC__ */
 
 static int wrdt_open(char *dummy)
 {

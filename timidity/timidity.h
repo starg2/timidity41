@@ -256,14 +256,6 @@ typedef double FLOAT_T;
 /* #define TMPDIR "/var/tmp" */
 
 
-/* Define if union semun is exist. */
-/* #define HAVE_UNION_SEMUN */
-
-
-/* Undefine if your compiler supports `volatile' declare */
-/* #define NO_VOLATILE */
-
-
 /* To use GS drumpart setting. */
 #define GS_DRUMPART
 
@@ -374,71 +366,14 @@ extern int volatile_touch(void* dmy);
    fragments under the VoxWare (Linux & FreeBSD) audio driver */
 #define AUDIO_BUFFER_SIZE (1<<AUDIO_BUFFER_BITS)
 
-/* for solaris-x86 */
-#if defined(SOLARIS) && defined(__i386__)
-#define LITTLE_ENDIAN
-#endif /* SOLARIS && __i386__ */
-
-/* Byte order, defined in <machine/endian.h> for FreeBSD and DEC OSF/1 */
-#ifdef DEC
-#include <machine/endian.h>
-#include <errno.h>
-#endif /* DEC */
-
-#ifdef sgi
-#include <errno.h>
-#ifndef BIG_ENDIAN
+/* Byte order */
+#ifdef WORDS_BIGENDIAN
 #define BIG_ENDIAN
-#endif /* BIG_ENDIAN */
 #undef LITTLE_ENDIAN
-#endif /* sgi */
-
-#ifdef linux
-/*
- * Byte order is defined in <bytesex.h> as __BYTE_ORDER, that need to
- * be checked against __LITTLE_ENDIAN and __BIG_ENDIAN defined in <endian.h>
- * <endian.h> includes automagically <bytesex.h>
- * for Linux.
- */
-#include <endian.h>
-#include <errno.h>
-/*
- * We undef the two things to start with a clean situation
- * (oddly enough, <endian.h> defines under certain conditions
- * the two things below, as __LITTLE_ENDIAN and __BIG_ENDIAN, that
- * are useless for our plans)
- */
-#undef LITTLE_ENDIAN
-#undef BIG_ENDIAN
-
-# if __BYTE_ORDER == __LITTLE_ENDIAN
-#  define LITTLE_ENDIAN
-# elif __BYTE_ORDER == __BIG_ENDIAN
-#  define BIG_ENDIAN
-# else
-# error No byte sex defined
-# endif
-#endif /* linux */
-
-#if defined(__FreeBSD__) || defined(__bsdi__) || defined(__NetBSD__)
-#include <errno.h>
-#include <sys/types.h>
-#include <machine/endian.h>
-#if BYTE_ORDER == LITTLE_ENDIAN
-#undef BIG_ENDIAN
-#undef PDP_ENDIAN
-#elif BYTE_ORDER == BIG_ENDIAN
-#undef LITTLE_ENDIAN
-#undef PDP_ENDIAN
 #else
-# error No valid byte sex defined
+#undef BIG_ENDIAN
+#define LITTLE_ENDIAN
 #endif
-#endif /* __FreeBSD__ || __bsdi__ || __NetBSD__ */
-
-/* Win32 on Intel machines */
-#ifdef __WIN32__
-#  define LITTLE_ENDIAN
-#endif /* __WIN32__ */
 
 /* DEC MMS has 64 bit long words */
 #if defined(DEC)
@@ -571,14 +506,13 @@ typedef struct _ChannelBitMask
 
 #define VIBRATO_DEPTH_TUNING (1.0/4.0)
 
-#ifdef HPUX
+#include <stdio.h>
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN
-#endif /* BIG_ENDIAN */
-#undef LITTLE_ENDIAN
+#endif /* HAVE_ERRNO_H */
+
+#ifdef HPUX
 #undef mono
-  extern char *sys_errlist[];
 #endif
 
 #ifdef sun
@@ -587,8 +521,6 @@ typedef struct _ChannelBitMask
 #include <memory.h>
 #define memcpy(x, y, n) bcopy(y, x, n)
 #endif /* SunOS 4.x */
-#include <errno.h>
-  extern char *sys_errlist[];
   extern int errno;
   extern int opterr;
   extern int optind;
@@ -607,18 +539,9 @@ typedef struct _ChannelBitMask
 
 
 #ifdef __WIN32__
-#  include <errno.h>
-#  undef DECOMPRESSOR_LIST
-#  undef PATCH_EXT_LIST
-#  define PATCH_EXT_LIST { ".pat", 0 }
+#undef PATCH_EXT_LIST
+#define PATCH_EXT_LIST { ".pat", 0 }
 
-#ifndef HAVE_USLEEP
-#define HAVE_USLEEP
-#endif /* HAVE_USLEEP */
-#define usleep(usec) Sleep((usec) / 1000)
-#define sleep(sec)   Sleep((sec)  * 1000)
-
-/* URL Directory is not work in Windows */
 #define URL_DIR_CACHE_DISABLE
 #endif
 
@@ -675,5 +598,34 @@ typedef struct _ChannelBitMask
 #undef DECOMPRESSOR_LIST
 #undef PATCH_CONVERTERS
 #endif
+
+
+
+/* Follows are defined in utils/support.c */
+
+#ifndef HAVE_VSNPRINTF
+#include <stdarg.h> /* for va_list */
+extern void vsnprintf(char *buff, size_t bufsiz, const char *fmt, va_list ap);
+#endif
+
+#ifndef HAVE_SNPRINTF
+extern void snprintf(char *buff, size_t bufsiz, const char *fmt, ...);
+#endif /* HAVE_SNPRINTF */
+
+#ifndef HAVE_GETOPT
+extern int getopt(int argc, char *argv[], char *optionS)
+#endif /* HAVE_GETOPT */
+
+#ifndef HAVE_STRERROR
+extern char *strerror(int errnum);
+#endif /* HAVE_STRERROR */
+
+#ifndef HAVE_USLEEP
+extern int usleep(unsigned int usec)
+#endif
+
+#ifndef HAVE_SLEEP
+#define sleep(sec) usleep(sec * 1000000)
+#endif /* HAVE_SLEEP */
 
 #endif /* ___TIMIDITY_H_ */

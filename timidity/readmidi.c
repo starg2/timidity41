@@ -354,7 +354,7 @@ static int32 getvl(struct timidity_file *tf)
     if(errno)
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "%s: read_midi_event: %s",
-		  current_filename, sys_errlist[errno]);
+		  current_filename, strerror(errno));
     else
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "Warning: %s: Too shorten midi file.",
@@ -907,7 +907,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 	    if(errno)
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "%s: read_midi_event: %s",
-			  current_filename, sys_errlist[errno]);
+			  current_filename, strerror(errno));
 	    else
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "Warning: %s: Too shorten midi file.",
@@ -1772,7 +1772,7 @@ static int read_smf_file(struct timidity_file *tf)
     {
 	if(errno)
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s", current_filename,
-		      sys_errlist[errno]);
+		      strerror(errno));
 	else
 	    ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		      "%s: Not a MIDI file!", current_filename);
@@ -1968,7 +1968,7 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
     {
 	if(errno)
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s", current_filename,
-		      sys_errlist[errno]);
+		      strerror(errno));
 	else
 	    ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		      "%s: Not a MIDI file!", current_filename);
@@ -2647,7 +2647,7 @@ int midi_file_save_as(char *in_name, char *out_name)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "%s: %s", out_name,
-		  errno ? sys_errlist[errno] : "Can't save file");
+		  errno ? strerror(errno) : "Can't save file");
 	return -1;
     }
 
@@ -2656,7 +2656,7 @@ int midi_file_save_as(char *in_name, char *out_name)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "%s: %s", out_name,
-		  errno ? sys_errlist[errno] : "Can't save file");
+		  errno ? strerror(errno) : "Can't save file");
 	close_file(tf);
 	return -1;
     }

@@ -49,7 +49,12 @@
 static int wrdt_open(char *wrdt_opts);
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[]);
 static void wrdt_update_events(void);
-static void wrdt_start(int /*wrdflag*/){}
+static void wrdt_start(int /*wrdflag*/)
+{
+	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+		  "WRD START");
+}
+
 static void wrdt_end(void);
 static void wrdt_close(void);
 
@@ -173,7 +178,7 @@ void dev_remake_disp(Rect rect)
 	LOCK_ALL_PIXMAP();
 		if( dev_gon_flag) MyCopyBits(GDISP_PIX, DISP_PIX,
 								rect, rect, 0, 0xF);
-			else dev_line(DISP_PIX, rect, 16, 2, 0x1F);
+			else dev_line(DISP_PIX, rect, 16, 2, 0xFF);
 	UNLOCK_ALL_PIXMAP();
 	
 	dev_text_redraw_rect(rect);
@@ -200,8 +205,8 @@ static void dev_text_clear(int locx1, int locy1, int locx2, int locy2,
 {									// clear (x1,y1) .... (x2,y1)
 	int		y, startx,endx, width;
 	
-	if( locx1<1 || COLS<locx1  || locx2<1 || COLS<locx2 || 
-		locy1<1 || LINES<locy1 || locy2<1 || LINES<locy2 ) return;
+	if( locx1<0 || COLS<locx1  || locx2<0 || COLS<locx2 || 
+		locy1<0 || LINES<locy1 || locy2<0 || LINES<locy2 ) return;
 	if( locx2 < locx1 ) return;
 	
 	if( ch==' ' && !(color & 0x08) ){ch=0;}
@@ -622,7 +627,7 @@ static OSErr dev_setup()
 	{
 		short		fontID;
 		SetGWorld(dispWorld,0);
-		GetFNum("\pOsaka¡ÝÅùÉý", &fontID);
+		GetFNum("\pOsaka|“™•", &fontID);
 		TextFont(fontID);
 		TextSize(14);
 	}
@@ -679,8 +684,7 @@ start:
 	switch(esccode){
 	case 0:
 	case DEFAULT:
-	  wrd_text_color_attr&=~(CATTR_COLORED|CATTR_BGCOLORED|CATTR_TXTCOL_MASK);
-	  break;
+	  esccode=37; goto start;
 
 	case 17: esccode=31; goto start;
 	case 18: esccode=34; goto start;
@@ -1078,6 +1082,9 @@ static void wrdt_end(void)
 {
     wrd_argc = 0;
     inkey_flag = 0;
+    ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+		  "WRD END");
+
 }
 
 static void wrdt_close(void)
@@ -1335,6 +1342,20 @@ static void mac_wrd_doESC(const char* code )
 static void mac_wrd_event_esc(int esc)
 {	
 	mac_wrd_doESC(event2string(esc)+1);
+}
+
+static int sry_decode_bindata( char *data )
+{
+	int i;
+	for( i=0; data[i*2]; i++ ){
+		if( data[i*2]==1 ){
+			data[i]=0;
+		}else{
+			data[i]=data[i*2+1];
+		}
+	}
+	data[i]='\0';
+	return i;
 }
 
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
@@ -1626,13 +1647,24 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	/* Extensionals */
       case WRD_START_SKIP:
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "WRD START");
+		  "WRD START SKIP");
 	break;
       case WRD_END_SKIP:
-	//if( fading ) wrd_fadestep( 1,1 );
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "WRD END");
+		  "WRD END SKIP");
 	break;
+	case WRD_SHERRY:
+		{
+			char* data= wrd_event2string(wrd_args[0]);
+			sry_decode_bindata(data);
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+		  		"SHERRY OP= 0x%2x", data[0]);
+			if(data[0]==0x51){
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+			  		"SHERRY TEXT= %s", data+11 );
+			}
+		}
+		break;
     }
     wrd_argc = 0;
 }

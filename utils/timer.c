@@ -24,7 +24,7 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#ifndef __WIN32__ /* UNIX */
+#if defined(HAVE_GETTIMEOFDAY)
 #include <sys/types.h>
 #include <sys/time.h>
 #include <time.h>
@@ -51,7 +51,7 @@ double get_current_calender_time(void)
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0 ;
 }
 
-#else /* Windows */
+#else /* Windows API */
 
 #include <sys/types.h>
 #include <time.h>

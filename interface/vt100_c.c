@@ -35,7 +35,7 @@
 #include <strings.h>
 #endif
 
-#ifndef __WIN32__
+#if !defined(__WIN32__) || defined(__CYGWIN32__)
 #include <unistd.h> /* for sleep */
 #include <sys/time.h>
 #else
@@ -577,6 +577,7 @@ static void ctl_close(void)
     {
 	ctl.opened = 0;
 	vt100_move(24, 0);
+	vt100_refresh();
     }
 }
 

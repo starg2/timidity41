@@ -96,8 +96,8 @@ extern WRDTracer tty_wrdt_mode;
 extern WRDTracer x_wrdt_mode;
 #endif /* WRDT_X */
 
-#ifdef __WIN32__
-extern WRDTracer wincon_wrdt_mode;
+#if defined(__WIN32__)
+extern WRDTracer wincon_wrdt_mode; /* wrdt_wincon.c */
 #endif /* __WIN32__ */
 
 WRDTracer *wrdt_list[] =

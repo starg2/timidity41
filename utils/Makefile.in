@@ -103,6 +103,7 @@ VERSION = @VERSION@
 WISH = @WISH@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
+program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
 
@@ -124,13 +125,14 @@ libutils_a_SOURCES = \
 	nkflib.h \
 	strtab.c \
 	strtab.h \
+	support.c \
 	timer.c \
 	timer.h
 
 EXTRA_libutils_a_SOURCES = \
 	fft.c \
 	fft.h \
-	getopt.c \
+	support.c \
 	net.c \
 	net.h \
 	mac_util.c \
@@ -144,14 +146,11 @@ EXTRA_libutils_a_SOURCES = \
 
 @ENABLE_SOUND_SPEC_TRUE@SOUND_SPEC_OBJS = fft.o
 
-@NEED_GETOPT_TRUE@GETOPT_OBJS = getopt.o
-
-@CYGWIN32_TRUE@CYGWIN32_OBJS = readdir_win.o
+@W32READDIR_TRUE@W32READDIR_OBJS = readdir_win.o
 
 libutils_a_LIBADD = \
 	$(NET_OBJS) \
-	$(CYGWIN32_OBJS) \
-	$(GETOPT_OBJS) \
+	$(W32READDIR_OBJS) \
 	$(SOUND_SPEC_OBJS)
 
 libutils_a_DEPENDENCIES = $(libutils_a_LIBADD)
@@ -169,7 +168,8 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libutils_a_OBJECTS =  bitset.o mblock.o memb.o nkflib.o strtab.o timer.o
+libutils_a_OBJECTS =  bitset.o mblock.o memb.o nkflib.o strtab.o \
+support.o timer.o
 AR = ar
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
@@ -267,12 +267,16 @@ distdir: $(DISTFILES)
 	done
 bitset.o: bitset.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h mblock.h bitset.h
+fft.o: fft.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h mblock.h fft.h
 mblock.o: mblock.c ../config.h ../timidity/timidity.h mblock.h
 memb.o: memb.c ../config.h ../timidity/timidity.h memb.h mblock.h \
 	../libarc/url.h
+net.o: net.c ../config.h ../timidity/timidity.h net.h
 nkflib.o: nkflib.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h mblock.h nkflib.h
 strtab.o: strtab.c ../config.h ../timidity/timidity.h mblock.h strtab.h
+support.o: support.c ../config.h ../timidity/timidity.h mblock.h
 timer.o: timer.c ../config.h ../timidity/timidity.h timer.h
 
 info:

@@ -18,7 +18,7 @@
 #endif
 
 #ifdef __NetBSD__
-# define dlerror() sys_errlist[errno]
+# define dlerror() strerror(errno)
 #endif
 
 

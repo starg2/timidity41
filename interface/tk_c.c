@@ -724,7 +724,7 @@ static void k_pipe_error(char *st)
 {
     fprintf(stderr,"CONNECTION PROBLEM WITH TCL/TK PROCESS IN %s BECAUSE:%s\n",
 	    st,
-	    sys_errlist[errno]);
+	    strerror(errno));
     exit(1);
 }
 

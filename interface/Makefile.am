@@ -136,6 +136,10 @@ WRD_OBJS = \
 	x_mag.o
 endif
 
+if CYGNUS
+WRD_WINCON_OBJS = wrdt_wincon.o
+endif
+
 if NEEDDLOPEN
 DYNAMIC_OBJS = dynamic_c.o
 endif
@@ -156,6 +160,7 @@ libinterface_a_LIBADD = \
 	$(XSKIN_OBJS) \
 	$(GTK_OBJS) \
 	$(WRD_OBJS) \
+	$(WRD_WINCON_OBJS) \
 	$(DYNAMIC_OBJS) \
 	$(SOUND_SPEC_OBJS)
 

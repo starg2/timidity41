@@ -134,13 +134,10 @@ static void InitMenuBar()
 	DrawMenuBar();
 }
 
-int  main()
+static void mac_init()
 {
-	EventRecord	event;
-	int32	output_rate=DEFAULT_RATE;
 	long	gestaltResponse;
-	int		err;
-	
+
 	InitGraf( &qd.thePort );
 	InitFonts();
 	FlushEvents( everyEvent,0 );
@@ -172,9 +169,17 @@ int  main()
 	AEInstallEventHandler(kCoreEventClass, kAEOpenDocuments,
 					NewAEEventHandlerProc(myHandleODOC), 0, false);
 	AEInstallEventHandler(kCoreEventClass, kAEQuitApplication,
-					NewAEEventHandlerProc(myHandleQUIT), 0, false);
-	
+					NewAEEventHandlerProc(myHandleQUIT), 0, false);	
 	InitMenuBar();
+}
+
+int  main()
+{
+	EventRecord	event;
+	int32	output_rate=DEFAULT_RATE;
+	int		err;
+	
+	mac_init();	
 	
 	nPlaying=mac_n_files=0; skin_state=WAITING;
 	
@@ -195,6 +200,7 @@ int  main()
     timidity_init_player();
 	ctl->open(0, 0);
 	play_mode->open_output();
+	init_load_soundfont();
 	wrdt=wrdt_list[0];  //dirty!!
 	if(wrdt->open("d"))
 	{	//some errors
@@ -405,7 +411,7 @@ static void mac_AboutBox()
 	dialog=GetNewDialog(200,0,(WindowRef)-1);
 	if( dialog==0 ) return;
 	SetDialogDefaultItem(dialog, 1);
-	ParamText(TIMID_VERSION, "\p", "\p", "\p");
+	ParamText(TIMID_VERSION_PASCAL, "\p", "\p", "\p");
 	
 	ShowWindow(dialog);
 	for(;;){
@@ -477,6 +483,13 @@ void mac_HandleMenuSelect(long select)
 		
 	case iPref:	mac_SetPlayOption(); return;
 	case iQuit:	DoQuit();			 return;
+	
+	//Play menu
+	case iPlay:	SKIN_ACTION_PLAY(); break;
+	case iStop:	SKIN_ACTION_STOP();	break;
+	case iPause:	SKIN_ACTION_PAUSE(); break;
+	case iPrev:	SKIN_ACTION_PREV(); break;
+	case iNext:	SKIN_ACTION_NEXT(); break;
 	
 		//Synth menu
 	case iTiMidity:{

@@ -78,9 +78,7 @@ extern char **expand_file_archives(char **files, int *nfiles_in_out);
 extern void code_convert(char *in, char *out, int outsiz,
 			 char *in_code, char *out_code);
 
-#ifndef HAVE_SNPRINTF
-void snprintf(char *buff, size_t bufsiz, const char *fmt, ...);
-#endif
+extern void safe_exit(int status);
 
 extern char *timidity_version;
 extern MBlockList tmpbuffer;

@@ -3,7 +3,7 @@
                               Installation guide
 
 					Masanao Izumo <mo@goice.co.jp>
-					Last updated on Jan.6.1999
+					Last updated on Feb.3.1999
 ==============================================================================
 
  This document describes how to install TiMidity++(version 1.0.0 or later)
@@ -14,7 +14,7 @@
  Installing process:
 
   1. ./configure
-  2. edit Makefile and timidity.h (not necessary)
+  2. edit common.makefile, Makefile, timidity.h (not necessary)
   3. make              (required:GNU make)
   4. make install      (required:GNU make)
   5. search for various voice data :)
@@ -167,10 +167,10 @@ Note: '%' is the shell prompt.
 
 
 
-2. edits Makefile, timidity.h
+2. edits common.makefile, Makefile, timidity.h
 ------------------------------
  If configure failed or compile not complete successfully, edit
- Makefile and timidity.h to appropriate value.
+ common.makefile, Makefile, and timidity.h to appropriate value.
 
 
 
@@ -204,12 +204,13 @@ vendorShellWidgetClass
 
 
 5. Search for various voice data
+ TiMidity++ uses GUS/patch (Glavis Ultrasound) as the voice data to play.
+ You must get GUS/patch files, and make the configuration file.
+ Please check the following sites for many voice(patch) data:
 
- This package contains only Piano and Guitar patch. Please check
- the following sites for many voice(patch) data:
-
-http://www.goice.co.jp/timidity/gus/
-http://www.i.h.kyoto-u.ac.jp/~shom/timidity/
+http://www.goice.co.jp/timidity/gus/			(33M patch)
+http://www.goice.co.jp/timidity/dist/cfg/		(Some samples of *.cfg)
+http://www.i.h.kyoto-u.ac.jp/~shom/timidity/		(10M or 4M patch)
 ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 
  If you got funny voice archive, extract it to appropriate directory and
@@ -493,28 +494,6 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
  temporary files in /tmp .
  In Windows, TMPDIR variable are ignored. So you should specify the
  temporary path with this macro.
-
-
- Next, configuration of existence of union semun. If your system
- has it, 
-
-#define HAVE_UNION_SEMUN
-
- or
-
-/* #define HAVE_UNION_SEMUN */
-
-
-
- Next, configuration of existence of volatile declaration. If your
- compiler supports volatile declaration,
-
-/* #define NO_VOLATILE */
-
- otherwise,
-
-#define NO_VOLATILE
-
 
 
  Next, recognizing GS drum part by GS exclusive message.

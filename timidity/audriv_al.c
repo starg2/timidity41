@@ -83,7 +83,7 @@ char audriv_errmsg[BUFSIZ];
 #ifndef SGI_OLDAL
 #define ALERROR alGetErrorString(oserror())
 #else
-#define ALERROR sys_errlist[oserror()]
+#define ALERROR strerror(oserror())
 #endif /* SGI_OLDAL */
 
 static void audriv_err(const char *msg)

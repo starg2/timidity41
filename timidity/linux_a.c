@@ -154,7 +154,7 @@ static void fd_set_nonblocking(int fd, int noblock)
     if(ioctl(fd, FIONBIO, &arg) < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "ioctl:FIONBIO %s",
-		  sys_errlist[errno]);
+		  strerror(errno));
 	sleep(3);
     }
 }
@@ -170,7 +170,7 @@ static int open_output(void)
   if (fd<0)
     {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-	   dpm.name, sys_errlist[errno]);
+	   dpm.name, strerror(errno));
       return -1;
     }
 

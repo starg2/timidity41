@@ -100,15 +100,26 @@ ArchiveEntryNode *next_mime_entry(ArchiveHandler archiver)
 		*p++ = '\0';
 		while(*p == ' ')
 		    p++;
-		if(strcasecmp(hdr.value, "multipart/mixed") == 0)
+		if(strncasecmp(hdr.value, "multipart/mixed", 15) == 0)
 		{
 		    /* Content-Type: multipart/mixed; boundary="XXXX" */
-		    if(strncasecmp(p, "boundary=\"", 10) == 0)
+		    if(strncasecmp(p, "boundary=", 9) == 0)
 		    {
-			p += 10;
-			new_boundary = p;
-			if((p = strchr(p, '"')) == NULL)
-			    continue;
+			p += 9;
+			if(*p == '"')
+			{
+			    p++;
+			    new_boundary = p;
+			    if((p = strchr(p, '"')) == NULL)
+				continue;
+			}
+			else
+			{
+			    new_boundary = p;
+			    while(*p > '"' && *p < 0x7f)
+				p++;
+			}
+
 			*p = '\0';
 			new_boundary = strdup_mblock(&pool, new_boundary);
 		    }

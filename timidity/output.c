@@ -286,6 +286,43 @@ void s32toalaw(int32 *lp, int32 c)
     }
 }
 
+char *output_encoding_string(int enc)
+{
+    if(enc & PE_MONO)
+	if(enc & PE_16BIT)
+	    if(enc & PE_SIGNED)
+		return "16bit (mono)";
+	    else
+		return "unsigned 16bit (mono)";
+	else
+	    if(enc & PE_ULAW)
+		return "U-law (mono)";
+	    else if(enc & PE_ALAW)
+		return "A-law (mono)";
+	    else
+		if(enc & PE_SIGNED)
+		    return "8bit (mono)";
+		else
+		    return "unsigned 8bit (mono)";
+    else
+	if(enc & PE_16BIT)
+	    if(enc & PE_SIGNED)
+		return "16bit";
+	    else
+		return "unsigned 16bit";
+	else
+	    if(enc & PE_ULAW)
+		return "U-law";
+	    else if(enc & PE_ALAW)
+		return "A-law";
+	    else
+		if(enc & PE_SIGNED)
+		    return "8bit";
+		else
+		    return "unsigned 8bit";
+    /*NOTREACHED*/
+}
+
 int32 dumb_current_samples(void)
 {
     return -1;

@@ -312,7 +312,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
     {
       if(noise_mode)
         ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		  current_filename, sys_errlist[errno]);
+		  current_filename, strerror(errno));
       return 0;
     }
 
@@ -342,7 +342,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 #endif /* __MACOS__ */
 	  {
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		 current_filename, sys_errlist[errno]);
+		 current_filename, strerror(errno));
 	    return 0;
 	  }
 	plp=plp->next;
@@ -354,7 +354,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 
   if (noise_mode>=2)
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s", name,
-		errno ? sys_errlist[errno] : "Can't open file");
+		errno ? strerror(errno) : "Can't open file");
 
   return 0;
 }
@@ -427,7 +427,7 @@ long tf_tell(struct timidity_file *tf)
     return pos;
 }
 
-static void safe_exit(int status)
+void safe_exit(int status)
 {
     if(play_mode->fd != -1)
     {
@@ -868,33 +868,3 @@ int check_file_extension(char *filename, char *ext, int decompress)
     }
     return 0;
 }
-
-#ifndef HAVE_VSNPRINTF
-void vsnprintf(char *buff, size_t bufsiz, const char *fmt, va_list ap)
-{
-    MBlockList pool;
-    char *tmpbuf = buff;
-
-    if(bufsiz < MIN_MBLOCK_SIZE)
-    {
-	init_mblock(&pool);
-	tmpbuf = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
-    }
-    vsprintf(tmpbuf, fmt, ap);
-    if(tmpbuf != buff)
-    {
-	strncpy(buff, tmpbuf, bufsiz);
-	reuse_mblock(&pool);
-    }
-}
-#endif /* HAVE_VSNPRINTF */
-
-#ifndef HAVE_SNPRINTF
-void snprintf(char *buff, size_t bufsiz, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buff, bufsiz, fmt, ap);
-    va_end(ap);
-}
-#endif /* HAVE_VSNPRINTF */

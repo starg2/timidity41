@@ -92,9 +92,6 @@ static long internal_play_encoding = AUDIO_ENCODING_ULAW;
 static int internal_play_channels = 1;
 
 char audriv_errmsg[BUFSIZ];
-#ifndef	__NetBSD__
-extern char *sys_errlist[];
-#endif
 
 static const long available_sample_rates[] =
 {
@@ -153,7 +150,7 @@ unsigned ualarm(unsigned, unsigned);
 
 static void audriv_syserr(const char *msg)
 {
-    sprintf(audriv_errmsg, "%s: %s", msg, sys_errlist[errno]);
+    sprintf(audriv_errmsg, "%s: %s", msg, strerror(errno));
     if(audriv_error_handler != NULL)
 	audriv_error_handler(audriv_errmsg);
     else

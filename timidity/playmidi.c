@@ -96,7 +96,9 @@ static int play_pause_flag = 0;
 static int file_from_stdin;
 static struct ReverbControls reverb_ctls[MAX_CHANNELS];
 static void set_reverb_level(int ch, int level);
-static int  make_rvid_flag = 0;
+static int make_rvid_flag = 0;
+static int data_output_count;
+#define fragment_start_count (play_mode->rate/2)
 
 /* Ring voice id for each notes */
 static uint8 vidq_head[128 * MAX_CHANNELS], vidq_tail[128 * MAX_CHANNELS];
@@ -2017,6 +2019,7 @@ static int32 sync_restart(int only_trace_ok)
 	cur = current_sample;
     }
     play_mode->purge_output();
+    data_output_count = 0;
     skip_to(cur);
     return cur;
 }
@@ -2043,6 +2046,7 @@ int check_apply_control(void)
 	break;
       case RC_SYNC_RESTART:
 	play_mode->purge_output();
+	data_output_count = 0;
 	trace_flush();
 	break;
       case RC_TOGGLE_PAUSE:
@@ -2148,6 +2152,7 @@ static int apply_controls(void)
 	  case RC_NEXT:		/* >>| */
 	  case RC_REALLY_PREVIOUS: /* |<< */
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    trace_flush();
 	    return rc;
 
@@ -2176,18 +2181,21 @@ static int apply_controls(void)
 
 	  case RC_PREVIOUS:	/* |<< */
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    if (current_sample < 2*play_mode->rate)
 		return RC_REALLY_PREVIOUS;
 	    return RC_RESTART;
 
 	  case RC_RESTART:	/* |<< */
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    skip_to(0);
 	    jump_flag = 1;
 	    continue;
 
 	  case RC_JUMP:
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    if (val >= sample_count)
 		return RC_NEXT;
 	    skip_to(val);
@@ -2196,6 +2204,7 @@ static int apply_controls(void)
 	  case RC_FORWARD:	/* >> */
 	    cur = current_trace_samples();
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    if(cur == -1)
 		cur = current_sample;
 	    if(val + cur >= sample_count)
@@ -2206,6 +2215,7 @@ static int apply_controls(void)
 	  case RC_BACK:		/* << */
 	    cur = current_trace_samples();
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    if(cur == -1)
 		cur = current_sample;
 	    if(cur > val)
@@ -2226,6 +2236,7 @@ static int apply_controls(void)
 		if(midi_restart_time == -1)
 		    midi_restart_time = current_sample;
 		play_mode->purge_output();
+		data_output_count = 0;
 		play_pause_flag = 1;
 	    }
 	    jump_flag = 1;
@@ -2295,6 +2306,7 @@ static int apply_controls(void)
 		SET_CHANNELMASK(current_file_info->drumchannels, val);
 	    }
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    return RC_RELOAD;
 
 	  case RC_TOGGLE_SNDSPEC:
@@ -2332,6 +2344,7 @@ static int apply_controls(void)
 	    if(midi_restart_time == -1)
 		midi_restart_time = current_sample;
 	    play_mode->purge_output();
+	    data_output_count = 0;
 	    return RC_RELOAD;
 	}
 	if(play_pause_flag)
@@ -2708,7 +2721,10 @@ static int midi_play_end(void)
 
   midi_end:
     if(RC_IS_SKIP_FILE(rc))
+    {
 	play_mode->purge_output();
+	data_output_count = 0;
+    }
 
     ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "Playing time: ~%d seconds",
 	      current_sample/play_mode->rate+2);
@@ -2766,8 +2782,8 @@ static int compute_data(int32 count)
       presence_resample(AUDIO_BUFFER_SIZE);
 #endif /* PRESENCE_HACK */
 
-      if(trace_loop())
-      {
+    if(trace_loop() && data_output_count > fragment_start_count)
+    {
 	  int i;
 	  int32 *bufp;
 	  static int j = 0, nfragm, d, ch;
@@ -2803,6 +2819,7 @@ static int compute_data(int32 count)
       }
       else
 	  play_mode->output_data(common_buffer, AUDIO_BUFFER_SIZE);
+      data_output_count += AUDIO_BUFFER_SIZE;
 
       buffer_pointer=common_buffer;
       buffered_count=0;

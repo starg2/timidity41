@@ -82,7 +82,7 @@ static int open_output(void)
     if ((fd=open(dpm.name, O_RDWR | O_NDELAY, 0)) < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		  dpm.name, sys_errlist[errno]);
+		  dpm.name, strerror(errno));
 	return -1;
     }
 

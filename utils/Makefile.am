@@ -36,13 +36,14 @@ libutils_a_SOURCES = \
 	nkflib.h \
 	strtab.c \
 	strtab.h \
+	support.c \
 	timer.c \
 	timer.h
 
 EXTRA_libutils_a_SOURCES = \
 	fft.c \
 	fft.h \
-	getopt.c \
+	support.c \
 	net.c \
 	net.h \
 	mac_util.c \
@@ -60,18 +61,13 @@ if ENABLE_SOUND_SPEC
 SOUND_SPEC_OBJS = fft.o
 endif
 
-if NEED_GETOPT
-GETOPT_OBJS = getopt.o
-endif
-
-if CYGWIN32
-CYGWIN32_OBJS = readdir_win.o
+if W32READDIR
+W32READDIR_OBJS = readdir_win.o
 endif
 
 libutils_a_LIBADD = \
 	$(NET_OBJS) \
-	$(CYGWIN32_OBJS) \
-	$(GETOPT_OBJS) \
+	$(W32READDIR_OBJS) \
 	$(SOUND_SPEC_OBJS)
 
 libutils_a_DEPENDENCIES = $(libutils_a_LIBADD)

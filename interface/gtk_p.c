@@ -39,6 +39,12 @@
 #ifdef SOLARIS
 #include <sys/filio.h>
 #endif
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
+
 
 #include "timidity.h"
 #include "controls.h"
@@ -63,7 +69,7 @@ pipe_error(char *st)
 {
     fprintf(stderr,"CONNECTION PROBLEM WITH Gtk+ PROCESS IN %s BECAUSE:%s\n",
 	    st,
-	    sys_errlist[errno]);
+	    strerror(errno));
     exit(1);
 }
 

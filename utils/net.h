@@ -23,11 +23,11 @@
 #ifndef ___NET_H_
 #define ___NET_H_
 
-#ifdef __WIN32__
-#include <winsock.h>
-#else
+#if !defined(__WIN32__) || defined(__CYGWIN32__)
 typedef int SOCKET;
 #define closesocket(fd) close(fd)
+#else
+#include <winsock.h>
 #endif
 
 extern SOCKET open_socket(char *host, unsigned short port);

@@ -32,15 +32,15 @@ dnl		ac_cpp:     $CPP $CPPFLAGS
 dnl		ac_compile: ${CC-cc} -c $CFLAGS $CPPFLAGS
 dnl		ac_link:    ${CC-cc} -o * $CFLAGS $CPPFLAGS $LDFLAGS *.c $LIBS
 dnl EXTRACFLAGS - Extra flags to compile.  Adds to CFLAGS.
-dnl EXTRADEFS   - Extra define macros. (AC_SUBST: Adds to CFLAGS)
-dnl EXTRALIBS   - Extra libraries (AC_SUBST: Adds to LIBS)
+dnl EXTRADEFS   - Extra define macros.  Adds to CPPFLAGS.
+dnl EXTRALIBS   - Extra libraries  Adds to LIBS.
 dnl SYSEXTRAS   - Additional source codes to compile.
 dnl lib_*_opt   - Optional libraries. Adds to LIBS.
 dnl LIBRARY_PATH
 dnl		- add to -L LDFLAGS
 dnl C_INCLUDE_PATH
 dnl		- add to -I CPPFLAGS
-dnl CYGWIN32	- `yes' if cygnus win32 environment.
+dnl CYGNUS	- `yes' if cygnus windows environment.
 dnl WISH        - wish
 dnl LN_S	- ln -s
 dnl tcltk_dep	- make dependencies for tcl/tk interface
@@ -54,7 +54,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 1.2.1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 1.3.0, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -120,6 +120,7 @@ AC_PROG_LN_S
 dnl Target dependent
 case "$target" in
   *-*-hpux*)
+    EXTRADEFS="-DHPUX"
     test -n "$SHLD" || SHLD="ld -b"
     so="sl"
     ;;
@@ -133,16 +134,23 @@ case "$target" in
     test -n "$SHLD" || SHLD="ld -Bforcearchive -Bshareable"
     so="so"
     ;;
-  *-*-freebsd2*)
+
+#  *-*-freebsd2*)
+#    EXTRALIBS="$EXTRALIBS -lxpg4"
+#    test -n "$SHLD" || SHLD="ld -Bshareable"
+#    so="so"
+#    ;;
+#  *-*-freebsd*)
+#    SHCFLAGS=-aout
+#    EXTRALIBS="$EXTRALIBS -lxpg4"
+#    SHLDFLAGS="-L/usr/X11R6/lib/aout $SHLDFLAGS"
+#    test -n "$SHLD" || SHLD="env OBJFORMAT=aout ld -shared"
+#    so="so"
+#    ;;
+
+  *-*-freebsd*)
     EXTRALIBS="$EXTRALIBS -lxpg4"
     test -n "$SHLD" || SHLD="ld -Bshareable"
-    so="so"
-    ;;
-  *-*-freebsd*)
-    EXTRACFLAGS=-aout
-    EXTRALIBS="$EXTRALIBS -lxpg4"
-    SHLDFLAGS="-L/usr/X11R6/aout $SHLDFLAGS"
-    test -n "$SHLD" || SHLD="env OBJFORMAT=aout ld -shared"
     so="so"
     ;;
   *-*-cygwin32*)
@@ -155,7 +163,8 @@ case "$target" in
       *) test -n "$SHLD" || SHLD="unknown" ;;
     esac
     so="dll"
-    CYGWIN32=yes
+    CYGNUS=yes
+    program_suffix=.exe
     ;;
   *-dec-*)
     EXTRADEFS="-DDEC"
@@ -230,7 +239,7 @@ dnl End of X configure
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h limits.h malloc.h strings.h sys/ioctl.h sys/time.h unistd.h dlfcn.h glob.h getopt.h)
+AC_CHECK_HEADERS(fcntl.h limits.h malloc.h strings.h sys/ioctl.h sys/time.h unistd.h dlfcn.h glob.h getopt.h errno.h)
 AC_CHECK_HEADER(string.h,, [ EXTRADEFS="$EXTRADEFS -DNO_STRING_H " ])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -268,11 +277,16 @@ AC_FUNC_MMAP
 AC_FUNC_SETVBUF_REVERSED
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS(gettimeofday select socket strdup strstr vsnprintf snprintf usleep strncasecmp strerror)
+AC_CHECK_FUNCS(gettimeofday select socket strdup strstr vsnprintf snprintf sleep usleep strncasecmp strerror getopt)
 
-# check getopt
-AC_CHECK_FUNC(getopt,has_getopt=yes,has_getopt=no)
-AM_CONDITIONAL(NEED_GETOPT, test $has_getopt = no)
+
+dnl checking on cygnus
+if test "x$CYGNUS" = xyes; then
+  AC_CHECK_FUNC(opendir,,
+	[ EXTRADEFS="$EXTRADEFS -D__W32READDIR__"
+	  W32READDIR=yes ])
+fi
+
 
 dnl tcltk path
 AC_ARG_WITH(tcl-includes,
@@ -348,7 +362,7 @@ if test "$enable_audio" = "yes"; then
       AC_MSG_RESULT(yes bsdi)
       ;;
     *-*-hpux*)
-      EXTRADEFS="$EXTRADEFS -DHPUX -DAU_HPUX"
+      EXTRADEFS="$EXTRADEFS -DAU_HPUX"
       SYSEXTRAS="$SYSEXTRAS hpux_d_a.c hpux_a.c"
       if test -d /opt/audio/include; then
         CPPFLAGS="$CPPFLAGS -I/opt/audio/include"
@@ -406,7 +420,8 @@ if test "$enable_audio" = "yes"; then
     *-*-cygwin32*)
       EXTRADEFS="$EXTRADEFS -DAU_WIN32"
       SYSEXTRAS="$SYSEXTRAS win_a.c"
-      AC_MSG_RESULT(yes cygwin32)
+      EXTRALIBS="$EXTRALIBS -lwinmm"
+      AC_MSG_RESULT(yes cygnus)
       ;;
     *)
       EXTRADEFS="$EXTRADEFS -DAU_NONE -DAU_AUDRIV"
@@ -434,7 +449,7 @@ case "$enable_ncurses$enable_slang$enable_motif$enable_tcltk$enable_emacs$enable
 esac
 
 dnl check -fpic option for gcc
-case "$CC " in "gcc "*) SHCFLAGS="-fPIC";; esac
+case "$CC " in "gcc "*) SHCFLAGS="$SHCFLAGS -fPIC";; esac
 case "x$enable_ump" in xyes|xdynamic) EXTRACFLAGS="$EXTRACFLAGS -DXP_UNIX $SHCFLAGS";; esac
 
 if test "$NEEDDLOPEN" = "yes"; then
@@ -776,7 +791,9 @@ dnl Move -I* in CFLAGS to CPPFLAGS.
 dnl It comes from 
 
 
-AM_CONDITIONAL(CYGWIN32, test "x$CYGWIN32" = "xyes")
+AM_CONDITIONAL(CYGNUS, test "x$CYGNUS" = xyes)
+AM_CONDITIONAL(W32READDIR, test "x$W32READDIR" = "xyes")
+
 SET_UNIQ_WORDS(LDFLAGS,$LDFLAGS)
 SET_UNIQ_WORDS(SHLDFLAGS,$SHLDFLAGS)
 SET_UNIQ_WORDS(CFLAGS,$EXTRACFLAGS $CFLAGS)
@@ -801,6 +818,7 @@ AC_SUBST(so)
 AC_SUBST(LN_S)
 AC_SUBST(WISH)
 AC_SUBST(tcltk_dep)
+AC_SUBST(program_transform_name)
 
 AC_OUTPUT([
 Makefile

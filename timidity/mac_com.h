@@ -36,7 +36,8 @@
  #endif
 #endif
 
-#define	TIMID_VERSION	"\p0.2i+AC3+R3.2.4 " TIMID_CPU
+#define	TIMID_VERSION	"1.0.0 " TIMID_CPU
+#define	TIMID_VERSION_PASCAL	"\p" TIMID_VERSION
 
 
 #define PI 3.14159265358979323846
@@ -50,7 +51,7 @@
 #undef  DEFAULT_RATE
 #define DEFAULT_RATE	22050
 
-#define	AU_MAC
+#define	AU_MACOS
 #define BIG_ENDIAN
 #undef  TILD_SCHEME_ENABLE
 #undef  JAPANESE
@@ -58,6 +59,7 @@
 #define DEFAULT_PATH	""
 #undef  CONFIG_FILE
 #define CONFIG_FILE DEFAULT_PATH "timidity.cfg"
+#define ENABLE_SHERRY
 
 #define MAC_SOUNDBUF_QLENGTH (stdQLength*4)
 

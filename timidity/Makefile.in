@@ -103,6 +103,7 @@ VERSION = @VERSION@
 WISH = @WISH@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
+program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
 
@@ -374,7 +375,8 @@ output.o: output.c ../config.h timidity.h output.h tables.h audio_cnv.h
 playmidi.o: playmidi.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h output.h \
 	mix.h controls.h miditrace.h recache.h ../libarc/arc.h \
-	../utils/memb.h reverb.h wrd.h tables.h
+	../utils/memb.h reverb.h wrd.h ../interface/soundspec.h \
+	tables.h
 raw_a.o: raw_a.c ../config.h timidity.h output.h controls.h
 rcp.o: rcp.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h controls.h
@@ -404,8 +406,8 @@ tables.o: tables.c ../config.h timidity.h common.h ../libarc/url.h \
 timidity.o: timidity.c ../config.h ../interface.h timidity.h common.h \
 	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
 	readmidi.h output.h controls.h tables.h miditrace.h reverb.h \
-	recache.h ../libarc/arc.h ../utils/memb.h ../utils/strtab.h \
-	wrd.h mid.defs
+	../interface/soundspec.h recache.h ../libarc/arc.h \
+	../utils/memb.h ../utils/strtab.h wrd.h mid.defs
 wave_a.o: wave_a.c ../config.h timidity.h output.h controls.h
 wrd_read.o: wrd_read.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h controls.h \
@@ -478,7 +480,7 @@ maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 include $(top_builddir)/common.makefile
 
-version.o: version.c Makefile
+version.o: version.c ../configure
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c
 
 $(top_builddir)/interface/libinterface.a:

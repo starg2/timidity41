@@ -98,7 +98,7 @@ static void BlockMoveData_transparent(const void*	srcPtr,	 void *	destPtr,
 	}
 }
 
-static void BlockMoveData_gmode(const void*	srcPtr,	 void *	destPtr,
+static pascal void BlockMoveData_gmode(const void*	srcPtr,	 void *	destPtr,
 								 Size 	byteCount)
 {
 	int i, tmp;
@@ -121,7 +121,7 @@ static void BlockMoveData_gmode(const void*	srcPtr,	 void *	destPtr,
 }
 
 #if __MC68K__
-static void mymemmove(const void* srcPtr, void * destPtr,Size byteCount)
+static pascal void mymemmove(const void* srcPtr, void * destPtr,Size byteCount)
 {
 	memmove(destPtr, srcPtr, byteCount);
 }
@@ -194,7 +194,7 @@ void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
 	switch( mode ){
 	case 0://srcCopy
 		{
-		void (*func)(const void* srcPtr, void *	destPtr,Size byteCount);
+		pascal void (*func)(const void* srcPtr, void *	destPtr,Size byteCount);
 		if( gmode==0xF ) func=BlockMoveData;
 				else func= BlockMoveData_gmode;
 			if( srcRect.top >= dstRect.top ){

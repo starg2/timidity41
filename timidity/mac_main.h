@@ -113,9 +113,18 @@ enum{
 	//-                  F,
 	iQuit=		0x00810010,
 
+	mPlay=0x0082,
+	iPlay=0x00820001,
+	iStop=0x00820002,
+	iPause=0x00820003,
+	//-            4
+	iPrev=0x00820005,
+	iNext=0x00820006,
+	
 	mSynth=0x00A0,
 	iTiMidity=0x00A00001,
 	iQuickTime=0x00A00002
+	
 };
 
 #define	kPlayerWinID	128

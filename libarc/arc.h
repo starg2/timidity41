@@ -5,7 +5,7 @@
 
 #include "memb.h"
 
-#define ARC_LIB_VERSION "1.4.10"
+#define ARC_LIB_VERSION "1.4.11"
 #define ARC_DEFLATE_LEVEL 6	/* 1:Compress faster .. 9:Compress better */
 
 typedef struct _ArchiveStreamURL

@@ -51,7 +51,7 @@ typedef struct {
 	char	filename[256];
 	int		width, hight;
 	long	header_pos;
-	uint8	flag[640];
+	uint8	flag[1280]; //for safty
 	uint8	*flagA_work, *flagB_work;
 	int		flagA_pos, flagB_pos, pixel_pos;
 	Ptr		bitMap;

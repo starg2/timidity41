@@ -101,6 +101,7 @@ SYSEXTRAS = @SYSEXTRAS@
 VERSION = @VERSION@
 WISH = @WISH@
 lispdir = @lispdir@
+program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
 
@@ -202,6 +203,8 @@ EXTRA_libinterface_a_SOURCES = \
 @ENABLE_WRD_TRUE@	VTPrsTbl.o \
 @ENABLE_WRD_TRUE@	x_mag.o
 
+@CYGNUS_TRUE@WRD_WINCON_OBJS = wrdt_wincon.o
+
 @NEEDDLOPEN_TRUE@DYNAMIC_OBJS = dynamic_c.o
 
 @ENABLE_SOUND_SPEC_TRUE@SOUND_SPEC_OBJS = \
@@ -218,6 +221,7 @@ libinterface_a_LIBADD = \
 	$(XSKIN_OBJS) \
 	$(GTK_OBJS) \
 	$(WRD_OBJS) \
+	$(WRD_WINCON_OBJS) \
 	$(DYNAMIC_OBJS) \
 	$(SOUND_SPEC_OBJS)
 
@@ -417,11 +421,61 @@ distdir: $(DISTFILES)
 	  (cd $$subdir && $(MAKE) top_distdir=../$(top_distdir) distdir=../$(distdir)/$$subdir distdir) \
 	    || exit 1; \
 	done
+VTPrsTbl.o: VTPrsTbl.c VTparse.h
 dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
+emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/miditrace.h
+motif_c.o: motif_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h motif.h ../timidity/miditrace.h
+motif_i.o: motif_i.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h motif.h \
+	motif_bitmaps/back.xbm motif_bitmaps/next.xbm \
+	motif_bitmaps/prev.xbm motif_bitmaps/restart.xbm \
+	motif_bitmaps/fwd.xbm motif_bitmaps/pause.xbm \
+	motif_bitmaps/quit.xbm motif_bitmaps/timidity.xbm
+motif_p.o: motif_p.c ../config.h ../timidity/timidity.h \
+	../timidity/controls.h motif.h
+ncurs_c.o: ncurs_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h \
+	../utils/bitset.h ../libarc/arc.h ../utils/memb.h \
+	../timidity/mid-j.defs
+slang_c.o: slang_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h
+soundspec.o: soundspec.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h soundspec.h \
+	../utils/fft.h ../timidity/miditrace.h
+tk_c.o: tk_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/readmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h
+vt100.o: vt100.c ../config.h ../timidity/timidity.h vt100.h
+vt100_c.o: vt100_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h vt100.h \
+	../utils/timer.h ../utils/bitset.h
 wrdt_dumb.o: wrdt_dumb.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
@@ -430,6 +484,47 @@ wrdt_tty.o: wrdt_tty.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
+wrdt_x.o: wrdt_x.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h \
+	x_wrdwindow.h x_mag.h
+x_mag.o: x_mag.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h x_mag.h \
+	../timidity/controls.h ../timidity/wrd.h
+x_wrdwindow.o: x_wrdwindow.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h x_mag.h \
+	x_wrdwindow.h VTparse.h ../timidity/wrd.h \
+	../timidity/controls.h
+xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/readmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h ../utils/timer.h xaw.h
+xaw_i.o: xaw_i.c ../config.h xaw.h check.xbm ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h
+xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h xskin.h
+xskin_i.o: xskin_i.c xskin.h ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h
+xskin_loadBMP.o: xskin_loadBMP.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/controls.h ../timidity/output.h ../libarc/arc.h \
+	../utils/memb.h
+xskin_spectrum.o: xskin_spectrum.c xskin.h ../config.h \
+	../timidity/timidity.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h
 
 info: info-recursive
 dvi: dvi-recursive

@@ -86,7 +86,7 @@ dpm.fd = open(dpm.name, O_WRONLY, 0);
 if(dpm.fd == -1)
     {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-	   dpm.name, sys_errlist[errno]);
+	   dpm.name, strerror(errno));
       return -1;
     }
 

@@ -47,15 +47,13 @@ pkgincludedir = $(includedir)/timidity
 
 #CC= @CC@
 #CFLAGS = @CFLAGS@
-#CPPFLAGS = @CPPFLAGS@
+CPPFLAGS = @CPPFLAGS@ @EXTRADEFS@ -DDEFAULT_PATH=\"$(TIMID_DIR)\"
 #DEFS = @DEFS@
-#EXTRADEFS = @EXTRADEFS@
 #LDFLAGS = @LDFLAGS@
-#LIBS = @LIBS@
-#EXTRALIBS = @EXTRALIBS@
+LIBS = @LIBS@ @EXTRALIBS@
 SHLD = @SHLD@
 SHCFLAGS = @SHCFLAGS@
-DEBUGFLAGS = -Wall
+#@SET_MAKE@
 
 ########### Install.
 #INSTALL = @INSTALL@
@@ -69,9 +67,5 @@ TIMID_DIR = $(pkglibdir)
 # Where to install the Tcl code, if you use the Tcl code that is.
 TCL_DIR = $(TIMID_DIR)
 #TCL_DIR = $(pkgdatadir)
-
-CFLAGS += $(DEBUGFLAGS)
-DEFS += $(EXTRADEFS) -DDEFAULT_PATH=\"$(TIMID_DIR)\"
-LIBS += $(EXTRALIBS)
 
 .SUFFIXES: .c .h .ptcl .tcl .o .1 .txt .ps .@so@

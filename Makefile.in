@@ -105,6 +105,7 @@ VERSION = @VERSION@
 WISH = @WISH@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
+program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
 

@@ -34,7 +34,6 @@
 #include <windows.h>
 extern int optind;
 extern char *optarg;
-int getopt(int, char **, char *);
 #else
 #include <unistd.h>
 #include <fcntl.h> /* for open */
@@ -1839,7 +1838,7 @@ static int read_config_file(char *name, int self)
     if(errno)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		  "Can't read %s: %s", name, sys_errlist[errno]);
+		  "Can't read %s: %s", name, strerror(errno));
 	errcnt++;
     }
     close_file(tf);
@@ -1913,7 +1912,7 @@ static int read_user_config_file(void)
 	    if((opencheck = open(path, 0)) < 0)
 	    {
 		ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s: %s",
-			  path, sys_errlist[errno]);
+			  path, strerror(errno));
 		return 0;
 	    }
 	}
@@ -1934,7 +1933,7 @@ static int read_user_config_file(void)
     if((opencheck = open(path, 0)) < 0)
     {
 	ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s: %s",
-		  path, sys_errlist[errno]);
+		  path, strerror(errno));
 	return 0;
     }
 
@@ -2345,15 +2344,6 @@ static int set_tim_opt(int c, char *optarg)
       case 'i':
 	if(set_ctl(optarg))
 	    return 1;
-#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
-	else if(buffer_fragments == -1 && ctl->trace_playing)
-	  /* user didn't specify anything, so use 2 for real-time response */
-#if defined(AU_LINUX) || defined(AU_BSDI)
-		buffer_fragments = 2;
-#else
-		buffer_fragments = 3;		/* On Win32 2 is chunky */
-#endif
-#endif
 	break;
 
       case 'B':
@@ -2645,7 +2635,21 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
     __try
     {
 #endif /* BORLANDC_EXCEPTION */
+#ifdef __WIN32__
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+		  "Initialize for Critical Section");
+	SetConsoleCtrlHandler (handler, TRUE);
+	InitializeCriticalSection (&critSect);
+	if(opt_evil_mode)
+	    if (!SetThreadPriority(GetCurrentThread(),
+				   THREAD_PRIORITY_ABOVE_NORMAL))
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "Error raising process priority");
+#endif
+
 	/* Open output device */
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+		  "open play_mode(%c)", play_mode->id_character);
 	if(play_mode->open_output() < 0)
 	{
 	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
@@ -2668,15 +2672,6 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	if(*def_instr_name)
 	    set_default_instrument(def_instr_name);
 
-#ifdef __WIN32__
-	SetConsoleCtrlHandler (handler, TRUE);
-	InitializeCriticalSection (&critSect);
-	if(opt_evil_mode)
-	    if (!SetThreadPriority(GetCurrentThread(),
-				   THREAD_PRIORITY_ABOVE_NORMAL))
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-			  "Error raising process priority");
-#endif
 	trace_nodelay(!ctl->trace_playing);
 
 	/* For safety */
@@ -2686,6 +2681,8 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	    play_mode->play_loop = dumb_play_loop;
 
 	/* Return only when quitting */
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+		  "pass_playing_list() nfiles=%d", nfiles);
 	ctl->pass_playing_list(nfiles, files);
 
 #ifdef XP_UNIX

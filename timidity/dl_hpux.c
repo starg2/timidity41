@@ -52,7 +52,7 @@ void *dl_load_file(char *filename)
     obj = shl_load(filename, bind_type | BIND_NOSTART, 0L);
     if(obj == NULL)
     {
- 	fprintf(stderr, "%s\n", sys_errlist[errno]);
+	perror(filename);
 	return NULL;
     }
     return (void *)obj;
@@ -78,7 +78,7 @@ void *dl_find_symbol(void *libhandle, char *symbolname)
 
     if(status == -1)
     {
- 	fprintf(stderr, "%s\n", errno ? sys_errlist[errno] : "Symbol not found.");
+ 	fprintf(stderr, "%s\n", errno ? strerror(errno) : "Symbol not found.");
 	return NULL;
     }
     return symaddr;

@@ -78,8 +78,10 @@ extern void s32toulaw(int32 *lp, int32 c);
 /* aLaw (8 bits) */
 extern void s32toalaw(int32 *lp, int32 c);
 
+extern char *output_encoding_string(int enc);
 extern int32 dumb_current_samples(void);
 extern int   dumb_play_loop(void);
+
 
 /* little-endian and big-endian specific */
 #ifdef LITTLE_ENDIAN

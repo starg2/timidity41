@@ -70,7 +70,7 @@ static void ctl_event(CtlEvent *e);
 static void ctl_refresh(void);
 static void ctl_total_time(int tt);
 static void ctl_note(int status, int ch, int note, int velocity);
-static void ctl_program(int ch, int val);
+static void ctl_program(int ch, int val, void *vp);
 static void ctl_volume(int ch, int val);
 static void ctl_expression(int ch, int val);
 static void ctl_panning(int ch, int val);
@@ -78,6 +78,7 @@ static void ctl_sustain(int ch, int val);
 static void ctl_pitch_bend(int ch, int val);
 static void ctl_reset(void);
 static void update_indicator(void);
+static void set_otherinfo(int ch, int val, char c);
 
 static double indicator_last_update = 0;
 static int exitflag=0,randomflag=0,repeatflag=0,selectflag=0,amp_diff=0;
@@ -165,7 +166,7 @@ static void ctl_total_time(int tt)
     mins=secs / 60;
     secs-=mins * 60;
 
-    sprintf(tt_str, " /%3d:%02d", mins, secs);
+    sprintf(tt_str, "/%d:%02d", mins, secs);
     ctl_current_time(0, 0);
 }
 
@@ -180,54 +181,42 @@ static void ctl_master_volume(int mv)
 
 static void ctl_volume(int ch, int val)
 {
-  if (!ctl.trace_playing)
-    return;
-  if(ch >= MAX_XAW_MIDI_CHANNELS)
-    return;
+  if(!ctl.trace_playing) return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
   sprintf(local_buf, "PV%c%d", ch+'A', val);
   a_pipe_write(local_buf);
 }
 
 static void ctl_expression(int ch, int val)
 {
-  if (!ctl.trace_playing)
-    return;
-  if(ch >= MAX_XAW_MIDI_CHANNELS)
-    return;
+  if(!ctl.trace_playing) return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
   sprintf(local_buf, "PE%c%d", ch+'A', val);
   a_pipe_write(local_buf);
 }
 
 static void ctl_panning(int ch, int val)
 {
-  if (!ctl.trace_playing)
-    return;
-  if(ch >= MAX_XAW_MIDI_CHANNELS)
-    return;
+  if(!ctl.trace_playing) return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
   sprintf(local_buf, "PA%c%d", ch+'A', val);
   a_pipe_write(local_buf);
 }
 
 static void ctl_sustain(int ch, int val)
 {
-  if (!ctl.trace_playing)
-    return;
-  if(ch >= MAX_XAW_MIDI_CHANNELS)
-    return;
+  if(!ctl.trace_playing) return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
   sprintf(local_buf, "PS%c%d", ch+'A', val);
   a_pipe_write(local_buf);
 }
 
 static void ctl_pitch_bend(int ch, int val)
 {
-  /*
-  if (!ctl.trace_playing)
-    return;
-  if(ch >= MAX_XAW_MIDI_CHANNELS)
-    return;
+  if(!ctl.trace_playing) return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
   sprintf(local_buf, "PB%c%d", ch+'A', val);
   a_pipe_write(local_buf);
-  */
 }
 
 static void ctl_lyric(int lyricid)
@@ -608,19 +597,16 @@ ctl_note(int status, int ch, int note, int velocity)
 {
   char c;
 
-  if(ch >= MAX_XAW_MIDI_CHANNELS)
-	return;
-  if (!ctl.trace_playing || midi_trace.flush_flag)
-	return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
+  if(!ctl.trace_playing || midi_trace.flush_flag) return;
 	
-#define TRACE_HEIGHT 200
 	c = '.';
     switch(status) {
     case VOICE_ON:
 	  c = '*';
 	  break;
     case VOICE_SUSTAINED:
-	  c = '*';
+	  c = '&';
 	  break;
 	case VOICE_FREE:
 	case VOICE_DIE:
@@ -632,12 +618,10 @@ ctl_note(int status, int ch, int note, int velocity)
 	a_pipe_write(local_buf);
 }
 
-static void ctl_program(int ch, int val)
+static void ctl_program(int ch, int val, void *comm)
 {
-  if(ch >= MAX_XAW_MIDI_CHANNELS)
-    return;
-  if (!ctl.trace_playing)
-    return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
+  if(!ctl.trace_playing) return;
 
   if(channel[ch].special_sample)
 	val = channel[ch].special_sample;
@@ -645,6 +629,13 @@ static void ctl_program(int ch, int val)
 	val += progbase;
   sprintf(local_buf, "PP%c%d", ch+'A', val);
   a_pipe_write(local_buf);
+  if (comm != NULL) {
+	sprintf(local_buf, "I%c%s", ch+'A', (char *)comm);
+	if (ISDRUMCHANNEL(ch))
+	  sprintf(local_buf, "I%c%s", ch+'A',
+	          (!strlen((char *)comm))? "<drum>":(char *)comm);
+	a_pipe_write(local_buf);
+  }
 }
 
 static void ctl_event(CtlEvent *e)
@@ -669,7 +660,7 @@ static void ctl_event(CtlEvent *e)
 	  ctl_note((int)e->v1, (int)e->v2, (int)e->v3, (int)e->v4);
 	  break;
 	case CTLE_PROGRAM:
-	  ctl_program((int)e->v1, (int)e->v2);
+	  ctl_program((int)e->v1, (int)e->v2, (char *)e->v3);
 	  break;
 	case CTLE_VOLUME:
 	  ctl_volume((int)e->v1, (int)e->v2);
@@ -690,8 +681,10 @@ static void ctl_event(CtlEvent *e)
 	  ctl_pitch_bend((int)e->v1, e->v2 ? -1 : 0x2000);
 	  break;
 	case CTLE_CHORUS_EFFECT:
+	  set_otherinfo((int)e->v1, (int)e->v2, 'c');
 	  break;
 	case CTLE_REVERB_EFFECT:
+	  set_otherinfo((int)e->v1, (int)e->v2, 'r');
 	  break;
 	case CTLE_LYRIC:
 	  ctl_lyric((int)e->v1);
@@ -713,19 +706,40 @@ static void ctl_refresh(void)
 {
 }
 
+static void set_otherinfo(int ch, int val, char c) {
+  if(!ctl.trace_playing) return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS) return;
+  sprintf(local_buf, "P%c%c%d", c, ch+'A', val);
+  a_pipe_write(local_buf);
+}
+
 static void ctl_reset(void)
 {
   int i;
-  if (!ctl.trace_playing)
-    return;
 
+  if(!ctl.trace_playing) return;
   play_mode->purge_output();
 
   for (i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
-	if(ISDRUMCHANNEL(i))
-	  ctl_program(i, channel[i].bank);
-	else
-	  ctl_program(i, channel[i].program);
+	if(ISDRUMCHANNEL(i)) {
+	  ctl_program(i, channel[i].bank, channel_instrum_name(i));
+	} else {
+	  ToneBank *bank;
+	  int b;
+
+	  ctl_program(i, channel[i].program, channel_instrum_name(i));
+	  b = channel[i].bank;
+	  if((bank = tonebank[b]) == NULL
+		 || bank->tone[channel[i].program].instrument == NULL)	{
+		  b = 0;
+		  bank = tonebank[0];
+	  }
+	  set_otherinfo(i, channel[i].bank, 'b');
+	  if (opt_reverb_control && channel[i].rb != NULL)
+		set_otherinfo(i, channel[i].rb->level, 'r');
+	  if(opt_chorus_control)
+		set_otherinfo(i, channel[i].chorus_level, 'c');
+	}
 	ctl_volume(i, channel[i].volume);
 	ctl_expression(i, channel[i].expression);
 	ctl_panning(i, channel[i].panning);
@@ -743,6 +757,7 @@ static void update_indicator(void)
 {
   double t;
 
+  if(!ctl.trace_playing) return;
   t = get_current_calender_time();
   if(indicator_last_update + INDICATOR_UPDATE_TIME > t)	return;
   sprintf(local_buf, "U");

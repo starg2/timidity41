@@ -17,17 +17,17 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
-
-/*****************************************************************************
- * REVERB EFFECT FOR TIMIDITY-0.2i+X (Version 0.06a  1998/2/15)
- *                      Copyright (C) 1997,1998  Masaki Kiryu <mkiryu@usa.net>
- *                                   (http://www.netq.or.jp/~user/hid/masaki/)
+/*
+ * REVERB EFFECT FOR TIMIDITY++-1.X (Version 0.06e  1999/1/28)
+ *
+ * Copyright (C) 1997,1998,1999  Masaki Kiryu <mkiryu@usa.net>
+ *                           (http://w3mb.kcom.ne.jp/~mkiryu/)
  *
  * reverb.h
- *****************************************************************************/
+ *
+ */
 #ifndef ___REVERB_H_
 #define ___REVERB_H_
 

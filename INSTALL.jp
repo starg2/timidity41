@@ -3,7 +3,7 @@
                     TiMidity++ $B$N%$%s%9%H!<%k(B
 
 					$B=P1@@5>0(B <mo@goice.co.jp>
-					$B:G=*=$@5F|(B 1999$BG/(B1$B7n(B6$BF|(B
+					$B:G=*=$@5F|(B 1999$BG/(B2$B7n(B3$BF|(B
 ==============================================================================
 
 $B$3$N%I%-%e%a%s%H$O(B TiMidity++ ($B%P!<%8%g%s$O(B 1.0.0 $B0J9_(B) $B$N(B UNIX $B>e$G$N(B
@@ -13,7 +13,7 @@
   $B%$%s%9%H!<%k$NBg$^$+$J<j=g$O(B
 
 1. configure
-2. Makefile, timidity.h $B$NJT=8(B ($B$7$J$/$F$b$h$$(B)
+2. common.makefile, Makefile, timidity.h $B$NJT=8(B ($B$7$J$/$F$b$h$$(B)
 3. make              (GNU $B$N(B make $B$,I,MW(B)
 4. make install      (GNU $B$N(B make $B$,I,MW(B)
 5. $B2;8;$r$=$m$($k(B
@@ -180,9 +180,9 @@
     $B9T$J$&$?$a$NDj5A$G$9!#(BLinux, FreeBSD, SunOS, Solaris, IRIX, DEC/OSF1 $B$G(B
     $BM-8z$G$9!#(B
 
-2. Makefile, timidity.h $B$NJT=8(B
+2. common.makefile, Makefile, timidity.h $B$NJT=8(B
 ------------------------------
-$B$b$7!"@5$7$/%3%s%Q%$%k$G$-$J$$>l9g$O!"(BMakefile, $B$"$k$$$O(B timidity.h
+$B$b$7!"@5$7$/%3%s%Q%$%k$G$-$J$$>l9g$O!"(Bcommon.makefile, Makefile, timidity.h
 $BFb$N%Q%i%a%?$r=$@5$7$F$/$@$5$$!#(B
 
 3. make
@@ -218,8 +218,9 @@ vendorShellWidgetClass
 $B$3$N%Q%C%1!<%8$N(B TiMidity $B$r%$%s%9%H!<%k$7$?$@$1$G$O!"2;$,$J$j$^$;$s!#(B
 $B1iAU$9$k$K$O!"(BGUS $B$N2;8;%U%!%$%k$rF~<j$9$kI,MW$,$"$j$^$9!#(B
 
-http://www.goice.co.jp/timidity/gus/
-http://www.i.h.kyoto-u.ac.jp/~shom/timidity/
+http://www.goice.co.jp/timidity/gus/			(33M patch)
+http://www.goice.co.jp/timidity/dist/cfg/		(Some samples of *.cfg)
+http://www.i.h.kyoto-u.ac.jp/~shom/timidity/		(10M or 4M patch)
 ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS $B%5%$%H$N0\E>@h(B)
 
 $B$J$I$+$i2;8;$rF~<j$7!$E,@Z$J>l=j$KE83+$7$^$9!%I,MW$K1~$8$F!$(B*.cfg $B%U%!%$%k$N(B
@@ -540,30 +541,6 @@ TMPDIR $B%^%/%m$b(B TMPDIR $B4D6-JQ?t$b$I$A$i$H$bL$Dj5A$N>l9g$O(B /tmp $B$K
 $B0l;~%U%!%$%k$,:n@.$5$l$^$9!%(B
 Windows $B$G$O!$(BTMPDIR $B4D6-JQ?t$OL5;k$5$l$^$9$N$G!$(B
 TMPDIR $B%^%/%m$rDj5A$7$F$/$@$5$$!%(B
-
-
-$B<!$K(B union semun $B6&MQBN$NM-L5$K4X$9$k@_Dj$G$9!%(B
-union semun $B6&MQBN$,Dj5A$5$l$F$$$k4D6-$G$O(B
-
-#define HAVE_UNION_SEMUN
-
-$B$HDj5A$7!$$J$$$J$i(B
-
-/* #define HAVE_UNION_SEMUN */
-
-$B$HL$Dj5A$K$7$F$/$@$5$$!%(B
-
-
-$B<!$K%3%s%Q%$%i$N(B volatile $B$K4X$9$k@_Dj$G$9!%(B
-$B%3%s%Q%$%i$,(B volatile $B@k8@$r%5%]!<%H$7$F$$$k$J$i!$(B
-
-/* #define NO_VOLATILE */
-
-$B$HL$Dj5A$7!$%5%]!<%H$7$F$$$J$1$l$P(B
-
-#define NO_VOLATILE
-
-$B$HDj5A$K$7$F$/$@$5$$!%(B
 
 
 $B<!$K!$(BGS $B$N%I%i%`%Q!<%H$NG'<1$K4X$9$k@_Dj$G$9!%(B

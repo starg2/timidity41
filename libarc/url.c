@@ -485,7 +485,7 @@ static char *url_strerror_txt[] =
 char *url_strerror(int no)
 {
     if(no <= URLERR_NONE)
-	return (char *)sys_errlist[no];
+	return strerror(no);
     if(no >= URLERR_MAXNO)
 	return "Internal error";
     return url_strerror_txt[no - URLERR_NONE];

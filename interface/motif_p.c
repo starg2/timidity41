@@ -35,6 +35,11 @@
 #ifdef SOLARIS
 #include <sys/filio.h>
 #endif
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 
 #include "timidity.h"
 #include "controls.h"
@@ -58,7 +63,7 @@ static void m_pipe_error(char *st)
 {
     fprintf(stderr,"CONNECTION PROBLEM WITH MOTIF PROCESS IN %s BECAUSE:%s"
 	    NLS,
-	    st, sys_errlist[errno]);
+	    st, strerror(errno));
     exit(1);
 }
 

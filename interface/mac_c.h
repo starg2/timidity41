@@ -54,4 +54,12 @@ enum{
 	MW_SKIN_FILENAME
 };
 
+#define SKIN_ACTION_PREV() {mac_rc=RC_PREVIOUS;mac_HandleControl();}
+#define SKIN_ACTION_PLAY() {mac_rc=RC_CONTINUE;mac_HandleControl();}
+#define SKIN_ACTION_PAUSE() {mac_rc=RC_TOGGLE_PAUSE;mac_HandleControl();}
+#define SKIN_ACTION_STOP() {mac_rc=RC_QUIT;mac_HandleControl();}
+#define SKIN_ACTION_NEXT() {mac_rc=RC_NEXT;mac_HandleControl();}
+#define SKIN_ACTION_EJECT()
+#define SKIN_ACTION_EXIT()
+
 #endif //MAC_C_H

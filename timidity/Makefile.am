@@ -25,7 +25,6 @@ INCLUDES = \
 	-I$(top_srcdir)/utils \
 	$(EXTRAINCS)
 
-
 bin_PROGRAMS = timidity
 
 timidity_SOURCES = \
@@ -124,7 +123,7 @@ timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/libarc/libarc.a \
 	$(top_builddir)/utils/libutils.a
 
-version.o: version.c Makefile
+version.o: version.c ../configure
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c
 
 $(top_builddir)/interface/libinterface.a:

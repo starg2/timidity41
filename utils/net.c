@@ -25,7 +25,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef __WIN32__
+#if !defined(__WIN32__) || defined(__CYGWIN32__)
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -46,14 +46,14 @@
 #define INADDR_NONE 0xffffffff
 #endif /* INADDR_NONE */
 
-#ifndef __WIN32__
+#if !defined(__WIN32__) || defined(__CYGWIN32__)
 #ifndef INVALID_SOCKET
 #define INVALID_SOCKET -1
 #endif /* INVALID_SOCKET */
 #ifndef SOCKET_ERROR
 #define SOCKET_ERROR -1
 #endif /* SOCKET_ERROR */
-#endif /* __WIN32__ */
+#endif
 
 SOCKET open_socket(char *host, unsigned short port)
 {
@@ -83,7 +83,7 @@ SOCKET open_socket(char *host, unsigned short port)
     return fd;
 }
 
-#ifndef __WIN32__
+#if !defined(__WIN32__) || defined(__CYGWIN32__)
 long socket_write(SOCKET fd, char *buff, long bufsiz)
 {
     return write(fd, buff, bufsiz);

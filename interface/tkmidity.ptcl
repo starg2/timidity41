@@ -39,9 +39,9 @@ lappend auto_path $TclRoot
 #
 
 option add *menu*font "-adobe-helvetica-bold-r-normal--12-*"
-option add *body.curfile.font "-adobe-helvetica-bold-o-normal--17-*"
+option add *body.curfile.font "-adobe-helvetica-bold-o-normal--18-*"
 option add *body.file*font "-adobe-helvetica-medium-r-normal--14-*"
-option add *body*label.font "-adobe-times-bold-i-normal--17-*"
+option add *body*label.font "-adobe-times-bold-i-normal--18-*"
 option add *body*Scale.font "-adobe-times-medium-i-normal--14-*"
 option add *body.text*font "-adobe-helvetica-medium-r-normal--14-*"
 
