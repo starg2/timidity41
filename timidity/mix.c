@@ -1550,7 +1550,7 @@ static inline int next_stage(int v)
 	offset = vp->sample->envelope_offset[stage];
 	rate = vp->sample->envelope_rate[stage];
 	if (vp->envelope_volume == offset
-			|| stage > EG_GUS_SUSTAIN && vp->envelope_volume < offset)
+			|| (stage > EG_GUS_SUSTAIN && vp->envelope_volume < offset))
 		return recompute_envelope(v);
 	ch = vp->channel;
 	/* there is some difference between GUS patch and Soundfont at envelope. */
