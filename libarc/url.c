@@ -380,7 +380,7 @@ void url_close(URL url)
     else
     {
 	url->url_close(url);
-#ifdef unix
+#if 0
 	url->url_close = NULL;
 #endif
     }

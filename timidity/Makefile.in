@@ -409,7 +409,7 @@ timidity.o: timidity.c ../config.h ../interface.h timidity.h common.h \
 	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
 	readmidi.h output.h controls.h tables.h miditrace.h reverb.h \
 	../interface/soundspec.h recache.h ../libarc/arc.h \
-	../utils/memb.h ../utils/strtab.h wrd.h mid.defs dlutils.h
+	../utils/memb.h ../utils/strtab.h wrd.h mid.defs
 wave_a.o: wave_a.c ../config.h timidity.h output.h controls.h
 wrd_read.o: wrd_read.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h controls.h \

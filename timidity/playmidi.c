@@ -69,9 +69,9 @@ int usleep(unsigned int useconds);
 
 #define PLAY_INTERLEAVE_SEC 1.0
 #define MIDITRACE_OUTPUT_FRAGMENTS 32
-#define DEFAULT_PORTAMENTO_TIME 2560
-#define PORTAMENTO_TIME_TUNING (1.0 / 4096.0)
-#define PORTAMENTO_CONTROL_RATIO 100
+#define DEFAULT_PORTAMENTO_TIME 0
+#define PORTAMENTO_TIME_TUNING	(1.0 / 5000.0)
+#define PORTAMENTO_CONTROL_RATIO	256	/* controls per sec */
 #define DEFAULT_CHORUS_DELAY1 0.02
 #define DEFAULT_CHORUS_DELAY2 0.003
 #define CHORUS_OPPOSITE_THRESHOLD    32
@@ -989,6 +989,8 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt)
 	  channel[ch].portamento = 0;
   }
 
+  if(channel[ch].portamento && !channel[ch].porta_control_ratio)
+      update_portamento_controls(ch);
   if(channel[ch].porta_control_ratio)
   {
       if(channel[ch].last_note_fine == -1)
@@ -1001,11 +1003,13 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt)
       {
 	  voice[i].porta_control_ratio = channel[ch].porta_control_ratio;
 	  voice[i].porta_dpb = channel[ch].porta_dpb;
-	  voice[i].porta_pb = channel[ch].last_note_fine - voice[i].note * 256;
+	  voice[i].porta_pb = channel[ch].last_note_fine -
+	      voice[i].note * 256;
 	  if(voice[i].porta_pb == 0)
 	      voice[i].porta_control_ratio = 0;
       }
   }
+
   if(cnt == 0)
       channel[ch].last_note_fine = voice[i].note * 256;
 
@@ -1071,6 +1075,7 @@ static void new_chorus_voice(int v, int level)
     voice[cv] = voice[v];
     voice[v].velocity  = (uint8)(vol * CHORUS_VELOCITY_TUNING1);
     voice[cv].velocity = (uint8)(vol * CHORUS_VELOCITY_TUNING2);
+    if (level > 42) level = 42;    /* higher levels detune notes too much */
     if(channel[ch].pitchbend + level < 0x2000)
         voice[cv].orig_frequency *= bend_fine[level];
     else
@@ -2882,7 +2887,7 @@ static void drop_portamento(int ch)
 {
     int i, uv = upper_voices;
 
-    channel[ch].portamento = 0;
+    channel[ch].porta_control_ratio = 0;
     for(i = 0; i < uv; i++)
 	if(voice[i].status != VOICE_FREE &&
 	   voice[i].channel == ch &&
@@ -2896,11 +2901,8 @@ static void drop_portamento(int ch)
 
 static void update_portamento_controls(int ch)
 {
-    if(channel[ch].portamento_time < 128)
-    {
-	channel[ch].portamento_time = 0;
+    if(!channel[ch].portamento || channel[ch].portamento_time < 128)
 	drop_portamento(ch);
-    }
     else
     {
 	double mt, dc;

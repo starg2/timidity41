@@ -61,6 +61,14 @@
 #include "playmidi.h"
 #include "miditrace.h"
 
+#ifndef AFMT_S16_NE
+#ifdef LITTLE_ENDIAN
+#define AFMT_S16_NE AFMT_S16_LE
+#else
+#define AFMT_S16_NE AFMT_S16_BE
+#endif
+#endif /* AFMT_S16_NE */
+
 /* Define if you want to use soft audio buffering (AUDIO_FILLING_SEC sec.) */
 /* #define AUDIO_FILLING_MILSEC 3000 */
 

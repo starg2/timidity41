@@ -1,3 +1,28 @@
+1999-04-17  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 1.3.9 released.
+      Summary:
+	- Fixed portamento controls.
+	- Chosed 42 as the maximum chorus cutoff level.
+	- Fixed compilation probrems.
+	- Changed ChnageLog format.
+
+1999-04-17  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/playmici.c timidity/tables.c: Fix portamento controls.
+
+1999-04-14  Eric A. Welsh <ewelsh@gpc.ibc.wustl.edu>
+
+    * timidity/playmidi.c (new_chorus_voice): Chose 42 as the maximum
+      chorus cutoff level.
+
+1999-04-11  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc/url.c (url_close): Don't access free memory.
+    * timidity/linux_a.c (AFMT_S16_NE): Define AFMT_S16_NE if it is not
+      defined.
+    * ChangeLog: Change this format.
+
 -- 1.3.8
 Tue Apr 6 1999
 Summary:
