@@ -68,16 +68,13 @@ SHLIB_DIR = $(pkglibdir)
 # Where to install timidity.el
 ELISP_DIR = $(pkgdatadir)
 
-# Define the timidity default file search path. (optional)
-DEF_DEFAULT_PATH = -DDEFAULT_PATH=\"$(PKGDATADIR)\"
-
 # If you want to change TCL_DIR, please do follows.
 # * Add -DTKPROGPATH=\"$(TCL_DIR)/tkmidity.tcl\" to CPPFLAGS.
 # * Make a symbolic link $(PKGLIBDIR)/bitmaps to $(TCL_DIR)/bitmaps
 TCL_DIR = $(PKGLIBDIR)
 ##CPPFLAGS += -DTKPROGPATH=\"$(TCL_DIR)/tkmidity.tcl\"
 
-# Comment out if you don't want default path.
+# Define the timidity default file search path.
 DEF_DEFAULT_PATH = -DDEFAULT_PATH=\"$(PKGDATADIR)\"
 
 # You sould not change follows definitions. 

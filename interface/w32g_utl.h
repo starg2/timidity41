@@ -76,6 +76,7 @@ typedef struct SETTING_PLAYER_ {
 	int DocWndIndependent; 
 	int SeachDirRecursive;
 	int IniFileAutoSave;
+	int SecondMode;
 // End.
 } SETTING_PLAYER;
 

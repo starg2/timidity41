@@ -1039,6 +1039,7 @@ static int sanity_range(LayerTable *tbl)
  * create patch record from the stored data table
  *----------------------------------------------------------------*/
 
+#if 0
 static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
 {
     int bank, preset, keynote;
@@ -1141,7 +1142,121 @@ static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
 
     return AWE_RET_OK;
 }
+#else
+static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
+{
+    int bank, preset, keynote;
+    int keynote_from, keynote_to, done;
+    int addr, order;
+    InstList *ip;
+    SFSampleInfo *sample;
+    SampleList *sp;
 
+    sample = &sf->sample[tbl->val[SF_sampleId]];
+    if(sample->sampletype & 0x8000) /* is ROM sample? */
+    {
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "preset %d is ROM sample: 0x%x",
+		  pridx, sample->sampletype);
+	return AWE_RET_SKIP;
+    }
+
+    bank = sf->preset[pridx].bank;
+    preset = sf->preset[pridx].preset;
+    if(bank == 128){
+		keynote_from = LOWNUM(tbl->val[SF_keyRange]);
+		keynote_to = HIGHNUM(tbl->val[SF_keyRange]);
+    } else
+	keynote_from = keynote_to = -1;
+
+	done = 0;
+	for(keynote=keynote_from;keynote<=keynote_to;keynote++){
+
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+	      "SF make inst pridx=%d bank=%d preset=%d keynote=%d",
+	      pridx, bank, preset, keynote);
+
+    if(is_excluded(current_sfrec, bank, preset, keynote))
+    {
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, " * Excluded");
+	continue;
+    } else
+	done++;
+
+    order = is_ordered(current_sfrec, bank, preset, keynote);
+    if(order < 0)
+	order = current_sfrec->def_order;
+
+    addr = INSTHASH(bank, preset, keynote);
+
+    for(ip = current_sfrec->instlist[addr]; ip; ip = ip->next)
+    {
+	if(ip->pat.bank == bank && ip->pat.preset == preset &&
+	   (keynote < 0 || keynote == ip->pat.keynote))
+	    break;
+    }
+
+    if(ip == NULL)
+    {
+	ip = (InstList*)SFMalloc(current_sfrec, sizeof(InstList));
+	memset(ip, 0, sizeof(InstList));
+	ip->pr_idx = pridx;
+	ip->pat.bank = bank;
+	ip->pat.preset = preset;
+	ip->pat.keynote = keynote;
+	ip->order = order;
+	ip->samples = 0;
+	ip->slist = NULL;
+	ip->next = current_sfrec->instlist[addr];
+	current_sfrec->instlist[addr] = ip;
+    }
+
+    /* new sample */
+    sp = (SampleList *)SFMalloc(current_sfrec, sizeof(SampleList));
+    memset(sp, 0, sizeof(SampleList));
+
+    if(bank == 128)
+	sp->v.note_to_use = keynote;
+    sp->v.high_vel = 127;
+    make_info(sf, sp, tbl);
+
+    /* add a sample */
+    if(ip->slist == NULL)
+	ip->slist = sp;
+    else
+    {
+	SampleList *cur, *prev;
+	int32 start;
+
+	/* Insert sample */
+	start = sp->start;
+	cur = ip->slist;
+	prev = NULL;
+	while(cur && cur->start <= start)
+	{
+	    prev = cur;
+	    cur = cur->next;
+	}
+	if(prev == NULL)
+	{
+	    sp->next = ip->slist;
+	    ip->slist = sp;
+	}
+	else
+	{
+	    prev->next = sp;
+	    sp->next = cur;
+	}
+    }
+    ip->samples++;
+
+	} /* for(;;) */
+
+	if(done==0)
+	return AWE_RET_SKIP;
+	else
+	return AWE_RET_OK;
+}
+#endif
 
 /*----------------------------------------------------------------
  *

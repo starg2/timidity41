@@ -85,10 +85,18 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd);
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 //#define pszTemplate	u1.pszTemplate
 //#define pszIcon		u2.pszIcon
+#ifndef NONAMELESSUNION
 #define NONAMELESSUNION
+#endif
+#ifndef DUMMYUNIONNAME
 #define DUMMYUNIONNAME	u1
+#endif
+#ifndef DUMMYUNIONNAME2
 #define DUMMYUNIONNAME2	u2
+#endif
+#ifndef DUMMYUNIONNAME3
 #define DUMMYUNIONNAME3	u3
+#endif
 #endif
 
 #define PREFWND_NPAGES 5
@@ -402,7 +410,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		case PSN_APPLY:
 			PrefSettingApply();
-			PropSheet_UnChanged(hPrefWnd,hwnd);
+			PropSheet_UnChanged((HWND)hPrefWnd,hwnd);
 			break;
 		case PSN_SETACTIVE:
 			SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,TEXT(sp_temp->ConfigFile));

@@ -255,6 +255,59 @@ static int ctl_load_file(char *fileptr)
     return RC_NONE;
 }
 
+static int ctl_load_files_and_play(argc_argv_t *argc_argv, int playflag)
+{
+    StringTable st;
+    int i, n, len;
+    char buffer[BUFSIZ];
+    char **files;
+    int prevnfiles;
+
+	if(argc_argv==NULL)
+	    return RC_NONE;
+    
+	w32g_get_playlist_index(NULL, &prevnfiles, NULL);
+
+    init_string_table(&st);
+	n = argc_argv->argc;
+    for(i = 0; i < n; i++)
+    {
+	strcpy(buffer,(argc_argv->argv)[i]);
+	if(is_directory(buffer))
+	    directory_form(buffer);
+	len = strlen(buffer);
+	put_string_table(&st, buffer, strlen(buffer));
+    }
+#if 1
+	for(i=0;i<argc_argv->argc;i++){
+		free(argc_argv->argv[i]);
+	}
+	free(argc_argv->argv);
+	argc_argv->argv = NULL;
+	argc_argv->argc = 0;
+#endif
+    if((files = make_string_array(&st)) == NULL)
+	n = 0;
+    else
+    {
+	n = w32g_add_playlist(n, files, 1,
+			      ctl.flags & CTLF_AUTOUNIQ,
+			      ctl.flags & CTLF_AUTOREFINE);
+	free(files[0]);
+	free(files);
+    }
+    if(n > 0)
+    {
+	ctl_panel_refresh();
+	if(playflag)
+	{
+	    w32g_goto_playlist(prevnfiles, !(ctl.flags & CTLF_NOT_CONTINUE));
+	    return RC_LOAD_FILE;
+	}
+    }
+    return RC_NONE;
+}
+
 static int ctl_load_playlist(char *fileptr)
 {
     StringTable st;
@@ -375,6 +428,8 @@ static int w32g_ext_control(int rc, int32 value)
 	return ctl_drop_file((HDROP)value);
       case RC_EXT_LOAD_FILE:
 	return ctl_load_file((char *)value);
+      case RC_EXT_LOAD_FILES_AND_PLAY:
+	return ctl_load_files_and_play((argc_argv_t *)value, 1);
       case RC_EXT_LOAD_PLAYLIST:
 	return ctl_load_playlist((char *)value);
       case RC_EXT_SAVE_PLAYLIST:

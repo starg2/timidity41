@@ -33,10 +33,6 @@
 #include <strings.h>
 #endif
 
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
-#define TPM_TOPALIGN	0x0000L
-#endif
-
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -65,6 +61,12 @@
 #include "w32g_pref.h"
 #include "w32g_subwin.h"
 #include "w32g_ut2.h"
+
+#if defined(__CYGWIN32__) || defined(__MINGW32__)
+#ifndef TPM_TOPALIGN
+#define TPM_TOPALIGN	0x0000L
+#endif
+#endif
 
 extern void MainWndToggleConsoleButton(void);
 extern void MainWndUpdateConsoleButton(void);
@@ -356,6 +358,8 @@ void InitListWnd(HWND hParentWnd)
 // ---------------------------------------------------------------------------
 // Static Functions
 
+void SetNumListWnd(int cursel, int nfiles);
+
 static BOOL CALLBACK
 ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
@@ -392,6 +396,15 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			case LBN_DBLCLK:
 				SendMessage(hwnd,WM_COMMAND,(WPARAM)IDM_LISTWND_PLAY,0);
 				return FALSE;
+			case LBN_SELCHANGE:
+				{
+				int idListBox = (int) LOWORD(wParam);
+				HWND hwndListBox = (HWND) lParam;
+				int selected, nfiles, cursel;
+				w32g_get_playlist_index(&selected,&nfiles,&cursel);
+				SetNumListWnd(cursel,nfiles);
+				return FALSE;
+				}
 			default:
 				break;
 			}
@@ -476,6 +489,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						return -2;
 					case VK_BACK:
 						w32g_send_rc(RC_EXT_DELETE_PLAYLIST, -1);
+						return -2;
 					case 0x44:	// VK_D
 						w32g_send_rc(RC_EXT_DELETE_PLAYLIST, 0);
 						return -2;
@@ -507,6 +521,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 							"Usage of key.\n"
 							"List window command.\n"
 							"  ESC: Close Help      H: Help\n"
+							"  V: View Document\n"
 							"Player command.\n"
 							"  SPACE/ENTER: PLAY    E: Stop    S: Pause\n"
 							"  P: Prev    N: Next\n"
@@ -539,19 +554,31 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				GetWindowRect(hwnd,&rcParent);
 				cx = rcParent.right-rcParent.left;
 				cy  = rcParent.bottom-rcParent.top;
-				if(cx < 350)
-					MoveWindow(hwnd,rcParent.left,rcParent.top,350,cy,TRUE);
+				if(cx < 380)
+					MoveWindow(hwnd,rcParent.left,rcParent.top,380,cy,TRUE);
 				if(cy < 200)
 					MoveWindow(hwnd,rcParent.left,rcParent.top,cx,200,TRUE);
 				GetClientRect(hwnd,&rcParent);
 				rcRest.left = rcParent.left; rcRest.right = rcParent.right;
+
+				// IDC_EDIT_NUM
+				idControl = IDC_EDIT_NUM;
+				hwndChild = GetDlgItem(hwnd,idControl);
+				GetWindowRect(hwndChild,&rcChild);
+				cx = rcChild.right-rcChild.left;
+				cy = rcChild.bottom-rcChild.top;
+				x = rcParent.left;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				if(cy>maxHeight) maxHeight = cy;
+				rcRest.left += cx;
 				// IDC_BUTTON_DOC
 				idControl = IDC_BUTTON_DOC;
 				hwndChild = GetDlgItem(hwnd,idControl);
 				GetWindowRect(hwndChild,&rcChild);
 				cx = rcChild.right-rcChild.left;
 				cy = rcChild.bottom-rcChild.top;
-				x = rcParent.left;
+				x = rcRest.left + 10;
 				y = rcParent.bottom - cy;
 				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
 				if(cy>maxHeight) maxHeight = cy;
@@ -693,6 +720,14 @@ static int ListWndSetFontListBox(char *fontName, int fontWidth, int fontHeight)
 	ListWndInfoApply();
 	return 0;
 }
+
+void SetNumListWnd(int cursel, int nfiles)
+{
+	char buff[64];
+	sprintf(buff,"%04d/%04d",cursel+1,nfiles);
+	SetDlgItemText(hListWnd,IDC_EDIT_NUM,buff);
+}
+
 
 // ***************************************************************************
 // Tracer Window

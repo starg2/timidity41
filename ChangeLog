@@ -1,3 +1,27 @@
+2000-07-05  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.9.5 released.
+	
+2000-07-04  Daisuke Aoki <dai@sweetparty.ne.jp>
+
+    * interface/{w32g.h,w32g_c.c,w32g_i.c,w32g_ini.c,w32g_playlist.c,
+	w32g_res.h,w32g_res.rc,w32g_subwin.c,w32g_ut2.c,w32g_utl.c,w32g_utl.h,
+	timidity.c}: Upgrade Windows version.
+
+2000-06-29  Randolph Bentson <randy@votehere.net>
+
+    * doc/C/timidity.cfg.5: Fixed error in the documentation.
+
+2000-06-24  Yoichi Imai <yoichi@silver-forest.com>
+
+    * interface/gtk_i.c: Support for 5 button mouse to scroll window.
+
+    * doc/C/timidity.cfg.5: Fixed error in the documentation.
+
+2000-05-29  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/readmidi.c (readmidi_add_event): Avoid negative timestamp.
+
 2000-05-24  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.9.4 released.

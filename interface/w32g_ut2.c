@@ -1,7 +1,24 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include <windows.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <process.h>
+#include "timidity.h"
+#include "common.h"
+#include "instrum.h"
+#include "playmidi.h"
+#include "readmidi.h"
+#include "output.h"
+#include "controls.h"
+#include "recache.h"
+#ifdef SUPPORT_SOUNDSPEC
+#include "soundspec.h"
+#endif /* SUPPORT_SOUNDSPEC */
+#include "wrd.h"
+#include "w32g.h"
 #include "w32g_ut2.h"
 
 char *timidity_window_inifile;
@@ -185,3 +202,509 @@ int INILoadDocWnd(void)
 	if(num!=-1) DocWndInfo.fontFlags = num;
 	return 0;
 }
+
+
+/**********************************************************************/
+// プロセス間通信用にメールスロットのサーバースレッドを用意する
+
+#define TIMIDITY_MAILSLOT "\\\\.\\mailslot\\timiditypp_mailslot_ver_1_0"
+
+// メールスロットに渡される形式
+// ヘッダ
+// コマンド名
+// オプション数
+// オプション１
+// オプション２
+//   ...
+
+// ヘッダ
+#define MC_HEADER	"TiMidity++Win32GUI Mailslot-1.0"	
+// コマンド名
+// TiMidity の終了
+#define MC_TERMINATE	"Terminate"
+// ファイルを指定
+#define MC_FILES "Files Argc Argv"
+// オプション１ : ファイル名１
+//   ...
+// プレイリストのクリア
+#define MC_PLAYLIST_CLEAR	"Playlist Clear"
+// 演奏開始
+#define MC_PLAY			"Play"
+// 次のファイルの演奏
+#define MC_PLAY_NEXT	"Play Next"
+// 前のファイルの演奏
+#define MC_PLAY_PREV	"Play Prev"
+// 演奏停止
+#define MC_STOP	"Stop"
+// 演奏一時停止
+#define MC_PAUSE	"Pause"
+// TiMidity の状態を指定メールスロットに送信
+#define MC_SEND_TIMIDITY_INFO	"Send TiMidity Info"
+// オプション１ : メールスロット名
+// オプション２ : 状態１
+//   ...
+// 状態
+// "PlayFileName:～" : 演奏ファイル名
+// "PlayTile:～"		: 演奏タイトル名
+// "PlayStatus:～"		: 演奏状態(～:PLAY,STOP,PAUSE)
+
+static HANDLE hMailslot = NULL;
+
+void w32gMailslotThread(void);
+
+int w32gStartMailslotThread(void)
+{
+	DWORD dwThreadID;
+	HANDLE hThread;
+	hThread = (HANDLE)crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)w32gMailslotThread,NULL,0,&dwThreadID);
+	if((unsigned long)hThread==-1){
+		return FALSE;	// Error!
+	}
+	return TRUE;
+}
+
+int ReadFromMailslot(HANDLE hmailslot, char *buffer, int *size)
+{
+	DWORD dwMessageSize, dwMessageNum, dwMessageReadSize;
+	BOOL bRes;
+	int i;
+	bRes = GetMailslotInfo(hmailslot,NULL,&dwMessageSize,&dwMessageNum,(LPDWORD)NULL);
+	if(bRes==FALSE || dwMessageSize==MAILSLOT_NO_MESSAGE)
+		return FALSE;
+	for(i=0;i<10;i++){
+		bRes = ReadFile(hMailslot,buffer,dwMessageSize,&dwMessageReadSize,(LPOVERLAPPED)NULL);
+#ifdef W32GUI_DEBUG
+PrintfDebugWnd("[%s]\n",buffer);
+#endif
+		if(bRes==TRUE){
+			break;
+		}
+		Sleep(300);
+	}
+	if(bRes==TRUE){
+		*size = (int)dwMessageSize;
+		return TRUE;
+	} else
+		return FALSE;
+}
+// 無視する版
+void ReadFromMailslotIgnore(HANDLE hmailslot, int num)
+{
+	int i;
+	char buffer[10240];
+	int size;
+	for(i=0;i<num;i++){
+		if(ReadFromMailslot(hmailslot,buffer,&size)==FALSE)
+			return;
+	}
+	return;
+}
+// メールスロットに書き込む
+HANDLE *OpenMailslot(void)
+{
+	HANDLE hFile;
+	hFile = CreateFile(TIMIDITY_MAILSLOT,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,(HANDLE) NULL);
+	if(hFile==INVALID_HANDLE_VALUE)
+		return NULL;
+	else
+		return hFile;
+}
+void CloseMailslot(HANDLE hmailslot)
+{
+	CloseHandle(hmailslot);
+}
+int WriteMailslot(HANDLE hmailslot, char *buffer, int size)
+{
+	DWORD dwWrittenSize;
+	BOOL bRes;
+	bRes = WriteFile(hmailslot,buffer,(DWORD)lstrlen(buffer) + 1,&dwWrittenSize,(LPOVERLAPPED)NULL);
+	if(bRes==FALSE){
+		return FALSE;
+	}
+	return TRUE;
+}
+
+int isURLFile(char *filename);
+extern volatile DWORD dwWindowThreadID;
+volatile argc_argv_t MailslotArgcArgv;
+volatile int MailslotThreadTeminateFlag = FALSE; 
+void w32gMailslotThread(void)
+{
+	int i;
+	char buffer[1024];
+	int size;
+	MailslotArgcArgv.argc = 0;
+	MailslotArgcArgv.argv = NULL;
+	for(i=0;i<10;i++){
+		hMailslot = CreateMailslot(TIMIDITY_MAILSLOT,0,MAILSLOT_WAIT_FOREVER,(LPSECURITY_ATTRIBUTES)NULL);
+		if (hMailslot != INVALID_HANDLE_VALUE) {
+			break;
+		}
+		hMailslot = NULL;
+		Sleep(300);
+	}
+	if(hMailslot==NULL){
+		return;
+	}
+	for(;;){
+		Sleep(1000);
+		if(MailslotThreadTeminateFlag==TRUE){
+			if(hMailslot!=NULL)
+				CloseHandle(hMailslot);
+			break;
+		}
+		for(;;){
+			Sleep(200);
+			if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+				Sleep(1000);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_HEADER)!=0){
+				continue;
+			}
+			if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+				Sleep(1000);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_TERMINATE)==0){
+				CloseHandle(hMailslot);
+			    w32g_send_rc(RC_STOP, 0);
+			    w32g_send_rc(RC_QUIT, 0);
+//				PostThreadMessage(dwWindowThreadID,WM_CLOSE,0,0);
+//				PostThreadMessage(dwWindowThreadID,WM_QUIT,0,0);
+				Sleep(500);
+				return;
+			}
+			if(strcasecmp(buffer,MC_FILES)==0){
+				char **files;
+				int nfiles;
+				int flag = TRUE;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				nfiles = atoi(buffer);
+				// MailslotArgcArgv　が初期化されていなかったら処理途中として無視
+				if(MailslotArgcArgv.argc!=0 || MailslotArgcArgv.argv!=NULL){
+					ReadFromMailslotIgnore(hMailslot,nfiles);
+					continue;
+				}
+				files = (char **)malloc(sizeof(char *)*nfiles);
+				if(files==NULL){
+					ReadFromMailslotIgnore(hMailslot,nfiles);
+					continue;
+				}
+				for(i=0;i<nfiles;i++){
+					if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+						flag = FALSE;
+						break;
+					}
+					files[i] = (char *)malloc(sizeof(char)*(size+1));
+					if(files[i]==NULL){
+						int j;
+						ReadFromMailslotIgnore(hMailslot,nfiles-i-1);
+						for(j=0;j<i;j++){
+							free(files[j]);
+						}
+						flag = FALSE;
+						break;
+					}
+					strncpy(files[i],buffer,size);
+					files[i][size] = 0;
+				}
+				if(flag==FALSE){
+					free(files);
+					continue;
+				}
+				MailslotArgcArgv.argc = nfiles;
+				MailslotArgcArgv.argv = files;
+				// files は別のところで解放してくれる
+				w32g_send_rc(RC_EXT_LOAD_FILES_AND_PLAY,(int32)&MailslotArgcArgv);
+//				w32g_send_rc(RC_EXT_LOAD_FILE,(int32)files[0]);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_PLAYLIST_CLEAR)==0){
+				int param_num;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				param_num = atoi(buffer);
+				w32g_send_rc(RC_EXT_CLEAR_PLAYLIST,0);
+				ReadFromMailslotIgnore(hMailslot,param_num);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_PLAY)==0){
+				int param_num;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				param_num = atoi(buffer);
+				w32g_send_rc(RC_LOAD_FILE,0);
+				ReadFromMailslotIgnore(hMailslot,param_num);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_PLAY_NEXT)==0){
+				int param_num;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				param_num = atoi(buffer);
+				w32g_send_rc(RC_NEXT,0);
+				ReadFromMailslotIgnore(hMailslot,param_num);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_PLAY_PREV)==0){
+				int param_num;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				param_num = atoi(buffer);
+				w32g_send_rc(RC_REALLY_PREVIOUS,0);
+				ReadFromMailslotIgnore(hMailslot,param_num);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_STOP)==0){
+				int param_num;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				param_num = atoi(buffer);
+				w32g_send_rc(RC_STOP,0);
+				ReadFromMailslotIgnore(hMailslot,param_num);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_PAUSE)==0){
+				int param_num;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				param_num = atoi(buffer);
+				w32g_send_rc(RC_PAUSE,0);
+				ReadFromMailslotIgnore(hMailslot,param_num);
+				continue;
+			}
+			if(strcasecmp(buffer,MC_SEND_TIMIDITY_INFO)==0){
+				int param_num;
+				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
+					continue;
+				}
+				param_num = atoi(buffer);
+				ReadFromMailslotIgnore(hMailslot,param_num);
+				// 何もしない
+				continue;
+			}
+		}
+	}
+}
+
+#define TIMIDTY_MUTEX_NAME "TiMidity_pp_Win32GUI_ver_1_0_0"
+static HANDLE hMutexTiMidity = NULL;
+// TiMidity が唯一なることを主張します
+// その証拠の Mutex を hMutexTiMidity に保持します
+int UniqTiMidity(void)
+{
+	hMutexTiMidity = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
+	if(hMutexTiMidity!=NULL && GetLastError()==0){
+		return TRUE;
+	}
+	if(GetLastError()==ERROR_ALREADY_EXISTS){
+		;
+	}
+	if(hMutexTiMidity!=NULL){
+		CloseHandle(hMutexTiMidity);
+	}
+	hMutexTiMidity = NULL;
+	return FALSE;
+}
+
+// すでに TiMidity が存在するか
+int ExistOldTiMidity(void)
+{
+	HANDLE hMutex = OpenMutex(0,TRUE,TIMIDTY_MUTEX_NAME);
+	if(hMutex==NULL){
+		return FALSE;
+	}
+	CloseHandle(hMutex);
+	return TRUE;
+}
+
+// 何回か唯一の TiMidity になろうとします
+int TryUniqTiMidity(int num)
+{
+	int i;
+	for(i=0;i<num;i++){
+		if(UniqTiMidity()==TRUE){
+			return TRUE;
+		}
+		Sleep(1000);
+	}
+	return FALSE;
+}
+
+int SendFilesToOldTiMidity(int nfiles, char **files)
+{
+	int i;
+	HANDLE hmailslot;
+	char buffer[1024];
+	int size;
+	hmailslot = OpenMailslot();
+	if(hmailslot==NULL)
+		return FALSE;
+	strcpy(buffer,MC_HEADER);
+	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+	strcpy(buffer,MC_FILES);
+	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+	sprintf(buffer,"%d",nfiles);
+	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+	for(i=0;i<nfiles;i++){
+		char filepath[1024];
+		char *p;
+//		if(url_check_type(files[i])==-1 && GetFullPathName(files[i],1000,filepath,&p)!=0){
+		if(isURLFile(files[i])==FALSE && GetFullPathName(files[i],1000,filepath,&p)!=0){
+			size = strlen(filepath); WriteMailslot(hmailslot,filepath,size);
+		} else {
+			size = strlen(files[i]); WriteMailslot(hmailslot,files[i],size);
+		}
+	}
+	CloseMailslot(hmailslot);
+	return TRUE;
+}
+
+int SendCommandNoParamOldTiMidity(char *command)
+{
+	HANDLE hmailslot;
+	char buffer[1024];
+	int size;
+	hmailslot = OpenMailslot();
+	if(hmailslot==NULL)
+		return FALSE;
+	strcpy(buffer,MC_HEADER);
+	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+	strcpy(buffer,command);
+	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+	strcpy(buffer,"0");
+	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+	CloseMailslot(hmailslot);
+	return TRUE;
+}
+
+int TerminateOldTiMidity(void)
+{
+	return  SendCommandNoParamOldTiMidity(MC_TERMINATE);
+}
+int ClearPlaylistOldTiMidity(void)
+{
+	return  SendCommandNoParamOldTiMidity(MC_PLAYLIST_CLEAR);
+}
+int PlayOldTiMidity(void)
+{
+	return  SendCommandNoParamOldTiMidity(MC_PLAY);
+}
+
+int PlayNextOldTiMidity(void)
+{
+	return  SendCommandNoParamOldTiMidity(MC_PLAY_NEXT);
+}
+int PlayPrevOldTiMidity(void)
+{
+	return  SendCommandNoParamOldTiMidity(MC_PLAY_PREV);
+}
+int StopOldTiMidity(void)
+{
+	return  SendCommandNoParamOldTiMidity(MC_STOP);
+}
+int PauseOldTiMidity(void)
+{
+	return  SendCommandNoParamOldTiMidity(MC_PAUSE);
+}
+
+// ２重起動時の処理
+// opt==0 : ファイルを古い TiMidity に渡して自分は終了。古い TiMidity がないときは自分が起動。
+//                古いプレイリストはクリアする。
+// opt==1 : ファイルを古い TiMidity に渡して自分は終了。古い TiMidity がないときは自分が起動。
+//               古いプレイリストはクリアしない。
+// opt==2 : 古い TiMidity を終了して、自分が演奏する
+// opt==3 : 自分は何もせず終了
+// opt==4 : 古い TiMidity を終了して、自分は何もせず終了
+// opt==5 : ２重に起動する
+// 自分が終了するべきときは FALSE を返す
+// 自分が終了するべきでないときは TRUE を返す
+int w32gSecondTiMidity(int opt, int argc, char **argv)
+{
+	int i;
+	switch(opt){
+	case 0:
+	case 1:
+		if(ExistOldTiMidity()==TRUE){
+			if(opt==0)
+				ClearPlaylistOldTiMidity();
+			SendFilesToOldTiMidity(argc > 0 ? argc-1 : 0, argv+1);
+			return FALSE;
+		} else {
+			if(TryUniqTiMidity(20)==TRUE){
+				w32gStartMailslotThread();
+				return TRUE;
+			}
+			return FALSE;
+		}
+	case 2:
+		if(ExistOldTiMidity()==TRUE){
+			for(i=0;i<=20;i++){
+				TerminateOldTiMidity();
+				if(UniqTiMidity()==TRUE){
+					w32gStartMailslotThread();
+					return TRUE;
+				}
+				Sleep(1000);
+			}
+		} else {
+			if(TryUniqTiMidity(20)==TRUE){
+				w32gStartMailslotThread();
+				return TRUE;
+			}
+		}
+		return FALSE;
+	case 3:
+		return FALSE;
+	case 4:
+		if(ExistOldTiMidity()==TRUE){
+			for(i=0;i<=20;i++){
+				TerminateOldTiMidity();
+				if(ExistOldTiMidity()==FALSE){
+					return FALSE;
+				}
+				Sleep(1000);
+			}
+		}
+		return FALSE;
+	case 5:
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
+// w32gSecondTiMidity() の後処理
+int w32gSecondTiMidityExit(void)
+{
+	MailslotThreadTeminateFlag = TRUE;
+	Sleep(300);
+	if(hMailslot!=NULL)
+		CloseHandle(hMailslot);
+	ReleaseMutex(hMutexTiMidity);
+	CloseHandle(hMutexTiMidity);
+	return 0;
+}
+
+// Before it call timidity_start_initialize()
+int isURLFile(char *filename)
+{
+	if(strncasecmp(filename,"http://",7)==0
+		|| strncasecmp(filename,"ftp://",6)==0
+		|| strncasecmp(filename,"news://",7)==0
+		|| strncasecmp(filename,"file:",5)==0
+		|| strncasecmp(filename,"dir:",4)==0){
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}

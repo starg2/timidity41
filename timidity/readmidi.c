@@ -169,6 +169,8 @@ void readmidi_add_event(MidiEvent *a_event)
     at = a_event->time;
     newev = alloc_midi_event();
     newev->event = *a_event;	/* assign by value!!! */
+    if(at < 0)	/* for safety */
+	at = newev->event.time = 0;
 
     if(at >= current_midi_point->event.time)
     {

@@ -339,7 +339,7 @@ Launch_Gtk_Process(int pipe_number)
     int	argc = 0;
     GtkWidget *button, *mbar, *swin;
     GtkWidget *table, *align, *handlebox;
-    GtkWidget *vbox, *hbox, *vscrollbar, *vbox2;
+    GtkWidget *vbox, *hbox, *vbox2, *scrolled_win;
     GtkObject *adj;
 
     /* enable locale */
@@ -365,16 +365,14 @@ Launch_Gtk_Process(int pipe_number)
     mbar = create_menubar();
     gtk_box_pack_start(GTK_BOX(vbox), mbar, FALSE, FALSE, 0);
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 4);
-    gtk_widget_show(hbox);
+    scrolled_win = gtk_scrolled_window_new(NULL, NULL);
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled_win, TRUE, TRUE ,0);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_win),GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+    gtk_widget_show(scrolled_win);
 
     text = gtk_text_new(NULL, NULL);
     gtk_widget_show(text);
-    gtk_box_pack_start(GTK_BOX(hbox), text, TRUE, TRUE, 4);
-    vscrollbar = gtk_vscrollbar_new(GTK_TEXT(text)->vadj);
-    gtk_box_pack_start(GTK_BOX(hbox), vscrollbar, FALSE, FALSE, 4);
-    gtk_widget_show (vscrollbar);
+    gtk_container_add(GTK_CONTAINER(scrolled_win), text);
 
     hbox = gtk_hbox_new(FALSE, 4);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 4);
@@ -435,7 +433,7 @@ Launch_Gtk_Process(int pipe_number)
     gtk_box_pack_start(GTK_BOX(hbox), swin, TRUE, TRUE, 0);
 
     vbox2 = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), vbox2, TRUE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox2, FALSE, FALSE, 0);
     gtk_widget_show(vbox2);
 
     /* This is so the pixmap creation works properly. */

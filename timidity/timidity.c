@@ -3179,6 +3179,12 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
     return 0;
 }
 
+#ifdef IA_W32GUI
+int w32gSecondTiMidity(int opt, int argc, char **argv);
+int w32gSecondTiMidityExit(void);
+extern int SecondMode;
+#endif /* IA_W32GUI */
+
 #ifndef __MACOS__
 #ifdef __W32__ /* Windows */
 #if defined(__CYGWIN32__) || defined(__MINGW32__) || !defined(IA_W32GUI)
@@ -3269,6 +3275,13 @@ int main(int argc, char **argv)
     timidity_start_initialize();
 #ifdef IA_W32GUI
     w32g_initialize();
+
+	/* Secondary TiMidity Execute */
+	/*	FirstLoadIniFile(); */
+	if(w32gSecondTiMidity(SecondMode,argc,argv)==FALSE){
+		return 0;
+	}
+ 
     for(c = 1; c < argc; c++)
     {
 	if(is_directory(argv[c]))
@@ -3350,6 +3363,16 @@ int main(int argc, char **argv)
 	files = expand_file_archives(files, &nfiles);
     if(dumb_error_count)
 	sleep(1);
+
+#ifndef IA_W32GUI
     return timidity_play_main(nfiles, files);
+#else
+	{
+		int res = timidity_play_main(nfiles, files);
+		w32gSecondTiMidityExit();
+		return res;
+	}
+#endif /* IA_W32GUI */
+
 }
 #endif /* __MACOS__ */

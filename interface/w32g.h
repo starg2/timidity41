@@ -36,6 +36,11 @@ extern int PlayerMode;
 #endif /* MAXPATH */
 
 
+typedef struct argc_argv_t_ {
+	int argc;
+	char **argv;
+} argc_argv_t;
+
 #if defined(_MSC_VER)
 //typedef void (__cdecl *MSVC_BEGINTHREAD_START_ADDRESS)(void *);
 typedef LPTHREAD_START_ROUTINE MSVC_BEGINTHREAD_START_ADDRESS;
@@ -96,7 +101,8 @@ enum {
     RC_EXT_ROTATE_PLAYLIST,
     RC_EXT_CLEAR_PLAYLIST,
     RC_EXT_OPEN_DOC,
-    RC_EXT_RESTART_GUI
+    RC_EXT_RESTART_GUI,
+	RC_EXT_LOAD_FILES_AND_PLAY
 };
 
 #define W32G_TIMIDITY_CFG "C:\\WINDOWS\\TIMIDITY.CFG"

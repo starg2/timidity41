@@ -34,7 +34,9 @@
 // #include <prsht.h>
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 #include <commdlg.h>
-#define TPM_TOPALIGN	0x0000L
+#ifndef TPM_TOPALIGN
+#define TPM_TOPALIGN	0x0000L	/* for old version of cygwin */
+#endif
 #define TIME_ONESHOT 0
 #define TIME_PERIODIC 1
 WINAPI int timeSetEvent(UINT uDelay, UINT uResolution,
@@ -212,11 +214,13 @@ int w32g_lock_open_file = 0;
 
 void TiMidityHeapCheck(void);
 
+volatile DWORD dwWindowThreadID = -1;
 void w32g_i_init(void)
 {
     ThreadNumMax++;
     hProcess = GetCurrentProcess();
     hWindowThread = GetCurrentThread();
+	dwWindowThreadID = GetCurrentThreadId();
 
     InitCommonControls();
 
@@ -236,6 +240,11 @@ long SetValue(int32 value, int32 min, int32 max)
   return v;
 }
 
+int w32gSecondTiMidity(int opt, int argc, char **argv);
+int w32gSecondTiMidityExit(void);
+int SecondMode = 0;
+void FirstLoadIniFile(void);
+
 #ifndef WIN32GCC
 static void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
@@ -246,7 +255,17 @@ LPSTR lpCmdLine, int nCmdShow)
 	int argc;
 	CHAR **argv = NULL;
 	CmdLineToArgv(lpCmdLine,&argc,&argv);
+#if 0
+	FirstLoadIniFile();
+	if(w32gSecondTiMidity(SecondMode,argc,argv)==TRUE){
+		int res = win_main(argc, argv);
+		w32gSecondTiMidityExit();
+		return res;
+	} else
+		return -1;
+#else
 	return win_main(argc, argv);
+#endif
 }
 #endif /* WIN32GCC */
 
@@ -1098,6 +1117,7 @@ static void InitSubWndToolbar(HWND hwnd)
 //-----------------------------------------------------------------------------
 // Canvas Window
 
+#define MAPBAR_LIKE_TIMIDI	// note bar view like timidi
 #define TM_CANVAS_XMAX 160
 #define TM_CANVAS_YMAX 160
 #define TM_CANVASMAP_XMAX 16
@@ -1138,6 +1158,7 @@ struct Canvas_ {
 	int MapUpdateFlag;
 	int MapMode;
 	int MapBarWidth;
+	int MapBarMax;
    int MapCh;
    int MapPan[CMAP_MAX_CHANNELS];
    int MapPanOld[CMAP_MAX_CHANNELS];
@@ -1385,6 +1406,7 @@ static void CanvasInit(HWND hwnd)
 	Canvas.MapResidual = 0;
 	Canvas.MapMode = CMAP_MODE_16;
 //	Canvas.MapMode = CMAP_MODE_32;
+	Canvas.MapBarMax = 16;
 //	Canvas.CKNoteFrom = 24;
 //   Canvas.CKNoteTo = 24 + 96;
 	Canvas.CKNoteFrom = 12;
@@ -1428,16 +1450,26 @@ static void CanvasMapReset(void)
 	switch(Canvas.MapMode){
    case CMAP_MODE_32:
 		Canvas.MapCh = 32;
-		Canvas.MapBarWidth = 2;
+#ifdef MAPBAR_LIKE_TIMIDI
+		Canvas.MapBarWidth = 5;
+		Canvas.MapBarMax = 10;
+		Canvas.rcMapMap.bottom = Canvas.rcMapMap.top + 3*Canvas.MapBarMax*2 + 6 - 1;
+#else
+  		Canvas.MapBarWidth = 2;
+		Canvas.MapBarMax = 16;
+		Canvas.rcMapMap.bottom = Canvas.rcMapMap.top + 3*Canvas.MapBarMax - 1;
+#endif
 		break;
    default:
    case CMAP_MODE_16:
 		Canvas.MapCh = 16;
 		Canvas.MapBarWidth = 5;
+		Canvas.MapBarMax = 16;
+		Canvas.rcMapMap.bottom = Canvas.rcMapMap.top + 3*Canvas.MapBarMax - 1;
 		break;
 	}
 	for(i=0;i<Canvas.MapCh;i++){
-		for(j=0;j<CMAP_YMAX;j++){
+		for(j=0;j<Canvas.MapBarMax;j++){
     		Canvas.MapMap[i][j] = CC_FORE_HALF;
     		Canvas.MapMapOld[i][j] = -1;
 		}
@@ -1473,10 +1505,14 @@ static void CanvasMapReadPanelInfo(int flag)
 	for(ch=0;ch<Canvas.MapCh;ch++){
 		Canvas.MapBarOld[ch] = Canvas.MapBar[ch];
 		if(Panel->v_flags[ch] == FLAG_NOTE_ON)
-			v = Panel->ctotal[ch]/8;
+#if 0
+  			v = Panel->ctotal[ch]/8;
+#else
+			v = (int) Panel->ctotal[ch] * Canvas.MapBarMax / 128;
+#endif
 		else
     		v = 0;
-		if(v<0) v = 0; else if(v>CMAP_YMAX-1) v = CMAP_YMAX-1;
+		if(v<0) v = 0; else if(v>Canvas.MapBarMax-1) v = Canvas.MapBarMax-1;
 #if 0		// U“®
 		if(v == Canvas.MapBar[ch]){
 			v = v * (rand()%7 + 7) / 10;
@@ -1527,9 +1563,17 @@ static void CanvasMapReadPanelInfo(int flag)
          else
 				Canvas.MapSustain[ch] = 0;
 			//Canvas.MapSustain[ch] = SetValue(Canvas.MapSustain[ch],0,10);
+#if 0
 			Canvas.MapExpression[ch] = (Panel->channel[ch].expression * 11) >>8;
+#else
+		    Canvas.MapExpression[ch] = (Panel->channel[ch].expression * 11) >>7;
+#endif
 			Canvas.MapExpression[ch] = SetValue(Canvas.MapExpression[ch],0,10);
+#if 0
 			Canvas.MapVolume[ch] = (Panel->channel[ch].volume * 11) >>8;
+#else
+			Canvas.MapVolume[ch] = (Panel->channel[ch].volume * 11) >>7;
+#endif
 			Canvas.MapVolume[ch] = SetValue(Canvas.MapVolume[ch],0,10);
 			Canvas.MapPitchbend[ch] = Panel->channel[ch].pitchbend;
 			if(Canvas.MapPanOld[ch]!=Canvas.MapPan[ch]) changed = 1;
@@ -1556,7 +1600,7 @@ static void CanvasMapDrawMapBar(int flag)
 	Canvas.MapResidual = 0;
 	for(ch=0;ch<Canvas.MapCh;ch++){
 		int drumflag = IS_SET_CHANNELMASK(Canvas.DrumChannel,ch);
-		COLORREF color1,color2,color3;
+ 		char color1,color2,color3;
 		if(drumflag){
 			color1 = CC_DFORE;
 			color2 = CC_DFORE_WEAKHALF;
@@ -1566,8 +1610,8 @@ static void CanvasMapDrawMapBar(int flag)
 			color2 = CC_FORE_WEAKHALF;
          color3 = CC_FORE_HALF;
       }
-		for(i=0;i<CMAP_YMAX;i++){
-			int y = CMAP_YMAX-1-i;
+		for(i=0;i<Canvas.MapBarMax;i++){
+			int y = Canvas.MapBarMax-1-i;
 			Canvas.MapMapOld[ch][y] = Canvas.MapMap[ch][y];
 			if(i<=Canvas.MapBar[ch]){
 				Canvas.MapMap[ch][y] = color1;
@@ -1642,7 +1686,7 @@ static void CanvasMapUpdate(int flag)
          rc.top = rc.bottom + 2;
          rc.bottom = rc.top + 2 - 1;
 			for(i=1;i<=10;i++){
-        		if(i < Canvas.MapExpression[ch])
+         		if(i <= Canvas.MapExpression[ch])
             	color = colorFG;
             else
             	color = colorBG;
@@ -1654,7 +1698,7 @@ static void CanvasMapUpdate(int flag)
          rc.top = rc.bottom + 2;
          rc.bottom = rc.top + 2 - 1;
 			for(i=1;i<=10;i++){
-        		if(i < Canvas.MapVolume[ch])
+        		if(i <= Canvas.MapVolume[ch])
             	color = colorFG;
             else
             	color = colorBG;
@@ -1702,8 +1746,9 @@ static void CanvasMapUpdate(int flag)
 	if(!Canvas.MapResidual && !flag)
    	return;
 	change_flag = 0;
+#ifndef MAPBAR_LIKE_TIMIDI
 	for(i=0;i<Canvas.MapCh;i++){
-		for(j=0;j<CMAP_YMAX;j++){
+		for(j=0;j<Canvas.MapBarMax;j++){
 			if(Canvas.MapMap[i][j]!=Canvas.MapMapOld[i][j] || flag){
 				int x,y;
 				COLORREF color = CanvasColor(Canvas.MapMap[i][j]);
@@ -1718,6 +1763,49 @@ static void CanvasMapUpdate(int flag)
     		}
    	}
 	}
+#else
+	if(Canvas.MapMode==CMAP_MODE_16)
+	for(i=0;i<Canvas.MapCh;i++){
+		for(j=0;j<Canvas.MapBarMax;j++){
+			if(Canvas.MapMap[i][j]!=Canvas.MapMapOld[i][j] || flag){
+				int x,y;
+				COLORREF color = CanvasColor(Canvas.MapMap[i][j]);
+				rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * i;
+				rc.right = rc.left -1 + Canvas.MapBarWidth;
+				rc.top = Canvas.rcMap.top + (2 + 1) * j;
+				rc.bottom = rc.top -1 + 2;
+				for(x=rc.left;x<=rc.right;x++)
+					for(y=rc.top;y<=rc.bottom;y++)
+          			SetPixelV(Canvas.hmdc,x,y,color);
+				change_flag = 1;
+    		}
+   		}
+	}
+	else
+	for(i=0;i<Canvas.MapCh;i++){
+		for(j=0;j<Canvas.MapBarMax;j++){
+			if(Canvas.MapMap[i][j]!=Canvas.MapMapOld[i][j] || flag){
+				int x,y;
+				COLORREF color = CanvasColor(Canvas.MapMap[i][j]);
+				if(i<=15){
+					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * i;
+					rc.right = rc.left -1 + Canvas.MapBarWidth;
+					rc.top = 3 + Canvas.rcMap.top + (2 + 1) * j;
+					rc.bottom = rc.top -1 + 2;
+				} else {
+					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * (i-16);
+					rc.right = rc.left -1 + Canvas.MapBarWidth;
+					rc.top = 3 + Canvas.rcMap.top + (2 + 1) * j + Canvas.MapBarMax*(2+1) + 3 ;
+					rc.bottom = rc.top -1 + 2;
+				}
+				for(x=rc.left;x<=rc.right;x++)
+					for(y=rc.top;y<=rc.bottom;y++)
+	          			SetPixelV(Canvas.hmdc,x,y,color);
+				change_flag = 1;
+    		}
+   		}
+	}
+#endif
 #ifdef CMAP_ALL_UPDATE
 	if(change_flag)
 		InvalidateRect(hCanvasWnd,NULL,FALSE);

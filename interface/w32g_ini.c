@@ -101,6 +101,7 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_PLAYER,"DocWndIndependent",&(sp->DocWndIndependent));
     IniGetKeyInt(INI_SEC_PLAYER,"SeachDirRecursive",&(sp->SeachDirRecursive));
     IniGetKeyInt(INI_SEC_PLAYER,"IniFileAutoSave",&(sp->IniFileAutoSave));
+    IniGetKeyInt(INI_SEC_PLAYER,"SecondMode",&(sp->SecondMode));
 
     /* [TIMIDITY] */
     IniGetKeyInt32(INI_SEC_TIMIDITY,"amplification",&(st->amplification));
@@ -204,6 +205,7 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_PLAYER,"DocWndIndependent",&(sp->DocWndIndependent));
     IniPutKeyInt(INI_SEC_PLAYER,"SeachDirRecursive",&(sp->SeachDirRecursive));
     IniPutKeyInt(INI_SEC_PLAYER,"IniFileAutoSave",&(sp->IniFileAutoSave));
+    IniPutKeyInt(INI_SEC_PLAYER,"SecondMode",&(sp->SecondMode));
 
 
     /* [TIMIDITY] */
@@ -259,4 +261,40 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_TIMIDITY,"data_block_time",&(st->data_block_time));
     IniPutKeyInt(INI_SEC_TIMIDITY,"data_block_num",&(st->data_block_num));
     w32g_has_ini_file = 1;
+}
+
+// When Start TiMidity in WinMain()
+extern int SecondMode;
+static char S_IniFile[MAXPATH + 32];
+void FirstLoadIniFile(void)
+{
+	char buffer[1024];
+	char *prevIniFile = IniFile;
+	char *p;
+	IniFile = S_IniFile;
+    if(GetModuleFileName(GetModuleHandle(0), buffer, MAXPATH))
+    {
+	if((p = pathsep_strrchr(buffer)) != NULL)
+	{
+	    p++;
+	    *p = '\0';
+	}
+	else
+	{
+	    buffer[0] = '.';
+	    buffer[1] = PATH_SEP;
+	    buffer[2] = '\0';
+	}
+    }
+    else
+    {
+	buffer[0] = '.';
+	buffer[1] = PATH_SEP;
+	buffer[2] = '\0';
+    }
+    strncpy(IniFile, buffer, MAXPATH);
+    IniFile[MAXPATH] = '\0';
+    strcat(IniFile,"timpp32g.ini");
+    IniGetKeyInt(INI_SEC_PLAYER,"SecondMode",&(SecondMode));
+	IniFile = prevIniFile;
 }

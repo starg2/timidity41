@@ -69,7 +69,7 @@ extern volatile int data_block_num;
 extern int DocWndIndependent;
 extern int SeachDirRecursive;
 extern int IniFileAutoSave;
-
+extern int SecondMode;
 
 //*****************************************************************************/
 // ini
@@ -316,6 +316,7 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
   DocWndIndependent = sp->DocWndIndependent; 
   SeachDirRecursive = sp->SeachDirRecursive;
   IniFileAutoSave = sp->IniFileAutoSave;
+  SecondMode = sp->SecondMode;
 }
 
 void
@@ -375,6 +376,7 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   sp->DocWndIndependent = DocWndIndependent; 
   sp->SeachDirRecursive = SeachDirRecursive;
   sp->IniFileAutoSave = IniFileAutoSave;
+  sp->SecondMode = SecondMode;
 }
 
 extern int set_play_mode(char *cp);

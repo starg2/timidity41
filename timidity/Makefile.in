@@ -280,6 +280,8 @@ common.o: common.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/arc.h ../utils/nkflib.h wrd.h ../utils/strtab.h
 controls.o: controls.c ../config.h ../interface.h timidity.h \
 	../utils/support.h controls.h
+dl_dlopen.o: dl_dlopen.c ../config.h timidity.h ../utils/support.h \
+	dlutils.h
 effect.o: effect.c ../config.h timidity.h ../utils/support.h instrum.h \
 	playmidi.h output.h reverb.h
 filter.o: filter.c ../config.h timidity.h ../utils/support.h common.h \
@@ -306,7 +308,7 @@ mod2midi.o: mod2midi.c ../config.h timidity.h ../utils/support.h \
 	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
 	readmidi.h tables.h mod.h output.h controls.h \
 	../libunimod/unimod.h mod2midi.h
-nas_a.o: nas_a.c ../config.h timidity.h ../utils/support.h common.h \
+oss_a.o: oss_a.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h output.h controls.h \
 	../utils/timer.h instrum.h playmidi.h miditrace.h
 output.o: output.c ../config.h timidity.h ../utils/support.h output.h \
@@ -314,8 +316,7 @@ output.o: output.c ../config.h timidity.h ../utils/support.h output.h \
 playmidi.o: playmidi.c ../config.h timidity.h ../utils/support.h \
 	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
 	readmidi.h output.h mix.h controls.h miditrace.h recache.h \
-	../libarc/arc.h reverb.h wrd.h aq.h ../interface/soundspec.h \
-	tables.h
+	../libarc/arc.h reverb.h wrd.h aq.h tables.h
 raw_a.o: raw_a.c ../config.h timidity.h ../utils/support.h output.h \
 	controls.h
 rcp.o: rcp.c ../config.h timidity.h ../utils/support.h common.h \
@@ -344,15 +345,13 @@ sndfont.o: sndfont.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h tables.h instrum.h playmidi.h \
 	controls.h sffile.h sflayer.h sfitem.h output.h filter.h \
 	resample.h
-sun_a.o: sun_a.c ../config.h timidity.h ../utils/support.h aenc.h \
-	output.h controls.h
 tables.o: tables.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h tables.h
 timidity.o: timidity.c ../config.h ../interface.h timidity.h \
 	../utils/support.h common.h ../libarc/url.h ../utils/mblock.h \
 	instrum.h playmidi.h readmidi.h output.h controls.h tables.h \
-	miditrace.h reverb.h ../interface/soundspec.h recache.h \
-	../libarc/arc.h ../utils/strtab.h wrd.h mid.defs aq.h mix.h \
+	miditrace.h reverb.h recache.h ../libarc/arc.h \
+	../utils/strtab.h wrd.h mid.defs aq.h mix.h \
 	../libunimod/unimod.h
 wave_a.o: wave_a.c ../config.h timidity.h ../utils/support.h output.h \
 	controls.h

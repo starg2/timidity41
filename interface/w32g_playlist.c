@@ -36,6 +36,8 @@
 #include "w32g.h"
 #include "w32g_res.h"
 
+void SetNumListWnd(int cursel, int nfiles);
+
 // playlist
 typedef struct _PlayListEntry {
     char *filename;	// malloc
@@ -232,8 +234,77 @@ char *w32g_curr_playlist(void)
 }
 #endif
 
+// Update an only list at the position.
+void w32g_update_playlist_pos(int pos)
+{
+    int i, cur, modified;
+    HWND hListBox;
+
+    if(!(hListBox = playlist_box()))
+	return;
+
+    cur = ListBox_GetCurSel(hListBox);
+    modified = 0;
+	i = pos;
+	if(i >= 0 && i < playlist.nfiles)
+    {
+	char *filename, *title, *item1, *item2;
+	int maxlen, item2_len;
+	int notitle = 0;
+
+	filename = playlist.list[i].filename;
+	title = playlist.list[i].title;
+	if(title == NULL || title[0] == '\0')
+	{
+	    if(playlist.list[i].info->file_type == IS_ERROR_FILE)
+		title = " --SKIP-- ";
+		else
+		{
+		title = " -------- ";
+		notitle = 1;
+		}
+	}
+	maxlen = strlen(filename) + strlen(title) + 32 + 80;
+	item1 = (char *)new_segment(&tmpbuffer, maxlen);
+	if(!notitle)
+	{
+	if(i == playlist.selected)
+	    snprintf(item1, maxlen, "==>%-80s   (%s)", title, filename);
+	else
+	    snprintf(item1, maxlen, "   %-80s   (%s)", title, filename);
+	} else
+	{
+	if(i == playlist.selected)
+	    snprintf(item1, maxlen, "==>%s   (%s)", title, filename);
+	else
+	    snprintf(item1, maxlen, "   %s   (%s)", title, filename);
+	}
+	item2_len = ListBox_GetTextLen(hListBox, i);
+	item2 = (char *)new_segment(&tmpbuffer, item2_len + 1);
+	ListBox_GetText(hListBox, i, item2);
+	if(strcmp(item1, item2) != 0)
+	{
+	    ListBox_DeleteString(hListBox, i);
+	    ListBox_InsertString(hListBox, i, item1);
+	    modified = 1;
+	}
+	reuse_mblock(&tmpbuffer);
+    }
+
+    if(modified && cur==pos)
+    {
+	if(cur < 0)
+	    cur = playlist.selected;
+	else if(cur >= playlist.nfiles - 1)
+	    cur = playlist.nfiles - 1;
+	ListBox_SetCurSel(hListBox, cur);
+	SetNumListWnd(cur,playlist.nfiles);
+    }
+}
+
 void w32g_update_playlist(void)
 {
+#if 0
     int i, cur, modified;
     HWND hListBox;
 
@@ -261,7 +332,7 @@ void w32g_update_playlist(void)
 	if(i == playlist.selected)
 	    snprintf(item1, maxlen, "==>%04d %s (%s)", i + 1, title, filename);
 	else
-	    snprintf(item1, maxlen, "    %04d %s (%s)", i + 1, title, filename);
+	    snprintf(item1, maxlen, "   %04d %s (%s)", i + 1, title, filename);
 	item2_len = ListBox_GetTextLen(hListBox, i);
 	item2 = (char *)new_segment(&tmpbuffer, item2_len + 1);
 	ListBox_GetText(hListBox, i, item2);
@@ -281,7 +352,32 @@ void w32g_update_playlist(void)
 	else if(cur >= playlist.nfiles - 1)
 	    cur = playlist.nfiles - 1;
 	ListBox_SetCurSel(hListBox, cur);
+	SetNumListWnd(cur,playlist.nfiles);
     }
+#else
+    int i, cur, modified;
+    HWND hListBox;
+
+    if(!(hListBox = playlist_box()))
+	return;
+
+    cur = ListBox_GetCurSel(hListBox);
+    modified = 0;
+    for(i = 0; i < playlist.nfiles; i++)
+    {
+		w32g_update_playlist_pos(i);
+    }
+
+    if(modified)
+    {
+	if(cur < 0)
+	    cur = playlist.selected;
+	else if(cur >= playlist.nfiles - 1)
+	    cur = playlist.nfiles - 1;
+	ListBox_SetCurSel(hListBox, cur);
+	SetNumListWnd(cur,playlist.nfiles);
+    }
+#endif
 }
 
 void w32g_get_playlist_index(int *selected, int *nfiles, int *cursel)
@@ -316,19 +412,22 @@ int w32g_delete_playlist(int pos)
     free(playlist.list[pos].filename);
     playlist.nfiles--;
     for(i = pos; i < playlist.nfiles; i++)
-	playlist.list[i] = playlist.list[i + 1];
+		playlist.list[i] = playlist.list[i + 1];
     if(pos < playlist.selected || pos == playlist.nfiles)
     {
 	playlist.selected--;
-	if(playlist.selected < 0)
+	if(playlist.selected < 0){
 	    playlist.selected = 0;
+		SetNumListWnd(playlist.selected,playlist.nfiles);
+	} else
+		w32g_update_playlist_pos(playlist.selected);
     }
-    w32g_update_playlist();
     if(playlist.nfiles > 0)
     {
 	if(pos == playlist.nfiles)
 	    pos--;
 	ListBox_SetCurSel(hListBox, pos);
+	SetNumListWnd(pos,playlist.nfiles);
     }
     return 1;
 }
@@ -357,6 +456,7 @@ void w32g_setcur_playlist(void)
     if(!(hListBox = playlist_box()))
 	return;
     ListBox_SetCurSel(hListBox, playlist.selected);
+	SetNumListWnd(playlist.selected,playlist.nfiles);
 }
 
 int w32g_uniq_playlist(int *is_selected_removed)
@@ -414,8 +514,10 @@ int w32g_uniq_playlist(int *is_selected_removed)
     {
 	for(i = 0; i < nremoved; i++)
 	    ListBox_DeleteString(hListBox, --playlist.nfiles);
-	if(cursel >= 0)
+	if(cursel >= 0){
 	    ListBox_SetCurSel(hListBox, cursel);
+		SetNumListWnd(cursel,playlist.nfiles);
+	}
 	w32g_update_playlist();
     }
     return nremoved;
@@ -468,8 +570,10 @@ int w32g_refine_playlist(int *is_selected_removed)
 	    ListBox_DeleteString(hListBox, --playlist.nfiles);
 	if(cursel >= playlist.nfiles)
 	    cursel = playlist.nfiles - 1;
-	if(cursel >= 0)
+	if(cursel >= 0){
 	    ListBox_SetCurSel(hListBox, cursel);
+		SetNumListWnd(cursel,playlist.nfiles);
+	}
 	w32g_update_playlist();
     }
     return nremoved;
@@ -492,6 +596,8 @@ void w32g_clear_playlist(void)
 //	LB_RESETCONTENT
 	if(hListBox)
 	    ListBox_ResetContent(hListBox);
+	playlist.selected = 0;
+	SetNumListWnd(0,0);
 }
 
 void w32g_rotate_playlist(int dest)
@@ -499,6 +605,7 @@ void w32g_rotate_playlist(int dest)
     int i, i1, i2;
     HWND hListBox;
     PlayListEntry save;
+	char temp[1024];
 
     if(playlist.nfiles == 0)
 	return;
@@ -516,10 +623,17 @@ void w32g_rotate_playlist(int dest)
 	for(i = i2; i > i1; i--) /* i: i2 -> i1 */
 	    playlist.list[i] = playlist.list[i - 1];
 	playlist.list[i] = save;
-	if(playlist.selected == i2)
+	ListBox_GetText(hListBox,i2,temp);
+    ListBox_DeleteString(hListBox,i2);
+    ListBox_InsertString(hListBox,i1,temp);
+	ListBox_SetCurSel(hListBox,i1);
+	if(playlist.selected == i2){
 	    playlist.selected = i1;
-	else if(i1 <= playlist.selected && playlist.selected < i2)
+		w32g_update_playlist_pos(playlist.selected);
+	} else if(i1 <= playlist.selected && playlist.selected < i2){
 	    playlist.selected++;
+		w32g_update_playlist_pos(playlist.selected);
+	}
     }
     else
     {
@@ -527,12 +641,18 @@ void w32g_rotate_playlist(int dest)
 	for(i = i1; i < i2; i++) /* i: i1 -> i2 */
 	    playlist.list[i] = playlist.list[i + 1];
 	playlist.list[i] = save;
-	if(playlist.selected == i1)
+	ListBox_GetText(hListBox,i1,temp);
+    ListBox_DeleteString(hListBox,i1);
+    ListBox_InsertString(hListBox,-1,temp);
+	ListBox_SetCurSel(hListBox,i1);
+	if(playlist.selected == i1){
 	    playlist.selected = i2;
-	else if(i1 < playlist.selected && playlist.selected <= i2)
+		w32g_update_playlist_pos(playlist.selected);
+	} else if(i1 < playlist.selected && playlist.selected <= i2){
 	    playlist.selected--;    
+		w32g_update_playlist_pos(playlist.selected);
+	}
     }
-    w32g_update_playlist();
 }
 
 char *w32g_get_playlist(int idx)

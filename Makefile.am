@@ -63,7 +63,7 @@ dist-hook:
 	CONFIG_HEADERS='' CONFIG_FILES=configs/msc-config.h $(SHELL) ./config.status
 	cp -r configs $(distdir)
 	chmod -R a+r $(distdir)
-	$(TAR) chof - $(distdir) | bzip2 -9 --repetitive-best - > $(distdir).tar.bz2
+	$(TAR) chof - $(distdir) | bzip2 -9 - > $(distdir).tar.bz2
 
 ##
 ## Targets for timidity-tools
