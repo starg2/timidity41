@@ -75,3 +75,7 @@ void *dl_find_symbol(void *libhandle, char *symbolname)
     }
     return RETVAL;
 }
+
+void dl_free(void *libhandle)
+{
+}

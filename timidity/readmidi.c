@@ -1633,6 +1633,8 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		break;
 
 	      case XG_SYSTEM_MODE: /* XG */
+		if(bank_lsb[ch] == -1)
+		    goto end_of_event_switch;
 		switch(bank_msb[ch])
 		{
 		  case 0: /* Normal */
@@ -1790,6 +1792,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		skip_this_event = 1;
 	    break;
         }
+      end_of_event_switch:
 
 	/* Recompute time in samples*/
 	if((dt = meep->event.time - at) && !counting_time)

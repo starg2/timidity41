@@ -1,3 +1,61 @@
+1999-09-05  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.6.0-beta3 released for test version.
+
+1999-09-05  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{readmidi.c,playmidi.c}: On XG mode, ignore the program
+      change without bank select LSB.
+
+1999-09-05  Yasuhide Oomori <dasen@typhoon.co.jp>
+
+    * interface/gtk_i.c (gtk_set_locale): Enable locale.
+
+1999-09-04  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{common.c,common.h} (pathcmp): New function to compare the path.
+    * timidity/{common.c,common.h} (pathcasecmp): Obsoleted.
+    * timidity/common.c (add_to_pathlist): Remove the duplicated path
+      from `pathlist'.
+    * interface/w32g_playlist.c: Use pathcmp() to compare the path.
+
+1999-09-03  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in (PKGDATADIR, PKGLIBDIR): New macro which is for
+      $(pkgdatadir) and $(pkglibdir).
+    * interface/xaw_i.c (XAW_BITMAP_DIR): New macro.
+      XAW bitmap files are in XAW_BITMAP_DIR.
+    * configure.in, timidity/timidity.h (TCL_DIR): Remove it from cpp flag.
+    * configure.in,interface/tk_c.c (TKPROGPATH): Remove it from cpp flag.
+      Add the definition in tk_c.c.
+    * configure.in,timidity/timidity.c: SHARED_LIB_PATH -> SHLIB_DIR
+
+1999-09-02  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/dl_cygwin32.c -> timidity/dl_w32.c
+    * timidity/{dl_w32.c,dl_dld.c,dl_dlopen.c,dl_hpux.c,dlutils.h} (dl_free):
+      New function to unload dynamic link handler.
+    * interface/dynamic_c.c: Make a hook to call dl_free() on ctl->close().
+    * acinclude.m4,configure.in: Search and test for NAS library.
+    * configure.in: Add --with-nas-library=library to specify NAS
+      library with absolute path.  Note that -laudio can not be used
+      because it is possible -laudio is not NAS library.
+    * configure.in: Add --with-nas-includes=dir to specify the NAS
+      include directory.
+    * libarc/url_file.c: Use mapped-file to read the file.
+    * timidity/timidity.c (handler): Only mark `intr'.
+    * interface/w32g_i.c: Use WaitSingleObject() to wait to terminate
+      the thread.
+
+1999-09-02  Yasuhide Oomori <dasen@typhoon.co.jp>
+
+    * INSTALL,INSTALL.jp: Update documentation to match new configuration
+      mechanism.
+
+1999-09-01  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in: Modify action of --enable-dynamic[=mode_list].
+
 1999-09-01  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.6.0-beta2 released for test version.
@@ -5,8 +63,11 @@
 1999-09-01  Masanao Izumo <mo@goice.co.jp>
 
     * configure.in: Modify action of --enable-audio[=mode_list].
-    * configure.in,timidity/timidity.c: Remove TIMIDITY_OUTPUT_ID macro
-      if any audio are not enabled.
+    * configure.in (--enable-interface[=interface_list]):  New configure
+      option.  Specify comma separated interface list.  For example:
+	--enable-interface=ncurses,tcltk,gtk
+    * configure.in,timidity/timidity.c: If default audio is not specified,
+      remove TIMIDITY_OUTPUT_ID macro from compiler option.
 
 1999-08-31  Yasuhide Oomori <dasen@typhoon.co.jp>
 
@@ -14,7 +75,7 @@
 
 1999-08-31  Kei Hibino <hibi@utmc.or.jp>
 
-    * configure.in (SHELL): AC_SUBST() for autoconf-1.12
+    * configure.in (SHELL): AC_SUBST() for autoconf-2.12
     * configure.in (slang.h): Add new test.
 
 1999-08-31  Katsuhiro Ueno <katsu@blue.sky.or.jp>
@@ -242,7 +303,7 @@
       the interface.
     * timidity/{common.c,timidity.c} (open_file_noise_mode): new global
       variable to pass `noise_mode' of open_file() to arc_error_handler.
-    * wrdt.c: Make more elevant.
+    * wrdt.c: Make more elegant.
     * x_wrdwindow.c (gscreen_plane_mask): Bug fix.
 
 1999-08-10  Masanao Izumo <mo@goice.co.jp>
@@ -417,6 +478,7 @@
       to pipe "PAGER" to display help message.  For example:
       > set PAGER=more
       > timidity -h
+      Bug fixed (isatty).
     * configure.in (isatty): Check for `isatty' function.
     * utils/{nkflib.c,net.c}, libarc/arc_zip.c,
       interface/{xaw_i.c,gtk_i.c,x_wrdwindow.c,wrdt_x.c,ncurs_c.c},

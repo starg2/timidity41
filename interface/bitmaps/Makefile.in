@@ -218,8 +218,8 @@ mostlyclean distclean maintainer-clean
 include $(top_builddir)/common.makefile
 
 install.bitmaps: $(BITMAPS)
-	test -d $(DESTDIR)$(TCL_DIR)/bitmaps || mkdir -p $(DESTDIR)$(TCL_DIR)/bitmaps
-	for f in $(BITMAPS) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TCL_DIR)/bitmaps;; esac; done
+	test -d $(DESTDIR)$(BITMAP_DIR) || mkdir -p $(DESTDIR)$(BITMAP_DIR)
+	for f in $(BITMAPS) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(BITMAP_DIR);; esac; done
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

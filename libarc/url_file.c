@@ -14,6 +14,10 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
+#ifdef __W32__
+#include <windows.h>
+#endif /* __W32__ */
+
 #include "timidity.h"
 
 #ifdef HAVE_MMAP
@@ -26,8 +30,13 @@
 
 #else
 /* mmap is not supported */
+#ifdef __W32__
+#define try_mmap(fname, size_ret) w32_mmap(fname, size_ret, &hFile, &hMap)
+#define munmap(addr, size)        w32_munmap(addr, size, hFile, hMap)
+#else
 #define try_mmap(dmy1, dmy2) NULL
 #define munmap(addr, size) /* Do nothing */
+#endif /* __W32__ */
 #endif
 
 #include "url.h"
@@ -46,6 +55,10 @@ typedef struct _URL_file
     char *mapptr;		/* Non NULL if mmap is success */
     long mapsize;
     long pos;
+
+#ifdef __W32__
+    HANDLE hFile, hMap;
+#endif /* __W32__ */
 
     FILE *fp;			/* Non NULL if mmap is failure */
 } URL_file;
@@ -125,6 +138,43 @@ static char *try_mmap(char *path, long *size)
     *size = (long)st.st_size;
     return p;
 }
+#elif defined(__W32__)
+static void *w32_mmap(char *fname, long *size_ret, HANDLE *hFilePtr, HANDLE *hMapPtr)
+{
+    void *map;
+
+    *hFilePtr = CreateFile(fname, GENERIC_READ, 0, NULL,
+			   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if(*hFilePtr == INVALID_HANDLE_VALUE)
+	return NULL;
+    *size_ret = GetFileSize(*hFilePtr, NULL);
+    if(*size_ret == 0xffffffff)
+    {
+	CloseHandle(*hFilePtr);
+	return NULL;
+    }
+    *hMapPtr = CreateFileMapping(*hFilePtr, NULL, PAGE_READONLY,
+				 0, 0, NULL);
+    if(*hMapPtr == NULL)
+    {
+	CloseHandle(*hFilePtr);
+	return NULL;
+    }
+    map = MapViewOfFile(*hMapPtr, FILE_MAP_READ, 0, 0, 0);
+    if(map == NULL)
+    {
+	CloseHandle(*hMapPtr);
+	CloseHandle(*hFilePtr);
+	return NULL;
+    }
+    return map;
+}
+static void w32_munmap(void *ptr, long size, HANDLE hFile, HANDLE hMap)
+{
+    UnmapViewOfFile(ptr);
+    CloseHandle(hMap);
+    CloseHandle(hFile);
+}
 #endif /* HAVE_MMAP */
 
 URL url_file_open(char *fname)
@@ -133,6 +183,9 @@ URL url_file_open(char *fname)
     char *mapptr;		/* Non NULL if mmap is success */
     long mapsize;
     FILE *fp;			/* Non NULL if mmap is failure */
+#ifdef __W32__
+    HANDLE hFile, hMap;
+#endif /* __W32__ */
 
 #ifdef DEBUG
     printf("url_file_open(%s)\n", fname);
@@ -233,6 +286,10 @@ URL url_file_open(char *fname)
     url->mapsize = mapsize;
     url->pos = 0;
     url->fp = fp;
+#ifdef __W32__
+    url->hFile = hFile;
+    url->hMap = hMap;
+#endif /* __W32__ */
 
     return (URL)url;
 }
@@ -321,7 +378,13 @@ static void url_file_close(URL url)
     URL_file *urlp = (URL_file *)url;
 
     if(urlp->mapptr != NULL)
+    {
+#ifdef __W32__
+	HANDLE hFile = urlp->hFile;
+	HANDLE hMap = urlp->hMap;
+#endif /* __W32__ */
 	munmap(urlp->mapptr, urlp->mapsize);
+    }
     if(urlp->fp != NULL)
     {
 	if(urlp->fp == stdin)

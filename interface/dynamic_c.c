@@ -44,15 +44,18 @@
 #include "dlutils.h"
 
 static int ctl_open(int using_stdin, int using_stdout);
+static void ctl_close(void);
 extern char *dynamic_interface_module(int id);
 static void ctl_event(){} /* Do nothing */
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
+static void *libhandle;
+static void (* ctl_close_hook)(void);
 
 ControlMode dynamic_control_mode =
 {
     "Dynamic interface", 0,
     1,0,0,0,
-    ctl_open, NULL, NULL, NULL, cmsg, ctl_event,
+    ctl_open, ctl_close, NULL, NULL, cmsg, ctl_event,
 };
 
 static int cmsg(int type, int verbosity_level, char *fmt, ...)
@@ -80,7 +83,6 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 
 static int ctl_open(int using_stdin, int using_stdout)
 {
-    void *libhandle;
     ControlMode *(* inferface_loader)(void);
     char *path;
     char buff[256];
@@ -111,6 +113,18 @@ static int ctl_open(int using_stdin, int using_stdout)
     ctl->verbosity = dynamic_control_mode.verbosity;
     ctl->trace_playing = dynamic_control_mode.trace_playing;
     ctl->flags = dynamic_control_mode.flags;
+    ctl_close_hook = ctl->close;
+    ctl->close = dynamic_control_mode.close; /* ctl_close() */
 
     return ctl->open(using_stdin, using_stdout);
+}
+
+static void ctl_close(void)
+{
+    if(ctl_close_hook)
+    {
+	ctl_close_hook();
+	dl_free(libhandle);
+	ctl_close_hook = NULL;
+    }
 }

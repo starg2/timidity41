@@ -96,7 +96,7 @@ EXTRA_timidity_SOURCES = \
 	audriv_al.c \
 	audriv_mme.c \
 	audriv_none.c \
-	dl_cygwin32.c \
+	dl_w32.c \
 	dl_dld.c \
 	dl_dlopen.c \
 	dl_hpux.c \

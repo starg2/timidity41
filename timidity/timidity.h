@@ -29,8 +29,14 @@
 /* You could specify a complete path, e.g. "/etc/timidity.cfg", and
    then specify the library directory in the configuration file. */
 /* #define CONFIG_FILE "/etc/timidity.cfg" */
-#define CONFIG_FILE DEFAULT_PATH "/timidity.cfg"
+#ifndef CONFIG_FILE
 
+#ifdef DEFAULT_PATH
+#define CONFIG_FILE DEFAULT_PATH "/timidity.cfg"
+#else
+#define CONFIG_FILE PKGDATADIR "/timidity.cfg"
+#endif /* DEFAULT_PATH */
+#endif /* CONFIG_FILE */
 
 /* Filename extension, followed by command to run decompressor so that
    output is written to stdout. Terminate the list with a 0.

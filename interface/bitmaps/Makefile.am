@@ -34,5 +34,5 @@ BITMAPS = \
 EXTRA_DIST = $(BITMAPS)
 
 install.bitmaps: $(BITMAPS)
-	test -d $(DESTDIR)$(TCL_DIR)/bitmaps || mkdir -p $(DESTDIR)$(TCL_DIR)/bitmaps
-	for f in $(BITMAPS) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TCL_DIR)/bitmaps;; esac; done
+	test -d $(DESTDIR)$(BITMAP_DIR) || mkdir -p $(DESTDIR)$(BITMAP_DIR)
+	for f in $(BITMAPS) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(BITMAP_DIR);; esac; done

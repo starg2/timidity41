@@ -56,3 +56,8 @@ void *dl_find_symbol(void *libhandle, char *symbolname)
 	fprintf(stderr, "%s\n", dlerror());
     return RETVAL;
 }
+
+void dl_free(void *libhandle)
+{
+    dlclose(libhandle);
+}

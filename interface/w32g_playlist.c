@@ -66,7 +66,7 @@ static int w32g_add_playlist1(char *filename, int uniq, int refine)
     {
 	int i;
 	for(i = 0; i < playlist.nfiles; i++)
-	    if(strcasecmp(filename, playlist.list[i].filename) == 0)
+	    if(pathcmp(filename, playlist.list[i].filename, 0) == 0)
 		return 0;
     }
 
@@ -111,12 +111,10 @@ int w32g_add_playlist(int nfiles, char **files, int expand_flag,
 
     if(SeachDirRecursive)
     {
-//printf("## dir expand: %d\n");
 	new_files1 = FilesExpandDir(&nfiles, files);
 	if(new_files1 == NULL)
 	    return 0;
 	expand_flag = 1;
-//printf("## dir expand done %d\n", nfiles);
     }
     else
 	new_files1 = files;
@@ -125,9 +123,7 @@ int w32g_add_playlist(int nfiles, char **files, int expand_flag,
 	new_files2 = new_files1;
     else
     {
-//printf("## expand...%d\n", nfiles);
 	new_files2 = expand_file_archives(new_files1, &nfiles);
-//printf("## expand...done (%d)\n", nfiles);
 	if(new_files2 == NULL)
 	{
 	    if(new_files1 != files)
@@ -138,11 +134,9 @@ int w32g_add_playlist(int nfiles, char **files, int expand_flag,
 	}
     }
 
-//printf("## checking files...\n", nfiles);
     n = 0;
     for(i = 0; i < nfiles; i++)
 	n += w32g_add_playlist1(new_files2[i], uniq, refine);
-//printf("## checking files...done\n", nfiles);
 
     if(new_files2 != new_files1)
     {
@@ -155,10 +149,8 @@ int w32g_add_playlist(int nfiles, char **files, int expand_flag,
 	free(new_files1);
     }
 
-//printf("## update...\n", nfiles);
     if(n > 0)
 	w32g_update_playlist();
-//printf("## update...done\n", nfiles);
     return n;
 }
 
@@ -391,8 +383,8 @@ int w32g_uniq_playlist(int *is_selected_removed)
 	save_n = n;
 	while(j2 < save_n) /* j1 <= j2 */
 	{
-	    if(strcasecmp(playlist.list[i].filename,
-			  playlist.list[j2].filename) == 0)
+	    if(pathcmp(playlist.list[i].filename,
+		       playlist.list[j2].filename, 0) == 0)
 	    {
 		nremoved++;
 		n--;

@@ -20,12 +20,42 @@
 
 */
 
-#ifndef ___DLUTILS_H_
-#define ___DLUTILS_H_
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 
-extern void dl_init(int argc, char **argv);
-extern void *dl_load_file(char *path);
-extern void *dl_find_symbol(void *libhandle, char *symbol);
-extern void dl_free(void *libhandle);
+#include <windows.h>
+#include <stdio.h>
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
+#include "timidity.h"
+#include "dlutils.h"
 
-#endif /* ___DLUTILS_H_ */
+/*ARGSUSED*/
+void dl_init(int argc, char **argv)
+{
+}
+
+void *dl_load_file(char *filename)
+{
+    void *RETVAL;
+
+    RETVAL = (void*)LoadLibrary(filename);
+    return RETVAL;
+}
+
+void *dl_find_symbol(void *libhandle, char *symbolname)
+{
+    void *RETVAL;
+
+    RETVAL = (void*) GetProcAddress((HINSTANCE) libhandle, symbolname);
+    return RETVAL;
+}
+
+void dl_free(void *libhandle)
+{
+    FreeLibrary((HINSTANCE)libhandle);
+}

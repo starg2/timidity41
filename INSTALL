@@ -3,18 +3,18 @@
                               Installation guide
 
 					Masanao Izumo <mo@goice.co.jp>
-					Last updated on Apr.28.1999
+					Last updated on Sep.2.1999
 ==============================================================================
 
-  This document describes how to install TiMidity++(version 2.0.0 or
+  This document describes how to install TiMidity++(version 2.6.0 or
 later) for your UNIX-like machine.  Methods for Macintosh are not
 described in this document.
 
-  It is enabled to configure and make timidity.exe on CYGNUS +
-egcs-compiler(gcc) environment of Windows98/95/NT.  If you are in
-Windows, install cygnus and egcs (or mingw) if you don't have them
-(which is available from http://www.cygnus.com/), and run `cygnus',
-and make symbolik link /bin/sh to bash.
+  It is enabled to configure and make timidity.exe on the Cygwin
+environment of Windows98/95/NT.  If you are in Windows, install cygnus
+and egcs (or mingw) if you don't have them (which is available from
+http://sourceware.cygnus.com/cygwin/), and run `cygnus', and make
+symbolik link /bin/sh to bash.
 
 Installing process:
 
@@ -225,7 +225,7 @@ can select follows:
   TiMidity++ uses GUS/patch (Glavis Ultrasound) as the voice data to
 play.  You must get GUS/patch files, and make the configuration file.
 You must make the configuration file (*.cfg).  By default,
-timidity.cfg is /usr/local/lib/timidity/timidity.cfg (or
+timidity.cfg is /usr/local/share/timidity/timidity.cfg (or
 C:\WINDOWS\TIMIDITY.CFG on Windows).  And please check the following
 sites for many voice(patch) data:
 

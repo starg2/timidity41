@@ -156,11 +156,10 @@ MAIN_INTERFACE struct URL_module *url_module_list[] =
 
 #ifdef IA_DYNAMIC
 #include "dlutils.h"
-#ifdef SHARED_LIB_PATH
-static char *dynamic_lib_root = SHARED_LIB_PATH;
-#else
-static char *dynamic_lib_root = ".";
+#ifndef SHARED_LIB_PATH
+#define SHARED_LIB_PATH PKGLIBDIR
 #endif /* SHARED_LIB_PATH */
+static char *dynamic_lib_root = SHARED_LIB_PATH;
 #endif /* IA_DYNAMIC */
 
 #ifndef MAXPATHLEN
@@ -175,17 +174,11 @@ VOLATILE int intr = 0;
 CRITICAL_SECTION critSect;
 
 #pragma argsused
-static BOOL WINAPI handler (DWORD dw)
+static BOOL WINAPI handler(DWORD dw)
 {
-	if(dw == CTRL_C_EVENT || dw == CTRL_BREAK_EVENT)
-	printf ("***BREAK" NLS); fflush(stdout);
-	intr = TRUE;
-	aq_flush(1);
-	play_mode->close_output();
-	ctl->close();
-	wrdt->close();
-	ExitProcess(-1);
-	return TRUE;
+    printf ("***BREAK" NLS); fflush(stdout);
+    intr++;
+    return TRUE;
 }
 #endif
 
@@ -3030,18 +3023,18 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
     {
 #endif /* BORLANDC_EXCEPTION */
 #ifdef __W32__
+
 #ifdef HAVE_SIGNAL
-	signal(SIGINT, sigterm_exit);
 	signal(SIGTERM, sigterm_exit);
 #endif
+	SetConsoleCtrlHandler(handler, TRUE);
 
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
 		  "Initialize for Critical Section");
-	SetConsoleCtrlHandler (handler, TRUE);
-	InitializeCriticalSection (&critSect);
+	InitializeCriticalSection(&critSect);
 	if(opt_evil_mode)
-	    if (!SetThreadPriority(GetCurrentThread(),
-				   THREAD_PRIORITY_ABOVE_NORMAL))
+	    if(!SetThreadPriority(GetCurrentThread(),
+				  THREAD_PRIORITY_ABOVE_NORMAL))
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "Error raising process priority");
 
@@ -3105,6 +3098,9 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 		  "pass_playing_list() nfiles=%d", nfiles);
 
 	ctl->pass_playing_list(nfiles, files);
+
+	if(intr)
+	    aq_flush(1);
 
 #ifdef XP_UNIX
 	return 0;

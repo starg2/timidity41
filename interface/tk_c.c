@@ -65,6 +65,11 @@
 #include "miditrace.h"
 #include "aq.h"
 
+#ifndef TKPROGPATH
+#define TKPROGPATH PKGLIBDIR "/tkmidity.tcl"
+#endif /* TKPROGPATH */
+
+
 static void ctl_refresh(void);
 static void ctl_total_time(int tt);
 static void ctl_master_volume(int mv);

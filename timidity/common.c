@@ -558,10 +558,33 @@ char *safe_strdup(char *s)
 /* This adds a directory to the path list */
 void add_to_pathlist(char *s)
 {
-  PathList *plp=safe_malloc(sizeof(PathList));
-  strcpy((plp->path=safe_malloc(strlen(s)+1)),s);
-  plp->next=pathlist;
-  pathlist=plp;
+    PathList *cur, *prev, *plp;
+
+    /* Check duplicated path in the pathlist. */
+    plp = prev = NULL;
+    for(cur = pathlist; cur; prev = cur, cur = cur->next)
+	if(pathcmp(s, cur->path, 0) == 0)
+	{
+	    plp = cur;
+	    break;
+	}
+
+    if(plp) /* found */
+    {
+	if(prev == NULL) /* first */
+	    pathlist = pathlist->next;
+	else
+	    prev->next = plp->next;
+    }
+    else
+    {
+	/* Allocate new path */
+	plp = safe_malloc(sizeof(PathList));
+	plp->path = safe_strdup(s);
+    }
+
+    plp->next = pathlist;
+    pathlist = plp;
 }
 
 #ifndef HAVE_VOLATILE
@@ -970,34 +993,51 @@ void randomize_string_list(char **strlist, int n)
     }
 }
 
-int pathcasecmp(const char *p1, const char *p2)
+int pathcmp(const char *p1, const char *p2, int ignore_case)
 {
-    const unsigned char *s1, *s2;
     int c1, c2;
 
-    s1 = *(const unsigned char **)p1;
-    s2 = *(const unsigned char **)p2;
-    while(*s1 && *s2)
+#ifdef __W32__
+    ignore_case = 1;	/* Always ignore the case */
+#endif
+
+    while(*p1 && *p2)
     {
-	c1 = tolower((int)*s1);
-	c2 = tolower((int)*s2);
+	c1 = *p1++ & 0xff;
+	c2 = *p2++ & 0xff;
+	if(ignore_case)
+	{
+	    c1 = tolower(c1);
+	    c2 = tolower(c2);
+	}
 	if(IS_PATH_SEP(c1)) c1 = 0;
 	if(IS_PATH_SEP(c2)) c2 = 0;
 	if(c1 != c2)
 	    return c1 - c2;
-	s1++;
-	s2++;
     }
 
-    c1 = tolower((int)*s1);
-    c2 = tolower((int)*s2);
+    c1 = *p1 & 0xff;
+    c2 = *p2 & 0xff;
+    if(ignore_case)
+    {
+	c1 = tolower(c1);
+	c2 = tolower(c2);
+    }
+    if(IS_PATH_SEP(c1)) c1 = 0;
+    if(IS_PATH_SEP(c2)) c2 = 0;
     return c1 - c2;
+}
+
+static int pathcmp_qsort(const char **p1,
+			 const char **p2)
+{
+    return pathcmp(*(const char **)p1, *(const char **)p2, 1);
 }
 
 void sort_pathname(char **files, int nfiles)
 {
     qsort(files, nfiles, sizeof(char *),
-	  (int (*)(const void *, const void *))pathcasecmp);
+	  (int (*)(const void *, const void *))pathcmp_qsort);
 }
 
 char *pathsep_strchr(char *path)

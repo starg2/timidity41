@@ -83,3 +83,7 @@ void *dl_find_symbol(void *libhandle, char *symbolname)
     }
     return symaddr;
 }
+
+void dl_free(void *libhandle)
+{
+}

@@ -1919,33 +1919,31 @@ void midi_program_change(int ch, int prog)
 	break;
 
       case XG_SYSTEM_MODE: /* XG */
+	if(channel[ch].bank_lsb == -1)
+	    return;
 	switch(channel[ch].bank_msb)
 	{
 	  case 0: /* Normal */
 	    midi_drumpart_change(ch, 0);
 	    channel[ch].mapID = XG_NORMAL_MAP;
-	    dr = 0;
 	    break;
 	  case 64: /* SFX voice */
 	    midi_drumpart_change(ch, 0);
 	    channel[ch].mapID = XG_SFX64_MAP;
-	    dr = 0;
 	    break;
 	  case 126: /* SFX kit */
 	    midi_drumpart_change(ch, 1);
 	    channel[ch].mapID = XG_SFX126_MAP;
-	    dr = 1;
 	    break;
 	  case 127: /* Drumset */
 	    midi_drumpart_change(ch, 1);
 	    channel[ch].mapID = XG_DRUM_MAP;
-	    dr = 1;
 	    break;
 	  default:
 	    break;
 	}
-	if(channel[ch].bank_lsb >= 0)
-	    newbank = channel[ch].bank_lsb;
+	dr = ISDRUMCHANNEL(ch);
+	newbank = channel[ch].bank_lsb;
 	break;
 
       default:
@@ -1970,7 +1968,7 @@ void midi_program_change(int ch, int prog)
 	channel[ch].altassign = NULL;
     }
 
-    if(!ISDRUMCHANNEL(ch) && default_program[ch] == SPECIAL_PROGRAM)
+    if(!dr && default_program[ch] == SPECIAL_PROGRAM)
       channel[ch].program = SPECIAL_PROGRAM;
     else
       channel[ch].program = prog;

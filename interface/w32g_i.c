@@ -137,7 +137,6 @@ HANDLE hPlayerThread = 0;
 HANDLE hMainThreadInfo = 0;
 DWORD dwMainThreadID = 0;
 static volatile int wait_thread_flag = 1;
-volatile int IsMainThreadExit = 0;
 typedef struct MAINTHREAD_ARGS_ {
 	int *pArgc;
 	char ***pArgv;
@@ -3107,7 +3106,6 @@ void WINAPI MainThread(void *arglist)
 {
     MSG msg;
 
-	IsMainThreadExit = 0;
 	ThreadNumMax++;
 
 #ifdef W32GUI_DEBUG
@@ -3153,7 +3151,6 @@ void WINAPI MainThread(void *arglist)
 		OnExitReady();
 		w32g_send_rc(RC_QUIT, 0);
 	}
-	IsMainThreadExit = 1;
 	crt_endthread();
 }
 
@@ -3613,17 +3610,29 @@ int w32g_open(void)
     return 0;
 }
 
+static void terminate_main_thread(void)
+{
+	DWORD status;
+
+	switch(WaitForSingleObject(hMainThread, 0))
+	{
+	  case WAIT_OBJECT_0:
+		break;
+	  case WAIT_TIMEOUT:
+		OnQuit();
+		status = WaitForSingleObject(hMainThread, 5000);
+		if(status == WAIT_TIMEOUT)
+			TerminateThread(hMainThread, 0);
+		break;
+	  default:
+		TerminateThread(hMainThread, 0);
+		break;
+	}
+}
+
 void w32g_close(void)
 {
-	if(!IsMainThreadExit)
-	{
-		OnQuit();
-		do
-		{
-			sleep(100);
-			VOLATILE_TOUCH(IsMainThreadExit);
-		} while(!IsMainThreadExit);
-	}
+	terminate_main_thread();
     CloseHandle(w32g_lock_sem);
     CloseHandle(w32g_empty_sem);
 }
@@ -3631,17 +3640,7 @@ void w32g_close(void)
 void w32g_restart(void)
 {
 	w32g_restart_gui_flag = 1;
-
-	/* Terminate MainThread */
-	if(!IsMainThreadExit)
-	{
-		OnQuit();
-		do
-		{
-			usleep(200);
-		} while(!IsMainThreadExit);
-	}
-
+	terminate_main_thread();
     CloseHandle(w32g_lock_sem);
     CloseHandle(w32g_empty_sem);
 

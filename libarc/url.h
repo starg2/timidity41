@@ -6,7 +6,7 @@
  * http://www.goice.co.jp/member/mo/release/index.html#liburl
  */
 
-#define URL_LIB_VERSION "1.9.3"
+#define URL_LIB_VERSION "1.9.4"
 
 /* Define if you want to enable pipe command scheme ("command|") */
 #define PIPE_SCHEME_ENABLE

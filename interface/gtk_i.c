@@ -343,6 +343,9 @@ Launch_Gtk_Process(int pipe_number)
     GtkWidget *vbox, *hbox, *vscrollbar, *vbox2;
     GtkObject *adj;
 
+    /* enable locale */
+    gtk_set_locale ();
+
     gtk_init (&argc, NULL);
 
     ttip = create_yellow_tooltips();

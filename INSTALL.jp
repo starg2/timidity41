@@ -3,16 +3,16 @@
                     TiMidity++ のインストール
 
 					出雲正尚 <mo@goice.co.jp>
-					最終修正日 1999年2月4日
+					最終修正日 1999年9月2日
 ==============================================================================
 
-このドキュメントは TiMidity++ (バージョンは 2.0.0 以降) の UNIX 上での
+このドキュメントは TiMidity++ (バージョンは 2.6.0 以降) の UNIX 上での
 インストール方法を説明しています。Macintosh のインストール方法は、
 本ドキュメントでは説明されていません。
 
-TiMidity++ は、Windows 上の CYGNUS + egcs(gcc) 環境で configure が動作し、
-timidity.exe を作成することが可能です。もし、cygnus がない場合は、
-http://www.cygnus.com/ 等から入手してインストールしてください。
+TiMidity++ は、Windows 上の Cygwin 環境でも configure が動作し、
+timidity.exe を作成することが可能です。もし、cygwin がない場合は、
+http://sourceware.cygnus.com/cygwin/ から入手してインストールしてください。
 そして、CYGNUS を起動し、/bin/sh に bash への
 シンボリックリンクを作成しておいてください。
 
@@ -192,10 +192,11 @@ http://www.cygnus.com/ 等から入手してインストールしてください。
 
 のようにします。
 
+
 2. common.makefile, Makefile, timidity.h の編集
-------------------------------
-もし、正しくコンパイルできない場合は、common.makefile, Makefile, timidity.h
-内のパラメタを修正してください。
+-----------------------------------------------
+もし、正しくコンパイルできない場合や、様々なパラメタを修正したい場合は、
+common.makefile, Makefile, timidity.h 内のパラメタを修正してください。
 
 3. make
 -------
@@ -231,7 +232,7 @@ vendorShellWidgetClass
 このパッケージの TiMidity をインストールしただけでは、音がなりません。
 演奏するには、GUS の音源ファイルを入手し、設定ファイルである timidity.cfg
 を作成しなければなりません。デフォルトでは、
-/usr/local/lib/timidity/timidity.cfg になります(ただし、Windows 上では、
+/usr/local/share/timidity/timidity.cfg になります(ただし、Windows 上では、
 (C:/WINDOWS/TIMIDITY.CFG)。パッチを探すのに、以下のサイトを訪れてみて下さい。
 
 http://www.goice.co.jp/member/mo/timidity/link.html#gus

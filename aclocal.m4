@@ -566,6 +566,26 @@ ifelse([$3], , , [$3
 fi
 ])
 
+
+dnl MY_SEARCH_LIBS(FUNCTION, LIBRARIES [, ACTION-IF-FOUND
+dnl            [, ACTION-IF-NOT-FOUND [, OTHER-LIBRARIES]]])
+dnl Search for a library defining FUNC, if it's not already available.
+
+AC_DEFUN(MY_SEARCH_LIBS,
+[AC_CACHE_CHECK([for library containing $1], [timidity_cv_search_$1],
+[ac_func_search_save_LIBS="$LIBS"
+timidity_cv_search_$1="no"
+for i in $2; do
+  LIBS="$i $5 $ac_func_search_save_LIBS"
+  AC_TRY_LINK_FUNC([$1], [timidity_cv_search_$1="$i"; break])
+done
+LIBS="$ac_func_search_save_LIBS"])
+if test "$timidity_cv_search_$1" != "no"; then
+  $3
+else :
+  $4
+fi])
+
 # Define a conditional.
 
 AC_DEFUN(AM_CONDITIONAL,

@@ -69,7 +69,7 @@ extern void *safe_large_malloc(size_t count);
 extern char *safe_strdup(char *s);
 extern char **expand_file_archives(char **files, int *nfiles_in_out);
 extern void randomize_string_list(char **strlist, int nstr);
-extern int pathcasecmp(const char *path1, const char *path2);
+extern int pathcmp(const char *path1, const char *path2, int ignore_case);
 extern void sort_pathname(char **files, int nfiles);
 extern int  load_table(char *file);
 extern char *pathsep_strrchr(char *path);

@@ -254,7 +254,12 @@ static Widget *psmenu = NULL;
 static char local_buf[300];
 static char window_title[300], *w_title;
 int amplitude = DEFAULT_AMPLIFICATION;
-String bitmapdir = DEFAULT_PATH "/bitmaps";
+
+#ifndef XAW_BITMAP_DIR
+#define XAW_BITMAP_DIR PKGLIBDIR "/bitmaps"
+#endif /* XAW_BITMAP_DIR */
+
+String bitmapdir = XAW_BITMAP_DIR;
 Boolean arrangetitle,savelist;
 static char **current_flist = NULL;
 static int voices = 0, last_voice = 0, voices_num_width;
@@ -407,7 +412,7 @@ static struct _app_resources {
 static XtResource xaw_resources[] ={
 #define offset(entry) XtOffset(struct _app_resources*, entry)
   {"bitmapDir", "BitmapDir", XtRString, sizeof(String),
-   offset(bitmap_dir), XtRString, DEFAULT_PATH "/bitmaps"},
+   offset(bitmap_dir), XtRString, XAW_BITMAP_DIR },
   {"arrangeTitle", "ArrangeTitle", XtRBoolean, sizeof(Boolean),
    offset(arrange_title), XtRImmediate, (XtPointer)False},
   {"saveList", "SaveList", XtRBoolean, sizeof(Boolean),
@@ -2899,7 +2904,7 @@ void a_start_interface(int pipe_in) {
     "*cwd_label.font: -adobe-helvetica-medium-r-*-*-12-*-*-*-*-*-*-*",
     "*time_label*cwd_info.font: -adobe-helvetica-medium-r-*-*-12-*-*-*-*-*-*-*",
     "*time_label.font: -adobe-helvetica-bold-r-*-*-14-*-*-*-*-*-*-*",
-    "*BitmapDir: " DEFAULT_PATH "/bitmaps/",
+    "*BitmapDir: " XAW_BITMAP_DIR "/",
 #ifdef XAW3D
     "*volume_bar.translations: #override\\n\
         ~Ctrl Shift<Btn1Down>: do-volupdown(-50)\\n\

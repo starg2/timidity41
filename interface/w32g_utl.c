@@ -33,7 +33,6 @@
 #else
 #include <strings.h>
 #endif
-//#####include <mem.h>
 #include <ctype.h>
 
 #include "timidity.h"

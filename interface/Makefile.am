@@ -166,7 +166,7 @@ EXTRA_DIST = \
 	timidity.el
 
 .ptcl.tcl:
-	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@
+	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@
 clean:
 	rm -f tkmidity.tcl
 	rm -f *.o
@@ -205,13 +205,12 @@ install_el = install.el
 endif
 
 install.el: $(ELFILES)
-	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
-	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+	test -d $(DESTDIR)$(ELISP_DIR) || mkdir -p $(DESTDIR)$(ELISP_DIR)
+	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(ELISP_DIR);; esac; done
 
 w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
 	w32g_btn.bmp w32g_icon.ico w32g_sleep.bmp w32g_subbtn.bmp
 	windres -o $@ -O coff w32g_res.rc
-
 
 ###
 ### For dynamic interfaces
