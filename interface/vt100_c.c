@@ -407,6 +407,16 @@ static void ctl_lyric(uint16 lyricid)
     lyric = event2string(lyricid);
     if(lyric != NULL)
     {
+        /* EAW -- if not a true KAR lyric, ignore \r, treat \n as \r */
+        if (*lyric != ME_KARAOKE_LYRIC) {
+            while (strchr(lyric, '\r')) {
+            	*(strchr(lyric, '\r')) = ' ';
+            }
+            while (strchr(lyric, '\n')) {
+                *(strchr(lyric, '\n')) = '\r';
+            }
+        }
+
 	if(*lyric == ME_KARAOKE_LYRIC)
 	{
 	    if(lyric[1] == '/')

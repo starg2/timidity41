@@ -68,8 +68,8 @@ enum midi_event_t
     ME_PORTAMENTO_TIME,
     ME_PORTAMENTO,
     ME_DATA_ENTRY_MSB,
+    ME_DATA_ENTRY_LSB,
 #if 0
-    ME_DATA_ENTRY_LSB,		/* Not supported */
     ME_SUSTENUTO,		/* Not supported */
     ME_SOFT_PEDAL,		/* Not supported */
     ME_HARMONIC_CONTENT,	/* Not supported */
@@ -203,8 +203,8 @@ typedef struct {
   int vibrato_depth;
 
   uint8 rpnmap[RPN_MAX_DATA_ADDR]; /* pseudo RPN address map */
-  uint8 lastlrpn, lastmrpn,
-      nrpn; /* 0:RPN, 1:NRPN */
+  uint8 lastlrpn, lastmrpn;
+  int8  nrpn; /* 0:RPN, 1:NRPN, -1:Undefined */
   struct ReverbControls *rb;
 
   /* Not used current version */

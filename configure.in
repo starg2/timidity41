@@ -54,7 +54,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 1.3.6, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 1.3.7, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -84,8 +84,10 @@ lib_xmu_opt=
 lib_xt_opt=
 lib_xprelibs_opt=
 lib_xext_opt=
-
 lib_dl_opt=
+lib_curses_opt=
+lib_user32_opt=
+lib_user32_test=
 
 WISH=${WISH:-wish}
 tcltk_dep=
@@ -164,6 +166,7 @@ case "$target" in
     esac
     so="dll"
     CYGNUS=yes
+    lib_user32_test=-luser32
     ;;
   *-dec-*)
     EXTRADEFS="-DDEC"
@@ -545,17 +548,26 @@ AM_CONDITIONAL(ENABLE_NCURSES, false)
 CONFIG_INTERFACE(ncurses,NCURSES,n,
   [  --enable-ncurses        Enable ncurses interface        (default is no)],
   [ AC_CHECK_HEADERS(ncurses.h ncurses/curses.h curses.h)
-    AC_CHECK_LIB(ncurses,initscr,:,
-	[ enable_ncurses=no
-          AC_MSG_WARN(ncurses library is not found) ])
+    AC_CHECK_LIB(ncurses,initscr,lib_curses_opt=-lncurses,
+	[ dnl checking pdcurses
+	  AC_CHECK_LIB(curses,PDC_set_ctrl_break,
+		[ lib_curses_opt=-lcurses
+		  CPPFLAGS="$CPPFLAGS -DUSE_PDCURSES=1"
+		  lib_user32_opt="$lib_user32_test"
+		],
+		[ AC_MSG_WARN(ncurses interface is not enabled) 
+		  enable_ncurses=no
+		],
+		$lib_user32_test)
+	])
   ],
-  [ LIBS="$LIBS -lncurses"
+  [ LIBS="$LIBS $lib_curses_opt"
     case "$target" in
       *-*-freebsd*)
         EXTRALIBS="$EXTRALIBS -lmytinfo"
         ;;
     esac ],
-  [ n_so_libs="-lncurses"
+  [ n_so_libs="$lib_curses_opt"
     case "$target" in
       *-*-freebsd*)
         n_so_libs="$n_so_libs -lmytinfo"
@@ -834,7 +846,7 @@ if test "x$with_x" = xyes; then
   dnl Order of X-library is: -lXm -lXaw -lXmu -lXt -lSM -lICE -lXext -lX11
   LIBS=`echo $LIBS | sed "s/-lX11/$lib_xm_opt $lib_xaw_opt $lib_xmu_opt $lib_xt_opt $lib_xprelibs_opt $lib_xext_opt -lX11/"`
 fi
-LIBS="$LIBS $lib_dl_opt"
+LIBS="$LIBS $lib_dl_opt $lib_user32_opt"
 SHLD="$SHLD $SHLDFLAGS"
 
 AC_SUBST(SYSEXTRAS)

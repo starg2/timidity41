@@ -1,3 +1,8 @@
+* 3/30, 1999
+    Released TiMidity++ v1.3.7.
+    * Fixed some bugs or probrems.
+    * In GTK interface, enabled to delete loaded files from the play list.
+
 * 3/23, 1999
     Released TiMidity++ v1.3.6.
     * In XAW interface, added new user interfaces.

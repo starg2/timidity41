@@ -176,12 +176,23 @@ static void
 file_list_cb(GtkWidget *widget, gint row, gint column,
 	     GdkEventButton *event, gpointer data)
 {
-    gchar *fname;
+    gint	retval;
+    gchar	*fname;
 
-    gtk_clist_get_text(GTK_CLIST(widget), row, 0, &fname);
-    gtk_pipe_int_write(GTK_PLAY_FILE);
-    gtk_pipe_string_write(fname);
-    file_number_to_play=row;
+    if(event && (event->button == 3)) {
+	if(event->type == GDK_2BUTTON_PRESS) {
+	    gtk_clist_remove(clist, row);
+	}
+	else {
+	    return;
+	}
+    }
+    retval = gtk_clist_get_text(GTK_CLIST(widget), row, 0, &fname);
+    if(retval) {
+	gtk_pipe_int_write(GTK_PLAY_FILE);
+	gtk_pipe_string_write(fname);
+	file_number_to_play=row;
+    }
 }
 
 static gint
@@ -305,7 +316,11 @@ Launch_Gtk_Process(int pipe_number)
     gtk_widget_show(swin);
     gtk_widget_show(clist);
     gtk_widget_set_usize(clist, 200, 10);
-    gtk_clist_set_selection_mode(GTK_CLIST(clist), GTK_SELECTION_BROWSE);
+    gtk_clist_set_reorderable(GTK_CLIST(clist), TRUE);
+    gtk_clist_set_button_actions(GTK_CLIST(clist), 0, GTK_BUTTON_SELECTS);
+    gtk_clist_set_button_actions(GTK_CLIST(clist), 1, GTK_BUTTON_DRAGS);
+    gtk_clist_set_button_actions(GTK_CLIST(clist), 2, GTK_BUTTON_SELECTS);
+    gtk_clist_set_selection_mode(GTK_CLIST(clist), GTK_SELECTION_SINGLE);
     gtk_clist_set_column_auto_resize(GTK_CLIST(clist), 1, TRUE);
     gtk_signal_connect(GTK_OBJECT(clist), "select_row",
 		       GTK_SIGNAL_FUNC(file_list_cb), NULL);

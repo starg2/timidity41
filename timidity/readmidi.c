@@ -194,7 +194,8 @@ void readmidi_add_ctl_event(int32 at, int ch, int a, int b)
     int type;
 
     ch &= 0xff;
-    b &= 0x7f;
+    if(b > 127)
+	b = 127;
     type = -1;
     switch(a)
     {
@@ -205,6 +206,7 @@ void readmidi_add_ctl_event(int32 at, int ch, int a, int b)
       case  10: type = ME_PAN; break;
       case  11: type = ME_EXPRESSION; break;
       case  32: type = ME_TONE_BANK_LSB; break;
+      case  38: type = ME_DATA_ENTRY_LSB; break;
       case  64: type = ME_SUSTAIN; b = (b >= 64); break;
       case  65: type = ME_PORTAMENTO; b = (b >= 64); break;
       case  91: type = ME_REVERB_EFFECT; break;
@@ -1195,7 +1197,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 		break;
 
 	      case 3: /* Control change */
-		b = tf_getc(tf) & 0x7F;
+		b = tf_getc(tf);
 		readmidi_add_ctl_event(smf_at_time, lastchan, a, b);
 		break;
 
@@ -1358,6 +1360,9 @@ void change_system_mode(int mode)
     switch(mode)
     {
       case GM_SYSTEM_MODE:
+	if(play_system_mode == DEFAULT_SYSTEM_MODE)
+	    play_system_mode = GM_SYSTEM_MODE;
+	break;
       case GS_SYSTEM_MODE:
       case XG_SYSTEM_MODE:
 	play_system_mode = mode;

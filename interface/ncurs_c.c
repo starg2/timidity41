@@ -27,7 +27,12 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+
+#if defined(__MINGW32__) && defined(USE_PDCURSES)
+#define _NO_OLDNAMES 1	/* avoid type mismatch of beep() */
+#endif /* USE_PDCURSES */
 #include <stdlib.h>
+
 #include <stdarg.h>
 #include <ctype.h>
 #ifndef NO_STRING_H
@@ -39,6 +44,8 @@
 
 #ifndef __WIN32__
 #include <unistd.h>
+#endif
+
 #ifdef HAVE_NCURSES_H
 #include <ncurses.h>
 #elif defined(HAVE_NCURSES_CURSES_H)
@@ -46,12 +53,6 @@
 #else
 #include <curses.h>
 #endif
-#else
-/* Windows */
-#include <windows.h>
-#include <curses.h>
-#define PD_curses
-#endif /* __WIN32__ */
 
 #include "timidity.h"
 #include "common.h"
@@ -72,7 +73,7 @@
 
 #define MIDI_TITLE
 #define DISPLAY_MID_MODE
-#define COMMAND_BUFFER_SIZE 1024
+#define COMMAND_BUFFER_SIZE 4096
 #define MINI_BUFF_MORE_C '$'
 #define LYRIC_OUT_THRESHOLD 10.0
 #define CHECK_NOTE_SLEEP_TIME 5.0
@@ -1378,6 +1379,16 @@ static void ctl_lyric(int lyricid)
     lyric = event2string(lyricid);
     if(lyric != NULL)
     {
+        /* EAW -- if not a true KAR lyric, ignore \r, treat \n as \r */
+        if (*lyric != ME_KARAOKE_LYRIC) {
+            while (strchr(lyric, '\r')) {
+            	*(strchr(lyric, '\r')) = ' ';
+            }
+            while (strchr(lyric, '\n')) {
+                *(strchr(lyric, '\n')) = '\r';
+            }
+        }
+
 	if(ctl.trace_playing)
 	{
 	    if(*lyric == ME_KARAOKE_LYRIC)
@@ -1431,9 +1442,9 @@ static int ctl_open(int using_stdin, int using_stdout)
     SCREEN *dftscr;
 #endif
 
-#ifdef PDCURSES
+#ifdef USE_PDCURSES
     PDC_set_ctrl_break(1);
-#endif /* PD_curses */
+#endif /* USE_PDCURSES */
 
     if(!open_init_flag)
     {
@@ -2346,7 +2357,7 @@ static int ctl_read(int32 *valp)
   return RC_NONE;
 }
 
-#ifdef PDCURSES
+#ifdef USE_PDCURSES
 static void vwprintw(WINDOW *w, char *fmt, va_list ap)
 {
     char *buff;
@@ -2359,7 +2370,7 @@ static void vwprintw(WINDOW *w, char *fmt, va_list ap)
     waddstr(w, buff);
     reuse_mblock(&pool);
 }
-#endif /* PDCURSES */
+#endif /* USE_PDCURSES */
 
 static int cmsg(int type, int verbosity_level, char *fmt, ...)
 {
@@ -2377,9 +2388,9 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
     }
     else
     {
-#ifdef __BORLANDC__
+#if defined(__WIN32__) && !defined(__CYGWIN32__)
 	nl();
-#endif /* __BORLANDC__ */
+#endif
 	if(ctl.trace_playing)
 	{
 	    char *buff;

@@ -44,6 +44,8 @@
 #else
 #include <strings.h>
 #endif
+#include <sys/time.h>
+#include <sys/types.h>
 
 
 #include "timidity.h"
@@ -164,10 +166,20 @@ gtk_pipe_string_read(char *str)
 int
 gtk_pipe_read_ready(void)
 {
-    int num;
-    
-    ioctl(fpip_in, FIONREAD, &num); /* see how many chars in buffer. */
-    return num;
+    fd_set fds;
+    int cnt;
+    struct timeval timeout;
+
+    FD_ZERO(&fds);
+    FD_SET(fpip_in, &fds);
+    timeout.tv_sec = timeout.tv_usec = 0;
+    if((cnt = select(fpip_in + 1, &fds, NULL, NULL, &timeout)) < 0)
+    {
+	perror("select");
+	return -1;
+    }
+
+    return cnt > 0 && FD_ISSET(fpip_in, &fds) != 0;
 }
 
 void

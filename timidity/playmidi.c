@@ -207,8 +207,8 @@ static char *event_name(int type)
 	EVENT_NAME(ME_PORTAMENTO_TIME);
 	EVENT_NAME(ME_PORTAMENTO);
 	EVENT_NAME(ME_DATA_ENTRY_MSB);
-#if 0
 	EVENT_NAME(ME_DATA_ENTRY_LSB);
+#if 0
 	EVENT_NAME(ME_SUSTENUTO);
 	EVENT_NAME(ME_SOFT_PEDAL);
 	EVENT_NAME(ME_HARMONIC_CONTENT);
@@ -1652,6 +1652,8 @@ static int last_rpn_addr(int ch)
 	{-1, -1, 0}
     };
 
+    if(channel[ch].nrpn == -1)
+	return -1;
     lsb = channel[ch].lastlrpn;
     msb = channel[ch].lastmrpn;
     addr = (msb << 8 | lsb);
@@ -1907,6 +1909,12 @@ static void seek_forward(int32 until_time)
 		    current_event->a;
 		update_rpn_map(ch, i, 0);
 	    }
+	    break;
+	  case ME_DATA_ENTRY_LSB:
+	    if(channel[ch].rpn_7f7f_flag) /* disable */
+		break;
+	    /* Ignore */
+	    channel[ch].nrpn = -1;
 	    break;
 
 	  case ME_REVERB_EFFECT:
@@ -3051,6 +3059,13 @@ int default_play_event(void *p)
 	    channel[ch].rpnmap[i] = ev->a;
 	    update_rpn_map(ch, i, 1);
 	}
+	break;
+
+      case ME_DATA_ENTRY_LSB:
+	if(channel[ch].rpn_7f7f_flag) /* disable */
+	    break;
+	/* Ignore */
+	channel[ch].nrpn = -1;
 	break;
 
       case ME_REVERB_EFFECT:

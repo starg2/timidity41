@@ -7,7 +7,7 @@ Version 0.2i and earlier:
      Riccardo Facchetti <riccardo@cdc8g5.cdc.polimi.it>
 
 TiMidity++:
-     Masanao Izumo <mo@goice.co.jp>
+     Maintained by Masanao Izumo <mo@goice.co.jp>
      Tomokazu Harada <harada@prince.pe.u-tokyo.ac.jp>
      Keiichirou Yamate <keiich-y@is.aist-nara.ac.jp>
      Masaki Kiryu <mkiryu@usa.net>
@@ -25,4 +25,5 @@ TiMidity++:
      Yoshishige Arai <ryo2@on.rim.or.jp>
      Glenn Trigg <ggt@netspace.net.au>
      Colour window manager icon by Tim Allen <thristian@usa.net>
+     Eric A. Welsh <ewelsh@gpc.ibc.wustl.edu>
   and other many people sends information and bug-fix codes.

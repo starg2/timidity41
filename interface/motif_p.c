@@ -40,6 +40,8 @@
 #else
 #include <strings.h>
 #endif
+#include <sys/time.h>
+#include <sys/types.h>
 
 #include "timidity.h"
 #include "controls.h"
@@ -153,14 +155,8 @@ void m_pipe_string_read(char *str)
     str[slen]='\0';		/* Append a terminal 0 */
 }
 
-
-#if defined(sgi)
-#include <sys/time.h>
-#endif
-
 int m_pipe_read_ready(void)
 {
-#if defined(sgi)
     fd_set fds;
     int cnt;
     struct timeval timeout;
@@ -175,16 +171,6 @@ int m_pipe_read_ready(void)
     }
 
     return cnt > 0 && FD_ISSET(fpip_in, &fds) != 0;
-#else
-    int num;
-
-    if(ioctl(fpip_in,FIONREAD,&num) < 0) /* see how many chars in buffer. */
-    {
-	perror("ioctl: FIONREAD");
-	return -1;
-    }
-    return num;
-#endif
 }
 
 void m_pipe_open(void)

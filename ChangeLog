@@ -1,3 +1,51 @@
+-- 1.3.7
+Summary:
+Tue Mar 30 1999
+    * Fixed some bugs or probrems.
+    * In GTK interface, enabled to delete loaded files from the play list.
+
+Date: Tue Mar 30 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/gtk_p.c  interface/motif_p.c
+    Used select() instead of ioctl/FIONREAD.
+
+Date: Mon, 29 Mar 1999 21:08:16 +1000 (EST)
+From: ggt@netspace.net.au (Glenn Trigg)
+    Enabled loaded files to be deleted from the play list by
+    double-right-clicking on the list entry.
+
+From: Masanao Izumo <mo@goice.co.jp>
+Date: Mon Mar 29 1999
+Files: timidity/support.h
+    Fixed prototype mismatch probrem for getopt().
+Files: configure.in interface/ncurs_c.c
+    Added configure test for PDcurses.
+    Increased COMMAND_BUFFER_SIZE to 4096.
+
+Date: Sat Mar 27 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity/playmidi.c
+    Fixed to ignore LSB data entry.
+Files: timidity/readmidi.c
+    Turned the control MIDI event value to 127 if the value is more than 127.
+Files: timidity/readmidi.c
+    Fixed not to change to GM_SYSTEM_MODE if play_system_mode is not
+    DEFAULT_SYSTEM_MODE.
+
+Date: Thu, 25 Mar 1999 23:41:46 -0600 (CST)
+From: "Eric A. Welsh" <ewelsh@gpc.ibc.wustl.edu>
+Files: interface/ncurs_c.c
+    In cmsg(), in ncurs_c.c, there is an #ifdef __BORLANDC__ which adds in
+    a nl().  This should be changed to include __WIN32__ && ! __CYGWIN32__,
+    since standard Win32 does not do a \r when a \n is issued.
+Files: interface/ncurs_c.c interface/vt100_c.c
+    Fixed a bug in the lyric display for non .KAR files that have lyrics.
+    In every non .KAR file that I have that has lyrics, '\n' are where '\r'
+    should be, and '\r' are in very strange places that result in very bad
+    positions to do carriage returns.  The '\n' also do bad things to the -int
+    display, since the '\n' caues the text to go below the single line of
+    output.
+
 Summary:
 Tue Mar 23 1999
     * In XAW interface, Added new user interfaces.
@@ -15,8 +63,8 @@ Date: Fri, 19 Mar 1999 20:54:15 -0500 (EST)
 From: Franklin Chen <chen@dahmer.pscico.cs.cmu.edu>
 Files: configure.in interface/slang_c.c
     On Linux Red Hat 5.2: <slang.h> must change to <slang/slang.h>.
-    Added configure test for <slang/slang.h>, and included if it is found
-	by Masanao Izumo <mo@goice.co.jp>
+    Added configure test for <slang/slang.h>, and included it
+    if it is found (by Masanao Izumo <mo@goice.co.jp>)
 
 Date: Mon Mar 15 1999
 From: Masanao Izumo <mo@goice.co.jp>
