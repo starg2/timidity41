@@ -592,6 +592,31 @@ int volatile_touch(void *dmy) {return 1;}
 #endif /* HAVE_VOLATILE */
 
 /* code converters */
+static unsigned char
+      w2k[] = {128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
+               144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
+               160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
+               176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
+               225,226,247,231,228,229,246,250,233,234,235,236,237,238,239,240,
+               242,243,244,245,230,232,227,254,251,253,255,249,248,252,224,241,
+               193,194,215,199,196,197,214,218,201,202,203,204,205,206,207,208,
+               210,211,212,213,198,200,195,222,219,221,223,217,216,220,192,209};
+
+static void code_convert_cp1251(char *in, char *out, int maxlen)
+{
+    int i;
+    if(out == NULL)
+        out = in;
+    for(i = 0; i < maxlen && in[i]; i++)
+    {
+	if(in[i] & 0200)
+	    out[i] = w2k[in[i] & 0177];
+	else
+	    out[i] = in[i];
+    }
+    out[i]='\0';
+}
+
 static void code_convert_dump(char *in, char *out, int maxlen, char *ocode)
 {
     if(ocode == NULL)
@@ -791,6 +816,12 @@ void code_convert(char *in, char *out, int outsiz, char *icode, char *ocode)
 	if(strcasecmp(ocode, "ascii") == 0)
 	{
 	    code_convert_dump(in, out, outsiz - 1, "ASCII");
+	    return;
+	}
+
+	if(strcasecmp(ocode, "1251") == 0)
+	{
+	    code_convert_cp1251(in, out, outsiz - 1);
 	    return;
 	}
     }

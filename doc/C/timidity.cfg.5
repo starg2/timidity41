@@ -6,7 +6,7 @@ timidity.cfg \- configure file of TiMidity++
 .TP
 .B /etc/timidity.cfg
 .TP
-.B /usr/local/lib/timidity/timidity.cfg
+.B /usr/local/share/timidity/timidity.cfg
 
 .P
 .SH DESCRIPTION
@@ -38,7 +38,7 @@ as the \fB\-L\fP command line option.
 .sh
 Archive file are also allowed. For example:
 .bp
-dir /usr/local/lib/timidity/inst/foo.zip#
+dir /usr/local/share/timidity/inst/foo.zip#
 .br
 .bank 0
 .br
@@ -50,7 +50,7 @@ dir /usr/local/lib/timidity/inst/foo.zip#
 .sp
 At first, \fBdir\fP specities the archive name (followed by '#') for the
 path of patch files same as directory name (in this case ,
-"/usr/local/lib/timidity/inst/foo.zip").
+"/usr/local/share/timidity/inst/foo.zip").
 TiMidity recognize the path is an archive file if the expression has
 the last character '#', and also read the files contained in this
 archive file.
@@ -157,7 +157,7 @@ Note that alternate assign of drumset 0 is used by default.
 .BI "#extension comm" " program secound"
 Specifies the comment \fIcomment\fP for the tone number \fIprogram\fP.
 These comments are displayed in the indicater line at the case
-TiMidity is booted with option \fB\-iNt\fP, \fB\-iTt\fP.
+TiMidity is booted with option \fB\-int\fP, \fB\-iTt\fP.
 
 .TP
 .BI "#extension timeout" " program secound"

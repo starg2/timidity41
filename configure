@@ -884,7 +884,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.9.0
+VERSION=2.9.1a1
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }

@@ -26,7 +26,7 @@
  */
 
 
-#define URL_LIB_VERSION "1.9.4"
+#define URL_LIB_VERSION "1.9.5"
 
 /* Define if you want to enable pipe command scheme ("command|") */
 #define PIPE_SCHEME_ENABLE

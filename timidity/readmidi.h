@@ -76,6 +76,7 @@ enum {
 typedef struct {
   MidiEvent event;
   void *next;
+  void *prev;
 } MidiEventList;
 
 struct midi_file_info

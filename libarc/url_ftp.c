@@ -155,7 +155,7 @@ URL url_ftp_open(char *name)
     char *p, *host, *path;
     unsigned short port;
     char buff[BUFSIZ];
-    char path_buff[1024];
+    char path_buff[1024], host_buff[1024];
     int n;
     char *passwd;
     char *user;
@@ -202,7 +202,11 @@ URL url_ftp_open(char *name)
 	    name += 6;
 	strncpy(buff, name, sizeof(buff));
 	buff[sizeof(buff) - 1] = '\0';
-	host = buff;
+
+	strncpy(host_buff, buff, sizeof(host_buff));
+	host_buff[sizeof(host_buff) - 1] = '\0';
+	host = host_buff;
+
 	if((p = strchr(host, '/')) == NULL)
 	{
 	    url_ftp_close((URL)url);

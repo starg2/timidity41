@@ -60,6 +60,7 @@ static BOOL mod_do_play (MODULE *);
 int 
 load_module_file (struct timidity_file *tf, int mod_type)
 {
+  int i, err;
   MODULE *mf;
 
 #ifdef LOOKUP_HACK
@@ -69,6 +70,7 @@ load_module_file (struct timidity_file *tf, int mod_type)
 #endif
   ML_monosamples = 1;
 
+  ML_RegisterAllLoaders ();
   mf = ML_Load (tf->url, MOD_NUM_VOICES, 0);
   if (ML_errno)
     return 1;
@@ -84,22 +86,24 @@ load_module_file (struct timidity_file *tf, int mod_type)
 int 
 get_module_type (char *fn)
 {
-  if (check_file_extension (fn, ".xm", 1)	/* Most common first */
-      || check_file_extension (fn, ".s3m", 1)
-      || check_file_extension (fn, ".mod", 1)
-      || check_file_extension (fn, ".it", 1)
-      || check_file_extension (fn, ".669", 1)	/* Then the others in alphabetic order */
-      || check_file_extension (fn, ".amf", 1)
-      || check_file_extension (fn, ".dsm", 1)
-      || check_file_extension (fn, ".far", 1)
-      || check_file_extension (fn, ".gdm", 1)
-      || check_file_extension (fn, ".imf", 1)
-      || check_file_extension (fn, ".med", 1)
-      || check_file_extension (fn, ".mtm", 1)
-      || check_file_extension (fn, ".stm", 1)
-      || check_file_extension (fn, ".stx", 1)
-      || check_file_extension (fn, ".ult", 1)
-      || check_file_extension (fn, ".uni", 1))
+  char *p;
+
+  if (check_file_extension (fn, ".xm", 0)	/* Most common first */
+      || check_file_extension (fn, ".s3m", 0)
+      || check_file_extension (fn, ".mod", 0)
+      || check_file_extension (fn, ".it", 0)
+      || check_file_extension (fn, ".669", 0)	/* Then the others in alphabetic order */
+      || check_file_extension (fn, ".amf", 0)
+      || check_file_extension (fn, ".dsm", 0)
+      || check_file_extension (fn, ".far", 0)
+      || check_file_extension (fn, ".gdm", 0)
+      || check_file_extension (fn, ".imf", 0)
+      || check_file_extension (fn, ".med", 0)
+      || check_file_extension (fn, ".mtm", 0)
+      || check_file_extension (fn, ".stm", 0)
+      || check_file_extension (fn, ".stx", 0)
+      || check_file_extension (fn, ".ult", 0)
+      || check_file_extension (fn, ".uni", 0))
 
     return IS_MOD_FILE;
 
@@ -1860,6 +1864,7 @@ pt_playeffects (void)
 	      /* if we were fading, adjust... */
 	      if (mp.sngpos == (pf->numpos - 1))
 		mp.volume = pf->initvolume > 128 ? 128 : pf->initvolume;
+	      
 	      mp.sngpos = dat;
 	      mp.posjmp = 2;
 	      mp.patpos = 0;
@@ -1886,14 +1891,15 @@ pt_playeffects (void)
 	  if (!mp.posjmp)
 	    {
 	      /* don't ask me to explain this code - it makes
-	         backwards.s3m and children.xm (heretic's version) play
-	         correctly, among others. Take that for granted, or write
-	         the page of comments yourself... you might need some
-	         aspirin - Miod */
+	       * backwards.s3m and children.xm (heretic's version) play
+	       * correctly, among others. Take that for granted, or write
+	       * the page of comments yourself... you might need some
+	       * aspirin - Miod */
 	      if ((mp.sngpos == pf->numpos - 1) && (dat) &&
 		  ((pf->positions[mp.sngpos] == (pf->numpat - 1)
-		    && !(pf->flags & UF_NOWRAP))))
+		    && (pf->flags & UF_NOWRAP))))
 		{
+		  /* printf("%d -- Pattern 0!\n", __LINE__); */
 		  mp.sngpos = 0;
 		  mp.posjmp = 2;
 		}
@@ -2294,14 +2300,13 @@ pt_UpdateVoices ()
       else if (aout->period > 50000)
 	aout->period = 50000;
 
+      kick_voice = 0;
       if ((aout->kick == KICK_NOTE) || (aout->kick == KICK_KEYOFF))
 	{
 	  kick_voice = 1;
 	  aout->fadevol = 32768;
 	  aout->aswppos = 0;
 	}
-      else
-        kick_voice = 0;
 
       if (i && ((aout->kick == KICK_NOTE) || (aout->kick == KICK_ENV)))
 	{
@@ -2457,7 +2462,7 @@ pt_UpdateVoices ()
 	    Voice_Stop (mp.channel);
 
 	  Voice_SetPeriod (mp.channel,
-			      getAmigaPeriod (pf->flags, playperiod));
+		      getAmigaPeriod (pf->flags, playperiod));
 
 	  if (kick_voice)
 	    Voice_Play (mp.channel, s, (aout->start == -1) ? ((s->flags & SF_UST_LOOP) ? s->loopstart : 0) : aout->start);
@@ -2922,6 +2927,7 @@ HandleTick (void)
 	  mp.patpos = mp.numrow ? (mp.patbrk % mp.numrow) : 0;
 	  mp.pat_repcrazy = 0;
 	  mp.sngpos += (mp.posjmp - 2);
+
 	  for (mp.channel = 0; mp.channel < pf->numchn; mp.channel++)
 	    mp.control[mp.channel].pat_reppos = -1;
 
@@ -2929,11 +2935,11 @@ HandleTick (void)
 	  /* handle the "---" (end of song) pattern since it can occur
 	     *inside* the module in .IT and .S3M */
 	  if ((mp.sngpos >= pf->numpos) || (pf->positions[mp.sngpos] == 255))
-	    {
-	      return 0;
-	    }
+	    return 0;
+
 	  if (mp.sngpos < 0)
 	    mp.sngpos = pf->numpos - 1;
+
 	}
 
       if (!mp.patdly2)

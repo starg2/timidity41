@@ -1,3 +1,49 @@
+2000-03-07  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/mod2midi.c: Check error condition of return value of
+      period2note, and use ctl->cmsg() to display the warning message
+      instead of printf().
+
+2000-03-06  Paolo Bonzini <bonzini@gnu.org>
+
+    * timidity/mod2midi.c: Bug fix
+    * timidity/playmidi.c (ME_PATCH_OFFS): Bug fix
+
+2000-03-05  Paolo Bonzini <bonzini@gnu.org>
+
+    * timidity/mod.c: fixed endless loop in the player
+    * timidity/mod2midi.c: Voice_SetPeriod does not reset the sample (involved
+      switching from ME_EXPRESSION to ME_KEYPRESSURE for volumes). Changed
+      release time to 80 msec.
+    * timidity/readmidi.h: made MidiEventList a doubly-linked list
+    * timidity/readmidi.c: implemented doubly-linked-list in readmidi_add_event,
+      and removed BACKWARD_EVENT_OK because the new implementation
+      removed the inefficiency of backward events.
+
+2000-03-05  Sawada Keiji <sqrt@tkf.att.ne.jp>
+
+    * libarc/url_ftp.c: Bug fix.
+
+2000-03-04  Mikhail Yakshin <yakshin@glasnet.ru>
+
+    * timidity/{timidity.c,common.c}: Convert the text code
+      from windows-1251 to koi8-r with command line option `-t 1251'.
+
+2000-03-03  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/C/timidity.cfg.5,timidity/ja_JP.ujis/timidity.cfg.5: update.
+
+2000-03-02  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/timidity.c (-R): Reset pseudo reverb (modify release)
+	if `-R -1' is specified.
+    * timidity/mod2midi.c: Enable to change release envelope time of
+	the module file if command line option `-R' is specified.
+
+2000-03-02  Paolo Bonzini <bonzini@gnu.org>
+
+    * timidity/mod2midi.c: Solves a problem with low notes.
+
 2000-02-27  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.9.0 released.

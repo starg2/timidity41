@@ -2638,8 +2638,9 @@ static void seek_forward(int32 until_time)
 	    break;
 
 	  case ME_PATCH_OFFS:
-	    if(special_patch[ch] != NULL)
-		special_patch[ch]->sample_offset =
+	    i = channel[ch].special_sample;
+	    if(special_patch[i] != NULL)
+		special_patch[i]->sample_offset =
 		    (current_event->a | 256 * current_event->b);
 	    break;
 
@@ -4131,8 +4132,9 @@ int play_event(MidiEvent *ev)
 	break;
 
       case ME_PATCH_OFFS:
-	if(special_patch[ch] != NULL)
-	    special_patch[ch]->sample_offset =
+	i = channel[ch].special_sample;
+	if(special_patch[i] != NULL)
+	    special_patch[i]->sample_offset =
 		(current_event->a | 256 * current_event->b);
 	break;
 

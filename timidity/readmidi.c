@@ -47,9 +47,6 @@
 #include "wrd.h"
 #include "tables.h"
 
-/* Define if you want to support backward event timer */
-#define BACKWARD_EVENT_OK
-
 /* rcp.c */
 int read_rcp_file(struct timidity_file *tf, char *magic0, char *fn);
 
@@ -154,10 +151,10 @@ int32 readmidi_set_track(int trackno, int rewindp)
 
 void readmidi_add_event(MidiEvent *a_event)
 {
-    MidiEventList *next, *newev;
+    MidiEventList *newev;
     int32 at;
 
-    if(event_count == MAX_MIDI_EVENT)
+    if(event_count++ == MAX_MIDI_EVENT)
     {
 	if(!readmidi_error_flag)
 	{
@@ -169,24 +166,39 @@ void readmidi_add_event(MidiEvent *a_event)
     }
 
     at = a_event->time;
-    if(current_midi_point->event.time > at)
-#ifdef BACKWARD_EVENT_OK
-	current_midi_point = evlist; /* Rewind the event pointer */
-#else
-	at = a_event->time = current_midi_point->event.time;
-#endif /* BACKWARD_EVENT_OK */
     newev = alloc_midi_event();
-    newev->event = *a_event;
-    next = current_midi_point->next;
-    while(next && (next->event.time <= at))
+    newev->event = *a_event;	/* assign by value!!! */
+
+    if(at >= current_midi_point->event.time)
     {
-	current_midi_point = next;
-	next = current_midi_point->next;
+	/* Forward scan */
+	MidiEventList *next = current_midi_point->next;
+	while (next && (next->event.time <= at))
+	{
+	    current_midi_point = next;
+	    next = current_midi_point->next;
+	}
+	newev->prev = current_midi_point;
+	newev->next = next;
+	current_midi_point->next = newev;
+	if (next)
+	    next->prev = newev;
     }
-    newev->next = next;
-    current_midi_point->next = newev;
+    else
+    {
+	/* Backward scan -- symmetrical to the one above */
+	MidiEventList *prev = current_midi_point->prev;
+	while (prev && (prev->event.time > at)) {
+	    current_midi_point = prev;
+	    prev = current_midi_point->prev;
+	}
+	newev->prev = prev;
+	newev->next = current_midi_point;
+	current_midi_point->prev = newev;
+	if (prev)
+	    prev->next = newev;
+    }
     current_midi_point = newev;
-    event_count++;
 }
 
 void readmidi_add_ctl_event(int32 at, int ch, int a, int b)
@@ -2116,6 +2128,7 @@ static void readmidi_read_init(void)
     evlist->event.channel = 0;
     evlist->event.a = 0;
     evlist->event.b = 0;
+    evlist->prev = NULL;
     evlist->next = NULL;
     readmidi_error_flag = 0;
     event_count = 1;

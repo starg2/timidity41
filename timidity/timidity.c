@@ -429,6 +429,7 @@ static void help(void)
 "                           (UNIX only)",
 "                   ascii : Convert unreadable characters to '.'(0x2e)",
 "                   nocnv : No conversion",
+"                   1251  : Convert from windows-1251 to koi8-r",
 #ifdef JAPANESE
 "                   euc   : EUC-japan",
 "                   jis   : JIS",
@@ -2629,9 +2630,14 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 
       case 'R':
         tmpi32 = atoi(optarg);
-        if(set_value(&modify_release, tmpi32, 0, MAX_MREL, "Modify Release"))
-	    return 1;
-	if (modify_release==0) modify_release=DEFAULT_MREL;
+	if(tmpi32 == -1) {
+	    /* reset */
+	    modify_release = 0;
+	} else {
+	    if(set_value(&modify_release, tmpi32, 0, MAX_MREL, "Modify Release"))
+		return 1;
+	    if (modify_release==0) modify_release=DEFAULT_MREL;
+	}
         break;
 
       case 'r':

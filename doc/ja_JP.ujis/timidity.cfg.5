@@ -6,7 +6,7 @@ timidity.cfg \- configure file of TiMidity++
 .TP
 .B /etc/timidity.cfg
 .TP
-.B /usr/local/lib/timidity/timidity.cfg
+.B /usr/local/share/timidity/timidity.cfg
 
 .P
 .SH DESCRIPTION
@@ -36,7 +36,7 @@ TiMidity++ では、アーカイブファイルをパッチセットにすることができます。
 
 例:
 .br
-dir /usr/local/lib/timidity/inst/foo.zip#
+dir /usr/local/share/timidity/inst/foo.zip#
 .br
 bank 0
 .br
@@ -47,7 +47,7 @@ bank 0
 2 zoo.pat
 .br
 まず、dir で通常のディレクトリのようにアーカイブファイル (上の例では
-/usr/local/lib/timidity/inst/foo.zip)
+/usr/local/share/timidity/inst/foo.zip)
 を指定します。このとき、アーカイブファイル名
 の最後に \fB#\fP をつけてください。この \fB#\fP があることで、アーカイブファイルで
 あることを \fITiMidity++\fP は認識します。こうしておくと、\fIdir\fP で指定された
@@ -138,7 +138,7 @@ altassign 42 44 46
 .TP
 .BI "#extension comm" " program comment"
 Instrument 番号 \fIprogram\fP にコメント \fIcomment\fP を指定します．
-ここで設定した \fIcomment\fP は \fB\-iNt\fP や \fI\-iTt\fP オプション
+ここで設定した \fIcomment\fP は \fB\-int\fP や \fI\-iTt\fP オプション
 で起動した時に、インジケータラインに表示されます。
 .TP
 .BI "#extension timeout" " program secound"
