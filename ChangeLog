@@ -1,3 +1,36 @@
+-- 1.3.5
+Mon Mar 8 1999
+
+Summary:
+    * In XAW interface, added new user interfaces.
+    * Added AM_EXEEXT test for configuring.
+
+Date: Mon Mar 8 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: configure.in
+    Added AM_EXEEXT test for configuring.
+
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Date: Sat, 06 Mar 1999 23:36:24 +0900 (JST)
+Files: interface/{xaw_i.c,xaw_c.c,xaw.h}
+	doc/C/README.xaw doc/ja_JP.ujis/README.xaw
+    Patched for XAW interface.
+    Fixed some probrems and changed some interfaces.
+    Added documentation for XAW interface.
+
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Date: Thu, 04 Mar 1999 03:06:04 +0900 (JST)
+Files: interface/xaw_i.c
+    Patched for XAW interface.
+    Fixed some bugs and changed some interfaces.
+
+Date: Wed, 03 Mar 1999 00:21:46 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: interface/{xaw_i.c,xaw_c.c,xaw.h,on.xbm,off.xbm}
+    Patched for XAW interface.
+    Added the list window to select to play.
+    Added the control window to change timidity extends mode (-E).
+
 -- 1.3.4
 Mon Mar 1 1999
 Summary:

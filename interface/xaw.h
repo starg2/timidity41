@@ -57,4 +57,73 @@
 #define SPACE 0x20
 #define TAB 0x09
 
+#define MODUL_N 0
+#define PORTA_N 1
+#define NRPNV_N 2
+#define REVERB_N 3
+#define CHPRESSURE_N 4
+#define OVERLAPV_N 5
+#define TXTMETA_N 6
+#define MAX_OPTION_N 7
+
+#define MODUL_BIT (1<<MODUL_N)
+#define PORTA_BIT (1<<PORTA_N)
+#define NRPNV_BIT (1<<NRPNV_N)
+#define REVERB_BIT (1<<REVERB_N)
+#define CHPRESSURE_BIT (1<<CHPRESSURE_N)
+#define OVERLAPV_BIT (1<<OVERLAPV_N)
+#define TXTMETA_BIT (1<<TXTMETA_N)
+
+#include "timidity.h"
+
+#ifdef MODULATION_WHEEL_ALLOW
+#define INIT_OPTIONS0 MODUL_BIT
+#else
+#define INIT_OPTIONS0 0
+#endif
+
+#ifdef PORTAMENTO_ALLOW
+#define INIT_OPTIONS1 PORTA_BIT
+#else
+#define INIT_OPTIONS1 0
+#endif
+
+#ifdef NRPN_VIBRATO_ALLOW
+#define INIT_OPTIONS2 NRPNV_BIT
+#else
+#define INIT_OPTIONS2 0
+#endif
+
+#ifdef REVERB_CONTROL_ALLOW
+#define INIT_OPTIONS3 REVERB_BIT
+#else
+#define INIT_OPTIONS3 0
+#endif
+
+#ifdef GM_CHANNEL_PRESSURE_ALLOW
+#define INIT_OPTIONS4 CHPRESSURE_BIT
+#else
+#define INIT_OPTIONS4 0
+#endif
+
+#ifdef OVERLAP_VOICE_ALLOW
+#define INIT_OPTIONS5 OVERLAPV_BIT
+#else
+#define INIT_OPTIONS5 0
+#endif
+
+#ifdef ALWAYS_TRACE_TEXT_META_EVENT
+#define INIT_OPTIONS6 TXTMETA_BIT
+#else
+#define INIT_OPTIONS6 0
+#endif
+
+#define DEFAULT_OPTIONS (INIT_OPTIONS0+INIT_OPTIONS1+INIT_OPTIONS2+INIT_OPTIONS3+INIT_OPTIONS4+INIT_OPTIONS5+INIT_OPTIONS6)
+
+#ifdef CHORUS_CONTROL_ALLOW
+#define DEFAULT_CHORUS 1
+#else
+#define DEFAULT_CHORUS 0
+#endif
+
 #endif /* _XAW_H_ */

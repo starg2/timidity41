@@ -182,7 +182,9 @@ EXTRA_DIST = \
 	misc.tcl \
 	timidity.el \
 	check.xbm \
-	arrow.xbm
+	arrow.xbm \
+	on.xbm \
+	off.xbm
 
 .ptcl.tcl:
 	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@

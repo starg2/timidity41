@@ -86,6 +86,7 @@ ALSA_LIBS = @ALSA_LIBS@
 CC = @CC@
 ELFILES = @ELFILES@
 EMACS = @EMACS@
+EXEEXT = @EXEEXT@
 EXTRADEFS = @EXTRADEFS@
 EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
@@ -113,7 +114,8 @@ EXTRA_DIST = \
 	README.dl \
 	README.sf \
 	README.tk \
-	README.xskin
+	README.xskin \
+	README.xaw
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../config.h ../../interface.h
 CONFIG_CLEAN_FILES = 

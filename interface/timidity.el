@@ -114,7 +114,7 @@
 	(error "Window is too small."))
     (kill-all-local-variables)
     (use-local-map timidity-mode-map)
-    (setq mode-name "TiMydity")
+    (setq mode-name "TiMidity")
     (setq major-mode 'timidity-mode)
     (run-hooks 'timidity-mode-hook)
     (timidity-make-windows)

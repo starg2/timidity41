@@ -24,4 +24,5 @@ EXTRA_DIST = \
 	README.dl \
 	README.sf \
 	README.tk \
-	README.xskin
+	README.xskin \
+	README.xaw

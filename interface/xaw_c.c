@@ -79,11 +79,15 @@ static void ctl_pitch_bend(int ch, int val);
 static void ctl_reset(void);
 static void update_indicator(void);
 static void set_otherinfo(int ch, int val, char c);
+static void xaw_add_midi_file(char *additional_path);
+static void xaw_delete_midi_file(int delete_num);
+static int ctl_blocking_read(int32 *valp);
+static void shuffle(int n,int *a);
 
 static double indicator_last_update = 0;
 #define EXITFLG_QUIT 1
 #define EXITFLG_AUTOQUIT 2
-static int exitflag=0,randomflag=0,repeatflag=0,selectflag=0,amp_diff=0;
+static int exitflag=0,randomflag=0,repeatflag=0,selectflag=0;
 static int xaw_ready=0;
 static int number_of_files;
 static char **list_of_files;
@@ -333,6 +337,21 @@ static void xaw_add_midi_file(char *additional_path)
 	a_pipe_write(titles[number_of_files-nfiles+i]);
 }
 
+static void xaw_delete_midi_file(int delete_num)
+{
+    int i, nfiles = -1;
+    char *p;
+
+	free(titles[delete_num]);
+	for (i=delete_num;i<number_of_files-1;i++){
+	  list_of_files[i]= list_of_files[i+1];
+	  p= strchr(titles[i+1],'.');
+	  titles[i]= (char *)safe_malloc(strlen(titles[i+1])*sizeof(char *));
+	  sprintf(titles[i],"%d%s",i+1,p);
+	}
+	number_of_files -= 1;
+}
+
 /*ARGSUSED*/
 static int ctl_blocking_read(int32 *valp) {
   int n;
@@ -351,20 +370,32 @@ static int ctl_blocking_read(int32 *valp) {
       case 'B' : return RC_REALLY_PREVIOUS;
       case 'R' : repeatflag=atoi(local_buf+2);return RC_NONE;
       case 'D' : randomflag=atoi(local_buf+2);return RC_QUIT;
+      case 'd' : n=atoi(local_buf+2);
+		xaw_delete_midi_file(atoi(local_buf+2));
+		return RC_QUIT;
+      case 'C' : n=atoi(local_buf+2);
+		opt_chorus_control = n;
+		return RC_QUIT;
+      case 'E' : n=atoi(local_buf+2);
+		opt_modulation_wheel = n & MODUL_BIT;
+		opt_portamento = n & PORTA_BIT;
+		opt_nrpn_vibrato = n & NRPNV_BIT;
+		opt_reverb_control = n & REVERB_BIT;
+		opt_channel_pressure = n & CHPRESSURE_BIT;
+		opt_overlap_voice_allow = n & OVERLAPV_BIT;
+		opt_trace_text_meta_event = n & TXTMETA_BIT;
+		return RC_QUIT;
       case 'F' : 
       case 'L' : selectflag=atoi(local_buf+2);return RC_QUIT;
       case 'T' : a_pipe_read(local_buf,sizeof(local_buf));
 		n=atoi(local_buf+2); *valp= n * play_mode->rate;
 		return RC_JUMP;
       case 'V' : a_pipe_read(local_buf,sizeof(local_buf));
-		n=atoi(local_buf+2); amp_diff=n - amplitude;
-		*valp=(int32)amp_diff; return RC_CHANGE_VOLUME;
-      case 'v' : a_pipe_read(local_buf,sizeof(local_buf));
-		n=atoi(local_buf+2);
-		*valp=(int32)n; return RC_CHANGE_VOLUME;
-	  case '+': a_pipe_read(local_buf,sizeof(local_buf));
+		amplification=atoi(local_buf+2); *valp=(int32)0;
+		return RC_CHANGE_VOLUME;
+      case '+': a_pipe_read(local_buf,sizeof(local_buf));
 		*valp = (int32)1; return RC_KEYUP;
-	  case '-': a_pipe_read(local_buf,sizeof(local_buf));
+      case '-': a_pipe_read(local_buf,sizeof(local_buf));
 		*valp = (int32)-1; return RC_KEYDOWN;
       case '>': a_pipe_read(local_buf,sizeof(local_buf));
 		*valp = (int32)1; return RC_SPEEDUP;
@@ -411,6 +442,18 @@ static void ctl_pass_playing_list(int init_number_of_files,
   a_pipe_read(local_buf,sizeof(local_buf));
   if (strcmp("READY",local_buf)) return;
   xaw_ready=1;
+
+  sprintf(local_buf,"%d",
+  (opt_modulation_wheel<<MODUL_N)
+	 | (opt_portamento<<PORTA_N)
+	 | (opt_nrpn_vibrato<<NRPNV_N)
+	 | (opt_reverb_control<<REVERB_N)
+	 | (opt_channel_pressure<<CHPRESSURE_N)
+	 | (opt_overlap_voice_allow<<OVERLAPV_N)
+	 | (opt_trace_text_meta_event<<TXTMETA_N));
+  a_pipe_write(local_buf);
+  sprintf(local_buf,"%d",opt_chorus_control);
+  a_pipe_write(local_buf);
 
   number_of_files = init_number_of_files;
   list_of_files = init_list_of_files;

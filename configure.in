@@ -54,7 +54,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 1.3.4, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 1.3.5, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -164,7 +164,6 @@ case "$target" in
     esac
     so="dll"
     CYGNUS=yes
-    program_suffix=.exe
     ;;
   *-dec-*)
     EXTRADEFS="-DDEC"
@@ -181,6 +180,9 @@ case "$target" in
     so="so"
     ;;
 esac
+
+dnl For .exe
+AM_EXEEXT
 
 AC_CHECK_LIB(m,sqrt)
 AC_CHECK_LIB(socket,socket)
