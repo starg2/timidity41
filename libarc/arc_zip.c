@@ -105,10 +105,12 @@ ArchiveEntryNode *next_zip_entry(ArchiveHandler archiver)
 	break;
       case 6: /* The file is Imploded */
 	if(flags & 4)
+	{
 	    if(flags & 2)
 		method = ARCHIVEC_IMPLODED_LIT8;
 	    else
 		method = ARCHIVEC_IMPLODED_LIT4;
+	}
 	else if(flags & 2)
 	    method = ARCHIVEC_IMPLODED_NOLIT8;
 	else

@@ -59,13 +59,15 @@ SOCKET open_socket(char *host, unsigned short port)
 {
     SOCKET fd;
     struct sockaddr_in in;
-    static int first = 1;
 
+#if defined(WINSOCK)
+    static int first = 1;
     if(first) {
 	WSADATA dmy;
 	WSAStartup(MAKEWORD(1,1), &dmy);
 	first = 0;
     }
+#endif
 
     memset(&in, 0, sizeof(in));
     if((in.sin_addr.s_addr = inet_addr(host)) == INADDR_NONE)

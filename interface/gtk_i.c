@@ -250,7 +250,7 @@ playlist_op(GtkWidget *widget, guint data)
     if(!data)
 	return;
 
-    action = (char)gtk_object_get_user_data(GTK_OBJECT(plfilesel));
+    action = (gchar)(int)gtk_object_get_user_data(GTK_OBJECT(plfilesel));
     filename[0] = gtk_file_selection_get_filename(GTK_FILE_SELECTION(plfilesel));
 
     if(action == 'l') {
@@ -590,7 +590,6 @@ create_pixmap_label(GtkWidget *window, gchar **bits)
 static void
 set_icon_pixmap(GtkWidget *window, gchar **bits)
 {
-    GtkWidget	*pw;
     GdkPixmap	*pixmap;
     GdkBitmap	*mask;
     GtkStyle	*style;

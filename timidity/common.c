@@ -37,6 +37,9 @@
 #include <ctype.h>
 #ifndef __W32__
 #include <unistd.h>
+#else
+#include <process.h>
+#include <io.h>
 #endif /* __W32__ */
 #include "timidity.h"
 #include "common.h"

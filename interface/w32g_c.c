@@ -778,8 +778,9 @@ void MidiPlayThread(void *none)
 	      play_mode->id_name, play_mode->id_character);
     player_status = PLAYERSTATUS_STOP;
   } else {
+      extern void timidity_init_aq_buff(void);
       aq_setup();
-      aq_set_soft_queue(5.0, 1.0);
+      timidity_init_aq_buff();
 
     player_status = PLAYERSTATUS_PLAY;
     PlayerCanselPause();

@@ -205,7 +205,7 @@ static void drawProg(int,int,int,int,Boolean),drawPan(int,int,Boolean),
   optionsCB(),optionspopupCB(),optionscloseCB(),chorusCB(),optionsdestroyCB(),
   flistpopupCB(),flistcloseCB(),
   forwardCB(),backCB(),repeatCB(),randomCB(),menuCB(),sndspecCB(),
-  volsetCB(),volupdownCB(),tunesetCB(),tuneslideCB(),filemenuCB(),
+  volsetCB(),volupdownCB(),tuneslideCB(),filemenuCB(),
   fselectCB(),fdeleteCB(),fdelallCB(),backspaceCB(),aboutCB(),aboutcloseCB(),
 #ifndef WIDGET_IS_LABEL_WIDGET
   deleteTextCB(),
@@ -914,6 +914,7 @@ static void volupdownAction(Widget w,XEvent *e,String *v,Cardinal *n) {
   setVolbar(i);
 }
 
+#if 0 /* Not used */
 static void tunesetCB(Widget w,XtPointer data,XtPointer call_data)
 {
   static int tmpval;
@@ -931,6 +932,7 @@ static void tunesetCB(Widget w,XtPointer data,XtPointer call_data)
   sprintf(s, "T %d\n", tmpval);
   a_pipe_write(s);
 }
+#endif
 
 static void tunesetAction(Widget w,XEvent *e,String *v,Cardinal *n) {
   static float tmpval;
@@ -1460,7 +1462,7 @@ static void handle_input(XtPointer data,int *source,XtInputId *id) {
     current_flist = (char **)safe_malloc(sizeof(char *) * (n+1));
     if ('\0' != *dotfile) {
       FILE *fp;
-      if (savelist)
+      if (savelist) {
         if (NULL != (fp=fopen(dotfile, "a+"))) {
           for(i=0; i<n; i++) {
             a_pipe_read(local_buf,sizeof(local_buf));
@@ -1470,7 +1472,7 @@ static void handle_input(XtPointer data,int *source,XtInputId *id) {
           }
           fclose(fp);
         }
-      else
+      } else
         for(i=0; i<n; i++) a_pipe_read(local_buf,sizeof(local_buf));
     }
     current_flist[n] = NULL;
@@ -3526,12 +3528,12 @@ void a_start_interface(int pipe_in) {
 
   if(Cfg.repeat) repeatCB(NULL,&Cfg.repeat,NULL);
   if(Cfg.shuffle) randomCB(NULL,&Cfg.shuffle,NULL);
-  if(Cfg.autostart)
+  if(Cfg.autostart) {
     if(max_files==0)
       prevCB(NULL,NULL,NULL);
     else
       playCB(NULL,NULL,NULL);
-  else
+  } else
     stopCB(NULL,NULL,NULL);
   if(ctl->trace_playing) initStatus();
   XtAppMainLoop(app_con);

@@ -255,26 +255,25 @@ int32 general_output_convert(int32 *buf, int32 count)
     {
 	bytes *= 2;
 	if(play_mode->encoding & PE_BYTESWAP)
+	{
 	    if(play_mode->encoding & PE_SIGNED)
 		s32tos16x(buf, count);
 	    else
 		s32tou16x(buf, count);
+	}
+	else if(play_mode->encoding & PE_SIGNED)
+	    s32tos16(buf, count);
 	else
-	    if(play_mode->encoding & PE_SIGNED)
-		s32tos16(buf, count);
-	    else
-		s32tou16(buf, count);
+	    s32tou16(buf, count);
     }
+    else if(play_mode->encoding & PE_ULAW)
+	s32toulaw(buf, count);
+    else if(play_mode->encoding & PE_ALAW)
+	s32toalaw(buf, count);
+    else if(play_mode->encoding & PE_SIGNED)
+	s32tos8(buf, count);
     else
-	if(play_mode->encoding & PE_ULAW)
-	    s32toulaw(buf, count);
-	else if(play_mode->encoding & PE_ALAW)
-	    s32toalaw(buf, count);
-	else
-	    if(play_mode->encoding & PE_SIGNED)
-		s32tos8(buf, count);
-	    else
-		s32tou8(buf, count);
+	s32tou8(buf, count);
     return bytes;
 }
 
@@ -302,44 +301,48 @@ int validate_encoding(int enc, int include_enc, int exclude_enc)
 const char *output_encoding_string(int enc)
 {
     if(enc & PE_MONO)
+    {
 	if(enc & PE_16BIT)
+	{
 	    if(enc & PE_SIGNED)
 		return "16bit (mono)";
 	    else
 		return "unsigned 16bit (mono)";
+	}
 	else
+	{
 	    if(enc & PE_ULAW)
 		return "U-law (mono)";
 	    else if(enc & PE_ALAW)
 		return "A-law (mono)";
+	    else if(enc & PE_SIGNED)
+		return "8bit (mono)";
 	    else
-		if(enc & PE_SIGNED)
-		    return "8bit (mono)";
-		else
-		    return "unsigned 8bit (mono)";
-    else
-	if(enc & PE_16BIT)
-	{
-	    if(enc & PE_BYTESWAP)
-		if(enc & PE_SIGNED)
-		    return "16bit (swap)";
-		else
-		    return "unsigned 16bit (swap)";
-	    else
-		if(enc & PE_SIGNED)
-		    return "16bit";
-		else
-		    return "unsigned 16bit";
+		return "unsigned 8bit (mono)";
 	}
-	else
-	    if(enc & PE_ULAW)
-		return "U-law";
-	    else if(enc & PE_ALAW)
-		return "A-law";
+    }
+    else if(enc & PE_16BIT)
+    {
+	if(enc & PE_BYTESWAP)
+	{
+	    if(enc & PE_SIGNED)
+		return "16bit (swap)";
 	    else
-		if(enc & PE_SIGNED)
-		    return "8bit";
-		else
-		    return "unsigned 8bit";
+		return "unsigned 16bit (swap)";
+	}
+	else if(enc & PE_SIGNED)
+	    return "16bit";
+	else
+	    return "unsigned 16bit";
+    }
+    else
+	if(enc & PE_ULAW)
+	    return "U-law";
+	else if(enc & PE_ALAW)
+	    return "A-law";
+	else if(enc & PE_SIGNED)
+	    return "8bit";
+	else
+	    return "unsigned 8bit";
     /*NOTREACHED*/
 }

@@ -30,8 +30,14 @@
 
 #if defined(__MINGW32__) && defined(USE_PDCURSES)
 #define _NO_OLDNAMES 1	/* avoid type mismatch of beep() */
-#endif /* USE_PDCURSES */
+#ifndef sleep
+extern void sleep(unsigned long);
+#endif /* sleep */
 #include <stdlib.h>
+#undef _NO_OLDNAMES
+#else /* USE_PDCURSES */
+#include <stdlib.h>
+#endif
 
 #include <stdarg.h>
 #include <ctype.h>
@@ -70,6 +76,10 @@
 #include "bitset.h"
 #include "arc.h"
 #include "aq.h"
+
+#ifdef USE_PDCURSES
+int PDC_set_ctrl_break(bool setting);
+#endif /* USE_PDCURSES */
 
 #define SCREEN_BUGFIX 1 /* FIX the old ncurses bug */
 
@@ -732,7 +742,7 @@ static void ctl_help_mode(void)
 	{
 "V/Up=Louder    b/Left=Skip back      n/Next=Next file      r/Home=Restart file",
 "v/Down=Softer  f/Right=Skip forward  p/Prev=Previous file  q/End=Quit program",
-"h/?=Help mode  1-6=Reverb            s=Toggle pause        E=ExtMode-Setting",
+"h/?=Help mode  s=Toggle pause        E=ExtMode-Setting",
 "+=Key up       -=Key down            >=Speed up            <=Speed down",
 "O=Voices up    o=Voices down         c/C=Move channel      d=Toggle drum prt.",
 "J=Jump         L=Load & play (TAB: File completion)        t=Toggle trace mode",
@@ -1516,7 +1526,9 @@ static int ctl_open(int using_stdin, int using_stdout)
 	nonl();
 	nodelay(stdscr, 1);
 	scrollok(stdscr, 0);
+#ifndef USE_PDCURSES
 	idlok(stdscr, 1);
+#endif /* USE_PDCURSES */
 	keypad(stdscr, TRUE);
 	ctl.opened = 1;
     }
@@ -2116,7 +2128,7 @@ static int ctl_read(int32 *valp)
 	  }
 	  else
 	      return RC_NEXT;
-
+#if 0
 	case '1':
 	case '2':
 	case '3':
@@ -2127,6 +2139,7 @@ static int ctl_read(int32 *valp)
 	case '6':
 	  *valp = c - '5';
 	  return RC_CHANGE_REV_TIME;
+#endif
 	case 'q':
 	case 3: /* ^C */
 	case KEY_END:
@@ -2418,7 +2431,6 @@ static int ctl_read(int32 *valp)
 static void vwprintw(WINDOW *w, char *fmt, va_list ap)
 {
     char *buff;
-    int i;
     MBlockList pool;
 
     init_mblock(&pool);

@@ -1372,9 +1372,10 @@ void x_Pal(int *param,int nparam){
     }
     if(pallet==FOREGROUND_PALLET){
       memcpy(mywin.curcoltab,mywin.gcolor[FOREGROUND_PALLET],sizeof(mywin.curcoltab));
-      if(mywin.redrawflag)
+      if(mywin.redrawflag) {
 	if(truecolor) RedrawPallet(FOREGROUND_PALLET);
 	else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
+      }
     }
   }
 }
@@ -1394,9 +1395,10 @@ void x_Palrev(int pallet)
     memcpy(mywin.curcoltab,
 	   mywin.gcolor[FOREGROUND_PALLET],
 	   sizeof(mywin.curcoltab));
-    if(mywin.redrawflag)
+    if(mywin.redrawflag) {
 	if(truecolor) RedrawPallet(pallet);
 	else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
+    }
   }
 }
 void x_Gscreen(int active,int appear)
@@ -1434,17 +1436,19 @@ void x_Fade(int *params,int nparam,int step,int maxstep)
 	if(truecolor) rgb2pixel(&mywin.curcoltab[i]);
       }
     }
-    if(mywin.redrawflag)
+    if(mywin.redrawflag) {
       if(truecolor) Redraw(0,0,SIZEX,SIZEY,True);
       else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
+    }
   }
   else{
     if(params[2] == 0 && params[1] < MAXPAL) {
       memcpy(mywin.curcoltab,mywin.gcolor[params[1]],sizeof(mywin.curcoltab));
       memcpy(mywin.gcolor[0],mywin.curcoltab,sizeof(mywin.curcoltab));
-      if(mywin.redrawflag)
+      if(mywin.redrawflag) {
 	if(truecolor) RedrawPallet(params[1]);
 	else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
+      }
     }
     else if(params[0] < MAXPAL && params[1] < MAXPAL)
     {

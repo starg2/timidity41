@@ -678,21 +678,27 @@ Instrument *play_midi_load_instrument(int dr, int bk, int prog)
 
 static int reduce_voice(void)
 {
-    int32 lv, v;
-    int i, j, lowest=-1;
+    int32 lv, v, vr;
+    int i, j, lowest=-0x7FFFFFFF;
 
     i = upper_voices;
     lv = 0x7FFFFFFF;
-    /* Look for the decaying note with the lowest volume */
+    /* Look for the decaying note with the longest remaining decay time */
+    /* Protect drum decays.  They do not take as much CPU (?) and truncating
+       them early sounds bad, especially on snares and cymbals */
+    /* Also look for chorus notes */
     for(j = 0; j < i; j++)
     {
 	if(voice[j].status & VOICE_FREE)
 	    continue;
-	if(voice[j].status & ~(VOICE_ON | VOICE_DIE))
+	if (!voice[j].delay && ISDRUMCHANNEL(voice[j].channel))
+	    continue;
+	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED) ||
+	   voice[j].delay)
 	{
-	    v = voice[j].left_mix;
-	    if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
-		v = voice[j].right_mix;
+	    /* Choose note with longest decay time remaining */
+	    /* This frees more CPU than choosing lowest volume */
+	    v = current_sample - voice[j].timeout;
 	    if(v < lv)
 	    {
 		lv = v;
@@ -700,8 +706,7 @@ static int reduce_voice(void)
 	    }
 	}
     }
-
-    if(lowest != -1)
+    if(lowest != -0x7FFFFFFF)
     {
 	/* This can still cause a click, but if we had a free voice to
 	   spare for ramping down this note, we wouldn't need to kill it
@@ -716,17 +721,19 @@ static int reduce_voice(void)
     }
 
     /* EAW -- try to remove VOICE_DIE before VOICE_ON */
-    lost_notes++;
-    lv = voice[0].left_mix;
-    if(voice[0].panned == PANNED_MYSTERY && voice[0].right_mix > lv)
-	lv = voice[0].right_mix;
+    lv = 0x7FFFFFFF;
     lowest = -1;
     for(j = 0; j < i; j++)
     {
-	if(voice[j].status & VOICE_FREE)
+      if(voice[j].status & VOICE_FREE)
 	    continue;
-      if(voice[j].status & ~(VOICE_ON))
+      if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
       {
+	/* continue protecting the drum decays */
+	if (!voice[j].delay && voice[j].status & ~(VOICE_DIE) &&
+	    ISDRUMCHANNEL(voice[j].channel))
+		continue;
+
 	v = voice[j].left_mix;
 	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
 	    v = voice[j].right_mix;
@@ -747,17 +754,48 @@ static int reduce_voice(void)
     }
 
     lost_notes++;
-    lv = voice[0].left_mix;
-    if(voice[0].panned == PANNED_MYSTERY && voice[0].right_mix > lv)
-	lv = voice[0].right_mix;
+
+    /* try to remove VOICE_SUSTAINED before VOICE_ON */
+    lv = 0x7FFFFFFF;
+    lowest = -0x7FFFFFFF;
+    for(j = 0; j < i; j++)
+    {
+      if(voice[j].status & VOICE_FREE)
+	    continue;
+      if(voice[j].status & VOICE_SUSTAINED)
+      {
+	/* Choose note with longest decay time remaining */
+	/* This frees more CPU than choosing lowest volume */
+	v = current_sample - voice[j].timeout;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+      }
+    }
+    if(lowest != -0x7FFFFFFF)
+    {
+	cut_notes++;
+	voice[lowest].status = VOICE_FREE;
+	if(!prescanning_flag)
+	    ctl_note_event(lowest);
+	return lowest;
+    }
+
+    lv = 0x7FFFFFFF;
     lowest = 0;
     for(j = 0; j < i; j++)
     {
 	if(voice[j].status & VOICE_FREE)
 	    continue;
-	v = voice[j].left_mix;
-	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
-	    v = voice[j].right_mix;
+
+	/* score notes based on both volume AND duration */
+	/* this scoring function needs some more tweaking... */
+	v = voice[j].left_mix * (voice[j].timeout - current_sample);
+	vr = voice[j].right_mix * (voice[j].timeout - current_sample);
+	if(voice[j].panned == PANNED_MYSTERY && vr > v)
+	    v = vr;
 	if(v < lv)
 	{
 	    lv = v;
@@ -2870,9 +2908,18 @@ static int compute_data(int32 count)
 	          int v, kill_nv, temp_nv;
 
 		  /* EAW -- count number of !ON voices */
-		  for(i = kill_nv = 0; i < upper_voices; i++)
-		      if(voice[i].status & ~(VOICE_FREE|VOICE_ON))
-			  kill_nv++;
+		  /* treat chorus notes as !ON */
+		  for(i = kill_nv = 0; i < upper_voices; i++) {
+		      if(voice[i].status & VOICE_FREE)
+		      		continue;
+		      
+		      if(voice[i].delay ||
+		         (voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
+			  !(voice[i].status & ~(VOICE_DIE) &&
+			    !voice[i].delay &&
+			    ISDRUMCHANNEL(voice[i].channel))))
+				kill_nv++;
+		  }
 
 		  /* EAW -- buffer is dangerously low, drasticly reduce
 		     voices to a hopefully "safe" amount */

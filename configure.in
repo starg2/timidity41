@@ -53,7 +53,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.1.1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.2.0, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -111,8 +111,8 @@ for i in `echo $C_INCLUDE_PATH|sed -e 's,:, ,g'`; do
 done
 
 dnl add prefix /usr/local by default
-LDFLAGS="$LDFLAGS -L/usr/local/lib"
-CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+LDFLAGS="$LDFLAGS -L${PREFIX:-/usr/local}/lib"
+CPPFLAGS="$CPPFLAGS -I${PREFIX:-/usr/local}/include"
 SHLDFLAGS=${SHLDFLAGS:-$LDFLAGS}
 
 dnl add $prefix if specified.
@@ -130,6 +130,10 @@ AC_PROG_LN_S
 
 
 dnl Target dependent
+AC_ARG_WITH(elf,
+  [  --with-elf              create ELF shared object instead of AOUT ],
+  [ ELFFORMAT=$withval ], [ ELFFORMAT="yes" ])
+
 case "$target" in
   *-*-hpux*)
     EXTRADEFS="-DHPUX"
@@ -147,24 +151,29 @@ case "$target" in
     so="so"
     ;;
 
-#  *-*-freebsd2*)
-#    EXTRALIBS="$EXTRALIBS -lxpg4"
-#    test -n "$SHLD" || SHLD="ld -Bshareable"
-#    so="so"
-#    ;;
-#  *-*-freebsd*)
-#    SHCFLAGS=-aout
-#    EXTRALIBS="$EXTRALIBS -lxpg4"
-#    SHLDFLAGS="-L/usr/X11R6/lib/aout $SHLDFLAGS"
-#    test -n "$SHLD" || SHLD="env OBJFORMAT=aout ld -shared"
-#    so="so"
-#    ;;
-
-  *-*-freebsd*)
+  *-*-freebsd2*)
     EXTRALIBS="$EXTRALIBS -lxpg4"
     test -n "$SHLD" || SHLD="ld -Bshareable"
     so="so"
     ;;
+  *-*-freebsd*)
+    if test "$ELFFORMAT" = yes; then
+        test -n "$SHLD" || SHLD="ld -Bshareable"
+    else
+        SHCFLAGS=-aout
+        SHLDFLAGS="-L/usr/X11R6/lib/aout $SHLDFLAGS"
+        test -n "$SHLD" || SHLD="env OBJFORMAT=aout ld -shared"
+    fi
+    EXTRALIBS="$EXTRALIBS -lxpg4"
+    so="so"
+    ;;
+
+#  *-*-freebsd*)
+#    EXTRALIBS="$EXTRALIBS -lxpg4"
+#    test -n "$SHLD" || SHLD="ld -Bshareable"
+#    so="so"
+#    ;;
+
   *-*-cygwin32*)
     EXTRADEFS="-D__W32__"
     # ??
@@ -310,7 +319,7 @@ AC_FUNC_SETVBUF_REVERSED
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS(gettimeofday select socket strdup strstr vsnprintf snprintf \
-	sleep usleep strncasecmp strerror getopt getcwd popen signal)
+	sleep usleep strncasecmp strerror getopt getcwd popen signal isatty)
 
 dnl checking on cygnus
 if test "x$CYGNUS" = xyes; then
@@ -415,7 +424,7 @@ AC_ARG_ENABLE(nas,
 
     dnl -laudio conflicts another audio library,
     dnl so I specify NAS library directly
-    EXTRALIBS="$EXTRALIBS $ac_x_libraries/libaudio.a"
+    EXTRALIBS="$EXTRALIBS $x_libraries/libaudio.a"
     lib_xt_opt=-lXt
     if test "x$have_xext" = xyes; then
       lib_xext_opt=-lXext
@@ -544,7 +553,7 @@ case "$enable_ncurses$enable_slang$enable_motif$enable_tcltk$enable_emacs$enable
 esac
 
 dnl check -fpic option for gcc
-case "$CC " in "gcc "*) SHCFLAGS="$SHCFLAGS -fPIC";; esac
+if test "$GCC" = yes; then SHCFLAGS="$SHCFLAGS -fPIC"; fi
 case "x$enable_ump" in xyes|xdynamic) EXTRACFLAGS="$EXTRACFLAGS -DXP_UNIX $SHCFLAGS";; esac
 
 if test "$NEEDDLOPEN" = "yes"; then

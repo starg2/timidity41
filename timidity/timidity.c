@@ -76,7 +76,7 @@ extern char *optarg;
 #include "mid.defs"
 #include "aq.h"
 
-#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:Z:"
+#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:q:R:rS:s:t:UW:w:x:Z:"
 #define INTERACTIVE_INTERFACE_IDS "kmqagr"
 
 /* main interfaces (To be used another main) */
@@ -96,6 +96,10 @@ MAIN_INTERFACE void timidity_init_player(void);
 MAIN_INTERFACE int timidity_play_main(int nfiles, char **files);
 MAIN_INTERFACE int got_a_configuration;
 MAIN_INTERFACE char *wrdt_open_opts = NULL;
+MAIN_INTERFACE char *opt_aq_max_buff = "5.0",
+		    *opt_aq_fill_buff = "100%";
+MAIN_INTERFACE void timidity_init_aq_buff(void);
+
 #ifdef IA_DYNAMIC
 MAIN_INTERFACE char dynamic_interface_id;
 #endif /* IA_DYNAMIC */
@@ -284,9 +288,9 @@ static void list_dyna_interface(FILE *fp, char *path, char *mark)
 
 static FILE *open_pager(void)
 {
-#if !defined(__MACOS__) && !defined(__W32__)
+#if !defined(__MACOS__) && defined(HAVE_POPEN) && defined(HAVE_ISATTY) && !defined(IA_W32GUI)
     char *pager;
-    if(isatty(0) && (pager = getenv("PAGER")) != NULL)
+    if(isatty(1) && (pager = getenv("PAGER")) != NULL)
 	return popen(pager, "w");
 #endif
     return stdout;
@@ -294,7 +298,7 @@ static FILE *open_pager(void)
 
 static void close_pager(FILE *fp)
 {
-#if !defined(__MACOS__) && !defined(__W32__)
+#if !defined(__MACOS__) && defined(HAVE_POPEN) && defined(HAVE_ISATTY) && !defined(IA_W32GUI)
     if(fp != stdout)
 	pclose(fp);
 #endif
@@ -326,66 +330,15 @@ static void help(void)
 #endif
 "",
 "Options:",
-#if defined(AU_HPUX)
-"  -o file Output to another file (or audio server) (Use \"-\" for stdout)",
-#elif defined (AU_LINUX)
-"  -o file Output to another file (or device) (Use \"-\" for stdout)",
-#else
-"  -o file Output to another file (Use \"-\" for stdout)",
-#endif
-"  -O mode Select output mode and format (see below for list)",
-"  -s f    Set sampling frequency to f (Hz or kHz)",
-"  -a      Enable the antialiasing filter",
-"  -f      "
-#ifdef FAST_DECAY
-           "Disable"
-#else
-	   "Enable"
-#endif
-" fast decay mode",
-"  -p n    Allow n-voice polyphony",
 "  -A n    Amplify volume by n percent (may cause clipping)",
+"  -a      Enable the antialiasing filter",
+"  -B n    Set number of buffer fragments",
 "  -C n    Set ratio of sampling and control frequencies",
-"  -S n    Cache size (0 means no cache)",
-"  -L dir  Append dir to search path",
 "  -c file Read extra configuration file",
-"  -I n    Use program n as the default",
-"  -P file Use patch file for all programs",
 "  -D n    Play drums on channel n",
-"  -Q n    Ignore channel n",
-"  -F      Enable fast panning",
-"  -U      Unload instruments from memory between MIDI files",
-
-"  -R n    Pseudo Reveb (set every instrument's release to n ms",
-"            if n=0, n is set to 800(default)",
-
-#ifdef SUPPORT_SOUNDSPEC
-"  -g sec  Open Sound-Spectrogram Window.",
-#endif /* SUPPORT_SOUNDSPEC */
-
 #ifdef IA_DYNAMIC
 "  -d dir  Set dynamic interface module directory",
 #endif /* IA_DYNAMIC */
-"  -i mode Select user interface (see below for list)",
-"  -B n    Set number of buffer fragments",
-#ifdef __W32__
-"  -e      Increase thread priority (evil) - be careful!",
-#endif
-"  -h      Display this help message",
-"  -x \"configuration-string\"",
-"          Read configuration from command line argument",
-"  -j      Realtime load instrument (toggle on/off)",
-"  -k msec Specify audio queue time limit to reduce voice",
-"  -t code Output text language code:",
-"              code=auto  : Auto conversion by `LANG' environment variable",
-"                           (UNIX only)",
-"                   ascii : Convert unreadable characters to '.'(0x2e)",
-"                   nocnv : No conversion",
-#ifdef JAPANESE
-"                   euc   : EUC-japan",
-"                   jis   : JIS",
-"                   sjis  : shift JIS",
-#endif /* JAPANESE */
 "  -E mode TiMidity sequencer extensional modes:",
 "            mode = w/W : Enable/Disable Modulation wheel.",
 "                   p/P : Enable/Disable Portamento.",
@@ -435,13 +388,62 @@ static void help(void)
 "O"
 #endif /* OVERLAP_VOICE_ALLOW */
 ,
-"            mode = w/W : Enable/Disable Modulation wheel.",
-
+#ifdef __W32__
+"  -e      Increase thread priority (evil) - be careful!",
+#endif
+"  -F      Enable fast panning",
+"  -f      "
+#ifdef FAST_DECAY
+           "Disable"
+#else
+	   "Enable"
+#endif
+" fast decay mode (toggle)",
+#ifdef SUPPORT_SOUNDSPEC
+"  -g sec  Open Sound-Spectrogram Window.",
+#endif /* SUPPORT_SOUNDSPEC */
+"  -h      Display this help message",
+"  -I n    Use program n as the default",
+"  -i mode Select user interface (see below for list)",
+"  -j      Realtime load instrument (toggle on/off)",
+"  -k msec Specify audio queue time limit to reduce voice",
+"  -L dir  Append dir to search path",
+"  -O mode Select output mode and format (see below for list)",
+#if defined(AU_HPUX)
+"  -o file Output to another file (or audio server) (Use \"-\" for stdout)",
+#elif defined (AU_LINUX)
+"  -o file Output to another file (or device) (Use \"-\" for stdout)",
+#else
+"  -o file Output to another file (Use \"-\" for stdout)",
+#endif
+"  -P file Use patch file for all programs",
+"  -p n    Allow n-voice polyphony",
+"  -Q n    Ignore channel n",
+"  -q m/n  Specify audio buffer in seconds",
+"            m:Maxmum buffer, n:Filled to start   (default is 5.0/100%%)",
+"            (size of 100%% equals device buffer size)",
+"  -R n    Pseudo Reveb (set every instrument's release to n ms",
+"            if n=0, n is set to 800(default)",
+"  -s f    Set sampling frequency to f (Hz or kHz)",
+"  -S n    Cache size (0 means no cache)",
+"  -t code Output text language code:",
+"              code=auto  : Auto conversion by `LANG' environment variable",
+"                           (UNIX only)",
+"                   ascii : Convert unreadable characters to '.'(0x2e)",
+"                   nocnv : No conversion",
+#ifdef JAPANESE
+"                   euc   : EUC-japan",
+"                   jis   : JIS",
+"                   sjis  : shift JIS",
+#endif /* JAPANESE */
+"  -U      Unload instruments from memory between MIDI files",
+"  -W mode Select WRD interface (see below for list)",
 #ifdef __W32__
 "  -w mode Windows extensional modes:",
 "              mode=r/R : Enable/Disable rcpcv dll",
 #endif /* __W32__ */
-"  -W mode Select WRD interface (see below for list)",
+"  -x \"configuration-string\"",
+"          Read configuration from command line argument",
 "  -Z file Load frequency table",
 NULL
 };
@@ -454,11 +456,16 @@ NULL
 
   for(i = 0; help_list[i]; i++)
   {
-      char *h;
+      char *h, *p;
 
       h = help_list[i];
-      if(strchr(h, '%'))
-	  fprintf(fp, h, help_args[j++]);
+      if((p = strchr(h, '%')) != NULL)
+      {
+	  if(*(p + 1) != '%')
+	      fprintf(fp, h, help_args[j++]);
+	  else
+	      fprintf(fp, h);
+      }
       else
 	  fputs(h, fp);
       fputs(NLS, fp);
@@ -541,7 +548,7 @@ NULL
 "                        `level' is optional to specify reverb level [0..127]"  NLS
 "                        This effect is only available in stereo"  NLS
 "  -EFreverb=2 : Global reverb effect" NLS
-"  -EFns=n : Enable the n th degree noiseshaping filter (n:0 to 4)" NLS
+"  -EFns=n : Enable the n th degree noiseshaping filter. n:[0..4]" NLS
 "            This effect is only available for 8-bit linear encoding" NLS
 NLS
 , fp);
@@ -2382,6 +2389,22 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 	    return 1;
 	break;
 
+      case 'q':
+	if(strchr(optarg, '/') == NULL)
+	    opt_aq_max_buff = strdup(optarg);
+	else
+	{
+	    if(optarg[0] == '/')
+		opt_aq_fill_buff = strdup(optarg + 1);
+	    else
+	    {
+		opt_aq_max_buff = strdup(optarg);
+		opt_aq_fill_buff = strchr(opt_aq_max_buff, '/');
+		*opt_aq_fill_buff++ = '\0';
+	    }
+	}
+	break;
+
       case 'b':
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "-b option is obsoleted.  "
@@ -2744,6 +2767,29 @@ MAIN_INTERFACE void timidity_init_player(void)
 #endif /* SOUNDSPEC */
 }
 
+MAIN_INTERFACE void timidity_init_aq_buff(void)
+{
+    double time1, /* max buffer */
+	   time2, /* init filled */
+	   base;  /* buffer of device driver */
+
+    if(!IS_STREAM_TRACE)
+	return; /* Ignore */
+
+    time1 = atof(opt_aq_max_buff);
+    time2 = atof(opt_aq_fill_buff);
+    base  = (double)aq_get_dev_queuesize() / play_mode->rate;
+    if(strchr(opt_aq_max_buff, '%'))
+    {
+	time1 = base * (time1 - 100) / 100.0;
+	if(time1 < 0)
+	    time1 = 0;
+    }
+    if(strchr(opt_aq_fill_buff, '%'))
+	time2 = base * time2 / 100.0;
+    aq_set_soft_queue(time1, time2);
+}
+
 MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 {
     int need_stdin = 0, need_stdout = 0;
@@ -2832,7 +2878,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 
 	init_load_soundfont();
 	aq_setup();
-	aq_set_soft_queue(5.0, 1.0);
+	timidity_init_aq_buff();
 	if(allocate_cache_size > 0)
 	    resamp_cache_reset();
 

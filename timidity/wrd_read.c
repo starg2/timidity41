@@ -116,8 +116,11 @@ struct wrd_step_tracer
 
 static MBlockList sry_pool; /* data buffer */
 sry_datapacket *datapacket = NULL;
+#ifdef ENABLE_SHERRY
 static int datapacket_len, datapacket_cnt;
 #define DEFAULT_DATAPACKET_LEN 16384
+static int import_sherrywrd_file(const char * );
+#endif /* ENABLE_SHERRY */
 
 static uint8 cmdlookup(uint8 *cmd);
 static int wrd_nexttok(struct timidity_file *tf);
@@ -137,8 +140,6 @@ static void wrdstep_wait(struct wrd_step_tracer *wrdstep, int bar, int step);
 static void wrdstep_rest(struct wrd_step_tracer *wrdstep, int bar, int step);
 static struct wrd_delayed_event *wrd_delay_cmd(struct wrd_step_tracer *wrdstep,
 					int32 waittime, int cmd, int arg);
-static int import_sherrywrd_file(const char * );
-
 static uint8 wrd_tokval[MAXTOKLEN + 1]; /* Token value */
 static uint8 wrd_tok;		/* Token type */
 static int lineno;		/* linenumber */

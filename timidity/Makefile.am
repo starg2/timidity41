@@ -116,7 +116,8 @@ EXTRA_timidity_SOURCES = \
 	mfnode.h \
 	nas_a.c \
 	sun_a.c \
-	w32_a.c
+	w32_a.c \
+	timpp32g.ini
 
 if ENABLE_W32GUI
 W32GUI_RES = $(top_builddir)/interface/w32g_res.res

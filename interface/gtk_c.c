@@ -109,7 +109,7 @@ cmsg(int type, int verbosity_level, char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
     }
-    else if (ctl.trace_playing) {
+    else {
 	vsnprintf(local, sizeof(local), fmt, ap);
 	gtk_pipe_int_write(CMSG_MESSAGE);
 	gtk_pipe_int_write(type);
@@ -189,16 +189,9 @@ static void ctl_event(CtlEvent *e)
 }
 
 static void
-_ctl_refresh(void)
-{
-    /* gtk_pipe_int_write(REFRESH_MESSAGE); */
-}
-
-static void
 ctl_refresh(void)
 {
-    if (ctl.trace_playing)
-	_ctl_refresh();
+    /* gtk_pipe_int_write(REFRESH_MESSAGE); */
 }
 
 static void
@@ -228,8 +221,6 @@ ctl_file_name(char *name)
 static void
 ctl_current_time(int secs, int voices)
 {
-    if (!ctl.trace_playing) 
-	return;
     gtk_pipe_int_write(CURTIME_MESSAGE);
     gtk_pipe_int_write(secs);
     gtk_pipe_int_write(voices);
@@ -358,7 +349,7 @@ ctl_reset(void)
 	ctl_sustain(i, channel[i].sustain);
 	ctl_pitch_bend(i, channel[i].pitchbend);
     }
-  _ctl_refresh();
+  ctl_refresh();
   */
 }
 
@@ -369,7 +360,6 @@ static int
 ctl_open(int using_stdin, int using_stdout)
 {
     ctl.opened=1;
-    ctl.trace_playing=1;	/* Default mode with Gtk+ interface */
   
     /* The child process won't come back from this call  */
     gtk_pipe_open();

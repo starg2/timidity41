@@ -653,6 +653,7 @@ static int ctl_read(int32 *valp)
 	  case 'v':
 	    *valp =- 10 * char_count(cmd, cmd[0]);
 	    return RC_CHANGE_VOLUME;
+#if 0
 	  case '1':
 	  case '2':
 	  case '3':
@@ -663,6 +664,7 @@ static int ctl_read(int32 *valp)
 	  case '6':
 	    *valp = cmd[0] - '5';
 	    return RC_CHANGE_REV_TIME;
+#endif
 	  case 's':
 	    return RC_TOGGLE_PAUSE;
 	  case 'n':

@@ -1,4 +1,56 @@
-1999-06-09  Masanao Izumo <mo@goice.co.jp>
+1999-07-19  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.2.0 released.
+
+1999-07-19  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/Makefile.am (EXTRA_timidity_SOURCES): Added timpp32g.ini
+    * interface/soundspec.c: Support screen depth 16, 24, and 32.
+
+1999-07-17  Masanao Izumo <mo@goice.co.jp>
+    * interface/w32g_c.c, timidity/{timidity.c,aq.c} (-q): New option.
+      `-q' specifiy size of software audio buffering.  The option format
+      is "-q m/n".
+	m:Maxmum buffer in second or percent of size of device driver buffer
+	n:Filled to start in second or percent of size of device driver buffer
+      The default is "5.0/100%".
+    * timidity/timidity.c (help): Arranged the help message of option in order.
+    * timidity/timidity.c (open_pager): In Windows console version, Enable
+      to pipe "PAGER" to display help message.  For example:
+      > set PAGER=more
+      > timidity -h
+    * configure.in (isatty): Check for `isatty' function.
+    * utils/{nkflib.c,net.c}, libarc/arc_zip.c,
+      interface/{xaw_i.c,gtk_i.c,x_wrdwindow.c,wrdt_x.c,ncurs_c.c},
+      timidity/{output.c,wrd_read.c,common.c}: Shut gcc warning up.
+    * configure.in: Fixed bug about X path option.
+    * timidity/timidity.h (NLS): Change to "\n" for cygwin.
+    * interface/gtk_c.c (trace_playing): False by default.
+    * interface/gtk_c.c (ctl_current_time): Update weather trace_playing
+      is true or false.
+    * interface/gtk_c.c (cmsg): Likewise.
+    * interface/gtk_c.c (_ctl_refresh): Obsoleted.
+
+1999-07-16  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c (Voice reduction): Improved.
+      Powerful MIDI file less skip, and sound better!
+
+1999-07-13  Norikatsu Shigemura <nork@lb.u-tokai.ac.jp>
+
+    * timidity/nas_a.c: Fixed the probrem that occurs with
+      'timidity -On /dev/null'.
+    * configure.in: Fixed building for FreeBSD Objects.  Please specify
+      configure option '--with-elf' if you create ELF object, otherwise
+      create AOUT object.  This option is only for FreeBSD.
+
+1999-07-12  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/{ncurs_c.c,vt100_c.c}: (reverb): Just remove about
+      reverb control interface.  It is not supported reverb control
+      interface in the current version yet.
+
+1999-07-09  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.1.1 released.
 

@@ -75,6 +75,7 @@ static double soundspec_zoom = DEFAULT_ZOOM;
 static Display *disp = NULL;
 static Window win;
 static GC gc;
+static int depth;
 static Pixmap offscr;
 static XImage *img;
 static Atom wm_delete_window;
@@ -161,7 +162,6 @@ static double calc_color_diff(int r1, int g1, int b1,
 
 static long search_near_color(Display *disp, int r, int g, int b)
 {
-    int depth;
     double d, mind;
     int scr;
     static XColor *xc = NULL;
@@ -169,7 +169,6 @@ static long search_near_color(Display *disp, int r, int g, int b)
     long i, k;
 
     scr = DefaultScreen(disp);
-    depth = DefaultDepth(disp, scr);
 
     if(depth == 1)		/* black or white */
     {
@@ -215,6 +214,15 @@ static long search_near_color(Display *disp, int r, int g, int b)
 #endif
 
     return k;
+}
+
+static int highbit(unsigned long ul)
+{
+    int i;  unsigned long hb;
+    hb = 0x80000000UL;
+    for(i = 31; ((ul & hb) == 0) && i >= 0;  i--, ul<<=1)
+	;
+    return i;
 }
 
 static unsigned long AllocRGBColor(
@@ -267,16 +275,32 @@ static void set_color_ring(void)
     }
 }
 
-static void set_draw_pixel(double *val, unsigned char *pixels)
+static void set_draw_pixel(double *val, char *pixels)
 {
     int i;
+    unsigned v;
+
     for(i = 0; i < SCOPE_HEIGHT; i++)
     {
-	unsigned v;
-	v = (unsigned)val[SCOPE_HEIGHT - i - 1];
-	if(v >= NCOLOR)
-	    v = NCOLOR - 1;
-	pixels[i] = (unsigned char)color_ring[v];
+	v = (unsigned)val[i];
+	if(v > NCOLOR - 1)
+	    val[i] = NCOLOR - 1;
+    }
+
+    switch(depth) {
+      case 32:
+      case 24:
+	for(i = 0; i < SCOPE_HEIGHT; i++)
+	    ((uint32 *)pixels)[i] = (uint32)color_ring[(int)val[SCOPE_HEIGHT - i - 1]];
+	break;
+      case 16:
+	for(i = 0; i < SCOPE_HEIGHT; i++)
+	    ((uint16 *)pixels)[i] = (uint16)color_ring[(int)val[SCOPE_HEIGHT - i - 1]];
+	break;
+      default:
+	for(i = 0; i < SCOPE_HEIGHT; i++)
+	    ((uint8 *)pixels)[i] = (uint8)color_ring[(int)val[SCOPE_HEIGHT - i - 1]];
+	break;
     }
 }
 
@@ -347,7 +371,7 @@ static void draw_scope(double *values)
     static int32 call_cnt;
     int offset, expose;
     XEvent e;
-    unsigned char pixels[SCOPE_HEIGHT];
+    char pixels[SCOPE_HEIGHT*32];
     double work[SCOPE_HEIGHT];
     int nze;
     char *mname;
@@ -584,6 +608,7 @@ void open_soundspec(void)
 
     set_color_ring();
     scr = DefaultScreen(disp);
+    depth = DefaultDepth(disp, scr);
     win = XCreateSimpleWindow(disp, DefaultRootWindow(disp),
 			      0, 0, SCOPE_WIDTH, SCOPE_HEIGHT,
 			      0, 0, BlackPixel(disp, scr));
@@ -598,14 +623,12 @@ void open_soundspec(void)
     gcv.graphics_exposures = False;
     gc = XCreateGC(disp, win, GCGraphicsExposures, &gcv);
 
-    offscr = XCreatePixmap(disp, win, SCOPE_WIDTH, SCOPE_HEIGHT,
-			   DefaultDepth(disp, scr));
+    offscr = XCreatePixmap(disp, win, SCOPE_WIDTH, SCOPE_HEIGHT, depth);
     XSetForeground(disp, gc, BlackPixel(disp, scr));
     XFillRectangle(disp, offscr, gc, 0, 0, SCOPE_WIDTH, SCOPE_HEIGHT);
 
     img = XCreateImage(disp, DefaultVisual(disp, scr),
-		       DefaultDepth(disp, scr),
-		       ZPixmap, 0, 0,
+		       depth, ZPixmap, 0, 0,
 		       1, SCOPE_HEIGHT, 8, 0);
     XMapWindow(disp, win);
     XSync(disp, False);

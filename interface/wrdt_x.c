@@ -232,7 +232,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
     char *p;
     char *text;
     int i, len;
-    static txtclr_preserve=0;
+    static int txtclr_preserve=0;
 
     if(cmd == WRD_MAGPRELOAD){
 	/* Load MAG file */

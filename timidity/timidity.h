@@ -561,7 +561,7 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 /* new line code */
 #ifndef NLS
 #ifdef __W32__
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) || defined(__CYGWIN32__) || defined(__MINGW32__)
 #  define NLS "\n"
 #else
 #  define NLS "\r\n"

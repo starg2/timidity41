@@ -250,6 +250,7 @@ static void closedevaudio(void)
 {
   if(dpm.fd != -1)
   {
+    AuStopFlow(fd.aud, fd.flow, NULL);
     while (!fd.finished) syncdevaudio();
     AuCloseServer(fd.aud);
     free(fd.data);
