@@ -2,7 +2,7 @@
 #define ___W32G_UTL_H_
 
 // ini & config
-#define IniVersion "2.0"
+#define IniVersion "2.1"
 typedef struct SETTING_PLAYER_ {
 // Main Window
 	int InitMinimizeFlag;
@@ -53,6 +53,11 @@ typedef struct SETTING_PLAYER_ {
 	int DocMaxSize;
 	char DocFileExt[256];
 // End.
+	int PlayerLanguage;
+	int DocWndIndependent; 
+	int SeachDirRecursive;
+	int IniFileAutoSave;
+// End.
 } SETTING_PLAYER;
 
 typedef struct SETTING_TIMIDITY_ {
@@ -99,6 +104,7 @@ typedef struct SETTING_TIMIDITY_ {
     char OutputName[MAXPATH + 32]; // o : string
 				// P (ignore)
     int voices;			// p
+    int auto_reduce_polyphony;  // pa
     ChannelBitMask quietchannels; // Q
     char opt_qsize[16];		// q
     int32 modify_release;	// R
@@ -112,7 +118,19 @@ typedef struct SETTING_TIMIDITY_ {
 #endif
 				// x (ignore)
 				// Z (ignore)
+    /* for w32g_a.c */
+    int data_block_time;
+    int data_block_num;
+//??    int waveout_data_block_size;
 } SETTING_TIMIDITY;
+
+// #### obsoleted
+#define PLAYERMODE_AUTOQUIT				0x0001
+#define PLAYERMODE_AUTOREFINE				0x0002
+#define PLAYERMODE_AUTOUNIQ				0x0004
+#define PLAYERMODE_NOT_CONTINUE			0x0008
+#define PLAYERMODE_NOT_DRAG_START	0x0010
+
 
 extern char *OutputName;
 
@@ -163,13 +181,16 @@ extern void ApplySettingPlayer(SETTING_PLAYER *sp);
 extern void SaveSettingPlayer(SETTING_PLAYER *sp);
 extern void ApplySettingTiMidity(SETTING_TIMIDITY *st);
 extern void SaveSettingTiMidity(SETTING_TIMIDITY *st);
+extern void SettingCtlFlag(SETTING_TIMIDITY *st, int opt_id, int onoff);
 extern int IniVersionCheck(void);
 extern void BitBltRect(HDC dst, HDC src, RECT *rc);
+#if 0
 extern TmColors tm_colors[ /* TMCC_SIZE */ ];
 #define TmCc(c) (tm_colors[c].color)
 extern void TmInitColor(void);
 extern void TmFreeColor(void);
 extern void TmFillRect(HDC hdc, RECT *rc, int color);
+#endif
 extern void w32g_initialize(void);
 extern int is_directory(char *path);
 extern int directory_form(char *path_in_out);

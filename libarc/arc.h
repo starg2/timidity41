@@ -6,7 +6,7 @@
 #include "url.h"
 #include "mblock.h"
 
-#define ARC_LIB_VERSION "2.0.0"
+#define ARC_LIB_VERSION "2.0.1"
 #define ARC_DEFLATE_LEVEL 6	/* 1:Compress faster .. 9:Compress better */
 #define ARC_ENTRY_HASHSIZE 63
 

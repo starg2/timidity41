@@ -399,7 +399,7 @@ char *url_expand_home_dir(char *fname)
     if(fname[0] != '~')
 	return fname;
 
-    if(fname[1] == PATH_SEP) /* ~/... */
+    if(IS_PATH_SEP(fname[1])) /* ~/... */
     {
 	fname++;
 	if((dir = getenv("HOME")) == NULL)
@@ -412,7 +412,7 @@ char *url_expand_home_dir(char *fname)
 	int i;
 
 	fname++;
-	for(i = 0; i < sizeof(path) && fname[i] && fname[i] != PATH_SEP; i++)
+	for(i = 0; i < sizeof(path) && fname[i] && !IS_PATH_SEP(fname[i]); i++)
 	    path[i] = fname[i];
 	path[i] = '\0';
 	if((pw = getpwnam(path)) == NULL)
@@ -433,7 +433,7 @@ char *url_unexpand_home_dir(char *fname)
     char *dir, *p;
     int dirlen;
 
-    if(fname[0] != PATH_SEP)
+    if(!IS_PATH_SEP(fname[0]))
 	return fname;
 
     if((dir = getenv("HOME")) == NULL)
@@ -443,7 +443,7 @@ char *url_unexpand_home_dir(char *fname)
     if(dirlen == 0 || dirlen >= sizeof(path) - 2)
 	return fname;
     memcpy(path, dir, dirlen);
-    if(path[dirlen - 1] != PATH_SEP)
+    if(!IS_PATH_SEP(path[dirlen - 1]))
 	path[dirlen++] = PATH_SEP;
 
 #ifndef __W32__

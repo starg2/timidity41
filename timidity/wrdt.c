@@ -141,9 +141,9 @@ void wrd_init_path(void)
 	    wrd_add_path_one(current_file_info->filename,
 			     strchr(current_file_info->filename, '#') -
 			     current_file_info->filename + 1);
-	if(strrchr(current_file_info->filename, PATH_SEP) != NULL)
+	if(pathsep_strrchr(current_file_info->filename) != NULL)
 	    wrd_add_path_one(current_file_info->filename,
-			     strrchr(current_file_info->filename, PATH_SEP) -
+			     pathsep_strrchr(current_file_info->filename) -
 			     current_file_info->filename + 1);
     }
 }
@@ -210,7 +210,7 @@ static struct timidity_file *try_wrd_open_file(char *prefix, char *fn)
     len2 = strlen(fn);
     path = (char *)new_segment(&buf, len1 + len2 + 2);
     strcpy(path, prefix);
-    if( len1>0 && path[len1 - 1] != '#' && path[len1 - 1] != PATH_SEP)
+    if( len1>0 && path[len1 - 1] != '#' && !IS_PATH_SEP(path[len1 - 1]))
     {
 	path[len1++] = PATH_SEP;
 	path[len1] = '\0';

@@ -48,6 +48,7 @@
 #define MAX_XAW_MIDI_CHANNELS 16
 
 #define APP_CLASS "TiMidity"
+#define APP_NAME "timidity"
 
 #ifndef PATH_MAX
 #define PATH_MAX 512

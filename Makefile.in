@@ -91,7 +91,6 @@ EMACS = @EMACS@
 ESD_CFLAGS = @ESD_CFLAGS@
 ESD_CONFIG = @ESD_CONFIG@
 ESD_LIBS = @ESD_LIBS@
-EXEEXT = @EXEEXT@
 EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_CONFIG = @GTK_CONFIG@
@@ -116,7 +115,7 @@ tcltk_dep = @tcltk_dep@
 SUBDIRS =  	utils 	libarc 	interface 	timidity 	doc
 
 
-EXTRA_DIST =  	AUTHORS 	COPYING 	ChangeLog 	ChangeLog.1 	INSTALL 	INSTALL.jp 	NEWS 	README 	README.jp 	timidity.ide 	timidity.mak
+EXTRA_DIST =  	AUTHORS 	COPYING 	ChangeLog 	ChangeLog.1 	INSTALL 	INSTALL.jp 	NEWS 	README 	README.jp 	timidity.ide 	timidity.mak 	TiMidity-uj.ad 	TiMidity.ad
 
 
 TOOLSDIR = timidity-tools
@@ -441,6 +440,8 @@ install.bin:
 	cd timidity; $(MAKE) install
 
 dist-hook:
+	CONFIG_HEADERS='' CONFIG_FILES=configs/msc-config.h $(SHELL) ./config.status
+	cp -r configs $(distdir)
 	chmod -R a+r $(distdir)
 	$(TAR) chof - $(distdir) | bzip2 -9 --repetitive-best - > $(distdir).tar.bz2
 

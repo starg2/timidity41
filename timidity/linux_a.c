@@ -63,6 +63,7 @@
 
 /* It is possible count_info.bytes > written bytes. bug? */
 #define BYTES_PROCESSED_BUGFIX 1
+static int ignore_processed_probrem = 0;
 
 #ifndef AFMT_S16_NE
 #ifdef LITTLE_ENDIAN
@@ -230,6 +231,7 @@ static int open_output(void)
 
     dpm.fd = fd;
     output_counter = counter_offset = 0;
+    ignore_processed_probrem = 0;
 
     return warnings;
 }
@@ -237,15 +239,20 @@ static int open_output(void)
 static int output_data(char *buf, int32 nbytes)
 {
     int n;
-    count_info cinfo;
 
-    ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo);
-    if(output_counter < cinfo.bytes)
+#ifdef BYTES_PROCESSED_BUGFIX
+    if(!ignore_processed_probrem)
     {
-	counter_offset += output_counter;
-	ioctl(dpm.fd, SNDCTL_DSP_SYNC);
-	output_counter = 0;
+	count_info cinfo;
+	ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo);
+	if(output_counter < cinfo.bytes)
+	{
+	    counter_offset += output_counter;
+	    ioctl(dpm.fd, SNDCTL_DSP_SYNC);
+	    output_counter = 0;
+	}
     }
+#endif /* BYTES_PROCESSED_BUGFIX */
 
     while(nbytes > 0)
     {
@@ -294,17 +301,22 @@ static int acntl(int request, void *arg)
     {
       case PM_REQ_GETQSIZ:
 	if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
-	  return -1;
+	{
+	    ignore_processed_probrem = 1;
+	    return -1;
+	}
 	total = info.fragstotal * info.fragsize;
 	*((int *)arg) = total;
 	return 0;
 
       case PM_REQ_DISCARD:
 	counter_offset = output_counter = 0;
+	ignore_processed_probrem = 0;
 	return ioctl(dpm.fd, SNDCTL_DSP_RESET);
 
       case PM_REQ_FLUSH:
 	counter_offset = output_counter = 0;
+	ignore_processed_probrem = 0;
 	return ioctl(dpm.fd, SNDCTL_DSP_SYNC);
 
       case PM_REQ_RATE: {
@@ -318,7 +330,10 @@ static int acntl(int request, void *arg)
 
     case PM_REQ_GETFILLABLE:
       if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
-	return -1;
+      {
+	  ignore_processed_probrem = 1;
+	  return -1;
+      }
       total = info.fragstotal * info.fragsize;
       bytes = info.bytes;
       if(bytes > total)
@@ -330,7 +345,10 @@ static int acntl(int request, void *arg)
 
     case PM_REQ_GETFILLED:
       if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
-	return -1;
+      {
+	  ignore_processed_probrem = 1;
+	  return -1;
+      }
       total = info.fragstotal * info.fragsize;
       bytes = info.bytes;
       if(bytes > total)
@@ -343,7 +361,10 @@ static int acntl(int request, void *arg)
 
     case PM_REQ_GETSAMPLES:
       if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
-	return -1;
+      {
+	  ignore_processed_probrem = 1;
+	  return -1;
+      }
       bytes = cinfo.bytes + counter_offset;
       if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
       if(dpm.encoding & PE_16BIT) bytes >>= 1;

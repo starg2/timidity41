@@ -43,6 +43,7 @@ extern void x_PLoad(char *filename);
 extern void x_GMove(int,int,int,int,int,int,int,int,int);
 extern void x_GMode(int mode);
 extern void x_Ton(int param);
+extern void x_Gon(int param);
 extern void x_Startup(int version);
 extern void x_VSget(int *,int);
 extern void x_VRel(void);

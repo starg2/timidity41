@@ -53,7 +53,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.4.1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.5.0, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -208,7 +208,7 @@ case "$target" in
 esac
 
 dnl For .exe
-AC_EXEEXT
+dnl AC_EXEEXT
 
 AC_CHECK_LIB(m,sqrt)
 AC_CHECK_LIB(socket,socket)
@@ -522,7 +522,11 @@ if test "$enable_audio" = "yes"; then
       ;;
     *-*-cygwin32*)
       EXTRADEFS="$EXTRADEFS -DAU_W32"
-      SYSEXTRAS="$SYSEXTRAS w32_a.c"
+      if test "x$enable_w32gui" = xyes; then
+	SYSEXTRAS="$SYSEXTRAS w32g_a.c"
+      else
+	SYSEXTRAS="$SYSEXTRAS w32_a.c"
+      fi
       EXTRALIBS="$EXTRALIBS -lwinmm"
       AC_MSG_RESULT(yes cygnus)
       ;;
@@ -859,7 +863,17 @@ CONFIG_INTERFACE(gtk, GTK, g,
     EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$GTK_CFLAGS)
     INTERFACE_SRCS="$INTERFACE_SRCS gtk_c.c gtk_i.c gtk_p.c"
   ],
-  [ g_so_libs="$GTK_LIBS"
+  [ if test "$GCC" = yes; then
+	dnl Do not include -rdynamic option in $g_so_libs.
+	for i in $GTK_LIBS; do
+	    case "x$i" in
+		x-rdynamic) ;;
+		*) g_so_libs="$g_so_libs $i" ;;
+	    esac
+	done
+    else
+	g_so_libs="$GTK_LIBS"
+    fi
     EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$GTK_CFLAGS) ])
 
 
@@ -871,7 +885,7 @@ CONFIG_INTERFACE(w32gui, W32GUI, w,
   [ lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32'
     lib_user32_opt='-luser32'
     LDFLAGS="-mwindows $LDFLAGS"
-    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_panel.c w32g_canvas.c"
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_pref.c w32g_subwin.c"
   ])
 
 

@@ -193,7 +193,7 @@ static void print_ecmd(char *cmd, int *args, int narg)
 	narg--;
     }
     strcat(p, ")");
-    ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s", p);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "%s", p);
     reuse_mblock(&tmpbuffer);
 }
 
@@ -241,7 +241,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Loading magfile: [%s]", p);
 	m = mag_create(p);
 	if(m == NULL)
-	    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Can't load magfile: %s", p);
+	    ctl->cmsg(CMSG_WARNING, VERB_NOISY, "Can't load magfile: %s", p);
 	else
 	{
 	    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "MAG %s: [%d,%d,%d,%d]",
@@ -289,23 +289,23 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	break;
       case WRD_EXEC:
 	/*I don't spawn another program*/
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@EXEC(%s)", wrd_event2string(wrd_args[0]));
 	break;
       case WRD_FADE:
-	x_Fade(wrd_args,wrd_argc-1,-1,-1);
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@FADE(%d,%d,%d)", wrd_args[0], wrd_args[1], wrd_args[2]);
+	x_Fade(wrd_args,wrd_argc-1,-1,-1);
 	break;
       case WRD_FADESTEP:
-	x_Fade(NULL,0,wrd_args[0],wrd_args[1]);
 #if 0
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@FADESTEP(%d/%d)", wrd_args[0], wrd_args[1]);
 #endif
+	x_Fade(NULL,0,wrd_args[0],wrd_args[1]);
 	break;
       case WRD_GCIRCLE:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@GCIRCLE(%d,%d,%d,%d,%d,%d)",
 		  wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
 		  wrd_args[4], wrd_args[5]);
@@ -315,10 +315,10 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	x_Gcls(wrd_args[0]);
 	break;
       case WRD_GINIT:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "@GINIT()");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "@GINIT()");
 	break;
       case WRD_GLINE:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@GLINE(%d,%d,%d,%d,%d,%d,%d)",
 	       wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
 	       wrd_args[5], wrd_args[6]);
@@ -326,12 +326,12 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	x_Gline(wrd_args,wrd_argc-1);
 	break;
       case WRD_GMODE:
-	x_GMode(wrd_args[0]);
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@GMODE(%d)", wrd_args[0]);
+	x_GMode(wrd_args[0]);
 	break;
       case WRD_GMOVE:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@GMOVE(%d,%d,%d,%d,%d,%d,%d,%d,%d)",
 	       wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
 	       wrd_args[5], wrd_args[6], wrd_args[7], wrd_args[8]);
@@ -343,21 +343,22 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 		wrd_args[6], wrd_args[7], wrd_args[8]);
 	break;
       case WRD_GON:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@GON(%d)", wrd_args[0]);
+	x_Gon(wrd_args[0]);
 	break;
       case WRD_GSCREEN:
-	x_Gscreen(wrd_args[0],wrd_args[1]);
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@GSCREEN(%d,%d)", wrd_args[0], wrd_args[1]);
+	x_Gscreen(wrd_args[0],wrd_args[1]);
 	break;
       case WRD_INKEY:
 	inkey_flag = 1;
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "@INKEY - begin");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "@INKEY - begin");
 	break;
       case WRD_OUTKEY:
 	inkey_flag = 0;
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "@INKEY - end");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "@INKEY - end");
 	break;
       case WRD_LOCATE:
 	/*Length is At most 40*/
@@ -381,7 +382,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 		sprintf(p + strlen(p), "%d,", wrd_args[i]);
 	    }
 	  sprintf(p + strlen(p), "%d,%d)", wrd_args[3], wrd_args[4]);
-	  ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s", p);
+	  ctl->cmsg(CMSG_INFO, VERB_DEBUG, "%s", p);
 	  m=mag_search(wrd_event2string(wrd_args[0]));
 	  if(m!=NULL){
 	    x_Mag(m,wrd_args[1],wrd_args[2],wrd_args[3],wrd_args[4]);
@@ -397,21 +398,21 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	x_Pal(wrd_args,wrd_argc-1);
 	break;
       case WRD_PALCHG:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@PALCHG(%s)", wrd_event2string(wrd_args[0]));
 	break;
       case WRD_PALREV:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@PALREV(%d)", wrd_args[0]);
 	x_Palrev(wrd_args[0]);
 	break;
       case WRD_PATH:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@PATH(%s)", wrd_event2string(wrd_args[0]));
 	wrd_add_path(wrd_event2string(wrd_args[0]), 0);
 	break;
       case WRD_PLOAD:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@PLOAD(%s)", wrd_event2string(wrd_args[0]));
 	x_PLoad(wrd_event2string(wrd_args[0]));
 	break;
@@ -420,11 +421,11 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	len = strlen(p);
 	text = (char *)new_segment(&tmpbuffer, SAFE_CONVERT_LENGTH(len));
 	code_convert(p, text, SAFE_CONVERT_LENGTH(len), NULL, NULL);
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "@REM %s", text);
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "@REM %s", text);
 	reuse_mblock(&tmpbuffer);
 	break;
       case WRD_REMARK:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@REMARK(%s)", wrd_event2string(wrd_args[0]));
 	break;
       case WRD_REST: /* Never call */
@@ -432,22 +433,26 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
       case WRD_SCREEN: /* Not supported */
 	break;
       case WRD_SCROLL:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@SCROLL(%d,%d,%d,%d,%d,%d,%d)",
 		  wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
 		  wrd_args[4], wrd_args[5], wrd_args[6]);
 	break;
       case WRD_STARTUP:
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+		  "@STARTUP(%d)", wrd_args[0]);
 	wrd_init_path();
 	inkey_flag = 0;
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
-		  "@STARTUP(%d)", wrd_args[0]);
 	x_Startup(wrd_args[0]);
 	load_default_graphics(current_file_info->filename);
 	break;
       case WRD_STOP: /* Never call */
 	break;
       case WRD_TCLS:
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+		  "@TCLS(%d,%d,%d,%d,%d,%d)",
+		  wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
+		  wrd_args[4], wrd_args[5]);
 	{
 	  char fillbuf[1024];
 	  int xdiff;
@@ -479,15 +484,11 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	  fillbuf[3]=0;
 	  AddLine(fillbuf,0);
 	}
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
-		  "@TCLS(%d,%d,%d,%d,%d,%d)",
-		  wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
-		  wrd_args[4], wrd_args[5]);
 	break;
       case WRD_TON:
-	x_Ton(wrd_args[0]);
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "@TON(%d)", wrd_args[0]);
+	x_Ton(wrd_args[0]);
 	break;
       case WRD_WAIT: /* Never call */
 	break;
@@ -511,7 +512,6 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	print_ecmd("LINE", wrd_args, 1);
 	break;
       case WRD_ePAL:
-
 	print_ecmd("PAL", wrd_args, 2);
 	break;
       case WRD_eREGSAVE:

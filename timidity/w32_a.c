@@ -121,11 +121,17 @@ MMRESULT WINAPI waveOutGetID(HWAVEOUT, UINT*);
 #include "playmidi.h"
 #include "mblock.h"
 #include "miditrace.h"
+#include "interface.h"
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
+
+#ifdef IA_W32GUI
+volatile int data_block_time = 400;	// msec
+volatile int data_block_num = 20;
+#endif /* IA_W32GUI */
 
 #define DATA_BLOCK_SIZE (4*AUDIO_BUFFER_SIZE)
 #define DATA_BLOCK_NUM  (dpm.extra_param[0])

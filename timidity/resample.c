@@ -45,40 +45,41 @@
 #include "recache.h"
 
 #if defined(CSPLINE_INTERPOLATION)
-# define INTERPVARS      int32   ofsd, v0, v1, v2, v3, sp1, sp2;
+# define INTERPVARS      int32   ofsd, v0, v1, v2, v3, temp;
 # define RESAMPLATION \
-        v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
         v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
         v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
-        v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
-	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
+	if(reduce_quality_flag || \
+	   ((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
                 *dest++ = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
 	}else{ \
-		sp1 = (5*v0 - 11*v1 + 7*v2 - v3)>>2; \
-		sp2 = (5*v3 - 11*v2 + 7*v1 - v0)>>2; \
-		v1 = 6*v1 - sp1; \
-		v2 = 6*v2 - sp2; \
-                ofsd = (1L << FRACTION_BITS) - (ofs & FRACTION_MASK); \
-		sp1 = sp1*ofsd>>FRACTION_BITS; \
-		sp1 = sp1*ofsd>>FRACTION_BITS; \
-		v1 = (v1 + sp1)*ofsd; \
-                ofsd = ofs & FRACTION_MASK; \
-		sp2 = sp2*ofsd>>FRACTION_BITS; \
-		sp2 = sp2*ofsd>>FRACTION_BITS; \
-		v2 = (v2 + sp2)*ofsd; \
+		ofsd=ofs; \
+                v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
+                v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
+                ofs &= FRACTION_MASK; \
+                temp=v2; \
+		v2 = (6*v2 + \
+		      ((((((5*v3 - 11*v2 + 7*v1 - v0)* \
+		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+2))-1))*ofs; \
+                ofs = (1L << FRACTION_BITS) - ofs; \
+		v1 = (6*v1 + \
+		      ((((((5*v0 - 11*v1 + 7*temp - v3)* \
+		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+2))-1))*ofs; \
 		v1 = (v1 + v2)/(6L<<FRACTION_BITS); \
 		*dest++ = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
+		ofs=ofsd; \
 	}
 #elif defined(LAGRANGE_INTERPOLATION)
 # define INTERPVARS      int32   ofsd, v0, v1, v2, v3;
 # define RESAMPLATION \
-        v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
         v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
         v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
-        v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
-	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
+	if(reduce_quality_flag || \
+	   ((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
                 *dest++ = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
 	}else{ \
+                v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
+                v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
                 ofsd = (ofs & FRACTION_MASK) + (1L << FRACTION_BITS); \
                 v1 = v1*ofsd>>FRACTION_BITS; \
                 v2 = v2*ofsd>>FRACTION_BITS; \

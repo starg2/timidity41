@@ -71,7 +71,7 @@ static int name_file_check(char *s)
 {
     int i;
 
-    if(s[0] == PATH_SEP)
+    if(IS_PATH_SEP(s[0]))
 	return 1;
 
     if(strncasecmp(s, "file:", 5) == 0)

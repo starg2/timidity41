@@ -20,4 +20,7 @@
 
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 char *timidity_version = TIMID_VERSION;

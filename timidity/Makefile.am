@@ -117,6 +117,7 @@ EXTRA_timidity_SOURCES = \
 	nas_a.c \
 	sun_a.c \
 	w32_a.c \
+	w32g_a.c \
 	timpp32g.ini
 
 if ENABLE_W32GUI

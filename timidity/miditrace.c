@@ -270,8 +270,9 @@ int32 trace_loop(void)
     {
 	if(lasttime == cur)
 	    midi_trace.head->start--;	/* avoid infinite loop */
+	lasttime = cur;
     }
-    lasttime = cur;
+
     return 1; /* must call trace_loop() continued */
 }
 
@@ -327,7 +328,7 @@ int32 trace_wait_samples(void)
 	return -1;
     if((s = current_trace_samples()) == -1)
 	return 0;
-    s -= midi_trace.head->start;
+    s = midi_trace.head->start - s;
     if(s < 0)
 	s = 0;
     return s;

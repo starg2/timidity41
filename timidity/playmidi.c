@@ -170,6 +170,10 @@ ChannelBitMask drumchannels;
 int adjust_panning_immediately=0;
 int auto_reduce_polyphony=1;
 double envelope_modify_rate = 1.0;
+#if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
+int reduce_quality_flag=0;
+int no_4point_interpolation=0;
+#endif
 
 static int32 lost_notes, cut_notes;
 static int32 common_buffer[AUDIO_BUFFER_SIZE*2], /* stereo samples */
@@ -1878,7 +1882,7 @@ int midi_drumpart_change(int ch, int isdrum)
     return 1;
 }
 
-static void midi_program_change(int ch, int prog)
+void midi_program_change(int ch, int prog)
 {
     int newbank, dr;
 
@@ -1965,9 +1969,9 @@ static void midi_program_change(int ch, int prog)
     if(!ISDRUMCHANNEL(ch) && default_program[ch] == SPECIAL_PROGRAM)
       channel[ch].program = SPECIAL_PROGRAM;
     else
-      channel[ch].program = prog;      
+      channel[ch].program = prog;
 
-    if(opt_realtime_playing == 2 && !dr)
+    if(opt_realtime_playing == 2 && !dr && (play_mode->flag & PF_PCM_STREAM))
     {
 	int b, p;
 
@@ -2656,6 +2660,8 @@ static void voice_increment(int n)
 	    break;
 	voice[voices++].status = VOICE_FREE;
     }
+    if(n > 0)
+	ctl_mode_event(CTLE_MAXVOICES, 1, voices, 0);
 }
 
 static void voice_decrement(int n)
@@ -2710,6 +2716,8 @@ static void voice_decrement(int n)
     }
     if(upper_voices > voices)
 	upper_voices = voices;
+    if(n > 0)
+	ctl_mode_event(CTLE_MAXVOICES, 1, voices, 0);
 }
 
 /* EAW -- do not throw away good notes, stop decrementing */
@@ -2802,6 +2810,7 @@ static int apply_controls(void)
 	  case RC_LOAD_FILE:
 	  case RC_NEXT:		/* >>| */
 	  case RC_REALLY_PREVIOUS: /* |<< */
+	  case RC_TUNE_END:	/* skip */
 	    aq_flush(1);
 	    return rc;
 
@@ -2856,7 +2865,7 @@ static int apply_controls(void)
 	    }
 	    aq_flush(1);
 	    if (val >= sample_count)
-		return RC_NEXT;
+		return RC_TUNE_END;
 	    skip_to(val);
 	    ctl_updatetime(val);
 	    return rc;
@@ -2875,7 +2884,7 @@ static int apply_controls(void)
 	    if(cur == -1)
 		cur = current_sample;
 	    if(val + cur >= sample_count)
-		return RC_NEXT;
+		return RC_TUNE_END;
 	    skip_to(val + cur);
 	    ctl_updatetime(val + cur);
 	    return RC_JUMP;
@@ -3294,6 +3303,17 @@ static int compute_data(int32 count)
       soundspec_update_wave(common_buffer, AUDIO_BUFFER_SIZE);
 #endif /* SUPPORT_SOUNDSPEC */
 
+#if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
+      /* fall back to linear interpolation when queue < 100% */
+      if (opt_realtime_playing != 2 && (play_mode->flag & PF_CAN_TRACE)) {
+	     if (100 * (aq_filled() + aq_soft_filled()) /
+	         aq_get_dev_queuesize() < 100)
+	    		reduce_quality_flag = 1;
+	     else
+			reduce_quality_flag = no_4point_interpolation;
+      }
+#endif
+
 #ifdef REDUCE_VOICE_TIME_TUNING
       /* Auto voice reduce implementation by Masanao Izumo */
       if(reduce_voice_threshold &&
@@ -3403,12 +3423,16 @@ static int compute_data(int32 count)
 		      FLOAT_T n;
 
 		      /* calculate the drastic voice reduction */
-		      n = (FLOAT_T) nv / (nv - kill_nv);
-		      temp_nv = nv - nv / (n + 1);
+		      if(nv > kill_nv) /* Avoid division by zero */
+		      {
+			  n = (FLOAT_T) nv / (nv - kill_nv);
+			  temp_nv = (int)(nv - nv / (n + 1));
 
-                      /* reduce by the larger of the estimates */
-		      if (kill_nv < temp_nv && temp_nv < nv)
-		    	  kill_nv = temp_nv;
+			  /* reduce by the larger of the estimates */
+			  if (kill_nv < temp_nv && temp_nv < nv)
+			      kill_nv = temp_nv;
+		      }
+		      else kill_nv = nv - 1; /* do not kill all the voices */
 		  }
 		  else {
 		      /* the buffer is still high enough that we can throw
@@ -4047,6 +4071,9 @@ int play_midi_file(char *fn)
     ok_nv = 32;
     ok_nv_sample = 0;
     old_rate = -1;
+#if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
+    reduce_quality_flag = no_4point_interpolation;
+#endif
     restore_voices(0);
 #endif
 
@@ -4059,6 +4086,7 @@ int play_midi_file(char *fn)
     ctl_mode_event(CTLE_PLAY_START, 0, nsamples, 0);
     play_mode->acntl(PM_REQ_PLAY_START, NULL);
     rc = play_midi(event, nsamples);
+    play_mode->acntl(PM_REQ_PLAY_END, NULL);
     ctl_mode_event(CTLE_PLAY_END, 0, 0, 0);
     reuse_mblock(&playmidi_pool);
 

@@ -47,7 +47,7 @@
 #include "miditrace.h"
 #include "instrum.h"
 #include "playmidi.h"
-#include "reverb.h"
+
 
 #define TEST_SPARE_RATE 0.9
 #define MAX_BUCKET_TIME 0.2
@@ -477,11 +477,11 @@ int32 aq_soft_filled(void)
 
 int32 aq_fillable(void)
 {
-  int fillable;
+    int fillable;
     if(!IS_STREAM_TRACE)
 	return 0;
     if(play_mode->acntl(PM_REQ_GETFILLABLE, &fillable) != -1)
-      return fillable;
+	return fillable;
     return device_qsize / Bps - aq_filled();
 }
 

@@ -547,15 +547,29 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #endif
 
 /* The path separator (D.M.) */
+/* Windows: "\"
+ * Cygwin:  both "\" and "/"
+ * Macintosh: ":"
+ * Unix: "/"
+ */
 #if defined(__W32__)
 #  define PATH_SEP '\\'
 #  define PATH_STRING "\\"
+#if defined(__CYGWIN32__) || defined(__MINGW32__)
+#  define PATH_SEP2 '/'
+#endif
 #elif defined(__MACOS__)
 #  define PATH_SEP ':'
 #  define PATH_STRING ":"
 #else
 #  define PATH_SEP '/'
 #  define PATH_STRING "/"
+#endif
+
+#ifdef PATH_SEP2
+#define IS_PATH_SEP(c) ((c) == PATH_SEP || (c) == PATH_SEP2)
+#else
+#define IS_PATH_SEP(c) ((c) == PATH_SEP)
 #endif
 
 /* new line code */
@@ -587,6 +601,16 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #define strncasecmp(a,b,c) strncmpi(a,b,c)
 #define strcasecmp(a,b) strcmpi(a,b)
 #endif /* __BORLANDC__ */
+
+#ifdef _MSC_VER
+#define strncasecmp(a,b,c)	_strnicmp((a),(b),(c))
+#define strcasecmp(a,b)		_stricmp((a),(b))
+#define open _open
+#define close _close
+#define write _write
+#define lseek _lseek
+#define unlink _unlink
+#endif /* _MSC_VER */
 
 #define SAFE_CONVERT_LENGTH(len) (6 * (len) + 1)
 

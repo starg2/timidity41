@@ -38,7 +38,9 @@ EXTRA_DIST = \
 	README \
 	README.jp \
 	timidity.ide \
-	timidity.mak
+	timidity.mak \
+	TiMidity-uj.ad \
+	TiMidity.ad
 
 TOOLSDIR = timidity-tools
 UMPDIR = ump
@@ -59,6 +61,8 @@ install.bin:
 	cd timidity; $(MAKE) install
 
 dist-hook:
+	CONFIG_HEADERS='' CONFIG_FILES=configs/msc-config.h $(SHELL) ./config.status
+	cp -r configs $(distdir)
 	chmod -R a+r $(distdir)
 	$(TAR) chof - $(distdir) | bzip2 -9 --repetitive-best - > $(distdir).tar.bz2
 

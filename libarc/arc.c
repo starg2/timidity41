@@ -470,7 +470,7 @@ char **expand_archive_names(int *nfiles_in_out, char **files)
 	    if(strncmp(base, "dir:", 4) == 0)
 		base += 4;
 	    len1 = strlen(base);
-	    if(base[len1 - 1] == PATH_SEP)
+	    if(IS_PATH_SEP(base[len1 - 1]))
 		len1--;
 	    while(url_gets(url, buff, sizeof(buff)))
 	    {

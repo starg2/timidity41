@@ -269,6 +269,27 @@ unsigned int has_bitset(const Bitset *bitset)
     return 0;
 }
 
+int get_bitset1(Bitset *bitset, int n)
+{
+    int i;
+    if(n < 0 || n >= bitset->nbits)
+	return 0;
+    i = BIT_CHUNK_SIZE - n - 1;
+    return (bitset->bits[n / BIT_CHUNK_SIZE] & (1u << i)) >> i;
+}
+
+void set_bitset1(Bitset *bitset, int n, int bit)
+{
+    if(n < 0 || n >= bitset->nbits)
+	return;
+    if(bit)
+	bitset->bits[n / BIT_CHUNK_SIZE] |=
+	    (1 << (BIT_CHUNK_SIZE - n - 1));
+    else
+	bitset->bits[n / BIT_CHUNK_SIZE] &=
+	   ~(1 << (BIT_CHUNK_SIZE - n - 1));
+}
+
 #if 0
 void main(void)
 {

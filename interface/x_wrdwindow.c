@@ -19,6 +19,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     x_wrdwindow.c - MIMPI WRD for X Window written by Takanori Watanabe.
+                  - Modified by Masanao Izumo.
 */
 
 /*
@@ -41,6 +42,24 @@
 #include "VTparse.h"
 #include "wrd.h"
 #include "controls.h"
+#include "aq.h"
+
+#ifndef XSHM_SUPPORT
+#if defined(HAVE_XSHMCREATEPIXMAP) && \
+    defined(HAVE_X11_EXTENSIONS_XSHM_H) && \
+    defined(HAVE_SYS_IPC_H) && \
+    defined(HAVE_SYS_SHM_H)
+#define XSHM_SUPPORT 1
+#else
+#define XSHM_SUPPORT 0
+#endif
+#endif /* XSHM_SUPPORT */
+
+#if XSHM_SUPPORT
+#include <X11/extensions/XShm.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#endif
 
 #define SIZEX WRD_GSCR_WIDTH
 #define SIZEY WRD_GSCR_HEIGHT
@@ -80,32 +99,57 @@ extern int scstable[];
 extern int mbcstable[];
 extern int smbcstable[];
 
+typedef struct _ImagePixmap
+{
+  Pixmap pm;
+  XImage *im; /* Shared pixmap image (NULL for non-support) */
+#if XSHM_SUPPORT
+  XShmSegmentInfo	shminfo;
+#endif /* XSHM_SUPPORT */
+} ImagePixmap;
+
 static struct MyWin{
   Display *d;
   Window w;
   XFontStruct *f8;/*8bit Font*/
   XFontStruct *f16;/*16bit Font*/
-  
-  GC gc,	/* For any screens */
-     gcgr,	/* For Graphic screens */
-     gcbmp;	/* For bitmap */
+
+  GC gc,	/* For any screens (nomask) */
+     gcgr,	/* For Graphic screens (masked by @gmode) */
+     gcbmp;	/* For bitmap (depth=1) */
+
 #define NUMVSCREEN 2
-  Pixmap screens[NUMVSCREEN];/*Screen buffers*/
-  Pixmap gscreen,appearscreen; 
-  Pixmap palscreen; /*pallet screen for truecolor*/
-  Pixmap workbmp;
-  Pixmap offscr;
+  Pixmap screens[NUMVSCREEN];	/* Graphics screen buffers (PseudoColor) */
+  Pixmap active_screen, disp_screen; /* screens[0] or screens[1] */
+  Pixmap offscr;		/* Double buffer */
+  Pixmap workbmp;		/* Tempolary usage (bitmap) */
+/* active_screen: Graphics current draw screen.
+ * disp_screen:   Graphics visiable screen.
+ * The color class of MIMPI graphics screen is 4 bit pseudo color.
+ * The plane bits is masked by (basepix | pmask[0..3])
+ *
+ * offscr: Background pixmap of the main window.
+ * This screen is also used for double buffer.
+ * Redraw(): (disp_screen + text) ----> offscr ----> Window
+ * In TrueColor, it is needed to convert PseudoColor to TrueColor, here.
+ */
+
+  /* For PC98 screen emulation.
+   * Many text escape sequences are supported.
+   */
   Linbuf **scrnbuf;
   int curline;
   int curcol;
   long curattr;
+
 #define NUMPLANE 4
 #define NUMPXL 16
 #define MAXPAL 20
   XColor txtcolor[TXTCOLORS],curcoltab[NUMPXL],
   gcolor[MAXPAL][NUMPXL],gcolorbase[NUMPXL];
-  unsigned long basepix[1],pmask[NUMPLANE];
+  unsigned long basepix, pmask[NUMPLANE], gscreen_plane_mask;
   int ton;
+  int gon;
   int gmode;
 #define TON_NOSHOW 0
   Colormap cmap;
@@ -135,95 +179,24 @@ const static int colval12[16]={
 };
 
 static char *image_buffer; /* Used for @MAG or @PLOAD */
-static unsigned long gscreen_plane_mask;
+Visual *theVisual;
+int theScreen, theDepth;
+int bytes_per_image_pixel;
 
 static int Parse(int);
-static void Redraw(int,int,int,int,int);
+static void Redraw(int,int,int,int);
+static int RedrawText(Drawable,int,int,int,int); /* Redraw only text */
 static void RedrawInject(int x,int y,int width,int height,int flag);
+
+/**** ImagePixmap interfaces ****/
+static ImagePixmap *create_shm_image_pixmap(int width, int height);
+static void free_image_pixmap(ImagePixmap *ip);
 
 /* for truecolor */
 static Bool truecolor;
-static unsigned long pallets[MAXPAL][NUMPXL];
-#define rgb2pixel(xcolorptr) XAllocColor(mywin.d,mywin.cmap,xcolorptr)
-
-  /* ppixel : pseudo pixel value (each bit presents each pallet)*/
-/*#define pal2ppixel(palnum) ((unsigned long) (1L << (palnum)))*/
-static unsigned long pal2ppixel(int palnum) {
-  return(unsigned long) (1L << (palnum));
-}
-#if 0
-static int ppixel2pal(unsigned long ppixel){
-  int i=0;
-  if (!ppixel) return 0;
-  i++;
-  while(ppixel!=1){
-    i++;
-    ppixel >> 1; // statement with no effect??
-  }
-  return i;
-}
-static int pixel2pal(int pal,unsigned long pixel)
-{
-  int i;
-  for(i=0; i<NUMPXL; i++)
-    if(pallets[pal][i]==pixel)
-      return i;
-  return -1;
-}
-static unsigned long pal2pixel(int pal,int i)
-{
-  return pallets[pal][i];
-}
-static void gscreen2palscreen(pallet)
-{
-  XImage *simg, *timg;
-  int x, y;
-  
-  simg = XGetImage(mywin.d, mywin.gscreen,
-		   0, 0, SIZEX, SIZEY, gscreen_plane_mask, ZPixmap);
-  timg = XGetImage(mywin.d, mywin.palscreen,
-		   0, 0, SIZEX, SIZEY, gscreen_plane_mask, ZPixmap);
-  if(!simg) return;
-  for(y = 0; y < SIZEY; y++){
-    for(x = 0; x < SIZEX; x++){
-      int p;
-      p = pixel2pal(pallet, XGetPixel(simg, x, y));
-      XPutPixel(timg, x, y, p);
-    }
-  }
-  XPutImage(mywin.d, mywin.gscreen, mywin.gcgr, timg,
-	    0, 0, 0, 0, SIZEX, SIZEY);
-  XFree(simg);
-  XFree(timg);
-}
-#endif
-static void palscreen2gscreen(pallet)
-{
-  int i;
-  Pixmap colorpix;
-
-  colorpix = XCreatePixmap(mywin.d, mywin.palscreen, SIZEX, SIZEY,
-			   DefaultDepth(mywin.d, DefaultScreen(mywin.d)));
-
-  XSetFunction(mywin.d,mywin.gcgr,GXclear);
-  XFillRectangle(mywin.d, mywin.gscreen, mywin.gcgr, 0, 0, SIZEX, SIZEY);
-  XSetFunction(mywin.d, mywin.gcgr, GXand);
-  for(i=0; i<NUMPXL; i++){
-    /* clear color base */
-    XSetFunction(mywin.d, mywin.gcgr, GXcopy);
-    XSetForeground(mywin.d, mywin.gcgr, pal2ppixel(i));
-    XFillRectangle(mywin.d, colorpix, mywin.gcgr, 0, 0, SIZEX, SIZEY);
-    /* mask with pallet i */
-    XSetFunction(mywin.d, mywin.gcgr, GXand);
-    XCopyArea(mywin.d, mywin.palscreen, colorpix,
-	      mywin.gcgr, 0, 0, SIZEX, SIZEY, 0, 0);
-    XSetForeground(mywin.d, mywin.gcgr, pallets[pallet][i]);
-    XFillRectangle(mywin.d, colorpix, mywin.gcgr, 0, 0, SIZEX, SIZEY);
-    XCopyArea(mywin.d, colorpix, mywin.gscreen,
-	      mywin.gcgr, 0, 0, SIZEX, SIZEY, 0, 0);
-  }
-  XFreePixmap(mywin.d, colorpix);
-}
+static ImagePixmap *shm_screen;	/* for TrueColor conversion */
+static unsigned long truecolor_palette[NUMPXL];
+static int shm_format;
 
 /*12bit color value to color member of XColor structure */
 static void col12toXColor(int val,XColor *set)
@@ -233,6 +206,59 @@ static void col12toXColor(int val,XColor *set)
   set->blue=(0xf&val)*0x1111;
 }
 
+static int highbit(unsigned long ul)
+{
+    int i;  unsigned long hb;
+    hb = 0x80000000UL;
+    for(i = 31; ((ul & hb) == 0) && i >= 0;  i--, ul<<=1)
+	;
+    return i;
+}
+
+static unsigned long trueColorPixel(unsigned long r, /* 0..255 */
+				    unsigned long g, /* 0..255 */
+				    unsigned long b) /* 0..255 */
+{
+    static int rs, gs, bs;
+
+    if(r == 0xffffffff) /* for initialize */
+    {
+	rs = 15 - highbit(theVisual->red_mask);
+	gs = 15 - highbit(theVisual->green_mask);
+	bs = 15 - highbit(theVisual->blue_mask);
+	return 0;
+    }
+
+    r *= 257; /* 0..65535 */
+    g *= 257; /* 0..65535 */
+    b *= 257; /* 0..65535 */
+    if(rs < 0)	r <<= -rs;
+    else	r >>=  rs;
+    if(gs < 0)	g <<= -gs;
+    else	g >>=  gs;
+    if(bs < 0)	b <<= -bs;
+    else	b >>=  bs;
+    r &= theVisual->red_mask;
+    g &= theVisual->green_mask;
+    b &= theVisual->blue_mask;
+
+    return r | g | b;
+}
+
+static void store_palette(void)
+{
+  if(truecolor) {
+    int i;
+    for(i = 0; i < NUMPXL; i++)
+      truecolor_palette[i] = trueColorPixel(mywin.curcoltab[i].red / 257,
+					    mywin.curcoltab[i].green / 257,
+					    mywin.curcoltab[i].blue / 257);
+    Redraw(0, 0, SIZEX, SIZEY);
+  }
+  else
+    XStoreColors(mywin.d, mywin.cmap, mywin.curcoltab, NUMPXL);
+}
+
 static int InitColor(Colormap cmap, Bool allocate)
 {
   int i,j;
@@ -240,18 +266,24 @@ static int InitColor(Colormap cmap, Bool allocate)
   if(allocate) {
     for(i=0;i<TXTCOLORS;i++)
       XAllocNamedColor(mywin.d,cmap,TXTCOLORNAME[i],&mywin.txtcolor[i],&dummy);
-    if (!truecolor)
-      if(!XAllocColorCells(mywin.d,cmap,True,mywin.pmask,NUMPLANE,mywin.basepix,1))
+    if (!truecolor) {
+      if(!XAllocColorCells(mywin.d,cmap,True,mywin.pmask,NUMPLANE,&mywin.basepix,1))
 	return 1;
-    gscreen_plane_mask = 0;
+    } else {
+      trueColorPixel(0xffffffff, 0, 0);
+      mywin.basepix = 0;
+      for(i = 0; i < NUMPLANE; i++)
+	mywin.pmask[i] = (1u<<i); /* 1,2,4,8 */
+    }
+    mywin.gscreen_plane_mask = 0;
     for(i = 0; i < NUMPLANE; i++)
-      gscreen_plane_mask |= mywin.pmask[i];
-    gscreen_plane_mask |= mywin.basepix[0];
+      mywin.gscreen_plane_mask |= mywin.pmask[i];
+    mywin.gscreen_plane_mask |= mywin.basepix;
   }
 
   for(i=0;i<NUMPXL;i++){
     int k;
-    unsigned long pvalue=mywin.basepix[0];
+    unsigned long pvalue=mywin.basepix;
     k=i;
     for(j=0;j<NUMPLANE;j++){
       pvalue|=(((k&1)==1)?mywin.pmask[j]:0);
@@ -260,15 +292,19 @@ static int InitColor(Colormap cmap, Bool allocate)
     col12toXColor(colval12[i],&mywin.curcoltab[i]);
     mywin.curcoltab[i].pixel=pvalue;
     mywin.curcoltab[i].flags=DoRed|DoGreen|DoBlue;
-    if(truecolor) rgb2pixel(&mywin.curcoltab[i]);
   }
-  if(!truecolor) XStoreColors(mywin.d,cmap,mywin.curcoltab,NUMPXL);
+  if(!truecolor)
+    XStoreColors(mywin.d, mywin.cmap, mywin.curcoltab, NUMPXL);
+  else {
+    int i;
+    for(i = 0; i < NUMPXL; i++)
+      truecolor_palette[i] = trueColorPixel(mywin.curcoltab[i].red / 257,
+					    mywin.curcoltab[i].green / 257,
+					    mywin.curcoltab[i].blue / 257);
+  }
+    
   for(i=0;i<MAXPAL;i++)
     memcpy(mywin.gcolor[i],mywin.curcoltab,sizeof(mywin.curcoltab));
-  if(truecolor)
-    for(i=0;i<MAXPAL;i++)
-      for(j=0;j<NUMPXL;j++)
-	pallets[i][j]=mywin.gcolor[i][j].pixel;
   memcpy(mywin.gcolorbase,mywin.curcoltab,sizeof(mywin.curcoltab));
   return 0;
 }
@@ -284,18 +320,18 @@ static int InitWin(char *opt)
   XSizeHints *sh;
   XGCValues gcv;
   int i;
-  XVisualInfo visualTmpl;
-  XVisualInfo *visualList;
-  int nvisuals;
   static int init_flag = 0;
 
   if(init_flag)
       return init_flag;
 
+  ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "Initialize WRD window");
+
   /*Initialize Charactor buffer and attr */
   mywin.curline=0;
   mywin.curcol=0;
   mywin.ton=1;
+  mywin.gon=1;
   mywin.gmode=-1;
   mywin.curattr=0;/*Attribute Ground state*/
   mywin.scrnbuf=(Linbuf **)calloc(LINES,sizeof(Linbuf *));
@@ -312,18 +348,15 @@ static int InitWin(char *opt)
       XSynchronize(mywin.d, True);
   }
 
+  theScreen = DefaultScreen(mywin.d);
+  theDepth = DefaultDepth(mywin.d, theScreen);
+  theVisual = DefaultVisual(mywin.d, theScreen);
+
   /* check truecolor */
-  visualList = XGetVisualInfo(mywin.d, 0, &visualTmpl, &nvisuals);
-  truecolor = False;
-  for (i=0;i<nvisuals;i++){
-    if (visualList[i].visual==DefaultVisual(mywin.d,DefaultScreen(mywin.d))){
-      if (visualList[i].class==TrueColor || visualList[i].class==StaticColor){
-	truecolor=True;
-	break;
-      }
-    }
-  }
-  XFree(visualList);
+  if(theVisual->class == TrueColor || theVisual->class == StaticColor)
+    truecolor=True;
+  else
+    truecolor=False;
 
   if((mywin.f8=XLoadQueryFont(mywin.d,JISX0201))==NULL){
     ctl->cmsg(CMSG_ERROR,VERB_NORMAL,"%s: Can't load font",JISX0201);
@@ -340,12 +373,28 @@ static int InitWin(char *opt)
     init_flag = -1;
     return -1;
   }
+
   mywin.w=XCreateSimpleWindow(mywin.d,DefaultRootWindow(mywin.d)
 			      ,0,0,SIZEX,SIZEY
 			      ,10,
-			      BlackPixel(mywin.d,DefaultScreen(mywin.d)),
-			      WhitePixel(mywin.d,DefaultScreen(mywin.d)));
-  mywin.cmap=DefaultColormap(mywin.d,DefaultScreen(mywin.d));
+			      BlackPixel(mywin.d, theScreen),
+			      WhitePixel(mywin.d, theScreen));
+  mywin.cmap=DefaultColormap(mywin.d, theScreen);
+
+  if(truecolor) {
+#if XSHM_SUPPORT
+    shm_format = XShmPixmapFormat(mywin.d);
+    if(shm_format == ZPixmap)
+      shm_screen = create_shm_image_pixmap(SIZEX, SIZEY);
+    else
+      shm_screen = NULL; /* No-support other format */
+    if(!shm_screen)
+      ctl->cmsg(CMSG_WARNING, VERB_VERBOSE, "X SHM Extention is off");
+#else
+    shm_screen = NULL;
+#endif
+  }
+
   /*This block initialize Colormap*/
   if(InitColor(mywin.cmap, True)!=0){
     mywin.cmap=XCopyColormapAndFree(mywin.d,mywin.cmap);
@@ -373,19 +422,13 @@ static int InitWin(char *opt)
   XFree(sh);
 
   /* Alloc background pixmap(Graphic plane)*/
-  {
-    int depth;
-    depth=DefaultDepth(mywin.d,DefaultScreen(mywin.d));
-    for(i=0;i<NUMVSCREEN;i++)
-      mywin.screens[i]=XCreatePixmap(mywin.d,mywin.w,SIZEX,SIZEY,depth);
-    mywin.offscr=XCreatePixmap(mywin.d,mywin.w,SIZEX,SIZEY,depth);
-    mywin.workbmp=XCreatePixmap(mywin.d,mywin.w,SIZEX,CSIZEY,1);
-    mywin.gscreen=mywin.screens[0];
-    if(truecolor)
-      mywin.palscreen=XCreatePixmap(mywin.d,mywin.w,SIZEX,SIZEY,depth);
-    XSetWindowBackgroundPixmap(mywin.d,mywin.w,mywin.screens[0]);
-    mywin.appearscreen=mywin.screens[0];
-  }
+  for(i=0;i<NUMVSCREEN;i++)
+    mywin.screens[i]=XCreatePixmap(mywin.d,mywin.w,SIZEX,SIZEY,theDepth);
+  mywin.offscr=XCreatePixmap(mywin.d,mywin.w,SIZEX,SIZEY,theDepth);
+  mywin.workbmp=XCreatePixmap(mywin.d,mywin.w,SIZEX,CSIZEY,1);
+  mywin.active_screen=mywin.screens[0];
+  mywin.disp_screen=mywin.screens[0];
+  XSetWindowBackgroundPixmap(mywin.d, mywin.w, mywin.offscr);
 
   gcv.graphics_exposures = False;
   mywin.gc=XCreateGC(mywin.d,mywin.w,GCGraphicsExposures, &gcv);
@@ -397,16 +440,23 @@ static int InitWin(char *opt)
 
   /*This Initialize background pixmap(Graphic plane)*/
   XSetForeground(mywin.d,mywin.gcgr,mywin.curcoltab[0].pixel);
-  XFillRectangle(mywin.d,mywin.gscreen,mywin.gcgr,0,0,SIZEX,SIZEY);
+  XFillRectangle(mywin.d,mywin.active_screen,mywin.gcgr,0,0,SIZEX,SIZEY);
   for(i=0;i<NUMVSCREEN;i++)
       XFillRectangle(mywin.d, mywin.screens[i], mywin.gcgr,
 		     0, 0, SIZEX, SIZEY);
   XFillRectangle(mywin.d, mywin.offscr, mywin.gcgr, 0, 0, SIZEX, SIZEY);
 
   XSetForeground(mywin.d,mywin.gc,mywin.txtcolor[COLOR_DEFAULT].pixel);
-  XSelectInput(mywin.d,mywin.w,ExposureMask|ButtonPressMask);
-  image_buffer=(char *)safe_malloc(SIZEX*SIZEY*
-	(DefaultDepth(mywin.d,DefaultScreen(mywin.d))+7)/8);
+  XSelectInput(mywin.d,mywin.w,ButtonPressMask);
+
+  { /* calc bytes_per_image_pixel */
+    XImage *im;
+    im = XCreateImage(mywin.d, theVisual, theDepth, ZPixmap,
+		      0, NULL, 1, 1, 8, 0);
+    bytes_per_image_pixel = im->bits_per_pixel/8;
+    XDestroyImage(im);
+  }
+  image_buffer=(char *)safe_malloc(SIZEX*SIZEY*bytes_per_image_pixel);
   init_flag = 1;
   return 0;
 }
@@ -448,23 +498,10 @@ static int DrawReverseString(Display *disp,Drawable d,GC gc,int x,int y,
   return 0;
 }
 
-static void Redraw(int x,int y,int width,int height,int flag)
+static int RedrawText(Drawable drawable, int x,int y,int width,int height)
 {
   int i,yfrom,yto,xfrom,xto;
   int drawflag;
-
-  if(!mywin.redrawflag)
-    return;
-  if(mywin.ton==TON_NOSHOW){
-      XClearArea(mywin.d,mywin.w,x,y,width,height,False);
-    return;
-  }
-  if(!flag){
-    XCopyArea(mywin.d,mywin.offscr,mywin.w,mywin.gc,x,y,width,height,x,y);
-    return;
-  }
-  XCopyArea(mywin.d,mywin.appearscreen,mywin.offscr,mywin.gc,
-	    x,y,width,height,x,y);
 
   xfrom=x/CSIZEX;
   xfrom=max(xfrom,0);
@@ -531,7 +568,7 @@ static void Redraw(int x,int y,int width,int height,int flag)
 	      XSetForeground(mywin.d,mywin.gc,
 			     mywin.txtcolor[tcol].pixel);
 	    }
-	    (*DrawStringFunc)(mywin.d,mywin.offscr,mywin.gc,
+	    (*DrawStringFunc)(mywin.d,drawable,mywin.gc,
 			      s_x-lbearing,i*CSIZEY+ascent,line,pos);
 	    drawflag=1;
 	    if((prevattr&CATTR_COLORED)||(prevattr&CATTR_BGCOLORED))
@@ -546,116 +583,118 @@ static void Redraw(int x,int y,int width,int height,int flag)
       }
     }
   }
-  if(drawflag)
-    XCopyArea(mywin.d,mywin.offscr,mywin.w,mywin.gc,x,y,width,height,x,y);
-  else
-    XClearArea(mywin.d,mywin.w,x,y,width,height,False);
+  return drawflag;
 }
 
-
-static void RedrawPallet(int pallet)
+/* Copy disp_screen to offscr */
+static void TransferArea(int sx, int sy, int width, int height)
 {
-  int i,yfrom,yto,xfrom,xto;
-  int drawflag;
+    if(!truecolor)
+	XCopyArea(mywin.d, mywin.disp_screen, mywin.offscr, mywin.gc,
+		  sx, sy, width, height, sx, sy);
+    else
+    {
+	XImage *im;
+	int x, y, i, c;
+	int units_per_line;
+	int x0, y0;
 
+	if(sx + width > SIZEX)
+	    width = SIZEX - sx;
+	if(sy + height > SIZEY)
+	    height = SIZEY - sy;
+
+#if XSHM_SUPPORT
+	if(shm_screen)
+	{
+	    im = shm_screen->im;
+	    XCopyArea(mywin.d, mywin.disp_screen, shm_screen->pm, mywin.gc,
+		      sx, sy, width, height, 0, 0);
+	    XSync(mywin.d, 0); /* Wait until ready */
+	    x0 = 0;
+	    y0 = 0;
+	}
+	else
+#endif /* XSHM_SUPPORT */
+	{
+	    im = XGetImage(mywin.d, mywin.disp_screen,
+			   sx, sy, width, height, AllPlanes, ZPixmap);
+	    x0 = 0;
+	    y0 = 0;
+	}
+
+	units_per_line = im->bytes_per_line / (im->bits_per_pixel / 8);
+
+	/* Optimize 8, 16, 32 bit depth image */
+	switch(im->bits_per_pixel)
+	{
+	  case 8:
+	    for(y = 0; y < height; y++)
+		for(x = 0; x < width; x++)
+		{
+		    i = (y0 + y) * units_per_line + x0 + x;
+		    c = im->data[i];
+		    im->data[i] = truecolor_palette[c];
+		}
+	    break;
+	  case 16:
+	    for(y = 0; y < height; y++)
+		for(x = 0; x < width; x++)
+		{
+		    i = (y0 + y) * units_per_line + x0 + x;
+		    c = ((uint16 *)im->data)[i];
+		    ((uint16 *)im->data)[i] = truecolor_palette[c];
+		}
+	    break;
+	  case 32:
+	    for(y = 0; y < height; y++)
+		for(x = 0; x < width; x++)
+		{
+		    i = (y0 + y) * units_per_line + x0 + x;
+		    c = ((uint32 *)im->data)[i];
+		    ((uint32 *)im->data)[i] = truecolor_palette[c];
+		}
+	    break;
+	  default:
+	    for(y = 0; y < height; y++)
+		for(x = 0; x < width; x++)
+		{
+		    c = XGetPixel(im, x0 + x, y0 + y);
+		    XPutPixel(im, x0 + x, y0 + y, truecolor_palette[c]);
+		}
+	    break;
+	}
+
+#if XSHM_SUPPORT
+	if(shm_screen)
+	    XCopyArea(mywin.d, shm_screen->pm, mywin.offscr, mywin.gc,
+		      x0, y0, width, height, sx, sy);
+	else
+#endif
+	{
+	    XPutImage(mywin.d, mywin.offscr, mywin.gc, im,
+		      x0, y0, sx, sy, width, height);
+	    XDestroyImage(im);
+	}
+    }
+}
+
+static void Redraw(int x, int y, int width, int height)
+{
   if(!mywin.redrawflag)
     return;
-  if(mywin.ton==TON_NOSHOW){
-    XClearArea(mywin.d,mywin.w,0,0,SIZEX,SIZEY,False);
-    return;
+
+  if(mywin.gon)
+    TransferArea(x, y, width, height);
+  else {
+    XSetForeground(mywin.d, mywin.gc,
+		   BlackPixel(mywin.d,DefaultScreen(mywin.d)));
+    XFillRectangle(mywin.d, mywin.offscr, mywin.gc, x, y, width, height);
   }
 
-  /*gscreen2palscreen(pallet);*/
-
-  xfrom=0/CSIZEX;
-  xto=(0+SIZEX-1)/CSIZEX;
-  xto=(xto<COLS-1)?xto:COLS-1;
-  yfrom=0/CSIZEY;
-  yto=(0+SIZEY-1)/CSIZEY;
-  yto=(yto<LINES-1)?yto:LINES-1;
-
-  drawflag=0;
-  for(i=yfrom;i<=yto;i++){
-    if(mywin.scrnbuf[i]!=NULL){
-      long prevattr,curattr;
-      char line[COLS+1];
-      int pos,s_x,e_x;
-      int j,jfrom,jto;
-
-      jfrom=xfrom;
-      jto=xto;
-
-      /* Check multibyte boudary */
-      if(jfrom > 0 && (mywin.scrnbuf[i][jfrom-1].attr&CATTR_LPART))
-	  jfrom--;
-      if(jto < COLS-1 && (mywin.scrnbuf[i][jto].attr&CATTR_LPART))
-	  jto++;
-
-      pos=0;
-      prevattr=CATTR_INVAL;
-      s_x=e_x=jfrom*CSIZEX;
-      for(j=jfrom;j<=jto+1;j++){
-	if(j==jto+1 || mywin.scrnbuf[i][j].c==0) {
-	  curattr=CATTR_INVAL;
-	}else
-	  curattr=mywin.scrnbuf[i][j].attr;
-	if((prevattr&~CATTR_LPART)!=(curattr&~CATTR_LPART)){
-	  XFontStruct *f=NULL;
-	  int lbearing,ascent;
-	  int (*DrawStringFunc)();
-	  DrawStringFunc=XDrawString;
-	  line[pos]=0;
-	  if(prevattr<0){
-	    DrawStringFunc=NULL;
-	  }else if(prevattr&CATTR_16FONT){
-	    f=mywin.f16;
-	    DrawStringFunc=XDrawString16;
-	    pos/=2;
-	  }else
-	    f=mywin.f8;
-	  if(DrawStringFunc!=NULL){
-	    XSetFont(mywin.d,mywin.gc,f->fid);
-	    lbearing=f->min_bounds.lbearing;
-	    ascent=f->max_bounds.ascent;
-	    if(prevattr&CATTR_COLORED){
-	      int tcol;
-	      tcol=(prevattr&CATTR_TXTCOL_MASK)>>CATTR_TXTCOL_MASK_SHIFT;
-	      XSetForeground(mywin.d,mywin.gc,
-			     mywin.gcolor[pallet][tcol].pixel);
-	      /*pal2pixel(pallet,tcol));*/
-  	    }else if(prevattr&CATTR_BGCOLORED){
-  	      int tcol;
-  	      tcol=(prevattr&CATTR_TXTCOL_MASK)>>CATTR_TXTCOL_MASK_SHIFT;
-	      DrawStringFunc=(DrawStringFunc==XDrawString)?DrawReverseString:DrawReverseString16;
-	      XSetForeground(mywin.d,mywin.gc,
-			     mywin.gcolor[pallet][tcol].pixel);
-	      /*pal2pixel(pallet,tcol));*/
-	    }
-	    (*DrawStringFunc)(mywin.d,mywin.offscr,mywin.gc,
-			      s_x-lbearing,i*CSIZEY+ascent,line,pos);
-	    drawflag=1;
-	    if((prevattr&CATTR_COLORED)||(prevattr&CATTR_BGCOLORED))
-	      XSetForeground(mywin.d,mywin.gc,
-			     mywin.gcolor[pallet][COLOR_DEFAULT].pixel);
-	    /*pal2pixel(pallet,COLOR_DEFAULT));*/
-
-	  }
-	  prevattr=curattr;
-	  s_x=e_x;
-	  pos=0;
-	}
-	line[pos++]=mywin.scrnbuf[i][j].c;
-	e_x+=CSIZEX;
-      }
-    }
-  }
-  if(drawflag)
-    XCopyArea(mywin.d,mywin.offscr,mywin.w,mywin.gc,0,0,SIZEX,SIZEY,0,0);
-  else
-    XClearArea(mywin.d,mywin.w,0,0,SIZEX,SIZEY,False);
-
-  palscreen2gscreen(pallet);
-  XSetWindowBackgroundPixmap(mywin.d, mywin.w, mywin.gscreen);
+  if(mywin.ton)
+    RedrawText(mywin.offscr, x, y, width, height);
+  XClearArea(mywin.d, mywin.w, x, y, width, height, False);
 }
 
 
@@ -739,7 +778,7 @@ static void RedrawInject(int x,int y,int width,int height,int flag){
     }
   }
   else if(xfrom!=-1)
-    Redraw(xfrom,yfrom,xto-xfrom,yto-yfrom,True);
+    Redraw(xfrom,yfrom,xto-xfrom,yto-yfrom);
 }
 /************************************************************
  *   Graphic Command Functions
@@ -750,7 +789,7 @@ static void RedrawInject(int x,int y,int width,int height,int flag){
 void x_GMode(int mode)
 {
   int i;
-  unsigned long  mask=0;
+  unsigned long  mask;
 
   if(mode == -1)
   {
@@ -763,6 +802,7 @@ void x_GMode(int mode)
   mode&=15;
   mywin.gmode = mode;
   mode = (mode&8)|wrd_plane_remap[mode&7];
+  mask = mywin.basepix;
   for(i=0;i<NUMPLANE;i++){
     mask|=(((mode&1)==1)?mywin.pmask[i]:0);
     mode=mode>>1;
@@ -786,14 +826,15 @@ void x_GMove(int xorig,int yorig,int xend,int yend,int xdist,int ydist,
       XCopyArea(mywin.d,mywin.screens[endp],mywin.screens[srcp],mywin.gcgr
 		,xdist,ydist,w,h,xorig,yorig);
       XSetFunction(mywin.d,mywin.gcgr,GXcopy);
-      if(mywin.screens[srcp]==mywin.appearscreen)
-	Redraw(xorig,yorig,w,h,True);
+      if(mywin.screens[srcp]==mywin.disp_screen)
+	Redraw(xorig,yorig,w,h);
     }
     else
       XCopyArea(mywin.d,mywin.screens[srcp],mywin.screens[endp],mywin.gcgr
 		,xorig,yorig,w,h,xdist,ydist);
-    if(mywin.screens[endp]==mywin.appearscreen)
-      Redraw(xdist,ydist,w,h,True);
+    if(mywin.screens[endp]==mywin.disp_screen) {
+      Redraw(xdist,ydist,w,h);
+    }
   }
 }
 void x_VSget(int *params,int nparam)
@@ -852,8 +893,8 @@ void x_VCopy(int sx1,int sy1,int sx2,int sy2,int tx,int ty
   }
   XCopyArea(mywin.d,srcpage,distpage,mywin.gc
 	    ,sx1,sy1,w,h,tx,ty);
-  if(distpage==mywin.appearscreen)
-    Redraw(tx,ty,w,h,True);
+  if(distpage==mywin.disp_screen)
+    Redraw(tx,ty,w,h);
 }
 
 void x_XCopy(int sx1,
@@ -893,10 +934,10 @@ void x_XCopy(int sx1,
 
       case 1: /* copy except pallet No.0 */
 	simg = XGetImage(mywin.d, mywin.screens[ss],
-			 sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			 sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	if(!simg) break;
 	timg = XGetImage(mywin.d, mywin.screens[ts],
-			 tx, ty, w, h, gscreen_plane_mask, ZPixmap);
+			 tx, ty, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	if(!timg) break;
 	for(y = 0; y < h; y++)
 	    for(x = 0; x < w; x++)
@@ -907,8 +948,8 @@ void x_XCopy(int sx1,
 	    }
 	XPutImage(mywin.d, mywin.screens[ts], mywin.gcgr, timg,
 		  0, 0, tx, ty, w, h);
-	if(mywin.screens[ts] == mywin.appearscreen)
-	    Redraw(tx, ty, w, h, True);
+	if(mywin.screens[ts] == mywin.disp_screen)
+	    Redraw(tx, ty, w, h);
 	break;
 
       case 2: /* xor */
@@ -931,7 +972,7 @@ void x_XCopy(int sx1,
 
       case 5: /* reverse x */
 	simg = XGetImage(mywin.d, mywin.screens[ss],
-			 sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			 sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	if(!simg)
 	    break;
 	for(y = 0; y < h; y++)
@@ -947,13 +988,13 @@ void x_XCopy(int sx1,
 	}
 	XPutImage(mywin.d, mywin.screens[ts], mywin.gcgr, simg,
 		  0, 0, tx, ty, w, h);
-	if(mywin.screens[ts] == mywin.appearscreen)
-	    Redraw(tx, ty, w, h, True);
+	if(mywin.screens[ts] == mywin.disp_screen)
+	    Redraw(tx, ty, w, h);
 	break;
 
       case 6: /* reverse y */
 	simg = XGetImage(mywin.d, mywin.screens[ss],
-			 sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			 sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	if(!simg)
 	    break;
 	for(y = 0; y < h/2; y++)
@@ -969,13 +1010,13 @@ void x_XCopy(int sx1,
 	}
 	XPutImage(mywin.d, mywin.screens[ts], mywin.gcgr, simg,
 		  0, 0, tx, ty, w, h);
-	if(mywin.screens[ts] == mywin.appearscreen)
-	    Redraw(tx, ty, w, h, True);
+	if(mywin.screens[ts] == mywin.disp_screen)
+	    Redraw(tx, ty, w, h);
 	break;
 
       case 7: /* reverse x-y */
 	simg = XGetImage(mywin.d, mywin.screens[ss],
-			 sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			 sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	if(!simg)
 	    break;
 	for(i = 0; i < w*h/2; i++)
@@ -988,18 +1029,18 @@ void x_XCopy(int sx1,
 	}
 	XPutImage(mywin.d, mywin.screens[ts], mywin.gcgr, simg,
 		  0, 0, tx, ty, w, h);
-	if(mywin.screens[ts] == mywin.appearscreen)
-	    Redraw(tx, ty, w, h, True);
+	if(mywin.screens[ts] == mywin.disp_screen)
+	    Redraw(tx, ty, w, h);
 	break;
 
       case 8: /* copy except pallet No.0 (type2) */
 	if(nopts < 2)
 	    break;
 	simg = XGetImage(mywin.d, mywin.screens[ss],
-			 sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			 sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	if(!simg) break;
 	timg = XGetImage(mywin.d, mywin.screens[ts],
-			 opts[0], opts[1], w, h, gscreen_plane_mask, ZPixmap);
+			 opts[0], opts[1], w, h, mywin.gscreen_plane_mask, ZPixmap);
 	if(!timg) break;
 	for(y = 0; y < h; y++)
 	    for(x = 0; x < w; x++)
@@ -1010,8 +1051,8 @@ void x_XCopy(int sx1,
 	    }
 	XPutImage(mywin.d, mywin.screens[ts], mywin.gcgr, timg,
 		  0, 0, tx, ty, w, h);
-	if(mywin.screens[ts] == mywin.appearscreen)
-	    Redraw(tx, ty, w, h, True);
+	if(mywin.screens[ts] == mywin.disp_screen)
+	    Redraw(tx, ty, w, h);
 	break;
 
       case 9: { /* Mask copy */
@@ -1020,10 +1061,10 @@ void x_XCopy(int sx1,
 	    break;
 	  opt5 = opts[4];
 	  simg = XGetImage(mywin.d, mywin.screens[ss],
-			   sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			   sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	  if(!simg) break;
 	  timg = XGetImage(mywin.d, mywin.screens[ts],
-			   tx, ty, w, h, gscreen_plane_mask, ZPixmap);
+			   tx, ty, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	  if(!timg) break;
 	  for(y = 0; y < h; y++)
 	  {
@@ -1043,8 +1084,8 @@ void x_XCopy(int sx1,
 	  }
 	  XPutImage(mywin.d, mywin.screens[ts], mywin.gcgr, timg,
 		    0, 0, tx, ty, w, h);
-	  if(mywin.screens[ts] == mywin.appearscreen)
-	      Redraw(tx, ty, w, h, True);
+	  if(mywin.screens[ts] == mywin.disp_screen)
+	      Redraw(tx, ty, w, h);
 	}
 	break;
 
@@ -1059,10 +1100,10 @@ void x_XCopy(int sx1,
 	  if(cp + sk == 0)
 	      break;
 	  simg = XGetImage(mywin.d, mywin.screens[ss],
-			   sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			   sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	  if(!simg) break;
 	  timg = XGetImage(mywin.d, mywin.screens[ts],
-			   tx, ty, w, h, gscreen_plane_mask, ZPixmap);
+			   tx, ty, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	  if(!timg) break;
 	  y = 0;
 	  while(y < h)
@@ -1075,8 +1116,8 @@ void x_XCopy(int sx1,
 	      y += sk;
 	  }
 	}
-	if(mywin.screens[ts] == mywin.appearscreen)
-	    Redraw(tx, ty, w, h, True);
+	if(mywin.screens[ts] == mywin.disp_screen)
+	    Redraw(tx, ty, w, h);
 	break;
 
       case 11: {
@@ -1113,12 +1154,12 @@ void x_XCopy(int sx1,
 			h - (ety - SIZEY),
 			0, 0);
 	  }
-	  if(mywin.screens[ts] == mywin.appearscreen)
+	  if(mywin.screens[ts] == mywin.disp_screen)
 	  {
 	      if(etx < SIZEX && ety < SIZEY)
-		  Redraw(tx, ty, w, h, True);
+		  Redraw(tx, ty, w, h);
 	      else
-		  Redraw(0, 0, SIZEX, SIZEY, True);
+		  Redraw(0, 0, SIZEX, SIZEY);
 	  }
 	}
 	break;
@@ -1126,14 +1167,14 @@ void x_XCopy(int sx1,
       case 12: {
 	  unsigned long psm, ptm;
 	  int plane_map[4] = {2, 0, 1, 3};
-	  psm = mywin.pmask[plane_map[opts[0] & 3]];
-	  ptm = mywin.pmask[plane_map[opts[1] & 3]];
+	  psm = mywin.pmask[plane_map[opts[0] & 3]] | mywin.basepix;
+	  ptm = mywin.pmask[plane_map[opts[1] & 3]] | mywin.basepix;
 
 	  simg = XGetImage(mywin.d, mywin.screens[ss],
-			   sx1, sy1, w, h, gscreen_plane_mask, ZPixmap);
+			   sx1, sy1, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	  if(!simg) break;
 	  timg = XGetImage(mywin.d, mywin.screens[ts],
-			   tx, ty, w, h, gscreen_plane_mask, ZPixmap);
+			   tx, ty, w, h, mywin.gscreen_plane_mask, ZPixmap);
 	  if(!timg) break;
 	  for(y = 0; y < h; y++)
 	      for(x = 0; x < w; x++)
@@ -1147,8 +1188,8 @@ void x_XCopy(int sx1,
 		      p2 &= ~ptm;
 		  XPutPixel(timg, x, y, p2);
 	      }
-	  if(mywin.screens[ts] == mywin.appearscreen)
-	      Redraw(tx, ty, w, h, True);
+	  if(mywin.screens[ts] == mywin.disp_screen)
+	      Redraw(tx, ty, w, h);
 	}
 	break;
     }
@@ -1177,10 +1218,10 @@ void x_PLoad(char *filename){
   memset(image->data, 0, SIZEX * SIZEY);
   if(!pho_load_pixel(image,mywin.curcoltab,filename))
     return;
-  XPutImage(mywin.d,mywin.gscreen,mywin.gc
+  XPutImage(mywin.d,mywin.active_screen,mywin.gc
 	    ,image,0,0,0,0,SIZEX,SIZEY);
-  if(mywin.gscreen==mywin.appearscreen)
-    Redraw(0,0,SIZEX,SIZEY,True);
+  if(mywin.active_screen==mywin.disp_screen)
+    Redraw(0,0,SIZEX,SIZEY);
 }
 
 void x_Mag(magdata *mag,int32 x,int32 y,int32 s,int32 p)
@@ -1200,16 +1241,16 @@ void x_Mag(magdata *mag,int32 x,int32 y,int32 s,int32 p)
 
   mag->pal[0]=17;
   x_Pal(mag->pal,16);
-  if(mywin.gscreen==mywin.screens[0]){ /* Foreground screen */
+  if(mywin.active_screen==mywin.screens[0]){ /* Foreground screen */
     mag->pal[0]=18;
-    if(!truecolor) x_Pal(mag->pal,16);
+    x_Pal(mag->pal,16);
   } else {			/* Background screen */
     mag->pal[0]=19;
-    if(!truecolor) x_Pal(mag->pal,16);
+    x_Pal(mag->pal,16);
   }
   if((p&1)==0){
     mag->pal[0]=0;
-    if(!truecolor) x_Pal(mag->pal,16);
+    x_Pal(mag->pal,16);
   }
   if(p==2)
     return;
@@ -1220,10 +1261,10 @@ void x_Mag(magdata *mag,int32 x,int32 y,int32 s,int32 p)
   image->data=image_buffer;
   memset(image->data, 0, pixsizex*pixsizey);
   mag_load_pixel(image,mywin.curcoltab,mag);
-  XPutImage(mywin.d,mywin.gscreen,mywin.gc
+  XPutImage(mywin.d,mywin.active_screen,mywin.gc
 	    ,image,0,0,x,y,pixsizex,pixsizey);
-  if(mywin.gscreen==mywin.appearscreen)
-    Redraw(x,y,pixsizex,pixsizey,True);
+  if(mywin.active_screen==mywin.disp_screen)
+    Redraw(x,y,pixsizex,pixsizey);
   MyDestroyImage(image);
 }
 void x_Gcls(int mode)
@@ -1235,26 +1276,31 @@ void x_Gcls(int mode)
     mode=15;
   x_GMode(mode);
   XSetFunction(mywin.d,mywin.gcgr,GXclear);
-  if(truecolor)
-    XFillRectangle(mywin.d,mywin.palscreen,mywin.gcgr,0,0,SIZEX,SIZEY);
-  else
-    XFillRectangle(mywin.d,mywin.gscreen,mywin.gcgr,0,0,SIZEX,SIZEY);
+  XFillRectangle(mywin.d,mywin.active_screen,mywin.gcgr,0,0,SIZEX,SIZEY);
   XSetFunction(mywin.d,mywin.gcgr,GXcopy);
   x_GMode(gmode_save);
-  Redraw(0,0,SIZEX,SIZEY,True);
+  Redraw(0,0,SIZEX,SIZEY);
 }
+
 void x_Ton(int param)
 {
   mywin.ton=param;
-  Redraw(0,0,SIZEX,SIZEY,True);
+  Redraw(0,0,SIZEX,SIZEY);
 }
+
+void x_Gon(int param)
+{
+  mywin.gon=param;
+  Redraw(0,0,SIZEX,SIZEY);
+}
+
 void x_RedrawControl(int flag)
 {
   mywin.redrawflag = flag;
   if(flag)
   {
-    Redraw(0,0,SIZEX,SIZEY,True);
-    if(!truecolor) XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
+    Redraw(0,0,SIZEX,SIZEY);
+    store_palette();
   }
   XFlush(mywin.d);
 }
@@ -1269,10 +1315,7 @@ void x_Gline(int *params,int nparam)
     w = max(params[0], params[2]) - x + 1;
     h = max(params[1], params[3]) - y + 1;
 
-    if (truecolor)
-      screen = mywin.palscreen;
-    else
-      screen = mywin.gscreen;
+    screen = mywin.active_screen;
 
     switch(params[5])
     {
@@ -1305,8 +1348,8 @@ void x_Gline(int *params,int nparam)
 
 	break;
   }
-  if(mywin.gscreen==mywin.appearscreen)
-    Redraw(x,y,w,h,True);
+  if(mywin.active_screen==mywin.disp_screen)
+    Redraw(x,y,w,h);
 }
 void x_GCircle(int *params,int nparam)
 {
@@ -1341,11 +1384,11 @@ void x_GCircle(int *params,int nparam)
     ycorner=params[1]-params[2];/*y_center-radius*/
     width=height=params[2]*2;/*radius*2*/
     angle=360*64;
-    (*Linefunc)(mywin.d,mywin.gscreen,mywin.gcgr,xcorner,ycorner,
+    (*Linefunc)(mywin.d,mywin.active_screen,mywin.gcgr,xcorner,ycorner,
 		width+pad,height+pad,
 		0,angle);
-    if(mywin.gscreen==mywin.appearscreen)
-      Redraw(xcorner,ycorner,width,height,True);
+    if(mywin.active_screen==mywin.disp_screen)
+      Redraw(xcorner,ycorner,width,height);
   }
 }
 
@@ -1366,17 +1409,11 @@ void x_Pal(int *param,int nparam){
     int i;
     for(i=0;i<NUMPXL;i++){
       col12toXColor(param[i],&mywin.gcolor[pallet][i]);
-      if(truecolor){
-	rgb2pixel(&mywin.gcolor[pallet][i]);
-	pallets[pallet][i]=mywin.gcolor[pallet][i].pixel;
-      }
     }
     if(pallet==FOREGROUND_PALLET){
       memcpy(mywin.curcoltab,mywin.gcolor[FOREGROUND_PALLET],sizeof(mywin.curcoltab));
-      if(mywin.redrawflag) {
-	if(truecolor) RedrawPallet(FOREGROUND_PALLET);
-	else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
-      }
+      if(mywin.redrawflag)
+	  store_palette();
     }
   }
 }
@@ -1389,29 +1426,27 @@ void x_Palrev(int pallet)
     mywin.gcolor[pallet][i].red ^= 0xffff;
     mywin.gcolor[pallet][i].green ^= 0xffff;
     mywin.gcolor[pallet][i].blue ^= 0xffff;
-    if(truecolor) rgb2pixel(&mywin.gcolor[pallet][i]);
   }
 
   if(pallet == FOREGROUND_PALLET){
     memcpy(mywin.curcoltab,
 	   mywin.gcolor[FOREGROUND_PALLET],
 	   sizeof(mywin.curcoltab));
-    if(mywin.redrawflag) {
-	if(truecolor) RedrawPallet(pallet);
-	else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
-    }
+    if(mywin.redrawflag)
+	  store_palette();
   }
 }
 void x_Gscreen(int active,int appear)
 {
   if(active<NUMVSCREEN)
-     mywin.gscreen=mywin.screens[active];
-  if((appear<NUMVSCREEN)&&(mywin.appearscreen!=mywin.screens[appear])){
-    XSetWindowBackgroundPixmap(mywin.d,mywin.w,mywin.screens[appear]);
-    mywin.appearscreen=mywin.screens[appear];
-    Redraw(0,0,SIZEX,SIZEY,True);
+     mywin.active_screen=mywin.screens[active];
+  if((appear<NUMVSCREEN)&&(mywin.disp_screen!=mywin.screens[appear])){
+    mywin.disp_screen=mywin.screens[appear];
+    Redraw(0,0,SIZEX,SIZEY);
   }
 }
+
+#define FADE_REDUCE_TIME 0.1
 void x_Fade(int *params,int nparam,int step,int maxstep)
 {
   static XColor *frompal=NULL,*topal=NULL;
@@ -1419,6 +1454,7 @@ void x_Fade(int *params,int nparam,int step,int maxstep)
     int i;
     if(frompal==NULL||topal==NULL)
       return;
+
     if(step==maxstep){
       memcpy(mywin.curcoltab,topal,sizeof(mywin.curcoltab));
       memcpy(mywin.gcolor[0],mywin.curcoltab,sizeof(mywin.curcoltab));
@@ -1427,6 +1463,13 @@ void x_Fade(int *params,int nparam,int step,int maxstep)
       int tmp;
       if(!mywin.redrawflag)
 	return;
+      if(truecolor) {
+      /* @FADE for TrueColor takes many CPU powers.
+       * So reduce @FADE controls.
+       */
+	if((step & 1) == 0 || aq_filled() < AUDIO_BUFFER_SIZE)
+	  return; /* Skip fade */
+      }
       for(i=0;i<NUMPXL;i++){
 	tmp=(topal[i].red-frompal[i].red)/maxstep;
 	mywin.curcoltab[i].red=tmp*step+frompal[i].red;
@@ -1434,21 +1477,17 @@ void x_Fade(int *params,int nparam,int step,int maxstep)
 	mywin.curcoltab[i].green=tmp*step+frompal[i].green;
 	tmp=(topal[i].blue-frompal[i].blue)/maxstep;
 	mywin.curcoltab[i].blue=tmp*step+frompal[i].blue;
-	if(truecolor) rgb2pixel(&mywin.curcoltab[i]);
       }
     }
-    if(mywin.redrawflag) {
-      if(truecolor) Redraw(0,0,SIZEX,SIZEY,True);
-      else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
-    }
+    if(mywin.redrawflag)
+	store_palette();
   }
   else{
     if(params[2] == 0 && params[1] < MAXPAL) {
       memcpy(mywin.curcoltab,mywin.gcolor[params[1]],sizeof(mywin.curcoltab));
       memcpy(mywin.gcolor[0],mywin.curcoltab,sizeof(mywin.curcoltab));
       if(mywin.redrawflag) {
-	if(truecolor) RedrawPallet(params[1]);
-	else XStoreColors(mywin.d,mywin.cmap,mywin.curcoltab,NUMPXL);
+	  store_palette();
       }
     }
     else if(params[0] < MAXPAL && params[1] < MAXPAL)
@@ -1462,6 +1501,7 @@ void x_Fade(int *params,int nparam,int step,int maxstep)
     return;
   }
 }
+
 void x_Startup(int version)
 {
     int i;
@@ -1470,11 +1510,12 @@ void x_Startup(int version)
     mywin.curline = 0;
     mywin.curcol = 0;
     mywin.ton = 1;
+    mywin.gon = 1;
     mywin.curattr = 0;
     x_VRel();
     x_GMode(-1);
     InitColor(mywin.cmap, False);
-    mywin.gscreen = mywin.appearscreen = mywin.screens[0];
+    mywin.active_screen = mywin.disp_screen = mywin.screens[0];
 
     XSetForeground(mywin.d, mywin.gcgr, mywin.curcoltab[0].pixel);
     XSetForeground(mywin.d, mywin.gc, mywin.txtcolor[COLOR_DEFAULT].pixel);
@@ -1482,8 +1523,11 @@ void x_Startup(int version)
 	XFillRectangle(mywin.d, mywin.screens[i], mywin.gcgr,
 		       0, 0, SIZEX, SIZEY);
     XFillRectangle(mywin.d, mywin.offscr, mywin.gcgr, 0, 0, SIZEX, SIZEY);
-    XSetWindowBackgroundPixmap(mywin.d, mywin.w, mywin.gscreen);
+    XSetWindowBackgroundPixmap(mywin.d, mywin.w, mywin.offscr);
     XFillRectangle(mywin.d, mywin.w, mywin.gcgr, 0, 0, SIZEX, SIZEY);
+    if(truecolor && shm_screen)
+	XFillRectangle(mywin.d, shm_screen->pm, mywin.gcgr,
+		       0, 0, SIZEX, SIZEY);
 }
 
 /*Graphic Definition*/
@@ -1916,20 +1960,8 @@ void WinEvent(void)
   while(QLength(mywin.d)>0){
     XNextEvent(mywin.d,&e);
     switch(e.type){
-    case Expose:
-      if(rdx1 == -1) {
-	rdx1 = e.xexpose.x;
-	rdy1 = e.xexpose.y;
-	rdx2 = e.xexpose.x + e.xexpose.width;
-	rdy2 = e.xexpose.y + e.xexpose.height;
-      } else {
-	rdx1 = min(rdx1, e.xexpose.x);
-	rdy1 = min(rdy1, e.xexpose.y);
-	rdx2 = max(rdx2, e.xexpose.x + e.xexpose.width);
-	rdy2 = max(rdy2, e.xexpose.y + e.xexpose.height);
-      }
     case ButtonPress:
-      Redraw(0,0,SIZEX,SIZEY,True);
+      Redraw(0,0,SIZEX,SIZEY);
       rdx1=0;
       rdy1=0;
       rdx2=SIZEX;
@@ -1943,7 +1975,7 @@ void WinEvent(void)
   }
   
   if(rdx1 != -1){
-    Redraw(rdx1, rdy1, rdx2 - rdx1, rdy2 - rdy1,False);
+    Redraw(rdx1, rdy1, rdx2 - rdx1, rdy2 - rdy1);
     XFlush(mywin.d);
   }
 }
@@ -1951,6 +1983,9 @@ void EndWin(void)
 {
   if(mywin.d!=NULL)
   {
+    if(truecolor && shm_screen)
+      free_image_pixmap(shm_screen);
+
     XCloseDisplay(mywin.d);
     free(image_buffer);
   }
@@ -1978,3 +2013,153 @@ void CloseWRDWindow(void)
 	XSync(mywin.d, False);
     }
 }
+
+static void free_image_pixmap(ImagePixmap *ip)
+{
+    XFreePixmap(mywin.d, ip->pm);
+
+#if XSHM_SUPPORT
+    if(ip->shminfo.shmid != -1)
+    {
+	/* To destroy a shard memory XImage, you should call XShmDetach()
+	 * first.
+	 */
+	XShmDetach(mywin.d, &ip->shminfo);
+
+	/* Unmap shared memory segment */
+	shmdt(ip->shminfo.shmaddr);
+
+	/* Remove a shared memory ID from the system */
+	shmctl(ip->shminfo.shmid, IPC_RMID, NULL);
+    }
+#endif /* XSHM_SUPPORT */
+    if(ip->im != NULL)
+      XDestroyImage(ip->im);
+    free(ip);
+}
+
+
+#if XSHM_SUPPORT
+static int shm_error;
+static int my_err_handler(Display* dpy, XErrorEvent* e)
+{
+    shm_error = e->error_code;
+    ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+	      "Warning: X WRD Warning: Can't create SHM Pixmap. error-code=%d",
+	      shm_error);
+    return shm_error;
+}
+
+static ImagePixmap *create_shm_image_pixmap(int width, int height)
+{
+    XErrorHandler origh;
+    ImagePixmap *ip;
+    int shm_depth;
+
+    shm_depth = theDepth;
+    ip = (ImagePixmap *)safe_malloc(sizeof(ImagePixmap));
+
+    shm_error = 0;
+    origh = XSetErrorHandler(my_err_handler);
+
+    /* There is no need to initialize XShmSegmentInfo structure
+     * before the call to XShmCreateImage.
+     */
+    ip->im = XShmCreateImage(mywin.d, theVisual, theDepth,
+			     ZPixmap, NULL,
+			     &ip->shminfo, width, height);
+    if(ip->im == NULL)
+    {
+	if(shm_error == 0)
+	    shm_error = -1;
+	goto done;
+    }
+
+    /* allocate n-depth Z image data structure */
+    ip->im->data = (char *)safe_malloc(ip->im->bytes_per_line *
+				       ip->im->height);
+
+    /* The next step is to create the shared memory segment.
+     * The return value of shmat() should be stored both
+     * the XImage structure and the shminfo structure.
+     */
+    ip->shminfo.shmid = shmget(IPC_PRIVATE,
+			       ip->im->bytes_per_line * ip->im->height,
+			       IPC_CREAT | 0777);
+
+    if(ip->shminfo.shmid == -1)
+    {
+	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		  "X Sherry Warning: Can't create SHM Pixmap.\n"
+		  "shmget: %s", strerror(errno));
+	XDestroyImage(ip->im);
+	ip->im = NULL;
+	shm_error = -1;
+	goto done;
+    }
+    ip->shminfo.shmaddr = ip->im->data =
+	(char *)shmat(ip->shminfo.shmid, NULL, 0);
+    if(ip->shminfo.shmaddr == (void *)-1)
+    {
+	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		  "X Sherry Warning: Can't create SHM Pixmap.\n"
+		  "shmget: %s", strerror(errno));
+	shmctl(ip->shminfo.shmid, IPC_RMID, NULL);
+	XDestroyImage(ip->im);
+	ip->im = NULL;
+	shm_error = -1;
+	goto done;
+    }
+
+    /* If readOnly is True, XShmGetImage calls will fail. */
+    ip->shminfo.readOnly = False;
+
+
+    /* Tell the server to attach to your shared memory segment. */
+    if(XShmAttach(mywin.d, &ip->shminfo) == 0)
+    {
+	if(shm_error == 0)
+	{
+	    ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		      "X Sherry Warning: Can't create SHM Pixmap.\n"
+		      "Can't attach to the shared memory segment.");
+	    shm_error = -1;
+	}
+	shmdt(ip->shminfo.shmaddr);
+	shmctl(ip->shminfo.shmid, IPC_RMID, NULL);
+	XDestroyImage(ip->im);
+	ip->im = NULL;
+	goto done;
+    }
+
+    XSync(mywin.d, False);		/* Wait until ready. */
+
+    ip->pm = XShmCreatePixmap(mywin.d, mywin.w, ip->im->data,
+			      &ip->shminfo, width, height, shm_depth);
+    if(ip->pm == None)
+    {
+	if(shm_error == 0)
+	{
+	    ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		      "X Sherry Warning: Can't create SHM Pixmap.\n"
+		      "XShmCreatePixmap() is failed");
+	    shm_error = -1;
+	}
+	shmdt(ip->shminfo.shmaddr);
+	shmctl(ip->shminfo.shmid, IPC_RMID, NULL);
+	XDestroyImage(ip->im);
+	ip->im = NULL;
+	goto done;
+    }
+
+  done:
+    XSetErrorHandler(origh);
+
+    if(ip->im == NULL)
+    {
+	free(ip);
+	return NULL;
+    }
+    return ip;
+}
+#endif

@@ -2898,7 +2898,7 @@ void a_start_interface(int pipe_in) {
 #endif
     "*cwd_label.font: -adobe-helvetica-medium-r-*-*-12-*-*-*-*-*-*-*",
     "*time_label*cwd_info.font: -adobe-helvetica-medium-r-*-*-12-*-*-*-*-*-*-*",
-    "*time_label.fontSet: -adobe-helvetica-bold-r-*-*-14-*-*-*-*-*-*-*",
+    "*time_label.font: -adobe-helvetica-bold-r-*-*-14-*-*-*-*-*-*-*",
     "*BitmapDir: " DEFAULT_PATH "/bitmaps/",
 #ifdef XAW3D
     "*volume_bar.translations: #override\\n\
@@ -3051,7 +3051,7 @@ void a_start_interface(int pipe_in) {
   int i, j, k, tmpi;
   int argc=1;
   float thumb, l_thumb, l_thumbj;
-  char *argv="timidity", *filetext;
+  char *argv=APP_NAME, *filetext;
 #ifdef I18N
   #define XtNfontDEF XtNfontSet
   XFontSet textfont;

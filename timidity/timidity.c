@@ -32,6 +32,7 @@
 #endif
 #ifdef __W32__
 #include <windows.h>
+#include <io.h>
 #endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -79,9 +80,10 @@ extern char *optarg;
 
 #ifdef IA_W32GUI
 #include "w32g.h"
+#include "w32g_utl.h"
 #endif
 
-#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:q:R:rS:s:t:UW:w:x:Z:"
+#define OPTCOMMANDS "4A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:q:R:rS:s:t:UW:w:x:Z:"
 #define INTERACTIVE_INTERFACE_IDS "kmqagrw"
 
 /* main interfaces (To be used another main) */
@@ -191,7 +193,7 @@ static BOOL WINAPI handler (DWORD dw)
 int effect_lr_mode = -1;
 /* 0: left delay
  * 1: right delay
- * 2: both
+ * 2: rotate
  * -1: not use
  */
 int effect_lr_delay_msec = 25;
@@ -324,6 +326,9 @@ static void help(void)
 #endif
 "",
 "Options:",
+#if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
+"  -4      Toggle 4-point interpolation (default on)",
+#endif
 "  -A n    Amplify volume by n percent (may cause clipping)",
 "  -a      Enable the antialiasing filter",
 "  -B n    Set number of buffer fragments",
@@ -750,7 +755,18 @@ int set_ctl(char *cp)
 		  case 'x':
 		    cmp->flags ^= CTLF_AUTOEXIT;
 		    break;
-
+		  case 'd':
+		    cmp->flags ^= CTLF_DRAG_START;
+		    break;
+		  case 'u':
+		    cmp->flags ^= CTLF_AUTOUNIQ;
+		    break;
+		  case 'R':
+		    cmp->flags ^= CTLF_AUTOREFINE;
+		    break;
+		  case 'C':
+		    cmp->flags ^= CTLF_NOT_CONTINUE;
+		    break;
 		  default:
 		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			      "Unknown interface option `%c'", *cp);
@@ -982,9 +998,10 @@ static int set_gus_patchconf(char *name, int line,
 	free(tone->name);
 	tone->name = NULL;
     }
-    tone->note = tone->amp = tone->pan =
+    tone->note = tone->pan =
 	tone->strip_loop = tone->strip_envelope =
 	    tone->strip_tail = -1;
+    tone->amp = -1;
 
     if(strcmp(pat, "%font") == 0) /* Font extention */
     {
@@ -2401,6 +2418,12 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 
     switch(c)
     {
+#if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
+      case '4':
+	no_4point_interpolation = (no_4point_interpolation) ? 0 : 1;
+        break;
+#endif
+
       case 'A':
 	if(set_value(&amplification, atoi(optarg), 0, MAX_AMPLIFICATION,
 		     "Amplification"))
@@ -2788,6 +2811,8 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 
 #ifdef IA_W32GUI
     extern char *ConfigFile;
+    if(!ConfigFile[0])
+	strcpy(ConfigFile, W32G_TIMIDITY_CFG);
     strncpy(local, ConfigFile, sizeof(local));
 #else
     /* !IA_W32GUI */
@@ -3090,9 +3115,15 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 }
 
 #ifndef __MACOS__
-#ifdef __W32__
+#ifdef __W32__ /* Windows */
+#if defined(__CYGWIN32__) || defined(__MINGW32__) || !defined(IA_W32GUI)
+/* Cygwin or Console */
 int __cdecl main(int argc, char **argv)
 #else
+/* _MSC_VER, _BORLANDC_ */
+int win_main(int argc, char **argv)
+#endif
+#else /* UNIX */
 int main(int argc, char **argv)
 #endif
 {
@@ -3119,6 +3150,11 @@ int main(int argc, char **argv)
 	fprintf(stderr, "Couldn't set priority to %d.", DANGEROUS_RENICE);
     }
     setreuid(uid, uid);
+#endif
+
+#if defined(REDIRECT_STDOUT)
+    memcpy(stdout, fopen(REDIRECT_STDOUT, "a+"), sizeof(FILE));
+    printf("TiMidity++ start\n");fflush(stdout);
 #endif
 
 #ifdef main
@@ -3148,7 +3184,7 @@ int main(int argc, char **argv)
     }
 #endif /* IA_DYNAMIC */
 
-    if((program_name=strrchr(argv[0], PATH_SEP))) program_name++;
+    if((program_name=pathsep_strrchr(argv[0]))) program_name++;
     else program_name=argv[0];
 
     if(strncmp(program_name,"timidity",8) == 0);

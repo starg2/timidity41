@@ -115,6 +115,16 @@ int PDC_set_ctrl_break(bool setting);
 
 #define MAX_U_PREFIX 256
 
+/* GS LCD */
+#define GS_LCD_MARK_ON		-1
+#define GS_LCD_MARK_OFF		-2
+#define GS_LCD_MARK_CLEAR	-3
+#define GS_LCD_MARK_CHAR '$'
+static double gslcd_last_display_time;
+static int gslcd_displayed_flag = 0;
+#define GS_LCD_CLEAR_TIME 10.0
+#define GS_LCD_WIDTH 40
+
 extern int set_extension_modes(char *flag);
 
 static struct
@@ -141,9 +151,13 @@ static int next_indicator_chan = -1;
 static double indicator_last_update;
 static int indicator_mode = INDICATOR_DEFAULT;
 static int display_velocity_flag = 0;
+static int display_channels = 16;
 
 static Bitset channel_program_flags[MAX_CHANNELS];
+static Bitset gs_lcd_bits[MAX_CHANNELS];
+static int is_display_lcd = 1;
 static int scr_modified_flag = 1; /* delay flush for trace mode */
+
 
 static void update_indicator(void);
 static void reset_indicator(void);
@@ -184,6 +198,7 @@ static void ctl_panning(int channel, int val);
 static void ctl_sustain(int channel, int val);
 static void ctl_pitch_bend(int channel, int val);
 static void ctl_lyric(int lyricid);
+static void ctl_gslcd(int id);
 static void ctl_reset(void);
 
 /**********************************************/
@@ -478,8 +493,11 @@ static void N_ctl_scrinit(void)
 	for(i = 0; i < COLS; i++)
 	    waddch(dftwin, '-');
 #endif
-	for(i = 0; i < 16; i++)
+	for(i = 0; i < MAX_CHANNELS; i++)
+	{
 	    init_bitset(channel_program_flags + i, 128);
+	    init_bitset(gs_lcd_bits + i, 128);
+	}
     }
     N_ctl_refresh();
 }
@@ -494,7 +512,7 @@ static void init_trace_window_chan(int ch)
 {
     int i, c;
 
-    if(ch >= 16)
+    if(ch >= display_channels)
 	return;
 
     N_ctl_clrtoeol(NOTE_LINE + ch);
@@ -619,7 +637,7 @@ static void init_trace_window_chan(int ch)
 		if(name != NULL)
 		{
 		    char *p;
-		    if((p = strrchr(fn, '/')) != NULL)
+		    if((p = pathsep_strrchr(fn)) != NULL)
 			p++;
 		    else
 			p = fn;
@@ -677,6 +695,12 @@ static void display_play_system(int mode)
 static void ctl_ncurs_mode_init(void)
 {
     int i;
+
+    display_channels = LINES - 8;
+    if(display_channels > MAX_CHANNELS)
+	display_channels = MAX_CHANNELS;
+    if(current_file_info != NULL && current_file_info->max_channel < 16)
+	display_channels = 16;
 
     display_play_system(play_system_mode);
     switch(ctl_ncurs_mode)
@@ -819,7 +843,7 @@ static void ctl_list_MFnode_files(MFnode *mfp, int select_id, int play_id)
 
 #ifdef MIDI_TITLE
 
-	if((f = strrchr(mfp->file, PATH_SEP)) != NULL)
+	if((f = pathsep_strrchr(mfp->file)) != NULL)
 	    f++;
 	else
 	    f = mfp->file;
@@ -971,6 +995,16 @@ static void ctl_list_mode(int type)
     }
 }
 
+static void redraw_all(void)
+{
+    N_ctl_scrinit();
+    ctl_total_time(CTL_LAST_STATUS);
+    ctl_master_volume(CTL_LAST_STATUS);
+    display_key_helpmsg();
+    ctl_file_name(NULL);
+    ctl_ncurs_mode_init();
+}
+
 static void ctl_event(CtlEvent *e)
 {
     if(midi_trace.flush_flag)
@@ -981,6 +1015,7 @@ static void ctl_event(CtlEvent *e)
 	ctl_file_name((char *)e->v1);
 	break;
       case CTLE_LOADING_DONE:
+	redraw_all();
 	break;
       case CTLE_PLAY_START:
 	ctl_total_time((int)e->v1);
@@ -1029,6 +1064,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_LYRIC:
 	ctl_lyric((int)e->v1);
+	break;
+      case CTLE_GSLCD:
+	if(is_display_lcd)
+	    ctl_gslcd((int)e->v1);
 	break;
       case CTLE_REFRESH:
 	ctl_refresh();
@@ -1155,17 +1194,16 @@ static void ctl_current_time(int secs, int v)
 
 static void ctl_note(int status, int ch, int note, int vel)
 {
-    int xl, n, c;
-    unsigned int onoff, check, prev_check;
+    int n, c;
+    unsigned int onoff = 0, check, prev_check;
     Bitset *bitset;
 
-    if(ch >= 16)
-	return;
-
-    if(ctl_ncurs_mode != NCURS_MODE_TRACE || selected_channel == ch)
+    if(ch >= display_channels || ctl_ncurs_mode != NCURS_MODE_TRACE ||
+       selected_channel == ch)
 	return;
 
     scr_modified_flag = 1;
+
     if(display_velocity_flag)
 	n = '0' + (10 * vel) / 128;
     else
@@ -1173,8 +1211,10 @@ static void ctl_note(int status, int ch, int note, int vel)
     c = (COLS - 24) / 12 * 12;
     if(c <= 0)
 	c = 1;
-    xl=note % c;
-    wmove(dftwin, NOTE_LINE + ch, xl + 3);
+    note = note % c;
+    wmove(dftwin, NOTE_LINE + ch, note + 3);
+    bitset = channel_program_flags + ch;
+
     switch(status)
     {
       case VOICE_DIE:
@@ -1182,7 +1222,10 @@ static void ctl_note(int status, int ch, int note, int vel)
 	onoff = 0;
 	break;
       case VOICE_FREE:
-	waddch(dftwin, '.');
+	if(get_bitset1(gs_lcd_bits + ch, note))
+	    waddch(dftwin, GS_LCD_MARK_CHAR);
+	else
+	    waddch(dftwin, '.');
 	onoff = 0;
 	break;
       case VOICE_ON:
@@ -1202,21 +1245,27 @@ static void ctl_note(int status, int ch, int note, int vel)
 	waddch(dftwin, n);
 	onoff = 0;
 	break;
+      case GS_LCD_MARK_ON:
+	set_bitset1(gs_lcd_bits + ch, note, 1);
+	if(!get_bitset1(bitset, note))
+	    waddch(dftwin, GS_LCD_MARK_CHAR);
+	return;
+      case GS_LCD_MARK_OFF:
+	set_bitset1(gs_lcd_bits + ch, note, 0);
+	if(!get_bitset1(bitset, note))
+	    waddch(dftwin, '.');
+	return;
     }
 
-    bitset = channel_program_flags + ch;
     prev_check = has_bitset(bitset);
+    set_bitset1(bitset, note, onoff);
     if(prev_check == onoff)
     {
 	/* Not change program mark */
-	onoff <<= (8 * sizeof(onoff) - 1);
-	set_bitset(bitset, &onoff, note, 1);
 	return;
     }
-    onoff <<= (8 * sizeof(onoff) - 1);
-    set_bitset(bitset, &onoff, note, 1);
-    check = has_bitset(bitset);
 
+    check = has_bitset(bitset);
     if(prev_check ^ check)
     {
 	wmove(dftwin, NOTE_LINE + ch, COLS - 21);
@@ -1237,7 +1286,7 @@ static void ctl_program(int ch, int val, char *comm)
 {
     int pr;
 
-    if(ch >= 16)
+    if(ch >= display_channels)
 	return;
 
     if(comm != NULL)
@@ -1274,15 +1323,15 @@ static void ctl_program(int ch, int val, char *comm)
 
 static void ctl_volume(int ch, int vol)
 {
-    static int last_vols[16];
+    static int last_vols[MAX_CHANNELS];
     int i;
 
-    if(ch >= 16)
+    if(ch >= display_channels)
 	return;
 
     if(vol == CTL_STATUS_INIT)
     {
-	for(i = 0; i < 16; i++)
+	for(i = 0; i < MAX_CHANNELS; i++)
 	    last_vols[i] = CTL_STATUS_INIT;
 	return;
     }
@@ -1301,15 +1350,15 @@ static void ctl_volume(int ch, int vol)
 
 static void ctl_expression(int ch, int vol)
 {
-    static int last_vols[16];
+    static int last_vols[MAX_CHANNELS];
     int i;
 
-    if(ch >= 16)
+    if(ch >= display_channels)
 	return;
 
     if(vol == CTL_STATUS_INIT)
     {
-	for(i = 0; i < 16; i++)
+	for(i = 0; i < MAX_CHANNELS; i++)
 	    last_vols[i] = CTL_STATUS_INIT;
 	return;
     }
@@ -1328,9 +1377,8 @@ static void ctl_expression(int ch, int vol)
 
 static void ctl_panning(int ch, int val)
 {
-    if(ch >= 16)
-	return;
-    if(ctl_ncurs_mode != NCURS_MODE_TRACE || selected_channel == ch)
+    if(ch >= display_channels || ctl_ncurs_mode != NCURS_MODE_TRACE ||
+       selected_channel == ch)
 	return;
     wmove(dftwin, NOTE_LINE + ch, COLS - 8);
     if(val == NO_PANNING)
@@ -1358,9 +1406,8 @@ static void ctl_panning(int ch, int val)
 
 static void ctl_sustain(int ch, int val)
 {
-    if(ch >= 16)
-	return;
-    if(ctl_ncurs_mode != NCURS_MODE_TRACE || selected_channel == ch)
+    if(ch >= display_channels ||
+       ctl_ncurs_mode != NCURS_MODE_TRACE || selected_channel == ch)
 	return;
     wmove(dftwin, NOTE_LINE+ch, COLS - 4);
     if(val)
@@ -1372,15 +1419,15 @@ static void ctl_sustain(int ch, int val)
 
 static void ctl_pitch_bend(int ch, int val)
 {
-    static int lastbends[16];
+    static int lastbends[MAX_CHANNELS];
     int i, restore;
 
-    if(ch >= 16)
+    if(ch >= display_channels)
 	return;
 
     if(val == CTL_STATUS_INIT)
     {
-	for(i = 0; i < 16; i++)
+	for(i = 0; i < MAX_CHANNELS; i++)
 	    lastbends[i] = CTL_STATUS_INIT;
 	return;
     }
@@ -1462,6 +1509,85 @@ static void ctl_lyric(int lyricid)
 	}
 	else
 	    cmsg(CMSG_INFO, VERB_NORMAL, "%s", lyric + 1);
+    }
+}
+
+static void ctl_lcd_mark(int status, int x, int y)
+{
+    int w;
+
+    if(!ctl.trace_playing)
+    {
+	waddch(msgwin, status == GS_LCD_MARK_ON ? GS_LCD_MARK_CHAR : ' ');
+	return;
+    }
+
+    w = (COLS - 24) / 12 * 12;
+    if(status == GS_LCD_MARK_CLEAR)
+      {
+	int x, y;
+	for(y = 0; y < 16; y++)
+	  for(x = 0; x < 40; x++)
+	    ctl_note(GS_LCD_MARK_OFF, y, x + (w - 40) / 2, 0);
+	return;
+      }
+
+    if(w < GS_LCD_WIDTH)
+    {
+	if(x < w)
+	    ctl_note(status, y, x, 0);
+    }
+    else
+    {
+	ctl_note(status, y, x + (w - GS_LCD_WIDTH) / 2, 0);
+    }
+}
+
+static void ctl_gslcd(int id)
+{
+    char *lcd;
+    int i, j, k, data, mask;
+    char tmp[3];
+
+    if((lcd = event2string(id)) == NULL)
+	return;
+    if(lcd[0] != ME_GSLCD)
+	return;
+    gslcd_last_display_time = get_current_calender_time();
+    gslcd_displayed_flag = 1;
+    lcd++;
+    for(i = 0; i < 16; i++)
+    {
+	for(j = 0; j < 4; j++)
+	{
+	    tmp[0]= lcd[2 * (j * 16 + i)];
+	    tmp[1]= lcd[2 * (j * 16 + i) + 1];
+	    if(sscanf(tmp, "%02X", &data) != 1)
+	    {
+		/* Invalid format */
+		return;
+	    }
+	    mask = 0x10;
+	    for(k = 0; k < 10; k += 2)
+	    {
+		if(data & mask)
+		{
+ 		    ctl_lcd_mark(GS_LCD_MARK_ON, j * 10 + k,     i);
+		    ctl_lcd_mark(GS_LCD_MARK_ON, j * 10 + k + 1, i);
+		}
+		else
+	        {
+ 		    ctl_lcd_mark(GS_LCD_MARK_OFF, j * 10 + k,     i);
+		    ctl_lcd_mark(GS_LCD_MARK_OFF, j * 10 + k + 1, i);
+		}
+		mask >>= 1;
+	    }
+	}
+	if(!ctl.trace_playing)
+	{
+	    waddch(msgwin, '\n');
+	    wrefresh(msgwin);
+	}
     }
 }
 
@@ -1611,9 +1737,9 @@ static void move_select_channel(int diff)
     else
 	selected_channel += diff;
     while(selected_channel < 0)
-	selected_channel += 17;
-    while(selected_channel >= 16)
-	selected_channel -= 17;
+	selected_channel += display_channels + 1;
+    while(selected_channel >= display_channels)
+	selected_channel -= display_channels + 1;
 
     if(selected_channel != -1)
 	init_trace_window_chan(selected_channel);
@@ -1744,7 +1870,7 @@ static int ctl_cmd_L_enter(void)
     ctl_mode_L_histh = hist;
 
     i = strlen(ctl_mode_L_lastenter);
-    while(i > 0 && ctl_mode_L_lastenter[i - 1] != PATH_SEP)
+    while(i > 0 && !IS_PATH_SEP(ctl_mode_L_lastenter[i - 1]))
 	i--;
     ctl_mode_L_lastenter[i] = '\0';
 
@@ -1774,7 +1900,12 @@ static int ctl_cmd_L_enter(void)
 	mfp = head;
 	free(new_files[0]);
 	free(new_files);
-
+	if(mfp == NULL)
+	{
+	    rc = RC_NONE;
+	    beep();
+	    goto end_enter;
+	}
 	insert_MFnode_entrys(mfp, nc_playfile);
 	ctl_list_mode(NC_LIST_NEW);
 	rc = RC_NEXT;
@@ -1957,7 +2088,7 @@ static int ctl_cmd_forward_search(void)
 	    mfp = file_list.MFnode_head;
 	    n = 0;
 	}
-	if((name = strrchr(mfp->file, '/')) == NULL)
+	if((name = pathsep_strrchr(mfp->file)) == NULL)
 	    name = mfp->file;
 	else
 	    name++;
@@ -2332,11 +2463,15 @@ static int ctl_read(int32 *valp)
 	  mini_buff_set(command_buffer, dftwin, LINES - 1, "MIDI File: ");
 	  if(*ctl_mode_L_lastenter == '\0' && current_MFnode != NULL)
 	  {
+	      char *p;
 	      strncpy(ctl_mode_L_lastenter, current_MFnode->file,
 		      COMMAND_BUFFER_SIZE - 1);
 	      ctl_mode_L_lastenter[COMMAND_BUFFER_SIZE - 1] = '\0';
-	      i = strlen(ctl_mode_L_lastenter);
-	      while(i > 0 && ctl_mode_L_lastenter[i - 1] != PATH_SEP)
+	      if((p = strrchr(ctl_mode_L_lastenter, '#')) != NULL)
+		  i = p - ctl_mode_L_lastenter;
+	      else
+		  i = strlen(ctl_mode_L_lastenter);
+	      while(i > 0 && !IS_PATH_SEP(ctl_mode_L_lastenter[i - 1]))
 		  i--;
 	      ctl_mode_L_lastenter[i] = '\0';
 	  }
@@ -2361,7 +2496,7 @@ static int ctl_read(int32 *valp)
 		      COMMAND_BUFFER_SIZE - 1);
 	      ctl_mode_L_lastenter[COMMAND_BUFFER_SIZE - 1] = '\0';
 	      i = strlen(ctl_mode_L_lastenter);
-	      while(i > 0 && ctl_mode_L_lastenter[i - 1] != PATH_SEP)
+	      while(i > 0 && !IS_PATH_SEP(ctl_mode_L_lastenter[i - 1]))
 		  i--;
 	      ctl_mode_L_lastenter[i] = '\0';
 	  }
@@ -2386,12 +2521,7 @@ static int ctl_read(int32 *valp)
 	  }
 	  continue;
 	case 12: /* ^L */
-	  N_ctl_scrinit();
-	  ctl_total_time(CTL_LAST_STATUS);
-	  ctl_master_volume(CTL_LAST_STATUS);
-	  display_key_helpmsg();
-	  ctl_file_name(NULL);
-	  ctl_ncurs_mode_init();
+	  redraw_all();
 	  continue;
 	default:
 	  beep();
@@ -2788,12 +2918,22 @@ static void update_indicator(void)
 
 #ifdef __W32__
     play_modeflag = 1;
-	display_play_system(play_system_mode);
+    display_play_system(play_system_mode);
 #else
     if(midi_trace.flush_flag)
     {
 	play_modeflag = 1;
 	return;
+    }
+
+    if(gslcd_displayed_flag)
+    {
+	t = get_current_calender_time();
+	if(t - gslcd_last_display_time > GS_LCD_CLEAR_TIME)
+	{
+	    ctl_lcd_mark(GS_LCD_MARK_CLEAR, 0, 0);
+	    gslcd_displayed_flag = 0;
+	}
     }
 
     if(play_modeflag)
@@ -3334,7 +3474,6 @@ static MFnode *MFnode_insert_node(MFnode *list, MFnode *node)
     return list;
 }
 
-
 /* Completion as file name */
 static int mini_buff_completion(MiniBuffer *b)
 {
@@ -3357,7 +3496,7 @@ static int mini_buff_completion(MiniBuffer *b)
     pr = text;
     for(;;)
     {
-	pr = strchr(pr, PATH_SEP);
+	pr = pathsep_strchr(pr);
 	if(pr == NULL)
 	    break;
 	pr++;
@@ -3365,11 +3504,12 @@ static int mini_buff_completion(MiniBuffer *b)
 	if(*pr == '~')
 	    break;
 #endif /* TILD_SCHEME_ENABLE */
-	if(*pr == PATH_SEP)
+	if(IS_PATH_SEP(*pr))
 	{
 	    do
 		pr++;
-	    while(*pr == PATH_SEP);
+	    while(IS_PATH_SEP(*pr))
+		;
 	    pr--;
 	    break;
 	}
@@ -3396,7 +3536,7 @@ static int mini_buff_completion(MiniBuffer *b)
     b->cflag = 0;
 
     /* split dir and file name */
-    if((file = strrchr(text, PATH_SEP)) != NULL)
+    if((file = pathsep_strrchr(text)) != NULL)
     {
 	file++;
 	dirlen = file - text;

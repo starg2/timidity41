@@ -52,7 +52,7 @@ static int32 tonebank_start_time[128][128];
 static int32 drumset_start_time[128][128];
 static int tonebank_counter[128][128];
 static int drumset_counter[128][128];
-static Channel channel[MAX_CHANNELS];
+extern Channel channel[MAX_CHANNELS];
 
 #define dmp list_play_mode
 
@@ -71,16 +71,6 @@ PlayMode dmp =
 
 static int open_output(void)
 {
-    int i, j;
-
-    for(i = 0; i < 128; i++)
-	for(j = 0; j < 128; j++)
-	{
-	    tonebank_start_time[i][j] = -1;
-	    drumset_start_time[i][j] = -1;
-	}
-    memset(tonebank_counter, 0, sizeof(tonebank_counter));
-    memset(drumset_counter, 0, sizeof(drumset_counter));
     dmp.fd = 0;
     return 0;
 }
@@ -96,16 +86,36 @@ static char *time_str(int t)
 
 static void close_output(void)
 {
+    dmp.fd = -1;
+}
+
+static void start_list_a(void)
+{
     int i, j;
 
-    if(dmp.fd == -1)
-	return;
+    for(i = 0; i < 128; i++)
+	for(j = 0; j < 128; j++)
+	{
+	    tonebank_start_time[i][j] = -1;
+	    drumset_start_time[i][j] = -1;
+	}
+    memset(tonebank_counter, 0, sizeof(tonebank_counter));
+    memset(drumset_counter, 0, sizeof(drumset_counter));
+    memset(channel, 0, sizeof(channel));
+    change_system_mode(DEFAULT_SYSTEM_MODE);
+}
 
+static void end_list_a(void)
+{
+    int i, j;
+
+    ctl->cmsg(CMSG_TEXT, VERB_NORMAL,
+	      "==== %s ====", current_file_info->filename);
     for(i = 0; i < 128; i++)
 	for(j = 0; j < 128; j++)
 	    if(tonebank_start_time[i][j] != -1)
 	    {
-		ctl->cmsg(CMSG_TEXT, VERB_VERBOSE,
+		ctl->cmsg(CMSG_TEXT, VERB_NORMAL,
 		    "Tonebank %d %d (start at %s, %d times note on)",
 		    i, j,
 		    time_str(tonebank_start_time[i][j]),
@@ -115,15 +125,14 @@ static void close_output(void)
 	for(j = 0; j < 128; j++)
 	    if(drumset_start_time[i][j] != -1)
 	    {
-		ctl->cmsg(CMSG_TEXT, VERB_VERBOSE,
+		ctl->cmsg(CMSG_TEXT, VERB_NORMAL,
 		    "Drumset %d %d (start at %s, %d times note on)",
 		    i, j,
 		    time_str(drumset_start_time[i][j]),
 		    drumset_counter[i][j]);
 	    }
-
-    dmp.fd = -1;
 }
+
 
 static int do_event(MidiEvent *ev)
 {
@@ -159,16 +168,7 @@ static int do_event(MidiEvent *ev)
 	}
 	break;
       case ME_PROGRAM:
-	if(ISDRUMCHANNEL(ch))
-	    channel[ch].bank = ev->a;
-	else
-	{
-	    if(current_file_info && current_file_info->mid == 0x43) /* XG */
-		channel[ch].bank = channel[ch].bank_lsb;
-	    else
-		channel[ch].bank = channel[ch].bank_msb;
-	    channel[ch].program = ev->a;
-	}
+	midi_program_change(ch, ev->a);
 	break;
       case ME_TONE_BANK_LSB:
 	channel[ch].bank_lsb = ev->a;
@@ -177,6 +177,7 @@ static int do_event(MidiEvent *ev)
 	channel[ch].bank_msb = ev->a;
 	break;
       case ME_RESET:
+	change_system_mode(ev->a);
 	memset(channel, 0, sizeof(channel));
 	break;
       case ME_EOT:
@@ -191,6 +192,14 @@ static int acntl(int request, void *arg)
     {
       case PM_REQ_MIDI:
 	return do_event((MidiEvent *)arg);
+      case PM_REQ_DISCARD:
+	return 0;
+      case PM_REQ_PLAY_START:
+	start_list_a();
+	return 0;
+      case PM_REQ_PLAY_END:
+	end_list_a();
+	return 0;
     }
     return -1;
 }

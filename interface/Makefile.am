@@ -94,14 +94,17 @@ EXTRA_libinterface_a_SOURCES = \
 	w32g.h \
 	w32g_c.c \
 	w32g_ini.c \
+	w32g_rec.h \
 	w32g_res.h \
 	w32g_res.rc \
 	w32g_utl.c \
 	w32g_utl.h \
 	w32g_i.c \
 	w32g_playlist.c \
-	w32g_panel.c \
-	w32g_canvas.c \
+	w32g_pref.c \
+	w32g_pref.h \
+	w32g_subwin.c \
+	w32g_subwin.h \
 	w32g_btn.bmp \
 	w32g_icon.ico \
 	w32g_sleep.bmp \
@@ -205,7 +208,7 @@ install.el: $(ELFILES)
 	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
 	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
-w32g_res.res: w32g_res.h w32g_res.rc \
+w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
 	w32g_btn.bmp w32g_icon.ico w32g_sleep.bmp w32g_subbtn.bmp
 	windres -o $@ -O coff w32g_res.rc
 

@@ -84,11 +84,15 @@ enum {
 			 * PM_REQ_PLAY_START is called just before playing.
 			 */
 
+    PM_REQ_PLAY_END,	/* ARG: not-used
+			 * PM_REQ_PLAY_END is called just after playing.
+			 */
+
     PM_REQ_GETFILLABLE,	/* ARG: int
 			 * Get fillable device queue size
 			 */
 
-    PM_REQ_GETFILLED	/* ARG: int
+    PM_REQ_GETFILLED,	/* ARG: int
 			 * Get filled device queue size
 			 */
 };

@@ -316,6 +316,10 @@ extern int effect_lr_mode;
 extern int effect_lr_delay_msec;
 extern int auto_reduce_polyphony;
 extern int play_pause_flag;
+#if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
+extern int reduce_quality_flag;
+extern int no_4point_interpolation;
+#endif
 
 extern int play_midi_file(char *fn);
 extern void dumb_pass_playing_list(int number_of_files, char *list_of_files[]);
@@ -330,6 +334,7 @@ extern int get_reverb_level(int ch);
 extern int get_chorus_level(int ch);
 extern void playmidi_output_changed(int play_state);
 extern Instrument *play_midi_load_instrument(int dr, int bk, int prog);
+extern void midi_program_change(int ch, int prog);
 
 /* For stream player */
 extern void playmidi_stream_init(void);

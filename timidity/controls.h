@@ -25,7 +25,8 @@
 
 #define RC_IS_SKIP_FILE(rc) ((rc) == RC_QUIT || (rc) == RC_LOAD_FILE || \
 			     (rc) == RC_NEXT || (rc) == RC_REALLY_PREVIOUS || \
-			     (rc) == RC_ERROR || (rc) == RC_STOP)
+			     (rc) == RC_ERROR || (rc) == RC_STOP || \
+			     (rc) == RC_TUNE_END)
 
 /* Return values for ControlMode.read */
 #define RC_ERROR	-1
@@ -102,7 +103,8 @@ enum {
     CTLE_RESET,
     CTLE_SPEANA,		/* v1:double[] v2:len */
     CTLE_PAUSE,			/* v1:pause on/off v2:time of pause */
-    CTLE_GSLCD			/* GS L.C.D. */
+    CTLE_GSLCD,			/* GS L.C.D. */
+    CTLE_MAXVOICES		/* v1:voices, Change voices */
 };
 
 typedef struct _CtlEvent {
@@ -115,7 +117,7 @@ typedef struct {
   char *id_name, id_character;
   int verbosity, trace_playing, opened;
 
-  int flags;
+  uint32 flags;
 /* ControlMode flags.
  * Some interfaces ignore these flags.
  */
@@ -124,6 +126,10 @@ typedef struct {
 #define CTLF_LIST_SORT		(1u<<2)	/* -i?s */
 #define CTLF_AUTOSTART		(1u<<3)	/* -i?a */
 #define CTLF_AUTOEXIT		(1u<<4)	/* -i?x */
+#define CTLF_DRAG_START		(1u<<5)	/* -i?d */
+#define CTLF_AUTOUNIQ		(1u<<6)	/* -i?u */
+#define CTLF_AUTOREFINE		(1u<<7)	/* -i?R */
+#define CTLF_NOT_CONTINUE	(1u<<8)	/* -i?C */
 
   int  (*open)(int using_stdin, int using_stdout);
   void (*close)(void);

@@ -33,7 +33,7 @@
 #else
 #include <strings.h>
 #endif
-#include <mem.h>
+//#####include <mem.h>
 #include <ctype.h>
 
 #include "timidity.h"
@@ -49,10 +49,10 @@
 #endif /* SUPPORT_SOUNDSPEC */
 #include "wrd.h"
 #include "w32g.h"
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
+#include "w32g_utl.h"
 #include <sys/stat.h>
-#endif
-
+#include "strtab.h"
+#include "url.h"
 
 extern int opt_default_mid;
 extern int effect_lr_mode;
@@ -64,6 +64,12 @@ extern char *opt_aq_fill_buff;
 extern int opt_evil_mode;
 extern int opt_buffer_fragments;
 extern int32 opt_output_rate;
+extern int PlayerLanguage;
+extern volatile int data_block_time;	// msec
+extern volatile int data_block_num;
+extern int DocWndIndependent;
+extern int SeachDirRecursive;
+extern int IniFileAutoSave;
 
 
 //*****************************************************************************/
@@ -306,6 +312,11 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
   strncpy(TracerFont,sp->TracerFont,255);
   TracerFont[255] = '\0';
   // Apply font functions ...
+
+  PlayerLanguage = sp->PlayerLanguage;
+  DocWndIndependent = sp->DocWndIndependent; 
+  SeachDirRecursive = sp->SeachDirRecursive;
+  IniFileAutoSave = sp->IniFileAutoSave;
 }
 
 void
@@ -361,6 +372,10 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   sp->ListFont[255] = '\0';
   strncpy(sp->TracerFont,TracerFont,255);
   sp->TracerFont[255] = '\0';
+  sp->PlayerLanguage = PlayerLanguage;
+  sp->DocWndIndependent = DocWndIndependent; 
+  sp->SeachDirRecursive = SeachDirRecursive;
+  sp->IniFileAutoSave = IniFileAutoSave;
 }
 
 extern int set_play_mode(char *cp);
@@ -432,6 +447,7 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     else if(play_mode->rate == 0)
 	play_mode->rate = DEFAULT_RATE;
     voices = SetValue(st->voices, 1, MAX_VOICES);
+	auto_reduce_polyphony = st->auto_reduce_polyphony;
     quietchannels = st->quietchannels;
     if(opt_aq_max_buff)
 	free(opt_aq_max_buff);
@@ -454,7 +470,6 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     opt_rcpcv_dll = st->opt_rcpcv_dll;
 #endif /* SMFCONV */
 
-
     opt_control_ratio = st->control_ratio;
     if(opt_control_ratio)
 	control_ratio = SetValue(opt_control_ratio, 1, MAX_CONTROL_RATIO);
@@ -463,6 +478,8 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
 	control_ratio = SetValue(control_ratio, 1, MAX_CONTROL_RATIO);
     }
+    data_block_time = st->data_block_time;
+    data_block_num = st->data_block_num;
 }
 
 void
@@ -522,6 +539,14 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_ctl[j++] = 'a';
     if(ctl->flags & CTLF_AUTOEXIT)
 	st->opt_ctl[j++] = 'x';
+    if(ctl->flags & CTLF_DRAG_START)
+	st->opt_ctl[j++] = 'd';
+    if(ctl->flags & CTLF_AUTOUNIQ)
+	st->opt_ctl[j++] = 'u';
+    if(ctl->flags & CTLF_AUTOREFINE)
+	st->opt_ctl[j++] = 'R';
+    if(ctl->flags & CTLF_NOT_CONTINUE)
+	st->opt_ctl[j++] = 'C';
     st->opt_ctl[j] = '\0';
     st->opt_realtime_playing = SetFlag(opt_realtime_playing);
     st->reduce_voice_threshold = reduce_voice_threshold;
@@ -541,6 +566,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
     st->opt_playmode[j] = '\0';
     strncpy(st->OutputName,OutputName,sizeof(st->OutputName));
     st->voices = SetValue(voices, 1, MAX_VOICES);
+	st->auto_reduce_polyphony = auto_reduce_polyphony;
     st->quietchannels = quietchannels;
     snprintf(st->opt_qsize,sizeof(st->opt_qsize),"%s/%s",
 	     opt_aq_max_buff,opt_aq_fill_buff);
@@ -564,6 +590,8 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 #if defined(__W32__) && defined(SMFCONV)
     st->opt_rcpcv_dll = opt_rcpcv_dll;
 #endif /* SMFCONV */
+  st->data_block_time = data_block_time;
+  st->data_block_num = data_block_num;
 }
 
 
@@ -650,7 +678,7 @@ void w32g_initialize(void)
 
     if(GetModuleFileName(hInst, buffer, MAXPATH))
     {
-	if((p = strrchr(buffer, '\\')) != NULL)
+	if((p = pathsep_strrchr(buffer)) != NULL)
 	{
 	    p++;
 	    *p = '\0';
@@ -658,22 +686,19 @@ void w32g_initialize(void)
 	else
 	{
 	    buffer[0] = '.';
-	    buffer[1] = '\\';
+	    buffer[1] = PATH_SEP;
 	    buffer[2] = '\0';
 	}
     }
     else
     {
 	buffer[0] = '.';
-	buffer[1] = '\\';
+	buffer[1] = PATH_SEP;
 	buffer[2] = '\0';
     }
     strncpy(IniFile, buffer, MAXPATH);
     IniFile[MAXPATH] = '\0';
     strcat(IniFile,"timpp32g.ini");
-
-    strcpy(ConfigFile, W32G_TIMIDITY_CFG);
-  
     st_default = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
     sp_default = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
     st_current = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
@@ -694,7 +719,7 @@ void w32g_initialize(void)
     {
 	sprintf(buffer,
 "Ini file is not found, or old format is found.\n"
-"Do you initialize ini file?\n\n"
+"Do you want to initialize the ini file?\n\n"
 "Ini file path: %s",
 		IniFile);
 
@@ -704,11 +729,16 @@ void w32g_initialize(void)
 	    w32g_has_ini_file = 1;
 	}
 	else
+	{
 	    w32g_has_ini_file = 0;
+	}
     }
 
     memcpy(sp_default, sp_current, sizeof(SETTING_PLAYER));
     memcpy(st_default, st_current, sizeof(SETTING_TIMIDITY));
+
+    memcpy(sp_temp, sp_current, sizeof(SETTING_PLAYER));
+    memcpy(st_temp, st_current, sizeof(SETTING_TIMIDITY));
 
     w32g_i_init();
 }
@@ -729,6 +759,7 @@ void BitBltRect(HDC dst, HDC src, RECT *rc)
 	   src, rc->left, rc->top, SRCCOPY);
 }
 
+#if 0
 /*
  * TmColor
  */
@@ -795,30 +826,234 @@ void TmFillRect(HDC hdc, RECT *rc, int color)
     SelectObject(hdc, hgdiobj_hpen);
     SelectObject(hdc, hgdiobj_hbrush);
 }
+#endif
 
+#ifndef S_ISDIR
+#define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
+#endif /* S_ISDIR */
 int is_directory(char *path)
 {
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
-    struct stat st;
-    if(stat(path, &st) != -1)
-	return S_ISDIR(st.st_mode);
-#endif
-    return GetFileAttributes(path) == FILE_ATTRIBUTE_DIRECTORY;
+	struct stat st;
+	if(*path == '@') /* special identifire for playlist file */
+		return 0;
+	if(stat(path, &st) != -1)
+		return S_ISDIR(st.st_mode);
+	return GetFileAttributes(path) == FILE_ATTRIBUTE_DIRECTORY;
 }
 
+/* Return: 0: - not modified
+ *         1: - modified
+ */
 int directory_form(char *buffer)
 {
-    int len;
+	int len;
 
-    len = strlen(buffer);
+	len = strlen(buffer);
+	if(len == 0 || buffer[len - 1] == PATH_SEP)
+		return 0;
+	if(IS_PATH_SEP(buffer[len - 1]))
+		len--;
+	buffer[len++] = PATH_SEP;
+	buffer[len] = '\0';
+	return 1;
+}
 
-    if(buffer[len - 1] == PATH_SEP)
-	len--;
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
-    else if(buffer[len - 1] == '/')
-	len--;
-#endif
-    buffer[len++] = PATH_SEP;
-    buffer[len] = '\0';
-    return 1;
+/* Return: 0: - not modified
+ *         1: - modified
+ */
+int nodirectory_form(char *buffer)
+{
+	char *lastp = buffer + strlen(buffer);
+	char *p = lastp;
+
+	while(p > buffer && IS_PATH_SEP(*(p - 1)))
+		p--;
+	if(p == lastp)
+		return 0;
+	*p = '\0';
+	return 1;
+}
+
+void SettingCtlFlag(SETTING_TIMIDITY *st, int c, int onoff)
+{
+    int n;
+    char *opt;
+    
+    opt = st->opt_ctl + 1;
+    n = strlen(opt);
+    if(onoff)
+    {
+	if(strchr(opt, c) != NULL)
+	    return; /* Already set */
+	opt[n++] = c;
+	opt[n] = '\0';
+    }
+    else
+    {
+	char *p;
+	if((p = strchr(opt, c)) == NULL)
+	    return; /* Already removed */
+	while(*(p + 1))
+	{
+	    *p = *(p + 1);
+	    p++;
+	}
+	*p = '\0';
+    }
+}
+
+
+
+
+int IsAvailableFilename(char *filename)
+{
+	char *p = strrchr(filename,'.');
+	if(p == NULL)
+		return 0;
+	if(	strcasecmp(p,".lzh")==0 ||
+		strcasecmp(p,".zip")==0 ||
+		strcasecmp(p,".gz")==0	||
+		strcasecmp(p,".mid")==0 ||
+		strcasecmp(p,".rcp")==0 ||
+		strcasecmp(p,".r36")==0 ||
+		strcasecmp(p,".g18")==0 ||
+		strcasecmp(p,".g36")==0 ||
+		strcasecmp(p,".mod")==0 ||
+//		strcasecmp(p,".hqx")==0 ||
+		strcasecmp(p,".tar")==0 ||
+		strcasecmp(p,".tgz")==0 ||
+		strcasecmp(p,".lha")==0 ||
+		strcasecmp(p,".mime")==0 ||
+		strcasecmp(p,".smf")==0)
+		return 1;
+//	if(url_check_type(filename)!=-1)
+//		return 1;
+	return 0;
+}
+
+/* ScanDirectoryFiles() works like UNIX find. */
+#define SCANDIR_MAX_DEPTH 32
+void ScanDirectoryFiles(char *basedir,
+						int (* file_proc)(char *pathname, /* (const) */
+										  void *user_val),
+						void *user_val)
+{
+	char baselen;
+	URL dir;
+
+	static int depth = 0;
+    static int stop_flag;	/* Stop scanning if true */
+    static int error_disp;	/* Whether error is displayed or not */
+	static char pathbuf[MAXPATH]; /* pathname buffer */
+
+	if(depth == 0) /* Initialize variables at first recursive */
+	{
+		stop_flag = 0;
+		error_disp = 0;
+		strcpy(pathbuf, basedir);
+	}
+	else if(depth > SCANDIR_MAX_DEPTH) /* Avoid infinite recursive */
+	{
+		if(!error_disp)
+		{
+			/* Display this message at once */
+			ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+					  "%s: Directory is too deep",
+					  basedir);
+			error_disp = 1;
+		}
+		return; /* Skip scanning this directory */
+	}
+
+	directory_form(pathbuf);
+	baselen = strlen(pathbuf);
+	if(baselen > sizeof(pathbuf) - 16)
+	{
+		/* Ignore too long file name */
+		return;
+	}
+
+	if((dir = url_dir_open(pathbuf)) == NULL)
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: Can't open directory", pathbuf);
+		return;
+	}
+
+	if(file_proc(pathbuf, user_val))
+	{
+	    stop_flag = 1; /* Terminate */
+		return;
+	}
+
+	while(!stop_flag &&
+		  url_gets(dir, pathbuf + baselen, sizeof(pathbuf) - baselen - 1))
+	{
+		if(strcmp(pathbuf + baselen, ".") == 0 ||
+		   strcmp(pathbuf + baselen, "..") == 0)
+			continue;
+		if(file_proc(pathbuf, user_val))
+		{
+			stop_flag = 1; /* Terminate */
+			break;
+		}
+		if(is_directory(pathbuf))
+		{
+			/* into subdirectory */
+			depth++;
+			ScanDirectoryFiles(pathbuf, file_proc, user_val);
+			depth--;
+		}
+	}
+	url_close(dir);
+}
+
+#define EXPANDDIR_MAX_SIZE  100000	/* Limit of total bytes of the file names */
+static int expand_dir_proc(char *filename, void *v)
+{
+	void **user_val = (void **)v;
+	StringTable *st = (StringTable *)user_val[0];
+	int *total_size = (int *)user_val[1];
+	char *startdir  = (char *)user_val[2];
+
+	if(IsAvailableFilename(filename))
+	{
+		if(*total_size > EXPANDDIR_MAX_SIZE)
+		{
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: There are too many files.",
+					  startdir);
+			return 1; /* Terminate */
+		}
+		put_string_table(st, filename, strlen(filename));
+		*total_size += strlen(filename);
+	}
+	return 0;
+}
+
+char **FilesExpandDir(int *p_nfiles, char **files)
+{
+	StringTable st;
+	int i;
+
+	init_string_table(&st);
+	for(i = 0; i < *p_nfiles; i++)
+	{
+		void *user_val[3];
+		int total_size;
+
+		total_size = 0;
+		user_val[0] = &st;
+		user_val[1] = &total_size;
+		user_val[2] = files[i];
+
+		if(is_directory(files[i]))
+			ScanDirectoryFiles(files[i], expand_dir_proc, user_val);
+		else
+		{
+			int len = strlen(files[i]);
+			put_string_table(&st, files[i], len);
+		}
+	}
+	*p_nfiles = st.nstring;
+    return make_string_array(&st);
+
 }

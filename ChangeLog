@@ -1,3 +1,127 @@
+1999-08-26  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.5.0 released.
+
+1999-08-26  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/linux_a.c(ignore_processed_probrem): Ignore to fix
+      the byte processed probrem if any errors occur.
+      Why count_info.bytes doesn't stop even if the process is suspended?
+    * configure.in: Remove -rdynamic option from $g_so_libs.
+
+1999-08-25  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc/url_dir.c: If !unix, Don't use i-node to compare the directory.
+    * configs/{msc-config.h,msc-interface.h,msc-sjis.txt}: Configuration
+      header files for MSC.
+    * Makefile.am(dist-hook): Added script to distribute configs/*
+    * timidity/playmidi.c (Voice Reduction): Avoid division by zero.
+
+1999-08-25  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/resample.c(RESAMPLATION): Optimization of macro for
+      cspline with linear fallback.
+
+1999-08-24  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/{Makefile.am,Makefile.in,w32g.h,w32g_c.c,w32g_i.c,
+	w32g_ini.c,w32g_playlist.c,w32g_pref.c,w32g_rec.h,w32g_res.h,
+	w32g_res.rc,w32g_subwin.c,w32g_subwin.h,w32g_utl.c,w32g_utl.h,
+	w32g_sleep.bmp},
+	libarc/url.c,
+	timidity/{aq.c,common.c,controls.h,effect.c,playmidi.c,readmidi.c,
+	sndfont.c,timidity.c,timidity.h,version.c,audio_cnv.c},
+      Update new version of Windows GUI.
+      Changes for MSC version.
+    * TiMidity.ad, TiMidity-uj.ad: X Resources for XAW interface.
+    * timidity/playmidi.c (compute_data): Fix division by zero.
+
+1999-08-21  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{output.h,playmidi.c,w32g_a.c} (PM_REQ_PLAY_END): New macro.
+	PM_REQ_PLAY_END is called just after playing.
+    * timidity/playmici.c (midi_program_change): Don't load instrument
+      if !(play_mode->flag & PF_PCM_STREAM)
+    * timidity/list_a.c (ME_PROGRAM): Call midi_program_change() to
+      change the program.
+    * timidity/list_a.c (channel): static -> extern.
+    * timidity/list_a.c (start_list_a, end_list_a): New function.
+	start_list_a(): Initialize internal variable.
+	end_list_a(): Report internal variable.
+    * interface/{w32g_c.c,w32g_i.c,w32g_pref.c} (List Midi Event `l'):
+      Supported.  This output mode is useful to check what kind of patche
+      is used.
+
+1999-08-20  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/{playmidi.c,playmidi.h,resample.h,timidity.c}
+      (cspline and langrange interpolation):
+      reduce_quality_flag: New variable to reduce CPU load for
+	cspline and langrange interpolation.  TiMidity turns
+	reduce_quality_flag on when the CPU is heavily loaded.
+      -4: New command line option to toggle whether ignore reduce_quality_flag.
+	By default, TiMidity uses reduce_quality_flag.
+
+1999-08-20  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/{w32g*,Makefile.am},timidity/w32g_a.c,configure.in:
+      Update new version of Windows GUI.
+    * timidity/{playmidi.c,controls.h} (RC_TUNE_END) Used for skip
+      current playing.  This changes may be useful to play backward order of
+      playlist.
+    * timidity/miditrace.c (trace_wait_samples): Bug fixed.  This fix
+      would down the CPU load in the trace mode.
+
+1999-08-19  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{controls.h,playmidi.c} (CTLE_MAXVOICES): New macro for
+      `voices' change.
+
+1999-08-18  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * libarc/url_dir.c (d_ino): Ignore to check d_ino on Windows.
+
+1999-08-18  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/ncurs_c.c (GSLCD): Draw GSLCD SysEx.
+      Note that LCD is cleard if there is no message between 10 second.
+    * interface/ncurs_c.c: Enable to display channels more than 16ch.
+      The terminal must be able to display more than 24 rows to display
+      more than 16ch.
+
+1999-08-17  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/{common.c,common.h} (path_strchr, path_strrchr):
+      New function to find path separator.
+    * timidity/timidity.h (IS_PATH_SEP): New macro to test whether
+      the character is the path separator.
+    * interface/{ncurs_c.c,w32g_utl.c},
+      timidity/{common.c,wrdt.c,timidity.c},
+      libarc/{arc.c,url.c}:
+      Fix comparation of path separator.
+	- Use `IS_PATH_SEP(c)' instead of `c == PATH_SEP'.
+	- Use `pathsep_strchr(str)' instead of `strchr(str, PATH_SEP)'
+	- Use `pathsep_strrchr(str)' instead of `strrchr(str, PATH_SEP)'
+      Windows console ncurses interface recognizes both
+      "/" and "\" as path separator.
+    * utils/{bitset.c,bitset.h} (check_bitset,change_bitset): New function.
+	
+1999-08-16  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/x_wrdwindow.c: Works more stable for TrueColor.
+    * interface/x_sherry.c: Don't draw the window in skipping.
+    * interface/x_sherry.c: Bug fixed:
+ 	- Could not re-open window.
+	- Printed unexpected character.
+
+1999-08-15  Masanao Izumo <mo@goice.co.jp>
+    * interface/x_sherry.c: Change debug message verbosity.
+    * interface/wrdt_x.c: Change debug message verbosity.
+
+1999-08-13  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/ncurs_c.c: Fixed `L' command bug.
+
 1999-08-11  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.4.1 released.
@@ -25,17 +149,6 @@
 
 1999-08-10  Masanao Izumo <mo@goice.co.jp>
 
-    * libarc/arc.c: Bug fixed.
-    * interface/x_sherry.c: Bug fixed.
-    * libarc/{arc.h,arc.c}: Removed `pool' from ArchiveHandler.
-      Use static variable arc_buffer in arc.c instead of ArchiveHandler.pool.
-      `arc_buffer' which is internal usage only.
-    * timidity/playmidi.c (apply_controls): usleep(300000) if play_pause_flag.
-    * interface/{w32g_c.c,w32g_canvas.c}:
-      Fixed update timing for channel bar mode.
-
-1999-08-10  Masanao Izumo <mo@goice.co.jp>
-
     * libarc/arc.c (): Bug fixed to extract `-lh0-' and `-lz4-' of the lha.
     * interface/x_sherry.c: Bug fixed to create SHM pixmap.
     * libarc/{arc.h,arc.c}: Removed `pool' from ArchiveHandler.
@@ -44,7 +157,6 @@
     * timidity/playmidi.c (apply_controls): usleep(300000) if play_pause_flag.
     * interface/{w32g_c.c,w32g_canvas.c}:
       Fixed update timing for channel bar mode.
-
 
 1999-08-09  Masanao Izumo <mo@goice.co.jp>
 
@@ -214,7 +326,7 @@
     * configure.in: Fixed bug about X path option.
     * timidity/timidity.h (NLS): Change to "\n" for cygwin.
     * interface/gtk_c.c (trace_playing): False by default.
-    * interface/gtk_c.c (ctl_current_time): Update weather trace_playing
+    * interface/gtk_c.c (ctl_current_time): Update whether trace_playing
       is true or false.
     * interface/gtk_c.c (cmsg): Likewise.
     * interface/gtk_c.c (_ctl_refresh): Obsoleted.
@@ -252,7 +364,7 @@
 
 1999-06-22  Masanao Izumo <mo@goice.co.jp>
 
-    * libarc/arc_tar.c: Use checksum wheather the tar file is valid or not.
+    * libarc/arc_tar.c: Use checksum whether the tar file is valid or not.
       "ustar" magic is ignored.
 
 1999-06-14  Masanao Izumo <mo@goice.co.jp>

@@ -106,7 +106,7 @@ static char *make_temp_filename(char *ext)
 #endif
     if(tmpdir == NULL || strlen(tmpdir) == 0)
 	tmpdir = PATH_STRING "tmp" PATH_STRING;
-    if(tmpdir[strlen(tmpdir) - 1] == PATH_SEP)
+    if(IS_PATH_SEP(tmpdir[strlen(tmpdir) - 1]))
 	sprintf(buff, "%stimidity-tmp%d-%d%s",
 		tmpdir, cnt++, (int)getpid(), ext);
     else
@@ -320,7 +320,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 	return 0;
     }
 
-  if (name[0] != PATH_SEP && !is_url_prefix(name))
+  if (!IS_PATH_SEP(name[0]) && !is_url_prefix(name))
     while (plp)  /* Try along the path then */
       {
 	*current_filename=0;
@@ -328,7 +328,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 	if(l)
 	  {
 	    strcpy(current_filename, plp->path);
-	    if(current_filename[l-1] != PATH_SEP &&
+	    if(!IS_PATH_SEP(current_filename[l-1]) &&
 	       current_filename[l-1] != '#' &&
 	       name[0] != '#')
 		strcat(current_filename, PATH_STRING);
@@ -981,8 +981,8 @@ int pathcasecmp(const char *p1, const char *p2)
     {
 	c1 = tolower((int)*s1);
 	c2 = tolower((int)*s2);
-	if(c1 == PATH_SEP) c1 = 0;
-	if(c2 == PATH_SEP) c2 = 0;
+	if(IS_PATH_SEP(c1)) c1 = 0;
+	if(IS_PATH_SEP(c2)) c2 = 0;
 	if(c1 != c2)
 	    return c1 - c2;
 	s1++;
@@ -998,4 +998,35 @@ void sort_pathname(char **files, int nfiles)
 {
     qsort(files, nfiles, sizeof(char *),
 	  (int (*)(const void *, const void *))pathcasecmp);
+}
+
+char *pathsep_strchr(char *path)
+{
+#ifdef PATH_SEP2
+    while(*path)
+    {
+        if(*path == PATH_SEP || *path == PATH_SEP2)
+	    return path;
+	path++;
+    }
+    return NULL;
+#else
+    return strchr(path, PATH_SEP);
+#endif
+}
+
+char *pathsep_strrchr(char *path)
+{
+#ifdef PATH_SEP2
+    char *last_sep = NULL;
+    while(*path)
+    {
+        if(*path == PATH_SEP || *path == PATH_SEP2)
+	    last_sep = path;
+	path++;
+    }
+    return last_sep;
+#else
+    return strrchr(path, PATH_SEP);
+#endif
 }

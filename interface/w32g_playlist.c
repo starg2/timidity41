@@ -51,21 +51,30 @@ static struct {
 
 static HWND playlist_box(void)
 {
-    extern HWND hListWnd;
     if(!hListWnd)
 	return 0;
     return GetDlgItem(hListWnd, IDC_LISTBOX_PLAYLIST);
 }
 
-static void w32g_set_playlist(PlayListEntry *entry, char *filename)
+static int w32g_add_playlist1(char *filename, int uniq, int refine)
 {
-    entry->filename = safe_strdup(filename);
-    entry->title = get_midi_title(filename);
-    entry->info = get_midi_file_info(filename, 1);
-}
+    PlayListEntry *entry;
+    char *title;
+    struct midi_file_info *info;
 
-static void w32g_add_playlist1(char *filename)
-{
+    if(uniq)
+    {
+	int i;
+	for(i = 0; i < playlist.nfiles; i++)
+	    if(strcasecmp(filename, playlist.list[i].filename) == 0)
+		return 0;
+    }
+
+    title = get_midi_title(filename);
+    info = get_midi_file_info(filename, 1);
+    if(refine && info->format < 0)
+	return 0;
+
     if(playlist.allocated == 0)
     {
 	playlist.allocated = 32;
@@ -79,44 +88,87 @@ static void w32g_add_playlist1(char *filename)
 						      playlist.allocated *
 						      sizeof(PlayListEntry));
     }
-    w32g_set_playlist(&playlist.list[playlist.nfiles++], filename);
+
+    entry = &playlist.list[playlist.nfiles];
+    entry->filename = safe_strdup(filename);
+    entry->title = title;
+    entry->info = info;
+    playlist.nfiles++;
+    return 1;
 }
 
-void w32g_add_playlist(int nfiles, char **files, int expand_flag)
+int w32g_add_playlist(int nfiles, char **files, int expand_flag,
+		      int uniq, int refine)
 {
-    char **new_files;
-    int i, new_nfiles;
+    char **new_files1;
+    char **new_files2;
+    int i, n;
+    extern int SeachDirRecursive;
+    extern char **FilesExpandDir(int *, char **);
 
     if(nfiles == 0)
-	return;
-    new_nfiles = nfiles;
+	return 0;
+
+    if(SeachDirRecursive)
+    {
+//printf("## dir expand: %d\n");
+	new_files1 = FilesExpandDir(&nfiles, files);
+	if(new_files1 == NULL)
+	    return 0;
+	expand_flag = 1;
+//printf("## dir expand done %d\n", nfiles);
+    }
+    else
+	new_files1 = files;
+
     if(!expand_flag)
-	new_files = files;
+	new_files2 = new_files1;
     else
     {
-	new_files = expand_file_archives(files, &new_nfiles);
-	if(new_nfiles == 0)
-	    return;
+//printf("## expand...%d\n", nfiles);
+	new_files2 = expand_file_archives(new_files1, &nfiles);
+//printf("## expand...done (%d)\n", nfiles);
+	if(new_files2 == NULL)
+	{
+	    if(new_files1 != files)
+	    {
+		free(new_files1[0]);
+		free(new_files1);
+	    }
+	}
     }
 
-    for(i = 0; i < new_nfiles; i++)
-	w32g_add_playlist1(new_files[i]);
+//printf("## checking files...\n", nfiles);
+    n = 0;
+    for(i = 0; i < nfiles; i++)
+	n += w32g_add_playlist1(new_files2[i], uniq, refine);
+//printf("## checking files...done\n", nfiles);
 
-    if(new_files != files)
+    if(new_files2 != new_files1)
     {
-	free(new_files[0]);
-	free(new_files);
+	free(new_files2[0]);
+	free(new_files2);
+    }
+    if(new_files1 != files)
+    {
+	free(new_files1[0]);
+	free(new_files1);
     }
 
-    w32g_update_playlist();
+//printf("## update...\n", nfiles);
+    if(n > 0)
+	w32g_update_playlist();
+//printf("## update...done\n", nfiles);
+    return n;
 }
 
-int w32g_next_playlist(void)
+int w32g_next_playlist(int skip_invalid_file)
 {
     while(playlist.selected + 1 < playlist.nfiles)
     {
 	playlist.selected++;
-	if(playlist.list[playlist.selected].info->file_type != IS_ERROR_FILE)
+	if(!skip_invalid_file ||
+	   playlist.list[playlist.selected].info->file_type != IS_ERROR_FILE)
 	{
 	    w32g_update_playlist();
 	    return 1;
@@ -125,12 +177,13 @@ int w32g_next_playlist(void)
     return 0;
 }
 
-int w32g_prev_playlist(void)
+int w32g_prev_playlist(int skip_invalid_file)
 {
     while(playlist.selected > 0)
     {
 	playlist.selected--;
-	if(playlist.list[playlist.selected].info->file_type != IS_ERROR_FILE)
+	if(!skip_invalid_file ||
+	   playlist.list[playlist.selected].info->file_type != IS_ERROR_FILE)
 	{
 	    w32g_update_playlist();
 	    return 1;
@@ -139,27 +192,33 @@ int w32g_prev_playlist(void)
     return 0;
 }
 
-void w32g_first_playlist(void)
+void w32g_first_playlist(int skip_invalid_file)
 {
     playlist.selected = 0;
-    while(playlist.selected < playlist.nfiles &&
-	  playlist.list[playlist.selected].info->file_type == IS_ERROR_FILE)
-	playlist.selected++;
-    if(playlist.selected == playlist.nfiles)
-	playlist.selected = 0;
-    w32g_update_playlist();
-}
-
-int w32g_goto_playlist(int num)
-{
-    if(0 <= num && num < playlist.nfiles)
+    if(skip_invalid_file)
     {
-	playlist.selected = num;
 	while(playlist.selected < playlist.nfiles &&
 	      playlist.list[playlist.selected].info->file_type == IS_ERROR_FILE)
 	    playlist.selected++;
 	if(playlist.selected == playlist.nfiles)
-	    playlist.selected = num;
+	    playlist.selected = 0;
+    }
+    w32g_update_playlist();
+}
+
+int w32g_goto_playlist(int num, int skip_invalid_file)
+{
+    if(0 <= num && num < playlist.nfiles)
+    {
+	playlist.selected = num;
+	if(skip_invalid_file)
+	{
+	    while(playlist.selected < playlist.nfiles &&
+		  playlist.list[playlist.selected].info->file_type == IS_ERROR_FILE)
+		playlist.selected++;
+	    if(playlist.selected == playlist.nfiles)
+		playlist.selected = num;
+	}
 	w32g_update_playlist();
 	return 1;
     }
@@ -171,27 +230,25 @@ int w32g_isempty_playlist(void)
     return playlist.nfiles == 0;
 }
 
+#if 0
 char *w32g_curr_playlist(void)
 {
     if(!playlist.nfiles)
 	return NULL;
     return playlist.list[playlist.selected].filename;
 }
+#endif
 
 void w32g_update_playlist(void)
 {
-    int i, top_index, cur;
+    int i, cur, modified;
     HWND hListBox;
 
-    hListBox = playlist_box();
-    if(!hListBox)
+    if(!(hListBox = playlist_box()))
 	return;
 
-    top_index = ListBox_GetTopIndex(hListBox);
-    if(top_index != 0)
-	ListBox_SetTopIndex(hListBox, 0);
-
     cur = ListBox_GetCurSel(hListBox);
+    modified = 0;
     for(i = 0; i < playlist.nfiles; i++)
     {
 	char *filename, *title, *item1, *item2;
@@ -219,15 +276,19 @@ void w32g_update_playlist(void)
 	{
 	    ListBox_DeleteString(hListBox, i);
 	    ListBox_InsertString(hListBox, i, item1);
+	    modified = 1;
 	}
 	reuse_mblock(&tmpbuffer);
     }
 
-    if(cur < 0)
-	cur = 0;
-    else if(cur >= playlist.nfiles - 1)
-	cur = playlist.nfiles - 1;
-    ListBox_SetCurSel(hListBox, cur);
+    if(modified)
+    {
+	if(cur < 0)
+	    cur = playlist.selected;
+	else if(cur >= playlist.nfiles - 1)
+	    cur = playlist.nfiles - 1;
+	ListBox_SetCurSel(hListBox, cur);
+    }
 }
 
 void w32g_get_playlist_index(int *selected, int *nfiles, int *cursel)
@@ -247,14 +308,16 @@ void w32g_get_playlist_index(int *selected, int *nfiles, int *cursel)
     }
 }
 
-void w32g_delete_playlist(int pos)
+int w32g_delete_playlist(int pos)
 {
     int i;
     HWND hListBox;
 
-    hListBox = playlist_box();
-    if(!hListBox)
-	return;
+    if(!(hListBox = playlist_box()))
+	return 0;
+
+    if(pos >= playlist.nfiles)
+	return 0;
 
     ListBox_DeleteString(hListBox, pos);
     free(playlist.list[pos].filename);
@@ -274,15 +337,23 @@ void w32g_delete_playlist(int pos)
 	    pos--;
 	ListBox_SetCurSel(hListBox, pos);
     }
+    return 1;
 }
 
-int w32g_valid_playlist(void)
+int w32g_ismidi_playlist(int n)
+{
+    if(n < 0 || n >= playlist.nfiles)
+	return 0;
+    return playlist.list[n].info->format >= 0;
+}
+
+int w32g_nvalid_playlist(void)
 {
     int i, n;
 
     n = 0;
     for(i = 0; i < playlist.nfiles; i++)
-	if(playlist.list[i].info->file_type != IS_ERROR_FILE)
+	if(w32g_ismidi_playlist(i))
 	    n++;
     return n;
 }
@@ -290,8 +361,185 @@ int w32g_valid_playlist(void)
 void w32g_setcur_playlist(void)
 {
     HWND hListBox;
-    hListBox = playlist_box();
-    if(!hListBox)
+    if(!(hListBox = playlist_box()))
 	return;
     ListBox_SetCurSel(hListBox, playlist.selected);
+}
+
+int w32g_uniq_playlist(int *is_selected_removed)
+{
+    int nremoved;
+    int i, n, j1, j2, cursel;
+    HWND hListBox;
+
+    hListBox = playlist_box();
+    if(hListBox)
+	cursel = ListBox_GetCurSel(hListBox);
+    else
+	cursel = -1;
+
+    if(is_selected_removed != NULL)
+	*is_selected_removed = 0;
+    nremoved = 0;
+    n = playlist.nfiles;
+    for(i = 0; i < n - 1; i++)
+    {
+	int save_n;
+
+	/* remove list[i] from list[i+1 .. n-1] */
+	j1 = j2 = i + 1;
+	save_n = n;
+	while(j2 < save_n) /* j1 <= j2 */
+	{
+	    if(strcasecmp(playlist.list[i].filename,
+			  playlist.list[j2].filename) == 0)
+	    {
+		nremoved++;
+		n--;
+		free(playlist.list[j2].filename);
+		if(j2 == playlist.selected &&
+		   is_selected_removed != NULL &&
+		   !*is_selected_removed)
+		{
+		    *is_selected_removed = 1;
+		    playlist.selected = j1;
+		}
+		if(j2 < playlist.selected)
+		    playlist.selected--;
+		if(j2 < cursel)
+		    cursel--;
+	    }
+	    else
+	    {
+		playlist.list[j1] = playlist.list[j2];
+		j1++;
+	    }
+	    j2++;
+	}
+    }
+    if(nremoved)
+    {
+	for(i = 0; i < nremoved; i++)
+	    ListBox_DeleteString(hListBox, --playlist.nfiles);
+	if(cursel >= 0)
+	    ListBox_SetCurSel(hListBox, cursel);
+	w32g_update_playlist();
+    }
+    return nremoved;
+}
+
+int w32g_refine_playlist(int *is_selected_removed)
+{
+    int nremoved;
+    int i, j1, j2, cursel;
+    HWND hListBox;
+
+    hListBox = playlist_box();
+    if(hListBox)
+	cursel = ListBox_GetCurSel(hListBox);
+    else
+	cursel = -1;
+
+    if(is_selected_removed != NULL)
+	*is_selected_removed = 0;
+    nremoved = 0;
+    j1 = j2 = 0;
+    while(j2 < playlist.nfiles) /* j1 <= j2 */
+    {
+	if(playlist.list[j2].info->format < 0)
+	{
+	    nremoved++;
+	    free(playlist.list[j2].filename);
+		if(j2 == playlist.selected &&
+		   is_selected_removed != NULL &&
+		   !*is_selected_removed)
+		{
+		    *is_selected_removed = 1;
+		    playlist.selected = j1;
+		}
+		if(j2 < playlist.selected)
+		    playlist.selected--;
+		if(j2 < cursel)
+		    cursel--;
+	}
+	else
+	{
+	    playlist.list[j1] = playlist.list[j2];
+	    j1++;
+	}
+	j2++;
+    }
+    if(nremoved)
+    {
+	for(i = 0; i < nremoved; i++)
+	    ListBox_DeleteString(hListBox, --playlist.nfiles);
+	if(cursel >= playlist.nfiles)
+	    cursel = playlist.nfiles - 1;
+	if(cursel >= 0)
+	    ListBox_SetCurSel(hListBox, cursel);
+	w32g_update_playlist();
+    }
+    return nremoved;
+}
+
+void w32g_clear_playlist(void)
+{
+    HWND hListBox;
+
+    hListBox = playlist_box();
+    while(playlist.nfiles > 0)
+    {
+	playlist.nfiles--;
+	free(playlist.list[playlist.nfiles].filename);
+	if(hListBox)
+	    ListBox_DeleteString(hListBox, playlist.nfiles);
+    }
+}
+
+void w32g_rotate_playlist(int dest)
+{
+    int i, i1, i2;
+    HWND hListBox;
+    PlayListEntry save;
+
+    if(playlist.nfiles == 0)
+	return;
+    if(!(hListBox = playlist_box()))
+	return;
+
+    i1 = ListBox_GetCurSel(hListBox);
+    i2 = playlist.nfiles - 1;
+    if(i1 >= i2)
+	return;
+
+    if(dest > 0)
+    {
+	save = playlist.list[i2];
+	for(i = i2; i > i1; i--) /* i: i2 -> i1 */
+	    playlist.list[i] = playlist.list[i - 1];
+	playlist.list[i] = save;
+	if(playlist.selected == i2)
+	    playlist.selected = i1;
+	else if(i1 <= playlist.selected && playlist.selected < i2)
+	    playlist.selected++;
+    }
+    else
+    {
+	save = playlist.list[i1];
+	for(i = i1; i < i2; i++) /* i: i1 -> i2 */
+	    playlist.list[i] = playlist.list[i + 1];
+	playlist.list[i] = save;
+	if(playlist.selected == i1)
+	    playlist.selected = i2;
+	else if(i1 < playlist.selected && playlist.selected <= i2)
+	    playlist.selected--;    
+    }
+    w32g_update_playlist();
+}
+
+char *w32g_get_playlist(int idx)
+{
+    if(idx < 0 || idx >= playlist.nfiles)
+	return NULL;
+    return playlist.list[idx].filename;
 }

@@ -31,7 +31,10 @@
 #include "timidity.h"
 #include "common.h"
 #include "output.h"
+#include "instrum.h"
+#include "playmidi.h"
 #include "w32g.h"
+#include "w32g_utl.h"
 
 #if MAX_CHANNELS > 32 /* FIXME */
 #error "MAX_CHANNELS > 32 is not supported Windows GUI version"
@@ -103,6 +106,8 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_PLAYER,"SoundSpecWndFlag",&(sp->SoundSpecWndFlag));
     IniGetKeyInt(INI_SEC_PLAYER,"SubWindowMax",&(sp->SubWindowMax));
     IniGetKeyStringN(INI_SEC_PLAYER,"ConfigFile",sp->ConfigFile,MAXPATH + 32);
+    if(!sp->ConfigFile[0])
+	strcpy(sp->ConfigFile, W32G_TIMIDITY_CFG);
     IniGetKeyStringN(INI_SEC_PLAYER,"PlaylistFile",sp->PlaylistFile,MAXPATH + 32);
     IniGetKeyStringN(INI_SEC_PLAYER,"PlaylistHistoryFile",sp->PlaylistHistoryFile,MAXPATH + 32);
     IniGetKeyStringN(INI_SEC_PLAYER,"MidiFileOpenDir",sp->MidiFileOpenDir,MAXPATH + 32);
@@ -126,6 +131,10 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_PLAYER,"TraceGraphicFlag",&(sp->TraceGraphicFlag));
     IniGetKeyInt(INI_SEC_PLAYER,"DocMaxSize",&(sp->DocMaxSize));
     IniGetKeyStringN(INI_SEC_PLAYER,"DocFileExt",sp->DocFileExt,256);
+    IniGetKeyInt(INI_SEC_PLAYER,"PlayerLanguage",&(sp->PlayerLanguage));
+    IniGetKeyInt(INI_SEC_PLAYER,"DocWndIndependent",&(sp->DocWndIndependent));
+    IniGetKeyInt(INI_SEC_PLAYER,"SeachDirRecursive",&(sp->SeachDirRecursive));
+    IniGetKeyInt(INI_SEC_PLAYER,"IniFileAutoSave",&(sp->IniFileAutoSave));
 
     /* [TIMIDITY] */
     IniGetKeyInt32(INI_SEC_TIMIDITY,"amplification",&(st->amplification));
@@ -164,6 +173,7 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode));
     IniGetKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,sizeof(st->OutputName));
     IniGetKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"auto_reduce_polyphony",&(st->auto_reduce_polyphony));
     IniGetKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
     IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize));
     IniGetKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
@@ -176,6 +186,8 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 #if defined(__W32__) && defined(SMFCONV)
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
 #endif
+    IniGetKeyInt(INI_SEC_TIMIDITY,"data_block_time",&(st->data_block_time));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"data_block_num",&(st->data_block_num));
 }
 
 void
@@ -198,7 +210,11 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_PLAYER,"WrdWndFlag",&(sp->WrdWndFlag));
     IniPutKeyInt(INI_SEC_PLAYER,"SoundSpecWndFlag",&(sp->SoundSpecWndFlag));
     IniPutKeyInt(INI_SEC_PLAYER,"SubWindowMax",&(sp->SubWindowMax));
-    IniPutKeyStringN(INI_SEC_PLAYER,"ConfigFile",sp->ConfigFile,MAXPATH + 32);
+//####
+//    if(sp->ConfigFile[0])
+	IniPutKeyStringN(INI_SEC_PLAYER,"ConfigFile",sp->ConfigFile,MAXPATH + 32);
+//    else
+//	IniPutKeyStringN(INI_SEC_PLAYER,"ConfigFile",W32G_TIMIDITY_CFG,MAXPATH + 32);
     IniPutKeyStringN(INI_SEC_PLAYER,"PlaylistFile",sp->PlaylistFile,MAXPATH + 32);
     IniPutKeyStringN(INI_SEC_PLAYER,"PlaylistHistoryFile",sp->PlaylistHistoryFile,MAXPATH + 32);
     IniPutKeyStringN(INI_SEC_PLAYER,"MidiFileOpenDir",sp->MidiFileOpenDir,MAXPATH + 32);
@@ -222,6 +238,10 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_PLAYER,"TraceGraphicFlag",&(sp->TraceGraphicFlag));
     IniPutKeyInt(INI_SEC_PLAYER,"DocMaxSize",&(sp->DocMaxSize));
     IniPutKeyStringN(INI_SEC_PLAYER,"DocFileExt",sp->DocFileExt,256);
+    IniPutKeyInt(INI_SEC_PLAYER,"PlayerLanguage",&(sp->PlayerLanguage));
+    IniPutKeyInt(INI_SEC_PLAYER,"DocWndIndependent",&(sp->DocWndIndependent));
+    IniPutKeyInt(INI_SEC_PLAYER,"SeachDirRecursive",&(sp->SeachDirRecursive));
+    IniPutKeyInt(INI_SEC_PLAYER,"IniFileAutoSave",&(sp->IniFileAutoSave));
 
 
     /* [TIMIDITY] */
@@ -260,6 +280,7 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode));
     IniPutKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,sizeof(st->OutputName));
     IniPutKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"auto_reduce_polyphony",&(st->auto_reduce_polyphony));
     IniPutKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
     IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize));
     IniPutKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
@@ -273,5 +294,7 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 #if defined(__W32__) && defined(SMFCONV)
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
 #endif
+    IniPutKeyInt(INI_SEC_TIMIDITY,"data_block_time",&(st->data_block_time));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"data_block_num",&(st->data_block_num));
+    w32g_has_ini_file = 1;
 }
-

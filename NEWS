@@ -1,3 +1,15 @@
+8/26, 1999
+    * Version 2.5.0 released.
+    * Upgrade Windows GUI.
+    * MIMPI WRD for TrueColor X Window works more stable.
+    * In ncurses interface, support to display GSLCD.
+    * In ncurses interface, Enable to display channels more than 16ch.
+      The terminal must be able to display more than 24 rows to display
+      more than 16ch.
+    * On Windows, recognize both `\' and `/' as path separator if the
+      binary is compiled with Cygwin.
+    * Bug fix.
+
 8/11, 1999
     * Version 2.4.1 released.
     * Bug fix.

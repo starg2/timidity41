@@ -141,7 +141,7 @@ static SherryPalette **virtualPalette; /* MAX_VIRTUAL_PALETTES, 仮想パレット */
 static SherryPaletteEntry realPalette[MAX_PALETTES];
 static uint8 *pseudoImage; /* For TrueColor */
 
-
+static int draw_ctl_flag = True;
 static int err_to_stop = 0;
 
 
@@ -404,14 +404,14 @@ static int x_sry_open(char *opts)
 	if(error_flag == -1)
 	    ctl->cmsg(CMSG_ERROR, VERB_NOISY,
 		      "Sherry WRD: Can't work because of error");
+	else if(error_flag == 1) /* Already initialized */
+	{
+	    XMapWindow(theDisplay, theWindow);
+	    clear_image_pixmap(theRealScreen, basePixel);
+	    XFlush(theDisplay);
+	    return 0;
+	}
 	return error_flag;
-    }
-
-    if(theDisplay != NULL)
-    {
-	XMapWindow(theDisplay, theWindow);
-	XFlush(theDisplay);
-	return 1;
     }
 
     if(strchr(opts, 'p'))
@@ -423,7 +423,7 @@ static int x_sry_open(char *opts)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "Sherry WRD: Can't open display: %s", XDisplayName(NULL));
-	error_flag = 1;
+	error_flag = -1;
 	return -1;
     }
 
@@ -645,6 +645,8 @@ static void sry_pal_set(uint8 *data, int len)
 
 static void update_real_screen(int x, int y, int width, int height)
 {
+  if(!draw_ctl_flag)
+    return;
 #if XSHM_SUPPORT
     if(theRealScreen->shminfo.shmid != -1)
     {
@@ -752,7 +754,7 @@ static void sry_pal_v2r(uint8 *data)
     n = SRY_GET_SHORT(data) & 0xffff;
 
 #ifdef SRY_DEBUG
-printf("Transfer palette %d\n", n);
+    printf("Transfer palette %d\n", n);
 #endif /* SRY_DEBUG */
 
     if(virtualPalette[n] == NULL)
@@ -1828,86 +1830,86 @@ void x_sry_wrdt_apply(uint8 *data, int len)
     if(skip_bit && aq_filled_ratio() < 0.2)
 	return;
 
-    switch(op & 0x7F) /* ignore skip bit */
+    switch(op & 0x7F)
     {
       case 0x01:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "sherry start");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "sherry start");
 	wrd_init_path();
 	x_sry_clear();
 	break;
       case 0x21:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "new pal 0x21");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "new pal 0x21");
 	sry_new_vpal(data, len);
 	break;
       case 0x22:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "free pal 0x22");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "free pal 0x22");
 	sry_free_vpal(data, len);
 	break;
       case 0x25:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "new vram 0x25");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "new vram 0x25");
 	sry_new_vram(data, len);
 	break;
       case 0x26:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "free vram 0x26");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "free vram 0x26");
 	sry_free_vram(data, len);
 	break;
       case 0x27:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "load PNG 0x27");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "load PNG 0x27");
 	sry_load_png(data);
 	break;
       case 0x31:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "palette trans 0x31 (%d)", SRY_GET_SHORT(data));
 	sry_pal_v2r(data);
 	break;
       case 0x35:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "image copy 0x35 (%d)", SRY_GET_SHORT(data));
 	sry_trans_all(data);
 	break;
       case 0x36:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 		  "image copy 0x36 (%d)", SRY_GET_SHORT(data));
 	sry_trans_partial_real(data);
 	break;
       case 0x41:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "set pal 0x41");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "set pal 0x41");
 	sry_pal_set(data, len);
 	break;
       case 0x42:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "pal merge 0x42");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "pal merge 0x42");
 	sry_pal_merge(data);
 	break;
       case 0x43:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "pal copy 0x43");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "pal copy 0x43");
 	sry_pal_copy(data);
 	break;
       case 0x51:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "text 0x51");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "text 0x51");
 	sry_text(data);
 	break;
       case 0x52:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "draw box 0x52");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "draw box 0x52");
 	sry_draw_box(data);
 	break;
       case 0x53:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "draw line 0x53");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "draw line 0x53");
 	sry_draw_vline(data);
 	break;
       case 0x54:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "draw line 0x54");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "draw line 0x54");
 	sry_draw_hline(data);
 	break;
       case 0x55:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "draw line 0x55");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "draw line 0x55");
 	sry_draw_line(data);
 	break;
       case 0x61:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "image copy 0x61");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "image copy 0x61");
 	sry_trans_partial(data);
 	break;
       case 0x62:
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "image copy 0x62");
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "image copy 0x62");
 	sry_trans_partial_mask(data);
 	break;
 
@@ -1929,6 +1931,9 @@ void x_sry_wrdt_apply(uint8 *data, int len)
 
 void x_sry_redraw_ctl(int flag)
 {
+    draw_ctl_flag = flag;
+    if(draw_ctl_flag)
+	update_real_screen(0, 0, REAL_SCREEN_SIZE_X, REAL_SCREEN_SIZE_Y);
 }
 
 void x_sry_update(void)
@@ -2006,8 +2011,8 @@ static ImagePixmap *create_shm_image_pixmap(int width, int height, int depth)
     }
 
     /* allocate n-depth Z image data structure */
-    ip->im->data = (char *)safe_malloc(ip->im->bytes_per_line *
-				       ip->im->height);
+    ip->im->data = (char *)safe_large_malloc(ip->im->bytes_per_line *
+					     ip->im->height);
 
     /* The next step is to create the shared memory segment.
      * The return value of shmat() should be stored both
@@ -2206,7 +2211,6 @@ static int bitmap_drawimage(ImagePixmap *ip, char *sjis_str, int nbytes)
 	else
 	{
 	    char c = sjis_c1;
-	    putchar(sjis_c1);
 	    XSetFont(theDisplay, ip->gc, theFont8->fid);
 	    XDrawImageString(theDisplay, ip->pm, ip->gc,
 			     x - lbearing8, ascent8, &c, 1);
@@ -2221,7 +2225,7 @@ static int bitmap_drawimage(ImagePixmap *ip, char *sjis_str, int nbytes)
 #if XSHM_SUPPORT
     if(ip->shminfo.shmid != -1)
     {
-	XShmGetImage(theDisplay, ip->pm, ip->im, 0, 0, AllPlanes);
+        XSync(theDisplay, 0); /* Wait until ready */
 	return write_len;
     }
 #endif /* XSHM_SUPPORT */

@@ -50,12 +50,16 @@ extern void clear_bitset(Bitset *bitset, int start_bit, int nbits);
  */
 extern void get_bitset(const Bitset *bitset, unsigned int *bits_return,
 		       int start_bit, int nbits);
+/* get_bitset の 1 ビット版 */
+extern int get_bitset1(Bitset *bitset, int n);
 
 /*
  * start ビットから、nbits 分、bits にセットする
  */
 extern void set_bitset(Bitset *bitset, const unsigned int *bits,
 		       int start_bit, int nbits);
+/* set_bitset の 1 ビット版 */
+extern void set_bitset1(Bitset *bitset, int n, int bit);
 
 /*
  * bitset の中に 1 ビットも含まれていなければ 0 を返し，
