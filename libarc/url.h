@@ -61,8 +61,11 @@ typedef struct _URL
     unsigned long nread;	/* Reset in url_seek, url_rewind,
 				   url_set_readlimit */
     unsigned long readlimit;
+    int		  eof;		/* Used in url_nread and others */
 } *URL;
 #define URLm(url, m) (((URL)url)->m)
+
+#define url_eof(url) URLm((url), eof)
 
 /* open URL stream */
 extern URL url_open(char *url_string);
@@ -89,7 +92,7 @@ extern int url_readline(URL url, char *buff, int n);
 /* read a byte */
 extern int url_fgetc(URL url);
 #define url_getc(url) \
-    ((url)->nread >= (url)->readlimit ? EOF : \
+    ((url)->nread >= (url)->readlimit ? ((url)->eof = 1, EOF) : \
      (url)->url_fgetc != NULL ? ((url)->nread++, (url)->url_fgetc(url)) : \
       url_fgetc(url))
 

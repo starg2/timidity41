@@ -22,6 +22,7 @@ SUBDIRS = \
 	utils \
 	libarc \
 	interface \
+	libunimod \
 	timidity \
 	doc
 

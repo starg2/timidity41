@@ -114,7 +114,7 @@ so = @so@
 tcltk_dep = @tcltk_dep@
 timidity_LDFLAGS = @timidity_LDFLAGS@
 
-SUBDIRS =  	utils 	libarc 	interface 	timidity 	doc
+SUBDIRS =  	utils 	libarc 	interface 	libunimod 	timidity 	doc
 
 
 EXTRA_DIST =  	AUTHORS 	COPYING 	ChangeLog 	ChangeLog.1 	INSTALL 	INSTALL.jp 	NEWS 	README 	README.jp 	timidity.ide 	timidity.mak 	TiMidity-uj.ad 	TiMidity.ad
@@ -350,7 +350,6 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-hook
-
 info-am:
 info: info-recursive
 dvi-am:

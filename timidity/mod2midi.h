@@ -17,15 +17,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+   mod2midi.h
+
+   Header file for sample info -> MIDI event conversion
+
  */
 
-#ifndef ___MOD_H_
-#define ___MOD_H_
+#include "unimod.h"
 
-#define MOD_NUM_VOICES	16
-
-extern int get_module_type (char *fn);
-extern int load_module_file (struct timidity_file *tf, int mod_type);
-extern char *get_module_title (struct timidity_file *tf, int mod_type);
-
-#endif /* ___MOD_H_ */
+void Voice_SetVolume (SBYTE, UWORD);
+void Voice_SetFrequency (SBYTE, ULONG);
+void Voice_SetPanning (SBYTE, ULONG);
+void Voice_Play (SBYTE, SAMPLE *, ULONG);
+void Voice_Stop (SBYTE);
+BOOL Voice_Stopped (SBYTE);
+void Voice_NewTempo (UWORD, UWORD);
+void Voice_TickDone ();
+void Voice_StartPlaying ();
+void Voice_EndPlaying ();
+void load_module_samples (SAMPLE *, int);

@@ -2622,15 +2622,17 @@ char *get_midi_title(char *filename)
 
     if((mtype = get_module_type(filename)) > 0)
     {
-	char title[32], *str;
+	char *title, *str;
 
-	switch(mtype)
+	title = get_module_title(tf, mtype);
+	if(title == NULL)
 	{
-	  case IS_MOD_FILE:
-	    tf_read(title, 1, 20, tf);
-	    title[19] = '\0';
-	    break;
+	    /* No title */
+	    p->seq_name = NULL;
+	    p->format = 0;
+	    goto end_of_parse;
 	}
+
 	len = (int32)strlen(title);
 	len = SAFE_CONVERT_LENGTH(len);
 	str = (char *)new_segment(&tmpbuffer, len);
@@ -2638,6 +2640,7 @@ char *get_midi_title(char *filename)
 	p->seq_name = (char *)safe_strdup(str);
 	reuse_mblock(&tmpbuffer);
 	p->format = 0;
+	free (title);
 	goto end_of_parse;
     }
 

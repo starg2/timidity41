@@ -112,21 +112,13 @@ so = @so@
 tcltk_dep = @tcltk_dep@
 timidity_LDFLAGS = @timidity_LDFLAGS@
 
-INCLUDES =  	-I$(top_srcdir) 	-I$(top_srcdir)/timidity 	-I$(top_srcdir)/utils 	$(EXTRAINCS)
+INCLUDES =  	-I$(top_srcdir) 	-I$(top_srcdir)/timidity 	-I$(top_srcdir)/utils 	-I$(top_srcdir)/libarc 	$(EXTRAINCS)
 
 
-noinst_LIBRARIES = libarc.a
+noinst_LIBRARIES = libunimod.a
 
-libarc_a_SOURCES =  	arc.c 	arc.h 	arc_lzh.c 	arc_mime.c 	arc_tar.c 	arc_zip.c 	deflate.c 	explode.c 	explode.h 	inflate.c 	unlzh.c 	unlzh.h 	url.c 	url.h 	url_b64decode.c 	url_buff.c 	url_cache.c 	url_dir.c 	url_file.c 	url_hqxdecode.c 	url_inflate.c 	url_mem.c 	url_pipe.c 	url_qsdecode.c 	url_uudecode.c 	zip.h
+libunimod_a_SOURCES =  	load_669.c 	load_amf.c 	load_dsm.c 	load_far.c 	load_gdm.c 	load_imf.c 	load_it.c 	load_m15.c 	load_med.c 	load_mod.c 	load_mtm.c 	load_s3m.c 	load_stm.c 	load_stx.c 	load_ult.c 	load_uni.c 	load_xm.c 	mloader.c 	mlutil.c 	mmsup.c 	munitrk.c 	unimod.h 	unimod_priv.h
 
-
-EXTRA_libarc_a_SOURCES =  	url_http.c 	url_ftp.c 	url_news.c 	url_newsgroup.c
-
-
-@ENABLE_NETWORK_TRUE@NET_OBJS = 	url_http.o 	url_ftp.o 	url_news.o 	url_newsgroup.o
-
-libarc_a_LIBADD = $(NET_OBJS)
-libarc_a_DEPENDENCIES = $(NET_OBJS)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../config.h ../interface.h
 CONFIG_CLEAN_FILES = 
@@ -141,10 +133,11 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libarc_a_OBJECTS =  arc.o arc_lzh.o arc_mime.o arc_tar.o arc_zip.o \
-deflate.o explode.o inflate.o unlzh.o url.o url_b64decode.o url_buff.o \
-url_cache.o url_dir.o url_file.o url_hqxdecode.o url_inflate.o \
-url_mem.o url_pipe.o url_qsdecode.o url_uudecode.o
+libunimod_a_LIBADD = 
+libunimod_a_OBJECTS =  load_669.o load_amf.o load_dsm.o load_far.o \
+load_gdm.o load_imf.o load_it.o load_m15.o load_med.o load_mod.o \
+load_mtm.o load_s3m.o load_stm.o load_stx.o load_ult.o load_uni.o \
+load_xm.o mloader.o mlutil.o mmsup.o munitrk.o
 AR = ar
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -157,14 +150,14 @@ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = gtar
 GZIP_ENV = --best
-SOURCES = $(libarc_a_SOURCES) $(EXTRA_libarc_a_SOURCES)
-OBJECTS = $(libarc_a_OBJECTS)
+SOURCES = $(libunimod_a_SOURCES)
+OBJECTS = $(libunimod_a_OBJECTS)
 
 all: all-redirect
 .SUFFIXES:
 .SUFFIXES: .S .c .o .s
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps libarc/Makefile
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps libunimod/Makefile
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \
@@ -199,10 +192,10 @@ distclean-compile:
 
 maintainer-clean-compile:
 
-libarc.a: $(libarc_a_OBJECTS) $(libarc_a_DEPENDENCIES)
-	-rm -f libarc.a
-	$(AR) cru libarc.a $(libarc_a_OBJECTS) $(libarc_a_LIBADD)
-	$(RANLIB) libarc.a
+libunimod.a: $(libunimod_a_OBJECTS) $(libunimod_a_DEPENDENCIES)
+	-rm -f libunimod.a
+	$(AR) cru libunimod.a $(libunimod_a_OBJECTS) $(libunimod_a_LIBADD)
+	$(RANLIB) libunimod.a
 
 tags: TAGS
 
@@ -235,7 +228,7 @@ maintainer-clean-tags:
 
 distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
 
-subdir = libarc
+subdir = libunimod
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
@@ -248,56 +241,42 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-arc.o: arc.c ../config.h ../timidity/timidity.h ../utils/support.h \
-	../timidity/common.h url.h ../utils/mblock.h arc.h \
-	../utils/strtab.h zip.h unlzh.h explode.h
-arc_lzh.o: arc_lzh.c ../config.h ../timidity/timidity.h \
-	../utils/support.h arc.h url.h ../utils/mblock.h
-arc_mime.o: arc_mime.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h arc.h url.h
-arc_tar.o: arc_tar.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h arc.h url.h
-arc_zip.o: arc_zip.c ../config.h ../timidity/timidity.h \
-	../utils/support.h arc.h url.h ../utils/mblock.h
-deflate.o: deflate.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h
-explode.o: explode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h explode.h zip.h
-inflate.o: inflate.c ../config.h ../timidity/timidity.h \
-	../utils/support.h ../utils/mblock.h zip.h
-unlzh.o: unlzh.c ../config.h ../timidity/timidity.h ../utils/support.h \
-	unlzh.h
-url.o: url.c ../config.h ../timidity/timidity.h ../utils/support.h url.h
-url_b64decode.o: url_b64decode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_buff.o: url_buff.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_cache.o: url_cache.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/memb.h ../utils/mblock.h
-url_dir.o: url_dir.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/strtab.h ../utils/mblock.h
-url_file.o: url_file.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_ftp.o: url_ftp.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
-url_hqxdecode.o: url_hqxdecode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_http.o: url_http.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
-url_inflate.o: url_inflate.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/mblock.h zip.h
-url_mem.o: url_mem.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_news.o: url_news.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
-url_newsgroup.o: url_newsgroup.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h ../utils/net.h
-url_pipe.o: url_pipe.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_qsdecode.o: url_qsdecode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
-url_uudecode.o: url_uudecode.c ../config.h ../timidity/timidity.h \
-	../utils/support.h url.h
+load_669.o: load_669.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_amf.o: load_amf.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_dsm.o: load_dsm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_far.o: load_far.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_gdm.o: load_gdm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_imf.o: load_imf.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_it.o: load_it.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+load_m15.o: load_m15.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_med.o: load_med.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_mod.o: load_mod.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_mtm.o: load_mtm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_s3m.o: load_s3m.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_stm.o: load_stm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_stx.o: load_stx.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_ult.o: load_ult.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_uni.o: load_uni.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_xm.o: load_xm.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+mloader.o: mloader.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+mlutil.o: mlutil.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+mmsup.o: mmsup.c unimod_priv.h unimod.h ../libarc/url.h
+munitrk.o: munitrk.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
 
 info-am:
 info: info-am

@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.8.2, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.9.0a1, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -1321,6 +1321,7 @@ interface/motif_bitmaps/Makefile
 interface/bitmaps/Makefile
 interface/pixmaps/Makefile
 libarc/Makefile
+libunimod/Makefile
 timidity/Makefile
 utils/Makefile
 doc/Makefile

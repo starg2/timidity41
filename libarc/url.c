@@ -121,8 +121,10 @@ long url_read(URL url, void *buff, long n)
 	return 0;
     url_errno = URLERR_NONE;
     errno = 0;
-    if(url->nread >= url->readlimit)
+    if(url->nread >= url->readlimit) {
+        url->eof = 1;
 	return 0;
+    }
     if(url->nread + n > url->readlimit)
 	n = (long)(url->readlimit - url->nread);
     n = url->url_read(url, buff, n);
@@ -142,8 +144,11 @@ long url_safe_read(URL url, void *buff, long n)
 	errno = 0;
 	i = url_read(url, buff, n);
     } while(i == -1 && errno == EINTR);
+#if 0
+    /* Already done in url_read!! */
     if(i > 0)
 	url->nread += i;
+#endif
     return i;
 }
 
@@ -376,6 +381,7 @@ URL alloc_url(int size)
 
     url->nread = 0;
     url->readlimit = URL_MAX_READLIMIT;
+    url->eof = 0;
     return url;
 }
 
@@ -432,7 +438,7 @@ char *url_expand_home_dir(char *fname)
 	int i;
 
 	fname++;
-	for(i = 0; i < sizeof(path) && fname[i] && !IS_PATH_SEP(fname[i]); i++)
+	for(i = 0; i < sizeof(path) - 1 && fname[i] && !IS_PATH_SEP(fname[i]); i++)
 	    path[i] = fname[i];
 	path[i] = '\0';
 	if((pw = getpwnam(path)) == NULL)
@@ -441,9 +447,9 @@ char *url_expand_home_dir(char *fname)
 	dir = pw->pw_dir;
     }
     dirlen = strlen(dir);
-    strncpy(path, dir, sizeof(path));
+    strncpy(path, dir, sizeof(path) - 1);
     if(sizeof(path) > dirlen)
-	strncat(path, fname, sizeof(path) - dirlen);
+	strncat(path, fname, sizeof(path) - dirlen - 1);
     path[sizeof(path) - 1] = '\0';
     return path;
 }

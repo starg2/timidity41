@@ -1,3 +1,16 @@
+2000-02-16  Paolo Bonzini <bonzini@gnu.org>
+
+    * configure.in,libunimod/*,timidity/{Makefile.am,mod.c,mod.h,mod2midi.c,
+	mod2midi.h,readmici.c}: Support full module player.
+
+2000-02-16  Paolo Bonzini <bonzini@gnu.org>
+
+    * libarc/{url.h,url.c}: Bug fix
+
+2000-02-15  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc/url.c (url_expand_home_dir): Bug fix of buffer-overrun.
+
 2000-02-07  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.8.2 released.

@@ -884,7 +884,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.8.2
+VERSION=2.9.0a1
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -8053,6 +8053,7 @@ interface/motif_bitmaps/Makefile
 interface/bitmaps/Makefile
 interface/pixmaps/Makefile
 libarc/Makefile
+libunimod/Makefile
 timidity/Makefile
 utils/Makefile
 doc/Makefile
@@ -8246,6 +8247,7 @@ interface/motif_bitmaps/Makefile
 interface/bitmaps/Makefile
 interface/pixmaps/Makefile
 libarc/Makefile
+libunimod/Makefile
 timidity/Makefile
 utils/Makefile
 doc/Makefile

@@ -21,6 +21,7 @@ include $(top_builddir)/common.makefile
 INCLUDES = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/libarc \
+	-I$(top_srcdir)/libunimod \
 	-I$(top_srcdir)/interface \
 	-I$(top_srcdir)/utils \
 	$(EXTRAINCS)
@@ -46,7 +47,6 @@ timidity_SOURCES = \
 	instrum.c \
 	instrum.h \
 	list_a.c \
-	load_mod.c \
 	loadtab.c \
 	mid-j.defs \
 	mid.defs \
@@ -56,6 +56,8 @@ timidity_SOURCES = \
 	mix.h \
 	mod.c \
 	mod.h \
+	mod2midi.c \
+	mod2midi.h \
 	output.c \
 	output.h \
 	playmidi.c \
@@ -128,12 +130,14 @@ timidity_LDADD = \
 	$(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \
 	$(top_builddir)/libarc/libarc.a \
+	$(top_builddir)/libunimod/libunimod.a \
 	$(top_builddir)/utils/libutils.a \
 	$(W32GUI_RES)
 
 timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \
 	$(top_builddir)/libarc/libarc.a \
+	$(top_builddir)/libunimod/libunimod.a \
 	$(top_builddir)/utils/libutils.a \
 	$(W32GUI_RES)
 
@@ -145,6 +149,9 @@ $(top_builddir)/interface/libinterface.a $(W32GUI_RES):
 
 $(top_builddir)/libarc/libarc.a:
 	cd $(top_builddir)/libarc; $(MAKE)
+
+$(top_builddir)/libunimod/libunimod.a:
+	cd $(top_builddir)/libunimod; $(MAKE)
 
 $(top_builddir)/utils/libutils.a:
 	cd $(top_builddir)/utils; $(MAKE)
