@@ -100,6 +100,7 @@ NETSRCS = @NETSRCS@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SHCFLAGS = @SHCFLAGS@
+SHELL = @SHELL@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
 VERSION = @VERSION@
@@ -313,8 +314,7 @@ output.o: output.c ../config.h timidity.h ../utils/support.h output.h \
 playmidi.o: playmidi.c ../config.h timidity.h ../utils/support.h \
 	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
 	readmidi.h output.h mix.h controls.h miditrace.h recache.h \
-	../libarc/arc.h reverb.h wrd.h aq.h ../interface/soundspec.h \
-	tables.h
+	../libarc/arc.h reverb.h wrd.h aq.h tables.h
 raw_a.o: raw_a.c ../config.h timidity.h ../utils/support.h output.h \
 	controls.h
 rcp.o: rcp.c ../config.h timidity.h ../utils/support.h common.h \
@@ -350,8 +350,8 @@ tables.o: tables.c ../config.h timidity.h ../utils/support.h common.h \
 timidity.o: timidity.c ../config.h ../interface.h timidity.h \
 	../utils/support.h common.h ../libarc/url.h ../utils/mblock.h \
 	instrum.h playmidi.h readmidi.h output.h controls.h tables.h \
-	miditrace.h reverb.h ../interface/soundspec.h recache.h \
-	../libarc/arc.h ../utils/strtab.h wrd.h mid.defs aq.h
+	miditrace.h reverb.h recache.h ../libarc/arc.h \
+	../utils/strtab.h wrd.h mid.defs aq.h
 wave_a.o: wave_a.c ../config.h timidity.h ../utils/support.h output.h \
 	controls.h
 wrd_read.o: wrd_read.c ../config.h timidity.h ../utils/support.h \

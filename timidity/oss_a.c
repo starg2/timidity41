@@ -76,7 +76,7 @@ static int total_bytes; /* Maximum buffer size in bytes */
 
 /* export the playback mode */
 
-#define dpm dsp_play_mode
+#define dpm oss_play_mode
 
 PlayMode dpm = {
     DEFAULT_RATE,

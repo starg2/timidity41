@@ -18,8 +18,6 @@
 #
 # This Makefile is known to work with GNU make.
 
-include $(top_builddir)/common.makefile
-
 SUBDIRS = \
 	utils \
 	libarc \

@@ -102,6 +102,7 @@ NETSRCS = @NETSRCS@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SHCFLAGS = @SHCFLAGS@
+SHELL = @SHELL@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
 VERSION = @VERSION@
@@ -422,8 +423,6 @@ install uninstall-am uninstall all-redirect all-am all installdirs-am \
 installdirs mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
-
-include $(top_builddir)/common.makefile
 
 dynamics:
 	cd interface; $(MAKE) $@

@@ -1,3 +1,26 @@
+1999-09-01  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.6.0-beta2 released for test version.
+
+1999-09-01  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in: Modify action of --enable-audio[=mode_list].
+    * configure.in,timidity/timidity.c: Remove TIMIDITY_OUTPUT_ID macro
+      if any audio are not enabled.
+
+1999-08-31  Yasuhide Oomori <dasen@typhoon.co.jp>
+
+    * timidity/oss_a.c: dsp_play_mode -> oss_play_mode
+
+1999-08-31  Kei Hibino <hibi@utmc.or.jp>
+
+    * configure.in (SHELL): AC_SUBST() for autoconf-1.12
+    * configure.in (slang.h): Add new test.
+
+1999-08-31  Katsuhiro Ueno <katsu@blue.sky.or.jp>
+
+    * acinclude.m4: Bug fixed.
+
 1999-08-30  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.6.0-beta1 released for test version.

@@ -2784,14 +2784,20 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 	int i;
 
 	play_mode = play_mode_list[0];
-	if((output_id = getenv("TIMIDITY_OUTPUT_ID")) == NULL)
+	output_id = getenv("TIMIDITY_OUTPUT_ID");
+#ifdef TIMIDITY_OUTPUT_ID
+	if(output_id == NULL)
 	    output_id = TIMIDITY_OUTPUT_ID;
-	for(i = 0; play_mode_list[i]; i++)
-	    if(play_mode_list[i]->id_character == *output_id)
-	    {
-		play_mode = play_mode_list[i];
-		break;
-	    }
+#endif /* TIMIDITY_OUTPUT_ID */
+	if(output_id != NULL)
+	{
+	    for(i = 0; play_mode_list[i]; i++)
+		if(play_mode_list[i]->id_character == *output_id)
+		{
+		    play_mode = play_mode_list[i];
+		    break;
+		}
+	}
     }
 
     if(is_first) /* initialize once time */

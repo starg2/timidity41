@@ -51,9 +51,11 @@ dnl SHLDFLAGS	- Link flags to link shared object library.
 dnl SHCFLAGS	- Additional flags to compile shared object library.
 		  (such as -fPIC)
 
+SHELL=${CONFIG_SHELL-/bin/sh}
+
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.6.0-beta1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.6.0-beta2, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -395,26 +397,32 @@ AC_ARG_WITH(offix-libs,
 dnl
 dnl Audio section
 dnl
-dnl dev(d):	OSS /dev/dsp	(Linux, FreeBSD, BSD/OS)
-dnl		/dev/sb_dsp	(BSD/OS)
-dnl		/dev/audio	(Sun, HPUX, NetBSD)
-dnl		IRIX audio or OSF/1 MME
-dnl		Pseudo audio device
+dnl default(d):	auto selection
+dnl oss(d):	OSS /dev/dsp
+dnl alsa(d):	ALSA pcm device
+dnl sun(d):	SunOS /dev/audio
+dnl hpux(d):	HPUX /dev/audio
+dnl irix(d):	IRIX audio
+dnl mme(d):	OSF/1 MME
+dnl sb_dsp(d):	BSD/OS 2.0 /dev/sb_dsp
+dnl w32(d):	Windows MMS
 dnl alsa(s):	ALSA pcm device
 dnl alib(A):	HPUX network audio (Alib)
 dnl nas(n):	Network Audio System
 dnl esd(e):	EsounD
 
-audio_targets='dev oss alsa alib nas esd'
+audio_targets='default oss alsa sun hpux irix mme sb_dsp w32 alib nas esd'
+
 AC_ARG_ENABLE(audio,
   [  --enable-audio[=mode_list]  Enable audio (Specify comma separated mode list):
-                              dev:  (default)
-                                    /dev/dsp    (Linux, FreeBSD, BSD/OS)
-                                    /dev/sb_dsp (BSD/OS)
-                                    /dev/audio  (Sun, NetBSD, HPUX)
-                                    IRIX audio or OSF/1 MME
-                                    Windows MMS
-                              oss:  OSS /dev/dsp (Exclusive dev mode)
+                              default:  Automatically select audio device.
+                              oss:  OSS /dev/dsp
+                              sun:  SunOS /dev/audio
+                              hpux: HPUX /dev/audio
+                              irix: IRIX audio
+                              mme:  OSF/1 MME
+                              sb_dsp: BSD/OS 2.0 /dev/sb_dsp
+                              w32:  Windows MMS
                               alsa: ALSA pcm device
                               alib: HPUX network audio (Alib)
                               nas:  NAS - Network Audio System
@@ -424,15 +432,10 @@ AC_ARG_ENABLE(audio,
   [ enable_audio=yes
     have_audio_opt=no ])
 
-if test "x$enable_audio" = xyes; then
-  enable_audio=dev
-fi
+dnl yes -> default
+test "x$enable_audio" = xyes && enable_audio=default
 
-if test "x$enable_audio" = xall; then
-  for i in $audio_targets; do
-    eval "au_enable_$i=yes"
-  done
-elif test "x$enable_audio" != xno; then
+if test "x$enable_audio" != xno; then
   for i in `echo $enable_audio | sed 's/,/ /g'`; do
     eval "au_enable_$i=yes"
   done
@@ -442,7 +445,7 @@ dnl Turn on default output mode
 DEFAULT_PLAYMODE=
 AC_ARG_WITH(default-output,
   [  --with-default-output=<mode>  Specify default output mode (optional):
-                              dev|oss|alsa|alib|nas|esd|wav|au|aiff|list],
+                              default|alsa|alib|nas|esd|wav|au|aiff|list],
   [ if test "$enable_audio" != no; then
       DEFAULT_PLAYMODE=$withval
       eval "au_enable_$DEFAULT_PLAYMODE=yes"
@@ -463,108 +466,173 @@ AC_ARG_ENABLE(alsa,
   [  --enable-alsa           ALSA   (Obsoleted.  Use --enable-audio=alsa)],
   [ au_enable_nas=$enableval ])
 
-if test "x$au_enable_oss" = xyes; then
-  enable_audio_dev=no
-else
-  AC_MSG_CHECKING(enable_audio=dev)
-fi
-if test "x$au_enable_dev" = xyes; then
+if test "x$au_enable_default" = xyes; then
   case "$target" in
     *-*-linux*|*-*-freebsd*)
-      EXTRADEFS="$EXTRADEFS -DAU_OSS"
-      SYSEXTRAS="$SYSEXTRAS oss_a.c"
-      AC_MSG_RESULT(OSS /dev/dsp)
+      au_enable_oss=yes
       ;;
     *-*-bsdi2.0)
-      EXTRADEFS="$EXTRADEFS -DAU_BSDI -DDEFAULT_RATE=22500"
-      SYSEXTRAS="$SYSEXTRAS bsd20_a.c"
-      AC_MSG_RESULT(/dev/sb_dsp)
+      au_enable_sb_dsp=yes
       ;;
     *-*-bsdi2.1|*-*-bsdi3.?|*-*-bsdi4.?)
-      EXTRADEFS="$EXTRADEFS -DAU_OSS"
-      SYSEXTRAS="$SYSEXTRAS oss_a.c"
-      AC_MSG_RESULT(OSS /dev/dsp)
+      au_enable_oss=yes
       ;;
     *-*-hpux*)
-      EXTRADEFS="$EXTRADEFS -DAU_HPUX_AUDIO"
-      SYSEXTRAS="$SYSEXTRAS hpux_d_a.c"
-      AC_MSG_RESULT(hpux /dev/audio)
+      au_enable_hpux=yes
       ;;
     *-dec-*)
-      EXTRADEFS="$EXTRADEFS -DAU_DEC -DAU_AUDRIV"
-      SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_mme.c"
-      CPPFLAGS="$CPPFLAGS -I/usr/opt/MME210/include"
-      EXTRALIBS="$EXTRALIBS /usr/opt/MME220/lib/libmme.a"
-      AC_MSG_RESULT(MME)
+      au_enable_mme=yes
       ;;
-    *-sgi-irix5*|*-sgi-irix6.2)
-      EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_OLDAL"
-      SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_al.c"
-      EXTRALIBS="$EXTRALIBS -laudio"
-      AC_MSG_RESULT(irix5.x or irix6.2 audio)
-      ;;
-    *-sgi-irix6*)
-      EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_NEWAL"
-      SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_al.c"
-      EXTRALIBS="$EXTRASLIBS -laudio"
-      AC_MSG_RESULT(irix6 audio)
+    *irix*)
+      au_enable_irix=yes
       ;;
     *-*-sunos4*)
-      EXTRADEFS="$EXTRADEFS -DAU_SUN"
-      SYSEXTRAS="$SYSEXTRAS sun_a.c"
-      AC_MSG_RESULT(SunOS 4 /dev/audio)
-      if test -f /usr/demo/SOUND/libaudio.a; then
-	EXTRALIBS="$EXTRALIBS /usr/demo/SOUND/libaudio.a"
-      else
-	AC_MSG_RESULT(Notice: libaudio.a is not found [(ignore)])
-      fi
+      au_enable_sun=yes
       ;;
     *-*-solaris*)
-      EXTRADEFS="$EXTRADEFS -DAU_SUN"
-      SYSEXTRAS="$SYSEXTRAS sun_a.c"
-      AC_MSG_RESULT(Solaris /dev/audio)
-      if test -f /usr/demo/SOUND/lib/libaudio.a; then
-	EXTRALIBS="$EXTRALIBS /usr/demo/SOUND/lib/libaudio.a"
-      else
-	AC_MSG_RESULT(Notice: libaudio.a is not found [(ignore)])
-      fi
+      au_enable_sun=yes
       ;;
     *-*-netbsd*)
-      EXTRADEFS="$EXTRADEFS -DAU_SUN"
-      SYSEXTRAS="$SYSEXTRAS sun_a.c"
-      AC_MSG_RESULT(NetBSD /dev/audio)
+      au_enable_sun=yes
       ;;
     *-*-cygwin32*)
-      EXTRADEFS="$EXTRADEFS -DAU_W32"
-      if test "x$enable_w32gui" = xyes; then
-	SYSEXTRAS="$SYSEXTRAS w32g_a.c"
-      else
-	SYSEXTRAS="$SYSEXTRAS w32_a.c"
-      fi
-      EXTRALIBS="$EXTRALIBS -lwinmm"
-      AC_MSG_RESULT(Windows audio)
+      au_enable_w32=yes
       ;;
     *)
-      AC_MSG_WARN(no method to play)
-      if test "x$have_audio_opt" != xno; then
-	EXTRADEFS="$EXTRADEFS -DAU_NONE -DAU_AUDRIV"
-	SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_none.c"
-      fi
+      AC_MSG_WARN(No --enable-audio=default audio for $target)
       ;;
   esac
 else
   AC_MSG_RESULT(no)
 fi
 
+dnl
+dnl oss
+dnl
 AC_MSG_CHECKING(enable_audio=oss)
 if test "x$au_enable_oss" = xyes; then
   EXTRADEFS="$EXTRADEFS -DAU_OSS"
   SYSEXTRAS="$SYSEXTRAS oss_a.c"
   if test "x$ac_cv_header_sys_soundcard_h" = xyes; then
-    AC_MSG_RESULT(yes)
+    AC_MSG_RESULT(yes - <sys/soundcard.h>)
   else
-    AC_MSG_WARN(<sys/soundcard.h> is not found)
+    case "$target" in
+      *linux*|*freebsd*)
+	dnl <linux/soundcard.h> or <machine/soundcard.h>
+	AC_MSG_RESULT(yes)
+	;;
+      *)
+	AC_MSG_WARN(<sys/soundcard.h> is not found)
+	;;
+    esac
   fi
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(enable_audio=sun)
+if test "x$au_enable_sun" = xyes; then
+  case "$target" in
+    *-*-sunos4*)
+      if test -f /usr/demo/SOUND/libaudio.a; then
+	EXTRALIBS="$EXTRALIBS /usr/demo/SOUND/libaudio.a"
+	AC_MSG_RESULT(yes)
+      else
+	AC_MSG_RESULT(Notice: libaudio.a is not found [(ignore)])
+      fi
+      ;;
+    *-*-solaris*)
+      if test -f /usr/demo/SOUND/lib/libaudio.a; then
+	EXTRALIBS="$EXTRALIBS /usr/demo/SOUND/lib/libaudio.a"
+	AC_MSG_RESULT(yes)
+      else
+	AC_MSG_RESULT(Notice: libaudio.a is not found [(ignore)])
+      fi
+      ;;
+    *) 	AC_MSG_RESULT(yes)
+      ;;
+  esac
+  EXTRADEFS="$EXTRADEFS -DAU_SUN"
+  SYSEXTRAS="$SYSEXTRAS sun_a.c"  
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(enable_audio=hpux)
+if test "x$au_enable_hpux" = xyes; then
+  case "$target" in
+    *-*-hpux*) AC_MSG_RESULT(yes) ;;
+    *) AC_MSG_WARN(may not work on $target) ;;
+  esac
+  EXTRADEFS="$EXTRADEFS -DAU_HPUX_AUDIO"
+  SYSEXTRAS="$SYSEXTRAS hpux_d_a.c"
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(enable_audio=irix)
+if test "x$au_enable_irix" = xyes; then
+  case "$target" in
+    *-sgi-irix5*|*-sgi-irix6.2)
+      EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_OLDAL"
+      AC_MSG_RESULT(yes)
+      ;;
+    *-sgi-irix6*)
+      EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_NEWAL"
+      AC_MSG_RESULT(yes)
+      ;;
+    *) AC_MSG_WARN(may not work on $target) ;;
+  esac
+  SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_al.c"
+  EXTRALIBS="$EXTRASLIBS -laudio"
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(enable_audio=mme)
+if test "x$au_enable_mme" = xyes; then
+  case "$target" in
+    *-dec-*) AC_MSG_RESULT(yes) ;;
+    *) AC_MSG_WARN(may not work on $target) ;;
+  esac
+  EXTRADEFS="$EXTRADEFS -DAU_DEC -DAU_AUDRIV"
+  SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_mme.c"
+  CPPFLAGS="$CPPFLAGS -I/usr/opt/MME210/include"
+  EXTRALIBS="$EXTRALIBS /usr/opt/MME220/lib/libmme.a"
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(enable_audio=sb_dsp)
+if test "x$au_enable_sb_dsp" = xyes; then
+  case "$target" in
+    *-*-bsdi2.0) AC_MSG_RESULT(yes) ;;
+    *) AC_MSG_WARN(may not work on $target) ;;
+  esac
+  EXTRADEFS="$EXTRADEFS -DAU_BSDI -DDEFAULT_RATE=22500"
+  SYSEXTRAS="$SYSEXTRAS bsd20_a.c"
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(enable_audio=w32)
+if test "x$au_enable_w32" = xyes; then
+  case "$target" in
+    *-*-cygwin32*)
+     if test "x$enable_w32gui" = xyes; then
+	SYSEXTRAS="$SYSEXTRAS w32g_a.c"
+     else
+	SYSEXTRAS="$SYSEXTRAS w32_a.c"
+     fi
+     AC_MSG_RESULT(yes)
+     ;;
+   *)
+     AC_MSG_WARN(may not work on $target)
+     SYSEXTRAS="$SYSEXTRAS w32_a.c"
+     ;;
+  esac
+  EXTRALIBS="$EXTRALIBS -lwinmm"
+  EXTRADEFS="$EXTRADEFS -DAU_W32"
 else
   AC_MSG_RESULT(no)
 fi
@@ -596,7 +664,7 @@ AC_MSG_CHECKING(enable_audio=alib)
 if test "x$au_enable_alib" = xyes; then
   case "$target" in
     *-*-hpux*) AC_MSG_RESULT(yes) ;;
-    *) AC_MSG_WARN(alib: may not work on $target) ;;
+    *) AC_MSG_WARN(may not work on $target) ;;
   esac
   SYSEXTRAS="$SYSEXTRAS hpux_a.c"
   EXTRADEFS="$EXTRADEFS -DAU_HPUX_ALIB"
@@ -621,6 +689,7 @@ if test "x$au_enable_nas" = xyes; then
   dnl -laudio conflicts another audio library,
   dnl so I specify NAS library directly
   EXTRALIBS="$EXTRALIBS $x_libraries/libaudio.a"
+  dnl FIXME: It is needed to test NAS library.
   if test -f "$x_libraries/libaudio.a"; then
     AC_MSG_RESULT(yes - $x_libraries/libaudio.a)
   else
@@ -660,21 +729,30 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl Pseudo audio device (Undocumented).
+if test "x$au_enable_none" = xyes; then
+    EXTRADEFS="$EXTRADEFS -DAU_NONE -DAU_AUDRIV"
+    SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_none.c"
+fi
+
+
 dnl
 dnl TIMIDITY_OUTPUT_ID
 dnl
 AC_MSG_CHECKING(default output mode)
 if test "x$DEFAULT_PLAYMODE" = x; then
-  for i in $audio_targets; do
-    case "/$enable_audio," in
-      /$i,*) DEFAULT_PLAYMODE=$i;;
-    esac
-  done
+  DEFAULT_PLAYMODE=`echo $enable_audio | sed 's/,.*//'`
 fi
 case ".$DEFAULT_PLAYMODE" in
-  .dev)  TIMIDITY_OUTPUT_ID=d ;;
+  .default)  TIMIDITY_OUTPUT_ID=d ;;
   .oss)  TIMIDITY_OUTPUT_ID=d ;;
   .alsa) TIMIDITY_OUTPUT_ID=s ;;
+  .sun)  TIMIDITY_OUTPUT_ID=d ;;
+  .hpux)  TIMIDITY_OUTPUT_ID=d ;;
+  .irix)  TIMIDITY_OUTPUT_ID=d ;;
+  .mme)  TIMIDITY_OUTPUT_ID=d ;;
+  .sb_dsp)  TIMIDITY_OUTPUT_ID=d ;;
+  .w32)  TIMIDITY_OUTPUT_ID=d ;;
   .alib) TIMIDITY_OUTPUT_ID=A ;;
   .nas)  TIMIDITY_OUTPUT_ID=n ;;
   .esd)  TIMIDITY_OUTPUT_ID=e ;;
@@ -692,17 +770,33 @@ dnl
 dnl Interface section
 dnl
 
-dnl Dynamic link configuration
+interface_targets='dynamic ncurses slang motif tcltk emacs vt100 xaw xskin gtk'
 
+echo "###--enable-interface###"
+AC_ARG_ENABLE(interface,
+  [  --enable-interface=[interface_list]  Comma separated interface list ],
+  [ echo "###$enableval###"
+    for i in `echo $enableval | sed 's/,/ /g'`; do
+      eval "enable_$i=yes"
+    done ])
+
+dnl
+dnl Dynamic link configuration
+dnl
 AC_ARG_ENABLE(dynamic,
   [  --enable-dynamic        Enable dynamic link interface   (default is no)],
   [ dnl --enable-dynamic=yes to --enable-dynamic=dynamic
     test "x$enable_dynamic" = xyes && enable_dynamic=dynamic
   ])
 
-case "$enable_ncurses$enable_slang$enable_motif$enable_tcltk$enable_emacs$enable_vt100$enable_xaw$enable_xskin$enable_gtk$enable_dynamic" in
-*dynamic*) NEEDDLOPEN=yes;;
-*)         NEEDDLOPEN=no;;
+join_targets=
+for i in $interface_targets; do
+  eval "join_targets=$join_targets\$enable_$i"
+done
+
+case ".$join_targets" in
+.*dynamic*) NEEDDLOPEN=yes;;
+*)          NEEDDLOPEN=no;;
 esac
 
 dnl check -fpic option for gcc
@@ -769,7 +863,9 @@ fi
 AM_CONDITIONAL(NEEDDLOPEN, test "$NEEDDLOPEN" = "yes")
 
 
-dnl Select interfaces
+dnl
+dnl Each interface section
+dnl
 
 dnl ncurses
 AM_CONDITIONAL(ENABLE_NCURSES, false)
@@ -832,7 +928,7 @@ CONFIG_INTERFACE(slang,SLANG,s,
   [ AC_CHECK_LIB(slang,SLang_init_tty,:,
 	[ enable_slang=no
 	  AC_MSG_WARN(slang interface is not enabled) ])
-    AC_CHECK_HEADERS(slang/slang.h)
+    AC_CHECK_HEADERS(slang/slang.h slang.h)
   ],
   [ LIBS="$LIBS -lslang"
     INTERFACE_SRCS="$INTERFACE_SRCS slang_c.c"
@@ -1092,7 +1188,7 @@ AC_ARG_ENABLE(offix,
   ]
 )
 
-dnl Network selection
+dnl Network section
 AC_ARG_ENABLE(network,
   [  --enable-network        Enable network support          (default is no)],
   [ if test "$enableval" = "yes"; then
@@ -1143,7 +1239,10 @@ SET_UNIQ_WORDS(LDFLAGS,$LDFLAGS)
 SET_UNIQ_WORDS(SHLDFLAGS,$SHLDFLAGS)
 SET_UNIQ_WORDS(CFLAGS,$EXTRACFLAGS $CFLAGS)
 SET_UNIQ_WORDS(CPPFLAGS,$CPPFLAGS $EXTRADEFS)
-CPPFLAGS="$CPPFLAGS -DDEFAULT_PATH=\\\"\$(TIMID_DIR)\\\" -DTIMIDITY_OUTPUT_ID=\\\"$TIMIDITY_OUTPUT_ID\\\""
+CPPFLAGS="$CPPFLAGS -DDEFAULT_PATH=\\\"\$(TIMID_DIR)\\\""
+if test "x$TIMIDITY_OUTPUT_ID" != x; then
+  CPPFLAGS="$CPPFLAGS -DTIMIDITY_OUTPUT_ID=\\\"$TIMIDITY_OUTPUT_ID\\\""
+fi
 
 if test "x$with_x" = xyes; then
   dnl Order of X-library is: -lXm -lXaw -lXmu -lXt -lSM -lICE -lXext -lX11
@@ -1152,6 +1251,7 @@ fi
 LIBS="$LIBS $lib_dl_opt $lib_png_opt $lib_zip_opt $lib_user32_opt $lib_w32gui_opt $EXTRALIBS"
 SHLD="$SHLD $SHLDFLAGS"
 
+AC_SUBST(SHELL)
 AC_SUBST(timidity_LDFLAGS)
 AC_SUBST(SYSEXTRAS)
 AC_SUBST(EXTRALIBS)
