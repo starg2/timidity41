@@ -62,6 +62,7 @@
 char *program_name, current_filename[1024];
 MBlockList tmpbuffer;
 char *output_text_code = NULL;
+int open_file_noise_mode = OF_NORMAL;
 
 #ifdef DEFAULT_PATH
     /* The paths in this list will be tried whenever we're reading a file */
@@ -290,6 +291,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
   PathList *plp=pathlist;
   int l;
 
+  open_file_noise_mode = noise_mode;
   if (!name || !(*name))
     {
       if(noise_mode)
@@ -876,6 +878,7 @@ char **expand_file_archives(char **files, int *nfiles_in_out)
 
     /* Second, expand archive files */
     new_nfiles = nfiles;
+    open_file_noise_mode = OF_NORMAL;
     new_files = expand_archive_names(&new_nfiles, files);
     free(files[0]);
     free(files);

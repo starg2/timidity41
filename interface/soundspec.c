@@ -52,11 +52,10 @@
 #define SCOPE_WIDTH  512	/* You can specified any positive value */
 #define SCROLL_THRESHOLD 256	/* 1 <= SCROLL_THRESHOLD <= SCOPE_WIDTH */
 #define NCOLOR    64		/* 1 <= NCOLOR <= 255 */
-/*#define AMP 0.35*/
 #define AMP 1.0
-/*#define AMP 0.27*/
+#define AMP2 1.5
 #define DEFAULT_ZOOM (44100.0/1024.0*2.0) /* ~86Hz */
-#define MIN_ZOOM 15.0	/* 15Hz is lower bound that human can be heard. */
+#define MIN_ZOOM 15.0	/* 15Hz is the lowest bound that human can be heard. */
 #define MAX_ZOOM 440.0
 #define DEFAULT_UPDATE 0.05
 
@@ -282,9 +281,11 @@ static void set_draw_pixel(double *val, char *pixels)
 
     for(i = 0; i < SCOPE_HEIGHT; i++)
     {
-	v = (unsigned)val[i];
+	v = (unsigned)(val[i] * AMP2);
 	if(v > NCOLOR - 1)
 	    val[i] = NCOLOR - 1;
+	else
+	    val[i] = v;
     }
 
     switch(depth) {

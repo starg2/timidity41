@@ -101,7 +101,8 @@ enum {
     CTLE_REFRESH,
     CTLE_RESET,
     CTLE_SPEANA,		/* v1:double[] v2:len */
-    CTLE_PAUSE			/* v1:pause on/off v2:time of pause */
+    CTLE_PAUSE,			/* v1:pause on/off v2:time of pause */
+    CTLE_GSLCD			/* GS L.C.D. */
 };
 
 typedef struct _CtlEvent {

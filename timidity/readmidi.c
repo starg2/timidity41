@@ -259,15 +259,14 @@ static char *readmidi_make_lcd_event(int type, const uint8 *data, MidiEvent *ev)
     a = (string_event_strtab.nstring & 0xff);
     b = ((string_event_strtab.nstring >> 8) & 0xff);
 
-    len = 7+128;
+    len = 128;
     
-	text = (char *)new_segment(&tmpbuffer, len + 1);
+	text = (char *)new_segment(&tmpbuffer, len + 2);
 
-    strcpy(text+1, "gslcd: ");
     for( i=0; i<64; i++){
 	const char tbl[]= "0123456789ABCDEF";
-	text[8+i*2  ]=tbl[data[i]>>4];
-	text[8+i*2+1]=tbl[data[i]&0xF];
+	text[1+i*2  ]=tbl[data[i]>>4];
+	text[1+i*2+1]=tbl[data[i]&0xF];
     }
     text[len + 1] = '\0';
     
@@ -694,7 +693,7 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 	len -= 2;
 	save = val[len];
 	val[len] = '\0';
-	if(readmidi_make_lcd_event(ME_INSERT_TEXT, (uint8 *)val + 7, ev))
+	if(readmidi_make_lcd_event(ME_GSLCD, (uint8 *)val + 7, ev))
 	{
 	    val[len] = save;
 	    return 1;

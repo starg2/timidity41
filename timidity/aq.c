@@ -594,6 +594,7 @@ int aq_flush(int discard)
 	      break;
 	  }
     }
+
     trace_flush();
     play_mode->acntl(PM_REQ_FLUSH, NULL);
     play_counter = play_offset_counter = 0;

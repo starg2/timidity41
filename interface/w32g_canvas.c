@@ -94,6 +94,7 @@ static void TmCanvasEnd(HWND hwnd);
 static void TmCanvasRepaint(HWND hwnd);
 static void TmCanvasFillRect(RECT *r, COLORREF c);
 static HGDIOBJ hgdiobj_hpen, hgdiobj_hbrush;
+static void TmCanvasUpdateChannel(void);
 
 void w32g_init_canvas(HWND hwnd)
 {
@@ -290,10 +291,9 @@ static void TmDrawBar(int x, int y, int len, int c)
 
 static void TmCanvasChannelNote(int status, int ch, int note, int vel)
 {
-    int v;
-    double t, past_time;
+    int i, v;
     unsigned int onoff;
-    int i;
+    double t;
 
     if(ch >= TCTM_MAX_CHANNELS)
 	return;
@@ -301,15 +301,6 @@ static void TmCanvasChannelNote(int status, int ch, int note, int vel)
     onoff = (status == VOICE_ON || status == VOICE_SUSTAINED);
     onoff <<= (8 * sizeof(onoff) - 1);
     set_bitset(&TmCanvas.channel_on_flags[ch], &onoff, note, 1);
-
-    t = get_current_calender_time();
-    past_time = t - TmCanvas.last_bar_time;
-    TmCanvas.last_bar_time = t;
-
-    /* decrease alive time of bar */
-    for(i = 0; i < TCTM_MAX_CHANNELS; i++)
-	if(!has_bitset(&TmCanvas.channel_on_flags[i]))
-	    TmCanvas.bar_alive_time[i] -= past_time;
 
     /* increase alive time of NoteON bar */
     if(status == VOICE_ON)
@@ -320,6 +311,23 @@ static void TmCanvasChannelNote(int status, int ch, int note, int vel)
 	if(TmCanvas.bar_alive_time[ch] < t)
 	    TmCanvas.bar_alive_time[ch] = t;
     }
+}
+
+static void TmCanvasUpdateChannel(void)
+{
+    double t, past_time;
+    int i, v;
+
+    t = get_current_calender_time();
+    past_time = t - TmCanvas.last_bar_time;
+    if(past_time < TM_SEC_PER_BOX)
+	return;
+    TmCanvas.last_bar_time = t;
+
+    /* decrease alive time of bar */
+    for(i = 0; i < TCTM_MAX_CHANNELS; i++)
+	if(!has_bitset(&TmCanvas.channel_on_flags[i]))
+	    TmCanvas.bar_alive_time[i] -= past_time;
 
     /* Update bar[] */
     for(i = 0; i < TCTM_MAX_CHANNELS; i++)
@@ -358,6 +366,7 @@ static void TmCanvasChannelNote(int status, int ch, int note, int vel)
 	SelectObject(TmCanvas.hmdc, hgdiobj_hpen);
 	SelectObject(TmCanvas.hmdc, hgdiobj_hbrush);
     }
+    TmCanvasRefresh();
 }
 
 static void TmCanvasFillRect(RECT *r, COLORREF c)
@@ -530,6 +539,11 @@ int TmCanvasChange(void)
     }
     TmCanvasReset();
     return rc;
+}
+
+void TmCanvasUpdateInterval(void)
+{
+    TmCanvasUpdateChannel();
 }
 
 void TmCanvasRefresh(void)

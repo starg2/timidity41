@@ -36,6 +36,7 @@
 #include "instrum.h"
 #include "playmidi.h"
 #include "readmidi.h"
+#include "arc.h"
 
 /*
  * Remap WRD @COLOR(16)-@COLOR(23) to RGB plain number.
@@ -125,62 +126,70 @@ WRDTracer *wrdt = &null_wrdt_mode;
 
 static StringTable path_list;
 static StringTable default_path_list;
+static int wrd_add_path_one(char *path, int pathlen);
 
 void wrd_init_path(void)
 {
     StringTableNode *p;
     delete_string_table(&path_list);
     for(p = default_path_list.head; p; p = p->next)
-	wrd_add_path(p->string, 0);
-    if(current_file_info && strchr(current_file_info->filename, '#') != NULL)
-	wrd_add_path(current_file_info->filename,
-		     strchr(current_file_info->filename, '#') -
-		     current_file_info->filename + 1);
-    if(current_file_info &&
-       strrchr(current_file_info->filename, PATH_SEP) != NULL)
-	wrd_add_path(current_file_info->filename,
-		     strrchr(current_file_info->filename, PATH_SEP) -
-		     current_file_info->filename + 1);
+	wrd_add_path_one(p->string, strlen(p->string));
+
+    if(current_file_info)
+    {
+	if(strchr(current_file_info->filename, '#') != NULL)
+	    wrd_add_path_one(current_file_info->filename,
+			     strchr(current_file_info->filename, '#') -
+			     current_file_info->filename + 1);
+	if(strrchr(current_file_info->filename, PATH_SEP) != NULL)
+	    wrd_add_path_one(current_file_info->filename,
+			     strrchr(current_file_info->filename, PATH_SEP) -
+			     current_file_info->filename + 1);
+    }
+}
+
+static int wrd_add_path_one(char *path, int pathlen)
+{
+    int exists;
+    StringTableNode *p;
+
+    exists = 0;
+    for(p = path_list.head; p; p = p->next)
+	if(strncmp(p->string, path, pathlen) == 0 &&
+	   p->string[pathlen] == '\0')
+	{
+	    exists = 1;
+	    break;
+	}
+    if(exists)
+	return 0;
+    put_string_table(&path_list, path, pathlen);
+    return 1;
 }
 
 void wrd_add_path(char *path, int pathlen)
 {
     if(pathlen == 0)
 	pathlen = strlen(path);
-    if(pathlen > 0)
+    if(!wrd_add_path_one(path, pathlen))
+	return;
+
+    if(current_file_info &&
+       get_archive_type(current_file_info->filename) != -1)
     {
-	int exists;
-	StringTableNode *p;
+	MBlockList buf;
+	char *arc_path;
+	int baselen;
 
-	exists = 0;
-	for(p = path_list.head; p; p = p->next)
-	    if(strncmp(p->string, path, pathlen) == 0)
-	    {
-		exists = 1;
-		break;
-	    }
-	if(!exists)
-	{
-	    put_string_table(&path_list, path, pathlen);
-	    if(current_file_info &&
-	       strchr(current_file_info->filename, '#') != NULL &&
-	       path[pathlen - 1] != '#')
-	    {
-		MBlockList buf;
-		char *arc_path;
-		int baselen;
-
-		init_mblock(&buf);
-		baselen = strchr(current_file_info->filename, '#') -
-		    current_file_info->filename + 1;
-		arc_path = new_segment(&buf, baselen + pathlen + 1);
-		strncpy(arc_path, current_file_info->filename, baselen);
-		strncpy(arc_path + baselen, path, pathlen);
-		arc_path[baselen + pathlen] = '\0';
-		put_string_table(&path_list, arc_path, strlen(arc_path));
-		reuse_mblock(&buf);
-	    }
-	}
+	init_mblock(&buf);
+	baselen = strrchr(current_file_info->filename, '#') -
+	    current_file_info->filename + 1;
+	arc_path = new_segment(&buf, baselen + pathlen + 1);
+	strncpy(arc_path, current_file_info->filename, baselen);
+	strncpy(arc_path + baselen, path, pathlen);
+	arc_path[baselen + pathlen] = '\0';
+	put_string_table(&path_list, arc_path, strlen(arc_path));
+	reuse_mblock(&buf);
     }
 }
 
@@ -218,6 +227,10 @@ struct timidity_file *wrd_open_file(char *filename)
 {
     StringTableNode *path;
     struct timidity_file *tf;
+
+    if(get_archive_type(filename) != -1)
+	return open_file(filename, 0, OF_SILENT);
+
     for(path = path_list.head; path; path = path->next){
 	if((tf = try_wrd_open_file(path->string, filename)) != NULL)
 	    return tf;

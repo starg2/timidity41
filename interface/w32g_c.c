@@ -82,6 +82,7 @@ ControlMode ctl=
 static int ctl_open(int using_stdin, int using_stdout)
 {
     ctl.opened = 1;
+    set_trace_loop_hook(TmCanvasUpdateInterval);
     return w32g_open();
 }
 
@@ -225,7 +226,7 @@ static int ctl_read(int32 *valp)
 {
     int rc;
 
-    rc = w32g_get_rc(valp, 0);
+    rc = w32g_get_rc(valp, play_pause_flag);
     if(rc >= RC_EXT_BASE)
 	return w32g_ext_control(rc, *valp);
     return rc;
@@ -470,7 +471,8 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_REFRESH:
 	TmPanelRefresh();
-	TmCanvasRefresh();
+	if(TmCanvasMode == TMCM_TRACER)
+	    TmCanvasRefresh();
 	break;
       case CTLE_RESET:
 	TmCanvasReset();

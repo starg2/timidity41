@@ -34,6 +34,7 @@ char *arc_lib_version = ARC_LIB_VERSION;
 #define ABORT			-1
 
 ArchiveHandler arc_handler;
+static MBlockList arc_buffer;
 
 typedef struct _ArchiveFileList
 {
@@ -81,7 +82,7 @@ int skip_gzip_header(URL url)
     method = url_getc(url);
     switch(method)
     {
-      case 8: /* deflated */
+      case 8:			/* deflated */
 	method = ARCHIVEC_DEFLATED;
 	break;
       default:
@@ -94,8 +95,8 @@ int skip_gzip_header(URL url)
     /* time */
     url_getc(url); url_getc(url); url_getc(url); url_getc(url);
 
-    url_getc(url); /* extra flags */
-    url_getc(url); /* OS type */
+    url_getc(url);		/* extra flags */
+    url_getc(url);		/* OS type */
 
     if(flags & GZIP_MULTIPARTFLAG)
     {
@@ -147,19 +148,19 @@ int skip_gzip_header(URL url)
 
 int parse_gzip_header_bytes(char *gz, long maxparse, int *hdrsiz)
 {
-  URL url = url_mem_open(gz, maxparse, 0);
-  int method;
+    URL url = url_mem_open(gz, maxparse, 0);
+    int method;
 
-  if(!url)
-    return -1;
-  method = skip_gzip_header(url);
-  *hdrsiz = url_tell(url);
-  url_close(url);
-  return method;
+    if(!url)
+	return -1;
+    method = skip_gzip_header(url);
+    *hdrsiz = url_tell(url);
+    url_close(url);
+    return method;
 }
 
 void (* arc_error_handler)(char *error_message) = NULL;
-
+    
 static void arc_cant_open(char *s)
 {
     if(arc_error_handler != NULL)
@@ -212,7 +213,7 @@ int get_archive_type(char *archive_name)
     if(url_check_type(archive_name) == URL_dir_t)
 	return ARCHIVE_DIR;
 
-    return -1; /* Not found */
+    return -1;			/* Not found */
 }
 
 static ArchiveFileList *find_arc_filelist(char *basename)
@@ -229,12 +230,12 @@ static ArchiveFileList *find_arc_filelist(char *basename)
 
 ArchiveEntryNode *arc_parse_entry(URL url, int archive_type)
 {
-  ArchiveEntryNode *entry_first, *entry_last, *entry;
-  ArchiveEntryNode *(* next_header_entry)(void);
-  int gzip_method;
-  URL orig;
+    ArchiveEntryNode *entry_first, *entry_last, *entry;
+    ArchiveEntryNode *(* next_header_entry)(void);
+    int gzip_method;
+    URL orig;
 
-  orig = NULL;
+    orig = NULL;
     switch(archive_type)
     {
       case ARCHIVE_TAR:
@@ -261,7 +262,7 @@ ArchiveEntryNode *arc_parse_entry(URL url, int archive_type)
       case ARCHIVE_MIME:
 	if(!IS_URL_SEEK_SAFE(url))
 	{
-	  orig = url;
+	    orig = url;
 	    if((url = url_cache_open(orig, 0)) == NULL)
 		return NULL;
 	}
@@ -283,13 +284,13 @@ ArchiveEntryNode *arc_parse_entry(URL url, int archive_type)
 	else
 	    entry_first = entry_last = entry;
 	while(entry_last->next)
-	  entry_last = entry_last->next;
+	    entry_last = entry_last->next;
 	arc_handler.counter++;
     }
     url_close(url);
     if(orig)
-      url_close(orig);
-    return entry_first; /* Note that NULL if no archive file */
+	url_close(orig);
+    return entry_first;		/* Note that NULL if no archive file */
 }
 
 static ArchiveFileList *add_arc_filelist(char *basename, int archive_type)
@@ -306,8 +307,8 @@ static ArchiveFileList *add_arc_filelist(char *basename, int archive_type)
       case ARCHIVE_LZH:
       case ARCHIVE_MIME:
 	break;
-    default:
-      return NULL;
+      default:
+	return NULL;
     }
 
     if((url = url_open(basename)) == NULL)
@@ -326,43 +327,38 @@ static ArchiveFileList *add_arc_filelist(char *basename, int archive_type)
     return afl;
 }
 
-int regist_archive(char *archive_filename, int archive_type)
+static ArchiveFileList *regist_archive(char *archive_filename)
 {
-  if(archive_type < 0)
-    archive_type = get_archive_type(archive_filename);
-  if(archive_type < 0)
-    return 0; /* Unknown archive */
-  archive_filename = url_expand_home_dir(archive_filename);
-  if(find_arc_filelist(archive_filename))
-    return 0; /* Already registerd */
-  if(add_arc_filelist(archive_filename, archive_type))
-    {
-    reuse_mblock(&arc_handler.pool);
-    return 1;
-    }
-  return 0;
+    int archive_type;
+
+    if((archive_type = get_archive_type(archive_filename)) < 0)
+	return NULL;		/* Unknown archive */
+    archive_filename = url_expand_home_dir(archive_filename);
+    if(find_arc_filelist(archive_filename))
+	return NULL;		/* Already registerd */
+    return add_arc_filelist(archive_filename, archive_type);
 }
 
 static int arc_expand_newfile(StringTable *s, ArchiveFileList *afl,
 			      char *pattern)
 {
-  ArchiveEntryNode *entry;
-  char *p;
+    ArchiveEntryNode *entry;
+    char *p;
 
-  for(entry = afl->entry_list; entry; entry = entry->next)
+    for(entry = afl->entry_list; entry; entry = entry->next)
     {
-      if(arc_case_wildmat(entry->name, pattern))
+	if(arc_case_wildmat(entry->name, pattern))
 	{
-	  p = new_segment(&arc_handler.pool, strlen(afl->archive_name) +
-			  strlen(entry->name) + 2);
-	  strcpy(p, afl->archive_name);
-	  strcat(p, "#");
-	  strcat(p, entry->name);
-	  if(put_string_table(s, p, strlen(p)) == NULL)
-	    return -1;
+	    p = new_segment(&arc_buffer, strlen(afl->archive_name) +
+			    strlen(entry->name) + 2);
+	    strcpy(p, afl->archive_name);
+	    strcat(p, "#");
+	    strcat(p, entry->name);
+	    if(put_string_table(s, p, strlen(p)) == NULL)
+		return -1;
 	}
     }
-  return 0;
+    return 0;
 }
 
 char **expand_archive_names(int *nfiles_in_out, char **files)
@@ -384,7 +380,7 @@ char **expand_archive_names(int *nfiles_in_out, char **files)
     {
 	error_flag = 0;
 	init_string_table(&stab);
-	pool = &arc_handler.pool;
+	pool = &arc_buffer;
     }
 
     nfiles = *nfiles_in_out;
@@ -408,9 +404,9 @@ char **expand_archive_names(int *nfiles_in_out, char **files)
 
 	if((afl = find_arc_filelist(base)) != NULL)
 	{
-	  if(arc_expand_newfile(&stab, afl, pattern) == -1)
-	    goto abort_expand;
-	  continue;
+	    if(arc_expand_newfile(&stab, afl, pattern) == -1)
+		goto abort_expand;
+	    continue;
 	}
 
 	arc_type = get_archive_type(base);
@@ -478,8 +474,8 @@ char **expand_archive_names(int *nfiles_in_out, char **files)
 		len1--;
 	    while(url_gets(url, buff, sizeof(buff)))
 	    {
-	      if(strcmp(buff, ".") == 0 || strcmp(buff, "..") == 0)
-		continue;
+		if(strcmp(buff, ".") == 0 || strcmp(buff, "..") == 0)
+		    continue;
 
 		len2 = strlen(buff);
 		p = (char *)new_segment(pool, len1 + len2 + 2);
@@ -500,8 +496,8 @@ char **expand_archive_names(int *nfiles_in_out, char **files)
 
 	if((afl = add_arc_filelist(base, arc_type)) != NULL)
 	{
-	  if(arc_expand_newfile(&stab, afl, pattern) == -1)
-	    goto abort_expand;
+	    if(arc_expand_newfile(&stab, afl, pattern) == -1)
+		goto abort_expand;
 	}
     }
 
@@ -523,21 +519,21 @@ char **expand_archive_names(int *nfiles_in_out, char **files)
 
 ArchiveEntryNode *new_entry_node(char *name, int len)
 {
-  ArchiveEntryNode *entry;
-  entry = (ArchiveEntryNode *)safe_malloc(sizeof(ArchiveEntryNode));
-  memset(entry, 0, sizeof(ArchiveEntryNode));
-  entry->name = (char *)safe_malloc(len + 1);
-  memcpy(entry->name, name, len);
-  entry->name[len] = '\0';
-  return entry;
+    ArchiveEntryNode *entry;
+    entry = (ArchiveEntryNode *)safe_malloc(sizeof(ArchiveEntryNode));
+    memset(entry, 0, sizeof(ArchiveEntryNode));
+    entry->name = (char *)safe_malloc(len + 1);
+    memcpy(entry->name, name, len);
+    entry->name[len] = '\0';
+    return entry;
 }
 
 void free_entry_node(ArchiveEntryNode *entry)
 {
-  free(entry->name);
-  if(entry->cache != NULL)
-    free(entry->cache);
-  free(entry);
+    free(entry->name);
+    if(entry->cache != NULL)
+	free(entry->cache);
+    free(entry);
 }
 
 
@@ -545,27 +541,27 @@ static char *compress_buff;
 long   compress_buff_len;
 static long arc_compress_func(char *buff, long size, void *user_val)
 {
-  if(compress_buff_len <= 0)
-    return 0;
-  if(size > compress_buff_len)
-    size = compress_buff_len;
-  memcpy(buff, compress_buff, size);
-  compress_buff += size;
-  compress_buff_len -= size;
-  return size;
+    if(compress_buff_len <= 0)
+	return 0;
+    if(size > compress_buff_len)
+	size = compress_buff_len;
+    memcpy(buff, compress_buff, size);
+    compress_buff += size;
+    compress_buff_len -= size;
+    return size;
 }
 
 void *arc_compress(void *buff, long bufsiz,
 		   int compress_level, long *compressed_size)
 {
-  DeflateHandler compressor;
-  long allocated, offset, space, nbytes;
-  char *compressed;
+    DeflateHandler compressor;
+    long allocated, offset, space, nbytes;
+    char *compressed;
 
-  compress_buff = (char *)buff;
-  compress_buff_len = bufsiz;
-  compressor = open_deflate_handler(arc_compress_func, NULL,
-				    compress_level);
+    compress_buff = (char *)buff;
+    compress_buff_len = bufsiz;
+    compressor = open_deflate_handler(arc_compress_func, NULL,
+				      compress_level);
     allocated = 1024;
     compressed = (char *)safe_malloc(allocated);
     offset = 0;
@@ -593,13 +589,13 @@ void *arc_compress(void *buff, long bufsiz,
 
 void *arc_decompress(void *buff, long bufsiz, long *decompressed_size)
 {
-  InflateHandler decompressor;
-  long allocated, offset, space, nbytes;
-  char *decompressed;
+    InflateHandler decompressor;
+    long allocated, offset, space, nbytes;
+    char *decompressed;
 
-  compress_buff = (char *)buff;
-  compress_buff_len = bufsiz;
-  decompressor = open_inflate_handler(arc_compress_func, NULL);
+    compress_buff = (char *)buff;
+    compress_buff_len = bufsiz;
+    decompressor = open_inflate_handler(arc_compress_func, NULL);
     allocated = 1024;
     decompressed = (char *)safe_malloc(allocated);
     offset = 0;
@@ -627,36 +623,35 @@ void *arc_decompress(void *buff, long bufsiz, long *decompressed_size)
 
 void free_archive_files(void)
 {
-  ArchiveEntryNode *entry, *ecur;
-  ArchiveFileList *acur;
+    ArchiveEntryNode *entry, *ecur;
+    ArchiveFileList *acur;
 
-  while(arc_filelist)
+    while(arc_filelist)
     {
-      acur = arc_filelist;
-      arc_filelist = arc_filelist->next;
-      entry = acur->entry_list;
-      while(entry)
+	acur = arc_filelist;
+	arc_filelist = arc_filelist->next;
+	entry = acur->entry_list;
+	while(entry)
 	{
-	  ecur = entry;
-	  entry = entry->next;
-	  free_entry_node(ecur);
+	    ecur = entry;
+	    entry = entry->next;
+	    free_entry_node(ecur);
 	}
-      free(acur->archive_name);
-      free(acur);
+	free(acur->archive_name);
+	free(acur);
     }
 }
 
-
 /******************************************************************************
- * url_arc
- *****************************************************************************/
+* url_arc
+*****************************************************************************/
 typedef struct _URL_arc
 {
     char common[sizeof(struct _URL)];
     URL instream;
     long pos, size;
-  int comptype;
-  void *decoder;
+    int comptype;
+    void *decoder;
 } URL_arc;
 
 static long url_arc_read(URL url, void *buff, long n);
@@ -671,16 +666,16 @@ static long archiver_read_func(char *buff, long buff_size, void *v)
     url = (URL_arc *)v;
 
     if(url->size < 0)
-      n = buff_size;
+	n = buff_size;
     else
-      {
+    {
 	n = url->size - url->pos;
 	if(n > buff_size)
-	  n = buff_size;
-      }
+	    n = buff_size;
+    }
 
     if(n <= 0)
-      return 0;
+	return 0;
     n = url_read(url->instream, buff, n);
     if(n <= 0)
 	return n;
@@ -700,16 +695,16 @@ URL url_arc_open(char *name)
     if((p = strrchr(name, '#')) == NULL)
 	return NULL;
     len = p - name;
-    base = new_segment(&arc_handler.pool, len + 1);
+    base = new_segment(&arc_buffer, len + 1);
     memcpy(base, name, len);
     base[len] = '\0';
     base = url_expand_home_dir(base);
+
     if((afl = find_arc_filelist(base)) == NULL)
-    {
-	reuse_mblock(&arc_handler.pool);
+	afl = regist_archive(base);
+    if(afl == NULL)
 	return NULL;
-    }
-    reuse_mblock(&arc_handler.pool); /* free `base' */
+    reuse_mblock(&arc_buffer);	/* free `base' */
     name += len + 1;
 
     for(entry = afl->entry_list; entry; entry = entry->next)
@@ -721,14 +716,14 @@ URL url_arc_open(char *name)
 	return NULL;
 
     if(entry->cache != NULL)
-      instream = url_mem_open((char *)entry->cache + entry->start,
-			      entry->compsize, 0);
+	instream = url_mem_open((char *)entry->cache + entry->start,
+				entry->compsize, 0);
     else
-      {
+    {
 	if((instream = url_file_open(base)) == NULL)
-	  return NULL;
+	    return NULL;
 	url_seek(instream, entry->start, 0);
-      }
+    }
 
     url = (URL_arc *)alloc_url(sizeof(URL_arc));
     if(url == NULL)
@@ -743,7 +738,6 @@ URL url_arc_open(char *name)
       case ARCHIVEC_STORED:	/* No compression */
       case ARCHIVEC_LZHED_LH0:	/* -lh0- */
       case ARCHIVEC_LZHED_LZ4:	/* -lz4- */
-	url->comptype = ARCHIVEC_STORED;
 	url->decoder = NULL;
 
       case ARCHIVEC_DEFLATED:	/* deflate */
@@ -783,9 +777,9 @@ URL url_arc_open(char *name)
       case ARCHIVEC_LZHED_LH7:	/* -lh7- */
 	url->decoder =
 	    (void *)open_unlzh_handler(
-		archiver_read_func,
-		lzh_methods[entry->comptype - ARCHIVEC_LZHED - 1],
-		entry->compsize, entry->origsize, url);
+				       archiver_read_func,
+				       lzh_methods[entry->comptype - ARCHIVEC_LZHED - 1],
+				       entry->compsize, entry->origsize, url);
 	if(url->decoder == NULL)
 	{
 	    url_arc_close((URL)url);
@@ -831,6 +825,8 @@ static long url_arc_read(URL url, void *vp, long bufsiz)
     switch(comptype)
     {
       case ARCHIVEC_STORED:
+      case ARCHIVEC_LZHED_LH0:	/* -lh0- */
+      case ARCHIVEC_LZHED_LZ4:	/* -lz4- */
 	n = archiver_read_func(buff, bufsiz, (void *)urlp);
 	break;
 
@@ -883,9 +879,9 @@ static void url_arc_close(URL url)
     int save_errno = errno;
 
     /* 1. close decoder 
-     * 2. close decode_stream
-     * 3. free url
-     */
+	* 2. close decode_stream
+	    * 3. free url
+		*/
 
     decoder = urlp->decoder;
     if(decoder != NULL)
@@ -903,16 +899,16 @@ static void url_arc_close(URL url)
 	    close_explode_handler((ExplodeHandler)decoder);
 	    break;
 
-	  case ARCHIVEC_LZHED_LH1:	/* -lh1- */
-	  case ARCHIVEC_LZHED_LH2:	/* -lh2- */
-	  case ARCHIVEC_LZHED_LH3:	/* -lh3- */
-	  case ARCHIVEC_LZHED_LH4:	/* -lh4- */
-	  case ARCHIVEC_LZHED_LH5:	/* -lh5- */
-	  case ARCHIVEC_LZHED_LZS:	/* -lzs- */
-	  case ARCHIVEC_LZHED_LZ5:	/* -lz5- */
-	  case ARCHIVEC_LZHED_LHD:	/* -lhd- */
-	  case ARCHIVEC_LZHED_LH6:	/* -lh6- */
-	  case ARCHIVEC_LZHED_LH7:	/* -lh7- */
+	  case ARCHIVEC_LZHED_LH1: /* -lh1- */
+	  case ARCHIVEC_LZHED_LH2: /* -lh2- */
+	  case ARCHIVEC_LZHED_LH3: /* -lh3- */
+	  case ARCHIVEC_LZHED_LH4: /* -lh4- */
+	  case ARCHIVEC_LZHED_LH5: /* -lh5- */
+	  case ARCHIVEC_LZHED_LZS: /* -lzs- */
+	  case ARCHIVEC_LZHED_LZ5: /* -lz5- */
+	  case ARCHIVEC_LZHED_LHD: /* -lhd- */
+	  case ARCHIVEC_LZHED_LH6: /* -lh6- */
+	  case ARCHIVEC_LZHED_LH7: /* -lh7- */
 	    close_unlzh_handler((UNLZHHandler)decoder);
 	    break;
 
@@ -926,9 +922,9 @@ static void url_arc_close(URL url)
     }
 
     if(urlp->instream != NULL)
-     url_close(urlp->instream);
-     free(urlp);
-   errno = save_errno;
+	url_close(urlp->instream);
+    free(urlp);
+    errno = save_errno;
 }
 
 
@@ -972,8 +968,8 @@ static char *ParseHex(char *p, int *val)
 }
 
 /*
-**  Match text and p, return TRUE, FALSE, or ABORT.
-*/
+ *  Match text and p, return TRUE, FALSE, or ABORT.
+ */
 static int DoMatch(char *text, char *p)
 {
     register int	last;
@@ -1136,7 +1132,7 @@ int arc_wildmat(char *text, char *p)
 #ifdef	OPTIMIZE_JUST_STAR
     if (p[0] == '*' && p[1] == '\0')
 	return TRUE;
-#endif	/* OPTIMIZE_JUST_STAR */
+#endif /* OPTIMIZE_JUST_STAR */
     return DoMatch(text, p) == TRUE;
 }
 
@@ -1145,6 +1141,6 @@ int arc_case_wildmat(char *text, char *p)
 #ifdef	OPTIMIZE_JUST_STAR
     if (p[0] == '*' && p[1] == '\0')
 	return TRUE;
-#endif	/* OPTIMIZE_JUST_STAR */
+#endif /* OPTIMIZE_JUST_STAR */
     return DoCaseMatch(text, p) == TRUE;
 }

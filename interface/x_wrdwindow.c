@@ -246,6 +246,7 @@ static int InitColor(Colormap cmap, Bool allocate)
     gscreen_plane_mask = 0;
     for(i = 0; i < NUMPLANE; i++)
       gscreen_plane_mask |= mywin.pmask[i];
+    gscreen_plane_mask |= mywin.basepix[0];
   }
 
   for(i=0;i<NUMPXL;i++){

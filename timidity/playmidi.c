@@ -253,6 +253,7 @@ static char *event_name(int type)
 	EVENT_NAME(ME_TEMPO);
 	EVENT_NAME(ME_CHORUS_TEXT);
 	EVENT_NAME(ME_LYRIC);
+	EVENT_NAME(ME_GSLCD);
 	EVENT_NAME(ME_MARKER);
 	EVENT_NAME(ME_INSERT_TEXT);
 	EVENT_NAME(ME_TEXT);
@@ -3041,11 +3042,7 @@ static int apply_controls(void)
 	if(intr)
 	    return RC_QUIT;
 	if(play_pause_flag)
-#ifdef HAVE_USLEEP
 	    usleep(300000);
-#else
-	    sleep(1);
-#endif
     } while (rc != RC_NONE || play_pause_flag);
     return jump_flag ? RC_JUMP : RC_NONE;
 }
@@ -3843,6 +3840,11 @@ int play_event(MidiEvent *ev)
 	ctl_mode_event(CTLE_LYRIC, 1, i, 0);
 	break;
 
+      case ME_GSLCD:
+	i = ev->a | ((int)ev->b << 8);
+	ctl_mode_event(CTLE_GSLCD, 1, i, 0);
+	break;
+
       case ME_MASTER_VOLUME:
 	master_volume_ratio = (int32)ev->a + 256 * (int32)ev->b;
 	adjust_master_volume();
@@ -4142,9 +4144,9 @@ void ctl_mode_event(int type, int trace, long arg1, long arg2)
     ce.type = type;
     ce.v1 = arg1;
     ce.v2 = arg2;
-    if(trace && ctl->trace_playing && !midi_trace.flush_flag)
+    if(trace && ctl->trace_playing)
 	push_midi_trace_ce(ctl->event, &ce);
-    else if(ctl->event != NULL)
+    else
 	ctl->event(&ce);
 }
 
@@ -4156,7 +4158,7 @@ void ctl_note_event(int noteID)
     ce.v2 = voice[noteID].channel;
     ce.v3 = voice[noteID].note;
     ce.v4 = voice[noteID].velocity;
-    if(ctl->trace_playing && !midi_trace.flush_flag)
+    if(ctl->trace_playing)
 	push_midi_trace_ce(ctl->event, &ce);
     else
 	ctl->event(&ce);
@@ -4177,26 +4179,18 @@ static void ctl_timestamp(void)
     ce.type = CTLE_CURRENT_TIME;
     ce.v1 = last_secs = secs;
     ce.v2 = last_voices = voices;
-    if(ctl->trace_playing && !midi_trace.flush_flag)
+    if(ctl->trace_playing)
 	push_midi_trace_ce(ctl->event, &ce);
-    else if(ctl->event)
+    else
 	ctl->event(&ce);
 }
 
 static void ctl_updatetime(int32 samples)
 {
     long secs;
-    CtlEvent ce;
-
     secs = (long)(samples / (midi_time_ratio * play_mode->rate));
-    ce.type = CTLE_CURRENT_TIME;
-    ce.v1 = secs;
-    ce.v2 = 0;
-    if(ctl->event)
-    {
-	ctl->event(&ce);
-	ctl_mode_event(CTLE_REFRESH, 0, 0, 0);
-    }
+    ctl_mode_event(CTLE_CURRENT_TIME, 0, secs, 0);
+    ctl_mode_event(CTLE_REFRESH, 0, 0, 0);
 }
 
 static void ctl_prog_event(int ch)
@@ -4206,7 +4200,7 @@ static void ctl_prog_event(int ch)
     ce.v1 = ch;
     ce.v2 = channel[ch].program;
     ce.v3 = (long)channel_instrum_name(ch);
-    if(ctl->trace_playing && !midi_trace.flush_flag)
+    if(ctl->trace_playing)
 	push_midi_trace_ce(ctl->event, &ce);
     else
 	ctl->event(&ce);
@@ -4214,14 +4208,9 @@ static void ctl_prog_event(int ch)
 
 static void ctl_pause_event(int pause, int32 s)
 {
-    if(ctl->event)
-    {
-	CtlEvent ce;
-	ce.type = CTLE_PAUSE;
-	ce.v1 = pause;
-	ce.v2 = (long)(s / (midi_time_ratio * play_mode->rate));
-	ctl->event(&ce);
-    }
+    long secs;
+    secs = (long)(s / (midi_time_ratio * play_mode->rate));
+    ctl_mode_event(CTLE_PAUSE, 0, pause, secs);
 }
 
 char *channel_instrum_name(int ch)

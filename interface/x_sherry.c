@@ -34,7 +34,6 @@
 #include <strings.h>
 #endif
 #include <stdlib.h>
-
 #include <png.h>
 
 #include "timidity.h"
@@ -49,14 +48,17 @@
     defined(HAVE_X11_EXTENSIONS_XSHM_H) && \
     defined(HAVE_SYS_IPC_H) && \
     defined(HAVE_SYS_SHM_H)
+#define XSHM_SUPPORT 1
+#else
+#define XSHM_SUPPORT 0
+#endif
+#endif /* XSHM_SUPPORT */
+
+#if XSHM_SUPPORT
 #include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#define XSHM_SUPPORT 1
-#else
-#undef XSHM_SUPPORT 0
 #endif
-#endif /* XSHM_SUPPORT */
 
 #define MAX_PLANES		8
 #define MAX_COLORS		(1<<MAX_PLANES)
@@ -78,7 +80,7 @@ typedef struct _ImagePixmap
     XImage		*im;
     GC			gc;
     int			depth;
-#ifdef XSHM_SUPPORT
+#if XSHM_SUPPORT
     XShmSegmentInfo	shminfo;
 #endif /* XSHM_SUPPORT */
 } ImagePixmap;
@@ -456,7 +458,7 @@ static int x_sry_open(char *opts)
 					    theDepth);
     imageBitmap = create_shm_image_pixmap(IMAGEBITMAPLEN * CHAR_WIDTH1,
 					  CHAR_HEIGHT,
-					  1);
+					  theDepth);
 #else
     theRealScreen = create_image_pixmap(REAL_SCREEN_SIZE_X,
 					REAL_SCREEN_SIZE_Y,
@@ -1705,6 +1707,9 @@ static void sry_text(uint8 *data)
     str  = (char *)data + 10;
     len  = strlen(str);
 
+    if(len == 0)
+	return;
+
 #ifdef SRY_DEBUG
     printf("%d 0x%02x %d %d %d (%d,%d)\n%s\n",
 	   screen, mask, mode, fg, bg, tx, ty, str);
@@ -1981,11 +1986,7 @@ static ImagePixmap *create_shm_image_pixmap(int width, int height, int depth)
     ImagePixmap *ip;
     int shm_depth;
 
-    if(depth <= 1)
-	shm_depth = 8;	/* Can't create SHM bitmap. Why ?? */
-    else
-	shm_depth = depth;
-
+    shm_depth = depth;
     ip = (ImagePixmap *)safe_malloc(sizeof(ImagePixmap));
 
     shm_error = 0;

@@ -16,14 +16,12 @@
  * Interfaces
  */
 
-extern int regist_archive(char *archive_filename, int archive_type);
-/* Regist archive file name to use url_arc_open */
-
-extern char **expand_archive_names(int *nfiles_in_out, char **files_in_out);
+extern char **expand_archive_names(int *nfiles_in_out, char **files);
 /* Regist all archive files in `files_in_out', and expand the archive */
 
 extern URL url_arc_open(char *name);
-/* Open input stream from registerd archive */
+/* Open input stream from archive.  `name' format must be "filename#entry".
+ */
 
 extern void free_archive_files(void);
 /* Call once at the last */
@@ -38,7 +36,6 @@ extern void *arc_decompress(void *buff, long bufsiz, long *decompressed_size);
 extern int arc_case_wildmat(char *text, char *p);
 extern int arc_wildmat(char *text, char *p);
 extern void (* arc_error_handler)(char *error_message);
-
 
 
 /*
@@ -61,7 +58,6 @@ typedef struct _ArchiveHandler {
     URL url;	/* Input stream */
     int counter;/* counter to extract the entry*/
     long pos;
-    MBlockList pool;
 } ArchiveHandler;
 
 extern ArchiveHandler arc_handler;

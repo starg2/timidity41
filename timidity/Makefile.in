@@ -360,7 +360,7 @@ wrd_read.o: wrd_read.c ../config.h timidity.h ../utils/support.h \
 	readmidi.h controls.h wrd.h ../utils/strtab.h
 wrdt.o: wrdt.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h wrd.h ../utils/strtab.h \
-	instrum.h playmidi.h readmidi.h
+	instrum.h playmidi.h readmidi.h ../libarc/arc.h
 
 info-am:
 info: info-am

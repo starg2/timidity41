@@ -1,3 +1,51 @@
+1999-08-11  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.4.1 released.
+
+1999-08-11  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/linux_a.c: Fixed to adjust PM_REQ_GETSAMPLES.
+    * interface/x_sherry.c (sry_text): Do nothing if string length is zero.
+    * interface/soundspec.c: Multipuly 1.5 to results.
+    * interface/w32g_c.c(ctl_read): In Windows GUI interface, if
+      play_pause_flag is true, wait until any control message is received.
+      There is no CPU usage during pause.
+    * libarc/arc.c (regist_archive): Static function.  This function is
+      no longer library interface function.
+    * timidity/timidity.c (read_config_file): Don't remove the end of
+      '#' followed by non-space.
+    * timidity/{playmidi.h,playmidi.c,readmidi.c,mac_c.c}:
+      Make a new MidiEvent type `ME_GSLCD' and the interface control message
+      `CTLE_GSLCD'.  If ME_GSLCD is received, TiMidity sends CTLE_GSLCD to
+      the interface.
+    * timidity/{common.c,timidity.c} (open_file_noise_mode): new global
+      variable to pass `noise_mode' of open_file() to arc_error_handler.
+    * wrdt.c: Make more elevant.
+    * x_wrdwindow.c (gscreen_plane_mask): Bug fix.
+
+1999-08-10  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc/arc.c: Bug fixed.
+    * interface/x_sherry.c: Bug fixed.
+    * libarc/{arc.h,arc.c}: Removed `pool' from ArchiveHandler.
+      Use static variable arc_buffer in arc.c instead of ArchiveHandler.pool.
+      `arc_buffer' which is internal usage only.
+    * timidity/playmidi.c (apply_controls): usleep(300000) if play_pause_flag.
+    * interface/{w32g_c.c,w32g_canvas.c}:
+      Fixed update timing for channel bar mode.
+
+1999-08-10  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc/arc.c (): Bug fixed to extract `-lh0-' and `-lz4-' of the lha.
+    * interface/x_sherry.c: Bug fixed to create SHM pixmap.
+    * libarc/{arc.h,arc.c}: Removed `pool' from ArchiveHandler.
+      Use static variable arc_buffer in arc.c instead of ArchiveHandler.pool.
+      `arc_buffer' is internal usage only.
+    * timidity/playmidi.c (apply_controls): usleep(300000) if play_pause_flag.
+    * interface/{w32g_c.c,w32g_canvas.c}:
+      Fixed update timing for channel bar mode.
+
+
 1999-08-09  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.4.0 released.

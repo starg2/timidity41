@@ -1005,12 +1005,21 @@ static void ctl_lyric(int lyricid)
 
 	lyric = event2string(lyricid);
 	if(lyric == NULL) return;
+	ctl.cmsg(CMSG_TEXT, VERB_VERBOSE, "%s", lyric + 1);
+}
+
+static void ctl_gslcd(int lyricid)
+{
+	char *lyric;
+
+	lyric = event2string(lyricid);
+	if(lyric == NULL) return;
 	
-	if( strncmp(lyric+1, "gslcd: ",7)==0 ){
+	if( lyric[0] == ME_GSLCD ){
 		int i,j, data, mask;
 		char tmp[3]= "00";
 		
-		lyric+=8;
+		lyric++;
 		for( j=0; j<4; j++ ){
 		for( i=0; i<16; i++ ){
 			tmp[0]= lyric[0]; tmp[1]= lyric[1]; lyric+=2;
@@ -1204,6 +1213,9 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_LYRIC:
 	ctl_lyric((int)e->v1);
+	break;
+      case CTLE_GSLCD:
+	ctl_gslcd((int)e->v1);
 	break;
       case CTLE_REFRESH:
 	ctl_refresh();

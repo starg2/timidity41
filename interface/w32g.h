@@ -125,6 +125,7 @@ extern void TmCanvasRefresh(void);
 extern void TmCanvasReset(void);
 extern void TmCanvasNote(int status, int ch, int note, int vel);
 extern int TmCanvasChange(void);
+extern void TmCanvasUpdateInterval();
 extern int TmCanvasMode;
 
 /* w32g_c.c */

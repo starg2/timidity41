@@ -1154,8 +1154,15 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
 	    extension_flag = 0;
 	    i = 0;
 	}
+
+	/* Chop the comment.
+	 * Comment delimiter =~ /^#|\s#|#[ \t]/
+	 */
 	if((cp = strchr(tmp + i, '#')) != NULL) {
-	    if(cp == tmp + i || isspace((int)cp[-1]) || isspace((int)cp[1]))
+	    if(cp == tmp + i ||		/* beginning of line */
+	       isspace((int)cp[-1]) ||	/* "\s#" */
+	       cp[1] == ' ' ||		/* "#[ \t]" */
+	       cp[1] == '\t')
 		*cp = '\0';
 	}
 
@@ -2670,7 +2677,7 @@ static RETSIGTYPE sigterm_exit(int sig)
     s[2] = '\n';
     write(2, s, 3);
 
-    if(sig == SIGINT && intr < 5)
+    if(sig == SIGINT && intr < 3)
     {
 	intr++;
 	signal(SIGINT, sigterm_exit); /* For SysV base */
@@ -2682,7 +2689,9 @@ static RETSIGTYPE sigterm_exit(int sig)
 
 static void timidity_arc_error_handler(char *error_message)
 {
-    ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "%s", error_message);
+    extern int open_file_noise_mode;
+    if(open_file_noise_mode)
+	ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "%s", error_message);
 }
 
 MAIN_INTERFACE void timidity_start_initialize(void)

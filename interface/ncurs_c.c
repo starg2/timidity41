@@ -973,6 +973,8 @@ static void ctl_list_mode(int type)
 
 static void ctl_event(CtlEvent *e)
 {
+    if(midi_trace.flush_flag)
+	return;
     switch(e->type)
     {
       case CTLE_NOW_LOADING:
@@ -2755,7 +2757,6 @@ static void reset_indicator(void)
 
 static void display_aq_ratio(void)
 {
-#if 1
     static int last_rate = -1;
     int rate, devsiz;
 
@@ -2776,11 +2777,6 @@ static void display_aq_ratio(void)
 	    wprintw(dftwin, " Audio queue:%3d%% ", rate);
 	scr_modified_flag = 1;
     }
-#else
-    wmove(dftwin, VOICE_LINE + 1, 30);
-    wprintw(dftwin, " Audio queue: %d %d %d %d",
-	    aq_get_dev_queuesize(), aq_filled(), aq_soft_filled(), aq_fillable());
-#endif
 }
 
 static void update_indicator(void)

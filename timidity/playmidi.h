@@ -104,6 +104,7 @@ enum midi_event_t
     ME_TEMPO,
     ME_CHORUS_TEXT,
     ME_LYRIC,
+    ME_GSLCD,	/* GS L.C.D. Exclusive message event */
     ME_MARKER,
     ME_INSERT_TEXT, /* for SC */
     ME_TEXT,

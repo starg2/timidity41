@@ -61,6 +61,9 @@
 #include "playmidi.h"
 #include "miditrace.h"
 
+/* It is possible count_info.bytes > written bytes. bug? */
+#define BYTES_PROCESSED_BUGFIX 1
+
 #ifndef AFMT_S16_NE
 #ifdef LITTLE_ENDIAN
 #define AFMT_S16_NE AFMT_S16_LE
@@ -73,6 +76,7 @@ static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
+static int output_counter, counter_offset;
 
 /* export the playback mode */
 
@@ -91,7 +95,6 @@ PlayMode dpm = {
     output_data,
     acntl
 };
-
 
 /*************************************************************************/
 /* We currently only honor the PE_MONO bit, the sample rate, and the
@@ -226,6 +229,7 @@ static int open_output(void)
 #endif
 
     dpm.fd = fd;
+    output_counter = counter_offset = 0;
 
     return warnings;
 }
@@ -233,6 +237,15 @@ static int open_output(void)
 static int output_data(char *buf, int32 nbytes)
 {
     int n;
+    count_info cinfo;
+
+    ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo);
+    if(output_counter < cinfo.bytes)
+    {
+	counter_offset += output_counter;
+	ioctl(dpm.fd, SNDCTL_DSP_SYNC);
+	output_counter = 0;
+    }
 
     while(nbytes > 0)
     {
@@ -257,6 +270,7 @@ static int output_data(char *buf, int32 nbytes)
 	}
 	buf += n;
 	nbytes -= n;
+	output_counter += n;
     }
 
     return 0;
@@ -278,15 +292,20 @@ static int acntl(int request, void *arg)
 
     switch(request)
     {
-    case PM_REQ_GETQSIZ:
-      if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
-	return -1;
-      total = info.fragstotal * info.fragsize;
-      *((int *)arg) = total;
-      return 0;
+      case PM_REQ_GETQSIZ:
+	if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	  return -1;
+	total = info.fragstotal * info.fragsize;
+	*((int *)arg) = total;
+	return 0;
 
       case PM_REQ_DISCARD:
+	counter_offset = output_counter = 0;
 	return ioctl(dpm.fd, SNDCTL_DSP_RESET);
+
+      case PM_REQ_FLUSH:
+	counter_offset = output_counter = 0;
+	return ioctl(dpm.fd, SNDCTL_DSP_SYNC);
 
       case PM_REQ_RATE: {
 	  int rate;
@@ -325,14 +344,11 @@ static int acntl(int request, void *arg)
     case PM_REQ_GETSAMPLES:
       if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
 	return -1;
-      bytes = cinfo.bytes;
+      bytes = cinfo.bytes + counter_offset;
       if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
       if(dpm.encoding & PE_16BIT) bytes >>= 1;
       *((int *)arg) = bytes;
       return 0;
-
-    case PM_REQ_FLUSH:
-      return ioctl(dpm.fd, SNDCTL_DSP_SYNC);
     }
     return -1;
 }
