@@ -183,6 +183,7 @@ extern MidiEvent *read_midi_file(struct timidity_file *mtf,
 				 int32 *count, int32 *sp, char *file_name);
 extern struct midi_file_info *get_midi_file_info(char *filename, int newp);
 extern struct midi_file_info *new_midi_file_info(char *filename);
+extern void free_all_midi_file_info(void);
 extern int check_midi_file(char *filename);
 extern char *get_midi_title(char *filename);
 extern struct timidity_file *open_midi_file(char *name,

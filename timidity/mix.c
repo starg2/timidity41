@@ -41,14 +41,26 @@
 int min_sustain_time = 0;
 
 #ifdef SMOOTH_MIXING
+#ifdef LOOKUP_HACK
+/* u2l: 0..255 -> -32256..32256
+ * shift 3 bit: -> within MAX_AMP_VALUE
+ */
+#define FROM_FINAL_VOLUME(a)		((_u2l[(uint8)(~a)])>>3)
+#else
+#define FROM_FINAL_VOLUME(a)		(a)
+#endif
+#endif
+
+
+#ifdef SMOOTH_MIXING
 void compute_mix_smoothing(Voice *vp)
 {
-    final_volume_t max_win, delta;
+    int32 max_win, delta;
 
     /* reduce popping -- ramp the amp over a <= 0.5 msec window */
-    max_win = play_mode->rate * 0.0005;
+    max_win = (int32)(play_mode->rate * 0.0005);
+    delta = FROM_FINAL_VOLUME(vp->left_mix) - vp->old_left_mix;
 
-    delta = vp->left_mix - vp->old_left_mix;
     if (labs(delta) > max_win)
     {
       vp->left_mix_inc = delta / max_win;
@@ -63,7 +75,7 @@ void compute_mix_smoothing(Voice *vp)
       vp->left_mix_offset = -delta + vp->left_mix_inc;
     }
 
-    delta = vp->right_mix - vp->old_right_mix;
+    delta = FROM_FINAL_VOLUME(vp->right_mix) - vp->old_right_mix;
     if (labs(delta) > max_win)
     {
       vp->right_mix_inc = delta / max_win;
@@ -316,9 +328,17 @@ static inline int update_signal(int v)
 }
 
 #ifdef LOOKUP_HACK
-#  define MIXATION(a)	*lp++ += mixup[(a<<8) | (uint8)s];
+#  define MIXATION(a)	*lp++ += mixup[(a<<8) | (uint8)s]
 #else
-#  define MIXATION(a)	*lp++ += (a) * s;
+#  define MIXATION(a)	*lp++ += (a) * s
+#endif
+
+#ifdef SMOOTH_MIXING
+#ifdef LOOKUP_HACK
+#  define MIXATION_SMOOTH(a) *lp++ += mixup[(FINAL_VOLUME(a)<<8) | (uint8)s]
+#else
+#  define MIXATION_SMOOTH(a) *lp++ += ((a) * s)
+#endif
 #endif
 
 static void mix_mystery_signal(sample_t *sp, int32 *lp, int v, int count)
@@ -329,6 +349,9 @@ static void mix_mystery_signal(sample_t *sp, int32 *lp, int v, int count)
     right=vp->right_mix;
   int cc, i;
   sample_t s;
+#ifdef SMOOTH_MIXING
+  int32 linear_left, linear_right;
+#endif
 
   if (!(cc = vp->control_counter))
     {
@@ -348,27 +371,35 @@ static void mix_mystery_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	count -= cc;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset,
-             right += vp->right_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+	linear_right = FROM_FINAL_VOLUME(right);
+        for (i = 0, linear_left += vp->left_mix_offset,
+            linear_right += vp->right_mix_offset;
              (vp->left_mix_offset | vp->right_mix_offset) && i < cc; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
-	    MIXATION(right);
+	    MIXATION_SMOOTH(linear_left);
+	    MIXATION_SMOOTH(linear_right);
 
 	    if (vp->left_mix_offset)
 	    {
 	      vp->left_mix_offset += vp->left_mix_inc;
-	      left += vp->left_mix_inc;
+	      linear_left += vp->left_mix_inc;
+	      if (linear_left > MAX_AMP_VALUE)
+		linear_left = MAX_AMP_VALUE;
 	    }
 	    if (vp->right_mix_offset)
 	    {
 	      vp->right_mix_offset += vp->right_mix_inc;
-	      right += vp->right_mix_inc;
+	      linear_right += vp->right_mix_inc;
+	      if (linear_right > MAX_AMP_VALUE)
+		linear_right = MAX_AMP_VALUE;
 	    }
           }
-        vp->old_left_mix = left;
-        vp->old_right_mix = right;
+        vp->old_left_mix = linear_left;
+        vp->old_right_mix = linear_right;
+	left = FINAL_VOLUME(linear_left);
+	right = FINAL_VOLUME(linear_right);
         cc -= i;
 #endif
 	for(i = 0; i < cc; i++)
@@ -390,27 +421,36 @@ static void mix_mystery_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	vp->control_counter = cc - count;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset,
-             right += vp->right_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+	linear_right = FROM_FINAL_VOLUME(right);
+
+        for (i = 0, linear_left += vp->left_mix_offset,
+             linear_right += vp->right_mix_offset;
              (vp->left_mix_offset | vp->right_mix_offset) && i < count; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
-	    MIXATION(right);
+	    MIXATION_SMOOTH(linear_left);
+	    MIXATION_SMOOTH(linear_right);
 
 	    if (vp->left_mix_offset)
 	    {
 	      vp->left_mix_offset += vp->left_mix_inc;
-	      left += vp->left_mix_inc;
+	      linear_left += vp->left_mix_inc;
+	      if (linear_left > MAX_AMP_VALUE)
+		linear_left = MAX_AMP_VALUE;
 	    }
 	    if (vp->right_mix_offset)
 	    {
 	      vp->right_mix_offset += vp->right_mix_inc;
-	      right += vp->right_mix_inc;
+	      linear_right += vp->right_mix_inc;
+	      if (linear_right > MAX_AMP_VALUE)
+		linear_right = MAX_AMP_VALUE;
 	    }
           }
-        vp->old_left_mix = left;
-        vp->old_right_mix = right;
+        vp->old_left_mix = linear_left;
+        vp->old_right_mix = linear_right;
+	left = FINAL_VOLUME(linear_left);
+	right = FINAL_VOLUME(linear_right);
         count -= i;
 #endif
 	for(i = 0; i < count; i++)
@@ -430,6 +470,9 @@ static void mix_center_signal(sample_t *sp, int32 *lp, int v, int count)
     left=vp->left_mix;
   int cc, i;
   sample_t s;
+#ifdef SMOOTH_MIXING
+  int32 linear_left;
+#endif
 
   if (!(cc = vp->control_counter))
     {
@@ -448,17 +491,21 @@ static void mix_center_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	count -= cc;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+        for (i = 0, linear_left += vp->left_mix_offset;
              vp->left_mix_offset && i < cc; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
-	    MIXATION(left);
+	    MIXATION_SMOOTH(linear_left);
+	    MIXATION_SMOOTH(linear_left);
 
 	    vp->left_mix_offset += vp->left_mix_inc;
-	    left += vp->left_mix_inc;
+	    linear_left += vp->left_mix_inc;
+	    if (linear_left > MAX_AMP_VALUE)
+	      linear_left = MAX_AMP_VALUE;
           }
-        vp->old_left_mix = left;
+        vp->old_left_mix = linear_left;
+	left = FINAL_VOLUME(linear_left);
         cc -= i;
 #endif
 	for(i = 0; i < cc; i++)
@@ -479,17 +526,21 @@ static void mix_center_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	vp->control_counter = cc - count;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+        for (i = 0, linear_left += vp->left_mix_offset;
              vp->left_mix_offset && i < count; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
-	    MIXATION(left);
+	    MIXATION_SMOOTH(linear_left);
+	    MIXATION_SMOOTH(linear_left);
 
 	    vp->left_mix_offset += vp->left_mix_inc;
-	    left += vp->left_mix_inc;
+	    linear_left += vp->left_mix_inc;
+	    if (linear_left > MAX_AMP_VALUE)
+	      linear_left = MAX_AMP_VALUE;
           }
-        vp->old_left_mix = left;
+        vp->old_left_mix = linear_left;
+	left = FINAL_VOLUME(linear_left);
         count -= i;
 #endif
 	for(i = 0; i < count; i++)
@@ -509,6 +560,9 @@ static void mix_single_signal(sample_t *sp, int32 *lp, int v, int count)
     left=vp->left_mix;
   int cc, i;
   sample_t s;
+#ifdef SMOOTH_MIXING
+  int32 linear_left;
+#endif
 
   if (!(cc = vp->control_counter))
     {
@@ -527,17 +581,21 @@ static void mix_single_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	count -= cc;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+        for (i = 0, linear_left += vp->left_mix_offset;
              vp->left_mix_offset && i < cc; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
+	    MIXATION_SMOOTH(linear_left);
 	    lp++;
 
 	    vp->left_mix_offset += vp->left_mix_inc;
-	    left += vp->left_mix_inc;
+	    linear_left += vp->left_mix_inc;
+	    if (linear_left > MAX_AMP_VALUE)
+	      linear_left = MAX_AMP_VALUE;
           }
-        vp->old_left_mix = left;
+        vp->old_left_mix = linear_left;
+	left = FINAL_VOLUME(linear_left);
         cc -= i;
 #endif
 	for(i = 0; i < cc; i++)
@@ -558,17 +616,21 @@ static void mix_single_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	vp->control_counter = cc - count;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+        for (i = 0, linear_left += vp->left_mix_offset;
              vp->left_mix_offset && i < count; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
+	    MIXATION_SMOOTH(linear_left);
 	    lp++;
 
 	    vp->left_mix_offset += vp->left_mix_inc;
-	    left += vp->left_mix_inc;
+	    linear_left += vp->left_mix_inc;
+	    if (linear_left > MAX_AMP_VALUE)
+	      linear_left = MAX_AMP_VALUE;
           }
-        vp->old_left_mix = left;
+        vp->old_left_mix = linear_left;
+	left = FINAL_VOLUME(linear_left);
         count -= i;
 #endif
 	for(i = 0; i < count; i++)
@@ -588,6 +650,9 @@ static void mix_mono_signal(sample_t *sp, int32 *lp, int v, int count)
     left=vp->left_mix;
   int cc, i;
   sample_t s;
+#ifdef SMOOTH_MIXING
+  int32 linear_left;
+#endif
 
   if (!(cc = vp->control_counter))
     {
@@ -606,16 +671,20 @@ static void mix_mono_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	count -= cc;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+        for (i = 0, linear_left += vp->left_mix_offset;
              vp->left_mix_offset && i < cc; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
+	    MIXATION_SMOOTH(linear_left);
 
 	    vp->left_mix_offset += vp->left_mix_inc;
-	    left += vp->left_mix_inc;
+	    linear_left += vp->left_mix_inc;
+	    if (linear_left > MAX_AMP_VALUE)
+	      linear_left = MAX_AMP_VALUE;
           }
-        vp->old_left_mix = left;
+        vp->old_left_mix = linear_left;
+	left = FINAL_VOLUME(linear_left);
         cc -= i;
 #endif
 	for(i = 0; i < cc; i++)
@@ -635,16 +704,20 @@ static void mix_mono_signal(sample_t *sp, int32 *lp, int v, int count)
       {
 	vp->control_counter = cc - count;
 #ifdef SMOOTH_MIXING
-        for (i = 0, left += vp->left_mix_offset;
+	linear_left = FROM_FINAL_VOLUME(left);
+        for (i = 0, linear_left += vp->left_mix_offset;
              vp->left_mix_offset && i < count; i++)
           {
 	    s = *sp++;
-	    MIXATION(left);
+	    MIXATION_SMOOTH(linear_left);
 
 	    vp->left_mix_offset += vp->left_mix_inc;
-	    left += vp->left_mix_inc;
+	    linear_left += vp->left_mix_inc;
+	    if (linear_left > MAX_AMP_VALUE)
+	      linear_left = MAX_AMP_VALUE;
           }
-        vp->old_left_mix = left;
+        vp->old_left_mix = linear_left;
+	left = FINAL_VOLUME(linear_left);
         count -= i;
 #endif
 	for(i = 0; i < count; i++)
@@ -666,29 +739,38 @@ static void mix_mystery(sample_t *sp, int32 *lp, int v, int count)
 
 #ifdef SMOOTH_MIXING
   Voice *vp = voice + v;
+  int32 linear_left, linear_right;
 
   compute_mix_smoothing(vp);
-  for (i = 0, left += vp->left_mix_offset,
-       right += vp->right_mix_offset;
+  linear_left = FROM_FINAL_VOLUME(left);
+  linear_right = FROM_FINAL_VOLUME(right);
+  for (i = 0, linear_left += vp->left_mix_offset,
+       linear_right += vp->right_mix_offset;
        (vp->left_mix_offset | vp->right_mix_offset) && i < count; i++)
     {
       s = *sp++;
-      MIXATION(left);
-      MIXATION(right);
+      MIXATION_SMOOTH(linear_left);
+      MIXATION_SMOOTH(linear_right);
 
       if (vp->left_mix_offset)
       {
         vp->left_mix_offset += vp->left_mix_inc;
-        left += vp->left_mix_inc;
+        linear_left += vp->left_mix_inc;
+	if (linear_left > MAX_AMP_VALUE)
+	  linear_left = MAX_AMP_VALUE;
       }
       if (vp->right_mix_offset)
       {
         vp->right_mix_offset += vp->right_mix_inc;
-        right += vp->right_mix_inc;
+        linear_right += vp->right_mix_inc;
+	if (linear_right > MAX_AMP_VALUE)
+	  linear_right = MAX_AMP_VALUE;
       }
     }
-  vp->old_left_mix = left;
-  vp->old_right_mix = right;
+  vp->old_left_mix = linear_left;
+  vp->old_right_mix = linear_right;
+  left = FINAL_VOLUME(linear_left);
+  right = FINAL_VOLUME(linear_right);
   count -= i;
 #endif
 
@@ -709,19 +791,24 @@ static void mix_center(sample_t *sp, int32 *lp, int v, int count)
 
 #ifdef SMOOTH_MIXING
   Voice *vp = voice + v;
+  int32 linear_left;
 
   compute_mix_smoothing(vp);
-  for (i = 0, left += vp->left_mix_offset;
+  linear_left = FROM_FINAL_VOLUME(left);
+  for (i = 0, linear_left += vp->left_mix_offset;
        vp->left_mix_offset && i < count; i++)
     {
       s = *sp++;
-      MIXATION(left);
-      MIXATION(left);
+      MIXATION_SMOOTH(linear_left);
+      MIXATION_SMOOTH(linear_left);
 
       vp->left_mix_offset += vp->left_mix_inc;
-      left += vp->left_mix_inc;
+      linear_left += vp->left_mix_inc;
+      if (linear_left > MAX_AMP_VALUE)
+	linear_left = MAX_AMP_VALUE;
     }
-  vp->old_left_mix = left;
+  vp->old_left_mix = linear_left;
+  left = FINAL_VOLUME(linear_left);
   count -= i;
 #endif
 
@@ -742,19 +829,24 @@ static void mix_single(sample_t *sp, int32 *lp, int v, int count)
 
 #ifdef SMOOTH_MIXING
   Voice *vp = voice + v;
+  int32 linear_left;
 
   compute_mix_smoothing(vp);
-  for (i = 0, left += vp->left_mix_offset;
+  linear_left = FROM_FINAL_VOLUME(left);
+  for (i = 0, linear_left += vp->left_mix_offset;
        vp->left_mix_offset && i < count; i++)
     {
       s = *sp++;
-      MIXATION(left);
+      MIXATION_SMOOTH(linear_left);
       lp++;
 
       vp->left_mix_offset += vp->left_mix_inc;
-      left += vp->left_mix_inc;
+      linear_left += vp->left_mix_inc;
+      if (linear_left > MAX_AMP_VALUE)
+	linear_left = MAX_AMP_VALUE;
     }
-  vp->old_left_mix = left;
+  vp->old_left_mix = linear_left;
+  left = FINAL_VOLUME(linear_left);
   count -= i;
 #endif
 
@@ -775,19 +867,24 @@ static void mix_mono(sample_t *sp, int32 *lp, int v, int count)
 
 #ifdef SMOOTH_MIXING
   Voice *vp = voice + v;
+  int32 linear_left;
 
   compute_mix_smoothing(vp);
-  for (i = 0, left += vp->left_mix_offset;
+  linear_left = FROM_FINAL_VOLUME(left);
+  for (i = 0, linear_left += vp->left_mix_offset;
        vp->left_mix_offset && i < count; i++)
     {
       s = *sp++;
-      MIXATION(left);
-      MIXATION(left);
+      MIXATION_SMOOTH(linear_left);
+      MIXATION_SMOOTH(linear_left);
 
       vp->left_mix_offset += vp->left_mix_inc;
-      left += vp->left_mix_inc;
+      linear_left += vp->left_mix_inc;
+      if (linear_left > MAX_AMP_VALUE)
+	linear_left = MAX_AMP_VALUE;
     }
-  vp->old_left_mix = left;
+  vp->old_left_mix = linear_left;
+  left = FINAL_VOLUME(linear_left);
   count -= i;
 #endif
 

@@ -2690,6 +2690,35 @@ struct midi_file_info *new_midi_file_info(char *filename)
     return p;
 }
 
+void free_all_midi_file_info(void)
+{
+  struct midi_file_info *info, *next;
+
+  info = midi_file_info;
+  while (info) {
+    next = info->next;
+    free(info->filename);
+    if (info->seq_name)
+      free(info->seq_name);
+    if (info->karaoke_title != NULL && info->karaoke_title == info->first_text)
+      free(info->karaoke_title);
+    else {
+      if (info->karaoke_title)
+	free(info->karaoke_title);
+      if (info->first_text)
+	free(info->first_text);
+      if (info->midi_data)
+	free(info->midi_data);
+      if (info->pcm_filename)
+	free(info->pcm_filename); /* Note: this memory is freed in playmidi.c*/
+    }
+    free(info);
+    info = next;
+  }
+  midi_file_info = NULL;
+  current_file_info = NULL;
+}
+
 struct midi_file_info *get_midi_file_info(char *filename, int newp)
 {
     struct midi_file_info *p;

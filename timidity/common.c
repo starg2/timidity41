@@ -679,6 +679,31 @@ void add_to_pathlist(char *s)
     pathlist = plp;
 }
 
+void clean_up_pathlist(void)
+{
+  PathList *cur, *next;
+
+  cur = pathlist;
+  while (cur) {
+    next = cur->next;
+#ifdef DEFAULT_PATH
+    if (cur == &defaultpathlist) {
+      cur = next;
+      continue;
+    }
+#endif
+    free(cur->path);
+    free(cur);
+    cur = next;
+  }
+
+#ifdef DEFAULT_PATH
+  pathlist = &defaultpathlist;
+#else
+  pathlist = NULL;
+#endif
+}
+
 #ifndef HAVE_VOLATILE
 /*ARGSUSED*/
 int volatile_touch(void *dmy) {return 1;}

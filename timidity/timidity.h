@@ -179,6 +179,11 @@ typedef double FLOAT_T;
 /* #define LOOKUP_HACK
    #define LOOKUP_INTERPOLATION */
 
+/* Greatly reduces popping due to large volume/pan changes.
+ * This is definately worth the slight increase in CPU usage.
+ * If timidity is too slow, try to undef SMOOTH_MIXING.
+ */
+#define SMOOTH_MIXING
 
 /* Make envelopes twice as fast. Saves ~20% CPU time (notes decay
    faster) and sounds more like a GUS. There is now a command line
@@ -497,15 +502,10 @@ typedef struct _ChannelBitMask
 #define GUARD_BITS 3
 #define AMP_BITS (15-GUARD_BITS)
 
-/* Greatly reduces popping due to large volume/pan changes.
- * This is definately worth the slight increase in CPU usage.
- */
-#define SMOOTH_MIXING
-
 #ifdef LOOKUP_HACK
    typedef int8 sample_t;
    typedef uint8 final_volume_t;
-#  define FINAL_VOLUME(v) (~_l2u[v])
+#  define FINAL_VOLUME(v) ((final_volume_t)~_l2u[v])
 #  define MIXUP_SHIFT 5
 #  define MAX_AMP_VALUE 4095
 #else

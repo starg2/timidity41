@@ -1125,6 +1125,21 @@ void set_instrument_map(int mapID,
     p[elem_from].elem = elem_to;
 }
 
+void free_instrument_map(void)
+{
+  int i, j, k;
+
+  for (i = 0; i < NUM_INST_MAP; i++) {
+    for (j = 0; j < 128; j++) {
+      struct inst_map_elem *map;
+      map = inst_map_table[i][j];
+      if (map) {
+	free(map);
+	inst_map_table[i][j] = NULL;
+      }
+    }
+  }
+}
 
 /* Alternate assign - Written by Masanao Izumo */
 

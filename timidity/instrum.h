@@ -164,6 +164,7 @@ extern int instrument_map(int mapID, int *set_in_out, int *elem_in_out);
 extern void set_instrument_map(int mapID,
 			       int set_from, int elem_from,
 			       int set_to, int elem_to);
+extern void free_instrument_map(void);
 extern AlternateAssign *add_altassign_string(AlternateAssign *old,
 					     char **params, int n);
 extern AlternateAssign *find_altassign(AlternateAssign *altassign, int note);

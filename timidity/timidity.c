@@ -2082,6 +2082,51 @@ static int read_user_config_file(void)
 #endif /* __W32__ */
 }
 
+MAIN_INTERFACE void tmdy_free_config(void)
+{
+  ToneBank *bank;
+  ToneBankElement *elm;
+
+  int i, j;
+
+  for (i = 0; i < 128; i++) {
+    bank = tonebank[i];
+    if (!bank)
+      continue;
+    for (j = 0; j < 128; j++) {
+      elm = &bank->tone[j];
+      if (elm->name)
+	free(elm->name);
+      if (elm->comment)
+	free(elm->comment);
+    }
+    if (i > 0) {
+      free(bank);
+      tonebank[i] = NULL;
+    }
+  }
+
+  for (i = 0; i < 128; i++) {
+    bank = drumset[i];
+    if (!bank)
+      continue;
+    for (j = 0; j < 128; j++) {
+      elm = &bank->tone[j];
+      if (elm->name)
+	free(elm->name);
+      if (elm->comment)
+	free(elm->comment);
+    }
+    if (i > 0) {
+      free(bank);
+      drumset[i] = NULL;
+    }
+  }
+
+  free_instrument_map();
+  clean_up_pathlist();
+}
+
 static void expand_escape_string(char *s)
 {
     char *t = s;
@@ -3235,6 +3280,7 @@ int main(int argc, char **argv)
     int c, err;
     int nfiles;
     char **files;
+    int main_ret;
 
 #if defined(DANGEROUS_RENICE) && !defined(__W32__) && !defined(main)
     /*
@@ -3403,16 +3449,17 @@ int main(int argc, char **argv)
 	sleep(1);
 
 #ifndef IA_W32GUI
-    return timidity_play_main(nfiles, files);
+    main_ret = timidity_play_main(nfiles, files);
 #else
-	{
-		int res = timidity_play_main(nfiles, files);
-		w32gSecondTiMidityExit();
-		if(CoInitializeOK)
-		  CoUninitialize();
-		return res;
-	}
+    main_ret = timidity_play_main(nfiles, files);
+    w32gSecondTiMidityExit();
+    if(CoInitializeOK)
+      CoUninitialize();
 #endif /* IA_W32GUI */
-
+    free_instruments(0);
+    free_global_mblock();
+    free_all_midi_file_info();
+    tmdy_free_config();
+    return main_ret;
 }
 #endif /* __MACOS__ */

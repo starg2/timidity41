@@ -5199,7 +5199,7 @@ void playmidi_stream_init(void)
     current_file_info->samples = 0;
     current_file_info->max_channel = MAX_CHANNELS;
     current_file_info->compressed = 0;
-    current_file_info->midi_data = "";
+    current_file_info->midi_data = NULL;
     current_file_info->midi_data_size = 0;
     current_file_info->file_type = IS_OTHER_FILE;
 

@@ -1,3 +1,16 @@
+2002-01-07  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/{timidity.h,mix.c,playmidi.h}:
+	  Bug fix about LOOKUP_HACK.
+	* timidity/{timidity.c,instrum.c,instrum.h,common.c,common.h,
+	  readmidi.h,readmidi.c}:
+	  Free config data at end of the main.
+
+2001-12-29  Masanao Izumo <mo@goice.co.jp>
+
+	* config.guess: Updated.
+	* config.sub: Updated.
+
 2001-12-29  Masanao Izumo <mo@goice.co.jp>
 
 	* Version 2.11.1 released.
