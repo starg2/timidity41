@@ -521,6 +521,7 @@ int aq_soft_flush(void)
 	    return rc;
 	}
     }
+    play_mode->acntl(PM_REQ_OUTPUT_FINISH, NULL);
     return RC_NONE;
 }
 
@@ -530,8 +531,7 @@ int aq_flush(int discard)
     int more_trace;
 
     /* to avoid infinite loop */
-    double t1, t2, timeout_expect;
-    int32 last_point;
+    double t, timeout_expect;
 
     aq_add_count = 0;
     init_effect();
@@ -551,6 +551,7 @@ int aq_flush(int discard)
     if(!IS_STREAM_TRACE)
     {
 	play_mode->acntl(PM_REQ_FLUSH, NULL);
+	play_counter = play_offset_counter = 0;
 	return RC_NONE;
     }
 
@@ -559,9 +560,8 @@ int aq_flush(int discard)
 	return rc;
 
     more_trace = 1;
-    t1 = get_current_calender_time();
-    last_point = aq_samples();
-    timeout_expect = t1 + (double)aq_filled() / play_mode->rate;
+    t = get_current_calender_time();
+    timeout_expect = t + (double)aq_filled() / play_mode->rate;
 
     while(more_trace || aq_filled() > 0)
     {
@@ -572,27 +572,16 @@ int aq_flush(int discard)
 	    flush_buckets();
 	    return rc;
 	}
-	aq_wait_ticks();
 	more_trace = trace_loop();
-	t2 = get_current_calender_time();
 
-	if(more_trace)
-	  {
-	    if(t2 - t1 > 1.0)
-	      {
-		int32 cur;
-		cur = aq_samples();
-		if(last_point == cur)
-		  break; /* Must be bug */
-		last_point = cur;
-		t1 = t2;
-	      }
-	  }
+	t = get_current_calender_time();
+	if(t >= timeout_expect - 0.1)
+	  break;
+
+	if(!more_trace)
+	  usleep((unsigned long)((timeout_expect - t) * 1000000));
 	else
-	  {
-	    if(t2 > timeout_expect)
-	      break;
-	  }
+	  aq_wait_ticks();
     }
 
     trace_flush();

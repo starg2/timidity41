@@ -1,3 +1,7 @@
+8/27, 1999
+    * Version 2.5.1 released.
+    * Bug fix.
+
 8/26, 1999
     * Version 2.5.0 released.
     * Upgrade Windows GUI.
@@ -8,6 +12,8 @@
       more than 16ch.
     * On Windows, recognize both `\' and `/' as path separator if the
       binary is compiled with Cygwin.
+    * Improvement for CSPLINE_INTERPOLATION and LAGRANGE_INTERPOLATION.
+    * Less CPU% in trace playing.
     * Bug fix.
 
 8/11, 1999

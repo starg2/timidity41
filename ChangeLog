@@ -1,3 +1,22 @@
+1999-08-27  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.5.1 released.
+
+1999-08-27  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/aq.c: Bug fixed.  Avoid infinite loop in aq_flush();
+    * timidity/{output.h,aq.c,w32g_a.c} (PM_REQ_OUTPUT_FINISH): 
+    * interface/{x_wrdt.c,x_sherry.c},configure.in (ENABLE_SHERRY): Bug fix.
+
+1999-08-26  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/linux_a.c (ignore_processed_probrem, BYTES_PROCESSED_BUGFIX):
+      Obsoleted.
+    * timidity/linux_a.c (SNDCTL_DSP_GETOPTR, SNDCTL_DSP_GETODELAY): Use
+      SNDCTL_DSP_GETODELAY instead of SNDCTL_DSP_GETOPTR to calculate
+      sample point.
+    * interface/w32g_utl.c: Bug fixed about the chorus and reverb settings.
+
 1999-08-26  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.5.0 released.

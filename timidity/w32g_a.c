@@ -529,45 +529,45 @@ static int acntl(int request, void *arg)
     {
       case PM_REQ_GETQSIZ:
 #if 0
-	*(int *)arg = data_block_num * AUDIO_BUFFER_SIZE;
-	if(!(dpm.encoding & PE_MONO))
-   	*(int *)arg *= 2;
-	if(dpm.encoding & PE_16BIT)
-   	*(int *)arg *= 2;
+		*(int *)arg = data_block_num * AUDIO_BUFFER_SIZE;
+		if(!(dpm.encoding & PE_MONO))
+			*(int *)arg *= 2;
+		if(dpm.encoding & PE_16BIT)
+			*(int *)arg *= 2;
 #else
-	*(int *)arg = data_block_num * data_block_size;
+		*(int *)arg = data_block_num * data_block_size;
 #endif
-	return 0;
-	case PM_REQ_DISCARD:
-	case PM_REQ_FLUSH:
-	if(!nBlocks && current_data_block == NULL)
-	    return 0;
-	if(request == PM_REQ_DISCARD){
-		waveOutReset(dev);
-		Wait(1);
-	} else
-		Wait(0);
-	EnterCriticalSection (&critSect);
-	reset_data_block();
-	LeaveCriticalSection (&critSect);
-	return 0;
-	case PM_REQ_RATE:
+		return 0;
+	  case PM_REQ_DISCARD:
+	  case PM_REQ_FLUSH:
+		if(!nBlocks && current_data_block == NULL)
+			return 0;
+		if(request == PM_REQ_DISCARD){
+			waveOutReset(dev);
+			Wait(1);
+		} else
+			Wait(0);
+		EnterCriticalSection (&critSect);
+		reset_data_block();
+		LeaveCriticalSection (&critSect);
+		return 0;
+	  case PM_REQ_RATE:
 		break;
-	case PM_REQ_GETFILLABLE:
+	  case PM_REQ_GETFILLABLE:
 		break;
-    case PM_REQ_GETFILLED:
+	  case PM_REQ_GETFILLED:
 		break;
-    case PM_REQ_GETSAMPLES:
+	  case PM_REQ_GETSAMPLES:
 		break;
-      case PM_REQ_PLAY_END:
-	if(current_data_block != NULL && current_data_block->size > 0)
-	{
-	    EnterCriticalSection (&critSect);
-	    waveOutWriteBlock(current_data_block);
-	    LeaveCriticalSection (&critSect);
-	}
-	current_data_block = NULL;
-	return 0;
+	  case PM_REQ_OUTPUT_FINISH:
+		if(current_data_block != NULL && current_data_block->size > 0)
+		{
+			EnterCriticalSection (&critSect);
+			waveOutWriteBlock(current_data_block);
+			LeaveCriticalSection (&critSect);
+		}
+		current_data_block = NULL;
+		return 0;
     }
     return -1;
 }

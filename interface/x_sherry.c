@@ -2263,8 +2263,6 @@ static VirtualScreen *alloc_vscreen(int width, int height, int transParent)
     memset(scr->data, transParent, size);
     return scr;
 }
-#endif /* ENABLE_SHERRY */
-
 
 void x_sry_event(void)
 {
@@ -2285,3 +2283,4 @@ void x_sry_event(void)
 	    XSync(theDisplay, False);
     }
 }
+#endif /* ENABLE_SHERRY */

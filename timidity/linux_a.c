@@ -61,10 +61,6 @@
 #include "playmidi.h"
 #include "miditrace.h"
 
-/* It is possible count_info.bytes > written bytes. bug? */
-#define BYTES_PROCESSED_BUGFIX 1
-static int ignore_processed_probrem = 0;
-
 #ifndef AFMT_S16_NE
 #ifdef LITTLE_ENDIAN
 #define AFMT_S16_NE AFMT_S16_LE
@@ -78,6 +74,7 @@ static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 static int output_counter, counter_offset;
+static int total_bytes; /* Maximum buffer size in bytes */
 
 /* export the playback mode */
 
@@ -107,6 +104,9 @@ static int open_output(void)
 {
     int fd, tmp, i, warnings = 0;
     int include_enc, exclude_enc;
+#ifdef SNDCTL_DSP_GETOSPACE
+    audio_buf_info info;
+#endif /* SNDCTL_DSP_GETOSPACE */
 
     /* Open the audio device */
     fd = open(dpm.name, O_WRONLY);
@@ -229,9 +229,15 @@ static int open_output(void)
     }
 #endif
 
+#ifdef SNDCTL_DSP_GETOSPACE
+    if(ioctl(fd, SNDCTL_DSP_GETOSPACE, &info) != -1)
+	total_bytes = info.fragstotal * info.fragsize;
+    else
+#endif /* SNDCTL_DSP_GETOSPACE */
+	total_bytes = -1; /* Unknown */
+
     dpm.fd = fd;
     output_counter = counter_offset = 0;
-    ignore_processed_probrem = 0;
 
     return warnings;
 }
@@ -239,20 +245,6 @@ static int open_output(void)
 static int output_data(char *buf, int32 nbytes)
 {
     int n;
-
-#ifdef BYTES_PROCESSED_BUGFIX
-    if(!ignore_processed_probrem)
-    {
-	count_info cinfo;
-	ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo);
-	if(output_counter < cinfo.bytes)
-	{
-	    counter_offset += output_counter;
-	    ioctl(dpm.fd, SNDCTL_DSP_SYNC);
-	    output_counter = 0;
-	}
-    }
-#endif /* BYTES_PROCESSED_BUGFIX */
 
     while(nbytes > 0)
     {
@@ -293,83 +285,58 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
-    audio_buf_info info;
-    count_info cinfo;
-    int total, bytes;
+    int i;
 
     switch(request)
     {
-      case PM_REQ_GETQSIZ:
-	if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
-	{
-	    ignore_processed_probrem = 1;
-	    return -1;
-	}
-	total = info.fragstotal * info.fragsize;
-	*((int *)arg) = total;
-	return 0;
-
       case PM_REQ_DISCARD:
 	counter_offset = output_counter = 0;
-	ignore_processed_probrem = 0;
 	return ioctl(dpm.fd, SNDCTL_DSP_RESET);
 
       case PM_REQ_FLUSH:
 	counter_offset = output_counter = 0;
-	ignore_processed_probrem = 0;
 	return ioctl(dpm.fd, SNDCTL_DSP_SYNC);
 
-      case PM_REQ_RATE: {
-	  int rate;
-	  rate = *(int *)arg;
-	  if(ioctl(dpm.fd, SNDCTL_DSP_SPEED, &rate) < 0)
-	      return -1;
-	  play_mode->rate = rate;
-	  return 0;
-	}
+      case PM_REQ_RATE:
+	i = *(int *)arg; /* sample rate in and out */
+	if(ioctl(dpm.fd, SNDCTL_DSP_SPEED, &i) < 0)
+	    return -1;
+	play_mode->rate = i;
+	return 0;
 
-    case PM_REQ_GETFILLABLE:
-      if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
-      {
-	  ignore_processed_probrem = 1;
-	  return -1;
-      }
-      total = info.fragstotal * info.fragsize;
-      bytes = info.bytes;
-      if(bytes > total)
-	bytes = total;
-      if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
-      if(dpm.encoding & PE_16BIT) bytes >>= 1;
-      *((int *)arg) = bytes;
-      return 0;
+      case PM_REQ_GETQSIZ:
+	if(total_bytes <= 0)
+	    return -1;
+	*((int *)arg) = total_bytes;
+	return 0;
 
-    case PM_REQ_GETFILLED:
-      if(ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
-      {
-	  ignore_processed_probrem = 1;
-	  return -1;
-      }
-      total = info.fragstotal * info.fragsize;
-      bytes = info.bytes;
-      if(bytes > total)
-	bytes = total;
-      bytes = total - bytes;
-      if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
-      if(dpm.encoding & PE_16BIT) bytes >>= 1;
-      *((int *)arg) = bytes;
-      return 0;
+#ifdef SNDCTL_DSP_GETODELAY
+      case PM_REQ_GETFILLED:
+	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
+	    return -1;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i;
+	return 0;
 
-    case PM_REQ_GETSAMPLES:
-      if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
-      {
-	  ignore_processed_probrem = 1;
-	  return -1;
-      }
-      bytes = cinfo.bytes + counter_offset;
-      if(!(dpm.encoding & PE_MONO)) bytes >>= 1;
-      if(dpm.encoding & PE_16BIT) bytes >>= 1;
-      *((int *)arg) = bytes;
-      return 0;
+      case PM_REQ_GETFILLABLE:
+	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
+	    return -1;
+        i = total_bytes - i;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i;
+	return 0;
+
+      case PM_REQ_GETSAMPLES:
+	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
+	    return -1;
+	i = output_counter - i;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i;
+	return 0;
+#endif /* SNDCTL_DSP_GETODELAY */
     }
     return -1;
 }

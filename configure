@@ -856,7 +856,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.5.0
+VERSION=2.5.1
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -7426,16 +7426,15 @@ else
 enable_sherry_wrd=no
 fi
 
-
       if test "$enable_sherry_wrd" = yes; then
 	CPPFLAGS="$CPPFLAGS -DENABLE_SHERRY"
 	lib_zip_opt=-lz
 	lib_png_opt=-lpng
-	if test "x$have_xext" = xyes; then
-	  lib_xext_opt=-lXext
-	fi
       else
 	 echo "configure: warning: Sherry WRD is disabled: png.h, libpng.a, libz.a are required" 1>&2
+      fi
+      if test "x$have_xext" = xyes; then
+	lib_xext_opt=-lXext
       fi
     fi 
 fi

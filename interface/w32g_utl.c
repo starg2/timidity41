@@ -422,7 +422,7 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     effect_lr_mode = st->effect_lr_mode;
     effect_lr_delay_msec = st->effect_lr_delay_msec;
     opt_reverb_control = st->opt_reverb_control;
-    opt_chorus_control = st->opt_reverb_control;
+    opt_chorus_control = st->opt_chorus_control;
     noise_sharp_type = st->noise_sharp_type;
     opt_evil_mode = st->opt_evil_mode;
     adjust_panning_immediately = SetFlag(st->adjust_panning_immediately);
@@ -505,7 +505,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
     st->effect_lr_mode = effect_lr_mode;
     st->effect_lr_delay_msec = effect_lr_delay_msec;
     st->opt_reverb_control = opt_reverb_control;
-    st->opt_chorus_control = opt_reverb_control;
+    st->opt_chorus_control = opt_chorus_control;
     st->noise_sharp_type = noise_sharp_type;
     st->opt_evil_mode = SetFlag(opt_evil_mode);
     st->adjust_panning_immediately = SetFlag(adjust_panning_immediately);

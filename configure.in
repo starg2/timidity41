@@ -53,7 +53,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.5.0, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.5.1, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -973,16 +973,15 @@ AC_ARG_ENABLE(wrd,
       AC_CHECK_LIB(z,zlibVersion,:,enable_sherry_wrd=no)
       AC_CHECK_HEADER(png.h,,enable_sherry_wrd=no)
       AC_CHECK_LIB(png,png_init_io,:,enable_sherry_wrd=no,-lz)
-
       if test "$enable_sherry_wrd" = yes; then
 	CPPFLAGS="$CPPFLAGS -DENABLE_SHERRY"
 	lib_zip_opt=-lz
 	lib_png_opt=-lpng
-	if test "x$have_xext" = xyes; then
-	  lib_xext_opt=-lXext
-	fi
       else
 	 AC_MSG_WARN([Sherry WRD is disabled: png.h, libpng.a, libz.a are required])
+      fi
+      if test "x$have_xext" = xyes; then
+	lib_xext_opt=-lXext
       fi
     fi ])
 AM_CONDITIONAL(ENABLE_WRD, test "x$enable_wrd" = "xyes")

@@ -65,7 +65,11 @@ WRDTracer wrdt =
     0,
     wrdt_open,
     wrdt_apply,
+#ifdef ENABLE_SHERRY
     x_sry_wrdt_apply,
+#else
+    NULL,
+#endif
     wrdt_update_events,
     wrdt_start,
     wrdt_end,
@@ -87,8 +91,10 @@ static void wrdt_update_events(void)
 {
     if(current_wrd_mode == WRD_TRACE_MIMPI)
 	WinEvent();
+#ifdef ENABLE_SHERRY
     else if(current_wrd_mode == WRD_TRACE_SHERRY)
 	x_sry_event();
+#endif
 }
 
 static int wrdt_start(int mode)

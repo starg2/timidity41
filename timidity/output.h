@@ -95,6 +95,12 @@ enum {
     PM_REQ_GETFILLED,	/* ARG: int
 			 * Get filled device queue size
 			 */
+
+    PM_REQ_OUTPUT_FINISH /* ARG: not-used
+			  * PM_REQ_OUTPUT_FINISH calls just after the last
+			  * output_data(), and TiMidity would into
+			  * waiting to flush the audio buffer.
+			  */
 };
 
 
