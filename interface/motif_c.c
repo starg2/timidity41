@@ -104,7 +104,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 	}
     else
 	{
-	    vsprintf(local, fmt, ap);
+	    vsnprintf(local, sizeof(local), fmt, ap);
 	    m_pipe_int_write(CMSG_MESSAGE);
 	    m_pipe_int_write(type);
 	    m_pipe_string_write(local);
@@ -166,31 +166,31 @@ static void ctl_lyric(int lyricid)
 		return;
 	    if(lyric[1] == '/' || lyric[1] == '\\')
 	    {
-		sprintf(lyric_buf, "\n%s", lyric + 2);
+		snprintf(lyric_buf, sizeof(lyric_buf), "\n%s", lyric + 2);
 		m_pipe_int_write(LYRIC_MESSAGE);
 		m_pipe_string_write(lyric_buf);
 	    }
 	    else if(lyric[1] == '@')
 	    {
 		if(lyric[2] == 'L')
-		    sprintf(lyric_buf, "Language: %s\n", lyric + 3);
+		    snprintf(lyric_buf, sizeof(lyric_buf), "Language: %s\n", lyric + 3);
 		else if(lyric[2] == 'T')
-		    sprintf(lyric_buf, "Title: %s\n", lyric + 3);
+		    snprintf(lyric_buf, sizeof(lyric_buf), "Title: %s\n", lyric + 3);
 		else
-		    sprintf(lyric_buf, "%s\n", lyric + 1);
+		    snprintf(lyric_buf, sizeof(lyric_buf), "%s\n", lyric + 1);
 		m_pipe_int_write(LYRIC_MESSAGE);
 		m_pipe_string_write(lyric_buf);
 	    }
 	    else
 	    {
-		sprintf(lyric_buf, "%s", lyric + 1);
+		strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
 		m_pipe_int_write(LYRIC_MESSAGE);
 		m_pipe_string_write(lyric_buf);
 	    }
 	}
 	else
 	{
-	    sprintf(lyric_buf,"%s", lyric + 1);
+	    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
 	    m_pipe_int_write(LYRIC_MESSAGE);
 	    m_pipe_string_write(lyric_buf);
 	}

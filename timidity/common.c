@@ -27,6 +27,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <time.h>
 #ifndef NO_STRING_H
 #include <string.h>
@@ -859,3 +860,33 @@ int check_file_extension(char *filename, char *ext, int decompress)
     }
     return 0;
 }
+
+#ifndef HAVE_VSNPRINTF
+void vsnprintf(char *buff, size_t bufsiz, const char *fmt, va_list ap)
+{
+    MBlockList pool;
+    char *tmpbuf = buff;
+
+    if(bufsiz < MIN_MBLOCK_SIZE)
+    {
+	init_mblock(&pool);
+	tmpbuf = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
+    }
+    vsprintf(tmpbuf, fmt, ap);
+    if(tmpbuf != buff)
+    {
+	strncpy(buff, tmpbuf, bufsiz);
+	reuse_mblock(&pool);
+    }
+}
+#endif /* HAVE_VSNPRINTF */
+
+#ifndef HAVE_SNPRINTF
+void snprintf(char *buff, size_t bufsiz, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buff, bufsiz, fmt, ap);
+    va_end(ap);
+}
+#endif /* HAVE_VSNPRINTF */

@@ -426,7 +426,6 @@ proc LoadCmd {idx} {
     WriteMsg "LOAD"
     WriteMsg [lindex $Stat(FileList) $idx]
     AppendMsg ""
-    VolumeCmd $Config(CurVol) 1
 }
 
 #
@@ -505,22 +504,24 @@ proc QuitCmd {} {
 # play previous file
 #
 proc PrevCmd {} {
-    global Stat
+    global Stat Config
     if {$Stat(Playing)} {
 	WriteMsg "PREV"
 	PauseCheck
     }
+    VolumeCmd $Config(CurVol) 1
 }
 
 #
 # play next file
 #
 proc NextCmd {} {
-    global Stat
+    global Stat Config
     if {$Stat(Playing)} {
 	WriteMsg "NEXT"
 	PauseCheck
     }
+    VolumeCmd $Config(CurVol) 1
 }
 
 #
@@ -812,6 +813,7 @@ proc CreateWindow {} {
 	    -showvalue true -label "Volume"\
 	    -command VolumeCmd
     pack .body.volume.scale -side bottom -expand 1 -fill x
+    .body.volume.scale set $Config(CurVol)
 
     # buttons
     global bitmap_path

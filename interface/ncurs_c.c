@@ -2355,12 +2355,7 @@ static void vwprintw(WINDOW *w, char *fmt, va_list ap)
 
     init_mblock(&pool);
     buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
-#ifdef HAVE_VSNPRINTF
-    vsnprintf(buff, MIN_MBLOCK_SIZE - 1, fmt, ap);
-#else
-    vsprintf(buff, fmt, ap);
-#endif /* HAVE_VSNPRINTF */
-    buff[MIN_MBLOCK_SIZE - 1] = '\0';
+    vsnprintf(buff, MIN_MBLOCK_SIZE, fmt, ap);
     waddstr(w, buff);
     reuse_mblock(&pool);
 }
@@ -2393,13 +2388,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 
 	    init_mblock(&pool);
 	    buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
-#ifdef HAVE_VSNPRINTF
-	    vsnprintf(buff, MIN_MBLOCK_SIZE - 1, fmt, ap);
-#else
-	    vsprintf(buff, fmt, ap);
-#endif /* HAVE_VSNPRINTF */
-	    buff[MIN_MBLOCK_SIZE - 1] = '\0';
-
+	    vsnprintf(buff, MIN_MBLOCK_SIZE, fmt, ap);
 	    for(i = 0; i < COLS - 1 && buff[i]; i++)
 		if(buff[i] == '\n' || buff[i] == '\r' || buff[i] == '\t')
 		    buff[i] = ' ';
@@ -2750,7 +2739,7 @@ static void update_indicator(void)
 	i = instr_comment[current_indicator_chan].prog;
 	if(!IS_CURRENT_MOD_FILE)
 	    i += progbase;
-	sprintf(current_indicator_message, "%03d:%s   ",
+	snprintf(current_indicator_message, indicator_width, "%03d:%s   ",
 		i, instr_comment[current_indicator_chan].comm);
 	instr_comment[current_indicator_chan].disp_cnt++;
 	indicator_msgptr = current_indicator_message;

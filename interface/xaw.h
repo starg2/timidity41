@@ -2,8 +2,9 @@
 #define _XAW_H_
 /*
 
-    TiMidity -- Experimental MIDI to WAVE converter
-    Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
+    TiMidity++ -- MIDI to WAVE converter and player
+    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,23 +24,31 @@
 
     */
 
-/*** Uncomment this to use libXaw3d ***/
+/*
+ * XAW configurations
+ */
+
+/* Define to use libXaw3d */
 /* #define XAW3D */
 
-/*** Uncomment this to use Japanese and so on ***/
+/* Define to use Japanese and so on */
 #define I18N
 
-/*** Uncomment following not to use lyric widget ***/
+/* Define to use lyric widget */
 #define MSGWINDOW
 
-/*** Comment out following to use scrollable Text widget instead of Label widget ***/
-#define WIDGET_IS_LABEL_WIDGET
+/* Define to use scrollable Text widget instead of Label widget */
+/* #define WIDGET_IS_LABEL_WIDGET */
 
-/*** Comment following not to use short cut keys ***/
+/* Define to use short cut keys */
 #define ENABLE_KEY_TRANSLATION
+
+/** Define to use OffiX file manager. */
+/* #define OFFIX */
 
 /*** Initial dot file name at home directory ***/
 #define INITIAL_CONFIG ".xtimidity"
+
 
 /*
  * CONSTANTS FOR XAW MENUS

@@ -17,7 +17,35 @@
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 include $(top_builddir)/common.makefile
-
 SUBDIRS = C ja_JP.ujis
-install.man: cd C; $(MAKE) install.man
-install.manj: cd ja_JP.ujis; $(MAKE) install.man
+lang_target = C
+
+man_MANS = \
+	timidity.1 \
+	timidity.cfg.5
+
+.1.txt:
+	groff -man -Tlatin1 -P-b -P-u $< >$@
+
+.1.ps:
+	groff -man $< >$@
+
+timidity.1:
+	rm -f timidity.1; $(LN_S) $(lang_target)/timidity.1 .
+
+timidity.cfg.5:
+	rm -f timidity.cfg.5; $(LN_S) $(lang_target)/timidity.cfg.5 .
+
+remake-mans:
+	rm -f timidity.1; $(LN_S) $(lang_target)/timidity.1 .
+	rm -f timidity.cfg.5; $(LN_S) $(lang_target)/timidity.cfg.5 .
+
+install.man:
+	$(MAKE) remake-mans lang_target=C; $(MAKE) install-man
+
+install.manj:
+	$(MAKE) remake-mans lang_target=ja_JP.ujis; $(MAKE) install-man
+
+clean:
+	rm -f timidity.1
+	rm -f timidity.cfg.5

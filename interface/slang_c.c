@@ -168,7 +168,7 @@ static void SLsmg_printfrc( int r, int c, char *fmt, ...) {
 
   SLsmg_gotorc( r, c);
   va_start(ap, fmt);
-  vsprintf(p, fmt, ap);
+  vsnprintf(p, sizeof(p), fmt, ap);
   va_end(ap);
 
   SLsmg_write_string (p);
@@ -651,7 +651,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
         SLsmg_gotorc(2,0);
       SLsmg_erase_eol();
       SLsmg_bold();
-        vsprintf(p, fmt, ap);
+        vsnprintf(p, sizeof(p), fmt, ap);
         SLsmg_write_string(p);
       SLsmg_normal();
         _ctl_refresh();
@@ -679,14 +679,14 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
       switch(type)
       {
       default:
-        vsprintf(p, fmt, ap);
+        vsnprintf(p, sizeof(p), fmt, ap);
         SLsmg_write_string(p);
         _ctl_refresh();
         break;
 
       case CMSG_WARNING:
       SLsmg_bold();
-        vsprintf(p, fmt, ap);
+        vsnprintf(p, sizeof(p), fmt, ap);
         SLsmg_write_string(p);
       SLsmg_normal();
         _ctl_refresh();
@@ -695,7 +695,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
       case CMSG_ERROR:
       case CMSG_FATAL:
       SLsmg_bold();
-        vsprintf(p, fmt, ap);
+        vsnprintf(p, sizeof(p), fmt, ap);
         SLsmg_write_string(p);
       SLsmg_normal();
         _ctl_refresh();
@@ -793,7 +793,7 @@ static void update_indicator(void)
 	   *instr_comment[current_indicator_chan].comm == '\0')
 	    return;
 
-	sprintf(current_indicator_message, "%03d:%s   ",
+	snprintf(current_indicator_message, indicator_width, "%03d:%s   ",
 		instr_comment[current_indicator_chan].prog,
 		instr_comment[current_indicator_chan].comm);
 	instr_comment[current_indicator_chan].disp_cnt++;

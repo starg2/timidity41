@@ -38,17 +38,17 @@ AC_DEFUN(AM_PATH_ALSA_LOCAL,
 dnl Get the clfags and libraries for alsa
 dnl
 have_alsa=no
-AC_ARG_WITH(alsa-prefix,[ --with-alsa-prefix=PFX  Prefix where Alsa library is installed(optional)],
+AC_ARG_WITH(alsa-prefix,[  --with-alsa-prefix=PFX  Prefix where Alsa library is installed(optional)],
 	[alsa_prefix="$withval"], [alsa_prefix=""])
-AC_ARG_WITH(alsa-inc-prefix, [ --with-alsa-inc-prefix=PFX  Prefix where include libraries are (optional)],
+AC_ARG_WITH(alsa-inc-prefix, [  --with-alsa-inc-prefix=PFX  Prefix where include libraries are (optional)],
 	[alsa_inc_prefix="$withval"], [alsa_inc_prefix=""])
-AC_ARG_ENABLE(alsatest, [ --disable-alsatest       Do not try to compile and run a test Alsa program], [enable_alsatest=no], [enable_alsatest=yes])
+AC_ARG_ENABLE(alsatest, [  --disable-alsatest      Do not try to compile and run a test Alsa program], [enable_alsatest=no], [enable_alsatest=yes])
 
 dnl Add any special include directories
 AC_MSG_CHECKING(for ALSA CFLAGS)
 if test "$alsa_inc_prefix" != "" ; then
 	ALSA_CFLAGS="$ALSA_CFLAGS -I$alsa_inc_prefix"
-	CFLAGS="-I$alsa_inc_prefix"
+        CFLAGS="$CFLAGS -I$alsa_inc_prefix"
 fi
 AC_MSG_RESULT($ALSA_CFLAGS)
 
@@ -61,7 +61,6 @@ fi
 
 dnl add the alsa library
 ALSA_LIBS="$ALSA_LIBS -lasound"
-LDFLAGS="$ALSA_LIBS -lasound"
 AC_MSG_RESULT($ALSA_LIBS)
 
 dnl Check for the presence of the library
@@ -205,7 +204,7 @@ main()
 }
 EOM
 : Call the object file tmp-dyna.o in case dlext=o.
-if ${CC-cc} $CFLAGS $CPPFLAGS -c dyna.c > /dev/null 2>&1 &&
+if ${CC-cc} $CFLAGS $SHCFLAGS $CPPFLAGS -c dyna.c > /dev/null 2>&1 &&
 	mv dyna.o tmp-dyna.o > /dev/null 2>&1 && 
 	$SHLD $SHLDFLAGS -o dyna.$sharedLibExtension tmp-dyna.o > /dev/null 2>&1 && 
 	${CC-cc} -o fred $CFLAGS $CPPFLAGS $LDFLAGS fred.$ac_ext $LIBS > /dev/null 2>&1; then

@@ -223,11 +223,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
       case WRD_COLOR:
 	txtclr_preserve=wrd_args[0];
 	/*This length is at most 20 ; this is much lesser than LINEBUF*/
-#ifdef HAVE_VSNPRINTF
 	snprintf(file_buf,LINEBUF,"\033[%dm", txtclr_preserve);
-#else
-	sprintf(file_buf,"\033[%dm", txtclr_preserve);
-#endif /* HAVE_VSNPRINTF */
 	AddLine(file_buf,0);
 	break;
       case WRD_END: /* Never call */
@@ -310,11 +306,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	break;
       case WRD_LOCATE:
 	/*Length is At most 40*/
-#ifdef HAVE_VSNPRINTF
 	snprintf(file_buf,LINEBUF,"\033[%d;%dH", wrd_args[1], wrd_args[0]);
-#else
-	sprintf(file_buf,"\033[%d;%dH", wrd_args[1], wrd_args[0]);
-#endif /* HAVE_VSNPRINTF */
 	AddLine(file_buf,0);
 	break;
       case WRD_LOOP: /* Never call */
@@ -421,11 +413,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	  memset(fillbuf,wrd_args[5],xdiff);/*X2-X1*/
 	  fillbuf[xdiff]=0;
 	  for(i=wrd_args[1];i<=wrd_args[3];i++){/*Y1 to Y2*/
-#ifdef HAVE_VSNPRINTF
 	    snprintf(file_buf,LINEBUF,"\033[%d;%dH",i,wrd_args[0]);
-#else
-	    sprintf(file_buf,"\033[%d;%dH",i,wrd_args[0]);
-#endif /* HAVE_VSNPRINTF */
 /*X1to....*/
 	    AddLine(file_buf,0);
 	    AddLine(fillbuf,0);

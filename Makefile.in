@@ -93,6 +93,7 @@ EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_CONFIG = @GTK_CONFIG@
 GTK_LIBS = @GTK_LIBS@
+LN_S = @LN_S@
 MAKEINFO = @MAKEINFO@
 NETSRCS = @NETSRCS@
 PACKAGE = @PACKAGE@
@@ -385,7 +386,7 @@ install.bin:
 	cd timidity; $(MAKE) install
 
 dist-hook:
-	chmod -R a+r TiMidity++-1.0.0
+	chmod -R a+r $(distdir)
 	$(TAR) chof - $(distdir) | bzip2 -9 --repetitive-best - > $(distdir).tar.bz2
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

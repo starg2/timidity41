@@ -53,5 +53,5 @@ install.bin:
 	cd timidity; $(MAKE) install
 
 dist-hook:
-	chmod -R a+r TiMidity++-1.0.0
+	chmod -R a+r $(distdir)
 	$(TAR) chof - $(distdir) | bzip2 -9 --repetitive-best - > $(distdir).tar.bz2

@@ -119,21 +119,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...) {
     return 0;
   }
 
-#ifdef HAVE_VSNPRINTF
   vsnprintf(local_buf+2,100,fmt,ap);
-#else
-  {
-    char *buff;
-    MBlockList pool;
-    init_mblock(&pool);
-    buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
-    vsprintf(buff, fmt, ap);
-    buff[MIN_MBLOCK_SIZE - 1] = '\0';
-    strncpy(local_buf + 2, buff, 100);
-    local_buf[97] = '\0';
-    reuse_mblock(&pool);
-  }
-#endif /* HAVE_VSNPRINTF */
   if(pipe_out_fd==-1) {
       fputs(local_buf + 2, stderr);
       fputs(NLS, stderr);

@@ -747,12 +747,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 
 	init_mblock(&pool);
 	buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
-#ifdef HAVE_VSNPRINTF
-	vsnprintf(buff, MIN_MBLOCK_SIZE - 1, fmt, ap);
-#else
-	vsprintf(buff, fmt, ap);
-#endif
-	buff[MIN_MBLOCK_SIZE - 1] = '\0';
+	vsnprintf(buff, MIN_MBLOCK_SIZE, fmt, ap);
 	for(i = 0; i < VT100_COLS - 1 && buff[i]; i++)
 	    if(buff[i] == '\n' || buff[i] == '\r' || buff[i] == '\t')
 		buff[i] = ' ';
@@ -898,7 +893,7 @@ static void update_indicator(void)
 	   *instr_comment[current_indicator_chan].comm == '\0')
 	    return;
 
-	sprintf(current_indicator_message, "%03d:%s   ",
+	snprintf(current_indicator_message, indicator_width, "%03d:%s   ",
 		instr_comment[current_indicator_chan].prog,
 		instr_comment[current_indicator_chan].comm);
 	instr_comment[current_indicator_chan].disp_cnt++;

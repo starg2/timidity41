@@ -71,7 +71,7 @@ int getopt(int, char **, char *);
 #include "mid.defs"
 
 #define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jL:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:"
-#define INTERACTIVE_INTERFACE_IDS "qm"
+#define INTERACTIVE_INTERFACE_IDS "kmq"
 
 /* main interfaces (To be used another main) */
 #if defined(main) || defined(ANOTHER_MAIN)
@@ -2798,30 +2798,6 @@ int main(int argc, char **argv)
     }
 
     timidity_start_initialize();
-
-#ifdef IA_KMIDI
-{
-#ifndef KMIDI_CONFIG_SUBDIR
-#define KMIDI_CONFIG_SUBDIR "/share/apps/kmidi/config"
-#endif /* KMIDI_CONFIG_SUBDIR */
-
-    char *KDEdir;
-    char *kmidi_config;
-
-    if ( ! (KDEdir = getenv("KDEDIR")))
-    {
-	kmidi_config = DEFAULT_PATH;
-    }
-    else
-    {
-	kmidi_config = safe_malloc(strlen(KDEdir)
-				   + strlen(KMIDI_CONFIG_SUBDIR)+1);
-	strcpy(kmidi_config, KDEdir);
-	strcat(kmidi_config, KMIDI_CONFIG_SUBDIR); 
-	add_to_pathlist(kmidi_config);
-    }
-}
-#endif /* IA_KMIDI */
 
     if((err = timidity_pre_load_configuration()) != 0)
 	return err;

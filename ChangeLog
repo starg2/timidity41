@@ -1,4 +1,54 @@
-* 1/6, 1999
+-- 1.0.1
+Summary:
+    * Define function of vsnprintf() and snprintf() if it is not exists.
+    * Fixed message transfer probrem with '\n' for some interface.
+    * Modified manual installation.
+    * Check libXaw3d before checking libXaw.
+    * Fixed ALSA configuration probrem.
+    * Modified for OffiX interface.
+    * Tcl/tk interface can start with no midi file arguments.
+    * Modified doc/C/README.xskin
+
+Date: Thu Jan 14, 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity/common.c interface/{motif_c.c,slang_c.c,vt100_c,ncurs_c.c,c,
+	xaw_i.c,xaw_c.c,tk_c.c,wrdt_x.c}
+    Define function of vsnprintf() and snprintf() if it is not exists.
+    And use it some where.
+    Fixed Tck/Tk message transfer probrem with '\n' (Not completed)
+Files: interface/xaw_c.c interface/xaw_i.c
+    Fixed XAW message transfer probrem with '\n'.
+Files: configure.in doc/Makefile* doc/*/Makefile*
+    Modified manual installation.
+Files: configure.in interface/xaw.h
+    Check libXaw3d before checking libXaw.
+    Modified the comment in xaw.h
+
+Date: Tue, 12 Jan 1999 22:00:26 +0900
+From: Yamahata Isaku <yamahata@kusm.kyoto-u.ac.jp>
+Files: configure.in acinclude.m4
+    Fixed ALSA configuration probrem.
+
+Date: Tue, 12 Jan 1999 21:25:32 +0900
+From: Takanori Watanabe <takawata@shidahara1.planet.sci.kobe-u.ac.jp>
+Files: interface/xaw.h interface/xaw_i.c
+    Modified for OffiX file drag & drop interface for xaw. (need libDnd)
+    This interface is not enabled by default.  If you want build this,
+    define OFFIX in interface/xaw.h and link libDnd.
+    xaw.h:WIDGET_IS_LABEL_WIDGET is undefined by default.
+
+Date: Tue, 12 Jan 1999 11:38:16 +0900
+From: "KINOSHITA, K." <kino@krhm.jvc-victor.co.jp>
+Files: interface/tk_c.c interface/tkpanel.tcl interface/timidity.c
+    Tcl/tk interface can start with no midi file arguments.
+
+Date: Sun, 10 Jan 1999 18:58:17 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: doc/C/README.xskin
+    Fixed spelling and syntax.
+
+-- 1.0.0
+1/6, 1999
 Major changes from 0.2i:
    * Install with `configure' script.
    * Synchronization for audio and interface controls.

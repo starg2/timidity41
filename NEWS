@@ -1,3 +1,7 @@
+* 1/14, 1999
+    Modfied for OffiX file drag & drop interface for xaw.  If you want
+    build this, define OFFIX in interface/xaw.h and link libDnd.
+
 * 1/6, 1999
     TiMidity++-1.0.0 is released.
     See `ChangeLog' for major changes from the original of TiMidity 0.2i

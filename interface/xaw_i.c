@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include "xaw.h"
 #include <X11/Intrinsic.h>
 #include <X11/StringDefs.h>
 #include <X11/Xaw/Form.h>
@@ -48,6 +49,11 @@
 #include <X11/Xaw/Dialog.h>
 #ifndef WIDGET_IS_LABEL_WIDGET
 #include <X11/Xaw/AsciiText.h>
+#endif
+
+#ifdef OFFIX
+#include <OffiX/DragAndDrop.h>
+#include <OffiX/DragAndDropTypes.h>
 #endif
 #include <X11/Xaw/Toggle.h>
 #include <X11/Xaw/MenuButton.h>
@@ -63,7 +69,6 @@
 #include "timidity.h"
 #include "common.h"
 #include "controls.h"
-#include "xaw.h"
 #if HAVE_STRSTR
 #define strstr(s,c)	index(s,c)
 #endif
@@ -100,6 +105,7 @@ static void pauseAction(),soundkeyAction(),speedAction(),voiceAction();
 
 extern void a_pipe_write(char *);
 extern int a_pipe_read(char *,int);
+extern int a_pipe_nread(char *buf, int n);
 
 static Widget title_mb,title_sm,time_l, popup_load, popup_load_f, load_d;
 static Widget load_vport, load_flist, cwd_l, load_info;
@@ -171,7 +177,7 @@ static int bm_height[MAXBITMAP], bm_width[MAXBITMAP],
   x_hot,y_hot, root_height, root_width;
 static Pixmap bm_Pixmap[MAXBITMAP];
 static int max_files;
-char basepath[PATH_MAX];
+static char basepath[PATH_MAX];
 String *dirlist = NULL;
 
 /*static struct _app_resources {
@@ -476,7 +482,7 @@ static void popdownLoad(Widget w,XtPointer s,XtPointer data) {
 	  p = p2;
 	if(stat(p, &st) != -1) {
 	  if (st.st_mode & S_IFMT & (S_IFDIR|S_IFREG|S_IFLNK)) {
-		sprintf(local_buf,"X %s\n",p);
+		snprintf(local_buf,sizeof(local_buf),"X %s\n",p);
 		a_pipe_write(local_buf);
 	  }
 	}
@@ -528,6 +534,34 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
   }
 }
 
+#ifdef MSGWINDOW
+static void a_print_msg(Widget w)
+{
+    int i, msglen;
+    XawTextPosition pos;
+    XawTextBlock tb;
+
+    tb.firstPos = 0;
+    tb.ptr = local_buf;
+    tb.format = FMT8BIT;
+    pos = XawTextGetInsertionPoint(w);
+
+    a_pipe_nread((char *)&msglen, sizeof(int));
+    while(msglen > 0)
+    {
+	i = msglen;
+	if(i > sizeof(local_buf))
+	    i = sizeof(local_buf);
+	a_pipe_nread(local_buf, i);
+	tb.length = i;
+	XawTextReplace(w, pos, pos, &tb);
+	pos += i;
+	XawTextSetInsertionPoint(w, pos);
+	msglen -= i;
+    }
+}
+#endif /* MSGWINDOW */
+
 /*ARGSUSED*/
 static void handle_input(XtPointer data,int *source,XtInputId *id) {
   char s[16];
@@ -540,14 +574,14 @@ static void handle_input(XtPointer data,int *source,XtInputId *id) {
     case 'E' :
 	  XtVaSetValues(title_mb,XtNlabel,(char *)strrchr(local_buf+2,' ')+1,NULL);
 	  if (arrangetitle) {
-		sprintf(window_title, "%s : %s", APP_CLASS, local_buf+2);
+		snprintf(window_title, sizeof(window_title), "%s : %s", APP_CLASS, local_buf+2);
 		XtVaSetValues(toplevel,XtNtitle,window_title,NULL);
 	  }
 	  break;
     case 'O' : offPlayButton();break;
 #ifdef MSGWINDOW
     case 'L' :
-	  if (XtIsManaged(lyric_t)) a_print_text(lyric_t, local_buf+2);
+	  if (XtIsManaged(lyric_t)) a_print_msg(lyric_t);
 	  break;
 #endif
     case 'Q' : exit(0);
@@ -634,7 +668,7 @@ static char *expandDir(char *path, DirPath *full) {
 	full->dirname = p;
 	while (*p++ != '\0') ;
 	strcpy(p, path);
-	sprintf(newfull,"%s/%s", basepath, path);
+	snprintf(newfull,sizeof(newfull),"%s/%s", basepath, path);
 	full->basename = p; return newfull;
   }
   if (*p  == '/') {
@@ -658,16 +692,16 @@ static char *expandDir(char *path, DirPath *full) {
 				  "something wrong with getting path."); return NULL;
 	  }
 	  while (*p == '/')	p++;
-	  sprintf(tmp, "%s/%s", pw->pw_dir, p);
+	  snprintf(tmp, sizeof(tmp), "%s/%s", pw->pw_dir, p);
 	} else {	/* *p != '~' */
-	  sprintf(tmp, "%s/%s", basepath, path);
+	  snprintf(tmp, sizeof(tmp), "%s/%s", basepath, path);
 	}
   }
   p = tmp;
   tail = strrchr(p, '/'); *tail++ = '\0';
   full->dirname = p;
   full->basename = tail;
-  sprintf(newfull,"%s/%s", p, tail);
+  snprintf(newfull,sizeof(newfull),"%s/%s", p, tail);
   return newfull;
 }
 
@@ -738,7 +772,7 @@ static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
 	  strcpy(dirlist[i++], filename);
 	}
 	dirlist[i] = NULL;
-	sprintf(local_buf, "%d Directories, %d Files", d_num, f_num);
+	snprintf(local_buf, sizeof(local_buf), "%d Directories, %d Files", d_num, f_num);
 	XawListChange(list, dirlist, 0,0,True);
 	XtVaSetValues(label,XtNlabel,currdir,NULL);
 	XtVaSetValues(load_info,XtNlabel,local_buf,NULL);
@@ -758,7 +792,7 @@ static void completeDir(Widget w,XEvent *e, XtPointer data)
   if(full.basename != NULL) {
 	int len, match = 0;
 	char filename[PATH_MAX], matchstr[PATH_MAX];
-	char *fullpath;
+	char *fullpath = filename;
 	URL dirp;
 
 	len = strlen(full.basename);
@@ -808,7 +842,7 @@ static void a_readconfig (Config *Cfg) {
   if (NULL == (home=getenv("HOME"))) home=getenv("home");
   if (home != NULL) {
 	dotfile = (char *)XtMalloc(sizeof(char) * PATH_MAX);
-	sprintf(dotfile, "%s/%s", home, INITIAL_CONFIG);
+	snprintf(dotfile, PATH_MAX, "%s/%s", home, INITIAL_CONFIG);
 	if (NULL != (fp=fopen(dotfile, "r"))) {
 	  while (c != EOF) {
 		p = s;
@@ -864,7 +898,42 @@ static void a_saveconfig (char *file) {
 	}
   }
 }
-
+#ifdef OFFIX
+static void FileDropedHandler(Widget widget ,XtPointer data,XEvent *event,Boolean *b)
+{
+  char *filename;
+  unsigned char *Data;
+  unsigned long Size;
+  char local_buffer[PATH_MAX];
+  int i;
+  static const int AcceptType[]={DndFile,DndFiles,DndDir,DndLink,DndExe,DndURL,
+				 DndNotDnd};
+  int Type;
+  Type=DndDataType(event);
+  for(i=0;AcceptType[i]!=DndNotDnd;i++){
+    if(AcceptType[i]==Type)
+      goto OK;
+  }
+  fprintf(stderr,"NOT ACCEPT\n");
+  /*Not Acceptable,so Do Nothing*/
+  return;
+OK:
+  DndGetData(&Data,&Size);
+  if(Type==DndFiles){
+    filename = Data;
+    while (filename[0] != '\0'){
+      snprintf(local_buffer,sizeof(local_buffer),"X %s\n",filename);
+      a_pipe_write(local_buffer);
+      filename = filename + strlen(filename) + 1;
+    }       
+  }
+  else{
+    snprintf(local_buffer,sizeof(local_buffer),"X %s%s\n",Data,(Type==DndDir)?"/":"");
+    a_pipe_write(local_buffer);
+  }
+  return;
+}
+#endif
 void a_start_interface(int pipe_in) {
   static XtActionsRec actions[] ={
 	{"do-quit",(XtActionProc)quitCB},
@@ -1135,7 +1204,7 @@ void a_start_interface(int pipe_in) {
                                       (char *) check_bits,
                                       check_width,check_height);
   for(i= 0; i < MAXBITMAP; i++) {
-	sprintf(cbuf,"%s/%s",bitmapdir,bmfname[i]);
+	snprintf(cbuf,sizeof(cbuf),"%s/%s",bitmapdir,bmfname[i]);
 	XReadBitmapFile(disp,RootWindow(disp,screen),cbuf,&bm_width[i],&bm_height[i],
 					&bm_Pixmap[i],&x_hot,&y_hot);
   }
@@ -1145,7 +1214,11 @@ void a_start_interface(int pipe_in) {
   getcwd(basepath, sizeof(basepath));
 #endif
   if (!strlen(basepath)) strcat(basepath, "/");
-
+#ifdef OFFIX
+  DndInitialize(toplevel);
+  DndRegisterOtherDrop(FileDropedHandler);
+  DndRegisterIconDrop(FileDropedHandler);
+#endif
   XtAppAddActions(app_con, actions, XtNumber(actions));
   base_f=XtVaCreateManagedWidget("base_form",formWidgetClass,toplevel,NULL);
   file_mb=XtVaCreateManagedWidget("file_menubutton",menuButtonWidgetClass,base_f,NULL);
@@ -1267,7 +1340,7 @@ void a_start_interface(int pipe_in) {
   XtSetKeyboardFocus(popup_load, load_d);
   XtOverrideTranslations (toplevel,
 			XtParseTranslationTable ("<Message>WM_PROTOCOLS: do-quit()"));
-  sprintf(cbuf,"%s/%s",bitmapdir,iconname);
+  snprintf(cbuf,sizeof(cbuf),"%s/%s",bitmapdir,iconname);
   XReadBitmapFile(disp,RootWindow(disp,screen),cbuf,
 				  &bmwidth,&bmheight,&bmPixmap,&x_hot,&y_hot);
   XtVaSetValues(toplevel,XtNiconPixmap,bmPixmap,NULL);

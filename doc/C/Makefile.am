@@ -18,23 +18,12 @@
 
 include $(top_builddir)/common.makefile
 
-man_MANS = \
-	timidity.1 \
-	timidity.cfg.5
-
 EXTRA_DIST = \
-	$(man_MANS) \
+	timidity.1 \
+	timidity.cfg.5 \
 	CHANGES.02i \
 	FAQ \
 	README.dl \
 	README.sf \
 	README.tk \
 	README.xskin
-
-.1.txt:
-	groff -man -Tlatin1 -P-b -P-u $< >$@
-
-.1.ps:
-	groff -man $< >$@
-
-install.man: install-man

@@ -63,6 +63,7 @@ static void ctl_master_volume(int);
 static void ctl_total_time(int);
 void a_pipe_write(char *);
 int a_pipe_read(char *,int);
+static void a_pipe_write_msg(char *msg);
 #ifndef MSGWINDOW
 static void a_pipe_int_write(int);
 static void a_pipe_error(char *);
@@ -101,10 +102,11 @@ static char local_buf[300];
 #define CMSG_MESSAGE 16
 
 static int cmsg(int type, int verbosity_level, char *fmt, ...) {
-#ifndef MSGWINDOW
-  char local[255];
-#endif
   va_list ap;
+#ifdef MSGWINDOW
+  char *buff;
+  MBlockList pool;
+#endif /* MSGWINDOW */
 
   if ((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
       ctl.verbosity<verbosity_level)
@@ -119,41 +121,33 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...) {
     return 0;
   }
 
+#ifdef MSGWINDOW
+  init_mblock(&pool);
+  buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
+  vsnprintf(buff, MIN_MBLOCK_SIZE, fmt, ap);
+#endif /* MSGWINDOW */
+
   if (1000 != ctl.opened) {
-#ifndef MSGWINDOW
-	vfprintf(stderr, fmt, ap);
-	fprintf(stderr, NLS);
+#ifdef MSGWINDOW
+      a_pipe_write_msg(buff);
 #else
-#ifdef HAVE_VSNPRINTF
-	vsnprintf(local_buf+2,100,fmt,ap);
-#else
-	{
-	  char *buff;
-	  MBlockList pool;
-	  init_mblock(&pool);
-	  buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
-	  vsprintf(buff, fmt, ap);
-	  buff[MIN_MBLOCK_SIZE - 1] = '\0';
-	  strncpy(local_buf + 2, buff, 100);
-	  local_buf[97] = '\0';
-	  reuse_mblock(&pool);
-	}
-#endif /* HAVE_VSNPRINTF */
-	local_buf[0]='L';
-	local_buf[1]=' ';
-	a_pipe_write(local_buf);
+      vfprintf(stderr, fmt, ap);
+      fprintf(stderr, NLS);
 #endif /* MSGWINDOW */
   } else {
 #ifdef MSGWINDOW
-	vfprintf(stderr, fmt, ap);
-	fprintf(stderr, NLS);
+      vfprintf(stderr, fmt, ap);
+      fprintf(stderr, NLS);
 #else
-	a_pipe_int_write(CMSG_MESSAGE);
-	a_pipe_int_write(type);
-	a_pipe_int_write(strlen(local));
-	a_pipe_write(local);
+      a_pipe_int_write(CMSG_MESSAGE);
+      a_pipe_int_write(type);
+      a_pipe_int_write(strlen(buff));
+      a_pipe_write(buff);
 #endif /* MSGWINDOW */
   }
+#ifdef MSGWINDOW
+  reuse_mblock(&pool);
+#endif /* MSGWINDOW */
   va_end(ap);
   return 0;
 }
@@ -166,7 +160,7 @@ static void ctl_current_time(int sec, int v) {
   static int previous_sec=-1;
   if (sec!=previous_sec) {
     previous_sec=sec;
-    sprintf(local_buf,"T %02d:%02d%s",sec / 60,sec % 60,tt_str);
+    snprintf(local_buf,sizeof(local_buf),"T %02d:%02d%s",sec / 60,sec % 60,tt_str);
     a_pipe_write(local_buf);
   }
 }
@@ -193,7 +187,7 @@ static void ctl_master_volume(int mv)
 static void ctl_lyric(int lyricid)
 {
     char *lyric;
-    static int lyric_col = 2;
+    static int lyric_col = 0;
     static char lyric_buf[300];
 
     lyric = event2string(lyricid);
@@ -203,41 +197,32 @@ static void ctl_lyric(int lyricid)
 	{
 	    if(lyric[1] == '/' || lyric[1] == '\\')
 	    {
-		lyric_buf[0] = 'L';
-		lyric_buf[1] = ' ';
-		sprintf(lyric_buf + 2, "%s", lyric + 2);
-		a_pipe_write(lyric_buf);
-		lyric_col = strlen(lyric + 2) + 2;
+		strcpy(lyric_buf, lyric + 2);
+		a_pipe_write_msg(lyric_buf);
+		lyric_col = strlen(lyric_buf);
 	    }
 	    else if(lyric[1] == '@')
 	    {
-		lyric_buf[0] = 'L';
-		lyric_buf[1] = ' ';
 		if(lyric[2] == 'L')
-		    sprintf(lyric_buf + 2, "Language: %s", lyric + 3);
+		    snprintf(lyric_buf, sizeof(lyric_buf), "Language: %s", lyric + 3);
 		else if(lyric[2] == 'T')
-		    sprintf(lyric_buf + 2, "Title: %s", lyric + 3);
+		    snprintf(lyric_buf, sizeof(lyric_buf), "Title: %s", lyric + 3);
 		else
-		    sprintf(lyric_buf + 2, "%s", lyric + 1);
-		a_pipe_write(lyric_buf);
+		    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf));
+		a_pipe_write_msg(lyric_buf);
+		lyric_col = 0;
 	    }
 	    else
 	    {
-		lyric_buf[0] = 'L';
-		lyric_buf[1] = ' ';
-		sprintf(lyric_buf + lyric_col, lyric + 1);
-		a_pipe_write(lyric_buf);
+		strncpy(lyric_buf + lyric_col, lyric + 1, sizeof(lyric_buf) - lyric_col);
+		a_pipe_write_msg(lyric_buf);
 		lyric_col += strlen(lyric + 1);
 	    }
 	}
 	else
 	{
-	    if(lyric[0] == ME_CHORUS_TEXT || lyric[0] == ME_INSERT_TEXT)
-		lyric_col = 2;
-	    lyric_buf[0] = 'L';
-	    lyric_buf[1] = ' ';
-	    sprintf(lyric_buf + lyric_col, lyric + 1);
-	    a_pipe_write(lyric_buf);
+	    lyric_col = 0;
+	    a_pipe_write_msg(lyric + 1);
 	}
     }
 }
@@ -400,7 +385,7 @@ static void ctl_pass_playing_list(int init_number_of_files,
 
   /* Draw the title of the first file */
   current_no=0;
-  sprintf(local_buf,"E %s",titles[file_table[0]]);
+  snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[0]]);
   a_pipe_write(local_buf);
 
   command=ctl_blocking_read(&val);
@@ -409,7 +394,7 @@ static void ctl_pass_playing_list(int init_number_of_files,
   for (;;) {
     /* Play file */
     if (command==RC_LOAD_FILE) {
-      sprintf(local_buf,"E %s",titles[file_table[current_no]]);
+      snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[current_no]]);
       a_pipe_write(local_buf);
       command=play_midi_file(list_of_files[file_table[current_no]]);
     } else {
@@ -432,7 +417,7 @@ static void ctl_pass_playing_list(int init_number_of_files,
 		  }
 		  randomflag=0;
 		  for (i=0;i<number_of_files;i++) file_table[i]=i;
-		  sprintf(local_buf,"E %s",titles[file_table[current_no]]);
+		  snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[current_no]]);
 		  a_pipe_write(local_buf);
 		}
 		/* Play the selected file */
@@ -537,6 +522,40 @@ int a_pipe_read(char *buf,int bufsize) {
   }
   buf[i]=0;
   return 0;
+}
+
+int a_pipe_nread(char *buf, int n)
+{
+    int i, j;
+
+    j = 0;
+    while(n > 0 && (i = read(pipe_in_fd, buf + j, n - j)) > 0)
+	j += i;
+    return j;
+}
+
+static void a_pipe_write_msg(char *msg)
+{
+    int msglen;
+    char buf[2 + sizeof(int)], *p, *q;
+
+    /* strip '\r' */
+    p = q = msg;
+    while(*q) {
+	if(*q != '\r')
+	    *p++ = *q;
+	q++;
+    }
+    *p = '\0';
+
+    msglen = strlen(msg) + 1; /* +1 for '\n' */
+    buf[0] = 'L';
+    buf[1] = '\n';
+
+    memcpy(buf + 2, &msglen, sizeof(int));
+    write(pipe_out_fd, buf, sizeof(buf));
+    write(pipe_out_fd, msg, msglen - 1);
+    write(pipe_out_fd, "\n", 1);
 }
 
 static void ctl_event(CtlEvent *e)

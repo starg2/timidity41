@@ -216,13 +216,13 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 		fprintf(stderr, "\n");
 	} else if (type == CMSG_ERROR) {
 		int32 val;
-		vsprintf(local, fmt, ap);
+		vsnprintf(local, sizeof(local), fmt, ap);
 		k_pipe_printf("CERR %d", type);
 		k_pipe_puts(local);
 		while (ctl_blocking_read(&val) != RC_NEXT)
 			;
 	} else {
-		vsprintf(local, fmt, ap);
+		vsnprintf(local, sizeof(local), fmt, ap);
 		k_pipe_printf("CMSG %d", type);
 		k_pipe_puts(local);
 	}
@@ -369,7 +369,7 @@ static void ctl_pitch_bend(int channel, int val)
 static void ctl_lyric(int lyricid)
 {
     char *lyric;
-return;
+
     lyric = event2string(lyricid);
     if(lyric != NULL)
     {
@@ -492,7 +492,7 @@ static void ctl_close(void)
 
 static int ctl_blocking_read(int32 *valp)
 {
-	char buf[256], *tok, *arg;
+	char buf[8192], *tok, *arg;
 	int new_volume;
 	int new_centiseconds;
 	char *args[64], **files;
@@ -734,15 +734,27 @@ static void k_pipe_printf(char *fmt, ...)
 	char buf[256];
 	va_list ap;
 	va_start(ap, fmt);
-	vsprintf(buf, fmt, ap);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
 	k_pipe_puts(buf);
+}
+
+static int line_strlen(char *str)
+{
+    int len;
+
+    len = 0;
+    while(*str && *str != '\r' && *str != '\n') {
+	str++;
+	len++;
+    }
+    return len;
 }
 
 static void k_pipe_puts(char *str)
 {
 	int len;
 	char lf = '\n';
-	len = strlen(str);
+	len = line_strlen(str);
 	write(fpip_out, str, len);
 	write(fpip_out, &lf, 1);
 }
@@ -896,7 +908,7 @@ static char *v_eval(char *fmt, ...)
 	char buf[256];
 	va_list ap;
 	va_start(ap, fmt);
-	vsprintf(buf, fmt, ap);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
 	Tcl_Eval(my_interp, buf);
 	va_end(ap);
 	return my_interp->result;

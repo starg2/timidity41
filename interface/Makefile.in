@@ -90,6 +90,7 @@ EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_CONFIG = @GTK_CONFIG@
 GTK_LIBS = @GTK_LIBS@
+LN_S = @LN_S@
 MAKEINFO = @MAKEINFO@
 NETSRCS = @NETSRCS@
 PACKAGE = @PACKAGE@
@@ -452,10 +453,6 @@ dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
-dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/output.h ../timidity/controls.h \
-	../timidity/dlutils.h
 emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/output.h ../timidity/controls.h \
@@ -530,9 +527,9 @@ xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
 	../timidity/playmidi.h ../timidity/readmidi.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/miditrace.h xaw.h
-xaw_i.o: xaw_i.c ../config.h check.xbm ../timidity/timidity.h \
+xaw_i.o: xaw_i.c ../config.h xaw.h check.xbm ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/controls.h xaw.h
+	../timidity/controls.h
 xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
