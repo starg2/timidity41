@@ -227,8 +227,8 @@
 /* Define if you have the m library (-lm).  */
 #undef HAVE_LIBM
 
-/* Define if you have the open library (-lopen).  */
-#undef HAVE_LIBOPEN
+/* Define if you have the ossaudio library (-lossaudio).  */
+#undef HAVE_LIBOSSAUDIO
 
 /* Define if you have the socket library (-lsocket).  */
 #undef HAVE_LIBSOCKET

@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.10.3a1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.10.3a2, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -78,6 +78,7 @@ EXTRADEFS=
 EXTRALIBS=
 SYSEXTRAS=
 timidity_LDFLAGS=
+oss_device=
 
 dnl Optional library dependent
 lib_xm_opt=
@@ -554,13 +555,13 @@ if test "x$au_enable_oss" = xyes; then
 	;;
     esac
   fi
-  AC_CHECK_LIB(open,ossaudio)
+  AC_CHECK_LIB(ossaudio,open)
 
   dnl Why OpenBSD use /dev/audio instead of /dev/dsp for OSS
   case "$target" in
     *openbsd*)
       if test ! -e "/dev/dsp"; then
-	CPPFLAGS="$CPPFLAGS -DOSS_DEVICE=\\\"/dev/audio\\\""
+	oss_device=/dev/audio
       fi
       ;;
   esac
@@ -1357,6 +1358,10 @@ SET_UNIQ_WORDS(CFLAGS,$EXTRACFLAGS $CFLAGS)
 SET_UNIQ_WORDS(CPPFLAGS,$CPPFLAGS $EXTRADEFS)
 
 CPPFLAGS="$CPPFLAGS \$(DEF_PKGDATADIR) \$(DEF_PKGLIBDIR) \$(DEF_DEFAULT_PATH)"
+
+if test "x$oss_device" != x; then
+  CPPFLAGS="$CPPFLAGS -DOSS_DEVICE=\\\"$oss_device\\\""
+fi
 
 if test "x$TIMIDITY_OUTPUT_ID" != x; then
   CPPFLAGS="$CPPFLAGS -DTIMIDITY_OUTPUT_ID=\\\"$TIMIDITY_OUTPUT_ID\\\""
