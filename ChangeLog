@@ -1,3 +1,39 @@
+1999-07-09  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 1.3.10 released.
+
+1999-06-22  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc/arc_tar.c: Use checksum wheather the tar file is valid or not.
+      "ustar" magic is ignored.
+
+1999-06-04  Dima Simakov <Dima.Simakov@p4.f106.fido.card.ru>
+
+    * timidity/esd_a.c:  Add the code for the EsounD.
+
+1999-04-27  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in(*-sgi-irix6.2): Define SGI_OLDAL.
+    * interface/motif_i.c: Remove c++ comment style "//"
+
+1999-04-24  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in (--enable-dynamic): Bug fix.
+
+1999-04-21  Masanao Izumo <mo@goice.co.jp>
+
+    * xaw_i.c: Fix bug about directory browsing.
+
+1999-04-18  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/resample.c (pre_resample):  Fixed interger overflow bug.
+    * timidity/recache.c (resamp_cache_refer_off):  Fixed interger
+      overflow bug.
+
+1999-04-18  Eric A. Welsh <ewelsh@gpc.ibc.wustl.edu>
+
+    * interface/ncurs_c.c (lastbends, ctl_pitch_bend): Bug fix.
+
 1999-04-17  Masanao Izumo <mo@goice.co.jp>
 
     * Version 1.3.9 released.

@@ -75,6 +75,7 @@
 #include "readmidi.h"
 #include "controls.h"
 #include "timer.h"
+#include "strtab.h"
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
@@ -226,6 +227,7 @@ extern void a_pipe_write(char *);
 extern int a_pipe_read(char *,int);
 extern int a_pipe_nread(char *buf, int n);
 static void initStatus(void);
+static void safe_getcwd(char *cwd, int maxlen);
 
 static Widget title_mb,title_sm,time_l,popup_load,popup_load_f,load_d,load_t;
 static Widget load_vport,load_flist,cwd_l,load_info, lyric_t;
@@ -367,19 +369,19 @@ static int bm_height[MAXBITMAP], bm_width[MAXBITMAP],
   x_hot,y_hot, root_height, root_width;
 static Pixmap bm_Pixmap[MAXBITMAP];
 static int max_files, init_options = 0, init_chorus = 0;
-char basepath[PATH_MAX];
-String *dirlist = NULL, *flist = NULL;
-Dimension trace_width, trace_height, menu_width;
+static char basepath[PATH_MAX];
+static String *dirlist = NULL, dirlist_top, *flist = NULL;
+static Dimension trace_width, trace_height, menu_width;
 static int total_time = 0, curr_time;
 static float thumbj;
 static XFontStruct *labelfont,*volumefont,*tracefont;
 #ifdef I18N
-XFontSet ttitlefont;
-XFontStruct *ttitlefont0;
-char **ml;
-XFontStruct **fs_list;
+static XFontSet ttitlefont;
+static XFontStruct *ttitlefont0;
+static char **ml;
+static XFontStruct **fs_list;
 #else
-XFontStruct *ttitlefont;
+static XFontStruct *ttitlefont;
 #define ttitlefont0 ttitlefont
 #endif
 
@@ -1506,6 +1508,63 @@ static char *strmatch(char *s1, char *s2) {
   return(s1);
 }
 
+/* Canonicalize by removing /. and /foo/.. if they appear. */
+static char *canonicalize_path(char *path)
+{
+    char *o, *p, *target;
+    int abspath;
+
+    o = p = path;
+    while(*p)
+    {
+	if(p[0] == '/' && p[1] == '/')
+	    p++;
+	else 
+	    *o++ = *p++;
+    }
+    while(path < o-1 && path[o - path - 1] == '/')
+	o--;
+    path[o - path] = '\0';
+
+    if((p = strchr(path, '/')) == NULL)
+	return path;
+    abspath = (p == path);
+
+    o = target = p;
+    while(*p)
+    {
+	if(*p != '/')
+	    *o++ = *p++;
+	else if(p[0] == '/' && p[1] == '.'
+		&& (p[2]=='/' || p[2] == '\0'))
+	{
+	    /* If "/." is the entire filename, keep the "/".  Otherwise,
+	       just delete the whole "/.".  */
+	    if(o == target && p[2] == '\0')
+		*o++ = *p;
+	    p += 2;
+	}
+	else if(p[0] == '/' && p[1] == '.' && p[2] == '.'
+		/* `/../' is the "superroot" on certain file systems.  */
+		&& o != target
+		&& (p[3]=='/' || p[3] == '\0'))
+	{
+	    while(o != target && (--o) && *o != '/')
+		;
+	    p += 3;
+	    if(o == target && !abspath)
+		o = target = p;
+	}
+	else
+	    *o++ = *p++;
+    }
+
+    target[o - target] = '\0';
+    if(!*path)
+	strcpy(path, "/");
+    return path;
+}
+
 static char *expandDir(char *path, DirPath *full) {
   static char tmp[PATH_MAX];
   static char newfull[PATH_MAX];
@@ -1517,7 +1576,7 @@ static char *expandDir(char *path, DirPath *full) {
     full->dirname = tmp;
     full->basename = NULL;
     strcpy(newfull, tmp); return newfull;
-  } else if (NULL == (tail = strrchr(path, '/'))) {
+  } else if (*p != '~' && NULL == (tail = strrchr(path, '/'))) {
     p = tmp;
     strcpy(p, basepath);
     full->dirname = p;
@@ -1552,7 +1611,7 @@ static char *expandDir(char *path, DirPath *full) {
       snprintf(tmp, sizeof(tmp), "%s/%s", basepath, path);
     }
   }
-  p = tmp;
+  p = canonicalize_path(tmp);
   tail = strrchr(p, '/'); *tail++ = '\0';
   full->dirname = p;
   full->basename = tail;
@@ -1575,7 +1634,13 @@ static void setDirAction(Widget w,XEvent *e,String *v,Cardinal *n) {
     strcpy(basepath,p);
     p = strrchr(basepath, '/');
     if (*(p+1) == '\0') *p = '\0';
-    lrs.string = ""; dirlist[0] = (char *)NULL;
+    lrs.string = "";
+    if(dirlist != NULL)
+    {
+	free(dirlist_top);
+	free(dirlist);
+	dirlist = NULL;
+    }
     setDirList(load_flist, cwd_l, &lrs);
   }
 }
@@ -1605,36 +1670,31 @@ static int dirlist_cmp (const void *p1, const void *p2)
 static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
   URL dirp;
   struct stat st;
-  char *p, currdir[PATH_MAX], filename[PATH_MAX];
+  char currdir[PATH_MAX], filename[PATH_MAX];
   int i, d_num, f_num;
 
-  strcpy(currdir, basepath);
-
-  if(!strncmp("../", lrs->string, 3)) {
-    if(currdir != (p = strrchr(currdir, '/')))
-      *p = '\0';
-    else
-      currdir[1] = '\0';
-  } else {
-    if(currdir[1] != '\0') strcat(currdir, "/");
-    strcat(currdir, lrs->string);
-    if(stat(currdir, &st) == -1) return;
-    if(!S_ISDIR(st.st_mode)) {
+  snprintf(currdir, sizeof(currdir)-1, "%s/%s", basepath, lrs->string);
+  canonicalize_path(currdir);
+  if(stat(currdir, &st) == -1) return;
+  if(!S_ISDIR(st.st_mode)) {
       XtVaSetValues(load_d,XtNvalue,currdir,NULL);
       return;
-    }
-    currdir[strlen(currdir)-1] = '\0';
-  } 
+  }
+
   if (NULL != (dirp=url_dir_open(currdir))) {
     char *fullpath;
     MBlockList pool;
+    StringTable strtab;
     init_mblock(&pool);
 
-    for(i= 0; dirlist[i] != NULL; i++)
-      XtFree(dirlist[i]);
+    if(dirlist != NULL)
+    {
+	free(dirlist_top);
+	free(dirlist);
+    }
+    init_string_table(&strtab);
     i = 0; d_num = 0; f_num = 0;
-    while (url_gets(dirp, filename, sizeof(filename)) != NULL
-           && i < MAX_DIRECTORY_ENTRY) {
+    while (url_gets(dirp, filename, sizeof(filename)) != NULL) {
       fullpath = (char *)new_segment(&pool,strlen(currdir) +strlen(filename) +2);
       sprintf(fullpath, "%s/%s", currdir, filename);
       if(stat(fullpath, &st) == -1) continue;
@@ -1646,18 +1706,24 @@ static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
       } else {
         f_num++;
       }
-      dirlist[i] = XtMalloc(sizeof(char) * (strlen(filename) + 1));
-      strcpy(dirlist[i++], filename);
+      put_string_table(&strtab, filename, strlen(filename));
+      i++;
     }
+    dirlist = (String *)make_string_array(&strtab);
+    dirlist_top = (String)dirlist[0]; /* Marking for free() */
     qsort (dirlist, i, sizeof (char *), dirlist_cmp);
-    dirlist[i] = NULL;
     snprintf(local_buf, sizeof(local_buf), "%d Directories, %d Files", d_num, f_num);
     XawListChange(list,dirlist,0,0,True);
-    XtVaSetValues(label,XtNlabel,currdir,NULL);
-    XtVaSetValues(load_info,XtNlabel,local_buf,NULL);
-    strcpy(basepath, currdir);
-    XtVaSetValues(load_d,XtNvalue,currdir,NULL);
   }
+  else
+    strcpy(local_buf, "Can't read directry");
+
+  XtVaSetValues(load_info,XtNlabel,local_buf,NULL);
+  XtVaSetValues(label,XtNlabel,currdir,NULL);
+  strcpy(basepath, currdir);
+  if(currdir[strlen(currdir) - 1] != '/')
+      strcat(currdir, "/");
+  XtVaSetValues(load_d,XtNvalue,currdir,NULL);
 }
 
 static void drawBar(int ch,int len, int xofs, int column, Pixel color) {
@@ -3062,12 +3128,9 @@ void a_start_interface(int pipe_in) {
     XReadBitmapFile(disp,RootWindow(disp,screen),cbuf,&bm_width[i],&bm_height[i],
                     &bm_Pixmap[i],&x_hot,&y_hot);
   }
-#ifndef STDC_HEADERS
-  getwd(basepath);
-#else
-  getcwd(basepath, sizeof(basepath));
-#endif
-  if (!strlen(basepath)) strcat(basepath, "/");
+
+  safe_getcwd(basepath, sizeof(basepath));
+
 #ifdef OFFIX
   DndInitialize(toplevel);
   DndRegisterOtherDrop(FileDropedHandler);
@@ -3284,8 +3347,7 @@ void a_start_interface(int pipe_in) {
   XtAddCallback(time_l,XtNcallback,(XtCallbackProc)filemenuAction,NULL);
 
   XtRealizeWidget(toplevel);
-  dirlist =(String *)malloc(sizeof(String)* MAX_DIRECTORY_ENTRY);
-  dirlist[0] = (char *)NULL;
+  dirlist = NULL;
   lrs.string = "";
   setDirList(load_flist, cwd_l, &lrs);
   XtSetKeyboardFocus(base_f, base_f);
@@ -3474,4 +3536,14 @@ void a_start_interface(int pipe_in) {
     stopCB(NULL,NULL,NULL);
   if(ctl->trace_playing) initStatus();
   XtAppMainLoop(app_con);
+}
+
+static void safe_getcwd(char *cwd, int maxlen)
+{
+  if(!getcwd(cwd, maxlen))
+  {
+    ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+	      "Warning: Can't get current working directory");
+    strcpy(cwd, ".");
+  }
 }

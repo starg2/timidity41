@@ -173,7 +173,7 @@ void resamp_cache_refer_off(int ch, int note, int32 sample_end)
 
 	a = ((double)sp->sample_rate * freq_table[note]) /
 	    ((double)sp->root_freq * play_mode->rate);
-	slen = (int32)(sp->data_length / a);
+	slen = (int32)((sp->data_length >> FRACTION_BITS) / a);
 	if(len > slen)
 	    len = slen;
     }

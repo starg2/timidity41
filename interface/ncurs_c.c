@@ -492,7 +492,7 @@ static void init_trace_window_chan(int ch)
 	ctl_sustain(ch, channel[ch].sustain);
 	ctl_pitch_bend(ch, CTL_STATUS_INIT);
 	if(channel[ch].pitchbend == 0x2000 && channel[ch].modulation_wheel > 0)
-	    ctl_pitch_bend(ch, -1);
+	    ctl_pitch_bend(ch, -2);
 	else
 	    ctl_pitch_bend(ch, channel[ch].pitchbend);
 	clear_bitset(channel_program_flags + ch, 0, 128);
@@ -1350,7 +1350,8 @@ static void ctl_pitch_bend(int ch, int val)
     if(val == CTL_LAST_STATUS)
     {
 	restore = 1;
-	if((val = lastbends[ch]) == 0)
+	val = lastbends[ch];
+	if(!val || (val != '<' && val != '>'))
 	    val = ' ';
     }
     else
@@ -1366,6 +1367,7 @@ static void ctl_pitch_bend(int ch, int val)
     {
 	if(val != '=')
 	    lastbends[ch] = val;
+	else lastbends[ch] = ' ';
 	wmove(dftwin, NOTE_LINE+ch, COLS-2);
 	waddch(dftwin, val);
 	scr_modified_flag = 1;

@@ -352,7 +352,6 @@ common.o: common.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h output.h controls.h ../libarc/arc.h \
 	../utils/memb.h ../utils/nkflib.h wrd.h
 controls.o: controls.c ../config.h ../interface.h timidity.h controls.h
-dl_dlopen.o: dl_dlopen.c ../config.h timidity.h dlutils.h
 filter.o: filter.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h controls.h instrum.h filter.h
 instrum.o: instrum.c ../config.h timidity.h common.h ../libarc/url.h \

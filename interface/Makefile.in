@@ -430,10 +430,6 @@ dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
-dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/output.h ../timidity/controls.h \
-	../timidity/dlutils.h
 emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/output.h ../timidity/controls.h \
@@ -524,7 +520,8 @@ xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
 xaw_i.o: xaw_i.c ../config.h xaw.h ../timidity/timidity.h check.xbm \
 	arrow.xbm on.xbm off.xbm ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h ../utils/timer.h
+	../timidity/readmidi.h ../timidity/controls.h ../utils/timer.h \
+	../utils/strtab.h
 xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
