@@ -126,4 +126,6 @@
 #define DEFAULT_CHORUS 0
 #endif
 
+#define XAW_UPDATE_TIME 0.1
+
 #endif /* _XAW_H_ */

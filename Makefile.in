@@ -127,7 +127,9 @@ EXTRA_DIST = \
 	README \
 	README.jp \
 	timidity.ide \
-	timidity.mak
+	timidity.mak \
+	TiMidity.ad \
+	TiMidity-uj.ad
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h interface.h

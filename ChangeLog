@@ -1,6 +1,56 @@
+Summary:
+Tue Mar 23 1999
+    * In XAW interface, Added new user interfaces.
+    * Fixed some bugs.
+
+-- 1.3.6
+Date: Sat, 20 Mar 1999 22:01:43 +0900 (JST)
+From: Yoshishige ARAI <ryo2@on.rim.or.jp>
+Files: configure.in interface/xaw_i.c
+    Added -lXext for Motif link option.
+    On XAW, Enabled selection & deletion with `Backspace' key in
+    load dialog text.
+
+Date: Fri, 19 Mar 1999 20:54:15 -0500 (EST)
+From: Franklin Chen <chen@dahmer.pscico.cs.cmu.edu>
+Files: configure.in interface/slang_c.c
+    On Linux Red Hat 5.2: <slang.h> must change to <slang/slang.h>.
+    Added configure test for <slang/slang.h>, and included if it is found
+	by Masanao Izumo <mo@goice.co.jp>
+
+Date: Mon Mar 15 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity/common.c libarc/url.c
+    Fixed bug for Windows.
+
+Date: Fri Mar 12 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: utils/support.c
+    Fixed bug of strncasecmp()
+
+Date: Wed, 10 Mar 1999 14:00:18 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: interface/xaw_c.c
+    Fixed bug for XAW interface.
+
+Date: Wed, 10 Mar 1999 03:09:31 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: interface/xaw_c.c interface/xaw_i.c
+    Pached for XAW interface:
+    * Fixed bug about `Save Config'
+    * Added `Add All' button
+    * Checked whether specified file is MIDI file or not
+    * Changed KeyBoardFocus for the File Load window
+    * Stored the changed directory to File Load Dialog
+    * Used XtVaSetValues() instead of XtSetValues()
+
+Date: Tue, 09 Mar 1999 20:41:19 +0900
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/xaw_i.c
+    Pached for XAW interface about velocity bar.
+
 -- 1.3.5
 Mon Mar 8 1999
-
 Summary:
     * In XAW interface, added new user interfaces.
     * Added AM_EXEEXT test for configuring.

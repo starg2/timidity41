@@ -54,7 +54,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 1.3.5, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 1.3.6, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -570,6 +570,7 @@ CONFIG_INTERFACE(slang,SLANG,s,
   [  --enable-slang          Enable slang interface          (default is no)],
   [ KEEPLIBS=$LIBS
     AC_CHECK_LIB(slang,SLang_init_tty,,enable_slang=no)
+    AC_CHECK_HEADERS(slang/slang.h)
     LIBS=$KEEPLIBS
   ],
   [ LIBS="$LIBS -lslang" ],
@@ -593,11 +594,11 @@ CONFIG_INTERFACE(motif,MOTIF,m,
   [ lib_xm_opt=-lXm
     lib_xt_opt=-lXt
     if test "$have_xprelibs" = "yes"; then
-	lib_xprelibs_opt='-lSM -lICE'
+	lib_xprelibs_opt='-lXext -lSM -lICE'
     fi
   ],
   [ if test x$have_xprelibs = xyes; then
-      m_so_libs="-lSM -lICE"
+      m_so_libs="-lXext -lSM -lICE"
     fi
     m_so_libs="$ldflags_x_opt -lXm -lXt $m_so_libs -lX11"
   ])

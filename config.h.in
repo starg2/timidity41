@@ -137,6 +137,9 @@
 /* Define if you have the <ndir.h> header file.  */
 #undef HAVE_NDIR_H
 
+/* Define if you have the <slang/slang.h> header file.  */
+#undef HAVE_SLANG_SLANG_H
+
 /* Define if you have the <strings.h> header file.  */
 #undef HAVE_STRINGS_H
 

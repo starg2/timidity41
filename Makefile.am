@@ -37,7 +37,9 @@ EXTRA_DIST = \
 	README \
 	README.jp \
 	timidity.ide \
-	timidity.mak
+	timidity.mak \
+	TiMidity.ad \
+	TiMidity-uj.ad
 
 dynamics:
 	cd interface; $(MAKE) $@

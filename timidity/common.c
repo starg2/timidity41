@@ -133,6 +133,10 @@ struct timidity_file *try_to_open(char *name, int decompress)
 	    errno = last_archive_file_list->errstatus;
 	    return NULL;
 	}
+
+	if(strchr(name, '#') != NULL)
+	    return NULL;
+
 	if((url = url_open(name)) == NULL)
 	    return NULL;
     }
@@ -259,6 +263,15 @@ static int is_url_prefix(char *name)
     for(i = 0; url_proto_names[i]; i++)
 	if(strncmp(name, url_proto_names[i], strlen(url_proto_names[i])) == 0)
 	    return 1;
+
+#ifdef __WIN32__
+    /* [A-Za-z]: (for Windows) */
+    if((('A' <= name[0] && name[0] <= 'Z') ||
+	('a' <= name[0] && name[0] <= 'z')) &&
+       name[1] == ':')
+	return 1;
+#endif /* __WIN32__ */
+
     return 0;
 }
 

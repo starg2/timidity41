@@ -54,7 +54,11 @@
 #include <strings.h>
 #endif
 
+#ifdef HAVE_SLANG_SLANG_H
+#include <slang/slang.h>
+#else
 #include <slang.h>
+#endif
 
 #include "timidity.h"
 #include "common.h"

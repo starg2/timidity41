@@ -520,7 +520,7 @@ xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
 xaw_i.o: xaw_i.c ../config.h xaw.h ../timidity/timidity.h check.xbm \
 	arrow.xbm on.xbm off.xbm ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h
+	../timidity/readmidi.h ../timidity/controls.h ../utils/timer.h
 xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \

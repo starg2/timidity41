@@ -793,7 +793,7 @@ int strncasecmp(char *s1, char *s2, unsigned int len) {
   int dif;
   while (len-- > 0) {
 	if ((dif =
-		 (unsigned char)tolower(*s1) - (unsigned char)tolower(*s2++)) == 0)
+		 (unsigned char)tolower(*s1) - (unsigned char)tolower(*s2++)) != 0)
 	  return(dif);
 	if (*s1++ == '\0')
 	  break;

@@ -413,7 +413,6 @@ static void help(void)
 "                   r/R : Enable/Disable Reverb control.",
 "                   c/C : Enable/Disable Chorus control.",
 "                   s/S : Enable/Disable Channel pressure.",
-"                   x/X : Enable/Disable XG Bank select LSB",
 "                   t/T : Enable/Disable Trace Text Meta Event at playing",
 "                   o/O : Enable/Disable Overlapped voice",
 "                   m<HH>: Define default Manufacture ID <HH> in two hex",
