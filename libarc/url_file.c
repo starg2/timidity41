@@ -1,0 +1,365 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
+#include <stdio.h>
+#include <stdlib.h>
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
+#include <fcntl.h>
+
+#ifndef __WIN32__
+#include <unistd.h>
+#endif /* __WIN32__ */
+
+#include "timidity.h"
+
+#ifdef HAVE_MMAP
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#ifndef MAP_FAILED
+#define MAP_FAILED ((caddr_t)-1)
+#endif /* MAP_FAILED */
+
+#else
+/* mmap is not supported */
+#define try_mmap(dmy1, dmy2) NULL
+#define munmap(addr, size) /* Do nothing */
+#endif
+
+#include "url.h"
+#ifdef __MACOS__
+#include "mblock.h"
+#endif
+
+#if !defined(__WIN32__) && !defined(O_BINARY)
+#define O_BINARY 0
+#endif
+
+typedef struct _URL_file
+{
+    char common[sizeof(struct _URL)];
+
+    char *mapptr;		/* Non NULL if mmap is success */
+    long mapsize;
+    long pos;
+
+    FILE *fp;			/* Non NULL if mmap is failure */
+} URL_file;
+
+static int name_file_check(char *url_string);
+static long url_file_read(URL url, void *buff, long n);
+static char *url_file_gets(URL url, char *buff, int n);
+static int url_file_fgetc(URL url);
+static long url_file_seek(URL url, long offset, int whence);
+static long url_file_tell(URL url);
+static void url_file_close(URL url);
+
+struct URL_module URL_module_file =
+{
+    URL_file_t,			/* type */
+    name_file_check,		/* URL checker */
+    NULL,			/* initializer */
+    url_file_open,		/* open */
+    NULL			/* must be NULL */
+};
+
+static int name_file_check(char *s)
+{
+    int i;
+
+    if(s[0] == PATH_SEP)
+	return 1;
+
+    if(strncasecmp(s, "file:", 5) == 0)
+	return 1;
+
+#ifdef __WIN32__
+    /* [A-Za-z]: (for Windows) */
+    if((('A' <= s[0] && s[0] <= 'Z') ||
+	('a' <= s[0] && s[0] <= 'z')) &&
+       s[1] == ':')
+	return 1;
+#endif /* __WIN32__ */
+
+    for(i = 0; s[i] && s[i] != ':' && s[i] != '/'; i++)
+	;
+    if(s[i] == ':' && s[i + 1] == '/')
+	return 0;
+
+    return 1;
+}
+
+#ifdef HAVE_MMAP
+static char *try_mmap(char *path, long *size)
+{
+    int fd;
+    char *p;
+    struct stat st;
+
+    errno = 0;
+    fd = open(path, O_RDONLY | O_BINARY);
+    if(fd < 0)
+	return NULL;
+
+    if(fstat(fd, &st) < 0)
+    {
+	int save_errno = errno;
+	close(fd);
+	errno = save_errno;
+	return NULL;
+    }
+
+    p = (char *)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if(p == (char *)MAP_FAILED)
+    {
+	int save_errno = errno;
+	close(fd);
+	errno = save_errno;
+	return NULL;
+    }
+    close(fd);
+    *size = (long)st.st_size;
+    return p;
+}
+#endif /* HAVE_MMAP */
+
+URL url_file_open(char *fname)
+{
+    URL_file *url;
+    char *mapptr;		/* Non NULL if mmap is success */
+    long mapsize;
+    FILE *fp;			/* Non NULL if mmap is failure */
+
+#ifdef DEBUG
+    printf("url_file_open(%s)\n", fname);
+#endif /* DEBUG */
+
+    if(!strcmp(fname, "-"))
+    {
+	mapptr = NULL;
+	mapsize = 0;
+	fp = stdin;
+	goto done;
+    }
+
+    if(strncasecmp(fname, "file:", 5) == 0)
+	fname += 5;
+    if(*fname == '\0')
+    {
+	url_errno = errno = ENOENT;
+	return NULL;
+    }
+    fname = url_expand_home_dir(fname);
+
+    fp = NULL;
+    mapsize = 0;
+    errno = 0;
+    mapptr = try_mmap(fname, &mapsize);
+    if(errno == ENOENT || errno == EACCES)
+    {
+	url_errno = errno;
+	return NULL;
+    }
+
+#ifdef DEBUG
+    if(mapptr != NULL)
+	printf("mmap - success. size=%d\n", mapsize);
+#ifdef HAVE_MMAP
+    else
+	printf("mmap - failure.\n");
+#endif
+#endif /* DEBUG */
+
+
+    if(mapptr == NULL)
+    {
+#ifdef __MACOS__
+	char *cnvname;
+	MBlockList pool;
+	init_mblock(&pool);
+	cnvname = (char *)strdup_mblock(&pool, fname);
+	mac_TransPathSeparater(fname, cnvname);
+	fp = fopen(cnvname, "rb");
+	reuse_mblock(&pool);
+#else
+	fp = fopen(fname, "rb");
+#endif
+	if(fp == NULL)
+	{
+	    url_errno = errno;
+	    return NULL;
+	}
+    }
+
+  done:
+    url = (URL_file *)alloc_url(sizeof(URL_file));
+    if(url == NULL)
+    {
+	url_errno = errno;
+	if(mapptr)
+	    munmap(mapptr, mapsize);
+	if(fp && fp != stdin)
+	    fclose(fp);
+	errno = url_errno;
+	return NULL;
+    }
+
+    /* common members */
+    URLm(url, type)      = URL_file_t;
+    URLm(url, url_read)  = url_file_read;
+    URLm(url, url_gets)  = url_file_gets;
+    URLm(url, url_fgetc) = url_file_fgetc;
+    URLm(url, url_close) = url_file_close;
+    if(fp == stdin)
+    {
+	URLm(url, url_seek) = NULL;
+	URLm(url, url_tell) = NULL;
+    }
+    else
+    {
+	URLm(url, url_seek) = url_file_seek;
+	URLm(url, url_tell) = url_file_tell;
+    }
+
+    /* private members */
+    url->mapptr = mapptr;
+    url->mapsize = mapsize;
+    url->pos = 0;
+    url->fp = fp;
+
+    return (URL)url;
+}
+
+static long url_file_read(URL url, void *buff, long n)
+{
+    URL_file *urlp = (URL_file *)url;
+
+    if(urlp->mapptr != NULL)
+    {
+	if(urlp->pos + n > urlp->mapsize)
+	    n = urlp->mapsize - urlp->pos;
+	memcpy(buff, urlp->mapptr + urlp->pos, n);
+	urlp->pos += n;
+    }
+    else
+    {
+	if((n = (long)fread(buff, 1, n, urlp->fp)) == 0)
+	{
+	    if(ferror(urlp->fp))
+	    {
+		url_errno = errno;
+		return -1;
+	    }
+	    return 0;
+	}
+    }
+    return n;
+}
+
+char *url_file_gets(URL url, char *buff, int n)
+{
+    URL_file *urlp = (URL_file *)url;
+
+    if(urlp->mapptr != NULL)
+    {
+	long s;
+	char *nlp, *p;
+
+	if(urlp->mapsize == urlp->pos)
+	    return NULL;
+	if(n <= 0)
+	    return buff;
+	if(n == 1)
+	{
+	    *buff = '\0';
+	    return buff;
+	}
+	n--; /* for '\0' */
+	s = urlp->mapsize - urlp->pos;
+	if(s > n)
+	    s = n;
+	p = urlp->mapptr + urlp->pos;
+	nlp = (char *)memchr(p, url_newline_code, s);
+	if(nlp != NULL)
+	    s = nlp - p + 1;
+	memcpy(buff, p, s);
+	buff[s] = '\0';
+	urlp->pos += s;
+	return buff;
+    }
+
+    return fgets(buff, n, urlp->fp);
+}
+
+int url_file_fgetc(URL url)
+{
+    URL_file *urlp = (URL_file *)url;
+
+    if(urlp->mapptr != NULL)
+    {
+	if(urlp->mapsize == urlp->pos)
+	    return EOF;
+	return urlp->mapptr[urlp->pos++] & 0xff;
+    }
+
+#ifdef getc
+    return getc(urlp->fp);
+#else
+    return fgetc(urlp->fp);
+#endif /* getc */
+}
+
+static void url_file_close(URL url)
+{
+    URL_file *urlp = (URL_file *)url;
+
+    if(urlp->mapptr != NULL)
+	munmap(urlp->mapptr, urlp->mapsize);
+    if(urlp->fp != NULL)
+    {
+	if(urlp->fp == stdin)
+	    rewind(stdin);
+	else
+	    fclose(urlp->fp);
+    }
+    free(url);
+}
+
+static long url_file_seek(URL url, long offset, int whence)
+{
+    URL_file *urlp = (URL_file *)url;
+    long ret;
+
+    if(urlp->mapptr == NULL)
+	return fseek(urlp->fp, offset, whence);
+    ret = urlp->pos;
+    switch(whence)
+    {
+      case SEEK_SET:
+	urlp->pos = offset;
+	break;
+      case SEEK_CUR:
+	urlp->pos += offset;
+	break;
+      case SEEK_END:
+	  urlp->pos = urlp->mapsize + offset;
+	break;
+    }
+    if(urlp->pos > urlp->mapsize)
+	urlp->pos = urlp->mapsize;
+    else if(urlp->pos < 0)
+	urlp->pos = 0;
+
+    return ret;
+}
+
+static long url_file_tell(URL url)
+{
+    URL_file *urlp = (URL_file *)url;
+
+    return urlp->mapptr ? urlp->pos : ftell(urlp->fp);
+}

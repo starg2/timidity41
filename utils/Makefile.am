@@ -1,0 +1,77 @@
+# TiMidity++ -- MIDI to WAVE converter and player
+# Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+# Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+include $(top_builddir)/common.makefile
+
+INCLUDES = \
+	-I$(top_srcdir)/libarc \
+	-I$(top_srcdir)/timidity \
+	$(EXTRAINCS)
+
+noinst_LIBRARIES = libutils.a
+
+libutils_a_SOURCES = \
+	bitset.c \
+	bitset.h \
+	mblock.c \
+	mblock.h \
+	memb.c \
+	memb.h \
+	nkflib.c \
+	nkflib.h \
+	strtab.c \
+	strtab.h \
+	timer.c \
+	timer.h
+
+EXTRA_libutils_a_SOURCES = \
+	fft.c \
+	fft.h \
+	getopt.c \
+	net.c \
+	net.h \
+	mac_util.c \
+	mac_util.h \
+	mac_readdir.c \
+	mac_readdir.h \
+	readdir.h \
+	readdir_win.c
+
+if ENABLE_NETWORK
+NET_OBJS = net.o	
+endif
+
+if ENABLE_SOUND_SPEC
+SOUND_SPEC_OBJS = fft.o
+endif
+
+if NEED_GETOPT
+GETOPT_OBJS = getopt.o
+endif
+
+if CYGWIN32
+CYGWIN32_OBJS = readdir_win.o
+endif
+
+libutils_a_LIBADD = \
+	$(NET_OBJS) \
+	$(CYGWIN32_OBJS) \
+	$(GETOPT_OBJS) \
+	$(SOUND_SPEC_OBJS)
+
+libutils_a_DEPENDENCIES = $(libutils_a_LIBADD)

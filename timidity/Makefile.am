@@ -1,0 +1,142 @@
+# TiMidity++ -- MIDI to WAVE converter and player
+# Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+# Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+include $(top_builddir)/common.makefile
+
+INCLUDES = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/libarc \
+	-I$(top_srcdir)/interface \
+	-I$(top_srcdir)/utils \
+	$(EXTRAINCS)
+
+
+bin_PROGRAMS = timidity
+
+timidity_SOURCES = \
+	aenc.h \
+	aiff_a.c \
+	au_a.c \
+	audio_cnv.c \
+	audio_cnv.h \
+	common.c \
+	common.h \
+	controls.c \
+	controls.h \
+	dlutils.h \
+	filter.c \
+	filter.h \
+	instrum.c \
+	instrum.h \
+	list_a.c \
+	load_mod.c \
+	mid-j.defs \
+	mid.defs \
+	miditrace.c \
+	miditrace.h \
+	mix.c \
+	mix.h \
+	mod.c \
+	mod.h \
+	output.c \
+	output.h \
+	playmidi.c \
+	playmidi.h \
+	raw_a.c \
+	rcp.c \
+	readmidi.c \
+	readmidi.h \
+	recache.c \
+	recache.h \
+	resample.c \
+	resample.h \
+	reverb.c \
+	reverb.h \
+	sbkconv.c \
+	sffile.c \
+	sffile.h \
+	sfitem.c \
+	sfitem.h \
+	sflayer.h \
+	smfconv.c \
+	smfconv.h \
+	sndfont.c \
+	tables.c \
+	tables.h \
+	timidity.c \
+	timidity.h \
+	version.c \
+	wave_a.c \
+	wrd.h \
+	wrd_read.c \
+	wrdt.c
+
+EXTRA_timidity_SOURCES = \
+	audriv.h \
+	audriv_a.c \
+	audriv_al.c \
+	audriv_mme.c \
+	audriv_none.c \
+	audriv_sun.c \
+	dl_cygwin32.c \
+	dl_dld.c \
+	dl_dlopen.c \
+	dl_hpux.c \
+	bsd20_a.c \
+	hpux_a.c \
+	hpux_d_a.c \
+	linux_a.c \
+	mac_a.c \
+	mac_com.h \
+	mac_dlog.c \
+	mac_main.c \
+	mac_main.h \
+	mac_soundspec.c \
+	mfnode.c \
+	mfnode.h \
+	win_a.c \
+	alsa_a.c
+
+timidity_LDADD = \
+	$(SYSEXTRAS:.c=.o) \
+	$(top_builddir)/interface/libinterface.a \
+	$(top_builddir)/libarc/libarc.a \
+	$(top_builddir)/utils/libutils.a \
+	@EXTRALIBS@
+
+#should use timidit_DEPENDENCIES?
+timidity.o: $(SYSEXTRAS:.c=.o) \
+	$(top_builddir)/interface/libinterface.a \
+	$(top_builddir)/libarc/libarc.a \
+	$(top_builddir)/utils/libutils.a
+
+controls.o: $(top_builddir)/interface/libinterface.a
+
+#PROJ = timidity
+#$(PROJ): $(MAINOBJ) $(COBJS)
+#	$(CC) $(LDFLAGS) -o $(PROJ) $(MAINOBJ) $(COBJS) $(LIBS) $(EXTRALIBS) -lm
+
+
+
+#MAINSRC = timidity.c
+#MAINOBJ = $(MAINSRC:.c=.o)
+#timiditymain.o: $(MAINSRC)
+#	$(CC) $(UMPCFLAGS) -Dmain=timiditymain -o $@ -c $(MAINSRC)
+
+version.o: version.c Makefile
+	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c

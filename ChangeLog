@@ -1,0 +1,38 @@
+* 1/6, 1999
+Major changes from 0.2i:
+   * Install with `configure' script.
+   * Synchronization for audio and interface controls.
+   * Uses GUS/patch and SoundFont for voice data
+   * Plays the MIDI file via network (UNIX version)
+   * Plays the MIDI file in archive file
+   * Plays not only SMF file but also MOD, RCP/R36/G18/G36
+   * Can handle 32 channel data
+   * Can handle user interfaces as dynamic link modules (UNIX version)
+   * Can display the sound spectrogram (UNIX or Macinotsh version)
+   * Automatically detects the mode of MIDI file (GM/GS/XG)
+   * Automatically detects drum channels (GS/XG)
+   * Can display MIMPI's WRD file (One of KARAOKE system mainly used in japan)
+   * Localization for Japanese
+   * Improve new curses interface
+   * Add new interface:
+	VT100, X Athena Wiget, Emacs, skin, gtk
+   * Make Pre-calculated resampling cache
+   * Enable private user configuration (in ~/.timidity.cfg)
+   * Add some effects
+   * Can control follows while playing:
+	- Change drumpart
+	- Load patch file
+	- Pitch up/down
+	- Speed up/down
+	- Maxmum voices up/down (limited to MAX_VOICES macro defined at
+		compiling)
+   * Can output Sun audio file (*.au)
+   * Can output encoding of G.711 A-Law
+   * Use pager program specified by PAGER Environment when displaying the
+	command line help
+   * The following new MIDI events are supported:
+	ChannelPressure, ModulationWheel,
+	Portamento, ReverbEffect, ChorusEffect, RPN+/-,
+	Mono/Poly Part, Lyric, KARAOKE-Part(@KMIDI),
+	and SystemExclusiveMessages
+   * Many bugs (that is found in the original) are fixed.

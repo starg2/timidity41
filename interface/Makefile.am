@@ -1,0 +1,292 @@
+# TiMidity++ -- MIDI to WAVE converter and player
+# Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+# Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+include $(top_builddir)/common.makefile
+
+SUBDIRS = motif_bitmaps bitmaps pixmaps
+
+INCLUDES = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/timidity \
+	-I$(top_srcdir)/libarc \
+	-I$(top_srcdir)/utils \
+	$(EXTRAINCS)
+
+noinst_LIBRARIES = libinterface.a
+
+libinterface_a_SOURCES = \
+	dumb_c.c \
+	wrdt_dumb.c \
+	wrdt_tty.c
+
+EXTRA_libinterface_a_SOURCES = \
+	ncurs_c.c \
+	slang_c.c \
+	motif.h \
+	motif_c.c \
+	motif_i.c \
+	motif_p.c \
+	tk_c.c \
+	emacs_c.c \
+	vt100.h \
+	vt100.c \
+	vt100_c.c \
+	xaw.h \
+	xaw_c.c \
+	xaw_i.c \
+	xskin.h \
+	xskin_c.c \
+	xskin_i.c \
+	xskin_loadBMP.c \
+	xskin_spectrum.c \
+	wrdt_x.c \
+	x_wrdwindow.c \
+	x_wrdwindow.h \
+	VTPrsTbl.c \
+	VTparse.h \
+	x_mag.c \
+	x_mag.h \
+	dynamic_c.c \
+	mac_c.c \
+	mac_c.h \
+	mac_mag.c \
+	mac_mag.h \
+	mac_trace.c \
+	mac_wrdwindow.c \
+	mac_wrdwindow.h \
+	wrdt_mac.c \
+	wrdt_wincon.c \
+	gtk_c.c \
+	gtk_h.h \
+	gtk_i.c \
+	gtk_p.c \
+	soundspec.c \
+	soundspec.h
+
+if ENABLE_NCURSES
+NCURSES_OBJS = ncurs_c.o
+endif
+
+if ENABLE_SLANG
+SLANG_OBJS = slang_c.o
+endif
+
+if ENABLE_MOTIF
+MOTIF_OBJS = \
+	motif_c.o \
+	motif_i.o \
+	motif_p.o 
+endif
+
+if ENABLE_TCLTK
+TK_OBJS = tk_c.o
+endif
+
+if ENABLE_EMACS
+EMACS_OBJS = emacs_c.o
+endif
+
+if ENABLE_VT100
+VT100_OBJS = \
+	vt100.o \
+	vt100_c.o
+endif
+
+if ENABLE_XAW
+XAW_OBJS = \
+	xaw_c.o \
+	xaw_i.o
+endif
+
+if ENABLE_XSKIN
+XSKIN_OBJS = \
+	xskin_c.o \
+	xskin_i.o \
+	xskin_loadBMP.o \
+	xskin_spectrum.o
+endif
+
+if ENABLE_GTK
+GTK_OBJS= \
+	gtk_c.o \
+	gtk_i.o \
+	gtk_p.o
+endif
+
+if ENABLE_WRD
+WRD_OBJS = \
+	wrdt_x.o \
+	x_wrdwindow.o \
+	VTPrsTbl.o \
+	x_mag.o
+endif
+
+if ENABLE_SHARED
+DYNAMIC_OBJS = dynamic_c.o
+endif
+
+if ENABLE_SOUND_SPEC
+SOUND_SPEC_OBJS = \
+	soundspec.o
+endif
+
+libinterface_a_LIBADD = \
+	$(NCURSES_OBJS) \
+	$(SLANG_OBJS) \
+	$(MOTIF_OBJS) \
+	$(TK_OBJS) \
+	$(EMACS_OBJS) \
+	$(VT100_OBJS) \
+	$(XAW_OBJS) \
+	$(XSKIN_OBJS) \
+	$(GTK_OBJS) \
+	$(WRD_OBJS) \
+	$(DYNAMIC_OBJS) \
+	$(SOUND_SPEC_OBJS)
+
+dumb_c.o:$(libinterface_a_LIBADD)
+
+
+# Tcl interface sources
+TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
+# Tcl/Tk sources
+TCLF = tkmidity.tcl tkpanel.tcl browser.tcl misc.tcl
+ALLTCLF = $(TCLF) tclIndex
+
+EXTRA_DIST = \
+	tkmidity.ptcl \
+	tkpanel.tcl \
+	browser.tcl \
+	misc.tcl \
+	timidity.el \
+	check.xbm
+
+.ptcl.tcl:
+	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@
+clean:
+	rm -f tkmidity.tcl
+
+tclIndex: $(TCLF)
+	echo 'auto_mkindex . *.tcl; exit' | wish
+
+if ENABLE_TCLTK
+install_tk = install.tk
+endif
+if ENABLE_DYNAMIC_TCLTK
+install_tk = install.tk
+endif
+
+if ENABLE_XAW
+install_xaw = install.xaw
+endif
+if ENABLE_DYNAMIC_XAW
+install_xaw = install.xaw
+endif
+
+install.tk: $(ALLTCLF) install.bitmaps
+	test -d $(DESTDIR)$(TCL_DIR) || mkdir -p $(DESTDIR)$(TCL_DIR)
+	for f in $(ALLTCLF) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TCL_DIR);; esac; done
+
+install.xaw: install.bitmaps
+
+install.bitmaps:
+	cd bitmaps; $(MAKE) install.bitmaps
+
+
+if ENABLE_EMACS
+ELFILES = @ELFILES@
+install_el = install.el
+endif
+
+install.el: $(ELFILES)
+	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
+	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+
+
+##
+## For dynamic interfaces
+##
+SUFFIXES = .$(so)
+if ENABLE_SHARED
+
+SHLD = @SHLD@
+SHCFLAGS = @SHCFLAGS@
+so = @sharedLibExtension@
+dynamic_targets = @dynamic_targets@
+install_dynamics = install.dynamics
+n_so_libs = @n_so_libs@
+s_so_libs = @s_so_libs@
+m_so_libs = @m_so_libs@
+k_so_libs = @k_so_libs@
+e_so_libs = @e_so_libs@
+T_so_libs = @T_so_libs@
+a_so_libs = @a_so_libs@
+i_so_libs = @i_so_libs@
+
+all-am: $(dynamic_targets)
+
+install.dynamics: $(dynamic_targets)
+	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+
+.c.$(so):
+	$(COMPILE) $(SHCFLAGS) -c $< -o $@
+
+bitset.$(so): $(top_srcdir)/utils/bitset.c
+	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+
+timer.$(so): $(top_srcdir)/utils/timer.c
+	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+
+url_buff.$(so): $(top_srcdir)/libarc/url_buff.c
+	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+
+interface_n.$(so): ncurs_c.$(so) bitset.$(so) timer.$(so)
+	$(SHLD) -o $@ ncurs_c.$(so) bitset.$(so) timer.$(so) $(n_so_libs)
+
+interface_s.$(so): slang_c.$(so) timer.$(so)
+	$(SHLD) -o $@ slang_c.$(so) timer.$(so) $(s_so_libs)
+
+interface_m.$(so): motif_c.$(so) motif_i.$(so) motif_p.$(so)
+	$(SHLD) -o $@ motif_c.$(so) motif_i.$(so) motif_p.$(so) $(m_so_libs)
+
+interface_k.$(so): tk_c.$(so)
+	$(SHLD) -o $@ tk_c.$(so) $(k_so_libs)
+
+interface_e.$(so): emacs_c.$(so)
+	$(SHLD) -o $@ emacs_c.$(so) $(e_so_libs)
+
+interface_T.$(so): vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so)
+	$(SHLD) -o $@ vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so) $(T_so_libs)
+
+interface_a.$(so): xaw_c.$(so) xaw_i.$(so)
+	$(SHLD) -o $@ xaw_c.$(so) xaw_i.$(so) $(a_so_libs)
+
+interface_i.$(so): xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so)
+	$(SHLD) -o $@ xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so) $(i_so_libs)
+
+interface_g.$(so): gtk_c.$(so) gtk_i.$(so) gtk_p.$(so)
+	$(SHLD) -o $@ gtk_c.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
+
+
+clean-compile:
+	-rm -f *.$(so)
+
+endif
+
+install-exec-local: $(install_tk) $(install_xaw) $(install_el) $(install_dynamics)
+########## End of Makefile

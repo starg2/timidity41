@@ -1,0 +1,2854 @@
+/*
+
+    TiMidity++ -- MIDI to WAVE converter and player
+    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
+#include <stdio.h>
+#include <stdlib.h>
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
+#ifdef __WIN32__
+#include <windows.h>
+extern int optind;
+extern char *optarg;
+int getopt(int, char **, char *);
+#else
+#include <unistd.h>
+#include <fcntl.h> /* for open */
+#endif
+#include <ctype.h>
+
+#ifdef BORLANDC_EXCEPTION
+#include <excpt.h>
+#endif /* BORLANDC_EXCEPTION */
+#include <signal.h>
+
+#if defined(__FreeBSD__)
+#include <floatingpoint.h> /* For FP exceptions */
+#endif
+
+#include "timidity.h"
+#include "common.h"
+#include "instrum.h"
+#include "playmidi.h"
+#include "readmidi.h"
+#include "output.h"
+#include "controls.h"
+#include "tables.h"
+#include "miditrace.h"
+#include "reverb.h"
+#ifdef SUPPORT_SOUNDSPEC
+#include "soundspec.h"
+#endif /* SUPPORT_SOUNDSPEC */
+#include "recache.h"
+#include "arc.h"
+#include "strtab.h"
+#include "wrd.h"
+#define DEFINE_GLOBALS
+#include "mid.defs"
+
+#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jL:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:"
+#define INTERACTIVE_INTERFACE_IDS "qm"
+
+/* main interfaces (To be used another main) */
+#if defined(main) || defined(ANOTHER_MAIN)
+#define MAIN_INTERFACE
+#else
+#define MAIN_INTERFACE static
+#endif /* main */
+
+MAIN_INTERFACE void timidity_start_initialize(void);
+MAIN_INTERFACE int timidity_pre_load_configuration(void);
+MAIN_INTERFACE int timidity_post_load_configuration(void);
+MAIN_INTERFACE void timidity_init_player(void);
+MAIN_INTERFACE int timidity_play_main(int nfiles, char **files);
+MAIN_INTERFACE int got_a_configuration;
+MAIN_INTERFACE char *wrdt_open_opts = NULL;
+#ifdef IA_DYNAMIC
+MAIN_INTERFACE char dynamic_interface_id;
+#endif /* IA_DYNAMIC */
+
+extern StringTable wrd_read_opts;
+
+extern struct URL_module URL_module_file;
+#ifndef __MACOS__
+extern struct URL_module URL_module_dir;
+#endif /* __MACOS__ */
+#ifdef SUPPORT_SOCKET
+extern struct URL_module URL_module_http;
+extern struct URL_module URL_module_ftp;
+extern struct URL_module URL_module_news;
+extern struct URL_module URL_module_newsgroup;
+#endif /* SUPPORT_SOCKET */
+#ifndef __WIN32__
+extern struct URL_module URL_module_pipe;
+#endif /* __WIN32__ */
+
+MAIN_INTERFACE struct URL_module *url_module_list[] =
+{
+    &URL_module_file,
+#ifndef __MACOS__
+    &URL_module_dir,
+#endif /* __MACOS__ */
+#ifdef SUPPORT_SOCKET
+    &URL_module_http,
+    &URL_module_ftp,
+    &URL_module_news,
+    &URL_module_newsgroup,
+#endif /* SUPPORT_SOCKET */
+#if !defined(__MACOS__) && !defined(__WIN32__)
+    &URL_module_pipe,
+#endif
+#if defined(main) || defined(ANOTHER_MAIN)
+    /* You can put some other modules */
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+#endif /* main */
+    NULL
+};
+
+#ifdef IA_DYNAMIC
+#include "dlutils.h"
+#ifdef SHARED_LIB_PATH
+static char *dynamic_lib_root = SHARED_LIB_PATH;
+#else
+static char *dynamic_lib_root = ".";
+#endif /* SHARED_LIB_PATH */
+#endif /* IA_DYNAMIC */
+
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 1024
+#endif /* MAXPATHLEN */
+
+int free_instruments_afterwards=0;
+static char def_instr_name[256]="";
+
+#ifdef __WIN32__
+VOLATILE int intr = FALSE;
+CRITICAL_SECTION critSect;
+
+#pragma argsused
+static BOOL WINAPI handler (DWORD dw)
+{
+	if(dw == CTRL_C_EVENT || dw == CTRL_BREAK_EVENT)
+	printf ("***BREAK" NLS);
+	intr = TRUE;
+	play_mode->purge_output();
+	play_mode->close_output();
+	ctl->close();
+	wrdt->close();
+	ExitProcess(-1);
+	return TRUE;
+}
+/*
+static BOOL WINAPI handler (DWORD dw)
+	{
+	printf ("***BREAK" NLS);
+	intr = TRUE;
+	play_mode->purge_output ();
+	return TRUE;
+	}
+*/
+#endif
+
+#ifdef PRESENCE_HACK
+int presence_balance = PRESENCE_HACK+0;
+double presence_delay_msec = (PRESENCE_DELAY*1000.0);
+#ifndef atof
+extern double atof(const char *);
+#endif
+#endif /* PRESENCE_HACK */
+
+#ifndef IA_DYNAMIC
+#define dynamic_interface_module(dmy) NULL
+#define dynamic_interface_info(dmy) NULL
+#else
+
+/* IA_DYNAMIC */
+static char *dynamic_interface_info(int id)
+{
+    static char libinfo[MAXPATHLEN];
+    int fd, n;
+    char *nl;
+
+    sprintf(libinfo, "%s" PATH_STRING "interface_%c.txt",
+	    dynamic_lib_root, id);
+    if((fd = open(libinfo, 0)) < 0)
+	return NULL;
+    n = read(fd, libinfo, sizeof(libinfo) - 1);
+    close(fd);
+
+    if(n <= 0)
+	return NULL;
+    libinfo[n] = '\0';
+    nl = strchr(libinfo, '\n');
+    if(libinfo == nl)
+	return NULL;
+
+    if(nl != NULL)
+    {
+	*nl = '\0';
+	if(*(nl - 1) == '\r')
+	    *(nl - 1) = '\0';
+    }
+    return libinfo;
+}
+
+char *dynamic_interface_module(int id)
+{
+    static char shared_library[MAXPATHLEN];
+    int fd;
+
+    sprintf(shared_library, "%s" PATH_STRING "interface_%c%s",
+	    dynamic_lib_root, id, SHARED_LIB_EXT);
+    if((fd = open(shared_library, 0)) < 0)
+	return NULL;
+    close(fd);
+
+    return shared_library;
+}
+
+static void list_dyna_interface(FILE *fp, char *path, char *mark)
+{
+    char fname[BUFSIZ];
+    URL url;
+
+    if((url = url_dir_open(path)) == NULL)
+	return;
+
+    while(url_gets(url, fname, sizeof(fname)) != NULL)
+    {
+	if(strncmp(fname, "interface_", 10) == 0)
+	{
+	    char *info;
+	    int id;
+
+	    id = fname[10];
+	    if(mark[id])
+		continue;
+	    mark[id] = 1;
+
+	    info = dynamic_interface_info(id);
+	    if(info == NULL)
+		info = dynamic_interface_module(id);
+	    if(info != NULL)
+		fprintf(fp, "  -i%c     %s" NLS, id, info);
+	}
+    }
+    url_close(url);
+}
+#endif /* IA_DYNAMIC */
+
+static FILE *open_pager(void)
+{
+#if !defined(__MACOS__) && !defined(__WIN32__)
+    char *pager;
+    if(isatty(0) && (pager = getenv("PAGER")) != NULL)
+	return popen(pager, "w");
+#endif
+    return stdout;
+}
+
+static void close_pager(FILE *fp)
+{
+#if !defined(__MACOS__) && !defined(__WIN32__)
+    if(fp != stdout)
+	pclose(fp);
+#endif
+}
+
+static void help(void)
+{
+  PlayMode **pmp=play_mode_list;
+  ControlMode **cmp=ctl_list;
+  WRDTracer **wl = wrdt_list;
+  int i, j;
+  static char *help_args[3];
+  FILE *fp;
+  static char *help_list[] = {
+" TiMidity++ version %s (C) 1999 Masanao Izumo <mo@goice.co.jp>",
+" The original version (C) 1995 Tuukka Toivonen <tt@cgs.fi>",
+" TiMidity is free software and comes with ABSOLUTELY NO WARRANTY.",
+"",
+#ifdef __WIN32__
+" Win32 version by Davide Moretti <dmoretti@iper.net>",
+"",
+#endif
+"Usage:",
+"  %s [options] filename [...]",
+"",
+#ifndef __WIN32__		/*does not work in Win32 */
+"  Use \"-\" as filename to read a MIDI file from stdin",
+#endif
+"",
+"Options:",
+#if defined(AU_HPUX)
+"  -o file Output to another file (or audio server) (Use \"-\" for stdout)",
+#elif defined (AU_LINUX)
+"  -o file Output to another file (or device) (Use \"-\" for stdout)",
+#else
+"  -o file Output to another file (Use \"-\" for stdout)",
+#endif
+"  -O mode Select output mode and format (see below for list)",
+"  -s f    Set sampling frequency to f (Hz or kHz)",
+"  -a      Enable the antialiasing filter",
+"  -n n    Enable the n th degree noiseshaping filter (n:0 to 4)",
+"  -f      "
+#ifdef FAST_DECAY
+           "Disable"
+#else
+	   "Enable"
+#endif
+" fast decay mode",
+"  -p n    Allow n-voice polyphony",
+"  -A n    Amplify volume by n percent (may cause clipping)",
+"  -C n    Set ratio of sampling and control frequencies",
+"  -S n    Cache size (0 means no cache)",
+"  -L dir  Append dir to search path",
+"  -c file Read extra configuration file",
+"  -I n    Use program n as the default",
+"  -P file Use patch file for all programs",
+"  -D n    Play drums on channel n",
+"  -Q n    Ignore channel n",
+"  -F      Enable fast panning",
+"  -U      Unload instruments from memory between MIDI files",
+
+"  -R n    Pseudo Reveb (set every instrument's release to n ms",
+"            if n=0, n is set to 800(default)",
+
+#ifdef PRESENCE_HACK
+"  -b mode Set balance of presence panning:",
+"            mode=r : Right"
+#if PRESENCE_HACK - 0 == 0
+			" (default)"
+#endif
+"",
+"                 l : Left"
+#if PRESENCE_HACK - 0 == 1
+			" (default)"
+#endif
+"",
+"                 b : Both"
+#if PRESENCE_HACK - 0 == 2
+			" (default)"
+#endif
+"",
+"                 c : Center"
+#if !(PRESENCE_HACK - 0 == 0 || PRESENCE_HACK - 0 == 1 || PRESENCE_HACK - 0 == 2)
+			" (default)"
+#endif
+"",
+#endif /* PRESENCE_HACK */
+
+"  -r      Use reverb mode (toggle on/off)",
+
+#ifdef SUPPORT_SOUNDSPEC
+"  -g sec  Open Sound-Spectrogram Window.",
+#endif /* SUPPORT_SOUNDSPEC */
+
+#ifdef IA_DYNAMIC
+"  -d dir  Set dynamic interface module directory",
+#endif /* IA_DYNAMIC */
+"  -i mode Select user interface (see below for list)",
+#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
+"  -B n    Set number of buffer fragments",
+#endif
+#ifdef __WIN32__
+"  -e      Increase thread priority (evil) - be careful!",
+#endif
+"  -h      Display this help message",
+"  -x \"configuration-string\"",
+"          Read configuration from command line argument",
+"  -j      Realtime load instrument (toggle on/off)",
+"  -t code Output text language code:",
+"              code=auto  : Auto conversion by `LANG' environment variable",
+"                           (UNIX only)",
+"                   ascii : Convert unreadable characters to '.'(0x2e)",
+"                   nocnv : No conversion",
+#ifdef JAPANESE
+"                   euc   : EUC-japan",
+"                   jis   : JIS",
+"                   sjis  : shift JIS",
+#endif /* JAPANESE */
+"  -E mode TiMidity synth extensional modes:",
+"              mode=w/W : Enable/Disable Modulation wheel.",
+"                   p/P : Enable/Disable Portamento.",
+"                   v/V : Enable/Disable NRPN Vibrato.",
+"                   r/R : Enable/Disable Reverb control.",
+"                   c/C : Enable/Disable Chorus control.",
+"                   s/S : Enable/Disable Channel pressure.",
+"                   x/X : Enable/Disable XG Bank select LSB",
+"                   t/T : Enable/Disable Trace Text Meta Event at playing",
+"                   o/O : Enable/Disable Overlapped voice",
+"                   m<HH>: Define default Manufacture ID <HH> in two hex",
+"                   b<n>: Use tone bank <n> as the default",
+"                   B<n>: Always use tone bank <n>",
+"              default: -E "
+
+#ifdef MODULATION_WHEEL_ALLOW
+"w"
+#else
+"W"
+#endif /* MODULATION_WHEEL_ALLOW */
+
+#ifdef PORTAMENTO_ALLOW
+"p"
+#else
+"P"
+#endif /* PORTAMENTO_ALLOW */
+
+#ifdef NRPN_VIBRATO_ALLOW
+"v"
+#else
+"V"
+#endif /* NRPN_VIBRATO_ALLOW */
+
+#ifdef REVERB_CONTROL_ALLOW
+"r"
+#else
+"R"
+#endif /* REVERB_CONTROL_ALLOW */
+
+#ifdef CHORUS_CONTROL_ALLOW
+"c"
+#else
+"C"
+#endif /* CHORUS_CONTROL_ALLOW */
+
+#ifdef GM_CHANNEL_PRESSURE_ALLOW
+"s"
+#else
+"S"
+#endif /* GM_CHANNEL_PRESSURE_ALLOW */
+
+#ifdef ALWAYS_TRACE_TEXT_META_EVENT
+"t"
+#else
+"T"
+#endif /* ALWAYS_TRACE_TEXT_META_EVENT */
+
+#ifdef OVERLAP_VOICE_ALLOW
+"o"
+#else
+"O"
+#endif /* OVERLAP_VOICE_ALLOW */
+,
+#ifdef __WIN32__
+"  -w mode Windows extensional modes:",
+"              mode=r/R : Enable/Disable rcpcv dll",
+#endif /* __WIN32__ */
+"  -W mode Select WRD interface (see below for list)",
+NULL
+};
+
+  fp = open_pager();
+  j = 0; /* index of help_args */
+  help_args[0] = timidity_version;
+  help_args[1] = program_name;
+  help_args[2] = NULL;
+
+  for(i = 0; help_list[i]; i++)
+  {
+      char *h;
+
+      h = help_list[i];
+      if(strchr(h, '%'))
+	  fprintf(fp, h, help_args[j++]);
+      else
+	  fputs(h, fp);
+      fputs(NLS, fp);
+  }
+
+  fputs(NLS, fp);
+  fputs("Available WRD interfaces (-W option):" NLS, fp);
+  while(*wl)
+  {
+      fprintf(fp, "  -W%c     %s" NLS, (*wl)->id, (*wl)->name);
+      wl++;
+  }
+
+  fputs(NLS, fp);
+  fputs("Available output modes (-O option):" NLS, fp);
+  while(*pmp)
+  {
+      fprintf(fp, "  -O%c     %s" NLS, (*pmp)->id_character, (*pmp)->id_name);
+      pmp++;
+  }
+  fputs(NLS, fp);
+  fputs("Output format options (append to -O? option):" NLS
+	"   `8'    8-bit sample width" NLS
+	"   `1'    16-bit sample width" NLS
+	"   `U'    U-Law encoding" NLS
+	"   `A'    A-Law encoding" NLS
+	"   `l'    linear encoding" NLS
+	"   `M'    monophonic" NLS
+	"   `S'    stereo" NLS
+	"   `s'    signed output" NLS
+	"   `u'    unsigned output" NLS
+	"   `x'    byte-swapped output" NLS
+	, fp);
+  fputs(NLS, fp);
+  fputs("Available interfaces (-i option):" NLS, fp);
+  while(*cmp)
+  {
+#ifdef IA_DYNAMIC
+      if((*cmp)->id_character != 0)
+#endif /* IA_DYNAMIC */
+	  fprintf(fp, "  -i%c     %s" NLS,
+		  (*cmp)->id_character, (*cmp)->id_name);
+      cmp++;
+  }
+
+#ifdef IA_DYNAMIC
+  fprintf(fp, "Supported dynamic load interfaces (%s):" NLS,
+	  dynamic_lib_root);
+  {
+      char mark[128];
+
+      memset(mark, 0, sizeof(mark));
+      for(cmp = ctl_list; *cmp; cmp++)
+	  mark[(int)(*cmp)->id_character] = 1;
+
+      list_dyna_interface(fp, SHARED_LIB_PATH, mark);
+  }
+#endif /* IA_DYNAMIC */
+  fputs(NLS, fp);
+  fputs("Interface options (append to -i? option):" NLS
+	 "   `v'    more verbose (cumulative)" NLS
+	 "   `q'    quieter (cumulative)" NLS
+	 "   `t'    trace playing" NLS
+	, fp);
+  close_pager(fp);
+}
+
+static void interesting_message(void)
+{
+  printf(
+NLS
+" TiMidity++ version %s -- MIDI to WAVE converter and player" NLS
+" Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>" NLS
+" Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
+NLS
+#ifdef __WIN32__
+" Win32 version by Davide Moretti <dmoretti@iper.net>" NLS
+NLS
+#endif
+" This program is free software; you can redistribute it and/or modify" NLS
+" it under the terms of the GNU General Public License as published by" NLS
+" the Free Software Foundation; either version 2 of the License, or" NLS
+" (at your option) any later version." NLS
+NLS
+" This program is distributed in the hope that it will be useful," NLS
+" but WITHOUT ANY WARRANTY; without even the implied warranty of"NLS
+" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the" NLS
+" GNU General Public License for more details." NLS
+NLS
+" You should have received a copy of the GNU General Public License" NLS
+" along with this program; if not, write to the Free Software" NLS
+" Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA." NLS
+NLS,
+timidity_version
+);
+}
+
+static int set_channel_flag(ChannelBitMask *flags, int32 i, char *name)
+{
+    if(i == 0)
+	memset(flags, 0, sizeof(ChannelBitMask));
+    else if((i < 1 || i > MAX_CHANNELS) && (i < -MAX_CHANNELS || i > -1))
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		"%s must be between 1 and %d, or between -1 and -%d, or 0"
+		NLS, name, MAX_CHANNELS, MAX_CHANNELS);
+	return -1;
+    }
+    else
+    {
+	if(i > 0)
+	    SET_CHANNELMASK(*flags, i - 1);
+	else
+	    UNSET_CHANNELMASK(*flags, -(i - 1));
+    }
+    return 0;
+}
+
+static int set_value(int32 *param, int32 i, int32 low, int32 high, char *name)
+{
+  if (i<low || i > high)
+    {
+      	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "%s must be between %ld and %ld",
+		  name, low, high);
+	return -1;
+    }
+  else *param=i;
+  return 0;
+}
+
+static int set_default_prog(char *opt)
+{
+    int prog, ch;
+    char *p;
+
+    prog = atoi(opt);
+    if(prog < 0 || prog > 127)
+    {
+      	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "Default program must be between 0 and 127");
+	return -1;
+    }
+
+    p = strchr(opt, '/');
+    if(p == NULL)
+	for(ch = 0; ch < MAX_CHANNELS; ch++)
+	    default_program[ch] = prog;
+    else
+    {
+	ch = atoi(p + 1) - 1;
+	if(ch < 0 || ch >= MAX_CHANNELS)
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Default program channel must be between 1 and %d",
+		      MAX_CHANNELS);
+	    return -1;
+	}
+	default_program[ch] = prog;
+    }
+    return 0;
+}
+
+static int set_play_mode(char *cp)
+{
+    PlayMode *pmp, **pmpp=play_mode_list;
+
+    while((pmp=*pmpp++))
+    {
+	if(pmp->id_character == *cp)
+	{
+	    play_mode=pmp;
+	    while(*(++cp))
+		switch(*cp)
+		{
+		  case 'U': /* uLaw */
+		    pmp->encoding |= PE_ULAW;
+		    pmp->encoding &= ~(PE_ALAW|PE_16BIT);
+		    break;
+		  case 'A': /* aLaw */
+		    pmp->encoding |= PE_ALAW;
+		    pmp->encoding &= ~(PE_ULAW|PE_16BIT);
+		    break;
+		  case 'l': /* linear */
+		    pmp->encoding &= ~(PE_ULAW|PE_ALAW);
+		    break;
+		  case '1': /* 1 for 16-bit */
+		    pmp->encoding |= PE_16BIT;
+		    pmp->encoding &= ~(PE_ULAW|PE_ALAW);
+		    break;
+		  case '8': pmp->encoding &= ~PE_16BIT; break;
+
+		  case 'M': pmp->encoding |= PE_MONO; break;
+		  case 'S': pmp->encoding &= ~PE_MONO; break; /* stereo */
+
+		  case 's': pmp->encoding |= PE_SIGNED; break;
+		  case 'u': pmp->encoding &= ~PE_SIGNED; break;
+
+		  case 'x': pmp->encoding ^= PE_BYTESWAP; break; /* toggle */
+
+		  default:
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "Unknown format modifier `%c'", *cp);
+		    return 1;
+		}
+	    return 0;
+	}
+    }
+
+    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+	      "Playmode `%c' is not compiled in.", *cp);
+    return 1;
+}
+
+static int set_ctl(char *cp)
+{
+    ControlMode *cmp, **cmpp = ctl_list;
+
+    while((cmp = *cmpp++))
+    {
+	if(cmp->id_character == *cp)
+	{
+	    ctl = cmp;
+	    while(*(++cp))
+	    {
+		switch(*cp)
+		{
+		  case 'v': cmp->verbosity++; break;
+		  case 'q': cmp->verbosity--; break;
+		  case 't': /* toggle */
+		    cmp->trace_playing = !cmp->trace_playing;
+		    break;
+
+		  default:
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "Unknown interface option `%c'", *cp);
+		    return 1;
+		}
+	    }
+	    return 0;
+	}
+#ifdef IA_DYNAMIC
+	else if(cmp->id_character == 0) /* Dynamic interface loader */
+	{
+	    if(dynamic_interface_module(*cp) != NULL)
+	    {
+		ctl = cmp;
+		if(dynamic_interface_id != *cp)
+		{
+		    cmp->verbosity = 1;
+		    cmp->trace_playing = 0;
+		    cmp->id_character = dynamic_interface_id = *cp;
+		}
+		while (*(++cp))
+		{
+		    switch(*cp)
+		    {
+		      case 'v': cmp->verbosity++; break;
+		      case 'q': cmp->verbosity--; break;
+		      case 't': /* toggle */
+			cmp->trace_playing = !cmp->trace_playing;
+			break;
+
+		      default:
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				  "Unknown interface option `%c'", *cp);
+			return 1;
+		    }
+		}
+		return 0;
+	    }
+	}
+#endif /* IA_DYNAMIC */
+    }
+
+    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+	      "Interface `%c' is not compiled in.", *cp);
+    return 1;
+}
+
+static int set_wrd(char *w)
+{
+    WRDTracer **wl = wrdt_list;
+
+    if(*w == 'R') /* for WRD reader options */
+    {
+	w++;
+	put_string_table(&wrd_read_opts, w, strlen(w));
+	return 0;
+    }
+
+    while(*wl)
+    {
+	if((*wl)->id == *w)
+	{
+	    wrdt = *wl;
+	    if(wrdt_open_opts != NULL)
+		free(wrdt_open_opts);
+	    wrdt_open_opts = safe_strdup(w + 1);
+	    return 0;
+	}
+	wl++;
+    }
+
+    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+	      "WRD Tracer `%c' is not compiled in.", *w);
+    return 1;
+}
+
+
+static void copybank(ToneBank *to, ToneBank *from)
+{
+    int i;
+
+    if(from == NULL)
+	return;
+    for(i = 0; i < 128; i++)
+    {
+	ToneBankElement *toelm, *fromelm;
+
+	toelm   = &to->tone[i];
+	fromelm = &from->tone[i];
+
+	if(fromelm->name == NULL)
+	    continue;
+
+	if(toelm->name)
+	    free(toelm->name);
+	if(toelm->comment)
+	    free(toelm->comment);
+	memcpy(toelm, fromelm, sizeof(ToneBankElement));
+	if(toelm->name)
+	    toelm->name = safe_strdup(toelm->name);
+	if(toelm->comment)
+	    toelm->comment = safe_strdup(toelm->comment);
+	toelm->instrument = NULL;
+    }
+}
+
+static int set_gus_patchconf(char *name, int line,
+			     ToneBank *bank, int key, char *pat, char **opts)
+{
+    int j;
+
+    if(bank->tone[key].name)
+	free(bank->tone[key].name);
+    bank->tone[key].name = safe_strdup(pat);
+    bank->tone[key].note = bank->tone[key].amp = bank->tone[key].pan =
+	bank->tone[key].strip_loop = bank->tone[key].strip_envelope =
+	    bank->tone[key].strip_tail = -1;
+
+    for(j = 0; opts[j] != NULL; j++)
+    {
+	char *cp;
+	int k;
+
+	if(!(cp = strchr(opts[j], '=')))
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "%s: line %d: bad patch option %s",
+		      name, line, opts[j]);
+	    return 1;
+	}
+
+	*cp++ = 0;
+	if(!strcmp(opts[j], "amp"))
+	{
+	    k = atoi(cp);
+	    if((k < 0 || k > MAX_AMPLIFICATION) ||
+	       (*cp < '0' || *cp > '9'))
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: amplification must be between "
+			  "0 and %d", name, line, MAX_AMPLIFICATION);
+		return 1;
+	    }
+	    bank->tone[key].amp = k;
+	}
+	else if(!strcmp(opts[j], "note"))
+	{
+	    k = atoi(cp);
+	    if((k < 0 || k > 127) || (*cp < '0' || *cp > '9'))
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: note must be between 0 and 127",
+			  name, line);
+		return 1;
+	    }
+	    bank->tone[key].note = k;
+	}
+	else if(!strcmp(opts[j], "pan"))
+	{
+	    if(!strcmp(cp, "center"))
+		k = 64;
+	    else if(!strcmp(cp, "left"))
+		k = 0;
+	    else if(!strcmp(cp, "right"))
+		k = 127;
+	    else
+		k = ((atoi(cp) + 100) * 100) / 157;
+	    if((k < 0 || k > 127) ||
+	       (k == 0 && *cp != '-' && (*cp < '0' || *cp > '9')))
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: panning must be left, right, "
+			  "center, or between -100 and 100",
+			  name, line);
+		return 1;
+	    }
+	    bank->tone[key].pan = k;
+	}
+	else if(!strcmp(opts[j], "keep"))
+	{
+	    if(!strcmp(cp, "env"))
+		bank->tone[key].strip_envelope = 0;
+	    else if(!strcmp(cp, "loop"))
+		bank->tone[key].strip_loop = 0;
+	    else
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: keep must be env or loop",
+			  name, line);
+		return 1;
+	    }
+	}
+	else if(!strcmp(opts[j], "strip"))
+	{
+	    if(!strcmp(cp, "env"))
+		bank->tone[key].strip_envelope = 1;
+	    else if(!strcmp(cp, "loop"))
+		bank->tone[key].strip_loop = 1;
+	    else if(!strcmp(cp, "tail"))
+		bank->tone[key].strip_tail = 1;
+	    else
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: strip must be "
+			  "env, loop, or tail", name, line);
+		return 1;
+	    }
+	}
+	else if(!strcmp(opts[j], "comm"))
+	{
+	    char *p;
+	    if(bank->tone[key].comment)
+		free(bank->tone[key].comment);
+	    p = bank->tone[key].comment = safe_strdup(cp);
+	    while(*p)
+	    {
+		if(*p == ',') *p = ' ';
+		p++;
+	    }
+	}
+	else
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "%s: line %d: bad patch option %s",
+		      name, line, opts[j]);
+	    return 1;
+	}
+    }
+    if(bank->tone[key].comment == NULL)
+	bank->tone[key].comment = safe_strdup(bank->tone[key].name);
+    return 0;
+}
+
+static int mapname2id(char *name, int *isdrum)
+{
+    if(strcmp(name, "sc55") == 0)
+    {
+	*isdrum = 0;
+	return SC_55_TONE_MAP;
+    }
+
+    if(strcmp(name, "sc55drum") == 0)
+    {
+	*isdrum = 1;
+	return SC_55_DRUM_MAP;
+    }
+
+    if(strcmp(name, "sc88") == 0)
+    {
+	*isdrum = 0;
+	return SC_88_TONE_MAP;
+    }
+
+    if(strcmp(name, "sc88drum") == 0)
+    {
+	*isdrum = 1;
+	return SC_88_DRUM_MAP;
+    }
+
+    if(strcmp(name, "sc88pro") == 0)
+    {
+	*isdrum = 0;
+	return SC_88PRO_TONE_MAP;
+    }
+
+    if(strcmp(name, "sc88prodrum") == 0)
+    {
+	*isdrum = 1;
+	return SC_88PRO_DRUM_MAP;
+    }
+
+    if(strcmp(name, "xg") == 0)
+    {
+	*isdrum = 0;
+	return XG_SFX64_MAP;
+    }
+
+    if(strcmp(name, "xgsfx64") == 0)
+    {
+	*isdrum = 0;
+	return XG_SFX64_MAP;
+    }
+
+    if(strcmp(name, "xgsfx126") == 0)
+    {
+	*isdrum = 1;
+	return XG_SFX126_MAP;
+    }
+
+    if(strcmp(name, "xgdrum") == 0)
+    {
+	*isdrum = 1;
+	return XG_DRUM_MAP;
+    }
+    return -1;
+}
+
+#define MAXWORDS 130
+#define CHECKERRLIMIT \
+  if(++errcnt >= 10) { \
+    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, \
+      "Too many errors... Give up read %s", name); \
+    close_file(tf); return 1; }
+
+static int set_tim_opt(int c, char *optarg);
+static int read_config_file(char *name, int self)
+{
+    struct timidity_file *tf;
+    char tmp[1024], *w[MAXWORDS + 1], *cp;
+    ToneBank *bank = NULL;
+    int i, j, k, line = 0, words, errcnt = 0;
+    static int rcf_count = 0;
+    int dr = 0, bankno = 0;
+    int extension_flag;
+
+    if(rcf_count > 50)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "Probable source loop in configuration files");
+	return 2;
+    }
+
+    if(self)
+    {
+	tf = open_with_mem(name, (int32)strlen(name), OF_VERBOSE);
+	name = "(configuration)";
+    }
+    else
+	tf = open_file(name, 1, OF_VERBOSE);
+    if(tf == NULL)
+	return 1;
+
+    errno = 0;
+    while(tf_gets(tmp, sizeof(tmp), tf))
+    {
+	line++;
+	if(strncmp(tmp, "#extension", 10) == 0) {
+	    extension_flag = 1;
+	    i = 10;
+	}
+	else
+	{
+	    extension_flag = 0;
+	    i = 0;
+	}
+	if((cp = strchr(tmp + i, '#')) != NULL) {
+	    if(cp == tmp + i || isspace(cp[-1]) || isspace(cp[1]))
+		*cp = '\0';
+	}
+
+	if((w[0] = strtok(tmp + i, " \t\r\n\240")) == NULL)
+	    continue;
+
+	words = 0;
+	while(w[words] && words < MAXWORDS)
+	    w[++words] = strtok(NULL," \t\r\n\240");
+	w[words] = NULL;
+
+	/*
+	 * #extension [something...]
+	 */
+
+	/* #extension comm program comment */
+	if(strcmp(w[0], "comm") == 0)
+	{
+	    char *p;
+
+	    if(words != 3)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(!bank)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify tone bank or drum "
+			  "set before assignment", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[1]);
+	    if(i < 0 || i > 127)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: extension comm must be "
+			  "between 0 and 127", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(bank->tone[i].comment)
+		free(bank->tone[i].comment);
+	    p = bank->tone[i].comment = safe_strdup(w[2]);
+	    while(*p)
+	    {
+		if(*p == ',') *p = ' ';
+		p++;
+	    }
+	}
+	/* #extension timeout program sec */
+	else if(strcmp(w[0], "timeout") == 0)
+	{
+	    if(words != 3)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(!bank)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify tone bank or drum set "
+			  "before assignment", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[1]);
+	    if(i < 0 || i > 127)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: extension timeout "
+			  "must be between 0 and 127", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    bank->tone[i].loop_timeout = atoi(w[2]);
+	}
+	/* #extension copydrumset drumset */
+	else if(strcmp(w[0], "copydrumset") == 0)
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No copydrumset number given",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[1]);
+	    if(i < 0 || i > 127)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: extension copydrumset "
+			  "must be between 0 and 127", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(!bank)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify tone bank or "
+			  "drum set before assignment", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    copybank(bank, drumset[i]);
+	}
+	/* #extension copybank bank */
+	else if(strcmp(w[0], "copybank") == 0)
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No copybank number given",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[1]);
+	    if(i < 0 || i > 127)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: extension copybank "
+			  "must be between 0 and 127", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(!bank)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify tone bank or "
+			  "drum set before assignment", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    copybank(bank, tonebank[i]);
+	}
+	/* #extension HTTPproxy hostname:port */
+	else if(strcmp(w[0], "HTTPproxy") == 0)
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No proxy name given",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    /* If network is not supported, this extension is ignored. */
+#ifdef SUPPORT_SOCKET
+	    url_http_proxy_host = safe_strdup(w[1]);
+	    if((cp = strchr(url_http_proxy_host, ':')) == NULL)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    *cp++ = '\0';
+	    if((url_http_proxy_port = atoi(cp)) <= 0)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Port number must be "
+			  "positive number", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+#endif
+	}
+	/* #extension FTPproxy hostname:port */
+	else if(strcmp(w[0], "FTPproxy") == 0)
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No proxy name given",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    /* If network is not supported, this extension is ignored. */
+#ifdef SUPPORT_SOCKET
+	    url_ftp_proxy_host = safe_strdup(w[1]);
+	    if((cp = strchr(url_ftp_proxy_host, ':')) == NULL)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    *cp++ = '\0';
+	    if((url_ftp_proxy_port = atoi(cp)) <= 0)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Port number "
+			  "must be positive number", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+#endif
+	}
+	/* #extension mailaddr somebody@someware.domain.com */
+	else if(strcmp(w[0], "mailaddr") == 0)
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No mail address given",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(strchr(w[1], '@') == NULL) {
+		ctl->cmsg(CMSG_WARNING, VERB_NOISY,
+			  "%s: line %d: Warning: Mail address %s is not valid",
+			  name, line);
+	    }
+
+	    /* If network is not supported, this extension is ignored. */
+#ifdef SUPPORT_SOCKET
+	    user_mailaddr = safe_strdup(w[1]);
+#endif /* SUPPORT_SOCKET */
+	}
+	/* #extention opt [-]{option}[optarg] */
+	else if(strcmp(w[0], "opt") == 0)
+	{
+	    int c, err;
+	    char *arg, *cmd, *p;
+
+	    if(words != 2 && words != 3)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    cmd = w[1];
+	    if(*cmd == '-')
+		cmd++;
+	    c = *cmd;
+	    p = strchr(OPTCOMMANDS, c);
+	    if(p == NULL)
+		err = 1;
+	    else
+	    {
+		if(*(p + 1) == ':')
+		{
+		    if(words == 2)
+			arg = cmd + 1;
+		    else
+			arg = w[2];
+		}
+		else
+		    arg = "";
+		err = set_tim_opt(c, arg);
+	    }
+	    if(err)
+	    {
+		/* error */
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Invalid command line option",
+			  name, line);
+		errcnt += err - 1;
+		CHECKERRLIMIT;
+		continue;
+	    }
+	}
+	/* #extension undef program */
+	else if(strcmp(w[0], "undef") == 0)
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No undef number given",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[1]);
+	    if(i < 0 || i > 127)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: extension undef "
+			  "must be between 0 and 127", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(!bank)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify tone bank or "
+			  "drum set before assignment", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(bank->tone[i].name)
+	    {
+		free(bank->tone[i].name);
+		    bank->tone[i].name = NULL;
+	    }
+	    if(bank->tone[i].comment)
+	    {
+		free(bank->tone[i].comment);
+		bank->tone[i].comment = NULL;
+	    }
+	}
+	/* #extension altassign numbers... */
+	else if(strcmp(w[0], "altassign") == 0)
+	{
+	    ToneBank *bk;
+
+	    if(!bank)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify tone bank or drum set "
+			  "before altassign", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No alternate assignment", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+
+	    if(!dr) {
+		ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+			  "%s: line %d: Warning: Not a drumset altassign"
+			  " (ignored)",
+			  name, line);
+		continue;
+	    }
+
+	    bk = drumset[bankno];
+	    bk->alt = add_altassign_string(bk->alt, w + 1, words - 1);
+	}
+	else if(!strcmp(w[0], "soundfont"))
+	{
+	    int order, cutoff, isremove, reso, amp;
+	    char *sf_file;
+
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No soundfont file given",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+
+	    sf_file = w[1];
+	    order = cutoff = reso = amp = -1;
+	    isremove = 0;
+	    for(j = 2; j < words; j++)
+	    {
+		if(strcmp(w[j], "remove") == 0)
+		{
+		    isremove = 1;
+		    break;
+		}
+		if(!(cp = strchr(w[j], '=')))
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: bad patch option %s",
+			      name, line, w[j]);
+		    CHECKERRLIMIT;
+		    break;
+		}
+		*cp++=0;
+		k = atoi(cp);
+		if(!strcmp(w[j], "order"))
+		{
+		    if(k < 0 || (*cp < '0' || *cp > '9'))
+		    {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				  "%s: line %d: order must be a digit",
+				  name, line);
+			CHECKERRLIMIT;
+			break;
+		    }
+		    order = k;
+		}
+		else if(!strcmp(w[j], "cutoff"))
+		{
+		    if(k < 0 || (*cp < '0' || *cp > '9'))
+		    {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				  "%s: line %d: cutoff must be a digit",
+				  name, line);
+			CHECKERRLIMIT;
+			break;
+		    }
+		    cutoff = k;
+		}
+		else if(!strcmp(w[j], "reso"))
+		{
+		    if(k < 0 || (*cp < '0' || *cp > '9'))
+		    {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				  "%s: line %d: reso must be a digit",
+				  name, line);
+			CHECKERRLIMIT;
+			break;
+		    }
+		    reso = k;
+		}
+		else if(!strcmp(w[j], "amp"))
+		{
+		    amp = k;
+		}
+	    }
+	    if(isremove)
+		remove_soundfont(sf_file);
+	    else
+		add_soundfont(sf_file, order, cutoff, reso, amp);
+	}
+	else if(!strcmp(w[0], "font"))
+	{
+	    int bank, preset, keynote;
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: no font command", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(!strcmp(w[1], "exclude"))
+	    {
+		if(words < 3)
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: No bank/preset/key is given",
+			      name, line);
+		    CHECKERRLIMIT;
+		    continue;
+		}
+		bank = atoi(w[2]);
+		if(words >= 4)
+		    preset = atoi(w[3]) - progbase;
+		else
+		    preset = -1;
+		if(words >= 5)
+		    keynote = atoi(w[4]);
+		else
+		    keynote = -1;
+		if(exclude_soundfont(bank, preset, keynote))
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: No soundfont is given",
+			      name, line);
+		    CHECKERRLIMIT;
+		}
+	    }
+	    else if(!strcmp(w[1], "order"))
+	    {
+		int order;
+		if(words < 4)
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: No order/bank is given",
+			      name, line);
+		    CHECKERRLIMIT;
+		    continue;
+		}
+		order = atoi(w[2]);
+		bank = atoi(w[3]);
+		if(words >= 5)
+		    preset = atoi(w[4]) - progbase;
+		else
+		    preset = -1;
+		if(words >= 6)
+		    keynote = atoi(w[5]);
+		else
+		    keynote = -1;
+		if(order_soundfont(bank, preset, keynote, order))
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: No soundfont is given",
+			      name, line);
+		    CHECKERRLIMIT;
+		}
+	    }
+	}
+	else if(!strcmp(w[0], "progbase"))
+	{
+	    if(words < 2 || *w[1] < '0' || *w[1] > '9')
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    progbase = atoi(w[1]);
+	}
+	else if(!strcmp(w[0], "map")) /* map <name> set1 elem1 set2 elem2 */
+	{
+	    int arg[5], isdrum;
+
+	    if(words != 6)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if((arg[0] = mapname2id(w[1], &isdrum)) == -1)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Invalid map name: %s", w[1]);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    for(i = 2; i < 6; i++)
+		arg[i - 1] = atoi(w[i]);
+	    if(isdrum)
+	    {
+		arg[1] -= progbase;
+		arg[3] -= progbase;
+	    }
+	    else
+	    {
+		arg[2] -= progbase;
+		arg[4] -= progbase;
+	    }
+
+	    for(i = 1; i < 5; i++)
+		if(arg[i] < 0 || arg[i] > 127)
+		    break;
+	    if(i != 5)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Invalid parameter", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    set_instrument_map(arg[0], arg[1], arg[2], arg[3], arg[4]);
+	}
+
+	/*
+	 * Standards configurations
+	 */
+	else if(!strcmp(w[0], "dir"))
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No directory given", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    for(i = 1; i < words; i++)
+		add_to_pathlist(w[i]);
+	}
+	else if(!strcmp(w[0], "source"))
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No file name given", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    for(i = 1; i < words; i++)
+	    {
+		int status;
+		rcf_count++;
+		status = read_config_file(w[i], 0);
+		rcf_count--;
+		if(status == 2)
+		{
+		    close_file(tf);
+		    return 2;
+		}
+		else if(status != 0)
+		{
+
+		    CHECKERRLIMIT;
+		    continue;
+		}
+	    }
+	}
+	else if(!strcmp(w[0], "default"))
+	{
+	    if(words != 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify exactly one patch name",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    strncpy(def_instr_name, w[1], 255);
+	    def_instr_name[255] = '\0';
+	    default_instrument_name = def_instr_name;
+	}
+	else if(!strcmp(w[0], "drumset"))
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No drum set number given", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[1]) - progbase;
+	    if(i < 0 || i > 127)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Drum set must be between %d and %d",
+			  name, line,
+			  progbase, progbase + 127);
+		CHECKERRLIMIT;
+		continue;
+	    }
+
+	    alloc_instrument_bank(1, i);
+
+	    if(words == 2)
+	    {
+		bank = drumset[i];
+		bankno = i;
+		dr = 1;
+	    }
+	    else
+	    {
+		ToneBank *localbank;
+
+		localbank = drumset[i];
+
+		if(words < 4 || *w[2] < '0' || *w[2] > '9')
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: syntax error", name, line);
+		    CHECKERRLIMIT;
+		    continue;
+		}
+
+		i = atoi(w[2]);
+		if(i < 0 || i > 127)
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: Drum number must be between "
+			      "0 and 127",
+			      name, line);
+		    CHECKERRLIMIT;
+		    continue;
+		}
+
+		if(set_gus_patchconf(name, line, localbank, i, w[3], w + 4))
+		{
+		    CHECKERRLIMIT;
+		    continue;
+		}
+	    }
+	}
+	else if(!strcmp(w[0], "bank"))
+	{
+	    if(words < 2)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: No bank number given", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[1]);
+	    if(i < 0 || i > 127)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Tone bank must be between 0 and 127",
+			  name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+
+	    alloc_instrument_bank(0, i);
+
+	    if(words == 2)
+	    {
+		bank = tonebank[i];
+		bankno = i;
+		dr = 0;
+	    }
+	    else
+	    {
+		ToneBank *localbank;
+
+		localbank = tonebank[i];
+
+		if(words < 4 || *w[2] < '0' || *w[2] > '9')
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: syntax error", name, line);
+		    CHECKERRLIMIT;
+		    continue;
+		}
+
+		i = atoi(w[2]) - progbase;
+		if(i < 0 || i > 127)
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: Program must be between "
+			      "%d and %d",
+			      progbase, 127 + progbase,
+			      name, line);
+		    CHECKERRLIMIT;
+		    continue;
+		}
+
+		if(set_gus_patchconf(name, line, localbank, i, w[3], w + 4))
+		{
+		    CHECKERRLIMIT;
+		    continue;
+		}
+	    }
+	}
+	else
+	{
+	    if(words < 2 || *w[0] < '0' || *w[0] > '9')
+	    {
+		if(extension_flag)
+		    continue;
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: syntax error", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    i = atoi(w[0]);
+	    if(!dr)
+		i -= progbase;
+	    if(i < 0 || i > 127)
+	    {
+		if(dr)
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: Drum number must be between "
+			      "0 and 127",
+			      name, line);
+		else
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "%s: line %d: Program must be between "
+			      "%d and %d",
+			      progbase, 127 + progbase,
+			      name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+	    if(!bank)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "%s: line %d: Must specify tone bank or drum set "
+			  "before assignment", name, line);
+		CHECKERRLIMIT;
+		continue;
+	    }
+
+	    if(set_gus_patchconf(name, line, bank, i, w[1], w + 2))
+	    {
+		CHECKERRLIMIT;
+		continue;
+	    }
+	}
+    }
+    if(errno)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "Can't read %s: %s", name, sys_errlist[errno]);
+	errcnt++;
+    }
+    close_file(tf);
+    return errcnt != 0;
+}
+
+#ifdef SUPPORT_SOCKET
+#ifdef MAIL_NAME
+#define get_username() MAIL_NAME
+#else /* MAIL_NAME */
+#include <pwd.h>
+static char *get_username(void)
+{
+    char *p;
+    struct passwd *pass;
+
+    /* USER
+     * LOGIN
+     * LOGNAME
+     * getpwnam()
+     */
+
+    if((p = getenv("USER")) != NULL)
+        return p;
+    if((p = getenv("LOGIN")) != NULL)
+        return p;
+    if((p = getenv("LOGNAME")) != NULL)
+        return p;
+
+    pass = getpwuid(getuid());
+    if(pass == NULL)
+        return "nobody";
+    return pass->pw_name;
+}
+#endif /* MAIL_NAME */
+
+static void init_mail_addr(void)
+{
+    char addr[BUFSIZ];
+
+    sprintf(addr, "%s%s", get_username(), MAIL_DOMAIN);
+    user_mailaddr = safe_strdup(addr);
+}
+#endif /* SUPPORT_SOCKET */
+
+static int read_user_config_file(void)
+{
+    char *home;
+    char path[BUFSIZ];
+    int opencheck;
+
+#ifdef __WIN32__
+/* HOME or home */
+    home = getenv("HOME");
+    if(home == NULL)
+	home = getenv("home");
+    if(home == NULL)
+    {
+	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		  "Warning: HOME environment is not defined.");
+	return 0;
+    }
+/* .timidity.cfg or timidity.cfg */
+    sprintf(path, "%s" PATH_STRING "timidity.cfg", home);
+    if((opencheck = open(path, 0)) < 0)
+    {
+	sprintf(path, "%s" PATH_STRING "_timidity.cfg", home);
+	if((opencheck = open(path, 0)) < 0)
+	{
+	    sprintf(path, "%s" PATH_STRING ".timidity.cfg", home);
+	    if((opencheck = open(path, 0)) < 0)
+	    {
+		ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s: %s",
+			  path, sys_errlist[errno]);
+		return 0;
+	    }
+	}
+    }
+
+    close(opencheck);
+    return read_config_file(path, 0);
+#else
+    home = getenv("HOME");
+    if(home == NULL)
+    {
+	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		  "Warning: HOME environment is not defined.");
+	return 0;
+    }
+    sprintf(path, "%s" PATH_STRING ".timidity.cfg", home);
+
+    if((opencheck = open(path, 0)) < 0)
+    {
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s: %s",
+		  path, sys_errlist[errno]);
+	return 0;
+    }
+
+    close(opencheck);
+    return read_config_file(path, 0);
+#endif /* __WIN32__ */
+}
+
+static void expand_escape_string(char *s)
+{
+    char *t = s;
+    if(s == NULL)
+	return;
+    while(*s)
+    {
+        if(*s == '\\')
+        {
+            s++;
+            switch(*s)
+            {
+#define EXPAND(a, b) case a: *t++ = b; break;
+                EXPAND('n', '\n');
+                EXPAND('t', '\t');
+                EXPAND('v', '\v');
+                EXPAND('b', '\b');
+                EXPAND('r', '\r');
+                EXPAND('f', '\f');
+                EXPAND('a', '\a');
+                EXPAND('0', '\0');
+                EXPAND('\\', '\\');
+#undef EXPAND
+              default:
+		*t++ = *s;
+            }
+	    if(*s == '\0')
+		return;
+	    s++;
+	}
+	else
+	    *t++ = *s++;
+    }
+    *t = '\0';
+}
+
+int set_extension_modes(char *flag)
+{
+    int err;
+
+    err = 0;
+    while(*flag)
+    {
+	switch(*flag)
+	{
+	  case 'w':
+	    opt_modulation_wheel = 1;
+	    break;
+	  case 'W':
+	    opt_modulation_wheel = 0;
+	    break;
+	  case 'p':
+	    opt_portamento = 1;
+	    break;
+	  case 'P':
+	    opt_portamento = 0;
+	    break;
+	  case 'v':
+	    opt_nrpn_vibrato = 1;
+	    break;
+	  case 'V':
+	    opt_nrpn_vibrato = 0;
+	    break;
+	  case 'r':
+	    opt_reverb_control = 1;
+	    break;
+	  case 'R':
+	    opt_reverb_control = 0;
+	    break;
+	  case 'c':
+	    if('0' <= *(flag + 1) && *(flag + 1) <= '9')
+	    {
+		opt_chorus_control = (atoi(flag + 1) & 0x7f);
+		while('0' <= *(flag + 1) && *(flag + 1) <= '9')
+		    flag++;
+	    }
+	    else
+		opt_chorus_control = 1;
+	    break;
+	  case 'C':
+	    opt_chorus_control = 0;
+	    break;
+	  case 's':
+	    opt_channel_pressure = 1;
+	    break;
+	  case 'S':
+	    opt_channel_pressure = 0;
+	    break;
+	  case 'x':
+	  case 'X':
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Warning: -E%c is obsoleted!!", *flag);
+	    break;
+	  case 't':
+	    opt_trace_text_meta_event = 1;
+	    break;
+	  case 'T':
+	    opt_trace_text_meta_event = 0;
+	    break;
+	  case 'o':
+	    opt_overlap_voice_allow = 1;
+	    break;
+	  case 'O':
+	    opt_overlap_voice_allow = 0;
+	    break;
+	  case 'm':
+	    {
+		int i, v, val;
+
+		if(strcmp(flag + 1, "gs") == 0 ||
+		   strcmp(flag + 1, "GS") == 0)
+		    val = 0x41;
+		else if(strcmp(flag + 1, "xg") == 0 ||
+			strcmp(flag + 1, "XG") == 0)
+		    val = 0x43;
+		else if(strcmp(flag + 1, "gm") == 0 ||
+			strcmp(flag + 1, "GM") == 0)
+		    val = 0x7e;
+		else
+		{
+		    val = 0;
+		    for(i = 0; i < 2; i++)
+		    {
+			v = flag[i + 1];
+			if('0' <= v && v <= '9')
+			    v = v - '0';
+			else if('A' <= v && v <= 'F')
+			    v = v - 'A' + 10;
+			else if('a' <= v && v <= 'f')
+			    v = v - 'a' + 10;
+			else
+			{
+			    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				      "-Em: Illegal value");
+			    err++;
+			    val = 0;
+			    break;
+			}
+			val = (val << 4 | v);
+		    }
+		}
+		opt_default_mid = val;
+		flag += 2;
+	    }
+	    break;
+
+	  case 'b':
+	    if(flag[1] < '0' || flag[1] > '9')
+		default_tonebank = 0;
+	    else
+	    {
+		flag++;
+		default_tonebank = 0;
+		while('0' <= *flag && *flag <= '9')
+		    default_tonebank = default_tonebank * 10 + *flag++ - '0';
+		default_tonebank &= 0x7f;
+		flag--; /* to be inc. */
+	    }
+	    break;
+
+	  case 'B':
+	    if(flag[1] < '0' || flag[1] > '9')
+		special_tonebank = -1;
+	    else
+	    {
+		flag++;
+		special_tonebank = 0;
+		while('0' <= *flag && *flag <= '9')
+		    special_tonebank = special_tonebank * 10 + *flag++ - '0';
+		special_tonebank &= 0x7f;
+		flag--; /* to be inc. */
+	    }
+	    break;
+
+	  default:
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-E: Illegal mode `%c'", *flag);
+	    err++;
+	    break;
+	}
+	flag++;
+    }
+    return err;
+}
+
+#ifdef __WIN32__
+#ifdef SMFCONV
+int opt_rcpcv_dll = 0;
+#endif /* SMFCONV */
+static int set_win_modes(char *flag)
+{
+    int err;
+
+    err = 0;
+    while(*flag)
+    {
+	switch(*flag)
+	{
+#ifdef SMFCONV
+	  case 'r':
+	    opt_rcpcv_dll = 1;
+	    break;
+	  case 'R':
+	    opt_rcpcv_dll = 0;
+	    break;
+#else
+	  case 'r':
+	  case 'R':
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-w%c option is not supported",
+		      *flag);
+	    err++;
+	    break;
+#endif /* SMFCONV */
+
+	  default:
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-w: Illegal mode `%c'", *flag);
+	    err++;
+	    break;
+	}
+	flag++;
+    }
+    return err;
+}
+#endif /* __WIN32__ */
+
+#ifdef __WIN32__
+static int   opt_evil_mode = 0;
+#endif /* __WIN32__ */
+static int   try_config_again = 0;
+static int32 opt_output_rate = 0;
+static char *opt_output_name = NULL;
+static StringTable opt_config_string;
+#ifdef SUPPORT_SOUNDSPEC
+static double spectrogram_update_sec = 0.0;
+#endif /* SUPPORT_SOUNDSPEC */
+#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
+int buffer_fragments = -1;
+#endif
+
+extern int32 ns_tap[4];
+extern int noise_shap_type;
+static int set_tim_opt(int c, char *optarg)
+{
+    int32 tmpi32;
+
+    switch(c)
+    {
+      case 'U':
+	free_instruments_afterwards = 1;
+	break;
+      case 'L':
+	add_to_pathlist(optarg);
+	try_config_again = 1;
+	break;
+      case 'c':
+	if(read_config_file(optarg, 0))
+	    return 1;
+	got_a_configuration = 1;
+	break;
+      case 'Q':
+	if(set_channel_flag(&quietchannels, atoi(optarg), "Quiet channel"))
+	    return 1;
+	break;
+
+      case 'b':
+#ifdef PRESENCE_HACK
+	if(*optarg == 'r')
+	    presence_balance = 0;
+	else if(*optarg == 'l')
+	    presence_balance = 1;
+	else if(*optarg == 'b')
+	    presence_balance = 2;
+	else if(*optarg == 'c')
+	    presence_balance = -1;
+	else
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "-b argument must be l, r, c, or b.");
+	    return 1;
+	}
+	if(optarg[1] != '\0')
+	{
+	    presence_delay_msec = atof(optarg + 1);
+	    if(presence_delay_msec < 0)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Invalid -b parameter.");
+		return 1;
+	    }
+	}
+	break;
+#else
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-b option is not supported");
+	return 1;
+#endif /* PRESENCE_HACK */
+
+      case 'r':
+	do_reverb_flag = !do_reverb_flag;
+	break;
+      case 'D':
+	if(set_channel_flag(&drumchannels, atoi(optarg), "Drum channel"))
+	    return 1;
+	tmpi32 = atoi(optarg);
+	if(tmpi32 < 0)
+	    tmpi32 = -tmpi32;
+	set_channel_flag(&drumchannel_mask, tmpi32, "Drum channel");
+	break;
+
+      case 'd': /* dynamic lib root */
+#ifdef IA_DYNAMIC
+	if(dynamic_lib_root != NULL)
+	    free(dynamic_lib_root);
+	dynamic_lib_root = safe_strdup(optarg);
+#else
+	ctl->cmsg(CMSG_WARNING, VERB_NOISY, "-d option is not supported");
+#endif /* IA_DYNAMIC */
+	break;
+
+      case 'O': /* output mode */
+	if(set_play_mode(optarg))
+	    return 1;
+	break;
+      case 'o':
+	if(opt_output_name != NULL)
+	    free(opt_output_name);
+	opt_output_name = safe_strdup(url_expand_home_dir(optarg));
+	break;
+      case 'a':
+	antialiasing_allowed = 1;
+	break;
+      case 'f':
+	fast_decay = (fast_decay) ? 0 : 1;
+	break;
+      case 'F':
+	adjust_panning_immediately = !adjust_panning_immediately;
+	break;
+      case 's': /* sampling rate */
+	tmpi32 = atoi(optarg);
+	if(tmpi32 < 100)
+	    tmpi32 = (int32)(atof(optarg) * 1000.0 + 0.5);
+	if(set_value(&opt_output_rate, tmpi32, MIN_OUTPUT_RATE,MAX_OUTPUT_RATE,
+		     "Resampling frequency"))
+	    return 1;
+	break;
+      case 'P': /* set overriding instrument */
+	strncpy(def_instr_name, optarg, 255);
+	def_instr_name[255] = '\0';
+	break;
+      case 'I':
+	if(set_default_prog(optarg))
+	    return -1;
+	break;
+      case 'A':
+	if(set_value(&amplification, atoi(optarg), 0, MAX_AMPLIFICATION,
+		     "Amplification"))
+	    return 1;
+	break;
+      case 'C':
+	if(set_value(&control_ratio, atoi(optarg), 1, MAX_CONTROL_RATIO,
+		     "Control ratio"))
+	    return 1;
+	break;
+      case 'p':
+	if(set_value(&tmpi32, atoi(optarg), 1, MAX_VOICES, "Polyphony"))
+	    return 1;
+	voices = tmpi32;
+	break;
+      case 'R':
+        tmpi32 = atoi(optarg);
+        if(set_value(&modify_release, tmpi32, 0, MAX_MREL, "Modify Release"))
+	    return 1;
+	if (modify_release==0) modify_release=DEFAULT_MREL;
+        break;
+
+      case 'g':
+#ifdef SUPPORT_SOUNDSPEC
+	spectrogram_update_sec = atof(optarg);
+	if(spectrogram_update_sec <= 0)
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Invalid -g argument: `%s'", optarg);
+	    return 1;
+	}
+	view_soundspec_flag = 1;
+	break;
+#else
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-g option is not supported");
+	return 1;
+#endif /* SUPPORT_SOUNDSPEC */
+
+      case 'S':
+	if(optarg[strlen(optarg) - 1] == 'k' ||
+	   optarg[strlen(optarg) - 1] == 'K')
+	    allocate_cache_size = (int32)(1024.0 * atof(optarg));
+	else if(optarg[strlen(optarg) - 1] == 'm' ||
+		optarg[strlen(optarg) - 1] == 'M')
+	    allocate_cache_size = (int32)(1024 * 1024 * atof(optarg));
+	else
+	    allocate_cache_size = atoi(optarg);
+	break;
+
+      case 'i':
+	if(set_ctl(optarg))
+	    return 1;
+#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
+	else if(buffer_fragments == -1 && ctl->trace_playing)
+	  /* user didn't specify anything, so use 2 for real-time response */
+#if defined(AU_LINUX) || defined(AU_BSDI)
+		buffer_fragments = 2;
+#else
+		buffer_fragments = 3;		/* On Win32 2 is chunky */
+#endif
+#endif
+	break;
+
+      case 'B':
+#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
+	if(set_value(&tmpi32, atoi(optarg), 0, 1000, "Buffer fragments"))
+	    return 1;
+	buffer_fragments = tmpi32;
+	break;
+#else
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-B option is not supported");
+	return 1;
+#endif
+
+      case 'e': /* evil */
+#ifdef __WIN32__
+	opt_evil_mode = 1;
+	break;
+#else
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-e option is not supported");
+	return 1;
+#endif
+
+      case 'x':
+	{
+	    StringTableNode *st;
+
+	    if((st = put_string_table(&opt_config_string,
+				      optarg, strlen(optarg))) != NULL)
+		expand_escape_string(st->string);
+	}
+	break;
+      case 't':
+	output_text_code = optarg;
+	break;
+      case 'E':
+	return set_extension_modes(optarg);
+      case 'j':
+	opt_realtime_playing = !opt_realtime_playing;
+	break;
+      case 'w':
+#ifdef __WIN32__
+	return set_win_modes(optarg);
+#else
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-w option is not supported");
+	return 1;
+#endif /* __WIN32__ */
+      case 'W':
+	if(set_wrd(optarg))
+	    return 1;
+	break;
+      case 'h':
+	help();
+	exit(0);
+      case  'n': /* Noise Shaping filter from
+		  * Kunihiko IMAI <imai@leo.ec.t.kanazawa-u.ac.jp>
+		  */
+	switch ( optarg[0] ) {
+	case '0':
+	  ns_tap[0] = ns_tap[1] = ns_tap[2] = ns_tap[3] = 0;
+	  noise_shap_type = 0;
+	  break;
+	case '1':
+	  ns_tap[0] = 1; ns_tap[1] = ns_tap[2] = ns_tap[3] = 0;
+	  noise_shap_type = 1;
+	  break;
+	case '2':
+	  ns_tap[0] = -2; ns_tap[1] = 1; ns_tap[2] = ns_tap[3] = 0;
+	  noise_shap_type = 2;
+	  break;
+	case '3':
+	  ns_tap[0] = 3; ns_tap[1] = -3; ns_tap[2] = 1; ns_tap[3] = 0;
+	  noise_shap_type = 3;
+	  break;
+	case '4':
+	  noise_shap_type = 4;
+	  ns_tap[0] = -4; ns_tap[1] = 6; ns_tap[2] = -4; ns_tap[3] = 1;
+	  break;
+	default:
+	  ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-n argument range is 0 to 4" );
+	  return 1;
+	  break;
+	}
+	break;
+      default:
+	return 1;
+    }
+    return 0;
+}
+
+MAIN_INTERFACE void timidity_start_initialize(void)
+{
+    int i;
+    static int drums[] = DEFAULT_DRUMCHANNELS;
+#if defined(__FreeBSD__)
+    fp_except_t fpexp;
+
+    fpexp = fpgetmask();
+    fpsetmask(fpexp & ~FP_X_INV);
+#endif
+
+    /* Check the byte order */
+    i = 1;
+#ifdef LITTLE_ENDIAN
+    if(*(char *)&i != 1)
+#else
+    if(*(char *)&i == 1)
+#endif
+    {
+	fprintf(stderr, "Byte order is miss configured.\n");
+	exit(1);
+    }
+
+#if defined(SIGPIPE)
+    signal(SIGPIPE, SIG_IGN);
+#endif /* SIGPIPE */
+
+    memset(&quietchannels, 0, sizeof(ChannelBitMask));
+    memset(&drumchannels, 0, sizeof(ChannelBitMask));
+
+    for(i = 0; drums[i] > 0; i++)
+	SET_CHANNELMASK(drumchannels, drums[i] - 1);
+#if MAX_CHANNELS > 16
+    for(i = 16; i < MAX_CHANNELS; i++)
+	if(IS_SET_CHANNELMASK(drumchannels, i & 0xF))
+	    SET_CHANNELMASK(drumchannels, i);
+#endif
+
+    got_a_configuration = 0;
+    if(program_name == NULL)
+	program_name = "TiMidity";
+
+#ifdef SUPPORT_SOCKET
+    init_mail_addr();
+    if(url_user_agent == NULL)
+    {
+	url_user_agent = (char *)safe_malloc(10 + strlen(timidity_version));
+	strcpy(url_user_agent, "TiMidity-");
+	strcat(url_user_agent, timidity_version);
+    }
+#endif /* SUPPORT_SOCKET */
+
+    for(i = 0; url_module_list[i]; i++)
+	url_add_module(url_module_list[i]);
+    init_string_table(&opt_config_string);
+    init_tables();
+    uudecode_unquote_html = 1;
+#ifdef SUPPORT_SOCKET
+    url_news_connection_cache(URL_NEWS_CONN_CACHE);
+#endif /* SUPPORT_SOCKET */
+    init_midi_trace();
+    int_rand(-1);		/* initialize random seed */
+    for(i = 0; i < NSPECIAL_PATCH; i++)
+	special_patch[i] = NULL;
+    for(i = 0; i < MAX_CHANNELS; i++)
+	default_program[i] = DEFAULT_PROGRAM;
+}
+
+MAIN_INTERFACE int timidity_pre_load_configuration(void)
+{
+#ifdef __WIN32__
+    char *strp;
+    int check;
+	char local[1024];
+
+ 	if(GetModuleFileName(NULL,local,1023)){
+        local[1023]='\0';
+		if(strp=strrchr(local,'\\')){
+			*(++strp)='\0';
+			strcat(local,"TIMIDITY.CFG");
+			if((check = open(local, 0)) >= 0){
+	    		close(check);
+	    		if(!read_config_file(local, 0))
+					got_a_configuration=1;
+			}
+	   	}
+	}
+   	if(!got_a_configuration){
+		GetWindowsDirectory(local,1023 - 13);
+		strcat(local,"\\TIMIDITY.CFG");
+      	if(!read_config_file(local, 0))
+		got_a_configuration=1;
+	}
+#else
+    if(!read_config_file(CONFIG_FILE, 0))
+	got_a_configuration=1;
+#endif
+
+    if(read_user_config_file())
+	ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		  "Warning: Can't read ~/.timidity.cfg correctly");
+    return 0;
+}
+
+MAIN_INTERFACE int timidity_post_load_configuration(void)
+{
+    int cmderr;
+
+    cmderr = 0;
+    if(!got_a_configuration)
+    {
+	if(!try_config_again || read_config_file(CONFIG_FILE, 0))
+	    cmderr++;
+    }
+
+    if(opt_config_string.nstring > 0)
+    {
+	char **config_string_list;
+	int i;
+
+	config_string_list = make_string_array(&opt_config_string);
+	if(config_string_list != NULL)
+	{
+	    for(i = 0; config_string_list[i]; i++)
+		if(read_config_file(config_string_list[i], 1))
+		    cmderr++;
+	    free(config_string_list[0]);
+	    free(config_string_list);
+	}
+    }
+
+    return cmderr;
+}
+
+MAIN_INTERFACE void timidity_init_player(void)
+{
+    /* Set play mode parameters */
+    if(opt_output_rate != 0)
+	play_mode->rate = opt_output_rate;
+    else if(play_mode->rate == 0)
+	play_mode->rate = DEFAULT_RATE;
+
+    /* save defaults */
+    memcpy(&default_drumchannels, &drumchannels, sizeof(ChannelBitMask));
+    memcpy(&default_drumchannel_mask, &drumchannel_mask,
+	   sizeof(ChannelBitMask));
+
+#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
+    if (buffer_fragments != -1)
+	play_mode->extra_param[0]=buffer_fragments;
+#endif
+
+#ifdef SUPPORT_SOUNDSPEC
+    if(view_soundspec_flag)
+    {
+	open_soundspec();
+	soundspec_setinterval(spectrogram_update_sec);
+    }
+#endif /* SOUNDSPEC */
+}
+
+MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
+{
+    int need_stdin = 0, need_stdout = 0;
+    int i;
+    extern ArchiveFileList *archive_file_list;
+
+    if(nfiles == 0 && !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character))
+	return 0;
+
+    if(opt_output_name)
+    {
+	play_mode->name = opt_output_name;
+	if(!strcmp(opt_output_name, "-"))
+	    need_stdout = 1;
+    }
+
+    for(i = 0; i < nfiles; i++)
+	if (!strcmp(files[i], "-"))
+	    need_stdin = 1;
+
+    if(ctl->open(need_stdin, need_stdout))
+    {
+	fprintf(stderr, "Couldn't open %s (`%c')" NLS,
+		ctl->id_name, ctl->id_character);
+	play_mode->close_output();
+	return 3;
+    }
+
+    if(wrdt->open(wrdt_open_opts))
+    {
+	fprintf(stderr, "Couldn't open WRD Tracer: %s (`%c')" NLS,
+		wrdt->name, wrdt->id);
+	play_mode->close_output();
+	ctl->close();
+	return 1;
+    }
+
+#ifdef BORLANDC_EXCEPTION
+    __try
+    {
+#endif /* BORLANDC_EXCEPTION */
+	/* Open output device */
+	if(play_mode->open_output() < 0)
+	{
+	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+		      "Couldn't open %s (`%c')",
+		      play_mode->id_name, play_mode->id_character);
+	    ctl->close();
+	    return 2;
+	}
+
+	if(!control_ratio)
+	{
+	    control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
+	    if(control_ratio < 1)
+		control_ratio = 1;
+	    else if (control_ratio > MAX_CONTROL_RATIO)
+		control_ratio = MAX_CONTROL_RATIO;
+	}
+
+	init_load_soundfont();
+	if(*def_instr_name)
+	    set_default_instrument(def_instr_name);
+
+#ifdef __WIN32__
+	SetConsoleCtrlHandler (handler, TRUE);
+	InitializeCriticalSection (&critSect);
+	if(opt_evil_mode)
+	    if (!SetThreadPriority(GetCurrentThread(),
+				   THREAD_PRIORITY_ABOVE_NORMAL))
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "Error raising process priority");
+#endif
+	trace_nodelay(!ctl->trace_playing);
+
+	/* For safety */
+	if(play_mode->current_samples == NULL)
+	    play_mode->current_samples = dumb_current_samples;
+	if(play_mode->play_loop == NULL)
+	    play_mode->play_loop = dumb_play_loop;
+
+	/* Return only when quitting */
+	ctl->pass_playing_list(nfiles, files);
+
+#ifdef XP_UNIX
+	return 0;
+#endif /* XP_UNIX */
+
+	play_mode->close_output();
+	ctl->close();
+	wrdt->close();
+#ifdef __WIN32__
+	DeleteCriticalSection (&critSect);
+#endif
+
+#ifdef BORLANDC_EXCEPTION
+    } __except(1) {
+	fprintf(stderr, "\nError!!!\nUnexpected Exception Occured!\n");
+	if(play_mode->fd != -1)
+	{
+		play_mode->purge_output();
+		play_mode->close_output();
+	}
+	ctl->close();
+	wrdt->close();
+	DeleteCriticalSection (&critSect);
+	exit(EXIT_FAILURE);
+    }
+#endif /* BORLANDC_EXCEPTION */
+
+#ifdef SUPPORT_SOUNDSPEC
+    if(view_soundspec_flag)
+	close_soundspec();
+#endif /* SUPPORT_SOUNDSPEC */
+
+    close_archive_files(archive_file_list);
+#ifdef SUPPORT_SOCKET
+    url_news_connection_cache(URL_NEWS_CLOSE_CACHE);
+#endif /* SUPPORT_SOCKET */
+    return 0;
+}
+
+#ifndef __MACOS__
+#ifdef __WIN32__
+int __cdecl main(int argc, char **argv)
+#else
+int main(int argc, char **argv)
+#endif
+{
+    int c, err;
+    int nfiles;
+    char **files;
+
+
+#if defined(DANGEROUS_RENICE) && !defined(__WIN32__) && !defined(main)
+    /*
+     * THIS CODES MUST EXECUT BEGINNING OF MAIN FOR SECURITY.
+     * DONT PUT ANY CODES ABOVE.
+     */
+#include <sys/resource.h>
+    int uid;
+#ifdef sun
+    extern int setpriority(int which, id_t who, int prio);
+    extern int setreuid(int ruid, int euid);
+#endif
+    uid = getuid();
+    if(setpriority(PRIO_PROCESS, 0, DANGEROUS_RENICE) < 0)
+    {
+	perror("setpriority");
+	fprintf(stderr, "Couldn't set priority to %d.", DANGEROUS_RENICE);
+    }
+    setreuid(uid, uid);
+#endif
+
+
+#ifdef main
+{
+    static int maincnt = 0;
+    if(maincnt++ > 0)
+    {
+	argv++;
+	argc--;
+	while(argv[0][0] == '-') {
+	    argv++;
+	    argc--;
+	}
+	ctl->pass_playing_list(argc, argv);
+	return 0;
+    }
+}
+#endif
+
+#ifdef IA_DYNAMIC
+    {
+#ifdef XP_UNIX
+	argv[0] = "netscape";
+#endif /* XP_UNIX */
+	dynamic_interface_id = 0;
+	dl_init(argc, argv);
+    }
+#endif /* IA_DYNAMIC */
+
+    if((program_name=strrchr(argv[0], PATH_SEP))) program_name++;
+    else program_name=argv[0];
+
+    if(strncmp(program_name,"timidity",8) == 0);
+    else if(strncmp(program_name,"kmidi",5) == 0) set_ctl("q");
+    else if(strncmp(program_name,"tkmidi",6) == 0) set_ctl("k");
+    else if(strncmp(program_name,"xmmidi",6) == 0) set_ctl("m");
+    else if(strncmp(program_name,"xawmidi",7) == 0) set_ctl("a");
+    else if(strncmp(program_name,"xskinmidi",9) == 0) set_ctl("i");
+
+    if(argc == 1 && !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character))
+    {
+	interesting_message();
+	return 0;
+    }
+
+    timidity_start_initialize();
+
+#ifdef IA_KMIDI
+{
+#ifndef KMIDI_CONFIG_SUBDIR
+#define KMIDI_CONFIG_SUBDIR "/share/apps/kmidi/config"
+#endif /* KMIDI_CONFIG_SUBDIR */
+
+    char *KDEdir;
+    char *kmidi_config;
+
+    if ( ! (KDEdir = getenv("KDEDIR")))
+    {
+	kmidi_config = DEFAULT_PATH;
+    }
+    else
+    {
+	kmidi_config = safe_malloc(strlen(KDEdir)
+				   + strlen(KMIDI_CONFIG_SUBDIR)+1);
+	strcpy(kmidi_config, KDEdir);
+	strcat(kmidi_config, KMIDI_CONFIG_SUBDIR); 
+	add_to_pathlist(kmidi_config);
+    }
+}
+#endif /* IA_KMIDI */
+
+    if((err = timidity_pre_load_configuration()) != 0)
+	return err;
+
+    while((c = getopt(argc, argv, OPTCOMMANDS)) > 0)
+	if((err = set_tim_opt(c, optarg)) != 0)
+	    break;
+
+    err += timidity_post_load_configuration();
+
+    /* If there were problems, give up now */
+    if(err || (optind >= argc &&
+	       !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character)))
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "Try %s -h for help", program_name);
+	return 1; /* problems with command line */
+    }
+
+    timidity_init_player();
+
+    nfiles = argc - optind;
+    files  = argv + optind;
+    files  = expand_file_archives(files, &nfiles);
+
+    if(dumb_error_count)
+	sleep(1);
+    return timidity_play_main(nfiles, files);
+}
+#endif /* __MACOS__ */

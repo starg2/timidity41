@@ -1,0 +1,713 @@
+# Makefile.in generated automatically by automake 1.3 from Makefile.am
+
+# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+# TiMidity++ -- MIDI to WAVE converter and player
+# Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+# Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DISTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+build_alias = @build_alias@
+build_triplet = @build@
+host_alias = @host_alias@
+host_triplet = @host@
+target_alias = @target_alias@
+target_triplet = @target@
+ALSA_CFLAGS = @ALSA_CFLAGS@
+ALSA_LIBS = @ALSA_LIBS@
+CC = @CC@
+EMACS = @EMACS@
+EXTRAINCS = @EXTRAINCS@
+EXTRALIBS = @EXTRALIBS@
+GTK_CFLAGS = @GTK_CFLAGS@
+GTK_CONFIG = @GTK_CONFIG@
+GTK_LIBS = @GTK_LIBS@
+MAKEINFO = @MAKEINFO@
+NETSRCS = @NETSRCS@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+SYSEXTRAS = @SYSEXTRAS@
+SYSTEM = @SYSTEM@
+VERSION = @VERSION@
+lispdir = @lispdir@
+sharedLibExtension = @sharedLibExtension@
+
+SUBDIRS = motif_bitmaps bitmaps pixmaps
+
+INCLUDES = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/timidity \
+	-I$(top_srcdir)/libarc \
+	-I$(top_srcdir)/utils \
+	$(EXTRAINCS)
+
+noinst_LIBRARIES = libinterface.a
+
+libinterface_a_SOURCES = \
+	dumb_c.c \
+	wrdt_dumb.c \
+	wrdt_tty.c
+
+EXTRA_libinterface_a_SOURCES = \
+	ncurs_c.c \
+	slang_c.c \
+	motif.h \
+	motif_c.c \
+	motif_i.c \
+	motif_p.c \
+	tk_c.c \
+	emacs_c.c \
+	vt100.h \
+	vt100.c \
+	vt100_c.c \
+	xaw.h \
+	xaw_c.c \
+	xaw_i.c \
+	xskin.h \
+	xskin_c.c \
+	xskin_i.c \
+	xskin_loadBMP.c \
+	xskin_spectrum.c \
+	wrdt_x.c \
+	x_wrdwindow.c \
+	x_wrdwindow.h \
+	VTPrsTbl.c \
+	VTparse.h \
+	x_mag.c \
+	x_mag.h \
+	dynamic_c.c \
+	mac_c.c \
+	mac_c.h \
+	mac_mag.c \
+	mac_mag.h \
+	mac_trace.c \
+	mac_wrdwindow.c \
+	mac_wrdwindow.h \
+	wrdt_mac.c \
+	wrdt_wincon.c \
+	gtk_c.c \
+	gtk_h.h \
+	gtk_i.c \
+	gtk_p.c \
+	soundspec.c \
+	soundspec.h
+
+@ENABLE_NCURSES_TRUE@NCURSES_OBJS = ncurs_c.o
+
+@ENABLE_SLANG_TRUE@SLANG_OBJS = slang_c.o
+
+@ENABLE_MOTIF_TRUE@MOTIF_OBJS = \
+@ENABLE_MOTIF_TRUE@	motif_c.o \
+@ENABLE_MOTIF_TRUE@	motif_i.o \
+@ENABLE_MOTIF_TRUE@	motif_p.o 
+
+@ENABLE_TCLTK_TRUE@TK_OBJS = tk_c.o
+
+@ENABLE_EMACS_TRUE@EMACS_OBJS = emacs_c.o
+
+@ENABLE_VT100_TRUE@VT100_OBJS = \
+@ENABLE_VT100_TRUE@	vt100.o \
+@ENABLE_VT100_TRUE@	vt100_c.o
+
+@ENABLE_XAW_TRUE@XAW_OBJS = \
+@ENABLE_XAW_TRUE@	xaw_c.o \
+@ENABLE_XAW_TRUE@	xaw_i.o
+
+@ENABLE_XSKIN_TRUE@XSKIN_OBJS = \
+@ENABLE_XSKIN_TRUE@	xskin_c.o \
+@ENABLE_XSKIN_TRUE@	xskin_i.o \
+@ENABLE_XSKIN_TRUE@	xskin_loadBMP.o \
+@ENABLE_XSKIN_TRUE@	xskin_spectrum.o
+
+@ENABLE_GTK_TRUE@GTK_OBJS= \
+@ENABLE_GTK_TRUE@	gtk_c.o \
+@ENABLE_GTK_TRUE@	gtk_i.o \
+@ENABLE_GTK_TRUE@	gtk_p.o
+
+@ENABLE_WRD_TRUE@WRD_OBJS = \
+@ENABLE_WRD_TRUE@	wrdt_x.o \
+@ENABLE_WRD_TRUE@	x_wrdwindow.o \
+@ENABLE_WRD_TRUE@	VTPrsTbl.o \
+@ENABLE_WRD_TRUE@	x_mag.o
+
+@ENABLE_SHARED_TRUE@DYNAMIC_OBJS = dynamic_c.o
+
+@ENABLE_SOUND_SPEC_TRUE@SOUND_SPEC_OBJS = \
+@ENABLE_SOUND_SPEC_TRUE@	soundspec.o
+
+libinterface_a_LIBADD = \
+	$(NCURSES_OBJS) \
+	$(SLANG_OBJS) \
+	$(MOTIF_OBJS) \
+	$(TK_OBJS) \
+	$(EMACS_OBJS) \
+	$(VT100_OBJS) \
+	$(XAW_OBJS) \
+	$(XSKIN_OBJS) \
+	$(GTK_OBJS) \
+	$(WRD_OBJS) \
+	$(DYNAMIC_OBJS) \
+	$(SOUND_SPEC_OBJS)
+
+# Tcl interface sources
+TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
+# Tcl/Tk sources
+TCLF = tkmidity.tcl tkpanel.tcl browser.tcl misc.tcl
+ALLTCLF = $(TCLF) tclIndex
+
+EXTRA_DIST = \
+	tkmidity.ptcl \
+	tkpanel.tcl \
+	browser.tcl \
+	misc.tcl \
+	timidity.el \
+	check.xbm
+
+@ENABLE_TCLTK_TRUE@install_tk = install.tk
+@ENABLE_DYNAMIC_TCLTK_TRUE@install_tk = install.tk
+
+@ENABLE_XAW_TRUE@install_xaw = install.xaw
+@ENABLE_DYNAMIC_XAW_TRUE@install_xaw = install.xaw
+
+@ENABLE_EMACS_TRUE@ELFILES = @ELFILES@
+@ENABLE_EMACS_TRUE@install_el = install.el
+
+SUFFIXES = .$(so)
+
+@ENABLE_SHARED_TRUE@SHLD = @SHLD@
+@ENABLE_SHARED_TRUE@SHCFLAGS = @SHCFLAGS@
+@ENABLE_SHARED_TRUE@so = @sharedLibExtension@
+@ENABLE_SHARED_TRUE@dynamic_targets = @dynamic_targets@
+@ENABLE_SHARED_TRUE@install_dynamics = install.dynamics
+@ENABLE_SHARED_TRUE@n_so_libs = @n_so_libs@
+@ENABLE_SHARED_TRUE@s_so_libs = @s_so_libs@
+@ENABLE_SHARED_TRUE@m_so_libs = @m_so_libs@
+@ENABLE_SHARED_TRUE@k_so_libs = @k_so_libs@
+@ENABLE_SHARED_TRUE@e_so_libs = @e_so_libs@
+@ENABLE_SHARED_TRUE@T_so_libs = @T_so_libs@
+@ENABLE_SHARED_TRUE@a_so_libs = @a_so_libs@
+@ENABLE_SHARED_TRUE@i_so_libs = @i_so_libs@
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = ../config.h
+CONFIG_CLEAN_FILES = 
+LIBRARIES =  $(noinst_LIBRARIES)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I..
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+X_CFLAGS = @X_CFLAGS@
+X_LIBS = @X_LIBS@
+X_EXTRA_LIBS = @X_EXTRA_LIBS@
+X_PRE_LIBS = @X_PRE_LIBS@
+@ENABLE_VT100_TRUE@libinterface_a_DEPENDENCIES = 
+@ENABLE_SOUND_SPEC_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_MOTIF_TRUE@libinterface_a_DEPENDENCIES = 
+@ENABLE_SHARED_FALSE@libinterface_a_DEPENDENCIES = 
+xskin_loadBMP.olibinterface_a_DEPENDENCIES =  xskin_spectrum.o
+motif_p.olibinterface_a_DEPENDENCIES = 
+xaw_c.olibinterface_a_DEPENDENCIES =  xaw_i.o
+soundspec.olibinterface_a_DEPENDENCIES = 
+@ENABLE_XSKIN_TRUE@libinterface_a_DEPENDENCIES = 
+gtk_p.olibinterface_a_DEPENDENCIES = 
+@ENABLE_NCURSES_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_XAW_TRUE@libinterface_a_DEPENDENCIES = 
+wrdt_x.olibinterface_a_DEPENDENCIES =  x_wrdwindow.o
+@ENABLE_SOUND_SPEC_TRUE@libinterface_a_DEPENDENCIES = 
+vt100.olibinterface_a_DEPENDENCIES =  vt100_c.o
+@ENABLE_EMACS_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_SHARED_TRUE@libinterface_a_DEPENDENCIES =  dynamic_c.o
+@ENABLE_WRD_FALSE@libinterface_a_DEPENDENCIES = 
+motif_c.olibinterface_a_DEPENDENCIES =  motif_i.o
+@ENABLE_XAW_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_SLANG_FALSE@libinterface_a_DEPENDENCIES = 
+gtk_c.olibinterface_a_DEPENDENCIES =  gtk_i.o
+@ENABLE_TCLTK_TRUE@libinterface_a_DEPENDENCIES =  tk_c.o
+@ENABLE_NCURSES_TRUE@libinterface_a_DEPENDENCIES =  ncurs_c.o
+@ENABLE_GTK_TRUE@libinterface_a_DEPENDENCIES = 
+@ENABLE_VT100_FALSE@libinterface_a_DEPENDENCIES = 
+xskin_c.olibinterface_a_DEPENDENCIES =  xskin_i.o
+@ENABLE_EMACS_TRUE@libinterface_a_DEPENDENCIES =  emacs_c.o
+@ENABLE_MOTIF_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_TCLTK_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_WRD_TRUE@libinterface_a_DEPENDENCIES = 
+@ENABLE_GTK_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_SLANG_TRUE@libinterface_a_DEPENDENCIES =  slang_c.o
+@ENABLE_XSKIN_FALSE@libinterface_a_DEPENDENCIES = 
+VTPrsTbl.olibinterface_a_DEPENDENCIES =  x_mag.o
+libinterface_a_OBJECTS =  dumb_c.o wrdt_dumb.o wrdt_tty.o
+AR = ar
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
+DIST_COMMON =  Makefile.am Makefile.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = gtar
+GZIP = --best
+SOURCES = $(libinterface_a_SOURCES) $(EXTRA_libinterface_a_SOURCES)
+OBJECTS = $(libinterface_a_OBJECTS)
+
+all: all-recursive all-am
+
+.SUFFIXES:
+.SUFFIXES: .$(so) .S .c .o .s
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps interface/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+mostlyclean-noinstLIBRARIES:
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+
+distclean-noinstLIBRARIES:
+
+maintainer-clean-noinstLIBRARIES:
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+libinterface.a: $(libinterface_a_OBJECTS) $(libinterface_a_DEPENDENCIES)
+	-rm -f libinterface.a
+	$(AR) cru libinterface.a $(libinterface_a_OBJECTS) $(libinterface_a_LIBADD)
+	$(RANLIB) libinterface.a
+
+# This directory's subdirectories are mostly independent; you can cd
+# into them and run `make' without going through this Makefile.
+# To change the values of `make' variables: instead of editing Makefiles,
+# (1) if the variable is set in `config.status', edit `config.status'
+#     (which will cause the Makefiles to be regenerated when you run `make');
+# (2) otherwise, pass the desired values on the `make' command line.
+
+@SET_MAKE@
+
+all-recursive install-data-recursive install-exec-recursive \
+installdirs-recursive install-recursive uninstall-recursive  \
+check-recursive installcheck-recursive info-recursive dvi-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  target=`echo $@ | sed s/-recursive//`; \
+	  echo "Making $$target in $$subdir"; \
+	  (cd $$subdir && $(MAKE) $$target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done && test -z "$$fail"
+
+mostlyclean-recursive clean-recursive distclean-recursive \
+maintainer-clean-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
+	  rev="$$subdir $$rev"; \
+	done; \
+	for subdir in $$rev; do \
+	  target=`echo $@ | sed s/-recursive//`; \
+	  echo "Making $$target in $$subdir"; \
+	  (cd $$subdir && $(MAKE) $$target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done && test -z "$$fail"
+tags-recursive:
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  (cd $$subdir && $(MAKE) tags); \
+	done
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $(SOURCES) $(HEADERS) $(LISP)
+
+TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
+	done; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+subdir = interface
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  test -f $(distdir)/$$file \
+	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	  || cp -p $$d/$$file $(distdir)/$$file; \
+	done
+	for subdir in $(SUBDIRS); do \
+	  test -d $(distdir)/$$subdir \
+	  || mkdir $(distdir)/$$subdir \
+	  || exit 1; \
+	  chmod 777 $(distdir)/$$subdir; \
+	  (cd $$subdir && $(MAKE) top_distdir=../$(top_distdir) distdir=../$(distdir)/$$subdir distdir) \
+	    || exit 1; \
+	done
+VTPrsTbl.o: VTPrsTbl.c VTparse.h
+dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h
+dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/dlutils.h
+emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/miditrace.h
+motif_c.o: motif_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h motif.h ../timidity/miditrace.h
+motif_i.o: motif_i.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h motif.h \
+	motif_bitmaps/back.xbm motif_bitmaps/next.xbm \
+	motif_bitmaps/prev.xbm motif_bitmaps/restart.xbm \
+	motif_bitmaps/fwd.xbm motif_bitmaps/pause.xbm \
+	motif_bitmaps/quit.xbm motif_bitmaps/timidity.xbm
+motif_p.o: motif_p.c ../config.h ../timidity/timidity.h \
+	../timidity/controls.h motif.h
+ncurs_c.o: ncurs_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h \
+	../utils/bitset.h ../libarc/arc.h ../utils/memb.h \
+	../timidity/mid-j.defs
+slang_c.o: slang_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h
+soundspec.o: soundspec.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h soundspec.h \
+	../utils/fft.h ../timidity/miditrace.h
+tk_c.o: tk_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/readmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h
+vt100.o: vt100.c ../config.h ../timidity/timidity.h vt100.h
+vt100_c.o: vt100_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h vt100.h \
+	../utils/timer.h ../utils/bitset.h
+wrdt_dumb.o: wrdt_dumb.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
+wrdt_tty.o: wrdt_tty.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
+wrdt_x.o: wrdt_x.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h \
+	x_wrdwindow.h x_mag.h
+x_mag.o: x_mag.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h x_mag.h \
+	../timidity/controls.h ../timidity/wrd.h
+x_wrdwindow.o: x_wrdwindow.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h x_mag.h \
+	x_wrdwindow.h VTparse.h ../timidity/wrd.h \
+	../timidity/controls.h
+xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/readmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h xaw.h
+xaw_i.o: xaw_i.c ../config.h check.xbm ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/controls.h xaw.h
+xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h xskin.h
+xskin_i.o: xskin_i.c xskin.h ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h
+xskin_loadBMP.o: xskin_loadBMP.c ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/controls.h ../timidity/output.h ../libarc/arc.h \
+	../utils/memb.h
+xskin_spectrum.o: xskin_spectrum.c xskin.h ../config.h \
+	../timidity/timidity.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/miditrace.h
+
+info: info-recursive
+dvi: dvi-recursive
+check: all-am
+	$(MAKE) check-recursive
+installcheck: installcheck-recursive
+all-am: Makefile $(LIBRARIES)
+
+install-exec-am: install-exec-local
+
+install-exec: install-exec-recursive install-exec-am
+	@$(NORMAL_INSTALL)
+
+install-data: install-data-recursive
+	@$(NORMAL_INSTALL)
+
+install: install-recursive install-exec-am
+	@:
+
+uninstall: uninstall-recursive
+
+install-strip:
+	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+installdirs: installdirs-recursive
+
+
+mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(DISTCLEANFILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
+
+maintainer-clean-generic:
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+mostlyclean-am:  mostlyclean-noinstLIBRARIES mostlyclean-compile \
+		mostlyclean-tags mostlyclean-generic
+
+clean-am:  clean-noinstLIBRARIES clean-compile clean-tags clean-generic \
+		mostlyclean-am
+
+distclean-am:  distclean-noinstLIBRARIES distclean-compile \
+		distclean-tags distclean-generic clean-am
+
+maintainer-clean-am:  maintainer-clean-noinstLIBRARIES \
+		maintainer-clean-compile maintainer-clean-tags \
+		maintainer-clean-generic distclean-am
+
+mostlyclean:  mostlyclean-recursive mostlyclean-am
+
+clean:  clean-recursive clean-am
+
+distclean:  distclean-recursive distclean-am
+	-rm -f config.status
+
+maintainer-clean:  maintainer-clean-recursive maintainer-clean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+.PHONY: mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
+clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile install-data-recursive \
+uninstall-data-recursive install-exec-recursive \
+uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
+all-recursive check-recursive installcheck-recursive info-recursive \
+dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
+maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
+distclean-tags clean-tags maintainer-clean-tags distdir info dvi \
+installcheck all-am install-exec-am install-exec install-data install \
+uninstall all installdirs mostlyclean-generic distclean-generic \
+clean-generic maintainer-clean-generic clean mostlyclean distclean \
+maintainer-clean
+
+
+include $(top_builddir)/common.makefile
+
+dumb_c.o:$(libinterface_a_LIBADD)
+
+.ptcl.tcl:
+	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@
+clean:
+	rm -f tkmidity.tcl
+
+tclIndex: $(TCLF)
+	echo 'auto_mkindex . *.tcl; exit' | wish
+
+install.tk: $(ALLTCLF) install.bitmaps
+	test -d $(DESTDIR)$(TCL_DIR) || mkdir -p $(DESTDIR)$(TCL_DIR)
+	for f in $(ALLTCLF) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TCL_DIR);; esac; done
+
+install.xaw: install.bitmaps
+
+install.bitmaps:
+	cd bitmaps; $(MAKE) install.bitmaps
+
+install.el: $(ELFILES)
+	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
+	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+
+@ENABLE_SHARED_TRUE@all-am: $(dynamic_targets)
+
+@ENABLE_SHARED_TRUE@install.dynamics: $(dynamic_targets)
+@ENABLE_SHARED_TRUE@	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+
+@ENABLE_SHARED_TRUE@.c.$(so):
+@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -c $< -o $@
+
+@ENABLE_SHARED_TRUE@bitset.$(so): $(top_srcdir)/utils/bitset.c
+@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+
+@ENABLE_SHARED_TRUE@timer.$(so): $(top_srcdir)/utils/timer.c
+@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+
+@ENABLE_SHARED_TRUE@url_buff.$(so): $(top_srcdir)/libarc/url_buff.c
+@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+
+@ENABLE_SHARED_TRUE@interface_n.$(so): ncurs_c.$(so) bitset.$(so) timer.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ ncurs_c.$(so) bitset.$(so) timer.$(so) $(n_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_s.$(so): slang_c.$(so) timer.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ slang_c.$(so) timer.$(so) $(s_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_m.$(so): motif_c.$(so) motif_i.$(so) motif_p.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ motif_c.$(so) motif_i.$(so) motif_p.$(so) $(m_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_k.$(so): tk_c.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ tk_c.$(so) $(k_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_e.$(so): emacs_c.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ emacs_c.$(so) $(e_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_T.$(so): vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so) $(T_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_a.$(so): xaw_c.$(so) xaw_i.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ xaw_c.$(so) xaw_i.$(so) $(a_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_i.$(so): xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so) $(i_so_libs)
+
+@ENABLE_SHARED_TRUE@interface_g.$(so): gtk_c.$(so) gtk_i.$(so) gtk_p.$(so)
+@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ gtk_c.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
+
+@ENABLE_SHARED_TRUE@clean-compile:
+@ENABLE_SHARED_TRUE@	-rm -f *.$(so)
+
+install-exec-local: $(install_tk) $(install_xaw) $(install_el) $(install_dynamics)
+########## End of Makefile
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

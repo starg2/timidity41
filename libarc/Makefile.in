@@ -1,0 +1,386 @@
+# Makefile.in generated automatically by automake 1.3 from Makefile.am
+
+# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+# TiMidity++ -- MIDI to WAVE converter and player
+# Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+# Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DISTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+build_alias = @build_alias@
+build_triplet = @build@
+host_alias = @host_alias@
+host_triplet = @host@
+target_alias = @target_alias@
+target_triplet = @target@
+ALSA_CFLAGS = @ALSA_CFLAGS@
+ALSA_LIBS = @ALSA_LIBS@
+CC = @CC@
+ELFILES = @ELFILES@
+EMACS = @EMACS@
+EXTRAINCS = @EXTRAINCS@
+EXTRALIBS = @EXTRALIBS@
+GTK_CFLAGS = @GTK_CFLAGS@
+GTK_CONFIG = @GTK_CONFIG@
+GTK_LIBS = @GTK_LIBS@
+MAKEINFO = @MAKEINFO@
+NETSRCS = @NETSRCS@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+SHCFLAGS = @SHCFLAGS@
+SHLD = @SHLD@
+SYSEXTRAS = @SYSEXTRAS@
+SYSTEM = @SYSTEM@
+VERSION = @VERSION@
+dynamic_targets = @dynamic_targets@
+lispdir = @lispdir@
+sharedLibExtension = @sharedLibExtension@
+
+INCLUDES = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/timidity \
+	-I$(top_srcdir)/utils \
+	$(EXTRAINCS)
+
+noinst_LIBRARIES = libarc.a
+
+libarc_a_SOURCES = \
+	arc.c \
+	arc.h \
+	arc_dir.c \
+	arc_lzh.c \
+	arc_mime.c \
+	arc_tar.c \
+	arc_zip.c \
+	deflate.c \
+	explode.c \
+	explode.h \
+	inflate.c \
+	unlzh.c \
+	unlzh.h \
+	url.c \
+	url.h \
+	url_b64decode.c \
+	url_buff.c \
+	url_cache.c \
+	url_dir.c \
+	url_file.c \
+	url_hqxdecode.c \
+	url_inflate.c \
+	url_mem.c \
+	url_pipe.c \
+	url_qsdecode.c \
+	url_uudecode.c \
+	zip.h
+
+EXTRA_libarc_a_SOURCES = \
+	url_http.c \
+	url_ftp.c \
+	url_news.c \
+	url_newsgroup.c \
+	arc_newsgroup.c
+
+@ENABLE_NETWORK_TRUE@NET_OBJS = \
+@ENABLE_NETWORK_TRUE@	url_http.o \
+@ENABLE_NETWORK_TRUE@	url_ftp.o \
+@ENABLE_NETWORK_TRUE@	url_news.o \
+@ENABLE_NETWORK_TRUE@	url_newsgroup.o \
+@ENABLE_NETWORK_TRUE@	arc_newsgroup.o
+
+libarc_a_LIBADD = $(NET_OBJS)
+libarc_a_DEPENDENCIES = $(NET_OBJS)
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = ../config.h
+CONFIG_CLEAN_FILES = 
+LIBRARIES =  $(noinst_LIBRARIES)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I..
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+X_CFLAGS = @X_CFLAGS@
+X_LIBS = @X_LIBS@
+X_EXTRA_LIBS = @X_EXTRA_LIBS@
+X_PRE_LIBS = @X_PRE_LIBS@
+libarc_a_OBJECTS =  arc.o arc_dir.o arc_lzh.o arc_mime.o arc_tar.o \
+arc_zip.o deflate.o explode.o inflate.o unlzh.o url.o url_b64decode.o \
+url_buff.o url_cache.o url_dir.o url_file.o url_hqxdecode.o \
+url_inflate.o url_mem.o url_pipe.o url_qsdecode.o url_uudecode.o
+AR = ar
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
+DIST_COMMON =  Makefile.am Makefile.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = gtar
+GZIP = --best
+SOURCES = $(libarc_a_SOURCES) $(EXTRA_libarc_a_SOURCES)
+OBJECTS = $(libarc_a_OBJECTS)
+
+all: Makefile $(LIBRARIES)
+
+.SUFFIXES:
+.SUFFIXES: .S .c .o .s
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps libarc/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+mostlyclean-noinstLIBRARIES:
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+
+distclean-noinstLIBRARIES:
+
+maintainer-clean-noinstLIBRARIES:
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+libarc.a: $(libarc_a_OBJECTS) $(libarc_a_DEPENDENCIES)
+	-rm -f libarc.a
+	$(AR) cru libarc.a $(libarc_a_OBJECTS) $(libarc_a_LIBADD)
+	$(RANLIB) libarc.a
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $(SOURCES) $(HEADERS) $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+subdir = libarc
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  test -f $(distdir)/$$file \
+	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	  || cp -p $$d/$$file $(distdir)/$$file; \
+	done
+arc.o: arc.c ../config.h ../timidity/timidity.h arc.h ../utils/memb.h \
+	../utils/mblock.h url.h zip.h unlzh.h explode.h \
+	../utils/strtab.h
+arc_dir.o: arc_dir.c ../config.h ../timidity/timidity.h arc.h \
+	../utils/memb.h ../utils/mblock.h url.h
+arc_lzh.o: arc_lzh.c ../config.h ../timidity/timidity.h arc.h \
+	../utils/memb.h ../utils/mblock.h url.h
+arc_mime.o: arc_mime.c ../config.h ../timidity/timidity.h \
+	../utils/mblock.h zip.h arc.h ../utils/memb.h url.h
+arc_newsgroup.o: arc_newsgroup.c ../config.h ../timidity/timidity.h \
+	arc.h ../utils/memb.h ../utils/mblock.h url.h
+arc_tar.o: arc_tar.c ../config.h ../timidity/timidity.h \
+	../utils/mblock.h zip.h arc.h ../utils/memb.h url.h
+arc_zip.o: arc_zip.c ../config.h ../timidity/timidity.h arc.h \
+	../utils/memb.h ../utils/mblock.h url.h
+deflate.o: deflate.c ../config.h ../timidity/timidity.h \
+	../utils/mblock.h zip.h
+explode.o: explode.c ../config.h ../timidity/timidity.h \
+	../utils/mblock.h explode.h zip.h
+inflate.o: inflate.c ../config.h ../timidity/timidity.h \
+	../utils/mblock.h zip.h
+unlzh.o: unlzh.c ../config.h ../timidity/timidity.h unlzh.h
+url.o: url.c ../config.h ../timidity/timidity.h url.h
+url_b64decode.o: url_b64decode.c ../config.h ../timidity/timidity.h \
+	url.h
+url_buff.o: url_buff.c ../config.h ../timidity/timidity.h url.h
+url_cache.o: url_cache.c ../config.h ../timidity/timidity.h url.h \
+	../utils/memb.h ../utils/mblock.h
+url_dir.o: url_dir.c ../config.h ../timidity/timidity.h url.h \
+	../utils/strtab.h ../utils/mblock.h
+url_file.o: url_file.c ../config.h ../timidity/timidity.h url.h
+url_ftp.o: url_ftp.c ../config.h ../timidity/timidity.h url.h \
+	../utils/net.h
+url_hqxdecode.o: url_hqxdecode.c ../config.h ../timidity/timidity.h \
+	url.h
+url_http.o: url_http.c ../config.h ../timidity/timidity.h url.h \
+	../utils/net.h
+url_inflate.o: url_inflate.c ../config.h ../timidity/timidity.h url.h \
+	../utils/mblock.h zip.h
+url_mem.o: url_mem.c ../config.h ../timidity/timidity.h url.h
+url_news.o: url_news.c ../config.h ../timidity/timidity.h url.h \
+	../utils/net.h
+url_newsgroup.o: url_newsgroup.c ../config.h ../timidity/timidity.h \
+	url.h ../utils/net.h
+url_pipe.o: url_pipe.c ../config.h ../timidity/timidity.h url.h
+url_qsdecode.o: url_qsdecode.c ../config.h ../timidity/timidity.h url.h
+url_uudecode.o: url_uudecode.c ../config.h ../timidity/timidity.h url.h
+
+info:
+dvi:
+check: all
+	$(MAKE)
+installcheck:
+install-exec: 
+	@$(NORMAL_INSTALL)
+
+install-data: 
+	@$(NORMAL_INSTALL)
+
+install: install-exec install-data all
+	@:
+
+uninstall: 
+
+install-strip:
+	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+installdirs:
+
+
+mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(DISTCLEANFILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
+
+maintainer-clean-generic:
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+mostlyclean:  mostlyclean-noinstLIBRARIES mostlyclean-compile \
+		mostlyclean-tags mostlyclean-generic
+
+clean:  clean-noinstLIBRARIES clean-compile clean-tags clean-generic \
+		mostlyclean
+
+distclean:  distclean-noinstLIBRARIES distclean-compile distclean-tags \
+		distclean-generic clean
+	-rm -f config.status
+
+maintainer-clean:  maintainer-clean-noinstLIBRARIES \
+		maintainer-clean-compile maintainer-clean-tags \
+		maintainer-clean-generic distclean
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+.PHONY: mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
+clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile tags mostlyclean-tags distclean-tags \
+clean-tags maintainer-clean-tags distdir info dvi installcheck \
+install-exec install-data install uninstall all installdirs \
+mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
+
+include $(top_builddir)/common.makefile
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

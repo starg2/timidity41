@@ -1,0 +1,94 @@
+# TiMidity++ -- MIDI to WAVE converter and player
+# Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+# Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+#SHELL=/bin/sh
+
+########### Compiler and flags.
+
+#srcdir = @srcdir@
+#top_srcdir = @top_srcdir@
+#VPATH = @srcdir@
+#prefix = @prefix@
+#exec_prefix = @exec_prefix@
+
+#bindir = @bindir@
+#sbindir = @sbindir@
+#libexecdir = @libexecdir@
+#datadir = @datadir@
+#sysconfdir = @sysconfdir@
+#sharedstatedir = @sharedstatedir@
+#localstatedir = @localstatedir@
+#libdir = @libdir@
+#infodir = @infodir@
+#mandir = @mandir@
+#includedir = @includedir@
+#oldincludedir = /usr/include
+
+pkgdatadir = $(datadir)/timidity
+pkglibdir = $(libdir)/timidity
+pkgincludedir = $(includedir)/timidity
+
+#CC= @CC@
+#CFLAGS = @CFLAGS@
+#DEFS = @DEFS@
+#LIBS = @LIBS@
+#LDFLAGS = @LDFLAGS@
+DEBUGFLAGS = -Wall
+
+########### Install.
+#INSTALL = @INSTALL@
+
+# Where to install the executable
+#BIN_DIR = $(prefix)/bin
+
+# Where to install the manual pages
+#MAN_DIR = $(prefix)/man/man1
+JMAN_DIR = $(prefix)/man/ja_JP.EUC/man1
+
+# Where to install the patches, config files, and MIDI files.
+# If you change this, it's a good idea to recompile the binary,
+# or you'll need to invoke timidity with the -L option.
+#TIMID_DIR = $(prefix)/lib/timidity
+TIMID_DIR = $(pkglibdir)
+
+# Where to install the Tcl code, if you use the Tcl code that is.
+TCL_DIR = $(TIMID_DIR)
+#TCL_DIR = $(pkgdatadir)
+
+
+########### Audio device selection
+
+#VERSION = @VERSION@
+
+SYSTEM = @SYSTEM@
+#SYSEXTRAS = @SYSEXTRAS@
+#EXTRALIBS = @EXTRALIBS@
+#EXTRAINCS = @EXTRAINCS@
+
+CFLAGS+= $(DEBUGFLAGS) -DDEFAULT_PATH=\"$(TIMID_DIR)\" \
+	$(SYSTEM) @DEFS@
+
+#CFLAGS+= $(DEBUGFLAGS) -DDEFAULT_PATH=\"$(TIMID_DIR)\" \
+#	$(SYSTEM) $(EXTRAINCS)
+
+
+#DEFS = @DEFS@
+#.c.o:
+#	$(CC) $(CFLAGS) $(DEFS) -c $<
+
+.SUFFIXES: .c .h .ptcl .tcl .o .1 .txt .ps
