@@ -1727,6 +1727,7 @@ static int ctl_open(int using_stdin, int using_stdout)
 #endif /* USE_PDCURSES */
 	keypad(stdscr, TRUE);
 	ctl.opened = 1;
+	init_chan_status();
     }
 
     open_init_flag = 1;
@@ -1737,7 +1738,6 @@ static int ctl_open(int using_stdin, int using_stdout)
 	ctl_ncurs_mode = NCURS_MODE_MAIN;
 
     ctl_ncurs_back = ctl_ncurs_mode;
-    init_chan_status();
     N_ctl_scrinit();
 
     if(ctl.trace_playing)

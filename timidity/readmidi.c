@@ -1088,7 +1088,7 @@ int dump_current_timesig(MidiEvent *codes, int maxlen)
 /* Read a SMF track */
 static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 {
-    int32 len;
+    int32 len, next_pos, pos;
     char tmp[4];
     int lastchan, laststatus;
     int me, type, a, b, c;
@@ -1105,6 +1105,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 	return -1;
     }
     len = BE_LONG(len);
+    next_pos = tf_tell(tf) + len;
     if(strncmp(tmp, "MTrk", 4))
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -1286,6 +1287,9 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 		    break;
 
 		  case 0x2F: /* End of Track */
+		    pos = tf_tell(tf);
+		    if(pos < next_pos)
+			tf_seek(tf, next_pos - pos, SEEK_CUR);
 		    return 0;
 
 		  case 0x51: /* Tempo */
@@ -2757,6 +2761,8 @@ char *get_midi_title(char *filename)
 
     for(trk = 0; trk < tracks; trk++)
     {
+	int32 next_pos, pos;
+
 	if(trk >= 1 && karaoke_format == -1)
 	    break;
 
@@ -2766,6 +2772,7 @@ char *get_midi_title(char *filename)
 	if(memcmp(tmp, "MTrk", 4))
 	    break;
 
+	next_pos = tf_tell(tf) + len;
 	laststatus = -1;
 	for(;;)
 	{
@@ -2842,7 +2849,12 @@ char *get_midi_title(char *filename)
 		    reuse_mblock(&tmpbuffer);
 		}
 		else if(type == 0x2F)
+		{
+		    pos = tf_tell(tf);
+		    if(pos < next_pos)
+			tf_seek(tf, next_pos - pos, SEEK_CUR);
 		    break; /* End of track */
+		}
 		else
 		    skip(tf, len);
 	    }

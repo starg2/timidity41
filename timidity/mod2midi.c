@@ -74,10 +74,10 @@
 
 
 #define NTSC_CLOCK 3579545.25
-#define NTSC_RATE (NTSC_CLOCK/428)
+#define NTSC_RATE ((int32)(NTSC_CLOCK/428))
 
 #define PAL_CLOCK 3546894.6
-#define PAL_RATE (PAL_CLOCK/428)
+#define PAL_RATE ((int32)(PAL_CLOCK/428))
 
 #define MOD_ROOT_NOTE      36
 
@@ -110,7 +110,6 @@ typedef struct _ModVoice
     int wheel;			/* current pitch wheel value */
     int pan;			/* current panning */
     int vol;			/* current volume */
-    int start;			/* sample start */
 
     int32 noteson[4];		/* bit map for notes 0-127 */
   }
@@ -210,7 +209,7 @@ period2note (int period, int *finetune)
   note = l - 1;
 
   /*
-   * 119 >= note >= 0
+   * 112 >= note >= 0
    * period_table[note] >= period > period_table[note + 1]
    */
 
@@ -234,18 +233,20 @@ Voice_SetVolume (UBYTE v, UWORD vol)
     return;
 
   /* MOD volume --> MIDI volume */
-  vol = vol > 254 ? 127 : vol >> 1;
+  vol >>= 1;
+  if (vol < 1) vol = 1;
+  if (vol > 127) vol = 127;
 
-  if ((ModV[v].vol != vol) && (ModV[v].noteon != -1)) {
-    MIDIEVENT (at, ME_KEYPRESSURE, v, ModV[v].noteon, vol);
+  if (ModV[v].vol != vol) {
+    ModV[v].vol = vol;
+    MIDIEVENT (at, ME_EXPRESSION, v, vol, 0);
   }
-  ModV[v].vol = vol;
 }
 
 void
 Voice_SetPeriod (UBYTE v, ULONG period)
 {
-  int new_noteon, new_sample, bend;
+  int new_noteon, bend;
 
   if (v >= MOD_NUM_VOICES)
     return;
@@ -263,11 +264,7 @@ Voice_SetPeriod (UBYTE v, ULONG period)
 
   if (ModV[v].noteon != new_noteon)
     {
-      if (!bitmapGet(ModV[v].noteson, new_noteon))
-	{
-	  MIDIEVENT(ModV[v].time, ME_NOTEON, v, new_noteon, 1);
-	  bitmapSet(ModV[v].noteson, new_noteon);
-	}
+      MIDIEVENT(at, ME_KEYPRESSURE, v, ModV[v].noteon, 1);
 
       if (new_noteon < 0)
         {
@@ -276,13 +273,12 @@ Voice_SetPeriod (UBYTE v, ULONG period)
 			  ModV[v].period);
 	  return;
 	}
-      else
-        {
-          MIDIEVENT(at, ME_KEYPRESSURE, v, ModV[v].noteon, 1);
-          MIDIEVENT(at, ME_KEYPRESSURE, v, new_noteon, ModV[v].vol);
-        }
+      else if (!bitmapGet(ModV[v].noteson, new_noteon))
+	{
+	  MIDIEVENT(ModV[v].time, ME_NOTEON, v, new_noteon, 1);
+	  bitmapSet(ModV[v].noteson, new_noteon);
+	}
 
-      ModV[v].noteon = new_noteon;
     }
 
   if (ModV[v].wheel != bend)
@@ -290,6 +286,13 @@ Voice_SetPeriod (UBYTE v, ULONG period)
       ModV[v].wheel = bend;
       MIDIEVENT (at, ME_PITCHWHEEL, v, bend & 0x7F, (bend >> 7) & 0x7F);
     }
+
+  if (ModV[v].noteon != new_noteon)
+    {
+      MIDIEVENT(at, ME_KEYPRESSURE, v, new_noteon, 127);
+      ModV[v].noteon = new_noteon;
+    }
+
 }
 
 void
@@ -333,15 +336,13 @@ Voice_Play (UBYTE v, SAMPLE * s, ULONG start)
     {
       ModV[v].sample = s->id;
       MIDIEVENT(at, ME_SET_PATCH, v, ModV[v].sample, 0);
-      ModV[v].start = 0;
     }
 
-  if (ModV[v].start != start)
+  if (start > 0)
     {
       int a, b;
-      ModV[v].start = start;
-      a = (ModV[v].start & 0xff);
-      b = ((ModV[v].start >> 8) & 0xff);
+      a = (start & 0xff);
+      b = ((start >> 8) & 0xff);
       MIDIEVENT (at, ME_PATCH_OFFS, v, a, b);
     }
 
@@ -351,7 +352,7 @@ Voice_Play (UBYTE v, SAMPLE * s, ULONG start)
       MIDIEVENT (at, ME_PITCHWHEEL, v, bend & 0x7F, (bend >> 7) & 0x7F);
     }
  
-  MIDIEVENT (at, ME_NOTEON, v, ModV[v].noteon, ModV[v].vol);
+  MIDIEVENT (at, ME_NOTEON, v, ModV[v].noteon, 127);
 }
 
 void
@@ -433,8 +434,7 @@ Voice_StartPlaying ()
 	ModV[v].time = -1;
 	ModV[v].period = 0;
 	ModV[v].wheel = 0x2000;
-	ModV[v].vol = 64;
-	ModV[v].start = 0;
+	ModV[v].vol = 127;
 	ModV[v].pan = (v & 1) ? 127 : 0;
 	bitmapClear(ModV[v].noteson);
 
@@ -522,10 +522,6 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	if (s->flags & SF_REVERSE) sp->modes ^= MODES_REVERSE;
 	if (s->flags & SF_16BITS)  sp->modes ^= MODES_16BIT;
 
-	/* libunimod sets *both* SF_LOOP and SF_BIDI/SF_REVERSE */
-	if (sp->modes & (MODES_PINGPONG | MODES_REVERSE))
-	  sp->modes &= ~MODES_LOOPING;
-
 #ifdef USE_ENVELOPE
 	/* envelope (0,1:attack, 2:sustain, 3,4,5:release) */
 	sp->modes |= MODES_ENVELOPE;
@@ -540,18 +536,14 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->envelope_rate[2]   = 0;
 	/* release */
 	sp->envelope_offset[3] = env_offset(0);
-	if(modify_release)
-	    sp->envelope_rate[3] = env_rate(255, (double)modify_release); /* -R# */
-	else
-	    sp->envelope_rate[3]   = env_rate(255, 80.0);	/* 80 msec */
+	sp->envelope_rate[3]   = env_rate(255, 80.0);	/* 80 msec */
 	sp->envelope_offset[4] = sp->envelope_offset[3];
 	sp->envelope_rate[4]   = 0; /* skip this stage */
 	sp->envelope_offset[5] = sp->envelope_offset[4];
 	sp->envelope_rate[5]   = 0; /* skip this stage, then the voice is
 				       disappeared */
 #endif
-
- 	sp->sample_rate = ((int32) PAL_RATE) >> s->divfactor;
+ 	sp->sample_rate = PAL_RATE >> s->divfactor;
 	sp->low_freq = 0;
 	sp->high_freq = 0x7fffffff;
 	sp->root_freq = freq_table[MOD_ROOT_NOTE];

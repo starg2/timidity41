@@ -1,8 +1,26 @@
-2000-02-21  Masanao Izumo <mo@goice.co.jp>
+2000-04-10  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.9.2 released.
+
+2000-03-30  Masanao Izumo <mo@goice.co.jp>
+            (Bug reported by Takeyuki Uehara <tu01@uow.edu.au>)
+
+    * interface/ncurses.c: Fixed probrem that all channel statuses are reseted
+      if the key `t' is pressed.
+
+2000-03-28  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/readmidi.c: Bug fixed about reading SMF track boundary.
+
+2000-03-23,26  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/{resample.c,recache.c}: Fixed problem of cspline interpolation.
+
+2000-03-21  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.9.1 released.
 
-2000-02-20  Masanao Izumo <mo@goice.co.jp>
+2000-03-20  Masanao Izumo <mo@goice.co.jp>
     * libarc/arc_tar.c: Fixed memory leak.
     * libarc/url.c: url_dump(): Avoid return NULL if nbytes is zero.
     * timidity/controls.h: Redefine RC_NONE
@@ -10,7 +28,7 @@
     * timidity/mod2midi.c: period2note(): Fixed to search the period note
       between 0 and 119.
 
-2000-02-12  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+2000-03-12  Eric A. Welsh <ewelsh@gpc.wustl.edu>
     * timidity/recache.c: cache_resampling()
 	Defined RESAMPLATION_CACHE, INTERPVARS_CACHE
 	Cache resampling should be the same as what is used for
@@ -23,7 +41,7 @@
 	when it should not have been.  The (double) casting and < 99.5
 	check fix this problem.
 
-2000-02-12  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+2000-03-12  Eric A. Welsh <ewelsh@gpc.wustl.edu>
 
     * timidity/playmidi.c: fixed bug when resampling hit the end
     of a sample (mixing did not happen for the last portion of the
@@ -31,7 +49,7 @@
     * timidity/resample.c: set voice[i].timeout to 1 when resampling
     hits the end of a sample
 
-2000-02-11  Paolo Bonizni <bonzini@gnu.org>
+2000-03-11  Paolo Bonizni <bonzini@gnu.org>
 
     * timidity/mod.c: Fixed effect Fxy interpretation (xy=32 sets
     speed, not tempo)

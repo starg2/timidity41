@@ -67,25 +67,25 @@ static MBlockList hash_entry_pool;
 # define RESAMPLATION_CACHE \
         v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
         v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
-	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
-                dest[i] = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
-	}else{ \
+ 	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
+                 *dest++ = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
+ 	}else{ \
 		ofsd=ofs; \
                 v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
                 v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
                 ofs &= FRACTION_MASK; \
-                temp=v2; \
-		v2 = (6*v2 + \
-		      (((((((5*v3 - 11*v2 + 7*v1 - v0)>>1)* \
-		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+1))-1))*ofs; \
-                ofs = (1L << FRACTION_BITS) - ofs; \
-		v1 = (6*v1 + \
-		      (((((((5*v0 - 11*v1 + 7*temp - v3)>>1)* \
-		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+1))-1))*ofs; \
-		v1 = (v1 + v2)/(6L<<FRACTION_BITS); \
-		dest[i] = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
-		ofs=ofsd; \
-	}
+	        temp=v2; \
+ 		v2 = (6*v2+((((5*v3 - 11*v2 + 7*v1 - v0)>>2)* \
+ 		     (ofs+(1L<<FRACTION_BITS))>>FRACTION_BITS)* \
+ 		     (ofs-(1L<<FRACTION_BITS))>>FRACTION_BITS)) \
+ 		     *ofs; \
+ 		v1 = (((6*v1+((((5*v0 - 11*v1 + 7*temp - v3)>>2)* \
+ 		     ofs>>FRACTION_BITS)*(ofs-(2L<<FRACTION_BITS)) \
+ 		     >>FRACTION_BITS))*((1L<<FRACTION_BITS)-ofs))+v2) \
+ 		     /(6L<<FRACTION_BITS); \
+ 		*dest++ = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
+		ofs = ofsd; \
+ 	}
 #elif defined(LAGRANGE_INTERPOLATION)
 # define INTERPVARS_CACHE      int32   ofsd, v0, v1, v2, v3;
 # define RESAMPLATION_CACHE \
