@@ -7,11 +7,11 @@ AC_DEFUN(CONFIG_INTERFACE,
 case "x$enable_$1" in
 xyes)
   AM_CONDITIONAL(ENABLE_$2, true)
-  SYSTEM="$SYSTEM -DIA_$2"
+  EXTRADEFS="$EXTRADEFS -DIA_$2"
   $6
   ;;
 xdynamic)
-  dynamic_targets="$dynamic_targets interface_$3.\$(sharedLibExtension)"
+  dynamic_targets="$dynamic_targets interface_$3.\$(so)"
   $7
   ;;
 *)
@@ -180,7 +180,7 @@ main()
 #else
     int mode = RTLD_LAZY ;
 #endif
-    handle = dlopen("./dyna.$sharedLibExtension", mode) ;
+    handle = dlopen("./dyna.$so", mode) ;
     if (handle == NULL) {
 	printf ("1\n") ;
 	fflush (stdout) ;
@@ -206,7 +206,7 @@ EOM
 : Call the object file tmp-dyna.o in case dlext=o.
 if ${CC-cc} $CFLAGS $SHCFLAGS $CPPFLAGS -c dyna.c > /dev/null 2>&1 &&
 	mv dyna.o tmp-dyna.o > /dev/null 2>&1 && 
-	$SHLD $SHLDFLAGS -o dyna.$sharedLibExtension tmp-dyna.o > /dev/null 2>&1 && 
+	$SHLD $SHLDFLAGS -o dyna.$so tmp-dyna.o > /dev/null 2>&1 && 
 	${CC-cc} -o fred $CFLAGS $CPPFLAGS $LDFLAGS fred.$ac_ext $LIBS > /dev/null 2>&1; then
 	xxx=`./fred`
 	case $xxx in
@@ -222,7 +222,7 @@ if ${CC-cc} $CFLAGS $SHCFLAGS $CPPFLAGS -c dyna.c > /dev/null 2>&1 &&
 else
 	AC_MSG_WARN(I can't compile and run the test program.)
 fi
-rm -f dyna.c dyna.o dyna.$sharedLibExtension tmp-dyna.o fred.c fred.o fred
+rm -f dyna.c dyna.o dyna.$so tmp-dyna.o fred.c fred.o fred
 ])
 case "x$timidity_cv_func_dlsym_underscore" in
 xyes)	[$1]
@@ -232,4 +232,11 @@ xno)	[$2]
 	AC_MSG_RESULT(no)
 	;;
 esac
+])
+
+
+dnl SET_UNIQ_SORT_WORD(shell-variable,words...)
+AC_DEFUN(SET_UNIQ_SORT_WORD,
+[$1=`for f in $2; do echo $f; done | sort | uniq`
+$1=`echo $$1`
 ])

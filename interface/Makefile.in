@@ -85,7 +85,7 @@ ALSA_CFLAGS = @ALSA_CFLAGS@
 ALSA_LIBS = @ALSA_LIBS@
 CC = @CC@
 EMACS = @EMACS@
-EXTRAINCS = @EXTRAINCS@
+EXTRADEFS = @EXTRADEFS@
 EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_CONFIG = @GTK_CONFIG@
@@ -95,11 +95,12 @@ MAKEINFO = @MAKEINFO@
 NETSRCS = @NETSRCS@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
+SHCFLAGS = @SHCFLAGS@
+SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
-SYSTEM = @SYSTEM@
 VERSION = @VERSION@
 lispdir = @lispdir@
-sharedLibExtension = @sharedLibExtension@
+so = @so@
 
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
@@ -199,7 +200,7 @@ EXTRA_libinterface_a_SOURCES = \
 @ENABLE_WRD_TRUE@	VTPrsTbl.o \
 @ENABLE_WRD_TRUE@	x_mag.o
 
-@ENABLE_SHARED_TRUE@DYNAMIC_OBJS = dynamic_c.o
+@NEEDDLOPEN_TRUE@DYNAMIC_OBJS = dynamic_c.o
 
 @ENABLE_SOUND_SPEC_TRUE@SOUND_SPEC_OBJS = \
 @ENABLE_SOUND_SPEC_TRUE@	soundspec.o
@@ -241,21 +242,17 @@ EXTRA_DIST = \
 @ENABLE_EMACS_TRUE@ELFILES = @ELFILES@
 @ENABLE_EMACS_TRUE@install_el = install.el
 
-SUFFIXES = .$(so)
-
-@ENABLE_SHARED_TRUE@SHLD = @SHLD@
-@ENABLE_SHARED_TRUE@SHCFLAGS = @SHCFLAGS@
-@ENABLE_SHARED_TRUE@so = @sharedLibExtension@
-@ENABLE_SHARED_TRUE@dynamic_targets = @dynamic_targets@
-@ENABLE_SHARED_TRUE@install_dynamics = install.dynamics
-@ENABLE_SHARED_TRUE@n_so_libs = @n_so_libs@
-@ENABLE_SHARED_TRUE@s_so_libs = @s_so_libs@
-@ENABLE_SHARED_TRUE@m_so_libs = @m_so_libs@
-@ENABLE_SHARED_TRUE@k_so_libs = @k_so_libs@
-@ENABLE_SHARED_TRUE@e_so_libs = @e_so_libs@
-@ENABLE_SHARED_TRUE@T_so_libs = @T_so_libs@
-@ENABLE_SHARED_TRUE@a_so_libs = @a_so_libs@
-@ENABLE_SHARED_TRUE@i_so_libs = @i_so_libs@
+@NEEDDLOPEN_TRUE@dynamic_targets = @dynamic_targets@
+@NEEDDLOPEN_TRUE@install_dynamics = install.dynamics
+@NEEDDLOPEN_TRUE@n_so_libs = @n_so_libs@
+@NEEDDLOPEN_TRUE@s_so_libs = @s_so_libs@
+@NEEDDLOPEN_TRUE@m_so_libs = @m_so_libs@
+@NEEDDLOPEN_TRUE@k_so_libs = @k_so_libs@
+@NEEDDLOPEN_TRUE@e_so_libs = @e_so_libs@
+@NEEDDLOPEN_TRUE@T_so_libs = @T_so_libs@
+@NEEDDLOPEN_TRUE@a_so_libs = @a_so_libs@
+@NEEDDLOPEN_TRUE@i_so_libs = @i_so_libs@
+@NEEDDLOPEN_TRUE@g_so_libs = @g_so_libs@
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../config.h
 CONFIG_CLEAN_FILES = 
@@ -270,40 +267,40 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+@ENABLE_XAW_FALSE@libinterface_a_DEPENDENCIES = 
 @ENABLE_VT100_TRUE@libinterface_a_DEPENDENCIES = 
 @ENABLE_SOUND_SPEC_FALSE@libinterface_a_DEPENDENCIES = 
 @ENABLE_MOTIF_TRUE@libinterface_a_DEPENDENCIES = 
-@ENABLE_SHARED_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_SLANG_FALSE@libinterface_a_DEPENDENCIES = 
+gtk_c.olibinterface_a_DEPENDENCIES =  gtk_i.o
+@ENABLE_TCLTK_TRUE@libinterface_a_DEPENDENCIES =  tk_c.o
+@NEEDDLOPEN_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_NCURSES_TRUE@libinterface_a_DEPENDENCIES =  ncurs_c.o
 xskin_loadBMP.olibinterface_a_DEPENDENCIES =  xskin_spectrum.o
+@ENABLE_VT100_FALSE@libinterface_a_DEPENDENCIES = 
+@ENABLE_GTK_TRUE@libinterface_a_DEPENDENCIES = 
 motif_p.olibinterface_a_DEPENDENCIES = 
+xskin_c.olibinterface_a_DEPENDENCIES =  xskin_i.o
+@ENABLE_EMACS_TRUE@libinterface_a_DEPENDENCIES =  emacs_c.o
+@ENABLE_MOTIF_FALSE@libinterface_a_DEPENDENCIES = 
 xaw_c.olibinterface_a_DEPENDENCIES =  xaw_i.o
 soundspec.olibinterface_a_DEPENDENCIES = 
 @ENABLE_XSKIN_TRUE@libinterface_a_DEPENDENCIES = 
+@ENABLE_WRD_TRUE@libinterface_a_DEPENDENCIES = 
+@ENABLE_TCLTK_FALSE@libinterface_a_DEPENDENCIES = 
 gtk_p.olibinterface_a_DEPENDENCIES = 
 @ENABLE_NCURSES_FALSE@libinterface_a_DEPENDENCIES = 
 @ENABLE_XAW_TRUE@libinterface_a_DEPENDENCIES = 
 wrdt_x.olibinterface_a_DEPENDENCIES =  x_wrdwindow.o
+@ENABLE_GTK_FALSE@libinterface_a_DEPENDENCIES = 
 @ENABLE_SOUND_SPEC_TRUE@libinterface_a_DEPENDENCIES = 
 vt100.olibinterface_a_DEPENDENCIES =  vt100_c.o
 @ENABLE_EMACS_FALSE@libinterface_a_DEPENDENCIES = 
-@ENABLE_SHARED_TRUE@libinterface_a_DEPENDENCIES =  dynamic_c.o
+@ENABLE_SLANG_TRUE@libinterface_a_DEPENDENCIES =  slang_c.o
+@NEEDDLOPEN_TRUE@libinterface_a_DEPENDENCIES =  dynamic_c.o
+@ENABLE_XSKIN_FALSE@libinterface_a_DEPENDENCIES = 
 @ENABLE_WRD_FALSE@libinterface_a_DEPENDENCIES = 
 motif_c.olibinterface_a_DEPENDENCIES =  motif_i.o
-@ENABLE_XAW_FALSE@libinterface_a_DEPENDENCIES = 
-@ENABLE_SLANG_FALSE@libinterface_a_DEPENDENCIES = 
-gtk_c.olibinterface_a_DEPENDENCIES =  gtk_i.o
-@ENABLE_TCLTK_TRUE@libinterface_a_DEPENDENCIES =  tk_c.o
-@ENABLE_NCURSES_TRUE@libinterface_a_DEPENDENCIES =  ncurs_c.o
-@ENABLE_GTK_TRUE@libinterface_a_DEPENDENCIES = 
-@ENABLE_VT100_FALSE@libinterface_a_DEPENDENCIES = 
-xskin_c.olibinterface_a_DEPENDENCIES =  xskin_i.o
-@ENABLE_EMACS_TRUE@libinterface_a_DEPENDENCIES =  emacs_c.o
-@ENABLE_MOTIF_FALSE@libinterface_a_DEPENDENCIES = 
-@ENABLE_TCLTK_FALSE@libinterface_a_DEPENDENCIES = 
-@ENABLE_WRD_TRUE@libinterface_a_DEPENDENCIES = 
-@ENABLE_GTK_FALSE@libinterface_a_DEPENDENCIES = 
-@ENABLE_SLANG_TRUE@libinterface_a_DEPENDENCIES =  slang_c.o
-@ENABLE_XSKIN_FALSE@libinterface_a_DEPENDENCIES = 
 VTPrsTbl.olibinterface_a_DEPENDENCIES =  x_mag.o
 libinterface_a_OBJECTS =  dumb_c.o wrdt_dumb.o wrdt_tty.o
 AR = ar
@@ -323,7 +320,7 @@ OBJECTS = $(libinterface_a_OBJECTS)
 all: all-recursive all-am
 
 .SUFFIXES:
-.SUFFIXES: .$(so) .S .c .o .s
+.SUFFIXES: .S .c .o .s
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps interface/Makefile
 
@@ -453,6 +450,10 @@ dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
+dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/output.h ../timidity/controls.h \
+	../timidity/dlutils.h
 emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/output.h ../timidity/controls.h \
@@ -526,9 +527,10 @@ xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
 	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
 	../timidity/playmidi.h ../timidity/readmidi.h \
 	../timidity/output.h ../timidity/controls.h \
-	../timidity/miditrace.h xaw.h
+	../timidity/miditrace.h ../utils/timer.h xaw.h
 xaw_i.o: xaw_i.c ../config.h xaw.h check.xbm ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/controls.h
 xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
@@ -540,7 +542,7 @@ xskin_i.o: xskin_i.c xskin.h ../config.h ../timidity/timidity.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/miditrace.h
-xskin_loadBMP.o: xskin_loadBMP.c ../timidity/timidity.h \
+xskin_loadBMP.o: xskin_loadBMP.c ../config.h ../timidity/timidity.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/controls.h ../timidity/output.h ../libarc/arc.h \
@@ -638,6 +640,8 @@ dumb_c.o:$(libinterface_a_LIBADD)
 	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@
 clean:
 	rm -f tkmidity.tcl
+	rm -f *.o
+	rm -f *.$(so)
 
 tclIndex: $(TCLF)
 	echo 'auto_mkindex . *.tcl; exit' | wish
@@ -655,52 +659,52 @@ install.el: $(ELFILES)
 	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
 	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
-@ENABLE_SHARED_TRUE@all-am: $(dynamic_targets)
+@NEEDDLOPEN_TRUE@all-am: $(dynamic_targets)
 
-@ENABLE_SHARED_TRUE@install.dynamics: $(dynamic_targets)
-@ENABLE_SHARED_TRUE@	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+@NEEDDLOPEN_TRUE@install.dynamics: $(dynamic_targets)
+@NEEDDLOPEN_TRUE@	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
-@ENABLE_SHARED_TRUE@.c.$(so):
-@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -c $< -o $@
+@NEEDDLOPEN_TRUE@.c.$(so):
+@NEEDDLOPEN_TRUE@	$(COMPILE) $(SHCFLAGS) -c $< -o $@
 
-@ENABLE_SHARED_TRUE@bitset.$(so): $(top_srcdir)/utils/bitset.c
-@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+@NEEDDLOPEN_TRUE@bitset.$(so): $(top_srcdir)/utils/bitset.c
+@NEEDDLOPEN_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
 
-@ENABLE_SHARED_TRUE@timer.$(so): $(top_srcdir)/utils/timer.c
-@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+@NEEDDLOPEN_TRUE@timer.$(so): $(top_srcdir)/utils/timer.c
+@NEEDDLOPEN_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
 
-@ENABLE_SHARED_TRUE@url_buff.$(so): $(top_srcdir)/libarc/url_buff.c
-@ENABLE_SHARED_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
+@NEEDDLOPEN_TRUE@url_buff.$(so): $(top_srcdir)/libarc/url_buff.c
+@NEEDDLOPEN_TRUE@	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
 
-@ENABLE_SHARED_TRUE@interface_n.$(so): ncurs_c.$(so) bitset.$(so) timer.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ ncurs_c.$(so) bitset.$(so) timer.$(so) $(n_so_libs)
+@NEEDDLOPEN_TRUE@interface_n.$(so): ncurs_c.$(so) bitset.$(so) timer.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ ncurs_c.$(so) bitset.$(so) timer.$(so) $(n_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_s.$(so): slang_c.$(so) timer.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ slang_c.$(so) timer.$(so) $(s_so_libs)
+@NEEDDLOPEN_TRUE@interface_s.$(so): slang_c.$(so) timer.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ slang_c.$(so) timer.$(so) $(s_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_m.$(so): motif_c.$(so) motif_i.$(so) motif_p.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ motif_c.$(so) motif_i.$(so) motif_p.$(so) $(m_so_libs)
+@NEEDDLOPEN_TRUE@interface_m.$(so): motif_c.$(so) motif_i.$(so) motif_p.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ motif_c.$(so) motif_i.$(so) motif_p.$(so) $(m_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_k.$(so): tk_c.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ tk_c.$(so) $(k_so_libs)
+@NEEDDLOPEN_TRUE@interface_k.$(so): tk_c.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ tk_c.$(so) $(k_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_e.$(so): emacs_c.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ emacs_c.$(so) $(e_so_libs)
+@NEEDDLOPEN_TRUE@interface_e.$(so): emacs_c.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ emacs_c.$(so) $(e_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_T.$(so): vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so) $(T_so_libs)
+@NEEDDLOPEN_TRUE@interface_T.$(so): vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so) $(T_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_a.$(so): xaw_c.$(so) xaw_i.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ xaw_c.$(so) xaw_i.$(so) $(a_so_libs)
+@NEEDDLOPEN_TRUE@interface_a.$(so): xaw_c.$(so) xaw_i.$(so) timer.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ xaw_c.$(so) xaw_i.$(so) timer.$(so) $(a_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_i.$(so): xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so) $(i_so_libs)
+@NEEDDLOPEN_TRUE@interface_i.$(so): xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so) $(i_so_libs)
 
-@ENABLE_SHARED_TRUE@interface_g.$(so): gtk_c.$(so) gtk_i.$(so) gtk_p.$(so)
-@ENABLE_SHARED_TRUE@	$(SHLD) -o $@ gtk_c.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
+@NEEDDLOPEN_TRUE@interface_g.$(so): gtk_c.$(so) gtk_i.$(so) gtk_p.$(so)
+@NEEDDLOPEN_TRUE@	$(SHLD) -o $@ gtk_c.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
 
-@ENABLE_SHARED_TRUE@clean-compile:
-@ENABLE_SHARED_TRUE@	-rm -f *.$(so)
+@NEEDDLOPEN_TRUE@clean-compile:
+@NEEDDLOPEN_TRUE@	-rm -f *.$(so)
 
 install-exec-local: $(install_tk) $(install_xaw) $(install_el) $(install_dynamics)
 ########## End of Makefile

@@ -127,16 +127,8 @@ timidity.o: $(SYSEXTRAS:.c=.o) \
 
 controls.o: $(top_builddir)/interface/libinterface.a
 
-#PROJ = timidity
-#$(PROJ): $(MAINOBJ) $(COBJS)
-#	$(CC) $(LDFLAGS) -o $(PROJ) $(MAINOBJ) $(COBJS) $(LIBS) $(EXTRALIBS) -lm
-
-
-
-#MAINSRC = timidity.c
-#MAINOBJ = $(MAINSRC:.c=.o)
-#timiditymain.o: $(MAINSRC)
-#	$(CC) $(UMPCFLAGS) -Dmain=timiditymain -o $@ -c $(MAINSRC)
-
 version.o: version.c Makefile
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c
+
+objs: $(timidity_OBJECTS) $(timidity_DEPENDENCIES)
+	@:

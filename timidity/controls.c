@@ -32,6 +32,13 @@
 # define DEFAULT_CONTROL_MODE &dumb_control_mode
 #endif /* __MACOS__ */
 
+#ifdef IA_PLUGIN
+  extern ControlMode plugin_control_mode;
+# ifndef DEFAULT_CONTROL_MODE
+#  define DEFAULT_CONTROL_MODE &plugin_control_mode
+# endif
+#endif
+
 #ifdef IA_MOTIF
   extern ControlMode motif_control_mode;
 # ifndef DEFAULT_CONTROL_MODE
@@ -171,6 +178,9 @@ ControlMode *ctl_list[]={
 #endif
 #ifdef IA_DYNAMIC
   &dynamic_control_mode,
+#endif
+#ifdef IA_PLUGIN
+  &plugin_control_mode,
 #endif
   0
 };

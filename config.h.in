@@ -143,6 +143,9 @@
 /* Define if you have the X11 library (-lX11).  */
 #undef HAVE_LIBX11
 
+/* Define if you have the Xpm library (-lXpm).  */
+#undef HAVE_LIBXPM
+
 /* Define if you have the asound library (-lasound).  */
 #undef HAVE_LIBASOUND
 

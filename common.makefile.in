@@ -53,13 +53,6 @@ DEBUGFLAGS = -Wall
 ########### Install.
 #INSTALL = @INSTALL@
 
-# Where to install the executable
-#BIN_DIR = $(prefix)/bin
-
-# Where to install the manual pages
-#MAN_DIR = $(prefix)/man/man1
-JMAN_DIR = $(prefix)/man/ja_JP.EUC/man1
-
 # Where to install the patches, config files, and MIDI files.
 # If you change this, it's a good idea to recompile the binary,
 # or you'll need to invoke timidity with the -L option.
@@ -70,25 +63,7 @@ TIMID_DIR = $(pkglibdir)
 TCL_DIR = $(TIMID_DIR)
 #TCL_DIR = $(pkgdatadir)
 
+CFLAGS += $(DEBUGFLAGS)
+DEFS += $(EXTRADEFS) -DDEFAULT_PATH=\"$(TIMID_DIR)\"
 
-########### Audio device selection
-
-#VERSION = @VERSION@
-
-SYSTEM = @SYSTEM@
-#SYSEXTRAS = @SYSEXTRAS@
-#EXTRALIBS = @EXTRALIBS@
-#EXTRAINCS = @EXTRAINCS@
-
-CFLAGS+= $(DEBUGFLAGS) -DDEFAULT_PATH=\"$(TIMID_DIR)\" \
-	$(SYSTEM) @DEFS@
-
-#CFLAGS+= $(DEBUGFLAGS) -DDEFAULT_PATH=\"$(TIMID_DIR)\" \
-#	$(SYSTEM) $(EXTRAINCS)
-
-
-#DEFS = @DEFS@
-#.c.o:
-#	$(CC) $(CFLAGS) $(DEFS) -c $<
-
-.SUFFIXES: .c .h .ptcl .tcl .o .1 .txt .ps
+.SUFFIXES: .c .h .ptcl .tcl .o .1 .txt .ps .@so@

@@ -86,7 +86,7 @@ ALSA_LIBS = @ALSA_LIBS@
 CC = @CC@
 ELFILES = @ELFILES@
 EMACS = @EMACS@
-EXTRAINCS = @EXTRAINCS@
+EXTRADEFS = @EXTRADEFS@
 EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_CONFIG = @GTK_CONFIG@
@@ -99,11 +99,10 @@ RANLIB = @RANLIB@
 SHCFLAGS = @SHCFLAGS@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
-SYSTEM = @SYSTEM@
 VERSION = @VERSION@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
-sharedLibExtension = @sharedLibExtension@
+so = @so@
 
 INCLUDES = \
 	-I$(top_srcdir)/libarc \
@@ -139,7 +138,7 @@ EXTRA_libutils_a_SOURCES = \
 	readdir.h \
 	readdir_win.c
 
-@ENABLE_NETWORK_TRUE@NET_OBJS = net.o	
+@ENABLE_NETWORK_TRUE@NET_OBJS = net.o
 
 @ENABLE_SOUND_SPEC_TRUE@SOUND_SPEC_OBJS = fft.o
 

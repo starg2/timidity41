@@ -43,9 +43,6 @@
 /* Define to use short cut keys */
 #define ENABLE_KEY_TRANSLATION
 
-/** Define to use OffiX file manager. */
-/* #define OFFIX */
-
 /*** Initial dot file name at home directory ***/
 #define INITIAL_CONFIG ".xtimidity"
 
@@ -54,6 +51,7 @@
  * CONSTANTS FOR XAW MENUS
  */
 #define MAXVOLUME MAX_AMPLIFICATION
+#define MAX_XAW_MIDI_CHANNELS 16
 
 #define APP_CLASS "TiMidity"
 

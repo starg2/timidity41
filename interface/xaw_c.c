@@ -47,6 +47,7 @@
 #include "output.h"
 #include "controls.h"
 #include "miditrace.h"
+#include "timer.h"
 #include "xaw.h"
 static void ctl_current_time(int secs, int v);
 static void ctl_lyric(int lyricid);
@@ -69,6 +70,20 @@ static void a_pipe_int_write(int);
 static void a_pipe_error(char *);
 #endif
 
+static void ctl_event(CtlEvent *e);
+static void ctl_refresh(void);
+static void ctl_total_time(int tt);
+static void ctl_note(int status, int ch, int note, int velocity);
+static void ctl_program(int ch, int val);
+static void ctl_volume(int ch, int val);
+static void ctl_expression(int ch, int val);
+static void ctl_panning(int ch, int val);
+static void ctl_sustain(int ch, int val);
+static void ctl_pitch_bend(int ch, int val);
+static void ctl_reset(void);
+static void update_indicator(void);
+
+static double indicator_last_update = 0;
 static int exitflag=0,randomflag=0,repeatflag=0,selectflag=0,amp_diff=0;
 static int xaw_ready=0;
 static int number_of_files;
@@ -81,6 +96,7 @@ extern int amplitude;
 /* export the interface functions */
 
 #define ctl xaw_control_mode
+#define INDICATOR_UPDATE_TIME 0.6
 
 ControlMode ctl=
 {
@@ -157,12 +173,17 @@ static char tt_str[16];
 
 static void ctl_current_time(int sec, int v) {
 
-  static int previous_sec=-1;
+  static int previous_sec=-1,last_voices=-1;
+
   if (sec!=previous_sec) {
     previous_sec=sec;
-    snprintf(local_buf,sizeof(local_buf),"T %02d:%02d%s",sec / 60,sec % 60,tt_str);
+	snprintf(local_buf,sizeof(local_buf),"T %02d:%02d%s",sec / 60,sec % 60,tt_str);
     a_pipe_write(local_buf);
   }
+  if(!ctl.trace_playing||midi_trace.flush_flag)
+    return;
+  if(last_voices!=voices)
+    last_voices=voices;
 }
 
 static void ctl_total_time(int tt)
@@ -182,6 +203,58 @@ static void ctl_master_volume(int mv)
   if (amplitude < 0) amplitude = 0;
   if (amplitude > MAXVOLUME) amplitude = MAXVOLUME;
   a_pipe_write(local_buf);
+}
+
+static void ctl_volume(int ch, int val)
+{
+  if (!ctl.trace_playing)
+    return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS)
+    return;
+  sprintf(local_buf, "PV%c%d", ch+'A', val);
+  a_pipe_write(local_buf);
+}
+
+static void ctl_expression(int ch, int val)
+{
+  if (!ctl.trace_playing)
+    return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS)
+    return;
+  sprintf(local_buf, "PE%c%d", ch+'A', val);
+  a_pipe_write(local_buf);
+}
+
+static void ctl_panning(int ch, int val)
+{
+  if (!ctl.trace_playing)
+    return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS)
+    return;
+  sprintf(local_buf, "PA%c%d", ch+'A', val);
+  a_pipe_write(local_buf);
+}
+
+static void ctl_sustain(int ch, int val)
+{
+  if (!ctl.trace_playing)
+    return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS)
+    return;
+  sprintf(local_buf, "PS%c%d", ch+'A', val);
+  a_pipe_write(local_buf);
+}
+
+static void ctl_pitch_bend(int ch, int val)
+{
+  /*
+  if (!ctl.trace_playing)
+    return;
+  if(ch >= MAX_XAW_MIDI_CHANNELS)
+    return;
+  sprintf(local_buf, "PB%c%d", ch+'A', val);
+  a_pipe_write(local_buf);
+  */
 }
 
 static void ctl_lyric(int lyricid)
@@ -230,6 +303,9 @@ static void ctl_lyric(int lyricid)
 /*ARGSUSED*/
 static int ctl_open(int using_stdin, int using_stdout) {
   ctl.opened=1;
+
+  if(ctl.trace_playing)
+      set_trace_loop_hook(update_indicator);
 
   /* The child process won't come back from this call  */
   a_pipe_open();
@@ -558,6 +634,50 @@ static void a_pipe_write_msg(char *msg)
     write(pipe_out_fd, "\n", 1);
 }
 
+static void
+ctl_note(int status, int ch, int note, int velocity)
+{
+  char c;
+
+  if(ch >= MAX_XAW_MIDI_CHANNELS)
+	return;
+  if (!ctl.trace_playing || midi_trace.flush_flag)
+	return;
+	
+#define TRACE_HEIGHT 200
+	c = '.';
+    switch(status) {
+    case VOICE_ON:
+	  c = '*';
+	  break;
+    case VOICE_SUSTAINED:
+	  c = '*';
+	  break;
+	case VOICE_FREE:
+	case VOICE_DIE:
+	case VOICE_OFF:
+    default:
+	  break;
+    }
+	snprintf(local_buf,sizeof(local_buf),"Y%c%c%03d%d",ch+'A',c,(unsigned char)note,velocity);
+	a_pipe_write(local_buf);
+}
+
+static void ctl_program(int ch, int val)
+{
+  if(ch >= MAX_XAW_MIDI_CHANNELS)
+    return;
+  if (!ctl.trace_playing)
+    return;
+
+  if(channel[ch].special_sample)
+	val = channel[ch].special_sample;
+  else
+	val += progbase;
+  sprintf(local_buf, "PP%c%d", ch+'A', val);
+  a_pipe_write(local_buf);
+}
+
 static void ctl_event(CtlEvent *e)
 {
     switch(e->type)
@@ -570,13 +690,94 @@ static void ctl_event(CtlEvent *e)
 	case CTLE_PLAY_START:
 	  ctl_total_time((int)e->v1);
 	  break;
+	case CTLE_PLAY_END:
+	  break;
+	case CTLE_TEMPO:
+	  break;
+	case CTLE_METRONOME:
+	  break;
+	case CTLE_NOTE:
+	  ctl_note((int)e->v1, (int)e->v2, (int)e->v3, (int)e->v4);
+	  break;
+	case CTLE_PROGRAM:
+	  ctl_program((int)e->v1, (int)e->v2);
+	  break;
+	case CTLE_VOLUME:
+	  ctl_volume((int)e->v1, (int)e->v2);
+	  break;
+	case CTLE_EXPRESSION:
+	  ctl_expression((int)e->v1, (int)e->v2);
+	  break;
+	case CTLE_PANNING:
+	  ctl_panning((int)e->v1, (int)e->v2);
+	  break;
+	case CTLE_SUSTAIN:
+	  ctl_sustain((int)e->v1, (int)e->v2);
+	  break;
+	case CTLE_PITCH_BEND:
+	  ctl_pitch_bend((int)e->v1, (int)e->v2);
+	  break;
+	case CTLE_MOD_WHEEL:
+	  ctl_pitch_bend((int)e->v1, e->v2 ? -1 : 0x2000);
+	  break;
+	case CTLE_CHORUS_EFFECT:
+	  break;
+	case CTLE_REVERB_EFFECT:
+	  break;
 	case CTLE_LYRIC:
 	  ctl_lyric((int)e->v1);
 	  break;
 	case CTLE_MASTER_VOLUME:
 	  ctl_master_volume((int)e->v1);
 	  break;
+	case CTLE_REFRESH:
+	  ctl_refresh();
+	  break;
+	case CTLE_RESET:
+	  ctl_reset();
+	  break;
+
     }
+}
+
+static void ctl_refresh(void)
+{
+}
+
+static void ctl_reset(void)
+{
+  int i;
+  if (!ctl.trace_playing)
+    return;
+
+  play_mode->purge_output();
+
+  for (i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
+	if(ISDRUMCHANNEL(i))
+	  ctl_program(i, channel[i].bank);
+	else
+	  ctl_program(i, channel[i].program);
+	ctl_volume(i, channel[i].volume);
+	ctl_expression(i, channel[i].expression);
+	ctl_panning(i, channel[i].panning);
+	ctl_sustain(i, channel[i].sustain);
+	if(channel[i].pitchbend == 0x2000 && channel[i].modulation_wheel > 0)
+	  ctl_pitch_bend(i, -1);
+	else
+	  ctl_pitch_bend(i, channel[i].pitchbend);
+  }
+  sprintf(local_buf, "R");
+  a_pipe_write(local_buf);  
+}
+
+static void update_indicator(void)
+{
+  double t;
+
+  t = get_current_calender_time();
+  if(indicator_last_update + INDICATOR_UPDATE_TIME > t)	return;
+  sprintf(local_buf, "U");
+  a_pipe_write(local_buf);
 }
 
 /*

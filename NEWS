@@ -1,3 +1,7 @@
+* 1/18, 1999
+    Support OffiX file drag & drop interface for xaw.
+    Support UMP configuration.
+
 * 1/14, 1999
     Modfied for OffiX file drag & drop interface for xaw.  If you want
     build this, define OFFIX in interface/xaw.h and link libDnd.

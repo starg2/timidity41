@@ -136,7 +136,7 @@ WRD_OBJS = \
 	x_mag.o
 endif
 
-if ENABLE_SHARED
+if NEEDDLOPEN
 DYNAMIC_OBJS = dynamic_c.o
 endif
 
@@ -180,6 +180,8 @@ EXTRA_DIST = \
 	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@
 clean:
 	rm -f tkmidity.tcl
+	rm -f *.o
+	rm -f *.$(so)
 
 tclIndex: $(TCLF)
 	echo 'auto_mkindex . *.tcl; exit' | wish
@@ -221,12 +223,8 @@ install.el: $(ELFILES)
 ##
 ## For dynamic interfaces
 ##
-SUFFIXES = .$(so)
-if ENABLE_SHARED
 
-SHLD = @SHLD@
-SHCFLAGS = @SHCFLAGS@
-so = @sharedLibExtension@
+if NEEDDLOPEN
 dynamic_targets = @dynamic_targets@
 install_dynamics = install.dynamics
 n_so_libs = @n_so_libs@
@@ -237,6 +235,7 @@ e_so_libs = @e_so_libs@
 T_so_libs = @T_so_libs@
 a_so_libs = @a_so_libs@
 i_so_libs = @i_so_libs@
+g_so_libs = @g_so_libs@
 
 all-am: $(dynamic_targets)
 
@@ -273,8 +272,8 @@ interface_e.$(so): emacs_c.$(so)
 interface_T.$(so): vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so)
 	$(SHLD) -o $@ vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so) $(T_so_libs)
 
-interface_a.$(so): xaw_c.$(so) xaw_i.$(so)
-	$(SHLD) -o $@ xaw_c.$(so) xaw_i.$(so) $(a_so_libs)
+interface_a.$(so): xaw_c.$(so) xaw_i.$(so) timer.$(so)
+	$(SHLD) -o $@ xaw_c.$(so) xaw_i.$(so) timer.$(so) $(a_so_libs)
 
 interface_i.$(so): xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so)
 	$(SHLD) -o $@ xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so) $(i_so_libs)

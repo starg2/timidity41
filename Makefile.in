@@ -88,7 +88,7 @@ ALSA_LIBS = @ALSA_LIBS@
 CC = @CC@
 ELFILES = @ELFILES@
 EMACS = @EMACS@
-EXTRAINCS = @EXTRAINCS@
+EXTRADEFS = @EXTRADEFS@
 EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_CONFIG = @GTK_CONFIG@
@@ -101,11 +101,10 @@ RANLIB = @RANLIB@
 SHCFLAGS = @SHCFLAGS@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
-SYSTEM = @SYSTEM@
 VERSION = @VERSION@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
-sharedLibExtension = @sharedLibExtension@
+so = @so@
 
 SUBDIRS = \
 	utils \
@@ -369,6 +368,8 @@ uninstall all installdirs mostlyclean-generic distclean-generic \
 clean-generic maintainer-clean-generic clean mostlyclean distclean \
 maintainer-clean
 
+
+include $(top_builddir)/common.makefile
 
 dynamics:
 	cd interface; $(MAKE) $@

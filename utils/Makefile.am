@@ -53,7 +53,7 @@ EXTRA_libutils_a_SOURCES = \
 	readdir_win.c
 
 if ENABLE_NETWORK
-NET_OBJS = net.o	
+NET_OBJS = net.o
 endif
 
 if ENABLE_SOUND_SPEC

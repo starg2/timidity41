@@ -1,4 +1,41 @@
+-- 1.1.0
+Sun Jan 18 1999
+Summary:
+    * Fixed bugs of xaw interface with no trace mode.
+    * Added configuration for UMP package.
+    * Modified configure and Makefiles.
+    * Added trace mode to xaw interface.
+    * Supported OffiX configuration.
+    * Some bugs are fixed.
+
+Date: Mon Jan 18 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/xaw_i.c
+    Fixed bugs of xaw interface with no trace mode.
+Files: configure* */Makefile*
+    Added configuration for UMP package.
+    Modified configure and Makefiles.
+
+Date: Sat, 16 Jan 1999 02:18:01 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: interface/{xaw.h,xaw_c.c,xaw_i.c}
+    Added trace mode to xaw interface.
+
+Date: Fri, 15 Jan 1999 14:26:17 +0900
+From: takawata@shidahara1.planet.sci.kobe-u.ac.jp
+Files: configure.in interface/xaw.h interface/xskin_loadBMP.c
+    Supported OffiX configuration.  The new configure options are:
+	--enable-offix
+	    Turn on OffiX interface for XAW.
+	--with-offix-includes=[dir]
+	    Specify include directry for Offix library.
+	--with-offix-libs=[dir]
+	    Specify library for Offix.
+    Fixed tkl/tk configure bug.
+    Included config.h in xskin_loadBMP.c.
+
 -- 1.0.1
+Thu Jan 14 1999
 Summary:
     * Define function of vsnprintf() and snprintf() if it is not exists.
     * Fixed message transfer probrem with '\n' for some interface.

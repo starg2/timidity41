@@ -68,6 +68,8 @@
 #include "check.xbm"
 #include "timidity.h"
 #include "common.h"
+#include "instrum.h"
+#include "playmidi.h"
 #include "controls.h"
 #if HAVE_STRSTR
 #define strstr(s,c)	index(s,c)
@@ -75,6 +77,18 @@
 #ifndef HAVE_STRNCASECMP
 int strncasecmp(char *s1, char *s2, unsigned int len);
 #endif
+#define TRACE_WIDTH 380
+#define TRACE_HEIGHT 180
+#define POS_HEIGHT 12
+#define PRG_HEIGHT 16
+#define TRACE_XOFS 30
+#define TRACE_YOFS 10
+#define BAR_INTERVAL 2
+#define BAR_SPACE 20
+#define BAR_WIDTH (BAR_SPACE-BAR_INTERVAL)
+#define BAR_HEIGHT 140
+#define BAR_SCALE 1
+#define TRACE_BASELINE BAR_HEIGHT+10
 
 typedef struct {
   int			id;
@@ -90,15 +104,16 @@ typedef struct {
 } DirPath;
 
 void a_print_text(Widget,char *);
+static void draw1Chan(int,int,char);
+static void drawProg(int,Boolean), drawPan(int,int,Boolean);
 static void quitCB(),playCB(),pauseCB(),stopCB(),prevCB(),nextCB(),
   forwardCB(),backCB(),repeatCB(),randomCB(),menuCB(),sndspecCB(),
   volsetCB(),volupdownCB(),volupdownAction(),toggleMark(),filemenuCB(),
   popupLoad(),popdownLoad(),a_readconfig(),a_saveconfig(),
   saveconfigAction(),setDirAction(),setDirList();
-static char *expandDir();
-static void completeDir();
+static void drawBar(),drawTraceAll(),completeDir(),ctl_channel_note();
+static char *expandDir(),*strmatch();
 static int configcmp();
-static char *strmatch();
 #ifdef ENABLE_KEY_TRANSLATION
 static void pauseAction(),soundkeyAction(),speedAction(),voiceAction();
 #endif
@@ -106,15 +121,20 @@ static void pauseAction(),soundkeyAction(),speedAction(),voiceAction();
 extern void a_pipe_write(char *);
 extern int a_pipe_read(char *,int);
 extern int a_pipe_nread(char *buf, int n);
+void initTraceWindow(Boolean);
 
 static Widget title_mb,title_sm,time_l, popup_load, popup_load_f, load_d;
 static Widget load_vport, load_flist, cwd_l, load_info;
 #ifdef MSGWINDOW
 static Widget lyric_t;
-static Widget lyriclist[1];
-static Dimension lyric_height;
-static Dimension base_height;
+static Widget trace;
+static Widget lyriclist[1], tracelist[1];
+static Dimension lyric_height, base_height;
 #endif
+static GC gct;
+static XColor bgcolor,defcolor,fgpan,fgstr,fgtmp;
+static XFontStruct *StatusFont;
+static long barcol[MAX_XAW_MIDI_CHANNELS];
 
 static Widget toplevel, base_f, file_mb, file_sm, bsb, logo_label;
 static Widget quit_b,play_b,pause_b,stop_b,prev_b,next_b,fwd_b,back_b;
@@ -130,9 +150,32 @@ typedef struct {
   Boolean		autostart;
   Boolean		hidetext;
   Boolean		shuffle;
+  Boolean		disptrace;
 } Config;
 
-Config Cfg = { FALSE, FALSE, TRUE, FALSE, FALSE };
+#define FLAG_NOTE_OFF   1
+#define FLAG_NOTE_ON    2
+#define FLAG_BANK       1
+#define FLAG_PROG       2
+#define FLAG_PROG_ON    4
+#define FLAG_PAN        8
+#define FLAG_SUST       16
+typedef struct {
+  int reset_panel;
+  int multi_part;
+  char v_flags[MAX_XAW_MIDI_CHANNELS];
+  int16 cnote[MAX_XAW_MIDI_CHANNELS];
+  int16 cvel[MAX_XAW_MIDI_CHANNELS];
+  int16 ctotal[MAX_XAW_MIDI_CHANNELS];
+  char c_flags[MAX_XAW_MIDI_CHANNELS];
+  Channel channel[MAX_XAW_MIDI_CHANNELS];
+} PanelInfo;
+
+/* Default configuration to execute Xaw interface */
+/*  confirmexit repeat autostart hidetext shuffle disptrace */
+Config Cfg = { False, False, True, False, False, True };
+static PanelInfo *Panel;
+
 #define MAXBITMAP 8
 static char *bmfname[] = {
   "back.xbm","fwrd.xbm","next.xbm","pause.xbm","play.xbm","prev.xbm",
@@ -177,8 +220,9 @@ static int bm_height[MAXBITMAP], bm_width[MAXBITMAP],
   x_hot,y_hot, root_height, root_width;
 static Pixmap bm_Pixmap[MAXBITMAP];
 static int max_files;
-static char basepath[PATH_MAX];
+char basepath[PATH_MAX];
 String *dirlist = NULL;
+Dimension trace_width = TRACE_WIDTH, trace_height = TRACE_HEIGHT;
 
 /*static struct _app_resources {
   String bitmap_dir;
@@ -205,9 +249,11 @@ static ButtonRec file_menu[] = {
 #define ID_HIDETXT 103
   {ID_HIDETXT, "(Un)Hide Messages", True, False},
 #endif
+#define ID_HIDETRACE 104
+  {ID_HIDETRACE, "(Un)Hide Trace", True, False},
 #define ID_DUMMY -1
   {ID_DUMMY, "line", False, False},
-#define ID_QUIT 104
+#define ID_QUIT 105
   {ID_QUIT, "quit", True, False},
 };
 
@@ -256,8 +302,6 @@ static void quitCB(Widget w,XtPointer data,XtPointer dummy) {
 static void sndspecCB(Widget w,XtPointer data,XtPointer dummy) {
 #ifdef SUPPORT_SOUNDSPEC
   a_pipe_write("g");
-#else
-  ;
 #endif
 }
 
@@ -314,30 +358,35 @@ static void stopCB(Widget w,XtPointer data,XtPointer dummy) {
   offPlayButton();
   offPauseButton();
   a_pipe_write("S");
+  initTraceWindow(True);
 }
 
 /*ARGSUSED*/
 static void nextCB(Widget w,XtPointer data,XtPointer dummy) {
   onPlayOffPause();
   a_pipe_write("N");
+  initTraceWindow(True);
 }
 
 /*ARGSUSED*/
 static void prevCB(Widget w,XtPointer data,XtPointer dummy) {
   onPlayOffPause();
   a_pipe_write("B");
+  initTraceWindow(True);
 }
 
 /*ARGSUSED*/
 static void forwardCB(Widget w,XtPointer data,XtPointer dummy) {
   if (onPlayOffPause()) a_pipe_write("P");
   a_pipe_write("f");
+  initTraceWindow(True);
 }
 
 /*ARGSUSED*/
 static void backCB(Widget w,XtPointer data,XtPointer dummy) {
   if (onPlayOffPause()) a_pipe_write("P");
   a_pipe_write("b");
+  initTraceWindow(True);
 }
 
 /*ARGSUSED*/
@@ -499,9 +548,9 @@ static void toggleMark(Widget w,int id) {
 static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
   int *id = (int *)id_data;
 #ifdef MSGWINDOW
-  Dimension w1,h1;
-  Dimension w2,h2;
+  Dimension w1,h1,w2,h2;
 #endif
+  Dimension tmp;
 
   switch (*id) {
 	case ID_LOAD:
@@ -510,15 +559,45 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
 	case ID_AUTOSTART:
 	  toggleMark(w,*id);
 	  break;
+	case ID_HIDETRACE:
+	  if(ctl->trace_playing) {
+		XtVaGetValues(toplevel,XtNheight,&h1,NULL);
+		XtVaGetValues(toplevel,XtNwidth,&w1,NULL);
+		if (XtIsManaged(trace)) {
+		  tmp = trace_height + (XtIsManaged(lyric_t) ? 0:lyric_height);
+		  XtUnmanageChildren(tracelist, XtNumber(tracelist));
+		  XtVaSetValues(trace,XtNfromVert,
+						(XtIsManaged(lyric_t) ? lyric_t:v_box),NULL);
+		  XtMakeResizeRequest(toplevel,w1,base_height-tmp,&w2,&h2);
+		} else {
+		  XtManageChildren(tracelist, XtNumber(tracelist));
+		  XtVaSetValues(trace,XtNfromVert,
+						(XtIsManaged(lyric_t) ? lyric_t:v_box),NULL);
+		  XtMakeResizeRequest(toplevel,w1,h1+trace_height,&w2,&h2);
+		  XtVaSetValues(trace,XtNheight,&trace_height,NULL);
+		}
+		toggleMark(w,*id);
+	  }
+	  break;
 #ifdef MSGWINDOW
 	case ID_HIDETXT:
 	  XtVaGetValues(toplevel,XtNheight,&h1,NULL);
 	  XtVaGetValues(toplevel,XtNwidth,&w1,NULL);
 	  if (XtIsManaged(lyric_t)) {
+		if(ctl->trace_playing) {
+		  tmp = lyric_height + (XtIsManaged(trace) ? 0:trace_height);
+		} else {
+		  tmp = lyric_height;
+		}
 		XtUnmanageChildren(lyriclist, XtNumber(lyriclist));
-		XtMakeResizeRequest(toplevel,w1,base_height-lyric_height,&w2,&h2);
+		if(ctl->trace_playing && XtIsManaged(trace))
+		  XtVaSetValues(trace,XtNfromVert,v_box,NULL);
+		XtMakeResizeRequest(toplevel,w1,base_height-tmp,&w2,&h2);
 	  } else {
 		XtManageChildren(lyriclist, XtNumber(lyriclist));
+		if(ctl->trace_playing && XtIsManaged(trace)) {
+		  XtVaSetValues(trace,XtNfromVert,lyric_t,NULL);
+		}
 		XtMakeResizeRequest(toplevel,w1,h1+lyric_height,&w2,&h2);
 		XtVaSetValues(lyric_t,XtNheight,&lyric_height,NULL);
 	  }
@@ -562,56 +641,135 @@ static void a_print_msg(Widget w)
 }
 #endif /* MSGWINDOW */
 
+#define DELTA_VEL       32
+
+static void
+ctl_channel_note(int ch, int note, int velocity) {
+  if (velocity == 0) {
+	if (note == Panel->cnote[ch])	  
+	  Panel->v_flags[ch] = FLAG_NOTE_OFF;
+	Panel->cvel[ch] = 0;
+  } else if (velocity > Panel->cvel[ch]) {
+	Panel->cvel[ch] = velocity;
+	Panel->cnote[ch] = note;
+	Panel->ctotal[ch] = velocity * Panel->channel[ch].volume *
+	  Panel->channel[ch].expression / (127*127);
+	Panel->v_flags[ch] = FLAG_NOTE_ON;
+  }
+}
+
 /*ARGSUSED*/
 static void handle_input(XtPointer data,int *source,XtInputId *id) {
-  char s[16];
-  int i = 0, n;
+  char s[16], c;
+  int i=0, n, ch, note;
   float thumb;
 
   a_pipe_read(local_buf,sizeof(local_buf));
   switch (local_buf[0]) {
-    case 'T' : XtVaSetValues(time_l,XtNlabel,local_buf+2,NULL);break;
-    case 'E' :
-	  XtVaSetValues(title_mb,XtNlabel,(char *)strrchr(local_buf+2,' ')+1,NULL);
-	  if (arrangetitle) {
-		snprintf(window_title, sizeof(window_title), "%s : %s", APP_CLASS, local_buf+2);
-		XtVaSetValues(toplevel,XtNtitle,window_title,NULL);
-	  }
-	  break;
-    case 'O' : offPlayButton();break;
+  case 'T' : XtVaSetValues(time_l,XtNlabel,local_buf+2,NULL); break;
+  case 'E' :
+	XtVaSetValues(title_mb,XtNlabel,(char *)strrchr(local_buf+2,' ')+1,NULL);
+	if (arrangetitle) {
+	  snprintf(window_title, sizeof(window_title), "%s : %s", APP_CLASS, local_buf+2);
+	  XtVaSetValues(toplevel,XtNtitle,window_title,NULL);
+	}
+	break;
+  case 'O' : offPlayButton();break;
 #ifdef MSGWINDOW
-    case 'L' :
-	  if (XtIsManaged(lyric_t)) a_print_msg(lyric_t);
-	  break;
+  case 'L' :
+	if (XtIsManaged(lyric_t)) a_print_msg(lyric_t);
+	break;
 #endif
-    case 'Q' : exit(0);
-    case 'V':
-	  i=atoi(local_buf+2);
-	  thumb = (float)i / (float)MAXVOLUME;
-	  sprintf(s, "Volume %3d", i);
-	  XtVaSetValues(vol_l, XtNlabel, s, NULL);
-	  if (sizeof(thumb) > sizeof(XtArgVal)) {
-		XtVaSetValues(vol_bar, XtNtopOfThumb, &thumb, NULL);
-	  } else {
-		XtArgVal *l_thumb = (XtArgVal *) &thumb;
-		XtVaSetValues(vol_bar, XtNtopOfThumb,*l_thumb, NULL);
+  case 'Q' : exit(0);
+  case 'V':
+	i=atoi(local_buf+2);
+	thumb = (float)i / (float)MAXVOLUME;
+	sprintf(s, "Volume %3d", i);
+	XtVaSetValues(vol_l, XtNlabel, s, NULL);
+	if (sizeof(thumb) > sizeof(XtArgVal)) {
+	  XtVaSetValues(vol_bar, XtNtopOfThumb, &thumb, NULL);
+	} else {
+	  XtArgVal *l_thumb = (XtArgVal *) &thumb;
+	  XtVaSetValues(vol_bar, XtNtopOfThumb,*l_thumb, NULL);
+	}
+	break;
+  case 'v':
+  case 'g':
+  case '\0' :
+	break;
+  case 'X':
+	n=max_files;
+	max_files+=atoi(local_buf+2);
+	for (i=n;i<max_files;i++) {
+	  a_pipe_read(local_buf,sizeof(local_buf));
+	  bsb=XtVaCreateManagedWidget(local_buf,smeBSBObjectClass,title_sm,NULL);
+	  XtAddCallback(bsb,XtNcallback,menuCB,(XtPointer)i);
+	}
+	break;
+  case 'Y':
+	ch= *(local_buf+1) - 'A';
+	c= *(local_buf+2);
+	note= (*(local_buf+3)-'0')*100 + (*(local_buf+4)-'0')*10 + *(local_buf+5)-'0';
+	n= atoi(local_buf+6);
+	if (c == '*') {
+	  Panel->c_flags[ch] |= FLAG_PROG_ON;
+	} else {
+	  Panel->c_flags[ch] &= ~FLAG_PROG_ON; n= 0;
+	}
+	ctl_channel_note(ch, note, n);
+	draw1Chan(ch,Panel->ctotal[ch],c);
+	break;
+  case 'P':
+	c= *(local_buf+1);
+	ch= *(local_buf+2)-'A';
+	n= atoi(local_buf+3);
+	switch(c) {
+    case  'A':		/* panning */
+	  Panel->channel[ch].panning = n;
+	  Panel->c_flags[ch] |= FLAG_PAN;
+	  drawPan(ch,n,True);
+	  break;
+    case  'B':		/* pitch_bend */
+	  /*Panel->channel[ch].pitch_bend = n;
+		Panel->c_flags[ch] |= FLAG_BENDT;*/
+	  break;
+    case  'S':		/* sustain */
+	  Panel->channel[ch].sustain = n;
+	  Panel->c_flags[ch] |= FLAG_SUST;
+	  break;
+    case  'P':		/* program */
+	  Panel->channel[ch].program = n;
+	  Panel->c_flags[ch] |= FLAG_PROG;
+	  drawProg(ch,True);
+	  break;
+    case  'E':		/* expression */
+	  Panel->channel[ch].expression = n;
+	  ctl_channel_note(ch, Panel->cnote[ch], Panel->cvel[ch]);
+	  break;
+    case  'V':		/* volume */
+	  Panel->channel[ch].volume = n;
+	  ctl_channel_note(ch, Panel->cnote[ch], Panel->cvel[ch]);
+	  break;
+	}
+	break;
+  case 'R':
+	drawTraceAll();	break;
+  case 'U':			/* update timer */
+	for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++)
+	  if (Panel->v_flags[i]) {
+		if (Panel->v_flags[i] == FLAG_NOTE_OFF) {
+		  Panel->ctotal[i] -= DELTA_VEL;
+		  if (Panel->ctotal[i] <= 0) {
+			Panel->ctotal[i] = 0;
+			Panel->v_flags[i] = 0;
+		  }
+		} else {
+		  Panel->v_flags[i] = 0;
+		}
 	  }
-	  break;
-    case 'v':
-    case 'g':
-    case '\0' :
-	  break;
-    case 'X':
-	  n=max_files;
-	  max_files+=atoi(local_buf+2);
-	  for (i=n;i<max_files;i++) {
-		a_pipe_read(local_buf,sizeof(local_buf));
-		bsb=XtVaCreateManagedWidget(local_buf,smeBSBObjectClass,title_sm,NULL);
-		XtAddCallback(bsb,XtNcallback,menuCB,(XtPointer)i);
-	  }
-	  break;
-    default : 
-	  fprintf(stderr,"Unkown message '%s' from CONTROL" NLS,local_buf);
+	break;
+  default : 
+	fprintf(stderr,"Unkown message '%s' from CONTROL" NLS,local_buf);
   }
 }
 
@@ -780,6 +938,113 @@ static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
   }
 }
 
+static void drawBar(int ch,int len) {
+  if (!ctl->trace_playing) return;
+  XSetForeground(disp, gct, barcol[ch]);  
+  XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,
+				 TRACE_XOFS+ch*BAR_SPACE,TRACE_BASELINE-len*BAR_SCALE,
+				 BAR_WIDTH,len*BAR_SCALE);
+  XSetForeground(disp, gct, bgcolor.pixel);
+  XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,
+				 TRACE_XOFS+ch*BAR_SPACE,0,
+				 BAR_WIDTH+1,TRACE_BASELINE-len*BAR_SCALE);
+}
+
+static void drawProg(int ch,Boolean do_clean) {
+  char s[3];
+
+  if(do_clean) {
+	XSetForeground(disp, gct, bgcolor.pixel);
+	XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,
+				   TRACE_XOFS+ch*BAR_SPACE,TRACE_BASELINE+POS_HEIGHT,
+				   BAR_SPACE,PRG_HEIGHT);
+	XSetForeground(disp, gct, fgstr.pixel);
+  }
+  sprintf(s, "%02X", Panel->channel[ch].program);
+  /* 14 means suspected Text Height, though it's not so exact.. */
+  XDrawString(XtDisplay(trace), XtWindow(trace), gct,
+			  TRACE_XOFS+ch*BAR_SPACE+2,TRACE_BASELINE+POS_HEIGHT+14,s,2);
+}
+
+static void drawPan(int ch,int val,Boolean setcolor) {
+  int ap,bp;
+  int x;
+  static XPoint pp[3];
+
+  if (val < 0) return;
+  x= TRACE_XOFS+ BAR_SPACE * ch+ 1;
+  ap= BAR_WIDTH * val/127;
+  bp= BAR_WIDTH -ap -1;
+  pp[0].x= ap+ x; pp[0].y= 6 +TRACE_BASELINE;
+  pp[1].x= bp+ x; pp[1].y= 2 +TRACE_BASELINE;
+  pp[2].x= bp+ x; pp[2].y= 10 +TRACE_BASELINE;
+  if (setcolor) {
+	XSetForeground(disp, gct, bgcolor.pixel);
+	XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,
+				   x-2,TRACE_BASELINE+1,BAR_SPACE-1,12);
+	XSetForeground(disp, gct, fgpan.pixel);
+  }
+  XFillPolygon(XtDisplay(trace),XtWindow(trace),gct,pp,3,
+			   (int)Nonconvex,(int)CoordModeOrigin);
+}
+
+static void draw1Chan(int ch,int val,char cmd) {
+  if (!ctl->trace_playing) return;
+  if (cmd == '*') {
+	drawBar(ch, val);
+  } else {
+	XSetForeground(disp, gct, bgcolor.pixel);
+	XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,
+				   TRACE_XOFS+ch*BAR_SPACE,TRACE_YOFS,BAR_WIDTH+1,BAR_HEIGHT);
+  }
+}
+
+static void drawTraceAll(void) {
+  int i;
+  Dimension w, h;
+
+  XtVaGetValues(trace,XtNheight,&h,NULL);
+  XtVaGetValues(trace,XtNwidth,&w,NULL);
+  if (!ctl->trace_playing) return;
+  XSetForeground(disp, gct, bgcolor.pixel);
+  XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,0,0,w,h);
+  for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
+	XSetForeground(disp, gct, barcol[i]);
+	XDrawLine(XtDisplay(trace),XtWindow(trace),gct,
+			  TRACE_XOFS+i*BAR_SPACE,TRACE_BASELINE,
+			  TRACE_XOFS+(i+1)*BAR_SPACE -BAR_INTERVAL,TRACE_BASELINE);
+  }
+  for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++)
+	if (Panel->ctotal[i] != 0 && Panel->c_flags[i] & FLAG_PROG_ON)
+	  draw1Chan(i,Panel->ctotal[i],'*');
+  XSetForeground(disp, gct, fgpan.pixel);
+  for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
+	if (Panel->c_flags[i] & FLAG_PAN)
+	  drawPan(i,Panel->channel[i].panning,False);
+  }
+  XSetForeground(disp, gct, fgstr.pixel);
+  for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
+	drawProg(i,False);
+  }
+}
+
+void initTraceWindow(Boolean draw) {
+  int i;
+  if(!ctl->trace_playing) return;
+  for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
+	Panel->channel[i].program= 0;
+	Panel->channel[i].sustain= 0;
+	Panel->channel[i].expression= 0;
+	Panel->channel[i].panning= -1;
+	Panel->ctotal[i] = 0;
+	Panel->cvel[i] = 0;
+	Panel->v_flags[i] = 0;
+	Panel->c_flags[i] = 0;
+  }
+  if (draw)
+	drawTraceAll();
+}
+
 /*ARGSUSED*/
 static void completeDir(Widget w,XEvent *e, XtPointer data)
 {
@@ -824,7 +1089,6 @@ static void completeDir(Widget w,XEvent *e, XtPointer data)
 	  if (match) {
 		sprintf(fullpath, "%s/%s", full.dirname, matchstr);
 		XtVaSetValues(load_d,XtNvalue,fullpath,NULL);
-		XawTextSetInsertionPoint(w,strlen(fullpath));
 	  }
 	  url_close(dirp);
 	  reuse_mblock(&pool);
@@ -865,6 +1129,8 @@ static void a_readconfig (Config *Cfg) {
 #endif
 		case S_ShufflePlay:
 		  Cfg->shuffle = (Boolean)k; break;
+		case S_DispTrace:
+		  Cfg->disptrace = (Boolean)k; break;
 		}
 	  }
 
@@ -892,6 +1158,7 @@ static void a_saveconfig (char *file) {
 	  fprintf(fp,"set %s %d\n",cfg_items[S_DispText],(int)(file_menu[ID_HIDETXT-100].bmflag ^ TRUE));
 #endif
 	  fprintf(fp,"set %s %d\n",cfg_items[S_ShufflePlay],(int)s2);
+	  fprintf(fp,"set %s %d\n",cfg_items[S_DispTrace],((int)file_menu[ID_HIDETRACE-100].bmflag ? 0:1));
 	  fclose(fp);
 	} else {
 	  fprintf(stderr, "cannot open initializing file '%s'.\n", file);
@@ -922,13 +1189,13 @@ OK:
   if(Type==DndFiles){
     filename = Data;
     while (filename[0] != '\0'){
-      snprintf(local_buffer,sizeof(local_buffer),"X %s\n",filename);
+	  snprintf(local_buffer,sizeof(local_buffer),"X %s\n",filename);
       a_pipe_write(local_buffer);
       filename = filename + strlen(filename) + 1;
     }       
   }
   else{
-    snprintf(local_buffer,sizeof(local_buffer),"X %s%s\n",Data,(Type==DndDir)?"/":"");
+	snprintf(local_buffer,sizeof(local_buffer),"X %s%s\n",Data,(Type==DndDir)?"/":"");
     a_pipe_write(local_buffer);
   }
   return;
@@ -940,6 +1207,7 @@ void a_start_interface(int pipe_in) {
 	{"fix-menu", (XtActionProc)filemenuCB},
 	{"do-complete", (XtActionProc)completeDir},
 	{"do-chgdir", (XtActionProc)setDirAction},
+	{"draw-trace",(XtActionProc) drawTraceAll},
 #ifdef ENABLE_KEY_TRANSLATION
 	{"do-dialog-button",(XtActionProc)popdownLoad},
 	{"do-load",(XtActionProc)popupLoad},
@@ -1063,7 +1331,7 @@ void a_start_interface(int pipe_in) {
 	"*lyric_text.vertDistance: 4",
 #ifndef WIDGET_IS_LABEL_WIDGET
 	"*lyric_text.horizDistance: 6",
-	"*lyric_text.height: 240",
+	"*lyric_text.height: 120",
 	"*lyric_text.background: gray85",
 	"*lyric_text.foreground: black",
 	"*lyric_text.scrollVertical: WhenNeeded",
@@ -1071,6 +1339,10 @@ void a_start_interface(int pipe_in) {
 	"*lyric_text.height: 30",
 	"*lyric_text.fontSet: -*-*-medium-r-normal--14-*",
 	"*lyric_text.label: MessageWindow",
+	"*trace.width: 380",
+	"*trace.height: 180",
+	"*trace.borderWidth: 1",
+	"*trace.background: gray85",
 #endif
 #ifdef I18N
 	"*lyric_text.international: True",
@@ -1161,10 +1433,10 @@ void a_start_interface(int pipe_in) {
 		~Ctrl ~Shift<Key>v:	do-volupdown(-10)\\n\
 		~Ctrl Shift<Key>v:	do-volupdown(10)",
 
-	"*load_dialog*translations: #override\\n\
+	"*load_dialog.value.translations: #override\
 		~Ctrl<Key>Return:	do-chgdir()\\n\
 		~Ctrl<Key>KP_Enter:	do-chgdir()\\n\
-		~Ctrl ~Meta<Key>Tab:	do-complete()\\n\
+		~Ctrl ~Meta<Key>Tab:	do-complete() end-of-line()\\n\
 		Ctrl ~Shift<Key>g:	do-dialog-button(1)\\n\
 		<Key>Escape:		do-dialog-button(1)",
 #else
@@ -1172,11 +1444,14 @@ void a_start_interface(int pipe_in) {
 	"*file_simplemenu.saveconfig.label:	Save Config",
 	"*file_simplemenu.quit.label:	Quit",
 #endif
+	"*trace.translations: #override\\n\
+		<Expose>: draw-trace()",
     NULL,
   };
   XtAppContext app_con;
   char cbuf[PATH_MAX];
   Pixmap bmPixmap;
+  char *statusfontstr= "7x14";
   int bmwidth, bmheight;
   int i;
   int argc=1;
@@ -1312,6 +1587,12 @@ void a_start_interface(int pipe_in) {
   lyriclist[0] = lyric_t;
 #endif
 
+  if(ctl->trace_playing) {
+	trace=XtVaCreateManagedWidget("trace",widgetClass,base_f,
+								  XtNfromVert,lyric_t,NULL);
+	XtVaSetValues(trace,XtNwidth,trace_width,XtNheight,trace_height,NULL);
+	tracelist[0] = trace;
+  }
   XtAddCallback(quit_b,XtNcallback,quitCB,NULL);
   XtAddCallback(play_b,XtNcallback,playCB,NULL);
   XtAddCallback(pause_b,XtNcallback,pauseCB,NULL);
@@ -1355,6 +1636,26 @@ void a_start_interface(int pipe_in) {
 
   a_pipe_write("READY");
 
+  if(ctl->trace_playing) {
+	gct = XCreateGC(disp, RootWindow(disp, screen), 0, NULL);
+	XAllocNamedColor(disp,DefaultColormap(disp, screen),"green",&fgtmp,&defcolor);
+	XAllocNamedColor(disp,DefaultColormap(disp, screen),"red",&bgcolor,&defcolor);
+	for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
+	  if(ISDRUMCHANNEL(i))
+		barcol[i]=bgcolor.pixel;
+	  else
+		barcol[i]=fgtmp.pixel;
+	}
+	XAllocNamedColor(disp,DefaultColormap(disp, screen),"black",&bgcolor,&defcolor);
+	XAllocNamedColor(disp,DefaultColormap(disp, screen),"yellow",&fgpan,&defcolor);
+	XAllocNamedColor(disp,DefaultColormap(disp, screen),"white",&fgstr,&defcolor);
+	if ((StatusFont = XLoadQueryFont(disp, statusfontstr)) == NULL)
+	  if ((StatusFont = XLoadQueryFont(disp, "fixed")) == NULL)
+		perror("can't load fixed font. \n");
+	XSetFont(XtDisplay(trace), gct, StatusFont->fid);
+	Panel = (PanelInfo *)safe_malloc(sizeof(PanelInfo));
+	initTraceWindow(False);
+  }
   while (1) {
 	a_pipe_read(local_buf,sizeof(local_buf));
 	if (local_buf[0] < 'A') break;
@@ -1368,7 +1669,6 @@ void a_start_interface(int pipe_in) {
     bsb=XtVaCreateManagedWidget(local_buf,smeBSBObjectClass,title_sm,NULL);
 	XtAddCallback(bsb,XtNcallback,menuCB,(XtPointer)i);
   }
-
   for (i = 0; i < XtNumber(file_menu); i++) {
 	bsb=XtVaCreateManagedWidget(file_menu[i].name,
 					(file_menu[i].trap ? smeBSBObjectClass:smeLineObjectClass),
@@ -1376,13 +1676,16 @@ void a_start_interface(int pipe_in) {
 	  XtAddCallback(bsb,XtNcallback,filemenuCB,(XtPointer)&file_menu[i].id);
 	file_menu[i].widget = bsb;
   }
-
+  if(!ctl->trace_playing)
+	XtVaSetValues(file_menu[ID_HIDETRACE-100].widget,XtNsensitive,False,NULL);
   if (Cfg.autostart) filemenuCB(file_menu[ID_AUTOSTART-100].widget,
 							&file_menu[ID_AUTOSTART-100].id,NULL);
 #ifdef MSGWINDOW
   if (Cfg.hidetext) filemenuCB(file_menu[ID_HIDETXT-100].widget,
 						   &file_menu[ID_HIDETXT-100].id,NULL);
 #endif
+  if (!Cfg.disptrace) filemenuCB(file_menu[ID_HIDETRACE-100].widget,
+							 &file_menu[ID_HIDETRACE-100].id,NULL);
   if (Cfg.repeat) repeatCB(NULL,&Cfg.repeat,NULL);
   if (Cfg.shuffle) randomCB(NULL,&Cfg.shuffle,NULL);
   if (Cfg.autostart)

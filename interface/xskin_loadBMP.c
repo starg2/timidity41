@@ -22,11 +22,15 @@
 
     Sep.23.1998  Daisuke Nagano
 */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+
 
 #include "timidity.h"
 #include "common.h"
