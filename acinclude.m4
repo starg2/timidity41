@@ -1,13 +1,23 @@
-dnl CONFIG_INTERFACE(package,macro_name,interface_id,help,action-if-given,
-dnl                  $1      $2         $3           $4   $5
-dnl                  yes,dynamic,no)
-dnl                  $6  $7      $8
+dnl MY_DEFINE(VARIABLE)
+AC_DEFUN(MY_DEFINE,
+[cat >> confdefs.h <<EOF
+[#define] $1 1
+EOF
+])
+
+dnl CONFIG_INTERFACE(package,macro_name,interface_id,help
+dnl                  $1      $2         $3           $4
+dnl                  action-if-yes-or-dynamic,
+dnl		     $5
+dnl		     action-if-yes,action-if-dynamic,action-if-no)
+dnl		     $6            $7                $8
 AC_DEFUN(CONFIG_INTERFACE,
-[AC_ARG_ENABLE($1,[$4],[$5])
+[AC_ARG_ENABLE($1,[$4],
+[case "x$enable_$1" in xyes|xdynamic) $5 ;; esac])
 case "x$enable_$1" in
 xyes)
+  MY_DEFINE(IA_$2)
   AM_CONDITIONAL(ENABLE_$2, true)
-  EXTRADEFS="$EXTRADEFS -DIA_$2"
   $6
   ;;
 xdynamic)
@@ -146,6 +156,9 @@ dnl alsa.m4 ends here
 
 
 dnl CHECK_DLSYM_UNDERSCORE([ACTION-IF-NEED [, ACTION IF-NOT-NEED]])
+dnl variable input:
+dnl   CC CFLAGS CPPFLAGS LDFLAGS LIBS SHCFLAGS SHLD SHLDFLAGS
+dnl   ac_cv_header_dlfcn_h lib_dl_opt so
 AC_DEFUN(CHECK_DLSYM_UNDERSCORE,
 [dnl Check if dlsym need a leading underscore
 AC_MSG_CHECKING(whether your dlsym() needs a leading underscore)
@@ -207,7 +220,7 @@ EOM
 if ${CC-cc} $CFLAGS $SHCFLAGS $CPPFLAGS -c dyna.c > /dev/null 2>&1 &&
 	mv dyna.o tmp-dyna.o > /dev/null 2>&1 && 
 	$SHLD $SHLDFLAGS -o dyna.$so tmp-dyna.o > /dev/null 2>&1 && 
-	${CC-cc} -o fred $CFLAGS $CPPFLAGS $LDFLAGS fred.$ac_ext $LIBS > /dev/null 2>&1; then
+	${CC-cc} -o fred $CFLAGS $CPPFLAGS $LDFLAGS fred.c $LIBS $lib_dl_opt > /dev/null 2>&1; then
 	xxx=`./fred`
 	case $xxx in
 	1)	AC_MSG_WARN(Test program failed using dlopen.  Perhaps you should not use dynamic loading.)

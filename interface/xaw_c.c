@@ -65,10 +65,6 @@ static void ctl_total_time(int);
 void a_pipe_write(char *);
 int a_pipe_read(char *,int);
 static void a_pipe_write_msg(char *msg);
-#ifndef MSGWINDOW
-static void a_pipe_int_write(int);
-static void a_pipe_error(char *);
-#endif
 
 static void ctl_event(CtlEvent *e);
 static void ctl_refresh(void);
@@ -119,10 +115,8 @@ static char local_buf[300];
 
 static int cmsg(int type, int verbosity_level, char *fmt, ...) {
   va_list ap;
-#ifdef MSGWINDOW
   char *buff;
   MBlockList pool;
-#endif /* MSGWINDOW */
 
   if ((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
       ctl.verbosity<verbosity_level)
@@ -137,33 +131,12 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...) {
     return 0;
   }
 
-#ifdef MSGWINDOW
   init_mblock(&pool);
   buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
   vsnprintf(buff, MIN_MBLOCK_SIZE, fmt, ap);
-#endif /* MSGWINDOW */
-
-  if (1000 != ctl.opened) {
-#ifdef MSGWINDOW
-      a_pipe_write_msg(buff);
-#else
-      vfprintf(stderr, fmt, ap);
-      fprintf(stderr, NLS);
-#endif /* MSGWINDOW */
-  } else {
-#ifdef MSGWINDOW
-      vfprintf(stderr, fmt, ap);
-      fprintf(stderr, NLS);
-#else
-      a_pipe_int_write(CMSG_MESSAGE);
-      a_pipe_int_write(type);
-      a_pipe_int_write(strlen(buff));
-      a_pipe_write(buff);
-#endif /* MSGWINDOW */
-  }
-#ifdef MSGWINDOW
+  a_pipe_write_msg(buff);
   reuse_mblock(&pool);
-#endif /* MSGWINDOW */
+
   va_end(ap);
   return 0;
 }
@@ -570,15 +543,6 @@ void a_pipe_write(char *buf) {
   write(pipe_out_fd,"\n",1);
 }
 
-#ifndef MSGWINDOW
-void a_pipe_int_write(int c) {
-    int len;
-    len = write(pipe_out_fd,&c,sizeof(c));
-    if (len!=sizeof(int))
-	  a_pipe_error("PIPE_INT_WRITE");
-}
-#endif
-
 static int a_pipe_ready(void) {
   fd_set fds;
   static struct timeval tv;
@@ -792,19 +756,3 @@ ControlMode *interface_a_loader(void)
 {
     return &ctl;
 }
-
-#ifndef MSGWINDOW
-/*
- * error message
- */
-static void a_pipe_error(char *s)
-{
-#ifdef HAVE_STRERROR
-    fprintf(stderr,"connection problem in %s because:%s" NLS, s,
-			strerror(errno));
-#else
-    fprintf(stderr,"connection problem in %s because:%d" NLS, s, errno);
-#endif
-    exit(1);
-}
-#endif /* MSGWINDOW */

@@ -1,3 +1,17 @@
+* 1/20, 1999
+    TiMidity++ v1.2.0 is released.
+    New features and major change from v1.1.x:
+    * XAW interface:
+      - Changed button bitmap of random & repeat
+      - Modified some implementations.
+    * Gtk interface:
+      - Added buttons (& implementation) for raising & lowering the pitch.
+      - Added buttons (& implementation) for increasing/decreasing the tempo.
+    * Lookup TIMIDITY_SOUND_CARD and TIMIDITY_PCM_DEVICE environment variable
+      to select the PCM device of ALSA.
+    * Added interface.h to define IA_* macro for TiMidity interface.  This
+      file is generated automatically by configure.
+
 * 1/18, 1999
     TiMidity++ v1.1.1 is released.
     v1.1.0 had configuration probrems, so v1.1.1 was released immediately.

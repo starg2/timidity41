@@ -50,7 +50,7 @@
 #define RC_SPEEDDOWN	18	/* Speed down */
 #define RC_VOICEINCR	19	/* Increase voices */
 #define RC_VOICEDECR	20	/* Decrease voices */
-#define RC_TOGGLE_DURMCHAN 21	/* Toggle drum channel */
+#define RC_TOGGLE_DRUMCHAN 21	/* Toggle drum channel */
 #define RC_RELOAD	22	/* Reload & Play */
 #define RC_TOGGLE_SNDSPEC 23	/* Open/Close Sound Spectrogram Window */
 #define RC_CHANGE_REV_EFFB 24

@@ -100,9 +100,11 @@ SHCFLAGS = @SHCFLAGS@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
 VERSION = @VERSION@
+WISH = @WISH@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
 so = @so@
+tcltk_dep = @tcltk_dep@
 
 PIXMAPS = \
 	ff.xpm \
@@ -120,7 +122,7 @@ PIXMAPS = \
 
 EXTRA_DIST = $(PIXMAPS)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../../config.h
+CONFIG_HEADER = ../../config.h ../../interface.h
 CONFIG_CLEAN_FILES = 
 DIST_COMMON =  Makefile.am Makefile.in
 

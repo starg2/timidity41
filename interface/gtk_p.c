@@ -142,15 +142,15 @@ gtk_pipe_string_read(char *str)
 #ifdef DEBUGPIPE
     int code;
 
-    len = read(fpip_in,&code,sizeof(code)); 
+    len = read(fpip_in,&code,sizeof(code));
     if (len!=sizeof(code)) pipe_error("PIPE_STRING_READ");
     if (code!=STRING_CODE) fprintf(stderr,"BUG ALERT ON STRING PIPE %i\n",code);
 #endif
 
-    len = read(fpip_in,&slen,sizeof(slen)); 
+    len = read(fpip_in,&slen,sizeof(slen));
     if (len!=sizeof(slen)) pipe_error("PIPE_STRING_READ");
     
-    len = read(fpip_in,str,slen); 
+    len = read(fpip_in,str,slen);
     if (len!=slen) pipe_error("PIPE_STRING_READ on string part");
     str[slen]='\0';		/* Append a terminal 0 */
 }

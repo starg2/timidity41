@@ -159,8 +159,10 @@ libinterface_a_LIBADD = \
 	$(DYNAMIC_OBJS) \
 	$(SOUND_SPEC_OBJS)
 
-dumb_c.o:$(libinterface_a_LIBADD)
-
+libinterface_a_DEPENDENCIES = \
+	$(top_srcdir)/interface.h \
+	$(libinterface_a_LIBADD) \
+	$(tcltk_dep)
 
 # Tcl interface sources
 TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
@@ -174,7 +176,8 @@ EXTRA_DIST = \
 	browser.tcl \
 	misc.tcl \
 	timidity.el \
-	check.xbm
+	check.xbm \
+	tclIndex
 
 .ptcl.tcl:
 	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@
@@ -184,7 +187,7 @@ clean:
 	rm -f *.$(so)
 
 tclIndex: $(TCLF)
-	echo 'auto_mkindex . *.tcl; exit' | wish
+	echo 'auto_mkindex . *.tcl; exit' | $(WISH)
 
 if ENABLE_TCLTK
 install_tk = install.tk

@@ -155,9 +155,6 @@
 /* Define if you have the m library (-lm).  */
 #undef HAVE_LIBM
 
-/* Define if you have the ncurses library (-lncurses).  */
-#undef HAVE_LIBNCURSES
-
 /* Define if you have the slang library (-lslang).  */
 #undef HAVE_LIBSLANG
 

@@ -1,3 +1,63 @@
+-- 1.2.0
+Thu Jan 21 JST 1999
+Summary:
+    * XAW interface:
+      - Changed button bitmap of random & repeat
+      - Modified some implementations.
+    * Gtk interface:
+      - Added buttons (& implementation) for raising & lowering the pitch.
+      - Added buttons (& implementation) for increasing/decreasing the tempo.
+    * Lookup TIMIDITY_SOUND_CARD and TIMIDITY_PCM_DEVICE environment variable
+      to select the PCM device of ALSA.
+    * Added interface.h to define IA_* macro for TiMidity interface.  This
+      file is generated automatically by configure.
+    * Fixed some bugs.
+
+Date: Thu, 21 Jan 1999 01:33:58 +0900 (JST)
+From: nork@lb.u-tokai.ac.jp (Norikatsu Shigemura)
+Files: configure.in
+    Fixed configure bug about FreeBSD dynamic interface.
+
+Date: Wed Jan 20 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/xskin_spectrum.c
+    Don't define xskin_spe_ana() and xskin_wave() if soundspec is not enable.
+Files: configure.in interface.h.in timidity/{Makefile.am,timidity.c,controls.c}
+    Fixed configuration bug that tcl needed -dl on some machines.
+    IA_* macro is into interface.h.  interface.h is generated automatically
+    by configure.
+
+Date: Tue, 19 Jan 1999 23:16:33 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: interface{bitmaps/Makefile.am,bitmaps/Makefile.in,bitmaps/random.xbm,
+	bitmaps/repeat.xbm,xaw.h,xaw_i.c}
+    Modified XAW interface:
+      - Changed Form Widget to Box Widget.
+      - Changed icon bitmaps
+      - Obsoleted MSGWINDOW macro configuration.  Message window is always
+        enable.
+
+Date: Tue, 19 Jan 1999 17:54:53 +0900
+From: Takanori Watanabe <takawata@shidahara1.planet.sci.kobe-u.ac.jp>,
+      Glenn Trigg <ggt@netspace.net.au>
+Files: interface{emacs_c.c,gtk_c.c,gtk_h.h,gtk_i.c,gtk_p.c,ncurs_c.c,
+	pixmaps/Makefile.in,vt100_c.c}
+	timidity/{controls.h,playmidi.c,timidity.c,wrd_read.c}
+    Pached from Glenn Trigg:
+    The changes are (roughly):
+      - Added buttons (& implementation) for raising & lowering the pitch.
+      - Added buttons (& implementation) for increasing/decreasing the tempo.
+      - Fixed a bug where starting with no files and then loading a file
+        and trying to play it caused a crash.
+      - Fixed a typo RC_TOGGLE_DURMCHAN => RC_TOGGLE_DRUMCHAN.
+      - Added some braces to two macros to stop some compiler warnings.
+
+Date: Tue, 19 Jan 1999 00:21:35 +0900
+From: Yamahata Isaku <yamahata@kusm.kyoto-u.ac.jp>
+Files: alsa_a.c
+    Lookup TIMIDITY_SOUND_CARD and TIMIDITY_PCM_DEVICE environment variable
+    to select the PCM device.
+
 -- 1.1.1
 Mon Jan 18 1999
 Summary:

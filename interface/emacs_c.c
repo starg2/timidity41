@@ -222,7 +222,7 @@ static int ctl_read(int32 *valp)
 	return RC_VOICEDECR;
       case 'd':
 	*valp = n;
-	return RC_TOGGLE_DURMCHAN;
+	return RC_TOGGLE_DRUMCHAN;
       case 'g':
 	return RC_TOGGLE_SNDSPEC;
     }

@@ -75,7 +75,7 @@
 #ifndef HAVE_STRNCASECMP
 int strncasecmp(char *s1, char *s2, unsigned int len);
 #endif
-#define TRACE_WIDTH 380
+#define TRACE_WIDTH 372
 #define TRACE_HEIGHT 180
 #define POS_HEIGHT 12
 #define PRG_HEIGHT 16
@@ -119,22 +119,18 @@ static void pauseAction(),soundkeyAction(),speedAction(),voiceAction();
 extern void a_pipe_write(char *);
 extern int a_pipe_read(char *,int);
 extern int a_pipe_nread(char *buf, int n);
-void initTraceWindow(Boolean);
+static void initTraceWindow(Boolean);
 
-static Widget title_mb,title_sm,time_l, popup_load, popup_load_f, load_d;
-static Widget load_vport, load_flist, cwd_l, load_info;
-#ifdef MSGWINDOW
-static Widget lyric_t;
-static Widget trace;
-static Widget lyriclist[1], tracelist[1];
+static Widget title_mb,title_sm,time_l,popup_load,popup_load_f,load_d;
+static Widget load_vport,load_flist,cwd_l,load_info;
 static Dimension lyric_height, base_height;
-#endif
+static Widget lyric_t;
 static GC gct;
 static XColor bgcolor,defcolor,fgpan,fgstr,fgtmp;
 static XFontStruct *StatusFont;
 static long barcol[MAX_XAW_MIDI_CHANNELS];
 
-static Widget toplevel, base_f, file_mb, file_sm, bsb, logo_label;
+static Widget toplevel,m_box,base_f,file_mb,file_sm,bsb,trace;
 static Widget quit_b,play_b,pause_b,stop_b,prev_b,next_b,fwd_b,back_b;
 static Widget random_b,repeat_b,b_box,v_box,vol_l,vol_bar;
 static char local_buf[300];
@@ -174,10 +170,10 @@ typedef struct {
 Config Cfg = { False, False, True, False, False, True };
 static PanelInfo *Panel;
 
-#define MAXBITMAP 8
+#define MAXBITMAP 10
 static char *bmfname[] = {
   "back.xbm","fwrd.xbm","next.xbm","pause.xbm","play.xbm","prev.xbm",
-  "quit.xbm","stop.xbm",(char *)NULL
+  "quit.xbm","stop.xbm","random.xbm","repeat.xbm",(char *)NULL
 };
 static char *iconname = "timidity.xbm";
 #define BM_BACK			0
@@ -188,6 +184,8 @@ static char *iconname = "timidity.xbm";
 #define BM_PREV			5
 #define BM_QUIT			6
 #define BM_STOP			7
+#define BM_RANDOM		8
+#define BM_REPEAT		9
 static char *dotfile = NULL;
 
 char *cfg_items[]= {"Tracing", "ConfirmExit", "Disp:file", "Disp:volume",
@@ -240,9 +238,7 @@ enum {
     ID_LOAD = 100,
     ID_SAVECONFIG,
     ID_AUTOSTART,
-#ifdef MSGWINDOW
     ID_HIDETXT,
-#endif /* MSGWINDOW */
     ID_HIDETRACE,
     ID_DUMMY,
     ID_QUIT,
@@ -252,9 +248,7 @@ static ButtonRec file_menu[] = {
   {ID_LOAD, "load", True, False},
   {ID_SAVECONFIG, "saveconfig", True, False},
   {ID_AUTOSTART, "Auto Start", True, False},
-#ifdef MSGWINDOW
   {ID_HIDETXT, "(Un)Hide Messages", True, False},
-#endif
   {ID_HIDETRACE, "(Un)Hide Trace", True, False},
   {ID_DUMMY, "line", False, False},
   {ID_QUIT, "quit", True, False},
@@ -324,7 +318,6 @@ static void pauseAction(Widget w,XEvent *e,String *vector,Cardinal *n) {
   if (e->type == KeyPress && s == True) {
 	XtVaGetValues(pause_b,XtNstate,&s,NULL);
 	s ^= True;
-	/*  s = ((s)? False:True);*/
 	XtVaSetValues(pause_b,XtNstate,&s,NULL);
 	a_pipe_write("U");
   }
@@ -550,10 +543,7 @@ static void toggleMark(Widget w,int id) {
 
 static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
   int *id = (int *)id_data;
-#ifdef MSGWINDOW
-  Dimension w1,h1,w2,h2;
-#endif
-  Dimension tmp;
+  Dimension w1,h1,w2,h2,tmp;
 
   switch (*id) {
 	case ID_LOAD:
@@ -562,23 +552,20 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
 	case ID_AUTOSTART:
 	  toggleMark(w,*id);
 	  break;
-#ifdef MSGWINDOW
 	case ID_HIDETRACE:
 	  if(ctl->trace_playing) {
 		XtVaGetValues(toplevel,XtNheight,&h1,NULL);
 		XtVaGetValues(toplevel,XtNwidth,&w1,NULL);
 		if (XtIsManaged(trace)) {
 		  tmp = trace_height + (XtIsManaged(lyric_t) ? 0:lyric_height);
-		  XtUnmanageChildren(tracelist, XtNumber(tracelist));
-		  XtVaSetValues(trace,XtNfromVert,
-						(XtIsManaged(lyric_t) ? lyric_t:v_box),NULL);
+		  XtUnmanageChild(trace);
 		  XtMakeResizeRequest(toplevel,w1,base_height-tmp,&w2,&h2);
 		} else {
-		  XtManageChildren(tracelist, XtNumber(tracelist));
+		  XtManageChild(trace);
 		  XtVaSetValues(trace,XtNfromVert,
 						(XtIsManaged(lyric_t) ? lyric_t:v_box),NULL);
 		  XtMakeResizeRequest(toplevel,w1,h1+trace_height,&w2,&h2);
-		  XtVaSetValues(trace,XtNheight,&trace_height,NULL);
+		  XtVaSetValues(trace,XtNheight,trace_height,NULL);
 		}
 		toggleMark(w,*id);
 	  }
@@ -592,21 +579,20 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
 		} else {
 		  tmp = lyric_height;
 		}
-		XtUnmanageChildren(lyriclist, XtNumber(lyriclist));
+		XtUnmanageChild(lyric_t);
 		if(ctl->trace_playing && XtIsManaged(trace))
 		  XtVaSetValues(trace,XtNfromVert,v_box,NULL);
 		XtMakeResizeRequest(toplevel,w1,base_height-tmp,&w2,&h2);
 	  } else {
-		XtManageChildren(lyriclist, XtNumber(lyriclist));
+		XtManageChild(lyric_t);
 		if(ctl->trace_playing && XtIsManaged(trace)) {
 		  XtVaSetValues(trace,XtNfromVert,lyric_t,NULL);
 		}
+		XtVaSetValues(lyric_t,XtNheight,lyric_height,NULL);
 		XtMakeResizeRequest(toplevel,w1,h1+lyric_height,&w2,&h2);
-		XtVaSetValues(lyric_t,XtNheight,&lyric_height,NULL);
 	  }
 	  toggleMark(w,*id);
 	  break;
-#endif
 	case ID_SAVECONFIG:
 	  a_saveconfig(dotfile);
 	  break;
@@ -616,7 +602,6 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
   }
 }
 
-#ifdef MSGWINDOW
 #ifdef WIDGET_IS_LABEL_WIDGET
 static void a_print_msg(Widget w)
 {
@@ -648,24 +633,25 @@ static void a_print_msg(Widget w)
     a_pipe_nread((char *)&msglen, sizeof(int));
     while(msglen > 0)
     {
-	i = msglen;
-	if(i > sizeof(local_buf))
-	    i = sizeof(local_buf);
-	a_pipe_nread(local_buf, i);
-	tb.length = i;
-	XawTextReplace(w, pos, pos, &tb);
-	pos += i;
-	XawTextSetInsertionPoint(w, pos);
-	msglen -= i;
+        i = msglen;
+        if(i > sizeof(local_buf))
+            i = sizeof(local_buf);
+        a_pipe_nread(local_buf, i);
+        tb.length = i;
+        XawTextReplace(w, pos, pos, &tb);
+        pos += i;
+        XawTextSetInsertionPoint(w, pos);
+        msglen -= i;
     }
 }
 #endif /* WIDGET_IS_LABEL_WIDGET */
-#endif /* MSGWINDOW */
 
 #define DELTA_VEL       32
 
 static void
 ctl_channel_note(int ch, int note, int velocity) {
+  
+  if (!ctl->trace_playing) return;
   if (velocity == 0) {
 	if (note == Panel->cnote[ch])	  
 	  Panel->v_flags[ch] = FLAG_NOTE_OFF;
@@ -703,11 +689,9 @@ static void handle_input(XtPointer data,int *source,XtInputId *id) {
     }
 	break;
   case 'O' : offPlayButton();break;
-#ifdef MSGWINDOW
   case 'L' :
-	if (XtIsManaged(lyric_t)) a_print_msg(lyric_t);
+	a_print_msg(lyric_t);
 	break;
-#endif
   case 'Q' : exit(0);
   case 'V':
 	i=atoi(local_buf+2);
@@ -981,6 +965,7 @@ static void drawBar(int ch,int len) {
 static void drawProg(int ch,Boolean do_clean) {
   char s[3];
 
+  if (!ctl->trace_playing) return;
   if(do_clean) {
 	XSetForeground(disp, gct, bgcolor.pixel);
 	XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,
@@ -999,6 +984,7 @@ static void drawPan(int ch,int val,Boolean setcolor) {
   int x;
   static XPoint pp[3];
 
+  if (!ctl->trace_playing) return;
   if (val < 0) return;
   x= TRACE_XOFS+ BAR_SPACE * ch+ 1;
   ap= BAR_WIDTH * val/127;
@@ -1030,9 +1016,10 @@ static void draw1Chan(int ch,int val,char cmd) {
 static void drawTraceAll(void) {
   int i;
   Dimension w, h;
+
+  if (!ctl->trace_playing) return;
   XtVaGetValues(trace,XtNheight,&h,NULL);
   XtVaGetValues(trace,XtNwidth,&w,NULL);
-  if (!ctl->trace_playing) return;
   XSetForeground(disp, gct, bgcolor.pixel);
   XFillRectangle(XtDisplay(trace),XtWindow(trace),gct,0,0,w,h);
   for(i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
@@ -1149,11 +1136,9 @@ static void a_readconfig (Config *Cfg) {
 		  Cfg->repeat = (Boolean)k; break;
 		case S_AutoStart:
 		  Cfg->autostart = (Boolean)k; break;
-#ifdef MSGWINDOW
 		case S_DispText:
 		  Cfg->hidetext = (Boolean)(k ^ 1);
 		  break;
-#endif
 		case S_ShufflePlay:
 		  Cfg->shuffle = (Boolean)k; break;
 		case S_DispTrace:
@@ -1181,9 +1166,7 @@ static void a_saveconfig (char *file) {
 	  fprintf(fp,"set %s %d\n",cfg_items[S_ConfirmExit],(int)Cfg.confirmexit);
 	  fprintf(fp,"set %s %d\n",cfg_items[S_RepeatPlay],(int)s1);
 	  fprintf(fp,"set %s %d\n",cfg_items[S_AutoStart],(int)file_menu[ID_AUTOSTART-100].bmflag);
-#ifdef MSGWINDOW
 	  fprintf(fp,"set %s %d\n",cfg_items[S_DispText],(int)(file_menu[ID_HIDETXT-100].bmflag ^ TRUE));
-#endif
 	  fprintf(fp,"set %s %d\n",cfg_items[S_ShufflePlay],(int)s2);
 	  fprintf(fp,"set %s %d\n",cfg_items[S_DispTrace],((int)file_menu[ID_HIDETRACE-100].bmflag ? 0:1));
 	  fclose(fp);
@@ -1228,13 +1211,14 @@ OK:
   return;
 }
 #endif
+
 void a_start_interface(int pipe_in) {
   static XtActionsRec actions[] ={
 	{"do-quit",(XtActionProc)quitCB},
 	{"fix-menu", (XtActionProc)filemenuCB},
 	{"do-complete", (XtActionProc)completeDir},
 	{"do-chgdir", (XtActionProc)setDirAction},
-	{"draw-trace",(XtActionProc) drawTraceAll},
+	{"draw-trace",(XtActionProc)drawTraceAll},
 #ifdef ENABLE_KEY_TRANSLATION
 	{"do-dialog-button",(XtActionProc)popdownLoad},
 	{"do-load",(XtActionProc)popupLoad},
@@ -1255,6 +1239,7 @@ void a_start_interface(int pipe_in) {
 	{"do-volupdown",(XtActionProc)volupdownAction},
   };
 
+#define XAW_WIDTH "380"
   static String fallback_resources[]={
 	"*Label.font: -adobe-helvetica-bold-o-*-*-14-*-75-75-*-*-*-*",
 	"*Text*fontSet: -misc-fixed-medium-r-normal--14-*-*-*-*-*-*-*",
@@ -1273,16 +1258,19 @@ void a_start_interface(int pipe_in) {
 	"*Command.foreground: MediumBlue",
 	"*Toggle.background: gray85",
 	"*Toggle.foreground: MediumBlue",
+	"*random_button.foreground: MidnightBlue",
+	"*repeat_button.foreground: MidnightBlue",
 	"*Command.font: -adobe-helvetica-medium-o-*-*-12-*-75-75-*-*-*-*",
 	"*Toggle.font: -adobe-helvetica-medium-o-*-*-12-*-75-75-*-*-*-*",
 	"*MenuButton.translations:<EnterWindow>:	highlight()\\n\
 		<LeaveWindow>:	reset()\\n\
 		Any<BtnDown>:	reset() fix-menu() PopupMenu()",
 	"*base_form.background: gray75",
+	"*menu_box.background: gray75",
+	"*menu_box.borderWidth: 0",
 	"*button_box.background: gray75",
 	"*button_box.borderWidth: 0",
 	"*button_box.horizDistance: 4",
-	"*button_box.resizable: False",
 	"*file_menubutton.menuName: file_simplemenu",
 	"*file_menubutton.label: file...",
 	"*MenuButton.font: -adobe-helvetica-bold-o-*-*-12-*-75-75-*-*-*-*",
@@ -1294,22 +1282,25 @@ void a_start_interface(int pipe_in) {
 	"*title_simplemenu.SmeBSB.font: -adobe-helvetica-medium-r-*-*-12-*-75-75-*-*-*-*",
 	"*file_simplemenu.background: Gray85",
 	"*title_simplemenu.background: Gray85",
-	"*file_simplemenu.width: 180",
+	"*file_simplemenu.width: 196",
 	"*title_simplemenu.width: 200",
 	"*title_menubutton.menuName: title_simplemenu",
 	"*title_menubutton.label: ------",
 	"*title_menubutton.width: 200",
 	"*title_menubutton.height: 28",
+	"*title_menubutton.resize: false",
 	"*title_menubutton.horizDistance: 6",
 	"*title_menubutton.vertDistance: 4",
 	"*title_menubutton.fromHoriz: file_menubutton",
-	"*time_label.width: 108",
+	"*time_label.width: 96",
 	"*time_label.height: 28",
+	"*time_label.resize: false",
 	"*time_label.fromHoriz: title_menubutton",
 	"*time_label.horizDistance: 1",
 	"*time_label.vertDistance: 4",
 	"*time_label.label: 00:00 / -----",
 	"*button_box.height: 42",
+	"*button_box.width: " XAW_WIDTH ,
 	"*play_button.width: 32",
 	"*play_button.height: 32",
 	"*play_button.horizDistance: 1",
@@ -1342,19 +1333,16 @@ void a_start_interface(int pipe_in) {
 	"*quit_button.height: 32",
 	"*quit_button.horizDistance: 1",
 	"*quit_button.vertDistance: 1",
-	"*random_button.width: 60",
-	"*random_button.height: 16",
-	"*random_button.horizDistance: 12",
-	"*random_button.vertDistance: 6",
-	"*random_button.label: random",
-	"*repeat_button.width: 60",
-	"*repeat_button.height: 16",
-	"*repeat_button.horizDistance: 12",
-	"*repeat_button.vertDistance: 2",
-	"*repeat_button.label: repeat",
-#ifdef MSGWINDOW
+	"*random_button.width: 32",
+	"*random_button.height: 32",
+	"*random_button.horizDistance: 4",
+	"*random_button.vertDistance: 1",
+	"*repeat_button.width: 32",
+	"*repeat_button.height: 32",
+	"*repeat_button.horizDistance: 1",
+	"*repeat_button.vertDistance: 1",
 	"*lyric_text.fromVert: volume_box",
-	"*lyric_text.width: 380",
+	"*lyric_text.width: " XAW_WIDTH ,
 	"*lyric_text.vertDistance: 4",
 #ifndef WIDGET_IS_LABEL_WIDGET
 	"*lyric_text.horizDistance: 6",
@@ -1362,32 +1350,26 @@ void a_start_interface(int pipe_in) {
 	"*lyric_text.background: gray85",
 	"*lyric_text.foreground: black",
 	"*lyric_text.scrollVertical: WhenNeeded",
+	/*	"*lyric_text.resize: XawtextResizeBoth",*/
 #else
 	"*lyric_text.height: 30",
 	"*lyric_text.fontSet: -*-*-medium-r-normal--14-*",
 	"*lyric_text.label: MessageWindow",
-	"*trace.width: 380",
+	"*lyric_text.resize: false",
+	"*trace.width: 372",
 	"*trace.height: 180",
 	"*trace.borderWidth: 1",
 	"*trace.background: gray85",
+	"*trace.vertDistance: 2",
+	"*lyric_text.horizDistance: 6",
 #endif
 #ifdef I18N
 	"*lyric_text.international: True",
 #else
 	"*lyric_text.international: False",
 #endif
-#endif
-	"*logo_label.font: -adobe-helvetica-bold-o-*-*-14-*-75-75-*-*-*-*",
-	"*logo_label.label: Timidity",
-	"*logo_label.foreground: MediumBlue",
-	"*logo_label.background: gray75",
-	"*logo_label.borderWidth: 0",
-	"*logo_label.width: 72",
-	"*logo_label.height: 24",
-	"*logo_label.vertDistance: 8",
-	"*logo_label.horizDistance: 2",
-	"*volume_box.width: 320",
-	"*volume_box.height: 100",
+	"*volume_box.width: " XAW_WIDTH ,
+	"*volume_box.height: 48",
 	"*volume_box.background: gray75",
 	"*volume_label.background: gray75",
 	"*volume_label.vertDistance: 0",
@@ -1396,8 +1378,8 @@ void a_start_interface(int pipe_in) {
 	"*volume_label.font: -adobe-helvetica-bold-r-*-*-12-*-75-75-*-*-*-*",
 	"*volume_label.borderWidth: 0",
 	"*volume_label.label: Volume 70",
-	"*volume_label.width: 260",
-	"*volume_bar.length: 300",
+	"*volume_label.width: 300",
+	"*volume_bar.length: 350",
 	"*popup_load.title: Timidity <Load File>",
 	"*popup_loadform.height: 400",
 	"*popup_loadform.background: gray75",
@@ -1522,15 +1504,18 @@ void a_start_interface(int pipe_in) {
   DndRegisterIconDrop(FileDropedHandler);
 #endif
   XtAppAddActions(app_con, actions, XtNumber(actions));
-  base_f=XtVaCreateManagedWidget("base_form",formWidgetClass,toplevel,NULL);
-  file_mb=XtVaCreateManagedWidget("file_menubutton",menuButtonWidgetClass,base_f,NULL);
+  base_f=XtVaCreateManagedWidget("base_form",boxWidgetClass,toplevel,NULL);
+  m_box=XtVaCreateManagedWidget("menu_box",boxWidgetClass,base_f,
+								XtNorientation, XtorientHorizontal,
+								NULL);
+  file_mb=XtVaCreateManagedWidget("file_menubutton",menuButtonWidgetClass,m_box,NULL);
   file_sm=XtVaCreatePopupShell("file_simplemenu",simpleMenuWidgetClass,file_mb,NULL);
-  title_mb=XtVaCreateManagedWidget("title_menubutton",menuButtonWidgetClass,base_f,NULL);
+  title_mb=XtVaCreateManagedWidget("title_menubutton",menuButtonWidgetClass,m_box,NULL);
   title_sm=XtVaCreatePopupShell("title_simplemenu",simpleMenuWidgetClass,title_mb,NULL);
-  time_l=XtVaCreateManagedWidget("time_label",labelWidgetClass,base_f,NULL);
+  time_l=XtVaCreateManagedWidget("time_label",labelWidgetClass,m_box,NULL);
   b_box=XtVaCreateManagedWidget("button_box",boxWidgetClass,base_f,
 								XtNorientation, XtorientHorizontal,
-								XtNfromVert,title_mb,NULL);
+								XtNfromVert,m_box,NULL);
   v_box=XtVaCreateManagedWidget("volume_box",boxWidgetClass,base_f,
 								XtNfromVert,b_box,NULL);
   vol_l=XtVaCreateManagedWidget("volume_label",labelWidgetClass,v_box,
@@ -1572,15 +1557,14 @@ void a_start_interface(int pipe_in) {
   quit_b=XtVaCreateManagedWidget("quit_button",commandWidgetClass,b_box,
 								 XtNbitmap,bm_Pixmap[BM_QUIT],
 								 XtNfromHoriz,next_b,NULL);
-  random_b=XtVaCreateManagedWidget("random_button",toggleWidgetClass,base_f,
-								   XtNfromHoriz,b_box,
-								   XtNfromVert,time_l,NULL);
-  repeat_b=XtVaCreateManagedWidget("repeat_button",toggleWidgetClass,base_f,
-								   XtNfromHoriz,b_box,
-								   XtNfromVert,random_b,NULL);
-  logo_label=XtVaCreateManagedWidget("logo_label",labelWidgetClass,base_f,
-								   XtNfromHoriz,v_box,
-								   XtNfromVert,repeat_b,NULL);
+  random_b=XtVaCreateManagedWidget("random_button",toggleWidgetClass,b_box,
+								   XtNbitmap,bm_Pixmap[BM_RANDOM],
+								   XtNfromHoriz,quit_b,
+								   NULL);
+  repeat_b=XtVaCreateManagedWidget("repeat_button",toggleWidgetClass,b_box,
+								   XtNbitmap,bm_Pixmap[BM_REPEAT],
+								   XtNfromHoriz,random_b,
+								   NULL);
 
   popup_load=XtVaCreatePopupShell("popup_load",transientShellWidgetClass,toplevel,
 								  NULL);  
@@ -1603,7 +1587,6 @@ void a_start_interface(int pipe_in) {
 				XtNfromVert,load_vport, NULL);
   XawDialogAddButton(load_d, "OK", popdownLoad,"Y");
   XawDialogAddButton(load_d, "Cancel", popdownLoad,NULL);
-#ifdef MSGWINDOW
 #ifndef WIDGET_IS_LABEL_WIDGET
   lyric_t=XtVaCreateManagedWidget("lyric_text",asciiTextWidgetClass,base_f,
 				XtNwrap,XawtextWrapWord, XtNeditType,XawtextAppend,
@@ -1611,13 +1594,10 @@ void a_start_interface(int pipe_in) {
 #else
   lyric_t=XtVaCreateManagedWidget("lyric_text",labelWidgetClass,base_f,NULL);
 #endif
-  lyriclist[0] = lyric_t;
-#endif
   if(ctl->trace_playing) {
 	trace=XtVaCreateManagedWidget("trace",widgetClass,base_f,
 								  XtNfromVert,lyric_t,NULL);
 	XtVaSetValues(trace,XtNwidth,trace_width,XtNheight,trace_height,NULL);
-	tracelist[0] = trace;
   }
   XtAddCallback(quit_b,XtNcallback,quitCB,NULL);
   XtAddCallback(play_b,XtNcallback,playCB,NULL);
@@ -1641,9 +1621,7 @@ void a_start_interface(int pipe_in) {
   lrs.string = "";
   setDirList(load_flist, cwd_l, &lrs);
   XtSetKeyboardFocus(base_f, base_f);
-#ifdef MSGWINDOW
   XtSetKeyboardFocus(lyric_t, base_f);
-#endif
   XtSetKeyboardFocus(popup_load, load_d);
   XtOverrideTranslations (toplevel,
 			XtParseTranslationTable ("<Message>WM_PROTOCOLS: do-quit()"));
@@ -1654,14 +1632,13 @@ void a_start_interface(int pipe_in) {
   strcpy(window_title,APP_CLASS);
   w_title = strncat(window_title," : ",3);
   w_title += sizeof(APP_CLASS)+ 2;
-#ifdef MSGWINDOW
   XtVaGetValues(toplevel,XtNheight,&base_height,NULL);
   XtVaGetValues(lyric_t,XtNheight,&lyric_height,NULL);
   a_print_text(lyric_t,strcpy(local_buf,"<< Timidity Messages >>"));
-#endif
   a_pipe_write("READY");
 
   if(ctl->trace_playing) {
+	Panel = (PanelInfo *)safe_malloc(sizeof(PanelInfo));
 	gct = XCreateGC(disp, RootWindow(disp, screen), 0, NULL);
 	XAllocNamedColor(disp,DefaultColormap(disp, screen),"green",&fgtmp,&defcolor);
 	XAllocNamedColor(disp,DefaultColormap(disp, screen),"red",&bgcolor,&defcolor);
@@ -1677,16 +1654,13 @@ void a_start_interface(int pipe_in) {
 	if ((StatusFont = XLoadQueryFont(disp, statusfontstr)) == NULL)
 	  if ((StatusFont = XLoadQueryFont(disp, "fixed")) == NULL)
 		perror("can't load fixed font. \n");
-	XSetFont(XtDisplay(trace), gct, StatusFont->fid);
-	Panel = (PanelInfo *)safe_malloc(sizeof(PanelInfo));
+	XSetFont(XtDisplay(trace), gct, StatusFont->fid);	
 	initTraceWindow(False);
   }
   while (1) {
 	a_pipe_read(local_buf,sizeof(local_buf));
 	if (local_buf[0] < 'A') break;
-#ifdef MSGWINDOW
 	a_print_text(lyric_t,local_buf+2);
-#endif
   }
   bsb=XtVaCreateManagedWidget("dummyfile",smeLineObjectClass,title_sm,NULL);
   max_files=atoi(local_buf);
@@ -1713,10 +1687,8 @@ void a_start_interface(int pipe_in) {
   }
   if (Cfg.autostart) filemenuCB(file_menu[ID_AUTOSTART-100].widget,
 							&file_menu[ID_AUTOSTART-100].id,NULL);
-#ifdef MSGWINDOW
   if (Cfg.hidetext) filemenuCB(file_menu[ID_HIDETXT-100].widget,
 						   &file_menu[ID_HIDETXT-100].id,NULL);
-#endif
   if (!Cfg.disptrace) filemenuCB(file_menu[ID_HIDETRACE-100].widget,
 							 &file_menu[ID_HIDETRACE-100].id,NULL);
 

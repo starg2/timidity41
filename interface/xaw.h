@@ -34,9 +34,6 @@
 /* Define to use Japanese and so on */
 #define I18N
 
-/* Define to use lyric widget */
-#define MSGWINDOW
-
 /* Define to use scrollable Text widget instead of Label widget */
 /* #define WIDGET_IS_LABEL_WIDGET */
 

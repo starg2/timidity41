@@ -54,6 +54,7 @@ int getopt(int, char **, char *);
 #include <getopt.h>
 #endif /* HAVE_GETOPT_H */
 
+#include "interface.h"
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -75,7 +76,7 @@ int getopt(int, char **, char *);
 #include "mid.defs"
 
 #define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jL:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:"
-#define INTERACTIVE_INTERFACE_IDS "kmqa"
+#define INTERACTIVE_INTERFACE_IDS "kmqag"
 
 /* main interfaces (To be used another main) */
 #if defined(main) || defined(ANOTHER_MAIN)
@@ -2791,6 +2792,23 @@ int main(int argc, char **argv)
     if(strncmp(program_name,"timidity",8) == 0);
     else if(strncmp(program_name,"kmidi",5) == 0) set_ctl("q");
     else if(strncmp(program_name,"tkmidi",6) == 0) set_ctl("k");
+    else if(strncmp(program_name,"xmmidi",6) == 0) set_ctl("m");
+    else if(strncmp(program_name,"xawmidi",7) == 0) set_ctl("a");
+    else if(strncmp(program_name,"xskinmidi",9) == 0) set_ctl("i");
+
+    if(argc == 1 && !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character))
+    {
+	interesting_message();
+	return 0;
+    }
+
+    if((program_name=strrchr(argv[0], PATH_SEP))) program_name++;
+    else program_name=argv[0];
+
+    if(strncmp(program_name,"timidity",8) == 0);
+    else if(strncmp(program_name,"kmidi",5) == 0) set_ctl("q");
+    else if(strncmp(program_name,"tkmidi",6) == 0) set_ctl("k");
+    else if(strncmp(program_name,"gtkmidi",6) == 0) set_ctl("g");
     else if(strncmp(program_name,"xmmidi",6) == 0) set_ctl("m");
     else if(strncmp(program_name,"xawmidi",7) == 0) set_ctl("a");
     else if(strncmp(program_name,"xskinmidi",9) == 0) set_ctl("i");

@@ -109,7 +109,7 @@ cmsg(int type, int verbosity_level, char *fmt, ...)
 	fprintf(stderr, "\n");
     }
     else if (ctl.trace_playing) {
-	vsprintf(local, fmt, ap);
+	vsnprintf(local, sizeof(local), fmt, ap);
 	gtk_pipe_int_write(CMSG_MESSAGE);
 	gtk_pipe_int_write(type);
 	gtk_pipe_string_write(local);
@@ -435,6 +435,22 @@ ctl_blocking_read(int32 *valp)
 	case GTK_RWD:
 	    *valp=play_mode->rate;
 	    return RC_BACK;
+
+	case GTK_KEYUP:
+	    *valp = 1;
+	    return RC_KEYUP;
+
+	case GTK_KEYDOWN:
+	    *valp = -1;
+	    return RC_KEYDOWN;
+
+	case GTK_SLOWER:
+	    *valp = 1;
+	    return RC_SPEEDDOWN;
+
+	case GTK_FASTER:
+	    *valp = 1;
+	    return RC_SPEEDUP;
 	}
 	  
 	  
@@ -480,14 +496,16 @@ ctl_pass_playing_list(int number_of_files, char *list_of_files[])
     int command;
     int32 val;
 
-    /* Pass the list to the interface */
-    gtk_pipe_int_write(FILE_LIST_MESSAGE);
-    gtk_pipe_int_write(number_of_files);
-    for (i=0;i<number_of_files;i++)
-	gtk_pipe_string_write(list_of_files[i]);
+    if( number_of_files > 0 ) {
+	/* Pass the list to the interface */
+	gtk_pipe_int_write(FILE_LIST_MESSAGE);
+	gtk_pipe_int_write(number_of_files);
+	for (i=0;i<number_of_files;i++)
+	    gtk_pipe_string_write(list_of_files[i]);
     
-    /* Ask the interface for a filename to play -> begin to play automatically */
-    gtk_pipe_int_write(NEXT_FILE_MESSAGE);
+	/* Ask the interface for a filename to play -> begin to play automatically */
+	gtk_pipe_int_write(NEXT_FILE_MESSAGE);
+    }
     
     command = ctl_blocking_read(&val);
 

@@ -119,13 +119,10 @@ timidity_LDADD = \
 	$(top_builddir)/utils/libutils.a \
 	@EXTRALIBS@
 
-#should use timidit_DEPENDENCIES?
-timidity.o: $(SYSEXTRAS:.c=.o) \
+timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \
 	$(top_builddir)/libarc/libarc.a \
 	$(top_builddir)/utils/libutils.a
-
-controls.o: $(top_builddir)/interface/libinterface.a
 
 version.o: version.c Makefile
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c

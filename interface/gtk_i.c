@@ -41,11 +41,15 @@
 #include "pixmaps/nexttrk.xpm"
 #include "pixmaps/rew.xpm"
 #include "pixmaps/ff.xpm"
-#include "pixmaps/stop.xpm"
+#include "pixmaps/restart.xpm"
 #include "pixmaps/quit.xpm"
 #include "pixmaps/quiet.xpm"
 #include "pixmaps/loud.xpm"
 #include "pixmaps/open.xpm"
+#include "pixmaps/keyup.xpm"
+#include "pixmaps/keydown.xpm"
+#include "pixmaps/slow.xpm"
+#include "pixmaps/fast.xpm"
 
 static GtkWidget *create_menubar(void);
 static GtkWidget *create_button_with_pixmap(GtkWidget *, gchar **, gint, gchar *);
@@ -58,7 +62,6 @@ static void generic_cb(GtkWidget *, gpointer);
 static void generic_scale_cb(GtkAdjustment *, gpointer);
 static void open_file_cb(GtkWidget *, gpointer);
 static void file_list_cb(GtkWidget *, gint, gint, GdkEventButton *, gpointer);
-static gint btn_event_cb(GtkWidget *, GdkEventButton *, gpointer);
 static void filer_cb(GtkWidget *, gpointer);
 static void tt_toggle_cb(GtkWidget *, gpointer);
 static void locate_update_cb(GtkWidget *, GdkEventButton *, gpointer);
@@ -69,7 +72,7 @@ static GtkWidget *filesel = NULL;
 static GtkWidget *tot_lbl, *cnt_lbl, *auto_next, *ttshow;
 static GtkTooltips *ttip;
 static int file_number_to_play; /* Number of the file we're playing in the list */
-static int last_sec, max_sec, is_quitting = 0, locating = 0, local_adjust = 0;
+static int max_sec, is_quitting = 0, locating = 0, local_adjust = 0;
 
 static GtkItemFactoryEntry ife[] = {
     {"/File/Open", "<control>O", open_file_cb, 0, NULL},
@@ -173,17 +176,10 @@ file_list_cb(GtkWidget *widget, gint row, gint column,
 {
     gchar *fname;
 
-    gtk_clist_get_text(GTK_CLIST(widget), row, column, &fname);
+    gtk_clist_get_text(GTK_CLIST(widget), row, 0, &fname);
     gtk_pipe_int_write(GTK_PLAY_FILE);
     gtk_pipe_string_write(fname);
     file_number_to_play=row;
-}
-
-static gint
-btn_event_cb(GtkWidget *widget, GdkEventButton *ev, gpointer data)
-{
-    fprintf(stderr, "In btn_event_cb.\n");
-    return 0;
 }
 
 static gint
@@ -314,7 +310,7 @@ Launch_Gtk_Process(int pipe_number)
     gtk_box_pack_start(GTK_BOX(hbox), swin, TRUE, TRUE, 0);
 
     vbox2 = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), vbox2, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox2, TRUE, FALSE, 0);
     gtk_widget_show(vbox2);
 
     /* This is so the pixmap creation works properly. */
@@ -335,7 +331,7 @@ Launch_Gtk_Process(int pipe_number)
     gtk_widget_show(vol_scale);
     gtk_tooltips_set_tip(ttip, vol_scale, "Volume control", NULL);
 
-    gtk_box_pack_start(GTK_BOX(vbox2), vol_scale, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox2), vol_scale, TRUE, TRUE, 0);
 
     gtk_box_pack_start(GTK_BOX(vbox2),
 		       create_pixmap_label(window, quiet_xpm),
@@ -344,7 +340,7 @@ Launch_Gtk_Process(int pipe_number)
     handlebox = gtk_handle_box_new();
     gtk_box_pack_start(GTK_BOX(hbox), handlebox, FALSE, FALSE, 0);
 
-    table = gtk_table_new(5, 2, TRUE);
+    table = gtk_table_new(7, 2, TRUE);
     gtk_container_add(GTK_CONTAINER(handlebox), table);
 
     button = create_button_with_pixmap(window, playpaus_xpm, GTK_PAUSE,
@@ -372,10 +368,30 @@ Launch_Gtk_Process(int pipe_number)
     gtk_table_attach_defaults(GTK_TABLE(table), button,
 			      1, 2, 2, 3);
 
-    button = create_button_with_pixmap(window, stop_xpm, GTK_RESTART,
-				       "Restart");
+    button = create_button_with_pixmap(window, keydown_xpm, GTK_KEYDOWN,
+				       "Lower pitch");
     gtk_table_attach_defaults(GTK_TABLE(table), button,
 			      0, 1, 3, 4);
+
+    button = create_button_with_pixmap(window, keyup_xpm, GTK_KEYUP,
+				       "Raise pitch");
+    gtk_table_attach_defaults(GTK_TABLE(table), button,
+			      1, 2, 3, 4);
+
+    button = create_button_with_pixmap(window, slow_xpm, GTK_SLOWER,
+				       "Decrease tempo");
+    gtk_table_attach_defaults(GTK_TABLE(table), button,
+			      0, 1, 4, 5);
+
+    button = create_button_with_pixmap(window, fast_xpm, GTK_FASTER,
+				       "Increase tempo");
+    gtk_table_attach_defaults(GTK_TABLE(table), button,
+			      1, 2, 4, 5);
+
+    button = create_button_with_pixmap(window, restart_xpm, GTK_RESTART,
+				       "Restart");
+    gtk_table_attach_defaults(GTK_TABLE(table), button,
+			      0, 1, 5, 6);
 
     button = create_button_with_pixmap(window, open_xpm, 0,
 				       "Open");
@@ -383,12 +399,12 @@ Launch_Gtk_Process(int pipe_number)
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 			      GTK_SIGNAL_FUNC(open_file_cb), 0);
     gtk_table_attach_defaults(GTK_TABLE(table), button,
-			      1, 2, 3, 4);
+			      1, 2, 5, 6);
 
     button = create_button_with_pixmap(window, quit_xpm, GTK_QUIT,
 				       "Quit");
     gtk_table_attach_defaults(GTK_TABLE(table), button,
-			      0, 2, 4, 5);
+			      0, 2, 6, 7);
 
     gtk_widget_show(hbox);
     gtk_widget_show(vbox);
@@ -450,12 +466,14 @@ create_pixmap_label(GtkWidget *window, gchar **bits)
 static GtkWidget *
 create_menubar(void)
 {
-    GtkItemFactory *ifactory;
-    GtkAccelGroup *ag;
+    GtkItemFactory	*ifactory;
+    GtkAccelGroup	*ag;
 
     ag = gtk_accel_group_get_default();
     ifactory = gtk_item_factory_new(GTK_TYPE_MENU_BAR, "<Main>", ag);
-    gtk_item_factory_create_items(ifactory, 4, ife, NULL);
+    gtk_item_factory_create_items(ifactory,
+				  sizeof(ife) / sizeof(GtkItemFactoryEntry),
+				  ife, NULL);
     gtk_widget_show(ifactory->widget);
 
     auto_next = gtk_item_factory_get_widget(ifactory, "/Options/Auto next");
@@ -471,10 +489,9 @@ create_menubar(void)
 static GtkTooltips *
 create_yellow_tooltips()
 {
-    GdkColor *t_fore, *t_back;
-    GtkTooltips * tip;
+    GdkColor	*t_back;
+    GtkTooltips	*tip;
 
-    t_fore = (GdkColor*)g_malloc( sizeof(GdkColor));
     t_back = (GdkColor*)g_malloc( sizeof(GdkColor));
 
     /* First create a default Tooltip */
@@ -482,9 +499,10 @@ create_yellow_tooltips()
 
     /* Try to get the colors */
     if ( gdk_color_parse("linen", t_back)){
-	if(gdk_color_alloc(gdk_colormap_get_system(), t_back)) {
-	    gdk_color_black(gdk_colormap_get_system(), t_fore);
-	    gtk_tooltips_set_colors(tip, t_back, t_fore);
+	if(gdk_colormap_alloc_color(gdk_colormap_get_system(),
+				    t_back,
+				    FALSE, TRUE)) {
+	    gtk_tooltips_set_colors(tip, t_back, NULL);
 	}
     }
 
@@ -558,7 +576,7 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
 	    else
 		pc++;
 
-	    sprintf(title, "Timidity %s - %s", timidity_version, filename);
+	    sprintf(title, "Timidity %s - %s", timidity_version, pc);
 	    gtk_window_set_title(GTK_WINDOW(window), title);
 
 	    for (i = 0; i < 30; i++)
@@ -633,10 +651,9 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
 
     case CURTIME_MESSAGE:
 	{
-	    int cseconds;
-	    int  sec,seconds, minutes;
-	    int nbvoice;
-	    char local_string[20];
+	    int		seconds, minutes;
+	    int		nbvoice;
+	    char	local_string[20];
 
 	    gtk_pipe_int_read(&seconds);
 	    gtk_pipe_int_read(&nbvoice);
@@ -644,24 +661,14 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
 	    if( is_quitting )
 		return;
 
-	    sec = seconds;
+	    minutes=seconds/60;
 
-	    /* To avoid blinking */
-	    if (sec!=last_sec)
-	    {
-		minutes=seconds/60;
-		seconds-=minutes*60;
+	    sprintf(local_string,"%2d:%02d", minutes, (int)(seconds % 60));
 
-		sprintf(local_string,"%2d:%02d",
-			minutes, seconds);
-
-		gtk_label_set(GTK_LABEL(cnt_lbl), local_string);
-	    }
-
-	    last_sec=sec;
+	    gtk_label_set(GTK_LABEL(cnt_lbl), local_string);
 
 	    /* Readjust the time scale if not dragging the scale */
-	    if( !locating && (cseconds <= max_sec)) {
+	    if( !locating && (seconds <= max_sec)) {
 		GtkAdjustment *adj;
 
 		adj = gtk_range_get_adjustment(GTK_RANGE(locator));

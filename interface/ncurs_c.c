@@ -1812,7 +1812,7 @@ static int ctl_cmd_D_enter(int32 *val)
 	    if(ch >= 0 && ISDRUMCHANNEL(ch))
 	    {
 		*val = ch;
-		rc = RC_TOGGLE_DURMCHAN;
+		rc = RC_TOGGLE_DRUMCHAN;
 	    }
 	}
 	else if(*text == '-')
@@ -1821,14 +1821,14 @@ static int ctl_cmd_D_enter(int32 *val)
 	    if(ch >= 0 && ISDRUMCHANNEL(ch))
 	    {
 		*val = ch;
-		rc = RC_TOGGLE_DURMCHAN;
+		rc = RC_TOGGLE_DRUMCHAN;
 	    }
 	}
 	else
 	{
 	    *val = atoi(text) - 1;
 	    if(*val >= 0)
-		rc = RC_TOGGLE_DURMCHAN;
+		rc = RC_TOGGLE_DRUMCHAN;
 	}
     }
     mini_buff_clear(command_buffer);
@@ -2172,7 +2172,7 @@ static int ctl_read(int32 *valp)
 	  if(ctl_ncurs_mode == NCURS_MODE_TRACE && selected_channel != -1)
 	  {
 	      *valp = selected_channel;
-	      return RC_TOGGLE_DURMCHAN;
+	      return RC_TOGGLE_DRUMCHAN;
 	  }
 	  break;
 	case 'g':

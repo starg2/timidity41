@@ -100,9 +100,11 @@ SHCFLAGS = @SHCFLAGS@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
 VERSION = @VERSION@
+WISH = @WISH@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
 so = @so@
+tcltk_dep = @tcltk_dep@
 SUBDIRS = C ja_JP.ujis
 lang_target = C
 
@@ -110,7 +112,7 @@ man_MANS = \
 	timidity.1 \
 	timidity.cfg.5
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../config.h
+CONFIG_HEADER = ../config.h ../interface.h
 CONFIG_CLEAN_FILES = 
 man1dir = $(mandir)/man1
 man5dir = $(mandir)/man5

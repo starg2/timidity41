@@ -45,8 +45,10 @@ extern Pixmap xskin_back;
 extern unsigned int xskin_depth;
 extern Visual *xskin_vis;
 
+#ifdef SUPPORT_SOUNDSPEC
 static void xskin_spe_ana( unsigned char * );
 static void xskin_wave( unsigned char * );
+#endif /* SUPPORT_SOUNDSPEC */
 
 static int foreground;
 static int background;
@@ -184,7 +186,8 @@ void ts_spectrum( int mode, unsigned char *buf ) {
   return ;
 }
 
-void xskin_spe_ana( unsigned char *buf ) {
+#ifdef SUPPORT_SOUNDSPEC
+static void xskin_spe_ana( unsigned char *buf ) {
 
   int x,y,i;
   int yt;
@@ -208,7 +211,7 @@ void xskin_spe_ana( unsigned char *buf ) {
   return;
 }
 
-void xskin_wave( unsigned char *buf ) {
+static void xskin_wave( unsigned char *buf ) {
 
   int x,y,c;
 
@@ -229,3 +232,4 @@ void xskin_wave( unsigned char *buf ) {
 
   return;
 }
+#endif /* SUPPORT_SOUNDSPEC */

@@ -100,9 +100,11 @@ SHCFLAGS = @SHCFLAGS@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
 VERSION = @VERSION@
+WISH = @WISH@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
 so = @so@
+tcltk_dep = @tcltk_dep@
 
 INCLUDES = \
 	-I$(top_srcdir) \
@@ -203,13 +205,18 @@ timidity_LDADD = \
 	$(top_builddir)/libarc/libarc.a \
 	$(top_builddir)/utils/libutils.a \
 	@EXTRALIBS@
+
+timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
+	$(top_builddir)/interface/libinterface.a \
+	$(top_builddir)/libarc/libarc.a \
+	$(top_builddir)/utils/libutils.a
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../config.h
+CONFIG_HEADER = ../config.h ../interface.h
 CONFIG_CLEAN_FILES = 
 PROGRAMS =  $(bin_PROGRAMS)
 
 
-DEFS = @DEFS@ -I. -I$(srcdir) -I..
+DEFS = @DEFS@ -I. -I$(srcdir) -I.. -I..
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
@@ -222,8 +229,6 @@ filter.o instrum.o list_a.o load_mod.o miditrace.o mix.o mod.o output.o \
 playmidi.o raw_a.o rcp.o readmidi.o recache.o resample.o reverb.o \
 sbkconv.o sffile.o sfitem.o smfconv.o sndfont.o tables.o timidity.o \
 version.o wave_a.o wrd_read.o wrdt.o
-timidity_DEPENDENCIES =  $(top_builddir)/interface/libinterface.a \
-$(top_builddir)/libarc/libarc.a $(top_builddir)/utils/libutils.a
 timidity_LDFLAGS = 
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
@@ -344,7 +349,7 @@ audriv_sun.o: audriv_sun.c ../config.h timidity.h audriv.h aenc.h
 common.o: common.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h output.h controls.h ../libarc/arc.h \
 	../utils/memb.h ../utils/nkflib.h wrd.h
-controls.o: controls.c ../config.h timidity.h controls.h
+controls.o: controls.c ../config.h ../interface.h timidity.h controls.h
 dl_dlopen.o: dl_dlopen.c ../config.h timidity.h dlutils.h
 filter.o: filter.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h controls.h instrum.h filter.h
@@ -398,11 +403,11 @@ sndfont.o: sndfont.c ../config.h timidity.h common.h ../libarc/url.h \
 	sffile.h sflayer.h sfitem.h output.h filter.h resample.h
 tables.o: tables.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h tables.h
-timidity.o: timidity.c ../config.h timidity.h common.h ../libarc/url.h \
-	../utils/mblock.h instrum.h playmidi.h readmidi.h output.h \
-	controls.h tables.h miditrace.h reverb.h \
+timidity.o: timidity.c ../config.h ../interface.h timidity.h common.h \
+	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h output.h controls.h tables.h miditrace.h reverb.h \
 	../interface/soundspec.h recache.h ../libarc/arc.h \
-	../utils/memb.h ../utils/strtab.h wrd.h mid.defs
+	../utils/memb.h ../utils/strtab.h wrd.h mid.defs dlutils.h
 wave_a.o: wave_a.c ../config.h timidity.h output.h controls.h
 wrd_read.o: wrd_read.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h controls.h \
@@ -474,14 +479,6 @@ maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
 include $(top_builddir)/common.makefile
-
-#should use timidit_DEPENDENCIES?
-timidity.o: $(SYSEXTRAS:.c=.o) \
-	$(top_builddir)/interface/libinterface.a \
-	$(top_builddir)/libarc/libarc.a \
-	$(top_builddir)/utils/libutils.a
-
-controls.o: $(top_builddir)/interface/libinterface.a
 
 version.o: version.c Makefile
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c

@@ -29,6 +29,7 @@
 #endif /* HAVE_CONFIG_H */
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -159,8 +160,20 @@ static int check_sound_cards (int* card__, int* device__,
   struct snd_ctl_hw_info ctl_hw_info;
   snd_pcm_info_t pcm_info;
   void* ctl_handle;
-  int tmp = snd_cards ();
+  const char* env_sound_card = getenv ("TIMIDITY_SOUND_CARD");
+  const char* env_pcm_device = getenv ("TIMIDITY_PCM_DEVICE");
+  int tmp;
 
+  /*specify card*/
+  *card__ = 0;
+  if (env_sound_card != NULL)
+    *card__ = atoi (env_sound_card);
+  /*specify device*/
+  *device__ = 0;
+  if (env_pcm_device != NULL)
+    *device__ = atoi (env_pcm_device);
+  
+  tmp = snd_cards ();
   if (tmp == 0)
     {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "No sound card found.");
@@ -172,7 +185,7 @@ static int check_sound_cards (int* card__, int* device__,
       return -1;
     }
   
-  if (*card__ >= tmp)
+  if (*card__ < 0 || *card__ >= tmp)
     {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "There is %d sound cards."
 		" %d is invalid sound card. assuming 0.",
@@ -180,8 +193,7 @@ static int check_sound_cards (int* card__, int* device__,
       *card__ = 0;
     }
 
-  /*XXX specify card*/
-  tmp = snd_ctl_open (&ctl_handle, card);
+  tmp = snd_ctl_open (&ctl_handle, *card__);
   if (tmp != 0)
     {
       error_report (tmp);
@@ -199,8 +211,7 @@ static int check_sound_cards (int* card__, int* device__,
       return -1;
     }
   
-  /*XXX specify device*/
-  if (*device__ >= ctl_hw_info.pcmdevs)
+  if (*device__ < 0 || *device__ >= ctl_hw_info.pcmdevs)
     {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		"%d-th sound cards(%s) has %d pcm device(s)."

@@ -117,15 +117,15 @@ static int32 last_event_time;
 #define WRD_ADDEVENT(at, cmd, arg) \
     { MidiEvent e; e.time = (at); e.type = ME_WRD; e.channel = (cmd); \
       e.a = (uint8)((arg) & 0xFF); e.b = (uint8)(((arg) >> 8) & 0xFF); \
-      if(mimpi_bug_emulation_level > 0) if(at < last_event_time) e.time = \
-      last_event_time; else last_event_time = e.time; \
+      if(mimpi_bug_emulation_level > 0){ if(at < last_event_time){ e.time = \
+      last_event_time; }else{ last_event_time = e.time; }} \
       readmidi_add_event(&e); }
 
 #define WRD_ADDSTREVENT(at, cmd, str) \
     { MidiEvent e; readmidi_make_string_event(ME_WRD, (str), &e, 0); \
       e.channel = (cmd); e.time = (at); \
-      if(mimpi_bug_emulation_level > 0) if(at < last_event_time) e.time = \
-      last_event_time; else last_event_time = e.time; \
+      if(mimpi_bug_emulation_level > 0){ if(at < last_event_time){ e.time = \
+      last_event_time; }else{ last_event_time = e.time; }} \
       readmidi_add_event(&e); }
 
 #ifdef DEBUG

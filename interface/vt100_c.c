@@ -697,7 +697,7 @@ static int ctl_read(int32 *valp)
 	    if(selected_channel != -1)
 	    {
 		*valp = selected_channel;
-		return RC_TOGGLE_DURMCHAN;
+		return RC_TOGGLE_DRUMCHAN;
 	    }
 	    break;
 	  case 'g':

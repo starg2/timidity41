@@ -2278,7 +2278,7 @@ static int apply_controls(void)
 	    voice_decrement(val);
 	    continue;
 
-	  case RC_TOGGLE_DURMCHAN:
+	  case RC_TOGGLE_DRUMCHAN:
 	    midi_restart_time = current_trace_samples();
 	    if(midi_restart_time == -1)
 		midi_restart_time = current_sample;

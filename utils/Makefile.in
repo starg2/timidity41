@@ -100,9 +100,11 @@ SHCFLAGS = @SHCFLAGS@
 SHLD = @SHLD@
 SYSEXTRAS = @SYSEXTRAS@
 VERSION = @VERSION@
+WISH = @WISH@
 dynamic_targets = @dynamic_targets@
 lispdir = @lispdir@
 so = @so@
+tcltk_dep = @tcltk_dep@
 
 INCLUDES = \
 	-I$(top_srcdir)/libarc \
@@ -154,12 +156,12 @@ libutils_a_LIBADD = \
 
 libutils_a_DEPENDENCIES = $(libutils_a_LIBADD)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../config.h
+CONFIG_HEADER = ../config.h ../interface.h
 CONFIG_CLEAN_FILES = 
 LIBRARIES =  $(noinst_LIBRARIES)
 
 
-DEFS = @DEFS@ -I. -I$(srcdir) -I..
+DEFS = @DEFS@ -I. -I$(srcdir) -I.. -I..
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@

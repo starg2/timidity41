@@ -46,17 +46,23 @@
 #define PREV_FILE_MESSAGE 19
 #define TUNE_END_MESSAGE 20
 
-#define GTK_CHANGE_VOLUME 1
-#define GTK_CHANGE_LOCATOR 2
-#define GTK_QUIT 3
-#define GTK_PLAY_FILE 4
-#define GTK_NEXT 5
-#define GTK_PREV 6
-#define GTK_RESTART 7
-#define GTK_FWD 8
-#define GTK_RWD 9
-#define GTK_PAUSE 10
-
+typedef enum {
+    GTK_CHANGE_VOLUME = 1,
+    GTK_CHANGE_LOCATOR,
+    GTK_QUIT,
+    GTK_PLAY_FILE,
+    GTK_NEXT,
+    GTK_PREV,
+    GTK_RESTART,
+    GTK_FWD,
+    GTK_RWD,
+    GTK_PAUSE,
+    GTK_KEYUP,
+    GTK_KEYDOWN,
+    GTK_SLOWER,
+    GTK_FASTER,
+    GTK_TOGGLE_DRUMS
+} GtkControls;
 
 /*
  * CONSTANTS FOR MOTIF/GTK+ MENUS

@@ -27,6 +27,8 @@ BITMAPS = \
 	prev.xbm \
 	quit.xbm \
 	stop.xbm \
+	random.xbm \
+	repeat.xbm \
 	timidity.xbm
 
 EXTRA_DIST = $(BITMAPS)
