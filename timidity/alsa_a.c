@@ -51,17 +51,11 @@
 #include "playmidi.h"
 #include "miditrace.h"
 
-/* Define if you want to use soft audio buffering (AUDIO_FILLING_SEC sec.) */
-/* #define AUDIO_FILLING_MILSEC 3000 */
-
-/* Defined if you want to use initial audio buffering */
-/* #define INITIAL_FILLING */
-
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
-
+static int total_bytes, output_counter;
 
 /* export the playback mode */
 
@@ -87,7 +81,7 @@ PlayMode dpm = {
 
 
 /*ALSA PCM handler*/
-static void* handle = NULL;
+static snd_pcm_t* handle = NULL;
 static int card = 0;
 static int device = 0;
 
@@ -107,7 +101,7 @@ static int check_sound_cards (int* card__, int* device__,
   /*Search sound cards*/
   struct snd_ctl_hw_info ctl_hw_info;
   snd_pcm_info_t pcm_info;
-  void* ctl_handle;
+  snd_ctl_t* ctl_handle;
   const char* env_sound_card = getenv ("TIMIDITY_SOUND_CARD");
   const char* env_pcm_device = getenv ("TIMIDITY_PCM_DEVICE");
   int tmp;
@@ -219,6 +213,7 @@ static int set_playback_info (void* handle__,
   snd_pcm_playback_info_t playback_info;
   snd_pcm_format_t pcm_format;
   struct snd_pcm_playback_params playback_params;
+  struct snd_pcm_playback_status playback_status;
   int tmp;
   memset (&pcm_format, 0, sizeof (pcm_format));
   memset (&playback_params, 0, sizeof (playback_params));
@@ -282,7 +277,7 @@ static int set_playback_info (void* handle__,
       else
 	{
 	  ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		    "%s doesn't support mono or stereo samples",
+		    "%s doesn't support 16 bit sample width",
 		    dpm.name);
 	  return -1;
 	}
@@ -304,7 +299,7 @@ static int set_playback_info (void* handle__,
       else
 	{
 	  ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		    "%s doesn't support mono or stereo samples",
+		    "%s doesn't support 8 bit sample width",
 		    dpm.name);
 	  return -1;
 	}
@@ -331,13 +326,6 @@ static int set_playback_info (void* handle__,
 		((*encoding__ & PE_MONO) != 0)? "mono" : "stereo");
       ret_val = 1;
     }
-  if (pcm_format.rate != orig_rate)
-    {
-      ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
-                "Output rate adjusted to %d Hz (requested %d Hz)",
-		pcm_format.rate, orig_rate);
-      ret_val = 1;
-    }
   
   /* Set buffer fragments (in extra_param[0]) */
   tmp = AUDIO_BUFFER_BITS;
@@ -354,10 +342,12 @@ static int set_playback_info (void* handle__,
     playback_params.fragments_max = extra_param[0];
 #else
   playback_params.fragment_size = (1 << tmp);
+
   if (extra_param[0] == 0)
     playback_params.fragments_max = 15;/*default value. What's value is apporpriate?*/
   else
     playback_params.fragments_max = extra_param[0];
+
 #endif
   playback_params.fragments_room = 1;
   tmp = snd_pcm_playback_params (handle__, &playback_params);
@@ -372,6 +362,21 @@ static int set_playback_info (void* handle__,
 		playback_params.fragments_room);
       ret_val =1;
     }
+
+  if(snd_pcm_playback_status(handle__, &playback_status) == 0)
+    {
+      if (playback_status.rate != orig_rate)
+	{
+	  ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		    "Output rate adjusted to %d Hz (requested %d Hz)",
+		    playback_status.rate, orig_rate);
+	  dpm.rate = playback_status.rate;
+	  ret_val = 1;
+	}
+      total_bytes = playback_status.count;
+    }
+  else
+    total_bytes = -1; /* snd_pcm_playback_status fails */
 
   return ret_val;
 }
@@ -405,6 +410,7 @@ static int open_output(void)
     }
 
   dpm.fd = snd_pcm_file_descriptor (handle);
+  output_counter = 0;
   return warnings;
 }
 
@@ -440,6 +446,7 @@ static int output_data(char *buf, int32 nbytes)
 	}
 	buf += n;
 	nbytes -= n;
+	output_counter += n;
     }
 
     return 0;
@@ -447,11 +454,54 @@ static int output_data(char *buf, int32 nbytes)
 
 static int acntl(int request, void *arg)
 {
+    struct snd_pcm_playback_status playback_status;
+    int i;
+
     switch(request)
     {
+      case PM_REQ_GETQSIZ:
+	if(total_bytes == -1)
+	  return -1;
+	*((int *)arg) = total_bytes;
+	return 0;
+
+      case PM_REQ_GETFILLABLE:
+	if(total_bytes == -1)
+	  return -1;
+	if(snd_pcm_playback_status(handle, &playback_status) != 0)
+	  return -1;
+	*((int *)arg) = playback_status.count;
+	return 0;
+
+      case PM_REQ_GETFILLED:
+	if(total_bytes == -1)
+	  return -1;
+	if(snd_pcm_playback_status(handle, &playback_status) != 0)
+	  return -1;
+	*((int *)arg) = playback_status.queue;
+	return 0;
+
+      case PM_REQ_GETSAMPLES:
+	if(total_bytes == -1)
+	  return -1;
+	if(snd_pcm_playback_status(handle, &playback_status) != 0)
+	  return -1;
+	i = output_counter - playback_status.queue;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i;
+	return 0;
+
       case PM_REQ_DISCARD:
 	if(snd_pcm_drain_playback (handle) != 0)
 	    return -1; /* error */
+	output_counter = 0;
+	return 0;
+
+      case PM_REQ_FLUSH:
+	if(snd_pcm_flush_playback(handle) != 0)
+	  return -1; /* error */
+	output_counter = 0;
 	return 0;
     }
     return -1;

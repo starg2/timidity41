@@ -74,6 +74,10 @@
 #define JISX0201 "-*-fixed-*-r-normal--16-*-*-*-*-*-jisx0201.1976-*"
 #define JISX0208 "-*-fixed-*-r-normal--16-*-*-*-*-*-jisx0208.1983-*"
 
+/* (mask & src) | (~mask & dst) equals as Windows API BitBlt ROP 0x00CA0749 */
+/* #define ROP3_CA0749(ptn, src, dst) (((ptn) & (src)) | (~(ptn) & (dst))) */
+#define ROP3_CA0749(ptn, src, dst) ((dst) ^ ((ptn) & ((src) ^ (dst))))
+
 typedef struct _ImagePixmap
 {
     Pixmap		pm;
@@ -129,7 +133,8 @@ static int bitmap_drawimage(ImagePixmap *ip, char *sjis_str, int nbytes);
 static VirtualScreen **virtualScreen; /* MAX_VIRTUAL_SCREENS */
 static VirtualScreen  *tmpScreen;
 static VirtualScreen  *alloc_vscreen(int width, int height, int transParent);
-static void free_vscreen(VirtualScreen *scr);
+static void	       free_vscreen(VirtualScreen *scr);
+
 #define VSCREEN_PIXEL(scr, x, y) ((scr)->data[(scr)->width * (y) + (x)])
 
 static unsigned long basePixel;	/* base pixel */
@@ -139,7 +144,7 @@ static int currentPalette;
 
 static SherryPalette **virtualPalette; /* MAX_VIRTUAL_PALETTES, 仮想パレット */
 static SherryPaletteEntry realPalette[MAX_PALETTES];
-static uint8 *pseudoImage; /* For TrueColor */
+static uint8 *pseudoImage = NULL; /* For TrueColor */
 
 static int draw_ctl_flag = True;
 static int err_to_stop = 0;
@@ -414,10 +419,12 @@ static int x_sry_open(char *opts)
 	return error_flag;
     }
 
-    if(strchr(opts, 'p'))
-	try_pseudo = 1;
-    else
-	try_pseudo = 0;
+    try_pseudo = 0;
+    if(opts)
+    {
+	if(strchr(opts, 'p'))
+	    try_pseudo = 1;
+    }
 
     if((theDisplay = XOpenDisplay(NULL)) == NULL)
     {
@@ -523,7 +530,7 @@ void x_sry_close(void)
     for(i = 0; i < MAX_VIRTUAL_SCREENS; i++)
 	if(virtualScreen[i] != NULL)
 	{
-	    free(virtualScreen[i]);
+	    free_vscreen(virtualScreen[i]);
 	    virtualScreen[i] = NULL;
 	}
     free(virtualScreen);
@@ -539,7 +546,8 @@ void x_sry_close(void)
 	    virtualPalette[i] = NULL;
 	}
     free(virtualPalette);
-    free(pseudoImage);
+    if(pseudoImage)
+	free(pseudoImage);
     XFreeFont(theDisplay, theFont8);
     XFreeFont(theDisplay, theFont16);
     XCloseDisplay(theDisplay);
@@ -607,7 +615,7 @@ static void sry_free_vram(uint8 *data, int len)
 	n = SRY_GET_SHORT(data + i) & 0xffff;
 	if(virtualScreen[n] != NULL)
 	{
-	    free(virtualScreen[n]);
+	    free_vscreen(virtualScreen[n]);
 	    virtualScreen[n] = NULL;
 	}
     }
@@ -939,6 +947,7 @@ static void sry_load_png(uint8 *data)
     png_read_update_info(pngPtr, infoPtr);
 
     rowbytes = png_get_rowbytes(pngPtr, infoPtr);
+    /* rowbytes == width */
     rowPointers = (png_bytep *)safe_malloc(height * sizeof(png_bytep));
     rowPointers[0] = (png_byte *)safe_malloc(rowbytes * height *
 					     sizeof(png_byte));
@@ -961,13 +970,16 @@ static void sry_load_png(uint8 *data)
     }
     if(scr == NULL)
 	scr = virtualScreen[screen] =
-	    alloc_vscreen(width, height, transParent);
+	    alloc_vscreen(width, height*2, transParent);
     else
 	scr->transParent = transParent;
 
     if(virtualPalette[vpalette] == NULL)
+    {
 	virtualPalette[vpalette] =
 	    (SherryPalette *)safe_malloc(sizeof(SherryPalette));
+	memset(virtualPalette[vpalette], 0, sizeof(SherryPalette));
+    }
 
     entry = virtualPalette[vpalette]->entry;
     for(i = 0; i < numPalette; i++)
@@ -1007,6 +1019,9 @@ static void sry_trans_all(uint8 *data)
     printf("Trans all: %d:(%d,%d)\n", screen, sx, sy);
 #endif /* SRY_DEBUG */
 
+    if(!check_range(scr, sx, sy,
+		    sx + REAL_SCREEN_SIZE_X - 1, sy + REAL_SCREEN_SIZE_Y - 1))
+	return;
 
     if(theClass != TrueColor)
     {
@@ -1104,17 +1119,15 @@ static VirtualScreen *get_tmp_screen(int width_require,
 	    height_require = REAL_SCREEN_SIZE_Y;
 	return tmpScreen = alloc_vscreen(width_require, height_require, 0);
     }
-/*
     if(tmpScreen->width * tmpScreen->height >= width_require * height_require)
     {
 	tmpScreen->width = width_require;
 	tmpScreen->height = height_require;
 	return tmpScreen;
     }
-    free(tmpScreen);
+    if(tmpScreen)
+	free_vscreen(tmpScreen);
     return tmpScreen = alloc_vscreen(width_require, height_require, 0);
-*/
-    return tmpScreen;
 }
 
 static void normalize_rect(int *x1, int *y1, int *x2, int *y2)
@@ -1223,7 +1236,7 @@ static void copy_vscreen_area(VirtualScreen *src,
 		    continue;
 		i = (dest_y + y) * dw + dest_x + x;
 		q = target[i];
-		target[i] = (mask & p) | (~mask & q);
+		target[i] = ROP3_CA0749(mask, p, q);
 	    }
 	}
     }
@@ -1346,7 +1359,7 @@ static void sry_trans_partial_mask(uint8 *data)
 		{
 		    dstP = VSCREEN_PIXEL(dest, toX + x, toY + y);
 		    VSCREEN_PIXEL(dest, toX + x, toY + y) =
-			(planeMask & srcP) | (~planeMask & dstP);
+			ROP3_CA0749(planeMask, srcP, dstP);
 		}
 	    }
 	}
@@ -1394,7 +1407,7 @@ static void sry_draw_box(uint8 *data)
 		int i;
 		i = v->width * y + x;
 		p = v->data[i];
-		v->data[i] = (mask & color) | (~mask & p);
+		v->data[i] = ROP3_CA0749(mask, color, p);
 	    }
     }
 }
@@ -1407,6 +1420,7 @@ static void vscreen_drawline(VirtualScreen* scr,
 
     if(scr == NULL)
 	return;
+
     if(x1 < 0 ||
        y1 < 0 ||
        x2 >= scr->width ||
@@ -1444,7 +1458,7 @@ static void vscreen_drawline(VirtualScreen* scr,
 	}
 
 	idx = scr->width * y + x;
-	scr->data[idx] = (mask & pixel) | (~mask & scr->data[idx]);
+	scr->data[idx] = ROP3_CA0749(mask, pixel, scr->data[idx]);
 	if((y2 - y1) * ydirflag > 0)
 	{
 	    while(x < xend)
@@ -1458,7 +1472,7 @@ static void vscreen_drawline(VirtualScreen* scr,
 		    d += incr2;
 		}
 		idx = scr->width * y + x;
-		scr->data[idx] = (mask & pixel) | (~mask & scr->data[idx]);
+		scr->data[idx] = ROP3_CA0749(mask, pixel, scr->data[idx]);
 	    }
 	}
 	else
@@ -1474,7 +1488,7 @@ static void vscreen_drawline(VirtualScreen* scr,
 		    d += incr2;
 		}
 		idx = scr->width * y + x;
-		scr->data[idx] = (mask & pixel) | (~mask & scr->data[idx]);
+		scr->data[idx] = ROP3_CA0749(mask, pixel, scr->data[idx]);
 	    }
 	}		
     }
@@ -1498,7 +1512,7 @@ static void vscreen_drawline(VirtualScreen* scr,
 	    xdirflag = 1;
 	}
 	idx = scr->width * y + x;
-	scr->data[idx] = (mask & pixel) | (~mask & scr->data[idx]);
+	scr->data[idx] = ROP3_CA0749(mask, pixel, scr->data[idx]);
 	if((x2 - x1) * xdirflag > 0)
 	{
 	    while(y < yend)
@@ -1512,7 +1526,7 @@ static void vscreen_drawline(VirtualScreen* scr,
 		    d += incr2;
 		}
 		idx = scr->width * y + x;
-		scr->data[idx] = (mask & pixel) | (~mask & scr->data[idx]);
+		scr->data[idx] = ROP3_CA0749(mask, pixel, scr->data[idx]);
 	    }
 	}
 	else
@@ -1528,7 +1542,7 @@ static void vscreen_drawline(VirtualScreen* scr,
 		    d += incr2;
 		}
 		idx = scr->width * y + x;
-		scr->data[idx] = (mask & pixel) | (~mask & scr->data[idx]);
+		scr->data[idx] = ROP3_CA0749(mask, pixel, scr->data[idx]);
 	    }
 	}
     }
@@ -1739,7 +1753,7 @@ static void sry_text(uint8 *data)
 		    {
 			p = VSCREEN_PIXEL(scr, tx + bx, ty + by);
 			VSCREEN_PIXEL(scr, tx + bx, ty + by) =
-			    (mask & fg) | (~mask & p);
+			    ROP3_CA0749(mask, fg, p);
 		    }
 		}
 		else
@@ -1748,7 +1762,7 @@ static void sry_text(uint8 *data)
 		    {
 			p = VSCREEN_PIXEL(scr, tx + bx, ty + by);
 			VSCREEN_PIXEL(scr, tx + bx, ty + by) =
-			    (mask & bg) | (~mask & p);
+			    ROP3_CA0749(mask, bg, p);
 		    }
 		}
 	    }
@@ -1772,6 +1786,7 @@ void x_sry_clear(void)
     err_to_stop = 0;
 
     init_palette();
+
     XSetWindowBackground(theDisplay, theWindow, basePixel);
     XClearWindow(theDisplay, theWindow);
 
@@ -1780,9 +1795,14 @@ void x_sry_clear(void)
     for(i = 0; i < MAX_VIRTUAL_SCREENS; i++)
 	if(virtualScreen[i] != NULL)
 	{
-	    free(virtualScreen[i]);
+	    free_vscreen(virtualScreen[i]);
 	    virtualScreen[i] = NULL;
 	}
+    if(tmpScreen)
+    {
+	free(tmpScreen);
+	tmpScreen = NULL;
+    }
 
     for(i = 0; i < MAX_VIRTUAL_PALETTES; i++)
 	if(virtualPalette[i] != NULL)
@@ -1790,6 +1810,9 @@ void x_sry_clear(void)
 	    free(virtualPalette[i]);
 	    virtualPalette[i] = NULL;
 	}
+    memset(realPalette, 0, sizeof(realPalette));
+    if(theClass == TrueColor)
+	memset(pseudoImage, 0, REAL_SCREEN_SIZE_X * REAL_SCREEN_SIZE_Y);
 }
 
 
@@ -1829,9 +1852,12 @@ void x_sry_wrdt_apply(uint8 *data, int len)
     skip_bit = op & 0x80;
     if(skip_bit && aq_filled_ratio() < 0.2)
 	return;
+    op &= 0x7F;
 
-    switch(op & 0x7F)
+    switch(op)
     {
+      case 0x00: /* DataEnd */
+	break;
       case 0x01:
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "sherry start");
 	wrd_init_path();
@@ -1912,11 +1938,25 @@ void x_sry_wrdt_apply(uint8 *data, int len)
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "image copy 0x62");
 	sry_trans_partial_mask(data);
 	break;
-
-      case 0:
-      case 0x20:
+      case 0x10:
+      case 0x11:
+      case 0x12:
+      case 0x13:
+      case 0x14:
+      case 0x15:
+      case 0x16:
+      case 0x17:
+      case 0x18:
+      case 0x19:
+      case 0x1a:
+      case 0x1b:
+      case 0x1c:
+      case 0x1d:
+      case 0x1e:
+      case 0x1f:
       case 0x71:
       case 0x72:
+      case 0x7f:
 	ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
 		  "Sherry WRD 0x%x: not supported, ignore", op);
 	break;
@@ -2243,14 +2283,7 @@ static int bitmap_drawimage(ImagePixmap *ip, char *sjis_str, int nbytes)
 }
 
 
-
-
 /**** VirtualScreen intarfaces ****/
-static void free_vscreen(VirtualScreen *scr)
-{
-    free(scr);
-}
-
 static VirtualScreen *alloc_vscreen(int width, int height, int transParent)
 {
     VirtualScreen *scr;
@@ -2260,8 +2293,14 @@ static VirtualScreen *alloc_vscreen(int width, int height, int transParent)
     scr = (VirtualScreen *)safe_malloc(sizeof(VirtualScreen) + size);
     scr->width = width;
     scr->height = height;
+    scr->transParent = transParent;
     memset(scr->data, transParent, size);
     return scr;
+}
+
+static void free_vscreen(VirtualScreen *scr)
+{
+    free(scr);
 }
 
 void x_sry_event(void)

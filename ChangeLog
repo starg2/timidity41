@@ -1,3 +1,29 @@
+1999-09-09  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.6.0-beta4 released for test version.
+
+1999-09-08  Masanao Izumo <mo@goice.co.jp>
+    * interface/x_sherry.c: Bug fix.
+    * interface/{wrd_read.c,x_sherry.c}: Support part of the sherry ver.2.
+
+1999-09-07  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in,common.makefile.in: Fix missing of DEFAULT_PATH.
+    * acinclude.m4: Add gtk.m4
+
+1999-09-06  Katsuhiro Ueno <katsu@blue.sky.or.jp>
+
+    * timidity/common.c (pathcmp): Bug fixed.
+    * timidity/{acinclude.m4,configure.in}: Fix misspelled comment and
+      remove garbage of output.
+
+1999-09-06  Masanao Izumo <mo@goice.co.jp>
+	
+    * timidity/alsa_c.c:
+	Check output rate with snd_pcm_playback_status.
+	acntl: PM_REQ_GETQSIZ, PM_REQ_GETFILLABLE, PM_REQ_GETFILLED,
+	PM_REQ_GETSAMPLES, and PM_REQ_FLUSH are supported.
+	
 1999-09-05  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.6.0-beta3 released for test version.
@@ -42,7 +68,7 @@
       because it is possible -laudio is not NAS library.
     * configure.in: Add --with-nas-includes=dir to specify the NAS
       include directory.
-    * libarc/url_file.c: Use mapped-file to read the file.
+    * libarc/url_file.c: On Windows, use mapped-file to read the file.
     * timidity/timidity.c (handler): Only mark `intr'.
     * interface/w32g_i.c: Use WaitSingleObject() to wait to terminate
       the thread.

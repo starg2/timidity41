@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.6.0-beta3, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.6.0-beta4, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -508,8 +508,6 @@ if test "x$au_enable_default" = xyes; then
       AC_MSG_WARN(No --enable-audio=default audio for $target)
       ;;
   esac
-else
-  AC_MSG_RESULT(no)
 fi
 
 dnl
@@ -1255,9 +1253,8 @@ SET_UNIQ_WORDS(LDFLAGS,$LDFLAGS)
 SET_UNIQ_WORDS(SHLDFLAGS,$SHLDFLAGS)
 SET_UNIQ_WORDS(CFLAGS,$EXTRACFLAGS $CFLAGS)
 SET_UNIQ_WORDS(CPPFLAGS,$CPPFLAGS $EXTRADEFS)
-#CPPFLAGS="$CPPFLAGS -DDEFAULT_PATH=\\\"\$(TIMID_DIR)\\\""
 
-CPPFLAGS="$CPPFLAGS \$(DEF_PKGDATADIR) \$(DEF_PKGLIBDIR)"
+CPPFLAGS="$CPPFLAGS \$(DEF_PKGDATADIR) \$(DEF_PKGLIBDIR) \$(DEF_DEFAULT_PATH)"
 
 if test "x$TIMIDITY_OUTPUT_ID" != x; then
   CPPFLAGS="$CPPFLAGS -DTIMIDITY_OUTPUT_ID=\\\"$TIMIDITY_OUTPUT_ID\\\""

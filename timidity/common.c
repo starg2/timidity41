@@ -1001,8 +1001,7 @@ int pathcmp(const char *p1, const char *p2, int ignore_case)
     ignore_case = 1;	/* Always ignore the case */
 #endif
 
-    while(*p1 && *p2)
-    {
+    do {
 	c1 = *p1++ & 0xff;
 	c2 = *p2++ & 0xff;
 	if(ignore_case)
@@ -1010,21 +1009,10 @@ int pathcmp(const char *p1, const char *p2, int ignore_case)
 	    c1 = tolower(c1);
 	    c2 = tolower(c2);
 	}
-	if(IS_PATH_SEP(c1)) c1 = 0;
-	if(IS_PATH_SEP(c2)) c2 = 0;
-	if(c1 != c2)
-	    return c1 - c2;
-    }
+	if(IS_PATH_SEP(c1)) c1 = *p1 ? 0x100 : 0;
+	if(IS_PATH_SEP(c2)) c2 = *p2 ? 0x100 : 0;
+    } while(c1 == c2 && c1 /* && c2 */);
 
-    c1 = *p1 & 0xff;
-    c2 = *p2 & 0xff;
-    if(ignore_case)
-    {
-	c1 = tolower(c1);
-	c2 = tolower(c2);
-    }
-    if(IS_PATH_SEP(c1)) c1 = 0;
-    if(IS_PATH_SEP(c2)) c2 = 0;
     return c1 - c2;
 }
 

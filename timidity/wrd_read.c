@@ -1771,6 +1771,8 @@ static char *wrd_name_string(int cmd)
 static int sherry_started;	/* 0 - before start command 0x01*/
 				/* 1 - after start command 0x01*/
 
+static int sry_timebase_mode = 0; /* 0 is default */
+
 static int32 sry_getVariableLength(struct timidity_file	*tf)
 {
   int32 value= 0;
@@ -1886,7 +1888,7 @@ static int sry_read_datapacket(struct timidity_file	*tf, sry_datapacket* packet)
 	return 0;
 }
 
-static void sry_readinit(struct wrd_step_tracer* wrdstep, int timebase)
+static void sry_timebase21(struct wrd_step_tracer* wrdstep, int timebase)
 {
     sherry_started=0;
     memset(wrdstep, 0, sizeof(struct wrd_step_tracer));
@@ -1928,6 +1930,41 @@ static void sry_readinit(struct wrd_step_tracer* wrdstep, int timebase)
 #endif /* DEBUG */
 }
 
+static void sry_timebase22(struct wrd_step_tracer* wrdstep, int mode)
+{
+    sry_timebase_mode = mode;
+    if(sry_timebase_mode)
+	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+		  "Sherry time synchronize mode is not supported");
+}
+
+static void sry_wrdinfo(uint8 *info, int len)
+{
+    char *info1, *info2, *desc;
+    int i;
+
+    /* "info1\0info2\0desc\0" */
+    /* FIXME: Need to convert SJIS to "output_text_code" */
+
+    i = 0;
+    info1 = (char *)info;
+    while(i < len && info[i])
+	i++;
+    i++; /* skip '\0' */
+    if(i >= len)
+	return;
+    info2 = info + i;
+    while(i < len && info[i])
+	i++;
+    i++; /* skip '\0' */
+    if(i >= len)
+	return;
+    desc = info + i;
+
+    ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+	      "Sherry WRD: %s: %s: %s", info1, info2, desc);
+}
+
 static void sry_show_debug(uint8 *data)
 {
     switch(data[0])
@@ -1937,10 +1974,12 @@ static void sry_show_debug(uint8 *data)
 	    ctl->cmsg(CMSG_INFO, VERB_NOISY,
 		      "Sherry WRD Compiler: %s", data + 1);
 	break;
-      case 0x72:
+      case 0x72: /* Source Name */
 	if(data[1])
 	    ctl->cmsg(CMSG_INFO, VERB_NOISY,
 		      "Sherry WRD Compiled from %s", data + 1);
+	break;
+      case 0x7f: /* Compiler Private */
 	break;
     }
 }
@@ -1960,12 +1999,24 @@ static void sry_read_headerblock(struct wrd_step_tracer* wrdstep,
 		err= sry_read_datapacket(tf, &packet);
 		if( err ) break;
 		sry_regist_datapacket(wrdstep , &packet);
-		if( packet.data[0]==0x21 || packet.data[0]==0x20 ){
-			sry_readinit(wrdstep, SRY_GET_SHORT(packet.data+1));
-		} else if( (packet.data[0]&0x70) == 0x70) {
-		    sry_show_debug(packet.data);
+		switch(packet.data[0])
+		{
+		  case 0x00: /* end of header */
+		    return;
+		  case 0x21:
+		    sry_timebase21(wrdstep, SRY_GET_SHORT(packet.data+1));
+		    break;
+		  case 0x22:
+		    sry_timebase22(wrdstep, packet.data[1]);
+		    break;
+		  case 0x61:
+		    sry_wrdinfo(packet.data + 1, packet.len - 1);
+		    break;
+		  default:
+		    if((packet.data[0] & 0x70) == 0x70)
+			sry_show_debug(packet.data);
+		    break;
 		}
-		if( packet.data[0] == 0x00 ) break;	/* end of header */
 	}
 }
 
@@ -1985,7 +2036,7 @@ static void sry_read_datablock(struct wrd_step_tracer* wrdstep,
 		    WRD_ADDEVENT(wrdstep->at, WRD_SHERRY_UPDATE, WRD_NOARG);
 		    need_update = 0;
 		}
-		err= sry_read_datapacket(tf, &packet);
+		err = sry_read_datapacket(tf, &packet);
 		if( err ) break;
 		/* cur_time =+ delta_time;*/
 		/* wrdstep_wait(wrdstep, delta_time,0); */
@@ -2058,6 +2109,4 @@ static int import_sherrywrd_file(const char * fn)
     return 1;
 }
 
-
 #endif /*ENABLE_SHERRY*/
-

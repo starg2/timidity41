@@ -73,6 +73,9 @@ DEF_DEFAULT_PATH = -DDEFAULT_PATH=\"$(PKGDATADIR)\"
 TCL_DIR = $(PKGLIBDIR)
 ##CPPFLAGS += -DTKPROGPATH=\"$(TCL_DIR)/tkmidity.tcl\"
 
+# Comment out if you don't want default path.
+DEF_DEFAULT_PATH = -DDEFAULT_PATH=\"$(PKGDATADIR)\"
+
 # You sould not change follows definitions. 
 DEF_PKGDATADIR = -DPKGDATADIR=\"$(PKGDATADIR)\"
 DEF_PKGLIBDIR = -DPKGLIBDIR=\"$(PKGLIBDIR)\"
