@@ -91,6 +91,7 @@ EXTRA_libinterface_a_SOURCES = \
 	off.xbm \
 	server_c.c \
 	server_defs.h \
+	alsaseq_c.c \
 	w32g.h \
 	w32g_c.c \
 	w32g_ini.c \

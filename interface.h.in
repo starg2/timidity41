@@ -39,3 +39,6 @@
 
 /* Define if you have Remote MIDI interface. */
 #undef IA_SERVER
+
+/* Define if you have Remote MIDI interface. */
+#undef IA_ALSASEQ

@@ -135,6 +135,10 @@ extern ControlMode dumb_control_mode;
 extern ControlMode server_control_mode;
 #endif /* IA_SERVER */
 
+#ifdef IA_ALSASEQ
+extern ControlMode alsaseq_control_mode;
+#endif /* IA_ALSASEQ */
+
 /* Minimal control mode */
 extern ControlMode dumb_control_mode;
 #ifndef DEFAULT_CONTROL_MODE
@@ -193,6 +197,9 @@ ControlMode *ctl_list[]={
 #ifdef IA_SERVER
   &server_control_mode,
 #endif /* IA_SERVER */
+#ifdef IA_ALSASEQ
+  &alsaseq_control_mode,
+#endif
   0
 };
 

@@ -173,6 +173,9 @@
 /* Define if you have the <sun/audioio.h> header file.  */
 #undef HAVE_SUN_AUDIOIO_H
 
+/* Define if you have the <sys/asoundlib.h> header file.  */
+#undef HAVE_SYS_ASOUNDLIB_H
+
 /* Define if you have the <sys/audioio.h> header file.  */
 #undef HAVE_SYS_AUDIOIO_H
 

@@ -252,22 +252,6 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-bitset.o: bitset.c ../config.h ../timidity/timidity.h support.h \
-	../timidity/common.h ../libarc/url.h mblock.h bitset.h
-fft.o: fft.c ../config.h ../timidity/timidity.h support.h \
-	../timidity/common.h ../libarc/url.h mblock.h fft.h
-mblock.o: mblock.c ../config.h ../timidity/timidity.h support.h mblock.h
-memb.o: memb.c ../config.h ../timidity/timidity.h support.h memb.h \
-	mblock.h ../libarc/url.h
-net.o: net.c ../config.h ../timidity/timidity.h support.h net.h
-nkflib.o: nkflib.c ../config.h ../timidity/timidity.h support.h \
-	../timidity/common.h ../libarc/url.h mblock.h nkflib.h
-strtab.o: strtab.c ../config.h ../timidity/timidity.h support.h mblock.h \
-	strtab.h
-support.o: support.c ../config.h ../timidity/timidity.h support.h \
-	mblock.h
-timer.o: timer.c ../config.h ../timidity/timidity.h support.h timer.h
-
 info-am:
 info: info-am
 dvi-am:

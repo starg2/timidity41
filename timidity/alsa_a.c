@@ -393,7 +393,7 @@ static int set_playback_info (snd_pcm_t* handle__,
     tmp = extra_param[1];
   else
     {
-      tmp = AUDIO_BUFFER_SIZE;
+      tmp = audio_buffer_size;
       if (!(*encoding__ & PE_MONO))
 	tmp <<= 1;
       if (*encoding__ & PE_16BIT)
@@ -625,7 +625,7 @@ static int output_data(char *buf, int32 nbytes)
 	  ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
 		    "%s: %s", dpm.name,
 		    (n < 0) ? snd_strerror(n) : "write error");
-	  return -1;
+	  /* return -1; ?? */
 	}
     }
 

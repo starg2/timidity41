@@ -1,3 +1,15 @@
+2000-07-15  Masanao Izumo <mo@goice.co.jp>
+
+    * option -Bn,m sets audio buffer fragments as n, and audio buffer size
+	as 2^n.  Specify -1 for default.
+
+    * timidity/{playmidi.c,playmidi.h}: audio_buffer_bits and audio_buffer_size
+	are parameter.
+
+    * timidity/aq.c: Modified.
+
+    * timidity/nas_a.c: Remove PF_CAN_TRACE flag from PlayMode.
+
 2000-07-05  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.9.5 released.

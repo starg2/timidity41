@@ -130,10 +130,15 @@ typedef double FLOAT_T;
    You should probably use a larger number for improved performance.
 
 */
+
+#define AUDIO_BUFFER_BITS 12	/* Maxmum audio buffer size (2^bits) */
+
+#ifndef DEFAULT_AUDIO_BUFFER_BITS
 #ifdef __W32__
-#define AUDIO_BUFFER_BITS 12
+#define DEFAULT_AUDIO_BUFFER_BITS 12
 #else
-#define AUDIO_BUFFER_BITS 11
+#define DEFAULT_AUDIO_BUFFER_BITS 11
+#endif
 #endif
 
 

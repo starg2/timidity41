@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.9.5, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.10.0a, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -783,7 +783,7 @@ dnl
 dnl Interface section
 dnl
 
-interface_targets='dynamic ncurses slang motif tcltk emacs vt100 xaw xskin gtk'
+interface_targets='dynamic ncurses slang motif tcltk emacs vt100 xaw xskin gtk alsaseq'
 
 AC_ARG_ENABLE(interface,
   [  --enable-interface=[interface_list]  Comma separated interface list ],
@@ -1144,6 +1144,26 @@ CONFIG_INTERFACE(gtk, GTK, g,
     EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$GTK_CFLAGS) ])
 
 
+dnl TiMidity Network MIDI Server
+AM_CONDITIONAL(ENABLE_SERVER, false)
+CONFIG_INTERFACE(server,SERVER,r,
+  [  --enable-server         Enable server interface         (default is no)],
+  ,
+  [ INTERFACE_SRCS="$INTERFACE_SRCS server_c.c"
+    AC_CHECK_HEADERS(sys/soundcard.h)
+  ])
+
+
+dnl TiMidity ALSA sequencer server
+AM_CONDITIONAL(ENABLE_ALSASEQ, false)
+CONFIG_INTERFACE(alsaseq,ALSASEQ,A,
+  [  --enable-alsaseq         Enable ALSA sequencer server interface  (default is no)],
+  ,
+  [ INTERFACE_SRCS="$INTERFACE_SRCS alsaseq_c.c"
+    AC_CHECK_HEADERS(sys/asoundlib.h)
+  ])
+
+
 dnl Windows GUI
 AM_CONDITIONAL(ENABLE_W32GUI, false)
 CONFIG_INTERFACE(w32gui, W32GUI, w,
@@ -1172,16 +1192,6 @@ CONFIG_INTERFACE(ump, PLUGIN, p,
     fi
     lib_xmu_opt=-lXmu
     lib_xt_opt=-lXt
-  ])
-
-
-dnl TiMidity Network MIDI Server
-AM_CONDITIONAL(ENABLE_SERVER, false)
-CONFIG_INTERFACE(server,SERVER,r,
-  [  --enable-server         Enable server interface         (default is no)],
-  ,
-  [ INTERFACE_SRCS="$INTERFACE_SRCS server_c.c"
-    AC_CHECK_HEADERS(sys/soundcard.h)
   ])
 
 

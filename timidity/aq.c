@@ -103,7 +103,7 @@ int aq_calc_fragsize(void)
     else
 	bps = ch;
 
-    bs = AUDIO_BUFFER_SIZE * bps;
+    bs = audio_buffer_size * bps;
     dq = play_mode->rate * MAX_FILLED_TIME * bps;
     while(bs * 2 > dq)
 	bs /= 2;
@@ -122,6 +122,8 @@ void aq_setup(void)
 {
     int ch;
 
+    /* Initialize Bps, bucket_size, device_qsize, and bucket_time */
+
     if(play_mode->encoding & PE_MONO)
 	ch = 1;
     else
@@ -131,34 +133,26 @@ void aq_setup(void)
     else
 	Bps = ch;
 
+    if(play_mode->acntl(PM_REQ_GETFRAGSIZ, &bucket_size) == -1)
+	bucket_size = audio_buffer_size * Bps;
+    bucket_time = (double)bucket_size / Bps / play_mode->rate;
+
     if(IS_STREAM_TRACE)
     {
-	if(play_mode->acntl(PM_REQ_GETFRAGSIZ, &bucket_size) == -1)
-	    bucket_size = AUDIO_BUFFER_SIZE * Bps;
 	if(play_mode->acntl(PM_REQ_GETQSIZ, &device_qsize) == -1)
 	    device_qsize = estimate_queue_size();
-	else
-	{
-	    double t;
-	    t = (double)device_qsize / Bps / play_mode->rate;
-	    if(t > MAX_FILLED_TIME)
-		device_qsize = play_mode->rate * MAX_FILLED_TIME * Bps;
-	    while(bucket_size * 2 > device_qsize)
-		bucket_size /= 2;
+	if(bucket_size * 2 > device_qsize) {
+	  ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		    "Warning: Audio buffer is too small.");
+	  device_qsize = 0;
+	} else {
+	  device_qsize -= device_qsize % Bps; /* Round Bps */
+	  ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+		    "Audio device queue size: %d bytes", device_qsize);
+	  ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+		    "Write bucket size: %d bytes (%d msec)",
+		    bucket_size, (int)(bucket_time * 1000 + 0.5));
 	}
-
-	bucket_time = (double)bucket_size / Bps / play_mode->rate;
-	while(bucket_time > MAX_BUCKET_TIME)
-	{
-	    bucket_size /= 2;
-	    bucket_time = (double)bucket_size / Bps / play_mode->rate;
-	}
-	device_qsize -= device_qsize % Bps; /* Round Bps */
-	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-		  "Audio device queue size: %d bytes", device_qsize);
-	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-		  "Write bucket size: %d bytes (%d msec)",
-		  bucket_size, (int)(bucket_time * 1000 + 0.5));
     }
     else
     {
@@ -181,9 +175,6 @@ void aq_set_soft_queue(double soft_buff_time, double fill_start_time)
     static double last_soft_buff_time, last_fill_start_time;
     int nb;
 
-    if(!IS_STREAM_TRACE)
-	return; /* Ignore */
-
     /* for re-initialize */
     if(soft_buff_time < 0)
 	soft_buff_time = last_soft_buff_time;
@@ -197,9 +188,7 @@ void aq_set_soft_queue(double soft_buff_time, double fill_start_time)
 	aq_start_count = (int32)(fill_start_time * play_mode->rate);
     aq_fill_buffer_flag = (aq_start_count > 0);
 
-#ifndef __W32__
     if(nbuckets != nb)
-#endif /* __W32__ */
     {
 	nbuckets = nb;
 	alloc_soft_queue();
@@ -265,9 +254,9 @@ static int32 estimate_queue_size(void)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NOISY,
 		      "Can't estimate audio queue length");
-	    bucket_size = AUDIO_BUFFER_SIZE * Bps;
+	    bucket_size = audio_buffer_size * Bps;
 	    free(nullsound);
-	    return 2 * AUDIO_BUFFER_SIZE * Bps;
+	    return 2 * audio_buffer_size * Bps;
 	}
 
 	ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
@@ -283,18 +272,12 @@ static int32 estimate_queue_size(void)
     return qbytes;
 }
 
-/* In some audio implementation (such as win_a.c),  device_qsize is
- * changed if size of output is different.  Then split into bucket_size
- * to apply play_mode->output_data()
- */
+/* Send audio data to play_mode->output_data() */
 static int aq_output_data(char *buff, int nbytes)
 {
     int i;
 
     play_counter += nbytes / Bps;
-
-    if(!(play_mode->flag & PF_CAN_TRACE))
-	return play_mode->output_data(buff, nbytes);
 
     while(nbytes > 0)
     {
@@ -306,6 +289,7 @@ static int aq_output_data(char *buff, int nbytes)
 	nbytes -= i;
 	buff += i;
     }
+
     return 0;
 }
 
@@ -329,9 +313,6 @@ int aq_add(int32 *samples, int32 count)
     nbytes = general_output_convert(samples, count);
     buff = (char *)samples;
 
-    if(nbuckets == 0)
-	return aq_output_data(buff, nbytes);
-
     aq_fill_buffer_flag = (aq_add_count <= aq_start_count);
 
     if(!aq_fill_buffer_flag)
@@ -344,8 +325,11 @@ int aq_add(int32 *samples, int32 count)
 	{
 	    buff += i;
 	    nbytes -= i;
-	    if(aq_fill_one() == -1)
-		return -1;
+	    if(head && head->len == bucket_size)
+	    {
+		if(aq_fill_one() == -1)
+		    return -1;
+	    }
 	    aq_fill_buffer_flag = 0;
 	}
 	return 0;
@@ -378,14 +362,13 @@ static void alloc_soft_queue(void)
     {
 	free(base_buckets[0].data);
 	free(base_buckets);
+	base_buckets = NULL;
     }
-    if(nbuckets > 0)
-    {
-	base_buckets = (AudioBucket *)safe_malloc(nbuckets * sizeof(AudioBucket));
-	base = (char *)safe_malloc(nbuckets * bucket_size);
-	for(i = 0; i < nbuckets; i++)
-	    base_buckets[i].data = base + i * bucket_size;
-    }
+
+    base_buckets = (AudioBucket *)safe_malloc(nbuckets * sizeof(AudioBucket));
+    base = (char *)safe_malloc(nbuckets * bucket_size);
+    for(i = 0; i < nbuckets; i++)
+	base_buckets[i].data = base + i * bucket_size;
     flush_buckets();
 }
 
@@ -396,12 +379,7 @@ static int aq_fill_one(void)
 
     if(head == NULL)
 	return 0;
-    if((play_mode->flag & PF_PCM_STREAM) && head->len < bucket_size) {
-	/* are there any probrems using 0 as the silence code? */
-	memset (head->data + head->len, 0, bucket_size - head->len);
-	head->len = bucket_size;
-    }
-    if(aq_output_data(head->data, head->len) == -1)
+    if(aq_output_data(head->data, bucket_size) == -1)
 	return -1;
     tmp = head;
     head = head->next;
@@ -553,6 +531,12 @@ int aq_soft_flush(void)
 
     while(head)
     {
+	if(head->len < bucket_size)
+	{
+	    /* Add silence code */
+	    memset (head->data + head->len, 0, bucket_size - head->len);
+	    head->len = bucket_size;
+	}
 	if(aq_fill_one() == -1)
 	    return RC_ERROR;
 	trace_loop();
@@ -657,6 +641,9 @@ static int add_play_bucket(const char *buf, int n)
 
     if(n == 0)
 	return 0;
+
+    if(!nbuckets)
+      return play_mode->output_data((char *)buf, n);
 
     if(head == NULL)
 	head = tail = next_allocated_bucket();

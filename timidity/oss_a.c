@@ -203,7 +203,7 @@ static int open_output(void)
 #ifdef SNDCTL_DSP_SETFRAGMENT
     /* Set buffer fragments (in extra_param[0]) */
 
-    tmp = AUDIO_BUFFER_BITS;
+    tmp = audio_buffer_bits;
     if(!(dpm.encoding & PE_MONO)) tmp++;
     if(dpm.encoding & PE_16BIT) tmp++;
     i = tmp;
@@ -227,8 +227,11 @@ static int open_output(void)
 #endif
 
 #ifdef SNDCTL_DSP_GETOSPACE
-    if(ioctl(fd, SNDCTL_DSP_GETOSPACE, &info) != -1)
+    if(ioctl(fd, SNDCTL_DSP_GETOSPACE, &info) != -1) {
 	total_bytes = info.fragstotal * info.fragsize;
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Audio device buffer: %d x %dbytes",
+		  info.fragstotal, info.fragsize);
+    }
     else
 #endif /* SNDCTL_DSP_GETOSPACE */
 	total_bytes = -1; /* Unknown */

@@ -61,7 +61,7 @@ extern int opt_control_ratio;
 extern char *opt_aq_max_buff;
 extern char *opt_aq_fill_buff;
 extern int opt_evil_mode;
-extern int opt_buffer_fragments;
+extern int opt_buffer_fragments_num;
 extern int32 opt_output_rate;
 extern int PlayerLanguage;
 extern volatile int data_block_time;	// msec
@@ -406,9 +406,9 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     amplification = SetValue(st->amplification, 0, MAX_AMPLIFICATION);
     antialiasing_allowed = SetFlag(st->antialiasing_allowed);
     if(st->buffer_fragments == -1)
-	opt_buffer_fragments = -1;
+	opt_buffer_fragments_num = -1;
     else
-	opt_buffer_fragments = SetValue(st->buffer_fragments, 3, 1000);
+	opt_buffer_fragments_num = SetValue(st->buffer_fragments, 3, 1000);
     default_drumchannels = st->default_drumchannels;
     default_drumchannel_mask = st->default_drumchannel_mask;
     opt_modulation_wheel = SetFlag(st->opt_modulation_wheel);
@@ -490,7 +490,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 
     st->amplification = SetValue(amplification, 0, MAX_AMPLIFICATION);
     st->antialiasing_allowed = SetFlag(antialiasing_allowed);
-    st->buffer_fragments = opt_buffer_fragments;
+    st->buffer_fragments = opt_buffer_fragments_num;
     st->control_ratio = SetValue(opt_control_ratio, 0, MAX_CONTROL_RATIO);
     st->default_drumchannels = default_drumchannels;
     st->default_drumchannel_mask = default_drumchannel_mask;

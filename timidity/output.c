@@ -36,14 +36,7 @@
 #include "controls.h"
 #include "audio_cnv.h"
 
-
-
-extern PlayMode alsa_play_mode;
-
-
-extern PlayMode hpux_nplay_mode;
-
-
+int audio_buffer_bits = DEFAULT_AUDIO_BUFFER_BITS;
 
 /* These are very likely mutually exclusive.. */
 #if defined(AU_AUDRIV)

@@ -3574,20 +3574,20 @@ static int compute_data(int32 count)
       return RC_NONE;
     }
 
-  while ((count+buffered_count) >= AUDIO_BUFFER_SIZE)
+  while ((count+buffered_count) >= audio_buffer_size)
     {
       int i;
 
       if((rc = apply_controls()) != RC_NONE)
 	  return rc;
 
-      do_compute_data(AUDIO_BUFFER_SIZE-buffered_count);
-      count -= AUDIO_BUFFER_SIZE-buffered_count;
+      do_compute_data(audio_buffer_size-buffered_count);
+      count -= audio_buffer_size-buffered_count;
       ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
-		"output data (%d)", AUDIO_BUFFER_SIZE);
+		"output data (%d)", audio_buffer_size);
 
 #ifdef SUPPORT_SOUNDSPEC
-      soundspec_update_wave(common_buffer, AUDIO_BUFFER_SIZE);
+      soundspec_update_wave(common_buffer, audio_buffer_size);
 #endif /* SUPPORT_SOUNDSPEC */
 
 #if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
@@ -3628,7 +3628,7 @@ static int compute_data(int32 count)
 	      filled_limit = REDUCE_VOICE_TIME_TUNING;
 	      if(filled_limit > maxfill / 5) /* too small audio buffer */
 	      {
-		  rate_limit -= 100 * AUDIO_BUFFER_SIZE / maxfill / 5;
+		  rate_limit -= 100 * audio_buffer_size / maxfill / 5;
 		  filled_limit = 1;
 	      }
 	  }
@@ -3786,7 +3786,7 @@ static int compute_data(int32 count)
       }
 #endif
 
-      if(aq_add(common_buffer, AUDIO_BUFFER_SIZE) == -1)
+      if(aq_add(common_buffer, audio_buffer_size) == -1)
 	  return RC_ERROR;
 
       buffer_pointer=common_buffer;

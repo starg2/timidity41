@@ -136,6 +136,8 @@ typedef struct {
 
 extern PlayMode *play_mode_list[], *play_mode;
 extern PlayMode *target_play_mode;
+extern int audio_buffer_bits;
+#define audio_buffer_size	(1<<audio_buffer_bits)
 
 /* Conversion functions -- These overwrite the int32 data in *lp with
    data in another format */

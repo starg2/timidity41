@@ -83,8 +83,8 @@ extern char *optarg;
 #include "w32g_utl.h"
 #endif
 
-#define OPTCOMMANDS "4A:aB:b:C:c:D:d:E:eFfg:hI:i:jk:L:M:m:n:O:o:P:p:Q:q:R:rS:s:t:T:UW:w:x:Z:"
-#define INTERACTIVE_INTERFACE_IDS "kmqagrw"
+#define OPTCOMMANDS "4A:aB:b:C:c:D:d:E:eFfg:hI:i:jk:L:M:m:n:O:o:P:p:Q:q:R:rS:s:t:T:UW:w:x:Z:"	/* Only GHJKlNuVvXz are remain... */
+#define INTERACTIVE_INTERFACE_IDS "kmqagrwA"
 
 /* main interfaces (To be used another main) */
 #if defined(main) || defined(ANOTHER_MAIN)
@@ -330,7 +330,7 @@ static void help(void)
 #endif
 "  -A n    Amplify volume by n percent (may cause clipping)",
 "  -a      Enable the antialiasing filter",
-"  -B n    Set number of buffer fragments",
+"  -B n,m  Set number of buffer fragments(n), and buffer size(2^m)",
 "  -C n    Set ratio of sampling and control frequencies",
 "  -c file Read extra configuration file",
 "  -D n    Play drums on channel n",
@@ -2421,6 +2421,29 @@ static double spectrogram_update_sec = 0.0;
 #endif /* SUPPORT_SOUNDSPEC */
 int opt_buffer_fragments = -1;
 
+static int parse_opt_B(char *opt)
+{
+  char *p;
+  int32 val;
+
+  /* num */
+  if(*opt != ',') {
+    if(set_value(&val, atoi(opt), 0, 1000, "Buffer fragments (num)"))
+      return -1;
+    if(val >= 0)
+      opt_buffer_fragments = val;
+  }
+
+  /* bits */
+  if((p = strchr(opt, ',')) != NULL) {
+    if(set_value(&val, atoi(p + 1), 0, AUDIO_BUFFER_BITS-1, "Buffer fragments (bit)"))
+      return -1;
+    if(val >= 0)
+      audio_buffer_bits = val;
+  }
+  return 0;
+}
+
 MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 {
     int32 tmpi32;
@@ -2444,9 +2467,14 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 	break;
 
       case 'B':
+	if(parse_opt_B(optarg))
+	  return 1;
+	break;
+#if 0
 	if(set_value(&tmpi32, atoi(optarg), 0, 1000, "Buffer fragments"))
 	    return 1;
 	opt_buffer_fragments = tmpi32;
+#endif
 	break;
 
       case 'b':
@@ -3359,7 +3387,7 @@ int main(int argc, char **argv)
 
     nfiles = argc - optind;
     files  = argv + optind;
-    if(nfiles > 0 && ctl->id_character != 'r')
+    if(nfiles > 0 && ctl->id_character != 'r' && ctl->id_character != 'A')
 	files = expand_file_archives(files, &nfiles);
     if(dumb_error_count)
 	sleep(1);
