@@ -2175,7 +2175,7 @@ static int parse_effect_option(char *effect_opts)
 
 	  case '1':
 	  case '2':
-	    opt_surround_chorus = (*effect_opts == 2);
+          opt_surround_chorus = (*effect_opts == '2');
 	    if(*(effect_opts + 1) == ',')
 		opt_chorus_control = -(atoi(effect_opts + 2) & 0x7f);
 	    else
