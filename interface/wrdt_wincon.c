@@ -52,9 +52,8 @@
 #include "wrd.h"
 
 // #define DEBUG1
-#ifdef __CYGWIN32__
+#ifndef __BORLANDC__
 #define USE_ESC
-
 #define NULL_STMT do ; while(0)
 #define gotoxy(x, y) NULL_STMT
 #define wherex() 1
@@ -64,9 +63,7 @@
 #define delline() NULL_STMT
 #define clrscr() NULL_STMT
 #define clreol() NULL_STMT
-
-
-#endif /* __CYGWIN32__ */
+#endif /* __BORLANDC__ */
 
 static int wrdt_open(char *dummy);
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[]);

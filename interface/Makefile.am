@@ -262,32 +262,35 @@ timer.$(so): $(top_srcdir)/utils/timer.c
 url_buff.$(so): $(top_srcdir)/libarc/url_buff.c
 	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
 
-interface_n.$(so): ncurs_c.$(so) bitset.$(so) timer.$(so)
-	$(SHLD) -o $@ ncurs_c.$(so) bitset.$(so) timer.$(so) $(n_so_libs)
+support.$(so): $(top_srcdir)/utils/support.c
+	$(COMPILE) $(SHCFLAGS) -o $@ -c $<
 
-interface_s.$(so): slang_c.$(so) timer.$(so)
-	$(SHLD) -o $@ slang_c.$(so) timer.$(so) $(s_so_libs)
+interface_n.$(so): ncurs_c.$(so) support.$(so) bitset.$(so) timer.$(so)
+	$(SHLD) -o $@ ncurs_c.$(so) support.$(so) bitset.$(so) timer.$(so) $(n_so_libs)
 
-interface_m.$(so): motif_c.$(so) motif_i.$(so) motif_p.$(so)
-	$(SHLD) -o $@ motif_c.$(so) motif_i.$(so) motif_p.$(so) $(m_so_libs)
+interface_s.$(so): slang_c.$(so) support.$(so) timer.$(so)
+	$(SHLD) -o $@ slang_c.$(so) support.$(so) timer.$(so) $(s_so_libs)
 
-interface_k.$(so): tk_c.$(so)
-	$(SHLD) -o $@ tk_c.$(so) $(k_so_libs)
+interface_m.$(so): motif_c.$(so) support.$(so) motif_i.$(so) motif_p.$(so)
+	$(SHLD) -o $@ motif_c.$(so) support.$(so) motif_i.$(so) motif_p.$(so) $(m_so_libs)
 
-interface_e.$(so): emacs_c.$(so)
-	$(SHLD) -o $@ emacs_c.$(so) $(e_so_libs)
+interface_k.$(so): tk_c.$(so) support.$(so)
+	$(SHLD) -o $@ tk_c.$(so) support.$(so) $(k_so_libs)
 
-interface_T.$(so): vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so)
-	$(SHLD) -o $@ vt100_c.$(so) vt100.$(so) bitset.$(so) timer.$(so) $(T_so_libs)
+interface_e.$(so): emacs_c.$(so) support.$(so)
+	$(SHLD) -o $@ emacs_c.$(so) support.$(so) $(e_so_libs)
 
-interface_a.$(so): xaw_c.$(so) xaw_i.$(so) timer.$(so)
-	$(SHLD) -o $@ xaw_c.$(so) xaw_i.$(so) timer.$(so) $(a_so_libs)
+interface_T.$(so): vt100_c.$(so) support.$(so) vt100.$(so) bitset.$(so) timer.$(so)
+	$(SHLD) -o $@ vt100_c.$(so) support.$(so) vt100.$(so) bitset.$(so) timer.$(so) $(T_so_libs)
 
-interface_i.$(so): xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so)
-	$(SHLD) -o $@ xskin_c.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so) $(i_so_libs)
+interface_a.$(so): xaw_c.$(so) support.$(so) xaw_i.$(so) timer.$(so)
+	$(SHLD) -o $@ xaw_c.$(so) support.$(so) xaw_i.$(so) timer.$(so) $(a_so_libs)
 
-interface_g.$(so): gtk_c.$(so) gtk_i.$(so) gtk_p.$(so)
-	$(SHLD) -o $@ gtk_c.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
+interface_i.$(so): xskin_c.$(so) support.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so)
+	$(SHLD) -o $@ xskin_c.$(so) support.$(so) xskin_i.$(so) xskin_loadBMP.$(so) xskin_spectrum.$(so) url_buff.$(so) $(i_so_libs)
+
+interface_g.$(so): gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so)
+	$(SHLD) -o $@ gtk_c.$(so) support.$(so) gtk_i.$(so) gtk_p.$(so) $(g_so_libs)
 
 
 clean-compile:

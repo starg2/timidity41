@@ -115,8 +115,7 @@ timidity_LDADD = \
 	$(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \
 	$(top_builddir)/libarc/libarc.a \
-	$(top_builddir)/utils/libutils.a \
-	@EXTRALIBS@
+	$(top_builddir)/utils/libutils.a
 
 timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \

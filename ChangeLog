@@ -1,3 +1,36 @@
+-- 1.3.1
+Fri Feb 5 1999
+Summary:
+    * Fixed some bugs.
+    * Enabled compile with gcc from MINGW32.
+      (This package has not dir.h which is included <dirent.h> and <direct.h>,
+       so configure of AC_HEADER_DIRENT section is failed all.  Where is it
+       gone?)
+
+Date: Fri Feb 5 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/Makefile.am
+    Linked support.$(so) to each dynamic interfaces.
+Date: Thu Feb 4 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity.c
+    Fixed bug that core dummped if specified out of range of program number
+    in *.cfg.  This bug is reported by Erik Inge Bolso.  Thank you.
+about error message for out of range of program number in *.cfg
+Files: INSTALL INSTALL.jp
+    Added about installation on CYGNUS.
+Files: configure.in utils/{net.c,net.h}
+    Used WINSOCK (Windows API -lwsock32) if `AC_CHECK_FUNC(socket)' is failed,
+    and called WSAStartup() in open_socket() at first once.  WINSOCK is needed
+    to compile with gcc from MINGW32 package.
+Files: acinclude, configure.in
+    Added tests for Windows API.
+Files: libarc/url_dir.c
+    Fixed bug & improved of url_dir.c about URL_DIR_CACHE_ENABLE
+    implementation.
+Files: timidity/timidity.h configure.in
+    Fixed some compilation errors.
+
 -- 1.3.0
 Wed Feb 3 1999
 Summary:

@@ -3,35 +3,39 @@
                               Installation guide
 
 					Masanao Izumo <mo@goice.co.jp>
-					Last updated on Feb.3.1999
+					Last updated on Feb.4.1999
 ==============================================================================
 
- This document describes how to install TiMidity++(version 1.0.0 or later)
- for your UNIX-like machine. Methods for Windows and Macintosh are not
- described in this document.
+  This document describes how to install TiMidity++(version 1.3.0 or
+later) for your UNIX-like machine.  Methods for Macintosh are not
+described in this document.
 
+  This version or later, It is enabled to configure and make
+timidity.exe on CYGNUS + egcs-compiler(gcc) environment of
+Windows98/95/NT.  If you are in Windows, install cygnus and egcs (or
+mingw) if you don't have them (which is available from
+http://www.cygnus.com), and run `cygnus' on MS-DOS console, and make
+symbolik link /bin/sh to bash.
 
- Installing process:
+Installing process:
 
-  1. ./configure
+  1. configure
   2. edit common.makefile, Makefile, timidity.h (not necessary)
   3. make              (required:GNU make)
-  4. make install      (required:GNU make)
+  4. installation
   5. search for various voice data :)
 
- Each processes are explained in following sections.
-
-Note: '%' is the shell prompt.
-
+  Each processes are explained in following sections.
+(Note that '%' is the shell prompt.)
 
 1. configure
 ------------
- First, execute the following command:
+  First, execute the following command:
 
 % sh configure --help
 
- Many options of configure will be displayed. Main of these are the 
- following:
+  Many options of configure will be displayed. Main of these are the
+following:
 
   --help
 	Displays help messages.
@@ -144,18 +148,18 @@ Note: '%' is the shell prompt.
 	contents format.
 
 
- For example, including all functions:
+  For example, including all functions:
 
- % sh configure --with-x --enable-audio \
-                --enable-ncurses --enable-slang  --enable-motif \
-                --enable-tcltk --enable-emacs --enable-vt100 --enable-xaw \
-                --enable-xskin --enable-gtk \
-                --enable-network --enable-spectrogram --enable-wrd
+% sh configure --with-x --enable-audio \
+               --enable-ncurses --enable-slang  --enable-motif \
+               --enable-tcltk --enable-emacs --enable-vt100 --enable-xaw \
+               --enable-xskin --enable-gtk \
+               --enable-network --enable-spectrogram --enable-wrd
 
 
- Some of MIDI file eats too much CPU power. If you choose correct optimizing
- method, TiMidity++ can play such MIDI files smoothly. Optimizing options
- can specify in configuration:
+  Some of MIDI file eats too much CPU power. If you choose correct
+optimizing method, TiMidity++ can play such MIDI files
+smoothly. Optimizing options can specify in configuration:
 
  (for example : super-sparc/gcc)
 
@@ -169,70 +173,81 @@ Note: '%' is the shell prompt.
 
 2. edits common.makefile, Makefile, timidity.h
 ------------------------------
- If configure failed or compile not complete successfully, edit
- common.makefile, Makefile, and timidity.h to appropriate value.
+  If configure failed or compile not complete successfully, edit
+common.makefile, Makefile, and timidity.h to appropriate value.
 
 
 
 3. make
 -------
- Once finished above setting, type
+  Once finished above setting, type
 
 % make
 
- This make method requires GNU make. Some system has it as gmake.
+  This make method requires GNU make. Some system has it as gmake.
 
- Note: Some system announces warnings 
+Note: Some system announces warnings 
 
 vendorShellClassRec
 vendorShellWidgetClass
 
- in linking XAW. But it makes no matter. Don't worry.
+in linking XAW. But it makes no matter. Don't worry.
 
 
 4. install
 ----------
- make install.bin    - installs executable files
- make install.tk     - installs Tcl/Tk interface
- make install.el     - installs Emacs interface
- make install        - installs all files
+  On UNIX, you can type `make install' to install all files. Or you
+can select follows:
 
- I recommend to check the install directories and files by executing 
+  make install.bin    - installs executable files
+  make install.tk     - installs Tcl/Tk interface
+  make install.el     - installs Emacs interface
+  make install.man    - installs man files
+  make install        - installs all files
+
+  I recommend to check the install directories and files by executing 
 
 % make -n ...
 
+  On Windows, `make install' is not worked in current version
+(v1.3.0).  So please copy timidity/timidity.exe to any where by hand.
 
 
 5. Search for various voice data
- TiMidity++ uses GUS/patch (Glavis Ultrasound) as the voice data to play.
- You must get GUS/patch files, and make the configuration file.
- Please check the following sites for many voice(patch) data:
+
+  TiMidity++ uses GUS/patch (Glavis Ultrasound) as the voice data to
+play.  You must get GUS/patch files, and make the configuration file.
+You must make the configuration file (*.cfg).  By default,
+timidity.cfg is /usr/local/lib/timidity/timidity.cfg (or
+C:\WINDOWS\TIMIDITY.CFG on Windows).  And please check the following
+sites for many voice(patch) data:
+
 
 http://www.goice.co.jp/timidity/gus/			(33M patch)
 http://www.goice.co.jp/timidity/dist/cfg/		(Some samples of *.cfg)
 http://www.i.h.kyoto-u.ac.jp/~shom/timidity/		(10M or 4M patch)
 ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 
- If you got funny voice archive, extract it to appropriate directory and
- configure *.cfg files with the name and path of these voice dates.
+If you got funny voice archive, extract it to appropriate directory
+and configure *.cfg files with the name and path of these voice dates.
 
 
 
 ==============================================================================
                        configuration of  timidity.h 
 ==============================================================================
- Edit CONFIG_FILE to your convenience. By default, 
+  Edit CONFIG_FILE to your convenience. By default, 
 
 #define CONFIG_FILE DEFAULT_PATH "/timidity.cfg"
 
- are recommended. DEFAULT_PATH is the same as TIMID_DIR in Makefile.
- If you want to place it to another path, specify as the following:
+are recommended. DEFAULT_PATH is the same as TIMID_DIR in Makefile.
+If you want to place it to another path, specify as the following:
 
 #define CONFIG_FILE "/etc/timidity.cfg"
 
 
- The next configuration is the file extractor (please ignore in Windows).
- By default:
+  The next configuration is the file extractor (please ignore in Windows).
+By default:
 
 #define DECOMPRESSOR_LIST { \
 			      ".gz", "gunzip -c %s", \
@@ -244,20 +259,20 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 			      ".shn", "shorten -x %s -", \
 			     0 }
 
- TiMidity++ can handle some of archive format directly. But other format
- will use this extractor.
+TiMidity++ can handle some of archive format directly. But other format
+will use this extractor.
 
 
- Next, configuration of patch file converter(please ignore in Windows).
- By default:
+  Next, configuration of patch file converter(please ignore in Windows).
+By default:
 
 #define PATCH_CONVERTERS { \
 			     ".wav", "wav2pat %s", \
 			     0 }
 
 
- Next, configuration of extensions of GUS/patch file. If specified in
- this configuration, the extension can omit in all *.cfg. By default:
+  Next, configuration of extensions of GUS/patch file. If specified in
+this configuration, the extension can omit in all *.cfg. By default:
 
 #define PATCH_EXT_LIST { \
 			   ".pat", \
@@ -267,94 +282,94 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 			   0 }
 
 
- Next, configuration of default instrument. By default:
+  Next, configuration of default instrument. By default:
 
 #define DEFAULT_PROGRAM 0
 
- If no Program Change event, this program name are adopted.
- Usually 0 is Piano.
+If no Program Change event, this program name are adopted.  Usually 0
+is Piano.
 
 
- Next, configuration of drum channel. By default:
+  Next, configuration of drum channel. By default:
 
 #define DEFAULT_DRUMCHANNELS {10, -1}
 
- Numbers is the list of drum channels, and -1 is the terminator.
- For example, if you wish to default drum channel be 10 and 16,
+Numbers is the list of drum channels, and -1 is the terminator.  For
+example, if you wish to default drum channel be 10 and 16,
 
 #define DEFAULT_DRUMCHANNELS {10, 16, -1}
 
- This channel can change in command line option.
+This channel can change in command line option.
 
 
- Next, configuration of presence hack option. This option is enabled
- if PRESENCE_HACK is defined. By default:
+  Next, configuration of presence hack option. This option is enabled
+if PRESENCE_HACK is defined. By default:
 
 #define PRESENCE_HACK -1
 
- -1 is means that only enables if -b command line option is specified.
- If defined with 0 to 2, the effect is following:
+-1 is means that only enables if -b command line option is specified.
+If defined with 0 to 2, the effect is following:
 
 #define PRESENCE_HACK 0 /* mainly heard from right */
 #define PRESENCE_HACK 1 /* mainly heard from left */
 #define PRESENCE_HACK 2 /* changes voices right and left each 10 second */
 
- And the following define PRESENCE_DECAY is the delay number for making
- presence effects. This number can specify in command line option by
- following -b? option in millisecond.
+And the following define PRESENCE_DECAY is the delay number for making
+presence effects. This number can specify in command line option by
+following -b? option in millisecond.
 
 
- Next, type of floating point number. Choose one of these:
+  Next, type of floating point number. Choose one of these:
 
- typedef double FLOAT_T;
- typedef float FLOAT_T;
+typedef double FLOAT_T;
+typedef float FLOAT_T;
 
- Many machine which has FPU results faster operations with double
- than that with float. But some machine results contrary.
+Many machine which has FPU results faster operations with double than
+that with float. But some machine results contrary.
 
 
- Next, minimum and max range of playing sample rate. By default:
+  Next, minimum and max range of playing sample rate. By default:
 
 #define MIN_OUTPUT_RATE 	4000
 #define MAX_OUTPUT_RATE 	65000
 
 
- Next, default value of master volume. By default:
+  Next, default value of master volume. By default:
 
 #define DEFAULT_AMPLIFICATION 	70
 
- This number is the percentage of max volume. This default value
- will be nice in any occasions.
- This number can specify in command line option (-A).
+This number is the percentage of max volume. This default value will
+be nice in any occasions.  This number can specify in command line
+option (-A).
 
 
- Next, default sampling rate. By default:
+  Next, default sampling rate. By default:
 
 #define DEFAULT_RATE	32000
 
- If you have much CPU power, CD quality GUS/patch and want to listen 
- funny sound,
+If you have much CPU power, CD quality GUS/patch and want to listen
+funny sound,
 
 #define DEFAULT_RATE	44100
 
- is good solution.
+is good solution.
 
 
- Next, configuration of max polyphony numbers. By default:
+  Next, configuration of max polyphony numbers. By default:
 
 #define DEFAULT_VOICES	32
 #define MAX_VOICES	256
 
- DEFAULT_VOICE is the polyphony number in boot-time. This value is
- configurable by the command line option (-p) from 0 to MAX_VOICES.
- If your machine has much CPU power, 
+DEFAULT_VOICE is the polyphony number in boot-time. This value is
+configurable by the command line option (-p) from 0 to MAX_VOICES.  If
+your machine has much CPU power,
 
 #define DEFAULT_VOICES	64
 
- enables good harmony.
+enables good harmony.
 
 
- Next, size of internal buffer. By default:
+  Next, size of internal buffer. By default:
 
 #ifdef __WIN32__
 #define AUDIO_BUFFER_BITS 12
@@ -362,10 +377,10 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 #define AUDIO_BUFFER_BITS 11
 #endif
 
- I guess this values no need to change.
+I guess this values no need to change.
 
 
- Next, value of CONTROLS_PER_SECOND. By default:
+  Next, value of CONTROLS_PER_SECOND. By default:
 
 #define CONTROLS_PER_SECOND 1000
 
@@ -374,100 +389,96 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 
 #define LINEAR_INTERPOLATION
 
- This definition cause TiMidity++ to linear interpolation in
- re-sampling, and the quality of sound would be nice. But it eats 
- CPU powers.
- I recommends define it if your machine has much power.
+This definition cause TiMidity++ to linear interpolation in
+re-sampling, and the quality of sound would be nice. But it eats CPU
+powers.  I recommends define it if your machine has much power.
 
 
- Next, configuration of LOOKUP_HACK. By default, this features are
- undefined like this:
+  Next, configuration of LOOKUP_HACK. By default, this features are
+undefined like this:
 
 /* #define LOOKUP_HACK
    #define LOOKUP_INTERPOLATION */
 
- This option saves a little CPU power, but sound quality would decrease
- noticeably.
- If your machine suffers from lack of CPU power, enable it.
+This option saves a little CPU power, but sound quality would decrease
+noticeably.  If your machine suffers from lack of CPU power, enable
+it.
 
 
- Next, configuration of FAST_DECAY. By default:
+  Next, configuration of FAST_DECAY. By default:
 
 /* #define FAST_DECAY */
 
- This option makes envelopes twice as fast and saves CPU power.
- But since the release time of voices is shorten, the sound
- would be poor.
- This feature is controllable in command line option.
+This option makes envelopes twice as fast and saves CPU power.  But
+since the release time of voices is shorten, the sound would be poor.
+This feature is controllable in command line option.
 
 
- Next, configuration of FRACTION_BITS. By default:
+  Next, configuration of FRACTION_BITS. By default:
 
 #define FRACTION_BITS 12
 
- I recommend leave this value.
+I recommend leave this value.
 
 
- Next, configuration of adjusting amplitude of GUS/patch. By default:
+  Next, configuration of adjusting amplitude of GUS/patch. By default:
 
 #define ADJUST_SAMPLE_VOLUMES
 
- This option makes TiMidity to adjust amplitudes of each GUS/patch to
- same volume.
+This option makes TiMidity to adjust amplitudes of each GUS/patch to
+same volume.
 
 
- Next, configuration of DANGEROUS_RENICE. By default this feature
- is disabled:
+  Next, configuration of DANGEROUS_RENICE. By default this feature
+is disabled:
 
 /* #define DANGEROUS_RENICE -15 */
 
- If you want to increase process priority of TiMidity++ by using
- setuid root enable this option. This option is only available in
- UNIX. 
- Once you enabled this option, you should install timidity with the
- following procedure:
+If you want to increase process priority of TiMidity++ by using setuid
+root enable this option. This option is only available in UNIX. Once
+you enabled this option, you should install timidity with the
+following procedure:
 
 # chown root /usr/local/bin/timidity
 # chmod u+s /usr/local/bin/timidity
 
- Note: You should not set setuid to timidity if DANGEROUS_RENICE isn't 
-       enabled.
+Note: You should not set setuid to timidity if DANGEROUS_RENICE isn't 
+      enabled.
 
 
- Next, configuration of MAX_DIE_TIME. By default:
+  Next, configuration of MAX_DIE_TIME. By default:
 
 #define MAX_DIE_TIME 20
 
- If this value is too small, click noise would be come. I recommend 
- this value leave to this.
+If this value is too small, click noise would be come. I recommend
+this value leave to this.
 
 
- Next, configuration of optimizing re-sampling. By default:
+  Next, configuration of optimizing re-sampling. By default:
 
 #define PRECALC_LOOPS
 
- This option saves some CPU power only in some system.
+This option saves some CPU power only in some system.
 
 
- Next, configuration of use of ldexp(). By default this feature 
- if disabled:
+  Next, configuration of use of ldexp(). By default this feature 
+if disabled:
 
 /* #define USE_LDEXP */
 
- If your machine can multiply floating point number with ldexp() faster
- than other method, enable this option.
+If your machine can multiply floating point number with ldexp() faster
+than other method, enable this option.
 
 
- Next, configuration of size of pre-re-sampling cache. By default:
+  Next, configuration of size of pre-re-sampling cache. By default:
 
 #define DEFAULT_CACHE_DATA_SIZE (2*1024*1024)
 
 
- Next, configuration about networks. TiMidity++ can access any files
- via networks with URL. This feature are configurable in Makefile.
-
- If you have enabled this feature in Makefile(configure --enable-network),
- configure the following macros:
+  Next, configuration about networks. TiMidity++ can access any files
+via networks with URL. This feature are configurable in Makefile.  If
+you have enabled this feature in Makefile(configure --enable-network),
+configure the following macros:
 
  MAIL_DOMAIN
   specifies domain name of your name address.  If your name address is:
@@ -483,8 +494,8 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
  sites.
 
 
- Next, configuration of temporary directory. By default, this option
- is disabled:
+  Next, configuration of temporary directory. By default, this option
+is disabled:
 
 /* #define TMPDIR "/var/tmp" */
 
@@ -496,29 +507,29 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
  temporary path with this macro.
 
 
- Next, recognizing GS drum part by GS exclusive message.
+  Next, recognizing GS drum part by GS exclusive message.
 
 #define GS_DRUMPART
 
- enables to recognize GS exclusive message to set drum part.
+enables to recognize GS exclusive message to set drum part.
 
 /* #define GS_DRUMPART */
 
- disables this feature.
+disables this feature.
 
 
- Next, output text code. If your system is in Japanese environment,
- define
+  Next, output text code. If your system is in Japanese environment,
+define
 
 #define JAPANESE
 
- or comment out it like
+or comment out it like
 
 /* #define JAPANESE */
 
- Next, specifies output text code (in Japanese environment).
- You should specify appropriate code name to OUTPUT_TEXT_CODE macro.
- The following strings are available:
+  Next, specifies output text code (in Japanese environment).  You
+should specify appropriate code name to OUTPUT_TEXT_CODE macro.  The
+following strings are available:
 
 "AUTO"	- Auto conversion by `LANG' environment variable (UNIX only)
 "ASCII"	- Convert unreadable characters to '.'(0x2e)
@@ -527,13 +538,12 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 "JIS"	- JIS
 "SJIS"	- shift JIS
 
- In Japanized UNIX system, all of above are available.
- In Windows, "ASCII", "NOCNV", "SJIS" are available.
- If your environment cannot handle Japanese, specify "ASCII" or "NOCNV"
- alternatively.
+In Japanized UNIX system, all of above are available.  In Windows,
+"ASCII", "NOCNV", "SJIS" are available.  If your environment cannot
+handle Japanese, specify "ASCII" or "NOCNV" alternatively.
 
 
- Next, controllers of MIDI actions. By default:
+  Next, controllers of MIDI actions. By default:
 
 #define MODULATION_WHEEL_ALLOW
 #define PORTAMENTO_ALLOW
@@ -545,8 +555,8 @@ ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 /* #define ALWAYS_TRACE_TEXT_META_EVENT */
 #define OVERLAP_VOICE_ALLOW
 
- These values are configurable in command line options. So you may leave
- these in default value.
+  These values are configurable in command line options. So you may
+leave these in default value.
 
  MODULATION_WHEEL_ALLOW
   Enables modulation wheel by default.

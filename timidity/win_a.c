@@ -38,7 +38,7 @@
 #endif
 #include <windows.h>
 
-#ifdef __CYGWIN32__
+#if defined(__CYGWIN32__) || defined(__MINGW32__)
 #define HAVE_WAVEFORMAT_CBSIZE
 /* On cygnus, there is no header file for Multimedia API's. */
 /* Then declare some of them here. */
@@ -123,8 +123,7 @@ static double play_start_time;
 
 extern int default_play_event(void *);
 
-/* #define DATA_BLOCK_SIZE (1024*2)  for small shared memory implementation */
-#define DATA_BLOCK_SIZE (1024*16)
+#define DATA_BLOCK_SIZE (2*AUDIO_BUFFER_SIZE)
 #define DATA_BLOCK_NUM  (dpm.extra_param[0])
 #define DATA_MIN_NBLOCKS (DATA_BLOCK_NUM-1)
 
@@ -155,7 +154,7 @@ static const char *mmerror_code_string(MMRESULT res);
 PlayMode dpm = {
     DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_NEED_INSTRUMENTS|PF_CAN_TRACE,
     -1,
-    {16},
+    {32},
     "Win32 audio driver", 'd',
     NULL,
     default_play_event,

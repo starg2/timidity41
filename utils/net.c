@@ -25,7 +25,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
-#if !defined(__WIN32__) || defined(__CYGWIN32__)
+#if !defined(WINSOCK)
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -46,7 +46,7 @@
 #define INADDR_NONE 0xffffffff
 #endif /* INADDR_NONE */
 
-#if !defined(__WIN32__) || defined(__CYGWIN32__)
+#if !defined(WINSOCK)
 #ifndef INVALID_SOCKET
 #define INVALID_SOCKET -1
 #endif /* INVALID_SOCKET */
@@ -59,6 +59,13 @@ SOCKET open_socket(char *host, unsigned short port)
 {
     SOCKET fd;
     struct sockaddr_in in;
+    static int first = 1;
+
+    if(first) {
+	WSADATA dmy;
+	WSAStartup(MAKEWORD(1,1), &dmy);
+	first = 0;
+    }
 
     memset(&in, 0, sizeof(in));
     if((in.sin_addr.s_addr = inet_addr(host)) == INADDR_NONE)

@@ -12,7 +12,7 @@
 #include "url.h"
 
 
-#ifdef __W32_READDIR__
+#ifdef __W32READDIR__
 #include "readdir.h"
 # define NAMLEN(dirent) strlen((dirent)->d_name)
 #else
@@ -42,11 +42,10 @@
 #include "strtab.h"
 struct dir_cache_t
 {
-    char *dirname;
     char **fnames;
     dev_t dev;
     ino_t ino;
-    time_t dir_ctime;
+    time_t dir_mtime;
     struct dir_cache_t *next;
 };
 static struct dir_cache_t *dir_cache = NULL;
@@ -58,32 +57,29 @@ static struct dir_cache_t *scan_cached_files(struct dir_cache_t *p,
     StringTable stab;
     DIR *dirp;
     struct dirent *d;
+    int allocated;
 
     if(p == NULL)
     {
 	if((p = (struct dir_cache_t *)malloc(sizeof(struct dir_cache_t))) ==
 	   NULL)
 	    return NULL;
-    }
+	allocated = 1;
+    } else
+	allocated = 0;
 
     /* save directory information */
-    if((p->dirname = strdup(dirname)) == NULL)
-    {
-	url_errno = errno;
-	free(p);
-	errno = url_errno;
-	return NULL;
-    }
     p->ino = s->st_ino;
     p->dev = s->st_dev;
-    p->dir_ctime = s->st_ctime;
+    p->dir_mtime = s->st_mtime;
 
     if((dirp = opendir(dirname)) == NULL)
     {
 	url_errno = errno;
-	free(p->dirname);
-	free(p);
-	p->dirname = NULL;
+	if(allocated)
+	    free(p);
+	else
+	    p->ino = 0; /* remove directory entry */
 	errno = url_errno;
 	return NULL;
     }
@@ -104,10 +100,11 @@ static struct dir_cache_t *scan_cached_files(struct dir_cache_t *p,
 	{
 	    url_errno = errno;
 	    delete_string_table(&stab);
-	    free(p->dirname);
-	    free(p);
+	    if(allocated)
+		free(p);
+	    else
+		p->ino = 0; /* remove directory entry */
 	    closedir(dirp);
-	    p->dirname = NULL;
 	    errno = url_errno;
 	    return NULL;
 	}
@@ -120,9 +117,10 @@ static struct dir_cache_t *scan_cached_files(struct dir_cache_t *p,
     {
 	url_errno = errno;
 	delete_string_table(&stab);
-	free(p->dirname);
-	free(p);
-	p->dirname = NULL;
+	if(allocated)
+	    free(p);
+	else
+	    p->ino = 0; /* remove directory entry */
 	errno = url_errno;
 	return NULL;
     }
@@ -145,31 +143,30 @@ static struct dir_cache_t *read_cached_files(char *dirname)
     q = NULL;
     for(p = dir_cache; p; p = p->next)
     {
-	if(p->dirname == NULL)
+	if(p->ino == 0)
 	{
+	    /* Entry is removed.
+	     * Save the entry to `q' which is reused for puting in new entry.
+	     */
 	    if(q != NULL)
 		q = p;
-	    continue; /* deleted entry */
+	    continue;
 	}
 
-	if(!strcmp(p->dirname, dirname))
+	if(s.st_dev == p->dev && s.st_ino == p->ino)
 	{
-	    if(s.st_dev == p->dev && s.st_ino == p->ino &&
-	       p->dir_ctime == s.st_ctime)
-		return p; /* found */
+	    /* found */
+	    if(p->dir_mtime == s.st_mtime)
+		return p;
 
-	    /* File is updated */
-	    free(p->dirname);
+	    /* Directory entry is updated */
 	    free(p->fnames[0]);
 	    free(p->fnames);
 	    return scan_cached_files(p, &s, dirname);
 	}
     }
     /* New directory */
-    if(q != NULL)
-	return scan_cached_files(p, &s, dirname);
-    p = scan_cached_files(NULL, &s, dirname);
-    if(p == NULL)
+    if((p = scan_cached_files(q, &s, dirname)) == NULL)
 	return NULL;
     p->next = dir_cache;
     dir_cache = p;
@@ -254,7 +251,7 @@ URL url_dir_open(char *dname)
     url->ptr = NULL;
     url->len = 0;
     url->total = 0;
-    url->dirname = d->dirname;
+    url->dirname = strdup(dname);
     url->endp = 0;
 
     return (URL)url;
@@ -315,7 +312,7 @@ URL url_dir_open(char *dname)
     url->ptr = NULL;
     url->len = 0;
     url->total = 0;
-    url->dirname = dirname;
+    url->dirname = strdup(dname);
     url->endp = 0;
 
     return (URL)url;
@@ -336,12 +333,12 @@ char *url_dir_name(URL url)
 
 static void url_dir_close(URL url)
 {
-#ifndef URL_DIR_CACHE_ENABLE
     URL_dir *urlp = (URL_dir *)url;
+#ifndef URL_DIR_CACHE_ENABLE
     closedir(urlp->dirp);
-    free(urlp->dirname);
 #endif
-    free(url);
+    free(urlp->dirname);
+    free(urlp);
 }
 
 static long url_dir_read(URL url, void *buff, long n)

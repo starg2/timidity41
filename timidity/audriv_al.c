@@ -675,23 +675,6 @@ Bool audriv_set_play_channels(long channels)
     return True;
 }
 
-#ifndef HAVE_USLEEP
-/* IRIX 5.? */
-#include <sys/types.h>
-#include <bstring.h>
-#include <sys/time.h>
-static int xusleep(unsigned long usec)
-{
-    struct timeval tv;
-
-    tv.tv_sec  = usec / 1000000;
-    tv.tv_usec = usec % 1000000;
-    return select(0, NULL, NULL, NULL, &tv);
-}
-#define usleep xusleep
-#endif
-
-
 void audriv_wait_play(void)
 /* CPU パワーを浪費しないようにするために，一時的に停止します．*/
 {

@@ -67,7 +67,6 @@ static long play_counter, reset_samples;
 #define AUDRIV_AENC_SIGWORD AENC_SIGWORDL
 #else
 #define AUDRIV_AENC_SIGWORD AENC_SIGWORDB
-int usleep(unsigned int useconds); /* shut gcc warning up */
 #endif
 #else				/* for SunOS 4.x */
 #include <sun/audioio.h>

@@ -297,3 +297,51 @@ done
 $1="$val"
 rm -f wordtmp >/dev/null 2>&1
 ])
+
+
+dnl WAPI_CHECK_FUNC(FUNCTION, INCLUDES, TEST-BODY,
+		    [ACTION-FI-FOUND [, ACTION-IF-NOT-FOUND]])
+AC_DEFUN(WAPI_CHECK_FUNC,
+[AC_MSG_CHECKING(for $1)
+AC_CACHE_VAL(wapi_cv_func_$1,
+[AC_TRY_LINK([#include <windows.h>
+$2
+], [$3],
+wapi_cv_func_$1=yes, wapi_cv_func_$1=no)])
+if eval "test \"`echo '$wapi_cv_func_'$1`\" = yes"; then
+  AC_MSG_RESULT(yes)
+  ifelse([$4], , :, [$4])
+else
+  AC_MSG_RESULT(no)
+ifelse([$5], , , [$5
+])dnl
+fi
+])
+
+
+dnl WAPI_CHECK_LIB(LIBRARY, FUNCTION,
+dnl		INCLUDES, TEST-BODY
+dnl		[, ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND
+dnl		[, OTHER-LIBRARIES]]])
+AC_DEFUN(WAPI_CHECK_LIB,
+[AC_MSG_CHECKING([for $2 in -l$1])
+ac_lib_var=`echo $1['_']$2 | sed 'y%./+-%__p_%'`
+AC_CACHE_VAL(wapi_cv_lib_$ac_lib_var,
+[ac_save_LIBS="$LIBS"
+LIBS="-l$1 $7 $LIBS"
+AC_TRY_LINK([#include <windows.h>
+$3
+], [$4],
+eval "wapi_cv_lib_$ac_lib_var=yes",
+eval "wapi_cv_lib_$ac_lib_var=no")
+LIBS="$ac_save_LIBS"
+])dnl
+if eval "test \"`echo '$wapi_cv_lib_'$ac_lib_var`\" = yes"; then
+  AC_MSG_RESULT(yes)
+  ifelse([$5], ,LIBS="-l$1 $LIBS", [$5])
+else
+  AC_MSG_RESULT(no)
+ifelse([$6], , , [$6
+])dnl
+fi
+])

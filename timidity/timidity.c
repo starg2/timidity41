@@ -542,7 +542,7 @@ NULL
       for(cmp = ctl_list; *cmp; cmp++)
 	  mark[(int)(*cmp)->id_character] = 1;
 
-      list_dyna_interface(fp, SHARED_LIB_PATH, mark);
+      list_dyna_interface(fp, dynamic_lib_root, mark);
   }
 #endif /* IA_DYNAMIC */
   fputs(NLS, fp);
@@ -1776,8 +1776,8 @@ static int read_config_file(char *name, int self)
 		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			      "%s: line %d: Program must be between "
 			      "%d and %d",
-			      progbase, 127 + progbase,
-			      name, line);
+			      name, line,
+			      progbase, 127 + progbase);
 		    CHECKERRLIMIT;
 		    continue;
 		}
@@ -1814,8 +1814,8 @@ static int read_config_file(char *name, int self)
 		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			      "%s: line %d: Program must be between "
 			      "%d and %d",
-			      progbase, 127 + progbase,
-			      name, line);
+			      name, line,
+			      progbase, 127 + progbase);
 		CHECKERRLIMIT;
 		continue;
 	    }
@@ -1846,6 +1846,11 @@ static int read_config_file(char *name, int self)
 }
 
 #ifdef SUPPORT_SOCKET
+
+#if defined(__WIN32__) && !defined(MAIL_NAME)
+#define MAIL_NAME "anonymous"
+#endif /* __WIN32__ */
+
 #ifdef MAIL_NAME
 #define get_username() MAIL_NAME
 #else /* MAIL_NAME */

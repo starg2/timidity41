@@ -98,7 +98,7 @@ static struct ReverbControls reverb_ctls[MAX_CHANNELS];
 static void set_reverb_level(int ch, int level);
 static int make_rvid_flag = 0;
 static int data_output_count;
-#define fragment_start_count (play_mode->rate/2)
+#define fragment_start_count (play_mode->rate)
 
 /* Ring voice id for each notes */
 static uint8 vidq_head[128 * MAX_CHANNELS], vidq_tail[128 * MAX_CHANNELS];
@@ -2699,6 +2699,7 @@ static int midi_play_end(void)
     if(ctl->trace_playing)
     {
 	rc = play_mode->flush_output(); /* Wait until play out */
+	data_output_count = 0;
 	if(RC_IS_SKIP_FILE(rc))
 	    goto midi_end;
     }
@@ -2708,11 +2709,7 @@ static int midi_play_end(void)
 	while(play_mode->play_loop())
 	{
 	    int rc;
-#ifdef HAVE_USLEEP
 	    usleep(100000);
-#else
-	    sleep(1);
-#endif
 	    rc = check_apply_control();
 	    if(RC_IS_SKIP_FILE(rc))
 		goto midi_end;
@@ -3224,6 +3221,7 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     static int play_count = 0;
 
     rc = play_mode->flush_output();
+    data_output_count = 0;
     if(RC_IS_SKIP_FILE(rc))
 	return rc;
 
@@ -3394,6 +3392,7 @@ void dumb_pass_playing_list(int number_of_files, char *list_of_files[])
 			break;
 		    }
 		play_mode->flush_output();
+		data_output_count = 0;
 		return;
 
 	    case RC_QUIT:

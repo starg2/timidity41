@@ -516,11 +516,15 @@ typedef struct _ChannelBitMask
 #endif
 
 #ifdef sun
-#ifndef SOLARIS /* SunOS 4.x */
+#ifndef SOLARIS
+/* SunOS 4.x */
 #include <sys/stdtypes.h>
 #include <memory.h>
 #define memcpy(x, y, n) bcopy(y, x, n)
-#endif /* SunOS 4.x */
+#else
+/* Solaris */
+int usleep(unsigned int useconds); /* shut gcc warning up */
+#endif
   extern int errno;
   extern int opterr;
   extern int optind;
@@ -613,7 +617,7 @@ extern void snprintf(char *buff, size_t bufsiz, const char *fmt, ...);
 #endif /* HAVE_SNPRINTF */
 
 #ifndef HAVE_GETOPT
-extern int getopt(int argc, char *argv[], char *optionS)
+extern int getopt(int argc, char *argv[], char *optionS);
 #endif /* HAVE_GETOPT */
 
 #ifndef HAVE_STRERROR
@@ -621,7 +625,7 @@ extern char *strerror(int errnum);
 #endif /* HAVE_STRERROR */
 
 #ifndef HAVE_USLEEP
-extern int usleep(unsigned int usec)
+extern int usleep(unsigned int usec);
 #endif
 
 #ifndef HAVE_SLEEP

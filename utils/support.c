@@ -37,7 +37,9 @@
 #else
 #include <strings.h>
 #endif
-
+#ifdef __WIN32__
+#include <windows.h>
+#endif /* __WIN32__ */
 
 #include "timidity.h"
 #include "mblock.h"

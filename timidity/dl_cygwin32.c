@@ -66,7 +66,7 @@ GetProcAddress(
 #include <strings.h>
 #endif
 #include "timidity.h"
-#include "dlutils.c"
+#include "dlutils.h"
 
 /*ARGSUSED*/
 void dl_init(int argc, char **argv)
@@ -82,6 +82,8 @@ void *dl_load_file(char *filename)
 				    LOAD_WITH_ALTERED_SEARCH_PATH);
     if(RETVAL == NULL)
 	fprintf(stderr, "%d", GetLastError());
+
+#if 0
     else
     {
 	// setup the dll's impure_ptr:
@@ -97,6 +99,7 @@ void *dl_load_file(char *filename)
 	    (*impure_setupptr)(_impure_ptr);
 	}
     }
+#endif
 
     return RETVAL;
 }

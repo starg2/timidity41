@@ -54,7 +54,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 1.3.0, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 1.3.1, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -282,9 +282,24 @@ AC_CHECK_FUNCS(gettimeofday select socket strdup strstr vsnprintf snprintf sleep
 
 dnl checking on cygnus
 if test "x$CYGNUS" = xyes; then
-  AC_CHECK_FUNC(opendir,,
+  case "$ac_cv_header_dirent_dirent_h$ac_cv_header_dirent_sys_ndir_h$ac_cv_header_dirent_sys_dir_h$ac_cv_header_dirent_ndir_h" in
+  *yes*)
+    AC_CHECK_FUNC(opendir,,
 	[ EXTRADEFS="$EXTRADEFS -D__W32READDIR__"
 	  W32READDIR=yes ])
+    ;;
+  *)EXTRADEFS="$EXTRADEFS -D__W32READDIR__"
+    W32READDIR=yes
+    ;;
+  esac
+  if test "x$enable_network" = "xyes"; then
+    AC_CHECK_FUNC(socket,,
+      WAPI_CHECK_LIB(wsock32,WSAStartup,
+	[#include <winsock.h>],
+	[WSAStartup(0,0);],
+	[ EXTRALIBS="$EXTRALIBS -lwsock32"
+	  EXTRADEFS="$EXTRADEFS -DWINSOCK" ]))
+  fi
 fi
 
 
@@ -454,7 +469,10 @@ case "x$enable_ump" in xyes|xdynamic) EXTRACFLAGS="$EXTRACFLAGS -DXP_UNIX $SHCFL
 
 if test "$NEEDDLOPEN" = "yes"; then
   have_dl=no
-  AC_CHECK_FUNC(LoadLibraryExA,have_dl=cygwin)
+
+  WAPI_CHECK_FUNC(LoadLibraryExA,,[LoadLibraryExA(0,0,0);],have_dl=cygwin)
+  test $wapi_cv_func_LoadLibraryExA = yes && have_dl=cygwin
+
   if test "$have_dl" = "no"; then
     AC_CHECK_FUNC(shl_load,have_dl=hpux)
   fi
