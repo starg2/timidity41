@@ -232,8 +232,8 @@ void w32g_i_init(void)
 #endif
 }
 
-//int PlayerLanguage = LANGUAGE_ENGLISH;
-int PlayerLanguage = LANGUAGE_JAPANESE;
+int PlayerLanguage = LANGUAGE_ENGLISH;
+//int PlayerLanguage = LANGUAGE_JAPANESE;
 #define PInfoOK 1
 long SetValue(int32 value, int32 min, int32 max)
 {

@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.11.0-pre3)
+AM_INIT_AUTOMAKE(TiMidity++, 2.11.0-pre4)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT

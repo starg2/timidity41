@@ -107,9 +107,19 @@ static int ogg_output_open(const char *fname, const char *comment)
   vorbis_info_init(&vi);
   vorbis_encode_init(&vi, (dpm.encoding & PE_MONO)?1:2, 44100, -1, 128000, -1);
 
-  /* add a comment */
-  vorbis_comment_init(&vc);
-  vorbis_comment_add(&vc, (char *)comment);
+  {
+    /* add a comment */
+    char *location_string;
+
+    vorbis_comment_init(&vc);
+
+    location_string =
+      (char *)safe_malloc(strlen(comment) + sizeof("LOCATION="));
+    strcpy(location_string, "LOCATION=");
+    strcat(location_string, comment);
+    vorbis_comment_add(&vc, (char *)location_string);
+    free(location_string);
+  }
 
   /* set up the analysis state and auxiliary encoding storage */
   vorbis_analysis_init(&vd, &vi);

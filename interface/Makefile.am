@@ -16,8 +16,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-SUFFIXES = .ptcl .tcl .@so@
+include $(top_builddir)/common.makefile
 
+SUFFIXES = .ptcl .tcl .@so@
 
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
@@ -176,7 +177,8 @@ EXTRA_DIST = \
 	interface_i.txt \
 	interface_m.txt \
 	interface_n.txt \
-	interface_s.txt
+	interface_s.txt \
+	w32g_res_jp.rc
 
 .ptcl.tcl:
 	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@

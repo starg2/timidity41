@@ -30,11 +30,15 @@
 #include <windows.h>
 #undef RC_NONE
 // #include <prsht.h>
+
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 #include <commdlg.h>
 #else
 #include <commctrl.h>
 #endif /* __CYGWIN32__ */
+
+
+
 #include <commctrl.h>
 #ifndef NO_STRING_H
 #include <string.h>
@@ -69,7 +73,9 @@
 #include "w32g_res.h"
 #include "w32g_utl.h"
 #include "w32g_pref.h"
+#ifdef AU_GOGO
 #include "gogo_a.h"
+#endif
 
 /* TiMidity Win32GUI preference / PropertySheet */
 

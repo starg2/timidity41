@@ -68,10 +68,13 @@ extern int PlayerLanguage;
 extern volatile int data_block_bits;
 extern volatile int data_block_num;
 extern int DocWndIndependent;
-extern int DocWndAutoPopup;
+int DocWndAutoPopup;
 extern int SeachDirRecursive;
 extern int IniFileAutoSave;
 extern int SecondMode;
+
+static char *w32g_output_dir;
+static int w32g_auto_output_mode;
 
 //*****************************************************************************/
 // ini
