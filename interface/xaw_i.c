@@ -1938,7 +1938,8 @@ static void exchgWidth(Widget w,XEvent *e,String *v,Cardinal *n) {
 
 /*ARGSUSED*/
 static void redrawAction(Widget w,XEvent *e,String *v,Cardinal *n) {
-  redrawTrace(True);
+  if(e->xexpose.count == 0)
+    redrawTrace(True);
 }
 
 /*ARGSUSED*/

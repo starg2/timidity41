@@ -740,29 +740,24 @@ char *strerror(int errnum)
 #endif /* HAVE_ERRNO_H */
 #endif /* HAVE_STRERROR */
 
-#ifdef __W32__
-void xsleep(unsigned int sec)
-{
-    Sleep(sec * 1000);
-}
-void xusleep(unsigned int usec)
-{
-    Sleep(usec / 1000);
-}
-#else
 #ifndef HAVE_USLEEP
+#ifdef __W32__
 int usleep(unsigned int usec)
 {
-#if defined(HAVE_SELECT)
+    Sleep(usec / 1000);
+    return 0;
+}
+#else
+int usleep(unsigned int usec)
+{
     struct timeval tv;
     tv.tv_sec  = usec / 1000000;
     tv.tv_usec = usec % 1000000;
     select(0, NULL, NULL, NULL, &tv);
-#endif /* HAVE_SELECT */
     return 0;
 }
-#endif /* HAVE_USLEEP */
 #endif /* __W32__ */
+#endif /* HAVE_USLEEP */
 
 #ifndef HAVE_STRDUP
 char *strdup(const char *s)

@@ -118,6 +118,9 @@ SUBDIRS =  	utils 	libarc 	interface 	timidity 	doc
 
 EXTRA_DIST =  	AUTHORS 	COPYING 	ChangeLog 	ChangeLog.1 	INSTALL 	INSTALL.jp 	NEWS 	README 	README.jp 	timidity.ide 	timidity.mak
 
+
+TOOLSDIR = timidity-tools
+UMPDIR = ump
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h interface.h
@@ -440,6 +443,31 @@ install.bin:
 dist-hook:
 	chmod -R a+r $(distdir)
 	$(TAR) chof - $(distdir) | bzip2 -9 --repetitive-best - > $(distdir).tar.bz2
+
+tools:: tools-targets
+	cd $(TOOLSDIR); $(MAKE)
+
+tools-targets: $(TOOLSDIR)/Makefile
+
+install.tools:
+	cd $(TOOLSDIR); $(MAKE) install
+
+$(TOOLSDIR)/Makefile: $(TOOLSDIR)/Makefile.in config.status
+	CONFIG_HEADERS='' CONFIG_FILES=$(TOOLSDIR)/Makefile $(SHELL) ./config.status
+
+#$(TOOLSDIR)/Makefile.in: $(TOOLSDIR)/Makefile.am
+#	$(AUTOMAKE) --gnu $(TOOLSDIR)/Makefile
+
+ump: ump-targets
+	cd $(UMPDIR); $(MAKE) ump
+
+ump-targets: $(UMPDIR)/Makefile
+
+$(UMPDIR)/Makefile: $(UMPDIR)/Makefile.in config.status
+	CONFIG_HEADERS='' CONFIG_FILES=ump/Makefile $(SHELL) ./config.status 
+
+#$(UMPDIR)/Makefile.in: $(UMPDIR)/Makefile.am
+#	$(AUTOMAKE) --gnu $(UMPSDIR)/Makefile
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -1,3 +1,25 @@
+1999-06-09  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.1.1 released.
+
+1999-07-09  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/xaw_i.c (redrawAction): Redraw once at last expose event.
+
+1999-06-23  Masanao Izumo <mo@goice.co.jp>
+
+    * utils/{support.c,support.h} (sleep, usleep): Modify the implementation.
+
+1999-06-22  Masanao Izumo <mo@goice.co.jp>
+
+    * libarc/arc_tar.c: Use checksum wheather the tar file is valid or not.
+      "ustar" magic is ignored.
+
+1999-06-14  Masanao Izumo <mo@goice.co.jp>
+
+    * Makefile.am(tools): Add new Makefile target to build timidity-tools.
+    * Makefile.am(ump): Add new Makefile target to build UMP.
+
 1999-06-10  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.1.0 released.
@@ -79,8 +101,8 @@
     * configure.in (HAVE_XMUREGISTEREXTERNALAGENT): Test for
       XmuRegisterExternalAgent()
     * configure.in (HAVE_X11_XMU_EXTAGENT_H): Test for <X11/Xmu/ExtAgent.h>
-    * interface/xaw_redef.c: Don't use if XmuRegisterExternalAgent is
-      not undefined.
+    * interface/xaw_redef.c(XmuRegisterExternalAgent): Don't use
+      XmuRegisterExternalAgent if it is not defined.
     * xaw_i.c: Fix bug about directory browsing.
     * timidity/timidity.c (read_config_file): Avoid compiler warnings.
       timidity/aq.c (do_effect): Likewise.

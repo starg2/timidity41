@@ -40,6 +40,9 @@ EXTRA_DIST = \
 	timidity.ide \
 	timidity.mak
 
+TOOLSDIR = timidity-tools
+UMPDIR = ump
+
 dynamics:
 	cd interface; $(MAKE) $@
 
@@ -58,3 +61,37 @@ install.bin:
 dist-hook:
 	chmod -R a+r $(distdir)
 	$(TAR) chof - $(distdir) | bzip2 -9 --repetitive-best - > $(distdir).tar.bz2
+
+##
+## Targets for timidity-tools
+##
+tools:: tools-targets
+	cd $(TOOLSDIR); $(MAKE)
+
+tools-targets: $(TOOLSDIR)/Makefile
+
+install.tools:
+	cd $(TOOLSDIR); $(MAKE) install
+
+$(TOOLSDIR)/Makefile: $(TOOLSDIR)/Makefile.in config.status
+	CONFIG_HEADERS='' CONFIG_FILES=$(TOOLSDIR)/Makefile $(SHELL) ./config.status
+
+## for developers
+#$(TOOLSDIR)/Makefile.in: $(TOOLSDIR)/Makefile.am
+#	$(AUTOMAKE) --gnu $(TOOLSDIR)/Makefile
+
+
+##
+## Targets for UMP
+##
+ump: ump-targets
+	cd $(UMPDIR); $(MAKE) ump
+
+ump-targets: $(UMPDIR)/Makefile
+
+$(UMPDIR)/Makefile: $(UMPDIR)/Makefile.in config.status
+	CONFIG_HEADERS='' CONFIG_FILES=ump/Makefile $(SHELL) ./config.status 
+
+## for developers
+#$(UMPDIR)/Makefile.in: $(UMPDIR)/Makefile.am
+#	$(AUTOMAKE) --gnu $(UMPSDIR)/Makefile

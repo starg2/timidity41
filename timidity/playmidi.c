@@ -3339,7 +3339,6 @@ int play_event(MidiEvent *ev)
     return RC_NONE;
 }
 
-/* parameter "events" was declared but never referenced */
 static int play_midi(MidiEvent *eventlist, int32 samples)
 {
     int rc;

@@ -23,18 +23,14 @@ extern int getopt(int argc, char *argv[], char *optionS);
 extern char *strerror(int errnum);
 #endif /* HAVE_STRERROR */
 
-#ifdef __W32__
-#define sleep	xsleep
-#define usleep	xusleep
-#else
 /* There is no prototype of usleep() on Solaris. Why? */
 #if !defined(HAVE_USLEEP) || defined(SOLARIS)
 extern int usleep(unsigned int usec);
 #endif
+
 #ifndef HAVE_SLEEP
-#define sleep(sec) usleep(sec * 1000000)
+#define sleep(s) usleep((s) * 1000000)
 #endif /* HAVE_SLEEP */
-#endif
 
 #ifndef HAVE_STRDUP
 extern char *strdup(const char *s);
