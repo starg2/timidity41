@@ -1,3 +1,46 @@
+-- 1.2.1
+Mon Jan 25 1999
+Summary:
+    * Added missing files.
+    * Fixed some configuration probrems.
+    * Added --enable-dynamic `configure' option.
+
+Date: Mon Jan 25 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: acinclude.m4 configure.in
+    Fixed some probrems of configuration:
+	* Remove duplicated -lXpm option.
+	* Not to change the order of comple flags.
+	* and so on...
+Files: interface/gtk_c.c
+    Implemented interface_g_loader()
+Files: timidity/dl_dlopen.c
+    Added "\n" to error message of dl_find_symbol()
+
+Date: Mon, 25 Jan 1999 01:18:27 +0900 (JST)
+From: nork@lb.u-tokai.ac.jp (Norikatsu Shigemura)
+Files: configure.in
+    Pached for making FreeBSD UMP.
+
+Date: Fri Jan 22 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: configure.in
+    Added --enable-dynamic configure option.  It is enable to always compile
+    dynamic link codes.
+Files: timidity/gtk_i.c
+    On Solaris, glob()'s flag is different in the interface.
+    So I just changed not to call glob() on Solaris.
+
+Date: Thu, 21 Jan 1999 12:53:18 +0900
+From: "KINOSHITA, K." <kino@krhm.jvc-victor.co.jp>
+Files: timidity/timidity.c
+    Removed no effect statements.
+
+Date: Thu, 21 Jan 1999 03:40:38 +0900
+From: Ueyama Rui <rui@po.teleway.ne.jp>
+Files: interface/pixmaps/{fast,slow,restart,keyup,keydown}.xpm
+    Reported some files for Gtk pixmaps are missing.  Added them.
+
 -- 1.2.0
 Thu Jan 21 JST 1999
 Summary:
@@ -9,7 +52,7 @@ Summary:
       - Added buttons (& implementation) for increasing/decreasing the tempo.
     * Lookup TIMIDITY_SOUND_CARD and TIMIDITY_PCM_DEVICE environment variable
       to select the PCM device of ALSA.
-    * Added interface.h to define IA_* macro for TiMidity interface.  This
+    * Made interface.h to define IA_* macro for TiMidity interface.  This
       file is generated automatically by configure.
     * Fixed some bugs.
 

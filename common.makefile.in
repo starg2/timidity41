@@ -16,6 +16,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+# Define follows if you want to change.
+
 #SHELL=/bin/sh
 
 ########### Compiler and flags.
@@ -45,9 +47,14 @@ pkgincludedir = $(includedir)/timidity
 
 #CC= @CC@
 #CFLAGS = @CFLAGS@
+#CPPFLAGS = @CPPFLAGS@
 #DEFS = @DEFS@
-#LIBS = @LIBS@
+#EXTRADEFS = @EXTRADEFS@
 #LDFLAGS = @LDFLAGS@
+#LIBS = @LIBS@
+#EXTRALIBS = @EXTRALIBS@
+SHLD = @SHLD@
+SHCFLAGS = @SHCFLAGS@
 DEBUGFLAGS = -Wall
 
 ########### Install.
@@ -65,5 +72,6 @@ TCL_DIR = $(TIMID_DIR)
 
 CFLAGS += $(DEBUGFLAGS)
 DEFS += $(EXTRADEFS) -DDEFAULT_PATH=\"$(TIMID_DIR)\"
+LIBS += $(EXTRALIBS)
 
 .SUFFIXES: .c .h .ptcl .tcl .o .1 .txt .ps .@so@

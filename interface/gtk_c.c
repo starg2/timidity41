@@ -541,3 +541,11 @@ ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 	}
     }
 }
+
+/*
+ * interface_<id>_loader();
+ */
+ControlMode *interface_g_loader(void)
+{
+    return &ctl;
+}

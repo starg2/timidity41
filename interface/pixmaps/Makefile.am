@@ -28,6 +28,11 @@ PIXMAPS = \
 	quit.xpm \
 	rew.xpm \
 	stop.xpm \
-	open.xpm
+	open.xpm \
+	fast.xpm \
+	slow.xpm \
+	restart.xpm \
+	keyup.xpm \
+	keydown.xpm
 
 EXTRA_DIST = $(PIXMAPS)

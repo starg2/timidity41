@@ -260,10 +260,54 @@ esac
 ])
 
 
-dnl SET_SORT_UNIQ_WORD(shell-variable,words...)
-AC_DEFUN(SET_SORT_UNIQ_WORD,
-[$1=`for f in $2; do echo $f; done | sort | uniq`
-$1=`echo $$1`
+dnl contains program from perl5
+dnl CONTAINS_INIT()
+AC_DEFUN(CONTAINS_INIT,
+[dnl Some greps do not return status, grrr.
+AC_MSG_CHECKING(whether grep returns status)
+echo "grimblepritz" >grimble
+if grep blurfldyick grimble >/dev/null 2>&1 ; then
+	contains="./contains"
+elif grep grimblepritz grimble >/dev/null 2>&1 ; then
+	contains=grep
+else
+	contains="./contains"
+fi
+rm -f grimble
+dnl the following should work in any shell
+case "$contains" in
+grep)	AC_MSG_RESULT(yes)
+	;;
+./contains)
+	AC_MSG_RESULT(AGH!  Grep doesn't return a status.  Attempting remedial action.)
+	cat >./contains <<'EOSS'
+grep "[$]1" "[$]2" >.greptmp && cat .greptmp && test -s .greptmp
+EOSS
+	chmod +x "./contains"
+	;;
+esac
+])
+
+
+dnl CONTAINS(word,filename,action-if-found,action-if-not-found)
+AC_DEFUN(CONTAINS,
+[if $contains "^[$1]"'[$]' $2 >/dev/null 2>&1; then
+  [$3]
+else
+  [$4]
+fi
+])
+
+
+dnl SET_UNIQ_WORDS(shell-variable,words...)
+AC_DEFUN(SET_UNIQ_WORDS,
+[rm -f wordtmp >/dev/null 2>&1
+val=''
+for f in $2; do
+  CONTAINS([$f],wordtmp,:,[echo $f >>wordtmp; val="$val $f"])
+done
+$1="$val"
+rm -f wordtmp >/dev/null 2>&1
 ])
 
 # Define a conditional.

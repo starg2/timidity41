@@ -1,5 +1,11 @@
-* 1/20, 1999
-    TiMidity++ v1.2.0 is released.
+* 1/25, 1999
+    Released TiMidity++ v1.2.1.
+    Added missing files.
+    Fixed some configuration probrems.
+    Added --enable-dynamic configure option.
+
+* 1/21, 1999
+    Released TiMidity++ v1.2.0.
     New features and major change from v1.1.x:
     * XAW interface:
       - Changed button bitmap of random & repeat
@@ -13,21 +19,21 @@
       file is generated automatically by configure.
 
 * 1/18, 1999
-    TiMidity++ v1.1.1 is released.
+    Released TiMidity++ v1.1.1.
     v1.1.0 had configuration probrems, so v1.1.1 was released immediately.
     Fixed some configure bugs.
     Modified that xaw interface is enable to run without any midi files.
 
 * 1/18, 1999
-    TiMidity++ v1.1.0 is released.
+    Released TiMidity++ v1.1.0.
     Support OffiX file drag & drop interface for xaw.
     Support UMP configuration.
 
 * 1/14, 1999
-    TiMidity++ v1.0.1 is released.
+    Released TiMidity++ v1.0.1.
     Modfied for OffiX file drag & drop interface for xaw.  If you want
     build this, define OFFIX in interface/xaw.h and link libDnd.
 
 * 1/6, 1999
-    TiMidity++ v1.0.0 is released.
+    Released TiMidity++ v1.0.0.
     See `ChangeLog' for major changes from the original of TiMidity 0.2i

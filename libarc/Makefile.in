@@ -281,8 +281,6 @@ arc_lzh.o: arc_lzh.c ../config.h ../timidity/timidity.h arc.h \
 	../utils/memb.h ../utils/mblock.h url.h
 arc_mime.o: arc_mime.c ../config.h ../timidity/timidity.h \
 	../utils/mblock.h zip.h arc.h ../utils/memb.h url.h
-arc_newsgroup.o: arc_newsgroup.c ../config.h ../timidity/timidity.h \
-	arc.h ../utils/memb.h ../utils/mblock.h url.h
 arc_tar.o: arc_tar.c ../config.h ../timidity/timidity.h \
 	../utils/mblock.h zip.h arc.h ../utils/memb.h url.h
 arc_zip.o: arc_zip.c ../config.h ../timidity/timidity.h arc.h \
@@ -303,19 +301,11 @@ url_cache.o: url_cache.c ../config.h ../timidity/timidity.h url.h \
 url_dir.o: url_dir.c ../config.h ../timidity/timidity.h url.h \
 	../utils/strtab.h ../utils/mblock.h
 url_file.o: url_file.c ../config.h ../timidity/timidity.h url.h
-url_ftp.o: url_ftp.c ../config.h ../timidity/timidity.h url.h \
-	../utils/net.h
 url_hqxdecode.o: url_hqxdecode.c ../config.h ../timidity/timidity.h \
 	url.h
-url_http.o: url_http.c ../config.h ../timidity/timidity.h url.h \
-	../utils/net.h
 url_inflate.o: url_inflate.c ../config.h ../timidity/timidity.h url.h \
 	../utils/mblock.h zip.h
 url_mem.o: url_mem.c ../config.h ../timidity/timidity.h url.h
-url_news.o: url_news.c ../config.h ../timidity/timidity.h url.h \
-	../utils/net.h
-url_newsgroup.o: url_newsgroup.c ../config.h ../timidity/timidity.h \
-	url.h ../utils/net.h
 url_pipe.o: url_pipe.c ../config.h ../timidity/timidity.h url.h
 url_qsdecode.o: url_qsdecode.c ../config.h ../timidity/timidity.h url.h
 url_uudecode.o: url_uudecode.c ../config.h ../timidity/timidity.h url.h

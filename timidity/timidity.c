@@ -2792,22 +2792,6 @@ int main(int argc, char **argv)
     if(strncmp(program_name,"timidity",8) == 0);
     else if(strncmp(program_name,"kmidi",5) == 0) set_ctl("q");
     else if(strncmp(program_name,"tkmidi",6) == 0) set_ctl("k");
-    else if(strncmp(program_name,"xmmidi",6) == 0) set_ctl("m");
-    else if(strncmp(program_name,"xawmidi",7) == 0) set_ctl("a");
-    else if(strncmp(program_name,"xskinmidi",9) == 0) set_ctl("i");
-
-    if(argc == 1 && !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character))
-    {
-	interesting_message();
-	return 0;
-    }
-
-    if((program_name=strrchr(argv[0], PATH_SEP))) program_name++;
-    else program_name=argv[0];
-
-    if(strncmp(program_name,"timidity",8) == 0);
-    else if(strncmp(program_name,"kmidi",5) == 0) set_ctl("q");
-    else if(strncmp(program_name,"tkmidi",6) == 0) set_ctl("k");
     else if(strncmp(program_name,"gtkmidi",6) == 0) set_ctl("g");
     else if(strncmp(program_name,"xmmidi",6) == 0) set_ctl("m");
     else if(strncmp(program_name,"xawmidi",7) == 0) set_ctl("a");

@@ -350,7 +350,6 @@ common.o: common.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h output.h controls.h ../libarc/arc.h \
 	../utils/memb.h ../utils/nkflib.h wrd.h
 controls.o: controls.c ../config.h ../interface.h timidity.h controls.h
-dl_dlopen.o: dl_dlopen.c ../config.h timidity.h dlutils.h
 filter.o: filter.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h controls.h instrum.h filter.h
 instrum.o: instrum.c ../config.h timidity.h common.h ../libarc/url.h \
@@ -375,8 +374,7 @@ output.o: output.c ../config.h timidity.h output.h tables.h audio_cnv.h
 playmidi.o: playmidi.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h output.h \
 	mix.h controls.h miditrace.h recache.h ../libarc/arc.h \
-	../utils/memb.h reverb.h wrd.h ../interface/soundspec.h \
-	tables.h
+	../utils/memb.h reverb.h wrd.h tables.h
 raw_a.o: raw_a.c ../config.h timidity.h output.h controls.h
 rcp.o: rcp.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h controls.h
@@ -406,8 +404,8 @@ tables.o: tables.c ../config.h timidity.h common.h ../libarc/url.h \
 timidity.o: timidity.c ../config.h ../interface.h timidity.h common.h \
 	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
 	readmidi.h output.h controls.h tables.h miditrace.h reverb.h \
-	../interface/soundspec.h recache.h ../libarc/arc.h \
-	../utils/memb.h ../utils/strtab.h wrd.h mid.defs dlutils.h
+	recache.h ../libarc/arc.h ../utils/memb.h ../utils/strtab.h \
+	wrd.h mid.defs
 wave_a.o: wave_a.c ../config.h timidity.h output.h controls.h
 wrd_read.o: wrd_read.c ../config.h timidity.h common.h ../libarc/url.h \
 	../utils/mblock.h instrum.h playmidi.h readmidi.h controls.h \
