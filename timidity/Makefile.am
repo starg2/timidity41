@@ -47,6 +47,7 @@ timidity_SOURCES = \
 	instrum.h \
 	list_a.c \
 	load_mod.c \
+	loadtab.c \
 	mid-j.defs \
 	mid.defs \
 	miditrace.c \

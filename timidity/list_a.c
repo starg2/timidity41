@@ -125,7 +125,7 @@ static void close_output(void)
     dmp.fd = -1;
 }
 
-static void do_event(MidiEvent *ev)
+static int do_event(MidiEvent *ev)
 {
     int ch;
 
@@ -179,7 +179,10 @@ static void do_event(MidiEvent *ev)
       case ME_RESET:
 	memset(channel, 0, sizeof(channel));
 	break;
+      case ME_EOT:
+	return RC_TUNE_END;
     }
+    return RC_NONE;
 }
 
 static int acntl(int request, void *arg)
@@ -187,8 +190,7 @@ static int acntl(int request, void *arg)
     switch(request)
     {
       case PM_REQ_MIDI:
-	do_event((MidiEvent *)arg);
-	return RC_NONE;
+	return do_event((MidiEvent *)arg);
     }
     return -1;
 }

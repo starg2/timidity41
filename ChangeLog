@@ -1,3 +1,44 @@
+1999-06-10  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.1.0 released.
+
+1999-06-05  Michael Haardt <michael@moria.de>
+
+    * timidity/nas_a.c: Reduce BUFFERED_SECS to 3 and increase
+	LOW_WATER_PERCENT to 40. 
+
+1999-05-22  Keiichi Sakai <sakai@amor.aial.hiroshima-u.ac.jp>
+
+    * timidity/{timidity.h,resample.c}:  Enable a multi-point interpolation
+	in resampling.  In timidity, defining CSPLINE_INTERPOLATION cause
+	4-point interpolation by cubic spline curve.  Defining
+	LAGRANGE_INTERPOLATION cause 4-point interpolation by Lagrange method.
+	The default is disabled because it wastes much CPU power.
+
+1999-05-20  Takanori Watanabe <takawata@shidahara1.planet.sci.kobe-u.ac.jp>
+
+    * timidity/list_a.c: Bug fix.
+
+1999-05-16  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/common.c(pathcasecmp): pathcasecmp() was not forcing the
+      right variable types for s1 and s2. The way it was before resulted in
+      pointers to total garbage, which caused it to not sort properly.
+
+1999-05-04  Vignaud Jean-Baptiste <jbv@club-internet.fr>
+
+    * timidity/timidity.h: Fix typedef for linux axp.
+
+1999-05-02  Nando Santagata <lac0658@iperbole.bologna.it>
+
+    * doc/C/timidity.1: Document the -Z option.
+    * timidity/{Makefile.am,common.h,loadtab.c,timidity.c} (-Z):
+      New option: -Z <file>: Load frequency table from <file>.
+
+1999-04-29  Noboru Suzaki <no_bo@geocities.co.jp>
+
+    * timidity/linux_a.c (open_output): Remove O_NDELAY
+
 1999-04-28  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.0.2 released.

@@ -105,7 +105,7 @@ static int open_output(void)
     int include_enc, exclude_enc;
 
     /* Open the audio device */
-    fd = open(dpm.name, O_WRONLY | O_NDELAY);
+    fd = open(dpm.name, O_WRONLY);
     if(fd < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",

@@ -44,7 +44,60 @@
 #include "resample.h"
 #include "recache.h"
 
-#ifdef LINEAR_INTERPOLATION
+#if defined(CSPLINE_INTERPOLATION)
+# define INTERPVARS      int32   ofsd, v0, v1, v2, v3, sp1, sp2;
+# define RESAMPLATION \
+        v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
+        v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
+        v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
+        v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
+	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
+                *dest++ = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
+	}else{ \
+		sp1 = (5*v0 - 11*v1 + 7*v2 - v3)>>2; \
+		sp2 = (5*v3 - 11*v2 + 7*v1 - v0)>>2; \
+		v1 = 6*v1 - sp1; \
+		v2 = 6*v2 - sp2; \
+                ofsd = (1L << FRACTION_BITS) - (ofs & FRACTION_MASK); \
+		sp1 = sp1*ofsd>>FRACTION_BITS; \
+		sp1 = sp1*ofsd>>FRACTION_BITS; \
+		v1 = (v1 + sp1)*ofsd; \
+                ofsd = ofs & FRACTION_MASK; \
+		sp2 = sp2*ofsd>>FRACTION_BITS; \
+		sp2 = sp2*ofsd>>FRACTION_BITS; \
+		v2 = (v2 + sp2)*ofsd; \
+		v1 = (v1 + v2)/(6L<<FRACTION_BITS); \
+		*dest++ = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
+	}
+#elif defined(LAGRANGE_INTERPOLATION)
+# define INTERPVARS      int32   ofsd, v0, v1, v2, v3;
+# define RESAMPLATION \
+        v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
+        v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
+        v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
+        v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
+	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
+                *dest++ = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
+	}else{ \
+                ofsd = (ofs & FRACTION_MASK) + (1L << FRACTION_BITS); \
+                v1 = v1*ofsd>>FRACTION_BITS; \
+                v2 = v2*ofsd>>FRACTION_BITS; \
+                v3 = v3*ofsd>>FRACTION_BITS; \
+                ofsd -= (1L << FRACTION_BITS); \
+                v0 = v0*ofsd>>FRACTION_BITS; \
+                v2 = v2*ofsd>>FRACTION_BITS; \
+                v3 = v3*ofsd>>FRACTION_BITS; \
+                ofsd -= (1L << FRACTION_BITS); \
+                v0 = v0*ofsd>>FRACTION_BITS; \
+                v1 = v1*ofsd>>FRACTION_BITS; \
+                v3 = v3*ofsd; \
+                ofsd -= (1L << FRACTION_BITS); \
+                v0 = (v3 - v0*ofsd)/(6L << FRACTION_BITS); \
+                v1 = (v1 - v2)*ofsd>>(FRACTION_BITS+1); \
+		v1 += v0; \
+		*dest++ = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
+	}
+#elif defined(LINEAR_INTERPOLATION)
 # if defined(LOOKUP_HACK) && defined(LOOKUP_INTERPOLATION)
 #   define RESAMPLATION \
        v1=src[ofs>>FRACTION_BITS];\
@@ -115,6 +168,9 @@ static sample_t *rs_plain(int v, int32 *countptr)
   int32
     ofs=vp->sample_offset,
     incr=vp->sample_increment,
+#if defined(LAGRANGE_INTERPOLATION) || defined(CSPLINE_INTERPOLATION)
+    ls=0,
+#endif /* LAGRANGE_INTERPOLATION */
     le=vp->sample->data_length,
     count=*countptr;
 #ifdef PRECALC_LOOPS
@@ -210,6 +266,9 @@ static sample_t *rs_loop(Voice *vp, int32 count)
     ofs=vp->sample_offset,
     incr=vp->sample_increment,
     le=vp->sample->loop_end,
+#if defined(LAGRANGE_INTERPOLATION) || defined(CSPLINE_INTERPOLATION)
+    ls=vp->sample->loop_start,
+#endif /* LAGRANGE_INTERPOLATION */
     ll=le - vp->sample->loop_start;
   sample_t
     *dest=resample_buffer+resample_buffer_offset,
@@ -459,6 +518,9 @@ static sample_t *rs_vib_plain(int v, int32 *countptr)
     *dest=resample_buffer+resample_buffer_offset,
     *src=vp->sample->data;
   int32
+#if defined(LAGRANGE_INTERPOLATION) || defined(CSPLINE_INTERPOLATION)
+    ls=0,
+#endif /* LAGRANGE_INTERPOLATION */
     le=vp->sample->data_length,
     ofs=vp->sample_offset,
     incr=vp->sample_increment,
@@ -502,6 +564,9 @@ static sample_t *rs_vib_loop(Voice *vp, int32 count)
   int32
     ofs=vp->sample_offset,
     incr=vp->sample_increment,
+#if defined(LAGRANGE_INTERPOLATION) || defined(CSPLINE_INTERPOLATION)
+    ls=vp->sample->loop_start,
+#endif /* LAGRANGE_INTERPOLATION */
     le=vp->sample->loop_end,
     ll=le - vp->sample->loop_start;
   sample_t

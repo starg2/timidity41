@@ -141,6 +141,13 @@ typedef double FLOAT_T;
    without it sound quality is very poor. */
 #define LINEAR_INTERPOLATION
 
+/* These option enable a multi-point interpolation in resampling.
+   Defining CSPLINE_INTERPOLATION cause 4-point interpolation by cubic
+   spline curve.  Defining LAGRANGE_INTERPOLATION cause 4-point
+   interpolation by Lagrange method. */
+/* #define CSPLINE_INTERPOLATION */
+/* #define LAGRANGE_INTERPOLATION */
+
 
 /* This is an experimental kludge that needs to be done right, but if
    you've got an 8-bit sound card, or cheap multimedia speakers hooked
@@ -384,7 +391,8 @@ extern int volatile_touch(void* dmy);
 #endif
 
 /* DEC MMS has 64 bit long words */
-#if defined(DEC)
+/* Linux-Axp has also 64 bit long words */
+#if defined(DEC) || defined(__alpha__)
 typedef unsigned int uint32;
 typedef int int32;
 #else

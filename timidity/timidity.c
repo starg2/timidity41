@@ -76,7 +76,7 @@ extern char *optarg;
 #include "mid.defs"
 #include "aq.h"
 
-#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:"
+#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:Z:"
 #define INTERACTIVE_INTERFACE_IDS "kmqagr"
 
 /* main interfaces (To be used another main) */
@@ -442,6 +442,7 @@ static void help(void)
 "              mode=r/R : Enable/Disable rcpcv dll",
 #endif /* __W32__ */
 "  -W mode Select WRD interface (see below for list)",
+"  -Z file Load frequency table",
 NULL
 };
 
@@ -2550,6 +2551,12 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "-n option is obsoleted.  Please use -EFns=<n>");
 	return 1;
+
+    case 'Z':
+	  if(load_table(optarg))
+		return 1;
+	  break;
+
       default:
 	return 1;
     }

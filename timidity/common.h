@@ -71,6 +71,7 @@ extern char **expand_file_archives(char **files, int *nfiles_in_out);
 extern void randomize_string_list(char **strlist, int nstr);
 extern int pathcasecmp(const char *path1, const char *path2);
 extern void sort_pathname(char **files, int nfiles);
+extern int  load_table(char *file);
 
 /* code:
  * "EUC"	- Extended Unix Code

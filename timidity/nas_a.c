@@ -46,8 +46,8 @@
 #include "playmidi.h"
 #include "miditrace.h"
 
-#define BUFFERED_SECS 5
-#define LOW_WATER_PERCENT 25
+#define BUFFERED_SECS 3
+#define LOW_WATER_PERCENT 40
 
 #ifdef LITTLE_ENDIAN
 #define LINEAR16_FORMAT AuFormatLinearSigned16LSB
