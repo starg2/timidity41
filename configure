@@ -1400,7 +1400,7 @@ fi
 
 # Define the identity of the package.
 PACKAGE=TiMidity++
-VERSION=2.11.2-pre1
+VERSION=2.11.2
 
 cat >>confdefs.h <<EOF
 #define PACKAGE "$PACKAGE"
@@ -8501,7 +8501,7 @@ echo "$as_me: WARNING: May be gogo is not supported.  You need hack the gogo_a.c
   fi
   have_gogo=yes
   SYSEXTRAS="$SYSEXTRAS gogo_a.c w32_gogo.c"
-  EXTRADEFS="$EXTRADEFS -DAU_GOGO"
+  EXTRADEFS="$EXTRADEFS -DAU_GOGO -DAU_GOGO_DLL"
   EXTRALIBS="$EXTRALIBS -lgogo"
 else
   echo "$as_me:8507: result: no" >&5

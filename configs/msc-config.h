@@ -267,11 +267,12 @@
 
 /* In VDS Macro AAA=BBB is not available. */
 #define __W32__
-#define TIMID_VERSION	"2.11.2-pre1"
+#define TIMID_VERSION	"2.11.2"
 #define DEFAULT_PATH	".\\"
 #define AU_W32
 #define AU_VORBIS
 #define AU_GOGO
+#define AU_GOGO_DLL
 #define WINSOCK
 #define __W32READDIR__
 // #define URL_DIR_CACHE_ENABLE

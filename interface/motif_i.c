@@ -1,47 +1,47 @@
 /*
-   TiMidity++ -- MIDI to WAVE converter and player
-   Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
-   Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+    TiMidity++ -- MIDI to WAVE converter and player
+    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-   motif_interface.c: written by Vincent Pagel (pagel@loria.fr) 10/4/95
+    motif_interface.c: written by Vincent Pagel (pagel@loria.fr) 10/4/95
 
-   Policy : I choose to make a separate process for a TIMIDITY motif
-   interface for TIMIDITY (if the interface was in the same process
-   X redrawings would interfere with the audio computation. Besides
-   XtAppAddWorkProc mechanism is not easily controlable)
+    Policy : I choose to make a separate process for a TIMIDITY motif
+    interface for TIMIDITY (if the interface was in the same process
+    X redrawings would interfere with the audio computation. Besides
+    XtAppAddWorkProc mechanism is not easily controlable)
 
-   The solution : I create a pipe between Timidity and the forked interface
-   and use XtAppAddInput to watch the data arriving on the pipe.
+    The solution : I create a pipe between Timidity and the forked interface
+    and use XtAppAddInput to watch the data arriving on the pipe.
 
-   10/4/95
-     - Initial working version with prev, next, and quit button and a
-       text display
+    10/4/95
+      - Initial working version with prev, next, and quit button and a
+        text display
 
-   17/5/95
-     - Add timidity icon with filename displaying to play midi while
-       I work without having that big blue window in the corner of
-       my screen :)
-     - Solve the problem of concurent scale value modification
+    17/5/95
+      - Add timidity icon with filename displaying to play midi while
+        I work without having that big blue window in the corner of
+        my screen :)
+      - Solve the problem of concurent scale value modification
 
-   21/5/95
-     - Add menus, file selection box
+    21/5/95
+      - Add menus, file selection box
 
-   14/6/95
-     - Make the visible part of file list follow the selection
+    14/6/95
+      - Make the visible part of file list follow the selection
 
    */
 

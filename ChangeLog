@@ -1,3 +1,23 @@
+2002-01-12  Masanao Izumo <mo@goice.co.jp>
+
+	* Version 2.11.2 released.
+
+2002-01-12  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/readmidi.c:
+	  Bug fixed about fix_string(strdup(...));
+
+2002-01-09  Masanao Izumo <mo@goice.co.jp>
+
+	* config.guess: Updated.
+	* config.sub: Updated.
+	* configuer.in (Cygwin): DLL gogo is default if --enable-audio=gogo
+	  is specified.
+
+2002-01-08  Masanao Izumo <mo@goice.co.jp>
+
+	* Update copyrights.
+
 2002-01-07  Masanao Izumo <mo@goice.co.jp>
 
 	* timidity/{timidity.h,mix.c,playmidi.h}:
@@ -5,11 +25,6 @@
 	* timidity/{timidity.c,instrum.c,instrum.h,common.c,common.h,
 	  readmidi.h,readmidi.c}:
 	  Free config data at end of the main.
-
-2001-12-29  Masanao Izumo <mo@goice.co.jp>
-
-	* config.guess: Updated.
-	* config.sub: Updated.
 
 2001-12-29  Masanao Izumo <mo@goice.co.jp>
 

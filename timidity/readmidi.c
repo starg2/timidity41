@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -15,8 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #ifdef HAVE_CONFIG_H
@@ -1559,10 +1558,11 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 		    (current_file_info->format == 1 &&
 		     current_read_track == 0)))
 		{
-		    if(current_file_info->seq_name == NULL)
-			current_file_info->seq_name =
-			    fix_string(dumpstring(3, len, "Sequence: ", 1,
-						  tf));
+		  if(current_file_info->seq_name == NULL) {
+		    char *name = dumpstring(3, len, "Sequence: ", 1, tf);
+		    current_file_info->seq_name = safe_strdup(fix_string(name));
+		    free(name);
+		  }
 		    else
 			dumpstring(3, len, "Sequence: ", 0, tf);
 		}
@@ -1570,9 +1570,11 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 			current_file_info->first_text == NULL &&
 			(current_file_info->format == 0 ||
 			 (current_file_info->format == 1 &&
-			  current_read_track == 0)))
-		    current_file_info->first_text =
-			fix_string(dumpstring(1, len, "Text: ", 1, tf));
+			  current_read_track == 0))) {
+		  char *name = dumpstring(1, len, "Text: ", 1, tf);
+		  current_file_info->first_text = safe_strdup(fix_string(name));
+		  free(name);
+		}
 		else
 		    dumpstring(type, len, label[(type>7) ? 0 : type], 0, tf);
 	    }
@@ -3190,14 +3192,21 @@ char *get_midi_title(char *filename)
 		    code_convert(si, so, s_maxlen, NULL, NULL);
 		    if(trk == 0 && type == 3)
 		    {
-			if(p->seq_name == NULL)
-			    p->seq_name = fix_string(safe_strdup(so));
-			reuse_mblock(&tmpbuffer);
-			if(karaoke_format == -1)
-			    goto end_of_parse;
+		      if(p->seq_name == NULL) {
+			char *name = safe_strdup(so);
+			p->seq_name = safe_strdup(fix_string(name));
+			free(name);
+		      }
+		      reuse_mblock(&tmpbuffer);
+		      if(karaoke_format == -1)
+			goto end_of_parse;
 		    }
-		    if(p->first_text == NULL)
-			p->first_text = fix_string(safe_strdup(so));
+		    if(p->first_text == NULL) {
+		      char *name;
+		      name = safe_strdup(so);
+		      p->first_text = safe_strdup(fix_string(name));
+		      free(name);
+		    }
 		    if(karaoke_format != -1)
 		    {
 			if(trk == 1 && strncmp(si, "@KMIDI", 6) == 0)

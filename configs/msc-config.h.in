@@ -272,6 +272,7 @@
 #define AU_W32
 #define AU_VORBIS
 #define AU_GOGO
+#define AU_GOGO_DLL
 #define WINSOCK
 #define __W32READDIR__
 // #define URL_DIR_CACHE_ENABLE

@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     playmidi.c -- random stuff in need of rearrangement
 
@@ -1786,8 +1786,6 @@ static void new_chorus_voice(int v1, int level)
     int v2, ch;
     uint8 vol;
     struct chorus_status_t *status = get_chorus_status();
-
-    printf("## level %d\n", level);
 
     if((v2 = find_free_voice()) == -1)
 	return;
@@ -4680,8 +4678,6 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     if(RC_IS_SKIP_FILE(rc))
 	return rc;
 
-    //aq_flush(1);/* ###### TODO CHECK */
-
     skip_to(midi_restart_time);
 
     if(midi_restart_time > 0) { /* Need to update interface display */
@@ -5185,7 +5181,7 @@ void playmidi_stream_init(void)
 
     /* Fill in current_file_info */
     current_file_info->readflag = 1;
-    current_file_info->seq_name = "TiMidity server";
+    current_file_info->seq_name = safe_strdup("TiMidity server");
     current_file_info->karaoke_title = current_file_info->first_text = NULL;
     current_file_info->mid = 0x7f;
     current_file_info->hdrsiz = 0;

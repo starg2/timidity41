@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2001 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 
     alsaseq_c.c - ALSA sequencer server interface
@@ -32,12 +32,12 @@
     by ALSA seqeuncer core.
 
     For invoking ALSA sequencer interface, run timidity as folows:
-      % timidity -iA -B2,8
+      % timidity -iA -B2,8 -q0/0 -k0
     The fragment size can be adjustable.  The smaller number gives
     better real-time response.  Then timidity shows new port numbers
     which were newly created (128:0 and 128:1 below).
     ---------------------------------------
-      % timidity -iA -B2,8
+      % timidity -iA -B2,8 -q0/0 -k0
       TiMidity starting in ALSA server mode
       Opening sequencer port 128:0 128:1
     ---------------------------------------
@@ -46,9 +46,13 @@
       % pmidi -p128:0 foo.mid
     If a midi file needs two ports, you may connect like this:
       % pmidi -p128:0,128:1 bar.mid
+    Vertual keyboard:
+      % vkeybd --addr 128:0
     Connecting from external MIDI keyboard may become like this:
       % aconnect 64:0 128:0
-     
+
+    See also http://www.alsa-project.org/~iwai/alsa.html
+
     The interface tries to reset process scheduling as SCHED_FIFO
     and as high priority as possible.  For enabling this feature,
     timidity must be invoked by root or installed with set-uid root.
