@@ -153,7 +153,9 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 #if defined(__W32__) && defined(SMFCONV)
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
 #endif
-    IniGetKeyInt(INI_SEC_TIMIDITY,"data_block_time",&(st->data_block_time));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"data_block_bits",&(st->data_block_bits));
+    if(st->data_block_bits > AUDIO_BUFFER_BITS)
+      st->data_block_bits = AUDIO_BUFFER_BITS;
     IniGetKeyInt(INI_SEC_TIMIDITY,"data_block_num",&(st->data_block_num));
 }
 
@@ -258,7 +260,7 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 #if defined(__W32__) && defined(SMFCONV)
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
 #endif
-    IniPutKeyInt(INI_SEC_TIMIDITY,"data_block_time",&(st->data_block_time));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"data_block_bits",&(st->data_block_bits));
     IniPutKeyInt(INI_SEC_TIMIDITY,"data_block_num",&(st->data_block_num));
     w32g_has_ini_file = 1;
 }

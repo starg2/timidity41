@@ -519,6 +519,8 @@ void *safe_realloc(void *ptr, size_t count)
 	return p;
     else
     {
+	if(count == 0)
+	    return safe_malloc(1);
 	errflag = 1;
 	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
 		  "Sorry. Couldn't realloc %d bytes.", count);

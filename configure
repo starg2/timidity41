@@ -891,7 +891,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.10.0a3
+VERSION=2.10.0
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -5749,9 +5749,9 @@ else
 have_vorbis=no
 fi
 
-  echo $ac_n "checking for vorbis_comment_init in -lvorbis""... $ac_c" 1>&6
-echo "configure:5754: checking for vorbis_comment_init in -lvorbis" >&5
-ac_lib_var=`echo vorbis'_'vorbis_comment_init | sed 'y%./+-%__p_%'`
+  echo $ac_n "checking for vorbis_analysis_init in -lvorbis""... $ac_c" 1>&6
+echo "configure:5754: checking for vorbis_analysis_init in -lvorbis" >&5
+ac_lib_var=`echo vorbis'_'vorbis_analysis_init | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -5763,10 +5763,10 @@ cat > conftest.$ac_ext <<EOF
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
     builtin and then its argument prototype would still apply.  */
-char vorbis_comment_init();
+char vorbis_analysis_init();
 
 int main() {
-vorbis_comment_init()
+vorbis_analysis_init()
 ; return 0; }
 EOF
 if { (eval echo configure:5773: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then

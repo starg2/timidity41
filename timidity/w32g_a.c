@@ -140,9 +140,10 @@ typedef struct {
 // #define DATA_BLOCK_NUM  (dpm.extra_param[0])
 #define DATA_BLOCK_NUM 16
 #define DATA_MIN_NBLOCKS (DATA_BLOCK_NUM-1)
-volatile int data_block_size = 4*AUDIO_BUFFER_SIZE*4;
-volatile int data_block_time = 400;	// msec
-volatile int data_block_num = 20;
+static int data_block_size;
+static int data_block_time;	// msec
+volatile int data_block_bits = DEFAULT_AUDIO_BUFFER_BITS;
+volatile int data_block_num = 64;
 volatile struct data_block_t
 {
 	HGLOBAL data_hg;
@@ -394,11 +395,18 @@ static int open_output(void)
 	      "functionality supported by driver: 0x%x", caps.dwSupport);
 
     /* Prepere audio queue buffer */
-	data_block_size = (int)((double)wf.nAvgBytesPerSec * data_block_time / 1000);
+//    data_block_size = (int)((double)wf.nAvgBytesPerSec * data_block_time / 1000);
+    data_block_size = audio_buffer_size;
+    if(!(dpm.encoding & PE_MONO))
+      data_block_size *= 2;
+    if(dpm.encoding & PE_16BIT)
+      data_block_size *= 2;
+    data_block_time = data_block_size * 1000 / wf.nAvgBytesPerSec;
+
 // PrintfDebugWnd("DATA_BLOCK_SIZE: %ld\n",data_block_size);
     all_data_block = (struct data_block_t *)
-	safe_malloc(data_block_num * sizeof(struct data_block_t));
-	all_data_block_used_flag = (int *)safe_malloc(data_block_num * sizeof(int));
+      safe_malloc(data_block_num * sizeof(struct data_block_t));
+    all_data_block_used_flag = (int *)safe_malloc(data_block_num * sizeof(int));
     for(i = 0; i < data_block_num; i++)
     {
 	struct data_block_t *block;
@@ -526,16 +534,8 @@ static int acntl(int request, void *arg)
 {
     switch(request)
     {
-      case PM_REQ_GETQSIZ:
-#if 0
-		*(int *)arg = data_block_num * AUDIO_BUFFER_SIZE;
-		if(!(dpm.encoding & PE_MONO))
-			*(int *)arg *= 2;
-		if(dpm.encoding & PE_16BIT)
-			*(int *)arg *= 2;
-#else
-		*(int *)arg = data_block_num * data_block_size;
-#endif
+          case PM_REQ_GETQSIZ:
+                *(int *)arg = data_block_num * audio_buffer_size;
 		return 0;
 	  case PM_REQ_DISCARD:
 	  case PM_REQ_FLUSH:

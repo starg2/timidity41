@@ -21,7 +21,7 @@
 */
 
 // ini & config
-#define IniVersion "2.1"
+#define IniVersion "2.2"
 typedef struct SETTING_PLAYER_ {
 // Main Window
 	int InitMinimizeFlag;
@@ -139,7 +139,7 @@ typedef struct SETTING_TIMIDITY_ {
 				// x (ignore)
 				// Z (ignore)
     /* for w32g_a.c */
-    int data_block_time;
+    int data_block_bits;
     int data_block_num;
 //??    int waveout_data_block_size;
 } SETTING_TIMIDITY;

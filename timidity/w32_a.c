@@ -137,8 +137,8 @@ static int  output_data     (char * Data, int32 Size);
 static int  acntl           (int request, void * arg);
 
 #ifdef IA_W32GUI
-volatile int data_block_time = 400; // Milliseconds
-volatile int data_block_num  =  20;
+volatile int data_block_bits = DEFAULT_AUDIO_BUFFER_BITS;
+volatile int data_block_num = 64;
 #endif
 
 #define DATA_BLOCK_SIZE     (4 * AUDIO_BUFFER_SIZE)

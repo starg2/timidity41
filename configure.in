@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.10.0a3, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.10.0, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -767,7 +767,7 @@ if test "x$au_enable_vorbis" = xyes; then
   AC_MSG_RESULT()
   have_vorbis=yes
   AC_CHECK_HEADER(vorbis/modes.h,,have_vorbis=no)
-  AC_CHECK_LIB(vorbis,vorbis_comment_init,,have_vorbis=no)
+  AC_CHECK_LIB(vorbis,vorbis_analysis_init,,have_vorbis=no)
   if test "$have_vorbis" = "yes"; then
     SYSEXTRAS="$SYSEXTRAS vorbis_a.c"
     EXTRADEFS="$EXTRADEFS -DAU_VORBIS"
