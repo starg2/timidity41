@@ -1,7 +1,7 @@
 -- 1.3.8
 Tue Apr 6 1999
 Summary:
-    * Fixed some bugs or probrems.
+    * Fixed some bugs or problems.
 
 Date: Sun, 4 Apr 1999 18:14:43 +1000 (EST)
 From: David Gibson <david@gibson.dropbear.id.au>
@@ -39,7 +39,7 @@ Files: interface/VTPrsTbl.c timidity/output.c
 -- 1.3.7
 Summary:
 Tue Mar 30 1999
-    * Fixed some bugs or probrems.
+    * Fixed some bugs or problems.
     * In GTK interface, enabled to delete loaded files from the play list.
 
 Date: Tue Mar 30 1999
@@ -55,7 +55,7 @@ From: ggt@netspace.net.au (Glenn Trigg)
 From: Masanao Izumo <mo@goice.co.jp>
 Date: Mon Mar 29 1999
 Files: timidity/support.h
-    Fixed prototype mismatch probrem for getopt().
+    Fixed prototype mismatch problem for getopt().
 Files: configure.in interface/ncurs_c.c
     Added configure test for PDcurses.
     Increased COMMAND_BUFFER_SIZE to 4096.
@@ -151,7 +151,7 @@ Date: Sat, 06 Mar 1999 23:36:24 +0900 (JST)
 Files: interface/{xaw_i.c,xaw_c.c,xaw.h}
 	doc/C/README.xaw doc/ja_JP.ujis/README.xaw
     Patched for XAW interface.
-    Fixed some probrems and changed some interfaces.
+    Fixed some problems and changed some interfaces.
     Added documentation for XAW interface.
 
 From: Yoshishige Arai <ryo2@on.rim.or.jp>
@@ -176,7 +176,7 @@ Summary:
       Added a new WM-icon provided by Tim Allen.
       Defined the wmclass & wmname to make TiMidity friendlier to window
       managers.
-    * Fixed otner bugs or probrems.
+    * Fixed otner bugs or problems.
 
 Date: Sat Feb 27 1999
 From: Masanao Izumo <mo@goice.co.jp>
@@ -204,7 +204,7 @@ Files: interface/gtk_i.c
 Date: Thu, 25 Feb 1999 01:17:45 +0900 (JST)
 From: Yoshishige Arai <ryo2@on.rim.or.jp>
 Files: interface/xaw_i.c
-    Fixed probrem of cascade file selection popup menu.
+    Fixed problem of cascade file selection popup menu.
 
 -- 1.3.3
 Wed Feb 24 1999
@@ -216,7 +216,7 @@ Summary:
     * Added strdup implementation is it was not exists.
     * Fixed bug that MIDI reset did not update the display of program.
     * Added `extern errno' in timidity.h
-    * Fixed XAW geometry probrem on non-trace mode.
+    * Fixed XAW geometry problem on non-trace mode.
     * Not to call glob() if GLOB_BRACE is not defined.
 
 Date: Wed Feb 24 1999
@@ -279,7 +279,7 @@ Files: timidity.h
 Date: Fri, 12 Feb 1999 12:46:51 +0900
 From: "KINOSHITA, K." <kino@krhm.jvc-victor.co.jp>
 Files: interface/xaw_i.c
-    Fixed XAW geometry probrem on non-trace mode.
+    Fixed XAW geometry problem on non-trace mode.
 Files: interface/gtk_i.c
     Not to call glob() if GLOB_BRACE is not defined.
 
@@ -289,7 +289,7 @@ Summary:
     * Patched for BSD/OS.
     * Changed icons of motif interface.
     * Changed sorting algorithm for xaw and Tck/Tk interface.
-    * Fixed bugs and probrems of Tcl/Tk interface
+    * Fixed bugs and problems of Tcl/Tk interface
 
 Date: Wed Feb 10 1999
 From: Masanao Izumo <mog@goice.co.jp>
@@ -335,7 +335,7 @@ Files: interface/xaw_i.c
 Date: Sat, 6 Feb 1999 01:45:20 +0100 (CET)
 From: Peter Kleiweg <kleiweg@let.rug.nl>
 Files: interface/tkpanel.tcl
-    Fixed Tck/Tk interface probrem:
+    Fixed Tck/Tk interface problem:
 	The proc MakeShuffleList is broken. The list of numbers it generates
 	has a `hole' in it. This generates an error when the last number in
 	the list has been played.
@@ -451,7 +451,7 @@ From: Yoshishige Arai <ryo2@on.rim.or.jp>
 Date: Fri Jan 29 1999
 From: Masanao Izumo <mo@goice.co.jp>
 Files: configure.in
-    On FreeBSD, There is probrem to make shared object library.
+    On FreeBSD, There is problem to make shared object library.
     Netscape Plugin needs `aout' format, but I don't have enough
     knowledge to build aout format under ELF environment FreeBSD.
     So I just removed -aout flag for compiler.
@@ -480,13 +480,13 @@ Files: libarc/arc_mime.c
 -- 1.2.1
 Mon Jan 25 1999
 Summary:
-    * Fixed some configuration probrems.
+    * Fixed some configuration problems.
     * Added --enable-dynamic `configure' option.
 
 Date: Mon Jan 25 1999
 From: Masanao Izumo <mo@goice.co.jp>
 Files: acinclude.m4 configure.in
-    Fixed some probrems of configuration:
+    Fixed some problems of configuration:
 	* Remove duplicated -lXpm option.
 	* Not to change the order of comple flags.
 	* and so on...
@@ -608,13 +608,13 @@ Files: interface/Makefile.am
 
 Files: interface/{dumb_c.c,dynamic_c.c,emacs_c.c}
     On some compilers, `stdout' can't assign to any variable in global
-    statement.  Fixed this probrem.
+    statement.  Fixed this problem.
 Files: configure.in config.h.in timidity/timidity.c
     Added HAVE_GETOPT_H macro.
 Files: configure.in
     Fixed bugs of configure without --with-x.
 Files: timidity/Makefile.am
-    Fixed probrem to `make install' instead of `make; make install'
+    Fixed problem to `make install' instead of `make; make install'
 
 -- 1.1.0
 Mon Jan 18 1999
@@ -656,10 +656,10 @@ Files: configure.in interface/xaw.h interface/xskin_loadBMP.c
 Thu Jan 14 1999
 Summary:
     * Define function of vsnprintf() and snprintf() if it is not exists.
-    * Fixed message transfer probrem with '\n' for some interface.
+    * Fixed message transfer problem with '\n' for some interface.
     * Modified manual installation.
     * Check libXaw3d before checking libXaw.
-    * Fixed ALSA configuration probrem.
+    * Fixed ALSA configuration problem.
     * Modified for OffiX interface.
     * Tcl/tk interface can start with no midi file arguments.
     * Modified doc/C/README.xskin
@@ -670,9 +670,9 @@ Files: timidity/common.c interface/{motif_c.c,slang_c.c,vt100_c,ncurs_c.c,c,
 	xaw_i.c,xaw_c.c,tk_c.c,wrdt_x.c}
     Define function of vsnprintf() and snprintf() if it is not exists.
     And use it some where.
-    Fixed Tck/Tk message transfer probrem with '\n' (Not completed)
+    Fixed Tck/Tk message transfer problem with '\n' (Not completed)
 Files: interface/xaw_c.c interface/xaw_i.c
-    Fixed XAW message transfer probrem with '\n'.
+    Fixed XAW message transfer problem with '\n'.
 Files: configure.in doc/Makefile* doc/*/Makefile*
     Modified manual installation.
 Files: configure.in interface/xaw.h
@@ -682,7 +682,7 @@ Files: configure.in interface/xaw.h
 Date: Tue, 12 Jan 1999 22:00:26 +0900
 From: Yamahata Isaku <yamahata@kusm.kyoto-u.ac.jp>
 Files: configure.in acinclude.m4
-    Fixed ALSA configuration probrem.
+    Fixed ALSA configuration problem.
 
 Date: Tue, 12 Jan 1999 21:25:32 +0900
 From: Takanori Watanabe <takawata@shidahara1.planet.sci.kobe-u.ac.jp>

@@ -383,7 +383,7 @@ static void help(void)
 #ifdef __W32__
 "  -e      Increase thread priority (evil) - be careful!",
 #endif
-"  -F      Enable fast panning",
+"  -F      Disable/Enable fast panning (toggle on/off, default is on)",
 "  -f      "
 #ifdef FAST_DECAY
            "Disable"
@@ -2209,6 +2209,11 @@ static int parse_effect_option(char *effect_opts)
     return 1;
 }
 
+static int str2mid(char *s)
+{
+    
+}
+
 int set_extension_modes(char *flag)
 {
     int err;
@@ -2282,45 +2287,34 @@ int set_extension_modes(char *flag)
 	    break;
 	  case 'm':
 	    {
-		int i, v, val;
-
-		if(strcmp(flag + 1, "gs") == 0 ||
-		   strcmp(flag + 1, "GS") == 0)
-		    val = 0x41;
-		else if(strcmp(flag + 1, "xg") == 0 ||
-			strcmp(flag + 1, "XG") == 0)
-		    val = 0x43;
-		else if(strcmp(flag + 1, "gm") == 0 ||
-			strcmp(flag + 1, "GM") == 0)
-		    val = 0x7e;
-		else
+		int val;
+		val = str2mID(flag + 1);
+		if(val == 0)
 		{
-		    val = 0;
-		    for(i = 0; i < 2; i++)
-		    {
-			v = flag[i + 1];
-			if('0' <= v && v <= '9')
-			    v = v - '0';
-			else if('A' <= v && v <= 'F')
-			    v = v - 'A' + 10;
-			else if('a' <= v && v <= 'f')
-			    v = v - 'a' + 10;
-			else
-			{
-			    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-				      "-Em: Illegal value");
-			    err++;
-			    val = 0;
-			    break;
-			}
-			val = (val << 4 | v);
-		    }
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "-Em: Illegal value");
+		    err++;
 		}
-		opt_default_mid = val;
+		else
+		    opt_default_mid = val;
 		flag += 2;
 	    }
 	    break;
-
+	  case 'M':
+	    {
+		int val;
+		val = str2mID(flag + 1);
+		if(val == 0)
+		{
+		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			      "-EM: Illegal value");
+		    err++;
+		}
+		else
+		    opt_system_mid = val;
+		flag += 2;
+	    }
+	    break;
 	  case 'b':
 	    if(flag[1] < '0' || flag[1] > '9')
 		default_tonebank = 0;

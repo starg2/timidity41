@@ -168,7 +168,7 @@ ChannelBitMask default_drumchannel_mask;
 ChannelBitMask default_drumchannels;
 ChannelBitMask drumchannel_mask;
 ChannelBitMask drumchannels;
-int adjust_panning_immediately=0;
+int adjust_panning_immediately=1;
 int auto_reduce_polyphony=1;
 double envelope_modify_rate = 1.0;
 #if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
@@ -1618,18 +1618,23 @@ static void new_chorus_voice_alternate(int v, int level)
 
 static void note_on(MidiEvent *e)
 {
-    int i, nv, v, ch;
+    int i, nv, v, ch, note;
     int vlist[32];
     int vid;
 
     if((nv = find_samples(e, vlist)) == 0)
 	return;
-    vid = new_vidq(e->channel, MIDI_EVENT_NOTE(e));
+    note = MIDI_EVENT_NOTE(e);
+    vid = new_vidq(e->channel, note);
     ch = e->channel;
     for(i = 0; i < nv; i++)
     {
 	v = vlist[i];
-	if(channel[ch].pan_random)
+	if(ISDRUMCHANNEL(ch) &&
+	   channel[ch].drums[note] != NULL &&
+	   channel[ch].drums[note]->pan_random)
+	    channel[ch].drums[note]->drum_panning = int_rand(128);
+	else if(channel[ch].pan_random)
 	{
 	    channel[ch].panning = int_rand(128);
 	    ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
@@ -2285,12 +2290,12 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	if(val == 0)
 	{
 	    val = int_rand(128);
-	    channel[ch].pan_random = 1;
+	    channel[ch].drums[note]->pan_random = 1;
 	}
 	else
-	    channel[ch].pan_random = 0;
+	    channel[ch].drums[note]->pan_random = 0;
 	channel[ch].drums[note]->drum_panning = val;
-	if(update_now)
+	if(update_now && adjust_panning_immediately)
 	    adjust_drum_panning(ch, note);
 	break;
       case NRPN_ADDR_1D00:	/* Reverb Send Level of Drum */

@@ -1,6 +1,6 @@
 /* Masanao Izumo <mo@goice.co.jp>:
  *
- * There is probrem if both -lXm and -lXaw are linked.
+ * There is problem if both -lXm and -lXaw are linked.
  * This source code to re-define XAW vendorShell.
  * To change motif vendorShell to XAW vendorShell in runtime.
  * 

@@ -1,3 +1,38 @@
+1999-10-12  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.7.0 released.
+
+1999-10-12  Masanao Izumo <mo@goice.co.jp>
+
+    * NEWS,ChangeLog,ChangeLog.1,interface/xaw_redef.c: Fix typos.
+    * timidity/readmidi.c (groom_list): Bug fix
+    * interface/w32g_ini.c,timidity/{timidity.c,common.c,common.h (str2mID):
+      Utility function to convert string to Manufacture ID.  This function
+      is moved from w32g_ini.c to common.c, and used global.
+    * timidity/{timidity.c,readmidi.h,readmidi.c}: -EM<HH>: New option.
+      Use midi system as <HH>: <HH> is `gs', `xg', or `gm'.
+
+1999-10-05  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/w32g_playlist.c (w32g_add_playlist): Bug fix
+    * timidity/playlist.c (adjust_panning_immediately): True by default.
+      adjust_panning_immediately toggle on/off with -F option.
+      If this flag is true, currently-sounding pan position is changed
+      when a Panpot message is received.  Otherwise, the pan position is
+      changed when starting with the next note.
+
+1999-10-04  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{readmidi.c,readmidi.h}: Fixed bug of random drum panning.
+
+1999-10-01  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/readmidi.c: Modified GS Sysex for bank+program change.
+
+1999-09-29  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/readmidi.c: Added GS Sysex for bank+program change.
+
 1999-09-27  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.6.1 released.
@@ -259,7 +294,7 @@
 1999-08-26  Masanao Izumo <mo@goice.co.jp>
 
     * timidity/linux_a.c(ignore_processed_probrem): Ignore to fix
-      the byte processed probrem if any errors occur.
+      the byte processed problem if any errors occur.
       Why count_info.bytes doesn't stop even if the process is suspended?
     * configure.in: Remove -rdynamic option from $g_so_libs.
 
@@ -593,7 +628,7 @@
 
 1999-07-13  Norikatsu Shigemura <nork@lb.u-tokai.ac.jp>
 
-    * timidity/nas_a.c: Fixed the probrem that occurs with
+    * timidity/nas_a.c: Fixed the problem that occurs with
       'timidity -On /dev/null'.
     * configure.in: Fixed building for FreeBSD Objects.  Please specify
       configure option '--with-elf' if you create ELF object, otherwise

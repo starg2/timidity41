@@ -122,6 +122,7 @@ extern ChannelBitMask quietchannels;
 extern struct midi_file_info *current_file_info;
 extern int opt_trace_text_meta_event;
 extern int opt_default_mid;
+extern int opt_system_mid;
 extern int ignore_midi_error;
 extern int readmidi_error_flag;
 extern int readmidi_wrd_mode;

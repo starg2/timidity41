@@ -74,6 +74,7 @@ extern void sort_pathname(char **files, int nfiles);
 extern int  load_table(char *file);
 extern char *pathsep_strrchr(char *path);
 extern char *pathsep_strchr(char *path);
+extern int str2mID(char *str);
 
 
 /* code:

@@ -1058,3 +1058,34 @@ char *pathsep_strrchr(char *path)
     return strrchr(path, PATH_SEP);
 #endif
 }
+
+int str2mID(char *str)
+{
+    int val;
+
+    if(strncasecmp(str, "gs", 2) == 0)
+	val = 0x41;
+    else if(strncasecmp(str, "xg", 2) == 0)
+	val = 0x43;
+    else if(strncasecmp(str, "gm", 2) == 0)
+	val = 0x7e;
+    else
+    {
+	int i, v;
+	val = 0;
+	for(i = 0; i < 2; i++)
+	{
+	    v = str[i];
+	    if('0' <= v && v <= '9')
+		v = v - '0';
+	    else if('A' <= v && v <= 'F')
+		v = v - 'A' + 10;
+	    else if('a' <= v && v <= 'f')
+		v = v - 'a' + 10;
+	    else
+		return 0;
+	    val = (val << 4 | v);
+	}
+    }
+    return val;
+}

@@ -42,39 +42,6 @@
 
 int w32g_has_ini_file;
 
-static int str2mID(char *str)
-{
-    int i, v, val;
-
-    if(strcmp(str + 1, "gs") == 0 ||
-       strcmp(str + 1, "GS") == 0)
-	val = 0x41;
-    else if(strcmp(str + 1, "xg") == 0 ||
-	    strcmp(str + 1, "XG") == 0)
-	val = 0x43;
-    else if(strcmp(str + 1, "gm") == 0 ||
-	    strcmp(str + 1, "GM") == 0)
-	val = 0x7e;
-    else
-    {
-	val = 0;
-	for(i = 0; i < 2; i++)
-	{
-	    v = str[i + 1];
-	    if('0' <= v && v <= '9')
-		v = v - '0';
-	    else if('A' <= v && v <= 'F')
-		v = v - 'A' + 10;
-	    else if('a' <= v && v <= 'f')
-		v = v - 'a' + 10;
-	    else
-		v = 0;
-	    val = (val << 4 | v);
-	}
-    }
-    return val;
-}
-
 static int32 str2size(char *str)
 {
     int len = strlen(str);

@@ -131,6 +131,7 @@ int w32g_add_playlist(int nfiles, char **files, int expand_flag,
 		free(new_files1[0]);
 		free(new_files1);
 	    }
+	    return 0;
 	}
     }
 

@@ -166,6 +166,9 @@ struct DrumParts
     int drum_panning;
     int32 drum_envelope_rate[6]; /* Not supported */
 
+    /* flag for drum random pan */
+    int pan_random;
+
 /* Not supported:
  * Drum Filter Cutoff
  * Drum Filter Resonance
@@ -206,7 +209,7 @@ typedef struct {
   int porta_control_ratio, porta_dpb;
   int32 last_note_fine;
 
-  /* For Drum-SysEX */
+  /* For Drum part */
   struct DrumParts *drums[128];
 
   /* For vibrato */

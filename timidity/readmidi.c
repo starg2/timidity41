@@ -85,6 +85,7 @@ int opt_trace_text_meta_event = 0;
 #endif /* ALWAYS_TRACE_TEXT_META_EVENT */
 
 int opt_default_mid = 0;
+int opt_system_mid = 0;
 int ignore_midi_error = 1;
 ChannelBitMask quietchannels;
 struct midi_file_info *current_file_info = NULL;
@@ -510,6 +511,7 @@ int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
 }
 
 /* XG SysEx parsing function by Eric A. Welsh
+ * Also handles GS patch+bank changes
  *
  * This function provides basic support for XG Multi Part Data
  * parameter change SysEx events
@@ -518,13 +520,14 @@ int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
  * followed in real life, since I have midi that set it to 0x00 and are
  * interpreted correctly on my SW60XG ...
  */
-int parse_sysex_event_xg(uint8 *val, int32 len, MidiEvent *ev, int32 at)
+int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 {
     int num_events = 0;				/* Number of events added */
 
     if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
 	current_file_info->mid = val[0];
 
+    /* XG Multi Part Data parameter change */
     if(len >= 10 &&
        val[0] == 0x43 && /* Yamaha ID */
        val[2] == 0x4C && /* XG Model ID */
@@ -548,39 +551,39 @@ int parse_sysex_event_xg(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 	    switch(ent) {
 
 		case 0x01:	/* bank select MSB */
-		  MIDIEVENT(at+ent, ME_TONE_BANK_MSB, p, *body, 0);
+		  MIDIEVENT(at, ME_TONE_BANK_MSB, p, *body, 0);
 		  break;
 
 		case 0x02:	/* bank select LSB */
-		  MIDIEVENT(at+ent, ME_TONE_BANK_LSB, p, *body, 0);
+		  MIDIEVENT(at, ME_TONE_BANK_LSB, p, *body, 0);
 		  break;
 
 		case 0x03:	/* program number */
-		  MIDIEVENT(at+ent, ME_PROGRAM, p, *body, 0);
+		  MIDIEVENT(at, ME_PROGRAM, p, *body, 0);
 		  break;
 
 		case 0x08:	/* note shift ? */
-		  MIDIEVENT(at+ent, ME_KEYSHIFT, p, *body, 0);
+		  MIDIEVENT(at, ME_KEYSHIFT, p, *body, 0);
 
 		case 0x0B:	/* volume */
-		  MIDIEVENT(at+ent, ME_MAINVOLUME, p, *body, 0);
+		  MIDIEVENT(at, ME_MAINVOLUME, p, *body, 0);
 		  break;
 
 		case 0x0E:	/* pan */
 		  if(*body == 0) {
-			MIDIEVENT(at+ent, ME_RANDOM_PAN, p, 0, 0);
+			MIDIEVENT(at, ME_RANDOM_PAN, p, 0, 0);
 		  }
 		  else {
-			MIDIEVENT(at+ent, ME_PAN, p, *body, 0);
+			MIDIEVENT(at, ME_PAN, p, *body, 0);
 		  }
 		  break;
 
 		case 0x12:	/* chorus send */
-		  MIDIEVENT(at+ent, ME_CHORUS_EFFECT, p, *body, 0);
+		  MIDIEVENT(at, ME_CHORUS_EFFECT, p, *body, 0);
 		  break;
 
 		case 0x13:	/* reverb send */
-		  MIDIEVENT(at+ent, ME_REVERB_EFFECT, p, *body, 0);
+		  MIDIEVENT(at, ME_REVERB_EFFECT, p, *body, 0);
 		  break;
 
 		default:
@@ -591,7 +594,61 @@ int parse_sysex_event_xg(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 	}
     }
 
-return(num_events);
+    /* GS program change */
+    /* I could not find any documentation on this, so I reverse engineered
+       which bytes do what from midi I have.  It appears to work correctly. */
+    if(len == 11 &&
+       val[0] == 0x41 && /* Roland ID */
+       val[1] == 0x10 && /* Device ID */
+       val[2] == 0x42 && /* GS Model ID */
+       val[3] == 0x12 && /* Data Set Command */
+       val[4] == 0x40 && /* I wish I knew what this was... */
+       (val[5] >= 0x10 && val[5] < 0x20))   /* channel command */
+    {
+	uint8 p;				/* Channel part number [0..15] */
+
+	p = val[5] & 0x0F;
+	if(p == 0)
+	    p = 9;
+	else if(p <= 9)
+	    p--;
+	p = MERGE_CHANNEL_PORT(p);
+
+	MIDIEVENT(at, ME_TONE_BANK_MSB, p, val[7], 0);
+	MIDIEVENT(at, ME_TONE_BANK_LSB, p, 1, 0);     /* assume SC-55 ??? */
+	MIDIEVENT(at, ME_PROGRAM, p, val[8], 0);
+
+	num_events = 2;
+    }
+
+    /* GS bank+program change */
+    /* I could not find any documentation on this, so I reverse engineered
+       which bytes do what from midi I have.  It appears to work correctly. */
+    else if(len == 11 &&
+       val[0] == 0x41 && /* Roland ID */
+       val[1] == 0x10 && /* Device ID */
+       val[2] == 0x42 && /* GS Model ID */
+       val[3] == 0x12 && /* Data Set Command */
+       val[4] == 0x40 && /* I wish I knew what this was... */
+       (val[5] >= 0x10 && val[5] < 0x20))   /* channel command */
+    {
+	uint8 p;				/* Channel part number [0..15] */
+
+	p = val[5] & 0x0F;
+	if(p == 0)
+	    p = 9;
+	else if(p <= 9)
+	    p--;
+	p = MERGE_CHANNEL_PORT(p);
+
+	MIDIEVENT(at, ME_TONE_BANK_MSB, p, val[7], 0);
+	MIDIEVENT(at, ME_TONE_BANK_LSB, p, 1, 0);     /* assume SC-55 ??? */
+	MIDIEVENT(at, ME_PROGRAM, p, val[8], 0);
+
+	num_events = 3;
+    }
+
+    return(num_events);
 }
 
 int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
@@ -897,7 +954,7 @@ static int read_sysex_event(int32 at, int me, int32 len,
 	ev.time = at;
 	readmidi_add_event(&ev);
     }
-    parse_sysex_event_xg(val, len, &ev, at);
+    parse_sysex_event_multi(val, len, &ev, at);
     
     reuse_mblock(&tmpbuffer);
 
@@ -1506,6 +1563,16 @@ static void move_channels(int *chidx)
 
 void change_system_mode(int mode)
 {
+    int mid;
+
+    if(opt_system_mid)
+    {
+	mid = opt_system_mid;
+	mode = -1; /* Always use opt_system_mid */
+    }
+    else
+	mid = current_file_info->mid;
+
     switch(mode)
     {
       case GM_SYSTEM_MODE:
@@ -1524,7 +1591,7 @@ void change_system_mode(int mode)
 	vol_table = xg_vol_table;
 	break;
       default:
-	switch(current_file_info->mid)
+	switch(mid)
 	{
 	  case 0x41:
 	    play_system_mode = GS_SYSTEM_MODE;
@@ -1618,7 +1685,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	}
 	bank_lsb[j] = bank_msb[j] = 0;
 	if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
-	    channel[j].bank_msb = 127; /* Use MSB=127 for XG */
+	    bank_msb[j] = 127; /* Use MSB=127 for XG */
 	current_program[j] = default_program[j];
     }
 
@@ -1658,12 +1725,14 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    break;
 	  case ME_RESET:
 	    change_system_mode(meep->event.a);
-	    for(j = 0; j < MAX_CHANNELS; j++)
-		mapID[j] = get_default_mapID(j);
 	    ctl->cmsg(CMSG_INFO, VERB_NOISY, "MIDI reset at %d sec",
 		      (int)((double)st / play_mode->rate + 0.5));
 	    for(j = 0; j < MAX_CHANNELS; j++)
 	    {
+		if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
+		    mapID[j] = XG_DRUM_MAP;
+		else
+		    mapID[j] = get_default_mapID(j);
 		if(ISDRUMCHANNEL(j))
 		    current_set[j] = 0;
 		else
@@ -1677,7 +1746,9 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		}
 		bank_lsb[j] = bank_msb[j] = 0;
 		if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
-		    channel[j].bank_msb = 127; /* Use MSB=127 for XG */
+		{
+		    bank_msb[j] = 127; /* Use MSB=127 for XG */
+		}
 		current_program[j] = default_program[j];
 	    }
 	    break;
@@ -1783,6 +1854,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		newbank = current_set[ch];
 		newprog = meep->event.a;
 		instrument_map(mapID[ch], &newbank, &newprog);
+
 		if(!drumset[newbank]) /* Is this a defined drumset? */
 		{
 		    if(warn_drumset[newbank] == 0)
@@ -1878,7 +1950,6 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		skip_this_event = 1;
 	    break;
         }
-      end_of_event_switch:
 
 	/* Recompute time in samples*/
 	if((dt = meep->event.time - at) && !counting_time)
