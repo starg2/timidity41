@@ -1,5 +1,42 @@
+-- 1.1.1
+Mon Jan 18 1999
+Summary:
+    * Fixed some bugs.
+    * Modified that xaw interface is enable to run without any midi files.
+
+Date: Mon Jan 18 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: interface/{xaw_i.c,xaw_c.c} timidity/common.c
+    Fixed some bugs.
+
+Date: Mon Jan 18 1999
+From: takawata@shidahara1.planet.sci.kobe-u.ac.jp
+Files: configure.in
+    Fixed configuration bug about OffiX.
+    Fixed configuration bug about ALSA.
+Files: interface/{xaw_c.c,xaw_i.c} timidity/timidity.c
+    Modified that xaw interface is enable to run without any midi files.
+
+Date: Mon Jan 18 1999
+From: "KINOSHITA, K." <kino@krhm.jvc-victor.co.jp>
+Files: configure.in
+    Removed -ltcl when configure option of --enabel-tcltk=dynamic is specified.
+Files: interface/Makefile.am
+    Modified some installation.  Used `$(INSTALL_DATA)' instead of
+    `$(INSTALL) -m 644'
+
+Files: interface/{dumb_c.c,dynamic_c.c,emacs_c.c}
+    On some compilers, `stdout' can't assign to any variable in global
+    statement.  Fixed this probrem.
+Files: configure.in config.h.in timidity/timidity.c
+    Added HAVE_GETOPT_H macro.
+Files: configure.in
+    Fixed bugs of configure without --with-x.
+Files: timidity/Makefile.am
+    Fixed probrem to `make install' instead of `make; make install'
+
 -- 1.1.0
-Sun Jan 18 1999
+Mon Jan 18 1999
 Summary:
     * Fixed bugs of xaw interface with no trace mode.
     * Added configuration for UMP package.
@@ -22,7 +59,7 @@ Files: interface/{xaw.h,xaw_c.c,xaw_i.c}
     Added trace mode to xaw interface.
 
 Date: Fri, 15 Jan 1999 14:26:17 +0900
-From: takawata@shidahara1.planet.sci.kobe-u.ac.jp
+From: Takanori Watanabe <takawata@shidahara1.planet.sci.kobe-u.ac.jp>
 Files: configure.in interface/xaw.h interface/xskin_loadBMP.c
     Supported OffiX configuration.  The new configure options are:
 	--enable-offix

@@ -648,7 +648,7 @@ tclIndex: $(TCLF)
 
 install.tk: $(ALLTCLF) install.bitmaps
 	test -d $(DESTDIR)$(TCL_DIR) || mkdir -p $(DESTDIR)$(TCL_DIR)
-	for f in $(ALLTCLF) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TCL_DIR);; esac; done
+	for f in $(ALLTCLF) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TCL_DIR);; esac; done
 
 install.xaw: install.bitmaps
 
@@ -657,12 +657,12 @@ install.bitmaps:
 
 install.el: $(ELFILES)
 	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
-	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
 @NEEDDLOPEN_TRUE@all-am: $(dynamic_targets)
 
 @NEEDDLOPEN_TRUE@install.dynamics: $(dynamic_targets)
-@NEEDDLOPEN_TRUE@	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+@NEEDDLOPEN_TRUE@	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL_PROGRAM) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
 @NEEDDLOPEN_TRUE@.c.$(so):
 @NEEDDLOPEN_TRUE@	$(COMPILE) $(SHCFLAGS) -c $< -o $@

@@ -55,9 +55,6 @@ ControlMode dynamic_control_mode =
     ctl_open, NULL, NULL, NULL, cmsg, ctl_event,
 };
 
-
-static FILE *outfp=stdout;
-
 static int cmsg(int type, int verbosity_level, char *fmt, ...)
 {
   va_list ap;
@@ -74,8 +71,8 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
     }
   else
     {
-      vfprintf(outfp, fmt, ap);
-      fprintf(outfp, "\n");
+      vfprintf(stdout, fmt, ap);
+      fprintf(stdout, "\n");
     }
   va_end(ap);
   return 0;

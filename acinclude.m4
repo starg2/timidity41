@@ -235,8 +235,8 @@ esac
 ])
 
 
-dnl SET_UNIQ_SORT_WORD(shell-variable,words...)
-AC_DEFUN(SET_UNIQ_SORT_WORD,
+dnl SET_SORT_UNIQ_WORD(shell-variable,words...)
+AC_DEFUN(SET_SORT_UNIQ_WORD,
 [$1=`for f in $2; do echo $f; done | sort | uniq`
 $1=`echo $$1`
 ])

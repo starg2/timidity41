@@ -73,7 +73,7 @@ ControlMode ctl=
     ctl_event
 };
 
-static FILE *outfp=stdout;
+static FILE *outfp;
 int dumb_error_count;
 
 /*ARGSUSED*/
@@ -81,7 +81,8 @@ static int ctl_open(int using_stdin, int using_stdout)
 {
   if(using_stdout)
     outfp=stderr;
-
+  else
+    outfp=stdout;
   ctl.opened=1;
   return 0;
 }

@@ -26,7 +26,7 @@ dnl modified for automake by Masanao Izumo <mo@goice.co.jp> (1998.11)
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 1.1.0, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 1.1.1, no-define)
 
 dnl use config.h
 AM_CONFIG_HEADER(config.h)
@@ -109,10 +109,10 @@ esac
 AC_CHECK_LIB(m,sqrt)
 AC_CHECK_LIB(socket,socket)
 AC_CHECK_FUNCS(gethostbyname,,[ AC_CHECK_LIB(nsl,gethostbyname) ])
+AC_PATH_XTRA
 
 dnl Start of X configure
 if test "x$with_x" = xyes; then
-  AC_PATH_XTRA
   if test "x$x_libraries" != x; then
     ldflags_x_opt="-L$x_libraries"
     LDFLAGS="$LDFLAGS $ldflags_x_opt"
@@ -159,7 +159,7 @@ dnl End of X configure
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h limits.h malloc.h strings.h sys/ioctl.h sys/time.h unistd.h dlfcn.h glob.h)
+AC_CHECK_HEADERS(fcntl.h limits.h malloc.h strings.h sys/ioctl.h sys/time.h unistd.h dlfcn.h glob.h getopt.h)
 AC_CHECK_HEADER(string.h,, [ EXTRADEFS="$EXTRADEFS -DNO_STRING_H " ])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -494,9 +494,9 @@ CONFIG_INTERFACE(tcltk,TCLTK,k,
     for l in tk tk8.0jp tk4.2jp tk80jp tk42jp tk8.0 tk4.2 tk80 tk42; do
       case "x$tk_lib" in x) AC_CHECK_LIB($l,Tk_Init,tk_lib=-l$l);; esac
     done
+    LIBS=$KEEPLIBS
 
     if test "x$tcl_lib" = x -o "x$tk_lib" = x; then
-      LIBS=$KEEPLIBS
       CFLAGS=$KEEPCFLAGS
       enable_tcltk=no
     fi
@@ -616,16 +616,19 @@ AC_ARG_ENABLE(offix,
   [  --enable-offix          Enable offix support            (default is no)],
   [ if test "$enableval" = "yes"; then
       KEEPCFLAGS=$CFLAGS
-      KEEPLIBS=$KEEPLIBS
+      KEEPLIBS=$LIBS
       KEEPLDFLAGS=$LDFLAGS
       CFLAGS="$CFLAGS -I$offix_include_dir"
       LDFLAGS="$LDFLAGS -L$offix_lib_dir"
+      LIBS="$LIBS $lib_xmu_opt $lib_xt_opt $lib_xprelibs_opt $lib_xext_opt -lX11"
       AC_CHECK_LIB(Dnd,DndInitialize,[
+	LIBS=$KEEPLIBS
         LIBS="$LIBS -lDnd"
         EXTRADEFS="$EXTRADEFS -DOFFIX"
       ],
       [ LDFLAGS=$KEEPLDFLAGS
         CFLAGS=$KEEPCFLAGS
+	LIBS=$KEEPLIBS
       ])
     fi
   ]
@@ -665,9 +668,8 @@ AM_CONDITIONAL(ENABLE_WRD, test "x$enable_wrd" = "xyes")
 
 AM_CONDITIONAL(CYGWIN32, test "x$CYGWIN32" = "xyes")
 
-SET_UNIQ_SORT_WORD(CFLAGS,$CFLAGS $EXTRACFLAGS $EXTRAINCS $X_CFLAGS $ALSA_CFLAGS)
-SET_UNIQ_SORT_WORD(LDFLAGS,$LDFLAGS)
-LIBS="$LIBS $ALSA_LIBS"
+SET_SORT_UNIQ_WORD(CFLAGS,$CFLAGS $EXTRACFLAGS $EXTRAINCS $X_CFLAGS)
+SET_SORT_UNIQ_WORD(LDFLAGS,$LDFLAGS)
 
 if test "x$with_x" = xyes; then
   dnl Order of X-library is: -lXm -lXaw -lXmu -lXt -lSM -lICE -lXext -lX11

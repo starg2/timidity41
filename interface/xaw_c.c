@@ -426,7 +426,7 @@ static void shuffle(int n,int *a) {
 
 static void ctl_pass_playing_list(int init_number_of_files,
 				  char *init_list_of_files[]) {
-  int current_no,command,i;
+  int current_no,command=RC_NONE,i;
   int32 val;
   char *p;
 
@@ -461,15 +461,16 @@ static void ctl_pass_playing_list(int init_number_of_files,
 
   /* Draw the title of the first file */
   current_no=0;
-  snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[0]]);
-  a_pipe_write(local_buf);
-
-  command=ctl_blocking_read(&val);
+  if(number_of_files!=0){
+    snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[0]]);
+    a_pipe_write(local_buf);
+    command=ctl_blocking_read(&val);
+  }
 
   /* Main loop */
   for (;;) {
     /* Play file */
-    if (command==RC_LOAD_FILE) {
+    if (command==RC_LOAD_FILE&&number_of_files!=0) {
       snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[current_no]]);
       a_pipe_write(local_buf);
       command=play_midi_file(list_of_files[file_table[current_no]]);
@@ -484,6 +485,10 @@ static void ctl_pass_playing_list(int init_number_of_files,
 		a_pipe_write(local_buf);
 		/* Shuffle the table */
 		if (randomflag) {
+		  if(number_of_files == 0) {
+		    randomflag=0;
+		    continue;
+		  }
 		  current_no=0;
 		  if (randomflag==1) {
 			shuffle(number_of_files,file_table);

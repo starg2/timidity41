@@ -47,9 +47,7 @@
 #include <X11/Xaw/Box.h>
 #include <X11/Xaw/Label.h>
 #include <X11/Xaw/Dialog.h>
-#ifndef WIDGET_IS_LABEL_WIDGET
 #include <X11/Xaw/AsciiText.h>
-#endif
 
 #ifdef OFFIX
 #include <OffiX/DragAndDrop.h>
@@ -238,22 +236,27 @@ static XtResource resources[] ={
 #undef offset
 };*/
 
+enum {
+    ID_LOAD = 100,
+    ID_SAVECONFIG,
+    ID_AUTOSTART,
+#ifdef MSGWINDOW
+    ID_HIDETXT,
+#endif /* MSGWINDOW */
+    ID_HIDETRACE,
+    ID_DUMMY,
+    ID_QUIT,
+};
+
 static ButtonRec file_menu[] = {
-#define ID_LOAD 100
   {ID_LOAD, "load", True, False},
-#define ID_SAVECONFIG 101
   {ID_SAVECONFIG, "saveconfig", True, False},
-#define ID_AUTOSTART 102
   {ID_AUTOSTART, "Auto Start", True, False},
 #ifdef MSGWINDOW
-#define ID_HIDETXT 103
   {ID_HIDETXT, "(Un)Hide Messages", True, False},
 #endif
-#define ID_HIDETRACE 104
   {ID_HIDETRACE, "(Un)Hide Trace", True, False},
-#define ID_DUMMY -1
   {ID_DUMMY, "line", False, False},
-#define ID_QUIT 105
   {ID_QUIT, "quit", True, False},
 };
 
@@ -559,6 +562,7 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
 	case ID_AUTOSTART:
 	  toggleMark(w,*id);
 	  break;
+#ifdef MSGWINDOW
 	case ID_HIDETRACE:
 	  if(ctl->trace_playing) {
 		XtVaGetValues(toplevel,XtNheight,&h1,NULL);
@@ -579,7 +583,6 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
 		toggleMark(w,*id);
 	  }
 	  break;
-#ifdef MSGWINDOW
 	case ID_HIDETXT:
 	  XtVaGetValues(toplevel,XtNheight,&h1,NULL);
 	  XtVaGetValues(toplevel,XtNwidth,&w1,NULL);
@@ -614,6 +617,23 @@ static void filemenuCB(Widget w,XtPointer id_data, XtPointer data) {
 }
 
 #ifdef MSGWINDOW
+#ifdef WIDGET_IS_LABEL_WIDGET
+static void a_print_msg(Widget w)
+{
+    int i, msglen;
+    a_pipe_nread((char *)&msglen, sizeof(int));
+    while(msglen > 0)
+    {
+	i = msglen;
+	if(i > sizeof(local_buf)-1)
+	    i = sizeof(local_buf)-1;
+	a_pipe_nread(local_buf, i);
+	local_buf[i] = '\0';
+	XtVaSetValues(w,XtNlabel,local_buf,NULL);
+	msglen -= i;
+    }
+}
+#else
 static void a_print_msg(Widget w)
 {
     int i, msglen;
@@ -639,6 +659,7 @@ static void a_print_msg(Widget w)
 	msglen -= i;
     }
 }
+#endif /* WIDGET_IS_LABEL_WIDGET */
 #endif /* MSGWINDOW */
 
 #define DELTA_VEL       32
@@ -668,11 +689,18 @@ static void handle_input(XtPointer data,int *source,XtInputId *id) {
   switch (local_buf[0]) {
   case 'T' : XtVaSetValues(time_l,XtNlabel,local_buf+2,NULL); break;
   case 'E' :
-	XtVaSetValues(title_mb,XtNlabel,(char *)strrchr(local_buf+2,' ')+1,NULL);
+    {
+        char *name;
+	name=strrchr(local_buf+2,' ');
+	if(name==NULL)
+	  break;
+	name++;
+	XtVaSetValues(title_mb,XtNlabel,name,NULL);
 	if (arrangetitle) {
 	  snprintf(window_title, sizeof(window_title), "%s : %s", APP_CLASS, local_buf+2);
 	  XtVaSetValues(toplevel,XtNtitle,window_title,NULL);
 	}
+    }
 	break;
   case 'O' : offPlayButton();break;
 #ifdef MSGWINDOW
@@ -1002,7 +1030,6 @@ static void draw1Chan(int ch,int val,char cmd) {
 static void drawTraceAll(void) {
   int i;
   Dimension w, h;
-
   XtVaGetValues(trace,XtNheight,&h,NULL);
   XtVaGetValues(trace,XtNwidth,&w,NULL);
   if (!ctl->trace_playing) return;
@@ -1586,7 +1613,6 @@ void a_start_interface(int pipe_in) {
 #endif
   lyriclist[0] = lyric_t;
 #endif
-
   if(ctl->trace_playing) {
 	trace=XtVaCreateManagedWidget("trace",widgetClass,base_f,
 								  XtNfromVert,lyric_t,NULL);
@@ -1633,7 +1659,6 @@ void a_start_interface(int pipe_in) {
   XtVaGetValues(lyric_t,XtNheight,&lyric_height,NULL);
   a_print_text(lyric_t,strcpy(local_buf,"<< Timidity Messages >>"));
 #endif
-
   a_pipe_write("READY");
 
   if(ctl->trace_playing) {
@@ -1663,6 +1688,7 @@ void a_start_interface(int pipe_in) {
 	a_print_text(lyric_t,local_buf+2);
 #endif
   }
+  bsb=XtVaCreateManagedWidget("dummyfile",smeLineObjectClass,title_sm,NULL);
   max_files=atoi(local_buf);
   for (i=0;i<max_files;i++) {
     a_pipe_read(local_buf,sizeof(local_buf));
@@ -1678,6 +1704,13 @@ void a_start_interface(int pipe_in) {
   }
   if(!ctl->trace_playing)
 	XtVaSetValues(file_menu[ID_HIDETRACE-100].widget,XtNsensitive,False,NULL);
+  if(Cfg.hidetext || !Cfg.disptrace) {
+      /* Please sleep here, otherwise the widget geometry is broken.
+       * Strange!!
+       */
+      XSync(disp, False);
+      sleep(1);
+  }
   if (Cfg.autostart) filemenuCB(file_menu[ID_AUTOSTART-100].widget,
 							&file_menu[ID_AUTOSTART-100].id,NULL);
 #ifdef MSGWINDOW
@@ -1686,6 +1719,7 @@ void a_start_interface(int pipe_in) {
 #endif
   if (!Cfg.disptrace) filemenuCB(file_menu[ID_HIDETRACE-100].widget,
 							 &file_menu[ID_HIDETRACE-100].id,NULL);
+
   if (Cfg.repeat) repeatCB(NULL,&Cfg.repeat,NULL);
   if (Cfg.shuffle) randomCB(NULL,&Cfg.shuffle,NULL);
   if (Cfg.autostart)

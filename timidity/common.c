@@ -459,6 +459,14 @@ void *safe_malloc(size_t count)
 	return p;
     else
     {
+	if(count == 0) {
+	    /* Some malloc routine return NULL if count is zero, such as
+	     * malloc routine from libmalloc.a of Solaris.
+	     * But TiMidity doesn't want to return NULL even if count is zero.
+	     */
+	    return safe_malloc(1);
+	}
+
 	errflag = 1;
 	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
 		  "Sorry. Couldn't malloc %d bytes.", count);

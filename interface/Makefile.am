@@ -202,7 +202,7 @@ endif
 
 install.tk: $(ALLTCLF) install.bitmaps
 	test -d $(DESTDIR)$(TCL_DIR) || mkdir -p $(DESTDIR)$(TCL_DIR)
-	for f in $(ALLTCLF) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TCL_DIR);; esac; done
+	for f in $(ALLTCLF) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TCL_DIR);; esac; done
 
 install.xaw: install.bitmaps
 
@@ -217,7 +217,7 @@ endif
 
 install.el: $(ELFILES)
 	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
-	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
 
 ##
@@ -240,7 +240,7 @@ g_so_libs = @g_so_libs@
 all-am: $(dynamic_targets)
 
 install.dynamics: $(dynamic_targets)
-	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL_PROGRAM) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
 .c.$(so):
 	$(COMPILE) $(SHCFLAGS) -c $< -o $@

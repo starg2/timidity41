@@ -50,6 +50,10 @@ int getopt(int, char **, char *);
 #include <floatingpoint.h> /* For FP exceptions */
 #endif
 
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
+#endif /* HAVE_GETOPT_H */
+
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -71,7 +75,7 @@ int getopt(int, char **, char *);
 #include "mid.defs"
 
 #define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jL:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:"
-#define INTERACTIVE_INTERFACE_IDS "kmq"
+#define INTERACTIVE_INTERFACE_IDS "kmqa"
 
 /* main interfaces (To be used another main) */
 #if defined(main) || defined(ANOTHER_MAIN)

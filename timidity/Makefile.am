@@ -130,5 +130,14 @@ controls.o: $(top_builddir)/interface/libinterface.a
 version.o: version.c Makefile
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c
 
+$(top_builddir)/interface/libinterface.a:
+	cd $(top_builddir)/interface; $(MAKE)
+
+$(top_builddir)/libarc/libarc.a:
+	cd $(top_builddir)/libarc; $(MAKE)
+
+$(top_builddir)/utils/libutils.a:
+	cd $(top_builddir)/utils; $(MAKE)
+
 objs: $(timidity_OBJECTS) $(timidity_DEPENDENCIES)
 	@:

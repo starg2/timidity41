@@ -109,7 +109,7 @@ ControlMode ctl=
     ctl_event
 };
 
-static FILE *outfp = stdout;
+static FILE *outfp;
 
 static void quote_string_out(char *str)
 {
