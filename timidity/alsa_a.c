@@ -76,7 +76,7 @@ static int bytes_to_go;
 #define dpm alsa_play_mode
 
 PlayMode dpm = {
-  DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_PCM_STREAM|PF_CAN_TRACE,
+  DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_PCM_STREAM|PF_CAN_TRACE|PF_BUFF_FRAGM_OPT,
   -1,
   {0}, /* default: get all the buffer fragments you can */
   "ALSA pcm device", 's',

@@ -1,3 +1,43 @@
+2000-05-08  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.9.3 released.
+
+2000-05-08  Masanao Izumo <mo@goice.co.jp>
+
+    * interface/{Makefile.am,Makefile.in}: Changed target dependancy for
+	tclIndex not to change tclIndex unless the tcl-sources are changed.
+
+2000-04-20  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/{resample.c,recache.c,playmidi.c}: Fix the previous patch.
+	- Drum & Sample pan fix.
+	- Remove pre_resampling().
+	- And else...
+
+2000-04-15  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c: Fixed voice reduction control.
+    * timidity/{instrum.c,sndfont.c}: Removed the pre_resampling() calls
+	in order to enable drum pitch bends.
+    * timidity/readmidi.c: Remove duplicated code.
+    * timidity/playmidi.c: Enable to get chorus level in drum channel.
+
+2000-04-14  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c: Fixed pan pot
+
+2000-04-12  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/alsa_a.c(PF_BUFF_FRAGM_OPT):  Added the flag.
+
+2000-04-12  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/recache.c: Bug fixed.
+
+2000-04-11  Takashi SHIRAI <shirai@pon.nintendo.co.jp>
+
+    * timidity/oss_a.c: Fixed for OSS version of !defined(SNDCTL_DSP_GETODELAY).
+
 2000-04-10  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.9.2 released.

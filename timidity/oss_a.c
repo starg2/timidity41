@@ -282,6 +282,12 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
+#ifndef SNDCTL_DSP_GETODELAY
+# ifdef SNDCTL_DSP_GETOSPACE
+    audio_buf_info info;
+# endif /* SNDCTL_DSP_GETOSPACE */
+    count_info cinfo;
+#endif /* SNDCTL_DSP_GETODELAY */
     int i;
 
     switch(request)
@@ -329,6 +335,37 @@ static int acntl(int request, void *arg)
 	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
 	    return -1;
 	i = output_counter - i;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i;
+	return 0;
+#else /* SNDCTL_DSP_GETODELAY */
+# ifdef SNDCTL_DSP_GETOSPACE
+      case PM_REQ_GETFILLABLE:
+	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	    return -1;
+	if (info.bytes > total_bytes) i = total_bytes;
+	else i = info.bytes;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i;
+	return 0;
+
+      case PM_REQ_GETFILLED:
+	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	    return -1;
+	if (info.bytes > total_bytes) i = 0;
+	else i = total_bytes - info.bytes;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i;
+	return 0;
+
+# endif /* SNDCTL_DSP_GETOSPACE */
+      case PM_REQ_GETSAMPLES:
+	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
+	    return -1;
+	i = cinfo.bytes;
 	if(!(dpm.encoding & PE_MONO)) i >>= 1;
 	if(dpm.encoding & PE_16BIT) i >>= 1;
 	*((int *)arg) = i;

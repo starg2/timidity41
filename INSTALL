@@ -3,10 +3,10 @@
                               Installation guide
 
 					Masanao Izumo <mo@goice.co.jp>
-					Last updated on Sep.2.1999
+					Last updated on Apr.4.2000
 ==============================================================================
 
-  This document describes how to install TiMidity++(version 2.6.0 or
+  This document describes how to install TiMidity++(version 2.9.2 or
 later) for your UNIX-like machine.  Methods for Macintosh are not
 described in this document.
 
@@ -42,14 +42,15 @@ following:
   --prefix=PREFIX
 	Specifies the base of installing directory. By default,
 	PREFIX is "/usr/local/".
-	Any files are installed in : 
-	  PREFIX/bin : executable file
-	  PREFIX/lib/timidity : configuration files and patches
-	  PREFIX/man : online manual
+	Any files are installed in:
+	  PREFIX/bin: executable files
+	  PREFIX/share/timidity: configuration files and patches
+	  PREFIX/lib/timidity: libraries and dynamic link interfaces.
+	  PREFIX/man: online manuals
 
 	Example:
 	% sh configure --prefix=/opt/gnu
-	# installs to /opt/gnu/bin, /opt/gnu/lib/timidity, /opt/gnu/man
+	# installs to /opt/gnu/bin, /opt/gnu/man, /opt/gnu/...
 
   --x-includes=DIR
 	Specifies include directory of X library.
@@ -83,10 +84,23 @@ following:
 	Specifies library directory of Tk.
 	(If you fail to detect it automatically, try to specify this.)
 
-  --enable-audio
+  --enable-audio[=mode_list]
 	Enables TiMidity++ to play MIDI files.
 	If --enable-audio=no, TiMidity++ is only the MIDI-to-WAVE
-	converter.
+	converter.  You can specify multi-audio device from follows
+	(specify comma separated list):
+	    default:  Automatically select audio device.	(default)
+	    oss:  OSS /dev/dsp
+	    sun:  SunOS /dev/audio
+	    hpux: HPUX /dev/audio
+	    irix: IRIX audio library
+	    mme:  OSF/1 MME
+	    sb_dsp: BSD/OS 2.0 /dev/sb_dsp
+	    w32:  Windows MMS
+	    alsa: ALSA pcm device
+	    alib: HPUX network audio (Alib)
+	    nas:  NAS - Network Audio System
+	    esd:  EsounD
 
   --enable-nas
 	Enables TiMidity++ to play MIDI files using NAS (Network Audio System).
@@ -94,8 +108,21 @@ following:
   --enable-esd
 	Enables TiMidity++ to play MIDI files using EsounD.
 
-  --enable-dynamic
-	Enables the feature of dynamic loading interface.
+  --enable-interface=[Comma separated interface list]
+	Specifies interface list (Comma separated).  Choose interfaces
+	from follows.
+	    ncurses,slang,motif,tcltk,emacs,vt100,xaw,xskin,gtk,w32gui,server
+	Note that
+	    --enable-interface=INTERFACE1,INTERFACE2,...
+	equals as
+	    --enable-INTERFACE1=yes --enable-INTERFACE2=yes ...
+
+  --enable-dynamic[=Comma separated interface list]
+	Specifies dynamic link interface list.
+	Note that
+	    --enable-dynamic=INTERFACE1,INTERFACE2,...
+	equals as
+	    --enable-INTERFACE1=dynamic --enable-INTERFACE2=dynamic ...
 
   --enable-ncurses
 	Includes Ncurses interface.  If you build this interface as dinamic
@@ -185,8 +212,7 @@ smoothly. Optimizing options can specify in configuration:
 ------------------------------
   If configure failed or compile not complete successfully, edit
 common.makefile, Makefile, and timidity.h to appropriate value.
-
-
+All of definition of variables are orverwrited by common.makefile.
 
 3. make
 -------

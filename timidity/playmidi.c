@@ -738,7 +738,7 @@ static int reduce_voice_CPU(void)
 	if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
 	    continue;
 	/* skip notes that don't need resampling (most drums) */
-	if (!voice[j].sample->sample_rate)
+	if (voice[j].sample->note_to_use)
 	    continue;
 	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
 	{
@@ -777,7 +777,7 @@ static int reduce_voice_CPU(void)
       if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
       {
 	/* continue protecting non-resample decays */
-	if (voice[j].status & ~(VOICE_DIE) && !voice[j].sample->sample_rate)
+	if (voice[j].status & ~(VOICE_DIE) && voice[j].sample->note_to_use)
 		continue;
 
 	/* choose note which has been on the shortest amount of time */
@@ -950,7 +950,7 @@ static int reduce_voice(void)
     for(j = 0; j < i; j++)
     {
 	if(voice[j].status & VOICE_FREE ||
-	   (!voice[j].sample->sample_rate && ISDRUMCHANNEL(voice[j].channel)))
+	   (voice[j].sample->note_to_use && ISDRUMCHANNEL(voice[j].channel)))
 	    continue;
 	
 	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
@@ -991,7 +991,7 @@ static int reduce_voice(void)
       {
 	/* continue protecting drum decays */
 	if (voice[j].status & ~(VOICE_DIE) &&
-	    (!voice[j].sample->sample_rate && ISDRUMCHANNEL(voice[j].channel)))
+	    (voice[j].sample->note_to_use && ISDRUMCHANNEL(voice[j].channel)))
 		continue;
 	/* find lowest volume */
 	v = voice[j].left_mix;
@@ -1087,7 +1087,7 @@ static int reduce_voice(void)
     for(j = 0; j < i; j++)
     {
         if(voice[j].status & VOICE_FREE ||
-	   (!voice[j].sample->sample_rate && ISDRUMCHANNEL(voice[j].channel)))
+	   (voice[j].sample->note_to_use && ISDRUMCHANNEL(voice[j].channel)))
 	   	continue;
 
 	/* find lowest volume */
@@ -1218,7 +1218,7 @@ static int find_free_voice(void)
     for(i = 0; i < nv; i++)
     {
 	if(voice[i].status & ~(VOICE_ON | VOICE_DIE) &&
-	   !(!voice[i].sample->sample_rate && ISDRUMCHANNEL(voice[i].channel)))
+	   !(voice[i].sample->note_to_use && ISDRUMCHANNEL(voice[i].channel)))
 	{
 	    v = voice[i].left_mix;
 	    if((voice[i].panned==PANNED_MYSTERY) && (voice[i].right_mix>v))
@@ -1387,7 +1387,7 @@ static int find_samples(MidiEvent *e, int *vlist)
 
 static void start_note(MidiEvent *e, int i, int vid, int cnt)
 {
-  int j, ch, note;
+  int j, ch, note, pan;
 
   ch = e->channel;
 
@@ -1449,14 +1449,17 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt)
     voice[i].vibrato_sample_increment[j]=0;
 
   /* Pan */
+  if(channel[ch].panning != NO_PANNING) pan = channel[ch].panning;
+  else pan = 64;
   if(ISDRUMCHANNEL(ch) &&
      channel[ch].drums[note] != NULL &&
      channel[ch].drums[note]->drum_panning != NO_PANNING)
-      voice[i].panning = channel[ch].drums[note]->drum_panning;
-  else if(channel[ch].panning != NO_PANNING)
-      voice[i].panning = channel[ch].panning;
+      pan += channel[ch].drums[note]->drum_panning - 64;
   else
-      voice[i].panning = voice[i].sample->panning;
+      pan += voice[i].sample->panning - 64;
+  if (pan > 127) pan = 127;
+  if (pan < 0) pan = 0;
+  voice[i].panning = pan;
 
   voice[i].porta_control_counter = 0;
   if(channel[ch].portamento && !channel[ch].porta_control_ratio)
@@ -1724,8 +1727,7 @@ static void note_on(MidiEvent *e)
 	    ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
 	}
 	start_note(e, v, vid, nv - i - 1);
-	if((channel[ch].chorus_level || opt_surround_chorus) &&
-	    voice[v].sample->sample_rate)
+	if((channel[ch].chorus_level || opt_surround_chorus))
 	{
 	    if(opt_surround_chorus)
 		new_chorus_voice_alternate(v, channel[ch].chorus_level);
@@ -1877,9 +1879,18 @@ static void adjust_panning(int c)
 	if ((voice[i].channel==c) &&
 	    (voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
 	{
+            /* adjust pan to include drum/sample pan offsets */
+            if(ISDRUMCHANNEL(c) &&
+               channel[c].drums[i] != NULL &&
+               channel[c].drums[i]->drum_panning != NO_PANNING)
+                pan += channel[c].drums[i]->drum_panning - 64;
+            else
+                pan += voice[i].sample->panning - 64;
+            if (pan > 127) pan = 127;
+            if (pan < 0) pan = 0;
+
 	    /* Hack to handle -EFchorus=2 in a "reasonable" way */
 	    if((channel[c].chorus_level || opt_surround_chorus) &&
-	       voice[i].sample->sample_rate &&
 	       voice[i].chorus_link != i)
 	    {
 		int v1, v2;
@@ -1947,6 +1958,12 @@ static void adjust_drum_panning(int ch, int note)
     if(pan == 0xFF)
 	return;
 
+    /* slide the pan by the channel pan offset */
+    if(channel[ch].panning != NO_PANNING)
+        pan += channel[ch].panning - 64;
+    if (pan > 127) pan = 127;
+    if (pan < 0) pan = 0;
+
     for(i = 0; i < uv; i++)
 	if(voice[i].channel == ch &&
 	   voice[i].note == note &&
@@ -2011,8 +2028,10 @@ int get_reverb_level(int ch)
 
 int get_chorus_level(int ch)
 {
+#ifdef DISALLOW_DRUM_BENDS
     if(ISDRUMCHANNEL(ch))
 	return 0; /* Not supported drum channel chorus */
+#endif
     if(opt_chorus_control == 1)
 	return channel[ch].chorus_level;
     return -opt_chorus_control;
@@ -2950,7 +2969,7 @@ static void voice_decrement_conservative(int n)
 	for(j = 0; j < voices; j++)
 	{
 	    if(voice[j].status & ~(VOICE_ON | VOICE_DIE) &&
-	       !(!voice[j].sample->sample_rate &&
+	       !(voice[j].sample->note_to_use &&
 	         ISDRUMCHANNEL(voice[j].channel)))
 	    {
 		v = voice[j].left_mix;
@@ -3681,7 +3700,7 @@ static int compute_data(int32 count)
 		      
 		      if((voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
 			  !(voice[i].status & ~(VOICE_DIE) &&
-			    !voice[i].sample->sample_rate)))
+			    voice[i].sample->note_to_use)))
 				kill_nv++;
 		  }
 

@@ -175,7 +175,7 @@ clean:
 	rm -f *.o
 	rm -f *.$(so)
 
-tclIndex: $(TCLF)
+tclIndex: $(TCLSRCS)
 	rm -f tclIndex
 	echo 'auto_mkindex . *.tcl; exit' | $(WISH)
 

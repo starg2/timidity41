@@ -871,7 +871,9 @@ sample_t *resample_voice(int v, int32 *countptr)
     Voice *vp=&voice[v];
     int mode;
 
-    if(!(vp->sample->sample_rate))
+    if(vp->sample->sample_rate == play_mode->rate &&
+       vp->sample->root_freq == freq_table[vp->sample->note_to_use] &&
+       (vp->frequency == vp->orig_frequency || vp->porta_control_ratio))
     {
 	int32 ofs;
 
@@ -993,5 +995,11 @@ void pre_resample(Sample * sp)
   sp->loop_end = (int32)(sp->loop_end * a);
   free(sp->data);
   sp->data = (sample_t *) newdata;
+/*
   sp->sample_rate = 0;
+*/
+  sp->root_freq = freq_table[(int) (sp->note_to_use)];
+  sp->sample_rate = play_mode->rate;
+  sp->low_freq = freq_table[0];
+  sp->high_freq = freq_table[127];
 }

@@ -606,33 +606,6 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *ev, int32 at)
 	}
     }
 
-    /* GS program change */
-    /* I could not find any documentation on this, so I reverse engineered
-       which bytes do what from midi I have.  It appears to work correctly. */
-    if(len == 11 &&
-       val[0] == 0x41 && /* Roland ID */
-       val[1] == 0x10 && /* Device ID */
-       val[2] == 0x42 && /* GS Model ID */
-       val[3] == 0x12 && /* Data Set Command */
-       val[4] == 0x40 && /* I wish I knew what this was... */
-       (val[5] >= 0x10 && val[5] < 0x20))   /* channel command */
-    {
-	uint8 p;				/* Channel part number [0..15] */
-
-	p = val[5] & 0x0F;
-	if(p == 0)
-	    p = 9;
-	else if(p <= 9)
-	    p--;
-	p = MERGE_CHANNEL_PORT(p);
-
-	MIDIEVENT(at, ME_TONE_BANK_MSB, p, val[7], 0);
-	MIDIEVENT(at, ME_TONE_BANK_LSB, p, 1, 0);     /* assume SC-55 ??? */
-	MIDIEVENT(at, ME_PROGRAM, p, val[8], 0);
-
-	num_events = 2;
-    }
-
     /* GS bank+program change */
     /* I could not find any documentation on this, so I reverse engineered
        which bytes do what from midi I have.  It appears to work correctly. */

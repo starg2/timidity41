@@ -1,3 +1,8 @@
+05/08, 2000
+    * Version 2.9.3 released.
+    * Enable drum bends.  This fix also enables drum chorus, mod-wheel,
+      portament, and other drum bend controls.
+
 04/10, 2000
     * Version 2.9.2 released.
 

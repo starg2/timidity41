@@ -68,7 +68,7 @@ static MBlockList hash_entry_pool;
         v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
         v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
  	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
-                 *dest++ = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
+                dest[i] = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
  	}else{ \
 		ofsd=ofs; \
                 v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
@@ -83,7 +83,7 @@ static MBlockList hash_entry_pool;
  		     ofs>>FRACTION_BITS)*(ofs-(2L<<FRACTION_BITS)) \
  		     >>FRACTION_BITS))*((1L<<FRACTION_BITS)-ofs))+v2) \
  		     /(6L<<FRACTION_BITS); \
- 		*dest++ = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
+ 		dest[i] = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
 		ofs = ofsd; \
  	}
 #elif defined(LAGRANGE_INTERPOLATION)
@@ -155,8 +155,9 @@ struct cache_hash *resamp_cache_fetch(Sample *sp, int note)
 
     if(sp->vibrato_control_ratio ||
        (sp->modes & MODES_PINGPONG) ||
-       sp->sample_rate == 0)
-	return NULL;
+       (sp->sample_rate == play_mode->rate &&
+        sp->root_freq == freq_table[sp->note_to_use]))
+	    return NULL;
 
     addr = sp_hash(sp, note) % HASH_TABLE_SIZE;
     p = cache_hash_table[addr];
@@ -179,8 +180,9 @@ void resamp_cache_refer_on(Voice *vp, int32 sample_start)
        channel[ch].portamento ||
        (vp->sample->modes & MODES_PINGPONG) ||
        vp->orig_frequency != vp->frequency ||
-       vp->sample->sample_rate == 0)
-	return;
+       (vp->sample->sample_rate == play_mode->rate &&
+        vp->sample->root_freq == freq_table[vp->sample->note_to_use]))
+	    return;
 
     note = vp->note;
 
@@ -218,7 +220,8 @@ void resamp_cache_refer_off(int ch, int note, int32 sample_end)
 	return;
 
     sp = p->sp;
-    if(sp->sample_rate == 0)
+    if(sp->sample_rate == play_mode->rate &&
+       sp->root_freq == freq_table[sp->note_to_use])
 	return;
     sample_start = channel_note_table[ch].on[note];
 

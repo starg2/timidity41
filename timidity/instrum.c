@@ -723,8 +723,10 @@ static Instrument *load_gus_instrument(char *name,
 
       /* If this instrument will always be played on the same note,
 	 and it's not looped, we can resample it now. */
+#ifdef DISALLOW_DRUM_BENDS
       if (sp->note_to_use && !(sp->modes & MODES_LOOPING))
 	pre_resample(sp);
+#endif
 
 #ifdef LOOKUP_HACK
       /* Squash the 16-bit data into 8 bits. */
