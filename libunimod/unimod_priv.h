@@ -20,7 +20,7 @@
 
 /*==============================================================================
 
-  $Id: unimod_priv.h,v 1.23 1999/10/25 16:31:41 miod Exp $
+  $Id$
 
   MikMod sound library internal definitions
 

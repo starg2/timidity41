@@ -20,7 +20,7 @@
 
 /*==============================================================================
 
-  $Id: load_m15.c,v 1.29 1999/10/25 16:31:41 miod Exp $
+  $Id$
 
   15 instrument MOD loader
   Also supports Ultimate Sound Tracker (old M15 format)

@@ -20,7 +20,7 @@
 
 /*==============================================================================
 
-  $Id: munitrk.c,v 1.27 1999/10/25 16:31:41 miod Exp $
+  $Id$
 
   All routines dealing with the manipulation of UNITRK streams
 

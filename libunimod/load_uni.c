@@ -20,7 +20,7 @@
 
 /*==============================================================================
 
-  $Id: load_uni.c,v 1.13 1999/10/25 16:31:41 miod Exp $
+  $Id$
 
   UNIMOD (libmikmod's and APlayer's internal module format) loader
 

@@ -20,7 +20,7 @@
 
 /*==============================================================================
 
-  $Id: mloader.c,v 1.33 1999/10/25 16:31:41 miod Exp $
+  $Id$
 
   These routines are used to access the available module loaders
 
