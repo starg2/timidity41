@@ -1,0 +1,41 @@
+---------------------------------------------------------------------
+Note: These modifications are now integrated into the sources, so you
+don't need to patch them, just uncomment the appropriate lines in
+the Makefile.    ..tt
+---------------------------------------------------------------------
+
+
+Timidity-0.2h port to DEC OSF/1 with MMS support
+------------------------------------------------
+
+This was tested on a DEC alpha 250 4/266.  At the default sampling
+rate of 32kHz an occasional break in playing could be detected under
+CPU load of around 3.0  Try using lower sampling rate or using some of
+the hacks in config.h if you have a slow and/or busy machine. The main
+code for DEC audio resides in dec_audio.c and currently only supports
+device ID 0, since that's the only device we have in our alpha.  If you
+have more than one device you should be able to use them by simply
+altering the device ID in dec_audio.c 
+
+If you're not getting this from the standard distribution of timidity,
+just grab the file timidity-0.2h-DEC.tar.gz or timidity-0.2h-DEC.tar.Z
+and untar it in the directory that contains the timidity-02h directory.
+This would untar the files into the timidity-02h directory, replacing
+the files config.h and output.c and adding the files Makefile.DEC and
+dec_audio.c  You can then copy Makefile.DEC to Makefile and compile
+timidity with "make" (you may want to edit the Makefile and config.h)
+
+BTW Timidity works great as a MIDI-"viewer" for WWW browsers.  Just add
+
+	audio/midi; timidity1 %s >/dev/null 2>&1
+
+to your .mailcap file and you can click and play MIDI files on the net!
+Try e.g. the Classical MIDI Archive:
+
+	http://www.prs.net/midi.html
+
+Thanks Tuukka for a great program!!
+
+
+Chi Ming HUNG <cmhung@insti.physics.sunysb.edu>
+

@@ -1,0 +1,43 @@
+#!/usr/local/bin/wishx -f
+#
+# TkMidity -- Tcl/Tk Interface for TiMidity
+#	written by Takashi IWAI
+#
+#  Version 1.3; Dec. 5, 1995
+#
+
+
+# system path and configuration file path
+set TclRoot %TCL_DIR%
+set bitmap_path $TclRoot/BITMAPS
+set ConfigFile "~/.tkmidity"
+
+# append library path
+lappend auto_path $TclRoot
+
+#
+# main routine
+#
+
+InitGlobal
+LoadConfig
+
+wm title . "TkMidity"
+wm iconname . "TkMidity"
+wm iconbitmap . @$bitmap_path/timidity.xbm
+
+CreateWindow
+AppendMsg "TiMidity Tcl/Tk Version\n  written by Takashi Iwai\n"
+
+init-random [pid]
+
+if {$Stat(new_tcltk)} {
+    fileevent stdin readable HandleInput
+} else {
+    addinput -read stdin HandleInput
+}
+
+if {$Config(AutoStart)} { PlayCmd }
+tkwait window .
+
+# end of file

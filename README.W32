@@ -1,0 +1,75 @@
+---------------------------------*-text-*---------------------------------
+
+    TiMidity -- Experimental MIDI to WAVE converter
+    Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+--------------------------------------------------------------------------
+
+From version 0.2i, TiMidity can be compiled to run on Win32 platforms
+such as Windows 95 and Windows NT (tested on Intel), but NOT on Windows 3.1x
+with Win32s because it doesn't support console mode.
+Currently it supports only the dumb interface, but a Windows GUI interface
+is planned (when I have some spare time to fiddle with .RC files...), also
+it doesn't support pipes (Win32 has named pipes, so when I have time, I will
+try to implement them).
+I added a console handler to check for Ctrl-C and Ctrl-Break keys to clean up
+the audio stuff, so the side effect is that if you break this program when
+you are writing .WAV files, they will have always the correct lengths into
+their header and are ready to be played.
+On a 486DX2 with 8MB of RAM and a Windows Sound System compatible
+audio board, it plays well in real time at a frequency of 32000 hertz-16bit-
+mono, or 22050-16bit-stereo most MIDI files, but if you switch to another
+task while it is playing, the audio output becomes chunky; TiMidity works
+better on Windows NT than on Windows 95 where it sounds more chunky.
+
+*** WOW!!! ***
+Now I have a Pentium 133 with 32MB of RAM and TiMidity will play almost all
+files with no problems at 44100Hz-16bit-stereo (CD quality), using around 50%
+of CPU time, so you can switch tasks without stopping music: just give at
+least 256 audio buffers; and, with good patches it plays BETTER than my
+wavetable audio board!!!
+*** WOW!!! ***
+
+******************************************************************************
+New Option -e ***
+The -e option (evil) works only on Win32 version of TiMidity and increases the
+TiMidity's task priority by one. It can give better playback when you switch
+tasks (at least for me it do, remember I have a Pentium 133), but BEWARE that
+for complex files or slow processors, it can slow all other tasks down.
+******************************************************************************
+
+The file TIMIDITY.IDE is the Borland C++ 4.51 project file, and the file
+TIMIDITY.MAK is the Borland C++ 4.51 makefile. They are set up for a BC++
+installation in D:\BC45, so if you have BC++ installed in another directory
+you must change the paths in the Makefile or in the IDE.
+With some work, I think, you can compile the code with other products
+(Microsoft C, Watcom C, etc.), just be sure to define the symbols
+AU_WIN32, __WIN32__, and include the file win_a.c as the audio driver.
+
+Probably, the code in win_a.c needs some more work, notably in the callback
+function that shouldn't call waveOutUnprepareHeader directly, but it works...
+
+Davide Moretti
+E-mail: dmoretti@iper.net
+
+Or send a snailmail or postcard to:
+
+Davide Moretti
+via Neri da Rimini, 28
+47037 Rimini, Italy
+
+Postcard changes are welcomed...

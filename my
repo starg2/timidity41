@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Attempt to mangle a Makefile in hopes that it might be useful, but
+# without any warranty whatsoever.  Shudder.
+
+if [ "$*" = "mistake" ]; then
+  if [ -f Makefile.unmangled ]; then
+    echo "That's all right.  Here's your old Makefile back."
+    mv Makefile.unmangled Makefile
+    exit 0
+  else
+    echo "I don't know what you're talking about."
+    exit 1
+  fi
+fi
+
+if [ "$*" = "make right or wrong" ]; then
+  if [ -e Makefile.unmangled ]; then
+    echo "I already mangled the Makefile.  Sorry, I'm a very stupid script."
+    exit 1
+  else
+    echo "I'll mangle this Makefile..."
+    mv Makefile Makefile.unmangled
+    if ! perl my.pl < Makefile.unmangled >Makefile; then
+      echo "It like didn't work or something.  Here's your old Makefile back."
+      mv Makefile.unmangled Makefile
+      exit 1
+    else
+      echo "Ha ha, there."
+      exit 0
+    fi
+  fi
+fi
+
+echo "No, no, you didn't say it properly."
+exit 1

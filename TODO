@@ -1,0 +1,43 @@
+---------------------------------*-text-*---------------------------------
+
+    TiMidity -- Experimental MIDI to WAVE converter
+    Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
+
+--------------------------------------------------------------------------
+
+	List of things to do
+
+--------------------------------------------------------------------------
+
+* Use a configuration script for configuration.
+
+* Split TiMidity into 3 processes, do new user interface layer.
+
+* MIDI things to implement:
+	* Modulation wheel
+	* Reverb
+	* Chorus
+
+* Do LOOKUP_HACK right.
+
+* NAS support.
+
+* Optional compression of dynamic range for better sound on 8-bit 
+  devices.
+
+* Automatic volume adjustment.
+
+* Make loop caching work.
+
+* Large buffer for precomputed audio data. Store display information
+  with each buffer frame.
+
+* Read real-time data from MIDI port.
+
+* Only use the wave data from the GUS patches and read all parameters
+  from a separate configuration file. This requires a parameter
+  editor. 
+
+* Sample editor.
+
+* Make sure all TODO entries have a period at the end.

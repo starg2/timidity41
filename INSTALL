@@ -1,0 +1,129 @@
+---------------------------------*-text-*---------------------------------
+
+    TiMidity -- Experimental MIDI to WAVE converter
+    Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
+
+--------------------------------------------------------------------------
+
+	INSTALLATION INSTRUCTIONS
+
+--------------------------------------------------------------------------
+
+	You need at least the source distribution ("timidity-0.2i.tar.gz"
+or later).  If you don't have any GUS-compatible patches or MIDI files,
+you should also get "timidity-lib-0.2.tar.gz", which contains Dustin
+McCartney's excellent acoustic piano and nylon guitar patches, and some
+sample MIDI files.  If you already have "timidity-lib-0.1.tar.gz" from an
+earlier installation, it's the exact same thing except for a few words in
+the README file.  Unpack the library archive under the directory
+"timidity-0.2i".  Now cd into "timidity-0.2i" and follow the four easy
+steps:
+
+	The archives are also available as "timid02i.zip" and
+"tilib02.zip".  A 32-bit Windows executable is available in
+"tim3202i.zip" in case you don't want to build it from scratch.
+
+Compiling (UNIX):
+
+(1)	Check the options in the Makefile:
+
+	    a: select the audio driver by uncommenting one of the
+               following:
+			* Linux/FreeBSD audio driver	  
+	    		* HP-UX network audio server
+			* Sun audio driver
+			* DEC MME driver
+
+	    b: select the kind of interface you want:
+			* ncurses full-screen interface
+			* S-Lang full-screen interface
+			* X-MOTIF interface
+			* Tcl/Tk interface
+
+	    You can select more than one interface and then use the -i
+	    option to pick one at runtime.  If you can compile a
+	    statically linked Motif binary for Linux, please email me!
+
+	    If your make won't +=, edit the Makefile as if it did, and
+	    then type "./my make right or wrong" in the distribution
+	    directory.
+
+	and say:
+
+		make
+
+	If TiMidity won't compile, check paths to headers and libraries,
+	edit the Makefile appropriately, and try again.  Note that you'll
+	need ncurses to build the ncurses interface.  Also check config.h.
+	Email me if you need to make nontrivial adjustments to get it to
+	work.
+
+
+Compiling (Windows):
+
+(1)	Use Borland C++ 4.51 to compile TiMidity.  In case of trouble,
+	please email Davide Moretti <dmoretti@iper.net> or use the
+	prebuilt executable.
+
+
+Testing:
+
+(2)	Adjust audio volume to a comfortable level and say:
+
+	Linux/FreeBSD:
+
+		./timidity -OdM -s22 midi/impromptu.mid
+
+	HP-UX (you need to be running the HP network audio server):
+
+		./timidity -OdM -s16 -o `hostname` midi/impromptu.mid
+
+	SunOS:
+
+		./timidity -OdM -s22050 midi/impromptu.mid
+
+	Windows:
+
+		timidity -OdM -s22050 midi/impromptu.mid
+
+	System without audio driver (a 2,335,998-byte, 8-kHz uLaw file
+	"output.au" will be generated):
+
+		./timidity -OrMU -s8 -o output.au midi/impromptu.mid
+
+	You should get a rendition of Chopin's Fantasie Impromptu.  
+	If not, and you're running Linux, try making noise with some
+	other software to make sure your sound hardware is working
+	properly. On systems other than Linux, you may need to fiddle
+	with the options.  Let me know what works.
+
+	If you get choppy sound, make sure TiMidity is getting enough CPU
+	time. You can try using a lower sampling rate (the -s option).
+
+
+Installing:
+
+(3)	When you've got a working executable, you can check the target
+	directories in the Makefile, become root if necessary, and say:
+
+		make install.all
+
+	to install the executable, the manual page, and the support files
+	(patches and MIDI examples) in the directories specified. If you
+	don't wish to install the support files, you can say:
+
+		make install.bin install.man
+
+	to install just the executable and the manual page.
+
+
+Using:
+
+(4)	Now you can play around with the options to get the best sound
+	quality. 
+
+		timidity -h
+
+	will get you a brief list. More detailed information is available
+	in the manual page. Also, check out the FAQ for pointers to more 
+	instruments and MIDI files.
