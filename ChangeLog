@@ -1,3 +1,63 @@
+2000-02-21  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.9.1 released.
+
+2000-02-20  Masanao Izumo <mo@goice.co.jp>
+    * libarc/arc_tar.c: Fixed memory leak.
+    * libarc/url.c: url_dump(): Avoid return NULL if nbytes is zero.
+    * timidity/controls.h: Redefine RC_NONE
+    * timidity/wrdt.c: __W32G__ => IA_W32GUI
+    * timidity/mod2midi.c: period2note(): Fixed to search the period note
+      between 0 and 119.
+
+2000-02-12  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+    * timidity/recache.c: cache_resampling()
+	Defined RESAMPLATION_CACHE, INTERPVARS_CACHE
+	Cache resampling should be the same as what is used for
+	non-cached notes, or else things will sound strange
+    * timidity/playmidi.c: compute_data()
+	reduce_quality_flag was being set while the buffer was being
+	filled (beginning of file, or after an unpause).
+	!aq_fill_buffer_flag keeps this from happening.
+	Also, the flag was sometimes being set due to round off errors
+	when it should not have been.  The (double) casting and < 99.5
+	check fix this problem.
+
+2000-02-12  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c: fixed bug when resampling hit the end
+    of a sample (mixing did not happen for the last portion of the
+    sample)
+    * timidity/resample.c: set voice[i].timeout to 1 when resampling
+    hits the end of a sample
+
+2000-02-11  Paolo Bonizni <bonzini@gnu.org>
+
+    * timidity/mod.c: Fixed effect Fxy interpretation (xy=32 sets
+    speed, not tempo)
+    * timidity/readmidi.[ch]: added tempo_adjust variable
+    * timidity/timidity.c: added -T option
+
+2000-03-11  Daisuke Aoki <dai@sweetparty.ne.jp>
+	* configs/msc-config.h,
+	  interface/{w32g.h,w32g_c.c,w32g_i.c,w32g_playlist.c,w32g_pref.c,
+	  w32g_res.h,w32g_res.rc,w32g_subwin.c,w32g_ut2.c,w32g_ut2.h,
+	  w32g_utl.c},timidity/wrdt.c:
+		Upgrade Windows version.
+		- Enable to resize Doc Window and List Window.  And also
+		  enable to select the font.
+		- Fixed bugs for displaying
+	* libarc/arc_lzh: Fixed some probrems
+
+2000-03-08  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{playmidi.h}: Change ME_PATCH_OFFS enum position.
+    * timidity/{mod2midi.c} (period2note): Fix to scan period_table[0..119].
+
+2000-03-08  Paolo Bonzini <bonzini@gnu.org>
+
+    * timidity/{mod.c,mod2midi.c}: Bug fix
+
 2000-03-07  Masanao Izumo <mo@goice.co.jp>
 
     * timidity/mod2midi.c: Check error condition of return value of

@@ -97,6 +97,9 @@ enum midi_event_t
     ME_SET_PATCH,		/* Install special instrument */
     ME_DRUMPART,
     ME_KEYSHIFT,
+    ME_PATCH_OFFS,		/* Change special instrument sample position
+				 * Channel, LSB, MSB
+				 */
 
     /* Global channel events */
 
@@ -112,15 +115,12 @@ enum midi_event_t
     ME_RESET,			/* Reset and change system mode */
     ME_NOTE_STEP,
 
-    ME_PATCH_OFFS,		/* Change special instrument sample position
-				 * SampleID, LSB, MSB
-				 */
     ME_TIMESIG,			/* Time signature */
 
     ME_WRD,			/* for MIMPI WRD tracer */
     ME_SHERRY,			/* for Sherry WRD tracer */
     ME_BARMARKER,
-    ME_STEP,
+    ME_STEP,			/* for Metronome */
 
     ME_LAST = 254,		/* Last sequence of MIDI list.
 				 * This event is reserved for realtime player.

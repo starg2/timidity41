@@ -80,6 +80,7 @@ int opt_trace_text_meta_event = 1;
 int opt_trace_text_meta_event = 0;
 #endif /* ALWAYS_TRACE_TEXT_META_EVENT */
 
+FLOAT_T tempo_adjust = 1.0;
 int opt_default_mid = 0;
 int opt_system_mid = 0;
 int ignore_midi_error = 1;
@@ -1987,6 +1988,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	if(meep->event.type == ME_TEMPO)
 	{
 	    tempo = ch + meep->event.b * 256 + meep->event.a * 65536;
+	    tempo *= tempo_adjust;
 	    compute_sample_increment(tempo, divisions);
 	}
 

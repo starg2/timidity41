@@ -64,6 +64,27 @@
 #include "w32g_utl.h"
 #include "w32g_pref.h"
 #include "w32g_subwin.h"
+#include "w32g_ut2.h"
+
+extern void MainWndToggleConsoleButton(void);
+extern void MainWndUpdateConsoleButton(void);
+extern void MainWndToggleTracerButton(void);
+extern void MainWndUpdateTracerButton(void);
+extern void MainWndToggleListButton(void);
+extern void MainWndUpdateListButton(void);
+extern void MainWndToggleDocButton(void);
+extern void MainWndUpdateDocButton(void);
+extern void MainWndToggleWrdButton(void);
+extern void MainWndUpdateWrdButton(void);
+extern void MainWndToggleSoundSpecButton(void);
+extern void MainWndUpdateSoundSpecButton(void);
+extern void ShowSubWindow(HWND hwnd,int showflag);
+extern void ToggleSubWindow(HWND hwnd);
+
+extern void VprintfEditCtlWnd(HWND hwnd, char *fmt, va_list argList);
+extern void PrintfEditCtlWnd(HWND hwnd, char *fmt, ...);
+extern void PutsEditCtlWnd(HWND hwnd, char *str);
+extern void ClearEditCtlWnd(HWND hwnd);
 
 // ***************************************************************************
 //
@@ -283,14 +304,18 @@ static void ConsoleWndVerbosityApplyIncDec(int num)
 #define IDM_LISTWND_REFINE 		4103
 #define IDM_LISTWND_UNIQ 		4104
 #define IDM_LISTWND_CLEAR 		4105
+#define IDM_LISTWND_CHOOSEFONT	4106
 
 // ---------------------------------------------------------------------------
 // Variables
-static HANDLE hListWndPopupMenu;
+LISTWNDINFO ListWndInfo;
 
 // ---------------------------------------------------------------------------
 // Prototypes
 static BOOL CALLBACK ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static int ListWndInfoReset(HWND hwnd);
+static int ListWndInfoApply(void);
+static int ListWndSetFontListBox(char *fontName, int fontWidth, int fontHeght);
 static int ResetListWnd(void);
 static int ClearListWnd(void);
 static int UniqListWnd(void);
@@ -299,7 +324,6 @@ static int DelListWnd(int nth);
 
 // ---------------------------------------------------------------------------
 // Grobal Functions
-
 void InitListWnd(HWND hParentWnd)
 {
 	switch(PlayerLanguage){
@@ -313,11 +337,19 @@ void InitListWnd(HWND hParentWnd)
 			(hInst,MAKEINTRESOURCE(IDD_DIALOG_SIMPLE_LIST),hParentWnd,ListWndProc);
 		break;
 	}
-	hListWndPopupMenu = CreatePopupMenu();
-	AppendMenu(hListWndPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"Play");
-	AppendMenu(hListWndPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"Remove");
-	ShowWindow(hListWnd,SW_HIDE);
-	UpdateWindow(hListWnd);
+	ListWndInfoReset(hListWnd);
+
+	ListWndInfo.hPopupMenu = CreatePopupMenu();
+	AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"Play");
+	AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
+	AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"Remove");
+	AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
+	AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,"Choose Font");
+
+	INILoadListWnd();
+	ListWndInfoApply();
+	ShowWindow(ListWndInfo.hwnd,SW_HIDE);
+	UpdateWindow(ListWndInfo.hwnd);
 	w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
 }
 
@@ -330,9 +362,12 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	switch (uMess){
 	case WM_INITDIALOG:
 		SendDlgItemMessage(hwnd,IDC_LISTBOX_PLAYLIST,
-			LB_SETHORIZONTALEXTENT,(WPARAM)1024,0);
+			LB_SETHORIZONTALEXTENT,(WPARAM)1600,0);
 		w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
 		return FALSE;
+	case WM_DESTROY:
+		INISaveListWnd();
+		break;
 		/* マウス入力がキャプチャされていないための処理 */
 	case WM_SETCURSOR:
 		switch(HIWORD(lParam)){
@@ -340,7 +375,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			{
 				POINT point;
 				GetCursorPos(&point);
-				TrackPopupMenu(hListWndPopupMenu,TPM_TOPALIGN|TPM_LEFTALIGN,
+				TrackPopupMenu(ListWndInfo.hPopupMenu,TPM_TOPALIGN|TPM_LEFTALIGN,
 					point.x,point.y,0,hwnd,NULL);
 			}
 			break;
@@ -394,6 +429,19 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						w32g_send_rc(RC_EXT_JUMP_FILE, ListBox_GetCurSel(hListBox));
 				}
 				return FALSE;
+			case IDM_LISTWND_CHOOSEFONT:
+				{
+					char fontName[64];
+					int fontHeight;
+					int fontWidth;
+					strcpy(fontName,ListWndInfo.fontName);
+					fontHeight = ListWndInfo.fontHeight;
+					fontWidth = ListWndInfo.fontWidth;
+					if(DlgChooseFont(hwnd,fontName,&fontHeight,&fontWidth)==0){
+						ListWndSetFontListBox(fontName,fontWidth,fontHeight);
+					}
+				}
+				return FALSE;
 			default:
 				break;
 			}
@@ -402,7 +450,6 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				{
 					UINT vkey = (UINT)LOWORD(wParam);
 					int nCaretPos = (int)HIWORD(wParam);
-					int num;
 					switch(vkey){
 					case VK_SPACE:
 					case VK_RETURN:
@@ -477,8 +524,92 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			}
 			return -1;
 		}
-		case WM_SIZE:
-			return FALSE;
+	case WM_SIZE:
+		switch(wParam){
+		case SIZE_MAXIMIZED:
+		case SIZE_RESTORED:
+			{		// なんか意味なく面倒(^^;;
+				int x,y,cx,cy;
+				int maxHeight = 0;
+				int center, idControl;
+				HWND hwndChild;
+				RECT rcParent, rcChild, rcRest;
+				int nWidth = LOWORD(lParam);
+				int nHeight = HIWORD(lParam);
+				GetWindowRect(hwnd,&rcParent);
+				cx = rcParent.right-rcParent.left;
+				cy  = rcParent.bottom-rcParent.top;
+				if(cx < 350)
+					MoveWindow(hwnd,rcParent.left,rcParent.top,350,cy,TRUE);
+				if(cy < 200)
+					MoveWindow(hwnd,rcParent.left,rcParent.top,cx,200,TRUE);
+				GetClientRect(hwnd,&rcParent);
+				rcRest.left = rcParent.left; rcRest.right = rcParent.right;
+				// IDC_BUTTON_DOC
+				idControl = IDC_BUTTON_DOC;
+				hwndChild = GetDlgItem(hwnd,idControl);
+				GetWindowRect(hwndChild,&rcChild);
+				cx = rcChild.right-rcChild.left;
+				cy = rcChild.bottom-rcChild.top;
+				x = rcParent.left;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				if(cy>maxHeight) maxHeight = cy;
+				rcRest.left += cx;
+				// IDC_BUTTON_CLEAR
+				idControl = IDC_BUTTON_CLEAR;
+				hwndChild = GetDlgItem(hwnd,idControl);
+				GetWindowRect(hwndChild,&rcChild);
+				cx = rcChild.right-rcChild.left;
+				cy = rcChild.bottom-rcChild.top;
+				x = rcParent.right - cx - 5;
+				y = rcParent.bottom - cy ;
+				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				if(cy>maxHeight) maxHeight = cy;
+				rcRest.right -= cx + 5;
+				// IDC_BUTTON_UNIQ
+				center = rcRest.left + (int)((rcRest.right - rcRest.left)*0.52);
+				idControl = IDC_BUTTON_UNIQ;
+				hwndChild = GetDlgItem(hwnd,idControl);
+				GetWindowRect(hwndChild,&rcChild);
+				cx = rcChild.right-rcChild.left;
+				cy = rcChild.bottom-rcChild.top;
+				x = center - cx;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				if(cy>maxHeight) maxHeight = cy;
+				// IDC_BUTTON_REFINE
+				idControl = IDC_BUTTON_REFINE;
+				hwndChild = GetDlgItem(hwnd,idControl);
+				GetWindowRect(hwndChild,&rcChild);
+				cx = rcChild.right-rcChild.left;
+				cy = rcChild.bottom-rcChild.top;
+				x = center + 3;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				if(cy>maxHeight) maxHeight = cy;
+				// IDC_LISTBOX_PLAYLIST
+				idControl = IDC_LISTBOX_PLAYLIST;
+				hwndChild = GetDlgItem(hwnd,idControl);
+				cx = rcParent.right - rcParent.left;
+				cy = rcParent.bottom - rcParent.top - maxHeight - 3;
+				x  = rcParent.left;
+				y = rcParent.top;
+				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				InvalidateRect(hwnd,&rcParent,FALSE);
+				UpdateWindow(hwnd);
+				GetWindowRect(hwnd,&rcParent);
+				ListWndInfo.Width = rcParent.right - rcParent.left;
+				ListWndInfo.Height = rcParent.bottom - rcParent.top;
+				break;
+			}
+		case SIZE_MINIMIZED:
+		case SIZE_MAXHIDE:
+		case SIZE_MAXSHOW:
+		default:
+			break;
+		}
+		break;
 	// See PreDispatchMessage() in w32g2_main.c
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
@@ -505,8 +636,63 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
+static int ListWndInfoReset(HWND hwnd)
+{
+	memset(&ListWndInfo,0,sizeof(LISTWNDINFO));
+	ListWndInfo.Height = 400;
+	ListWndInfo.Width = 400;
+	ListWndInfo.hPopupMenu = NULL;
+	ListWndInfo.hwnd = hwnd;
+	ListWndInfo.hwndListBox = GetDlgItem(hwnd,IDC_LISTBOX_PLAYLIST);
+	switch(PlayerLanguage){
+	case LANGUAGE_ENGLISH:
+		strcpy(ListWndInfo.fontName,"Times New Roman");
+		ListWndInfo.fontHeight = 12;
+		ListWndInfo.fontWidth = 6;
+		ListWndInfo.fontFlags = FONT_FLAGS_NONE;
+		break;
+	default:
+	case LANGUAGE_JAPANESE:
+		strcpy(ListWndInfo.fontName,"ＭＳ 明朝");
+		ListWndInfo.fontHeight = 12;
+		ListWndInfo.fontWidth = 6;
+		ListWndInfo.fontFlags = FONT_FLAGS_FIXED;
+		break;
+	}
+	return 0;
+}
+static int ListWndInfoApply(void)
+{
+	RECT rc;
+	HFONT hFontPre = NULL;
+	DWORD fdwPitch = (ListWndInfo.fontFlags&FONT_FLAGS_FIXED)?FIXED_PITCH:VARIABLE_PITCH;	
+	DWORD fdwItalic = (ListWndInfo.fontFlags&FONT_FLAGS_ITALIC)?TRUE:FALSE;
+	HFONT hFont =
+		CreateFont(ListWndInfo.fontHeight,ListWndInfo.fontWidth,0,0,FW_DONTCARE,fdwItalic,FALSE,FALSE,
+			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
+	      	fdwPitch | FF_DONTCARE,ListWndInfo.fontName);
+	if(hFont != NULL){
+		hFontPre = ListWndInfo.hFontListBox;
+		ListWndInfo.hFontListBox = hFont;
+		SendMessage(ListWndInfo.hwndListBox,WM_SETFONT,(WPARAM)ListWndInfo.hFontListBox,(LPARAM)MAKELPARAM(TRUE,0));
+	}
+	GetWindowRect(ListWndInfo.hwnd,&rc);
+	MoveWindow(ListWndInfo.hwnd,rc.left,rc.top,ListWndInfo.Width,ListWndInfo.Height,TRUE);
+//	InvalidateRect(hwnd,&rc,FALSE);
+//	UpdateWindow(hwnd);
+	if(hFontPre!=NULL) CloseHandle(hFontPre);
+	INISaveListWnd();
+	return 0;
+}
 
-
+static int ListWndSetFontListBox(char *fontName, int fontWidth, int fontHeight)
+{
+	strcpy(ListWndInfo.fontName,fontName);
+	ListWndInfo.fontWidth = fontWidth;
+	ListWndInfo.fontHeight = fontHeight;
+	ListWndInfoApply();
+	return 0;
+}
 
 // ***************************************************************************
 // Tracer Window
@@ -595,16 +781,9 @@ WrdWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 //****************************************************************************
 // Doc Window
 
-#define DOCWND_DOCFILEMAX 10
-static struct DocWndInfo_ {
-	char DocFile[DOCWND_DOCFILEMAX][MAXPATH];
-	int DocFileMax;
-	int DocFileCur;
-	char *Text;
-	int TextSize;
-//	HANDLE hMutex;
-} DocWndInfo;
+#define IDM_DOCWND_CHOOSEFONT 4232
 int DocWndIndependent = 0; /* Independent document viewer mode.(独立ドキュメントビュワーモード) */
+DOCWNDINFO DocWndInfo;
 
 static BOOL CALLBACK DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void InitDocEditWnd(HWND hParentWnd);
@@ -623,8 +802,13 @@ void DocWndReadDoc(int num);
 void DocWndReadDocNext(void);
 void DocWndReadDocPrev(void);
 
+static int DocWndInfoReset2(HWND hwnd);
+static int DocWndInfoApply(void);
+static int DocWndSetFontEdit(char *fontName, int fontWidth, int fontHeight);
+
 void InitDocWnd(HWND hParentWnd)
 {
+	HMENU hMenu;
 	switch(PlayerLanguage){
   	case LANGUAGE_ENGLISH:
 		hDocWnd = CreateDialog
@@ -636,10 +820,22 @@ void InitDocWnd(HWND hParentWnd)
 			(hInst,MAKEINTRESOURCE(IDD_DIALOG_DOC),hParentWnd,DocWndProc);
 	break;
 	}
-//	hDocWnd = CreateDialog
-//		(hInst,MAKEINTRESOURCE(IDD_DIALOG_DOC),hParentWnd,DocWndProc);
+	DocWndInfoReset2(hDocWnd);
+	INILoadDocWnd();
+
+//	hMenu = GetMenu(DocWndInfo.hwndEdit);
+//	AppendMenu(hMenu,MF_SEPARATOR,0,0);
+//	AppendMenu(hMenu,MF_STRING,IDM_DOCWND_CHOOSEFONT,"Choose Font");
+//	hMenu = GetSystemMenu(DocWndInfo.hwnd,FALSE);
+	hMenu = GetSystemMenu(DocWndInfo.hwnd,FALSE);
+	AppendMenu(hMenu,MF_SEPARATOR,0,0);
+	AppendMenu(hMenu,MF_STRING,IDM_DOCWND_CHOOSEFONT,"Choose Font");
+
+	DocWndInfoApply();
 	ShowWindow(hDocWnd,SW_HIDE);
 	UpdateWindow(hDocWnd);
+	EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),FALSE);
+	EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),FALSE);
 }
 
 static BOOL CALLBACK
@@ -650,6 +846,28 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		PutsDocWnd("Doc Window\n");
 		DocWndInfoInit();
 		return FALSE;
+	case WM_DESTROY:
+		INISaveDocWnd();
+		break;
+	case WM_SYSCOMMAND:
+		switch(wParam){
+		case IDM_DOCWND_CHOOSEFONT:
+		{
+			char fontName[64];
+			int fontHeight;
+			int fontWidth;
+			strcpy(fontName,DocWndInfo.fontName);
+			fontHeight = DocWndInfo.fontHeight;
+			fontWidth = DocWndInfo.fontWidth;
+			if(DlgChooseFont(hwnd,fontName,&fontHeight,&fontWidth)==0){
+				DocWndSetFontEdit(fontName,fontWidth,fontHeight);
+			}
+			break;
+		}
+			break;
+		default:
+			break;
+		}
     case WM_COMMAND:
 		switch (LOWORD(wParam)) {
 		case IDCLOSE:
@@ -690,10 +908,148 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 //		ShowWindow(hDocWnd, SW_HIDE);
 		MainWndUpdateDocButton();
 		break;
+	case WM_SIZE:
+		switch(wParam){
+		case SIZE_MAXIMIZED:
+		case SIZE_RESTORED:
+			{		// なんか意味なく面倒(^^;;
+				int x,y,cx,cy;
+				int max = 0;
+				int width;
+				RECT rcParent;
+				RECT rcEDIT_INFO, rcEDIT_FILENAME, rcBUTTON_PREV, rcBUTTON_NEXT, rcEDIT;
+				HWND hwndEDIT_INFO, hwndEDIT_FILENAME, hwndBUTTON_PREV, hwndBUTTON_NEXT, hwndEDIT;
+				int nWidth = LOWORD(lParam);
+				int nHeight = HIWORD(lParam);
+				GetWindowRect(hwnd,&rcParent);
+				cx = rcParent.right-rcParent.left;
+				cy  = rcParent.bottom-rcParent.top;
+				if(cx < 300)
+					MoveWindow(hwnd,rcParent.left,rcParent.top,300,cy,TRUE);
+				if(cy < 200)
+					MoveWindow(hwnd,rcParent.left,rcParent.top,cx,200,TRUE);
+				GetClientRect(hwnd,&rcParent);
+				hwndEDIT = GetDlgItem(hwnd,IDC_EDIT);
+				hwndEDIT_INFO = GetDlgItem(hwnd,IDC_EDIT_INFO);
+				hwndEDIT_FILENAME = GetDlgItem(hwnd,IDC_EDIT_FILENAME);
+				hwndBUTTON_PREV = GetDlgItem(hwnd,IDC_BUTTON_PREV);
+				hwndBUTTON_NEXT = GetDlgItem(hwnd,IDC_BUTTON_NEXT);
+				GetWindowRect(hwndEDIT,&rcEDIT);
+				GetWindowRect(hwndEDIT_INFO,&rcEDIT_INFO);
+				GetWindowRect(hwndEDIT_FILENAME,&rcEDIT_FILENAME);
+				GetWindowRect(hwndBUTTON_PREV,&rcBUTTON_PREV);
+				GetWindowRect(hwndBUTTON_NEXT,&rcBUTTON_NEXT);
+				width = rcParent.right - rcParent.left;
+				cx = rcBUTTON_NEXT.right-rcBUTTON_NEXT.left;
+				cy = rcBUTTON_NEXT.bottom-rcBUTTON_NEXT.top;
+				x = rcParent.right - cx - 5;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndBUTTON_NEXT,x,y,cx,cy,TRUE);
+				width -= cx + 5;
+				if(cy>max) max = cy;
+				cx = rcBUTTON_PREV.right-rcBUTTON_PREV.left;
+				cy = rcBUTTON_PREV.bottom-rcBUTTON_PREV.top;
+				x  -= cx + 5;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndBUTTON_PREV,x,y,cx,cy,TRUE);
+				width -= cx;
+				if(cy>max) max = cy;
+				width -= 5;
+//				cx = rcEDIT_INFO.right-rcEDIT_INFO.left;
+				cx = (int)(width * 0.36);
+				cy = rcEDIT_INFO.bottom-rcEDIT_INFO.top;
+				x = rcParent.left;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndEDIT_INFO,x,y,cx,cy,TRUE);
+				if(cy>max) max = cy;
+				x += cx + 5;
+//				cx = rcEDIT_FILENAME.right-rcEDIT_FILENAME.left;
+				cx = (int)(width * 0.56);
+				cy = rcEDIT_FILENAME.bottom-rcEDIT_FILENAME.top;
+				y = rcParent.bottom - cy;
+				MoveWindow(hwndEDIT_FILENAME,x,y,cx,cy,TRUE);
+				if(cy>max) max = cy;
+				cx = rcParent.right - rcParent.left;
+				cy = rcParent.bottom - rcParent.top - max - 5;
+				x  = rcParent.left;
+				y = rcParent.top;
+				MoveWindow(hwndEDIT,x,y,cx,cy,TRUE);
+				InvalidateRect(hwnd,&rcParent,FALSE);
+				UpdateWindow(hwnd);
+				GetWindowRect(hwnd,&rcParent);
+				DocWndInfo.Width = rcParent.right - rcParent.left;
+				DocWndInfo.Height = rcParent.bottom - rcParent.top;
+				break;
+			}
+		case SIZE_MINIMIZED:
+		case SIZE_MAXHIDE:
+		case SIZE_MAXSHOW:
+		default:
+			break;
+		}
+		break;
 	default:
 		return FALSE;
 	}
 	return FALSE;
+}
+
+static int DocWndInfoReset2(HWND hwnd)
+{
+//	memset(&DocWndInfo,0,sizeof(DOCWNDINFO));
+	DocWndInfo.Height = 400;
+	DocWndInfo.Width = 400;
+	DocWndInfo.hPopupMenu = NULL;
+	DocWndInfo.hwnd = hwnd;
+	DocWndInfo.hwndEdit = GetDlgItem(hwnd,IDC_EDIT);
+	switch(PlayerLanguage){
+	case LANGUAGE_ENGLISH:
+		strcpy(DocWndInfo.fontName,"Times New Roman");
+		DocWndInfo.fontHeight = 12;
+		DocWndInfo.fontWidth = 6;
+		DocWndInfo.fontFlags = FONT_FLAGS_NONE;
+		break;
+	default:
+	case LANGUAGE_JAPANESE:
+		strcpy(DocWndInfo.fontName,"ＭＳ 明朝");
+		DocWndInfo.fontHeight = 12;
+		DocWndInfo.fontWidth = 6;
+		DocWndInfo.fontFlags = FONT_FLAGS_FIXED;
+		break;
+	}
+	return 0;
+}
+static int DocWndInfoApply(void)
+{
+	RECT rc;
+	HFONT hFontPre = NULL;
+	DWORD fdwPitch = (ListWndInfo.fontFlags&FONT_FLAGS_FIXED)?FIXED_PITCH:VARIABLE_PITCH;	
+	DWORD fdwItalic = (DocWndInfo.fontFlags&FONT_FLAGS_ITALIC)?TRUE:FALSE;
+	HFONT hFont =
+		CreateFont(DocWndInfo.fontHeight,DocWndInfo.fontWidth,0,0,FW_DONTCARE,fdwItalic,FALSE,FALSE,
+			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
+	      	fdwPitch | FF_DONTCARE,DocWndInfo.fontName);
+	if(hFont != NULL){
+		hFontPre = DocWndInfo.hFontEdit;
+		DocWndInfo.hFontEdit = hFont;
+		SendMessage(DocWndInfo.hwndEdit,WM_SETFONT,(WPARAM)DocWndInfo.hFontEdit,(LPARAM)MAKELPARAM(TRUE,0));
+	}
+	GetWindowRect(DocWndInfo.hwnd,&rc);
+	MoveWindow(DocWndInfo.hwnd,rc.left,rc.top,DocWndInfo.Width,DocWndInfo.Height,TRUE);
+//	InvalidateRect(hwnd,&rc,FALSE);
+//	UpdateWindow(hwnd);
+	if(hFontPre!=NULL) CloseHandle(hFontPre);
+	INISaveDocWnd();
+	return 0;
+}
+
+static int DocWndSetFontEdit(char *fontName, int fontWidth, int fontHeight)
+{
+	strcpy(DocWndInfo.fontName,fontName);
+	DocWndInfo.fontWidth = fontWidth;
+	DocWndInfo.fontHeight = fontHeight;
+	DocWndInfoApply();
+	return 0;
 }
 
 static char ControlCode[] = "@ABCDEFGHIJKLMNOPQRS";
@@ -706,7 +1062,7 @@ static void DocWndConvertText(char *in, int in_size, char *out, int out_size)
 
 // Convert Return Code CR, LF -> CR+LF ,
 //         Control Code -> ^? (^@, ^A, ^B, ...).
-stage1:
+// stage1:
 	for(;;){
 		if(i>=in_size || j>=buffer_size-1)
 			goto stage1_end;
@@ -797,7 +1153,7 @@ stage1:
 stage1_end:
 	buffer[j] = '\0';
 // Convert KANJI Code.
-stage2:
+// stage2:
 #ifndef MAX2
 #define MAX2(x,y) ((x)>=(y)?(x):(y))
 #endif
@@ -832,7 +1188,6 @@ static void DocWndSetText(char *text, int text_size)
 
 static void DocWndSetInfo(char *info, char *filename)
 {
-	char buffer[BUFFER_SIZE];
 	int buffer_size = BUFFER_SIZE;
 	if(!IsWindow(hDocWnd) || !DocWndFlag)
 		return;
@@ -853,6 +1208,8 @@ static void DocWndInfoInit(void)
 	DocWndInfo.DocFileMax = 0;
 	DocWndInfo.Text = NULL;
 	DocWndInfo.TextSize = 0;
+	EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),FALSE);
+	EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),FALSE);
 //	if(DocWndInfo.hMutex!=NULL)
 //		DocWndInfoUnLock();
 }
@@ -892,7 +1249,7 @@ void DocWndInfoReset(void)
 	DocWndInfo.TextSize = 0;
 	DocWndSetInfo("","");
 	DocWndSetText("",0);
-end:
+// end:
 	DocWndInfoUnLock();
 }
 
@@ -912,6 +1269,14 @@ PrintfDebugWnd("DocWndAddDocFile <- [%s]\n",filename);
 	DocWndInfo.DocFileMax++;
 	strncpy(DocWndInfo.DocFile[DocWndInfo.DocFileMax-1],filename,MAXPATH);
 	DocWndInfo.DocFile[DocWndInfo.DocFileMax-1][MAXPATH-1] = '\0';
+	if(DocWndInfo.DocFileCur==1)
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),FALSE);
+	else
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),TRUE);
+	if(DocWndInfo.DocFileCur==DocWndInfo.DocFileMax)
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),FALSE);
+	else
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),TRUE);
 #ifdef W32GUI_DEBUG
 PrintfDebugWnd("DocWndAddDocFile -> (%d)[%s]\n",DocWndInfo.DocFileMax-1,DocWndInfo.DocFile[DocWndInfo.DocFileMax-1]);
 #endif
@@ -938,6 +1303,18 @@ void DocWndSetMidifile(char *filename)
 	DocWndAddDocFile(buffer);
 	*p = '\0';
 	strcat(buffer,".hed");
+	DocWndAddDocFile(buffer);
+	p = strrchr(buffer,'#');
+	if(p==NULL)
+		goto end;
+	*p = '\0';
+	strcat(buffer,"readme.txt");
+	DocWndAddDocFile(buffer);
+	*p = '\0';
+	strcat(buffer,"readme.1st");
+	DocWndAddDocFile(buffer);
+	*p = '\0';
+	strcat(buffer,"歌詞.txt");
 	DocWndAddDocFile(buffer);
 end:
 	DocWndInfoUnLock();
@@ -989,6 +1366,14 @@ void DocWndReadDoc(int num)
 	}
 	DocWndSetText(DocWndInfo.Text,DocWndInfo.TextSize);
 end:
+	if(DocWndInfo.DocFileCur==1)
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),FALSE);
+	else
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),TRUE);
+	if(DocWndInfo.DocFileCur==DocWndInfo.DocFileMax)
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),FALSE);
+	else
+		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),TRUE);
 	DocWndInfoUnLock();
 }
 

@@ -58,12 +58,12 @@
                 ofs &= FRACTION_MASK; \
                 temp=v2; \
 		v2 = (6*v2 + \
-		      ((((((5*v3 - 11*v2 + 7*v1 - v0)* \
-		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+2))-1))*ofs; \
+		      (((((((5*v3 - 11*v2 + 7*v1 - v0)>>1)* \
+		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+1))-1))*ofs; \
                 ofs = (1L << FRACTION_BITS) - ofs; \
 		v1 = (6*v1 + \
-		      ((((((5*v0 - 11*v1 + 7*temp - v3)* \
-		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+2))-1))*ofs; \
+		      (((((((5*v0 - 11*v1 + 7*temp - v3)>>1)* \
+		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+1))-1))*ofs; \
 		v1 = (v1 + v2)/(6L<<FRACTION_BITS); \
 		*dest++ = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
 		ofs=ofsd; \
@@ -152,8 +152,7 @@ static sample_t *rs_plain_c(int v, int32 *countptr)
     ofs += count;
     if(ofs == le)
     {
-	free_voice(v);
-	ctl_note_event(v);
+	vp->timeout = 1;
 	*countptr = count;
     }
     vp->sample_offset = (ofs << FRACTION_BITS);
@@ -207,8 +206,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
   if (ofs >= le)
     {
       FINALINTERP;
-      free_voice(v);
-      ctl_note_event(v);
+      vp->timeout = 1;
       *countptr-=count+1;
     }
 #else /* PRECALC_LOOPS */
@@ -219,8 +217,7 @@ static sample_t *rs_plain(int v, int32 *countptr)
       if (ofs >= le)
 	{
 	  FINALINTERP;
-	  free_voice(v);
- 	  ctl_note_event(v);
+	  vp->timeout = 1;
 	  *countptr-=count+1;
 	  break;
 	}
@@ -548,8 +545,7 @@ static sample_t *rs_vib_plain(int v, int32 *countptr)
       if (ofs >= le)
 	{
 	  FINALINTERP;
-	  free_voice(v);
- 	  ctl_note_event(v);
+	  vp->timeout = 1;
 	  *countptr-=count+1;
 	  break;
 	}
@@ -886,8 +882,7 @@ sample_t *resample_voice(int v, int32 *countptr)
 	if(*countptr >= (vp->sample->data_length>>FRACTION_BITS) - ofs)
 	{
 	    /* Note finished. Free the voice. */
-	    free_voice(v);
-	    ctl_note_event(v);
+	    vp->timeout = 1;
 
 	    /* Let the caller know how much data we had left */
 	    *countptr = (vp->sample->data_length>>FRACTION_BITS) - ofs;

@@ -29,6 +29,9 @@
 
 /* Return values for ControlMode.read */
 #define RC_ERROR	-1
+#ifdef RC_NONE
+#undef RC_NONE
+#endif
 #define RC_NONE		0
 #define RC_QUIT		1
 #define RC_NEXT		2

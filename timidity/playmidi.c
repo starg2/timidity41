@@ -259,6 +259,8 @@ static char *event_name(int type)
 	EVENT_NAME(ME_SET_PATCH);
 	EVENT_NAME(ME_DRUMPART);
 	EVENT_NAME(ME_KEYSHIFT);
+	EVENT_NAME(ME_PATCH_OFFS);
+
 	EVENT_NAME(ME_TEMPO);
 	EVENT_NAME(ME_CHORUS_TEXT);
 	EVENT_NAME(ME_LYRIC);
@@ -270,7 +272,6 @@ static char *event_name(int type)
 	EVENT_NAME(ME_MASTER_VOLUME);
 	EVENT_NAME(ME_RESET);
 	EVENT_NAME(ME_NOTE_STEP);
-	EVENT_NAME(ME_PATCH_OFFS);
 	EVENT_NAME(ME_TIMESIG);
 	EVENT_NAME(ME_WRD);
 	EVENT_NAME(ME_SHERRY);
@@ -293,7 +294,7 @@ static int new_vidq(int ch, int note)
 {
     int i;
 
-    if(opt_overlap_voice_allow && !IS_CURRENT_MOD_FILE)
+    if(opt_overlap_voice_allow)
     {
 	i = ch * 128 + note;
 	return vidq_head[i]++;
@@ -305,7 +306,7 @@ static int last_vidq(int ch, int note)
 {
     int i;
 
-    if(opt_overlap_voice_allow && !IS_CURRENT_MOD_FILE)
+    if(opt_overlap_voice_allow)
     {
 	i = ch * 128 + note;
 	if(vidq_head[i] == vidq_tail[i])
@@ -1142,7 +1143,7 @@ static int find_voice(MidiEvent *e)
   note = MIDI_EVENT_NOTE(e);
   ch = e->channel;
 
-  if(opt_overlap_voice_allow && !IS_CURRENT_MOD_FILE)
+  if(opt_overlap_voice_allow)
       status_check = (VOICE_OFF | VOICE_SUSTAINED);
   else
       status_check = 0xFF;
@@ -3323,11 +3324,20 @@ static void do_compute_data_midi(int32 count)
 	    else
 		vpb = buffer_pointer;
 	    mix_voice(vpb, i, count);
-	    if(voice[i].timeout > 0 &&
-	       voice[i].timeout < current_sample &&
-	       voice[i].status == VOICE_SUSTAINED)
-		finish_note(i); /* timeout (See also "#extension timeout" line
-				   in *.cfg file */
+  	    if(voice[i].timeout > 0 &&
+ 	       voice[i].timeout < current_sample)
+ 	    {
+ 		if (voice[i].timeout > 1)
+ 		{
+ 		    finish_note(i); /* timeout (See also "#extension timeout" line
+  				   in *.cfg file */
+ 		}
+ 		else
+ 		{
+ 		    free_voice(i);
+ 		    ctl_note_event(i);
+ 		}
+ 	    }
 	}
     }
 
@@ -3564,11 +3574,12 @@ static int compute_data(int32 count)
 #if defined(CSPLINE_INTERPOLATION) || defined(LAGRANGE_INTERPOLATION)
       /* fall back to linear interpolation when queue < 100% */
       if (opt_realtime_playing != 2 && (play_mode->flag & PF_CAN_TRACE)) {
-	     if (100 * (aq_filled() + aq_soft_filled()) /
-	         aq_get_dev_queuesize() < 100)
-	    		reduce_quality_flag = 1;
-	     else
-			reduce_quality_flag = no_4point_interpolation;
+	  if (!aq_fill_buffer_flag &&
+	      100 * ((double)(aq_filled() + aq_soft_filled()) /
+		     aq_get_dev_queuesize()) < 99)
+	      reduce_quality_flag = 1;
+	  else
+	      reduce_quality_flag = no_4point_interpolation;
       }
 #endif
 

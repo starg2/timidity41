@@ -99,6 +99,8 @@ EXTRA_libinterface_a_SOURCES = \
 	w32g_res.rc \
 	w32g_utl.c \
 	w32g_utl.h \
+	w32g_ut2.c \
+	w32g_ut2.h \
 	w32g_i.c \
 	w32g_playlist.c \
 	w32g_pref.c \

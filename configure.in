@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.9.1a1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.9.1, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -1152,7 +1152,7 @@ CONFIG_INTERFACE(w32gui, W32GUI, w,
   [ lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32'
     lib_user32_opt='-luser32'
     LDFLAGS="-mwindows $LDFLAGS"
-    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_pref.c w32g_subwin.c"
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_pref.c w32g_subwin.c w32g_ut2.c"
   ])
 
 

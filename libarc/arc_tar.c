@@ -108,22 +108,24 @@ ArchiveEntryNode *next_tar_entry(void)
     }
     else
     {
-      void *data;
-      long n;
+	void *data;
+	long n;
 
-      data = url_dump(url, size, &n);
-      if(size != n)
+	data = url_dump(url, size, &n);
+	if(size != n)
 	{
-	  free_entry_node(entry);
-	  return NULL;
+	    if(data != NULL)
+		free(data);
+	    free_entry_node(entry);
+	    return NULL;
 	}
-      entry->cache = arc_compress(data, size, ARC_DEFLATE_LEVEL,
-				  &entry->compsize);
-      free(data);
-      entry->comptype = ARCHIVEC_DEFLATED;
-      entry->origsize = size;
-      entry->start = 0;
-      url_skip(url, sizeb - size);
+	entry->cache = arc_compress(data, size, ARC_DEFLATE_LEVEL,
+				    &entry->compsize);
+	free(data);
+	entry->comptype = ARCHIVEC_DEFLATED;
+	entry->origsize = size;
+	entry->start = 0;
+	url_skip(url, sizeb - size);
     }
 
     return entry;

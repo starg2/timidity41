@@ -884,7 +884,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.9.1a1
+VERSION=2.9.1
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -7348,7 +7348,7 @@ fi
    lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32'
     lib_user32_opt='-luser32'
     LDFLAGS="-mwindows $LDFLAGS"
-    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_pref.c w32g_subwin.c"
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_pref.c w32g_subwin.c w32g_ut2.c"
   
   ;;
 xdynamic)

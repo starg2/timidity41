@@ -43,7 +43,18 @@
 #include "controls.h"
 #include "unimod.h"
 #include "mod2midi.h"
-#include "controls.h"
+
+
+/* Define this to show all the notes touched by a bending in the
+ * user interface's trace view.  This is interesting but disabled
+ * because it needs tons of CPU power (tens of voices are activated
+ * but unaudible). */
+/* #define TRACE_SLIDE_NOTES */
+
+/* Define this to give a volume envelope to a MOD's notes. This
+ * could sound wrong with a few MODs, but gives richer sound most
+ * of the time. */
+#define USE_ENVELOPE
 
 
 #define SETMIDIEVENT(e, at, t, ch, pa, pb) \
@@ -69,7 +80,26 @@
 #define PAL_RATE (PAL_CLOCK/428)
 
 #define MOD_ROOT_NOTE      36
-#define MOD_BEND_SENSITIVE 60
+
+/* The internal bending register is 21-bits wide and it is made like this:
+ *  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ * | | | | | | | | | | | | | | | | | | | | | |
+ * |    8 bits     |    8 bits     |  5 bits |
+ * |  note  shift  |   fine tune   |discarded|
+ * '---------------'---------------'---------'
+ *
+ * The note shift is an `offset' field: 128 = keep this note.
+ * To compute it, the values given to the pitch-wheel MIDI event are
+ * multiplied by the sensitivity. We want to be able to express a full
+ * 120 notes bending (8 bits for the note shift + 8 for the fine tune)
+ * with 14-bit pitch-wheel event, so we want a sensitivity value that
+ * forces the bottom 7 bits of the internal register to 0.  This value
+ * is of course 128.
+ */
+
+#define WHEEL_SENSITIVITY 		(1 << 7)
+#define WHEEL_VALUE(bend)		((bend) / WHEEL_SENSITIVITY + 0x2000)
+
 
 typedef struct _ModVoice
   {
@@ -77,7 +107,7 @@ typedef struct _ModVoice
     int noteon;			/* (-1 means OFF status) */
     int time;			/* time when note was activated */
     int period;			/* current frequency */
-    int tuneon;			/* note fine tune */
+    int wheel;			/* current pitch wheel value */
     int pan;			/* current panning */
     int vol;			/* current volume */
     int start;			/* sample start */
@@ -87,7 +117,6 @@ typedef struct _ModVoice
 ModVoice;
 
 static void mod_change_tempo (int32 at, int bpm);
-static int mod_pitch_bend (int tune);
 static int period2note (int period, int *finetune);
 
 static ModVoice ModV[MOD_NUM_VOICES];
@@ -141,20 +170,6 @@ mod_change_tempo (int32 at, int bpm)
 }
 
 int
-mod_pitch_bend(int tune)
-{
-  int bend;
-
-  bend = tune * (8192 / 256) / MOD_BEND_SENSITIVE + 8192;
-  if (bend <= 0)
-    bend = 1;
-  else if (bend >= 2 * 8192)
-    bend = 2 * 8192 - 1;
-
-  return bend;
-}
-
-int
 period2note (int period, int *finetune)
 {
   static int period_table[120] =
@@ -176,11 +191,14 @@ period2note (int period, int *finetune)
   int l, r, m;
 
   if (period < 14 || period > 13696)
+  {
+    ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "BAD period %d\n", period);
     return -1;
+  }
 
   /* bin search */
   l = 0;
-  r = 96;
+  r = 120;
   while (l < r)
     {
       m = (l + r) / 2;
@@ -192,22 +210,18 @@ period2note (int period, int *finetune)
   note = l - 1;
 
   /*
-   * 95 >= note >= 0
+   * 119 >= note >= 0
    * period_table[note] >= period > period_table[note + 1]
    */
 
   if (period_table[note] == period)
-    {
-      *finetune = 0;
-    }
+    *finetune = 0;
   else
-    {
-      /* fine tune completion */
-      *finetune = (int) (256.0 *
-		     (period_table[note] - period) /
-		     (period_table[note] - period_table[note + 1]));
-    }
+    /* fine tune completion */
+    *finetune = ((period_table[note] - period) << 8) /
+		   (period_table[note] - period_table[note + 1]);
 
+  *finetune <<= 5;
   return note;
 }
 
@@ -231,7 +245,7 @@ Voice_SetVolume (UBYTE v, UWORD vol)
 void
 Voice_SetPeriod (UBYTE v, ULONG period)
 {
-  int tune, new_noteon, new_sample, bend;
+  int new_noteon, new_sample, bend;
 
   if (v >= MOD_NUM_VOICES)
     return;
@@ -240,12 +254,12 @@ Voice_SetPeriod (UBYTE v, ULONG period)
   if (ModV[v].noteon < 0)
     return;
 
-  new_noteon = period2note (ModV[v].period, &tune);
-  if(new_noteon < 0)
-    {
-      ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "BAD period %d\n", ModV[v].period);
-      return;
-    }
+  new_noteon = period2note (ModV[v].period, &bend);
+#ifndef TRACE_SLIDE_NOTES
+  bend += (new_noteon - ModV[v].noteon) << 13;
+  new_noteon = ModV[v].noteon;
+#endif
+  bend = WHEEL_VALUE(bend);
 
   if (ModV[v].noteon != new_noteon)
     {
@@ -255,15 +269,25 @@ Voice_SetPeriod (UBYTE v, ULONG period)
 	  bitmapSet(ModV[v].noteson, new_noteon);
 	}
 
-      MIDIEVENT(at, ME_KEYPRESSURE, v, ModV[v].noteon, 1);
-      MIDIEVENT(at, ME_KEYPRESSURE, v, new_noteon, ModV[v].vol);
+      if (new_noteon < 0)
+        {
+	  ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+			  "Strange period %d",
+			  ModV[v].period);
+	  return;
+	}
+      else
+        {
+          MIDIEVENT(at, ME_KEYPRESSURE, v, ModV[v].noteon, 1);
+          MIDIEVENT(at, ME_KEYPRESSURE, v, new_noteon, ModV[v].vol);
+        }
+
       ModV[v].noteon = new_noteon;
     }
 
-  if (ModV[v].tuneon != tune)
+  if (ModV[v].wheel != bend)
     {
-      ModV[v].tuneon = tune;
-      bend = mod_pitch_bend(tune);
+      ModV[v].wheel = bend;
       MIDIEVENT (at, ME_PITCHWHEEL, v, bend & 0x7F, (bend >> 7) & 0x7F);
     }
 }
@@ -285,16 +309,19 @@ Voice_SetPanning (UBYTE v, ULONG pan)
 void
 Voice_Play (UBYTE v, SAMPLE * s, ULONG start)
 {
-  int tune, new_noteon, bend;
+  int new_noteon, bend;
   if (v >= MOD_NUM_VOICES)
     return;
 
   if (ModV[v].noteon != -1)
     Voice_Stop (v);
 
-  new_noteon = period2note (ModV[v].period, &tune);
+  new_noteon = period2note (ModV[v].period, &bend);
+  bend = WHEEL_VALUE(bend);
   if (new_noteon < 0) {
-    ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "BAD period %d\n", ModV[v].period);
+    ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+			  "Strange period %d",
+			  ModV[v].period);
     return;
   }
 
@@ -318,10 +345,9 @@ Voice_Play (UBYTE v, SAMPLE * s, ULONG start)
       MIDIEVENT (at, ME_PATCH_OFFS, v, a, b);
     }
 
-  if (ModV[v].tuneon != tune)
+  if (ModV[v].wheel != bend)
     {
-      ModV[v].tuneon = tune;
-      bend = mod_pitch_bend(tune);
+      ModV[v].wheel = bend;
       MIDIEVENT (at, ME_PITCHWHEEL, v, bend & 0x7F, (bend >> 7) & 0x7F);
     }
  
@@ -406,7 +432,7 @@ Voice_StartPlaying ()
 	ModV[v].noteon = -1;
 	ModV[v].time = -1;
 	ModV[v].period = 0;
-	ModV[v].tuneon = 0;
+	ModV[v].wheel = 0x2000;
 	ModV[v].vol = 64;
 	ModV[v].start = 0;
 	ModV[v].pan = (v & 1) ? 127 : 0;
@@ -419,7 +445,7 @@ Voice_StartPlaying ()
 	/* MIDIEVENT(0, ME_MONO, v, 0, 0); */
 	MIDIEVENT(0, ME_RPN_LSB, v, 0, 0);
 	MIDIEVENT(0, ME_RPN_MSB, v, 0, 0);
-	MIDIEVENT(0, ME_DATA_ENTRY_MSB, v, MOD_BEND_SENSITIVE, 0);
+	MIDIEVENT(0, ME_DATA_ENTRY_MSB, v, WHEEL_SENSITIVITY, 0);
 	MIDIEVENT(0, ME_DRUMPART, v, 0, 0);
     }
 
@@ -451,7 +477,7 @@ static int32 env_rate(int diff, double msec)
 }
 
 
-void load_module_samples (SAMPLE * s, int numsamples)
+void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 {
     int i;
 
@@ -500,8 +526,10 @@ void load_module_samples (SAMPLE * s, int numsamples)
 	if (sp->modes & (MODES_PINGPONG | MODES_REVERSE))
 	  sp->modes &= ~MODES_LOOPING;
 
+#ifdef USE_ENVELOPE
 	/* envelope (0,1:attack, 2:sustain, 3,4,5:release) */
 	sp->modes |= MODES_ENVELOPE;
+
 	/* attack */
 	sp->envelope_offset[0] = env_offset(255);
 	sp->envelope_rate[0]   = env_rate(255, 0.0);	/* fastest */
@@ -515,19 +543,15 @@ void load_module_samples (SAMPLE * s, int numsamples)
 	if(modify_release)
 	    sp->envelope_rate[3] = env_rate(255, (double)modify_release); /* -R# */
 	else
-	    sp->envelope_rate[3] = env_rate(255, 80.0);	/* 80 msec */
+	    sp->envelope_rate[3]   = env_rate(255, 80.0);	/* 80 msec */
 	sp->envelope_offset[4] = sp->envelope_offset[3];
 	sp->envelope_rate[4]   = 0; /* skip this stage */
 	sp->envelope_offset[5] = sp->envelope_offset[4];
 	sp->envelope_rate[5]   = 0; /* skip this stage, then the voice is
 				       disappeared */
+#endif
 
-	/* If necessary do some anti-aliasing filtering  */
-	if (antialiasing_allowed)
-	  antialiasing((int16 *)sp->data, sp->data_length / 2,
-		       sp->sample_rate, play_mode->rate);
-
-	sp->sample_rate = ((int32)PAL_RATE) >> s->divfactor;
+ 	sp->sample_rate = ((int32) PAL_RATE) >> s->divfactor;
 	sp->low_freq = 0;
 	sp->high_freq = 0x7fffffff;
 	sp->root_freq = freq_table[MOD_ROOT_NOTE];
@@ -538,6 +562,11 @@ void load_module_samples (SAMPLE * s, int numsamples)
 	sp->data_length <<= FRACTION_BITS;
 	sp->loop_start <<= FRACTION_BITS;
 	sp->loop_end <<= FRACTION_BITS;
+
+	/* If necessary do some anti-aliasing filtering  */
+	if (antialiasing_allowed)
+	  antialiasing((int16 *)sp->data, sp->data_length / 2,
+		       sp->sample_rate, play_mode->rate);
 
 	s->data = NULL;		/* Avoid free-ing */
 	s->id = i;

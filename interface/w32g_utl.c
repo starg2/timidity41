@@ -602,6 +602,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 // ini & config
 
 static char S_IniFile[MAXPATH + 32];
+static char S_timidity_window_inifile[MAXPATH + 32];
 static char S_ConfigFile[MAXPATH + 32];
 static char S_PlaylistFile[MAXPATH + 32];
 static char S_PlaylistHistoryFile[MAXPATH + 32];
@@ -641,6 +642,7 @@ static int TracerFontSize = 16;
 
 SETTING_PLAYER *sp_default, *sp_current, *sp_temp;
 SETTING_TIMIDITY *st_default, *st_current, *st_temp;
+extern char *timidity_window_inifile;
 
 void w32g_initialize(void)
 {
@@ -698,6 +700,10 @@ void w32g_initialize(void)
     strncpy(IniFile, buffer, MAXPATH);
     IniFile[MAXPATH] = '\0';
     strcat(IniFile,"timpp32g.ini");
+	timidity_window_inifile = S_timidity_window_inifile;
+	strncpy(timidity_window_inifile, buffer, 200);
+    timidity_window_inifile[200] = '\0';
+    strcat(timidity_window_inifile,"timidity_window.ini");
     st_default = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
     sp_default = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
     st_current = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));

@@ -83,7 +83,7 @@ extern char *optarg;
 #include "w32g_utl.h"
 #endif
 
-#define OPTCOMMANDS "4A:aB:b:C:c:D:d:E:eFfg:hI:i:jk:L:M:m:n:O:o:P:p:Q:q:R:rS:s:t:UW:w:x:Z:"
+#define OPTCOMMANDS "4A:aB:b:C:c:D:d:E:eFfg:hI:i:jk:L:M:m:n:O:o:P:p:Q:q:R:rS:s:t:T:UW:w:x:Z:"
 #define INTERACTIVE_INTERFACE_IDS "kmqagrw"
 
 /* main interfaces (To be used another main) */
@@ -435,6 +435,7 @@ static void help(void)
 "                   jis   : JIS",
 "                   sjis  : shift JIS",
 #endif /* JAPANESE */
+"  -T n    Adjust tempo to n%%; 120=play MOD files with an NTSC Amiga's timing",
 "  -U      Unload instruments from memory between MIDI files",
 "  -W mode Select WRD interface (see below for list)",
 #ifdef __W32__
@@ -2670,6 +2671,13 @@ MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 	    free(output_text_code);
 	output_text_code = safe_strdup(optarg);
 	break;
+
+       case 'T':
+         tmpi32 = atoi(optarg);
+         if(set_value(&tmpi32, tmpi32, 10, 400, "Tempo adjust"))
+ 	    return 1;
+ 	tempo_adjust = 100.0 / tmpi32;
+ 	break;
 
       case 'U':
 	free_instruments_afterwards = 1;

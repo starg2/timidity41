@@ -26,6 +26,7 @@
 #include <string.h>
 #include <windows.h>
 #include <windowsx.h>
+#undef RC_NONE
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -483,9 +484,14 @@ void w32g_clear_playlist(void)
     {
 	playlist.nfiles--;
 	free(playlist.list[playlist.nfiles].filename);
+#if 0
 	if(hListBox)
 	    ListBox_DeleteString(hListBox, playlist.nfiles);
+#endif
     }
+//	LB_RESETCONTENT
+	if(hListBox)
+	    ListBox_ResetContent(hListBox);
 }
 
 void w32g_rotate_playlist(int dest)

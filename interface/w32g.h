@@ -20,12 +20,10 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include <process.h>
 #include <windows.h>
-
-#ifdef RC_NONE
 #undef RC_NONE
-#define RC_NONE 0
-#endif /* RC_NONE */
+#define RC_NONE	0
 
 #define LANGUAGE_JAPANESE				0x0001
 #define LANGUAGE_ENGLISH				0x0002

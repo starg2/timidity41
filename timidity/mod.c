@@ -76,7 +76,7 @@ load_module_file (struct timidity_file *tf, int mod_type)
     return 1;
 
   current_file_info->file_type = mod_type;
-  load_module_samples (mf->samples, mf->numsmp);
+  load_module_samples (mf->samples, mf->numsmp, mod_type == IS_MOD_FILE);
   mod_do_play (mf);
   ML_Free (mf);
   return 0;
@@ -88,24 +88,26 @@ get_module_type (char *fn)
 {
   char *p;
 
-  if (check_file_extension (fn, ".xm", 0)	/* Most common first */
-      || check_file_extension (fn, ".s3m", 0)
-      || check_file_extension (fn, ".mod", 0)
-      || check_file_extension (fn, ".it", 0)
-      || check_file_extension (fn, ".669", 0)	/* Then the others in alphabetic order */
-      || check_file_extension (fn, ".amf", 0)
-      || check_file_extension (fn, ".dsm", 0)
-      || check_file_extension (fn, ".far", 0)
-      || check_file_extension (fn, ".gdm", 0)
-      || check_file_extension (fn, ".imf", 0)
-      || check_file_extension (fn, ".med", 0)
-      || check_file_extension (fn, ".mtm", 0)
-      || check_file_extension (fn, ".stm", 0)
-      || check_file_extension (fn, ".stx", 0)
-      || check_file_extension (fn, ".ult", 0)
-      || check_file_extension (fn, ".uni", 0))
-
+  if (check_file_extension (fn, ".mod", 1))	/* Most common first */
     return IS_MOD_FILE;
+
+  if (check_file_extension (fn, ".xm", 1)
+      || check_file_extension (fn, ".s3m", 1)
+      || check_file_extension (fn, ".it", 1)
+      || check_file_extension (fn, ".669", 1)	/* Then the others in alphabetic order */
+      || check_file_extension (fn, ".amf", 1)
+      || check_file_extension (fn, ".dsm", 1)
+      || check_file_extension (fn, ".far", 1)
+      || check_file_extension (fn, ".gdm", 1)
+      || check_file_extension (fn, ".imf", 1)
+      || check_file_extension (fn, ".med", 1)
+      || check_file_extension (fn, ".mtm", 1)
+      || check_file_extension (fn, ".stm", 1)
+      || check_file_extension (fn, ".stx", 1)
+      || check_file_extension (fn, ".ult", 1)
+      || check_file_extension (fn, ".uni", 1))
+
+    return IS_S3M_FILE;
 
   return IS_OTHER_FILE;
 }
@@ -1918,7 +1920,7 @@ pt_playeffects (void)
 	    mp.newbpm = dat;
 	  else if (dat)
 	    {
-	      mp.sngspd = (dat > 32) ? 32 : dat;
+	      mp.sngspd = (dat >= 32) ? 32 : dat;
 	      mp.vbtick = 0;
 	    }
 	  break;
@@ -2295,10 +2297,11 @@ pt_UpdateVoices ()
       if ((!s) || (!s->length))
 	continue;
 
-      if (aout->period < 40)
-	aout->period = 40;
-      else if (aout->period > 50000)
-	aout->period = 50000;
+      if (aout->period < 14 || aout->period > 50000)
+        {
+          Voice_Stop(mp.channel);
+          continue;
+        }
 
       kick_voice = 0;
       if ((aout->kick == KICK_NOTE) || (aout->kick == KICK_KEYOFF))

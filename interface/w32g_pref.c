@@ -28,6 +28,7 @@
 #include <process.h>
 #include <stddef.h>
 #include <windows.h>
+#undef RC_NONE
 // #include <prsht.h>
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 #include <commdlg.h>

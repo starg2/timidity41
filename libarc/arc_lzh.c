@@ -254,6 +254,7 @@ ArchiveEntryNode *next_lzh_entry(void)
   retry_read:
     dir_length = 0;
     name_length = 0;
+#if 0
     if((header_size = url_getc(url)) == EOF)
 	return NULL;
     if(header_size == 0)
@@ -273,6 +274,44 @@ ArchiveEntryNode *next_lzh_entry(void)
     if(url_read(url, data + I_HEADER_CHECKSUM,
 		header_size - 1) < header_size - 1)
 	return NULL;
+#else	/* a little cleverer lzh check */
+	if(macbin_check){
+//	for(i=0;i<LZHEADER_STRAGE;i++){
+	for(i=0;i<1024;i++){
+		if((header_size = url_getc(url)) == EOF)
+			return NULL;
+		*(data + i) = header_size;
+		if(i >= 6){
+			if(*(data + i - 4) == '-'
+				&& *(data + i - 3) == 'l'
+				&& *(data + i - 2) == 'h'
+				&& *(data + i - 0) == '-')
+			{
+				int j;
+				if(arc_handler.isfile)
+					arc_handler.pos += i - 6;
+				for(j = 0; j<= 6; j++)
+					*(data + j) = *(data + i - 6 + j);
+				header_size = (int)(unsigned char)(*(data + i - 6));
+				if(header_size == 0)
+					return NULL;
+				if(url_read(url, data + 7, header_size - 7) < header_size - 7)
+					return NULL;
+				break;
+			}
+		}
+	}
+	if(i >= LZHEADER_STRAGE)
+		return NULL;
+	} else {
+	    if((header_size = url_getc(url)) == EOF)
+			return NULL;
+		if(url_read(url, data + I_HEADER_CHECKSUM,
+			header_size - 1) < header_size - 1)
+		return NULL;
+	}
+    macbin_check = 0;
+#endif
     hdrsiz = header_size;
     setup_get(data + I_HEADER_LEVEL);
     header_level = get_byte();

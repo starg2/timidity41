@@ -139,5 +139,6 @@ extern int ignore_midi_error;
 extern int readmidi_error_flag;
 extern int readmidi_wrd_mode;
 extern int play_system_mode;
+extern FLOAT_T tempo_adjust;
 
 #endif /* ___READMIDI_H_ */

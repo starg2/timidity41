@@ -131,11 +131,13 @@ static void PanelReset(void)
 	Panel->c_flags[i] = 0;
 	for(j = 0; j < 4; j++)
 	    Panel->xnote[i][j] = 0;
-	Panel->channel[i].panning = 64;
+//	Panel->channel[i].panning = 64;
+	Panel->channel[i].panning = -1;
 	Panel->channel[i].sustain = 0;
 	Panel->channel[i].expression = 0;
 	Panel->channel[i].volume = 0;
-	Panel->channel[i].pitchbend = 0x2000;
+//	Panel->channel[i].pitchbend = 0x2000;
+	Panel->channel[i].pitchbend = -2;
     }
     Panel->titlename[0] = '\0';
     Panel->filename[0] = '\0';
@@ -520,10 +522,15 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		w32g_setcur_playlist();
 		if(play_mode->id_character == 'l')
 		    w32g_show_console();
-		w32g_setup_doc(selected);
-		if(!DocWndIndependent)
+		if(!DocWndIndependent){
+			w32g_setup_doc(selected);
 		    w32g_open_doc(1);
-
+		}
+		{
+			char *p = w32g_get_playlist(selected);
+			if(Panel!=NULL && p!=NULL)
+				strcpy(Panel->filename,p);
+		}
 		rc = play_midi_file(w32g_get_playlist(selected));
 
 		if(ctl.flags & CTLF_NOT_CONTINUE)

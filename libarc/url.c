@@ -529,9 +529,11 @@ void *url_dump(URL url, long nbytes, long *read_size)
       *read_size = 0;
     if(nbytes == 0)
 	return NULL;
-    if(nbytes > 0)
+    if(nbytes >= 0)
     {
 	buff = (void *)safe_malloc(nbytes);
+	if(nbytes == 0)
+	    return buff;
 	read_len = url_nread(url, buff, nbytes);
 	if(read_size != NULL)
 	  *read_size = read_len;

@@ -62,6 +62,70 @@ static MBlockList hash_entry_pool;
 #define CACHE_RESAMPLING_NOTOK	1
 #define INT32MAX 2147483647L /* (1LU<<31)-1 */
 
+#if defined(CSPLINE_INTERPOLATION)
+# define INTERPVARS_CACHE      int32   ofsd, v0, v1, v2, v3, temp;
+# define RESAMPLATION_CACHE \
+        v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
+        v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
+	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
+                dest[i] = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
+	}else{ \
+		ofsd=ofs; \
+                v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
+                v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
+                ofs &= FRACTION_MASK; \
+                temp=v2; \
+		v2 = (6*v2 + \
+		      (((((((5*v3 - 11*v2 + 7*v1 - v0)>>1)* \
+		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+1))-1))*ofs; \
+                ofs = (1L << FRACTION_BITS) - ofs; \
+		v1 = (6*v1 + \
+		      (((((((5*v0 - 11*v1 + 7*temp - v3)>>1)* \
+		       ofs)>>FRACTION_BITS)*ofs)>>(FRACTION_BITS+1))-1))*ofs; \
+		v1 = (v1 + v2)/(6L<<FRACTION_BITS); \
+		dest[i] = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
+		ofs=ofsd; \
+	}
+#elif defined(LAGRANGE_INTERPOLATION)
+# define INTERPVARS_CACHE      int32   ofsd, v0, v1, v2, v3;
+# define RESAMPLATION_CACHE \
+        v1 = (int32)src[(ofs>>FRACTION_BITS)]; \
+        v2 = (int32)src[(ofs>>FRACTION_BITS)+1]; \
+	if(((ofs-(1L<<FRACTION_BITS))<ls)||((ofs+(2L<<FRACTION_BITS))>le)){ \
+                dest[i] = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS)); \
+	}else{ \
+                v0 = (int32)src[(ofs>>FRACTION_BITS)-1]; \
+                v3 = (int32)src[(ofs>>FRACTION_BITS)+2]; \
+                ofsd = (ofs & FRACTION_MASK) + (1L << FRACTION_BITS); \
+                v1 = v1*ofsd>>FRACTION_BITS; \
+                v2 = v2*ofsd>>FRACTION_BITS; \
+                v3 = v3*ofsd>>FRACTION_BITS; \
+                ofsd -= (1L << FRACTION_BITS); \
+                v0 = v0*ofsd>>FRACTION_BITS; \
+                v2 = v2*ofsd>>FRACTION_BITS; \
+                v3 = v3*ofsd>>FRACTION_BITS; \
+                ofsd -= (1L << FRACTION_BITS); \
+                v0 = v0*ofsd>>FRACTION_BITS; \
+                v1 = v1*ofsd>>FRACTION_BITS; \
+                v3 = v3*ofsd; \
+                ofsd -= (1L << FRACTION_BITS); \
+                v0 = (v3 - v0*ofsd)/(6L << FRACTION_BITS); \
+                v1 = (v1 - v2)*ofsd>>(FRACTION_BITS+1); \
+		v1 += v0; \
+		dest[i] = (v1 > 32767)? 32767: ((v1 < -32768)? -32768: v1); \
+	}
+#elif defined(LINEAR_INTERPOLATION)
+#   define RESAMPLATION_CACHE \
+      v1=src[ofs>>FRACTION_BITS];\
+      v2=src[(ofs>>FRACTION_BITS)+1];\
+      dest[i] = (sample_t)(v1 + (((v2-v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS));
+#  define INTERPVARS_CACHE int32 v1, v2;
+#else
+/* Earplugs recommended for maximum listening enjoyment */
+#  define RESAMPLATION_CACHE dest[i]=src[ofs>>FRACTION_BITS];
+#  define INTERPVARS_CACHE
+#endif
+
 static struct
 {
     int32 on[128];
@@ -344,16 +408,15 @@ static int cache_resampling(struct cache_hash *p)
     {
 	for(i = 0; i < newlen; i++)
 	{
-	    int32 j, v1, v2;
+	    int32 j;
+	    INTERPVARS_CACHE
 
 	    if(ofs >= le)
 		ofs -= ll;
 	    j = ofs>>FRACTION_BITS;
 	    v1 = src[j];
 	    v2 = src[j + 1];
-	    dest[i] = (sample_t)(v1 + (((v2 - v1) *
-					(ofs & FRACTION_MASK))
-				       >> FRACTION_BITS));
+	    RESAMPLATION_CACHE
 	    ofs += incr;
 	}
     }
@@ -361,13 +424,13 @@ static int cache_resampling(struct cache_hash *p)
     {
 	for(i = 0; i < newlen; i++)
 	{
-	    int32 j, v1, v2;
+	    int32 j;
+	    INTERPVARS_CACHE
+	    
 	    j = ofs>>FRACTION_BITS;
 	    v1 = src[j];
 	    v2 = src[j + 1];
-	    dest[i] = (sample_t)(v1 + (((v2 - v1) *
-					(ofs & FRACTION_MASK))
-				       >> FRACTION_BITS));
+	    RESAMPLATION_CACHE
 	    ofs += incr;
 	}
     }

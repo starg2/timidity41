@@ -29,6 +29,7 @@
 #include <process.h>
 #include <stddef.h>
 #include <windows.h>
+#undef RC_NONE
 #include <shlobj.h>
 // #include <prsht.h>
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
@@ -352,8 +353,6 @@ void InitStartWnd(int nCmdShow)
 LRESULT CALLBACK
 StartWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	LRESULT res;
-
 	switch (uMess)
 	{
 	  case WM_DESTROY:
@@ -688,7 +687,6 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 {
-    int iRes;
 	 // PrintfDebugWnd("WM_COMMAND: ID%lx HWND%lx CODE%lx\n",wId,hwndCtl,wNotifyCode);
     switch(wId)
     {
@@ -1644,24 +1642,24 @@ static void CanvasMapUpdate(int flag)
          rc.top = rc.bottom + 2;
          rc.bottom = rc.top + 2 - 1;
 			for(i=1;i<=10;i++){
-        		if(x-rc.left < Canvas.MapExpression[ch])
+        		if(i < Canvas.MapExpression[ch])
             	color = colorFG;
             else
             	color = colorBG;
-            x = rc.left + i/2;
-				y = rc.top + 1 - i%2;
+			x = rc.left + (i-1)/2;
+			y = rc.top + (i+1)%2;
   				SetPixelV(Canvas.hmdc,x,y,color);
 			}
          // VOLUME
          rc.top = rc.bottom + 2;
          rc.bottom = rc.top + 2 - 1;
 			for(i=1;i<=10;i++){
-        		if(x-rc.left < Canvas.MapVolume[ch])
+        		if(i < Canvas.MapVolume[ch])
             	color = colorFG;
             else
             	color = colorBG;
-            x = rc.left + i/2;
-				y = rc.top + 1 - i%2;
+            x = rc.left + (i-1)/2;
+				y = rc.top + (i+1)%2;
   				SetPixelV(Canvas.hmdc,x,y,color);
 			}
          // PITCH_BEND
@@ -2268,7 +2266,7 @@ PanelWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
       	MPanelPaintDo();
 	    	return 0;
 		case WM_LBUTTONDBLCLK:
-			MPanelReset();
+//			MPanelReset();
 		  	MPanelReadPanelInfo(1);
 			MPanelUpdateAll();
 		  	MPanelPaintAll();
@@ -3195,7 +3193,8 @@ static char *DlgFileOpen(HWND hwnd, char *title, char *filter, char *dir)
 static void DlgMidiFileOpen(HWND hwnd)
 {
     char *dir, *file;
-    char *filter = "midi file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36\0"
+    char *filter = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.lzh;*.zip;*.gz\0"
+		"midi file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36\0"
 		"archive file\0*.lzh;*.zip;*.gz\0"
 		"playlist file\0*.pls;*.m3u;*.asx\0"
 		"all files\0*.*\0"
@@ -3302,7 +3301,6 @@ static int CheckOverWrite(HWND hwnd, char *filename)
 static void DlgPlaylistSave(HWND hwnd)
 {
 	OPENFILENAME ofn;
-	int res;
 	static char *dir;
     char *filter =
 		"playlist file\0*.pls;*.m3u;*.asx\0"
@@ -3345,8 +3343,6 @@ static void DlgPlaylistSave(HWND hwnd)
     w32g_lock_open_file = 1;
     w32g_send_rc(RC_EXT_SAVE_PLAYLIST, (int32)DialogFileNameBuff);
 }
-
-
 
 // ****************************************************************************
 // Edit Ctl.

@@ -2,6 +2,7 @@
 // Microsoft Developer Studio generated include file.
 // Used by w32g_res.rc
 //
+#define IDD_DIALOG_SEARCHBOX            102
 #define IDC_CHECK_SEACHDIRRECURSIVE     1001
 #define IDC_CHECK_DOCWNDINDEPENDENT     1002
 #define IDC_CHECK_INIFILE_AUTOSAVE      1003
@@ -96,6 +97,7 @@
 #define IDC_EDIT_AMPLIFICATION          1094
 #define IDC_EDIT_CACHE_SIZE             1095
 #define IDC_EDIT_SPECIAL_TONEBANK       1097
+#define IDC_CHECKBOX_NOT_LOOPING        1097
 #define IDC_EDIT_DEFAULT_TONEBANK       1098
 #define IDC_EDIT_REDUCE_VOICE           1099
 #define IDC_EDIT_CTL_VEBOSITY           1100
@@ -195,16 +197,16 @@
 #define IDC_RADIOBUTTON_GM              1194
 #define IDC_RADIOBUTTON_GS              1195
 #define IDC_RADIOBUTTON_XG              1196
-#define IDC_CHECKBOX_NOT_LOOPING        1097
+#define IDC_EDIT1                       2000
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        101
+#define _APS_NEXT_RESOURCE_VALUE        103
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         2000
+#define _APS_NEXT_CONTROL_VALUE         2002
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

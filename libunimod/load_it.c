@@ -695,6 +695,11 @@ IT_Load (BOOL curious)
       s.vibrate = _mm_read_UBYTE (modreader);
       s.vibwave = _mm_read_UBYTE (modreader);
 
+      /* Some IT files have bogues loopbeg/loopend if looping is not used by
+       * a sample. */
+      if (!(s.flag & 80))
+	s.loopbeg = s.loopend = 0;
+      
       /* Generate an error if c5spd is > 512k, or samplelength > 256 megs
          (nothing would EVER be that high) */
 

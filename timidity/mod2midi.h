@@ -35,5 +35,4 @@ void Voice_NewTempo (UWORD, UWORD);
 void Voice_TickDone ();
 void Voice_StartPlaying ();
 void Voice_EndPlaying ();
-void load_module_samples (SAMPLE *, int);
-void Voice_SetPeriod (UBYTE v, ULONG period);
+void load_module_samples (SAMPLE *, int, int);

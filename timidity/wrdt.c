@@ -36,6 +36,7 @@
 #include "playmidi.h"
 #include "readmidi.h"
 #include "arc.h"
+#include "interface.h"
 
 /*
  * Remap WRD @COLOR(16)-@COLOR(23) to RGB plain number.
@@ -97,7 +98,7 @@ extern WRDTracer tty_wrdt_mode;
 extern WRDTracer x_wrdt_mode;
 #endif /* WRDT_X */
 
-#if defined(__W32__)
+#if defined(__W32__) && !defined(IA_W32GUI)
 extern WRDTracer wcon_wrdt_mode; /* wrdt_wcon.c */
 #endif /* __W32__ */
 
@@ -106,7 +107,7 @@ WRDTracer *wrdt_list[] =
 #ifdef WRDT_X
     &x_wrdt_mode,
 #endif /* WRDT_X */
-#ifdef __W32__
+#if defined(__W32__) && !defined(IA_W32GUI)
 	&wcon_wrdt_mode,
 #endif /* __W32__ */
 #ifndef __MACOS__
