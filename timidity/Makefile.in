@@ -315,7 +315,7 @@ mod.o: mod.c ../config.h timidity.h ../utils/support.h common.h \
 mod2midi.o: mod2midi.c ../config.h timidity.h ../utils/support.h \
 	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
 	readmidi.h tables.h mod.h output.h controls.h \
-	../libunimod/unimod.h mod2midi.h
+	../libunimod/unimod.h mod2midi.h filter.h
 nas_a.o: nas_a.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h output.h controls.h \
 	../utils/timer.h instrum.h playmidi.h miditrace.h

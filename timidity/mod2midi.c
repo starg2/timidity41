@@ -43,6 +43,7 @@
 #include "controls.h"
 #include "unimod.h"
 #include "mod2midi.h"
+#include "filter.h"
 
 
 /* Define this to show all the notes touched by a bending in the
@@ -382,10 +383,10 @@ Voice_Stop (UBYTE v)
     TURN_OFF_8((base), 0)						\
   } while(0)
 
-  if (j = ModV[v].noteson[0]) TURN_OFF_32(0);
-  if (j = ModV[v].noteson[1]) TURN_OFF_32(32);
-  if (j = ModV[v].noteson[2]) TURN_OFF_32(64);
-  if (j = ModV[v].noteson[3]) TURN_OFF_32(96);
+  if ((j = ModV[v].noteson[0]) != 0) TURN_OFF_32(0);
+  if ((j = ModV[v].noteson[1]) != 0) TURN_OFF_32(32);
+  if ((j = ModV[v].noteson[2]) != 0) TURN_OFF_32(64);
+  if ((j = ModV[v].noteson[3]) != 0) TURN_OFF_32(96);
   bitmapClear(ModV[v].noteson);
   ModV[v].noteon = -1;
 }

@@ -60,7 +60,6 @@ static BOOL mod_do_play (MODULE *);
 int 
 load_module_file (struct timidity_file *tf, int mod_type)
 {
-  int i, err;
   MODULE *mf;
 
 #ifdef LOOKUP_HACK
@@ -86,8 +85,6 @@ load_module_file (struct timidity_file *tf, int mod_type)
 int 
 get_module_type (char *fn)
 {
-  char *p;
-
   if (check_file_extension (fn, ".mod", 1))	/* Most common first */
     return IS_MOD_FILE;
 
@@ -369,11 +366,12 @@ MP_FindEmptyChannel (void)
   MP_VOICE *a;
   ULONG t, k, tvol, pp;
 
+  a = mp.voice;
   for (t = 0; t < MOD_NUM_VOICES; t++)
     {
       /* allow us to take over a nonexisting sample */
       if (!a->s)
-        return k;
+        return t;
 
       if (((mp.voice[t].kick == KICK_ABSENT) || (mp.voice[t].kick == KICK_ENV)) &&
 	  Voice_Stopped (t))
@@ -382,7 +380,6 @@ MP_FindEmptyChannel (void)
 
   tvol = 0xffffffUL;
   t = 0;
-  a = mp.voice;
   for (k = 0; k < MOD_NUM_VOICES; k++, a++)
     if ((a->kick == KICK_ABSENT) || (a->kick == KICK_ENV))
       {

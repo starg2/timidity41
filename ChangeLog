@@ -1,3 +1,17 @@
+2000-11-02  Masanao Izumo <mo@goice.co.jp>
+
+	* Version 2.10.2 released.
+
+2000-11-01  Masanao Izumo <mo@goice.co.jp>
+
+	* interface/alsaseq_c.c: Set time tick resolution to 100Hz.
+	* timidity/aq.c: Bug fix.
+	* interface/xaw_.c.: Bug fix.
+
+2000-10-22  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/mod.c: Bug fix.
+
 2000-10-18  Masanao Izumo <mo@goice.co.jp>
 
 	* Version 2.10.1 released.

@@ -408,7 +408,7 @@ static int ctl_blocking_read(int32 *valp) {
         opt_modulation_wheel = n & MODUL_BIT;
         opt_portamento = n & PORTA_BIT;
         opt_nrpn_vibrato = n & NRPNV_BIT;
-        opt_reverb_control = n & REVERB_BIT;
+        opt_reverb_control = !!(n & REVERB_BIT);
         opt_channel_pressure = n & CHPRESSURE_BIT;
         opt_overlap_voice_allow = n & OVERLAPV_BIT;
         opt_trace_text_meta_event = n & TXTMETA_BIT;

@@ -141,6 +141,8 @@
 				 * this should be configurable via command line..
 				 */
 
+#define TICKTIME_HZ	100
+
 struct seq_context {
 	snd_seq_t *handle;	/* The snd_seq handle to /dev/snd/seq */
 	int client;		/* The client associated with this context */
@@ -346,7 +348,7 @@ static void doit(void)
 				continue;
 			event_time_offset += (int32)(fill_time * play_mode->rate);
 #endif
-			event_time_offset += audio_buffer_size;
+			event_time_offset += play_mode->rate / TICKTIME_HZ;
 			ev.time = event_time_offset;
 			ev.type = ME_NONE;
 			play_event(&ev);

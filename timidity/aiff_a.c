@@ -25,8 +25,8 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
-#ifdef __W32__
 #include <stdlib.h>
+#ifdef __W32__
 #include <io.h>
 #else
 #include <unistd.h>
@@ -38,6 +38,7 @@
 #endif
 #include <fcntl.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "timidity.h"
 #include "common.h"

@@ -261,11 +261,7 @@ int output_data(char *buff, int32 nbytes)
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		  dpm.name, strerror(errno));
 	if(errno == EINTR || errno == EAGAIN)
-	{
-	    n = nbytes;
 	    goto retry_write;
-	}
-
 	return -1;
     }
 

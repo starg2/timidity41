@@ -36,3 +36,4 @@ void Voice_TickDone ();
 void Voice_StartPlaying ();
 void Voice_EndPlaying ();
 void load_module_samples (SAMPLE *, int, int);
+void Voice_SetPeriod (UBYTE v, ULONG period);

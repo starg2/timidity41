@@ -645,8 +645,10 @@ static int add_play_bucket(const char *buf, int n)
     if(n == 0)
 	return 0;
 
-    if(!nbuckets)
-      return play_mode->output_data((char *)buf, n);
+    if(!nbuckets) {
+      play_mode->output_data((char *)buf, n);
+      return n;
+    }
 
     if(head == NULL)
 	head = tail = next_allocated_bucket();
