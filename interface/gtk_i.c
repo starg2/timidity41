@@ -125,7 +125,7 @@ static void
 filer_cb(GtkWidget *widget, gpointer data)
 {
     gchar *filenames[2];
-#if defined(HAVE_GLOB_H) && !defined(SOLARIS)
+#ifdef GLOB_BRACE
     int i;
     gchar *patt;
     glob_t pglob;

@@ -81,6 +81,8 @@ static void update_indicator(void);
 static void set_otherinfo(int ch, int val, char c);
 
 static double indicator_last_update = 0;
+#define EXITFLG_QUIT 1
+#define EXITFLG_AUTOQUIT 2
 static int exitflag=0,randomflag=0,repeatflag=0,selectflag=0,amp_diff=0;
 static int xaw_ready=0;
 static int number_of_files;
@@ -143,31 +145,43 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...) {
 }
 
 /*ARGSUSED*/
-static char tt_str[16];
+static int tt_i;
 
 static void ctl_current_time(int sec, int v) {
 
   static int previous_sec=-1,last_voices=-1;
+  static int last_v=-1, last_time=-1;
 
   if (sec!=previous_sec) {
     previous_sec=sec;
-	snprintf(local_buf,sizeof(local_buf),"T %02d:%02d%s",sec / 60,sec % 60,tt_str);
+	snprintf(local_buf,sizeof(local_buf),"t %d",sec);
     a_pipe_write(local_buf);
   }
-  if(!ctl.trace_playing||midi_trace.flush_flag)
-    return;
-  if(last_voices!=voices)
+  if (last_time!=tt_i) {
+	last_time=tt_i;
+    sprintf(local_buf, "T %d", tt_i);
+	a_pipe_write(local_buf);
+  }
+  if(!ctl.trace_playing || midi_trace.flush_flag) return;
+  if(last_voices!=voices) {
     last_voices=voices;
+	snprintf(local_buf,sizeof(local_buf),"vL%d",voices);
+    a_pipe_write(local_buf);
+  }
+  if(last_v!=v) {
+    last_v=v;
+	snprintf(local_buf,sizeof(local_buf),"vl%d",v);
+    a_pipe_write(local_buf);
+  }
+  
 }
 
 static void ctl_total_time(int tt)
 {
-    int mins, secs=tt / play_mode->rate;
-    mins=secs / 60;
-    secs-=mins * 60;
-
-    sprintf(tt_str, "/%d:%02d", mins, secs);
+	tt_i = tt / play_mode->rate;
     ctl_current_time(0, 0);
+	sprintf(local_buf,"m%d",play_system_mode);
+	a_pipe_write(local_buf);
 }
 
 static void ctl_master_volume(int mv)
@@ -339,9 +353,9 @@ static int ctl_blocking_read(int32 *valp) {
       case 'D' : randomflag=atoi(local_buf+2);return RC_QUIT;
       case 'F' : 
       case 'L' : selectflag=atoi(local_buf+2);return RC_QUIT;
-      case 'l' : a_pipe_read(local_buf,sizeof(local_buf));
+      case 'T' : a_pipe_read(local_buf,sizeof(local_buf));
 		n=atoi(local_buf+2); *valp= n * play_mode->rate;
-		*valp=(int32)amp_diff; return RC_JUMP;
+		return RC_JUMP;
       case 'V' : a_pipe_read(local_buf,sizeof(local_buf));
 		n=atoi(local_buf+2); amp_diff=n - amplitude;
 		*valp=(int32)amp_diff; return RC_CHANGE_VOLUME;
@@ -364,8 +378,9 @@ static int ctl_blocking_read(int32 *valp) {
 		xaw_add_midi_file(local_buf + 2);
 		return RC_NONE;
       case 'g': return RC_TOGGLE_SNDSPEC;
+      case 'q' : exitflag ^= EXITFLG_AUTOQUIT;return RC_NONE;
       case 'Q' :
-      default  : exitflag=1;return RC_QUIT;
+      default  : exitflag |= EXITFLG_QUIT;return RC_QUIT;
     }
   }
 }
@@ -435,12 +450,15 @@ static void ctl_pass_playing_list(int init_number_of_files,
     if (command==RC_LOAD_FILE&&number_of_files!=0) {
       snprintf(local_buf,sizeof(local_buf),"E %s",titles[file_table[current_no]]);
       a_pipe_write(local_buf);
+	  snprintf(local_buf,sizeof(local_buf),"e %s",get_midi_title(list_of_files[current_no]));
+	  a_pipe_write(local_buf);
       command=play_midi_file(list_of_files[file_table[current_no]]);
     } else {
 	  if (command==RC_CHANGE_VOLUME) amplitude+=val;
+	  if (command==RC_JUMP) ;
 	  if (command==RC_TOGGLE_SNDSPEC) ;
       /* Quit timidity*/
-	  if (exitflag) return;
+	  if (exitflag & EXITFLG_QUIT) return;
 	  /* Stop playing */
       if (command==RC_QUIT) {
 		sprintf(local_buf,"T 00:00");
@@ -478,6 +496,8 @@ static void ctl_pass_playing_list(int init_number_of_files,
 		  current_no++;
 		  command=RC_LOAD_FILE;
 		  continue;
+		} else if (exitflag & EXITFLG_AUTOQUIT) {
+		  return;
 		  /* Repeat */
 		} else if (repeatflag) {
 		  current_no=0;

@@ -1018,7 +1018,7 @@ local void init_deflate(DeflateHandler encoder)
  * evaluation for matches: a match is finally adopted only if there is
  * no better match at the next window position.
  */
-long deflate(DeflateHandler encoder, char *buff, long buff_size)
+long zip_deflate(DeflateHandler encoder, char *buff, long buff_size)
 {
     long n;
 

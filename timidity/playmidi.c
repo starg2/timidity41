@@ -422,7 +422,11 @@ static void reset_midi(int playing)
 	channel[i].mapID = get_default_mapID(i);
     }
     if(playing)
+    {
 	kill_all_voices();
+	for(i = 0; i < MAX_CHANNELS; i++)
+	    redraw_controllers(i);
+    }
     else
 	reset_voices();
 #ifdef PRESENCE_HACK

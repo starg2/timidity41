@@ -51,6 +51,9 @@ extern char *optarg;
 
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
+#else
+extern int optind;
+extern char *optarg;
 #endif /* HAVE_GETOPT_H */
 
 #include "interface.h"

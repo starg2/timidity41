@@ -39,12 +39,11 @@
 #include <windows.h>
 
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
-#define HAVE_WAVEFORMAT_CBSIZE
-/* On cygnus, there is no header file for Multimedia API's. */
-/* Then declare some of them here. */
+/* On cygnus, there is not mmsystem.h for Multimedia API's.
+ * mmsystem.h can not distribute becase of Microsoft Lisence
+ * Then declare some of them here.
+ */
 
-#define NEAR
-#define FAR
 #define WOM_OPEN		0x3BB
 #define WOM_CLOSE		0x3BC
 #define WOM_DONE		0x3BD
@@ -53,6 +52,7 @@
 #define WAVE_FORMAT_PCM		1
 #define CALLBACK_FUNCTION	0x00030000l
 #define WAVERR_BASE		32
+#define WAVE_MAPPER		(UINT)-1
 
 DECLARE_HANDLE(HWAVEOUT);
 DECLARE_HANDLE(HWAVE);
@@ -66,7 +66,7 @@ typedef struct wavehdr_tag {
     DWORD       dwUser;
     DWORD       dwFlags;
     DWORD       dwLoops;
-    struct wavehdr_tag FAR *lpNext;
+    struct wavehdr_tag *lpNext;
     DWORD       reserved;
 } WAVEHDR;
 
@@ -76,9 +76,7 @@ typedef struct {
     DWORD   nSamplesPerSec;
     DWORD   nAvgBytesPerSec;
     WORD    nBlockAlign;
-#ifdef HAVE_WAVEFORMAT_CBSIZE
     WORD    cbSize;
-#endif
 } WAVEFORMAT;
 
 typedef struct {
@@ -86,8 +84,20 @@ typedef struct {
     WORD        wBitsPerSample;
 } PCMWAVEFORMAT;
 
+typedef struct waveoutcaps_tag {
+    WORD    wMid;
+    WORD    wPid;
+    UINT    vDriverVersion;
+#define MAXPNAMELEN      32
+    char    szPname[MAXPNAMELEN];
+    DWORD   dwFormats;
+    WORD    wChannels;
+    DWORD   dwSupport;
+} WAVEOUTCAPS;
+
 typedef WAVEHDR *LPWAVEHDR;
 typedef WAVEFORMAT *LPWAVEFORMAT;
+typedef WAVEOUTCAPS *LPWAVEOUTCAPS;
 typedef UINT MMRESULT;
 
 MMRESULT WINAPI waveOutOpen(LPHWAVEOUT, UINT,
@@ -97,7 +107,12 @@ MMRESULT WINAPI waveOutPrepareHeader(HWAVEOUT, LPWAVEHDR, UINT);
 MMRESULT WINAPI waveOutUnprepareHeader(HWAVEOUT, LPWAVEHDR, UINT);
 MMRESULT WINAPI waveOutWrite(HWAVEOUT, LPWAVEHDR, UINT);
 UINT WINAPI waveOutGetNumDevs(void);
+
 MMRESULT WINAPI waveOutReset(HWAVEOUT);
+MMRESULT WINAPI waveOutGetDevCaps(UINT, LPWAVEOUTCAPS, UINT);
+MMRESULT WINAPI waveOutGetDevCapsA(UINT, LPWAVEOUTCAPS, UINT);
+#define waveOutGetDevCaps waveOutGetDevCapsA
+MMRESULT WINAPI waveOutGetID(HWAVEOUT, UINT*);
 
 #endif /* __CYGWIN32__ */
 
@@ -125,7 +140,6 @@ extern int default_play_event(void *);
 
 #define DATA_BLOCK_SIZE (2*AUDIO_BUFFER_SIZE)
 #define DATA_BLOCK_NUM  (dpm.extra_param[0])
-#define DATA_MIN_NBLOCKS (DATA_BLOCK_NUM-1)
 
 struct data_block_t
 {
@@ -200,7 +214,9 @@ static int open_output(void)
 {
     int i, j, mono, eight_bit, warnings = 0;
     PCMWAVEFORMAT pcm;
+    WAVEOUTCAPS caps;
     MMRESULT res;
+    UINT devid;
 
     play_counter = reset_samples = 0;
 
@@ -240,15 +256,13 @@ static int open_output(void)
     pcm.wf.nAvgBytesPerSec = i;
     pcm.wf.nBlockAlign = j;
     pcm.wBitsPerSample = eight_bit ? 8 : 16;
-#ifdef HAVE_WAVEFORMAT_CBSIZE
     pcm.wf.cbSize=sizeof(WAVEFORMAT);
-#endif
 
     dev = 0;
     if (win32_wave_allowsync)
-	res = waveOutOpen (&dev, 0, (LPWAVEFORMAT)&pcm, (DWORD)wave_callback, 0, CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
+	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&pcm, (DWORD)wave_callback, 0, CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
     else
-	res = waveOutOpen (&dev, 0, (LPWAVEFORMAT)&pcm, (DWORD)wave_callback, 0, CALLBACK_FUNCTION);
+	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&pcm, (DWORD)wave_callback, 0, CALLBACK_FUNCTION);
     if (res)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -259,6 +273,28 @@ static int open_output(void)
 	return -1;
     }
 
+    devid = 0;
+    memset(&caps, 0, sizeof(WAVEOUTCAPS));
+    waveOutGetID(dev, &devid);
+    res = waveOutGetDevCaps(devid, &caps, sizeof(WAVEOUTCAPS));
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "Play Device ID: %d", devid);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "Manufacture ID: %d");
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "Product ID: %d", caps.wPid);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "Version of the driver: %d", caps.vDriverVersion);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "Product name: %s", caps.szPname);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "Formats supported: 0x%x", caps.dwFormats);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "number of sources supported: %d", caps.wChannels);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "functionality supported by driver: 0x%x", caps.dwSupport);
+
+    /* Prepere audio queue buffer */
     all_data_block = (struct data_block_t *)
 	safe_malloc(DATA_BLOCK_NUM * sizeof(struct data_block_t));
     for(i = 0; i < DATA_BLOCK_NUM; i++)
@@ -271,6 +307,7 @@ static int open_output(void)
 	block->head = GlobalLock(block->head_hg);
     }
     reset_data_block();
+
     dpm.fd = 0;
     return warnings;
 }

@@ -90,7 +90,7 @@ static long url_inflate_read(URL url, void *buff, long n)
 {
     URL_inflate *urlp = (URL_inflate *)url;
 
-    n = inflate(urlp->decoder, (char *)buff, n);
+    n = zip_inflate(urlp->decoder, (char *)buff, n);
     if(n <= 0)
 	return n;
     urlp->pos += n;

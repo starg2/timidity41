@@ -2921,6 +2921,12 @@ static void display_lyric(char *lyric, int sep)
   */
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
+#ifndef S_ISDIR
+#define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
+#endif /* S_ISDIR */
 /* Allocate new buffer */
 static MiniBuffer *mini_buff_new(int size)
 {

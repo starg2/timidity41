@@ -634,7 +634,7 @@ static long url_arc_read(URL url, void *vp, long bufsiz)
 	break;
 
       case ARCHIVEC_DEFLATED:
-	n = inflate((InflateHandler)decoder, buff, bufsiz);
+	n = zip_inflate((InflateHandler)decoder, buff, bufsiz);
 	break;
 
       case ARCHIVEC_IMPLODED_LIT8:

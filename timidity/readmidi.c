@@ -2157,7 +2157,7 @@ static void url_make_file_data(URL url, struct midi_file_info *infop)
     if((compressor = open_deflate_handler(deflate_url_reader, url,
 					  ARC_DEFLATE_LEVEL)) == NULL)
 	return;
-    while((n = deflate(compressor, buff, sizeof(buff))) > 0)
+    while((n = zip_deflate(compressor, buff, sizeof(buff))) > 0)
 	push_memb(&b, buff, n);
     close_deflate_handler(compressor);
     infop->compressed = 1;

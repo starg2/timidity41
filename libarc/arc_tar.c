@@ -88,7 +88,7 @@ ArchiveEntryNode *next_tar_entry(ArchiveHandler archiver)
 	compsize = 0;
 	encoder = open_deflate_handler(archiver_read_func, archiver,
 				       ARC_DEFLATE_LEVEL);
-	while((n = deflate(encoder, buff, sizeof(buff))) > 0)
+	while((n = zip_deflate(encoder, buff, sizeof(buff))) > 0)
 	{
 	    push_memb(&entry->u.compdata, buff, n);
 	    compsize += n;

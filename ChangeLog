@@ -1,3 +1,80 @@
+-- 1.3.3
+Wed Feb 24 1999
+Summary:
+    * Used WAVE_MAPPER for waveOutOpen() in Windows.
+    * Renamed inflate to zip_inflate, and deflate to zip_deflate.
+    * Modified to port to some OSes.
+    * Improved XAW interface.
+    * Added strdup implementation is it was not exists.
+    * Fixed bug that MIDI reset did not update the display of program.
+    * Added `extern errno' in timidity.h
+    * Fixed XAW geometry probrem on non-trace mode.
+    * Not to call glob() if GLOB_BRACE is not defined.
+
+Date: Wed Feb 24 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity/win_a.c
+    Used WAVE_MAPPER for waveOutOpen()
+Files: libarc/url_dir.c interface/ncurs_c.c interface/xaw_i.c
+    Added S_ISDIR macro definition if it is not defined.  There is
+    no difinition of this macro on NeXTSTEP under /usr/include/ or
+    /usr/include/sys/.  It is defined in /usr/include/bsd/sys/stat.h,
+    but I don't include this file because some conflicts may occur.
+Files: interface/xaw_i.c timidity/timidity.h
+    Moved strstr and strncasecmp implementation to timidity.h and support.c.
+
+Date: Mon Feb 22 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity/audriv_none.c
+    Removed error codes.
+Files: libarc/{zip.h,arc.c,inflate.c,url_inflate.c,arc_tar.c,deflate.c}
+	timidity/readmidi.c
+    Renamed inflate to zip_inflate, and deflate to zip_deflate.
+Files: utils/support.c timidity/timidity.c timidity/timidity.h
+	libarc/url_dir.c
+    Modified to port to some OSes such as NeXTSTEP.
+    Added strdup() and getcwd() implementation if they are not exist.
+    Added declarations for `optind' and `optarg' in timidity.c if
+    <getopt.h> is not exist.
+    Included <sys/types.h> from timidity.h
+    Included <sys/fcntl.h> from url_dir.c for S_ISDIR
+
+Date: Sat, 20 Feb 1999 14:06:25 +0900 (JST)
+From: Yoshishige Arai <ryo2@on.rim.or.jp>
+Files: interface/{xaw_i.c,xaw_c.c,xaw.h,arrow.xbm}
+    Improved XAW interface.
+      - Cascading pulldown menu for file selection.
+      - Add time bar.
+      - Add auto exit, repeat, and shuffle On/Off to menu.
+      - Add translation keys:
+        CTRL-M: Text display on/off
+        CTRL-T: Trace display on/off
+        CTRL-S: shuffle on/off
+        CTRL-R: repeat on/off
+      - Display GM, GS, XG to upper right button.
+      - Change the function of upper right button.
+        Left mouse click: Text display on/off
+        Center mouse click: Trace display on/off
+        Right mouse click: Change window size.
+      - Display number of voices and title of MIDI in bottom of window.
+
+Date: Tue Feb 16 1999
+From Masanao Izumo <mo@goice.co.jp>
+Files: timidity/playmidi.c
+    Fixed bug that MIDI reset did not update the display of program.
+
+Date: Mon Feb 15 1999
+From: Masanao Izumo <mo@goice.co.jp>
+Files: timidity.h
+    Added `extern errno' in timidity.h
+
+Date: Fri, 12 Feb 1999 12:46:51 +0900
+From: "KINOSHITA, K." <kino@krhm.jvc-victor.co.jp>
+Files: interface/xaw_i.c
+    Fixed XAW geometry probrem on non-trace mode.
+Files: interface/gtk_i.c
+    Not to call glob() if GLOB_BRACE is not defined.
+
 -- 1.3.2
 Wed Feb 10 1999
 Summary:

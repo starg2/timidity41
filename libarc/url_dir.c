@@ -11,7 +11,6 @@
 #include "timidity.h"
 #include "url.h"
 
-
 #ifdef __W32READDIR__
 #include "readdir.h"
 # define NAMLEN(dirent) strlen((dirent)->d_name)
@@ -39,7 +38,15 @@
 
 #ifdef URL_DIR_CACHE_ENABLE
 #include <sys/stat.h>
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
 #include "strtab.h"
+
+#ifndef S_ISDIR
+#define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
+#endif /* S_ISDIR */
+
 struct dir_cache_t
 {
     char **fnames;

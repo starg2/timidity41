@@ -53,6 +53,9 @@
 /* Define if the X Window System is missing or not being used.  */
 #undef X_DISPLAY_MISSING
 
+/* Define if you have the getcwd function.  */
+#undef HAVE_GETCWD
+
 /* Define if you have the gethostbyname function.  */
 #undef HAVE_GETHOSTBYNAME
 
@@ -146,8 +149,14 @@
 /* Define if you have the <sys/ndir.h> header file.  */
 #undef HAVE_SYS_NDIR_H
 
+/* Define if you have the <sys/param.h> header file.  */
+#undef HAVE_SYS_PARAM_H
+
 /* Define if you have the <sys/time.h> header file.  */
 #undef HAVE_SYS_TIME_H
+
+/* Define if you have the <sys/types.h> header file.  */
+#undef HAVE_SYS_TYPES_H
 
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H

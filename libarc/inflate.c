@@ -888,7 +888,7 @@ void close_inflate_handler(InflateHandler decoder)
 }
 
 /* decompress an inflated entry */
-long inflate(
+long zip_inflate(
     InflateHandler decoder,
     char *buff,
     long size)

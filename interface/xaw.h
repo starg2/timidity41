@@ -37,9 +37,6 @@
 /* Define to use scrollable Text widget instead of Label widget */
 /* #define WIDGET_IS_LABEL_WIDGET */
 
-/* Define to use short cut keys */
-#define ENABLE_KEY_TRANSLATION
-
 /*** Initial dot file name at home directory ***/
 #define INITIAL_CONFIG ".xtimidity"
 

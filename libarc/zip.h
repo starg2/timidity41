@@ -75,7 +75,7 @@ extern DeflateHandler open_deflate_handler(
 	void *user_val,
 	int compression_level);
 
-extern long deflate(DeflateHandler encoder,
+extern long zip_deflate(DeflateHandler encoder,
 		    char *decode_buff,
 		    long decode_buff_size);
 
@@ -87,7 +87,7 @@ extern InflateHandler open_inflate_handler(
 	long (* read_func)(char *buf, long size, void *user_val),
 	void *user_val);
 
-extern long inflate(InflateHandler decoder,
+extern long zip_inflate(InflateHandler decoder,
 		    char *decode_buff,
 		    long decode_buff_size);
 

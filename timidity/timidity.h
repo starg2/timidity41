@@ -345,13 +345,19 @@ typedef double FLOAT_T;
 
 
 #include <stdio.h>
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif /* HAVE_ERRNO_H */
+extern int errno;
+
 #ifdef HAVE_MACHINE_ENDIAN_H
 #include <machine/endian.h> /* for __byte_swap_*() */
 #endif
 
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif /* HAVE_SYS_TYPES_H */
 
 #ifndef NO_VOLATILE
 #define VOLATILE_TOUCH(val) /* do nothing */
@@ -534,7 +540,6 @@ typedef struct _ChannelBitMask
 /* Solaris */
 int usleep(unsigned int useconds); /* shut gcc warning up */
 #endif
-  extern int errno;
   extern int opterr;
   extern int optind;
   extern int optopt;
@@ -637,8 +642,20 @@ extern char *strerror(int errnum);
 extern int usleep(unsigned int usec);
 #endif
 
-#ifndef HAVE_SLEEP
-#define sleep(sec) usleep(sec * 1000000)
-#endif /* HAVE_SLEEP */
+#ifndef HAVE_STRDUP
+extern char *strdup(const char *s);
+#endif /* HAVE_STRDUP */
+
+#ifndef HAVE_GETCWD
+extern char *getcwd(char *buf, size_t size);
+#endif /* HAVE_GETCWD */
+
+#ifndef HAVE_STRSTR
+#define strstr(s,c)	index(s,c)
+#endif /* HAVE_STRSTR */
+
+#ifndef HAVE_STRNCASECMP
+int strncasecmp(char *s1, char *s2, unsigned int len);
+#endif /* HAVE_STRNCASECMP */
 
 #endif /* ___TIMIDITY_H_ */
