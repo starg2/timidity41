@@ -531,6 +531,8 @@ NULL
 "  -EFchorus=0 : Disable MIDI chorus effect control" NLS
 "  -EFchorus=1[,level] : Enable MIDI chorus effect control" NLS
 "                        `level' is optional to specify chorus level [0..127]"  NLS
+"  -EFchorus=2[,level] : Use the surround sound instead of detuned chorus." NLS
+"                        `level' is optional to specify level [0..63]" NLS
 "  -EFreverb=0 : Disable MIDI reverb effect control" NLS
 "  -EFreverb=1[,level] : Enable MIDI reverb effect control" NLS
 "                        `level' is optional to specify reverb level [0..127]"  NLS
@@ -591,7 +593,7 @@ static int set_channel_flag(ChannelBitMask *flags, int32 i, char *name)
 	if(i > 0)
 	    SET_CHANNELMASK(*flags, i - 1);
 	else
-	    UNSET_CHANNELMASK(*flags, -(i - 1));
+	    UNSET_CHANNELMASK(*flags, -i - 1);
     }
     return 0;
 }
@@ -2168,8 +2170,12 @@ static int parse_effect_option(char *effect_opts)
 	{
 	  case '0':
 	    opt_chorus_control = 0;
+	    opt_surround_chorus = 0;
 	    break;
+
 	  case '1':
+	  case '2':
+	    opt_surround_chorus = (*effect_opts == 2);
 	    if(*(effect_opts + 1) == ',')
 		opt_chorus_control = -(atoi(effect_opts + 2) & 0x7f);
 	    else
@@ -2728,7 +2734,7 @@ MAIN_INTERFACE void timidity_start_initialize(void)
     fp_except_t fpexp;
 
     fpexp = fpgetmask();
-    fpsetmask(fpexp & ~FP_X_INV);
+    fpsetmask(fpexp & ~(FP_X_INV|FP_X_DZ));
 #endif
 
     if(!output_text_code)

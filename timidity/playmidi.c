@@ -141,6 +141,7 @@ int opt_chorus_control = 1;
 #else
 int opt_chorus_control = 0;
 #endif /* CHORUS_CONTROL_ALLOW */
+int opt_surround_chorus = 0;
 
 #ifdef GM_CHANNEL_PRESSURE_ALLOW
 int opt_channel_pressure = 1;
@@ -1572,6 +1573,46 @@ static void new_chorus_voice(int v, int level)
     recompute_freq(cv);
 }
 
+/* Yet another chorus implementation
+ *	by Eric A. Welsh <ewelsh@gpc.wustl.edu>.
+ */
+static void new_chorus_voice_alternate(int v, int level)
+{
+    int cv, ch;
+    uint8 vol, pan;
+
+    if((cv = find_free_voice()) == -1)
+      return;
+    ch = voice[v].channel;
+
+    vol = voice[v].velocity;
+    voice[cv] = voice[v];
+    voice[v].velocity  = (uint8)(vol * CHORUS_VELOCITY_TUNING1);
+    voice[cv].velocity = (uint8)(vol * CHORUS_VELOCITY_TUNING2);
+
+    /* set panning & delay */
+    if(play_mode->encoding & PE_MONO)
+      voice[cv].delay = 0;
+    else
+    {
+      double delay;
+
+      pan = voice[v].panning;
+      if (pan - level < 0) level = pan;
+      if (pan + level > 127) level = 127 - pan;
+      voice[v].panning -= level;
+      voice[cv].panning += level;
+      delay = DEFAULT_CHORUS_DELAY2;
+
+      voice[cv].delay = (int)(play_mode->rate * delay);
+    }
+
+    recompute_amp(v);
+    apply_envelope_to_amp(v);
+    recompute_amp(cv);
+    apply_envelope_to_amp(cv);
+}
+
 static void note_on(MidiEvent *e)
 {
     int i, nv, v, ch;
@@ -1587,7 +1628,12 @@ static void note_on(MidiEvent *e)
 	v = vlist[i];
 	start_note(e, v, vid, nv - i - 1);
 	if(channel[ch].chorus_level && voice[v].sample->sample_rate)
-	    new_chorus_voice(v, channel[ch].chorus_level);
+	{
+	    if(opt_surround_chorus)
+		new_chorus_voice_alternate(v, channel[ch].chorus_level);
+	    else
+		new_chorus_voice(v, channel[ch].chorus_level);
+	}
     }
 }
 

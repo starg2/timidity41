@@ -302,6 +302,7 @@ extern int opt_portamento;
 extern int opt_nrpn_vibrato;
 extern int opt_reverb_control;
 extern int opt_chorus_control;
+extern int opt_surround_chorus;
 extern int opt_channel_pressure;
 extern int opt_overlap_voice_allow;
 extern int noise_sharp_type;

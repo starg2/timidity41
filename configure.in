@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.6.0-beta4, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.6.0, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -150,7 +150,7 @@ case "$target" in
     so="so"
     ;;
   *-*-netbsd*)
-    test -n "$SHLD" || SHLD="ld -Bforcearchive -Bshareable"
+    test -n "$SHLD" || SHLD="$CC -shared -nostartfiles"
     so="so"
     ;;
 

@@ -1072,12 +1072,16 @@ static int read_rcp_track(struct timidity_file *tf, int trackno, int gfmt)
 		if(!gfmt)
 		{
 		    jmp = (long)a | ((long)b << 8);
-#if 1
+
 		    if(jmp & 0x03) /* ##?? */
-			continue;
-#else
-		    jmp &= ~3;		/* jmp=(jmp/4)*4 */
-#endif
+		    {
+			/* What do these two bits mean? */
+			/* Clear them here. */
+			ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
+				  "Jump %d is changed to %d",
+				  jmp, jmp & ~3);
+			jmp &= ~3;		/* jmp=(jmp/4)*4 */
+		    }
 		}
 		else
 		{

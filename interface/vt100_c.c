@@ -196,7 +196,7 @@ static void ctl_file_name(char *name)
 
 static void ctl_current_time(int secs, int v)
 {
-    int mins;
+    int mins, bold_flag = 0;
     static int last_voices = -1, last_secs = -1;
 
     if(last_secs != secs)
@@ -207,15 +207,19 @@ static void ctl_current_time(int secs, int v)
 	vt100_move(4, 6);
 	vt100_set_attr(VT100_ATTR_BOLD);
 	printf("%3d:%02d", mins, secs);
+	bold_flag = 1;
     }
 
     if(!ctl.trace_playing || midi_trace.flush_flag)
     {
-	vt100_reset_attr();
+	if(bold_flag)
+	    vt100_reset_attr();
 	return;
     }
 
     vt100_move(4, 47);
+    if(!bold_flag)
+	vt100_set_attr(VT100_ATTR_BOLD);
     printf("%3d", v);
     vt100_reset_attr();
 

@@ -1,3 +1,39 @@
+1999-09/21  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.6.0 released.
+
+1999-09/21  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/rcp.c: Bug fix of SameMeassure.
+    * interface/vt100_c.c (ctl_current_time): Bug fix of displaying bold.
+
+1999-09/20  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/aq.c (aq_samples): Save PM_REQ_GETSAMPLES value if the acntl()
+      succeeds.
+    * timidity/sun_a.c: Implement PM_REQ_GETFILLED and PM_REQ_GETSAMPLES of
+      acntl().
+
+1999-09/17  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/{timidity.c,playmidi.c,playmidi.h} (new_chorus_voice_alternate):
+      To use the surround sound instead of detuned chorus.
+      It is enabled with -EFchorus=2 or -EFchorus=2,level option
+      (level := [0..63])
+
+1999-09-14  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/timidity.c (set_channel_flag): Bug fixed
+
+1999-09-12  Shusuke Nisiyama <shu@athena.qe.eng.hokudai.ac.jp>
+
+    * timidity/timidity.c (fpsetmask): On FreeBSD, remove FP_X_DZ frag
+      from fp mask.
+
+1999-09-10  Norikatsu Shigemura <nork@lb.u-tokai.ac.jp>
+
+    * configure.in: Use $CC instead of ld for $SHLD of NetBSD.
+
 1999-09-09  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.6.0-beta4 released for test version.

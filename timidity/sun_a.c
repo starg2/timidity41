@@ -78,6 +78,7 @@ static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(char *buf, int32 bytes);
 static int acntl(int request, void *arg);
+static int output_counter, play_samples_offset;
 
 /* export the playback mode */
 #define dpm sun_play_mode
@@ -136,6 +137,8 @@ static int open_output(void)
     int include_enc = 0, exclude_enc = PE_BYTESWAP;
     struct stat sb;
     audio_info_t auinfo;
+
+    output_counter = play_samples_offset = 0;
 
     /* Open the audio device */
     if((audioctl_fd = open(AUDIO_CTLDEV, O_RDWR)) < 0)
@@ -267,6 +270,8 @@ int output_data(char *buff, int32 nbytes)
 	return -1;
     }
 
+    output_counter += n;
+
     return n;
 }
 
@@ -299,10 +304,41 @@ static int sun_discard_playing(void)
 
 static int acntl(int request, void *arg)
 {
+    audio_info_t auinfo;
+    int i;
+
     switch(request)
     {
+      case PM_REQ_GETFILLED:
+	if(ioctl(audioctl_fd, AUDIO_GETINFO, &auinfo) < 0)
+	    return -1;
+	if(auinfo.play.samples == play_samples_offset)
+	    return -1; /* auinfo.play.samples is not active */
+	i = output_counter;
+	if(!(dpm.encoding & PE_MONO)) i >>= 1;
+	if(dpm.encoding & PE_16BIT) i >>= 1;
+	*((int *)arg) = i - (auinfo.play.samples - play_samples_offset);
+	return 0;
+
+      case PM_REQ_GETSAMPLES:
+	if(ioctl(audioctl_fd, AUDIO_GETINFO, &auinfo) < 0)
+	    return -1;
+	if(auinfo.play.samples == play_samples_offset)
+	    return -1; /* auinfo.play.samples is not active */
+	*((int *)arg) = auinfo.play.samples - play_samples_offset;
+	return 0;
+
       case PM_REQ_DISCARD:
+	if(ioctl(audioctl_fd, AUDIO_GETINFO, &auinfo) != -1)
+	    play_samples_offset = auinfo.play.samples;
+	output_counter = 0;
 	return sun_discard_playing();
+
+      case PM_REQ_FLUSH:
+	if(ioctl(audioctl_fd, AUDIO_GETINFO, &auinfo) != -1)
+	    play_samples_offset = auinfo.play.samples;
+	output_counter = 0;
+	return 0;
 
       case PM_REQ_RATE: {
 	  audio_info_t auinfo;

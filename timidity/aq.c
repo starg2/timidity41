@@ -407,7 +407,16 @@ int32 aq_samples(void)
     int s;
 
     if(play_mode->acntl(PM_REQ_GETSAMPLES, &s) != -1)
+    {
+	/* Reset counter & timer */
+	if(play_counter)
+	{
+	    play_start_time = get_current_calender_time();
+	    play_offset_counter = s;
+	    play_counter = 0;
+	}
 	return s;
+    }
 
     if(!IS_STREAM_TRACE)
 	return -1;

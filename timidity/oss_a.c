@@ -71,7 +71,7 @@ static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
-static int output_counter, counter_offset;
+static int output_counter;
 static int total_bytes; /* Maximum buffer size in bytes */
 
 /* export the playback mode */
@@ -235,7 +235,7 @@ static int open_output(void)
 	total_bytes = -1; /* Unknown */
 
     dpm.fd = fd;
-    output_counter = counter_offset = 0;
+    output_counter = 0;
 
     return warnings;
 }
@@ -288,11 +288,11 @@ static int acntl(int request, void *arg)
     switch(request)
     {
       case PM_REQ_DISCARD:
-	counter_offset = output_counter = 0;
+	output_counter = 0;
 	return ioctl(dpm.fd, SNDCTL_DSP_RESET);
 
       case PM_REQ_FLUSH:
-	counter_offset = output_counter = 0;
+	output_counter = 0;
 	return ioctl(dpm.fd, SNDCTL_DSP_SYNC);
 
       case PM_REQ_RATE:

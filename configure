@@ -881,7 +881,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.6.0-beta4
+VERSION=2.6.0
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -1502,7 +1502,7 @@ case "$target" in
     so="so"
     ;;
   *-*-netbsd*)
-    test -n "$SHLD" || SHLD="ld -Bforcearchive -Bshareable"
+    test -n "$SHLD" || SHLD="$CC -shared -nostartfiles"
     so="so"
     ;;
 
