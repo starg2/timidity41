@@ -6,14 +6,14 @@
 					最終修正日 1999年2月4日
 ==============================================================================
 
-このドキュメントは TiMidity++ (バージョンは 1.3.0 以降) の UNIX 上での
+このドキュメントは TiMidity++ (バージョンは 2.0.0 以降) の UNIX 上での
 インストール方法を説明しています。Macintosh のインストール方法は、
 本ドキュメントでは説明されていません。
 
-本バージョンからは、Windows 上の CYGNUS + egcs(gcc) 環境で configure が動作し、
+TiMidity++ は、Windows 上の CYGNUS + egcs(gcc) 環境で configure が動作し、
 timidity.exe を作成することが可能です。もし、cygnus がない場合は、
-http://www.cygnus.com 等から入手してインストールしてください。
-そして、MS-DOS コンソール上で cygnus を起動し、/bin/sh に bash への
+http://www.cygnus.com/ 等から入手してインストールしてください。
+そして、CYGNUS を起動し、/bin/sh に bash への
 シンボリックリンクを作成しておいてください。
 
 インストールの大まかな手順は
@@ -31,7 +31,7 @@ http://www.cygnus.com 等から入手してインストールしてください。
 ------------
 まずは、
 
-% sh configure --help
+% /bin/sh configure --help
 
 としてください。すると、いろいろな configure のオプションがあらわれてきます。
 このうち、主なものを説明します。
@@ -43,12 +43,12 @@ http://www.cygnus.com 等から入手してインストールしてください。
 	インストール先のベースとなるディレクトリを指定します。デフォルトでは
 	「/usr/local」が PREFIX となっています。
 	  PREFIX/bin に実行ファイル
-	  PREFIX/lib に TiMidity が必要とする音源やライブラリなど
+	  PREFIX/lib/timidity に TiMidity が必要とする音源やライブラリなど
 	  PREFIX/man にマニュアル
 	がインストールされます。
 	例：
 	% sh configure --prefix=/opt/gnu
-	# /opt/gnu/bin, /opt/gnu/lib, /opt/gnu/man 以下にインストールします。
+	# /opt/gnu/bin, /opt/gnu/lib/timidity, /opt/gnu/man 以下にインストールします。
 
   --x-includes=DIR
 	X のインクルードディレクトリを指定します。configure は自動的に
@@ -56,7 +56,7 @@ http://www.cygnus.com 等から入手してインストールしてください。
 	限りません。例えば、R5, R6 の両方がインストールされている
 	環境では、どちらを使うかを明示的に指定したほうが確実です。
 
-  --x-libraries=DIR       X library files are in DIR
+  --x-libraries=DIR
 	X のライブラリディレクトリを指定します。configure は自動的に
 	X のライブラリディレクトリを検索しますが、必ずしも成功するとは
 	限りません。例えば、R5, R6 の両方がインストールされている
@@ -65,11 +65,11 @@ http://www.cygnus.com 等から入手してインストールしてください。
   --enable-debug
 	デバッグ用にコンパイルします。
 
-  --disable-dynamic
-	ダイナミックロードによるインターフェースを使用しないようにします。
-
   --with-x
 	X Window 環境がある場合は指定してください。
+
+  --without-x
+	X Window 環境がない場合は指定してください。
 
   --with-tcl-includes=dir
 	Tcl のインクルードファイルのあるディレクトリを指定して下さい。
@@ -89,9 +89,18 @@ http://www.cygnus.com 等から入手してインストールしてください。
 
   --enable-audio
 	TiMidity で MIDI ファイルを演奏できるようにします。
-	このオプションがないと、TiMidity はただ単なる MIDI to WAVE converter
-	になります。音源がサポートされていない場合は、このオプションを指定
-	しないでください。
+	ただ単なる MIDI to WAVE converter として構築する場合は、
+	--enable-audio=no としてください。
+
+  --enable-nas
+	NAS (Network Audio System) 出力を有効にします。
+
+  --enable-esd
+	EsounD 出力を有効にします。
+
+  --enable-dynamic
+	シェアードライブラリ形式で作成したユーザインターフェースを
+	ダイナミックローディングにより使用することを可能にします。
 
   --enable-ncurses
 	Ncurses インターフェースを組み込みます。--enable-ncurses=dynamic
@@ -162,15 +171,12 @@ http://www.cygnus.com 等から入手してインストールしてください。
 	timidity の -Wx オプションで起動します。
 
 
-なお、全ての機能を組み込んだオプションは、
+例えば、以下のように実行します。
 
-% sh configure --with-x --enable-audio \
-               --enable-ncurses --enable-slang  --enable-motif \
+% /bin/sh configure --enable-ncurses --enable-slang  --enable-motif \
                --enable-tcltk --enable-emacs --enable-vt100 --enable-xaw \
                --enable-xskin --enable-gtk \
                --enable-network --enable-spectrogram --enable-wrd
-
-のようになります。
 
 いくつかの MIDI の演奏には、CPU パワーを必要とします。最適化オプション
 をうまく選んでコンパイルすることで、今まで途切れ途切れでしか演奏できな
@@ -179,15 +185,12 @@ http://www.cygnus.com 等から入手してインストールしてください。
 例えば、super-sparc/gcc では、
 
 (csh, tcsh などの場合)
-% env CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc -DAUDIO_FILLING_MILSEC=5000' sh configure [以下、オプション]...
+% env CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc /bin/sh configure [以下、オプション]...
 
 (sh, bash などの場合)
-% CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc -DAUDIO_FILLING_MILSEC=5000' sh configure [以下、オプション]...
+% CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc /bin/sh configure [以下、オプション]...
 
 のようにします。
-注：AUDIO_FILLING_MILSEC マクロは、Audio のソフトウェアバッファリングを
-    行なうための定義です。Linux, FreeBSD, SunOS, Solaris, IRIX, DEC/OSF1 で
-    有効です。
 
 2. common.makefile, Makefile, timidity.h の編集
 ------------------------------
@@ -222,9 +225,6 @@ vendorShellWidgetClass
 % make -n ...
 
 などとしてインストールされるデレクトリやファイルを確認してください。
-なお、Windows 上では install コマンドはうまく動作しないので、
-手作業でインストールをしてください。具体的な作業は
-timidity/timidity.exeを好きなところにコピーすれば OK です。
 
 
 5. 音源をそろえる
@@ -234,9 +234,8 @@ timidity/timidity.exeを好きなところにコピーすれば OK です。
 /usr/local/lib/timidity/timidity.cfg になります(ただし、Windows 上では、
 (C:/WINDOWS/TIMIDITY.CFG)。パッチを探すのに、以下のサイトを訪れてみて下さい。
 
-
-http://www.goice.co.jp/timidity/gus/			(33M patch)
-http://www.goice.co.jp/timidity/dist/cfg/		(Some samples of *.cfg)
+http://www.goice.co.jp/member/mo/timidity/link.html#gus
+http://www.goice.co.jp/member/mo/timidity/dist/cfg/	(Some samples of *.cfg)
 http://www.i.h.kyoto-u.ac.jp/~shom/timidity/		(10M or 4M patch)
 ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS サイトの移転先)
 
@@ -435,6 +434,7 @@ float より double の方が高速です。sparc や SGI/IP などは
 #define FRACTION_BITS 12
 
 となっています。これはこのままでいいでしょう。
+補足: TiMidity では、音の音程変換に浮動小数点数を用いずに、32 bit 固定小数点数
 
 
 次に、自動 GUS/patch 音量調節の設定です。デフォルトでは

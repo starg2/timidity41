@@ -3,8 +3,8 @@
 
 					Masanao Izumo
 					<mo@goice.co.jp>
-					Jan.5.1999
-					version 1.0.0 or lator
+					Apr.28.1999
+					version 2.0.0 or lator
 ==============================================================================
 
   This program is free software; you can redistribute it and/or
@@ -30,13 +30,13 @@
 *Features of TiMidity++:
 
   - Plays MIDI files without external MIDI instruments
-  - Converts MIDI file to various formatted audio file
-    (ex. wav, au, etc..)
+  - Converts MIDI file to various formatted audio file (ex. wav, au, etc..)
   - Uses GUS/patch and SoundFont for voice data
   - Displays some of information of Music data during the playing
   - Various user interface are available (ncurses, motif, xaw, etc..)
+  - Can load dynamic shared user interface
   - Plays the MIDI file via network
-  - Plays the MIDI file in archive file
+  - Plays the MIDI file in archive file (zip, lzh, tar, tgz)
   - Plays not only SMF file but also MOD, RCP/R36/G18/G36
   - Can handle 32 channel data
   - Can handle user interfaces as dynamic link modules
@@ -45,6 +45,10 @@
   - Automatically detects drum channels (GS/XG)
   - Trace playing
   - Low load
+  - Supports durm alternate assignment.
+  - Automatically reduce voices if there is no enough CPU power to play MIDI
+    in realtime.
+  - Can play the streamed MIDI via TCP/IP
   - The following MIDI events are supported:
 	NoteOn/Off, KeyPressure, Program, ChannelPressure, Pitchwheel,
 	ToneBank, ModulationWheel, MainVolume, Panning, Expression,

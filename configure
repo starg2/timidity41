@@ -854,7 +854,7 @@ fi
 
 PACKAGE=TiMidity++
 
-VERSION=2.0.1
+VERSION=2.0.2
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -5425,11 +5425,11 @@ done
       EXTRALIBS="$EXTRALIBS /usr/opt/MME220/lib/libmme.a"
       echo "$ac_t""yes dec" 1>&6
       ;;
-    *-sgi-irix5*)
+    *-sgi-irix5*|*-sgi-irix6.2)
       EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_OLDAL"
       SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_al.c"
       EXTRALIBS="$EXTRALIBS -laudio"
-      echo "$ac_t""yes irix5" 1>&6
+      echo "$ac_t""yes irix5.x or irix6.2" 1>&6
       ;;
     *-sgi-irix6*)
       EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_NEWAL"

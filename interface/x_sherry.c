@@ -136,7 +136,6 @@ static unsigned long palette2Pixel[MAX_COLORS];
 static int currentPalette;
 
 static SherryPalette **virtualPalette; /* MAX_VIRTUAL_PALETTES, 仮想パレット */
-//static SherryPalette *realPalette = NULL;
 static SherryPaletteEntry realPalette[MAX_PALETTES];
 static uint8 *pseudoImage; /* For TrueColor */
 
@@ -876,9 +875,11 @@ static void sry_load_png(uint8 *data)
   else
     {
       screenGamma = 2.2;
-      //screenGamms = 2.0;
-      //screenGamms = 1.7;
-      //screenGamms = 1.0;
+/*
+      screenGamms = 2.0;
+      screenGamms = 1.7;
+      screenGamms = 1.0;
+*/
     }
 
   if (png_get_gAMA (pngPtr, infoPtr, &gamma))

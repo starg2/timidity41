@@ -2940,7 +2940,7 @@ static int compute_data(int32 count)
       {
 	  if(i > 1)
 	      ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-			"%d MIDI events are ignored", i - 1);
+			"Last %d MIDI events are ignored", i - 1);
 	  return midi_play_end();
       }
     }

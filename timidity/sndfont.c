@@ -137,7 +137,6 @@ typedef struct _SFInsts {
 	uint16 version, minorversion;
 	int32 samplepos, samplesize;
 	InstList *instlist[INSTHASHSIZE];
-//	int npresets;
 	char **inst_namebuf;
 	SFExclude *sfexclude;
 	SFOrder *sforder;
@@ -339,7 +338,6 @@ static void init_sf(SFInsts *rec)
 	rec->minorversion = sfinfo.minorversion;
 	rec->samplepos = sfinfo.samplepos;
 	rec->samplesize = sfinfo.samplesize;
-//	rec->npresets = sfinfo.npresets;
 	rec->inst_namebuf =
 	    (char **)SFMalloc(rec, sfinfo.npresets * sizeof(char *));
 	for(i = 0; i < sfinfo.npresets; i++)

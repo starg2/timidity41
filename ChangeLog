@@ -1,3 +1,25 @@
+1999-04-28  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.0.2 released.
+
+1999-04-28  Masanao Izumo <mo@goice.co.jp>
+
+    * README, README.jp, INSTALL, INSTALL.jp: Update
+
+1999-04-27  Masanao Izumo <mo@goice.co.jp>
+
+    * configure.in(*-sgi-irix6.2): Define SGI_OLDAL.
+    * timidity/{sndfont.c,sun_a.cwrd_read.c,timidity.c},
+      interface/{motif_i.c,x_sherry.c}: Remove c++ comment style "//"
+
+1999-04-26  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/audriv_a.c: Bug fix.
+
+1999-04-18  Eric A. Welsh <ewelsh@gpc.ibc.wustl.edu>
+
+    * interface/ncurs_c.c (lastbends, ctl_pitch_bend): Bug fix.
+
 1999-04-25  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.0.1 released.

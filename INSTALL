@@ -3,19 +3,18 @@
                               Installation guide
 
 					Masanao Izumo <mo@goice.co.jp>
-					Last updated on Feb.4.1999
+					Last updated on Apr.28.1999
 ==============================================================================
 
-  This document describes how to install TiMidity++(version 1.3.0 or
+  This document describes how to install TiMidity++(version 2.0.0 or
 later) for your UNIX-like machine.  Methods for Macintosh are not
 described in this document.
 
-  This version or later, It is enabled to configure and make
-timidity.exe on CYGNUS + egcs-compiler(gcc) environment of
-Windows98/95/NT.  If you are in Windows, install cygnus and egcs (or
-mingw) if you don't have them (which is available from
-http://www.cygnus.com), and run `cygnus' on MS-DOS console, and make
-symbolik link /bin/sh to bash.
+  It is enabled to configure and make timidity.exe on CYGNUS +
+egcs-compiler(gcc) environment of Windows98/95/NT.  If you are in
+Windows, install cygnus and egcs (or mingw) if you don't have them
+(which is available from http://www.cygnus.com/), and run `cygnus',
+and make symbolik link /bin/sh to bash.
 
 Installing process:
 
@@ -32,7 +31,7 @@ Installing process:
 ------------
   First, execute the following command:
 
-% sh configure --help
+% /bin/sh configure --help
 
   Many options of configure will be displayed. Main of these are the
 following:
@@ -55,7 +54,7 @@ following:
   --x-includes=DIR
 	Specifies include directory of X library.
 
-  --x-libraries=DIR       X library files are in DIR
+  --x-libraries=DIR
 	Specifies library directory of X library.
 
   --enable-debug
@@ -162,11 +161,10 @@ following:
 
   For example:
 
-% sh configure --with-x --enable-audio \
-               --enable-ncurses --enable-slang  --enable-motif \
+% sh configure --enable-ncurses --enable-slang  --enable-motif \
                --enable-tcltk --enable-emacs --enable-vt100 --enable-xaw \
                --enable-xskin --enable-gtk \
-               --enable-network --enable-spectrogram --enable-wrd --enable-nas
+               --enable-network --enable-spectrogram --enable-wrd
 
 
   Some of MIDI file eats too much CPU power. If you choose correct
@@ -176,10 +174,10 @@ smoothly. Optimizing options can specify in configuration:
  (for example : super-sparc/gcc)
 
  (csh, tcsh)
-% env CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc sh configure [configure-options]...
+% env CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc /bin/sh configure [configure-options]...
 
 (sh, bash)
-% CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc sh configure [configure-options]...
+% CFLAGS='-O3 -Wall -mv8 -funroll-all-loops -fomit-frame-pointer -msupersparc /bin/sh configure [configure-options]...
 
 
 
@@ -203,7 +201,7 @@ Note: Some system announces warnings
 vendorShellClassRec
 vendorShellWidgetClass
 
-in linking XAW. But it makes no matter. Don't worry.
+in linking XAW. But it makes no matter.  Don't worry.
 
 
 4. install
@@ -221,9 +219,6 @@ can select follows:
 
 % make -n ...
 
-  On Windows, `make install' is not worked in current version
-(v1.3.0).  So please copy timidity/timidity.exe to any where by hand.
-
 
 5. Search for various voice data
 
@@ -234,9 +229,8 @@ timidity.cfg is /usr/local/lib/timidity/timidity.cfg (or
 C:\WINDOWS\TIMIDITY.CFG on Windows).  And please check the following
 sites for many voice(patch) data:
 
-
-http://www.goice.co.jp/timidity/gus/			(33M patch)
-http://www.goice.co.jp/timidity/dist/cfg/		(Some samples of *.cfg)
+http://www.goice.co.jp/member/mo/timidity/link.html#gus
+http://www.goice.co.jp/member/mo/timidity/dist/cfg/	(Some samples of *.cfg)
 http://www.i.h.kyoto-u.ac.jp/~shom/timidity/		(10M or 4M patch)
 ftp://ftp.cdrom.com/pub/gus/sound/patches/files/	(GUS site)
 

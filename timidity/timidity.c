@@ -2826,7 +2826,6 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	init_load_soundfont();
 	aq_setup();
 	aq_set_soft_queue(5.0, 1.0);
-//	aq_set_soft_queue(1.0, 1.0);
 	if(allocate_cache_size > 0)
 	    resamp_cache_reset();
 

@@ -1918,7 +1918,7 @@ static void sry_readinit(struct wrd_step_tracer* wrdstep, int timebase)
     wrdstep->last_at = readmidi_set_track(0, 0);
 
     readmidi_set_track(0, 1);
-    //wrdstep.step_inc = wrdstep.timebase;
+    /* wrdstep.step_inc = wrdstep.timebase; */
 
 #ifdef DEBUG
     printf("Timebase: %d, divisions:%d\n",
@@ -1964,7 +1964,7 @@ static void sry_read_headerblock(struct wrd_step_tracer* wrdstep,
 		} else if( (packet.data[0]&0x70) == 0x70) {
 		    sry_show_debug(packet.data);
 		}
-		if( packet.data[0] == 0x00 ) break;	//end of header
+		if( packet.data[0] == 0x00 ) break;	/* end of header */
 	}
 }
 
@@ -1987,8 +1987,8 @@ static void sry_read_datablock(struct wrd_step_tracer* wrdstep,
 		err= sry_read_datapacket(tf, &packet);
 		if( err ) break;
 		/* cur_time =+ delta_time;*/
-		//wrdstep_wait(wrdstep, delta_time,0);
-		//wrdstep_setstep(wrdstep, delta_time);
+		/* wrdstep_wait(wrdstep, delta_time,0); */
+		/* wrdstep_setstep(wrdstep, delta_time); */
 
 		if( sherry_started && delta_time ){
 		    wrdstep_inc(wrdstep,
@@ -2020,14 +2020,10 @@ static void sry_read_datablock(struct wrd_step_tracer* wrdstep,
 
 static int import_sherrywrd_file(const char * fn)
 {
-	//int		i;
 	char	sry_fn[256];
 	char	*cp;
 	struct timidity_file	*tf;
-    //char *args[WRD_MAXPARAM], *arg0;
-    //int argc;
     struct wrd_step_tracer wrdstep;
-//#define step_at wrdstep.at
 	
 	strcpy(sry_fn, fn);
 	cp=strrchr(sry_fn, '.');
@@ -2044,7 +2040,7 @@ static int import_sherrywrd_file(const char * fn)
 	memset(&wrdstep, 0, sizeof(wrdstep));
 
 /**********************/
-//    MIDIEVENT(0, ME_SHERRY_START, 0, 0, 0);
+/*    MIDIEVENT(0, ME_SHERRY_START, 0, 0, 0); */
     sry_read_headerblock( &wrdstep, tf);
     sry_read_datablock( &wrdstep, tf);
 
@@ -2059,8 +2055,6 @@ static int import_sherrywrd_file(const char * fn)
     fflush(stdout);
 #endif /* DEBUG */
     return 1;
-//#undef step_at
-
 }
 
 

@@ -53,7 +53,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.0.1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.0.2, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -474,11 +474,11 @@ if test "$enable_audio" = "yes"; then
       EXTRALIBS="$EXTRALIBS /usr/opt/MME220/lib/libmme.a"
       AC_MSG_RESULT(yes dec)
       ;;
-    *-sgi-irix5*)
+    *-sgi-irix5*|*-sgi-irix6.2)
       EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_OLDAL"
       SYSEXTRAS="$SYSEXTRAS audriv_a.c audriv_al.c"
       EXTRALIBS="$EXTRALIBS -laudio"
-      AC_MSG_RESULT(yes irix5)
+      AC_MSG_RESULT(yes irix5.x or irix6.2)
       ;;
     *-sgi-irix6*)
       EXTRADEFS="$EXTRADEFS -DAU_AUDRIV -DSGI_NEWAL"

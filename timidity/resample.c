@@ -874,10 +874,18 @@ void pre_resample(Sample * sp)
       return;
   }
   newlen = (int32)(sp->data_length / a);
-  dest = newdata = (int16 *)safe_malloc((newlen >> (FRACTION_BITS - 1)) + 2);
-
   count = (newlen >> FRACTION_BITS) - 1;
   ofs = incr = (sp->data_length - (1 << FRACTION_BITS)) / count;
+
+  if((double)newlen + incr >= 0x7fffffffL)
+  {
+      /* Too large to compute */
+      ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d",
+		sp->note_to_use);
+      return;
+  }
+
+  dest = newdata = (int16 *)safe_malloc((newlen >> (FRACTION_BITS - 1)) + 2);
 
   if (--count)
     *dest++ = src[0];

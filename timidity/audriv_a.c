@@ -47,12 +47,6 @@
 #include "playmidi.h"
 #include "miditrace.h"
 
-/* Define if you want to use soft audio buffering (AUDIO_FILLING_SEC sec.) */
-/* #define AUDIO_FILLING_MILSEC 3000 */
-
-/* Defined if you want to use initial audio buffering */
-/* #define INITIAL_FILLING */
-
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
@@ -77,14 +71,10 @@ PlayMode dpm = {
 #endif
 
   'd', "",
-  default_play_event,
   open_output,
   close_output,
   output_data,
-  flush_output,
-  purge_output,
-  current_samples,
-  play_loop
+  acntl
 };
 
 /********** Audio_Init **********************

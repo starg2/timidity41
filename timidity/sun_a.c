@@ -301,9 +301,6 @@ static int acntl(int request, void *arg)
 {
     switch(request)
     {
-//      case PM_REQ_GETQSIZ:
-//	return *(int *)arg = 8192;
-
       case PM_REQ_DISCARD:
 	return sun_discard_playing();
 
