@@ -28,6 +28,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -286,6 +287,32 @@ static void store_instrument_cache(Instrument *ip,
     p->ip = ip;
 }
 
+static int
+adjust_tune_rate(int val, float tune)
+{
+  if (!tune)
+    return val;
+  return (int)(val * pow(2.0, tune / 12.0));
+}
+
+static void
+apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
+{
+  int i;
+
+  if (!tone->tunenum)
+    return;
+
+  for (i = 0; i < ip->samples; i++) {
+    Sample *sp;
+    sp = &ip->sample[i];
+    if (tone->tunenum == 1)
+      sp->sample_rate = adjust_tune_rate(sp->sample_rate, tone->tune[0]);
+    else if (i < tone->tunenum)
+      sp->sample_rate = adjust_tune_rate(sp->sample_rate, tone->tune[i]);
+  }
+}
+
 /*
    If panning or note_to_use != -1, it will be used for all samples,
    instead of the sample-specific values in the instrument file.
@@ -307,6 +334,7 @@ static Instrument *load_gus_instrument(char *name,
   uint8 tmp[1024];
   int i,j,noluck=0;
   int panning, amp, note_to_use, strip_loop, strip_envelope, strip_tail;
+  ToneBankElement *tone;
 
 #ifdef PATCH_EXT_LIST
   static char *patch_ext[] = PATCH_EXT_LIST;
@@ -321,7 +349,6 @@ static Instrument *load_gus_instrument(char *name,
 
   if(bank)
   {
-      ToneBankElement *tone;
       tone = &bank->tone[prog];
       panning = tone->pan;
       amp = tone->amp;
@@ -334,14 +361,17 @@ static Instrument *load_gus_instrument(char *name,
   {
       panning = amp = note_to_use = -1;
       strip_loop = strip_envelope = strip_tail = 0;
+      tone = NULL;
   }
 
-  if((ip = search_instrument_cache(name, panning, amp, note_to_use,
-				   strip_loop, strip_envelope, strip_tail))
-     != NULL)
-  {
-      ctl->cmsg(CMSG_INFO, VERB_DEBUG, " * Cached");
-      return ip;
+  if (tone && tone->tunenum == 0) {
+    if((ip = search_instrument_cache(name, panning, amp, note_to_use,
+				     strip_loop, strip_envelope, strip_tail))
+       != NULL)
+      {
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, " * Cached");
+	return ip;
+      }
   }
 
   /* Open patch file */
@@ -464,6 +494,7 @@ static Instrument *load_gus_instrument(char *name,
       READ_LONG(sp->low_freq);
       READ_LONG(sp->high_freq);
       READ_LONG(sp->root_freq);
+
       skip(tf, 2); /* Why have a "root frequency" and then "tuning"?? */
       READ_CHAR(tmp[0]);
       ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Rate/Low/Hi/Root = %d/%d/%d/%d",
@@ -789,6 +820,7 @@ Instrument *load_instrument(int dr, int b, int prog)
 	    free(bank->tone[i].comment);
 	  bank->tone[i].comment = safe_strdup(ip->instname);
 	}
+	apply_bank_parameter(ip, &bank->tone[prog]);
 	return ip;
     }
 
@@ -835,6 +867,7 @@ Instrument *load_instrument(int dr, int b, int prog)
 	}
     }
 
+    apply_bank_parameter(ip, &bank->tone[prog]);
     return ip;
 }
 

@@ -1400,14 +1400,14 @@ static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 
     /* correct too high pitch */
     if(vp->root >= vp->high + 60)
-	vp->root -= 60;
+      vp->root -= 60;
 
     /* correct tune with the sustain level of modulation envelope */
     vp->tune += ((int)tbl->val[SF_env1ToPitch] * (1000 - (int)tbl->val[SF_sustainEnv1])) / 1000;
 
     /* correct tune */
-    vp->tune += (int)tbl->val[SF_lfo1ToPitch]; 
-    vp->tune += (int)tbl->val[SF_lfo2ToPitch]; 
+    vp->tune += (int)tbl->val[SF_lfo1ToPitch];
+    vp->tune += (int)tbl->val[SF_lfo2ToPitch];
 }
 
 static void set_rootfreq(SampleList *vp)
@@ -1417,6 +1417,7 @@ static void set_rootfreq(SampleList *vp)
     root = vp->root;
     tune = vp->tune;
 
+#if 1
     while(tune <= -100)
     {
 	root++;
@@ -1427,9 +1428,22 @@ static void set_rootfreq(SampleList *vp)
 	root--;
 	tune -= 100;
     }
-
     /* -100 < tune <= 0 */
+
     tune = (-tune * 256) / 100;
+#else
+
+    while (tune < 0) {
+      root--;
+      tune += 100;
+    }
+    while (tune >= 100) {
+      root++;
+      tune -= 100;
+    }
+    tune = (tune * 256) / 100;
+
+#endif
 
     if(root > 127)
 	vp->v.root_freq = (int32)((FLOAT_T)freq_table[127] *

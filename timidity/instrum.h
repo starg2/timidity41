@@ -77,6 +77,8 @@ typedef struct {
 		    2-255: reserved
 		    */
   int16 amp;
+  int tunenum;
+  float *tune;
 } ToneBankElement;
 
 /* A hack to delay instrument loading until after reading the

@@ -35,7 +35,7 @@ PlayMode modmidi_play_mode = {
     PF_PCM_STREAM,
     -1,
     {0,0,0,0,0},
-    "MOD -> MIDI file conversion", 'm',
+    "MOD -> MIDI file conversion", 'M',
     NULL,
     open_output,
     close_output,

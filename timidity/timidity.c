@@ -894,6 +894,37 @@ static void copybank(ToneBank *to, ToneBank *from)
     }
 }
 
+static float *
+config_parse_tune(char *cp, int *num)
+{
+  char *p;
+  float *tune_list;
+  int i;
+
+  /* count num */
+  p = cp;
+  *num = 1;
+  while ((p = strchr(p, ',')) != NULL) {
+    p++;
+    (*num)++;
+  }
+
+  /* alloc */
+  tune_list = (float *)malloc((*num) * sizeof(float));
+
+  /* regist */
+  i = 0;
+  p = cp;
+  tune_list[i] = atof(p);
+  while ((p = strchr(p, ',')) != NULL) {
+    p++;
+    i++;
+    tune_list[i] = atof(p);
+  }
+
+  return tune_list;
+}
+
 static int set_gus_patchconf_opts(char *name, int line, char *opts,
 				  ToneBankElement *tone)
 {
@@ -996,6 +1027,9 @@ static int set_gus_patchconf_opts(char *name, int line, char *opts,
 	    if(*p == ',') *p = ' ';
 	    p++;
 	}
+    }
+    else if(!strcmp(opts, "tune")) {
+      tone->tune = config_parse_tune(cp, &tone->tunenum);
     }
     else
     {
@@ -2099,6 +2133,8 @@ MAIN_INTERFACE void tmdy_free_config(void)
 	free(elm->name);
       if (elm->comment)
 	free(elm->comment);
+      if (elm->tune)
+	free(elm->tune);
     }
     if (i > 0) {
       free(bank);

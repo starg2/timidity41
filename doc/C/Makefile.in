@@ -136,7 +136,8 @@ EXTRA_DIST = \
 	README.sf \
 	README.tk \
 	README.xskin \
-	README.xaw
+	README.xaw \
+	README.alsaseq
 
 subdir = doc/C
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs

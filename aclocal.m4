@@ -178,7 +178,7 @@ exit(0);
 )
 
 dnl Now that we know that we have the right version, let's see if we have the library and not just the headers.
-AC_CHECK_LIB([asound], [snd_cards],,
+AC_CHECK_LIB([asound], [snd_ctl_open],,
 	[AC_MSG_RESULT(No linkable libasound was found.)]
 )
 

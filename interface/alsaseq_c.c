@@ -17,93 +17,15 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-
     alsaseq_c.c - ALSA sequencer server interface
         Copyright (c) 2000  Takashi Iwai <tiwai@suse.de>
 
-
-    DESCRIPTION
-    ===========
-
-    This interface provides an ALSA sequencer interface which receives 
+    This interface provides an ALSA sequencer client which receives 
     events and plays it in real-time.  On this mode, TiMidity works
-    purely as software (real-time) MIDI render.  There is no
-    scheduling routine in this interface, since all scheduling is done 
-    by ALSA seqeuncer core.
+    as a software (quasi-)real-time MIDI synth engine.
 
-    For invoking ALSA sequencer interface, run timidity as folows:
-      % timidity -iA -B2,8 -q0/0 -k0
-    The fragment size can be adjustable.  The smaller number gives
-    better real-time response.  Then timidity shows new port numbers
-    which were newly created (128:0 and 128:1 below).
-    ---------------------------------------
-      % timidity -iA -B2,8 -q0/0 -k0
-      TiMidity starting in ALSA server mode
-      Opening sequencer port 128:0 128:1
-    ---------------------------------------
-    These ports can be connected with any other sequencer ports.
-    For example, playing a MIDI file via pmidi (what's an overkill :-),
-      % pmidi -p128:0 foo.mid
-    If a midi file needs two ports, you may connect like this:
-      % pmidi -p128:0,128:1 bar.mid
-    Vertual keyboard:
-      % vkeybd --addr 128:0
-    Connecting from external MIDI keyboard may become like this:
-      % aconnect 64:0 128:0
-
-    See also http://www.alsa-project.org/~iwai/alsa.html
-
-    The interface tries to reset process scheduling as SCHED_FIFO
-    and as high priority as possible.  For enabling this feature,
-    timidity must be invoked by root or installed with set-uid root.
-    The SCHED_FIFO'd program shows much better real-time response.
-    For example, without rescheduled, timidity may cause pauses at
-    every time /proc is accessed.
-
-    Timidity loads instruments dynamically at each time a PRM_CHANGE
-    event is received.  This causes sometimes pauses during playback.
-    It occurs often in the playback via pmidi.
-    Furthermore, timidity resets the loaded instruments when the all
-    subscriptions are disconnected.  Thus for keeping all loaded
-    instruments also after playback is finished, you need to connect a
-    dummy port (e.g. midi input port) to timidity port via aconnect:
-      % aconnect 64:0 128:0
-
-    If you prefer a bit more fancy visual output, use my tiny program, 
-    aseqview.
-      % aseqview -p2 &amp;
-    Then connect two ports to timidity ports:
-      % aconnect 129:0 128:0
-      % aconnect 129:1 128:1
-    The outputs ought to be redirected to 129:0,1 instead of 128:0,1.
-
-    You may access to timidity also via OSS MIDI emulation on ALSA
-    sequencer.  Take a look at /proc/asound/seq/oss for checking the
-    device number to be accessed.
-    ---------------------------------------
-      % cat /proc/asound/seq/oss
-      OSS sequencer emulation version 0.1.8
-      ALSA client number 63
-      ALSA receiver port 0
-      ...
-      midi 1: [TiMidity port 0] ALSA port 128:0
-        capability write / opened none
-
-      midi 2: [TiMidity port 1] ALSA port 128:1
-        capability write / opened none
-    ---------------------------------------
-    In the case above, the MIDI devices 1 and 2 are assigned to
-    timidity.  Now, play with playmidi:
-      % playmidi -e -D1 foo.mid
-
-
-    BUGS
-    ====
-
-    Well, well, they must be there..
-
-
-    */
+    See doc/C/README.alsaseq for more details.
+*/
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -116,7 +38,6 @@
 #include <sched.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <netinet/in.h>
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -124,11 +45,7 @@
 #endif
 #include <signal.h>
 
-#ifdef HAVE_SYS_SOUNDCARD_H
 #include <sys/asoundlib.h>
-#else
-#include "server_defs.h"
-#endif /* HAVE_SYS_SOUNDCARD_H */
 
 #include "timidity.h"
 #include "common.h"
@@ -140,6 +57,7 @@
 #include "output.h"
 #include "aq.h"
 #include "timer.h"
+
 
 #define NUM_PORTS	2	/* number of ports;
 				 * this should be configurable via command line..
@@ -155,6 +73,67 @@ struct seq_context {
 	int used;		/* number of current connection */
 	int active;		/* */
 };
+
+static struct seq_context alsactx;
+
+#if SND_LIB_MINOR >= 6
+/* !! this is a dirty hack.  not sure to work in future !! */
+static int snd_seq_file_descriptor(snd_seq_t *handle)
+{
+	int pfds = snd_seq_poll_descriptors_count(handle, POLLIN);
+	if (pfds > 0) {
+		struct pollfd pfd;
+		if (snd_seq_poll_descriptors(handle, &pfd, 1, POLLIN) >= 0)
+			return pfd.fd;
+	}
+	return -ENXIO;
+}
+
+static int alsa_seq_open(snd_seq_t **seqp)
+{
+	return snd_seq_open(seqp, "hw", SND_SEQ_OPEN_INPUT, 0);
+}
+
+static int alsa_create_port(snd_seq_t *seq, int index)
+{
+	snd_seq_port_info_t *pinfo;
+	char name[32];
+	int port;
+
+	sprintf(name, "TiMidity port %d", index);
+	port = snd_seq_create_simple_port(seq, name,
+					  SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,
+					  SND_SEQ_PORT_TYPE_MIDI_GENERIC);
+	if (port < 0) {
+		fprintf(stderr, "error in snd_seq_create_simple_port\n");
+		return -1;
+	}
+	return port;
+}
+
+#else
+static int alsa_seq_open(snd_seq_t **seqp)
+{
+	return snd_seq_open(seqp, SND_SEQ_OPEN_IN);
+}
+
+static int alsa_create_port(snd_seq_t *seq, int index)
+{
+	snd_seq_port_info_t pinfo;
+
+	memset(&pinfo, 0, sizeof(pinfo));
+	sprintf(pinfo.name, "TiMidity port %d", index);
+	pinfo.capability = SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE;
+	pinfo.type = SND_SEQ_PORT_TYPE_MIDI_GENERIC;
+	strcpy(pinfo.group, SND_SEQ_GROUP_DEVICE);
+	if (snd_seq_create_port(alsactx.handle, &pinfo) < 0) {
+		fprintf(stderr, "error in snd_seq_create_simple_port\n");
+		return -1;
+	}
+	return pinfo.port;
+}
+
+#endif
 
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
@@ -181,10 +160,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static int time_advance;
 static int32 event_time_offset;
 static FILE *outfp;
-static struct seq_context alsactx;
-static struct seq_context *ctxp = &alsactx;
 
 /*ARGSUSED*/
 static int ctl_open(int using_stdin, int using_stdout)
@@ -239,17 +217,29 @@ static RETSIGTYPE sig_timeout(int sig)
     /* Expect EINTR */
 }
 
-static void doit(void);
-static int do_sequencer(void);
+static void doit(struct seq_context *ctxp);
+static int do_sequencer(struct seq_context *ctxp);
+static int start_sequencer(struct seq_context *ctxp);
+static void stop_sequencer(struct seq_context *ctxp);
 static void server_reset(void);
 
+/* reset all when SIGHUP is received */
+static RETSIGTYPE sig_reset(int sig)
+{
+	if (alsactx.active) {
+		stop_sequencer(&alsactx);
+		server_reset();
+	}
+	signal(SIGHUP, sig_reset);
+}
+
+/*
+ * set the process to realtime privs
+ */
 static int set_realtime_priority(void)
 {
 	struct sched_param schp;
 
-        /*
-         * set the process to realtime privs
-         */
         memset(&schp, 0, sizeof(schp));
         schp.sched_priority = sched_get_priority_max(SCHED_FIFO);
 
@@ -263,7 +253,7 @@ static int set_realtime_priority(void)
 
 static void ctl_pass_playing_list(int n, char *args[])
 {
-	snd_seq_port_info_t pinfo;
+	double btime;
 	int i;
 
 #ifdef SIGPIPE
@@ -274,45 +264,53 @@ static void ctl_pass_playing_list(int n, char *args[])
 
 	set_realtime_priority();
 
-	if (snd_seq_open(&ctxp->handle, SND_SEQ_OPEN) < 0) {
+	if (alsa_seq_open(&alsactx.handle) < 0) {
 		fprintf(stderr, "error in snd_seq_open\n");
 		return;
 	}
-	ctxp->client = snd_seq_client_id(ctxp->handle);
-	ctxp->fd = snd_seq_file_descriptor(ctxp->handle);
+	alsactx.client = snd_seq_client_id(alsactx.handle);
+	alsactx.fd = snd_seq_file_descriptor(alsactx.handle);
+	snd_seq_set_client_pool_input(alsactx.handle, 1000); /* enough? */
 
 	printf("Opening sequencer port:");
 	for (i = 0; i < NUM_PORTS; i++) {
-		snd_seq_port_info_t pinfo;
-		memset(&pinfo, 0, sizeof(pinfo));
-		sprintf(pinfo.name, "TiMidity port %d", i);
-		pinfo.capability = SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE;
-		pinfo.type = SND_SEQ_PORT_TYPE_MIDI_GENERIC;
-		strcpy(pinfo.group, SND_SEQ_GROUP_DEVICE);
-		if (snd_seq_create_port(ctxp->handle, &pinfo) < 0) {
-			fprintf(stderr, "error in snd_seq_create_simple_port\n");
+		int port;
+		port = alsa_create_port(alsactx.handle, i);
+		if (port < 0)
 			return;
-		}
-		ctxp->port[i] = pinfo.port;
-		printf(" %d:%d", ctxp->client, ctxp->port[i]);
+		alsactx.port[i] = port;
+		printf(" %d:%d", alsactx.client, alsactx.port[i]);
 	}
 	printf("\n");
 
-	ctxp->used = 0;
-	ctxp->active = 0;
+	alsactx.used = 0;
+	alsactx.active = 0;
 
 	opt_realtime_playing = 2; /* Enable loading patch while playing */
 	allocate_cache_size = 0; /* Don't use pre-calclated samples */
-	/* aq_set_soft_queue(-1.0, 0.0); */
+
+	/* set the audio queue size as minimum as possible, since
+	 * we don't have to use audio queue..
+	 */
+	play_mode->acntl(PM_REQ_GETFRAGSIZ, &time_advance);
+	if (!(play_mode->encoding & PE_MONO))
+		time_advance >>= 1;
+	if (play_mode->encoding & PE_16BIT)
+		time_advance >>= 1;
+	btime = (double)time_advance / play_mode->rate;
+	btime *= 1.01; /* to be sure */
+	aq_set_soft_queue(btime, 0.0);
+
 	alarm(0);
 	signal(SIGALRM, sig_timeout);
 	signal(SIGINT, safe_exit);
 	signal(SIGTERM, safe_exit);
+	signal(SIGHUP, sig_reset);
 
 	play_mode->close_output();
 	for (;;) {
 		server_reset();
-		doit();
+		doit(&alsactx);
 	}
 }
 
@@ -341,28 +339,23 @@ static void stop_playing(void)
 	}
 }
 
-static void doit(void)
+static void doit(struct seq_context *ctxp)
 {
 	for (;;) {
 		while (snd_seq_event_input_pending(ctxp->handle, 1)) {
-			if (do_sequencer())
+			if (do_sequencer(ctxp))
 				goto __done;
 		}
 		if (ctxp->active) {
 			double fill_time;
 			MidiEvent ev;
 
-			aq_add(NULL, 0);
-#if 0
-			fill_time = high_time_at - (double)aq_filled() / play_mode->rate;
-			if (fill_time <= 0)
-				continue;
-			event_time_offset += (int32)(fill_time * play_mode->rate);
-#endif
-			event_time_offset += play_mode->rate / TICKTIME_HZ;
+			/*event_time_offset += play_mode->rate / TICKTIME_HZ;*/
+			event_time_offset += time_advance;
 			ev.time = event_time_offset;
 			ev.type = ME_NONE;
 			play_event(&ev);
+			aq_fill_nonblocking();
 		} else {
 			fd_set rfds;
 			FD_ZERO(&rfds);
@@ -374,11 +367,7 @@ static void doit(void)
 
 __done:
 	if (ctxp->active) {
-		stop_playing();
-		play_mode->close_output();
-		free_instruments(0);
-		free_global_mblock();
-		ctxp->active = 0;
+		stop_sequencer(ctxp);
 	}
 }
 
@@ -391,10 +380,32 @@ static void server_reset(void)
 	event_time_offset = 0;
 }
 
+static int start_sequencer(struct seq_context *ctxp)
+{
+	if (play_mode->open_output() < 0) {
+		ctl.cmsg(CMSG_FATAL, VERB_NORMAL,
+			 "Couldn't open %s (`%c')",
+			 play_mode->id_name, play_mode->id_character);
+		return 0;
+	}
+	ctxp->active = 1;
+	return 1;
+}
+
+static void stop_sequencer(struct seq_context *ctxp)
+{
+	stop_playing();
+	play_mode->close_output();
+	free_instruments(0);
+	free_global_mblock();
+	ctxp->used = 0;
+	ctxp->active = 0;
+}
+
 #define NOTE_CHAN(ev)	((ev)->dest.port * 16 + (ev)->data.note.channel)
 #define CTRL_CHAN(ev)	((ev)->dest.port * 16 + (ev)->data.control.channel)
 
-static int do_sequencer(void)
+static int do_sequencer(struct seq_context *ctxp)
 {
 	int n;
 	MidiEvent ev;
@@ -447,6 +458,23 @@ static int do_sequencer(void)
 			seq_play_event(&ev);
 		break;
 
+	case SND_SEQ_EVENT_CONTROL14:
+		if (aevp->data.control.param < 0 || aevp->data.control.param >= 32)
+			break;
+		if (! convert_midi_control_change(CTRL_CHAN(aevp),
+						  aevp->data.control.param,
+						  (aevp->data.control.value >> 7) & 0x7f,
+						  &ev))
+			break;
+		seq_play_event(&ev);
+		if (! convert_midi_control_change(CTRL_CHAN(aevp),
+						  aevp->data.control.param + 32,
+						  aevp->data.control.value & 0x7f,
+						  &ev))
+			break;
+		seq_play_event(&ev);
+		break;
+		    
 	case SND_SEQ_EVENT_PITCHBEND:
 		ev.type    = ME_PITCHWHEEL;
 		ev.channel = CTRL_CHAN(aevp);
@@ -463,32 +491,97 @@ static int do_sequencer(void)
 		seq_play_event(&ev);
 		break;
 		
+	case SND_SEQ_EVENT_NONREGPARAM:
+		/* Break it back into its controler values */
+		ev.type = ME_NRPN_MSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = (aevp->data.control.param >> 7) & 0x7f;
+		seq_play_event(&ev);
+		ev.type = ME_NRPN_LSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = aevp->data.control.param & 0x7f;
+		seq_play_event(&ev);
+		ev.type = ME_DATA_ENTRY_MSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = (aevp->data.control.value >> 7) & 0x7f;
+		seq_play_event(&ev);
+		ev.type = ME_DATA_ENTRY_LSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = aevp->data.control.value & 0x7f;
+		seq_play_event(&ev);
+		break;
+
+	case SND_SEQ_EVENT_REGPARAM:
+		/* Break it back into its controler values */
+		ev.type = ME_RPN_MSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = (aevp->data.control.param >> 7) & 0x7f;
+		seq_play_event(&ev);
+		ev.type = ME_RPN_LSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = aevp->data.control.param & 0x7f;
+		seq_play_event(&ev);
+		ev.type = ME_DATA_ENTRY_MSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = (aevp->data.control.value >> 7) & 0x7f;
+		seq_play_event(&ev);
+		ev.type = ME_DATA_ENTRY_LSB;
+		ev.channel = CTRL_CHAN(aevp);
+		ev.a = aevp->data.control.value & 0x7f;
+		seq_play_event(&ev);
+		break;
+
 	case SND_SEQ_EVENT_SYSEX:
 		if (parse_sysex_event(aevp->data.ext.ptr + 1, aevp->data.ext.len - 1, &ev))
 			seq_play_event(&ev);
 		break;
 
+#if SND_LIB_MINOR >= 6
+#define snd_seq_addr_equal(a,b)	((a)->client == (b)->client && (a)->port == (b)->port)
+	case SND_SEQ_EVENT_PORT_SUBSCRIBED:
+		if (snd_seq_addr_equal(&aevp->data.connect.dest, &aevp->dest)) {
+			if (! ctxp->active) {
+				if (! start_sequencer(ctxp)) {
+					snd_seq_free_event(aevp);
+					return 0;
+				}
+			}
+			ctxp->used++;
+		}
+		break;
+
+	case SND_SEQ_EVENT_PORT_UNSUBSCRIBED:
+		if (snd_seq_addr_equal(&aevp->data.connect.dest, &aevp->dest)) {
+			if (ctxp->active) {
+				ctxp->used--;
+				if (ctxp->used <= 0) {
+					snd_seq_free_event(aevp);
+					return 1; /* quit now */
+				}
+			}
+		}
+		break;
+#else
 	case SND_SEQ_EVENT_PORT_USED:
-		if (ctxp->used == 0) {
-			if (play_mode->open_output() < 0) {
-				ctl.cmsg(CMSG_FATAL, VERB_NORMAL,
-					 "Couldn't open %s (`%c')",
-					 play_mode->id_name, play_mode->id_character);
+		if (! ctxp->active) {
+			if (! start_sequencer(ctxp)) {
 				snd_seq_free_event(aevp);
 				return 0;
 			}
-			ctxp->active = 1;
 		}
 		ctxp->used++;
 		break;
 
 	case SND_SEQ_EVENT_PORT_UNUSED:
-		ctxp->used--;
-		if (ctxp->used <= 0) {
-			snd_seq_free_event(aevp);
-			return 1; /* quit now */
+		if (ctxp->active) {
+			ctxp->used--;
+			if (ctxp->used <= 0) {
+				snd_seq_free_event(aevp);
+				return 1; /* quit now */
+			}
 		}
 		break;
+#endif
 		
 	default:
 		/*printf("Unsupported event %d\n", aevp->type);*/

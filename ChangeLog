@@ -1,7 +1,3 @@
-2002-01-18  Masanao Izumo <mo@goice.co.jp>
-
-	* Version 2.11.3 released.
-
 2002-01-17  Daisuke Aoki <dai@sweetparty.ne.jp>
 
 	* configs/msc-config.h,interface/{w32g_i.c,w32g_pref.c,w32g_res.h,
@@ -17,9 +13,19 @@
 
 	* timidity/C/timidity.1: Document fixed.
 
+2002-01-16  Takashi Iwai <tiwai@suse.de>
+	    Masanao Izumo <mo@goice.co.jp>
+
+	* acinclude.m4,doc/C/Makefile.am,doc/C/README.alsaseq,
+	  interface/alsaseq_c.c,timidity/alsa_a.c:
+	  - Support ALSA 0.9
+	  - Added alsaseq document (doc/C/README.alsaseq)
+
 2002-01-16  Saito <timidity@flashmail.com>
 
 	* timidity/{playmidi.c,readmidi.c}: Bug fixed
+	* timidity/{playmidi.c,modmid_a.c}:
+	  Change 'MOD -> MIDI file conversion' identifier from 'm' to 'M'.
 
 2002-01-16  Kentaro Sato <kentaro@ps.catv.ne.jp>
 
@@ -30,6 +36,16 @@
 	* timidity/instrum.c: Bug fixed.
 	* timidity/readmidi.c: Added TIMIDITY_TOOLS macro to build for timidity
 	  tools.
+
+2002-01-15  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/{instrum.c,instrum.h,timidity.c}:
+	  New configuration parameter tune=[+-]number (float)
+	  For example
+		bank 0
+		0 piano.pat tune=+1		# up 1 note key
+		1 britepno.pat tune=+2		# up 2 note key
+		2 synpiano.pat tune=-1.5	# down 1.5 note key
 
 2002-01-12  Masanao Izumo <mo@goice.co.jp>
 

@@ -1400,7 +1400,7 @@ fi
 
 # Define the identity of the package.
 PACKAGE=TiMidity++
-VERSION=2.11.3
+VERSION=2.12.0-pre1
 
 cat >>confdefs.h <<EOF
 #define PACKAGE "$PACKAGE"
@@ -7671,9 +7671,9 @@ echo "${ECHO_T}not present." >&6
 fi
 rm -f conftest.$ac_objext conftest.$ac_ext
 
-echo "$as_me:7674: checking for snd_cards in -lasound" >&5
-echo $ECHO_N "checking for snd_cards in -lasound... $ECHO_C" >&6
-if test "${ac_cv_lib_asound_snd_cards+set}" = set; then
+echo "$as_me:7674: checking for snd_ctl_open in -lasound" >&5
+echo $ECHO_N "checking for snd_ctl_open in -lasound... $ECHO_C" >&6
+if test "${ac_cv_lib_asound_snd_ctl_open+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -7688,11 +7688,11 @@ extern "C"
 #endif
 /* We use char because int might match the return type of a gcc2
    builtin and then its argument prototype would still apply.  */
-char snd_cards ();
+char snd_ctl_open ();
 int
 main ()
 {
-snd_cards ();
+snd_ctl_open ();
   ;
   return 0;
 }
@@ -7709,18 +7709,18 @@ if { (eval echo "$as_me:7701: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:7710: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_cv_lib_asound_snd_cards=yes
+  ac_cv_lib_asound_snd_ctl_open=yes
 else
   echo "$as_me: failed program was:" >&5
 cat conftest.$ac_ext >&5
-ac_cv_lib_asound_snd_cards=no
+ac_cv_lib_asound_snd_ctl_open=no
 fi
 rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-echo "$as_me:7721: result: $ac_cv_lib_asound_snd_cards" >&5
-echo "${ECHO_T}$ac_cv_lib_asound_snd_cards" >&6
-if test $ac_cv_lib_asound_snd_cards = yes; then
+echo "$as_me:7721: result: $ac_cv_lib_asound_snd_ctl_open" >&5
+echo "${ECHO_T}$ac_cv_lib_asound_snd_ctl_open" >&6
+if test $ac_cv_lib_asound_snd_ctl_open = yes; then
   cat >>confdefs.h <<EOF
 #define HAVE_LIBASOUND 1
 EOF

@@ -4654,7 +4654,7 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     int rc;
     static int play_count = 0;
 
-    if (play_mode->id_character == 'm') {
+    if (play_mode->id_character == 'M') {
 	int cnt;
 
 	convert_mod_to_midi_file(eventlist);
