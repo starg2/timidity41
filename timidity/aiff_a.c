@@ -40,8 +40,12 @@
 #include <math.h>
 
 #include "timidity.h"
+#include "common.h"
 #include "output.h"
 #include "controls.h"
+#include "instrum.h"
+#include "playmidi.h"
+#include "readmidi.h"
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
@@ -67,7 +71,7 @@ PlayMode dpm = {
     -1,
     {0,0,0,0,0},
     "AIFF file", 'a',
-    "output.aiff",
+    NULL,
     open_output,
     close_output,
     output_data,
@@ -88,8 +92,7 @@ static int write_u32(uint32 value)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
 		  dpm.name, strerror(errno));
-	close(dpm.fd);
-	dpm.fd = -1;
+	close_output();
 	return -1;
     }
     return n;
@@ -103,8 +106,7 @@ static int write_u16(uint16 value)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
 		  dpm.name, strerror(errno));
-	close(dpm.fd);
-	dpm.fd = -1;
+	close_output();
 	return -1;
     }
     return n;
@@ -117,8 +119,7 @@ static int write_str(char *s)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
 		  dpm.name, strerror(errno));
-	close(dpm.fd);
-	dpm.fd = -1;
+	close_output();
 	return -1;
     }
     return n;
@@ -134,8 +135,7 @@ static int write_ieee_80bitfloat(double num)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: write: %s",
 		  dpm.name, strerror(errno));
-	close(dpm.fd);
-	dpm.fd = -1;
+	close_output();
 	return -1;
     }
     return n;
@@ -196,6 +196,102 @@ static int update_header(void)
     return 0;
 }
 
+static int aiff_output_open(const char *fname)
+{
+  if(strcmp(fname, "-") == 0) {
+    dpm.fd = 1; /* data to stdout */
+  } else {
+    /* Open the audio file */
+    dpm.fd = open(fname, FILE_OUTPUT_MODE);
+    if(dpm.fd < 0) {
+      ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+		fname, strerror(errno));
+      return -1;
+    }
+  }
+
+  /* magic */
+  if(write_str("FORM") == -1) return -1;
+
+  /* file size - 8 (dmy) */
+  if(write_u32((uint32)0xffffffff) == -1) return -1;
+
+  /* chunk start tag */
+  if(write_str("AIFF") == -1) return -1;
+
+  /* COMM chunk */
+  if(chunk_start("COMM", 18) == -1) return -1;
+
+  /* number of channels */
+  if(dpm.encoding & PE_MONO) {
+    if(write_u16((uint16)1) == -1) return -1;
+  } else {
+    if(write_u16((uint16)2) == -1) return -1;
+  }
+
+  /* number of frames (dmy) */
+  if(write_u32((uint32)0xffffffff) == -1) return -1;
+
+  /* bits per sample */
+  if(dpm.encoding & PE_16BIT) {
+    if(write_u16((uint16)16) == -1) return -1;
+  } else {
+    if(write_u16((uint16)8) == -1) return -1;
+  }
+
+  /* sample rate */
+  if(write_ieee_80bitfloat((double)dpm.rate) == -1) return -1;
+
+  /* SSND chunk */
+  if(chunk_start("SSND", (int32)0xffffffff) == -1) return -1;
+
+  /* offset */
+  if(write_u32((uint32)0) == -1) return -1;
+
+  /* block size */
+  if(write_u32((uint32)0) == -1) return -1;
+
+  return 0;
+}
+
+static int auto_aiff_output_open(const char *input_filename)
+{
+  char *output_filename = (char *)safe_malloc(strlen(input_filename) + 5);
+  char *ext, *p;
+
+  strcpy(output_filename, input_filename);
+  if((ext = strrchr(output_filename, '.')) == NULL)
+    ext = output_filename + strlen(output_filename);
+  else {
+    /* strip ".gz" */
+    if(strcasecmp(ext, ".gz") == 0) {
+      *ext = '\0';
+      if((ext = strrchr(output_filename, '.')) == NULL)
+	ext = output_filename + strlen(output_filename);
+    }
+  }
+
+  /* replace '.' and '#' before ext */
+  for(p = output_filename; p < ext; p++)
+    if(*p == '.' || *p == '#')
+      *p = '_';
+
+  if(*ext && isupper(*(ext + 1)))
+    strcpy(ext, ".AIFF");
+  else
+    strcpy(ext, ".aiff");
+  if(aiff_output_open(output_filename) == -1) {
+    free(output_filename);
+    return -1;
+  }
+
+  if(dpm.name != NULL)
+    free(dpm.name);
+  dpm.name = output_filename;
+  ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Output %s", dpm.name);
+  return 0;
+}
+
 static int open_output(void)
 {
     int include_enc, exclude_enc;
@@ -217,66 +313,14 @@ static int open_output(void)
 
     dpm.encoding = validate_encoding(dpm.encoding, 0, PE_ULAW | PE_ALAW);
 
-    if(dpm.name && dpm.name[0] == '-' && dpm.name[1] == '\0')
-	dpm.fd = 1; /* data to stdout */
-    else
-    {
-	/* Open the audio file */
-	dpm.fd = open(dpm.name, FILE_OUTPUT_MODE);
-	if(dpm.fd < 0)
-	{
-	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		      dpm.name, strerror(errno));
-	    return -1;
-	}
+    if(dpm.name == NULL) {
+      dpm.flag |= PF_AUTO_SPLIT_FILE;
+      dpm.name = NULL;
+    } else {
+      dpm.flag &= ~PF_AUTO_SPLIT_FILE;
+      if(aiff_output_open(dpm.name) == -1)
+	return -1;
     }
-
-    /* magic */
-    if(write_str("FORM") == -1) return -1;
-
-    /* file size - 8 (dmy) */
-    if(write_u32((uint32)0xffffffff) == -1) return -1;
-
-    /* chunk start tag */
-    if(write_str("AIFF") == -1) return -1;
-
-    /* COMM chunk */
-    if(chunk_start("COMM", 18) == -1) return -1;
-
-    /* number of channels */
-    if(dpm.encoding & PE_MONO)
-    {
-	if(write_u16((uint16)1) == -1) return -1;
-    }
-    else
-    {
-	if(write_u16((uint16)2) == -1) return -1;
-    }
-
-    /* number of frames (dmy) */
-    if(write_u32((uint32)0xffffffff) == -1) return -1;
-
-    /* bits per sample */
-    if(dpm.encoding & PE_16BIT)
-    {
-	if(write_u16((uint16)16) == -1) return -1;
-    }
-    else
-    {
-	if(write_u16((uint16)8) == -1) return -1;
-    }
-
-    /* sample rate */
-    if(write_ieee_80bitfloat((double)dpm.rate) == -1) return -1;
-
-    /* SSND chunk */
-    if(chunk_start("SSND", (int32)0xffffffff) == -1) return -1;
-
-    /* offset */
-    if(write_u32((uint32)0) == -1) return -1;
-
-    /* block size */
-    if(write_u32((uint32)0) == -1) return -1;
 
     bytes_output = 0;
     already_warning_lseek = 0;
@@ -317,8 +361,7 @@ static void close_output(void)
     if(dpm.fd != 1 && /* We don't close stdout */
        dpm.fd != -1)
     {
-	if(update_header() == -1)
-	    return;
+	update_header();
 	close(dpm.fd);
 	dpm.fd = -1;
     }
@@ -326,12 +369,21 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
-    switch(request)
-    {
-      case PM_REQ_DISCARD:
-	return 0;
+  switch(request) {
+  case PM_REQ_PLAY_START:
+    if(dpm.flag & PF_AUTO_SPLIT_FILE)
+      return auto_aiff_output_open(current_file_info->filename);
+    break;
+  case PM_REQ_PLAY_END:
+    if(dpm.flag & PF_AUTO_SPLIT_FILE) {
+      close_output();
+      return 0;
     }
-    return -1;
+    break;
+  case PM_REQ_DISCARD:
+    return 0;
+  }
+  return -1;
 }
 
 

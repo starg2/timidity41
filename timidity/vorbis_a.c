@@ -42,15 +42,15 @@
 #include <strings.h>
 #endif
 #include <fcntl.h>
-
-#ifdef __FreeBSD__
-#include <stdio.h>
-#endif
+#include <vorbis/modes.h>
 
 #include "timidity.h"
+#include "common.h"
 #include "output.h"
 #include "controls.h"
-#include "vorbis/modes.h"
+#include "instrum.h"
+#include "playmidi.h"
+#include "readmidi.h"
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
@@ -58,14 +58,14 @@ static int output_data(char *buf, int32 bytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
-#define dpm ogg_play_mode
+#define dpm vorbis_play_mode
 
 PlayMode dpm = {
     44100, PE_16BIT|PE_SIGNED, PF_PCM_STREAM,
     -1,
     {0,0,0,0,0},
     "Ogg Vorbis", 'v',
-    "output.ogg",
+    NULL,
     open_output,
     close_output,
     output_data,
@@ -79,45 +79,30 @@ static  vorbis_block     vb; /* local working space for packet->PCM decode */
 
 
 /*************************************************************************/
-static int open_output(void)
+
+static int ogg_output_open(const char *fname, const char *comment)
 {
-  char *comment = "";
-  int include_enc, exclude_enc;
+  int fd;
   static vorbis_info ogg_info;
   vorbis_info *vi; /* struct that stores all the static vorbis bitstream
 		      settings */
   vorbis_comment vc; /* struct that stores all the user comments */
 
-  /********** Encode setup ************/
 
-  include_enc = exclude_enc = 0;
-
-  /* only 16 bit is supported */
-  include_enc |= PE_16BIT;
-  exclude_enc &= ~PE_16BIT;
-
-#ifdef LITTLE_ENDIAN
-  include_enc &= ~PE_BYTESWAP;
-  exclude_enc |= PE_BYTESWAP;
-#else
-  include_enc |= PE_BYTESWAP;
-  exclude_enc &= ~PE_BYTESWAP;
-#endif
-
-  dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
-
-  if(dpm.name && dpm.name[0] == '-' && dpm.name[1] == '\0') {
-    dpm.fd = 1; /* data to stdout */
-    comment = "(stdout)";
+  if(strcmp(fname, "-") == 0) {
+    fd = 1; /* data to stdout */
+    if(comment == NULL)
+      comment = "(stdout)";
   } else {
     /* Open the audio file */
-    dpm.fd = open(dpm.name, FILE_OUTPUT_MODE);
-    if(dpm.fd < 0) {
+    fd = open(fname, FILE_OUTPUT_MODE);
+    if(fd < 0) {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		dpm.name, strerror(errno));
+		fname, strerror(errno));
       return -1;
     }
-    comment = dpm.name;
+    if(comment == NULL)
+      comment = fname;
   }
 
   /* choose an encoding mode */
@@ -133,7 +118,7 @@ static int open_output(void)
 
   /* add a comment */
   vorbis_comment_init(&vc);
-  vorbis_comment_add(&vc, comment);
+  vorbis_comment_add(&vc, (char *)comment);
 
   /* set up the analysis state and auxiliary encoding storage */
   vorbis_analysis_init(&vd, vi);
@@ -164,6 +149,68 @@ static int open_output(void)
     ogg_stream_packetin(&os, &header_code);
 
     /* no need to write out here.  We'll get to that in the main loop */
+  }
+
+  return fd;
+}
+
+static int auto_ogg_output_open(const char *input_filename)
+{
+  char *output_filename = (char *)safe_malloc(strlen(input_filename) + 5);
+  char *ext, *p;
+
+  strcpy(output_filename, input_filename);
+  if((ext = strrchr(output_filename, '.')) == NULL)
+    ext = output_filename + strlen(output_filename);
+  else {
+    /* strip ".gz" */
+    if(strcasecmp(ext, ".gz") == 0) {
+      *ext = '\0';
+      if((ext = strrchr(output_filename, '.')) == NULL)
+	ext = output_filename + strlen(output_filename);
+    }
+  }
+
+  /* replace '.' and '#' before ext */
+  for(p = output_filename; p < ext; p++)
+    if(*p == '.' || *p == '#')
+      *p = '_';
+
+  if(*ext && isupper(*(ext + 1)))
+    strcpy(ext, ".OGG");
+  else
+    strcpy(ext, ".ogg");
+  if((dpm.fd = ogg_output_open(output_filename, input_filename)) == -1) {
+    free(output_filename);
+    return -1;
+  }
+  if(dpm.name != NULL)
+    free(dpm.name);
+  dpm.name = output_filename;
+  ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Output %s", dpm.name);
+  return 0;
+}
+
+static int open_output(void)
+{
+  int include_enc, exclude_enc;
+
+  /********** Encode setup ************/
+
+  include_enc = exclude_enc = 0;
+
+  /* only 16 bit is supported */
+  include_enc |= PE_16BIT|PE_SIGNED;
+  exclude_enc |= PE_BYTESWAP;
+  dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
+
+  if(dpm.name == NULL) {
+    dpm.flag |= PF_AUTO_SPLIT_FILE;
+    dpm.name = NULL;
+  } else {
+    dpm.flag &= ~PF_AUTO_SPLIT_FILE;
+    if((dpm.fd = ogg_output_open(dpm.name, NULL)) == -1)
+      return -1;
   }
 
   return 0;
@@ -314,10 +361,19 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
-    switch(request)
-    {
-      case PM_REQ_DISCARD:
-	return 0;
+  switch(request) {
+  case PM_REQ_PLAY_START:
+    if(dpm.flag & PF_AUTO_SPLIT_FILE)
+      return auto_ogg_output_open(current_file_info->filename);
+    break;
+  case PM_REQ_PLAY_END:
+    if(dpm.flag & PF_AUTO_SPLIT_FILE) {
+      close_output();
+      return 0;
     }
-    return -1;
+    break;
+  case PM_REQ_DISCARD:
+    return 0;
+  }
+  return -1;
 }

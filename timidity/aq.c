@@ -446,7 +446,7 @@ int32 aq_samples(void)
     if(es >= play_counter)
     {
 	/* Ouch!
-	 * Audio device queue must be empty!
+	 * Audio device queue may be empty!
 	 * Reset counters.
 	 */
 

@@ -226,3 +226,6 @@
 
 /* Define if you have the socket library (-lsocket).  */
 #undef HAVE_LIBSOCKET
+
+/* Define if you have the vorbis library (-lvorbis).  */
+#undef HAVE_LIBVORBIS

@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.10.0a2, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.10.0a3, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -125,6 +125,24 @@ if test "x$prefix" != xNONE -a "x$prefix" != "x$ac_default_prefix" -a "x$prefix"
   CPPFLAGS="-I$prefix/include $CPPFLAGS"
 fi
 
+dnl add --with-includes, --with-libraries
+AC_ARG_WITH(includes,
+  [  --with-includes=DIR     Specify include directories (colon separated)],
+  [ j=' '
+    for i in `echo "$withval"|sed -e 's,:, ,g'`; do
+	j="${j}-I${i} "
+    done
+    CPPFLAGS="$j$CPPFLAGS"
+  ])
+
+AC_ARG_WITH(libraries,
+  [  --with-libraries=DIR    Specify library directories (colon separated)],
+  [ j=' '
+    for i in `echo "$withval"|sed -e 's,:, ,g'`; do
+	j="${j}-L${i} "
+    done
+    LDFLAGS="$j$LDFLAGS"
+  ])
 
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -746,10 +764,18 @@ fi
 
 AC_MSG_CHECKING(enable_audio=vorbis)
 if test "x$au_enable_vorbis" = xyes; then
-  SYSEXTRAS="$SYSEXTRAS vorbis_a.c"
-  EXTRADEFS="$EXTRADEFS -DAU_VORBIS"
-  EXTRALIBS="$EXTRALIBS -lvorbis"
-  AC_MSG_RESULT(yes)
+  AC_MSG_RESULT()
+  have_vorbis=yes
+  AC_CHECK_HEADER(vorbis/modes.h,,have_vorbis=no)
+  AC_CHECK_LIB(vorbis,vorbis_comment_init,,have_vorbis=no)
+  if test "$have_vorbis" = "yes"; then
+    SYSEXTRAS="$SYSEXTRAS vorbis_a.c"
+    EXTRADEFS="$EXTRADEFS -DAU_VORBIS"
+    EXTRALIBS="$EXTRALIBS -lvorbis"
+    AC_MSG_RESULT(Ogg Vorbis: Enabled)
+  else
+    AC_MSG_WARN(Ogg Vorbis: Couldn't configure)
+  fi
 else
   AC_MSG_RESULT(no)
 fi

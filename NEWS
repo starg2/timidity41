@@ -1,4 +1,13 @@
 07/??, 2000
+    * Enable to write each separated wav file if `-o' 
+	command line option is omitted.
+	The output filename is automatically generated from the input MIDI
+	filename.  The file extention is changed to ".wav".
+    * configure: Added new options.
+	--with-includes=DIRS
+		Specify include directories (colon separated)
+	--with-libraries=DIRS
+		Specify library directories (colon separated)
     * Ogg Vorbis output.
     * ALSA MIDI sequencer client.
 

@@ -266,16 +266,120 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
+aiff_a.o: aiff_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h instrum.h \
+	playmidi.h readmidi.h
+alsa_a.o: alsa_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h \
+	../utils/timer.h instrum.h playmidi.h miditrace.h
 aq.o: aq.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h output.h aq.h \
 	../utils/timer.h controls.h miditrace.h instrum.h playmidi.h
+au_a.o: au_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h instrum.h \
+	playmidi.h readmidi.h
+audio_cnv.o: audio_cnv.c ../config.h timidity.h ../utils/support.h \
+	audio_cnv.h
+common.o: common.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h \
+	../libarc/arc.h ../utils/nkflib.h wrd.h ../utils/strtab.h
+controls.o: controls.c ../config.h ../interface.h timidity.h \
+	../utils/support.h controls.h
+dl_dlopen.o: dl_dlopen.c ../config.h timidity.h ../utils/support.h \
+	dlutils.h
+effect.o: effect.c ../config.h timidity.h ../utils/support.h instrum.h \
+	playmidi.h output.h reverb.h
+esd_a.o: esd_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h \
+	../utils/timer.h instrum.h playmidi.h miditrace.h
+filter.o: filter.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h controls.h instrum.h filter.h
+instrum.o: instrum.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h output.h controls.h resample.h tables.h filter.h
+list_a.o: list_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h output.h controls.h
+loadtab.o: loadtab.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h tables.h controls.h
+miditrace.o: miditrace.c ../config.h timidity.h ../utils/support.h \
+	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	output.h controls.h miditrace.h wrd.h aq.h
+mix.o: mix.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h output.h \
+	controls.h tables.h resample.h mix.h
+mod.o: mod.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h tables.h mod.h output.h controls.h \
+	../libunimod/unimod.h mod2midi.h
+mod2midi.o: mod2midi.c ../config.h timidity.h ../utils/support.h \
+	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h tables.h mod.h output.h controls.h \
+	../libunimod/unimod.h mod2midi.h
+nas_a.o: nas_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h \
+	../utils/timer.h instrum.h playmidi.h miditrace.h
 ogg_a.o: ogg_a.c ../config.h timidity.h ../utils/support.h output.h \
 	controls.h
 oss_a.o: oss_a.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/url.h ../utils/mblock.h output.h controls.h \
 	../utils/timer.h instrum.h playmidi.h miditrace.h
+output.o: output.c ../config.h timidity.h ../utils/support.h output.h \
+	tables.h controls.h audio_cnv.h
+playmidi.o: playmidi.c ../config.h timidity.h ../utils/support.h \
+	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h output.h mix.h controls.h miditrace.h recache.h \
+	../libarc/arc.h reverb.h wrd.h aq.h ../interface/soundspec.h \
+	tables.h
+raw_a.o: raw_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h instrum.h \
+	playmidi.h readmidi.h
+rcp.o: rcp.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h controls.h
+readmidi.o: readmidi.c ../config.h timidity.h ../utils/support.h \
+	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h output.h controls.h ../utils/strtab.h \
+	../utils/memb.h ../libarc/zip.h ../libarc/arc.h mod.h wrd.h \
+	tables.h
+recache.o: recache.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h instrum.h playmidi.h output.h \
+	controls.h tables.h recache.h
+resample.o: resample.c ../config.h timidity.h ../utils/support.h \
+	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	output.h controls.h tables.h resample.h recache.h
+reverb.o: reverb.c ../config.h timidity.h ../utils/support.h controls.h
+sbkconv.o: sbkconv.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h sffile.h sfitem.h sflayer.h
+sffile.o: sffile.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h controls.h sffile.h
+sfitem.o: sfitem.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h sflayer.h sfitem.h sffile.h
+smfconv.o: smfconv.c ../config.h
+sndfont.o: sndfont.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h tables.h instrum.h playmidi.h \
+	controls.h sffile.h sflayer.h sfitem.h output.h filter.h \
+	resample.h
+tables.o: tables.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h tables.h
+timidity.o: timidity.c ../config.h ../interface.h timidity.h \
+	../utils/support.h common.h ../libarc/url.h ../utils/mblock.h \
+	instrum.h playmidi.h readmidi.h output.h controls.h tables.h \
+	miditrace.h reverb.h ../interface/soundspec.h recache.h \
+	../libarc/arc.h ../utils/strtab.h wrd.h mid.defs aq.h mix.h \
+	../libunimod/unimod.h dlutils.h
 vorbis_a.o: vorbis_a.c ../config.h timidity.h ../utils/support.h \
-	output.h controls.h
+	common.h ../libarc/url.h ../utils/mblock.h output.h controls.h \
+	instrum.h playmidi.h readmidi.h
+wave_a.o: wave_a.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h output.h controls.h instrum.h \
+	playmidi.h readmidi.h
+wrd_read.o: wrd_read.c ../config.h timidity.h ../utils/support.h \
+	common.h ../libarc/url.h ../utils/mblock.h instrum.h playmidi.h \
+	readmidi.h controls.h wrd.h ../utils/strtab.h
+wrdt.o: wrdt.c ../config.h timidity.h ../utils/support.h common.h \
+	../libarc/url.h ../utils/mblock.h wrd.h ../utils/strtab.h \
+	instrum.h playmidi.h readmidi.h ../libarc/arc.h ../interface.h
 
 info-am:
 info: info-am

@@ -4717,7 +4717,7 @@ void playmidi_stream_init(void)
     {
 	first = 0;
         init_mblock(&playmidi_pool);
-	current_file_info = get_midi_file_info("TiMidity server", 1);
+	current_file_info = get_midi_file_info("TiMidity", 1);
     }
     else
         reuse_mblock(&playmidi_pool);

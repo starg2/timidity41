@@ -241,6 +241,42 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
+load_669.o: load_669.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_amf.o: load_amf.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_dsm.o: load_dsm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_far.o: load_far.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_gdm.o: load_gdm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_imf.o: load_imf.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_it.o: load_it.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+load_m15.o: load_m15.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_med.o: load_med.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_mod.o: load_mod.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_mtm.o: load_mtm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_s3m.o: load_s3m.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_stm.o: load_stm.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_stx.o: load_stx.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_ult.o: load_ult.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_uni.o: load_uni.c ../config.h unimod_priv.h unimod.h \
+	../libarc/url.h
+load_xm.o: load_xm.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+mloader.o: mloader.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+mlutil.o: mlutil.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
+mmsup.o: mmsup.c unimod_priv.h unimod.h ../libarc/url.h
+munitrk.o: munitrk.c ../config.h unimod_priv.h unimod.h ../libarc/url.h
 
 info-am:
 info: info-am

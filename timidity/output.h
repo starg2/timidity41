@@ -113,6 +113,7 @@ enum {
 #define PF_CAN_TRACE	(1u<<2)	/* Enable realtime tracing */
 #define PF_BUFF_FRAGM_OPT (1u<<3) /* Enable set extra_param[0] to specify
 				   the number of audio buffer fragments */
+#define PF_AUTO_SPLIT_FILE (1u<<4) /* Split PCM files automatically */
 #define IS_STREAM_TRACE	((play_mode->flag & (PF_PCM_STREAM|PF_CAN_TRACE)) == (PF_PCM_STREAM|PF_CAN_TRACE))
 
 typedef struct {
