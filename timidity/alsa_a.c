@@ -59,77 +59,25 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static void output_data(int32 *buf, int32 count);
-static int flush_output(void);
-static void purge_output(void);
-static int32 current_samples(void);
-static int play_loop(void);
-static int32 play_counter, reset_samples;
-static double play_start_time;
-static int noblocking_flag;
+static int output_data(char *buf, int32 nbytes);
+static int acntl(int request, void *arg);
 
-extern int default_play_event(void *);
 
 /* export the playback mode */
 
 #define dpm alsa_play_mode
 
 PlayMode dpm = {
-  DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_NEED_INSTRUMENTS|PF_CAN_TRACE,
+  DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_PCM_STREAM|PF_CAN_TRACE,
   -1,
   {0}, /* default: get all the buffer fragments you can */
   "ALSA pcm device", 's',
   "/dev/snd/pcm00",
-  default_play_event,
   open_output,
   close_output,
   output_data,
-  flush_output,
-  purge_output,
-  current_samples,
-  play_loop
+  acntl
 };
-
-
-/* Must be multiple of 4 */
-#define BUCKETSIZE (((16 * 1024) - 2 * sizeof(int) - sizeof(void *)) & ~3)
-
-typedef struct _AudioBucket
-{
-    char data[BUCKETSIZE];
-    int pos, len;
-    struct _AudioBucket *next;
-} AudioBucket;
-
-static AudioBucket *head = NULL;
-static AudioBucket *tail = NULL;
-static int audio_bucket_size = 0;
-static void initialize_audio_bucket(void);
-static void reuse_audio_bucket(AudioBucket *bucket);
-static void reuse_audio_bucket_list(AudioBucket *bucket);
-static AudioBucket *new_allocated_bucket(void);
-static void flush_buckets(void);
-#define BUCKET_LIST_INIT(head, tail) head = tail = NULL
-
-#define ADD_BUCKET(head, tail, bucket)	\
-    if(head == NULL)			\
-	head = tail = bucket;		\
-    else				\
-	tail = tail->next = bucket
-
-#define ADD_BUCKET_LIST(head, tail, bucket)	\
-    if(head == NULL)				\
-	head = tail = bucket;			\
-    else if(bucket)				\
-	tail = tail->next = bucket;		\
-    if(tail) while(tail->next) tail = tail->next
-
-
-#ifdef INITIAL_FILLING
-static int filling_flag;
-#endif /* INITIAL_FILLING */
-static int32 max_audio_buffersize;
-
 
 /*************************************************************************/
 /* We currently only honor the PE_MONO bit, the sample rate, and the
@@ -428,23 +376,11 @@ static int set_playback_info (void* handle__,
   return ret_val;
 }
 
-static void set_block_mode (void* handle__, int enable)
-{
-  int ret = snd_pcm_block_mode (handle__, enable);
-  if (ret != 0)
-    {
-      error_report (ret);
-      sleep(3);
-    }
-}
-
 static int open_output(void)
 {
   int tmp, warnings=0;
   int ret;
   
-  play_counter = reset_samples = 0;
-
   tmp = check_sound_cards (&card, &device, dpm.extra_param);
   if (tmp != 0)
     return -1;
@@ -468,10 +404,6 @@ static int open_output(void)
       return -1;
     }
 
-  noblocking_flag = ctl->trace_playing;
-  set_block_mode (handle, noblocking_flag);
-  initialize_audio_bucket();
-  
   dpm.fd = snd_pcm_file_descriptor (handle);
   return warnings;
 }
@@ -488,316 +420,39 @@ static void close_output(void)
     error_report (ret);
   handle = NULL;
   
-  flush_buckets();
-  play_counter = reset_samples = 0;
   dpm.fd = -1;
 }
 
-static void push_play_bucket(const char *buf, int n)
+static int output_data(char *buf, int32 nbytes)
 {
-    if(buf == NULL || n == 0)
-	return;
+    int n;
 
-    if(head == NULL)
-	head = tail = new_allocated_bucket();
-
-    audio_bucket_size += n;
-    while(n)
+    while(nbytes > 0)
     {
-	int i;
-
-	if(tail->len == BUCKETSIZE)
+	n = snd_pcm_write(handle, buf, nbytes);
+	if(n == -1)
 	{
-	    AudioBucket *b;
-	    b = new_allocated_bucket();
-	    ADD_BUCKET(head, tail, b);
+	    ctl->cmsg(CMSG_WARNING, VERB_DEBUG,
+		      "%s: %s", dpm.name, strerror(errno));
+	    if(errno == EWOULDBLOCK)
+		continue;
+	    return -1;
 	}
-
-	i = BUCKETSIZE - tail->len;
-	if(i > n)
-	    i = n;
-	memcpy(tail->data + tail->len, buf, i);
-
-	buf += i;
-	n   -= i;
-	tail->len += i;
-    }
-}
-
-static void add_sample_counter(int32 count)
-{
-    current_samples(); /* update offset_samples */
-    play_counter += count;
-}
-
-static void output_data(int32 *buf, int32 count)
-{
-  if(count == 0)
-      return;
-  if (!(dpm.encoding & PE_MONO)) count*=2; /* Stereo samples */
-
-  if (dpm.encoding & PE_16BIT)
-    {
-      /* Convert data to signed 16-bit PCM */
-      s32tos16(buf, count);
-      count *= 2;
-    }
-  else
-    {
-      /* Convert to 8-bit unsigned and write out. */
-      s32tou8(buf, count);
+	buf += n;
+	nbytes -= n;
     }
 
-#ifdef INITIAL_FILLING
-    current_samples();
-    if(audio_bucket_size < max_audio_buffersize && play_counter == 0)
-    {
-	filling_flag = 1;
-	push_play_bucket((char *)buf, count);
-    }
-    else
-    {
-	filling_flag = 0;
-#else
-    if(audio_bucket_size == 0)
-	push_play_bucket((char *)buf, count);
-    else
-    {
-#endif /* INITIAL_FILLING */
-	if(audio_bucket_size > max_audio_buffersize)
-	{
-	    do
-	    {
-		play_loop();
-		trace_loop();
-	    } while(audio_bucket_size > max_audio_buffersize);
-	}
-	push_play_bucket((char *)buf, count);
-    }
-}
-
-
-static int flush_output(void)
-{
-    int rc;
-#ifdef INITIAL_FILLING
-    filling_flag = 0;
-#endif /* INITIAL_FILLING */
-
-    if(audio_bucket_size == 0 && play_counter == 0 && reset_samples == 0)
-	return RC_NONE;
-
-    /* extract all trace */
-    if(ctl->trace_playing)
-    {
-	while(trace_loop() && play_loop()) /* Must call both trace/play loop */
-	{
-	    rc = check_apply_control();
-	    if(RC_IS_SKIP_FILE(rc))
-	    {
-		purge_output();
-		return rc;
-	    }
-	}
-	while(trace_loop() || play_loop()) /* Call trace or play loop */
-	{
-	    rc = check_apply_control();
-	    if(RC_IS_SKIP_FILE(rc))
-	    {
-		purge_output();
-		return rc;
-	    }
-	}
-    }
-    else
-    {
-	trace_flush();
-	while(play_loop())
-	{
-	    usleep(100000);
-	    rc = check_apply_control();
-	    if(RC_IS_SKIP_FILE(rc))
-	    {
-		purge_output();
-		return rc;
-	    }
-	}
-    }
-
-    /* wait until play out */
-    do
-    {
-	usleep(100000);
-	rc = check_apply_control();
-	if(RC_IS_SKIP_FILE(rc))
-	{
-	    purge_output();
-	    return rc;
-	}
-	current_samples();
-    } while(play_counter > 0);
-
-    /*ioctl(dpm.fd, SNDCTL_DSP_SYNC);*/
-    if (snd_pcm_flush_playback (handle) != 0)
-      {
-	/*error!*/
-      }
-    play_counter = reset_samples = 0;
-
-    return RC_NONE;
-}
-
-static void purge_output(void)
-{
-    /*ioctl(dpm.fd, SNDCTL_DSP_RESET);*/
-    int ret = snd_pcm_drain_playback (handle);
-    if (ret != 0)
-      {
-	/* error !*/
-      }
-    flush_buckets();
-    play_counter = reset_samples = 0;
-}
-
-static void flush_buckets(void)
-{
-    reuse_audio_bucket_list(head);
-    BUCKET_LIST_INIT(head, tail);
-    audio_bucket_size = 0;
-}
-
-static int32 current_samples(void)
-{
-    double realtime, es;
-
-    realtime = get_current_calender_time();
-    if(play_counter == 0)
-    {
-	play_start_time = realtime;
-	return reset_samples;
-    }
-    es = dpm.rate * (realtime - play_start_time);
-    if(es >= play_counter)
-    {
-	/* out of play counter */
-	reset_samples += play_counter;
-	play_counter = 0;
-	play_start_time = realtime;
-	return reset_samples;
-    }
-    if(es < 0)
-	return 0; /* for safety */
-    return (int32)es + reset_samples;
-}
-
-static int play_loop(void)
-{
-    AudioBucket *tmp;
-    int bpf; /* Bytes per sample frame */
-    int fd;
-
-    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
-	      "Audio Soft Buffer: %d", audio_bucket_size);
-
-#ifdef INITIAL_FILLING
-    if(filling_flag)
-	return 0;
-#endif /* INITIAL_FILLING */
-
-    fd = dpm.fd;
-
-    /* ctl->trace_playing can be changed in `N' interface */
-    if(noblocking_flag != ctl->trace_playing)
-    {
-	noblocking_flag = ctl->trace_playing;
-	set_block_mode (handle, noblocking_flag);
-    }
-
-    bpf = 1;
-    if(!(dpm.encoding & PE_MONO))
-	bpf = 2;
-    if(dpm.encoding & PE_16BIT)
-	bpf *= 2;
-
-    while(head)
-    {
-	if(head->pos < head->len)
-	{
-	    int n;
-
-	    /*n = write(fd, head->data + head->pos, head->len - head->pos);*/
-	    n = snd_pcm_write (handle,
-			       head->data + head->pos, head->len - head->pos);
-	    /*if(n == -1)*/
-	    if(n < 0)
-	    {
-                 /*if(errno == EWOULDBLOCK)*/
-	        if(n == EWOULDBLOCK)
-		    return 1;
-		return 0;
-	    }
-	    audio_bucket_size -= n;
-	    head->pos += n;
-	    add_sample_counter(n / bpf);
-	}
-	if(head->pos != head->len)
-	    return 1;
-	tmp = head;
-	head = head->next;
-	reuse_audio_bucket(tmp);
-    }
     return 0;
 }
 
-#ifdef AUDIO_FILLING_MILSEC
-#define ALLOCATED_N_BUCKET 32
-#else
-#define ALLOCATED_N_BUCKET 4
-#endif /* AUDIO_FILLING_MILSEC */
-
-static AudioBucket *allocated_bucket_list = NULL;
-
-static void initialize_audio_bucket(void)
+static int acntl(int request, void *arg)
 {
-    int i;
-    AudioBucket *b;
-
-    b = (AudioBucket *)safe_malloc(ALLOCATED_N_BUCKET * sizeof(AudioBucket));
-    for(i = 0; i < ALLOCATED_N_BUCKET; i++)
-	reuse_audio_bucket(b + i);
-}
-
-static AudioBucket *new_allocated_bucket(void)
-{
-    AudioBucket *b;
-
-    if(allocated_bucket_list == NULL)
-	b = (AudioBucket *)safe_malloc(sizeof(AudioBucket));
-    else
+    switch(request)
     {
-	b = allocated_bucket_list;
-	allocated_bucket_list = allocated_bucket_list->next;
+      case PM_REQ_DISCARD:
+	if(snd_pcm_drain_playback (handle) != 0)
+	    return -1; /* error */
+	return 0;
     }
-    memset(b, 0, sizeof(AudioBucket));
-    return b;
-}
-
-static void reuse_audio_bucket(AudioBucket *bucket)
-{
-    if(bucket == NULL)
-	return;
-    bucket->next = allocated_bucket_list;
-    allocated_bucket_list = bucket;
-}
-
-static void reuse_audio_bucket_list(AudioBucket *bucket)
-{
-    while(bucket)
-    {
-	AudioBucket *tmp;
-
-	tmp = bucket;
-	bucket = bucket->next;
-	reuse_audio_bucket(tmp);
-    }
+    return -1;
 }

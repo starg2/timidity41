@@ -30,10 +30,8 @@
 #else
 #include <strings.h>
 #endif
-#ifdef __WIN32__
+#ifdef __W32__
 #include <windows.h>
-extern int optind;
-extern char *optarg;
 #else
 #include <unistd.h>
 #include <fcntl.h> /* for open */
@@ -76,11 +74,15 @@ extern char *optarg;
 #include "wrd.h"
 #define DEFINE_GLOBALS
 #include "mid.defs"
+#include "aq.h"
 
-#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jL:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:"
-#define INTERACTIVE_INTERFACE_IDS "kmqag"
+#define OPTCOMMANDS "A:aB:b:C:c:D:d:eE:Ffg:hI:i:jk:L:n:O:o:P:p:Q:R:rS:s:t:UW:w:x:"
+#define INTERACTIVE_INTERFACE_IDS "kmqagr"
 
 /* main interfaces (To be used another main) */
+#ifdef IA_W32GUI
+#define ANOTHER_MAIN 1
+#endif /* IA_W32GUI */
 #if defined(main) || defined(ANOTHER_MAIN)
 #define MAIN_INTERFACE
 #else
@@ -110,9 +112,9 @@ extern struct URL_module URL_module_ftp;
 extern struct URL_module URL_module_news;
 extern struct URL_module URL_module_newsgroup;
 #endif /* SUPPORT_SOCKET */
-#ifndef __WIN32__
+#ifdef HAVE_POPEN
 extern struct URL_module URL_module_pipe;
-#endif /* __WIN32__ */
+#endif /* HAVE_POPEN */
 
 MAIN_INTERFACE struct URL_module *url_module_list[] =
 {
@@ -126,7 +128,7 @@ MAIN_INTERFACE struct URL_module *url_module_list[] =
     &URL_module_news,
     &URL_module_newsgroup,
 #endif /* SUPPORT_SOCKET */
-#if !defined(__MACOS__) && !defined(__WIN32__)
+#if !defined(__MACOS__) && defined(HAVE_POPEN)
     &URL_module_pipe,
 #endif
 #if defined(main) || defined(ANOTHER_MAIN)
@@ -157,9 +159,9 @@ static char *dynamic_lib_root = ".";
 #endif /* MAXPATHLEN */
 
 int free_instruments_afterwards=0;
-static char def_instr_name[256]="";
+MAIN_INTERFACE char def_instr_name[256]="";
 
-#ifdef __WIN32__
+#ifdef __W32__
 VOLATILE int intr = FALSE;
 CRITICAL_SECTION critSect;
 
@@ -169,7 +171,7 @@ static BOOL WINAPI handler (DWORD dw)
 	if(dw == CTRL_C_EVENT || dw == CTRL_BREAK_EVENT)
 	printf ("***BREAK" NLS);
 	intr = TRUE;
-	play_mode->purge_output();
+	aq_flush(1);
 	play_mode->close_output();
 	ctl->close();
 	wrdt->close();
@@ -187,13 +189,18 @@ static BOOL WINAPI handler (DWORD dw)
 */
 #endif
 
-#ifdef PRESENCE_HACK
-int presence_balance = PRESENCE_HACK+0;
-double presence_delay_msec = (PRESENCE_DELAY*1000.0);
+
+int effect_lr_mode = -1;
+/* 0: left delay
+ * 1: right delay
+ * 2: both
+ * -1: not use
+ */
+int effect_lr_delay_msec = 25;
+
 #ifndef atof
 extern double atof(const char *);
 #endif
-#endif /* PRESENCE_HACK */
 
 #ifndef IA_DYNAMIC
 #define dynamic_interface_module(dmy) NULL
@@ -277,7 +284,7 @@ static void list_dyna_interface(FILE *fp, char *path, char *mark)
 
 static FILE *open_pager(void)
 {
-#if !defined(__MACOS__) && !defined(__WIN32__)
+#if !defined(__MACOS__) && !defined(__W32__)
     char *pager;
     if(isatty(0) && (pager = getenv("PAGER")) != NULL)
 	return popen(pager, "w");
@@ -287,7 +294,7 @@ static FILE *open_pager(void)
 
 static void close_pager(FILE *fp)
 {
-#if !defined(__MACOS__) && !defined(__WIN32__)
+#if !defined(__MACOS__) && !defined(__W32__)
     if(fp != stdout)
 	pclose(fp);
 #endif
@@ -306,14 +313,15 @@ static void help(void)
 " The original version (C) 1995 Tuukka Toivonen <tt@cgs.fi>",
 " TiMidity is free software and comes with ABSOLUTELY NO WARRANTY.",
 "",
-#ifdef __WIN32__
+#ifdef __W32__
 " Win32 version by Davide Moretti <dmoretti@iper.net>",
+"              and Daisuke Aoki <dai@y7.net>",
+#endif /* __W32__ */
 "",
-#endif
 "Usage:",
 "  %s [options] filename [...]",
 "",
-#ifndef __WIN32__		/*does not work in Win32 */
+#ifndef __W32__		/*does not work in Windows */
 "  Use \"-\" as filename to read a MIDI file from stdin",
 #endif
 "",
@@ -328,7 +336,6 @@ static void help(void)
 "  -O mode Select output mode and format (see below for list)",
 "  -s f    Set sampling frequency to f (Hz or kHz)",
 "  -a      Enable the antialiasing filter",
-"  -n n    Enable the n th degree noiseshaping filter (n:0 to 4)",
 "  -f      "
 #ifdef FAST_DECAY
            "Disable"
@@ -352,32 +359,6 @@ static void help(void)
 "  -R n    Pseudo Reveb (set every instrument's release to n ms",
 "            if n=0, n is set to 800(default)",
 
-#ifdef PRESENCE_HACK
-"  -b mode Set balance of presence panning:",
-"            mode=r : Right"
-#if PRESENCE_HACK - 0 == 0
-			" (default)"
-#endif
-"",
-"                 l : Left"
-#if PRESENCE_HACK - 0 == 1
-			" (default)"
-#endif
-"",
-"                 b : Both"
-#if PRESENCE_HACK - 0 == 2
-			" (default)"
-#endif
-"",
-"                 c : Center"
-#if !(PRESENCE_HACK - 0 == 0 || PRESENCE_HACK - 0 == 1 || PRESENCE_HACK - 0 == 2)
-			" (default)"
-#endif
-"",
-#endif /* PRESENCE_HACK */
-
-"  -r      Use reverb mode (toggle on/off)",
-
 #ifdef SUPPORT_SOUNDSPEC
 "  -g sec  Open Sound-Spectrogram Window.",
 #endif /* SUPPORT_SOUNDSPEC */
@@ -386,16 +367,15 @@ static void help(void)
 "  -d dir  Set dynamic interface module directory",
 #endif /* IA_DYNAMIC */
 "  -i mode Select user interface (see below for list)",
-#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
 "  -B n    Set number of buffer fragments",
-#endif
-#ifdef __WIN32__
+#ifdef __W32__
 "  -e      Increase thread priority (evil) - be careful!",
 #endif
 "  -h      Display this help message",
 "  -x \"configuration-string\"",
 "          Read configuration from command line argument",
 "  -j      Realtime load instrument (toggle on/off)",
+"  -k msec Specify audio queue time limit to reduce voice",
 "  -t code Output text language code:",
 "              code=auto  : Auto conversion by `LANG' environment variable",
 "                           (UNIX only)",
@@ -406,18 +386,17 @@ static void help(void)
 "                   jis   : JIS",
 "                   sjis  : shift JIS",
 #endif /* JAPANESE */
-"  -E mode TiMidity synth extensional modes:",
-"              mode=w/W : Enable/Disable Modulation wheel.",
+"  -E mode TiMidity sequencer extensional modes:",
+"            mode = w/W : Enable/Disable Modulation wheel.",
 "                   p/P : Enable/Disable Portamento.",
 "                   v/V : Enable/Disable NRPN Vibrato.",
-"                   r/R : Enable/Disable Reverb control.",
-"                   c/C : Enable/Disable Chorus control.",
 "                   s/S : Enable/Disable Channel pressure.",
 "                   t/T : Enable/Disable Trace Text Meta Event at playing",
 "                   o/O : Enable/Disable Overlapped voice",
 "                   m<HH>: Define default Manufacture ID <HH> in two hex",
 "                   b<n>: Use tone bank <n> as the default",
 "                   B<n>: Always use tone bank <n>",
+"                   F<args>: For effect.  See below for effect options."
 "              default: -E "
 
 #ifdef MODULATION_WHEEL_ALLOW
@@ -438,18 +417,6 @@ static void help(void)
 "V"
 #endif /* NRPN_VIBRATO_ALLOW */
 
-#ifdef REVERB_CONTROL_ALLOW
-"r"
-#else
-"R"
-#endif /* REVERB_CONTROL_ALLOW */
-
-#ifdef CHORUS_CONTROL_ALLOW
-"c"
-#else
-"C"
-#endif /* CHORUS_CONTROL_ALLOW */
-
 #ifdef GM_CHANNEL_PRESSURE_ALLOW
 "s"
 #else
@@ -468,10 +435,12 @@ static void help(void)
 "O"
 #endif /* OVERLAP_VOICE_ALLOW */
 ,
-#ifdef __WIN32__
+"            mode = w/W : Enable/Disable Modulation wheel.",
+
+#ifdef __W32__
 "  -w mode Windows extensional modes:",
 "              mode=r/R : Enable/Disable rcpcv dll",
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 "  -W mode Select WRD interface (see below for list)",
 NULL
 };
@@ -552,7 +521,30 @@ NULL
 	 "   `v'    more verbose (cumulative)" NLS
 	 "   `q'    quieter (cumulative)" NLS
 	 "   `t'    trace playing" NLS
+	 "   `l'    loop playing (some interface ignore this option)" NLS
+	 "   `r'    randomize file list arguments before playing" NLS
+	 "   `s'    sorting file list arguments before playing" NLS
 	, fp);
+
+  fputs(NLS, fp);
+  fputs("Effect options:" NLS
+"  -EFdelay=l : Left delay" NLS
+"  -EFdelay=r : Right delay" NLS
+"  -EFdelay=b : Rotate left & right" NLS
+"  -EFdelay=0 : Disabled delay effect" NLS
+"  -EFchorus=0 : Disable MIDI chorus effect control" NLS
+"  -EFchorus=1[,level] : Enable MIDI chorus effect control" NLS
+"                        `level' is optional to specify chorus level [0..127]"  NLS
+"  -EFreverb=0 : Disable MIDI reverb effect control" NLS
+"  -EFreverb=1[,level] : Enable MIDI reverb effect control" NLS
+"                        `level' is optional to specify reverb level [0..127]"  NLS
+"                        This effect is only available in stereo"  NLS
+"  -EFreverb=2 : Global reverb effect" NLS
+"  -EFns=n : Enable the n th degree noiseshaping filter (n:0 to 4)" NLS
+"            This effect is only available for 8-bit linear encoding" NLS
+NLS
+, fp);
+
   close_pager(fp);
 }
 
@@ -564,17 +556,18 @@ NLS
 " Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 NLS
-#ifdef __WIN32__
+#ifdef __W32__
 " Win32 version by Davide Moretti <dmoretti@iper.net>" NLS
+"              and Daisuke Aoki <dai@y7.net>" NLS
 NLS
-#endif
+#endif /* __W32__ */
 " This program is free software; you can redistribute it and/or modify" NLS
 " it under the terms of the GNU General Public License as published by" NLS
 " the Free Software Foundation; either version 2 of the License, or" NLS
 " (at your option) any later version." NLS
 NLS
 " This program is distributed in the hope that it will be useful," NLS
-" but WITHOUT ANY WARRANTY; without even the implied warranty of"NLS
+" but WITHOUT ANY WARRANTY; without even the implied warranty of" NLS
 " MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the" NLS
 " GNU General Public License for more details." NLS
 NLS
@@ -652,7 +645,7 @@ static int set_default_prog(char *opt)
     return 0;
 }
 
-static int set_play_mode(char *cp)
+MAIN_INTERFACE int set_play_mode(char *cp)
 {
     PlayMode *pmp, **pmpp=play_mode_list;
 
@@ -666,11 +659,11 @@ static int set_play_mode(char *cp)
 		{
 		  case 'U': /* uLaw */
 		    pmp->encoding |= PE_ULAW;
-		    pmp->encoding &= ~(PE_ALAW|PE_16BIT);
+		    pmp->encoding &= ~(PE_ALAW|PE_16BIT|PE_SIGNED|PE_BYTESWAP);
 		    break;
 		  case 'A': /* aLaw */
 		    pmp->encoding |= PE_ALAW;
-		    pmp->encoding &= ~(PE_ULAW|PE_16BIT);
+		    pmp->encoding &= ~(PE_ULAW|PE_16BIT|PE_SIGNED|PE_BYTESWAP);
 		    break;
 		  case 'l': /* linear */
 		    pmp->encoding &= ~(PE_ULAW|PE_ALAW);
@@ -684,10 +677,20 @@ static int set_play_mode(char *cp)
 		  case 'M': pmp->encoding |= PE_MONO; break;
 		  case 'S': pmp->encoding &= ~PE_MONO; break; /* stereo */
 
-		  case 's': pmp->encoding |= PE_SIGNED; break;
-		  case 'u': pmp->encoding &= ~PE_SIGNED; break;
+		  case 's':
+		    pmp->encoding |= PE_SIGNED;
+		    pmp->encoding &= ~(PE_ULAW|PE_ALAW);
+		    break;
 
-		  case 'x': pmp->encoding ^= PE_BYTESWAP; break; /* toggle */
+		  case 'u':
+		    pmp->encoding &= ~PE_SIGNED;
+		    pmp->encoding &= ~(PE_ULAW|PE_ALAW);
+		    break;
+
+		  case 'x':
+		    pmp->encoding ^= PE_BYTESWAP; /* toggle */
+		    pmp->encoding &= ~(PE_ULAW|PE_ALAW);
+		    break; 
 
 		  default:
 		    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -703,7 +706,7 @@ static int set_play_mode(char *cp)
     return 1;
 }
 
-static int set_ctl(char *cp)
+MAIN_INTERFACE int set_ctl(char *cp)
 {
     ControlMode *cmp, **cmpp = ctl_list;
 
@@ -720,6 +723,15 @@ static int set_ctl(char *cp)
 		  case 'q': cmp->verbosity--; break;
 		  case 't': /* toggle */
 		    cmp->trace_playing = !cmp->trace_playing;
+		    break;
+		  case 'l':
+		    cmp->flags ^= CTLF_LIST_LOOP;
+		    break;
+		  case 'r':
+		    cmp->flags ^= CTLF_LIST_RANDOM;
+		    break;
+		  case 's':
+		    cmp->flags ^= CTLF_LIST_SORT;
 		    break;
 
 		  default:
@@ -769,7 +781,7 @@ static int set_ctl(char *cp)
     return 1;
 }
 
-static int set_wrd(char *w)
+MAIN_INTERFACE int set_wrd(char *w)
 {
     WRDTracer **wl = wrdt_list;
 
@@ -834,11 +846,58 @@ static int set_gus_patchconf(char *name, int line,
     int j;
 
     if(bank->tone[key].name)
+    {
 	free(bank->tone[key].name);
-    bank->tone[key].name = safe_strdup(pat);
+	bank->tone[key].name = NULL;
+    }
     bank->tone[key].note = bank->tone[key].amp = bank->tone[key].pan =
 	bank->tone[key].strip_loop = bank->tone[key].strip_envelope =
 	    bank->tone[key].strip_tail = -1;
+
+    if(strcmp(pat, "%font") == 0) /* Font extention */
+    {
+	/* %font filename bank prog [note-to-use]
+	 * %font filename 128 bank key
+	 */
+
+	if(opts[0] == NULL || opts[1] == NULL || opts[2] == NULL ||
+	   (atoi(opts[1]) == 128 && opts[3] == NULL))
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "%s: line %d: Syntax error", name, line);
+	    return 1;
+	}
+	bank->tone[key].name = safe_strdup(opts[0]);
+	bank->tone[key].instype = 1;
+	if(atoi(opts[1]) == 128) /* drum */
+	{
+	    bank->tone[key].font_bank = 128;
+	    bank->tone[key].font_preset = atoi(opts[2]);
+	    bank->tone[key].note = atoi(opts[3]);
+	    opts += 4;
+	}
+	else
+	{
+	    bank->tone[key].font_bank = atoi(opts[1]);
+	    bank->tone[key].font_preset = atoi(opts[2]);
+
+	    if(opts[3] && ('0' <= opts[3][0] && opts[3][0] <= '9'))
+	    {
+		bank->tone[key].note = atoi(opts[3]);
+		opts += 4;
+	    }
+	    else
+	    {
+		bank->tone[key].note = -1;
+		opts += 3;
+	    }
+	}
+    }
+    else
+    {
+	bank->tone[key].instype = 0;
+	bank->tone[key].name = safe_strdup(pat);
+    }
 
     for(j = 0; opts[j] != NULL; j++)
     {
@@ -1026,8 +1085,8 @@ static int mapname2id(char *name, int *isdrum)
       "Too many errors... Give up read %s", name); \
     close_file(tf); return 1; }
 
-static int set_tim_opt(int c, char *optarg);
-static int read_config_file(char *name, int self)
+MAIN_INTERFACE int set_tim_opt(int c, char *optarg);
+MAIN_INTERFACE int read_config_file(char *name, int self)
 {
     struct timidity_file *tf;
     char tmp[1024], *w[MAXWORDS + 1], *cp;
@@ -1068,7 +1127,7 @@ static int read_config_file(char *name, int self)
 	    i = 0;
 	}
 	if((cp = strchr(tmp + i, '#')) != NULL) {
-	    if(cp == tmp + i || isspace((int)cp[-1]) || isspace((int)cp[1]))
+	    if(cp == tmp + i || isspace(cp[-1]) || isspace(cp[1]))
 		*cp = '\0';
 	}
 
@@ -1297,7 +1356,7 @@ static int read_config_file(char *name, int self)
 	    user_mailaddr = safe_strdup(w[1]);
 #endif /* SUPPORT_SOCKET */
 	}
-	/* #extention opt [-]{option}[optarg] */
+	/* #extension opt [-]{option}[optarg] */
 	else if(strcmp(w[0], "opt") == 0)
 	{
 	    int c, err;
@@ -1615,7 +1674,7 @@ static int read_config_file(char *name, int self)
 	}
 
 	/*
-	 * Standards configurations
+	 * Standard configurations
 	 */
 	else if(!strcmp(w[0], "dir"))
 	{
@@ -1849,9 +1908,9 @@ static int read_config_file(char *name, int self)
 
 #ifdef SUPPORT_SOCKET
 
-#if defined(__WIN32__) && !defined(MAIL_NAME)
+#if defined(__W32__) && !defined(MAIL_NAME)
 #define MAIL_NAME "anonymous"
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
 #ifdef MAIL_NAME
 #define get_username() MAIL_NAME
@@ -1897,7 +1956,7 @@ static int read_user_config_file(void)
     char path[BUFSIZ];
     int opencheck;
 
-#ifdef __WIN32__
+#ifdef __W32__
 /* HOME or home */
     home = getenv("HOME");
     if(home == NULL)
@@ -1946,7 +2005,7 @@ static int read_user_config_file(void)
 
     close(opencheck);
     return read_config_file(path, 0);
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 }
 
 static void expand_escape_string(char *s)
@@ -1985,6 +2044,109 @@ static void expand_escape_string(char *s)
     *t = '\0';
 }
 
+static int parse_effect_option(char *effect_opts)
+{
+    int i;
+
+    if(strncmp(effect_opts, "delay=", 6) == 0)
+    {
+	switch(effect_opts[6])
+	{
+	  case 'l':
+	    effect_lr_mode = 0;
+	    break;
+	  case 'r':
+	    effect_lr_mode = 1;
+	    break;
+	  case 'b':
+	    effect_lr_mode = 2;
+	    break;
+	  case '0':
+	    effect_lr_mode = -1;
+	    return 0;
+	}
+	if(effect_opts[7] == ',')
+	{
+	    effect_lr_delay_msec = atoi(effect_opts + 8);
+	    if(effect_lr_delay_msec < 0)
+	    {
+		effect_lr_delay_msec = 0;
+		effect_lr_mode = -1;
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "Invalid -EFdelay parameter.");
+		return 1;
+	    }
+	}
+	return 0;
+    }
+
+    if(strncmp(effect_opts, "reverb=", 7) == 0)
+    {
+	effect_opts += 7;
+	switch(*effect_opts)
+	{
+	  case '0':
+	    opt_reverb_control = 0;
+	    break;
+	  case '1':
+	    if(*(effect_opts + 1) == ',')
+		opt_reverb_control = -(atoi(effect_opts + 2) & 0x7f);
+	    else
+		opt_reverb_control = 1;
+	    break;
+	  case '2':
+	    opt_reverb_control = 2;
+	    break;
+	  default:
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Invalid -EFreverb parameter.");
+	    return 1;
+	}
+	return 0;
+    }
+
+    if(strncmp(effect_opts, "chorus=", 7) == 0)
+    {
+	effect_opts += 7;
+	switch(*effect_opts)
+	{
+	  case '0':
+	    opt_chorus_control = 0;
+	    break;
+	  case '1':
+	    if(*(effect_opts + 1) == ',')
+		opt_chorus_control = -(atoi(effect_opts + 2) & 0x7f);
+	    else
+		opt_chorus_control = 1;
+	    break;
+	  default:
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Invalid -EFchorus parameter.");
+	    return 1;
+	}
+	return 0;
+    }
+
+    if(strncmp(effect_opts, "ns=", 3) == 0)
+    {
+	/* Noise Shaping filter from
+	 * Kunihiko IMAI <imai@leo.ec.t.kanazawa-u.ac.jp>
+	 */
+
+	i = atoi(effect_opts + 3);
+	if(i < 0 || i > 4)
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "-EFns argument range is 0 to 4" );
+	    return 1;
+	}
+	noise_sharp_type = i;
+	return 0;
+    }
+
+    return 1;
+}
+
 int set_extension_modes(char *flag)
 {
     int err;
@@ -2012,35 +2174,37 @@ int set_extension_modes(char *flag)
 	  case 'V':
 	    opt_nrpn_vibrato = 0;
 	    break;
-	  case 'r':
-	    opt_reverb_control = 1;
-	    break;
+
 	  case 'R':
-	    opt_reverb_control = 0;
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "-ER option is obsoleted.  Please use -EFreverb=0");
+	    err++;
 	    break;
-	  case 'c':
-	    if('0' <= *(flag + 1) && *(flag + 1) <= '9')
-	    {
-		opt_chorus_control = (atoi(flag + 1) & 0x7f);
-		while('0' <= *(flag + 1) && *(flag + 1) <= '9')
-		    flag++;
-	    }
-	    else
-		opt_chorus_control = 1;
+
+	  case 'r':
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "-Er option is obsoleted.  Please use -EFreverb=2");
+	    err++;
 	    break;
+
 	  case 'C':
-	    opt_chorus_control = 0;
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "-EC option is obsoleted.  Please use -EFchorus=0");
+	    err++;
 	    break;
+
+	  case 'c':
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "-Ec option is obsoleted.  "
+		      "Please use -EFchorus (toggle on/off)");
+	    err++;
+	    break;
+
 	  case 's':
 	    opt_channel_pressure = 1;
 	    break;
 	  case 'S':
 	    opt_channel_pressure = 0;
-	    break;
-	  case 'x':
-	  case 'X':
-	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		      "Warning: -E%c is obsoleted!!", *flag);
 	    break;
 	  case 't':
 	    opt_trace_text_meta_event = 1;
@@ -2123,6 +2287,15 @@ int set_extension_modes(char *flag)
 	    }
 	    break;
 
+	  case 'F':
+	    if(parse_effect_option(flag + 1))
+	    {
+		ctl->cmsg(CMSG_ERROR,
+			  VERB_NORMAL, "-E%s: unsupported effect", flag);
+		return 1+err;
+	    }
+	    return err;
+
 	  default:
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-E: Illegal mode `%c'", *flag);
 	    err++;
@@ -2133,7 +2306,7 @@ int set_extension_modes(char *flag)
     return err;
 }
 
-#ifdef __WIN32__
+#ifdef __W32__
 #ifdef SMFCONV
 int opt_rcpcv_dll = 0;
 #endif /* SMFCONV */
@@ -2171,11 +2344,11 @@ static int set_win_modes(char *flag)
     }
     return err;
 }
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
-#ifdef __WIN32__
+#ifdef __W32__
 static int   opt_evil_mode = 0;
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 static int   try_config_again = 0;
 static int32 opt_output_rate = 0;
 static char *opt_output_name = NULL;
@@ -2183,13 +2356,9 @@ static StringTable opt_config_string;
 #ifdef SUPPORT_SOUNDSPEC
 static double spectrogram_update_sec = 0.0;
 #endif /* SUPPORT_SOUNDSPEC */
-#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
-int buffer_fragments = -1;
-#endif
+static int buffer_fragments = -1;
 
-extern int32 ns_tap[4];
-extern int noise_shap_type;
-static int set_tim_opt(int c, char *optarg)
+MAIN_INTERFACE int set_tim_opt(int c, char *optarg)
 {
     int32 tmpi32;
 
@@ -2213,39 +2382,14 @@ static int set_tim_opt(int c, char *optarg)
 	break;
 
       case 'b':
-#ifdef PRESENCE_HACK
-	if(*optarg == 'r')
-	    presence_balance = 0;
-	else if(*optarg == 'l')
-	    presence_balance = 1;
-	else if(*optarg == 'b')
-	    presence_balance = 2;
-	else if(*optarg == 'c')
-	    presence_balance = -1;
-	else
-	{
-	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		      "-b argument must be l, r, c, or b.");
-	    return 1;
-	}
-	if(optarg[1] != '\0')
-	{
-	    presence_delay_msec = atof(optarg + 1);
-	    if(presence_delay_msec < 0)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Invalid -b parameter.");
-		return 1;
-	    }
-	}
-	break;
-#else
-	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-b option is not supported");
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "-b option is obsoleted.  "
+		  "Please use -EFdelay=b");
 	return 1;
-#endif /* PRESENCE_HACK */
-
       case 'r':
-	do_reverb_flag = !do_reverb_flag;
-	break;
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "-r option is obsoleted.  Please use -EFreverb=1");
+	return 1;
       case 'D':
 	if(set_channel_flag(&drumchannels, atoi(optarg), "Drum channel"))
 	    return 1;
@@ -2323,7 +2467,7 @@ static int set_tim_opt(int c, char *optarg)
 
       case 'g':
 #ifdef SUPPORT_SOUNDSPEC
-	spectrogram_update_sec = atof(optarg);
+	spectrogram_update_sec = (FLOAT_T)atof(optarg);
 	if(spectrogram_update_sec <= 0)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -2354,18 +2498,13 @@ static int set_tim_opt(int c, char *optarg)
 	break;
 
       case 'B':
-#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
 	if(set_value(&tmpi32, atoi(optarg), 0, 1000, "Buffer fragments"))
 	    return 1;
 	buffer_fragments = tmpi32;
 	break;
-#else
-	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-B option is not supported");
-	return 1;
-#endif
 
       case 'e': /* evil */
-#ifdef __WIN32__
+#ifdef __W32__
 	opt_evil_mode = 1;
 	break;
 #else
@@ -2390,13 +2529,16 @@ static int set_tim_opt(int c, char *optarg)
       case 'j':
 	opt_realtime_playing = !opt_realtime_playing;
 	break;
+      case 'k':
+	reduce_voice_threshold = atoi(optarg);
+	break;
       case 'w':
-#ifdef __WIN32__
+#ifdef __W32__
 	return set_win_modes(optarg);
 #else
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-w option is not supported");
 	return 1;
-#endif /* __WIN32__ */
+#endif /* __W32__ */
       case 'W':
 	if(set_wrd(optarg))
 	    return 1;
@@ -2404,40 +2546,30 @@ static int set_tim_opt(int c, char *optarg)
       case 'h':
 	help();
 	exit(0);
-      case  'n': /* Noise Shaping filter from
-		  * Kunihiko IMAI <imai@leo.ec.t.kanazawa-u.ac.jp>
-		  */
-	switch ( optarg[0] ) {
-	case '0':
-	  ns_tap[0] = ns_tap[1] = ns_tap[2] = ns_tap[3] = 0;
-	  noise_shap_type = 0;
-	  break;
-	case '1':
-	  ns_tap[0] = 1; ns_tap[1] = ns_tap[2] = ns_tap[3] = 0;
-	  noise_shap_type = 1;
-	  break;
-	case '2':
-	  ns_tap[0] = -2; ns_tap[1] = 1; ns_tap[2] = ns_tap[3] = 0;
-	  noise_shap_type = 2;
-	  break;
-	case '3':
-	  ns_tap[0] = 3; ns_tap[1] = -3; ns_tap[2] = 1; ns_tap[3] = 0;
-	  noise_shap_type = 3;
-	  break;
-	case '4':
-	  noise_shap_type = 4;
-	  ns_tap[0] = -4; ns_tap[1] = 6; ns_tap[2] = -4; ns_tap[3] = 1;
-	  break;
-	default:
-	  ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "-n argument range is 0 to 4" );
-	  return 1;
-	  break;
-	}
-	break;
+      case  'n': 
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "-n option is obsoleted.  Please use -EFns=<n>");
+	return 1;
       default:
 	return 1;
     }
     return 0;
+}
+
+static RETSIGTYPE sigterm_exit(int sig)
+{
+    char s[4];
+
+    /* NOTE: Here, fprintf is dangerous because it is not re-enterance
+     * function.  It is possible coredump if the signal is called in printf's.
+     */
+
+    write(2, "Terminated sig=0x", 17);
+    s[0] = "0123456789abcdef"[(sig >> 4) & 0xf];
+    s[1] = "0123456789abcdef"[sig & 0xf];
+    s[2] = '\n';
+    write(2, s, 3);
+    safe_exit(1);
 }
 
 MAIN_INTERFACE void timidity_start_initialize(void)
@@ -2462,10 +2594,6 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 	fprintf(stderr, "Byte order is miss configured.\n");
 	exit(1);
     }
-
-#if defined(SIGPIPE)
-    signal(SIGPIPE, SIG_IGN);
-#endif /* SIGPIPE */
 
     memset(&quietchannels, 0, sizeof(ChannelBitMask));
     memset(&drumchannels, 0, sizeof(ChannelBitMask));
@@ -2502,15 +2630,19 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 #endif /* SUPPORT_SOCKET */
     init_midi_trace();
     int_rand(-1);		/* initialize random seed */
+    int_rand(42);     /* the 1st number generated is not very random */
     for(i = 0; i < NSPECIAL_PATCH; i++)
 	special_patch[i] = NULL;
     for(i = 0; i < MAX_CHANNELS; i++)
+    {
 	default_program[i] = DEFAULT_PROGRAM;
+	memset(channel[i].drums, 0, sizeof(channel[i].drums));
+    }
 }
 
 MAIN_INTERFACE int timidity_pre_load_configuration(void)
 {
-#ifdef __WIN32__
+#ifdef __W32__
     char *strp;
     int check;
 	char local[1024];
@@ -2587,10 +2719,14 @@ MAIN_INTERFACE void timidity_init_player(void)
     memcpy(&default_drumchannel_mask, &drumchannel_mask,
 	   sizeof(ChannelBitMask));
 
-#if defined(AU_LINUX) || defined(AU_WIN32) || defined(AU_BSDI)
-    if (buffer_fragments != -1)
-	play_mode->extra_param[0]=buffer_fragments;
-#endif
+    if(buffer_fragments != -1)
+    {
+	if(play_mode->flag & PF_BUFF_FRAGM_OPT)
+	    play_mode->extra_param[0] = buffer_fragments;
+	else
+	    ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+		      "%s: -B option is ignored", play_mode->id_name);
+    }
 
 #ifdef SUPPORT_SOUNDSPEC
     if(view_soundspec_flag)
@@ -2642,7 +2778,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
     __try
     {
 #endif /* BORLANDC_EXCEPTION */
-#ifdef __WIN32__
+#ifdef __W32__
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
 		  "Initialize for Critical Section");
 	SetConsoleCtrlHandler (handler, TRUE);
@@ -2652,11 +2788,23 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 				   THREAD_PRIORITY_ABOVE_NORMAL))
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "Error raising process priority");
+#else
+	/* UNIX */
+#ifdef HAVE_SIGNAL
+	signal(SIGINT, sigterm_exit);
+	signal(SIGTERM, sigterm_exit);
+#ifdef SIGPIPE
+	signal(SIGPIPE, sigterm_exit);    /* Handle broken pipe */
+#endif /* SIGPIPE */
+#endif /* HAVE_SIGNAL */
+
 #endif
 
 	/* Open output device */
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
-		  "open play_mode(%c)", play_mode->id_character);
+		  "Open output: %c, %s",
+		  play_mode->id_character,
+		  play_mode->id_name);
 	if(play_mode->open_output() < 0)
 	{
 	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
@@ -2676,16 +2824,21 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	}
 
 	init_load_soundfont();
+	aq_setup();
+	aq_set_soft_queue(5.0, 1.0);
+//	aq_set_soft_queue(1.0, 1.0);
+	if(allocate_cache_size > 0)
+	    resamp_cache_reset();
+
 	if(*def_instr_name)
 	    set_default_instrument(def_instr_name);
 
 	trace_nodelay(!ctl->trace_playing);
 
-	/* For safety */
-	if(play_mode->current_samples == NULL)
-	    play_mode->current_samples = dumb_current_samples;
-	if(play_mode->play_loop == NULL)
-	    play_mode->play_loop = dumb_play_loop;
+	if(ctl->flags & CTLF_LIST_RANDOM)
+	    randomize_string_list(files, nfiles);
+	else if(ctl->flags & CTLF_LIST_SORT)
+	    sort_pathname(files, nfiles);
 
 	/* Return only when quitting */
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
@@ -2699,7 +2852,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	play_mode->close_output();
 	ctl->close();
 	wrdt->close();
-#ifdef __WIN32__
+#ifdef __W32__
 	DeleteCriticalSection (&critSect);
 #endif
 
@@ -2730,8 +2883,14 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
     return 0;
 }
 
+#ifdef IA_W32GUI
+int main(int argc, char **argv)
+{
+    return w32gui_main(argc, argv);
+}
+#else
 #ifndef __MACOS__
-#ifdef __WIN32__
+#ifdef __W32__
 int __cdecl main(int argc, char **argv)
 #else
 int main(int argc, char **argv)
@@ -2742,7 +2901,7 @@ int main(int argc, char **argv)
     char **files;
 
 
-#if defined(DANGEROUS_RENICE) && !defined(__WIN32__) && !defined(main)
+#if defined(DANGEROUS_RENICE) && !defined(__W32__) && !defined(main)
     /*
      * THIS CODES MUST EXECUT BEGINNING OF MAIN FOR SECURITY.
      * DONT PUT ANY CODES ABOVE.
@@ -2831,10 +2990,11 @@ int main(int argc, char **argv)
 
     nfiles = argc - optind;
     files  = argv + optind;
-    files  = expand_file_archives(files, &nfiles);
-
+    if(nfiles > 0 && ctl->id_character != 'r')
+	files = expand_file_archives(files, &nfiles);
     if(dumb_error_count)
 	sleep(1);
     return timidity_play_main(nfiles, files);
 }
 #endif /* __MACOS__ */
+#endif

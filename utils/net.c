@@ -90,7 +90,7 @@ SOCKET open_socket(char *host, unsigned short port)
     return fd;
 }
 
-#if !defined(__WIN32__) || defined(__CYGWIN32__)
+#if !defined(__W32__) || defined(__CYGWIN32__)
 long socket_write(SOCKET fd, char *buff, long bufsiz)
 {
     return write(fd, buff, bufsiz);
@@ -135,17 +135,17 @@ int socket_fflush(FILE *fp)
 {
     return fflush(fp);
 }
-#else /* __WIN32__ */
+#else /* __W32__ */
 
 #include "url.h"
 
 /* Fake FILE * */
 
-typedef struct _win32_fp_socket_t
+typedef struct _w32_fp_socket_t
 {
     SOCKET fd; /* Now, It has only fd */
-} win32_fp_socket;
-#define WIN32_FP2SOCKET(fp) (((win32_fp_socket *)(fp))->fd)
+} w32_fp_socket;
+#define W32_FP2SOCKET(fp) (((w32_fp_socket *)(fp))->fd)
 
 static long socket_safe_recv(SOCKET fd, char *buff, long bufsiz)
 {
@@ -177,13 +177,13 @@ FILE *socket_fdopen(SOCKET fd, char *mode)
 {
     FILE *fp;
 
-    /* win32_fp_socket fake FILE.
+    /* w32_fp_socket fake FILE.
      * `mode' argument is ignored.
      */
-    if((fp = (FILE *)malloc(sizeof(win32_fp_socket))) == NULL)
+    if((fp = (FILE *)malloc(sizeof(w32_fp_socket))) == NULL)
 	return NULL;
-    memset(fp, 0, sizeof(win32_fp_socket));
-    WIN32_FP2SOCKET(fp) = fd;
+    memset(fp, 0, sizeof(w32_fp_socket));
+    W32_FP2SOCKET(fp) = fd;
     return fp;
 }
 
@@ -200,7 +200,7 @@ static int socket_getc(SOCKET fd)
 
 char *socket_fgets(char *buff, int n, FILE *fp)
 {
-    SOCKET fd = WIN32_FP2SOCKET(fp);
+    SOCKET fd = W32_FP2SOCKET(fp);
     int len;
 
     n--; /* for '\0' */
@@ -228,25 +228,25 @@ char *socket_fgets(char *buff, int n, FILE *fp)
 
 int socket_fgetc(FILE *fp)
 {
-    SOCKET fd = WIN32_FP2SOCKET(fp);
+    SOCKET fd = W32_FP2SOCKET(fp);
     return socket_getc(fd);
 }
 
 long socket_fread(void *buff, long bufsiz, FILE *fp)
 {
-    SOCKET fd = WIN32_FP2SOCKET(fp);
+    SOCKET fd = W32_FP2SOCKET(fp);
     return socket_safe_recv(fd, buff, bufsiz);
 }
 
 long socket_fwrite(void *buff, long bufsiz, FILE *fp)
 {
-    SOCKET fd = WIN32_FP2SOCKET(fp);
+    SOCKET fd = W32_FP2SOCKET(fp);
     return socket_write(fd, buff, bufsiz);
 }
 
 int socket_fclose(FILE *fp)
 {
-    SOCKET fd = WIN32_FP2SOCKET(fp);
+    SOCKET fd = W32_FP2SOCKET(fp);
     int ret;
     ret = closesocket(fd);
     free(fp);

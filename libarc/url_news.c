@@ -3,9 +3,11 @@
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef __WIN32__
+
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif /* HAVE_UNISTD_H */
+
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -124,7 +126,7 @@ static NewsConnection *open_news_server(char *host, unsigned short port)
 	return NULL;
     p->port = port;
 
-#ifdef __WIN32__
+#ifdef __W32__
     timeout_flag = 0;
     p->fd = open_socket(host, port);
 #else
@@ -134,7 +136,7 @@ static NewsConnection *open_news_server(char *host, unsigned short port)
     p->fd = open_socket(host, port);
     alarm(0);
     signal(SIGALRM, SIG_DFL);
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
     if(p->fd == (SOCKET)-1)
     {

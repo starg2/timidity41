@@ -382,7 +382,7 @@ void url_close(URL url)
 	url->url_close(url);
 #if 0
 	url->url_close = NULL;
-#endif
+#endif /* unix */
     }
     errno = save_errno;
 }
@@ -445,11 +445,11 @@ char *url_unexpand_home_dir(char *fname)
     if(path[dirlen - 1] != PATH_SEP)
 	path[dirlen++] = PATH_SEP;
 
-#ifndef __WIN32__
+#ifndef __W32__
     if(strncmp(path, fname, dirlen) != 0)
 #else
     if(strncasecmp(path, fname, dirlen) != 0)
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 	return fname;
 
     path[0] = '~';

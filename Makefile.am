@@ -31,15 +31,14 @@ EXTRA_DIST = \
 	AUTHORS \
 	COPYING \
 	ChangeLog \
+	ChangeLog.1 \
 	INSTALL \
 	INSTALL.jp \
 	NEWS \
 	README \
 	README.jp \
 	timidity.ide \
-	timidity.mak \
-	TiMidity.ad \
-	TiMidity-uj.ad
+	timidity.mak
 
 dynamics:
 	cd interface; $(MAKE) $@

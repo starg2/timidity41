@@ -54,6 +54,7 @@ extern void trace_offset(int offset);
 extern void trace_nodelay(int nodelay);
 extern void set_trace_loop_hook(void (* f)(void));
 extern int32 current_trace_samples(void);
+extern int32 trace_wait_samples(void);
 
 extern MidiTrace midi_trace;
 

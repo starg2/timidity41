@@ -66,6 +66,10 @@ following:
 
   --with-x
 	You should specify this option if you have X Window environment.
+	--with-x is `yes' by default.
+
+  --without-x
+	You must specify this option if you don't have X Window environment.
 
   --with-tcl-includes=dir
 	Specifies include directory of Tcl.
@@ -85,9 +89,14 @@ following:
 
   --enable-audio
 	Enables TiMidity++ to play MIDI files.
-	If this option is omitted, TiMidity++ is only the MIDI-to-WAVE
-	converter. This option should not be specified if target machine
-	does not support audio device.
+	If --enable-audio=no, TiMidity++ is only the MIDI-to-WAVE
+	converter.
+
+  --enable-nas
+	Enables TiMidity++ to play MIDI files using NAS (Network Audio System).
+
+  --enable-esd
+	Enables TiMidity++ to play MIDI files using EsounD.
 
   --enable-ncurses
 	Includes Ncurses interface.  If you build this interface as dinamic
@@ -134,6 +143,9 @@ following:
 	Includes Gtk+ interface.  If you build this interface as dinamic link
 	interface, please specify --enable-gtk=dynamic.
 
+  --enable-w32gui
+	Build TiMidity++ as Windows GUI.
+
   --enable-network
 	This option allows TiMidity++ to play MIDI file getting via 
 	network. You can specify the location of MIDI files by
@@ -154,7 +166,7 @@ following:
                --enable-ncurses --enable-slang  --enable-motif \
                --enable-tcltk --enable-emacs --enable-vt100 --enable-xaw \
                --enable-xskin --enable-gtk \
-               --enable-network --enable-spectrogram --enable-wrd
+               --enable-network --enable-spectrogram --enable-wrd --enable-nas
 
 
   Some of MIDI file eats too much CPU power. If you choose correct
@@ -302,23 +314,6 @@ example, if you wish to default drum channel be 10 and 16,
 This channel can change in command line option.
 
 
-  Next, configuration of presence hack option. This option is enabled
-if PRESENCE_HACK is defined. By default:
-
-#define PRESENCE_HACK -1
-
--1 is means that only enables if -b command line option is specified.
-If defined with 0 to 2, the effect is following:
-
-#define PRESENCE_HACK 0 /* mainly heard from right */
-#define PRESENCE_HACK 1 /* mainly heard from left */
-#define PRESENCE_HACK 2 /* changes voices right and left each 10 second */
-
-And the following define PRESENCE_DECAY is the delay number for making
-presence effects. This number can specify in command line option by
-following -b? option in millisecond.
-
-
   Next, type of floating point number. Choose one of these:
 
 typedef double FLOAT_T;
@@ -371,11 +366,7 @@ enables good harmony.
 
   Next, size of internal buffer. By default:
 
-#ifdef __WIN32__
-#define AUDIO_BUFFER_BITS 12
-#else
 #define AUDIO_BUFFER_BITS 11
-#endif
 
 I guess this values no need to change.
 
@@ -548,8 +539,8 @@ handle Japanese, specify "ASCII" or "NOCNV" alternatively.
 #define MODULATION_WHEEL_ALLOW
 #define PORTAMENTO_ALLOW
 #define NRPN_VIBRATO_ALLOW
-/* #define REVERB_CONTROL_ALLOW */
-/* #define CHORUS_CONTROL_ALLOW */
+#define REVERB_CONTROL_ALLOW
+#define CHORUS_CONTROL_ALLOW
 /* #define GM_CHANNEL_PRESSURE_ALLOW */
 /* #define XG_BANK_SELECT_LSB_ALLOW */
 /* #define ALWAYS_TRACE_TEXT_META_EVENT */

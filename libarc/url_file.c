@@ -10,9 +10,9 @@
 #endif
 #include <fcntl.h>
 
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif /* __WIN32__ */
+#endif /* HAVE_UNISTD_H */
 
 #include "timidity.h"
 
@@ -35,7 +35,7 @@
 #include "mblock.h"
 #endif
 
-#if !defined(__WIN32__) && !defined(O_BINARY)
+#if !defined(__W32__) && !defined(O_BINARY)
 #define O_BINARY 0
 #endif
 
@@ -77,13 +77,13 @@ static int name_file_check(char *s)
     if(strncasecmp(s, "file:", 5) == 0)
 	return 1;
 
-#ifdef __WIN32__
+#ifdef __W32__
     /* [A-Za-z]: (for Windows) */
     if((('A' <= s[0] && s[0] <= 'Z') ||
 	('a' <= s[0] && s[0] <= 'z')) &&
        s[1] == ':')
 	return 1;
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
     for(i = 0; s[i] && s[i] != ':' && s[i] != '/'; i++)
 	;

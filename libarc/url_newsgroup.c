@@ -3,9 +3,9 @@
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif /* HAVE_UNISTD_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -155,7 +155,7 @@ URL url_newsgroup_open(char *name)
     printf("open(host=`%s', port=`%d')\n", host, port);
 #endif /* DEBUG */
 
-#ifdef __WIN32__
+#ifdef __W32__
     timeout_flag = 0;
     fd = open_socket(host, port);
 #else
@@ -165,7 +165,7 @@ URL url_newsgroup_open(char *name)
     url->fd = fd = open_socket(host, port);
     alarm(0);
     signal(SIGALRM, SIG_DFL);
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
     if(fd == (SOCKET)-1)
     {

@@ -21,6 +21,11 @@
 */
 
 
+#if defined(__WIN32__) && !defined(__W32__)
+#define __W32__
+#endif
+
+
 /* You could specify a complete path, e.g. "/etc/timidity.cfg", and
    then specify the library directory in the configuration file. */
 /* #define CONFIG_FILE "/etc/timidity.cfg" */
@@ -35,7 +40,7 @@
    behavior, you can undefine DECOMPRESSOR_LIST to disable automatic
    decompression entirely.
 
-   This is currently ignored for Win32. */
+   This is currently ignored for Windows. */
 #define DECOMPRESSOR_LIST { \
 			      ".gz",  "gunzip -c %s", \
 			      ".bz2", "bunzip2 -c %s", \
@@ -48,7 +53,7 @@
 
 
 /* Define GUS/patch converter.
-   This is currently ignored for Win32.
+   This is currently ignored for Windows.
  */
 #define PATCH_CONVERTERS { \
 			     ".wav", "wav2pat %s", \
@@ -58,7 +63,7 @@
 /* When a patch file can't be opened, one of these extensions is
    appended to the filename and the open is tried again.
 
-   This is ignored for Win32, which uses only ".pat" (see the bottom
+   This is ignored for Windows, which uses only ".pat" (see the bottom
    of this file if you need to change this.) */
 #define PATCH_EXT_LIST { \
 			   ".pat", \
@@ -80,19 +85,6 @@
    a critical choice anymore. */
 #define DEFAULT_DRUMCHANNELS {10, -1}
 /* #define DEFAULT_DRUMCHANNELS {10, 16, -1} */
-
-/* Here is presence hack when stereo sampling.
- * 0: right first
- * 1: left first
- * 2: both
- * -1: not use at default. (It needs the option -b)
- */
-#define PRESENCE_HACK -1
-
-#ifdef PRESENCE_HACK
-#define PRESENCE_DELAY 0.025
-#endif /* PRESENCE_HACK */
-
 
 /* type of floating point number */
 typedef double FLOAT_T;
@@ -116,7 +108,7 @@ typedef double FLOAT_T;
 #define DEFAULT_RATE	32000
 #endif /* DEFAULT_RATE */
 
-#define DEFAULT_VOICES	32
+#define DEFAULT_VOICES	64
 #define MAX_VOICES	256
 
 
@@ -136,11 +128,7 @@ typedef double FLOAT_T;
    You should probably use a larger number for improved performance.
 
 */
-#ifdef __WIN32__
-#define AUDIO_BUFFER_BITS 12
-#else
 #define AUDIO_BUFFER_BITS 11
-#endif
 
 
 /* 1000 here will give a control ratio of 22:1 with 22 kHz output.
@@ -277,7 +265,7 @@ typedef double FLOAT_T;
 #define OUTPUT_TEXT_CODE "ASCII"
 #else
 /* Japanese */
-#ifndef __WIN32__
+#ifndef __W32__
 /* UNIX (Select "AUTO" or "ASCII" or "NOCNV" or "EUC" or "JIS" or "SJIS") */
 #define OUTPUT_TEXT_CODE "AUTO"
 #else
@@ -288,52 +276,52 @@ typedef double FLOAT_T;
 
 
 /* Undefine if you don't use modulation wheel MIDI controls.
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
 #define MODULATION_WHEEL_ALLOW
 
 
 /* Undefine if you don't use portamento MIDI controls.
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
 #define PORTAMENTO_ALLOW
 
 
 /* Undefine if you don't use NRPN vibrato MIDI controls
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
 #define NRPN_VIBRATO_ALLOW
 
 
 /* Define if you want to use reverb controls in defaults.
  * This mode needs high CPU power.
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
-/* #define REVERB_CONTROL_ALLOW */
+#define REVERB_CONTROL_ALLOW
 
 
 /* Define if you want to use chorus controls in defaults.
  * This mode needs high CPU power.
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
-/* #define CHORUS_CONTROL_ALLOW */
+#define CHORUS_CONTROL_ALLOW
 
 
 /* Define if you want to use channel pressure.
  * Channel pressure effect is different in sequencers.
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
 /* #define GM_CHANNEL_PRESSURE_ALLOW */
 
 
 /* Define if you want to trace text meta event at playing.
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
 /* #define ALWAYS_TRACE_TEXT_META_EVENT */
 
 
 /* Define if you want to allow overlapped voice.
- * There is now a command line option to enable/disable this mode.
+ * There is a command line option to enable/disable this mode.
  */
 #define OVERLAP_VOICE_ALLOW
 
@@ -540,23 +528,10 @@ typedef struct _ChannelBitMask
 /* Solaris */
 int usleep(unsigned int useconds); /* shut gcc warning up */
 #endif
-  extern int opterr;
-  extern int optind;
-  extern int optopt;
-  extern char *optarg;
-#ifndef SEEK_SET
-#define SEEK_SET 0
-#endif
-#ifndef SEEK_CUR
-#define SEEK_CUR 1
-#endif
-#ifndef SEEK_END
-#define SEEK_END 2
-#endif
 #endif /* sun */
 
 
-#ifdef __WIN32__
+#ifdef __W32__
 #undef PATCH_EXT_LIST
 #define PATCH_EXT_LIST { ".pat", 0 }
 
@@ -564,7 +539,7 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #endif
 
 /* The path separator (D.M.) */
-#if defined(__WIN32__)
+#if defined(__W32__)
 #  define PATH_SEP '\\'
 #  define PATH_STRING "\\"
 #elif defined(__MACOS__)
@@ -577,13 +552,13 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 
 /* new line code */
 #ifndef NLS
-#ifdef __WIN32__
+#ifdef __W32__
 #ifdef __BORLANDC__
 #  define NLS "\n"
 #else
 #  define NLS "\r\n"
 #endif
-#else /* !__WIN32__ */
+#else /* !__W32__ */
 #  define NLS "\n"
 #endif
 #endif /* NLS */
@@ -594,9 +569,10 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #define M_PI 3.14159265358979323846
 #endif /* M_PI */
 
-#ifndef __WIN32__
+#ifndef __W32__
 #undef MAIL_NAME
-#endif /* __WIN32__ */
+#endif /* __W32__ */
+
 
 #ifdef __BORLANDC__
 /* strncasecmp() -> strncmpi(char *,char *,size_t) */
@@ -612,50 +588,11 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #include "mac_com.h"
 #endif
 
-#if defined(__MACOS__) || defined(__WIN32__)
+#if !defined(HAVE_POPEN)
 #undef DECOMPRESSOR_LIST
 #undef PATCH_CONVERTERS
 #endif
 
-
-
-/* Follows are defined in utils/support.c */
-
-#ifndef HAVE_VSNPRINTF
-#include <stdarg.h> /* for va_list */
-extern void vsnprintf(char *buff, size_t bufsiz, const char *fmt, va_list ap);
-#endif
-
-#ifndef HAVE_SNPRINTF
-extern void snprintf(char *buff, size_t bufsiz, const char *fmt, ...);
-#endif /* HAVE_SNPRINTF */
-
-#ifndef HAVE_GETOPT
-extern int getopt(int argc, char *argv[], char *optionS);
-#endif /* HAVE_GETOPT */
-
-#ifndef HAVE_STRERROR
-extern char *strerror(int errnum);
-#endif /* HAVE_STRERROR */
-
-#ifndef HAVE_USLEEP
-extern int usleep(unsigned int usec);
-#endif
-
-#ifndef HAVE_STRDUP
-extern char *strdup(const char *s);
-#endif /* HAVE_STRDUP */
-
-#ifndef HAVE_GETCWD
-extern char *getcwd(char *buf, size_t size);
-#endif /* HAVE_GETCWD */
-
-#ifndef HAVE_STRSTR
-#define strstr(s,c)	index(s,c)
-#endif /* HAVE_STRSTR */
-
-#ifndef HAVE_STRNCASECMP
-int strncasecmp(char *s1, char *s2, unsigned int len);
-#endif /* HAVE_STRNCASECMP */
+#include "support.h"
 
 #endif /* ___TIMIDITY_H_ */

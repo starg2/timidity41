@@ -34,9 +34,10 @@
 #else
 #include <strings.h>
 #endif
-#ifndef __WIN32__
+#include <ctype.h>
+#ifndef __W32__
 #include <unistd.h>
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 #include "timidity.h"
 #include "common.h"
 #include "output.h"
@@ -44,6 +45,7 @@
 #include "arc.h"
 #include "nkflib.h"
 #include "wrd.h"
+#include "strtab.h"
 
 /* RAND_MAX must defined in stdlib.h
  * Why RAND_MAX is not defined at SunOS?
@@ -118,10 +120,6 @@ struct timidity_file *try_to_open(char *name, int decompress)
     URL url;
     int len;
 
-#ifdef __MACOS__
-    if((url = url_open(name)) == NULL)
-	return NULL;
-#else
     archive_file_list = add_archive_list(archive_file_list, name);
     errno = 0;
     url = archive_file_extract_open(archive_file_list, name);
@@ -140,7 +138,6 @@ struct timidity_file *try_to_open(char *name, int decompress)
 	if((url = url_open(name)) == NULL)
 	    return NULL;
     }
-#endif /* __MACOS__ */
 
     tf = (struct timidity_file *)safe_malloc(sizeof(struct timidity_file));
     tf->url = url;
@@ -264,13 +261,13 @@ static int is_url_prefix(char *name)
 	if(strncmp(name, url_proto_names[i], strlen(url_proto_names[i])) == 0)
 	    return 1;
 
-#ifdef __WIN32__
+#ifdef __W32__
     /* [A-Za-z]: (for Windows) */
     if((('A' <= name[0] && name[0] <= 'Z') ||
 	('a' <= name[0] && name[0] <= 'z')) &&
        name[1] == ':')
 	return 1;
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
     return 0;
 }
@@ -318,15 +315,15 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
     return tf;
 
 #ifdef __MACOS__
-  if (noise_mode && (errno != 0))
+  if(errno)
 #else
-  if (noise_mode && (errno != ENOENT))
-#endif /* __MACOS__ */
+  if(errno && errno != ENOENT)
+#endif
     {
-      if(noise_mode)
-        ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		  current_filename, strerror(errno));
-      return 0;
+	if(noise_mode)
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+		      current_filename, strerror(errno));
+	return 0;
     }
 
   if (name[0] != PATH_SEP && !is_url_prefix(name))
@@ -349,13 +346,14 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 	if ((tf=try_to_open(current_filename, decompress)))
 	  return tf;
 #ifdef __MACOS__
-	if (noise_mode && (errno != 0))
+	if(errno)
 #else
-	if (noise_mode && (errno != ENOENT))
-#endif /* __MACOS__ */
-	  {
-	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		 current_filename, strerror(errno));
+	if(errno && errno != ENOENT)
+#endif
+	{
+	    if(noise_mode)
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+			  current_filename, strerror(errno));
 	    return 0;
 	  }
 	plp=plp->next;
@@ -378,7 +376,7 @@ void close_file(struct timidity_file *tf)
     int save_errno = errno;
     if(tf->url != NULL)
     {
-#ifndef __WIN32__
+#ifndef __W32__
 	if(tf->tmpname != NULL)
 	{
 	    int i;
@@ -386,7 +384,7 @@ void close_file(struct timidity_file *tf)
 	    for(i = 0; tf_getc(tf) != EOF && i < 0xFFFF; i++)
 		;
 	}
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 	url_close(tf->url);
     }
     if(tf->tmpname != NULL)
@@ -444,7 +442,7 @@ void safe_exit(int status)
 {
     if(play_mode->fd != -1)
     {
-	play_mode->purge_output();
+	play_mode->acntl(PM_REQ_DISCARD, NULL);
 	play_mode->close_output();
     }
     ctl->close();
@@ -625,13 +623,13 @@ static void code_convert_japan(char *in, char *out, int maxlen,
 	mode = output_text_code;
 	if(mode == NULL || strstr(mode, "AUTO"))
 	{
-#ifndef __WIN32__
+#ifndef __W32__
 	    mode = getenv("LANG");
 #else
 	    mode = "SJIS";
 	    wrd_mode = "SJISK";
 #endif
-	    if(mode == NULL)
+	    if(mode == NULL || *mode == '\0')
 	    {
 		mode = "ASCII";
 		wrd_mode = mode;
@@ -788,11 +786,94 @@ void code_convert(char *in, char *out, int outsiz, char *icode, char *ocode)
 #endif
 }
 
+/* EAW -- insert stuff from playlist files
+ *
+ * Tue Apr 6 1999: Modified by Masanao Izumo <mo@goice.co.jp>
+ *                 One pass implemented.
+ */
+static char **expand_file_lists(char **files, int *nfiles_in_out)
+{
+    int nfiles;
+    int i;
+    char input_line[256];
+    char *pfile;
+    static const char *testext = ".m3u.pls.asx.M3U.PLS.ASX";
+    struct timidity_file *list_file;
+    char *one_file[1];
+    int one;
+
+    /* Recusive global */
+    static StringTable st;
+    static int error_outflag = 0;
+    static int depth = 0;
+
+    if(depth >= 16)
+    {
+	if(!error_outflag)
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Probable loop in playlist files");
+	    error_outflag = 1;
+	}
+	return NULL;
+    }
+
+    if(depth == 0)
+    {
+	error_outflag = 0;
+	init_string_table(&st);
+    }
+    nfiles = *nfiles_in_out;
+
+    /* count number of new files to add */
+    for(i = 0; i < nfiles; i++)
+    {
+	/* extract the file extension */
+	pfile = strrchr(files[i], '.');
+
+	if(*files[i] == '@' || (pfile != NULL && strstr(testext, pfile)))
+	{
+	    /* Playlist file */
+            if(*files[i] == '@')
+		list_file = open_file(files[i] + 1, 1, 1);
+            else
+		list_file = open_file(files[i], 1, 1);
+            if(list_file)
+	    {
+                while(tf_gets(input_line, sizeof(input_line), list_file)
+		      != NULL) {
+            	    if(*input_line == '\n' || *input_line == '\r')
+			continue;
+		    if((pfile = strchr(input_line, '\r')))
+		    	*pfile = '\0';
+		    if((pfile = strchr(input_line, '\n')))
+		    	*pfile = '\0';
+		    one_file[0] = input_line;
+		    one = 1;
+		    depth++;
+		    expand_file_lists(one_file, &one);
+		    depth--;
+		}
+                close_file(list_file);
+            }
+        }
+	else /* Other file */
+	    put_string_table(&st, files[i], strlen(files[i]));
+    }
+
+    if(depth)
+	return NULL;
+    *nfiles_in_out = st.nstring;
+    return make_string_array(&st);
+}
+
 char **expand_file_archives(char **files, int *nfiles_in_out)
 {
     int nfiles;
 
     nfiles = *nfiles_in_out;
+    files = expand_file_lists(files, &nfiles);
+
     archive_file_list = make_archive_list(archive_file_list, nfiles, files);
     if(archive_file_list != NULL)
     {
@@ -804,6 +885,8 @@ char **expand_file_archives(char **files, int *nfiles_in_out)
 					 &new_nfiles, files);
 	if(new_files != NULL)
 	{
+	    free(files[0]);
+	    free(files);
 	    nfiles = new_nfiles;
 	    files  = new_files;
 	}
@@ -880,4 +963,47 @@ int check_file_extension(char *filename, char *ext, int decompress)
 #endif /* DECOMPRESSOR_LIST */
     }
     return 0;
+}
+
+void randomize_string_list(char **strlist, int n)
+{
+    int i, j;
+    char *tmp;
+    for(i = 0; i < n; i++)
+    {
+	j = int_rand(n - i);
+	tmp = strlist[j];
+	strlist[j] = strlist[n - i - 1];
+	strlist[n - i - 1] = tmp;
+    }
+}
+
+int pathcasecmp(const char *p1, const char *p2)
+{
+    const unsigned char *s1, *s2;
+    int c1, c2;
+
+    s1 = (const unsigned char *)p1;
+    s2 = (const unsigned char *)p2;
+    while(*s1 && *s2)
+    {
+	c1 = tolower((int)*s1);
+	c2 = tolower((int)*s2);
+	if(c1 == PATH_SEP) c1 = 0;
+	if(c2 == PATH_SEP) c2 = 0;
+	if(c1 != c2)
+	    return c1 - c2;
+	s1++;
+	s2++;
+    }
+
+    c1 = tolower((int)*s1);
+    c2 = tolower((int)*s2);
+    return c1 - c2;
+}
+
+void sort_pathname(char **files, int nfiles)
+{
+    qsort(files, nfiles, sizeof(char *),
+	  (int (*)(const void *, const void *))pathcasecmp);
 }

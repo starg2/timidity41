@@ -47,7 +47,7 @@
 
 */
 
-#ifdef __WIN32__
+#ifdef __W32__
 #include <wtypes.h>
 #include <dir.h>
 #include "rcpcv.h"
@@ -226,7 +226,7 @@ static URL rcpcv_convert(URL url,int type)
 
 /* return 0 (successful or not convert)
           -1 (error and lost tf->url) */
-int smfconv_win32(struct timidity_file *tf, char *fn)
+int smfconv_w32(struct timidity_file *tf, char *fn)
 {
 	URL url;
     int ret;
@@ -303,6 +303,6 @@ last_stage:
 	return 0;
 }
 
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
 #endif /* SMFCONV */

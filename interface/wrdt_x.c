@@ -43,13 +43,20 @@
 #include "wrd.h"
 #include "x_wrdwindow.h"
 #include "x_mag.h"
+#ifdef ENABLE_SHERRY
+#include "x_sherry.h"
+#endif /* ENABLE_SHERRY */
+
 
 static int wrdt_open(char *dummy);
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_argv[]);
 static void wrdt_update_events(void);
-static void wrdt_start(int wrdflag);
+static int wrdt_start(int wrd_mode);
 static void wrdt_end(void);
 static void wrdt_close(void);
+static int current_wrd_mode = WRD_TRACE_NOTHING;
+static char *save_open_flag;
+
 #define wrdt x_wrdt_mode
 
 WRDTracer wrdt =
@@ -58,6 +65,7 @@ WRDTracer wrdt =
     0,
     wrdt_open,
     wrdt_apply,
+    x_sry_wrdt_apply,
     wrdt_update_events,
     wrdt_start,
     wrdt_end,
@@ -66,30 +74,70 @@ WRDTracer wrdt =
 
 static int inkey_flag;
 #define LINEBUF 1024
-static char file_buf[LINEBUF];
-static char *fakeargv[]={"timidity",NULL};
+static char line_buf[LINEBUF];
 
 static int wrdt_open(char *arg)
 {
-  int error=0;
-  wrdt.opened = 1;
-  inkey_flag = 0;
-  fakeargv[1]=arg;
-  error=InitWin(2,fakeargv);
-  return error;
+    save_open_flag = arg;
+    wrdt.opened = 1;
+    return 0;
 }
 
 static void wrdt_update_events(void)
 {
-  WinEvent();
+    if(current_wrd_mode == WRD_TRACE_MIMPI)
+	WinEvent();
+    else if(current_wrd_mode == WRD_TRACE_SHERRY)
+	x_sry_event();
 }
 
-static void wrdt_start(int wrdflag)
+static int wrdt_start(int mode)
 {
-    if(wrdflag)
-	OpenWRDWindow();
-    else
-	CloseWRDWindow();
+    int last_mode = current_wrd_mode;
+
+    current_wrd_mode = mode;
+    switch(mode)
+    {
+      case WRD_TRACE_NOTHING:
+	switch(last_mode)
+	{
+	  case WRD_TRACE_MIMPI:
+	    CloseWRDWindow();
+	    break;
+	  case WRD_TRACE_SHERRY:
+#ifdef ENABLE_SHERRY
+	    CloseSryWindow();
+#endif /* ENABLE_SHERRY */
+	    break;
+	}
+	break;
+
+      case WRD_TRACE_MIMPI:
+#ifdef ENABLE_SHERRY
+	if(last_mode == WRD_TRACE_SHERRY)
+	    CloseSryWindow();
+#endif /* ENABLE_SHERRY */
+	  if(OpenWRDWindow(save_open_flag) == -1)
+	  {
+	      current_wrd_mode = WRD_TRACE_NOTHING;
+	      return -1; /* Error */
+	  }
+	break;
+
+      case WRD_TRACE_SHERRY:
+	if(last_mode == WRD_TRACE_MIMPI)
+	    CloseWRDWindow();
+#ifdef ENABLE_SHERRY
+	if(OpenSryWindow(save_open_flag) == -1)
+	{
+	    current_wrd_mode = WRD_TRACE_NOTHING;
+	    return -1; /* Error */
+	}
+#endif /* ENABLE_SHERRY */
+	break;
+    }
+
+    return 0;
 }
 
 static void wrdt_end(void)
@@ -101,8 +149,15 @@ static void wrdt_end(void)
 
 static void wrdt_close(void)
 {
-    wrdt.opened = 0;
-    inkey_flag = 0;
+    if(wrdt.opened)
+    {
+	EndWin();
+#ifdef ENABLE_SHERRY
+	x_sry_close();
+#endif /* ENABLE_SHERRY */
+	wrdt.opened = 0;
+	inkey_flag = 0;
+    }
 }
 
 static char *wrd_event2string(int id)
@@ -223,8 +278,8 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
       case WRD_COLOR:
 	txtclr_preserve=wrd_args[0];
 	/*This length is at most 20 ; this is much lesser than LINEBUF*/
-	snprintf(file_buf,LINEBUF,"\033[%dm", txtclr_preserve);
-	AddLine(file_buf,0);
+	snprintf(line_buf,LINEBUF,"\033[%dm", txtclr_preserve);
+	AddLine(line_buf,0);
 	break;
       case WRD_END: /* Never call */
 	break;
@@ -306,8 +361,8 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	break;
       case WRD_LOCATE:
 	/*Length is At most 40*/
-	snprintf(file_buf,LINEBUF,"\033[%d;%dH", wrd_args[1], wrd_args[0]);
-	AddLine(file_buf,0);
+	snprintf(line_buf,LINEBUF,"\033[%d;%dH", wrd_args[1], wrd_args[0]);
+	AddLine(line_buf,0);
 	break;
       case WRD_LOOP: /* Never call */
 	break;
@@ -413,9 +468,9 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	  memset(fillbuf,wrd_args[5],xdiff);/*X2-X1*/
 	  fillbuf[xdiff]=0;
 	  for(i=wrd_args[1];i<=wrd_args[3];i++){/*Y1 to Y2*/
-	    snprintf(file_buf,LINEBUF,"\033[%d;%dH",i,wrd_args[0]);
+	    snprintf(line_buf,LINEBUF,"\033[%d;%dH",i,wrd_args[0]);
 /*X1to....*/
-	    AddLine(file_buf,0);
+	    AddLine(line_buf,0);
 	    AddLine(fillbuf,0);
 	  }
 	  fillbuf[0]=0x1b;
@@ -497,11 +552,26 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 
 	/* Extensionals */
       case WRD_START_SKIP:
-	x_RedrawControl(0);
+	if(current_wrd_mode == WRD_TRACE_MIMPI)
+	    x_RedrawControl(0);
+#ifdef ENABLE_SHERRY
+	else if(current_wrd_mode == WRD_TRACE_SHERRY)
+	    x_sry_redraw_ctl(0);
+#endif /* ENABLE_SHERRY */
 	break;
       case WRD_END_SKIP:
-	x_RedrawControl(1);
+	if(current_wrd_mode == WRD_TRACE_MIMPI)
+	    x_RedrawControl(1);
+#ifdef ENABLE_SHERRY
+	else if(current_wrd_mode == WRD_TRACE_SHERRY)
+	    x_sry_redraw_ctl(1);
+#endif /* ENABLE_SHERRY */
 	break;
+#ifdef ENABLE_SHERRY
+      case WRD_SHERRY_UPDATE:
+	x_sry_update();
+	break;
+#endif /* ENABLE_SHERRY */
     }
     WinFlush();
 }

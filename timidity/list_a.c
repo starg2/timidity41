@@ -25,9 +25,9 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif /* HAVE_UNISTD_H */
 #include <stdlib.h>
 
 #ifndef NO_STRING_H
@@ -44,16 +44,10 @@
 #include "output.h"
 #include "controls.h"
 
-static int play_event(void *);
 static int open_output(void);
 static void close_output(void);
-static void output_data(int32 *buf, int32 count);
-static int flush_output(void);
-static void purge_output(void);
-static int32 current_samples(void);
-static int play_loop(void);
+static int acntl(int request, void *arg);
 
-static int32 play_counter;
 static int32 tonebank_start_time[128][128];
 static int32 drumset_start_time[128][128];
 static int tonebank_counter[128][128];
@@ -64,26 +58,21 @@ static Channel channel[MAX_CHANNELS];
 
 PlayMode dmp =
 {
-    DEFAULT_RATE, 0, 0,
+    DEFAULT_RATE, 0, PF_MIDI_EVENT,
     -1,
     {0,0,0,0,0},
     "List MIDI event", 'l',
     "-",
-    play_event,
     open_output,
     close_output,
-    output_data,
-    flush_output,
-    purge_output,
-    current_samples,
-    play_loop
+    NULL,
+    acntl
 };
 
 static int open_output(void)
 {
     int i, j;
 
-    play_counter = 0;
     for(i = 0; i < 128; i++)
 	for(j = 0; j < 128; j++)
 	{
@@ -92,31 +81,8 @@ static int open_output(void)
 	}
     memset(tonebank_counter, 0, sizeof(tonebank_counter));
     memset(drumset_counter, 0, sizeof(drumset_counter));
+    dmp.fd = 0;
     return 0;
-}
-
-static void output_data(int32 *buf, int32 count)
-{
-    play_counter += count;
-}
-
-static int flush_output(void)
-{
-    return RC_NONE;
-}
-
-static void purge_output(void)
-{
-}
-
-static int32 current_samples(void)
-{
-    return play_counter;
-}
-
-static int play_loop(void)
-{
-    return 1;
 }
 
 static char *time_str(int t)
@@ -131,6 +97,9 @@ static char *time_str(int t)
 static void close_output(void)
 {
     int i, j;
+
+    if(dmp.fd == -1)
+	return;
 
     for(i = 0; i < 128; i++)
 	for(j = 0; j < 128; j++)
@@ -152,11 +121,12 @@ static void close_output(void)
 		    time_str(drumset_start_time[i][j]),
 		    drumset_counter[i][j]);
 	    }
+
+    dmp.fd = -1;
 }
 
-static int play_event(void *p)
+static void do_event(MidiEvent *ev)
 {
-    MidiEvent *ev = (MidiEvent *)p;
     int ch;
 
     ch = ev->channel;
@@ -210,5 +180,15 @@ static int play_event(void *p)
 	memset(channel, 0, sizeof(channel));
 	break;
     }
-    return RC_NONE;
+}
+
+static int acntl(int request, void *arg)
+{
+    switch(request)
+    {
+      case PM_REQ_MIDI:
+	do_event((MidiEvent *)arg);
+	return RC_NONE;
+    }
+    return -1;
 }

@@ -1059,7 +1059,7 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNtopOffset, 10); ac++;
     XtSetArg(al[ac], XmNbottomOffset, 10); ac++;
     XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
-/*    XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++; */
+//    XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
     XtSetArg(al[ac],XmNtopAttachment,XmATTACH_WIDGET); ac++;
     XtSetArg(al[ac], XmNtopWidget, locator_scale); ac++;
     btnForm = XmCreateForm(mainForm,"btnForm", al, ac);

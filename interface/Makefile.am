@@ -49,12 +49,15 @@ EXTRA_libinterface_a_SOURCES = \
 	xaw.h \
 	xaw_c.c \
 	xaw_i.c \
+	xaw_redef.c \
 	xskin.h \
 	xskin_c.c \
 	xskin_i.c \
 	xskin_loadBMP.c \
 	xskin_spectrum.c \
 	wrdt_x.c \
+	x_sherry.c \
+	x_sherry.h \
 	x_wrdwindow.c \
 	x_wrdwindow.h \
 	VTPrsTbl.c \
@@ -70,74 +73,48 @@ EXTRA_libinterface_a_SOURCES = \
 	mac_wrdwindow.c \
 	mac_wrdwindow.h \
 	wrdt_mac.c \
-	wrdt_wincon.c \
+	wrdt_wcon.c \
 	gtk_c.c \
 	gtk_h.h \
 	gtk_i.c \
 	gtk_p.c \
 	soundspec.c \
-	soundspec.h
+	soundspec.h \
+	x_sherry.c \
+	x_sherry.h \
+	check.xbm \
+	arrow.xbm \
+	on.xbm \
+	off.xbm \
+	server_c.c \
+	server_defs.h \
+	w32g.h \
+	w32g_c.c \
+	w32g_c.h \
+	w32g_ini.c \
+	w32g_main.c \
+	w32g_main.h \
+	w32g_res.h \
+	w32g_res.rc \
+	w32g_utl.c \
+	w32g_utl.h \
+	w32g_btn.bmp \
+	w32g_icon.ico \
+	w32g_sleep.bmp \
+	w32g_subbtn.bmp
 
-if ENABLE_NCURSES
-NCURSES_OBJS = ncurs_c.o
-endif
-
-if ENABLE_SLANG
-SLANG_OBJS = slang_c.o
-endif
-
-if ENABLE_MOTIF
-MOTIF_OBJS = \
-	motif_c.o \
-	motif_i.o \
-	motif_p.o 
-endif
-
-if ENABLE_TCLTK
-TK_OBJS = tk_c.o
-endif
-
-if ENABLE_EMACS
-EMACS_OBJS = emacs_c.o
-endif
-
-if ENABLE_VT100
-VT100_OBJS = \
-	vt100.o \
-	vt100_c.o
-endif
-
-if ENABLE_XAW
-XAW_OBJS = \
-	xaw_c.o \
-	xaw_i.o
-endif
-
-if ENABLE_XSKIN
-XSKIN_OBJS = \
-	xskin_c.o \
-	xskin_i.o \
-	xskin_loadBMP.o \
-	xskin_spectrum.o
-endif
-
-if ENABLE_GTK
-GTK_OBJS= \
-	gtk_c.o \
-	gtk_i.o \
-	gtk_p.o
-endif
 
 if ENABLE_WRD
 WRD_OBJS = \
 	wrdt_x.o \
 	x_wrdwindow.o \
 	VTPrsTbl.o \
-	x_mag.o
+	x_mag.o \
+	x_sherry.o
 endif
 
 if CYGNUS
-WRD_WINCON_OBJS = wrdt_wincon.o
+WRD_WINCON_OBJS = wrdt_wcon.o
 endif
 
 if NEEDDLOPEN
@@ -149,16 +126,14 @@ SOUND_SPEC_OBJS = \
 	soundspec.o
 endif
 
+if ENABLE_W32GUI
+W32GUI_DEPS = w32g_res.res
+endif
+
+INTERFACE_OBJS = $(INTERFACE_SRCS:.c=.o)
+
 libinterface_a_LIBADD = \
-	$(NCURSES_OBJS) \
-	$(SLANG_OBJS) \
-	$(MOTIF_OBJS) \
-	$(TK_OBJS) \
-	$(EMACS_OBJS) \
-	$(VT100_OBJS) \
-	$(XAW_OBJS) \
-	$(XSKIN_OBJS) \
-	$(GTK_OBJS) \
+	$(INTERFACE_OBJS) \
 	$(WRD_OBJS) \
 	$(WRD_WINCON_OBJS) \
 	$(DYNAMIC_OBJS) \
@@ -167,7 +142,8 @@ libinterface_a_LIBADD = \
 libinterface_a_DEPENDENCIES = \
 	$(top_srcdir)/interface.h \
 	$(libinterface_a_LIBADD) \
-	$(tcltk_dep)
+	$(tcltk_dep) \
+	$(W32GUI_DEPS)
 
 # Tcl interface sources
 TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
@@ -180,11 +156,7 @@ EXTRA_DIST = \
 	tkpanel.tcl \
 	browser.tcl \
 	misc.tcl \
-	timidity.el \
-	check.xbm \
-	arrow.xbm \
-	on.xbm \
-	off.xbm
+	timidity.el
 
 .ptcl.tcl:
 	sed -e s@%TCL_DIR%@$(TCL_DIR)@g -e s@%TIMID_DIR%@$(TIMID_DIR)@g  $< > $@
@@ -229,10 +201,14 @@ install.el: $(ELFILES)
 	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
 	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
 
+w32g_res.res: w32g_res.h w32g_res.rc \
+	w32g_btn.bmp w32g_icon.ico w32g_sleep.bmp w32g_subbtn.bmp
+	windres -o $@ -O coff w32g_res.rc
 
-##
-## For dynamic interfaces
-##
+
+###
+### For dynamic interfaces
+###
 
 if NEEDDLOPEN
 dynamic_targets = @dynamic_targets@

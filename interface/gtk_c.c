@@ -81,6 +81,7 @@ ControlMode ctl =
 {
     "gtk+ interface", 'g',
     1,0,0,
+    0,
     ctl_open,
     ctl_close,
     ctl_pass_playing_list,
@@ -506,7 +507,7 @@ ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 	/* Ask the interface for a filename to play -> begin to play automatically */
 	gtk_pipe_int_write(NEXT_FILE_MESSAGE);
     }
-    
+
     command = ctl_blocking_read(&val);
 
     /* Main Loop */

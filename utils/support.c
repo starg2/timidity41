@@ -40,9 +40,9 @@
 #else
 #include <strings.h>
 #endif
-#ifdef __WIN32__
+#ifdef __W32__
 #include <windows.h>
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -740,7 +740,16 @@ char *strerror(int errnum)
 #endif /* HAVE_ERRNO_H */
 #endif /* HAVE_STRERROR */
 
-
+#ifdef __W32__
+void xsleep(unsigned int sec)
+{
+    Sleep(sec * 1000);
+}
+void xusleep(unsigned int usec)
+{
+    Sleep(usec / 1000);
+}
+#else
 #ifndef HAVE_USLEEP
 int usleep(unsigned int usec)
 {
@@ -749,13 +758,11 @@ int usleep(unsigned int usec)
     tv.tv_sec  = usec / 1000000;
     tv.tv_usec = usec % 1000000;
     select(0, NULL, NULL, NULL, &tv);
-#elif defined(__WIN32__)
-    Sleep(usec / 1000);
 #endif /* HAVE_SELECT */
     return 0;
 }
 #endif /* HAVE_USLEEP */
-
+#endif /* __W32__ */
 
 #ifndef HAVE_STRDUP
 char *strdup(const char *s)

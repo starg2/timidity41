@@ -1,7 +1,7 @@
-dnl aclocal.m4 generated automatically by aclocal 1.3
+dnl aclocal.m4 generated automatically by aclocal 1.4
 
-dnl Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
-dnl This Makefile.in is free software; the Free Software Foundation
+dnl Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
 
@@ -166,6 +166,170 @@ AC_SUBST(ALSA_LIBS)
 ])
 dnl alsa.m4 ends here
 
+# Configure paths for ESD
+# Manish Singh    98-9-30
+# stolen back from Frank Belew
+# stolen from Manish Singh
+# Shamelessly stolen from Owen Taylor
+
+dnl AM_PATH_ESD([MINIMUM-VERSION, [ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]]])
+dnl Test for ESD, and define ESD_CFLAGS and ESD_LIBS
+dnl
+AC_DEFUN(AM_PATH_ESD,
+[dnl 
+dnl Get the cflags and libraries from the esd-config script
+dnl
+AC_ARG_WITH(esd-prefix,[  --with-esd-prefix=PFX   Prefix where ESD is installed (optional)],
+            esd_prefix="$withval", esd_prefix="")
+AC_ARG_WITH(esd-exec-prefix,[  --with-esd-exec-prefix=PFX Exec prefix where ESD is installed (optional)],
+            esd_exec_prefix="$withval", esd_exec_prefix="")
+AC_ARG_ENABLE(esdtest, [  --disable-esdtest       Do not try to compile and run a test ESD program],
+		    , enable_esdtest=yes)
+
+  if test x$esd_exec_prefix != x ; then
+     esd_args="$esd_args --exec-prefix=$esd_exec_prefix"
+     if test x${ESD_CONFIG+set} != xset ; then
+        ESD_CONFIG=$esd_exec_prefix/bin/esd-config
+     fi
+  fi
+  if test x$esd_prefix != x ; then
+     esd_args="$esd_args --prefix=$esd_prefix"
+     if test x${ESD_CONFIG+set} != xset ; then
+        ESD_CONFIG=$esd_prefix/bin/esd-config
+     fi
+  fi
+
+  AC_PATH_PROG(ESD_CONFIG, esd-config, no)
+  min_esd_version=ifelse([$1], ,0.2.7,$1)
+  AC_MSG_CHECKING(for ESD - version >= $min_esd_version)
+  no_esd=""
+  if test "$ESD_CONFIG" = "no" ; then
+    no_esd=yes
+  else
+    ESD_CFLAGS=`$ESD_CONFIG $esdconf_args --cflags`
+    ESD_LIBS=`$ESD_CONFIG $esdconf_args --libs`
+
+    esd_major_version=`$ESD_CONFIG $esd_args --version | \
+           sed 's/\([[0-9]]*\).\([[0-9]]*\).\([[0-9]]*\)/\1/'`
+    esd_minor_version=`$ESD_CONFIG $esd_args --version | \
+           sed 's/\([[0-9]]*\).\([[0-9]]*\).\([[0-9]]*\)/\2/'`
+    esd_micro_version=`$ESD_CONFIG $esd_config_args --version | \
+           sed 's/\([[0-9]]*\).\([[0-9]]*\).\([[0-9]]*\)/\3/'`
+    if test "x$enable_esdtest" = "xyes" ; then
+      ac_save_CFLAGS="$CFLAGS"
+      ac_save_LIBS="$LIBS"
+      CFLAGS="$CFLAGS $ESD_CFLAGS"
+      LIBS="$LIBS $ESD_LIBS"
+dnl
+dnl Now check if the installed ESD is sufficiently new. (Also sanity
+dnl checks the results of esd-config to some extent
+dnl
+      rm -f conf.esdtest
+      AC_TRY_RUN([
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <esd.h>
+
+char*
+my_strdup (char *str)
+{
+  char *new_str;
+  
+  if (str)
+    {
+      new_str = malloc ((strlen (str) + 1) * sizeof(char));
+      strcpy (new_str, str);
+    }
+  else
+    new_str = NULL;
+  
+  return new_str;
+}
+
+int main ()
+{
+  int major, minor, micro;
+  char *tmp_version;
+
+  system ("touch conf.esdtest");
+
+  /* HP/UX 9 (%@#!) writes to sscanf strings */
+  tmp_version = my_strdup("$min_esd_version");
+  if (sscanf(tmp_version, "%d.%d.%d", &major, &minor, &micro) != 3) {
+     printf("%s, bad version string\n", "$min_esd_version");
+     exit(1);
+   }
+
+   if (($esd_major_version > major) ||
+      (($esd_major_version == major) && ($esd_minor_version > minor)) ||
+      (($esd_major_version == major) && ($esd_minor_version == minor) && ($esd_micro_version >= micro)))
+    {
+      return 0;
+    }
+  else
+    {
+      printf("\n*** 'esd-config --version' returned %d.%d.%d, but the minimum version\n", $esd_major_version, $esd_minor_version, $esd_micro_version);
+      printf("*** of ESD required is %d.%d.%d. If esd-config is correct, then it is\n", major, minor, micro);
+      printf("*** best to upgrade to the required version.\n");
+      printf("*** If esd-config was wrong, set the environment variable ESD_CONFIG\n");
+      printf("*** to point to the correct copy of esd-config, and remove the file\n");
+      printf("*** config.cache before re-running configure\n");
+      return 1;
+    }
+}
+
+],, no_esd=yes,[echo $ac_n "cross compiling; assumed OK... $ac_c"])
+       CFLAGS="$ac_save_CFLAGS"
+       LIBS="$ac_save_LIBS"
+     fi
+  fi
+  if test "x$no_esd" = x ; then
+     AC_MSG_RESULT(yes)
+     ifelse([$2], , :, [$2])     
+  else
+     AC_MSG_RESULT(no)
+     if test "$ESD_CONFIG" = "no" ; then
+       echo "*** The esd-config script installed by ESD could not be found"
+       echo "*** If ESD was installed in PREFIX, make sure PREFIX/bin is in"
+       echo "*** your path, or set the ESD_CONFIG environment variable to the"
+       echo "*** full path to esd-config."
+     else
+       if test -f conf.esdtest ; then
+        :
+       else
+          echo "*** Could not run ESD test program, checking why..."
+          CFLAGS="$CFLAGS $ESD_CFLAGS"
+          LIBS="$LIBS $ESD_LIBS"
+          AC_TRY_LINK([
+#include <stdio.h>
+#include <esd.h>
+],      [ return 0; ],
+        [ echo "*** The test program compiled, but did not run. This usually means"
+          echo "*** that the run-time linker is not finding ESD or finding the wrong"
+          echo "*** version of ESD. If it is not finding ESD, you'll need to set your"
+          echo "*** LD_LIBRARY_PATH environment variable, or edit /etc/ld.so.conf to point"
+          echo "*** to the installed location  Also, make sure you have run ldconfig if that"
+          echo "*** is required on your system"
+	  echo "***"
+          echo "*** If you have an old version installed, it is best to remove it, although"
+          echo "*** you may also be able to get things to work by modifying LD_LIBRARY_PATH"],
+        [ echo "*** The test program failed to compile or link. See the file config.log for the"
+          echo "*** exact error that occured. This usually means ESD was incorrectly installed"
+          echo "*** or that you have moved ESD since it was installed. In the latter case, you"
+          echo "*** may want to edit the esd-config script: $ESD_CONFIG" ])
+          CFLAGS="$ac_save_CFLAGS"
+          LIBS="$ac_save_LIBS"
+       fi
+     fi
+     ESD_CFLAGS=""
+     ESD_LIBS=""
+     ifelse([$3], , :, [$3])
+  fi
+  AC_SUBST(ESD_CFLAGS)
+  AC_SUBST(ESD_LIBS)
+  rm -f conf.esdtest
+])
 
 dnl CHECK_DLSYM_UNDERSCORE([ACTION-IF-NEED [, ACTION IF-NOT-NEED]])
 dnl variable input:
@@ -392,7 +556,7 @@ dnl Usage:
 dnl AM_INIT_AUTOMAKE(package,version, [no-define])
 
 AC_DEFUN(AM_INIT_AUTOMAKE,
-[AC_REQUIRE([AM_PROG_INSTALL])
+[AC_REQUIRE([AC_PROG_INSTALL])
 PACKAGE=[$1]
 AC_SUBST(PACKAGE)
 VERSION=[$2]
@@ -402,8 +566,8 @@ if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   AC_MSG_ERROR([source directory already configured; run "make distclean" there first])
 fi
 ifelse([$3],,
-AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
-AC_DEFINE_UNQUOTED(VERSION, "$VERSION"))
+AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE", [Name of package])
+AC_DEFINE_UNQUOTED(VERSION, "$VERSION", [Version number of package]))
 AC_REQUIRE([AM_SANITY_CHECK])
 AC_REQUIRE([AC_ARG_PROGRAM])
 dnl FIXME This is truly gross.
@@ -414,15 +578,6 @@ AM_MISSING_PROG(AUTOMAKE, automake, $missing_dir)
 AM_MISSING_PROG(AUTOHEADER, autoheader, $missing_dir)
 AM_MISSING_PROG(MAKEINFO, makeinfo, $missing_dir)
 AC_REQUIRE([AC_PROG_MAKE_SET])])
-
-
-# serial 1
-
-AC_DEFUN(AM_PROG_INSTALL,
-[AC_REQUIRE([AC_PROG_INSTALL])
-test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
-AC_SUBST(INSTALL_SCRIPT)dnl
-])
 
 #
 # Check to make sure that the build environment is sane.
@@ -513,95 +668,32 @@ AC_DEFUN(AM_PATH_LISPDIR,
  [# If set to t, that means we are running in a shell under Emacs.
   # If you have an Emacs named "t", then use the full path.
   test "$EMACS" = t && EMACS=
-  AC_PATH_PROG(EMACS, emacs xemacs, no)
+  AC_PATH_PROGS(EMACS, emacs xemacs, no)
   if test $EMACS != "no"; then
     AC_MSG_CHECKING([where .elc files should go])
     dnl Set default value
     lispdir="\$(datadir)/emacs/site-lisp"
+    emacs_flavor=`echo "$EMACS" | sed -e 's,^.*/,,'`
     if test "x$prefix" = "xNONE"; then
-      if test -d $ac_default_prefix/share/emacs/site-lisp; then
-	lispdir="\$(prefix)/share/emacs/site-lisp"
+      if test -d $ac_default_prefix/share/$emacs_flavor/site-lisp; then
+	lispdir="\$(prefix)/share/$emacs_flavor/site-lisp"
       else
-	if test -d $ac_default_prefix/lib/emacs/site-lisp; then
-	  lispdir="\$(prefix)/lib/emacs/site-lisp"
+	if test -d $ac_default_prefix/lib/$emacs_flavor/site-lisp; then
+	  lispdir="\$(prefix)/lib/$emacs_flavor/site-lisp"
 	fi
       fi
     else
-      if test -d $prefix/share/emacs/site-lisp; then
-	lispdir="\$(prefix)/share/emacs/site-lisp"
+      if test -d $prefix/share/$emacs_flavor/site-lisp; then
+	lispdir="\$(prefix)/share/$emacs_flavor/site-lisp"
       else
-	if test -d $prefix/lib/emacs/site-lisp; then
-	  lispdir="\$(prefix)/lib/emacs/site-lisp"
+	if test -d $prefix/lib/$emacs_flavor/site-lisp; then
+	  lispdir="\$(prefix)/lib/$emacs_flavor/site-lisp"
 	fi
       fi
     fi
     AC_MSG_RESULT($lispdir)
   fi
   AC_SUBST(lispdir)])
-
-# Check to see if we're running under Win32, without using
-# AC_CANONICAL_*.  If so, set output variable EXEEXT to ".exe".
-# Otherwise set it to "".
-
-dnl AM_EXEEXT()
-dnl This knows we add .exe if we're building in the Cygwin32
-dnl environment. But if we're not, then it compiles a test program
-dnl to see if there is a suffix for executables.
-AC_DEFUN(AM_EXEEXT,
-[AC_REQUIRE([AM_CYGWIN32])
-AC_REQUIRE([AM_MINGW32])
-AC_MSG_CHECKING([for executable suffix])
-AC_CACHE_VAL(am_cv_exeext,
-[if test "$CYGWIN32" = yes || test "$MINGW32" = yes; then
-am_cv_exeext=.exe
-else
-cat > am_c_test.c << 'EOF'
-int main() {
-/* Nothing needed here */
-}
-EOF
-${CC-cc} -o am_c_test $CFLAGS $CPPFLAGS $LDFLAGS am_c_test.c $LIBS 1>&5
-am_cv_exeext=
-for file in am_c_test.*; do
-   case $file in
-    *.c) ;;
-    *.o) ;;
-    *) am_cv_exeext=`echo $file | sed -e s/am_c_test//` ;;
-   esac
-done
-rm -f am_c_test*])
-test x"${am_cv_exeext}" = x && am_cv_exeext=no
-fi
-EXEEXT=""
-test x"${am_cv_exeext}" != xno && EXEEXT=${am_cv_exeext}
-AC_MSG_RESULT(${am_cv_exeext})
-AC_SUBST(EXEEXT)])
-
-# Check to see if we're running under Cygwin32, without using
-# AC_CANONICAL_*.  If so, set output variable CYGWIN32 to "yes".
-# Otherwise set it to "no".
-
-dnl AM_CYGWIN32()
-AC_DEFUN(AM_CYGWIN32,
-[AC_CACHE_CHECK(for Cygwin32 environment, am_cv_cygwin32,
-[AC_TRY_COMPILE(,[return __CYGWIN32__;],
-am_cv_cygwin32=yes, am_cv_cygwin32=no)
-rm -f conftest*])
-CYGWIN32=
-test "$am_cv_cygwin32" = yes && CYGWIN32=yes])
-
-# Check to see if we're running under Mingw, without using
-# AC_CANONICAL_*.  If so, set output variable MINGW32 to "yes".
-# Otherwise set it to "no".
-
-dnl AM_MINGW32()
-AC_DEFUN(AM_MINGW32,
-[AC_CACHE_CHECK(for Mingw32 environment, am_cv_mingw32,
-[AC_TRY_COMPILE(,[return __MINGW32__;],
-am_cv_mingw32=yes, am_cv_mingw32=no)
-rm -f conftest*])
-MINGW32=
-test "$am_cv_mingw32" = yes && MINGW32=yes])
 
 # Configure paths for GTK+
 # Owen Taylor     97-11-3
@@ -652,7 +744,7 @@ AC_ARG_ENABLE(gtktest, [  --disable-gtktest       Do not try to compile and run 
       ac_save_CFLAGS="$CFLAGS"
       ac_save_LIBS="$LIBS"
       CFLAGS="$CFLAGS $GTK_CFLAGS"
-      LIBS="$GTK_LIBS $LIBS"
+      LIBS="$LIBS $GTK_LIBS"
 dnl
 dnl Now check if the installed GTK is sufficiently new. (Also sanity
 dnl checks the results of gtk-config to some extent
@@ -661,7 +753,6 @@ dnl
       AC_TRY_RUN([
 #include <gtk/gtk.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 int 
 main ()
@@ -694,17 +785,6 @@ main ()
       printf("*** to point to the correct copy of gtk-config, and remove the file config.cache\n");
       printf("*** before re-running configure\n");
     } 
-#if defined (GTK_MAJOR_VERSION) && defined (GTK_MINOR_VERSION) && defined (GTK_MICRO_VERSION)
-  else if ((gtk_major_version != GTK_MAJOR_VERSION) ||
-	   (gtk_minor_version != GTK_MINOR_VERSION) ||
-           (gtk_micro_version != GTK_MICRO_VERSION))
-    {
-      printf("*** GTK+ header files (version %d.%d.%d) do not match\n",
-	     GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION);
-      printf("*** library (version %d.%d.%d)\n",
-	     gtk_major_version, gtk_minor_version, gtk_micro_version);
-    }
-#endif /* defined (GTK_MAJOR_VERSION) ... */
   else
     {
       if ((gtk_major_version > major) ||

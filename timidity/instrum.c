@@ -40,6 +40,7 @@
 #include "common.h"
 #include "instrum.h"
 #include "playmidi.h"
+#include "readmidi.h"
 #include "output.h"
 #include "controls.h"
 #include "resample.h"
@@ -132,7 +133,7 @@ static void free_instrument(Instrument *ip)
   free(ip);
 }
 
-void clear_magic_load_instruments(void)
+void clear_magic_instruments(void)
 {
     int i, j;
 
@@ -142,19 +143,15 @@ void clear_magic_load_instruments(void)
 	{
 	    ToneBank *bank = tonebank[j];
 	    for(i = 0; i < 128; i++)
-	    {
-		if(bank->tone[i].instrument == MAGIC_LOAD_INSTRUMENT)
+		if(IS_MAGIC_INSTRUMENT(bank->tone[i].instrument))
 		    bank->tone[i].instrument = NULL;
-	    }
 	}
 	if(drumset[j])
 	{
 	    ToneBank *bank = drumset[j];
 	    for(i = 0; i < 128; i++)
-	    {
-		if(bank->tone[i].instrument == MAGIC_LOAD_INSTRUMENT)
+		if(IS_MAGIC_INSTRUMENT(bank->tone[i].instrument))
 		    bank->tone[i].instrument = NULL;
-	    }
 	}
     }
 }
@@ -351,13 +348,19 @@ static Instrument *load_gus_instrument(char *name,
   /* Open patch file */
   if (!(tf=open_file(name, 2, OF_NORMAL)))
     {
+      int name_len, ext_len;
       noluck=1;
 #ifdef PATCH_EXT_LIST
+      name_len = strlen(name);
       /* Try with various extensions */
       for (i=0; patch_ext[i]; i++)
 	{
-	  if (strlen(name)+strlen(patch_ext[i])<1024)
+	  ext_len = strlen(patch_ext[i]);
+	  if (name_len + ext_len < 1024)
 	    {
+	      if(name_len >= ext_len &&
+		 strcmp(name + name_len - ext_len, patch_ext[i]) == 0)
+		  continue; /* duplicated ext. */
 	      strcpy((char *)tmp, name);
 	      strcat((char *)tmp, patch_ext[i]);
 	      if ((tf=open_file((char *)tmp, 1, OF_NORMAL)))
@@ -753,12 +756,40 @@ Instrument *load_instrument(int dr, int b, int prog)
     ToneBank *bank=((dr) ? drumset[b] : tonebank[b]);
     Instrument *ip;
     char infomsg[256];
+    int font_bank, font_preset, font_keynote;
+
+    if(bank->tone[prog].instype == 1)
+    {
+	/* Font extention */
+	font_bank = bank->tone[prog].font_bank;
+	font_preset = bank->tone[prog].font_preset;
+	font_keynote = bank->tone[prog].note;
+	ip = extract_soundfont(bank->tone[prog].name,
+			       font_bank, font_preset, font_keynote);
+	if(ip != NULL && bank->tone[prog].amp != -1)
+	{
+	    int i;
+	    for(i = 0; i < ip->samples; i++)
+		ip->sample[i].volume = bank->tone[prog].amp / 100.0;
+	}
+	return ip;
+    }
+
+    if(dr)
+    {
+	font_bank = 128;
+	font_preset = b;
+	font_keynote = prog;
+    }
+    else
+    {
+	font_bank = b;
+	font_preset = prog;
+	font_keynote = -1;
+    }
 
     /* preload soundfont */
-    if(dr)
-	ip = load_soundfont_inst(0, 128, b, prog);
-    else
-	ip = load_soundfont_inst(0, b, prog, -1);
+    ip = load_soundfont_inst(0, font_bank, font_preset, font_keynote);
 
     if(ip == NULL)
     {
@@ -772,14 +803,8 @@ Instrument *load_instrument(int dr, int b, int prog)
 	ip = load_gus_instrument(bank->tone[prog].name, bank, dr, prog,
 				 infomsg);
 
-	if(ip == NULL)
-	{
-	    /* no patch; search soundfont again */
-	    if(dr)
-		ip = load_soundfont_inst(1, 128, b, prog);
-	    else
-		ip = load_soundfont_inst(1, b, prog, -1);
-	}
+	if(ip == NULL) /* no patch; search soundfont again */
+	    ip = load_soundfont_inst(1, font_bank, font_preset, font_keynote);
     }
 
     return ip;
@@ -826,8 +851,10 @@ static int fill_bank(int dr, int b, int *rc)
 				standard_drumset.tone[i].instrument =
 				    MAGIC_LOAD_INSTRUMENT;
 			}
+			bank->tone[i].instrument = 0;
 		    }
-		    bank->tone[i].instrument = 0;
+		    else
+			bank->tone[i].instrument = MAGIC_ERROR_INSTRUMENT;
 		    errors++;
 		}
 	    }
@@ -876,7 +903,7 @@ int load_missing_instruments(int *rc)
   return errors;
 }
 
-void free_instruments(void)
+void free_instruments(int reload_default_inst)
 {
     int i=128, j;
     struct InstrumentCache *p;
@@ -885,6 +912,9 @@ void free_instruments(void)
     struct InstrumentCache *default_entry;
     int default_entry_addr;
 
+    clear_magic_instruments();
+
+    /* Free soundfont instruments */
     while(i--)
     {
 	/* Note that bank[*]->tone[j].instrument may pointer to
@@ -895,8 +925,7 @@ void free_instruments(void)
 	    for(j = 127; j >= 0; j--)
 	    {
 		ip = bank->tone[j].instrument;
-		if(ip != NULL && ip != MAGIC_LOAD_INSTRUMENT &&
-		   ip->type == INST_SF2 &&
+		if(ip != NULL && ip->type == INST_SF2 &&
 		   (i == 0 || ip != tonebank[0]->tone[j].instrument))
 		    free_instrument(ip);
 		bank->tone[j].instrument = NULL;
@@ -905,14 +934,14 @@ void free_instruments(void)
 	    for(j = 127; j >= 0; j--)
 	    {
 		ip = bank->tone[j].instrument;
-		if(ip != NULL && ip != MAGIC_LOAD_INSTRUMENT &&
-		   ip->type == INST_SF2 &&
+		if(ip != NULL && ip->type == INST_SF2 &&
 		   (i == 0 || ip != drumset[0]->tone[j].instrument))
 		    free_instrument(ip);
 		bank->tone[j].instrument = NULL;
 	    }
     }
 
+    /* Free GUS/patch instruments */
     default_entry = NULL;
     default_entry_addr = 0;
     for(i = 0; i < INSTRUMENT_HASH_SIZE; i++)
@@ -920,7 +949,7 @@ void free_instruments(void)
 	p = instrument_cache[i];
 	while(p != NULL)
 	{
-	    if(p->ip == default_instrument)
+	    if(!reload_default_inst && p->ip == default_instrument)
 	    {
 		default_entry = p;
 		default_entry_addr = i;
@@ -938,7 +967,10 @@ void free_instruments(void)
 	}
 	instrument_cache[i] = NULL;
     }
-    if(default_entry)
+
+    if(reload_default_inst)
+	set_default_instrument(NULL);
+    else if(default_entry)
     {
 	default_entry->next = NULL;
 	instrument_cache[default_entry_addr] = default_entry;
@@ -980,6 +1012,14 @@ int set_default_instrument(char *name)
 {
     Instrument *ip;
     int i;
+    static char *last_name;
+
+    if(name == NULL)
+    {
+	name = last_name;
+	if(name == NULL)
+	    return 0;
+    }
 
     if(!(ip = load_gus_instrument(name, NULL, 0, 0, NULL)))
 	return -1;
@@ -988,6 +1028,8 @@ int set_default_instrument(char *name)
     default_instrument = ip;
     for(i = 0; i < MAX_CHANNELS; i++)
 	default_program[i] = SPECIAL_PROGRAM;
+    last_name = name;
+
     return 0;
 }
 

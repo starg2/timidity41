@@ -17,7 +17,6 @@
 #define TARHDRSIZ 512
 
 static long octal_value(char *s, int len);
-static int tar_checksum(char *hdr);
 
 ArchiveEntryNode *next_tar_entry(ArchiveHandler archiver)
 {
@@ -52,7 +51,7 @@ ArchiveEntryNode *next_tar_entry(ArchiveHandler archiver)
     {
 	if(hdr[0] == '\0')
 	    return NULL;
-	if(!tar_checksum(hdr))
+	if(memcmp(hdr + 257, "ustar", 5) != 0)
 	    return NULL;
     }
     size = octal_value(hdr + 124, 12);
@@ -122,33 +121,4 @@ static long octal_value(char *s, int len)
 	len--;
     }
     return val;
-}
-
-static int tar_checksum(char *hdr)
-{
-    int i;
-
-    long recorded_sum;
-    long unsigned_sum;		/* the POSIX one :-) */
-    long signed_sum;		/* the Sun one :-( */
-
-    recorded_sum = octal_value(hdr + 148, 8);
-    unsigned_sum = 0;
-    signed_sum = 0;
-    for(i = 0; i < TARBLKSIZ; i++)
-    {
-	unsigned_sum += 0xFF & hdr[i];
-	signed_sum   += hdr[i];
-    }
-
-    /* Adjust checksum to count the "chksum" field as blanks.  */
-    for(i = 0; i < 8; i++)
-    {
-	unsigned_sum -= 0xFF & hdr[148 + i];
-	signed_sum   -= hdr[i];
-    }
-    unsigned_sum += ' ' * 8;
-    signed_sum   += ' ' * 8;
-
-    return unsigned_sum == recorded_sum || signed_sum == recorded_sum;
 }

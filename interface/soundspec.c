@@ -727,3 +727,9 @@ void soundspec_update_wave(int32 *buff, int samples)
 	next_wakeup_samples += soundspec_update_interval;
     }
 }
+
+/* Re-initialize something */
+void soundspec_reinit(void)
+{
+    initialize_exp_hz_table(soundspec_zoom);
+}

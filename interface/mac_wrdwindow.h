@@ -27,7 +27,8 @@
 #ifndef MAC_GRF_H
 #define MAC_GRF_H
 
-//#include <Palettes.h>
+#include "png.h"
+#include "wrd.h"
 
 #if ENTITY
  #define EXTERN /*entitiy*/
@@ -45,7 +46,7 @@ static const RGBColor	black={0,0,0},white={0xFFFF,0xFFFF,0xFFFF};
 #define SIZEY 400
 
 // for graphics
-EXTERN GWorldPtr	graphicWorld[8], dispWorld;
+EXTERN GWorldPtr	graphicWorld[8], dispWorld, charbufWorld;
 #define	GACTIVE_PIX	(graphicWorld[activeGraphics]->portPixMap)
 #define	GDISP_PIX	(graphicWorld[dispGraphics]->portPixMap)
 #define	DISP_PIX	(dispWorld->portPixMap)
@@ -65,8 +66,6 @@ EXTERN char			multi_byte_flag[25+1][80+1];
 EXTERN int			activeGraphics, dispGraphics, gvram_bank_num;
 #define WRD_LOCX(x)		(((x)-1)*BASE_X)
 #define WRD_LOCY(y)		((y)*BASE_Y-3)
-//#define WRD_SET_COURSOR(x,y)	( wrd_coursor_x=(x), wrd_coursor_y=(y) )
-//#define WRD_MOVE_COURSOR()	MoveTo( WRD_LOCX(wrd_coursor_x), WRD_LOCY(wrd_coursor_y) )
 #define WRD_MOVE_COURSOR_TMP(x,y)	MoveTo( WRD_LOCX(x), WRD_LOCY(y) )
 #define IS_MULTI_BYTE(c)	( ((c)&0x80) && ((0x1 <= ((c)&0x7F) && ((c)&0x7F) <= 0x1f) ||\
 				 (0x60 <= ((c)&0x7F) && ((c)&0x7F) <= 0x7c)))
@@ -75,14 +74,11 @@ EXTERN int			activeGraphics, dispGraphics, gvram_bank_num;
 #define LOCK_ALL_PIXMAP() (LockPixels(GDISP_PIX),LockPixels(GACTIVE_PIX),LockPixels(DISP_PIX))
 #define UNLOCK_ALL_PIXMAP() (UnlockPixels(GDISP_PIX),UnlockPixels(GACTIVE_PIX),UnlockPixels(DISP_PIX))
 
-#define GCODE_OFFSET		0
-#define GCODE2INDEX(code)	((code)+GCODE_OFFSET)
-#define SET_G_COLOR(code)	(graphicWorld[activeGraphics]->fgColor=GCODE2INDEX(code))
+#define SET_G_COLOR(code,world)	((world)->fgColor=(code))
 EXTERN int pallette_exist, fading;
 
 
 EXTERN int					wrd_coursor_x,wrd_coursor_y;
-//EXTERN int					wrd_text_color_code;
 EXTERN int					wrd_text_color_attr;
 #define CATTR_LPART (1)
 #define CATTR_16FONT (1<<1)
@@ -91,25 +87,45 @@ EXTERN int					wrd_text_color_attr;
 #define CATTR_TXTCOL_MASK_SHIFT 4
 #define CATTR_TXTCOL_MASK (7<<CATTR_TXTCOL_MASK_SHIFT)
 #define CATTR_INVAL (1<<31)
-//#define	TEXT_REVERSE		8
 #define TCOLOR_INDEX_SHIFT	32
 #define TCODE2INDEX(attr)	((((attr)&CATTR_TXTCOL_MASK)>>CATTR_TXTCOL_MASK_SHIFT)+TCOLOR_INDEX_SHIFT)
 #define SET_T_COLOR(attr)	(wrd_text_color_attr=(attr))
 #define SET_T_RGBFORECOLOR_TMP(attr)	(dispWorld->fgColor=TCODE2INDEX(attr))
 
+void dev_init(int version);
+void dev_set_height(int height);
 void dev_redisp(Rect rect);
 void dev_remake_disp(Rect rect);
+void dev_draw_text_gmode(PixMapHandle pixmap, int x, int y, const char* s, int len,
+			int pmask, int mode, int fgcolor, int bgcolor );
 
 void dev_change_palette(RGBColor pal[16]);
 void dev_change_1_palette(int code, RGBColor color);
 void dev_init_text_color();
 void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
-					 Rect srcRect, Rect dstRect, short mode, int gmode);
-void dev_line(PixMapHandle pixmap, Rect rect, int color, int sw, int gmode);
+		Rect srcRect, Rect dstRect, short mode, int trans, int pmask,
+		int maskx, int masky, const uint8 maskdata[]);
+void dev_gmove(int x1, int y1, int x2, int y2, int xd, int yd,
+			GWorldPtr srcworld, GWorldPtr destworld, int sw, int trans, int mask,
+			int maskx, int masky, const uint8 maskdata[]);
+void dev_box(PixMapHandle pixmap, Rect rect, int color, int pmask);
+void dev_line(int x1, int y1, int x2, int y2, int color, int pmask,
+			PixMapHandle pixmap );
+void dev_gline(int x1, int y1, int x2, int y2, int p1, int sw, int p2, GWorldPtr world);
+void mac_setfont(GWorldPtr world, Str255 fontname);
+
+void sry_start();
+void sry_end();
+void sry_start();
+void sry_update();
+
+int mac_loadpng_pre( png_structp *png_ptrp, png_infop *info_ptrp, struct timidity_file * tf);
+int mac_loadpng(png_structp png_ptr, png_infop info_ptr, GWorldPtr world, RGBColor pal[256] );
+void mac_loadpng_post(png_structp png_ptr, png_infop info_ptr);
 
 EXTERN Rect portRect
 #if ENTITY
- ={0,0,400,640}
+ ={0,0,480,640}
 #endif
 ;
 
@@ -125,8 +141,6 @@ EXTERN RGBColor textcolor[8]
 	{0xFFFF,0xFFFF,0xFFFF} } //7:white
 #endif
 ;
-
-//EXTERN PaletteHandle	wrd_palette;
 
 #endif //MAC_GRF_H
 

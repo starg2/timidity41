@@ -32,10 +32,13 @@ extern FLOAT_T lookup_sine(int x);
 
 #define SINE_CYCLE_LENGTH 1024
 extern int32 freq_table[];
-extern FLOAT_T vol_table[];
+extern FLOAT_T *vol_table;
+extern FLOAT_T def_vol_table[];
+extern FLOAT_T gs_vol_table[];
+extern FLOAT_T *xg_vol_table; /* == gs_vol_table */
 extern FLOAT_T bend_fine[];
 extern FLOAT_T bend_coarse[];
-extern FLOAT_T midi_time_table[];
+extern FLOAT_T midi_time_table[], midi_time_table2[];
 #ifdef LOOKUP_HACK
 extern uint8 *_l2u; /* 13-bit PCM to 8-bit u-law */
 extern uint8 _l2u_[]; /* used in LOOKUP_HACK */

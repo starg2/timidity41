@@ -26,9 +26,15 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 #include "timidity.h"
 #include "output.h"
 #include "tables.h"
+#include "controls.h"
 #include "audio_cnv.h"
 
 
@@ -36,6 +42,11 @@
 #ifdef AU_AUDRIV
 extern PlayMode audriv_play_mode;
 #define DEFAULT_PLAY_MODE &audriv_play_mode
+#endif
+
+#ifdef AU_SUN
+extern PlayMode sun_play_mode;
+#define DEFAULT_PLAY_MODE &sun_play_mode
 #endif
 
 #ifdef AU_LINUX
@@ -47,6 +58,10 @@ extern PlayMode linux_play_mode;
 extern PlayMode alsa_play_mode;
 #endif
 
+#ifdef AU_ESD
+extern PlayMode esd_play_mode;
+#endif
+
 #ifdef AU_HPUX
 extern PlayMode hpux_play_mode;
 extern PlayMode hpux_nplay_mode;
@@ -54,15 +69,22 @@ extern PlayMode hpux_nplay_mode;
 #define NETWORK_PLAY_MODE &hpux_nplay_mode
 #endif
 
-#ifdef AU_WIN32
-extern PlayMode win32_play_mode;
-#define DEFAULT_PLAY_MODE &win32_play_mode
+#ifdef AU_W32
+extern PlayMode w32_play_mode;
+#define DEFAULT_PLAY_MODE &w32_play_mode
 #endif
 
 #ifdef AU_BSDI
 extern PlayMode bsdi_play_mode;
 #define DEFAULT_PLAY_MODE &bsdi_play_mode
 #endif
+
+#ifdef AU_NAS
+extern PlayMode nas_play_mode;
+#ifndef DEFAULT_PLAY_MODE
+#define DEFAULT_PLAY_MODE &nas_play_mode
+#endif /* DEFAULT_PLAY_MODE */
+#endif /* AU_NAS */
 
 #ifndef __MACOS__
 /* These are always compiled in. */
@@ -80,6 +102,12 @@ PlayMode *play_mode_list[] = {
 #ifdef AU_ALSA
   &alsa_play_mode,
 #endif
+#ifdef AU_ESD
+  &esd_play_mode,
+#endif
+#ifdef AU_NAS
+  &nas_play_mode,
+#endif /* AU_NAS */
 #ifdef NETWORK_PLAY_MODE
   NETWORK_PLAY_MODE,
 #endif
@@ -98,12 +126,7 @@ PlayMode *play_mode_list[] = {
 #else
   PlayMode *play_mode=&wave_play_mode;
 #endif
-
-/* for noise shaping */
-int32 ns_tap[4] = { 0, 0, 0, 0};
-static int32  ns_z0[4] = { 0, 0, 0, 0};
-static int32  ns_z1[4] = { 0, 0, 0, 0};
-int noise_shap_type = 0;
+PlayMode *target_play_mode = NULL;
 
 /*****************************************************************/
 /* Some functions to convert signed 32-bit data to other formats */
@@ -111,94 +134,28 @@ int noise_shap_type = 0;
 void s32tos8(int32 *lp, int32 c)
 {
     int8 *cp=(int8 *)(lp);
-    int32 l, i, ll;
+    int32 l, i;
 
-    if(!noise_shap_type)
+    for(i = 0; i < c; i++)
     {
-	for(i = 0; i < c; i++)
-	{
-	    l=(lp[i])>>(32-8-GUARD_BITS);
-	    if (l>127) l=127;
-	    else if (l<-128) l=-128;
-	    cp[i] = (int8)(l);
-	}
-    }
-    else
-    {
-	/* Noise Shaping filter from
-	 * Kunihiko IMAI <imai@leo.ec.t.kanazawa-u.ac.jp>
-	 */
-	for(i = 0; i < c; i++)
-	{
-	    /* applied noise-shaping filter */
-	    lp[i] += ns_tap[0]*ns_z0[0] + ns_tap[1]*ns_z0[1] + ns_tap[2]*ns_z0[2] + ns_tap[3]*ns_z0[3];
-	    ll = lp[i];
-	    l=(lp[i])>>(32-8-GUARD_BITS);
-	    if (l>127) l=127;
-	    else if (l<-128) l=-128;
-	    cp[i] = (int8)(l);
-	    ns_z0[3] = ns_z0[2]; ns_z0[2] = ns_z0[1]; ns_z0[1] = ns_z0[0];
-	    ns_z0[0] = ll - l*(1U<<(32-8-GUARD_BITS));
-
-	    if ( play_mode->encoding & PE_MONO ) continue;
-
-	    ++i;
-	    lp[i] += ns_tap[0]*ns_z1[0] + ns_tap[1]*ns_z1[1] + ns_tap[2]*ns_z1[2] + ns_tap[3]*ns_z1[3];
-	    ll = lp[i];
-	    l=(lp[i])>>(32-8-GUARD_BITS);
-	    if (l>127) l=127;
-	    else if (l<-128) l=-128;
-	    cp[i] = (int8)(l);
-	    ns_z1[3] = ns_z1[2]; ns_z1[2] = ns_z1[1]; ns_z1[1] = ns_z1[0];
-	    ns_z1[0] = ll - l*(1U<<(32-8-GUARD_BITS));
-	}
+	l=(lp[i])>>(32-8-GUARD_BITS);
+	if (l>127) l=127;
+	else if (l<-128) l=-128;
+	cp[i] = (int8)(l);
     }
 }
 
 void s32tou8(int32 *lp, int32 c)
 {
     uint8 *cp=(uint8 *)(lp);
-    int32 l, i, ll;
+    int32 l, i;
 
-    if(!noise_shap_type)
+    for(i = 0; i < c; i++)
     {
-	for(i = 0; i < c; i++)
-	{
-	    l=(lp[i])>>(32-8-GUARD_BITS);
-	    if (l>127) l=127;
-	    else if (l<-128) l=-128;
-	    cp[i] = 0x80 ^ ((uint8) l);
-	}
-    }
-    else
-    {
-	/* Noise Shaping filter from
-	 * Kunihiko IMAI <imai@leo.ec.t.kanazawa-u.ac.jp>
-	 */
-	for(i = 0; i < c; i++)
-	{
-	    /* applied noise-shaping filter */
-	    lp[i] += ns_tap[0]*ns_z0[0] + ns_tap[1]*ns_z0[1] + ns_tap[2]*ns_z0[2] + ns_tap[3]*ns_z0[3];
-	    ll = lp[i];
-	    l=(lp[i])>>(32-8-GUARD_BITS);
-	    if (l>127) l=127;
-	    else if (l<-128) l=-128;
-	    cp[i] = 0x80 ^ ((uint8) l);
-	    ns_z0[3] = ns_z0[2]; ns_z0[2] = ns_z0[1]; ns_z0[1] = ns_z0[0];
-	    ns_z0[0] = ll - l*(1U<<(32-8-GUARD_BITS));
-      
-	    if ( play_mode->encoding & PE_MONO ) continue;
-
-	    ++i;
-	    lp[i] += ns_tap[0]*ns_z1[0] + ns_tap[1]*ns_z1[1] + ns_tap[2]*ns_z1[2] + ns_tap[3]*ns_z1[3];
-	    ll = lp[i];
-	    l=(lp[i])>>(32-8-GUARD_BITS);
-	    if (l>127) l=127;
-	    else if (l<-128) l=-128;
-	    cp[i] = 0x80 ^ ((uint8) l);
-	    ns_z1[3] = ns_z1[2]; ns_z1[2] = ns_z1[1]; ns_z1[1] = ns_z1[0];
-	    ns_z1[0] = ll - l*(1U<<(32-8-GUARD_BITS));
-	}
+	l=(lp[i])>>(32-8-GUARD_BITS);
+	if (l>127) l=127;
+	else if (l<-128) l=-128;
+	cp[i] = 0x80 ^ ((uint8) l);
     }
 }
 
@@ -286,7 +243,63 @@ void s32toalaw(int32 *lp, int32 c)
     }
 }
 
-char *output_encoding_string(int enc)
+/* return: number of bytes */
+int32 general_output_convert(int32 *buf, int32 count)
+{
+    int32 bytes;
+
+    if(!(play_mode->encoding & PE_MONO))
+	count *= 2; /* Stereo samples */
+    bytes = count;
+    if(play_mode->encoding & PE_16BIT)
+    {
+	bytes *= 2;
+	if(play_mode->encoding & PE_BYTESWAP)
+	    if(play_mode->encoding & PE_SIGNED)
+		s32tos16x(buf, count);
+	    else
+		s32tou16x(buf, count);
+	else
+	    if(play_mode->encoding & PE_SIGNED)
+		s32tos16(buf, count);
+	    else
+		s32tou16(buf, count);
+    }
+    else
+	if(play_mode->encoding & PE_ULAW)
+	    s32toulaw(buf, count);
+	else if(play_mode->encoding & PE_ALAW)
+	    s32toalaw(buf, count);
+	else
+	    if(play_mode->encoding & PE_SIGNED)
+		s32tos8(buf, count);
+	    else
+		s32tou8(buf, count);
+    return bytes;
+}
+
+int validate_encoding(int enc, int include_enc, int exclude_enc)
+{
+    const char *orig_enc_name, *enc_name;
+    int orig_enc;
+
+    orig_enc = enc;
+    orig_enc_name = output_encoding_string(enc);
+    enc |= include_enc;
+    enc &= ~exclude_enc;
+    if(enc & (PE_ULAW|PE_ALAW))
+	enc &= ~(PE_16BIT|PE_SIGNED|PE_BYTESWAP);
+    if(!(enc & PE_16BIT))
+	enc &= ~PE_BYTESWAP;
+    enc_name = output_encoding_string(enc);
+    if(strcmp(orig_enc_name, enc_name) != 0)
+	ctl->cmsg(CMSG_WARNING, VERB_NOISY,
+		  "Notice: Audio encoding is changed `%s' to `%s'",
+		  orig_enc_name, enc_name);
+    return enc;
+}
+
+const char *output_encoding_string(int enc)
 {
     if(enc & PE_MONO)
 	if(enc & PE_16BIT)
@@ -306,10 +319,18 @@ char *output_encoding_string(int enc)
 		    return "unsigned 8bit (mono)";
     else
 	if(enc & PE_16BIT)
-	    if(enc & PE_SIGNED)
-		return "16bit";
+	{
+	    if(enc & PE_BYTESWAP)
+		if(enc & PE_SIGNED)
+		    return "16bit (swap)";
+		else
+		    return "unsigned 16bit (swap)";
 	    else
-		return "unsigned 16bit";
+		if(enc & PE_SIGNED)
+		    return "16bit";
+		else
+		    return "unsigned 16bit";
+	}
 	else
 	    if(enc & PE_ULAW)
 		return "U-law";
@@ -321,14 +342,4 @@ char *output_encoding_string(int enc)
 		else
 		    return "unsigned 8bit";
     /*NOTREACHED*/
-}
-
-int32 dumb_current_samples(void)
-{
-    return -1;
-}
-
-int dumb_play_loop(void)
-{
-    return 0;
 }

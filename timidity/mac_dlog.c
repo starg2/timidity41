@@ -24,6 +24,9 @@
     Preference dialog
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -37,6 +40,9 @@
 
 #include	"mac_main.h"
 #include	"mac_util.h"
+
+extern int effect_lr_mode;
+
 
 void mac_DefaultOption()
 {
@@ -65,16 +71,16 @@ void mac_DefaultOption()
 	opt_channel_pressure = 0;
 	opt_trace_text_meta_event = 0;
 	opt_overlap_voice_allow = 1;
-	do_reverb_flag = 0;
+	//do_reverb_flag = 0;
 	
-	presence_balance=PRESENCE_HACK+0;
+	effect_lr_mode=-1; //no effect
 	modify_release=0;
 	opt_default_mid=0x7e; //GM
 	
-	readmidi_wrd_flag=1;
+	readmidi_wrd_mode=1;
 	
 	evil_level=EVIL_NORMAL;
-	do_initial_filling=1;
+	do_initial_filling=0;
 }
 
 enum{iOK=1, iCancel=2, iDefault=3, iRate=5, iMono=6, iStereo=7,
@@ -101,8 +107,9 @@ enum{iOK=1, iCancel=2, iDefault=3, iRate=5, iMono=6, iStereo=7,
 // ***************************************************
 static void SetDialogValue(DialogRef theDialog)
 {
+#define BUFSIZE 80
 	short	value;
-	char	buf[80];
+	char	buf[BUFSIZE];
 	Str255		s;
 	
 	SetDialogItemValue(theDialog, iStereo, !(play_mode->encoding & PE_MONO));
@@ -118,7 +125,7 @@ static void SetDialogValue(DialogRef theDialog)
 	SelectDialogItemText(theDialog, iVoices, 0, 32000);
 	NumToString(control_ratio, s);
 	mySetDialogItemText(theDialog, iControlRaio, s);
-	sprintf(buf,"%g",gSilentSec); /*use s as C string*/
+	snprintf(buf, BUFSIZE, "%g",gSilentSec); /*use s as C string*/
 	mySetDialogItemText(theDialog, iSilent, c2pstr(buf));
 
 	SetDialogItemValue(theDialog, iFastDecay, fast_decay);
@@ -131,10 +138,11 @@ static void SetDialogValue(DialogRef theDialog)
 	SetDialogItemValue(theDialog, iChannel_pressure, opt_channel_pressure);
 	SetDialogItemValue(theDialog, iText_meta_event, opt_trace_text_meta_event);
 	SetDialogItemValue(theDialog, iOverlap_voice, opt_overlap_voice_allow);
-	SetDialogItemValue(theDialog, iPReverb, do_reverb_flag);
+	
+	SetDialogItemValue(theDialog, iPReverb, (opt_reverb_control==2));
 	
 	SetDialogItemValue(theDialog, iModify_release,  modify_release+1);
-	SetDialogItemValue(theDialog, iPresence_balance, presence_balance+2);
+	SetDialogItemValue(theDialog, iPresence_balance, effect_lr_mode+2);
 	value= (	opt_default_mid==0x41? 1:           //GS
 				opt_default_mid==0x43? 2:3	);		//XG:GM
 	SetDialogItemValue(theDialog, iManufacture, value);
@@ -227,15 +235,17 @@ OSErr mac_SetPlayOption()
 					opt_channel_pressure=		GetDialogItemValue(dialog, iChannel_pressure)? 1:0;
 					opt_trace_text_meta_event=	GetDialogItemValue(dialog, iText_meta_event)? 1:0;
 					opt_overlap_voice_allow=	GetDialogItemValue(dialog, iOverlap_voice)? 1:0;
-					do_reverb_flag=				GetDialogItemValue(dialog, iPReverb)? 1:0;
+					
+					if( opt_reverb_control && GetDialogItemValue(dialog, iPReverb))
+						opt_reverb_control=2;
 					
 					modify_release= 	GetDialogItemValue(dialog, iModify_release)-1;
-					presence_balance=	GetDialogItemValue(dialog, iPresence_balance)-2;
+					effect_lr_mode=	GetDialogItemValue(dialog, iPresence_balance)-2;
 					value=GetDialogItemValue(dialog, iManufacture);
 					opt_default_mid= 	(value==1? 0x41:		//GS
 										 value==2? 0x43:0x7e);	//XG:GM
 					evil_level= 		GetDialogItemValue(dialog, iEvil_level);
-					do_initial_filling=	GetDialogItemValue(dialog, iDo_initial_filling)? 1:0;
+					//do_initial_filling=	GetDialogItemValue(dialog, iDo_initial_filling)? 1:0;
 					gShuffle=			GetDialogItemValue(dialog, iShuffle)? 1:0;
 					
 					DisposeDialog(theDialog);
@@ -313,7 +323,7 @@ struct{
 	int32	controlratio;
 	double	silentsec;
 	int32	modify_release;
-	int		presence_balance;
+	int		effect_lr_mode;
 	int		opt_default_mid;
 	char	showMsg, showList, showWrd, showDoc, showSpec, showTrace, showSkin,
 			modulation_wheel, portamento, nrpn_vibrato, reverb_control,
@@ -323,13 +333,14 @@ struct{
 	int		evil_level,do_initial_filling;
 	int		gShuffle;
 	char	skin_mainfile[256];
+	char	wrdfontname[256];
 	char	rsv[256];
 }Preference;
 
 
-#define	PREF_VER	11
-									/* Mac release 3.24->prefver=11 */
-									/* Mac release 3.07,3.08->prefver=10 */
+#define	PREF_VER	12
+						/* ++ beta1        ->prefver=12 */
+						/* Mac release 3.24->prefver=11 */
 #define	PREF_NUM	(sizeof(Preference))	/*pref data bytes*/
 
 OSErr mac_GetPreference()
@@ -403,7 +414,7 @@ OSErr mac_GetPreference()
 	control_ratio=					Preference.controlratio;
 	gSilentSec=						Preference.silentsec;
 	modify_release=					Preference.modify_release;
-	presence_balance=				Preference.presence_balance;
+	effect_lr_mode=					Preference.effect_lr_mode;
 	opt_default_mid=				Preference.opt_default_mid;
 	
 	mac_LogWindow.show=				Preference.showMsg;
@@ -422,7 +433,6 @@ OSErr mac_GetPreference()
 	opt_channel_pressure =		Preference.channel_pressure;
 	opt_trace_text_meta_event =	Preference.trace_text_meta_event;
 	opt_overlap_voice_allow =	Preference.overlap_voice_allow;
-	do_reverb_flag =			Preference.do_reverb_flag;
 	evil_level=					Preference.evil_level;
 	do_initial_filling=			Preference.do_initial_filling;
 	gShuffle=					Preference.gShuffle;
@@ -489,7 +499,7 @@ OSErr mac_SetPreference()
 	Preference.controlratio=	control_ratio;
 	Preference.silentsec=		gSilentSec;
 	Preference.modify_release=	modify_release;
-	Preference.presence_balance=presence_balance;
+	Preference.effect_lr_mode=	effect_lr_mode;
 	Preference.opt_default_mid=	opt_default_mid;
 
 	Preference.showMsg=			mac_LogWindow.show;
@@ -507,7 +517,6 @@ OSErr mac_SetPreference()
 	Preference.channel_pressure=	opt_channel_pressure;
 	Preference.trace_text_meta_event=opt_trace_text_meta_event;
 	Preference.overlap_voice_allow=	opt_overlap_voice_allow;
-	Preference.do_reverb_flag=		do_reverb_flag;
 	Preference.evil_level=			evil_level;
 	Preference.do_initial_filling=	do_initial_filling;
 	Preference.gShuffle=			gShuffle;

@@ -37,6 +37,7 @@ libutils_a_SOURCES = \
 	strtab.c \
 	strtab.h \
 	support.c \
+	support.h \
 	timer.c \
 	timer.h
 

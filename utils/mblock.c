@@ -32,9 +32,9 @@
 #include <strings.h>
 #endif
 
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif /* HAVE_UNISTD_H */
 
 #include "timidity.h"
 #include "mblock.h"

@@ -27,6 +27,7 @@ extern void open_soundspec(void);
 extern void close_soundspec(void);
 extern void soundspec_setinterval(double interval_sec);
 extern void soundspec_update_wave(int32 *buff, int samples);
+extern void soundspec_reinit(void);
 
 extern int view_soundspec_flag;
 extern int ctl_speana_flag;

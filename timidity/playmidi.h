@@ -29,14 +29,7 @@ typedef struct {
   uint8 type, channel, a, b;
 } MidiEvent;
 
-#define REVERB_MAX_DELAY_OUT (3 * play_mode->rate / 2)
-
-struct ReverbControls
-{
-    int32 lastin;
-    int level;
-    int rvid;
-};
+#define REVERB_MAX_DELAY_OUT (4 * play_mode->rate)
 
 #define MIDI_EVENT_NOTE(ep) (ISDRUMCHANNEL((ep)->channel) ? (ep)->a : \
 			     (((int)(ep)->a + note_key_offset + \
@@ -61,27 +54,31 @@ enum midi_event_t
     ME_TONE_BANK_MSB,
     ME_TONE_BANK_LSB,
     ME_MODULATION_WHEEL,
+    ME_BREATH,
+    ME_FOOT,
     ME_MAINVOLUME,
+    ME_BALANCE,
     ME_PAN,
     ME_EXPRESSION,
     ME_SUSTAIN,
-    ME_PORTAMENTO_TIME,
+    ME_PORTAMENTO_TIME_MSB,
+    ME_PORTAMENTO_TIME_LSB,
     ME_PORTAMENTO,
     ME_DATA_ENTRY_MSB,
     ME_DATA_ENTRY_LSB,
+    ME_SOSTENUTO,
+    ME_SOFT_PEDAL,
 #if 0
-    ME_SUSTENUTO,		/* Not supported */
-    ME_SOFT_PEDAL,		/* Not supported */
     ME_HARMONIC_CONTENT,	/* Not supported */
     ME_RELEASE_TIME,		/* Not supported */
     ME_ATTACK_TIME,		/* Not supported */
     ME_BRIGHTNESS,		/* Not supported */
 #endif
     ME_REVERB_EFFECT,
+    ME_TREMOLO_EFFECT,
     ME_CHORUS_EFFECT,
-#if 0
-    ME_VARIATION_EFFECT,	/* Not supported */
-#endif
+    ME_CELESTE_EFFECT,
+    ME_PHASER_EFFECT,
     ME_RPN_INC,
     ME_RPN_DEC,
     ME_NRPN_LSB,
@@ -119,11 +116,15 @@ enum midi_event_t
     ME_PATCH_OFFS,		/* Change special instrument sample position
 				 * SampleID, LSB, MSB
 				 */
-    ME_WRD,			/* for WRD tracer */
     ME_TIMESIG,			/* Time signature */
 
-    ME_LAST = 254,		/* Last sequence of MIDI list */
-    ME_EOT = 255		/* End of MIDI */
+    ME_WRD,			/* for MIMPI WRD tracer */
+    ME_SHERRY,			/* for Sherry WRD tracer */
+
+    ME_LAST = 254,		/* Last sequence of MIDI list.
+				 * This event is reserved for realtime player.
+				 */
+    ME_EOT = 255		/* End of MIDI.  Finish to play */
 };
 
 #define GLOBAL_CHANNEL_EVENT_TYPE(type)	\
@@ -177,45 +178,55 @@ struct DrumParts
 };
 
 typedef struct {
-  int8 bank_msb, bank_lsb, bank, program, volume,
-	expression, sustain, panning, mono, portamento, modulation_wheel;
-
-  uint8 chorus_level;
-  /* Special sample ID. (0 means Normal sample) */
-  uint8 special_sample;
-  int8 key_shift;
-
-  int pitchbend;
+  int8	bank_msb, bank_lsb, bank, program, volume,
+	expression, sustain, panning, mono, portamento, modulation_wheel,
+	key_shift;
 
   /* chorus, reverb... Coming soon to a 300-MHz, eight-way superscalar
      processor near you */
+  int8	chorus_level,	/* Chorus level */
+	reverb_level;	/* Reverb level. */
+  int	reverb_id;	/* Reverb ID used for reverb optimize implementation
+			   >=0 reverb_level
+			   -1: DEFAULT_REVERB_SEND_LEVEL
+			   */
+
+  /* Special sample ID. (0 means Normal sample) */
+  uint8 special_sample;
+
+  int pitchbend;
 
   FLOAT_T
     pitchfactor; /* precomputed pitch bend factor to save some fdiv's */
 
-  /* for portamento */
+  /* For portamento */
+  uint8 portamento_time_msb, portamento_time_lsb;
   int porta_control_ratio, porta_dpb;
-  int32 portamento_time, last_note_fine;
+  int32 last_note_fine;
 
+  /* For Drum-SysEX */
   struct DrumParts *drums[128];
 
+  /* For vibrato */
   int32 vibrato_ratio, vibrato_delay;
   int vibrato_depth;
 
+  /* For RPN */
   uint8 rpnmap[RPN_MAX_DATA_ADDR]; /* pseudo RPN address map */
   uint8 lastlrpn, lastmrpn;
   int8  nrpn; /* 0:RPN, 1:NRPN, -1:Undefined */
-  struct ReverbControls *rb;
+  int rpn_7f7f_flag;		/* Boolean flag used for RPN 7F/7F */
 
-  /* Not used current version */
+  /* For channel envelope, but this is not used yet. */
   int32 envelope_rate[6]; /* for Envelope Generator
 			   * 0: Attack rate
 			   * 1: Decay rate
 			   * 3: Release rate
 			   */
-  int mapID;
-  AlternateAssign *altassign;
-  int rpn_7f7f_flag;
+
+  int mapID;			/* Program map ID */
+  AlternateAssign *altassign;	/* Alternate assign patch table */
+  int32 lasttime;     /* Last sample time of computed voice on this channel */
 } Channel;
 
 /* Causes the instrument's default panning to be used. */
@@ -291,12 +302,16 @@ extern int opt_reverb_control;
 extern int opt_chorus_control;
 extern int opt_channel_pressure;
 extern int opt_overlap_voice_allow;
+extern int noise_sharp_type;
 extern int32 current_play_tempo;
 extern int opt_realtime_playing;
+extern int reduce_voice_threshold; /* msec */
 extern int check_eot_flag;
 extern int special_tonebank;
 extern int default_tonebank;
 extern int playmidi_seek_flag;
+extern int effect_lr_mode;
+extern int effect_lr_delay_msec;
 
 extern int play_midi_file(char *fn);
 extern void dumb_pass_playing_list(int number_of_files, char *list_of_files[]);
@@ -307,5 +322,14 @@ extern int midi_drumpart_change(int ch, int isdrum);
 extern void ctl_note_event(int noteID);
 extern void ctl_mode_event(int type, int trace, long arg1, long arg2);
 extern char *channel_instrum_name(int ch);
+extern int get_reverb_level(int ch);
+extern int get_chorus_level(int ch);
+extern void playmidi_output_changed(int play_state);
+extern Instrument *play_midi_load_instrument(int dr, int bk, int prog);
+
+/* For stream player */
+extern void playmidi_stream_init(void);
+extern void playmidi_tmr_reset(void);
+extern int play_event(MidiEvent *ev);
 
 #endif /* ___PLAYMIDI_H_ */

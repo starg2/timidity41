@@ -27,12 +27,16 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
-#ifdef __WIN32__
+
+#ifdef __W32__
 #include <stdlib.h>
 #include <io.h>
-#else
-#include <unistd.h>
 #endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -48,48 +52,33 @@
 #include "output.h"
 #include "controls.h"
 
-#ifdef __WIN32__
-#define OPEN_MODE O_WRONLY | O_CREAT | O_TRUNC | O_BINARY
-#else
-#define OPEN_MODE O_WRONLY | O_CREAT | O_TRUNC
-#endif
-
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static void output_data(int32 *buf, int32 count);
-static int flush_output(void);
-static void purge_output(void);
-static int32 current_samples(void);
-static int play_loop(void);
+static int output_data(char *buf, int32 bytes);
+static int acntl(int request, void *arg);
 static int write_u32(uint32 value);
-
-extern int default_play_event(void *);
 
 /* export the playback mode */
 
 #define dpm au_play_mode
 
 PlayMode dpm = {
-    8000, PE_MONO|PE_SIGNED|PE_ULAW, PF_NEED_INSTRUMENTS,
+    8000, PE_MONO|PE_ULAW, PF_PCM_STREAM,
     -1,
     {0,0,0,0,0},
     "Sun audio file", 'u',
     "output.au",
-    default_play_event,
     open_output,
     close_output,
     output_data,
-    flush_output,
-    purge_output,
-    current_samples,
-    play_loop
+    acntl
 };
 
 /*************************************************************************/
 
-/* Count the number of bytes output so the header can be fixed when
-   closing the file */
-static uint32 bytes_output;
+#define UPDATE_HEADER_STEP (128*1024) /* 128KB */
+static uint32 bytes_output, next_bytes;
+static int already_warning_lseek;
 
 static int write_u32(uint32 value)
 {
@@ -128,14 +117,26 @@ static int write_str(char *s)
 
 static int open_output(void)
 {
-    char *comment;
+    char *comment = "";
+    int include_enc, exclude_enc;
 
-    dpm.encoding &= ~PE_BYTESWAP;
-    dpm.encoding |= PE_SIGNED;
+    include_enc = exclude_enc = 0;
+    if(dpm.encoding & PE_16BIT)
+    {
+#ifdef LITTLE_ENDIAN
+	include_enc = PE_BYTESWAP;
+#else
+	exclude_enc = PE_BYTESWAP;
+#endif /* LITTLE_ENDIAN */
+	include_enc |= PE_SIGNED;
+    }
+    else if(!(dpm.encoding & (PE_ULAW|PE_ALAW)))
+    {
+	/* is 8 bit au unsigned ? */
+	exclude_enc = PE_SIGNED;
+    }
 
-    if(dpm.encoding & (PE_ULAW|PE_ALAW))
-	dpm.encoding &= ~PE_16BIT;
-
+    dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
     bytes_output = 0;
 
     if(dpm.name && dpm.name[0] == '-' && dpm.name[1] == '\0')
@@ -146,7 +147,7 @@ static int open_output(void)
     else
     {
 	/* Open the audio file */
-	dpm.fd = open(dpm.name, OPEN_MODE, 0644);
+	dpm.fd = open(dpm.name, FILE_OUTPUT_MODE);
 	if(dpm.fd < 0)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
@@ -199,51 +200,79 @@ static int open_output(void)
     /* comment */
     if(write_str(comment) == -1) return -1;
 
+    next_bytes = bytes_output + UPDATE_HEADER_STEP;
+    already_warning_lseek = 0;
+
     return 0;
 }
 
-static void output_data(int32 *buf, int32 count)
+
+static int update_header(void)
 {
-    if(!(dpm.encoding & PE_MONO))
-	count*=2; /* Stereo samples */
+    off_t save_point;
 
-    if(dpm.encoding & PE_16BIT)
-    {
-	s32tos16b(buf, count); /* Big-endian data */
-	while((-1==write(dpm.fd, buf, count * 2)) && errno==EINTR)
-	    ;
-	bytes_output += count * 2;
-    }
-    else
-    {
-	if(dpm.encoding & PE_ULAW)
-	    s32toulaw(buf, count);
-	else if(dpm.encoding & PE_ALAW)
-	    s32toalaw(buf, count);
-	else
-	    s32tos8(buf, count);
+    if(already_warning_lseek)
+	return 0;
 
-	while((-1==write(dpm.fd, buf, count)) && errno==EINTR)
-	    ;
-	bytes_output += count;
+    save_point = lseek(dpm.fd, 0, SEEK_CUR);
+    if(save_point == -1 || lseek(dpm.fd, 8, SEEK_SET) == -1)
+    {
+	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		  "Warning: %s: %s: Can't make valid header",
+		  dpm.name, strerror(errno));
+	already_warning_lseek = 1;
+	return 0;
     }
+
+    if(write_u32(bytes_output) == -1) return -1;
+    lseek(dpm.fd, save_point, SEEK_SET);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "%s: Update au header (size=%d)", dpm.name, bytes_output);
+    return 0;
+}
+
+
+static int output_data(char *buf, int32 bytes)
+{
+    int n;
+
+    while(((n = write(dpm.fd, buf, bytes)) == -1) && errno == EINTR)
+	;
+    if(n == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+		  dpm.name, strerror(errno));
+	return -1;
+    }
+
+    bytes_output += bytes;
+
+#if UPDATE_HEADER_STEP > 0
+    if(bytes_output >= next_bytes)
+    {
+	if(update_header() == -1) return -1;
+	next_bytes = bytes_output + UPDATE_HEADER_STEP;
+    }
+#endif /* UPDATE_HEADER_STEP */
+    return n;
 }
 
 static void close_output(void)
 {
     if(dpm.fd != 1) /* We don't close stdout */
     {
-	/* It's not stdout, so it's probably a file, and we can try
-	   fixing the block lengths in the header before closing. */
-	if(lseek(dpm.fd, 8, SEEK_SET) >= 0)
-	    write_u32(bytes_output);
-	close(dpm.fd);
+	if(dpm.fd != 1 && /* We don't close stdout */
+	   dpm.fd != -1)
+	{
+	    if(update_header() == -1)
+		return;
+	    close(dpm.fd);
+	    dpm.fd = -1;
+	}
     }
-    dpm.fd = -1;
 }
 
-/* Dummies */
-static int flush_output(void)	{ return RC_NONE; }
-static void purge_output(void)	{ }
-static int play_loop(void)	{ return 0; }
-static int32 current_samples(void) { return -1; }
+static int acntl(int request, void *arg)
+{
+    return -1;
+}

@@ -84,6 +84,7 @@ WRDTracer null_wrdt_mode =
     0,
     null_wrdt_open,
     null_wrdt_apply,
+    NULL,
     null_wrdt_update_events,
     NULL,
     null_wrdt_end,
@@ -96,18 +97,18 @@ extern WRDTracer tty_wrdt_mode;
 extern WRDTracer x_wrdt_mode;
 #endif /* WRDT_X */
 
-#if defined(__WIN32__)
-extern WRDTracer wincon_wrdt_mode; /* wrdt_wincon.c */
-#endif /* __WIN32__ */
+#if defined(__W32__)
+extern WRDTracer wcon_wrdt_mode; /* wrdt_wcon.c */
+#endif /* __W32__ */
 
 WRDTracer *wrdt_list[] =
 {
 #ifdef WRDT_X
     &x_wrdt_mode,
 #endif /* WRDT_X */
-#ifdef __WIN32__
-	&wincon_wrdt_mode,
-#endif /* __WIN32__ */
+#ifdef __W32__
+	&wcon_wrdt_mode,
+#endif /* __W32__ */
 #ifndef __MACOS__
     &tty_wrdt_mode,
 #endif /* __MACOS__ */
@@ -206,7 +207,7 @@ static struct timidity_file *try_wrd_open_file(char *prefix, char *fn)
 	path[len1] = '\0';
     }
     strcat(path, fn);
-    tf = open_file(path, 0, OF_SILENT);
+    tf = open_file(path, 0, OF_NORMAL);
     reuse_mblock(&buf);
     return tf;
 }
@@ -244,4 +245,11 @@ void wrd_midi_event(int cmd, int arg)
 	wrdt->apply(cmd, wrd_argc, wrd_args);
 	wrd_argc = 0;
     }
+}
+
+void wrd_sherry_event(int addr)
+{
+    if(!wrdt->opened || wrdt->sherry == NULL)
+	return;
+    wrdt->sherry(datapacket[addr].data, datapacket[addr].len);
 }

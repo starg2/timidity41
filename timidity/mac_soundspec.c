@@ -25,6 +25,9 @@
 
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -174,6 +177,9 @@ static void set_color_ring(void)
 {
     int i;
 
+    /*i = 0          ...        NCOLOR
+     *  Blue -> Green -> Red -> White
+     */
     for(i = 0; i < NCOLOR; i++)
     {
 	rgb_t rgb;
@@ -201,6 +207,8 @@ static void set_draw_pixel(double *val, RGBColor pixels[])
     {
 	unsigned v;
 	v = (unsigned)val[SCOPE_HEIGHT - i - 1];
+	if(v >= NCOLOR)
+	    v = NCOLOR - 1;
 	pixels[i] = color_ring[v % NCOLOR];
     }
 }
@@ -365,8 +373,19 @@ static void trace_draw_scope(void *vp)
 {
     struct drawing_queue *q;
     q = (struct drawing_queue *)vp;
+    if(!midi_trace.flush_flag)
+    {
 	if(!midi_trace.flush_flag && (win.show||skin_need_speana))
 		draw_scope(q->values);
+	if(ctl_speana_flag)
+	{
+	    CtlEvent e;
+	    e.type = CTLE_SPEANA;
+	    e.v1 = (long)q->values;
+	    e.v2 = FFTSIZE/2;
+	    ctl->event(&e);
+	}
+    }
     free_queue(q);
 }
 
@@ -466,7 +485,7 @@ static void ringsamples(double *x, int pos, int n)
     double r;
 
     upper = ring_buffer_len;
-    r = 1.0 / pow(2.0, 32.0 - GUARD_BITS);
+    r = 1.0 / pow(2.0, 32.0);
     for(i = 0; i < n; i++, pos++)
     {
 	if(pos >= upper)
@@ -482,8 +501,11 @@ void soundspec_update_wave(int32 *buff, int samples)
     if(buff == NULL) /* Initialize */
     {
 	ring_index = 0;
+	if(samples == 0)
+	{
 	outcnt = 0;
 	next_wakeup_samples = 0;
+	}
 	if(ring_buffer != NULL)
 	    memset(ring_buffer, 0, sizeof(int32));
 	return;
@@ -493,6 +515,17 @@ void soundspec_update_wave(int32 *buff, int samples)
     {
 	outcnt += samples;
 	return;
+    }
+
+    if(ring_buffer == NULL)
+    {
+	ring_buffer = safe_malloc(ring_buffer_len * sizeof(int32));
+	memset(ring_buffer, 0, sizeof(int32));
+	if(soundspec_update_interval == 0)
+	    soundspec_update_interval =
+		(int32)(DEFAULT_UPDATE * play_mode->rate);
+	realfft(NULL, FFTSIZE);
+	initialize_exp_hz_table(soundspec_zoom);
     }
 
     if(ring_index + samples > ring_buffer_len)
@@ -535,10 +568,13 @@ void soundspec_update_wave(int32 *buff, int samples)
     if(ring_index == ring_buffer_len)
 	ring_index = 0;
 
-    if(outcnt - (ring_buffer_len - FFTSIZE) > next_wakeup_samples)
+    if(next_wakeup_samples < outcnt - (ring_buffer_len - FFTSIZE))
+    {
+	/* next_wakeup_samples is too small */
 	next_wakeup_samples = outcnt - (ring_buffer_len - FFTSIZE);
+    }
 
-    while(outcnt - FFTSIZE > next_wakeup_samples)
+    while(next_wakeup_samples < outcnt - FFTSIZE)
     {
 	double x[FFTSIZE];
 	struct drawing_queue *q;
@@ -551,4 +587,10 @@ void soundspec_update_wave(int32 *buff, int samples)
 			  q);
 	next_wakeup_samples += soundspec_update_interval;
     }
+}
+
+/* Re-initialize something */
+void soundspec_reinit(void)
+{
+    initialize_exp_hz_table(soundspec_zoom);
 }

@@ -41,7 +41,7 @@
 #include <pwd.h>
 #include <sys/stat.h>
 #include "xaw.h"
-#include <X11/Intrinsic.h>
+#include <X11/IntrinsicP.h>
 #include <X11/StringDefs.h>
 #include <X11/Xaw/Form.h>
 #include <X11/Xaw/Box.h>
@@ -75,7 +75,6 @@
 #include "readmidi.h"
 #include "controls.h"
 #include "timer.h"
-#include "strtab.h"
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
@@ -227,7 +226,7 @@ extern void a_pipe_write(char *);
 extern int a_pipe_read(char *,int);
 extern int a_pipe_nread(char *buf, int n);
 static void initStatus(void);
-static void safe_getcwd(char *cwd, int maxlen);
+static void xaw_vendor_setup(void);
 
 static Widget title_mb,title_sm,time_l,popup_load,popup_load_f,load_d,load_t;
 static Widget load_vport,load_flist,cwd_l,load_info, lyric_t;
@@ -242,7 +241,7 @@ static Pixel barcol[MAX_XAW_MIDI_CHANNELS];
 static Widget toplevel,m_box,base_f,file_mb,file_sm,bsb,
   quit_b,play_b,pause_b,stop_b,prev_b,next_b,fwd_b,back_b,
   random_b,repeat_b,b_box,v_box,t_box,vol_l0,vol_l,vol_bar,tune_l0,tune_l,tune_bar,
-  trace_vport,trace,pbox,pbsb,popup_opt,popup_optbox,popup_oclose,
+  trace_vport,trace,pbox,popup_opt,popup_optbox,popup_oclose,
   popup_about,popup_abox,popup_aok,about_lbl[5],
   file_vport,file_list,popup_file,popup_fbox,flist_cmdbox,
   popup_fplay,popup_fdelete,popup_fdelall,popup_fclose,
@@ -369,19 +368,19 @@ static int bm_height[MAXBITMAP], bm_width[MAXBITMAP],
   x_hot,y_hot, root_height, root_width;
 static Pixmap bm_Pixmap[MAXBITMAP];
 static int max_files, init_options = 0, init_chorus = 0;
-static char basepath[PATH_MAX];
-static String *dirlist = NULL, dirlist_top, *flist = NULL;
-static Dimension trace_width, trace_height, menu_width;
+char basepath[PATH_MAX];
+String *dirlist = NULL, *flist = NULL;
+Dimension trace_width, trace_height, menu_width;
 static int total_time = 0, curr_time;
 static float thumbj;
 static XFontStruct *labelfont,*volumefont,*tracefont;
 #ifdef I18N
-static XFontSet ttitlefont;
-static XFontStruct *ttitlefont0;
-static char **ml;
-static XFontStruct **fs_list;
+XFontSet ttitlefont;
+XFontStruct *ttitlefont0;
+char **ml;
+XFontStruct **fs_list;
 #else
-static XFontStruct *ttitlefont;
+XFontStruct *ttitlefont;
 #define ttitlefont0 ttitlefont
 #endif
 
@@ -403,7 +402,7 @@ static struct _app_resources {
 #endif
 } app_resources;
 
-static XtResource resources[] ={
+static XtResource xaw_resources[] ={
 #define offset(entry) XtOffset(struct _app_resources*, entry)
   {"bitmapDir", "BitmapDir", XtRString, sizeof(String),
    offset(bitmap_dir), XtRString, DEFAULT_PATH "/bitmaps"},
@@ -574,10 +573,10 @@ static Boolean IsTracePlaying(void) {
 }
 
 static Boolean IsEffectiveFile(char *file) {
-  char *p,*p2;
+  char *p2;
   struct stat st;
 
-  if(p2 = strrchr(file,'#'))
+  if((p2 = strrchr(file,'#')) != NULL)
     *p2 = '\0';
   if(stat(file, &st) != -1)
     if (st.st_mode & S_IFMT & (S_IFDIR|S_IFREG|S_IFLNK)) {
@@ -619,7 +618,6 @@ static void chorusCB(Widget w,XtPointer id_data, XtPointer data) {
 
 /*ARGSUSED*/
 static void optionsCB(Widget w,XtPointer id_data, XtPointer data) {
-  int *id = (int *)id_data;
   Boolean s;
   int i,flags;
   char str[16];
@@ -659,7 +657,6 @@ static void flistpopupCB(Widget w,XtPointer data,XtPointer dummy) {
 }
 
 static void aboutCB(Widget w,XtPointer data,XtPointer dummy) {
-  Dimension x,y,w1,h1;
   char s[12],*p;
   int i;
 
@@ -875,7 +872,7 @@ static void menuCB(Widget w,XtPointer data,XtPointer dummy) {
 
 static void setVolbar(int val) {
   char s[8];
-  float thumb, l_thumb;
+  float thumb;
 
   amplitude = (val > MAXVOLUME)? MAXVOLUME:val;
   sprintf(s, "%d", val);
@@ -937,7 +934,7 @@ static void tunesetAction(Widget w,XEvent *e,String *v,Cardinal *n) {
   static float tmpval;
   char s[16];
   int value;
-  float thumb, l_thumb;
+  float l_thumb;
 
   XtVaGetValues(tune_bar, XtNtopOfThumb, &l_thumb, NULL);
   if (tmpval == l_thumb) return;
@@ -1053,7 +1050,6 @@ static void popdownLoad(Widget w,XtPointer s,XtPointer data) {
   char *p, *p2;
   DirPath full;
   char local_buf[300],tmp[PATH_MAX];
-  struct stat st;
 
   /* tricky way for both use of action and callback */
   if (s != NULL && data == NULL){
@@ -1484,7 +1480,7 @@ static void handle_input(XtPointer data,int *source,XtInputId *id) {
 
 
 static int configcmp(char *s, int *num) {
-  int i,n;
+  int i;
   char *p;
   for (i= 0; i < CFGITEMSNUMBER; i++) {
     if (0 == strncasecmp(s, cfg_items[i], strlen(cfg_items[i]))) {
@@ -1508,63 +1504,6 @@ static char *strmatch(char *s1, char *s2) {
   return(s1);
 }
 
-/* Canonicalize by removing /. and /foo/.. if they appear. */
-static char *canonicalize_path(char *path)
-{
-    char *o, *p, *target;
-    int abspath;
-
-    o = p = path;
-    while(*p)
-    {
-	if(p[0] == '/' && p[1] == '/')
-	    p++;
-	else 
-	    *o++ = *p++;
-    }
-    while(path < o-1 && path[o - path - 1] == '/')
-	o--;
-    path[o - path] = '\0';
-
-    if((p = strchr(path, '/')) == NULL)
-	return path;
-    abspath = (p == path);
-
-    o = target = p;
-    while(*p)
-    {
-	if(*p != '/')
-	    *o++ = *p++;
-	else if(p[0] == '/' && p[1] == '.'
-		&& (p[2]=='/' || p[2] == '\0'))
-	{
-	    /* If "/." is the entire filename, keep the "/".  Otherwise,
-	       just delete the whole "/.".  */
-	    if(o == target && p[2] == '\0')
-		*o++ = *p;
-	    p += 2;
-	}
-	else if(p[0] == '/' && p[1] == '.' && p[2] == '.'
-		/* `/../' is the "superroot" on certain file systems.  */
-		&& o != target
-		&& (p[3]=='/' || p[3] == '\0'))
-	{
-	    while(o != target && (--o) && *o != '/')
-		;
-	    p += 3;
-	    if(o == target && !abspath)
-		o = target = p;
-	}
-	else
-	    *o++ = *p++;
-    }
-
-    target[o - target] = '\0';
-    if(!*path)
-	strcpy(path, "/");
-    return path;
-}
-
 static char *expandDir(char *path, DirPath *full) {
   static char tmp[PATH_MAX];
   static char newfull[PATH_MAX];
@@ -1576,7 +1515,7 @@ static char *expandDir(char *path, DirPath *full) {
     full->dirname = tmp;
     full->basename = NULL;
     strcpy(newfull, tmp); return newfull;
-  } else if (*p != '~' && NULL == (tail = strrchr(path, '/'))) {
+  } else if (NULL == (tail = strrchr(path, '/'))) {
     p = tmp;
     strcpy(p, basepath);
     full->dirname = p;
@@ -1611,7 +1550,7 @@ static char *expandDir(char *path, DirPath *full) {
       snprintf(tmp, sizeof(tmp), "%s/%s", basepath, path);
     }
   }
-  p = canonicalize_path(tmp);
+  p = tmp;
   tail = strrchr(p, '/'); *tail++ = '\0';
   full->dirname = p;
   full->basename = tail;
@@ -1634,13 +1573,7 @@ static void setDirAction(Widget w,XEvent *e,String *v,Cardinal *n) {
     strcpy(basepath,p);
     p = strrchr(basepath, '/');
     if (*(p+1) == '\0') *p = '\0';
-    lrs.string = "";
-    if(dirlist != NULL)
-    {
-	free(dirlist_top);
-	free(dirlist);
-	dirlist = NULL;
-    }
+    lrs.string = ""; dirlist[0] = (char *)NULL;
     setDirList(load_flist, cwd_l, &lrs);
   }
 }
@@ -1670,31 +1603,36 @@ static int dirlist_cmp (const void *p1, const void *p2)
 static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
   URL dirp;
   struct stat st;
-  char currdir[PATH_MAX], filename[PATH_MAX];
+  char *p, currdir[PATH_MAX], filename[PATH_MAX];
   int i, d_num, f_num;
 
-  snprintf(currdir, sizeof(currdir)-1, "%s/%s", basepath, lrs->string);
-  canonicalize_path(currdir);
-  if(stat(currdir, &st) == -1) return;
-  if(!S_ISDIR(st.st_mode)) {
+  strcpy(currdir, basepath);
+
+  if(!strncmp("../", lrs->string, 3)) {
+    if(currdir != (p = strrchr(currdir, '/')))
+      *p = '\0';
+    else
+      currdir[1] = '\0';
+  } else {
+    if(currdir[1] != '\0') strcat(currdir, "/");
+    strcat(currdir, lrs->string);
+    if(stat(currdir, &st) == -1) return;
+    if(!S_ISDIR(st.st_mode)) {
       XtVaSetValues(load_d,XtNvalue,currdir,NULL);
       return;
-  }
-
+    }
+    currdir[strlen(currdir)-1] = '\0';
+  } 
   if (NULL != (dirp=url_dir_open(currdir))) {
     char *fullpath;
     MBlockList pool;
-    StringTable strtab;
     init_mblock(&pool);
 
-    if(dirlist != NULL)
-    {
-	free(dirlist_top);
-	free(dirlist);
-    }
-    init_string_table(&strtab);
+    for(i= 0; dirlist[i] != NULL; i++)
+      XtFree(dirlist[i]);
     i = 0; d_num = 0; f_num = 0;
-    while (url_gets(dirp, filename, sizeof(filename)) != NULL) {
+    while (url_gets(dirp, filename, sizeof(filename)) != NULL
+           && i < MAX_DIRECTORY_ENTRY) {
       fullpath = (char *)new_segment(&pool,strlen(currdir) +strlen(filename) +2);
       sprintf(fullpath, "%s/%s", currdir, filename);
       if(stat(fullpath, &st) == -1) continue;
@@ -1706,24 +1644,18 @@ static void setDirList(Widget list, Widget label, XawListReturnStruct *lrs) {
       } else {
         f_num++;
       }
-      put_string_table(&strtab, filename, strlen(filename));
-      i++;
+      dirlist[i] = XtMalloc(sizeof(char) * (strlen(filename) + 1));
+      strcpy(dirlist[i++], filename);
     }
-    dirlist = (String *)make_string_array(&strtab);
-    dirlist_top = (String)dirlist[0]; /* Marking for free() */
     qsort (dirlist, i, sizeof (char *), dirlist_cmp);
+    dirlist[i] = NULL;
     snprintf(local_buf, sizeof(local_buf), "%d Directories, %d Files", d_num, f_num);
     XawListChange(list,dirlist,0,0,True);
+    XtVaSetValues(label,XtNlabel,currdir,NULL);
+    XtVaSetValues(load_info,XtNlabel,local_buf,NULL);
+    strcpy(basepath, currdir);
+    XtVaSetValues(load_d,XtNvalue,currdir,NULL);
   }
-  else
-    strcpy(local_buf, "Can't read directry");
-
-  XtVaSetValues(load_info,XtNlabel,local_buf,NULL);
-  XtVaSetValues(label,XtNlabel,currdir,NULL);
-  strcpy(basepath, currdir);
-  if(currdir[strlen(currdir) - 1] != '/')
-      strcat(currdir, "/");
-  XtVaSetValues(load_d,XtNvalue,currdir,NULL);
 }
 
 static void drawBar(int ch,int len, int xofs, int column, Pixel color) {
@@ -2067,8 +1999,7 @@ static void completeDir(Widget w,XEvent *e, XtPointer data)
 {
   char *p;
   DirPath full;
-  int i,j;
-  
+
   p = XawDialogGetValueString(load_d);
   if (!expandDir(p, &full))
     ctl->cmsg(CMSG_WARNING,VERB_NORMAL,"something wrong with getting path.");
@@ -2105,6 +2036,7 @@ static void completeDir(Widget w,XEvent *e, XtPointer data)
           }
         }
       }
+
       if (match) {
         sprintf(filename, "%s/%s", full.dirname, matchstr);
         XtVaSetValues(load_d,XtNvalue,filename,NULL);
@@ -2123,7 +2055,7 @@ static void a_readconfig (Config *Cfg) {
   char s[SSIZE];
   char *home, c = ' ', *p;
   FILE *fp;
-  int i, k, n = 0;
+  int i, k;
 
   if (NULL == (home=getenv("HOME"))) home=getenv("home");
   if (home != NULL) {
@@ -2184,7 +2116,6 @@ static void a_saveconfig (char *file) {
   FILE *fp;
   Boolean s1, s2;
   int i,flags, cflag;
-  char **pp;
 
   if ('\0' != *file) {
     if (NULL != (fp=fopen(file, "w"))) {
@@ -2594,7 +2525,6 @@ static void fdeleteCB(Widget w,XtPointer data,XtPointer call_data) {
 
 /*ARGSUSED*/
 static void fdelallCB(Widget w,XtPointer data,XtPointer call_data) {
-  XawListReturnStruct *lr = XawListShowCurrent(file_list);
   int i;
 
   stopCB(w,NULL,NULL);
@@ -2629,7 +2559,6 @@ static void fdelallCB(Widget w,XtPointer data,XtPointer call_data) {
 static void backspaceCB(Widget w,XtPointer data,XtPointer call_data) {
   XawTextPosition begin,end,curr;
   XawTextBlock tb;
-
   XawTextGetSelectionPos(w, &begin, &end);
   curr = XawTextGetInsertionPoint(w);
   if(begin == end) return;
@@ -2999,8 +2928,8 @@ void a_start_interface(int pipe_in) {
         <ConfigureNotify>:  do-resize()",
 
     "*load_dialog.value.translations: #override\\n\
-        ~Ctrl<Key>Return:   do-chgdir()\\n\
-        ~Ctrl<Key>KP_Enter: do-chgdir()\\n\
+        ~Ctrl<Key>Return:   do-chgdir() end-of-line()\\n\
+        ~Ctrl<Key>KP_Enter: do-chgdir() end-of-line()\\n\
         ~Ctrl ~Meta<Key>Tab:    do-complete() end-of-line()\\n\
         Ctrl ~Shift<Key>g:  do-dialog-button(1)\\n\
         <Key>BackSpace:     do-backspace() delete-previous-character()\\n\
@@ -3053,7 +2982,7 @@ void a_start_interface(int pipe_in) {
   int i, j, k, tmpi;
   int argc=1;
   float thumb, l_thumb, l_thumbj;
-  char *argv="timidity", *moretext, *filetext;
+  char *argv="timidity", *filetext;
 #ifdef I18N
   #define XtNfontDEF XtNfontSet
   XFontSet textfont;
@@ -3081,13 +3010,16 @@ void a_start_interface(int pipe_in) {
   }
   exit(0);
 #endif
+
+  xaw_vendor_setup();
+
 #ifdef I18N
   XtSetLanguageProc(NULL,NULL,NULL);
 #endif
   toplevel=XtVaAppInitialize(&app_con,APP_CLASS,NULL,ZERO,&argc,&argv,
                          fallback_resources,NULL);
-  XtGetApplicationResources(toplevel,(caddr_t)&app_resources,resources,
-                          XtNumber(resources),NULL,0);
+  XtGetApplicationResources(toplevel,(caddr_t)&app_resources,xaw_resources,
+                          XtNumber(xaw_resources),NULL,0);
   bitmapdir = app_resources.bitmap_dir;
   arrangetitle = app_resources.arrange_title;
   savelist = app_resources.save_list;
@@ -3128,9 +3060,12 @@ void a_start_interface(int pipe_in) {
     XReadBitmapFile(disp,RootWindow(disp,screen),cbuf,&bm_width[i],&bm_height[i],
                     &bm_Pixmap[i],&x_hot,&y_hot);
   }
-
-  safe_getcwd(basepath, sizeof(basepath));
-
+#ifndef STDC_HEADERS
+  getwd(basepath);
+#else
+  getcwd(basepath, sizeof(basepath));
+#endif
+  if (!strlen(basepath)) strcat(basepath, "/");
 #ifdef OFFIX
   DndInitialize(toplevel);
   DndRegisterOtherDrop(FileDropedHandler);
@@ -3347,7 +3282,8 @@ void a_start_interface(int pipe_in) {
   XtAddCallback(time_l,XtNcallback,(XtCallbackProc)filemenuAction,NULL);
 
   XtRealizeWidget(toplevel);
-  dirlist = NULL;
+  dirlist =(String *)malloc(sizeof(String)* MAX_DIRECTORY_ENTRY);
+  dirlist[0] = (char *)NULL;
   lrs.string = "";
   setDirList(load_flist, cwd_l, &lrs);
   XtSetKeyboardFocus(base_f, base_f);
@@ -3538,12 +3474,25 @@ void a_start_interface(int pipe_in) {
   XtAppMainLoop(app_con);
 }
 
-static void safe_getcwd(char *cwd, int maxlen)
+
+#include "interface.h"
+#if defined(IA_MOTIF)
+/*
+ * Switch -lXm's vendorShellWidgetClass to -lXaw's vendorShellWidgetClass
+ */
+#define vendorShellClassRec xaw_vendorShellClassRec
+#define vendorShellWidgetClass xaw_vendorShellWidgetClass
+#include "xaw_redef.c"
+#undef vendorShellClassRec
+#undef vendorShellWidgetClass
+extern WidgetClass vendorShellWidgetClass;
+extern VendorShellClassRec vendorShellClassRec;
+static void xaw_vendor_setup(void)
 {
-  if(!getcwd(cwd, maxlen))
-  {
-    ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
-	      "Warning: Can't get current working directory");
-    strcpy(cwd, ".");
-  }
+    memcpy(&vendorShellClassRec, &xaw_vendorShellClassRec,
+	   sizeof(VendorShellClassRec));
+    vendorShellWidgetClass = (WidgetClass)&xaw_vendorShellWidgetClass;
 }
+#else
+static void xaw_vendor_setup(void) { }
+#endif

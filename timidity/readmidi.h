@@ -99,6 +99,8 @@ extern int32 readmidi_set_track(int trackno, int rewindp);
 extern void readmidi_add_event(MidiEvent *newev);
 extern void readmidi_add_ctl_event(int32 at, int ch, int control, int val);
 extern int parse_sysex_event(uint8 *data, int32 datalen, MidiEvent *ev_ret);
+extern int convert_midi_control_change(int chn, int type, int val,
+				       MidiEvent *ev_ret);
 extern char *readmidi_make_string_event(int type, char *string, MidiEvent *ev,
 					int cnv);
 extern MidiEvent *read_midi_file(struct timidity_file *mtf,
@@ -121,7 +123,7 @@ extern int opt_trace_text_meta_event;
 extern int opt_default_mid;
 extern int ignore_midi_error;
 extern int readmidi_error_flag;
-extern int readmidi_wrd_flag;
+extern int readmidi_wrd_mode;
 extern int play_system_mode;
 
 #endif /* ___READMIDI_H_ */

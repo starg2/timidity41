@@ -41,9 +41,9 @@
 #include "instrum.h"
 #include "playmidi.h"
 #include "readmidi.h"
-#ifdef __WIN32__
+#ifdef __W32__
 #include "wrd.h"
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
@@ -64,7 +64,7 @@ ControlMode ctl=
 {
     "dumb interface", 'd',
     1,0,0,
-
+    0,
     ctl_open,
     ctl_close,
     dumb_pass_playing_list,
@@ -106,12 +106,9 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
   if ((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
       ctl.verbosity<verbosity_level)
     return 0;
-
   va_start(ap, fmt);
-
   if(type == CMSG_WARNING || type == CMSG_ERROR || type == CMSG_FATAL)
       dumb_error_count++;
-
   if (!ctl.opened)
     {
       vfprintf(stderr, fmt, ap);
@@ -151,10 +148,10 @@ static void ctl_current_time(int secs)
   int mins;
   static int prev_secs = -1;
 
-#ifdef __WIN32__
+#ifdef __W32__
 	  if(wrdt->id == 'w')
 	    return;
-#endif /* __WIN32__ */
+#endif /* __W32__ */
   if (ctl.trace_playing && secs != prev_secs)
     {
       prev_secs = secs;

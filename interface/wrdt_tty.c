@@ -56,6 +56,7 @@ WRDTracer wrdt =
     0,
     wrdt_open,
     wrdt_apply,
+    NULL,
     wrdt_update_events,
     NULL,
     wrdt_end,

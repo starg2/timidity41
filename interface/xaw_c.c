@@ -106,6 +106,7 @@ ControlMode ctl=
 {
     "XAW interface", 'a',
     1,0,0,
+    0,
     ctl_open,
     ctl_close,
     ctl_pass_playing_list,
@@ -309,7 +310,7 @@ static void xaw_add_midi_file(char *additional_path) {
 
     files[0] = additional_path;
     nfiles = 1;
-    if(elem= strrchr(additional_path,'#'))
+    if((elem = strrchr(additional_path,'#')) != NULL)
         ret = files;
     else
         ret = expand_file_archives(files, &nfiles);
@@ -343,7 +344,7 @@ static void xaw_add_midi_file(char *additional_path) {
 }
 
 static void xaw_delete_midi_file(int delete_num) {
-    int i, nfiles = -1;
+    int i;
     char *p;
 
     if(delete_num<0) {
@@ -353,7 +354,7 @@ static void xaw_delete_midi_file(int delete_num) {
         }
         list_of_files = NULL; titles = NULL;
         file_table=(int *)safe_realloc(file_table,1*sizeof(int));
-        file_table[0] = NULL;
+        file_table[0] = 0;
         number_of_files = 0;
     } else {
         free(titles[delete_num]);
@@ -823,6 +824,8 @@ static void ctl_reset(void)
   for (i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {
     if(ISDRUMCHANNEL(i)) {
       ctl_program(i, channel[i].bank, channel_instrum_name(i));
+      if (opt_reverb_control)
+        set_otherinfo(i, get_reverb_level(i), 'r');
     } else {
       ToneBank *bank;
       int b;
@@ -835,11 +838,11 @@ static void ctl_reset(void)
           bank = tonebank[0];
       }
       set_otherinfo(i, channel[i].bank, 'b');
-      if (opt_reverb_control && channel[i].rb != NULL)
-        set_otherinfo(i, channel[i].rb->level, 'r');
+      if (opt_reverb_control)
+        set_otherinfo(i, get_reverb_level(i), 'r');
 
       if(opt_chorus_control)
-        set_otherinfo(i, channel[i].chorus_level, 'c');
+        set_otherinfo(i, get_chorus_level(i), 'c');
     }
     ctl_volume(i, channel[i].volume);
     ctl_expression(i, channel[i].expression);

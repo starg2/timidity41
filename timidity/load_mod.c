@@ -27,9 +27,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <stdio.h>
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif /* __WIN32__ */
+#endif /* HAVE_UNISTD_H */
 
 #ifndef NO_STRING_H
 #include <string.h>

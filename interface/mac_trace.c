@@ -25,6 +25,9 @@
 */
 
 // includs
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "string.h"
 #include "timidity.h"
 #include "common.h"
@@ -83,7 +86,7 @@ static void DrawInstrumentName(int ch, char *comm)
 	
 		//channel number
 	MoveTo(2, UPPER_MERGIN+CHANNEL_HIGHT*(ch+1)-1);
-	sprintf(buf, "%2d", ch+1);
+	snprintf(buf, 80,"%2d", ch+1);
 	DrawText(buf, 0, strlen(buf));
 		
 		//InstrumentName
@@ -204,7 +207,7 @@ static void update_filename()
 	
 	if( mac_n_files>0 && nPlaying<=mac_n_files && fileList[nPlaying].mfn &&
 										fileList[nPlaying].mfn->file )
-		sprintf(buf, "File: %s", fileList[nPlaying].mfn->file);
+		snprintf(buf, 256,"File: %s", fileList[nPlaying].mfn->file);
 	RGBForeColor(&black);
 	MoveTo(2,12); DrawText(buf, 0, strlen(buf));
 }
@@ -217,25 +220,23 @@ static void update_title()
 	SetPortWindowPort(win.ref);
 	if( mac_n_files>0 && nPlaying<=mac_n_files && fileList[nPlaying].mfn &&
 										fileList[nPlaying].mfn->title )
-		sprintf(buf, "Title: %s", fileList[nPlaying].mfn->title);
+		snprintf(buf, 256, "Title: %s", fileList[nPlaying].mfn->title);
 	RGBForeColor(&black);
 	MoveTo(2,24); DrawText(buf, 0, strlen(buf));
 }
 
-void mac_trc_update_time( int tot_secs)
+void mac_trc_update_time( int cur_sec, int tot_sec )
 {
-	static int	save_tot_secs=0;
-	int			secs;
+	static int	save_tot_sec=0, save_cur_sec;
 	char		buf[80];
 	
+	if( cur_sec!=-1 ) save_cur_sec=tot_sec;
+	if( tot_sec!=-1 ) save_tot_sec=tot_sec;
+	if( cur_sec > save_tot_sec ) cur_sec=save_tot_sec;
+
 	SetPortWindowPort(win.ref);
-	if( tot_secs!=-1 ) save_tot_secs=tot_secs;
-	secs= play_mode->current_samples()/play_mode->rate;
-	if( secs > save_tot_secs ) secs=save_tot_secs;
-	sprintf(buf, " %3d:%02d /%3d:%02d   buffering=%d sec    ",
-			secs/60, secs%60, save_tot_secs/60,save_tot_secs%60,
-			(play_mode->extra_param[0]- play_mode->current_samples())
-						  /play_mode->rate );
+	snprintf(buf, 80," %3d:%02d /%3d:%02d   buffering=?? sec    ",
+		cur_sec/60, cur_sec%60, save_tot_sec/60,save_tot_sec%60 );
 	RGBForeColor(&black);
 	MoveTo(450,12); DrawText(buf, 0, strlen(buf));
 }
@@ -248,7 +249,7 @@ void mac_trc_update_voices()
 	if( !mac_TraceWindow.show ) return;
 	SetPortWindowPort(win.ref);
 	
-	sprintf(buf, "Voice %3d/%3d   ", current_voices, voices);
+	snprintf(buf, 20, "Voice %3d/%3d   ", current_voices, voices);
 	RGBForeColor(&black);
 	MoveTo(450,24); DrawText(buf, 0, strlen(buf));
 }
@@ -264,7 +265,7 @@ void mac_trc_update_all_info()
 	mac_trc_update_voices();
 	update_filename();
 	update_title();
-	mac_trc_update_time(-1);
+	mac_trc_update_time(-1,-1);
 }
 // *****************************************************
 #pragma mark -

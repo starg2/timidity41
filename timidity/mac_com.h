@@ -20,31 +20,15 @@
 	Macintosh interface for TiMidity
 	by T.Nogami	<t-nogami@happy.email.ne.jp>
 	
-    mac_errno.h
+    mac_com.h
 */
 
 #ifndef	MAC_COM_H
 #define	MAC_COM_H
 
-#ifdef __POWERPC__
- #define TIMID_CPU "PPC"
-#elif __MC68K__
- #if  __MC68881__
-  #define TIMID_CPU "68k+FPU"
- #else
-  #define TIMID_CPU "68k"
- #endif
-#endif
-
-#define	TIMID_VERSION	"1.0.0 " TIMID_CPU
-#define	TIMID_VERSION_PASCAL	"\p" TIMID_VERSION
-
-
-#define PI 3.14159265358979323846
-#define REVERB_PATCH
 #define SUPPORT_SOUNDSPEC
-#undef  DECOMPRESSOR_LIST
-#define DECOMPRESSOR_LIST { 0 }
+//#undef  DECOMPRESSOR_LIST
+//#define DECOMPRESSOR_LIST { 0 }
 #undef  PATCH_EXT_LIST
 #define PATCH_EXT_LIST { ".pat", 0 }
 
@@ -52,15 +36,14 @@
 #define DEFAULT_RATE	22050
 
 #define	AU_MACOS
-#define BIG_ENDIAN
 #undef  TILD_SCHEME_ENABLE
 #undef  JAPANESE
 #define ANOTHER_MAIN
 #define DEFAULT_PATH	""
 #undef  CONFIG_FILE
 #define CONFIG_FILE DEFAULT_PATH "timidity.cfg"
-#define ENABLE_SHERRY
 
+#define ENABLE_SHERRY
 #define MAC_SOUNDBUF_QLENGTH (stdQLength*4)
 
 extern int presence_balance;

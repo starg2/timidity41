@@ -24,12 +24,12 @@
 #define ___SMFCONV_H_
 
 #ifdef SMFCONV
-#ifdef __WIN32__
+#ifdef __W32__
 
 int is_midifile_filename(char *filename);
-int smfconv_win32(struct timidity_file *tf,char *fn);
+int smfconv_w32(struct timidity_file *tf,char *fn);
 
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 #endif /* SMFCONV */
 
 #endif /* ___SMFCONV_H_ */

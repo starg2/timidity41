@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.3 from Makefile.am
+# Makefile.in generated automatically by automake 1.4 from Makefile.am
 
-# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -29,7 +29,7 @@
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-SHELL = /bin/sh
+SHELL = @SHELL@
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -50,7 +50,7 @@ mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
 
-DISTDIR =
+DESTDIR =
 
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
@@ -64,7 +64,7 @@ AUTOMAKE = @AUTOMAKE@
 AUTOHEADER = @AUTOHEADER@
 
 INSTALL = @INSTALL@
-INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 transform = @program_transform_name@
@@ -85,12 +85,15 @@ ALSA_CFLAGS = @ALSA_CFLAGS@
 ALSA_LIBS = @ALSA_LIBS@
 CC = @CC@
 EMACS = @EMACS@
+ESD_CFLAGS = @ESD_CFLAGS@
+ESD_CONFIG = @ESD_CONFIG@
+ESD_LIBS = @ESD_LIBS@
 EXEEXT = @EXEEXT@
-EXTRADEFS = @EXTRADEFS@
 EXTRALIBS = @EXTRALIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_CONFIG = @GTK_CONFIG@
 GTK_LIBS = @GTK_LIBS@
+INTERFACE_SRCS = @INTERFACE_SRCS@
 LN_S = @LN_S@
 MAKEINFO = @MAKEINFO@
 NETSRCS = @NETSRCS@
@@ -108,128 +111,34 @@ tcltk_dep = @tcltk_dep@
 
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
-INCLUDES = \
-	-I$(top_srcdir) \
-	-I$(top_srcdir)/timidity \
-	-I$(top_srcdir)/libarc \
-	-I$(top_srcdir)/utils \
-	$(EXTRAINCS)
+INCLUDES =  	-I$(top_srcdir) 	-I$(top_srcdir)/timidity 	-I$(top_srcdir)/libarc 	-I$(top_srcdir)/utils 	$(EXTRAINCS)
+
 
 noinst_LIBRARIES = libinterface.a
 
-libinterface_a_SOURCES = \
-	dumb_c.c \
-	wrdt_dumb.c \
-	wrdt_tty.c
+libinterface_a_SOURCES =  	dumb_c.c 	wrdt_dumb.c 	wrdt_tty.c
 
-EXTRA_libinterface_a_SOURCES = \
-	ncurs_c.c \
-	slang_c.c \
-	motif.h \
-	motif_c.c \
-	motif_i.c \
-	motif_p.c \
-	tk_c.c \
-	emacs_c.c \
-	vt100.h \
-	vt100.c \
-	vt100_c.c \
-	xaw.h \
-	xaw_c.c \
-	xaw_i.c \
-	xskin.h \
-	xskin_c.c \
-	xskin_i.c \
-	xskin_loadBMP.c \
-	xskin_spectrum.c \
-	wrdt_x.c \
-	x_wrdwindow.c \
-	x_wrdwindow.h \
-	VTPrsTbl.c \
-	VTparse.h \
-	x_mag.c \
-	x_mag.h \
-	dynamic_c.c \
-	mac_c.c \
-	mac_c.h \
-	mac_mag.c \
-	mac_mag.h \
-	mac_trace.c \
-	mac_wrdwindow.c \
-	mac_wrdwindow.h \
-	wrdt_mac.c \
-	wrdt_wincon.c \
-	gtk_c.c \
-	gtk_h.h \
-	gtk_i.c \
-	gtk_p.c \
-	soundspec.c \
-	soundspec.h
 
-@ENABLE_NCURSES_TRUE@NCURSES_OBJS = ncurs_c.o
+EXTRA_libinterface_a_SOURCES =  	ncurs_c.c 	slang_c.c 	motif.h 	motif_c.c 	motif_i.c 	motif_p.c 	tk_c.c 	emacs_c.c 	vt100.h 	vt100.c 	vt100_c.c 	xaw.h 	xaw_c.c 	xaw_i.c 	xaw_redef.c 	xskin.h 	xskin_c.c 	xskin_i.c 	xskin_loadBMP.c 	xskin_spectrum.c 	wrdt_x.c 	x_sherry.c 	x_sherry.h 	x_wrdwindow.c 	x_wrdwindow.h 	VTPrsTbl.c 	VTparse.h 	x_mag.c 	x_mag.h 	dynamic_c.c 	mac_c.c 	mac_c.h 	mac_mag.c 	mac_mag.h 	mac_trace.c 	mac_wrdwindow.c 	mac_wrdwindow.h 	wrdt_mac.c 	wrdt_wcon.c 	gtk_c.c 	gtk_h.h 	gtk_i.c 	gtk_p.c 	soundspec.c 	soundspec.h 	x_sherry.c 	x_sherry.h 	check.xbm 	arrow.xbm 	on.xbm 	off.xbm 	server_c.c 	server_defs.h 	w32g.h 	w32g_c.c 	w32g_c.h 	w32g_ini.c 	w32g_main.c 	w32g_main.h 	w32g_res.h 	w32g_res.rc 	w32g_utl.c 	w32g_utl.h 	w32g_btn.bmp 	w32g_icon.ico 	w32g_sleep.bmp 	w32g_subbtn.bmp
 
-@ENABLE_SLANG_TRUE@SLANG_OBJS = slang_c.o
 
-@ENABLE_MOTIF_TRUE@MOTIF_OBJS = \
-@ENABLE_MOTIF_TRUE@	motif_c.o \
-@ENABLE_MOTIF_TRUE@	motif_i.o \
-@ENABLE_MOTIF_TRUE@	motif_p.o 
+@ENABLE_WRD_TRUE@WRD_OBJS = 	wrdt_x.o 	x_wrdwindow.o 	VTPrsTbl.o 	x_mag.o 	x_sherry.o
 
-@ENABLE_TCLTK_TRUE@TK_OBJS = tk_c.o
-
-@ENABLE_EMACS_TRUE@EMACS_OBJS = emacs_c.o
-
-@ENABLE_VT100_TRUE@VT100_OBJS = \
-@ENABLE_VT100_TRUE@	vt100.o \
-@ENABLE_VT100_TRUE@	vt100_c.o
-
-@ENABLE_XAW_TRUE@XAW_OBJS = \
-@ENABLE_XAW_TRUE@	xaw_c.o \
-@ENABLE_XAW_TRUE@	xaw_i.o
-
-@ENABLE_XSKIN_TRUE@XSKIN_OBJS = \
-@ENABLE_XSKIN_TRUE@	xskin_c.o \
-@ENABLE_XSKIN_TRUE@	xskin_i.o \
-@ENABLE_XSKIN_TRUE@	xskin_loadBMP.o \
-@ENABLE_XSKIN_TRUE@	xskin_spectrum.o
-
-@ENABLE_GTK_TRUE@GTK_OBJS= \
-@ENABLE_GTK_TRUE@	gtk_c.o \
-@ENABLE_GTK_TRUE@	gtk_i.o \
-@ENABLE_GTK_TRUE@	gtk_p.o
-
-@ENABLE_WRD_TRUE@WRD_OBJS = \
-@ENABLE_WRD_TRUE@	wrdt_x.o \
-@ENABLE_WRD_TRUE@	x_wrdwindow.o \
-@ENABLE_WRD_TRUE@	VTPrsTbl.o \
-@ENABLE_WRD_TRUE@	x_mag.o
-
-@CYGNUS_TRUE@WRD_WINCON_OBJS = wrdt_wincon.o
+@CYGNUS_TRUE@WRD_WINCON_OBJS = wrdt_wcon.o
 
 @NEEDDLOPEN_TRUE@DYNAMIC_OBJS = dynamic_c.o
 
-@ENABLE_SOUND_SPEC_TRUE@SOUND_SPEC_OBJS = \
-@ENABLE_SOUND_SPEC_TRUE@	soundspec.o
+@ENABLE_SOUND_SPEC_TRUE@SOUND_SPEC_OBJS = 	soundspec.o
 
-libinterface_a_LIBADD = \
-	$(NCURSES_OBJS) \
-	$(SLANG_OBJS) \
-	$(MOTIF_OBJS) \
-	$(TK_OBJS) \
-	$(EMACS_OBJS) \
-	$(VT100_OBJS) \
-	$(XAW_OBJS) \
-	$(XSKIN_OBJS) \
-	$(GTK_OBJS) \
-	$(WRD_OBJS) \
-	$(WRD_WINCON_OBJS) \
-	$(DYNAMIC_OBJS) \
-	$(SOUND_SPEC_OBJS)
+@ENABLE_W32GUI_TRUE@W32GUI_DEPS = w32g_res.res
 
-libinterface_a_DEPENDENCIES = \
-	$(top_srcdir)/interface.h \
-	$(libinterface_a_LIBADD) \
-	$(tcltk_dep)
+INTERFACE_OBJS = $(INTERFACE_SRCS:.c=.o)
+
+libinterface_a_LIBADD =  	$(INTERFACE_OBJS) 	$(WRD_OBJS) 	$(WRD_WINCON_OBJS) 	$(DYNAMIC_OBJS) 	$(SOUND_SPEC_OBJS)
+
+
+libinterface_a_DEPENDENCIES =  	$(top_srcdir)/interface.h 	$(libinterface_a_LIBADD) 	$(tcltk_dep) 	$(W32GUI_DEPS)
+
 
 # Tcl interface sources
 TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
@@ -237,25 +146,19 @@ TCLSRCS = tkmidity.ptcl tkpanel.tcl browser.tcl misc.tcl
 TCLF = tkmidity.tcl tkpanel.tcl browser.tcl misc.tcl
 ALLTCLF = $(TCLF) tclIndex
 
-EXTRA_DIST = \
-	tkmidity.ptcl \
-	tkpanel.tcl \
-	browser.tcl \
-	misc.tcl \
-	timidity.el \
-	check.xbm \
-	arrow.xbm \
-	on.xbm \
-	off.xbm
+EXTRA_DIST =  	tkmidity.ptcl 	tkpanel.tcl 	browser.tcl 	misc.tcl 	timidity.el
 
 @ENABLE_TCLTK_TRUE@install_tk = install.tk
 @ENABLE_DYNAMIC_TCLTK_TRUE@install_tk = install.tk
-
 @ENABLE_XAW_TRUE@install_xaw = install.xaw
 @ENABLE_DYNAMIC_XAW_TRUE@install_xaw = install.xaw
 
 @ENABLE_EMACS_TRUE@ELFILES = @ELFILES@
 @ENABLE_EMACS_TRUE@install_el = install.el
+
+###
+### For dynamic interfaces
+###
 
 @NEEDDLOPEN_TRUE@dynamic_targets = @dynamic_targets@
 @NEEDDLOPEN_TRUE@install_dynamics = install.dynamics
@@ -285,23 +188,23 @@ X_PRE_LIBS = @X_PRE_LIBS@
 libinterface_a_OBJECTS =  dumb_c.o wrdt_dumb.o wrdt_tty.o
 AR = ar
 CFLAGS = @CFLAGS@
-COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
-LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
 DIST_COMMON =  Makefile.am Makefile.in
 
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = gtar
-GZIP = --best
+GZIP_ENV = --best
 SOURCES = $(libinterface_a_SOURCES) $(EXTRA_libinterface_a_SOURCES)
 OBJECTS = $(libinterface_a_OBJECTS)
 
-all: all-recursive all-am
-
+all: all-redirect
 .SUFFIXES:
 .SUFFIXES: .S .c .o .s
-$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4)
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
 	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps interface/Makefile
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
@@ -353,41 +256,65 @@ all-recursive install-data-recursive install-exec-recursive \
 installdirs-recursive install-recursive uninstall-recursive  \
 check-recursive installcheck-recursive info-recursive dvi-recursive:
 	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	target=`echo $@ | sed s/-recursive//`; \
 	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  target=`echo $@ | sed s/-recursive//`; \
 	  echo "Making $$target in $$subdir"; \
-	  (cd $$subdir && $(MAKE) $$target) \
+	  if test "$$subdir" = "."; then \
+	    dot_seen=yes; \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
-	done && test -z "$$fail"
+	done; \
+	if test "$$dot_seen" = "no"; then \
+	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
+	fi; test -z "$$fail"
 
 mostlyclean-recursive clean-recursive distclean-recursive \
 maintainer-clean-recursive:
 	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
 	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
 	  rev="$$subdir $$rev"; \
+	  test "$$subdir" = "." && dot_seen=yes; \
 	done; \
+	test "$$dot_seen" = "no" && rev=". $$rev"; \
+	target=`echo $@ | sed s/-recursive//`; \
 	for subdir in $$rev; do \
-	  target=`echo $@ | sed s/-recursive//`; \
 	  echo "Making $$target in $$subdir"; \
-	  (cd $$subdir && $(MAKE) $$target) \
+	  if test "$$subdir" = "."; then \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
 	done && test -z "$$fail"
 tags-recursive:
 	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  (cd $$subdir && $(MAKE) tags); \
+	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
 	done
 
 tags: TAGS
 
 ID: $(HEADERS) $(SOURCES) $(LISP)
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
 	here=`pwd` && cd $(srcdir) \
-	  && mkid -f$$here/ID $(SOURCES) $(HEADERS) $(LISP)
+	  && mkid -f$$here/ID $$unique $(LISP)
 
 TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
 	tags=; \
 	here=`pwd`; \
 	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
+   if test "$$subdir" = .; then :; else \
+	    test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
+   fi; \
 	done; \
 	list='$(SOURCES) $(HEADERS)'; \
 	unique=`for i in $$list; do echo $$i; done | \
@@ -412,199 +339,218 @@ subdir = interface
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
-	  test -f $(distdir)/$$file \
-	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	  || cp -p $$d/$$file $(distdir)/$$file; \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
 	done
 	for subdir in $(SUBDIRS); do \
-	  test -d $(distdir)/$$subdir \
-	  || mkdir $(distdir)/$$subdir \
-	  || exit 1; \
-	  chmod 777 $(distdir)/$$subdir; \
-	  (cd $$subdir && $(MAKE) top_distdir=../$(top_distdir) distdir=../$(distdir)/$$subdir distdir) \
+	  if test "$$subdir" = .; then :; else \
+	    test -d $(distdir)/$$subdir \
+	    || mkdir $(distdir)/$$subdir \
 	    || exit 1; \
+	    chmod 777 $(distdir)/$$subdir; \
+	    (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir=../$(top_distdir) distdir=../$(distdir)/$$subdir distdir) \
+	      || exit 1; \
+	  fi; \
 	done
 VTPrsTbl.o: VTPrsTbl.c VTparse.h
-dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h \
+dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
+dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/output.h ../timidity/controls.h \
+	../timidity/dlutils.h
 emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/output.h ../timidity/controls.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/miditrace.h
-gtk_c.o: gtk_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
-	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
-	../timidity/playmidi.h ../timidity/output.h \
-	../timidity/controls.h gtk_h.h
-gtk_i.o: gtk_i.c ../config.h ../timidity/timidity.h ../timidity/common.h \
-	../libarc/url.h ../utils/mblock.h gtk_h.h pixmaps/playpaus.xpm \
-	pixmaps/prevtrk.xpm pixmaps/nexttrk.xpm pixmaps/rew.xpm \
-	pixmaps/ff.xpm pixmaps/restart.xpm pixmaps/quit.xpm \
-	pixmaps/quiet.xpm pixmaps/loud.xpm pixmaps/open.xpm \
-	pixmaps/keyup.xpm pixmaps/keydown.xpm pixmaps/slow.xpm \
-	pixmaps/fast.xpm pixmaps/timidity.xpm
-gtk_p.o: gtk_p.c ../config.h ../timidity/timidity.h \
-	../timidity/controls.h gtk_h.h
-motif_c.o: motif_c.c ../config.h ../timidity/timidity.h \
+gtk_c.o: gtk_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h gtk_h.h
+gtk_i.o: gtk_i.c ../config.h ../timidity/timidity.h ../utils/support.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h gtk_h.h \
+	pixmaps/playpaus.xpm pixmaps/prevtrk.xpm pixmaps/nexttrk.xpm \
+	pixmaps/rew.xpm pixmaps/ff.xpm pixmaps/restart.xpm \
+	pixmaps/quit.xpm pixmaps/quiet.xpm pixmaps/loud.xpm \
+	pixmaps/open.xpm pixmaps/keyup.xpm pixmaps/keydown.xpm \
+	pixmaps/slow.xpm pixmaps/fast.xpm pixmaps/timidity.xpm
+gtk_p.o: gtk_p.c ../config.h ../timidity/timidity.h ../utils/support.h \
+	../timidity/controls.h gtk_h.h
+motif_c.o: motif_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/output.h \
 	../timidity/controls.h motif.h ../timidity/miditrace.h
 motif_i.o: motif_i.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/output.h ../timidity/controls.h motif.h \
 	motif_bitmaps/back.xbm motif_bitmaps/next.xbm \
 	motif_bitmaps/prev.xbm motif_bitmaps/restart.xbm \
 	motif_bitmaps/fwd.xbm motif_bitmaps/pause.xbm \
 	motif_bitmaps/quit.xbm motif_bitmaps/timidity.xbm
 motif_p.o: motif_p.c ../config.h ../timidity/timidity.h \
-	../timidity/controls.h motif.h
+	../utils/support.h ../timidity/controls.h motif.h
 ncurs_c.o: ncurs_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h \
+	../utils/bitset.h ../libarc/arc.h ../utils/memb.h \
+	../timidity/aq.h ../timidity/mid-j.defs
+server_c.o: server_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/controls.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/readmidi.h \
+	../timidity/recache.h ../timidity/output.h ../timidity/aq.h \
+	../utils/timer.h
+slang_c.o: slang_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h
+soundspec.o: soundspec.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/output.h ../timidity/controls.h soundspec.h \
+	../utils/fft.h ../timidity/miditrace.h
+tk_c.o: tk_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h ../timidity/aq.h
+vt100.o: vt100.c ../config.h ../timidity/timidity.h ../utils/support.h \
+	vt100.h
+vt100_c.o: vt100_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h vt100.h \
+	../utils/timer.h ../utils/bitset.h ../timidity/aq.h
+wrdt_dumb.o: wrdt_dumb.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
+wrdt_tty.o: wrdt_tty.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
+wrdt_x.o: wrdt_x.c ../config.h ../timidity/timidity.h ../utils/support.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
+	../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h \
+	x_wrdwindow.h x_mag.h x_sherry.h
+x_mag.o: x_mag.c ../config.h ../timidity/timidity.h ../utils/support.h \
+	../timidity/common.h ../libarc/url.h ../utils/mblock.h x_mag.h \
+	../timidity/controls.h ../timidity/wrd.h
+x_sherry.o: x_sherry.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/controls.h ../timidity/wrd.h \
+	../timidity/aq.h x_sherry.h
+x_wrdwindow.o: x_wrdwindow.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h x_mag.h x_wrdwindow.h VTparse.h \
+	../timidity/wrd.h ../timidity/controls.h
+xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/output.h \
 	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h \
-	../utils/bitset.h ../libarc/arc.h ../utils/memb.h \
-	../timidity/mid-j.defs
-slang_c.o: slang_c.c ../config.h ../timidity/timidity.h \
+	xaw.h
+xaw_i.o: xaw_i.c ../config.h xaw.h ../timidity/timidity.h \
+	../utils/support.h check.xbm arrow.xbm on.xbm off.xbm \
 	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/output.h \
-	../timidity/controls.h ../timidity/miditrace.h ../utils/timer.h
-soundspec.o: soundspec.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/output.h ../timidity/controls.h soundspec.h \
-	../utils/fft.h ../timidity/miditrace.h
-tk_c.o: tk_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
-	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
-	../timidity/playmidi.h ../timidity/readmidi.h \
-	../timidity/output.h ../timidity/controls.h \
-	../timidity/miditrace.h
-vt100.o: vt100.c ../config.h ../timidity/timidity.h vt100.h
-vt100_c.o: vt100_c.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/output.h \
-	../timidity/controls.h ../timidity/miditrace.h vt100.h \
-	../utils/timer.h ../utils/bitset.h
-wrdt_dumb.o: wrdt_dumb.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
-wrdt_tty.o: wrdt_tty.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h
-wrdt_x.o: wrdt_x.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/readmidi.h ../timidity/controls.h ../timidity/wrd.h \
-	x_wrdwindow.h x_mag.h
-x_mag.o: x_mag.c ../config.h ../timidity/timidity.h ../timidity/common.h \
-	../libarc/url.h ../utils/mblock.h x_mag.h \
-	../timidity/controls.h ../timidity/wrd.h
-x_wrdwindow.o: x_wrdwindow.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h x_mag.h \
-	x_wrdwindow.h VTparse.h ../timidity/wrd.h \
-	../timidity/controls.h
-xaw_c.o: xaw_c.c ../config.h ../timidity/timidity.h ../timidity/common.h \
-	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
-	../timidity/playmidi.h ../timidity/readmidi.h \
-	../timidity/output.h ../timidity/controls.h \
-	../timidity/miditrace.h ../utils/timer.h xaw.h
-xaw_i.o: xaw_i.c ../config.h xaw.h ../timidity/timidity.h check.xbm \
-	arrow.xbm on.xbm off.xbm ../timidity/common.h ../libarc/url.h \
-	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/controls.h ../utils/timer.h \
-	../utils/strtab.h
+	../interface.h xaw_redef.c
 xskin_c.o: xskin_c.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h ../timidity/output.h \
 	../timidity/controls.h ../timidity/miditrace.h xskin.h
 xskin_i.o: xskin_i.c xskin.h ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/output.h ../timidity/controls.h \
-	../timidity/miditrace.h
-xskin_loadBMP.o: xskin_loadBMP.c ../config.h ../timidity/timidity.h \
-	../timidity/common.h ../libarc/url.h ../utils/mblock.h \
-	../timidity/instrum.h ../timidity/playmidi.h \
-	../timidity/controls.h ../timidity/output.h ../libarc/arc.h \
-	../utils/memb.h
-xskin_spectrum.o: xskin_spectrum.c xskin.h ../config.h \
-	../timidity/timidity.h ../timidity/common.h ../libarc/url.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/miditrace.h
+xskin_loadBMP.o: xskin_loadBMP.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/instrum.h ../timidity/playmidi.h \
+	../timidity/controls.h ../timidity/output.h ../libarc/arc.h \
+	../utils/memb.h
+xskin_spectrum.o: xskin_spectrum.c xskin.h ../config.h \
+	../timidity/timidity.h ../utils/support.h ../timidity/common.h \
+	../libarc/url.h ../utils/mblock.h ../timidity/instrum.h \
+	../timidity/playmidi.h ../timidity/output.h \
+	../timidity/controls.h ../timidity/miditrace.h
 
+info-am:
 info: info-recursive
+dvi-am:
 dvi: dvi-recursive
-check: all-am
-	$(MAKE) check-recursive
+check-am: all-am
+check: check-recursive
+installcheck-am:
 installcheck: installcheck-recursive
-all-am: Makefile $(LIBRARIES)
-
 install-exec-am: install-exec-local
+install-exec: install-exec-recursive
 
-install-exec: install-exec-recursive install-exec-am
-	@$(NORMAL_INSTALL)
-
+install-data-am:
 install-data: install-data-recursive
-	@$(NORMAL_INSTALL)
 
-install: install-recursive install-exec-am
-	@:
-
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-recursive
+uninstall-am:
 uninstall: uninstall-recursive
-
+all-am: Makefile $(LIBRARIES)
+all-redirect: all-recursive
 install-strip:
-	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
 installdirs: installdirs-recursive
+installdirs-am:
 
 
 mostlyclean-generic:
-	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
 
 clean-generic:
-	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
-	-rm -f Makefile $(DISTCLEANFILES)
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
-	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 
 maintainer-clean-generic:
-	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
-	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 mostlyclean-am:  mostlyclean-noinstLIBRARIES mostlyclean-compile \
 		mostlyclean-tags mostlyclean-generic
+
+mostlyclean: mostlyclean-recursive
 
 clean-am:  clean-noinstLIBRARIES clean-compile clean-tags clean-generic \
 		mostlyclean-am
 
+clean: clean-recursive
+
 distclean-am:  distclean-noinstLIBRARIES distclean-compile \
 		distclean-tags distclean-generic clean-am
+
+distclean: distclean-recursive
 
 maintainer-clean-am:  maintainer-clean-noinstLIBRARIES \
 		maintainer-clean-compile maintainer-clean-tags \
 		maintainer-clean-generic distclean-am
-
-mostlyclean:  mostlyclean-recursive mostlyclean-am
-
-clean:  clean-recursive clean-am
-
-distclean:  distclean-recursive distclean-am
-	-rm -f config.status
-
-maintainer-clean:  maintainer-clean-recursive maintainer-clean-am
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-recursive
 
 .PHONY: mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
 clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
@@ -615,11 +561,13 @@ uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
 all-recursive check-recursive installcheck-recursive info-recursive \
 dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
 maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
-distclean-tags clean-tags maintainer-clean-tags distdir info dvi \
-installcheck all-am install-exec-am install-exec install-data install \
-uninstall all installdirs mostlyclean-generic distclean-generic \
-clean-generic maintainer-clean-generic clean mostlyclean distclean \
-maintainer-clean
+distclean-tags clean-tags maintainer-clean-tags distdir info-am info \
+dvi-am dvi check check-am installcheck-am installcheck \
+install-exec-local install-exec-am install-exec install-data-am \
+install-data install-am install uninstall-am uninstall all-redirect \
+all-am all installdirs-am installdirs mostlyclean-generic \
+distclean-generic clean-generic maintainer-clean-generic clean \
+mostlyclean distclean maintainer-clean
 
 
 include $(top_builddir)/common.makefile
@@ -646,6 +594,10 @@ install.bitmaps:
 install.el: $(ELFILES)
 	test -d $(DESTDIR)$(TIMID_DIR) || mkdir -p $(DESTDIR)$(TIMID_DIR)
 	for f in $(ELFILES) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+
+w32g_res.res: w32g_res.h w32g_res.rc \
+	w32g_btn.bmp w32g_icon.ico w32g_sleep.bmp w32g_subbtn.bmp
+	windres -o $@ -O coff w32g_res.rc
 
 @NEEDDLOPEN_TRUE@all-am: $(dynamic_targets)
 

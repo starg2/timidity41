@@ -35,12 +35,13 @@
 #include <strings.h>
 #endif
 
-#if !defined(__WIN32__) || defined(__CYGWIN32__)
-#include <unistd.h> /* for sleep */
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else
-#include <winsock.h>
-#endif /* __WIN32__ */
+#endif /* HAVE_SYS_TIME_H */
 
 #include "timidity.h"
 #include "common.h"
@@ -53,6 +54,7 @@
 #include "vt100.h"
 #include "timer.h"
 #include "bitset.h"
+#include "aq.h"
 
 #define SCRMODE_OUT_THRESHOLD 10.0
 #define CHECK_NOTE_SLEEP_TIME 5.0
@@ -129,6 +131,7 @@ ControlMode ctl=
 {
     "vt100 interface", 'T',
     1,0,0,
+    0,
     ctl_open,
     ctl_close,
     dumb_pass_playing_list,
@@ -460,8 +463,6 @@ static void ctl_reset(void)
     int i,j,c;
     char *title;
 
-    play_mode->purge_output();
-    trace_flush();
     if (!ctl.trace_playing)
 	return;
     c = (VT100_COLS - 24) / 12 * 12;
@@ -799,7 +800,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
     return 0;
 }
 
-#if !defined(__WIN32__) || defined(__CYGWIN32__)
+#if !defined(__W32__) || defined(__CYGWIN32__)
 /* UNIX */
 static char *vt100_getline(void)
 {
@@ -830,6 +831,11 @@ static char *vt100_getline(void)
     return NULL;
 }
 #else
+/* Windows */
+
+/* Define VT100_CBREAK_MODE if you want to emulate like ncurses mode */
+/* #define VT100_CBREAK_MODE */
+
 #include <conio.h>
 static char *vt100_getline(void)
 {
@@ -844,6 +850,12 @@ static char *vt100_getline(void)
 	    return "q";
 	if(c == '\r')
 	    c = '\n';
+
+#ifdef VT100_CBREAK_MODE
+	cmd[0] = c;
+	cmd[1] = '\0';
+	return cmd;
+#else
 	if(cmdlen < sizeof(cmd) - 1)
 	    cmd[cmdlen++] = (char)c;
 	if(c == '\n')
@@ -852,6 +864,7 @@ static char *vt100_getline(void)
 	    cmdlen = 0;
 	    return cmd;
 	}
+#endif /* VT100_CBREAK_MODE */
     }
     return NULL;
 }

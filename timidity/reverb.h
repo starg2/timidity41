@@ -39,6 +39,5 @@ extern void set_ch_reverb(register int32 *, int32, int);
 extern void do_mono_reverb(int32 *, int32);
 extern void init_reverb(int32);
 extern void reverb_rc_event(int, int32);
-extern int do_reverb_flag; /* from command line option */
 
 #endif /* ___REVERB_H_ */

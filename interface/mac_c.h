@@ -35,10 +35,11 @@ void close_default(MacWindow* macwin);
 void mac_ctl_reset_trc();
 void mac_ctl_program(int ch, int val, void *comm);
 void v_ctl_note(int status, int ch, int note, int vel);
-void mac_trc_update_time(int tot_secs);
+void mac_trc_update_time( int cur_sec, int tot_sec );
 void mac_trc_update_voices();
 void mac_trc_update_all_info();
 void mac_setVolume(short amplitude);
+void ctl_speana_data(double *val, int size);
 
 pascal OSErr DragTrackingProc(
 	DragTrackingMessage theMessage, WindowPtr window,

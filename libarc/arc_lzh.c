@@ -12,8 +12,14 @@
 #include "arc.h"
 
 #define boolean int
-#define FALSE 0
-#define TRUE 1
+
+#ifndef FALSE
+# define FALSE 0
+#endif
+
+#ifndef TRUE
+# define TRUE 1
+#endif
 
 #define DELIM ('/')
 #define DELIM2 (0xff)

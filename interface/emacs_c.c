@@ -101,6 +101,7 @@ ControlMode ctl=
 {
     "Emacs interface (invoked from `M-x timidity')", 'e',
     1, 0, 0,
+    0,
     ctl_open,
     ctl_close,
     ctl_pass_playing_list,
@@ -457,8 +458,6 @@ static void ctl_reset(void)
 {
     int i;
     uint32 drums;
-
-    trace_flush();
 
     /* Note that Emacs is 24 bit integer. */
     drums = 0;

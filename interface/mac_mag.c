@@ -24,6 +24,9 @@
     Macintosh mag loader
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,7 +116,7 @@ static void load_pixel(Mag_Header * mh, struct timidity_file *tf )
 				tf_read(&pixels, 1, 2, tf);
 				if( OUT_OF_DISP ) continue;
 				for( i=3; i>=0; i-- ){
-					*(uint8*)(&mh->bitMap[y*mh->rowBytes+x+i])= GCODE2INDEX(pixels & 0x000F);
+					*(uint8*)(&mh->bitMap[y*mh->rowBytes+x+i])= (pixels & 0x000F);
 					pixels >>= 4;
 				}
 			} else {
@@ -240,7 +243,7 @@ int mac_pho_load(const char* fn, PixMapHandle pm)
 	struct timidity_file	*tf;
 	Ptr		bitMap;
 
-	SET_G_COLOR(0);
+	SET_G_COLOR(0,graphicWorld[activeGraphics]);
 	PaintRect(&portRect);
 
 	if( (tf=wrd_open_file(fn))==0 )

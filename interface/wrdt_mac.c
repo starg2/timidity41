@@ -24,6 +24,9 @@
 
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef NO_STRING_H
@@ -45,14 +48,31 @@
 #include "mac_c.h"
 #include "mac_wrdwindow.h"
 #include "mac_mag.h"
+#include "mac_wrd.h"
+
+static int wrd_argc;
+//static int wrd_args[WRD_MAXPARAM];
+static int inkey_flag;
 
 static int wrdt_open(char *wrdt_opts);
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[]);
 static void wrdt_update_events(void);
-static void wrdt_start(int /*wrdflag*/)
+static void wrdt_start(int wrdflag)
 {
+	if( wrdflag ){
+		sry_start();
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+			  "WRD START");
+	}
+}
+
+static void wrdt_end(void)
+{
+	wrd_argc = 0;
+	inkey_flag = 0;
+	sry_end();
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "WRD START");
+		  "WRD END");
 }
 
 static void wrdt_end(void);
@@ -67,18 +87,20 @@ WRDTracer wrdt =
     0,
     wrdt_open,
     wrdt_apply,
+    sry_wrdt_apply,
     wrdt_update_events,
     wrdt_start,
     wrdt_end,
     wrdt_close
 };
 
-static int wrd_argc;
-//static int wrd_args[WRD_MAXPARAM];
-static int inkey_flag;
-
 // ***********************************************
 // Low level output
+
+void dev_set_height(int height)
+{
+	SizeWindow(win.ref, WRD_GSCR_WIDTH, height, false);
+}
 
 void dev_redisp(Rect rect)
 {
@@ -99,26 +121,9 @@ void dev_redisp(Rect rect)
 	UNLOCK_ALL_PIXMAP();
 }
 
-static void reverse_helper(int x, int y, int byte)
-{
-	Rect rect;
-
-	rect.left=WRD_LOCX(x); //erase upper
-	rect.top=WRD_LOCY(y-1)+3;
-	rect.right=rect.left+BASE_X*byte;
-	rect.bottom=rect.top+1;
-	PaintRect(&rect);
-	
-	rect.left=WRD_LOCX(x)+7*byte; //erase right
-	//rect.top=WRD_LOCY(y-1)+2;
-	rect.right=rect.left+byte;
-	rect.bottom=WRD_LOCY(y)+3;
-	PaintRect(&rect);
-}
-
 static void dev_text_redraw(int locx1, int locy1, int locx2, int locy2)
 {
-	int x,y,startx;
+	int x,y,startx, mode,color;
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
 
@@ -141,12 +146,13 @@ static void dev_text_redraw(int locx1, int locy1, int locx2, int locy2)
 			for( x=startx; x<=locx2; ){
 				if( CHAR_VRAM(x,y)==0 ){ x++; continue;}
 				SET_T_RGBFORECOLOR_TMP(CHAR_COLOR_VRAM(x,y)&CATTR_TXTCOL_MASK);
-				(CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED)?
-					TextMode(notSrcOr) : TextMode(srcOr);
+				mode= (CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED)? 2:1;
+				color= TCODE2INDEX(CHAR_COLOR_VRAM(x,y));
 				WRD_MOVE_COURSOR_TMP(x,y);
 				if( MULTI_BYTE_FLAG(x,y) ){
-					DrawText(&CHAR_VRAM(x,y), 0, 2);
-					if(CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED) reverse_helper(x,y, 2); x+=2;
+					dev_draw_text_gmode( dispWorld->portPixMap, WRD_LOCX(x), WRD_LOCY(y-1)+3,
+						&CHAR_VRAM(x,y), 2, 0xFF, mode, color, color );
+					x+=2;
 				}else{
 					if( CHAR_VRAM(x,y)==' ' && (CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED) ){
 						Rect rect;              //speedy draw
@@ -156,8 +162,9 @@ static void dev_text_redraw(int locx1, int locy1, int locx2, int locy2)
 						rect.right=rect.left+BASE_X;
 						PaintRect(&rect); x++;
 					}else{
-						DrawText(&CHAR_VRAM(x,y), 0, 1);			
-						if(CHAR_COLOR_VRAM(x,y)&CATTR_BGCOLORED) reverse_helper(x,y, 1); x++;
+						dev_draw_text_gmode( dispWorld->portPixMap, WRD_LOCX(x), WRD_LOCY(y-1)+3,
+							&CHAR_VRAM(x,y), 1, 0xFF, mode, color, color );
+						x++;
 					}
 				}
 			}
@@ -177,8 +184,8 @@ void dev_remake_disp(Rect rect)
 {						//copy gdisp -> disp, draw text on gdisp
 	LOCK_ALL_PIXMAP();
 		if( dev_gon_flag) MyCopyBits(GDISP_PIX, DISP_PIX,
-								rect, rect, 0, 0xF);
-			else dev_line(DISP_PIX, rect, 16, 2, 0xFF);
+						rect, rect, 0, 0, 0xFF, 0,0,0);
+			else dev_box(DISP_PIX, rect, 16, 0xFF);
 	UNLOCK_ALL_PIXMAP();
 	
 	dev_text_redraw_rect(rect);
@@ -205,7 +212,8 @@ static void dev_text_clear(int locx1, int locy1, int locx2, int locy2,
 {									// clear (x1,y1) .... (x2,y1)
 	int		y, startx,endx, width;
 	
-	if( locx1<0 || COLS<locx1  || locx2<0 || COLS<locx2 || 
+	if( COLS<locx2 ) locx2=COLS;
+	if( locx1<0 || COLS<locx1  || locx2<0 ||
 		locy1<0 || LINES<locy1 || locy2<0 || LINES<locy2 ) return;
 	if( locx2 < locx1 ) return;
 	
@@ -254,11 +262,11 @@ static void dev_text_output(const char* text, int n)
 			wrd_coursor_y<=0 || 26 <=wrd_coursor_y ) continue;
 		CHAR_VRAM(wrd_coursor_x+i,wrd_coursor_y)=text[i];
 		CHAR_COLOR_VRAM(wrd_coursor_x+i,wrd_coursor_y)= wrd_text_color_attr;
-		if( IS_MULTI_BYTE(text[i])
-					&& !MULTI_BYTE_FLAG(wrd_coursor_x+i,wrd_coursor_y) ){
+		if( IS_MULTI_BYTE(text[i]) ){
 			MULTI_BYTE_FLAG(wrd_coursor_x+i,wrd_coursor_y)=1;
 			if( i<n ){
 				i++; CHAR_VRAM(wrd_coursor_x+i,wrd_coursor_y)=text[i];
+				MULTI_BYTE_FLAG(wrd_coursor_x+i,wrd_coursor_y)=0;
 			}
 		}
 	}
@@ -334,7 +342,7 @@ static void dev_newline()
 	}
 }
 
-static void dev_clear_graphics(int sw)
+static void dev_clear_graphics(int pmask)
 {				//clear active bank only
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
@@ -343,7 +351,7 @@ static void dev_clear_graphics(int sw)
 	LOCK_ALL_PIXMAP();
 
 	SetGWorld(graphicWorld[activeGraphics],0);	
-		dev_line(GACTIVE_PIX, portRect, 0, 2, sw);
+		dev_box(GACTIVE_PIX, portRect, 0, pmask);
 	UNLOCK_ALL_PIXMAP();
 	SetGWorld(oldGW, oldGD);
 	
@@ -360,24 +368,25 @@ static void dev_clear_graphics(int sw)
 }
 
 
-static void dev_gmove(int x1, int y1, int x2, int y2,
-						int xd, int yd, int vs, int vd, int sw, int xcopymode)
-{												//when xcopy sw==-1
+void dev_gmove(int x1, int y1, int x2, int y2, int xd, int yd,
+		GWorldPtr srcworld, GWorldPtr destworld, int sw, int trans, int pmask,
+		int maskx, int masky, const uint8 maskdata[])
+{
 	static Rect	src,dest, rect;
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
 	
-	if( vs>=gvram_bank_num || vd>=gvram_bank_num ){
+	if( srcworld==NULL || destworld==NULL ){
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Can't use gvram bank" );
 		return;
 	}
 	
 	LOCK_ALL_PIXMAP();
 	GetGWorld(&oldGW, &oldGD);
-	LockPixels(graphicWorld[vs]->portPixMap);
-	LockPixels(graphicWorld[vd]->portPixMap);
+	LockPixels(srcworld->portPixMap);
+	LockPixels(destworld->portPixMap);
 	
-	SetRect(&src,  x1,y1,x2+1,y2+1);				CHECK_RECT(src);
+	SetRect(&src,  x1,y1,x2+1,y2+1);		CHECK_RECT(src);
 	SetRect(&dest, xd,yd, xd+x2-x1+1, yd+y2-y1+1);	CHECK_RECT(dest);
 	
 	SetPortWindowPort(win.ref);
@@ -386,34 +395,34 @@ static void dev_gmove(int x1, int y1, int x2, int y2,
 	if( sw==0 ){ //simple copy
 		//CopyBits((BitMap*)&graphicWorld[vs]->portPixMap, (BitMap*)&graphicWorld[vd]->portPixMap,
 		//		&src, &dest, srcCopy,0); //make offscreen Graphics
-		MyCopyBits(graphicWorld[vs]->portPixMap, graphicWorld[vd]->portPixMap,
-				src, dest, 0, gmode_mask); //make offscreen Graphics
+		MyCopyBits(srcworld->portPixMap, destworld->portPixMap,
+				src, dest, 0, 0, gmode_mask,0,0,0); //make offscreen Graphics
 	} else if(sw==1){ //exchange
-		CopyBits((BitMap*)&graphicWorld[vs]->portPixMap, (BitMap*)&graphicWorld[vd]->portPixMap,
+		CopyBits((BitMap*)&srcworld->portPixMap, (BitMap*)&destworld->portPixMap,
 				&src, &dest, srcXor,0);
-		CopyBits((BitMap*)&graphicWorld[vd]->portPixMap, (BitMap*)&graphicWorld[vs]->portPixMap,
+		CopyBits((BitMap*)&destworld->portPixMap, (BitMap*)&srcworld->portPixMap,
 				&dest, &src, srcXor,0);
-		CopyBits((BitMap*)&graphicWorld[vs]->portPixMap, (BitMap*)&graphicWorld[vd]->portPixMap,
+		CopyBits((BitMap*)&srcworld->portPixMap, (BitMap*)&destworld->portPixMap,
 				&src, &dest, srcXor,0);	//make offscreen Graphics
 		
 	} else if(sw==2){	//xor copy
-		CopyBits((BitMap*)&graphicWorld[vs]->portPixMap, (BitMap*)&graphicWorld[vd]->portPixMap,
+		CopyBits((BitMap*)&srcworld->portPixMap, (BitMap*)&destworld->portPixMap,
 				&src, &dest, srcXor,0); //make offscreen Graphics
-	}else if( sw==-1 ){ //xcopy
-		MyCopyBits(graphicWorld[vs]->portPixMap, graphicWorld[vd]->portPixMap,
-			src, dest, xcopymode, gmode_mask); //make offscreen Graphics
+	}else if( sw & 0x10 ){ //xcopy mode
+		MyCopyBits(srcworld->portPixMap, destworld->portPixMap,
+			src, dest, sw, trans, pmask, maskx, masky, maskdata); //make offscreen Graphics
 	}
 	
 	SetGWorld(oldGW, oldGD);
 	UNLOCK_ALL_PIXMAP();
-	UnlockPixels(graphicWorld[vs]->portPixMap);
-	UnlockPixels(graphicWorld[vd]->portPixMap);
+	UnlockPixels(srcworld->portPixMap);
+	UnlockPixels(destworld->portPixMap);
 
-	if( dispGraphics==vd ){
+	if( graphicWorld[dispGraphics]==destworld ){
 		dev_remake_disp(dest);
 		dev_redisp(dest);
 	}
-	if( dispGraphics==vs && sw==1 ){  //exchange? update src
+	if( graphicWorld[dispGraphics]==srcworld && sw==1 ){  //exchange? update src
 		dev_remake_disp(src);
 		dev_redisp(src);
 	}
@@ -440,55 +449,50 @@ static int dev_get_pixel(int x, int y)
 	baseadr=GetPixBaseAddr(graphicWorld[activeGraphics]->portPixMap);
 	rowBytes= (**graphicWorld[activeGraphics]->portPixMap).rowBytes & 0x1FFF;
 
-	return baseadr[y*rowBytes+x] -GCODE_OFFSET;
+	return baseadr[y*rowBytes+x];
 }
 
-static void dev_gline(int x1, int y1, int x2, int y2, int p1, int sw, int p2)
+void dev_gline(int x1, int y1, int x2, int y2, int p1, int sw, int p2, GWorldPtr world)
 {
 	Rect	rect;
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
-	int onbit;
 	
 	GetGWorld(&oldGW, &oldGD);
-	LockPixels(GACTIVE_PIX);
-	SetGWorld(graphicWorld[activeGraphics],0);
+	LockPixels(world->portPixMap);
+	SetGWorld(world,0);
+	
 	rect.left=x1; rect.right=x2;
 	rect.top=y1; rect.bottom=y2;
 	CHECK_RECT(rect);
 	
-	onbit=dev_get_pixel(x1,y1);
-	onbit &= ~gmode_mask_gline;
-	
 	switch(sw)
 	{
 	case 0: //line
-		p1&= gmode_mask_gline;
-		p1|=onbit; 	// inchiki!!!
-		SET_G_COLOR(p1);
-		MoveTo(x1, y1); LineTo(x2, y2);
+		dev_line(x1, y1, x2, y2, p1, gmode_mask_gline,
+			world->portPixMap );
 		break;
 	case 1: //rect
-		p1&= gmode_mask_gline; p2&= gmode_mask_gline;
-		p1|=onbit; p2|=onbit;	// inchiki!!!
-		SET_G_COLOR(p1);
-		FrameRect(&rect);
+		dev_line(x1, y1, x2, y1, p1, gmode_mask_gline,world->portPixMap );
+		dev_line(x1, y1, x1, y2, p1, gmode_mask_gline,world->portPixMap );
+		dev_line(x2, y1, x2, y2, p1, gmode_mask_gline,world->portPixMap );
+		dev_line(x1, y2, x2, y2, p1, gmode_mask_gline,world->portPixMap );
 		break;
 	case 2:	//filled rect
 		rect.right++; rect.bottom++;
-		dev_line(GACTIVE_PIX, rect, p2, sw, gmode_mask_gline);
+		dev_box(world->portPixMap, rect, p2, gmode_mask_gline);
 		if( p1!=p2 ){
-			p1&= gmode_mask_gline; p2&= gmode_mask_gline;
-			p1|=onbit; p2|=onbit;	// inchiki!!!
-			SET_G_COLOR(p1);
-			FrameRect(&rect);
+			dev_line(x1, y1, x2, y1, p1, gmode_mask_gline,world->portPixMap );
+			dev_line(x1, y1, x1, y2, p1, gmode_mask_gline,world->portPixMap );
+			dev_line(x2, y1, x2, y2, p1, gmode_mask_gline,world->portPixMap );
+			dev_line(x1, y2, x2, y2, p1, gmode_mask_gline,world->portPixMap );
 		}
 		break;
 	}
 	SetGWorld(oldGW, oldGD);
-	UnlockPixels(GACTIVE_PIX);
+	UnlockPixels(world->portPixMap);
 
-	if( activeGraphics==dispGraphics ){
+	if( graphicWorld[dispGraphics]==world ){
 		rect.right++; rect.bottom++;
 		dev_remake_disp(rect);
 		if( pallette_exist) dev_redisp(rect);
@@ -512,13 +516,13 @@ static void dev_gcircle(int x, int y, int r, int p1, int sw, int p2)
 	{
 	case 0:
 	case 1: //frame
-		SET_G_COLOR(p1);
+		SET_G_COLOR(p1,graphicWorld[activeGraphics]);
 		FrameOval(&rect);
 		break;
 	case 2:	//filled circle
-		SET_G_COLOR(p2);
+		SET_G_COLOR(p2,graphicWorld[activeGraphics]);
 		PaintOval(&rect);
-		SET_G_COLOR(p1);
+		SET_G_COLOR(p1,graphicWorld[activeGraphics]);
 		FrameOval(&rect);
 		break;
 	}
@@ -534,7 +538,7 @@ static void dev_gcircle(int x, int y, int r, int p1, int sw, int p2)
 
 static int Parse(int c);
 
-static void dev_init(int version)
+void dev_init(int version)
 {
 	int i;
 	
@@ -558,7 +562,7 @@ static void dev_init(int version)
    	dev_remake_disp(portRect);
 	dev_redisp(portRect);
 
-    dev_move_coursor(1,1);
+	dev_move_coursor(1,1);
 	startpal=endpal=0;
 	pallette_exist=true;
 	fading=false;
@@ -598,8 +602,8 @@ static OSErr dev_vsget(int num)
 static OSErr dev_setup()
 {
 	static OSErr	err=0;
-	int				i;
-	Rect			destRect;
+	int		i;
+	Rect		destRect;
 	GDHandle	oldGD;
 	GWorldPtr	oldGW;
 	
@@ -607,11 +611,19 @@ static OSErr dev_setup()
 	
 	destRect.top=destRect.left=0;
 	destRect.right=640;
-	destRect.bottom=400;
+	destRect.bottom=480;
 	gvram_bank_num=0;
 	
 	err=NewGWorld(&dispWorld, 8, &destRect,0,0,0);
 	if( err ) return err;
+	
+	{
+	Rect charbufRect={0,0,16,32};
+	err=NewGWorld(&charbufWorld, 8, &charbufRect,0,0,0);
+	if( err ) return err;
+	mac_setfont(charbufWorld, "\pOsaka|“™•");
+	}
+	
 	//wrd_palette= NewPalette( 33, 0, pmTolerant, 0x0000);
 	//if( wrd_palette )  SetPalette(win.ref, wrd_palette, true);
 	
@@ -625,11 +637,12 @@ static OSErr dev_setup()
 	GetGWorld(&oldGW, &oldGD);
 	LockPixels(DISP_PIX);
 	{
-		short		fontID;
-		SetGWorld(dispWorld,0);
-		GetFNum("\pOsaka|“™•", &fontID);
-		TextFont(fontID);
-		TextSize(14);
+		//short		fontID;
+		//SetGWorld(dispWorld,0);
+		//GetFNum("\pOsaka|“™•", &fontID);
+		mac_setfont(dispWorld, "\pOsaka|“™•");
+		//TextFont(fontID);
+		//TextSize(14);
 	}
 	SetGWorld(oldGW, oldGD);
 	UnlockPixels(DISP_PIX);
@@ -682,7 +695,7 @@ static void dev_set_text_attr(int esccode)
 {
 start:
 	switch(esccode){
-	case default:
+	  default:
 	  esccode=37; goto start;
 
 	case 17: esccode=31; goto start;
@@ -1077,15 +1090,6 @@ static void wrdt_update_events(void)
 {
 }
 
-static void wrdt_end(void)
-{
-    wrd_argc = 0;
-    inkey_flag = 0;
-    ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "WRD END");
-
-}
-
 static void wrdt_close(void)
 {
     wrdt.opened = 0;
@@ -1244,13 +1248,13 @@ static void wrd_load_default_image()
 {
 	char	filename[256], *p;
 	
-	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  "@DEFAULT_LOAD_MAG(%s)", filename);
-
 	strcpy(filename, current_file_info->filename);
 	p= strrchr( filename, '.' );
 	if( p==0 ) return;
 	strcpy( p, ".mag" );
+	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+		  "@DEFAULT_LOAD_MAG(%s)", filename);
+
 	if( wrd_mag(filename, WRD_NOARG, WRD_NOARG, 1,0)==0 ) //no err
 		return;
 	
@@ -1433,7 +1437,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 		  wrd_args[4], wrd_args[5]);
 	break;
       case WRD_GCLS:
-	dev_clear_graphics(wrd_args[0]? wrd_args[0]:0xF);
+	dev_clear_graphics(wrd_args[0]? wrd_args[0]:0xFF);
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 		  "@GCLS(%d)", wrd_args[0]);
 	break;
@@ -1442,7 +1446,7 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	break;
       case WRD_GLINE:
 	dev_gline(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
-	       wrd_args[5], wrd_args[6]);
+	       wrd_args[5], wrd_args[6],graphicWorld[activeGraphics]);
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 		  "@GLINE(%d,%d,%d,%d,%d,%d,%d)",
 	       wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
@@ -1457,7 +1461,8 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	wrd_args[0] &= ~0x7;  wrd_args[4] &= ~0x7;  
 	wrd_args[2] |= 0x7;
 	dev_gmove(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
-	       wrd_args[5], wrd_args[6], wrd_args[7], wrd_args[8], 0);
+	       wrd_args[5], graphicWorld[wrd_args[6]], graphicWorld[wrd_args[7]],
+	       wrd_args[8], 0, gmode_mask, 0,0,0);
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 		  "@GMOVE(%d,%d, %d,%d, %d,%d, %d,%d,%d)",
 	       wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
@@ -1565,8 +1570,10 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	break;
       case WRD_STARTUP:
 	dev_init(wrd_args[0]);
+	dev_init_text_color();
 	wrd_load_default_image();
 	inkey_flag = 0;
+	dev_set_height(400);
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 		  "@STARTUP(%d)", wrd_args[0]);
 	break;
@@ -1626,8 +1633,12 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	print_ecmd("TSCRL", wrd_args, 0);
 	break;
       case WRD_eVCOPY:
-	dev_gmove(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
-	       wrd_args[5], wrd_args[6]+(wrd_args[8]? 2:0), wrd_args[7]+ (wrd_args[8]? 0:2), 0,0 );
+	dev_gmove(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3],
+		wrd_args[4],wrd_args[5],
+	       graphicWorld[wrd_args[6]+(wrd_args[8]? 2:0)],
+	       graphicWorld[wrd_args[7]+ (wrd_args[8]? 0:2)], 0/*normal copy*/,0,gmode_mask,
+	       0,0,0 );
+			//ignore mode in this version, always EMS->GVRAM
 	print_ecmd("VCOPY", wrd_args, 9);
 	break;
       case WRD_eVSGET:
@@ -1639,7 +1650,8 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	break;
       case WRD_eXCOPY:
 	dev_gmove(wrd_args[0], wrd_args[1], wrd_args[2], wrd_args[3], wrd_args[4],
-	       wrd_args[5], wrd_args[6], wrd_args[7], -1, wrd_args[8]+2);	
+	     		wrd_args[5], graphicWorld[wrd_args[6]], graphicWorld[wrd_args[7]],
+	       		wrd_args[8]+0x10, 0/*trans*/, gmode_mask, 0,0,0 );	
 	print_ecmd("XCOPY", wrd_args, 14);
 	break;
 
@@ -1652,18 +1664,17 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
 	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 		  "WRD END SKIP");
 	break;
-	case WRD_SHERRY:
+      case WRD_SHERRY_UPDATE:
+	sry_update();
+	break;
+      /*case WRD_SHERRY:
 		{
-			char* data= wrd_event2string(wrd_args[0]);
+			char*	data= wrd_event2string(wrd_args[0]);
+			int	len= strlen(data)/2; //decoded length
 			sry_decode_bindata(data);
-			ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		  		"SHERRY OP= 0x%2x", data[0]);
-			if(data[0]==0x51){
-				ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-			  		"SHERRY TEXT= %s", data+11 );
-			}
+			sry_wrdt_apply(data, len);
 		}
-		break;
+		break;*/
     }
     wrd_argc = 0;
 }

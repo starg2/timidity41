@@ -71,7 +71,7 @@ static void wrdt_update_events(void);
 static void wrdt_end(void);
 static void wrdt_close(void);
 #define NO_GRAPHIC_SUPPORT
-#define wrdt wincon_wrdt_mode
+#define wrdt wcon_wrdt_mode
 #define COLOR_REMAP(k) ((k)>16)&&((k)<30)?(k)+14:k
 
 WRDTracer wrdt =
@@ -80,6 +80,7 @@ WRDTracer wrdt =
     0,
     wrdt_open,
     wrdt_apply,
+    NULL,
     wrdt_update_events,
     NULL,
     wrdt_end,

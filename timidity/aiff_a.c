@@ -17,16 +17,15 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-    aiff_a.c
-
-    Functions to output AIFF audio file (*.aiff).
+    aiff_a.c - Functions to output AIFF audio file (*.aiff).
+				Written by Masanao Izumo <mo@goice.co.jp>
 */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
-#ifdef __WIN32__
+#ifdef __W32__
 #include <stdlib.h>
 #include <io.h>
 #else
@@ -44,51 +43,42 @@
 #include "output.h"
 #include "controls.h"
 
-#ifdef __WIN32__
-#define OPEN_MODE O_WRONLY | O_CREAT | O_TRUNC | O_BINARY
-#else
-#define OPEN_MODE O_WRONLY | O_CREAT | O_TRUNC
-#endif
-
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static void output_data(int32 *buf, int32 count);
-static int flush_output(void);
-static void purge_output(void);
-static int32 current_samples(void);
-static int play_loop(void);
+static int output_data(char *buf, int32 bytes);
+static int acntl(int request, void *arg);
 static int write_u32(uint32 value);
 static int write_u16(uint16 value);
+static int chunk_start(char *id, uint32 chunk_len);
+static int write_str(char *s);
 static void ConvertToIeeeExtended(double num, char *bytes);
 
-extern int default_play_event(void *);
-
 /* export the playback mode */
-
 #define dpm aiff_play_mode
 
 PlayMode dpm = {
-    44100, PE_SIGNED|PE_16BIT, PF_NEED_INSTRUMENTS,
+    44100,
+#ifdef LITTLE_ENDIAN
+    PE_SIGNED|PE_16BIT|PE_BYTESWAP,
+#else
+    PE_SIGNED|PE_16BIT,
+#endif
+    PF_PCM_STREAM,
     -1,
     {0,0,0,0,0},
     "AIFF file", 'a',
     "output.aiff",
-    default_play_event,
     open_output,
     close_output,
     output_data,
-    flush_output,
-    purge_output,
-    current_samples,
-    play_loop
+    acntl
 };
 
-/*************************************************************************/
+#define UPDATE_HEADER_STEP (128*1024) /* 128KB */
+static uint32 bytes_output, next_bytes;
+static int already_warning_lseek;
 
-/* Count the number of bytes output so the header can be fixed when
-   closing the file */
-static uint32 bytes_output;
-static int32  play_counter;
+/*************************************************************************/
 
 static int write_u32(uint32 value)
 {
@@ -162,23 +152,77 @@ static int chunk_start(char *id, uint32 chunk_len)
     return i + j;
 }
 
+static int update_header(void)
+{
+    off_t save_point;
+    uint32 f;
+
+    if(already_warning_lseek)
+	return 0;
+
+    save_point = lseek(dpm.fd, 0, SEEK_CUR);
+    if(save_point == -1 || lseek(dpm.fd, 4, SEEK_SET) == -1)
+    {
+	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+		  "Warning: %s: %s: Can't make valid header",
+		  dpm.name, strerror(errno));
+	already_warning_lseek = 1;
+	return 0;
+    }
+
+    /* file size - 8 */
+    if(write_u32((uint32)(4		/* "AIFF" */
+			  + 26		/* COMM chunk */
+			  + 16 + bytes_output/* SSND chunk */
+			  )) == -1) return -1;
+    /* COMM chunk */
+    /* number of frames */
+    lseek(dpm.fd, 12+10, SEEK_SET);
+    f = bytes_output;
+    if(!(dpm.encoding & PE_MONO))
+	f /= 2;
+    if(dpm.encoding & PE_16BIT)
+	f /= 2;
+    if(write_u32(f) == -1) return -1;
+
+    /* SSND chunk */
+    lseek(dpm.fd, 12+26+4, SEEK_SET);
+    if(write_u32((uint32)(8 + bytes_output)) == -1) return -1;
+
+    lseek(dpm.fd, save_point, SEEK_SET);
+
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+	      "%s: Update AIFF header", dpm.name, bytes_output);
+    return 0;
+}
+
 static int open_output(void)
 {
-    dpm.encoding &= ~(PE_BYTESWAP|PE_ULAW|PE_ALAW);
-    dpm.encoding |= PE_SIGNED;
+    int include_enc, exclude_enc;
+    include_enc = exclude_enc = 0;
 
-    bytes_output = 0;
+    if(dpm.encoding & PE_16BIT)
+    {
+#ifdef LITTLE_ENDIAN
+	include_enc = PE_BYTESWAP;
+#else
+	exclude_enc = PE_BYTESWAP;
+#endif /* LITTLE_ENDIAN */
+	include_enc |= PE_SIGNED;
+    }
+    else if(!(dpm.encoding & (PE_ULAW|PE_ALAW)))
+    {
+	include_enc = PE_SIGNED;
+    }
+
+    dpm.encoding = validate_encoding(dpm.encoding, 0, PE_ULAW | PE_ALAW);
 
     if(dpm.name && dpm.name[0] == '-' && dpm.name[1] == '\0')
-	dpm.fd=1; /* data to stdout */
+	dpm.fd = 1; /* data to stdout */
     else
     {
 	/* Open the audio file */
-#ifdef __MACOS__
-	dpm.fd = open(dpm.name, OPEN_MODE);
-#else
-	dpm.fd = open(dpm.name, OPEN_MODE, 0644);
-#endif
+	dpm.fd = open(dpm.name, FILE_OUTPUT_MODE);
 	if(dpm.fd < 0)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
@@ -234,72 +278,57 @@ static int open_output(void)
     /* block size */
     if(write_u32((uint32)0) == -1) return -1;
 
-    play_counter = 0;
+    bytes_output = 0;
+    already_warning_lseek = 0;
+    next_bytes = bytes_output + UPDATE_HEADER_STEP;
+
     return 0;
 }
 
-static void output_data(int32 *buf, int32 count)
+static int output_data(char *buf, int32 bytes)
 {
-    play_counter += count;
-    if(!(dpm.encoding & PE_MONO))
-	count*=2; /* Stereo samples */
+    int n;
 
-    if(dpm.encoding & PE_16BIT)
+    if(dpm.fd == -1) return -1;
+
+    while(((n = write(dpm.fd, buf, bytes)) == -1) && errno == EINTR)
+	;
+    if(n == -1)
     {
-	s32tos16b(buf, count); /* Big-endian data */
-	while((-1==write(dpm.fd, (char *)buf, count * 2)) && errno==EINTR)
-	    ;
-	bytes_output += count * 2;
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+		  dpm.name, strerror(errno));
+	return -1;
     }
-    else
+
+    bytes_output += bytes;
+
+#if UPDATE_HEADER_STEP > 0
+    if(bytes_output >= next_bytes)
     {
-	s32tos8(buf, count);
-	while((-1==write(dpm.fd, (char *)buf, count)) && errno==EINTR)
-	    ;
-	bytes_output += count;
+	if(update_header() == -1) return -1;
+	next_bytes = bytes_output + UPDATE_HEADER_STEP;
     }
+#endif /* UPDATE_HEADER_STEP */
+    return n;
 }
 
 static void close_output(void)
 {
-    if(dpm.fd != 1) /* We don't close stdout */
+    if(dpm.fd != 1 && /* We don't close stdout */
+       dpm.fd != -1)
     {
-	/* It's not stdout, so it's probably a file, and we can try
-	   fixing the block lengths in the header before closing. */
-	if(lseek(dpm.fd, 4, SEEK_SET) >= 0)
-	{
-	    uint32 f;
-
-	    /* file size - 8 */
-	    if(write_u32((uint32)(4		/* "AIFF" */
-				  + 26		/* COMM chunk */
-				  + 16 + bytes_output/* SSND chunk */
-				  )) == -1) return;
-
-	    /* COMM chunk */
-	    /* number of frames */
-	    lseek(dpm.fd, 12+10, SEEK_SET);
-	    f = bytes_output;
-	    if(!(dpm.encoding & PE_MONO))
-		f /= 2;
-	    if(dpm.encoding & PE_16BIT)
-		f /= 2;
-	    if(write_u32(f) == -1) return;
-
-	    /* SSND chunk */
-	    lseek(dpm.fd, 12+26+4, SEEK_SET);
-	    if(write_u32((uint32)(8 + bytes_output)) == -1) return;
-	}
+	if(update_header() == -1)
+	    return;
 	close(dpm.fd);
+	dpm.fd = -1;
     }
-    dpm.fd = -1;
 }
 
-/* Dummies */
-static int flush_output(void)	{ return RC_NONE; }
-static void purge_output(void)	{ }
-static int play_loop(void)	{ return 0; }
-static int32 current_samples(void) { return play_counter; }
+static int acntl(int request, void *arg)
+{
+    return -1;
+}
+
 
 /*
  * C O N V E R T   T O   I E E E   E X T E N D E D

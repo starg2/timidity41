@@ -25,6 +25,9 @@
 */
 
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,11 +49,8 @@
 extern int default_play_event(void *);
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static void output_data(int32 *buf, int32 count);
-static int  flush_output(void);
-static void purge_output(void);
-static int32 current_samples(void);
-static int play_loop(void);
+static void output_data(char *buf, int32 nbytes);
+static int acntl(int request, void *arg);
 
 
 /* export the playback mode */
@@ -58,19 +58,15 @@ static int play_loop(void);
 #define dpm mac_play_mode
 
 PlayMode dpm = {
-  44100, PE_16BIT|PE_SIGNED, PF_NEED_INSTRUMENTS|PF_CAN_TRACE,
-  NULL,			//file descriptor
-  {0,0,0,0,0},	/*no extra parameters so far*/
-  "mac audio driver", 'm',
-  "",			//device file name
-  default_play_event,
-  open_output,
-  close_output,
-  output_data,
-  flush_output,
-  purge_output,
-  current_samples,
-  play_loop
+	44100, PE_16BIT|PE_SIGNED, PF_PCM_STREAM|PF_CAN_TRACE,
+	-1,			//file descriptor
+	{0}, /* default: get all the buffer fragments you can */
+	"mac audio driver", 'm',
+	"",			//device file name
+	open_output,
+	close_output,
+	output_data,
+	acntl
 };
 
 #define	MACBUFSIZE	((AUDIO_BUFFER_SIZE)*4+100)
@@ -140,10 +136,10 @@ static int open_output (void)
 			{ StopAlertMessage("\pCan't open Sound Channel"); ExitToShell(); }
 					
 	dpm.encoding |= PE_16BIT;
-    dpm.encoding |= PE_SIGNED;
-    dpm.encoding &= ~PE_ULAW;
+	dpm.encoding |= PE_SIGNED;
+	dpm.encoding &= ~PE_ULAW;
 	dpm.encoding &= ~PE_ALAW;
-    dpm.encoding &= ~PE_BYTESWAP;
+	dpm.encoding &= ~PE_BYTESWAP;
 
 	for( i=0; i<MACBUFNUM; i++) /*making sound buffer*/
 	{
@@ -189,16 +185,16 @@ static void QuingSndCommand(SndChannelPtr chan, const SndCommand *cmd)
 			trace_loop();
 			YieldToAnyThread();
 		}
-		else	/*queueFull °Ê³°¤Îerr¤Ê¤é½ªÎ»*/
+		else	/*queueFull ˆÈŠO‚Ìerr‚È‚çI—¹*/
 			mac_ErrorExit("\pSound out error--quit");			
 	}
 }
 
-static void output_data (int32 *buf, int32 count)
+static void output_data (char *buf, int32 nbytes)
 {
 	short			err,headerLen;
-	long			len = count;
-	const int32 	samples = count;
+	//long			len = count;
+	int32			samples;
 	long			offset;
 	SndCommand		theCmd;
 	
@@ -207,32 +203,34 @@ static void output_data (int32 *buf, int32 count)
 		filling_flag=1;
 		theCmd.cmd=pauseCmd; SndDoImmediate(gSndCannel, &theCmd);
 	}
-
+	
+	samples = nbytes;
 	if (!(dpm.encoding & PE_MONO)) /* Stereo sample */
 	{
-		count *= 2;
-		len *= 2;
+		samples /= 2;
+		//len *= 2;
 	}
 
 	if (dpm.encoding & PE_16BIT)
-		len *= 2;
+		samples /= 2;
 	else{
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "Sorry, not support 8bit sound.");
 		ExitToShell();
 	}
 	
-	s32tos16 (buf, count);	/*power mac always 16bit*/
+	//s32tos16 (buf, count);	/*power mac always 16bit*/
 	
-	if( count>MACBUFSIZE)
+	
+	if( nbytes>MACBUFSIZE)
 		mac_ErrorExit("\pTiMidity Error--sound packet is too large");	
 	err= SetupSndHeader((SndListHandle)soundHandle[nextBuf],
 			dpm.encoding & PE_MONO? 1:2,
-					dpm.rate<<16, 16, 'NONE',
-							60, len, &headerLen);
+				dpm.rate<<16, 16, 'NONE',
+					60, nbytes, &headerLen);
 	if( err )
 		mac_ErrorExit("\pTiMidity Error--Cannot make Sound");
-	BlockMoveData(buf, *(soundHandle[nextBuf])+headerLen, len);
+	BlockMoveData(buf, *(soundHandle[nextBuf])+headerLen, nbytes);
 	
 	err= GetSoundHeaderOffset((SndListHandle)(soundHandle[nextBuf]), &offset);
 	if( err )
@@ -248,47 +246,6 @@ static void output_data (int32 *buf, int32 count)
 	theCmd.param2= samples;
 	QuingSndCommand(gSndCannel, &theCmd);
 	play_mode->extra_param[0] += samples;
-}
-
-static void close_output (void)
-{
-	int i;
-	
-	purge_output();
-	
-	for( i=0; i<MACBUFNUM; i++)
-		DisposeHandle(soundHandle[i]);
-	
-	SndDisposeChannel(gSndCannel, 0); gSndCannel=0;
-	initCounter();
-}
-
-static int flush_output (void)
-{
-	int			ret=RC_NONE;
-	SndCommand	theCmd;
-
-	flushing_flag=1;
-	theCmd.cmd= callBackCmd;
-	theCmd.param1= 0;
-	theCmd.param2= FLUSH_END;
-	QuingSndCommand(gSndCannel, &theCmd);
-	
-	filling_end();
-	for(;;){
-		trace_loop();
-		YieldToAnyThread();
-		//ctl->current_time(current_samples());
-   		if( ! flushing_flag ){ //end of midi
-   			ret= RC_NONE;
-   			break;
-   		}else if( mac_rc!=RC_NONE ){
-  			ret= mac_rc;
-  			break;
-   		}
-   	}
-   	initCounter();
-   	return ret;
 }
 
 static void fade_output()
@@ -336,15 +293,66 @@ static void purge_output (void)
 	initCounter();
 }
 
-static int play_loop(void)
+static void close_output (void)
 {
-	return 0;
+	int i;
+	
+	purge_output();
+	
+	for( i=0; i<MACBUFNUM; i++)
+		DisposeHandle(soundHandle[i]);
+	
+	SndDisposeChannel(gSndCannel, 0); gSndCannel=0;
+	initCounter();
+}
+
+static int flush_output (void)
+{
+	int			ret=RC_NONE;
+	SndCommand	theCmd;
+
+	flushing_flag=1;
+	theCmd.cmd= callBackCmd;
+	theCmd.param1= 0;
+	theCmd.param2= FLUSH_END;
+	QuingSndCommand(gSndCannel, &theCmd);
+	
+	filling_end();
+	for(;;){
+		trace_loop();
+		YieldToAnyThread();
+		//ctl->current_time(current_samples());
+   		if( ! flushing_flag ){ //end of midi
+   			ret= RC_NONE;
+   			break;
+   		}else if( mac_rc!=RC_NONE ){
+  			ret= mac_rc;
+  			break;
+   		}
+   	}
+   	initCounter();
+   	return ret;
 }
 
 static int32 current_samples(void)
 {
 	return play_counter;
 }
+
+static int acntl(int request, void *arg)
+{
+    switch(request)
+    {
+      case PM_REQ_DISCARD:
+	purge_output();
+	return 0;
+      /*case PM_REQ_GETQSIZ:
+        *(int32*)arg= MACBUFNUM*AUDIO_BUFFER_SIZE*40;
+      	return 0;*/
+    }
+    return -1;
+}
+
 /* ************************************************************* */
 
 

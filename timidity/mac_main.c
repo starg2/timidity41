@@ -23,6 +23,9 @@
     mac_main.c
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include	<Sound.h>
 #include	<stdio.h>
 #include	<stdlib.h>
@@ -42,6 +45,9 @@
 #ifdef SUPPORT_SOUNDSPEC
 #include "soundspec.h"
 #endif /* SUPPORT_SOUNDSPEC */
+#include "recache.h"
+#include "miditrace.h"
+#include "aq.h"
 
 #include	"mac_main.h"
 #include	"mac_c.h"
@@ -55,7 +61,9 @@ MAIN_INTERFACE void	timidity_init_player(void);
 MAIN_INTERFACE int	timidity_play_main(int nfiles, char **files);
 MAIN_INTERFACE int	read_config_file(char *name, int self);
 
+extern char *wrdt_open_opts;
 char *timidity_version = TIMID_VERSION;
+
 Boolean	skin_f_repeat, gQuit, gBusy, gShuffle;
 int		mac_rc, skin_state=WAITING, mac_n_files, nPlaying;
 long	gStartTick;
@@ -175,7 +183,6 @@ static void mac_init()
 
 int  main()
 {
-	EventRecord	event;
 	int32	output_rate=DEFAULT_RATE;
 	int		err;
 	
@@ -188,43 +195,24 @@ int  main()
 	
 	
 	timidity_start_initialize();
-    if((err = timidity_pre_load_configuration()) != 0)
+	if((err = timidity_pre_load_configuration()) != 0)
 		return err;
-    err += timidity_post_load_configuration();
-    if( err )
-    {
+	err += timidity_post_load_configuration();
+	if( err )
+	{
 		//ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		//	  "Try %s -h for help", program_name);
 		return 1; /* problems with command line */
-    }
-    timidity_init_player();
-	ctl->open(0, 0);
-	play_mode->open_output();
-	init_load_soundfont();
-	wrdt=wrdt_list[0];  //dirty!!
-	if(wrdt->open("d"))
-	{	//some errors
-		fprintf(stderr, "Couldn't open WRD Tracer: %s (`%c')" NLS,
-			wrdt->name, wrdt->id);
-		play_mode->close_output();
-		ctl->close();
-		return 1;
 	}
-	//amplification=20;
-
-	gQuit=false;
-	while(!gQuit)
-	{
-		WaitNextEvent(everyEvent, &event, 1,0);
-		mac_HandleEvent(&event);
-	}	
-	DoQuit();
+	timidity_init_player();
+	wrdt=wrdt_list[0];  //dirty!!
+	wrdt_open_opts= "m";
+	timidity_play_main(0, NULL);
 	return 0;
 }
 
 static pascal void* StartPlay(void *)
 {
-	//OSErr	err;
 	SndCommand		theCmd;
 	int		rc;
 		
@@ -314,7 +302,7 @@ void mac_HandleControl()
 	case RC_QUIT:
 			if( skin_state==PAUSE )
 			{
-				play_mode->purge_output();
+				play_mode->acntl(PM_REQ_DISCARD,0);
 				theCmd.cmd=resumeCmd; SndDoImmediate(gSndCannel, &theCmd);
 				skin_state=PLAYING;
 			}
@@ -411,7 +399,18 @@ static void mac_AboutBox()
 	dialog=GetNewDialog(200,0,(WindowRef)-1);
 	if( dialog==0 ) return;
 	SetDialogDefaultItem(dialog, 1);
-	ParamText(TIMID_VERSION_PASCAL, "\p", "\p", "\p");
+	
+#ifdef __POWERPC__
+ #define TIMID_CPU "PPC"
+#elif __MC68K__
+ #if  __MC68881__
+  #define TIMID_CPU "68k+FPU"
+ #else
+  #define TIMID_CPU "68k"
+ #endif
+#endif
+
+	ParamText("\p" TIMID_VERSION TIMID_CPU, "\p", "\p", "\p");
 	
 	ShowWindow(dialog);
 	for(;;){

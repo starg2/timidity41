@@ -51,6 +51,16 @@ double get_current_calender_time(void)
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0 ;
 }
 
+#elif __MACOS__
+
+#include "timer.h"
+double get_current_calender_time(void)
+{
+    UnsignedWide usec;
+    Microseconds(&usec);
+    return (double)usec.hi* 4294.967296 + (double)usec.lo / 1000000.0 ;
+}
+
 #else /* Windows API */
 
 #include <sys/types.h>

@@ -18,6 +18,7 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+    x_wrdwindow.c - MIMPI WRD for X Window written by Takanori Watanabe.
 */
 
 /*
@@ -41,15 +42,15 @@
 #include "wrd.h"
 #include "controls.h"
 
-#define SIZEX 640
-#define SIZEY 400
+#define SIZEX WRD_GSCR_WIDTH
+#define SIZEY WRD_GSCR_HEIGHT
 #define MBCS 1
 #define DEFAULT -1
 #define JISX0201 "-*-fixed-*-r-normal--16-*-*-*-*-*-jisx0201.1976-*"
 #define JISX0208 "-*-fixed-*-r-normal--16-*-*-*-*-*-jisx0208.1983-*"
 #define TXTCOLORS 8
-#define LINES 25
-#define COLS 80
+#define LINES WRD_TSCR_HEIGHT
+#define COLS WRD_TSCR_WIDTH
 #define TAB_SET 8
 #define CSIZEX ((SIZEX)/(COLS))
 #define CSIZEY ((SIZEY)/(LINES))
@@ -119,7 +120,14 @@ static struct VGVRAM{
 }vgvram;
 
 const static char *TXTCOLORNAME[8]={
-  "black","red","green","yellow","blue","magenta","cyan","white"
+    WRD_TEXT_COLOR0,
+    WRD_TEXT_COLOR1,
+    WRD_TEXT_COLOR2,
+    WRD_TEXT_COLOR3,
+    WRD_TEXT_COLOR4,
+    WRD_TEXT_COLOR5,
+    WRD_TEXT_COLOR6,
+    WRD_TEXT_COLOR7
 };
 const static int colval12[16]={
   0x000,0xf00,0x0f0,0xff0,0x00f,0xf0f,0x0ff,0xfff,
@@ -265,7 +273,12 @@ static int InitColor(Colormap cmap, Bool allocate)
 }
 
 /*Initialize Window subsystem*/
-int InitWin(int argc,char *argv[])
+/* return:
+ * -1: error
+ *  0: success
+ *  1: already initialized
+ */
+static int InitWin(char *opt)
 {
   XSizeHints *sh;
   XGCValues gcv;
@@ -273,6 +286,10 @@ int InitWin(int argc,char *argv[])
   XVisualInfo visualTmpl;
   XVisualInfo *visualList;
   int nvisuals;
+  static int init_flag = 0;
+
+  if(init_flag)
+      return init_flag;
 
   /*Initialize Charactor buffer and attr */
   mywin.curline=0;
@@ -283,8 +300,15 @@ int InitWin(int argc,char *argv[])
   mywin.scrnbuf=(Linbuf **)calloc(LINES,sizeof(Linbuf *));
   mywin.redrawflag=1;
   if((mywin.d=XOpenDisplay(NULL))==NULL){
-    ctl->cmsg(CMSG_ERROR,VERB_NORMAL,"%s:Can't Open Display\n",argv[0]);
-    return 1;
+    ctl->cmsg(CMSG_ERROR,VERB_NORMAL,"WRD: Can't Open Display");
+    init_flag = -1;
+    return -1;
+  }
+
+  if(strchr(opt, 'd')) {
+      /* For debug */
+      fprintf(stderr,"Entering -Wx Debug mode\n");
+      XSynchronize(mywin.d, True);
   }
 
   /* check truecolor */
@@ -305,21 +329,16 @@ int InitWin(int argc,char *argv[])
     /* Can't load font JISX0201 */
     XCloseDisplay(mywin.d);
     mywin.d=NULL;
-    return 1;
+    init_flag = -1;
+    return -1;
   }
   if((mywin.f16=XLoadQueryFont(mywin.d,JISX0208))==NULL){
     ctl->cmsg(CMSG_ERROR,VERB_NORMAL,"%s: Can't load font",JISX0208);
     XCloseDisplay(mywin.d);
     mywin.d=NULL;
-    return 1;
+    init_flag = -1;
+    return -1;
   }
-  if(argc>1)
-    if(argv[1]!=NULL)
-      if(strchr(argv[1], 'd') != NULL) {
-	/* For debug */
-	fprintf(stderr,"Entering -Wx Debug mode\n");
-	XSynchronize(mywin.d, True);
-      }
   mywin.w=XCreateSimpleWindow(mywin.d,DefaultRootWindow(mywin.d)
 			      ,0,0,SIZEX,SIZEY
 			      ,10,
@@ -333,7 +352,8 @@ int InitWin(int argc,char *argv[])
       ctl->cmsg(CMSG_ERROR,VERB_NORMAL,"WRD: Can't initialize colormap");
       XCloseDisplay(mywin.d);
       mywin.d=NULL;
-      return 1;
+      init_flag = -1;
+      return -1;
     }
     XSetWindowColormap(mywin.d,mywin.w,mywin.cmap);
   }
@@ -347,8 +367,8 @@ int InitWin(int argc,char *argv[])
   sh->max_width=SIZEX;
   sh->max_height=SIZEY;
   XSetWMNormalHints(mywin.d,mywin.w,sh);
-  XStoreName(mywin.d,mywin.w,argv[0]);
-  XSetIconName(mywin.d,mywin.w,argv[0]);
+  XStoreName(mywin.d,mywin.w,"timidity");
+  XSetIconName(mywin.d,mywin.w,"TiMidity");
   XFree(sh);
 
   /* Alloc background pixmap(Graphic plane)*/
@@ -386,6 +406,7 @@ int InitWin(int argc,char *argv[])
   XSelectInput(mywin.d,mywin.w,ExposureMask|ButtonPressMask);
   image_buffer=(char *)safe_malloc(SIZEX*SIZEY*
 	(DefaultDepth(mywin.d,DefaultScreen(mywin.d))+7)/8);
+  init_flag = 1;
   return 0;
 }
 
@@ -789,6 +810,8 @@ void x_VSget(int *params,int nparam)
 void x_VRel()
 {
   int i;
+  if(mywin.d == NULL)
+      return;
   if(vgvram.vpix==NULL)
     return;
   for(i=0;i<vgvram.num;i++)
@@ -1697,7 +1720,7 @@ static int Parse(int c)
       int i;
       for(i=0;i<nparam+1;i++)
 	switch(params[i]){
-	  default:
+	default:
 	  mywin.curattr&=~(CATTR_COLORED|CATTR_BGCOLORED|CATTR_TXTCOL_MASK);
 	  break;
 	case 16:
@@ -1929,14 +1952,24 @@ void EndWin(void)
   mywin.d=NULL;
 }  
 
-void OpenWRDWindow(void)
+int OpenWRDWindow(char *opt)
 {
+    if(InitWin(opt) == -1)
+    {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "WRD: Can't open WRD window becase of error");
+	return -1;
+    }
     XMapWindow(mywin.d, mywin.w);
     XSync(mywin.d, False);
+    return 0;
 }
 
 void CloseWRDWindow(void)
 {
-    XUnmapWindow(mywin.d, mywin.w);
-    XSync(mywin.d, False);
+    if(mywin.d != NULL)
+    {
+	XUnmapWindow(mywin.d, mywin.w);
+	XSync(mywin.d, False);
+    }
 }

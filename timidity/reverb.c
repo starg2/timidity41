@@ -66,8 +66,6 @@
 
 #define REV_WIDTH        0.125
 
-int  do_reverb_flag = 0;
-
 static int  spt0, rpt0, def_rpt0;
 static int  spt1, rpt1, def_rpt1;
 static int  spt2, rpt2, def_rpt2;
@@ -126,7 +124,7 @@ void set_ch_reverb(register int32 *sbuffer, int32 n, int level)
 {
     register int32  i;
 
-    FLOAT_T send_level = (FLOAT_T)level/127;
+    FLOAT_T send_level = (FLOAT_T)level * (REV_INP_LEV/127.0);
 
     for(i = 0; i < n; i++)
     {
@@ -143,7 +141,7 @@ void do_ch_reverb(int32 *comp, int32 n)
     for(i = 0; i < n; i++)
     {
         /* L */
-        fixp = effect_buffer[i] * REV_INP_LEV;
+        fixp = effect_buffer[i];
         effect_buffer[i] = 0;
 
         LPFL = LPFL*REV_LPF_LEV + (buf2_L[spt2]+tb)*REV_LPF_INP + ta*REV_WIDTH;
@@ -163,7 +161,7 @@ void do_ch_reverb(int32 *comp, int32 n)
         direct_buffer[i] = 0;
 
         /* R */
-        fixp = effect_buffer[++i] * REV_INP_LEV;
+        fixp = effect_buffer[++i];
         effect_buffer[i] = 0;
 
         LPFR = LPFR*REV_LPF_LEV + (buf2_R[spt2]+tb)*REV_LPF_INP + ta*REV_WIDTH;

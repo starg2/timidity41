@@ -766,7 +766,7 @@ static sample_t *porta_resample_voice(int v, int32 *countptr, int mode)
 	i = n - resample_buffer_offset;
 	if(i > cc)
 	    i = cc;
-	resampler(v, &i, 0);
+	resampler(v, &i, mode);
 	resample_buffer_offset += i;
 
 	if(!loop && vp->status == VOICE_FREE)
@@ -794,7 +794,6 @@ static sample_t *vib_resample_voice(int v, int32 *countptr, int mode)
 static sample_t *normal_resample_voice(int v, int32 *countptr, int mode)
 {
     Voice *vp = &voice[v];
-
     if(mode == 0)
 	return rs_loop(vp, *countptr);
     if(mode == 1)
@@ -867,13 +866,6 @@ void pre_resample(Sample * sp)
 
   a = ((double) (sp->sample_rate) * freq_table[(int) (sp->note_to_use)]) /
     ((double) (sp->root_freq) * play_mode->rate);
-  if(sp->data_length / a >= 0x7fffffffL)
-  {
-      /* Too large to compute */
-      ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d",
-		sp->note_to_use);
-      return;
-  }
   newlen = (int32)(sp->data_length / a);
   dest = newdata = (int16 *)safe_malloc((newlen >> (FRACTION_BITS - 1)) + 2);
 

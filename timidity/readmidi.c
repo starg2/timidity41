@@ -30,9 +30,9 @@
 #else
 #include <strings.h>
 #endif
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif /* HAVE_UNISTD_H */
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -46,6 +46,7 @@
 #include "arc.h"
 #include "mod.h"
 #include "wrd.h"
+#include "tables.h"
 
 /* Define if you want to support backward event timer */
 #define BACKWARD_EVENT_OK
@@ -88,7 +89,7 @@ int ignore_midi_error = 1;
 ChannelBitMask quietchannels;
 struct midi_file_info *current_file_info = NULL;
 int readmidi_error_flag = 0;
-int readmidi_wrd_flag = 0;
+int readmidi_wrd_mode = 0;
 int play_system_mode = DEFAULT_SYSTEM_MODE;
 
 static MidiEventList *evlist, *current_midi_point;
@@ -99,7 +100,6 @@ static int current_read_track;
 static int karaoke_format, karaoke_title_flag;
 static struct chorus_status_t chorus_status;
 static struct midi_file_info *midi_file_info = NULL;
-static uint8 portamento_msb[256], portamento_lsb[256];
 static char **string_event_table = NULL;
 static int    string_event_table_size = 0;
 int    default_channel_program[256];
@@ -191,73 +191,15 @@ void readmidi_add_event(MidiEvent *a_event)
 
 void readmidi_add_ctl_event(int32 at, int ch, int a, int b)
 {
-    int type;
+    MidiEvent ev;
 
-    ch &= 0xff;
-    if(b > 127)
-	b = 127;
-    type = -1;
-    switch(a)
+    if(convert_midi_control_change(ch, a, b, &ev))
     {
-      case   0: type = ME_TONE_BANK_MSB; break;
-      case   1: type = ME_MODULATION_WHEEL; break;
-      case   6: type = ME_DATA_ENTRY_MSB; break;
-      case   7: type = ME_MAINVOLUME; break;
-      case  10: type = ME_PAN; break;
-      case  11: type = ME_EXPRESSION; break;
-      case  32: type = ME_TONE_BANK_LSB; break;
-      case  38: type = ME_DATA_ENTRY_LSB; break;
-      case  64: type = ME_SUSTAIN; b = (b >= 64); break;
-      case  65: type = ME_PORTAMENTO; b = (b >= 64); break;
-      case  91: type = ME_REVERB_EFFECT; break;
-      case  93: type = ME_CHORUS_EFFECT; break;
-      case  96: type = ME_RPN_INC; break;
-      case  97: type = ME_RPN_DEC; break;
-      case  98: type = ME_NRPN_LSB; break;
-      case  99: type = ME_NRPN_MSB; break;
-      case 100: type = ME_RPN_LSB; break;
-      case 101: type = ME_RPN_MSB; break;
-      case 120: type = ME_ALL_SOUNDS_OFF; break;
-      case 121: type = ME_RESET_CONTROLLERS; break;
-      case 123: type = ME_ALL_NOTES_OFF; break;
-
-      case 5:
-	portamento_msb[ch] = b;
-	MIDIEVENT(at, ME_PORTAMENTO_TIME, ch,
-		  portamento_lsb[ch], portamento_msb[ch]);
-	break;
-      case 37:
-	portamento_lsb[ch] = b;
-	MIDIEVENT(at, ME_PORTAMENTO_TIME, ch,
-		  portamento_lsb[ch], portamento_msb[ch]);
-	break;
-      case 126:
-	type = ME_MONO;
-	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Mono channel %d (%d)", ch, b);
-	break;
-      case 127:
-	type = ME_POLY;
-	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Poly channel %d", ch);
-	break;
-
-#if 0 /* Not supported */
-      case 66: type = ME_SUSTENUTO; b = (b >= 64); break;
-      case 67: type = ME_SOFT_PEDAL; b = (b >= 64); break;
-      case 71: type = ME_HARMONIC_CONTENT; break;
-      case 72: type = ME_RELEASE_TIME; break;
-      case 73: type = ME_ATTACK_TIME; break;
-      case 74: type = ME_BRIGHTNESS; break;
-      case 94: type = ME_VARIATION_EFFECT; break;
-#endif
-      default:
+	ev.time = at;
+	readmidi_add_event(&ev);
+    }
+    else
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(Control ch=%d %d: %d)", ch, a, b);
-	break;
-    }
-
-    if(type != -1)
-    {
-	MIDIEVENT(at, type, ch, b, 0);
-    }
 }
 
 char *readmidi_make_string_event(int type, char *string, MidiEvent *ev,
@@ -469,6 +411,66 @@ static void check_chorus_text_start(void)
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Chorus text start");
 	chorus_status.status = CHORUS_ST_OK;
     }
+}
+
+int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
+{
+    switch(type)
+    {
+      case   0: type = ME_TONE_BANK_MSB; break;
+      case   1: type = ME_MODULATION_WHEEL; break;
+      case   2: type = ME_BREATH; break;
+      case   4: type = ME_FOOT; break;
+      case   5: type = ME_PORTAMENTO_TIME_MSB; break;
+      case   6: type = ME_DATA_ENTRY_MSB; break;
+      case   7: type = ME_MAINVOLUME; break;
+      case   8: type = ME_BALANCE; break;
+      case  10: type = ME_PAN; break;
+      case  11: type = ME_EXPRESSION; break;
+      case  32: type = ME_TONE_BANK_LSB; break;
+      case  37: type = ME_PORTAMENTO_TIME_LSB; break;
+      case  38: type = ME_DATA_ENTRY_LSB; break;
+      case  64: type = ME_SUSTAIN; break;
+      case  65: type = ME_PORTAMENTO; break;
+      case  66: type = ME_SOSTENUTO; break;
+      case  67: type = ME_SOFT_PEDAL; break;
+      case  91: type = ME_REVERB_EFFECT; break;
+      case  92: type = ME_TREMOLO_EFFECT; break;
+      case  93: type = ME_CHORUS_EFFECT; break;
+      case  94: type = ME_CELESTE_EFFECT; break;
+      case  95: type = ME_PHASER_EFFECT; break;
+      case  96: type = ME_RPN_INC; break;
+      case  97: type = ME_RPN_DEC; break;
+      case  98: type = ME_NRPN_LSB; break;
+      case  99: type = ME_NRPN_MSB; break;
+      case 100: type = ME_RPN_LSB; break;
+      case 101: type = ME_RPN_MSB; break;
+      case 120: type = ME_ALL_SOUNDS_OFF; break;
+      case 121: type = ME_RESET_CONTROLLERS; break;
+      case 123: type = ME_ALL_NOTES_OFF; break;
+      case 126: type = ME_MONO; break;
+      case 127: type = ME_POLY; break;
+#if 0 /* Not supported */
+      case 71: type = ME_HARMONIC_CONTENT; break;
+      case 72: type = ME_RELEASE_TIME; break;
+      case 73: type = ME_ATTACK_TIME; break;
+      case 74: type = ME_BRIGHTNESS; break;
+      case 94: type = ME_VARIATION_EFFECT; break;
+#endif
+      default: type = -1; break;
+    }
+
+    if(type != -1)
+    {
+	if(val > 127)
+	    val = 127;
+	ev_ret->type    = type;
+	ev_ret->channel = chn;
+	ev_ret->a       = val;
+	ev_ret->b       = 0;
+	return 1;
+    }
+    return 0;
 }
 
 int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
@@ -1361,26 +1363,37 @@ void change_system_mode(int mode)
     {
       case GM_SYSTEM_MODE:
 	if(play_system_mode == DEFAULT_SYSTEM_MODE)
+	{
 	    play_system_mode = GM_SYSTEM_MODE;
+	    vol_table = def_vol_table;
+	}
 	break;
       case GS_SYSTEM_MODE:
+	play_system_mode = GS_SYSTEM_MODE;
+	vol_table = gs_vol_table;
+	break;
       case XG_SYSTEM_MODE:
-	play_system_mode = mode;
+	play_system_mode = XG_SYSTEM_MODE;
+	vol_table = xg_vol_table;
 	break;
       default:
 	switch(current_file_info->mid)
 	{
 	  case 0x41:
 	    play_system_mode = GS_SYSTEM_MODE;
+	    vol_table = gs_vol_table;
 	    break;
 	  case 0x43:
 	    play_system_mode = XG_SYSTEM_MODE;
+	    vol_table = xg_vol_table;
 	    break;
 	  case 0x7e:
 	    play_system_mode = GM_SYSTEM_MODE;
+	    vol_table = def_vol_table;
 	    break;
 	  default:
 	    play_system_mode = DEFAULT_SYSTEM_MODE;
+	    vol_table = def_vol_table;
 	    break;
 	}
 	break;
@@ -1459,6 +1472,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	bank_lsb[j] = bank_msb[j] = -1;
 	current_program[j] = default_program[j];
     }
+
     memset(warn_tonebank, 0, sizeof(warn_tonebank));
     memset(warn_drumset, 0, sizeof(warn_drumset));
     tempo = 500000;
@@ -1474,6 +1488,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
     counting_time = 2; /* We strip any silence before the first NOTE ON. */
     wrd_argc = 0;
     change_system_mode(DEFAULT_SYSTEM_MODE);
+
     for(j = 0; j < MAX_CHANNELS; j++)
 	mapID[j] = get_default_mapID(j);
 
@@ -1489,11 +1504,14 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    skip_this_event = 1;
 	else switch(meep->event.type)
 	{
+	  case ME_NONE:
+	    skip_this_event = 1;
+	    break;
 	  case ME_RESET:
 	    change_system_mode(meep->event.a);
 	    for(j = 0; j < MAX_CHANNELS; j++)
 		mapID[j] = get_default_mapID(j);
-	    ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MIDI reset at %d sec",
+	    ctl->cmsg(CMSG_INFO, VERB_NOISY, "MIDI reset at %d sec",
 		      (int)((double)st / play_mode->rate + 0.5));
 	    for(j = 0; j < MAX_CHANNELS; j++)
 	    {
@@ -1683,7 +1701,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    break;
 
 	  case ME_WRD:
-	    if(readmidi_wrd_flag)
+	    if(readmidi_wrd_mode == WRD_TRACE_MIMPI)
 	    {
 		wrd_args[wrd_argc++] = meep->event.a | 256 * meep->event.b;
 		if(ch != WRD_ARG)
@@ -1697,9 +1715,14 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 			wrdt->apply(WRD_PATH, wrd_argc, wrd_args);
 		    wrd_argc = 0;
 		}
-		if(counting_time)
-		    counting_time = 1;
 	    }
+	    if(counting_time == 2 && readmidi_wrd_mode != WRD_TRACE_NOTHING)
+		counting_time = 1;
+	    break;
+
+	  case ME_SHERRY:
+	    if(counting_time == 2)
+		counting_time = 1;
 	    break;
 
 	  case ME_NOTE_STEP:
@@ -1886,13 +1909,11 @@ static void readmidi_read_init(void)
 	string_event_table_size = 0;
     }
     init_string_table(&string_event_strtab);
-    memset(portamento_msb, 0, sizeof(portamento_msb));
-    memset(portamento_lsb, 0, sizeof(portamento_lsb));
     karaoke_format = 0;
 
     for(i = 0; i < 256; i++)
 	default_channel_program[i] = -1;
-    readmidi_wrd_flag = 0;
+    readmidi_wrd_mode = WRD_TRACE_NOTHING;
 }
 
 static void insert_note_steps(void)
@@ -2011,21 +2032,30 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 	    delete_string_table(&string_event_strtab);
 	return NULL;
     }
-    
+
     /* Read WRD file */
     if(!(play_mode->flag&PF_CAN_TRACE))
     {
 	if(wrdt->start != NULL)
-	    wrdt->start(0);
+	    wrdt->start(WRD_TRACE_NOTHING);
+	readmidi_wrd_mode = WRD_TRACE_NOTHING;
     }
     else if(wrdt->id != '-' && wrdt->opened)
     {
-	readmidi_wrd_flag = import_wrd_file(fn);
+	readmidi_wrd_mode = import_wrd_file(fn);
 	if(wrdt->start != NULL)
-	    wrdt->start(readmidi_wrd_flag);
+	    if(wrdt->start(readmidi_wrd_mode) == -1)
+	    {
+		/* strip all WRD events */
+		MidiEventList *e;
+		int32 i;
+		for(i = 0, e = evlist; i < event_count; i++, e = e->next)
+		    if(e->event.type == ME_WRD)
+			e->event.type = ME_NONE;
+	    }
     }
     else
-	readmidi_wrd_flag = 0;
+	readmidi_wrd_mode = WRD_TRACE_NOTHING;
 
     /* make lyric table */
     if(string_event_strtab.nstring > 0)
@@ -2103,7 +2133,7 @@ struct timidity_file *open_midi_file(char *fn,
 {
     struct midi_file_info *infop;
     struct timidity_file *tf;
-#if defined(SMFCONV) && defined(__WIN32__)
+#if defined(SMFCONV) && defined(__W32__)
     extern int opt_rcpcv_dll;
 #endif
 
@@ -2125,11 +2155,11 @@ struct timidity_file *open_midi_file(char *fn,
 	}
     }
 
-#if defined(SMFCONV) && defined(__WIN32__)
+#if defined(SMFCONV) && defined(__W32__)
     /* smf convert */
     if(tf != NULL && opt_rcpcv_dll)
     {
-    	if(smfconv_win32(tf, fn))
+    	if(smfconv_w32(tf, fn))
 	{
 	    close_file(tf);
 	    return NULL;

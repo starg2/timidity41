@@ -33,7 +33,7 @@
 
 #include "timidity.h"
 
-#ifdef __WIN32__
+#ifdef __W32__
 #include "readdir.h"
 
 /**********************************************************************
@@ -120,4 +120,4 @@ API_EXPORT(int) closedir(DIR *dp)
 
     return 0;
 }
-#endif /* __WIN32__ */
+#endif /* __W32__ */

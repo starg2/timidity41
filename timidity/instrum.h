@@ -68,13 +68,21 @@ typedef struct {
   char *name;
   char *comment;
   Instrument *instrument;
-  int8 note, pan, strip_loop, strip_envelope, strip_tail, loop_timeout;
+  int8 note, pan, strip_loop, strip_envelope, strip_tail, loop_timeout,
+	font_preset;
+  uint8 font_bank;
+  uint8 instype; /* 0: Normal
+		    1: %font
+		    2-255: reserved
+		    */
   int16 amp;
 } ToneBankElement;
 
 /* A hack to delay instrument loading until after reading the
    entire MIDI file. */
 #define MAGIC_LOAD_INSTRUMENT ((Instrument *)(-1))
+#define MAGIC_ERROR_INSTRUMENT ((Instrument *)(-2))
+#define IS_MAGIC_INSTRUMENT(ip) ((ip) == MAGIC_LOAD_INSTRUMENT || (ip) == MAGIC_ERROR_INSTRUMENT)
 
 typedef struct _AlternateAssign {
     /* 128 bit vector:
@@ -135,17 +143,20 @@ extern void remove_soundfont(char *sf_file);
 extern void init_load_soundfont(void);
 extern Instrument *load_soundfont_inst(int order, int bank, int preset,
 				       int keynote);
+extern Instrument *extract_soundfont(char *sf_file, int bank, int preset,
+				     int keynote);
 extern int exclude_soundfont(int bank, int preset, int keynote);
 extern int order_soundfont(int bank, int preset, int keynote, int order);
 extern char *soundfont_preset_name(int bank, int preset, int keynote,
 				   char **sndfile);
+extern void free_soundfont_inst(void);
 
 /* instrum.c */
 extern int load_missing_instruments(int *rc);
-extern void free_instruments(void);
+extern void free_instruments(int reload_default_inst);
 extern void free_special_patch(int id);
 extern int set_default_instrument(char *name);
-extern void clear_magic_load_instruments(void);
+extern void clear_magic_instruments(void);
 extern Instrument *load_instrument(int dr, int b, int prog);
 extern void alloc_instrument_bank(int dr, int bankset);
 extern int instrument_map(int mapID, int *set_in_out, int *elem_in_out);

@@ -8,9 +8,9 @@
 #else
 #include <strings.h>
 #endif
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif /* __WIN32__ */
+#endif /* HAVE_UNISTD_H */
 #include <signal.h> /* for SIGALRM */
 
 #include "timidity.h"
@@ -214,7 +214,7 @@ URL url_ftp_open(char *name)
 	printf("open(host=`%s', port=`%d')\n", host, port);
 #endif /* DEBUG */
 
-#ifdef __WIN32__
+#ifdef __W32__
 	timeout_flag = 0;
 	fd = open_socket(host, port);
 #else
@@ -224,7 +224,7 @@ URL url_ftp_open(char *name)
 	fd = open_socket(host, port);
 	alarm(0);
 	signal(SIGALRM, SIG_DFL);
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
 	if(fd < 0)
 	{
@@ -469,11 +469,11 @@ URL url_ftp_open(char *name)
 	url->abor = 1;
     }
 
-#ifdef __WIN32__
+#ifdef __W32__
     return url_buff_open((URL)url, 1);
 #else
     return (URL)url;
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 }
 
 static long url_ftp_read(URL url, void *buff, long n)

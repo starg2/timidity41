@@ -75,6 +75,7 @@ ControlMode ctl=
 {
     "motif interface", 'm',
     1,0,0,
+    0,
     ctl_open,
     ctl_close,
     ctl_pass_playing_list,

@@ -1,11 +1,43 @@
-* 4/6, 1999
-    Released TiMidity++ v1.3.8.
-    * Fixed some bugs or probrems.
+4/17, 1999
+Major changes in release 2.0.0:
 
-* 3/30, 1999
-    Released TiMidity++ v1.3.7.
-    * Fixed some bugs or probrems.
-    * In GTK interface, enabled to delete loaded files from the play list.
+* Auto voice reduction
+  If there is no enough machine power to play the MIDI in realtime,
+  TiMidity automatically reduces the voice.
+* Audio buffering
+  TiMidity has internal audio buffer.  TiMidity doesn't start to play until
+  this buffer is filled.
+* Support Windows GUI.
+* Support Sherry WRD.
+* Support NAS (Network Audio System) output.
+* Support EsounD output.
+* Enable to play the stream MIDI in realtime.  The stream format is same
+  as OSS /dev/sequencer stream.  See the protocol in interface/server_c.c
+* Enable to assign patch from part of soundfont.
+* Lower CPU load average in trace playing.
+  v1 is implemented with busy-wait-method to synchronize audio and
+  interface, but v2 is not.
+* Reverb and chorus effect is enabled by default.  You can disable their
+  controls with command line option.
+* DEFAULT_VOICES is now 64.  You can change this value to modify
+  `timidity.h'.
+* Modified reverb optimaize implementation. (The algorithm is not changed)
+* Add sun_a.c which is modified from the original of TiMidity.  And then
+  remove audriv_sun.c because it is not used in this version.
+* Implement function to change the audio sample rate for 'n' interface.
+* `altassign' of drumset 0 is used by default.
+* Add -EF option for effects.
+  Obsolete -b, -n, -EC, -Ec, -ER, -Er, and -r options.
+  Use -EFdelay=?  instead of -b?,
+    -EFns=?     instead of -n?,
+    -EFchorus=0 instead of -EC,
+    -EFchorus=1 instead of -Ec,
+    -EFreverb=0 instead of -ER,
+    -EFreverb=1 instead of -Er,
+    -EFreverb=2 instead of -r.
+* Portamento control time is completely adjusted.
+* Expanded playlist files (.m3u, .pls, and .asx).
+* s/win32/w32/gi
 
 * 3/23, 1999
     Released TiMidity++ v1.3.6.

@@ -14,6 +14,9 @@
 #ifdef __W32READDIR__
 #include "readdir.h"
 # define NAMLEN(dirent) strlen((dirent)->d_name)
+#elif __MACOS__
+# include "mac_readdir.h"
+# define NAMLEN(dirent) strlen((dirent)->d_name)
 #else
 
 #if HAVE_DIRENT_H
@@ -34,7 +37,6 @@
 #endif
 
 #endif
-
 
 #ifdef URL_DIR_CACHE_ENABLE
 #include <sys/stat.h>

@@ -24,12 +24,11 @@
 #define _WINDOW_H_
 
 #include "x_mag.h"
-extern int InitWin(int argc,char *argv[]);
 extern void WinEvent(void);
 extern void EndWin(void);
 extern void WinFlush(void);
 extern void AddLine(const unsigned char *,int);
-extern void OpenWRDWindow(void);
+extern int OpenWRDWindow(char *opt);
 extern void CloseWRDWindow(void);
 extern void x_RedrawControl(int flag);
 extern void x_Gcls(int);

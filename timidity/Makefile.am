@@ -30,6 +30,8 @@ bin_PROGRAMS = timidity
 timidity_SOURCES = \
 	aenc.h \
 	aiff_a.c \
+	aq.c \
+	aq.h \
 	au_a.c \
 	audio_cnv.c \
 	audio_cnv.h \
@@ -38,6 +40,7 @@ timidity_SOURCES = \
 	controls.c \
 	controls.h \
 	dlutils.h \
+	effect.c \
 	filter.c \
 	filter.h \
 	instrum.c \
@@ -86,21 +89,23 @@ timidity_SOURCES = \
 	wrdt.c
 
 EXTRA_timidity_SOURCES = \
+	alsa_a.c \
 	audriv.h \
 	audriv_a.c \
 	audriv_al.c \
 	audriv_mme.c \
 	audriv_none.c \
-	audriv_sun.c \
 	dl_cygwin32.c \
 	dl_dld.c \
 	dl_dlopen.c \
 	dl_hpux.c \
 	bsd20_a.c \
+	esd_a.c \
 	hpux_a.c \
 	hpux_d_a.c \
 	linux_a.c \
 	mac_a.c \
+	mac_qt_a.c \
 	mac_com.h \
 	mac_dlog.c \
 	mac_main.c \
@@ -108,24 +113,32 @@ EXTRA_timidity_SOURCES = \
 	mac_soundspec.c \
 	mfnode.c \
 	mfnode.h \
-	win_a.c \
-	alsa_a.c
+	nas_a.c \
+	sun_a.c \
+	w32_a.c
+
+if ENABLE_W32GUI
+W32GUI_RES = $(top_builddir)/interface/w32g_res.res
+endif
 
 timidity_LDADD = \
 	$(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \
 	$(top_builddir)/libarc/libarc.a \
-	$(top_builddir)/utils/libutils.a
+	$(top_builddir)/utils/libutils.a \
+	$(W32GUI_RES)
+
 
 timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \
 	$(top_builddir)/libarc/libarc.a \
-	$(top_builddir)/utils/libutils.a
+	$(top_builddir)/utils/libutils.a \
+	$(W32GUI_RES)
 
 version.o: version.c ../configure
 	$(CC) $(CFLAGS) -DTIMID_VERSION=\"$(VERSION)\" -c $(srcdir)/version.c
 
-$(top_builddir)/interface/libinterface.a:
+$(top_builddir)/interface/libinterface.a $(W32GUI_RES):
 	cd $(top_builddir)/interface; $(MAKE)
 
 $(top_builddir)/libarc/libarc.a:

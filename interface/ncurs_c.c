@@ -42,9 +42,13 @@
 #endif
 #include <math.h>
 
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif /* HAVE_UNISTD_H */
+
+#ifdef __W32__
+#include <windows.h>
+#endif /* __W32__ */
 
 #ifdef HAVE_NCURSES_H
 #include <ncurses.h>
@@ -65,11 +69,16 @@
 #include "timer.h"
 #include "bitset.h"
 #include "arc.h"
+#include "aq.h"
 
 #define SCREEN_BUGFIX 1 /* FIX the old ncurses bug */
 
 /* Define WREFRESH_CACHED if wrefresh isn't clear the internal cache */
-#define WREFRESH_CACHED
+#define WREFRESH_CACHED 1
+
+#ifdef JAPANESE
+#define MULTIBUTE_CHAR_BUGFIX 1 /* Define to fix multibute overwrite bug */
+#endif /* JAPANESE */
 
 #define MIDI_TITLE
 #define DISPLAY_MID_MODE
@@ -132,6 +141,7 @@ static void indicator_chan_update(int ch);
 static void indicator_set_prog(int ch, int val, char *comm);
 static void display_lyric(char *lyric, int sep);
 static void display_play_system(int mode);
+static void display_aq_ratio(void);
 
 #define LYRIC_WORD_NOSEP	0
 #define LYRIC_WORD_SEP		' '
@@ -202,6 +212,7 @@ ControlMode ctl=
 {
     "ncurses interface", 'n',
     1,0,0,
+    0,
     ctl_open,
     ctl_close,
     ctl_pass_playing_list,
@@ -232,7 +243,8 @@ enum ctl_ncurs_mode_t
     NCURS_MODE_CMD_E,	/* Extensional mode */
     NCURS_MODE_CMD_FSEARCH,	/* forward search MIDI file */
     NCURS_MODE_CMD_D,	/* Change drum channel */
-    NCURS_MODE_CMD_S	/* Save as */
+    NCURS_MODE_CMD_S,	/* Save as */
+    NCURS_MODE_CMD_R	/* Change sample rate */
 };
 static int ctl_ncurs_mode = NCURS_MODE_MAIN; /* current mode */
 static int ctl_ncurs_back = NCURS_MODE_MAIN; /* prev mode to back from help */
@@ -360,35 +372,40 @@ static void N_ctl_clrtoeol(int row)
     int i;
 
     wmove(dftwin, row, 0);
-#ifdef WREFRESH_CACHED
     for(i = 0; i < COLS; i++)
 	waddch(dftwin, ' ');
-#endif
-    wrefresh(dftwin);
     wmove(dftwin, row, 0);
+    wrefresh(dftwin);
+}
+
+/* werase() is not collectly work if multibyte font is displayed. */
+static void N_ctl_werase(WINDOW *w)
+{
+#ifdef WREFRESH_CACHED
+    int x, y, xsize, ysize;
+    getmaxyx(w, ysize, xsize);
+    for(y = 0; y < ysize; y++)
+    {
+	wmove(w, y, 0);
+	for(x = 0; x < xsize; x++)
+	    waddch(w, ' ');
+    }
+#else
+    werase(w);
+#endif /* WREFRESH_CACHED */
+    wmove(w, 0, 0);
+    wrefresh(w);
 }
 
 static void N_ctl_scrinit(void)
 {
-    int i, j;
+    int i;
 
-#ifdef WREFRESH_CACHED
-    for(j = 0; j < LINES; j++)
-    {
-	wmove(dftwin, j, 0);
-	for(i = 0; i < COLS; i++)
-	    waddch(dftwin, ' ');
-    }
-    wrefresh(dftwin);
-#else
-    werase(dftwin);
-    wrefresh(dftwin);
-#endif /* WREFRESH_CACHED */
-
+    N_ctl_werase(dftwin);
     wmove(dftwin, VERSION_LINE,0);
     waddstr(dftwin, "TiMidity++ v"); waddstr(dftwin, timidity_version);
     wmove(dftwin, VERSION_LINE,COLS-52);
-    waddstr(dftwin, "(C) 1995 Tuukka Toivonen <toivonen@clinet.fi>");
+    waddstr(dftwin, "(C) 1995,1999 Tuukka Toivonen and Masanao Izumo");
     wmove(dftwin, FILE_LINE,0);
     waddstr(dftwin, "File:");
 #ifdef MIDI_TITLE
@@ -492,7 +509,7 @@ static void init_trace_window_chan(int ch)
 	ctl_sustain(ch, channel[ch].sustain);
 	ctl_pitch_bend(ch, CTL_STATUS_INIT);
 	if(channel[ch].pitchbend == 0x2000 && channel[ch].modulation_wheel > 0)
-	    ctl_pitch_bend(ch, -2);
+	    ctl_pitch_bend(ch, -1);
 	else
 	    ctl_pitch_bend(ch, channel[ch].pitchbend);
 	clear_bitset(channel_program_flags + ch, 0, 128);
@@ -535,7 +552,7 @@ static void init_trace_window_chan(int ch)
 	    else
 	    {
 		if(prog->instrument != NULL &&
-		   prog->instrument != MAGIC_LOAD_INSTRUMENT)
+		   !IS_MAGIC_INSTRUMENT(prog->instrument))
 		{
 		    type = prog->instrument->type;
 		    if(type == INST_SF2)
@@ -570,6 +587,12 @@ static void init_trace_window_chan(int ch)
 	    else if(type == INST_SF2)
 	    {
 		char *name, *fn;
+
+		if(prog->instype == 1)
+		{
+		    b = prog->font_bank;
+		    pr = prog->font_preset;
+		}
 
 		name = soundfont_preset_name(b, pr, -1, &fn);
 		if(name == NULL && b != 0)
@@ -714,8 +737,11 @@ static void ctl_help_mode(void)
 "O=Voices up    o=Voices down         c/C=Move channel      d=Toggle drum prt.",
 "J=Jump         L=Load & play (TAB: File completion)        t=Toggle trace mode",
 "%=Display velocity (toggle)          D=Drum change         S=Save as",
+"R=Change rate",
 #ifdef SUPPORT_SOUNDSPEC
 "g=Open sound spectrogram window",
+#else
+"",
 #endif /* SUPPORT_SOUNDSPEC */
 "",
 "l/INS=List mode",
@@ -727,8 +753,7 @@ NULL
 	ctl_ncurs_back = ctl_ncurs_mode;
 	ctl_ncurs_mode = NCURS_MODE_HELP;
 	helpwin = newwin(LIST_TITLE_LINES, COLS, TITLE_LINE, 0);
-	werase(helpwin);
-	wrefresh(helpwin);
+	N_ctl_werase(helpwin);
 	wattron(helpwin, A_BOLD);
 	waddstr(helpwin, "                 NEW ncurses interface Help");
 	wattroff(helpwin, A_BOLD);
@@ -767,7 +792,7 @@ static void ctl_list_MFnode_files(MFnode *mfp, int select_id, int play_id)
 #endif /* DISPLAY_MID_MODE */
 #endif /* MIDI_TITLE */
 
-    werase(listwin);
+    N_ctl_werase(listwin);
     mk = 0;
     for(i = 0; i < LIST_TITLE_LINES && mfp; i++, mfp = mfp->next)
     {
@@ -957,6 +982,7 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_CURRENT_TIME:
 	ctl_current_time((int)e->v1, (int)e->v2);
+	display_aq_ratio();
 	break;
       case CTLE_NOTE:
 	ctl_note((int)e->v1, (int)e->v2, (int)e->v3, (int)e->v4);
@@ -1350,8 +1376,7 @@ static void ctl_pitch_bend(int ch, int val)
     if(val == CTL_LAST_STATUS)
     {
 	restore = 1;
-	val = lastbends[ch];
-	if(!val || (val != '<' && val != '>'))
+	if((val = lastbends[ch]) == 0)
 	    val = ' ';
     }
     else
@@ -1367,7 +1392,6 @@ static void ctl_pitch_bend(int ch, int val)
     {
 	if(val != '=')
 	    lastbends[ch] = val;
-	else lastbends[ch] = ' ';
 	wmove(dftwin, NOTE_LINE+ch, COLS-2);
 	waddch(dftwin, val);
 	scr_modified_flag = 1;
@@ -1386,7 +1410,7 @@ static void ctl_lyric(int lyricid)
             while (strchr(lyric, '\r')) {
             	*(strchr(lyric, '\r')) = ' ';
             }
- 	    if (ctl.trace_playing) {
+	    if (ctl.trace_playing) {
 		while (strchr(lyric, '\n')) {
 		    *(strchr(lyric, '\n')) = '\r';
 		}
@@ -1426,7 +1450,6 @@ static void ctl_lyric(int lyricid)
 
 static void ctl_reset(void)
 {
-    trace_flush();
     if(ctl.trace_playing)
 	reset_indicator();
     N_ctl_refresh();
@@ -1518,7 +1541,7 @@ static int ctl_open(int using_stdin, int using_stdout)
     {
 	set_trace_loop_hook(NULL);
 	msgwin = newwin(LINES - 6 - 1, COLS, 6, 0);
-	werase(msgwin);
+	N_ctl_werase(msgwin);
 	scrollok(msgwin, 1);
 	wrefresh(msgwin);
     }
@@ -1643,7 +1666,7 @@ static void ctl_cmd_L_dir(int move)
 	move = 0;
     }
 
-    werase(listwin);
+    N_ctl_werase(listwin);
 
     if(command_buffer->files == NULL)
     {
@@ -1663,8 +1686,7 @@ static void ctl_cmd_L_dir(int move)
 	ctl_mode_L_dispstart = 0;
     }
 
-    werase(listwin);
-    wmove(listwin, 0, 0);
+    N_ctl_werase(listwin);
     waddstr(listwin, "Possible completions are:");
     for(i = 0; i < LIST_TITLE_LINES - 1 && mfp; i++, mfp = mfp->next)
     {
@@ -1811,6 +1833,22 @@ static int ctl_cmd_S_enter(void)
     mini_buff_clear(command_buffer);
     ctl_cmdmode = 0;
     return RC_NONE;
+}
+
+static int ctl_cmd_R_enter(int32 *valp)
+{
+    char *rateStr;
+    int rc = RC_NONE;
+
+    rateStr = mini_buff_gets(command_buffer);
+    if(*rateStr)
+    {
+	*valp = atoi(rateStr);
+	rc = RC_CHANGE_RATE;
+    }
+    mini_buff_clear(command_buffer);
+    ctl_cmdmode = 0;
+    return rc;
 }
 
 static int ctl_cmd_D_enter(int32 *val)
@@ -1984,6 +2022,9 @@ static int ctl_read(int32 *valp)
 	    case '?':
 	    case KEY_F(1):
 	      ctl_help_mode();
+	      break;
+	    case 'q':
+	      return RC_QUIT;
 	  }
 	  u_prefix = 1;
 	  continue;
@@ -2139,6 +2180,8 @@ static int ctl_read(int32 *valp)
 	      return ctl_cmd_E_enter(valp);
 	  if(ctl_cmdmode == NCURS_MODE_CMD_S)
 	      return ctl_cmd_S_enter();
+	  if(ctl_cmdmode == NCURS_MODE_CMD_R)
+	      return ctl_cmd_R_enter(valp);
 	  if(ctl_cmdmode == NCURS_MODE_CMD_FSEARCH)
 	  {
 	      if(!ctl_cmd_forward_search())
@@ -2330,6 +2373,14 @@ static int ctl_read(int32 *valp)
 	  }
 	  mini_buff_sets(command_buffer, ctl_mode_L_lastenter);
 	  continue;
+	case 'R': {
+	    char currentRate[16];
+	    ctl_cmdmode = NCURS_MODE_CMD_R;
+	    mini_buff_set(command_buffer, dftwin, LINES - 1, "Sample rate> ");
+	    sprintf(currentRate, "%d", (int)play_mode->rate);
+	    mini_buff_sets(command_buffer, currentRate);
+	    continue;
+	  }
 	case '%':
 	  display_velocity_flag = !display_velocity_flag;
 	  continue;
@@ -2392,7 +2443,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
     }
     else
     {
-#if defined( __BORLANDC__) || (defined(__WIN32__) && !defined(__CYGWIN32__))
+#if defined( __BORLANDC__) || (defined(__W32__) && !defined(__CYGWIN32__))
 	nl();
 #endif
 	if(ctl.trace_playing)
@@ -2560,6 +2611,45 @@ static MFnode *make_new_MFnode_entry(char *file)
     return NULL;
 }
 
+static void shuffle_list(void)
+{
+    MFnode **nodeList;
+    int i, j, n;
+
+    n = file_list.number + 1;
+    /* Move MFnode into nodeList */
+    nodeList = (MFnode **)new_segment(&tmpbuffer, n * sizeof(MFnode));
+    for(i = 0; i < n; i++)
+    {
+	nodeList[i] = file_list.MFnode_head;
+	file_list.MFnode_head = file_list.MFnode_head->next;
+    }
+
+    /* Simple validate check */
+    if(file_list.MFnode_head != NULL)
+	ctl.cmsg(CMSG_ERROR, VERB_NORMAL, "BUG: MFnode_head is corrupted");
+
+    /* Construct randamized chain */
+    file_list.MFnode_head = file_list.MFnode_tail = NULL;
+    for(i = 0; i < n; i++)
+    {
+	MFnode *tmp;
+
+	j = int_rand(n - i);
+	if(file_list.MFnode_head == NULL)
+	    file_list.MFnode_head = file_list.MFnode_tail = nodeList[j];
+	else
+	    file_list.MFnode_tail = file_list.MFnode_tail->next = nodeList[j];
+
+	/* nodeList[j] is used.  Swap out it */
+	tmp = nodeList[j];
+	nodeList[j] = nodeList[n - i - 1];
+	nodeList[n - i - 1] = tmp;
+    }
+    file_list.MFnode_tail->next = NULL;
+    reuse_mblock(&tmpbuffer);
+}
+
 static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 {
     int i;
@@ -2567,7 +2657,6 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
     int stdin_check;
 
     listwin=newwin(LIST_TITLE_LINES,COLS,TITLE_LINE,0);
-
     stdin_check = 0;
     act_number_of_files=0;
     for(i=0;i<number_of_files;i++){
@@ -2607,7 +2696,13 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		    i--;
 		else
 		{
-		    i = file_list.number;
+		    if(ctl.flags & CTLF_LIST_LOOP)
+			i = file_list.number;
+		    else
+		    {
+			ctl_reset();
+			break;
+		    }
 		    sleep(1);
 		}
 		nc_playfile=i;
@@ -2621,14 +2716,16 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		    i++;
 		else
 		{
-		    if(stdin_check)
+		    if(!(ctl.flags & CTLF_LIST_LOOP) || stdin_check)
 		    {
-			play_mode->flush_output();
+			aq_flush(0);
 			return;
 		    }
 		    i = 0;
 		    if(rc == RC_TUNE_END)
 			sleep(2);
+		    if(ctl.flags & CTLF_LIST_RANDOM)
+			shuffle_list();
 		}
 		nc_playfile=i;
 		ctl_list_mode(NC_LIST_NEW);
@@ -2665,6 +2762,28 @@ static void reset_indicator(void)
     }
 }
 
+static void display_aq_ratio(void)
+{
+    static int last_rate = -1;
+    int rate;
+
+    rate = (int)(((double)(aq_filled() + aq_soft_filled()) /
+		  aq_get_dev_queuesize()) * 100 + 0.5);
+    if(rate > 999)
+	rate = 1000;
+
+    if(last_rate != rate)
+    {
+	last_rate = rate;
+	wmove(dftwin, VOICE_LINE + 1, 34);
+	if(rate > 999)
+	    wprintw(dftwin, " Audio queue:***%% ");
+	else
+	    wprintw(dftwin, " Audio queue:%3d%% ", rate);
+	scr_modified_flag = 1;
+    }
+}
+
 static void update_indicator(void)
 {
     double t;
@@ -2672,7 +2791,7 @@ static void update_indicator(void)
     char c;
     static int play_modeflag = 1;
 
-#ifdef __WIN32__
+#ifdef __W32__
     play_modeflag = 1;
 	display_play_system(play_system_mode);
 #else
@@ -2687,7 +2806,7 @@ static void update_indicator(void)
     else
 	display_play_system(-1);
     play_modeflag = !play_modeflag;
-#endif /* __WIN32__ */
+#endif /* __W32__ */
 
     t = get_current_calender_time();
     if(indicator_mode != INDICATOR_DEFAULT)
@@ -2936,12 +3055,11 @@ static void display_lyric(char *lyric, int sep)
   */
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif /* HAVE_FCNTL_H */
+
 #ifndef S_ISDIR
 #define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
 #endif /* S_ISDIR */
+
 /* Allocate new buffer */
 static MiniBuffer *mini_buff_new(int size)
 {

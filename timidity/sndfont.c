@@ -40,7 +40,7 @@
 #endif
 #include <stdlib.h>
 #include <math.h>
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include "timidity.h"
@@ -58,8 +58,8 @@
 
 #define FILENAME_NORMALIZE(fname) url_expand_home_dir(fname)
 #define FILENAME_REDUCED(fname)   url_unexpand_home_dir(fname)
-#define SFMalloc(rec, count) new_segment(&(rec)->pool, count)
-#define SFStrdup(rec, s)     strdup_mblock(&(rec)->pool, s)
+#define SFMalloc(rec, count)      new_segment(&(rec)->pool, count)
+#define SFStrdup(rec, s)          strdup_mblock(&(rec)->pool, s)
 
 /*----------------------------------------------------------------
  * compile flags
@@ -96,6 +96,14 @@ typedef struct _SampleList {
 	int16 scaleTuning;	/* pitch scale tuning(%), normally 100 */
 	int16 root, tune;
 	char low, high;		/* key note range */
+
+	/* Depend on play_mode->rate */
+	int32 vibrato_freq;
+	double attack;
+	double hold;
+	int sustain;
+	double decay;
+	double release;
 } SampleList;
 
 typedef struct _InstList {
@@ -122,10 +130,6 @@ typedef struct _SFOrder {
 #define INSTHASH(bank, preset, keynote) \
 	((int)(((unsigned)bank ^ (unsigned)preset ^ (unsigned)keynote) % INSTHASHSIZE))
 
-
-
-/*#define INSTHASH(bank, preset, keynote) 0*/
-
 typedef struct _SFInsts {
 	struct timidity_file *tf;
 	char *fname;
@@ -133,7 +137,7 @@ typedef struct _SFInsts {
 	uint16 version, minorversion;
 	int32 samplepos, samplesize;
 	InstList *instlist[INSTHASHSIZE];
-	int nrpresets;
+//	int npresets;
 	char **inst_namebuf;
 	SFExclude *sfexclude;
 	SFOrder *sforder;
@@ -246,7 +250,6 @@ void add_soundfont(char *sf_file,
 	return;
     }
 
-    sf = (SFInsts *)safe_malloc(sizeof(SFInsts));
     sf = new_soundfont(sf_file);
     if(sf_order >= 0)
 	sf->def_order = sf_order;
@@ -336,7 +339,7 @@ static void init_sf(SFInsts *rec)
 	rec->minorversion = sfinfo.minorversion;
 	rec->samplepos = sfinfo.samplepos;
 	rec->samplesize = sfinfo.samplesize;
-	rec->nrpresets = sfinfo.npresets;
+//	rec->npresets = sfinfo.npresets;
 	rec->inst_namebuf =
 	    (char **)SFMalloc(rec, sfinfo.npresets * sizeof(char *));
 	for(i = 0; i < sfinfo.npresets; i++)
@@ -375,6 +378,21 @@ static void end_soundfont(SFInsts *rec)
 	reuse_mblock(&rec->pool);
 }
 
+Instrument *extract_soundfont(char *sf_file, int bank, int preset,
+			      int keynote)
+{
+    SFInsts *sf;
+
+    if((sf = find_soundfont(sf_file)) != NULL)
+	return try_load_soundfont(sf, -1, bank, preset, keynote);
+    sf = new_soundfont(sf_file);
+    sf->next = sfrecs;
+    sf->def_order = 2;
+    sfrecs = sf;
+    init_sf(sf);
+    return try_load_soundfont(sf, -1, bank, preset, keynote);
+}
+
 /*----------------------------------------------------------------
  * get converted instrument info and load the wave data from file
  *----------------------------------------------------------------*/
@@ -406,7 +424,7 @@ static Instrument *try_load_soundfont(SFInsts *rec, int order, int bank,
 	for (ip = rec->instlist[addr]; ip; ip = ip->next) {
 		if (ip->pat.bank == bank && ip->pat.preset == preset &&
 		    (keynote < 0 || ip->pat.keynote == keynote) &&
-		    ip->order == order)
+		    (order < 0 || ip->order == order))
 			break;
 	}
 
@@ -436,6 +454,86 @@ Instrument *load_soundfont_inst(int order,
 	}
     }
     return NULL;
+}
+
+/*----------------------------------------------------------------*/
+#define TO_MHZ(abscents) (int32)(8176.0 * pow(2.0,(double)(abscents)/1200.0))
+#if 0
+#ifndef M_LN2
+#define M_LN2		0.69314718055994530942
+#endif /* M_LN2 */
+#ifndef M_LN10
+#define M_LN10		2.30258509299404568402
+#endif /* M_LN10 */
+#define TO_VOLUME(centibel) (uint8)(255 * (1.0 - \
+				(centibel) * (M_LN10 / 1200.0 / M_LN2)))
+#else
+#define TO_VOLUME(level)  (uint8)(255.0 - (level) * (255.0/1000.0))
+#endif
+
+
+static FLOAT_T calc_volume(LayerTable *tbl)
+{
+    int v;
+    if(!tbl->set[SF_initAtten] || tbl->val[SF_initAtten] == 0)
+	return (FLOAT_T)1.0;
+    v = tbl->val[SF_initAtten];
+    if(v < 0)
+	return (FLOAT_T)1.0;
+    if(v > 956)
+	return (FLOAT_T)0.0;
+
+    v = v * 127 / 956;		/* 0..127 */
+
+    return vol_table[127 - v];
+}
+
+/*
+ * convert timecents to sec
+ */
+static double to_msec(int timecent)
+{
+    return 1000.0 * pow(2.0, (double)timecent / 1200.0);
+}
+
+/* convert from 8bit value to fractional offset (15.15) */
+static int32 to_offset(int offset)
+{
+	return (int32)offset << (7+15);
+}
+
+/* calculate ramp rate in fractional unit;
+ * diff = 8bit, time = msec
+ */
+static int32 calc_rate(int diff, double msec)
+{
+    double rate;
+
+    if(msec < 6)
+	msec = 6;
+    if(diff == 0)
+	diff = 255;
+    diff <<= (7+15);
+    rate = ((double)diff / play_mode->rate) * control_ratio * 1000.0 / msec;
+    if(fast_decay)
+	rate *= 2;
+    return (int32)rate;
+}
+
+/*
+ * Sustain level
+ * sf: centibels
+ * parm: 0x7f - sustain_level(dB) * 0.75
+ */
+static int32 calc_sustain(int sust_cB)
+{
+    double level;
+    if(sust_cB <= 0)
+	return 255;
+    level = (double)sust_cB;
+    if(level >= 1000)
+	return 1;
+    return TO_VOLUME(level);
 }
 
 static Instrument *load_from_file(SFInsts *rec, InstList *ip)
@@ -474,6 +572,41 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 			  sp->v.low_freq, sp->v.high_freq, sp->v.root_freq,
 			  sp->v.panning);
 		memcpy(sample, &sp->v, sizeof(Sample));
+
+		/* convert mHz to control ratio */
+		sample->vibrato_control_ratio = sp->vibrato_freq *
+		    (VIBRATO_RATE_TUNING * play_mode->rate) /
+			(2 * VIBRATO_SAMPLE_INCREMENTS);
+
+		/* convert envelop parameters */
+		sample->envelope_offset[0] = to_offset(255);
+		sample->envelope_rate[0] = calc_rate(255, sp->attack);
+
+		sample->envelope_offset[1] = to_offset(250);
+		sample->envelope_rate[1] = calc_rate(5, sp->hold);
+
+		sample->envelope_offset[2] = to_offset(sp->sustain);
+		sample->envelope_rate[2] = calc_rate(250 - sp->sustain, sp->decay);
+
+		sample->envelope_offset[3] = to_offset(5);
+		sample->envelope_rate[3] = calc_rate(255, sp->release);
+
+		sample->envelope_offset[4] = to_offset(4);
+		sample->envelope_rate[4] = to_offset(200);
+
+		sample->envelope_offset[5] = to_offset(4);
+		sample->envelope_rate[5] = to_offset(200);
+
+#if 0
+		sample->envelope_offset[3] = to_offset(1);
+		sample->envelope_rate[3] = calc_rate(sp->sustain, sp->release);
+
+		sample->envelope_offset[4] = sp->v.envelope_offset[3];
+		sample->envelope_rate[4] = sp->v.envelope_rate[3];
+
+		sample->envelope_offset[5] = sp->v.envelope_offset[4];
+		sample->envelope_rate[5] = sp->v.envelope_rate[4];
+#endif
 
 		if(i > 0 && (sample->note_to_use ||
 			     (sample->modes & MODES_LOOPING)))
@@ -1028,38 +1161,6 @@ static void make_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 #endif /* SF_SUPPRESS_VIBRATO */
 }
 
-/*----------------------------------------------------------------*/
-#define TO_MHZ(abscents) (int32)(8176.0 * pow(2.0,(double)(abscents)/1200.0))
-#if 0
-#ifndef M_LN2
-#define M_LN2		0.69314718055994530942
-#endif /* M_LN2 */
-#ifndef M_LN10
-#define M_LN10		2.30258509299404568402
-#endif /* M_LN10 */
-#define TO_VOLUME(centibel) (uint8)(255 * (1.0 - \
-				(centibel) * (M_LN10 / 1200.0 / M_LN2)))
-#else
-#define TO_VOLUME(level)  (uint8)(255.0 - (level) * (255.0/1000.0))
-#endif
-
-
-static FLOAT_T calc_volume(LayerTable *tbl)
-{
-    int v;
-    if(!tbl->set[SF_initAtten] || tbl->val[SF_initAtten] == 0)
-	return (FLOAT_T)1.0;
-    v = tbl->val[SF_initAtten];
-    if(v < 0)
-	return (FLOAT_T)1.0;
-    if(v > 956)
-	return (FLOAT_T)0.0;
-
-    v = v * 127 / 956;		/* 0..127 */
-
-    return vol_table[127 - v];
-}
-
 /* set sample address */
 static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
@@ -1306,53 +1407,6 @@ static void set_rootfreq(SampleList *vp)
 
 /*----------------------------------------------------------------*/
 
-/*
- * convert timecents to sec
- */
-static double to_msec(int timecent)
-{
-    return 1000.0 * pow(2.0, (double)timecent / 1200.0);
-}
-
-/* convert from 8bit value to fractional offset (15.15) */
-static int32 to_offset(int offset)
-{
-	return (int32)offset << (7+15);
-}
-
-/* calculate ramp rate in fractional unit;
- * diff = 8bit, time = msec
- */
-static int32 calc_rate(int diff, double msec)
-{
-    double rate;
-
-    if(msec < 6)
-	msec = 6;
-    if(diff == 0)
-	diff = 255;
-    diff <<= (7+15);
-    rate = ((double)diff / play_mode->rate) * control_ratio * 1000.0 / msec;
-    if(fast_decay)
-	rate *= 2;
-    return (int32)rate;
-}
-
-/*
- * Sustain level
- * sf: centibels
- * parm: 0x7f - sustain_level(dB) * 0.75
- */
-static int32 calc_sustain(int sust_cB)
-{
-    double level;
-    if(sust_cB <= 0)
-	return 255;
-    level = (double)sust_cB;
-    if(level >= 1000)
-	return 1;
-    return TO_VOLUME(level);
-}
 
 /*Pseudo Reverb*/
 extern int32 modify_release;
@@ -1361,51 +1415,16 @@ extern int32 modify_release;
 /* volume envelope parameters */
 static void convert_volume_envelope(SampleList *vp, LayerTable *tbl)
 {
-    double attack;
-    double hold;
-    int sustain;
-    double decay;
-    double release;
-
-    attack  = to_msec(tbl->val[SF_attackEnv2]);
-    hold    = to_msec(tbl->val[SF_holdEnv2]);
-    sustain = calc_sustain(tbl->val[SF_sustainEnv2]);
-    decay   = to_msec(tbl->val[SF_decayEnv2]);
-    release = to_msec(tbl->val[SF_releaseEnv2]);
-
-    /*Pseudo Reverb*/
-    if (modify_release) release=modify_release;
-
-    vp->v.envelope_offset[0] = to_offset(255);
-    vp->v.envelope_rate[0] = calc_rate(255, attack);
-
-    vp->v.envelope_offset[1] = to_offset(250);
-    vp->v.envelope_rate[1] = calc_rate(5, hold);
-
-    if(sustain > 250)
-	sustain = 250;
-    vp->v.envelope_offset[2] = to_offset(sustain);
-    vp->v.envelope_rate[2] = calc_rate(250 - sustain, decay);
-
-    vp->v.envelope_offset[3] = to_offset(5);
-    vp->v.envelope_rate[3] = calc_rate(255, release);
-
-    vp->v.envelope_offset[4] = to_offset(4);
-    vp->v.envelope_rate[4] = to_offset(200);
-
-    vp->v.envelope_offset[5] = to_offset(4);
-    vp->v.envelope_rate[5] = to_offset(200);
-
-#if 0
-    vp->v.envelope_offset[3] = to_offset(1);
-    vp->v.envelope_rate[3] = calc_rate(sustain, release);
-
-    vp->v.envelope_offset[4] = vp->v.envelope_offset[3];
-    vp->v.envelope_rate[4] = vp->v.envelope_rate[3];
-
-    vp->v.envelope_offset[5] = vp->v.envelope_offset[4];
-    vp->v.envelope_rate[5] = vp->v.envelope_rate[4];
-#endif
+    vp->attack  = to_msec(tbl->val[SF_attackEnv2]);
+    vp->hold    = to_msec(tbl->val[SF_holdEnv2]);
+    vp->sustain = calc_sustain(tbl->val[SF_sustainEnv2]);
+    if(vp->sustain > 250)
+	vp->sustain = 250;
+    vp->decay   = to_msec(tbl->val[SF_decayEnv2]);
+    if(modify_release)
+	vp->release = modify_release;
+    else
+	vp->release = to_msec(tbl->val[SF_releaseEnv2]); /* Pseudo Reverb */
 
 #if 0 /* Not supported */
     /* key hold/decay */
@@ -1415,6 +1434,7 @@ static void convert_volume_envelope(SampleList *vp, LayerTable *tbl)
 
     vp->v.modes |= MODES_ENVELOPE;
 }
+
 
 #ifndef SF_SUPPRESS_TREMOLO
 /*----------------------------------------------------------------
@@ -1481,10 +1501,7 @@ static void convert_vibrato(SampleList *vp, LayerTable *tbl)
 	freq = tbl->val[SF_freqLfo2];
 	freq = TO_MHZ(freq);
     }
-    /* convert mHz to control ratio */
-    vp->v.vibrato_control_ratio = freq *
-	(VIBRATO_RATE_TUNING * play_mode->rate) /
-	    (2 * VIBRATO_SAMPLE_INCREMENTS);
+    vp->vibrato_freq = freq;
     vp->v.vibrato_sweep_increment = 0;
 }
 #endif

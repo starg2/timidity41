@@ -40,7 +40,6 @@
 static int wrdt_open(char *wrdt_opts);
 static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[]);
 static void wrdt_update_events(void);
-static void wrdt_start(int wrdflag);
 static void wrdt_end(void);
 static void wrdt_close(void);
 
@@ -52,8 +51,9 @@ WRDTracer wrdt =
     0,
     wrdt_open,
     wrdt_apply,
+    NULL,
     wrdt_update_events,
-    wrdt_start,
+    NULL,
     wrdt_end,
     wrdt_close
 };
@@ -69,10 +69,6 @@ static int wrdt_open(char *wrdt_opts)
 }
 
 static void wrdt_update_events(void)
-{
-}
-
-static void wrdt_start(int wrdflag)
 {
 }
 

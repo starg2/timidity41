@@ -11,7 +11,7 @@
 #include "timidity.h"
 #include "url.h"
 
-#ifndef __WIN32__
+#ifdef HAVE_POPEN
 /* It is not supported command PIPE at Windows */
 
 typedef struct _URL_pipe
@@ -141,7 +141,7 @@ static void url_pipe_close(URL url)
     errno = save_errno;
 }
 
-#else /* __WIN32__ */
+#else /* HAVE_POPEN */
 struct URL_module URL_module_pipe =
 {
     URL_none_t,			/* type */

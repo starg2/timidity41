@@ -28,12 +28,15 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
-#ifdef __WIN32__
+
+#ifdef __W32__
 #include <stdlib.h>
 #include <io.h>
-#else
-#include <unistd.h>
 #endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -51,132 +54,72 @@
 #include "output.h"
 #include "controls.h"
 
-#ifdef __WIN32__
-#define OPEN_MODE O_WRONLY | O_CREAT | O_TRUNC | O_BINARY
-#else
-#define OPEN_MODE O_WRONLY | O_CREAT | O_TRUNC
-#endif
-
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static void output_data(int32 *buf, int32 count);
-static int flush_output(void);
-static void purge_output(void);
-static int32 current_samples(void);
-static int play_loop(void);
-
-extern int default_play_event(void *);
+static int output_data(char *buf, int32 bytes);
+static int acntl(int request, void *arg);
 
 /* export the playback mode */
-
 
 #define dpm raw_play_mode
 
 PlayMode dpm = {
-  DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_NEED_INSTRUMENTS,
-  -1,
-  {0,0,0,0,0},
-  "raw waveform data", 'r',
-  "output.raw",
-  default_play_event,
-  open_output,
-  close_output,
-  output_data,
-  flush_output,
-  purge_output,
-  current_samples,
-  play_loop
+    DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_PCM_STREAM,
+    -1,
+    {0,0,0,0,0},
+    "raw waveform data", 'r',
+    "output.raw",
+    open_output,
+    close_output,
+    output_data,
+    acntl
 };
 
 /*************************************************************************/
 
 static int open_output(void)
 {
-  if (dpm.encoding & (PE_ULAW|PE_ALAW))
-    dpm.encoding &= ~PE_16BIT;
+    dpm.encoding = validate_encoding(dpm.encoding, 0, 0);
 
-  if (!(dpm.encoding & PE_16BIT))
-    dpm.encoding &= ~PE_BYTESWAP;
-
-  if (dpm.name && dpm.name[0]=='-' && dpm.name[1]=='\0')
-    dpm.fd=1; /* data to stdout */
-  else
+    if(dpm.name && dpm.name[0] == '-' && dpm.name[1] == '\0')
+	dpm.fd = 1; /* data to stdout */
+    else
     {
-      /* Open the audio file */
-		dpm.fd=open(dpm.name, OPEN_MODE, 0644);
-      if (dpm.fd<0)
+	/* Open the audio file */
+	dpm.fd = open(dpm.name, FILE_OUTPUT_MODE);
+	if(dpm.fd < 0)
 	{
-	  ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-		    dpm.name, strerror(errno));
-	  return -1;
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+		      dpm.name, strerror(errno));
+	    return -1;
 	}
     }
-  return 0;
+    return 0;
 }
 
-static void output_data(int32 *buf, int32 count)
+static int output_data(char *buf, int32 bytes)
 {
-  if (!(dpm.encoding & PE_MONO)) count*=2; /* Stereo samples */
+    int n;
 
-  if (dpm.encoding & PE_16BIT)
-    {
-      if (dpm.encoding & PE_BYTESWAP)
-	{
-	  if (dpm.encoding & PE_SIGNED)
-	    s32tos16x(buf, count);
-	  else
-	    s32tou16x(buf, count);
-	}
-      else
-	{
-	  if (dpm.encoding & PE_SIGNED)
-	    s32tos16(buf, count);
-	  else
-	    s32tou16(buf, count);
-	}
-
-      while ((-1==write(dpm.fd, buf, count * 2)) && errno==EINTR)
+    while(((n = write(dpm.fd, buf, bytes)) == -1) && errno == EINTR)
 	;
-    }
-  else
+    if(n == -1)
     {
-      if (dpm.encoding & PE_ULAW)
-	{
-	  s32toulaw(buf, count);
-	}
-      else if (dpm.encoding & PE_ALAW)
-	{
-	  s32toalaw(buf, count);
-	}
-      else
-	{
-	  if (dpm.encoding & PE_SIGNED)
-	    s32tos8(buf, count);
-	  else
-	    s32tou8(buf, count);
-	}
-
-      while ((-1==write(dpm.fd, buf, count)) && errno==EINTR)
-	;
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+		  dpm.name, strerror(errno));
+	return -1;
     }
+    return n;
 }
 
 static void close_output(void)
 {
-  if (dpm.fd != 1) /* We don't close stdout */
-    close(dpm.fd);
-  dpm.fd = -1;
+    if(dpm.fd != 1 && dpm.fd != -1) /* We don't close stdout */
+	close(dpm.fd);
+    dpm.fd = -1;
 }
 
-static int flush_output(void) { return RC_NONE; }
-static void purge_output(void) { }
-
-static int play_loop(void)
-{
-    return 0;
-}
-
-static int32 current_samples(void)
+static int acntl(int request, void *arg)
 {
     return -1;
 }

@@ -24,7 +24,8 @@
 */
 
 #define RC_IS_SKIP_FILE(rc) ((rc) == RC_QUIT || (rc) == RC_LOAD_FILE || \
-			     (rc) == RC_NEXT || (rc) == RC_REALLY_PREVIOUS)
+			     (rc) == RC_NEXT || (rc) == RC_REALLY_PREVIOUS || \
+			     (rc) == RC_ERROR)
 
 /* Return values for ControlMode.read */
 #define RC_ERROR	-1
@@ -57,6 +58,8 @@
 #define RC_CHANGE_REV_TIME 25
 #define RC_SYNC_RESTART 26
 #define RC_TOGGLE_CTL_SPEANA 27
+#define RC_CHANGE_RATE	28
+#define RC_OUTPUT_CHANGED      29
 
 #define CMSG_INFO	0
 #define CMSG_WARNING	1
@@ -74,37 +77,48 @@
 #define VERB_DEBUG	3
 #define VERB_DEBUG_SILLY 4
 
-#define CTLE_NOW_LOADING	1
-#define CTLE_LOADING_DONE	2
-#define CTLE_PLAY_START		3
-#define CTLE_PLAY_END		4
-#define CTLE_TEMPO		5
-#define CTLE_METRONOME		6
-#define CTLE_CURRENT_TIME	7
-#define CTLE_NOTE		8
-#define CTLE_MASTER_VOLUME	9
-#define CTLE_PROGRAM		10
-#define CTLE_VOLUME		11
-#define CTLE_EXPRESSION		12
-#define CTLE_PANNING		13
-#define CTLE_SUSTAIN		14
-#define CTLE_PITCH_BEND		15
-#define CTLE_MOD_WHEEL		16
-#define CTLE_CHORUS_EFFECT	17
-#define CTLE_REVERB_EFFECT	18
-#define CTLE_LYRIC		19
-#define CTLE_REFRESH		20
-#define CTLE_RESET		21
-#define CTLE_SPEANA		22
+enum {
+    CTLE_NOW_LOADING,		/* v1:filename */
+    CTLE_LOADING_DONE,		/* v1:0=success -1=error 1=terminated */
+    CTLE_PLAY_START,		/* v1:nsamples */
+    CTLE_PLAY_END,
+    CTLE_TEMPO,			/* v1:tempo */
+    CTLE_METRONOME,		/* v1:count */
+    CTLE_CURRENT_TIME,		/* v1:secs, v2:voices */
+    CTLE_NOTE,			/* v1:status, v2:ch, v3:note, v4:velo */
+    CTLE_MASTER_VOLUME,		/* v1:amp(%) */
+    CTLE_PROGRAM,		/* v1:ch, v2:prog, v3:name */
+    CTLE_VOLUME,		/* v1:ch, v2:value */
+    CTLE_EXPRESSION,		/* v1:ch, v2:value */
+    CTLE_PANNING,		/* v1:ch, v2:value */
+    CTLE_SUSTAIN,		/* v1:ch, v2:value */
+    CTLE_PITCH_BEND,		/* v1:ch, v2:value */
+    CTLE_MOD_WHEEL,		/* v1:ch, v2:value */
+    CTLE_CHORUS_EFFECT,		/* v1:ch, v2:value */
+    CTLE_REVERB_EFFECT,		/* v1:ch, v2:value */
+    CTLE_LYRIC,			/* v1:lyric-ID */
+    CTLE_REFRESH,
+    CTLE_RESET,
+    CTLE_SPEANA			/* v1:double[] v2:len */
+};
 
 typedef struct _CtlEvent {
     int type;		/* See above */
     long v1, v2, v3, v4;/* Event value */
 } CtlEvent;
 
+
 typedef struct {
   char *id_name, id_character;
   int verbosity, trace_playing, opened;
+
+  int flags;
+/* ControlMode flags.
+ * Some interfaces ignore these flags.
+ */
+#define CTLF_LIST_LOOP		(1u<<0)	/* -i?l */
+#define CTLF_LIST_RANDOM	(1u<<1)	/* -i?r */
+#define CTLF_LIST_SORT		(1u<<2)	/* -i?s */
 
   int  (*open)(int using_stdin, int using_stdout);
   void (*close)(void);

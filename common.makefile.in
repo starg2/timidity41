@@ -18,18 +18,20 @@
 
 # Define follows if you want to change.
 
-#SHELL=/bin/sh
+SHELL=@SHELL@
 
 
-## Package compilations:
+## Package compilations
+## Please modify and uncomment if you want to change.
 #CC= @CC@
 #CFLAGS = @CFLAGS@
-CPPFLAGS = @CPPFLAGS@ @EXTRADEFS@ -DDEFAULT_PATH=\"$(TIMID_DIR)\"
+#CPPFLAGS = @CPPFLAGS@
+
 #DEFS = @DEFS@
 #LDFLAGS = @LDFLAGS@
-LIBS = @LIBS@ @EXTRALIBS@
-SHLD = @SHLD@
-SHCFLAGS = @SHCFLAGS@
+#LIBS = @LIBS@
+#SHLD = @SHLD@
+#SHCFLAGS = @SHCFLAGS@
 #@SET_MAKE@
 
 
@@ -51,4 +53,4 @@ TIMID_DIR = $(pkglibdir)
 TCL_DIR = $(pkglibdir)
 
 
-.SUFFIXES: .c .h .ptcl .tcl .o .1 .txt .ps .@so@
+.SUFFIXES: .c .h .ptcl .tcl .o .1 .5 .txt .ps .@so@

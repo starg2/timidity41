@@ -34,9 +34,9 @@
 #else
 #include <strings.h>
 #endif
-#ifndef __WIN32__
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif /* __WIN32__ */
+#endif /* HAVE_UNISTD_H */
 
 #include "timidity.h"
 #include "common.h"
@@ -86,6 +86,7 @@ ControlMode ctl=
 {
     "skin interface", 'i',
     1,0,0,
+    0,
     ctl_open,
     ctl_close,
     ctl_pass_playing_list,

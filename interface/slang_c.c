@@ -144,6 +144,7 @@ ControlMode ctl=
 {
     "slang interface", 's',
     1,0,0,
+    0,
     ctl_open,
     ctl_close,
     dumb_pass_playing_list,

@@ -1,4 +1,28 @@
-/* WRD reader - written by Masanao Izumo <mo@goice.co.jp> */
+/*
+
+    TiMidity++ -- MIDI to WAVE converter and player
+    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    WRD reader - Written by Masanao Izumo <mo@goice.co.jp>
+		 Modified by Takaya Nogami <t-nogami@happy.email.ne.jp> for
+			Sherry WRD.
+
+ */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
@@ -22,7 +46,7 @@
 
 /*#define DEBUG 1*/
 
-#ifdef JAPANESE
+#if  defined(JAPANESE) || defined(__MACOS__)
 #define IS_MULTI_BYTE(c)	( ((c)&0x80) && ((0x1 <= ((c)&0x7F) && ((c)&0x7F) <= 0x1f) ||\
 				 (0x60 <= ((c)&0x7F) && ((c)&0x7F) <= 0x7c)))
 #define IS_SJIS_ZENKAKU_SPACE(p) ((p)[0] == 0x81 && (p)[1] == 0x40)
@@ -90,6 +114,11 @@ struct wrd_step_tracer
     MBlockList pool;	/* memory buffer */
 };
 
+static MBlockList sry_pool; /* data buffer */
+sry_datapacket *datapacket = NULL;
+static int datapacket_len, datapacket_cnt;
+#define DEFAULT_DATAPACKET_LEN 16384
+
 static uint8 cmdlookup(uint8 *cmd);
 static int wrd_nexttok(struct timidity_file *tf);
 static void wrd_readinit(void);
@@ -108,6 +137,7 @@ static void wrdstep_wait(struct wrd_step_tracer *wrdstep, int bar, int step);
 static void wrdstep_rest(struct wrd_step_tracer *wrdstep, int bar, int step);
 static struct wrd_delayed_event *wrd_delay_cmd(struct wrd_step_tracer *wrdstep,
 					int32 waittime, int cmd, int arg);
+static int import_sherrywrd_file(const char * );
 
 static uint8 wrd_tokval[MAXTOKLEN + 1]; /* Token value */
 static uint8 wrd_tok;		/* Token type */
@@ -127,6 +157,13 @@ static int32 last_event_time;
       if(mimpi_bug_emulation_level > 0){ if(at < last_event_time){ e.time = \
       last_event_time; }else{ last_event_time = e.time; }} \
       readmidi_add_event(&e); }
+
+#define SETMIDIEVENT(e, at, t, ch, pa, pb) \
+    { (e).time = (at); (e).type = (t); \
+      (e).channel = (uint8)(ch); (e).a = (uint8)(pa); (e).b = (uint8)(pb); }
+#define MIDIEVENT(at, t, ch, pa, pb) \
+    { MidiEvent event; SETMIDIEVENT(event, at, t, ch, pa, pb); \
+      readmidi_add_event(&event); }
 
 #ifdef DEBUG
 static char *wrd_name_string(int cmd);
@@ -186,17 +223,30 @@ int import_wrd_file(char *fn)
 	}
     }
 
+    if(datapacket == NULL)
+	init_mblock(&sry_pool);
+    else
+    {
+	free(datapacket);
+	datapacket = NULL;
+	reuse_mblock(&sry_pool);
+    }
+
     wrd_init_path();
     if(default_wrd_file2 != NULL)
-	tf = open_file((wfn = default_wrd_file2), 0, 0);
+	tf = open_file((wfn = default_wrd_file2), 0, OF_NORMAL);
     else
 	tf = open_wrd_file(wfn = fn);
-    if(tf == NULL)
-	tf = open_file((wfn = default_wrd_file1), 0, 0);
+    if(tf == NULL && default_wrd_file1 != NULL)
+	tf = open_file((wfn = default_wrd_file1), 0, OF_NORMAL);
     if(tf == NULL)
     {
 	default_wrd_file1 = default_wrd_file2 = NULL;
-	return 0;
+#ifdef ENABLE_SHERRY
+	if(import_sherrywrd_file(fn))
+	    return WRD_TRACE_SHERRY;
+#endif
+	return WRD_TRACE_NOTHING;
     }
 
     wrd_readinit();
@@ -526,13 +576,20 @@ int import_wrd_file(char *fn)
 		break;
 	      case WRD_SCROLL:
 		argc = wrd_split(arg0, args, 7);
-		for(i = 0; i < 6; i++)
+		/*for(i = 0; i < 6; i++)
 		{
 		    num = atoi(args[i]);
 		    WRD_ADDEVENT(step_at, WRD_ARG, num);
 		}
 		num = atoi(args[i]);
-		WRD_ADDEVENT(step_at, WRD_SCROLL, num);
+		WRD_ADDEVENT(step_at, WRD_SCROLL, num);*/
+		WRD_ADDEVENT(step_at, WRD_ARG, wrd_atoi(args[0], 1));
+		WRD_ADDEVENT(step_at, WRD_ARG, wrd_atoi(args[1], 1));
+		WRD_ADDEVENT(step_at, WRD_ARG, wrd_atoi(args[2], 80));
+		WRD_ADDEVENT(step_at, WRD_ARG, wrd_atoi(args[3], 25));
+		WRD_ADDEVENT(step_at, WRD_ARG, wrd_atoi(args[4], 0));
+		WRD_ADDEVENT(step_at, WRD_ARG, wrd_atoi(args[5], 0));
+		WRD_ADDEVENT(step_at, WRD_SCROLL,wrd_atoi(args[6], 32));
 		break;
 	      case WRD_STARTUP:
 		version = atoi(arg0);
@@ -859,7 +916,9 @@ int import_wrd_file(char *fn)
 #ifdef DEBUG
     fflush(stdout);
 #endif /* DEBUG */
-    return 1;
+
+    return WRD_TRACE_MIMPI;
+
 #undef step_at
 }
 
@@ -1150,7 +1209,7 @@ static struct timidity_file *open_wrd_file(char *fn)
     else
 	strcpy(p + 1, "wrd");
 
-    tf = open_file(wrdfile, 0, 0);
+    tf = open_file(wrdfile, 0, OF_NORMAL);
     reuse_mblock(&pool);
     return tf;
 }
@@ -1694,9 +1753,316 @@ static char *wrd_name_string(int cmd)
 	WRDCASE(OUTKEY);
 	WRDCASE(NL);
 	WRDCASE(MAGPRELOAD);
+	WRDCASE(PHOPRELOAD);
+	WRDCASE(START_SKIP);
+	WRDCASE(END_SKIP);
 	WRDCASE(NOARG);
 #undef WRDCASE
     }
     return "Unknown";
 }
 #endif /* DEBUG */
+
+#ifdef ENABLE_SHERRY
+/*******************************************************************************/
+#pragma mark -
+
+static int sherry_started;	/* 0 - before start command 0x01*/
+				/* 1 - after start command 0x01*/
+
+static int32 sry_getVariableLength(struct timidity_file	*tf)
+{
+  int32 value= 0;
+  int tmp;
+  do
+    {
+      tmp = tf_getc(tf);
+      if(tmp == EOF)
+	  return -1;
+      value = (value << 7) + (tmp&0x7f);
+    }while ((tmp&0x80) != 0);
+  return value;
+}
+
+static int sry_check_head(struct timidity_file	*tf)
+{
+	char	magic[12];
+	uint8	version[4];
+	
+	tf_read(magic, 12,1,tf);
+	if( memcmp(magic, "Sherry WRD\0\0", 12) ){
+		ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+			  "Sherry open::Header NG." );
+		return 1;
+	}
+	tf_read(version, 1, 4, tf);
+	ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+		  "Sherry WRD version: %02x %02x %02x %02x",
+		  version[0], version[1], version[2], version[3]);
+
+	return 0;	/*good*/
+}
+
+struct sry_drawtext_{
+	char	op;
+	short	v_plane;
+	char	mask;
+	char	mode;
+	char	fore_color;
+	char	back_color;
+	short	x;
+	short	y;
+	char	text[0];
+};
+typedef struct sry_drawtext_ sry_drawtext;
+
+static void sry_regist_datapacket( struct wrd_step_tracer* wrdstep,
+					const sry_datapacket* packet)
+{
+    int a, b, c;
+    int err = 0;
+
+    if(datapacket == NULL)
+    {
+	datapacket = (sry_datapacket *)safe_malloc(DEFAULT_DATAPACKET_LEN *
+						   sizeof(sry_datapacket));
+	datapacket_len = DEFAULT_DATAPACKET_LEN;
+	datapacket_cnt = 0;
+    }
+    else
+    {
+	if(datapacket_cnt == (1<<24)-1) /* Over flow */
+	    err = 1;
+	else
+	{
+	    if(datapacket_cnt >= datapacket_len)
+	    {
+		datapacket_len *= 2;
+		datapacket = (sry_datapacket *)
+		    safe_realloc(datapacket,
+				 datapacket_len * sizeof(sry_datapacket));
+	    }
+	}
+    }
+
+    a = datapacket_cnt & 0xff;
+    b = (datapacket_cnt >> 8) & 0xff;
+    c = (datapacket_cnt >> 16) & 0xff;
+    datapacket[datapacket_cnt] = *packet;
+    MIDIEVENT(wrdstep->at, ME_SHERRY, a, b, c);
+
+    if(err)
+	datapacket[datapacket_cnt].data[0] = 0xff;
+    else
+	datapacket_cnt++;
+}
+
+static int sry_read_datapacket(struct timidity_file	*tf, sry_datapacket* packet)
+{
+	int	len;
+	uint8	*data;
+
+	do
+	{
+	    len = sry_getVariableLength(tf);
+	    if(len < 0)
+	    {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "Warning: Too shorten Sherry WRD file.");
+		return 1;
+	    }
+	} while(len == 0);
+	data = 	(uint8 *)new_segment(&sry_pool, len + 1);
+	if(tf_read(data, 1, len, tf) < len)
+	{
+	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		      "Warning: Too shorten Sherry WRD file.");
+	    return 1;
+	}
+	data[len]=0;
+	packet->len= len;
+	packet->data= data;
+	return 0;
+}
+
+static void sry_readinit(struct wrd_step_tracer* wrdstep, int timebase)
+{
+    sherry_started=0;
+    memset(wrdstep, 0, sizeof(struct wrd_step_tracer));
+    init_mblock(&wrdstep->pool);
+    wrdstep->de = wrdstep->free_de = NULL;
+    wrdstep->timebase = timebase; /* current_file_info->divisions; */
+    wrdstep->ntimesig = dump_current_timesig(wrdstep->timesig, MAXTIMESIG - 1);
+    if(wrdstep->ntimesig > 0)
+    {
+	wrdstep->timesig[wrdstep->ntimesig] =
+	    wrdstep->timesig[wrdstep->ntimesig - 1];
+	wrdstep->timesig[wrdstep->ntimesig].time = 0x7fffffff; /* stopper */
+#ifdef DEBUG
+	{
+	int i;
+	printf("Time signatures:\n");
+	for(i = 0; i < wrdstep->ntimesig; i++)
+	    printf("  %d: %d/%d\n",
+		   wrdstep->timesig[i].time,
+		   wrdstep->timesig[i].a,
+		   wrdstep->timesig[i].b);
+	}
+#endif /* DEBUG */
+	wrdstep->barstep =
+	    wrdstep->timesig[0].a * wrdstep->timebase * 4 / wrdstep->timesig[0].b;
+    }
+    else
+	wrdstep->barstep = 4 * wrdstep->timebase;
+    wrdstep->step_inc = wrdstep->barstep;
+    wrdstep->last_at = readmidi_set_track(0, 0);
+
+    readmidi_set_track(0, 1);
+    //wrdstep.step_inc = wrdstep.timebase;
+
+#ifdef DEBUG
+    printf("Timebase: %d, divisions:%d\n",
+    		wrdstep->timebase, current_file_info->divisions);
+    printf("Step: %d\n", wrdstep->step_inc);
+#endif /* DEBUG */
+}
+
+static void sry_show_debug(uint8 *data)
+{
+    switch(data[0])
+    {
+      case 0x71: /* Compiler name */
+	if(data[1])
+	    ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "Sherry WRD Compiler: %s", data + 1);
+	break;
+      case 0x72:
+	if(data[1])
+	    ctl->cmsg(CMSG_INFO, VERB_NOISY,
+		      "Sherry WRD Compiled from %s", data + 1);
+	break;
+    }
+}
+
+static void sry_read_headerblock(struct wrd_step_tracer* wrdstep,
+					struct timidity_file *tf)
+{
+	sry_datapacket	packet;
+	int err;
+
+	packet.len = 1;
+	packet.data = (uint8 *)new_segment(&sry_pool, 1);
+	packet.data[0] = 0x01;
+	sry_regist_datapacket(wrdstep , &packet);
+	
+	for(;;){
+		err= sry_read_datapacket(tf, &packet);
+		if( err ) break;
+		sry_regist_datapacket(wrdstep , &packet);
+		if( packet.data[0]==0x21 || packet.data[0]==0x20 ){
+			sry_readinit(wrdstep, SRY_GET_SHORT(packet.data+1));
+		} else if( (packet.data[0]&0x70) == 0x70) {
+		    sry_show_debug(packet.data);
+		}
+		if( packet.data[0] == 0x00 ) break;	//end of header
+	}
+}
+
+static void sry_read_datablock(struct wrd_step_tracer* wrdstep,
+				  struct timidity_file	*tf)
+{
+    sry_datapacket  packet;
+    int		    delta_time; /*, cur_time=0; */
+    int		    err;
+    int		    need_update;
+
+    need_update = 0;
+    for(;;){
+		delta_time= sry_getVariableLength(tf);
+		if(delta_time > 0 && need_update)
+		{
+		    WRD_ADDEVENT(wrdstep->at, WRD_SHERRY_UPDATE, WRD_NOARG);
+		    need_update = 0;
+		}
+		err= sry_read_datapacket(tf, &packet);
+		if( err ) break;
+		/* cur_time =+ delta_time;*/
+		//wrdstep_wait(wrdstep, delta_time,0);
+		//wrdstep_setstep(wrdstep, delta_time);
+
+		if( sherry_started && delta_time ){
+		    wrdstep_inc(wrdstep,
+				delta_time*current_file_info->divisions
+				/wrdstep->timebase);
+		}
+
+		if( packet.data[0]==0x01 ){
+			sherry_started=1;
+			continue;
+		} else if( (packet.data[0]&0x70) == 0x70) {
+		    sry_show_debug(packet.data);
+		}
+
+		sry_regist_datapacket(wrdstep , &packet);
+		if(packet.data[0] == 0x31 ||
+		   packet.data[0] == 0x35 ||
+		   packet.data[0] == 0x36)
+		    need_update = 1;
+
+		if( packet.data[0] == 0x00 ) break;
+    }
+    if(need_update)
+    {
+	WRD_ADDEVENT(wrdstep->at, WRD_SHERRY_UPDATE, WRD_NOARG);
+	need_update = 0;
+    }
+}
+
+static int import_sherrywrd_file(const char * fn)
+{
+	//int		i;
+	char	sry_fn[256];
+	char	*cp;
+	struct timidity_file	*tf;
+    //char *args[WRD_MAXPARAM], *arg0;
+    //int argc;
+    struct wrd_step_tracer wrdstep;
+//#define step_at wrdstep.at
+	
+	strcpy(sry_fn, fn);
+	cp=strrchr(sry_fn, '.');
+	if( cp==0 ) return 0;
+	
+	strcpy(cp+1, "sry");
+	tf= open_file( sry_fn, 0, OF_NORMAL);
+	if( tf==NULL ) return 0;
+	if( sry_check_head(tf)!=0 ) return 0;
+	ctl->cmsg(CMSG_INFO, VERB_NORMAL,
+		  "%s: reading sherry data...", sry_fn);
+	
+	wrd_readinit();
+	memset(&wrdstep, 0, sizeof(wrdstep));
+
+/**********************/
+//    MIDIEVENT(0, ME_SHERRY_START, 0, 0, 0);
+    sry_read_headerblock( &wrdstep, tf);
+    sry_read_datablock( &wrdstep, tf);
+
+/*  end_of_wrd: */
+    while(wrdstep.de)
+    {
+	wrdstep_nextbar(&wrdstep);
+    }
+    reuse_mblock(&wrdstep.pool);
+    close_file(tf);
+#ifdef DEBUG
+    fflush(stdout);
+#endif /* DEBUG */
+    return 1;
+//#undef step_at
+
+}
+
+
+#endif /*ENABLE_SHERRY*/
+

@@ -68,6 +68,9 @@ extern void *safe_realloc(void *old_ptr, size_t new_size);
 extern void *safe_large_malloc(size_t count);
 extern char *safe_strdup(char *s);
 extern char **expand_file_archives(char **files, int *nfiles_in_out);
+extern void randomize_string_list(char **strlist, int nstr);
+extern int pathcasecmp(const char *path1, const char *path2);
+extern void sort_pathname(char **files, int nfiles);
 
 /* code:
  * "EUC"	- Extended Unix Code

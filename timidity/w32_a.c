@@ -18,9 +18,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    
-   win_audio.c
+   w32_a.c
    
-   Functions to play sound on the Win32 audio driver (Win 95 or Win NT).
+   Functions to play sound on the Windows audio driver (Windows 95/98/NT).
    
    Modified by Masanao Izumo <mo@goice.co.jp>
    
@@ -58,7 +58,7 @@ DECLARE_HANDLE(HWAVEOUT);
 DECLARE_HANDLE(HWAVE);
 typedef HWAVEOUT *LPHWAVEOUT;
 
-/* Define WAVEHDR, WAVEFORMAT, PCMWAVEFORMAT structure */
+/* Define WAVEHDR, WAVEFORMAT structure */
 typedef struct wavehdr_tag {
     LPSTR       lpData;
     DWORD       dwBufferLength;
@@ -76,13 +76,9 @@ typedef struct {
     DWORD   nSamplesPerSec;
     DWORD   nAvgBytesPerSec;
     WORD    nBlockAlign;
+    WORD    wBitsPerSample;
     WORD    cbSize;
 } WAVEFORMAT;
-
-typedef struct {
-    WAVEFORMAT  wf;
-    WORD        wBitsPerSample;
-} PCMWAVEFORMAT;
 
 typedef struct waveoutcaps_tag {
     WORD    wMid;
@@ -128,18 +124,12 @@ MMRESULT WINAPI waveOutGetID(HWAVEOUT, UINT*);
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static void output_data(int32 *buf, int32 count);
-static int flush_output(void);
-static void purge_output(void);
-static int32 current_samples(void);
-static int play_loop(void);
-static int32 play_counter, reset_samples;
-static double play_start_time;
+static int output_data(char *buf, int32 nbytes);
+static int acntl(int request, void *arg);
 
-extern int default_play_event(void *);
-
-#define DATA_BLOCK_SIZE (2*AUDIO_BUFFER_SIZE)
+#define DATA_BLOCK_SIZE (4*AUDIO_BUFFER_SIZE)
 #define DATA_BLOCK_NUM  (dpm.extra_param[0])
+#define DATA_MIN_NBLOCKS (DATA_BLOCK_NUM-1)
 
 struct data_block_t
 {
@@ -163,28 +153,26 @@ static const char *mmerror_code_string(MMRESULT res);
 
 /* export the playback mode */
 
-#define dpm win32_play_mode
+#define dpm w32_play_mode
 
 PlayMode dpm = {
-    DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_NEED_INSTRUMENTS|PF_CAN_TRACE,
+    33075,
+    PE_16BIT|PE_SIGNED,
+    PF_PCM_STREAM|PF_CAN_TRACE|PF_BUFF_FRAGM_OPT,
     -1,
     {32},
-    "Win32 audio driver", 'd',
+    "Windows audio driver", 'd',
     NULL,
-    default_play_event,
     open_output,
     close_output,
     output_data,
-    flush_output,
-    purge_output,
-    current_samples,
-    play_loop
+    acntl
 };
 
 extern CRITICAL_SECTION critSect;
 /* Optional flag */
-static int win32_wave_allowsync = 1; /* waveOutOpen() fdwOpen : WAVE_ALLOWSYNC */
-//static int win32_wave_allowsync = 0;
+static int w32_wave_allowsync = 1; /* waveOutOpen() fdwOpen : WAVE_ALLOWSYNC */
+//static int w32_wave_allowsync = 0;
 
 static void wait(void)
 {
@@ -213,12 +201,17 @@ static void CALLBACK wave_callback(HWAVE hWave, UINT uMsg,
 static int open_output(void)
 {
     int i, j, mono, eight_bit, warnings = 0;
-    PCMWAVEFORMAT pcm;
+    WAVEFORMAT wf;
     WAVEOUTCAPS caps;
     MMRESULT res;
     UINT devid;
 
-    play_counter = reset_samples = 0;
+    if(dpm.extra_param[0] < 8)
+    {
+	ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "Too small -B option: %d",
+		  dpm.extra_param[0]);
+	dpm.extra_param[0] = 8;
+    }
 
     /* Check if there is at least one audio device */
     if (!(i=waveOutGetNumDevs ()))
@@ -238,10 +231,10 @@ static int open_output(void)
     mono = (dpm.encoding & PE_MONO);
     eight_bit = !(dpm.encoding & PE_16BIT);
 
-    memset(&pcm, 0, sizeof(pcm));
-    pcm.wf.wFormatTag = WAVE_FORMAT_PCM;
-    pcm.wf.nChannels = mono ? 1 : 2;
-    pcm.wf.nSamplesPerSec = i = dpm.rate;
+    memset(&wf, 0, sizeof(wf));
+    wf.wFormatTag = WAVE_FORMAT_PCM;
+    wf.nChannels = mono ? 1 : 2;
+    wf.nSamplesPerSec = i = dpm.rate;
     j = 1;
     if (!mono)
     {
@@ -253,22 +246,27 @@ static int open_output(void)
 	i *= 2;
 	j *= 2;
     }
-    pcm.wf.nAvgBytesPerSec = i;
-    pcm.wf.nBlockAlign = j;
-    pcm.wBitsPerSample = eight_bit ? 8 : 16;
-    pcm.wf.cbSize=sizeof(WAVEFORMAT);
+    wf.nAvgBytesPerSec = i;
+    wf.nBlockAlign = j;
+    wf.wBitsPerSample = eight_bit ? 8 : 16;
+    wf.cbSize=sizeof(WAVEFORMAT);
 
     dev = 0;
-    if (win32_wave_allowsync)
-	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&pcm, (DWORD)wave_callback, 0, CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
+    if (w32_wave_allowsync)
+	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&wf,
+			   (DWORD)wave_callback, 0,
+			   CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
     else
-	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&pcm, (DWORD)wave_callback, 0, CALLBACK_FUNCTION);
+	res = waveOutOpen (&dev, WAVE_MAPPER, (LPWAVEFORMAT)&wf,
+			   (DWORD)wave_callback, 0, CALLBACK_FUNCTION);
     if (res)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		  "Can't open audio device: encoding=<%s>, rate=<%d>: %s",
+		  "Can't open audio device: "
+		  "encoding=<%s>, rate=<%d>, ch=<%d>: %s",
 		  output_encoding_string(dpm.encoding),
 		  dpm.rate,
+		  wf.nChannels,
 		  mmerror_code_string(res));
 	return -1;
     }
@@ -307,54 +305,29 @@ static int open_output(void)
 	block->head = GlobalLock(block->head_hg);
     }
     reset_data_block();
-
     dpm.fd = 0;
     return warnings;
 }
 
-static void add_sample_counter(int32 count)
+static int output_data(char *buf, int32 nbytes)
 {
-    current_samples();		/* update play_counter */
-    play_counter += count;
-}
-
-static void output_data (int32 *buf, int32 count)
-{
-    int32 len = count, n;
+    int32 len = nbytes, n;
     HGLOBAL data_hg;
     HGLOBAL head_hg;
     void *b;
-    int32 count_arg = count;
     struct data_block_t *block;
     int32 total;
     char *bp;
     MMRESULT res;
     LPWAVEHDR wh;
 
-    if(!(dpm.encoding & PE_MONO)) /* Stereo sample */
-    {
-	count *= 2;
-	len *= 2;
-    }
-
-    if(dpm.encoding & PE_16BIT)
-	len *= 2;
-
-    if (dpm.encoding & PE_16BIT)
-	/* Convert data to signed 16-bit PCM */
-	s32tos16 (buf, count);
-    else
-	/* Convert to 8-bit unsigned. */
-	s32tou8 (buf, count);
-
     total = 0;
     bp = (char *)buf;
-    add_sample_counter(count_arg);
     while(len > 0)
     {
 	if((block = new_data_block()) == NULL)
 	{
-	    Sleep(0);
+	    Sleep(0); /* Busy? */
 	    continue;
 	}
 	if(len <= DATA_BLOCK_SIZE)
@@ -371,25 +344,25 @@ static void output_data (int32 *buf, int32 count)
 	wh->dwBufferLength = n;
 	wh->lpData = b;
 	wh->dwUser = block->blockno;
-
 	res = waveOutPrepareHeader(dev, wh, sizeof(WAVEHDR));
 	if(res)
 	{
 	    ctl->cmsg (CMSG_ERROR, VERB_NORMAL, "waveOutPrepareHeader(): %s",
 		       mmerror_code_string(res));
-	    safe_exit(1);
+	    return -1;
 	}
 	res = waveOutWrite(dev, wh, sizeof(WAVEHDR));
 	if(res)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "waveOutWrite(): %s",
 		      mmerror_code_string(res));
-	    safe_exit(1);
+	    return -1;
 	}
 
 	len -= n;
 	bp += n;
     }
+    return 0;
 }
 
 static void close_output(void)
@@ -400,7 +373,6 @@ static void close_output(void)
 	return;
     wait();
     waveOutClose(dev);
-    play_counter = reset_samples = 0;
 
     for(i = 0; i < DATA_BLOCK_NUM; i++)
     {
@@ -416,82 +388,24 @@ static void close_output(void)
     dpm.fd = -1;
 }
 
-static int flush_output(void)
+static int acntl(int request, void *arg)
 {
-    int rc;
-
-    if(play_counter == 0 && reset_samples == 0)
-	return RC_NONE;
-
-    /* extract all trace */
-    while(trace_loop())
+    switch(request)
     {
-	rc = check_apply_control();
-	if(RC_IS_SKIP_FILE(rc))
-	{
-	    purge_output();
-	    return rc;
-	}
-	Sleep(0);
+      case PM_REQ_GETQSIZ:
+	*(int *)arg = DATA_BLOCK_NUM * AUDIO_BUFFER_SIZE;
+	if(!(dpm.encoding & PE_MONO))
+	    *(int *)arg *= 2;
+	if(dpm.encoding & PE_16BIT)
+	    *(int *)arg *= 2;
+	return 0;
+      case PM_REQ_DISCARD:
+	waveOutReset(dev);
+	wait();
+	reset_data_block();
+	return 0;
     }
-
-    /* wait until play out */
-    do
-    {
-	rc = check_apply_control();
-	if(RC_IS_SKIP_FILE(rc))
-	{
-	    purge_output();
-	    return rc;
-	}
-	current_samples();
-	Sleep(0);
-    } while(play_counter > 0);
-
-    wait();
-    reset_data_block();
-    play_counter = reset_samples = 0;
-    return RC_NONE;
-}
-
-static void purge_output(void)
-{
-    if(play_counter == 0 && reset_samples == 0)
-	return;			/* Ignore */
-    waveOutReset(dev);
-    wait();
-    reset_data_block();
-    play_counter = reset_samples = 0;
-}
-
-
-static int play_loop(void)
-{
-    return 0;
-}
-
-static int32 current_samples(void)
-{
-    double realtime, es;
-
-    realtime = get_current_calender_time();
-    if(play_counter == 0)
-    {
-	play_start_time = realtime;
-	return reset_samples;
-    }
-    es = dpm.rate * (realtime - play_start_time);
-    if(es >= play_counter)
-    {
-	/* out of play counter */
-	reset_samples += play_counter;
-	play_counter = 0;
-	play_start_time = realtime;
-	return reset_samples;
-    }
-    if(es < 0)
-	return 0;		/* for safety */
-    return (int32)es + reset_samples;
+    return -1;
 }
 
 

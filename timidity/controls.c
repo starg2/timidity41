@@ -131,6 +131,17 @@
   #endif
 #endif
 
+#ifdef IA_W32GUI
+  extern ControlMode w32gui_control_mode;
+# ifndef DEFAULT_CONTROL_MODE
+#  define DEFAULT_CONTROL_MODE &w32gui_control_mode
+# endif
+#endif /* IA_W32GUI */
+
+#ifdef IA_SERVER
+extern ControlMode server_control_mode;
+#endif /* IA_SERVER */
+
 /* Minimal control mode */
 extern ControlMode dumb_control_mode;
 #ifndef DEFAULT_CONTROL_MODE
@@ -174,6 +185,9 @@ ControlMode *ctl_list[]={
 #ifdef __MACOS__
   &mac_control_mode,
 #endif
+#ifdef IA_W32GUI
+  &w32gui_control_mode,
+#endif /* IA_W32GUI */
 #ifndef __MACOS__
   &dumb_control_mode,
 #endif
@@ -183,6 +197,9 @@ ControlMode *ctl_list[]={
 #ifdef IA_PLUGIN
   &plugin_control_mode,
 #endif
+#ifdef IA_SERVER
+  &server_control_mode,
+#endif /* IA_SERVER */
   0
 };
 

@@ -24,15 +24,19 @@
     Macintosh graphics driver for WRD
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
+#include <stdlib.h>
 #include <string.h>
+#include "timidity.h"
 
 #define ENTITY 1
 #include "mac_wrdwindow.h"
 
 void dev_change_1_palette(int code, RGBColor color)
 {
-	int index=GCODE2INDEX(code);
-	(**(**dispWorld->portPixMap).pmTable).ctTable[index].rgb=color;	
+	(**(**dispWorld->portPixMap).pmTable).ctTable[code].rgb=color;	
 	(**(**dispWorld->portPixMap).pmTable).ctSeed++;
 	//CTabChanged( (**dispWorld->portPixMap).pmTable );
 	dev_palette[0][code]=color;
@@ -77,45 +81,108 @@ void dev_init_text_color()
 	}
 }
 
-static void BlockMoveData_transparent(const void*	srcPtr,	 void *	destPtr,
-								 Size 	byteCount)
-{
-	int i;
-	static char	index[16]={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+void dev_draw_text_gmode(PixMapHandle pixmap, int x, int y, const char* s, int len,
+			int pmask, int mode, int fgcolor, int bgcolor )
+{			//pixmap must be already locked
+	GDHandle	oldGD;
+	GWorldPtr	oldGW;
+	int		color, trans;
+	Rect		rect= {0,0,16,32},
+			destrect;
 	
-	if( srcPtr>destPtr ){
-		for( i=0; i<byteCount; i++){
-			//if( ((char*)srcPtr)[i]==GCODE2INDEX(0) ) ((char*)destPtr)[i]=((char*)srcPtr)[i];
-			index[0]=((char*)destPtr)[i];
-			((char*)destPtr)[i]=index[((char*)srcPtr)[i]]; //more faster?
-		}
-	}else{
-		for( i=byteCount-1; i>=0; i--){
-			//if( ((char*)srcPtr)[i]==GCODE2INDEX(0) ) ((char*)destPtr)[i]=((char*)srcPtr)[i];
-			index[0]=((char*)destPtr)[i];
-			((char*)destPtr)[i]=index[((char*)srcPtr)[i]];
-		}
-	}
+	GetGWorld(&oldGW, &oldGD);
+	LockPixels(charbufWorld->portPixMap);
+	SetGWorld(charbufWorld,0);
+		trans=0;
+		if( fgcolor==trans ) trans++;
+		if( bgcolor==trans ) trans++;
+		if( fgcolor==trans ) trans++;
+		
+		color= ( (mode&2)? bgcolor:trans );
+		dev_box(charbufWorld->portPixMap, rect, color, 0xFF);
+		
+		color= ( (mode&1)? fgcolor:trans );
+		charbufWorld->fgColor= color;
+		TextMode(srcOr);
+		MoveTo(0,13);
+		DrawText(s,0,len);
+		
+		rect.right=len*8;
+		destrect.left=x; destrect.top=y;
+		destrect.right=x+len*8; destrect.bottom=destrect.top+16;
+		
+		MyCopyBits(charbufWorld->portPixMap, pixmap,
+			rect, destrect, 0x11/*trans*/, trans, pmask,
+			0, 0, NULL);
+		
+		
+	SetGWorld(oldGW, oldGD);
+	UnlockPixels(charbufWorld->portPixMap);
 }
 
-static pascal void BlockMoveData_gmode(const void*	srcPtr,	 void *	destPtr,
-								 Size 	byteCount)
+static void BlockMoveData_transparent(const void* srcPtr, void *destPtr,
+				Size byteCount, int pmask, int trans)
 {
 	int i, tmp;
 	
 	if( srcPtr>destPtr ){
 		for( i=0; i<byteCount; i++){
-			tmp=((char*)destPtr)[i];
-			tmp &= ~gmode_mask;
-			tmp |= ( ((char*)srcPtr)[i] & gmode_mask);
-			((char*)destPtr)[i]= tmp;
+			if( ((char*)srcPtr)[i]!=trans ){
+				tmp=((char*)destPtr)[i];
+				tmp &= ~pmask;
+				tmp |= ( ((char*)srcPtr)[i] & pmask);
+				((char*)destPtr)[i]= tmp;
+			}
 		}
 	}else{
 		for( i=byteCount-1; i>=0; i--){
-			tmp=((char*)destPtr)[i];
-			tmp &= ~gmode_mask;
-			tmp |= ( ((char*)srcPtr)[i] & gmode_mask);
-			((char*)destPtr)[i]= tmp;
+			if( ((char*)srcPtr)[i]!=trans ){
+				tmp=((char*)destPtr)[i];
+				tmp &= ~pmask;
+				tmp |= ( ((char*)srcPtr)[i] & pmask);
+				((char*)destPtr)[i]= tmp;
+			}
+		}
+	}
+}
+
+#define PMASK_COPY(s,d,pmask) ((d)=((d)&~(pmask))|((s)&(pmask)))
+
+static pascal void BlockMoveData_gmode(const void* srcPtr, void *destPtr,
+								 Size 	byteCount)
+{
+	int i;
+	const char*	src=srcPtr;
+	char*		dest=destPtr;
+	
+	if( srcPtr>destPtr ){
+		for( i=0; i<byteCount; i++){
+			PMASK_COPY(src[i],dest[i], gmode_mask);
+		}
+	}else{
+		for( i=byteCount-1; i>=0; i--){
+			PMASK_COPY(src[i],dest[i], gmode_mask);
+		}
+	}
+}
+
+static pascal void BlockMoveData_masktrans(const uint8*	srcPtr,	 uint8 *destPtr,
+			Size 	byteCount, int trans, int maskx, const uint8 maskdata[])
+{
+#define  BITON(x, data) (data[(x)/8]&(0x80>>((x)%8)))
+	int i;
+
+	if( srcPtr>destPtr ){
+		for( i=0; i<byteCount; i++){
+			if(  srcPtr[i]!=trans  && BITON(i%maskx, maskdata)  ){
+				PMASK_COPY(srcPtr[i],destPtr[i], gmode_mask);
+			}
+		}
+	}else{
+		for( i=byteCount-1; i>=0; i--){
+			if( BITON(i%maskx, maskdata)  ){
+				PMASK_COPY(srcPtr[i],destPtr[i], gmode_mask);
+			}
 		}
 	}
 }
@@ -129,11 +196,12 @@ static pascal void mymemmove(const void* srcPtr, void * destPtr,Size byteCount)
 #endif
 
 void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
-					 Rect srcRect, Rect dstRect, short mode, int gmode)
+		Rect srcRect, Rect dstRect, short mode, int trans, int pmask,
+		int maskx, int masky, const uint8 maskdata[])
 {														//I ignore destRect.right,bottom
 	int srcRowBytes= (**srcPixmap).rowBytes & 0x1FFF,
 		destRowBytes= (**dstPixmap).rowBytes & 0x1FFF,
-		y1, y2, width,hight, cut;
+		y1, y2, width,hight, cut, dy, maskwidth;
 	Ptr	srcAdr= GetPixBaseAddr(srcPixmap),
 		dstAdr= GetPixBaseAddr(dstPixmap);	
 	Rect	srcBounds=  (**srcPixmap).bounds,
@@ -193,9 +261,10 @@ void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
 	
 	switch( mode ){
 	case 0://srcCopy
+	case 0x10:
 		{
-		pascal void (*func)(const void* srcPtr, void *	destPtr,Size byteCount);
-		if( gmode==0xF ) func=BlockMoveData;
+			pascal void (*func)(const void* srcPtr, void *	destPtr,Size byteCount);
+			if( pmask==0xFF ) func=BlockMoveData;
 				else func= BlockMoveData_gmode;
 			if( srcRect.top >= dstRect.top ){
 				for( y1=srcRect.top, y2=dstRect.top; y1<srcRect.bottom; y1++,y2++ ){
@@ -210,27 +279,77 @@ void MyCopyBits(PixMapHandle srcPixmap, PixMapHandle dstPixmap,
 			}
 		}
 		break;
-	case 3://transparent
-			if( srcRect.top >= dstRect.top ){
+	case 0x11://transparent
+		if( srcRect.top >= dstRect.top ){
 			for( y1=srcRect.top, y2=dstRect.top; y1<srcRect.bottom; y1++,y2++ ){
 				BlockMoveData_transparent( &(srcAdr[y1*srcRowBytes+srcRect.left]),
-								&(dstAdr[y2*destRowBytes+dstRect.left]), width);
+							&(dstAdr[y2*destRowBytes+dstRect.left]), width, pmask, trans);
 			}
 		}else{
 			for( y1=srcRect.bottom-1, y2=dstRect.top+hight-1; y1>=srcRect.top; y1--, y2-- ){
 				BlockMoveData_transparent( &(srcAdr[y1*srcRowBytes+srcRect.left]),
-								&(dstAdr[y2*destRowBytes+dstRect.left]), width);
+							&(dstAdr[y2*destRowBytes+dstRect.left]), width, pmask, trans);
 			}
 		}
-
+		break;
+	case 0x30:
+	case 0x31: // masking & transparent //sherry op=0x62
+		if( maskx<=0 ) break;
+		maskwidth= ((maskx+7)& ~0x07)/8; //kiriage
+		if( srcRect.top >= dstRect.top ){
+			for( y1=srcRect.top, y2=dstRect.top, dy=0; y1<srcRect.bottom; y1++,y2++,dy++,dy%=masky ){
+				BlockMoveData_masktrans( &(srcAdr[y1*srcRowBytes+srcRect.left]),
+					&(dstAdr[y2*destRowBytes+dstRect.left]), width, trans,
+					maskx, &maskdata[maskwidth*dy]);
+			}
+		}else{
+			for( y1=srcRect.bottom-1, y2=dstRect.top+hight-1,dy=hight-1; y1>=srcRect.top; y1--, y2--,dy+=masky-1, dy%=masky ){
+				BlockMoveData_masktrans( &(srcAdr[y1*srcRowBytes+srcRect.left]),
+					&(dstAdr[y2*destRowBytes+dstRect.left]), width, trans,
+					maskx, &maskdata[maskwidth*dy]);
+			}
+		}
+		break;
 	}
 }
 
-void dev_line(PixMapHandle pixmap, Rect rect, int color, int sw, int gmode)
+void dev_line(int x1, int y1, int x2, int y2, int color, int pmask,
+			PixMapHandle pixmap )
 {
-														//I ignore destRect.right,bottom
+	int	i, dx, dy, s, step;
+	int	rowBytes= (**pixmap).rowBytes & 0x1FFF;
+	Ptr	baseAdr= GetPixBaseAddr(pixmap);
+#define DOT(x,y) {Ptr p=&baseAdr[y*rowBytes+x]; (*p)&=~pmask; (*p)|=color; }
+	
+	color &= pmask;
+	step= ( (x1<x2)==(y1<y2) ) ? 1:-1;
+	dx= abs(x2-x1); dy=abs(y2-y1);
+	
+	if( dx>dy ){
+		if( x1>x2 ){ x1=x2; y1=y2; }
+		DOT(x1,y1);
+		s= dx/2;
+		for(i=x1+1; i<x1+dx; i++){
+			s-= dy;
+			if( s<0 ){ s+=dx; y1+=step;}
+			DOT(i,y1);
+		}
+	}else{
+		if( y1>y2 ){ x1=x2; y1=y2; }
+		DOT(x1,y1);
+		s= dy/2;
+		for(i=y1+1; i<y1+dy; i++){
+			s-= dx;
+			if( s<0 ){ s+=dy; x1+=step;}
+			DOT(x1,i);
+		}
+	}
+}
+
+void dev_box(PixMapHandle pixmap, Rect rect, int color, int pmask)
+{
 	int		rowBytes= (**pixmap).rowBytes & 0x1FFF,
-			x, y1, width,hight, tmp, index;
+			x, y1, width,hight, tmp;
 	Ptr		baseAdr= GetPixBaseAddr(pixmap);
 	Rect	bounds=  (**pixmap).bounds;
 	
@@ -258,21 +377,33 @@ void dev_line(PixMapHandle pixmap, Rect rect, int color, int sw, int gmode)
 	
 	width=rect.right-rect.left;
 	hight=rect.bottom-rect.top;
-	color &= gmode;
-	index= GCODE2INDEX(color);
+	color &= pmask;
 
-	switch( sw ){
-	case 2://simple filled rect
 		for( y1=rect.top; y1<rect.bottom; y1++ ){
 			for( x=rect.left; x<rect.right; x++){
 				tmp=baseAdr[y1*rowBytes+x];
-				tmp &= ~gmode;
-				tmp |= index;
+				tmp &= ~pmask;
+				tmp |= color;
 				baseAdr[y1*rowBytes+x]=tmp;
 			}
 		}
 	}
+
+void mac_setfont(GWorldPtr world, Str255 fontname)
+{
+	GDHandle	oldGD;
+	GWorldPtr	oldGW;
+	
+	GetGWorld(&oldGW, &oldGD);
+	LockPixels(world->portPixMap);
+	{
+		short		fontID;
+		SetGWorld( world, 0);
+		GetFNum(fontname, &fontID);
+		TextFont(fontID);
+		TextSize(14);
+		TextFace(/*extend|*/bold);
+	}
+	SetGWorld(oldGW, oldGD);
+	UnlockPixels(world->portPixMap);
 }
-
-
-
