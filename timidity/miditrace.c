@@ -141,7 +141,7 @@ static MidiTraceList *midi_trace_setfunc(MidiTraceList *node)
 {
     MidiTraceList *p;
 
-    if(midi_trace.nodelay || node->start < 0)
+    if(!ctl->trace_playing || node->start < 0)
     {
 	run_midi_trace(node);
 	return NULL;
@@ -239,7 +239,7 @@ int32 trace_loop(void)
     if(midi_trace.head == NULL)
 	return 0;
 
-    if((cur = current_trace_samples()) == -1)
+    if((cur = current_trace_samples()) == -1 || !ctl->trace_playing)
 	cur = 0x7fffffff; /* apply all trace event */
 
     ctl_update = 0;
@@ -278,11 +278,6 @@ int32 trace_loop(void)
 void trace_offset(int offset)
 {
     midi_trace.offset = offset;
-}
-
-void trace_nodelay(int nodelay)
-{
-    midi_trace.nodelay = nodelay;
 }
 
 void trace_flush(void)

@@ -1784,8 +1784,11 @@ static int ctl_cmd_L_enter(void)
 	    }
 	}
 	mfp = head;
-	if(new_files != files)
+	if(new_files != files && new_files != NULL)
+	{
+	    free(new_files[0]);
 	    free(new_files);
+	}
     }
 
     if(mfp == NULL)
@@ -2261,7 +2264,6 @@ static int ctl_read(int32 *valp)
 	  ctl_total_time(CTL_LAST_STATUS);
 	  ctl_master_volume(CTL_LAST_STATUS);
 	  ctl_file_name(NULL);
-	  trace_nodelay(!ctl.trace_playing);
 	  display_key_helpmsg();
 	  if(ctl.trace_playing)
 	  {
@@ -2779,10 +2781,12 @@ static void reset_indicator(void)
 static void display_aq_ratio(void)
 {
     static int last_rate = -1;
-    int rate;
+    int rate, devsiz;
 
+    if((devsiz = aq_get_dev_queuesize()) <= 0)
+	return;
     rate = (int)(((double)(aq_filled() + aq_soft_filled()) /
-		  aq_get_dev_queuesize()) * 100 + 0.5);
+		  devsiz) * 100 + 0.5);
     if(rate > 999)
 	rate = 1000;
 

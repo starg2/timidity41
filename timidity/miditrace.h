@@ -25,7 +25,6 @@
 
 typedef struct _MidiTrace
 {
-    int nodelay;	/* True if run immediately */
     int offset;		/* sample offset */
     int flush_flag;	/* True while in trace_flush() */
 

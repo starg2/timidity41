@@ -1,3 +1,81 @@
+1999-08-01  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.3.0 released.
+
+1999-07-31  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/playmidi.c (compute_data):  Move the call of apply_controls()
+      position to before output.
+    * timidity/playmidi.c (play_midi_file): Initialize `current_file_info'
+      at beginnig of play_midi_file();
+    * timidity/readmidi.h (IS_ERROR_FILE): New macro to mark the error file.
+    * timidity/playmidi.c (play_midi_file): Mark IS_ERROR_FILE to
+      current_file_info if the file isn't recognized as MIDI file.
+    * timidity/playmidi.c: Enabled to control playing position during pause.
+    * interface/{w32g.h,w32g_c.c,w32g_canvas.c,w32g_i.c,w32g_ini.c,
+      w32g_panel.c,w32g_playlist.c,w32g_res.h,w32g_res.rc,w32g_utl.c,
+      w32g_utl.h}:
+       - Re-maked Windows GUI interface.
+       - Added new feature of changing the output.  Now, Windows GUI TiMidity
+	 can convert MIDI to WAVE file.
+       - Enabled to delete playlist file.
+	 [Delete] Key:    Delete the CurSel item.
+	 [BackSpace] Key: Delete the upper of CurSel item.
+
+1999-07-30  Masanao Izumo <mo@goice.co.jp>
+    * timidity/controls.h (CTLE_PAUSE): New macro for pause event.
+    * timidity/playmidi.c (ctl_pause_event): New function to send CTLE_PAUSE.
+    * timidity/ncurs_c.c (display_aq_ratio): Bug fixed division by zero.
+    * timidity/aq_c.c (aq_setup): Clear the queue for file output.
+    * timidity/{controls.h,timidity.c} (CTLF_AUTOSTART, CTLF_AUTOEXIT):
+      New macro for ControlMode.
+      CTLF_AUTOSTART is toggle on/off with -i?a option.
+      CTLF_AUTOEXIT is toggle on/off with -i?x option.
+
+1999-07-28  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/w32_a.c (wait, wait_playing): Changed wait to wait_playing.
+    * timidity/w32_a.c (PM_REQ_FLUSH): Implemented.
+    * timidity/miditrace.c (trace_nodelay): Removed.  Use !ctl->trace_playing
+      instead of midi_trace.nodelay.
+
+1999-07-27  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/{controls.h,playmidi.c} (RC_STOP): New macro for interface
+      to terminate playing.
+    * timidity/{timidity.c,playmidi.c} (intr): Uncommented.  Ctl-C marks
+      `intr' true, and TiMidity will shutdown safety.
+
+1999-07-26  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c (voice reduction):
+      Improved both in quality and in speed.
+    * timidity/{timidity.c,playmidi.c} (auto polyphony reduction):
+      Added new feature of auto polyphony reduction.  This feature is
+      enabled/disabled with -p a option.  It is enabled by default.
+
+1999-07-25  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/timidity.c (opt_aq_max_buff, opt_aq_fill_buff,
+      output_text_code): Fixed memory leak.
+    * interface/{w32g_utl.c,w32g_utl.h} (SETTING_TIMIDITY): Reconstructed.
+    * timidity/playmidi.c (play_pause_flag): Global variable.
+
+1999-07-24  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/timidity.c (set_tim_opt): Orderd switch-case.
+    * timidity/timidity.c (set_ctl): Changed for Windows GUS.
+    * timidity/instrum.c (Instrument caching): Don't cache default instrument.
+    * interface/w32g_utl.c (PLAYLIST): Bug fixed and simplify.
+
+1999-07-23  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmidi.c (Voice reduction): Improved.
+
+1999-07-21  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/aq.c (aq_add): Buffering in non trace mode.
+
 1999-07-19  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.2.0 released.

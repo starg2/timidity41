@@ -148,8 +148,9 @@ static void reset_data_block(void);
 static struct data_block_t *new_data_block();
 
 static HWAVEOUT dev;
-static int nBlocks;
+static volatile int nBlocks;
 static const char *mmerror_code_string(MMRESULT res);
+static int msec_per_block;
 
 /* export the playback mode */
 
@@ -174,10 +175,23 @@ extern CRITICAL_SECTION critSect;
 static int w32_wave_allowsync = 1; /* waveOutOpen() fdwOpen : WAVE_ALLOWSYNC */
 //static int w32_wave_allowsync = 0;
 
-static void wait(void)
+static void wait_playing(int all)
 {
-    while(nBlocks)
-	Sleep(0);
+    if(all)
+    {
+	while(nBlocks)
+	    Sleep(msec_per_block);
+	reset_data_block();
+    }
+    else
+    {
+#ifndef IA_W32GUI
+	if(ctl->trace_playing)
+	    Sleep(0);
+	else
+#endif /* IA_W32GUI */
+	    Sleep(msec_per_block);
+    }
 }
 
 static void CALLBACK wave_callback(HWAVE hWave, UINT uMsg,
@@ -306,6 +320,15 @@ static int open_output(void)
     }
     reset_data_block();
     dpm.fd = 0;
+
+    /* calc. msec/block */
+    msec_per_block = AUDIO_BUFFER_SIZE;
+    if(!(dpm.encoding & PE_MONO))
+	msec_per_block *= 2;
+    if(dpm.encoding & PE_16BIT)
+	msec_per_block *= 2;
+    msec_per_block = msec_per_block * 1000 / dpm.rate;
+
     return warnings;
 }
 
@@ -327,7 +350,7 @@ static int output_data(char *buf, int32 nbytes)
     {
 	if((block = new_data_block()) == NULL)
 	{
-	    Sleep(0); /* Busy? */
+	    wait_playing(0);
 	    continue;
 	}
 	if(len <= DATA_BLOCK_SIZE)
@@ -371,7 +394,7 @@ static void close_output(void)
 
     if(dpm.fd == -1)
 	return;
-    wait();
+    wait_playing(1);
     waveOutClose(dev);
 
     for(i = 0; i < DATA_BLOCK_NUM; i++)
@@ -401,8 +424,10 @@ static int acntl(int request, void *arg)
 	return 0;
       case PM_REQ_DISCARD:
 	waveOutReset(dev);
-	wait();
-	reset_data_block();
+	wait_playing(1);
+	return 0;
+      case PM_REQ_FLUSH:
+	wait_playing(1);
 	return 0;
     }
     return -1;

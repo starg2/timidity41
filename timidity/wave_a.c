@@ -199,6 +199,7 @@ static int open_output(void)
     bytes_output = 0;
     next_bytes = bytes_output + UPDATE_HEADER_STEP;
     already_warning_lseek = 0;
+
     return 0;
 }
 
@@ -276,5 +277,10 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
+    switch(request)
+    {
+      case PM_REQ_DISCARD:
+	return 0;
+    }
     return -1;
 }

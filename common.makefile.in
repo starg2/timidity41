@@ -25,6 +25,10 @@ SHELL=@SHELL@
 ## Please modify and uncomment if you want to change.
 #CC= @CC@
 #CFLAGS = @CFLAGS@
+# For pentium gcc
+#CFLAGS = -O6 -Os -mpentium -march=pentium -fomit-frame-pointer \
+#         -funroll-all-loops -malign-double -malign-jumps=0 \
+#         -malign-functions=0 -ffast-math -malign-loops=0
 #CPPFLAGS = @CPPFLAGS@
 
 #DEFS = @DEFS@

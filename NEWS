@@ -1,3 +1,32 @@
+8/1, 1999
+    * Version 2.3.0 released.
+    * Make Windows GUI code elegant.
+    * Support MIDI to WAVE converter in Windows GUI.
+
+7/26, 1999
+    * New feature: Auto polyphony reduction.
+
+7/19, 1999
+    * Version 2.2.0 released.
+    * Enabled to specify the software buffer size with `-q' option
+    * Enabled build UMP on FreeBSD-ELF environment.
+
+7/9, 1999
+    * Version 2.1.1 released.
+
+6/10, 1999
+    * Version 2.1.0 released.
+    * Enable a multi-point interpolation in resampling.
+      Cubic spline curve and lagrange interpolation is supported.
+    * Support linux axp
+    * Load frequency table with -Z <file> option.
+
+4/28, 1999
+    * Version 2.0.2 released.
+
+4/25, 1999
+    * Version 2.0.1 released.
+
 4/17, 1999
 Major changes in release 2.0.0:
 

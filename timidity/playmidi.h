@@ -312,6 +312,8 @@ extern int default_tonebank;
 extern int playmidi_seek_flag;
 extern int effect_lr_mode;
 extern int effect_lr_delay_msec;
+extern int auto_reduce_polyphony;
+extern int play_pause_flag;
 
 extern int play_midi_file(char *fn);
 extern void dumb_pass_playing_list(int number_of_files, char *list_of_files[]);

@@ -67,7 +67,7 @@ PlayMode dpm = {
     DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_PCM_STREAM,
     -1,
     {0,0,0,0,0},
-    "raw waveform data", 'r',
+    "Raw waveform data", 'r',
     "output.raw",
     open_output,
     close_output,
@@ -121,5 +121,10 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
+    switch(request)
+    {
+      case PM_REQ_DISCARD:
+	return 0;
+    }
     return -1;
 }

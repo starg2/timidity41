@@ -274,5 +274,10 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
+    switch(request)
+    {
+      case PM_REQ_DISCARD:
+	return 0;
+    }
     return -1;
 }

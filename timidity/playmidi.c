@@ -34,16 +34,13 @@
 #include <strings.h>
 #endif
 #include <math.h>
-
-#include "timidity.h"
-
-#ifndef __W32__
-#include <unistd.h>
-#else
+#ifdef __W32__
 #include <windows.h>
-extern VOLATILE int intr;
-#endif /* __W32__ */
-
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#include "timidity.h"
 #include "common.h"
 #include "instrum.h"
 #include "playmidi.h"
@@ -57,6 +54,8 @@ extern VOLATILE int intr;
 #include "reverb.h"
 #include "wrd.h"
 #include "aq.h"
+
+extern VOLATILE int intr;
 
 #ifdef SOLARIS
 /* shut gcc warning up */
@@ -85,6 +84,10 @@ int usleep(unsigned int useconds);
 #ifdef REDUCE_VOICE_TIME_TUNING
 static int max_good_nv = 1;
 static int min_bad_nv = 256;
+static int32 ok_nv_total = 32;
+static int32 ok_nv_counts = 1;
+static int32 ok_nv_sample = 0;
+static int ok_nv = 32;
 static int old_rate = -1;
 #endif
 
@@ -100,7 +103,7 @@ int check_eot_flag;
 int special_tonebank = -1;
 int default_tonebank = 0;
 int playmidi_seek_flag = 0;
-static int play_pause_flag = 0;
+int play_pause_flag = 0;
 static int file_from_stdin;
 
 static void set_reverb_level(int ch, int level);
@@ -165,6 +168,7 @@ ChannelBitMask default_drumchannels;
 ChannelBitMask drumchannel_mask;
 ChannelBitMask drumchannels;
 int adjust_panning_immediately=0;
+int auto_reduce_polyphony=1;
 double envelope_modify_rate = 1.0;
 
 static int32 lost_notes, cut_notes;
@@ -186,6 +190,7 @@ static void update_portamento_controls(int ch);
 static void update_rpn_map(int ch, int addr, int update_now);
 static void ctl_prog_event(int ch);
 static void ctl_timestamp(void);
+static void ctl_pause_event(int pause, int32 samples);
 
 static char *event_name(int type)
 {
@@ -676,29 +681,267 @@ Instrument *play_midi_load_instrument(int dr, int bk, int prog)
     return ip;
 }
 
-static int reduce_voice(void)
+/* The goal of this routine is to free as much CPU as possible without
+   loosing too much sound quality.  We would like to know how long a note
+   has been playing, but since we usually can't calculate this, we guess at
+   the value instead.  A bad guess is better than nothing.  Notes which
+   have been playing a short amount of time are killed first.  This causes
+   decays and notes to be cut earlier, saving more CPU time.  It also causes
+   notes which are closer to ending not to be cut as often, so it cuts
+   a different note instead and saves more CPU in the long run.  ON voices
+   are treated a little differently, since sound quality is more important
+   than saving CPU at this point.  Duration guesses for loop regions are very
+   crude, but are still better than nothing, they DO help.  Non-looping ON
+   notes are cut before looping ON notes.  Since a looping ON note is more
+   likely to have been playing for a long time, we want to keep it because it
+   sounds better to keep long notes.
+*/
+static int reduce_voice_CPU(void)
 {
     int32 lv, v, vr;
+    int i, j, lowest=-0x7FFFFFFF;
+    int32 duration;
+
+    i = upper_voices;
+    lv = 0x7FFFFFFF;
+    
+    /* Look for the decaying note with the longest remaining decay time */
+    /* Protect drum decays.  They do not take as much CPU (?) and truncating
+       them early sounds bad, especially on snares and cymbals */
+    for(j = 0; j < i; j++)
+    {
+	if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
+	    continue;
+	/* skip notes that don't need resampling (most drums) */
+	if (!voice[j].sample->sample_rate)
+	    continue;
+	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
+	{
+	    /* Choose note with longest decay time remaining */
+	    /* This frees more CPU than choosing lowest volume */
+	    if (!voice[j].envelope_increment) duration = 0;
+	    else duration =
+	    	(voice[j].envelope_target - voice[j].envelope_volume) /
+	    	voice[j].envelope_increment;
+	    v = -duration;
+	    if(v < lv)
+	    {
+		lv = v;
+		lowest = j;
+	    }
+	}
+    }
+    if(lowest != -0x7FFFFFFF)
+    {
+	/* This can still cause a click, but if we had a free voice to
+	   spare for ramping down this note, we wouldn't need to kill it
+	   in the first place... Still, this needs to be fixed. Perhaps
+	   we could use a reserve of voices to play dying notes only. */
+
+	cut_notes++;
+	return lowest;
+    }
+
+    /* try to remove VOICE_DIE before VOICE_ON */
+    lv = 0x7FFFFFFF;
+    lowest = -1;
+    for(j = 0; j < i; j++)
+    {
+      if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
+	    continue;
+      if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
+      {
+	/* continue protecting non-resample decays */
+	if (voice[j].status & ~(VOICE_DIE) && !voice[j].sample->sample_rate)
+		continue;
+
+	/* choose note which has been on the shortest amount of time */
+	/* this is a VERY crude estimate... */
+	if (voice[j].sample->modes & MODES_LOOPING)
+	    duration = voice[j].sample_offset - voice[j].sample->loop_start;
+	else
+	    duration = voice[j].sample_offset;
+	if (voice[j].sample_increment > 0)
+	    duration /= voice[j].sample_increment;
+	v = duration;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+      }
+    }
+    if(lowest != -1)
+    {
+	cut_notes++;
+	return lowest;
+    }
+
+    /* try to remove VOICE_SUSTAINED before VOICE_ON */
+    lv = 0x7FFFFFFF;
+    lowest = -0x7FFFFFFF;
+    for(j = 0; j < i; j++)
+    {
+      if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
+	    continue;
+      if(voice[j].status & VOICE_SUSTAINED)
+      {
+	/* choose note which has been on the shortest amount of time */
+	/* this is a VERY crude estimate... */
+	if (voice[j].sample->modes & MODES_LOOPING)
+	    duration = voice[j].sample_offset - voice[j].sample->loop_start;
+	else
+	    duration = voice[j].sample_offset;
+	if (voice[j].sample_increment > 0)
+	    duration /= voice[j].sample_increment;
+	v = duration;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+      }
+    }
+    if(lowest != -0x7FFFFFFF)
+    {
+	cut_notes++;
+	return lowest;
+    }
+
+    /* try to remove chorus before VOICE_ON */
+    lv = 0x7FFFFFFF;
+    lowest = -0x7FFFFFFF;
+    for(j = 0; j < i; j++)
+    {
+      if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
+	    continue;
+      if(voice[j].delay)
+      {
+	/* score notes based on both volume AND duration */
+	/* this scoring function needs some more tweaking... */
+	if (voice[j].sample->modes & MODES_LOOPING)
+	    duration = voice[j].sample_offset - voice[j].sample->loop_start;
+	else
+	    duration = voice[j].sample_offset;
+	if (voice[j].sample_increment > 0)
+	    duration /= voice[j].sample_increment;
+	v = voice[j].left_mix * duration;
+	vr = voice[j].right_mix * duration;
+	if(voice[j].panned == PANNED_MYSTERY && vr > v)
+	    v = vr;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+      }
+    }
+    if(lowest != -0x7FFFFFFF)
+    {
+	int low_channel, low_note;
+
+	cut_notes++;
+
+	/* hack - double volume of chorus partner */
+	low_channel = voice[lowest].channel;
+	low_note = voice[lowest].note;
+	for (j = 0; j < i; j++) {
+		if (voice[j].status & VOICE_FREE) continue;
+		if (voice[j].channel == low_channel &&
+		    voice[j].note == low_note &&
+		    j != lowest) {
+		    	voice[j].left_mix <<= 1;
+		    	voice[j].right_mix <<= 1;
+		    	break;
+		}
+	}
+
+	return lowest;
+    }
+
+    lost_notes++;
+
+    /* try to remove non-looping voices first */
+    lv = 0x7FFFFFFF;
+    lowest = -0x7FFFFFFF;
+    for(j = 0; j < i; j++)
+    {
+      if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
+	    continue;
+      if(voice[j].sample->modes & ~MODES_LOOPING)
+      {
+	/* score notes based on both volume AND duration */
+	/* this scoring function needs some more tweaking... */
+	duration = voice[j].sample_offset;
+	if (voice[j].sample_increment > 0)
+	    duration /= voice[j].sample_increment;
+	v = voice[j].left_mix * duration;
+	vr = voice[j].right_mix * duration;
+	if(voice[j].panned == PANNED_MYSTERY && vr > v)
+	    v = vr;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+      }
+    }
+    if(lowest != -0x7FFFFFFF)
+    {
+	return lowest;
+    }
+
+    lv = 0x7FFFFFFF;
+    lowest = 0;
+    for(j = 0; j < i; j++)
+    {
+	if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
+	    continue;
+	if (voice[j].sample->modes & ~MODES_LOOPING) continue;
+
+	/* score notes based on both volume AND duration */
+	/* this scoring function needs some more tweaking... */
+	duration = voice[j].sample_offset - voice[j].sample->loop_start;
+	if (voice[j].sample_increment > 0)
+	    duration /= voice[j].sample_increment;
+	v = voice[j].left_mix * duration;
+	vr = voice[j].right_mix * duration;
+	if(voice[j].panned == PANNED_MYSTERY && vr > v)
+	    v = vr;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+    }
+
+    return lowest;
+}
+
+/* this reduces voices while maintaining sound quality */
+static int reduce_voice(void)
+{
+    int32 lv, v;
     int i, j, lowest=-0x7FFFFFFF;
 
     i = upper_voices;
     lv = 0x7FFFFFFF;
-    /* Look for the decaying note with the longest remaining decay time */
-    /* Protect drum decays.  They do not take as much CPU (?) and truncating
-       them early sounds bad, especially on snares and cymbals */
-    /* Also look for chorus notes */
+    
+    /* Look for the decaying note with the smallest volume */
+    /* Protect drum decays.  Truncating them early sounds bad, especially on
+       snares and cymbals */
     for(j = 0; j < i; j++)
     {
-	if(voice[j].status & VOICE_FREE)
+	if(voice[j].status & VOICE_FREE ||
+	   (!voice[j].sample->sample_rate && ISDRUMCHANNEL(voice[j].channel)))
 	    continue;
-	if (!voice[j].delay && ISDRUMCHANNEL(voice[j].channel))
-	    continue;
-	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED) ||
-	   voice[j].delay)
+	
+	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
 	{
-	    /* Choose note with longest decay time remaining */
-	    /* This frees more CPU than choosing lowest volume */
-	    v = current_sample - voice[j].timeout;
+	    /* find lowest volume */
+	    v = voice[j].left_mix;
+	    if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
+	    	v = voice[j].right_mix;
 	    if(v < lv)
 	    {
 		lv = v;
@@ -720,7 +963,7 @@ static int reduce_voice(void)
 	return lowest;
     }
 
-    /* EAW -- try to remove VOICE_DIE before VOICE_ON */
+    /* try to remove VOICE_DIE before VOICE_ON */
     lv = 0x7FFFFFFF;
     lowest = -1;
     for(j = 0; j < i; j++)
@@ -729,11 +972,11 @@ static int reduce_voice(void)
 	    continue;
       if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
       {
-	/* continue protecting the drum decays */
-	if (!voice[j].delay && voice[j].status & ~(VOICE_DIE) &&
-	    ISDRUMCHANNEL(voice[j].channel))
+	/* continue protecting drum decays */
+	if (voice[j].status & ~(VOICE_DIE) &&
+	    (!voice[j].sample->sample_rate && ISDRUMCHANNEL(voice[j].channel)))
 		continue;
-
+	/* find lowest volume */
 	v = voice[j].left_mix;
 	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
 	    v = voice[j].right_mix;
@@ -753,8 +996,6 @@ static int reduce_voice(void)
 	return lowest;
     }
 
-    lost_notes++;
-
     /* try to remove VOICE_SUSTAINED before VOICE_ON */
     lv = 0x7FFFFFFF;
     lowest = -0x7FFFFFFF;
@@ -764,9 +1005,10 @@ static int reduce_voice(void)
 	    continue;
       if(voice[j].status & VOICE_SUSTAINED)
       {
-	/* Choose note with longest decay time remaining */
-	/* This frees more CPU than choosing lowest volume */
-	v = current_sample - voice[j].timeout;
+	/* find lowest volume */
+	v = voice[j].left_mix;
+	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
+	    v = voice[j].right_mix;
 	if(v < lv)
 	{
 	    lv = v;
@@ -783,31 +1025,106 @@ static int reduce_voice(void)
 	return lowest;
     }
 
+    /* try to remove chorus before VOICE_ON */
     lv = 0x7FFFFFFF;
-    lowest = 0;
+    lowest = -0x7FFFFFFF;
     for(j = 0; j < i; j++)
     {
-	if(voice[j].status & VOICE_FREE)
+      if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
 	    continue;
+      if(voice[j].delay)
+      {
+	/* find lowest volume */
+	v = voice[j].left_mix;
+	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
+	    v = voice[j].right_mix;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+      }
+    }
+    if(lowest != -0x7FFFFFFF)
+    {
+	int low_channel, low_note;
 
-	/* score notes based on both volume AND duration */
-	/* this scoring function needs some more tweaking... */
-	v = voice[j].left_mix * (voice[j].timeout - current_sample);
-	vr = voice[j].right_mix * (voice[j].timeout - current_sample);
-	if(voice[j].panned == PANNED_MYSTERY && vr > v)
-	    v = vr;
+	cut_notes++;
+
+	/* hack - double volume of chorus partner */
+	low_channel = voice[lowest].channel;
+	low_note = voice[lowest].note;
+	for (j = 0; j < i; j++) {
+		if (voice[j].status & VOICE_FREE) continue;
+		if (voice[j].channel == low_channel &&
+		    voice[j].note == low_note &&
+		    j != lowest) {
+		    	voice[j].left_mix <<= 1;
+		    	voice[j].right_mix <<= 1;
+			break;
+		}
+	}
+
+	voice[lowest].status = VOICE_FREE;
+	if(!prescanning_flag)
+	    ctl_note_event(lowest);
+	return lowest;
+    }
+
+    lost_notes++;
+
+    /* remove non-drum VOICE_ON */
+    lv = 0x7FFFFFFF;
+    lowest = -0x7FFFFFFF;
+    for(j = 0; j < i; j++)
+    {
+        if(voice[j].status & VOICE_FREE ||
+	   (!voice[j].sample->sample_rate && ISDRUMCHANNEL(voice[j].channel)))
+	   	continue;
+
+	/* find lowest volume */
+	v = voice[j].left_mix;
+	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
+	    v = voice[j].right_mix;
 	if(v < lv)
 	{
 	    lv = v;
 	    lowest = j;
 	}
     }
+    if(lowest != -0x7FFFFFFF)
+    {
+	voice[lowest].status = VOICE_FREE;
+	if(!prescanning_flag)
+	    ctl_note_event(lowest);
+	return lowest;
+    }
 
+    /* remove all other types of notes */
+    lv = 0x7FFFFFFF;
+    lowest = 0;
+    for(j = 0; j < i; j++)
+    {
+	if(voice[j].status & VOICE_FREE)
+	    continue;
+	/* find lowest volume */
+	v = voice[j].left_mix;
+	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
+	    v = voice[j].right_mix;
+	if(v < lv)
+	{
+	    lv = v;
+	    lowest = j;
+	}
+    }
+    
     voice[lowest].status = VOICE_FREE;
     if(!prescanning_flag)
 	ctl_note_event(lowest);
     return lowest;
 }
+
+
 
 /* Only one instance of a note can be playing on a single channel. */
 static int find_voice(MidiEvent *e)
@@ -878,7 +1195,8 @@ static int find_free_voice(void)
     lowest = -1;
     for(i = 0; i < nv; i++)
     {
-	if(voice[i].status & ~(VOICE_ON | VOICE_DIE))
+	if(voice[i].status & ~(VOICE_ON | VOICE_DIE) &&
+	   !(!voice[i].sample->sample_rate && ISDRUMCHANNEL(voice[i].channel)))
 	{
 	    v = voice[i].left_mix;
 	    if((voice[i].panned==PANNED_MYSTERY) && (voice[i].right_mix>v))
@@ -2293,6 +2611,7 @@ int check_apply_control(void)
 	break;
       case RC_TOGGLE_PAUSE:
 	play_pause_flag = !play_pause_flag;
+	ctl_pause_event(play_pause_flag, 0);
 	return RC_NONE;
       case RC_TOGGLE_SNDSPEC:
 #ifdef SUPPORT_SOUNDSPEC
@@ -2385,6 +2704,80 @@ static void voice_decrement(int n)
 	upper_voices = voices;
 }
 
+/* EAW -- do not throw away good notes, stop decrementing */
+static void voice_decrement_conservative(int n)
+{
+    int i, j, lowest, finalnv;
+    int32 lv, v;
+
+    /* decrease voice */
+    finalnv = voices - n;
+    for(i = 1; i <= n && voices > 0; i++)
+    {
+	if(voice[voices-1].status == VOICE_FREE) {
+	    voices--;
+	    continue;	/* found */
+	}
+
+	for(j = 0; j < finalnv; j++)
+	    if(voice[j].status == VOICE_FREE)
+		break;
+	if(j != finalnv)
+	{
+	    voice[j] = voice[voices-1];
+	    voices--;
+	    continue;	/* found */
+	}
+
+	/* Look for the decaying note with the lowest volume */
+	lv = 0x7FFFFFFF;
+	lowest = -1;
+	for(j = 0; j < voices; j++)
+	{
+	    if(voice[j].status & ~(VOICE_ON | VOICE_DIE) &&
+	       !(!voice[j].sample->sample_rate &&
+	         ISDRUMCHANNEL(voice[j].channel)))
+	    {
+		v = voice[j].left_mix;
+		if((voice[j].panned==PANNED_MYSTERY) &&
+		   (voice[j].right_mix > v))
+		    v = voice[j].right_mix;
+		if(v < lv)
+		{
+		    lv = v;
+		    lowest = j;
+		}
+	    }
+	}
+
+	if(lowest != -1)
+	{
+	    voices--;
+	    cut_notes++;
+	    voice[lowest].status = VOICE_FREE;
+	    ctl_note_event(lowest);
+	    voice[lowest] = voice[voices];
+	}
+	else break;
+    }
+    if(upper_voices > voices)
+	upper_voices = voices;
+}
+
+void restore_voices(int save_voices)
+{
+#ifdef REDUCE_VOICE_TIME_TUNING
+    static int old_voices = -1;
+    if(old_voices == -1 || save_voices)
+	old_voices = voices;
+    else if (voices < old_voices)
+	voice_increment(old_voices - voices);
+    else
+	voice_decrement(voices - old_voices);
+#endif /* REDUCE_VOICE_TIME_TUNING */
+}
+	
+
 static int apply_controls(void)
 {
     int rc, i, jump_flag = 0;
@@ -2396,6 +2789,7 @@ static int apply_controls(void)
     {
 	switch(rc=ctl->read(&val))
 	{
+	  case RC_STOP:
 	  case RC_QUIT:		/* [] */
 	  case RC_LOAD_FILE:
 	  case RC_NEXT:		/* >>| */
@@ -2433,12 +2827,24 @@ static int apply_controls(void)
 	    return RC_RESTART;
 
 	  case RC_RESTART:	/* |<< */
+	    if(play_pause_flag)
+	    {
+		midi_restart_time = 0;
+		ctl_pause_event(1, 0);
+		continue;
+	    }
 	    aq_flush(1);
 	    skip_to(0);
 	    jump_flag = 1;
 	    continue;
 
 	  case RC_JUMP:
+	    if(play_pause_flag)
+	    {
+		midi_restart_time = val;
+		ctl_pause_event(1, val);
+		continue;
+	    }
 	    aq_flush(1);
 	    if (val >= sample_count)
 		return RC_NEXT;
@@ -2446,6 +2852,14 @@ static int apply_controls(void)
 	    return rc;
 
 	  case RC_FORWARD:	/* >> */
+	    if(play_pause_flag)
+	    {
+		midi_restart_time += val;
+		if(midi_restart_time > sample_count)
+		    midi_restart_time = sample_count;
+		ctl_pause_event(1, midi_restart_time);
+		continue;
+	    }
 	    cur = current_trace_samples();
 	    aq_flush(1);
 	    if(cur == -1)
@@ -2456,6 +2870,14 @@ static int apply_controls(void)
 	    return RC_JUMP;
 
 	  case RC_BACK:		/* << */
+	    if(play_pause_flag)
+	    {
+		midi_restart_time -= val;
+		if(midi_restart_time < 0)
+		    midi_restart_time = 0;
+		ctl_pause_event(1, midi_restart_time);
+		continue;
+	    }
 	    cur = current_trace_samples();
 	    aq_flush(1);
 	    if(cur == -1)
@@ -2480,6 +2902,7 @@ static int apply_controls(void)
 		aq_flush(1);
 		play_pause_flag = 1;
 	    }
+	    ctl_pause_event(play_pause_flag, midi_restart_time);
 	    jump_flag = 1;
 	    continue;
 
@@ -2513,21 +2936,25 @@ static int apply_controls(void)
 	    continue;
 
 	  case RC_VOICEINCR:
+	    restore_voices(0);
 	    voice_increment(val);
 	    if(sync_restart(1) != -1)
 		jump_flag = 1;
+	    restore_voices(1);
 	    continue;
 
 	  case RC_VOICEDECR:
+	    restore_voices(0);
 	    if(sync_restart(1) != -1)
 	    {
 		voices -= val;
 		if(voices < 0)
 		    voices = 0;
 		jump_flag = 1;
-		continue;
 	    }
-	    voice_decrement(val);
+	    else
+		voice_decrement(val);
+	    restore_voices(1);
 	    continue;
 
 	  case RC_TOGGLE_DRUMCHAN:
@@ -2840,6 +3267,9 @@ static int compute_data(int32 count)
     {
       int i;
 
+      if((rc = apply_controls()) != RC_NONE)
+	  return rc;
+
       do_compute_data(AUDIO_BUFFER_SIZE-buffered_count);
       count -= AUDIO_BUFFER_SIZE-buffered_count;
       ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
@@ -2855,29 +3285,12 @@ static int compute_data(int32 count)
 	 (play_mode->flag & PF_CAN_TRACE) &&
 	 !aq_fill_buffer_flag)
       {
-	  /* Reduce voices if there is no enough audio device buffer */
+	  /* Reduce voices if there is not enough audio device buffer */
 
           int nv, filled, filled_limit, rate, rate_limit;
           static int last_filled;
 
 	  filled = aq_filled();
-
-	  /* EAW -- set upper and lower bounds for "good" number of voices;
-	     rate check bounds are 10 beyond the magic numbers used for
-	     voice reduction threshholds */
-	  
-	  rate = 100 * filled / aq_get_dev_queuesize();
-          for(i = nv = 0; i < upper_voices; i++)
-	      if(voice[i].status != VOICE_FREE)
-	          nv++;
-	  if(opt_realtime_playing != 2)
-	  {
-	      if (rate > old_rate && rate > 85 && nv > max_good_nv)
-		  max_good_nv = nv;
-	      else if (rate < old_rate && rate > 20 && nv < min_bad_nv)
-		  min_bad_nv = nv;
-	      old_rate = rate;
-	  }
 
 	  rate_limit = 75;
 	  if(reduce_voice_threshold >= 0)
@@ -2897,6 +3310,46 @@ static int compute_data(int32 count)
 	      }
 	  }
 
+	  rate = 100 * filled / aq_get_dev_queuesize();
+          for(i = nv = 0; i < upper_voices; i++)
+	      if(voice[i].status != VOICE_FREE)
+	          nv++;
+
+	  if(opt_realtime_playing != 2)
+	  {
+	      /* calculate ok_nv, the "optimum" max polyphony */
+	      if (auto_reduce_polyphony && rate < 85) {
+		/* average in current nv */
+	        if ((rate == old_rate && nv > min_bad_nv) ||
+	            (rate >= old_rate && rate < 20)) {
+	        	ok_nv_total += nv;
+	        	ok_nv_counts++;
+	        }
+	        /* increase polyphony when it is too low */
+	        else if (nv == voices &&
+	                 (rate > old_rate && filled > last_filled)) {
+	          		ok_nv_total += nv + 1;
+	          		ok_nv_counts++;
+	        }
+	        /* reduce polyphony when loosing buffer */
+	        else if (rate < 75 &&
+	        	 (rate < old_rate && filled < last_filled)) {
+	        	ok_nv_total += min_bad_nv;
+	    		ok_nv_counts++;
+	        }
+	        else goto NO_RESCALE_NV;
+
+		/* rescale ok_nv stuff every 1 seconds */
+		if (current_sample >= ok_nv_sample && ok_nv_counts > 1) {
+			ok_nv_total >>= 1;
+			ok_nv_counts >>= 1;
+			ok_nv_sample = current_sample + (play_mode->rate);
+		}
+
+		NO_RESCALE_NV:;
+	      }
+	  }
+
 	  /* EAW -- if buffer is < 75%, start reducing some voices to
 	     try to let it recover.  This really helps a lot, preserves
 	     decent sound, and decreases the frequency of lost ON notes */
@@ -2907,17 +3360,24 @@ static int compute_data(int32 count)
 	      {
 	          int v, kill_nv, temp_nv;
 
+		  /* set bounds on "good" and "bad" nv */
+		  if (opt_realtime_playing != 2 && rate > 20 &&
+		      nv < min_bad_nv) {
+		  	min_bad_nv = nv;
+	                if (max_good_nv < min_bad_nv)
+	                	max_good_nv = min_bad_nv;
+	          }
+
 		  /* EAW -- count number of !ON voices */
 		  /* treat chorus notes as !ON */
 		  for(i = kill_nv = 0; i < upper_voices; i++) {
-		      if(voice[i].status & VOICE_FREE)
+		      if(voice[i].status & VOICE_FREE ||
+		         voice[i].cache != NULL)
 		      		continue;
 		      
-		      if(voice[i].delay ||
-		         (voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
+		      if((voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
 			  !(voice[i].status & ~(VOICE_DIE) &&
-			    !voice[i].delay &&
-			    ISDRUMCHANNEL(voice[i].channel))))
+			    !voice[i].sample->sample_rate)))
 				kill_nv++;
 		  }
 
@@ -2946,12 +3406,28 @@ static int compute_data(int32 count)
 
 		  for(i = 0; i < kill_nv; i++)
 		  {
-		      v = reduce_voice();
+		      v = reduce_voice_CPU();
 
 		      /* Tell VOICE_DIE to interface */
 		      voice[v].status = VOICE_DIE;
 		      ctl_note_event(v);
 		      voice[v].status = VOICE_FREE;
+		  }
+
+		  /* lower max # of allowed voices to let the buffer recover */
+		  if (auto_reduce_polyphony) {
+		  	temp_nv = nv - kill_nv;
+		  	ok_nv = ok_nv_total / ok_nv_counts;
+
+		  	/* decrease it to current nv left */
+		  	if (voices > temp_nv && temp_nv > ok_nv)
+			    voice_decrement_conservative(voices - temp_nv);
+			/* decrease it to ok_nv */
+		  	else if (voices > ok_nv && temp_nv <= ok_nv)
+			    voice_decrement_conservative(voices - ok_nv);
+		  	/* increase the polyphony */
+		  	else if (voices < ok_nv)
+			    voice_increment(ok_nv - voices);
 		  }
 
 		  while(upper_voices > 0 &&
@@ -2960,8 +3436,33 @@ static int compute_data(int32 count)
 	      }
 	      last_filled = filled;
 	  }
-	  else
+	  else {
+	      if (opt_realtime_playing != 2 && rate >= rate_limit &&
+	          filled > last_filled) {
+
+		    /* set bounds on "good" and "bad" nv */
+		    if (rate > 85 && nv > max_good_nv) {
+		  	max_good_nv = nv;
+		  	if (min_bad_nv > max_good_nv)
+		  	    min_bad_nv = max_good_nv;
+		    }
+
+		    if (auto_reduce_polyphony) {
+		    	/* reset ok_nv stuff when out of danger */
+		    	ok_nv_total = max_good_nv * ok_nv_counts;
+			if (ok_nv_counts > 1) {
+			    ok_nv_total >>= 1;
+			    ok_nv_counts >>= 1;
+			}
+
+		    	/* restore max # of allowed voices to normal */
+			restore_voices(0);
+		    }
+	      }
+
 	      last_filled = filled_limit;
+          }
+          old_rate = rate;
       }
 #endif
 
@@ -2972,15 +3473,11 @@ static int compute_data(int32 count)
       buffered_count=0;
       if(current_event->type != ME_EOT)
 	  ctl_timestamp();
-      if((rc = apply_controls()) != RC_NONE)
-	  return rc;
 
-#ifdef __W32__
       /* check break signals */
       VOLATILE_TOUCH(intr);
       if(intr)
 	  return RC_QUIT;
-#endif
 
       if(upper_voices == 0 && check_eot_flag &&
 	 (i = check_midi_play_end(current_event, EOT_PRESEARCH_LEN)) > 0)
@@ -3507,6 +4004,9 @@ int play_midi_file(char *fn)
     MidiEvent *event;
     int32 nsamples;
 
+    /* Set current file information */
+    current_file_info = get_midi_file_info(fn, 1);
+
     rc = check_apply_control();
     if(RC_IS_SKIP_FILE(rc) && rc != RC_RELOAD)
 	return rc;
@@ -3522,7 +4022,12 @@ int play_midi_file(char *fn)
     /* Reset voice reduction stuff */
     min_bad_nv = 256;
     max_good_nv = 1;
+    ok_nv_total = 32;
+    ok_nv_counts = 1;
+    ok_nv = 32;
+    ok_nv_sample = 0;
     old_rate = -1;
+    restore_voices(0);
 #endif
 
   play_reload: /* Come here to reload MIDI file */
@@ -3560,9 +4065,13 @@ int play_midi_file(char *fn)
 	free(event);
     if(rc == RC_RELOAD)
 	goto play_reload;
-
-    if(rc == RC_ERROR && last_rc == RC_REALLY_PREVIOUS)
-	return RC_REALLY_PREVIOUS;
+    if(rc == RC_ERROR)
+    {
+	if(current_file_info->file_type == IS_OTHER_FILE)
+	    current_file_info->file_type = IS_ERROR_FILE;
+	if(last_rc == RC_REALLY_PREVIOUS)
+	    return RC_REALLY_PREVIOUS;
+    }
     last_rc = rc;
     return rc;
 }
@@ -3669,6 +4178,18 @@ static void ctl_prog_event(int ch)
 	ctl->event(&ce);
 }
 
+static void ctl_pause_event(int pause, int32 s)
+{
+    if(ctl->event)
+    {
+	CtlEvent ce;
+	ce.type = CTLE_PAUSE;
+	ce.v1 = pause;
+	ce.v2 = (long)(s / (midi_time_ratio * play_mode->rate));
+	ctl->event(&ce);
+    }
+}
+
 char *channel_instrum_name(int ch)
 {
     char *comm;
@@ -3711,7 +4232,6 @@ void playmidi_stream_init(void)
     note_key_offset = 0;
     midi_time_ratio = 1.0;
     midi_restart_time = 0;
-    midi_trace.nodelay = 1;
     if(first)
     {
 	first = 0;

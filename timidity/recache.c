@@ -360,7 +360,6 @@ static int cache_resampling(struct cache_hash *p)
     }
     else
     {
-	
 	for(i = 0; i < newlen; i++)
 	{
 	    int32 j, v1, v2;

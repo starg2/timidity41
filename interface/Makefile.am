@@ -93,14 +93,15 @@ EXTRA_libinterface_a_SOURCES = \
 	server_defs.h \
 	w32g.h \
 	w32g_c.c \
-	w32g_c.h \
 	w32g_ini.c \
-	w32g_main.c \
-	w32g_main.h \
 	w32g_res.h \
 	w32g_res.rc \
 	w32g_utl.c \
 	w32g_utl.h \
+	w32g_i.c \
+	w32g_playlist.c \
+	w32g_panel.c \
+	w32g_canvas.c \
 	w32g_btn.bmp \
 	w32g_icon.ico \
 	w32g_sleep.bmp \

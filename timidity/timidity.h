@@ -38,9 +38,8 @@
    Any file with a name ending in one of these strings will be run
    through the corresponding decompressor. If you don't like this
    behavior, you can undefine DECOMPRESSOR_LIST to disable automatic
-   decompression entirely.
+   decompression entirely. */
 
-   This is currently ignored for Windows. */
 #define DECOMPRESSOR_LIST { \
 			      ".gz",  "gunzip -c %s", \
 			      ".bz2", "bunzip2 -c %s", \
@@ -52,13 +51,10 @@
 			     0 }
 
 
-/* Define GUS/patch converter.
-   This is currently ignored for Windows.
- */
+/* Define GUS/patch converter. */
 #define PATCH_CONVERTERS { \
 			     ".wav", "wav2pat %s", \
 			     0 }
-
 
 /* When a patch file can't be opened, one of these extensions is
    appended to the filename and the open is tried again.
@@ -128,7 +124,11 @@ typedef double FLOAT_T;
    You should probably use a larger number for improved performance.
 
 */
+#ifdef __W32__
+#define AUDIO_BUFFER_BITS 12
+#else
 #define AUDIO_BUFFER_BITS 11
+#endif
 
 
 /* 1000 here will give a control ratio of 22:1 with 22 kHz output.

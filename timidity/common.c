@@ -62,7 +62,7 @@
 char *program_name, current_filename[1024];
 MBlockList tmpbuffer;
 ArchiveFileList *archive_file_list = NULL;
-char *output_text_code = OUTPUT_TEXT_CODE;
+char *output_text_code = NULL;
 
 #ifdef DEFAULT_PATH
     /* The paths in this list will be tried whenever we're reading a file */
@@ -147,7 +147,7 @@ struct timidity_file *try_to_open(char *name, int decompress)
     tf->tmpname = NULL;
 
     len = strlen(name);
-    if(decompress && len >= 3 && strcmp(name + len - 3, ".gz") == 0)
+    if(decompress && len >= 3 && strcasecmp(name + len - 3, ".gz") == 0)
     {
 	int method;
 

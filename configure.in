@@ -53,7 +53,7 @@ dnl SHCFLAGS	- Additional flags to compile shared object library.
 
 AC_INIT(timidity/timidity.c)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.2.0, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.3.0, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -871,7 +871,7 @@ CONFIG_INTERFACE(w32gui, W32GUI, w,
   [ lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32'
     lib_user32_opt='-luser32'
     LDFLAGS="-mwindows $LDFLAGS"
-    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_main.c w32g_utl.c"
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_panel.c w32g_canvas.c"
   ])
 
 

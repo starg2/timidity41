@@ -29,9 +29,17 @@
 #include "timidity.h"
 #include "controls.h"
 
-#ifndef __MACOS__
-# define DEFAULT_CONTROL_MODE &dumb_control_mode
-#endif /* __MACOS__ */
+#if defined(__MACOS__)
+extern ControlMode mac_control_mode;
+#define DEFAULT_CONTROL_MODE &mac_control_mode
+#elif defined(IA_W32GUI)
+extern ControlMode w32gui_control_mode;
+#define DEFAULT_CONTROL_MODE &w32gui_control_mode
+#else
+extern ControlMode dumb_control_mode;
+#define DEFAULT_CONTROL_MODE &dumb_control_mode
+#endif
+
 
 #ifdef IA_PLUGIN
   extern ControlMode plugin_control_mode;
@@ -123,20 +131,6 @@
 #  define DEFAULT_CONTROL_MODE &plugin_control_mode
 # endif
 #endif
-
-#ifdef __MACOS__
-  extern ControlMode mac_control_mode;
-  #ifndef DEFAULT_CONTROL_MODE
-    #define DEFAULT_CONTROL_MODE &mac_control_mode
-  #endif
-#endif
-
-#ifdef IA_W32GUI
-  extern ControlMode w32gui_control_mode;
-# ifndef DEFAULT_CONTROL_MODE
-#  define DEFAULT_CONTROL_MODE &w32gui_control_mode
-# endif
-#endif /* IA_W32GUI */
 
 #ifdef IA_SERVER
 extern ControlMode server_control_mode;

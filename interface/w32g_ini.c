@@ -1,12 +1,92 @@
+/*
+
+    TiMidity -- Experimental MIDI to WAVE converter
+    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    w32g_ini.c: written by Daisuke Aoki <dai@y7.net>
+                           Masanao Izumo <mo@goice.co.jp>
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include "timidity.h"
+#include "common.h"
+#include "output.h"
 #include "w32g.h"
-#include "w32g_utl.h"
+
+#if MAX_CHANNELS > 32 /* FIXME */
+#error "MAX_CHANNELS > 32 is not supported Windows GUI version"
+#endif
+
+int w32g_has_ini_file;
+
+static int str2mID(char *str)
+{
+    int i, v, val;
+
+    if(strcmp(str + 1, "gs") == 0 ||
+       strcmp(str + 1, "GS") == 0)
+	val = 0x41;
+    else if(strcmp(str + 1, "xg") == 0 ||
+	    strcmp(str + 1, "XG") == 0)
+	val = 0x43;
+    else if(strcmp(str + 1, "gm") == 0 ||
+	    strcmp(str + 1, "GM") == 0)
+	val = 0x7e;
+    else
+    {
+	val = 0;
+	for(i = 0; i < 2; i++)
+	{
+	    v = str[i + 1];
+	    if('0' <= v && v <= '9')
+		v = v - '0';
+	    else if('A' <= v && v <= 'F')
+		v = v - 'A' + 10;
+	    else if('a' <= v && v <= 'f')
+		v = v - 'a' + 10;
+	    else
+		v = 0;
+	    val = (val << 4 | v);
+	}
+    }
+    return val;
+}
+
+static int32 str2size(char *str)
+{
+    int len = strlen(str);
+    if(str[len - 1] == 'k' || str[len - 1] == 'K')
+	return (int32)(1024.0 * atof(str));
+    if(str[len - 1] == 'm' || str[len - 1] == 'M')
+	return (int32)(1024 * 1024 * atof(str));
+    return atoi(str);
+}
 
 void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 {
+    char buff[1024];
+
+    /* [PLAYER] */
     IniGetKeyInt(INI_SEC_PLAYER,"InitMinimizeFlag",&(sp->InitMinimizeFlag));
     IniGetKeyInt(INI_SEC_PLAYER,"DebugWndStartFlag",&(sp->DebugWndStartFlag));
     IniGetKeyInt(INI_SEC_PLAYER,"ConsoleWndStartFlag",&(sp->ConsoleWndStartFlag));
@@ -28,12 +108,8 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyStringN(INI_SEC_PLAYER,"MidiFileOpenDir",sp->MidiFileOpenDir,MAXPATH + 32);
     IniGetKeyStringN(INI_SEC_PLAYER,"ConfigFileOpenDir",sp->ConfigFileOpenDir,MAXPATH + 32);
     IniGetKeyStringN(INI_SEC_PLAYER,"PlaylistFileOpenDir",sp->PlaylistFileOpenDir,MAXPATH + 32);
-    IniGetKeyInt(INI_SEC_PLAYER,"ProcessPriority",&(sp->ProcessPriority));
     IniGetKeyInt(INI_SEC_PLAYER,"PlayerThreadPriority",&(sp->PlayerThreadPriority));
-    IniGetKeyInt(INI_SEC_PLAYER,"MidiPlayerThreadPriority",&(sp->MidiPlayerThreadPriority));
-    IniGetKeyInt(INI_SEC_PLAYER,"MainThreadPriority",&(sp->MainThreadPriority));
-    IniGetKeyInt(INI_SEC_PLAYER,"TracerThreadPriority",&(sp->TracerThreadPriority));
-    IniGetKeyInt(INI_SEC_PLAYER,"WrdThreadPriority",&(sp->WrdThreadPriority));
+    IniGetKeyInt(INI_SEC_PLAYER,"GUIThreadPriority",&(sp->GUIThreadPriority));
     IniGetKeyStringN(INI_SEC_PLAYER,"SystemFont",sp->SystemFont,256);
     IniGetKeyStringN(INI_SEC_PLAYER,"PlayerFont",sp->PlayerFont,256);
     IniGetKeyStringN(INI_SEC_PLAYER,"WrdFont",sp->WrdFont,256);
@@ -50,66 +126,63 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_PLAYER,"TraceGraphicFlag",&(sp->TraceGraphicFlag));
     IniGetKeyInt(INI_SEC_PLAYER,"DocMaxSize",&(sp->DocMaxSize));
     IniGetKeyStringN(INI_SEC_PLAYER,"DocFileExt",sp->DocFileExt,256);
-    
-    IniGetKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"effect_lr_mode",&(st->effect_lr_mode));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"effect_lr_delay_msec",&(st->effect_lr_delay_msec));
 
-#if MAX_CHANNELS <= 32
-    IniGetKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
-    IniGetKeyInt32(INI_SEC_TIMIDITY,"drumchannels",(int32 *)&(st->drumchannels));
-    IniGetKeyInt32(INI_SEC_TIMIDITY,"drumchannel_mask",(int32 *)&(st->drumchannel_mask));
+    /* [TIMIDITY] */
+    IniGetKeyInt32(INI_SEC_TIMIDITY,"amplification",&(st->amplification));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"antialiasing_allowed",&(st->antialiasing_allowed));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"buffer_fragments",&(st->buffer_fragments));
+    IniGetKeyInt32(INI_SEC_TIMIDITY,"control_ratio",&(st->control_ratio));
     IniGetKeyInt32(INI_SEC_TIMIDITY,"default_drumchannels",(int32 *)&(st->default_drumchannels));
     IniGetKeyInt32(INI_SEC_TIMIDITY,"default_drumchannel_mask",(int32 *)&(st->default_drumchannel_mask));
-#else /* FIXME */
-#error "MAX_CHANNELS > 32 is not supported Windows GUI version"
-#endif
-
-
-    IniGetKeyChar(INI_SEC_TIMIDITY,"play_mode_id_character",&(st->play_mode_id_character));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"play_mode_encoding",&(st->play_mode_encoding));
-    IniGetKeyChar(INI_SEC_TIMIDITY,"pmp_id_character",&(st->pmp_id_character));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,MAXPATH + 32);
-    IniGetKeyInt(INI_SEC_TIMIDITY,"antialiasing_allowed",&(st->antialiasing_allowed));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"fast_decay",&(st->fast_decay));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"adjust_panning_immediately",&(st->adjust_panning_immediately));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
-    IniGetKeyIntArray(INI_SEC_TIMIDITY,"default_program",st->default_program,MAX_CHANNELS);
-    IniGetKeyInt32(INI_SEC_TIMIDITY,"amplification",&(st->amplification));
-    IniGetKeyInt32(INI_SEC_TIMIDITY,"control_ratio",&(st->control_ratio));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
-    IniGetKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"view_soundspec_flag",&(st->view_soundspec_flag));
-    IniGetKeyInt32(INI_SEC_TIMIDITY,"allocate_cache_size",&(st->allocate_cache_size));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"allocate_chace_size_string",st->allocate_chace_size_string,64);
-    IniGetKeyInt(INI_SEC_TIMIDITY,"ctl_verbosity",&(st->ctl_verbosity));
-    IniGetKeyChar(INI_SEC_TIMIDITY,"ctl_id_character",&(st->ctl_id_character));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"ctl_trace_playing",&(st->ctl_trace_playing));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"buffer_fragments",&(st->buffer_fragments));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,64);
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_modulation_wheel",&(st->opt_modulation_wheel));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_portamento",&(st->opt_portamento));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_nrpn_vibrato",&(st->opt_nrpn_vibrato));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_reverb_control",&(st->opt_reverb_control));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_chorus_control",&(st->opt_chorus_control));
-    IniGetKeyIntArray(INI_SEC_TIMIDITY,"opt_chorus_control2",st->opt_chorus_control2,MAX_CHANNELS);
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_channel_pressure",&(st->opt_channel_pressure));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_trace_text_meta_event",&(st->opt_trace_text_meta_event));
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_overlap_voice_allow",&(st->opt_overlap_voice_allow));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_default_mid",&(st->opt_default_mid));
-    IniGetKeyIntArray(INI_SEC_TIMIDITY,"opt_default_mid_str",st->opt_default_mid_str,64);
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_default_mid",buff,sizeof(buff));
+    st->opt_default_mid = str2mID(buff);
     IniGetKeyInt(INI_SEC_TIMIDITY,"default_tonebank",&(st->default_tonebank));
     IniGetKeyInt(INI_SEC_TIMIDITY,"special_tonebank",&(st->special_tonebank));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_realtime_playing",&(st->opt_realtime_playing));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
-    IniGetKeyChar(INI_SEC_TIMIDITY,"wrdt_id",&(st->wrdt_id));
-    IniGetKeyStringN(INI_SEC_TIMIDITY,"wrdt_open_opts",st->wrdt_open_opts,64);
+    IniGetKeyInt(INI_SEC_TIMIDITY,"effect_lr_mode",&(st->effect_lr_mode));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"effect_lr_delay_msec",&(st->effect_lr_delay_msec));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_reverb_control",&(st->opt_reverb_control));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_chorus_control",&(st->opt_chorus_control));
     IniGetKeyInt(INI_SEC_TIMIDITY,"noise_sharp_type",&(st->noise_sharp_type));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_evil_mode",&(st->opt_evil_mode));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"adjust_panning_immediately",&(st->adjust_panning_immediately));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"fast_decay",&(st->fast_decay));
+#ifdef SUPPORT_SOUNDSPEC
+    IniGetKeyInt(INI_SEC_TIMIDITY,"view_soundspec_flag",&(st->view_soundspec_flag));
+    IniGetKeyFloat(INI_SEC_TIMIDITY,"spectrogram_update_sec",&v_float);
+    st->spectrogram_update_sec = v_float;
+#endif
+    IniGetKeyIntArray(INI_SEC_TIMIDITY,"default_program",st->default_program,MAX_CHANNELS);
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_ctl",st->opt_ctl,sizeof(st->opt_ctl));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_realtime_playing",&(st->opt_realtime_playing));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"reduce_voice_threshold",&(st->reduce_voice_threshold));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,sizeof(st->OutputName));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
+    IniGetKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize));
+    IniGetKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"allocate_cache_size",buff,sizeof(buff));
+    st->allocate_cache_size = str2size(buff);
+    IniGetKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,sizeof(st->output_text_code));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"out_wrd",st->opt_wrd,sizeof(st->opt_wrd));
+#if defined(__W32__) && defined(SMFCONV)
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
+#endif
 }
 
 void
 SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 {
+    /* [PLAYER] */
+    IniPutKeyString(INI_SEC_PLAYER,"IniVersion",IniVersion);
     IniPutKeyInt(INI_SEC_PLAYER,"InitMinimizeFlag",&(sp->InitMinimizeFlag));
     IniPutKeyInt(INI_SEC_PLAYER,"DebugWndStartFlag",&(sp->DebugWndStartFlag));
     IniPutKeyInt(INI_SEC_PLAYER,"ConsoleWndStartFlag",&(sp->ConsoleWndStartFlag));
@@ -131,12 +204,8 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyStringN(INI_SEC_PLAYER,"MidiFileOpenDir",sp->MidiFileOpenDir,MAXPATH + 32);
     IniPutKeyStringN(INI_SEC_PLAYER,"ConfigFileOpenDir",sp->ConfigFileOpenDir,MAXPATH + 32);
     IniPutKeyStringN(INI_SEC_PLAYER,"PlaylistFileOpenDir",sp->PlaylistFileOpenDir,MAXPATH + 32);
-    IniPutKeyInt(INI_SEC_PLAYER,"ProcessPriority",&(sp->ProcessPriority));
     IniPutKeyInt(INI_SEC_PLAYER,"PlayerThreadPriority",&(sp->PlayerThreadPriority));
-    IniPutKeyInt(INI_SEC_PLAYER,"MidiPlayerThreadPriority",&(sp->MidiPlayerThreadPriority));
-    IniPutKeyInt(INI_SEC_PLAYER,"MainThreadPriority",&(sp->MainThreadPriority));
-    IniPutKeyInt(INI_SEC_PLAYER,"TracerThreadPriority",&(sp->TracerThreadPriority));
-    IniPutKeyInt(INI_SEC_PLAYER,"WrdThreadPriority",&(sp->WrdThreadPriority));
+    IniPutKeyInt(INI_SEC_PLAYER,"GUIThreadPriority",&(sp->GUIThreadPriority));
     IniPutKeyStringN(INI_SEC_PLAYER,"SystemFont",sp->SystemFont,256);
     IniPutKeyStringN(INI_SEC_PLAYER,"PlayerFont",sp->PlayerFont,256);
     IniPutKeyStringN(INI_SEC_PLAYER,"WrdFont",sp->WrdFont,256);
@@ -153,61 +222,56 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_PLAYER,"TraceGraphicFlag",&(sp->TraceGraphicFlag));
     IniPutKeyInt(INI_SEC_PLAYER,"DocMaxSize",&(sp->DocMaxSize));
     IniPutKeyStringN(INI_SEC_PLAYER,"DocFileExt",sp->DocFileExt,256);
-    
-    IniPutKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
-
-    IniPutKeyInt(INI_SEC_TIMIDITY,"effect_lr_mode",&(st->effect_lr_mode));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"effect_lr_delay_msec",&(st->effect_lr_delay_msec));
 
 
-#if MAX_CHANNELS <= 32
-    IniPutKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
-    IniPutKeyInt32(INI_SEC_TIMIDITY,"drumchannels",(int32 *)&(st->drumchannels));
-    IniPutKeyInt32(INI_SEC_TIMIDITY,"drumchannel_mask",(int32 *)&(st->drumchannel_mask));
+    /* [TIMIDITY] */
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"amplification",&(st->amplification));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"antialiasing_allowed",&(st->antialiasing_allowed));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"buffer_fragments",&(st->buffer_fragments));
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"control_ratio",&(st->control_ratio));
     IniPutKeyInt32(INI_SEC_TIMIDITY,"default_drumchannels",(int32 *)&(st->default_drumchannels));
     IniPutKeyInt32(INI_SEC_TIMIDITY,"default_drumchannel_mask",(int32 *)&(st->default_drumchannel_mask));
-#else /* FIXME */
-#error "MAX_CHANNELS > 32 is not supported Windows GUI version"
-#endif
-
-    IniPutKeyChar(INI_SEC_TIMIDITY,"play_mode_id_character",&(st->play_mode_id_character));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"play_mode_encoding",&(st->play_mode_encoding));
-    IniPutKeyChar(INI_SEC_TIMIDITY,"pmp_id_character",&(st->pmp_id_character));
-    IniPutKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,MAXPATH + 32);
-    IniPutKeyInt(INI_SEC_TIMIDITY,"antialiasing_allowed",&(st->antialiasing_allowed));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"fast_decay",&(st->fast_decay));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"adjust_panning_immediately",&(st->adjust_panning_immediately));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
-    IniPutKeyIntArray(INI_SEC_TIMIDITY,"default_program",st->default_program,MAX_CHANNELS);
-    IniPutKeyInt32(INI_SEC_TIMIDITY,"amplification",&(st->amplification));
-    IniPutKeyInt32(INI_SEC_TIMIDITY,"control_ratio",&(st->control_ratio));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
-    IniPutKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"view_soundspec_flag",&(st->view_soundspec_flag));
-    IniPutKeyInt32(INI_SEC_TIMIDITY,"allocate_cache_size",&(st->allocate_cache_size));
-    IniPutKeyStringN(INI_SEC_TIMIDITY,"allocate_chace_size_string",st->allocate_chace_size_string,64);
-    IniPutKeyInt(INI_SEC_TIMIDITY,"ctl_verbosity",&(st->ctl_verbosity));
-    IniPutKeyChar(INI_SEC_TIMIDITY,"ctl_id_character",&(st->ctl_id_character));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"ctl_trace_playing",&(st->ctl_trace_playing));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"buffer_fragments",&(st->buffer_fragments));
-    IniPutKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,64);
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_modulation_wheel",&(st->opt_modulation_wheel));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_portamento",&(st->opt_portamento));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_nrpn_vibrato",&(st->opt_nrpn_vibrato));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_reverb_control",&(st->opt_reverb_control));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_chorus_control",&(st->opt_chorus_control));
-    IniPutKeyIntArray(INI_SEC_TIMIDITY,"opt_chorus_control2",st->opt_chorus_control2,MAX_CHANNELS);
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_channel_pressure",&(st->opt_channel_pressure));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_trace_text_meta_event",&(st->opt_trace_text_meta_event));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_overlap_voice_allow",&(st->opt_overlap_voice_allow));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_default_mid",&(st->opt_default_mid));
-    IniPutKeyIntArray(INI_SEC_TIMIDITY,"opt_default_mid_str",st->opt_default_mid_str,64);
     IniPutKeyInt(INI_SEC_TIMIDITY,"default_tonebank",&(st->default_tonebank));
     IniPutKeyInt(INI_SEC_TIMIDITY,"special_tonebank",&(st->special_tonebank));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_realtime_playing",&(st->opt_realtime_playing));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
-    IniPutKeyChar(INI_SEC_TIMIDITY,"wrdt_id",&(st->wrdt_id));
-    IniPutKeyStringN(INI_SEC_TIMIDITY,"wrdt_open_opts",st->wrdt_open_opts,64);
+    IniPutKeyInt(INI_SEC_TIMIDITY,"effect_lr_mode",&(st->effect_lr_mode));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"effect_lr_delay_msec",&(st->effect_lr_delay_msec));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_reverb_control",&(st->opt_reverb_control));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_chorus_control",&(st->opt_chorus_control));
     IniPutKeyInt(INI_SEC_TIMIDITY,"noise_sharp_type",&(st->noise_sharp_type));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_evil_mode",&(st->opt_evil_mode));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"adjust_panning_immediately",&(st->adjust_panning_immediately));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"fast_decay",&(st->fast_decay));
+#ifdef SUPPORT_SOUNDSPEC
+    IniPutKeyInt(INI_SEC_TIMIDITY,"view_soundspec_flag",&(st->view_soundspec_flag));
+    v_float = st->spectrogram_update_sec;
+    IniPutKeyFloat(INI_SEC_TIMIDITY,"spectrogram_update_sec",&v_float);
+#endif
+    IniPutKeyIntArray(INI_SEC_TIMIDITY,"default_program",st->default_program,MAX_CHANNELS);
+    IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_ctl",st->opt_ctl,sizeof(st->opt_ctl));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_realtime_playing",&(st->opt_realtime_playing));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"reduce_voice_threshold",&(st->reduce_voice_threshold));
+    IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_playmode",st->opt_playmode,sizeof(st->opt_playmode));
+    IniPutKeyStringN(INI_SEC_TIMIDITY,"OutputName",st->OutputName,sizeof(st->OutputName));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"voices",&(st->voices));
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"quietchannels",(int32 *)&(st->quietchannels));
+    IniPutKeyStringN(INI_SEC_TIMIDITY,"opt_qsize",st->opt_qsize,sizeof(st->opt_qsize));
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"modify_release",&(st->modify_release));
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"allocate_cache_size",&(st->allocate_cache_size));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
+    if(st->output_rate == 0)
+	st->output_rate = play_mode->rate;
+    IniPutKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,sizeof(st->output_text_code));
+    IniPutKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
+    IniPutKeyStringN(INI_SEC_TIMIDITY,"out_wrd",st->opt_wrd,sizeof(st->opt_wrd));
+#if defined(__W32__) && defined(SMFCONV)
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rcpcv_dll",&(st->opt_rcpcv_dll));
+#endif
 }
 

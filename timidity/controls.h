@@ -25,7 +25,7 @@
 
 #define RC_IS_SKIP_FILE(rc) ((rc) == RC_QUIT || (rc) == RC_LOAD_FILE || \
 			     (rc) == RC_NEXT || (rc) == RC_REALLY_PREVIOUS || \
-			     (rc) == RC_ERROR)
+			     (rc) == RC_ERROR || (rc) == RC_STOP)
 
 /* Return values for ControlMode.read */
 #define RC_ERROR	-1
@@ -60,6 +60,7 @@
 #define RC_TOGGLE_CTL_SPEANA 27
 #define RC_CHANGE_RATE	28
 #define RC_OUTPUT_CHANGED      29
+#define RC_STOP		30	/* Stop to play */
 
 #define CMSG_INFO	0
 #define CMSG_WARNING	1
@@ -99,7 +100,8 @@ enum {
     CTLE_LYRIC,			/* v1:lyric-ID */
     CTLE_REFRESH,
     CTLE_RESET,
-    CTLE_SPEANA			/* v1:double[] v2:len */
+    CTLE_SPEANA,		/* v1:double[] v2:len */
+    CTLE_PAUSE			/* v1:pause on/off v2:time of pause */
 };
 
 typedef struct _CtlEvent {
@@ -119,6 +121,8 @@ typedef struct {
 #define CTLF_LIST_LOOP		(1u<<0)	/* -i?l */
 #define CTLF_LIST_RANDOM	(1u<<1)	/* -i?r */
 #define CTLF_LIST_SORT		(1u<<2)	/* -i?s */
+#define CTLF_AUTOSTART		(1u<<3)	/* -i?a */
+#define CTLF_AUTOEXIT		(1u<<4)	/* -i?x */
 
   int  (*open)(int using_stdin, int using_stdout);
   void (*close)(void);

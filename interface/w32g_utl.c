@@ -1,6 +1,6 @@
 /*
-
-    TiMidity -- Experimental MIDI to WAVE converter
+    TiMidity -- MIDI to WAVE converter and player
+    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -18,6 +18,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     w32g_utl.c: written by Daisuke Aoki <dai@y7.net>
+                           Masanao Izumo <mo@goice.co.jp>
 */
 
 
@@ -34,7 +35,6 @@
 #endif
 #include <mem.h>
 #include <ctype.h>
-//#include <dir.h>
 
 #include "timidity.h"
 #include "common.h"
@@ -43,301 +43,27 @@
 #include "readmidi.h"
 #include "output.h"
 #include "controls.h"
-#include "tables.h"
-#include "miditrace.h"
-#include "reverb.h"
+#include "recache.h"
 #ifdef SUPPORT_SOUNDSPEC
 #include "soundspec.h"
 #endif /* SUPPORT_SOUNDSPEC */
-#include "recache.h"
-#include "arc.h"
-#include "strtab.h"
 #include "wrd.h"
-#include "mid.defs"
-
 #include "w32g.h"
-//#include <windowsx.h>
-#include "w32g_main.h"
-// #include "w32g_res.h"
-#include "w32g_utl.h"
-#include "w32g_c.h"
+#if defined(__CYGWIN32__) || defined(__MINGW32__)
+#include <sys/stat.h>
+#endif
 
 
+extern int opt_default_mid;
 extern int effect_lr_mode;
 extern int effect_lr_delay_msec;
-
-
-//***************************************************************************/
-// Play list utility
-
-PLAYLIST *
-new_playlist(void)
-{
-  PLAYLIST *playlist = (PLAYLIST *)safe_malloc(sizeof(PLAYLIST));
-  playlist->prev = NULL;
-  playlist->next = NULL;
-  playlist->filename[0] = '\0';
-  playlist->title[0] = '\0';
-  playlist->opt = 0;
-  return playlist;
-}
-
-PLAYLIST *
-del_playlist(PLAYLIST *playlist)
-{
-  PLAYLIST *ret;
-  if(!playlist)
-    return NULL;
-  if(playlist->prev && playlist->next){
-    (playlist->prev)->next = (playlist->next)->prev;
-    ret = playlist->prev;
-  } else if(playlist->prev && !playlist->next){
-    (playlist->prev)->next = NULL;
-    ret = playlist->prev;
-  } else if(!playlist->prev && playlist->next){
-    (playlist->next)->prev = NULL;
-    ret = playlist->next;
-  } else
-    ret = NULL;
-  free((void *)playlist);
-  return ret;
-}
-
-void
-del_all_playlist(PLAYLIST *playlist)
-{
-  PLAYLIST *res;
-  while((res = del_playlist(playlist))!=NULL)
-    playlist = res;
-}
-
-PLAYLIST *
-first_playlist(PLAYLIST *playlist)
-{
-  if(!playlist)
-    return NULL;
-  while(playlist->prev)
-    playlist = playlist->prev;
-  return playlist;
-}
-
-PLAYLIST *
-last_playlist(PLAYLIST *playlist)
-{
-  if(!playlist)
-    return NULL;
-  while(playlist->next)
-    playlist = playlist->next;
-  return playlist;
-}
-
-PLAYLIST *
-insert_playlist(PLAYLIST *playlist, PLAYLIST *prev, PLAYLIST *next)
-{
-  PLAYLIST *first, *last;
-  if(playlist==NULL)
-    return NULL;
-  first = first_playlist(playlist);
-  last = last_playlist(playlist);
-  first->prev = prev;
-  last->next = next;
-  if(prev)
-    prev->next = first;
-  if(next)
-    next->prev = last;
-  return playlist;
-}
-
-/* insert p1 into p2 */
-void
-prev_insert_playlist(PLAYLIST *p1, PLAYLIST *p2)
-{
-  PLAYLIST *p3;
-  if(p2)
-    p3 = p2->prev;
-  else
-    p3 = NULL;
-  insert_playlist(p1,p3,p2);
-}
-
-void
-next_insert_playlist(PLAYLIST *p1, PLAYLIST *p2)
-{
-  PLAYLIST *p3;
-  if(p2)
-    p3 = p2->next;
-  else
-    p3 = NULL;
-  insert_playlist(p1,p2,p3);
-}
-
-void
-first_insert_playlist(PLAYLIST *p1, PLAYLIST *p2)
-{
-  PLAYLIST *p = first_playlist(p2);
-  insert_playlist(p1,NULL,p);
-}
-
-void
-last_insert_playlist(PLAYLIST *p1, PLAYLIST *p2)
-{
-  PLAYLIST *p = last_playlist(p2);
-  insert_playlist(p1,p,NULL);
-}
-
-PLAYLIST *
-last_insert_playlist_filename(PLAYLIST *playlist, char *filename)
-{
-  PLAYLIST *p = new_playlist();
-  strncpy((char *)p->filename,filename,PLAYLIST_DATAMAX-1);
-  p->filename[PLAYLIST_DATAMAX] = '\0';
-  last_insert_playlist(p,playlist);
-  return p;
-}
-
-PLAYLIST *
-first_insert_playlist_filename(PLAYLIST *playlist, char *filename)
-{
-  PLAYLIST *p = new_playlist();
-  strncpy((char *)p->filename,filename,PLAYLIST_DATAMAX-1);
-  p->filename[PLAYLIST_DATAMAX] = '\0';
-  first_insert_playlist(p,playlist);
-  return p;
-}
-
-PLAYLIST *
-dup_a_playlist_merely(PLAYLIST *playlist)
-{
-  PLAYLIST *p = new_playlist();
-  memcpy((void *)p,(void *)playlist,sizeof(PLAYLIST));
-  return p;
-}
-
-PLAYLIST *
-dup_a_playlist(PLAYLIST *playlist)
-{
-  PLAYLIST *p = dup_a_playlist(playlist);
-  p->prev = NULL;
-  p->next = NULL;
-  return p;
-}
-
-PLAYLIST *
-dup_playlist(PLAYLIST *playlist)
-{
-  PLAYLIST *src = first_playlist(playlist);
-  PLAYLIST *new = NULL, *ret = NULL, *p;
-  while(src){
-    p = dup_a_playlist(src);
-    last_insert_playlist(new,p);
-    new = p;
-    if(!ret)
-      ret = new;
-    src = src->next;
-  }
-  return ret;
-}
-
-void
-reverse_playlist(PLAYLIST *playlist)
-{
-  PLAYLIST *p = first_playlist(playlist);
-  PLAYLIST *next = p;
-  while(next){
-    next = p->next;
-    p->next = p->prev;
-    p->prev = next;
-  }
-}
-
-int
-num_before_playlist(PLAYLIST *pl)
-{
-  PLAYLIST *p = pl;
-  int i = 0;
-  while(p!=NULL){
-    p=p->prev;
-    i++;
-  }
-  return i;
-}
-
-int
-num_after_playlist(PLAYLIST *pl)
-{
-  PLAYLIST *p = pl;
-  int i = 0;
-  while(p!=NULL){
-    p=p->next;
-    i++;
-  }
-  return i;
-}
-
-int
-num_with_playlist(PLAYLIST *pl)
-{
-  PLAYLIST *p = first_playlist(pl);
-  return num_after_playlist(p);
-}
-
-
-
-
-
-
-
-
-
-// **************************************************************************
-// misc utility
-
-int
-isinteger(char *str)
-{
-  int digit_flag;
-  while(*str == ' ' && *str == '\t')
-    str++;
-  if(*str == '+' && *str == '-')
-    str++;
-  while(isdigit(*str)){
-    digit_flag = 1;
-    str++;
-  }
-  while(*str == ' ' && *str == '\t')
-    str++;
-  if(*str || !digit_flag)
-    return 0;
-  return 1;
-}
-
-#define LotationBufferNumMAX 256
-int LotationBufferNum = 0;
-char LotationBuffer[LotationBufferNumMAX][LotationBufferMAX];
-char *
-GetLotationBuffer(void)
-{
-  char *buffer = LotationBuffer[LotationBufferNum];
-  if(LotationBufferNum<LotationBufferNumMAX-1)
-    LotationBufferNum++;
-  else
-    LotationBufferNum = 0;
-  return buffer;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-//*****************************************************************************/
-// Windows Utility
+extern char def_instr_name[];
+extern int opt_control_ratio;
+extern char *opt_aq_max_buff;
+extern char *opt_aq_fill_buff;
+extern int opt_evil_mode;
+extern int opt_buffer_fragments;
+extern int32 opt_output_rate;
 
 
 //*****************************************************************************/
@@ -402,7 +128,6 @@ IniGetKeyFloat(char *section, char *key, FLOAT_T *n)
 	return 1;
 }
 
-
 int
 IniGetKeyChar(char *section, char *key, char *c)
 {
@@ -439,9 +164,9 @@ IniGetKeyStringN(char *section, char *key,char *str, int size)
 {
   CHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,size-1,IniFile);
+    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
   if(strcasecmp(buffer,INI_INVALID)){
-    strcpy(str,buffer);
+    strncpy(str,buffer,size);
     return 0;
   }	else
     return 1;
@@ -515,20 +240,12 @@ IniPutKeyFloat(char *section, char *key,FLOAT_T n)
 }
 
 // LoadIniFile() , SaveIniFile()
-
-//#include "w32g_ini.c"
-
 // ***************************************************************************
 // Setting
 
-int
-SetFlag(int flag)
-{
-  return flag?1:0;
-}
+#define SetFlag(flag) (!!(flag))
 
-long
-SetValue(int32 value, int32 min, int32 max)
+static long SetValue(int32 value, int32 min, int32 max)
 {
   int32 v = value;
   if(v < min) v = min;
@@ -566,13 +283,8 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
   ConfigFileOpenDir[MAXPATH + 31] = '\0';
   strncpy(PlaylistFileOpenDir,sp->PlaylistFileOpenDir,MAXPATH + 31);
   PlaylistFileOpenDir[MAXPATH + 31] = '\0';
-  ProcessPriority = sp->ProcessPriority;
   PlayerThreadPriority = sp->PlayerThreadPriority;
-  MidiPlayerThreadPriority = sp->MidiPlayerThreadPriority;
-  MainThreadPriority = sp->MainThreadPriority;
-  TracerThreadPriority = sp->TracerThreadPriority;
-  WrdThreadPriority = sp->WrdThreadPriority;
-  WrdGraphicFlag = SetFlag(sp->WrdGraphicFlag);
+  GUIThreadPriority = sp->GUIThreadPriority;
   TraceGraphicFlag = SetFlag(sp->TraceGraphicFlag);
   // fonts ...
   SystemFontSize = sp->SystemFontSize;
@@ -626,12 +338,8 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   (sp->ConfigFileOpenDir)[MAXPATH + 31] = '\0';
   strncpy(sp->PlaylistFileOpenDir,PlaylistFileOpenDir,MAXPATH + 31);
   (sp->PlaylistFileOpenDir)[MAXPATH + 31] = '\0';
-  sp->ProcessPriority = ProcessPriority;
   sp->PlayerThreadPriority = PlayerThreadPriority;
-  sp->MidiPlayerThreadPriority = MidiPlayerThreadPriority;
-  sp->MainThreadPriority = MainThreadPriority;
-  sp->TracerThreadPriority = TracerThreadPriority;
-  sp->WrdThreadPriority = WrdThreadPriority;
+  sp->GUIThreadPriority = GUIThreadPriority;
   sp->WrdGraphicFlag = SetFlag(WrdGraphicFlag);
   sp->TraceGraphicFlag = SetFlag(TraceGraphicFlag);
   // fonts ...
@@ -660,224 +368,202 @@ extern int set_tim_opt(int c, char *optarg);
 extern int set_ctl(char *cp);
 extern int set_wrd(char *w);
 
-#ifdef PRESENCE_HACK
-extern int presence_balance;
-extern double presence_delay_msec;
-#ifndef atof
-extern double atof(const char *);
-#endif
-#endif /* PRESENCE_HACK */
-
 #if defined(__W32__) && defined(SMFCONV)
 extern int opt_rcpcv_dll;
 #endif /* SMFCONV */
-
-extern int noise_sharp_type;
 extern char *wrdt_open_opts;
-/* FIXME */
-//char *S_wrdt_open_opts[64];
-char S_wrdt_open_opts[64];
 
-void
-ApplySettingTimidity(SETTING_TIMIDITY *st)
+static int is_device_output_ID(int id)
 {
-  int i;
-  char buffer[256];
-  free_instruments_afterwards = st->free_instruments_afterwards;
-
-  effect_lr_mode = st->effect_lr_mode;
-  effect_lr_delay_msec = st->effect_lr_delay_msec;
-  quietchannels = st->quietchannels;
-  drumchannels = st->drumchannels;
-  drumchannel_mask = st->drumchannel_mask;
-  default_drumchannels = st->default_drumchannels;
-  default_drumchannel_mask = st->default_drumchannel_mask;
-  sprintf(buffer,"%c",st->play_mode_id_character);
-  set_play_mode(buffer);
-  play_mode->encoding = st->play_mode_encoding;
-  strncpy(OutputName,st->OutputName,MAXPATH + 31);
-  OutputName[MAXPATH + 31] = '\0';
-  if(OutputName[0]=='\0')
-    play_mode->name = NULL;
-  else
-    play_mode->name = OutputName;
-//  st->output_rate = SetValue
-//    (st->output_rate,MIN_OUTPUT_RATE,MAX_OUTPUT_RATE);
-  if(st->output_rate != 0)
-    play_mode->rate = st->output_rate;
-  else if(play_mode->rate == 0)
-    play_mode->rate = DEFAULT_RATE;
-
-#if 0 /* FIXME */
-  if (st->buffer_fragments != -1)
-    play_mode->extra_param[0]=SetValue(st->buffer_fragments, 3, 1000);
-#endif
-
-  antialiasing_allowed = SetFlag(st->antialiasing_allowed);
-  fast_decay = SetFlag(st->fast_decay);
-  adjust_panning_immediately =
-    SetFlag(st->adjust_panning_immediately);
-  for(i = 0; i < MAX_CHANNELS; i++)
-    default_program[i] = (st->default_program)[i];
-  amplification = SetValue
-    (st->amplification, 0, MAX_AMPLIFICATION);
-  if(!st->control_ratio){
-    control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
-    control_ratio = SetValue(control_ratio, 1, MAX_CONTROL_RATIO);
-  } else
-    control_ratio = SetValue(st->control_ratio, 1, MAX_CONTROL_RATIO);
-  voices = SetValue(st->voices, 1, MAX_VOICES);
-
-  /* FIXME */
-//  modify_release = SetValue(st->modify_release, 0, MRELS - 1);
-
-#ifdef SUPPORT_SOUNDSPEC
-  view_soundspec_flag = SetFlag(st->view_soundspec_flag);
-  spectrigram_update_sec = st->spectrigram_update_sec;
-#endif
-  allocate_cache_size = st->allocate_cache_size;
-// FIXME
-//st->ctl_id_character='w';
-  sprintf(buffer,"%c",st->ctl_id_character);
-  set_ctl(buffer);
-  ctl->verbosity = st->ctl_verbosity;
-  ctl->id_character = st->ctl_id_character;
-  ctl->trace_playing = SetFlag(st->ctl_trace_playing);
-  trace_nodelay(!ctl->trace_playing);
-  //	strncpy(output_text_code,st->output_text_code,MAXPATH + 63);
-  //	output_text_code[63] = '\0';
-  opt_modulation_wheel = SetFlag(st->opt_modulation_wheel);
-  opt_portamento = SetFlag(st->opt_portamento);
-  opt_nrpn_vibrato = SetFlag(st->opt_nrpn_vibrato);
-  opt_reverb_control = st->opt_reverb_control;
-  opt_chorus_control = st->opt_reverb_control;
-  //	for(i=0;i<MAX_CHANNELS;i++)
-  //		opt_chorus_control2[i] = (st->opt_chorus_control2)[i];
-  opt_channel_pressure = SetFlag(st->opt_channel_pressure);
-  opt_trace_text_meta_event = SetFlag(st->opt_trace_text_meta_event);
-  opt_overlap_voice_allow = SetFlag(st->opt_overlap_voice_allow);
-  opt_default_mid = st->opt_default_mid;
-  if(strcmp((char *)st->opt_default_mid_str, "gs") == 0
-     || strcmp((char *)st->opt_default_mid_str, "GS") == 0)
-    opt_default_mid = 0x41;
-  else if(strcmp((char *)st->opt_default_mid_str, "xg") == 0
-	  || strcmp((char *)st->opt_default_mid_str, "XG") == 0)
-    opt_default_mid = 0x43;
-  else if(strcmp((char *)st->opt_default_mid_str, "gm") == 0
-	  || strcmp((char *)st->opt_default_mid_str, "GM") == 0)
-    opt_default_mid = 0x7e;
-  default_tonebank = st->default_tonebank;
-  special_tonebank = st->special_tonebank;
-  opt_realtime_playing = SetFlag(st->opt_realtime_playing);
-#if defined(__W32__) && defined(SMFCONV)
-  opt_rcpcv_dll = st->opt_rcpcv_dll;
-#endif /* SMFCONV */
-  sprintf(buffer,"%c%s",st->wrdt_id,st->wrdt_open_opts);
-  set_wrd(buffer);
-  strncpy(S_wrdt_open_opts,st->wrdt_open_opts,63);
-  S_wrdt_open_opts[63] = '\0';
-  noise_sharp_type = st->noise_sharp_type;
-#if 0
-  for(i=0;i<4;i++)
-    ns_tap[i] = (st->ns_tap)[i];
-#endif
+    return id == 'd' || id == 'n' || id == 'e';
 }
 
 void
-SaveSettingTimidity(SETTING_TIMIDITY *st)
+ApplySettingTiMidity(SETTING_TIMIDITY *st)
 {
-  int i;
-  st->free_instruments_afterwards = free_instruments_afterwards;
-  st->quietchannels = quietchannels;
-  st->effect_lr_mode = effect_lr_mode;
-  st->effect_lr_delay_msec = effect_lr_delay_msec;
-  st->drumchannels = drumchannels;
-  st->drumchannel_mask = drumchannel_mask;
-  st->default_drumchannels = drumchannels;
-  st->default_drumchannel_mask = drumchannel_mask;
-  st->play_mode_encoding = play_mode->encoding;
-  st->play_mode_id_character = play_mode->id_character;
-  strncpy(st->OutputName,OutputName,MAXPATH + 31);
-  st->OutputName[MAXPATH + 31] = '\0';
-  st->output_rate = SetValue
-    (play_mode->rate,MIN_OUTPUT_RATE,MAX_OUTPUT_RATE);
+    int i;
+    char buffer[INI_MAXLEN];
 
-  /* FIXME */
-#if defined(AU_LINUX) || defined(AU_W32) || defined(AU_BSDI)
-  st->buffer_fragments = play_mode->extra_param[0];
-#endif
-
-  st->antialiasing_allowed = SetFlag(antialiasing_allowed);
-  st->fast_decay = SetFlag(fast_decay);
-  st->adjust_panning_immediately =
-    SetFlag(adjust_panning_immediately);
-  for(i = 0; i < MAX_CHANNELS; i++)
-    (st->default_program)[i] = default_program[i];
-  st->amplification = SetValue
-    (amplification, 0, MAX_AMPLIFICATION);
-  if(!control_ratio){
-    st->control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
-    st->control_ratio = SetValue(st->control_ratio, 1, MAX_CONTROL_RATIO);
-  } else
-    st->control_ratio = SetValue(control_ratio, 1, MAX_CONTROL_RATIO);
-  st->voices = SetValue(voices, 1, MAX_VOICES);
-
-  /* FIXME */
-//  st->modify_release = SetValue(modify_release, 0, MRELS - 1);
-
-
+    /* Player must be stopped.
+     * DANGER to apply settings while playing.
+     */
+    amplification = SetValue(st->amplification, 0, MAX_AMPLIFICATION);
+    antialiasing_allowed = SetFlag(st->antialiasing_allowed);
+    if(st->buffer_fragments == -1)
+	opt_buffer_fragments = -1;
+    else
+	opt_buffer_fragments = SetValue(st->buffer_fragments, 3, 1000);
+    default_drumchannels = st->default_drumchannels;
+    default_drumchannel_mask = st->default_drumchannel_mask;
+    opt_modulation_wheel = SetFlag(st->opt_modulation_wheel);
+    opt_portamento = SetFlag(st->opt_portamento);
+    opt_nrpn_vibrato = SetFlag(st->opt_nrpn_vibrato);
+    opt_channel_pressure = SetFlag(st->opt_channel_pressure);
+    opt_trace_text_meta_event = SetFlag(st->opt_trace_text_meta_event);
+    opt_overlap_voice_allow = SetFlag(st->opt_overlap_voice_allow);
+    opt_default_mid = st->opt_default_mid;
+    default_tonebank = st->default_tonebank;
+    special_tonebank = st->special_tonebank;
+    effect_lr_mode = st->effect_lr_mode;
+    effect_lr_delay_msec = st->effect_lr_delay_msec;
+    opt_reverb_control = st->opt_reverb_control;
+    opt_chorus_control = st->opt_reverb_control;
+    noise_sharp_type = st->noise_sharp_type;
+    opt_evil_mode = st->opt_evil_mode;
+    adjust_panning_immediately = SetFlag(st->adjust_panning_immediately);
+    fast_decay = SetFlag(st->fast_decay);
 #ifdef SUPPORT_SOUNDSPEC
-  st->view_soundspec_flag = SetFlag(view_soundspec_flag);
-  st->spectrigram_update_sec = spectrigram_update_sec;
+    view_soundspec_flag = SetFlag(st->view_soundspec_flag);
+    spectrigram_update_sec = st->spectrigram_update_sec;
 #endif
-  st->allocate_cache_size = allocate_cache_size;
-  st->ctl_id_character = ctl->id_character;
-#if 0
-// FIXME
-//st->ctl_id_character = 'w';
-  sprintf(buffer,"%c",st->ctl_id_character);
-  set_ctl(buffer);
-#endif
-  st->ctl_verbosity = ctl->verbosity;
-  st->ctl_id_character = ctl->id_character;
-  st->ctl_trace_playing = SetFlag(ctl->trace_playing);
-  strncpy(st->output_text_code,output_text_code,MAXPATH + 63);
-  (st->output_text_code)[63] = '\0';
-  st->opt_modulation_wheel = SetFlag(opt_modulation_wheel);
-  st->opt_portamento = SetFlag(opt_portamento);
-  st->opt_nrpn_vibrato = SetFlag(opt_nrpn_vibrato);
-  st->opt_reverb_control = opt_reverb_control;
-  st->opt_chorus_control = opt_reverb_control;
-  //	for(i=0;i<MAX_CHANNELS;i++)
-  //		(st->opt_chorus_control2)[i] = opt_chorus_control2[i];
-  st->opt_channel_pressure = SetFlag(opt_channel_pressure);
-  st->opt_trace_text_meta_event = SetFlag(opt_trace_text_meta_event);
-  st->opt_overlap_voice_allow = SetFlag(opt_overlap_voice_allow);
-  st->opt_default_mid = opt_default_mid;
-  if(opt_default_mid == 0x41)
-    strcpy((char *)st->opt_default_mid_str,"gs");
-  else if(opt_default_mid == 0x439)
-    strcpy((char *)st->opt_default_mid_str,"xg");
-  else if(opt_default_mid == 0x7e)
-    strcpy((char *)st->opt_default_mid_str,"gm");
-  else
-    strcpy((char *)st->opt_default_mid_str,"");
-  st->default_tonebank = default_tonebank;
-  st->special_tonebank = special_tonebank;
-  st->opt_realtime_playing = SetFlag(opt_realtime_playing);
+    for(i = 0; i < MAX_CHANNELS; i++)
+	default_program[i] = st->default_program[i];
+    set_ctl(st->opt_ctl);
+    opt_realtime_playing = SetFlag(st->opt_realtime_playing);
+    reduce_voice_threshold = st->reduce_voice_threshold;
+    set_play_mode(st->opt_playmode);
+    strncpy(OutputName,st->OutputName,MAXPATH);
+    if(OutputName[0] && !is_device_output_ID(play_mode->id_character))
+	play_mode->name = OutputName;
+    opt_output_rate = st->output_rate;
+    if(st->output_rate)
+	play_mode->rate = SetValue(st->output_rate,
+				   MIN_OUTPUT_RATE, MAX_OUTPUT_RATE);
+    else if(play_mode->rate == 0)
+	play_mode->rate = DEFAULT_RATE;
+    voices = SetValue(st->voices, 1, MAX_VOICES);
+    quietchannels = st->quietchannels;
+    if(opt_aq_max_buff)
+	free(opt_aq_max_buff);
+    if(opt_aq_fill_buff)
+	free(opt_aq_fill_buff);
+    strcpy(buffer, st->opt_qsize);
+    opt_aq_max_buff = buffer;
+    opt_aq_fill_buff = strchr(opt_aq_max_buff, '/');
+    *opt_aq_fill_buff++ = '\0';
+    opt_aq_max_buff = safe_strdup(opt_aq_max_buff);
+    opt_aq_fill_buff = safe_strdup(opt_aq_fill_buff);
+    modify_release = SetValue(st->modify_release, 0, MAX_MREL);
+    allocate_cache_size = st->allocate_cache_size;
+    if(output_text_code)
+	free(output_text_code);
+    output_text_code = safe_strdup(st->output_text_code);
+    free_instruments_afterwards = st->free_instruments_afterwards;
+    set_wrd(st->opt_wrd);
 #if defined(__W32__) && defined(SMFCONV)
-  st->opt_rcpcv_dll = opt_rcpcv_dll;
+    opt_rcpcv_dll = st->opt_rcpcv_dll;
 #endif /* SMFCONV */
-  st->wrdt_id = wrdt->id;
-  //  strncpy(st->wrdt_open_opts,wrdt_open_opts,60);
-  //	(st->wrdt_open_opts)[60] = '\0';
-  strncpy(st->wrdt_open_opts,S_wrdt_open_opts,60);
-  (st->wrdt_open_opts)[60] = '\0';
-  st->noise_sharp_type = noise_sharp_type;
-#if 0
-  for(i=0;i<4;i++)
-    (st->ns_tap)[i] = ns_tap[i];
+
+
+    opt_control_ratio = st->control_ratio;
+    if(opt_control_ratio)
+	control_ratio = SetValue(opt_control_ratio, 1, MAX_CONTROL_RATIO);
+    else
+    {
+	control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
+	control_ratio = SetValue(control_ratio, 1, MAX_CONTROL_RATIO);
+    }
+}
+
+void
+SaveSettingTiMidity(SETTING_TIMIDITY *st)
+{
+    int i, j;
+
+    st->amplification = SetValue(amplification, 0, MAX_AMPLIFICATION);
+    st->antialiasing_allowed = SetFlag(antialiasing_allowed);
+    st->buffer_fragments = opt_buffer_fragments;
+    st->control_ratio = SetValue(opt_control_ratio, 0, MAX_CONTROL_RATIO);
+    st->default_drumchannels = default_drumchannels;
+    st->default_drumchannel_mask = default_drumchannel_mask;
+    st->opt_modulation_wheel = SetFlag(opt_modulation_wheel);
+    st->opt_portamento = SetFlag(opt_portamento);
+    st->opt_nrpn_vibrato = SetFlag(opt_nrpn_vibrato);
+    st->opt_channel_pressure = SetFlag(opt_channel_pressure);
+    st->opt_trace_text_meta_event = SetFlag(opt_trace_text_meta_event);
+    st->opt_overlap_voice_allow = SetFlag(opt_overlap_voice_allow);
+    st->opt_default_mid = opt_default_mid;
+    st->default_tonebank = default_tonebank;
+    st->special_tonebank = special_tonebank;
+    st->effect_lr_mode = effect_lr_mode;
+    st->effect_lr_delay_msec = effect_lr_delay_msec;
+    st->opt_reverb_control = opt_reverb_control;
+    st->opt_chorus_control = opt_reverb_control;
+    st->noise_sharp_type = noise_sharp_type;
+    st->opt_evil_mode = SetFlag(opt_evil_mode);
+    st->adjust_panning_immediately = SetFlag(adjust_panning_immediately);
+    st->fast_decay = SetFlag(fast_decay);
+#ifdef SUPPORT_SOUNDSPEC
+    st->view_soundspec_flag = SetFlag(view_soundspec_flag);
+    st->spectrigram_update_sec = spectrigram_update_sec;
 #endif
+    for(i = 0; i < MAX_CHANNELS; i++)
+    {
+	if(def_instr_name[0])
+	    st->default_program[i] = SPECIAL_PROGRAM;
+	else
+	    st->default_program[i] = default_program[i];
+    }
+    j = 0;
+    st->opt_ctl[j++] = ctl->id_character;
+    for(i = 1; i < ctl->verbosity; i++)
+	st->opt_ctl[j++] = 'v';
+    for(i = 1; i > ctl->verbosity; i--)
+	st->opt_ctl[j++] = 'q';
+    if(ctl->trace_playing)
+	st->opt_ctl[j++] = 't';
+    if(ctl->flags & CTLF_LIST_LOOP)
+	st->opt_ctl[j++] = 'l';
+    if(ctl->flags & CTLF_LIST_RANDOM)
+	st->opt_ctl[j++] = 'r';
+    if(ctl->flags & CTLF_LIST_SORT)
+	st->opt_ctl[j++] = 's';
+    if(ctl->flags & CTLF_AUTOSTART)
+	st->opt_ctl[j++] = 'a';
+    if(ctl->flags & CTLF_AUTOEXIT)
+	st->opt_ctl[j++] = 'x';
+    st->opt_ctl[j] = '\0';
+    st->opt_realtime_playing = SetFlag(opt_realtime_playing);
+    st->reduce_voice_threshold = reduce_voice_threshold;
+    j = 0;
+    st->opt_playmode[j++] = play_mode->id_character;
+    st->opt_playmode[j++] = ((play_mode->encoding & PE_MONO) ? 'M' : 'S');
+    st->opt_playmode[j++] = ((play_mode->encoding & PE_SIGNED) ? 's' : 'u');
+    st->opt_playmode[j++] = ((play_mode->encoding & PE_16BIT) ? '1' : '8');
+    if(play_mode->encoding & PE_ULAW)
+	st->opt_playmode[j++] = 'U';
+    else if(play_mode->encoding & PE_ALAW)
+	st->opt_playmode[j++] = 'A';
+    else
+	st->opt_playmode[j++] = 'l';
+    if(play_mode->encoding & PE_BYTESWAP)
+	st->opt_playmode[j++] = 'x';
+    st->opt_playmode[j] = '\0';
+    strncpy(st->OutputName,OutputName,sizeof(st->OutputName));
+    st->voices = SetValue(voices, 1, MAX_VOICES);
+    st->quietchannels = quietchannels;
+    snprintf(st->opt_qsize,sizeof(st->opt_qsize),"%s/%s",
+	     opt_aq_max_buff,opt_aq_fill_buff);
+    st->modify_release = SetValue(modify_release, 0, MAX_MREL);
+    st->allocate_cache_size = allocate_cache_size;
+    st->output_rate = opt_output_rate;
+    if(st->output_rate == 0)
+    {
+	st->output_rate = play_mode->rate;
+	if(st->output_rate == 0)
+	    st->output_rate = DEFAULT_RATE;
+    }
+    st->output_rate = SetValue(st->output_rate,MIN_OUTPUT_RATE,MAX_OUTPUT_RATE);
+    strncpy(st->output_text_code,output_text_code,sizeof(st->output_text_code));
+    st->free_instruments_afterwards = free_instruments_afterwards;
+    st->opt_wrd[0] = wrdt->id;
+    if(wrdt_open_opts)
+	strncpy(st->opt_wrd + 1, wrdt_open_opts, sizeof(st->opt_wrd) - 1);
+    else
+	st->opt_wrd[1] = '\0';
+#if defined(__W32__) && defined(SMFCONV)
+    st->opt_rcpcv_dll = opt_rcpcv_dll;
+#endif /* SMFCONV */
 }
 
 
@@ -887,49 +573,6 @@ SaveSettingTimidity(SETTING_TIMIDITY *st)
 
 //****************************************************************************/
 // ini & config
-
-/*
-   
-   CHAR INI_free_instruments_afterwards = "free_instruments_afterwards";
-   CHAR INI_config_file = "config_file";
-   CHAR INI_channel_flag = "channel_flag";
-   CHAR INI_presence_balance = "presence_balance";
-   CHAR INI_options = "options";
-   CHAR INI_ = "";
-   CHAR INI_ = "";
-   CHAR INI_ = "";
-   CHAR INI_ = "";
-   CHAR INI_ = "";
-   CHAR INI_ = "";
-   CHAR INI_ = "";
-   int load_inifile(void){
-   DWORD dwRes;
-   CHAR buffer[INI_MAXLEN];
-   if(IniGetKeyLong(INI_free_instruments_afterwards,dwRes))
-   if(dwRes)
-   free_instruments_afterwards = 1;
-   else
-   free_instruments_afterwards = 0;
-   if(IniGetKeyString(INI_config_file,buffer))
-   strcpy(config_file, buffer);
-   if(IniGetKeyLong(INI_channel_flag,dwRes))
-   set_channel_flag(&quietchannels, dwRes, "Quiet channel");
-   if(IniGetKeyString(INI_config_file,buffer))
-   strcpy(config_file, buffer);
-   if(IniGetKeyLong(INI_presence_balance,dwRes))
-   if(dwRes >= -1 && dwRes <= 2)
-   presence_balance = dwRes;
-   if(IniGetKeyLong(INI_,dwRes))
-   if(IniGetKeyLong(INI_,dwRes))
-   if(IniGetKeyLong(INI_,dwRes))
-   if(IniGetKeyLong(INI_,dwRes))
-	if(IniGetKeyLong(INI_,dwRes))
-	if(IniGetKeyString(INI_,buffer))
-	if(IniGetKeyString(INI_,buffer))
-	if(IniGetKeyString(INI_,buffer))
-	if(IniGetKeyString(INI_,buffer))
-	if(IniGetKeyString(INI_,buffer))
-	*/
 
 static char S_IniFile[MAXPATH + 32];
 static char S_ConfigFile[MAXPATH + 32];
@@ -972,152 +615,209 @@ static int TracerFontSize = 16;
 SETTING_PLAYER *sp_default, *sp_current, *sp_temp;
 SETTING_TIMIDITY *st_default, *st_current, *st_temp;
 
-extern int read_config_file(char *name, int self);
-
-void
-w32g_initialize(void)
+void w32g_initialize(void)
 {
-  char buffer[MAXPATH + 1024];
-  char *p;
-  
-  IniFile = S_IniFile;
-  ConfigFile = S_ConfigFile;
-  PlaylistFile = S_PlaylistFile;
-  PlaylistHistoryFile = S_PlaylistHistoryFile;
-  MidiFileOpenDir = S_MidiFileOpenDir;
-  ConfigFileOpenDir = S_ConfigFileOpenDir;
-  PlaylistFileOpenDir = S_PlaylistFileOpenDir;
-  DocFileExt = S_DocFileExt;
-  OutputName = S_OutputName;
-  
-  IniFile[0] = '\0';
-  ConfigFile[0] = '\0';
-  PlaylistFile[0] = '\0';
-  PlaylistHistoryFile[0] = '\0';
-  MidiFileOpenDir[0] = '\0';
-  ConfigFileOpenDir[0] = '\0';
-  PlaylistFileOpenDir[0] = '\0';
-  OutputName[0] = '\0';
-  strcpy(DocFileExt,DEFAULT_DOCFILEEXT);
-  S_wrdt_open_opts[0] = '\0';
-  strcpy(SystemFont,"‚l‚r –¾’©");
-  strcpy(PlayerFont,"‚l‚r –¾’©");
-  strcpy(WrdFont,"‚l‚r –¾’©");
-  strcpy(DocFont,"‚l‚r –¾’©");
-  strcpy(ListFont,"‚l‚r –¾’©");
-  strcpy(TracerFont,"‚l‚r –¾’©");
+    char buffer[MAXPATH + 1024];
+    char *p;
 
-  if(GetModuleFileName(hInst, buffer, MAXPATH)){
-    if((p=strrchr(buffer,'\\'))!=NULL){
-      p++;
-      *p = '\0';
-    } else {
-      buffer[0] = '.';
-      buffer[1] = '\\';
-      buffer[2] = '\0';
+    hInst = GetModuleHandle(0);
+  
+    IniFile = S_IniFile;
+    ConfigFile = S_ConfigFile;
+    PlaylistFile = S_PlaylistFile;
+    PlaylistHistoryFile = S_PlaylistHistoryFile;
+    MidiFileOpenDir = S_MidiFileOpenDir;
+    ConfigFileOpenDir = S_ConfigFileOpenDir;
+    PlaylistFileOpenDir = S_PlaylistFileOpenDir;
+    DocFileExt = S_DocFileExt;
+    OutputName = S_OutputName;
+  
+    IniFile[0] = '\0';
+    ConfigFile[0] = '\0';
+    PlaylistFile[0] = '\0';
+    PlaylistHistoryFile[0] = '\0';
+    MidiFileOpenDir[0] = '\0';
+    ConfigFileOpenDir[0] = '\0';
+    PlaylistFileOpenDir[0] = '\0';
+    OutputName[0] = '\0';
+    strcpy(DocFileExt,DEFAULT_DOCFILEEXT);
+    strcpy(SystemFont,"‚l‚r –¾’©");
+    strcpy(PlayerFont,"‚l‚r –¾’©");
+    strcpy(WrdFont,"‚l‚r –¾’©");
+    strcpy(DocFont,"‚l‚r –¾’©");
+    strcpy(ListFont,"‚l‚r –¾’©");
+    strcpy(TracerFont,"‚l‚r –¾’©");
+
+    if(GetModuleFileName(hInst, buffer, MAXPATH))
+    {
+	if((p = strrchr(buffer, '\\')) != NULL)
+	{
+	    p++;
+	    *p = '\0';
+	}
+	else
+	{
+	    buffer[0] = '.';
+	    buffer[1] = '\\';
+	    buffer[2] = '\0';
+	}
     }
-  } else {
-    buffer[0] = '.';
-    buffer[1] = '\\';
-    buffer[2] = '\0';
-  }
-  strncpy(IniFile,buffer,MAXPATH);
-  IniFile[MAXPATH] = '\0';
-  strcat(IniFile,"timpp32g.ini");
+    else
+    {
+	buffer[0] = '.';
+	buffer[1] = '\\';
+	buffer[2] = '\0';
+    }
+    strncpy(IniFile, buffer, MAXPATH);
+    IniFile[MAXPATH] = '\0';
+    strcat(IniFile,"timpp32g.ini");
 
-//  strncpy(ConfigFile,buffer,MAXPATH);
-//  ConfigFile[MAXPATH] = '\0';
-//  strcat(ConfigFile,"timidity.cfg");
-
-  strcpy(ConfigFile, "\\WINDOWS\\TIMIDITY.CFG");
-
-//  printf("## IniFile: \"%s\"\n", IniFile);
-//  printf("## ConfigFile: \"%s\"\n", ConfigFile);
+    strcpy(ConfigFile, W32G_TIMIDITY_CFG);
   
-  st_default = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
-  sp_default = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
-  st_current = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
-  sp_current = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
-  st_temp = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
-  sp_temp = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+    st_default = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
+    sp_default = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+    st_current = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
+    sp_current = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+    st_temp = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
+    sp_temp = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+
+    SaveSettingPlayer(sp_current);
+    SaveSettingTiMidity(st_current);
+    if(IniVersionCheck())
+    {
+	LoadIniFile(sp_current, st_current);
+	ApplySettingPlayer(sp_current);
+	ApplySettingTiMidity(st_current);
+	w32g_has_ini_file = 1;
+    }
+    else
+    {
+	sprintf(buffer,
+"Ini file is not found, or old format is found.\n"
+"Do you initialize ini file?\n\n"
+"Ini file path: %s",
+		IniFile);
+
+	if(MessageBox(0, buffer, "TiMidity Notice", MB_YESNO) == IDYES)
+	{
+	    SaveIniFile(sp_current, st_current);
+	    w32g_has_ini_file = 1;
+	}
+	else
+	    w32g_has_ini_file = 0;
+    }
+
+    memcpy(sp_default, sp_current, sizeof(SETTING_PLAYER));
+    memcpy(st_default, st_current, sizeof(SETTING_TIMIDITY));
+
 }
 
-extern int set_wrd(char *w);
-extern char *wrdt_open_opts;
-extern CRITICAL_SECTION critSect;
-extern char *def_instr_name;
-
-
-static int InitializeCriticalSectionDone = 0;
-
-void
-w32g_init_ctl(void)
+int IniVersionCheck(void)
 {
-  int need_stdin = 0, need_stdout = 0;
-  ctl->open(need_stdin, need_stdout);
-  if(wrdt->open(wrdt_open_opts)){
-#ifdef W32GUI_DEBUG
-    PrintfDebugWnd
-      ("Couldn't open WRD Tracer: %s (`%c')" NLS,wrdt->name, wrdt->id);
-#endif /* W32GUI_DEBUG */
-    set_wrd("-");
-    wrdt->open(wrdt_open_opts);
-  }
-  
-  /*
-     if(!control_ratio){
-     control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
-     if(control_ratio < 1)
-     control_ratio = 1;
-     else if (control_ratio > MAX_CONTROL_RATIO)
-     control_ratio = MAX_CONTROL_RATIO;
-     }
-     */
-
-  init_load_soundfont();
-  if(allocate_cache_size > 0)
-      resamp_cache_reset();
-
-  if(def_instr_name && *def_instr_name)
-    set_default_instrument(def_instr_name);
-
-  //	SetConsoleCtrlHandler (handler, TRUE);
-  InitializeCriticalSection (&critSect);
-  InitializeCriticalSectionDone = 1;
-
-  trace_nodelay(!ctl->trace_playing);
+    char version[INI_MAXLEN];
+    if(IniGetKeyStringN(INI_SEC_PLAYER,"IniVersion",version,sizeof(version)) == 0 &&
+       strcmp(version, IniVersion) == 0)
+	return 1; // UnChanged
+    return 0;
 }
 
-void
-w32g_reset_ctl(void)
+void BitBltRect(HDC dst, HDC src, RECT *rc)
 {
-  int need_stdin = 0, need_stdout = 0;
-  
-  play_mode->close_output();
-  ctl->close();
-  wrdt->close();
-  
-  ctl->open(need_stdin, need_stdout);
-  if(wrdt->open(wrdt_open_opts)){
-#ifdef W32GUI_DEBUG
-    PrintfDebugWnd
-      ("Couldn't open WRD Tracer: %s (`%c')" NLS, wrdt->name, wrdt->id);
-#endif /* W32GUI_DEBUG */
-    set_wrd("-");
-    wrdt->open(wrdt_open_opts);
-  }
+    BitBlt(dst, rc->left, rc->top,
+	   rc->right - rc->left, rc->bottom - rc->top,
+	   src, rc->left, rc->top, SRCCOPY);
 }
 
-void
-w32g_finish_ctl(void)
+/*
+ * TmColor
+ */
+TmColors tm_colors[TMCC_SIZE];
+
+static COLORREF WeakHalfColor(COLORREF fc, COLORREF bc)
 {
-  play_mode->close_output();
-  ctl->close();
-  wrdt->close();
-#if defined(__W32__)
-  if(InitializeCriticalSectionDone){
-    DeleteCriticalSection (&critSect);
-    InitializeCriticalSectionDone = 0;
-  }
+    return fc*1/3 + bc*2/3;
+}
+
+static COLORREF HalfColor(COLORREF fc, COLORREF bc)
+{
+    return fc*1/6 + bc*5/6;
+}
+
+void TmInitColor(void)
+{
+    int i;
+
+    tm_colors[TMCC_BLACK].color	= TMCCC_BLACK;
+    tm_colors[TMCC_WHITE].color	= TMCCC_WHITE;
+    tm_colors[TMCC_RED].color	= TMCCC_RED;
+    tm_colors[TMCC_BACK].color	= TMCCC_BACK;
+    tm_colors[TMCC_LOW].color	= TMCCC_LOW;
+    tm_colors[TMCC_MIDDLE].color= TMCCC_MIDDLE;
+    tm_colors[TMCC_HIGH].color	= TMCCC_HIGH;
+
+    tm_colors[TMCC_FORE_HALF].color = HalfColor(TMCCC_FORE,TMCCC_BACK);
+    tm_colors[TMCC_FORE_WEAKHALF].color = WeakHalfColor(TMCCC_FORE,TMCCC_BACK);
+    tm_colors[TMCC_LOW_HALF].color = HalfColor(TMCCC_LOW,TMCCC_BACK);
+    tm_colors[TMCC_MIDDLE_HALF].color = HalfColor(TMCCC_MIDDLE,TMCCC_BACK);
+    tm_colors[TMCC_HIGH_HALF].color = HalfColor(TMCCC_HIGH,TMCCC_BACK);
+
+    for(i = 0; i < TMCC_SIZE; i++)
+    {
+	tm_colors[i].pen = CreatePen(PS_SOLID, 1, tm_colors[i].color);
+	tm_colors[i].brush = CreateSolidBrush(tm_colors[i].color);
+    }
+}
+
+void TmFreeColor(void)
+{
+    int i;
+    for(i = 0; i < TMCC_SIZE; i++)
+    {
+	if(tm_colors[i].pen != NULL)
+	{
+	    DeleteObject(tm_colors[i].pen);
+	    DeleteObject(tm_colors[i].brush);
+	    tm_colors[i].pen = NULL;
+	}
+    }
+}
+
+void TmFillRect(HDC hdc, RECT *rc, int color)
+{
+    HPEN hPen = tm_colors[color].pen;
+    HBRUSH hBrush = tm_colors[color].brush;
+    HGDIOBJ hgdiobj_hpen, hgdiobj_hbrush;
+
+    hgdiobj_hpen = SelectObject(hdc, hPen);
+    hgdiobj_hbrush = SelectObject(hdc, hBrush);
+    Rectangle(hdc, rc->left, rc->top, rc->right, rc->bottom);
+    SelectObject(hdc, hgdiobj_hpen);
+    SelectObject(hdc, hgdiobj_hbrush);
+}
+
+int is_directory(char *path)
+{
+#if defined(__CYGWIN32__) || defined(__MINGW32__)
+    struct stat st;
+    if(stat(path, &st) != -1)
+	return S_ISDIR(st.st_mode);
 #endif
+    return GetFileAttributes(path) == FILE_ATTRIBUTE_DIRECTORY;
+}
+
+int directory_form(char *buffer)
+{
+    int len;
+
+    len = strlen(buffer);
+
+    if(buffer[len - 1] == PATH_SEP)
+	len--;
+#if defined(__CYGWIN32__) || defined(__MINGW32__)
+    else if(buffer[len - 1] == '/')
+	len--;
+#endif
+    buffer[len++] = PATH_SEP;
+    buffer[len] = '\0';
+    return 1;
 }

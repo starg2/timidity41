@@ -132,7 +132,16 @@ void aq_setup(void)
 		  bucket_size, (int)(bucket_time * 1000 + 0.5));
     }
     else
+    {
 	device_qsize = 0;
+	if(base_buckets)
+	{
+	    free(base_buckets[0].data);
+	    free(base_buckets);
+	    base_buckets = NULL;
+	}
+	nbuckets = 0;
+    }
 
     init_effect();
     aq_add_count = 0;
@@ -302,31 +311,31 @@ int aq_add(int32 *samples, int32 count)
 
     if(!ctl->trace_playing)
     {
-	while(head) /* Flush remain buckets. */
-	    if(aq_fill_one() == -1)
-		return -1;
-	return aq_output_data(buff, nbytes);
-    }
-
-    trace_loop();
-
-    while(1)
-    {
-	i = add_play_bucket(buff, nbytes);
-	if(i < nbytes)
+	while((i = add_play_bucket(buff, nbytes)) < nbytes)
 	{
 	    buff += i;
 	    nbytes -= i;
-	    aq_wait_ticks();
-	    trace_loop();
-	    if(aq_fill_nonblocking() == -1)
+	    if(aq_fill_one() == -1)
 		return -1;
 	    aq_fill_buffer_flag = 0;
-	    continue;
 	}
-	break;
+	return 0;
     }
+
     trace_loop();
+    while((i = add_play_bucket(buff, nbytes)) < nbytes)
+    {
+	/* Software buffer is full.
+	 * Write one bucket to audio device.
+	 */
+	buff += i;
+	nbytes -= i;
+	aq_wait_ticks();
+	trace_loop();
+	if(aq_fill_nonblocking() == -1)
+	    return -1;
+	aq_fill_buffer_flag = 0;
+    }
     return 0;
 }
 
@@ -379,7 +388,6 @@ int aq_fill_nonblocking(void)
 	return 0;
 
     nfills = (aq_fillable() * Bps) / bucket_size;
-
     for(i = 0; i < nfills; i++)
     {
 	if(head == NULL || head->len != bucket_size)

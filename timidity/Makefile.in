@@ -283,8 +283,6 @@ common.o: common.c ../config.h timidity.h ../utils/support.h common.h \
 	../utils/strtab.h
 controls.o: controls.c ../config.h ../interface.h timidity.h \
 	../utils/support.h controls.h
-dl_dlopen.o: dl_dlopen.c ../config.h timidity.h ../utils/support.h \
-	dlutils.h
 effect.o: effect.c ../config.h timidity.h ../utils/support.h instrum.h \
 	playmidi.h output.h reverb.h
 filter.o: filter.c ../config.h timidity.h ../utils/support.h common.h \

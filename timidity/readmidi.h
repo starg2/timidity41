@@ -25,6 +25,7 @@
    */
 
 /* MIDI file types */
+#define IS_ERROR_FILE	-1	/* Error file */
 #define IS_OTHER_FILE	0	/* Not a MIDI file */
 #define IS_SMF_FILE	101	/* Standard MIDI File */
 #define IS_MCP_FILE	201	/* MCP */
