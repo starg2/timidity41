@@ -974,7 +974,12 @@ static void recompute_amp(int v)
 		if(channel[ch].drums[voice[v].note] != NULL) {
 			tempamp *= channel[ch].drums[voice[v].note]->drum_level;
 		}
-		tempamp *= (double)opt_drum_power * 0.01f;	/* global drum power */
+		if(opt_drum_power == 0) {
+			opt_drum_power = 100;
+			tempamp *= (double)opt_drum_power * 0.01f;	/* global drum power */
+		} else {
+			tempamp *= (double)opt_drum_power * 0.01f;	/* global drum power */
+		}
 	}
 
 	/* MIDI controllers amplitude control */
