@@ -48,8 +48,22 @@
 #include "w32g.h"
 #include "w32g_subwin.h"
 
-#include <process.h>
-
+extern int CanvasGetMode(void);
+extern void CanvasUpdate(int flag);
+extern void CanvasReadPanelInfo(int flag);
+extern void CanvasPaint(void);
+extern void CanvasPaintAll(void);
+extern void CanvasReset(void);
+extern void CanvasClear(void);
+extern void MPanelPaintAll(void);
+extern void MPanelReadPanelInfo(int flag);
+extern void MPanelReset(void);
+extern void MPanelUpdate(void);
+extern void MPanelUpdateAll(void);
+extern void MPanelPaint(void);
+extern int w32g_msg_box(char *message, char *title, int type);
+extern int is_directory(char *path);
+extern int directory_form(char *buffer);
 
 volatile int w32g_play_active;
 volatile int w32g_restart_gui_flag = 0;
@@ -59,6 +73,9 @@ static int mark_apply_setting = 0;
 PanelInfo *Panel = NULL;
 static void CanvasUpdateInterval(void);
 static void ctl_panel_refresh(void);
+
+char *w32g_output_dir = NULL;
+int w32g_auto_output_mode = 0;
 
 //****************************************************************************/
 // Control funcitons
@@ -76,7 +93,7 @@ ControlMode ctl=
 {
     "Win32 GUI interface", 'w',
     1,1,0,
-    CTLF_AUTOSTART | CTLF_LIST_LOOP | CTLF_DRAG_START,
+    CTLF_AUTOSTART | CTLF_DRAG_START,
     ctl_open,
     ctl_close,
     ctl_pass_playing_list,
@@ -352,7 +369,6 @@ static int ctl_load_playlist(char *fileptr)
 static int ctl_save_playlist(char *fileptr)
 {
     FILE *fp;
-    char *filename;
     int i, nfiles;
 
     if((fp = fopen(fileptr, "w")) == NULL)
@@ -420,8 +436,6 @@ static int ctl_refine_playlist(void)
 
 static int w32g_ext_control(int rc, int32 value)
 {
-    int i;
-
     switch(rc)
     {
       case RC_EXT_DROP:
@@ -528,8 +542,9 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
     w32g_play_active = 0;
     errcnt = 0;
 
-    if(play_mode->fd != -1 &&
-       w32g_nvalid_playlist() && (ctl.flags & CTLF_AUTOSTART))
+    if(w32g_nvalid_playlist() && (ctl.flags & CTLF_AUTOSTART))
+//    if(play_mode->fd != -1 &&
+//       w32g_nvalid_playlist() && (ctl.flags & CTLF_AUTOSTART))
 	rc = RC_LOAD_FILE;
     else
 	rc = RC_NONE;
@@ -561,7 +576,6 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		w32g_play_active = 1;
 		if(play_mode->fd == -1)
 		{
-		    int err;
 		    if(play_mode->open_output() == -1)
 		    {
 			ctl.cmsg(CMSG_FATAL, VERB_NORMAL,
@@ -574,12 +588,15 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		    aq_setup();
 		    timidity_init_aq_buff();
 		}
-		w32g_setcur_playlist();
+//		w32g_setcur_playlist();
 		if(play_mode->id_character == 'l')
 		    w32g_show_console();
 		if(!DocWndIndependent){
 			w32g_setup_doc(selected);
-		    w32g_open_doc(1);
+			if(DocWndAutoPopup)
+				w32g_open_doc(1);
+			else
+				w32g_open_doc(2);
 		}
 		{
 			char *p = w32g_get_playlist(selected);
@@ -608,8 +625,12 @@ static void ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 
 	  case RC_ERROR:
 	  case RC_TUNE_END:
+#if 0
 	    if(play_mode->id_character != 'd' ||
 	       (ctl.flags & CTLF_NOT_CONTINUE))
+#else
+	    if(ctl.flags & CTLF_NOT_CONTINUE)
+#endif
 		break;
 	    /* FALLTHROUGH */
 	  case RC_NEXT:

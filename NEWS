@@ -1,4 +1,8 @@
+12/27, 2001
     * Version 2.11.0 released.
+    * Configuration menu of Windows GUI was changed.
+    * Supported vorbis for Windows GUI version.
+    * Supported gogo for Windows GUI version.
     * (ncursese interface) Chaged from 3 to 4 digits in audio queue monitor.
     * (Sun audio): Enabled specify audio device file with AUDIODEV environment.
     * Updates Win32GUI version.

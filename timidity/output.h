@@ -166,6 +166,8 @@ extern int32 general_output_convert(int32 *buf, int32 count);
 extern int validate_encoding(int enc, int include_enc, int exclude_enc);
 extern const char *output_encoding_string(int enc);
 
+extern char *create_auto_output_name(const char *input_filename, char *ext_str, char *output_dir, int mode);
+
 #if defined(__W32__)
 #define FILE_OUTPUT_MODE	O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 0644
 #elif defined(__MACOS__)

@@ -330,12 +330,16 @@ static int acntl(int request, void *arg)
       case PM_REQ_GETFILLED:
 	if(ioctl(audioctl_fd, AUDIO_GETINFO, &auinfo) < 0)
 	    return -1;
+#ifdef __NetBSD__
+	*((int *)arg) = auinfo.play.seek;
+#else
 	if(auinfo.play.samples == play_samples_offset)
 	    return -1; /* auinfo.play.samples is not active */
 	i = output_counter;
 	if(!(dpm.encoding & PE_MONO)) i >>= 1;
 	if(dpm.encoding & PE_16BIT) i >>= 1;
 	*((int *)arg) = i - (auinfo.play.samples - play_samples_offset);
+#endif
 	return 0;
 
       case PM_REQ_GETSAMPLES:

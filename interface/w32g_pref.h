@@ -24,4 +24,73 @@
 extern volatile int PrefWndDoing;
 void PrefWndCreate(HWND hwnd);
 
+#ifdef AU_GOGO
+
+// ダイアログの情報をほとんどそのまま保存する。
+// コンボボックスについては Index は無意味なので値を保存する。
+typedef struct gogo_ConfigDialogInfo_t_ {
+	int optIDC_CHECK_DEFAULT;
+	int optIDC_CHECK_COMMANDLINE_OPTS;
+	char optIDC_EDIT_COMMANDLINE_OPTION[1024];
+	int optIDC_CHECK_OUTPUT_FORMAT;
+	int optIDC_COMBO_OUTPUT_FORMAT;
+	int optIDC_CHECK_MPEG1AUDIOBITRATE;
+	int optIDC_COMBO_MPEG1_AUDIO_BITRATE;
+	int optIDC_CHECK_MPEG2AUDIOBITRATE;
+	int optIDC_COMBO_MPEG2_AUDIO_BITRATE;
+	int optIDC_CHECK_ENHANCED_LOW_PASS_FILTER;
+	char optIDC_EDIT_LPF_PARA1[4];
+	char optIDC_EDIT_LPF_PARA2[4];
+	int optIDC_CHECK_ENCODE_MODE;
+	int optIDC_COMBO_ENCODE_MODE;
+	int optIDC_CHECK_EMPHASIS_TYPE;
+	int optIDC_COMBO_EMPHASIS_TYPE;
+	int optIDC_CHECK_OUTFREQ;
+	char optIDC_EDIT_OUTFREQ[6];
+	int optIDC_CHECK_MSTHRESHOLD;
+	char optIDC_EDIT_MSTHRESHOLD_THRESHOLD[4];
+	char optIDC_EDIT_MSTHRESHOLD_MSPOWER[4];
+	int optIDC_CHECK_USE_CPU_OPTS;
+	int optIDC_CHECK_CPUMMX;
+	int optIDC_CHECK_CPUSSE;
+	int optIDC_CHECK_CPU3DNOW;
+	int optIDC_CHECK_CPUE3DNOW;
+	int optIDC_CHECK_VBR;
+	int optIDC_COMBO_VBR;
+	int optIDC_CHECK_VBR_BITRATE;
+	int optIDC_COMBO_VBR_BITRATE_LOW;
+	int optIDC_COMBO_VBR_BITRATE_HIGH;
+	int optIDC_CHECK_USEPSY;
+	int optIDC_CHECK_VERIFY;
+	int optIDC_CHECK_16KHZ_LOW_PASS_FILTER;
+} gogo_ConfigDialogInfo_t;
+
+extern volatile gogo_ConfigDialogInfo_t gogo_ConfigDialogInfo;
+
+extern int gogo_ConfigDialogInfoInit(void);
+extern int gogo_ConfigDialogInfoApply(void);
+extern int gogo_ConfigDialogInfoSaveINI(void);
+extern int gogo_ConfigDialogInfoLoadINI(void);
+extern int gogoConfigDialog(void);
+
+#endif // AU_GOGO
+
+#ifdef AU_VORBIS
+
+typedef struct vorbis_ConfigDialogInfo_t_ {
+	int optIDC_CHECK_DEFAULT;
+	int optIDC_COMBO_MODE;
+} vorbis_ConfigDialogInfo_t;
+
+
+extern int vorbis_ConfigDialogInfoInit(void);
+extern int vorbis_ConfigDialogInfoApply(void);
+extern int vorbis_ConfigDialogInfoSaveINI(void);
+extern int vorbis_ConfigDialogInfoLoadINI(void);
+
+extern int vorbisConfigDialog(void);
+
+#endif // AU_VORBIS
+
+
 #endif /* __W32G2_PREF_H__ */

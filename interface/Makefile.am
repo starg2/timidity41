@@ -177,8 +177,7 @@ EXTRA_DIST = \
 	interface_i.txt \
 	interface_m.txt \
 	interface_n.txt \
-	interface_s.txt \
-	w32g_res_jp.rc
+	interface_s.txt
 
 .ptcl.tcl:
 	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@
@@ -312,6 +311,8 @@ endif
 
 clean-compile:
 	-rm -f *.$(so)
+	-rm -f *.res
+	-rm -f *.RES
 
 install-exec-local: $(install_tk) $(install_xaw) $(install_el) $(install_dynamics)
 ########## End of Makefile

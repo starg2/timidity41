@@ -12,6 +12,8 @@
 #define IDD_PREF_TIMIDITY4_EN           110
 #define IDD_DIALOG_MAIN_EN              111
 #define IDM_MENU_MAIN_EN                112
+#define IDD_DIALOG_VORBIS_EN            113
+#define IDD_DIALOG_GOGO_EN              114
 #define IDC_CHECK_SEACHDIRRECURSIVE     1001
 #define IDC_CHECK_DOCWNDINDEPENDENT     1002
 #define IDC_CHECK_INIFILE_AUTOSAVE      1003

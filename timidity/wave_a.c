@@ -88,6 +88,11 @@ PlayMode dpm = {
 static uint32 bytes_output, next_bytes;
 static int already_warning_lseek;
 
+#ifdef __W32G__
+extern char *w32g_output_dir;
+extern int w32g_auto_output_mode;
+#endif
+
 /*************************************************************************/
 
 static char *orig_RIFFheader=
@@ -183,30 +188,16 @@ static int wav_output_open(const char *fname)
 
 static int auto_wav_output_open(const char *input_filename)
 {
-  char *output_filename = (char *)safe_malloc(strlen(input_filename) + 5);
-  char *ext, *p;
+  char *output_filename;
 
-  strcpy(output_filename, input_filename);
-  if((ext = strrchr(output_filename, '.')) == NULL)
-    ext = output_filename + strlen(output_filename);
-  else {
-    /* strip ".gz" */
-    if(strcasecmp(ext, ".gz") == 0) {
-      *ext = '\0';
-      if((ext = strrchr(output_filename, '.')) == NULL)
-	ext = output_filename + strlen(output_filename);
-    }
+#ifndef __W32G__
+  output_filename = create_auto_output_name(input_filename,"wav",NULL,0);
+#else
+  output_filename = create_auto_output_name(input_filename,"wav",w32g_output_dir,w32g_auto_output_mode);
+#endif
+  if(output_filename==NULL){
+	  return -1;
   }
-
-  /* replace '.' and '#' before ext */
-  for(p = output_filename; p < ext; p++)
-    if(*p == '.' || *p == '#')
-      *p = '_';
-
-  if(*ext && isupper(*(ext + 1)))
-    strcpy(ext, ".WAV");
-  else
-    strcpy(ext, ".wav");
   if((dpm.fd = wav_output_open(output_filename)) == -1) {
     free(output_filename);
     return -1;
@@ -239,6 +230,7 @@ static int open_output(void)
 
     dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
+#ifndef __W32G__
     if(dpm.name == NULL) {
       dpm.flag |= PF_AUTO_SPLIT_FILE;
       dpm.name = NULL;
@@ -247,6 +239,16 @@ static int open_output(void)
       if((dpm.fd = wav_output_open(dpm.name)) == -1)
 	return -1;
     }
+#else
+	if(w32g_auto_output_mode>0){
+      dpm.flag |= PF_AUTO_SPLIT_FILE;
+      dpm.name = NULL;
+    } else {
+      dpm.flag &= ~PF_AUTO_SPLIT_FILE;
+      if((dpm.fd = wav_output_open(dpm.name)) == -1)
+		return -1;
+    }
+#endif
 
     /* Reset the length counter */
     bytes_output = 0;

@@ -1,6 +1,42 @@
+2001-12-27  Masanao Izumo <mo@goice.co.jp>
+
+	* Version 2.11.0 released.
+
+2001-12-27  Masanao Izumo <mo@goice.co.jp>
+
+	* timidity/{wave_a.c,output.c}: Move create_auto_output_name() from
+	  wave_a.c to output.c.
+	* interface/{w32g_vorbisenc_dll.c,w32g_vorbis_dll.c,w32g_ogg_dll.c},
+	  timidity/{w32g_vorbisenc_dll.c,w32g_vorbis_dll.c,w32g_ogg_dll.c},
+	  Move them from interface to timidity.
+
+2001-12-26  Saito <timidity@flashmail.com>
+
+	* timidity/sndfont.c: Bug fixed about LFO.
+
+2001-12-26  Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at>
+
+	* timidity/sun_a.c: Fixed the way to find the audio queue size
+	  on NetBSD.
+
+2001-12-26  Masanao Izumo <mo@goice.co.jp>
+            Daisuke Aoki <dai@sweetparty.ne.jp>
+
+	* timidity/{timidity.c,wave_a.c,w32_gogo.h,w32_gogo.c,vorbis_a.c,
+	  sndfont.c,output.c,gogo_a.h,gogo_a.c,audriv_none.c,audriv_a.c},
+	  interface/{w32g_i.c,w32g_res.h,w32g_vorbisenc_dll.c,w32g_pref.c,
+	  w32g_vorbis_dll.c,w32g_ogg_dll.c,w32g_utl.c,w32g_ut2.c,w32g_subwin.h,
+	  w32g_subwin.c,w32g_pref.h,w32g_c.c,w32g.h}:
+	  - Marge windows code.
+	  - Update windows resource.
+
 2001-12-25  Masanao Izumo <mo@goice.co.jp>
 
 	* timidity/w32_a.c: Close&Open to reset/flush the audio device.
+
+2001-12-23  Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at>
+
+	* doc/C/timidity.1: Updated.
 
 2001-12-23  Masanao Izumo <mo@goice.co.jp>
 

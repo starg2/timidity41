@@ -256,18 +256,28 @@
 /* Define if you have the socket library (-lsocket).  */
 #undef HAVE_LIBSOCKET
 
+/* Define if you have the vorbis library (-lvorbis).  */
+#define HAVE_LIBVORBIS
+
+/* Define if you have the vorbis library (-lgogo).  */
+#define HAVE_LIBGOGO
+
 /* Define if you havee the <mmsystem.h> header file for Win32. */
 #define HAVE_MMSYSTEM_H
 
 /* In VDS Macro AAA=BBB is not available. */
 #define __W32__
-#define TIMID_VERSION	"2.11.0-pre5"
+#define TIMID_VERSION	"2.11.0"
 #define DEFAULT_PATH	".\\"
 #define AU_W32
+#define AU_VORBIS
+#define AU_GOGO
 #define WINSOCK
 #define __W32READDIR__
 // #define URL_DIR_CACHE_ENABLE
 #define ANOTHER_MAIN
+#define __W32G__	/* for Win32 GUI */
+#define SUPPORT_SOCKET
 /*
   for Visual Studio Project Option 
   LIB: mmsystem.lib comdlg32.lib

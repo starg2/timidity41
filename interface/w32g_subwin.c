@@ -88,6 +88,8 @@ extern void PrintfEditCtlWnd(HWND hwnd, char *fmt, ...);
 extern void PutsEditCtlWnd(HWND hwnd, char *str);
 extern void ClearEditCtlWnd(HWND hwnd);
 
+extern char *nkf_convert(char *si,char *so,int maxsize,char *in_mode,char *out_mode);
+
 // ***************************************************************************
 //
 // Console Window
@@ -343,6 +345,7 @@ void InitListWnd(HWND hParentWnd)
 
 	ListWndInfo.hPopupMenu = CreatePopupMenu();
 	AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"Play");
+	AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,"Doc");
 	AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
 	AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"Remove");
 	AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
@@ -360,6 +363,7 @@ void InitListWnd(HWND hParentWnd)
 
 void SetNumListWnd(int cursel, int nfiles);
 
+#define WM_CHOOSEFONT_DIAG	(WM_APP+100)
 static BOOL CALLBACK
 ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
@@ -376,18 +380,33 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_SETCURSOR:
 		switch(HIWORD(lParam)){
 		case WM_RBUTTONDOWN:
-			{
+			if(LOWORD(lParam)!=HTCAPTION){	// タイトルバーにないとき
 				POINT point;
+				int res;
 				GetCursorPos(&point);
-				TrackPopupMenu(ListWndInfo.hPopupMenu,TPM_TOPALIGN|TPM_LEFTALIGN,
+				res = TrackPopupMenu(ListWndInfo.hPopupMenu,TPM_TOPALIGN|TPM_LEFTALIGN,
 					point.x,point.y,0,hwnd,NULL);
+				return TRUE;
 			}
 			break;
 		default:
 			break;
 		}
 		break;
-		case WM_COMMAND:
+	case WM_CHOOSEFONT_DIAG:
+		{
+			char fontName[64];
+			int fontHeight;
+			int fontWidth;
+			strcpy(fontName,ListWndInfo.fontName);
+			fontHeight = ListWndInfo.fontHeight;
+			fontWidth = ListWndInfo.fontWidth;
+			if(DlgChooseFont(hwnd,fontName,&fontHeight,&fontWidth)==0){
+				ListWndSetFontListBox(fontName,fontWidth,fontHeight);
+			}
+		}
+		break;
+	case WM_COMMAND:
 			switch (HIWORD(wParam)) {
 			case IDCLOSE:
 				ShowWindow(hwnd, SW_HIDE);
@@ -444,15 +463,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				return FALSE;
 			case IDM_LISTWND_CHOOSEFONT:
 				{
-					char fontName[64];
-					int fontHeight;
-					int fontWidth;
-					strcpy(fontName,ListWndInfo.fontName);
-					fontHeight = ListWndInfo.fontHeight;
-					fontWidth = ListWndInfo.fontWidth;
-					if(DlgChooseFont(hwnd,fontName,&fontHeight,&fontWidth)==0){
-						ListWndSetFontListBox(fontName,fontWidth,fontHeight);
-					}
+ 					SendMessage(hwnd,WM_CHOOSEFONT_DIAG,0,0);
 				}
 				return FALSE;
 			default:
@@ -818,6 +829,7 @@ WrdWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 #define IDM_DOCWND_CHOOSEFONT 4232
 int DocWndIndependent = 0; /* Independent document viewer mode.(独立ドキュメントビュワーモード) */
+int DocWndAutoPopup = 0;
 DOCWNDINFO DocWndInfo;
 
 static BOOL CALLBACK DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
@@ -1507,12 +1519,13 @@ SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 void w32g_open_doc(int close_if_no_doc)
 {
-	if(close_if_no_doc && DocWndInfo.DocFileMax <= 0)
+	if(close_if_no_doc==1 && DocWndInfo.DocFileMax <= 0)
 		ShowSubWindow(hDocWnd, 0);
 	else
 	{
 		DocWndReadDoc(1);
-		ShowSubWindow(hDocWnd, 1);
+		if(close_if_no_doc!=2)
+			ShowSubWindow(hDocWnd, 1);
 	}
 }
 

@@ -17,7 +17,7 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-    ogg_a.c
+    vorbis_a.c
 
     Functions to output Ogg Vorbis (*.ogg).
 */
@@ -25,11 +25,20 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+#include "interface.h"
 #include <stdio.h>
 
-#ifdef __W32__
+#ifdef AU_VORBIS_DLL
 #include <stdlib.h>
 #include <io.h>
+#include <ctype.h>
+#include <time.h>
+extern int load_ogg_dll(void);
+extern void free_ogg_dll(void);
+extern int load_vorbis_dll(void);
+extern void free_vorbis_dll(void);
+extern int load_vorbisenc_dll(void);
+extern void free_vorbisenc_dll(void);
 #endif
 
 #ifdef HAVE_UNISTD_H
@@ -80,8 +89,51 @@ static	vorbis_info	 vi; /* struct that stores all the static vorbis bitstream
 				settings */
 static	vorbis_comment	 vc; /* struct that stores all the user comments */
 
+#ifdef IA_W32GUI
+extern char *w32g_output_dir;
+extern int w32g_auto_output_mode;
+extern int vorbis_ConfigDialogInfoApply(void);
+int ogg_vorbis_mode = 0;	/* initial mode. */
+#endif
+
 /*************************************************************************/
 
+#ifdef IA_W32GUI
+static int
+choose_bitrate(int nch, int rate)
+{
+  int bitrate;
+
+  /* choose an encoding mode */
+  /* (mode 0: -> mode2 */
+  /* (mode 1: 44kHz stereo uncoupled, N/A\n */
+  /* (mode 2: 44kHz stereo uncoupled, roughly 128kbps VBR) */
+  /* (mode 3: 44kHz stereo uncoupled, roughly 160kbps VBR) */
+  /* (mode 4: 44kHz stereo uncoupled, roughly 192kbps VBR) */
+  /* (mode 5: 44kHz stereo uncoupled, roughly 256kbps VBR) */
+  /* (mode 6: 44kHz stereo uncoupled, roughly 350kbps VBR) */
+
+  switch (ogg_vorbis_mode) {
+  case 0:
+    bitrate = 128 * 1000; break;
+  case 1:
+    bitrate = 112 * 1000; break;
+  case 2:
+    bitrate = 128 * 1000; break;
+  case 3:
+    bitrate = 160 * 1000; break;
+  case 4:
+    bitrate = 192 * 1000; break;
+  case 5:
+    bitrate = 256 * 1000; break;
+  case 6:
+    bitrate = 350 * 1000; break;
+  default:
+    bitrate = 160 * 1000; break;
+  }
+  return bitrate;
+}
+#else
 static int
 choose_bitrate(int nch, int rate)
 {
@@ -92,12 +144,29 @@ choose_bitrate(int nch, int rate)
 
   return target;
 }
+#endif
 
 static int ogg_output_open(const char *fname, const char *comment)
 {
   int fd;
   int nch;
   int bitrate;
+
+#ifdef AU_VORBIS_DLL
+  {
+	  int flag = 0;
+		if(!load_ogg_dll())
+			if(!load_vorbis_dll())
+				if(!load_vorbisenc_dll())
+					flag = 1;
+		if(!flag){
+			free_ogg_dll();
+			free_vorbis_dll();
+			free_vorbisenc_dll();
+			return -1;
+		}
+  }
+#endif
 
   if(strcmp(fname, "-") == 0) {
     fd = 1; /* data to stdout */
@@ -114,6 +183,10 @@ static int ogg_output_open(const char *fname, const char *comment)
     if(comment == NULL)
       comment = fname;
   }
+
+#ifdef IA_W32GUI
+  vorbis_ConfigDialogInfoApply();
+#endif
 
   nch = (dpm.encoding & PE_MONO) ? 1 : 2;
 
@@ -171,32 +244,25 @@ static int ogg_output_open(const char *fname, const char *comment)
   return fd;
 }
 
+/* mode
+  0,1: Default mode.
+  2: Remove the directory path of input_filename, then add output_dir.
+  3: Replace directory separator characters ('/','\',':') with '_', then add output_dir.
+ */
+extern char *create_auto_output_name(const char *input_filename, char *ext_str, char *output_dir, int mode);
+
 static int auto_ogg_output_open(const char *input_filename)
 {
-  char *output_filename = (char *)safe_malloc(strlen(input_filename) + 5);
-  char *ext, *p;
+  char *output_filename;
 
-  strcpy(output_filename, input_filename);
-  if((ext = strrchr(output_filename, '.')) == NULL)
-    ext = output_filename + strlen(output_filename);
-  else {
-    /* strip ".gz" */
-    if(strcasecmp(ext, ".gz") == 0) {
-      *ext = '\0';
-      if((ext = strrchr(output_filename, '.')) == NULL)
-	ext = output_filename + strlen(output_filename);
-    }
+#ifndef IA_W32GUI
+  output_filename = create_auto_output_name(input_filename,"ogg",NULL,0);
+#else
+  output_filename = create_auto_output_name(input_filename,"ogg",w32g_output_dir,w32g_auto_output_mode);
+#endif
+  if(output_filename==NULL){
+	  return -1;
   }
-
-  /* replace '.' and '#' before ext */
-  for(p = output_filename; p < ext; p++)
-    if(*p == '.' || *p == '#')
-      *p = '_';
-
-  if(*ext && isupper(*(ext + 1)))
-    strcpy(ext, ".OGG");
-  else
-    strcpy(ext, ".ogg");
   if((dpm.fd = ogg_output_open(output_filename, input_filename)) == -1) {
     free(output_filename);
     return -1;
@@ -221,6 +287,7 @@ static int open_output(void)
   exclude_enc |= PE_BYTESWAP;
   dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
+#ifndef IA_W32GUI
   if(dpm.name == NULL) {
     dpm.flag |= PF_AUTO_SPLIT_FILE;
     dpm.name = NULL;
@@ -229,6 +296,16 @@ static int open_output(void)
     if((dpm.fd = ogg_output_open(dpm.name, NULL)) == -1)
       return -1;
   }
+#else
+	if(w32g_auto_output_mode>0){
+      dpm.flag |= PF_AUTO_SPLIT_FILE;
+      dpm.name = NULL;
+    } else {
+      dpm.flag &= ~PF_AUTO_SPLIT_FILE;
+      if((dpm.fd = ogg_output_open(dpm.name,NULL)) == -1)
+		return -1;
+    }
+#endif
 
   return 0;
 }
@@ -241,6 +318,9 @@ static int output_data(char *readbuffer, int32 bytes)
   int nsamples = bytes / (2 * ch);
   ogg_page   og; /* one Ogg bitstream page.  Vorbis packets are inside */
   ogg_packet op; /* one raw packet of data for decode */
+
+  if (dpm.fd<0)
+    return 0;
 
   /* data to encode */
 
@@ -322,7 +402,16 @@ static void close_output(void)
   ogg_stream_clear(&os);
   vorbis_block_clear(&vb);
   vorbis_dsp_clear(&vd);
+  vorbis_comment_clear(&vc);
+  vorbis_info_clear(&vi);
   close(dpm.fd);
+
+#ifdef AU_VORBIS_DLL
+  free_ogg_dll();
+  free_vorbis_dll();
+  free_vorbisenc_dll();
+#endif
+
   dpm.fd = -1;
 }
 

@@ -3233,7 +3233,6 @@ int main(int argc, char **argv)
     int nfiles;
     char **files;
 
-
 #if defined(DANGEROUS_RENICE) && !defined(__W32__) && !defined(main)
     /*
      * THIS CODES MUST EXECUT BEGINNING OF MAIN FOR SECURITY.
@@ -3245,6 +3244,10 @@ int main(int argc, char **argv)
     extern int setpriority(int which, id_t who, int prio);
     extern int setreuid(int ruid, int euid);
 #endif
+
+puts("#### WINMAIN");
+sleep(3);
+
     uid = getuid();
     if(setpriority(PRIO_PROCESS, 0, DANGEROUS_RENICE) < 0)
     {

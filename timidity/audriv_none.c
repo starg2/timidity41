@@ -197,6 +197,9 @@ int audriv_get_play_output(void)
     return output_port;
 }
 
+#ifdef CFG_FOR_SF
+static int record_volume = 0;
+#endif
 int audriv_get_record_volume(void)
 /* 録音音量を 0 〜 255 内で得ます．0 は無音，255 は最大音量．
  * 失敗すると -1 を返し，そうでない場合は 0 〜 255 内の音量を返します．

@@ -26,10 +26,14 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 #include <fcntl.h>
 #include <stdio.h>
+#ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
+#endif /* HAVE_SYS_IOCTL_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else

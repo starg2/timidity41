@@ -54,6 +54,7 @@ int WINAPI timeKillEvent(UINT uTimerID);
 #else
 #include <strings.h>
 #endif
+#include <shlobj.h>
 
 #include <windowsx.h>	/* There is no <windowsx.h> on CYGWIN.
 			 * Edit_* and ListBox_* are defined in
@@ -257,6 +258,7 @@ LPSTR lpCmdLine, int nCmdShow)
 {
 	int argc;
 	CHAR **argv = NULL;
+puts("#### WINMAIN");
 	CmdLineToArgv(lpCmdLine,&argc,&argv);
 #if 0
 	FirstLoadIniFile();
@@ -337,7 +339,7 @@ static LRESULT CALLBACK StartWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARA
 void InitStartWnd(int nCmdShow)
 {
 	WNDCLASS wndclass ;
-	wndclass.style         = CS_HREDRAW | CS_VREDRAW ;
+	wndclass.style         = CS_HREDRAW | CS_VREDRAW | CS_CLASSDC;
 	wndclass.lpfnWndProc   = StartWinProc ;
 	wndclass.cbClsExtra    = 0 ;
 	wndclass.cbWndExtra    = 0 ;
@@ -428,7 +430,10 @@ void OnHide(void);
 static void InitMainWnd(HWND hParentWnd)
 {
 	HICON hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY));
-	hMainWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_MAIN),hParentWnd,MainProc);
+	if (PlayerLanguage == LANGUAGE_JAPANESE)
+	  hMainWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_MAIN),hParentWnd,MainProc);
+	else
+	  hMainWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_MAIN_EN),hParentWnd,MainProc);
 	if (hIcon!=NULL) SendMessage(hMainWnd,WM_SETICON,FALSE,(LPARAM)hIcon);
 	{  // Set the title of the main window again.
    	char buffer[256];
@@ -1211,7 +1216,7 @@ static void InitCanvasWnd(HWND hwnd)
 {
 	WNDCLASS wndclass ;
 	hCanvasWnd = 0;
-	wndclass.style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
+	wndclass.style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS | CS_CLASSDC;
 	wndclass.lpfnWndProc   = CanvasWndProc ;
 	wndclass.cbClsExtra    = 0 ;
 	wndclass.cbWndExtra    = 0 ;
@@ -1382,6 +1387,8 @@ static int CanvasOK = 0;
 static void CanvasInit(HWND hwnd)
 {
 	RECT rc;
+
+	gdi_lock(); // gdi_lock
 	Canvas.hwnd = hwnd;
 	Canvas.hParentWnd = GetParent(Canvas.hwnd);
 	GetClientRect(Canvas.hParentWnd,&rc);
@@ -1408,10 +1415,10 @@ static void CanvasInit(HWND hwnd)
 	Canvas.MapDelay = 1;
 	Canvas.MapResidual = 0;
 	Canvas.MapMode = CMAP_MODE_16;
-//	Canvas.MapMode = CMAP_MODE_32;
+	//	Canvas.MapMode = CMAP_MODE_32;
 	Canvas.MapBarMax = 16;
-//	Canvas.CKNoteFrom = 24;
-//   Canvas.CKNoteTo = 24 + 96;
+	//	Canvas.CKNoteFrom = 24;
+	//   Canvas.CKNoteTo = 24 + 96;
 	Canvas.CKNoteFrom = 12;
    Canvas.CKNoteTo = Canvas.CKNoteFrom + 96 + 3;
 	Canvas.CKCh = 16;
@@ -1421,6 +1428,7 @@ static void CanvasInit(HWND hwnd)
 	Canvas.PaintDone = 0;
 	CanvasReset();
 	CanvasOK = 1;
+	gdi_unlock(); // gdi_lock
 }
 
 // Canvas Map
@@ -1432,6 +1440,7 @@ static void CanvasMapClear(void)
 	HGDIOBJ hgdiobj_hpen, hgdiobj_hbrush;
 	if(!CanvasOK)
    	return;
+	gdi_lock(); // gdi_lock
 	hPen = CreatePen(PS_SOLID,1,CanvasColor(CC_BACK));
 	hBrush = CreateSolidBrush(CanvasColor(CC_BACK));
 	hgdiobj_hpen = SelectObject(Canvas.hmdc, hPen);
@@ -1443,6 +1452,7 @@ static void CanvasMapClear(void)
 	SelectObject(Canvas.hmdc, hgdiobj_hbrush);
 	DeleteObject(hBrush);
 	InvalidateRect(hCanvasWnd, NULL, FALSE);
+	gdi_unlock(); // gdi_lock
 }
 
 static void CanvasMapReset(void)
@@ -1455,7 +1465,7 @@ static void CanvasMapReset(void)
 		Canvas.MapCh = 32;
 #ifdef MAPBAR_LIKE_TIMIDI
 		Canvas.MapBarWidth = 5;
-		Canvas.MapBarMax = 10;
+		Canvas.MapBarMax = 10+1;
 		Canvas.rcMapMap.bottom = Canvas.rcMapMap.top + 3*Canvas.MapBarMax*2 + 6 - 1;
 #else
   		Canvas.MapBarWidth = 2;
@@ -1507,25 +1517,17 @@ static void CanvasMapReadPanelInfo(int flag)
 	Canvas.DrumChannel = drumchannels;
 	for(ch=0;ch<Canvas.MapCh;ch++){
 		Canvas.MapBarOld[ch] = Canvas.MapBar[ch];
-		if(Panel->v_flags[ch] == FLAG_NOTE_ON)
+		if(Panel->v_flags[ch] == FLAG_NOTE_ON){
 #if 0
   			v = Panel->ctotal[ch]/8;
 #else
 			v = (int) Panel->ctotal[ch] * Canvas.MapBarMax / 128;
 #endif
-		else
-    		v = 0;
-		if(v<0) v = 0; else if(v>Canvas.MapBarMax-1) v = Canvas.MapBarMax-1;
-#if 0		// 振動
-		if(v == Canvas.MapBar[ch]){
-			v = v * (rand()%7 + 7) / 10;
-      if(v<0)
+		} else {
       	v = 0;
 		}
-    	{
-#else
+		if(v<0) v = 0; else if(v>Canvas.MapBarMax-1) v = Canvas.MapBarMax-1;
 		if(v != Canvas.MapBar[ch]){
-#endif
 			// 遅延
 	    	if(Canvas.MapDelay){
    	  		int old = Canvas.MapBar[ch];
@@ -1644,7 +1646,8 @@ static void CanvasMapUpdate(int flag)
 	CanvasMapDrawMapBar(flag);
    if(Canvas.UpdateAll)
    	flag = 1;
-	if(PInfoOK && Canvas.MapMode==CMAP_MODE_16)
+	gdi_lock(); // gdi_lock
+	if(PInfoOK && Canvas.MapMode==CMAP_MODE_16){
    if(flag || Panel->changed){
 		int ch;
 		for(ch=0;ch<Canvas.MapCh;ch++){
@@ -1666,9 +1669,10 @@ static void CanvasMapUpdate(int flag)
 			// PAN
          rc.top = Canvas.rcMapSub.top;
          rc.bottom = rc.top + 3 - 1;
-			for(x=rc.left;x<=rc.right;x++)
+				for(x=rc.left;x<=rc.right;x++){
 				for(y=rc.top;y<=rc.bottom;y++)
         			SetPixelV(Canvas.hmdc,x,y,colorBG);
+				}
 			if(Canvas.MapPan[ch]>=0){
 				x = rc.left + Canvas.MapPan[ch];
 				for(y=rc.top;y<=rc.bottom;y++)
@@ -1677,14 +1681,16 @@ static void CanvasMapUpdate(int flag)
          // SUSTAIN
          rc.top = rc.bottom + 2;
          rc.bottom = rc.top + 2 - 1;
-         if(Canvas.MapSustain[ch])
-				for(x=rc.left;x<=rc.right;x++)
+				if(Canvas.MapSustain[ch]){
+					for(x=rc.left;x<=rc.right;x++){
 					for(y=rc.top;y<=rc.bottom;y++)
         				SetPixelV(Canvas.hmdc,x,y,colorFG);
-			else
-				for(x=rc.left;x<=rc.right;x++)
+					}
+				} else {
+					for(x=rc.left;x<=rc.right;x++){
 					for(y=rc.top;y<=rc.bottom;y++)
         				SetPixelV(Canvas.hmdc,x,y,colorBG);
+					}
          // EXPRESSION
          rc.top = rc.bottom + 2;
          rc.bottom = rc.top + 2 - 1;
@@ -1712,9 +1718,10 @@ static void CanvasMapUpdate(int flag)
          // PITCH_BEND
          rc.top = rc.bottom + 2;
          rc.bottom = rc.top + 3 - 1;
-			for(x=rc.left;x<=rc.right;x++)
+					for(x=rc.left;x<=rc.right;x++){
 				for(y=rc.top;y<=rc.bottom;y++)
         			SetPixelV(Canvas.hmdc,x,y,colorBG);
+					}
          if(Canvas.MapPitchbend[ch]==-2){
          	y = rc.top + 1;
 				for(x=rc.left;x<=rc.right;x++)
@@ -1744,7 +1751,9 @@ static void CanvasMapUpdate(int flag)
 		 			SetPixelV(Canvas.hmdc,x,y,colorFG);
          }
       }
-  		InvalidateRect(hCanvasWnd,(RECT *)&(Canvas.rcMapSub),FALSE);
+      }
+	 		InvalidateRect(hCanvasWnd,(RECT *)&(Canvas.rcMapSub),FALSE);
+   }
    }
 	if(!Canvas.MapResidual && !flag)
    	return;
@@ -1767,7 +1776,7 @@ static void CanvasMapUpdate(int flag)
    	}
 	}
 #else
-	if(Canvas.MapMode==CMAP_MODE_16)
+	if(Canvas.MapMode==CMAP_MODE_16){
 	for(i=0;i<Canvas.MapCh;i++){
 		for(j=0;j<Canvas.MapBarMax;j++){
 			if(Canvas.MapMap[i][j]!=Canvas.MapMapOld[i][j] || flag){
@@ -1777,14 +1786,15 @@ static void CanvasMapUpdate(int flag)
 				rc.right = rc.left -1 + Canvas.MapBarWidth;
 				rc.top = Canvas.rcMap.top + (2 + 1) * j;
 				rc.bottom = rc.top -1 + 2;
-				for(x=rc.left;x<=rc.right;x++)
+					for(x=rc.left;x<=rc.right;x++){
 					for(y=rc.top;y<=rc.bottom;y++)
           			SetPixelV(Canvas.hmdc,x,y,color);
+					}
 				change_flag = 1;
     		}
    		}
 	}
-	else
+	} else {
 	for(i=0;i<Canvas.MapCh;i++){
 		for(j=0;j<Canvas.MapBarMax;j++){
 			if(Canvas.MapMap[i][j]!=Canvas.MapMapOld[i][j] || flag){
@@ -1793,12 +1803,12 @@ static void CanvasMapUpdate(int flag)
 				if(i<=15){
 					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * i;
 					rc.right = rc.left -1 + Canvas.MapBarWidth;
-					rc.top = 3 + Canvas.rcMap.top + (2 + 1) * j;
+						rc.top = -1 + Canvas.rcMap.top + (2 + 1) * j;
 					rc.bottom = rc.top -1 + 2;
 				} else {
 					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * (i-16);
 					rc.right = rc.left -1 + Canvas.MapBarWidth;
-					rc.top = 3 + Canvas.rcMap.top + (2 + 1) * j + Canvas.MapBarMax*(2+1) + 3 ;
+						rc.top = -1 + Canvas.rcMap.top + (2 + 1) * j + Canvas.MapBarMax*(2+1) + 2 ;
 					rc.bottom = rc.top -1 + 2;
 				}
 				for(x=rc.left;x<=rc.right;x++)
@@ -1807,6 +1817,7 @@ static void CanvasMapUpdate(int flag)
 				change_flag = 1;
     		}
    		}
+	}
 	}
 #endif
 #ifdef CMAP_ALL_UPDATE
@@ -1820,6 +1831,7 @@ static void CanvasMapUpdate(int flag)
 		InvalidateRect(hCanvasWnd,NULL,FALSE);
 	if(Canvas.MapResidual<0)
 		Canvas.MapResidual = 0;
+	gdi_unlock(); // gdi_lock
 }
 
 static void CanvasSleepClear(void)
@@ -1828,6 +1840,7 @@ static void CanvasSleepClear(void)
 	HPEN hPen;
 	HBRUSH hBrush;
 	HGDIOBJ hgdiobj_hpen, hgdiobj_hbrush;
+	gdi_lock(); // gdi_lock
 	hPen = CreatePen(PS_SOLID,1,GetSysColor(COLOR_SCROLLBAR));
 	hBrush = CreateSolidBrush(GetSysColor(COLOR_SCROLLBAR));
 	hgdiobj_hpen = SelectObject(Canvas.hmdc, hPen);
@@ -1839,6 +1852,7 @@ static void CanvasSleepClear(void)
 	SelectObject(Canvas.hmdc, hgdiobj_hbrush);
 	DeleteObject(hBrush);
 	InvalidateRect(hCanvasWnd, NULL, FALSE);
+	gdi_unlock(); // gdi_lock
 }
 
 static void CanvasSleepReset(void)
@@ -1857,6 +1871,7 @@ static void CanvasSleepUpdate(int flag)
 	RECT rc;
 	int x,y;
 	CanvasSleepReset();
+	gdi_lock(); // gdi_lock
    hdc = CreateCompatibleDC(Canvas.hmdc);
 	SelectObject(hdc,Canvas.hBitmapSleep);
 	GetClientRect(Canvas.hwnd, &rc);
@@ -1866,6 +1881,7 @@ static void CanvasSleepUpdate(int flag)
 	if(y<0) y = 0;
 	BitBlt(Canvas.hmdc,x,y,Canvas.rcSleep.right,Canvas.rcSleep.bottom,hdc,0,0,SRCCOPY);
 	DeleteDC(hdc);
+	gdi_unlock(); // gdi_lock
 }
 
 
@@ -1929,6 +1945,7 @@ static void CanvasKeyboardUpdate(int flag)
    	return;
 	ChFrom = (Canvas.CKPart - 1) * Canvas.CKCh;
 	ChTo = Canvas.CKPart * Canvas.CKCh - 1;
+	gdi_lock(); // gdi_lock
 	for(channel=ChFrom;channel<=ChTo;channel++){
 		int change_flag = 0;
 		int drumflag = IS_SET_CHANNELMASK(drumchannels,channel);
@@ -2007,6 +2024,7 @@ static void CanvasKeyboardUpdate(int flag)
 	if(flag)
 		InvalidateRect(hCanvasWnd, NULL, FALSE);
 	Canvas.DrumChannel = drumchannels;
+	gdi_unlock(); // gdi_lock
 }
 
 static void CanvasKeyboardClear(void)
@@ -2022,6 +2040,7 @@ static void CanvasKeyboardClear(void)
 	char buffer[16];
 	if(!CanvasOK)
    	return;
+ 	gdi_lock(); // gdi_lock
 #if 0
 	hPen = CreatePen(PS_SOLID,1,CanvasColor(CC_BACK));
 	hBrush = CreateSolidBrush(CanvasColor(CC_BACK));
@@ -2078,6 +2097,7 @@ static void CanvasKeyboardClear(void)
 	CanvasKeyboardReadPanelInfo(1);
 	CanvasKeyboardUpdate(1);
 	InvalidateRect(hCanvasWnd, NULL, FALSE);
+	gdi_unlock(); // gdi_lock
 }
 
 // Canvas All
@@ -2086,10 +2106,12 @@ static void CanvasPaintDo(void)
 {
 	PAINTSTRUCT ps;
 	RECT rc;
+	gdi_lock(); // gdi_lock
 	Canvas.hdc = BeginPaint(Canvas.hwnd, &ps);
 	GetClientRect(Canvas.hwnd, &rc);
 	BitBlt(Canvas.hdc,rc.left,rc.top,rc.right,rc.bottom,Canvas.hmdc,0,0,SRCCOPY);
 	EndPaint(Canvas.hwnd, &ps);
+	gdi_unlock(); // gdi_lock
 }
 void CanvasPaint(void)
 {
@@ -2098,7 +2120,9 @@ void CanvasPaint(void)
 }
 void CanvasPaintAll(void)
 {
+	gdi_lock(); // gdi_lock
 	InvalidateRect(hCanvasWnd, NULL, FALSE);
+	gdi_unlock(); // gdi_lock
 	CanvasPaint();
 }
 
@@ -2113,8 +2137,8 @@ void CanvasReset(void)
 		case CANVAS_MODE_KEYBOARD:
 			CanvasKeyboardReset();
 			break;
-		default:
 		case CANVAS_MODE_SLEEP:
+		default:
 			CanvasSleepReset();
       break;
   }
@@ -2304,6 +2328,7 @@ struct MPanel_ {
 	long UpdateFlag;
 	COLORREF FGColor;
 	COLORREF BGColor;
+	COLORREF BGBGColor;
 	enum play_system_modes play_system_mode;
 	int current_file_info_file_type;
 	int current_file_info_max_channel;
@@ -2321,7 +2346,7 @@ static void InitPanelWnd(HWND hwnd)
 {
 	WNDCLASS wndclass ;
 	hPanelWnd = 0;
-	wndclass.style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
+	wndclass.style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS | CS_CLASSDC;
 	wndclass.lpfnWndProc   = PanelWndProc ;
 	wndclass.cbClsExtra    = 0 ;
 	wndclass.cbWndExtra    = 0 ;
@@ -2373,6 +2398,7 @@ volatile int MPanelOK = 0;
 static void MPanelInit(HWND hwnd)
 {
 	RECT rc;
+	gdi_lock(); // gdi_lock
 	MPanel.hwnd = hwnd;
 	MPanel.hParentWnd = GetParent(MPanel.hwnd);
 	GetClientRect(MPanel.hParentWnd,&rc);
@@ -2463,6 +2489,7 @@ static void MPanelInit(HWND hwnd)
       	FIXED_PITCH | FF_DONTCARE,MPanel.Font);
 #endif
 	MPanelOK = 1;
+	gdi_unlock(); // gdi_lock
 }
 
 // パネル構造体をリセットする。
@@ -2492,7 +2519,9 @@ void MPanelReset(void)
 //	MPanel.FGColor = RGB(0x00,0x00,0x00);
 //	MPanel.BGColor = RGB(0xff,0xff,0xff);
 	MPanel.FGColor = RGB(0x00,0x00,0x00);
-	MPanel.BGColor = RGB(0xc0,0xc0,0xc0);
+//	MPanel.BGColor = RGB(0xc0,0xc0,0xc0);
+	MPanel.BGColor = RGB(0xc0,0xc5,0xc3);
+	MPanel.BGBGColor = RGB(0x60,0x60,0x60);
 #if 0
 	if(MPanel.hFontTitle!=NULL)
    	DeleteObject(MPanel.hFontTitle);
@@ -2521,11 +2550,13 @@ void MPanelUpdate(void)
 		return;
 	if(MPanel.UpdateFlag==MP_UPDATE_NONE)
    	return;
+	gdi_lock(); // gdi_lock
 	if(MPanel.UpdateFlag & MP_UPDATE_BACKGROUND){
 		// ビットマップを貼り付けるが今は塗りつぶし。
 		HPEN hPen;
       HBRUSH hBrush;
-		COLORREF color = MPanel.FGColor;
+//		COLORREF color = MPanel.FGColor;
+		COLORREF color = MPanel.BGBGColor;
 		RECT rc = MPanel.rcMe;
 		HGDIOBJ hgdiobj_hpen, hgdiobj_hbrush;
 		hPen = CreatePen(PS_SOLID,1,color);
@@ -2757,17 +2788,20 @@ void MPanelUpdate(void)
 	if(MPanel.UpdateFlag==MP_UPDATE_ALL)
 		InvalidateRect(hPanelWnd, NULL, FALSE);
 	MPanel.UpdateFlag = MP_UPDATE_NONE;
+	gdi_unlock(); // gdi_lock
 }
 
 static void MPanelPaintDo(void)
 {
 	PAINTSTRUCT ps;
 	HDC hdc;
+	gdi_lock(); // gdi_lock
 	hdc = BeginPaint(MPanel.hwnd, &ps);
 	BitBlt(hdc,
 		MPanel.rcMe.left,MPanel.rcMe.top,MPanel.rcMe.right,MPanel.rcMe.bottom,
   		MPanel.hmdc,0,0,SRCCOPY);
 	EndPaint(MPanel.hwnd, &ps);
+	gdi_unlock(); // gdi_lock
 }
 
 // 描画
@@ -2779,7 +2813,9 @@ void MPanelPaint(void)
 // 完全描画
 void MPanelPaintAll(void)
 {
+	gdi_lock(); // gdi_lock
 	InvalidateRect(hPanelWnd, NULL, FALSE);
+	gdi_unlock(); // gdi_lock
 	MPanelPaint();
 }
 
@@ -2978,7 +3014,7 @@ void TiMidityHeapCheck(void)
    	dwNumberOfHeaps = GetProcessHeaps(dw, ProcessHeaps);
    }
    PrintfDebugWnd("NumberOfHeaps=%ld\n",(int)dwNumberOfHeaps);
-	for(i=0;i<dwNumberOfHeaps;i++){
+	for(i=0;i<(int)dwNumberOfHeaps;i++){
      	if(HeapValidate(ProcessHeaps[i],0,NULL)==TRUE)
     		PrintfDebugWnd("Heap %d is Valid\n",i+1);
       else
@@ -3306,6 +3342,20 @@ static void DlgMidiFileOpen(HWND hwnd)
     w32g_send_rc(RC_EXT_LOAD_FILE, (int32)file);
 }
 
+static volatile LPITEMIDLIST itemidlist_pre = NULL;
+int CALLBACK DlgDirOpenBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+	switch(uMsg){
+	case BFFM_INITIALIZED:
+		if(itemidlist_pre)
+			SendMessage(hwnd,BFFM_SETSELECTION,(WPARAM)0,(LPARAM)itemidlist_pre);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static void DlgDirOpen(HWND hwnd)
 {
 	static int initflag = 1;
@@ -3327,7 +3377,7 @@ static void DlgDirOpen(HWND hwnd)
     bi.pszDisplayName = biBuffer;
 	bi.lpszTitle = "Select a directory with MIDI files.";
 	bi.ulFlags = 0;
-	bi.lpfn = NULL;
+	bi.lpfn = DlgDirOpenBrowseCallbackProc;
     bi.lParam = 0;
     bi.iImage = 0;
 	itemidlist = SHBrowseForFolder(&bi);
@@ -3335,6 +3385,9 @@ static void DlgDirOpen(HWND hwnd)
 		return; /* Cancel */
 	SHGetPathFromIDList(itemidlist, Buffer);
 	strncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
+	if(itemidlist_pre)
+		CoTaskMemFree(itemidlist_pre);
+	itemidlist_pre = itemidlist;
     w32g_lock_open_file = 1;
 	directory_form(Buffer);
     w32g_send_rc(RC_EXT_LOAD_FILE, (int32)Buffer);
@@ -3627,12 +3680,14 @@ static HANDLE w32g_empty_sem = NULL;
 
 void w32g_lock(void)
 {
-    WaitForSingleObject(w32g_lock_sem, INFINITE);
+	if(w32g_lock_sem)
+	    WaitForSingleObject(w32g_lock_sem, INFINITE);
 }
 
 void w32g_unlock(void)
 {
-    ReleaseSemaphore(w32g_lock_sem, 1, NULL);
+	if(w32g_lock_sem)
+	    ReleaseSemaphore(w32g_lock_sem, 1, NULL);
 }
 
 void w32g_send_rc(int rc, int32 value)
@@ -3650,7 +3705,8 @@ void w32g_send_rc(int rc, int32 value)
     rc_queue[rc_queue_end].rc = rc;
     rc_queue[rc_queue_end].value = value;
     rc_queue_end = (rc_queue_end + 1) % RC_QUEUE_SIZE;
-    ReleaseSemaphore(w32g_empty_sem, 1, NULL);
+	if(w32g_empty_sem)
+	    ReleaseSemaphore(w32g_empty_sem, 1, NULL);
     w32g_unlock();
 }
 
@@ -3662,7 +3718,8 @@ int w32g_get_rc(int32 *value, int wait_if_empty)
     {
 	if(!wait_if_empty)
 	    return RC_NONE;
-	WaitForSingleObject(w32g_empty_sem, INFINITE);
+	if(w32g_empty_sem)
+		WaitForSingleObject(w32g_empty_sem, INFINITE);
 	VOLATILE_TOUCH(rc_queue_len);
     } 
 
@@ -3720,16 +3777,28 @@ static void terminate_main_thread(void)
 void w32g_close(void)
 {
 	terminate_main_thread();
-    CloseHandle(w32g_lock_sem);
-    CloseHandle(w32g_empty_sem);
+	if(w32g_lock_sem){
+	    CloseHandle(w32g_lock_sem);
+		w32g_lock_sem = NULL;
+	}
+	if(w32g_empty_sem){
+	    CloseHandle(w32g_empty_sem);
+		w32g_empty_sem = NULL;
+	}
 }
 
 void w32g_restart(void)
 {
 	w32g_restart_gui_flag = 1;
 	terminate_main_thread();
-    CloseHandle(w32g_lock_sem);
-    CloseHandle(w32g_empty_sem);
+	if(w32g_lock_sem){
+	    CloseHandle(w32g_lock_sem);
+		w32g_lock_sem = NULL;
+	}
+	if(w32g_empty_sem){
+	    CloseHandle(w32g_empty_sem);
+		w32g_empty_sem = NULL;
+	}
 
 	if(MPanel.hFontTitle!=NULL)
 		DeleteObject(MPanel.hFontTitle);
@@ -3832,4 +3901,29 @@ void w32g_show_console(void)
 	ShowWindow(hConsoleWnd, SW_SHOW);
 	SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_SUBWND,
 					   TB_CHECKBUTTON, IDM_CONSOLE, (LPARAM)MAKELONG(TRUE, 0));
+}
+
+///////////////////////////////////////////////////////////////////////
+// GDI アクセスを単一スレッドに限定するためのロック機構
+
+static HANDLE hMutexGDI = NULL;
+int gdi_lock(void)
+{
+	if(hMutexGDI==NULL){
+		hMutexGDI = CreateMutex(NULL,FALSE,NULL);
+		if(hMutexGDI==NULL)
+			return -1;
+	}
+	if(WaitForSingleObject(hMutexGDI,INFINITE)==WAIT_FAILED){
+		return -1;
+	}
+	return 0;
+}
+
+extern int gdi_unlock(void)
+{
+	if(hMutexGDI!=NULL){
+		ReleaseMutex(hMutexGDI);
+	}
+	return 0;
 }

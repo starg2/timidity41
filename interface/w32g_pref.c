@@ -960,9 +960,8 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 }
 
 
-
 // IDC_COMBO_OUTPUT_MODE
-static char *cb_info_IDC_COMBO_OUTPUT_MODE[]= {
+static char *cb_info_IDC_COMBO_OUTPUT_MODE_jp[]= {
 	"以下のファイルに出力",(char *)0,
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 	"ファイル名を自動で決定し、ソ\ースと同じフォルダに出力",(char *)1,
@@ -974,6 +973,14 @@ static char *cb_info_IDC_COMBO_OUTPUT_MODE[]= {
 	"ファイル名を自動で決定し、以下のフォルダに出力(フォルダ名付き)",(char *)3,
 	NULL
 };
+static char *cb_info_IDC_COMBO_OUTPUT_MODE_en[]= {
+	"next output file",(char *)0,
+	"auto filename",(char *)1,
+	"auto filename and output in next dir",(char *)2,
+	"auto filename and output in next dir",(char *)3,
+	NULL
+};
+static char **cb_info_IDC_COMBO_OUTPUT_MODE;
 
 static BOOL APIENTRY
 PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
@@ -987,6 +994,10 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			for(i=0;play_mode_list[i]!=0;i++){
 				SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)play_mode_list[i]->id_name);
 			}
+			if (PlayerLanguage == LANGUAGE_JAPANESE)
+			  cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
+			else
+			  cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_en;
 			for(i=0;cb_info_IDC_COMBO_OUTPUT_MODE[i];i+=2){
 				SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_OUTPUT_MODE[i]);
 			}
@@ -1215,18 +1226,32 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			{
 				int cb_num1, cb_num2;
 				cb_num1 = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
+				if (PlayerLanguage == LANGUAGE_JAPANESE)
+				  cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
+				else
+				  cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_en;
 				for(cb_num2=0;(int)cb_info_IDC_COMBO_OUTPUT_MODE[cb_num2];cb_num2+=2){
 					if(cb_num1*2==cb_num2){
 						st_temp->auto_output_mode = (int)cb_info_IDC_COMBO_OUTPUT_MODE[cb_num2+1];
 						break;
 					}
 				}
-				if(st_temp->auto_output_mode>0){
-					SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力先");
-					SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
+				if (PlayerLanguage == LANGUAGE_JAPANESE) {
+				  if(st_temp->auto_output_mode>0){
+				    SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力先");
+				    SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
+				  } else {
+				    SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力ファイル");
+				    SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
+				  }
 				} else {
-					SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力ファイル");
-					SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
+				  if(st_temp->auto_output_mode>0){
+				    SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output File");
+				    SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
+				  } else {
+				    SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output File");
+				    SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
+				  }
 				}
 			}
 			break;
@@ -2333,11 +2358,15 @@ static void gogoConfigDialogProcControlApply(HWND hwnd)
 int gogoConfigDialog(void)
 {
 #ifdef AU_GOGO
-	if(!IsWindow(hgogoConfigDailog))
-		hgogoConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_GOGO),(HWND)hPrefWnd,gogoConfigDialogProc);
-	ShowWindow(hgogoConfigDailog,SW_SHOW);
+  if(!IsWindow(hgogoConfigDailog)) {
+    if (PlayerLanguage == LANGUAGE_JAPANESE)
+      hgogoConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_GOGO),(HWND)hPrefWnd,gogoConfigDialogProc);
+    else
+      hgogoConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_GOGO_EN),(HWND)hPrefWnd,gogoConfigDialogProc);
+  }
+  ShowWindow(hgogoConfigDailog,SW_SHOW);
 #endif
-	return 0;
+  return 0;
 }
 
 #ifdef AU_GOGO
@@ -2597,8 +2626,8 @@ volatile vorbis_ConfigDialogInfo_t vorbis_ConfigDialogInfo;
 
 // cb_info_type1_ＩＤ  cb_info_type2_ＩＤ というふうになる。
 
-// IDC_COMBO_MODE
-CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE)
+// IDC_COMBO_MODE_jp
+CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE_jp)
 	"デフォルト(約128kbps VBR)",(char *)0,
 	"約112kbps VBR",(char *)1,
 	"約128kbps VBR",(char *)2,
@@ -2608,6 +2637,20 @@ CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE)
 	"約350kbps VBR",(char *)6,
 	NULL
 CB_INFO_TYPE2_END
+
+// IDC_COMBO_MODE_en
+CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE_en)
+	"Default (About 128kbps VBR)",(char *)0,
+	"About 112kbps VBR",(char *)1,
+	"About 128kbps VBR",(char *)2,
+	"About 160kbps VBR",(char *)3,
+	"About 192kbps VBR",(char *)4,
+	"About 256kbps VBR",(char *)5,
+	"About 350kbps VBR",(char *)6,
+	NULL
+CB_INFO_TYPE2_END
+
+static char **cb_info_IDC_COMBO_MODE;
 
 // id のコンボボックスを選択の設定する。
 #define CB_SETCURSEL_TYPE1(id) \
@@ -2706,6 +2749,11 @@ static BOOL APIENTRY vorbisConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 	{
 		int i;
 		// コンボボックスの初期化
+		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		  cb_info_IDC_COMBO_MODE = cb_info_IDC_COMBO_MODE_jp;
+		else
+		  cb_info_IDC_COMBO_MODE = cb_info_IDC_COMBO_MODE_en;
+
 		for(i=0;cb_info_IDC_COMBO_MODE[i];i+=2){
 			SendDlgItemMessage(hwnd,IDC_COMBO_MODE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_MODE[i]);
 		}
@@ -2808,9 +2856,13 @@ static void vorbisConfigDialogProcControlApply(HWND hwnd)
 int vorbisConfigDialog(void)
 {
 #ifdef AU_VORBIS
-	if(!IsWindow(hvorbisConfigDailog))
-		hvorbisConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_VORBIS),(HWND)hPrefWnd,vorbisConfigDialogProc);
-	ShowWindow(hvorbisConfigDailog,SW_SHOW);
+  if(!IsWindow(hvorbisConfigDailog)) {
+    if (PlayerLanguage == LANGUAGE_JAPANESE)
+      hvorbisConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_VORBIS),(HWND)hPrefWnd,vorbisConfigDialogProc);
+    else
+      hvorbisConfigDailog = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_VORBIS_EN),(HWND)hPrefWnd,vorbisConfigDialogProc);
+  }
+  ShowWindow(hvorbisConfigDailog,SW_SHOW);
 #endif
 	return 0;
 }

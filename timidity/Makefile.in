@@ -236,7 +236,14 @@ EXTRA_timidity_SOURCES = \
 	vorbis_a.c \
 	w32_a.c \
 	w32g_a.c \
-	timpp32g.ini
+	timpp32g.ini \
+	w32_gogo.c \
+	w32_gogo.h \
+	gogo_a.h \
+	gogo_a.c \
+	w32g_vorbisenc_dll.c \
+	w32g_vorbis_dll.c \
+	w32g_ogg_dll.c
 
 
 @ENABLE_W32GUI_TRUE@W32GUI_RES = $(top_builddir)/interface/w32g_res.res
@@ -305,26 +312,29 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 @AMDEP_TRUE@	$(DEPDIR)/dl_hpux.Po $(DEPDIR)/dl_w32.Po \
 @AMDEP_TRUE@	$(DEPDIR)/effect.Po $(DEPDIR)/esd_a.Po \
 @AMDEP_TRUE@	$(DEPDIR)/filter.Po $(DEPDIR)/freq.Po \
-@AMDEP_TRUE@	$(DEPDIR)/hpux_a.Po $(DEPDIR)/hpux_d_a.Po \
-@AMDEP_TRUE@	$(DEPDIR)/instrum.Po $(DEPDIR)/list_a.Po \
-@AMDEP_TRUE@	$(DEPDIR)/loadtab.Po $(DEPDIR)/m2m.Po \
-@AMDEP_TRUE@	$(DEPDIR)/mac_a.Po $(DEPDIR)/mac_dlog.Po \
-@AMDEP_TRUE@	$(DEPDIR)/mac_main.Po $(DEPDIR)/mac_qt_a.Po \
-@AMDEP_TRUE@	$(DEPDIR)/mac_soundspec.Po $(DEPDIR)/mfnode.Po \
-@AMDEP_TRUE@	$(DEPDIR)/miditrace.Po $(DEPDIR)/mix.Po \
-@AMDEP_TRUE@	$(DEPDIR)/mod.Po $(DEPDIR)/mod2midi.Po \
-@AMDEP_TRUE@	$(DEPDIR)/modmid_a.Po $(DEPDIR)/nas_a.Po \
-@AMDEP_TRUE@	$(DEPDIR)/oss_a.Po $(DEPDIR)/output.Po \
-@AMDEP_TRUE@	$(DEPDIR)/playmidi.Po $(DEPDIR)/raw_a.Po \
-@AMDEP_TRUE@	$(DEPDIR)/rcp.Po $(DEPDIR)/readmidi.Po \
-@AMDEP_TRUE@	$(DEPDIR)/recache.Po $(DEPDIR)/resample.Po \
-@AMDEP_TRUE@	$(DEPDIR)/reverb.Po $(DEPDIR)/sbkconv.Po \
-@AMDEP_TRUE@	$(DEPDIR)/sffile.Po $(DEPDIR)/sfitem.Po \
-@AMDEP_TRUE@	$(DEPDIR)/smfconv.Po $(DEPDIR)/sndfont.Po \
-@AMDEP_TRUE@	$(DEPDIR)/sun_a.Po $(DEPDIR)/tables.Po \
-@AMDEP_TRUE@	$(DEPDIR)/timidity.Po $(DEPDIR)/version.Po \
-@AMDEP_TRUE@	$(DEPDIR)/vorbis_a.Po $(DEPDIR)/w32_a.Po \
-@AMDEP_TRUE@	$(DEPDIR)/w32g_a.Po $(DEPDIR)/wave_a.Po \
+@AMDEP_TRUE@	$(DEPDIR)/gogo_a.Po $(DEPDIR)/hpux_a.Po \
+@AMDEP_TRUE@	$(DEPDIR)/hpux_d_a.Po $(DEPDIR)/instrum.Po \
+@AMDEP_TRUE@	$(DEPDIR)/list_a.Po $(DEPDIR)/loadtab.Po \
+@AMDEP_TRUE@	$(DEPDIR)/m2m.Po $(DEPDIR)/mac_a.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mac_dlog.Po $(DEPDIR)/mac_main.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mac_qt_a.Po $(DEPDIR)/mac_soundspec.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mfnode.Po $(DEPDIR)/miditrace.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mix.Po $(DEPDIR)/mod.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mod2midi.Po $(DEPDIR)/modmid_a.Po \
+@AMDEP_TRUE@	$(DEPDIR)/nas_a.Po $(DEPDIR)/oss_a.Po \
+@AMDEP_TRUE@	$(DEPDIR)/output.Po $(DEPDIR)/playmidi.Po \
+@AMDEP_TRUE@	$(DEPDIR)/raw_a.Po $(DEPDIR)/rcp.Po \
+@AMDEP_TRUE@	$(DEPDIR)/readmidi.Po $(DEPDIR)/recache.Po \
+@AMDEP_TRUE@	$(DEPDIR)/resample.Po $(DEPDIR)/reverb.Po \
+@AMDEP_TRUE@	$(DEPDIR)/sbkconv.Po $(DEPDIR)/sffile.Po \
+@AMDEP_TRUE@	$(DEPDIR)/sfitem.Po $(DEPDIR)/smfconv.Po \
+@AMDEP_TRUE@	$(DEPDIR)/sndfont.Po $(DEPDIR)/sun_a.Po \
+@AMDEP_TRUE@	$(DEPDIR)/tables.Po $(DEPDIR)/timidity.Po \
+@AMDEP_TRUE@	$(DEPDIR)/version.Po $(DEPDIR)/vorbis_a.Po \
+@AMDEP_TRUE@	$(DEPDIR)/w32_a.Po $(DEPDIR)/w32_gogo.Po \
+@AMDEP_TRUE@	$(DEPDIR)/w32g_a.Po $(DEPDIR)/w32g_ogg_dll.Po \
+@AMDEP_TRUE@	$(DEPDIR)/w32g_vorbis_dll.Po \
+@AMDEP_TRUE@	$(DEPDIR)/w32g_vorbisenc_dll.Po $(DEPDIR)/wave_a.Po \
 @AMDEP_TRUE@	$(DEPDIR)/wrd_read.Po $(DEPDIR)/wrdt.Po
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -396,6 +406,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/esd_a.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/filter.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/freq.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/gogo_a.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/hpux_a.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/hpux_d_a.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/instrum.Po@am__quote@
@@ -434,7 +445,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/version.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/vorbis_a.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/w32_a.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/w32_gogo.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/w32g_a.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/w32g_ogg_dll.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/w32g_vorbis_dll.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/w32g_vorbisenc_dll.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/wave_a.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/wrd_read.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/wrdt.Po@am__quote@

@@ -519,12 +519,15 @@ int UniqTiMidity(void)
 // Ç∑Ç≈Ç… TiMidity Ç™ë∂ç›Ç∑ÇÈÇ©
 int ExistOldTiMidity(void)
 {
-	HANDLE hMutex = OpenMutex(0,TRUE,TIMIDTY_MUTEX_NAME);
-	if(hMutex==NULL){
-		return FALSE;
-	}
+	HANDLE hMutex = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
+	if(GetLastError()==ERROR_ALREADY_EXISTS){
+		if(hMutex!=NULL)
 	CloseHandle(hMutex);
 	return TRUE;
+	}
+	if(hMutex!=NULL)
+		CloseHandle(hMutex);
+	return FALSE;
 }
 
 // âΩâÒÇ©óBàÍÇÃ TiMidity Ç…Ç»ÇÎÇ§Ç∆ÇµÇ‹Ç∑
@@ -707,4 +710,4 @@ int isURLFile(char *filename)
 	} else {
 		return FALSE;
 	}
-}
+}

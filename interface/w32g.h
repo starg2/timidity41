@@ -22,8 +22,13 @@
 #define ___W32G_H_
 
 #include <process.h>
-#include <windows.h>
+#ifdef RC_NONE
 #undef RC_NONE
+#endif
+#include <windows.h>
+#ifdef RC_NONE
+#undef RC_NONE
+#endif
 #define RC_NONE	0
 
 #define LANGUAGE_JAPANESE				0x0001
@@ -351,7 +356,8 @@ extern int DocMaxSize;
 extern char *DocFileExt;
 
 extern int w32g_has_ini_file;
-
+extern char *w32g_output_dir;
+extern int w32g_auto_output_mode;
 
 // HWND
 extern HWND hStartWnd;
@@ -366,5 +372,9 @@ extern HWND hSoundSpecWnd;
 extern HWND hDebugEditWnd;
 extern HWND hDocEditWnd;
 
+// gdi_lock
+extern int gdi_lock(void);
+extern int gdi_unlock(void);
+#define GDI_SAFETY(command) (gdi_lock(),(command),gdi_unlock);
 
 #endif

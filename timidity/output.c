@@ -91,6 +91,9 @@ extern PlayMode list_play_mode;
 #ifdef AU_VORBIS
 extern PlayMode vorbis_play_mode;
 #endif /* AU_VORBIS */
+#ifdef AU_GOGO
+extern PlayMode gogo_play_mode;
+#endif /* AU_GOGO */
 #endif /* !__MACOS__ */
 
 extern PlayMode modmidi_play_mode;
@@ -124,6 +127,9 @@ PlayMode *play_mode_list[] = {
 #ifdef AU_VORBIS
   &vorbis_play_mode,
 #endif /* AU_VORBIS */
+#ifdef AU_GOGO
+  &gogo_play_mode,
+#endif /* AU_GOGO */
   &list_play_mode,
 #endif /* __MACOS__ */
   &modmidi_play_mode,
@@ -350,4 +356,136 @@ const char *output_encoding_string(int enc)
 	else
 	    return "unsigned 8bit";
     /*NOTREACHED*/
+}
+
+/* mode
+  0,1: Default mode.
+  2: Remove the directory path of input_filename, then add output_dir.
+  3: Replace directory separator characters ('/','\',':') with '_', then add output_dir.
+ */
+char *create_auto_output_name(const char *input_filename, char *ext_str, char *output_dir, int mode)
+{
+  char *output_filename;
+  char *ext, *p;
+  int32 dir_len = 0;
+  char ext_str_tmp[65];
+
+  output_filename = (char *)malloc((output_dir?strlen(output_dir):0) + strlen(input_filename) + 6);
+  if(output_filename==NULL)
+    return NULL;
+  output_filename[0] = '\0';
+  if(output_dir!=NULL && (mode==2 || mode==3)) {
+    strcat(output_filename,output_dir);
+    dir_len = strlen(output_filename);
+#ifndef __W32__
+    if(dir_len>0 && output_filename[dir_len-1]!=PATH_SEP){
+#else
+      if(dir_len>0 && output_filename[dir_len-1]!='/' && output_filename[dir_len-1]!='\\' && output_filename[dir_len-1]!=':'){
+#endif
+	strcat(output_filename,PATH_STRING);
+	dir_len++;
+      }
+    }
+    strcat(output_filename, input_filename);
+
+    if((ext = strrchr(output_filename, '.')) == NULL)
+      ext = output_filename + strlen(output_filename);
+    else {
+      /* strip ".gz" */
+      if(strcasecmp(ext, ".gz") == 0) {
+	*ext = '\0';
+	if((ext = strrchr(output_filename, '.')) == NULL)
+	  ext = output_filename + strlen(output_filename);
+      }
+    }
+
+    /* replace '\' , '/' or PATH_SEP between '#' and ext */
+    p = strrchr(output_filename,'#');
+    if(p!=NULL){
+      char *p1;
+#ifdef _mbsrchr
+#define STRCHR(a,b) _mbschr(a,b)
+#else
+#define STRCHR(a,b) strchr(a,b)
+#endif
+#ifndef __W32__
+      p1 = p + 1;
+      while((p1 = STRCHR(p1,PATH_SEP))!=NULL && p1<ext){
+        *p1 = '_';
+	p1++;
+      }
+#else
+      p1 = p + 1;
+      while((p1 = STRCHR(p1,'\\'))!=NULL && p1<ext){
+      	*p1 = '_';
+	p1++;
+      }
+      p1 = p;
+      while((p1 = STRCHR(p1,'/'))!=NULL && p1<ext){
+	*p1 = '_';
+	p1++;
+      }
+#endif
+#undef STRCHR
+    }
+
+    /* replace '.' and '#' before ext */
+    for(p = output_filename; p < ext; p++)
+#ifndef __W32__
+      if(*p == '.' || *p == '#')
+#else
+	if(*p == '#')
+#endif
+	  *p = '_';
+
+    if(mode==2){
+      char *p1,*p2,*p3;
+#ifndef __W32__
+      p = strrchr(output_filename+dir_len,PATH_SEP);
+#else
+#ifdef _mbsrchr
+#define STRRCHR _mbsrchr
+#else
+#define STRRCHR strrchr
+#endif
+      p1 = STRRCHR(output_filename+dir_len,'/');
+      p2 = STRRCHR(output_filename+dir_len,'\\');
+      p3 = STRRCHR(output_filename+dir_len,':');
+#undef STRRCHR
+      p1>p2 ? (p1>p3 ? (p = p1) : (p = p3)) : (p2>p3 ? (p = p2) : (p = p3));
+#endif
+      if(p!=NULL){
+	for(p1=output_filename+dir_len,p2=p+1; *p2; p1++,p2++)
+	  *p1 = *p2;
+	*p1 = '\0';
+      }
+    }
+
+    if(mode==3){
+      for(p=output_filename+dir_len; *p; p++)
+#ifndef __W32__
+	if(*p==PATH_SEP)
+#else
+	  if(*p=='/' || *p=='\\' || *p==':')
+#endif
+	    *p = '_';
+    }
+
+    if((ext = strrchr(output_filename, '.')) == NULL)
+      ext = output_filename + strlen(output_filename);
+    if(*ext){
+      strncpy(ext_str_tmp,ext_str,64);
+      ext_str_tmp[64]=0;
+      if(isupper(*(ext + 1))){
+	for(p=ext_str_tmp;*p;p++)
+	  *p = toupper(*p);
+	*p = '\0';
+      } else {
+	for(p=ext_str_tmp;*p;p++)
+	  *p = tolower(*p);
+	*p = '\0';
+      }
+      strcpy(ext+1,ext_str_tmp);
+    }
+    return output_filename;
 }

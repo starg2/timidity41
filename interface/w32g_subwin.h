@@ -35,6 +35,7 @@ void InitListWnd(HWND hParentWnd);
 
 // Doc Window
 extern int DocWndIndependent;
+extern int DocWndAutoPopup;
 void InitDocWnd(HWND hParentWnd);
 void DocWndInfoReset(void);
 void DocWndAddDocFile(char *filename);

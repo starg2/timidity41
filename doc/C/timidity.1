@@ -357,6 +357,14 @@ Sort file list arguments before playing
 Enable the loading of patch files during play.
 
 .TP
+.B \-k " msec"
+Specify audio queue time limit to reduce voices.
+If the remaining audio buffer is less than \fImsec\fB milliseconds,
+TiMidity tries to kill some voices.
+This feature makes it possible to play complicated MIDI files on slow CPUs.
+Setting \fImsec\fB to zero tells TiMidity to never remove any voices.
+
+.TP
 .B \-L " directory"
 Adds \fIdirectory\fP to the library path.  Patch, configuration,
 and MIDI files are searched along this
@@ -618,8 +626,7 @@ emulate all known bugs
 
 .TP
 .BI F="filename"
-Use \fIfilename\fP as WRD file only (input\-file\-name):r.wrd
-(like csh syntax) is not available.
+Use \fIfilename\fP as WRD file only no file matching *.wrd is found.
 .TP
 .BI f="filename"
 Uses \fIfilename\fP as WRD file.

@@ -125,7 +125,14 @@ EXTRA_timidity_SOURCES = \
 	vorbis_a.c \
 	w32_a.c \
 	w32g_a.c \
-	timpp32g.ini
+	timpp32g.ini \
+	w32_gogo.c \
+	w32_gogo.h \
+	gogo_a.h \
+	gogo_a.c \
+	w32g_vorbisenc_dll.c \
+	w32g_vorbis_dll.c \
+	w32g_ogg_dll.c
 
 if ENABLE_W32GUI
 W32GUI_RES = $(top_builddir)/interface/w32g_res.res
