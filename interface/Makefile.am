@@ -233,7 +233,8 @@ g_so_libs = @g_so_libs@
 all-am: $(dynamic_targets)
 
 install.dynamics: $(dynamic_targets)
-	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL_PROGRAM) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+	test -d $(DESTDIR)$(SHLIB_DIR) || mkdir -p $(DESTDIR)$(SHLIB_DIR)
+	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL_PROGRAM) $$f $(DESTDIR)$(SHLIB_DIR);; esac; done
 
 .c.$(so):
 	$(COMPILE) $(SHCFLAGS) -c $< -o $@

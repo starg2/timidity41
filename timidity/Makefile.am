@@ -104,7 +104,7 @@ EXTRA_timidity_SOURCES = \
 	esd_a.c \
 	hpux_a.c \
 	hpux_d_a.c \
-	linux_a.c \
+	oss_a.c \
 	mac_a.c \
 	mac_qt_a.c \
 	mac_com.h \
@@ -130,7 +130,6 @@ timidity_LDADD = \
 	$(top_builddir)/libarc/libarc.a \
 	$(top_builddir)/utils/libutils.a \
 	$(W32GUI_RES)
-
 
 timidity_DEPENDENCIES = $(SYSEXTRAS:.c=.o) \
 	$(top_builddir)/interface/libinterface.a \

@@ -408,13 +408,7 @@ static void help(void)
 "  -k msec Specify audio queue time limit to reduce voice",
 "  -L dir  Append dir to search path",
 "  -O mode Select output mode and format (see below for list)",
-#if defined(AU_HPUX)
-"  -o file Output to another file (or audio server) (Use \"-\" for stdout)",
-#elif defined (AU_LINUX)
-"  -o file Output to another file (or device) (Use \"-\" for stdout)",
-#else
-"  -o file Output to another file (Use \"-\" for stdout)",
-#endif
+"  -o file Output to another file (or device/server)  (Use \"-\" for stdout)",
 "  -P file Use patch file for all programs",
 "  -p n(a) Allow n-voice polyphony.  Optional auto polyphony reduction toggle."
 ,
@@ -796,6 +790,21 @@ int set_ctl(char *cp)
 		      case 'q': cmp->verbosity--; break;
 		      case 't': /* toggle */
 			cmp->trace_playing = !cmp->trace_playing;
+			break;
+		      case 'l':
+			cmp->flags ^= CTLF_LIST_LOOP;
+			break;
+		      case 'r':
+			cmp->flags ^= CTLF_LIST_RANDOM;
+			break;
+		      case 's':
+			cmp->flags ^= CTLF_LIST_SORT;
+			break;
+		      case 'a':
+			cmp->flags ^= CTLF_AUTOSTART;
+			break;
+		      case 'x':
+			cmp->flags ^= CTLF_AUTOEXIT;
 			break;
 
 		      default:
@@ -2768,6 +2777,22 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 	memset(channel[i].drums, 0, sizeof(channel[i].drums));
     }
     arc_error_handler = timidity_arc_error_handler;
+
+    if(play_mode == NULL)
+    {
+	char *output_id;
+	int i;
+
+	play_mode = play_mode_list[0];
+	if((output_id = getenv("TIMIDITY_OUTPUT_ID")) == NULL)
+	    output_id = TIMIDITY_OUTPUT_ID;
+	for(i = 0; play_mode_list[i]; i++)
+	    if(play_mode_list[i]->id_character == *output_id)
+	    {
+		play_mode = play_mode_list[i];
+		break;
+	    }
+    }
 
     if(is_first) /* initialize once time */
     {

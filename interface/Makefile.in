@@ -107,6 +107,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 
 SUFFIXES = .ptcl .tcl .@so@
 
@@ -364,6 +365,10 @@ dumb_c.o: dumb_c.c ../config.h ../timidity/timidity.h ../utils/support.h \
 	../timidity/output.h ../timidity/controls.h \
 	../timidity/instrum.h ../timidity/playmidi.h \
 	../timidity/readmidi.h
+dynamic_c.o: dynamic_c.c ../config.h ../timidity/timidity.h \
+	../utils/support.h ../timidity/common.h ../libarc/url.h \
+	../utils/mblock.h ../timidity/output.h ../timidity/controls.h \
+	../timidity/dlutils.h
 emacs_c.o: emacs_c.c ../config.h ../timidity/timidity.h \
 	../utils/support.h ../timidity/common.h ../libarc/url.h \
 	../utils/mblock.h ../timidity/output.h ../timidity/controls.h \
@@ -598,7 +603,8 @@ w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
 @NEEDDLOPEN_TRUE@all-am: $(dynamic_targets)
 
 @NEEDDLOPEN_TRUE@install.dynamics: $(dynamic_targets)
-@NEEDDLOPEN_TRUE@	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL_PROGRAM) $$f $(DESTDIR)$(TIMID_DIR);; esac; done
+@NEEDDLOPEN_TRUE@	test -d $(DESTDIR)$(SHLIB_DIR) || mkdir -p $(DESTDIR)$(SHLIB_DIR)
+@NEEDDLOPEN_TRUE@	for f in $(dynamic_targets) ''; do case ".$$f" in .);; *) $(INSTALL_PROGRAM) $$f $(DESTDIR)$(SHLIB_DIR);; esac; done
 
 @NEEDDLOPEN_TRUE@.c.$(so):
 @NEEDDLOPEN_TRUE@	$(COMPILE) $(SHCFLAGS) -c $< -o $@

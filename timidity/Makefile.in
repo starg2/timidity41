@@ -109,6 +109,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 
 INCLUDES =  	-I$(top_srcdir) 	-I$(top_srcdir)/libarc 	-I$(top_srcdir)/interface 	-I$(top_srcdir)/utils 	$(EXTRAINCS)
 
@@ -118,7 +119,7 @@ bin_PROGRAMS = timidity
 timidity_SOURCES =  	aenc.h 	aiff_a.c 	aq.c 	aq.h 	au_a.c 	audio_cnv.c 	audio_cnv.h 	common.c 	common.h 	controls.c 	controls.h 	dlutils.h 	effect.c 	filter.c 	filter.h 	instrum.c 	instrum.h 	list_a.c 	load_mod.c 	loadtab.c 	mid-j.defs 	mid.defs 	miditrace.c 	miditrace.h 	mix.c 	mix.h 	mod.c 	mod.h 	output.c 	output.h 	playmidi.c 	playmidi.h 	raw_a.c 	rcp.c 	readmidi.c 	readmidi.h 	recache.c 	recache.h 	resample.c 	resample.h 	reverb.c 	reverb.h 	sbkconv.c 	sffile.c 	sffile.h 	sfitem.c 	sfitem.h 	sflayer.h 	smfconv.c 	smfconv.h 	sndfont.c 	tables.c 	tables.h 	timidity.c 	timidity.h 	version.c 	wave_a.c 	wrd.h 	wrd_read.c 	wrdt.c
 
 
-EXTRA_timidity_SOURCES =  	alsa_a.c 	audriv.h 	audriv_a.c 	audriv_al.c 	audriv_mme.c 	audriv_none.c 	dl_cygwin32.c 	dl_dld.c 	dl_dlopen.c 	dl_hpux.c 	bsd20_a.c 	esd_a.c 	hpux_a.c 	hpux_d_a.c 	linux_a.c 	mac_a.c 	mac_qt_a.c 	mac_com.h 	mac_dlog.c 	mac_main.c 	mac_main.h 	mac_soundspec.c 	mfnode.c 	mfnode.h 	nas_a.c 	sun_a.c 	w32_a.c 	w32g_a.c 	timpp32g.ini
+EXTRA_timidity_SOURCES =  	alsa_a.c 	audriv.h 	audriv_a.c 	audriv_al.c 	audriv_mme.c 	audriv_none.c 	dl_cygwin32.c 	dl_dld.c 	dl_dlopen.c 	dl_hpux.c 	bsd20_a.c 	esd_a.c 	hpux_a.c 	hpux_d_a.c 	oss_a.c 	mac_a.c 	mac_qt_a.c 	mac_com.h 	mac_dlog.c 	mac_main.c 	mac_main.h 	mac_soundspec.c 	mfnode.c 	mfnode.h 	nas_a.c 	sun_a.c 	w32_a.c 	w32g_a.c 	timpp32g.ini
 
 
 @ENABLE_W32GUI_TRUE@W32GUI_RES = $(top_builddir)/interface/w32g_res.res
@@ -147,7 +148,6 @@ effect.o filter.o instrum.o list_a.o load_mod.o loadtab.o miditrace.o \
 mix.o mod.o output.o playmidi.o raw_a.o rcp.o readmidi.o recache.o \
 resample.o reverb.o sbkconv.o sffile.o sfitem.o smfconv.o sndfont.o \
 tables.o timidity.o version.o wave_a.o wrd_read.o wrdt.o
-timidity_LDFLAGS = 
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
@@ -279,6 +279,8 @@ common.o: common.c ../config.h timidity.h ../utils/support.h common.h \
 	../libarc/arc.h ../utils/nkflib.h wrd.h ../utils/strtab.h
 controls.o: controls.c ../config.h ../interface.h timidity.h \
 	../utils/support.h controls.h
+dl_dlopen.o: dl_dlopen.c ../config.h timidity.h ../utils/support.h \
+	dlutils.h
 effect.o: effect.c ../config.h timidity.h ../utils/support.h instrum.h \
 	playmidi.h output.h reverb.h
 filter.o: filter.c ../config.h timidity.h ../utils/support.h common.h \

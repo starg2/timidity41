@@ -43,14 +43,17 @@ SHELL=@SHELL@
 #exec_prefix = @exec_prefix@
 #bindir = @bindir@
 #libdir = @libdir@
+#datadir = @datadir@
 #mandir = @mandir@
 pkglibdir = $(libdir)/timidity
+pkgdatadir = $(datadir)/timidity
 #INSTALL = @INSTALL@
 
 # Where to install the patches, config files, and MIDI files.
 # If you change this, it's a good idea to recompile the binary,
 # or you'll need to invoke timidity with the -L option.
-TIMID_DIR = $(pkglibdir)
+TIMID_DIR = $(pkgdatadir)
+SHLIB_DIR = $(pkglibdir)
 
 # Where to install the Tcl code, if you use the Tcl code that is.
 TCL_DIR = $(pkglibdir)

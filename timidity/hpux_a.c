@@ -85,7 +85,7 @@ PlayMode dpm = {
     DEFAULT_RATE, DEFAULT_HP_ENCODING, PF_PCM_STREAM|PF_CAN_TRACE,
     -1,
     {0}, /* default: get all the buffer fragments you can */
-    "HPUX network audio", 'n',
+    "HPUX network audio (Alib)", 'A',
     "", /* THIS STRING IS THE NAME OF THE AUDIO SERVER (default =none)*/
 
     open_output,

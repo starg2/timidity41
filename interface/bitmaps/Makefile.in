@@ -109,6 +109,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 
 BITMAPS =  	back.xbm 	fwrd.xbm 	next.xbm 	pause.xbm 	play.xbm 	prev.xbm 	quit.xbm 	stop.xbm 	random.xbm 	repeat.xbm 	timidity.xbm
 
@@ -217,7 +218,7 @@ include $(top_builddir)/common.makefile
 
 install.bitmaps: $(BITMAPS)
 	test -d $(DESTDIR)$(TCL_DIR)/bitmaps || mkdir -p $(DESTDIR)$(TCL_DIR)/bitmaps
-	for f in $(BITMAPS) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TIMID_DIR)/bitmaps;; esac; done
+	for f in $(BITMAPS) ''; do case ".$$f" in .);; *) $(INSTALL) -m 644 $$f $(DESTDIR)$(TCL_DIR)/bitmaps;; esac; done
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

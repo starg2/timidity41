@@ -109,6 +109,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 
 INCLUDES =  	-I$(top_srcdir)/libarc 	-I$(top_srcdir)/timidity 	$(EXTRAINCS)
 

@@ -86,23 +86,23 @@ ALSA_LIBS="$ALSA_LIBS -lasound"
 AC_MSG_RESULT($ALSA_LIBS)
 
 dnl Check for the presence of the library
-dnl if test $enable_alsatest = yes; then
-dnl   AC_MSG_CHECKING(for working libasound)
-dnl   AC_TRY_RUN([
-dnl #include <sys/asoundlib.h>
-dnl void main(void)
-dnl {
-dnl   snd_cards();
-dnl   exit(0);
-dnl }
-dnl ],
-dnl    [AC_MSG_RESULT("present")],
-dnl    [AC_MSG_RESULT("not found. ")
-dnl    AC_MSG_ERROR(Fatal error: Install alsa-lib package or use --with-alsa-prefix option...)],
-dnl    [AC_MSG_RESULT(unsopported)
-dnl     AC_MSG_ERROR(Cross-compiling isn't supported...)]
-dnl  )
-dnl fi
+if test $enable_alsatest = yes; then
+  AC_MSG_CHECKING(for working libasound)
+  AC_TRY_RUN([
+#include <sys/asoundlib.h>
+void main(void)
+{
+  snd_cards();
+  exit(0);
+}
+],
+   [AC_MSG_RESULT("present")],
+   [AC_MSG_RESULT("not found. ")
+   AC_MSG_ERROR(Fatal error: Install alsa-lib package or use --with-alsa-prefix option...)],
+   [AC_MSG_RESULT(unsopported)
+    AC_MSG_ERROR(Cross-compiling isn't supported...)]
+ )
+fi
 
 dnl Check for a working version of libasound that is of the right version.
 min_alsa_version=ifelse([$1], ,0.1.1,$1)
@@ -394,8 +394,8 @@ main()
 EOM
 : Call the object file tmp-dyna.o in case dlext=o.
 if ${CC-cc} $CFLAGS $SHCFLAGS $CPPFLAGS -c dyna.c > /dev/null 2>&1 &&
-	mv dyna.o tmp-dyna.o > /dev/null 2>&1 && 
-	$SHLD $SHLDFLAGS -o dyna.$so tmp-dyna.o > /dev/null 2>&1 && 
+	mv dyna.o tmp-dyna.o > /dev/null 2>&1 &&
+	$SHLD $SHLDFLAGS -o dyna.$so tmp-dyna.o > /dev/null 2>&1 &&
 	${CC-cc} -o fred $CFLAGS $CPPFLAGS $LDFLAGS fred.c $LIBS $lib_dl_opt > /dev/null 2>&1; then
 	xxx=`./fred`
 	case $xxx in
@@ -532,6 +532,26 @@ AC_DEFUN(EXTRACT_CPPFLAGS,
     esac
 done
 ])
+
+
+dnl CHECK_COMPILER_OPTION(OPTIONS)
+AC_DEFUN(CHECK_COMPILER_OPTION,
+[AC_MSG_CHECKING([whether -$1 option is recognized])
+ac_ccoption=`echo $1 | sed 'y%./+-%__p_%'`
+AC_CACHE_VAL(timidity_cv_ccoption_$ac_ccoption,
+[cat > conftest.$ac_ext <<EOF
+int main() {return 0;}
+EOF
+if ${CC-cc} $CFLAGS -o conftest${ac_exeext} $1 conftest.$ac_ext > conftest.out 2>&1; then
+    if test -s conftest.out; then
+	eval "timidity_cv_ccoption_$ac_ccoption=no"
+    else
+	eval "timidity_cv_ccoption_$ac_ccoption=yes"
+    fi
+else
+    eval "timidity_cv_ccoption_$ac_ccoption=no"
+fi
+])])
 
 # Define a conditional.
 

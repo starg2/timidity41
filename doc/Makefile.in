@@ -109,6 +109,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 SUFFIXES = .1 .5 .txt .ps
 
 SUBDIRS = C ja_JP.ujis

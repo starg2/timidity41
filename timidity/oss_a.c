@@ -18,9 +18,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-    linux_audio.c
+    oss_a.c  (linux_a.c)
 
-    Functions to play sound on the VoxWare audio driver (Linux or FreeBSD)
+    Functions to play sound on the OSS audio driver (Linux or FreeBSD)
 
 */
 
@@ -38,19 +38,17 @@
 #include <strings.h>
 #endif
 
-#ifdef linux
+#if defined(HAVE_SYS_SOUNDCARD_H)
+#include <sys/soundcard.h>
+#elif defined(linux)
 #include <sys/ioctl.h> /* new with 1.2.0? Didn't need this under 1.1.64 */
 #include <linux/soundcard.h>
-#endif
-
-#ifdef __FreeBSD__
+#elif defined(__FreeBSD__)
 #include <machine/soundcard.h>
 #include <sys/filio.h>
-#endif
-
-#ifdef __bsdi__
+#else
 #include <sys/soundcard.h>
-#endif
+#endif /* HAVE_SYS_SOUNDCARD_H */
 
 #include "timidity.h"
 #include "common.h"
@@ -78,7 +76,7 @@ static int total_bytes; /* Maximum buffer size in bytes */
 
 /* export the playback mode */
 
-#define dpm linux_play_mode
+#define dpm dsp_play_mode
 
 PlayMode dpm = {
     DEFAULT_RATE,
@@ -86,7 +84,7 @@ PlayMode dpm = {
     PF_PCM_STREAM|PF_CAN_TRACE|PF_BUFF_FRAGM_OPT,
     -1,
     {0}, /* default: get all the buffer fragments you can */
-    "Linux dsp device", 'd',
+    "dsp device", 'd',
     "/dev/dsp",
     open_output,
     close_output,

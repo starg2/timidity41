@@ -109,6 +109,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 
 EXTRA_DIST =  	timidity.1 	timidity.cfg.5 	CHANGES.02i 	FAQ 	README.dl 	README.sf 	README.tk 	README.xskin 	README.xaw
 

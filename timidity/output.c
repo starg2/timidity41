@@ -38,79 +38,88 @@
 #include "audio_cnv.h"
 
 
+
+extern PlayMode alsa_play_mode;
+
+
+extern PlayMode hpux_nplay_mode;
+
+
+
 /* These are very likely mutually exclusive.. */
-#ifdef AU_AUDRIV
+#if defined(AU_AUDRIV)
 extern PlayMode audriv_play_mode;
-#define DEFAULT_PLAY_MODE &audriv_play_mode
-#endif
+#define DEV_PLAY_MODE &audriv_play_mode
 
-#ifdef AU_SUN
+#elif defined(AU_SUN)
 extern PlayMode sun_play_mode;
-#define DEFAULT_PLAY_MODE &sun_play_mode
-#endif
+#define DEV_PLAY_MODE &sun_play_mode
 
-#ifdef AU_LINUX
-extern PlayMode linux_play_mode;
-#define DEFAULT_PLAY_MODE &linux_play_mode
+#elif defined(AU_OSS)
+extern PlayMode oss_play_mode;
+#define DEV_PLAY_MODE &oss_play_mode
+
+#elif defined(AU_HPUX_AUDIO)
+extern PlayMode hpux_play_mode;
+#define DEV_PLAY_MODE &hpux_play_mode
+
+#elif defined(AU_W32)
+extern PlayMode w32_play_mode;
+#define DEV_PLAY_MODE &w32_play_mode
+
+#elif defined(AU_BSDI)
+extern PlayMode bsdi_play_mode;
+#define DEV_PLAY_MODE &bsdi_play_mode
+
+#elif defined(__MACOS__)
+extern PlayMode mac_play_mode;
+#define DEV_PLAY_MODE &mac_play_mode
 #endif
 
 #ifdef AU_ALSA
 extern PlayMode alsa_play_mode;
-#endif
+#endif /* AU_ALSA */
+
+#ifdef AU_HPUX_ALIB
+extern PlayMode hpux_nplay_mode
+#endif /* AU_HPUX_ALIB */
 
 #ifdef AU_ESD
 extern PlayMode esd_play_mode;
-#endif
-
-#ifdef AU_HPUX
-extern PlayMode hpux_play_mode;
-extern PlayMode hpux_nplay_mode;
-#define DEFAULT_PLAY_MODE &hpux_play_mode
-#define NETWORK_PLAY_MODE &hpux_nplay_mode
-#endif
-
-#ifdef AU_W32
-extern PlayMode w32_play_mode;
-#define DEFAULT_PLAY_MODE &w32_play_mode
-#endif
-
-#ifdef AU_BSDI
-extern PlayMode bsdi_play_mode;
-#define DEFAULT_PLAY_MODE &bsdi_play_mode
-#endif
+#endif /* AU_ESD */
 
 #ifdef AU_NAS
 extern PlayMode nas_play_mode;
-#ifndef DEFAULT_PLAY_MODE
-#define DEFAULT_PLAY_MODE &nas_play_mode
-#endif /* DEFAULT_PLAY_MODE */
 #endif /* AU_NAS */
 
 #ifndef __MACOS__
 /* These are always compiled in. */
 extern PlayMode raw_play_mode, wave_play_mode, au_play_mode, aiff_play_mode;
 extern PlayMode list_play_mode;
-#else /* __MACOS__ */
-extern PlayMode mac_play_mode;
-#define DEFAULT_PLAY_MODE &mac_play_mode
-#endif /* __MACOS__ */
+#endif /* !__MACOS__ */
+
 
 PlayMode *play_mode_list[] = {
-#ifdef DEFAULT_PLAY_MODE
-  DEFAULT_PLAY_MODE,
+#ifdef DEV_PLAY_MODE
+  DEV_PLAY_MODE,
 #endif
+
 #ifdef AU_ALSA
   &alsa_play_mode,
-#endif
-#ifdef AU_ESD
+#endif /* AU_ALSA */
+
+#ifdef AU_HPUX_ALIB
+  &hpux_nplay_mode,
+#endif /* AU_HPUX_ALIB */
+
+#if defined(AU_ESD)
   &esd_play_mode,
-#endif
-#ifdef AU_NAS
+#endif /* AU_ESD */
+
+#if defined(AU_NAS)
   &nas_play_mode,
 #endif /* AU_NAS */
-#ifdef NETWORK_PLAY_MODE
-  NETWORK_PLAY_MODE,
-#endif
+
 #ifndef __MACOS__
   &wave_play_mode,
   &raw_play_mode,
@@ -121,11 +130,7 @@ PlayMode *play_mode_list[] = {
   0
 };
 
-#ifdef DEFAULT_PLAY_MODE
-  PlayMode *play_mode=DEFAULT_PLAY_MODE;
-#else
-  PlayMode *play_mode=&wave_play_mode;
-#endif
+PlayMode *play_mode = NULL;
 PlayMode *target_play_mode = NULL;
 
 /*****************************************************************/

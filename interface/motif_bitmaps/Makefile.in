@@ -109,6 +109,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 
 BITMAPS =  	back.xbm 	fwd.xbm 	next.xbm 	pause.xbm 	prev.xbm 	quit.xbm 	restart.xbm 	timidity.xbm
 

@@ -1,3 +1,59 @@
+1999-08-30  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.6.0-beta1 released for test version.
+
+1999-08-30  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/playmidi.c (midi_program_change): Bug fixed.
+    * configure.in: enable_audio_opt -> have_audio_opt
+    * timidity/hpux_a.c: Use 'A' for HPUX network audio (Alib) instead of 'n'.
+    * configure.in,timidity/{linux_a.c,oss_a.c,output.c}:
+      Rename linux_a.c to oss_a.c
+    * configure.in,timidity/output.c:
+      Rename AU_LINUX to AU_OSS.
+      Split AU_HPUX into AU_HPUX_AUDIO and AU_HPUX_ALIB.
+    * configure.in: (Audio options): --enable-audio[=mode_list]
+      `mode_list' is comma separated mode list:
+		dev:  (default)
+		      /dev/dsp    (Linux, FreeBSD, BSD/OS)
+		      /dev/sb_dsp (BSD/OS)
+		      /dev/audio  (Sun, NetBSD, HPUX)
+		      IRIX audio or OSF/1 MME
+		      Windows MMS
+		oss:  OSS /dev/dsp (Exclusive dev mode)
+		alsa: ALSA pcm device
+		alib: HPUX network audio (Alib)
+		nas:  NAS - Network Audio System
+		esd:  EsounD
+      Example:
+		--enable-audio=alsa,nas,esd
+		compiles and links ALSA, NAS, and EsounD audio output.
+      By default, --enable-audio=dev.
+    * timidity.c(TIMIDITY_OUTPUT_ID): Environment shell variable to
+      specify output mode id.
+    * configure.in(--with-default-output=<mode>): Support more output modes.
+
+1999-08-28  Katsuhiro Ueno <katsu@blue.sky.or.jp>
+
+    * configure.in:
+      enable-dynamic -> dynamic
+      If the compiler is gcc, use it for SHLD instead of ld.
+    * configure.in, timidity/output.c (--with-default-output=<mode>):
+      New configure option to specify default output mode.
+    * interface/bitmaps/Makefile.am:
+      $(TIMID_DIR)/bitmaps -> $(TCL_DIR)/bitmaps
+    * common.makefile.in (TIMID_DIR):
+      Set $(pkgdatadir) instead of $(pkglibdir).
+      *** CAUTION ***: The default configuration file is replaced to
+      /usr/local/share/timidity/timidity.cfg
+    * configure.in, common.makefile.in, interface/Makefile.am (SHLIB_DIR):
+      New makefile macro.  SHLIB_DIR is used to specify the directory
+      which contains dynamic TiMidity interfaces.
+    * configure.in, timidity/Makefile.am:
+      Add -rdynamic option for gcc if --enable-dynamic.
+    * interface/dynamic_c.c, timidity/timidity.c:
+      Pass dynamic_control_mode.flags to dynamic interface.
+
 1999-08-27  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.5.1 released.

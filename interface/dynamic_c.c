@@ -110,6 +110,7 @@ static int ctl_open(int using_stdin, int using_stdout)
 
     ctl->verbosity = dynamic_control_mode.verbosity;
     ctl->trace_playing = dynamic_control_mode.trace_playing;
+    ctl->flags = dynamic_control_mode.flags;
 
     return ctl->open(using_stdin, using_stdout);
 }

@@ -109,6 +109,7 @@ lispdir = @lispdir@
 program_transform_name = @program_transform_name@
 so = @so@
 tcltk_dep = @tcltk_dep@
+timidity_LDFLAGS = @timidity_LDFLAGS@
 
 PIXMAPS =  	ff.xpm 	loud.xpm 	nextdisc.xpm 	nexttrk.xpm 	playpaus.xpm 	prevdisc.xpm 	prevtrk.xpm 	quiet.xpm 	quit.xpm 	rew.xpm 	stop.xpm 	open.xpm 	fast.xpm 	slow.xpm 	restart.xpm 	keyup.xpm 	keydown.xpm 	timidity.xpm
 
