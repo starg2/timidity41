@@ -1,9 +1,8 @@
 #ifndef ___OUTPUT_H_
 #define ___OUTPUT_H_
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -67,6 +66,10 @@ enum {
     PM_REQ_SETQSIZ,	/* ARG: int (in-out)
 			 * Set maxmum device queue size in bytes.
 			 * The specified ARG is updated new queue size.
+			 */
+
+    PM_REQ_GETFRAGSIZ,	/* ARG: int
+			 * Get device fragment size in bytes.
 			 */
 
     PM_REQ_RATE,	/* ARG: int

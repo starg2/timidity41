@@ -1,7 +1,6 @@
 /*
-
-    TiMidity -- Experimental MIDI to WAVE converter
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    TiMidity++ -- MIDI to WAVE converter and player
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <toivonen@clinet.fi>
 
     This program is free software; you can redistribute it and/or modify

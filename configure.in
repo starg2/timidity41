@@ -1,5 +1,5 @@
 dnl TiMidity++ -- MIDI to WAVE converter and player
-dnl Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+dnl Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
 dnl Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 dnl 
 dnl This program is free software; you can redistribute it and/or modify
@@ -55,7 +55,7 @@ dnl
 AC_INIT(timidity/timidity.c)
 SHELL=${CONFIG_SHELL-/bin/sh}
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(TiMidity++, 2.8.1, no-define)
+AM_INIT_AUTOMAKE(TiMidity++, 2.8.2, no-define)
 
 dnl To use CONTAINS() macro (See acinclude.m4)
 CONTAINS_INIT
@@ -71,7 +71,7 @@ AC_ARG_ENABLE(debug,
   [  --enable-debug          Build a debugging version.],
   [ if test "$enableval" = "yes"; then
       CFLAGS="$CFLAGS -g"
-    fi ], [ CFLAGS=${CFLAGS:--O2} ])
+    fi ], [ CFLAGS=${CFLAGS--O2} ])
 
 EXTRACFLAGS=
 EXTRADEFS=
@@ -95,7 +95,7 @@ lib_curses_opt=
 lib_user32_opt=
 lib_user32_test=
 
-WISH=${WISH:-wish}
+WISH=${WISH-wish}
 tcltk_dep=
 
 dnl --with-x turns on if `--with-x' is not specified.
@@ -114,9 +114,9 @@ for i in `echo $C_INCLUDE_PATH|sed -e 's,:, ,g'`; do
 done
 
 dnl add prefix /usr/local by default
-LDFLAGS="$LDFLAGS -L${PREFIX:-/usr/local}/lib"
-CPPFLAGS="$CPPFLAGS -I${PREFIX:-/usr/local}/include"
-SHLDFLAGS=${SHLDFLAGS:-$LDFLAGS}
+LDFLAGS="$LDFLAGS -L${PREFIX-/usr/local}/lib"
+CPPFLAGS="$CPPFLAGS -I${PREFIX-/usr/local}/include"
+SHLDFLAGS=${SHLDFLAGS-$LDFLAGS}
 
 dnl add $prefix if specified.
 if test "x$prefix" != xNONE -a "x$prefix" != "x$ac_default_prefix" -a "x$prefix" != "x/usr"; then
@@ -177,7 +177,7 @@ case "$target" in
 #    so="so"
 #    ;;
 
-  *-*-cygwin32*)
+  *-*-cygwin*)
     EXTRADEFS="-D__W32__"
     # ??
     case "x${CC} " in
@@ -470,7 +470,7 @@ AC_ARG_ENABLE(nas,
   [ au_enable_nas=$enableval ])
 AC_ARG_ENABLE(alsa,
   [  --enable-alsa           ALSA   (Obsoleted.  Use --enable-audio=alsa)],
-  [ au_enable_nas=$enableval ])
+  [ au_enable_alsa=$enableval ])
 
 if test "x$au_enable_default" = xyes; then
   case "$target" in
@@ -501,7 +501,7 @@ if test "x$au_enable_default" = xyes; then
     *-*-netbsd*)
       au_enable_sun=yes
       ;;
-    *-*-cygwin32*)
+    *-*-cygwin*)
       au_enable_w32=yes
       ;;
     *)
@@ -622,7 +622,7 @@ fi
 AC_MSG_CHECKING(enable_audio=w32)
 if test "x$au_enable_w32" = xyes; then
   case "$target" in
-    *-*-cygwin32*)
+    *-*-cygwin*)
      if test "x$enable_w32gui" = xyes; then
 	SYSEXTRAS="$SYSEXTRAS w32g_a.c"
      else
@@ -914,8 +914,15 @@ dnl configure must check ncurses header with -I/usr/include/ncurses option.
 		  CPPFLAGS="$CPPFLAGS -DUSE_PDCURSES=1"
 		  lib_user32_opt="$lib_user32_test"
 		],
-		[ AC_MSG_WARN(ncurses interface is not enabled) 
-		  enable_ncurses=no
+		[ dnl checking libpdcurses
+		  AC_CHECK_LIB(pdcurses,PDC_set_ctrl_break,
+			[ lib_curses_opt=-lpdcurses
+			  CPPFLAGS="$CPPFLAGS -DUSE_PDCURSES=1"
+			  lib_user32_opt="$lib_user32_test"
+			],
+			[ AC_MSG_WARN(ncurses interface is not enabled) 
+			  enable_ncurses=no
+			])
 		],
 		$lib_user32_test)
 	])

@@ -1,6 +1,9 @@
 /*
+    TiMidity++ -- MIDI to WAVE converter and player
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
-    Copyright (C) 1999 Michael Haardt <michael@moria.de>
+    nas_a.c - Copyright (C) 1999 Michael Haardt <michael@moria.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

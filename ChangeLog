@@ -1,3 +1,57 @@
+2000-02-07  Masanao Izumo <mo@goice.co.jp>
+
+    * Version 2.8.2 released.
+
+2000-02-07  Katsuhiro Ueno <katsu@blue.sky.or.jp>
+
+    * timidity/alsa_a.c: Improved.
+
+2000-02-07  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/alsa_a.c: Fixed for ALSA 0.4
+    * configure.in:
+	Add a test of -lpdcurses for the curses library.
+	Use *-*-cygwin* for matching $target to CYGWIN.
+    * all files: Update copyright line.
+
+2000-02-02  Katsuhiro Ueno <katsu@blue.sky.or.jp>
+
+    * timidity/{aq.c,aq.h,output.h,timidity.c,alsa_a.c}:
+      Support for ALSA 0.5
+
+2000-01-10  Peter Stuer <Peter.Stuer@pandora.be>
+
+    * timidity/w32_a.c: Fixed dead-lock probrem on NT (for console version).
+
+2000-01-09  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/{recache.c,resample.c}: Optimized.
+
+2000-01-06  Eric A. Welsh <ewelsh@gpc.wustl.edu>
+
+    * timidity/playmici.c: Fixed a bug of random pan.
+
+2000-01-13  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/sndfont.c (def_drum_inst): Removed.
+
+2000-01-09  Masanao Izumo <mo@goice.co.jp>
+
+    * config.sub config.guss install-sh: Update new version from autoconf 2.13
+    * configure.in: Fixed variable substitution rules.
+
+1999-12-24  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/configure.in: Fixed typo.
+
+1999-12-20  Masanao Izumo <mo@goice.co.jp>
+
+    * timidity/instrum.c: Bug fix.
+
+1999-12-02  Piotr Auksztulewicz <piotras@zeus.polsl.gliwice.pl>
+
+    * timidity/output.c: Fixed missing of semicolon.
+
 1999-11-29  Masanao Izumo <mo@goice.co.jp>
 
     * Version 2.8.1 released.
@@ -5,7 +59,7 @@
 1999-11-29  Masanao Izumo <mo@goice.co.jp>
 
     * timidity/timidity.c,interface/{gtk_c.c,motif_c.c,w32g_i.c,w32g_util.c,
-      w32g_ini.c,wrdt_wcon.c,xaw_c.c}:  Bug fixes about overrunning in strncpy.
+      w32g_ini.c,wrdt_wcon.c,xaw_c.c}: Bug fixes about over-running in strncpy.
 
 1999-11-24  Masanao Izumo <mo@goice.co.jp>
 
@@ -469,9 +523,9 @@
 1999-08-20  Eric A. Welsh <ewelsh@gpc.wustl.edu>
 
     * timidity/{playmidi.c,playmidi.h,resample.h,timidity.c}
-      (cspline and langrange interpolation):
+      (cspline and lagrange interpolation):
       reduce_quality_flag: New variable to reduce CPU load for
-	cspline and langrange interpolation.  TiMidity turns
+	cspline and lagrange interpolation.  TiMidity turns
 	reduce_quality_flag on when the CPU is heavily loaded.
       -4: New command line option to toggle whether ignore reduce_quality_flag.
 	By default, TiMidity uses reduce_quality_flag.

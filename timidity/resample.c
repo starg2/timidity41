@@ -1,7 +1,6 @@
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -933,16 +932,16 @@ void pre_resample(Sample * sp)
 	    sp->note_to_use,
 	    note_name[sp->note_to_use % 12], (sp->note_to_use & 0x7F) / 12);
 
-  a = ((double) (sp->sample_rate) * freq_table[(int) (sp->note_to_use)]) /
-    ((double) (sp->root_freq) * play_mode->rate);
-  if(sp->data_length / a >= 0x7fffffffL)
+  a = ((double) (sp->root_freq) * play_mode->rate) /
+      ((double) (sp->sample_rate) * freq_table[(int) (sp->note_to_use)]);
+  if(sp->data_length * a >= 0x7fffffffL)
   {
       /* Too large to compute */
       ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d",
 		sp->note_to_use);
       return;
   }
-  newlen = (int32)(sp->data_length / a);
+  newlen = (int32)(sp->data_length * a);
   count = (newlen >> FRACTION_BITS) - 1;
   ofs = incr = (sp->data_length - (1 << FRACTION_BITS)) / count;
 
@@ -994,8 +993,8 @@ void pre_resample(Sample * sp)
   *dest++ = *(dest - 1) / 2;
 
   sp->data_length = newlen;
-  sp->loop_start = (int32)(sp->loop_start / a);
-  sp->loop_end = (int32)(sp->loop_end / a);
+  sp->loop_start = (int32)(sp->loop_start * a);
+  sp->loop_end = (int32)(sp->loop_end * a);
   free(sp->data);
   sp->data = (sample_t *) newdata;
   sp->sample_rate = 0;

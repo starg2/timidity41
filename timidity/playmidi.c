@@ -1,7 +1,6 @@
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -2422,7 +2421,7 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	else
 	    channel[ch].drums[note]->pan_random = 0;
 	channel[ch].drums[note]->drum_panning = val;
-	if(update_now && adjust_panning_immediately)
+	if(update_now && adjust_panning_immediately && !channel[ch].pan_random)
 	    adjust_drum_panning(ch, note);
 	break;
       case NRPN_ADDR_1D00:	/* Reverb Send Level of Drum */
@@ -3946,7 +3945,7 @@ int play_event(MidiEvent *ev)
       case ME_PAN:
 	channel[ch].panning = ev->a;
 	channel[ch].pan_random = 0;
-	if(adjust_panning_immediately)
+	if(adjust_panning_immediately && !channel[ch].pan_random)
 	    adjust_panning(ch);
 	ctl_mode_event(CTLE_PANNING, 1, ch, ev->a);
 	break;
@@ -4085,7 +4084,7 @@ int play_event(MidiEvent *ev)
       case ME_RANDOM_PAN:
 	channel[ch].panning = int_rand(128);
 	channel[ch].pan_random = 1;
-	if(adjust_panning_immediately)
+	if(adjust_panning_immediately && !channel[ch].pan_random)
 	    adjust_panning(ch);
 	break;
 

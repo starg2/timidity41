@@ -1,10 +1,10 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 */
 
-/* This code from swesfx
+/* This code from awesfx
  * Modified by Masanao Izumo <mo@goice.co.jp>
  */
 
@@ -198,7 +198,7 @@ static void do_lowpass(Sample *sp, int32 freq, FLOAT_T resonance);
 
 static SFInsts *sfrecs = NULL;
 static SFInsts *current_sfrec = NULL;
-static int def_drum_inst;
+#define def_drum_inst 0
 
 static SFInsts *find_soundfont(char *sf_file)
 {
@@ -822,7 +822,9 @@ static int parse_layer(SFInfo *sf, int pridx, LayerTable *tbl, int level)
 	SFInstHdr *inst;
 	int rc, i, nlayers;
 	SFGenLayer *lay, *globalp;
+#if 0
 	SFPresetHdr *preset = &sf->preset[pridx];
+#endif
 
 	if (level >= 2) {
 		fprintf(stderr, "parse_layer: too deep instrument level\n");
@@ -833,12 +835,17 @@ static int parse_layer(SFInfo *sf, int pridx, LayerTable *tbl, int level)
 	if (!tbl->set[SF_instrument])
 		return AWE_RET_SKIP;
 
+	inst = &sf->inst[tbl->val[SF_instrument]];
+
+	/* Here, TiMidity makes the reference of the data.  The real data
+	 * is loaded after.  So, duplicated data is allowed */
+#if 0
 	/* if non-standard drumset includes standard drum instruments,
 	   skip it to avoid duplicate the data */
-	inst = &sf->inst[tbl->val[SF_instrument]];
 	if (def_drum_inst >= 0 && preset->bank == 128 && preset->preset != 0 &&
 	    tbl->val[SF_instrument] == def_drum_inst)
 			return AWE_RET_SKIP;
+#endif
 
 	/* if layer is empty, skip it */
 	if ((nlayers = inst->hdr.nlayers) <= 0 ||

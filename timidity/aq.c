@@ -1,7 +1,6 @@
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -90,6 +89,35 @@ static int32 estimate_queue_size(void);
 extern void init_effect(void);
 extern int do_effect(int32* buf, int32 count);
 
+int aq_calc_fragsize(void)
+{
+    int ch, bps, bs;
+    double dq, bt;
+
+    if(play_mode->encoding & PE_MONO)
+	ch = 1;
+    else
+	ch = 2;
+    if(play_mode->encoding & PE_16BIT)
+	bps = ch * 2;
+    else
+	bps = ch;
+
+    bs = AUDIO_BUFFER_SIZE * bps;
+    dq = play_mode->rate * MAX_FILLED_TIME * bps;
+    while(bs * 2 > dq)
+	bs /= 2;
+
+    bt = (double)bs / bps / play_mode->rate;
+    while(bt > MAX_BUCKET_TIME)
+    {
+	bs /= 2;
+	bt = (double)bs / bps / play_mode->rate;
+    }
+
+    return bs;
+}
+
 void aq_setup(void)
 {
     int ch;
@@ -105,7 +133,8 @@ void aq_setup(void)
 
     if(IS_STREAM_TRACE)
     {
-	bucket_size = AUDIO_BUFFER_SIZE * Bps;
+	if(play_mode->acntl(PM_REQ_GETFRAGSIZ, &bucket_size) == -1)
+	    bucket_size = AUDIO_BUFFER_SIZE * Bps;
 	if(play_mode->acntl(PM_REQ_GETQSIZ, &device_qsize) == -1)
 	    device_qsize = estimate_queue_size();
 	else
@@ -367,6 +396,11 @@ static int aq_fill_one(void)
 
     if(head == NULL)
 	return 0;
+    if((play_mode->flag & PF_PCM_STREAM) && head->len < bucket_size) {
+	/* are there any probrems using 0 as the silence code? */
+	memset (head->data + head->len, 0, bucket_size - head->len);
+	head->len = bucket_size;
+    }
     if(aq_output_data(head->data, head->len) == -1)
 	return -1;
     tmp = head;

@@ -1,7 +1,6 @@
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -81,7 +80,7 @@ extern PlayMode alsa_play_mode;
 #endif /* AU_ALSA */
 
 #ifdef AU_HPUX_ALIB
-extern PlayMode hpux_nplay_mode
+extern PlayMode hpux_nplay_mode;
 #endif /* AU_HPUX_ALIB */
 
 #ifdef AU_ESD

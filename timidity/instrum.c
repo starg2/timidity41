@@ -1,7 +1,6 @@
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -604,7 +603,7 @@ static Instrument *load_gus_instrument(char *name,
       }
 
       /* Then read the sample data */
-      sp->data = (sample_t *)safe_malloc(sp->data_length+1);
+      sp->data = (sample_t *)safe_malloc(sp->data_length+2);
       sp->data_alloced = 1;
       if ((j = tf_read(sp->data, 1, sp->data_length, tf)) != sp->data_length)
       {

@@ -1,9 +1,8 @@
 #ifndef ___AQ_H_
 #define ___AQ_H_
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -26,6 +25,10 @@
 
 
 /* interfaces */
+
+extern int aq_calc_fragsize(void);
+/* aq_calc_fragsize() calculates the best fragment size for audio device.
+ */
 
 extern void aq_setup(void);
 /* aq_setup() allocates the buffer for software queue, and estimate

@@ -1,7 +1,6 @@
 /*
-
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999,2000 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,7 +16,6 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifdef HAVE_CONFIG_H
@@ -3072,6 +3070,13 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 		  "Open output: %c, %s",
 		  play_mode->id_character,
 		  play_mode->id_name);
+
+	if (play_mode->flag & PF_PCM_STREAM) {
+	    play_mode->extra_param[1] = aq_calc_fragsize();
+	    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+		      "requesting fragment size: %d",
+		      play_mode->extra_param[1]);
+	}
 	if(play_mode->open_output() < 0)
 	{
 	    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
