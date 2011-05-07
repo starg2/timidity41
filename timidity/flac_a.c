@@ -70,6 +70,7 @@
 #endif
 
 #include "timidity.h"
+#include "common.h"
 #include "output.h"
 #include "controls.h"
 #include "timer.h"
@@ -849,8 +850,8 @@ static int output_data(char *buf, int32 nbytes)
 	if (flac_options.seekable) {
     ctx->state.s_flac = FLAC__seekable_stream_encoder_get_state(ctx->encoder.flac.s_stream);
     if (ctx->state.s_flac != FLAC__STREAM_ENCODER_OK) {
-      if (ctx->state.s_flac == FLAC__STREAM_ENCODER_VERIFY_DECODER_ERROR |
-	  FLAC__STREAM_ENCODER_VERIFY_MISMATCH_IN_AUDIO_DATA) {
+      if (ctx->state.s_flac == FLAC__STREAM_ENCODER_VERIFY_DECODER_ERROR ||
+	  ctx->state.s_flac == FLAC__STREAM_ENCODER_VERIFY_MISMATCH_IN_AUDIO_DATA) {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC stream verify error (%s)",
 		  FLAC__SeekableStreamDecoderStateString[FLAC__seekable_stream_encoder_get_verify_decoder_state(ctx->encoder.flac.s_stream)]);
       }
@@ -873,8 +874,8 @@ static int output_data(char *buf, int32 nbytes)
 	{
     ctx->state.flac = FLAC__stream_encoder_get_state(ctx->encoder.flac.stream);
     if (ctx->state.flac != FLAC__STREAM_ENCODER_OK) {
-      if (ctx->state.flac == FLAC__STREAM_ENCODER_VERIFY_DECODER_ERROR |
-	  FLAC__STREAM_ENCODER_VERIFY_MISMATCH_IN_AUDIO_DATA) {
+      if (ctx->state.flac == FLAC__STREAM_ENCODER_VERIFY_DECODER_ERROR ||
+	  ctx->state.flac == FLAC__STREAM_ENCODER_VERIFY_MISMATCH_IN_AUDIO_DATA) {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC stream verify error (%s)",
 		  FLAC__StreamDecoderStateString[FLAC__stream_encoder_get_verify_decoder_state(ctx->encoder.flac.stream)]);
       }

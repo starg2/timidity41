@@ -2952,6 +2952,7 @@ MAIN_INTERFACE int set_tim_opt_long_cfg(int c, char *optarg, int index)
 	case TIM_OPT_CONFIG_FILE:
 		return parse_opt_c(arg);
 	}
+	return 1;
 }
 #endif
 

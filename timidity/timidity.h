@@ -453,8 +453,9 @@ typedef double FLOAT_T;
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
-#endif /* HAVE_ERRNO_H */
+#else
 extern int errno;
+#endif /* HAVE_ERRNO_H */
 
 #ifdef HAVE_MACHINE_ENDIAN_H
 #include <machine/endian.h> /* for __byte_swap_*() */

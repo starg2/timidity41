@@ -55,7 +55,8 @@
 #endif /* SOCKET_ERROR */
 #endif
 
-#if (defined WIN32) && (_WIN32_WINNT < 0x0501)
+#ifdef WIN32
+#if _WIN32_WINNT < 0x0501
 typedef int (WSAAPI * GETADDRINFO) (const char FAR *, const char FAR *,
                                           const struct addrinfo FAR *,
                                           struct addrinfo FAR * FAR *);
@@ -65,6 +66,9 @@ extern GETADDRINFO ws2_getaddrinfo;
 extern FREEADDRINFO ws2_freeaddrinfo;
 #define getaddrinfo ws2_getaddrinfo
 #define freeaddrinfo ws2_freeaddrinfo
+#else
+#include <wspiapi.h>
+#endif
 #endif
 
 SOCKET open_socket(char *host, unsigned short port)

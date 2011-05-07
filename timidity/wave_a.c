@@ -118,7 +118,9 @@ static char *orig_RIFFheader=
  */
 
 /* Windows WAVE File Encoding Tags */
+#ifndef WAVE_FORMAT_PCM
 #define WAVE_FORMAT_PCM       0x01
+#endif
 #define WAVE_FORMAT_ALAW      0x06
 #define WAVE_FORMAT_MULAW     0x07
 
