@@ -139,8 +139,7 @@ HINSTANCE hInst;
 static int progress_jump = -1;
 static HWND hMainWndScrollbarProgressWnd;
 static HWND hMainWndScrollbarVolumeWnd;
-// #define W32G_VOLUME_MAX 200
-#define W32G_VOLUME_MAX MAX_AMPLIFICATION
+#define W32G_VOLUME_MAX 200
 
 // HWND
 HWND hMainWnd = 0;
