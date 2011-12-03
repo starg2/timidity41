@@ -1,3 +1,7 @@
+2011-12-04  TAMUKI Shoichi <tamuki@linet.gr.jp>
+
+	* configure.in: Support for Tcl/Tk 8.5 and autoreconf
+
 2011-12-04  Hans de Goede <hdegoede@redhat.com>
 
 	* timidity/esd_a.c: [PATCH 1/9] esd_a: Don't start ESD
