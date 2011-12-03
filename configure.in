@@ -1424,7 +1424,7 @@ fi
 dnl ogg's speex
 AC_MSG_CHECKING(enable_audio=speex)
 if test "x$au_enable_speex" = xyes; then
-  AC_CACHE_VAL(have_speex,
+  AC_CACHE_VAL(timidity_cv_have_speex,
   [AC_TRY_LINK([
   #include <speex/speex.h>
   #include <ogg/ogg.h>

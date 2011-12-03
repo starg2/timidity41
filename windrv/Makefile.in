@@ -361,6 +361,13 @@ EXTRA_DIST = \
 	 timiditydrv.inf  \
 	 timiditydrv.idl
 
+@DMC_TRUE@@MINGWGCC_FALSE@libtimiditydrv_a_LIBADD = \
+@DMC_TRUE@@MINGWGCC_FALSE@	interface.lib \
+@DMC_TRUE@@MINGWGCC_FALSE@	arc.lib \
+@DMC_TRUE@@MINGWGCC_FALSE@	unimod.lib \
+@DMC_TRUE@@MINGWGCC_FALSE@	utils.lib \
+@DMC_TRUE@@MINGWGCC_FALSE@	timidity.lib
+
 
 @MINGWGCC_TRUE@libtimiditydrv_a_LIBADD = \
 @MINGWGCC_TRUE@	$(top_builddir)/timidity/timidity.exe \
@@ -368,13 +375,6 @@ EXTRA_DIST = \
 @MINGWGCC_TRUE@	$(top_builddir)/libarc/libarc.a \
 @MINGWGCC_TRUE@	$(top_builddir)/libunimod/libunimod.a \
 @MINGWGCC_TRUE@	$(top_builddir)/utils/libutils.a 
-
-@DMC_TRUE@@MINGWGCC_FALSE@libtimiditydrv_a_LIBADD = \
-@DMC_TRUE@@MINGWGCC_FALSE@	interface.lib \
-@DMC_TRUE@@MINGWGCC_FALSE@	arc.lib \
-@DMC_TRUE@@MINGWGCC_FALSE@	unimod.lib \
-@DMC_TRUE@@MINGWGCC_FALSE@	utils.lib \
-@DMC_TRUE@@MINGWGCC_FALSE@	timidity.lib
 
 @DMC_FALSE@@MINGWGCC_FALSE@@POCC_TRUE@libtimiditydrv_a_LIBADD = \
 @DMC_FALSE@@MINGWGCC_FALSE@@POCC_TRUE@	$(top_builddir)/interface/interface.lib \
@@ -390,19 +390,19 @@ EXTRA_DIST = \
 @DMC_FALSE@@MINGWGCC_FALSE@@POCC_FALSE@	$(top_builddir)/utils/utils.lib \
 @DMC_FALSE@@MINGWGCC_FALSE@@POCC_FALSE@	$(top_builddir)/timidity/timidity.exe
 
-@MINGWGCC_TRUE@libtimiditydrv_a_dep = \
-@MINGWGCC_TRUE@	$(top_builddir)/timidity/timidity.exe \
-@MINGWGCC_TRUE@	$(top_builddir)/interface/libinterface.a \
-@MINGWGCC_TRUE@	$(top_builddir)/libarc/libarc.a \
-@MINGWGCC_TRUE@	$(top_builddir)/libunimod/libunimod.a \
-@MINGWGCC_TRUE@	$(top_builddir)/utils/libutils.a 
-
 @DMC_TRUE@@MINGWGCC_FALSE@libtimiditydrv_a_dep = \
 @DMC_TRUE@@MINGWGCC_FALSE@	$(top_builddir)/interface/interface.lib \
 @DMC_TRUE@@MINGWGCC_FALSE@	$(top_builddir)/libarc/arc.lib \
 @DMC_TRUE@@MINGWGCC_FALSE@	$(top_builddir)/libunimod/unimod.lib \
 @DMC_TRUE@@MINGWGCC_FALSE@	$(top_builddir)/utils/utils.lib \
 @DMC_TRUE@@MINGWGCC_FALSE@	$(top_builddir)/timidity/timidity.lib
+
+@MINGWGCC_TRUE@libtimiditydrv_a_dep = \
+@MINGWGCC_TRUE@	$(top_builddir)/timidity/timidity.exe \
+@MINGWGCC_TRUE@	$(top_builddir)/interface/libinterface.a \
+@MINGWGCC_TRUE@	$(top_builddir)/libarc/libarc.a \
+@MINGWGCC_TRUE@	$(top_builddir)/libunimod/libunimod.a \
+@MINGWGCC_TRUE@	$(top_builddir)/utils/libutils.a 
 
 @DMC_FALSE@@MINGWGCC_FALSE@@POCC_TRUE@libtimiditydrv_a_dep = \
 @DMC_FALSE@@MINGWGCC_FALSE@@POCC_TRUE@	$(top_builddir)/interface/interface.lib \

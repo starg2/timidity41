@@ -63,6 +63,8 @@
 	  timidity/speex_a.c, timidity/timidity.c, utils/net.c,
 	  utils/nkflib.c: [PATCH 10/17] Fix / silence various compiler
 	  warnings
+	* configure.in: [PATCH 14/17] Silence autofoo warnings about
+	  have_speex ac cache identifier (autoreconf by TAMUKI Shochi)
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 

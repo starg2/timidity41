@@ -15614,7 +15614,7 @@ fi
 echo "$as_me:$LINENO: checking enable_audio=speex" >&5
 echo $ECHO_N "checking enable_audio=speex... $ECHO_C" >&6
 if test "x$au_enable_speex" = xyes; then
-  if test "${have_speex+set}" = set; then
+  if test "${timidity_cv_have_speex+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   cat >conftest.$ac_ext <<_ACEOF
