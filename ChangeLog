@@ -81,6 +81,8 @@
 	  for dynamic interfaces cause it to always hit a few dlsym
 	  errors as soon as you have more then one dynamic interface,
 	  so silence these errors.
+	* timidity/timidity.c: [PATCH 17/17] Fix listing of dynamic
+	  interfaces in --help output
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 

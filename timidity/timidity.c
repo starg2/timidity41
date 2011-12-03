@@ -4098,21 +4098,21 @@ static inline void list_dyna_interface(FILE *fp, char *path, char *mark)
 	while (url_gets(dir, fname, sizeof(fname)) != NULL)
 		if (strncmp(fname, "if_", 3) == 0) {
 			void* handle = NULL;
-			if((handle = dl_load_file(fname))) {
-				ControlMode *(* loader)(void);
-				char c = CHAR_MAX;
-				loader = NULL;
-				do {
+			char path[NAME_MAX];
+			snprintf(path, NAME_MAX, ".%c%s", PATH_SEP, fname);
+			if((handle = dl_load_file(path))) {
+				ControlMode *(* loader)(void) = NULL;
+				char c;
+				for (c = 'A'; c <= 'z'; c++) {
 					char buf[20]; /* enough */
 					if(mark[(int)c]) continue;
 					sprintf(buf, "interface_%c_loader", c);
 					if((loader = dl_find_symbol(handle, buf))) {
 						fprintf(fp, "  -i%c          %s" NLS, c, loader()->id_name);
 						mark[(int)c] = 1;
-						goto cleanup;
+						break;
 					}
-				} while (--c != CHAR_MAX); /* round-trip detection */
-			cleanup:
+				}
 				dl_free(handle);
 			}
 		}
