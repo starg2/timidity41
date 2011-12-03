@@ -2701,16 +2701,16 @@ MAIN_INTERFACE int set_tim_opt_short(int c, char *optarg)
 	return 0;
 }
 
+#ifdef __W32__
 MAIN_INTERFACE int set_tim_opt_short_cfg(int c, char *optarg)
 {
-	int err = 0;
-	
 	switch (c) {
 	case 'c':
 		return parse_opt_c(optarg);
 	}
 	return 0;
 }
+#endif
 
 /* -------- getopt_long -------- */
 MAIN_INTERFACE int set_tim_opt_long(int c, char *optarg, int index)
@@ -2950,6 +2950,7 @@ MAIN_INTERFACE int set_tim_opt_long(int c, char *optarg, int index)
 	}
 }
 
+#ifdef __W32__
 MAIN_INTERFACE int set_tim_opt_long_cfg(int c, char *optarg, int index)
 {
 	const struct option *the_option = &(longopts[index]);
@@ -2968,6 +2969,7 @@ MAIN_INTERFACE int set_tim_opt_long_cfg(int c, char *optarg, int index)
 		return parse_opt_c(arg);
 	}
 }
+#endif
 
 static inline int parse_opt_A(const char *arg)
 {
@@ -3918,7 +3920,7 @@ static int parse_opt_h(const char *arg)
 			if (*(strchr(h, '%') + 1) != '%')
 				fprintf(fp, h, help_args[j++]);
 			else
-				fprintf(fp, h);
+				fprintf(fp, "%s", h);
 		} else
 			fputs(h, fp);
 		fputs(NLS, fp);
@@ -4099,7 +4101,7 @@ static inline void list_dyna_interface(FILE *fp, char *path, char *mark)
 {
     URL dir;
     char fname[NAME_MAX];
-    int cwd;
+    int cwd, dummy;
 	if ((dir = url_dir_open(path)) == NULL)
 		return;
 	cwd = open(".", 0);
@@ -4108,17 +4110,17 @@ static inline void list_dyna_interface(FILE *fp, char *path, char *mark)
 	while (url_gets(dir, fname, sizeof(fname)) != NULL)
 		if (strncmp(fname, "if_", 3) == 0) {
 			void* handle = NULL;
-			if(handle = dl_load_file(fname)) {
+			if((handle = dl_load_file(fname))) {
 				ControlMode *(* loader)(void);
 				char c = CHAR_MAX;
 				loader = NULL;
 				do {
 					char buf[20]; /* enough */
-					if(mark[c]) continue;
+					if(mark[(int)c]) continue;
 					sprintf(buf, "interface_%c_loader", c);
-					if(loader = dl_find_symbol(handle, buf)) {
+					if((loader = dl_find_symbol(handle, buf))) {
 						fprintf(fp, "  -i%c          %s" NLS, c, loader()->id_name);
-						mark[c] = 1;
+						mark[(int)c] = 1;
 						goto cleanup;
 					}
 				} while (--c != CHAR_MAX); /* round-trip detection */
@@ -4126,17 +4128,17 @@ static inline void list_dyna_interface(FILE *fp, char *path, char *mark)
 				dl_free(handle);
 			}
 		}
-	fchdir(cwd);
-	close(cwd);
+	dummy = fchdir(cwd);
+	dummy += close(cwd);
 	url_close(dir);
 }
 
 ControlMode *dynamic_interface_module(int id_char)
 {
 	URL url;
-	char fname[BUFSIZ], name[16], *info;
+	char fname[BUFSIZ];
 	ControlMode *ctl = NULL;
-	int cwd;
+	int cwd, dummy;
 	void *handle;
 	ControlMode *(* inferface_loader)(void);
 
@@ -4161,8 +4163,8 @@ ControlMode *dynamic_interface_module(int id_char)
 				break;
 		}
 	}
-	fchdir(cwd);
-	close(cwd);
+	dummy = fchdir(cwd);
+	dummy += close(cwd);
 	url_close(url);
 	return ctl;
 }
@@ -4171,9 +4173,8 @@ ControlMode *dynamic_interface_module(int id_char)
 static inline int parse_opt_i(const char *arg)
 {
 	/* interface mode */
-	ControlMode *cmp, **cmpp, *cmp2, **cmpp2;
+	ControlMode *cmp, **cmpp;
 	int found = 0;
-	char name[16] = "\0";
 	
 	for (cmpp = ctl_list; (cmp = *cmpp) != NULL; cmpp++) {
 		if (cmp->id_character == *arg) {
@@ -5145,16 +5146,17 @@ static void interesting_message(void)
 static RETSIGTYPE sigterm_exit(int sig)
 {
     char s[4];
+    ssize_t dummy;
 
     /* NOTE: Here, fprintf is dangerous because it is not re-enterance
      * function.  It is possible coredump if the signal is called in printf's.
      */
 
-    write(2, "Terminated sig=0x", 17);
+    dummy = write(2, "Terminated sig=0x", 17);
     s[0] = "0123456789abcdef"[(sig >> 4) & 0xf];
     s[1] = "0123456789abcdef"[sig & 0xf];
     s[2] = '\n';
-    write(2, s, 3);
+    dummy += write(2, s, 3);
 
     safe_exit(1);
 }
@@ -5761,7 +5763,7 @@ int main(int argc, char **argv)
 	int c, err, i;
 	int nfiles;
 	char **files;
-	char *files_nbuf;
+	char *files_nbuf = NULL;
 	int main_ret;
 	int longind;
 #if defined(DANGEROUS_RENICE) && !defined(__W32__) && !defined(main)
@@ -5814,7 +5816,7 @@ int main(int argc, char **argv)
 	dl_init(argc, argv);
 }
 #endif /* IA_DYNAMIC */
-	if (program_name = pathsep_strrchr(argv[0]))
+	if ((program_name = pathsep_strrchr(argv[0])))
 		program_name++;
 	else
 		program_name = argv[0];

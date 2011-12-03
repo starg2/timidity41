@@ -59,7 +59,7 @@
 #define MAX_EXPANDLEN (1024 * 32)
 #define CACHE_DATA_LEN (allocate_cache_size / sizeof(sample_t))
 
-#define sp_hash(sp, note) ((unsigned int) (sp) + (unsigned int) (note))
+#define sp_hash(sp, note) ((unsigned long) (sp) + (unsigned int) (note))
 #define CACHE_RESAMPLING_OK 0
 #define CACHE_RESAMPLING_NOTOK 1
 #define SORT_THRESHOLD 20

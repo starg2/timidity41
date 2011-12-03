@@ -452,9 +452,7 @@ int32 general_output_convert(int32 *buf, int32 count)
 int validate_encoding(int enc, int include_enc, int exclude_enc)
 {
     const char *orig_enc_name, *enc_name;
-    int orig_enc;
 
-    orig_enc = enc;
     orig_enc_name = output_encoding_string(enc);
     enc |= include_enc;
     enc &= ~exclude_enc;
@@ -643,7 +641,7 @@ char *create_auto_output_name(const char *input_filename, char *ext_str, char *o
 	  *p = '_';
 
     if(mode==2){
-      char *p1,*p2,*p3;
+      char *p1,*p2;
 #ifndef __W32__
       p = strrchr(output_filename+dir_len,PATH_SEP);
 #else
@@ -654,6 +652,7 @@ char *create_auto_output_name(const char *input_filename, char *ext_str, char *o
 #endif
       p1 = STRRCHR(output_filename+dir_len,'/');
       p2 = STRRCHR(output_filename+dir_len,'\\');
+      char *p3;
       p3 = STRRCHR(output_filename+dir_len,':');
 #undef STRRCHR
       p1>p2 ? (p1>p3 ? (p = p1) : (p = p3)) : (p2>p3 ? (p = p2) : (p = p3));

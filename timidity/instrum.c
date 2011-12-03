@@ -1043,7 +1043,7 @@ Instrument *load_instrument(int dr, int b, int prog)
 	char infomsg[256];
 	
 #ifndef CFG_FOR_SF
-	if (play_system_mode == GS_SYSTEM_MODE && (b == 64 || b == 65))
+	if (play_system_mode == GS_SYSTEM_MODE && (b == 64 || b == 65)) {
 		if (! dr)	/* User Instrument */
 			recompute_userinst(b, prog);
 		else {		/* User Drumset */
@@ -1052,6 +1052,7 @@ Instrument *load_instrument(int dr, int b, int prog)
 				return ip;
 			}
 		}
+        }
 #endif
 	if (bank->tone[prog].instype == 1 || bank->tone[prog].instype == 2) {
 		if (bank->tone[prog].instype == 1) {	/* Font extention */

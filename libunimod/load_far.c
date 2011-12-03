@@ -250,13 +250,13 @@ FAR_Load (BOOL curious)
 
   for (t = 0; t < of.numpat; t++)
     {
-      UBYTE rows = 0, tempo;
+      UBYTE rows = 0;
 
       memset (pat, 0, 256 * 16 * 4 * sizeof (FARNOTE));
       if (mh2->patsiz[t])
 	{
 	  rows = _mm_read_UBYTE (modreader);
-	  tempo = _mm_read_UBYTE (modreader);
+	  /* tempo = */ _mm_read_UBYTE (modreader);
 
 	  crow = pat;
 	  /* file often allocates 64 rows even if there are less in pattern */

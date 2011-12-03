@@ -27,6 +27,7 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #define _GNU_SOURCE
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -78,7 +79,6 @@ PlayMode dpm = {
 
 static int try_open(void)
 {
-    int fd, tmp, i;
     int include_enc, exclude_enc;
     esd_format_t esdformat;
 

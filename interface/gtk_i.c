@@ -107,8 +107,8 @@ static GtkTextMark *mark;
 static void
 generic_cb(GtkWidget *widget, gpointer data)
 {
-    gtk_pipe_int_write((int)data);
-    if((int)data == GTK_PAUSE) {
+    gtk_pipe_int_write(GPOINTER_TO_INT(data));
+    if(GPOINTER_TO_INT(data) == GTK_PAUSE) {
 	gtk_label_set(GTK_LABEL(cnt_lbl), "Pause");
     }
 }
@@ -134,20 +134,20 @@ open_file_cb(GtkWidget *widget, gpointer data)
 #ifdef HAVE_GTK_2
 	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button),
 			   "clicked",
-			   G_CALLBACK (filer_cb), (gpointer)1);
+			   G_CALLBACK (filer_cb), GINT_TO_POINTER(1));
 #else
 	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button),
 			   "clicked",
-			   GTK_SIGNAL_FUNC (filer_cb), (gpointer)1);
+			   GTK_SIGNAL_FUNC (filer_cb), GINT_TO_POINTER(1));
 #endif
 #ifdef HAVE_GTK_2
 	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filesel)->cancel_button),
 			   "clicked",
-			   G_CALLBACK (filer_cb), (gpointer)0);
+			   G_CALLBACK (filer_cb), GINT_TO_POINTER(0));
 #else
 	gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filesel)->cancel_button),
 			   "clicked",
-			   GTK_SIGNAL_FUNC (filer_cb), (gpointer)0);
+			   GTK_SIGNAL_FUNC (filer_cb), GINT_TO_POINTER(0));
 #endif
     }
 
@@ -167,7 +167,7 @@ filer_cb(GtkWidget *widget, gpointer data)
 #endif
     glob_t pglob;
 
-    if((int)data == 1) {
+    if(GPOINTER_TO_INT(data) == 1) {
 	patt = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filesel));
 	if(glob(patt, GLOB_BRACE|GLOB_NOMAGIC|GLOB_TILDE, NULL, &pglob))
 	    return;
@@ -195,11 +195,11 @@ generic_scale_cb(GtkAdjustment *adj, gpointer data)
     if(local_adjust)
 	return;
 
-    gtk_pipe_int_write((int)data);
+    gtk_pipe_int_write(GPOINTER_TO_INT(data));
 
     /* This is a bit of a hack as the volume scale (a GtkVScale) seems
        to have it's minimum at the top which is counter-intuitive. */
-    if((int)data == GTK_CHANGE_VOLUME) {
+    if(GPOINTER_TO_INT(data) == GTK_CHANGE_VOLUME) {
 	gtk_pipe_int_write(MAX_AMPLIFICATION - adj->value);
     }
     else {
@@ -259,7 +259,7 @@ playlist_cb(GtkWidget *widget, guint data)
     gtk_window_set_title(GTK_WINDOW(plfilesel), ((char)data == 'l')?
 			 "Load Playlist":
 			 "Save Playlist");
-    gtk_object_set_user_data(GTK_OBJECT(plfilesel), (gpointer)data);
+    gtk_object_set_user_data(GTK_OBJECT(plfilesel), GINT_TO_POINTER(data));
     gtk_file_selection_complete(GTK_FILE_SELECTION(plfilesel), "*.tpl");
 
     gtk_widget_show(plfilesel);
@@ -269,7 +269,8 @@ static void
 playlist_op(GtkWidget *widget, guint data)
 {
     int		i;
-    gchar	*filename[2], action, *rowdata, fname[BUFSIZ], *tmp;
+    const gchar	*filename[2];
+    gchar	action, *rowdata, fname[BUFSIZ], *tmp;
     FILE	*plfp;
 
     gtk_widget_hide(plfilesel);
@@ -277,7 +278,7 @@ playlist_op(GtkWidget *widget, guint data)
     if(!data)
 	return;
 
-    action = (gchar)(int)gtk_object_get_user_data(GTK_OBJECT(plfilesel));
+    action = GPOINTER_TO_INT(gtk_object_get_user_data(GTK_OBJECT(plfilesel)));
     filename[0] = gtk_file_selection_get_filename(GTK_FILE_SELECTION(plfilesel));
 
     if(action == 'l') {
@@ -286,6 +287,7 @@ playlist_op(GtkWidget *widget, guint data)
 	    return;
 	}
 	while(fgets(fname, BUFSIZ, plfp) != NULL) {
+            gchar *filename[2];
 	    if(fname[strlen(fname) - 1] == '\n')
 		fname[strlen(fname) - 1] = '\0';
 	    filename[0] = fname;
@@ -600,7 +602,7 @@ create_button_with_pixmap(GtkWidget *window, gchar **bits, gint data, gchar *the
     gtk_container_add(GTK_CONTAINER(button), pw);
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 			      GTK_SIGNAL_FUNC(generic_cb),
-			      (gpointer)data);
+			      GINT_TO_POINTER(data));
     gtk_widget_show(button);
     gtk_tooltips_set_tip(ttip, button, thelp, NULL);
 
@@ -672,15 +674,16 @@ create_menubar(void)
 static GtkTooltips *
 create_yellow_tooltips()
 {
-    GdkColor	*t_back;
     GtkTooltips	*tip;
-
-    t_back = (GdkColor*)g_malloc( sizeof(GdkColor));
 
     /* First create a default Tooltip */
     tip = gtk_tooltips_new();
 
 #ifndef HAVE_GTK_2
+    GdkColor	*t_back;
+
+    t_back = (GdkColor*)g_malloc( sizeof(GdkColor));
+
     /* Try to get the colors */
     if ( gdk_color_parse("linen", t_back)){
 	if(gdk_colormap_alloc_color(gdk_colormap_get_system(),
@@ -781,7 +784,7 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
     case FILE_LIST_MESSAGE:
 	{
 	    gchar filename[255], *fnames[2];
-	    gint i, number_of_files, row;
+	    gint i, number_of_files;
 
 	    /* reset the playing list : play from the start */
 	    file_number_to_play = -1;
@@ -792,7 +795,7 @@ handle_input(gpointer client_data, gint source, GdkInputCondition ic)
 		gtk_pipe_string_read(filename);
 		fnames[0] = filename;
 		fnames[1] = NULL;
-		row = gtk_clist_append(GTK_CLIST(clist), fnames);
+		gtk_clist_append(GTK_CLIST(clist), fnames);
 	    }
 	    gtk_clist_columns_autosize(GTK_CLIST(clist));
 	}

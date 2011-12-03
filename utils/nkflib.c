@@ -306,7 +306,9 @@ extern POINT _BufferSize;
 
 /*      function prototype  */
 
+#if 0
 static  int     noconvert(SFILE *f);
+#endif
 static  int     kanji_convert(SFILE *f);
 static  int     h_conv(SFILE *f,int c2,int c1);
 static  int     push_hold_buf(int c2,int c1);
@@ -319,16 +321,22 @@ static  int     pre_convert(int c1,int c2);
 static  int     mime_begin(SFILE *f);
 static  int     mime_getc(SFILE *f);
 static  int     mime_ungetc(unsigned int c);
+#ifdef STRICT_MIME
 static  int     mime_integrity(SFILE *f,unsigned char *p);
+#endif
 static  int     base64decode(int c);
+#if 0
 static  int     usage(void);
 static  void    arguments(char *c);
+#endif
 static  void    reinit();
 
 /* buffers */
 
+#if 0
 static char            stdibuf[IOBUF_SIZE];
 static char            stdobuf[IOBUF_SIZE];
+#endif
 static unsigned char   hold_buf[HOLD_SIZE*2];
 static int             hold_count;
 
@@ -340,7 +348,9 @@ static int             hold_count;
 static unsigned char           mime_buf[MIME_BUF_SIZE];
 static unsigned int            mime_top = 0;
 static unsigned int            mime_last = 0;  /* decoded */
+#ifdef STRICT_MIME
 static unsigned int            mime_input = 0; /* undecoded */
+#endif
 
 /* flags */
 static int             unbuf_f = FALSE;
@@ -853,7 +863,6 @@ static void fix_euc_code(unsigned char *s, int len)
 static int             file_out = FALSE;
 static int             add_cr = FALSE;
 static int             del_cr = FALSE;
-static int             end_check;
 
 #if 0
 #ifndef PERL_XS
@@ -962,6 +971,7 @@ main(argc, argv)
 }
 #endif
 
+#if 0
 void
 arguments(char *cp) 
 {
@@ -1095,7 +1105,9 @@ arguments(char *cp)
     }
 }
 #endif
+#endif
 
+#if 0
 int
 noconvert(f)
     SFILE  *f;
@@ -1106,9 +1118,7 @@ noconvert(f)
       sputchar(c);
     return 1;
 }
-
-
-
+#endif
 
 int
 kanji_convert(SFILE  *f)

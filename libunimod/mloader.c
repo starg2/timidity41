@@ -309,8 +309,8 @@ SL_LoadInternal (void *buffer, UWORD infmt, UWORD outfmt, int scalefactor, ULONG
   int stodo, t, u;
 
   int result, c_block = 0;	/* compression bytes until next block */
-  ITPACK status;
-  UWORD incnt;
+  ITPACK status = { 0,0,0,0 };
+  UWORD incnt = 0;
 
   while (length)
     {

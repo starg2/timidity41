@@ -767,21 +767,26 @@ a_pipe_write(const char *fmt, ...) {
   /* char local_buf[PIPE_LENGTH]; */
   int len;
   va_list ap;
+  ssize_t dummy;
 
   va_start(ap, fmt);
   len = vsnprintf(local_buf, sizeof(local_buf), fmt, ap);
   if ((len < 0) || (len > PIPE_LENGTH))
-    write(pipe_out_fd, local_buf, PIPE_LENGTH);
-  else write(pipe_out_fd, local_buf, len);
-  write(pipe_out_fd, "\n", 1);
+    dummy = write(pipe_out_fd, local_buf, PIPE_LENGTH);
+  else
+    dummy = write(pipe_out_fd, local_buf, len);
+  dummy += write(pipe_out_fd, "\n", 1);
   va_end(ap);
 }
 
 static void
 a_pipe_write_buf(char *buf, int len) {
-  if ((len < 0) || (len > PIPE_LENGTH)) write(pipe_out_fd, buf, PIPE_LENGTH);
-  else write(pipe_out_fd, buf, len);
-  write(pipe_out_fd, "\n", 1);
+  ssize_t dummy;
+  if ((len < 0) || (len > PIPE_LENGTH))
+    dummy = write(pipe_out_fd, buf, PIPE_LENGTH);
+  else
+    dummy = write(pipe_out_fd, buf, len);
+  dummy += write(pipe_out_fd, "\n", 1);
 }
 
 static int
@@ -834,6 +839,7 @@ a_pipe_sync(void) {
 static void
 a_pipe_write_msg(char *msg) {
     size_t msglen;
+    ssize_t dummy;
     char buf[2 + sizeof(size_t)], *p, *q;
 
     /* convert '\r' to '\n', but strip '\r' from '\r\n' */
@@ -849,14 +855,15 @@ a_pipe_write_msg(char *msg) {
     buf[1] = '\n';
 
     memcpy(buf + 2, &msglen, sizeof(size_t));
-    write(pipe_out_fd, buf, sizeof(buf));
-    write(pipe_out_fd, msg, msglen - 1);
-    write(pipe_out_fd, "\n", 1);
+    dummy  = write(pipe_out_fd, buf, sizeof(buf));
+    dummy += write(pipe_out_fd, msg, msglen - 1);
+    dummy += write(pipe_out_fd, "\n", 1);
 }
 
 static void
 a_pipe_write_msg_nobr(char *msg) {
     size_t msglen;
+    ssize_t dummy;
     char buf[2 + sizeof(size_t)], *p, *q;
 
     /* convert '\r' to '\n', but strip '\r' from '\r\n' */
@@ -872,8 +879,8 @@ a_pipe_write_msg_nobr(char *msg) {
     buf[1] = '\n';
 
     memcpy(buf + 2, &msglen, sizeof(size_t));
-    write(pipe_out_fd, buf, sizeof(buf));
-    write(pipe_out_fd, msg, msglen);
+    dummy  = write(pipe_out_fd, buf, sizeof(buf));
+    dummy += write(pipe_out_fd, msg, msglen);
 }
 
 static void

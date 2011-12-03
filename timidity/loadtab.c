@@ -60,7 +60,7 @@ int load_table(char *file)
 				fclose(fp);
 				return 0;
 			}
-		} while (value = strtok(NULL, ", \n"));
+		} while ((value = strtok(NULL, ", \n")));
 	}
 	fclose(fp);
 	return 0;

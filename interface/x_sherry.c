@@ -827,7 +827,7 @@ static void sry_load_png(uint8 *data)
 
     screen = SRY_GET_SHORT(data) & 0xffff;
     vpalette = SRY_GET_SHORT(data + 2) & 0xffff;
-    filename = data + 4;
+    filename = (char *)data + 4;
 
 #ifdef SRY_DEBUG
     printf("Load png: %s: scr=%d pal=%d\n", filename, screen, vpalette);
@@ -845,7 +845,7 @@ static void sry_load_png(uint8 *data)
 	err_to_stop = 1;
 	return;
     }
-    if(png_sig_cmp(sig, 0, sizeof(sig)))
+    if(png_sig_cmp((unsigned char*)sig, 0, sizeof(sig)))
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: Not a png file", filename);
 	err_to_stop = 1;

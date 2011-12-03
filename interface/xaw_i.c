@@ -688,7 +688,7 @@ aboutACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   char s[12], *p;
   char lbuf[30];
   int i;
-  Widget popup_about, popup_abox, popup_aok, about_lbl[5];
+  Widget popup_about, popup_abox, popup_aok;
 
   char *info[] = {"TiMidity++ %s%s - Xaw interface",
                   "- MIDI to WAVE converter and player -",
@@ -711,7 +711,7 @@ aboutACT(Widget w, XEvent *e, String *v, Cardinal *n) {
     snprintf(lbuf, sizeof(lbuf), p,
     		(strcmp(timidity_version, "current")) ? "version " : "",
     		timidity_version);
-    about_lbl[i] = XtVaCreateManagedWidget(s,labelWidgetClass,popup_abox,
+    XtVaCreateManagedWidget(s,labelWidgetClass,popup_abox,
                                 XtNlabel,lbuf, XtNwidth,320, XtNresize,False,
                                 XtNfontSet,app_resources.label_font,
                                 XtNforeground,textcolor, XtNborderWidth,0,
@@ -767,7 +767,7 @@ popdownopt:
 
 static Widget
 warnCB(Widget w, char *mesname, Boolean destroy) {
-  Widget popup_warning, popup_wbox, popup_message, popup_wok;
+  Widget popup_warning, popup_wbox, popup_wok;
 
   if (mesname == NULL) return None;
   popup_warning = XtVaCreatePopupShell("popup_warning",
@@ -775,7 +775,7 @@ warnCB(Widget w, char *mesname, Boolean destroy) {
   popup_wbox = XtVaCreateManagedWidget("popup_wbox", boxWidgetClass,
 				  popup_warning, XtNbackground,bgcolor,
                                   XtNorientation,XtorientVertical, NULL);
-  popup_message = XtVaCreateManagedWidget(mesname, labelWidgetClass,
+  XtVaCreateManagedWidget(mesname, labelWidgetClass,
                                           popup_wbox,
                                           XtNfontSet,app_resources.label_font,
                                           XtNforeground,textcolor,
@@ -2976,10 +2976,10 @@ addOneFile(int max_files, long curr_num, char *fname) {
 
 static void
 createOptions(void) {
-  Widget modul_b, modul_bb, modul_l, porta_b, porta_bb, porta_l, nrpnv_b,
-         nrpnv_bb, nrpnv_l, reverb_b, reverb_bb, reverb_l, chorus_bb, chorus_l,
-         chpressure_b, chpressure_bb, chpressure_l, overlapv_b, overlapv_bb,
-         overlapv_l, txtmeta_b, txtmeta_bb, txtmeta_l,
+  Widget modul_b, modul_bb, porta_b, porta_bb, nrpnv_b,
+         nrpnv_bb, reverb_b, reverb_bb, chorus_bb,
+         chpressure_b, chpressure_bb, overlapv_b, overlapv_bb,
+         txtmeta_b, txtmeta_bb,
          popup_optform, lowBox, popup_olabel, popup_ook, popup_ocancel;
   Dimension x, y;
 
@@ -2997,7 +2997,7 @@ createOptions(void) {
   modul_b = XtVaCreateManagedWidget("modul_button",toggleWidgetClass,modul_bb,
                        XtNbitmap,off_mark, XtNforeground,togglecolor,
                        XtNbackground,buttonbgcolor, NULL);
-  modul_l = XtVaCreateManagedWidget("modul_lbl",labelWidgetClass,modul_bb,
+  XtVaCreateManagedWidget("modul_lbl",labelWidgetClass,modul_bb,
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   porta_bb = XtVaCreateManagedWidget("porta_box",boxWidgetClass,popup_optform,
                        XtNfromVert,modul_bb, 
@@ -3006,7 +3006,7 @@ createOptions(void) {
   porta_b = XtVaCreateManagedWidget("porta_button",toggleWidgetClass,porta_bb,
                        XtNforeground,togglecolor, XtNbackground,buttonbgcolor,
                        XtNbitmap,off_mark, XtNfromVert,modul_b, NULL);
-  porta_l = XtVaCreateManagedWidget("porta_lbl",labelWidgetClass,porta_bb,
+  XtVaCreateManagedWidget("porta_lbl",labelWidgetClass,porta_bb,
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   nrpnv_bb = XtVaCreateManagedWidget("nrpnv_box",boxWidgetClass,popup_optform,
                        XtNfromVert,porta_bb, 
@@ -3015,7 +3015,7 @@ createOptions(void) {
   nrpnv_b = XtVaCreateManagedWidget("nrpnv_button",toggleWidgetClass,nrpnv_bb,
                        XtNforeground,togglecolor, XtNbackground,buttonbgcolor,
                        XtNbitmap,off_mark, XtNfromVert,porta_b, NULL);
-  nrpnv_l = XtVaCreateManagedWidget("nrpnv_lbl",labelWidgetClass,nrpnv_bb,
+  XtVaCreateManagedWidget("nrpnv_lbl",labelWidgetClass,nrpnv_bb,
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   reverb_bb = XtVaCreateManagedWidget("reverb_box",boxWidgetClass,
                        popup_optform, XtNfromVert,nrpnv_bb,
@@ -3025,7 +3025,7 @@ createOptions(void) {
                        reverb_bb, XtNbitmap,off_mark, XtNfromVert,nrpnv_b,
                        XtNforeground,togglecolor, XtNbackground,buttonbgcolor,
                        NULL);
-  reverb_l = XtVaCreateManagedWidget("reverb_lbl",labelWidgetClass,reverb_bb,
+  XtVaCreateManagedWidget("reverb_lbl",labelWidgetClass,reverb_bb,
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   chorus_bb = XtVaCreateManagedWidget("chorus_box",boxWidgetClass,
                        popup_optform, XtNorientation,XtorientHorizontal,
@@ -3035,7 +3035,7 @@ createOptions(void) {
                        chorus_bb, XtNbitmap,off_mark, XtNfromVert,reverb_b,
                        XtNforeground,togglecolor, XtNbackground,buttonbgcolor,
                        NULL);
-  chorus_l = XtVaCreateManagedWidget("chorus_lbl",labelWidgetClass,chorus_bb,
+  XtVaCreateManagedWidget("chorus_lbl",labelWidgetClass,chorus_bb,
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   chpressure_bb = XtVaCreateManagedWidget("chpressure_box",boxWidgetClass,
                        popup_optform, XtNorientation,XtorientHorizontal,
@@ -3045,7 +3045,7 @@ createOptions(void) {
                        toggleWidgetClass,chpressure_bb, XtNbitmap,off_mark,
                        XtNfromVert,chorus_b, XtNforeground,togglecolor,
                        XtNbackground,buttonbgcolor, NULL);
-  chpressure_l = XtVaCreateManagedWidget("chpressure_lbl",labelWidgetClass,
+  XtVaCreateManagedWidget("chpressure_lbl",labelWidgetClass,
                        chpressure_bb, XtNforeground,textcolor,
                        XtNbackground,bgcolor, NULL);
   overlapv_bb = XtVaCreateManagedWidget("overlapvoice_box",boxWidgetClass,
@@ -3056,7 +3056,7 @@ createOptions(void) {
                        toggleWidgetClass,overlapv_bb, XtNbitmap,off_mark, 
                        XtNfromVert,chpressure_b, XtNforeground,togglecolor,
                        XtNbackground,buttonbgcolor, NULL);
-  overlapv_l = XtVaCreateManagedWidget("overlapv_lbl",labelWidgetClass,
+  XtVaCreateManagedWidget("overlapv_lbl",labelWidgetClass,
                        overlapv_bb, XtNforeground,textcolor,
                        XtNbackground,bgcolor, NULL);
   txtmeta_bb = XtVaCreateManagedWidget("txtmeta_box",boxWidgetClass,
@@ -3067,7 +3067,7 @@ createOptions(void) {
                        txtmeta_bb, XtNbitmap,off_mark, XtNfromVert,overlapv_b,
                        XtNforeground,togglecolor, XtNbackground,buttonbgcolor,
                        NULL);
-  txtmeta_l = XtVaCreateManagedWidget("txtmeta_lbl",labelWidgetClass,
+  XtVaCreateManagedWidget("txtmeta_lbl",labelWidgetClass,
                        txtmeta_bb, XtNforeground,textcolor,
                        XtNbackground,bgcolor, NULL);
 

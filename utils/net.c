@@ -69,7 +69,7 @@ extern FREEADDRINFO ws2_freeaddrinfo;
 
 SOCKET open_socket(char *host, unsigned short port)
 {
-    SOCKET fd;
+    SOCKET fd = -1;
     struct addrinfo hints, *result, *rp;
     char service[NI_MAXSERV];
     int s;

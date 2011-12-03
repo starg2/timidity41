@@ -53,9 +53,13 @@ int main(int argc, const char *argv[])
 	    fprintf(fp, "(float)%2.32g,\n", newt_coeffs[i][j]);
 	fclose(fp);
 #else
-    for (i = 0; i <= n; i++)
-	for (j = 0; j <= n; j++)
-	    printf("%2.32g,\n", newt_coeffs[i][j]);
+	for (i = 0; i <= n; i++) {
+		printf("{\n");
+		for (j = 0; j <= n; j++) {
+			printf("%2.32g,\n", newt_coeffs[i][j]);
+		}
+		printf("},\n");
+	}
 #endif
     return 0;
 }

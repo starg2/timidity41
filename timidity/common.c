@@ -210,8 +210,9 @@ url_dumpfile(URL url, const char *ext)
     return NULL;
   }
 
-  while((n = url_read(url, buff, sizeof(buff))) > 0)
-    fwrite(buff, 1, n, fp);
+  while((n = url_read(url, buff, sizeof(buff))) > 0) {
+    size_t dummy = fwrite(buff, 1, n, fp); ++dummy;
+  }
   fclose(fp);
   return safe_strdup(filename);
 }
@@ -431,7 +432,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 	if (!is_abs_path(name))
 		while (plp) {	/* Try along the path then */
 			*current_filename = 0;
-			if(l = strlen(plp->path)) {
+			if((l = strlen(plp->path))) {
 				strncpy(current_filename, plp->path,
 						sizeof(current_filename));
 				if (!IS_PATH_SEP(current_filename[l - 1])
@@ -509,7 +510,7 @@ struct timidity_file *open_file_r(char *name, int decompress, int noise_mode)
 	if (!is_abs_path(name))
 		while (plp) {	/* Try along the path then */
 			*current_filename = 0;
-			if(l = strlen(plp->path)) {
+			if((l = strlen(plp->path))) {
 				strncpy(current_filename, plp->path,
 						sizeof(current_filename));
 				if (!IS_PATH_SEP(current_filename[l - 1])
@@ -662,6 +663,7 @@ void *safe_malloc(size_t count)
 #endif /* ABORT_AT_FATAL */
     safe_exit(10);
     /*NOTREACHED*/
+	return 0;
 }
 
 void *safe_large_malloc(size_t count)
@@ -688,6 +690,7 @@ void *safe_large_malloc(size_t count)
 #endif /* ABORT_AT_FATAL */
     safe_exit(10);
     /*NOTREACHED*/
+	return 0;
 }
 
 void *safe_realloc(void *ptr, size_t count)
@@ -724,6 +727,7 @@ void *safe_realloc(void *ptr, size_t count)
 #endif /* ABORT_AT_FATAL */
     safe_exit(10);
     /*NOTREACHED*/
+	return 0;
 }
 
 /* This'll allocate memory or die. */
@@ -748,6 +752,7 @@ char *safe_strdup(const char *s)
 #endif /* ABORT_AT_FATAL */
     safe_exit(10);
     /*NOTREACHED*/
+	return 0;
 }
 
 /* free ((void **)ptr_list)[0..count-1] and ptr_list itself */

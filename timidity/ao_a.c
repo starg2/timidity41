@@ -90,12 +90,11 @@ static void show_ao_device_info(FILE *fp)
 
 static int open_output(void)
 {
-  int driver_id, ret;
+  int driver_id, ret = 0;
 
   int driver_count;
   ao_info **devices;
   int i;
-  char buf[256];
 
   ao_initialize();
 

@@ -5460,8 +5460,9 @@ int midi_file_save_as(char *in_name, char *out_name)
 	return -1;
     }
 
-    while((n = tf_read(buff, 1, sizeof(buff), tf)) > 0)
-	fwrite(buff, 1, n, ofp);
+    while((n = tf_read(buff, 1, sizeof(buff), tf)) > 0) {
+	size_t dummy = fwrite(buff, 1, n, ofp); ++dummy;
+	}
     ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Save as %s...Done", out_name);
 
     fclose(ofp);

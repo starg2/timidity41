@@ -57,7 +57,6 @@ static int ctl_read(int32 *valp);
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]);
 static void ctl_event(CtlEvent *e);
-static void ctl_speana_data(double *val, int size);
 static void initialize_exp_hz_table( void );
 
 static void xskin_pipe_open(void);
@@ -229,6 +228,7 @@ static void ctl_lyric(int lyricid)
     }
 }
 
+#if 0
 static void ctl_speana_data(double *val, int size) {
 
   /* 0 <= val[n] <= (AMP*NCOLOR) */
@@ -280,6 +280,7 @@ static void ctl_speana_data(double *val, int size) {
 
   return;
 }
+#endif
 
 /*ARGSUSED*/
 static int ctl_open(int using_stdin, int using_stdout) {
@@ -354,7 +355,8 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]) {
 
   /* Wait prepare 'interface' */
   xskin_pipe_read(local_buf,sizeof(local_buf));
-  if (strcmp("READY",local_buf)) return;
+  if (strcmp("READY",local_buf))
+    return 0;
   xskin_ready = 1;
 
   /* receive shared memory buffer */
@@ -490,8 +492,8 @@ static void xskin_pipe_open(void) {
 }
 
 void xskin_pipe_write(char *buf) {
-  write(pipe_out_fd,buf,strlen(buf));
-  write(pipe_out_fd,"\n",1);
+  ssize_t dummy = write(pipe_out_fd,buf,strlen(buf));
+  dummy += write(pipe_out_fd,"\n",1);
 }
 
 static int xskin_pipe_ready(void) {
@@ -515,7 +517,7 @@ int xskin_pipe_read(char *buf,int bufsize) {
 
   bufsize--;
   for (i=0;i<bufsize;i++) {
-    read(pipe_in_fd,buf+i,1);
+    ssize_t dummy = read(pipe_in_fd,buf+i,1); ++dummy;
     if (buf[i]=='\n') break;
   }
   buf[i]=0;
@@ -524,7 +526,7 @@ int xskin_pipe_read(char *buf,int bufsize) {
 
 int xskin_pipe_read_direct(int32 *buf, int bufsize) {
 
-  read( pipe_in_fd, buf, bufsize );
+  ssize_t dummy = read( pipe_in_fd, buf, bufsize ); ++dummy;
 
   return 0;
 }

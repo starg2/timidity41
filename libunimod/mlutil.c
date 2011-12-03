@@ -354,10 +354,10 @@ void S3MIT_CreateOrders(BOOL curious)
 /* handles S3M and IT effects */
 void S3MIT_ProcessCmd(UBYTE cmd,UBYTE inf,BOOL oldeffect)
 {
-	UBYTE hi,lo;
+	UBYTE lo;
 
 	lo=inf&0xf;
-	hi=inf>>4;
+	/* hi=inf>>4; */
 
 	/* process S3M / IT specific command structure */
 

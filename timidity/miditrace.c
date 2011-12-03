@@ -236,7 +236,7 @@ void push_midi_time_vp(int32 start, void (*f)(void *), void *vp)
 
 int32 trace_loop(void)
 {
-    int32 cur, start;
+    int32 cur;
     int ctl_update;
     static int lasttime = -1;
 
@@ -250,7 +250,6 @@ int32 trace_loop(void)
 	cur = 0x7fffffff; /* apply all trace event */
 
     ctl_update = 0;
-    start = midi_trace.head->start;
     while(midi_trace.head && cur >= midi_trace.head->start
 	  && cur > 0) /* privent flying start */
     {

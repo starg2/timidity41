@@ -68,6 +68,7 @@
 #define MAGIC5 19
 #define INBUFSIZ BUFSIZ
 
+#undef MIN
 #define MIN(a,b)  ((a) < (b) ? (a) : (b))
 
 struct _UNLZHHandler

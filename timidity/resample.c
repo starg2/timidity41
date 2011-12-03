@@ -255,7 +255,7 @@ static sample_t *newt_old_src = NULL;
 static resample_t resample_newton(sample_t *src, splen_t ofs, resample_rec_t *rec)
 {
     int n_new, n_old;
-    int32 v1, v2, diff;
+    int32 v1, v2, diff = 0;
     sample_t *sptr;
     double y, xd;
     int32 left, right, temp_n;

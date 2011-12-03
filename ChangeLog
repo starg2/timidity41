@@ -50,6 +50,19 @@
 	  samples set to 0, this patch works around that, atleast for
 	  files which have 2 matching the matched left + right samples
 	  directly after each other in the instruments layers list.
+	* interface/gtk_i.c, interface/server_c.c, interface/tk_c.c,
+	  interface/wrdt_tty.c, interface/x_sherry.c, interface/xaw_c.c,
+	  interface/xaw_i.c, interface/xskin_c.c, libarc/unlzh.c,
+	  libunimod/load_far.c, libunimod/load_it.c, libunimod/mloader.c,
+	  libunimod/mlutil.c, timidity/ao_a.c, timidity/calcnewt.c,
+	  timidity/common.c, timidity/effect.c, timidity/esd_a.c,
+	  timidity/freq.c, timidity/instrum.c, timidity/loadtab.c,
+	  timidity/m2m.c, timidity/miditrace.c, timidity/output.c,
+	  timidity/playmidi.c, timidity/readmidi.c, timidity/recache.c,
+	  timidity/resample.c, timidity/reverb.c, timidity/smplfile.c,
+	  timidity/speex_a.c, timidity/timidity.c, utils/net.c,
+	  utils/nkflib.c: [PATCH 10/17] Fix / silence various compiler
+	  warnings
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 
