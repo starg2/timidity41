@@ -17,6 +17,9 @@
 	  system. Also try ALSA before the native sound system, since
 	  the native sound system on Linux is set to OSS, and ALSA
 	  definitely is preferable over OSS.
+	* doc/C/timidity.1, doc/C/timidity.cfg.5: [PATCH 4/9] Various
+	  man page fixes
+	  courtesy of Debian (revised by TAMUKI Shoichi)
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 
