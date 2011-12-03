@@ -67,7 +67,7 @@ PlayMode dpm = {
     -1,
     {0}, /* default: get all the buffer fragments you can */
     "Enlightened sound daemon", 'e',
-    "/dev/dsp",
+    "esd",
     open_output,
     close_output,
     output_data,
@@ -93,7 +93,7 @@ static int try_open(void)
     /* Open the audio device */
     esdformat = (dpm.encoding & PE_16BIT) ? ESD_BITS16 : ESD_BITS8;
     esdformat |= (dpm.encoding & PE_MONO) ? ESD_MONO : ESD_STEREO;
-    return esd_play_stream_fallback(esdformat,dpm.rate,NULL,"timidity");
+    return esd_play_stream(esdformat,dpm.rate,NULL,"timidity");
 }
 
 
@@ -101,8 +101,7 @@ static int detect(void)
 {
     int fd;
 
-    /* FIXME: do we need to set this? */
-    /* setenv("ESD_NO_SPAWN", "1", 0); */
+    setenv("ESD_NO_SPAWN", "1", 0);
     fd = try_open();
     if (fd < 0)
 	return 0;

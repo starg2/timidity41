@@ -1,3 +1,9 @@
+2011-12-04  Hans de Goede <hdegoede@redhat.com>
+
+	* timidity/esd_a.c: [PATCH 1/9] esd_a: Don't start ESD
+	  Don't start ESD if it is not running yet, esp. not from
+	  detect() !
+
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 
 	* timidity/instrum.[ch]: Fix a bug created at the previous commit
