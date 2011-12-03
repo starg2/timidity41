@@ -390,23 +390,6 @@ static int ctl_pass_playing_list(int n, char *args[])
 	j += note_key_offset, j -= floor(j / 12.0) * 12;
 	current_freq_table = j;
 
-	if (ctl.flags & CTLF_DAEMONIZE)
-	{
-		int pid = fork();
-		FILE *pidf;
-		switch (pid)
-		{
-			case 0:			// child is the daemon
-				break;
-			case -1:		// error status return
-				exit(7);
-			default:		// no error, doing well
-				if ((pidf = fopen( "/var/run/timidity.pid", "w" )) != NULL )
-					fprintf( pidf, "%d\n", pid );
-				exit(0);
-		}
-	}
-
 	for (;;) {
 		server_reset();
 		doit(&alsactx);

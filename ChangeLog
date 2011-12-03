@@ -20,6 +20,13 @@
 	* doc/C/timidity.1, doc/C/timidity.cfg.5: [PATCH 4/9] Various
 	  man page fixes
 	  courtesy of Debian (revised by TAMUKI Shoichi)
+	* interface/alsaseq_c.c, timidity/timidity.c: [PATCH 6/9] Fork
+	  earlier when we're going to run deamonized in ALSA sequencer
+	  mode
+	  If we're going to fork for daemon mode, we need to fork
+	  earlier, as certain output libraries (pulseaudio) become
+	  unhappy if initialized before forking and then being used
+	  from the child.
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 

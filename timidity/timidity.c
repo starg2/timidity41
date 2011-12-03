@@ -5378,6 +5378,29 @@ MAIN_INTERFACE int timidity_post_load_configuration(void)
 {
     int i, cmderr = 0;
 
+    /* If we're going to fork for daemon mode, we need to fork now, as
+       certain output libraries (pulseaudio) become unhappy if initialized
+       before forking and then being used from the child. */
+    if (ctl->id_character == 'A' && (ctl->flags & CTLF_DAEMONIZE))
+    {
+	int pid = fork();
+	FILE *pidf;
+	switch (pid)
+	{
+	    case 0:		// child is the daemon
+		break;
+	    case -1:		// error status return
+		exit(7);
+	    default:		// no error, doing well
+		if ((pidf = fopen( "/var/run/timidity.pid", "w" )) != NULL )
+		{
+		    fprintf( pidf, "%d\n", pid );
+		    fclose( pidf );
+		}
+		exit(0);
+	}
+    }
+
     if(play_mode == &null_play_mode)
     {
 	char *output_id;
