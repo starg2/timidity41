@@ -140,6 +140,8 @@ extern void sry_encode_bindata( char *code, const char *org, int len);
 extern int sry_decode_bindata( char *data );
 extern int wrd_read_sherry;
 
+extern void free_wrd(void);
+
 static inline void print_ecmd(char*, int*, int);
 #ifdef HAVE_STRINGS_H
 #include <strings.h>

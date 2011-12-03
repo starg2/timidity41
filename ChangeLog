@@ -40,6 +40,10 @@
 	     in the error handling test was missing () and it is the
 	     wrong thing to do in general since this is an enum not a
 	     flags field.
+	* timidity/controls.c, timidity/effect.c, timidity/oss_a.c,
+	  timidity/playmidi.h, timidity/speex_a.c, timidity/wrd.h:
+	  [PATCH 8/9] Fix a bunch of: warning: implicit declaration of
+	  function ... warnings
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 

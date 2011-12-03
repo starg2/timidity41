@@ -38,6 +38,7 @@
 #endif
 
 #if defined(HAVE_SYS_SOUNDCARD_H)
+#include <sys/ioctl.h>
 #include <sys/soundcard.h>
 #elif defined(linux)
 #include <sys/ioctl.h> /* new with 1.2.0? Didn't need this under 1.1.64 */

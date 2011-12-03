@@ -593,6 +593,7 @@ extern void playmidi_output_changed(int play_state);
 extern Instrument *play_midi_load_instrument(int dr, int bk, int prog);
 extern void midi_program_change(int ch, int prog);
 extern void free_voice(int v);
+extern void free_reverb_buffer(void);
 extern void play_midi_setup_drums(int ch,int note);
 
 /* For stream player */
