@@ -76,6 +76,11 @@
 	  if it were the old version, if that code path where to ever
 	  be invoked bad things (tm) would happen. Luckily it is never
 	  used, so simply nuke it. (autoreconf by TAMUKI Shoichi)
+	* timidity/dl_dlopen.c: [PATCH 16/17] Silence dlsym errors
+	  The way the new dynamic_interface_module() function probes
+	  for dynamic interfaces cause it to always hit a few dlsym
+	  errors as soon as you have more then one dynamic interface,
+	  so silence these errors.
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 

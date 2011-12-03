@@ -72,8 +72,6 @@ void *dl_find_symbol(void *libhandle, char *symbolname)
 #endif
 
     RETVAL = dlsym(libhandle, symbolname);
-    if (RETVAL == NULL)
-	fprintf(stderr, "%s\n", dlerror());
     return RETVAL;
 }
 
