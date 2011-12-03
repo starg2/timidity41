@@ -528,10 +528,6 @@ static inline FILE *open_pager(void);
 static inline void close_pager(FILE *);
 static void interesting_message(void);
 
-#ifdef IA_DYNAMIC
-MAIN_INTERFACE char dynamic_interface_id;
-#endif /* IA_DYNAMIC */
-
 extern StringTable wrd_read_opts;
 
 extern int SecondMode;
@@ -4015,22 +4011,14 @@ static int parse_opt_h(const char *arg)
 	fputs(NLS, fp);
 	fputs("Available interfaces (-i, --interface option):" NLS, fp);
 	for (cmpp = ctl_list; (cmp = *cmpp) != NULL; cmpp++)
-#ifdef IA_DYNAMIC
-		if (cmp->id_character != dynamic_interface_id)
-			fprintf(fp, "  -i%c          %s" NLS,
-					cmp->id_character, cmp->id_name);
-#else
 		fprintf(fp, "  -i%c          %s" NLS,
 				cmp->id_character, cmp->id_name);
-#endif	/* IA_DYNAMIC */
 #ifdef IA_DYNAMIC
 	fprintf(fp, "Supported dynamic load interfaces (%s):" NLS,
 			dynamic_lib_root);
 	memset(mark, 0, sizeof(mark));
 	for (cmpp = ctl_list; (cmp = *cmpp) != NULL; cmpp++)
 		mark[(int) cmp->id_character] = 1;
-	if (dynamic_interface_id != 0)
-		mark[(int) dynamic_interface_id] = 0;
 	list_dyna_interface(fp, dynamic_lib_root, mark);
 #endif	/* IA_DYNAMIC */
 	fputs(NLS, fp);
@@ -4187,17 +4175,16 @@ static inline int parse_opt_i(const char *arg)
 #endif	/* IA_W32GUI */
 			break;
 		}
-#ifdef IA_DYNAMIC
-		if (cmp->id_character == dynamic_interface_id) {
-			cmp = dynamic_interface_module(*arg);
-			if(cmp) {
-				ctl = cmp;
-				found = 1;
-				break;
-			}
-		}
-#endif	/* IA_DYNAMIC */
 	}
+#ifdef IA_DYNAMIC
+	if (! found) {
+		cmp = dynamic_interface_module(*arg);
+		if(cmp) {
+			ctl = cmp;
+			found = 1;
+		}
+	}
+#endif	/* IA_DYNAMIC */
 	if (! found) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 				"Interface `%c' is not compiled in.", *arg);
@@ -5808,11 +5795,7 @@ int main(int argc, char **argv)
 #endif
 #ifdef IA_DYNAMIC
 {
-#ifdef XP_UNIX
-	argv[0] = "netscape";
-#endif /* XP_UNIX */
 	dynamic_lib_root = safe_strdup(SHARED_LIB_PATH);
-	dynamic_interface_id = 0;
 	dl_init(argc, argv);
 }
 #endif /* IA_DYNAMIC */

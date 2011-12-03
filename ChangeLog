@@ -65,6 +65,17 @@
 	  warnings
 	* configure.in: [PATCH 14/17] Silence autofoo warnings about
 	  have_speex ac cache identifier (autoreconf by TAMUKI Shochi)
+	* interface/Makefile.am, interface/dynamic_c.c,
+	  timidity/controls.c, timidity/timidity.c,
+	  (remove) interface/dynamic_c.c: [PATCH 15/17] Get rid of the
+	  dynamic_control_mode ControlMode
+	  This is a left over from before the dynamic_interface_module()
+	  rewrite, not only is it no longer needed its code is plain
+	  wrong, as it still contains a prototype for the old way
+	  different dynamic_interface_module() and tries to call it as
+	  if it were the old version, if that code path where to ever
+	  be invoked bad things (tm) would happen. Luckily it is never
+	  used, so simply nuke it. (autoreconf by TAMUKI Shoichi)
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 

@@ -74,7 +74,6 @@ EXTRA_libinterface_a_SOURCES = \
 	VTparse.h \
 	x_mag.c \
 	x_mag.h \
-	dynamic_c.c \
 	mac_c.c \
 	mac_c.h \
 	mac_mag.c \
@@ -155,10 +154,6 @@ WRD_WINCON_OBJS = wrdt_wcon.$(OBJEXT)
 endif
 endif
 
-if NEEDDLOPEN
-DYNAMIC_OBJS = dynamic_c.$(OBJEXT)
-endif
-
 if ENABLE_SOUND_SPEC
 SOUND_SPEC_OBJS = \
 	soundspec.$(OBJEXT)
@@ -178,7 +173,6 @@ libinterface_LIBADD = \
 	$(INTERFACE_OBJS) \
 	$(WRD_OBJS) \
 	$(WRD_WINCON_OBJS) \
-	$(DYNAMIC_OBJS) \
 	$(SOUND_SPEC_OBJS)
 	
 libinterface_a_LIBADD=$(libinterface_LIBADD)
