@@ -200,6 +200,7 @@ static void make_info(SFInfo *sf, SampleList *vp, LayerTable *tbl);
 static FLOAT_T calc_volume(LayerTable *tbl);
 static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl);
 static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl);
+static void reset_last_sample_info(void);
 static int abscent_to_Hz(int abscents);
 static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl);
 static void set_rootfreq(SampleList *vp);
@@ -857,6 +858,8 @@ static int parse_layer(SFInfo *sf, int pridx, LayerTable *tbl, int level)
 	    (lay = inst->hdr.layer) == NULL)
 		return AWE_RET_SKIP;
 
+	reset_last_sample_info();
+
 	/* check global layer */
 	globalp = NULL;
 	if (is_global(lay)) {
@@ -881,6 +884,8 @@ static int parse_layer(SFInfo *sf, int pridx, LayerTable *tbl, int level)
 			rc = parse_layer(sf, pridx, &ctbl, level+1);
 			if (rc != AWE_RET_OK && rc != AWE_RET_SKIP)
 				return rc;
+
+			reset_last_sample_info();
 		} else {
 			init_and_merge_table(sf, &ctbl, tbl);
 			if (! sanity_range(&ctbl))
@@ -1328,6 +1333,11 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 /*----------------------------------------------------------------*/
 
 /* set global information */
+static int last_sample_type;
+static int last_sample_instrument;
+static int last_sample_keyrange;
+static SampleList *last_sample_list;
+
 static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
     int val;
@@ -1366,11 +1376,40 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 
 	vp->v.sample_type = sample->sampletype;
 	vp->v.sf_sample_index = tbl->val[SF_sampleId];
-	if (sample->sampletype == SF_SAMPLETYPE_MONO) {
-		vp->v.sf_sample_link = -1;
-	} else {
-		vp->v.sf_sample_link = sample->samplelink;
+	vp->v.sf_sample_link = sample->samplelink;
+
+	/* Some sf2 files don't contain valid sample links, so see if the
+	   previous sample was a matching Left / Right sample with the
+	   link missing and add it */
+	switch (sample->sampletype) {
+	case SF_SAMPLETYPE_LEFT:
+		if (vp->v.sf_sample_link == 0 &&
+		    last_sample_type == SF_SAMPLETYPE_RIGHT &&
+		    last_sample_instrument == tbl->val[SF_instrument] &&
+		    last_sample_keyrange == tbl->val[SF_keyRange]) {
+		    	/* The previous sample was a matching right sample
+		    	   set the link */
+		    	vp->v.sf_sample_link = last_sample_list->v.sf_sample_index;
+		}
+		break;
+	case SF_SAMPLETYPE_RIGHT:
+		if (last_sample_list &&
+		    last_sample_list->v.sf_sample_link == 0 &&
+		    last_sample_type == SF_SAMPLETYPE_LEFT &&
+		    last_sample_instrument == tbl->val[SF_instrument] &&
+		    last_sample_keyrange == tbl->val[SF_keyRange]) {
+		    	/* The previous sample was a matching left sample
+		    	   set the link on the previous sample*/
+		    	last_sample_list->v.sf_sample_link = tbl->val[SF_sampleId];
+		}
+		break;
 	}
+
+	/* Remember this sample in case the next one is a match */
+	last_sample_type = sample->sampletype;;
+	last_sample_instrument = tbl->val[SF_instrument];
+	last_sample_keyrange = tbl->val[SF_keyRange];
+	last_sample_list = vp;
 
 	/* panning position: 0 to 127 */
 	val = (int)tbl->val[SF_panEffectsSend];
@@ -1445,6 +1484,16 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     /* exclusive class key */
     vp->exclusiveClass = tbl->val[SF_keyExclusiveClass];
 #endif
+}
+
+static void reset_last_sample_info(void)
+{
+    last_sample_list = NULL;
+    last_sample_type = 0;
+    /* Set last instrument and keyrange to a value which cannot be represented
+       by LayerTable.val (which is a short) */
+    last_sample_instrument = 0x80000000;
+    last_sample_keyrange   = 0x80000000;
 }
 
 static int abscent_to_Hz(int abscents)

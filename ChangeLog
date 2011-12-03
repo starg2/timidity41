@@ -44,6 +44,12 @@
 	  timidity/playmidi.h, timidity/speex_a.c, timidity/wrd.h:
 	  [PATCH 8/9] Fix a bunch of: warning: implicit declaration of
 	  function ... warnings
+	* timidity/sndfont.c: [PATCH 9/9] sndfont: Work around
+	  soundfonts with missing links between stereo samples
+	  Some sf2 files have all their link ids between stereo
+	  samples set to 0, this patch works around that, atleast for
+	  files which have 2 matching the matched left + right samples
+	  directly after each other in the instruments layers list.
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 
