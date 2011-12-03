@@ -33,6 +33,7 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #include <fcntl.h>
+#include "common.h"
 
 #ifdef __W32__
 #include <io.h>
@@ -41,13 +42,13 @@
 
 #if defined(AU_FLAC_DLL) || defined(AU_OGGFLAC_DLL)
 #include <windows.h>
-#include <FLAC/export.h> /* need export.h to figure out API version from FLAC_API_VERSION_CURRENT */
 #undef FLAC_API
 #undef OggFLAC_API
 #define FLAC_API
 #define OggFLAC_API
 #endif
 
+#include <FLAC/export.h> /* need export.h to figure out API version from FLAC_API_VERSION_CURRENT */
 /* by LEGACY_FLAC we mean before FLAC 1.1.3 */
 /* in FLAC 1.1.3, libOggFLAC is merged into libFLAC and all encoding layers are merged into the stream encoder */
 #if !defined(FLAC_API_VERSION_CURRENT) || FLAC_API_VERSION_CURRENT < 8
@@ -171,7 +172,6 @@ FLAC_options flac_options = {
 	0,		/* seekable */
 };
 
-static long serial_number = 0;
 FLAC_ctx *flac_ctx = NULL;
 
 #if defined(LEGACY_FLAC) && defined(AU_OGGFLAC)
@@ -307,7 +307,7 @@ void flac_set_option_oggflac(int isogg)
 }
 #endif
 
-static int flac_session_close()
+static void flac_session_close()
 {
   FLAC_ctx *ctx = flac_ctx;
 
@@ -508,7 +508,7 @@ static int flac_output_open(const char *fname, const char *comment)
       FLAC__seekable_stream_encoder_set_metadata(ctx->encoder.flac.s_stream, metadata, num_metadata);
 
     /* set callback */
-/*    FLAC__seekable_stream_encoder_set_metadata_callback(ctx->encoder.flac.s_stream, flac_seekable_stream_encoder_metadata_callback); /* */
+/*  FLAC__seekable_stream_encoder_set_metadata_callback(ctx->encoder.flac.s_stream, flac_seekable_stream_encoder_metadata_callback); */
 #if (!defined(__BORLANDC__) && !defined(__POCC__))
     FLAC__stream_encoder_set_metadata_callback(ctx->encoder.flac.s_stream, flac_seekable_stream_encoder_metadata_callback); /* */
 #endif
@@ -896,8 +896,7 @@ static int output_data(char *buf, int32 nbytes)
 #else /* !LEGACY_FLAC */
   ctx->state.flac = FLAC__stream_encoder_get_state(ctx->encoder.flac.stream);
   if (ctx->state.flac != FLAC__STREAM_ENCODER_OK) {
-    if (ctx->state.flac == FLAC__STREAM_ENCODER_VERIFY_DECODER_ERROR |
-	FLAC__STREAM_ENCODER_VERIFY_MISMATCH_IN_AUDIO_DATA) {
+    if (ctx->state.flac == FLAC__STREAM_ENCODER_VERIFY_DECODER_ERROR) {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC stream verify error (%s)",
 		FLAC__StreamDecoderStateString[FLAC__stream_encoder_get_verify_decoder_state(ctx->encoder.flac.stream)]);
     }
