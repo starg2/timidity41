@@ -138,17 +138,9 @@ extern PlayMode midi_play_mode;
 extern PlayMode modmidi_play_mode;
 
 PlayMode *play_mode_list[] = {
-#ifdef DEV_PLAY_MODE
-  DEV_PLAY_MODE,
-#endif
-
-#ifdef AU_ALSA
-  &alsa_play_mode,
-#endif /* AU_ALSA */
-
-#ifdef AU_HPUX_ALIB
-  &hpux_nplay_mode,
-#endif /* AU_HPUX_ALIB */
+#if defined(AU_AO) /* Try libao first as that will give us pulseaudio */
+  &ao_play_mode,
+#endif /* AU_AO */
 
 #if defined(AU_ARTS)
   &arts_play_mode,
@@ -157,6 +149,18 @@ PlayMode *play_mode_list[] = {
 #if defined(AU_ESD)
   &esd_play_mode,
 #endif /* AU_ESD */
+
+#ifdef AU_ALSA /* Try alsa (aka DEV_PLAY_MODE 2 on Linux) first */
+  &alsa_play_mode,
+#endif /* AU_ALSA */
+
+#ifdef DEV_PLAY_MODE /* OS dependent direct hardware access, OSS on Linux */
+  DEV_PLAY_MODE,
+#endif
+
+#ifdef AU_HPUX_ALIB
+  &hpux_nplay_mode,
+#endif /* AU_HPUX_ALIB */
 
 #if defined(AU_PORTAUDIO)
 #ifndef AU_PORTAUDIO_DLL
@@ -179,10 +183,6 @@ PlayMode *play_mode_list[] = {
 #if defined(AU_NAS)
   &nas_play_mode,
 #endif /* AU_NAS */
-
-#if defined(AU_AO)
-  &ao_play_mode,
-#endif /* AU_PORTAUDIO */
 
 #ifndef __MACOS__
   &wave_play_mode,

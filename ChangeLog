@@ -10,6 +10,13 @@
 	  succeed only when pulse is available, so that we can prefer
 	  libao in the probe order to get pulse, without also getting
 	  libao on systems where we should be using alsa directly.
+	* timidity/output.c: [PATCH 3/9] Change audio output detection
+	  order
+	  First try the various desktop daemons we support, and only
+	  when those are not available use the systems native sound
+	  system. Also try ALSA before the native sound system, since
+	  the native sound system on Linux is set to OSS, and ALSA
+	  definitely is preferable over OSS.
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 
