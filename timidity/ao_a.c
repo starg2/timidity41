@@ -44,6 +44,7 @@ static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
+static int detect(void);
 
 /* export the playback mode */
 
@@ -58,7 +59,8 @@ PlayMode dpm = {
   open_output,
   close_output,
   output_data,
-  acntl
+  acntl,
+  detect
 };
 
 static ao_device *ao_device_ctx;
@@ -195,4 +197,31 @@ static int acntl(int request, void *arg)
     return 0;
   }
   return -1;
+}
+
+static int detect(void)
+{
+  int driver_id, result = 0;
+  ao_sample_format ao_sample_format_ctx;
+  ao_device *ao_device_ctx;
+
+  ao_initialize();
+
+  /* Only succeed in autodetect mode when pulseaudio is available! */
+  driver_id = ao_driver_id("pulse");
+
+  ao_sample_format_ctx.rate = 44100;
+  ao_sample_format_ctx.bits = 16;
+  ao_sample_format_ctx.channels = 2;
+  ao_sample_format_ctx.byte_format = AO_FMT_NATIVE;
+  ao_sample_format_ctx.matrix = NULL;
+
+  if ((ao_device_ctx = ao_open_live(driver_id, &ao_sample_format_ctx, NULL))) {
+    result = 1;
+    ao_close(ao_device_ctx);
+  }
+
+  ao_shutdown();
+
+  return result;
 }

@@ -3,6 +3,13 @@
 	* timidity/esd_a.c: [PATCH 1/9] esd_a: Don't start ESD
 	  Don't start ESD if it is not running yet, esp. not from
 	  detect() !
+	* timidity/ao_a.c: [PATCH 2/9] libao: Add a detect() function
+	  Most Linux distros use pulseaudio by now, and libao is the
+	  best way to use pulseaudio from timidity. This patch adds a
+	  detect function to libao, which will make libao autodetect
+	  succeed only when pulse is available, so that we can prefer
+	  libao in the probe order to get pulse, without also getting
+	  libao on systems where we should be using alsa directly.
 
 2010-09-19  Kentaro Sato <kentaro@ranvis.com>
 
