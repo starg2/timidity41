@@ -1,3 +1,12 @@
+2011-12-05  Hans de Goede <hdegoede@redhat.com>
+
+	* interface/tkmidity.ptcl, interface/tkpanel.tcl,
+	  script/dllutl.rb: [PATCH 11/17] Make shebang paths
+	  /usr/bin/foo rather then /usr/local/bin/foo
+	  This makes life easier for packagers, people who want to use
+	  non standard paths will need to fix this up themselves...
+	  (revised by TAMUKI Shoichi)
+
 2011-12-04  TAMUKI Shoichi <tamuki@linet.gr.jp>
 
 	* configure.in: Support for Tcl/Tk 8.5 and autoreconf

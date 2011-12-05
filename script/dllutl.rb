@@ -1,4 +1,4 @@
-#!/usr/local/bin/ruby
+#!/usr/bin/ruby
 
 # DLL のダイナミックロード用ツール
 # １行目 クラス名
