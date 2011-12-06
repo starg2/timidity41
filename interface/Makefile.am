@@ -18,7 +18,7 @@
 
 include $(top_srcdir)/common.makefile.in
 
-SUFFIXES = .ptcl .tcl .@so@
+SUFFIXES = .ptcl .tcl .pel .el .@so@
 
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
@@ -239,11 +239,13 @@ EXTRA_DIST = \
 	tkpanel.tcl \
 	browser.tcl \
 	misc.tcl \
-	timidity.el \
+	timidity.pel \
 	tclIndex
 
 .ptcl.tcl:
 	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@
+.pel.el:
+	sed -e 's@%BIN_DIR%@$(bindir)@g' $< > $@
 clean:
 	rm -f tkmidity.tcl
 	rm -f *.$(OBJEXT)

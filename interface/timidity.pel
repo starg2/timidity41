@@ -28,14 +28,14 @@
 ;;
 ;; You write follows in ~/.emacs
 ;; (autoload 'timidity "timidity" "TiMidity Interface" t)
-;; (setq timidity-prog-path "/usr/local/bin/timidity")
+;; (setq timidity-prog-path "%BIN_DIR%/timidity")
 ;;
 ;; Then you type:
 ;; M-x timidity
 
 ;; Configuration parameters.
 ; Absolute path of timidity.
-(defvar timidity-prog-path "/usr/local/bin/timidity")
+(defvar timidity-prog-path "%BIN_DIR%/timidity")
 
 ; String list for timidity program options.
 (defvar timidity-default-options nil)

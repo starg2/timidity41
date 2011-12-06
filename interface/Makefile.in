@@ -334,7 +334,7 @@ DEF_PKGLIBDIR = -DPKGLIBDIR=\"$(PKGLIBDIR)\"
 DEF_SHLIB_DIR = -DSHLIB_DIR=\"$(SHLIB_DIR)\"
 BITMAP_DIR = $(TCL_DIR)/bitmaps
 
-SUFFIXES = .ptcl .tcl .@so@
+SUFFIXES = .ptcl .tcl .pel .el .@so@
 
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
@@ -500,7 +500,7 @@ EXTRA_DIST = \
 	tkpanel.tcl \
 	browser.tcl \
 	misc.tcl \
-	timidity.el \
+	timidity.pel \
 	tclIndex
 
 @ENABLE_DYNAMIC_TCLTK_TRUE@install_tk = install.tk
@@ -678,7 +678,7 @@ SOURCES = $(libinterface_a_SOURCES) $(EXTRA_libinterface_a_SOURCES)
 all: all-recursive
 
 .SUFFIXES:
-.SUFFIXES: .ptcl .tcl .@so@ .$(so) .c .o .obj
+.SUFFIXES: .ptcl .tcl .pel .el .@so@ .$(so) .c .o .obj
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/common.makefile.in $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --gnu  interface/Makefile
@@ -1077,6 +1077,8 @@ libinterface.a: $(libinterface_a_OBJECTS) $(libinterface_a_DEPENDENCIES) $(libin
 
 .ptcl.tcl:
 	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@
+.pel.el:
+	sed -e 's@%BIN_DIR%@$(bindir)@g' $< > $@
 clean:
 	rm -f tkmidity.tcl
 	rm -f *.$(OBJEXT)

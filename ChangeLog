@@ -1,3 +1,10 @@
+2011-12-06  TAMUKI Shoichi <tamuki@linet.gr.jp>
+
+	* interface/Makefile.am, interface/timidity.el,
+	  interface/timidity.pel: Set the absolute path of timidity
+	  in timidity.el automatically; add timidity.pel file to be
+	  preprocessed, and remove timidity.el
+
 2011-12-05  Hans de Goede <hdegoede@redhat.com>
 
 	* interface/tkmidity.ptcl, interface/tkpanel.tcl,
