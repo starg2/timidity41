@@ -1823,7 +1823,8 @@ CONFIG_INTERFACE(emacs,EMACS,e,
   [ ELFILES="$ELFILES timidity.el"
     INTERFACE_SRCS="$INTERFACE_SRCS emacs_c.c"
   ],
-  [ ELFILES="$ELFILES timidity.el" ])
+  [ AM_CONDITIONAL(ENABLE_EMACS, true)
+    ELFILES="$ELFILES timidity.el" ])
 
 dnl VT100
 AM_CONDITIONAL(ENABLE_VT100, false)
@@ -1943,9 +1944,11 @@ AM_CONDITIONAL(ENABLE_ALSASEQ, false)
 CONFIG_INTERFACE(alsaseq,ALSASEQ,A,
   [  --enable-alsaseq        Enable ALSA sequencer server interface
                                                           (default is no)],
-  ,
   [ INTERFACE_SRCS="$INTERFACE_SRCS alsaseq_c.c"
-    AM_PATH_ALSA
+  ],
+  [ AM_PATH_ALSA
+  ],
+  [ MY_DEFINE(IA_ALSASEQ)
   ])
 
 dnl TiMidity Windows synthesizer server

@@ -17934,7 +17934,17 @@ fi
   ;;
 xdynamic)
   dynamic_targets="$dynamic_targets if_emacs.\$(so)"
-   ELFILES="$ELFILES timidity.el"
+
+
+if true; then
+  ENABLE_EMACS_TRUE=
+  ENABLE_EMACS_FALSE='#'
+else
+  ENABLE_EMACS_TRUE='#'
+  ENABLE_EMACS_FALSE=
+fi
+
+    ELFILES="$ELFILES timidity.el"
   ;;
 *)
 
@@ -19057,7 +19067,8 @@ fi
 # Check whether --enable-alsaseq or --disable-alsaseq was given.
 if test "${enable_alsaseq+set}" = set; then
   enableval="$enable_alsaseq"
-  case "x$enable_alsaseq" in xyes|xdynamic)  ;; esac
+  case "x$enable_alsaseq" in xyes|xdynamic)  INTERFACE_SRCS="$INTERFACE_SRCS alsaseq_c.c"
+   ;; esac
 fi;
 case "x$enable_alsaseq" in
 xyes)
@@ -19075,8 +19086,7 @@ else
   ENABLE_ALSASEQ_FALSE=
 fi
 
-   INTERFACE_SRCS="$INTERFACE_SRCS alsaseq_c.c"
-    alsa_save_CFLAGS="$CFLAGS"
+   alsa_save_CFLAGS="$CFLAGS"
 alsa_save_LDFLAGS="$LDFLAGS"
 alsa_save_LIBS="$LIBS"
 alsa_found=yes
@@ -19426,6 +19436,10 @@ fi
   ;;
 xdynamic)
   dynamic_targets="$dynamic_targets if_alsaseq.\$(so)"
+   cat >> confdefs.h <<EOF
+#define IA_ALSASEQ 1
+EOF
+
 
   ;;
 *)
@@ -20957,6 +20971,13 @@ if test -z "${ENABLE_DYNAMIC_TCLTK_TRUE}" && test -z "${ENABLE_DYNAMIC_TCLTK_FAL
   { { echo "$as_me:$LINENO: error: conditional \"ENABLE_DYNAMIC_TCLTK\" was never defined.
 Usually this means the macro was only invoked conditionally." >&5
 echo "$as_me: error: conditional \"ENABLE_DYNAMIC_TCLTK\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+if test -z "${ENABLE_EMACS_TRUE}" && test -z "${ENABLE_EMACS_FALSE}"; then
+  { { echo "$as_me:$LINENO: error: conditional \"ENABLE_EMACS\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+echo "$as_me: error: conditional \"ENABLE_EMACS\" was never defined.
 Usually this means the macro was only invoked conditionally." >&2;}
    { (exit 1); exit 1; }; }
 fi

@@ -4,6 +4,10 @@
 	  interface/timidity.pel: Set the absolute path of timidity
 	  in timidity.el automatically; add timidity.pel file to be
 	  preprocessed, and remove timidity.el
+	* configure.in: In the case of --enable-dynamic=emacs and
+	  --enable-dynamic=alsaseq, make install timidity.el and
+	  enable the long option of ALSA sequencer interface,
+	  respectively (in addition, autoreconf)
 
 2011-12-05  Hans de Goede <hdegoede@redhat.com>
 
