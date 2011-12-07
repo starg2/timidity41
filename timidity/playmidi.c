@@ -2136,7 +2136,8 @@ static int find_voice(MidiEvent *e)
 	AlternateAssign *altassign;
 	int i, lowest = -1;
 	
-	status_check = (opt_overlap_voice_allow) ? VOICE_SUSTAINED : 0xff;
+	status_check = (opt_overlap_voice_allow)
+			? (VOICE_OFF | VOICE_SUSTAINED) : 0xff;
 	mono_check = channel[ch].mono;
 	altassign = find_altassign(channel[ch].altassign, note);
 	for (i = 0; i < upper_voices; i++)
@@ -2146,12 +2147,9 @@ static int find_voice(MidiEvent *e)
 		}
 	for (i = 0; i < upper_voices; i++)
 		if (voice[i].status != VOICE_FREE && voice[i].channel == ch) {
-			if (voice[i].note == note && (voice[i].status & status_check)) {
-				if (opt_overlap_voice_allow)
-					finish_note(i);	/* drop sustain */
-				else
-					kill_note(i);
-			} else if (mono_check)
+			if (voice[i].note == note && (voice[i].status & status_check))
+				kill_note(i);
+			else if (mono_check)
 				kill_note(i);
 			else if (altassign && find_altassign(altassign, voice[i].note))
 				kill_note(i);
