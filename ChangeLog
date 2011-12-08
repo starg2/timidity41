@@ -1,8 +1,18 @@
+2011-12-08  TAMUKI Shoichi <tamuki@linet.gr.jp>
+
+	* interface/alsaseq_c.c: About 4 years ago, a simple patch was
+	  merged, which disabled ALSA sequencer interface polling,
+	  when it's not needed.  As a result, when using ALSA
+	  sequencer interface (timidity -iA -B2,8 -q0/0), it comes to
+	  cause a terrible sound.  That improves with "timidity -iA",
+	  however the real-time response is too bad for practical use.
+	  So, I reverted the patch as a workaround.
+
 2011-12-07  TAMUKI Shoichi <tamuki@linet.gr.jp>
 
 	* timidity/playmidi.c: About 6 years ago, a simple patch was
 	  merged, which changed sustained notes not to drop when
-	  opt_overlap_voice_allow is enabled.  Perhaps, this might
+	  opt_overlap_voice_allow is enabled.  Perhaps, that might
 	  have a good effect in a certain case, however it often
 	  misses the tracer display.  So, I reverted the patch as a
 	  workaround.
