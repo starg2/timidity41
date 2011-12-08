@@ -513,13 +513,18 @@ static void doit(struct seq_context *ctxp)
 		}
 		if (! ctxp->active || ! IS_STREAM_TRACE) {
 			fd_set rfds;
-			struct timeval timeout;
 			FD_ZERO(&rfds);
 			FD_SET(ctxp->fd, &rfds);
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 10000; /* 10ms */
-			if (select(ctxp->fd + 1, &rfds, NULL, NULL, &timeout) < 0)
-				goto __done;
+			if (! IS_STREAM_TRACE) {
+				struct timeval timeout;
+				timeout.tv_sec = 0;
+				timeout.tv_usec = 10000; /* 10ms */
+				if (select(ctxp->fd + 1, &rfds, NULL, NULL, &timeout) < 0)
+					goto __done;
+			} else {
+				if (select(ctxp->fd + 1, &rfds, NULL, NULL, NULL) < 0)
+					goto __done;
+			}				
 		}
 	}
 

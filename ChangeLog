@@ -6,7 +6,9 @@
 	  sequencer interface (timidity -iA -B2,8 -q0/0), it comes to
 	  cause a terrible sound.  That improves with "timidity -iA",
 	  however the real-time response is too bad for practical use.
-	  So, I reverted the patch as a workaround.
+	  So, I reverted the patch as a workaround.  And then, I
+	  applied yet another patch instead, which works fine.  See
+	  http://fedev.blogspot.com/2007/07/timidity-power-usage.html
 
 2011-12-07  TAMUKI Shoichi <tamuki@linet.gr.jp>
 
