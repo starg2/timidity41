@@ -5,6 +5,7 @@
 	  This stops timidity itself from depending on libX11 even
 	  when build without any interfaces builtin which need libX11.
 	  (revised by TAMUKI Shoichi)
+	* interface/x_sherry.c: Fix to fit with libpng 1.5 and newer
 
 2011-12-18  TAMUKI Shoichi <tamuki@linet.gr.jp>
 
