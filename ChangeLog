@@ -1,3 +1,11 @@
+2011-12-22  Hans de Goede <hdegoede@redhat.com>
+
+	* configure.in: [PATCH 18/18] configure: Don't add -lX11 to
+	  the generic LIBS
+	  This stops timidity itself from depending on libX11 even
+	  when build without any interfaces builtin which need libX11.
+	  (revised by TAMUKI Shoichi)
+
 2011-12-18  TAMUKI Shoichi <tamuki@linet.gr.jp>
 
 	* Makefile.in, aclocal.m4, autoconf/Makefile.in,
