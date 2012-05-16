@@ -1611,7 +1611,13 @@ if test "$NEEDDLOPEN" = "yes"; then
   AC_DEFINE_UNQUOTED(SHARED_LIB_EXT,".$so", shared library extention)
   dnl needless?
   dnl EXTRADEFS="$EXTRADEFS \$(DEF_SHLIB_DIR)"
-  test "x$GCC" = xyes -a "x$timidity_cv_ccoption_rdynamic" = xyes  && timidity_LDFLAGS="-rdynamic"
+  if test "x$GCC" = xyes; then
+    if test "x$timidity_cv_ccoption_rdynamic" = xyes; then
+      timidity_LDFLAGS="-rdynamic"
+    else
+      timidity_LDFLAGS="-Wl,--export-dynamic"
+    fi
+  fi
 fi
 
 AM_CONDITIONAL(NEEDDLOPEN, test "$NEEDDLOPEN" = "yes")
