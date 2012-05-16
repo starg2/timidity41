@@ -226,31 +226,31 @@ ctl_master_volume(int mv) {
 static void
 ctl_volume(int ch, int val) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
-  a_pipe_write("PV%c%d", ch+'A', val);
+  a_pipe_write("PV%d|%d", ch, val);
 }
 
 static void
 ctl_expression(int ch, int val) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
-  a_pipe_write("PE%c%d", ch+'A', val);
+  a_pipe_write("PE%d|%d", ch, val);
 }
 
 static void
 ctl_panning(int ch, int val) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
-  a_pipe_write("PA%c%d", ch+'A', val);
+  a_pipe_write("PA%d|%d", ch, val);
 }
 
 static void
 ctl_sustain(int ch, int val) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
-  a_pipe_write("PS%c%d", ch+'A', val);
+  a_pipe_write("PS%d|%d", ch, val);
 }
 
 static void
 ctl_pitch_bend(int ch, int val) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
-  a_pipe_write("PB%c%d", ch+'A', val);
+  a_pipe_write("PB%d|%d", ch, val);
 }
 
 #ifdef WIDGET_IS_LABEL_WIDGET
@@ -904,7 +904,7 @@ ctl_note(int status, int ch, int note, int velocity) {
     c = '.';
     break;
   }
-  a_pipe_write("Y%c%c%03d%d", ch+'A', c, (unsigned char)note, velocity);
+  a_pipe_write("Y%d|%c%03d%d", ch, c, (unsigned char)note, velocity);
 
   if (active[ch] == 0) {
     active[ch] = 1;
@@ -920,9 +920,9 @@ ctl_program(int ch, int val, void *comm) {
       (!ISDRUMCHANNEL(ch))) return;
   active[ch] = 1;
   if (!IS_CURRENT_MOD_FILE) val += progbase;
-  a_pipe_write("PP%c%d", ch+'A', val);
+  a_pipe_write("PP%d|%d", ch, val);
   if (comm != NULL) {
-    a_pipe_write("I%c%s", ch+'A', (!strlen((char *)comm) &&
+    a_pipe_write("I%d|%s", ch, (!strlen((char *)comm) &&
                  (ISDRUMCHANNEL(ch)))? "<drum>":(char *)comm);
   }
 }
@@ -931,7 +931,7 @@ static void
 ctl_drumpart(int ch, int is_drum) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
 
-  a_pipe_write("i%c%c", ch+'A', is_drum+'A');
+  a_pipe_write("i%d|%c", ch, is_drum+'A');
 }
 
 static void
@@ -1018,7 +1018,7 @@ ctl_refresh(void) { }
 static void
 set_otherinfo(int ch, int val, char c) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
-  a_pipe_write("P%c%c%d", c, ch+'A', val);
+  a_pipe_write("P%c%d|%d", c, ch, val);
 }
 
 static void
@@ -1070,7 +1070,7 @@ update_indicator(void) {
 static void
 ctl_mute(int ch, int mute) {
   if ((!ctl.trace_playing) || (ch >= MAX_XAW_MIDI_CHANNELS)) return;
-  a_pipe_write("M%c%d", ch+'A', mute);
+  a_pipe_write("M%d|%d", ch, mute);
   return;
 }
 

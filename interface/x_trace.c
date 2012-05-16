@@ -637,6 +637,11 @@ int handleTraceinput(char *local_buf) {
   char c;
   int ch, i, n;
 
+#define EXTRACT_CH(s,off) do { \
+  ch = atoi(s+off); \
+  local_buf = strchr(s, '|') - off; \
+} while(0)
+
   switch (local_buf[0]) {
   case 'R':
     redrawTrace(True);
@@ -651,7 +656,7 @@ int handleTraceinput(char *local_buf) {
     drawVoices();
     break;
   case 'M':
-    ch = *(local_buf+1) - 'A';
+    EXTRACT_CH(local_buf, 1);
     n = atoi(local_buf+2);
     drawMute(ch, n);
     break;
@@ -659,7 +664,7 @@ int handleTraceinput(char *local_buf) {
     {
       int note;
 
-      ch = *(local_buf+1) - 'A';
+      EXTRACT_CH(local_buf, 1);
       c = *(local_buf+2);
       note = (*(local_buf+3) - '0') * 100 + (*(local_buf+4) - '0') * 10 +
               *(local_buf+5) - '0';
@@ -676,20 +681,20 @@ int handleTraceinput(char *local_buf) {
     }
     break;
   case 'I':
-    ch = *(local_buf+1) - 'A';
+    EXTRACT_CH(local_buf, 1);
     strlcpy(Panel->inst_name[ch], (char *)&local_buf[2], INST_NAME_SIZE);
     if (!XAWLIMIT(ch)) break;
     drawInstname(ch, Panel->inst_name[ch]);
     break;
   case 'i':
-    ch = *(local_buf+1) - 'A';
+    EXTRACT_CH(local_buf, 1);
     Panel->is_drum[ch] = *(local_buf+2) - 'A';
     if (!XAWLIMIT(ch)) break;
     drawDrumPart(ch, Panel->is_drum[ch]);
     break;
   case 'P':
     c = *(local_buf+1);
-    ch = *(local_buf+2)-'A';
+    EXTRACT_CH(local_buf, 2);
     n = atoi(local_buf+3);
     switch(c) {
     case 'A':        /* panning */
