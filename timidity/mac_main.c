@@ -63,7 +63,6 @@ MAIN_INTERFACE int	timidity_pre_load_configuration(void);
 MAIN_INTERFACE int	timidity_post_load_configuration(void);
 MAIN_INTERFACE void	timidity_init_player(void);
 MAIN_INTERFACE int	timidity_play_main(int nfiles, char **files);
-MAIN_INTERFACE int	read_config_file(char *name, int self);
 MAIN_INTERFACE void	timidity_init_aq_buff(void);
 
 extern char *wrdt_open_opts;

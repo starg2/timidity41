@@ -1219,7 +1219,11 @@ static char *expand_variables(char *string, MBlockList *varbuf, const char *base
     reuse_mblock(&varbuf); \
     close_file(tf); return 1; }
 
-MAIN_INTERFACE int read_config_file(char *name, int self)
+#define READ_CONFIG_SUCCESS        0
+#define READ_CONFIG_ERROR          1
+#define READ_CONFIG_RECURSION      2 /* Too much recursion */
+#define READ_CONFIG_FILE_NOT_FOUND 3 /* Returned only w. allow_missing_file */
+static int read_config_file(char *name, int self, int allow_missing_file)
 {
     struct timidity_file *tf;
     char buf[1024], *tmp, *w[MAXWORDS + 1], *cp;
@@ -1235,7 +1239,7 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "Probable source loop in configuration files");
-	return 2;
+	return READ_CONFIG_RECURSION;
     }
 
     if(self)
@@ -1244,9 +1248,10 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
 	name = "(configuration)";
     }
     else
-	tf = open_file(name, 1, OF_VERBOSE);
+	tf = open_file(name, 1, allow_missing_file ? OF_NORMAL : OF_VERBOSE);
     if(tf == NULL)
-	return 1;
+	return allow_missing_file ? READ_CONFIG_FILE_NOT_FOUND :
+	                            READ_CONFIG_ERROR;
 
 	init_mblock(&varbuf);
 	if (!self)
@@ -2219,7 +2224,7 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
 	    for(i = 1; i < words; i++)
 		add_to_pathlist(w[i]);
 	}
-	else if(!strcmp(w[0], "source"))
+	else if(!strcmp(w[0], "source") || !strcmp(w[0], "trysource"))
 	{
 	    if(words < 2)
 	    {
@@ -2232,19 +2237,20 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
 	    {
 		int status;
 		rcf_count++;
-		status = read_config_file(w[i], 0);
+		status = read_config_file(w[i], 0, !strcmp(w[0], "trysource"));
 		rcf_count--;
-		if(status == 2)
-		{
-		    reuse_mblock(&varbuf);
-		    close_file(tf);
-		    return 2;
-		}
-		else if(status != 0)
-		{
-
+		switch (status) {
+		case READ_CONFIG_SUCCESS:
+		    break;
+		case READ_CONFIG_ERROR:
 		    CHECKERRLIMIT;
 		    continue;
+		case READ_CONFIG_RECURSION:
+		    reuse_mblock(&varbuf);
+		    close_file(tf);
+		    return READ_CONFIG_RECURSION;
+		case READ_CONFIG_FILE_NOT_FOUND:
+		    break;
 		}
 	    }
 	}
@@ -2431,7 +2437,7 @@ MAIN_INTERFACE int read_config_file(char *name, int self)
     }
     reuse_mblock(&varbuf);
     close_file(tf);
-    return errcnt != 0;
+    return (errcnt == 0) ? READ_CONFIG_SUCCESS : READ_CONFIG_ERROR;
 }
 
 #ifdef SUPPORT_SOCKET
@@ -2482,58 +2488,40 @@ static int read_user_config_file(void)
 {
     char *home;
     char path[BUFSIZ];
-    int opencheck;
+    int status;
 
+    home = getenv("HOME");
 #ifdef __W32__
 /* HOME or home */
-    home = getenv("HOME");
     if(home == NULL)
 	home = getenv("home");
+#endif
     if(home == NULL)
     {
 	ctl->cmsg(CMSG_INFO, VERB_NOISY,
 		  "Warning: HOME environment is not defined.");
 	return 0;
     }
-/* .timidity.cfg or timidity.cfg */
+
+#ifdef __W32__
+/* timidity.cfg or _timidity.cfg or .timidity.cfg*/
     sprintf(path, "%s" PATH_STRING "timidity.cfg", home);
-    if((opencheck = open(path, 0)) < 0)
-    {
-	sprintf(path, "%s" PATH_STRING "_timidity.cfg", home);
-	if((opencheck = open(path, 0)) < 0)
-	{
-	    sprintf(path, "%s" PATH_STRING ".timidity.cfg", home);
-	    if((opencheck = open(path, 0)) < 0)
-	    {
-		ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s: %s",
-			  path, strerror(errno));
-		return 0;
-	    }
-	}
-    }
+    status = read_config_file(path, 0, 1);
+    if (status != READ_CONFIG_FILE_NOT_FOUND)
+        return status;
 
-    close(opencheck);
-    return read_config_file(path, 0);
-#else
-    home = getenv("HOME");
-    if(home == NULL)
-    {
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
-		  "Warning: HOME environment is not defined.");
-	return 0;
-    }
+    sprintf(path, "%s" PATH_STRING "_timidity.cfg", home);
+    status = read_config_file(path, 0, 1);
+    if (status != READ_CONFIG_FILE_NOT_FOUND)
+        return status;
+#endif
+
     sprintf(path, "%s" PATH_STRING ".timidity.cfg", home);
+    status = read_config_file(path, 0, 1);
+    if (status != READ_CONFIG_FILE_NOT_FOUND)
+        return status;
 
-    if((opencheck = open(path, 0)) < 0)
-    {
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "%s: %s",
-		  path, strerror(errno));
-	return 0;
-    }
-
-    close(opencheck);
-    return read_config_file(path, 0);
-#endif /* __W32__ */
+    return 0;
 }
 
 MAIN_INTERFACE void tmdy_free_config(void)
@@ -3029,7 +3017,7 @@ static inline int parse_opt_c(char *arg)
 	if (got_a_configuration == 1)
 		return 0;
 #endif
-	if (read_config_file(arg, 0))
+	if (read_config_file(arg, 0, 0))
 		return 1;
 	got_a_configuration = 1;
 	return 0;
@@ -5301,7 +5289,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
     if((check = open(local, 0)) >= 0)
     {
 	close(check);
-	if(!read_config_file(local, 0)) {
+	if(!read_config_file(local, 0, 0)) {
 	    got_a_configuration = 1;
 		return 0;
 	}
@@ -5321,7 +5309,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 	    if((check = open(local, 0)) >= 0)
 	    {
 		close(check);
-		if(!read_config_file(local, 0)) {
+		if(!read_config_file(local, 0, 0)) {
 		    got_a_configuration = 1;
 			return 0;
 		}
@@ -5336,7 +5324,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
     if((check = open(local, 0)) >= 0)
     {
 	close(check);
-	if(!read_config_file(local, 0)) {
+	if(!read_config_file(local, 0, 0)) {
 	    got_a_configuration = 1;
 		return 0;
 	}
@@ -5347,7 +5335,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 
 #else
     /* UNIX */
-    if(!read_config_file(CONFIG_FILE, 0))
+    if(!read_config_file(CONFIG_FILE, 0, 0))
 		got_a_configuration = 1;
 #endif
 
@@ -5356,10 +5344,12 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
      * Please setup each user preference in $HOME/.timidity.cfg
      * (or %HOME%/timidity.cfg for DOS)
      */
+    if(read_user_config_file()) {
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		  "Error: Syntax error in ~/.timidity.cfg");
+	return 1;
+    }
 
-    if(read_user_config_file())
-	ctl->cmsg(CMSG_INFO, VERB_NOISY,
-		  "Warning: Can't read ~/.timidity.cfg correctly");
     return 0;
 }
 
@@ -5442,7 +5432,7 @@ MAIN_INTERFACE int timidity_post_load_configuration(void)
 
     if(!got_a_configuration)
     {
-	if(try_config_again && !read_config_file(CONFIG_FILE, 0))
+	if(try_config_again && !read_config_file(CONFIG_FILE, 0, 0))
 	    got_a_configuration = 1;
     }
 
@@ -5455,7 +5445,7 @@ MAIN_INTERFACE int timidity_post_load_configuration(void)
 	{
 	    for(i = 0; config_string_list[i]; i++)
 	    {
-		if(!read_config_file(config_string_list[i], 1))
+		if(!read_config_file(config_string_list[i], 1, 0))
 		    got_a_configuration = 1;
 		else
 		    cmderr++;
