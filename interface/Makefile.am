@@ -53,6 +53,7 @@ EXTRA_libinterface_a_SOURCES = \
 	x_trace.c \
 	x_trace.h \
 	xaw.h \
+	xaw_p.h \
 	xaw_c.c \
 	xaw_i.c \
 	xaw_redef.c \

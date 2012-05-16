@@ -63,7 +63,7 @@ TiMidity*file_simplemenu.translations: #override\n\
 	<Motion>:	highlight()
 TiMidity*load_dialog.label: File Name
 TiMidity*load_dialog.add.label: Add ALL
-TiMidity*load_dialog.load_button.label: Filter
+TiMidity*load_dialog.filter.label: Filter
 TiMidity*flist_cmdbox.fplaybutton.label: Play
 TiMidity*flist_cmdbox.fdeletebutton.label: Delete
 TiMidity*flist_cmdbox.fdelallbutton.label: Delete ALL
@@ -217,6 +217,7 @@ TiMidity*trace.vertDistance: 2
 TiMidity*trace.borderWidth: 1
 TiMidity*trace.translations: #override\n\
 	<Btn1Down>:		do-toggletrace()\n\
+	<Btn2Down>:		do-solochan()\n\
 	<Btn3Down>:		do-mutechan()\n\
 	<Btn4Down>:		changetrace(-1)\n\
 	<Btn5Down>:		changetrace(1)\n\
@@ -253,7 +254,7 @@ TiMidity*load_dialog.value.translations: #override\n\
 	<Key>BackSpace:	do-backspace() delete-previous-character()\n\
 	Ctrl<Key>H:	do-backspace() delete-previous-character()\n\
 	~Ctrl ~Meta<Key>Tab:		do-complete() end-of-line()
-TiMidity*load_dialog.load_button.accelerators: #override\n\
+TiMidity*load_dialog.filter.accelerators: #override\n\
 	Ctrl<KeyPress>`: toggle() notify()
 TiMidity*dialog_sfile*load_dialog.add.Sensitive: False
 TiMidity*dialog_list*load_dialog.add.Sensitive: False
@@ -414,7 +415,7 @@ TiMidity*popup_confirm*background: #666666
 TiMidity*fontSet: -*-fixed-medium-r-normal--14-*-*-*-*-*-*-*,*
 TiMidity*Dialog*fontSet: -adobe-helvetica-medium-r-normal--12-*-*-*-*-*-*-*,*
 TiMidity*MenuButton*fontSet: -adobe-helvetica-bold-r-normal--14-*-*-*-*-*-*-*,*
-TiMidity*textfontset: -*-fixed-medium-r-normal--14-*-*-*-*-*-*-*
+TiMidity*textfontset: -*-fixed-medium-r-normal--14-*-*-*-*-*-*-*,*
 TiMidity*SmeBSB.fontSet: -adobe-helvetica-medium-r-normal--12-*-*-*-*-*-*-*,*
 TiMidity*Command*fontSet: -adobe-helvetica-bold-r-normal--12-*-*-*-*-*-*-*,*
 TiMidity*List*fontSet: -adobe-helvetica-medium-r-normal--12-*-*-*-*-*-*-*,*

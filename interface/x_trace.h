@@ -25,12 +25,12 @@
 #ifndef _X_TRACE_H
 #define _X_TRACE_H
 
-#include <X11/IntrinsicP.h>
-#include <X11/StringDefs.h>
+#include <X11/Intrinsic.h>
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
 #include "playmidi.h"
+#include "xaw_p.h"
 
 #define MAX_TRACE_CHANNELS MAX_CHANNELS
 #if MAX_TRACE_CHANNELS > 16
@@ -42,13 +42,13 @@
 #define TRACE_UPDATE_TIME 0.1
 #define DELTA_VEL	32
 
-#define TRACE_WIDTH	627	/* default height of trace_vport */
+#define TRACE_WIDTH	627	/* default width of trace_vport */
 #define TRACE_HEADER	22
-#define TRACE_FOOT	20
-#define TRACEH_OFS	0
+#define TRACE_FOOT	22
+#define TRACE_HOFS	0
+#define FOOT_HOFS	2
 #define BAR_SPACE	20
-#define BAR_HEIGHT	16
-#define DISP_INST_NAME_LEN 13
+#define BAR_HEIGHT	16	/* BAR_SPACE without border lines */
 #define INST_NAME_SIZE	16
 
 #define CHANNEL_HEIGHT(ch) BAR_SPACE*(ch)+TRACE_HEADER
@@ -63,7 +63,7 @@ typedef struct {
 typedef struct _tconfig {
   Boolean gradient_bar;
   Dimension trace_width, trace_height;
-  XFontSet trace_font, ttitle_font;
+  XFontSet c_trace_font, c_title_font;
   Pixel common_fgcolor, text_bgcolor,
         velocity_color, drumvelocity_color, volume_color, expr_color, pan_color,
         trace_bgcolor, rim_color, box_color, caption_color, sus_color,

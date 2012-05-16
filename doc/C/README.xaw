@@ -213,6 +213,7 @@ pitchbending, reverb, chorus and voices et cetera of each channel on the
 trace canvas.  Click left mouse button on the trace screen and you can
 toggle trace screen between 'pitchbend and instrument' or 'tonebank,
 reverb and chorus'. Click right mouse button and you can (un)mute a channel.
+Click middle mouse button, and you can play a channel solo.
 Wheel or 'j' key can scroll the trace to see more channels than the usual
 16 channels. If the trace is too tall for your resolution, simply set
 the traceHeight resource to a lower value.
@@ -369,8 +370,10 @@ AutoExit             0/1                    0
 ConfirmExit          0/1                    0
   Confirm exit from interface if user tries to close it.
 SaveList             0/1                    1
-  Save playing list to ~/.xtimidity when quiting. If Autostart is 1,
+  Save playlist to ~/.xtimidity when saving configuration. If Autostart is 1,
   it will begin playing immediately when timidity is next started.
+SaveConfig           0/1                    1
+  Save config at exit.
 File                 a valid file name.     None
   This file will be loaded at next start. If SaveList is 1, the previous
   playlist will be saved using this option. This option may occur multiple

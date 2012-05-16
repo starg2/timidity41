@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #endif
 #include "timidity.h"
+#include "xaw_p.h"
 
 /* Define to use Xaw3d */
 /* #define XAW3D */
@@ -46,7 +47,7 @@
 /* Define to use code for old xaw versions (Xaw6 and such) */
 /* #define OLDXAW */
 
-/* Define to use Timidity's implmentation of submenus */
+/* Define to use Timidity's implmentation of submenus for the titlebar menu */
 /* #define TimNmenu */
 
 /* Define to use scrollable Text widget instead of Label widget */
@@ -93,7 +94,7 @@
 
 #if (defined(XAW3D) && defined(HAVE_XAW3D_TIP)) \
       || (defined(XAW) && !(defined(OLDXAW))) || defined(XAWPLUS)
-/* Tooltips support exists only in Xaw7 (and above), Xaw3d 1.5E and XawPlus */
+/* Tooltip support exists only in Xaw7 (and above), Xaw3d 1.5E and XawPlus */
 #define HAVE_TIP
 #endif /* (XAW3D && HAVE_XAW3D_TIP) || (XAW && !OLDXAW) || XAWPLUS */
 
@@ -125,7 +126,7 @@
   /*
    * libXaw has a bug: it doesn't set length=width-minimumThumb, but
    * length=width so the thumb may become invisible when it reaches the
-   * end of the scrollbar. (Other toolkits always substracts minimumThumb
+   * end of the scrollbar. (Other toolkits always substract minimumThumb
    * from length, so we can't use the same codepath).
    */
 #define SCROLLBARLENGTHBUG
@@ -148,10 +149,10 @@
 #define APP_CLASS "TiMidity"
 #define APP_NAME "timidity"
 
-#define PIPE_LENGTH 300
 #ifndef PATH_MAX
 #define PATH_MAX 512
 #endif
+#define PIPE_LENGTH PATH_MAX+3
 #define MAX_DIRECTORY_ENTRY BUFSIZ
 
 #define MODUL_N 0

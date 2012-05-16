@@ -17,7 +17,7 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
 
-    xtrace_i.c - Trace window drawing for X11 based systems
+    x_trace.c - Trace window drawing for X11 based systems
         based on code by Yoshishige Arai <ryo2@on.rim.or.jp>
         modified by Yair Kalvariski <cesium2@gmail.com>
 */
@@ -25,6 +25,10 @@
 #include "x_trace.h"
 #include <stdlib.h>
 #include "timer.h"
+
+#ifdef HAVE_LIBXFT
+#include <X11/Xft/Xft.h>
+#endif
 
 enum {
   CL_C,		/* column 0 = channel */
@@ -37,12 +41,16 @@ enum {
   CL_IN,	/* column 7 = instrument name */
   KEYBOARD,
   TCOLUMN,
-  CL_BA = 6,	/* column 6 = bank */
-  CL_RE,	/* column 7 = reverb */
-  CL_CH,	/* column 8 = chorus */
+  CL_BA = 4,	/* column 5 = bank */
+  CL_BA_MSB,	/* column 6 = bank_lsb */
+  CL_BA_LSB,	/* column 7 = bank_msg */
+  CL_RE,	/* column 8 = reverb */
+  CL_CH,	/* column 9 = chorus */
   KEYBOARD2,
   T2COLUMN
 };
+
+#define MAX_GRADIENT_COLUMN CL_CH+1
 
 typedef struct {
   int y;
@@ -63,6 +71,14 @@ typedef struct {
 } Tplane;
 
 typedef struct {
+  GC gradient_gc[MAX_GRADIENT_COLUMN];
+  Pixmap gradient_pixmap[MAX_GRADIENT_COLUMN];
+  Boolean gradient_set[MAX_GRADIENT_COLUMN];
+  XColor x_boxcolor;
+  RGBInfo rgb;
+} GradData;
+
+typedef struct {
   int is_drum[MAX_TRACE_CHANNELS];
   int8 c_flags[MAX_TRACE_CHANNELS];
   int8 v_flags[MAX_TRACE_CHANNELS];
@@ -72,43 +88,113 @@ typedef struct {
   int16 reverb[MAX_TRACE_CHANNELS];  
   Channel channel[MAX_TRACE_CHANNELS];
   char *inst_name[MAX_TRACE_CHANNELS];
+
+  unsigned int last_voice, tempo, timeratio, xaw_i_voices;
   int pitch, poffset;
-  unsigned int tempo, timeratio;
-  int xaw_i_voices, last_voice;
-  int tempo_width, pitch_width, voices_num_width;
-  int plane, multi_part, visible_channels;
-  Pixel barcol[MAX_TRACE_CHANNELS];
-  Pixmap layer[2], gradient_pixmap[T2COLUMN];
-  GC gcs, gct, gc_xcopy, gradient_gc[T2COLUMN];
-  int init;
-  Window trace;
-  Boolean g_cursor_is_in;
+  const char *key_cache;
+
   Display *disp;
+  Window trace;
+  unsigned int depth, plane, multi_part, visible_channels, voices_width;
+  Pixel barcol[MAX_TRACE_CHANNELS];
+  Pixmap layer[2];
+  GC gcs, gct, gc_xcopy;
+  Boolean g_cursor_is_in;
   tconfig *cfg;
   char *title;
+  GradData *grad;
+
+#ifdef HAVE_LIBXFT
+  XftDraw *xft_trace, *xft_trace_foot;
+  XftFont *trfont, *ttfont;
+  XftColor xft_capcolor;
+  Pixmap xft_trace_foot_pixmap;
+#else
+  int foot_width;
+  short title_font_ascent;
+#endif /* HAVE_LIBXFT */
 } PanelInfo;
 
 #define gcs Panel->gcs
 #define gct Panel->gct
 #define gc_xcopy Panel->gc_xcopy
-#define gradient_gc Panel->gradient_gc
-#define gradient_pixmap Panel->gradient_pixmap
 #define plane Panel->plane
 #define layer Panel->layer
+#define gradient_gc Panel->grad->gradient_gc
+#define gradient_pixmap Panel->grad->gradient_pixmap
+#define gradient_set Panel->grad->gradient_set
+#define grgb Panel->grad->rgb
+#define x_boxcolor Panel->grad->x_boxcolor
+
+#ifdef HAVE_LIBXFT
+#define trace_font	Panel->trfont
+#define ttitle_font	Panel->ttfont
+
+#define COPY_PIXEL(dest, src) do { \
+  XColor _x_; \
+  _x_.pixel = src; \
+  XQueryColor(disp, DefaultColormap(disp, 0), &_x_); \
+  dest.color.red = _x_.red; dest.color.green = _x_.green; \
+  dest.color.blue = _x_.blue; dest.color.alpha = 0xffff; dest.pixel = src; \
+} while(0)
+
+#ifdef X_HAVE_UTF8_STRING
+#define TraceDrawStr(x,y,buf,len,color) do { \
+  XftColor xftcolor; \
+  COPY_PIXEL(xftcolor, color); \
+  XftDrawStringUtf8(Panel->xft_trace, &xftcolor, trace_font, \
+                    x, y, (FcChar8 *)buf, len); \
+} while(0)
+
+#define TitleDrawStr(x,y,buf,len,color) do { \
+  XftColor xftcolor; \
+  COPY_PIXEL(xftcolor, color); \
+  XftDrawStringUtf8(Panel->xft_trace, &xftcolor, ttitle_font, \
+                    x, y, (FcChar8 *)buf, len); \
+} while(0)
+#else
+#define TraceDrawStr(x,y,buf,len,color) do { \
+  XftColor xftcolor; \
+  COPY_PIXEL(xftcolor, color); \
+  XftDrawString8(Panel->xft_trace, &xftcolor, trace_font, \
+                 x, y, (FcChar8 *)buf, len);\
+} while(0)
+
+#define TitleDrawStr(x,y,buf,len,color) do { \
+  XftColor xftcolor; \
+  COPY_PIXEL(xftcolor, color); \
+  XftDrawString8(Panel->xft_trace, &xftcolor, ttitle_font, \
+                 x, y, (FcChar8 *)buf, len); \
+} while(0)
+#endif /* X_HAVE_UTF8_STRING */
+
+#else
+#define trace_font	Panel->cfg->c_trace_font
+#define ttitle_font	Panel->cfg->c_title_font
+
+#define TraceDrawStr(x,y,buf,len,color) do { \
+  XSetForeground(disp, gct, color); \
+  XmbDrawString(disp, Panel->trace, trace_font, gct, x, y, buf, len); \
+} while(0)
+
+#define TitleDrawStr(x,y,buf,len,color) do { \
+  XSetForeground(disp, gct, color); \
+  XmbDrawString(disp, Panel->trace, ttitle_font, gct, x, y, buf, len); \
+} while(0)
+#endif /* HAVE_LIBXFT */
 
 static PanelInfo *Panel;
-static short titlefont_ascent, tracefont_ascent;
-static ThreeL *keyG;
+static ThreeL *keyG = NULL;
 
 static const char *caption[TCOLUMN] =
 {"ch", "  vel", " vol", "expr", "prog", "pan", "pit", " instrument",
  "          keyboard"};
 static const char *caption2[T2COLUMN] =
-{"ch", "  vel", " vol", "expr", "prog", "pan", "bnk", "reverb", "chorus",
+{"ch", "  vel", " vol", "expr", "bnk", "msb", "lsb", "reverb", "chorus",
  "          keyboard"};
 
 static const int BARH_SPACE[TCOLUMN] = {22, 60, 40, 36, 36, 36, 30, 106, 304};
-#define BARH_OFS0	(TRACEH_OFS)
+#define BARH_OFS0	(TRACE_HOFS)
 #define BARH_OFS1	(BARH_OFS0+22)
 #define BARH_OFS2	(BARH_OFS1+60)
 #define BARH_OFS3	(BARH_OFS2+40)
@@ -117,22 +203,22 @@ static const int BARH_SPACE[TCOLUMN] = {22, 60, 40, 36, 36, 36, 30, 106, 304};
 #define BARH_OFS6	(BARH_OFS5+36)
 #define BARH_OFS7	(BARH_OFS6+30)
 #define BARH_OFS8	(BARH_OFS7+106)
-static const int bar0ofs[] = {BARH_OFS0, BARH_OFS1, BARH_OFS2, BARH_OFS3,
+static const int bar0ofs[TCOLUMN+1] = {BARH_OFS0, BARH_OFS1, BARH_OFS2, BARH_OFS3,
   BARH_OFS4, BARH_OFS5, BARH_OFS6, BARH_OFS7, BARH_OFS8};
 
-static const int BARH2_SPACE[T2COLUMN] = {22, 60, 40, 36, 36, 36,
-                                          30, 53, 53, 304};
-#define BARH2_OFS0	(TRACEH_OFS)
+static const int BARH2_SPACE[T2COLUMN] = {22, 60, 40, 36, 36, 36, 36, 50,
+                                          50, 304};
+#define BARH2_OFS0	(TRACE_HOFS)
 #define BARH2_OFS1	(BARH2_OFS0+22)
 #define BARH2_OFS2	(BARH2_OFS1+60)
 #define BARH2_OFS3	(BARH2_OFS2+40)
 #define BARH2_OFS4	(BARH2_OFS3+36)
 #define BARH2_OFS5	(BARH2_OFS4+36)
 #define BARH2_OFS6	(BARH2_OFS5+36)
-#define BARH2_OFS7	(BARH2_OFS6+30)
-#define BARH2_OFS8	(BARH2_OFS7+53)
-#define BARH2_OFS9	(BARH2_OFS8+53)
-static const int bar1ofs[] = {BARH2_OFS0, BARH2_OFS1, BARH2_OFS2, BARH2_OFS3,
+#define BARH2_OFS7	(BARH2_OFS6+36)
+#define BARH2_OFS8	(BARH2_OFS7+50)
+#define BARH2_OFS9	(BARH2_OFS8+50)
+static const int bar1ofs[T2COLUMN+1] = {BARH2_OFS0, BARH2_OFS1, BARH2_OFS2, BARH2_OFS3,
   BARH2_OFS4, BARH2_OFS5, BARH2_OFS6, BARH2_OFS7, BARH2_OFS8, BARH2_OFS9};
 
 static const Tplane pl[] = {
@@ -144,7 +230,7 @@ static const Tplane pl[] = {
 #define BARSCALE2 0.31111	/* velocity scale   (60-4)/180 */
 #define BARSCALE3 0.28125	/* volume scale     (40-4)/128 */
 #define BARSCALE4 0.25		/* expression scale (36-4)/128 */
-#define BARSCALE5 0.385827	/* expression scale (53-4)/128 */
+#define BARSCALE5 0.359375	/* reverb scale     (50-4)/128 */
 
 #define FLAG_NOTE_OFF	1
 #define FLAG_NOTE_ON	2
@@ -154,14 +240,6 @@ static const Tplane pl[] = {
 #define FLAG_PAN	8
 #define FLAG_SUST	16
 #define FLAG_BENDT	32
-
-#define VOICES_NUM_OFS	6
-#define VOICENUM_WIDTH	56
-#define TEMPO_WIDTH	56
-#define TEMPO_SPACE	6
-#define PITCH_WIDTH	106
-#define PITCH_SPACE	6
-#define TTITLE_OFS	120
 
 #define VISIBLE_CHANNELS Panel->visible_channels
 #define VISLOW Panel->multi_part
@@ -191,9 +269,6 @@ static const Tplane pl[] = {
 #define trace_height_nf		(Panel->cfg->trace_height - TRACE_FOOT)
 #define trace_width		Panel->cfg->trace_width
 
-#define trace_font	Panel->cfg->trace_font
-#define ttitle_font	Panel->cfg->ttitle_font
-
 #define UNTITLED_STR	Panel->cfg->untitled
 /* Privates */
 
@@ -210,13 +285,11 @@ static void drawExp(int, int);
 static void drawPitch(int, int);
 static void drawInstname(int, char *);
 static void drawDrumPart(int, int);
-static void drawBank(int, int);
+static void drawBank(int, int, int, int);
 static void drawReverb(int, int);
 static void drawChorus(int, int);
+static void drawFoot(Boolean);
 static void drawVoices(void);
-static void drawTitle(char *);
-static void drawTempo(void);
-static void drawOverallPitch(int, int);
 static void drawMute(int, int);
 static int getdisplayinfo(RGBInfo *);
 static int sftcount(int *);
@@ -244,7 +317,8 @@ static int sftcount(int *mask) {
 static int getdisplayinfo(RGBInfo *rgb) {
   XWindowAttributes xvi;
   XGetWindowAttributes(disp, Panel->trace, &xvi);
-  if (xvi.depth >= 16) {
+
+  if ((rgb != NULL) && (xvi.depth >= 16)) {
     rgb->Red_depth = (xvi.visual)->red_mask;
     rgb->Green_depth = (xvi.visual)->green_mask;
     rgb->Blue_depth = (xvi.visual)->blue_mask;
@@ -259,29 +333,19 @@ static int getdisplayinfo(RGBInfo *rgb) {
 }
 
 static void drawBar(int ch, int len, int xofs, int column, Pixel color) {
-  static Pixel column1color0;
-  static XColor x_boxcolor;
-  static XGCValues gv;
-  static RGBInfo rgb;
-  static int gradient_set[T2COLUMN], depth;
+  static Pixel column1color0 = 0;
+
+  XGCValues gv;
   int col, i, screen;
   XColor x_color;
 
   ch -= VISLOW;
   screen = DefaultScreen(disp);
-  if (!Panel->init) {
-    for(i=0;i<T2COLUMN;i++) gradient_set[i] = 0;
-    depth = getdisplayinfo(&rgb);
-    if ((16 <= depth) && (gradient_bar)) {
-      x_boxcolor.pixel = boxcolor;
-      XQueryColor(disp, DefaultColormap(disp, 0), &x_boxcolor);
-      gv.fill_style = FillTiled;
-      gv.fill_rule = WindingRule;
-    }
-    Panel->init = 0;
-  }
-  if ((16 <= depth) && (gradient_bar)) {
-    if (column < T2COLUMN) {
+  if ((16 <= Panel->depth) && (gradient_bar)) {
+    gv.fill_style = FillTiled;
+    gv.fill_rule = WindingRule;
+
+    if (column < MAX_GRADIENT_COLUMN) {
       col = column;
       if (column == 1) {
         if (gradient_set[0] == 0) {
@@ -320,9 +384,9 @@ static void drawBar(int ch, int len, int xofs, int column, Pixel color) {
           if (r>255) r = 255;
           if (g>255) g = 255;
           if (b>255) b = 255;
-          pxl  = (r >> (8-rgb.Red_depth)) << rgb.Red_sft;
-          pxl |= (g >> (8-rgb.Green_depth)) << rgb.Green_sft;
-          pxl |= (b >> (8-rgb.Blue_depth)) << rgb.Blue_sft;
+          pxl  = (r >> (8-grgb.Red_depth)) << grgb.Red_sft;
+          pxl |= (g >> (8-grgb.Green_depth)) << grgb.Green_sft;
+          pxl |= (b >> (8-grgb.Blue_depth)) << grgb.Blue_sft;
           XSetForeground(disp, gct, pxl);
           XDrawPoint(disp, gradient_pixmap[col], gct, i, 0);
         }
@@ -346,7 +410,7 @@ static void drawBar(int ch, int len, int xofs, int column, Pixel color) {
     XSetForeground(disp, gct, boxcolor);
     XFillRectangle(disp, Panel->trace, gct,
                    xofs+len+2, CHANNEL_HEIGHT(ch)+2,
-                   pl[plane].w[column] -len - 4, BAR_HEIGHT);
+                   pl[plane].w[column] - len - 4, BAR_HEIGHT);
     XSetForeground(disp, gct, color);
     XFillRectangle(disp, Panel->trace, gct,
                    xofs+2, CHANNEL_HEIGHT(ch)+2,
@@ -364,10 +428,9 @@ static void drawProg(int ch, int val, Boolean do_clean) {
                    pl[plane].ofs[CL_PR]+2,CHANNEL_HEIGHT(ch)+2,
                    pl[plane].w[CL_PR]-4,BAR_HEIGHT);
   }
-  XSetForeground(disp, gct, textcolor);
-  sprintf(s, "%3d", val);
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-                pl[plane].ofs[CL_PR]+5, CHANNEL_HEIGHT(ch)+16, s, 3);
+  snprintf(s, sizeof(s), "%3d", val);
+  TraceDrawStr(pl[plane].ofs[CL_PR]+5, CHANNEL_HEIGHT(ch)+BAR_HEIGHT-1,
+               s, 3, textcolor);
 }
 
 static void drawPan(int ch, int val, Boolean setcolor) {
@@ -418,26 +481,24 @@ static void drawChorus(int ch, int val) {
 }
 
 static void drawPitch(int ch, int val) {
-  char s[3];
+  char *s;
 
   ch -= VISLOW;
   XSetForeground(disp, gct, boxcolor);
   XFillRectangle(disp,Panel->trace,gct,
                  pl[plane].ofs[CL_PI]+2,CHANNEL_HEIGHT(ch)+2,
                  pl[plane].w[CL_PI] -4,BAR_HEIGHT);
-  XSetForeground(disp, gct, Panel->barcol[9]);
   if (val != 0) {
     if (val < 0) {
-      sprintf(s, "=");
+      s = "=";
     } else {
-      if (val == 0x2000) sprintf(s, "*");
-      else if (val > 0x3000) sprintf(s, ">>");
-      else if (val > 0x2000) sprintf(s, ">");
-      else if (val > 0x1000) sprintf(s, "<");
-      else sprintf(s, "<<");
+      if (val == 0x2000) s = "*";
+      else if (val > 0x3000) s = ">>";
+      else if (val > 0x2000) s = ">";
+      else if (val > 0x1000) s = "<";
+      else s = "<<";
     }
-    XmbDrawString(disp, Panel->trace, trace_font, gct,
-                pl[plane].ofs[CL_PI]+4, CHANNEL_HEIGHT(ch)+16, s, strlen(s));
+    TraceDrawStr(pl[plane].ofs[CL_PI]+4, CHANNEL_HEIGHT(ch)+16, s, strlen(s), Panel->barcol[9]);
   }
 }
 
@@ -450,12 +511,9 @@ static void drawInstname(int ch, char *name) {
   XFillRectangle(disp, Panel->trace, gct,
                  pl[plane].ofs[CL_IN]+2, CHANNEL_HEIGHT(ch)+2,
                  pl[plane].w[CL_IN] -4, BAR_HEIGHT);
-  XSetForeground(disp, gct,
-                   ((Panel->is_drum[ch+VISLOW])?capcolor:textcolor));
   len = strlen(name);
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-              pl[plane].ofs[CL_IN]+4, CHANNEL_HEIGHT(ch)+15,
-              name, (len > DISP_INST_NAME_LEN)?DISP_INST_NAME_LEN:len);
+  TraceDrawStr(pl[plane].ofs[CL_IN]+4, CHANNEL_HEIGHT(ch)+15,
+               name, len, (Panel->is_drum[ch+VISLOW])?capcolor:textcolor);
 }
 
 static void drawDrumPart(int ch, int is_drum) {
@@ -524,111 +582,186 @@ static void drawKeyboardAll(Drawable pix, GC gc) {
   }
 }
 
-static void drawBank(int ch, int val) {
+static void drawBank(int ch, int bank, int lsb, int msb) {
   char s[4];
 
   ch -= VISLOW;
-  XSetForeground(disp, gct, textcolor);
-  sprintf(s, "%3d", val);
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-              pl[plane].ofs[CL_BA], CHANNEL_HEIGHT(ch)+15, s, strlen(s));
+  XSetForeground(disp, gct, boxcolor);
+  XFillRectangle(disp, Panel->trace, gct,
+                 pl[plane].ofs[CL_BA]+2, CHANNEL_HEIGHT(ch)+2,
+                 pl[plane].w[CL_BA]-4, BAR_HEIGHT);
+  XFillRectangle(disp, Panel->trace, gct,
+                 pl[plane].ofs[CL_BA_MSB]+2, CHANNEL_HEIGHT(ch)+2,
+                 pl[plane].w[CL_BA_MSB]-4, BAR_HEIGHT);
+  XFillRectangle(disp, Panel->trace, gct,
+                 pl[plane].ofs[CL_BA_LSB]+2, CHANNEL_HEIGHT(ch)+2,
+                 pl[plane].w[CL_BA_LSB]-4, BAR_HEIGHT);
+  snprintf(s, sizeof(s), "%3d", bank);
+  TraceDrawStr(pl[plane].ofs[CL_BA]+6, CHANNEL_HEIGHT(ch)+BAR_HEIGHT-1,
+               s, strlen(s), textcolor);
+  snprintf(s, sizeof(s), "%3d", msb);
+  TraceDrawStr(pl[plane].ofs[CL_BA_MSB]+6, CHANNEL_HEIGHT(ch)+BAR_HEIGHT-1,
+               s, strlen(s), textcolor);
+  snprintf(s, sizeof(s), "%3d", lsb);
+  TraceDrawStr(pl[plane].ofs[CL_BA_LSB]+6, CHANNEL_HEIGHT(ch)+BAR_HEIGHT-1,
+               s, strlen(s), textcolor);
 }
 
-static void drawVoices(void) {
-  char s[20];
-  int l;
-
-  XSetForeground(disp, gct, tracecolor);
-  XFillRectangle(disp, Panel->trace, gct, Panel->voices_num_width+4,
-                 trace_height_nf+1, VOICENUM_WIDTH, TRACE_FOOT);  
-  l = snprintf(s, sizeof(s), "%3d/%d", Panel->last_voice, Panel->xaw_i_voices);
-  if (l >= sizeof(s) || (l < 0)) l = sizeof(s) - 1;
-  XSetForeground(disp, gct, capcolor);  
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-                Panel->voices_num_width+6, trace_height_nf+tracefont_ascent,
-                s, l);
-}
-
-static void drawTempo(void) {
-  char s[20];
-  int l;
-
-  XSetForeground(disp, gct, tracecolor);
-  XFillRectangle(disp, Panel->trace, gct, Panel->voices_num_width+
-                 4+VOICENUM_WIDTH+VOICES_NUM_OFS+Panel->tempo_width,
-                 trace_height_nf+1, TEMPO_WIDTH+TEMPO_SPACE, TRACE_FOOT);
-  l = snprintf(s, sizeof(s), "%d/%3d%%", Panel->tempo*Panel->timeratio/100,
-               Panel->timeratio);
-  if (l >= sizeof(s) || (l < 0)) l = sizeof(s) - 1;
-  XSetForeground(disp, gct, capcolor);
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-                VOICES_NUM_OFS+Panel->voices_num_width+4+VOICENUM_WIDTH+
-                TEMPO_SPACE+Panel->tempo_width,
-                trace_height_nf+tracefont_ascent, s, l);
-}
-
-static void drawOverallPitch(int p, int o) {
+static const char * calcPitch(void)
+{
   int i, pitch;
   static const char *keysig_name[] = {
     "Cb", "Gb", "Db", "Ab", "Eb", "Bb", "F ", "C ",
     "G ", "D ", "A ", "E ", "B ", "F#", "C#", "G#",
     "D#", "A#"
   };
-  char s[13];
 
-  pitch = p + ((p < 8) ? 7 : -6);
-  if (o > 0)
-    for (i = 0; i < o; i++)
+  pitch = Panel->pitch + ((Panel->pitch < 8) ? 7 : -6);
+  if (Panel->poffset > 0)
+    for (i = 0; i < Panel->poffset; i++)
       pitch += (pitch > 10) ? -5 : 7;
   else
-    for (i = 0; i < -o; i++)
+    for (i = 0; i < -Panel->poffset; i++)
       pitch += (pitch < 7) ? 5 : -7;
-  if (p < 8)
-    i = snprintf(s, sizeof(s), "%s Maj (%+03d)", keysig_name[pitch], o);
-  else
-    i = snprintf(s, sizeof(s), "%s Min (%+03d)", keysig_name[pitch], o);
-  if ((i >= sizeof(s)) || (i < 0)) i = sizeof(s) - 1;
-  XSetForeground(disp, gct, tracecolor);
-  XFillRectangle(disp, Panel->trace, gct,
-                Panel->voices_num_width+4+VOICENUM_WIDTH+VOICES_NUM_OFS+
-                TEMPO_WIDTH+2*TEMPO_SPACE+Panel->tempo_width+Panel->pitch_width,
-                trace_height_nf+1, PITCH_WIDTH+PITCH_SPACE, TRACE_FOOT);
-  XSetForeground(disp, gct, capcolor);
-  XmbDrawString(disp, Panel->trace, ttitle_font, gct,
-                VOICES_NUM_OFS+Panel->voices_num_width+4+VOICENUM_WIDTH+
-                TEMPO_WIDTH+2*TEMPO_SPACE+Panel->tempo_width+PITCH_SPACE+
-                Panel->pitch_width, trace_height_nf+tracefont_ascent, s, i);
+
+  return keysig_name[pitch];
 }
 
-static void drawTitle(char *str) {
-  char *p = str;
+#ifdef HAVE_LIBXFT
+static void drawFoot(Boolean PitchChanged) {
+  char *p, s[4096];
+  int l;
 
-  if (!strcmp(p, "(null)")) p = (char *)UNTITLED_STR;
-  XSetForeground(disp, gcs, capcolor);
-  XmbDrawString(disp, Panel->trace, ttitle_font,
-               gcs, VOICES_NUM_OFS+Panel->voices_num_width+4+VOICENUM_WIDTH+
-               TEMPO_WIDTH+2*TEMPO_SPACE+Panel->tempo_width+
-               PITCH_WIDTH+2*PITCH_SPACE+Panel->pitch_width,
-               trace_height_nf+titlefont_ascent, p, strlen(p));
+  if (PitchChanged) Panel->key_cache = calcPitch();
+  if (Panel->pitch < 8) p = "Maj";
+  else p = "Min";
+  l = snprintf(s, sizeof(s),
+               "Voices %3d/%d  Tempo %d/%3d%%  Key %s %s (%+03d)   %s",
+               Panel->last_voice, Panel->xaw_i_voices,
+               Panel->tempo*Panel->timeratio/100, Panel->timeratio,
+               Panel->key_cache, p, Panel->poffset, Panel->title);
+  if (l >= sizeof(s) || (l < 0)) l = sizeof(s) - 1;
+
+ /*
+  * In the Xft path we draw to a pixmap, and then copy that to screen.
+  * Reason is that otherwise we may see "flashing" since Xft is too slow.
+  */
+  XFillRectangle(disp, Panel->xft_trace_foot_pixmap, gcs, 0, 0,
+                 trace_width, TRACE_FOOT-2);
+#ifdef X_HAVE_UTF8_STRING
+  XftDrawStringUtf8(Panel->xft_trace_foot, &Panel->xft_capcolor, ttitle_font,
+                    FOOT_HOFS, ttitle_font->ascent, (FcChar8 *)s, l);
+#else
+  XftDrawString8(Panel->xft_trace_foot, &Panel->xft_capcolor, ttitle_font,
+                 FOOT_HOFS, ttitle_font->ascent, (FcChar8 *)s, l);
+#endif
+  XCopyArea(disp, (Drawable)Panel->xft_trace_foot_pixmap, (Drawable)Panel->trace,
+            gcs, 0, 0, trace_width, TRACE_FOOT-2, 0, trace_height_nf+2);
 }
+
+static void drawVoices(void) {
+  char s[20];
+  int l;
+  XGlyphInfo extents;
+
+  l = snprintf(s, sizeof(s), "Voices %3d/%d ",
+               Panel->last_voice, Panel->xaw_i_voices);
+  if ((l >= sizeof(s)) || (l < 0)) l = sizeof(s) - 1;
+  XftTextExtents8(disp, ttitle_font, (FcChar8 *)s, l, &extents);
+  if (Panel->voices_width < extents.width) {
+    drawFoot(False);
+  } else {
+    XFillRectangle(disp, Panel->xft_trace_foot_pixmap, gcs, 0, 0,
+                   Panel->voices_width, TRACE_FOOT-2);
+#ifdef X_HAVE_UTF8_STRING
+    XftDrawStringUtf8(Panel->xft_trace_foot, &Panel->xft_capcolor,
+                      ttitle_font, FOOT_HOFS, ttitle_font->ascent,
+                      (FcChar8 *)s, l);
+#else
+    XftDrawString8(Panel->xft_trace_foot, &Panel->xft_capcolor,
+                   ttitle_font, FOOT_HOFS, ttitle_font->ascent,
+                   (FcChar8 *)s, l);
+#endif
+    XCopyArea(disp, (Drawable)Panel->xft_trace_foot_pixmap, (Drawable)Panel->trace,
+              gcs, 0, 0, Panel->voices_width, TRACE_FOOT-2, 0, trace_height_nf+2);
+  }
+  Panel->voices_width = extents.width;
+}
+#else
+static void drawFoot(Boolean PitchChanged) {
+  char *p, s[4096];
+  int l, w;
+
+  if (PitchChanged) Panel->key_cache = calcPitch();
+  if (Panel->pitch < 8) p = "Maj";
+  else p = "Min";
+
+  l = snprintf(s, sizeof(s),
+               "Voices %3d/%d  Tempo %d/%3d%%  Key %s %s (%+03d)   %s",
+               Panel->last_voice, Panel->xaw_i_voices,
+               Panel->tempo*Panel->timeratio/100, Panel->timeratio,
+               Panel->key_cache, p, Panel->poffset, Panel->title);
+  if (l >= sizeof(s) || (l < 0)) l = sizeof(s) - 1;
+
+  w = XmbTextEscapement(ttitle_font, s, l);
+  if (w < Panel->foot_width) {
+    XSetForeground(disp, gct, tracecolor);
+    /*
+     * w is reliable enough to detect changes in width used on screen,
+     * but can't be trusted enough to clear only w-Panel->foot_width width.
+     */ 
+    XFillRectangle(disp, Panel->trace, gct, 0,
+                   trace_height_nf+2, trace_width,
+                   TRACE_FOOT-2);
+    XmbDrawString(disp, Panel->trace, ttitle_font, gcs, 2,
+                  trace_height_nf+Panel->title_font_ascent, s, l);
+  } else {
+    XmbDrawImageString(disp, Panel->trace, ttitle_font, gcs, 2,
+                       trace_height_nf+Panel->title_font_ascent, s, l);
+  }
+  Panel->foot_width = w;
+}
+
+static void drawVoices(void) {
+  char s[20];
+  int l, w;
+
+  l = snprintf(s, sizeof(s), "Voices %3d/%d ",
+               Panel->last_voice, Panel->xaw_i_voices);
+  if ((l >= sizeof(s)) || (l < 0)) l = sizeof(s) - 1;
+  w = XmbTextEscapement(ttitle_font, s, l);
+  if (Panel->voices_width < w) {
+    drawFoot(False);
+  } else {
+    XmbDrawImageString(disp, Panel->trace, ttitle_font, gcs, 2,
+                       trace_height_nf+Panel->title_font_ascent, s, l);
+  }
+  Panel->voices_width = w;
+}
+#endif /* HAVE_LIBXFT */
 
 static void drawMute(int ch, int mute) {
   char s[16];
 
   if (mute != 0) {
     SET_CHANNELMASK(channel_mute, ch);
+    if (!XAWLIMIT(ch)) return;
+    /*
+     * If we drew the number using textbgcolor, it would only look clear in
+     * the non-Xft case, since AA may prevent the exact same pixels being used.
+     */
     XSetForeground(disp, gct, textbgcolor);
+    XFillRectangle(disp, Panel->trace, gct, pl[plane].ofs[CL_C]+2,
+                   CHANNEL_HEIGHT(ch-VISLOW)+2, pl[plane].w[CL_C]-4, BAR_HEIGHT);
   }
   else {
     UNSET_CHANNELMASK(channel_mute, ch);
-    XSetForeground(disp, gct, textcolor);
+    if (!XAWLIMIT(ch)) return;
+    /* timidity internals counts from 0. timidity ui counts from 1 */
+    ch++;
+    snprintf(s, sizeof(s), "%3d", ch);
+    TraceDrawStr(pl[plane].ofs[CL_C]+2, CHANNEL_HEIGHT(ch-VISLOW)-5, s, 2, textcolor);
   }
-  if (!XAWLIMIT(ch)) return;
-  ch++;
-  /* timidity internals counts from 0. timidity ui counts from 1 */
-  sprintf(s, "%2d", ch);
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-              pl[plane].ofs[CL_C]+2, CHANNEL_HEIGHT(ch-VISLOW)-5, s, 2);
 }
 
 /* End of privates */
@@ -639,28 +772,11 @@ int handleTraceinput(char *local_buf) {
 
 #define EXTRACT_CH(s,off) do { \
   ch = atoi(s+off); \
-  local_buf = strchr(s, '|') - off; \
+  local_buf = strchr(s, CH_END_TOKEN) - off; \
 } while(0)
 
   switch (local_buf[0]) {
-  case 'R':
-    redrawTrace(True);
-    break;
-  case 'v':
-    c = *(local_buf+1);
-    n = atoi(local_buf+2);
-    if (c == 'L')
-      Panel->xaw_i_voices = n;
-    else
-      Panel->last_voice = n;
-    drawVoices();
-    break;
-  case 'M':
-    EXTRACT_CH(local_buf, 1);
-    n = atoi(local_buf+2);
-    drawMute(ch, n);
-    break;
-  case 'Y':
+  case MT_NOTE:
     {
       int note;
 
@@ -680,75 +796,7 @@ int handleTraceinput(char *local_buf) {
       draw1Chan(ch, Panel->ctotal[ch], c);
     }
     break;
-  case 'I':
-    EXTRACT_CH(local_buf, 1);
-    strlcpy(Panel->inst_name[ch], (char *)&local_buf[2], INST_NAME_SIZE);
-    if (!XAWLIMIT(ch)) break;
-    drawInstname(ch, Panel->inst_name[ch]);
-    break;
-  case 'i':
-    EXTRACT_CH(local_buf, 1);
-    Panel->is_drum[ch] = *(local_buf+2) - 'A';
-    if (!XAWLIMIT(ch)) break;
-    drawDrumPart(ch, Panel->is_drum[ch]);
-    break;
-  case 'P':
-    c = *(local_buf+1);
-    EXTRACT_CH(local_buf, 2);
-    n = atoi(local_buf+3);
-    switch(c) {
-    case 'A':        /* panning */
-      Panel->channel[ch].panning = n;
-      Panel->c_flags[ch] |= FLAG_PAN;
-      if (!XAWLIMIT(ch)) break;
-      drawPan(ch, n, True);
-      break;
-    case 'B':        /* pitch_bend */
-      Panel->channel[ch].pitchbend = n;
-      Panel->c_flags[ch] |= FLAG_BENDT;
-      if (!XAWLIMIT(ch)) break;
-      if (!plane) drawPitch(ch, n);
-      break;
-    case 'b':        /* tonebank */
-      Panel->channel[ch].bank = n;
-      if (!XAWLIMIT(ch)) break;
-      if (plane) drawBank(ch, n);
-      break;
-    case 'r':        /* reverb */
-      Panel->reverb[ch] = n;
-      if (!XAWLIMIT(ch)) break;
-      if (plane) drawReverb(ch, n);
-      break;
-    case 'c':        /* chorus */
-      Panel->channel[ch].chorus_level = n;
-      if (!XAWLIMIT(ch)) break;
-      if (plane) drawChorus(ch, n);
-      break;
-    case 'S':        /* sustain */
-      Panel->channel[ch].sustain = n;
-      Panel->c_flags[ch] |= FLAG_SUST;
-      break;
-    case 'P':        /* program */
-      Panel->channel[ch].program = n;
-      Panel->c_flags[ch] |= FLAG_PROG;
-      if (!XAWLIMIT(ch)) break;
-      drawProg(ch, n, True);
-      break;
-    case 'E':        /* expression */
-      Panel->channel[ch].expression = n;
-      ctl_channel_note(ch, Panel->cnote[ch], Panel->cvel[ch]);
-      if (!XAWLIMIT(ch)) break;
-      drawExp(ch, n);
-      break;
-    case 'V':        /* volume */
-      Panel->channel[ch].volume = n;
-      ctl_channel_note(ch, Panel->cnote[ch], Panel->cvel[ch]);
-      if (!XAWLIMIT(ch)) break;
-      drawVol(ch, n);
-      break;
-    }
-    break;
-  case 'U':       /* update timer */
+  case MT_UPDATE_TIMER:       /* update timer */
     {
       static double last_time = 0;
       double d, t;
@@ -778,22 +826,128 @@ int handleTraceinput(char *local_buf) {
       if (need_flush) XFlush(disp);
     }
     break;
-  case 'r':         /* rhythem, tempo */
+  case MT_VOICES:
+    c = *(local_buf+1);
+    n = atoi(local_buf+2);
+    if (c == MTV_TOTAL_VOICES) {
+      if (Panel->xaw_i_voices != n) {
+        Panel->xaw_i_voices = n;
+        drawVoices();
+      }
+    }
+    else
+      if (Panel->last_voice != n) {
+        Panel->last_voice = n;
+        drawVoices();
+      }
+    break;
+  case MT_REDRAW_TRACE:
+    redrawTrace(True);
+    break;
+  case MT_MUTE:
+    EXTRACT_CH(local_buf, 1);
+    n = atoi(local_buf+2);
+    drawMute(ch, n);
+    break;
+  case MT_INST_NAME:
+    EXTRACT_CH(local_buf, 1);
+    strlcpy(Panel->inst_name[ch], (char *)&local_buf[2], INST_NAME_SIZE);
+    if (!XAWLIMIT(ch)) break;
+    drawInstname(ch, Panel->inst_name[ch]);
+    break;
+  case MT_IS_DRUM:
+    EXTRACT_CH(local_buf, 1);
+    Panel->is_drum[ch] = *(local_buf+2) - 'A';
+    if (!XAWLIMIT(ch)) break;
+    drawDrumPart(ch, Panel->is_drum[ch]);
+    break;
+  case MT_PANEL_INFO:
+    c = *(local_buf+1);
+    EXTRACT_CH(local_buf, 2);
+    n = atoi(local_buf+3);
+    switch(c) {
+    case MTP_PANNING:
+      Panel->channel[ch].panning = n;
+      Panel->c_flags[ch] |= FLAG_PAN;
+      if (plane || !XAWLIMIT(ch)) break;
+      drawPan(ch, n, True);
+      break;
+    case MTP_PITCH_BEND:
+      Panel->channel[ch].pitchbend = n;
+      Panel->c_flags[ch] |= FLAG_BENDT;
+      if (plane || !XAWLIMIT(ch)) break;
+      drawPitch(ch, n);
+      break;
+    case MTP_TONEBANK:
+      Panel->channel[ch].bank = n & 0xff;
+      Panel->channel[ch].bank_lsb = (n >> 8) & 0xff;
+      Panel->channel[ch].bank_msb = (n >> 16) & 0xff;
+      if (!plane || (!XAWLIMIT(ch))) break;
+      drawBank(ch, Panel->channel[ch].bank, Panel->channel[ch].bank_lsb,
+               Panel->channel[ch].bank_msb);
+      break;
+    case MTP_REVERB:
+      Panel->reverb[ch] = n;
+      if (!plane || !XAWLIMIT(ch)) break;
+      drawReverb(ch, n);
+      break;
+    case MTP_CHORUS:
+      Panel->channel[ch].chorus_level = n;
+      if (!plane || !XAWLIMIT(ch)) break;
+      drawChorus(ch, n);
+      break;
+    case MTP_SUSTAIN:
+      Panel->channel[ch].sustain = n;
+      Panel->c_flags[ch] |= FLAG_SUST;
+      break;
+    case MTP_PROGRAM:
+      Panel->channel[ch].program = n;
+      Panel->c_flags[ch] |= FLAG_PROG;
+      if (!XAWLIMIT(ch)) break;
+      drawProg(ch, n, True);
+      break;
+    case MTP_EXPRESSION:
+      Panel->channel[ch].expression = n;
+      ctl_channel_note(ch, Panel->cnote[ch], Panel->cvel[ch]);
+      if (!XAWLIMIT(ch)) break;
+      drawExp(ch, n);
+      break;
+    case MTP_VOLUME:
+      Panel->channel[ch].volume = n;
+      ctl_channel_note(ch, Panel->cnote[ch], Panel->cvel[ch]);
+      if (!XAWLIMIT(ch)) break;
+      drawVol(ch, n);
+      break;
+    }
+    break;
+  case MT_TEMPO:
+    i = atoi(local_buf+1);
+    n = (int) (500000/ (double)i * 120 + 0.5);
+    if (Panel->tempo != n) {
+      Panel->tempo = n;
+      drawFoot(False);
+    }
+    break;
+  case MT_RATIO:
     n = atoi(local_buf+1);
-    Panel->tempo = (int) (500000/ (double)n * 120 + 0.5);
-    drawTempo();
+    if (Panel->timeratio != n) {
+      Panel->timeratio = n;
+      drawFoot(False);
+    }
     break;
-  case 'q':         /* quotient, ratio */
-    Panel->timeratio = atoi(local_buf+1);
-    drawTempo();
+  case MT_PITCH_OFFSET:
+    n = atoi(local_buf+1);
+    if (Panel->poffset != n) {
+      Panel->poffset = n;
+      drawFoot(True);
+    }
     break;
-  case 'o':         /* pitch offset */
-    Panel->poffset = n = atoi(local_buf+2);
-    drawOverallPitch(Panel->pitch, n);
-    break;
-  case 'p':         /* pitch */
-    Panel->pitch = n = atoi(local_buf+2);
-    drawOverallPitch(n, Panel->poffset);
+  case MT_PITCH:
+    n = atoi(local_buf+1);
+    if (Panel->pitch != n) {
+      Panel->pitch = n;
+      drawFoot(True);
+    }
     break;
   default:
     return -1;
@@ -807,6 +961,7 @@ void redrawTrace(Boolean draw) {
 
   for(i=0; i<VISIBLE_CHANNELS; i++) {
     XGCValues gv;
+
     gv.tile = layer[plane];
     gv.ts_x_origin = 0;
     gv.ts_y_origin = CHANNEL_HEIGHT(i);
@@ -819,13 +974,13 @@ void redrawTrace(Boolean draw) {
             trace_width-1, trace_height_nf);
 
   for(i=VISLOW+1; i<VISLOW+VISIBLE_CHANNELS+1; i++) {
+    snprintf(s, sizeof(s), "%2d", i);
     if (IS_SET_CHANNELMASK(channel_mute, i-1))
-      XSetForeground(disp, gct, textbgcolor);
-    else XSetForeground(disp, gct, textcolor);
-    sprintf(s, "%2d", i);
-    XmbDrawString(disp, Panel->trace, trace_font, gct,
-                  pl[plane].ofs[CL_C]+2, CHANNEL_HEIGHT(i-VISLOW)-5,
-                  s, 2);
+      TraceDrawStr(pl[plane].ofs[CL_C]+2, CHANNEL_HEIGHT(i-VISLOW)-5,
+                   s, 2, textbgcolor);
+    else
+      TraceDrawStr(pl[plane].ofs[CL_C]+2, CHANNEL_HEIGHT(i-VISLOW)-5,
+                   s, 2, textcolor);
   }
 
   if (Panel->g_cursor_is_in) {
@@ -834,45 +989,31 @@ void redrawTrace(Boolean draw) {
   }
   redrawCaption(Panel->g_cursor_is_in);
 
-  XSetForeground(disp, gct, tracecolor);
-  XFillRectangle(disp, Panel->trace, gct, 0, trace_height_nf+1,
-                 trace_width, TRACE_FOOT);
-  XSetForeground(disp, gct, capcolor);  
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-                VOICES_NUM_OFS, trace_height_nf+tracefont_ascent, "Voices", 6);
-  drawVoices();
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-                VOICES_NUM_OFS+Panel->voices_num_width+4+VOICENUM_WIDTH,
-                trace_height_nf+tracefont_ascent, "Tempo", 5);
-  drawTempo();
-  XmbDrawString(disp, Panel->trace, trace_font, gct,
-                VOICES_NUM_OFS+Panel->voices_num_width+4+VOICENUM_WIDTH+
-                TEMPO_WIDTH+2*TEMPO_SPACE+Panel->tempo_width,
-                trace_height_nf+tracefont_ascent, "Key", 3);
-  drawOverallPitch(Panel->pitch, Panel->poffset);
-  drawTitle(Panel->title);
+  drawFoot(True);
   if (draw) {
-    for(i=VISLOW; i<VISLOW+VISIBLE_CHANNELS; i++)
+    for(i=VISLOW; i<VISLOW+VISIBLE_CHANNELS; i++) {
       if ((Panel->ctotal[i] != 0) && (Panel->c_flags[i] & FLAG_PROG_ON))
         draw1Chan(i, Panel->ctotal[i], '*');
-    XSetForeground(disp, gct, pancolor);
-    for(i=VISLOW; i<VISLOW+VISIBLE_CHANNELS; i++) {
-      if (Panel->c_flags[i] & FLAG_PAN)
-        drawPan(i, Panel->channel[i].panning, False);
-    }
-    XSetForeground(disp, gct, textcolor);
-    for(i=VISLOW; i<VISLOW+VISIBLE_CHANNELS; i++) {
       drawProg(i, Panel->channel[i].program, False);
       drawVol(i, Panel->channel[i].volume);
       drawExp(i, Panel->channel[i].expression);
       if (plane) {
-        drawBank(i, Panel->channel[i].bank);
+        drawBank(i, Panel->channel[i].bank, Panel->channel[i].bank_lsb,
+                 Panel->channel[i].bank_msb);
         drawReverb(i, Panel->reverb[i]);
         drawChorus(i, Panel->channel[i].chorus_level);
       } else {
         drawPitch(i, Panel->channel[i].pitchbend);
         drawInstname(i, Panel->inst_name[i]);
       }
+    }
+    if (!plane) {
+      XSetForeground(disp, gct, pancolor);
+      for(i=VISLOW; i<VISLOW+VISIBLE_CHANNELS; i++) {
+        if (Panel->c_flags[i] & FLAG_PAN)
+          drawPan(i, Panel->channel[i].panning, False);
+      }
+      XSetForeground(disp, gct, textcolor);
     }
   }
 }
@@ -881,22 +1022,23 @@ void redrawCaption(Boolean cursor_is_in) {
   const char *p;
   int i;
 
+  Panel->g_cursor_is_in = cursor_is_in;
   if (cursor_is_in) {
     XSetForeground(disp, gct, capcolor);
     XFillRectangle(disp, Panel->trace, gct, 0, 0, trace_width, TRACE_HEADER);
     XSetBackground(disp, gct, expcolor);
-    XSetForeground(disp, gct, tracecolor);
+    for(i=0; i<pl[plane].col; i++) {
+      p = pl[plane].cap[i];
+      TitleDrawStr(pl[plane].ofs[i]+4, BAR_HEIGHT, p, strlen(p), tracecolor);
+    }
   } else {
     XSetForeground(disp, gct, tracecolor);
     XFillRectangle(disp, Panel->trace, gct, 0, 0, trace_width, TRACE_HEADER);
     XSetBackground(disp, gct, tracecolor);
-    XSetForeground(disp, gct, capcolor);
-  }
-  Panel->g_cursor_is_in = cursor_is_in;
-  for(i=0; i<pl[plane].col; i++) {
-    p = pl[plane].cap[i];
-    XmbDrawString(disp, Panel->trace, trace_font, gct,
-    pl[plane].ofs[i]+4, 16, p, strlen(p));
+    for(i=0; i<pl[plane].col; i++) {
+      p = pl[plane].cap[i];
+      TitleDrawStr(pl[plane].ofs[i]+4, BAR_HEIGHT, p, strlen(p), capcolor);
+    }
   }
 }
 
@@ -922,7 +1064,7 @@ void initStatus(void) {
     Panel->v_flags[i] = 0;
   }
   Panel->multi_part = 0;
-  Panel->pitch = 7;
+  Panel->pitch = 0;
   Panel->poffset = 0;
   Panel->tempo = 100;
   Panel->timeratio = 100;
@@ -962,23 +1104,36 @@ int getVisibleChanNum(void) {
 }
 
 void initTrace(Display *dsp, Window trace, char *title, tconfig *cfg) {
-  XGCValues gv, gcval;
-  GC gc;
-  unsigned long gcmask;
-  XFontStruct **fs_list;
-  XFontStruct *font0;
+#ifdef HAVE_LIBXFT
+  char *font_name;
+#else
   char **ml;
+  XFontStruct **fs_list;
+#endif
   int i, j, k, tmpi, w, screen;
+  unsigned long gcmask;
+  XGCValues gv;
 
   Panel = (PanelInfo *)safe_malloc(sizeof(PanelInfo));
   Panel->trace = trace;
-  Panel->title = title;
+  if (!strcmp(title, "(null)")) Panel->title = (char *)UNTITLED_STR;
+  else Panel->title = title;
   Panel->cfg = cfg;
-  Panel->init = 1;
   plane = 0;
   Panel->g_cursor_is_in = False;
   disp = dsp;
   screen = DefaultScreen(disp);
+  if (gradient_bar) {
+    Panel->grad = (GradData *)safe_malloc(sizeof(GradData));
+    Panel->depth = getdisplayinfo(&Panel->grad->rgb);
+    for (i=0; i<MAX_GRADIENT_COLUMN; i++) gradient_set[i] = 0;
+    x_boxcolor.pixel = boxcolor;
+    XQueryColor(disp, DefaultColormap(disp, 0), &x_boxcolor);
+  } else {
+    Panel->grad = NULL;
+    Panel->depth = getdisplayinfo(NULL);
+  }
+
   for(i=0; i<MAX_TRACE_CHANNELS; i++) {
     if (ISDRUMCHANNEL(i)) {
       Panel->is_drum[i] = 1;
@@ -990,61 +1145,80 @@ void initTrace(Display *dsp, Window trace, char *title, tconfig *cfg) {
   }
   initStatus();
   Panel->xaw_i_voices = 0;
-  Panel->voices_num_width = XmbTextEscapement(trace_font,
-                                              "Voices", 6) + VOICES_NUM_OFS;
-  Panel->tempo_width = XmbTextEscapement(trace_font, "Tempo", 5);
-  Panel->pitch_width = XmbTextEscapement(trace_font, "Key", 3);
   Panel->visible_channels = (cfg->trace_height - TRACE_HEADER - TRACE_FOOT) /
                             BAR_SPACE;
   if (Panel->visible_channels > MAX_CHANNELS)
     Panel->visible_channels = MAX_CHANNELS;
   else if (Panel->visible_channels < 1)
     Panel->visible_channels = 1;
+  /* This prevents empty space between the trace foot and the channel bars. */
   cfg->trace_height = Panel->visible_channels * BAR_SPACE +
                       TRACE_HEADER + TRACE_FOOT;
-  /* Prevent empty space between the trace foot and the channels bars. */
 
-  gcmask = GCForeground | GCBackground | GCFont;
-  gcval.foreground = 1;
-  gcval.background = 1;
-  gcval.plane_mask = 1;
-  XFontsOfFontSet(ttitle_font, &fs_list, &ml);
-  font0 = fs_list[0];
-  if (font0->fid == 0) {
-    font0 = XLoadQueryFont(disp, ml[0]);
-    if (font0 == NULL) {
-      fprintf(stderr, "can't load fonts %s\n", ml[0]);
-      exit(1);
-    }
+  Panel->voices_width = 0;
+#ifdef HAVE_LIBXFT
+  if ((XftInit(NULL) != FcTrue) || (XftInitFtLibrary()) != FcTrue) {
+    fprintf(stderr, "Xft can't init font library!\n");
+    exit(1);
   }
-  titlefont_ascent = font0->ascent + 3;
-  gcval.font = font0->fid;
-  gcs = XCreateGC(disp, RootWindow(disp, screen), gcmask, &gcval);
+
+  font_name = XBaseFontNameListOfFontSet(Panel->cfg->c_title_font);
+  ttitle_font = XftFontOpenXlfd(disp, screen, font_name);
+  if (ttitle_font == NULL)
+    ttitle_font = XftFontOpenName(disp, screen, font_name);
+  if (ttitle_font == NULL) {
+    fprintf(stderr, "can't load font %s\n", font_name);
+    exit(1);
+  }
+
+  font_name = XBaseFontNameListOfFontSet(Panel->cfg->c_trace_font);
+  trace_font = XftFontOpenXlfd(disp, screen, font_name);
+  if (trace_font == NULL)
+    trace_font = XftFontOpenName(disp, screen, font_name);
+  if (trace_font == NULL) {
+    fprintf(stderr, "can't load font %s\n", font_name);
+    exit(1);
+  }
+
+  Panel->xft_trace = XftDrawCreate(disp, (Drawable)Panel->trace,
+                                   DefaultVisual(disp, screen),
+                                   DefaultColormap(disp, screen));
+  Panel->xft_trace_foot_pixmap = XCreatePixmap (disp, (Drawable)Panel->trace,
+                                                trace_width, TRACE_FOOT-2,
+                                                Panel->depth);
+  Panel->xft_trace_foot = XftDrawCreate(disp, (Drawable)Panel->xft_trace_foot_pixmap,
+                                        DefaultVisual(disp, screen),
+                                        DefaultColormap(disp, screen));
+
+  COPY_PIXEL (Panel->xft_capcolor, capcolor);
+
+  gcmask = GCForeground;
+  gv.foreground = tracecolor;
+  gcs = XCreateGC(disp, RootWindow(disp, screen), gcmask, &gv);
+#else
+  Panel->foot_width = trace_width;
+
+  j = XFontsOfFontSet(ttitle_font, &fs_list, &ml);
+  Panel->title_font_ascent = fs_list[0]->ascent;
+  for (i=1; i<j; i++) {
+    if (Panel->title_font_ascent < fs_list[i]->ascent)
+      Panel->title_font_ascent = fs_list[i]->ascent;
+  }
+
+  gcmask = GCForeground | GCBackground;
+  gv.foreground = capcolor;
+  gv.background = tracecolor;
+  gv.plane_mask = 1;
+  gcs = XCreateGC(disp, RootWindow(disp, screen), gcmask, &gv);
+#endif /* HAVE_LIBXFT */
 
   gv.fill_style = FillTiled;
   gv.fill_rule = WindingRule;
   gc_xcopy = XCreateGC(disp, RootWindow(disp, screen),
                        GCFillStyle | GCFillRule, &gv);
   gct = XCreateGC(disp, RootWindow(disp, screen), 0, NULL);
-  gc = XCreateGC(disp, RootWindow(disp, screen), 0, NULL);
 
-  XFontsOfFontSet(trace_font, &fs_list, &ml);
-  font0 = fs_list[0];
-  if (font0->fid == 0) {
-    font0 = XLoadQueryFont(disp, ml[0]);
-    if (font0 == NULL) {
-      fprintf(stderr, "can't load fonts %s\n", ml[0]);
-      exit(1);
-    }
-  }
-  tracefont_ascent = font0->ascent + 3;
-  if (tracefont_ascent > titlefont_ascent)
-    tracefont_ascent = titlefont_ascent;
-  else
-    titlefont_ascent = tracefont_ascent;
-  XSetFont(disp, gct, font0->fid);
-
-  keyG = (ThreeL *)safe_malloc(sizeof(ThreeL) * KEY_NUM);
+  if (keyG == NULL) keyG = (ThreeL *)safe_malloc(sizeof(ThreeL) * KEY_NUM);
   for(i=0, j=BARH_OFS8+1; i<KEY_NUM; i++) {
     tmpi = i%12;
     switch (tmpi) {
@@ -1085,27 +1259,26 @@ void initTrace(Display *dsp, Window trace, char *title, tconfig *cfg) {
   for(i=0; i<2; i++) {
     layer[i] = XCreatePixmap(disp, Panel->trace, trace_width, BAR_SPACE,
                              DefaultDepth(disp, screen));
-    drawKeyboardAll(layer[i], gc);
-    XSetForeground(disp, gc, capcolor);
-    XDrawLine(disp, layer[i], gc, 0, 0, trace_width, 0);
-    XDrawLine(disp, layer[i], gc, 0, 0, 0, BAR_SPACE);
-    XDrawLine(disp, layer[i], gc, trace_width-1, 0, trace_width-1, BAR_SPACE);
+    drawKeyboardAll(layer[i], gct);
+    XSetForeground(disp, gct, capcolor);
+    XDrawLine(disp, layer[i], gct, 0, 0, trace_width, 0);
+    XDrawLine(disp, layer[i], gct, 0, 0, 0, BAR_SPACE);
+    XDrawLine(disp, layer[i], gct, trace_width-1, 0, trace_width-1, BAR_SPACE);
 
     for(j=0; j < pl[i].col-1; j++) {
-      tmpi = TRACEH_OFS; w = pl[i].w[j];
+      tmpi = TRACE_HOFS; w = pl[i].w[j];
       for(k=0; k<j; k++) tmpi += pl[i].w[k];
       tmpi = pl[i].ofs[j];
-      XSetForeground(disp, gc, capcolor);
-      XDrawLine(disp, layer[i], gc, tmpi+w, 0, tmpi+w, BAR_SPACE);
-      XSetForeground(disp, gc, rimcolor);
-      XDrawLine(disp, layer[i], gc, tmpi+w-2, 2, tmpi+w-2, BAR_HEIGHT+1);
-      XDrawLine(disp, layer[i], gc, tmpi+2, BAR_HEIGHT+2, tmpi+w-2,
+      XSetForeground(disp, gct, capcolor);
+      XDrawLine(disp, layer[i], gct, tmpi+w, 0, tmpi+w, BAR_SPACE);
+      XSetForeground(disp, gct, rimcolor);
+      XDrawLine(disp, layer[i], gct, tmpi+w-2, 2, tmpi+w-2, BAR_HEIGHT+1);
+      XDrawLine(disp, layer[i], gct, tmpi+2, BAR_HEIGHT+2, tmpi+w-2,
                 BAR_HEIGHT+2);
-      XSetForeground(disp, gc, j?boxcolor:textbgcolor);
-      XFillRectangle(disp, layer[i], gc, tmpi+2, 2, w-4, BAR_HEIGHT);
+      XSetForeground(disp, gct, j?boxcolor:textbgcolor);
+      XFillRectangle(disp, layer[i], gct, tmpi+2, 2, w-4, BAR_HEIGHT);
     }
   }
-  XFreeGC(disp, gc);
 }
 
 void uninitTrace(Boolean free_server_resources) {
@@ -1113,12 +1286,15 @@ void uninitTrace(Boolean free_server_resources) {
 
   if (free_server_resources) {
     XFreePixmap(disp, layer[0]); XFreePixmap(disp, layer[1]);
-#if 0
-    if (!Panel->init) for (i=0; i<T2COLUMN; i++) {
-      XFreePixmap(disp, gradient_pixmap[i]);
-      XFreeGC(disp, gradient_gc[i]);
-    }
+#ifdef HAVE_LIBXFT
+    XFreePixmap(disp, Panel->xft_trace_foot_pixmap);
 #endif
+    if (Panel->grad != NULL) for (i=0; i<MAX_GRADIENT_COLUMN; i++) {
+      if (gradient_set[i]) {
+        XFreePixmap(disp, gradient_pixmap[i]);
+        XFreeGC(disp, gradient_gc[i]);
+      }
+    }
     XFreeGC(disp, gcs); XFreeGC(disp, gct); XFreeGC(disp, gc_xcopy); 
   }
 

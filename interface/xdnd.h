@@ -42,7 +42,7 @@
 
 #define MAX_SUPPORTED_TYPE 2
 
-typedef void (*dnd_callback_t) (char *);
+typedef void (*dnd_callback_t) (const char *);
 
 typedef struct {
   Display             *display;
