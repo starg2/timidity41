@@ -2259,9 +2259,14 @@ if test "x$TIMIDITY_OUTPUT_ID" != x; then
   AC_DEFINE_UNQUOTED(TIMIDITY_OUTPUT_ID,"$TIMIDITY_OUTPUT_ID", the output specification)
 fi
 
-if test "x$with_x" = xyes; then
-  dnl Order of X-library is: -lXm -lXaw -lXft -lXmu -lXt -lSM -lICE -lXext -lX11
-  LIBS=`echo $LIBS | sed "s/-lX11/$lib_offix_opt $lib_xm_opt $lib_xaw_opt $lib_xft_opt $lib_xmu_opt $lib_xt_opt $lib_xprelibs_opt $lib_xext_opt -lX11/"`
+if test "x$au_enable_nas"      = "xyes" -o \
+        "x$enable_motif"       = "xyes" -o \
+        "x$enable_tcltk"       = "xyes" -o \
+        "x$enable_xaw"         = "xyes" -o \
+        "x$enable_xskin"       = "xyes" -o \
+        "x$enable_spectrogram" = "xyes"; then
+  dnl Order of X-library is: -lXdnd -lXm -lXaw -lXft -lXmu -lXt -lSM -lICE -lXext -lX11
+  LIBS="$lib_offix_opt $lib_xm_opt $lib_xaw_opt $lib_xft_opt $lib_xmu_opt $lib_xt_opt $lib_xprelibs_opt $lib_xext_opt -lX11 $LIBS"
 fi
 LIBS="$LIBS $lib_dl_opt $lib_png_opt $lib_zip_opt $lib_user32_opt $lib_w32gui_opt $EXTRALIBS"
 SHLD="$SHLD $SHLDFLAGS"
