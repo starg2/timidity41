@@ -391,7 +391,7 @@ static struct _app_resources {
 typedef struct {
   const int	id;
   const String	name;
-  WidgetClass	*class;
+  WidgetClass	*wclass;
   Widget	widget;
 } ButtonRec;
 
@@ -1236,7 +1236,7 @@ getldsPointer(ldStorePointer lds, const char *Popname) {
 }
 
 static void
-restoreLDPointer(Widget w, XtPointer client_data, XEvent *ev, Boolean *bool) {
+restoreLDPointer(Widget w, XtPointer client_data, XEvent *ev, Boolean *b) {
   if (ev->xany.type == FocusIn) ld = (ldPointer)client_data;
   return;
 }
@@ -4317,7 +4317,7 @@ a_init_interface(int pipe_in) {
             XtNwidth,app_resources.menu_width+100, NULL);
   for (i = 0; i < (int)XtNumber(file_menu); i++) {
     bsb = XtVaCreateManagedWidget(file_menu[i].name,
-            *(file_menu[i].class), file_sm,XtNleftBitmap,None,
+            *(file_menu[i].wclass), file_sm,XtNleftBitmap,None,
              XtNleftMargin,24, NULL);
     XtAddCallback(bsb, XtNcallback,filemenuCB, (XtPointer)&file_menu[i].id);
     file_menu[i].widget = bsb;

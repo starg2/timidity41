@@ -92,7 +92,6 @@ static void unescape_string(char *src, char *dest) {
   if(!strlen(src))
     return;
 
-  memset(dest, 0, sizeof(dest));
   s = src;
   d = dest;
 
@@ -546,7 +545,7 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
 #ifdef DEBUG_DND
       printf("XdndDrop\n");
 #endif
-      if((xdnd->dragger_window == XDND_DROP_SOURCE_WIN(event))) {
+      if(xdnd->dragger_window == XDND_DROP_SOURCE_WIN(event)) {
 
       if(xdnd->desired != 0) {
 
