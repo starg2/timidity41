@@ -164,7 +164,7 @@ typedef load_dialog *ldPointer;
 typedef struct {
  ldPointer ld;
  char *name; 
- struct ldStore *next;
+ struct ldStore_t *next;
 } ldStore;
 
 typedef ldStore *ldStorePointer;
@@ -1228,7 +1228,7 @@ getldsPointer(ldStorePointer lds, const char *Popname) {
     lds->ld->ld_fdirlist.StringArray = NULL;
     lds->ld->ld_ddirlist.StringArray = NULL;
     lds->ld->ld_fulldirlist.StringArray = NULL;
-    lds->next = (struct ldStore *)init_ldS();
+    lds->next = (struct ldStore_t *)init_ldS();
     return lds;
   }
   if (!strncmp(lds->name, Popname, MAX_POPUPNAME)) return lds;
@@ -2862,12 +2862,8 @@ flistMoveACT(Widget w, XEvent *e, String *v, Cardinal *n) {
         if ( ((i - 1) < covered) || ((i + 1) > (covered + perpage)) ) {
           String arg[1];
 
-          if ((i - 1) < covered) {
-            if (i > perpage/2)
-              thumb.f = (float)(i - perpage/2) / (float)max_files;
-            else thumb.f = 0;
-          }
-          else thumb.f = (float) (i - perpage/2) / (float)max_files;
+          if (((i - 1) < covered) && (i <= perpage/2)) thumb.f = 0;
+          else thumb.f = (float)(i - perpage/2) / (float)max_files;
           arg[0] = XtNewString("Continuous");
           XtCallActionProc(scrollbar, (String)"StartScroll", e, arg, ONE);
           XtFree(arg[0]);
@@ -3353,7 +3349,7 @@ xdnd_file_drop_handler(const char *filename) {
     snprintf(local_buffer, sizeof(local_buffer), "%c%s",
              S_ADD_TO_PLAYLIST, fp);
 
-  if (stat(local_buffer + 2, &st) == -1) return;
+  if (stat(local_buffer + 1, &st) == -1) return;
   if (S_ISDIR(st.st_mode))
      strlcat(local_buffer, "/", sizeof(local_buffer));
   a_pipe_write("%s", local_buffer);
