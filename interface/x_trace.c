@@ -498,7 +498,8 @@ static void drawPitch(int ch, int val) {
       else if (val > 0x1000) s = "<";
       else s = "<<";
     }
-    TraceDrawStr(pl[plane].ofs[CL_PI]+4, CHANNEL_HEIGHT(ch)+16, s, strlen(s), Panel->barcol[9]);
+    TraceDrawStr(pl[plane].ofs[CL_PI]+4, CHANNEL_HEIGHT(ch)+16, s, strlen(s),
+                 Panel->barcol[9]);
   }
 }
 
@@ -753,13 +754,12 @@ static void drawMute(int ch, int mute) {
     XSetForeground(disp, gct, textbgcolor);
     XFillRectangle(disp, Panel->trace, gct, pl[plane].ofs[CL_C]+2,
                    CHANNEL_HEIGHT(ch-VISLOW)+2, pl[plane].w[CL_C]-4, BAR_HEIGHT);
-  }
-  else {
+  } else {
     UNSET_CHANNELMASK(channel_mute, ch);
     if (!XAWLIMIT(ch)) return;
     /* timidity internals counts from 0. timidity ui counts from 1 */
     ch++;
-    snprintf(s, sizeof(s), "%3d", ch);
+    snprintf(s, sizeof(s), "%2d", ch);
     TraceDrawStr(pl[plane].ofs[CL_C]+2, CHANNEL_HEIGHT(ch-VISLOW)-5, s, 2, textcolor);
   }
 }
@@ -1123,6 +1123,7 @@ void initTrace(Display *dsp, Window trace, char *title, tconfig *cfg) {
   Panel->g_cursor_is_in = False;
   disp = dsp;
   screen = DefaultScreen(disp);
+  Panel->key_cache = "C ";
   if (gradient_bar) {
     Panel->grad = (GradData *)safe_malloc(sizeof(GradData));
     Panel->depth = getdisplayinfo(&Panel->grad->rgb);
@@ -1157,7 +1158,7 @@ void initTrace(Display *dsp, Window trace, char *title, tconfig *cfg) {
 
   Panel->voices_width = 0;
 #ifdef HAVE_LIBXFT
-  if ((XftInit(NULL) != FcTrue) || (XftInitFtLibrary()) != FcTrue) {
+  if ((XftInit(NULL) != FcTrue) || (XftInitFtLibrary() != FcTrue)) {
     fprintf(stderr, "Xft can't init font library!\n");
     exit(1);
   }
@@ -1281,23 +1282,25 @@ void initTrace(Display *dsp, Window trace, char *title, tconfig *cfg) {
   }
 }
 
-void uninitTrace(Boolean free_server_resources) {
+void uninitTrace(void) {
   int i;
 
-  if (free_server_resources) {
-    XFreePixmap(disp, layer[0]); XFreePixmap(disp, layer[1]);
+  XFreePixmap(disp, layer[0]); XFreePixmap(disp, layer[1]);
 #ifdef HAVE_LIBXFT
-    XFreePixmap(disp, Panel->xft_trace_foot_pixmap);
+  XftDrawDestroy(Panel->xft_trace);
+  XftDrawDestroy(Panel->xft_trace_foot);
+  XFreePixmap(disp, Panel->xft_trace_foot_pixmap);
+  XftFontClose(disp, ttitle_font);
+  XftFontClose(disp, trace_font);
 #endif
-    if (Panel->grad != NULL) for (i=0; i<MAX_GRADIENT_COLUMN; i++) {
-      if (gradient_set[i]) {
-        XFreePixmap(disp, gradient_pixmap[i]);
-        XFreeGC(disp, gradient_gc[i]);
-      }
+  if (Panel->grad != NULL) for (i=0; i<MAX_GRADIENT_COLUMN; i++) {
+    if (gradient_set[i]) {
+      XFreePixmap(disp, gradient_pixmap[i]);
+      XFreeGC(disp, gradient_gc[i]);
     }
-    XFreeGC(disp, gcs); XFreeGC(disp, gct); XFreeGC(disp, gc_xcopy); 
   }
+  XFreeGC(disp, gcs); XFreeGC(disp, gct); XFreeGC(disp, gc_xcopy); 
 
   for (i=0; i<MAX_TRACE_CHANNELS; i++) free(Panel->inst_name[i]);
-  free(Panel); free(keyG);
+  free(Panel->grad); free(Panel); free(keyG);
 }

@@ -49,7 +49,7 @@ static int _is_atom_match(DndClass *xdnd, Atom **atom) {
   int i, j;
   
   for(i = 0; (*atom)[i] != 0; i++) {
-    for(j = 0; j <= MAX_SUPPORTED_TYPE; j++) {
+    for(j = 0; j < MAX_SUPPORTED_TYPE; j++) {
       if((*atom)[i] == xdnd->supported[j])
 	return i;
     }
@@ -212,7 +212,6 @@ static int _dnd_paste_prop_internal(DndClass *xdnd, Window from,
 static void _dnd_get_selection (DndClass *xdnd, Window from, Atom prop,
                                 Window insert) {
   struct timeval  tv, tv_start;
-  long            nread;
   unsigned long   bytes_after;
   Atom            actual_type;
   int             actual_fmt;
@@ -221,8 +220,6 @@ static void _dnd_get_selection (DndClass *xdnd, Window from, Atom prop,
 
   if((xdnd == NULL) || (prop == None))
     return;
-
-  nread = 0;
 
   XLockDisplay(xdnd->display);
   if(XGetWindowProperty(xdnd->display, insert, prop, 0, 8, False, AnyPropertyType, 

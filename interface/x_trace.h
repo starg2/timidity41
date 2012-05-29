@@ -80,6 +80,6 @@ extern void redrawCaption(Boolean);
 extern void redrawTrace(Boolean);
 extern void scrollTrace(int);
 extern void toggleTracePlane(Boolean);
-extern void uninitTrace(Boolean);
+extern void uninitTrace(void);
 
 #endif /* _X_TRACE_I_H */

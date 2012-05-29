@@ -222,9 +222,9 @@ static long submenu_n = 0;
 
 static Boolean lockevents = False;
 /*
- * There's a race condition, where after writing a request to the pipe
- * which changes the current song (like "N" for next song) events from
- * the (then current) song still pass through, but are counted
+ * After writing a request to the pipe which changes the current song
+ * (like "N" for next song) events from the (then current) song may remain
+ * in the pipe and pass through, which may lead to them being counted
  * as events from the next song. This variable is used for rudimentary
  * locking to prevent such events from influencing the trace display.
  */
@@ -367,6 +367,7 @@ static struct _app_resources {
 #define text2bgcolor	app_resources.text2_bgcolor
 #define togglecolor	app_resources.toggle_fgcolor
 
+/* These numbers are hardcoded in the resource files */
 #define ID_LOAD			100
 #define ID_SAVE			101
 #define ID_LOAD_PLAYLIST	102
@@ -1744,7 +1745,7 @@ filemenuCB(Widget w, XtPointer client_data, XtPointer call_data) {
       * We do not know WDH, so we cannot avoid overflow leading to
       * display artifacts when (trace_v_height + curr_height)
       * is larger than the cap.
-      * However, most of these WMs will not return an XConfigureEvent->
+      * However, most WMs will not return an XConfigureEvent->
       * height greater than that cap, so resizeToplevelAction can
       * calculate a correct lyric_height.
       */
@@ -1890,7 +1891,7 @@ free_vars(void) {
   Pixmap bm_Pixmap;
 
   XtUnmapWidget(toplevel);
-  if (ctl->trace_playing) uninitTrace(True);
+  if (ctl->trace_playing) uninitTrace();
   XFreePixmap(disp, check_mark); XFreePixmap(disp, arrow_mark);
   XFreePixmap(disp, on_mark); XFreePixmap(disp, off_mark);
   XtVaGetValues(b_box, XtNchildren,&wl, XtNnumChildren,&n, NULL);
@@ -3570,9 +3571,13 @@ createBars(void) {
   XtGetActionList(scrollbarWidgetClass, &action_list, &num_actions);
   j = (int)num_actions;
   for (i = 0; i < j; i++)
-    if (!strcasecmp(action_list[i].string, "StartScroll")) return;
+    if (!strcasecmp(action_list[i].string, "StartScroll")) {
+      XtFree((char *)action_list);
+      return;
+    }
   XtAppAddActions(app_con, startscroll_act, XtNumber(startscroll_act));
   use_own_start_scroll = True;
+  XtFree((char *)action_list);
 }
 
 static void
