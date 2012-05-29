@@ -645,6 +645,7 @@ static Boolean
 onPlayOffPause(void) {
   Boolean s, play_on = False;
 
+  if (max_files == 0) return;
   XtVaGetValues(play_b, XtNstate,&s, NULL);
   if (s == False) {
     XtVaSetValues(play_b, XtNstate,True, NULL);
@@ -898,12 +899,15 @@ playCB(Widget w, XtPointer client_data, XtPointer call_data) {
   onPlayOffPause();
   XtVaGetValues(tune_bar, XtNtopOfThumb,&thumb, NULL);
   XtVaGetValues(pause_b, XtNstate,&s, NULL);
-  if ((s == False) && (thumb != 0)) {
-    /* This is very ugly. Doing it cleanly would require a change in
-     * playmidi.c to send a CTLE when playback loop starts  */
+ /*
+  * This is ugly since timidity ignores some messages when not playing
+  * (apply_control() is being called rather late).
+  * We need to start playback and then make our time request.
+  */
+  a_pipe_write("%c", S_PLAY);
+  if ((s == FALSE) && (thumb != 0)) {
     int next_time = total_time * thumb;
 
-    a_pipe_write("%c", S_PLAY);
     while (*local_buf != M_CUR_TIME) {
       XtAppProcessEvent(app_con, XtIMAll);
       /* If RC_LOAD_FILE fails, M_LOADING_DONE will return the failure */
@@ -911,7 +915,6 @@ playCB(Widget w, XtPointer client_data, XtPointer call_data) {
     }
     a_pipe_write("%c%d", S_SET_TIME, next_time);
   }
-  else a_pipe_write("%c", S_PLAY);
 }
 
 static void
@@ -1065,9 +1068,14 @@ static void
 setVolbar(int val) {
   char s[8];
   barfloat thumb;
+  Boolean playing;
 
   amplitude = (val > MAXVOLUME)? MAXVOLUME : val;
-  a_pipe_write("%c%03d", S_SET_VOL, amplitude);
+  XtVaGetValues(play_b, XtNstate,&playing, NULL);
+  if (playing == TRUE)
+    a_pipe_write("%c%d", S_SET_VOL, amplitude);
+  else
+    a_pipe_write("%c%d", S_SET_VOL_BEFORE_PLAYING, amplitude);
   snprintf(s, sizeof(s), "%d", amplitude);
   XtVaSetValues(vol_l, XtNlabel,s, NULL);
   thumb.f = (float)amplitude / (float)MAXVOLUME;
@@ -1729,7 +1737,7 @@ filemenuCB(Widget w, XtPointer client_data, XtPointer call_data) {
         XtVaGetValues(play_b, XtNstate,&s, NULL);
         if (s == True) a_pipe_write("%c%c", S_ENABLE_TRACE, ST_RESET);
         else a_pipe_write("%c", S_ENABLE_TRACE);
-        toggleMark(w, True);
+        toggleMark(w, FALSE);
         return;
       }
      /*
@@ -4435,7 +4443,7 @@ a_init_interface(int pipe_in) {
   if (Cfg.tooltips == True) xawTipSet(True);
 #endif /* HAVE_TIP */
 
-  a_pipe_write("%c%d", S_SET_VOL, amplitude);
+  a_pipe_write("%c%d", S_SET_VOL_BEFORE_PLAYING, amplitude);
   if (init_options == DEFAULT_OPTIONS) init_options = Cfg.extendopt;
   if (init_chorus == DEFAULT_CHORUS) init_chorus = Cfg.chorusopt;
   else Cfg.chorusopt = init_chorus;

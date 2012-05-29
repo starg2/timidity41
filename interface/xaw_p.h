@@ -76,6 +76,7 @@ typedef enum {
   MT_TEMPO = 'r'
 } totracer_t;
 
+/* Sent back to the interface control */
 typedef enum {
   S_DEL_CUR_PLAYLIST = 'A',
   S_PREV = 'B',
@@ -100,6 +101,7 @@ typedef enum {
   S_ENABLE_TRACE = 't',
     ST_RESET = 'R',
   S_SET_TIME = 'T',
+  S_SET_VOL_BEFORE_PLAYING = 'v',
   S_SET_VOL = 'V',
   S_QUIT = 'Q',
   S_TOGGLE_PAUSE = 'U',

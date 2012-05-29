@@ -5,7 +5,7 @@ Xaw interface of TiMidity prepares a GUI only with Athena Widget sets
 and Xt libraries that are standard toolkits of X Window System.
 
 
-* WHAT'S NEW in 2.0
+* WHAT'S NEW in 2.14.0
 
 - Support for loading and saving playlists.
 - Vastly improved file dialog (Separate file/directory panes, filtering, etc.).
@@ -352,7 +352,7 @@ ExtOptions           0-63                   Depends on compliation options.
 ChorusOption         0/1                    Depends on compliation options.
   Enable chorus.
 CurVol               0-800                  70
-  Initial value of volume.
+  Initial volume.
 Showdotfiles         0/1                    0
   Show files and directories beginning with '.' in the file dialog.
 DefaultDir           a valid dir name.      The user's home directory.

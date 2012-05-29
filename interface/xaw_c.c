@@ -501,6 +501,12 @@ ctl_blocking_read(int32 *valp) {
         ctl.trace_playing = 1;
         if (local_buf[1] == ST_RESET) return RC_SYNC_RESTART;
         return RC_NONE;
+      case S_SET_VOL_BEFORE_PLAYING:
+        n = atoi(local_buf + 1);
+        if (n < 0) n = 0;
+        if (n > MAXVOLUME) n = MAXVOLUME;
+        amplification = n;
+        return RC_NONE;
       case S_SET_VOL:
         n = atoi(local_buf + 1);
         if (n < 0) n = 0;

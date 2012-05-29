@@ -357,6 +357,8 @@ TiMidity*sbox_ratetext.translations: #override\n\
 TiMidity*fbox_toggle0.accelerators: #override\n\
 	<Key>Up:	do-up()\n\
 	<Key>Down:	do-down()\n\
+	<Key>KP_Up:	do-up()\n\
+	<Key>KP_Down:	do-down()\n\
 	<Btn4Down>:	do-up()\n\
 	<Btn5Down>:	do-down()
 TiMidity*confirmexit.label: Do you wish to exit?
