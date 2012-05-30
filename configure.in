@@ -69,8 +69,8 @@ CONTAINS_INIT
 dnl "--enable-debug" turnes -g on.
 AC_MSG_CHECKING(if --enable-debug option specified)
 AC_ARG_ENABLE(debug,
-  [  --enable-debug          Build a debugging version.],
-  [timidity_cv_debug="yes"], [timidity_cv_debug="no"])
+	      AS_HELP_STRING([--enable-debug], [Build a debugging version.]),
+	      [timidity_cv_debug="yes"], [timidity_cv_debug="no"])
 if test "x$timidity_cv_debug" = "xyes"; then
   AC_DEFINE(DEBUG,1,Define to 1 if you are in debug mode)
   CFLAGS=${CFLAGS-"-g"}
@@ -108,7 +108,7 @@ fi
 
 dnl add --with-includes, --with-libraries
 AC_ARG_WITH(includes,
-  [  --with-includes=DIR     Specify include directories (colon separated)],
+  AS_HELP_STRING([--with-includes=DIR], [Specify include directories (colon separated)]),
   [ j=' '
     for i in `echo "$withval"|sed -e 's,:, ,g'`; do
       j="${j}-I${i} "
@@ -117,7 +117,7 @@ AC_ARG_WITH(includes,
   ])
 
 AC_ARG_WITH(libraries,
-  [  --with-libraries=DIR    Specify library directories (colon separated)],
+  AS_HELP_STRING([--with-libraries=DIR], [Specify library directories (colon separated)]),
   [ j=' '
     for i in `echo "$withval"|sed -e 's,:, ,g'`; do
       j="${j}-L${i} "
@@ -129,7 +129,7 @@ AC_ARG_WITH(libraries,
 dnl a bit hairly yet.(20020718:mput)
 dnl CPPFLAGS="$CPPFLAGS \$(DEF_PKGDATADIR) \$(DEF_PKGLIBDIR) \$(DEF_DEFAULT_PATH)"
 AC_ARG_WITH(default-path,
-  [  --with-default-path=DIR Where timidity.cfg is  (PREFIX/share/timidity)],
+  AS_HELP_STRING([--with-default-path=DIR], [Where timidity.cfg is  (PREFIX/share/timidity)]),
   [pkgdatadir=$withval],
   [
    if test "x$prefix" != "xNONE"; then
@@ -143,7 +143,7 @@ AC_DEFINE_UNQUOTED(DEFAULT_PATH,"$tmpdefpath",place to install patches)
 AC_DEFINE(PKGDATADIR,DEFAULT_PATH,a compatibility matter. ignore it.)
 
 AC_ARG_WITH(module-dir,
-  [  --with-module-dir=DIR   Where to install interfaces (PREFIX/lib/timidity)],
+  AS_HELP_STRING([--with-module-dir=DIR], [Where to install interfaces (PREFIX/lib/timidity)]),
   [pkglibdir=$withval],
   [
    if test "x$prefix" != "xNONE"; then
@@ -156,8 +156,8 @@ tmplibdir="`eval \"echo ${pkglibdir}\"`"
 AC_DEFINE_UNQUOTED(PKGLIBDIR,"$tmplibdir",place to install modules)
 
 AC_ARG_WITH(xaw-resource-prefix,
-  [  --with-xaw-resource-prefix=DIR What prefix to install XAW's resource files to
-     (optinal)], [xawresdir=$withval], [])
+  AS_HELP_STRING([--with-xaw-resource-prefix=DIR], [What prefix to install XAW's resource files to (optinal)]),
+  [xawresdir=$withval], [])
 AM_CONDITIONAL(XAW_INSTALL_RESOURCE_FILES, test "x$xawresdir" != "x")
 AC_SUBST(xawresdir)
 
@@ -182,11 +182,11 @@ fi
 # Checks for target dependencies
 
 AC_ARG_WITH(elf,
-  [  --with-elf              create ELF shared object instead of AOUT ],
+  AS_HELP_STRING([--with-elf], [create ELF shared object instead of AOUT]),
   [ ELFFORMAT=$withval ], [ ELFFORMAT="yes" ])
 
 # AC_ARG_WITH(simd,
-#  [  --with-simd             create SIMD friendly binary (default is no) ],
+#  AS_HELP_STRING([--with-simd], [create SIMD friendly binary (default is no) ]),
 #  [ SIMD=$withval ], [ SIMD="no" ])
 
 case "$target" in
@@ -344,7 +344,7 @@ AC_PATH_XTRA
 
 dnl Xft for trace window
 AC_ARG_ENABLE(xft,
-  [  --enable-xft         Enable use of Xft ])
+  AS_HELP_STRING([--enable-xft], [Enable use of Xft ]))
 
 AC_ARG_WITH(xawlib,
   [  --with-xawlib=lib     Try to link to these xaw widget libraries by the
@@ -793,26 +793,26 @@ fi
 
 dnl tcltk paths
 AC_ARG_WITH(tcl-includes,
-  [  --with-tcl-includes=DIR Tcl include file path ],
+  AS_HELP_STRING([--with-tcl-includes=DIR], [Tcl include file path]),
   [ if test ! -d $withval; then
       AC_MSG_WARN($withval is not found.)
     fi
     tcl_include_dir="-I$withval"
   ])
 AC_ARG_WITH(tcl-libs,
-  [  --with-tcl-libs=DIR     Tcl library file path ],
+  AS_HELP_STRING([--with-tcl-libs=DIR], [Tcl library file path]),
   [ if test ! -d $withval; then
       AC_MSG_WARN($withval is not found.)
     fi
     tcl_libdir="-L$withval" ])
 AC_ARG_WITH(tk-includes,
-  [  --with-tk-includes=DIR  Tk include file path ],
+  AS_HELP_STRING([--with-tk-includes=DIR], [Tk include file path]),
   [ if test ! -d $withval; then
       AC_MSG_WARN($withval is not found.)
     fi
     tk_includes="-I$withval" ])
 AC_ARG_WITH(tk-libs,
-  [  --with-tk-libs=DIR      Tk library file path ],
+  AS_HELP_STRING([--with-tk-libs=DIR], [Tk library file path]),
   [ if test ! -d $withval; then
       AC_MSG_WARN($withval is not found.)
     fi
@@ -820,13 +820,13 @@ AC_ARG_WITH(tk-libs,
 
 dnl offix paths
 AC_ARG_WITH(offix-includes,
-  [  --with-offix-includes=DIR Offix include file path ],
+  AS_HELP_STRING([--with-offix-includes=DIR], [Offix include file path]),
   [ if test ! -d $withval; then
       AC_MSG_WARN($withval is not found.)
     fi
     offix_include_dir="-I$withval" ])
 AC_ARG_WITH(offix-libs,
-  [  --with-offix-libs=DIR   Offix include file path ],
+  AS_HELP_STRING([--with-offix-libs=DIR], [Offix include file path]),
   [ if test ! -d $withval; then
       AC_MSG_WARN($withval is not found.)
     fi
@@ -863,9 +863,9 @@ dnl ao(O):      Libao
 audio_targets='default oss alsa sun hpux irix mme sb_dsp w32 alib nas arts esd vorbis flac gogo portaudio npipe jack ao'
 
 AC_ARG_WITH(nas-library,
-  [  --with-nas-library=library NAS absolute library path(Don't use -laudio)])
+  AS_HELP_STRING([--with-nas-library=library], [NAS absolute library path(Don't use -laudio)]))
 AC_ARG_WITH(nas-includes,
-  [  --with-nas-includes=DIR NAS include files are in dir])
+  AS_HELP_STRING([--with-nas-includes=DIR], [NAS include files are in dir]))
 
 
 AC_ARG_ENABLE(audio,
@@ -891,7 +891,8 @@ AC_ARG_ENABLE(audio,
                               vorbis:    Ogg Vorbis
                               flac:      FLAC / OggFLAC
                               speex:     Ogg Speex
-                              gogo:      MP3 GOGO (Only Windows is supported)],
+                              gogo:      MP3 GOGO (Only Windows is supported)
+],
   [ enable_audio=$enableval
     have_audio_opt=yes ],
   [ enable_audio=yes
@@ -909,15 +910,16 @@ fi
 dnl Turn on default output mode
 DEFAULT_PLAYMODE=
 AC_ARG_WITH(default-output,
-  [  --with-default-output=<mode>  Specify default output mode (optional):
+  AS_HELP_STRING([--with-default-output=<mode>],
+  [Specify default output mode (optional):
                                 (default|alsa|alib|arts|nas|
                                 esd|wav|au|aiff|list|vorbis|flac|speex|
-                                gogo|portaudio|npipe|jack|ao)],
+                                gogo|portaudio|npipe|jack|ao)]),
   [ if test "$enable_audio" != no; then
     DEFAULT_PLAYMODE=$withval
     eval "au_enable_$DEFAULT_PLAYMODE=yes"
   else
-    AC_MSG_WARN(--with-default-output=$withval: audio is not enabled)
+    AC_MSG_WARN([--with-default-output=$withval: audio is not enabled])
   fi])
 
 dnl compatibility matters.
@@ -1521,17 +1523,15 @@ AC_MSG_RESULT($DEFAULT_PLAYMODE/$TIMIDITY_OUTPUT_ID)
 interface_targets='dynamic ncurses slang motif tcltk emacs vt100 xaw xskin gtk alsaseq winsyn winsyng portmidisyng npsyn'
 
 AC_ARG_ENABLE(interface,
-  [  --enable-interface=[interface_list]
-                          Comma separated interface list ],
+  AS_HELP_STRING([--enable-interface=[interface_list]], [Comma separated interface list]),
   [ for i in `echo $enableval | sed 's/,/ /g'`; do
       eval "enable_$i=yes"
     done ])
 
 #  Dynamic link configuration
 AC_ARG_ENABLE(dynamic,
-  [  --enable-dynamic        Enable dynamic link interface   (default is no)
-  --enable-dynamic=dynamic_list
-                          Comma separated dynamic interface list],
+  AS_HELP_STRING([--enable-dynamic], [Enable dynamic link interface (default is no)])
+  AS_HELP_STRING([--enable-dynamic=dynamic_list] [Comma separated dynamic interface list]),
   [ dnl --enable-dynamic=yes to --enable-dynamic=dynamic
     if test "x$enable_dynamic" = xyes; then
       enable_dynamic=dynamic
@@ -1632,7 +1632,7 @@ AM_CONDITIONAL(NEEDDLOPEN, test "$NEEDDLOPEN" = "yes")
 
 dnl xdnd support
 AC_ARG_ENABLE(xdnd,
-  [  --enable-xdnd           Enable xdnd support             (default is no)],
+  AS_HELP_STRING([--enable-xdnd], [Enable xdnd support             (default is no)]),
   [ if test "$enableval" = "yes"; then
     AC_DEFINE(XDND,1,Define to 1 if you want xdnd support.)
     XDND_SRCS="xdnd.c"
@@ -1648,7 +1648,7 @@ dnl
 dnl ncurses
 AM_CONDITIONAL(ENABLE_NCURSES, false)
 CONFIG_INTERFACE(ncurses,NCURSES,n,
-  [  --enable-ncurses        Enable ncurses interface        (default is no)],
+  AS_HELP_STRING([--enable-ncurses], [Enable ncurses interface        (default is no)]),
   [ AC_CHECK_HEADERS(ncurses.h ncurses/curses.h curses.h)
 
 dnl #include <ncurses/curses.h> is failure on Plamo Linux 1.3/ncurses 1.9.9e
@@ -1722,7 +1722,7 @@ dnl configure must check ncurses header with -I/usr/include/ncurses option.
 dnl slang
 AM_CONDITIONAL(ENABLE_SLANG, false)
 CONFIG_INTERFACE(slang,SLANG,s,
-  [  --enable-slang          Enable slang interface          (default is no)],
+  AS_HELP_STRING([--enable-slang], [Enable slang interface          (default is no)]),
   [ AC_CHECK_LIB(slang,SLang_init_tty,:,
     [ enable_slang=no
       AC_MSG_WARN(slang interface is not enabled)
@@ -1752,7 +1752,7 @@ CONFIG_INTERFACE(slang,SLANG,s,
 dnl Motif
 AM_CONDITIONAL(ENABLE_MOTIF, false)
 CONFIG_INTERFACE(motif,MOTIF,m,
-  [  --enable-motif          Enable motif interface          (default is no)],
+  AS_HELP_STRING([--enable-motif], [Enable motif interface          (default is no)]),
   [ if test "x$with_x" != xyes; then
 	AC_MSG_ERROR(motif: --with-x option must be specified)
     fi
@@ -1778,7 +1778,7 @@ CONFIG_INTERFACE(motif,MOTIF,m,
 dnl Tcl/Tk
 AM_CONDITIONAL(ENABLE_TCLTK, false)
 CONFIG_INTERFACE(tcltk,TCLTK,k,
-  [  --enable-tcltk          Enable tcltk interface          (default is no)],
+  AS_HELP_STRING([--enable-tcltk], [Enable tcltk interface          (default is no)]),
   [ if test "x$with_x" != xyes; then
 	AC_MSG_ERROR(tcltk: --with-x option must be specified)
     fi
@@ -1833,7 +1833,7 @@ AM_CONDITIONAL(ENABLE_DYNAMIC_TCLTK, test "x$enable_tcltk" = "xdynamic")
 dnl Emacs
 AM_CONDITIONAL(ENABLE_EMACS, false)
 CONFIG_INTERFACE(emacs,EMACS,e,
-  [  --enable-emacs          Enable emacs interface          (default is no)],
+  AS_HELP_STRING([--enable-emacs], [Enable emacs interface          (default is no)]),
   ,
   [ ELFILES="$ELFILES timidity.el"
     INTERFACE_SRCS="$INTERFACE_SRCS emacs_c.c"
@@ -1844,14 +1844,14 @@ CONFIG_INTERFACE(emacs,EMACS,e,
 dnl VT100
 AM_CONDITIONAL(ENABLE_VT100, false)
 CONFIG_INTERFACE(vt100,VT100,T,
-  [  --enable-vt100          Enable VT100 interface          (default is no)],
+  AS_HELP_STRING([--enable-vt100], [Enable VT100 interface          (default is no)]),
   ,
   [ INTERFACE_SRCS="$INTERFACE_SRCS vt100_c.c vt100.c" ])
 
 dnl X Athena Widget
 AM_CONDITIONAL(ENABLE_XAW, false)
 CONFIG_INTERFACE(xaw,XAW,a,
-  [  --enable-xaw            Enable athena interface         (default is no)],
+  AS_HELP_STRING([--enable-xaw], [Enable athena interface         (default is no)]),
   [ if test "x$with_x" != xyes; then
 	AC_MSG_ERROR(xaw: --with-x option must be specified)
     fi
@@ -1934,7 +1934,7 @@ AM_CONDITIONAL(ENABLE_DYNAMIC_XAW, test "x$enable_xaw" = "xdynamic")
 dnl X skin
 AM_CONDITIONAL(ENABLE_XSKIN, false)
 CONFIG_INTERFACE(xskin,XSKIN,i,
-  [  --enable-xskin          Enable X skin interface         (default is no)],
+  AS_HELP_STRING([--enable-xskin], [Enable X skin interface         (default is no)]),
   [ if test "x$with_x" != xyes; then
 	AC_MSG_ERROR(xskin: --with-x option must be specified)
     fi
@@ -1945,7 +1945,7 @@ CONFIG_INTERFACE(xskin,XSKIN,i,
 dnl GTK+
 AM_CONDITIONAL(ENABLE_GTK, false)
 CONFIG_INTERFACE(gtk, GTK, g,
-  [  --enable-gtk            Enable GTK+ interface           (default is no)],
+  AS_HELP_STRING([--enable-gtk], [Enable GTK+ interface           (default is no)]),
   [ AM_PATH_GTK_2_0(2.0.0,
     [AC_DEFINE(HAVE_GTK_2,1,Define to 1 if you have GTK+ 2.x)],
     [AM_PATH_GTK(1.1.3,,enable_gtk=no)]) ],
@@ -1969,7 +1969,7 @@ CONFIG_INTERFACE(gtk, GTK, g,
 dnl TiMidity Network MIDI Server
 AM_CONDITIONAL(ENABLE_SERVER, false)
 CONFIG_INTERFACE(server,SERVER,r,
-  [  --enable-server         Enable server interface         (default is no)],
+  AS_HELP_STRING([--enable-server], [Enable server interface         (default is no)]),
   ,
   [ INTERFACE_SRCS="$INTERFACE_SRCS server_c.c"
     AC_CHECK_HEADERS(sys/soundcard.h)
@@ -1978,8 +1978,8 @@ CONFIG_INTERFACE(server,SERVER,r,
 dnl TiMidity ALSA sequencer server
 AM_CONDITIONAL(ENABLE_ALSASEQ, false)
 CONFIG_INTERFACE(alsaseq,ALSASEQ,A,
-  [  --enable-alsaseq        Enable ALSA sequencer server interface
-                                                          (default is no)],
+  AS_HELP_STRING([--enable-alsaseq], [Enable ALSA sequencer server interface
+                                                          (default is no)]),
   [ INTERFACE_SRCS="$INTERFACE_SRCS alsaseq_c.c"
   ],
   [ AM_PATH_ALSA
@@ -1990,24 +1990,24 @@ CONFIG_INTERFACE(alsaseq,ALSASEQ,A,
 dnl TiMidity Windows synthesizer server
 AM_CONDITIONAL(ENABLE_WINSYN, false)
 CONFIG_INTERFACE(winsyn,WINSYN,W,
-  [  --enable-winsyn        Enable Windows Synthesizer interface
-                                                          (default is no)],
+  AS_HELP_STRING([--enable-winsyn], [Enable Windows Synthesizer interface
+                                                          (default is no)]),
   ,
   [ WINSYN="yes"; INTERFACE_SRCS="$INTERFACE_SRCS winsyn_c.c rtsyn_common.c rtsyn_winmm.c" ])
 
 dnl TiMidity PortMIDI synthesizer server
 AM_CONDITIONAL(ENABLE_PORTMIDISYN, false)
 CONFIG_INTERFACE(portmidisyn,PORTMIDISYN,P,
-  [  --enable-portmidisyn        Enable PortMIDI Synthesizer interface
-                                                          (default is no)],
+  AS_HELP_STRING([--enable-portmidisyn], [Enable PortMIDI Synthesizer interface
+                                                          (default is no)]),
   ,
   [ INTERFACE_SRCS="$INTERFACE_SRCS portmidisyn_c.c rtsyn_common.c rtsyn_portmidi.c" ])
 
 dnl TiMidity Windows synthesizer server
 AM_CONDITIONAL(ENABLE_NPSYN, false)
 CONFIG_INTERFACE(npsyn,NPSYN,W,
-  [  --enable-npsyn        Enable Windows Named Pipe Synthesizer interface
-                                                          (default is no)],
+  AS_HELP_STRING([--enable-npsyn], [Enable Windows Named Pipe Synthesizer interface
+                                                          (default is no)]),
   ,
   [ NPSYN="yes"; INTERFACE_SRCS="$INTERFACE_SRCS npsyn_c.c rtsyn_common.c rtsyn_npipe.c" ])
 
@@ -2016,8 +2016,8 @@ CONFIG_INTERFACE(npsyn,NPSYN,W,
 dnl TiMidity Windows GUI synthesizer server
 AM_CONDITIONAL(ENABLE_W32G_SYN, false)
 CONFIG_INTERFACE(winsyng,W32G_SYN,W,
-  [  --enable-winsyng        Enable Windows GUI Synthesizer interface
-                                                          (default is no)],
+  AS_HELP_STRING([--enable-winsyng], [Enable Windows GUI Synthesizer interface
+                                                          (default is no)]),
   ,
   [ 
   W32G_GUI=yes
@@ -2056,7 +2056,7 @@ CONFIG_INTERFACE(winsyng,W32G_SYN,W,
 dnl Windows GUI
 AM_CONDITIONAL(ENABLE_W32GUI, false)
 CONFIG_INTERFACE(w32gui, W32GUI, w,
-  [  --enable-w32gui         Enable Windows GUI interface    (default is no)],
+  AS_HELP_STRING([--enable-w32gui], [Enable Windows GUI interface    (default is no)]),
   ,
   [
   W32G_GUI=yes 
@@ -2094,7 +2094,7 @@ CONFIG_INTERFACE(w32gui, W32GUI, w,
 dnl UMP configuration
 AM_CONDITIONAL(ENABLE_PLUGIN, false)
 CONFIG_INTERFACE(ump, PLUGIN, p,
-  [  --enable-ump            UMP configuration               (default is no)],
+  AS_HELP_STRING([--enable-ump], [UMP configuration               (default is no)]),
   [ if test ! -d ump; then
 	AC_MSG_ERROR(UMP Package is not exists.  Can't configure it.)
     fi
@@ -2112,7 +2112,7 @@ CONFIG_INTERFACE(ump, PLUGIN, p,
 
 dnl Window Driver interface
 AC_ARG_ENABLE(windrv,
-  [  --enable-windrv         Windows Driver interface(requires winsyn) ],
+  AS_HELP_STRING([--enable-windrv], [Windows Driver interface(requires winsyn) ]),
   [ if test "$enableval" = "yes"; then
       if test "x$VCPP" != "xyes" && test "x$MINGWGCC" != "xyes" && test "x$BORLANDC" != "xyes" && test "x$WATCOM_C" != "xyes" && test "x$DMC" != "xyes" && test "x$POCC" != "xyes"; then
 	AC_MSG_ERROR(windrv: Only Support VC++ or Mingw or Borland C or Open Watcom PellesC and Digital Mars)
@@ -2131,7 +2131,7 @@ CFLAGS="$CFLAGS $DLLFLAG "
 dnl Offix support
 dnl this rely on  CFLAGS and LIBS
 AC_ARG_ENABLE(offix,
-  [  --enable-offix          Enable offix support            (default is no)],
+  AS_HELP_STRING([--enable-offix], [Enable offix support            (default is no)]),
   [ if test "$enableval" = "yes"; then
       KEEPCPPFLAGS=$CPPFLAGS
       KEEPLIBS=$LIBS
@@ -2153,7 +2153,7 @@ AC_ARG_ENABLE(offix,
 
 dnl Network section
 AC_ARG_ENABLE(network,
-  [  --enable-network        Enable network support          (default is no)],
+  AS_HELP_STRING([--enable-network], [Enable network support          (default is no)]),
   [ if test "$enableval" = "yes"; then
       AC_DEFINE(SUPPORT_SOCKET,1,Define to 1 if you need network support)
     fi ])
@@ -2161,7 +2161,7 @@ AM_CONDITIONAL(ENABLE_NETWORK, test "x$enable_network" = "xyes")
 
 dnl Sound Spectrogram Viewer
 AC_ARG_ENABLE(spectrogram,
-  [  --enable-spectrogram    Enable Sound Spectrogram Viewer (default is no)],
+  AS_HELP_STRING([--enable-spectrogram], [Enable Sound Spectrogram Viewer (default is no)]),
   [ if test "$enableval" = "yes"; then
       if test "x$with_x" != xyes; then
 	AC_MSG_ERROR(spectrogram: --with-x option must be specified)
@@ -2172,9 +2172,8 @@ AM_CONDITIONAL(ENABLE_SOUND_SPEC, test "x$enable_spectrogram" = "xyes")
 
 dnl Wave Spline Interpolations
 AC_ARG_ENABLE(spline,
-  [  --enable-spline=[method]  Specify spline method.
-                                  one of no,linear,cubic,lagrange,newton,gauss
-                                                          (default is linear)],
+  AS_HELP_STRING([--enable-spline=[method]],
+    [Specify spline method.  one of no,linear,cubic,lagrange,newton,gauss (default is linear)]),
   [ case "x$enableval" in
       xlinear)
         AC_DEFINE(DEFAULT_RESAMPLATION,resample_linear,Define resampler.)
@@ -2201,7 +2200,7 @@ AC_ARG_ENABLE(spline,
 
 dnl WRD interface
 AC_ARG_ENABLE(wrd,
-  [  --enable-wrd            Enable WRD interface for X      (default is no)],
+  AS_HELP_STRING([--enable-wrd], [Enable WRD interface for X      (default is no)]),
   [ if test "$enableval" = "yes"; then
       if test "x$with_x" = xyes; then
         LIBS="-lX11 $LIBS"

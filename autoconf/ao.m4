@@ -10,10 +10,21 @@ AC_DEFUN([XIPH_PATH_AO],
 [dnl 
 dnl Get the cflags and libraries
 dnl
-AC_ARG_WITH(ao,[  --with-ao=PFX   Prefix where libao is installed (optional)], ao_prefix="$withval", ao_prefix="")
-AC_ARG_WITH(ao-libraries,[  --with-ao-libraries=DIR   Directory where libao library is installed (optional)], ao_libraries="$withval", ao_libraries="")
-AC_ARG_WITH(ao-includes,[  --with-ao-includes=DIR   Directory where libao header files are installed (optional)], ao_includes="$withval", ao_includes="")
-AC_ARG_ENABLE(aotest, [  --disable-aotest       Do not try to compile and run a test ao program],, enable_aotest=yes)
+AC_ARG_WITH(ao,
+	    AS_HELP_STRING([--with-ao=PFX], [Prefix where libao is installed (optional)]),
+	    		   [ao_prefix="$withval"], [ao_prefix=""])
+AC_ARG_WITH(ao-libraries,
+	    AS_HELP_STRING([--with-ao-libraries=DIR],
+	    		   [Directory where libao library is installed (optional)]),
+	    [ao_libraries="$withval"], [ao_libraries=""])
+AC_ARG_WITH(ao-includes,
+	    AS_HELP_STRING([--with-ao-includes=DIR],
+	    		   [Directory where libao header files are installed (optional)]),
+	    [ao_includes="$withval"], [ao_includes=""])
+AC_ARG_ENABLE(aotest,
+	      AS_HELP_STRING([--disable-aotest],
+	      		     [Do not try to compile and run a test ao program]),,
+	      [enable_aotest=yes])
 
 
   if test "x$ao_libraries" != "x" ; then
