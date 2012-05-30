@@ -525,11 +525,13 @@ static int control_getcmd(char **params, int *nparams)
     }
     if(n == 0)
 	return 1;
-    if((params[0] = strtok(buff, " \t\r\n\240")) == NULL)
-	return 0;
     *nparams = 0;
-    while(params[*nparams] && *nparams < MAX_GETCMD_PARAMS)
-	params[++(*nparams)] = strtok(NULL," \t\r\n\240");
+    do {
+	params[*nparams] = strtok(*nparams ? NULL : buff, " \t\r\n\240");
+	if (!params[*nparams])
+	    break;
+	(*nparams)++;
+    } while (*nparams < MAX_GETCMD_PARAMS);
     return 0;
 }
 
