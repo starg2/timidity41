@@ -55,7 +55,7 @@ dnl   CC CFLAGS CPPFLAGS LDFLAGS LIBS SHCFLAGS SHLD SHLDFLAGS
 dnl   ac_cv_header_dlfcn_h lib_dl_opt so
 AC_DEFUN([CHECK_DLSYM_UNDERSCORE],
 [dnl Check if dlsym need a leading underscore
-AC_MSG_CHECKING(whether your dlsym() needs a leading underscore)
+AC_MSG_CHECKING([whether your dlsym() needs a leading underscore])
 AC_CACHE_VAL(timidity_cv_func_dlsym_underscore,
 [case "$ac_cv_header_dlfcn_h" in
 yes) i_dlfcn=define;;
@@ -146,7 +146,7 @@ dnl contains program from perl5
 dnl CONTAINS_INIT()
 AC_DEFUN([CONTAINS_INIT],
 [dnl Some greps do not return status, grrr.
-AC_MSG_CHECKING(whether grep returns status)
+AC_MSG_CHECKING([whether grep returns status])
 echo "grimblepritz" >grimble
 if grep blurfldyick grimble >/dev/null 2>&1 ; then
 	contains="./contains"
