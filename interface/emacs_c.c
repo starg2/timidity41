@@ -285,7 +285,7 @@ static int ctl_pass_playing_list(int argc, char *argv[])
 	int rc;
 
 	if(fgets(cmd, sizeof(cmd), stdin) == NULL)
-	    return; /* Emacs may down */
+	    return 0; /* Emacs may down */
 	chomp(cmd);
 	if(!strncmp(cmd, "PLAY", 4))
 	{
