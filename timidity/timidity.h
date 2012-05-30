@@ -62,6 +62,7 @@
 #define DECOMPRESSOR_LIST { \
 			      ".gz",  "gunzip -c %s", \
 			      ".xz",  "xzcat %s", \
+			      ".lzma", "lzcat %s", \
 			      ".bz2", "bunzip2 -c %s", \
 			      ".Z",   "zcat %s", \
 			      ".zip", "unzip -p %s", \
