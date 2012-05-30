@@ -102,7 +102,7 @@ int xskin_loadviscolor( Display *d, Window w, char *filename ) {
     if ( foreground == 0 ) foreground = BlackPixel( d, sc );
     for ( i=0 ; i<16 ; i++ ) {
       spe_pixel[i] = xskin_getcolor( d, r0[i], g0[i], b0[i] );
-      if ( spe_pixel[i] == 0 )
+      if ( i && spe_pixel[i] == 0 )
 	spe_pixel[i] = spe_pixel[i-1];
     }
     for ( i=0 ; i<5 ; i++ ) {
