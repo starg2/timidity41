@@ -56,7 +56,7 @@
 #include "strtab.h"
 #include "arc.h"
 
-#include <X11/IntrinsicP.h>
+#include <X11/Intrinsic.h>
 #include <X11/StringDefs.h>
 #include <X11/Xatom.h>
 
@@ -308,8 +308,13 @@ typedef struct {
   Widget *toggleGroup;
 } outputs;
 
+#define wm_delete_window Atoms[0]
+#define net_wm_pid Atoms[1]
+#define net_wm_icon Atoms[2]
+#define ATOM_COUNT 3
+static Atom Atoms[ATOM_COUNT];
+
 static Display *disp;
-static Atom wm_delete_window, net_wm_pid;
 static pid_t pid;
 static XtAppContext app_con;
 static Pixmap check_mark, arrow_mark, on_mark, off_mark;
@@ -353,7 +358,7 @@ static struct _app_resources {
         button_fgcolor, button_bgcolor;
   String more_text, file_text, no_playing;
   XFontSet label_font, volume_font, text_font;
-  String labelfile, popup_confirm, load_LISTDIALOGBASENAME_title,
+  String popup_confirm, load_LISTDIALOGBASENAME_title,
          save_LISTDIALOGBASENAME_title;
 } app_resources;
 
@@ -555,17 +560,18 @@ static void restoreDefaultOSelectionCB(Widget, XtPointer, XtPointer);
 static void restoreLDPointer(Widget, XtPointer, XEvent *, Boolean *);
 static void savePlaylist(const char *, int);
 static void saveformatDialog(Widget);
-static void setupWindow(Widget, String, Boolean, Boolean);
-static int setDirList(ldPointer, char *);
-static void setSizeHints(Dimension);
 static void scrollTextACT(Widget, XEvent *, String *, Cardinal *);
 static void scrollTraceACT(Widget, XEvent *, String *, Cardinal *);
 static void scrollListACT(Widget, XEvent *, String *, Cardinal *);
+static Widget seekTransientShell(Widget);
 static void setDirACT(Widget, XEvent *, String *, Cardinal *);
+static int setDirList(ldPointer, char *);
 static void setDirLoadCB(Widget, XtPointer, XawListReturnStruct *);
 static void setFileLoadCB(Widget, XtPointer, XawListReturnStruct *);
 static void setThumb(Widget, barfloat);
-static Widget seekTransientShell(Widget);
+static void setupWindow(Widget, String, Boolean, Boolean);
+static void setNetWMIcon(void);
+static void setSizeHints(Dimension);
 static void sndspecACT(Widget, XEvent *, String *, Cardinal *);
 static void soloChanACT(Widget, XEvent *, String *, Cardinal *);
 static void soundkeyACT(Widget, XEvent *, String *, Cardinal *);
@@ -645,7 +651,7 @@ static Boolean
 onPlayOffPause(void) {
   Boolean s, play_on = False;
 
-  if (max_files == 0) return;
+  if (max_files == 0) return FALSE;
   XtVaGetValues(play_b, XtNstate,&s, NULL);
   if (s == False) {
     XtVaSetValues(play_b, XtNstate,True, NULL);
@@ -3700,6 +3706,45 @@ init_output_lists(void) {
   }
 }
 
+/* Converts an XBM to 32bit ARGB for _NET_WM_ICON and sets the property */
+static void
+setNetWMIcon(void) {
+  int bit, bit_max, i, count;
+  int extra, pos, w, h;
+  /* Xlib uses unsigned long for 32bit properties */
+  unsigned long *argb_image, *ip;
+
+  h = timidity_height;
+  w = timidity_width;
+  if (w & 7) extra = 1 << (w & 7);
+  else extra = 0;
+
+  argb_image = (unsigned long *)safe_malloc((2+w*h)*sizeof (unsigned long));
+  argb_image[0] = w; argb_image[1] = h; pos = 0; ip = argb_image + 2;
+  for (i = 0, count = 0; i < sizeof (timidity_bits); ++i, ++count) {
+    if ((!extra) || (count != (w/8 + 1))) bit_max = 256;
+    else {
+      count = 0;
+      /* Discard the extra bits if XBM width is not divisible by 8 and 
+       * we're at the last byte of the row. */
+      bit_max = extra;
+    }
+    for (bit = 1; bit != bit_max; bit <<= 1) {
+      if ((timidity_bits[pos] & bit) == 0) {
+        *ip++ = 0xFFFFFFFF; /* White, no transparency */ 
+      } else {
+        *ip++ = 0xFF000000; /* Black, no transparency */
+      }
+    }
+    pos++;
+  }
+
+  XChangeProperty(disp, XtWindow(toplevel), net_wm_icon, XA_CARDINAL, 32,
+                  PropModeReplace, (const unsigned char *)argb_image,
+                  2+w*h);
+  free(argb_image);
+}
+
 static void
 a_init_interface(int pipe_in) {
   static XtActionsRec actions[] = {
@@ -3842,13 +3887,13 @@ a_init_interface(int pipe_in) {
        "-*-fixed-medium-r-normal--14-*-*-*-*-*-*-*,*"},
   {"tracefont", XtCFontSet, XtRFontSet, sizeof(XFontSet),
    toffset(c_trace_font), XtRString, "7x14,*"},
-  {"labelfile", "LabelFile", XtRString, sizeof(String),
+  {"fileLabel", XtCString, XtRString, sizeof(String),
    offset(file_text), XtRString, "file..."},
   {"popup_confirm_title", XtCString, XtRString, sizeof(String),
    offset(popup_confirm), XtRString, "Dialog"},
   {"moreString", XtCString, XtRString, sizeof(String),
    offset(more_text), XtRString, "More..."},
-  {"noplaying", XtCString, XtRString, sizeof(String),
+  {"noPlaying", XtCString, XtRString, sizeof(String),
    offset(no_playing), XtRString, "[ No Playing File ]"},
   {"untitled", XtCString, XtRString, sizeof(String),
    toffset(untitled), XtRString, "<No Title>"},
@@ -4273,6 +4318,11 @@ a_init_interface(int pipe_in) {
   };
   int argc = 1, dot_nfile = 0, i;
   char *argv = APP_NAME, **dotfile_flist = NULL;
+  char *atom_names[ATOM_COUNT] = {
+    "WM_DELETE_WINDOW",
+    "_NET_WM_PID",
+    "_NET_WM_ICON"
+  };
 
   xaw_vendor_setup();
 
@@ -4374,9 +4424,9 @@ a_init_interface(int pipe_in) {
                 (XtPointer)XtInputReadMask, handle_input, NULL);
 
   pid = getpid();
-  wm_delete_window = XInternAtom(disp, "WM_DELETE_WINDOW", False);
-  net_wm_pid = XInternAtom(disp, "_NET_WM_PID", False);
+  XInternAtoms(disp, atom_names, XtNumber(Atoms), False, Atoms);
   setupWindow(toplevel, "do-quit()", False, False);
+  setNetWMIcon();
 
   XtVaGetValues(toplevel, XtNheight,&curr_height,
                           XtNwidth,&curr_width, NULL);

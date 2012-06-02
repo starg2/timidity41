@@ -126,8 +126,8 @@ static void unescape_string(char *src, char *dest) {
 /*
  * WARNING: X unlocked function 
  */
-static int _dnd_paste_prop_internal(DndClass *xdnd, Window from, 
-				    Window insert, Atom prop, Boolean delete_prop) {
+static int _dnd_paste_prop_internal(DndClass *xdnd, Window from, Window insert,
+				    Atom prop, Bool delete_prop) {
   long           nread;
   unsigned long  nitems;
   unsigned long  bytes_after;

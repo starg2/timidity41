@@ -264,9 +264,9 @@ menuWidth           MenuWidth    200
   Width of popup menu.
 moreString          String       More...
   Label of submenus on the pop-up menu.
-labelfile           LabelFile    file...
+fileLabel           String       file...
   Title of main menu.
-noplaying           String       [ No Playing File ]
+noPlaying           String       [ No Playing File ]
   String appended to title when no file is being played.
 popup_confirm_title String       Dialog
   Title of confirm boxes.
