@@ -90,8 +90,10 @@ TiMidity*base_form.translations: #override\n\
 	Meta<Key>p:		do-menu(103)\n\
 	~Ctrl Meta<Key>n:	do-menu(100)\n\
 	<Key>Right:		do-next()\n\
+	:<Key>KP_Right:		do-next()\n\
 	~Ctrl ~Meta<Key>n:	do-next()\n\
 	<Key>Left:		do-prev()\n\
+	:<Key>KP_Left:		do-prev()\n\
 	~Meta<Key>p:		do-prev()\n\
 	<Key>KP_Enter:		do-play()\n\
 	<Key>Return:		do-play()\n\
@@ -101,8 +103,10 @@ TiMidity*base_form.translations: #override\n\
 	~Ctrl<Key>space:	do-pause()\n\
 	~Ctrl<Key>s:		do-stop()\n\
 	<Key>Up:		do-volupdown(10)\n\
+	:<Key>KP_Up:		do-volupdown(10)\n\
 	~Ctrl Shift<Key>v:	do-volupdown(10)\n\
 	<Key>Down:		do-volupdown(-10)\n\
+	:<Key>KP_Down:		do-volupdown(-10)\n\
 	~Ctrl ~Shift<Key>v:	do-volupdown(-10)\n\
 	<Key>KP_Add:		do-key()\n\
 	~Ctrl<Key>plus:		do-key()\n\
@@ -276,15 +280,23 @@ TiMidity*popup_fform.translations: #override\n\
 	~Ctrl<Key>c:		do-closeparent()\n\
 	<Key>Escape:		do-closeparent()\n\
 	<Key>Home:		do-flistmove(-1, 0, 0)\n\
+	:<Key>KP_Home:		do-flistmove(-1, 0, 0)\n\
 	<Key>Prior:		do-flistmove(-1, 0)\n\
+	:<Key>KP_Prior:		do-flistmove(-1, 0)\n\
 	<Key>Right:		do-flistmove(-5)\n\
+	:<Key>KP_Right:		do-flistmove(-5)\n\
 	<Key>Up:		do-flistmove(-1)\n\
+	:<Key>KP_Up:		do-flistmove(-1)\n\
 	<Key>p:			do-flistmove(-1)\n\
 	<Key>n:			do-flistmove(1)\n\
 	<Key>Down:		do-flistmove(1)\n\
+	:<Key>KP_Down:		do-flistmove(1)\n\
 	<Key>Left:		do-flistmove(5)\n\
+	:<Key>KP_Left:		do-flistmove(5)\n\
 	<Key>Next:		do-flistmove(1, 0)\n\
+	:<Key>KP_Next:		do-flistmove(1, 0)\n\
 	<Key>End:		do-flistmove(1, 0, 0)\n\
+	:<Key>KP_End:		do-flistmove(1, 0, 0)\n\
 	<Key>KP_Enter:		do-fselect()\n\
 	<Key>Return:		do-fselect()\n\
 	Ctrl<Key>m:		do-fselect()\n\

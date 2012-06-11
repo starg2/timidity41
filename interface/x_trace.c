@@ -101,7 +101,7 @@ typedef struct {
   GC gcs, gct, gc_xcopy;
   Boolean g_cursor_is_in;
   tconfig *cfg;
-  char *title;
+  const char *title;
   GradData *grad;
 
 #ifdef HAVE_LIBXFT

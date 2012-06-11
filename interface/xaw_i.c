@@ -163,7 +163,7 @@ typedef load_dialog *ldPointer;
 
 typedef struct {
  ldPointer ld;
- char *name; 
+ const char *name; 
  struct ldStore_t *next;
 } ldStore;
 
@@ -213,7 +213,7 @@ static String *sb;
 #endif /* !TimNmenu */
 static char local_buf[PIPE_LENGTH];
 static char window_title[300];
-static char *home;
+static const char *home;
 static int amplitude = DEFAULT_AMPLIFICATION;
 
 static int maxentry_on_a_menu = 0, current_n_displayed = 0;
@@ -687,16 +687,16 @@ flistpopupACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 aboutACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  char s[12], *p;
+  char s[12];
   char lbuf[30];
   int i;
   Widget popup_about, popup_abox, popup_aok;
 
-  char *info[] = {"TiMidity++ %s%s - Xaw interface",
-                  "- MIDI to WAVE converter and player -",
-                  "by Masanao Izumo and Tomokazu Harada",
-                  "modified by Yoshishige Arai",
-                  "modified by Yair Kalvariski", " ", NULL};
+  const char *p, *info[] = {"TiMidity++ %s%s - Xaw interface",
+                            "- MIDI to WAVE converter and player -",
+                            "by Masanao Izumo and Tomokazu Harada",
+                            "modified by Yoshishige Arai",
+                            "modified by Yair Kalvariski", " ", NULL};
 
   if ((popup_about = XtNameToWidget(toplevel, "popup_about")) != NULL) {
     XtPopup(popup_about, XtGrabNone);
@@ -807,7 +807,7 @@ confirmCB(Widget w, const char *mesname, Boolean multiple) {
   Dimension mw, ow, cw;
 
   if (mesname == NULL) return NORESPONSE;
-  snprintf(s, sizeof(s), "confirm_%s", mesname);
+  snprintf(s, sizeof(s), "cb_%s", mesname);
   if ((multiple == False) && ((popup_confirm = XtNameToWidget(w, s)) != NULL)) {
     XtPopup(popup_confirm, XtGrabNone);
     XSync(disp, False);
@@ -1596,6 +1596,7 @@ recordCB(Widget w, XtPointer client_data, XtPointer call_data) {
 #endif /* CLEARVALUE */
   XtVaSetValues(load_d, XtNvalue,"", NULL);
   a_pipe_write("%c", S_PLAY);
+  XtVaSetValues(play_b, XtNstate,TRUE, NULL);
   while (strncmp(local_buf, CHECKPOST "2", 2)) {
     XtAppProcessEvent(app_con, XtIMAll);
   }
@@ -1855,7 +1856,7 @@ a_print_msg(Widget w) {
 }
 
 static void
-a_print_text(Widget w, char *st) {
+a_print_text(Widget w, const char *st) {
   XtVaSetValues(w, XtNlabel,st, NULL);
 }
 #else
@@ -1950,7 +1951,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
     break;
   case M_LISTITEM:
     {
-      char *name;
+      const char *name;
       name = strchr(local_buf+1, ' ');
       current_n_displayed = n = atoi(local_buf+1);
       lockevents = False;
@@ -1966,8 +1967,9 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
     break;
   case M_TITLE:
     if (app_resources.arrange_title) {
-      char *p = local_buf+1;
-      if (!strcmp(p, "(null)")) p = (char *)app_resources.tracecfg.untitled;
+      const char *p = local_buf+1;
+      if (!strcmp(p, "(null)"))
+        p = (const char *)app_resources.tracecfg.untitled;
       snprintf(window_title, sizeof(window_title), "%s : %s", APP_CLASS, p);
       XtVaSetValues(toplevel, XtNtitle,window_title, NULL);
     }
@@ -4529,7 +4531,7 @@ a_init_interface(int pipe_in) {
   if (Cfg.autostart) {
     if (max_files != 0) playCB(NULL, NULL, NULL);
     else if (dot_nfile != 0) {
-      onPlayOffPause();
+      XtVaSetValues(play_b, XtNstate,TRUE, NULL);
       a_pipe_write("%c", S_PREV);
     }
   }
@@ -4545,7 +4547,8 @@ void a_start_interface(int pipe_in) {
 
 static char *
 get_user_home_dir(void) {
-  char *home, *p;
+  const char *home;
+  char *p;
   struct passwd *pw;
 
   home = getenv("HOME");

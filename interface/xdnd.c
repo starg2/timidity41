@@ -575,7 +575,7 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
     }
     else if(event->xclient.message_type == xdnd->_XA_XdndPosition) {
       XEvent  xevent;
-      Window  parent, child, toplevel, new_child;
+      Window  parent, child, new_child;
 
 #ifdef DEBUG_DND
       printf("XdndPosition\n");
@@ -583,7 +583,9 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
 
       XLockDisplay(xdnd->display);
 
+#if 0
       toplevel = event->xany.window;
+#endif
       parent   = DefaultRootWindow(xdnd->display);
       child    = xdnd->dropper_toplevel;
 
