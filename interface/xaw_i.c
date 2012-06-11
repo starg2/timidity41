@@ -901,7 +901,10 @@ playCB(Widget w, XtPointer client_data, XtPointer call_data) {
   float thumb;
   Boolean s;
 
-  if (max_files == 0) return;
+  if (max_files == 0) {
+    XtVaSetValues(play_b, XtNstate,FALSE, NULL);
+    return;
+  }
   onPlayOffPause();
   XtVaGetValues(tune_bar, XtNtopOfThumb,&thumb, NULL);
   XtVaGetValues(pause_b, XtNstate,&s, NULL);
@@ -962,6 +965,8 @@ pauseCB(Widget w, XtPointer client_data, XtPointer call_data) {
   if (s == True) {
     halt = 1;
     a_pipe_write("%c", S_TOGGLE_PAUSE);
+  } else {
+    XtVaSetValues(pause_b, XtNstate,FALSE, NULL);
   }
 }
 
@@ -2353,6 +2358,8 @@ setDirList(ldPointer ld, char *curr_dir) {
         put_string_table(&strftab, filename, strlen(filename));
       }
     }
+    reuse_mblock(&pool);
+
     if (d_num > 0) {
       ddirlist = (String *)make_string_array(&strdtab);
       qsort (ddirlist, d_num, sizeof (char *), cmpstringp);
@@ -3719,9 +3726,9 @@ setNetWMIcon(void) {
   if (w & 7) extra = 1 << (w & 7);
   else extra = 0;
 
-  argb_image = (unsigned long *)safe_malloc((2+w*h)*sizeof (unsigned long));
+  argb_image = (unsigned long *)safe_malloc((2+w*h)*sizeof(unsigned long));
   argb_image[0] = w; argb_image[1] = h; pos = 0; ip = argb_image + 2;
-  for (i = 0, count = 0; i < sizeof (timidity_bits); ++i, ++count) {
+  for (i = 0, count = 1; i < sizeof(timidity_bits); ++i, ++count) {
     if ((!extra) || (count != (w/8 + 1))) bit_max = 256;
     else {
       count = 0;
@@ -4738,7 +4745,7 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
   char s[20];
   int i = out->max, j;
   id_list *list;
-  char defaultToggleTranslations[] =
+  const String defaultToggleTranslations =
     "<EnterWindow>:         highlight(Always)\n\
     <LeaveWindow>:         unhighlight()\n\
     <Btn1Down>,<Btn1Up>:   set() notify()";
