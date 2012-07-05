@@ -4128,7 +4128,7 @@ ControlMode *dynamic_interface_module(int id_char)
 			char path[NAME_MAX], buff[20];
 			snprintf(path, NAME_MAX-1, ".%c%s", PATH_SEP, fname);
 			if((handle = dl_load_file(path)) == NULL)
-				return NULL;
+				continue;
 			sprintf(buff, "interface_%c_loader", id_char);
 			if((inferface_loader = dl_find_symbol(handle, buff)) == NULL) {
 				dl_free(handle);
