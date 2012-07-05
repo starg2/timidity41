@@ -105,10 +105,10 @@ typedef struct {
   GradData *grad;
 
 #ifdef HAVE_LIBXFT
-  XftDraw *xft_trace, *xft_trace_foot;
+  XftDraw *xft_trace, *xft_trace_foot, *xft_trace_inst;
   XftFont *trfont, *ttfont;
-  XftColor xft_capcolor;
-  Pixmap xft_trace_foot_pixmap;
+  XftColor xft_capcolor, xft_textcolor;
+  Pixmap xft_trace_foot_pixmap, xft_trace_inst_pixmap;
 #else
   int foot_width;
   short title_font_ascent;
@@ -503,20 +503,6 @@ static void drawPitch(int ch, int val) {
   }
 }
 
-static void drawInstname(int ch, char *name) {
-  int len;
-
-  if (plane != 0) return;
-  ch -= VISLOW;
-  XSetForeground(disp, gct, boxcolor);
-  XFillRectangle(disp, Panel->trace, gct,
-                 pl[plane].ofs[CL_IN]+2, CHANNEL_HEIGHT(ch)+2,
-                 pl[plane].w[CL_IN] -4, BAR_HEIGHT);
-  len = strlen(name);
-  TraceDrawStr(pl[plane].ofs[CL_IN]+4, CHANNEL_HEIGHT(ch)+15,
-               name, len, (Panel->is_drum[ch+VISLOW])?capcolor:textcolor);
-}
-
 static void drawDrumPart(int ch, int is_drum) {
 
   if (plane != 0) return;
@@ -693,7 +679,33 @@ static void drawVoices(void) {
   }
   Panel->voices_width = extents.width;
 }
+
+static void drawInstname(int ch, char *name) {
+  int len;
+
+  ch -= VISLOW;
+  XSetForeground(disp, gct, boxcolor);
+  XFillRectangle(disp, Panel->xft_trace_inst_pixmap, gct,
+                 0, 0, pl[plane].w[CL_IN]-4, BAR_HEIGHT);
+  len = strlen(name);
+#ifdef X_HAVE_UTF8_STRING
+  XftDrawStringUtf8(Panel->xft_trace_inst, (Panel->is_drum[ch+VISLOW]) ?
+                    &Panel->xft_capcolor : &Panel->xft_textcolor,
+                    trace_font, 0, trace_font->ascent,
+                    (FcChar8 *)name, len);
 #else
+  XftDrawString8(Panel->xft_trace_inst, (Panel->is_drum[ch+VISLOW]) ?
+                 &Panel->xft_capcolor : &Panel->xft_textcolor,
+                 trace_font, 0, trace_font->ascent,
+                 (FcChar8 *)name, len);
+#endif
+  XCopyArea(disp, (Drawable)Panel->xft_trace_inst_pixmap,
+            (Drawable)Panel->trace, gct, 0, 0, pl[plane].w[CL_IN]-4,
+            BAR_HEIGHT, pl[plane].ofs[CL_IN]+2, CHANNEL_HEIGHT(ch)+2);
+}
+
+#else /* HAVE_LIBXFT */
+
 static void drawFoot(Boolean PitchChanged) {
   char *p, s[4096];
   int l, w;
@@ -743,6 +755,20 @@ static void drawVoices(void) {
                        trace_height_nf+Panel->title_font_ascent, s, l);
   }
   Panel->voices_width = w;
+}
+
+static void drawInstname(int ch, char *name) {
+  int len;
+
+  if (plane != 0) return;
+  ch -= VISLOW;
+  len = strlen(name);
+  XSetForeground(disp, gct, boxcolor);
+  XFillRectangle(disp, Panel->trace, gct,
+                 pl[plane].ofs[CL_IN]+2, CHANNEL_HEIGHT(ch)+2,
+                 pl[plane].w[CL_IN]-4, BAR_HEIGHT);
+  TraceDrawStr(pl[plane].ofs[CL_IN]+4, CHANNEL_HEIGHT(ch)+15,
+               name, len, (Panel->is_drum[ch+VISLOW])?capcolor:textcolor);
 }
 #endif /* HAVE_LIBXFT */
 
@@ -1192,11 +1218,20 @@ void initTrace(Display *dsp, Window trace, char *title, tconfig *cfg) {
   Panel->xft_trace_foot_pixmap = XCreatePixmap (disp, (Drawable)Panel->trace,
                                                 trace_width, TRACE_FOOT-2,
                                                 Panel->depth);
-  Panel->xft_trace_foot = XftDrawCreate(disp, (Drawable)Panel->xft_trace_foot_pixmap,
+  Panel->xft_trace_foot = XftDrawCreate(disp,
+                                        (Drawable)Panel->xft_trace_foot_pixmap,
+                                        DefaultVisual(disp, screen),
+                                        DefaultColormap(disp, screen));
+  Panel->xft_trace_inst_pixmap = XCreatePixmap (disp, (Drawable)Panel->trace,
+                                                pl[plane].w[CL_IN]-4,
+                                                BAR_HEIGHT, Panel->depth);
+  Panel->xft_trace_inst = XftDrawCreate(disp,
+                                        (Drawable)Panel->xft_trace_inst_pixmap,
                                         DefaultVisual(disp, screen),
                                         DefaultColormap(disp, screen));
 
   COPY_PIXEL (Panel->xft_capcolor, capcolor);
+  COPY_PIXEL (Panel->xft_textcolor, textcolor);
 
   gcmask = GCForeground;
   gv.foreground = tracecolor;
@@ -1294,7 +1329,9 @@ void uninitTrace(void) {
 #ifdef HAVE_LIBXFT
   XftDrawDestroy(Panel->xft_trace);
   XftDrawDestroy(Panel->xft_trace_foot);
+  XftDrawDestroy(Panel->xft_trace_inst);
   XFreePixmap(disp, Panel->xft_trace_foot_pixmap);
+  XFreePixmap(disp, Panel->xft_trace_inst_pixmap);
   XftFontClose(disp, ttitle_font);
   XftFontClose(disp, trace_font);
 #endif
