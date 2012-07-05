@@ -249,8 +249,8 @@ TiMidity*TransientShell.Box.baseTranslations: #override\n\
 TiMidity*popup_load.title: TiMidity <Load File>
 TiMidity*load_dialog.borderWidth: 0
 TiMidity*load_dialog.value.translations: #override\n\
-	<Key>Escape:			do-popdown()\n\
-	Ctrl ~Shift<Key>g:		do-popdown()\n\
+	<Key>Escape:			do-closeparent()\n\
+	Ctrl ~Shift<Key>g:		do-closeparent()\n\
 	Ctrl Meta<Key>KP_Enter:		do-addall()\n\
 	~Ctrl Meta<Key>Return:		do-addall()\n\
 	~Ctrl ~Meta<Key>Return:		do-chgdir()\n\
@@ -260,6 +260,9 @@ TiMidity*load_dialog.value.translations: #override\n\
 	~Ctrl ~Meta<Key>Tab:		do-complete() end-of-line()
 TiMidity*load_dialog.filter.accelerators: #override\n\
 	Ctrl<KeyPress>`: toggle() notify()
+TiMidity*load_dialog*files.translations: #override\n\
+	<Btn1Down>, <Btn1Up>:		Set() Notify()\n\
+	<Btn1Up>(2+):		Set() notify-doubleclick()
 TiMidity*dialog_sfile*load_dialog.add.Sensitive: False
 TiMidity*dialog_list*load_dialog.add.Sensitive: False
 TiMidity*dialog_lfile.title: TiMidity <Load File>
@@ -331,7 +334,6 @@ TiMidity*sbox_ratetext.translations: #override\n\
 	<Key>KP_Enter:	do-record()\n\
 	<Key>Return:	do-record()\n\
 	<Key>BackSpace:	delete-previous-character()\n\
-	Shift<Key>:	no-op()\n\
 	~Ctrl<Key>0:	insert-char()\n\
 	~Ctrl<Key>KP_0:	insert-char()\n\
 	~Ctrl<Key>1:	insert-char()\n\
@@ -360,6 +362,8 @@ TiMidity*sbox_ratetext.translations: #override\n\
 	:<Key>KP_Right:	forward-character()\n\
 	<Key>Left:	backward-character()\n\
 	:<Key>KP_Left:	backward-character()\n\
+	Shift<Key>:	no-op()\n\
+	Ctrl<Key>:	no-op()\n\
 	Hyper<Key>:	no-op()\n\
 	Super<Key>:	no-op()\n\
 	None<Key>:	no-op()\n\

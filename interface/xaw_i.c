@@ -524,6 +524,7 @@ static void leaveSubmenuACT(Widget, XEvent *, String *, Cardinal *);
 static void menuCB(Widget, XtPointer, XtPointer);
 static void muteChanACT(Widget, XEvent *, String *, Cardinal *);
 static void nextCB(Widget, XtPointer, XtPointer);
+static void notifyDoubleClickACT(Widget, XEvent *, String *, Cardinal *);
 static void offPauseButton(void);
 static void offPlayButton(void);
 static Boolean onPlayOffPause(void);
@@ -930,11 +931,11 @@ static void
 soundkeyACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   if (*(int *)n == 0) {
     if (IsTracePlaying())
-      XtCallActionProc(keyup_b, (String)"set", NULL, NULL, ZERO);
+      XtCallActionProc(keyup_b, "set", NULL, NULL, ZERO);
     a_pipe_write("%c", S_INC_PITCH);
   } else {
     if (IsTracePlaying())
-      XtCallActionProc(keydown_b, (String)"set", NULL, NULL, ZERO);
+      XtCallActionProc(keydown_b, "set", NULL, NULL, ZERO);
     a_pipe_write("%c", S_DEC_PITCH);
   }
 }
@@ -943,11 +944,11 @@ static void
 speedACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   if (*(int *)n == 0) {
     if (IsTracePlaying())
-      XtCallActionProc(fast_b, (String)"set", NULL, NULL, ZERO);
+      XtCallActionProc(fast_b, "set", NULL, NULL, ZERO);
     a_pipe_write("%c", S_INC_SPEED);
   } else {
     if (IsTracePlaying())
-      XtCallActionProc(slow_b, (String)"set", NULL, NULL, ZERO);
+      XtCallActionProc(slow_b, "set", NULL, NULL, ZERO);
     a_pipe_write("%c", S_DEC_SPEED);
   }
 }
@@ -1360,7 +1361,9 @@ popupDialog(Widget w, char *Popname, String *title,
 
 static void
 popdownCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  XtPopdown(popup_load); /* uses global ld */
+  ldPointer ld = (ldPointer)client_data;
+
+  XtPopdown(popup_load);
 }
 
 static void
@@ -1414,6 +1417,7 @@ popdownLoadfile(Widget w, XtPointer client_data, XtPointer call_data) {
       }
       s++;
     }
+    return;
   }
 lfiledown:
   a_pipe_write("%c%s", S_ADD_TO_PLAYLIST, p);
@@ -1473,6 +1477,7 @@ popdownLoadPL(Widget w, XtPointer client_data, XtPointer call_data) {
       }
       s++;
     }
+    return;
   }
 }
 
@@ -1533,11 +1538,11 @@ saveformatDialog(Widget parent) {
                                               sbox_rbox,
                                               XtNdisplayNonprinting,False,
                                               XtNfromHoriz,sbox_ratelabel,
-                                              XtNstring,(String)S(DEFAULT_RATE),
+                                              XtNstring,S(DEFAULT_RATE),
                                               XtNbackground,textbgcolor,
                                               XtNforeground,textcolor,
                                               XtNeditType,XawtextEdit, NULL);
-  XtCallActionProc(sbox_ratetext, (String)"end-of-line", NULL, NULL, ZERO);
+  XtCallActionProc(sbox_ratetext, "end-of-line", NULL, NULL, ZERO);
   XtInstallAccelerators(sbox_ratetext, record->formatGroup);
 
   popup_sbuttons = XtVaCreateManagedWidget("popup_sbuttons",boxWidgetClass,
@@ -1635,29 +1640,29 @@ scrollListACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   if (i > 0) {
     String arg[1];
     arg[0] = XtNewString("Forward");
-    XtCallActionProc(scrollbar, (String)"StartScroll", e, arg, ONE);
+    XtCallActionProc(scrollbar, "StartScroll", e, arg, ONE);
     XtFree(arg[0]);
     if (use_own_start_scroll) {
-      XtCallActionProc(scrollbar, (String)"NotifyThumb", e, NULL, ZERO);
+      XtCallActionProc(scrollbar, "NotifyThumb", e, NULL, ZERO);
     } else {
       arg[0] = XtNewString("Proportional");
-      XtCallActionProc(scrollbar, (String)"NotifyScroll", e, arg, ONE);
+      XtCallActionProc(scrollbar, "NotifyScroll", e, arg, ONE);
       XtFree(arg[0]);
     }
-    XtCallActionProc(scrollbar, (String)"EndScroll", e, NULL, ZERO);
+    XtCallActionProc(scrollbar, "EndScroll", e, NULL, ZERO);
   } else {
     String arg[1];
     arg[0] = XtNewString("Backward");
-    XtCallActionProc(scrollbar, (String)"StartScroll", e, arg, ONE);
+    XtCallActionProc(scrollbar, "StartScroll", e, arg, ONE);
     XtFree(arg[0]);
     if (use_own_start_scroll) {
-      XtCallActionProc(scrollbar, (String)"NotifyThumb", e, NULL, ZERO);
+      XtCallActionProc(scrollbar, "NotifyThumb", e, NULL, ZERO);
     } else {
       arg[0] = XtNewString("Proportional");
-      XtCallActionProc(scrollbar, (String)"NotifyScroll", e, arg, ONE);
+      XtCallActionProc(scrollbar, "NotifyScroll", e, arg, ONE);
       XtFree(arg[0]);
     }
-    XtCallActionProc(scrollbar, (String)"EndScroll", e, NULL, ZERO);
+    XtCallActionProc(scrollbar, "EndScroll", e, NULL, ZERO);
   }
 }
 
@@ -1675,14 +1680,14 @@ filemenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 popupfilemenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  XtCallActionProc(file_mb, (String)"reset", e, NULL, ZERO);
-  XtCallActionProc(file_mb, (String)"PopupMenu", e, NULL, ZERO);
+  XtCallActionProc(file_mb, "reset", e, NULL, ZERO);
+  XtCallActionProc(file_mb, "PopupMenu", e, NULL, ZERO);
 }
 
 static void
 popdownfilemenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  XtCallActionProc(file_mb, (String)"reset", e, NULL, ZERO);
-  XtCallActionProc(file_sm, (String)"MenuPopdown", e, NULL, ZERO);
+  XtCallActionProc(file_mb, "reset", e, NULL, ZERO);
+  XtCallActionProc(file_sm, "MenuPopdown", e, NULL, ZERO);
 }
 
 static void
@@ -1883,7 +1888,7 @@ a_print_msg(Widget w) {
     msglen -= i;
   }
 #ifdef BYPASSTEXTSCROLLBUG
-  XtCallActionProc(lyric_t, (String)"redraw-display", NULL, NULL, ZERO);
+  XtCallActionProc(lyric_t, "redraw-display", NULL, NULL, ZERO);
 #endif /* BYPASSTEXTSCROLLBUG */
 }
 
@@ -2053,22 +2058,22 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
     break;
   case MT_PITCH_OFFSET:
     if (IsTracePlaying()) {
-      XtCallActionProc(keyup_b, (String)"unset", NULL, NULL, ZERO);
-      XtCallActionProc(keydown_b, (String)"unset", NULL, NULL, ZERO);
+      XtCallActionProc(keyup_b, "unset", NULL, NULL, ZERO);
+      XtCallActionProc(keydown_b, "unset", NULL, NULL, ZERO);
 #ifdef XAWPLUS
-      XtCallActionProc(keyup_b, (String)"unhighlight", NULL, NULL, ZERO);
-      XtCallActionProc(keydown_b, (String)"unhighlight", NULL, NULL, ZERO);
+      XtCallActionProc(keyup_b, "unhighlight", NULL, NULL, ZERO);
+      XtCallActionProc(keydown_b, "unhighlight", NULL, NULL, ZERO);
 #endif /* XAWPLUS */
       (void)handleTraceinput(local_buf);
     }
     break;
   case MT_RATIO:
     if (IsTracePlaying()) {
-      XtCallActionProc(fast_b, (String)"unset", NULL, NULL, ZERO);
-      XtCallActionProc(slow_b, (String)"unset", NULL, NULL, ZERO);
+      XtCallActionProc(fast_b, "unset", NULL, NULL, ZERO);
+      XtCallActionProc(slow_b, "unset", NULL, NULL, ZERO);
 #ifdef XAWPLUS
-      XtCallActionProc(fast_b, (String)"unhighlight", NULL, NULL, ZERO);
-      XtCallActionProc(slow_b, (String)"unhighlight", NULL, NULL, ZERO);
+      XtCallActionProc(fast_b, "unhighlight", NULL, NULL, ZERO);
+      XtCallActionProc(slow_b, "unhighlight", NULL, NULL, ZERO);
 #endif /* XAWPLUS */
       (void)handleTraceinput(local_buf);
     }
@@ -2240,8 +2245,9 @@ setDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
   p = XawDialogGetValueString(load_d);
   if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
-  if (stat(p, &st) == -1) XtCallCallbacks(load_ok, XtNcallback, (XtPointer)ld);
-  else if (S_ISDIR(st.st_mode)) {
+  if ((stat(p, &st) == -1) || (!S_ISDIR(st.st_mode)))
+    XtCallCallbacks(load_ok, XtNcallback, (XtPointer)ld);
+  else {
     p2 = strrchr(p, '/');
     if ((*(p2+1) == '\0') && (p2 != p)) *p2 = '\0';
     if (!setDirList(ld, p) ) {
@@ -2253,7 +2259,6 @@ setDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
       XtVaSetValues(load_d, XtNvalue,"", NULL);
     }
   }
-  else XtCallCallbacks(load_ok, XtNcallback,(XtPointer)ld);
 }
 
 static void
@@ -2408,6 +2413,15 @@ setDirList(ldPointer ld, char *curr_dir) {
 }
 
 static void
+notifyDoubleClickACT(Widget w, XEvent *e, String *v, Cardinal *n) {
+  XawListReturnStruct *lrs = XawListShowCurrent(w);
+
+  lrs->list_index = XAW_LIST_NONE;
+  XtCallCallbacks(w, XtNcallback, lrs);
+  XtFree((char *)lrs);
+}
+
+static void
 setFileLoadCB(Widget list, XtPointer client_data, XawListReturnStruct *lrs) {
   ldPointer ld = (ldPointer)client_data;
   Widget Text = XtNameToWidget(load_d, "value");
@@ -2416,7 +2430,13 @@ setFileLoadCB(Widget list, XtPointer client_data, XawListReturnStruct *lrs) {
   clearValue(load_d);
 #endif /* CLEARVALUE */
   XtVaSetValues(Text, XtNstring,lrs->string, NULL);
-  XtVaSetValues(Text, XtNinsertPosition,strlen(lrs->string), NULL);
+  XtCallActionProc(Text, "end-of-line", NULL, NULL, ZERO);
+
+  /* We can be sure this callback is never called unless there's really a
+   * list and a list_index so we can use this value as a special marker   */
+  if (lrs->list_index == XAW_LIST_NONE) {
+    XtCallCallbacks(load_ok, XtNcallback, client_data);
+  }
   return;
 }
 
@@ -2889,11 +2909,11 @@ flistMoveACT(Widget w, XEvent *e, String *v, Cardinal *n) {
           if (((i - 1) < covered) && (i <= perpage/2)) thumb.f = 0;
           else thumb.f = (float)(i - perpage/2) / (float)max_files;
           arg[0] = XtNewString("Continuous");
-          XtCallActionProc(scrollbar, (String)"StartScroll", e, arg, ONE);
+          XtCallActionProc(scrollbar, "StartScroll", e, arg, ONE);
           XtFree(arg[0]);
           setThumb(scrollbar, thumb);
-          XtCallActionProc(scrollbar, (String)"NotifyThumb", e, NULL, ZERO);
-          XtCallActionProc(scrollbar, (String)"EndScroll", e, NULL, ZERO);
+          XtCallActionProc(scrollbar, "NotifyThumb", e, NULL, ZERO);
+          XtCallActionProc(scrollbar, "EndScroll", e, NULL, ZERO);
         }
       }
       XawListHighlight(file_list, i);
@@ -3271,7 +3291,7 @@ deleteTextACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   XtVaGetValues(lyric_t, XtNtextSource,&TextSrc, NULL); 
   XawAsciiSourceFreeString(TextSrc);
 #endif /* CLEARVALUE */
-  XtVaSetValues(lyric_t, XtNstring,(String)"<< TiMidity Messages >>\n", NULL);
+  XtVaSetValues(lyric_t, XtNstring,"<< TiMidity Messages >>\n", NULL);
 }
 #endif
 
@@ -3773,7 +3793,6 @@ a_init_interface(int pipe_in) {
     {"do-mutechan", muteChanACT},
     {"do-solochan", soloChanACT},
     {"do-revcaption", redrawCaptionACT},
-    {"do-popdown", (XtActionProc)popdownCB},
     {"do-play", (XtActionProc)playCB},
     {"do-sndspec", sndspecACT},
     {"do-pause", (XtActionProc)pauseCB},
@@ -3814,7 +3833,8 @@ a_init_interface(int pipe_in) {
     {"do-up", upACT},
     {"do-down", downACT},
     {"do-record", recordACT},
-    {"changetrace", scrollTraceACT}
+    {"changetrace", scrollTraceACT},
+    {"notify-doubleclick", notifyDoubleClickACT}
   };
 
   XtResource xaw_resources[] = {
@@ -4207,12 +4227,15 @@ a_init_interface(int pipe_in) {
         ~Ctrl ~Meta<Key>KP_Enter:	do-chgdir()\\n\
         ~Ctrl ~Meta<Key>Return:		do-chgdir()\\n\
         ~Ctrl ~Meta<Key>Tab:		do-complete() end-of-line()\\n\
-        Ctrl ~Shift<Key>g:		do-popdown()\\n\
+        Ctrl ~Shift<Key>g:		do-closeparent()\\n\
         <Key>BackSpace:		do-backspace() delete-previous-character()\\n\
         Ctrl<Key>H:		do-backspace() delete-previous-character()\\n\
-        <Key>Escape:		do-popdown()",
+        <Key>Escape:		do-closeparent()",
     "*load_dialog.filter.accelerators: #override\\n\
         Ctrl<KeyPress>`: toggle() notify()",
+    "*load_dialog*files.translations: #override\\n\
+        <Btn1Down>, <Btn1Up>:	Set() Notify()\\n\
+        <Btn1Up>(2+):		Set() notify-doubleclick()",
     "*dialog_sfile*load_dialog.add.Sensitive: False",
     "*" LISTDIALOGBASENAME "*load_dialog.add.Sensitive: False",
     "*trace.translations: #override\\n\
@@ -4278,7 +4301,6 @@ a_init_interface(int pipe_in) {
         <Key>KP_Enter:	do-record()\\n\
         <Key>Return:	do-record()\\n\
         <Key>BackSpace:	delete-previous-character()\\n\
-        Shift<Key>:	no-op()\\n\
         ~Ctrl<Key>0:	insert-char()\\n\
         ~Ctrl<Key>KP_0:	insert-char()\\n\
         ~Ctrl<Key>1:	insert-char()\\n\
@@ -4307,6 +4329,8 @@ a_init_interface(int pipe_in) {
         :<Key>KP_Right:	forward-character()\\n\
         <Key>Left:	backward-character()\\n\
         :<Key>KP_Left:	backward-character()\\n\
+        Ctrl<Key>:	no-op()\\n\
+        Shift<Key>:	no-op()\\n\
         Hyper<Key>:	no-op()\\n\
         Super<Key>:	no-op()\\n\
         None<Key>:	no-op()\\n\
@@ -4612,7 +4636,7 @@ simulateArrowsCB(Widget w, XtPointer client_data, XtPointer call_data) {
   if (thumb.f < 0) thumb.f = 0;
   else if (thumb.f > 1) thumb.f = 1;
   setThumb(w, thumb);
-  XtCallActionProc(w, (String)"NotifyThumb", e, NULL, ZERO);
+  XtCallActionProc(w, "NotifyThumb", e, NULL, ZERO);
   e->xmotion.same_screen = 0;
 }
 
@@ -4627,7 +4651,7 @@ StartScrollACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   else call_data = e->xbutton.y;
   if (!strcasecmp("Continuous", *v)) {
     XtAddCallback(w, XtNscrollProc,simulateArrowsCB, (XtPointer)e);
-    XtCallActionProc(w, (String)"NotifyScroll", e, NULL, ZERO);
+    XtCallActionProc(w, "NotifyScroll", e, NULL, ZERO);
     XtRemoveCallback(w, XtNscrollProc,simulateArrowsCB, (XtPointer)e);
     return;
   } else if (!strcasecmp("Backward", *v)) {
@@ -4754,7 +4778,7 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
     <Btn1Down>,<Btn1Up>:   set() notify()";
   XtTranslations ToggleTrans;
 
-  if (out == NULL) return None;
+  if (out == NULL) return fromVert;
   list = out->output_list;
   pw = (Widget *)safe_malloc(sizeof(Widget) * 3 * i);
   out->toggleGroup = pw;
@@ -4825,7 +4849,7 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
                                               XtNjustify,XtJustifyLeft,
                                               XtNborderWidth,0, NULL);
   }
-  XtCallActionProc(fbox_toggle[out->def], (String)"set", NULL, NULL, ZERO);
+  XtCallActionProc(fbox_toggle[out->def], "set", NULL, NULL, ZERO);
 
   XtAddCallback(popup, XtNdestroyCallback,freevarCB,
                 (XtPointer)out);

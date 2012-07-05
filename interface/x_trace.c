@@ -645,7 +645,8 @@ static void drawFoot(Boolean PitchChanged) {
 
  /*
   * In the Xft path we draw to a pixmap, and then copy that to screen.
-  * Reason is that otherwise we may see "flashing" since Xft is too slow.
+  * Reason is to avoid "flashing" in the footer, as it tends to change often
+  * (number of voices playing fluctuates) and Xft may be too slow otherwise.
   */
   XFillRectangle(disp, Panel->xft_trace_foot_pixmap, gcs, 0, 0,
                  trace_width, TRACE_FOOT-2);
@@ -668,7 +669,11 @@ static void drawVoices(void) {
   l = snprintf(s, sizeof(s), "Voices %3d/%d ",
                Panel->last_voice, Panel->xaw_i_voices);
   if ((l >= sizeof(s)) || (l < 0)) l = sizeof(s) - 1;
+#ifdef X_HAVE_UTF8_STRING
+  XftTextExtentsUtf8(disp, ttitle_font, (FcChar8 *)s, l, &extents);
+#else
   XftTextExtents8(disp, ttitle_font, (FcChar8 *)s, l, &extents);
+#endif
   if (Panel->voices_width < extents.width) {
     drawFoot(False);
   } else {
