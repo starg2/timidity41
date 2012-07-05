@@ -1,3 +1,69 @@
+2012-06-28  TAMUKI Shoichi <tamuki@linet.gr.jp>
+
+	* configure.in: Change version to 2.14.0
+
+2012-06-28  Yair K. <cesium2@gmail.com>
+
+	* interface/xaw_i.c: Under some rare circumstances (a file
+	  with a specifically crafted name and timidity executed from
+	  the same directory), a missing NULL check in setDirACT can
+	  lead to a crash. Add the check. While at it, add another
+	  NULL check just in case.
+
+2012-06-26  TAMUKI Shoichi <tamuki@linet.gr.jp>
+
+	* NEWS: Add new entry for 2.14.0
+
+2012-06-25  Yair K. <cesium2@gmail.com>
+
+	* timidity/timidity.c: Make timidity continue the dynamic
+	  interface loading loop if dl_load_file fails. Earlier, it
+	  simply returned NULL in that case, which meant that if an
+	  dlopen failed at an dynamic interface loaded before arriving
+	  at the desired interface (say, because of missing
+	  dependencies or bad symlink) one couldn't load said desired
+	  (dynamically-linked) interface at all.
+	* interface/TiMidity-uj.ad, interface/TiMidity.ad,
+	  interface/x_trace.c, interface/xaw_i.c: Make a double-click
+	  open/save a file in the dialogs. It also removes some
+	  useless casts, and a no longer necessary action
+	  (do-popdown()).
+	* interface/x_trace.c: Make the trace cut off text in the
+	  instrument name column correctly in the Xft case.
+
+2012-06-12  Yair K. <cesium2@gmail.com>
+
+	* interface/xaw_i.c: xaw interface: various fixes
+	  - There was an off-by-one in the ARGB converter.
+	  - Make sure the pause button can't be set when not playing
+	  - and visa versa for the play button
+	  - leak less memory
+	* interface/TiMidity-uj.ad, interface/TiMidity.ad,
+	  interface/x_trace.c, interface/xaw_i.c, interface/xdnd.c:
+	  Various fixes
+	  - make the play button activate when autostarting a saved
+	    list and when saving a file (two chunks).
+	  - add a few consts (not needed by most compilers)
+	  - add some keysyms of the numeric keyboard to the resource
+	    files
+
+2012-06-05  Yair K. <cesium2@gmail.com>
+
+	* doc/C/README.xaw, interface/TiMidity-uj.ad,
+	  interface/TiMidity.ad, interface/xaw_i.c, interface/xdnd.c,
+	  interface/xdnd.h: xaw: Setup _NET_WM_ICON correctly
+	  Having upgraded to a new KDE version, I noticed the task
+	  switcher didn't display timidity's thumbnail. Apparently it
+	  doesn't acknowledge the WM_HINTS bitmap.
+	  So the attached diff includes a trivial converter (1bit
+	  bitmap->ARGB) to set up _NET_WM_ICON correctly. It uses the
+	  simple timidity.xbm icon (I also had a version using the
+	  color icon from pixmap/timidity.xpm but I prefer this icon -
+	  I could add that as an option).
+	  The diff also includes some #include rationalization and
+	  resource renaming ("noPlaying" had a different spelling in
+	  .ad files vs the code).
+
 2012-06-01  Takashi Iwai <tiwai@suse.de>
 
 	* interface/xskin_spectrum.c: [PATCH 1/9] Fix possible invalid
