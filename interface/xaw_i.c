@@ -2228,7 +2228,7 @@ expandDir(char *path, DirPath *full, const char *bpath) {
     }
   }
   p = canonicalize_path(tmp);
-  tail = strrchr(p, '/'); *tail++ = '\0';
+  tail = strrchr(p, '/'); if (tail) *tail++ = '\0';
   if (full != NULL) {
     full->dirname = p;
     full->basename = tail;
@@ -2249,7 +2249,7 @@ setDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
     XtCallCallbacks(load_ok, XtNcallback, (XtPointer)ld);
   else {
     p2 = strrchr(p, '/');
-    if ((*(p2+1) == '\0') && (p2 != p)) *p2 = '\0';
+    if (p2 && (*(p2+1) == '\0') && (p2 != p)) *p2 = '\0';
     if (!setDirList(ld, p) ) {
       strlcpy(basepath, p, sizeof(basepath));
       XtVaSetValues(cwd_l, XtNlabel,basepath, NULL);
