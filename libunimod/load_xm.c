@@ -137,7 +137,7 @@ static XMWAVHEADER *wh = NULL, *s = NULL;
 
 /*========== Loader code */
 
-BOOL 
+static BOOL
 XM_Test (void)
 {
   UBYTE id[38];
@@ -151,7 +151,7 @@ XM_Test (void)
   return 0;
 }
 
-BOOL 
+static BOOL
 XM_Init (void)
 {
   if (!(mh = (XMHEADER *) _mm_malloc (sizeof (XMHEADER))))
@@ -159,7 +159,7 @@ XM_Init (void)
   return 1;
 }
 
-void 
+static void
 XM_Cleanup (void)
 {
   _mm_free (mh);
@@ -468,7 +468,7 @@ LoadPatterns (BOOL dummypat)
 static BOOL 
 LoadInstruments (void)
 {
-  int t, u;
+  int t, u, ck;
   INSTRUMENT *d;
   long next = 0;
   UWORD wavcnt = 0;
@@ -487,6 +487,13 @@ LoadInstruments (void)
       headend = _mm_ftell (modreader);
       ih.size = _mm_read_I_ULONG (modreader);
       headend += ih.size;
+      ck = _mm_ftell(modreader);
+      _mm_fseek(modreader,0,SEEK_END);
+      if ((headend<0) || (_mm_ftell(modreader)<headend) || (headend<ck)) {
+	_mm_fseek(modreader,ck,SEEK_SET);
+	break;
+      }
+      _mm_fseek(modreader,ck,SEEK_SET);
       _mm_read_string (ih.name, 22, modreader);
       ih.type = _mm_read_UBYTE (modreader);
       ih.numsmp = _mm_read_I_UWORD (modreader);
@@ -522,6 +529,7 @@ LoadInstruments (void)
 
 	      /* read the remainder of the header
 	         (2 bytes for 1.03, 22 for 1.04) */
+	      if (headend>=_mm_ftell(modreader))
 	      for (u = headend - _mm_ftell (modreader); u; u--)
 		_mm_read_UBYTE (modreader);
 
@@ -649,10 +657,19 @@ LoadInstruments (void)
 	  else
 	    {
 	      /* read the remainder of the header */
+	      ck = _mm_ftell(modreader);
+	      _mm_fseek(modreader,0,SEEK_END);
+	      if ((headend<0) || (_mm_ftell(modreader)<headend) || (headend<ck)) {
+		_mm_fseek(modreader,ck,SEEK_SET);
+		break;
+	      }
+	      _mm_fseek(modreader,ck,SEEK_SET);
+
 	      for (u = headend - _mm_ftell (modreader); u; u--)
 		_mm_read_UBYTE (modreader);
 
-	      if (_mm_eof (modreader))
+	      /* last instrument is at the end of file in version 0x0104 */
+	      if(_mm_eof(modreader) && (mh->version<0x0104 || t<of.numins-1))
 		{
 		  free (nextwav);
 		  free (wh);
@@ -685,7 +702,7 @@ LoadInstruments (void)
   return 1;
 }
 
-BOOL 
+static BOOL
 XM_Load (BOOL curious)
 {
   INSTRUMENT *d;
@@ -718,7 +735,9 @@ XM_Load (BOOL curious)
       _mm_errno = MMERR_NOT_A_MODULE;
       return 0;
     }
-  _mm_read_UBYTES (mh->orders, 256, modreader);
+  t = mh->headersize - 20;
+  if (t > sizeof(mh->orders)) t = sizeof(mh->orders);
+  _mm_read_UBYTES (mh->orders, t, modreader);
 
   if (_mm_eof (modreader))
     {
@@ -861,7 +880,7 @@ XM_Load (BOOL curious)
   return 1;
 }
 
-CHAR *
+static CHAR *
 XM_LoadTitle (void)
 {
   CHAR s[21];

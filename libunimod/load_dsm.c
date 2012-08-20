@@ -83,9 +83,9 @@ DSMNOTE;
 
 /*========== Loader variables */
 
-static CHAR *SONGID = "SONG";
-static CHAR *INSTID = "INST";
-static CHAR *PATTID = "PATT";
+static const CHAR *SONGID = "SONG";
+static const CHAR *INSTID = "INST";
+static const CHAR *PATTID = "PATT";
 
 static UBYTE blockid[4];
 static ULONG blockln;
@@ -100,7 +100,7 @@ static unsigned char DSMSIG[4 + 4] =
 
 /*========== Loader code */
 
-BOOL 
+static BOOL
 DSM_Test (void)
 {
   UBYTE id[12];
@@ -113,7 +113,7 @@ DSM_Test (void)
   return 0;
 }
 
-BOOL 
+static BOOL
 DSM_Init (void)
 {
   if (!(dsmbuf = (DSMNOTE *) _mm_malloc (DSM_MAXCHAN * 64 * sizeof (DSMNOTE))))
@@ -123,7 +123,7 @@ DSM_Init (void)
   return 1;
 }
 
-void 
+static void
 DSM_Cleanup (void)
 {
   _mm_free (dsmbuf);
@@ -258,7 +258,7 @@ DSM_ConvertTrack (DSMNOTE * tr)
   return UniDup ();
 }
 
-BOOL 
+static BOOL
 DSM_Load (BOOL curious)
 {
   int t;
@@ -374,7 +374,7 @@ DSM_Load (BOOL curious)
   return 1;
 }
 
-CHAR *
+static CHAR *
 DSM_LoadTitle (void)
 {
   CHAR s[28];

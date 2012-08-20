@@ -62,7 +62,7 @@ extern "C"
 typedef char CHAR;
 #endif
 
-#if defined(__alpha)
+#if defined(__alpha) || defined(_LP64) || defined (__LP64__)
 /* 64 bit architectures */
 
 typedef signed char SBYTE;	/* 1 byte, signed */
@@ -436,6 +436,10 @@ typedef struct INSTRUMENT
 }
 INSTRUMENT;
 
+#define UF_MAXCHAN	64
+#define UF_MAXMACRO	0x10
+#define UF_MAXFILTER	0x100
+
 /* Module flags */
 #define UF_XMPERIODS 0x0001	/* XM periods / finetuning */
 #define UF_LINEAR    0x0002	/* LINEAR periods (UF_XMPERIODS must be set) */
@@ -470,8 +474,8 @@ typedef struct MODULE
   UBYTE initspeed;		/* initial song speed */
   UWORD inittempo;		/* initial song tempo */
   UBYTE initvolume;		/* initial global volume (0 - 128) */
-  UWORD panning[64];	/* 64 panning positions */
-  UBYTE chanvol[64];	/* 64 channel positions */
+  UWORD panning[UF_MAXCHAN];	/* 64 panning positions */
+  UBYTE chanvol[UF_MAXCHAN];	/* 64 channel positions */
   UWORD bpm;		/* current beats-per-minute speed */
 
   /* internal module representation */

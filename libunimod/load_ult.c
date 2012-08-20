@@ -80,7 +80,7 @@ static ULTEVENT ev;
 
 /*========== Loader code */
 
-BOOL 
+static BOOL
 ULT_Test (void)
 {
   CHAR id[16];
@@ -94,13 +94,13 @@ ULT_Test (void)
   return 1;
 }
 
-BOOL 
+static BOOL
 ULT_Init (void)
 {
   return 1;
 }
 
-void 
+static void
 ULT_Cleanup (void)
 {
 }
@@ -127,7 +127,7 @@ ReadUltEvent (ULTEVENT * event)
   return rep;
 }
 
-BOOL 
+static BOOL
 ULT_Load (BOOL curious)
 {
   int t, u, tracks = 0;
@@ -238,6 +238,10 @@ ULT_Load (BOOL curious)
     for (t = 0; t < of.numpat; t++)
       of.patterns[(t * of.numchn) + u] = tracks++;
 
+  /* SA37775, CVE-2009-3996 */
+  if (of.numchn>=UF_MAXCHAN)
+    of.numchn=UF_MAXCHAN - 1;
+
   /* read pan position table for v1.5 and higher */
   if (mh.id[14] >= '3')
     for (t = 0; t < of.numchn; t++)
@@ -327,7 +331,7 @@ ULT_Load (BOOL curious)
   return 1;
 }
 
-CHAR *
+static CHAR *
 ULT_LoadTitle (void)
 {
   CHAR s[32];

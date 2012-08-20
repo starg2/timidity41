@@ -38,7 +38,7 @@
 #include "unimod_priv.h"
 extern void *safe_realloc(void *old_ptr, size_t new_size);
 
-SBYTE  remap[64];           /* for removing empty channels */
+SBYTE  remap[UF_MAXCHAN];           /* for removing empty channels */
 UBYTE* poslookup=NULL;      /* lookup table for pattern jumps after blank
                                pattern removal */
 UBYTE  poslookupcnt;
@@ -46,17 +46,17 @@ UWORD* origpositions=NULL;
 
 BOOL   filters;             /* resonant filters in use */
 UBYTE  activemacro;         /* active midi macro number for Sxx,xx<80h */
-UBYTE  filtermacros[16];    /* midi macros settings */
-FILTER filtersettings[256]; /* computed filter settings */
+UBYTE  filtermacros[UF_MAXMACRO];    /* midi macros settings */
+FILTER filtersettings[UF_MAXFILTER]; /* computed filter settings */
 
 /* tracker identifiers */
-CHAR *STM_Signatures[STM_NTRACKERS] =
+const CHAR *STM_Signatures[STM_NTRACKERS] =
 {
   "!Scream!",
   "BMOD2STM",
   "WUZAMOD!"
 };
-CHAR *STM_Version[STM_NTRACKERS] =
+const CHAR *STM_Version[STM_NTRACKERS] =
 {
   "Screamtracker 2",
   "Converted by MOD2STM (STM format)",
@@ -68,7 +68,7 @@ CHAR *STM_Version[STM_NTRACKERS] =
 
 
 /* Triton's linear periods to frequency translation table (for XM modules) */
-static ULONG lintab[768] =
+static const ULONG lintab[768] =
 {
   535232, 534749, 534266, 533784, 533303, 532822, 532341, 531861,
   531381, 530902, 530423, 529944, 529466, 528988, 528511, 528034,
@@ -168,7 +168,7 @@ static ULONG lintab[768] =
   269555, 269312, 269069, 268826, 268583, 268341, 268099, 267857
 };
 
-static UWORD oldperiods[OCTAVE * 2] =
+static const UWORD oldperiods[OCTAVE * 2] =
 {
   1712 * 16, 1664 * 16, 1616 * 16, 1570 * 16, 1524 * 16, 1480 * 16,
   1438 * 16, 1396 * 16, 1356 * 16, 1318 * 16, 1280 * 16, 1244 * 16,
@@ -177,7 +177,7 @@ static UWORD oldperiods[OCTAVE * 2] =
 };
 
 #define LOGFAC 2*16
-static UWORD logtab[104] =
+static const UWORD logtab[104] =
 {
   LOGFAC * 907, LOGFAC * 900, LOGFAC * 894, LOGFAC * 887,
   LOGFAC * 881, LOGFAC * 875, LOGFAC * 868, LOGFAC * 862,

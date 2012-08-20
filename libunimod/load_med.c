@@ -165,7 +165,7 @@ static CHAR MED_Version[] = "OctaMED (MMDx)";
 
 /*========== Loader code */
 
-BOOL 
+static BOOL
 MED_Test (void)
 {
   UBYTE id[4];
@@ -177,7 +177,7 @@ MED_Test (void)
   return 0;
 }
 
-BOOL 
+static BOOL
 MED_Init (void)
 {
   if (!(me = (MEDEXP *) _mm_malloc (sizeof (MEDEXP))))
@@ -189,7 +189,7 @@ MED_Init (void)
   return 1;
 }
 
-void 
+static void
 MED_Cleanup (void)
 {
   _mm_free (me);
@@ -454,7 +454,7 @@ LoadMMD1Patterns (void)
   return 1;
 }
 
-BOOL 
+static BOOL
 MED_Load (BOOL curious)
 {
   int t;

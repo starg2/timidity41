@@ -115,7 +115,7 @@ extern URL modreader;
 extern UWORD finetune[16];
 extern MODULE of;		/* static unimod loading space */
 
-extern SBYTE remap[64];	/* for removing empty channels */
+extern SBYTE remap[UF_MAXCHAN];	/* for removing empty channels */
 extern UBYTE *poslookup;	/* lookup table for pattern jumps after
 				 blank pattern removal */
 extern UBYTE poslookupcnt;
@@ -123,15 +123,15 @@ extern UWORD *origpositions;
 
 extern BOOL filters;		/* resonant filters in use */
 extern UBYTE activemacro;	/* active midi macro number for Sxx */
-extern UBYTE filtermacros[16];	/* midi macros settings */
-extern FILTER filtersettings[256];	/* computed filter settings */
+extern UBYTE filtermacros[UF_MAXMACRO];	/* midi macros settings */
+extern FILTER filtersettings[UF_MAXFILTER];	/* computed filter settings */
 
 extern int *noteindex;
 
 /* tracker identifiers */
 #define STM_NTRACKERS 3
-extern CHAR *STM_Signatures[];
-extern CHAR *STM_Version[];
+extern const CHAR *STM_Signatures[];
+extern const CHAR *STM_Version[];
 
 
 /*========== Internal loader interface */

@@ -294,7 +294,7 @@ STX_Load (BOOL curious)
   int t, u, track = 0;
   int version = 0;
   SAMPLE *q;
-  char *tracker;
+  const char *tracker;
 
   /* try to read module header */
   _mm_read_string (mh->songname, 20, modreader);

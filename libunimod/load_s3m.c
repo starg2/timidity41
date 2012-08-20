@@ -97,7 +97,7 @@ static UWORD *paraptr = NULL;	/* parapointer array (see S3M docs) */
 
 /* tracker identifiers */
 #define NUMTRACKERS 4
-static CHAR *S3M_Version[] =
+static const CHAR *S3M_Version[] =
 {
   "Screamtracker x.xx",
   "Imago Orpheus x.xx (S3M format)",
@@ -112,7 +112,7 @@ static int numeric[NUMTRACKERS] =
 
 /*========== Loader code */
 
-BOOL 
+static BOOL
 S3M_Test (void)
 {
   UBYTE id[4];
@@ -125,7 +125,7 @@ S3M_Test (void)
   return 0;
 }
 
-BOOL 
+static BOOL
 S3M_Init (void)
 {
   if (!(s3mbuf = (S3MNOTE *) _mm_malloc (32 * 64 * sizeof (S3MNOTE))))
@@ -139,7 +139,7 @@ S3M_Init (void)
   return 1;
 }
 
-void 
+static void
 S3M_Cleanup (void)
 {
   _mm_free (s3mbuf);
@@ -281,7 +281,7 @@ S3M_ConvertTrack (S3MNOTE * tr)
   return UniDup ();
 }
 
-BOOL 
+static BOOL
 S3M_Load (BOOL curious)
 {
   int t, u, track = 0;
@@ -396,6 +396,10 @@ S3M_Load (BOOL curious)
       _mm_read_string (s.sampname, 28, modreader);
       _mm_read_string (s.scrs, 4, modreader);
 
+      /* ScreamTracker imposes a 64000 bytes (not 64k !) limit */
+      if (s.length > 64000)
+        s.length = 64000;
+
       if (_mm_eof (modreader))
 	{
 	  _mm_errno = MMERR_LOADING_SAMPLEINFO;
@@ -496,7 +500,7 @@ S3M_Load (BOOL curious)
   return 1;
 }
 
-CHAR *
+static CHAR *
 S3M_LoadTitle (void)
 {
   CHAR s[28];

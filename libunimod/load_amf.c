@@ -82,7 +82,7 @@ static AMFNOTE *track = NULL;
 
 /*========== Loader code */
 
-BOOL 
+static BOOL
 AMF_Test (void)
 {
   UBYTE id[3], ver;
@@ -98,7 +98,7 @@ AMF_Test (void)
   return 0;
 }
 
-BOOL 
+static BOOL
 AMF_Init (void)
 {
   if (!(mh = (AMFHEADER *) _mm_malloc (sizeof (AMFHEADER))))
@@ -109,7 +109,7 @@ AMF_Init (void)
   return 1;
 }
 
-void 
+static void
 AMF_Cleanup (void)
 {
   _mm_free (mh);
@@ -362,7 +362,7 @@ AMF_ConvertTrack (void)
   return UniDup ();
 }
 
-BOOL 
+static BOOL
 AMF_Load (BOOL curious)
 {
   int t, u, realtrackcnt, realsmpcnt;
@@ -584,7 +584,7 @@ AMF_Load (BOOL curious)
   return 1;
 }
 
-CHAR *
+static CHAR *
 AMF_LoadTitle (void)
 {
   CHAR s[32];

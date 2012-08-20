@@ -30,6 +30,7 @@
 #include "config.h"
 #endif
 
+#include <ctype.h>
 #include <string.h>
 
 #include "unimod_priv.h"
@@ -344,6 +345,14 @@ MOD_Load (BOOL curious)
     }
 
   mh->songlength = _mm_read_UBYTE (modreader);
+
+  /* this fixes mods which declare more than 128 positions. 
+   * eg: beatwave.mod */
+  if (mh->songlength > 128)
+    {
+      mh->songlength = 128;
+    }
+
   mh->magic1 = _mm_read_UBYTE (modreader);
   _mm_read_UBYTES (mh->positions, 128, modreader);
   _mm_read_UBYTES (mh->magic2, 4, modreader);

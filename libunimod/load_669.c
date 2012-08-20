@@ -75,7 +75,7 @@ static S69NOTE *s69pat = NULL;
 static S69HEADER *mh = NULL;
 
 /* file type identification */
-static CHAR *S69_Version[] =
+static const CHAR *S69_Version[] =
 {
   "Composer 669",
   "Extended 669"
@@ -83,7 +83,7 @@ static CHAR *S69_Version[] =
 
 /*========== Loader code */
 
-BOOL 
+static BOOL
 S69_Test (void)
 {
   UBYTE buf[0x80];
@@ -129,7 +129,7 @@ S69_Test (void)
   return 1;
 }
 
-BOOL 
+static BOOL
 S69_Init (void)
 {
   if (!(s69pat = (S69NOTE *) _mm_malloc (64 * 8 * sizeof (S69NOTE))))
@@ -140,7 +140,7 @@ S69_Init (void)
   return 1;
 }
 
-void 
+static void
 S69_Cleanup (void)
 {
   _mm_free (s69pat);
@@ -270,7 +270,7 @@ S69_LoadPatterns (void)
   return 1;
 }
 
-BOOL 
+static BOOL 
 S69_Load (BOOL curious)
 {
   int i;
@@ -385,7 +385,7 @@ S69_Load (BOOL curious)
   return 1;
 }
 
-CHAR *
+static CHAR *
 S69_LoadTitle (void)
 {
   CHAR s[36];
