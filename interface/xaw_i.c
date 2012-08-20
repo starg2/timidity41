@@ -127,11 +127,6 @@
 #define ran() (int) (51.0 * (rand() / (RAND_MAX + 1.0))) - 25;
 
 typedef struct {
-  char *dirname;
-  char *basename;
-} DirPath;
-
-typedef struct {
   String *StringArray;
   unsigned int number;
 } StringList;
@@ -496,7 +491,7 @@ static void deleteTextACT(Widget, XEvent *, String *, Cardinal *);
 static void destroyWidgetCB(Widget, XtPointer, XtPointer);
 static void downACT(Widget, XEvent *, String *, Cardinal *);
 static void exchgWidthACT(Widget, XEvent *, String *, Cardinal *);
-static char *expandDir(char *, DirPath *, const char *);
+static char *expandDir(char *, const char *);
 static void fdelallCB(Widget, XtPointer, XtPointer);
 static void fdeleteCB(Widget, XtPointer, XtPointer);
 #ifdef OFFIX
@@ -1401,7 +1396,7 @@ popdownLoadfile(Widget w, XtPointer client_data, XtPointer call_data) {
 
   p = XawDialogGetValueString(load_d);
   if ((!strncmp(p, "http:", 5)) || (!strncmp(p, "ftp:", 4))) goto lfiledown;
-  if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
+  if ((p2 = expandDir(p, basepath)) != NULL) p = p2;
   if (!IsEffectiveFile(p)) {
     char *s = strrchr(p, '/');
 
@@ -1436,7 +1431,7 @@ popdownSavefile(Widget w, XtPointer client_data, XtPointer call_data) {
   ldPointer ld = (ldPointer)client_data;
 
   p = XawDialogGetValueString(XtParent(w));
-  if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
+  if ((p2 = expandDir(p, basepath)) != NULL) p = p2;
   strlcpy(lbuf, p, sizeof(lbuf));
   if (stat(lbuf, &st) != -1) {
     if (st.st_mode & S_IFMT & (S_IFREG|S_IFLNK)) {
@@ -1455,7 +1450,7 @@ popdownLoadPL(Widget w, XtPointer client_data, XtPointer call_data) {
   ldPointer ld = (ldPointer)client_data;
 
   p = XawDialogGetValueString(load_d);
-  if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
+  if ((p2 = expandDir(p, basepath)) != NULL) p = p2;
   if ( (IsEffectiveFile(p)) && (!readPlaylist(p)) ) {
 #ifdef CLEARVALUE
     clearValue(load_d);
@@ -1488,7 +1483,7 @@ popdownSavePL(Widget w, XtPointer client_data, XtPointer call_data) {
   ldPointer ld = (ldPointer)client_data;
 
   p = XawDialogGetValueString(XtParent(w));
-  if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
+  if ((p2 = expandDir(p, basepath)) != NULL) p = p2;
   if (stat(p, &st) != -1) {
     if (st.st_mode & S_IFMT & (S_IFREG|S_IFLNK)) {
       if (confirmCB(popup_load, "warnoverwrite", True) != OK) return;
@@ -2022,6 +2017,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
          XawListHighlight(file_list, lr->list_index);
       else
         if (max_files > 0) XawListHighlight(file_list, 0);
+      XtFree((char *)lr);
     }
     break;
   case M_SET_MODE:
@@ -2170,7 +2166,7 @@ canonicalize_path(char *path)
 }
 
 static char *
-expandDir(char *path, DirPath *full, const char *bpath) {
+expandDir(char *path, const char *bpath) {
   static char newfull[PATH_MAX];
   char tmp[PATH_MAX];
   char *p, *tail;
@@ -2179,10 +2175,6 @@ expandDir(char *path, DirPath *full, const char *bpath) {
   if (path == NULL) {
     strcpy(tmp, "/");
     strcpy(newfull, "/");
-    if (full != NULL) {
-      full->basename = NULL;
-      full->dirname = newfull;
-    }
     return newfull;
   } else 
     if ((*p != '~') && ((tail = strrchr(path, '/')) == NULL) 
@@ -2190,11 +2182,9 @@ expandDir(char *path, DirPath *full, const char *bpath) {
   {
     p = tmp;
     strlcpy(p, bpath, PATH_MAX);
-    if (full != NULL) full->dirname = p;
     while (*p++ != '\0') ;
     strlcpy(p, path, PATH_MAX - (p - tmp));
     snprintf(newfull, sizeof(newfull), "%s/%s", bpath, path);
-    if (full != NULL) full->basename = p;
     return newfull;
   }
   if (*p  == '/') {
@@ -2229,10 +2219,6 @@ expandDir(char *path, DirPath *full, const char *bpath) {
   }
   p = canonicalize_path(tmp);
   tail = strrchr(p, '/'); if (tail) *tail++ = '\0';
-  if (full != NULL) {
-    full->dirname = p;
-    full->basename = tail;
-  }
   snprintf(newfull, sizeof(newfull), "%s/%s", p, tail);
   return newfull;
 }
@@ -2244,7 +2230,7 @@ setDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   struct stat st;
 
   p = XawDialogGetValueString(load_d);
-  if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
+  if ((p2 = expandDir(p, basepath)) != NULL) p = p2;
   if ((stat(p, &st) == -1) || (!S_ISDIR(st.st_mode)))
     XtCallCallbacks(load_ok, XtNcallback, (XtPointer)ld);
   else {
@@ -2524,35 +2510,48 @@ redrawCaptionACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 completeDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  char *p;
-  DirPath full;
+  char *p, *p2, * basename, * dirname, * slash;
   Widget load_dialog_widget = XtParent(w);  /* XtParent = ld->ld_load_d */
 
   p = XawDialogGetValueString(load_dialog_widget);
-  if (!expandDir(p, &full, basepath)) { /* uses global ld */
+  if (!expandDir(p, basepath)) { /* uses global ld */
     ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "something wrong with getting path.");
     return;
   }
-  if (full.basename != NULL) {
+
+  p2 = strdup (p);
+  slash = strrchr (p2, '/');
+  if (slash) {
+    basename = slash;
+    while ((slash != p2) && (*slash-- != '/'));
+    *slash = '\0';
+    dirname = p2;
+  }
+  if (basename != NULL) {
     int lenb, lend, match = 0;
     char filename[PATH_MAX], matchstr[PATH_MAX], *path = "/";
     char *fullpath;
     URL dirp;
 
-    lenb = strlen(full.basename);
-    lend = strlen(full.dirname);
-    if (lend != 0) path = full.dirname;
+    lenb = slash - dirname;
+    lend = strlen (basename);
+    if (!lend) {
+      path = ".";
+      lend = 1;
+    }
+    else path = dirname;
+
     if ((dirp = url_dir_open(path)) != NULL) {
       MBlockList pool;
       struct stat st;
       init_mblock(&pool);
 
       while (url_gets(dirp, filename, sizeof(filename)) != NULL) {
-        if (!strncmp(full.basename, filename, lenb)) {
+        if (!strncmp(basename, filename, lenb)) {
 
           fullpath = (char *)new_segment(&pool,
                             lend + strlen(filename) + 2);
-          sprintf(fullpath, "%s/%s", full.dirname, filename);
+          sprintf(fullpath, "%s/%s", dirname, filename);
 
           if (stat(fullpath, &st) == -1)
             continue;
@@ -2561,7 +2560,7 @@ completeDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
           else
             strmatch(matchstr, filename);
           match++;
-          if (S_ISDIR(st.st_mode) && (!strcmp(filename, full.basename))) {
+          if (S_ISDIR(st.st_mode) && (!strcmp(filename, basename))) {
             lenb = strlcpy(matchstr, filename, PATH_MAX);
             if (lenb >= PATH_MAX) lenb = PATH_MAX - 1;
             strncat(matchstr, "/", PATH_MAX - 1 - lenb);
@@ -2577,7 +2576,7 @@ completeDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 #ifdef CLEARVALUE
         clearValue(XtParent(w));
 #endif /* CLEARVALUE */
-        snprintf(filename, sizeof(filename), "%s/%s", full.dirname, matchstr);
+        snprintf(filename, sizeof(filename), "%s/%s", dirname, matchstr);
         XtVaSetValues(load_dialog_widget, XtNvalue,filename, NULL); 
       }
     }
@@ -2693,7 +2692,7 @@ a_readconfig (Config *Cfg, char ***dotfile_flist) {
           Cfg->save_config = (Boolean)k; break;
         case S_DefaultDirectory:
           p = s+k;
-          pp = expandDir(p, NULL, "/");
+          pp = expandDir(p, "/");
           if ((stat(pp, &st) == -1) || (!(S_ISDIR(st.st_mode)))) {
             fprintf(stderr, "Default directory %s doesn't exist!\n", p);
             Cfg->DefaultDir = NULL;
@@ -2871,57 +2870,57 @@ closeParentACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 flistMoveACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  int i = atoi(*v);
+  Dimension listheight, vportheight;
+  Widget file_vport = XtParent(file_list);
+  int perpage, i = atoi(*v);
   XawListReturnStruct *lr;
 
   if (max_files == 0) return;
+  if (!XtIsRealized(popup_file)) return;
   lr = XawListShowCurrent(file_list);
-  if (XtIsRealized(popup_file)) {
-    if ((lr != NULL) && (lr->list_index != XAW_LIST_NONE)) {
-      Dimension listheight, vportheight;
-      Widget file_vport = XtParent(file_list);
-      int perpage;
-
-      XtVaGetValues(file_list, XtNheight,&listheight, NULL);
-      XtVaGetValues(file_vport, XtNheight,&vportheight, NULL);
-      perpage = ceil((max_files * vportheight) / listheight - 0.5);
-      if (*(int *)n == 1) {
-        i += lr->list_index;
-      } else if (*(int *)n == 2) {
-        i = lr->list_index + i*perpage;
-      } else {
-        if (i > 0) i = max_files-1;
-        else i = 0;
-      }
-      if (i < 0) i = 0;
-      else if (i >= max_files) i = max_files-1;
-      if (listheight > vportheight) {
-        Widget scrollbar; barfloat thumb; int covered;
-
-        scrollbar = XtNameToWidget(file_vport, "vertical");
-        if (scrollbar == NULL) return;
-        XtVaGetValues(scrollbar, XtNtopOfThumb,&thumb.f, NULL);
-        covered = thumb.f*max_files;
-
-        if ( ((i - 1) < covered) || ((i + 1) > (covered + perpage)) ) {
-          String arg[1];
-
-          if (((i - 1) < covered) && (i <= perpage/2)) thumb.f = 0;
-          else thumb.f = (float)(i - perpage/2) / (float)max_files;
-          arg[0] = XtNewString("Continuous");
-          XtCallActionProc(scrollbar, "StartScroll", e, arg, ONE);
-          XtFree(arg[0]);
-          setThumb(scrollbar, thumb);
-          XtCallActionProc(scrollbar, "NotifyThumb", e, NULL, ZERO);
-          XtCallActionProc(scrollbar, "EndScroll", e, NULL, ZERO);
-        }
-      }
-      XawListHighlight(file_list, i);
-    } else {
+  if ((lr == NULL) || (lr->list_index == XAW_LIST_NONE)) {
+      if (lr) XtFree((char *)lr);
 /* should never be reached */
       XawListHighlight(file_list, (i<0)?max_files-1:0);
+      return;
+  }
+ 
+  XtVaGetValues(file_list, XtNheight,&listheight, NULL);
+  XtVaGetValues(file_vport, XtNheight,&vportheight, NULL);
+  perpage = ceil((max_files * vportheight) / listheight - 0.5);
+  if (*(int *)n == 1) {
+    i += lr->list_index;
+  } else if (*(int *)n == 2) {
+    i = lr->list_index + i*perpage;
+  } else {
+    if (i > 0) i = max_files-1;
+    else i = 0;
+  }
+  if (i < 0) i = 0;
+  else if (i >= max_files) i = max_files-1;
+  if (listheight > vportheight) {
+    Widget scrollbar; barfloat thumb; int covered;
+
+    scrollbar = XtNameToWidget(file_vport, "vertical");
+    if (scrollbar == NULL) return;
+    XtVaGetValues(scrollbar, XtNtopOfThumb,&thumb.f, NULL);
+    covered = thumb.f*max_files;
+
+    if ( ((i - 1) < covered) || ((i + 1) > (covered + perpage)) ) {
+       String arg[1];
+
+      if (((i - 1) < covered) && (i <= perpage/2)) thumb.f = 0;
+      else thumb.f = (float)(i - perpage/2) / (float)max_files;
+      arg[0] = XtNewString("Continuous");
+      XtCallActionProc(scrollbar, "StartScroll", e, arg, ONE);
+      XtFree(arg[0]);
+      setThumb(scrollbar, thumb);
+      XtCallActionProc(scrollbar, "NotifyThumb", e, NULL, ZERO);
+      XtCallActionProc(scrollbar, "EndScroll", e, NULL, ZERO);
     }
   }
+  XtFree((char *)lr);
+  XawListHighlight(file_list, i);
 }
 
 static void
@@ -3159,6 +3158,7 @@ fselectCB(Widget w, XtPointer client_data, XtPointer call_data) {
     onPlayOffPause();
     a_pipe_write("%c%d", S_PLAY_FILE, lr->list_index + 1);
   }
+  if (lr) XtFree((char *)lr);
 }
 
 static void
@@ -3167,10 +3167,10 @@ fdeleteCB(Widget w, XtPointer client_data, XtPointer call_data) {
   int n; long i;
   const char *p;
 
-  if ((lr == NULL) || (lr->list_index == XAW_LIST_NONE)) return;
+  if ((lr == NULL) || (lr->list_index == XAW_LIST_NONE)) goto fdelend;
   if (max_files == 1) {
     fdelallCB(w, NULL, NULL);
-    return;
+    goto fdelend;
   }
   n = lr->list_index;
   if (n+1 < current_n_displayed) current_n_displayed--;
@@ -3219,6 +3219,8 @@ fdeleteCB(Widget w, XtPointer client_data, XtPointer call_data) {
                                 XtNbackingStore,NotUseful, NULL);
   for(i=0; i<max_files; i++)
     addOneFile(max_files, i, flist[i]);
+fdelend:
+  if (lr) XtFree((char *)lr);
 }
 
 static void

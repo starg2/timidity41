@@ -1,8 +1,5 @@
 BUG:
 
-- About the Xaw interface troubles with the file-selector.
-  YMMV since I know near to 0% about Xaw.
-
 - The tcl interface doesn't like filenames with white space.
   (but doesn't mind if it happens in the config file ?).
 
