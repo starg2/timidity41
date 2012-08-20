@@ -87,7 +87,7 @@ proc InitGlobal {} {
     wm title . "TkMidity"
     wm iconname . "TkMidity"
     global bitmap_path
-    wm iconbitmap . @$bitmap_path/timidity.xbm
+    wm iconbitmap . "timidity"
 }
 
 
@@ -825,22 +825,14 @@ proc CreateWindow {} {
     global bitmap_path
     frame .body.button -relief raised -bd 1
     pack .body.button -side top -expand 1 -fill x
-    button .body.button.play -bitmap @$bitmap_path/play.xbm\
-	    -command "PlayCmd"
-    button .body.button.stop -bitmap @$bitmap_path/stop.xbm\
-	    -command "StopCmd"
-    button .body.button.prev -bitmap @$bitmap_path/prev.xbm\
-	    -command "PrevCmd"
-    button .body.button.back -bitmap @$bitmap_path/back.xbm\
-	    -command "BackwardCmd"
-    button .body.button.fwrd -bitmap @$bitmap_path/fwrd.xbm\
-	    -command "ForwardCmd"
-    button .body.button.next -bitmap @$bitmap_path/next.xbm\
-	    -command "NextCmd"
-    button .body.button.pause -bitmap @$bitmap_path/pause.xbm\
-	    -command "PauseCmd"
-    button .body.button.quit -bitmap @$bitmap_path/quit.xbm\
-	    -command "QuitCmd"
+    button .body.button.play -bitmap "play" -command "PlayCmd"
+    button .body.button.stop -bitmap "stop" -command "StopCmd"
+    button .body.button.prev -bitmap "prev" -command "PrevCmd"
+    button .body.button.back -bitmap "back" -command "BackwardCmd"
+    button .body.button.fwrd -bitmap "fwrd" -command "ForwardCmd"
+    button .body.button.next -bitmap "next" -command "NextCmd"
+    button .body.button.pause -bitmap "pause" -command "PauseCmd"
+    button .body.button.quit -bitmap "quit" -command "QuitCmd"
     pack .body.button.play .body.button.pause\
 	    .body.button.prev .body.button.back\
 	    .body.button.stop\

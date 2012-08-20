@@ -275,7 +275,7 @@ if ENABLE_DYNAMIC_XAW
 install_xaw = install.xaw
 endif
 
-install.tk: $(ALLTCLF) install.bitmaps
+install.tk: $(ALLTCLF)
 	test -d $(DESTDIR)$(TCL_DIR) || mkdir -p $(DESTDIR)$(TCL_DIR)
 	for f in $(ALLTCLF) ''; do case ".$$f" in .);; *) $(INSTALL_DATA) $$f $(DESTDIR)$(TCL_DIR);; esac; done
 

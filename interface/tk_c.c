@@ -46,8 +46,6 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-#include <tcl.h>
-#include <tk.h>
 #include <sys/wait.h>
 
 #include "timidity.h"
@@ -59,6 +57,9 @@
 #include "controls.h"
 #include "miditrace.h"
 #include "aq.h"
+
+#include <tcl.h>
+#include <tk.h>
 
 #ifndef TKPROGPATH
 #define TKPROGPATH PKGLIBDIR "/tkmidity.tcl"
@@ -871,6 +872,21 @@ static Tcl_Interp *my_interp;
 
 static int AppInit(Tcl_Interp *interp)
 {
+#include "bitmaps/back.xbm"
+#include "bitmaps/fwrd.xbm"
+#include "bitmaps/next.xbm"
+#include "bitmaps/pause.xbm"
+#include "bitmaps/play.xbm"
+#include "bitmaps/prev.xbm"
+#include "bitmaps/quit.xbm"
+#include "bitmaps/stop.xbm"
+#include "bitmaps/timidity.xbm"
+
+#define DefineBitmap(Bitmap) do { \
+	Tk_DefineBitmap (interp, Tk_GetUid(#Bitmap), Bitmap##_bits, \
+			 Bitmap##_width, Bitmap##_height); \
+	} while(0)
+
 	my_interp = interp;
 
 	if (Tcl_Init(interp) == TCL_ERROR) {
@@ -890,7 +906,19 @@ static int AppInit(Tcl_Interp *interp)
 			  (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 	Tcl_CreateCommand(interp, "TraceUpdate", (Tcl_CmdProc*) TraceUpdate,
 			  (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
+
+	DefineBitmap(back);
+	DefineBitmap(fwrd);
+	DefineBitmap(next);
+	DefineBitmap(pause);
+	DefineBitmap(play);
+	DefineBitmap(prev);
+	DefineBitmap(quit);
+	DefineBitmap(stop);
+	DefineBitmap(timidity);
+
 	return TCL_OK;
+#undef DefineBitmap
 }
 
 /*ARGSUSED*/
