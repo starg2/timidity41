@@ -21,6 +21,13 @@
     Define some macros
     */
 
+/*
+ * TiMidity server interface uses on OSSv3's midi sequencer definitions,
+ * so this file does not have to be the one included to define the
+ * interface's macros - 
+ * sys/soundcard.h or (on netBSD/openBSD) sys/midiio.h should do.
+ */
+
 #ifndef ___REMOTE_DEFS_H_
 #define ___REMOTE_DEFS_H_
 

@@ -58,11 +58,7 @@
 #endif
 #include <signal.h>
 
-#ifdef HAVE_SYS_SOUNDCARD_H
-#include <sys/soundcard.h>
-#else
 #include "server_defs.h"
-#endif /* HAVE_SYS_SOUNDCARD_H */
 
 #include "timidity.h"
 #include "common.h"

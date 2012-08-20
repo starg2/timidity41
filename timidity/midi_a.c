@@ -49,14 +49,7 @@
 #endif
 #include <fcntl.h>
 #include <stdlib.h>
-#ifdef HAVE_SYS_SOUNDCARD_H
-#include <sys/soundcard.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/midiio.h>
-#endif
-#else
 #include "server_defs.h"
-#endif /* HAVE_SYS_SOUNDCARD_H */
 #ifdef WIN32
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
