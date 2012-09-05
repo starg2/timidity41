@@ -35,6 +35,7 @@ SUBDIRS = \
 EXTRA_DIST = \
 	ChangeLog.1 \
 	ChangeLog.2 \
+	ChangeLog.3 \
 	INSTALL.ja \
 	README.ja \
 	autogen.sh
