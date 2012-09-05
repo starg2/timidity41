@@ -240,8 +240,7 @@ EXTRA_DIST = \
 	tkpanel.tcl \
 	browser.tcl \
 	misc.tcl \
-	timidity.pel \
-	tclIndex
+	timidity.pel
 
 .ptcl.tcl:
 	sed -e 's@%TCL_DIR%@$(TCL_DIR)@g' $< > $@
@@ -249,6 +248,8 @@ EXTRA_DIST = \
 	sed -e 's@%BIN_DIR%@$(bindir)@g' $< > $@
 clean:
 	rm -f tkmidity.tcl
+	rm -f tclIndex
+	rm -f timidity.el
 	rm -f *.$(OBJEXT)
 	rm -f *.$(so)
 	rm -f *.res
@@ -259,7 +260,7 @@ clean:
 
 tclIndex: $(TCLSRCS)
 	rm -f tclIndex
-	echo 'auto_mkindex . *.tcl; exit' | $(WISH)
+	echo 'auto_mkindex $(srcdir) *.tcl; exit' | $(TCLSH)
 
 if ENABLE_TCLTK
 install_tk = install.tk

@@ -36,7 +36,7 @@ dnl		- add to -L LDFLAGS
 dnl C_INCLUDE_PATH
 dnl		- add to -I CPPFLAGS
 dnl MSYS	- `yes' if cygnus or Mingw windows environment.
-dnl WISH	- wish
+dnl TCLSH	- tclsh
 dnl LN_S	- ln -s
 dnl tcltk_dep	- make dependencies for tcl/tk interface
 dnl
@@ -59,7 +59,7 @@ AC_CONFIG_HEADERS([config.h interface.h])
 AM_MAINTAINER_MODE
 
 SHELL=${CONFIG_SHELL-"/bin/sh"}
-WISH=${WISH-"wish"}
+TCLSH=${TCLSH-"tclsh"}
 
 dnl to use contains() macro (see autoconf/acinclude.m4)
 CONTAINS_INIT
@@ -2287,7 +2287,7 @@ AC_SUBST(SHCFLAGS)
 AC_SUBST(dynamic_targets)
 AC_SUBST(so)
 AC_SUBST(LN_S)
-AC_SUBST(WISH)
+AC_SUBST(TCLSH)
 AC_SUBST(tcltk_dep)
 AC_SUBST(program_transform_name)
 AC_SUBST(INTERFACE_SRCS)
