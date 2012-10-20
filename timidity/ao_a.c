@@ -37,6 +37,7 @@
 #include "instrum.h"
 #include "playmidi.h"
 #include "miditrace.h"
+#include "common.h"
 
 static int opt_ao_device_id = -2;
 
@@ -45,6 +46,8 @@ static void close_output(void);
 static int output_data(char *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 static int detect(void);
+static void ao_set_options(int, ao_option **);
+static void safe_ao_append_option(ao_option **, const char *, const char *);
 
 /* export the playback mode */
 
@@ -64,6 +67,45 @@ PlayMode dpm = {
 };
 
 static ao_device *ao_device_ctx;
+
+static void safe_ao_append_option(ao_option **options, const char *key,
+                                  const char *value)
+{
+  if (ao_append_option(options, key, value) == 1) return;
+  else {
+    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+              "Fatal error: ao_append_option has failed to allocate memory");
+#ifdef ABORT_AT_FATAL
+    abort();
+#endif /* ABORT_AT_FATAL */
+    safe_exit(10);
+    /*NOTREACHED*/
+  }
+}
+
+static void ao_set_options(int driver_id, ao_option **options)
+{
+  char *opt_string, *p, *token, *value;
+  const char *env_ao_opts = getenv ("TIMIDITY_AO_OPTIONS");
+
+  if (env_ao_opts == NULL) return;
+
+  opt_string = safe_strdup(env_ao_opts);
+  p = opt_string;
+
+  while (p) {
+    token = p;
+    p = strchr(token, ',');
+    if (p != NULL) *p++ = '\0';
+    value = strchr(token, '=');
+    if ((value == NULL) || (value == token)) continue;
+    *value = '\0';
+    safe_ao_append_option(options, token, value+1);
+  }
+
+  free(opt_string);
+}
+
 static ao_sample_format ao_sample_format_ctx;
 
 static void show_ao_device_info(FILE *fp)
@@ -94,19 +136,19 @@ static int open_output(void)
 
   int driver_count;
   ao_info **devices;
+  ao_option *options;
   int i;
 
   ao_initialize();
 
   opt_ao_device_id = -2;
   devices  = ao_driver_info_list(&driver_count);
-  if (driver_count > 0) {
+  if ((driver_count > 0) && (dpm.name != NULL)) {
     for(i = 0; i < driver_count; i++) {
       if(  (devices[i]->type == AO_TYPE_LIVE) 
-      && (dpm.name != NULL) && (strcmp(dpm.name, devices[i]->short_name) == 0)  ){
+        && (strcmp(dpm.name, devices[i]->short_name) == 0)  ){
         opt_ao_device_id = ao_driver_id(dpm.name);
       }
-      
     }
   }
 
@@ -115,14 +157,13 @@ static int open_output(void)
       ret = sscanf(dpm.name, "%d", &opt_ao_device_id);
     if ( dpm.name == NULL || ret == 0 || ret == EOF)
       opt_ao_device_id = -2;
-    }
-    if (opt_ao_device_id == -1){
-      ao_shutdown();
-      show_ao_device_info(stdout);
-      return -1;
-    }
+  }
 
-
+  if (opt_ao_device_id == -1){
+    ao_shutdown();
+    show_ao_device_info(stdout);
+    return -1;
+  }
 
   if (opt_ao_device_id==-2) {
     driver_id = ao_default_driver_id();
@@ -160,11 +201,15 @@ static int open_output(void)
   if (ao_sample_format_ctx.bits == 0)
     ao_sample_format_ctx.bits = 8;
 
-  if ((ao_device_ctx = ao_open_live(driver_id, &ao_sample_format_ctx, NULL /* no options */)) == NULL) {
+  ao_set_options(driver_id, &options);
+
+  if ((ao_device_ctx = ao_open_live(driver_id, &ao_sample_format_ctx, options)) == NULL) {
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 	      dpm.name, strerror(errno));
+    ao_free_options(options);
     return -1;
   }
+  ao_free_options(options);
   return 0;
 }
 
