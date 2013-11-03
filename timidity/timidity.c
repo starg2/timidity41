@@ -1658,7 +1658,7 @@ static int read_config_file(char *name, int self, int allow_missing_file)
 		if (*w[1] == '-') {
 			int optind_save = optind;
 			optind = 0;
-#if defined(__MINGW32__) || defined(__CYGWIN__)
+#if defined(__CYGWIN__)
 			optreset = 1;
 #endif
 			c = getopt_long(words, w, optcommands, longopts, &longind);
@@ -5121,7 +5121,11 @@ static void interesting_message(void)
 static RETSIGTYPE sigterm_exit(int sig)
 {
     char s[4];
+#if defined(__MINGW32__)
+    int dummy;
+#else
     ssize_t dummy;
+#endif
 
     /* NOTE: Here, fprintf is dangerous because it is not re-enterance
      * function.  It is possible coredump if the signal is called in printf's.
@@ -5357,6 +5361,7 @@ MAIN_INTERFACE int timidity_post_load_configuration(void)
 {
     int i, cmderr = 0;
 
+#ifdef IA_ALSASEQ
     /* If we're going to fork for daemon mode, we need to fork now, as
        certain output libraries (pulseaudio) become unhappy if initialized
        before forking and then being used from the child. */
@@ -5379,6 +5384,7 @@ MAIN_INTERFACE int timidity_post_load_configuration(void)
 		exit(0);
 	}
     }
+#endif
 
     if(play_mode == &null_play_mode)
     {
@@ -5836,7 +5842,7 @@ int main(int argc, char **argv)
 	opt_sf_close_each_file = 0;
 #endif 
 	optind = longind = 0;
-#if defined(__CYGWIN__) || defined(__MINGW32__)
+#if defined(__CYGWIN__)
 	optreset = 1;
 #endif
 #ifdef __W32__
@@ -5849,7 +5855,7 @@ int main(int argc, char **argv)
 			return err;
 	}
 	optind = longind = 0;
-#if defined(__CYGWIN__) || defined(__MINGW32__)
+#if defined(__CYGWIN__)
 	optreset = 1;
 #endif
 	while ((c = getopt_long(argc, argv, optcommands, longopts, &longind)) > 0)

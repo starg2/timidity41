@@ -185,6 +185,8 @@ stub_getnameinfo (const struct sockaddr *sa, socklen_t salen,
              char *host, int hostlen, char *serv, int servlen, int flags)
 #endif
 {
+    uint32_t ipv4;
+
     if (((size_t)salen < sizeof (struct sockaddr_in))
      || (sa->sa_family != AF_INET))
         return EAI_FAMILY;
@@ -206,7 +208,7 @@ stub_getnameinfo (const struct sockaddr *sa, socklen_t salen,
             }
 
             /* inet_ntoa() is not thread-safe, do not use it */
-            uint32_t ipv4 = ntohl (addr->sin_addr.s_addr);
+            ipv4 = ntohl (addr->sin_addr.s_addr);
 
             if (snprintf (host, hostlen, "%u.%u.%u.%u", ipv4 >> 24,
                           (ipv4 >> 16) & 0xff, (ipv4 >> 8) & 0xff,
