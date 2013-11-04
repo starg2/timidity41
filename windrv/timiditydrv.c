@@ -36,10 +36,10 @@ void _endthreadex( unsigned retval );
 #endif
 
 #include <windows.h>
-#include "mmddk.h"  
+#include "mmddk.h"
 #include <mmsystem.h>
-#if defined(__DMC__) || defined(__MINGW32__)
-//following codes are from wine's mmsystem.h 
+#if 0
+//following codes are from wine's mmsystem.h
 typedef struct tagMIDIOUTCAPS2A {
     WORD	wMid;
     WORD	wPid;
@@ -97,16 +97,11 @@ const GUID CLSID_tim_synth = {0x0FEC4C35,0xA705,0x41d7,{0xA3,0xBB,0xD5,0x87,0xA2
 
 #include "timiwp_timidity.h"
 
-
-LONG driverCount;
-
 static volatile int OpenCount = 0;
 static volatile int modm_closed = 1;
 
 static CRITICAL_SECTION mim_section;
 static volatile int stop_thread = 0;
-static volatile int stop_rtthread = 0;
-static HANDLE hCalcThread = NULL;
 static HANDLE hRtsynThread = NULL;
 static DWORD processPriority;
 
@@ -116,7 +111,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved ){
 	}else if(fdwReason == DLL_PROCESS_DETACH){
 		;
 	}
-	return TRUE;    
+	return TRUE;
 }
 
 STDAPI DllCanUnloadNow(void){
@@ -136,12 +131,7 @@ STDAPI DllUnregisterServer(void)
 	return S_OK;
 }
 
-
-//unsigned __stdcall threadfunc2(LPVOID lpV);
-STDAPI_(LONG) DefDriverProc(DWORD dwDriverId, HDRVR hdrvr, UINT msg, LONG lParam1, LONG lParam2);
-
-STDAPI_(LONG) DriverProc(DWORD dwDriverId, HDRVR hdrvr, UINT msg, LONG lParam1, LONG lParam2){
- 
+STDAPI_(LONG) DriverProc(DWORD_PTR dwDriverId, HDRVR hdrvr, UINT msg, LPARAM lParam1, LPARAM lParam2){
 	switch(msg) {
 	case DRV_REMOVE:
 		if (modm_closed == 0){
@@ -149,14 +139,8 @@ STDAPI_(LONG) DriverProc(DWORD dwDriverId, HDRVR hdrvr, UINT msg, LONG lParam1, 
 			
 			stop_thread = 1;    //why thread can't stop by this????
 			while( stop_thread != 0 && maxloop-- > 0) Sleep(10);
-			if(stop_thread == 0) {
-				stop_rtthread = 1;
-				while( stop_rtthread != 0 && maxloop-- > 0) Sleep(10);
-			}
-			if(stop_thread != 0) TerminateThread(hCalcThread, FALSE);
-			if(stop_rtthread != 0) TerminateThread(hRtsynThread, FALSE);
+			if(stop_thread != 0) TerminateThread(hRtsynThread, FALSE);
 			CloseHandle(hRtsynThread);
-			CloseHandle(hCalcThread);
 			SetPriorityClass(GetCurrentProcess(), processPriority);
 		}
 		DeleteCriticalSection(&mim_section);
@@ -177,9 +161,6 @@ STDAPI_(LONG) DriverProc(DWORD dwDriverId, HDRVR hdrvr, UINT msg, LONG lParam1, 
 	case DRV_QUERYCONFIGURE:
 	default:
 		return 1;
-		break;
-		return DefDriverProc(dwDriverId, hdrvr, msg, lParam1, lParam2);
-		break;
 	}
 	return DefDriverProc(dwDriverId, hdrvr, msg, lParam1, lParam2);
 }
@@ -206,8 +187,6 @@ HRESULT modGetCaps(PVOID capsPtr, DWORD capsSize) {
 		myCapsA->wChannelMask = 0xffff;
 		myCapsA->dwSupport = 0;
 		return MMSYSERR_NOERROR;
-
-		break;
 	case (sizeof(MIDIOUTCAPSW)):
 		myCapsW = (MIDIOUTCAPSW *)capsPtr;
 		myCapsW->wMid = 0xffff;
@@ -220,8 +199,6 @@ HRESULT modGetCaps(PVOID capsPtr, DWORD capsSize) {
 		myCapsW->wChannelMask = 0xffff;
 		myCapsW->dwSupport = 0;
 		return MMSYSERR_NOERROR;
-
-		break;
 	case (sizeof(MIDIOUTCAPS2A)):
 		myCaps2A = (MIDIOUTCAPS2A *)capsPtr;
 		myCaps2A->wMid = 0xffff;
@@ -237,7 +214,6 @@ HRESULT modGetCaps(PVOID capsPtr, DWORD capsSize) {
 		myCaps2A->ProductGuid = CLSID_tim_synth;
 		myCaps2A->NameGuid = CLSID_tim_synth;
 		return MMSYSERR_NOERROR;
-
 	case (sizeof(MIDIOUTCAPS2W)):
 		myCaps2W = (MIDIOUTCAPS2W *)capsPtr;
 		myCaps2W->wMid = 0xffff;
@@ -253,249 +229,104 @@ HRESULT modGetCaps(PVOID capsPtr, DWORD capsSize) {
 		myCaps2W->ProductGuid = CLSID_tim_synth;
 		myCaps2W->NameGuid = CLSID_tim_synth;
 		return MMSYSERR_NOERROR;
-		
 	default:
 		return MMSYSERR_ERROR;
-
-		break;
 	}
 
 }
 
-
-struct evbuf_t{
-	UINT uMsg;
-	double event_time;
-	DWORD	dwParam1;
-	DWORD	dwParam2;
-	int exlen;
-	char *sysexbuffer;
-};
-#define EVBUFF_SIZE 512
-static struct evbuf_t evbuf[EVBUFF_SIZE];
-static UINT  evbwpoint=0;
-static UINT  evbrpoint=0;
-static UINT evbsysexpoint;
-
-int timsyn_buf_check(void){
-	int retval;
-	EnterCriticalSection(&mim_section);
-	retval = (evbrpoint != evbwpoint) ? ~0 :  0;
-	LeaveCriticalSection(&mim_section);
-	return retval;
-}
-
-int timsyn_play_some_data(void){
-	UINT uMsg;
-	DWORD	dwParam1;
-	DWORD	dwParam2;
-	
-	UINT evbpoint;
-	MIDIHDR *IIMidiHdr;
-	int exlen;
-	char *sysexbuffer;
-	int played;
-	double event_time;
-		
-	played=0;
-		if( !timsyn_buf_check() ){ 
-			played=~0;
-			return played;
-		}
-		do{
-			EnterCriticalSection(&mim_section);
-			evbpoint=evbrpoint;
-			if (++evbrpoint >= EVBUFF_SIZE)
-					evbrpoint -= EVBUFF_SIZE;
-
-			uMsg=evbuf[evbpoint].uMsg;
-			dwParam1=evbuf[evbpoint].dwParam1;
-			dwParam2=evbuf[evbpoint].dwParam2;
-			event_time=evbuf[evbpoint].event_time;
-			
-			LeaveCriticalSection(&mim_section);
-		    exlen=evbuf[evbpoint].exlen;
-			sysexbuffer=evbuf[evbpoint].sysexbuffer;
-			switch (uMsg) {
-			case MODM_DATA:
-				rtsyn_play_one_data (0, dwParam1, event_time);
-				break;
-			case MODM_LONGDATA:
-#ifdef DEBUG
-	FILE * logfile;
-	logfile = fopen("c:\\dbglog2.log","at");
-	if(logfile!=NULL) {
-		for(int i = 0 ; i < exlen ; i++)
-			fprintf(logfile,"%x ", sysexbuffer[i]);
-		fprintf(logfile,"\n");
-	}
-	fclose(logfile);
+#include <stdio.h>
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+#ifdef _WIN32
+#define alloca _alloca
 #endif
-				rtsyn_play_one_sysex (sysexbuffer,exlen, event_time);
-				free(sysexbuffer);
-				break;
-			}
-		}while(timsyn_buf_check());	
-	return played;
-}
 
 unsigned __stdcall threadfunc(LPVOID lpV){
 	while(stop_thread == 0){
 		Sleep(1);
-		//EnterCriticalSection(&mim_section);
-		timsyn_play_some_data();
+		//timsyn_play_some_data();
+		EnterCriticalSection(&mim_section);
 		rtsyn_play_calculate();
-		//LeaveCriticalSection(&mim_section);
+		LeaveCriticalSection(&mim_section);
 	}
+	rtsyn_stop_playing();
+	rtsyn_close();
+	timiwp_main_close();
 	stop_thread=0;
 	_endthreadex(0);
 	return 0;
 }
 
-unsigned __stdcall threadfunc2(LPVOID lpV){
-	int argc,i;
-	char *argv[2];
-	HANDLE hThread = NULL;
-	unsigned int thrdaddr;
-	int opend=0;
-	;
-	while(opend == 0) {
-		Sleep(100);
-		argc = 2;
-		argv[0] = strdup("timidity");
-		argv[1] = strdup("-iW");
-		if ( 0 == timiwp_main_ini(argc, argv)){
-			rtsyn_init();
-			hThread=(HANDLE)_beginthreadex(NULL,0,threadfunc,0,0,&thrdaddr);
-			SetPriorityClass(hThread, REALTIME_PRIORITY_CLASS);
-			SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
-			opend = 1;
-		}
-		for(i = 0 ; i < 2 ; i++) free(argv[i]);
-	}
-	hCalcThread = hThread;
-	
-	while(stop_rtthread == 0){
-		Sleep(10);
-	}
-
-	rtsyn_stop_playing();
-	rtsyn_close();
-	timiwp_main_close();
-	stop_rtthread=0;
-	_endthreadex(0);
-	return 0;
-}
-
 STDAPI_(LONG) modMessage(UINT uDeviceID, UINT uMsg, DWORD dwUser, DWORD dwParam1, DWORD dwParam2){
-	unsigned int thrdaddr;
-	DWORD tstate;
-	int OCount;
-	DWORD Exit;
-	
-	MIDIHDR *IIMidiHdr;	
-	UINT evbpoint;
-	
-	int exlen = 0;
-	char *sysexbuffer = NULL ;
-
+	MIDIHDR *IIMidiHdr;
 	
 	switch (uMsg) {
 	case MODM_OPEN:
 		OpenCount++;
 		if ( OpenCount == 1 && modm_closed  == 1 ){
+			unsigned thrdaddr;
+			const char *argv_readOnly[] = {"timidity", "iW", "-B3"};
+			int argc = ARRAY_SIZE(argv_readOnly),i;
+			int opend=0;
+			char **argv = (char **)alloca(argc * sizeof(char *));
+			
 			processPriority = GetPriorityClass(GetCurrentProcess());
 			SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-			hRtsynThread=(HANDLE)_beginthreadex(NULL,0,threadfunc2,0,0,&thrdaddr);
+			//AllocConsole();
+			//freopen("CONOUT$", "wb", stdout);
+			for (i = 0; i < argc; i++)
+				argv[i] = strdup(argv_readOnly[i]);
+			while(TRUE) {
+				if (timiwp_main_ini(argc, argv) == 0){
+					rtsyn_init();
+					opend = 1;
+					break;
+				}
+				Sleep(100);
+			}
+			for(i = 0 ; i < argc; i++) free(argv[i]);
+			hRtsynThread=(HANDLE)_beginthreadex(NULL,0,threadfunc,0,0,&thrdaddr);
+			SetPriorityClass(hRtsynThread, REALTIME_PRIORITY_CLASS);
+			SetThreadPriority(hRtsynThread, THREAD_PRIORITY_TIME_CRITICAL);
 			modm_closed = 0;
 		}
 		SetPriorityClass(GetCurrentProcess(), processPriority);
 		return MMSYSERR_NOERROR;
-		break;
 	case MODM_PREPARE:
 		return MMSYSERR_NOTSUPPORTED;
-		break;
 	case MODM_UNPREPARE:
 		return MMSYSERR_NOTSUPPORTED;
-		break;
 	case MODM_GETDEVCAPS:
 		return modGetCaps((PVOID)dwParam1, dwParam2);
-		break;
 	case MODM_LONGDATA:
+		{
+		double event_time = get_current_calender_time();
 		IIMidiHdr = (MIDIHDR *)dwParam1;
 		if( !(IIMidiHdr->dwFlags & MHDR_PREPARED) ) return MIDIERR_UNPREPARED;
-		IIMidiHdr->dwFlags &= ~MHDR_DONE;
-		IIMidiHdr->dwFlags |= MHDR_INQUEUE;
-		IIMidiHdr = (MIDIHDR *) dwParam1;
-		exlen=(int)IIMidiHdr->dwBufferLength;
-		if( NULL == (sysexbuffer = (char *)malloc(exlen * sizeof(char)))){
-			return MMSYSERR_NOMEM;
-		}else{
-			memcpy(sysexbuffer,IIMidiHdr->lpData,exlen);
-#ifdef DEBUG
-	FILE * logfile;
-	logfile = fopen("c:\\dbglog.log","at");
-	if(logfile!=NULL) {
-		fprintf(logfile,"sysex %d byete\n", exlen);
-		for(int i = 0 ; i < exlen ; i++)
-			fprintf(logfile,"%x ", sysexbuffer[i]);
-		fprintf(logfile,"\n");
-	}
-	fclose(logfile);
-#endif
-		}
 		IIMidiHdr->dwFlags &= ~MHDR_INQUEUE;
 		IIMidiHdr->dwFlags |= MHDR_DONE;
-	case MODM_DATA:
 		EnterCriticalSection(&mim_section);
-		evbpoint = evbwpoint;
-		if (++evbwpoint >= EVBUFF_SIZE)
-			evbwpoint -= EVBUFF_SIZE;
-		evbuf[evbpoint].uMsg = uMsg;
-		evbuf[evbpoint].event_time = get_current_calender_time();
-		evbuf[evbpoint].dwParam1 = dwParam1;
-		evbuf[evbpoint].dwParam2 = dwParam2;
-		evbuf[evbpoint].exlen=exlen;
-		evbuf[evbpoint].sysexbuffer=sysexbuffer;
+		rtsyn_play_one_sysex(IIMidiHdr->lpData, IIMidiHdr->dwBufferLength, event_time);
 		LeaveCriticalSection(&mim_section);
 		return MMSYSERR_NOERROR;
-		break;		
+		}
+	case MODM_DATA:
+		{
+		double event_time = get_current_calender_time();
+		EnterCriticalSection(&mim_section);
+		rtsyn_play_one_data (0, dwParam1, event_time);
+		LeaveCriticalSection(&mim_section);
+		return MMSYSERR_NOERROR;
+		}
 	case MODM_GETNUMDEVS:
 		return 0x1;
-		break;
 	case MODM_CLOSE:
-		if ( stop_rtthread != 0 || stop_thread != 0 ) return MIDIERR_STILLPLAYING;
+		if ( stop_thread != 0 ) return MIDIERR_STILLPLAYING;
 		--OpenCount;
-/*
-		if( ( OpenCount == 0) && (play_mode->id_character != 'd') ){
-			int maxloop=100;
-			
-			stop_thread = 1;
-			while( stop_thread != 0 && maxloop-- > 0) Sleep(10);
-			if(stop_thread == 0) {
-				stop_rtthread = 1;
-				while( stop_rtthread != 0 && maxloop-- > 0) Sleep(10);
-			}
-			if(stop_thread != 0) TerminateThread(hCalcThread, FALSE);
-			if(stop_rtthread != 0) TerminateThread(hRtsynThread, FALSE);
-			
-			if(maxloop == 0){
-				DeleteCriticalSection(&mim_section);
-				InitializeCriticalSection(&mim_section);
-			}
-			stop_rtthread = 0;
-			stop_thread = 0;
-			CloseHandle(hRtsynThread);
-			CloseHandle(hCalcThread);
-			SetPriorityClass(GetCurrentProcess(), processPriority);
-			modm_closed=1;
-		}else{ 
-*/
-			if(OpenCount < 0){
-				OpenCount = 0;
-				return MMSYSERR_NOTENABLED;
-			}
-//		}
+		if(OpenCount < 0){
+			OpenCount = 0;
+			return MMSYSERR_NOTENABLED;
+		}
 		return MMSYSERR_NOERROR;
 		break;
 	default:
