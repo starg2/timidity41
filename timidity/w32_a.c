@@ -191,6 +191,7 @@ static struct MMBuffer *            GetBuffer       ();
 static void                         PutBuffer       (struct MMBuffer *);
 static const char *                 MMErrorMessage  (MMRESULT Result);
 static void                         WaitForBuffer   (int WaitForAllBuffers);
+static void                         DebugPrint      (const char *format, ...);
 
 /*****************************************************************************************************************************/
 
@@ -286,7 +287,7 @@ static int open_output(void)
 
 /** Open the device. **/
 
-    { CHAR  b[256]; wsprintf(b, "Opening device...\n"); OutputDebugString(b); }
+    DebugPrint("Opening device...\n");
 
 		hDevice = 0;
 
@@ -307,7 +308,7 @@ static int open_output(void)
         return -1;
     }
     else
-        { CHAR  b[256]; wsprintf(b, "Device opened.\n"); OutputDebugString(b); }
+        DebugPrint("Device opened.\n");
 
 /** Get the device ID. **/
 
@@ -369,12 +370,12 @@ static void close_output(void)
     {
         WaitForBuffer(1);
 
-        { CHAR  b[256]; wsprintf(b, "Closing device...\n"); OutputDebugString(b); }
+        DebugPrint("Closing device...\n");
 
         waveOutReset(hDevice);
         waveOutClose(hDevice);
 
-        { CHAR  b[256]; wsprintf(b, "Device closed.\n"); OutputDebugString(b); }
+        DebugPrint("Device closed.\n");
 
     /** Free all buffers. **/
 
@@ -445,37 +446,37 @@ static int output_data(char * Data, int32 Size)
 
     /** Prepare the buffer. **/
 
-        { CHAR  b[256]; wsprintf(b, "%2d: Preparing buffer %d...\n", NumBuffersInUse, wh->dwUser); OutputDebugString(b); }
+        DebugPrint("%2d: Preparing buffer %d...\n", NumBuffersInUse, wh->dwUser);
 
         Result = waveOutPrepareHeader(hDevice, wh, sizeof(WAVEHDR));
 
         if (Result)
         {
-            { CHAR  b[256]; wsprintf(b, "%2d: Buffer preparation failed.\n", NumBuffersInUse); OutputDebugString(b); }
+            DebugPrint("%2d: Buffer preparation failed.\n", NumBuffersInUse);
 
             ctl->cmsg (CMSG_ERROR, VERB_NORMAL, "waveOutPrepareHeader(): %s", MMErrorMessage(Result));
             return -1;
         }
         else
-            { CHAR  b[256]; wsprintf(b, "%2d: Buffer %d prepared.\n", NumBuffersInUse, wh->dwUser); OutputDebugString(b); }
+            DebugPrint("%2d: Buffer %d prepared.\n", NumBuffersInUse, wh->dwUser);
 
         b->Prepared = 1;
 
     /** Queue the buffer. **/
 
-        { CHAR  b[256]; wsprintf(b, "%2d: Queueing buffer %d...\n", NumBuffersInUse, wh->dwUser); OutputDebugString(b); }
+        DebugPrint("%2d: Queueing buffer %d...\n", NumBuffersInUse, wh->dwUser);
 
         Result = waveOutWrite(hDevice, wh, sizeof(WAVEHDR));
 
         if (Result)
         {
-            { CHAR  b[256]; wsprintf(b, "%2d: Buffer queueing failed.\n", NumBuffersInUse); OutputDebugString(b); }
+            DebugPrint("%2d: Buffer queueing failed.\n", NumBuffersInUse);
 
             ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "waveOutWrite(): %s", MMErrorMessage(Result));
             return -1;
         }
         else
-            { CHAR  b[256]; wsprintf(b, "%2d: Buffer %d queued.\n", NumBuffersInUse, wh->dwUser); OutputDebugString(b); }
+            DebugPrint("%2d: Buffer %d queued.\n", NumBuffersInUse, wh->dwUser);
 
         d += n;
         s -= n;
@@ -500,13 +501,13 @@ static int acntl(int request, void *arg)
 
         case PM_REQ_DISCARD:
         {
-            { CHAR  b[256]; wsprintf(b, "Resetting audio device.\n"); OutputDebugString(b); }
+            DebugPrint("Resetting audio device.\n");
 
             waveOutReset(hDevice);
 	    close_output();
 	    open_output();
 
-            { CHAR  b[256]; wsprintf(b, "Audio device reset.\n"); OutputDebugString(b); }
+            DebugPrint("Audio device reset.\n");
 
             return 0;
         }
@@ -535,11 +536,11 @@ static void CALLBACK OnPlaybackEvent(HWAVE hWave, UINT Msg, DWORD UserData, DWOR
     switch (Msg)
     {
         case WOM_OPEN:
-            { CHAR  b[256]; wsprintf(b, "%2d: Device opened.\n", NumBuffersInUse); OutputDebugString(b); }
+            DebugPrint("%2d: Device opened.\n", NumBuffersInUse);
             break;
 
         case WOM_CLOSE:
-            { CHAR  b[256]; wsprintf(b, "%2d: Device closed.\n", NumBuffersInUse); OutputDebugString(b); }
+            DebugPrint("%2d: Device closed.\n", NumBuffersInUse);
             break;
 
         case WOM_DONE:
@@ -553,14 +554,14 @@ static void CALLBACK OnPlaybackEvent(HWAVE hWave, UINT Msg, DWORD UserData, DWOR
 /* It's not safe to do this here. Read the remarks of waveOutProc() in the SDK on which functions are safe to call.
             if (NOT Queueing)
             {
-                { CHAR  b[256]; wsprintf(b, "%2d: Dequeueing buffer %d...\n", NumBuffersInUse, wh->dwUser); OutputDebugString(b); }
+                DebugPrint("%2d: Dequeueing buffer %d...\n", NumBuffersInUse, wh->dwUser);
 
                 waveOutUnprepareHeader(hDevice, wh, sizeof(WAVEHDR));
 
-                { CHAR  b[256]; wsprintf(b, "%2d: Buffer %d dequeued.\n",     NumBuffersInUse, wh->dwUser); OutputDebugString(b); }
+                DebugPrint("%2d: Buffer %d dequeued.\n",     NumBuffersInUse, wh->dwUser);
             }
             else
-                { CHAR  b[256]; wsprintf(b, "%2d: *** Buffer %d not dequeued! ***\n", NumBuffersInUse, wh->dwUser); OutputDebugString(b); }
+                DebugPrint("%2d: *** Buffer %d not dequeued! ***\n", NumBuffersInUse, wh->dwUser);
  */
             PutBuffer(&Buffers[wh->dwUser]);
 
@@ -570,12 +571,7 @@ static void CALLBACK OnPlaybackEvent(HWAVE hWave, UINT Msg, DWORD UserData, DWOR
         }
 
         default:
-        {
-            CHAR    b[256];
-
-            wsprintf(b, "%2d: Unknown play back event 0x%08X.\n", NumBuffersInUse, Msg);
-            OutputDebugString(b);
-        }
+            DebugPrint("%2d: Unknown play back event 0x%08X.\n", NumBuffersInUse, Msg);
     }
 }
 
@@ -642,7 +638,7 @@ static void BufferPoolReset(void)
 {
     int i;
 
-    { CHAR  b[256]; wsprintf(b, "Resetting buffer pool...\n"); OutputDebugString(b); }
+    DebugPrint("Resetting buffer pool...\n");
 
     Buffers[0].Number   = 0;
     Buffers[0].Prepared = 0;
@@ -662,7 +658,7 @@ static void BufferPoolReset(void)
     FreeBuffers     = &Buffers[0];
     NumBuffersInUse = 0;
 
-    { CHAR  b[256]; wsprintf(b, "Buffer pool reset.\n", NumBuffersInUse); OutputDebugString(b); }
+    DebugPrint("Buffer pool reset.\n", NumBuffersInUse);
 }
 
 /*****************************************************************************************************************************/
@@ -671,7 +667,7 @@ static struct MMBuffer * GetBuffer()
 {
     struct MMBuffer *   b;
 
-    { CHAR  b[256]; wsprintf(b, "%2d: Getting buffer...\n", NumBuffersInUse); OutputDebugString(b); }
+    DebugPrint("%2d: Getting buffer...\n", NumBuffersInUse);
 
     EnterCriticalSection(&critSect);
 
@@ -697,7 +693,7 @@ static struct MMBuffer * GetBuffer()
 
     LeaveCriticalSection(&critSect);
 
-    { CHAR  b[256]; wsprintf(b, "%2d: Got buffer.\n", NumBuffersInUse); OutputDebugString(b); }
+    DebugPrint("%2d: Got buffer.\n", NumBuffersInUse);
 
     return b;
 }
@@ -706,13 +702,13 @@ static struct MMBuffer * GetBuffer()
 
 static void PutBuffer(struct MMBuffer * b)
 {
-    { CHAR  b[256]; wsprintf(b, "%2d: Putting buffer...\n", NumBuffersInUse); OutputDebugString(b); }
+    DebugPrint("%2d: Putting buffer...\n", NumBuffersInUse);
 
     b->Next     = (struct MMBuffer *)FreeBuffers;
     FreeBuffers = b;
     NumBuffersInUse--;
 
-    { CHAR  b[256]; wsprintf(b, "%2d: Buffer put.\n", NumBuffersInUse); OutputDebugString(b); }
+    DebugPrint("%2d: Buffer put.\n", NumBuffersInUse);
 }
 
 /*****************************************************************************************************************************/
@@ -723,7 +719,7 @@ static void WaitForBuffer(int WaitForAllBuffers)
 
     if (WaitForAllBuffers)
     {
-        { CHAR  b[256]; wsprintf(b, "%2d: Waiting for all buffers to be dequeued...\n", NumBuffersInUse); OutputDebugString(b); }
+        DebugPrint("%2d: Waiting for all buffers to be dequeued...\n", NumBuffersInUse);
 
 	while (1) {
 	  EnterCriticalSection(&critSect);
@@ -741,13 +737,13 @@ static void WaitForBuffer(int WaitForAllBuffers)
 //        while (NumBuffersInUse)
 //            Sleep(BufferDelay);
 
-        { CHAR  b[256]; wsprintf(b, "%2d: All buffers dequeued.\n", NumBuffersInUse); OutputDebugString(b); }
+        DebugPrint("%2d: All buffers dequeued.\n", NumBuffersInUse);
 
         BufferPoolReset();
     }
     else
     {
-        { CHAR  b[256]; wsprintf(b, "%2d: Waiting %dms...\n", NumBuffersInUse, BufferDelay); OutputDebugString(b); }
+        DebugPrint("%2d: Waiting %dms...\n", NumBuffersInUse, BufferDelay);
 
 		#if !defined ( IA_W32GUI ) && !defined ( IA_W32G_SYN )
 //		#if !defined ( IA_W32GUI )
@@ -757,7 +753,7 @@ static void WaitForBuffer(int WaitForAllBuffers)
     #endif
             Sleep(BufferDelay);
 
-        { CHAR  b[256]; wsprintf(b, "%2d: Wait finished.\n", NumBuffersInUse); OutputDebugString(b); }
+        DebugPrint("%2d: Wait finished.\n", NumBuffersInUse);
     }
 }
 
@@ -786,3 +782,17 @@ static void print_device_list(void){
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%2d %s", device[i].deviceID, device[i].name);
 	}
 }
+
+static void DebugPrint(const char *format, ...)
+{
+#ifdef DEBUG
+	CHAR b[256];
+	va_list ap;
+	
+	va_begin(ap, format);
+	wvsprintf(b, format, ap);
+	va_end(ap);
+	OutputDebugString(b);
+#endif
+}
+
