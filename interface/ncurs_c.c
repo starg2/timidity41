@@ -2888,7 +2888,7 @@ static int ctl_write(char *valp, int32 size)
   return write(STDOUT_FILENO, valp, size);
 }
 
-#ifdef USE_PDCURSES
+#if defined(USE_PDCURSES) && !defined(HAVE_VWPRINTW)
 static void vwprintw(WINDOW *w, char *fmt, va_list ap)
 {
     char *buff;
@@ -2900,7 +2900,7 @@ static void vwprintw(WINDOW *w, char *fmt, va_list ap)
     waddstr(w, buff);
     reuse_mblock(&pool);
 }
-#endif /* USE_PDCURSES */
+#endif /* defined(USE_PDCURSES) && !defined(HAVE_VWPRINTW) */
 
 static int cmsg(int type, int verbosity_level, char *fmt, ...)
 {

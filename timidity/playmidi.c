@@ -8658,7 +8658,7 @@ void default_ctl_lyric(int lyricid)
 	ctl->cmsg(CMSG_TEXT, VERB_VERBOSE, "%s", lyric + 1);
 }
 
-void ctl_mode_event(int type, int trace, long arg1, long arg2)
+void ctl_mode_event(int type, int trace, ptr_size_t arg1, ptr_size_t arg2)
 {
     CtlEvent ce;
     ce.type = type;

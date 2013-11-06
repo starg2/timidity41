@@ -1223,7 +1223,7 @@ static char *expand_variables(char *string, MBlockList *varbuf, const char *base
 #define READ_CONFIG_ERROR          1
 #define READ_CONFIG_RECURSION      2 /* Too much recursion */
 #define READ_CONFIG_FILE_NOT_FOUND 3 /* Returned only w. allow_missing_file */
-static int read_config_file(char *name, int self, int allow_missing_file)
+MAIN_INTERFACE int read_config_file(char *name, int self, int allow_missing_file)
 {
     struct timidity_file *tf;
     char buf[1024], *tmp, *w[MAXWORDS + 1], *cp;

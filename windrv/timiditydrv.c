@@ -38,7 +38,7 @@ void _endthreadex( unsigned retval );
 #include <windows.h>
 #include "mmddk.h"
 #include <mmsystem.h>
-#if 0
+#if defined(__DMC__)
 //following codes are from wine's mmsystem.h
 typedef struct tagMIDIOUTCAPS2A {
     WORD	wMid;

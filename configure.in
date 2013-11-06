@@ -1675,12 +1675,18 @@ dnl configure must check ncurses header with -I/usr/include/ncurses option.
           [ lib_curses_opt=-lcurses
 	    AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
 	    lib_user32_opt="$lib_user32_test"
+	    AC_CHECK_LIB(curses, vwprintw,
+	      AC_DEFINE(HAVE_VWPRINTW, 1,
+	        [Define to 1 if you have the `vwprintw' function.]))
 	  ],
 	  [ dnl checking libpdcurses
 	    AC_CHECK_LIB(pdcurses,PDC_set_ctrl_break,
 	    [ lib_curses_opt=-lpdcurses
 	      AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
 	      lib_user32_opt="$lib_user32_test"
+	      AC_CHECK_LIB(pdcurses, vwprintw,
+	        AC_DEFINE(HAVE_VWPRINTW, 1,
+	          [Define to 1 if you have the `vwprintw' function.]))
 	    ],
 	    [ dnl OpenBSD use -lcurses instead of -lncurses.
 	      case "$target" in
@@ -1693,6 +1699,9 @@ dnl configure must check ncurses header with -I/usr/include/ncurses option.
 		  if test "x$VCPP" = xyes || test "x$BORLANDC" = xyes || test "x$WATCOM_C" = xyes || test "x$DMC" = xyes || test "x$POCC" = xyes; then
 		    lib_curses_opt=libpdcurses.lib
 		    AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
+		    AC_CHECK_LIB(pdcurses, vwprintw,
+		      AC_DEFINE(HAVE_VWPRINTW, 1,
+		        [Define to 1 if you have the `vwprintw' function.]))
 		  else
 		    AC_MSG_WARN(ncurses interface is not enabled)
 		    enable_ncurses=no
