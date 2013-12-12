@@ -330,15 +330,15 @@ w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
 	rm w32g_res_bc.rc
 else
 w32g_syn_escaped.c:w32g_syn.c escape_sjis.pl
-	escape_sjis.pl < w32g_syn.c > w32g_syn_escaped.c
+	./escape_sjis.pl < w32g_syn.c > w32g_syn_escaped.c
 
 w32g_subwin_escaped.c:w32g_subwin.c escape_sjis.pl
-	escape_sjis.pl < w32g_subwin.c > w32g_subwin_escaped.c
+	./escape_sjis.pl < w32g_subwin.c > w32g_subwin_escaped.c
 
 w32g_res.res: w32g_res.h w32g_rec.h w32g_res.rc \
 	w32g_btn.bmp w32g_icon.ico w32g_sleep.bmp w32g_subbtn.bmp \
 	escape_sjis.pl
-	escape_sjis.pl <w32g_res.rc >w32g_res_escaped.rc
+	./escape_sjis.pl <w32g_res.rc >w32g_res_escaped.rc
 	windres -o $@ -O coff w32g_res.rc 2>&1|grep escape - >/dev/null && \
 	windres -o $@ -O coff w32g_res_escaped.rc || echo
 	rm w32g_res_escaped.rc
