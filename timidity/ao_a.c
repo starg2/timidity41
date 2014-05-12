@@ -136,7 +136,7 @@ static int open_output(void)
 
   int driver_count;
   ao_info **devices;
-  ao_option *options;
+  ao_option *options = NULL;
   int i;
 
   ao_initialize();
