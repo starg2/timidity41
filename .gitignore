@@ -1,0 +1,16 @@
+*.a
+*.o
+.deps/
+Makefile
+Makefile.in
+/aclocal.m4
+/autoconf/*
+!/autoconf/*.am
+!/autoconf/*.m4
+/autom4te.cache/
+/config.*
+/configure
+/stamp-h?
+
+/interface.h
+/timidity/newton_table.c
