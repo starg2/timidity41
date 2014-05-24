@@ -173,6 +173,9 @@ FLAC_options flac_options = {
 	0,		/* seekable */
 };
 
+#ifdef AU_OGGFLAC
+static long serial_number = 0;
+#endif
 FLAC_ctx *flac_ctx = NULL;
 
 #if defined(LEGACY_FLAC) && defined(AU_OGGFLAC)
