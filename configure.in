@@ -521,6 +521,7 @@ if test "x$POCC" != xyes ; then
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
 fi
+AC_TYPE_SSIZE_T
 
 dnl keyword "volatile" check
 AC_CACHE_CHECK(volatile declaration,timidity_cv_type_volatile,
