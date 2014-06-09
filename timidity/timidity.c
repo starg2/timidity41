@@ -5122,7 +5122,11 @@ static void interesting_message(void)
 static RETSIGTYPE sigterm_exit(int sig)
 {
     char s[4];
+#if defined(__MINGW32__) && !defined(HAVE_SSIZE_T)
+    int dummy;
+#else
     ssize_t dummy;
+#endif
 
     /* NOTE: Here, fprintf is dangerous because it is not re-enterance
      * function.  It is possible coredump if the signal is called in printf's.
