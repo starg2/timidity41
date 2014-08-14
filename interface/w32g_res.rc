@@ -1599,7 +1599,7 @@ BEGIN
             VALUE "FileDescription", "timw32g\0"
             VALUE "FileVersion", "2, 14, 0, 0\0"
             VALUE "InternalName", "timw32g\0"
-            VALUE "LegalCopyright", "Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>\r\nCopyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>\0"
+            VALUE "LegalCopyright", "Copyright (C) 1999-2014 Masanao Izumo <iz@onicos.co.jp>\r\nCopyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "timw32g.exe\0"
             VALUE "PrivateBuild", "\0"

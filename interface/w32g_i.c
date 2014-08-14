@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2014 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -3817,7 +3817,7 @@ static void VersionWnd(HWND hParentWnd)
 "TiMidity Windows 95 port by Nicolas Witczak." NLS
 "TiMidity Win32 GUI by Daisuke Aoki <dai@y7.net>." NLS
 " Japanese menu, dialog, etc by Saito <timidity@flashmail.com>." NLS
-"TiMidity++ by Masanao Izumo <mo@goice.co.jp>." NLS
+"TiMidity++ by Masanao Izumo <iz@onicos.co.jp>." NLS
 ,(strcmp(timidity_version, "current")) ? "version " : "", timidity_version);
 	MessageBox(hParentWnd, VersionText, "Version", MB_OK);
 }
@@ -3827,12 +3827,12 @@ static void TiMidityWnd(HWND hParentWnd)
 	char TiMidityText[2024];
   sprintf(TiMidityText,
 " TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
-" Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>" NLS
+" Copyright (C) 1999-2014 Masanao Izumo <iz@onicos.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 NLS
 " Win32 version by Davide Moretti <dmoretti@iper.net>" NLS
 " GUI by Daisuke Aoki <dai@y7.net>." NLS
-" Modified by Masanao Izumo <mo@goice.co.jp>." NLS
+" Modified by Masanao Izumo <iz@onicos.co.jp>." NLS
 NLS
 " This program is free software; you can redistribute it and/or modify" NLS
 " it under the terms of the GNU General Public License as published by" NLS
