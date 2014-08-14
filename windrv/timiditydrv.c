@@ -103,6 +103,10 @@ const GUID CLSID_tim_synth = {0x0FEC4C35,0xA705,0x41d7,{0xA3,0xBB,0xD5,0x87,0xA2
 static volatile int OpenCount = 0;
 static volatile int modm_closed = 1;
 
+static HDRVR hdrvrInstance;
+static MIDIOPENDESC mid_desc;
+static DWORD dwOpenFlags;
+
 static CRITICAL_SECTION mim_section;
 static volatile int stop_thread = 0;
 static HANDLE hRtsynThread = NULL;
@@ -134,8 +138,11 @@ STDAPI DllUnregisterServer(void)
 	return S_OK;
 }
 
-STDAPI_(LONG) DriverProc(DWORD_PTR dwDriverId, HDRVR hdrvr, UINT msg, LPARAM lParam1, LPARAM lParam2){
+STDAPI_(LRESULT) DriverProc(DWORD_PTR dwDriverId, HDRVR hdrvr, UINT msg, LPARAM lParam1, LPARAM lParam2){
 	switch(msg) {
+	case DRV_OPEN:
+		hdrvrInstance = hdrvr;
+		return 1;
 	case DRV_REMOVE:
 		if (modm_closed == 0){
 			int maxloop=500;
@@ -159,7 +166,6 @@ STDAPI_(LONG) DriverProc(DWORD_PTR dwDriverId, HDRVR hdrvr, UINT msg, LPARAM lPa
 	case DRV_EXITSESSION:
 	case DRV_FREE:
 	case DRV_INSTALL:
-	case DRV_OPEN:
 	case DRV_POWER:
 	case DRV_QUERYCONFIGURE:
 	default:
@@ -260,7 +266,73 @@ unsigned __stdcall threadfunc(LPVOID lpV){
 	return 0;
 }
 
-STDAPI_(LONG) modMessage(UINT uDeviceID, UINT uMsg, DWORD dwUser, DWORD dwParam1, DWORD dwParam2){
+static void modCallback(UINT uMsg, DWORD_PTR dwParam1, DWORD_PTR dwParam2)
+{
+//	DWORD_PTR dwUser, dwSend1, dwSend2;
+	DWORD_PTR dwCallback = mid_desc.dwCallback;
+	DWORD_PTR dwInstance = mid_desc.dwInstance;
+
+	if (!dwCallback) {
+	    return;
+	}
+/*
+	switch (uMsg) {
+	case MM_MOM_DONE:
+	    dwUser = mid_desc.dwInstance;
+	    dwSend1 = (DWORD_PTR)(mid_desc.hMidi);
+	    dwSend2 = dwParam1;
+	    break;
+	default:
+	    dwUser = mid_desc.dwInstance;
+	    dwSend1 = (DWORD_PTR)(mid_desc.hMidi);
+	    dwSend2 = 0;
+	    break;
+	}
+*/
+
+	switch (dwOpenFlags & CALLBACK_TYPEMASK) {
+	case CALLBACK_NULL:
+	    break;
+	case CALLBACK_WINDOW:
+	    {
+//		HWND hWnd = (HWND)(dwCallback);
+//		PostMessage(hWnd, uMsg, (WPARAM)(dwSend1), (LPARAM)(dwSend2));
+		DriverCallback(dwCallback, DCB_WINDOW, hdrvrInstance, uMsg, dwInstance, dwParam1, dwParam2);
+	    }
+	    break;
+	case CALLBACK_FUNCTION:
+	    {
+//		typedef void (CALLBACK *MIDIOUTPROC)(HMIDIOUT, UINT, DWORD_PTR, DWORD_PTR, DWORD_PTR);
+//		MIDIOUTPROC MidiOutProc = (MIDIOUTPROC)(dwCallback);
+//		(*MidiOutProc)((HMIDIOUT)mid_desc.hMidi, uMsg, dwUser, dwSend1, dwSend2);
+		DriverCallback(dwCallback, DCB_FUNCTION, hdrvrInstance, uMsg, dwInstance, dwParam1, dwParam2);
+	    }
+	    break;
+	case CALLBACK_THREAD:
+	    {
+//		DWORD dwThread = (DWORD)(dwCallback);
+//		PostThreadMessage(dwThread, uMsg, (WPARAM)(dwSend1), (LPARAM)(dwSend2));
+		DriverCallback(dwCallback, DCB_TASK, hdrvrInstance, uMsg, dwInstance, dwParam1, dwParam2);
+	    }
+	    break;
+	case CALLBACK_EVENT:
+	    {
+//		HANDLE hEvent = (HANDLE)(dwCallback);
+//		SetEvent(hEvent);
+		DriverCallback(dwCallback, DCB_EVENT, hdrvrInstance, uMsg, dwInstance, dwParam1, dwParam2);
+	    }
+	    break;
+	default:
+	    {
+		/* not implemented */
+	    }
+	    break;
+	}
+
+	return;
+}
+
+STDAPI_(DWORD) modMessage(UINT uDeviceID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dwParam1, DWORD_PTR dwParam2){
 	MIDIHDR *IIMidiHdr;
 	
 	switch (uMsg) {
@@ -272,6 +344,12 @@ STDAPI_(LONG) modMessage(UINT uDeviceID, UINT uMsg, DWORD dwUser, DWORD dwParam1
 			int argc = ARRAY_SIZE(argv_readOnly),i;
 			int opend=0;
 			char **argv = (char **)alloca(argc * sizeof(char *));
+			
+			ZeroMemory(&mid_desc, sizeof(MIDIOPENDESC));
+			if (dwParam1) {
+				CopyMemory(&mid_desc, (LPMIDIOPENDESC)dwParam1, sizeof(MIDIOPENDESC));
+			}
+			dwOpenFlags = (DWORD)dwParam2;
 			
 			processPriority = GetPriorityClass(GetCurrentProcess());
 			SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
@@ -291,6 +369,7 @@ STDAPI_(LONG) modMessage(UINT uDeviceID, UINT uMsg, DWORD dwUser, DWORD dwParam1
 			hRtsynThread=(HANDLE)_beginthreadex(NULL,0,threadfunc,0,0,&thrdaddr);
 			SetPriorityClass(hRtsynThread, REALTIME_PRIORITY_CLASS);
 			SetThreadPriority(hRtsynThread, THREAD_PRIORITY_TIME_CRITICAL);
+			modCallback(MM_MOM_OPEN, dwParam1, dwParam2);
 			modm_closed = 0;
 		}
 		SetPriorityClass(GetCurrentProcess(), processPriority);
@@ -304,13 +383,19 @@ STDAPI_(LONG) modMessage(UINT uDeviceID, UINT uMsg, DWORD dwUser, DWORD dwParam1
 	case MODM_LONGDATA:
 		{
 		double event_time = get_current_calender_time();
+		DWORD dwLength;
 		IIMidiHdr = (MIDIHDR *)dwParam1;
 		if( !(IIMidiHdr->dwFlags & MHDR_PREPARED) ) return MIDIERR_UNPREPARED;
 		IIMidiHdr->dwFlags &= ~MHDR_INQUEUE;
 		IIMidiHdr->dwFlags |= MHDR_DONE;
 		EnterCriticalSection(&mim_section);
-		rtsyn_play_one_sysex(IIMidiHdr->lpData, IIMidiHdr->dwBufferLength, event_time);
+		dwLength = IIMidiHdr->dwBufferLength;
+		if (IIMidiHdr->dwBytesRecorded > 0 && IIMidiHdr->dwBytesRecorded <= IIMidiHdr->dwBufferLength) {
+			dwLength = IIMidiHdr->dwBytesRecorded;
+		}
+		rtsyn_play_one_sysex(IIMidiHdr->lpData, dwLength, event_time);
 		LeaveCriticalSection(&mim_section);
+		modCallback(MM_MOM_DONE, dwParam1, dwParam2);
 		return MMSYSERR_NOERROR;
 		}
 	case MODM_DATA:
@@ -330,6 +415,7 @@ STDAPI_(LONG) modMessage(UINT uDeviceID, UINT uMsg, DWORD dwUser, DWORD dwParam1
 			OpenCount = 0;
 			return MMSYSERR_NOTENABLED;
 		}
+		modCallback(MM_MOM_CLOSE, dwParam1, dwParam2);
 		return MMSYSERR_NOERROR;
 		break;
 	default:

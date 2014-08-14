@@ -381,8 +381,8 @@ typedef JOYDEVMSGPROC *LPJOYDEVMSGPROC;
 #define MAKEMCIRESOURCE(wRet, wRes) MAKELRESULT((wRet), (wRes))
 
 typedef struct {
-	DWORD   		dwCallback;
-	DWORD   		dwInstance;
+	DWORD_PTR		dwCallback;
+	DWORD_PTR		dwInstance;
 	HMIDIOUT		hMidi;
 	DWORD   		dwFlags;
 } PORTALLOC, *LPPORTALLOC;
@@ -390,8 +390,8 @@ typedef struct {
 typedef struct {
 	HWAVE			hWave;
 	LPWAVEFORMATEX		lpFormat;
-	DWORD			dwCallback;
-	DWORD			dwInstance;
+	DWORD_PTR		dwCallback;
+	DWORD_PTR		dwInstance;
 	UINT			uMappedDeviceID;
         DWORD			dnDevNode;
 } WAVEOPENDESC, *LPWAVEOPENDESC;
@@ -403,9 +403,9 @@ typedef struct {
 
 typedef struct {
 	HMIDI			hMidi;
-	DWORD			dwCallback;
-	DWORD			dwInstance;
-        DWORD          		dnDevNode;
+	DWORD_PTR		dwCallback;
+	DWORD_PTR		dwInstance;
+        DWORD_PTR		dnDevNode;
         DWORD          		cIds;
         MIDIOPENSTRMID 		rgIds;
 } MIDIOPENDESC, *LPMIDIOPENDESC;
@@ -414,8 +414,8 @@ typedef struct tMIXEROPENDESC
 {
 	HMIXEROBJ		hmx;
         LPVOID			pReserved0;
-	DWORD			dwCallback;
-	DWORD			dwInstance;
+	DWORD_PTR		dwCallback;
+	DWORD_PTR		dwInstance;
 } MIXEROPENDESC, *LPMIXEROPENDESC;
 
 typedef struct {
@@ -449,14 +449,14 @@ BOOL			WINAPI	mciFreeCommandResource(UINT uTable);
 #define DCB_TYPEMASK		0x0007
 #define DCB_NOSWITCH		0x0008			/* don't switch stacks for callback */
 
-BOOL		 	WINAPI	DriverCallback(DWORD dwCallBack, UINT uFlags, HDRVR hDev,
-					       UINT wMsg, DWORD dwUser, DWORD dwParam1, DWORD dwParam2);
+BOOL		 	WINAPI	DriverCallback(DWORD_PTR dwCallBack, UINT uFlags, HDRVR hDev,
+					       UINT wMsg, DWORD_PTR dwUser, DWORD_PTR dwParam1, DWORD_PTR dwParam2);
 
-typedef void (*LPTASKCALLBACK)(DWORD dwInst);
+typedef void (*LPTASKCALLBACK)(DWORD_PTR dwInst);
 
 #define TASKERR_NOTASKSUPPORT 1
 #define TASKERR_OUTOFMEMORY   2
-MMRESULT WINAPI mmTaskCreate(LPTASKCALLBACK, HANDLE*, DWORD);
+MMRESULT WINAPI mmTaskCreate(LPTASKCALLBACK, HANDLE*, DWORD_PTR);
 void     WINAPI mmTaskBlock(HANDLE);
 BOOL     WINAPI mmTaskSignal(HANDLE);
 void     WINAPI mmTaskYield(void);
