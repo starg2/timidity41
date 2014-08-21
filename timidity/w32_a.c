@@ -181,11 +181,14 @@ static volatile int                 NumBuffersInUse;
 static HWAVEOUT                     hDevice;
 static int                          BufferDelay;                    // in milliseconds
 
+static volatile BOOL                DriverClosing = FALSE;
+static volatile BOOL                OutputWorking = FALSE;
+
 static const int                    AllowSynchronousWaveforms = 1;
 
 /*****************************************************************************************************************************/
 
-static void CALLBACK                OnPlaybackEvent (HWAVE hWave, UINT Msg, DWORD UserData, DWORD Param1, DWORD Param2);
+static void CALLBACK                OnPlaybackEvent (HWAVE hWave, UINT Msg, DWORD_PTR UserData, DWORD_PTR Param1, DWORD_PTR Param2);
 static void                         BufferPoolReset (void);
 static struct MMBuffer *            GetBuffer       ();
 static void                         PutBuffer       (struct MMBuffer *);
@@ -290,6 +293,7 @@ static int open_output(void)
     DebugPrint("Opening device...\n");
 
 		hDevice = 0;
+    DriverClosing = FALSE;
 
 	if (opt_wmme_device_id == -2){
 		uDeviceID = WAVE_MAPPER;
@@ -366,6 +370,8 @@ static void close_output(void)
 {
     int i;
 
+    DriverClosing = TRUE;
+
     if (dpm.fd != -1)
     {
         WaitForBuffer(1);
@@ -374,6 +380,7 @@ static void close_output(void)
 
         waveOutReset(hDevice);
         waveOutClose(hDevice);
+        hDevice = NULL;
 
         DebugPrint("Device closed.\n");
 
@@ -393,6 +400,7 @@ static void close_output(void)
         }
 
         free(Buffers);
+        Buffers = NULL;
 
     /** Reset the file descriptor. **/
 
@@ -414,10 +422,11 @@ static int output_data(char * Data, int32 Size)
     char *  d;
     int32   s;
 
+    OutputWorking = TRUE;
     d = Data;
     s = Size;
 
-    while (s > 0)
+    while (NOT DriverClosing && s > 0)
     {
         int32               n;
         struct MMBuffer *   b;
@@ -482,6 +491,7 @@ static int output_data(char * Data, int32 Size)
         s -= n;
     }
 
+    OutputWorking = FALSE;
     return 0;
 }
 
@@ -529,7 +539,7 @@ static int acntl(int request, void *arg)
 
 /*****************************************************************************************************************************/
 
-static void CALLBACK OnPlaybackEvent(HWAVE hWave, UINT Msg, DWORD UserData, DWORD Param1, DWORD Param2)
+static void CALLBACK OnPlaybackEvent(HWAVE hWave, UINT Msg, DWORD_PTR UserData, DWORD_PTR Param1, DWORD_PTR Param2)
 {
     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Msg: 0x%08X, Num. buffers in use: %d", Msg, NumBuffersInUse);
 
@@ -724,7 +734,7 @@ static void WaitForBuffer(int WaitForAllBuffers)
 	while (1) {
 	  EnterCriticalSection(&critSect);
 	  numbuf = NumBuffersInUse;
-	  if (numbuf) {
+	  if (numbuf || OutputWorking) {
             LeaveCriticalSection(&critSect);
 	    Sleep(BufferDelay);
 	    continue;
