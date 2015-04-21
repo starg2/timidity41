@@ -2,7 +2,7 @@
 
 mv INSTALL INSTALL.autogen.bak
 # ChangeLog is required for automake
-git log > ChangeLog
+[ ! -f ChangeLog ] && touch ChangeLog
 autoreconf -f -i
 mv INSTALL.autogen.bak INSTALL
 
