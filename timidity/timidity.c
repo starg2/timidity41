@@ -982,6 +982,10 @@ static int set_gus_patchconf(char *name, int line,
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		      "%s: line %d: Syntax error", name, line);
+#ifdef SET_GUS_PATCHCONF_COMMENT
+        if(old_name != NULL)
+            free(old_name);
+#endif
 	    return 1;
 	}
 	tone->name = safe_strdup(opts[0]);
@@ -1034,6 +1038,13 @@ static int set_gus_patchconf(char *name, int line,
     {
 	int err;
 	if((err = set_gus_patchconf_opts(name, line, opts[j], tone)) != 0)
+    {
+#ifdef SET_GUS_PATCHCONF_COMMENT
+        if(old_name != NULL)
+            free(old_name);
+#endif
+            return err;
+    }
 	    return err;
     }
 #ifdef SET_GUS_PATCHCONF_COMMENT
