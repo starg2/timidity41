@@ -3755,8 +3755,8 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 		     {
 			MIDIEVENT(0, ME_NOTEON, lastchan, a, 0);
 			MIDIEVENT(0, ME_NOTEOFF, lastchan, a, 0);
-			note_seen = 1;
 		     }
+		     note_seen = 1;
 		    MIDIEVENT(smf_at_time, ME_NOTEON, lastchan, a,b);
 		}
 		else /* b == 0 means Note Off */
