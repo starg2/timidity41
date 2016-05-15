@@ -121,6 +121,7 @@ enum midi_event_t
 	ME_MASTER_VOLUME,
 	ME_RESET,				/* Reset and change system mode */
 	ME_NOTE_STEP,
+	ME_CUEPOINT,			/* skip to time segment */
 	
 	ME_TIMESIG,				/* Time signature */
 	ME_KEYSIG,				/* Key signature */

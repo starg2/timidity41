@@ -101,6 +101,7 @@ static char **string_event_table = NULL;
 static int    string_event_table_size = 0;
 int    default_channel_program[256];
 static MidiEvent timesig[256];
+MS_Segment *ms_segments = NULL;
 
 void init_delay_status_gs(void);
 void init_chorus_status_gs(void);
@@ -4339,6 +4340,11 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    if(counting_time == 2)
 		skip_this_event = 1;
 	    break;
+
+	case ME_CUEPOINT:
+		if (counting_time == 2)
+			skip_this_event = 1;
+		break;
         }
 
 	/* Recompute time in samples*/
@@ -4595,6 +4601,67 @@ static void insert_note_steps(void)
 	}
 }
 
+static int32 compute_smf_at_time(const int32);
+
+static void insert_cue_points(void)
+{
+	MS_Segment *sp;
+	int32 at, t;
+	uint8 a0, b0, a1, b1;
+	
+	for (sp = ms_segments; sp != NULL; sp = sp->next) {
+		if (sp->prev == NULL && sp->begin != 0) {
+			at = compute_smf_at_time(0);
+			t = sp->begin * play_mode->rate * midi_time_ratio + 0.5;
+			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
+			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+		}
+		if (sp->next != NULL) {
+			at = compute_smf_at_time(sp->end * play_mode->rate);
+			t = (sp->next->begin - sp->end) * play_mode->rate \
+					* midi_time_ratio + 0.5;
+			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
+			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+		} else if (sp->end != -1) {
+			at = compute_smf_at_time(sp->end * play_mode->rate);
+			t = 0x7fffffff;		/* stopper */
+			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
+			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+		}
+	}
+}
+
+static int32 compute_smf_at_time(const int32 sample)
+{
+	MidiEventList *e;
+	int32 st = 0, tempo = 500000, prev_time = 0;
+	int i;
+	
+	for (i = 0, e = evlist; i < event_count; i++, e = e->next) {
+		st += (double) tempo * play_mode->rate / 1000000 \
+				/ current_file_info->divisions \
+				* (e->event.time - prev_time) + 0.5;
+		if (st >= sample && e->event.type == ME_NOTE_STEP)
+			return e->event.time;
+		if (e->event.type == ME_TEMPO)
+		    tempo = e->event.a * 65536 + e->event.b * 256 + e->event.channel;
+		prev_time = e->event.time;
+	}
+	return -1;
+}
+
+void free_ms_segments(void)
+{
+	MS_Segment *sp, *next;
+	
+	for (sp = ms_segments; sp != NULL; sp = next)
+		next = sp->next, free(sp);
+	ms_segments = NULL;
+}
+
 MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 			  char *fn)
 {
@@ -4753,6 +4820,7 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 
   grooming:
     insert_note_steps();
+    insert_cue_points();
     ev = groom_list(current_file_info->divisions, count, sp);
     if(ev == NULL)
     {
@@ -6275,6 +6343,7 @@ void remove_channel_layer(int ch)
 void free_readmidi(void)
 {
 	reuse_mblock(&mempool);
+	free_ms_segments();
 	free_all_midi_file_info();
 	free_userdrum();
 	free_userinst();

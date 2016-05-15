@@ -847,6 +847,8 @@ static void qt_play_event(void *p)
 		break;
 	case ME_NOTE_STEP:
 		break;
+	case ME_CUEPOINT:
+		break;
 	case ME_EOT:
 		prescan = 0;
 		break;

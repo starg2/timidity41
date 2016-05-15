@@ -151,6 +151,7 @@ enum {
 	TIM_OPT_EVIL,
 	TIM_OPT_FAST_PAN,
 	TIM_OPT_FAST_DECAY,
+	TIM_OPT_SEGMENT,
 	TIM_OPT_SPECTROGRAM,
 	TIM_OPT_KEYSIG,
 	TIM_OPT_HELP,
@@ -219,12 +220,12 @@ const char *optcommands =
 #else
 static const char *optcommands =
 #endif
-		"4A:aB:b:C:c:D:d:E:eFfg:H:hI:i:jK:k:L:M:m:N:"
+		"4A:aB:b:C:c:D:d:E:eFfG:g:H:hI:i:jK:k:L:M:m:N:"
 		"O:o:P:p:Q:q:R:S:s:T:t:UV:vW:"
 #ifdef __W32__
 		"w:"
 #endif
-		"x:Z:";		/* Only GJlnruXYyz are remain... */
+		"x:Z:";		/* Only JlnruXYyz are remain... */
 #ifdef IA_WINSYN
 const struct option longopts[] = {
 #else
@@ -277,6 +278,7 @@ static const struct option longopts[] = {
 	{ "fast-panning",           optional_argument, NULL, TIM_OPT_FAST_PAN },
 	{ "no-fast-decay",          no_argument,       NULL, TIM_OPT_FAST_DECAY },
 	{ "fast-decay",             optional_argument, NULL, TIM_OPT_FAST_DECAY },
+	{ "segment",                required_argument, NULL, TIM_OPT_SEGMENT },
 	{ "spectrogram",            required_argument, NULL, TIM_OPT_SPECTROGRAM },
 	{ "force-keysig",           required_argument, NULL, TIM_OPT_KEYSIG },
 	{ "help",                   optional_argument, NULL, TIM_OPT_HELP },
@@ -433,6 +435,9 @@ static inline int parse_opt_resample(const char *);
 static inline int parse_opt_e(const char *);
 static inline int parse_opt_F(const char *);
 static inline int parse_opt_f(const char *);
+static inline int parse_opt_G(const char *);
+static int parse_segment(MS_Segment *, const char *);
+static int parse_time(FLOAT_T *, const char *);
 static inline int parse_opt_g(const char *);
 static inline int parse_opt_H(const char *);
 __attribute__((noreturn))
@@ -519,8 +524,10 @@ __attribute__((noreturn))
 static inline int parse_opt_fail(const char *);
 static inline int set_value(int *, int, int, int, char *);
 static inline int set_val_i32(int32 *, int32, int32, int32, char *);
-static int parse_val_float_t(FLOAT_T *param, const char *arg, FLOAT_T low, FLOAT_T high, const char *name);
-static inline int set_val_float_t(FLOAT_T *param, FLOAT_T i, FLOAT_T low, FLOAT_T high, const char *name);
+static int parse_val_float_t(FLOAT_T *, const char *, FLOAT_T, FLOAT_T,
+		const char *, int);
+static inline int set_val_float_t(FLOAT_T *, FLOAT_T, FLOAT_T, FLOAT_T,
+		const char *, int);
 static inline int set_channel_flag(ChannelBitMask *, int32, char *);
 static inline int y_or_n_p(const char *);
 static inline int set_flag(int32 *, int32, const char *);
@@ -2617,6 +2624,8 @@ MAIN_INTERFACE int set_tim_opt_short(int c, char *optarg)
 	case 'f':
 		fast_decay = (fast_decay) ? 0 : 1;
 		break;
+	case 'G':
+		return parse_opt_G(optarg);
 	case 'g':
 		return parse_opt_g(optarg);
 	case 'H':
@@ -2790,6 +2799,8 @@ MAIN_INTERFACE int set_tim_opt_long(int c, char *optarg, int index)
 		return parse_opt_F(arg);
 	case TIM_OPT_FAST_DECAY:
 		return parse_opt_f(arg);
+	case TIM_OPT_SEGMENT:
+		return parse_opt_G(arg);
 	case TIM_OPT_SPECTROGRAM:
 		return parse_opt_g(arg);
 	case TIM_OPT_KEYSIG:
@@ -3482,7 +3493,7 @@ static int parse_opt_reverb_freeverb(const char *arg, char type)
 	/* scaleroom */
 	if (*p && *p != ',') {
 		if (parse_val_float_t(&freeverb_scaleroom, p, 0, 10,
-				"Freeverb scaleroom"))
+				"Freeverb scaleroom", 1))
 			return 1;
 	}
 	if ((p = strchr(p, ',')) == NULL)
@@ -3491,7 +3502,7 @@ static int parse_opt_reverb_freeverb(const char *arg, char type)
 	/* offsetroom */
 	if (*p && *p != ',') {
 		if (parse_val_float_t(&freeverb_offsetroom, p, 0, 10,
-				"Freeverb offsetroom"))
+				"Freeverb offsetroom", 1))
 			return 1;
 	}
 	if ((p = strchr(p, ',')) == NULL)
@@ -3599,6 +3610,75 @@ static inline int parse_opt_F(const char *arg)
 static inline int parse_opt_f(const char *arg)
 {
 	fast_decay = y_or_n_p(arg);
+	return 0;
+}
+
+static inline int parse_opt_G(const char *arg)
+{
+	/* play just sub-segment(s) */
+	MS_Segment *sp;
+	const char *p = arg;
+	
+	ms_segments = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
+	if (parse_segment(ms_segments, p)) {
+		free_ms_segments();
+		return 1;
+	}
+	ms_segments->prev = ms_segments->next = NULL;
+	for (sp = ms_segments; (p = strchr(p, ',')) != NULL; sp = sp->next) {
+		sp->next = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
+		if (parse_segment(sp->next, ++p)) {
+			free_ms_segments();
+			return 1;
+		}
+		sp->next->prev = sp, sp->next->next = NULL;
+	}
+	for (sp = ms_segments; sp != NULL; sp = sp->next)
+		if (sp->prev != NULL && sp->begin <= sp->prev->end) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Segments must be ordered");
+			free_ms_segments();
+			return 1;
+		} else if (sp->end != -1 && sp->begin >= sp->end) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Segment time must be ordered");
+			free_ms_segments();
+			return 1;
+		}
+	return 0;
+}
+
+static int parse_segment(MS_Segment *seg, const char *p)
+{
+	const char *q;
+	
+	if (*p == '-')
+		seg->begin = 0;
+	else if (parse_time(&seg->begin, p))
+		return 1;
+	p = ((q = strchr(p, '-')) == NULL) ? p + strlen(p) : q + 1;
+	if (*p == ',' || *p == '\0')
+		seg->end = -1;
+	else if (parse_time(&seg->end, p))
+		return 1;
+	return 0;
+}
+
+static int parse_time(FLOAT_T *param, const char *p)
+{
+	const char *p1, *p2;
+	int min;
+	FLOAT_T sec;
+	
+	p1 = ((p1 = strchr(p, ':')) == NULL) ? p + strlen(p) : p1;
+	p2 = ((p2 = strchr(p, '-')) == NULL) ? p + strlen(p) : p2;
+	if (p1 < p2) {
+		if (set_value(&min, atoi(p), 0, 59, "Segment time (min part)"))
+			return 1;
+		if (parse_val_float_t(&sec, p1 + 1, 0, 59.999,
+				"Segment time (sec+frac part)", 3))
+			return 1;
+		*param = min * 60 + sec;
+	} else if (parse_val_float_t(param, p, 0, 3599.999, "Segment time", 3))
+		return 1;
 	return 0;
 }
 
@@ -3748,6 +3828,12 @@ static int parse_opt_h(const char *arg)
 "Enable "
 #endif
 "fast decay mode (toggle)",
+"  -G         --segment=<begin>-<end>[,<begin2>-<end2>,...]",
+"               Play just sub-segment(s), comma separated segments",
+"               Each segment is dash separated of two time values of:",
+"               <begin>-<end> - defaulted to 0-infinity",
+"               Playing from <begin> to <end>",
+"               Time format: [<minutes>:]<seconds>[.<milliseconds>]",
 #ifdef SUPPORT_SOUNDSPEC
 "  -g sec     --spectrogram=sec",
 "               Open Sound-Spectrogram Window",
@@ -4996,7 +5082,7 @@ static inline int set_val_i32(int32 *param,
 {
 	if (i < low || i > high) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-				"%s must be between %ld and %ld", name, low, high);
+				"%s must be between %d and %d", name, low, high);
 		return 1;
 	}
 	*param = i;
@@ -5004,7 +5090,7 @@ static inline int set_val_i32(int32 *param,
 }
 
 static int parse_val_float_t(FLOAT_T *param,
-		const char *arg, FLOAT_T low, FLOAT_T high, const char *name)
+		const char *arg, FLOAT_T low, FLOAT_T high, const char *name, int f)
 {
 	FLOAT_T value;
 	char *errp;
@@ -5015,15 +5101,15 @@ static int parse_val_float_t(FLOAT_T *param,
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Invalid %s", name);
 		return 1;
 	}
-	return set_val_float_t(param, value, low, high, name);
+	return set_val_float_t(param, value, low, high, name, f);
 }
 
 static inline int set_val_float_t(FLOAT_T *param,
-		FLOAT_T i, FLOAT_T low, FLOAT_T high, const char *name)
+		FLOAT_T i, FLOAT_T low, FLOAT_T high, const char *name, int f)
 {
 	if (i < low || i > high) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-				"%s must be between %.1f and %.1f", name, low, high);
+				"%s must be between %.*f and %.*f", name, f, low, f, high);
 		return 1;
 	}
 	*param = i;

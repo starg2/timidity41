@@ -285,6 +285,7 @@ static void update_legato_controls(int ch);
 static void set_master_tuning(int);
 static void set_single_note_tuning(int, int, int, int);
 static void set_user_temper_entry(int, int, int);
+static int exec_cue_point(int, int, int);
 void recompute_bank_parameter(int, int);
 
 static void init_voice_filter(int);
@@ -382,6 +383,7 @@ static char *event_name(int type)
 	EVENT_NAME(ME_MASTER_VOLUME);
 	EVENT_NAME(ME_RESET);
 	EVENT_NAME(ME_NOTE_STEP);
+	EVENT_NAME(ME_CUEPOINT);
 	EVENT_NAME(ME_TIMESIG);
 	EVENT_NAME(ME_KEYSIG);
 	EVENT_NAME(ME_TEMPER_KEYSIG);
@@ -8098,6 +8100,9 @@ int play_event(MidiEvent *ev)
 			wrdt->update_events();
 		break;
 
+	case ME_CUEPOINT:
+		return exec_cue_point(ch, current_event->a, current_event->b);
+
       case ME_EOT:
 	return midi_play_end();
     }
@@ -8241,6 +8246,27 @@ static void set_user_temper_entry(int part, int a, int b)
 			}
 		break;
 	}
+}
+
+static int exec_cue_point(int part, int a, int b)
+{
+	static int a0 = 0, b0 = 0;
+	uint32 cur, val;
+	
+	if (part == 0) {
+		a0 = a, b0 = b;
+		return RC_NONE;
+	}
+	if ((cur = current_trace_samples()) == -1)
+		cur = current_sample;
+	aq_flush(1);
+	val = a0 << 24 | b0 << 16 | a << 8 | b;
+	if (val == 0x7fffffff || cur + val >= sample_count)
+		return RC_NEXT;
+	skip_to(cur + val);
+	ctl_updatetime(cur + val);
+	ctl_timestamp();
+	return RC_NONE;
 }
 
 static int play_midi(MidiEvent *eventlist, int32 samples)

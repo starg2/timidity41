@@ -452,6 +452,30 @@ In the current version of \fBTiMidity++\fP this option is a toggle.
 Toggles fast envelopes.  This option makes \fBTiMidity++\fP faster but
 the release time of the notes are shortened.
 .TP
+.BI "\-G " begin1-end1[,begin2-end2,...]
+.br
+.ns
+.TP
+.BI \-\-segment= begin1-end1[,begin2-end2,...]
+Play just sub-segment(s) specified by comma separated time segments.
+.br
+Each time segment defined by dash separated time values of:
+\fIbegin\fP-\fIend\fP - defaulted to 0-infinity.
+Playing from \fIbegin\fP to \fIend\fP.
+.sp
+Time format: \fI[<minutes>:]<seconds>[.<milliseconds>]\fP
+.sp
+For example:
+.RS
+.TP
+.B \-G12-1:00.500
+Skip 12 seconds and stop at 1 minute and half a second.
+.TP
+.B \-G-5,2:00-
+Play the initial 5 seconds, then skip to 2 minutes from start and play
+till end.
+.RE
+.TP
 .BI "\-g " sec ", \-\-spectrogram=" sec
 Open the Sound\-Spectrogram window.  This option is activated if the
 system has support for the X Window System.
