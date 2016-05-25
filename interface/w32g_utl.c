@@ -63,6 +63,7 @@ extern char def_instr_name[];
 extern int opt_control_ratio;
 extern char *opt_aq_max_buff;
 extern char *opt_aq_fill_buff;
+extern int opt_aq_fill_buff_free_needed;
 extern int opt_evil_mode;
 extern int opt_buffer_fragments;
 extern int32 opt_output_rate;
@@ -568,7 +569,7 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     temper_type_mute = st->temper_type_mute;
     if(opt_aq_max_buff)
 	free(opt_aq_max_buff);
-    if(opt_aq_fill_buff)
+    if(opt_aq_fill_buff && opt_aq_fill_buff_free_needed)
 	free(opt_aq_fill_buff);
     strcpy(buffer, st->opt_qsize);
     opt_aq_max_buff = buffer;

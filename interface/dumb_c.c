@@ -74,6 +74,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 static FILE *outfp;
 int dumb_error_count;
 
@@ -94,9 +97,13 @@ static void ctl_close(void)
   ctl.opened=0;
 }
 
-/*ARGSUSED*/
 static int ctl_read(int32 *valp)
 {
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
   return RC_NONE;
 }
 
@@ -212,6 +219,10 @@ static void ctl_event(CtlEvent *e)
       case CTLE_PLAY_START:
 	ctl_total_time(e->v1);
 	break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
       case CTLE_CURRENT_TIME:
 	ctl_current_time((int)e->v1);
 	break;

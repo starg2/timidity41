@@ -268,6 +268,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 
 /***********************************************************************/
 /* foreground/background checks disabled since switching to curses */
@@ -1063,6 +1066,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
       case CTLE_CURRENT_TIME:
 	ctl_current_time((int)e->v1, (int)e->v2);
 	display_aq_ratio();
@@ -2437,6 +2444,12 @@ static int ctl_read(int32 *valp)
 {
   int c, i;
   static int u_prefix = 1, u_flag = 1;
+
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
 
   if(ctl_cmdmode)
       mini_buff_refresh(command_buffer);

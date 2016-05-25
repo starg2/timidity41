@@ -90,6 +90,7 @@ enum {
     CTLE_LOADING_DONE,		/* v1:0=success -1=error 1=terminated */
     CTLE_PLAY_START,		/* v1:nsamples */
     CTLE_PLAY_END,
+    CTLE_CUEPOINT,		/* v1:nsamples */
     CTLE_CURRENT_TIME,		/* v1:secs, v2:voices */
     CTLE_NOTE,			/* v1:status, v2:ch, v3:note, v4:velo */
     CTLE_MASTER_VOLUME,		/* v1:amp(%) */

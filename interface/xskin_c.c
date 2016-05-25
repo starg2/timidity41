@@ -95,6 +95,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 static char local_buf[300];
 static int pipe_in_fd,pipe_out_fd=-1;
 
@@ -327,6 +330,11 @@ static int ctl_blocking_read(int32 *valp  /* Now, valp is not used */ ) {
 }
 
 static int ctl_read(int32 *valp) {
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
   if (xskin_pipe_ready()<=0) return RC_NONE;
   return ctl_blocking_read(valp);
 }
@@ -536,6 +544,10 @@ static void ctl_event(CtlEvent *e)
     case CTLE_PLAY_START:
       ctl_total_time((int)e->v1);
       break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
     case CTLE_CURRENT_TIME:
       ctl_current_time((int)e->v1, (int)e->v2);
       break;

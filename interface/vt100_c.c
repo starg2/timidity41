@@ -146,6 +146,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 static int selected_channel = -1;
 static int lyric_row = 6;
 static int title_row = 6;
@@ -652,6 +655,11 @@ static int ctl_read(int32 *valp)
 {
     char *cmd;
 
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
     if((cmd = vt100_getline()) == NULL)
 	return RC_NONE;
     switch(cmd[0])
@@ -1223,6 +1231,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:

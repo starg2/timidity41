@@ -155,6 +155,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 /***********************************************************************/
 /* foreground/background checks disabled since switching to curses */
 /* static int in_foreground=1; */
@@ -550,6 +553,12 @@ static void ctl_close(void)
 static int ctl_read(int32 *valp)
 {
   int c;
+
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
 
   if (!SLang_input_pending(0))
     return RC_NONE;
@@ -1018,6 +1027,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:

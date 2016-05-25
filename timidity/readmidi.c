@@ -4603,7 +4603,7 @@ static void insert_note_steps(void)
 
 static int32 compute_smf_at_time(const int32);
 
-static void insert_cue_points(void)
+static void insert_cuepoints(void)
 {
 	MS_Segment *sp;
 	int32 at, t;
@@ -4612,15 +4612,14 @@ static void insert_cue_points(void)
 	for (sp = ms_segments; sp != NULL; sp = sp->next) {
 		if (sp->prev == NULL && sp->begin != 0) {
 			at = compute_smf_at_time(0);
-			t = sp->begin * play_mode->rate * midi_time_ratio + 0.5;
+			t = sp->begin * play_mode->rate;
 			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
 			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
 			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
 		}
 		if (sp->next != NULL) {
 			at = compute_smf_at_time(sp->end * play_mode->rate);
-			t = (sp->next->begin - sp->end) * play_mode->rate \
-					* midi_time_ratio + 0.5;
+			t = (sp->next->begin - sp->end) * play_mode->rate;
 			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
 			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
 			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
@@ -4820,7 +4819,7 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 
   grooming:
     insert_note_steps();
-    insert_cue_points();
+    insert_cuepoints();
     ev = groom_list(current_file_info->divisions, count, sp);
     if(ev == NULL)
     {

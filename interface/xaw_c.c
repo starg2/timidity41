@@ -150,6 +150,9 @@ ControlMode ctl = {
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 static char local_buf[PIPE_LENGTH];
 
 /***********************************************************************/
@@ -617,6 +620,11 @@ z3error:
 
 static int
 ctl_read(int32 *valp) {
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
   if (a_pipe_ready() <= 0) return RC_NONE;
   return ctl_blocking_read(valp);
 }
@@ -1025,6 +1033,10 @@ ctl_event(CtlEvent *e) {
     case CTLE_PLAY_START:
       ctl_total_time((int)e->v1 / play_mode->rate);
       break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
     case CTLE_TEMPO:
       ctl_tempo((int)e->v1);
       break;

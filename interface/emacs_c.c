@@ -111,6 +111,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 static FILE *outfp;
 
 static void quote_string_out(char *str)
@@ -167,6 +170,11 @@ static int ctl_read(int32 *valp)
     char cmd[BUFSIZ];
     int n;
 
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
     if(read_ready() <= 0)
 	return RC_NONE;
     if(fgets(cmd, sizeof(cmd), stdin) == NULL)
@@ -545,6 +553,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:

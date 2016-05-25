@@ -231,7 +231,7 @@ int timiwp_main_close(void)
 		free(opt_output_name);
 	if (opt_aq_max_buff)
 		free(opt_aq_max_buff);
-	if (opt_aq_fill_buff)
+	if (opt_aq_fill_buff && opt_aq_fill_buff_free_needed)
 		free(opt_aq_fill_buff);
 	if (output_text_code)
 		free(output_text_code);

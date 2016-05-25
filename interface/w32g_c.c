@@ -112,6 +112,9 @@ ControlMode ctl=
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 #define FORCE_TIME_PERIOD
 #ifdef FORCE_TIME_PERIOD
 static TIMECAPS tcaps;
@@ -551,6 +554,11 @@ static int ctl_read(int32  *valp)
 {
     int rc;
     ptr_size_t buf;
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
     rc = w32g_get_rc(&buf, play_pause_flag);
     *valp=(int32)buf;
     if(rc >= RC_EXT_BASE)
@@ -1211,6 +1219,10 @@ static void ctl_event(CtlEvent *e)
       case CTLE_PLAY_END:
 	MainWndScrollbarProgressUpdate(-1);
 	break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
       case CTLE_CURRENT_TIME: {
 	  int sec;
 	  if(midi_trace.flush_flag)

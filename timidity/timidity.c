@@ -385,6 +385,7 @@ MAIN_INTERFACE int got_a_configuration;
 char *wrdt_open_opts = NULL;
 char *opt_aq_max_buff = NULL,
      *opt_aq_fill_buff = NULL;
+int opt_aq_fill_buff_free_needed = 1;
 void timidity_init_aq_buff(void);
 int opt_control_ratio = 0; /* Save -C option */
 #ifdef AU_PORTAUDIO
@@ -3619,19 +3620,30 @@ static inline int parse_opt_G(const char *arg)
 	MS_Segment *sp;
 	const char *p = arg;
 	
-	ms_segments = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
-	if (parse_segment(ms_segments, p)) {
-		free_ms_segments();
-		return 1;
+	if (ms_segments == NULL) {
+		ms_segments = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
+		if (parse_segment(ms_segments, p)) {
+			free_ms_segments();
+			return 1;
+		}
+		ms_segments->prev = ms_segments->next = NULL, sp = ms_segments;
+	} else {
+		for (sp = ms_segments; sp->next != NULL; sp = sp->next)
+			;
+		sp->next = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
+		if (parse_segment(sp->next, p)) {
+			free_ms_segments();
+			return 1;
+		}
+		sp->next->prev = sp, sp->next->next = NULL, sp = sp->next;
 	}
-	ms_segments->prev = ms_segments->next = NULL;
-	for (sp = ms_segments; (p = strchr(p, ',')) != NULL; sp = sp->next) {
+	while ((p = strchr(p, ',')) != NULL) {
 		sp->next = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
 		if (parse_segment(sp->next, ++p)) {
 			free_ms_segments();
 			return 1;
 		}
-		sp->next->prev = sp, sp->next->next = NULL;
+		sp->next->prev = sp, sp->next->next = NULL, sp = sp->next;
 	}
 	for (sp = ms_segments; sp != NULL; sp = sp->next)
 		if (sp->prev != NULL && sp->begin <= sp->prev->end) {
@@ -4793,6 +4805,7 @@ static inline int parse_opt_q(const char *arg)
 		if (opt_aq_fill_buff)
 			free(opt_aq_fill_buff);
 		opt_aq_fill_buff = ++fill_buff;
+		opt_aq_fill_buff_free_needed = 0;
 	}
 	return 0;
 }
@@ -6066,7 +6079,7 @@ int main(int argc, char **argv)
 		free(opt_output_name);
 	if (opt_aq_max_buff)
 		free(opt_aq_max_buff);
-	if (opt_aq_fill_buff)
+	if (opt_aq_fill_buff && opt_aq_fill_buff_free_needed)
 		free(opt_aq_fill_buff);
 	if (output_text_code)
 		free(output_text_code);

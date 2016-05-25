@@ -96,6 +96,9 @@ ControlMode ctl =
     ctl_event
 };
 
+static uint32 cuepoint = 0;
+static int cuepoint_pending = 0;
+
 
 /***********************************************************************/
 /* Put controls on the pipe                                            */
@@ -143,6 +146,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
+	case CTLE_CUEPOINT:
+		cuepoint = e->v1;
+		cuepoint_pending = 1;
+		break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:
@@ -514,6 +521,12 @@ static int
 ctl_read(int32 *valp)
 {
     int num;
+
+	if (cuepoint_pending) {
+		*valp = cuepoint;
+		cuepoint_pending = 0;
+		return RC_FORWARD;
+	}
 
     /* We don't wan't to lock on reading  */
     num = gtk_pipe_read_ready();

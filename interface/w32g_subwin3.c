@@ -632,6 +632,8 @@ void w32_tracer_ctl_event(CtlEvent *e)
 		break;
 	case CTLE_PLAY_END:
 		break;
+	case CTLE_CUEPOINT:
+		break;
 	case CTLE_TEMPO:
 #if 0
 		{
