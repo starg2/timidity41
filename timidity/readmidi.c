@@ -4614,6 +4614,7 @@ static void insert_cuepoints(void)
 			at = compute_smf_at_time(0);
 			t = sp->begin * play_mode->rate;
 			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+			MIDIEVENT(at, ME_NOTEON, 0, 0, 0);
 			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
 			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
 		}
@@ -4640,8 +4641,8 @@ static int32 compute_smf_at_time(const int32 sample)
 	int i;
 	
 	for (i = 0, e = evlist; i < event_count; i++, e = e->next) {
-		st += (double) tempo * play_mode->rate / 1000000 \
-				/ current_file_info->divisions \
+		st += (double) tempo * play_mode->rate / 1000000
+				/ current_file_info->divisions
 				* (e->event.time - prev_time) + 0.5;
 		if (st >= sample && e->event.type == ME_NOTE_STEP)
 			return e->event.time;
