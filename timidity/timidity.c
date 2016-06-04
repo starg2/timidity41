@@ -437,8 +437,11 @@ static inline int parse_opt_e(const char *);
 static inline int parse_opt_F(const char *);
 static inline int parse_opt_f(const char *);
 static inline int parse_opt_G(const char *);
-static int parse_segment(MS_Segment *, const char *);
+static inline int parse_opt_G1(const char *);
+static int parse_segment(TimeSegment *, const char *);
+static int parse_segment2(TimeSegment *, const char *);
 static int parse_time(FLOAT_T *, const char *);
+static int parse_time2(Measure *, const char *);
 static inline int parse_opt_g(const char *);
 static inline int parse_opt_H(const char *);
 __attribute__((noreturn))
@@ -3616,73 +3619,157 @@ static inline int parse_opt_f(const char *arg)
 
 static inline int parse_opt_G(const char *arg)
 {
-	/* play just sub-segment(s) */
-	MS_Segment *sp;
+	/* play just sub-segment(s) (seconds) */
+	TimeSegment *sp;
 	const char *p = arg;
+	int prev_end;
 	
-	if (ms_segments == NULL) {
-		ms_segments = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
-		if (parse_segment(ms_segments, p)) {
-			free_ms_segments();
+	if (strchr(arg, 'm'))
+		return parse_opt_G1(arg);
+	if (time_segments == NULL) {
+		time_segments = (TimeSegment *) safe_malloc(sizeof(TimeSegment));
+		time_segments->type = 0;
+		if (parse_segment(time_segments, p)) {
+			free_time_segments();
 			return 1;
 		}
-		ms_segments->prev = ms_segments->next = NULL, sp = ms_segments;
+		time_segments->prev = time_segments->next = NULL, sp = time_segments;
 	} else {
-		for (sp = ms_segments; sp->next != NULL; sp = sp->next)
+		for (sp = time_segments; sp->next != NULL; sp = sp->next)
 			;
-		sp->next = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
+		sp->next = (TimeSegment *) safe_malloc(sizeof(TimeSegment));
+		sp->next->type = 0;
 		if (parse_segment(sp->next, p)) {
-			free_ms_segments();
+			free_time_segments();
 			return 1;
 		}
 		sp->next->prev = sp, sp->next->next = NULL, sp = sp->next;
 	}
 	while ((p = strchr(p, ',')) != NULL) {
-		sp->next = (MS_Segment *) safe_malloc(sizeof(MS_Segment));
+		sp->next = (TimeSegment *) safe_malloc(sizeof(TimeSegment));
+		sp->next->type = 0;
 		if (parse_segment(sp->next, ++p)) {
-			free_ms_segments();
+			free_time_segments();
 			return 1;
 		}
 		sp->next->prev = sp, sp->next->next = NULL, sp = sp->next;
 	}
-	for (sp = ms_segments; sp != NULL; sp = sp->next)
-		if (sp->prev != NULL && sp->begin <= sp->prev->end) {
+	prev_end = -1;
+	for (sp = time_segments; sp != NULL; sp = sp->next) {
+		if (sp->type != 0)
+			continue;
+		if (sp->begin.s <= prev_end) {
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Segments must be ordered");
-			free_ms_segments();
+			free_time_segments();
 			return 1;
-		} else if (sp->end != -1 && sp->begin >= sp->end) {
+		} else if (sp->end.s != -1 && sp->begin.s >= sp->end.s) {
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Segment time must be ordered");
-			free_ms_segments();
+			free_time_segments();
 			return 1;
 		}
+		prev_end = sp->end.s;
+	}
 	return 0;
 }
 
-static int parse_segment(MS_Segment *seg, const char *p)
+static inline int parse_opt_G1(const char *arg)
+{
+	/* play just sub-segment(s) (measure) */
+	TimeSegment *sp;
+	const char *p = arg;
+	int prev_end_meas, prev_end_beat;
+	
+	if (time_segments == NULL) {
+		time_segments = (TimeSegment *) safe_malloc(sizeof(TimeSegment));
+		time_segments->type = 1;
+		if (parse_segment2(time_segments, p)) {
+			free_time_segments();
+			return 1;
+		}
+		time_segments->prev = time_segments->next = NULL, sp = time_segments;
+	} else {
+		for (sp = time_segments; sp->next != NULL; sp = sp->next)
+			;
+		sp->next = (TimeSegment *) safe_malloc(sizeof(TimeSegment));
+		sp->next->type = 1;
+		if (parse_segment2(sp->next, p)) {
+			free_time_segments();
+			return 1;
+		}
+		sp->next->prev = sp, sp->next->next = NULL, sp = sp->next;
+	}
+	while ((p = strchr(p, ',')) != NULL) {
+		sp->next = (TimeSegment *) safe_malloc(sizeof(TimeSegment));
+		sp->next->type = 1;
+		if (parse_segment2(sp->next, ++p)) {
+			free_time_segments();
+			return 1;
+		}
+		sp->next->prev = sp, sp->next->next = NULL, sp = sp->next;
+	}
+	prev_end_meas = prev_end_beat = -1;
+	for (sp = time_segments; sp != NULL; sp = sp->next) {
+		if (sp->type != 1)
+			continue;
+		if (sp->begin.m.meas * 16 + sp->begin.m.beat
+				<= prev_end_meas * 16 + prev_end_beat) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Segments must be ordered");
+			free_time_segments();
+			return 1;
+		} else if (sp->end.m.meas != -1 && sp->end.m.beat != -1
+				&& sp->begin.m.meas * 16 + sp->begin.m.beat
+				>= sp->end.m.meas * 16 + sp->end.m.beat) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Segment time must be ordered");
+			free_time_segments();
+			return 1;
+		}
+		prev_end_meas = sp->end.m.meas, prev_end_beat = sp->end.m.beat;
+	}
+	return 0;
+}
+
+static int parse_segment(TimeSegment *seg, const char *p)
 {
 	const char *q;
 	
 	if (*p == '-')
-		seg->begin = 0;
-	else if (parse_time(&seg->begin, p))
+		seg->begin.s = 0;
+	else if (parse_time(&seg->begin.s, p))
 		return 1;
 	p = ((q = strchr(p, '-')) == NULL) ? p + strlen(p) : q + 1;
 	if (*p == ',' || *p == '\0')
-		seg->end = -1;
-	else if (parse_time(&seg->end, p))
+		seg->end.s = -1;
+	else if (parse_time(&seg->end.s, p))
+		return 1;
+	return 0;
+}
+
+static int parse_segment2(TimeSegment *seg, const char *p)
+{
+	const char *q;
+	
+	if (*p == '-')
+		seg->begin.m.meas = seg->begin.m.beat = 1;
+	else if (parse_time2(&seg->begin.m, p))
+		return 1;
+	p = ((q = strchr(p, '-')) == NULL) ? p + strlen(p) : q + 1;
+	if (*p == ',' || *p == 'm')
+		seg->end.m.meas = seg->end.m.beat = -1;
+	else if (parse_time2(&seg->end.m, p))
 		return 1;
 	return 0;
 }
 
 static int parse_time(FLOAT_T *param, const char *p)
 {
-	const char *p1, *p2;
+	const char *p1, *p2, *p3;
 	int min;
 	FLOAT_T sec;
 	
 	p1 = ((p1 = strchr(p, ':')) == NULL) ? p + strlen(p) : p1;
 	p2 = ((p2 = strchr(p, '-')) == NULL) ? p + strlen(p) : p2;
-	if (p1 < p2) {
+	p3 = ((p3 = strchr(p, ',')) == NULL) ? p + strlen(p) : p3;
+	if ((p1 < p2 && p2 <= p3) || (p1 < p3 && p3 <= p2)) {
 		if (set_value(&min, atoi(p), 0, 59, "Segment time (min part)"))
 			return 1;
 		if (parse_val_float_t(&sec, p1 + 1, 0, 59.999,
@@ -3691,6 +3778,24 @@ static int parse_time(FLOAT_T *param, const char *p)
 		*param = min * 60 + sec;
 	} else if (parse_val_float_t(param, p, 0, 3599.999, "Segment time", 3))
 		return 1;
+	return 0;
+}
+
+static int parse_time2(Measure *param, const char *p)
+{
+	const char *p1, *p2, *p3;
+	
+	if (set_value(&param->meas, atoi(p), 0, 999, "Segment time (measure)"))
+		return 1;
+	p1 = ((p1 = strchr(p, '.')) == NULL) ? p + strlen(p) : p1;
+	p2 = ((p2 = strchr(p, '-')) == NULL) ? p + strlen(p) : p2;
+	p3 = ((p3 = strchr(p, ',')) == NULL) ? p + strlen(p) : p3;
+	if ((p1 < p2 && p2 <= p3) || (p1 < p3 && p3 <= p2)) {
+		if (set_value(&param->beat, atoi(p1 + 1), 1, 15,
+				"Segment time (beat)"))
+			return 1;
+	} else
+		param->beat = 1;
 	return 0;
 }
 
@@ -3840,12 +3945,15 @@ static int parse_opt_h(const char *arg)
 "Enable "
 #endif
 "fast decay mode (toggle)",
-"  -G         --segment=<begin>-<end>[,<begin2>-<end2>,...]",
+"  -G <begin>-<end>[,<begin2>-<end2>,...](m)",
+"  --segment=<begin>-<end>[,<begin2>-<end2>,...](m)",
 "               Play just sub-segment(s), comma separated segments",
-"               Each segment is dash separated of two time values of:",
-"               <begin>-<end> - defaulted to 0-infinity",
-"               Playing from <begin> to <end>",
-"               Time format: [<minutes>:]<seconds>[.<milliseconds>]",
+"                 Each segment is dash separated of two time values of:",
+"                 <begin>-<end> - defaulted to 0-infinity",
+"                 Playing from <begin> to <end>",
+"                 Time format: [<minutes>:]<seconds>[.<milliseconds>]",
+"                 'm' stands for using measure and beat instead of secs",
+"                 Time format: <measure>[.<beat>] (one-origin)",
 #ifdef SUPPORT_SOUNDSPEC
 "  -g sec     --spectrogram=sec",
 "               Open Sound-Spectrogram Window",
@@ -5107,7 +5215,7 @@ static int parse_val_float_t(FLOAT_T *param,
 {
 	FLOAT_T value;
 	char *errp;
-
+	
 	value = strtod(arg, &errp);
 	if (arg == errp) {
 		/* only when nothing was parsed */

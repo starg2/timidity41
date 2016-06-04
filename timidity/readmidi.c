@@ -101,7 +101,7 @@ static char **string_event_table = NULL;
 static int    string_event_table_size = 0;
 int    default_channel_program[256];
 static MidiEvent timesig[256];
-MS_Segment *ms_segments = NULL;
+TimeSegment *time_segments = NULL;
 
 void init_delay_status_gs(void);
 void init_chorus_status_gs(void);
@@ -4601,40 +4601,70 @@ static void insert_note_steps(void)
 	}
 }
 
-static int32 compute_smf_at_time(const int32);
+static int32 compute_smf_at_time(const int32, int32 *);
+static int32 compute_smf_at_time2(const Measure, int32 *);
 
 static void insert_cuepoints(void)
 {
-	MS_Segment *sp;
-	int32 at, t;
+	TimeSegment *sp;
+	int32 at, st, t;
 	uint8 a0, b0, a1, b1;
 	
-	for (sp = ms_segments; sp != NULL; sp = sp->next) {
-		if (sp->prev == NULL && sp->begin != 0) {
-			at = compute_smf_at_time(0);
-			t = sp->begin * play_mode->rate;
-			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
-			MIDIEVENT(at, ME_NOTEON, 0, 0, 0);
-			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
-			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
-		}
-		if (sp->next != NULL) {
-			at = compute_smf_at_time(sp->end * play_mode->rate);
-			t = (sp->next->begin - sp->end) * play_mode->rate;
-			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
-			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
-			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
-		} else if (sp->end != -1) {
-			at = compute_smf_at_time(sp->end * play_mode->rate);
-			t = 0x7fffffff;		/* stopper */
-			a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
-			MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
-			MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+	for (sp = time_segments; sp != NULL; sp = sp->next) {
+		if (sp->type == 0) {
+			if (sp->prev == NULL && sp->begin.s != 0) {
+				t = sp->begin.s * play_mode->rate;
+				a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+				MIDIEVENT(0, ME_NOTEON, 0, 0, 0);
+				MIDIEVENT(0, ME_CUEPOINT, 0, a0, b0);
+				MIDIEVENT(0, ME_CUEPOINT, 1, a1, b1);
+			}
+			if (sp->next != NULL) {
+				at = compute_smf_at_time(sp->end.s * play_mode->rate, &st);
+				if (sp->next->type == 0)
+					t = sp->next->begin.s * play_mode->rate - st;
+				else
+					compute_smf_at_time2(sp->next->begin.m, &t), t -= st;
+				a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+				MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
+				MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+			} else if (sp->end.s != -1) {
+				at = compute_smf_at_time(sp->end.s * play_mode->rate, &st);
+				t = 0x7fffffff;		/* stopper */
+				a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+				MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
+				MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+			}
+		} else {
+			if (sp->prev == NULL
+					&& (sp->begin.m.meas != 1 || sp->begin.m.beat != 1)) {
+				compute_smf_at_time2(sp->begin.m, &t);
+				a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+				MIDIEVENT(0, ME_NOTEON, 0, 0, 0);
+				MIDIEVENT(0, ME_CUEPOINT, 0, a0, b0);
+				MIDIEVENT(0, ME_CUEPOINT, 1, a1, b1);
+			}
+			if (sp->next != NULL) {
+				at = compute_smf_at_time2(sp->end.m, &st);
+				if (sp->next->type == 0)
+					t = sp->next->begin.s * play_mode->rate - st;
+				else
+					compute_smf_at_time2(sp->next->begin.m, &t), t -= st;
+				a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+				MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
+				MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+			} else if (sp->end.m.meas != -1 || sp->end.m.beat != -1) {
+				at = compute_smf_at_time2(sp->end.m, &st);
+				t = 0x7fffffff;		/* stopper */
+				a0 = t >> 24, b0 = t >> 16, a1 = t >> 8, b1 = t;
+				MIDIEVENT(at, ME_CUEPOINT, 0, a0, b0);
+				MIDIEVENT(at, ME_CUEPOINT, 1, a1, b1);
+			}
 		}
 	}
 }
 
-static int32 compute_smf_at_time(const int32 sample)
+static int32 compute_smf_at_time(const int32 sample, int32 *sample_adj)
 {
 	MidiEventList *e;
 	int32 st = 0, tempo = 500000, prev_time = 0;
@@ -4644,8 +4674,10 @@ static int32 compute_smf_at_time(const int32 sample)
 		st += (double) tempo * play_mode->rate / 1000000
 				/ current_file_info->divisions
 				* (e->event.time - prev_time) + 0.5;
-		if (st >= sample && e->event.type == ME_NOTE_STEP)
+		if (st >= sample && e->event.type == ME_NOTE_STEP) {
+			*sample_adj = st;
 			return e->event.time;
+		}
 		if (e->event.type == ME_TEMPO)
 		    tempo = e->event.a * 65536 + e->event.b * 256 + e->event.channel;
 		prev_time = e->event.time;
@@ -4653,13 +4685,36 @@ static int32 compute_smf_at_time(const int32 sample)
 	return -1;
 }
 
-void free_ms_segments(void)
+static int32 compute_smf_at_time2(const Measure m, int32 *sample)
 {
-	MS_Segment *sp, *next;
+	MidiEventList *e;
+	int32 st = 0, tempo = 500000, prev_time = 0;
+	int i;
 	
-	for (sp = ms_segments; sp != NULL; sp = next)
+	for (i = 0, e = evlist; i < event_count; i++, e = e->next) {
+		st += (double) tempo * play_mode->rate / 1000000
+				/ current_file_info->divisions
+				* (e->event.time - prev_time) + 0.5;
+		if (e->event.type == ME_NOTE_STEP
+				&& ((e->event.a + ((e->event.b & 0x0f) << 8)) * 16
+				+ (e->event.b >> 4)) >= m.meas * 16 + m.beat) {
+			*sample = st;
+			return e->event.time;
+		}
+		if (e->event.type == ME_TEMPO)
+		    tempo = e->event.a * 65536 + e->event.b * 256 + e->event.channel;
+		prev_time = e->event.time;
+	}
+	return -1;
+}
+
+void free_time_segments(void)
+{
+	TimeSegment *sp, *next;
+	
+	for (sp = time_segments; sp != NULL; sp = next)
 		next = sp->next, free(sp);
-	ms_segments = NULL;
+	time_segments = NULL;
 }
 
 MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
@@ -6343,7 +6398,7 @@ void remove_channel_layer(int ch)
 void free_readmidi(void)
 {
 	reuse_mblock(&mempool);
-	free_ms_segments();
+	free_time_segments();
 	free_all_midi_file_info();
 	free_userdrum();
 	free_userinst();

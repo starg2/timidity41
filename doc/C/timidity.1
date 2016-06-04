@@ -452,18 +452,23 @@ In the current version of \fBTiMidity++\fP this option is a toggle.
 Toggles fast envelopes.  This option makes \fBTiMidity++\fP faster but
 the release time of the notes are shortened.
 .TP
-.BI "\-G " begin1-end1[,begin2-end2,...]
+.BI "\-G " begin1-end1[,begin2-end2,...](m)
 .br
 .ns
 .TP
-.BI \-\-segment= begin1-end1[,begin2-end2,...]
+.BI \-\-segment= begin1-end1[,begin2-end2,...](m)
 Play just sub-segment(s) specified by comma separated time segments.
 .br
 Each time segment defined by dash separated time values of:
-\fIbegin\fP-\fIend\fP - defaulted to 0-infinity.
+\fIbegin\fP-\fIend\fP - defaulted to \fB0-infinity\fP.
 Playing from \fIbegin\fP to \fIend\fP.
 .sp
 Time format: \fI[<minutes>:]<seconds>[.<milliseconds>]\fP
+.sp
+To put `m' character along with the option treats it as measure and
+beat instead of seconds.
+.sp
+Time format: \fI<measure>[.<beat>]\fP (measure and beat are one-origin)
 .sp
 For example:
 .RS
@@ -474,6 +479,10 @@ Skip 12 seconds and stop at 1 minute and half a second.
 .B \-G-5,2:00-
 Play the initial 5 seconds, then skip to 2 minutes from start and play
 till end.
+.TP
+.B \-G11.4-20m -G4:00-
+Play from the 4th beat in the 11th measure to the 20th measure, then
+skip to 4 minutes from start and play till end.
 .RE
 .TP
 .BI "\-g " sec ", \-\-spectrogram=" sec
