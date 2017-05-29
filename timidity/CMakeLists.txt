@@ -87,6 +87,8 @@ set(
     tables.h
     timidity.h
     wrd.h
+
+    $<TARGET_OBJECTS:interface_res>
 )
 
 set_source_files_properties(resample.c OBJECT_DEPENDS newton_table.c)

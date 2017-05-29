@@ -14,7 +14,6 @@ add_library(
     w32g_pref.h
     w32g_rec.h
     w32g_res.h
-    w32g_res.rc
     w32g_subwin.c
     w32g_subwin.h
     w32g_subwin2.c
@@ -27,4 +26,9 @@ add_library(
     w32g_utl.h
     w32g_wrd.h
     wrdt_w32g.c
+)
+
+add_library(
+    interface_res OBJECT
+    w32g_res.rc
 )
