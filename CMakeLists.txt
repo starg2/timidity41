@@ -39,6 +39,8 @@ add_definitions(
     -DANOTHER_MAIN
     -D__W32G__
 
+    -D_CRT_SECURE_NO_WARNINGS
+
 # network
     -DWINSOCK
     -DHAVE_SOCKET
