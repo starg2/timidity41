@@ -119,56 +119,35 @@ if(TIMIDITY_AUDIO_FLAC)
     )
 endif()
 
+set(
+    TiMidityLibs
+
+    # TiMidity++ libs
+    interface
+    libarc
+    libunimod
+    utils
+
+    # WinAPI
+    kernel32
+    user32
+    gdi32
+    winspool
+    comdlg32
+    advapi32
+    shell32
+    ole32
+    oleaut32
+    uuid
+    comctl32
+    winmm
+    wsock32
+)
+
 if(TIMIDITY_INTERFACE_W32GUI)
     add_executable(timw32g ${TiMiditySources})
-    target_link_libraries(
-        timw32g
-
-        # TiMidity++ libs
-        interface
-        libarc
-        libunimod
-        utils
-
-        # WinAPI
-        kernel32
-        user32
-        gdi32
-        winspool
-        comdlg32
-        advapi32
-        shell32
-        ole32
-        oleaut32
-        uuid
-        comctl32
-        winmm
-        wsock32
-    )
+    target_link_libraries(timw32g ${TiMidityLibs})
 elseif(TIMIDITY_INTERFACE_WINSYN)
     add_executable(twsyng ${TiMiditySources})
-    target_link_libraries(
-        twsyng
-
-        # TiMidity++ libs
-        interface
-        libarc
-        libunimod
-        utils
-
-        # WinAPI
-        kernel32
-        user32
-        gdi32
-        winspool
-        comdlg32
-        advapi32
-        shell32
-        ole32
-        oleaut32
-        uuid
-        comctl32
-        winmm
-        wsock32
-    )
+    target_link_libraries(timidity ${TiMidityLibs})
 endif()
