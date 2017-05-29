@@ -57,7 +57,7 @@ struct dirent {
 
 /* typedef DIR - not the same as Unix */
 typedef struct {
-    long handle;		/* _findfirst/_findnext handle */
+    ptr_size_t handle;		/* _findfirst/_findnext handle */
     short offset;		/* offset into directory */
     short finished;		/* 1 if there are not more files */
 #ifdef __BORLANDC__

@@ -148,7 +148,7 @@ typedef UInt64 uint64;
 #endif /* C99 */
 
 /*  pointer size is not long in   WIN64 */
-#if defined(WIN32)  && defined(_AMD64_) 
+#if defined(WIN32)  && (defined(_AMD64_) || defined(_WIN64))
 typedef long long  ptr_size_t;
 typedef unsigned long long  u_ptr_size_t; 
 #else
