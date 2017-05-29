@@ -122,6 +122,9 @@ static TIMECAPS tcaps;
 
 static int ctl_open(int using_stdin, int using_stdout)
 {
+    (void)using_stdin;
+    (void)using_stdout;
+
     if(ctl.opened)
 	return 0;
     ctl.opened = 1;

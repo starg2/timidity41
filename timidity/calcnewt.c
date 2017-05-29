@@ -44,7 +44,7 @@ int main(int argc, const char *argv[])
 		}
     }
     for (i = 0; i <= n; i++)
-    	for (j = 0, sign = pow(-1, i); j <= i; j++, sign *= -1)
+    	for (j = 0, sign = (int)pow(-1, i); j <= i; j++, sign *= -1)
     	    newt_coeffs[i][j] *= sign;
 
 #ifdef _MSC_VER
