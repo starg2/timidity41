@@ -28,6 +28,7 @@ add_definitions(
     -DHAVE_LIMITS_H
     -DHAVE_MALLOC_H
     -DHAVE_SYS_TYPES_H
+    -DHAVE_STDINT_H
 
 # Windows only
     -Dpopen=_popen
