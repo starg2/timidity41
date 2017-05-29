@@ -5343,7 +5343,7 @@ static RETSIGTYPE sigterm_exit(int sig)
 #if defined(__MINGW32__) && !defined(HAVE_SSIZE_T)
     int dummy;
 #else
-    ssize_t dummy;
+    ptr_size_t dummy;
 #endif
 
     /* NOTE: Here, fprintf is dangerous because it is not re-enterance
