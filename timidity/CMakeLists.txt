@@ -145,9 +145,9 @@ set(
 )
 
 if(TIMIDITY_INTERFACE_W32GUI)
-    add_executable(timw32g ${TiMiditySources})
+    add_executable(timw32g WIN32 ${TiMiditySources})
     target_link_libraries(timw32g ${TiMidityLibs})
 elseif(TIMIDITY_INTERFACE_WINSYN)
-    add_executable(twsyng ${TiMiditySources})
+    add_executable(twsyng WIN32 ${TiMiditySources})
     target_link_libraries(timidity ${TiMidityLibs})
 endif()
