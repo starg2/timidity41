@@ -31,6 +31,9 @@ add_definitions(
     -DHAVE_STDINT_H
     -DHAVE_FCNTL_H
 
+    -DTIMID_VERSION="current"
+    [[-DDEFAULT_PATH=".\\"]]
+
 # Windows only
     -Dpopen=_popen
     -Dpclose=_pclose
