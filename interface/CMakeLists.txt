@@ -27,4 +27,4 @@ add_library(
     w32g_utl.h
     w32g_wrd.h
     wrdt_w32g.c
-)    
+)

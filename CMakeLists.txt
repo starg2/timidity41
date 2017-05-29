@@ -30,9 +30,7 @@ add_definitions(
     -DHAVE_SYS_TYPES_H
     -DHAVE_STDINT_H
     -DHAVE_FCNTL_H
-
-    -DTIMID_VERSION="current"
-    [[-DDEFAULT_PATH=".\\"]]
+    -DHAVE_CONFIG_H
 
 # Windows only
     -Dpopen=_popen
@@ -95,7 +93,7 @@ else()
     add_compile_options(-Wall -Wextra)
 endif()
 
-include_directories(interface libarc libunimod timidity utils)
+include_directories("." interface libarc libunimod timidity utils)
 
 add_subdirectory(interface)
 add_subdirectory(libarc)
