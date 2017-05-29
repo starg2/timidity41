@@ -1,0 +1,34 @@
+
+add_library(
+    utils STATIC
+    bitset.c
+    bitset.h
+    fft.c
+    fft.h
+    fft4g.c
+    fft4g.h
+    getaddrinfo.c
+    getopt.c
+    mac_readdir.c
+    mac_readdir.h
+    mac_util.c
+    mac_util.h
+    Makefile.am
+    mblock.c
+    mblock.h
+    memb.c
+    memb.h
+    net.c
+    net.h
+    nkflib.c
+    nkflib.h
+    readdir.h
+    readdir_win.c
+    strtab.c
+    strtab.h
+    support.c
+    support.h
+    timer.c
+    timer.h
+    tmdy_getopt.h
+)

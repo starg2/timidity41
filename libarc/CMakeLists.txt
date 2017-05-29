@@ -1,0 +1,34 @@
+
+add_library(
+    libarc STATIC
+    arc.c
+    arc.h
+    arc_lzh.c
+    arc_mime.c
+    arc_tar.c
+    arc_zip.c
+    deflate.c
+    explode.c
+    explode.h
+    inflate.c
+    unlzh.c
+    unlzh.h
+    url.c
+    url.h
+    url_b64decode.c
+    url_buff.c
+    url_cache.c
+    url_dir.c
+    url_file.c
+    url_ftp.c
+    url_hqxdecode.c
+    url_http.c
+    url_inflate.c
+    url_mem.c
+    url_news.c
+    url_newsgroup.c
+    url_pipe.c
+    url_qsdecode.c
+    url_uudecode.c
+    zip.h
+)
