@@ -9,11 +9,6 @@ add_library(
     fft4g.h
     getaddrinfo.c
     getopt.c
-    mac_readdir.c
-    mac_readdir.h
-    mac_util.c
-    mac_util.h
-    Makefile.am
     mblock.c
     mblock.h
     memb.c
