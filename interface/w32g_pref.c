@@ -242,11 +242,11 @@ static BOOL APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 				SendMessage ( pref_pages[i].hwnd, WM_MYSAVE, (WPARAM)0, (LPARAM)0 );
 			}
 			PrefSettingApply();
-			SetWindowLong(hwnd,	DWL_MSGRESULT, TRUE);
+			SetWindowLongPtr(hwnd,	DWLP_MSGRESULT, TRUE);
 			EndDialog ( hwnd, TRUE );
 			return TRUE;
 		case IDCANCEL:
-			SetWindowLong(hwnd,	DWL_MSGRESULT, FALSE);
+			SetWindowLongPtr(hwnd,	DWLP_MSGRESULT, FALSE);
 			EndDialog ( hwnd, FALSE );
 			return TRUE;
 		case IDC_BUTTON_APPLY:
@@ -257,7 +257,7 @@ static BOOL APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 #ifndef IA_W32G_SYN
 			TracerWndApplyQuietChannel(st_temp->quietchannels);
 #endif
-			SetWindowLong(hwnd,	DWL_MSGRESULT, TRUE);
+			SetWindowLongPtr(hwnd,	DWLP_MSGRESULT, TRUE);
 			return TRUE;
 		}
 		break;
@@ -307,7 +307,7 @@ static BOOL APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 	return FALSE;
 }
 
-//			SetWindowLong(hwnd,	DWL_MSGRESULT, FALSE);
+//			SetWindowLongPtr(hwnd,	DWLP_MSGRESULT, FALSE);
 
 #define DLG_CHECKBUTTON_TO_FLAG(hwnd,ctlid,x)	\
 	((SendDlgItemMessage((hwnd),(ctlid),BM_GETCHECK,0,0))?((x)=1):((x)=0))
@@ -488,7 +488,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendMessage ( pref_pages[i].hwnd, WM_MYSAVE, (WPARAM)0, (LPARAM)0 );
 			}
 			reload_cfg();
-			SetWindowLong(hwnd,	DWL_MSGRESULT, TRUE);
+			SetWindowLongPtr(hwnd,	DWLP_MSGRESULT, TRUE);
 		}
 			break;
 		case IDC_RADIOBUTTON_JAPANESE:
@@ -554,7 +554,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			sp_temp->AutosavePlaylist);
 		DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECK_POS_SIZE_SAVE,
 			sp_temp->PosSizeSave);
-		SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
+		SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
 	}
 		break;
 	case WM_SIZE:
@@ -900,7 +900,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_PAN_DELAY,st_temp->opt_pan_delay);
 		DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_EQ,st_temp->opt_eq_control);
 		DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_IEFFECT,st_temp->opt_insertion_effect);
-		SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
+		SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
 	}
 		break;
 	case WM_SIZE:
@@ -1175,7 +1175,7 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		else
 			st_temp->opt_force_keysig = 8;
 
-		SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
+		SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
 	}
 		break;
   case WM_SIZE:
@@ -1599,7 +1599,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		else
 			GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName,(WPARAM)sizeof(st_temp->OutputDirName));
 
-		SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
+		SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
 	}
 		break;
 
@@ -1837,7 +1837,7 @@ else UNSET_CHANNELMASK((channelbitmask),(ch)); }
 		if (SendDlgItemMessage(hwnd, IDC_CHECKBOX_TEMPER_USER3,
 				BM_GETCHECK, 0, 0))
 			st_temp->temper_type_mute |= 1 << 7;
-	SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
+	SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
 	break;
   case WM_SIZE:
 		return FALSE;
@@ -2036,7 +2036,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		if ( res != CB_ERR ) st_temp->SynIDPort[2] = res;
 		res = SendDlgItemMessage ( hwnd, IDC_COMBO_IDPORT3, CB_GETCURSEL, 0, 0 );
 		if ( res != CB_ERR ) st_temp->SynIDPort[3] = res;
-		SetWindowLong(hwnd,DWL_MSGRESULT,FALSE);
+		SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_SYN_AUTOSTART, st_temp->syn_AutoStart);
 		// Set process priority
 		res = SendDlgItemMessage ( hwnd, IDC_COMBO_PROCESS_PRIORITY, CB_GETCURSEL, 0, 0 );
