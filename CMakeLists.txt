@@ -29,6 +29,7 @@ add_definitions(
     -DHAVE_MALLOC_H
     -DHAVE_SYS_TYPES_H
     -DHAVE_STDINT_H
+    -DHAVE_FCNTL_H
 
 # Windows only
     -Dpopen=_popen
