@@ -2,7 +2,7 @@
 add_executable(calcnewton calcnewt.c)
 add_custom_command(
     OUTPUT newton_table.c
-    COMMAND caclnewton newton_table.c
+    COMMAND calcnewton newton_table.c
 )
 
 set(
@@ -87,10 +87,10 @@ set(
     tables.h
     timidity.h
     wrd.h
-
-# Generated file
-    newton_table.c
 )
+
+set_source_files_properties(resample.c OBJECT_DEPENDS newton_table.c)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 if(TIMIDITY_AUDIO_GOGO)
     list(
