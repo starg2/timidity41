@@ -4220,7 +4220,7 @@ static char *DlgFileOpen(HWND hwnd, char *title, char *filter, char *dir)
 static void DlgMidiFileOpen(HWND hwnd)
 {
     char *dir, *file;
-    char *filter = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.lzh;*.zip;*.gz\0"
+    char *filter = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.it;*.s3m;*.xm;*.lzh;*.zip;*.gz\0"
 		"midi file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi\0"
 		"archive file\0*.lzh;*.zip;*.gz\0"
 		"playlist file\0*.pls;*.m3u;*.asx\0"
