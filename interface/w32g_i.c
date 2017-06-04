@@ -4205,7 +4205,7 @@ static char *DlgFileOpen(HWND hwnd, char *title, char *filter, char *dir)
 	ofn.lpstrInitialDir	= dir;
 	ofn.lpstrTitle = title;
 	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
-		| OFN_ALLOWMULTISELECT | OFN_EXPLORER | OFN_READONLY | OFN_NOCHANGEDIR;
+		| OFN_ALLOWMULTISELECT | OFN_EXPLORER | OFN_READONLY;
 	ofn.lpstrDefExt = 0;
 	ofn.lCustData = 0;
 	ofn.lpfnHook = 0;
