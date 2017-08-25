@@ -6,6 +6,9 @@ project(timidity_mod)
 set(TIMIDITY_AUDIO_GOGO FALSE CACHE BOOL "GOGO")
 set(TIMIDITY_AUDIO_VORBIS FALSE CACHE BOOL "vorbis")
 set(TIMIDITY_AUDIO_FLAC FALSE CACHE BOOL "flac")
+set(TIMIDITY_AUDIO_PORTAUDIO FALSE CACHE BOOL "portaudio")
+
+set(PORTAUDIO_INCLUDE_DIR "." CACHE PATH "portaudio include dir")
 
 set(TIMIDITY_INTERFACE_W32GUI TRUE CACHE BOOL "Windows GUI")
 set(TIMIDITY_INTERFACE_WINSYN FALSE CACHE BOOL "Windows synthesizer")
@@ -74,6 +77,15 @@ if(TIMIDITY_AUDIO_FLAC)
     )
 endif()
 
+if(TIMIDITY_AUDIO_PORTAUDIO)
+    add_definitions(
+        -DAU_PORTAUDIO
+        -DAU_PORTAUDIO_DLL
+    )
+
+    include_directories("${PORTAUDIO_INCLUDE_DIR}")
+endif()
+
 if(TIMIDITY_INTERFACE_W32GUI)
     add_definitions(
         -DIA_W32GUI
@@ -88,9 +100,21 @@ if(TIMIDITY_INTERFACE_WINSYN)
 endif()
 
 if(MSVC)
-    add_compile_options(-W4)
+    add_compile_options(-W4 -Zi -fp:fast)
+
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL /GS /guard:cf")
+
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MANIFEST:NO")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG:FASTLINK")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE
+        "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF /LTCG:incremental /DEBUG:FULL /GUARD:CF"
+    )
+    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
+        "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /OPT:REF /DEBUG:FASTLINK"
+    )
 else()
     add_compile_options(-Wall -Wextra)
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
 endif()
 
 include_directories("." interface libarc libunimod timidity utils)

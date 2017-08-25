@@ -94,33 +94,6 @@ set(
 set_source_files_properties(resample.c OBJECT_DEPENDS newton_table.c)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-if(TIMIDITY_AUDIO_GOGO)
-    list(
-        TiMiditySources APPEND
-        w32_gogo.c
-        w32_gogo.h
-        w32g_ogg_dll.c
-    )
-endif()
-
-if(TIMIDITY_AUDIO_VORBIS)
-    list(
-        TiMiditySources APPEND
-        w32g_vorbis_dll.c
-        w32g_vorbis_dll.c
-    )
-endif()
-
-if(TIMIDITY_AUDIO_FLAC)
-    list(
-        TiMiditySources APPEND
-        w32_libFLAC_dll.c
-        w32_libFLAC_dll.h
-        w32_libFLAC_dll_g.h
-        w32_libFLAC_dll_i.h
-    )
-endif()
-
 set(
     TiMidityLibs
 
@@ -145,6 +118,42 @@ set(
     winmm
     wsock32
 )
+
+if(TIMIDITY_AUDIO_GOGO)
+    list(
+        APPEND TiMiditySources
+        w32_gogo.c
+        w32_gogo.h
+        w32g_ogg_dll.c
+    )
+endif()
+
+if(TIMIDITY_AUDIO_VORBIS)
+    list(
+        APPEND TiMiditySources
+        w32g_vorbis_dll.c
+        w32g_vorbis_dll.c
+    )
+endif()
+
+if(TIMIDITY_AUDIO_FLAC)
+    list(
+        APPEND TiMiditySources
+        w32_libFLAC_dll.c
+        w32_libFLAC_dll.h
+        w32_libFLAC_dll_g.h
+        w32_libFLAC_dll_i.h
+    )
+endif()
+
+if(TIMIDITY_AUDIO_PORTAUDIO)
+    list(
+        APPEND TiMiditySources
+        portaudio_a.c
+        w32_portaudio.h
+        w32_portaudio_dll.c
+    )
+endif()
 
 if(TIMIDITY_INTERFACE_W32GUI)
     add_executable(timw32g WIN32 ${TiMiditySources})
