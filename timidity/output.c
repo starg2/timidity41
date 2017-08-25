@@ -97,6 +97,7 @@ extern PlayMode portaudio_play_mode;
 extern PlayMode portaudio_asio_play_mode;
 extern PlayMode portaudio_win_ds_play_mode;
 extern PlayMode portaudio_win_wmme_play_mode;
+extern PlayMode portaudio_win_wasapi_play_mode;
 #endif
 #endif /* AU_PORTAUDIO */
 
@@ -169,6 +170,7 @@ PlayMode *play_mode_list[] = {
   &portaudio_asio_play_mode,
   &portaudio_win_ds_play_mode,
   &portaudio_win_wmme_play_mode,
+  &portaudio_win_wasapi_play_mode,
 #endif
 #endif /* AU_PORTAUDIO */
 

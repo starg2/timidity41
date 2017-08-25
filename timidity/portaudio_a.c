@@ -116,6 +116,7 @@ padata_t pa_data;
 static int open_output_asio(void);
 static int open_output_win_ds(void);
 static int open_output_win_wmme(void);
+static int open_output_win_wasapi(void);
 PlayMode portaudio_asio_play_mode = {
 	(SAMPLE_RATE),
     PE_16BIT|PE_SIGNED,
@@ -151,6 +152,19 @@ PlayMode portaudio_win_wmme_play_mode = {
 	"PortAudio(WMME)", 'p',
     NULL,
     open_output_win_wmme,
+    close_output,
+    output_data,
+    acntl
+};
+PlayMode portaudio_win_wasapi_play_mode = {
+    (SAMPLE_RATE),
+    PE_16BIT | PE_SIGNED,
+    PF_PCM_STREAM | PF_BUFF_FRAGM_OPT | PF_CAN_TRACE,
+    -1,
+    {32}, /* PF_BUFF_FRAGM_OPT  is need for TWSYNTH */
+    "PortAudio(WASAPI)", 'W',
+    NULL,
+    open_output_win_wasapi,
     close_output,
     output_data,
     acntl
@@ -291,6 +305,11 @@ static int open_output_win_wmme(void)
 	portaudio_play_mode = &portaudio_win_wmme_play_mode;
 	return open_output();
 }
+static int open_output_win_wasapi(void)
+{
+    portaudio_play_mode = &portaudio_win_wasapi_play_mode;
+    return open_output();
+}
 #endif
 
 static int open_output(void)
@@ -313,7 +332,9 @@ static int open_output(void)
 			HostApiTypeId = paDirectSound;
 		} else if(&dpm == &portaudio_win_wmme_play_mode){
 			HostApiTypeId = paMME;
-		} else {
+        } else if(&dpm == &portaudio_win_wasapi_play_mode){
+            HostApiTypeId = paWASAPI;
+        } else {
 			return -1;
 		}
 		if(load_portaudio_dll(0))
