@@ -155,6 +155,13 @@ if(TIMIDITY_AUDIO_PORTAUDIO)
     )
 endif()
 
+if(TIMIDITY_AUDIO_WASAPI)
+	list(
+		APPEND TiMiditySources
+		wasapi_a.c
+	)
+endif()
+
 if(TIMIDITY_INTERFACE_W32GUI)
     add_executable(timw32g WIN32 ${TiMiditySources})
     target_link_libraries(timw32g ${TiMidityLibs})
