@@ -760,7 +760,7 @@ int WASAPIACntl(int request, void* pArg)
         WASAPIDoStop();
         return 0;
 
-    case PM_REQ_OUTPUT_FINISH:
+    case PM_REQ_FLUSH:
         while (!IsRenderBufferEmpty(&g_WASAPIContext.Buffer))
         {
             WaitForSingleObject(g_WASAPIContext.hRenderThread, 10);
