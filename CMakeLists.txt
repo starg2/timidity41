@@ -47,6 +47,7 @@ add_definitions(
     -D__W32G__
 
     -D_CRT_SECURE_NO_WARNINGS
+	-DCOBJMACROS
 
 # network
     -DWINSOCK

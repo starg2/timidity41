@@ -110,6 +110,7 @@ set(
     winspool
     comdlg32
     advapi32
+	avrt
     shell32
     ole32
     oleaut32
