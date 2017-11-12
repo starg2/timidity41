@@ -182,21 +182,31 @@ void DeleteRenderBuffer(RenderBuffer* pRenderBuffer)
     pRenderBuffer->pFree = NULL;
 }
 
+/* if *ppData == NULL, appends `size` count of zeros */
 void PushToRenderBufferPartial(RenderBufferNode* pNode, const char** ppData, size_t* pSize)
 {
-    size_t copyLength = pNode->Capacity - pNode->CurrentSize;
+    size_t pushLength = pNode->Capacity - pNode->CurrentSize;
 
-    if (copyLength > *pSize)
+    if (pushLength > *pSize)
     {
-        copyLength = *pSize;
+        pushLength = *pSize;
     }
 
-    memcpy(pNode->Data + pNode->CurrentSize, *ppData, copyLength);
-    *ppData += copyLength;
-    *pSize -= copyLength;
-    pNode->CurrentSize += copyLength;
+    if (*ppData)
+    {
+        memcpy(pNode->Data + pNode->CurrentSize, *ppData, pushLength);
+        *ppData += pushLength;
+    }
+    else
+    {
+        memset(pNode->Data + pNode->CurrentSize, 0, pushLength);
+    }
+
+    *pSize -= pushLength;
+    pNode->CurrentSize += pushLength;
 }
 
+/* if pData == NULL, appends `size` count of zeros */
 int PushToRenderBuffer(RenderBuffer* pRenderBuffer, const char* pData, size_t size)
 {
     while (size > 0)
@@ -253,6 +263,11 @@ int PushToRenderBuffer(RenderBuffer* pRenderBuffer, const char* pData, size_t si
     }
 
     return TRUE;
+}
+
+int PushZeroToRenderBuffer(RenderBuffer* pRenderBuffer, size_t size)
+{
+    return PushToRenderBuffer(pRenderBuffer, NULL, size);
 }
 
 size_t CalculateRenderBufferSize(RenderBuffer* pRenderBuffer, size_t maxSize)
@@ -587,27 +602,37 @@ int WASAPIDoWriteBuffer(void)
         size_t numberOfBytesToCopy = CalculateRenderBufferSize(&g_WASAPIContext.Buffer, (g_WASAPIContext.BufferSizeInFrames - padding) * g_WASAPIContext.FrameSize);
         size_t numberOfFramesToCopy = numberOfBytesToCopy / g_WASAPIContext.FrameSize;
 
-        if (numberOfFramesToCopy > 0)
+        if (g_WASAPIContext.IsExclusive && numberOfFramesToCopy < g_WASAPIContext.BufferSizeInFrames)
+        {
+            if (!PushZeroToRenderBuffer(&g_WASAPIContext.Buffer, g_WASAPIContext.BufferSizeInFrames * g_WASAPIContext.FrameSize - numberOfBytesToCopy))
+            {
+                return FALSE;
+            }
+
+            numberOfBytesToCopy = g_WASAPIContext.BufferSizeInFrames * g_WASAPIContext.FrameSize;
+            numberOfFramesToCopy = numberOfBytesToCopy / g_WASAPIContext.FrameSize;
+        }
+        else if (numberOfFramesToCopy == 0)
+        {
+            if (!PushZeroToRenderBuffer(&g_WASAPIContext.Buffer, g_WASAPIContext.FrameSize - numberOfBytesToCopy))
+            {
+                return FALSE;
+            }
+
+            numberOfBytesToCopy = g_WASAPIContext.FrameSize;
+            numberOfFramesToCopy = 1;
+        }
+
         {
             BYTE* pData;
-            HRESULT hr = IAudioRenderClient_GetBuffer(g_WASAPIContext.pAudioRenderClient, numberOfFramesToCopy, &pData);
 
-            if (hr == AUDCLNT_E_BUFFER_SIZE_ERROR)
-            {
-                PopRenderBuffer(&g_WASAPIContext.Buffer, numberOfFramesToCopy * g_WASAPIContext.FrameSize);
-                return TRUE;
-            }
-            else if (FAILED(hr))
+            if (FAILED(IAudioRenderClient_GetBuffer(g_WASAPIContext.pAudioRenderClient, numberOfFramesToCopy, &pData)))
             {
                 return FALSE;
             }
 
             PopRenderBuffer(&g_WASAPIContext.Buffer, ReadRenderBuffer(&g_WASAPIContext.Buffer, (char*)pData, numberOfFramesToCopy * g_WASAPIContext.FrameSize));
             IAudioRenderClient_ReleaseBuffer(g_WASAPIContext.pAudioRenderClient, numberOfFramesToCopy, 0);
-        }
-        else
-        {
-            ClearRenderBuffer(&g_WASAPIContext.Buffer);
         }
     }
 
