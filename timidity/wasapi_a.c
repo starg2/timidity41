@@ -749,10 +749,6 @@ int WASAPIACntl(int request, void* pArg)
 {
     switch (request)
     {
-    case PM_REQ_GETQSIZ:
-        *(int*)pArg = (int)(g_WASAPIContext.BufferSizeInFrames * g_WASAPIContext.FrameSize);
-        return 0;
-
     case PM_REQ_DISCARD:
         WASAPIDoStop();
         return 0;
