@@ -786,10 +786,11 @@ int WASAPIACntl(int request, void* pArg)
         return 0;
 
     case PM_REQ_FLUSH:
-        while (!IsRenderBufferEmpty(&g_WASAPIContext.Buffer))
+        while (g_WASAPIContext.IsStarted && !IsRenderBufferEmpty(&g_WASAPIContext.Buffer))
         {
-            WaitForSingleObject(g_WASAPIContext.hRenderThread, 10);
+            Sleep(50);
         }
+
         return 0;
 
     default:
