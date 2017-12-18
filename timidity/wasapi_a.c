@@ -1,6 +1,6 @@
 /*
 TiMidity++ -- MIDI to WAVE converter and player
-Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+Copyright (C) 1999-2014 Masanao Izumo <iz@onicos.co.jp>
 Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
 This program is free software; you can redistribute it and/or modify
@@ -51,7 +51,7 @@ Portions of this repo are provided under the SIL Open Font License.
 See the LICENSE file in individual samples for additional details
 ----
 
-Written by Starg.
+Written by Starg. <https://osdn.net/users/starg/pf/timidity_mod/wiki/FrontPage>
 
 */
 
