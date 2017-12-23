@@ -155,6 +155,9 @@ set(
     libarc
     libunimod
     utils
+
+    comctl32
+    ws2_32
 )
 
 # timidity

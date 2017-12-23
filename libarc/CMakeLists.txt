@@ -1,4 +1,9 @@
 
+add_definitions(
+    -Dpopen=_popen
+    -Dpclose=_pclose
+)
+
 add_library(
     libarc STATIC
 
