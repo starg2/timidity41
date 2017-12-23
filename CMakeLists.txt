@@ -5,9 +5,6 @@ project(timidity41)
 
 add_definitions(
 # TiMidity++ common
-    [[-DTIMID_VERSION="current"]]
-    [[-DDEFAULT_PATH=".\\"]]
-
     -DRETSIGTYPE=int
     -DSTDC_HEADERS
     -DHAVE_GETCWD

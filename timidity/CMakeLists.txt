@@ -1,4 +1,9 @@
 
+add_definitions(
+    [[-DTIMID_VERSION="current"]]
+    [[-DDEFAULT_PATH=".\\"]]
+)
+
 # calcnewton
 
 add_executable(calcnewton calcnewt.c)
