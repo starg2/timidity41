@@ -149,6 +149,14 @@ set(
     wrd.h
 )
 
+set(
+    TIMIDITY_COMMON_LIBS
+
+    libarc
+    libunimod
+    utils
+)
+
 # timidity
 
 add_executable(
@@ -158,7 +166,7 @@ add_executable(
 )
 
 target_compile_definitions(timidity PRIVATE -DIA_NCURSES)
-target_link_libraries(timidity interface libarc libunimod utils)
+target_link_libraries(timidity interface ${TIMIDITY_COMMON_LIBS})
 
 # twsynsrv
 
@@ -169,7 +177,7 @@ add_executable(
 )
 
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN)
-target_link_libraries(twsynsrv interface libarc libunimod utils)
+target_link_libraries(twsynsrv interface ${TIMIDITY_COMMON_LIBS})
 
 # timw32g
 
@@ -181,7 +189,7 @@ add_executable(
 )
 
 target_compile_definitions(timw32g PRIVATE -DIA_W32GUI)
-target_link_libraries(timw32g interface_w32g libarc libunimod utils)
+target_link_libraries(timw32g interface_w32g ${TIMIDITY_COMMON_LIBS})
 
 # twsyng
 
@@ -193,4 +201,4 @@ add_executable(
 )
 
 target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN)
-target_link_libraries(twsyng interface_w32gsyn libarc libunimod utils)
+target_link_libraries(twsyng interface_w32gsyn ${TIMIDITY_COMMON_LIBS})
