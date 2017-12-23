@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.9)
 project(timidity41)
 
 add_definitions(
+# TiMidity++ common
     [[-DTIMID_VERSION="current"]]
     [[-DDEFAULT_PATH=".\\"]]
 
@@ -25,6 +26,15 @@ add_definitions(
     -DHAVE_SYS_TYPES_H
     -DHAVE_FCNTL_H
 
+# TiMidity++ audio
+    -DAU_W32
+
+# TiMidity++ interface
+    -DIA_NCURSES
+    -DIA_VT100
+    -DIA_W32GUI
+    -DIA_W32G_SYN
+
 # network
     -DWINSOCK
     -DHAVE_SOCKET
@@ -34,7 +44,6 @@ add_definitions(
     -D__W32__
     -D__W32READDIR__
     -DANOTHER_MAIN
-    -DAU_W32
 
 # MSVCRT
     -D_CRT_SECURE_NO_WARNINGS
@@ -56,6 +65,11 @@ if(MSVC)
     set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG:incremental")
     set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /OPT:REF /DEBUG:FASTLINK")
     set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /OPT:REF /DEBUG:FASTLINK")
+
+    add_definitions(
+        -DSTDOUT_FILENO=1
+    )
+
 else()
     add_compile_options(-Wall -Wextra)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
