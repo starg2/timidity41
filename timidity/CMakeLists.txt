@@ -183,7 +183,7 @@ add_executable(
 )
 
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN)
-target_link_libraries(twsynsrv interface ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(twsynsrv interface_synsrv ${TIMIDITY_COMMON_LIBS})
 
 # timw32g
 

@@ -1,21 +1,17 @@
 
-add_library(
-    interface STATIC
+set(
+    INTERFACE_COMMON_SOURCES
 
     dumb_c.c
     ncurs_c.c
     npsyn_c.c
-#    portmidisyn_c.c
     rtsyn_common.c
-#    rtsyn_npipe.c
-#    rtsyn_winmm.c
     vt100.c
     vt100_c.c
     VTPrsTbl.c
     wrdt_dumb.c
     wrdt_tty.c
     wrdt_wcon.c
-#    winsyn_c.c
 
     gtk_h.h
     mac_c.h
@@ -85,6 +81,28 @@ set_source_files_properties(
             w32g_tracer.bmp
 )
 
+# for timidity
+
+add_library(
+    interface STATIC
+
+    ${INTERFACE_COMMON_SOURCES}
+)
+
+target_compile_definitions(interface PRIVATE -DIA_NCURSES)
+
+# for twsynsrv
+
+add_library(
+    interface_synsrv STATIC
+
+    ${INTERFACE_COMMON_SOURCES}
+    rtsyn_winmm.c
+    winsyn_c.c
+)
+
+target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN)
+
 # for timw32g
 
 add_library(
@@ -102,10 +120,16 @@ add_library(
 
 target_compile_definitions(interface_w32g_res PRIVATE -DIA_W32GUI)
 
+# for twsyng
+
 add_library(
     interface_w32gsyn STATIC
 
+    ${INTERFACE_COMMON_SOURCES}
     ${INTERFACE_W32G_COMMON_SOURCES}
+    w32g_syn.c
+    rtsyn_winmm.c
+    winsyn_c.c
 )
 
 target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -DTWSYNG32)
