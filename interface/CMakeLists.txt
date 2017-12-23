@@ -5,17 +5,17 @@ add_library(
     dumb_c.c
     ncurs_c.c
     npsyn_c.c
-    portmidisyn_c.c
+#    portmidisyn_c.c
     rtsyn_common.c
-    rtsyn_npipe.c
-    rtsyn_winmm.c
+#    rtsyn_npipe.c
+#    rtsyn_winmm.c
     vt100.c
     vt100_c.c
     VTPrsTbl.c
     wrdt_dumb.c
     wrdt_tty.c
     wrdt_wcon.c
-    winsyn_c.c
+#    winsyn_c.c
 
     gtk_h.h
     mac_c.h
@@ -35,8 +35,8 @@ add_library(
     x_wrdwindow.h
 )
 
-add_library(
-    interface_w32g STATIC
+set(
+    INTERFACE_W32G_COMMON_SOURCES
 
     w32g_c.c
     w32g_dib.c
@@ -69,11 +69,6 @@ add_library(
     w32g_wrd.h
 )
 
-add_library(
-    interface_w32g_res OBJECT
-    w32g_res.rc
-)
-
 set_source_files_properties(
     w32g_res.rc
 
@@ -89,3 +84,35 @@ set_source_files_properties(
             w32g_subbtn.bmp
             w32g_tracer.bmp
 )
+
+# for timw32g
+
+add_library(
+    interface_w32g STATIC
+
+    ${INTERFACE_W32G_COMMON_SOURCES}
+)
+
+target_compile_definitions(interface_w32g PRIVATE -DIA_W32GUI)
+
+add_library(
+    interface_w32g_res OBJECT
+    w32g_res.rc
+)
+
+target_compile_definitions(interface_w32g_res PRIVATE -DIA_W32GUI)
+
+add_library(
+    interface_w32gsyn STATIC
+
+    ${INTERFACE_W32G_COMMON_SOURCES}
+)
+
+target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN)
+
+add_library(
+    interface_w32gsyn_res OBJECT
+    w32g_res.rc
+)
+
+target_compile_definitions(interface_w32gsyn_res PRIVATE -DIA_W32G_SYN)

@@ -29,12 +29,6 @@ add_definitions(
 # TiMidity++ audio
     -DAU_W32
 
-# TiMidity++ interface
-    -DIA_NCURSES
-    -DIA_VT100
-    -DIA_W32GUI
-    -DIA_W32G_SYN
-
 # network
     -DWINSOCK
     -DHAVE_SOCKET

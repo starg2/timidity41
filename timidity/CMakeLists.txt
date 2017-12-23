@@ -12,8 +12,8 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # timidity common
 
-add_library(
-    timidity_common OBJECT
+set(
+    TIMIDITY_COMMON_SOURCES
 
     aiff_a.c
     ao_a.c
@@ -144,15 +144,38 @@ add_library(
     wrd.h
 )
 
+# timidity
+
+add_executable(
+    timidity
+
+    ${TIMIDITY_COMMON_SOURCES}
+)
+
+target_compile_definitions(timidity PRIVATE -DIA_NCURSES)
+target_link_libraries(timidity interface libarc libunimod utils)
+
+# twsynsrv
+
+add_executable(
+    twsynsrv
+
+    ${TIMIDITY_COMMON_SOURCES}
+)
+
+target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN)
+target_link_libraries(twsynsrv interface libarc libunimod utils)
+
 # timw32g
 
 add_executable(
     timw32g WIN32
 
-    $<TARGET_OBJECTS:timidity_common>
+    ${TIMIDITY_COMMON_SOURCES}
     $<TARGET_OBJECTS:interface_w32g_res>
 )
 
+target_compile_definitions(timw32g PRIVATE -DIA_W32GUI)
 target_link_libraries(timw32g interface_w32g libarc libunimod utils)
 
 # twsyng
@@ -160,19 +183,9 @@ target_link_libraries(timw32g interface_w32g libarc libunimod utils)
 add_executable(
     twsyng WIN32
 
-    $<TARGET_OBJECTS:timidity_common>
-    $<TARGET_OBJECTS:interface_w32g_res>
+    ${TIMIDITY_COMMON_SOURCES}
+    $<TARGET_OBJECTS:interface_w32gsyn_res>
 )
 
-target_link_libraries(twsyng interface_w32g libarc libunimod utils)
-
-# tim_cui
-
-add_executable(
-    tim_cui WIN32
-
-    $<TARGET_OBJECTS:timidity_common>
-)
-
-set_target_properties(tim_cui PROPERTIES OUTPUT_NAME "timidity")
-target_link_libraries(tim_cui interface libarc libunimod utils)
+target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN)
+target_link_libraries(twsyng interface_w32gsyn libarc libunimod utils)
