@@ -93,7 +93,7 @@ static unsigned char FARSIG[4 + 3] =
 
 /*========== Loader code */
 
-static BOOL
+BOOL 
 FAR_Test (void)
 {
   UBYTE id[47];
@@ -105,7 +105,7 @@ FAR_Test (void)
   return 1;
 }
 
-static BOOL
+BOOL 
 FAR_Init (void)
 {
   if (!(mh1 = (FARHEADER1 *) _mm_malloc (sizeof (FARHEADER1))))
@@ -118,7 +118,7 @@ FAR_Init (void)
   return 1;
 }
 
-static void
+void 
 FAR_Cleanup (void)
 {
   _mm_free (mh1);
@@ -177,7 +177,7 @@ FAR_ConvertTrack (FARNOTE * n, int rows)
   return UniDup ();
 }
 
-static BOOL
+BOOL 
 FAR_Load (BOOL curious)
 {
   int t, u, tracks = 0;
@@ -347,7 +347,7 @@ FAR_Load (BOOL curious)
   return 1;
 }
 
-static CHAR *
+CHAR *
 FAR_LoadTitle (void)
 {
   CHAR s[40];

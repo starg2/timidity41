@@ -71,7 +71,7 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
@@ -195,13 +195,6 @@ static int gogo_error(MERET rval)
 	}
 	return 0;
 }
-
-/* mode
-  0,1: Default mode.
-  2: Remove the directory path of input_filename, then add output_dir.
-  3: Replace directory separator characters ('/','\',':') with '_', then add output_dir.
- */
-extern char *create_auto_output_name(const char *input_filename, char *ext_str, char *output_dir, int mode);
  
 volatile static int gogo_lock_flag = 0;
 static int gogo_lock()
@@ -309,7 +302,7 @@ static int32 __gogo_buffer_copy(char *buf, int32 size, int moveflag)
 // 同期ノーチェック
 // gogo_buffer_cur_size まで buf  の内容を size だけ gogo_buffer に
 // 格納する。格納したサイズを返す。
-static int32 __gogo_buffer_push(char *buf, int32 size)
+static int32 __gogo_buffer_push(const uint8 *buf, size_t size)
 {
 	int i;
 	int32 size1, ret = 0;
@@ -639,7 +632,7 @@ int commandline_to_argc_argv(char *commandline, int *argc, char ***argv)
 			return 0;
 		}
 		strncpy(*argv[*argc-1],p1,p2-p1);
-		*argv[*argc-1][p2-p1] = '\0';
+		((*argv)[*argc - 1])[p2-p1] = '\0';
 		if(p3==NULL)
 			return 0;
 		p1 = p3;
@@ -1234,12 +1227,32 @@ static int open_output(void)
 	}
 #endif
 
-    include_enc = exclude_enc = 0;
-    if(dpm.encoding & PE_24BIT) {	/* 24 bit is not supported */
+///r
+  include_enc = exclude_enc = 0;
+  /* only 16 bit is supported */
+  include_enc |= PE_16BIT | PE_SIGNED;
+  exclude_enc |= PE_BYTESWAP | PE_ULAW | PE_ALAW | PE_24BIT | PE_32BIT | PE_F32BIT | PE_64BIT | PE_F64BIT;
+  dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
+
+#if 0
+  include_enc = exclude_enc = 0;
+    if(dpm.encoding & PE_F64BIT) {	/* 64 bit float is not supported */
+		exclude_enc |= PE_F64BIT;
+		include_enc |= PE_16BIT;
+	}else if(dpm.encoding & PE_64BIT) {	/* 64 bit is not supported */
+		exclude_enc |= PE_64BIT;
+		include_enc |= PE_16BIT;
+	}else if(dpm.encoding & PE_F32BIT) {	/* 32 bit float is not supported */
+		exclude_enc |= PE_F32BIT;
+		include_enc |= PE_16BIT;
+	}else if(dpm.encoding & PE_32BIT) {	/* 32 bit is not supported */
+		exclude_enc |= PE_32BIT;
+		include_enc |= PE_16BIT;
+	}else if(dpm.encoding & PE_24BIT) {	/* 24 bit is not supported */
 		exclude_enc |= PE_24BIT;
 		include_enc |= PE_16BIT;
 	}
-    if(dpm.encoding & PE_16BIT || dpm.encoding & PE_24BIT) {
+    if(dpm.encoding & PE_16BIT || dpm.encoding & PE_24BIT || dpm.encoding & PE_32BIT) {
 #ifdef LITTLE_ENDIAN
 		exclude_enc |= PE_BYTESWAP;
 #else
@@ -1253,8 +1266,8 @@ static int open_output(void)
 		exclude_enc = PE_SIGNED;
 #endif
     }
-
     dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
+#endif
 
 #if !defined ( IA_W32GUI ) && !defined ( IA_W32G_SYN )
     if(dpm.name == NULL) {
@@ -1278,7 +1291,7 @@ static int open_output(void)
     return 0;
 }
 
-static int output_data(char *readbuffer, int32 bytes)
+static int output_data(const uint8 *readbuffer, size_t bytes)
 {
 	int32 rest_bytes = bytes;
 	int32 out_bytes = 0;
@@ -1346,13 +1359,15 @@ static void close_output(void)
 static int acntl(int request, void *arg)
 {
 	switch(request) {
-  case PM_REQ_PLAY_START:
-    if(dpm.flag & PF_AUTO_SPLIT_FILE){
-      if(  ( NULL == current_file_info ) || (NULL == current_file_info->filename ) )
-        return auto_gogo_output_open("Output.mid",NULL);
-      return auto_gogo_output_open(current_file_info->filename, current_file_info->seq_name);
-   }
-    return 0;
+	case PM_REQ_PLAY_START:
+		if (dpm.flag & PF_AUTO_SPLIT_FILE) {
+			const char *filename = (current_file_info && current_file_info->filename) ?
+					     current_file_info->filename : "Output.mid";
+			const char *seq_name = (current_file_info && current_file_info->seq_name) ?
+					     current_file_info->seq_name : NULL;
+			return auto_gogo_output_open(filename, seq_name);
+		}
+		return 0;
 	case PM_REQ_PLAY_END:
 		if(dpm.flag & PF_AUTO_SPLIT_FILE)
 			close_output();

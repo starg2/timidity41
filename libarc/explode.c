@@ -105,14 +105,20 @@
    module.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include "timidity.h"
+#include "common.h"
 #include "mblock.h"
 #include "explode.h"
 #include "zip.h"
@@ -120,7 +126,7 @@
 struct _ExplodeHandler
 {
     void *user_val;
-    long (* read_func)(char *buf, long size, void *user_val);
+    ptr_size_t (*read_func)(char *buf, ptr_size_t size, void *user_val);
     int method;
 
     int initflag;
@@ -140,8 +146,8 @@ struct _ExplodeHandler
     int bd;
 
     unsigned u, n, d, w;
-    long s;			/* original size */
-    long csize;			/* compressed size */
+    int32 s;			/* original size */
+    int32 csize;			/* compressed size */
     unsigned l[256];		/* bit lengths for codes */
 
     MBlockList pool;
@@ -152,10 +158,10 @@ struct _ExplodeHandler
 /* routines here */
 static int get_tree(ExplodeHandler decoder, unsigned *l, unsigned n);
 static int fill_inbuf(ExplodeHandler decoder);
-static long explode_lit8(ExplodeHandler decoder,  char *buff, long size);
-static long explode_lit4(ExplodeHandler decoder,  char *buff, long size);
-static long explode_nolit8(ExplodeHandler decoder,char *buff, long size);
-static long explode_nolit4(ExplodeHandler decoder,char *buff, long size);
+static int32 explode_lit8(ExplodeHandler decoder,  char *buff, ptr_size_t size);
+static int32 explode_lit4(ExplodeHandler decoder,  char *buff, ptr_size_t size);
+static int32 explode_nolit8(ExplodeHandler decoder, char *buff, ptr_size_t size);
+static int32 explode_nolit4(ExplodeHandler decoder, char *buff, ptr_size_t size);
 
 
 /* The implode algorithm uses a sliding 4K or 8K byte window on the
@@ -173,34 +179,34 @@ static long explode_nolit4(ExplodeHandler decoder,char *buff, long size);
 
 /* Tables for length and distance */
 static ush cplen2[] =
-        {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+        { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
         18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
         35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
-        52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65};
+        52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65 };
 static ush cplen3[] =
-        {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+        { 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
         19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
         36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-        53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66};
+        53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66 };
 static ush extra[] =
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        8};
+        8 };
 static ush cpdist4[] =
-        {1, 65, 129, 193, 257, 321, 385, 449, 513, 577, 641, 705,
+        { 1, 65, 129, 193, 257, 321, 385, 449, 513, 577, 641, 705,
         769, 833, 897, 961, 1025, 1089, 1153, 1217, 1281, 1345, 1409, 1473,
         1537, 1601, 1665, 1729, 1793, 1857, 1921, 1985, 2049, 2113, 2177,
         2241, 2305, 2369, 2433, 2497, 2561, 2625, 2689, 2753, 2817, 2881,
         2945, 3009, 3073, 3137, 3201, 3265, 3329, 3393, 3457, 3521, 3585,
-        3649, 3713, 3777, 3841, 3905, 3969, 4033};
+        3649, 3713, 3777, 3841, 3905, 3969, 4033 };
 static ush cpdist8[] =
-        {1, 129, 257, 385, 513, 641, 769, 897, 1025, 1153, 1281,
+        { 1, 129, 257, 385, 513, 641, 769, 897, 1025, 1153, 1281,
         1409, 1537, 1665, 1793, 1921, 2049, 2177, 2305, 2433, 2561, 2689,
         2817, 2945, 3073, 3201, 3329, 3457, 3585, 3713, 3841, 3969, 4097,
         4225, 4353, 4481, 4609, 4737, 4865, 4993, 5121, 5249, 5377, 5505,
         5633, 5761, 5889, 6017, 6145, 6273, 6401, 6529, 6657, 6785, 6913,
-        7041, 7169, 7297, 7425, 7553, 7681, 7809, 7937, 8065};
+        7041, 7169, 7297, 7425, 7553, 7681, 7809, 7937, 8065 };
 
 
 /* Macros for inflate() bit peeking and grabbing.
@@ -217,34 +223,34 @@ static ush cpdist8[] =
  */
 
 #define NEXTBYTE (decoder->inptr < decoder->insize ? decoder->inbuf[decoder->inptr++] : fill_inbuf(decoder))
-#define MASK_BITS(n) ((((ulg)1)<<(n))-1)
-#define NEEDBITS(n) {while(decoder->bit_len<(n)){decoder->bit_buf|=((ulg)NEXTBYTE)<<decoder->bit_len;decoder->bit_len+=8;}}
+#define MASK_BITS(n) ((((ulg)1) << (n)) - 1)
+#define NEEDBITS(n) { while (decoder->bit_len < (n)) { decoder->bit_buf |= ((ulg)NEXTBYTE) << decoder->bit_len; decoder->bit_len += 8; }}
 #define GETBITS(n)  ((ulg)decoder->bit_buf & MASK_BITS(n))
 #define IGETBITS(n)  ((~((ulg)decoder->bit_buf)) & MASK_BITS(n))
-#define DUMPBITS(n) {decoder->bit_buf>>=(n);decoder->bit_len-=(n);}
+#define DUMPBITS(n) { decoder->bit_buf >>= (n); decoder->bit_len -= (n); }
 
 
 /*ARGSUSED*/
-static long default_read_func(char *buf, long size, void *v)
+static ptr_size_t default_read_func(char *buf, ptr_size_t size, void *v)
 {
-    return (long)fread(buf, 1, size, stdin);
+    return (ptr_size_t)fread(buf, 1, size, stdin);
 }
 
 ExplodeHandler open_explode_handler(
-	long (* read_func)(char *buf, long size, void *user_val),
+	ptr_size_t (*read_func)(char *buf, ptr_size_t size, void *user_val),
 	int method,
-	long compsize, long origsize,
+	ptr_size_t compsize, ptr_size_t origsize,
 	void *user_val)
 {
     ExplodeHandler decoder;
 
-    decoder = (ExplodeHandler)malloc(sizeof(struct _ExplodeHandler));
-    if(decoder == NULL)
+    decoder = (ExplodeHandler) malloc(sizeof(struct _ExplodeHandler));
+    if (!decoder)
 	return NULL;
     memset(decoder, 0, sizeof(struct _ExplodeHandler));
 
     decoder->user_val = user_val;
-    if(read_func == NULL)
+    if (!read_func)
 	decoder->read_func = default_read_func;
     else
 	decoder->read_func = read_func;
@@ -286,60 +292,60 @@ static int explode_start(ExplodeHandler decoder)
     method = decoder->method;
 
     /* With literal tree--minimum match length is 3 */
-    if(method == EXPLODE_LIT8 || method == EXPLODE_LIT4)
+    if (method == EXPLODE_LIT8 || method == EXPLODE_LIT4)
     {
 	decoder->bb = 9;	/* base table size for literals */
-	if(get_tree(decoder, decoder->l, 256) != 0)
+	if (get_tree(decoder, decoder->l, 256) != 0)
 	    return 1;
 
-	if(huft_build(decoder->l, 256, 256, NULL, NULL,
+	if (huft_build(decoder->l, 256, 256, NULL, NULL,
 		      &decoder->tb, &decoder->bb, &decoder->pool) != 0)
 	    return 1;
 
-	if(get_tree(decoder, decoder->l, 64) != 0)
+	if (get_tree(decoder, decoder->l, 64) != 0)
 	    return 1;
 
-	if(huft_build(decoder->l, 64, 0, cplen3, extra,
+	if (huft_build(decoder->l, 64, 0, cplen3, extra,
 		      &decoder->tl, &decoder->bl, &decoder->pool) != 0)
 	    return 1;
 
-	if(get_tree(decoder, decoder->l, 64) != 0)
+	if (get_tree(decoder, decoder->l, 64) != 0)
 	    return 1;
 
-	if(method == EXPLODE_LIT8)
+	if (method == EXPLODE_LIT8)
 	{
-	    if(huft_build(decoder->l, 64, 0, cpdist8, extra,
+	    if (huft_build(decoder->l, 64, 0, cpdist8, extra,
 			  &decoder->td, &decoder->bd, &decoder->pool) != 0)
 		return 1;
 	}
 	else
 	{
-	    if(huft_build(decoder->l, 64, 0, cpdist4, extra,
+	    if (huft_build(decoder->l, 64, 0, cpdist4, extra,
 			  &decoder->td, &decoder->bd, &decoder->pool) != 0)
 		return 1;
 	}
     }
     else /* EXPLODE_NOLIT8 or EXPLODE_NOLIT4 */
     {
-	if(get_tree(decoder, decoder->l, 64) != 0)
+	if (get_tree(decoder, decoder->l, 64) != 0)
 	    return 1;
 
-	if(huft_build(decoder->l, 64, 0, cplen2, extra,
+	if (huft_build(decoder->l, 64, 0, cplen2, extra,
 		      &decoder->tl, &decoder->bl, &decoder->pool) != 0)
 	    return 1;
 
-	if(get_tree(decoder, decoder->l, 64) != 0)
+	if (get_tree(decoder, decoder->l, 64) != 0)
 	    return 1;
 
-	if(method == EXPLODE_NOLIT8)
+	if (method == EXPLODE_NOLIT8)
 	{
-	    if(huft_build(decoder->l, 64, 0, cpdist8, extra,
+	    if (huft_build(decoder->l, 64, 0, cpdist8, extra,
 			  &decoder->td, &decoder->bd, &decoder->pool) != 0)
 		return 1;
 	}
 	else
 	{
-	    if(huft_build(decoder->l, 64, 0, cpdist4, extra,
+	    if (huft_build(decoder->l, 64, 0, cpdist4, extra,
 			  &decoder->td, &decoder->bd, &decoder->pool) != 0)
 		return 1;
 	}
@@ -351,7 +357,7 @@ static int explode_start(ExplodeHandler decoder)
 
 void close_explode_handler(ExplodeHandler decoder)
 {
-    free(decoder);
+    safe_free(decoder);
 }
 
 
@@ -386,17 +392,17 @@ static int get_tree(
 
 
 
-static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
+static int32 explode_lit8(ExplodeHandler decoder, char *buff, ptr_size_t size)
 /* Decompress the imploded data using coded literals and an 8K sliding
    window. */
 {
-    long s;			/* bytes to decompress */
+    int32 s;			/* bytes to decompress */
     register unsigned e;	/* table entry flag/number of extra bits */
     unsigned n, d;		/* length and index for copy */
     unsigned w;			/* current window position */
     struct huft *t;		/* pointer to table entry */
     unsigned u;			/* true if unflushed */
-    long j;
+    int32 j;
     struct huft *tb, *tl, *td;	/* literal, length, and distance tables */
     int bb, bl, bd;		/* number of bits decoded by those */
 
@@ -413,19 +419,19 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
     u = decoder->u;
     j = 0;
 
-    while(s > 0)		/* do until ucsize bytes uncompressed */
+    while (s > 0)		/* do until ucsize bytes uncompressed */
     {
 	NEEDBITS(1);
-	if(decoder->bit_buf & 1) /* then literal--decode it */
+	if (decoder->bit_buf & 1) /* then literal--decode it */
 	{
 	    DUMPBITS(1);
 	    s--;
 	    NEEDBITS((unsigned)bb); /* get coded literal */
 	    t = tb + IGETBITS(bb);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -435,9 +441,9 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
 	    }
 	    DUMPBITS(t->b);
 	    buff[j++] = decoder->slide[w++] = (uch)t->v.n;
-	    if(w == WSIZE)
+	    if (w == WSIZE)
 		w = u = 0;
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->w = w;
@@ -454,9 +460,9 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bd);	/* get coded distance high bits */
 	    t = td + IGETBITS(bd);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -469,9 +475,9 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bl);    /* get coded length */
 	    t = tl + IGETBITS(bl);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -481,7 +487,7 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
 	    }
 	    DUMPBITS(t->b);
 	    n = t->v.n;
-	    if(e)                    /* get length extra bits */
+	    if (e)                    /* get length extra bits */
 	    {
 		NEEDBITS(8);
 		n += GETBITS(8);
@@ -490,12 +496,12 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
 
 	    /* do the copy */
 	    s -= n;
-	    while(n > 0 && j < size)
+	    while (n > 0 && j < size)
 	    {
 		n--;
 		d &= WSIZE - 1;
 		w &= WSIZE - 1;
-		if(u && w <= d)
+		if (u && w <= d)
 		{
 		    buff[j++] = 0;
 		    w++;
@@ -503,10 +509,10 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
 		}
 		else
 		    buff[j++] = decoder->slide[w++] = decoder->slide[d++];
-		if(w == WSIZE)
+		if (w == WSIZE)
 		    w = u = 0;
 	    }
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->n = n;
@@ -527,17 +533,17 @@ static long explode_lit8(ExplodeHandler decoder, char *buff, long size)
 
 
 
-static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
+static int32 explode_lit4(ExplodeHandler decoder, char *buff, ptr_size_t size)
 /* Decompress the imploded data using coded literals and a 4K sliding
    window. */
 {
-    long s;               /* bytes to decompress */
+    int32 s;               /* bytes to decompress */
     register unsigned e;  /* table entry flag/number of extra bits */
     unsigned n, d;        /* length and index for copy */
     unsigned w;           /* current window position */
     struct huft *t;       /* pointer to table entry */
     unsigned u;           /* true if unflushed */
-    long j;
+    int32 j;
     struct huft *tb, *tl, *td;	/* literal, length, and distance tables */
     int bb, bl, bd;		/* number of bits decoded by those */
 
@@ -554,19 +560,19 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
     u = decoder->u;
     j = 0;
 
-    while(s > 0)                 /* do until ucsize bytes uncompressed */
+    while (s > 0)                 /* do until ucsize bytes uncompressed */
     {
 	NEEDBITS(1);
-	if(decoder->bit_buf & 1)                  /* then literal--decode it */
+	if (decoder->bit_buf & 1)                  /* then literal--decode it */
 	{
 	    DUMPBITS(1);
 	    s--;
 	    NEEDBITS((unsigned)bb);    /* get coded literal */
 	    t = tb + IGETBITS(bb);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -575,9 +581,9 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
 	    }
 	    DUMPBITS(t->b);
 	    buff[j++] = decoder->slide[w++] = (uch)t->v.n;
-	    if(w == WSIZE)
+	    if (w == WSIZE)
 		w = u = 0;
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->w = w;
@@ -594,9 +600,9 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bd);    /* get coded distance high bits */
 	    t = td + IGETBITS(bd);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -609,9 +615,9 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bl);    /* get coded length */
 	    t = tl + IGETBITS(bl);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -621,7 +627,7 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
 	    }
 	    DUMPBITS(t->b);
 	    n = t->v.n;
-	    if(e)                    /* get length extra bits */
+	    if (e)                    /* get length extra bits */
 	    {
 		NEEDBITS(8);
 		n += GETBITS(8);
@@ -630,12 +636,12 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
 
 	    /* do the copy */
 	    s -= n;
-	    while(n > 0 && j < size)
+	    while (n > 0 && j < size)
 	    {
 		n--;
 		d &= WSIZE - 1;
 		w &= WSIZE - 1;
-		if(u && w <= d)
+		if (u && w <= d)
 		{
 		    buff[j++] = 0;
 		    w++;
@@ -643,10 +649,10 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
 		}
 		else
 		    buff[j++] = decoder->slide[w++] = decoder->slide[d++];
-		if(w == WSIZE)
+		if (w == WSIZE)
 		    w = u = 0;
 	    }
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->n = n;
@@ -667,17 +673,17 @@ static long explode_lit4(ExplodeHandler decoder, char *buff, long size)
 
 
 
-static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
+static int32 explode_nolit8(ExplodeHandler decoder, char *buff, ptr_size_t size)
 /* Decompress the imploded data using uncoded literals and an 8K sliding
    window. */
 {
-    long s;               /* bytes to decompress */
+    int32 s;               /* bytes to decompress */
     register unsigned e;  /* table entry flag/number of extra bits */
     unsigned n, d;        /* length and index for copy */
     unsigned w;           /* current window position */
     struct huft *t;       /* pointer to table entry */
     unsigned u;           /* true if unflushed */
-    long j;
+    int32 j;
     struct huft *tl, *td;   /* length and distance decoder tables */
     int bl, bd;             /* number of bits decoded by tl[] and td[] */
 
@@ -700,19 +706,19 @@ static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
     u = decoder->u;
     j = 0;
 
-    while(s > 0)                 /* do until ucsize bytes uncompressed */
+    while (s > 0)                 /* do until ucsize bytes uncompressed */
     {
 	NEEDBITS(1);
-	if(decoder->bit_buf & 1) /* then literal--get eight bits */
+	if (decoder->bit_buf & 1) /* then literal--get eight bits */
 	{
 	    DUMPBITS(1);
 	    s--;
 	    NEEDBITS(8);
-	    buff[j++] = decoder->slide[w++] = (uch)decoder->bit_buf;;
+	    buff[j++] = decoder->slide[w++] = (uch)decoder->bit_buf;
 	    DUMPBITS(8);
-	    if(w == WSIZE)
+	    if (w == WSIZE)
 		w = u = 0;
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->w = w;
@@ -729,9 +735,9 @@ static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bd);    /* get coded distance high bits */
 	    t = td + IGETBITS(bd);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -744,9 +750,9 @@ static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bl);    /* get coded length */
 	    t = tl + IGETBITS(bl);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -756,7 +762,7 @@ static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
 	    }
 	    DUMPBITS(t->b);
 	    n = t->v.n;
-	    if(e)                    /* get length extra bits */
+	    if (e)                    /* get length extra bits */
 	    {
 		NEEDBITS(8);
 		n += GETBITS(8);
@@ -765,12 +771,12 @@ static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
 
 	    /* do the copy */
 	    s -= n;
-	    while(n > 0 && j < size)
+	    while (n > 0 && j < size)
 	    {
 		n--;
 		d &= WSIZE - 1;
 		w &= WSIZE - 1;
-		if(u && w <= d)
+		if (u && w <= d)
 		{
 		    buff[j++] = 0;
 		    w++;
@@ -778,10 +784,10 @@ static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
 		}
 		else
 		    buff[j++] = decoder->slide[w++] = decoder->slide[d++];
-		if(w == WSIZE)
+		if (w == WSIZE)
 		    w = u = 0;
 	    }
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->n = n;
@@ -802,17 +808,17 @@ static long explode_nolit8(ExplodeHandler decoder, char *buff, long size)
 
 
 
-static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
+static int32 explode_nolit4(ExplodeHandler decoder, char *buff, ptr_size_t size)
 /* Decompress the imploded data using uncoded literals and a 4K sliding
    window. */
 {
-    long s;               /* bytes to decompress */
+    int32 s;               /* bytes to decompress */
     register unsigned e;  /* table entry flag/number of extra bits */
     unsigned n, d;        /* length and index for copy */
     unsigned w;           /* current window position */
     struct huft *t;       /* pointer to table entry */
     unsigned u;           /* true if unflushed */
-    long j;
+    int32 j;
     struct huft *tl, *td;   /* length and distance decoder tables */
     int bl, bd;             /* number of bits decoded by tl[] and td[] */
 
@@ -834,19 +840,19 @@ static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
     u = decoder->u;
     j = 0;
 
-    while(s > 0)                 /* do until ucsize bytes uncompressed */
+    while (s > 0)                 /* do until ucsize bytes uncompressed */
     {
 	NEEDBITS(1);
-	if(decoder->bit_buf & 1) /* then literal--get eight bits */
+	if (decoder->bit_buf & 1) /* then literal--get eight bits */
 	{
 	    DUMPBITS(1);
 	    s--;
 	    NEEDBITS(8);
 	    buff[j++] = decoder->slide[w++] = (uch)decoder->bit_buf;
 	    DUMPBITS(8);
-	    if(w == WSIZE)
+	    if (w == WSIZE)
 		w = u = 0;
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->w = w;
@@ -867,9 +873,9 @@ static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bd);    /* get coded distance high bits */
 	    t = td + IGETBITS(bd);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -882,9 +888,9 @@ static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
 	    NEEDBITS((unsigned)bl);    /* get coded length */
 	    /*t =*/ t = tl + IGETBITS(bl);
 	    e = t->e;
-	    while(e > 16)
+	    while (e > 16)
 	    {
-		if(e == 99)
+		if (e == 99)
 		    return -1;
 		DUMPBITS(t->b);
 		e -= 16;
@@ -894,7 +900,7 @@ static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
 	    }
 	    DUMPBITS(t->b);
 	    n = t->v.n;
-	    if(e)                    /* get length extra bits */
+	    if (e)                    /* get length extra bits */
 	    {
 		NEEDBITS(8);
 		n += GETBITS(8);
@@ -903,12 +909,12 @@ static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
 
 	    /* do the copy */
 	    s -= n;
-	    while(n > 0 && j < size)
+	    while (n > 0 && j < size)
 	    {
 		n--;
 		d &= WSIZE - 1;
 		w &= WSIZE - 1;
-		if(u && w <= d)
+		if (u && w <= d)
 		{
 		    buff[j++] = 0;
 		    w++;
@@ -916,10 +922,10 @@ static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
 		}
 		else
 		    buff[j++] = decoder->slide[w++] = decoder->slide[d++];
-		if(w == WSIZE)
+		if (w == WSIZE)
 		    w = u = 0;
 	    }
-	    if(j == size)
+	    if (j == size)
 	    {
 		decoder->u = u;
 		decoder->n = n;
@@ -940,7 +946,7 @@ static long explode_nolit4(ExplodeHandler decoder, char *buff, long size)
 
 
 
-long explode(ExplodeHandler decoder, char *buff, long size)
+ptr_size_t explode(ExplodeHandler decoder, char *buff, ptr_size_t size)
 /* Explode an imploded compressed stream.  Based on the general purpose
    bit flag, decide on coded or uncoded literals, and an 8K or 4K sliding
    window.  Construct the literal (if any), length, and distance codes and
@@ -950,22 +956,22 @@ long explode(ExplodeHandler decoder, char *buff, long size)
    in whether the literal is decoded or simply read in, and in how many
    bits are read in, uncoded, for the low distance bits. */
 {
-    long j, i;
+    ptr_size_t j, i;
 
-    if(size <= 0)
+    if (size <= 0)
 	return size;
 
-    if(!decoder->initflag)
+    if (!decoder->initflag)
     {
 	decoder->initflag = 1;
-	if(explode_start(decoder) != 0)
+	if (explode_start(decoder) != 0)
 	    return 0;
     }
 
     j = 0;
-    while(j < size)
+    while (j < size)
     {
-	if(decoder->n > 0) /* do the copy */
+	if (decoder->n > 0) /* do the copy */
 	{
 	    unsigned u, n, w, d;
 
@@ -973,12 +979,12 @@ long explode(ExplodeHandler decoder, char *buff, long size)
 	    n = decoder->n;
 	    d = decoder->d;
 	    w = decoder->w;
-	    while(n > 0 && j < size)
+	    while (n > 0 && j < size)
 	    {
 		n--;
 		d &= WSIZE - 1;
 		w &= WSIZE - 1;
-		if(u && w <= d)
+		if (u && w <= d)
 		{
 		    buff[j++] = 0;
 		    w++;
@@ -986,7 +992,7 @@ long explode(ExplodeHandler decoder, char *buff, long size)
 		}
 		else
 		    buff[j++] = decoder->slide[w++] = decoder->slide[d++];
-		if(w == WSIZE)
+		if (w == WSIZE)
 		    w = u = 0;
 	    }
 
@@ -994,15 +1000,15 @@ long explode(ExplodeHandler decoder, char *buff, long size)
 	    decoder->n = n;
 	    decoder->d = d;
 	    decoder->w = w;
-	    if(j == size)
+	    if (j == size)
 		return size;
 	}
 
 	/* decoder->n == 0 */
-	if(decoder->eof)
+	if (decoder->eof)
 	    return j;
 
-	switch(decoder->method)
+	switch (decoder->method)
 	{
 	  case EXPLODE_LIT8:
 	    i = explode_lit8(decoder, buff + j, size - j);
@@ -1020,7 +1026,7 @@ long explode(ExplodeHandler decoder, char *buff, long size)
 	    i = -1;
 	    break;
 	}
-	if(i == -1)
+	if (i == -1)
 	    return -1;
 	j += i;
     }
@@ -1035,16 +1041,16 @@ static int fill_inbuf(ExplodeHandler decoder)
 
     /* Read as much as possible */
     decoder->insize = 0;
-    errno = 0;
+    _set_errno(0);
     do {
 	len = decoder->read_func((char*)decoder->inbuf + decoder->insize,
-				 (long)(INBUFSIZ - decoder->insize),
+				 (int32)(INBUFSIZ - decoder->insize),
 				 decoder->user_val);
-	if(len == 0 || len == EOF) break;
+	if (len == 0 || len == EOF) break;
 	decoder->insize += len;
-    } while(decoder->insize < INBUFSIZ);
+    } while (decoder->insize < INBUFSIZ);
 
-    if(decoder->insize == 0)
+    if (decoder->insize == 0)
 	return EOF;
     decoder->inptr = 1;
     return decoder->inbuf[0];

@@ -1,0 +1,214 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{fafbe7ac-c062-41df-b5b2-8ecf007ad921}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{c5821749-75a9-4a42-b3d9-22a5380e1399}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{bc94741c-707b-4aab-a061-c415d8750087}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\timidity">
+      <UniqueIdentifier>{59226f53-bf32-403f-aa7f-6fccf36b4c6c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\timidity">
+      <UniqueIdentifier>{8caa6aac-0d57-48e7-8aea-f1d0a447d9f7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\interface\w32g_icon.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\interface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\timidity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\interface\w32g_res.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\portaudio_a.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\timidity\playmidi.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\output.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\common.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\tables.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\envelope.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\mt19937ar.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\thread.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\mix.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\effect.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\filter.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\instrum.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\int_synth.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\optcode.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\readmidi.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\recache.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\resample.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sndfont.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\smplfile.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\aq.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\myini.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sndfontini.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\portaudio_a.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\wave_a.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\controls.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\miditrace.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\wrdt.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\quantity.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\freq.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\timer2.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\voice_effect.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\audio_cnv.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\m2m.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\mfi.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\rcp.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\mod.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\mod2midi.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\wrd_read.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\smfconv.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sbkconv.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sfitem.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sffile.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\version.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\loadtab.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\w32g_ini.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\w32g_utl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\w32g_pref.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="timdrvsetup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\w32_a.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\rtsyn_common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\rtsyn_winmm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\w32g_syn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\winsyn_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\interface\dumb_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\w32_portaudio_dll.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\oscillator.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\interface\w32g_res.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

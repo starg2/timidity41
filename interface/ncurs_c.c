@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2014 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -29,19 +29,20 @@
 #include <sys/types.h>
 #endif //for off_t
 #include <stdio.h>
-#if defined(__W32__)  && !defined(STDOUT_FILENO)
-#define STDOUT_FILENO 1
-#endif
 
 #if defined(__MINGW32__) && defined(USE_PDCURSES)
 #define _NO_OLDNAMES 1	/* avoid type mismatch of beep() */
 #ifndef sleep
 extern void sleep(unsigned long);
 #endif /* sleep */
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #undef _NO_OLDNAMES
 #else /* USE_PDCURSES */
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #endif
 
 #include <stdarg.h>
@@ -184,8 +185,8 @@ static void display_aq_ratio(void);
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]);
-static int ctl_read(int32 *valp);
-static int ctl_write(char *valp, int32 size);
+static int ctl_read(ptr_size_t *valp);
+static int ctl_write(const uint8 *valp, size_t size);
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
 static void ctl_event(CtlEvent *e);
 
@@ -402,7 +403,7 @@ static void mini_buff_sets(MiniBuffer *b, char *s);
 static int mini_buff_len(MiniBuffer *b);
 static int mini_buff_completion(MiniBuffer *b);
 
-static WINDOW *dftwin=0, *msgwin=0, *listwin=0;
+static WINDOW *dftwin=0, *msgwin=0, *listwin=0, *helpwin=0;
 
 
 static void N_ctl_refresh(void)
@@ -459,7 +460,7 @@ static void N_ctl_scrinit(void)
     	waddch(dftwin, 'v');
     waddstr(dftwin, timidity_version);
     wmove(dftwin, VERSION_LINE,COLS-51);
-    waddstr(dftwin, "(C) 1995,1999-2014 Tuukka Toivonen, Masanao Izumo");
+    waddstr(dftwin, "(C) 1995,1999-2004 Tuukka Toivonen, Masanao Izumo");
     wmove(dftwin, FILE_LINE,0);
     waddstr(dftwin, "File:");
 #ifdef MIDI_TITLE
@@ -493,10 +494,8 @@ static void N_ctl_scrinit(void)
     indicator_width = COLS - 2;
     if(indicator_width < 40)
 	indicator_width = 40;
-    if(comment_indicator_buffer != NULL)
-	free(comment_indicator_buffer);
-    if(current_indicator_message != NULL)
-	free(current_indicator_message);
+    safe_free(comment_indicator_buffer);
+    safe_free(current_indicator_message);
     memset(comment_indicator_buffer =
 	   (char *)safe_malloc(indicator_width), 0, indicator_width);
     memset(current_indicator_message =
@@ -543,10 +542,11 @@ static void ctl_refresh(void)
   if (scr_modified_flag)
     N_ctl_refresh();
 }
-
+///r
 static void init_trace_window_chan(int ch)
 {
     int i, c;
+	int elm = 0;
 
     if(ch >= display_channels)
 	return;
@@ -579,7 +579,7 @@ static void init_trace_window_chan(int ch)
 	b = ChannelStatus[ch].bank;
 	pr = ChannelStatus[ch].prog;
 	bank = tonebank[b];
-	if(bank == NULL || bank->tone[pr].instrument == NULL)
+	if(bank == NULL || bank->tone[pr][elm]->instrument == NULL)
 	{
 	    b = 0;
 	    bank = tonebank[0];
@@ -601,20 +601,23 @@ static void init_trace_window_chan(int ch)
 	    }
 	    else
 	    {
-		prog = &bank->tone[pr];
+///r
+		prog = bank->tone[pr][elm];
 
-		if(prog->instrument != NULL &&
+		if(prog && prog->instrument != NULL &&
 		   !IS_MAGIC_INSTRUMENT(prog->instrument))
 		{
 		    type = prog->instrument->type;
 		    /* check instrument alias */
-		    if(b != 0 &&
-		       tonebank[0]->tone[pr].instrument == prog->instrument)
-		    {
-			b = 0;
-			bank = tonebank[0];
-			prog = &bank->tone[pr];
-		    }
+			if(tonebank[0]->tone[pr][elm])
+			{
+				if(b != 0 && tonebank[0]->tone[pr][elm]->instrument == prog->instrument)
+				{
+					b = 0;
+					bank = tonebank[0];
+					prog = bank->tone[pr][elm];
+				}
+			}
 		}
 		else
 		    type = -1;
@@ -669,8 +672,21 @@ static void init_trace_window_chan(int ch)
 		    }
 		    waddch(dftwin, ')');
 		}
-	    }
-	}
+///r
+#ifdef INT_SYNTH
+		else if(type == INST_SCC || type == INST_MMS)
+		{
+		    if(prog->name)
+		    {
+			waddch(dftwin, ' ');
+			waddstr(dftwin, prog->name);
+		    }
+		    if(prog->comment != NULL)
+			wprintw(dftwin, "(%s)", prog->comment);
+		}
+#endif
+    }
+    }
     }
 }
 
@@ -698,7 +714,7 @@ static void init_chan_status(void)
 	ChannelStatus[ch].comm = NULL;
     }
 }
-
+///r
 static void display_play_system(int mode)
 {
     wmove(dftwin, TIME_LINE, 22);
@@ -715,6 +731,15 @@ static void display_play_system(int mode)
 	break;
       case GM2_SYSTEM_MODE:
 	waddstr(dftwin, "[GM2]");
+	break;
+      case SD_SYSTEM_MODE:
+	waddstr(dftwin, "[SD]");
+	break;
+      case KG_SYSTEM_MODE:
+	waddstr(dftwin, "[KG]");
+	break;
+      case CM_SYSTEM_MODE:
+	waddstr(dftwin, "[CM]");
 	break;
       default:
 	waddstr(dftwin, "     ");
@@ -787,12 +812,12 @@ static void display_key_helpmsg(void)
 
 static void ctl_help_mode(void)
 {
-    static WINDOW *helpwin;
     if(ctl_ncurs_mode == NCURS_MODE_HELP)
     {
 	ctl_ncurs_mode = ctl_ncurs_back;
 	touchwin(dftwin);
 	delwin(helpwin);
+	helpwin = NULL;
 	N_ctl_refresh();
 	ctl_ncurs_mode_init();
 	display_key_helpmsg();
@@ -1066,10 +1091,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
-	case CTLE_CUEPOINT:
-		cuepoint = e->v1;
-		cuepoint_pending = 1;
-		break;
+      case CTLE_CUEPOINT:
+	cuepoint = e->v1;
+	cuepoint_pending = 1;
+	break;
       case CTLE_CURRENT_TIME:
 	ctl_current_time((int)e->v1, (int)e->v2);
 	display_aq_ratio();
@@ -1929,10 +1954,6 @@ static int ctl_open(int using_stdin, int using_stdout)
     SCREEN *dftscr;
 #endif
 
-#ifdef USE_PDCURSES
-    PDC_set_ctrl_break(1);
-#endif /* USE_PDCURSES */
-
     if(!open_init_flag)
     {
 #ifdef CURSED_REDIR_HACK
@@ -1965,6 +1986,9 @@ static int ctl_open(int using_stdin, int using_stdout)
 	if(LINES < NCURS_MIN_LINES)
 	{
 	    endwin();
+#ifdef USE_PDCURSES
+	    delscreen(SP);
+#endif
 	    cmsg(CMSG_FATAL, VERB_NORMAL, "Error: Screen is too small.");
 	    return 1;
 	}
@@ -1981,6 +2005,10 @@ static int ctl_open(int using_stdin, int using_stdout)
 	ctl.opened = 1;
 	init_chan_status();
     }
+
+#ifdef USE_PDCURSES
+    PDC_set_ctrl_break(1);
+#endif /* USE_PDCURSES */
 
     open_init_flag = 1;
     dftwin=stdscr;
@@ -2019,11 +2047,80 @@ static int ctl_open(int using_stdin, int using_stdout)
 
 static void ctl_close(void)
 {
-  if (ctl.opened)
+    int i;
+    MFnode *mfp;
+    struct double_list_string *hist;
+
+    wclear(helpwin);
+    wrefresh(helpwin);
+    delwin(helpwin);
+    helpwin = NULL;
+
+    wclear(msgwin);
+    wrefresh(msgwin);
+    delwin(msgwin);
+    msgwin = NULL;
+
+    wclear(listwin);
+    wrefresh(listwin);
+    delwin(listwin);
+    listwin = NULL;
+
+    wclear(dftwin);
+    wrefresh(dftwin);
+    //delwin(dftwin);
+    dftwin = NULL;
+
+    if (ctl.opened)
     {
       endwin();
+#ifdef USE_PDCURSES
+      delscreen(SP);
+#endif
       ctl.opened=0;
     }
+
+#ifdef USE_PDCURSES
+    PDC_scr_free();
+#endif /* USE_PDCURSES */
+
+    mfp = file_list.MFnode_head;
+    while(mfp)
+    {
+	MFnode *next = mfp->next;
+	safe_free(mfp->file);
+	mfp->file = NULL;
+	mfp->next = NULL;
+	safe_free(mfp);
+	mfp = next;
+    }
+    file_list.MFnode_head = NULL;
+    file_list.MFnode_tail = NULL;
+
+    hist = ctl_mode_L_histh;
+    while(hist)
+    {
+	struct double_list_string *next = hist->next;
+	hist->next = NULL;
+	safe_free(hist);
+	hist = next;
+    }
+    ctl_mode_L_histh = NULL;
+    ctl_mode_L_histc = NULL;
+
+    for(i = 0; i < MAX_CHANNELS; i++)
+    {
+      finalize_bitset(channel_program_flags + i);
+      finalize_bitset(gs_lcd_bits + i);
+    }
+
+    safe_free(comment_indicator_buffer);
+    comment_indicator_buffer = NULL;
+    safe_free(current_indicator_message);
+    current_indicator_message = NULL;
+
+    safe_free(command_buffer);
+    command_buffer = NULL;
 }
 
 #if SCREEN_BUGFIX
@@ -2219,8 +2316,8 @@ static int ctl_cmd_L_enter(void)
 	    }
 	}
 	mfp = head;
-	free(new_files[0]);
-	free(new_files);
+	safe_free(new_files[0]);
+	safe_free(new_files);
 	if(mfp == NULL)
 	{
 	    rc = RC_NONE;
@@ -2238,7 +2335,7 @@ static int ctl_cmd_L_enter(void)
     return rc;
 }
 
-static int ctl_cmd_E_enter(int32 *val)
+static int ctl_cmd_E_enter(ptr_size_t *val)
 {
     int rc = RC_NONE;
     char *text;
@@ -2281,7 +2378,7 @@ static int ctl_cmd_S_enter(void)
     return RC_NONE;
 }
 
-static int ctl_cmd_R_enter(int32 *valp)
+static int ctl_cmd_R_enter(ptr_size_t *valp)
 {
     char *rateStr;
     int rc = RC_NONE;
@@ -2297,7 +2394,7 @@ static int ctl_cmd_R_enter(int32 *valp)
     return rc;
 }
 
-static int ctl_cmd_D_enter(int32 *val)
+static int ctl_cmd_D_enter(ptr_size_t *val)
 {
     int rc = RC_NONE, ch;
     char *text;
@@ -2440,16 +2537,16 @@ static int ctl_cmd_forward_search(void)
     return found;
 }
 
-static int ctl_read(int32 *valp)
+static int ctl_read(ptr_size_t *valp)
 {
   int c, i;
   static int u_prefix = 1, u_flag = 1;
-
-	if (cuepoint_pending) {
-		*valp = cuepoint;
-		cuepoint_pending = 0;
-		return RC_FORWARD;
-	}
+  
+  if (cuepoint_pending) {
+      *valp = cuepoint;
+      cuepoint_pending = 0;
+      return RC_FORWARD;
+    }
 
   if(ctl_cmdmode)
       mini_buff_refresh(command_buffer);
@@ -2811,6 +2908,7 @@ static int ctl_read(int32 *valp)
 	  mini_buff_set(command_buffer, dftwin, LINES - 1, "Jump: ");
 	  continue;
 	case'L':
+
 	  ctl_cmdmode = NCURS_MODE_CMD_L;
 	  mini_buff_set(command_buffer, dftwin, LINES - 1, "MIDI File: ");
 	  if(*ctl_mode_L_lastenter == '\0' && current_MFnode != NULL)
@@ -2890,7 +2988,7 @@ static int ctl_read(int32 *valp)
   return RC_NONE;
 }
 
-static int ctl_write(char *valp, int32 size)
+static int ctl_write(const uint8 *valp, size_t size)
 {
   static int warned = 0;
   if (!warned) {
@@ -2902,7 +3000,7 @@ static int ctl_write(char *valp, int32 size)
 }
 
 #if defined(USE_PDCURSES) && !defined(HAVE_VWPRINTW)
-static void vwprintw(WINDOW *w, char *fmt, va_list ap)
+static int vwprintw(WINDOW *w, const char *fmt, va_list ap)
 {
     char *buff;
     MBlockList pool;
@@ -2912,6 +3010,7 @@ static void vwprintw(WINDOW *w, char *fmt, va_list ap)
     vsnprintf(buff, MIN_MBLOCK_SIZE, fmt, ap);
     waddstr(w, buff);
     reuse_mblock(&pool);
+    return OK;
 }
 #endif /* defined(USE_PDCURSES) && !defined(HAVE_VWPRINTW) */
 
@@ -2973,13 +3072,6 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 	{
 	    switch(type)
 	    {
-	      default:
-		vwprintw(msgwin, fmt, ap);
-		wprintw(msgwin, "\n");
-		if(ctl_ncurs_mode == NCURS_MODE_MAIN)
-		    wrefresh(msgwin);
-		break;
-
 	      case CMSG_WARNING:
 		wattron(msgwin, A_BOLD);
 		vwprintw(msgwin, fmt, ap);
@@ -3001,6 +3093,13 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 		    if(type==CMSG_FATAL)
 			sleep(2);
 		}
+		break;
+
+	      default:
+		vwprintw(msgwin, fmt, ap);
+		wprintw(msgwin, "\n");
+		if(ctl_ncurs_mode == NCURS_MODE_MAIN)
+		    wrefresh(msgwin);
 		break;
 	    }
 	}
@@ -3523,8 +3622,12 @@ static void display_lyric(char *lyric, int sep)
 /*
  * MiniBuffer functions
   */
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)

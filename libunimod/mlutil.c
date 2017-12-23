@@ -36,7 +36,8 @@
 
 #include <string.h>
 #include "unimod_priv.h"
-extern void *safe_realloc(void *old_ptr, size_t new_size);
+#include "common.h"
+//extern void *safe_realloc(void *old_ptr, size_t new_size);
 
 SBYTE  remap[UF_MAXCHAN];           /* for removing empty channels */
 UBYTE* poslookup=NULL;      /* lookup table for pattern jumps after blank
@@ -239,17 +240,17 @@ Interpolate (SWORD p, SWORD p1, SWORD p2, SWORD v1, SWORD v2)
 
 
 UWORD 
-getlinearperiod (UWORD note, ULONG fine)
+getlinearperiod (UWORD note, SLONG fine)
 {
-  UWORD t;
+  SLONG t;
 
   t = (20L * OCTAVE + 2 - note) * 32L - (fine >> 1);
-  return t;
+  return (UWORD)t;
 }
 
 
 /* XM linear period to MOD period conversion */
-ULONG getfrequency (UBYTE flags, ULONG period)
+ULONG getfrequency (UWORD flags, ULONG period)
 {
   if (flags & UF_LINEAR)
     return lintab[period % 768] >> (period / 768);
@@ -316,7 +317,7 @@ int speed_to_finetune(ULONG speed,int sample)
 }
 
 /* XM linear period to MOD period conversion */
-ULONG getAmigaPeriod (UBYTE flags, ULONG period)
+ULONG getAmigaPeriod (UWORD flags, ULONG period)
 {
   if (flags & UF_LINEAR)
     {

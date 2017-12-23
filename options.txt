@@ -1,0 +1,464 @@
+TiMidity++ current-tim150228-c154-i32fxd (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+The original version (C) 1995 Tuukka Toivonen <tt@cgs.fi>
+TiMidity is free software and comes with ABSOLUTELY NO WARRANTY.
+
+Win32 version by Davide Moretti <dave@rimini.com>
+              and Daisuke Aoki <dai@y7.net>
+
+Usage:
+  timidity-i32.exe [options] filename [...]
+
+Options:
+  -A n,m     --volume=n, --drum-power=m
+               Amplify volume by n percent (may cause clipping),
+                 and amplify drum power by m percent
+     (a)     --[no-]volume-compensation
+               Toggle amplify compensation (disabled by default)
+  -a         --[no-]anti-alias
+               Enable the anti-aliasing filter
+  -B n,m     --buffer-fragments=n,m
+               Set number of buffer fragments(n), and buffer size(2^m)
+  -C n       --control-ratio=n
+               Set ratio of sampling and control frequencies (0...255)
+  -c file    --config-file=file
+               Read extra configuration file
+  -D n       --drum-channel=n
+               Play drums on channel n
+  -d path    --interface-path=path
+               Set dynamic interface module directory
+  -E mode    --ext=mode
+               TiMidity sequencer extensional modes:
+                 mode = w/W : Enable/Disable Modulation wheel
+                        p/P : Enable/Disable Portamento
+                        v/V : Enable/Disable NRPN Vibrato
+                        s/S : Enable/Disable Channel pressure
+                        e/E : Enable/Disable Modulation Envelope
+                        t/T : Enable/Disable Trace Text Meta Event at playing
+                        o/O : Enable/Disable Overlapped voice
+                        z/Z : Enable/Disable Temperament control
+                        j/J : Enable/Disable Insertion effect
+                        q/Q : Enable/Disable EQ
+                        d/D : Enable/Disable Drumpart effect
+                        x/X : Enable/Disable TVA envelope control
+                        c/C : Enable/Disable CC#94 delay(celeste) effect
+                        m<HH>: Define default Manufacture ID <HH> in two hex
+                        M<HH>: Define system Manufacture ID <HH> in two hex
+                        b<n>: Use tone bank <n> as the default
+                        B<n>: Always use tone bank <n>
+                        i<n/m>: Use program <n> on channel <m> as the default
+                        I<n/m>: Always use program <n> on channel <m>
+                        F<args>: For effect.  See below for effect options
+                   default: -E wpvSeTozJQDXC
+  -e         --evil
+               Increase thread priority (evil) - be careful!
+  -F         --[no-]fast-panning
+               Disable/Enable fast panning (toggle on/off, default is on)
+  -f         --[no-]fast-decay
+               Enable fast decay mode (toggle)
+               (default is off)
+  -H n       --force-keysig=n
+               Force keysig number of sHarp(+)/flat(-) (-7..7)
+  -h         --help
+               Display this help message
+  -i mode    --interface=mode
+               Select user interface (see below for list)
+             --rtsyn-latency=sec (for rtsyn only)
+               Set the realtime latency (sec)
+                 (default is 0.2 sec, minimum is 0.04 sec)
+  -j         --[no-]realtime-load
+               Realtime load instrument (toggle on/off)
+  -K n       --adjust-key=n
+               Adjust key by n half tone (-24..24)
+  -k msec    --voice-queue=msec
+               Specify audio queue time limit to reduce voice
+  -L path    --patch-path=path
+               Append dir to search path
+  -l n       --resample-filter=n
+                 n=0  : Disable filtration
+                        (default)
+                   1  : LPFBW (Butterworth) x1
+                   2  : LPFBW (Butterworth) x2
+                   3  : LPFBW (Butterworth) x3
+                   4  : LPFBW (Butterworth) x4
+                   5  : LPFAM (24dB/oct)-2 x1
+                   6  : LPFAM (24dB/oct)-2 x2
+                   7  : LPFAM (6dB/oct) x8
+                   8  : LPFAM (6dB/oct) x16
+  -M name    --pcm-file=name
+               Specify PCM filename (*.wav or *.aiff) to be played or:
+                 "auto" : Play *.mid.wav or *.mid.aiff
+                 "none" : Disable this feature (default)
+  -m msec    --decay-time=msec
+               Minimum time for a full volume sustained note to decay,
+                 0 disables
+  -N n       --interpolation=n
+               Set the interpolation parameter (depends on -EFresamp option)
+                 Linear interpolation is used if audio queue < 99%
+                 cspline, lagrange:
+                   Toggle 4-point interpolation (default on)
+                   (off: 0, on: 1)
+                 newton:
+                   n'th order Newton polynomial interpolation, n=1-45 odd
+                   (default 11)
+                 gauss:
+                   n+1 point Gauss-like interpolation, n=2-32 (default 24)
+                 sharp:
+                   n+1 point Sharp interpolation, n=2-8 (default 6)
+                 linearP:
+                   n=0-100 (default 100)
+  -O mode    --output-mode=mode
+               Select output mode and format (see below for list)
+             --wave-extensible (for RIFF WAVE file only)
+               Enable WAVE_FORMAT_EXTENSIBLE tag (GUID)
+             --wave-update-step=n (for RIFF WAVE file only)
+               Update RIFF to n KBytes per. n=0-9999 (default is 512)
+             --flac-verify (for FLAC / OggFLAC only)
+               Verify a correct encoding
+             --flac-padding=n (for FLAC / OggFLAC only)
+               Write a PADDING block of length n
+             --flac-complevel=n (for FLAC / OggFLAC only)
+               Set compression level n:[0..8]
+             --oggflac (for Ogg FLAC only)
+               Output OggFLAC stream (experimental)
+             --opus-nframes=n (for Ogg Opus only)
+               Number of frames per Opus packet
+               n:[120, 240, 480, 960, 1920, 2880] (default is 960)
+             --opus-bitrate=n (for Ogg Opus only)
+               Encoding average bit-rate n:[5-512,513-512000] (default is 128)
+             --opus-complexity=n (for Ogg Opus only)
+               Set encoding complexity n:[0..10] (default is 10)
+             --[no-]opus-vbr (for Ogg Opus only)
+               Enable variable bit-rate (VBR) (default on)
+             --[no-]opus-cvbr (for Ogg Opus only)
+               Enable constrained variable bit-rate (CVBR) (default on)
+             --speex-quality=n (for Ogg Speex only)
+               Encoding quality n:[0..10]
+             --speex-vbr (for Ogg Speex only)
+               Enable variable bit-rate (VBR)
+             --speex-abr=n (for Ogg Speex only)
+               Enable average bit-rate (ABR) at rate bps
+             --speex-vad (for Ogg Speex only)
+               Enable voice activity detection (VAD)
+             --speex-dtx (for Ogg Speex only)
+               Enable file-based discontinuous transmission (DTX)
+             --speex-complexity=n (for Ogg Speex only)
+               Set encoding complexity n:[0-10]
+             --speex-nframes=n (for Ogg Speex only)
+               Number of frames per Ogg packet n:[0-10]
+             --output-device-id=n
+             --wmme-device-id=n (for Windows only)
+               Number of WMME device ID (-1: Default device, 0..19: other)
+             --wave_format_ext=n
+             --pa-asio-device-id=n
+               Number of PortAudio device ID (-2: Default device, 0..99: other)
+             --pa-wmme-device-id=n (for Windows only)
+               Number of PortAudio device ID (-2: Default device, 0..99: other)
+             --pa-ds-device-id=n (for Windows only)
+               Number of PortAudio device ID (-2: Default device, 0..99: other)
+             --pa-wdmks-device-id=n (for Windows only)
+               Number of PortAudio device ID (-2: Default device, 0..99: other)
+             --pa-wasapi-device-id=n (for Windows only)
+               Number of PortAudio device ID (-2: Default device, 0..99: other)
+             --pa-wasapi-flag=n
+             --add-play-time=sec (default is 0.5)
+             --add-silent-time=sec (default is 0.5)
+             --emu-delay-time=sec (default is 0.1)
+             --process-priority=n (for Windows only)
+             --player-thread-priority=n (for Windows only)
+  -o file    --output-file=file
+               Output to another file (or device/server) (Use "-" for stdout)
+               Set the output device no. (-1 shows available device no. list)
+  -P file    --patch-file=file
+               Use patch file for all programs
+  -p n       --polyphony=n
+               Allow n-voice polyphony.  Optional auto polyphony reduction
+     (a)     --[no-]polyphony-reduction
+               Toggle automatic polyphony reduction.  Enabled by default
+  -Q n[,...] --mute=n[,...]
+               Ignore channel n (0: ignore all, -n: resume channel n)
+     (t)     --temper-mute=n[,...]
+               Quiet temperament type n (0..3: preset, 4..7: user-defined)
+             --preserve-silence
+               Do not drop initial silence.  Default: drop initial silence
+  -q sec/n   --audio-buffer=sec/n
+               Specify audio buffer in seconds
+                 sec: Maxmum buffer, n: Filled to start (default is 5.0/100%)
+                 (size of 100% equals device buffer size)
+  -R msec      Pseudo reveb effect (set every instrument's release to msec)
+                 if n=0, n is set to 800
+  -r n       --resample-queue=n
+               Specify audio queue time limit to reduce resample quality
+                 n: size of 100 equals device buffer size
+  -S n       --cache-size=n
+               Cache size (0 means no cache)
+  -s freq    --sampling-freq=freq
+               Set sampling frequency to freq (Hz or kHz)
+  -T n       --adjust-tempo=n
+               Adjust tempo to n%,
+                 120=play MOD files with an NTSC Amiga's timing
+  -t code    --output-charset=code
+               Output text language code:
+                 code=auto  : Auto conversion by `LANG' environment variable
+                              (UNIX only)
+                      ascii : Convert unreadable characters to '.' (0x2e)
+                      nocnv : No conversion
+                      1251  : Convert from windows-1251 to koi8-r
+                      euc   : EUC-japan
+                      jis   : JIS
+                      sjis  : shift JIS
+  -U         --[no-]unload-instruments
+               Unload instruments from memory between MIDI files
+             --volume-calc-rms
+               Soundfont Volume Calc output to `root mean square' format
+  -V power   --volume-curve=power
+               Define the velocity/volume/expression curve
+                 amp = vol^power (auto: 0, linear: 1, ideal: ~1.661, GS: ~2)
+  -v         --version
+               Display TiMidity version information
+  -W mode    --wrd=mode
+               Select WRD interface (see below for list)
+  -w mode    --rcpcv-dll=mode
+               Windows extensional modes:
+                 mode=r/R : Enable/Disable rcpcv.dll
+  -x str     --config-string=str
+               Read configuration str from command line argument
+  -Y n       --compute-buffer=n
+               Set number of synthe buffer size(2^n)
+  -Z file    --freq-table=file
+               Load frequency table (Use "pure" for pure intonation)
+  pure<n>(m) --pure-intonation=n(m)
+               Initial keysig number <n> of sharp(+)/flat(-) (-7..7)
+                 'm' stands for minor mode
+  --module=n
+               Simulate behavior of specific synthesizer module by n
+                 n=0       : TiMidity++ Default (default)
+                   1-4     : Roland SC family
+                   5-15    : GS family
+                   16-23   : Yamaha MU family
+                   24-31   : XG family
+                   32-33   : SoundBlaster family
+                   56-79   : LA family
+                   80-84   : KORG family
+                   96-98   : SD series
+                   99-111  : other systhesizer modules
+                   112-127 : TiMidity++ specification purposes
+  --mix-envelope=n
+  --cut-short-time=msec
+  --limiter=n (gain per)
+  --trace-mode-update-time=n
+  --load-all-instrument=n
+  --loop-repeat=n
+               Set number of repeat count between CC#111 and EOT (CC#111 LOOP)
+  --compute-thread-num=n
+               Set number of divide multi-threads (0..16)
+                 (0..1 means single-thread, default is 0)
+  --od-level-gs=n
+               Set GS overdrive-amplify-level (1..400:default=100)
+  --od-drive-gs=n
+               Set GS overdrive-drive-level (1..400:default=100)
+  --od-level-xg=n
+               Set XG overdrive-amplify-level (1..400:default=100)
+  --od-drive-xg=n
+               Set XG overdrive-drive-level (1..400:default=100)
+  --pre-resample=n
+
+Effect options (-EF, --ext=F option):
+  -EFdelay=d   Disable delay effect (default)
+  -EFdelay=D   Enable delay effect
+  -EFchorus=d  Disable MIDI chorus effect control
+  -EFchorus=n  Enable Normal MIDI chorus effect control
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=s  Surround sound, chorus detuned to a lesser degree
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=w  Enable Normal MIDI chorus 2 effect control
+    [,level]     `level' is optional to specify chorus level [0..127]
+                 (default)
+  -EFchorus=W  Surround sound, chorus 2 detuned to a lesser degree
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=b  Enable Normal MIDI chorus 3 (2 phase) effect control
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=B  Surround sound, chorus 3 detuned to a lesser degree
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=t  Enable Normal MIDI chorus 4 (3 phase) effect control
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=T  Surround sound, chorus 4 detuned to a lesser degree
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=h  Enable Normal MIDI chorus 5 (6 phase) effect control
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=H  Surround sound, chorus 5 detuned to a lesser degree
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=e  Enable chorus ex effect
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=E  Surround sound, chorus ex
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=v  Enable chorus VST effect
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFchorus=V  Surround sound, chorus VST
+    [,level]     `level' is optional to specify chorus level [0..127]
+  -EFreverb=d  Disable MIDI reverb effect control
+  -EFreverb=n  Enable Normal MIDI reverb effect control
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=g  Global reverb effect
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=f  Enable Freeverb MIDI reverb effect control
+    [,level]     `level' is optional to specify reverb level [1..127]
+                 (default)
+  -EFreverb=G  Global Freeverb effect
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=5  Enable reverb ex
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=6  Global reverb ex effect
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=7  Enable reverb ex2
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=8  Global reverb ex2 effect
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=v  Enable reverb VST
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFreverb=V  Global reverb VST effect
+    [,level]     `level' is optional to specify reverb level [1..127]
+  -EFvlpf=d    Disable voice LPF
+  -EFvlpf=c    Enable Chamberlin resonant LPF (12dB/oct)
+  -EFvlpf=m    Enable Moog resonant lowpass VCF (24dB/oct)
+  -EFvlpf=b    Enable ButterworthFilter resonant lowpass (butterworth)
+                 (default)
+  -EFvlpf=i    Enable Resonant IIR lowpass VCF (12dB/oct)-2
+  -EFvlpf=a    Enable amSynth resonant lowpass VCF (24dB/oct)-2
+  -EFvlpf=o    Enable 1 pole 6db/oct resonant lowpass VCF (6dB/oct)
+  -EFvlpf=e    Enable resonant 3 pole lowpass VCF (18dB/oct)
+  -EFvlpf=t    Enable two first order lowpass VCF 
+  -EFvlpf=h    Enable HPF ButterworthFilter VCF (butterworth)
+  -EFvlpf=B    Enable BPF ButterworthFilter VCF (butterworth)
+  -EFns=n      Enable the n'th degree (type) noise shaping filter
+                 n:[0..4] (for 8-bit linear encoding, default is 4)
+                 n:[0..4] (for 16-bit linear encoding, default is 4)
+                 n:[0] (for 24-bit linear encoding, default is 0)
+                 n:[0] (for 32-bit linear encoding, default is 0)
+                 n:[0] (for 64-bit linear encoding, default is 0)
+                 n:[0] (for float 32-bit linear encoding, default is 0)
+                 n:[0] (for float 64-bit linear encoding, default is 0)
+  -EFresamp=d  Disable resamplation
+  -EFresamp=l  Enable Linear resample algorithm
+  -EFresamp=c  Enable C-spline resample algorithm
+  -EFresamp=L  Enable Lagrange resample algorithm
+  -EFresamp=n  Enable Newton resample algorithm
+  -EFresamp=g  Enable Gauss-like resample algorithm (default)
+  -EFresamp=s  Enable Sharp resample algorithm
+  -EFresamp=p  Enable LinearP resample algorithm
+  -EFresamp=i  Enable Sine resample algorithm
+  -EFresamp=q  Enable Square resample algorithm
+                 -EFresamp affects the behavior of -N option
+
+Alternative TiMidity sequencer extensional mode long options:
+  --[no-]mod-wheel
+  --[no-]portamento
+  --[no-]vibrato
+  --[no-]ch-pressure
+  --[no-]mod-envelope
+  --[no-]trace-text-meta
+  --[no-]overlap-voice
+  --overlap-voice-count=n
+  --[no-]temper-control
+  --default-mid=<HH>
+  --system-mid=<HH>
+  --default-bank=n
+  --force-bank=n
+  --default-program=n/m
+  --force-program=n/m
+  --delay=(d|D)
+  --chorus=(d|n|s|w|W|b|B|t|T|h|H|e|E|v|V)[,level]
+  --reverb=(d|n|g|f|G|5|6|7|8|v|V)[,level]
+  --reverb=(f|G)[,level[,scaleroom[,offsetroom[,predelay]]]]
+  --voice-lpf=(d|c|m|b|i|a|o|e|t|h|B)
+  --noise-shaping=n
+  --resample=(d|l|c|L|n|g|s|p|i|q)
+
+Available interfaces (-i, --interface option):
+  -in          ncurses interface
+  -iT          vt100 interface
+  -id          dumb interface
+  -iW          Windows Synthesizer interface
+  -iP          PortMIDI Synthesizer interface
+  -iN          Windows Named Pipe Synthesizer interface
+Supported dynamic load interfaces (.):
+
+Interface options (append to -i? option):
+  `v'          more verbose (cumulative)
+  `q'          quieter (cumulative)
+  `t'          trace playing
+  `l'          loop playing (some interface ignore this option)
+  `r'          randomize file list arguments before playing
+  `s'          sorting file list arguments before playing
+
+Alternative interface long options:
+  --verbose=n
+  --quiet=n
+  --[no-]trace
+  --[no-]loop
+  --[no-]random
+  --[no-]sort
+
+Available output modes (-O, --output-mode option):
+  -Od          Windows audio driver
+  -Oo          PortAudio(ASIO)
+  -OW          PortAudio(WASAPI)
+  -OK          PortAudio(WDM-KS)
+  -OP          PortAudio(DirectSound)
+  -Op          PortAudio(WMME)
+  -OL          Lame
+  -ON          Windows Named Pipe
+  -Ow          RIFF WAVE file
+  -Or          Raw waveform data
+  -Ou          Sun audio file
+  -Oa          AIFF file
+  -Ov          Ogg Vorbis
+  -OF          FLAC / OggFLAC
+  -OU          Ogg Opus
+  -OS          Ogg Speex
+  -Og          MP3 GOGO
+  -Ol          List MIDI event
+  -OM          MOD -> MIDI file conversion
+  -OV          Soundfont Volume Calc
+
+Output format options (append to -O? option):
+  `S'          stereo
+  `M'          monophonic
+  `s'          signed output
+  `u'          unsigned output
+  `1'          16-bit sample width
+  `2'          24-bit sample width
+  `3'          32-bit sample width
+  `6'          64-bit sample width
+  `8'          8-bit sample width
+  `f'          float 32-bit sample width
+  `D'          float 64-bit sample width
+  `l'          linear encoding
+  `U'          U-Law encoding
+  `A'          A-Law encoding
+  `x'          byte-swapped output
+
+Alternative output format long options:
+  --output-stereo
+  --output-mono
+  --output-signed
+  --output-unsigned
+  --output-16bit
+  --output-24bit
+  --output-32bit
+  --output-64bit
+  --output-8bit
+  --output-f32bit
+  --output-float32bit
+  --output-f64bit
+  --output-float64bit
+  --output-linear
+  --output-ulaw
+  --output-alaw
+  --[no-]output-swab
+
+Available WRD interfaces (-W, --wrd option):
+  -Ww          Windows Console WRD tracer
+  -Wt          TTY WRD tracer
+  -Wd          dumb WRD tracer
+  -W-          No WRD trace
+

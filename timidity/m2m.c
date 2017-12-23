@@ -228,7 +228,7 @@ void fill_vol_nonlin_to_lin_table(void)
     /* use the inverse of the power to generate the new table */
     for (i = 1; i <= 127; i++)
     {
-    	inverse = pow(i / 127.0, 1.0 / power);
+    	inverse = pow(i * DIV_127, 1.0 / power);
        	temp = 127 * inverse;
 
     	coarse = floor(temp + 0.5);
@@ -1080,7 +1080,7 @@ void m2m_process_events(MidiEvent * ev)
 	    event[2] = ev->b;
 
 	    expression = ROUND(orig_track_expr[old_ch] *
-			       vol_amp[mod_sample] / 100.0);
+			       vol_amp[mod_sample] * DIV_100);
 
 	    /* max expression at 127 */
 	    if (expression > 127)
@@ -1269,7 +1269,7 @@ void m2m_process_events(MidiEvent * ev)
 
 	    orig_track_expr[old_ch] = ev->a;
 
-	    expression = ROUND(ev->a * vol_amp[mod_sample] / 100.0);
+	    expression = ROUND(ev->a * vol_amp[mod_sample] * DIV_100);
 
 	    /* max expression at 127 */
 	    if (expression > 127)
@@ -1544,7 +1544,7 @@ int convert_mod_to_midi_file(MidiEvent * ev)
     change_system_mode(DEFAULT_SYSTEM_MODE);
 
     /* use user volume curve if specified, rather than the default */
-    if (opt_user_volume_curve)
+    if (opt_user_volume_curve != 0)
 	fill_vol_nonlin_to_lin_table();
 
     initialize_m2m_stuff();

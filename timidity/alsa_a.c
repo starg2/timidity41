@@ -30,9 +30,15 @@
 #endif /* HAVE_CONFIG_H */
 #define _GNU_SOURCE
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -72,7 +78,7 @@ typedef void  snd_pcm_t;
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int output_data(const uint8 *buf, size_t nbytes);
 static int acntl(int request, void *arg);
 #if ALSA_LIB >= 5
 static int detect(void);
@@ -258,12 +264,17 @@ static int check_sound_cards (int* card__, int* device__,
 
 static char *get_pcm_name(void)
 {
-  char *name;
+  char *name = 0;
   if (dpm.name && *dpm.name)
     return dpm.name;
-  name = getenv("TIMIDITY_PCM_NAME");
-  if (! name || ! *name)
-    name = "default";
+  if (getenv("TIMIDITY_PCM_NAME")) {
+    safe_free(name);
+    name = strdup(getenv("TIMIDITY_PCM_NAME"));
+  }
+  if (!name || !*name) {
+    safe_free(name);
+    name = safe_strdup("default");
+  }
   return name;
 }
 
@@ -317,13 +328,31 @@ static int open_output(void)
 #ifdef LITTLE_ENDIAN
 #define S16_FORMAT	SND_PCM_FORMAT_S16_LE
 #define U16_FORMAT	SND_PCM_FORMAT_U16_LE
+#define S24_FORMAT	SND_PCM_FORMAT_S24_3LE
+#define U24_FORMAT	SND_PCM_FORMAT_U24_3LE
+#define S32_FORMAT	SND_PCM_FORMAT_S32_LE
+#define U32_FORMAT	SND_PCM_FORMAT_U32_LE
+#define F32_FORMAT	SND_PCM_FORMAT_FLOAT_LE
+#define F64_FORMAT	SND_PCM_FORMAT_FLOAT64_LE
 #else
 #define S16_FORMAT	SND_PCM_FORMAT_S16_BE
-#define U16_FORMAT	SND_PCM_FORMAT_U16_LE
+#define U16_FORMAT	SND_PCM_FORMAT_U16_BE
+#define S24_FORMAT	SND_PCM_FORMAT_S24_3BE
+#define U24_FORMAT	SND_PCM_FORMAT_U24_3BE
+#define S32_FORMAT	SND_PCM_FORMAT_S32_BE
+#define U32_FORMAT	SND_PCM_FORMAT_U32_BE
+#define F32_FORMAT	SND_PCM_FORMAT_FLOAT_BE
+#define F64_FORMAT	SND_PCM_FORMAT_FLOAT64_BE
 #endif
 
-  dpm.encoding &= ~(PE_ULAW|PE_ALAW|PE_BYTESWAP);
+  dpm.encoding &= ~(PE_ULAW|PE_ALAW|PE_BYTESWAP|PE_64BIT|PE_F32BIT|PE_F64BIT);
   /*check sample bit*/
+  if (snd_pcm_hw_params_test_format(handle, pinfo, S32_FORMAT) < 0 &&
+      snd_pcm_hw_params_test_format(handle, pinfo, U32_FORMAT) < 0)
+    dpm.encoding &= ~PE_32BIT;
+  if (snd_pcm_hw_params_test_format(handle, pinfo, S24_FORMAT) < 0 &&
+      snd_pcm_hw_params_test_format(handle, pinfo, U24_FORMAT) < 0)
+    dpm.encoding &= ~PE_24BIT;
   if (snd_pcm_hw_params_test_format(handle, pinfo, S16_FORMAT) < 0 &&
       snd_pcm_hw_params_test_format(handle, pinfo, U16_FORMAT) < 0)
     dpm.encoding &= ~PE_16BIT; /*force 8bit samples*/
@@ -341,6 +370,32 @@ static int open_output(void)
     else {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		"ALSA pcm '%s' doesn't support 16 bit sample width",
+		alsa_device_name());
+      snd_pcm_close(handle);
+      return -1;
+    }
+  } else if (dpm.encoding & PE_24BIT) {
+    /*24bit*/
+    if (snd_pcm_hw_params_set_format(handle, pinfo, S24_FORMAT) == 0)
+      dpm.encoding |= PE_SIGNED;
+    else if (snd_pcm_hw_params_set_format(handle, pinfo, U24_FORMAT) == 0)
+      dpm.encoding &= ~PE_SIGNED;
+    else {
+      ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		"ALSA pcm '%s' doesn't support 24 bit sample width",
+		alsa_device_name());
+      snd_pcm_close(handle);
+      return -1;
+    }
+  } else if (dpm.encoding & PE_32BIT) {
+    /*32bit*/
+    if (snd_pcm_hw_params_set_format(handle, pinfo, S32_FORMAT) == 0)
+      dpm.encoding |= PE_SIGNED;
+    else if (snd_pcm_hw_params_set_format(handle, pinfo, U32_FORMAT) == 0)
+      dpm.encoding &= ~PE_SIGNED;
+    else {
+      ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+		"ALSA pcm '%s' doesn't support 32 bit sample width",
 		alsa_device_name());
       snd_pcm_close(handle);
       return -1;
@@ -420,6 +475,8 @@ static int open_output(void)
     sample_shift++;
   if (dpm.encoding & PE_16BIT)
     sample_shift++;
+  if (dpm.encoding & PE_32BIT)
+    sample_shift += 2;
 
   /* Set buffer fragment size (in extra_param[1]) */
   if (dpm.extra_param[1] != 0)
@@ -522,7 +579,7 @@ static void close_output(void)
   dpm.fd = -1;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int output_data(const uint8 *buf, size_t nbytes)
 {
   int n;
   int nframes, shift;
@@ -536,6 +593,8 @@ static int output_data(char *buf, int32 nbytes)
     shift++;
   if (dpm.encoding & PE_16BIT)
     shift++;
+  if (dpm.encoding & PE_32BIT)
+    shift += 2;
   nframes >>= shift;
   
   while (nframes > 0) {
@@ -673,6 +732,7 @@ static int set_playback_info (snd_pcm_t* handle__,
     }
 
   /*check sample bit*/
+  *encoding__ &= ~(PE_24BIT | PE_32BIT | PE_64BIT | PE_F32BIT | PE_F64BIT);
   if (!(pinfo.formats & ~(SND_PCM_FMT_S8 | SND_PCM_FMT_U8)))
     *encoding__ &= ~PE_16BIT; /*force 8bit samples*/
   if (!(pinfo.formats & ~(SND_PCM_FMT_S16 | SND_PCM_FMT_U16)))
@@ -878,7 +938,7 @@ static void close_output(void)
   dpm.fd = -1;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int output_data(const uint8 *buf, size_t nbytes)
 {
   int n;
   snd_pcm_channel_status_t status;
@@ -1024,6 +1084,7 @@ static int set_playback_info (snd_pcm_t* handle__,
     }
 
   /*check sample bit*/
+  *encoding__ &= ~(PE_24BIT | PE_32BIT | PE_64BIT | PE_F32BIT | PE_F64BIT);
   if ((pinfo.flags & SND_PCM_PINFO_8BITONLY) != 0)
     *encoding__ &= ~PE_16BIT; /*force 8bit samples*/
   if ((pinfo.flags & SND_PCM_PINFO_16BITONLY) != 0)
@@ -1207,7 +1268,7 @@ static void close_output(void)
   dpm.fd = -1;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int output_data(const uint8 *buf, size_t nbytes)
 {
   int n;
 

@@ -57,17 +57,18 @@
 #define MIN_LOOPSTART MIXLEN
 #define MIN_LOOPLEN 1024
 #define MAX_EXPANDLEN (1024 * 32)
-#define CACHE_DATA_LEN (allocate_cache_size / sizeof(sample_t))
+///r
+#define CACHE_DATA_LEN (allocate_cache_size / sizeof(cache_t))
 
 #define sp_hash(sp, note) ((unsigned long) (sp) + (unsigned int) (note))
 #define CACHE_RESAMPLING_OK 0
 #define CACHE_RESAMPLING_NOTOK 1
 #define SORT_THRESHOLD 20
-#define RESAMPLATION_CACHE _x = do_resamplation(src, ofs, &resrc); \
-		dest[i] = (int16) ((_x > 32767) ? 32767 \
-				: ((_x < -32768) ? -32768 : _x))
+///r
+#define RESAMPLATION_CACHE dest[i] = do_resamplation(src, ofs, &resrc);
+///r
+static cache_t *cache_data = NULL; 
 
-static sample_t *cache_data = NULL;
 int32 allocate_cache_size = DEFAULT_CACHE_DATA_SIZE;
 static splen_t cache_data_len;
 static struct cache_hash *cache_hash_table[HASH_TABLE_SIZE];
@@ -78,24 +79,35 @@ static struct {
 	struct cache_hash *cache[128];
 } channel_note_table[MAX_CHANNELS];
 
-static double sample_resamp_info(Sample *, int,
-		splen_t *, splen_t *, splen_t *);
+static double sample_resamp_info(Sample *, int, splen_t *, splen_t *, splen_t *);
 static void qsort_cache_array(struct cache_hash **, long, long);
 static void insort_cache_array(struct cache_hash **, long);
 static int cache_resampling(struct cache_hash *);
-static void loop_connect(sample_t *, int32, int32);
+///r
+static void loop_connect(cache_t *, int32, int32);
 
 void free_cache_data(void) {
-	free(cache_data);
-	reuse_mblock(&hash_entry_pool);
+    //C³ by Kobarin
+	//free(cache_data);
+    //reuse_mblock(&hash_entry_pool);
+    //cache_data ‚ð NULL ‚É‚µ‚Ä‚¨‚©‚È‚¢‚ÆA‚±‚ÌŠÖ”ŒÄ‚Ño‚µŒã‚É
+    //resamp_cache_reset ‚ðŒÄ‚Ô‚Æ—Ž‚¿‚é
+    if(cache_data){
+        free(cache_data);
+        cache_data = NULL;
+        reuse_mblock(&hash_entry_pool);
+    }
+    //‚±‚±‚Ü‚Å
 }
-
+///r
 void resamp_cache_reset(void)
 {
 	if (cache_data == NULL) {
-		cache_data = (sample_t *)
-				safe_large_malloc((CACHE_DATA_LEN + 1) * sizeof(sample_t));
-		memset(cache_data, 0, (CACHE_DATA_LEN + 1) * sizeof(sample_t));
+		int32 bytes;
+		bytes = (CACHE_DATA_LEN + 1) * sizeof(cache_t);
+		cache_data = (cache_t *) safe_large_malloc(bytes);
+
+		memset(cache_data, 0, bytes);
 		init_mblock(&hash_entry_pool);
 	}
 	cache_data_len = 0;
@@ -129,7 +141,7 @@ void resamp_cache_refer_on(Voice *vp, int32 sample_start)
 	int note, ch;
 	
 	ch = vp->channel;
-	if (vp->vibrato_control_ratio || channel[ch].portamento
+	if (channel[ch].portamento // || vp->vibrato_control_ratio
 			|| (vp->sample->modes & MODES_PINGPONG)
 			|| vp->orig_frequency != vp->frequency
 			|| (vp->sample->sample_rate == play_mode->rate
@@ -253,8 +265,7 @@ void resamp_cache_create(void)
 		qsort_cache_array(array, 0, n - 1);
 	skip = 0;
 	for (i = 0; i < n; i++) {
-		if (array[i]->r != 0
-				&& cache_resampling(array[i]) == CACHE_RESAMPLING_OK)
+		if (array[i]->r != 0 && cache_resampling(array[i]) == CACHE_RESAMPLING_OK)
 			t2 += array[i]->cnt;
 		else
 			skip++;
@@ -284,16 +295,19 @@ void resamp_cache_create(void)
 		}
 }
 
+///r
+const double sri_mlt_fraction_bits = TIM_FSCALE(1.0, FRACTION_BITS);
+const double sri_div_fraction_bits = TIM_FSCALENEG(1.0, FRACTION_BITS);
+
 static double sample_resamp_info(Sample *sp, int note,
 		splen_t *loop_start, splen_t *loop_end, splen_t *data_length)
 {
 	splen_t xls, xle, ls, le, ll, newlen;
 	double a, xxls, xxle, xn;
 	
-	a = ((double) sp->sample_rate * get_note_freq(sp, note))
-			/ ((double) sp->root_freq * play_mode->rate);
-	a = TIM_FSCALENEG((double) (int32) TIM_FSCALE(a, FRACTION_BITS),
-			FRACTION_BITS);
+	a = ((double) sp->sample_rate * get_note_freq(sp, note)) / ((double) sp->root_freq * play_mode->rate);
+//	a = TIM_FSCALENEG((double) (int32) TIM_FSCALE(a, FRACTION_BITS), FRACTION_BITS);	
+	a = (double)((int32)(a * sri_mlt_fraction_bits)) * sri_div_fraction_bits; //r
 	xn = sp->data_length / a;
 	if (xn >= SPLEN_T_MAX) {
 		/* Ignore this sample */
@@ -318,8 +332,7 @@ static double sample_resamp_info(Sample *sp, int note,
 		return 0.0;
 	}
 	xle = (splen_t) xxle;
-	if ((sp->modes & MODES_LOOPING)
-			&& ((xle - xls) >> FRACTION_BITS) < MIN_LOOPLEN) {
+	if ((sp->modes & MODES_LOOPING) && ((xle - xls) >> FRACTION_BITS) < MIN_LOOPLEN) {
 		splen_t n;
 		splen_t newxle;
 		double xl;	/* Resampled new loop length */
@@ -331,8 +344,8 @@ static double sample_resamp_info(Sample *sp, int note,
 			*data_length = 0;
 			return 0.0;
 		}
-		n = (splen_t) (0.0001 + MIN_LOOPLEN
-				/ TIM_FSCALENEG(xl, FRACTION_BITS)) + 1;
+	//	n = (splen_t) (0.0001 + MIN_LOOPLEN / TIM_FSCALENEG(xl, FRACTION_BITS)) + 1;
+		n = (splen_t) (1.0001 + (double)MIN_LOOPLEN / (xl * sri_div_fraction_bits)); //r
 		xnewxle = le / a + n * xl + 0.5;
 		if (xnewxle >= SPLEN_T_MAX) {
 			/* Ignore this sample */
@@ -389,18 +402,19 @@ static void insort_cache_array(struct cache_hash **data, long n)
 		data[j + 1] = x;
 	}
 }
-
+///r
 static int cache_resampling(struct cache_hash *p)
 {
-	Sample *sp, *newsp;
-	sample_t *src, *dest;
+	Sample *newsp, *sp = p->sp;
+	cache_t *dest;
+	sample_t *src = sp->data;
+	int data_type = sp->data_type;
 	splen_t newlen, ofs, le, ls, ll, xls, xle;
 	int32 i, incr, _x;
 	resample_rec_t resrc;
 	double a;
 	int8 note;
-	
-	sp = p->sp;
+		
 	if (sp->note_to_use)
 		note = sp->note_to_use;
 	else
@@ -411,36 +425,86 @@ static int cache_resampling(struct cache_hash *p)
 	newlen >>= FRACTION_BITS;
 	if (cache_data_len + newlen + 1 > CACHE_DATA_LEN)
 		return CACHE_RESAMPLING_NOTOK;
+
 	resrc.loop_start = ls = sp->loop_start;
 	resrc.loop_end = le = sp->loop_end;
 	resrc.data_length = sp->data_length;
+	if(!sp->modes & MODES_LOOPING)
+		resrc.mode = RESAMPLE_MODE_PLAIN;
+	else if(sp->modes & MODES_PINGPONG)
+		resrc.mode = RESAMPLE_MODE_BIDIR_LOOP;
+	else
+		resrc.mode = RESAMPLE_MODE_LOOP;
+#ifdef RESAMPLE_NEWTON_VOICE
+	resrc.newt_old_trunc_x = -1;
+	resrc.newt_grow = -1;
+	resrc.newt_old_src = NULL;
+#endif
 	ll = sp->loop_end - sp->loop_start;
 	dest = cache_data + cache_data_len;
-	src = sp->data;
+
 	newsp = (Sample *) new_segment(&hash_entry_pool, sizeof(Sample));
 	memcpy(newsp, sp, sizeof(Sample));
-	newsp->data = dest;
+///r
+	set_resamplation(sp->data_type);
+
 	ofs = 0;
 	incr = (splen_t) (TIM_FSCALE(a, FRACTION_BITS) + 0.5);
+	resrc.increment = incr;
+
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+	if (sp->modes & MODES_LOOPING)
+		for (i = 0; i < newlen; i++) {if (ofs >= le) ofs -= ll; RESAMPLATION_CACHE; ofs += incr;}
+	else
+		for (i = 0; i < newlen; i++) {RESAMPLATION_CACHE; ofs += incr;}
+#else // DATA_T_INT32
+
+#if defined(LOOKUP_HACK)
 	if (sp->modes & MODES_LOOPING)
 		for (i = 0; i < newlen; i++) {
-			if (ofs >= le)
-				ofs -= ll;
-			RESAMPLATION_CACHE;
-			ofs += incr;
+			int32 x;
+			if (ofs >= le) ofs -= ll;
+			x = do_resamplation(src, ofs, &resrc);
+			dest[i] = (int16)CLIP_INT8(x); ofs += incr;
 		}
 	else
 		for (i = 0; i < newlen; i++) {
-			RESAMPLATION_CACHE;
-			ofs += incr;
+			int32 x = do_resamplation(src, ofs, &resrc);
+			dest[i] = (int8)CLIP_INT8(x); ofs += incr;
 		}
+#elif 0 // cache_t int16
+	if (sp->modes & MODES_LOOPING)
+		for (i = 0; i < newlen; i++) {
+			int32 x;
+			if (ofs >= le) ofs -= ll;
+			x = do_resamplation(src, ofs, &resrc);
+			dest[i] = (int16)CLIP_INT16(x); ofs += incr;
+		}
+	else
+		for (i = 0; i < newlen; i++) {
+			int32 x = do_resamplation(src, ofs, &resrc);
+			dest[i] = (int16)CLIP_INT16(x); ofs += incr;
+		}
+#else // cache_t int32
+	if (sp->modes & MODES_LOOPING)
+		for (i = 0; i < newlen; i++) {if (ofs >= le) ofs -= ll; RESAMPLATION_CACHE; ofs += incr;}
+	else
+		for (i = 0; i < newlen; i++) {RESAMPLATION_CACHE; ofs += incr;}
+#endif
+
+#endif // DATA_T_INT32
+		
+	newsp->data = (sample_t *)dest;
+	newsp->data_type = CACHE_DATA_TYPE;
 	newsp->loop_start = xls;
 	newsp->loop_end = xle;
 	newsp->data_length = newlen << FRACTION_BITS;
 	if (sp->modes & MODES_LOOPING)
-		loop_connect(dest, (int32) (xls >> FRACTION_BITS),
-				(int32) (xle >> FRACTION_BITS));
+		loop_connect((cache_t *)dest, (int32) (xls >> FRACTION_BITS), (int32) (xle >> FRACTION_BITS));
 	dest[xle >> FRACTION_BITS] = dest[xls >> FRACTION_BITS];
+///r
+	newsp->root_freq_org = newsp->root_freq;
+	newsp->sample_rate_org = newsp->sample_rate;
 	newsp->root_freq = get_note_freq(newsp, note);
 	newsp->sample_rate = play_mode->rate;
 	p->resampled = newsp;
@@ -448,7 +512,7 @@ static int cache_resampling(struct cache_hash *p)
 	return CACHE_RESAMPLING_OK;
 }
 
-static void loop_connect(sample_t *data, int32 start, int32 end)
+static void loop_connect(cache_t *data, int32 start, int32 end)
 {
 	int i, mixlen;
 	int32 t0, t1;
@@ -467,19 +531,31 @@ static void loop_connect(sample_t *data, int32 start, int32 end)
 		
 		b = i / (double) mixlen;	/* 0 <= b < 1 */
 		x = b * data[t0 + i] + (1.0 - b) * data[t1 + i];
-#ifdef LOOKUP_HACK
-		if (x < -128)
-			data[t1 + i] = -128;
-		else if (x > 127)
-			data[t1 + i] = 127;
-#else
-		if (x < -32768)
-			data[t1 + i] = -32768;
-		else if (x > 32767)
-			data[t1 + i] = 32767;
-#endif	/* LOOKUP_HACK */
-		else
-			data[t1 + i] = (sample_t) x;
+
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		data[t1 + i] = x;
+#elif defined(LOOKUP_HACK)
+		data[t1 + i] = (int8)CLIP_INT8(x);
+#else // DATA_T_INT32
+
+#if 0 // cache_t int16
+		data[t1 + i] = (int16)CLIP_INT16(x); // int16
+#else // cache_t int32
+		data[t1 + i] = x; // int32
+#endif
+
+#endif// DATA_T_INT32
 	}
+}
+
+///r 
+// kobarin
+void free_resamp_cache_data(void)
+{
+	reuse_mblock(&hash_entry_pool);
+    if(cache_data){
+        free(cache_data);
+        cache_data=NULL;
+    }
 }
 

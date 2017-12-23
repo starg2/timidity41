@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #endif //for off_t
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -44,12 +46,12 @@
 #define NNTP_OK_ID '2'
 #define MAX_LINE_BUFF 1024
 #define ALARM_TIMEOUT 10
-/* #define DEBUG */
+/* #define DEBUG 1 */
 
 #ifdef URL_NEWS_XOVER_SUPPORT
-static char *xover_commands[] = {URL_NEWS_XOVER_SUPPORT, NULL};
+static char *xover_commands[] = { URL_NEWS_XOVER_SUPPORT, NULL };
 #else
-static char *xover_commands[] = {NULL};
+static char *xover_commands[] = { NULL };
 #endif /* URL_NEWS_XOVER_SUPPORT */
 
 static VOLATILE int timeout_flag = 1;
@@ -67,9 +69,9 @@ typedef struct _URL_newsgroup
     char *name;
 } URL_newsgroup;
 
-static int name_newsgroup_check(char *url_string);
-static long url_newsgroup_read(URL url, void *buff, long n);
-static char *url_newsgroup_gets(URL url, char *buff, int n);
+static int name_newsgroup_check(const char *url_string);
+static ptr_size_t url_newsgroup_read(URL url, void *buff, ptr_size_t n);
+static char *url_newsgroup_gets(URL url, char *buff, ptr_size_t n);
 static void url_newsgroup_close(URL url);
 
 struct URL_module URL_module_newsgroup =
@@ -81,9 +83,9 @@ struct URL_module URL_module_newsgroup =
     NULL
 };
 
-static int name_newsgroup_check(char *s)
+static int name_newsgroup_check(const char *s)
 {
-    if(strncmp(s, "news://", 7) == 0 && strchr(s, '@') == NULL)
+    if (!strncmp(s, "news://", 7) && strchr(s, '@') == NULL)
 	return 1;
     return 0;
 }
@@ -94,7 +96,7 @@ static void timeout(int sig)
     timeout_flag = 1;
 }
 
-URL url_newsgroup_open(char *name)
+URL url_newsgroup_open(const char *name)
 {
     URL_newsgroup *url;
     SOCKET fd;
@@ -107,18 +109,18 @@ URL url_newsgroup_open(char *name)
     fprintf(stderr, "url_newsgroup_open(%s)\n", name);
 #endif /* DEBUG */
 
-    if((urlname = safe_strdup(name)) == NULL)
+    if ((urlname = safe_strdup(name)) == NULL)
 	return NULL;
     n = strlen(urlname);
-    while(n > 0 && urlname[n - 1] == '/')
+    while (n > 0 && urlname[n - 1] == '/')
 	urlname[--n] = '\0';
 
-    url = (URL_newsgroup *)alloc_url(sizeof(URL_newsgroup));
-    if(url == NULL)
+    url = (URL_newsgroup*)alloc_url(sizeof(URL_newsgroup));
+    if (!url)
     {
 	url_errno = errno;
-	free(urlname);
-	errno = url_errno;
+	safe_free(urlname);
+	_set_errno(url_errno);
 	return NULL;
     }
 
@@ -140,24 +142,24 @@ URL url_newsgroup_open(char *name)
     url->minID = url->maxID = 0;
     url->name = urlname;
 
-    if(strncmp(name, "news://", 7) == 0)
+    if (!strncmp(name, "news://", 7))
 	name += 7;
 
     strncpy(buff, name, sizeof(buff) - 1);
     buff[sizeof(buff) - 1] = '\0';
 
     host = buff;
-    for(p = host; *p && *p != ':' && *p != '/'; p++)
+    for (p = host; *p && *p != ':' && *p != '/'; p++)
 	;
-    if(*p == ':')
+    if (*p == ':')
     {
 	*p++ = '\0'; /* terminate `host' string */
 	port = atoi(p);
 	p = strchr(p, '/');
-	if(p == NULL)
+	if (!p)
 	{
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    url_newsgroup_close((URL)url);
 	    return NULL;
 	}
@@ -168,7 +170,7 @@ URL url_newsgroup_open(char *name)
     strncpy(group, p, sizeof(group) - 1);
     group[sizeof(group) - 1] = '\0';
 
-    if((range = strchr(group, '/')) != NULL)
+    if ((range = strchr(group, '/')) != NULL)
 	*range++ = '\0';
 
 #ifdef DEBUG
@@ -191,34 +193,34 @@ URL url_newsgroup_open(char *name)
     signal(SIGALRM, SIG_DFL);
 #endif /* __W32__ */
 
-    if(fd == (SOCKET)-1)
+    if (fd == (SOCKET)-1)
     {
 	VOLATILE_TOUCH(timeout_flag);
 #ifdef ETIMEDOUT
-	if(timeout_flag)
-	    errno = ETIMEDOUT;
+	if (timeout_flag)
+	    _set_errno(ETIMEDOUT);
 #endif /* ETIMEDOUT */
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	else
 	{
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	}
 	url_newsgroup_close((URL)url);
 	return NULL;
     }
 
-    if((url->fp = socket_fdopen(fd, "rb")) == NULL)
+    if ((url->fp = socket_fdopen(fd, "rb")) == NULL)
     {
 	url_errno = errno;
 	closesocket(fd);
 	url_newsgroup_close((URL)url);
-	errno = url_errno;
+	_set_errno(url_errno);
 	return NULL;
     }
 
-    if(socket_fgets(buff, sizeof(buff), url->fp) == NULL)
+    if (socket_fgets(buff, sizeof(buff), url->fp) == NULL)
     {
 	url_newsgroup_close((URL)url);
 	return NULL;
@@ -228,11 +230,11 @@ URL url_newsgroup_open(char *name)
     fprintf(stderr, "Connect status: %s", buff);
 #endif /* DEBUG */
 
-    if(buff[0] != NNTP_OK_ID)
+    if (buff[0] != NNTP_OK_ID)
     {
 	url_newsgroup_close((URL)url);
 	url_errno = URLERR_CANTOPEN;
-	errno = ENOENT;
+	_set_errno(ENOENT);
 	return NULL;
     }
 
@@ -242,12 +244,12 @@ URL url_newsgroup_open(char *name)
     fprintf(stderr, "CMD> %s", buff);
 #endif /* DEBUG */
 
-    socket_write(fd, buff, (long)strlen(buff));
-    if(socket_fgets(buff, sizeof(buff), url->fp) == NULL)
+    socket_write(fd, buff, (int32)strlen(buff));
+    if (socket_fgets(buff, sizeof(buff), url->fp) == NULL)
     {
 	url_newsgroup_close((URL)url);
 	url_errno = URLERR_CANTOPEN;
-	errno = ENOENT;
+	_set_errno(ENOENT);
 	return NULL;
     }
 
@@ -255,44 +257,44 @@ URL url_newsgroup_open(char *name)
     fprintf(stderr, "CMD< %s", buff);
 #endif /* DEBUG */
 
-    if(buff[0] != NNTP_OK_ID)
+    if (buff[0] != NNTP_OK_ID)
     {
 	url_newsgroup_close((URL)url);
 	url_errno = URLERR_CANTOPEN;
-	errno = ENOENT;
+	_set_errno(ENOENT);
 	return NULL;
     }
 
     p = buff + 4;
-    if(*p == '0') /* No article */
+    if (*p == '0') /* No article */
 	url->eof = 1;
     p++;
-    while('0' <= *p && *p <= '9')
+    while ('0' <= *p && *p <= '9')
 	p++;
-    while(*p == ' ')
+    while (*p == ' ')
 	p++;
     url->first = url->minID = atoi(p);
-    while('0' <= *p && *p <= '9')
+    while ('0' <= *p && *p <= '9')
 	p++;
-    while(*p == ' ')
+    while (*p == ' ')
 	p++;
     url->last = url->maxID = atoi(p);
 
-    if(range != NULL)
+    if (range)
     {
-	if('0' <= *range && *range <= '9')
+	if ('0' <= *range && *range <= '9')
 	{
 	    url->first = atoi(range);
-	    if(url->first < url->minID)
+	    if (url->first < url->minID)
 		url->first = url->minID;
 	}
-	if((range = strchr(range, '-')) != NULL)
+	if ((range = strchr(range, '-')) != NULL)
 	{
 	    range++;
-	    if('0' <= *range && *range <= '9')
+	    if ('0' <= *range && *range <= '9')
 	    {
 		url->last = atoi(range);
-		if(url->last > url->maxID)
+		if (url->last > url->maxID)
 		    url->last = url->maxID;
 	    }
 	}
@@ -303,66 +305,65 @@ URL url_newsgroup_open(char *name)
 
 char *url_newsgroup_name(URL url)
 {
-    if(url->type != URL_newsgroup_t)
+    if (url->type != URL_newsgroup_t)
 	return NULL;
-    return ((URL_newsgroup *)url)->name;
+    return ((URL_newsgroup*)url)->name;
 }
 
 static void url_newsgroup_close(URL url)
 {
-    URL_newsgroup *urlp = (URL_newsgroup *)url;
+    URL_newsgroup *urlp = (URL_newsgroup*)url;
     int save_errno = errno;
-    if(urlp->fd != (SOCKET)-1)
+    if (urlp->fd != (SOCKET)-1)
     {
 	socket_write(urlp->fd, "QUIT\r\n", 6);
 	closesocket(urlp->fd);
     }
-    if(urlp->fp != NULL)
+    if (urlp->fp)
 	socket_fclose(urlp->fp);
-    if(urlp->name != NULL)
-	free(urlp->name);
-    free(url);
-    errno = save_errno;
+    safe_free(urlp->name);
+    safe_free(url);
+    _set_errno(save_errno);
 }
 
-static long url_newsgroup_read(URL url, void *buff, long n)
+static ptr_size_t url_newsgroup_read(URL url, void *buff, ptr_size_t n)
 {
     char *p;
 
-    p = url_newsgroup_gets(url, (char *)buff, n);
-    if(p == NULL)
+    p = url_newsgroup_gets(url, (char*)buff, n);
+    if (!p)
 	return 0;
-    return (long)strlen(p);
+    return (int32)strlen(p);
 }
 
-static char *url_newsgroup_gets(URL url, char *buff, int n)
+static char *url_newsgroup_gets(URL url, char *buff, ptr_size_t n)
 {
-    URL_newsgroup *urlp = (URL_newsgroup *)url;
+    URL_newsgroup *urlp = (URL_newsgroup*)url;
     char linebuff[MAX_LINE_BUFF], *p, numbuf[32];
     int i, j, nump;
     int find_first;
 
-    if(urlp->eof || n <= 0)
+    if (urlp->eof || n <= 0)
 	return NULL;
-    if(n == 1)
+    if (n == 1)
     {
 	buff[0] = '\0';
 	return buff;
     }
 
     find_first = 0;
-    if(urlp->xover == -1)
+    if (urlp->xover == -1)
     {
 	urlp->xover = 0;
-	for(i = 0; xover_commands[i] != NULL; i++)
+	for (i = 0; xover_commands[i]; i++)
 	{
 	    sprintf(linebuff, "%s %d-%d\r\n", xover_commands[i],
 		    urlp->first, urlp->last);
 #ifdef DEBUG
 	    fprintf(stderr, "CMD> %s", linebuff);
 #endif /* DEBUG */
-	    socket_write(urlp->fd, linebuff, (long)strlen(linebuff));
-	    if(socket_fgets(linebuff, sizeof(linebuff), urlp->fp) == NULL)
+	    socket_write(urlp->fd, linebuff, (int32)strlen(linebuff));
+	    if (socket_fgets(linebuff, sizeof(linebuff), urlp->fp) == NULL)
 	    {
 		urlp->eof = 1;
 		return NULL;
@@ -370,29 +371,29 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
 #ifdef DEBUG
 	    fprintf(stderr, "CMD< %s", linebuff);
 #endif /* DEBUG */
-	    if(linebuff[0] == NNTP_OK_ID)
+	    if (linebuff[0] == NNTP_OK_ID)
 	    {
 		urlp->xover = 1;
 		break;
 	    }
 	}
-	if(!urlp->xover)
+	if (!urlp->xover)
 	    find_first = 1;
     }
-    else if(!urlp->xover)
+    else if (!urlp->xover)
 	socket_write(urlp->fd, "NEXT\r\n", 6);
 
   next_read:
-    if(find_first)
+    if (find_first)
     {
-	for(i = urlp->first; i <= urlp->last; i++)
+	for (i = urlp->first; i <= urlp->last; i++)
 	{
 	    sprintf(linebuff, "STAT %d\r\n", i);
 #ifdef DEBUG
 	    fprintf(stderr, "CMD> %s", linebuff);
 #endif /* DEBUG */
-	    socket_write(urlp->fd, linebuff, (long)strlen(linebuff));
-	    if(socket_fgets(linebuff, sizeof(linebuff), urlp->fp) == NULL)
+	    socket_write(urlp->fd, linebuff, (int32)strlen(linebuff));
+	    if (socket_fgets(linebuff, sizeof(linebuff), urlp->fp) == NULL)
 	    {
 		urlp->eof = 1;
 		return NULL;
@@ -400,10 +401,10 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
 #ifdef DEBUG
 	    fprintf(stderr, "CMD< %s", linebuff);
 #endif /* DEBUG */
-	    if(atoi(linebuff) != 423)
+	    if (atoi(linebuff) != 423)
 		break;
 	}
-	if(i > urlp->last)
+	if (i > urlp->last)
 	{
 	    urlp->eof = 1;
 	    return NULL;
@@ -412,21 +413,21 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
     }
     else
     {
-	if(socket_fgets(linebuff, sizeof(linebuff), urlp->fp) == NULL)
+	if (socket_fgets(linebuff, sizeof(linebuff), urlp->fp) == NULL)
 	{
 	    urlp->eof = 1;
 	    return NULL;
 	}
 
 	i = strlen(linebuff);
-	if(i > 0 && linebuff[i - 1] != '\n')
+	if (i > 0 && linebuff[i - 1] != '\n')
 	{
 	    int c;
 
 	    do
 	    {
 		c = socket_fgetc(urlp->fp);
-	    } while(c != '\n' && c != EOF);
+	    } while (c != '\n' && c != EOF);
 	}
     }
     p = linebuff;
@@ -434,11 +435,11 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
     fprintf(stderr, "line: %s", linebuff);
 #endif /* DEBUG */
 
-    if(urlp->xover == 0)
+    if (urlp->xover == 0)
     {
-	if(p[0] != '2')
+	if (p[0] != '2')
 	{
-	    if(strncmp(p, "421", 3) == 0)
+	    if (!strncmp(p, "421", 3))
 	    {
 		urlp->eof = 1;
 		return NULL;
@@ -449,26 +450,26 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
 	}
 
 	p += 3;
-	while(*p == ' ' || *p == '\t')
+	while (*p == ' ' || *p == '\t')
 	    p++;
 	nump = 0;
 	i = atoi(p);
-	if(i > urlp->last)
+	if (i > urlp->last)
 	{
 	    urlp->eof = 1;
 	    return NULL;
 	}
-	if(i == urlp->last)
+	if (i == urlp->last)
 	    urlp->eof = 1;
-	while('0' <= *p && *p <= '9' && nump < sizeof(numbuf))
+	while ('0' <= *p && *p <= '9' && nump < sizeof(numbuf))
 	    numbuf[nump++] = *p++;
-	if(nump == 0)
+	if (nump == 0)
 	{
 	    socket_write(urlp->fd, "NEXT\r\n", 6);
 	    goto next_read;
 	}
 
-	if((p = strchr(linebuff, '<')) == NULL)
+	if ((p = strchr(linebuff, '<')) == NULL)
 	{
 	    socket_write(urlp->fd, "NEXT\r\n", 6);
 	    goto next_read;
@@ -478,41 +479,41 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
     {
 	int i;
 
-	if(linebuff[0] == '.')
+	if (linebuff[0] == '.')
 	{
 	    urlp->eof = 1;
 	    return NULL;
 	}
 
 	nump = 0;
-	while('0' <= linebuff[nump] && linebuff[nump] <= '9'
+	while ('0' <= linebuff[nump] && linebuff[nump] <= '9'
 	      && nump < sizeof(numbuf))
 	{
 	    numbuf[nump] = linebuff[nump];
 	    nump++;
 	}
 
-	for(i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++)
 	{
 	    p = strchr(p, '\t');
-	    if(p == NULL)
+	    if (!p)
 		goto next_read;
 	    p++;
 	}
     }
 
-    if(*p == '<')
+    if (*p == '<')
 	p++;
 
     i = j = 0;
-    while(j < n - 2 && j < nump)
+    while (j < n - 2 && j < nump)
     {
 	buff[j] = numbuf[j];
 	j++;
     }
 
     buff[j++] = ' ';
-    while(j < n - 1 && p[i] && p[i] != '>' && p[i] != ' ' && p[i] != '\t')
+    while (j < n - 1 && p[i] && p[i] != '>' && p[i] != ' ' && p[i] != '\t')
     {
 	buff[j] = p[i];
 	i++;
@@ -523,25 +524,25 @@ static char *url_newsgroup_gets(URL url, char *buff, int n)
 }
 
 #ifdef NEWSGROUP_MAIN
-void *safe_malloc(int n) { return malloc(n); }
-void *safe_realloc(void *p, int n) { return realloc(p, n); }
+void *safe_malloc(size_t n) { return malloc(n); }
+void *safe_realloc(void *p, size_t n) { return realloc(p, n); }
 void main(int argc, char **argv)
 {
     URL url;
     char buff[BUFSIZ];
 
-    if(argc != 2)
+    if (argc != 2)
     {
 	fprintf(stderr, "Usage: %s news-URL\n", argv[0]);
 	exit(1);
     }
-    if((url = url_newsgroup_open(argv[1])) == NULL)
+    if ((url = url_newsgroup_open(argv[1])) == NULL)
     {
 	fprintf(stderr, "Can't open news group: %s\n", argv[1]);
 	exit(1);
     }
 
-    while(url_gets(url, buff, sizeof(buff)) != NULL)
+    while (url_gets(url, buff, sizeof(buff)))
 	puts(buff);
     url_close(url);
     exit(0);

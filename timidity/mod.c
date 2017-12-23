@@ -88,6 +88,7 @@ get_module_type (char *fn)
   if (check_file_extension (fn, ".mod", 1))	/* Most common first */
     return IS_MOD_FILE;
 
+#if 0
   if (check_file_extension (fn, ".xm", 1)
       || check_file_extension (fn, ".s3m", 1)
       || check_file_extension (fn, ".it", 1)
@@ -103,7 +104,33 @@ get_module_type (char *fn)
       || check_file_extension (fn, ".stx", 1)
       || check_file_extension (fn, ".ult", 1)
       || check_file_extension (fn, ".uni", 1))
+    return IS_S3M_FILE;
+#endif
+  if (check_file_extension (fn, ".xm", 1))
+    return IS_XM_FILE;
+  if (check_file_extension (fn, ".it", 1))
+    return IS_IT_FILE;
+  if (check_file_extension (fn, ".s3m", 1))
+    return IS_S3M_FILE;
+  if (check_file_extension (fn, ".669", 1))
+    return IS_669_FILE;
+  if (check_file_extension (fn, ".far", 1))
+    return IS_FAR_FILE;
+  if (check_file_extension (fn, ".med", 1))
+    return IS_MED_FILE;
+  if (check_file_extension (fn, ".mtm", 1))
+    return IS_MTM_FILE;
+  if (check_file_extension (fn, ".stm", 1))
+    return IS_STM_FILE;
+  if (check_file_extension (fn, ".ult", 1))
+    return IS_ULT_FILE;
 
+  if (check_file_extension (fn, ".amf", 1)
+      || check_file_extension (fn, ".dsm", 1)
+      || check_file_extension (fn, ".gdm", 1)
+      || check_file_extension (fn, ".imf", 1)
+      || check_file_extension (fn, ".stx", 1)
+      || check_file_extension (fn, ".uni", 1))
     return IS_S3M_FILE;
 
   return IS_OTHER_FILE;
@@ -272,7 +299,7 @@ MP_VOICE;
 
 typedef struct MP_STATUS
   {
-    SWORD channel;		/* channel we're working on */
+    SBYTE channel;		/* channel we're working on */
     UWORD oldsngspd;		/* old song speed */
     UWORD sngspd;		/* current song speed */
     SWORD volume;		/* song volume (0-128) (or user volume) */
@@ -3032,8 +3059,10 @@ mod_do_play (MODULE * mf)
      the regular mixing routines to apply them yet again */
   for (t = 0; t < 256; t++)
   {
-    if (special_patch[t])
-      special_patch[t]->sample->panning = 64;
+    if (special_patch[t]){
+      special_patch[t]->sample->def_pan = 64;
+      special_patch[t]->sample->sample_pan = 0.0;
+	}
   }
 
   /* Done! */

@@ -147,7 +147,7 @@ int rtsyn_synth_start(){
 	mvbuse=0;
 
 	for(port=0;port<rtsyn_portnumber;port++){
-		midiInOpen(&hMidiIn[port],portID[port],(DWORD)MidiInProc,(DWORD)port,CALLBACK_FUNCTION);
+		midiInOpen(&hMidiIn[port],portID[port],(DWORD_PTR)MidiInProc,(DWORD_PTR)port,CALLBACK_FUNCTION);
 		for (i=0;i<MAX_EXBUF;i++){
 			midiInUnprepareHeader(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
 			midiInPrepareHeader(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
@@ -210,9 +210,9 @@ int rtsyn_buf_check(void){
 
 int rtsyn_play_some_data(void){
 	UINT wMsg;
-	DWORD	dwInstance;
-	DWORD	dwParam1;
-	DWORD	dwParam2;
+	DWORD_PTR	dwInstance;
+	DWORD_PTR	dwParam1;
+	DWORD_PTR	dwParam2;
 	DWORD	timestamp;
 	MidiEvent ev;
 	MidiEvent evm[260];
@@ -243,13 +243,13 @@ int rtsyn_play_some_data(void){
 			port=(UINT)dwInstance;
 			switch (wMsg) {
 			case MIM_DATA:
-				rtsyn_play_one_data (port, dwParam1, mim_start_time+(double)dwParam2/1000.0);
+				rtsyn_play_one_data (port, dwParam1, mim_start_time+(double)dwParam2 * DIV_1000);
 				break;
 			case MIM_LONGDATA:
 				IIMidiHdr = (MIDIHDR *) dwParam1;
 				exlen=(int)IIMidiHdr->dwBytesRecorded;
 				sysexbuffer=IIMidiHdr->lpData;
-				rtsyn_play_one_sysex (sysexbuffer,exlen, mim_start_time+(double)dwParam2/1000.0);
+				rtsyn_play_one_sysex (sysexbuffer,exlen, mim_start_time+(double)dwParam2 * DIV_1000);
 				if (MMSYSERR_NOERROR != midiInUnprepareHeader(
 						hMidiIn[port], IIMidiHdr, sizeof(MIDIHDR)))
 					ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"error1\n");
@@ -265,8 +265,8 @@ int rtsyn_play_some_data(void){
 	return played;
 }
 
-void CALLBACK MidiInProc(HMIDIIN hMidiInL, UINT wMsg, DWORD dwInstance,
-		DWORD dwParam1, DWORD dwParam2)
+void CALLBACK MidiInProc(HMIDIIN hMidiInL, UINT wMsg, DWORD_PTR dwInstance,
+		DWORD_PTR dwParam1, DWORD_PTR dwParam2)
 {
 	UINT evbpoint;
 	UINT port;

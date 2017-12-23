@@ -26,11 +26,14 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+
+#ifdef AU_HPUX_AUDIO
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 
-#include <sys/ioctl.h> 
+#include <sys/ioctl.h>
 
 #include <sys/audio.h>
 
@@ -41,7 +44,7 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int32 output_data(const uint8 *buf, int32 bytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
@@ -49,11 +52,11 @@ static int acntl(int request, void *arg);
 #define dpm hpux_play_mode
 
 PlayMode dpm = {
-  DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_PCM_STREAM|PF_CAN_TRACE,
+  DEFAULT_RATE, PE_16BIT | PE_SIGNED, PF_PCM_STREAM | PF_CAN_TRACE,
   -1,
-  {0,0,0,0,0}, /* no extra parameters so far */
+  { 0, 0, 0, 0, 0 }, /* no extra parameters so far */
   "HP audio device", 'd',
-  "/dev/audio",
+  NULL,
   open_output,
   close_output,
   output_data,
@@ -69,42 +72,44 @@ PlayMode dpm = {
 
 static int open_output(void)
 {
+    if (!dpm.name)
+        dpm.name = safe_strdup("/dev/audio");
 
-if (dpm.encoding & PE_ULAW)
-  dpm.encoding &= ~PE_16BIT;
+    if (dpm.encoding & PE_ULAW)
+      dpm.encoding &= ~PE_16BIT;
 
-if (!(dpm.encoding & PE_16BIT))
-  dpm.encoding &= ~PE_BYTESWAP;
+    if (!(dpm.encoding & PE_16BIT))
+      dpm.encoding &= ~PE_BYTESWAP;
 
-dpm.fd = open(dpm.name, O_WRONLY, 0);
-if(dpm.fd == -1)
-    {
-      ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
-	   dpm.name, strerror(errno));
-      return -1;
-    }
+    dpm.fd = open(dpm.name, O_WRONLY, 0);
+    if (dpm.fd == -1)
+        {
+          ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
+           dpm.name, strerror(errno));
+          return -1;
+        }
 
-(void) ioctl(dpm.fd, AUDIO_SET_SAMPLE_RATE, dpm.rate);
+    (void) ioctl(dpm.fd, AUDIO_SET_SAMPLE_RATE, dpm.rate);
 
-(void) ioctl(dpm.fd, AUDIO_SET_DATA_FORMAT, (dpm.encoding & PE_16BIT)?
-	AUDIO_FORMAT_LINEAR16BIT: AUDIO_FORMAT_ULAW);
+    (void) ioctl(dpm.fd, AUDIO_SET_DATA_FORMAT, (dpm.encoding & PE_16BIT)?
+        AUDIO_FORMAT_LINEAR16BIT: AUDIO_FORMAT_ULAW);
 
-(void) ioctl(dpm.fd, AUDIO_SET_CHANNELS, (dpm.encoding & PE_MONO)?1:2);
+    (void) ioctl(dpm.fd, AUDIO_SET_CHANNELS, (dpm.encoding & PE_MONO) ? 1 : 2);
 
-/* set some reasonable buffer size */
-(void) ioctl(dpm.fd, AUDIO_SET_TXBUFSIZE, 128*1024);
+    /* set some reasonable buffer size */
+    (void) ioctl(dpm.fd, AUDIO_SET_TXBUFSIZE, 128 * 1024);
 
-return 0;
+    return 0;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int32 output_data(const uint8 *buf, int32 nbytes)
 {
     return write(dpm.fd, buf, nbytes);
 }
 
 static void close_output(void)
 {
-    if(dpm.fd != -1)
+    if (dpm.fd != -1)
     {
 	/* free resources */
 	close(dpm.fd);
@@ -114,7 +119,7 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
-    switch(request)
+    switch (request)
     {
       case PM_REQ_DISCARD:
 	return ioctl(dpm.fd, AUDIO_RESET, RESET_TX_BUF);
@@ -125,3 +130,5 @@ static int acntl(int request, void *arg)
     }
     return -1;
 }
+
+#endif /* AU_HPUX_AUDIO */

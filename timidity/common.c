@@ -25,25 +25,29 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include <stdarg.h>
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
 # endif
-#endif  /* TIME_WITH_SYS_TIME */
+#endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif /* HAVE_SYS_STAT_H */
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -56,6 +60,7 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #else
+#include <windows.h>
 #include <process.h>
 #include <io.h>
 #endif /* __W32__ */
@@ -73,26 +78,26 @@
  * Why RAND_MAX is not defined at SunOS?
  */
 #if defined(sun) && !defined(SOLARIS) && !defined(RAND_MAX)
-#define RAND_MAX ((1<<15)-1)
+#define RAND_MAX ((1L << 15) - 1)
 #endif
 
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
 
-/* #define MIME_CONVERSION */
+/* #define MIME_CONVERSION 1 */
 
-char *program_name, current_filename[1024];
+char *program_name, current_filename[FILEPATH_MAX];
 MBlockList tmpbuffer;
 char *output_text_code = NULL;
 int open_file_noise_mode = OF_NORMAL;
 
 #ifdef DEFAULT_PATH
     /* The paths in this list will be tried whenever we're reading a file */
-    static PathList defaultpathlist={DEFAULT_PATH,0};
-    static PathList *pathlist=&defaultpathlist; /* This is a linked list */
+    static PathList defaultpathlist = { DEFAULT_PATH, 0 };
+    static PathList *pathlist = &defaultpathlist; /* This is a linked list */
 #else
-    static PathList *pathlist=0;
+    static PathList *pathlist = 0;
 #endif
 
 const char *note_name[] =
@@ -120,13 +125,13 @@ tmdy_mkstemp(char *tmpl)
 
   /* This is where the Xs start.  */
   XXXXXX = strstr(tmpl, "XXXXXX");
-  if (XXXXXX == NULL) {
-    errno = EINVAL;
+  if (!XXXXXX) {
+    _set_errno(EINVAL);
     return -1;
   }
 
   /* Get some more or less random data.  */
-#if HAVE_GETTIMEOFDAY
+#ifdef HAVE_GETTIMEOFDAY
   {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -163,7 +168,7 @@ tmdy_mkstemp(char *tmpl)
 	fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, S_IRUSR | S_IWUSR);
 
     if (fd >= 0) {
-      errno = save_errno;
+      _set_errno(save_errno);
       return fd;
     }
     if (errno != EEXIST)
@@ -171,7 +176,7 @@ tmdy_mkstemp(char *tmpl)
   }
 
   /* We got out of the loop because we ran out of combinations to try.  */
-  errno = EEXIST;
+  _set_errno(EEXIST);
   return -1;
 }
 
@@ -179,7 +184,7 @@ tmdy_mkstemp(char *tmpl)
 static char *
 url_dumpfile(URL url, const char *ext)
 {
-  char filename[1024];
+  char filename[FILEPATH_MAX];
   char *tmpdir;
   int fd;
   FILE *fp;
@@ -191,9 +196,9 @@ url_dumpfile(URL url, const char *ext)
 #else
   tmpdir = getenv("TMPDIR");
 #endif
-  if(tmpdir == NULL || strlen(tmpdir) == 0)
+  if (!tmpdir || !strlen(tmpdir))
     tmpdir = PATH_STRING "tmp" PATH_STRING;
-  if(IS_PATH_SEP(tmpdir[strlen(tmpdir) - 1]))
+  if (IS_PATH_SEP(tmpdir[strlen(tmpdir) - 1]))
     snprintf(filename, sizeof(filename), "%sXXXXXX.%s", tmpdir, ext);
   else
     snprintf(filename, sizeof(filename), "%s" PATH_STRING "XXXXXX.%s",
@@ -210,7 +215,7 @@ url_dumpfile(URL url, const char *ext)
     return NULL;
   }
 
-  while((n = url_read(url, buff, sizeof(buff))) > 0) {
+  while ((n = url_read(url, buff, sizeof(buff))) > 0) {
     size_t dummy = fwrite(buff, 1, n, fp); ++dummy;
   }
   fclose(fp);
@@ -224,24 +229,24 @@ struct timidity_file *try_to_open(char *name, int decompress)
 {
     struct timidity_file *tf;
     URL url;
-    int len;
+    size_t len;
 
-    if((url = url_arc_open(name)) == NULL)
-      if((url = url_open(name)) == NULL)
+    if ((url = url_arc_open(name)) == NULL)
+      if ((url = url_open(name)) == NULL)
 	return NULL;
 
-    tf = (struct timidity_file *)safe_malloc(sizeof(struct timidity_file));
+    tf = (struct timidity_file*) safe_malloc(sizeof(struct timidity_file));
     tf->url = url;
     tf->tmpname = NULL;
 
     len = strlen(name);
-    if(decompress && len >= 3 && strcasecmp(name + len - 3, ".gz") == 0)
+    if (decompress && len >= 3 && !strcasecmp(name + len - 3, ".gz"))
     {
 	int method;
 
-	if(!IS_URL_SEEK_SAFE(tf->url))
+	if (!IS_URL_SEEK_SAFE(tf->url))
 	{
-	    if((tf->url = url_cache_open(tf->url, 1)) == NULL)
+	    if ((tf->url = url_cache_open(tf->url, 1)) == NULL)
 	    {
 		close_file(tf);
 		return NULL;
@@ -249,10 +254,10 @@ struct timidity_file *try_to_open(char *name, int decompress)
 	}
 
 	method = skip_gzip_header(tf->url);
-	if(method == ARCHIVEC_DEFLATED)
+	if (method == ARCHIVEC_DEFLATED)
 	{
 	    url_cache_disable(tf->url);
-	    if((tf->url = url_inflate_open(tf->url, -1, 1)) == NULL)
+	    if ((tf->url = url_inflate_open(tf->url, -1, 1)) == NULL)
 	    {
 		close_file(tf);
 		return NULL;
@@ -271,27 +276,27 @@ struct timidity_file *try_to_open(char *name, int decompress)
     return tf;
 #endif /* __W32__ */
 
-#if defined(DECOMPRESSOR_LIST)
-    if(decompress)
+#ifdef DECOMPRESSOR_LIST
+    if (decompress)
     {
 	static char *decompressor_list[] = DECOMPRESSOR_LIST, **dec;
 	char tmp[1024];
 
 	/* Check if it's a compressed file */
-	for(dec = decompressor_list; *dec; dec += 2)
+	for (dec = decompressor_list; *dec; dec += 2)
 	{
-	    if(!check_file_extension(name, *dec, 0))
+	    if (!check_file_extension(name, *dec, 0))
 		continue;
 
 	    tf->tmpname = url_dumpfile(tf->url, *dec);
-	    if (tf->tmpname == NULL) {
+	    if (!tf->tmpname) {
 		close_file(tf);
 		return NULL;
 	    }
 
 	    url_close(tf->url);
-	    snprintf(tmp, sizeof(tmp), *(dec+1), tf->tmpname);
-	    if((tf->url = url_pipe_open(tmp)) == NULL)
+	    snprintf(tmp, sizeof(tmp), *(dec + 1), tf->tmpname);
+	    if ((tf->url = url_pipe_open(tmp)) == NULL)
 	    {
 		close_file(tf);
 		return NULL;
@@ -302,27 +307,27 @@ struct timidity_file *try_to_open(char *name, int decompress)
     }
 #endif /* DECOMPRESSOR_LIST */
 
-#if defined(PATCH_CONVERTERS)
-    if(decompress == 2)
+#ifdef PATCH_CONVERTERS
+    if (decompress == 2)
     {
 	static char *decompressor_list[] = PATCH_CONVERTERS, **dec;
 	char tmp[1024];
 
 	/* Check if it's a compressed file */
-	for(dec = decompressor_list; *dec; dec += 2)
+	for (dec = decompressor_list; *dec; dec += 2)
 	{
-	    if(!check_file_extension(name, *dec, 0))
+	    if (!check_file_extension(name, *dec, 0))
 		continue;
 
 	    tf->tmpname = url_dumpfile(tf->url, *dec);
-	    if (tf->tmpname == NULL) {
+	    if (!tf->tmpname) {
 		close_file(tf);
 		return NULL;
 	    }
 
 	    url_close(tf->url);
-	    sprintf(tmp, *(dec+1), tf->tmpname);
-	    if((tf->url = url_pipe_open(tmp)) == NULL)
+	    sprintf(tmp, *(dec + 1), tf->tmpname);
+	    if ((tf->url = url_pipe_open(tmp)) == NULL)
 	    {
 		close_file(tf);
 		return NULL;
@@ -332,7 +337,7 @@ struct timidity_file *try_to_open(char *name, int decompress)
 	}
     }
 #endif /* PATCH_CONVERTERS */
-    
+
     return tf;
 }
 
@@ -351,8 +356,8 @@ int is_url_prefix(const char *name)
 	"mime:",
 	NULL
     };
-    for(i = 0; url_proto_names[i]; i++)
-	if(strncmp(name, url_proto_names[i], strlen(url_proto_names[i])) == 0)
+    for (i = 0; url_proto_names[i]; i++)
+	if (!strncmp(name, url_proto_names[i], strlen(url_proto_names[i])))
 	    return 1;
     return 0;
 }
@@ -363,7 +368,7 @@ static int is_abs_path(const char *name)
 	if (IS_PATH_SEP(name[0]))
 		return 1;
 #else
-	if (!IS_PATH_SEP(name[0]) && strchr(name, PATH_SEP) != NULL)
+	if (!IS_PATH_SEP(name[0]) && strchr(name, PATH_SEP))
 		return 1;
 #endif /* __MACOS__ */
 #ifdef __W32__
@@ -381,14 +386,14 @@ struct timidity_file *open_with_mem(char *mem, int32 memlen, int noise_mode)
     URL url;
     struct timidity_file *tf;
 
-    errno = 0;
-    if((url = url_mem_open(mem, memlen, 0)) == NULL)
+    _set_errno(0);
+    if ((url = url_mem_open(mem, memlen, 0)) == NULL)
     {
-	if(noise_mode >= 2)
+	if (noise_mode >= 2)
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Can't open.");
 	return NULL;
     }
-    tf = (struct timidity_file *)safe_malloc(sizeof(struct timidity_file));
+    tf = (struct timidity_file*) safe_malloc(sizeof(struct timidity_file));
     tf->url = url;
     tf->tmpname = NULL;
     return tf;
@@ -402,8 +407,8 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 {
 	struct timidity_file *tf;
 	PathList *plp = pathlist;
-	int l;
-	
+	size_t l;
+
 	open_file_noise_mode = noise_mode;
 	if (!name || !(*name)) {
 		if (noise_mode)
@@ -412,8 +417,8 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 		return 0;
 	}
 	/* First try the given name */
-	strncpy(current_filename, url_unexpand_home_dir(name), 1023);
-	current_filename[1023] = '\0';
+	strncpy(current_filename, url_unexpand_home_dir(name), FILEPATH_MAX);
+	current_filename[FILEPATH_MAX - 1] = '\0';
 	if (noise_mode)
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Trying to open %s",
 				current_filename);
@@ -432,7 +437,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 	if (!is_abs_path(name))
 		while (plp) {	/* Try along the path then */
 			*current_filename = 0;
-			if((l = strlen(plp->path))) {
+			if (plp->path && (l = strlen(plp->path))) {
 				strncpy(current_filename, plp->path,
 						sizeof(current_filename));
 				if (!IS_PATH_SEP(current_filename[l - 1])
@@ -450,9 +455,9 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
 			if ((tf = try_to_open(current_filename, decompress)))
 				 return tf;
 #ifdef __MACOS__
-			if(errno) {
+			if (errno) {
 #else
-			if(errno && errno != ENOENT) {
+			if (errno && errno != ENOENT) {
 #endif
 				if (noise_mode)
 					ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
@@ -478,8 +483,8 @@ struct timidity_file *open_file_r(char *name, int decompress, int noise_mode)
 	struct stat st;
 	struct timidity_file *tf;
 	PathList *plp = pathlist;
-	int l;
-	
+	size_t l;
+
 	open_file_noise_mode = noise_mode;
 	if (!name || !(*name)) {
 		if (noise_mode)
@@ -488,8 +493,8 @@ struct timidity_file *open_file_r(char *name, int decompress, int noise_mode)
 		return 0;
 	}
 	/* First try the given name */
-	strncpy(current_filename, url_unexpand_home_dir(name), 1023);
-	current_filename[1023] = '\0';
+	strncpy(current_filename, url_unexpand_home_dir(name), FILEPATH_MAX);
+	current_filename[FILEPATH_MAX - 1] = '\0';
 	if (noise_mode)
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Trying to open %s",
 				current_filename);
@@ -510,7 +515,7 @@ struct timidity_file *open_file_r(char *name, int decompress, int noise_mode)
 	if (!is_abs_path(name))
 		while (plp) {	/* Try along the path then */
 			*current_filename = 0;
-			if((l = strlen(plp->path))) {
+			if ((l = strlen(plp->path))) {
 				strncpy(current_filename, plp->path,
 						sizeof(current_filename));
 				if (!IS_PATH_SEP(current_filename[l - 1])
@@ -530,9 +535,9 @@ struct timidity_file *open_file_r(char *name, int decompress, int noise_mode)
 				if ((tf = try_to_open(current_filename, decompress)))
 					 return tf;
 #ifdef __MACOS__
-			if(errno) {
+			if (errno) {
 #else
-			if(errno && errno != ENOENT) {
+			if (errno && errno != ENOENT) {
 #endif
 				if (noise_mode)
 					ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
@@ -553,26 +558,26 @@ struct timidity_file *open_file_r(char *name, int decompress, int noise_mode)
 void close_file(struct timidity_file *tf)
 {
     int save_errno = errno;
-    if(tf->url != NULL)
+    if (tf->url)
     {
 #ifndef __W32__
-	if(tf->tmpname != NULL)
+	if (tf->tmpname)
 	{
 	    int i;
 	    /* dispose the pipe garbage */
-	    for(i = 0; tf_getc(tf) != EOF && i < 0xFFFF; i++)
+	    for (i = 0; tf_getc(tf) != EOF && i < 0xFFFF; i++)
 		;
 	}
 #endif /* __W32__ */
 	url_close(tf->url);
     }
-    if(tf->tmpname != NULL)
+    if (tf->tmpname)
     {
 	unlink(tf->tmpname); /* remove temporary file */
-	free(tf->tmpname);
+	safe_free(tf->tmpname);
     }
-    free(tf);
-    errno = save_errno;
+    safe_free(tf);
+    _set_errno(save_errno);
 }
 
 /* This is meant for skipping a few bytes. */
@@ -581,37 +586,48 @@ void skip(struct timidity_file *tf, size_t len)
     url_skip(tf->url, (long)len);
 }
 
-char *tf_gets(char *buff, int n, struct timidity_file *tf)
+char *tf_gets(char *buff, size_t n, struct timidity_file *tf)
 {
     return url_gets(tf->url, buff, n);
 }
 
-long tf_read(void *buff, int32 size, int32 nitems, struct timidity_file *tf)
+size_t tf_read(void *buff, size_t size, size_t nitems, struct timidity_file *tf)
 {
     return url_nread(tf->url, buff, size * nitems) / size;
 }
 
-long tf_seek(struct timidity_file *tf, long offset, int whence)
+off_size_t tf_seek(struct timidity_file *tf, off_size_t offset, int whence)
 {
-    long prevpos;
+    off_size_t prevpos;
 
     prevpos = url_seek(tf->url, offset, whence);
-    if(prevpos == -1)
+    if (prevpos == -1L)
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		  "Warning: Can't seek file position");
     return prevpos;
 }
 
-long tf_tell(struct timidity_file *tf)
+off_size_t tf_seek_uint64(struct timidity_file *tf, uint64 offset, int whence)
 {
-    long pos;
+    off_size_t prevpos;
+
+    prevpos = url_seek_uint64(tf->url, offset, whence);
+    if (prevpos == -1L)
+	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+		  "Warning: Can't seek file position");
+    return prevpos;
+}
+
+off_size_t tf_tell(struct timidity_file *tf)
+{
+    off_size_t pos;
 
     pos = url_tell(tf->url);
-    if(pos == -1)
+    if (pos == -1L)
     {
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		  "Warning: Can't get current file position");
-	return (long)tf->url->nread;
+	return (off_size_t)tf->url->nread;
     }
 
     return pos;
@@ -619,7 +635,7 @@ long tf_tell(struct timidity_file *tf)
 
 void safe_exit(int status)
 {
-    if(play_mode->fd != -1)
+    if (play_mode->fd != -1)
     {
 	play_mode->acntl(PM_REQ_DISCARD, NULL);
 	play_mode->close_output();
@@ -630,33 +646,51 @@ void safe_exit(int status)
     /*NOTREACHED*/
 }
 
+#ifdef TIMIDITY_LEAK_CHECK
+void *safe_ptrchk(void *p)
+{
+    if (!p) {
+	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+	          "Sorry. Couldn't allocate memory space.");
+#ifdef ABORT_AT_FATAL
+	abort();
+#endif /* ABORT_AT_FATAL */
+	safe_exit(10);
+	/*NOTREACHED*/
+	return 0;
+    }
+    return p;
+}
+#endif
+
+#ifndef safe_malloc
 /* This'll allocate memory or die. */
 void *safe_malloc(size_t count)
 {
     void *p;
     static int errflag = 0;
 
-    if(errflag)
+    if (errflag)
 	safe_exit(10);
-    if(count > MAX_SAFE_MALLOC_SIZE)
+    if (count > MAX_SAFE_MALLOC_SIZE)
     {
 	errflag = 1;
 	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
-		  "Strange, I feel like allocating %d bytes. "
-		  "This must be a bug.", count);
+		  "Strange, I feel like allocating Sm %lu bytes. "
+		  "This must be a bug.", (unsigned long)count);
     }
     else {
-      if(count == 0)
+      if (count == 0)
 	/* Some malloc routine return NULL if count is zero, such as
 	 * malloc routine from libmalloc.a of Solaris.
 	 * But TiMidity doesn't want to return NULL even if count is zero.
 	 */
 	count = 1;
-      if((p = (void *)malloc(count)) != NULL)
+      if ((p = (void*) malloc(count)) != NULL)
 	return p;
       errflag = 1;
       ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
-		"Sorry. Couldn't malloc %d bytes.", count);
+		"Sorry. Couldn't malloc Sm %lu bytes.", (unsigned long)count);
     }
 #ifdef ABORT_AT_FATAL
     abort();
@@ -665,25 +699,28 @@ void *safe_malloc(size_t count)
     /*NOTREACHED*/
 	return 0;
 }
+#endif
 
+#ifndef safe_large_malloc
 void *safe_large_malloc(size_t count)
 {
     void *p;
     static int errflag = 0;
 
-    if(errflag)
+    if (errflag)
 	safe_exit(10);
-    if(count == 0)
+	
+    if (count == 0)
       /* Some malloc routine return NULL if count is zero, such as
        * malloc routine from libmalloc.a of Solaris.
        * But TiMidity doesn't want to return NULL even if count is zero.
        */
       count = 1;
-    if((p = (void *)malloc(count)) != NULL)
+    if ((p = (void*) malloc(count)) != NULL)
       return p;
     errflag = 1;
     ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
-	      "Sorry. Couldn't malloc %d bytes.", count);
+	      "Sorry. Couldn't malloc Lm %lu bytes.", (unsigned long)count);
 
 #ifdef ABORT_AT_FATAL
     abort();
@@ -692,35 +729,38 @@ void *safe_large_malloc(size_t count)
     /*NOTREACHED*/
 	return 0;
 }
+#endif
 
+#ifndef safe_realloc
 void *safe_realloc(void *ptr, size_t count)
 {
     void *p;
     static int errflag = 0;
 
-    if(errflag)
+    if (errflag)
 	safe_exit(10);
-    if(count > MAX_SAFE_MALLOC_SIZE)
+    if (count > MAX_SAFE_MALLOC_SIZE)
     {
 	errflag = 1;
 	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
-		  "Strange, I feel like allocating %d bytes. "
-		  "This must be a bug.", count);
+		  "Strange, I feel like allocating Sr %lu bytes. "
+		  "This must be a bug.", (unsigned long)count);
     }
     else {
-      if (ptr == NULL)
+      if (!ptr)
 	return safe_malloc(count);
-      if(count == 0)
+      if (count == 0)
 	/* Some malloc routine return NULL if count is zero, such as
 	 * malloc routine from libmalloc.a of Solaris.
 	 * But TiMidity doesn't want to return NULL even if count is zero.
 	 */
 	count = 1;
-      if((p = (void *)realloc(ptr, count)) != NULL)
+      if ((p = (void*) realloc(ptr, count)) != NULL)
 	return p;
+      safe_free(ptr);
       errflag = 1;
       ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
-		"Sorry. Couldn't malloc %d bytes.", count);
+		"Sorry. Couldn't malloc Sr %lu bytes.", (unsigned long)count);
     }
 #ifdef ABORT_AT_FATAL
     abort();
@@ -729,21 +769,121 @@ void *safe_realloc(void *ptr, size_t count)
     /*NOTREACHED*/
 	return 0;
 }
+#endif
 
+#ifndef safe_large_realloc
+void *safe_large_realloc(void *ptr, size_t count)
+{
+    void *p;
+    static int errflag = 0;
+
+	if (errflag)
+	safe_exit(10);
+
+	if (!ptr)
+		return safe_large_malloc(count);
+	if (count == 0)
+	/* Some malloc routine return NULL if count is zero, such as
+	 * malloc routine from libmalloc.a of Solaris.
+	 * But TiMidity doesn't want to return NULL even if count is zero.
+	 */
+		count = 1;
+	if ((p = (void*) realloc(ptr, count)) != NULL)
+		return p;
+	safe_free(ptr);
+	errflag = 1;
+	ctl->cmsg(CMSG_FATAL, VERB_NORMAL, "Sorry. Couldn't malloc Lr %lu bytes.", (unsigned long)count);
+
+#ifdef ABORT_AT_FATAL
+    abort();
+#endif /* ABORT_AT_FATAL */
+    safe_exit(10);
+    /*NOTREACHED*/
+	return 0;
+}
+#endif
+
+#ifndef safe_calloc
+void *safe_calloc(size_t n, size_t count)
+{
+    void *p;
+    static int errflag = 0;
+
+    if (errflag)
+	safe_exit(10);
+    if (count > MAX_SAFE_MALLOC_SIZE)
+    {
+	errflag = 1;
+	ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+		  "Strange, I feel like allocating Sc %lu bytes. "
+		  "This must be a bug.", (unsigned long)(n * count));
+    }
+    else {
+      if (count == 0)
+	/* Some malloc routine return NULL if count is zero, such as
+	 * malloc routine from libmalloc.a of Solaris.
+	 * But TiMidity doesn't want to return NULL even if count is zero.
+	 */
+	count = 1;
+      if ((p = (void*) calloc(n, count)) != NULL)
+	return p;
+      errflag = 1;
+      ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+		"Sorry. Couldn't calloc Sc %lu bytes.", (unsigned long)(n * count));
+    }
+#ifdef ABORT_AT_FATAL
+    abort();
+#endif /* ABORT_AT_FATAL */
+    safe_exit(10);
+    /*NOTREACHED*/
+	return 0;
+}
+#endif
+
+#ifndef safe_large_calloc
+void *safe_large_calloc(size_t n, size_t count)
+{
+    void *p;
+    static int errflag = 0;
+
+    if (errflag)
+	safe_exit(10);
+    if (count == 0)
+      /* Some malloc routine return NULL if count is zero, such as
+       * malloc routine from libmalloc.a of Solaris.
+       * But TiMidity doesn't want to return NULL even if count is zero.
+       */
+      count = 1;
+    if ((p = (void*) calloc(n, count)) != NULL)
+      return p;
+    errflag = 1;
+    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+	      "Sorry. Couldn't calloc Lc %lu bytes.", (unsigned long)(n * count));
+
+#ifdef ABORT_AT_FATAL
+    abort();
+#endif /* ABORT_AT_FATAL */
+    safe_exit(10);
+    /*NOTREACHED*/
+	return 0;
+}
+#endif
+
+#ifndef safe_strdup
 /* This'll allocate memory or die. */
 char *safe_strdup(const char *s)
 {
     char *p;
     static int errflag = 0;
 
-    if(errflag)
+    if (errflag)
 	safe_exit(10);
 
-    if(s == NULL)
+    if (!s)
 	p = strdup("");
     else
 	p = strdup(s);
-    if(p != NULL)
+    if (p)
 	return p;
     errflag = 1;
     ctl->cmsg(CMSG_FATAL, VERB_NORMAL, "Sorry. Couldn't alloc memory.");
@@ -754,20 +894,66 @@ char *safe_strdup(const char *s)
     /*NOTREACHED*/
 	return 0;
 }
+#endif
 
-/* free ((void **)ptr_list)[0..count-1] and ptr_list itself */
+#ifndef safe_free
+void safe_free(void *ptr)
+{
+    if (ptr) {
+        free(ptr);
+    }
+}
+#endif
+
+
+#ifndef aligned_malloc
+void *aligned_malloc(size_t count, size_t align_size)
+{
+    void *p;
+    static int errflag = 0;
+
+    if (errflag)
+	safe_exit(10);
+    if (count < align_size) 
+      count = align_size;
+    if ((p = (void*) _aligned_malloc(count, align_size)) != NULL)
+      return p;
+    errflag = 1;
+    ctl->cmsg(CMSG_FATAL, VERB_NORMAL,
+	      "Sorry. Couldn't aligned_malloc Lm %lu bytes.", (unsigned long)count);
+
+#ifdef ABORT_AT_FATAL
+    abort();
+#endif /* ABORT_AT_FATAL */
+    safe_exit(10);
+    /*NOTREACHED*/
+	return 0;
+}
+#endif
+
+#ifndef aligned_free
+void aligned_free(void *ptr)
+{
+    if (ptr) {
+        _aligned_free(ptr);
+    }
+}
+#endif
+
+
+/* free((void**)ptr_list)[0..count - 1] and ptr_list itself */
 void free_ptr_list(void *ptr_list, int count)
 {
 	int i;
-	for(i = 0; i < count; i++)
-		free(((void **)ptr_list)[i]);
-	free(ptr_list);
+	for (i = 0; i < count; i++)
+		safe_free(((void**)ptr_list)[i]);
+	safe_free(ptr_list);
 }
 
 static int atoi_limited(const char *string, int v_min, int v_max)
 {
 	int value = atoi(string);
-	
+
 	if (value <= v_min)
 		value = v_min;
 	else if (value > v_max)
@@ -778,16 +964,16 @@ static int atoi_limited(const char *string, int v_min, int v_max)
 int string_to_7bit_range(const char *string_, int *start, int *end)
 {
 	const char *string = string_;
-	
-	if(isdigit(*string)) {
+
+	if (isdigit(*string)) {
 		*start = atoi_limited(string, 0, 127);
-		while(isdigit(*++string)) ;
+		while (isdigit(*++string));
 	} else
 		*start = 0;
 	if (*string == '-') {
 		string++;
 		*end = isdigit(*string) ? atoi_limited(string, 0, 127) : 127;
-		if(*start > *end)
+		if (*start > *end)
 			*end = *start;
 	} else
 		*end = *start;
@@ -795,22 +981,22 @@ int string_to_7bit_range(const char *string_, int *start, int *end)
 }
 
 /* This adds a directory to the path list */
-void add_to_pathlist(char *s)
+void add_to_pathlist(const char *s)
 {
     PathList *cur, *prev, *plp;
 
     /* Check duplicated path in the pathlist. */
     plp = prev = NULL;
-    for(cur = pathlist; cur; prev = cur, cur = cur->next)
-	if(pathcmp(s, cur->path, 0) == 0)
+    for (cur = pathlist; cur; prev = cur, cur = cur->next)
+	if (pathcmp(s, cur->path, 0) == 0)
 	{
 	    plp = cur;
 	    break;
 	}
 
-    if(plp) /* found */
+    if (plp) /* found */
     {
-	if(prev == NULL) /* first */
+	if (!prev) /* first */
 	    pathlist = pathlist->next;
 	else
 	    prev->next = plp->next;
@@ -839,8 +1025,8 @@ void clean_up_pathlist(void)
       continue;
     }
 #endif
-    free(cur->path);
-    free(cur);
+    safe_free(cur->path);
+    safe_free(cur);
     cur = next;
   }
 
@@ -853,57 +1039,57 @@ void clean_up_pathlist(void)
 
 #ifndef HAVE_VOLATILE
 /*ARGSUSED*/
-int volatile_touch(void *dmy) {return 1;}
+int volatile_touch(void *dmy) { return 1; }
 #endif /* HAVE_VOLATILE */
 
 /* code converters */
 static unsigned char
-      w2k[] = {128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
-               144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
-               160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
-               176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
-               225,226,247,231,228,229,246,250,233,234,235,236,237,238,239,240,
-               242,243,244,245,230,232,227,254,251,253,255,249,248,252,224,241,
-               193,194,215,199,196,197,214,218,201,202,203,204,205,206,207,208,
-               210,211,212,213,198,200,195,222,219,221,223,217,216,220,192,209};
+      w2k[] = { 128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
+                144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
+                160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
+                176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
+                225,226,247,231,228,229,246,250,233,234,235,236,237,238,239,240,
+                242,243,244,245,230,232,227,254,251,253,255,249,248,252,224,241,
+                193,194,215,199,196,197,214,218,201,202,203,204,205,206,207,208,
+                210,211,212,213,198,200,195,222,219,221,223,217,216,220,192,209 };
 
-static void code_convert_cp1251(char *in, char *out, int maxlen)
+static void code_convert_cp1251(char *in, char *out, size_t maxlen)
 {
-    int i;
-    if(out == NULL)
+    size_t i;
+    if (!out)
         out = in;
-    for(i = 0; i < maxlen && in[i]; i++)
+    for (i = 0; i < maxlen && in[i]; i++)
     {
-	if(in[i] & 0200)
+	if (in[i] & 0200)
 	    out[i] = w2k[in[i] & 0177];
 	else
 	    out[i] = in[i];
     }
-    out[i]='\0';
+    out[i] = '\0';
 }
 
-static void code_convert_dump(char *in, char *out, int maxlen, char *ocode)
+static void code_convert_dump(char *in, char *out, size_t maxlen, char *ocode)
 {
-    if(ocode == NULL)
+    if (!ocode)
 	ocode = output_text_code;
 
-    if(ocode != NULL && ocode != (char *)-1
+    if (ocode && ocode != (char*)-1
 	&& (strstr(ocode, "ASCII") || strstr(ocode, "ascii")))
     {
 	int i;
 
-	if(out == NULL)
+	if (!out)
 	    out = in;
-	for(i = 0; i < maxlen && in[i]; i++)
-	    if(in[i] < ' ' || in[i] >= 127)
+	for (i = 0; i < maxlen && in[i]; i++)
+	    if (in[i] < ' ' || in[i] >= 127)
 		out[i] = '.';
 	    else
 		out[i] = in[i];
-	out[i]='\0';
+	out[i] = '\0';
     }
     else /* "NOCNV" */
     {
-	if(out == NULL)
+	if (!out)
 	    return;
 	strncpy(out, in, maxlen);
 	out[maxlen] = '\0';
@@ -911,23 +1097,23 @@ static void code_convert_dump(char *in, char *out, int maxlen, char *ocode)
 }
 
 #ifdef JAPANESE
-static void code_convert_japan(char *in, char *out, int maxlen,
+static void code_convert_japan(char *in, char *out, size_t maxlen,
 			       char *icode, char *ocode)
 {
     static char *mode = NULL, *wrd_mode = NULL;
 
-    if(ocode != NULL && ocode != (char *)-1)
+    if (ocode && ocode != (char*)-1)
     {
 	nkf_convert(in, out, maxlen, icode, ocode);
-	if(out != NULL)
+	if (out)
 	    out[maxlen] = '\0';
 	return;
     }
 
-    if(mode == NULL || wrd_mode == NULL)
+    if (!mode || !wrd_mode)
     {
 	mode = output_text_code;
-	if(mode == NULL || strstr(mode, "AUTO"))
+	if (!mode || strstr(mode, "AUTO"))
 	{
 #ifndef __W32__
 	    mode = getenv("LANG");
@@ -935,69 +1121,69 @@ static void code_convert_japan(char *in, char *out, int maxlen,
 	    mode = "SJIS";
 	    wrd_mode = "SJISK";
 #endif
-	    if(mode == NULL || *mode == '\0')
+	    if (!mode || *mode == '\0')
 	    {
 		mode = "ASCII";
 		wrd_mode = mode;
 	    }
 	}
 
-	if(strstr(mode, "ASCII") ||
+	if (strstr(mode, "ASCII") ||
 	   strstr(mode, "ascii"))
 	{
 	    mode = "ASCII";
 	    wrd_mode = mode;
 	}
-	else if(strstr(mode, "NOCNV") ||
+	else if (strstr(mode, "NOCNV") ||
 		strstr(mode, "nocnv"))
 	{
 	    mode = "NOCNV";
 	    wrd_mode = mode;
 	}
 #ifndef	HPUX
-	else if(strstr(mode, "EUC") ||
+	else if (strstr(mode, "EUC") ||
 		strstr(mode, "euc") ||
 		strstr(mode, "ujis") ||
-		strcmp(mode, "japanese") == 0)
+		!strcmp(mode, "japanese"))
 	{
 	    mode = "EUC";
 	    wrd_mode = "EUCK";
 	}
-	else if(strstr(mode, "SJIS") ||
+	else if (strstr(mode, "SJIS") ||
 		strstr(mode, "sjis"))
 	{
 	    mode = "SJIS";
 	    wrd_mode = "SJISK";
 	}
 #else
-	else if(strstr(mode, "EUC") ||
+	else if (strstr(mode, "EUC") ||
 		strstr(mode, "euc") ||
 		strstr(mode, "ujis"))
 	{
 	    mode = "EUC";
 	    wrd_mode = "EUCK";
 	}
-	else if(strstr(mode, "SJIS") ||
+	else if (strstr(mode, "SJIS") ||
 		strstr(mode, "sjis") ||
-		strcmp(mode, "japanese") == 0)
+		!strcmp(mode, "japanese"))
 	{
 	    mode = "SJIS";
 	    wrd_mode = "SJISK";
 	}
 #endif	/* HPUX */
-	else if(strstr(mode,"JISk")||
-		strstr(mode,"jisk"))
+	else if (strstr(mode, "JISk")||
+		strstr(mode, "jisk"))
 	{
 	    mode = "JISK";
 	    wrd_mode = mode;
 	}
-	else if(strstr(mode, "JIS") ||
+	else if (strstr(mode, "JIS") ||
 		strstr(mode, "jis"))
 	{
 	    mode = "JIS";
 	    wrd_mode = "JISK";
 	}
-	else if(strcmp(mode, "ja") == 0)
+	else if (!strcmp(mode, "ja"))
 	{
 	    mode = "EUC";
 	    wrd_mode = "EUCK";
@@ -1009,56 +1195,56 @@ static void code_convert_japan(char *in, char *out, int maxlen,
 	}
     }
 
-    if(ocode == NULL)
+    if (!ocode)
     {
-	if(strcmp(mode, "NOCNV") == 0)
+	if (!strcmp(mode, "NOCNV"))
 	{
-	    if(out == NULL)
+	    if (!out)
 		return;
 	    strncpy(out, in, maxlen);
 	    out[maxlen] = '\0';
 	}
-	else if(strcmp(mode, "ASCII") == 0)
+	else if (!strcmp(mode, "ASCII"))
 	    code_convert_dump(in, out, maxlen, "ASCII");
 	else
 	{
 	    nkf_convert(in, out, maxlen, icode, mode);
-	    if(out != NULL)
+	    if (out)
 		out[maxlen] = '\0';
 	}
     }
-    else if(ocode == (char *)-1)
+    else if (ocode == (char*)-1)
     {
-	if(strcmp(wrd_mode, "NOCNV") == 0)
+	if (!strcmp(wrd_mode, "NOCNV"))
 	{
-	    if(out == NULL)
+	    if (!out)
 		return;
 	    strncpy(out, in, maxlen);
 	    out[maxlen] = '\0';
 	}
-	else if(strcmp(wrd_mode, "ASCII") == 0)
+	else if (!strcmp(wrd_mode, "ASCII"))
 	    code_convert_dump(in, out, maxlen, "ASCII");
 	else
 	{
 	    nkf_convert(in, out, maxlen, icode, wrd_mode);
-	    if(out != NULL)
+	    if (out)
 		out[maxlen] = '\0';
 	}
     }
 }
 #endif /* JAPANESE */
 
-void code_convert(char *in, char *out, int outsiz, char *icode, char *ocode)
+void code_convert(char *in, char *out, size_t outsiz, char *icode, char *ocode)
 {
 #if !defined(MIME_CONVERSION) && defined(JAPANESE)
     int i;
     /* check ASCII string */
-    for(i = 0; in[i]; i++)
-	if(in[i] < ' ' || in[i] >= 127)
+    for (i = 0; in[i]; i++)
+	if (in[i] < ' ' || in[i] >= 127)
 	    break;
-    if(!in[i])
+    if (!in[i])
     {
-	if(out == NULL)
+	if (!out)
 	    return;
 	strncpy(out, in, outsiz - 1);
 	out[outsiz - 1] = '\0';
@@ -1066,11 +1252,11 @@ void code_convert(char *in, char *out, int outsiz, char *icode, char *ocode)
     }
 #endif /* MIME_CONVERSION */
 
-    if(ocode != NULL && ocode != (char *)-1)
+    if (ocode && ocode != (char*)-1)
     {
-	if(strcasecmp(ocode, "nocnv") == 0)
+	if (!strcasecmp(ocode, "nocnv"))
 	{
-	    if(out == NULL)
+	    if (!out)
 		return;
 	    outsiz--;
 	    strncpy(out, in, outsiz);
@@ -1078,20 +1264,20 @@ void code_convert(char *in, char *out, int outsiz, char *icode, char *ocode)
 	    return;
 	}
 
-	if(strcasecmp(ocode, "ascii") == 0)
+	if (!strcasecmp(ocode, "ascii"))
 	{
 	    code_convert_dump(in, out, outsiz - 1, "ASCII");
 	    return;
 	}
 
-	if(strcasecmp(ocode, "1251") == 0)
+	if (!strcasecmp(ocode, "1251"))
 	{
 	    code_convert_cp1251(in, out, outsiz - 1);
 	    return;
 	}
     }
 
-#if defined(JAPANESE)
+#ifdef JAPANESE
     code_convert_japan(in, out, outsiz - 1, icode, ocode);
 #else
     code_convert_dump(in, out, outsiz - 1, ocode);
@@ -1119,9 +1305,9 @@ static char **expand_file_lists(char **files, int *nfiles_in_out)
     static int error_outflag = 0;
     static int depth = 0;
 
-    if(depth >= 16)
+    if (depth >= 16)
     {
-	if(!error_outflag)
+	if (!error_outflag)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		      "Probable loop in playlist files");
@@ -1130,7 +1316,7 @@ static char **expand_file_lists(char **files, int *nfiles_in_out)
 	return NULL;
     }
 
-    if(depth == 0)
+    if (depth == 0)
     {
 	error_outflag = 0;
 	init_string_table(&st);
@@ -1138,27 +1324,27 @@ static char **expand_file_lists(char **files, int *nfiles_in_out)
     nfiles = *nfiles_in_out;
 
     /* Expand playlist recursively */
-    for(i = 0; i < nfiles; i++)
+    for (i = 0; i < nfiles; i++)
     {
 	/* extract the file extension */
 	pfile = strrchr(files[i], '.');
 
-	if(*files[i] == '@' || (pfile != NULL && strstr(testext, pfile)))
+	if (*files[i] == '@' || (pfile && strstr(testext, pfile)))
 	{
 	    /* Playlist file */
-            if(*files[i] == '@')
+            if (*files[i] == '@')
 		list_file = open_file(files[i] + 1, 1, 1);
             else
 		list_file = open_file(files[i], 1, 1);
-            if(list_file)
+            if (list_file)
 	    {
-                while(tf_gets(input_line, sizeof(input_line), list_file)
+                while (tf_gets(input_line, sizeof(input_line), list_file)
 		      != NULL) {
-            	    if(*input_line == '\n' || *input_line == '\r')
+            	    if (*input_line == '\n' || *input_line == '\r')
 			continue;
-		    if((pfile = strchr(input_line, '\r')))
+		    if ((pfile = strchr(input_line, '\r')))
 		    	*pfile = '\0';
-		    if((pfile = strchr(input_line, '\n')))
+		    if ((pfile = strchr(input_line, '\n')))
 		    	*pfile = '\0';
 		    one_file[0] = input_line;
 		    one = 1;
@@ -1173,7 +1359,7 @@ static char **expand_file_lists(char **files, int *nfiles_in_out)
 	    put_string_table(&st, files[i], strlen(files[i]));
     }
 
-    if(depth)
+    if (depth)
 	return NULL;
     *nfiles_in_out = st.nstring;
     return make_string_array(&st);
@@ -1188,7 +1374,7 @@ char **expand_file_archives(char **files, int *nfiles_in_out)
     /* First, expand playlist files */
     nfiles = *nfiles_in_out;
     files = expand_file_lists(files, &nfiles);
-    if(files == NULL)
+    if (!files)
       {
 	*nfiles_in_out = 0;
 	return NULL;
@@ -1198,8 +1384,8 @@ char **expand_file_archives(char **files, int *nfiles_in_out)
     new_nfiles = nfiles;
     open_file_noise_mode = OF_NORMAL;
     new_files = expand_archive_names(&new_nfiles, files);
-    free(files[0]);
-    free(files);
+    safe_free(files[0]);
+    safe_free(files);
 
     *nfiles_in_out = new_nfiles;
     return new_files;
@@ -1208,9 +1394,9 @@ char **expand_file_archives(char **files, int *nfiles_in_out)
 #ifdef RAND_MAX
 int int_rand(int n)
 {
-    if(n < 0)
+    if (n < 0)
     {
-	if(n == -1)
+	if (n == -1)
 	    srand(time(NULL));
 	else
 	    srand(-n);
@@ -1221,11 +1407,11 @@ int int_rand(int n)
 #else
 int int_rand(int n)
 {
-    static unsigned long rnd_seed = 0xabcd0123;
+    static uint32 rnd_seed = 0xabcd0123;
 
-    if(n < 0)
+    if (n < 0)
     {
-	if(n == -1)
+	if (n == -1)
 	    rnd_seed = time(NULL);
 	else
 	    rnd_seed = -n;
@@ -1240,34 +1426,34 @@ int int_rand(int n)
 
 int check_file_extension(char *filename, char *ext, int decompress)
 {
-    int len, elen, i;
-#if defined(DECOMPRESSOR_LIST)
+    size_t len, elen, i;
+#ifdef DECOMPRESSOR_LIST
     char *dlist[] = DECOMPRESSOR_LIST;
 #endif /* DECOMPRESSOR_LIST */
 
     len = strlen(filename);
     elen = strlen(ext);
-    if(len > elen && strncasecmp(filename + len - elen, ext, elen) == 0)
+    if (len > elen && !strncasecmp(filename + len - elen, ext, elen))
 	return 1;
 
-    if(decompress)
+    if (decompress)
     {
 	/* Check gzip'ed file name */
 
-	if(len > 3 + elen &&
-	   strncasecmp(filename + len - elen - 3 , ext, elen) == 0 &&
-	   strncasecmp(filename + len - 3, ".gz", 3) == 0)
+	if (len > 3 + elen &&
+	   !strncasecmp(filename + len - elen - 3, ext, elen) &&
+	   !strncasecmp(filename + len - 3, ".gz", 3))
 	    return 1;
 
-#if defined(DECOMPRESSOR_LIST)
-	for(i = 0; dlist[i]; i += 2)
+#ifdef DECOMPRESSOR_LIST
+	for (i = 0; dlist[i]; i += 2)
 	{
-	    int dlen;
+	    size_t dlen;
 
 	    dlen = strlen(dlist[i]);
-	    if(len > dlen + elen &&
-	       strncasecmp(filename + len - elen - dlen , ext, elen) == 0 &&
-	       strncasecmp(filename + len - dlen, dlist[i], dlen) == 0)
+	    if (len > dlen + elen &&
+	       !strncasecmp(filename + len - elen - dlen, ext, elen) &&
+	       !strncasecmp(filename + len - dlen, dlist[i], dlen))
 		return 1;
 	}
 #endif /* DECOMPRESSOR_LIST */
@@ -1279,7 +1465,7 @@ void randomize_string_list(char **strlist, int n)
 {
     int i, j;
     char *tmp;
-    for(i = 0; i < n; i++)
+    for (i = 0; i < n; i++)
     {
 	j = int_rand(n - i);
 	tmp = strlist[j];
@@ -1293,20 +1479,30 @@ int pathcmp(const char *p1, const char *p2, int ignore_case)
     int c1, c2;
 
 #ifdef __W32__
+	int arc1 = 0, arc2 = 0; ///r
     ignore_case = 1;	/* Always ignore the case */
 #endif
 
     do {
 	c1 = *p1++ & 0xff;
 	c2 = *p2++ & 0xff;
-	if(ignore_case)
+	if (ignore_case)
 	{
 	    c1 = tolower(c1);
 	    c2 = tolower(c2);
 	}
-	if(IS_PATH_SEP(c1)) c1 = *p1 ? 0x100 : 0;
-	if(IS_PATH_SEP(c2)) c2 = *p2 ? 0x100 : 0;
-    } while(c1 == c2 && c1 /* && c2 */);
+///r
+// アーカイブ内のディレクトリ文字'/'に対応
+#ifdef __W32__
+	if (c1 == '#') arc1 = 1; // 以降アーカイブ内パスのフラグ
+	if (c2 == '#') arc2 = 1; // 以降アーカイブ内パスのフラグ
+	if (arc1 && c1 == '/' || IS_PATH_SEP(c1)) c1 = *p1 ? 0x100 : 0;
+	if (arc2 && c2 == '/' || IS_PATH_SEP(c2)) c2 = *p2 ? 0x100 : 0;
+#else
+	if (IS_PATH_SEP(c1)) c1 = *p1 ? 0x100 : 0;
+	if (IS_PATH_SEP(c2)) c2 = *p2 ? 0x100 : 0;
+#endif
+    } while (c1 == c2 && c1 /* && c2 */);
 
     return c1 - c2;
 }
@@ -1314,22 +1510,22 @@ int pathcmp(const char *p1, const char *p2, int ignore_case)
 static int pathcmp_qsort(const char **p1,
 			 const char **p2)
 {
-    return pathcmp(*(const char **)p1, *(const char **)p2, 1);
+    return pathcmp(*(const char**)p1, *(const char**)p2, 1);
 }
 
 void sort_pathname(char **files, int nfiles)
 {
-    qsort(files, nfiles, sizeof(char *),
-	  (int (*)(const void *, const void *))pathcmp_qsort);
+    qsort(files, nfiles, sizeof(char*),
+	  (int (*)(const void*, const void*))pathcmp_qsort);
 }
 
 char *pathsep_strchr(const char *path)
 {
 #ifdef PATH_SEP2
-    while(*path)
+    while (*path)
     {
-        if(*path == PATH_SEP || *path == PATH_SEP2)
-	    return (char *)path;
+        if (*path == PATH_SEP || *path == PATH_SEP2)
+	    return (char*)path;
 	path++;
     }
     return NULL;
@@ -1342,10 +1538,10 @@ char *pathsep_strrchr(const char *path)
 {
 #ifdef PATH_SEP2
     char *last_sep = NULL;
-    while(*path)
+    while (*path)
     {
-        if(*path == PATH_SEP || *path == PATH_SEP2)
-	    last_sep = (char *)path;
+        if (*path == PATH_SEP || *path == PATH_SEP2)
+	    last_sep = (char*)path;
 	path++;
     }
     return last_sep;
@@ -1354,28 +1550,36 @@ char *pathsep_strrchr(const char *path)
 #endif
 }
 
-int str2mID(char *str)
+int str2mID(const char *str)
 {
     int val;
-
-    if(strncasecmp(str, "gs", 2) == 0)
-	val = 0x41;
-    else if(strncasecmp(str, "xg", 2) == 0)
-	val = 0x43;
-    else if(strncasecmp(str, "gm", 2) == 0)
-	val = 0x7e;
+///r
+    if (!strncasecmp(str, "gm", 2))
+		val = 0x7e;
+    else if (!strncasecmp(str, "gm2", 2))
+		val = 0x7d;
+    else if (!strncasecmp(str, "gs", 2))
+		val = 0x41;
+    else if (!strncasecmp(str, "kg", 2))
+		val = 0x42;
+    else if (!strncasecmp(str, "xg", 2))
+		val = 0x43;
+    else if (!strncasecmp(str, "cm", 2))
+		val = 0x30;
+    else if (!strncasecmp(str, "sd", 2))
+		val = 0x60;
     else
     {
 	int i, v;
 	val = 0;
-	for(i = 0; i < 2; i++)
+	for (i = 0; i < 2; i++)
 	{
 	    v = str[i];
-	    if('0' <= v && v <= '9')
+	    if ('0' <= v && v <= '9')
 		v = v - '0';
-	    else if('A' <= v && v <= 'F')
+	    else if ('A' <= v && v <= 'F')
 		v = v - 'A' + 10;
-	    else if('a' <= v && v <= 'f')
+	    else if ('a' <= v && v <= 'f')
 		v = v - 'a' + 10;
 	    else
 		return 0;
@@ -1384,3 +1588,113 @@ int str2mID(char *str)
     }
     return val;
 }
+
+size_t floatpoint_grooming(char *str)
+{
+    size_t i;
+    for (i = strlen(str) - 1; i > 1 && str[i] == '0'; i--) {
+        if (str[i - 1] != '.') {
+            str[i] = '\0';
+        }
+    }
+    return i + 1;
+}
+
+int fp_equals(float a, float b, float tolerance)
+{
+    return ((a + tolerance > b) && (b > a - tolerance)) ? 1 : 0;
+}
+
+#ifdef __W32__
+/*! Remove the current directory for the search path of LoadLibrary. Returns 0 if failed. */
+int w32_reset_dll_directory(void)
+{
+	HMODULE module;
+	typedef BOOL (WINAPI *SetDllDirectoryAProc)(LPCSTR lpPathName);
+	SetDllDirectoryAProc setDllDirectory;
+	if ((module = GetModuleHandle(TEXT("Kernel32.dll"))) == NULL)
+		return 0;
+	if ((setDllDirectory = (SetDllDirectoryAProc) GetProcAddress(module, "SetDllDirectoryA")) == NULL)
+		return 0;
+	/* Microsoft Security Advisory 2389418 */
+	return (*setDllDirectory)("") != 0;
+}
+
+char *w32_mbs_to_utf8(const char *str)
+{
+	int str_size = strlen(str);
+	int buff16_size = str_size;
+	wchar_t *buff16;
+	int buff8_size = 0;
+	char *buff8;
+	char *buff8_p;
+	int i;
+	if (str_size == 0) {
+		return strdup(str);
+	}
+	buff16 = (wchar_t*) malloc(sizeof(wchar_t) * buff16_size + 1);
+	if (!buff16) return NULL;
+	buff16_size = MultiByteToWideChar(CP_OEMCP, MB_PRECOMPOSED, str, str_size, buff16, buff16_size);
+	if (buff16_size == 0) {
+		safe_free(buff16);
+		return NULL;
+	}
+	for (i = 0; i < buff16_size; ++i) {
+		wchar_t w = buff16[i];
+		if (w < 0x0080) buff8_size += 1;
+		else if (w < 0x0800) buff8_size += 2;
+		else buff8_size += 3;
+	}
+	buff8 = (char*) malloc(sizeof(char) * buff8_size + 1);
+	if (!buff8) {
+		safe_free(buff16);
+		return NULL;
+	}
+	for (i = 0, buff8_p = buff8; i < buff16_size; ++i) {
+		wchar_t w = buff16[i];
+		if (w < 0x0080) {
+			*(buff8_p++) = (char)w;
+		} else if (buff16[i] < 0x0800) {
+			*(buff8_p++) = 0xc0 | (w >> 6);
+			*(buff8_p++) = 0x80 | (w & 0x3f);
+		} else {
+			*(buff8_p++) = 0xe0 | (w >> 12);
+			*(buff8_p++) = 0x80 | ((w >>6) & 0x3f);
+			*(buff8_p++) = 0x80 | (w & 0x3f);
+		}
+	}
+	*buff8_p = '\0';
+	safe_free(buff16);
+	return buff8;
+}
+
+char *w32_utf8_to_mbs(const char *str)
+{
+	const int str_size = strlen(str);
+	int buff16_size = str_size;
+	wchar_t *buff16;
+	int buff8_size = 0;
+	char *buff8;
+	if (str_size == 0) {
+		return strdup(str);
+	}
+	buff16_size = MultiByteToWideChar(CP_UTF8, 0, str, str_size, NULL, 0);
+	buff16 = (wchar_t*) malloc(sizeof(wchar_t) * buff16_size + 2);
+	if (!buff16) return NULL;
+	buff16_size = MultiByteToWideChar(CP_UTF8, 0, str, str_size, buff16, buff16_size);
+	if (buff16_size == 0) {
+		safe_free(buff16);
+		return NULL;
+	}
+	buff8_size = WideCharToMultiByte(CP_ACP, 0, buff16, buff16_size, NULL, 0, NULL, NULL);
+	buff8 = (char*) malloc(sizeof(char) * buff8_size + 2);
+	if (!buff8) return NULL;
+	buff8_size = WideCharToMultiByte(CP_ACP, 0, buff16, buff16_size, buff8, buff8_size, NULL, NULL);
+	safe_free(buff16);
+	if (buff8_size == 0) {
+		safe_free(buff8);
+		return NULL;
+	}
+	return buff8;
+}
+#endif

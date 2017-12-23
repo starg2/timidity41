@@ -40,7 +40,9 @@ extern int usleep(unsigned int usec);
 #endif
 
 #ifdef __W32__
-#define sleep(time) Sleep(time)
+#ifndef sleep
+#define sleep(s) Sleep((s)*1000)
+#endif /* sleep */
 #else
 #ifndef HAVE_SLEEP
 #define sleep(s) usleep((s) * 1000000)

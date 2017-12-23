@@ -57,7 +57,7 @@
 #define MAX_ZOOM 440.0
 #define DEFAULT_UPDATE 0.05
 
-static int32 *ring_buffer = NULL;
+static DATA_T *ring_buffer = NULL;
 #define ring_buffer_len (8 * AUDIO_BUFFER_SIZE)
 static int ring_index;
 static int32 outcnt;
@@ -656,8 +656,8 @@ static void ringsamples(double *x, int pos, int n)
 	x[i] = (double)ring_buffer[pos] * r;
     }
 }
-
-void soundspec_update_wave(int32 *buff, int samples)
+///r
+void soundspec_update_wave(DATA_T *buff, int samples)
 {
     int i;
 
@@ -670,7 +670,7 @@ void soundspec_update_wave(int32 *buff, int samples)
 	    next_wakeup_samples = 0;
 	}
 	if(ring_buffer != NULL)
-	    memset(ring_buffer, 0, sizeof(int32));
+	    memset(ring_buffer, 0, ring_buffer_len * sizeof(DATA_T);
 	return;
     }
 
@@ -682,8 +682,8 @@ void soundspec_update_wave(int32 *buff, int samples)
 
     if(ring_buffer == NULL)
     {
-	ring_buffer = safe_malloc(ring_buffer_len * sizeof(int32));
-	memset(ring_buffer, 0, sizeof(int32));
+	ring_buffer = safe_malloc(ring_buffer_len * sizeof(DATA_T));
+	memset(ring_buffer, 0, ring_buffer_len * sizeof(DATA_T);
 	if(soundspec_update_interval == 0)
 	    soundspec_update_interval =
 		(int32)(DEFAULT_UPDATE * play_mode->rate);
@@ -697,10 +697,10 @@ void soundspec_update_wave(int32 *buff, int samples)
 
 	d = ring_buffer_len - ring_index;
 	if(play_mode->encoding & PE_MONO)
-	    memcpy(ring_buffer + ring_index, buff, d * 4);
+	    memcpy(ring_buffer + ring_index, buff, d * sizeof(DATA_T));
 	else
 	{
-	    int32 *p;
+	    DATA_T *p;
 	    int n;
 
 	    p = ring_buffer + ring_index;
@@ -714,10 +714,10 @@ void soundspec_update_wave(int32 *buff, int samples)
     }
 
     if(play_mode->encoding & PE_MONO)
-	memcpy(ring_buffer + ring_index, buff, samples * 4);
+	memcpy(ring_buffer + ring_index, buff, samples * sizeof(DATA_T));
     else
     {
-	int32 *p;
+	DATA_T *p;
 	int n;
 
 	p = ring_buffer + ring_index;

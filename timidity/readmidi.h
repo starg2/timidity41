@@ -22,7 +22,9 @@
 
 #ifndef ___READMIDI_H_
 #define ___READMIDI_H_
-#include "reverb.h"
+#include "effect.h"
+
+#define SUPPORT_LOOPEVENT 1
 
 /* MIDI file types */
 #define IS_ERROR_FILE	-1	/* Error file */
@@ -55,14 +57,17 @@
 #define IS_MFI_FILE	800	/* Melody Format for i-mode */
 
 #define REDUCE_CHANNELS		16
-
+///r
 enum play_system_modes
 {
-    DEFAULT_SYSTEM_MODE,
-    GM_SYSTEM_MODE,
-    GM2_SYSTEM_MODE,
-    GS_SYSTEM_MODE,
-    XG_SYSTEM_MODE
+    DEFAULT_SYSTEM_MODE = 0x0,
+    GM_SYSTEM_MODE = 0x7e,
+    GM2_SYSTEM_MODE = 0x7d,
+    GS_SYSTEM_MODE = 0x41,
+    XG_SYSTEM_MODE = 0x43,
+	SD_SYSTEM_MODE = 0x60,
+	KG_SYSTEM_MODE = 0x42,
+	CM_SYSTEM_MODE = 0x30,
 };
 
 enum {
@@ -89,9 +94,10 @@ struct midi_file_info
     int readflag;
     char *filename;
     char *seq_name;
+	char *artist_name;
     char *karaoke_title;
     char *first_text;
-    uint8 mid;	/* Manufacture ID (0x41/Roland, 0x43/Yamaha, etc...) */
+    uint8 mid;	/* Manufacture ID (0x41/Roland, 0x42/Korg, 0x43/Yamaha, etc...) */
     int16 hdrsiz;
     int16 format;
     int16 tracks;
@@ -142,7 +148,6 @@ extern int convert_midi_control_change(int chn, int type, int val,
 extern int unconvert_midi_control_change(MidiEvent *ev);
 extern char *readmidi_make_string_event(int type, char *string, MidiEvent *ev,
 					int cnv);
-extern void free_time_segments(void);
 extern MidiEvent *read_midi_file(struct timidity_file *mtf,
 				 int32 *count, int32 *sp, char *file_name);
 extern struct midi_file_info *get_midi_file_info(char *filename,int newp);
@@ -169,25 +174,40 @@ extern int readmidi_error_flag;
 extern int readmidi_wrd_mode;
 extern int play_system_mode;
 
+#ifdef SUPPORT_LOOPEVENT
+extern int opt_use_midi_loop_repeat;
+extern int32 opt_midi_loop_repeat;
+#endif /* SUPPORT_LOOPEVENT */
+
 extern void recompute_delay_status_gs(void);
 extern void set_delay_macro_gs(int);
 extern void recompute_chorus_status_gs(void);
 extern void set_chorus_macro_gs(int);
+extern void set_chorus_macro_gm2(int macro);
 extern void recompute_reverb_status_gs(void);
 extern void set_reverb_macro_gs(int);
 extern void set_reverb_macro_gm2(int);
 extern void recompute_eq_status_gs(void);
 extern void realloc_insertion_effect_gs(void);
-extern void recompute_insertion_effect_gs(void);
+extern void recompute_insertion_effect_gs(int marge);
+extern void control_effect_gs(MidiEvent *ev);
+
 extern void recompute_multi_eq_xg(void);
 extern void set_multi_eq_type_xg(int);
 extern void realloc_effect_xg(struct effect_xg_t *st);
-extern void recompute_effect_xg(struct effect_xg_t *st);
+extern void recompute_effect_xg(struct effect_xg_t *st, int marge);
+extern void control_effect_xg(int ch);
 
-extern Instrument *recompute_userdrum(int bank, int prog);
+extern void recompute_multi_eq_sd(void);
+extern void recompute_mfx_effect_sd(struct mfx_effect_sd_t *st, int marge);
+extern void realloc_mfx_effect_sd(struct mfx_effect_sd_t *st, int patch);
+extern void control_effect_sd(MidiEvent *ev);
+
+extern Instrument *recompute_userdrum(int bank, int prog, int elm);
 extern void free_userdrum();
+extern void free_userdrum2();
 
-extern void recompute_userinst(int bank, int prog);
+extern void recompute_userinst(int bank, int prog, int elm);
 extern void free_userinst();
 
 extern void init_channel_layer(int);

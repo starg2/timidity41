@@ -26,7 +26,7 @@
 
 static int open_output(void);
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 
 PlayMode modmidi_play_mode = {
@@ -54,7 +54,7 @@ static void close_output(void)
     modmidi_play_mode.fd = -1;
 }
 
-static int output_data(char *buf, int32 bytes)
+static int output_data(const uint8 *buf, size_t bytes)
 {
     return bytes;
 }

@@ -21,10 +21,18 @@
 #ifndef ___SOUNDSPEC_H_
 #define ___SOUNDSPEC_H_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include "sysdep.h"
+
+///r
 extern void open_soundspec(void);
 extern void close_soundspec(void);
 extern void soundspec_setinterval(double interval_sec);
-extern void soundspec_update_wave(int32 *buff, int samples);
+///r
+extern void soundspec_update_wave(DATA_T *buff, int samples);
 extern void soundspec_reinit(void);
 
 extern int view_soundspec_flag;

@@ -71,12 +71,14 @@ static FLOAT_T convert_DIRECT_FLOAT_NUM(FLOAT_T value, int32 param)
 static int32 convert_TREMOLO_SWEEP_NUM(int32 value, int32 param)
 {
 	uint8	sweep = value;
-  if (!sweep)
-    return 0;
+	if(value < 0)
+		return -1;
+	if (!sweep)
+	return 0;
 
-  return
-    ((control_ratio * SWEEP_TUNING) << SWEEP_SHIFT) /
-      (play_mode->rate * sweep);
+	return
+	((control_ratio * SWEEP_TUNING) << SWEEP_SHIFT) /
+		(play_mode->rate * sweep);
 }
 
 static int32 convert_TREMOLO_SWEEP_MS(int32 value, int32 param)
@@ -93,10 +95,10 @@ static int32 convert_TREMOLO_SWEEP_MS(int32 value, int32 param)
 /* from instrum.c, convert_tremolo_rate() */
 static int32 convert_TREMOLO_RATE_NUM(int32 value, int32 param)
 {
-	uint8	rate = value;
-  return
-    ((SINE_CYCLE_LENGTH * control_ratio * rate) << RATE_SHIFT) /
-      (TREMOLO_RATE_TUNING * play_mode->rate);
+	if(value < 0)
+		return -1;
+	return ((SINE_CYCLE_LENGTH * control_ratio * (uint8)value) << RATE_SHIFT) 
+		/ (TREMOLO_RATE_TUNING * play_mode->rate);
 }
 
 static int32 convert_TREMOLO_RATE_MS(int32 value, int32 param)
@@ -120,12 +122,14 @@ static FLOAT_T convert_TREMOLO_RATE_HZ(FLOAT_T value, int32 param)
 static int32 convert_VIBRATO_SWEEP_NUM(int32 value, int32 vib_control_ratio)
 {
 	uint8	sweep = value;
-  if (!sweep)
-    return 0;
+	if(value < 0)
+		return -1;
+	if (!sweep)
+	return 0;
 
-  return (int32)(TIM_FSCALE((double) (vib_control_ratio)
-			    * SWEEP_TUNING, SWEEP_SHIFT)
-		 / (double)(play_mode->rate * sweep));
+	return (int32)(TIM_FSCALE((double) (vib_control_ratio)
+				* SWEEP_TUNING, SWEEP_SHIFT)
+			/ (double)(play_mode->rate * sweep));
 
   /* this was overflowing with seashore.pat
 
@@ -144,6 +148,8 @@ static int32 convert_VIBRATO_SWEEP_MS(int32 value, int32 vib_control_ratio)
 /* from instrum.c, to_control() */
 static int32 convert_VIBRATO_RATE_NUM(int32 control, int32 param)
 {
+	if(control < 0)
+		return -1;
 	return (int32) (0x2000 / pow(2.0, control / 31.0));
 }
 
@@ -248,11 +254,21 @@ const char *string_to_quantity(const char *string, Quantity *quantity, uint16 ty
 	int32				number_i;
 	FLOAT_T				number_f;
 	char				*suffix_i, *suffix_f;
-	
-	number_i = strtol(string, &suffix_i, 10);	/* base == 10 for compatibility with atoi() */
-	if (string == suffix_i)	/* doesn't start with valid character */
-		return "Number expected";
-	number_f = strtod(string, &suffix_f);
+
+	if (! strcmp(string, "off")){
+		suffix_i = suffix_f = (char *)(string + 3);
+		number_i = -1;
+		number_f = -1.0;
+	}else if (! strcmp(string, "-0")){
+		suffix_i = suffix_f = (char *)(string + 3);
+		number_i = -1;
+		number_f = -1.0;
+	}else{
+		number_i = strtol(string, &suffix_i, 10);	/* base == 10 for compatibility with atoi() */
+		if (string == suffix_i)	/* doesn't start with valid character */
+			return "Number expected";
+		number_f = strtod(string, &suffix_f);
+	}
 	return number_to_quantity(number_i, suffix_i, number_f, suffix_f, quantity, type);
 }
 

@@ -28,13 +28,17 @@
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
 
+#ifdef AU_NPIPE
+
 #ifdef __POCC__
 #include <sys/types.h>
 #endif //for off_t
 
 #ifdef __W32__
 #include <windows.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include <io.h>
 #endif
 
@@ -50,7 +54,9 @@
 #include <strings.h>
 #endif
 
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
 
 #ifdef __FreeBSD__
 #include <stdio.h>
@@ -64,6 +70,13 @@
 #include "playmidi.h"
 #include "readmidi.h"
 
+
+#if defined(IA_W32GUI) || defined(TWSYNG32)
+extern char *w32g_output_dir;
+extern int w32g_auto_output_mode;
+#endif
+
+
 //#define PIPE_BUFFER_SIZE (AUDIO_BUFFER_SIZE * 8)
 #define PIPE_BUFFER_SIZE (88200)
 static HANDLE hPipe=NULL;
@@ -74,7 +87,7 @@ static volatile int clear_pipe=-1;
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
@@ -110,6 +123,7 @@ static int npipe_output_open(const char *pipe_name)
  pipe_ovlpd.hEvent = hPipeEvent;
 	
   sprintf(PipeName, "\\\\.\\pipe\\%s", pipe_name);
+  ctl->cmsg(CMSG_INFO, VERB_NOISY, "Waveform output Pipe name: %s", PipeName);
   hPipe = CreateNamedPipe(PipeName, PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED, 
 //    PIPE_WAIT|
   	PIPE_READMODE_BYTE |PIPE_TYPE_BYTE, 2, 
@@ -136,27 +150,42 @@ static int open_output(void)
 {
   dpm.encoding = validate_encoding(dpm.encoding, 0, 0);
 
+#if !defined ( IA_W32GUI ) && !defined ( IA_W32G_SYN )
   if(dpm.name == NULL) {
-    if (NULL==current_file_info || NULL==current_file_info->filename){
-      return -1;
-  	}
-  }else{
-  	      if ( -1 == npipe_output_open(dpm.name))
-  			return -1;
+    dpm.flag |= PF_AUTO_SPLIT_FILE;
   }
-  dpm.fd = 1;
+  else {
+    dpm.flag &= ~PF_AUTO_SPLIT_FILE;
+    if((dpm.fd = npipe_output_open(dpm.name)) == -1) {
+      return -1;
+    }
+  }
+#else
+  if(w32g_auto_output_mode > 0) {
+      dpm.flag |= PF_AUTO_SPLIT_FILE;
+      dpm.name = NULL;
+    }
+    else {
+      dpm.flag &= ~PF_AUTO_SPLIT_FILE;
+      if((dpm.fd = npipe_output_open(dpm.name)) == -1) {
+        return -1;
+      }
+    }
+#endif
+
+  dpm.fd = STDOUT_FILENO;
 //  clear_pipe = 0;
   return 0;
 }
 
-static int output_data(char *buf, int32 bytes)
+static int output_data(const uint8 *buf, size_t bytes)
 {
 	DWORD n;
 	int ret;
 	int32 retnum;
-	retnum = bytes;
 	DWORD length;
 	char *clear_data;
+	retnum = bytes;
 		
 	if (hPipe == NULL) return -1;
 	if ( ( 0 == PeekNamedPipe(hPipe,NULL,0,NULL,&length,NULL)) &&
@@ -190,7 +219,7 @@ static int output_data(char *buf, int32 bytes)
 				clear_data = (char*)safe_malloc(audio_buffer_size-length);
 				memset(clear_data, 0, audio_buffer_size-length);
 				WriteFile(hPipe,clear_data,audio_buffer_size-length,&n,&pipe_ovlpd);
-				free(clear_data);
+				safe_free(clear_data);
 				if( (GetLastError() != ERROR_SUCCESS) &&
 					(GetLastError() != ERROR_IO_PENDING) &&
 					(GetLastError() != ERROR_BAD_PIPE) ){      //why BAD_PIPE occurs here?
@@ -222,8 +251,18 @@ static int acntl(int request, void *arg)
 {
   switch(request) {
   case PM_REQ_PLAY_START:
+    if (dpm.flag & PF_AUTO_SPLIT_FILE) {
+      const char *filename = (current_file_info && current_file_info->filename) ?
+			     current_file_info->filename : "Output.mid";
+      const char *seq_name = (current_file_info && current_file_info->seq_name) ?
+			     current_file_info->seq_name : NULL;
+      return auto_npipe_output_open(filename, seq_name);
+    }
     return 0;
   case PM_REQ_PLAY_END:
+    if(dpm.flag & PF_AUTO_SPLIT_FILE) {
+      close_output();
+    }
     return 0;
   case PM_REQ_DISCARD:
   case PM_REQ_FLUSH:
@@ -237,7 +276,7 @@ static int acntl(int request, void *arg)
 int npipe_a_pipe_close()
 {
 	int count;
-	if (hPipe == NULL) return;
+	if (hPipe == NULL) return 0;
 	pipe_close=0;
 	count = 100;
 	while( (hPipe != NULL) && (count >0)) Sleep(10);
@@ -245,8 +284,27 @@ int npipe_a_pipe_close()
 		CloseHandle(hPipe);
 		hPipe=NULL;
 	}
-	
+	return 0;
 }
 
+static int auto_npipe_output_open(const char *input_filename, const char *title)
+{
+  char *output_filename;
+
+  output_filename = create_auto_output_name(input_filename, "mid", NULL, 0);
+  if(output_filename == NULL) {
+    return -1;
+  }
+  if((dpm.fd = npipe_output_open(output_filename)) == -1) {
+    safe_free(output_filename);
+    return -1;
+  }
+  safe_free(dpm.name);
+  dpm.name = output_filename;
+//  ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Output %s", dpm.name);
+  return 0;
+}
+
+#endif
 
 

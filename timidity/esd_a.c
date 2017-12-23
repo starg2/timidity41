@@ -27,17 +27,27 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #define _GNU_SOURCE
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
+#ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
+#endif /* HAVE_DLFCN_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
+
+#ifdef AU_ESD
 
 #include <esd.h>
 
@@ -52,7 +62,7 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int32 output_data(const uint8 *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 static int detect(void);
 
@@ -63,12 +73,12 @@ static int detect(void);
 
 PlayMode dpm = {
     DEFAULT_RATE,
-    PE_16BIT|PE_SIGNED,
-    PF_PCM_STREAM/*|PF_CAN_TRACE*/,
+    PE_16BIT | PE_SIGNED,
+    PF_PCM_STREAM/* | PF_CAN_TRACE*/,
     -1,
-    {0}, /* default: get all the buffer fragments you can */
+    { 0 }, /* default: get all the buffer fragments you can */
     "Enlightened sound daemon", 'e',
-    "esd",
+    NULL,
     open_output,
     close_output,
     output_data,
@@ -83,8 +93,8 @@ static int try_open(void)
     esd_format_t esdformat;
 
     include_enc = 0;
-    exclude_enc = PE_ULAW|PE_ALAW|PE_BYTESWAP; /* They can't mean these */
-    if(dpm.encoding & PE_16BIT)
+    exclude_enc = PE_ULAW | PE_ALAW | PE_BYTESWAP; /* They can't mean these */
+    if (dpm.encoding & PE_16BIT)
 	include_enc |= PE_SIGNED;
     else
 	exclude_enc |= PE_SIGNED;
@@ -93,7 +103,7 @@ static int try_open(void)
     /* Open the audio device */
     esdformat = (dpm.encoding & PE_16BIT) ? ESD_BITS16 : ESD_BITS8;
     esdformat |= (dpm.encoding & PE_MONO) ? ESD_MONO : ESD_STEREO;
-    return esd_play_stream(esdformat,dpm.rate,NULL,"timidity");
+    return esd_play_stream(esdformat, dpm.rate, NULL, "timidity");
 }
 
 
@@ -116,9 +126,14 @@ static int open_output(void)
 {
     int fd;
 
+    if (!dpm.name)
+    {
+	dpm.name = safe_strdup("esd");
+    }
+
     fd = try_open();
 
-    if(fd < 0)
+    if (fd < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		  dpm.name, strerror(errno));
@@ -131,19 +146,19 @@ static int open_output(void)
     return 0;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int32 output_data(const uint8 *buf, int32 nbytes)
 {
-    int n;
+    int32 n;
 
-    //    write(1, buf, nbytes);return 0;
+    //    write(1, buf, nbytes); return 0;
 
-    while(nbytes > 0)
+    while (nbytes > 0)
     {
-	if((n = write(dpm.fd, buf, nbytes)) == -1)
+	if ((n = write(dpm.fd, buf, nbytes)) == -1)
 	{
 	    ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
 		      "%s: %s", dpm.name, strerror(errno));
-	    if(errno == EWOULDBLOCK)
+	    if (errno == EWOULDBLOCK)
 	    {
 		/* It is possible to come here because of bug of the
 		 * sound driver.
@@ -161,7 +176,7 @@ static int output_data(char *buf, int32 nbytes)
 
 static void close_output(void)
 {
-    if(dpm.fd == -1)
+    if (dpm.fd == -1)
 	return;
     close(dpm.fd);
     dpm.fd = -1;
@@ -169,7 +184,7 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
-    switch(request)
+    switch (request)
     {
       case PM_REQ_DISCARD:
         esd_audio_flush();
@@ -186,3 +201,5 @@ static int acntl(int request, void *arg)
     }
     return -1;
 }
+
+#endif

@@ -22,7 +22,7 @@
     Functions to play sound on HPUX stations V0.1 1995 March 1
 
     HPUX allows you to connect to a remote sound server through a socket
-    ( put the name in the string "server"). Not compulsory to play the
+   (put the name in the string "server"). Not compulsory to play the
     sound on the machine running timidity
 
     Exemple : if I'm on the console of 'exupery' and that I've opened a
@@ -37,6 +37,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+
+#ifdef AU_HPUX_ALIB
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -58,7 +61,7 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int32 output_data(const uint8 *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 
 static Audio    *audio;		      /* Audio Connection */
@@ -70,22 +73,22 @@ static ATransID  xid;	/* Socket for connection with audio stream */
 static SStream audioStream;
 static SSPlayParams    streamParams;
 static int streamSocket;
-static long status;
+static int32 status;
 static int data_format;
-static long   seekOffset, data_length;
+static int32   seekOffset, data_length;
 static AByteOrder      byte_order, play_byte_order;
 static int useIntSpeaker;
 
 /* export the playback mode */
-#define DEFAULT_HP_ENCODING PE_16BIT|PE_SIGNED
+#define DEFAULT_HP_ENCODING PE_16BIT | PE_SIGNED
 
 #define dpm hpux_nplay_mode
 PlayMode dpm = {
-    DEFAULT_RATE, DEFAULT_HP_ENCODING, PF_PCM_STREAM|PF_CAN_TRACE,
+    DEFAULT_RATE, DEFAULT_HP_ENCODING, PF_PCM_STREAM | PF_CAN_TRACE,
     -1,
-    {0}, /* default: get all the buffer fragments you can */
+    { 0 }, /* default: get all the buffer fragments you can */
     "HPUX network audio (Alib)", 'A',
-    "", /* THIS STRING IS THE NAME OF THE AUDIO SERVER (default =none)*/
+    NULL, /* THIS STRING IS THE NAME OF THE AUDIO SERVER (default =none)*/
 
     open_output,
     close_output,
@@ -96,12 +99,12 @@ PlayMode dpm = {
 /*
  * error handler for player
  */
-long myHandler( Audio  * audio, AErrorEvent  * err_event  )
+int32 myHandler(Audio  * audio, AErrorEvent  * err_event)
 {
     char    errorbuff[132];
 
     AGetErrorText(audio, err_event->error_code, errorbuff, 131);
-    ctl->cmsg(CMSG_ERROR,VERB_NORMAL,"HPUX Audio error:%s", errorbuff );
+    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "HPUX Audio error:%s", errorbuff);
     ctl->close();
     exit(1);
 }
@@ -109,10 +112,15 @@ long myHandler( Audio  * audio, AErrorEvent  * err_event  )
 static int open_output(void)
 {
     char *pSpeaker;	/* Environment SPEAKER variable */
-    int warnings=0;
+    int warnings = 0;
     int i;
 
-    if(dpm.encoding & PE_ALAW)
+    if (!dpm.name)
+    {
+	dpm.name = safe_strdup("\0");
+    }
+
+    if (dpm.encoding & PE_ALAW)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "%s: A-Law not supported in this version", dpm.name);
@@ -125,7 +133,7 @@ static int open_output(void)
 /*
  *  open audio connection
  */
-    audio = AOpenAudio( dpm.name, NULL );
+    audio = AOpenAudio(dpm.name, NULL);
 
     PlayAttribsMask = 0;
     SourceAttribsMask = 0;
@@ -143,60 +151,60 @@ static int open_output(void)
     else
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Sound is stereo dolby fx");
 
-    if (dpm.encoding & PE_ULAW )
-	{ data_format= AFFRawMuLaw; /* Ignore the rest signed/unsigned 16/8 */
+    if (dpm.encoding & PE_ULAW)
+	{ data_format = AFFRawMuLaw; /* Ignore the rest signed/unsigned 16/8 */
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Sound format Ulaw");
 	}
-    else if (dpm.encoding & PE_16BIT )
+    else if (dpm.encoding & PE_16BIT)
 	{ /* HP700's DO NOT SUPPORT unsigned 16bits */
-	    if (! (dpm.encoding & PE_SIGNED))
-		{ ctl->cmsg(CMSG_WARNING, VERB_NORMAL,"No unsigned 16bit format");
+	    if (!(dpm.encoding & PE_SIGNED))
+		{ ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "No unsigned 16bit format");
 		dpm.encoding |= PE_SIGNED;
-		warnings=1;
+		warnings = 1;
 		}
 	     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Sound format Linear 16bits");
-	    data_format= AFFRawLin16;
+	    data_format = AFFRawLin16;
 	}
     else
 	{ if (dpm.encoding & PE_SIGNED)
 	   {
-	       data_format=AFFRawLin8;
+	       data_format = AFFRawLin8;
 	       ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Sound format Linear signed 8bits");
 	   }
 	else
 	  {
-	      data_format=AFFRawLin8Offset;
+	      data_format = AFFRawLin8Offset;
 	      ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Sound format Linear unsigned 8bits");
 	  }
 	};
 
-    AChooseSourceAttributes(audio, NULL,NULL, data_format,
+    AChooseSourceAttributes(audio, NULL, NULL, data_format,
 			    SourceAttribsMask, &SourceAttribs,
-			    &seekOffset,&data_length, &byte_order, NULL );
+			    &seekOffset, &data_length, &byte_order, NULL);
 
     AChoosePlayAttributes(audio, &SourceAttribs, PlayAttribsMask,
-			  &PlayAttribs, &play_byte_order,NULL);
+			  &PlayAttribs, &play_byte_order, NULL);
 
     /* Match the source and play audio parameters and see if all are accepted */
     if (PlayAttribs.attr.sampled_attr.sampling_rate!=
 	SourceAttribs.attr.sampled_attr.sampling_rate)
-	{ ctl->cmsg(CMSG_WARNING, VERB_NORMAL,"Unsupported sample rate %i replaced by %i",
+	{ ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "Unsupported sample rate %i replaced by %i",
 	       SourceAttribs.attr.sampled_attr.sampling_rate,
-	       PlayAttribs.attr.sampled_attr.sampling_rate );
-	warnings=1;
+	       PlayAttribs.attr.sampled_attr.sampling_rate);
+	warnings = 1;
 	dpm.rate = PlayAttribs.attr.sampled_attr.sampling_rate;
 	}
 
     if (PlayAttribs.attr.sampled_attr.channels!=
 	SourceAttribs.attr.sampled_attr.channels)
-	{ ctl->cmsg(CMSG_WARNING, VERB_NORMAL,"Unsupported STEREO -> going back mono");
+	{ ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "Unsupported STEREO -> going back mono");
 	dpm.encoding |= PE_MONO;
-	warnings=1;
+	warnings = 1;
 	}
 
     if (PlayAttribs.attr.sampled_attr.data_format !=
-	SourceAttribs.attr.sampled_attr.data_format )
-	{ ctl->cmsg(CMSG_ERROR, VERB_NORMAL,"Audio device can't play this format, try another one");
+	SourceAttribs.attr.sampled_attr.data_format)
+	{ ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Audio device can't play this format, try another one");
 	return -1;
 	}
 
@@ -204,15 +212,15 @@ static int open_output(void)
      * Traditionnaly on HPUX, the SPEAKER environment variable is EXTERNAL if we use
      * the headphone jack and INTERNAL if we use the internal speaker
      */
-    pSpeaker = getenv( "SPEAKER" );         /* get user speaker preference */
-    if ( pSpeaker )
-	useIntSpeaker = ( (*pSpeaker == 'i') || (*pSpeaker == 'I') );
+    pSpeaker = getenv("SPEAKER");         /* get user speaker preference */
+    if (pSpeaker)
+	useIntSpeaker =((*pSpeaker == 'i') || (*pSpeaker == 'I'));
     else
 	/* SPEAKER environment variable not found - use internal speaker */
 	useIntSpeaker = 1;
 
     /* Tune the stereo */
-    switch(PlayAttribs.attr.sampled_attr.channels )
+    switch (PlayAttribs.attr.sampled_attr.channels)
 	{
 	case 1:
 	    gainEntry[0].u.o.out_ch = AOCTMono;
@@ -237,54 +245,54 @@ static int open_output(void)
     streamParams.event_mask = 0;                      /* don't solicit any events */
 
 /* create an audio stream */
-    xid = APlaySStream( audio, ~0, &PlayAttribs, &streamParams,
-			&audioStream, NULL );
+    xid = APlaySStream(audio, ~0, &PlayAttribs, &streamParams,
+			&audioStream, NULL);
 /* create a stream socket */
-    streamSocket = socket( AF_INET, SOCK_STREAM, 0 );
-    if( streamSocket < 0 )
-	{ ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Audio Socket creation failed" );
+    streamSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (streamSocket < 0)
+	{ ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Audio Socket creation failed");
 	return -1;
 	}
 
     i = 128 * 1024;
     status = setsockopt(streamSocket, SOL_SOCKET, SO_SNDBUF, &i, sizeof(int));
-    if(status < 0)
+    if (status < 0)
     {
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		  "Warning: SO_SNDBUF: size=%d is failed", i);
-	warnings=1;
+	warnings = 1;
     }
 
 /* connect the stream socket to the audio stream port */
-    status = connect( streamSocket, (struct sockaddr *)&audioStream.tcp_sockaddr,
-		      sizeof(struct sockaddr_in) );
-    if(status<0)
-	{  ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Audio Connect failed" );
+    status = connect(streamSocket, (struct sockaddr*)&audioStream.tcp_sockaddr,
+		      sizeof(struct sockaddr_in));
+    if (status < 0)
+	{  ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Audio Connect failed");
 	return -1;
 	}
-    dpm.fd=0;
+    dpm.fd = 0;
     return(warnings);
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int32 output_data(const uint8 *buf, int32 nbytes)
 {
-    return write( streamSocket, buf, nbytes );
+    return write(streamSocket, buf, nbytes);
 }
 
 static void close_output(void)
 {
-    if(dpm.fd != -1)
+    if (dpm.fd != -1)
     {
-	close( streamSocket );
-	ASetCloseDownMode( audio, AKeepTransactions, NULL );
-	ACloseAudio( audio, NULL );
+	close(streamSocket);
+	ASetCloseDownMode(audio, AKeepTransactions, NULL);
+	ACloseAudio(audio, NULL);
 	dpm.fd = -1;
     }
 }
 
 static int acntl(int request, void *arg)
 {
-    switch(request)
+    switch (request)
     {
       case PM_REQ_DISCARD:
       case PM_REQ_PLAY_START: /* Called just before playing */
@@ -293,3 +301,5 @@ static int acntl(int request, void *arg)
     }
     return -1;
 }
+
+#endif /* AU_HPUX_ALIB */

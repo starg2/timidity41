@@ -22,13 +22,16 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include "timidity.h"
+#include "common.h"
 #include "url.h"
 
 #define DECODEBUFSIZ 255 /* Must be power of 3 */
@@ -38,27 +41,27 @@ typedef struct _URL_hqxdecode
 {
     char common[sizeof(struct _URL)];
     URL reader;
-    long rpos;
+    int32 rpos;
     int beg, end, eof, eod;
     unsigned char decodebuf[DECODEBUFSIZ];
-    long datalen, rsrclen, restlen;
+    int32 datalen, rsrclen, restlen;
     int dsoff, rsoff, zoff;
     int stage, dataonly, autoclose;
 } URL_hqxdecode;
 
-static long url_hqxdecode_read(URL url, void *buff, long n);
+static ptr_size_t url_hqxdecode_read(URL url, void *buff, ptr_size_t n);
 static int  url_hqxdecode_fgetc(URL url);
-static long url_hqxdecode_tell(URL url);
+static off_size_t url_hqxdecode_tell(URL url);
 static void url_hqxdecode_close(URL url);
 
 URL url_hqxdecode_open(URL reader, int dataonly, int autoclose)
 {
     URL_hqxdecode *url;
 
-    url = (URL_hqxdecode *)alloc_url(sizeof(URL_hqxdecode));
-    if(url == NULL)
+    url = (URL_hqxdecode*)alloc_url(sizeof(URL_hqxdecode));
+    if (!url)
     {
-	if(autoclose)
+	if (autoclose)
 	    url_close(reader);
 	url_errno = errno;
 	return NULL;
@@ -114,9 +117,9 @@ static int hqxgetchar(URL reader)
 
     do
     {
-	if((c = url_getc(reader)) == EOF)
+	if ((c = url_getc(reader)) == EOF)
 	    return EOF;
-    } while(c == '\r' || c == '\n');
+    } while (c == '\r' || c == '\n');
     return hqx_decode_table[c];
 }
 
@@ -126,15 +129,15 @@ static int hqxdecode_chunk(URL url, unsigned char *p)
     int n;
 
     n = 0;
-    if((c1 = hqxgetchar(url)) == EOF)
+    if ((c1 = hqxgetchar(url)) == EOF)
 	return 0;
-    if((c2 = hqxgetchar(url)) == EOF)
+    if ((c2 = hqxgetchar(url)) == EOF)
 	return 0;
     p[n++] = ((c1 << 2) | ((c2 & 0x30) >> 4));
-    if((c3 = hqxgetchar(url)) == EOF)
+    if ((c3 = hqxgetchar(url)) == EOF)
 	return n;
     p[n++] = (((c2 & 0xf) << 4) | ((c3 & 0x3c) >> 2));
-    if((c4 = hqxgetchar(url)) == EOF)
+    if ((c4 = hqxgetchar(url)) == EOF)
 	return n;
     p[n++] = (((c3 & 0x03) << 6) | c4);
     return n;
@@ -159,11 +162,11 @@ static int hqxdecode_header(URL_hqxdecode *urlp)
     p = urlp->decodebuf;
     q = urlp->decodebuf + INFOBYTES;
     url = urlp->reader;
-    while(n < DECODEBUFSIZ - INFOBYTES - 2)
+    while (n < DECODEBUFSIZ - INFOBYTES - 2)
     {
 	i = hqxdecode_chunk(url, q + n);
 	n += i;
-	if(i != 3)
+	if (i != 3)
 	{
 	    urlp->eod = 1;
 	    break;
@@ -174,28 +177,28 @@ static int hqxdecode_header(URL_hqxdecode *urlp)
     nlen = q[0];
     hlen = nlen + 22;
 
-    if(n < hlen)
+    if (n < hlen)
     {
 	urlp->eof = 1;
 	return -1; /* Error */
     }
 
-    urlp->datalen = (long)convert_int32(q + hlen - 10);
-    urlp->rsrclen = (long)convert_int32(q + hlen - 6);
+    urlp->datalen = (int32)convert_int32(q + hlen - 10);
+    urlp->rsrclen = (int32)convert_int32(q + hlen - 6);
     urlp->dsoff = (((urlp->datalen + 127) >> 7) << 7) - urlp->datalen;
     urlp->rsoff = (((urlp->rsrclen + 127) >> 7) << 7) - urlp->rsrclen;
     urlp->zoff = 0;
 
     p[1] = nlen;
     memcpy(p + 2, q + 1, nlen);
-    memcpy(p + 65, q + hlen - 20, 4+4+2); /* type, author, flags */
-    memcpy(p + 83, q + hlen - 10, 4+4);	/* datalen, rsrclen */
+    memcpy(p + 65, q + hlen - 20, 4 + 4 + 2); /* type, author, flags */
+    memcpy(p + 83, q + hlen - 10, 4 + 4);	/* datalen, rsrclen */
     /* 91: create time (4) */
     /* 95: modify time (4) */
 
     q += hlen;
     n -= hlen;
-    for(i = 0; i < n; i++)
+    for (i = 0; i < n; i++)
 	p[INFOBYTES + i] = q[i];
     return INFOBYTES + n;
 }
@@ -206,20 +209,20 @@ static int hqxdecode(URL_hqxdecode *urlp)
     unsigned char *p;
     URL url;
 
-    if(urlp->eod)
+    if (urlp->eod)
     {
 	urlp->eof = 1;
 	return 1;
     }
 
-    if(urlp->stage == 0)
+    if (urlp->stage == 0)
     {
 	n = hqxdecode_header(urlp);
-	if(n == -1)
+	if (n == -1)
 	    return 1;
 	urlp->end = n;
 
-	if(urlp->dataonly)
+	if (urlp->dataonly)
 	{
 	    urlp->beg = INFOBYTES;
 	    urlp->restlen = urlp->datalen;
@@ -238,15 +241,15 @@ static int hqxdecode(URL_hqxdecode *urlp)
     url = urlp->reader;
     n = 0;
 
-    if(urlp->restlen == 0)
+    if (urlp->restlen == 0)
     {
-	if(urlp->dataonly)
+	if (urlp->dataonly)
 	{
 	    urlp->eof = 1;
 	    return 1;
 	}
 
-	if(urlp->stage == 2)
+	if (urlp->stage == 2)
 	{
 	    urlp->zoff = urlp->rsoff;
 	    urlp->eof = 1;
@@ -257,12 +260,12 @@ static int hqxdecode(URL_hqxdecode *urlp)
 	urlp->stage = 2;
 
 	n = urlp->end - urlp->beg;
-	if(n <= 2)
+	if (n <= 2)
 	{
-	    for(i = 0; i < n; i++)
+	    for (i = 0; i < n; i++)
 		p[i] = p[i + urlp->beg];
 	    n += hqxdecode_chunk(url, p + n);
-	    if(n <= 2)
+	    if (n <= 2)
 	    {
 		urlp->eof = 1;
 		return 1;
@@ -280,11 +283,11 @@ static int hqxdecode(URL_hqxdecode *urlp)
 	n = urlp->beg;
     }
 
-    while(n < DECODEBUFSIZ)
+    while (n < DECODEBUFSIZ)
     {
 	i = hqxdecode_chunk(url, p + n);
 	n += i;
-	if(i != 3)
+	if (i != 3)
 	{
 	    urlp->eod = 1;
 	    break;
@@ -295,7 +298,7 @@ static int hqxdecode(URL_hqxdecode *urlp)
     urlp->beg = 0;
     urlp->end = n;
 
-    if(n == 0)
+    if (n == 0)
     {
 	urlp->eof = 1;
 	return 1;
@@ -304,20 +307,20 @@ static int hqxdecode(URL_hqxdecode *urlp)
     return 0;
 }
 
-static long url_hqxdecode_read(URL url, void *buff, long size)
+static ptr_size_t url_hqxdecode_read(URL url, void *buff, ptr_size_t size)
 {
-    URL_hqxdecode *urlp = (URL_hqxdecode *)url;
-    char *p = (char *)buff;
-    long n;
+    URL_hqxdecode *urlp = (URL_hqxdecode*)url;
+    char *p = (char*)buff;
+    int32 n;
     int i;
 
     n = 0;
-    while(n < size)
+    while (n < size)
     {
-	if(urlp->zoff > 0)
+	if (urlp->zoff > 0)
 	{
 	    i = urlp->zoff;
-	    if(i > size - n)
+	    if (i > size - n)
 		i = size - n;
 	    memset(p + n, 0, i);
 	    urlp->zoff -= i;
@@ -326,19 +329,19 @@ static long url_hqxdecode_read(URL url, void *buff, long size)
 	    continue;
 	}
 
-	if(urlp->eof)
+	if (urlp->eof)
 	    break;
 
-	if(urlp->restlen == 0 || urlp->beg == urlp->end)
+	if (urlp->restlen == 0 || urlp->beg == urlp->end)
 	{
 	    hqxdecode(urlp);
 	    continue;
 	}
 
 	i = urlp->end - urlp->beg;
-	if(i > urlp->restlen)
+	if (i > urlp->restlen)
 	    i = urlp->restlen;
-	if(i > size - n)
+	if (i > size - n)
 	    i = size - n;
 	memcpy(p + n, urlp->decodebuf + urlp->beg, i);
 	urlp->beg += i;
@@ -351,21 +354,21 @@ static long url_hqxdecode_read(URL url, void *buff, long size)
 
 static int url_hqxdecode_fgetc(URL url)
 {
-    URL_hqxdecode *urlp = (URL_hqxdecode *)url;
+    URL_hqxdecode *urlp = (URL_hqxdecode*)url;
     int c;
 
   retry_read:
-    if(urlp->zoff > 0)
+    if (urlp->zoff > 0)
     {
 	urlp->zoff--;
 	urlp->rpos++;
 	return 0;
     }
 
-    if(urlp->eof)
+    if (urlp->eof)
 	return EOF;
 
-    if(urlp->restlen == 0 || urlp->beg == urlp->end)
+    if (urlp->restlen == 0 || urlp->beg == urlp->end)
     {
 	hqxdecode(urlp);
 	goto retry_read;
@@ -377,61 +380,61 @@ static int url_hqxdecode_fgetc(URL url)
     return c;
 }
 
-static long url_hqxdecode_tell(URL url)
+static off_size_t url_hqxdecode_tell(URL url)
 {
-    URL_hqxdecode *urlp = (URL_hqxdecode *)url;
+    URL_hqxdecode *urlp = (URL_hqxdecode*)url;
 
-    if(urlp->dataonly)
+    if (urlp->dataonly)
 	return urlp->rpos + urlp->beg - INFOBYTES;
     return urlp->rpos + urlp->beg;
 }
 
 static void url_hqxdecode_close(URL url)
 {
-    URL_hqxdecode *urlp = (URL_hqxdecode *)url;
+    URL_hqxdecode *urlp = (URL_hqxdecode*)url;
 
-    if(urlp->autoclose)
+    if (urlp->autoclose)
 	url_close(urlp->reader);
-    free(url);
+    safe_free(url);
 }
 
 #ifdef HQXDECODE_MAIN
-void main(int argc, char** argv)
+void main(int argc, char **argv)
 {
     URL hqxdecoder;
     char buff[256], *filename;
     int c;
 
-    if(argc != 2)
+    if (argc != 2)
     {
 	fprintf(stderr, "Usage: %s hqx-filename\n", argv[0]);
 	exit(1);
     }
     filename = argv[1];
 
-    if((hqxdecoder = url_file_open(filename)) == NULL)
+    if ((hqxdecoder = url_file_open(filename)) == NULL)
     {
 	perror(argv[1]);
 	exit(1);
     }
 
-    for(;;)
+    for (;;)
     {
-	if(url_readline(hqxdecoder, buff, sizeof(buff)) == NULL)
+	if (url_readline(hqxdecoder, buff, sizeof(buff)) == NULL)
 	{
 	    fprintf(stderr, "%s: Not a hqx-file\n", filename);
 	    url_close(hqxdecoder);
 	    exit(1);
 	}
-	if((strncmp(buff, "(This file", 10) == 0) ||
-	   (strncmp(buff, "(Convert with", 13) == 0))
+	if ((!strncmp(buff, "(This file", 10)) ||
+	    (!strncmp(buff, "(Convert with", 13)))
 	    break;
     }
 
-    while((c = url_getc(hqxdecoder)) != EOF)
-	if(c == ':')
+    while ((c = url_getc(hqxdecoder)) != EOF)
+	if (c == ':')
 	    break;
-    if(c == EOF)
+    if (c == EOF)
     {
 	fprintf(stderr, "%s: Not a hqx-file\n", filename);
 	url_close(hqxdecoder);
@@ -439,11 +442,11 @@ void main(int argc, char** argv)
     }
 
     hqxdecoder = url_hqxdecode_open(hqxdecoder, 0, 1);
-#if HQXDECODE_MAIN
-    while((c = url_getc(hqxdecoder)) != EOF)
+#ifdef HQXDECODE_MAIN
+    while ((c = url_getc(hqxdecoder)) != EOF)
 	putchar(c);
 #else
-    while((c = url_read(hqxdecoder, buff, sizeof(buff))) > 0)
+    while ((c = url_read(hqxdecoder, buff, sizeof(buff))) > 0)
 	write(1, buff, c);
 #endif
     url_close(hqxdecoder);

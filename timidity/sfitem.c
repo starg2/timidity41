@@ -51,7 +51,7 @@ LayerItem layer_items[SF_EOF] = {
 	{L_INHRT, T_NOP, 0, 0, 0}, /* env2ToVolume / unused1 */
 	{L_INHRT, T_TENPCT, 0, 1000, 0}, /* chorusEffectsSend */
 	{L_INHRT, T_TENPCT, 0, 1000, 0}, /* reverbEffectsSend */
-	{L_INHRT, T_PANPOS, 0, 1000, 0}, /* panEffectsSend */
+	{L_INHRT, T_PANPOS, -500, 500, 0}, /* panEffectsSend */ //	{L_INHRT, T_PANPOS, 0, 1000, 0}, /* panEffectsSend */
 	{L_INHRT, T_NOP, 0, 0, 0}, /* unused */
 	{L_INHRT, T_NOP, 0, 0, 0}, /* sampleVolume / unused */
 	{L_INHRT, T_NOP, 0, 0, 0}, /* unused3 */

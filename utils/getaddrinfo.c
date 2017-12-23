@@ -1,13 +1,18 @@
+#ifdef _WIN64
+#define WIN32
+#endif
+
+
 #if (defined WIN32) && (_WIN32_WINNT < 0x0501)
 
 /*****************************************************************************
  * getaddrinfo.c: getaddrinfo/getnameinfo replacement functions
  *****************************************************************************
  * Copyright (C) 2005 the VideoLAN team
- * Copyright (C) 2002-2007 Rémi Denis-Courmont
- * $Id$
+ * Copyright (C) 2002-2007 Remi Denis-Courmont
+ * $Id: getaddrinfo.c,v 1.1 2008/12/05 21:59:02 skeishi Exp $
  *
- * Author: Rémi Denis-Courmont <rem # videolan.org>
+ * Author: Remi Denis-Courmont <rem # videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,11 +37,18 @@
 #include <vlc_common.h>
 #include <vlc_charset.h>
 
-
+#ifdef HAVE_STDDEF_H
 #include <stddef.h> /* size_t */
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h> /* strlen(), memcpy(), memset(), strchr() */
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h> /* malloc(), free(), strtoul() */
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <assert.h>
 
 #ifdef HAVE_SYS_TYPES_H
@@ -60,7 +72,9 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
 
 #include "timidity.h"
 #include "common.h"
@@ -116,6 +130,8 @@
 #   define AF_UNSPEC   0
 #endif
 
+typedef unsigned int uint32_t;
+//#define uint32_t unsigned int
 
 #ifndef HAVE_GAI_STRERROR
 static const struct
@@ -185,8 +201,6 @@ stub_getnameinfo (const struct sockaddr *sa, socklen_t salen,
              char *host, int hostlen, char *serv, int servlen, int flags)
 #endif
 {
-    uint32_t ipv4;
-
     if (((size_t)salen < sizeof (struct sockaddr_in))
      || (sa->sa_family != AF_INET))
         return EAI_FAMILY;
@@ -200,6 +214,8 @@ stub_getnameinfo (const struct sockaddr *sa, socklen_t salen,
 
         if (host != NULL)
         {
+            uint32_t ipv4;
+
             /* host name resolution */
             if (!(flags & NI_NUMERICHOST))
             {
@@ -269,10 +285,10 @@ static void stub_freeaddrinfo (struct addrinfo *res)
 {
     if (res == NULL)
         return;
-    free (res->ai_canonname);
-    free (res->ai_addr);
-    free (res->ai_next);
-    free (res);
+    safe_free (res->ai_canonname);
+    safe_free (res->ai_addr);
+    safe_free (res->ai_next);
+    safe_free (res);
 }
 
 
@@ -477,7 +493,7 @@ stub_getaddrinfo (const char *node, const char *service,
         info = makeipv4info (SOCK_DGRAM, IPPROTO_UDP, ip, port, name);
         if (info == NULL)
         {
-            errno = ENOMEM;
+            _set_errno(ENOMEM);
             return EAI_SYSTEM;
         }
         if (flags & AI_PASSIVE)
@@ -489,7 +505,7 @@ stub_getaddrinfo (const char *node, const char *service,
         info = makeipv4info (SOCK_STREAM, IPPROTO_TCP, ip, port, name);
         if (info == NULL)
         {
-            errno = ENOMEM;
+            _set_errno(ENOMEM);
             return EAI_SYSTEM;
         }
         info->ai_next = *res;

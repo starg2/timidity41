@@ -26,7 +26,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include <stdarg.h>
 #ifndef NO_STRING_H
 #include <string.h>
@@ -47,6 +49,7 @@
 
 #include "w32g.h"
 #include "w32g_subwin.h"
+#include "w32g_utl.h"
 
 extern int CanvasGetMode(void);
 extern void CanvasUpdate(int flag);
@@ -63,6 +66,7 @@ extern void MPanelUpdateAll(void);
 extern void MPanelPaint(void);
 extern int is_directory(char *path);
 extern int directory_form(char *buffer);
+extern int TracerWndDrawSkip;
 
 volatile int w32g_play_active;
 volatile int w32g_restart_gui_flag = 0;
@@ -71,17 +75,112 @@ int w32g_current_expression[MAX_CHANNELS];
 static int mark_apply_setting = 0;
 PanelInfo *Panel = NULL;
 static void CanvasUpdateInterval(void);
-static void ctl_panel_refresh(void);
+static void ctl_panel_refresh(int);
 static void AddStartupMessage(const char *message);
 static void ShowStartupMessage(void);
 
 char *w32g_output_dir = NULL;
 int w32g_auto_output_mode = 0;
 
+int main_panel_update_time = 10; // ms
+static double update_interval_time = 0.01;
+
 extern void MPanelMessageAdd(char *message, int msec, int mode);
 extern void MPanelMessageClearAll(void);
 
 extern int w32g_msg_box(char *message, char *title, int type);
+
+
+//****************************************************************************/
+// EXT_CONTROL_THREAD funcitons
+
+#ifdef EXT_CONTROL_THREAD
+static int thread_exit = 0, thread_finish = 1, thread_init = 0;
+static HANDLE hEventTcv;
+static HANDLE hThread = NULL;
+static int rc_thread = 0;
+static ptr_size_t value_thread = 0;
+static void w32g_ext_control_sub_thread(int rc, ptr_size_t value);
+
+static void w32g_ext_control_thread(void)
+{
+	for(;;){		
+		WaitForSingleObject(hEventTcv, INFINITE); // スレッド開始イベント待機
+		if(thread_exit) break;	
+		w32g_ext_control_sub_thread(rc_thread, value_thread);
+		ResetEvent(hEventTcv); // スレッド開始イベントリセット
+		thread_finish = 1; // スレッド終了フラグセット
+	}
+	crt_endthread();
+}
+
+static void w32g_uninit_ext_control_thread(void)
+{
+	int i;
+	DWORD status;
+	
+	thread_exit = 1;
+	if(hThread == NULL)
+		return;		
+	SetEvent(hEventTcv);
+	switch(WaitForSingleObject(hThread, 10)) {
+	case WAIT_OBJECT_0:
+		break;
+	case WAIT_TIMEOUT:
+		status = WaitForSingleObject(hThread, 1000);
+		if(status == WAIT_TIMEOUT)
+			TerminateThread(hThread, 0);
+		break;
+	default:
+		TerminateThread(hThread, 0);
+		break;
+	}
+	CloseHandle(hThread);
+	hThread = NULL;
+	if(hEventTcv != NULL){
+		CloseHandle(hEventTcv);
+		hEventTcv = NULL;
+	}
+	thread_exit = 0;
+	thread_finish = 1;
+	thread_init = 0;
+}
+
+static void w32g_init_ext_control_thread(void)
+{
+	DWORD ThreadID;
+
+	if(thread_init)
+		w32g_uninit_ext_control_thread();
+	thread_init = 1;
+	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // reset manual
+	if(hEventTcv == NULL)
+		return;
+	hThread = crt_beginthreadex(NULL, 0, (LPTHREAD_START_ROUTINE)w32g_ext_control_thread, 0, 0, &ThreadID);
+	if(hThread == NULL)
+		return;
+}
+
+static int w32g_go_ext_control_thread(int rc, ptr_size_t value)
+{
+	if(hThread == NULL){
+		w32g_ext_control_sub_thread(rc, value);
+		return RC_NONE;
+	}
+	if(!thread_finish)
+		return RC_NONE;
+	rc_thread = rc;
+	value_thread = value;
+	thread_finish = 0; // スレッド終了フラグリセット
+	SetEvent(hEventTcv); // スレッド開始イベントセット (再開)
+	return RC_NONE;
+}
+
+int w32g_working_ext_control_thread(void)
+{
+	return !thread_finish;
+}
+#endif
 
 //****************************************************************************/
 // Control funcitons
@@ -90,7 +189,7 @@ static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]);
 static void ctl_event(CtlEvent *e);
-static int ctl_read(int32 *valp);
+static int ctl_read(ptr_size_t *valp);
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
 
 #define ctl w32gui_control_mode
@@ -115,7 +214,6 @@ ControlMode ctl=
 static uint32 cuepoint = 0;
 static int cuepoint_pending = 0;
 
-#define FORCE_TIME_PERIOD
 #ifdef FORCE_TIME_PERIOD
 static TIMECAPS tcaps;
 #endif
@@ -133,11 +231,14 @@ static int ctl_open(int using_stdin, int using_stdout)
     memset((void *)Panel,0,sizeof(PanelInfo));
     Panel->changed = 1;
 
-#ifdef FORCE_TIME_PERIOD
-	timeGetDevCaps(&tcaps, sizeof(TIMECAPS));
-	timeBeginPeriod(tcaps.wPeriodMin);
+//#ifdef FORCE_TIME_PERIOD
+//	timeGetDevCaps(&tcaps, sizeof(TIMECAPS));
+//	timeBeginPeriod(tcaps.wPeriodMin);
+//#endif
+	
+#ifdef EXT_CONTROL_THREAD
+	w32g_init_ext_control_thread();
 #endif
-
     return w32g_open();
 }
 
@@ -147,10 +248,14 @@ static void ctl_close(void)
     {
 	w32g_close();
 	ctl.opened = 0;
-	free(Panel);
+	safe_free(Panel);
+	Panel = NULL;
 
-#ifdef FORCE_TIME_PERIOD
-	timeEndPeriod(tcaps.wPeriodMin);
+//#ifdef FORCE_TIME_PERIOD
+//	timeEndPeriod(tcaps.wPeriodMin);
+//#endif
+#ifdef EXT_CONTROL_THREAD
+	w32g_uninit_ext_control_thread();
 #endif
     }
 }
@@ -158,6 +263,12 @@ static void ctl_close(void)
 static void PanelReset(void)
 {
     int i, j;
+	
+	if(main_panel_update_time > 2000)
+		main_panel_update_time = 2000;
+	else if(main_panel_update_time < 0)
+		main_panel_update_time  = 0;
+	update_interval_time = (double)main_panel_update_time * DIV_1000;
 
     Panel->reset_panel = 0;
     Panel->multi_part = 0;
@@ -229,13 +340,14 @@ static void ctl_gslcd_update(void)
 
 static void CanvasUpdateInterval(void)
 {
-	static double lasttime;
+	static double lasttime = 0;
 	double t;
 	
 	if (CanvasGetMode() == CANVAS_MODE_MAP16
-			|| CanvasGetMode() == CANVAS_MODE_MAP32) {
+			|| CanvasGetMode() == CANVAS_MODE_MAP32
+			|| CanvasGetMode() == CANVAS_MODE_MAP64) {
 		t = get_current_calender_time();
-		if (t - lasttime > 0.05) {
+		if (t - lasttime > 0.01) {
 			CanvasReadPanelInfo(0);
 			CanvasUpdate(0);
 			CanvasPaint();
@@ -249,7 +361,7 @@ static int ctl_drop_file(HDROP hDrop)
 {
     StringTable st;
     int i, n, len;
-    char buffer[BUFSIZ];
+    char buffer[FILEPATH_MAX];
     char **files;
     int prevnfiles;
 
@@ -274,12 +386,12 @@ static int ctl_drop_file(HDROP hDrop)
 	n = w32g_add_playlist(n, files, 1,
 			      ctl.flags & CTLF_AUTOUNIQ,
 			      ctl.flags & CTLF_AUTOREFINE);
-	free(files[0]);
-	free(files);
+	safe_free(files[0]);
+	safe_free(files);
     }
     if(n > 0)
     {
-	ctl_panel_refresh();
+	ctl_panel_refresh(1);
 	if(ctl.flags & CTLF_DRAG_START)
 	{
 	    w32g_goto_playlist(prevnfiles, !(ctl.flags & CTLF_NOT_CONTINUE));
@@ -294,7 +406,7 @@ static int ctl_load_file(char *fileptr)
     StringTable st;
     int len, n;
     char **files;
-    char buffer[BUFSIZ];
+    char buffer[FILEPATH_MAX];
     char *basedir;
 
     init_string_table(&st);
@@ -322,11 +434,11 @@ static int ctl_load_file(char *fileptr)
     n = w32g_add_playlist(n, files, 1,
 			  ctl.flags & CTLF_AUTOUNIQ,
 			  ctl.flags & CTLF_AUTOREFINE);
-    free(files[0]);
-    free(files);
+    safe_free(files[0]);
+    safe_free(files);
 
     if(n > 0)
-	ctl_panel_refresh();
+	ctl_panel_refresh(1);
     w32g_lock_open_file = 0;
     return RC_NONE;
 }
@@ -335,7 +447,7 @@ static int ctl_load_files_and_play(argc_argv_t *argc_argv, int playflag)
 {
     StringTable st;
     int i, n, len;
-    char buffer[BUFSIZ];
+    char buffer[FILEPATH_MAX];
     char **files;
     int prevnfiles;
 
@@ -348,8 +460,8 @@ static int ctl_load_files_and_play(argc_argv_t *argc_argv, int playflag)
 	n = argc_argv->argc;
     for(i = 0; i < n; i++)
     {
-	strncpy(buffer,(argc_argv->argv)[i],BUFSIZ-1);
-	buffer[BUFSIZ-1] = '\0';
+	strncpy(buffer,(argc_argv->argv)[i],FILEPATH_MAX-1);
+	buffer[FILEPATH_MAX-1] = '\0';
 	if(is_directory(buffer))
 	    directory_form(buffer);
 	len = strlen(buffer);
@@ -357,9 +469,9 @@ static int ctl_load_files_and_play(argc_argv_t *argc_argv, int playflag)
     }
 #if 1
 	for(i=0;i<argc_argv->argc;i++){
-		free(argc_argv->argv[i]);
+		safe_free(argc_argv->argv[i]);
 	}
-	free(argc_argv->argv);
+	safe_free(argc_argv->argv);
 	argc_argv->argv = NULL;
 	argc_argv->argc = 0;
 #endif
@@ -370,12 +482,12 @@ static int ctl_load_files_and_play(argc_argv_t *argc_argv, int playflag)
 	n = w32g_add_playlist(n, files, 1,
 			      ctl.flags & CTLF_AUTOUNIQ,
 			      ctl.flags & CTLF_AUTOREFINE);
-	free(files[0]);
-	free(files);
+	safe_free(files[0]);
+	safe_free(files);
     }
     if(n > 0)
     {
-	ctl_panel_refresh();
+	ctl_panel_refresh(1);
 	if(playflag)
 	{
 	    w32g_goto_playlist(prevnfiles, !(ctl.flags & CTLF_NOT_CONTINUE));
@@ -390,7 +502,7 @@ static int ctl_load_playlist(char *fileptr)
     StringTable st;
     int n;
     char **files;
-    char buffer[BUFSIZ];
+    char buffer[FILEPATH_MAX];
     char *basedir;
 
     init_string_table(&st);
@@ -417,11 +529,11 @@ static int ctl_load_playlist(char *fileptr)
     n = w32g_add_playlist(n, files, 1,
 			  ctl.flags & CTLF_AUTOUNIQ,
 			  ctl.flags & CTLF_AUTOREFINE);
-    free(files[0]);
-    free(files);
+    safe_free(files[0]);
+    safe_free(files);
 
     if(n > 0)
-	ctl_panel_refresh();
+	ctl_panel_refresh(1);
     w32g_lock_open_file = 0;
     return RC_NONE;
 }
@@ -455,6 +567,19 @@ static int ctl_delete_playlist(int offset)
 {
     int selected, nfiles, cur, pos;
 
+#ifdef LISTVIEW_PLAYLIST
+	if(offset == 0){
+		int flg = w32g_delete_playlist(-1); // select multi
+		if(flg){
+			ctl_panel_refresh(1);
+			if(w32g_play_active && flg > 1) { // flg>1 delete selected
+				ctl_panel_refresh(1);
+				return RC_LOAD_FILE;
+			}
+		}
+		return RC_NONE;
+	}
+#endif
     w32g_get_playlist_index(&selected, &nfiles, &cur);
     pos = cur + offset;
     if(pos < 0 || pos >= nfiles)
@@ -462,13 +587,42 @@ static int ctl_delete_playlist(int offset)
     if(w32g_delete_playlist(pos))
     {
 	w32g_update_playlist();
-	ctl_panel_refresh();
 	if(w32g_play_active && selected == pos) {
-		w32g_update_playlist();
+		ctl_panel_refresh(1);
 	    return RC_LOAD_FILE;
 	}
     }
     return RC_NONE;
+}
+
+static int ctl_copycut_playlist(int mode)
+{
+    int flg = 0;
+	
+#ifdef LISTVIEW_PLAYLIST
+	w32g_copy_playlist();
+	if(mode)
+		flg = w32g_delete_playlist(-1); // select multi
+	if(flg){
+		ctl_panel_refresh(1);
+		if(w32g_play_active && flg > 1) { // flg>1 delete selected
+			ctl_panel_refresh(1);
+			return RC_LOAD_FILE;
+		}
+	}
+	return RC_NONE;
+#endif
+}
+
+static int ctl_paste_playlist(void)
+{
+    int flg;
+	
+#ifdef LISTVIEW_PLAYLIST
+	w32g_paste_playlist(ctl.flags & CTLF_AUTOUNIQ, ctl.flags & CTLF_AUTOREFINE);
+	ctl_panel_refresh(1);
+	return RC_NONE;
+#endif
 }
 
 static int ctl_uniq_playlist(void)
@@ -477,7 +631,7 @@ static int ctl_uniq_playlist(void)
     n = w32g_uniq_playlist(&stop);
     if(n > 0)
     {
-	ctl_panel_refresh();
+	ctl_panel_refresh(1);
 	if(stop)
 	    return RC_STOP;
     }
@@ -490,79 +644,257 @@ static int ctl_refine_playlist(void)
     n = w32g_refine_playlist(&stop);
     if(n > 0)
     {
-	ctl_panel_refresh();
+	ctl_panel_refresh(1);
 	if(stop)
 	    return RC_STOP;
     }
     return RC_NONE;
 }
 
+/*
+w32g_ext_ext_controlの問題
+再生中のプレイリスト操作等で音切れになる
+プレイリスト操作のときw32g_ext_ext_control()はバッファ生成compute_data()/バッファ転送aq_soft_flush()に関わる部分で呼び出される
+プレイリスト操作は処理時間が長いこともあるので その場合音切れになる
+そこでプレイヤスレッドから切り離して 最小のプレイコントロールだけ発行する
+EXT_CONTROL_MAIN_THREAD GUIのメインスレッドで処理する  (変更箇所多い 処理時間が長いときMAIN_THREADが固まるけど・・
+EXT_CONTROL_THREAD コントロール用スレッドを追加し処理する (変更箇所は少ない スレッドのムダ？ 
+*/
+
+#if defined(EXT_CONTROL_THREAD) || defined(EXT_CONTROL_MAIN_THREAD)
+#if defined(EXT_CONTROL_THREAD)
+static void w32g_ext_control_sub_thread(int rc, ptr_size_t value)
+#elif defined(EXT_CONTROL_MAIN_THREAD)
+void w32g_ext_control_main_thread(int rc, ptr_size_t value)
+#endif
+{
+	int rrc = RC_NONE;
+
+	switch(rc)
+	{
+	case RC_EXT_PLAYLIST_CTRL:
+		w32g_set_playlist_ctrl(value);
+		break;
+	case RC_EXT_DROP:
+		if((ctl.flags & CTLF_DRAG_START))
+			w32g_set_playlist_ctrl_play();
+		rrc = ctl_drop_file((HDROP)value);
+		break;
+	case RC_EXT_LOAD_FILE:
+		rrc = ctl_load_file((char *)value);
+		break;
+	case RC_EXT_LOAD_FILES_AND_PLAY:
+		w32g_set_playlist_ctrl_play();
+		rrc = ctl_load_files_and_play((argc_argv_t *)value, 1);
+		break;
+	case RC_EXT_LOAD_PLAYLIST:
+		rrc = ctl_load_playlist((char *)value);
+		break;
+	case RC_EXT_SAVE_PLAYLIST:
+		rrc = ctl_save_playlist((char *)value);
+		break;
+	case RC_EXT_MODE_CHANGE:
+		CanvasChange(value);
+		break;
+	case RC_EXT_APPLY_SETTING:
+		if(w32g_play_active) {
+			mark_apply_setting = 1;
+			rrc = RC_STOP;
+			break;
+		}
+		PrefSettingApplyReally();
+		mark_apply_setting = 0;
+		break;
+	case RC_EXT_DELETE_PLAYLIST:
+		rrc = ctl_delete_playlist(value);
+		break;		
+	case RC_EXT_COPYCUT_PLAYLIST:
+		rrc = ctl_copycut_playlist(value);
+		break;
+	case RC_EXT_PASTE_PLAYLIST:
+		rrc = ctl_paste_playlist();
+		break;
+	case RC_EXT_UPDATE_PLAYLIST:
+		w32g_update_playlist();
+		break;
+	case RC_EXT_UNIQ_PLAYLIST:
+		rrc = ctl_uniq_playlist();	
+		break;
+	case RC_EXT_REFINE_PLAYLIST:
+		rrc = ctl_refine_playlist();
+		break;
+	case RC_EXT_JUMP_FILE:
+		TracerWndDrawSkip = 1;
+		if(w32g_goto_playlist(value, !(ctl.flags & CTLF_NOT_CONTINUE)))
+			rrc = RC_LOAD_FILE;
+		break;
+	case RC_EXT_ROTATE_PLAYLIST:
+		w32g_rotate_playlist(value);
+		ctl_panel_refresh(1);
+		break;
+	case RC_EXT_CLEAR_PLAYLIST:
+		w32g_clear_playlist();
+		if(w32g_is_playlist_ctrl_play()){ // 再生中のプレイリストなら停止
+			ctl_panel_refresh(1);
+			rrc = RC_STOP;
+		}
+		break;
+	case RC_EXT_OPEN_DOC:
+		w32g_setup_doc(value);
+		w32g_open_doc(0);
+		break;
+	}
+	// 
+	switch(rrc)	{
+	case RC_LOAD_FILE:
+		w32g_send_rc(RC_LOAD_FILE, 0);
+		break;
+	case RC_STOP:
+		w32g_send_rc(RC_STOP, 0);
+		break;
+	}
+}
+#endif
+
+#if defined(EXT_CONTROL_THREAD)
+#if defined(EXT_CONTROL_MAIN_THREAD)
+void w32g_ext_control_main_thread(int rc, ptr_size_t value)
+{	
+	if(w32g_working_ext_control_thread())
+		return;
+	switch(rc)
+	{
+	case RC_EXT_PLAYLIST_CTRL:
+		w32g_set_playlist_ctrl(value);
+		break;
+	case RC_EXT_LOAD_PLAYLIST:
+		ctl_load_playlist((char *)value);
+		break;
+	case RC_EXT_SAVE_PLAYLIST:
+		ctl_save_playlist((char *)value);
+		break;
+	default:
+		w32g_go_ext_control_thread(rc, value);
+		break;
+	}
+}
+#else
+static int w32g_ext_control(int rc, ptr_size_t value)
+{	
+	if(w32g_working_ext_control_thread())
+		return;
+	switch(rc)
+	{
+	case RC_EXT_PLAYLIST_CTRL:
+		w32g_set_playlist_ctrl(value);
+		break;
+	case RC_EXT_LOAD_PLAYLIST:
+		ctl_load_playlist((char *)value);
+		break;
+	case RC_EXT_SAVE_PLAYLIST:
+		ctl_save_playlist((char *)value);
+		break;
+	default:
+		return w32g_go_ext_control_thread(rc, value);
+	}
+	return RC_NONE;
+}
+#endif
+
+#elif defined(EXT_CONTROL_MAIN_THREAD)
 static int w32g_ext_control(int rc, ptr_size_t value)
 {
-    switch(rc)
-    {
-      case RC_EXT_DROP:
-	return ctl_drop_file((HDROP)value);
-      case RC_EXT_LOAD_FILE:
-	return ctl_load_file((char *)value);
-      case RC_EXT_LOAD_FILES_AND_PLAY:
-	return ctl_load_files_and_play((argc_argv_t *)value, 1);
-      case RC_EXT_LOAD_PLAYLIST:
-	return ctl_load_playlist((char *)value);
-      case RC_EXT_SAVE_PLAYLIST:
-	return ctl_save_playlist((char *)value);
-      case RC_EXT_MODE_CHANGE:
-	CanvasChange(value);
-	break;
-      case RC_EXT_APPLY_SETTING:
-	if(w32g_play_active) {
-	    mark_apply_setting = 1;
-	    return RC_STOP;
-	}
-	PrefSettingApplyReally();
-	mark_apply_setting = 0;
-	break;
-      case RC_EXT_DELETE_PLAYLIST:
-	return ctl_delete_playlist(value);
-      case RC_EXT_UPDATE_PLAYLIST:
-	w32g_update_playlist();
-	break;
-      case RC_EXT_UNIQ_PLAYLIST:
-	return ctl_uniq_playlist();
-      case RC_EXT_REFINE_PLAYLIST:
-	return ctl_refine_playlist();
-      case RC_EXT_JUMP_FILE:
-	if(w32g_goto_playlist(value, !(ctl.flags & CTLF_NOT_CONTINUE)))
-	    return RC_LOAD_FILE;
-      case RC_EXT_ROTATE_PLAYLIST:
-	w32g_rotate_playlist(value);
-	ctl_panel_refresh();
-	break;
-      case RC_EXT_CLEAR_PLAYLIST:
-	w32g_clear_playlist();
-	ctl_panel_refresh();
-	return RC_STOP;
-      case RC_EXT_OPEN_DOC:
-	w32g_setup_doc(value);
-	w32g_open_doc(0);
-	break;
-    }
-    return RC_NONE;
+	return RC_NONE;
 }
 
-static int ctl_read(int32  *valp)
+#else
+static int w32g_ext_control(int rc, ptr_size_t value)
+{
+	switch(rc)
+	{
+	case RC_EXT_PLAYLIST_CTRL:
+		w32g_set_playlist_ctrl(value);
+		break;
+	case RC_EXT_DROP:
+		if((ctl.flags & CTLF_DRAG_START))
+			w32g_set_playlist_ctrl_play();
+		return ctl_drop_file((HDROP)value);
+	case RC_EXT_LOAD_FILE:
+		return ctl_load_file((char *)value);
+	case RC_EXT_LOAD_FILES_AND_PLAY:
+		w32g_set_playlist_ctrl_play();
+		return ctl_load_files_and_play((argc_argv_t *)value, 1);
+	case RC_EXT_LOAD_PLAYLIST:
+		return ctl_load_playlist((char *)value);
+	case RC_EXT_SAVE_PLAYLIST:
+		return ctl_save_playlist((char *)value);
+	case RC_EXT_MODE_CHANGE:
+		CanvasChange(value);
+		break;
+	case RC_EXT_APPLY_SETTING:
+		if(w32g_play_active) {
+			mark_apply_setting = 1;
+			return RC_STOP;
+		}
+		PrefSettingApplyReally();
+		mark_apply_setting = 0;
+		break;
+	case RC_EXT_DELETE_PLAYLIST:
+		return ctl_delete_playlist(value);	
+	case RC_EXT_COPYCUT_PLAYLIST:
+		rrc = ctl_copycut_playlist(value);
+		break;
+	case RC_EXT_PASTE_PLAYLIST:
+		rrc = ctl_paste_playlist();
+		break;
+	case RC_EXT_UPDATE_PLAYLIST:
+		w32g_update_playlist();
+		break;
+	case RC_EXT_UNIQ_PLAYLIST:
+		return ctl_uniq_playlist();
+	case RC_EXT_REFINE_PLAYLIST:
+		return ctl_refine_playlist();
+	case RC_EXT_JUMP_FILE:
+		TracerWndDrawSkip = 1;
+		if(w32g_goto_playlist(value, !(ctl.flags & CTLF_NOT_CONTINUE)))
+		return RC_LOAD_FILE;
+		break;
+	case RC_EXT_ROTATE_PLAYLIST:
+		w32g_rotate_playlist(value);
+		ctl_panel_refresh(1);
+		break;
+	case RC_EXT_CLEAR_PLAYLIST:
+		w32g_clear_playlist();
+		if(w32g_is_playlist_ctrl_play()){ // 再生中のプレイリストなら停止
+			ctl_panel_refresh(1);
+			return RC_STOP;
+		}
+		break;
+	case RC_EXT_OPEN_DOC:
+		w32g_setup_doc(value);
+		w32g_open_doc(0);
+		break;
+	}
+	return RC_NONE;
+}
+#endif // EXT_CONTROL_
+
+
+static int ctl_read(ptr_size_t  *valp)
 {
     int rc;
     ptr_size_t buf;
-	if (cuepoint_pending) {
-		*valp = cuepoint;
-		cuepoint_pending = 0;
-		return RC_FORWARD;
-	}
+    if (cuepoint_pending) {
+	*valp = cuepoint;
+	cuepoint_pending = 0;
+	return RC_FORWARD;
+    }
     rc = w32g_get_rc(&buf, play_pause_flag);
-    *valp=(int32)buf;
+    *valp=(ptr_size_t)buf;
+#ifndef EXT_CONTROL_MAIN_THREAD
     if(rc >= RC_EXT_BASE)
 	return w32g_ext_control(rc, buf);
+#endif
     return rc;
 }
 
@@ -631,12 +963,18 @@ static void ShowStartupMessage(void)
 		*startup_message_tail = '\0';
 		w32g_msg_box(startup_message, "TiMidity Error", MB_OK);
 	}
-	free(startup_message);
+	safe_free(startup_message);
 	startup_message = NULL;
 }
 
-static void ctl_panel_refresh(void)
+static void ctl_panel_refresh(int flag)
 {
+	static double lasttime = 0;
+	double t = get_current_calender_time();
+	
+	if (!flag && (t - lasttime < update_interval_time))
+		return;
+	lasttime = t;
     MPanelReadPanelInfo(0);
     MPanelUpdate();
     MPanelPaint();
@@ -646,7 +984,7 @@ static void ctl_master_volume(int mv)
 {
     Panel->master_volume = mv;
     Panel->changed = 1;
-    ctl_panel_refresh();
+    ctl_panel_refresh(0);
 }
 
 static void ctl_metronome(int meas, int beat)
@@ -666,7 +1004,7 @@ static void ctl_metronome(int meas, int beat)
 	Panel->beat = beat;
 	Panel->changed = 1;
 
-	ctl_panel_refresh();
+	ctl_panel_refresh(0);
 }
 
 static void ctl_keysig(int8 k, int ko)
@@ -698,7 +1036,7 @@ static void ctl_keysig(int8 k, int ko)
 	sprintf(Panel->keysig, "%s %s", keysig_name[i], (k < 8) ? "Maj" : "Min");
 	Panel->key_offset = ko;
 	Panel->changed = 1;
-	ctl_panel_refresh();
+	ctl_panel_refresh(0);
 }
 
 static void ctl_tempo(int t, int tr)
@@ -718,9 +1056,10 @@ static void ctl_tempo(int t, int tr)
 	Panel->tempo = t;
 	Panel->tempo_ratio = tr;
 	Panel->changed = 1;
-	ctl_panel_refresh();
+	ctl_panel_refresh(0);
 }
 
+///r
 extern BOOL SetWrdWndActive(void);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 {
@@ -755,6 +1094,8 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 	    {
 		aq_flush(1);
 		play_mode->close_output();
+		safe_free(play_mode->name);
+		play_mode->name = NULL;
 	    }
 	    rc = w32g_get_rc(&value, 1);
 	}
@@ -763,31 +1104,48 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 	switch(rc)
 	{
 	  case RC_NONE:
-	    Sleep(1000);
+	    Sleep(100);
 	    break;
 
 	  case RC_LOAD_FILE: /* Play playlist.selected */
+		TracerWndDrawSkip = 0;
 	    if(w32g_nvalid_playlist())
 	    {
 		int selected;
-		w32g_get_playlist_index(&selected, NULL, NULL);
+		w32g_get_playlist_play_index(&selected);
 		w32g_play_active = 1;
 		if(play_mode->fd == -1)
 		{
+		    safe_free(play_mode->name);
+	//	    play_mode->name = strdup(OutputName);
+		    if (w32g_auto_output_mode > 0)
+				play_mode->name = NULL;
+		    else
+				play_mode->name = strdup(OutputName);
+		    if (play_mode->flag & PF_PCM_STREAM) {
+				play_mode->extra_param[1] = aq_calc_fragsize();
+				ctl.cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+					 "requesting fragment size: %d",
+					 play_mode->extra_param[1]);
+		    }
+			if(play_mode->close_output)
+				play_mode->close_output();
 		    if(play_mode->open_output() == -1)
 		    {
-			ctl.cmsg(CMSG_FATAL, VERB_NORMAL,
-				 "Couldn't open %s (`%c') %s",
-				 play_mode->id_name,
-				 play_mode->id_character,
-				 play_mode->name ? play_mode->name : "");
-			break;
+				ctl.cmsg(CMSG_FATAL, VERB_NORMAL,
+					 "Couldn't open %s (`%c') %s",
+					 play_mode->id_name,
+					 play_mode->id_character,
+					 play_mode->name ? play_mode->name : "");
+				break;
 		    }
 		    aq_setup();
 		    timidity_init_aq_buff();
 		}
 		if(play_mode->id_character == 'l')
 		    w32g_show_console();
+		if(ConsoleClearFlag == 0x1) 
+			ClearConsoleWnd();
 		if(!DocWndIndependent){
 			w32g_setup_doc(selected);
 			if(DocWndAutoPopup)
@@ -796,14 +1154,23 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 				w32g_open_doc(2);
 		}
 		{
-			char *p = w32g_get_playlist(selected);
+			char *p = w32g_get_playlist_play(selected);
 			if(Panel!=NULL && p!=NULL)
                             strncpy(Panel->filename,p,sizeof(Panel->filename));
 		}
 
 		SetWrdWndActive();
-		rc = play_midi_file(w32g_get_playlist(selected));
 
+#ifdef FORCE_TIME_PERIOD
+		if (timeGetDevCaps(&tcaps, sizeof(TIMECAPS)) != TIMERR_NOERROR)
+		    tcaps.wPeriodMin = 10;
+		timeBeginPeriod(tcaps.wPeriodMin);
+#endif
+		rc = play_midi_file(w32g_get_playlist_play(selected));
+
+#ifdef FORCE_TIME_PERIOD
+		timeEndPeriod(tcaps.wPeriodMin);
+#endif
 		if(ctl.flags & CTLF_NOT_CONTINUE)
 		    w32g_update_playlist(); /* Update mark of error */
 		if(rc == RC_ERROR)
@@ -823,17 +1190,24 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 	    break;
 
 	  case RC_ERROR:
-	  case RC_TUNE_END:
+	  case RC_TUNE_END:		  
+		if(play_mode->close_output)
+			play_mode->close_output();
 #if 0
 	    if(play_mode->id_character != 'd' ||
 			(ctl.flags & CTLF_NOT_CONTINUE)) {
 #else
 		if(ctl.flags & CTLF_NOT_CONTINUE) {
+			if(ctl.flags & CTLF_LIST_LOOP){
+				rc = RC_LOAD_FILE;
+				goto redo;
+			}else
 #endif
 			break;
 		}
 	    /* FALLTHROUGH */
 	  case RC_NEXT:
+		TracerWndDrawSkip = 1;
 	    if(!w32g_nvalid_playlist())
 	    {
 		if(ctl.flags & CTLF_AUTOEXIT) {
@@ -886,6 +1260,7 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 	    break;
 
 	  case RC_REALLY_PREVIOUS:
+		TracerWndDrawSkip = 1;
 #ifdef W32G_RANDOM_IS_SHUFFLE
 		w32g_shuffle_playlist_reset(0);
 #endif
@@ -897,35 +1272,43 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 	    break;
 
 	  case RC_QUIT:
+		TracerWndDrawSkip = 1;
 	    if(play_mode->fd != -1)
 		aq_flush(1);
 	    return 0;
-
+///r
 	  case RC_CHANGE_VOLUME:
-	    amplification += value;
-	    ctl_master_volume(amplification);
+	    output_amplification += value;
+	    ctl_master_volume(output_amplification);
 	    break;
-
 	  case RC_TOGGLE_PAUSE:
 	    play_pause_flag = !play_pause_flag;
 	    break;
+	  case RC_STOP:
+		TracerWndDrawSkip = 1;
+#ifdef W32G_RANDOM_IS_SHUFFLE
+		w32g_shuffle_playlist_reset(0);
+#endif
+		if(play_mode->close_output)
+			play_mode->close_output();
+	    break;
 
 	  default:
-		if(rc == RC_STOP)
-#ifdef W32G_RANDOM_IS_SHUFFLE
-			w32g_shuffle_playlist_reset(0);
-#endif
+#ifndef EXT_CONTROL_MAIN_THREAD
 	    if(rc >= RC_EXT_BASE)
 	    {
 		rc = w32g_ext_control(rc, value);
 		if(rc != RC_NONE)
 		    goto redo;
 	    }
+#endif
 	    break;
 	}
 
-	if(mark_apply_setting)
+	if(mark_apply_setting) {
 	    PrefSettingApplyReally();
+	    mark_apply_setting = 0;
+	}
 	rc = RC_NONE;
     }
 	return 0;
@@ -1194,67 +1577,73 @@ extern void w32_wrd_ctl_event(CtlEvent *e);
 extern void w32_tracer_ctl_event(CtlEvent *e);
 static void ctl_event(CtlEvent *e)
 {
+	int flg = 0;
+
 	w32_wrd_ctl_event(e);
 	w32_tracer_ctl_event(e);
     switch(e->type)
     {
-      case CTLE_NOW_LOADING:
-	PanelReset();
-	CanvasReset();
-	CanvasClear();
-	CanvasReadPanelInfo(1);
-	CanvasUpdate(1);
-	CanvasPaintAll();
-	MPanelReset();
-	MPanelReadPanelInfo(1);
-	MPanelUpdateAll();
-	MPanelPaintAll();
-	MPanelStartLoad((char *)e->v1);
-	break;
-      case CTLE_LOADING_DONE:
-	break;
-      case CTLE_PLAY_START:
-	w32g_ctle_play_start((int)e->v1 / play_mode->rate);
-	break;
-      case CTLE_PLAY_END:
-	MainWndScrollbarProgressUpdate(-1);
-	break;
+	case CTLE_NOW_LOADING:
+		PanelReset();
+		CanvasReset();
+		CanvasClear();
+		CanvasReadPanelInfo(1);
+		CanvasUpdate(1);
+		CanvasPaintAll();
+		MPanelReset();
+		MPanelReadPanelInfo(1);
+		MPanelUpdateAll();
+		MPanelPaintAll();
+		MPanelStartLoad((char *)e->v1);
+		break;
+	case CTLE_LOADING_DONE:
+		break;
+	case CTLE_PLAY_START:
+		w32g_ctle_play_start((int)e->v1 / play_mode->rate);
+		break;
+	case CTLE_PLAY_END:
+		MainWndScrollbarProgressUpdate(-1);
+		break;
 	case CTLE_CUEPOINT:
 		cuepoint = e->v1;
 		cuepoint_pending = 1;
 		break;
-      case CTLE_CURRENT_TIME: {
-	  int sec;
-	  if(midi_trace.flush_flag)
-	      return;
-	  if(ctl.trace_playing)
-	      sec = (int)e->v1;
-	  else
-	  {
-	      sec = current_trace_samples();
-	      if(sec < 0)
-		  sec = (int)e->v1;
-	      else
-		  sec = sec / play_mode->rate;
-	  }
-	  ctl_current_time(sec, (int)e->v2);
-	  display_aq_ratio();
-	  MainWndScrollbarProgressUpdate(sec);
-	  ctl_panel_refresh();
-	}
-	break;
-      case CTLE_NOTE:
-	ctl_note((int)e->v1, (int)e->v2, (int)e->v3, (int)e->v4);
-	break;
-      case CTLE_GSLCD:
-	ctl_gslcd((int)e->v1);
-	CanvasReadPanelInfo(0);
-	CanvasUpdate(0);
-	CanvasPaint();
-	break;
-      case CTLE_MASTER_VOLUME:
-	ctl_master_volume((int)e->v1);
-	break;
+	case CTLE_CURRENT_TIME_END:
+		flg = 1;
+		// thru
+	case CTLE_CURRENT_TIME:
+		{
+		int sec;
+		if(midi_trace.flush_flag)
+			return;
+		if(ctl.trace_playing)
+			sec = (int)e->v1;
+		else
+		{
+			sec = current_trace_samples();
+			if(sec < 0)
+			sec = (int)e->v1;
+			else
+			sec = sec / play_mode->rate;
+		}
+		ctl_current_time(sec, (int)e->v2);
+		display_aq_ratio();
+		MainWndScrollbarProgressUpdate(sec);
+		ctl_panel_refresh(flg);
+		}
+		break;
+	case CTLE_NOTE:
+		ctl_note((int)e->v1, (int)e->v2, (int)e->v3, (int)e->v4);
+		break;
+	case CTLE_GSLCD:
+		ctl_gslcd((int)e->v1);
+		CanvasReadPanelInfo(0);
+		CanvasUpdate(0);
+		CanvasPaint();
+		break;
+	case CTLE_MASTER_VOLUME:
+		ctl_master_volume((int)e->v1);
+		break;
 	case CTLE_METRONOME:
 		ctl_metronome((int) e->v1, (int) e->v2);
 		break;
@@ -1270,71 +1659,83 @@ static void ctl_event(CtlEvent *e)
 	case CTLE_TIME_RATIO:
 		ctl_tempo(CTL_STATUS_UPDATE, (int) e->v1);
 		break;
-      case CTLE_PROGRAM:
-//	ctl_program((int)e->v1, (int)e->v2, (char *)e->v3);
-	ctl_program((int)e->v1, (int)e->v2);
-	break;
-      case CTLE_VOLUME:
-	ctl_volume((int)e->v1, (int)e->v2);
-	break;
-      case CTLE_EXPRESSION:
-	ctl_expression((int)e->v1, (int)e->v2);
-	break;
-      case CTLE_PANNING:
-	ctl_panning((int)e->v1, (int)e->v2);
-	break;
-      case CTLE_SUSTAIN:
-	ctl_sustain((int)e->v1, (int)e->v2);
-	break;
-      case CTLE_PITCH_BEND:
-	ctl_pitch_bend((int)e->v1, (int)e->v2);
-	break;
-      case CTLE_MOD_WHEEL:
-	ctl_pitch_bend((int)e->v1, e->v2 ? -2 : 0x2000);
-	break;
-      case CTLE_CHORUS_EFFECT:
-	break;
-      case CTLE_REVERB_EFFECT:
-	break;
+	case CTLE_PROGRAM:
+	//	ctl_program((int)e->v1, (int)e->v2, (char *)e->v3);
+		ctl_program((int)e->v1, (int)e->v2);
+		break;
+	case CTLE_VOLUME:
+		ctl_volume((int)e->v1, (int)e->v2);
+		break;
+	case CTLE_EXPRESSION:
+		ctl_expression((int)e->v1, (int)e->v2);
+		break;
+	case CTLE_PANNING:
+		ctl_panning((int)e->v1, (int)e->v2);
+		break;
+	case CTLE_SUSTAIN:
+		ctl_sustain((int)e->v1, (int)e->v2);
+		break;
+	case CTLE_PITCH_BEND:
+		ctl_pitch_bend((int)e->v1, (int)e->v2);
+		break;
+	case CTLE_MOD_WHEEL:
+		ctl_pitch_bend((int)e->v1, e->v2 ? -2 : 0x2000);
+		break;
+	case CTLE_CHORUS_EFFECT:
+		break;
+	case CTLE_REVERB_EFFECT:
+		break;
 #if 1
-      case CTLE_LYRIC:
-		  {
-			char *lyric;
-		    lyric = event2string((uint16)e->v1);
-			if(lyric != NULL){
-				MPanelMessageClearAll();
-				MPanelMessageAdd(lyric+1,20000,1);
-			}
-		  }
+	case CTLE_LYRIC:
+		{
+		char *lyric;
+		lyric = event2string((uint16)e->v1);
+		if(lyric != NULL){
+			MPanelMessageClearAll();
+			MPanelMessageAdd(lyric+1,20000,1);
+		}
+		}
 #else
-	default_ctl_lyric((uint16)e->v1);
+		default_ctl_lyric((uint16)e->v1);
 #endif
-	break;
+		break;
 	case CTLE_REFRESH:
 		if (CanvasGetMode() == CANVAS_MODE_KBD_A
-				|| CanvasGetMode() == CANVAS_MODE_KBD_B) {
+				|| CanvasGetMode() == CANVAS_MODE_KBD_B
+				|| CanvasGetMode() == CANVAS_MODE_KBD_C
+				|| CanvasGetMode() == CANVAS_MODE_KBD_D) {
 			CanvasReadPanelInfo(0);
 			CanvasUpdate(0);
 			CanvasPaint();
 		}
 		break;
-      case CTLE_RESET:
-	ctl_reset();
-	break;
-      case CTLE_SPEANA:
-	break;
-      case CTLE_PAUSE:
-	if(w32g_play_active)
-	{
-	    MainWndScrollbarProgressUpdate((int)e->v2);
-	    if(!(int)e->v1)
+	case CTLE_RESET:
 		ctl_reset();
-	    ctl_current_time((int)e->v2, 0);
-	    ctl_panel_refresh();
-	}
-	break;
-      case CTLE_MAXVOICES:
-	ctl_maxvoices((int)e->v1);
-	break;
+		break;
+	case CTLE_SPEANA:
+		break;
+	case CTLE_PAUSE:
+		if(w32g_play_active)
+		{
+			MainWndScrollbarProgressUpdate((int)e->v2);
+			if(!(int)e->v1)
+			ctl_reset();
+			ctl_current_time((int)e->v2, 0);
+			ctl_panel_refresh(0);
+		}
+		break;
+	case CTLE_MAXVOICES:
+		ctl_maxvoices((int)e->v1);
+		break;
     }
 }
+
+/*
+ * interface_<id>_loader();
+ */
+ControlMode *interface_d_loader(void)
+{
+    return &ctl;
+}
+
+

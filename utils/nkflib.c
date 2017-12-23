@@ -27,17 +27,17 @@
 /** Network Kanji Filter. (PDS Version)
 ************************************************************************
 ** Copyright (C) 1987, Fujitsu LTD. (Itaru ICHIKAWA)
-** 息晚黎¨ ∈臭∷少晃奶甫垫疥　ソフト３甫　辉李　魂 
-** ∈E-Mail Address: ichikawa@flab.fujitsu.co.jp∷
+** 楢棈愭丗 乮姅乯晉巑捠尋媶強丂僜僼僩俁尋丂巗愳丂帄 
+** 乮E-Mail Address: ichikawa@flab.fujitsu.co.jp乯
 ** Copyright (C) 1996,1998
-** 息晚黎¨ 伟靛络池攫鼠供池彩 蚕填 靠迹  mine/X0208 support
-** ∈E-Mail Address: kono@ie.u-ryukyu.ac.jp∷
-** 息晚黎¨ COW for DOS & Win16 & Win32 & OS/2
-** ∈E-Mail Address: GHG00637@niftyserve.or.p∷
-**    このソ〖スのいかなる剩继·猖恃·饯赖も钓满します。ただし、
-**    その狠には、茂が棺弗したを绩すこの婶尸を荒すこと。
-**    浩芹邵や花伙の烧峡などの啼い圭わせも涩妥ありません。
-**    このプログラムについては泼に部の瘦沮もしない、碍しからず。
+** 楢棈愭丗 棶媴戝妛忣曬岺妛壢 壨栰 恀帯  mine/X0208 support
+** 乮E-Mail Address: kono@ie.u-ryukyu.ac.jp乯
+** 楢棈愭丗 COW for DOS & Win16 & Win32 & OS/2
+** 乮E-Mail Address: GHG00637@niftyserve.or.p乯
+**    偙偺僜乕僗偺偄偐側傞暋幨丆夵曄丆廋惓傕嫋戻偟傑偡丅偨偩偟丄
+**    偦偺嵺偵偼丄扤偑峷專偟偨傪帵偡偙偺晹暘傪巆偡偙偲丅
+**    嵞攝晍傗嶨帍偺晅榐側偳偺栤偄崌傢偣傕昁梫偁傝傑偣傫丅
+**    偙偺僾儘僌儔儉偵偮偄偰偼摿偵壗偺曐徹傕偟側偄丄埆偟偐傜偢丅
 **    Everyone is permitted to do anything on this program 
 **    including copying, modifying, improving.
 **    as long as you don't try to pretend that you wrote it.
@@ -46,49 +46,49 @@
 **    THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE.
 ***********************************************************************/
 
-/* 笆布のソ〖スは、nkf を矢机误拎侯できるよう猖陇したライブラリである。
+/* 埲壓偺僜乕僗偼丄nkf 傪暥帤楍憖嶌偱偒傞傛偆夵憿偟偨儔僀僽儔儕偱偁傞丅
 
-   nkf_conv(傅矢机误,叫蜗矢机误、out モ〖ド)
-     叫蜗矢机误を NULL としたときは、傅矢机误を拎侯する。
-     バグ : 恃垂され叫蜗される矢机误のための挝拌はある镍刨とっておくこと。
-	    さもないと、バグを栏じる。
-   nkf_convert(傅矢机误、叫蜗矢机误、叫蜗矢机误の呵络の络きさ、
-               in モ〖ド、out モ〖ド)
-     kanji_conv に洁じる。叫蜗矢机误の呵络の络きさが回年できる。
-     その络きさ笆惧になったときはそれ笆惧の矢机の叫蜗は虑ち磊られる。
-   モ〖ド
-     nkf の convert に涂えるオプションを涂える矢机误。鄂球で惰磊って回年する。
-     称オプション:
+   nkf_conv(尦暥帤楍,弌椡暥帤楍丄out 儌乕僪)
+     弌椡暥帤楍傪 NULL 偲偟偨偲偒偼丄尦暥帤楍傪憖嶌偡傞丅
+     僶僌 : 曄姺偝傟弌椡偝傟傞暥帤楍偺偨傔偺椞堟偼偁傞掱搙偲偭偰偍偔偙偲丅
+	    偝傕側偄偲丄僶僌傪惗偠傞丅
+   nkf_convert(尦暥帤楍丄弌椡暥帤楍丄弌椡暥帤楍偺嵟戝偺戝偒偝丄
+               in 儌乕僪丄out 儌乕僪)
+     kanji_conv 偵弨偠傞丅弌椡暥帤楍偺嵟戝偺戝偒偝偑巜掕偱偒傞丅
+     偦偺戝偒偝埲忋偵側偭偨偲偒偼偦傟埲忋偺暥帤偺弌椡偼懪偪愗傜傟傞丅
+   儌乕僪
+     nkf 偺 convert 偵梌偊傞僆僾僔儑儞傪梌偊傞暥帤楍丅嬻敀偱嬫愗偭偰巜掕偡傞丅
+     奺僆僾僔儑儞:
 
-   このプログラムに簇しての螟侯涪がらみのことは nkf に洁じるものとする。
-   痰瘦沮であるので、蝗脱の眷圭は极らの勒扦をもってすること。
-   猖恃荚 滥腾络叔	1997.02
+   偙偺僾儘僌儔儉偵娭偟偰偺挊嶌尃偑傜傒偺偙偲偼 nkf 偵弨偠傞傕偺偲偡傞丅
+   柍曐徹偱偁傞偺偱丄巊梡偺応崌偼帺傜偺愑擟傪傕偭偰偡傞偙偲丅
+   夵曄幰 惵栘戝曘	1997.02
 */
 
-/* 痰绿なところを猴近したˉ
-   戮で脱いられないインタ〖フェ〖スは static にしたˉ
-   コンパイラの Warning メッセ〖ジを娃扩するように ANSI C の妨及にしたˉ
-   矢机を unsigned char * で SFILE に眠えるようにしたˉ
-   SFILE を词帽步ˉ
-   input_f == FALSE で convert すると·染逞カタカナ SJIS が EUC
-         と冉们されてしまうバグ(慌屯だった々)を木したˉ
-	 しかしながら·SJIS の染逞カタカナ 2 矢机と EUC は惰侍できない
-	 眷圭があるˉこのときは SJIS として恃垂することにしたˉ
-   EUC_STRICT_CHECK を年盗すると EUC-Japan の年盗コ〖ドを窗链にチェックする
-   ようにしたˉ
-   粕み哈み矢机を回年できるようにしたˉ
-   猖恃荚 叫崩赖景 1997
+/* 柍懯側偲偙傠傪嶍彍偟偨丏
+   懠偱梡偄傜傟側偄僀儞僞乕僼僃乕僗偼 static 偵偟偨丏
+   僐儞僷僀儔偺 Warning 儊僢僙乕僕傪梷惂偡傞傛偆偵 ANSI C 偺宍幃偵偟偨丏
+   暥帤傪 unsigned char * 偱 SFILE 偵拁偊傞傛偆偵偟偨丏
+   SFILE 傪娙扨壔丏
+   input_f == FALSE 偱 convert 偡傞偲丆敿妏僇僞僇僫 SJIS 偑 EUC
+         偲敾抐偝傟偰偟傑偆僶僌(巇條偩偭偨丠)傪捈偟偨丏
+	 偟偐偟側偑傜丆SJIS 偺敿妏僇僞僇僫 2 暥帤偲 EUC 偼嬫暿偱偒側偄
+	 応崌偑偁傞丏偙偺偲偒偼 SJIS 偲偟偰曄姺偡傞偙偲偵偟偨丏
+   EUC_STRICT_CHECK 傪掕媊偡傞偲 EUC-Japan 偺掕媊僐乕僪傪姰慡偵僠僃僢僋偡傞
+   傛偆偵偟偨丏
+   撉傒崬傒暥帤傪巜掕偱偒傞傛偆偵偟偨丏
+   夵曄幰 弌塤惓彯 1997
 */
 
 /*
-  1.7ベ〖スに恃构。
-  猖恃荚 滥腾络叔 2000.10
+  1.7儀乕僗偵曄峏丅
+  夵曄幰 惵栘戝曘 2000.10
 */
 
-/* もし·EUC-Japan の窗链なチェックをする眷圭は EUC_STRICT_CHECK を年盗
- * してくださいˉただし·1 バイトでも EUC-Japan の踏年盗矢机が崔まれていると
- * EUC とみなされなくなってしまいますˉ戮のプログラムで戳机コ〖ドを EUC に恃垂
- * した眷圭·EUC の踏年盗拌へマップされる材墙拉がありますˉ
+/* 傕偟丆EUC-Japan 偺姰慡側僠僃僢僋傪偡傞応崌偼 EUC_STRICT_CHECK 傪掕媊
+ * 偟偰偔偩偝偄丏偨偩偟丆1 僶僀僩偱傕 EUC-Japan 偺枹掕媊暥帤偑娷傑傟偰偄傞偲
+ * EUC 偲傒側偝傟側偔側偭偰偟傑偄傑偡丏懠偺僾儘僌儔儉偱娍帤僐乕僪傪 EUC 偵曄姺
+ * 偟偨応崌丆EUC 偺枹掕媊堟傊儅僢僾偝傟傞壜擻惈偑偁傝傑偡丏
  */
 /* #define EUC_STRICT_CHECK */
 
@@ -142,7 +142,7 @@ static char *Patchlevel =
 ** c   Add \r in line feed 
 **/
 /******************************/
-/* デフォルトの叫蜗コ〖ド联买 */
+/* 僨僼僅儖僩偺弌椡僐乕僪慖戰 */
 /* Select DEFAULT_CODE */
 #define DEFAULT_CODE_JIS
 /* #define DEFAULT_CODE_SJIS */
@@ -224,48 +224,48 @@ static char *Patchlevel =
 
 
 /* SFILE begin */
-/* 矢机误 を FILE みたいに胺う井嘿供 */
+/* 暥帤楍 傪 FILE 傒偨偄偵埖偆彫嵶岺 */
 
 /*
-   これは nkf の戳机コ〖ド恃垂がファイルに滦してのみ滦炳しているのでそれを
-   矢机误拎侯で蝗えるようにするためのインタ〖フェ〖スである。ただし、
-   滦炳している怠墙は警ないし、涩妥なものしか侯っていない。したがって、
-   これらは nkf の面でしか罢蹋のないものであろう。
+   偙傟偼 nkf 偺娍帤僐乕僪曄姺偑僼傽僀儖偵懳偟偰偺傒懳墳偟偰偄傞偺偱偦傟傪
+   暥帤楍憖嶌偱巊偊傞傛偆偵偡傞偨傔偺僀儞僞乕僼僃乕僗偱偁傞丅偨偩偟丄
+   懳墳偟偰偄傞婡擻偼彮側偄偟丄昁梫側傕偺偟偐嶌偭偰偄側偄丅偟偨偑偭偰丄
+   偙傟傜偼 nkf 偺拞偱偟偐堄枴偺側偄傕偺偱偁傠偆丅
 
-   SFILE は FILE みたいなもので矢机误をファイルみたいに胺えるようにする。
-   SFILE を蝗うためには涩ずオ〖プンすること。ssopen で mode=="new" または
-   "auto" 回年していなければクロ〖ズする涩妥はない。SFILE の面を木儡拎侯
-   した眷圭はいろいろ啼玛が叫てくるであろう。
+   SFILE 偼 FILE 傒偨偄側傕偺偱暥帤楍傪僼傽僀儖傒偨偄偵埖偊傞傛偆偵偡傞丅
+   SFILE 傪巊偆偨傔偵偼昁偢僆乕僾儞偡傞偙偲丅ssopen 偱 mode=="new" 傑偨偼
+   "auto" 巜掕偟偰偄側偗傟偽僋儘乕僘偡傞昁梫偼側偄丅SFILE 偺拞傪捈愙憖嶌
+   偟偨応崌偼偄傠偄傠栤戣偑弌偰偔傞偱偁傠偆丅
 
-   SEOF は EOF みたいなもの。
+   SEOF 偼 EOF 傒偨偄側傕偺丅
 
-   ssopen は open みたいな簇眶で、
-      sf : SFILE 房の恃眶
-      st : 矢机误
-      maxsize : 矢机误が钓推できる呵络の络きさ。sputc 箕に扩嘎を掐れるもの。
-		maxsize に -1 を回年するとこの借妄を痰浑するようになる。
-		そのときは、涩妥笆惧の矢机を sputc しないように丹をつけなけれ
-		ばならない。
-      mode : newstr、stdout、stdin の矢机误を回年できる。
-	     毋えば mode="new stdout"
-	     newstr は极瓢弄に矢机误のメモリを maxsize だけ惩评する。
-	     ただし、maxsize < 1 のときはディフォルトの猛を惩评する。
-	     stdout は SFILE の筛洁叫蜗 stdout となる矢机误を回年する。
-	     stdin は SFILE の筛洁掐蜗 stdin となる矢机误を回年する。
+   ssopen 偼 open 傒偨偄側娭悢偱丄
+      sf : SFILE 宆偺曄悢
+      st : 暥帤楍
+      maxsize : 暥帤楍偑嫋梕偱偒傞嵟戝偺戝偒偝丅sputc 帪偵惂尷傪擖傟傞傕偺丅
+		maxsize 偵 -1 傪巜掕偡傞偲偙偺張棟傪柍帇偡傞傛偆偵側傞丅
+		偦偺偲偒偼丄昁梫埲忋偺暥帤傪 sputc 偟側偄傛偆偵婥傪偮偗側偗傟
+		偽側傜側偄丅
+      mode : newstr丄stdout丄stdin 偺暥帤楍傪巜掕偱偒傞丅
+	     椺偊偽 mode="new stdout"
+	     newstr 偼帺摦揑偵暥帤楍偺儊儌儕傪 maxsize 偩偗妉摼偡傞丅
+	     偨偩偟丄maxsize < 1 偺偲偒偼僨傿僼僅儖僩偺抣傪妉摼偡傞丅
+	     stdout 偼 SFILE 偺昗弨弌椡 stdout 偲側傞暥帤楍傪巜掕偡傞丅
+	     stdin 偼 SFILE 偺昗弨擖椡 stdin 偲側傞暥帤楍傪巜掕偡傞丅
 
-   sclose は close みたいな簇眶で、newstr でオ〖プンされていたときは、
-   矢机误も free で久殿する。
+   sclose 偼 close 傒偨偄側娭悢偱丄newstr 偱僆乕僾儞偝傟偰偄偨偲偒偼丄
+   暥帤楍傕 free 偱徚嫀偡傞丅
 
-   sgetc、sungetc、sputc、sputchar はそれぞれ getc、ungetc、putc、putchar
-   に陵碰する。苞眶の sf が NULL の箕は SEOF を手す。
+   sgetc丄sungetc丄sputc丄sputchar 偼偦傟偧傟 getc丄ungetc丄putc丄putchar
+   偵憡摉偡傞丅堷悢偺 sf 偑 NULL 偺帪偼 SEOF 傪曉偡丅
 */
 
 typedef struct __SFILE {
-  unsigned char *pointer;      /* 矢机误附哼のポインタ */
-  unsigned char *head;	       /* 矢机误の呵介の疤弥 */
-  unsigned char *tail;	       /* 矢机误の钓推の呵稿の疤弥 */
-  char mode[20];	       /* 矢机误オ〖プンモ〖ド newstr,stdout,stdin */
-				/* "newstr stdin" の寥圭わせはない */
+  unsigned char *pointer;      /* 暥帤楍尰嵼偺億僀儞僞 */
+  unsigned char *head;	       /* 暥帤楍偺嵟弶偺埵抲 */
+  unsigned char *tail;	       /* 暥帤楍偺嫋梕偺嵟屻偺埵抲 */
+  char mode[20];	       /* 暥帤楍僆乕僾儞儌乕僪 newstr,stdout,stdin */
+				/* "newstr stdin" 偺慻崌傢偣偼側偄 */
 } SFILE;
 #define SEOF -1
 
@@ -287,7 +287,7 @@ static int sungetc(int c,SFILE *sf);
 static int sputc(int c,SFILE *sf);
 #define sputchar(c) sputc(c,sstdout)
 
-/* nkf 戳机コンバ〖ト */
+/* nkf 娍帤僐儞僶乕僩 */
 char *nkf_convert(char *si,char *so,int maxsize,char *in_mode,char *out_mode);
 char *nkf_conv(char *si,char *so,char *out_mode);
 
@@ -499,7 +499,7 @@ unsigned char fv[] = {
 } ;
 
 
-/* SFILE 簇息簇眶 */
+/* SFILE 娭楢娭悢 */
 
 static SFILE *
 ssopen(SFILE *sf, char *string, signed int maxsize, char *md)
@@ -537,7 +537,7 @@ sclose(SFILE *sf)
   if (strstr(sf->mode,"stdin"))
       sstdin=NULL;
   if (strstr(sf->mode,"newstr") && sf->head != (unsigned char *)sfile_buffer)
-      free(sf->head);
+      safe_free(sf->head);
 }
 
 static int
@@ -572,19 +572,19 @@ sputc(int c, SFILE *sf)
   return SEOF;
 }
 
-/* public 簇眶 start */
+/* public 娭悢 start */
 
-/* nkf 戳机コンバ〖ト簇眶 */
+/* nkf 娍帤僐儞僶乕僩娭悢 */
 /* si must be terminated with '\0' */
 char *
 nkf_convert(char *si, char *so, int maxsize, char *in_mode, char *out_mode)
 {
-/* 涟借妄 */
+/* 慜張棟 */
   SFILE *fi,*fo;
   SFILE xfi,xfo;
   int a;
 
-  reinit(); /* 蝗脱々 */
+  reinit(); /* 巊梡丠 */
 
   if(maxsize == -1)
     maxsize = SAFE_CONVERT_LENGTH(strlen(si));
@@ -601,7 +601,7 @@ nkf_convert(char *si, char *so, int maxsize, char *in_mode, char *out_mode)
     ssopen(fo,so,maxsize,"newstr stdout");
   }
 
-/* 恃眶をデフォルト肋年 */
+/* 曄悢傪僨僼僅儖僩愝掕 */
   unbuf_f = FALSE;
   estab_f = FALSE;
   rot_f = FALSE;	/* rot14/43 mode */
@@ -627,31 +627,31 @@ nkf_convert(char *si, char *so, int maxsize, char *in_mode, char *out_mode)
   mime_mode = FALSE;	/* MIME mode B base64, Q hex */
   
 #if	0
-/* No X0201->X0208 conversion 染逞カナを铜跟に*/
+/* No X0201->X0208 conversion 敿妏僇僫傪桳岠偵*/
   x0201_f = FALSE;
 #else
-/* 染逞カナを链逞にする */
+/* 敿妏僇僫傪慡妏偵偡傞 */
   x0201_f = TRUE;
 #endif
 
-/* オプション mode 豺老 */
+/* 僆僾僔儑儞 mode 夝愅 */
   oconv=e_oconv;
   if (strstr(out_mode,"EUCK")||strstr(out_mode,"euck")||strstr(out_mode,"ujisk")){
     /*Hankaku Enable (For WRD File )*/
     oconv=e_oconv; 
-    /* No X0201->X0208 conversion 染逞カナを铜跟に*/
+    /* No X0201->X0208 conversion 敿妏僇僫傪桳岠偵*/
     x0201_f = FALSE;
   }
   else if (strstr(out_mode,"SJISK")||strstr(out_mode,"sjisk")){
     /*Hankaku Enable (For WRD File )*/
     oconv=s_oconv; 
-    /* No X0201->X0208 conversion 染逞カナを铜跟に*/
+    /* No X0201->X0208 conversion 敿妏僇僫傪桳岠偵*/
     x0201_f = FALSE;
   }
   else if (strstr(out_mode,"JISK")||strstr(out_mode,"jisk")){
     /*Hankaku Enable (For WRD File )*/
     oconv=j_oconv; 
-    /* No X0201->X0208 conversion 染逞カナを铜跟に*/
+    /* No X0201->X0208 conversion 敿妏僇僫傪桳岠偵*/
     x0201_f = FALSE;
   }
   else if (strstr(out_mode,"EUC")||strstr(out_mode,"euc")||strstr(out_mode,"ujis"))
@@ -660,7 +660,7 @@ nkf_convert(char *si, char *so, int maxsize, char *in_mode, char *out_mode)
     oconv=s_oconv;
   else if (strstr(out_mode,"JIS")||strstr(out_mode,"jis"))
     oconv=j_oconv;
-  /* 粕み哈みコ〖ドのチェック */
+  /* 撉傒崬傒僐乕僪偺僠僃僢僋 */
   input_f = -1;
   if(in_mode != NULL)
   {
@@ -683,10 +683,10 @@ nkf_convert(char *si, char *so, int maxsize, char *in_mode, char *out_mode)
 	  x0201_f = TRUE;
   }
 
-  /* コンバ〖ト */
+  /* 僐儞僶乕僩 */
   kanji_convert(fi);
 
-/* 稿借妄 */
+/* 屻張棟 */
   sputchar('\0');
   if (so==NULL) {
     /* Copy `fo' buffer to `si' */
@@ -708,7 +708,7 @@ nkf_conv(char *si, char *so, char *mode)
   return nkf_convert(si,so,-1,NULL,mode);
 }
 
-/* public 簇眶 end */
+/* public 娭悢 end */
 
 #define IS_SJIS_HANKAKU(c)	(0xa0 <= (c) && (c) <= 0xdf)
 #define IS_SJIS_BYTE1(c)	((0x81 <= (c) && (c) <= 0x9f) ||\
@@ -1218,12 +1218,12 @@ kanji_convert(SFILE  *f)
                                 if((c2 = GETC(f)) == EOF) {
                                     (*oconv)(cv[(c1-SSP)*2],cv[(c1-SSP)*2+1]);
                                     LAST;
-                                } else if(c2==(0xde)) { /* 蛮爬 */
+                                } else if(c2==(0xde)) { /* 戺揰 */
                                     (*oconv)(dv[(c1-SSP)*2],dv[(c1-SSP)*2+1]);
                                     c2=0; 
                                     NEXT;
                                 } else if(c2==(0xdf)&&ev[(c1-SSP)*2]) { 
-                                    /* 染蛮爬 */
+                                    /* 敿戺揰 */
                                     (*oconv)(ev[(c1-SSP)*2],ev[(c1-SSP)*2+1]);
                                     c2=0; 
                                     NEXT;
@@ -1250,7 +1250,7 @@ kanji_convert(SFILE  *f)
                                     (*oconv)(cv[(c1-SSP)*2],cv[(c1-SSP)*2+1]);
                                     LAST;
                                 }
-                                /* forward lookup 蛮爬/染蛮爬 */
+                                /* forward lookup 戺揰/敿戺揰 */
                                 if(c2 != SSO) {
                                     UNGETC(c2,f); c2 = 0; 
                                     (*oconv)(cv[(c1-SSP)*2],cv[(c1-SSP)*2+1]);
@@ -1259,12 +1259,12 @@ kanji_convert(SFILE  *f)
                                     (*oconv)(cv[(c1-SSP)*2],cv[(c1-SSP)*2+1]);
                                     (*oconv)(0,SSO); 
                                     LAST;
-                                } else if(c2==(0xde)) { /* 蛮爬 */
+                                } else if(c2==(0xde)) { /* 戺揰 */
                                     (*oconv)(dv[(c1-SSP)*2],dv[(c1-SSP)*2+1]);
                                     c2=0; 
                                     NEXT;
                                 } else if(c2==(0xdf)&&ev[(c1-SSP)*2]) { 
-                                    /* 染蛮爬 */
+                                    /* 敿戺揰 */
                                     (*oconv)(ev[(c1-SSP)*2],ev[(c1-SSP)*2+1]);
                                     c2=0; 
                                     NEXT;
@@ -1302,12 +1302,12 @@ kanji_convert(SFILE  *f)
                             if((c2 = GETC(f)) == EOF) {
                                 (*oconv)(cv[(c1-SSP)*2],cv[(c1-SSP)*2+1]);
                                 LAST;
-                            } else if(c2==(0xde&0x7f)) { /* 蛮爬 */
+                            } else if(c2==(0xde&0x7f)) { /* 戺揰 */
                                 (*oconv)(dv[(c1-SSP)*2],dv[(c1-SSP)*2+1]);
                                 c2=0; 
                                 NEXT;
                             } else if(c2==(0xdf&0x7f)&&ev[(c1-SSP)*2]) {  
-                                /* 染蛮爬 */
+                                /* 敿戺揰 */
                                 (*oconv)(ev[(c1-SSP)*2],ev[(c1-SSP)*2+1]);
                                 c2=0; 
                                 NEXT;
@@ -1901,11 +1901,11 @@ line_fold(int c2, int c1)
     }
     /* simple kinsoku rules  return 1 means no folding  */
     if(c2==0) {
-        if(c1==0xde) return 1; /* ～*/
-        if(c1==0xdf) return 1; /* ‖*/
-        if(c1==0xa4) return 1; /* 。*/
-        if(c1==0xa3) return 1; /* ·*/
-        if(c1==0xa1) return 1; /* ∽*/
+        if(c1==0xde) return 1; /* 丣*/
+        if(c1==0xdf) return 1; /* 並*/
+        if(c1==0xa4) return 1; /* 丅*/
+        if(c1==0xa3) return 1; /* 丆*/
+        if(c1==0xa1) return 1; /* 乿*/
         if(c1==0xb0) return 1; /* - */
         if(SSP<=c1 && c1<=0xdf) {               /* X0201 */
             line = 1;
@@ -1931,16 +1931,16 @@ line_fold(int c2, int c1)
         return 1;  /* default no fold in ASCII */
     } else {
         if(c2=='!') {
-            if(c1=='"')  return 1; /* 、 */
-            if(c1=='#')  return 1; /* 。 */
-            if(c1=='$')  return 1; /* · */
-            if(c1=='%')  return 1; /* ˉ */
-            if(c1=='\'') return 1; /* ≤ */
-            if(c1=='(')  return 1; /* 〃 */
-            if(c1==')')  return 1; /* 々 */
-            if(c1=='*')  return 1; /* — */
-            if(c1=='+')  return 1; /* ～ */
-            if(c1==',')  return 1; /* ‖ */
+            if(c1=='"')  return 1; /* 丄 */
+            if(c1=='#')  return 1; /* 丅 */
+            if(c1=='$')  return 1; /* 丆 */
+            if(c1=='%')  return 1; /* 丏 */
+            if(c1=='\'') return 1; /* 亄 */
+            if(c1=='(')  return 1; /* 丟 */
+            if(c1==')')  return 1; /* 丠 */
+            if(c1=='*')  return 1; /* 両 */
+            if(c1=='+')  return 1; /* 丣 */
+            if(c1==',')  return 1; /* 並 */
         }
         line = 2;
         return '\n'; /* add one new line before this character */
@@ -2375,7 +2375,7 @@ usage()
 #endif
 
 /**
- ** パッチ扩侯荚
+ ** 僷僢僠惂嶌幰
  **  void@merope.pleiades.or.jp (Kusakabe Youichi)
  **  NIDE Naoyuki <nide@ics.nara-wu.ac.jp>
  **  ohta@src.ricoh.co.jp (Junn Ohta)
@@ -2386,7 +2386,7 @@ usage()
  **  kono@ie.u-ryukyu.ac.jp (Shinji Kono)
  **  GHG00637@nifty-serve.or.jp (COW)
  **
- ** 呵姜构糠泣
+ ** 嵟廔峏怴擔
  **  1998.11.7
  **/
 

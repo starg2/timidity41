@@ -28,4 +28,6 @@ EXTRA_DIST = \
   libOggFLAC.m4 \
   ogg.m4 \
   utils.m4 \
+  speex.m4 \
+  opus.m4 \
   vorbis.m4

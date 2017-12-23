@@ -61,7 +61,9 @@ extern int opterr;
 
 extern int optopt;
 
-extern int getopt (int __argc, char *const *__argv, const char *__shortopts);
+#ifndef UTILS_GETOPT_PRIVATE
+extern int getopt(int __argc, char * const *__argv, const char *__shortopts);
+#endif /* !UTILS_GETOPT_PRIVATE */
 
 #endif /* <unistd.h> */
 
@@ -69,7 +71,7 @@ extern int getopt (int __argc, char *const *__argv, const char *__shortopts);
 /* gtopt_long() declared here */
 #include <getopt.h>
 
-#if __POCC__
+#ifdef __POCC__
 struct option {
 const char *name;
 int has_arg;
@@ -123,6 +125,7 @@ struct option
 
 
 
+#ifndef UTILS_GETOPT_PRIVATE
 /* Get definitions and prototypes for functions to process the
    arguments in ARGV (ARGC of them, minus the program name) for
    options given in OPTS.
@@ -147,12 +150,13 @@ struct option
    arguments to the option '\0'.  This behavior is specific to the GNU
    `getopt'.  */
 
-extern int getopt_long (int __argc, char *const *__argv,
+extern int getopt_long(int __argc, char * const *__argv,
 			const char *__shortopts,
 		        const struct option *__longopts, int *__longind);
-extern int getopt_long_only (int __argc, char *const *__argv,
+extern int getopt_long_only(int __argc, char * const *__argv,
 			     const char *__shortopts,
 		             const struct option *__longopts, int *__longind);
+#endif /* !UTILS_GETOPT_PRIVATE */
 
 #endif /* <getopt.h> */
 

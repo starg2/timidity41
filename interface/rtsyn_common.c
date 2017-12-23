@@ -75,7 +75,7 @@
 extern int32 current_sample;
 extern void reset_midi(int playing);
 
-//int seq_quit;
+int seq_quit = ~0;
 
 int rtsyn_system_mode = DEFAULT_SYSTEM_MODE;
 double rtsyn_latency = RTSYN_LATENCY;   //ratency (sec)
@@ -156,6 +156,53 @@ void rtsyn_xg_reset(){
 }
 
 
+
+void rtsyn_gm2_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=GM2_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
+}
+
+
+
+void rtsyn_sd_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=SD_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
+}
+
+
+void rtsyn_kg_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=KG_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
+}
+
+
+
+void rtsyn_cm_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=CM_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
+}
+
+
 void rtsyn_normal_reset(){
 	MidiEvent ev;
 
@@ -203,6 +250,60 @@ void rtsyn_xg_modeset(){
 }
 
 
+void rtsyn_gm2_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=GM2_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=GM2_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
+}
+
+
+void rtsyn_sd_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=SD_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=SD_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
+}
+
+
+
+void rtsyn_kg_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=KG_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=KG_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
+}
+
+
+
+void rtsyn_cm_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=CM_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=CM_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
+}
+
+
 void rtsyn_normal_modeset(){
 	MidiEvent ev;
 
@@ -216,7 +317,8 @@ void rtsyn_normal_modeset(){
 }
 
 double rtsyn_set_latency(double latency){
-	if(latency < 1.0 / TICKTIME_HZ * 3.0) latency = 1.0 / TICKTIME_HZ * 4.0;
+	if(latency < 1.0 / TICKTIME_HZ * 4.0)
+		latency = 1.0 / TICKTIME_HZ * 4.0;
 	rtsyn_latency = latency;
 	return latency;
 }
@@ -229,17 +331,35 @@ void rtsyn_init(void){
 	allocate_cache_size = 0; /* Don't use pre-calclated samples */
 	auto_reduce_polyphony = 0;
 	opt_sf_close_each_file = 0;
-	
+
+	if (play_mode->flag & PF_PCM_STREAM) {
+		play_mode->extra_param[1] = aq_calc_fragsize();
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+			  "requesting fragment size: %d",
+			  play_mode->extra_param[1]);
+	}	
 	if(ctl->id_character != 'N')
 	  aq_set_soft_queue(rtsyn_latency*(double)1.01, 0.0);
 	i = current_keysig + ((current_keysig < 8) ? 7 : -9), j = 0;
 	while (i != 7)
 		i += (i < 7) ? 5 : -7, j++;
-	j += note_key_offset, j -= floor(j / 12.0) * 12;
+	j += note_key_offset, j -= floor(j * DIV_12) * 12;
 	current_freq_table = j;
 	
+	if(play_mode && play_mode->acntl)
+	  play_mode->acntl(PM_REQ_PLAY_END, NULL);
+	if(play_mode && play_mode->close_output)
+	  play_mode->close_output();
+	
+	current_file_info = get_midi_file_info("Output.mid", 1);
+	
+	if(play_mode && play_mode->open_output)
+	  play_mode->open_output();
+	if(play_mode && play_mode->acntl)
+	  play_mode->acntl(PM_REQ_PLAY_START, NULL);
+	
+	aq_setup();
 	rtsyn_reset();
-	play_mode->open_output();
 	rtsyn_system_mode=DEFAULT_SYSTEM_MODE;
 	change_system_mode(rtsyn_system_mode);
 	reset_midi(0);
@@ -247,12 +367,14 @@ void rtsyn_init(void){
 
 void rtsyn_close(void){
 	rtsyn_stop_playing();
+	if(play_mode && play_mode->acntl)
+	  play_mode->acntl(PM_REQ_PLAY_END, NULL);
 	free_instruments(0);
 	playmidi_stream_free();
 	free_global_mblock();
 }
 
-rtsyn_play_event_sample(MidiEvent *ev, int32 event_sample_time){
+void rtsyn_play_event_sample(MidiEvent *ev, int32 event_sample_time){
 	ev->time=event_sample_time;
 	play_event(ev);
 	if(rtsyn_sample_time_mode != 1)
@@ -267,7 +389,7 @@ void rtsyn_play_event_time(MidiEvent *ev, double event_time){
 
 		max_compute = rtsyn_latency * 1000.0;
 		max_compute = (stream_max_compute > max_compute) ? stream_max_compute : max_compute;
-		if ( (event_time - last_event_time) > (double)max_compute/1000.0){
+		if ( (event_time - last_event_time) > (double)max_compute * DIV_1000){
 				kill_all_voices();
 				current_sample = (double)(play_mode->rate) * get_current_calender_time()+0.5;
 				rtsyn_start_time=get_current_calender_time();
@@ -322,6 +444,9 @@ void rtsyn_wot_reset(void){
 	change_system_mode(rtsyn_system_mode);
 	reset_midi(1);
 	reduce_voice_threshold = 0; // * Disable auto reduction voice *
+///r
+	reduce_quality_threshold = 0;
+	reduce_polyphony_threshold = 0;
 	auto_reduce_polyphony = 0;
 }
 
@@ -349,15 +474,20 @@ void rtsyn_server_reset(void){
 void rtsyn_stop_playing(void)
 {
 	if(upper_voices) {
+		const double tail = (rtsyn_latency > 0.1) ? 0.1 : rtsyn_latency;
+
 		MidiEvent ev;
 		ev.type = ME_EOT;
 		ev.time = 0;
 		ev.a = 0;
 		ev.b = 0;
-		rtsyn_play_event_time(&ev, rtsyn_latency + get_current_calender_time());
-		sleep( rtsyn_latency * 1000.0);
+		rtsyn_play_event_time(&ev, tail + get_current_calender_time());
+		sleep(tail * 10.0);
+	//	rtsyn_play_event_time(&ev, rtsyn_latency + get_current_calender_time());
+	//	sleep(rtsyn_latency * 1000.0);
 		aq_flush(0);
 	}
+	trace_flush();
 }
 
 
@@ -406,7 +536,7 @@ int rtsyn_play_one_data (int port, int32 dwParam1, double event_time){
 	}
 	ev.type = ME_NONE;
 	ev.channel = dwParam1 & 0x0000000f;
-	ev.channel = ev.channel+port*16;
+	ev.channel = ev.channel+(port<<4);
 	ev.a = (dwParam1 >> 8) & 0xff;
 	ev.b = (dwParam1 >> 16) & 0xff;
 	switch ((int) (dwParam1 & 0x000000f0)) {
@@ -510,7 +640,7 @@ int rtsyn_play_one_data (int port, int32 dwParam1, double event_time){
 }
 
 
-void rtsyn_play_one_sysex (char *sysexbuffer, int exlen, double event_time ){
+void rtsyn_play_one_sysex (uint8 *sysexbuffer, int exlen, double event_time ){
 	int i,j,chk,ne;
 	MidiEvent ev;
 	MidiEvent evm[260];
@@ -519,11 +649,11 @@ void rtsyn_play_one_sysex (char *sysexbuffer, int exlen, double event_time ){
 		event_time += rtsyn_latency;
 	}
 
-	if( (sysexbuffer[0] != '\xf0') && (sysexbuffer[0] != '\xf7') ) return ;
+	if( ((int8)sysexbuffer[0] != '\xf0') && ((int8)sysexbuffer[0] != '\xf7') ) return ;
 
 /* // this is bad check  someone send SysEx f0xxxxxxxxxxx without xf7 format.
-	if(   ((sysexbuffer[0] != '\xf0') && (sysexbuffer[0] != '\xf7')) ||
-	((sysexbuffer[0] == '\xf0') && (sysexbuffer[exlen-1] != '\xf7'))  ) return ;
+	if(   (((int8)sysexbuffer[0] != '\xf0') && ((int8)sysexbuffer[0] != '\xf7')) ||
+	(((int8)sysexbuffer[0] == '\xf0') && ((int8)sysexbuffer[exlen-1] != '\xf7'))  ) return ;
 */
 
 /*

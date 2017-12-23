@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #endif /* for off_t */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -35,36 +37,37 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #include "timidity.h"
+#include "common.h"
 #include "url.h"
 
 typedef struct _URL_mem
 {
     char common[sizeof(struct _URL)];
     char *memory;
-    long  memsiz;
-    long  mempos;
+    off_size_t  memsiz;
+    off_size_t  mempos;
     int   autofree;
 } URL_mem;
 
-static long url_mem_read(URL url, void *buff, long n);
-static char *url_mem_gets(URL url, char *buff, int n);
+static ptr_size_t url_mem_read(URL url, void *buff, ptr_size_t n);
+static char *url_mem_gets(URL url, char *buff, ptr_size_t n);
 static int url_mem_fgetc(URL url);
-static long url_mem_seek(URL url, long offset, int whence);
-static long url_mem_tell(URL url);
+static off_size_t url_mem_seek(URL url, off_size_t offset, int whence);
+static off_size_t url_mem_tell(URL url);
 static void url_mem_close(URL url);
 
-URL url_mem_open(char *memory, long memsiz, int autofree)
+URL url_mem_open(char *memory, ptr_size_t memsiz, int autofree)
 {
     URL_mem *url;
 
-    url = (URL_mem *)alloc_url(sizeof(URL_mem));
-    if(url == NULL)
+    url = (URL_mem*)alloc_url(sizeof(URL_mem));
+    if (!url)
     {
 	url_errno = errno;
-	if(autofree)
+	if (autofree)
 	{
-	    free(memory);
-	    errno = url_errno;
+	    safe_free(memory);
+	    _set_errno(url_errno);
 	}
 	return NULL;
     }
@@ -87,44 +90,44 @@ URL url_mem_open(char *memory, long memsiz, int autofree)
     return (URL)url;
 }
 
-static long url_mem_read(URL url, void *buff, long n)
+static ptr_size_t url_mem_read(URL url, void *buff, ptr_size_t n)
 {
-    URL_mem *urlp = (URL_mem *)url;
-    long s;
-    char *p = (char *)buff;
+    URL_mem *urlp = (URL_mem*)url;
+    off_size_t s;
+    char *p = (char*)buff;
 
     s = urlp->memsiz - urlp->mempos;
-    if(s > n)
+    if (s > n)
 	s = n;
-    if(s <= 0)
+    if (s <= 0)
 	return 0;
     memcpy(p, urlp->memory + urlp->mempos, s);
     urlp->mempos += s;
     return s;
 }
 
-static char *url_mem_gets(URL url, char *buff, int n)
+static char *url_mem_gets(URL url, char *buff, ptr_size_t n)
 {
-    URL_mem *urlp = (URL_mem *)url;
-    long s;
+    URL_mem *urlp = (URL_mem*)url;
+    off_size_t s;
     char *nlp, *p;
 
-    if(urlp->memsiz == urlp->mempos)
+    if (urlp->memsiz == urlp->mempos)
 	return NULL;
-    if(n <= 0)
+    if (n <= 0)
 	return buff;
-    if(n == 1)
+    if (n == 1)
     {
 	*buff = '\0';
 	return buff;
     }
     n--; /* for '\0' */
     s = urlp->memsiz - urlp->mempos;
-    if(s > n)
+    if (s > n)
 	s = n;
     p = urlp->memory + urlp->mempos;
-    nlp = (char *)memchr(p, url_newline_code, s);
-    if(nlp != NULL)
+    nlp = (char*)memchr(p, url_newline_code, s);
+    if (nlp)
 	s = nlp - p + 1;
     memcpy(buff, p, s);
     buff[s] = '\0';
@@ -134,20 +137,20 @@ static char *url_mem_gets(URL url, char *buff, int n)
 
 static int url_mem_fgetc(URL url)
 {
-    URL_mem *urlp = (URL_mem *)url;
+    URL_mem *urlp = (URL_mem*)url;
 
-    if(urlp->memsiz == urlp->mempos)
+    if (urlp->memsiz == urlp->mempos)
 	return EOF;
     return (int)(unsigned char)urlp->memory[urlp->mempos++];
 }
 
-static long url_mem_seek(URL url, long offset, int whence)
+static off_size_t url_mem_seek(URL url, off_size_t offset, int whence)
 {
-    URL_mem *urlp = (URL_mem *)url;
-    long ret;
+    URL_mem *urlp = (URL_mem*)url;
+    off_size_t ret;
 
     ret = urlp->mempos;
-    switch(whence)
+    switch (whence)
     {
       case SEEK_SET:
 	urlp->mempos = offset;
@@ -159,25 +162,25 @@ static long url_mem_seek(URL url, long offset, int whence)
 	urlp->mempos = urlp->memsiz + offset;
 	break;
     }
-    if(urlp->mempos > urlp->memsiz)
+    if (urlp->mempos > urlp->memsiz)
 	urlp->mempos = urlp->memsiz;
-    else if(urlp->mempos < 0)
+    else if (urlp->mempos < 0)
 	urlp->mempos = 0;
 
     return ret;
 }
 
-static long url_mem_tell(URL url)
+static off_size_t url_mem_tell(URL url)
 {
-    return ((URL_mem *)url)->mempos;
+    return ((URL_mem*)url)->mempos;
 }
 
 static void url_mem_close(URL url)
 {
     int save_errno = errno;
-    URL_mem *urlp = (URL_mem *)url;
-    if(urlp->autofree)
-	free(urlp->memory);
-    free(url);
-    errno = save_errno;
+    URL_mem *urlp = (URL_mem*)url;
+    if (urlp->autofree)
+	safe_free(urlp->memory);
+    safe_free(url);
+    _set_errno(save_errno);
 }

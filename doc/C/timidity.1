@@ -1,4 +1,4 @@
-.TH timidity 1 "April 25 2004" "2.13.0"
+.TH timidity 1 "July 12 2014" "2.14.0"
 .SH NAME
 TiMidity++ \- MIDI\-to\-WAVE converter and player
 .SH SYNOPSIS
@@ -155,6 +155,10 @@ The following command line options are accepted by \fBTiMidity++\fP:
 .br
 .ns
 .TP
+.BI \-\-volume= [n][,m](a)
+.br
+.ns
+.TP
 .BI \-\-amplification= n
 .br
 .ns
@@ -164,7 +168,7 @@ The following command line options are accepted by \fBTiMidity++\fP:
 .ns
 .TP
 .B \-\-[no\-]volume\-compensation
-Multiplies the master volume by \fIn\fP%.  Default value is 70%.
+Multiplies the master volume by \fIn\fP%.  Default value is 40%.
 Higher amplification makes louder sounds.  You can specify the drum
 power, ratio of drum volume from the other channels.  The allowed
 values of amplification range from \fB0\fP (no sound) to \fB800\fP.
@@ -180,23 +184,27 @@ For example:
 volume 90%, drum power 100%, compensation is off
 .TP
 .B \-A,120
-volume 70%, drum power 120%, compensation is off
+volume 40%, drum power 120%, compensation is off
 .TP
 .B \-A90,120
 volume 90%, drum power 120%, compensation is off
 .TP
 .B \-Aa
-volume 70%, drum power 100%, compensation is on
+volume 40%, drum power 100%, compensation is on
 .TP
 .B \-A90a
 volume 90%, drum power 100%, compensation is on
 .TP
 .B \-A,120a
-volume 70%, drum power 120%, compensation is on
+volume 40%, drum power 120%, compensation is on
 .TP
 .B \-A90,120a
 volume 90%, drum power 120%, compensation is on
 .RE
+.TP
+.B \-\-master\-volume= n
+Multiplies the master volume by \fIn\fP%.  Default value is 100%.
+Higher amplification makes louder sounds.
 .TP
 .B \-a, \-\-[no\-]anti\-alias
 Turns on anti-aliasing.  Samples are run through a lowpass filter
@@ -258,12 +266,27 @@ Accept/reject pronouncing multiple same notes.
 .B z/Z, \-\-[no\-]temper\-control
 Enable/disable MIDI Tuning Standard temperament controlling.
 .TP
+.B j/J
+Enable/disable Insertion effect.
+.TP
+.B q/Q
+Enable/disable EQ controlling.
+.TP
+.B d/D
+Enable/disable Drumpart effect.
+.TP
+.B x/X
+Enable/disable TVA envelope control.
+.TP
+.B c/C
+Enable/disable CC#94 delay(celeste) effect.
+.TP
 .BI m HH ", \-\-default\-mid=" HH
 Sets the manufacturer ID to \fIHH\fP (where \fIHH\fP are two
 hex\-digits).
 .br
-\fIHH\fP values of \fBGS/gs\fP, \fBXG/xg\fP or \fBGM/gm\fP are
-understood as \fB41\fP, \fB43\fP and \fB7e\fP respectively.
+\fIHH\fP values of \fBGS/gs\fP, \fBXG/xg\fP, \fBGM2/gm2\fP, \fBSD/sd\fP or \fBGM/gm\fP are
+understood as \fB41\fP, \fB43\fP, \fB7d\fP, \fB60\fP and \fB7e\fP respectively.
 .TP
 .BI M HH ", \-\-system\-mid=" HH
 Sets the system manufacturer ID to \fIHH\fP (where \fIHH\fP are two
@@ -293,26 +316,18 @@ For effects.  See below.  In \fIargs\fP option, you can specify
 following effect options:
 .RS
 .TP
-.BI delay= (d|l|r|b)[,msec] ", \-\-delay=" (d|l|r|b)[,msec]
-Sets delay type.
+.BI delay= (d|D) ", \-\-delay=" (d|D)
+Sets delay control.
 .RS
 .TP
 .B d, 0
-Disabled delay effect.
+Disabled delay effect (default).
 .TP
-.B l, 1
-Left delay.
-.TP
-.B r, 2
-Right delay.
-.TP
-.B b, 3
-Swap left & right.
-.LP
-Optional \fImsec\fP is the delay time.
+.B D, 1
+Enable delay.
 .RE
 .TP
-.BI chorus= (d|n|s)[,level] ", \-\-chorus=" (d|n|s)[,level]
+.BI chorus= (d|n|s|w|W|b|B|t|T|h|H)[,level] ", \-\-chorus=" (d|n|s|w|W|b|B|t|T|h|H)[,level]
 .RS
 .TP
 .B d, 0
@@ -322,7 +337,31 @@ Disable this effect.
 Enable MIDI chorus effect control.
 .TP
 .B s, 2
-Surround sound, chorus detuned to a lesser degree (default).
+Surround sound, chorus detuned to a lesser degree.
+.TP
+.B w, 3
+Enable MIDI chorus 2 effect control. (default)
+.TP
+.B W, 4
+Surround sound, chorus 2 detuned to a lesser degree.
+.TP
+.B b, 5
+Enable MIDI chorus 3 (2 phase) effect control.
+.TP
+.B B, 6
+Surround sound, chorus 3 detuned to a lesser degree.
+.TP
+.B t, 7
+Enable MIDI chorus 4 (3 phase) effect control.
+.TP
+.B T, 8
+Surround sound, chorus 4 detuned to a lesser degree.
+.TP
+.B h, 9
+Enable MIDI chorus 5 (6 phase) effect control.
+.TP
+.B H
+Surround sound, chorus 5 detuned to a lesser degree.
 .LP
 The optional parameter \fIlevel\fP specifies the chorus level \fB0\fP
 to \fB127\fP.
@@ -330,9 +369,9 @@ to \fB127\fP.
 .TP
 .BI reverb= (d|n|g)[,level] ", \-\-reverb=" (d|n|g)[,level]
 .TP
-.BI reverb= (f|G)[,level,scaleroom,offsetroom,predelay]
+.BI reverb= (f|G)[,level[,scaleroom,offsetroom,predelay]]
 .TP
-.BI "\-\-reverb=" (f|G)[,level,scaleroom,offsetroom,predelay]
+.BI "\-\-reverb=" (f|G)[,level[,scaleroom,offsetroom,predelay]]
 .RS
 .TP
 .B d, 0
@@ -368,17 +407,57 @@ Any of the optional parameters can be omitted.
 Default values are \fB0.28\fP, \fB0.7\fP and \fB100\fP respectively.
 .RE
 .TP
-.BI vlpf= (d|c|m) ", \-\-voice\-lpf=" (d|c|m)
+.BI vlpf= (d|c|m|b|i|a|o|e|t|h|B) ", \-\-voice\-lpf=" (d|c|m|b|i|a|o|e|t|h|B)
 .RS
 .TP
 .B d, 0
 Disable LPF effect.
 .TP
 .B c, 1
-Chamberlin resonant LPF (12dB/oct) (default).
+Chamberlin resonant LPF (12dB/oct).
 .TP
 .B m, 2
-Moog resonant low\-pass VCF (24dB/oct)
+Moog resonant low\-pass VCF (24dB/oct).
+.TP
+.B b, 3
+ButterworthFilter resonant low\-pass (butterworth). (default)
+.TP
+.B i, 4
+Resonant IIR low\-pass VCF (12dB/oct)\-2.
+.TP
+.B a, 5
+amSynth resonant low\-pass VCF (24dB/oct)\-2.
+.TP
+.B o, 6
+1 pole 6db/oct resonant low\-pass VCF (6dB/oct).
+.TP
+.B e, 7
+resonant 3 pole low\-pass VCF (18dB/oct).
+.TP
+.B t, 8
+two first order low\-pass VCF .
+.TP
+.B h, 9
+HPF ButterworthFilter VCF (butterworth).
+.TP
+.B B
+BPF ButterworthFilter VCF (butterworth).
+.RE
+.TP
+.BI vhpf= (d|b|c|o) ", \-\-voice\-hpf=" (d|b|c|o)
+.RS
+.TP
+.B d, 0
+Disable HPF effect. (default)
+.TP
+.B b, 1
+ButterworthFilter resonant high\-pass (butterworth).
+.TP
+.B c, 2
+Chamberlin resonant HPF (12dB/oct).
+.TP
+.B o, 3
+1 pole 6db/oct resonant high\-pass VCF (6dB/oct).
 .RE
 .TP
 .BI ns= n ", \-\-noise\-shaping=" n
@@ -428,6 +507,18 @@ Newton polynomial interpolation.
 .TP
 .B g, 5
 Modified Gauss effect (default).
+.TP
+.B s, 6
+Sharp interpolation.
+.TP
+.B p, 7
+Linear% interpolation.
+.TP
+.B i, 8
+Sine interpolation.
+.TP
+.B q, 9
+Square interpolation.
 .LP
 This option affects the behavior of \fB\-N\fP option.
 .RE
@@ -568,6 +659,9 @@ Launch \fBTiMidity++\fP as ALSA sequencer client.
 .B \-iW
 Windows synthesizer interface
 .TP
+.B \-iN
+Named Pipe synthesizer interface
+.TP
 .B \-iw
 Windows GUI interface
 .TP
@@ -657,21 +751,32 @@ Sets interpolation parameter.  This option depends on the
 \fB\-EFresamp\fP option's value.
 .RS
 .TP
-.B cspline, lagrange
-Toggles 4\-point linear interpolation (default is on).
-.TP
-.B newton
+.B newton(n)
 \fIn\fP point interpolation using Newton polynomials.  \fIn\fP must be
 an odd number from \fB1\fP to \fB57\fP.
 .TP
-.B gauss
+.B gauss(g)
 \fIn\fP+1 point modified Gauss interpolation.  Ranges \fB0\fP
 (disable) to \fB34\fP (max), default to \fB25\fP.
+.TP
+.B sharp(s)
+Ranges \fB2\fP to \fB8\fP (max), default to \fB2\fP.
+.TP
+.B linearP(p)
+Ranges \fB0\fP(disable) to \fB100\fP (max), default to \fB100\fP.
 .LP
 In either way, linear interpolation is used if audio queue < 99%.
 .RE
 .TP
 .BI "\-O " mode ", \-\-output\-mode=" mode
+.br
+.ns
+.TP
+.B \-\-wave\-extensible
+.br
+.ns
+.TP
+.BI \-\-wave\-update\-step= n
 .br
 .ns
 .TP
@@ -688,6 +793,26 @@ In either way, linear interpolation is used if audio queue < 99%.
 .ns
 .TP
 .B \-\-oggflac
+.br
+.ns
+.TP
+.BI \-\-opus\-nframes= n
+.br
+.ns
+.TP
+.BI \-\-opus\-bitrate= n
+.br
+.ns
+.TP
+.BI \-\-opus\-complexity= n
+.br
+.ns
+.TP
+.B \-\-[no\-]opus\-vbr
+.br
+.ns
+.TP
+.B \-\-[no\-]opus\-cvbr
 .br
 .ns
 .TP
@@ -716,6 +841,14 @@ In either way, linear interpolation is used if audio queue < 99%.
 .ns
 .TP
 .BI \-\-speex\-nframes= n
+.br
+.ns
+.TP
+.B \-\-volume\-calc\-rms
+.br
+.ns
+.TP
+.B \-\-volume\-calc\-trim
 Selects the output mode from the compiled\-in alternatives.
 \fImode\fP must begin with one of the supported output mode
 identifiers.  Run \fBTiMidity++\fP with the \fB\-h\fP option to see
@@ -741,7 +874,7 @@ The following identifiers are available in all versions:
 .RS
 .TP
 .B \-Od
-Outputs via OSS dsp device (default)
+Outputs via audio device (default)
 .TP
 .B \-Os
 Output to ALSA
@@ -785,7 +918,22 @@ MOD \-> MIDI conversion
 EsounD
 .TP
 .B \-Op
-PortAudio
+PortAudio (v18)
+.TP
+.B \-Oo
+PortAudio (V19/ASIO)
+.TP
+.B \-OW
+PortAudio (V19/Windows/WASAPI)
+.TP
+.B \-OK
+PortAudio (V19/Windows/WDM-KS)
+.TP
+.B \-OP
+PortAudio (V19/Windows/WIN-DS)
+.TP
+.B \-Op
+PortAudio (V19/Windows/WMME)
 .TP
 .B \-Oj
 JACK
@@ -802,11 +950,23 @@ Ogg Vorbis
 .B \-OF
 Ogg FLAC
 .TP
+.B \-OU
+Ogg Opus
+.TP
 .B \-OS
 Ogg Speex
 .TP
+.B \-Og
+MP3 GOGO
+.TP
+.B \-OL
+LameEnc
+.TP
 .B \-OO
 libao
+.TP
+.B \-OV
+SoundFont Volume Calc
 .TP
 .B Format options
 Option characters may be added immediately after the mode identifier
@@ -830,6 +990,15 @@ Unsigned output
 .TP
 .B 2, \-\-output\-24bit
 24\-bit sample width
+.TP
+.B 3, \-\-output\-32bit
+32\-bit sample width
+.TP
+.B f, \-\-output\-f32bit
+float 32\-bit sample width
+.TP
+.B D, \-\-output\-f64bit
+float 64\-bit sample width
 .TP
 .B 8, \-\-output\-8bit
 8\-bit sample width
@@ -1101,7 +1270,46 @@ SoundBlaster Live!
 .B 33
 SoundBlaster Audigy
 .TP
-.B 34\-111
+.B 34\-55
+Reserved for other synthesizer modules
+.TP
+.B 56
+Roland MT\-32
+.TP
+.B 57
+Roland CM\-32L
+.TP
+.B 58
+Roland CM\-32P
+.TP
+.B 59
+Roland CM\-64
+.TP
+.B 60\-79
+Reserved for LA family
+.TP
+.B 80
+KORG AG-10
+.TP
+.B 82
+KORG 05R/W
+.TP
+.B 84
+KORG NX5R
+.TP
+.B 85\-95
+Reserved for other synthesizer modules
+.TP
+.B 96
+Roland SD-20
+.TP
+.B 97
+Roland SD-80
+.TP
+.B 98
+Roland SD-90
+.TP
+.B 99\-111
 Reserved for other synthesizer modules
 .TP
 .B 112

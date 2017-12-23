@@ -27,6 +27,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+
+#ifdef AU_BSDI
+
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -42,7 +45,7 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int32 output_data(const uint8 *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
@@ -50,11 +53,11 @@ static int acntl(int request, void *arg);
 #define dpm bsdi_play_mode
 
 PlayMode dpm = {
-    DEFAULT_RATE, PE_SIGNED|PE_MONO, PF_PCM_STREAM|PF_CAN_TRACE,
+    DEFAULT_RATE, PE_SIGNED | PE_MONO, PF_PCM_STREAM | PF_CAN_TRACE,
     -1,
-    {0}, /* default: get all the buffer fragments you can */
+    { 0 }, /* default: get all the buffer fragments you can */
     "BSD/OS sblast dsp", 'd',
-    "/dev/sb_dsp",
+    NULL,
     open_output,
     close_output,
     output_data,
@@ -63,9 +66,14 @@ PlayMode dpm = {
 
 static int open_output(void)
 {
-    int fd, tmp, warnings=0;
+    int fd, tmp, warnings = 0;
 
-    if ((fd=open(dpm.name, O_RDWR | O_NDELAY, 0)) < 0)
+    if (!dpm.name)
+    {
+	dpm.name = safe_strdup("/dev/sb_dsp");
+    }
+
+    if ((fd = open(dpm.name, O_RDWR | O_NDELAY, 0)) < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		  dpm.name, strerror(errno));
@@ -73,7 +81,7 @@ static int open_output(void)
     }
 
     /* They can't mean these */
-    dpm.encoding &= ~(PE_ULAW|PE_ALAW|PE_BYTESWAP);
+    dpm.encoding &= ~(PE_ULAW | PE_ALAW | PE_BYTESWAP);
 
 
     /* Set sample width to whichever the user wants. If it fails, try
@@ -94,19 +102,19 @@ static int open_output(void)
     /* Try stereo or mono, whichever the user wants. If it fails, try
        the other. */
 
-    tmp=(dpm.encoding & PE_MONO) ? 0 : 1;
+    tmp = (dpm.encoding & PE_MONO) ? 0 : 1;
     ioctl(fd, DSP_IOCTL_STEREO, &tmp);
 
   /* Set the sample rate */
 
-    tmp=dpm.rate * ((dpm.encoding & PE_MONO) ? 1 : 2);
+    tmp = dpm.rate * ((dpm.encoding & PE_MONO) ? 1 : 2);
     ioctl(fd, DSP_IOCTL_SPEED, &tmp);
     if (tmp != dpm.rate)
     {
-	dpm.rate=tmp / ((dpm.encoding & PE_MONO) ? 1 : 2);;
+	dpm.rate = tmp / ((dpm.encoding & PE_MONO) ? 1 : 2);
 	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
 		  "Output rate adjusted to %d Hz", dpm.rate);
-	warnings=1;
+	warnings = 1;
     }
 
     /* Older VoxWare drivers don't have buffer fragment capabilities */
@@ -115,7 +123,7 @@ static int open_output(void)
     {
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		  "%s doesn't support buffer fragments", dpm.name);
-	warnings=1;
+	warnings = 1;
     }
 
     tmp = 16384;
@@ -125,15 +133,15 @@ static int open_output(void)
     return warnings;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int32 output_data(const uint8 *buf, int32 nbytes)
 {
-    while ((-1==write(dpm.fd, buf, nbytes)) && errno==EINTR)
+    while ((-1 == write(dpm.fd, buf, nbytes)) && errno == EINTR)
 	;
 }
 
 static void close_output(void)
 {
-    if(dpm.fd != -1)
+    if (dpm.fd != -1)
     {
 	close(dpm.fd);
 	dpm.fd = -1;
@@ -142,7 +150,7 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
-    switch(request)
+    switch (request)
     {
       case PM_REQ_DISCARD:
 	return ioctl(dpm.fd, DSP_IOCTL_RESET);
@@ -153,3 +161,5 @@ static int acntl(int request, void *arg)
     }
     return -1;
 }
+
+#endif /* AU_BSDI */

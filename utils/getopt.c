@@ -300,6 +300,10 @@ _getopt_internal (int argc, char *const*argv, const char *optstring,
 		  + (longopts != NULL && argv[optind][1] == '-'));
     }
 
+	//elion
+  if (!strncmp(argv[optind], "--output-device=0", 17))
+	  return -1;
+
   /* Decode the current option-ARGV-element.  */
 
   /* Check whether the ARGV-element is a long option.

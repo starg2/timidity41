@@ -85,7 +85,7 @@ static STMHEADER *mh = NULL;
 
 /*========== Loader code */
 
-static BOOL
+BOOL 
 STM_Test (void)
 {
   UBYTE str[44];
@@ -106,7 +106,7 @@ STM_Test (void)
   return 0;
 }
 
-static BOOL
+BOOL 
 STM_Init (void)
 {
   if (!(mh = (STMHEADER *) _mm_malloc (sizeof (STMHEADER))))
@@ -257,7 +257,7 @@ STM_LoadPatterns (void)
   return 1;
 }
 
-static BOOL
+BOOL 
 STM_Load (BOOL curious)
 {
   int t;
@@ -373,7 +373,7 @@ STM_Load (BOOL curious)
   return 1;
 }
 
-static CHAR *
+CHAR *
 STM_LoadTitle (void)
 {
   CHAR s[20];

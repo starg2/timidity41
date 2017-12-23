@@ -36,12 +36,11 @@
 #include	"playmidi.h"
 #include	"output.h"
 #include	"readmidi.h"
-#include	"reverb.h"
+#include	"effect.h"
 
 #include	"mac_main.h"
 #include	"mac_util.h"
 
-extern int effect_lr_mode;
 
 
 void mac_DefaultOption()
@@ -81,7 +80,6 @@ void mac_DefaultOption()
 	opt_trace_text_meta_event = 0;
 	opt_overlap_voice_allow = 1;
 	
-	effect_lr_mode=-1; //no effect
 	modify_release=0;
 	opt_default_mid=0x7e; //GM
 	
@@ -90,6 +88,9 @@ void mac_DefaultOption()
 	evil_level=EVIL_NORMAL;
 	do_initial_filling=0;
 	reduce_voice_threshold = 0;
+///r
+	reduce_quality_threshold = 0;
+	reduce_polyphony_threshold = 0;
 	auto_reduce_polyphony = 0;
 }
 

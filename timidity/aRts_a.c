@@ -36,14 +36,20 @@
 #endif /* HAVE_CONFIG_H */
 #define _GNU_SOURCE
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
+
+#if defined(HAVE_ARTS) && defined(AU_ARTS)
 
 #include <artsc.h>
 
@@ -59,29 +65,29 @@
 static int arts_init_state = 0; /* 0=no init, 1=arts_init, 2=arts_free */
 static arts_stream_t stream = 0;
 static int server_buffer = 0;
-static int output_count = 0;
+static int32 output_count = 0;
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int32 output_data(const uint8 *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode. aRts cannot support auto-detection properly
  * see TiMidity bug report #35 on Kagemai.  Do not add any functionality
- * that would require TiMidity to call arts_init() again after an 
+ * that would require TiMidity to call arts_init() again after an
  * arts_free(), it will blow up */
 
 #define dpm arts_play_mode
 
 PlayMode dpm = {
     /*rate*/         DEFAULT_RATE,
-    /*encoding*/     PE_16BIT|PE_SIGNED,
-    /*flag*/         PF_PCM_STREAM/*|PF_BUFF_FRAGM_OPT*//**/,
+    /*encoding*/     PE_16BIT | PE_SIGNED,
+    /*flag*/         PF_PCM_STREAM/* | PF_BUFF_FRAGM_OPT*//**/,
     /*fd*/           -1,
-    /*extra_param*/  {0}, /* default: get all the buffer fragments you can */
+    /*extra_param*/  { 0 }, /* default: get all the buffer fragments you can */
     /*id*/           "aRts",
     /*id char*/      'R',
-    /*name*/         "arts",
+    /*name*/         NULL,
     open_output,
     close_output,
     output_data,
@@ -96,9 +102,14 @@ static int open_output(void)
     int i, include_enc, exclude_enc;
     int sample_width, channels;
 
+    if (!dpm.name)
+    {
+	dpm.name = safe_strdup("arts");
+    }
+
     include_enc = 0;
-    exclude_enc = PE_ULAW|PE_ALAW|PE_BYTESWAP; /* They can't mean these */
-    if(dpm.encoding & PE_16BIT)
+    exclude_enc = PE_ULAW | PE_ALAW | PE_BYTESWAP; /* They can't mean these */
+    if (dpm.encoding & PE_16BIT)
 	include_enc |= PE_SIGNED;
     else
 	exclude_enc |= PE_SIGNED;
@@ -109,7 +120,7 @@ static int open_output(void)
     /* Open the audio device */
     switch (arts_init_state) {
     case 0:
-	if((i = arts_init()) != 0)
+	if ((i = arts_init()) != 0)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		      dpm.name, arts_error_text(i));
@@ -118,7 +129,7 @@ static int open_output(void)
 	arts_init_state = 1;
 	break;
     case 2:
-	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, 
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 	    "TiMidity aRts bug: open_output() after close_output() not supported");
 	return -1;
     }
@@ -126,7 +137,7 @@ static int open_output(void)
 			      LE_LONG(sample_width),
 			      channels,
 			      "timidity");
-    if(stream == NULL)
+    if (!stream)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		  dpm.name, strerror(errno));
@@ -134,7 +145,7 @@ static int open_output(void)
     }
     arts_stream_set(stream, ARTS_P_BLOCKING, 1);
 
-    server_buffer = arts_stream_get(stream, ARTS_P_SERVER_LATENCY) * dpm.rate * (sample_width/8) * channels / 1000;
+    server_buffer = arts_stream_get(stream, ARTS_P_SERVER_LATENCY) * dpm.rate * (sample_width / 8) * channels / 1000;
     output_count = 0;
     return 0;
     /* "this aRts function isnot yet implemented"
@@ -154,19 +165,19 @@ static int open_output(void)
      */
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int32 output_data(const uint8 *buf, int32 nbytes)
 {
     int n;
 
     if (stream == 0) return -1;
 
-    while(nbytes > 0)
+    while (nbytes > 0)
     {
-	if((n = arts_write(stream, buf, nbytes)) < 0)
+	if ((n = arts_write(stream, buf, nbytes)) < 0)
 	{
 	    ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
 		      "%s: %s", dpm.name, arts_error_text(n));
-	    if(errno == EWOULDBLOCK)
+	    if (errno == EWOULDBLOCK)
 	    {
 		/* It is possible to come here because of bug of the
 		 * sound driver.
@@ -185,7 +196,7 @@ static int output_data(char *buf, int32 nbytes)
 
 static void close_output(void)
 {
-    if(stream == 0)
+    if (stream == 0)
 	return;
     arts_close_stream(stream);
     arts_free();
@@ -196,11 +207,11 @@ static void close_output(void)
 static int acntl(int request, void *arg)
 {
     int tmp, tmp1, samples;
-    switch(request)
+    switch (request)
     {
       case PM_REQ_DISCARD: /* Discard stream */
 	arts_close_stream(stream);
-	stream=NULL;
+	stream = NULL;
 	return 0;
       case PM_REQ_RATE: /* Change sample rate */
         arts_close_stream(stream);
@@ -210,7 +221,7 @@ static int acntl(int request, void *arg)
 		    LE_LONG(tmp),
 		    tmp1,
 		    "timidity");
-        server_buffer = arts_stream_get(stream, ARTS_P_SERVER_LATENCY) * dpm.rate * (tmp/8) * tmp1 / 1000;
+        server_buffer = arts_stream_get(stream, ARTS_P_SERVER_LATENCY) * dpm.rate * (tmp / 8) * tmp1 / 1000;
 	return 0;
       case PM_REQ_GETQSIZ: /* Get maximum queue size */
 	*(int*)arg = arts_stream_get(stream, ARTS_P_BUFFER_SIZE);
@@ -226,10 +237,10 @@ static int acntl(int request, void *arg)
 		         arts_stream_get(stream, ARTS_P_BUFFER_SPACE) +
 			 server_buffer;
 	samples = output_count - tmp;
-	if(samples < 0)
+	if (samples < 0)
 	  samples = 0;
-	if(!(dpm.encoding & PE_MONO)) samples >>= 1;
-	if(dpm.encoding & PE_16BIT) samples >>= 1;
+	if (!(dpm.encoding & PE_MONO)) samples >>= 1;
+	if (dpm.encoding & PE_16BIT) samples >>= 1;
 	*(int*)arg = samples;
 	return 0;
       case PM_REQ_GETFILLABLE: /* Get fillable device queue size */
@@ -250,3 +261,5 @@ static int acntl(int request, void *arg)
     }
     return -1;
 }
+
+#endif /* HAVE_ARTS && defined(AU_ARTS) */

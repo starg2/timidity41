@@ -30,8 +30,9 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_STRING_H
 #include <string.h>
-extern char *safe_strdup(const char *s);
+#endif
 
 #include "unimod_priv.h"
 
@@ -66,7 +67,7 @@ typedef struct XMINSTHEADER
   }
 XMINSTHEADER;
 
-#define XMENVCNT (12*2)
+#define XMENVCNT (12 * 2)
 #define XMNOTECNT (8*OCTAVE)
 typedef struct XMPATCHHEADER
   {
@@ -138,13 +139,13 @@ static XMWAVHEADER *wh = NULL, *s = NULL;
 /*========== Loader code */
 
 static BOOL
-XM_Test (void)
+XM_Test(void)
 {
   UBYTE id[38];
 
-  if (!_mm_read_UBYTES (id, 38, modreader))
+  if (!_mm_read_UBYTES(id, 38, modreader))
     return 0;
-  if (memcmp (id, "Extended Module: ", 17))
+  if (memcmp(id, "Extended Module: ", 17))
     return 0;
   if (id[37] == 0x1a)
     return 1;
@@ -152,74 +153,74 @@ XM_Test (void)
 }
 
 static BOOL
-XM_Init (void)
+XM_Init(void)
 {
-  if (!(mh = (XMHEADER *) _mm_malloc (sizeof (XMHEADER))))
+  if (!(mh = (XMHEADER*) _mm_malloc(sizeof(XMHEADER))))
     return 0;
   return 1;
 }
 
 static void
-XM_Cleanup (void)
+XM_Cleanup(void)
 {
-  _mm_free (mh);
+  _mm_free(mh);
 }
 
-static int 
-XM_ReadNote (XMNOTE * n)
+static int
+XM_ReadNote(XMNOTE * n)
 {
   UBYTE cmp, result = 1;
 
-  memset (n, 0, sizeof (XMNOTE));
-  cmp = _mm_read_UBYTE (modreader);
+  memset(n, 0, sizeof(XMNOTE));
+  cmp = _mm_read_UBYTE(modreader);
 
   if (cmp & 0x80)
     {
       if (cmp & 1)
 	{
 	  result++;
-	  n->note = _mm_read_UBYTE (modreader);
+	  n->note = _mm_read_UBYTE(modreader);
 	}
       if (cmp & 2)
 	{
 	  result++;
-	  n->ins = _mm_read_UBYTE (modreader);
+	  n->ins = _mm_read_UBYTE(modreader);
 	}
       if (cmp & 4)
 	{
 	  result++;
-	  n->vol = _mm_read_UBYTE (modreader);
+	  n->vol = _mm_read_UBYTE(modreader);
 	}
       if (cmp & 8)
 	{
 	  result++;
-	  n->eff = _mm_read_UBYTE (modreader);
+	  n->eff = _mm_read_UBYTE(modreader);
 	}
       if (cmp & 16)
 	{
 	  result++;
-	  n->dat = _mm_read_UBYTE (modreader);
+	  n->dat = _mm_read_UBYTE(modreader);
 	}
     }
   else
     {
       n->note = cmp;
-      n->ins = _mm_read_UBYTE (modreader);
-      n->vol = _mm_read_UBYTE (modreader);
-      n->eff = _mm_read_UBYTE (modreader);
-      n->dat = _mm_read_UBYTE (modreader);
+      n->ins = _mm_read_UBYTE(modreader);
+      n->vol = _mm_read_UBYTE(modreader);
+      n->eff = _mm_read_UBYTE(modreader);
+      n->dat = _mm_read_UBYTE(modreader);
       result += 4;
     }
   return result;
 }
 
 static UBYTE *
-XM_Convert (XMNOTE * xmtrack, UWORD rows)
+XM_Convert(XMNOTE * xmtrack, UWORD rows)
 {
   int t;
   UBYTE note, ins, vol, eff, dat;
 
-  UniReset ();
+  UniReset();
   for (t = 0; t < rows; t++)
     {
       note = xmtrack->note;
@@ -231,114 +232,114 @@ XM_Convert (XMNOTE * xmtrack, UWORD rows)
       if (note)
 	{
 	  if (note > XMNOTECNT)
-	    UniEffect (UNI_KEYFADE, 0);
+	    UniEffect(UNI_KEYFADE, 0);
 	  else
-	    UniNote (note - 1);
+	    UniNote(note - 1);
 	}
       if (ins)
-	UniInstrument (ins - 1);
+	UniInstrument(ins - 1);
 
       switch (vol >> 4)
 	{
 	case 0x6:		/* volslide down */
 	  if (vol & 0xf)
-	    UniEffect (UNI_XMEFFECTA, vol & 0xf);
+	    UniEffect(UNI_XMEFFECTA, vol & 0xf);
 	  break;
 	case 0x7:		/* volslide up */
 	  if (vol & 0xf)
-	    UniEffect (UNI_XMEFFECTA, vol << 4);
+	    UniEffect(UNI_XMEFFECTA, (vol << 4) & 0xff);
 	  break;
 
 	  /* volume-row fine volume slide is compatible with protracker
 	     EBx and EAx effects i.e. a zero nibble means DO NOT SLIDE, as
 	     opposed to 'take the last sliding value'. */
 	case 0x8:		/* finevol down */
-	  UniPTEffect (0xe, 0xb0 | (vol & 0xf));
+	  UniPTEffect(0xe, 0xb0 | (vol & 0xf));
 	  break;
 	case 0x9:		/* finevol up */
-	  UniPTEffect (0xe, 0xa0 | (vol & 0xf));
+	  UniPTEffect(0xe, 0xa0 | (vol & 0xf));
 	  break;
 	case 0xa:		/* set vibrato speed */
-	  UniPTEffect (0x4, vol << 4);
+	  UniPTEffect(0x4, (vol << 4) & 0xff);
 	  break;
 	case 0xb:		/* vibrato */
-	  UniPTEffect (0x4, vol & 0xf);
+	  UniPTEffect(0x4, vol & 0xf);
 	  break;
 	case 0xc:		/* set panning */
-	  UniPTEffect (0x8, vol << 4);
+	  UniPTEffect(0x8, (vol << 4) & 0xff);
 	  break;
 	case 0xd:		/* panning slide left (only slide when data not zero) */
 	  if (vol & 0xf)
-	    UniEffect (UNI_XMEFFECTP, vol & 0xf);
+	    UniEffect(UNI_XMEFFECTP, vol & 0xf);
 	  break;
 	case 0xe:		/* panning slide right (only slide when data not zero) */
 	  if (vol & 0xf)
-	    UniEffect (UNI_XMEFFECTP, vol << 4);
+	    UniEffect(UNI_XMEFFECTP, vol << 4);
 	  break;
 	case 0xf:		/* tone porta */
-	  UniPTEffect (0x3, vol << 4);
+	  UniPTEffect(0x3, (vol << 4) & 0xff);
 	  break;
 	default:
 	  if ((vol >= 0x10) && (vol <= 0x50))
-	    UniPTEffect (0xc, vol - 0x10);
+	    UniPTEffect(0xc, vol - 0x10);
 	}
 
       switch (eff)
 	{
 	case 0x4:
-	  UniEffect (UNI_XMEFFECT4, dat);
+	  UniEffect(UNI_XMEFFECT4, dat);
 	  break;
 	case 0xa:
-	  UniEffect (UNI_XMEFFECTA, dat);
+	  UniEffect(UNI_XMEFFECTA, dat);
 	  break;
 	case 0xe:		/* Extended effects */
 	  switch (dat >> 4)
 	    {
 	    case 0x1:		/* XM fine porta up */
-	      UniEffect (UNI_XMEFFECTE1, dat & 0xf);
+	      UniEffect(UNI_XMEFFECTE1, dat & 0xf);
 	      break;
 	    case 0x2:		/* XM fine porta down */
-	      UniEffect (UNI_XMEFFECTE2, dat & 0xf);
+	      UniEffect(UNI_XMEFFECTE2, dat & 0xf);
 	      break;
 	    case 0xa:		/* XM fine volume up */
-	      UniEffect (UNI_XMEFFECTEA, dat & 0xf);
+	      UniEffect(UNI_XMEFFECTEA, dat & 0xf);
 	      break;
 	    case 0xb:		/* XM fine volume down */
-	      UniEffect (UNI_XMEFFECTEB, dat & 0xf);
+	      UniEffect(UNI_XMEFFECTEB, dat & 0xf);
 	      break;
 	    default:
-	      UniPTEffect (eff, dat);
+	      UniPTEffect(eff, dat);
 	    }
 	  break;
 	case 'G' - 55:		/* G - set global volume */
-	  UniEffect (UNI_XMEFFECTG, dat > 64 ? 64 : dat);
+	  UniEffect(UNI_XMEFFECTG, dat > 64 ? 64 : dat);
 	  break;
 	case 'H' - 55:		/* H - global volume slide */
-	  UniEffect (UNI_XMEFFECTH, dat);
+	  UniEffect(UNI_XMEFFECTH, dat);
 	  break;
 	case 'K' - 55:		/* K - keyOff and KeyFade */
-	  UniEffect (UNI_KEYFADE, dat);
+	  UniEffect(UNI_KEYFADE, dat);
 	  break;
 	case 'L' - 55:		/* L - set envelope position */
-	  UniEffect (UNI_XMEFFECTL, dat);
+	  UniEffect(UNI_XMEFFECTL, dat);
 	  break;
 	case 'P' - 55:		/* P - panning slide */
-	  UniEffect (UNI_XMEFFECTP, dat);
+	  UniEffect(UNI_XMEFFECTP, dat);
 	  break;
 	case 'R' - 55:		/* R - multi retrig note */
-	  UniEffect (UNI_S3MEFFECTQ, dat);
+	  UniEffect(UNI_S3MEFFECTQ, dat);
 	  break;
 	case 'T' - 55:		/* T - Tremor */
-	  UniEffect (UNI_S3MEFFECTI, dat);
+	  UniEffect(UNI_S3MEFFECTI, dat);
 	  break;
 	case 'X' - 55:
 	  switch (dat >> 4)
 	    {
 	    case 1:		/* X1 - Extra Fine Porta up */
-	      UniEffect (UNI_XMEFFECTX1, dat & 0xf);
+	      UniEffect(UNI_XMEFFECTX1, dat & 0xf);
 	      break;
 	    case 2:		/* X2 - Extra Fine Porta down */
-	      UniEffect (UNI_XMEFFECTX2, dat & 0xf);
+	      UniEffect(UNI_XMEFFECTX2, dat & 0xf);
 	      break;
 	    }
 	  break;
@@ -353,24 +354,24 @@ XM_Convert (XMNOTE * xmtrack, UWORD rows)
 		if ((((dat & 0xf0) >> 4) <= 9) && ((dat & 0xf) <= 9))
 		  /* otherwise, convert from dec to hex */
 		  dat = (((dat & 0xf0) >> 4) * 10) + (dat & 0xf);
-	      UniPTEffect (eff, dat);
+	      UniPTEffect(eff, dat);
 	    }
 	  break;
 	}
-      UniNewline ();
+      UniNewline();
       xmtrack++;
     }
-  return UniDup ();
+  return UniDup();
 }
 
-static BOOL 
-LoadPatterns (BOOL dummypat)
+static BOOL
+LoadPatterns(BOOL dummypat)
 {
   int t, u, v, numtrk;
 
-  if (!AllocTracks ())
+  if (!AllocTracks())
     return 0;
-  if (!AllocPatterns ())
+  if (!AllocPatterns())
     return 0;
 
   numtrk = 0;
@@ -378,33 +379,33 @@ LoadPatterns (BOOL dummypat)
     {
       XMPATHEADER ph;
 
-      ph.size = _mm_read_I_ULONG (modreader);
+      ph.size = _mm_read_I_ULONG(modreader);
       if (ph.size < (mh->version == 0x0102 ? 8 : 9))
 	{
 	  _mm_errno = MMERR_LOADING_PATTERN;
 	  return 0;
 	}
-      ph.packing = _mm_read_UBYTE (modreader);
+      ph.packing = _mm_read_UBYTE(modreader);
       if (ph.packing)
 	{
 	  _mm_errno = MMERR_LOADING_PATTERN;
 	  return 0;
 	}
       if (mh->version == 0x0102)
-	ph.numrows = _mm_read_UBYTE (modreader) + 1;
+	ph.numrows = _mm_read_UBYTE(modreader) + 1;
       else
-	ph.numrows = _mm_read_I_UWORD (modreader);
-      ph.packsize = _mm_read_I_UWORD (modreader);
+	ph.numrows = _mm_read_I_UWORD(modreader);
+      ph.packsize = _mm_read_I_UWORD(modreader);
 
       ph.size -= (mh->version == 0x0102 ? 8 : 9);
       if (ph.size)
-	_mm_fseek (modreader, ph.size, SEEK_CUR);
+	_mm_fseek(modreader, ph.size, SEEK_CUR);
 
       of.pattrows[t] = ph.numrows;
 
       if (ph.numrows)
 	{
-	  if (!(xmpat = (XMNOTE *) _mm_calloc (ph.numrows * of.numchn, sizeof (XMNOTE))))
+	  if (!(xmpat = (XMNOTE*) _mm_calloc(ph.numrows * of.numchn, sizeof(XMNOTE))))
 	    return 0;
 
 	  /* when packsize is 0, don't try to load a pattern.. it's empty. */
@@ -415,10 +416,10 @@ LoadPatterns (BOOL dummypat)
 		  if (!ph.packsize)
 		    break;
 
-		  ph.packsize -= XM_ReadNote (&xmpat[(v * ph.numrows) + u]);
+		  ph.packsize -= XM_ReadNote(&xmpat[(v * ph.numrows) + u]);
 		  if (ph.packsize < 0)
 		    {
-		      free (xmpat);
+		      _mm_free(xmpat);
 		      xmpat = NULL;
 		      _mm_errno = MMERR_LOADING_PATTERN;
 		      return 0;
@@ -427,130 +428,126 @@ LoadPatterns (BOOL dummypat)
 
 	  if (ph.packsize)
 	    {
-	      _mm_fseek (modreader, ph.packsize, SEEK_CUR);
+	      _mm_fseek(modreader, ph.packsize, SEEK_CUR);
 	    }
 
-	  if (_mm_eof (modreader))
+	  if (_mm_eof(modreader))
 	    {
-	      free (xmpat);
+	      _mm_free(xmpat);
 	      xmpat = NULL;
 	      _mm_errno = MMERR_LOADING_PATTERN;
 	      return 0;
 	    }
 
 	  for (v = 0; v < of.numchn; v++)
-	    of.tracks[numtrk++] = XM_Convert (&xmpat[v * ph.numrows], ph.numrows);
+	    of.tracks[numtrk++] = XM_Convert(&xmpat[v * ph.numrows], ph.numrows);
 
-	  free (xmpat);
+	  _mm_free(xmpat);
 	  xmpat = NULL;
 	}
       else
 	{
 	  for (v = 0; v < of.numchn; v++)
-	    of.tracks[numtrk++] = XM_Convert (NULL, ph.numrows);
+	    of.tracks[numtrk++] = XM_Convert(NULL, ph.numrows);
 	}
     }
 
   if (dummypat)
     {
       of.pattrows[t] = 64;
-      if (!(xmpat = (XMNOTE *) _mm_calloc (64 * of.numchn, sizeof (XMNOTE))))
+      if (!(xmpat = (XMNOTE*) _mm_calloc(64 * of.numchn, sizeof(XMNOTE))))
 	return 0;
       for (v = 0; v < of.numchn; v++)
-	of.tracks[numtrk++] = XM_Convert (&xmpat[v * 64], 64);
-      free (xmpat);
+	of.tracks[numtrk++] = XM_Convert(&xmpat[v * 64], 64);
+      _mm_free(xmpat);
       xmpat = NULL;
     }
 
   return 1;
 }
 
-static BOOL 
-LoadInstruments (void)
+static BOOL
+LoadInstruments(void)
 {
   int t, u, ck;
   INSTRUMENT *d;
-  long next = 0;
+  SLONG next = 0;
   UWORD wavcnt = 0;
 
-  if (!AllocInstruments ())
+  if (!AllocInstruments())
     return 0;
   d = of.instruments;
   for (t = 0; t < of.numins; t++, d++)
     {
       XMINSTHEADER ih;
-      long headend;
+      SLONG headend;
 
-      memset (d->samplenumber, 0xff, INSTNOTES * sizeof (UWORD));
+      memset(d->samplenumber, 0xff, INSTNOTES * sizeof(UWORD));
 
       /* read instrument header */
-      headend = _mm_ftell (modreader);
-      ih.size = _mm_read_I_ULONG (modreader);
+      headend = _mm_ftell(modreader);
+      ih.size = _mm_read_I_ULONG(modreader);
       headend += ih.size;
       ck = _mm_ftell(modreader);
-      _mm_fseek(modreader,0,SEEK_END);
-      if ((headend<0) || (_mm_ftell(modreader)<headend) || (headend<ck)) {
-	_mm_fseek(modreader,ck,SEEK_SET);
+      _mm_fseek(modreader, 0, SEEK_END);
+      if ((headend < 0) || (_mm_ftell(modreader) < headend) || (headend < ck)) {
+	_mm_fseek(modreader, ck, SEEK_SET);
 	break;
       }
-      _mm_fseek(modreader,ck,SEEK_SET);
-      _mm_read_string (ih.name, 22, modreader);
-      ih.type = _mm_read_UBYTE (modreader);
-      ih.numsmp = _mm_read_I_UWORD (modreader);
+      _mm_fseek(modreader, ck, SEEK_SET);
+      _mm_read_string(ih.name, 22, modreader);
+      ih.type = _mm_read_UBYTE(modreader);
+      ih.numsmp = _mm_read_I_UWORD(modreader);
 
-      d->insname = DupStr (ih.name, 22, 1);
+      d->insname = DupStr(ih.name, 22, 1);
 
       if ((SWORD) ih.size > 29)
 	{
-	  ih.ssize = _mm_read_I_ULONG (modreader);
+	  ih.ssize = _mm_read_I_ULONG(modreader);
 	  if (((SWORD) ih.numsmp > 0) && (ih.numsmp <= XMNOTECNT))
 	    {
 	      XMPATCHHEADER pth;
 	      int p;
+	      ULONG *newnextwav;
+	      XMWAVHEADER *newwh;
 
-	      _mm_read_UBYTES (pth.what, XMNOTECNT, modreader);
-	      _mm_read_I_UWORDS (pth.volenv, XMENVCNT, modreader);
-	      _mm_read_I_UWORDS (pth.panenv, XMENVCNT, modreader);
-	      pth.volpts = _mm_read_UBYTE (modreader);
-	      pth.panpts = _mm_read_UBYTE (modreader);
-	      pth.volsus = _mm_read_UBYTE (modreader);
-	      pth.volbeg = _mm_read_UBYTE (modreader);
-	      pth.volend = _mm_read_UBYTE (modreader);
-	      pth.pansus = _mm_read_UBYTE (modreader);
-	      pth.panbeg = _mm_read_UBYTE (modreader);
-	      pth.panend = _mm_read_UBYTE (modreader);
-	      pth.volflg = _mm_read_UBYTE (modreader);
-	      pth.panflg = _mm_read_UBYTE (modreader);
-	      pth.vibflg = _mm_read_UBYTE (modreader);
-	      pth.vibsweep = _mm_read_UBYTE (modreader);
-	      pth.vibdepth = _mm_read_UBYTE (modreader);
-	      pth.vibrate = _mm_read_UBYTE (modreader);
-	      pth.volfade = _mm_read_I_UWORD (modreader);
+	      _mm_read_UBYTES(pth.what, XMNOTECNT, modreader);
+	      _mm_read_I_UWORDS(pth.volenv, XMENVCNT, modreader);
+	      _mm_read_I_UWORDS(pth.panenv, XMENVCNT, modreader);
+	      pth.volpts = _mm_read_UBYTE(modreader);
+	      pth.panpts = _mm_read_UBYTE(modreader);
+	      pth.volsus = _mm_read_UBYTE(modreader);
+	      pth.volbeg = _mm_read_UBYTE(modreader);
+	      pth.volend = _mm_read_UBYTE(modreader);
+	      pth.pansus = _mm_read_UBYTE(modreader);
+	      pth.panbeg = _mm_read_UBYTE(modreader);
+	      pth.panend = _mm_read_UBYTE(modreader);
+	      pth.volflg = _mm_read_UBYTE(modreader);
+	      pth.panflg = _mm_read_UBYTE(modreader);
+	      pth.vibflg = _mm_read_UBYTE(modreader);
+	      pth.vibsweep = _mm_read_UBYTE(modreader);
+	      pth.vibdepth = _mm_read_UBYTE(modreader);
+	      pth.vibrate = _mm_read_UBYTE(modreader);
+	      pth.volfade = _mm_read_I_UWORD(modreader);
 
 	      /* read the remainder of the header
 	         (2 bytes for 1.03, 22 for 1.04) */
-	      if (headend>=_mm_ftell(modreader))
-	      for (u = headend - _mm_ftell (modreader); u; u--)
-		_mm_read_UBYTE (modreader);
+	      if (headend >= _mm_ftell(modreader))
+	      for (u = headend - _mm_ftell(modreader); u; u--)
+		_mm_read_UBYTE(modreader);
 
 	      /* #@!$&% fix for K_OSPACE.XM and possibly others */
-	      if(pth.volpts > XMENVCNT/2)
-	        pth.volpts = XMENVCNT/2;
-	      if(pth.panpts > XMENVCNT/2)
-	        pth.panpts = XMENVCNT/2;
+	      if (pth.volpts > XMENVCNT / 2)
+	        pth.volpts = XMENVCNT / 2;
+	      if (pth.panpts > XMENVCNT / 2)
+	        pth.panpts = XMENVCNT / 2;
 
-	      if ((_mm_eof (modreader)) || (pth.volpts > XMENVCNT / 2) || (pth.panpts > XMENVCNT / 2))
+	      if ((_mm_eof(modreader)) || (pth.volpts > XMENVCNT / 2) || (pth.panpts > XMENVCNT / 2))
 		{
-		  if (nextwav)
-		    {
-		      free (nextwav);
-		      nextwav = NULL;
-		    }
-		  if (wh)
-		    {
-		      free (wh);
-		      wh = NULL;
-		    }
+		  _mm_free(nextwav);
+		  nextwav = NULL;
+		  _mm_free(wh);
+		  wh = NULL;
 		  _mm_errno = MMERR_LOADING_SAMPLEINFO;
 		  return 0;
 		}
@@ -564,24 +561,24 @@ LoadInstruments (void)
  					d->name##env[u].pos = pth.name##env[2*u];		\
  					d->name##env[u].val = pth.name##env[2*u + 1];	\
  				}															\
-				memcpy(d->name##env,pth.name##env,XMENVCNT);			\
-				if (pth.name##flg&1) d->name##flg|=EF_ON;				\
-				if (pth.name##flg&2) d->name##flg|=EF_SUSTAIN;			\
-				if (pth.name##flg&4) d->name##flg|=EF_LOOP;				\
-				d->name##susbeg=d->name##susend=pth.name##sus;		\
-				d->name##beg=pth.name##beg;								\
-				d->name##end=pth.name##end;								\
-				d->name##pts=pth.name##pts;								\
+				memcpy(d->name##env, pth.name##env, XMENVCNT);			\
+				if (pth.name##flg & 1) d->name##flg |= EF_ON;				\
+				if (pth.name##flg & 2) d->name##flg |= EF_SUSTAIN;			\
+				if (pth.name##flg & 4) d->name##flg |= EF_LOOP;				\
+				d->name##susbeg = d->name##susend = pth.name##sus;		\
+				d->name##beg = pth.name##beg;								\
+				d->name##end = pth.name##end;								\
+				d->name##pts = pth.name##pts;								\
 																			\
 				/* scale envelope */										\
-				for (p=0;p<XMENVCNT/2;p++)									\
-					d->name##env[p].val<<=2;								\
+				for (p = 0; p < XMENVCNT / 2; p++)									\
+					d->name##env[p].val <<= 2;								\
 																			\
-				if ((d->name##flg&EF_ON)&&(d->name##pts<2))				\
-					d->name##flg&=~EF_ON;
+				if ((d->name##flg & EF_ON) && (d->name##pts < 2))				\
+					d->name##flg &= ~EF_ON;
 
-	      XM_ProcessEnvelope (vol);
-	      XM_ProcessEnvelope (pan);
+	      XM_ProcessEnvelope(vol);
+	      XM_ProcessEnvelope(pan);
 #undef XM_ProcessEnvelope
 
 	      /* Samples are stored outside the instrument struct now, so we
@@ -596,49 +593,50 @@ LoadInstruments (void)
 		  if (of.numsmp + u == wavcnt)
 		    {
 		      wavcnt += XM_SMPINCR;
-		      if (!(nextwav = realloc (nextwav, wavcnt * sizeof (ULONG))))
+		      if (!(newnextwav = realloc(nextwav, wavcnt * sizeof(ULONG))))
 			{
-			  if (wh)
-			    {
-			      free (wh);
-			      wh = NULL;
-			    }
+			  _mm_free(nextwav);
+			  _mm_free(wh);
+			  wh = NULL;
 			  _mm_errno = MMERR_OUT_OF_MEMORY;
 			  return 0;
 			}
-		      if (!(wh = realloc (wh, wavcnt * sizeof (XMWAVHEADER))))
+		      nextwav = newnextwav;
+		      if (!(newwh = realloc(wh, wavcnt * sizeof(XMWAVHEADER))))
 			{
-			  free (nextwav);
+			  _mm_free(wh);
+			  _mm_free(nextwav);
 			  nextwav = NULL;
 			  _mm_errno = MMERR_OUT_OF_MEMORY;
 			  return 0;
 			}
+		      wh = newwh;
 		      s = wh + (wavcnt - XM_SMPINCR);
 		    }
 
-		  s->length = _mm_read_I_ULONG (modreader);
-		  s->loopstart = _mm_read_I_ULONG (modreader);
-		  s->looplength = _mm_read_I_ULONG (modreader);
-		  s->volume = _mm_read_UBYTE (modreader);
-		  s->finetune = _mm_read_SBYTE (modreader);
-		  s->type = _mm_read_UBYTE (modreader);
-		  s->panning = _mm_read_UBYTE (modreader);
-		  s->relnote = _mm_read_SBYTE (modreader);
+		  s->length = _mm_read_I_ULONG(modreader);
+		  s->loopstart = _mm_read_I_ULONG(modreader);
+		  s->looplength = _mm_read_I_ULONG(modreader);
+		  s->volume = _mm_read_UBYTE(modreader);
+		  s->finetune = _mm_read_SBYTE(modreader);
+		  s->type = _mm_read_UBYTE(modreader);
+		  s->panning = _mm_read_UBYTE(modreader);
+		  s->relnote = _mm_read_SBYTE(modreader);
 		  s->vibtype = pth.vibflg;
 		  s->vibsweep = pth.vibsweep;
 		  s->vibdepth = pth.vibdepth * 4;
 		  s->vibrate = pth.vibrate;
-		  s->reserved = _mm_read_UBYTE (modreader);
-		  _mm_read_string (s->samplename, 22, modreader);
+		  s->reserved = _mm_read_UBYTE(modreader);
+		  _mm_read_string(s->samplename, 22, modreader);
 
 		  nextwav[of.numsmp + u] = next;
 		  next += s->length;
 
-		  if (_mm_eof (modreader))
+		  if (_mm_eof(modreader))
 		    {
-		      free (nextwav);
-		      free (wh);
+		      _mm_free(nextwav);
 		      nextwav = NULL;
+		      _mm_free(wh);
 		      wh = NULL;
 		      _mm_errno = MMERR_LOADING_SAMPLEINFO;
 		      return 0;
@@ -648,8 +646,8 @@ LoadInstruments (void)
 	      if (mh->version > 0x0103)
 		{
 		  for (u = 0; u < ih.numsmp; u++)
-		    nextwav[of.numsmp++] += _mm_ftell (modreader);
-		  _mm_fseek (modreader, next, SEEK_CUR);
+		    nextwav[of.numsmp++] += _mm_ftell(modreader);
+		  _mm_fseek(modreader, next, SEEK_CUR);
 		}
 	      else
 		of.numsmp += ih.numsmp;
@@ -658,22 +656,22 @@ LoadInstruments (void)
 	    {
 	      /* read the remainder of the header */
 	      ck = _mm_ftell(modreader);
-	      _mm_fseek(modreader,0,SEEK_END);
-	      if ((headend<0) || (_mm_ftell(modreader)<headend) || (headend<ck)) {
-		_mm_fseek(modreader,ck,SEEK_SET);
+	      _mm_fseek(modreader, 0, SEEK_END);
+	      if ((headend < 0) || (_mm_ftell(modreader) < headend) || (headend < ck)) {
+		_mm_fseek(modreader, ck, SEEK_SET);
 		break;
 	      }
-	      _mm_fseek(modreader,ck,SEEK_SET);
+	      _mm_fseek(modreader, ck, SEEK_SET);
 
-	      for (u = headend - _mm_ftell (modreader); u; u--)
-		_mm_read_UBYTE (modreader);
+	      for (u = headend - _mm_ftell(modreader); u; u--)
+		_mm_read_UBYTE(modreader);
 
 	      /* last instrument is at the end of file in version 0x0104 */
-	      if(_mm_eof(modreader) && (mh->version<0x0104 || t<of.numins-1))
+	      if (_mm_eof(modreader) && (mh->version < 0x0104 || t < of.numins - 1))
 		{
-		  free (nextwav);
-		  free (wh);
+		  _mm_free(nextwav);
 		  nextwav = NULL;
+		  _mm_free(wh);
 		  wh = NULL;
 		  _mm_errno = MMERR_LOADING_SAMPLEINFO;
 		  return 0;
@@ -685,16 +683,10 @@ LoadInstruments (void)
   /* sanity check */
   if (!of.numsmp)
     {
-      if (nextwav)
-	{
-	  free (nextwav);
-	  nextwav = NULL;
-	}
-      if (wh)
-	{
-	  free (wh);
-	  wh = NULL;
-	}
+      _mm_free(nextwav);
+      nextwav = NULL;
+      _mm_free(wh);
+      wh = NULL;
       _mm_errno = MMERR_LOADING_SAMPLEINFO;
       return 0;
     }
@@ -703,7 +695,7 @@ LoadInstruments (void)
 }
 
 static BOOL
-XM_Load (BOOL curious)
+XM_Load(BOOL curious)
 {
   INSTRUMENT *d;
   SAMPLE *q;
@@ -712,24 +704,24 @@ XM_Load (BOOL curious)
   char tracker[21], modtype[60];
 
   /* try to read module header */
-  _mm_read_string (mh->id, 17, modreader);
-  _mm_read_string (mh->songname, 21, modreader);
-  _mm_read_string (mh->trackername, 20, modreader);
-  mh->version = _mm_read_I_UWORD (modreader);
+  _mm_read_string(mh->id, 17, modreader);
+  _mm_read_string(mh->songname, 21, modreader);
+  _mm_read_string(mh->trackername, 20, modreader);
+  mh->version = _mm_read_I_UWORD(modreader);
   if ((mh->version < 0x102) || (mh->version > 0x104))
     {
       _mm_errno = MMERR_NOT_A_MODULE;
       return 0;
     }
-  mh->headersize = _mm_read_I_ULONG (modreader);
-  mh->songlength = _mm_read_I_UWORD (modreader);
-  mh->restart = _mm_read_I_UWORD (modreader);
-  mh->numchn = _mm_read_I_UWORD (modreader);
-  mh->numpat = _mm_read_I_UWORD (modreader);
-  mh->numins = _mm_read_I_UWORD (modreader);
-  mh->flags = _mm_read_I_UWORD (modreader);
-  mh->tempo = _mm_read_I_UWORD (modreader);
-  mh->bpm = _mm_read_I_UWORD (modreader);
+  mh->headersize = _mm_read_I_ULONG(modreader);
+  mh->songlength = _mm_read_I_UWORD(modreader);
+  mh->restart = _mm_read_I_UWORD(modreader);
+  mh->numchn = _mm_read_I_UWORD(modreader);
+  mh->numpat = _mm_read_I_UWORD(modreader);
+  mh->numins = _mm_read_I_UWORD(modreader);
+  mh->flags = _mm_read_I_UWORD(modreader);
+  mh->tempo = _mm_read_I_UWORD(modreader);
+  mh->bpm = _mm_read_I_UWORD(modreader);
   if (!mh->bpm)
     {
       _mm_errno = MMERR_NOT_A_MODULE;
@@ -737,9 +729,9 @@ XM_Load (BOOL curious)
     }
   t = mh->headersize - 20;
   if (t > sizeof(mh->orders)) t = sizeof(mh->orders);
-  _mm_read_UBYTES (mh->orders, t, modreader);
+  _mm_read_UBYTES(mh->orders, t, modreader);
 
-  if (_mm_eof (modreader))
+  if (_mm_eof(modreader))
     {
       _mm_errno = MMERR_LOADING_HEADER;
       return 0;
@@ -748,27 +740,27 @@ XM_Load (BOOL curious)
   /* set module variables */
   of.initspeed = mh->tempo;
   of.inittempo = mh->bpm;
-  strncpy (tracker, mh->trackername, 20);
+  strncpy(tracker, mh->trackername, 20);
   tracker[20] = 0;
   for (t = 20; (tracker[t] <= ' ') && (t >= 0); t--)
     tracker[t] = 0;
 
   /* some modules have the tracker name empty */
   if (!tracker[0])
-    strcpy (tracker, "Unknown tracker");
+    strcpy(tracker, "Unknown tracker");
 
 #ifdef HAVE_SNPRINTF
-  snprintf (modtype, 60, "%s (XM format %d.%02d)",
+  snprintf(modtype, 60, "%s (XM format %d.%02d)",
 	    tracker, mh->version >> 8, mh->version & 0xff);
 #else
-  sprintf (modtype, "%s (XM format %d.%02d)",
+  sprintf(modtype, "%s (XM format %d.%02d)",
 	   tracker, mh->version >> 8, mh->version & 0xff);
 #endif
-  of.modtype = safe_strdup (modtype);
+  of.modtype = strdup(modtype);
   of.numchn = mh->numchn;
   of.numpat = mh->numpat;
   of.numtrk = (UWORD) of.numpat * of.numchn;	/* get number of channels */
-  of.songname = DupStr (mh->songname, 20, 1);
+  of.songname = DupStr(mh->songname, 20, 1);
   of.numpos = mh->songlength;	/* copy the songlength */
   of.reppos = mh->restart < mh->songlength ? mh->restart : 0;
   of.numins = mh->numins;
@@ -776,9 +768,9 @@ XM_Load (BOOL curious)
   if (mh->flags & 1)
     of.flags |= UF_LINEAR;
 
-  memset (of.chanvol, 64, of.numchn);	/* store channel volumes */
+  memset(of.chanvol, 64, of.numchn);	/* store channel volumes */
 
-  if (!AllocPositions (of.numpos + 1))
+  if (!AllocPositions(of.numpos + 1))
     return 0;
   for (t = 0; t < of.numpos; t++)
     of.positions[t] = mh->orders[t];
@@ -802,26 +794,26 @@ XM_Load (BOOL curious)
 
   if (mh->version < 0x0104)
     {
-      if (!LoadInstruments ())
+      if (!LoadInstruments())
 	return 0;
-      if (!LoadPatterns (dummypat))
+      if (!LoadPatterns(dummypat))
 	return 0;
       for (t = 0; t < of.numsmp; t++)
-	nextwav[t] += _mm_ftell (modreader);
+	nextwav[t] += _mm_ftell(modreader);
     }
   else
     {
-      if (!LoadPatterns (dummypat))
+      if (!LoadPatterns(dummypat))
 	return 0;
-      if (!LoadInstruments ())
+      if (!LoadInstruments())
 	return 0;
     }
 
-  if (!AllocSamples ())
+  if (!AllocSamples())
     {
-      free (nextwav);
-      free (wh);
+      _mm_free(nextwav);
       nextwav = NULL;
+      _mm_free(wh);
       wh = NULL;
       return 0;
     }
@@ -829,7 +821,7 @@ XM_Load (BOOL curious)
   s = wh;
   for (u = 0; u < of.numsmp; u++, q++, s++)
     {
-      q->samplename = DupStr (s->samplename, 22, 1);
+      q->samplename = DupStr(s->samplename, 22, 1);
       q->length = s->length;
       q->loopstart = s->loopstart;
       q->loopend = s->loopstart + s->looplength;
@@ -873,23 +865,23 @@ XM_Load (BOOL curious)
 	  }
       }
 
-  free (wh);
-  free (nextwav);
-  wh = NULL;
+  _mm_free(wh);
   nextwav = NULL;
+  _mm_free(nextwav);
+  wh = NULL;
   return 1;
 }
 
 static CHAR *
-XM_LoadTitle (void)
+XM_LoadTitle(void)
 {
   CHAR s[21];
 
-  _mm_fseek (modreader, 17, SEEK_SET);
-  if (!_mm_read_UBYTES (s, 21, modreader))
+  _mm_fseek(modreader, 17, SEEK_SET);
+  if (!_mm_read_UBYTES(s, 21, modreader))
     return NULL;
 
-  return (DupStr (s, 21, 1));
+  return (DupStr(s, 21, 1));
 }
 
 /*========== Loader information */

@@ -23,7 +23,9 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #if !defined(WINSOCK)
 #include <unistd.h>
 #include <sys/types.h>
@@ -55,8 +57,7 @@
 #endif /* SOCKET_ERROR */
 #endif
 
-#ifdef WIN32
-#if _WIN32_WINNT < 0x0501
+#if (defined WIN32) && (_WIN32_WINNT < 0x0501)
 typedef int (WSAAPI * GETADDRINFO) (const char FAR *, const char FAR *,
                                           const struct addrinfo FAR *,
                                           struct addrinfo FAR * FAR *);
@@ -64,11 +65,10 @@ typedef int (WSAAPI * GETADDRINFO) (const char FAR *, const char FAR *,
 typedef void (WSAAPI * FREEADDRINFO) ( struct addrinfo FAR * );
 extern GETADDRINFO ws2_getaddrinfo;
 extern FREEADDRINFO ws2_freeaddrinfo;
+#undef getaddrinfo
+#undef freeaddrinfo
 #define getaddrinfo ws2_getaddrinfo
 #define freeaddrinfo ws2_freeaddrinfo
-#else
-#include <wspiapi.h>
-#endif
 #endif
 
 SOCKET open_socket(char *host, unsigned short port)
@@ -290,7 +290,7 @@ int socket_fclose(FILE *fp)
     SOCKET fd = W32_FP2SOCKET(fp);
     int ret;
     ret = closesocket(fd);
-    free(fp);
+    safe_free(fp);
     return ret;
 }
 

@@ -76,7 +76,7 @@ static void ctl_pitch_bend(int channel, int val);
 static void ctl_reset(void);
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(int32 *valp);
+static int ctl_read(ptr_size_t *valp);
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]);
 static void ctl_event(CtlEvent *e);
@@ -165,16 +165,16 @@ static void ctl_close(void)
     ctl.opened = 0;
 }
 
-static int ctl_read(int32 *valp)
+static int ctl_read(ptr_size_t *valp)
 {
     char cmd[BUFSIZ];
     int n;
-
-	if (cuepoint_pending) {
-		*valp = cuepoint;
-		cuepoint_pending = 0;
-		return RC_FORWARD;
-	}
+	
+    if (cuepoint_pending) {
+	*valp = cuepoint;
+	cuepoint_pending = 0;
+	return RC_FORWARD;
+    }
     if(read_ready() <= 0)
 	return RC_NONE;
     if(fgets(cmd, sizeof(cmd), stdin) == NULL)
@@ -553,10 +553,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
-	case CTLE_CUEPOINT:
-		cuepoint = e->v1;
-		cuepoint_pending = 1;
-		break;
+      case CTLE_CUEPOINT:
+	cuepoint = e->v1;
+	cuepoint_pending = 1;
+	break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:

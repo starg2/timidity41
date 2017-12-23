@@ -29,6 +29,21 @@ w32g_dib_t *dib_create (int width, int height )
 	dib->height = height;
 	dib->pals_max = 16;
 	dib->modified_rect_max = 0;
+	if ( dib->bits == NULL ) { /* retry */
+		DeleteObject ( dib->hbmp );
+#ifndef NDEBUG
+		MessageBox(NULL,
+			TEXT("Sorry. Couldn't execute CreateDIBSection func."), TEXT("First Error"), MB_ICONEXCLAMATION);
+#endif
+		dib->hbmp = CreateDIBSection ( NULL, &bi, DIB_RGB_COLORS, (void **)&dib->bits, NULL, 0);
+		if ( dib->bits == NULL ) { /* fail */
+			DeleteObject ( dib->hbmp );
+			MessageBox(NULL,
+				TEXT("Sorry. Couldn't execute CreateDIBSection func."), NULL, MB_ICONEXCLAMATION);
+			free(dib);
+			dib = NULL;
+		}
+	}
 
 	return dib;
 }

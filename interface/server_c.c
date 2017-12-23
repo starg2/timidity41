@@ -58,7 +58,11 @@
 #endif
 #include <signal.h>
 
+#ifdef HAVE_SYS_SOUNDCARD_H
+#include <sys/soundcard.h>
+#else
 #include "server_defs.h"
+#endif /* HAVE_SYS_SOUNDCARD_H */
 
 #include "timidity.h"
 #include "common.h"
@@ -174,8 +178,8 @@ SYNTH [gus|awe]\n\
 
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(int32 *valp);
-static int ctl_write(char *buffer, int32 size);
+static int ctl_read(ptr_size_t *valp);
+static int ctl_write(const uint8 *valp, size_t size);
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
 static void ctl_event(CtlEvent *e);
 static int ctl_pass_playing_list(int n, char *args[]);
@@ -265,14 +269,14 @@ static void ctl_close(void)
 }
 
 /*ARGSUSED*/
-static int ctl_read(int32 *valp)
+static int ctl_read(ptr_size_t *valp)
 {
     if(data_fd != -1)
 	do_control_command_nonblock();
     return RC_NONE;
 }
 
-static int ctl_write(char *buffer, int32 size)
+static int ctl_write(const uint8 *valp, size_t size)
 {
     static int warned = 0;
     if (!warned) {
@@ -280,7 +284,7 @@ static int ctl_write(char *buffer, int32 size)
 	warned = 1;
     }
     if(data_fd != -1)
-	return send(data_fd, buffer, size, MSG_DONTWAIT);
+	return send(data_fd, valp, size, MSG_DONTWAIT); //r 
     return -1;
 }
 
@@ -566,7 +570,7 @@ static void seq_play_event(MidiEvent *ev)
 	}
     }
     ev->time += event_time_offset;
-    play_event(ev);
+    play_event(ev); //r
 }
 
 static void tmr_reset(void)
@@ -845,6 +849,9 @@ static void server_reset(void)
     low_time_at = DEFAULT_LOW_TIMEAT;
     high_time_at = DEFAULT_HIGH_TIMEAT;
     reduce_voice_threshold = 0; /* Disable auto reduction voice */
+///r
+	reduce_quality_threshold = 0;
+	reduce_polyphony_threshold = 0;
     compute_sample_increment();
     tmr_reset();
     tmr_running = notmr_running = 0;
@@ -1032,7 +1039,7 @@ static int cmd_timebase(int argc, char **argv)
     }
     return send_status(200, "OK");
 }
-
+///r
 static int cmd_patch(int argc, char **argv)
 {
     int dr, bank, prog;
@@ -1048,7 +1055,7 @@ static int cmd_patch(int argc, char **argv)
     prog = atoi(argv[3]);
     if(bank < 0 || bank > 127 || prog < 0 || prog > 127)
 	return send_status(502, "PATCH: Invalid argument"); 
-    if(play_midi_load_instrument(dr, bank, prog) == NULL)
+    if(play_midi_load_instrument(dr, bank, prog, 0, NULL) == NULL)
 	return send_status(514, "PATCH: Can't load the patch");
     return send_status(200, "OK");
 }
@@ -1803,3 +1810,4 @@ ControlMode *interface_r_loader(void)
 {
     return &ctl;
 }
+

@@ -83,7 +83,10 @@ static int peek_character = -1;
 #endif
 
 extern int volatile stream_max_compute;	// play_event() ÇÃ compute_data() Ç≈åvéZÇãñÇ∑ç≈ëÂéûä‘
-int seq_quit=~0;
+
+///r // define rtsyn_common.c 
+// int seq_quit=~0;
+extern int seq_quit;
 
 
 static int ctl_open(int using_stdin, int using_stdout);
@@ -232,6 +235,9 @@ int ctl_pass_playing_list2(int n, char *args[])
 	unsigned int port=0 ;
 	int started;
 	char cbuf[80];
+#if defined(__W32__) && defined(FORCE_TIME_PERIOD)
+	TIMECAPS tcaps;
+#endif /* __W32__ && FORCE_TIME_PERIOD */
 
 rtsyn_get_port_list();
 
@@ -324,6 +330,11 @@ rtsyn_get_port_list();
 #ifdef USE_GTK_GUI
 	twgtk_main();
 #else 
+#if defined(__W32__) && defined(FORCE_TIME_PERIOD)
+	if (timeGetDevCaps(&tcaps, sizeof(TIMECAPS)) != TIMERR_NOERROR)
+		tcaps.wPeriodMin = 10;
+	timeBeginPeriod(tcaps.wPeriodMin);
+#endif /* __W32__ && FORCE_TIME_PERIOD */
 #ifdef IA_W32G_SYN
 	if(0!=rtsyn_synth_start()){
 		seq_quit=0;
@@ -341,6 +352,9 @@ rtsyn_get_port_list();
 		rtsyn_synth_stop();
 	}
 #endif /* IA_W32G_SYN */
+#if defined(__W32__) && defined(FORCE_TIME_PERIOD)
+	timeEndPeriod(tcaps.wPeriodMin);
+#endif /* __W32__ && FORCE_TIME_PERIOD */
 #endif /* USE_GTK_GUI */
 	rtsyn_close();
 
@@ -407,7 +421,7 @@ static void doit(void)
 #endif
 
 	while(seq_quit==0){
-#if __W32__
+#ifdef __W32__
 		if(kbhit()){
 			switch(getch()){
 #else			

@@ -22,13 +22,16 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include "timidity.h"
+#include "common.h"
 #include "url.h"
 
 #ifdef HAVE_POPEN
@@ -40,11 +43,11 @@ typedef struct _URL_pipe
     FILE *fp;
 } URL_pipe;
 
-#define PIPE_FP(url) (((URL_pipe *)(url))->fp)
+#define PIPE_FP(url) (((URL_pipe*)(url))->fp)
 
-static int name_pipe_check(char *url_string);
-static long url_pipe_read(URL url, void *buff, long n);
-static char *url_pipe_gets(URL url, char *buff, int n);
+static int name_pipe_check(const char *url_string);
+static ptr_size_t url_pipe_read(URL url, void *buff, ptr_size_t n);
+static char *url_pipe_gets(URL url, char *buff, ptr_size_t n);
 static int url_pipe_fgetc(URL url);
 static void url_pipe_close(URL url);
 
@@ -58,15 +61,15 @@ struct URL_module URL_module_pipe =
 };
 
 /* url_string := "command|" */
-static int name_pipe_check(char *url_string)
+static int name_pipe_check(const char *url_string)
 {
 #ifdef PIPE_SCHEME_ENABLE
     char *p;
     p = strrchr(url_string, '|');
-    if(p == NULL)
+    if (!p)
 	return 0;
     p++;
-    while(*p == ' ')
+    while (*p == ' ')
 	p++;
     return *p == '\0';
 #else
@@ -74,7 +77,7 @@ static int name_pipe_check(char *url_string)
 #endif
 }
 
-URL url_pipe_open(char *command)
+URL url_pipe_open(const char *command)
 {
     URL_pipe *url;
     char buff[BUFSIZ], *p;
@@ -82,21 +85,21 @@ URL url_pipe_open(char *command)
     strncpy(buff, command, sizeof(buff));
     buff[sizeof(buff) - 1] = '\0';
     p = strrchr(buff, '|');
-    if(p != NULL)
+    if (p)
     {
 	char *q;
 
 	q = p + 1;
-	while(*q == ' ')
+	while (*q == ' ')
 	    q++;
-	if(*q == '\0')
+	if (*q == '\0')
 	{
 	    p--;
-	    while(buff < p && *p == ' ')
+	    while (buff < p && *p == ' ')
 		p--;
-	    if(buff == p)
+	    if (buff == p)
 	    {
-		errno = ENOENT;
+		_set_errno(ENOENT);
 		url_errno = URLERR_IURLF;
 		return NULL;
 	    }
@@ -104,8 +107,8 @@ URL url_pipe_open(char *command)
 	}
     }
 
-    url = (URL_pipe *)alloc_url(sizeof(URL_pipe));
-    if(url == NULL)
+    url = (URL_pipe*)alloc_url(sizeof(URL_pipe));
+    if (!url)
     {
 	url_errno = errno;
 	return NULL;
@@ -123,7 +126,7 @@ URL url_pipe_open(char *command)
     /* private members */
     url->fp = NULL;
 
-    if((url->fp = popen(buff, "r")) == NULL)
+    if ((url->fp = popen(buff, "r")) == NULL)
     {
 	url_pipe_close((URL)url);
 	url_errno = errno;
@@ -133,12 +136,12 @@ URL url_pipe_open(char *command)
     return (URL)url;
 }
 
-static long url_pipe_read(URL url, void *buff, long n)
+static ptr_size_t url_pipe_read(URL url, void *buff, ptr_size_t n)
 {
-    return (long)fread(buff, 1, n, PIPE_FP(url));
+    return (int32)fread(buff, 1, n, PIPE_FP(url));
 }
 
-static char *url_pipe_gets(URL url, char *buff, int n)
+static char *url_pipe_gets(URL url, char *buff, ptr_size_t n)
 {
     return fgets(buff, n, PIPE_FP(url));
 }
@@ -155,10 +158,10 @@ static int url_pipe_fgetc(URL url)
 static void url_pipe_close(URL url)
 {
     int save_errno = errno;
-    if(PIPE_FP(url) != NULL)
+    if (PIPE_FP(url))
 	pclose(PIPE_FP(url));
-    free(url);
-    errno = save_errno;
+    safe_free(url);
+    _set_errno(save_errno);
 }
 
 #else /* HAVE_POPEN */
@@ -170,5 +173,5 @@ struct URL_module URL_module_pipe =
     NULL,			/* open */
     NULL			/* must be NULL */
 };
-URL url_pipe_open(char *command) { return NULL; } /* dmy */
+URL url_pipe_open(const char *command) { return NULL; } /* dmy */
 #endif

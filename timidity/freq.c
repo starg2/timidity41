@@ -274,10 +274,11 @@ int freq_initialize_fft_arrays(Sample *sp)
     /* length must be a power of 2 */
     /* set it to smallest power of 2 >= 1.4*rate */
     /* at least 1.4*rate is required for decent resolution of low notes */
-    newlength = pow(2, ceil(log(1.4*rate) / log(2)));
+    newlength = pow(2, ceil(log(1.4*rate) * DIV_LN2));
     if (length < newlength)
     {
-	floatdata = safe_realloc(floatdata, newlength * sizeof(float));
+///r
+	floatdata = (float *) safe_realloc(floatdata, newlength * sizeof(float));
 	memset(floatdata + length, 0, (newlength - length) * sizeof(float));
     }
     length = newlength;
@@ -288,8 +289,8 @@ int freq_initialize_fft_arrays(Sample *sp)
     {
         float f0;
     
-        if (oldfftsize > 0)
-        {
+        //if (oldfftsize > 0){//del by Kobarin
+        if(magdata){//add by Kobarin(‘O‰ñ‚ª length == 0 ‚¾‚Á‚½‚Æ‚«‚Éƒƒ‚ƒŠƒŠ[ƒN)
             free(magdata);
             free(prunemagdata);
             free(ip);
@@ -298,10 +299,17 @@ int freq_initialize_fft_arrays(Sample *sp)
         }
         magdata = (float *) safe_malloc(length * sizeof(float));
         prunemagdata = (float *) safe_malloc(length * sizeof(float));
-        ip = (int *) safe_malloc(2 + sqrt(length) * sizeof(int));
+        //ip = (int *) safe_malloc(2 + sqrt(length) * sizeof(int));//del by Kobarin
+        //C³ by Kobarin
+        //length == 0 ‚Ì‚Æ‚«‚Éƒƒ‚ƒŠ‚ð”j‰ó‚·‚é
+        //2+sqrt(length) ‚Ì 2 == 16bit Žž‘ã‚Ì sizeof(int)?
+        //(1+sqrt(length))*sizeof(int) ‚Å—Ç‚¢‚©‚à
+        ip = (int*)safe_malloc((2+sqrt(length))*sizeof(int));
+        //‚±‚±‚Ü‚Å
         *ip = 0;
         w = (float *) safe_malloc((length >> 1) * sizeof(float));
-        fft1_bin_to_pitch = safe_malloc((length >> 1) * sizeof(float));
+///r
+        fft1_bin_to_pitch = (int *) safe_malloc((length >> 1) * sizeof(float));
 
         for (i = 1, f0 = (float) rate / length; i < (length >> 1); i++) {
             fft1_bin_to_pitch[i] = assign_pitch_to_freq(i * f0);
@@ -696,7 +704,7 @@ float freq_fourier(Sample *sp, int *chord)
     }
 
     bestfreq = 13.75 * exp(((bestpitch + weightsum / sum) - 9) /
-    	       12 * log(2));
+    	       12 * M_LN2);
 
     /* Since we are using exactly 260 Hz as an error code, fudge the freq
      * on the extremely unlikely chance that the detected pitch is exactly
@@ -726,4 +734,18 @@ int assign_pitch_to_freq(float freq)
     else if (pitch > HIGHEST_PITCH) pitch = HIGHEST_PITCH;
 
     return pitch;
+}
+
+///r
+// kobarin
+void free_freq_data(void)
+{
+    if(magdata){
+        free(magdata);magdata = NULL;
+        free(prunemagdata);prunemagdata = NULL;
+        free(ip);ip = NULL;
+        free(w);w = NULL;
+        free(fft1_bin_to_pitch);fft1_bin_to_pitch = NULL;
+        oldfftsize = 0;
+    }
 }

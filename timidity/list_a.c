@@ -30,7 +30,9 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -81,7 +83,7 @@ static char *time_str(int t)
 {
     static char buff[32];
 
-    t = (int)((double)t / (double)play_mode->rate + 0.5);
+    t = (int)((double)t * div_playmode_rate + 0.5);
     sprintf(buff, "%d:%02d", t / 60, t % 60);
     return buff;
 }

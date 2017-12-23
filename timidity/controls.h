@@ -92,6 +92,7 @@ enum {
     CTLE_PLAY_END,
     CTLE_CUEPOINT,		/* v1:nsamples */
     CTLE_CURRENT_TIME,		/* v1:secs, v2:voices */
+    CTLE_CURRENT_TIME_END,		/* v1:secs, v2:voices */
     CTLE_NOTE,			/* v1:status, v2:ch, v3:note, v4:velo */
     CTLE_MASTER_VOLUME,		/* v1:amp(%) */
     CTLE_METRONOME,		/* v1:measure, v2:beat */
@@ -118,7 +119,8 @@ enum {
     CTLE_PAUSE,			/* v1:pause on/off v2:time of pause */
     CTLE_GSLCD,			/* GS L.C.D. */
     CTLE_MAXVOICES,		/* v1:voices, Change voices */
-    CTLE_DRUMPART		/* v1:ch, v2:is_drum */
+    CTLE_INSERTION_EFFECT,		/* v1:ch, v2:value */
+    CTLE_DRUMPART,		/* v1:ch, v2:is_drum */
 };
 
 typedef struct _CtlEvent {
@@ -150,10 +152,11 @@ typedef struct {
   int  (*open)(int using_stdin, int using_stdout);
   void (*close)(void);
   int (*pass_playing_list)(int number_of_files, char *list_of_files[]);
-  int  (*read)(int32 *valp);
-  int  (*write)(char *buf, int32 size);
+  int  (*read)(ptr_size_t *valp);
+  int  (*write)(const uint8 *buf, size_t size);
   int  (*cmsg)(int type, int verbosity_level, char *fmt, ...);
   void (*event)(CtlEvent *ev);	/* Control events */
+
 } ControlMode;
 
 extern ControlMode *ctl_list[], *ctl;

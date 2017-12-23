@@ -21,6 +21,42 @@
 #ifndef ___RECACHE_H_
 #define ___RECACHE_H_
 
+#ifndef TIMIDITY_H_INCLUDED
+#define TIMIDITY_H_INCLUDED 1
+#include "timidity.h"
+#endif
+
+///r
+#if defined(DATA_T_DOUBLE)
+
+#if 0 // SAMPLE_TYPE_FLOAT // cache_t float
+typedef float cache_t; // cache_t float
+#define CACHE_DATA_TYPE (SAMPLE_TYPE_FLOAT) // SAMPLE_TYPE_FLOAT
+#else // SAMPLE_TYPE_DOUBLE // cache_t double
+typedef double cache_t; // cache_t double
+#define CACHE_DATA_TYPE (SAMPLE_TYPE_DOUBLE) // SAMPLE_TYPE_DOUBLE
+#endif
+
+#elif defined(DATA_T_FLOAT)
+
+typedef float cache_t; // cache_t float
+#define CACHE_DATA_TYPE (SAMPLE_TYPE_FLOAT) // SAMPLE_TYPE_FLOAT
+
+#else // DATA_T_INT32
+
+#if defined(LOOKUP_HACK)
+typedef sample_t cache_t; // sample_t
+#define CACHE_DATA_TYPE (SAMPLE_TYPE_INT16) // SAMPLE_TYPE_INT16
+#elif 0 // SAMPLE_TYPE_INT16 // cache_t sample_t
+typedef sample_t cache_t;
+#define CACHE_DATA_TYPE (SAMPLE_TYPE_INT16)
+#else // SAMPLE_TYPE_INT32 // cache_t int32
+typedef int32 cache_t;
+#define CACHE_DATA_TYPE (SAMPLE_TYPE_INT32)
+#endif // cache_resampling() check loop_connect()
+
+#endif
+
 struct cache_hash
 {
     /* cache key */
@@ -29,6 +65,7 @@ struct cache_hash
 
     int32 cnt;			/* counter */
     double r;			/* size/refcnt */
+
     struct _Sample *resampled;
     struct cache_hash *next;
 };

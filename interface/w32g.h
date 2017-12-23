@@ -21,6 +21,8 @@
 #ifndef ___W32G_H_
 #define ___W32G_H_
 
+#include "common.h"
+
 #include <process.h>
 #ifdef RC_NONE
 #undef RC_NONE
@@ -41,6 +43,7 @@ extern int PlayerMode;
 #define MAXPATH 256
 #endif /* MAXPATH */
 
+#define _midi_play_mode midi_play_mode
 
 typedef struct argc_argv_t_ {
 	int argc;
@@ -91,6 +94,7 @@ typedef LPTHREAD_START_ROUTINE BCC_BEGINTHREAD_START_ADDRESS;
 
 #define RANGE(x,min,max) (((x)<(min))?((x)=(min)):(((x)>(max))?((x)=(max)):(x)))
 
+
 #define RC_EXT_BASE 1000
 enum {
     RC_EXT_DROP = RC_EXT_BASE,
@@ -108,10 +112,15 @@ enum {
     RC_EXT_CLEAR_PLAYLIST,
     RC_EXT_OPEN_DOC,
     RC_EXT_RESTART_GUI,
-	RC_EXT_LOAD_FILES_AND_PLAY
+	RC_EXT_LOAD_FILES_AND_PLAY,
+///r
+    RC_EXT_PLAYLIST_CTRL,
+    RC_EXT_COPYCUT_PLAYLIST,
+    RC_EXT_PASTE_PLAYLIST,
+    RC_EXT_PLAYLIST_CTRL_UPDATE,
 };
-
-#define MAX_W32G_MIDI_CHANNELS	32
+///r
+#define MAX_W32G_MIDI_CHANNELS	MAX_CHANNELS
 
 
 // Toolbar Macros
@@ -129,7 +138,8 @@ enum {
 #define IDM_DOC			2514
 #define IDM_WRD			2515
 #define IDM_SOUNDSPEC	2516
-
+///r
+#define IDM_VSTMGR		2517
 
 #define FLAG_NOTE_OFF	1
 #define FLAG_NOTE_ON	2
@@ -172,8 +182,8 @@ typedef struct {
 	int cur_voices;
 	int voices;
 	int upper_voices;
-	char filename[MAXPATH + 64];
-	char titlename[MAXPATH + 64];
+	char filename[FILEPATH_MAX];
+	char titlename[FILEPATH_MAX];
 	int filename_setflag;
 	int titlename_setflag;
 	int32 master_volume;
@@ -208,9 +218,12 @@ extern PanelInfo *Panel;
 #define CANVAS_MODE_GSLCD		0x0001
 #define CANVAS_MODE_MAP16		0x0002
 #define CANVAS_MODE_MAP32		0x0003
-#define CANVAS_MODE_KBD_A		0x0004
-#define CANVAS_MODE_KBD_B		0x0005
-#define CANVAS_MODE_SLEEP		0x0006
+#define CANVAS_MODE_MAP64		0x0004
+#define CANVAS_MODE_KBD_A		0x0005
+#define CANVAS_MODE_KBD_B		0x0006
+#define CANVAS_MODE_KBD_C		0x0007
+#define CANVAS_MODE_KBD_D		0x0008
+#define CANVAS_MODE_SLEEP		0x0009
 
 #if 0
 #define TMCCC_BLACK	RGB(0x00,0x00,0x00)
@@ -291,7 +304,24 @@ extern int w32g_refine_playlist(int *is_selected_removed);
 extern int w32g_uniq_playlist(int *is_selected_removed);
 extern void w32g_clear_playlist(void);
 extern void w32g_rotate_playlist(int dest);
-void w32g_free_playlist(void);
+extern void w32g_free_playlist(void);
+///r
+#define PLAYLIST_MAX 16
+#define LISTVIEW_PLAYLIST
+extern int playlist_max;
+extern int playlist_max_ini;
+extern int w32g_get_playlist_num_ctrl(void);
+extern int w32g_is_playlist_ctrl_play(void);
+extern void w32g_set_playlist_ctrl(int num);
+extern void w32g_set_playlist_ctrl_play(void);
+extern void w32g_set_playlist_play_time(int sec);
+extern void w32g_set_playmode_rate(int32 rate);
+extern char *w32g_get_playlist_play(int idx);
+extern void w32g_get_playlist_play_index(int *selected);
+#ifdef LISTVIEW_PLAYLIST
+extern void w32g_copy_playlist(void);
+extern void w32g_paste_playlist(int uniq, int refine);
+#endif
 
 #if 0
 /* w32g_panel.c */
@@ -320,10 +350,17 @@ extern volatile int w32g_play_active;
 extern int w32g_current_volume[/* MAX_CHANNELS */];
 extern int w32g_current_expression[/* MAX_CHANNELS */];
 extern volatile int w32g_restart_gui_flag;
-
+///r
+extern int main_panel_update_time;
 
 void PrefSettingApplyReally(void);
 
+#define EXT_CONTROL_MAIN_THREAD // w32g_ext_control called MAIN_THREAD
+#define EXT_CONTROL_THREAD // add w32g_ext_control thread
+
+#ifdef EXT_CONTROL_MAIN_THREAD
+extern void w32g_ext_control_main_thread(int rc, ptr_size_t value);
+#endif
 
 
 // flags
@@ -334,6 +371,7 @@ extern int ListWndStartFlag;
 extern int TracerWndStartFlag;
 extern int DocWndStartFlag;
 extern int WrdWndStartFlag;
+extern int SoundSpecWndStartFlag;
 extern int DebugWndFlag;
 extern int ConsoleWndFlag;
 extern int ListWndFlag;
@@ -341,8 +379,8 @@ extern int TracerWndFlag;
 extern int DocWndFlag;
 extern int WrdWndFlag;
 extern int SoundSpecWndFlag;
-
 extern int SubWindowMax;
+extern int ConsoleClearFlag;
 
 extern char *IniFile;
 extern char *ConfigFile;

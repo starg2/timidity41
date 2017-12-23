@@ -46,7 +46,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -56,6 +58,8 @@
 #else
 #include <strings.h>
 #endif
+
+#ifdef AU_JACK
 
 #include <jack/jack.h>
 
@@ -72,7 +76,7 @@
  */
 static int open_jack(void);
 static void close_jack(void);
-static int write_jack(char *buf, int32 nbytes);
+static int32 write_jack(const uint8 *buf, int32 nbytes);
 static int actl_jack(int request, void *arg);
 static int detect(void);
 
@@ -84,10 +88,10 @@ static int detect(void);
 
 PlayMode dpm = {
 	DEFAULT_RATE,
-	PE_16BIT|PE_SIGNED,
-	PF_PCM_STREAM|PF_CAN_TRACE|PF_BUFF_FRAGM_OPT,
+	PE_16BIT | PE_SIGNED,
+	PF_PCM_STREAM | PF_CAN_TRACE | PF_BUFF_FRAGM_OPT,
 	-1,
-	{0},
+	{ 0 },
 	"JACK device", 'j',
 	NULL,
 	open_jack,
@@ -102,7 +106,7 @@ PlayMode dpm = {
  */
 
 struct tm_ringbuf {
-	long rdptr, wrptr;	/* read, write pointers (not bound in ringbuffer size!) */
+	int32 rdptr, wrptr;	/* read, write pointers (not bound in ringbuffer size!) */
 	int size;		/* ring buffer size */
 	jack_default_audio_sample_t *buf[2];	/* left, right buffers */
 };
@@ -114,7 +118,7 @@ static void ringbuf_init(struct tm_ringbuf *rbuf, int size, int channels)
 	memset(rbuf, 0, sizeof(*rbuf));
 	rbuf->size = size;
 	for (i = 0; i < channels; i++)
-		rbuf->buf[i] = (jack_default_audio_sample_t *)safe_malloc(sizeof(jack_default_audio_sample_t) * size);
+		rbuf->buf[i] = (jack_default_audio_sample_t*) safe_malloc(sizeof(jack_default_audio_sample_t) * size);
 	rbuf->rdptr = rbuf->wrptr = 0;
 }
 
@@ -122,7 +126,7 @@ static void ringbuf_destroy(struct tm_ringbuf *rbuf)
 {
 	int i;
 	for (i = 0; i < 2; i++) {
-		free(rbuf->buf[i]);
+		safe_free(rbuf->buf[i]);
 		rbuf->buf[i] = NULL;
 	}
 	rbuf->rdptr = rbuf->wrptr = 0;
@@ -213,15 +217,15 @@ struct tm_jack {
 
 static int transfer_callback(jack_nframes_t nframes, void *arg)
 {
-	struct tm_jack *ctx = (struct tm_jack *)arg;
+	struct tm_jack *ctx = (struct tm_jack*)arg;
 	int i;
 	int size;
 	jack_default_audio_sample_t *outbuf[2];
 
 	for (i = 0; i < ctx->channels; i++)
-		outbuf[i] = (jack_default_audio_sample_t *)jack_port_get_buffer(ctx->ports[i], nframes);
+		outbuf[i] = (jack_default_audio_sample_t*)jack_port_get_buffer(ctx->ports[i], nframes);
 
-	if (! ctx->running) {
+	if (!ctx->running) {
 		/* not running yet, set silence and quit */
 		for (i = 0; i < ctx->channels; i++)
 			memset(outbuf[i], 0, sizeof(jack_default_audio_sample_t) * nframes);
@@ -249,8 +253,8 @@ static int transfer_callback(jack_nframes_t nframes, void *arg)
 
 static void shutdown_callback(void *arg)
 {
-	struct tm_jack *ctx = (struct tm_jack *)arg;
-	if (! ctx->shutdown)
+	struct tm_jack *ctx = (struct tm_jack*)arg;
+	if (!ctx->shutdown)
 		safe_exit(1);
 }
 
@@ -267,7 +271,7 @@ static int detect(void)
 {
 	jack_client_t *client;
 	client = jack_client_new(TIMIDITY_JACK_CLIENT_NAME);
-	if (! client)
+	if (!client)
 		return 0;
 	jack_client_close(client);
 	return 1; /* found */
@@ -283,13 +287,16 @@ static int open_jack(void)
 	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->client = jack_client_new(TIMIDITY_JACK_CLIENT_NAME);
-	if (! ctx->client)
+	if (!ctx->client)
 		return -1;
 
 	jack_set_process_callback(ctx->client, transfer_callback, ctx);
 	jack_on_shutdown(ctx->client, shutdown_callback, ctx);
 
-	dpm.encoding &= ~(PE_ULAW|PE_ALAW|PE_BYTESWAP);
+	if (!dpm.name)
+		dpm.name = safe_strdup("jack");
+
+	dpm.encoding &= ~(PE_ULAW | PE_ALAW | PE_BYTESWAP);
 	/* check channels */
 	if (dpm.encoding & PE_MONO)
 		ctx->channels = 1;
@@ -316,7 +323,7 @@ static int open_jack(void)
 		ctx->ports[i] = jack_port_register(ctx->client, name,
 						   JACK_DEFAULT_AUDIO_TYPE,
 						   JackPortIsOutput, 0);
-		if (! ctx->ports[i]) {
+		if (!ctx->ports[i]) {
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 				  "Cannot register a JACK port '%s'", name);
 			jack_client_close(ctx->client);
@@ -357,7 +364,7 @@ static int open_jack(void)
 		return -1;
 	}
 
-	/* 
+	/*
 	 * it seems the JACK port connection must be done after
 	 * activating jack client...
 	 */
@@ -370,7 +377,7 @@ static int open_jack(void)
 			if (jack_connect(ctx->client, jack_port_name(ctx->ports[i]), dst_ports[i]))
 				break;
 		}
-		free(dst_ports);
+		safe_free(dst_ports);
 	}
 
 	return ret_val;
@@ -395,7 +402,7 @@ static void close_jack(void)
 }
 
 /*
- * convert 16bit PCM to JACK float [-1,1]
+ * convert 16bit PCM to JACK float [-1, 1]
  */
 static void convert_stream_16(struct tm_jack *ctx, int c, int size, short *buf)
 {
@@ -412,7 +419,7 @@ static void convert_stream_16(struct tm_jack *ctx, int c, int size, short *buf)
 }
 
 /*
- * convert 8bit PCM to JACK float [-1,1]
+ * convert 8bit PCM to JACK float [-1, 1]
  */
 static void convert_stream_8(struct tm_jack *ctx, int c, int size, char *buf)
 {
@@ -427,7 +434,7 @@ static void convert_stream_8(struct tm_jack *ctx, int c, int size, char *buf)
 /*
  * write callback
  */
-static int write_jack(char *buf, int32 nbytes)
+static int32 write_jack(const uint8 *buf, int32 nbytes)
 {
 	struct tm_jack *ctx = &jack_ctx;
 	int nframes;
@@ -444,11 +451,11 @@ static int write_jack(char *buf, int32 nbytes)
 		while (size > 0) {
 			int size1 = ringbuf_bound_writable(&ctx->rbuf, size);
 			if (ctx->sample_16bit) {
-				short *sbuf = (short *)buf;
+				short *sbuf = (short*)buf;
 				for (i = 0; i < ctx->channels; i++, sbuf++)
 					convert_stream_16(ctx, i, size1, sbuf);
 			} else {
-				char *sbuf = (char *)buf;
+				char *sbuf = (char*)buf;
 				for (i = 0; i < ctx->channels; i++, sbuf++)
 					convert_stream_8(ctx, i, size1, sbuf);
 			}
@@ -456,7 +463,7 @@ static int write_jack(char *buf, int32 nbytes)
 			/* set running flag */
 			ctx->running = 1;
 			nframes -= size1;
-			if (! nframes)
+			if (!nframes)
 				return 0;
 			buf += size1 << ctx->shift;
 			size -= size1;
@@ -481,25 +488,25 @@ static int actl_jack(int request, void *arg)
 	case PM_REQ_GETFRAGSIZ:
 		if (ctx->frag_size == 0)
 			return -1;
-		*((int *)arg) = ctx->frag_size;
+		*((int*)arg) = ctx->frag_size;
 		return 0;
 
 	case PM_REQ_GETQSIZ:
 		if (ctx->frag_size == -1)
 			return -1;
-		*((int *)arg) = ctx->frag_size * ctx->frags;
+		*((int*)arg) = ctx->frag_size * ctx->frags;
 		return 0;
 
 	case PM_REQ_GETFILLABLE:
-		*((int *)arg) = ringbuf_get_empty(&ctx->rbuf);
+		*((int*)arg) = ringbuf_get_empty(&ctx->rbuf);
 		return 0;
-    
+
 	case PM_REQ_GETFILLED:
-		*((int *)arg) = ringbuf_get_available(&ctx->rbuf);
+		*((int*)arg) = ringbuf_get_available(&ctx->rbuf);
 		return 0;
 
 	case PM_REQ_GETSAMPLES:
-		*((int *)arg) = ctx->rbuf.rdptr;
+		*((int*)arg) = ctx->rbuf.rdptr;
 		return 0;
 
 	case PM_REQ_FLUSH:
@@ -516,4 +523,6 @@ static int actl_jack(int request, void *arg)
 	}
 	return -1;
 }
+
+#endif
 

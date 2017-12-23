@@ -36,7 +36,7 @@
 
 typedef unsigned char  uch;
 typedef unsigned short ush;
-typedef unsigned long  ulg;
+typedef uint32  ulg;
 
 /* Huffman code lookup table entry--this entry is four bytes for machines
    that have 16-bit pointers (e.g. PC's in the small or medium model).
@@ -54,8 +54,8 @@ struct huft {
     } v;
 };
 
-int huft_build(unsigned *, unsigned, unsigned, ush *, ush *,
-	       struct huft **, int *, MBlockList *pool);
+int huft_build(unsigned*, unsigned, unsigned, ush*, ush*,
+	       struct huft**, int*, MBlockList *pool);
 
 #define STORED_BLOCK 0
 #define STATIC_TREES 1
@@ -68,16 +68,16 @@ int huft_build(unsigned *, unsigned, unsigned, ush *, ush *,
 /* Diagnostic functions */
 #ifdef DEBUG
 #  define Trace(x) fprintf x
-#  define Tracev(x) {fprintf x ;}
-#  define Tracevv(x) {fprintf x ;}
-#  define Tracec(c,x) {fprintf x ;}
-#  define Tracecv(c,x) {fprintf x ;}
+#  define Tracev(x) { fprintf x; }
+#  define Tracevv(x) { fprintf x; }
+#  define Tracec(c, x) { fprintf x; }
+#  define Tracecv(c, x) { fprintf x; }
 #else
 #  define Trace(x)
 #  define Tracev(x)
 #  define Tracevv(x)
-#  define Tracec(c,x)
-#  define Tracecv(c,x)
+#  define Tracec(c, x)
+#  define Tracecv(c, x)
 #endif
 
 #define near
@@ -91,25 +91,25 @@ typedef struct _DeflateHandler *DeflateHandler;
 
 /* in deflate.c */
 extern DeflateHandler open_deflate_handler(
-	long (* read_func)(char *buf, long size, void *user_val),
+	ptr_size_t (*read_func)(char *buf, ptr_size_t size, void *user_val),
 	void *user_val,
 	int compression_level);
 
-extern long zip_deflate(DeflateHandler encoder,
+extern ptr_size_t zip_deflate(DeflateHandler encoder,
 		    char *decode_buff,
-		    long decode_buff_size);
+		    ptr_size_t decode_buff_size);
 
 extern void close_deflate_handler(DeflateHandler encoder);
 
 
 /* in inflate.c */
 extern InflateHandler open_inflate_handler(
-	long (* read_func)(char *buf, long size, void *user_val),
+	ptr_size_t (*read_func)(char *buf, ptr_size_t size, void *user_val),
 	void *user_val);
 
-extern long zip_inflate(InflateHandler decoder,
+extern ptr_size_t zip_inflate(InflateHandler decoder,
 		    char *decode_buff,
-		    long decode_buff_size);
+		    ptr_size_t decode_buff_size);
 
 extern void close_inflate_handler(InflateHandler decoder);
 

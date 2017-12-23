@@ -141,7 +141,7 @@ static unsigned long planePixel[MAX_PLANES]; /* plane pixel */
 static unsigned long palette2Pixel[MAX_COLORS];
 static int currentPalette;
 
-static SherryPalette **virtualPalette; /* MAX_VIRTUAL_PALETTES, ≤æ¡€•—•Ï•√•» */
+static SherryPalette **virtualPalette; /* MAX_VIRTUAL_PALETTES, ≤æ¡€•—•ÅE√•» */
 static SherryPaletteEntry realPalette[MAX_PALETTES];
 static uint8 *pseudoImage = NULL; /* For TrueColor */
 

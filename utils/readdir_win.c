@@ -41,7 +41,7 @@
 #include "timidity.h"
 #include "common.h"
 
-#ifdef __W32__
+#if defined(__W32__) && !defined(__CYGWIN__)
 #include "readdir.h"
 
 /**********************************************************************
@@ -79,12 +79,16 @@ API_EXPORT(DIR *) opendir(const char *dir)
     if ((handle = _findfirst(filespec, &(dp->fileinfo))) < 0) {
         if (errno == ENOENT)
             dp->finished = 1;
-        else
-        return NULL;
+	else {
+            safe_free(dp->dir);
+            safe_free(dp);
+            safe_free(filespec);
+            return NULL;
+	}
     }
 
     dp->handle = handle;
-    free(filespec);
+    safe_free(filespec);
 
     return dp;
 }
@@ -123,9 +127,9 @@ API_EXPORT(int) closedir(DIR *dp)
 #ifndef __BORLANDC__
     _findclose(dp->handle);
 #endif
-    if (dp->dir) free(dp->dir);
-    if (dp) free(dp);
+    safe_free(dp->dir);
+    safe_free(dp);
 
     return 0;
 }
-#endif /* __W32__ */
+#endif

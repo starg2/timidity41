@@ -597,7 +597,7 @@ void shrink_huge_sample (Sample *sp)
 	}
     }
 
-    free(sp->data);
+    safe_free(sp->data);
     sp->data = new_data;
     sp->sample_rate = new_rate;
 
@@ -647,13 +647,13 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->loop_start = s->loopstart;
 	sp->loop_end   = s->loopend;
 
-        /* The sample must be padded out by 1 extra sample, so that
+        /* The sample must be padded out by 128 extra sample, so that
            the interpolation routines won't cause a "pop" by reading
            random data beyond data_length */
-	sp->data = (sample_t *) realloc(sp->data,
-					(sp->data_length + 1) *
-					sizeof(sample_t));
-        sp->data[sp->data_length] = 0;
+//	sp->data = (sample_t *) realloc(sp->data, (sp->data_length + 1) * sizeof(sample_t));
+//	sp->data[sp->data_length] = 0;
+	sp->data = (sample_t *) realloc(sp->data, (sp->data_length + 128) * sizeof(sample_t));
+	memset(&sp->data[sp->data_length], 0, sizeof(sample_t) * 128);
 
 	/* Stereo instruments (SF_STEREO) are dithered by libunimod into mono */
 	sp->modes = MODES_UNSIGNED;
@@ -685,25 +685,48 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 				       disappeared */
 #endif
  	sp->sample_rate = PAL_RATE >> s->divfactor;
-	sp->low_freq = 0;
-	sp->high_freq = 0x7fffffff;
+	sp->low_key = 0;
+	sp->high_key = 127;
+	sp->root_key = MOD_ROOT_NOTE;
 	sp->root_freq = freq_table[MOD_ROOT_NOTE];
+	sp->tune = 1.0;
 	sp->volume = 1.0;		/* I guess it should use globvol... */
-	sp->panning = s->panning == PAN_SURROUND ? 64 : s->panning * 128 / 255;
+	sp->cfg_amp = 1.0;
+	sp->def_pan = s->panning == PAN_SURROUND ? 64 : s->panning * 128 / 255;
+	sp->sample_pan = 0.0;
 	sp->note_to_use = 0;
 	sp->low_vel = 0;
 	sp->high_vel = 127;
 	sp->tremolo_sweep_increment =
 		sp->tremolo_phase_increment = sp->tremolo_depth =
 		sp->vibrato_sweep_increment = sp->vibrato_control_ratio = sp->vibrato_depth = 0;
-	sp->cutoff_freq = sp->resonance = sp->tremolo_to_pitch = 
-		sp->tremolo_to_fc = sp->modenv_to_pitch = sp->modenv_to_fc =
+	sp->cutoff_freq = 20000;
+	sp->cutoff_low_limit = -1;
+	sp->cutoff_low_keyf = 0; // cent
+	sp->resonance = 0;
+	sp->tremolo_to_pitch = sp->tremolo_to_fc = 
+		sp->modenv_to_pitch = sp->modenv_to_fc =
 		sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
 	sp->envelope_velf_bpo = sp->modenv_velf_bpo =
 		sp->vel_to_fc_threshold = 64;
 	sp->key_to_fc_bpo = 60;
 	sp->scale_freq = 60;
-	sp->scale_factor = 1024;
+	sp->scale_factor = 1024;	
+	sp->lpf_type = -1;
+	sp->keep_voice = 0;
+	sp->hpf[0] = -1; // opt_hpf_def
+	sp->hpf[1] = 10;
+	sp->hpf[2] = 0;
+	sp->vibrato_to_amp = sp->vibrato_to_fc = 0;
+	sp->pitch_envelope[0] = 0; // 0cent init
+	sp->pitch_envelope[1] = 0; // 0cent atk
+	sp->pitch_envelope[2] = 0; // 125ms atk
+	sp->pitch_envelope[3] = 0; // 0cent dcy1
+	sp->pitch_envelope[4] = 0; // 125ms dcy1
+	sp->pitch_envelope[5] = 0; // 0cent dcy2
+	sp->pitch_envelope[6] = 0; // 125ms dcy3
+	sp->pitch_envelope[7] = 0; // 0cent rls
+	sp->pitch_envelope[8] = 0; // 125ms rls
 	memset(sp->envelope_velf, 0, sizeof(sp->envelope_velf));
 	memset(sp->envelope_keyf, 0, sizeof(sp->envelope_keyf));
 	memset(sp->modenv_velf, 0, sizeof(sp->modenv_velf));
@@ -723,17 +746,6 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	    sp->data_length <<= FRACTION_BITS;
 	    sp->loop_start <<= FRACTION_BITS;
 	    sp->loop_end <<= FRACTION_BITS;
-	}
-
-	/* pitch detection for mod->midi file conversion and surround chorus */
-	if (play_mode->id_character == 'M' ||
-	    opt_surround_chorus)
-	{
-	    sp->chord = -1;
-	    sp->root_freq_detected = freq_fourier(sp, &(sp->chord));
-	    sp->transpose_detected =
-		assign_pitch_to_freq(sp->root_freq_detected) -
-		assign_pitch_to_freq(sp->root_freq / 1024.0);
 	}
 
 	/* If necessary do some anti-aliasing filtering  */

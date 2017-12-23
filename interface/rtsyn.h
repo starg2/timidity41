@@ -84,6 +84,8 @@
 /*                                                                            */
 /******************************************************************************/
 
+extern int seq_quit;
+
 /* peek playmidi.c */
 extern int32 current_sample;
 
@@ -91,7 +93,7 @@ extern int32 current_sample;
 extern VOLATILE int intr;
 
 /* How often data pass to the buffer */
-#define TICKTIME_HZ 200
+#define TICKTIME_HZ 200 // def 200
 
 /* latency (sec)  > 1.0 / TICKTIME_HZ * 4.0 */
 #define RTSYN_LATENCY 0.20
@@ -107,6 +109,10 @@ extern int rtsyn_sample_time_mode; //bool 1 ture 0 false
 void rtsyn_gm_reset(void);
 void rtsyn_gs_reset(void);
 void rtsyn_xg_reset(void);
+void rtsyn_gm2_reset(void);
+void rtsyn_sd_reset(void);
+void rtsyn_kg_reset(void);
+void rtsyn_cm_reset(void);
 void rtsyn_normal_reset(void);
 
 /* mode change                                            *
@@ -114,6 +120,10 @@ void rtsyn_normal_reset(void);
 void rtsyn_gm_modeset(void);
 void rtsyn_gs_modeset(void);
 void rtsyn_xg_modeset(void);
+void rtsyn_gm2_modeset(void);
+void rtsyn_sd_modeset(void);
+void rtsyn_kg_modeset(void);
+void rtsyn_cm_modeset(void);
 void rtsyn_normal_modeset(void);
 
 void rtsyn_init(void);
@@ -126,7 +136,8 @@ void rtsyn_server_reset(void);
 void rtsyn_reset(void);
 void rtsyn_stop_playing(void);
 int rtsyn_play_one_data (int port, int32 dwParam1, double event_time);
-void rtsyn_play_one_sysex (char *sysexbuffer, int exlen, double event_time );
+///r
+extern void rtsyn_play_one_sysex (uint8 *sysexbuffer, int exlen, double event_time );
 void rtsyn_play_calculate(void);
 
 

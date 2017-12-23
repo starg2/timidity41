@@ -32,7 +32,9 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -507,6 +509,7 @@ static void wrdt_update_events(void)
 static void wrdt_end(void)
 {
 	esc_enablecursordisplay();
+	mag_deletetab();
     inkey_flag = 0;
 }
 

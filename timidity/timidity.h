@@ -103,10 +103,16 @@
 #define DEFAULT_DRUMCHANNELS {10, -1}
 /* #define DEFAULT_DRUMCHANNELS {10, 16, -1} */
 
-/* type of floating point number */
-typedef double FLOAT_T;
-/* typedef float FLOAT_T; */
+/* type of audio data */
+//#define DATA_T_INT32 1
+//#define DATA_T_FLOAT
+#define DATA_T_DOUBLE
 
+/* effect level type float/double */
+//#define EFFECT_LEVEL_FLOAT // not yet
+
+/* type of floating point number */
+#define FLOAT_T_DOUBLE
 
 /* A somewhat arbitrary frequency range. The low end of this will
    sound terrible as no lowpass filtering is performed on most
@@ -115,8 +121,10 @@ typedef double FLOAT_T;
 #define MAX_OUTPUT_RATE 	400000
 
 
-/* Master volume in percent. */
+/* Input volume in percent. */
 #define DEFAULT_AMPLIFICATION 	70
+/* Output volume in percent. */
+#define DEFAULT_OUTPUT_AMPLIFICATION 	100
 
 
 /* Default sampling rate, default polyphony, and maximum polyphony.
@@ -126,6 +134,8 @@ typedef double FLOAT_T;
 #endif /* DEFAULT_RATE */
 
 #define DEFAULT_VOICES	256
+///r
+#define MAX_VOICES	1024
 
 
 /* The size of the internal buffer is 2^AUDIO_BUFFER_BITS samples.
@@ -144,6 +154,7 @@ typedef double FLOAT_T;
    You should probably use a larger number for improved performance.
 
 */
+
 #define AUDIO_BUFFER_BITS 12	/* Maxmum audio buffer size (2^bits) */
 
 
@@ -152,21 +163,32 @@ typedef double FLOAT_T;
    of envelopes and tremolo. The cost is CPU time. */
 #define CONTROLS_PER_SECOND 1000
 
-
-/* Default resamplation algorighm.  Define as resample_XXX, where XXX is
-   the algorithm name.  The following algorighms are available:
-   cspline, gauss, newton, linear, none. */
+///r
+/* Default resamplation algorighm. The following algorighms are available:
+	num, name, order
+    0, resample_none, 0
+	1, resample_linear, 0
+    2, resample_cspline, 0
+    3, resample_lagrange, 0
+	4, resample_newton, 11
+    5, resample_gauss, 24
+    6, resample_sharp, 2
+    7, resample_linear_p, 2
+	8, resample_sine, 0
+	9, resample_square, 0
+	10, resample_lanczos, 8
+   check new resamplation in resample.h resample.c    
+*/
 #ifndef DEFAULT_RESAMPLATION
-#define DEFAULT_RESAMPLATION resample_gauss
+#define DEFAULT_RESAMPLATION_NUM 3
+#define DEFAULT_RESAMPLATION_ORDER 0
 #endif
+
+#define DEFAULT_PRE_RESAMPLATION 0 // 0:off 1:on
 
 /* Don't allow users to choose the resamplation algorithm. */
 /* #define FIXED_RESAMPLATION */
 
-
-/* Defining USE_DSP_EFFECT to refine chorus, delay, EQ and insertion effect.
-   This is definitely worth the slight increase in CPU usage. */
-#define USE_DSP_EFFECT
 
 
 /* This is an experimental kludge that needs to be done right, but if
@@ -183,9 +205,21 @@ typedef double FLOAT_T;
 /* #define LOOKUP_HACK */
 /* #define LOOKUP_INTERPOLATION */
 
+
 /* Greatly reduces popping due to large volume/pan changes.
  * This is definitely worth the slight increase in CPU usage. */
-#define SMOOTH_MIXING
+//#define SMOOTH_MIXING // delete
+#define CH_VOL_ENV_TIME  40 // default time (ms) for channel mixer XG
+#define VOL_ENV_TIME  4 // default time (ms) for voice mixer other XG
+
+///r
+/* time (ms) to use for release a cut short note. Affects click removal. */
+#define CUT_SHORT_TIME 40 // default time (ms) // altassign,mono 
+#define CUT_SHORT_TIME2 200 // default time (ms) // overlaped voice
+
+///r
+/* time (ms) to use for ramping out a dying note. Affects click removal. */
+#define MAX_DIE_TIME 40 // default time (0.1ms)
 
 /* Make envelopes twice as fast. Saves ~20% CPU time (notes decay
    faster) and sounds more like a GUS. There is now a command line
@@ -199,7 +233,8 @@ typedef double FLOAT_T;
    a sample is 1048576 samples (2 megabytes in memory). The GUS gets
    by with just 9 bits and a little help from its friends...
    "The GUS does not SUCK!!!" -- a happy user :) */
-#define FRACTION_BITS 12
+/* if DATA_T_INT32 then FRACTION_BITS=12 */
+#define FRACTION_BITS 14
 
 
 /* For some reason the sample volume is always set to maximum in all
@@ -219,11 +254,6 @@ typedef double FLOAT_T;
    using this option. (And please check sections 11 and 12 in the
    GNU General Public License (under GNU Emacs, hit ^H^W) ;) */
 /* #define DANGEROUS_RENICE -15 */
-
-
-/* The number of samples to use for ramping out a dying note. Affects
-   click removal. */
-#define MAX_DIE_TIME 20
 
 
 /* On some machines (especially PCs without math coprocessors),
@@ -249,7 +279,7 @@ typedef double FLOAT_T;
  * This value is default. You can change the cache saze with
  * command line option.
  */
-#define DEFAULT_CACHE_DATA_SIZE (2*1024*1024)
+#define DEFAULT_CACHE_DATA_SIZE 0 // (2*1024*1024)
 
 
 #ifdef SUPPORT_SOCKET
@@ -308,82 +338,108 @@ typedef double FLOAT_T;
 /* Undefine if you don't use modulation wheel MIDI controls.
  * There is a command line option to enable/disable this mode.
  */
-#define MODULATION_WHEEL_ALLOW
+#define MODULATION_WHEEL_ALLOW 1
 
 
 /* Undefine if you don't use portamento MIDI controls.
  * There is a command line option to enable/disable this mode.
  */
-#define PORTAMENTO_ALLOW
+#define PORTAMENTO_ALLOW 1
 
 
 /* Undefine if you don't use NRPN vibrato MIDI controls
  * There is a command line option to enable/disable this mode.
  */
-#define NRPN_VIBRATO_ALLOW
+#define NRPN_VIBRATO_ALLOW 1
 
 
 /* Define if you want to use reverb / freeverb controls in defaults.
  * This mode needs high CPU power.
  * There is a command line option to enable/disable this mode.
  */
-/* #define REVERB_CONTROL_ALLOW */
-#define FREEVERB_CONTROL_ALLOW
+/* #define REVERB_CONTROL_ALLOW 1 */
+#define FREEVERB_CONTROL_ALLOW 1
 
 
 /* Define if you want to use chorus controls in defaults.
  * This mode needs high CPU power.
  * There is a command line option to enable/disable this mode.
  */
-#define CHORUS_CONTROL_ALLOW
+#define CHORUS_CONTROL_ALLOW 1
 
 
 /* Define if you want to use surround chorus in defaults.
  * This mode needs high CPU power.
  * There is a command line option to enable/disable this mode.
  */
-/* #define SURROUND_CHORUS_ALLOW */
+/* #define SURROUND_CHORUS_ALLOW 1 */
 
 
 /* Define if you want to use channel pressure.
  * Channel pressure effect is different in sequencers.
  * There is a command line option to enable/disable this mode.
  */
-/* #define GM_CHANNEL_PRESSURE_ALLOW */
+#define GM_CHANNEL_PRESSURE_ALLOW 1
 
 
 /* Define if you want to use voice chamberlin / moog LPF.
  * This mode needs high CPU power.
  * There is a command line option to enable/disable this mode.
  */
-#define VOICE_CHAMBERLIN_LPF_ALLOW
-/* #define VOICE_MOOG_LPF_ALLOW */
-
+/* #define VOICE_CHAMBERLIN_LPF_ALLOW 1 */
+/* #define VOICE_MOOG_LPF_ALLOW 1 */
+/* #define VOICE_BW_LPF_ALLOW 1 */
+#define VOICE_LPF12_2_ALLOW 1
 
 /* Define if you want to use modulation envelope.
  * This mode needs high CPU power.
  * There is a command line option to enable/disable this mode.
  */
-/* #define MODULATION_ENVELOPE_ALLOW */
+#define MODULATION_ENVELOPE_ALLOW 1
 
 
 /* Define if you want to trace text meta event at playing.
  * There is a command line option to enable/disable this mode.
  */
-/* #define ALWAYS_TRACE_TEXT_META_EVENT */
+#define ALWAYS_TRACE_TEXT_META_EVENT
 
 
 /* Define if you want to allow overlapped voice.
  * There is a command line option to enable/disable this mode.
  */
-#define OVERLAP_VOICE_ALLOW
+#define OVERLAP_VOICE_ALLOW 1
+///r
+#define OVERLAP_VOICE_COUNT 4
 
+#define MAX_CHANNEL_VOICES 64
 
 /* Define if you want to allow temperament control.
  * There is a command line option to enable/disable this mode.
  */
-#define TEMPER_CONTROL_ALLOW
+#define TEMPER_CONTROL_ALLOW 1
 
+
+///r
+#define DEFALT_REVERB_SEND 127
+#define DEFALT_CHORUS_SEND 127
+#define DEFALT_DELAY_SEND 127
+
+///r
+#if !defined(KBTIM) || !defined(WINVST) /*added by Kobarin*/
+//#define REDUCE_VOICE_TIME_TUNING	(play_mode->rate/5) /* 0.2 sec */
+//#define REDUCE_VOICE_TIME_TUNING	(play_mode->rate/200) /* 0.005 sec */
+#define REDUCE_QUALITY_TIME_TUNING	99
+#define REDUCE_VOICE_TIME_TUNING	75
+#define REDUCE_POLYPHONY_TIME_TUNING 85
+#endif
+#define DEFAULT_REDUCE_QUALITY_THRESHOLD    "99.0%"
+#define DEFAULT_REDUCE_VOICE_THRESHOLD      "75.0%"
+#define DEFAULT_REDUCE_POLYPHONY_THRESHOLD  "85.0%"
+
+///r
+#define VOICE_EFFECT
+#define INT_SYNTH
+#define NEW_LEGATO
 
 
 /*****************************************************************************\
@@ -393,11 +449,7 @@ typedef double FLOAT_T;
   Anything below this shouldn't need to be changed unless you're porting
    to a new machine with other than 32-bit, big-endian words.
  */
-
 /* change FRACTION_BITS above, not these */
-#define INTEGER_BITS (32 - FRACTION_BITS)
-#define INTEGER_MASK (0xFFFFFFFF << FRACTION_BITS)
-#define FRACTION_MASK (~ INTEGER_MASK)
 
 /* This is enforced by some computations that must fit in an int */
 #define MAX_CONTROL_RATIO 255
@@ -406,13 +458,19 @@ typedef double FLOAT_T;
    fragments under the VoxWare (Linux & FreeBSD) audio driver */
 #define AUDIO_BUFFER_SIZE (1<<AUDIO_BUFFER_BITS)
 
+
 /* These affect general volume */
-#define GUARD_BITS 3
-#define AMP_BITS (15-GUARD_BITS)
+///r
+#define MAX_BITS 32 // int32 buf ?
+#define SAMPLE_BITS 16 // wave 16bit ?
+#define GUARD_BITS 1 // guard over flow ?
+#define OTHER_BITS 1 // mix, effect, ?
+#define AMP_BITS (MAX_BITS - SAMPLE_BITS - GUARD_BITS - OTHER_BITS)
 
 #define MAX_AMPLIFICATION 800
-#define MAX_CHANNELS 32
+#define MAX_CHANNELS 64
 /*#define MAX_CHANNELS 256*/
+/* safe MAX_CHANNELS < 0x7F (SysEx broadcast, disable channel“™ */
 #define MAXMIDIPORT 16
 
 /* Vibrato and tremolo Choices of the Day */
@@ -435,15 +493,18 @@ typedef double FLOAT_T;
 
 /* you cannot but use safe_malloc(). */
 #define HAVE_SAFE_MALLOC 1
+
 /* malloc's limit */
 #define MAX_SAFE_MALLOC_SIZE (1<<23) /* 8M */
 
 #define DEFAULT_SOUNDFONT_ORDER 0
 
 
+
 /*****************************************************************************\
  section 3: include other headers
 \*****************************************************************************/
+
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
@@ -453,10 +514,8 @@ typedef double FLOAT_T;
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
-#else
-extern int errno;
 #endif /* HAVE_ERRNO_H */
-
+extern int errno;
 #ifdef HAVE_MACHINE_ENDIAN_H
 #include <machine/endian.h> /* for __byte_swap_*() */
 #endif /* HAVE_MACHINE_ENDIAN_H */
@@ -468,5 +527,12 @@ extern int errno;
 #include "sysdep.h"
 #include "support.h"
 #include "optcode.h"
+
+//#define VST_LOADER_ENABLE // config.h
+
+#ifdef VST_LOADER_ENABLE
+extern HMODULE hVSTHost;
+#include "vstwrapper.h"
+#endif
 
 #endif /* TIMIDITY_H_INCLUDED */

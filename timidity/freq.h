@@ -25,6 +25,7 @@ extern int chord_table[4][3][3];
 
 extern float freq_fourier(Sample *sp, int *chord);
 extern int assign_pitch_to_freq(float freq);
+extern void free_freq_data(void);
 
 #define CHORD_MAJOR 0
 #define CHORD_MINOR 3

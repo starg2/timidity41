@@ -22,7 +22,9 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -30,39 +32,40 @@
 #endif
 
 #include "timidity.h"
+#include "common.h"
 #include "url.h"
 
-#define URL_BUFF_SIZE (8*1024)
+#define URL_BUFF_SIZE (8 * 1024)
 #define BASESIZE (URL_BUFF_SIZE * 2)
-#define BASEMASK (BASESIZE-1)
+#define BASEMASK (BASESIZE - 1)
 
 typedef struct _URL_buff
 {
     char common[sizeof(struct _URL)];
     URL reader;
     unsigned char buffer[BASESIZE + URL_BUFF_SIZE]; /* ring buffer */
-    int wp;			/* write pointer to the buffer */
-    int rp;			/* read pointer from the buffer */
-    long pos, posofs;		/* position */
-    int weof;
-    int eof;
+    off_size_t wp;			/* write pointer to the buffer */
+    off_size_t rp;			/* read pointer from the buffer */
+    off_size_t pos, posofs;		/* position */
+    off_size_t weof;
+    off_size_t eof;
     int autoclose;
 } URL_buff;
 
-static long url_buff_read(URL url, void *buff, long n);
-static char *url_buff_gets(URL url, char *buff, int n);
+static ptr_size_t url_buff_read(URL url, void *buff, ptr_size_t n);
+static char *url_buff_gets(URL url, char *buff, ptr_size_t n);
 static int url_buff_fgetc(URL url);
-static long url_buff_seek(URL url, long offset, int whence);
-static long url_buff_tell(URL url);
+static off_size_t url_buff_seek(URL url, off_size_t offset, int whence);
+static off_size_t url_buff_tell(URL url);
 static void url_buff_close(URL url);
 
 URL url_buff_open(URL url, int autoclose)
 {
     URL_buff *urlp;
 
-    if((urlp = (URL_buff *)alloc_url(sizeof(URL_buff))) == NULL)
+    if ((urlp = (URL_buff*)alloc_url(sizeof(URL_buff))) == NULL)
     {
-	if(autoclose)
+	if (autoclose)
 	    url_close(url);
 	return NULL;
     }
@@ -81,7 +84,7 @@ URL url_buff_open(URL url, int autoclose)
     memset(urlp->buffer, 0, sizeof(urlp->buffer));
     urlp->wp = 0;
     urlp->rp = 0;
-    if((urlp->posofs = url_tell(url)) == -1)
+    if ((urlp->posofs = url_tell(url)) == -1)
 	urlp->posofs = 0;
     urlp->pos = 0;
     urlp->eof = 0;
@@ -92,15 +95,15 @@ URL url_buff_open(URL url, int autoclose)
 
 static void prefetch(URL_buff *urlp)
 {
-    long i, n;
+    off_size_t i, n;
 
     n = url_safe_read(urlp->reader, urlp->buffer + urlp->wp, URL_BUFF_SIZE);
-    if(n <= 0)
+    if (n <= 0)
 	return;
     urlp->wp += n;
-    if(urlp->wp < BASESIZE)
+    if (urlp->wp < BASESIZE)
 	return;
-    if(urlp->wp == BASESIZE)
+    if (urlp->wp == BASESIZE)
     {
 	urlp->wp = 0;
 	return;
@@ -114,17 +117,17 @@ static void prefetch(URL_buff *urlp)
 
 static int url_buff_fgetc(URL url)
 {
-    URL_buff *urlp = (URL_buff *)url;
+    URL_buff *urlp = (URL_buff*)url;
     int c, r;
 
-    if(urlp->eof)
+    if (urlp->eof)
 	return EOF;
 
     r = urlp->rp;
-    if(r == urlp->wp)
+    if (r == urlp->wp)
     {
 	prefetch(urlp);
-	if(r == urlp->wp)
+	if (r == urlp->wp)
 	{
 	    urlp->eof = 1;
 	    return EOF;
@@ -136,20 +139,20 @@ static int url_buff_fgetc(URL url)
     return c;
 }
 
-static long url_buff_read(URL url, void *buff, long n)
+static ptr_size_t url_buff_read(URL url, void *buff, ptr_size_t n)
 {
-    URL_buff *urlp = (URL_buff *)url;
-    char *s = (char *)buff;
-    int r, i, j;
+    URL_buff *urlp = (URL_buff*)url;
+    char *s = (char*)buff;
+    off_size_t r, i, j;
 
-    if(urlp->eof)
+    if (urlp->eof)
 	return 0;
 
     r = urlp->rp;
-    if(r == urlp->wp)
+    if (r == urlp->wp)
     {
 	prefetch(urlp);
-	if(r == urlp->wp)
+	if (r == urlp->wp)
 	{
 	    urlp->eof = 1;
 	    return EOF;
@@ -158,14 +161,14 @@ static long url_buff_read(URL url, void *buff, long n)
 
     /* first fragment */
     i = urlp->wp - r;
-    if(i < 0)
+    if (i < 0)
 	i = BASESIZE - r;
-    if(i > n)
+    if (i > n)
 	i = n;
     memcpy(s, urlp->buffer + r, i);
     r = ((r + i) & BASEMASK);
 
-    if(i == n || r == urlp->wp || r != 0)
+    if (i == n || r == urlp->wp || r != 0)
     {
 	urlp->rp = r;
 	urlp->pos += i;
@@ -176,7 +179,7 @@ static long url_buff_read(URL url, void *buff, long n)
     j = urlp->wp;
     n -= i;
     s += i;
-    if(j > n)
+    if (j > n)
 	j = n;
     memcpy(s, urlp->buffer, j);
     urlp->rp = j;
@@ -185,28 +188,28 @@ static long url_buff_read(URL url, void *buff, long n)
     return i + j;
 }
 
-static long url_buff_tell(URL url)
+static off_size_t url_buff_tell(URL url)
 {
-    URL_buff *urlp = (URL_buff *)url;
+    URL_buff *urlp = (URL_buff*)url;
 
     return urlp->pos + urlp->posofs;
 }
 
-static char *url_buff_gets(URL url, char *buff, int maxsiz)
+static char *url_buff_gets(URL url, char *buff, ptr_size_t maxsiz)
 {
-    URL_buff *urlp = (URL_buff *)url;
-    int c, r, w;
-    long len, maxlen;
+    URL_buff *urlp = (URL_buff*)url;
+    off_size_t c, r, w;
+    off_size_t len, maxlen;
     int newline = url_newline_code;
     unsigned char *bp;
 
-    if(urlp->eof)
+    if (urlp->eof)
 	return NULL;
 
     maxlen = maxsiz - 1;
-    if(maxlen == 0)
+    if (maxlen == 0)
 	*buff = '\0';
-    if(maxlen <= 0)
+    if (maxlen <= 0)
 	return buff;
     len = 0;
     r = urlp->rp;
@@ -215,15 +218,15 @@ static char *url_buff_gets(URL url, char *buff, int maxsiz)
 
     do
     {
-	if(r == w)
+	if (r == w)
 	{
 	    urlp->wp = w;
 	    prefetch(urlp);
 	    w = urlp->wp;
-	    if(r == w)
+	    if (r == w)
 	    {
 		urlp->eof = 1;
-		if(len == 0)
+		if (len == 0)
 		    return NULL;
 		buff[len] = '\0';
 		urlp->pos += len;
@@ -234,21 +237,21 @@ static char *url_buff_gets(URL url, char *buff, int maxsiz)
 	c = bp[r];
 	buff[len++] = c;
 	r = ((r + 1) & BASEMASK);
-    } while(c != newline && len < maxlen);
+    } while (c != newline && len < maxlen);
     buff[len] = '\0';
     urlp->pos += len;
     urlp->rp = r;
     return buff;
 }
 
-static long url_buff_seek(URL url, long offset, int whence)
+static off_size_t url_buff_seek(URL url, off_size_t offset, int whence)
 {
-    URL_buff *urlp = (URL_buff *)url;
-    long ret, diff, n;
-    int r, w, filled, i;
+    URL_buff *urlp = (URL_buff*)url;
+    off_size_t ret, diff, n;
+    off_size_t r, w, filled, i;
 
     ret = urlp->pos + urlp->posofs;
-    switch(whence)
+    switch (whence)
     {
       case SEEK_SET:
 	diff = offset - ret;
@@ -257,17 +260,17 @@ static long url_buff_seek(URL url, long offset, int whence)
 	diff = offset;
 	break;
       case SEEK_END:
-	if(!urlp->eof)
-	    while(url_buff_fgetc(url) != EOF)
+	if (!urlp->eof)
+	    while (url_buff_fgetc(url) != EOF)
 		;
 	diff = offset;
 	break;
       default:
-	url_errno = errno = EPERM;
+	_set_errno(url_errno = EPERM);
 	return -1;
     }
 
-    if(diff == 0)
+    if (diff == 0)
     {
 	urlp->eof = 0; /* To be more read */
 	return ret;
@@ -277,16 +280,16 @@ static long url_buff_seek(URL url, long offset, int whence)
     r = urlp->rp;		/* read pointer */
     w = urlp->wp;		/* write pointer */
 
-    if(diff > 0)
+    if (diff > 0)
     {
-	while(diff > 0)
+	while (diff > 0)
 	{
-	    if(r == w)
+	    if (r == w)
 	    {
 		urlp->wp = w;
 		prefetch(urlp);
 		w = urlp->wp;
-		if(r == w)
+		if (r == w)
 		{
 		    urlp->eof = 1;
 		    urlp->pos += n;
@@ -296,9 +299,9 @@ static long url_buff_seek(URL url, long offset, int whence)
 	    }
 
 	    i = w - r;
-	    if(i < 0)
+	    if (i < 0)
 		i = BASESIZE - r;
-	    if(i > diff)
+	    if (i > diff)
 		i = diff;
 	    n += i;
 	    diff -= i;
@@ -314,21 +317,21 @@ static long url_buff_seek(URL url, long offset, int whence)
 
     diff = -diff;
     filled = r - w;
-    if(filled <= 0)
+    if (filled <= 0)
 	filled = BASEMASK + filled;
     filled--;
-    if(filled > urlp->pos)
+    if (filled > urlp->pos)
 	filled = urlp->pos;
 
-    if(filled < diff)
+    if (filled < diff)
     {
-	url_errno = errno = EPERM;
+	_set_errno(url_errno = EPERM);
 	return -1;
     }
 
     /* back `rp' by `diff' */
     r -= diff;
-    if(r < 0)
+    if (r < 0)
 	r += BASESIZE;
     urlp->rp = r;
     urlp->pos -= diff;
@@ -338,8 +341,8 @@ static long url_buff_seek(URL url, long offset, int whence)
 
 static void url_buff_close(URL url)
 {
-    URL_buff *urlp = (URL_buff *)url;
-    if(urlp->autoclose)
+    URL_buff *urlp = (URL_buff*)url;
+    if (urlp->autoclose)
 	url_close(urlp->reader);
-    free(url);
+    safe_free(url);
 }

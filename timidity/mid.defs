@@ -105,7 +105,7 @@ char *mid2name(int mid)
 	{0x42, "Korg"},
 
 /* XG */
-#if MID_OFFICIAL_NAME
+#ifdef MID_OFFICIAL_NAME
 	{0x43, "Yamaha"},
 #else
 	{0x43, "XG"},
@@ -130,7 +130,7 @@ char *mid2name(int mid)
 	{0x55, "Suzuki Musical Instrument Mfg."},
 	{0x7D, "Non-Commercial"},
 /* GM */
-#if MID_OFFICIAL_NAME
+#ifdef MID_OFFICIAL_NAME
 	{0x7E, "Non-Realtime"},
 #else
 	{0x7E, "GM"},

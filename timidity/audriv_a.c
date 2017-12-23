@@ -26,6 +26,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+
+#ifdef AU_AUDRIV
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -52,18 +55,18 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int32 output_data(const uint8 *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
 
 #define dpm audriv_play_mode
 PlayMode dpm = {
-  DEFAULT_RATE, PE_16BIT|PE_SIGNED, PF_PCM_STREAM|PF_CAN_TRACE,
+  DEFAULT_RATE, PE_16BIT | PE_SIGNED, PF_PCM_STREAM | PF_CAN_TRACE,
   -1,
-  {0,0,0,0,0}, /* no extra parameters so far */
+  { 0, 0, 0, 0, 0 }, /* no extra parameters so far */
 
-#if defined(AU_DEC)
+#ifdef AU_DEC
   "DEC audio device",
 #elif defined(sgi)
   "SGI audio device",
@@ -73,7 +76,7 @@ PlayMode dpm = {
   "Audriv audio device",
 #endif
 
-  'd', "",
+  'd', NULL,
   open_output,
   close_output,
   output_data,
@@ -90,9 +93,9 @@ static int Audio_Init(void)
 {
     static int init_flag = False;
 
-    if(init_flag)
+    if (init_flag)
 	return 0;
-    if(!audriv_setup_audio())
+    if (!audriv_setup_audio())
     {
 	ctl->cmsg(CMSG_FATAL, VERB_NORMAL, "%s", audriv_errmsg);
 	return -1;
@@ -106,56 +109,62 @@ static int audio_init_open(void)
 {
     int ch, enc;
 
-    if(audriv_set_play_sample_rate(dpm.rate) == False)
+    if (!dpm.name)
+	dpm.name = safe_strdup("audriv");
+
+    dpm.encoding &= ~(PE_24BIT | PE_32BIT | PE_64BIT);
+    dpm.encoding &= ~(PE_F32BIT | PE_F64BIT);
+
+    if (audriv_set_play_sample_rate(dpm.rate) == False)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "Sample rate %d is not supported", dpm.rate);
 	return -1;
     }
 
-    if(dpm.encoding & PE_MONO)/* Mono samples */
+    if (dpm.encoding & PE_MONO)/* Mono samples */
 	ch = 1;
     else
 	ch = 2;
 
-    if(audriv_set_play_channels(ch) == False)
+    if (audriv_set_play_channels(ch) == False)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "Channel %d is not supported", ch);
 	return -1;
     }
 
-    if(dpm.encoding & PE_ULAW)
+    if (dpm.encoding & PE_ULAW)
     {
 	enc = AENC_G711_ULAW;
 	dpm.encoding &= ~PE_16BIT;
     }
-    else if(dpm.encoding & PE_ALAW)
+    else if (dpm.encoding & PE_ALAW)
     {
 	enc = AENC_G711_ALAW;
 	dpm.encoding &= ~PE_16BIT;
     }
-    else if(dpm.encoding & PE_16BIT)
+    else if (dpm.encoding & PE_16BIT)
     {
-#if defined(LITTLE_ENDIAN)
-	if(dpm.encoding & PE_BYTESWAP)
-	    if(dpm.encoding & PE_SIGNED)
+#ifdef LITTLE_ENDIAN
+	if (dpm.encoding & PE_BYTESWAP)
+	    if (dpm.encoding & PE_SIGNED)
 		enc = AENC_SIGWORDB;
 	    else
 		enc = AENC_UNSIGWORDL;
 	else
-	    if(dpm.encoding & PE_SIGNED)
+	    if (dpm.encoding & PE_SIGNED)
 		enc = AENC_SIGWORDL;
 	    else
 		enc = AENC_UNSIGWORDL;
 #else /* BIG_ENDIAN */
-	if(dpm.encoding & PE_BYTESWAP)
-	    if(dpm.encoding & PE_SIGNED)
+	if (dpm.encoding & PE_BYTESWAP)
+	    if (dpm.encoding & PE_SIGNED)
 		enc = AENC_SIGWORDL;
 	    else
 		enc = AENC_UNSIGWORDB;
 	else
-	    if(dpm.encoding & PE_SIGNED)
+	    if (dpm.encoding & PE_SIGNED)
 		enc = AENC_SIGWORDB;
 	    else
 		enc = AENC_UNSIGWORDB;
@@ -164,13 +173,13 @@ static int audio_init_open(void)
     else
     {
 	/* 8 bit */
-	if(dpm.encoding & PE_SIGNED)
+	if (dpm.encoding & PE_SIGNED)
 	    enc = AENC_SIGBYTE;
 	else
 	    enc = AENC_UNSIGBYTE;
     }
 
-    if(audriv_set_play_encoding(enc) == False)
+    if (audriv_set_play_encoding(enc) == False)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "Output format is not supported: %s", AENC_NAME(enc));
@@ -188,17 +197,17 @@ int Audio_On(void)
 {
     static int init_flag = 0;
 
-    if(!init_flag)
+    if (!init_flag)
     {
 	int i;
 
 	i = audio_init_open();
-	if(i)
+	if (i)
 	    return i;
 	init_flag = 1;
     }
 
-    if(!audriv_play_open())
+    if (!audriv_play_open())
     {
 	ctl->cmsg(CMSG_FATAL, VERB_NORMAL, "%s", audriv_errmsg);
 	ctl->close();
@@ -212,22 +221,22 @@ int Audio_On(void)
 static int open_output(void)
 {
     int i;
-    if((i = Audio_Init()) != 0)
+    if ((i = Audio_Init()) != 0)
 	return i;
-    if((i = Audio_On()) != 0)
+    if ((i = Audio_On()) != 0)
 	return i;
-    dpm.fd = 0;
+    dpm.fd = STDOUT_FILENO;
     return 0;
 }
 
 /* Output of audio data from timidity */
-static int output_data(char *buf, int32 nbytes)
+static int32 output_data(const uint8 *buf, int32 nbytes)
 {
-    int n;
+    int32 n;
 
-    while(nbytes > 0)
+    while (nbytes > 0)
     {
-	if((n = audriv_write(buf, nbytes)) == -1)
+	if ((n = audriv_write(buf, nbytes)) == -1)
 	    return -1;
 	buf += n;
 	nbytes -= n;
@@ -238,7 +247,7 @@ static int output_data(char *buf, int32 nbytes)
 /* close output device */
 static void close_output(void)
 {
-    if(dpm.fd != -1)
+    if (dpm.fd != -1)
     {
 	audriv_play_close();
 	dpm.fd = -1;
@@ -247,7 +256,7 @@ static void close_output(void)
 
 static int acntl(int request, void *arg)
 {
-    switch(request)
+    switch (request)
     {
       case PM_REQ_DISCARD:
 	audriv_play_stop(); /* Reset audriv's sample counter */
@@ -260,3 +269,5 @@ static int acntl(int request, void *arg)
     }
     return -1;
 }
+
+#endif /* AU_AUDRIV */

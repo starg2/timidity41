@@ -47,6 +47,7 @@
 #include "recache.h"
 #include "miditrace.h"
 #include "aq.h"
+#include "version.h"
 
 #include	"mac_main.h"
 #include	"mac_c.h"

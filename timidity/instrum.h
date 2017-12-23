@@ -24,29 +24,31 @@
 #ifndef ___INSTRUM_H_
 #define ___INSTRUM_H_
 
+
+///r
+#include "voice_effect.h"
+
+#define HPF_PARAM_NUM 3
+
+///r
 typedef struct _Sample {
-  splen_t
-    loop_start, loop_end, data_length;
-  int32
-    sample_rate, low_freq, high_freq, root_freq;
-  int8 panning, note_to_use;
-  int32
-    envelope_rate[6], envelope_offset[6],
+  splen_t loop_start, loop_end, data_length;
+  int32 sample_rate, root_freq; /* root_freqはroot_key+tuneの機能 */
+  int8 low_key, high_key, root_key; /* root_keyは表示用 */
+  FLOAT_T tune;
+  int8 note_to_use;
+  int32 envelope_rate[6], envelope_offset[6],
 	modenv_rate[6], modenv_offset[6];
-  FLOAT_T
-    volume;
-  sample_t
-    *data;
-  int32
-    tremolo_sweep_increment, tremolo_phase_increment,
+  FLOAT_T volume, cfg_amp;
+  sample_t *data;
+  int data_type;
+  int32 tremolo_sweep_increment, tremolo_phase_increment,
     vibrato_sweep_increment, vibrato_control_ratio;
-  int16
-    tremolo_depth;
+  int16 tremolo_depth;
   int16 vibrato_depth;
-  uint8
-    modes, data_alloced,
-    low_vel, high_vel;
-  int32 cutoff_freq;	/* in Hz, [1, 20000] */
+  int modes;
+  uint8 data_alloced, low_vel, high_vel;
+  int32 cutoff_freq, cutoff_low_limit, cutoff_low_keyf;	/* in Hz, [1, 20000] */
   int16 resonance;	/* in centibels, [0, 960] */
   /* in cents, [-12000, 12000] */
   int16 tremolo_to_pitch, tremolo_to_fc, modenv_to_pitch, modenv_to_fc,
@@ -64,10 +66,31 @@ typedef struct _Sample {
   FLOAT_T root_freq_detected;	/* root freq from pitch detection */
   int transpose_detected;	/* note offset from detected root */
   int chord;			/* type of chord for detected pitch */
+  int16 vibrato_to_amp, vibrato_to_fc;
+  int32 pitch_envelope[9];
+  int lpf_type;
+  int32 root_freq_org, sample_rate_org;
+  int hpf[HPF_PARAM_NUM];
+  int vfx[VOICE_EFFECT_NUM][VOICE_EFFECT_PARAM_NUM];
+  int8 keep_voice;
+  int8 def_pan;
+  FLOAT_T sample_pan; 
 } Sample;
 
+///r
+// data_type = resampler_data_type
+enum {
+	SAMPLE_TYPE_INT16 = 0, // def sample_t int16 int8
+//	SAMPLE_TYPE_INT8,
+	SAMPLE_TYPE_INT32,
+//	SAMPLE_TYPE_INT64,
+	SAMPLE_TYPE_FLOAT,
+	SAMPLE_TYPE_DOUBLE,
+};
+
+///r
 /* Bits in modes: */
-#define MODES_16BIT	(1<<0)
+#define MODES_16BIT	    (1<<0)
 #define MODES_UNSIGNED	(1<<1)
 #define MODES_LOOPING	(1<<2)
 #define MODES_PINGPONG	(1<<3)
@@ -75,11 +98,15 @@ typedef struct _Sample {
 #define MODES_SUSTAIN	(1<<5)
 #define MODES_ENVELOPE	(1<<6)
 #define MODES_CLAMPED	(1<<7) /* ?? (for last envelope??) */
+#define MODES_RELEASE   (1<<8)
 
 #define INST_GUS	0
 #define INST_SF2	1
 #define INST_MOD	2
 #define INST_PCM	3	/* %sample */
+///r
+#define INST_MMS	4	/* %mms */
+#define INST_SCC	5	/* %scc */
 
 /* sfSampleType */
 #define SF_SAMPLETYPE_MONO 1
@@ -95,32 +122,43 @@ typedef struct {
   char *instname;
 } Instrument;
 
+#define MAX_TONEBANK_COMM_LEN 64
+
+///r
 typedef struct {
-  char *name;
-  char *comment;
-  Instrument *instrument;
-  int8 note, pan, strip_loop, strip_envelope, strip_tail, loop_timeout,
+	char *name;
+	char *comment;
+	Instrument *instrument;
+	int8 note, strip_loop, strip_envelope, strip_tail, loop_timeout,
 	font_preset, font_keynote, legato, tva_level, play_note, damper_mode;
-  uint8 font_bank;
-  uint8 instype; /* 0: Normal
-		    1: %font
-		    2: %sample
-		    3-255: reserved
-		    */
-  int16 amp;
-  int16 rnddelay;
-  int tunenum;
-  float *tune;
-  int sclnotenum;
-  int16 *sclnote;
-  int scltunenum;
-  int16 *scltune;
-  int fcnum;
-  int16 *fc;
-  int resonum;
-  int16 *reso;
-  int trempitchnum, tremfcnum, modpitchnum, modfcnum;
-  int16 *trempitch, *tremfc, *modpitch, *modfc;
+	uint8 font_bank;
+	uint8 instype;
+/*
+	0: Normal // pat
+	1: %font // sf2
+	2: %sample // wav,aiff
+	3: %mms
+	4: %scc
+	5-255: reserved
+*/
+	int16 amp;
+	int8 amp_normalize;
+	int8 lokey, hikey, lovel, hivel;
+	int sample_lokeynum, sample_hikeynum, sample_lovelnum, sample_hivelnum;
+	int16 *sample_lokey, *sample_hikey, *sample_lovel, *sample_hivel;
+	int16 rnddelay;
+	int tunenum;
+	float *tune;
+	int sclnotenum;
+	int16 *sclnote;
+	int scltunenum;
+	int16 *scltune;
+	int fcnum;
+	int16 *fc;
+	int resonum;
+	int16 *reso;
+	int trempitchnum, tremfcnum, modpitchnum, modfcnum;
+	int16 *trempitch, *tremfc, *modpitch, *modfc;
 	int envratenum, envofsnum;
 	int **envrate, **envofs;
 	int modenvratenum, modenvofsnum;
@@ -132,14 +170,28 @@ typedef struct {
 	int tremnum, vibnum;
 	struct Quantity_ **trem, **vib;
 	int16 vel_to_fc, key_to_fc, vel_to_resonance;
-	int8 reverb_send, chorus_send, delay_send;
+	int8 reverb_send, chorus_send, delay_send;	
+	int vibfcnum, vibampnum;
+	int16 *vibfc, *vibamp;
+	int pitenvnum;
+	int **pitenv;
+	int lpf_type;
+	int hpfnum;
+	int **hpf;
+	int fclownum, fclowkeyfnum, fcmulnum, fcaddnum;
+	int16 *fclow, *fclowkeyf, *fcmul, *fcadd;
+	int vfxnum[VOICE_EFFECT_NUM];
+	int **vfx[VOICE_EFFECT_NUM];
+	int is_preset;
+	int8 keep_voice;
+	int8 rx_note_off;
+	int8 element_num;
+	int8 def_pan;
+	int sample_pan, sample_width;
 } ToneBankElement;
 
-/* A hack to delay instrument loading until after reading the
-   entire MIDI file. */
-#define MAGIC_LOAD_INSTRUMENT ((Instrument *)(-1))
-#define MAGIC_ERROR_INSTRUMENT ((Instrument *)(-2))
-#define IS_MAGIC_INSTRUMENT(ip) ((ip) == MAGIC_LOAD_INSTRUMENT || (ip) == MAGIC_ERROR_INSTRUMENT)
+#define MAGIC_ERROR_INSTRUMENT ((Instrument *)(-1))
+#define IS_MAGIC_INSTRUMENT(ip) ((ip) == MAGIC_ERROR_INSTRUMENT)
 
 #define DYNAMIC_INSTRUMENT_NAME ""
 
@@ -151,8 +203,11 @@ typedef struct _AlternateAssign {
     struct _AlternateAssign* next;
 } AlternateAssign;
 
+///r
+#define MAX_ELEMENT 8
+
 typedef struct {
-  ToneBankElement tone[128];
+  ToneBankElement *tone[128][MAX_ELEMENT];
   AlternateAssign *alt;
 } ToneBank;
 
@@ -164,7 +219,7 @@ typedef struct _SpecialPatch /* To be used MIDI Module play mode */
     char *name;
     int32 sample_offset;
 } SpecialPatch;
-
+///r
 enum instrument_mapID
 {
     INST_NO_MAP = 0,
@@ -176,24 +231,137 @@ enum instrument_mapID
     SC_88PRO_DRUM_MAP,
     SC_8850_TONE_MAP,
     SC_8850_DRUM_MAP,
-    XG_NORMAL_MAP,
-    XG_SFX64_MAP,
-    XG_SFX126_MAP,
-    XG_DRUM_MAP,
+    XG_NORMAL_MAP, // MSB0
+    XG_SFX_KIT_MAP, // MSB126
+    XG_DRUM_KIT_MAP, // MSB127
+    XG_FREE_MAP, // MSB63
+	XG_MU100EXC_MAP, // MSB48
+	XG_SAMPLING16_MAP, // MSB16
+	XG_SAMPLING126_MAP, // MSB126	
+    XG_PCM_USER_MAP, // MSB32
+    XG_PCM_SFX_MAP, // MSB64
+    XG_PCM_A_MAP, // MSB80
+    XG_PCM_B_MAP, // MSB96
+    XG_VA_USER_MAP, // MSB33
+    XG_VA_SFX_MAP, // MSB65
+    XG_VA_A_MAP, // MSB81
+    XG_VA_B_MAP, // MSB97	
+    XG_SG_USER_MAP, // MSB34
+    XG_SG_SFX_MAP, // MSB66
+    XG_SG_A_MAP, // MSB82
+    XG_SG_B_MAP, // MSB98
+    XG_FM_USER_MAP, // MSB35
+    XG_FM_SFX_MAP, // MSB67
+    XG_FM_A_MAP, // MSB83
+    XG_FM_B_MAP, // MSB99
     GM2_TONE_MAP,
     GM2_DRUM_MAP,
+	MT32_TONE_MAP,
+	MT32_DRUM_MAP,
+	CM32L_TONE_MAP,
+	CM32P_TONE_MAP,
+	CM32_DRUM_MAP,
+	SN01_TONE_MAP,
+	SN02_TONE_MAP,
+	SN03_TONE_MAP,
+	SN04_TONE_MAP,
+	SN05_TONE_MAP,
+	SN06_TONE_MAP,
+	SN07_TONE_MAP,
+	SN08_TONE_MAP,
+	SN09_TONE_MAP,
+	SN10_TONE_MAP,
+	SN11_TONE_MAP,
+	SN12_TONE_MAP,
+	SN13_TONE_MAP,
+	SN14_TONE_MAP,
+	SN15_TONE_MAP,
+	SN01_DRUM_MAP,
+	SN02_DRUM_MAP,
+	SN03_DRUM_MAP,
+	SN04_DRUM_MAP,
+	SN05_DRUM_MAP,
+	SN06_DRUM_MAP,
+	SN07_DRUM_MAP,
+	SN08_DRUM_MAP,
+	SN09_DRUM_MAP,
+	SN10_DRUM_MAP,
+	SN11_DRUM_MAP,
+	SN12_DRUM_MAP,
+	SN13_DRUM_MAP,
+	SN14_DRUM_MAP,
+	SN15_DRUM_MAP,
+	SDXX_TONE80_MAP, 
+	SDXX_TONE81_MAP, 
+	SDXX_TONE87_MAP,
+	SDXX_TONE89_MAP,
+	SDXX_TONE96_MAP, 
+	SDXX_TONE97_MAP, 
+	SDXX_TONE98_MAP, 
+	SDXX_TONE99_MAP, 
+	SDXX_DRUM86_MAP,
+	SDXX_DRUM104_MAP,
+	SDXX_DRUM105_MAP,
+	SDXX_DRUM106_MAP,
+	SDXX_DRUM107_MAP,
+	K05RW_TONE0_MAP,
+	K05RW_TONE56_MAP,
+	K05RW_TONE57_MAP,
+	K05RW_DRUM62_MAP,
+	NX5R_TONE0_MAP,
+	NX5R_TONE1_MAP,
+	NX5R_TONE2_MAP,
+	NX5R_TONE3_MAP,
+	NX5R_TONE4_MAP,
+	NX5R_TONE5_MAP,
+	NX5R_TONE6_MAP,
+	NX5R_TONE7_MAP,
+	NX5R_TONE8_MAP,
+	NX5R_TONE9_MAP,
+	NX5R_TONE10_MAP,
+	NX5R_TONE11_MAP,
+	NX5R_TONE16_MAP,
+	NX5R_TONE17_MAP,
+	NX5R_TONE18_MAP,
+	NX5R_TONE19_MAP,
+	NX5R_TONE24_MAP,
+	NX5R_TONE25_MAP,
+	NX5R_TONE26_MAP,
+	NX5R_TONE32_MAP,
+	NX5R_TONE33_MAP,
+	NX5R_TONE40_MAP,
+	NX5R_TONE56_MAP,
+	NX5R_TONE57_MAP,
+	NX5R_TONE64_MAP,
+	NX5R_TONE80_MAP,
+	NX5R_TONE81_MAP,
+	NX5R_TONE82_MAP,
+	NX5R_TONE83_MAP,
+	NX5R_TONE88_MAP,
+	NX5R_TONE89_MAP,
+	NX5R_TONE90_MAP,
+	NX5R_TONE91_MAP,
+	NX5R_TONE125_MAP,
+	NX5R_DRUM61_MAP,
+	NX5R_DRUM62_MAP,
+	NX5R_DRUM126_MAP,
+	NX5R_DRUM127_MAP,
     NUM_INST_MAP
 };
-
-#define MAP_BANK_COUNT 256
+///r
+#define MAP_BANK_COUNT 768
 extern ToneBank *tonebank[], *drumset[];
 
 extern Instrument *default_instrument;
 #define NSPECIAL_PATCH 256
 extern SpecialPatch *special_patch[ /* NSPECIAL_PATCH */ ];
+///r
 extern int default_program[MAX_CHANNELS];
+extern int special_program[MAX_CHANNELS];
+
 extern int antialiasing_allowed;
 extern int fast_decay;
+extern int opt_print_fontname;
 extern int free_instruments_afterwards;
 extern int cutoff_allowed;
 
@@ -217,15 +385,15 @@ extern char *soundfont_preset_name(int bank, int preset, int keynote,
 extern void free_soundfonts(void);
 
 /* instrum.c */
-extern int load_missing_instruments(int *rc);
 extern void free_instruments(int reload_default_inst);
 extern void free_special_patch(int id);
 extern int set_default_instrument(char *name);
 extern void clear_magic_instruments(void);
-extern Instrument *load_instrument(int dr, int b, int prog);
+extern Instrument *load_instrument(int dr, int b, int prog, int elm);
 extern int find_instrument_map_bank(int dr, int map, int bk);
 extern int alloc_instrument_map_bank(int dr, int map, int bk);
 extern void alloc_instrument_bank(int dr, int bankset);
+extern int instrument_map_no_mapped(int mapID, int *set_in_out, int *elem_in_out);
 extern int instrument_map(int mapID, int *set_in_out, int *elem_in_out);
 extern void set_instrument_map(int mapID,
 			       int set_from, int elem_from,
@@ -239,6 +407,9 @@ extern void free_tone_bank_element(ToneBankElement *elm);
 extern void free_tone_bank(void);
 extern void free_instrument(Instrument *ip);
 extern void squash_sample_16to8(Sample *sp);
+///r
+extern void reinit_tone_bank_element(ToneBankElement *tone);
+extern int alloc_tone_bank_element(ToneBankElement **tone_ptr);
 
 extern char *default_instrument_name;
 extern int progbase;
@@ -246,5 +417,8 @@ extern int progbase;
 extern int32 modify_release;
 #define MAX_MREL 5000
 #define DEFAULT_MREL 800
+
+extern int opt_load_all_instrument;
+extern void load_all_instrument(void);
 
 #endif /* ___INSTRUM_H_ */

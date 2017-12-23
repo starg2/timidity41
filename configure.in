@@ -1,4 +1,3 @@
-dnl TiMidity++ -- MIDI to WAVE converter and player
 dnl Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
 dnl Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 dnl
@@ -20,31 +19,31 @@ dnl configure.in created from configure.scan
 dnl by URABE, Shyouhei <root@mput.dip.jp> on 2002.07.06
 
 dnl variable note:
-dnl CFLAGS	- Flags for compile.
-dnl CPPFLAGS	- Flags for cpp
-dnl LDFLAGS	- Flags for linker
-dnl		ac_cpp:	    $CPP $CPPFLAGS
-dnl		ac_compile: ${CC-cc} -c $CFLAGS $CPPFLAGS
-dnl		ac_link:    ${CC-cc} -o * $CFLAGS $CPPFLAGS $LDFLAGS *.c $LIBS
+dnl CFLAGS      - Flags for compile.
+dnl CPPFLAGS    - Flags for cpp
+dnl LDFLAGS     - Flags for linker
+dnl             ac_cpp:     $CPP $CPPFLAGS
+dnl             ac_compile: ${CC-cc} -c $CFLAGS $CPPFLAGS
+dnl             ac_link:    ${CC-cc} -o * $CFLAGS $CPPFLAGS $LDFLAGS *.c $LIBS
 dnl EXTRACFLAGS - Extra flags to compile.  Adds to CFLAGS.
-dnl EXTRADEFS	- Extra define macros.	Adds to CPPFLAGS.
-dnl EXTRALIBS	- Extra libraries  Adds to LIBS.
-dnl SYSEXTRAS	- Additional source codes to compile.
-dnl lib_*_opt	- Optional libraries. Adds to LIBS.
+dnl EXTRADEFS   - Extra define macros. Adds to CPPFLAGS.
+dnl EXTRALIBS   - Extra libraries  Adds to LIBS.
+dnl SYSEXTRAS   - Additional source codes to compile.
+dnl lib_*_opt   - Optional libraries. Adds to LIBS.
 dnl LIBRARY_PATH
-dnl		- add to -L LDFLAGS
+dnl             - add to -L LDFLAGS
 dnl C_INCLUDE_PATH
-dnl		- add to -I CPPFLAGS
-dnl MSYS	- `yes' if cygnus or Mingw windows environment.
-dnl TCLSH	- tclsh
-dnl LN_S	- ln -s
-dnl tcltk_dep	- make dependencies for tcl/tk interface
+dnl             - add to -I CPPFLAGS
+dnl MSYS        - `yes' if cygnus or Mingw windows environment.
+dnl TCLSH       - tclsh
+dnl LN_S        - ln -s
+dnl tcltk_dep   - make dependencies for tcl/tk interface
 dnl
-dnl so		- File extension of shared object library.
-dnl SHLD	- Linker to make shared object library.
-dnl SHLDFLAGS	- Link flags to link shared object library.
-dnl SHCFLAGS	- Additional flags to compile shared object library.
-dnl		  (such as -fPIC)
+dnl so          - File extension of shared object library.
+dnl SHLD        - Linker to make shared object library.
+dnl SHLDFLAGS   - Link flags to link shared object library.
+dnl SHCFLAGS    - Additional flags to compile shared object library.
+dnl               (such as -fPIC)
 
 # This is a autoscan-generated configure.scan.
 # AC_PREREQ(2.56)
@@ -69,9 +68,9 @@ CONTAINS_INIT
 dnl "--enable-debug" turnes -g on.
 AC_MSG_CHECKING(if --enable-debug option specified)
 AC_ARG_ENABLE(debug,
-	      AS_HELP_STRING([--enable-debug], [Build a debugging version.]),
-	      [timidity_cv_debug="yes"], [timidity_cv_debug="no"])
-if test "x$timidity_cv_debug" = "xyes"; then
+              AS_HELP_STRING([--enable-debug], [Build a debugging version.]),
+              [timidity_cv_debug="yes"], [timidity_cv_debug="no"])
+if test "x$timidity_cv_debug" = xyes; then
   AC_DEFINE(DEBUG,1,Define to 1 if you are in debug mode)
   CFLAGS=${CFLAGS-"-g"}
 fi
@@ -85,7 +84,7 @@ if test "x$CFLAGS" = "x"; then
 fi
 
 dnl --with-x turns on if `--with-x' is NOT specified.
-if test "x$with_x" = x; then
+if test "x$with_x" = "x"; then
   with_x=yes
 else
   x_config_flag=yes
@@ -169,10 +168,11 @@ AC_PROG_INSTALL
 AC_PROG_AWK
 AC_PROG_RANLIB
 AC_PROG_LN_S
+AC_CHECK_PROG([WINDRES], [${ac_tool_prefix}windres], [${ac_tool_prefix}windres])
 CHECK_COMPILER_OPTION(rdynamic)
 
-if test "x$NOCFLAGS" = "xyes"; then
-  if test "x$GCC" = "xyes"; then
+if test "x$NOCFLAGS" = xyes; then
+  if test "x$GCC" = xyes; then
     CFLAGS="-O2"
   else
     CFLAGS=""
@@ -213,11 +213,11 @@ case "$target" in
     ;;
   *-*-freebsd*)
     if test "$ELFFORMAT" = yes; then
-	test -n "$SHLD" || SHLD="ld -Bshareable"
+        test -n "$SHLD" || SHLD="ld -Bshareable"
     else
-	SHCFLAGS=-aou
-	SHLDFLAGS="-L/usr/X11R6/lib/aout $SHLDFLAGS"
-	test -n "$SHLD" || SHLD="env OBJFORMAT=aout ld -shared"
+        SHCFLAGS=-aou
+        SHLDFLAGS="-L/usr/X11R6/lib/aout $SHLDFLAGS"
+        test -n "$SHLD" || SHLD="env OBJFORMAT=aout ld -shared"
     fi
     dnl EXTRALIBS="$EXTRALIBS -lxpg4"
     so="so"
@@ -231,6 +231,13 @@ case "$target" in
 
   *-*-cygwin*|*-*-mingw*)
     EXTRADEFS="-D__W32__"
+    EXTRAINCS="$EXTRAINCS -I\${top_srcdir}"
+    EXTRAINCS="$EXTRAINCS -I\${top_srcdir}/speex"
+    EXTRAINCS="$EXTRAINCS -I\${top_srcdir}/rcpcv"
+    EXTRAINCS="$EXTRAINCS -I\${top_srcdir}/portaudio/pa_common"
+    EXTRAINCS="$EXTRAINCS -I\${top_srcdir}/portmidi/pm_common"
+    EXTRAINCS="$EXTRAINCS -I\${top_srcdir}/portmidi/porttime"
+    CPPFLAGS="$CPPFLAGS -I. -I../cygwin/"
     # ??
     case "x${CC} " in
       "xbcc32 "*|xbcc32) 
@@ -305,7 +312,7 @@ case "$target" in
     so="so"
     ;;
   *-*-darwin*)
-    if test "x$SIMD" = "xyes"; then
+    if test "x$SIMD" = xyes; then
        AC_DEFINE(USE_ALTIVEC,1,Define to 1 if you use altivec)
        # EXTRACFLAGS="$EXTRACFLAGS -faltivec -mabi=altivec -maltivec" # for GCC3.
        EXTRACFLAGS="$EXTRACFLAGS -faltivec"
@@ -320,9 +327,9 @@ case "$target" in
   *)
     test -n "$SHLD" || \
       if test "x$GCC" = xyes; then
-	SHLD="$CC -shared"
+        SHLD="$CC -shared"
       else
-	SHLD="ld -Bdynamic -G"
+        SHLD="ld -Bdynamic -G"
       fi
     so="so"
     ;;
@@ -336,7 +343,7 @@ AC_CHECK_LIB(m,sqrt)
 AC_CHECK_LIB(socket,socket)
 AC_CHECK_LIB(dl,dlopen,lib_dl_opt=-ldl)
 AC_CHECK_LIB(objc,NSLinkModule,lib_dl_opt=-lobjc) # Mac OS X need this.
-if test "x$VCPP" != "xyes" && test "x$BORLANDC" != "xyes" && test "x$WATCOM_C" != "xyes" && test "x$POCC" != "xyes"; then
+if test "x$VCPP" != xyes && test "x$BORLANDC" != xyes && test "x$WATCOM_C" != xyes && test "x$POCC" != xyes; then
 AC_CHECK_LIB(xpg4,setlocale) # Mac OS X (and maybe NetBSD) need this.
 fi
 AC_CHECK_FUNCS(gethostbyname,,[ AC_CHECK_LIB(nsl,gethostbyname) ])
@@ -358,7 +365,7 @@ AC_ARG_WITH(xawlib,
 
 # Checks for X
 if test "x$with_x" = xyes; then
-  if test "x$have_x" = xno; then
+  if test "x$have_x" = "xno"; then
     if test "x$x_config_flag" = xyes; then
       AC_MSG_ERROR(Could not configure X)
     else
@@ -367,14 +374,14 @@ if test "x$with_x" = xyes; then
   fi
 fi
 if test "x$with_x" = xyes -a "x$have_x" = xyes; then
-  if test "x$x_libraries" != x; then
+  if test "x$x_libraries" != "x"; then
     ldflags_x_opt="-L$x_libraries"
     LDFLAGS="$LDFLAGS $ldflags_x_opt"
     SHLDFLAGS="$SHLDFLAGS $ldflags_x_opt"
   else
     ldflags_x_opt=
   fi
-  if test "x$x_includes" != x; then
+  if test "x$x_includes" != "x"; then
     CPPFLAGS="$CPPFLAGS -I$x_includes"
   fi
 
@@ -402,7 +409,7 @@ fail;
   AC_CHECK_LIB(Xt,XtVaAppInitialize,have_xt=yes; LIBS="-lXt $LIBS",have_xt=no)
   AC_CHECK_LIB(Xmu,XmuInternAtom,LIBS="-lXmu $LIBS")
   AC_CHECK_FUNCS(XmuRegisterExternalAgent)
-  if test "x$enable_xft" = "xyes"; then
+  if test "x$enable_xft" = xyes; then
     AC_CHECK_LIB(Xft,XftInit,
                  AC_DEFINE(HAVE_LIBXFT,1,Define to 1 if you have the 'Xft' library.),
                  enable_xft=no)
@@ -464,6 +471,8 @@ AC_CHECK_HEADERS( \
   netdb.h \
   netinet/in.h \
   nlist.h \
+  pthread.h \
+  pthreads.h \
   stddef.h \
   stdlib.h \
   stdint.h \
@@ -558,39 +567,39 @@ fi
 
 dnl Cygnus and Mingw memory struct optiontest
 if test "x$MSYS" = xyes ; then
-	case "x${CC}" in
-	"xgcc"*) 
-		msnative_struct=''
-	    AC_MSG_CHECKING([how to get MSVC-compatible struct packing])
-	    if test -z "$ac_cv_prog_CC"; then
-			our_gcc="$CC"
-		else
-			our_gcc="$ac_cv_prog_CC"
-		fi
-		case `$our_gcc --version | sed -e 's,\..*,.,' -e q` in
-			2.)
-		if $our_gcc -v --help 2>/dev/null | grep fnative-struct >/dev/null; then
-	  		msnative_struct='-fnative-struct'
-		fi
-		;;
-			*)
-		if $our_gcc -v --help 2>/dev/null | grep ms-bitfields >/dev/null; then
-			msnative_struct='-mms-bitfields'
-		fi
-		;;
-		esac
-		if test x"$msnative_struct" = x ; then
-			AC_MSG_RESULT([no way])
-			AC_MSG_WARN([produced binary will be incompatible with windows' GUI ])
-		else
-			CFLAGS="$CFLAGS $msnative_struct"
-			CPPFLAGS="$CPPFLAGS $msnative_struct"
-			AC_MSG_RESULT([${msnative_struct}])
-		fi
-		;;
-	*) 
-		;;
-	esac
+        case "x${CC}" in
+        "xgcc"*) 
+            msnative_struct=''
+            AC_MSG_CHECKING([how to get MSVC-compatible struct packing])
+            if test -z "$ac_cv_prog_CC"; then
+                        our_gcc="$CC"
+                else
+                        our_gcc="$ac_cv_prog_CC"
+                fi
+                case `$our_gcc --version | sed -e 's,\..*,.,' -e q` in
+                        2.)
+                if $our_gcc -v --help 2>/dev/null | grep fnative-struct >/dev/null; then
+                        msnative_struct='-fnative-struct'
+                fi
+                ;;
+                        *)
+                if $our_gcc -v --help 2>/dev/null | grep ms-bitfields >/dev/null; then
+                        msnative_struct='-mms-bitfields'
+                fi
+                ;;
+                esac
+                if test x"$msnative_struct" = "x"; then
+                        AC_MSG_RESULT([no way])
+                        AC_MSG_WARN([produced binary will be incompatible with windows' GUI ])
+                else
+                        CFLAGS="$CFLAGS $msnative_struct"
+                        CPPFLAGS="$CPPFLAGS $msnative_struct"
+                        AC_MSG_RESULT([${msnative_struct}])
+                fi
+                ;;
+        *) 
+                ;;
+        esac
 fi
 dnl Cygnus Mingw32 mmsystem check
 if test "x$MSYS" = xyes ; then
@@ -615,13 +624,16 @@ AC_FUNC_MMAP
 fi
 AC_FUNC_SETVBUF_REVERSED
 AC_TYPE_SIGNAL
-if test "x$VCPP" != xyes && test "x$BORLANDC" != xyes && test "x$WATCOM_C" != "xyes" && test "x$POCC" != "xyes"; then
+if test "x$VCPP" != xyes && test "x$BORLANDC" != xyes && test "x$WATCOM_C" != xyes && test "x$POCC" != xyes; then
 AC_FUNC_VPRINTF
 fi
+AC_CHECK_LIB(pthread, pthread_create, [AC_DEFINE(HAVE_PTHREAD_CREATE,1,[Define to 1 if you have the `pthread_create' function.])])
 AC_CHECK_FUNCS( \
   [alarm \
   dup2 \
   floor \
+  fseeko \
+  ftello \
   getcwd \
   gethostbyname \
   getopt \
@@ -693,60 +705,62 @@ dnl  AC_DEFINE(vsnprintf,_vsnprintf,[for VC])
 fi
 
 AC_CHECK_FUNC(getopt_long,
-	 AC_DEFINE([HAVE_GETOPT_LONG],1,[Define to 1 if you have `getopt_long' function])
-	 tm_cv_needgetopt="no",
-	 tm_cv_needgetopt="yes")
-AM_CONDITIONAL([NEEDGETOPT], test "x$tm_cv_needgetopt" = "xyes")
+         AC_DEFINE([HAVE_GETOPT_LONG],1,[Define to 1 if you have `getopt_long' function])
+         tm_cv_needgetopt="no",
+         tm_cv_needgetopt="yes")
+AM_CONDITIONAL([NEEDGETOPT], test "x$tm_cv_needgetopt" = xyes)
 
 AC_CHECK_FUNC(open_memstream, [
-	 AC_DEFINE([HAVE_OPEN_MEMSTREAM],1,[Define to 1 if you have `open_memstream' function])
-	 ])
+         AC_DEFINE([HAVE_OPEN_MEMSTREAM],1,[Define to 1 if you have `open_memstream' function])
+         ])
 
 dnl ***
 dnl *** va_copy checks (from GLIB)
 dnl ***
 
 AC_CACHE_CHECK([for an implementation of va_copy()],lib_cv_va_copy,[
-	AC_RUN_IFELSE([AC_LANG_SOURCE([[
-	#include <stdarg.h>
-	void f (int i, ...) {
-	va_list args1, args2;
-	va_start (args1, i);
-	va_copy (args2, args1);
-	if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
-	  exit (1);
-	va_end (args1); va_end (args2);
-	}
-	int main() {
-	  f (0, 42);
-	  return 0;
-	}]])],
-	[lib_cv_va_copy=yes],
-	[lib_cv_va_copy=no],[])
+        AC_RUN_IFELSE([AC_LANG_SOURCE([[
+        #include <stdarg.h>
+        void f (int i, ...) {
+        va_list args1, args2;
+        va_start (args1, i);
+        va_copy (args2, args1);
+        if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
+          exit (1);
+        va_end (args1); va_end (args2);
+        }
+        int main() {
+          f (0, 42);
+          return 0;
+        }]])],
+        [lib_cv_va_copy=yes],
+        [lib_cv_va_copy=no],
+        [lib_cv_va_copy=no])
 ])
 
 AC_CACHE_CHECK([for an implementation of __va_copy()],lib_cv___va_copy,[
-	AC_RUN_IFELSE([AC_LANG_SOURCE([[
-	#include <stdarg.h>
-	void f (int i, ...) {
-	va_list args1, args2;
-	va_start (args1, i);
-	__va_copy (args2, args1);
-	if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
-	  exit (1);
-	va_end (args1); va_end (args2);
-	}
-	int main() {
-	  f (0, 42);
-	  return 0;
-	}]])],
-	[lib_cv___va_copy=yes],
-	[lib_cv___va_copy=no],[])
+        AC_RUN_IFELSE([AC_LANG_SOURCE([[
+        #include <stdarg.h>
+        void f (int i, ...) {
+        va_list args1, args2;
+        va_start (args1, i);
+        __va_copy (args2, args1);
+        if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
+          exit (1);
+        va_end (args1); va_end (args2);
+        }
+        int main() {
+          f (0, 42);
+          return 0;
+        }]])],
+        [lib_cv___va_copy=yes],
+        [lib_cv___va_copy=no],
+        [lib_cv___va_copy=no])
 ])
 
-if test "x$lib_cv_va_copy" = "xyes"; then
+if test "x$lib_cv_va_copy" = xyes; then
   va_copy_func=va_copy
-else if test "x$lib_cv___va_copy" = "xyes"; then
+else if test "x$lib_cv___va_copy" = xyes; then
   va_copy_func=__va_copy
 fi
 fi
@@ -756,22 +770,23 @@ if test -n "$va_copy_func"; then
 fi
 
 AC_CACHE_CHECK([whether va_lists can be copied by value],lib_cv_va_val_copy,[
-	AC_RUN_IFELSE([AC_LANG_SOURCE([[
-	#include <stdarg.h>
-	void f (int i, ...) {
-	va_list args1, args2;
-	va_start (args1, i);
-	args2 = args1;
-	if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
-	  exit (1);
-	va_end (args1); va_end (args2);
-	}
-	int main() {
-	  f (0, 42);
-	  return 0;
-	}]])],
-	[lib_cv_va_val_copy=yes],
-	[lib_cv_va_val_copy=no],[])
+        AC_RUN_IFELSE([AC_LANG_SOURCE([[
+        #include <stdarg.h>
+        void f (int i, ...) {
+        va_list args1, args2;
+        va_start (args1, i);
+        args2 = args1;
+        if (va_arg (args2, int) != 42 || va_arg (args1, int) != 42)
+          exit (1);
+        va_end (args1); va_end (args2);
+        }
+        int main() {
+          f (0, 42);
+          return 0;
+        }]])],
+        [lib_cv_va_val_copy=yes],
+        [lib_cv_va_val_copy=no],
+        [lib_cv_va_val_copy=no])
 ])
 
 if test "x$lib_cv_va_val_copy" = "xno"; then
@@ -796,8 +811,8 @@ if test "x$MSYS" = xyes ; then
   else
     AC_CHECK_FUNC(socket,,
      WAPI_CHECK_LIB(ws2_32,WSAStartup,
-  	   [#include <winsock.h>],
-  	   [WSAStartup(0,0);],
+       [#include <winsock.h>],
+       [WSAStartup(0,0);],
        [ EXTRALIBS="$EXTRALIBS -lws2_32"
         EXTRADEFS="$EXTRADEFS -DWINSOCK" ]
      )
@@ -852,31 +867,33 @@ AC_ARG_WITH(offix-libs,
 #
 # audio section
 #
-dnl default(d): auto selection
-dnl oss(d):     OSS /dev/dsp
-dnl alsa(d):    ALSA pcm device
-dnl sun(d):     SunOS /dev/audio
-dnl hpux(d):    HPUX /dev/audio
-dnl irix(d):    IRIX audio
-dnl mme(d):     OSF/1 MME
-dnl sb_dsp(d):  BSD/OS 2.0 /dev/sb_dsp
-dnl w32(d):     Windows MMS
-dnl darwin(d):  Mac OS X pcm device
-dnl alsa(s):    ALSA pcm device
-dnl alib(A):    HPUX network audio (Alib)
-dnl nas(n):     Network Audio System
-dnl arts(R):	aRts
-dnl esd(e):     EsounD
+dnl default(d):  auto selection
+dnl oss(d):      OSS /dev/dsp
+dnl alsa(d):     ALSA pcm device
+dnl sun(d):      SunOS /dev/audio
+dnl hpux(d):     HPUX /dev/audio
+dnl irix(d):     IRIX audio
+dnl mme(d):      OSF/1 MME
+dnl sb_dsp(d):   BSD/OS 2.0 /dev/sb_dsp
+dnl w32(d):      Windows MMS
+dnl darwin(d):   Mac OS X pcm device
+dnl alsa(s):     ALSA pcm device
+dnl alib(A):     HPUX network audio (Alib)
+dnl nas(n):      Network Audio System
+dnl arts(R):     aRts
+dnl esd(e):      EsounD
 dnl portaudio(p) PortAudio
-dnl npipe(N)   Windows named pipe;
-dnl vorbis(v):  Ogg Vorbis
-dnl flac(F):    FLAC / OggFLAC
-dnl speex(S):   Ogg Speex
-dnl gogo(g):    MP3 GOGO
-dnl jack(j):    JACK
-dnl ao(O):      Libao
+dnl npipe(N)     Windows named pipe;
+dnl vorbis(v):   Ogg Vorbis
+dnl flac(F):     FLAC / OggFLAC
+dnl opus(U):     Ogg Opus
+dnl speex(S):    Ogg Speex
+dnl gogo(g):     MP3 GOGO
+dnl lame(L):     LAME
+dnl jack(j):     JACK
+dnl ao(O):       Libao
 
-audio_targets='default oss alsa sun hpux irix mme sb_dsp w32 alib nas arts esd vorbis flac gogo portaudio npipe jack ao'
+audio_targets='default oss alsa sun hpux irix mme sb_dsp w32 alib nas arts esd vorbis flac opus lame gogo portaudio npipe jack ao'
 
 AC_ARG_WITH(nas-library,
   AS_HELP_STRING([--with-nas-library=library], [NAS absolute library path(Don't use -laudio)]))
@@ -906,8 +923,10 @@ AC_ARG_ENABLE(audio,
                               ao:        Libao
                               vorbis:    Ogg Vorbis
                               flac:      FLAC / OggFLAC
+                              opus:      Ogg Opus
                               speex:     Ogg Speex
                               gogo:      MP3 GOGO (Only Windows is supported)
+                              lame:      LAME (Only Windows is supported)
 ],
   [ enable_audio=$enableval
     have_audio_opt=yes ],
@@ -917,7 +936,7 @@ AC_ARG_ENABLE(audio,
 dnl yes -> default
 test "x$enable_audio" = xyes && enable_audio=default
 
-if test "x$enable_audio" != xno; then
+if test "x$enable_audio" != "xno"; then
   for i in `echo $enable_audio | sed 's/,/ /g'`; do
     eval "au_enable_$i=yes"
   done
@@ -929,8 +948,8 @@ AC_ARG_WITH(default-output,
   AS_HELP_STRING([--with-default-output=<mode>],
   [Specify default output mode (optional):
                                 (default|alsa|alib|arts|nas|
-                                esd|wav|au|aiff|list|vorbis|flac|speex|
-                                gogo|portaudio|npipe|jack|ao)]),
+                                esd|wav|au|aiff|list|vorbis|flac|opus|speex|
+                                lame|gogo|portaudio|npipe|jack|ao)]),
   [ if test "$enable_audio" != no; then
     DEFAULT_PLAYMODE=$withval
     eval "au_enable_$DEFAULT_PLAYMODE=yes"
@@ -952,7 +971,13 @@ dnl   [ au_enable_alsa=$enableval ])
 dnl target-specific defaults
 if test "x$au_enable_default" = xyes; then
   case "$target" in
-  *-*-linux*|*-*-freebsd*)
+  *-*-linux*)
+    au_enable_alsa=yes
+    if test "x$DEFAULT_PLAYMODE" = "x"; then
+      DEFAULT_PLAYMODE="alsa"
+    fi
+    ;;
+  *-*-freebsd*)
     au_enable_oss=yes
     ;;
   *-*-bsdi2.0)
@@ -1018,7 +1043,7 @@ if test "x$au_enable_oss" = xyes; then
         else
           AC_MSG_WARN(<sys/soundcard.h> is not found)
         fi
-	;;
+        ;;
     esac
   fi
   AC_CHECK_LIB(ossaudio,open)
@@ -1042,15 +1067,15 @@ if test "x$au_enable_sun" = xyes; then
     *-*-sunos4*)
       if test -f /usr/demo/SOUND/libaudio.a; then
         EXTRALIBS="$EXTRALIBS /usr/demo/SOUND/libaudio.a"
-	AC_MSG_RESULT(yes)
+        AC_MSG_RESULT(yes)
       else
-	AC_MSG_RESULT(Notice: libaudio.a is not found [(ignore)])
+        AC_MSG_RESULT(Notice: libaudio.a is not found [(ignore)])
       fi
       ;;
     *-*-solaris*)
       if test -f /usr/demo/SOUND/lib/libaudio.a; then
         EXTRALIBS="$EXTRALIBS /usr/demo/SOUND/lib/libaudio.a"
-	AC_MSG_RESULT(yes)
+        AC_MSG_RESULT(yes)
       else
         AC_MSG_RESULT(Notice: libaudio.a is not found [(ignore)])
       fi
@@ -1132,7 +1157,7 @@ if test "x$au_enable_w32" = xyes; then
     *-*-cygwin*)
      AC_MSG_RESULT(yes)
      ;;
-    *-*-mingw32)
+    *-*-mingw*)
      AC_MSG_RESULT(yes)
      ;;
     *)
@@ -1141,7 +1166,7 @@ if test "x$au_enable_w32" = xyes; then
   esac
   SYSEXTRAS="$SYSEXTRAS w32_a.c"
   if test "x$VCPP" = xyes || test "x$BORLANDC" = xyes || test "x$WATCOM_C" = xyes || test "x$DMC" = xyes || test "x$POCC" = xyes; then
-  	EXTRALIBS="$EXTRALIBS winmm.lib"
+    EXTRALIBS="$EXTRALIBS winmm.lib"
   else
     EXTRALIBS="$EXTRALIBS -lwinmm"
   fi
@@ -1177,7 +1202,7 @@ if test "x$au_enable_alsa" = xyes; then
   KEEPLIBS=$LIBS
   KEEPLDFLAGS=$LDFLAGS
   AM_PATH_ALSA()
-  if test "x$alsa_found" = "xyes" ; then
+  if test "x$alsa_found" = xyes ; then
     dnl AC_MSG_RESULT(yes)
     EXTRADEFS="$EXTRADEFS -DAU_ALSA"
     SYSEXTRAS="$SYSEXTRAS alsa_a.c"
@@ -1226,20 +1251,20 @@ if test "x$au_enable_nas" = xyes; then
   dnl -laudio conflicts another audio library,
   dnl so I specify NAS library with absolete path.
 
-  if test "x$with_nas_library" != x; then
+  if test "x$with_nas_library" != "x"; then
     AC_MSG_RESULT($with_nas_library);
     EXTRALIBS="$EXTRALIBS $with_nas_library"
   else
     AC_MSG_RESULT()
     MY_SEARCH_LIBS(AuOpenServer,
-	[$x_libraries/libaudio.a \
-	 /usr/lib/libaudio.so \
-	 /usr/lib/libaudio.a ],
-	[ AC_MSG_RESULT(NAS: $timidity_cv_search_AuOpenServer)
-	  EXTRALIBS="$EXTRALIBS $timidity_cv_search_AuOpenServer"],
-	[AC_MSG_WARN(NAS library is not found.)])
+        [$x_libraries/libaudio.a \
+         /usr/lib/libaudio.so \
+         /usr/lib/libaudio.a ],
+        [ AC_MSG_RESULT(NAS: $timidity_cv_search_AuOpenServer)
+          EXTRALIBS="$EXTRALIBS $timidity_cv_search_AuOpenServer"],
+        [AC_MSG_WARN(NAS library is not found.)])
   fi
-  test "x$with_nas_includes" != x && CPPFLAGS="$CPPFLAGS -I$with_nas_includes"
+  test "x$with_nas_includes" != "x" && CPPFLAGS="$CPPFLAGS -I$with_nas_includes"
   lib_xt_opt=-lXt
   if test "x$have_xext" = xyes; then
     lib_xext_opt=-lXext
@@ -1257,7 +1282,7 @@ if test "x$au_enable_arts" = xyes; then
   AC_MSG_RESULT([yes, configuring aRts])
   dnl **** Check for aRts Sound Server ****
   AC_PATH_PROG(ARTSCCONFIG, artsc-config)
-  if test x$ARTSCCONFIG != x -a x$ARTSCCONFIG != x'"$ARTSCCONFIG"';
+  if test x$ARTSCCONFIG != "x" -a x$ARTSCCONFIG != x'"$ARTSCCONFIG"';
   then
     ARTSC_CFLAGS=""
     for i in `$ARTSCCONFIG --cflags`
@@ -1273,7 +1298,7 @@ if test "x$au_enable_arts" = xyes; then
         [AC_SUBST(ARTSLIBS, $ARTSC_LIBS)
          AC_SUBST(ARTSINCL, $ARTSC_CFLAGS)
          AC_DEFINE(HAVE_ARTS, 1, [Define if you have ARTS sound server])
-	 have_arts="yes"
+           have_arts="yes"
          ])
     CFLAGS="$save_CFLAGS"
   fi
@@ -1302,7 +1327,7 @@ if test "x$au_enable_esd" = xyes; then
   CFLAGS=$KEEPCFLAGS
   LIBS=$KEEPLIBS
   LDFLAGS=$KEEPLDFLAGS
-  if test "x$no_esd" = x; then
+  if test "x$no_esd" = "x"; then
     dnl AC_MSG_RESULT(EsounD: Enabled)
     EXTRADEFS="$EXTRADEFS -DAU_ESD"
     SYSEXTRAS="$SYSEXTRAS esd_a.c"
@@ -1320,13 +1345,14 @@ AC_MSG_CHECKING(enable_audio=portaudio)
 if test "x$au_enable_portaudio" = xyes; then
   AC_MSG_RESULT(yes)
   if test "x$MSYS" = xyes ; then
-	SYSEXTRAS="$SYSEXTRAS portaudio_a.c w32_portaudio_dll.c"
-  	EXTRALIBS="$EXTRALIBS -lportaudio"
-  	EXTRADEFS="$EXTRADEFS -DAU_PORTAUDIO -DAU_PORTAUDIO_DLL"
+        SYSEXTRAS="$SYSEXTRAS portaudio_a.c w32_portaudio_dll.c"
+dnl     EXTRALIBS="$EXTRALIBS -lportaudio"
+        CPPFLAGS="$CPPFLAGS -I../portaudio/pa_common/"
+        EXTRADEFS="$EXTRADEFS -DAU_PORTAUDIO -DAU_PORTAUDIO_DLL -DPORTAUDIO_V19"
   else
-  	SYSEXTRAS="$SYSEXTRAS portaudio_a.c"
-  	EXTRALIBS="$EXTRALIBS -lportaudio"
-  	EXTRADEFS="$EXTRADEFS -DAU_PORTAUDIO"
+        SYSEXTRAS="$SYSEXTRAS portaudio_a.c"
+        EXTRALIBS="$EXTRALIBS -lportaudio"
+        EXTRADEFS="$EXTRADEFS -DAU_PORTAUDIO"
   fi
 else
   AC_MSG_RESULT(no)
@@ -1336,8 +1362,8 @@ dnl npipe (windows named pipe)
 AC_MSG_CHECKING(enable_audio=npipe)
 if test "x$au_enable_npipe" = xyes; then
   AC_MSG_RESULT(yes)
-  	SYSEXTRAS="$SYSEXTRAS npipe_a.c"
-  	EXTRADEFS="$EXTRADEFS -DAU_NPIPE"
+    SYSEXTRAS="$SYSEXTRAS npipe_a.c"
+    EXTRADEFS="$EXTRADEFS -DAU_NPIPE"
 else
   AC_MSG_RESULT(no)
 fi
@@ -1376,11 +1402,12 @@ dnl ogg's vorbis
 AC_MSG_CHECKING(enable_audio=vorbis)
 if test "x$au_enable_vorbis" = xyes; then
   AC_MSG_RESULT([yes, configuring vorbis])
-  if test "x$MSYS" = "xyes" && test "x$MINGWGCC" != "xyes" ; then
-    AC_CHECK_HEADER(vorbis/vorbisenc.h,, [ 
-    EXTRADEFS="-DAU_VORBIS_DLL $EXTRADEFS"
-	SYSEXTRAS="$SYSEXTRAS w32g_vorbisenc_dll.c w32g_vorbis_dll.c w32g_ogg_dll.c"
-    ])
+  if test "x$MSYS" = xyes; then
+dnl    AC_CHECK_HEADER(vorbis/vorbisenc.h,, [ 
+      have_vorbis=yes
+      EXTRADEFS="$EXTRADEFS -DAU_VORBIS -DAU_VORBIS_DLL"
+      SYSEXTRAS="$SYSEXTRAS vorbis_a.c w32g_vorbisenc_dll.c w32g_vorbis_dll.c w32g_ogg_dll.c"
+dnl    ])
   else
   XIPH_PATH_OGG([
     XIPH_PATH_VORBIS([
@@ -1388,9 +1415,9 @@ if test "x$au_enable_vorbis" = xyes; then
       SYSEXTRAS="$SYSEXTRAS vorbis_a.c"
       EXTRADEFS="$EXTRADEFS -DAU_VORBIS $OGG_CFLAGS $VORBIS_CFLAGS"
       EXTRALIBS="$EXTRALIBS $VORBIS_LIBS $VORBISENC_LIBS $OGG_LIBS"
-      if test "x$MSYS" = "xyes" && test "x$MINGWGCC" = "xyes" ; then
-      EXTRADEFS="-DAU_VORBIS_DLL $EXTRADEFS"
-	  SYSEXTRAS="$SYSEXTRAS w32g_vorbisenc_dll.c w32g_vorbis_dll.c w32g_ogg_dll.c"
+      if test "x$MINGWGCC" = xyes ; then
+        EXTRADEFS="-DAU_VORBIS_DLL $EXTRADEFS"
+        SYSEXTRAS="$SYSEXTRAS w32g_vorbisenc_dll.c w32g_vorbis_dll.c w32g_ogg_dll.c"
       fi
     ],[
       AC_MSG_WARN([Unable to configure vorbis, but ogg is there (???)])
@@ -1409,13 +1436,15 @@ if test "x$MSYS" = xyes ; then
   AC_MSG_CHECKING(enable_audio=flac)
   if test "x$au_enable_flac" = xyes; then
     AC_MSG_RESULT([yes, configuring flac])
+    have_flac=yes
     SYSEXTRAS="$SYSEXTRAS flac_a.c w32_libFLAC_dll.c w32_libOggFLAC_dll.c"
-    AC_CHECK_HEADER(FLAC/all.h, [ 
-      EXTRADEFS="$EXTRADEFS -DAU_FLAC -DAU_FLAC_DLL"
-    ])
-    AC_CHECK_HEADER(OggFLAC/all.h, [ 
-      EXTRADEFS="$EXTRADEFS -DAU_OGGFLAC -DAU_OGGFLAC_DLL"
-    ])
+    EXTRADEFS="$EXTRADEFS -DAU_FLAC -DAU_FLAC_DLL -DAU_OGGFLAC"
+dnl    AC_CHECK_HEADER(FLAC/all.h, [ 
+dnl      EXTRADEFS="$EXTRADEFS -DAU_FLAC -DAU_FLAC_DLL"
+dnl    ])
+dnl    AC_CHECK_HEADER(OggFLAC/all.h, [ 
+dnl      EXTRADEFS="$EXTRADEFS -DAU_OGGFLAC -DAU_OGGFLAC_DLL"
+dnl    ])
 dnl    AM_PATH_LIBFLAC([
 dnl      EXTRADEFS="$EXTRADEFS -DAU_FLAC -DAU_FLAC_DLL"
 dnl      EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$LIBFLAC_CFLAGS)
@@ -1435,11 +1464,13 @@ else
     AC_MSG_RESULT([yes, configuring flac])
     SYSEXTRAS="$SYSEXTRAS flac_a.c"
     AM_PATH_LIBFLAC([
+      have_flac=yes
       EXTRADEFS="$EXTRADEFS -DAU_FLAC"
       EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$LIBFLAC_CFLAGS)
       LIBS="$LIBS $LIBFLAC_LIBS"
     ])
     AM_PATH_LIBOGGFLAC([
+      have_oggflac=yes
       EXTRADEFS="$EXTRADEFS -DAU_OGGFLAC"
       EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$LIBOGGFLAC_CFLAGS)
       LIBS="$LIBS $LIBOGGFLAC_LIBS"
@@ -1448,23 +1479,65 @@ else
     AC_MSG_RESULT(no)
   fi
 fi
+
+dnl ogg's opus
+AC_MSG_CHECKING(enable_audio=opus)
+if test "x$au_enable_opus" = xyes; then
+  AC_MSG_RESULT([yes, configuring opus])
+  if test "x$MSYS" = xyes ; then
+    AC_CHECK_HEADER(opus/opus.h,, [ 
+      have_opus=yes
+      EXTRADEFS="-DAU_OPUS -DAU_OPUS_DLL $EXTRADEFS"
+      SYSEXTRAS="$SYSEXTRAS w32g_opus_dll.c w32g_ogg_dll.c"
+    ])
+  else
+  XIPH_PATH_OGG([
+    XIPH_PATH_OPUS([
+      have_opus=yes
+      SYSEXTRAS="$SYSEXTRAS opus_a.c"
+      EXTRADEFS="$EXTRADEFS -DAU_OPUS $OGG_CFLAGS $OPUS_CFLAGS"
+      EXTRALIBS="$EXTRALIBS $OPUS_LIBS $OGG_LIBS"
+      if test "x$MINGWGCC" = xyes ; then
+        EXTRADEFS="-DAU_OPUS_DLL $EXTRADEFS"
+        SYSEXTRAS="$SYSEXTRAS w32g_opus_dll.c w32g_ogg_dll.c"
+      fi
+    ],[
+      AC_MSG_WARN([Unable to configure opus, but ogg is there (???)])
+    ])
+  ],[
+    AC_MSG_WARN(Unable to configure opus!)
+    have_opus=no
+  ])
+  fi
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl ogg's speex
 AC_MSG_CHECKING(enable_audio=speex)
 if test "x$au_enable_speex" = xyes; then
-  AC_CACHE_VAL(timidity_cv_have_speex,
-  [AC_TRY_LINK([
-  #include <speex/speex.h>
-  #include <ogg/ogg.h>
-  ],
-  [
-    SpeexBits *dummy;
-  ],
-  [have_speex=yes], [have_speex=no])])
-  AC_MSG_RESULT($have_speex)
-  if test "x$have_speex" = xyes; then
+  AC_MSG_RESULT(yes, configuring speex)
+  if test "x$MSYS" = xyes ; then
+    have_speex=yes
     SYSEXTRAS="$SYSEXTRAS speex_a.c"
-    EXTRALIBS="$EXTRALIBS -lspeex -logg"
+    EXTRALIBS="$EXTRALIBS -lspeex"
     EXTRADEFS="$EXTRADEFS -DAU_SPEEX"
+  else
+    AC_CACHE_VAL(timidity_cv_have_speex,
+    [AC_TRY_LINK([
+    #include <speex/speex.h>
+    #include <ogg/ogg.h>
+    ],
+    [
+      SpeexBits *dummy;
+    ],
+    [have_speex=yes], [have_speex=no])])
+    AC_MSG_RESULT($have_speex)
+    if test "x$have_speex" = xyes; then
+      SYSEXTRAS="$SYSEXTRAS speex_a.c"
+      EXTRALIBS="$EXTRALIBS -lspeex -logg"
+      EXTRADEFS="$EXTRADEFS -DAU_SPEEX"
+    fi
   fi
 else
   AC_MSG_RESULT(no)
@@ -1473,7 +1546,7 @@ fi
 dnl Win32 Gogo-no-coder
 AC_MSG_CHECKING(enable_audio=gogo)
 if test "x$au_enable_gogo" = xyes; then
-  if test "x$MSYS" = "xyes"; then
+  if test "x$MSYS" = xyes; then
     AC_MSG_RESULT(yes, configuring gogo)
   else
     AC_MSG_WARN(May be gogo is not supported.  You need hack the gogo_a.c)
@@ -1488,6 +1561,31 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl Win32 LAME
+AC_MSG_CHECKING(enable_audio=lame)
+if test "x$au_enable_lame" = xyes; then
+  if test "x$MSYS" = xyes; then
+    AC_MSG_RESULT([yes, configuring lame])
+    have_lame=yes
+  else
+    AC_MSG_WARN(May be lame is not supported.  You need hack the lame_a.c)
+  fi
+dnl  AC_CHECK_HEADERS(timidity/BladeMP3EncDLL.h timidity/LameEnc.h, [ 
+dnl    have_lame=yes
+dnl  ],,
+dnl  [[
+dnl  #if HAVE_BLADEMP3ENCDLL_H
+dnl  # include "windows.h"
+dnl  # include "BladeMP3EncDLL.h"
+dnl  #endif
+dnl  ]])
+  SYSEXTRAS="$SYSEXTRAS lame_a.c"
+  EXTRADEFS="$EXTRADEFS -DAU_LAME"
+dnl  EXTRALIBS="$EXTRALIBS"
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl Pseudo audio device (Undocumented).
 if test "x$au_enable_none" = xyes; then
     EXTRADEFS="$EXTRADEFS -DAU_NONE -DAU_AUDRIV"
@@ -1497,37 +1595,39 @@ dnl
 dnl TIMIDITY_OUTPUT_ID
 dnl
 AC_MSG_CHECKING(default output mode)
-if test "x$DEFAULT_PLAYMODE" = x; then
+if test "x$DEFAULT_PLAYMODE" = "x"; then
   DEFAULT_PLAYMODE=`echo $enable_audio | sed 's/,.*//'`
 fi
 case ".$DEFAULT_PLAYMODE" in
-  .default)  TIMIDITY_OUTPUT_ID=d ;;
-  .oss)      TIMIDITY_OUTPUT_ID=d ;;
-  .alsa)     TIMIDITY_OUTPUT_ID=s ;;
-  .sun)      TIMIDITY_OUTPUT_ID=d ;;
-  .hpux)     TIMIDITY_OUTPUT_ID=d ;;
-  .irix)     TIMIDITY_OUTPUT_ID=d ;;
-  .mme)      TIMIDITY_OUTPUT_ID=d ;;
-  .sb_dsp)   TIMIDITY_OUTPUT_ID=d ;;
-  .darwin)   TIMIDITY_OUTPUT_ID=d ;;
-  .w32)      TIMIDITY_OUTPUT_ID=d ;;
-  .alib)     TIMIDITY_OUTPUT_ID=A ;;
-  .nas)      TIMIDITY_OUTPUT_ID=n ;;
-  .arts)     TIMIDITY_OUTPUT_ID=R ;;
-  .esd)      TIMIDITY_OUTPUT_ID=e ;;
-  .portaudio)      TIMIDITY_OUTPUT_ID=p ;;  
-  .npipe)    TIMIDITY_OUTPUT_ID=N ;;
-  .wav)      TIMIDITY_OUTPUT_ID=w ;;
-  .au)       TIMIDITY_OUTPUT_ID=u ;;
-  .aiff)     TIMIDITY_OUTPUT_ID=a ;;
-  .list)     TIMIDITY_OUTPUT_ID=l ;;
-  .vorbis)   TIMIDITY_OUTPUT_ID=v ;;
-  .flac)     TIMIDITY_OUTPUT_ID=F ;;
-  .speex)    TIMIDITY_OUTPUT_ID=S ;;
-  .gogo)     TIMIDITY_OUTPUT_ID=g ;;
-  .jack)     TIMIDITY_OUTPUT_ID=j ;;
-  .ao)       TIMIDITY_OUTPUT_ID=O ;;
-  *)         TIMIDITY_OUTPUT_ID= ;;
+  .default)    TIMIDITY_OUTPUT_ID=d ;;
+  .oss)        TIMIDITY_OUTPUT_ID=d ;;
+  .alsa)       TIMIDITY_OUTPUT_ID=s ;;
+  .sun)        TIMIDITY_OUTPUT_ID=d ;;
+  .hpux)       TIMIDITY_OUTPUT_ID=d ;;
+  .irix)       TIMIDITY_OUTPUT_ID=d ;;
+  .mme)        TIMIDITY_OUTPUT_ID=d ;;
+  .sb_dsp)     TIMIDITY_OUTPUT_ID=d ;;
+  .darwin)     TIMIDITY_OUTPUT_ID=d ;;
+  .w32)        TIMIDITY_OUTPUT_ID=d ;;
+  .alib)       TIMIDITY_OUTPUT_ID=A ;;
+  .nas)        TIMIDITY_OUTPUT_ID=n ;;
+  .arts)       TIMIDITY_OUTPUT_ID=R ;;
+  .esd)        TIMIDITY_OUTPUT_ID=e ;;
+  .portaudio)  TIMIDITY_OUTPUT_ID=p ;;  
+  .npipe)      TIMIDITY_OUTPUT_ID=N ;;
+  .wav)        TIMIDITY_OUTPUT_ID=w ;;
+  .au)         TIMIDITY_OUTPUT_ID=u ;;
+  .aiff)       TIMIDITY_OUTPUT_ID=a ;;
+  .list)       TIMIDITY_OUTPUT_ID=l ;;
+  .vorbis)     TIMIDITY_OUTPUT_ID=v ;;
+  .flac)       TIMIDITY_OUTPUT_ID=F ;;
+  .opus)       TIMIDITY_OUTPUT_ID=U ;;
+  .speex)      TIMIDITY_OUTPUT_ID=S ;;
+  .gogo)       TIMIDITY_OUTPUT_ID=g ;;
+  .lame)       TIMIDITY_OUTPUT_ID=L ;;
+  .jack)       TIMIDITY_OUTPUT_ID=j ;;
+  .ao)         TIMIDITY_OUTPUT_ID=O ;;
+  *)           TIMIDITY_OUTPUT_ID= ;;
 esac
 AC_MSG_RESULT($DEFAULT_PLAYMODE/$TIMIDITY_OUTPUT_ID)
 
@@ -1551,9 +1651,9 @@ AC_ARG_ENABLE(dynamic,
   [ dnl --enable-dynamic=yes to --enable-dynamic=dynamic
     if test "x$enable_dynamic" = xyes; then
       enable_dynamic=dynamic
-    elif test "x$enable_dynamic" != xno; then
+    elif test "x$enable_dynamic" != "xno"; then
       for i in `echo $enableval | sed 's/,/ /g'`; do
-	eval "enable_$i=dynamic"
+        eval "enable_$i=dynamic"
       done
     fi])
 
@@ -1564,12 +1664,15 @@ done
 
 case ".$join_targets" in
 .*dynamic*) NEEDDLOPEN=yes;;
-*)	    NEEDDLOPEN=no;;
+*)          NEEDDLOPEN=no;;
 esac
 
 dnl check -fpic option for gcc
 if test "x$GCC" = xyes; then SHCFLAGS="$SHCFLAGS -fPIC"; fi
 case "x$enable_ump" in xyes|xdynamic) EXTRACFLAGS="$EXTRACFLAGS -DXP_UNIX $SHCFLAGS";; esac
+
+dnl check -masm option for gcc
+dnl if test "x$GCC" = xyes; then EXTRACFLAGS="$EXTRACFLAGS -masm=intel"; fi
 
 dnl Which type of dynamic loader?
 if test "$NEEDDLOPEN" = "yes"; then
@@ -1655,7 +1758,7 @@ AC_ARG_ENABLE(xdnd,
     enable_xdnd=yes
     fi
   ])
-AM_CONDITIONAL(ENABLE_XDND, test "x$enable_xdnd" = "xyes")
+AM_CONDITIONAL(ENABLE_XDND, test "x$enable_xdnd" = xyes)
 
 dnl
 dnl Each interface section
@@ -1675,58 +1778,67 @@ dnl configure must check ncurses header with -I/usr/include/ncurses option.
 
   case "$ac_cv_header_curses_h$ac_cv_header_ncurses_curses_h$ac_cv_header_ncurses_h" in
     *yes*);;
-    *)	for i in /usr/include /usr/local/include; do
-	  if test -f "$i/ncurses/curses.h" -a -f "$i/ncurses/unctrl.h"; then
-	    AC_MSG_WARN(ncurses test is failure.  Please check config.h and common.makefile later)
-	    CPPFLAGS="$CPPFLAGS -I$i/ncurses"
-	    break
-	  fi
-	done
-	;;
+    *)  for i in /usr/include /usr/local/include; do
+          if test -f "$i/ncurses/curses.h" -a -f "$i/ncurses/unctrl.h"; then
+            AC_MSG_WARN(ncurses test is failure.  Please check config.h and common.makefile later)
+            CPPFLAGS="$CPPFLAGS -I$i/ncurses"
+            break
+          fi
+        done
+        ;;
     esac
 
     AC_CHECK_LIB(ncurses,initscr,lib_curses_opt=-lncurses,
       [ dnl checking pdcurses
-	AC_CHECK_LIB(curses,PDC_set_ctrl_break,
+        AC_CHECK_LIB(curses,PDC_set_ctrl_break,
           [ lib_curses_opt=-lcurses
-	    AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
-	    lib_user32_opt="$lib_user32_test"
-	    AC_CHECK_LIB(curses, vwprintw,
-	      AC_DEFINE(HAVE_VWPRINTW, 1,
-	        [Define to 1 if you have the `vwprintw' function.]))
-	  ],
-	  [ dnl checking libpdcurses
-	    AC_CHECK_LIB(pdcurses,PDC_set_ctrl_break,
-	    [ lib_curses_opt=-lpdcurses
-	      AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
-	      lib_user32_opt="$lib_user32_test"
-	      AC_CHECK_LIB(pdcurses, vwprintw,
-	        AC_DEFINE(HAVE_VWPRINTW, 1,
-	          [Define to 1 if you have the `vwprintw' function.]))
-	    ],
-	    [ dnl OpenBSD use -lcurses instead of -lncurses.
-	      case "$target" in
-		*openbsd*)
-		  AC_CHECK_LIB(curses,initscr,lib_curses_opt=-lcurses,
-		    [ AC_MSG_WARN(ncurses interface is not enabled)
-		      enable_ncurses=no ])
-		  ;;
-		*)
-		  if test "x$VCPP" = xyes || test "x$BORLANDC" = xyes || test "x$WATCOM_C" = xyes || test "x$DMC" = xyes || test "x$POCC" = xyes; then
-		    lib_curses_opt=libpdcurses.lib
-		    AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
-		    AC_CHECK_LIB(pdcurses, vwprintw,
-		      AC_DEFINE(HAVE_VWPRINTW, 1,
-		        [Define to 1 if you have the `vwprintw' function.]))
-		  else
-		    AC_MSG_WARN(ncurses interface is not enabled)
-		    enable_ncurses=no
-		  fi
-		  ;;
-	      esac
-	    ])
-	],
-	$lib_user32_test)
+            AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
+            lib_user32_opt="$lib_user32_test"
+            AC_CHECK_LIB(curses, vwprintw,
+              AC_DEFINE(HAVE_VWPRINTW, 1,
+                [Define to 1 if you have the `vwprintw' function.]))
+          ],
+          [ dnl checking libpdcurses
+            AC_CHECK_LIB(pdcurses,PDC_set_ctrl_break,
+            [ lib_curses_opt=-lpdcurses
+              AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
+              lib_user32_opt="$lib_user32_test"
+              AC_CHECK_LIB(pdcurses, vwprintw,
+                AC_DEFINE(HAVE_VWPRINTW, 1,
+                  [Define to 1 if you have the `vwprintw' function.]))
+            ],
+            [ dnl OpenBSD use -lcurses instead of -lncurses.
+              case "$target" in
+                *openbsd*)
+                  AC_CHECK_LIB(curses,initscr,lib_curses_opt=-lcurses,
+                    [ AC_MSG_WARN(ncurses interface is not enabled)
+                      enable_ncurses=no ])
+                  ;;
+                *-cygwin*|*-mingw*)
+                  lib_curses_opt=-lpdcurses
+                  EXTRAINCS="$EXTRAINCS -I\${top_srcdir}/pdcurses"
+                  timidity_LDFLAGS="$timidity_LDFLAGS -L\${top_srcdir}/pdcurses/win32"
+                  AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
+                  AC_DEFINE(HAVE_VWPRINTW, 1,
+                    [Define to 1 if you have the `vwprintw' function.])
+                  AC_MSG_RESULT([use internal pdcurses])
+                  ;;
+                *)
+                  if test "x$VCPP" = xyes || test "x$BORLANDC" = xyes || test "x$WATCOM_C" = xyes || test "x$DMC" = xyes || test "x$POCC" = xyes; then
+                    lib_curses_opt=libpdcurses.lib
+                    AC_DEFINE(USE_PDCURSES,1,Define to 1 if you use PDcurses)
+                    AC_CHECK_LIB(pdcurses, vwprintw,
+                      AC_DEFINE(HAVE_VWPRINTW, 1,
+                        [Define to 1 if you have the `vwprintw' function.]))
+                  else
+                    AC_MSG_WARN(ncurses interface is not enabled)
+                    enable_ncurses=no
+                  fi
+                  ;;
+              esac
+            ])
+        ],
+        $lib_user32_test)
       ])
   ],
   [ LIBS="$LIBS $lib_curses_opt"
@@ -1779,7 +1891,7 @@ AM_CONDITIONAL(ENABLE_MOTIF, false)
 CONFIG_INTERFACE(motif,MOTIF,m,
   AS_HELP_STRING([--enable-motif], [Enable motif interface          (default is no)]),
   [ if test "x$with_x" != xyes; then
-	AC_MSG_ERROR(motif: --with-x option must be specified)
+        AC_MSG_ERROR(motif: --with-x option must be specified)
     fi
     if test "x$have_xm" != xyes; then
       AC_MSG_WARN(Motif library is not found.)
@@ -1790,7 +1902,7 @@ CONFIG_INTERFACE(motif,MOTIF,m,
     lib_xt_opt=-lXt
     lib_xext_opt=-lXext
     if test "x$have_xprelibs" = xyes; then
-	lib_xprelibs_opt='-lSM -lICE'
+        lib_xprelibs_opt='-lSM -lICE'
     fi
     INTERFACE_SRCS="$INTERFACE_SRCS motif_c.c motif_i.c motif_p.c"
   ],
@@ -1805,7 +1917,7 @@ AM_CONDITIONAL(ENABLE_TCLTK, false)
 CONFIG_INTERFACE(tcltk,TCLTK,k,
   AS_HELP_STRING([--enable-tcltk], [Enable tcltk interface          (default is no)]),
   [ if test "x$with_x" != xyes; then
-	AC_MSG_ERROR(tcltk: --with-x option must be specified)
+        AC_MSG_ERROR(tcltk: --with-x option must be specified)
     fi
 
     dnl save flags
@@ -1828,7 +1940,7 @@ CONFIG_INTERFACE(tcltk,TCLTK,k,
     done
 
     LIBS=$KEEPLIBS
-    if test "x$tcl_lib" = x -o "x$tk_lib" = x; then
+    if test "x$tcl_lib" = "x" -o "x$tk_lib" = "x"; then
       CPPFLAGS=$KEEPCPPFLAGS
       LDFLAGS=$KEEPLDFLAGS
       enable_tcltk=no
@@ -1840,16 +1952,16 @@ CONFIG_INTERFACE(tcltk,TCLTK,k,
   [ LIBS="$tk_lib $tcl_lib -lX11 $LIBS"
     case "$target" in
       *-*-bsdi*)
-	EXTRALIBS="$EXTRALIBS -lipc"
-	;;
+        EXTRALIBS="$EXTRALIBS -lipc"
+        ;;
     esac
     INTERFACE_SRCS="$INTERFACE_SRCS tk_c.c"
   ],
   [ k_so_libs="$tcl_libdir $tk_libdir $tcl_lib $tk_lib $lib_dl_opt"
     case "$target" in
       *-*-bsdi*)
-	k_so_libs="$k_so_libs -lipc"
-	;;
+        k_so_libs="$k_so_libs -lipc"
+        ;;
     esac
     k_so_libs="$k_so_libs -lX11 -lm"
   ])
@@ -1878,7 +1990,7 @@ AM_CONDITIONAL(ENABLE_XAW, false)
 CONFIG_INTERFACE(xaw,XAW,a,
   AS_HELP_STRING([--enable-xaw], [Enable athena interface         (default is no)]),
   [ if test "x$with_x" != xyes; then
-	AC_MSG_ERROR(xaw: --with-x option must be specified)
+        AC_MSG_ERROR(xaw: --with-x option must be specified)
     fi
     if test "x$have_xaw" = "xno"; then
       AC_MSG_WARN(X Athena Widget library is not found.)
@@ -1893,7 +2005,7 @@ CONFIG_INTERFACE(xaw,XAW,a,
     fi
     lib_xmu_opt=-lXmu
     lib_xt_opt=-lXt
-    if test "x$enable_xft" = "xyes" && test "x$have_xaw" != "xno"; then
+    if test "x$enable_xft" = xyes && test "x$have_xaw" != "xno"; then
       XFT_CFLAGS="$(pkg-config --cflags xft)";
       EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$XFT_CFLAGS)
       lib_xft_opt="-lXft";
@@ -1901,19 +2013,19 @@ CONFIG_INTERFACE(xaw,XAW,a,
     case "$have_xaw" in
       "yes")
         lib_xaw_opt=-lXaw
-	;;
+        ;;
       "3d")
         AC_DEFINE(XAW3D,1,Define to 1 if you use libXaw3d.)
         lib_xaw_opt=-lXaw3d
-	;;
+        ;;
       "plus")
         AC_DEFINE(XAWPLUS,1,Define to 1 if you use libXawPlus.)
         lib_xaw_opt="-lXpm -lXawPlus"
-	;;
+        ;;
       "next")
         AC_DEFINE(NEXTAW,1,Define to 1 if you use libneXtaw.)
         lib_xaw_opt=-lneXtaw
-	;;
+        ;;
     esac
     INTERFACE_SRCS="$INTERFACE_SRCS xaw_c.c xaw_i.c x_trace.c $XDND_SRCS"
   ],
@@ -1924,8 +2036,8 @@ CONFIG_INTERFACE(xaw,XAW,a,
     fi
     case "$target" in
       *darwin*)
-	a_so_libs="$a_so_libs -lcc_dynamic"
-	;;
+        a_so_libs="$a_so_libs -lcc_dynamic"
+        ;;
     esac
     if test "x$have_xprelibs" = xyes; then
       a_so_libs="-lSM -lICE $a_so_libs"
@@ -1933,21 +2045,21 @@ CONFIG_INTERFACE(xaw,XAW,a,
     case "$have_xaw" in
       "yes")
         a_so_libs="-lXaw -lXmu -lXt $a_so_libs"
-	;;
+        ;;
       "3d")
         AC_DEFINE(XAW3D,1,Define to 1 if you use libXaw3d.)
         a_so_libs="-lXaw3d -lXmu -lXt $a_so_libs"
-	;;
+        ;;
       "plus")
         AC_DEFINE(XAWPLUS,1,Define to 1 if you use libXawPlus.)
         a_so_libs="-lXawPlus -lXpm -lXmu -lXt $a_so_libs"
-	;;
+        ;;
       "next")
         AC_DEFINE(NEXTAW,1,Define to 1 if you use libneXtaw.)
         a_so_libs="-lneXtaw -lXmu -lXt $a_so_libs"
-	;;
+        ;;
     esac
-    if test "x$enable_xft" = "xyes" && test "x$have_xaw" != "xno"; then
+    if test "x$enable_xft" = xyes && test "x$have_xaw" != "xno"; then
       XFT_CFLAGS="$(pkg-config --cflags xft)";
       EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$XFT_CFLAGS)
       a_so_libs="$a_so_libs -lXft";
@@ -1961,7 +2073,7 @@ AM_CONDITIONAL(ENABLE_XSKIN, false)
 CONFIG_INTERFACE(xskin,XSKIN,i,
   AS_HELP_STRING([--enable-xskin], [Enable X skin interface         (default is no)]),
   [ if test "x$with_x" != xyes; then
-	AC_MSG_ERROR(xskin: --with-x option must be specified)
+        AC_MSG_ERROR(xskin: --with-x option must be specified)
     fi
   ],
   [ INTERFACE_SRCS="$INTERFACE_SRCS xskin_c.c xskin_i.c xskin_loadBMP.c xskin_spectrum.c" ],
@@ -1979,15 +2091,15 @@ CONFIG_INTERFACE(gtk, GTK, g,
     INTERFACE_SRCS="$INTERFACE_SRCS gtk_c.c gtk_i.c gtk_p.c"
   ],
   [ if test "x$GCC" = xyes; then
-	dnl Do not include -rdynamic option in $g_so_libs.
-	for i in $GTK_LIBS; do
-	    case "x$i" in
-		x-rdynamic) ;;
-		*) g_so_libs="$g_so_libs $i" ;;
-	    esac
-	done
+        dnl Do not include -rdynamic option in $g_so_libs.
+        for i in $GTK_LIBS; do
+            case "x$i" in
+                x-rdynamic) ;;
+                *) g_so_libs="$g_so_libs $i" ;;
+            esac
+        done
     else
-	g_so_libs="$GTK_LIBS"
+        g_so_libs="$GTK_LIBS"
     fi
     EXTRACT_CPPFLAGS(CPPFLAGS,CFLAGS,$GTK_CFLAGS) ])
 
@@ -2018,7 +2130,7 @@ CONFIG_INTERFACE(winsyn,WINSYN,W,
   AS_HELP_STRING([--enable-winsyn], [Enable Windows Synthesizer interface
                                                           (default is no)]),
   ,
-  [ WINSYN="yes"; INTERFACE_SRCS="$INTERFACE_SRCS winsyn_c.c rtsyn_common.c rtsyn_winmm.c" ])
+  [ WINSYN="yes"; INTERFACE_SRCS="$INTERFACE_SRCS winsyn_c.c rtsyn_common.c rtsyn_winmm.c"; ])
 
 dnl TiMidity PortMIDI synthesizer server
 AM_CONDITIONAL(ENABLE_PORTMIDISYN, false)
@@ -2026,15 +2138,18 @@ CONFIG_INTERFACE(portmidisyn,PORTMIDISYN,P,
   AS_HELP_STRING([--enable-portmidisyn], [Enable PortMIDI Synthesizer interface
                                                           (default is no)]),
   ,
-  [ INTERFACE_SRCS="$INTERFACE_SRCS portmidisyn_c.c rtsyn_common.c rtsyn_portmidi.c" ])
+  [ INTERFACE_SRCS="$INTERFACE_SRCS rtsyn_common.c rtsyn_portmidi.c portmidisyn_c.c";
+    if test "x$MSYS" != xyes ; then
+        LIBS="$LIBS -lportmidi";
+    fi ])
 
-dnl TiMidity Windows synthesizer server
+dnl TiMidity NamedPipe synthesizer server
 AM_CONDITIONAL(ENABLE_NPSYN, false)
 CONFIG_INTERFACE(npsyn,NPSYN,W,
   AS_HELP_STRING([--enable-npsyn], [Enable Windows Named Pipe Synthesizer interface
                                                           (default is no)]),
   ,
-  [ NPSYN="yes"; INTERFACE_SRCS="$INTERFACE_SRCS npsyn_c.c rtsyn_common.c rtsyn_npipe.c" ])
+  [ NPSYN="yes"; INTERFACE_SRCS="$INTERFACE_SRCS npsyn_c.c rtsyn_common.c rtsyn_npipe.c"; ])
 
 
 
@@ -2047,33 +2162,35 @@ CONFIG_INTERFACE(winsyng,W32G_SYN,W,
   [ 
   W32G_GUI=yes
   if test "x$VCPP" = xyes || test "x$BORLANDC" = xyes || test "x$WATCOM_C" = xyes || test "x$DMC" = xyes || test "x$POCC" = xyes; then
-    INTERFACE_SRCS="$INTERFACE_SRCS w32g_ini.c w32g_pref.c w32g_syn.c w32g_utl.c winsyn_c.c rtsyn_common.c rtsyn_winmm.c"
-    lib_w32gui_opt='gdi32.lib comctl32.lib comdlg32.lib ole32.lib'
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_ini.c w32g_pref.c w32g_syn.c w32g_utl.c w32g_soundspec.c winsyn_c.c rtsyn_common.c rtsyn_winmm.c"
+    lib_w32gui_opt='gdi32.lib comctl32.lib comdlg32.lib ole32.lib shlwapi.lib'
     lib_user32_opt='user32.lib'
+    EXTRADEFS="$EXTRADEFS -D__W32G__ -DTWSYNG32"
     if test "x$VCPP" = xyes; then
-	  VCPP_LDFLAGS="$VCPP_LDFLAGS -subsystem:windows "
-	fi
-	if test "x$BORLANDC" = xyes; then
-	  BORLANDC_START='C0W32.OBJ'
-	  CFLAGS="$CFLAGS -tW"
-	  lib_w32gui_opt="-aa $lib_w32gui_opt"
-	fi
-	if test "x$WATCOM_C" = xyes; then
-	  CFLAGS="$CFLAGS -bw"
-	  WATCOM_LDFLAGS="$WATCOM_LDFLAGS SYS nt_win"
-	fi
-	if test "x$DMC" = xyes; then
-	  DLLFLAG="-WA"
-	  lib_w32gui_opt="$lib_w32gui_opt -L/exet:nt/su:windows:4.0"
-	fi
+          VCPP_LDFLAGS="$VCPP_LDFLAGS -subsystem:windows "
+        fi
+        if test "x$BORLANDC" = xyes; then
+          BORLANDC_START='C0W32.OBJ'
+          CFLAGS="$CFLAGS -tW"
+          lib_w32gui_opt="-aa $lib_w32gui_opt"
+        fi
+        if test "x$WATCOM_C" = xyes; then
+          CFLAGS="$CFLAGS -bw"
+          WATCOM_LDFLAGS="$WATCOM_LDFLAGS SYS nt_win"
+        fi
+        if test "x$DMC" = xyes; then
+          DLLFLAG="-WA"
+          lib_w32gui_opt="$lib_w32gui_opt -L/exet:nt/su:windows:4.0"
+        fi
     if test "x$POCC" = xyes; then
-	  POCC_LDFLAGS="$POCC_LDFLAGS -subsystem:windows "
+          POCC_LDFLAGS="$POCC_LDFLAGS -subsystem:windows "
     fi
   else
-  	lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32 -lole32'
+    lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32 -lole32 -lshlwapi'
     lib_user32_opt='-luser32'
+    EXTRADEFS="$EXTRADEFS -D__W32G__ -DTWSYNG32"
     LDFLAGS="-mwindows $LDFLAGS"
-    INTERFACE_SRCS="$INTERFACE_SRCS w32g_ini.c w32g_pref.c w32g_syn_escaped.c w32g_utl.c winsyn_c.c rtsyn_common.c rtsyn_winmm.c"
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_ini.c w32g_pref.c w32g_syn.c w32g_utl.c w32g_soundspec.c winsyn_c.c rtsyn_common.c rtsyn_winmm.c"
   fi
   ])
 
@@ -2086,33 +2203,35 @@ CONFIG_INTERFACE(w32gui, W32GUI, w,
   [
   W32G_GUI=yes 
   if test "x$VCPP" = xyes || test "x$BORLANDC" = xyes || test "x$WATCOM_C" = xyes || test "x$DMC" = xyes || test "x$POCC" = xyes; then
- 	INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_pref.c w32g_subwin.c w32g_subwin2.c w32g_subwin3.c w32g_ut2.c w32g_dib.c  wrdt_w32g.c w32g_mag.c"
-    lib_w32gui_opt='gdi32.lib comctl32.lib comdlg32.lib ole32.lib'
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_soundspec.c w32g_pref.c w32g_subwin.c w32g_subwin2.c w32g_subwin3.c w32g_ut2.c w32g_dib.c  wrdt_w32g.c w32g_mag.c"
+    lib_w32gui_opt='gdi32.lib comctl32.lib comdlg32.lib ole32.lib shlwapi.lib'
     lib_user32_opt='user32.lib'
+    EXTRADEFS="$EXTRADEFS -D__W32G__ "
     if test "x$VCPP" = xyes; then
-	  VCPP_LDFLAGS="$VCPP_LDFLAGS -subsystem:windows "
-	fi
-	if test "x$BORLANDC" = xyes; then
-	  BORLANDC_START='C0W32.OBJ'
-	  CFLAGS="$CFLAGS -tW"
-	  lib_w32gui_opt="-aa $lib_w32gui_opt"
-	fi
-	if test "x$WATCOM_C" = xyes; then
-	  CFLAGS="$CFLAGS -bw"
-	  WATCOM_LDFLAGS="$WATCOM_LDFLAGS SYS nt_win"
-	fi
-	if test "x$DMC" = xyes; then
-	  lib_w32gui_opt="$lib_w32gui_opt -L/SU:window"
-	  DLLFLAG="-WA"
-	fi
+          VCPP_LDFLAGS="$VCPP_LDFLAGS -subsystem:windows "
+        fi
+        if test "x$BORLANDC" = xyes; then
+          BORLANDC_START='C0W32.OBJ'
+          CFLAGS="$CFLAGS -tW"
+          lib_w32gui_opt="-aa $lib_w32gui_opt"
+        fi
+        if test "x$WATCOM_C" = xyes; then
+          CFLAGS="$CFLAGS -bw"
+          WATCOM_LDFLAGS="$WATCOM_LDFLAGS SYS nt_win"
+        fi
+        if test "x$DMC" = xyes; then
+          lib_w32gui_opt="$lib_w32gui_opt -L/SU:window"
+          DLLFLAG="-WA"
+        fi
     if test "x$POCC" = xyes; then
-	  POCC_LDFLAGS="$POCC_LDFLAGS -subsystem:windows "
+          POCC_LDFLAGS="$POCC_LDFLAGS -subsystem:windows "
     fi
   else
-    lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32 -lole32'
+    lib_w32gui_opt='-lgdi32 -lcomctl32 -lcomdlg32 -lole32 -lshlwapi'
     lib_user32_opt='-luser32'
+    EXTRADEFS="$EXTRADEFS -D__W32G__ "
     LDFLAGS="-mwindows $LDFLAGS"
-    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_pref.c w32g_subwin_escaped.c w32g_subwin2.c w32g_subwin3.c w32g_ut2.c w32g_dib.c  wrdt_w32g.c w32g_mag.c"
+    INTERFACE_SRCS="$INTERFACE_SRCS w32g_c.c w32g_ini.c w32g_i.c w32g_playlist.c w32g_utl.c w32g_soundspec.c w32g_pref.c w32g_subwin.c w32g_subwin2.c w32g_subwin3.c w32g_ut2.c w32g_dib.c  wrdt_w32g.c w32g_mag.c"
   fi
   ])
 
@@ -2121,7 +2240,7 @@ AM_CONDITIONAL(ENABLE_PLUGIN, false)
 CONFIG_INTERFACE(ump, PLUGIN, p,
   AS_HELP_STRING([--enable-ump], [UMP configuration               (default is no)]),
   [ if test ! -d ump; then
-	AC_MSG_ERROR(UMP Package is not exists.  Can't configure it.)
+        AC_MSG_ERROR(UMP Package is not exists.  Can't configure it.)
     fi
     AC_CHECK_HEADER(X11/xpm.h,,AC_MSG_ERROR([UMP Package needs xpm.h[,] but could not find it.]))
     AC_CHECK_LIB(Xpm,XpmCreatePixmapFromData,:,AC_MSG_ERROR([UMP Package needs libXpm.a[,] but could not find it.]))
@@ -2139,15 +2258,15 @@ dnl Window Driver interface
 AC_ARG_ENABLE(windrv,
   AS_HELP_STRING([--enable-windrv], [Windows Driver interface(requires winsyn) ]),
   [ if test "$enableval" = "yes"; then
-      if test "x$VCPP" != "xyes" && test "x$MINGWGCC" != "xyes" && test "x$BORLANDC" != "xyes" && test "x$WATCOM_C" != "xyes" && test "x$DMC" != "xyes" && test "x$POCC" != "xyes"; then
-	AC_MSG_ERROR(windrv: Only Support VC++ or Mingw or Borland C or Open Watcom PellesC and Digital Mars)
-	  elif test "x$WINSYN" != "xyes"; then
-	AC_MSG_ERROR(windrv: Driver must have winsyn interface)
-	  else
+      if test "x$VCPP" != xyes && test "x$MINGWGCC" != xyes && test "x$BORLANDC" != xyes && test "x$WATCOM_C" != xyes && test "x$DMC" != xyes && test "x$POCC" != xyes; then
+        AC_MSG_ERROR(windrv: Only Support VC++ or Mingw or Borland C or Open Watcom PellesC and Digital Mars)
+          elif test "x$WINSYN" != xyes; then
+        AC_MSG_ERROR(windrv: Driver must have winsyn interface)
+          else
     AC_DEFINE(WINDRV,1,Define to 1 if you cpmpile windos driver.)
     WINDRV=yes
-    if test "x$WATCOM_C" = "xyes"; then DLLFLAG="-bd" ;fi
-    if test "x$DMC" = "xyes"; then DLLFLAG="-WD" ;fi
+    if test "x$WATCOM_C" = xyes; then DLLFLAG="-bd" ;fi
+    if test "x$DMC" = xyes; then DLLFLAG="-WD" ;fi
     CFLAGS="$CFLAGS -DANOTHER_MAIN "
       fi
     fi ])
@@ -2165,13 +2284,13 @@ AC_ARG_ENABLE(offix,
       LDFLAGS="$LDFLAGS $offix_lib_dir"
       LIBS="$LIBS $lib_xmu_opt $lib_xt_opt $lib_xprelibs_opt $lib_xext_opt -lX11"
       AC_CHECK_LIB(Dnd,DndInitialize,[
-	LIBS=$KEEPLIBS
-	lib_offix_opt="-lDnd"
-	AC_DEFINE(OFFIX,1,Define to 1 if you need offix support)
+        LIBS=$KEEPLIBS
+        lib_offix_opt="-lDnd"
+        AC_DEFINE(OFFIX,1,Define to 1 if you need offix support)
       ],
       [ LDFLAGS=$KEEPLDFLAGS
-	CPPFLAGS=$KEEPCPPFLAGS
-	LIBS=$KEEPLIBS
+        CPPFLAGS=$KEEPCPPFLAGS
+        LIBS=$KEEPLIBS
       ])
     fi
   ])
@@ -2182,45 +2301,150 @@ AC_ARG_ENABLE(network,
   [ if test "$enableval" = "yes"; then
       AC_DEFINE(SUPPORT_SOCKET,1,Define to 1 if you need network support)
     fi ])
-AM_CONDITIONAL(ENABLE_NETWORK, test "x$enable_network" = "xyes")
+AM_CONDITIONAL(ENABLE_NETWORK, test "x$enable_network" = xyes)
+
+dnl Multi-thread support
+AC_ARG_ENABLE(thread,
+  AS_HELP_STRING([--enable-thread], [Enable thread support           (default is no)]),
+  [ if test "$enableval" = "yes"; then
+      AC_DEFINE(ENABLE_THREAD,1,Define to 1 if you need thread support)
+    fi ])
+AM_CONDITIONAL(ENABLE_THREAD, test "x$enable_thread" = xyes)
+
+dnl LargeFile Source support
+AC_ARG_ENABLE(largefile,
+  AS_HELP_STRING([--enable-largefile], [Enable LargeFile Source support (default is no)]),
+  [ if test "$enableval" = "yes"; then
+      AC_DEFINE(_FILE_OFFSET_BITS, 64, [Get 64-bit file size support])
+      AC_DEFINE(_LARGEFILE_SOURCE, 1, [Define for ftello and fseeko extension.])
+    fi ])
+AM_CONDITIONAL(ENABLE_LARGEFILE, test "x$enable_largefile" = xyes)
 
 dnl Sound Spectrogram Viewer
 AC_ARG_ENABLE(spectrogram,
   AS_HELP_STRING([--enable-spectrogram], [Enable Sound Spectrogram Viewer (default is no)]),
   [ if test "$enableval" = "yes"; then
-      if test "x$with_x" != xyes; then
-	AC_MSG_ERROR(spectrogram: --with-x option must be specified)
+      if test "x$MSYS" = xyes; then
+        if test "x$W32G_GUI" = xyes; then
+          AC_MSG_RESULT(use w32g_soundspec.c)
+          AC_DEFINE(W32SOUNDSPEC,1,Define to 1 if you need spectrogram viewer.)
+        else
+          AC_MSG_RESULT(use w32_soundspec.c)
+          AC_DEFINE(W32SOUNDSPEC,1,Define to 1 if you need spectrogram viewer.)
+          SYSEXTRAS="$SYSEXTRAS w32_soundspec.c"
+          lib_w32gui_opt='-lgdi32'
+        fi
+      elif test "x$with_x" = xyes; then
+        LIBS="-lX11 $LIBS"
+      else
+        AC_MSG_ERROR(spectrogram: --with-x option must be specified)
       fi
-      AC_DEFINE(SUPPORT_SOUNDSPEC,1,Define to 1 if you need spectrogram vewer.)
+      AC_DEFINE(SUPPORT_SOUNDSPEC,1,Define to 1 if you need spectrogram viewer.)
     fi ])
-AM_CONDITIONAL(ENABLE_SOUND_SPEC, test "x$enable_spectrogram" = "xyes")
+AM_CONDITIONAL(W32SOUNDSPEC, test "x$enable_spectrogram" = xyes -a "x$MSYS" = xyes)
+AM_CONDITIONAL(ENABLE_SOUND_SPEC, test "x$enable_spectrogram" = xyes -a "x$with_x" = xyes)
 
-dnl Wave Spline Interpolations
+dnl Wave Resample Interpolations
 AC_ARG_ENABLE(spline,
   AS_HELP_STRING([--enable-spline=[method]],
-    [Specify spline method.  one of no,linear,cubic,lagrange,newton,gauss (default is linear)]),
+    [Specify spline method.  one of no,linear,cubic,lagrange,newton,gauss,sharp,linerper,sine,square (default is gauss)]),
   [ case "x$enableval" in
       xlinear)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,1,Define resampler num.)
         AC_DEFINE(DEFAULT_RESAMPLATION,resample_linear,Define resampler.)
-	;;
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,0,Define resampler order.)
+        ;;
       xcubic)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,2,Define resampler num.)
         AC_DEFINE(DEFAULT_RESAMPLATION,resample_cspline,Define resampler.)
-	;;
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,0,Define resampler order.)
+        ;;
       xlagrange)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,3,Define resampler num.)
         AC_DEFINE(DEFAULT_RESAMPLATION,resample_lagrange,Define resampler.)
-	;;
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,0,Define resampler order.)
+        ;;
       xnewton)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,4,Define resampler num.)
         AC_DEFINE(DEFAULT_RESAMPLATION,resample_newton,Define resampler.)
-	;;
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,11,Define resampler order.)
+        ;;
       xgauss)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,5,Define resampler num.)
         AC_DEFINE(DEFAULT_RESAMPLATION,resample_gauss,Define resampler.)
-	;;
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,24,Define resampler order.)
+        ;;
+      xsharp)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,6,Define resampler num.)
+        AC_DEFINE(DEFAULT_RESAMPLATION,resample_sharp,Define resampler.)
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,2,Define resampler order.)
+        ;;
+      xlinerper)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,7,Define resampler num.)
+        AC_DEFINE(DEFAULT_RESAMPLATION,resample_liner_p,Define resampler.)
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,100,Define resampler order.)
+        ;;
+      xsine)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,8,Define resampler num.)
+        AC_DEFINE(DEFAULT_RESAMPLATION,resample_sine,Define resampler.)
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,0,Define resampler order.)
+        ;;
+      xsquare)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,9,Define resampler num.)
+        AC_DEFINE(DEFAULT_RESAMPLATION,resample_square,Define resampler.)
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,0,Define resampler order.)
+        ;;
       xno)
+        AC_DEFINE(DEFAULT_RESAMPLATION_NUM,0,Define resampler num.)
         AC_DEFINE(DEFAULT_RESAMPLATION,resample_none,Define resampler.)
-	;;
+        AC_DEFINE(DEFAULT_RESAMPLATION_ORDER,0,Define resampler order.)
+        ;;
       *)
-	AC_MSG_ERROR(Invalid method of --enable-spline)
-	;;
+        AC_MSG_ERROR(Invalid method of --enable-spline)
+        ;;
+    esac ])
+
+dnl Wave Resample Filter
+AC_ARG_ENABLE(filter,
+  AS_HELP_STRING([--enable-filter=[method]],
+    [Specify filter method.  one of no,lpf12,lpf24,lpfbw,lpf12x2,lpf24x2,lpf6,lpf18,lpftfo,hpfbw,bpfbw (default is no)]),
+  [ case "x$enableval" in
+      xlpf12)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,1,Define resampler filter.)
+        ;;
+      xlpf24)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,2,Define resampler filter.)
+        ;;
+      xlpfbw)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,3,Define resampler filter.)
+        ;;
+      xlpf12x2)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,4,Define resampler filter.)
+        ;;
+      xlpf24x2)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,5,Define resampler filter.)
+        ;;
+      xlpf6)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,6,Define resampler filter.)
+        ;;
+      xlpf8)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,7,Define resampler filter.)
+        ;;
+      xlpftfo)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,8,Define resampler filter.)
+        ;;
+      xhpfbw)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,9,Define resampler filter.)
+        ;;
+      xbpfbw)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,10,Define resampler filter.)
+        ;;
+      xno)
+        AC_DEFINE(DEFAULT_RESAMPLATION_FILTER,0,Define resampler filter.)
+        ;;
+      *)
+        AC_MSG_ERROR(Invalid method of --enable-filter)
+        ;;
     esac ])
 
 dnl WRD interface
@@ -2229,25 +2453,52 @@ AC_ARG_ENABLE(wrd,
   [ if test "$enableval" = "yes"; then
       if test "x$with_x" = xyes; then
         LIBS="-lX11 $LIBS"
+        AC_DEFINE(WRDT_X,1,Define to 1 if you need wrd support for X.)
+        enable_sherry_wrd=yes
+        AC_CHECK_LIB(z,zlibVersion,:,enable_sherry_wrd=no)
+        AC_CHECK_HEADER(png.h,,enable_sherry_wrd=no)
+        AC_CHECK_LIB(png,png_init_io,:,enable_sherry_wrd=no,-lz)
+        if test "$enable_sherry_wrd" = yes; then
+          AC_DEFINE(ENABLE_SHERRY,1,Define to 1 if you enable Sherry WRD)
+          lib_zip_opt=-lz
+          lib_png_opt=-lpng
+        else
+           AC_MSG_WARN([Sherry WRD is disabled: png.h, libpng.a, libz.a are required])
+        fi
+        if test "x$have_xext" = xyes; then
+          lib_xext_opt=-lXext
+        fi
       else
-	AC_MSG_ERROR(wrd: --with-x option must be specified)
-      fi
-      AC_DEFINE(WRDT_X,1,Define to 1 if you need wrd support for X.)
-      enable_sherry_wrd=yes
-      AC_CHECK_LIB(z,zlibVersion,:,enable_sherry_wrd=no)
-      AC_CHECK_HEADER(png.h,,enable_sherry_wrd=no)
-      AC_CHECK_LIB(png,png_init_io,:,enable_sherry_wrd=no,-lz)
-      if test "$enable_sherry_wrd" = yes; then
-	AC_DEFINE(ENABLE_SHERRY,1,Define to 1 if you enable Sherry WRD)
-	lib_zip_opt=-lz
-	lib_png_opt=-lpng
-      else
-	 AC_MSG_WARN([Sherry WRD is disabled: png.h, libpng.a, libz.a are required])
-      fi
-      if test "x$have_xext" = xyes; then
-	lib_xext_opt=-lXext
+        AC_MSG_ERROR(wrd: --with-x option must be specified)
       fi
     fi ])
+
+dnl Internal audio datatype format
+if test "${enable_datatype}" = ""; then
+  AC_DEFINE(DATA_T_DOUBLE,1,[Define `double' audio data type.])
+  AC_DEFINE(VERSION_DATA_T,"f64",[Define version information prefix.])
+else
+  AC_ARG_ENABLE(datatype,
+    AS_HELP_STRING([--enable-datatype=[type]],
+      [Specify audio data type.  one of int32,float,double (default is int32)]),
+    [ case "x$enableval" in
+        xint32)
+          AC_DEFINE(DATA_T_INT32,1,[Define `int32' audio data type.])
+          AC_DEFINE(VERSION_DATA_T,"i32",[Define version information prefix.])
+          ;;
+        xfloat)
+          AC_DEFINE(DATA_T_FLOAT,1,[Define `float' audio data type.])
+          AC_DEFINE(VERSION_DATA_T,"f32",[Define version information prefix.])
+          ;;
+        xdouble)
+          AC_DEFINE(DATA_T_DOUBLE,1,[Define `double' audio data type.])
+          AC_DEFINE(VERSION_DATA_T,"f64",[Define version information prefix.])
+          ;;
+        *)
+          AC_MSG_ERROR(Invalid type of --enable-datatype)
+          ;;
+      esac ])
+fi
 
 
 dnl end of interfaces
@@ -2257,7 +2508,7 @@ dnl end of interfaces
 # Finish up
 #
 
-AM_CONDITIONAL(ENABLE_WRD, test "x$enable_wrd" = "xyes")
+AM_CONDITIONAL(ENABLE_WRD, test "x$enable_wrd" = xyes)
 AM_CONDITIONAL(W32G_GUI, test "x$W32G_GUI" = xyes)
 AM_CONDITIONAL(WINDRV, test "x$WINDRV" = xyes)
 AM_CONDITIONAL(MSYS, test "x$MSYS" = xyes)
@@ -2268,27 +2519,26 @@ AM_CONDITIONAL(WATCOM_C, test "x$WATCOM_C" = xyes)
 AM_CONDITIONAL(DMC, test "x$DMC" = xyes)
 AM_CONDITIONAL(MINGWGCC, test "x$MINGWGCC" = xyes)
 
-AM_CONDITIONAL(W32READDIR, test "x$W32READDIR" = "xyes")
+AM_CONDITIONAL(W32READDIR, test "x$W32READDIR" = xyes)
 
 SET_UNIQ_WORDS(LDFLAGS,$LDFLAGS)
 SET_UNIQ_WORDS(SHLDFLAGS,$SHLDFLAGS)
 SET_UNIQ_WORDS(CFLAGS,$EXTRACFLAGS $CFLAGS)
 SET_UNIQ_WORDS(CPPFLAGS,$CPPFLAGS $EXTRADEFS)
 
-if test "x$oss_device" != x; then
+if test "x$oss_device" != "x"; then
   AC_DEFINE_UNQUOTED(OSS_DEVICE,"$oss_device", oss device name)
 fi
 
-if test "x$TIMIDITY_OUTPUT_ID" != x; then
+if test "x$TIMIDITY_OUTPUT_ID" != "x"; then
   AC_DEFINE_UNQUOTED(TIMIDITY_OUTPUT_ID,"$TIMIDITY_OUTPUT_ID", the output specification)
 fi
 
-if test "x$au_enable_nas"      = "xyes" -o \
-        "x$enable_motif"       = "xyes" -o \
-        "x$enable_tcltk"       = "xyes" -o \
-        "x$enable_xaw"         = "xyes" -o \
-        "x$enable_xskin"       = "xyes" -o \
-        "x$enable_spectrogram" = "xyes"; then
+if test "x$au_enable_nas"      = xyes -o \
+        "x$enable_motif"       = xyes -o \
+        "x$enable_tcltk"       = xyes -o \
+        "x$enable_xaw"         = xyes -o \
+        "x$enable_xskin"       = xyes -a "x$with_x" = xyes; then
   dnl Order of X-library is: -lXdnd -lXm -lXaw -lXft -lXmu -lXt -lSM -lICE -lXext -lX11
   LIBS="$lib_offix_opt $lib_xm_opt $lib_xaw_opt $lib_xft_opt $lib_xmu_opt $lib_xt_opt $lib_xprelibs_opt $lib_xext_opt -lX11 $LIBS"
 fi
@@ -2305,6 +2555,8 @@ AC_SUBST(VCPP_LDFLAGS)
 AC_SUBST(POCC_LDFLAGS)
 AC_SUBST(SYSEXTRAS)
 AC_SUBST(EXTRALIBS)
+AC_SUBST(EXTRAINCS)
+AC_SUBST(EXTRADEFS)
 AC_SUBST(NETSRCS)
 AC_SUBST(ELFILES)
 AC_SUBST(SHLD)
@@ -2327,6 +2579,7 @@ AC_CONFIG_FILES([
   doc/Makefile
   doc/C/Makefile
   doc/ja_JP.eucJP/Makefile
+  doc/ja_JP.utf8/Makefile
   interface/Makefile
   interface/motif_bitmaps/Makefile
   interface/bitmaps/Makefile

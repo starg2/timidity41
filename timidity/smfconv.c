@@ -48,7 +48,9 @@
 
 #ifdef __W32__
 #include <wtypes.h>
+#ifdef __BORLANDC__
 #include <dir.h>
+#endif /* __BORLANDC__ */
 #include "rcpcv.h"
 #include "instrum.h"
 #include "playmidi.h"
@@ -134,6 +136,21 @@ static void *url2mem(URL url,long *lenp)
 	return (void *)buffer;
 }
 
+typedef BOOL (WINAPI *SetDllDirectoryAProc)(LPCSTR lpPathName);
+
+/*! Remove the current directory for the search path of LoadLibrary. Returns 0 if failed. */
+static int w32_reset_dll_directory(void)
+{
+	HMODULE module;
+	SetDllDirectoryAProc setDllDirectory;
+	if ((module = GetModuleHandle(TEXT("Kernel32.dll"))) == NULL)
+		return 0;
+	if ((setDllDirectory = (SetDllDirectoryAProc)GetProcAddress(module, "SetDllDirectoryA")) == NULL)
+		return 0;
+	/* Microsoft Security Advisory 2389418 */
+	return (*setDllDirectory)("") != 0;
+}
+
 /* return not NULL (exist)
           NULL (not exist) */
 static int exist_rcpcv_dll(void)
@@ -141,6 +158,7 @@ static int exist_rcpcv_dll(void)
     HINSTANCE hRcpcv;
 	UINT fuErrorMode;
 
+	w32_reset_dll_directory();
 	fuErrorMode = SetErrorMode(SEM_NOOPENFILEERRORBOX);
 	hRcpcv = LoadLibrary("rcpcv.dll");
     SetErrorMode(fuErrorMode);
@@ -184,11 +202,15 @@ static URL rcpcv_convert(URL url,int type)
     }
 
     /* rcpcv 1*/
+	w32_reset_dll_directory();
 	fuErrorMode = SetErrorMode(SEM_NOOPENFILEERRORBOX);
 	hRcpcv = LoadLibrary("rcpcv.dll");
     SetErrorMode(fuErrorMode);
-    if(hRcpcv==NULL)
+    if(!hRcpcv) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			  "DLL load failed: %s", "rcpcv.dll");
 		return NULL;
+    }
 
 	/* url -> buffer */
 	buffer = (char *)url2mem(url,&len);
@@ -201,7 +223,7 @@ static URL rcpcv_convert(URL url,int type)
 
 	h = (*lpRcpcvConvertFileFromBuffer)((LPCSTR)buffer,(UINT)len,(UINT)rcpcv_type,RCPCV_CALLBACK_NULL,NULL, 0, 0);
 	if (h==NULL){
-    	free(buffer);
+    	safe_free(buffer);
 		FreeLibrary(hRcpcv);
 		return NULL;
 	}
@@ -233,26 +255,26 @@ int smfconv_w32(struct timidity_file *tf, char *fn)
 
 /* rcpcv.dll convertion stage */
 rcpcv_dll_stage:
-	if(exist_rcpcv_dll())
+	if (exist_rcpcv_dll())
 	{
 
 	ret = is_midifile_filename(fn);
-	if(ret == IS_RCP_FILE || ret == IS_R36_FILE || ret == IS_G18_FILE || ret == IS_G36_FILE)
+	if (ret == IS_RCP_FILE || ret == IS_R36_FILE || ret == IS_G18_FILE || ret == IS_G36_FILE)
     {
-    	if(!IS_URL_SEEK_SAFE(tf->url))
+    	if (!IS_URL_SEEK_SAFE(tf->url))
     	    tf->url = url_cache_open(tf->url, 1);
         ret = is_midifile_url(tf->url);
 		url_rewind(tf->url);
-		if(ret == IS_RCP_FILE || ret == IS_R36_FILE || ret == IS_G18_FILE || ret == IS_G36_FILE)
+		if (ret == IS_RCP_FILE || ret == IS_R36_FILE || ret == IS_G18_FILE || ret == IS_G36_FILE)
     	{
-			ctl->cmsg(CMSG_INFO,VERB_NORMAL,"Try to Convert RCP,R36,G18,G36 to SMF by RCPCV.DLL (c)1997 Fumy.");
-	        url = rcpcv_convert(tf->url,ret);
-			if(url == NULL){
+			ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Try to Convert RCP,R36,G18,G36 to SMF by RCPCV.DLL (c)1997 Fumy.");
+	        url = rcpcv_convert(tf->url, ret);
+			if (!url) {
 				/* url_arc or url_cash is buggy ? */
 				/*
 				url_rewind(tf->url);
 				url_cache_disable(tf->url);
-				ctl->cmsg(CMSG_INFO,VERB_NORMAL,"Convert Failed.");
+				ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Convert Failed.");
 				goto end_of_rcpcv_dll_stage;
 				*/
 
@@ -261,23 +283,23 @@ rcpcv_dll_stage:
                 URL new_url;
 
 				url_rewind(tf->url);
-				if((buffer = (char *)url2mem(tf->url,&len))==NULL){
-					ctl->cmsg(CMSG_INFO,VERB_NORMAL,"Convert Failed.");
+				if ((buffer = (char*)url2mem(tf->url, &len)) == NULL) {
+					ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Convert Failed.");
 					goto end_of_rcpcv_dll_stage;
 				}
-				if((new_url=url_mem_open(buffer,len,1))==NULL){
-					ctl->cmsg(CMSG_INFO,VERB_NORMAL,"Convert Failed and Memory Allocate Error.");
+				if ((new_url = url_mem_open(buffer, len, 1)) == NULL) {
+					ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Convert Failed and Memory Allocate Error.");
 					url_cache_disable(tf->url);
     				return -1;
 				}
 				url_close(tf->url);
 				tf->url = new_url;
-				ctl->cmsg(CMSG_INFO,VERB_NORMAL,"Convert Failed.");
+				ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Convert Failed.");
 				goto end_of_rcpcv_dll_stage;
             }
 			url_cache_disable(tf->url);
             tf->url = url;
-			ctl->cmsg(CMSG_INFO,VERB_NORMAL,"Convert Completed.");
+			ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Convert Completed.");
 
 			/* Store the midi file type information */
 			infop = get_midi_file_info(fn, 1);
@@ -305,3 +327,4 @@ last_stage:
 #endif /* __W32__ */
 
 #endif /* SMFCONV */
+

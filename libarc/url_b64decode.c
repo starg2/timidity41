@@ -22,13 +22,16 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include "timidity.h"
+#include "common.h"
 #include "url.h"
 
 #define DECODEBUFSIZ 255 /* Must be power of 3 */
@@ -37,25 +40,25 @@ typedef struct _URL_b64decode
 {
     char common[sizeof(struct _URL)];
     URL reader;
-    long rpos;
+    int32 rpos;
     int beg, end, eof, eod;
     unsigned char decodebuf[DECODEBUFSIZ];
     int autoclose;
 } URL_b64decode;
 
-static long url_b64decode_read(URL url, void *buff, long n);
+static ptr_size_t url_b64decode_read(URL url, void *buff, ptr_size_t n);
 static int  url_b64decode_fgetc(URL url);
-static long url_b64decode_tell(URL url);
+static off_size_t url_b64decode_tell(URL url);
 static void url_b64decode_close(URL url);
 
 URL url_b64decode_open(URL reader, int autoclose)
 {
     URL_b64decode *url;
 
-    url = (URL_b64decode *)alloc_url(sizeof(URL_b64decode));
-    if(url == NULL)
+    url = (URL_b64decode*)alloc_url(sizeof(URL_b64decode));
+    if (!url)
     {
-	if(autoclose)
+	if (autoclose)
 	    url_close(reader);
 	url_errno = errno;
 	return NULL;
@@ -98,9 +101,9 @@ static int b64getchar(URL reader)
 
     do
     {
-	if((c = url_getc(reader)) == EOF)
+	if ((c = url_getc(reader)) == EOF)
 	    return EOF;
-    } while(c == '\r' || c == '\n');
+    } while (c == '\r' || c == '\n');
     return b64_decode_table[c];
 }
 
@@ -111,7 +114,7 @@ static int b64decode(URL_b64decode *urlp)
     unsigned char *p;
     URL url;
 
-    if(urlp->eod)
+    if (urlp->eod)
     {
 	urlp->eof = 1;
 	return 1;
@@ -120,28 +123,28 @@ static int b64decode(URL_b64decode *urlp)
     p = urlp->decodebuf;
     url = urlp->reader;
     n = 0;
-    while(n < DECODEBUFSIZ)
+    while (n < DECODEBUFSIZ)
     {
-	if((c1 = b64getchar(url)) == EOF)
+	if ((c1 = b64getchar(url)) == EOF)
 	{
 	    urlp->eod = 1;
 	    break;
 	}
-	if((c2 = b64getchar(url)) == EOF)
+	if ((c2 = b64getchar(url)) == EOF)
 	{
 	    urlp->eod = 1;
 	    break;
 	}
 	p[n++] = ((c1 << 2) | ((c2 & 0x30) >> 4));
 
-	if((c3 = b64getchar(url)) == EOF)
+	if ((c3 = b64getchar(url)) == EOF)
 	{
 	    urlp->eod = 1;
 	    break;
 	}
 	p[n++] = (((c2 & 0xf) << 4) | ((c3 & 0x3c) >> 2));
 
-	if((c4 = b64getchar(url)) == EOF)
+	if ((c4 = b64getchar(url)) == EOF)
 	{
 	    urlp->eod = 1;
 	    break;
@@ -153,7 +156,7 @@ static int b64decode(URL_b64decode *urlp)
     urlp->beg = 0;
     urlp->end = n;
 
-    if(n == 0)
+    if (n == 0)
     {
 	urlp->eof = 1;
 	return 1;
@@ -162,25 +165,25 @@ static int b64decode(URL_b64decode *urlp)
     return 0;
 }
 
-static long url_b64decode_read(URL url, void *buff, long size)
+static ptr_size_t url_b64decode_read(URL url, void *buff, ptr_size_t size)
 {
-    URL_b64decode *urlp = (URL_b64decode *)url;
-    unsigned char *p = (unsigned char *)buff;
-    long n;
+    URL_b64decode *urlp = (URL_b64decode*)url;
+    unsigned char *p = (unsigned char*)buff;
+    int32 n;
 
-    if(urlp->eof)
+    if (urlp->eof)
 	return 0;
 
     n = 0;
-    while(n < size)
+    while (n < size)
     {
 	int i;
 
-	if(urlp->beg == urlp->end)
-	    if(b64decode(urlp))
+	if (urlp->beg == urlp->end)
+	    if (b64decode(urlp))
 		break;
 	i = urlp->end - urlp->beg;
-	if(i > size - n)
+	if (i > size - n)
 	    i = size - n;
 	memcpy(p + n, urlp->decodebuf + urlp->beg, i);
 	n += i;
@@ -191,48 +194,48 @@ static long url_b64decode_read(URL url, void *buff, long size)
 
 static int url_b64decode_fgetc(URL url)
 {
-    URL_b64decode *urlp = (URL_b64decode *)url;
+    URL_b64decode *urlp = (URL_b64decode*)url;
 
-    if(urlp->eof)
+    if (urlp->eof)
 	return EOF;
-    if(urlp->beg == urlp->end)
-	if(b64decode(urlp))
+    if (urlp->beg == urlp->end)
+	if (b64decode(urlp))
 	    return EOF;
 
     return (int)urlp->decodebuf[urlp->beg++];
 }
 
-static long url_b64decode_tell(URL url)
+static off_size_t url_b64decode_tell(URL url)
 {
-    URL_b64decode *urlp = (URL_b64decode *)url;
+    URL_b64decode *urlp = (URL_b64decode*)url;
 
     return urlp->rpos + urlp->beg;
 }
 
 static void url_b64decode_close(URL url)
 {
-    URL_b64decode *urlp = (URL_b64decode *)url;
+    URL_b64decode *urlp = (URL_b64decode*)url;
 
-    if(urlp->autoclose)
+    if (urlp->autoclose)
 	url_close(urlp->reader);
-    free(url);
+    safe_free(url);
 }
 
 #ifdef B64DECODE_MAIN
-void main(int argc, char** argv)
+void main(int argc, char **argv)
 {
     URL b64decoder;
     char buff[256], *filename;
     int c;
 
-    if(argc != 2)
+    if (argc != 2)
     {
 	fprintf(stderr, "Usage: %s b64-filename\n", argv[0]);
 	exit(1);
     }
     filename = argv[1];
 
-    if((b64decoder = url_file_open(filename)) == NULL)
+    if ((b64decoder = url_file_open(filename)) == NULL)
     {
 	perror(argv[1]);
 	url_close(b64decoder);
@@ -240,11 +243,11 @@ void main(int argc, char** argv)
     }
 
     b64decoder = url_b64decode_open(b64decoder, 1);
-#if B64DECODE_MAIN
-    while((c = url_getc(b64decoder)) != EOF)
+#ifdef B64DECODE_MAIN
+    while ((c = url_getc(b64decoder)) != EOF)
 	putchar(c);
 #else
-    while((c = url_read(b64decoder, buff, sizeof(buff))) > 0)
+    while ((c = url_read(b64decoder, buff, sizeof(buff))) > 0)
 	write(1, buff, c);
 #endif
     url_close(b64decoder);

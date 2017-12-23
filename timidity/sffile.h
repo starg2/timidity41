@@ -49,7 +49,7 @@
 /* chunk record header */
 typedef struct _SFChunk {
 	char id[4];
-	int32 size;
+	uint32 size;
 } SFChunk;
 
 /* generator record */
@@ -101,6 +101,15 @@ typedef struct _SFSampleInfo {
 	int32 loopshot; /* short-shot loop size */
 } SFSampleInfo;
 
+/*
+SF_SAMPLERATE_MAX
+ver1.00 ?? (
+ver2.01 50000
+ver2.04 ?? (96000~
+*/
+#define SF_SAMPLERATE_MAX 400000
+#define SF_SAMPLERATE_MIN 400
+
 
 /*----------------------------------------------------------------
  * soundfont file info record
@@ -113,22 +122,23 @@ typedef struct _SFInfo {
 	/* version of this file */
 	uint16 version, minorversion;
 	/* sample position (from origin) & total size (in bytes) */
-	long samplepos;
-	int32 samplesize;
+	off_size_t samplepos;
+	off_size_t lowbitpos;
+	off_size_t samplesize;
 
 	/* raw INFO chunk list */
-	long infopos, infosize;
+	off_size_t infopos, infosize;
 
 	/* preset headers */
-	int npresets;
+	ptr_size_t npresets;
 	SFPresetHdr *preset;
-	
+
 	/* sample infos */
-	int nsamples;
+	ptr_size_t nsamples;
 	SFSampleInfo *sample;
 
 	/* instrument headers */
-	int ninsts;
+	ptr_size_t ninsts;
 	SFInstHdr *inst;
 
 } SFInfo;

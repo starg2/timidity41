@@ -39,7 +39,7 @@
 extern char **expand_archive_names(int *nfiles_in_out, char **files);
 /* Regist all archive files in `files_in_out', and expand the archive */
 
-extern URL url_arc_open(char *name);
+extern URL url_arc_open(const char *name);
 /* Open input stream from archive.  `name' format must be "filename#entry".
  */
 
@@ -48,14 +48,14 @@ extern void free_archive_files(void);
 
 /* utilities */
 extern int skip_gzip_header(URL url);
-extern int parse_gzip_header_bytes(char *gz, long maxparse, int *hdrsiz);
-extern int get_archive_type(char *archive_name);
-extern void *arc_compress(void *buff, long bufsiz,
-			  int compress_level, long *compressed_size);
-extern void *arc_decompress(void *buff, long bufsiz, long *decompressed_size);
+extern ptr_size_t parse_gzip_header_bytes(char *gz, ptr_size_t maxparse, off_size_t *hdrsiz);
+extern int get_archive_type(const char *archive_name);
+extern void *arc_compress(void *buff, ptr_size_t bufsiz,
+			  int compress_level, off_size_t *compressed_size);
+extern void *arc_decompress(void *buff, ptr_size_t bufsiz, off_size_t *decompressed_size);
 extern int arc_case_wildmat(char *text, char *p);
 extern int arc_wildmat(char *text, char *p);
-extern void (* arc_error_handler)(char *error_message);
+extern void (*arc_error_handler)(const char *error_message);
 
 
 /*
@@ -67,9 +67,9 @@ typedef struct _ArchiveEntryNode
     char *name; /* Name of this entry */
 
     int comptype;		/* Compression/Encoding type */
-    long compsize;		/* Compressed size */
-    long origsize;		/* Uncompressed size */
-    long start;		/* Offset start point */
+    off_size_t compsize;		/* Compressed size */
+    off_size_t origsize;		/* Uncompressed size */
+    off_size_t start;		/* Offset start point */
     void *cache;		/* Cached data */
 } ArchiveEntryNode;
 
@@ -77,12 +77,12 @@ typedef struct _ArchiveHandler {
     int isfile;
     URL url;	/* Input stream */
     int counter;/* counter to extract the entry*/
-    long pos;
+    off_size_t pos;
 } ArchiveHandler;
 
 extern ArchiveHandler arc_handler;
 extern ArchiveEntryNode *arc_parse_entry(URL url, int archive_type);
-extern ArchiveEntryNode *new_entry_node(char *name, int len);
+extern ArchiveEntryNode *new_entry_node(const char *name, int len);
 extern ArchiveEntryNode *next_tar_entry(void);
 extern ArchiveEntryNode *next_zip_entry(void);
 extern ArchiveEntryNode *next_lzh_entry(void);
@@ -97,6 +97,7 @@ enum
     ARCHIVEC_COMPRESSED,	/* Compressed */
     ARCHIVEC_PACKED,		/* Packed */
     ARCHIVEC_DEFLATED,		/* Deflate */
+    ARCHIVEC_DEFLATE64,		/* Deflate64 */
     ARCHIVEC_SHRUNKED,		/* Shrunked */
     ARCHIVEC_REDUCED1,		/* Reduced with compression factor 1 */
     ARCHIVEC_REDUCED2,		/* Reduced with compression factor 2 */
@@ -135,6 +136,7 @@ enum
     ARCHIVE_TGZ,
     ARCHIVE_ZIP,
     ARCHIVE_LZH,
+    ARCHIVE_7Z,
     ARCHIVE_DIR,
     ARCHIVE_MIME,
     ARCHIVE_NEWSGROUP

@@ -231,6 +231,7 @@ static void ctl_lyric(int lyricid)
     }
 }
 
+#if 0
 static void ctl_speana_data(double *val, int size) {
 
   /* 0 <= val[n] <= (AMP*NCOLOR) */
@@ -282,6 +283,7 @@ static void ctl_speana_data(double *val, int size) {
 
   return;
 }
+#endif
 
 /*ARGSUSED*/
 static int ctl_open(int using_stdin, int using_stdout) {
@@ -330,11 +332,11 @@ static int ctl_blocking_read(int32 *valp  /* Now, valp is not used */ ) {
 }
 
 static int ctl_read(int32 *valp) {
-	if (cuepoint_pending) {
-		*valp = cuepoint;
-		cuepoint_pending = 0;
-		return RC_FORWARD;
-	}
+  if (cuepoint_pending) {
+    *valp = cuepoint;
+    cuepoint_pending = 0;
+    return RC_FORWARD;
+  }
   if (xskin_pipe_ready()<=0) return RC_NONE;
   return ctl_blocking_read(valp);
 }
@@ -544,10 +546,10 @@ static void ctl_event(CtlEvent *e)
     case CTLE_PLAY_START:
       ctl_total_time((int)e->v1);
       break;
-	case CTLE_CUEPOINT:
-		cuepoint = e->v1;
-		cuepoint_pending = 1;
-		break;
+    case CTLE_CUEPOINT:
+      cuepoint = e->v1;
+      cuepoint_pending = 1;
+      break;
     case CTLE_CURRENT_TIME:
       ctl_current_time((int)e->v1, (int)e->v2);
       break;

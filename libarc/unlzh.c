@@ -22,13 +22,16 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include "timidity.h"
+#include "common.h"
 #include "unlzh.h"
 
 #ifndef UCHAR_MAX
@@ -47,8 +50,8 @@
 #define USHRT_BIT 16	/* (CHAR_BIT * sizeof(ushort)) */
 #define NP (MAX_DICBIT + 1)
 #define NT (USHRT_BIT + 3)
-#define PBIT 4  /* smallest integer such that (1 << PBIT) > NP */
-#define TBIT 5  /* smallest integer such that (1 << TBIT) > NT */
+#define PBIT 4  /* smallest integer such that (1L << PBIT) > NP */
+#define TBIT 5  /* smallest integer such that (1L << TBIT) > NT */
 #define NPT 0x80
 #define N1 286  /* alphabet size */
 #define N2 (2 * N1 - 1)  /* # of nodes in Huffman tree */
@@ -69,12 +72,12 @@
 #define INBUFSIZ BUFSIZ
 
 #undef MIN
-#define MIN(a,b)  ((a) < (b) ? (a) : (b))
+#define MIN(a, b)  ((a) < (b) ? (a) : (b))
 
 struct _UNLZHHandler
 {
     void *user_val;
-    long (* read_func)(char *buff, long buff_size, void *user_val);
+    ptr_size_t (*read_func)(char *buff, ptr_size_t buff_size, void *user_val);
     int method;
 
     unsigned char inbuf[INBUFSIZ];
@@ -84,16 +87,16 @@ struct _UNLZHHandler
 
     int cpylen;
     int cpypos;
-    unsigned long origsize;
-    unsigned long compsize;
-    void           (* decode_s)(UNLZHHandler decoder);
-    unsigned short (* decode_c)(UNLZHHandler decoder);
-    unsigned short (* decode_p)(UNLZHHandler decoder);
+    ptr_size_t origsize;
+    ptr_size_t compsize;
+    void           (*decode_s)(UNLZHHandler decoder);
+    unsigned short (*decode_c)(UNLZHHandler decoder);
+    unsigned short (*decode_p)(UNLZHHandler decoder);
     int dicbit;
     unsigned short maxmatch;
-    unsigned long count;
+    uint32 count;
     unsigned short loc;
-    unsigned char text[1L<<MAX_DICBIT];
+    unsigned char text[1L << MAX_DICBIT];
     unsigned short bitbuf;
     unsigned char subbitbuf, bitcount;
     unsigned short left[2 * NC - 1], right[2 * NC - 1];
@@ -111,7 +114,7 @@ struct _UNLZHHandler
     unsigned short total_p;
     int avail, n1;
     int most_p, nn;
-    unsigned long nextcount;
+    uint32 nextcount;
     unsigned int snp;
     int flag, flagcnt, matchpos;
     int offset;
@@ -170,46 +173,46 @@ static struct
 } method_table[] =
 {
 /* No compression */
-    {"-lh0-",  0, decode_start_cpy, decode_c_cpy, decode_p_cpy},
+    { "-lh0-",  0, decode_start_cpy, decode_c_cpy, decode_p_cpy },
 
 /* 4k sliding dictionary(max 60 bytes)
    + dynamic Huffman + fixed encoding of position */
-    {"-lh1-", 12, decode_start_fix, decode_c_dyn, decode_p_st0},
+    { "-lh1-", 12, decode_start_fix, decode_c_dyn, decode_p_st0 },
 
 /* 8k sliding dictionary(max 256 bytes) + dynamic Huffman */
-    {"-lh2-", 13, decode_start_dyn, decode_c_dyn, decode_p_dyn},
+    { "-lh2-", 13, decode_start_dyn, decode_c_dyn, decode_p_dyn },
 
 /* 8k sliding dictionary(max 256 bytes) + static Huffman */
-    {"-lh3-", 13, decode_start_st0, decode_c_st0, decode_p_st0},
+    { "-lh3-", 13, decode_start_st0, decode_c_st0, decode_p_st0 },
 
 /* 4k sliding dictionary(max 256 bytes)
    + static Huffman + improved encoding of position and trees */
-    {"-lh4-", 12, decode_start_st1, decode_c_st1, decode_p_st1},
+    { "-lh4-", 12, decode_start_st1, decode_c_st1, decode_p_st1 },
 
 /* 8k sliding dictionary(max 256 bytes)
    + static Huffman + improved encoding of position and trees */
-    {"-lh5-", 13, decode_start_st1, decode_c_st1, decode_p_st1},
+    { "-lh5-", 13, decode_start_st1, decode_c_st1, decode_p_st1 },
 
 /* 2k sliding dictionary(max 17 bytes) */
-    {"-lzs-", 11, decode_start_lzs, decode_c_lzs, decode_p_lzs},
+    { "-lzs-", 11, decode_start_lzs, decode_c_lzs, decode_p_lzs },
 
 /* No compression */
-    {"-lz5-", 12, decode_start_lz5, decode_c_lz5, decode_p_lz5},
+    { "-lz5-", 12, decode_start_lz5, decode_c_lz5, decode_p_lz5 },
 
 /* 4k sliding dictionary(max 17 bytes) */
-    {"-lz4-",  0, decode_start_cpy, decode_c_cpy, decode_p_cpy},
+    { "-lz4-",  0, decode_start_cpy, decode_c_cpy, decode_p_cpy },
 
 /* Directory */
-    {"-lhd-",  0, NULL, NULL, NULL},
+    { "-lhd-",  0, NULL, NULL, NULL },
 
 /* 32k sliding dictionary + static Huffman */
-    {"-lh6-", 15, decode_start_st1, decode_c_st1, decode_p_st1},
+    { "-lh6-", 15, decode_start_st1, decode_c_st1, decode_p_st1 },
 
 #if 0 /* not supported */
 /* 64k sliding dictionary + static Huffman */
-    {"-lh7-", 16, decode_start_st1, decode_c_st1, decode_p_st1},
+    { "-lh7-", 16, decode_start_st1, decode_c_st1, decode_p_st1 },
 #endif
-    {NULL, 0, NULL, NULL}
+    { NULL, 0, NULL, NULL, NULL }
 };
 
 char *lzh_methods[] =
@@ -219,29 +222,29 @@ char *lzh_methods[] =
 };
 
 /*ARGSUSED*/
-static long default_read_func(char *buf, long size, void *v)
+static ptr_size_t default_read_func(char *buf, ptr_size_t size, void *v)
 {
-    return (long)fread(buf, 1, size, stdin);
+    return (ptr_size_t)fread(buf, 1, size, stdin);
 }
 
-UNLZHHandler open_unlzh_handler(long (* read_func)(char *, long, void *),
+UNLZHHandler open_unlzh_handler(ptr_size_t (*read_func)(char*, ptr_size_t, void*),
 				const char *method,
-				long compsize, long origsize, void *user_val)
+				ptr_size_t compsize, ptr_size_t origsize, void *user_val)
 {
     UNLZHHandler decoder;
     int i;
 
-    for(i = 0; method_table[i].id != NULL; i++)
-	if(!strcmp(method_table[i].id, method))
+    for (i = 0; method_table[i].id; i++)
+	if (!strcmp(method_table[i].id, method))
 	    break;
-    if(method_table[i].id == NULL)
+    if (!method_table[i].id)
 	return NULL; /* Invalid method */
 
-    if((decoder = (UNLZHHandler)malloc(sizeof(struct _UNLZHHandler))) == NULL)
+    if ((decoder = (UNLZHHandler) malloc(sizeof(struct _UNLZHHandler))) == NULL)
 	return NULL;
     memset(decoder, 0, sizeof(struct _UNLZHHandler));
 
-    if(strcmp(method, "-lhd-") == 0)
+    if (!strcmp(method, "-lhd-"))
 	origsize = 0;
 
     decoder->method = i;
@@ -259,7 +262,7 @@ UNLZHHandler open_unlzh_handler(long (* read_func)(char *, long, void *),
     decoder->loc = 0;
     decoder->initflag = 0;
 
-    if(read_func == NULL)
+    if (!read_func)
 	decoder->read_func = default_read_func;
     else
 	decoder->read_func = read_func;
@@ -269,37 +272,37 @@ UNLZHHandler open_unlzh_handler(long (* read_func)(char *, long, void *),
 
 void close_unlzh_handler(UNLZHHandler decoder)
 {
-    free(decoder);
+    safe_free(decoder);
 }
 
-long unlzh(UNLZHHandler decoder, char *buff, long buff_size)
+ptr_size_t unlzh(UNLZHHandler decoder, char *buff, ptr_size_t buff_size)
 {
-    long n;
+    ptr_size_t n;
     unsigned short dicsiz1;
     int offset;
     int cpylen, cpypos, loc;
     unsigned char *text;
-    unsigned long origsize;
+    ptr_size_t origsize;
 
-    if((origsize = decoder->origsize) == 0 || buff_size <= 0)
+    if ((origsize = decoder->origsize) == 0 || buff_size <= 0)
 	return 0;
 
-    if(!decoder->initflag)
+    if (!decoder->initflag)
     {
 	decoder->initflag = 1;
 	decoder->decode_s(decoder);
     }
 
-    dicsiz1 = (1 << decoder->dicbit) - 1;
+    dicsiz1 = (1L << decoder->dicbit) - 1;
     n = 0;
     text = decoder->text;
 
-    if(decoder->cpylen > 0)
+    if (decoder->cpylen > 0)
     {
 	cpylen = decoder->cpylen;
 	cpypos = decoder->cpypos;
 	loc    = decoder->loc;
-	while(cpylen > 0 && n < buff_size)
+	while (cpylen > 0 && n < buff_size)
 	{
 	    buff[n++] = text[loc++] = text[cpypos++];
 	    loc &= dicsiz1;
@@ -311,16 +314,16 @@ long unlzh(UNLZHHandler decoder, char *buff, long buff_size)
 	decoder->loc = loc;
     }
 
-    if(n == buff_size)
+    if (n == buff_size)
 	return buff_size;
 
     offset = decoder->offset;
-    while(decoder->count < origsize && n < buff_size)
+    while (decoder->count < origsize && n < buff_size)
     {
 	int c;
 
 	c = decoder->decode_c(decoder);
-	if(c <= UCHAR_MAX)
+	if (c <= UCHAR_MAX)
 	{
 	    buff[n++] = decoder->text[decoder->loc++] = c;
 	    decoder->loc &= dicsiz1;
@@ -335,16 +338,16 @@ long unlzh(UNLZHHandler decoder, char *buff, long buff_size)
 	    decoder->count += j;
 	    loc = decoder->loc;
 	    m = buff_size - n;
-	    if(m > j)
+	    if (m > j)
 		m = j;
-	    for(k = 0; k < m; k++)
+	    for (k = 0; k < m; k++)
 	    {
 		buff[n++] = text[loc++] = text[i++];
 		loc &= dicsiz1;
 		i &= dicsiz1;
 	    }
 	    decoder->loc = loc;
-	    if(k < j)
+	    if (k < j)
 	    {
 		decoder->cpylen = j - k;
 		decoder->cpypos = i;
@@ -360,7 +363,7 @@ static unsigned short decode_c_cpy(UNLZHHandler decoder)
 {
     int c;
 
-    if((c = NEXTBYTE) == EOF)
+    if ((c = NEXTBYTE) == EOF)
 	return 0;
     return (unsigned short)c;
 }
@@ -382,24 +385,24 @@ static void read_pt_len(UNLZHHandler decoder,
     short i, c, n;
 
     n = getbits(decoder, nbit);
-    if(n == 0)
+    if (n == 0)
     {
 	c = getbits(decoder, nbit);
-	for(i = 0; i < k; i++)
+	for (i = 0; i < k; i++)
 	    decoder->pt_len[i] = 0;
-	for(i = 0; i < 256; i++)
+	for (i = 0; i < 256; i++)
 	    decoder->pt_table[i] = c;
     }
     else
     {
 	i = 0;
-	while(i < n)
+	while (i < n)
 	{
 	    c = decoder->bitbuf >> (16 - 3);
 	    if (c == 7)
 	    {
-		unsigned short mask = 1 << (16 - 4);
-		while(mask & decoder->bitbuf)
+		unsigned short mask = 1L << (16 - 4);
+		while (mask & decoder->bitbuf)
 		{
 		    mask >>= 1;
 		    c++;
@@ -407,14 +410,14 @@ static void read_pt_len(UNLZHHandler decoder,
 	    }
 	    fillbuf(decoder, (c < 7) ? 3 : c - 3);
 	    decoder->pt_len[i++] = c;
-	    if(i == i_special)
+	    if (i == i_special)
 	    {
 		c = getbits(decoder, 2);
-		while(--c >= 0 && i < NPT)
+		while (--c >= 0 && i < NPT)
 		    decoder->pt_len[i++] = 0;
 	    }
 	}
-	while(i < k)
+	while (i < k)
 	    decoder->pt_len[i++] = 0;
 	make_table(decoder, k, decoder->pt_len, 8, decoder->pt_table);
     }
@@ -425,49 +428,49 @@ static void read_c_len(UNLZHHandler decoder)
     short i, c, n;
 
     n = getbits(decoder, CBIT);
-    if(n == 0)
+    if (n == 0)
     {
 	c = getbits(decoder, CBIT);
-	for(i = 0; i < NC; i++)
+	for (i = 0; i < NC; i++)
 	    decoder->c_len[i] = 0;
-	for(i = 0; i < 4096; i++)
+	for (i = 0; i < 4096; i++)
 	    decoder->c_table[i] = c;
     }
     else
     {
 	i = 0;
 	n = MIN(n, NC);
-	while(i < n)
+	while (i < n)
 	{
 	    c = decoder->pt_table[decoder->bitbuf >> (16 - 8)];
-	    if(c >= NT)
+	    if (c >= NT)
 	    {
-		unsigned short mask = 1 << (16 - 9);
+		unsigned short mask = 1L << (16 - 9);
 		do
 		{
-		    if(decoder->bitbuf & mask)
+		    if (decoder->bitbuf & mask)
 			c = decoder->right[c];
 		    else
 			c = decoder->left[c];
 		    mask >>= 1;
-		} while(c >= NT && (mask || c != decoder->left[c]));
+		} while (c >= NT && (mask || c != decoder->left[c]));
 	    }
 	    fillbuf(decoder, decoder->pt_len[c]);
-	    if(c <= 2)
+	    if (c <= 2)
 	    {
-		if(c == 0)
+		if (c == 0)
 		    c = 1;
-		else if(c == 1)
+		else if (c == 1)
 		    c = getbits(decoder, 4) + 3;
 		else
 		    c = getbits(decoder, CBIT) + 20;
-		while(--c >= 0)
+		while (--c >= 0)
 		    decoder->c_len[i++] = 0;
 	    }
 	    else
 		decoder->c_len[i++] = c - 2;
 	}
-	while(i < NC)
+	while (i < NC)
 	    decoder->c_len[i++] = 0;
 	make_table(decoder, NC, decoder->c_len, 12, decoder->c_table);
     }
@@ -477,7 +480,7 @@ static unsigned short decode_c_st1(UNLZHHandler decoder)
 {
     unsigned short j, mask;
 
-    if(decoder->blocksize == 0)
+    if (decoder->blocksize == 0)
     {
 	decoder->blocksize = getbits(decoder, 16);
 	read_pt_len(decoder, NT, TBIT, 3);
@@ -486,20 +489,20 @@ static unsigned short decode_c_st1(UNLZHHandler decoder)
     }
     decoder->blocksize--;
     j = decoder->c_table[decoder->bitbuf >> 4];
-    if(j < NC)
+    if (j < NC)
 	fillbuf(decoder, decoder->c_len[j]);
     else
     {
 	fillbuf(decoder, 12);
-	mask = 1 << (16 - 1);
+	mask = 1L << (16 - 1);
 	do
 	{
-	    if(decoder->bitbuf & mask)
+	    if (decoder->bitbuf & mask)
 		j = decoder->right[j];
 	    else
 		j = decoder->left[j];
 	    mask >>= 1;
-	} while(j >= NC && (mask || j != decoder->left[j]));
+	} while (j >= NC && (mask || j != decoder->left[j]));
 	fillbuf(decoder, decoder->c_len[j] - 12);
     }
     return j;
@@ -511,31 +514,31 @@ static unsigned short decode_p_st1(UNLZHHandler decoder)
     unsigned int np = decoder->snp;
 
     j = decoder->pt_table[decoder->bitbuf >> (16 - 8)];
-    if(j < np)
+    if (j < np)
 	fillbuf(decoder, decoder->pt_len[j]);
     else
     {
 	fillbuf(decoder, 8);
-	mask = 1 << (16 - 1);
+	mask = 1L << (16 - 1);
 	do
 	{
-	    if(decoder->bitbuf & mask)
+	    if (decoder->bitbuf & mask)
 		j = decoder->right[j];
 	    else
 		j = decoder->left[j];
 	    mask >>= 1;
-	} while(j >= np && (mask || j != decoder->left[j]));
+	} while (j >= np && (mask || j != decoder->left[j]));
 	fillbuf(decoder, decoder->pt_len[j] - 8);
     }
-    if(j != 0)
-	j = (1 << (j - 1)) + getbits(decoder, j - 1);
+    if (j != 0)
+	j = (1L << (j - 1)) + getbits(decoder, j - 1);
     return j;
 }
 
 
 static void decode_start_st1(UNLZHHandler decoder)
 {
-    if(decoder->dicbit <= (MAX_DICBIT - 2)) {
+    if (decoder->dicbit <= (MAX_DICBIT - 2)) {
 	decoder->snp = 14;
 	decoder->pbit = 4;
     } else {
@@ -553,12 +556,12 @@ static void start_c_dyn(UNLZHHandler decoder)
 
     decoder->n1 = (decoder->n_max >= 256 + decoder->maxmatch - THRESHOLD + 1)
 	? 512 : decoder->n_max - 1;
-    for(i = 0; i < TREESIZE_C; i++)
+    for (i = 0; i < TREESIZE_C; i++)
     {
 	decoder->stock[i] = i;
 	decoder->block[i] = 0;
     }
-    for(i = 0, j = decoder->n_max * 2 - 2; i < decoder->n_max; i++, j--)
+    for (i = 0, j = decoder->n_max * 2 - 2; i < decoder->n_max; i++, j--)
     {
 	decoder->freq[j] = 1;
 	decoder->child[j] = ~i;
@@ -568,12 +571,12 @@ static void start_c_dyn(UNLZHHandler decoder)
     decoder->avail = 2;
     decoder->edge[1] = decoder->n_max - 1;
     i = decoder->n_max * 2 - 2;
-    while(j >= 0)
+    while (j >= 0)
     {
 	f = decoder->freq[j] = decoder->freq[i] + decoder->freq[i - 1];
 	decoder->child[j] = i;
 	decoder->parent[i] = decoder->parent[i - 1] = j;
-	if(f == decoder->freq[j + 1])
+	if (f == decoder->freq[j + 1])
 	{
 	    decoder->edge[decoder->block[j] = decoder->block[j + 1]] = j;
 	}
@@ -596,7 +599,7 @@ static void start_p_dyn(UNLZHHandler decoder)
 		  decoder->stock[decoder->avail++]] = ROOT_P;
     decoder->most_p = ROOT_P;
     decoder->total_p = 0;
-    decoder->nn = 1 << decoder->dicbit;
+    decoder->nn = 1L << decoder->dicbit;
     decoder->nextcount = 64;
 }
 
@@ -615,15 +618,15 @@ static void reconst(UNLZHHandler decoder, int start, int end)
     unsigned int f, g;
 
     b = 0;
-    for(i = j = start; i < end; i++)
+    for (i = j = start; i < end; i++)
     {
-	if((k = decoder->child[i]) < 0)
+	if ((k = decoder->child[i]) < 0)
 	{
 	    decoder->freq[j] = (decoder->freq[i] + 1) / 2;
 	    decoder->child[j] = k;
 	    j++;
 	}
-	if(decoder->edge[b = decoder->block[i]] == i)
+	if (decoder->edge[b = decoder->block[i]] == i)
 	{
 	    decoder->stock[--decoder->avail] = b;
 	}
@@ -631,7 +634,7 @@ static void reconst(UNLZHHandler decoder, int start, int end)
     j--;
     i = end - 1;
     l = end - 2;
-    while(i >= start)
+    while (i >= start)
     {
 	while (i >= l)
 	{
@@ -641,9 +644,9 @@ static void reconst(UNLZHHandler decoder, int start, int end)
 	    j--;
 	}
 	f = decoder->freq[l] + decoder->freq[l + 1];
-	for(k = start; f < decoder->freq[k]; k++)
+	for (k = start; f < decoder->freq[k]; k++)
 	    ;
-	while(j >= k)
+	while (j >= k)
 	{
 	    decoder->freq[i] = decoder->freq[j];
 	    decoder->child[i] = decoder->child[j];
@@ -656,13 +659,13 @@ static void reconst(UNLZHHandler decoder, int start, int end)
 	l -= 2;
     }
     f = 0;
-    for(i = start; i < end; i++)
+    for (i = start; i < end; i++)
     {
-	if((j = decoder->child[i]) < 0)
+	if ((j = decoder->child[i]) < 0)
 	    decoder->node[~j] = i;
 	else
 	    decoder->parent[j] = decoder->parent[j - 1] = i;
-	if((g = decoder->freq[i]) == f)
+	if ((g = decoder->freq[i]) == f)
 	{
 	    decoder->block[i] = b;
 	}
@@ -680,28 +683,28 @@ static int swap_inc(UNLZHHandler decoder, int p)
     int b, q, r, s;
 
     b = decoder->block[p];
-    if((q = decoder->edge[b]) != p)
+    if ((q = decoder->edge[b]) != p)
     {	/* swap for leader */
 	r = decoder->child[p];
 	s = decoder->child[q];
 	decoder->child[p] = s;
 	decoder->child[q] = r;
-	if(r >= 0)
+	if (r >= 0)
 	    decoder->parent[r] = decoder->parent[r - 1] = q;
 	else
 	    decoder->node[~r] = q;
-	if(s >= 0)
+	if (s >= 0)
 	    decoder->parent[s] = decoder->parent[s - 1] = p;
 	else
 	    decoder->node[~s] = p;
 	p = q;
 	goto Adjust;
     }
-    else if(b == decoder->block[p + 1])
+    else if (b == decoder->block[p + 1])
     {
       Adjust:
 	decoder->edge[b]++;
-	if(++decoder->freq[p] == decoder->freq[p - 1])
+	if (++decoder->freq[p] == decoder->freq[p - 1])
 	{
 	    decoder->block[p] = decoder->block[p - 1];
 	}
@@ -723,7 +726,7 @@ static void update_c(UNLZHHandler decoder, int p)
 {
     int q;
 
-    if(decoder->freq[ROOT_C] == 0x8000)
+    if (decoder->freq[ROOT_C] == 0x8000)
     {
 	reconst(decoder, 0, decoder->n_max * 2 - 1);
     }
@@ -732,21 +735,21 @@ static void update_c(UNLZHHandler decoder, int p)
     do
     {
 	q = swap_inc(decoder, q);
-    } while(q != ROOT_C);
+    } while (q != ROOT_C);
 }
 
 static void update_p(UNLZHHandler decoder, int p)
 {
     int q;
 
-    if(decoder->total_p == 0x8000)
+    if (decoder->total_p == 0x8000)
     {
 	reconst(decoder, ROOT_P, decoder->most_p + 1);
 	decoder->total_p = decoder->freq[ROOT_P];
 	decoder->freq[ROOT_P] = 0xffff;
     }
     q = decoder->node[p + N_CHAR];
-    while(q != ROOT_P)
+    while (q != ROOT_P)
     {
 	q = swap_inc(decoder, q);
     }
@@ -765,7 +768,7 @@ static void make_new_node(UNLZHHandler decoder, int p)
     decoder->freq[r] = decoder->freq[decoder->most_p];
     decoder->freq[q] = 0;
     decoder->block[r] = decoder->block[decoder->most_p];
-    if(decoder->most_p == ROOT_P)
+    if (decoder->most_p == ROOT_P)
     {
 	decoder->freq[ROOT_P] = 0xffff;
 	decoder->edge[decoder->block[ROOT_P]]++;
@@ -788,17 +791,17 @@ static unsigned short decode_c_dyn(UNLZHHandler decoder)
     {
 	c = decoder->child[c - (buf < 0)];
 	buf <<= 1;
-	if(++cnt == 16)
+	if (++cnt == 16)
 	{
 	    fillbuf(decoder, 16);
 	    buf = decoder->bitbuf;
 	    cnt = 0;
 	}
-    }while (c > 0);
+    } while (c > 0);
     fillbuf(decoder, cnt);
     c = ~c;
     update_c(decoder, c);
-    if(c == decoder->n1)
+    if (c == decoder->n1)
 	c += getbits(decoder, 8);
     return c;
 }
@@ -808,20 +811,20 @@ static unsigned short decode_p_dyn(UNLZHHandler decoder)
     int c;
     short buf, cnt;
 
-    while(decoder->count > decoder->nextcount)
+    while (decoder->count > decoder->nextcount)
     {
 	make_new_node(decoder, (int)(decoder->nextcount / 64));
-	if((decoder->nextcount += 64) >= decoder->nn)
+	if ((decoder->nextcount += 64) >= decoder->nn)
 	    decoder->nextcount = 0xffffffff;
     }
     c = decoder->child[ROOT_P];
     buf = decoder->bitbuf;
     cnt = 0;
-    while(c > 0)
+    while (c > 0)
     {
 	c = decoder->child[c - (buf < 0)];
 	buf <<= 1;
-	if(++cnt == 16)
+	if (++cnt == 16)
 	{
 	    fillbuf(decoder, 16);
 	    buf = decoder->bitbuf;
@@ -840,13 +843,13 @@ static void decode_start_st0(UNLZHHandler decoder)
     decoder->n_max = 286;
     decoder->maxmatch = MAXMATCH;
     init_getbits(decoder);
-    decoder->snp = 1 << (MAX_DICBIT - 6);
+    decoder->snp = 1L << (MAX_DICBIT - 6);
     decoder->blocksize = 0;
 }
 
 static int fixed[2][16] = {
-    {3, 0x01, 0x04, 0x0c, 0x18, 0x30, 0},		/* old compatible */
-    {2, 0x01, 0x01, 0x03, 0x06, 0x0D, 0x1F, 0x4E, 0}	/* 8K buf */
+    { 3, 0x01, 0x04, 0x0c, 0x18, 0x30, 0 },		/* old compatible */
+    { 2, 0x01, 0x01, 0x03, 0x06, 0x0D, 0x1F, 0x4E, 0 }	/* 8K buf */
 };
 
 static void ready_made(UNLZHHandler decoder, int method)
@@ -857,11 +860,11 @@ static void ready_made(UNLZHHandler decoder, int method)
 
     tbl = fixed[method];
     j = *tbl++;
-    weight = 1 << (16 - j);
+    weight = 1L << (16 - j);
     code = 0;
-    for(i = 0; i < decoder->snp; i++)
+    for (i = 0; i < decoder->snp; i++)
     {
-	while(*tbl == i)
+	while (*tbl == i)
 	{
 	    j++;
 	    tbl++;
@@ -877,19 +880,19 @@ static void read_tree_c(UNLZHHandler decoder)  /* read tree from file */
     int i, c;
 
     i = 0;
-    while(i < N1)
+    while (i < N1)
     {
-	if(getbits(decoder, 1))
+	if (getbits(decoder, 1))
 	    decoder->c_len[i] = getbits(decoder, LENFIELD) + 1;
 	else
 	    decoder->c_len[i] = 0;
-	if(++i == 3 && decoder->c_len[0] == 1 &&
+	if (++i == 3 && decoder->c_len[0] == 1 &&
 	   decoder->c_len[1] == 1 && decoder->c_len[2] == 1)
 	{
 	    c = getbits(decoder, CBIT);
-	    for(i = 0; i < N1; i++)
+	    for (i = 0; i < N1; i++)
 		decoder->c_len[i] = 0;
-	    for(i = 0; i < 4096; i++)
+	    for (i = 0; i < 4096; i++)
 		decoder->c_table[i] = c;
 	    return;
 	}
@@ -902,16 +905,16 @@ static void read_tree_p(UNLZHHandler decoder)  /* read tree from file */
     int i, c;
 
     i = 0;
-    while(i < SNP)
+    while (i < SNP)
     {
 	decoder->pt_len[i] = getbits(decoder, LENFIELD);
-	if(++i == 3 && decoder->pt_len[0] == 1 &&
+	if (++i == 3 && decoder->pt_len[0] == 1 &&
 	   decoder->pt_len[1] == 1 && decoder->pt_len[2] == 1)
 	{
 	    c = getbits(decoder, MAX_DICBIT - 6);
-	    for(i = 0; i < SNP; i++)
+	    for (i = 0; i < SNP; i++)
 		decoder->c_len[i] = 0;
-	    for(i = 0; i < 256; i++)
+	    for (i = 0; i < 256; i++)
 		decoder->c_table[i] = c;
 	    return;
 	}
@@ -923,7 +926,7 @@ static void decode_start_fix(UNLZHHandler decoder)
     decoder->n_max = 314;
     decoder->maxmatch = 60;
     init_getbits(decoder);
-    decoder->snp = 1 << (12 - 6);
+    decoder->snp = 1L << (12 - 6);
     start_c_dyn(decoder);
     ready_made(decoder, 0);
     make_table(decoder, decoder->snp, decoder->pt_len, 8, decoder->pt_table);
@@ -933,12 +936,12 @@ static unsigned short decode_c_st0(UNLZHHandler decoder)
 {
     int i, j;
 
-    if(decoder->blocksize == 0) /* read block head */
+    if (decoder->blocksize == 0) /* read block head */
     {
 	/* read block blocksize */
 	decoder->blocksize = getbits(decoder, BUFBITS);
 	read_tree_c(decoder);
-	if(getbits(decoder, 1))
+	if (getbits(decoder, 1))
 	{
 	    read_tree_p(decoder);
 	}
@@ -950,7 +953,7 @@ static unsigned short decode_c_st0(UNLZHHandler decoder)
     }
     decoder->blocksize--;
     j = decoder->c_table[decoder->bitbuf >> 4];
-    if(j < N1)
+    if (j < N1)
 	fillbuf(decoder, decoder->c_len[j]);
     else
     {
@@ -958,15 +961,15 @@ static unsigned short decode_c_st0(UNLZHHandler decoder)
 	i = decoder->bitbuf;
 	do
 	{
-	    if((short)i < 0)
+	    if ((short)i < 0)
 		j = decoder->right[j];
 	    else
 		j = decoder->left [j];
 	    i <<= 1;
-	} while(j >= N1);
+	} while (j >= N1);
 	fillbuf(decoder, decoder->c_len[j] - 12);
     }
-    if(j == N1 - 1)
+    if (j == N1 - 1)
 	j += getbits(decoder, EXTRABITS);
     return j;
 }
@@ -976,7 +979,7 @@ static unsigned short decode_p_st0(UNLZHHandler decoder)
     int i, j;
 
     j = decoder->pt_table[decoder->bitbuf >> 8];
-    if(j < decoder->snp)
+    if (j < decoder->snp)
     {
 	fillbuf(decoder, decoder->pt_len[j]);
     }
@@ -986,12 +989,12 @@ static unsigned short decode_p_st0(UNLZHHandler decoder)
 	i = decoder->bitbuf;
 	do
 	{
-	    if((short)i < 0)
+	    if ((short)i < 0)
 		j = decoder->right[j];
 	    else
 		j = decoder->left[j];
 	    i <<= 1;
-	} while(j >= decoder->snp);
+	} while (j >= decoder->snp);
 	fillbuf(decoder, decoder->pt_len[j] - 8);
     }
     return (j << 6) + getbits(decoder, 6);
@@ -999,7 +1002,7 @@ static unsigned short decode_p_st0(UNLZHHandler decoder)
 
 static unsigned short decode_c_lzs(UNLZHHandler decoder)
 {
-    if(getbits(decoder, 1))
+    if (getbits(decoder, 1))
 	return getbits(decoder, 8);
     decoder->matchpos = getbits(decoder, 11);
     return getbits(decoder, 4) + 0x100;
@@ -1019,14 +1022,14 @@ static unsigned short decode_c_lz5(UNLZHHandler decoder)
 {
     int c;
 
-    if(decoder->flagcnt == 0)
+    if (decoder->flagcnt == 0)
     {
 	decoder->flagcnt = 8;
 	decoder->flag = NEXTBYTE;
     }
     decoder->flagcnt--;
     c = NEXTBYTE;
-    if((decoder->flag & 1) == 0)
+    if ((decoder->flag & 1) == 0)
     {
 	decoder->matchpos = c;
 	c = NEXTBYTE;
@@ -1048,11 +1051,11 @@ static void decode_start_lz5(UNLZHHandler decoder)
     int i;
 
     decoder->flagcnt = 0;
-    for(i = 0; i < 256; i++)
+    for (i = 0; i < 256; i++)
 	memset(&decoder->text[i * 13 + 18], i, 13);
-    for(i = 0; i < 256; i++)
+    for (i = 0; i < 256; i++)
 	decoder->text[256 * 13 + 18 + i] = i;
-    for(i = 0; i < 256; i++)
+    for (i = 0; i < 256; i++)
 	decoder->text[256 * 13 + 256 + 18 + i] = 255 - i;
     memset(&decoder->text[256 * 13 + 512 + 18], 0, 128);
     memset(&decoder->text[256 * 13 + 512 + 128 + 18], ' ', 128 - 18);
@@ -1070,20 +1073,20 @@ static int make_table(UNLZHHandler decoder,
     int j, k, l, m, n, available, tablelimit;
     unsigned short *p;
 
-    tablelimit = 1 << tablebits;
+    tablelimit = 1L << tablebits;
     available = nchar;
 
 /* initialize */
-    for(i = 1; i <= 16; i++)
+    for (i = 1; i <= 16; i++)
     {
 	cnttable[i] = 0;
-	weight[i] = 1 << (16 - i);
+	weight[i] = 1L << (16 - i);
     }
 
 /* cnttable */
-    for(i = 0; i < nchar; i++)
+    for (i = 0; i < nchar; i++)
     {
-	if(bitlen[i] > 16)
+	if (bitlen[i] > 16)
 	{
 	    fprintf(stderr, "Decode: Bad table (4)\n");
 	    return 1;
@@ -1093,12 +1096,12 @@ static int make_table(UNLZHHandler decoder,
 
 /* calculate first code */
     total = 0;
-    for(i = 1; i <= 16; i++)
+    for (i = 1; i <= 16; i++)
     {
 	start[i] = total;
-	total += weight[i] * cnttable[i];
+	total = (total + weight[i] * cnttable[i]) & 0xFFFFU;
     }
-    if((total & 0xffff) != 0)
+    if ((total & 0xffff) != 0)
     {
 	fprintf(stderr, "Decode: Bad table (5)\n");
 	/*exit(1);*/ /* for win32gui i/f  2002/8/17 */
@@ -1107,7 +1110,7 @@ static int make_table(UNLZHHandler decoder,
 
 /* shift data for make table. */
     m = 16 - tablebits;
-    for(i = 1; i <= tablebits; i++)
+    for (i = 1; i <= tablebits; i++)
     {
 	start[i] >>= m;
 	weight[i] >>= m;
@@ -1115,25 +1118,25 @@ static int make_table(UNLZHHandler decoder,
 
 /* initialize */
     j = start[tablebits + 1] >> m;
-    if(j != 0)
+    if (j != 0)
     {
-	k = 1 << tablebits;
-	for(i = j; i < k; i++)
+	k = 1L << tablebits;
+	for (i = j; i < k; i++)
 	    table[i] = 0;
     }
 
 /* create table and tree */
-    for(j = 0; j < nchar; j++)
+    for (j = 0; j < nchar; j++)
     {
 	k = bitlen[j];
-	if(k == 0)
+	if (k == 0)
 	    continue;
 	l = start[k] + weight[k];
-	if(k <= tablebits)
+	if (k <= tablebits)
 	{
 	    /* code in table */
 	    l = MIN(l, tablelimit);
-	    for(i = start[k]; i < l; i++)
+	    for (i = start[k]; i < l; i++)
 		table[i] = j;
 	}
 	else
@@ -1149,14 +1152,14 @@ static int make_table(UNLZHHandler decoder,
 	    i <<= tablebits;
 	    n = k - tablebits;
 	    /* make tree (n length) */
-	    while(--n >= 0)
+	    while (--n >= 0)
 	    {
-		if(*p == 0)
+		if (*p == 0)
 		{
 		    decoder->right[available] = decoder->left[available] = 0;
 		    *p = available++;
 		}
-		if(i & 0x8000)
+		if (i & 0x8000)
 		    p = &decoder->right[*p];
 		else
 		    p = &decoder->left[*p];
@@ -1164,22 +1167,22 @@ static int make_table(UNLZHHandler decoder,
 	    }
 	    *p = j;
 	}
-	start[k] = l;
+	start[k] = l & 0xFFFF;
     }
     return 0;
 }
 
 static int fill_inbuf(UNLZHHandler decoder)
 {
-    long n, i;
+    int32 n, i;
 
-    if(decoder->compsize == 0)
+    if (decoder->compsize == 0)
 	return EOF;
     i = INBUFSIZ;
-    if(i > decoder->compsize)
-	i = (long)decoder->compsize;
-    n = decoder->read_func((char *)decoder->inbuf, i, decoder->user_val);
-    if(n <= 0)
+    if (i > decoder->compsize)
+	i = (int32)decoder->compsize;
+    n = decoder->read_func((char*)decoder->inbuf, i, decoder->user_val);
+    if (n <= 0)
 	return EOF;
     decoder->inbuf_size = n;
     decoder->inbuf_cnt = 1;
@@ -1195,16 +1198,16 @@ static void fillbuf(UNLZHHandler decoder, unsigned char n)
 
     bitcount = decoder->bitcount;
     bitbuf   = decoder->bitbuf;
-    while(n > bitcount)
+    while (n > bitcount)
     {
 	n -= bitcount;
-	bitbuf = (bitbuf << bitcount)
-	    + (decoder->subbitbuf >> (CHAR_BIT - bitcount));
+	bitbuf = ((bitbuf << bitcount)
+	    + (decoder->subbitbuf >> (CHAR_BIT - bitcount))) & 0xFFFFU;
 	decoder->subbitbuf = (unsigned char)NEXTBYTE;
 	bitcount = CHAR_BIT;
     }
     bitcount -= n;
-    bitbuf = (bitbuf << n) + (decoder->subbitbuf >> (CHAR_BIT - n));
+    bitbuf = ((bitbuf << n) + (decoder->subbitbuf >> (CHAR_BIT - n))) & 0xFFFFU;
     decoder->subbitbuf <<= n;
     decoder->bitcount = bitcount;
     decoder->bitbuf   = bitbuf;

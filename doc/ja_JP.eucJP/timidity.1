@@ -1,4 +1,4 @@
-.TH timidity 1 "2004年04月25日" "2.13.0"
+.TH timidity 1 "2014年07月12日" "2.14.0"
 .SH 名前
 TiMidity++ \- MIDI\-to\-WAVE変換およびプレーヤー
 .SH 書式
@@ -157,6 +157,10 @@ Lyric Meta Event と同じように，歌詞が表示されます。
 .br
 .ns
 .TP
+.BI \-\-volume= [n][,m](a)
+.br
+.ns
+.TP
 .BI \-\-amplification= n
 .br
 .ns
@@ -166,7 +170,7 @@ Lyric Meta Event と同じように，歌詞が表示されます。
 .ns
 .TP
 .B \-\-[no\-]volume\-compensation
-全体の音量を \fIn\fP% にします。デフォルトでは \fB70\fP です。大きな値
+全体の音量を \fIn\fP% にします。デフォルトでは \fB40\fP です。大きな値
 を指定するほど大きな音になります。また，通常音色の音量とドラム音色の音
 量の比率(ドラムパワー)を \fIm\fP% にします。デフォルトでは \fB100\fP で
 す。それぞれ，\fB0\fP (無音)から \fB800\fP までの値が有効です。
@@ -184,23 +188,27 @@ Lyric Meta Event と同じように，歌詞が表示されます。
 音量 90%，ドラム比 100%，補正無
 .TP
 .B \-A,120
-音量 70%，ドラム比 120%，補正無
+音量 40%，ドラム比 120%，補正無
 .TP
 .B \-A90,120
 音量 90%，ドラム比 120%，補正無
 .TP
 .B \-Aa
-音量 70%，ドラム比 100%，補正有
+音量 40%，ドラム比 100%，補正有
 .TP
 .B \-A90a
 音量 90%，ドラム比 100%，補正有
 .TP
 .B \-A,120a
-音量 70%，ドラム比 120%，補正有
+音量 40%，ドラム比 120%，補正有
 .TP
 .B \-A90,120a
 音量 90%，ドラム比 120%，補正有
 .RE
+.TP
+.B \-\-master\-volume= n
+全体の音量を \fIn\fP% にします。デフォルトでは \fB100\fP です。大きな値
+を指定するほど大きな音になります。
 .TP
 .B \-a, \-\-[no\-]anti\-alias
 アンチエイリアシングを有効にします。\fB\-s\fP オプションで低いサンプリ
@@ -270,11 +278,26 @@ NRPN ビブラート制御を有効/無効にします。
 .B z/Z, \-\-[no\-]temper\-control
 MIDI Tuning Standard の音律制御を有効/無効にします。
 .TP
+.B j/J
+インサーションエフェクトを有効/無効にします。
+.TP
+.B q/Q
+EQ コントロールを有効/無効にします。
+.TP
+.B d/D
+NRPPN ドラムエフェクトを有効/無効にします。
+.TP
+.B x/X
+TVA (アタック、ディケイ、リリース) を有効/無効にします。
+.TP
+.B c/C
+CC#94 delay(celeste) コントロールを有効/無効にします。
+.TP
 .BI m HH ", \-\-default\-mid=" HH
 デフォルトマニュファクチュア ID を 2 桁の16進数 \fIHH\fP で指定します。
 .br
-このとき，\fIHH\fP を \fBGS/gs\fP，\fBXG/xg\fP，\fBGM/gm\fP にすること
-で，それぞれ \fB41\fP，\fB43\fP，\fB7e\fP を指定したことになります。
+このとき，\fIHH\fP を \fBGS/gs\fP，\fBXG/xg\fP，\fBGM2/gm2\fP，\fBSD/sd\fP，\fBGM/gm\fP にすること
+で，それぞれ \fB41\fP，\fB43\fP，\fB7d\fP，\fB60\fP，\fB7e\fP を指定したことになります。
 .br
 入力ファイルから音源を自動的に認識できないような場合には，このパラメー
 タでデフォルトの ID を指定することができます。
@@ -313,36 +336,52 @@ change メッセージを受け取っても変更されません。
 エフェクトオプションです。以下の \fIargs\fP が指定できます。
 .RS
 .TP
-.BI delay= (d|l|r|b)[,msec] ", \-\-delay=" (d|l|r|b)[,msec]
+.BI delay= (d|D) ", \-\-delay=" (d|D)
 イヤホンで聞いた時の音の臨場感を出すようにします。
 .RS
 .TP
 .B d, 0
 ディレイを無効(Disable)にします(デフォルト)。
 .TP
-.B l, 1
-左(Left)ディレイを有効にします。主に左から音が聞こえてきます。
-.TP
-.B r, 2
-右(Right)ディレイを有効にします。主に右から音が聞こえてきます。
-.TP
-.B b, 3
-左右(Both)ローテートを有効にします。ときどき，左右の音場が変化します。
-.LP
-\fImsec\fP は左右のディレイタイムを指定するオプションです。
+.B D, 1
+ディレイを有効にします。
 .RE
 .TP
-.BI chorus= (d|n|s)[,level] ", \-\-chorus=" (d|n|s)[,level]
+.BI chorus= (d|n|s|w|W|b|B|t|T|h|H)[,level] ", \-\-chorus=" (d|n|s|w|W|b|B|t|T|h|H)[,level]
 .RS
 .TP
 .B d, 0
 コーラスを無効(Disable)にします。
 .TP
 .B n, 1
-標準的(Normal)な MIDI コーラス制御を有効にします(デフォルト)。
+標準的(Normal)な MIDI コーラス制御を有効にします。
 .TP
 .B s, 2
 サラウンド(Surround)コーラスを有効にします。
+.TP
+.B w, 3
+標準的その2(Normal2)な MIDI コーラス制御を有効にします(デフォルト)。
+.TP
+.B W, 4
+サラウンド2(Surround2)コーラスを有効にします。
+.TP
+.B b, 5
+標準的その3(Normal3)な MIDI コーラス制御 (2 phase) を有効にします。
+.TP
+.B B, 6
+サラウンド3(Surround3)コーラスを有効にします。
+.TP
+.B t, 7
+標準的その4(Normal4)な MIDI コーラス制御 (3 phase) を有効にします。
+.TP
+.B T, 8
+サラウンド4(Surround4)コーラスを有効にします。
+.TP
+.B h, 9
+標準的その5(Normal5)な MIDI コーラス制御 (6 phase) を有効にします。
+.TP
+.B H
+サラウンド5(Surround5)コーラスを有効にします。
 .LP
 \fIlevel\fP はコーラスレベル \fB0\fP から \fB127\fP を指定するオプショ
 ンです。
@@ -350,9 +389,9 @@ change メッセージを受け取っても変更されません。
 .TP
 .BI reverb= (d|n|g)[,level] ", \-\-reverb=" (d|n|g)[,level]
 .TP
-.BI reverb= (f|G)[,level,scaleroom,offsetroom,predelay]
+.BI reverb= (f|G)[,level[,scaleroom,offsetroom,predelay]]
 .TP
-.BI "\-\-reverb=" (f|G)[,level,scaleroom,offsetroom,predelay]
+.BI "\-\-reverb=" (f|G)[,level[,scaleroom,offsetroom,predelay]]
 .RS
 .TP
 .B d, 0
@@ -387,17 +426,57 @@ roomsize = C * \fIscaleroom\fP + \fIoffsetroom\fP
 デフォルトはそれぞれ \fB0.28\fP，\fB0.7\fP，\fB100\fP です。
 .RE
 .TP
-.BI vlpf= (d|c|m) ", \-\-voice\-lpf=" (d|c|m)
+.BI vlpf= (d|c|m|b|i|a|o|e|t|h|B) ", \-\-voice\-lpf=" (d|c|m|b|i|a|o|e|t|h|B)
 .RS
 .TP
 .B d, 0
 ボイス単位 LPF を無効(Disable)にします。
 .TP
 .B c, 1
-Chamberlin レゾナント LPF (12dB/oct)を有効にします(デフォルト)。
+Chamberlin レゾナント LPF (12dB/oct)を有効にします。
 .TP
 .B m, 2
 Moog レゾナントローパス VCF (24dB/oct)を有効にします。
+.TP
+.B b, 3
+ButterworthFilter レゾナント LPF (butterworth)を有効にします(デフォルト)。
+.TP
+.B i, 4
+Resonant IIR レゾナントローパス VCF (12dB/oct)-2 を有効にします。
+.TP
+.B a, 5
+amSynth resonant レゾナントローパス VCF (24dB/oct)-2 を有効にします。
+.TP
+.B o, 6
+1 pole 6db/oct レゾナントローパス VCF (6dB/oct) を有効にします。
+.TP
+.B e, 7
+resonant 3 pole ローパス VCF (18dB/oct) を有効にします。
+.TP
+.B t, 8
+two first order ローパス VCF を有効にします。
+.TP
+.B h, 9
+ButterworthFilter ハイパス VCF (HPF) を有効にします。
+.TP
+.B B
+ButterworthFilter バンドパス VCF (BPF) を有効にします。
+.RE
+.TP
+.BI vhpf= (d|b|c|o) ", \-\-voice\-hpf=" (d|b|c|o)
+.RS
+.TP
+.B d, 0
+ボイス単位 HPF を無効(Disable)にします(デフォルト)。
+.TP
+.B b, 1
+ButterworthFilter レゾナント HPF (butterworth)を有効にします。
+.TP
+.B c, 2
+Chamberlin レゾナント HPF (12dB/oct)を有効にします。
+.TP
+.B o, 3
+1 pole 6db/oct レゾナントハイパス VCF (6dB/oct) を有効にします。
 .RE
 .TP
 .BI ns= n ", \-\-noise\-shaping=" n
@@ -446,6 +525,18 @@ C スプライン補完アルゴリズムを有効にします。
 .TP
 .B g, 5
 ガウス(Gauss)風補完アルゴリズムを有効にします(デフォルト)。
+.TP
+.B s, 6
+シャープ(Sharp)補完アルゴリズムを有効にします。
+.TP
+.B p, 7
+線形パーセント(Linear%)補完アルゴリズムを有効にします。
+.TP
+.B i, 8
+サイン(Sine)補完アルゴリズムを有効にします。
+.TP
+.B q, 9
+スクウェア(Square)補完アルゴリズムを有効にします。
 .LP
 \fB\-EFresamp\fP は \fB\-N\fP オプションの挙動に影響します。
 .RE
@@ -582,6 +673,9 @@ ALSA シーケンサインタフェース
 .B \-iW
 Windows シンセサイザインタフェース
 .TP
+.B \-iN
+Named Pipe シンセサイザインタフェース
+.TP
 .B \-iw
 Windows GUI インタフェース
 .TP
@@ -663,22 +757,36 @@ MIDI ファイルなどは，このサーチパスに従って探索されます。最後に加えられ
 \fB\-EFresamp\fP オプション指定に依存します。
 .RS
 .TP
-.B cspline, lagrange
-4 点補完を指定します。デフォルトでは有効です。
+.B newton(n)
+\fIn\fP 次のニュートン補完を指定します。\fIn\fP には \fB1\fP から 
+\fB57\fP までの奇数を指定することができます。デフォルトでは \fB11\fP で
+す。
 .TP
-.B newton
-\fIn\fP 次のニュートン補完を指定します。\fIn\fP には \fB1\fP から
-\fB57\fP までの奇数を指定することができます。
-.TP
-.B gauss
-\fIn\fP+1 点ガウス風補完を指定します。\fIn\fP には \fB1\fP から
+.B gauss(g)
+\fIn\fP+1 点ガウス風補完を指定します。\fIn\fP には \fB1\fP から 
 \fB34\fP までの整数を指定することができます。デフォルトでは \fB25\fP で
 す。
+.TP
+.B sharp(s)
+\fIn\fP には \fB2\fP から \fB8\fP までの偶数を指定することができます。
+デフォルトでは \fB2\fP です。
+.TP
+.B linearP(p)
+\fIn\fP には \fB0\fP から\fB100\fP までの整数を指定することができます。
+デフォルトでは \fB100\fP です。
 .LP
 オーディオキューが 99% 以下のときは，線形補完が使われます。
 .RE
 .TP
 .BI "\-O " mode ", \-\-output\-mode=" mode
+.br
+.ns
+.TP
+.B \-\-wave\-extensible
+.br
+.ns
+.TP
+.BI \-\-wave\-update\-step= n
 .br
 .ns
 .TP
@@ -695,6 +803,26 @@ MIDI ファイルなどは，このサーチパスに従って探索されます。最後に加えられ
 .ns
 .TP
 .B \-\-oggflac
+.br
+.ns
+.TP
+.BI \-\-opus\-nframes= n
+.br
+.ns
+.TP
+.BI \-\-opus\-bitrate= n
+.br
+.ns
+.TP
+.BI \-\-opus\-complexity= n
+.br
+.ns
+.TP
+.B \-\-[no\-]opus\-vbr
+.br
+.ns
+.TP
+.B \-\-[no\-]opus\-cvbr
 .br
 .ns
 .TP
@@ -723,6 +851,14 @@ MIDI ファイルなどは，このサーチパスに従って探索されます。最後に加えられ
 .ns
 .TP
 .BI \-\-speex\-nframes= n
+.br
+.ns
+.TP
+.B \-\-volume\-calc\-rms
+.br
+.ns
+.TP
+.B \-\-volume\-calc\-trim
 出力モードやフォーマットを指定します。
 .br
 Ogg FLAC 出力モードでは，別途 \fB\-\-flac\-verify\fP，
@@ -746,7 +882,7 @@ VBR で出力，レート \fIn\fP の ABR で出力，VAD(voice activity detection)
 .RS
 .TP
 .B \-Od
-OSS dsp デバイスに出力します(デフォルト)。
+オーディオデバイスに出力します(デフォルト)。
 .TP
 .B \-Os
 ALSA オーディオデバイスに出力します。
@@ -790,7 +926,22 @@ MOD ファイルから MIDI ファイルに変換して出力します。
 EsounD
 .TP
 .B \-Op
-PortAudio
+PortAudio (v18)
+.TP
+.B \-Oo
+PortAudio (V19/ASIO)
+.TP
+.B \-OW
+PortAudio (V19/Windows/WASAPI)
+.TP
+.B \-OK
+PortAudio (V19/Windows/WDM-KS)
+.TP
+.B \-OP
+PortAudio (V19/Windows/WIN-DS)
+.TP
+.B \-Op
+PortAudio (V19/Windows/WMME)
 .TP
 .B \-Oj
 JACK
@@ -807,11 +958,23 @@ Ogg Vorbis
 .B \-OF
 Ogg FLAC
 .TP
+.B \-OU
+Ogg Opus
+.TP
 .B \-OS
 Ogg Speex
 .TP
+.B \-Og
+MP3 GOGO
+.TP
+.B \-OL
+LameEnc
+.TP
 .B \-OO
 libao
+.TP
+.B \-OV
+SoundFont Volume Calc
 .TP
 .B フォーマットオプション
 上記オプションに続けて，以下の文字を追加することで出力フォーマットを指
@@ -835,6 +998,15 @@ libao
 .TP
 .B 2, \-\-output\-24bit
 24 ビットサンプル精度
+.TP
+.B 3, \-\-output\-32bit
+32 ビットサンプル精度
+.TP
+.B f, \-\-output\-f32bit
+float 32 ビットサンプル精度
+.TP
+.B D, \-\-output\-f64bit
+float 64 ビットサンプル精度
 .TP
 .B 8, \-\-output\-8bit
 8 ビットサンプル精度
@@ -1094,7 +1266,19 @@ YAMAHA MU\-90
 .B 19
 YAMAHA MU\-100
 .TP
-.B 20\-31
+.B 20
+YAMAHA MU\-128
+.TP
+.B 21
+YAMAHA MU\-500
+.TP
+.B 22
+YAMAHA MU\-1000
+.TP
+.B 23
+YAMAHA MU\-5000
+.TP
+.B 24\-31
 XG 用にリザーブ
 .TP
 .B 32
@@ -1103,7 +1287,46 @@ SoundBlaster Live!
 .B 33
 SoundBlaster Audigy
 .TP
-.B 34\-111
+.B 34\-55
+任意の音源モジュール用にリザーブ
+.TP
+.B 56
+Roland MT\-32
+.TP
+.B 57
+Roland CM\-32L
+.TP
+.B 58
+Roland CM\-32P
+.TP
+.B 59
+Roland CM\-64
+.TP
+.B 60\-79
+LA 用にリザーブ
+.TP
+.B 80
+KORG AG-10
+.TP
+.B 82
+KORG 05R/W
+.TP
+.B 84
+KORG NX5R
+.TP
+.B 85\-95
+任意の音源モジュール用にリザーブ
+.TP
+.B 96
+Roland SD-20
+.TP
+.B 97
+Roland SD-80
+.TP
+.B 98
+Roland SD-90
+.TP
+.B 99\-111
 任意の音源モジュール用にリザーブ
 .TP
 .B 112

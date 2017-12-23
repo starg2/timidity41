@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <math.h>
 
-double newt_coeffs[58][58];
+double newt_coeffs[58][58] = {0};
+
 
 int main(int argc, const char *argv[])
 {
     int i, j, n = 57;
-    int sign;
+    double sign = 0;
 
 #ifdef _MSC_VER
 	FILE *fp;
@@ -44,19 +45,19 @@ int main(int argc, const char *argv[])
 		}
     }
     for (i = 0; i <= n; i++)
-    	for (j = 0, sign = pow(-1, i); j <= i; j++, sign *= -1)
+    	for (j = 0, sign = pow((double)-1, i); j <= i; j++, sign *= -1)
     	    newt_coeffs[i][j] *= sign;
-
+///r
 #ifdef _MSC_VER
     for (i = 0; i <= n; i++)
 	for (j = 0; j <= n; j++)
-	    fprintf(fp, "(float)%2.32g,\n", newt_coeffs[i][j]);
+	    fprintf(fp, "(double)%32.32g,\n", newt_coeffs[i][j]);
 	fclose(fp);
 #else
 	for (i = 0; i <= n; i++) {
 		printf("{\n");
 		for (j = 0; j <= n; j++) {
-			printf("%2.32g,\n", newt_coeffs[i][j]);
+			printf("%32.32g,\n", newt_coeffs[i][j]);
 		}
 		printf("},\n");
 	}

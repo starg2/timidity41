@@ -65,7 +65,7 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 static int write_u32(uint32 value);
 
@@ -123,6 +123,8 @@ static int write_str(const char *s)
 #define AUDIO_FILE_ENCODING_LINEAR_8    2      /* 8-bit linear PCM */
 #define AUDIO_FILE_ENCODING_LINEAR_16   3      /* 16-bit linear PCM */
 #define AUDIO_FILE_ENCODING_LINEAR_24   4      /* 24-bit linear PCM */
+///r ??
+#define AUDIO_FILE_ENCODING_LINEAR_32   5      /* 32-bit linear PCM */
 #define AUDIO_FILE_ENCODING_ALAW_8      27     /* 8-bit ISDN A-law */
 
 static int au_output_open(const char *fname, const char *comment)
@@ -159,6 +161,8 @@ static int au_output_open(const char *fname, const char *comment)
     t = AUDIO_FILE_ENCODING_MULAW_8;
   else if(dpm.encoding & PE_ALAW)
     t = AUDIO_FILE_ENCODING_ALAW_8;
+  else if(dpm.encoding & PE_32BIT)
+    t = AUDIO_FILE_ENCODING_LINEAR_32;
   else if(dpm.encoding & PE_24BIT)
     t = AUDIO_FILE_ENCODING_LINEAR_24;
   else if(dpm.encoding & PE_16BIT)
@@ -229,7 +233,8 @@ static int open_output(void)
     int include_enc, exclude_enc;
 
     include_enc = exclude_enc = 0;
-    if(dpm.encoding & (PE_16BIT | PE_24BIT))
+///r
+    if(dpm.encoding & (PE_32BIT | PE_24BIT | PE_16BIT))
     {
 #ifdef LITTLE_ENDIAN
 	include_enc = PE_BYTESWAP;
@@ -243,7 +248,8 @@ static int open_output(void)
 	/* is 8 bit au unsigned ? */
 	exclude_enc = PE_SIGNED;
     }
-
+///r
+	exclude_enc |= PE_F32BIT | PE_64BIT | PE_F64BIT;
     dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
     if(dpm.name == NULL) {
@@ -285,7 +291,7 @@ static int update_header(void)
 }
 
 
-static int output_data(char *buf, int32 bytes)
+static int output_data(const uint8 *buf, size_t bytes)
 {
     int n;
 
@@ -327,8 +333,11 @@ static int acntl(int request, void *arg)
 {
   switch(request) {
   case PM_REQ_PLAY_START:
-    if(dpm.flag & PF_AUTO_SPLIT_FILE)
-      return auto_au_output_open(current_file_info->filename);
+    if (dpm.flag & PF_AUTO_SPLIT_FILE) {
+      const char *filename = (current_file_info && current_file_info->filename) ?
+			     current_file_info->filename : "Output.mid";
+      return auto_au_output_open(filename);
+    }
     return 0;
   case PM_REQ_PLAY_END:
     if(dpm.flag & PF_AUTO_SPLIT_FILE)

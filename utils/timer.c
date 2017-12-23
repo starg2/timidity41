@@ -38,6 +38,13 @@
 
 double get_current_calender_time(void)
 {
+#if defined(_POSIX_TIMERS)
+    struct timespec tp;
+
+    clock_gettime(CLOCK_REALTIME, &tp);
+
+    return (double)tp.tv_sec + (double)tp.tv_nsec / 1000000000.0 ;
+#else
     struct timeval tv;
     struct timezone dmy;
 
@@ -47,7 +54,8 @@ double get_current_calender_time(void)
     gettimeofday(&tv, &dmy);
 #endif
 
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0 ;
+    return (double)tv.tv_sec + (double)tv.tv_usec * DIV_1000000 ;
+#endif
 }
 
 #elif __MACOS__
@@ -57,7 +65,7 @@ double get_current_calender_time(void)
 {
     UnsignedWide usec;
     Microseconds(&usec);
-    return (double)usec.hi* 4294.967296 + (double)usec.lo / 1000000.0 ;
+    return (double)usec.hi* 4294.967296 + (double)usec.lo * DIV_1000000 ;
 }
 
 #else /* Windows API */
@@ -82,6 +90,6 @@ double get_current_calender_time(void)
 	return 0.0;
     }
 
-    return (GetTickCount() - tick_start) * (1.0/1000.0);
+    return (GetTickCount() - tick_start) * (1.0 * DIV_1000);
 }
 #endif

@@ -27,7 +27,9 @@
 #endif /* HAVE_CONFIG_H */
 #include "interface.h"
 
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include <stdio.h>
 #ifndef NO_STRING_H
 #include <string.h>
@@ -41,7 +43,7 @@
 #include "instrum.h"
 #include "playmidi.h"
 #include "readmidi.h"
-#include "reverb.h"
+#include "effect.h"
 #include "output.h"
 #include "controls.h"
 #include "recache.h"
@@ -52,24 +54,53 @@
 #include "wrd.h"
 #include "w32g.h"
 #include "w32g_utl.h"
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif /* HAVE_SYS_STAT_H */
 #include "strtab.h"
 #include "url.h"
+///r
+#ifdef AU_W32
+#include "w32_a.h"
+#endif
+#ifdef AU_PORTAUDIO
+#include "portaudio_a.h"
+#endif
+#include "resample.h"
+#include "mix.h"
+#include "thread.h"
+#include "miditrace.h"
+
 
 extern int opt_default_mid;
 extern int effect_lr_mode;
 extern int effect_lr_delay_msec;
+extern int opt_fast_decay;
+extern int fast_decay;
+extern int min_sustain_time;
 extern char def_instr_name[];
 extern int opt_control_ratio;
 extern char *opt_aq_max_buff;
 extern char *opt_aq_fill_buff;
-extern int opt_aq_fill_buff_free_needed;
+///r
+extern char *opt_reduce_voice_threshold;
+extern char *opt_reduce_quality_threshold;
+extern char *opt_reduce_polyphony_threshold;
+extern DWORD processPriority;
+
 extern int opt_evil_mode;
+#ifdef SUPPORT_SOUNDSPEC
+extern double spectrogram_update_sec;
+#endif /* SUPPORT_SOUNDSPEC */
 extern int opt_buffer_fragments;
+extern int opt_audio_buffer_bits;
+///r
+extern int opt_compute_buffer_bits;
+
 extern int32 opt_output_rate;
 extern int PlayerLanguage;
-extern volatile int data_block_bits;
-extern volatile int data_block_num;
+//extern int data_block_bits;
+//extern int data_block_num;
 extern int DocWndIndependent;
 extern int DocWndAutoPopup;
 extern int SeachDirRecursive;
@@ -77,10 +108,25 @@ extern int IniFileAutoSave;
 extern int SecondMode;
 extern int AutoloadPlaylist;
 extern int AutosavePlaylist;
-char DefaultPlaylistName[] = "default.pls";
-char DefaultPlaylistPath[1024];
+///r
+//char DefaultPlaylistName[PLAYLIST_MAX][] = {"default.pls"};
+//char DefaultPlaylistPath[FILEPATH_MAX] = "";
+char DefaultPlaylistPath[PLAYLIST_MAX][FILEPATH_MAX];
+
+
+extern unsigned char opt_normal_chorus_plus;
 
 extern int PosSizeSave;
+ 
+#ifdef AU_LAME
+extern void lame_ConfigDialogInfoLoadINI();
+extern void lame_ConfigDialogInfoSaveINI();
+#endif
+
+///r
+extern DWORD processPriority;
+
+
 
 //*****************************************************************************/
 // ini
@@ -90,6 +136,20 @@ CHAR *INI_INVALID = "INVALID PARAMETER";
 CHAR *INI_SEC_PLAYER = "PLAYER";
 CHAR *INI_SEC_TIMIDITY = "TIMIDITY";
 #define INI_MAXLEN 1024
+
+///r
+int
+IniGetKeyInt64(char *section, char *key,int64 *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  GetPrivateProfileString
+    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
+  if(strcasecmp(buffer,INI_INVALID)){
+    *n =_atoi64(buffer);
+    return 0;
+  } else
+    return 1;
+}
 
 int
 IniGetKeyInt32(char *section, char *key,int32 *n)
@@ -220,6 +280,16 @@ IniGetKeyStringN(char *section, char *key,char *str, int size)
   }	else
     return 1;
 }
+///r
+int
+IniPutKeyInt64(char *section, char *key,int64 *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  sprintf(buffer,"%ld",*n);
+  WritePrivateProfileString
+    (section,key,buffer,IniFile);
+  return 0;
+}
 
 int
 IniPutKeyInt32(char *section, char *key,int32 *n)
@@ -332,13 +402,15 @@ static long SetValue(int32 value, int32 min, int32 max)
 void
 ApplySettingPlayer(SETTING_PLAYER *sp)
 {
+	static int first = 0;
   InitMinimizeFlag = SetFlag(sp->InitMinimizeFlag);
   DebugWndStartFlag = SetFlag(sp->DebugWndStartFlag);
   ConsoleWndStartFlag = SetFlag(sp->ConsoleWndStartFlag);
   ListWndStartFlag = SetFlag(sp->ListWndStartFlag);
-  TracerWndStartFlag = SetFlag(sp->TracerWndStartFlag);
+  TracerWndStartFlag = SetFlag(sp->TracerWndStartFlag);  
   DocWndStartFlag = SetFlag(sp->DocWndStartFlag);
   WrdWndStartFlag = SetFlag(sp->WrdWndStartFlag);
+  SoundSpecWndStartFlag = SetFlag(sp->SoundSpecWndStartFlag);
   DebugWndFlag = SetFlag(sp->DebugWndFlag);
   ConsoleWndFlag = SetFlag(sp->ConsoleWndFlag);
   ListWndFlag = SetFlag(sp->ListWndFlag);
@@ -347,18 +419,20 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
   WrdWndFlag = SetFlag(sp->WrdWndFlag);
   SoundSpecWndFlag = SetFlag(sp->SoundSpecWndFlag);
   SubWindowMax = SetValue(sp->SubWindowMax,1,10);
-  strncpy(ConfigFile,sp->ConfigFile,MAXPATH + 31);
-  ConfigFile[MAXPATH + 31] = '\0';
-  strncpy(PlaylistFile,sp->PlaylistFile,MAXPATH + 31);
-  PlaylistFile[MAXPATH + 31] = '\0';
-  strncpy(PlaylistHistoryFile,sp->PlaylistHistoryFile,MAXPATH + 31);
-  PlaylistHistoryFile[MAXPATH + 31] = '\0';
-  strncpy(MidiFileOpenDir,sp->MidiFileOpenDir,MAXPATH + 31);
-  MidiFileOpenDir[MAXPATH + 31] = '\0';
-  strncpy(ConfigFileOpenDir,sp->ConfigFileOpenDir,MAXPATH + 31);
-  ConfigFileOpenDir[MAXPATH + 31] = '\0';
-  strncpy(PlaylistFileOpenDir,sp->PlaylistFileOpenDir,MAXPATH + 31);
-  PlaylistFileOpenDir[MAXPATH + 31] = '\0';
+  playlist_max_ini = SetValue(sp->PlaylistMax,1,PLAYLIST_MAX);
+  ConsoleClearFlag = SetValue(sp->ConsoleClearFlag,0,256);
+  strncpy(ConfigFile,sp->ConfigFile,FILEPATH_MAX);
+  ConfigFile[FILEPATH_MAX - 1] = '\0';
+  strncpy(PlaylistFile,sp->PlaylistFile,FILEPATH_MAX);
+  PlaylistFile[FILEPATH_MAX - 1] = '\0';
+  strncpy(PlaylistHistoryFile,sp->PlaylistHistoryFile,FILEPATH_MAX);
+  PlaylistHistoryFile[FILEPATH_MAX - 1] = '\0';
+  strncpy(MidiFileOpenDir,sp->MidiFileOpenDir,FILEPATH_MAX);
+  MidiFileOpenDir[FILEPATH_MAX - 1] = '\0';
+  strncpy(ConfigFileOpenDir,sp->ConfigFileOpenDir,FILEPATH_MAX);
+  ConfigFileOpenDir[FILEPATH_MAX - 1] = '\0';
+  strncpy(PlaylistFileOpenDir,sp->PlaylistFileOpenDir,FILEPATH_MAX);
+  PlaylistFileOpenDir[FILEPATH_MAX - 1] = '\0';
   PlayerThreadPriority = sp->PlayerThreadPriority;
   GUIThreadPriority = sp->GUIThreadPriority;
   TraceGraphicFlag = SetFlag(sp->TraceGraphicFlag);
@@ -369,23 +443,23 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
   DocFontSize = sp->DocFontSize;
   ListFontSize = sp->ListFontSize;
   TracerFontSize = sp->TracerFontSize;
-  strncpy(SystemFont,sp->SystemFont,255);
-  SystemFont[255] = '\0';
-  strncpy(PlayerFont,sp->PlayerFont,255);
-  PlayerFont[255] = '\0';
-  strncpy(WrdFont,sp->WrdFont,255);
-  WrdFont[255] = '\0';
-  strncpy(DocFont,sp->DocFont,255);
-  DocFont[255] = '\0';
-  strncpy(ListFont,sp->ListFont,255);
-  ListFont[255] = '\0';
-  strncpy(TracerFont,sp->TracerFont,255);
-  TracerFont[255] = '\0';
+  strncpy(SystemFont,sp->SystemFont,LF_FULLFACESIZE + 1);
+  SystemFont[LF_FULLFACESIZE] = '\0';
+  strncpy(PlayerFont,sp->PlayerFont,LF_FULLFACESIZE + 1);
+  PlayerFont[LF_FULLFACESIZE] = '\0';
+  strncpy(WrdFont,sp->WrdFont,LF_FULLFACESIZE + 1);
+  WrdFont[LF_FULLFACESIZE] = '\0';
+  strncpy(DocFont,sp->DocFont,LF_FULLFACESIZE + 1);
+  DocFont[LF_FULLFACESIZE] = '\0';
+  strncpy(ListFont,sp->ListFont,LF_FULLFACESIZE + 1);
+  ListFont[LF_FULLFACESIZE] = '\0';
+  strncpy(TracerFont,sp->TracerFont,LF_FULLFACESIZE + 1);
+  TracerFont[LF_FULLFACESIZE] = '\0';
   // Apply font functions ...
 
   DocMaxSize = sp->DocMaxSize;
-  strncpy(DocFileExt,sp->DocFileExt,255);
-  DocFileExt[255] = '\0';
+  strncpy(DocFileExt,sp->DocFileExt,256);
+  DocFileExt[256 - 1] = '\0';
   PlayerLanguage = sp->PlayerLanguage;
   DocWndIndependent = sp->DocWndIndependent; 
   DocWndAutoPopup = sp->DocWndAutoPopup; 
@@ -395,6 +469,13 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
   AutoloadPlaylist = sp->AutoloadPlaylist;
   AutosavePlaylist = sp->AutosavePlaylist;
   PosSizeSave = sp->PosSizeSave;
+///r
+	main_panel_update_time = sp->main_panel_update_time;
+
+	if(!first){ // ‰‰ñ‚Ì‚Ý
+		first++;
+		playlist_max = playlist_max_ini;
+	}
 }
 
 void
@@ -407,6 +488,7 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   sp->TracerWndStartFlag = SetFlag(TracerWndStartFlag);
   sp->DocWndStartFlag = SetFlag(DocWndStartFlag);
   sp->WrdWndStartFlag = SetFlag(WrdWndStartFlag);
+  sp->SoundSpecWndStartFlag = SetFlag(SoundSpecWndStartFlag);  
   sp->DebugWndFlag = SetFlag(DebugWndFlag);
   sp->ConsoleWndFlag = SetFlag(ConsoleWndFlag);
   sp->ListWndFlag = SetFlag(ListWndFlag);
@@ -415,18 +497,21 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   sp->WrdWndFlag = SetFlag(WrdWndFlag);
   sp->SoundSpecWndFlag = SetFlag(SoundSpecWndFlag);
   sp->SubWindowMax = SetValue(SubWindowMax,1,10);
-  strncpy(sp->ConfigFile,ConfigFile,MAXPATH + 31);
-  (sp->ConfigFile)[MAXPATH + 31] = '\0';
-  strncpy(sp->PlaylistFile,PlaylistFile,MAXPATH + 31);
-  (sp->PlaylistFile)[MAXPATH + 31] = '\0';
-  strncpy(sp->PlaylistHistoryFile,PlaylistHistoryFile,MAXPATH + 31);
-  (sp->PlaylistHistoryFile)[MAXPATH + 31] = '\0';
-  strncpy(sp->MidiFileOpenDir,MidiFileOpenDir,MAXPATH + 31);
-  (sp->MidiFileOpenDir)[MAXPATH + 31] = '\0';
-  strncpy(sp->ConfigFileOpenDir,ConfigFileOpenDir,MAXPATH + 31);
-  (sp->ConfigFileOpenDir)[MAXPATH + 31] = '\0';
-  strncpy(sp->PlaylistFileOpenDir,PlaylistFileOpenDir,MAXPATH + 31);
-  (sp->PlaylistFileOpenDir)[MAXPATH + 31] = '\0';
+  sp->PlaylistMax = SetValue(playlist_max_ini,1,PLAYLIST_MAX);
+  sp->ConsoleClearFlag = SetValue(ConsoleClearFlag,0,256);
+
+  strncpy(sp->ConfigFile,ConfigFile,FILEPATH_MAX);
+  (sp->ConfigFile)[FILEPATH_MAX - 1] = '\0';
+  strncpy(sp->PlaylistFile,PlaylistFile,FILEPATH_MAX);
+  (sp->PlaylistFile)[FILEPATH_MAX - 1] = '\0';
+  strncpy(sp->PlaylistHistoryFile,PlaylistHistoryFile,FILEPATH_MAX);
+  (sp->PlaylistHistoryFile)[FILEPATH_MAX - 1] = '\0';
+  strncpy(sp->MidiFileOpenDir,MidiFileOpenDir,FILEPATH_MAX);
+  (sp->MidiFileOpenDir)[FILEPATH_MAX - 1] = '\0';
+  strncpy(sp->ConfigFileOpenDir,ConfigFileOpenDir,FILEPATH_MAX);
+  (sp->ConfigFileOpenDir)[FILEPATH_MAX - 1] = '\0';
+  strncpy(sp->PlaylistFileOpenDir,PlaylistFileOpenDir,FILEPATH_MAX);
+  (sp->PlaylistFileOpenDir)[FILEPATH_MAX - 1] = '\0';
   sp->PlayerThreadPriority = PlayerThreadPriority;
   sp->GUIThreadPriority = GUIThreadPriority;
   sp->WrdGraphicFlag = SetFlag(WrdGraphicFlag);
@@ -438,21 +523,21 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   sp->DocFontSize = DocFontSize;
   sp->ListFontSize = ListFontSize;
   sp->TracerFontSize = TracerFontSize;
-  strncpy(sp->SystemFont,SystemFont,255);
-  sp->SystemFont[255] = '\0';
-  strncpy(sp->PlayerFont,PlayerFont,255);
-  sp->PlayerFont[255] = '\0';
-  strncpy(sp->WrdFont,WrdFont,255);
-  sp->WrdFont[255] = '\0';
-  strncpy(sp->DocFont,DocFont,255);
-  DocFont[255] = '\0';
-  strncpy(sp->ListFont,ListFont,255);
-  sp->ListFont[255] = '\0';
-  strncpy(sp->TracerFont,TracerFont,255);
-  sp->TracerFont[255] = '\0';
+  strncpy(sp->SystemFont,SystemFont,LF_FULLFACESIZE + 1);
+  sp->SystemFont[LF_FULLFACESIZE] = '\0';
+  strncpy(sp->PlayerFont,PlayerFont,LF_FULLFACESIZE + 1);
+  sp->PlayerFont[LF_FULLFACESIZE] = '\0';
+  strncpy(sp->WrdFont,WrdFont,LF_FULLFACESIZE + 1);
+  sp->WrdFont[LF_FULLFACESIZE] = '\0';
+  strncpy(sp->DocFont,DocFont,LF_FULLFACESIZE + 1);
+  DocFont[LF_FULLFACESIZE] = '\0';
+  strncpy(sp->ListFont,ListFont,LF_FULLFACESIZE + 1);
+  sp->ListFont[LF_FULLFACESIZE] = '\0';
+  strncpy(sp->TracerFont,TracerFont,LF_FULLFACESIZE + 1);
+  sp->TracerFont[LF_FULLFACESIZE] = '\0';
   sp->DocMaxSize = DocMaxSize;
-  strncpy(sp->DocFileExt,DocFileExt,255);
-  sp->DocFileExt[255] = '\0';
+  strncpy(sp->DocFileExt,DocFileExt,256);
+  sp->DocFileExt[256 - 1] = '\0';
   sp->PlayerLanguage = PlayerLanguage;
   sp->DocWndIndependent = DocWndIndependent; 
   sp->DocWndAutoPopup = DocWndAutoPopup; 
@@ -462,6 +547,8 @@ SaveSettingPlayer(SETTING_PLAYER *sp)
   sp->AutoloadPlaylist = AutoloadPlaylist;
   sp->AutosavePlaylist = AutosavePlaylist;
   sp->PosSizeSave = PosSizeSave;
+///r
+	sp->main_panel_update_time = main_panel_update_time;
 }
 
 extern int set_play_mode(char *cp);
@@ -479,13 +566,19 @@ static int is_device_output_ID(int id)
     return id == 'd' || id == 'n' || id == 'e';
 }
 
-#ifdef IA_W32G_SYN
-extern int w32g_syn_id_port[];
-extern int syn_AutoStart;
-extern DWORD processPriority;
+#if defined(WINDRV_SETUP)
 extern DWORD syn_ThreadPriority;
 extern int w32g_syn_port_num;
 extern int volatile stream_max_compute;
+uint32 opt_rtsyn_latency = 200; /* RTSYN_LATENCY=0.2 */
+#elif defined(IA_W32G_SYN)
+extern int w32g_syn_id_port[];
+extern int syn_AutoStart;
+//extern DWORD processPriority;
+extern DWORD syn_ThreadPriority;
+extern int w32g_syn_port_num;
+extern int volatile stream_max_compute;
+uint32 opt_rtsyn_latency = 200; /* RTSYN_LATENCY=0.2 */
 #endif
 
 void
@@ -493,16 +586,31 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 {
     int i;
     char buffer[INI_MAXLEN];
+	
+    if (*st->opt_playmode != '\0')
+	set_play_mode(st->opt_playmode);
 
     /* Player must be stopped.
      * DANGER to apply settings while playing.
      */
     amplification = SetValue(st->amplification, 0, MAX_AMPLIFICATION);
+    output_amplification = SetValue(st->output_amplification, 0, MAX_AMPLIFICATION);
     antialiasing_allowed = SetFlag(st->antialiasing_allowed);
     if(st->buffer_fragments == -1)
 	opt_buffer_fragments = -1;
     else
-	opt_buffer_fragments = SetValue(st->buffer_fragments, 3, 1000);
+	opt_buffer_fragments = SetValue(st->buffer_fragments, 2, 4096);
+    if(st->audio_buffer_bits == -1)
+	opt_audio_buffer_bits = -1;
+    else
+	opt_audio_buffer_bits = SetValue(st->audio_buffer_bits, 5, 12);
+///r
+    if(st->compute_buffer_bits == -128)
+		opt_compute_buffer_bits = -128;
+    else
+		opt_compute_buffer_bits = SetValue(st->compute_buffer_bits, -5, 10);
+    if(opt_audio_buffer_bits != -1)
+		opt_compute_buffer_bits = SetValue(opt_compute_buffer_bits, -5, opt_audio_buffer_bits - 1);
     default_drumchannels = st->default_drumchannels;
     default_drumchannel_mask = st->default_drumchannel_mask;
     opt_modulation_wheel = SetFlag(st->opt_modulation_wheel);
@@ -511,14 +619,18 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     opt_channel_pressure = SetFlag(st->opt_channel_pressure);
     opt_trace_text_meta_event = SetFlag(st->opt_trace_text_meta_event);
     opt_overlap_voice_allow = SetFlag(st->opt_overlap_voice_allow);
+///r
+	opt_overlap_voice_count = SetValue(st->opt_overlap_voice_count, 0, 512);
+	opt_max_channel_voices = SetValue(st->opt_max_channel_voices, 4, 512);
+
     opt_default_mid = st->opt_default_mid;
+	opt_system_mid = st->opt_system_mid;
     default_tonebank = st->default_tonebank;
     special_tonebank = st->special_tonebank;
-    effect_lr_mode = st->effect_lr_mode;
-    effect_lr_delay_msec = st->effect_lr_delay_msec;
     opt_reverb_control = st->opt_reverb_control;
     opt_chorus_control = st->opt_chorus_control;
 	opt_surround_chorus = st->opt_surround_chorus;
+	opt_normal_chorus_plus = st->opt_normal_chorus_plus;
     noise_sharp_type = st->noise_sharp_type;
     opt_evil_mode = st->opt_evil_mode;
 	opt_tva_attack = st->opt_tva_attack;
@@ -527,39 +639,45 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	opt_delay_control = st->opt_delay_control;
 	opt_default_module = st->opt_default_module;
 	opt_lpf_def = st->opt_lpf_def;
+	opt_hpf_def = st->opt_hpf_def;
 	opt_drum_effect = st->opt_drum_effect;
 	opt_modulation_envelope = st->opt_modulation_envelope;
-	opt_pan_delay = st->opt_pan_delay;
 	opt_eq_control = st->opt_eq_control;
 	opt_insertion_effect = st->opt_insertion_effect;
     adjust_panning_immediately = SetFlag(st->adjust_panning_immediately);
-    fast_decay = SetFlag(st->fast_decay);
+    opt_fast_decay = SetFlag(st->opt_fast_decay);
+    fast_decay = opt_fast_decay;
+    min_sustain_time = st->min_sustain_time;
+    opt_print_fontname = st->opt_print_fontname;
 #ifdef SUPPORT_SOUNDSPEC
     view_soundspec_flag = SetFlag(st->view_soundspec_flag);
-    spectrigram_update_sec = st->spectrigram_update_sec;
+    spectrogram_update_sec = st->spectrogram_update_sec;
 #endif
-    for(i = 0; i < MAX_CHANNELS; i++)
-	default_program[i] = st->default_program[i];
+///r
+    for(i = 0; i < MAX_CHANNELS; i++){
+		default_program[i] = st->default_program[i];
+		special_program[i] = st->special_program[i];
+	}
     set_ctl(st->opt_ctl);
     opt_realtime_playing = SetFlag(st->opt_realtime_playing);
-    reduce_voice_threshold = st->reduce_voice_threshold;
-    if (*st->opt_playmode != '\0')
-	set_play_mode(st->opt_playmode);
-    strncpy(OutputName,st->OutputName,MAXPATH);
+	
+    strncpy(OutputName, st->OutputName, FILEPATH_MAX);
 #if 0
-    if(OutputName[0] && !is_device_output_ID(play_mode->id_character))
-		play_mode->name = strdup(OutputName);		// ƒƒ‚ƒŠƒŠ[ƒN‚·‚é‚©‚ÈH ‚Í‚¸‚·‚Æ‚¾‚ß‚¾‚µB
-#else
-    if(OutputName[0] && !is_device_output_ID(play_mode->id_character))
+    if (OutputName[0] && !is_device_output_ID(play_mode->id_character))
+		play_mode->name = safe_strdup(OutputName);		// ƒƒ‚ƒŠƒŠ[ƒN‚·‚é‚©‚ÈH ‚Í‚¸‚·‚Æ‚¾‚ß‚¾‚µB
+#elif 0
+    if (OutputName[0] && !is_device_output_ID(play_mode->id_character))
 		play_mode->name = OutputName;
+#else
+    if (OutputName[0] && !is_device_output_ID(play_mode->id_character))
+		play_mode->name = strdup(OutputName);
 #endif
-    strncpy(w32g_output_dir,st->OutputDirName,MAXPATH);
-	w32g_output_dir[MAXPATH-1] = '\0';
+    strncpy(w32g_output_dir,st->OutputDirName,FILEPATH_MAX);
+	w32g_output_dir[FILEPATH_MAX-1] = '\0';
 	w32g_auto_output_mode = st->auto_output_mode;
     opt_output_rate = st->output_rate;
     if(st->output_rate)
-	play_mode->rate = SetValue(st->output_rate,
-				   MIN_OUTPUT_RATE, MAX_OUTPUT_RATE);
+	play_mode->rate = SetValue(st->output_rate, MIN_OUTPUT_RATE, MAX_OUTPUT_RATE);
     else if(play_mode->rate == 0)
 	play_mode->rate = DEFAULT_RATE;
     voices = st->voices;
@@ -567,27 +685,63 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	auto_reduce_polyphony = st->auto_reduce_polyphony;
     quietchannels = st->quietchannels;
     temper_type_mute = st->temper_type_mute;
-    if(opt_aq_max_buff)
-	free(opt_aq_max_buff);
-    if(opt_aq_fill_buff && opt_aq_fill_buff_free_needed)
-	free(opt_aq_fill_buff);
+    safe_free(opt_aq_max_buff);
+    opt_aq_max_buff = NULL;
+    safe_free(opt_aq_fill_buff);
+    opt_aq_fill_buff = NULL;
+
+    safe_free(opt_reduce_voice_threshold);
+    opt_reduce_voice_threshold = NULL;
+    safe_free(opt_reduce_quality_threshold);
+    opt_reduce_quality_threshold = NULL;
+    safe_free(opt_reduce_polyphony_threshold);
+    opt_reduce_polyphony_threshold = NULL;
     strcpy(buffer, st->opt_qsize);
     opt_aq_max_buff = buffer;
     opt_aq_fill_buff = strchr(opt_aq_max_buff, '/');
     *opt_aq_fill_buff++ = '\0';
     opt_aq_max_buff = safe_strdup(opt_aq_max_buff);
     opt_aq_fill_buff = safe_strdup(opt_aq_fill_buff);
+///r
+	opt_reduce_voice_threshold = safe_strdup(st->reduce_voice_threshold);
+    opt_reduce_quality_threshold = safe_strdup(st->reduce_quality_threshold);
+    opt_reduce_polyphony_threshold = safe_strdup(st->reduce_polyphony_threshold);
     modify_release = SetValue(st->modify_release, 0, MAX_MREL);
     allocate_cache_size = st->allocate_cache_size;
 	key_adjust = st->key_adjust;
 	opt_force_keysig = st->opt_force_keysig;
 	opt_pure_intonation = st->opt_pure_intonation;
 	opt_init_keysig = st->opt_init_keysig;
-    if(output_text_code)
-	free(output_text_code);
+    safe_free(output_text_code);
     output_text_code = safe_strdup(st->output_text_code);
     free_instruments_afterwards = st->free_instruments_afterwards;
+	opt_user_volume_curve = st->opt_user_volume_curve;
+	if (opt_user_volume_curve != 0)
+		init_user_vol_table(opt_user_volume_curve);
     set_wrd(st->opt_wrd);
+///r
+#ifdef AU_W32
+	opt_wmme_device_id = st->wmme_device_id;
+	opt_wave_format_ext = st->wave_format_ext;
+#endif
+#ifdef AU_PORTAUDIO
+	opt_pa_wmme_device_id = st->pa_wmme_device_id;
+	opt_pa_ds_device_id = st->pa_ds_device_id;
+	opt_pa_asio_device_id = st->pa_asio_device_id;
+#ifdef PORTAUDIO_V19
+	opt_pa_wdmks_device_id = st->pa_wdmks_device_id;
+	opt_pa_wasapi_device_id = st->pa_wasapi_device_id;
+	opt_pa_wasapi_flag = st->pa_wasapi_flag;
+	opt_pa_wasapi_stream_category = st->pa_wasapi_stream_category;
+	opt_pa_wasapi_stream_option = st->pa_wasapi_stream_option;
+#endif
+#endif
+	opt_resample_type = st->opt_resample_type;
+	opt_resample_param = st->opt_resample_param;
+	opt_resample_filter = st->opt_resample_filter;
+	opt_resample_over_sampling = st->opt_resample_over_sampling;
+	opt_pre_resamplation = st->opt_pre_resamplation;
+
 #if defined(__W32__) && defined(SMFCONV)
     opt_rcpcv_dll = st->opt_rcpcv_dll;
 #endif /* SMFCONV */
@@ -602,19 +756,66 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     }
 	opt_drum_power = SetValue(st->opt_drum_power, 0, MAX_AMPLIFICATION);
 	opt_amp_compensation = st->opt_amp_compensation;
-    data_block_bits = st->data_block_bits;
-    data_block_num = st->data_block_num;
+//    data_block_bits = st->data_block_bits;
+//    data_block_num = st->data_block_num;
+#ifdef AU_W32
+    opt_wmme_buffer_bits = st->wmme_buffer_bits;
+    opt_wmme_buffer_num = st->wmme_buffer_num;
+#endif
 
-#ifdef IA_W32G_SYN
+	add_play_time = st->add_play_time;
+    add_silent_time = st->add_silent_time;
+	emu_delay_time = st->emu_delay_time;
+
+	opt_limiter = st->opt_limiter;	
+	opt_mix_envelope = st->opt_mix_envelope;
+	opt_modulation_update = st->opt_modulation_update;
+	opt_cut_short_time = st->opt_cut_short_time;
+    opt_use_midi_loop_repeat = SetFlag(st->opt_use_midi_loop_repeat);
+    opt_midi_loop_repeat = SetValue(st->opt_midi_loop_repeat, 0, 99);
+	
+#if defined(WINDRV_SETUP)
+//	processPriority = st->processPriority;
+	syn_ThreadPriority = st->syn_ThreadPriority;
+	stream_max_compute = st->SynShTime;
+	opt_rtsyn_latency = SetValue(st->opt_rtsyn_latency, 20, 1000);
+	rtsyn_set_latency((double)opt_rtsyn_latency * 0.001);
+#elif defined(IA_W32G_SYN)
 	for ( i = 0; i < MAX_PORT; i ++ ) {
 		w32g_syn_id_port[i] = st->SynIDPort[i];
 	}
 	syn_AutoStart = st->syn_AutoStart;
-	processPriority = st->processPriority;
+//	processPriority = st->processPriority;
 	syn_ThreadPriority = st->syn_ThreadPriority;
 	w32g_syn_port_num = st->SynPortNum;
 	stream_max_compute = st->SynShTime;
+	opt_rtsyn_latency = SetValue(st->opt_rtsyn_latency, 20, 1000);
+	rtsyn_set_latency((double)opt_rtsyn_latency * 0.001);
 #endif
+///r
+	processPriority = st->processPriority;
+	compute_thread_num = st->compute_thread_num;
+#ifdef USE_TRACE_TIMER	
+	trace_mode_update_time = st->trace_mode_update_time;
+#endif
+	opt_load_all_instrument = st->opt_load_all_instrument;
+	
+///r
+#ifdef SUPPORT_SOUNDSPEC
+	soundspec_setinterval(spectrogram_update_sec); // need playmode rate
+#endif
+	
+#ifdef USE_TRACE_TIMER	
+	set_trace_mode_update_time();
+#endif
+
+ //   if (*st->opt_playmode != '\0')
+	//set_play_mode(st->opt_playmode);
+	
+    /* for INT_SYNTH */
+	opt_int_synth_sine = st->opt_int_synth_sine;
+	opt_int_synth_rate = st->opt_int_synth_rate;
+	opt_int_synth_update = st->opt_int_synth_update;
 }
 
 void
@@ -623,50 +824,67 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
     int i, j;
 
     st->amplification = SetValue(amplification, 0, MAX_AMPLIFICATION);
+    st->output_amplification = SetValue(output_amplification, 0, MAX_AMPLIFICATION);
     st->antialiasing_allowed = SetFlag(antialiasing_allowed);
     st->buffer_fragments = opt_buffer_fragments;
+///r
+    st->audio_buffer_bits = opt_audio_buffer_bits; //  = audio_buffer_bits; // 
+    st->compute_buffer_bits = opt_compute_buffer_bits;
+
     st->control_ratio = SetValue(opt_control_ratio, 0, MAX_CONTROL_RATIO);
-    st->default_drumchannels = default_drumchannels;
-    st->default_drumchannel_mask = default_drumchannel_mask;
+    //st->default_drumchannels = default_drumchannels;
+    //st->default_drumchannel_mask = default_drumchannel_mask;
+    //CopyMemory(&st->default_drumchannels, &default_drumchannels, sizeof(ChannelBitMask));
+    //CopyMemory(&st->default_drumchannel_mask, &default_drumchannel_mask, sizeof(ChannelBitMask));
+    COPY_CHANNELMASK(st->default_drumchannels, default_drumchannels);
+    COPY_CHANNELMASK(st->default_drumchannel_mask, default_drumchannel_mask);
     st->opt_modulation_wheel = SetFlag(opt_modulation_wheel);
     st->opt_portamento = SetFlag(opt_portamento);
     st->opt_nrpn_vibrato = SetFlag(opt_nrpn_vibrato);
     st->opt_channel_pressure = SetFlag(opt_channel_pressure);
     st->opt_trace_text_meta_event = SetFlag(opt_trace_text_meta_event);
     st->opt_overlap_voice_allow = SetFlag(opt_overlap_voice_allow);
+///r
+    st->opt_overlap_voice_count = SetValue(opt_overlap_voice_count, 0, 512);
+    st->opt_max_channel_voices = SetValue(opt_max_channel_voices, 4, 512);
+
     st->opt_default_mid = opt_default_mid;
+	st->opt_system_mid = opt_system_mid;
     st->default_tonebank = default_tonebank;
     st->special_tonebank = special_tonebank;
-    st->effect_lr_mode = effect_lr_mode;
-    st->effect_lr_delay_msec = effect_lr_delay_msec;
     st->opt_reverb_control = opt_reverb_control;
     st->opt_chorus_control = opt_chorus_control;
 	st->opt_surround_chorus = opt_surround_chorus;
+	st->opt_normal_chorus_plus = opt_normal_chorus_plus;
 	st->opt_tva_attack = opt_tva_attack;
 	st->opt_tva_decay = opt_tva_decay;
 	st->opt_tva_release = opt_tva_release;
 	st->opt_delay_control = opt_delay_control;
 	st->opt_default_module = opt_default_module;
 	st->opt_lpf_def = opt_lpf_def;
+	st->opt_hpf_def = opt_hpf_def;
 	st->opt_drum_effect = opt_drum_effect;
 	st->opt_modulation_envelope = opt_modulation_envelope;
-	st->opt_pan_delay = opt_pan_delay;
 	st->opt_eq_control = opt_eq_control;
 	st->opt_insertion_effect = opt_insertion_effect;
     st->noise_sharp_type = noise_sharp_type;
     st->opt_evil_mode = SetFlag(opt_evil_mode);
     st->adjust_panning_immediately = SetFlag(adjust_panning_immediately);
-    st->fast_decay = SetFlag(fast_decay);
+    st->opt_fast_decay = SetFlag(opt_fast_decay);
+    st->min_sustain_time = min_sustain_time;
+    st->opt_print_fontname = opt_print_fontname;
 #ifdef SUPPORT_SOUNDSPEC
     st->view_soundspec_flag = SetFlag(view_soundspec_flag);
-    st->spectrigram_update_sec = spectrigram_update_sec;
+    st->spectrogram_update_sec = spectrogram_update_sec;
 #endif
+///r
     for(i = 0; i < MAX_CHANNELS; i++)
     {
-	if(def_instr_name[0])
-	    st->default_program[i] = SPECIAL_PROGRAM;
-	else
-	    st->default_program[i] = default_program[i];
+		st->special_program[i] = special_program[i];
+		if(def_instr_name[0])
+			st->default_program[i] = SPECIAL_PROGRAM;
+		else
+			st->default_program[i] = default_program[i];
     }
     j = 0;
     st->opt_ctl[j++] = ctl->id_character;
@@ -696,12 +914,17 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_ctl[j++] = 'C';
     st->opt_ctl[j] = '\0';
     st->opt_realtime_playing = SetFlag(opt_realtime_playing);
-    st->reduce_voice_threshold = reduce_voice_threshold;
+
     j = 0;
     st->opt_playmode[j++] = play_mode->id_character;
     st->opt_playmode[j++] = ((play_mode->encoding & PE_MONO) ? 'M' : 'S');
     st->opt_playmode[j++] = ((play_mode->encoding & PE_SIGNED) ? 's' : 'u');
-	if (play_mode->encoding & PE_24BIT) {st->opt_playmode[j++] = '2';}
+///r
+	if (play_mode->encoding & PE_F64BIT) {st->opt_playmode[j++] = 'D';}
+	else if (play_mode->encoding & PE_F32BIT) {st->opt_playmode[j++] = 'f';}
+	else if (play_mode->encoding & PE_64BIT) {st->opt_playmode[j++] = '6';}
+	else if (play_mode->encoding & PE_32BIT) {st->opt_playmode[j++] = '3';}
+	else if (play_mode->encoding & PE_24BIT) {st->opt_playmode[j++] = '2';}
 	else if (play_mode->encoding & PE_16BIT) {st->opt_playmode[j++] = '1';}
 	else {st->opt_playmode[j++] = '8';}
     if(play_mode->encoding & PE_ULAW)
@@ -714,15 +937,20 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_playmode[j++] = 'x';
     st->opt_playmode[j] = '\0';
     strncpy(st->OutputName,OutputName,sizeof(st->OutputName)-1);
-	strncpy(st->OutputDirName,w32g_output_dir,MAXPATH);
-	st->OutputDirName[MAXPATH-1] = '\0';
+	strncpy(st->OutputDirName,w32g_output_dir,FILEPATH_MAX);
+	st->OutputDirName[FILEPATH_MAX-1] = '\0';
 	st->auto_output_mode = w32g_auto_output_mode;
     st->voices = voices;
 	st->auto_reduce_polyphony = auto_reduce_polyphony;
-    st->quietchannels = quietchannels;
+    //st->quietchannels = quietchannels;
+    //CopyMemory(&st->quietchannels, &quietchannels, sizeof(ChannelBitMask));
+    COPY_CHANNELMASK(st->quietchannels, quietchannels);
     st->temper_type_mute = temper_type_mute;
     snprintf(st->opt_qsize,sizeof(st->opt_qsize),"%s/%s",
 	     opt_aq_max_buff,opt_aq_fill_buff);
+    strncpy(st->reduce_voice_threshold, opt_reduce_voice_threshold, sizeof(st->reduce_voice_threshold));
+    strncpy(st->reduce_quality_threshold, opt_reduce_quality_threshold, sizeof(st->reduce_quality_threshold));
+    strncpy(st->reduce_polyphony_threshold, opt_reduce_polyphony_threshold, sizeof(st->reduce_polyphony_threshold));
     st->modify_release = SetValue(modify_release, 0, MAX_MREL);
     st->allocate_cache_size = allocate_cache_size;
 	st->opt_drum_power = SetValue(opt_drum_power, 0, MAX_AMPLIFICATION);
@@ -739,29 +967,88 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	    st->output_rate = DEFAULT_RATE;
     }
     st->output_rate = SetValue(st->output_rate,MIN_OUTPUT_RATE,MAX_OUTPUT_RATE);
-    strncpy(st->output_text_code,output_text_code,sizeof(st->output_text_code)-1);
-    st->free_instruments_afterwards = free_instruments_afterwards;
+    if(output_text_code)
+	strncpy(st->output_text_code,output_text_code,sizeof(st->output_text_code)-1);
+    else
+	strncpy(st->output_text_code,OUTPUT_TEXT_CODE,sizeof(st->output_text_code)-1);
+    st->free_instruments_afterwards = free_instruments_afterwards;	
+	st->opt_user_volume_curve = opt_user_volume_curve;
     st->opt_wrd[0] = wrdt->id;
     if(wrdt_open_opts)
 	strncpy(st->opt_wrd + 1, wrdt_open_opts, sizeof(st->opt_wrd) - 2);
     else
 	st->opt_wrd[1] = '\0';
+///r
+#ifdef AU_W32
+	st->wmme_device_id = opt_wmme_device_id;
+	st->wave_format_ext = SetValue(opt_wave_format_ext, 0, 1);
+#endif
+#ifdef AU_PORTAUDIO
+	st->pa_wmme_device_id = opt_pa_wmme_device_id;
+	st->pa_ds_device_id = opt_pa_ds_device_id;
+	st->pa_asio_device_id = opt_pa_asio_device_id;
+#ifdef PORTAUDIO_V19
+	st->pa_wdmks_device_id = opt_pa_wdmks_device_id;
+	st->pa_wasapi_device_id = opt_pa_wasapi_device_id;
+	st->pa_wasapi_flag = opt_pa_wasapi_flag;
+	st->pa_wasapi_stream_category = opt_pa_wasapi_stream_category;
+	st->pa_wasapi_stream_option = opt_pa_wasapi_stream_option;
+#endif
+#endif
+	st->opt_resample_type = SetValue(opt_resample_type, 0, RESAMPLE_MAX);
+	st->opt_resample_param = opt_resample_param;
+	st->opt_resample_filter = opt_resample_filter;
+	st->opt_resample_over_sampling = opt_resample_over_sampling;
+	st->opt_pre_resamplation = opt_pre_resamplation;
+
 #if defined(__W32__) && defined(SMFCONV)
     st->opt_rcpcv_dll = opt_rcpcv_dll;
 #endif /* SMFCONV */
-  st->data_block_bits = data_block_bits;
-  st->data_block_num = data_block_num;
-
-#ifdef IA_W32G_SYN
+//  st->data_block_bits = data_block_bits;
+//  st->data_block_num = data_block_num;
+#ifdef AU_W32
+	st->wmme_buffer_bits = opt_wmme_buffer_bits;
+	st->wmme_buffer_num = opt_wmme_buffer_num;
+#endif
+	st->add_play_time = add_play_time;
+	st->add_silent_time = add_silent_time;
+	st->emu_delay_time = emu_delay_time;
+	st->opt_limiter = opt_limiter;
+    st->opt_use_midi_loop_repeat = SetValue(opt_use_midi_loop_repeat, 0, 1);
+    st->opt_midi_loop_repeat = opt_midi_loop_repeat;
+  
+	st->opt_mix_envelope = opt_mix_envelope;
+	st->opt_modulation_update = opt_modulation_update;
+	st->opt_cut_short_time = opt_cut_short_time;
+	
+#if defined(WINDRV_SETUP)
+//	st->processPriority = processPriority;
+	st->syn_ThreadPriority = syn_ThreadPriority;
+	st->SynShTime = stream_max_compute;
+	st->opt_rtsyn_latency = opt_rtsyn_latency;
+#elif defined(IA_W32G_SYN)
 	for ( i = 0; i < MAX_PORT; i ++ ) {
 		st->SynIDPort[i] = w32g_syn_id_port[i];
 	}
 	st->syn_AutoStart = syn_AutoStart;
-	st->processPriority = processPriority;
+//	st->processPriority = processPriority;
 	st->syn_ThreadPriority = syn_ThreadPriority;
 	st->SynPortNum = w32g_syn_port_num;
 	st->SynShTime = stream_max_compute;
+	st->opt_rtsyn_latency = opt_rtsyn_latency;
 #endif
+///r
+	st->processPriority = processPriority;
+	st->compute_thread_num = compute_thread_num;	
+#ifdef USE_TRACE_TIMER	
+	st->trace_mode_update_time = trace_mode_update_time;
+#endif
+	st->opt_load_all_instrument = opt_load_all_instrument;
+	
+    /* for INT_SYNTH */
+	st->opt_int_synth_sine = opt_int_synth_sine;
+	st->opt_int_synth_rate = opt_int_synth_rate;
+	st->opt_int_synth_update = opt_int_synth_update;
 }
 
 
@@ -772,25 +1059,25 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 //****************************************************************************/
 // ini & config
 
-static char S_IniFile[MAXPATH + 32];
-static char S_timidity_window_inifile[MAXPATH + 32];
-static char S_timidity_output_inifile[MAXPATH + 32];
-static char S_ConfigFile[MAXPATH + 32];
-static char S_PlaylistFile[MAXPATH + 32];
-static char S_PlaylistHistoryFile[MAXPATH + 32];
-static char S_MidiFileOpenDir[MAXPATH + 32];
-static char S_ConfigFileOpenDir[MAXPATH + 32];
-static char S_PlaylistFileOpenDir[MAXPATH + 32];
+static char S_IniFile[FILEPATH_MAX];
+static char S_timidity_window_inifile[FILEPATH_MAX];
+static char S_timidity_output_inifile[FILEPATH_MAX];
+static char S_ConfigFile[FILEPATH_MAX];
+static char S_PlaylistFile[FILEPATH_MAX];
+static char S_PlaylistHistoryFile[FILEPATH_MAX];
+static char S_MidiFileOpenDir[FILEPATH_MAX];
+static char S_ConfigFileOpenDir[FILEPATH_MAX];
+static char S_PlaylistFileOpenDir[FILEPATH_MAX];
 static char S_DocFileExt[256];
-static char S_OutputName[MAXPATH + 32];
+static char S_OutputName[FILEPATH_MAX];
 char *OutputName;
-static char S_w32g_output_dir[1024 + 32];
-static char S_SystemFont[256];
-static char S_PlayerFont[256];
-static char S_WrdFont[256];
-static char S_DocFont[256];
-static char S_ListFont[256];
-static char S_TracerFont[256];
+static char S_w32g_output_dir[FILEPATH_MAX];
+static char S_SystemFont[LF_FULLFACESIZE + 1];
+static char S_PlayerFont[LF_FULLFACESIZE + 1];
+static char S_WrdFont[LF_FULLFACESIZE + 1];
+static char S_DocFont[LF_FULLFACESIZE + 1];
+static char S_ListFont[LF_FULLFACESIZE + 1];
+static char S_TracerFont[LF_FULLFACESIZE + 1];
 char *SystemFont = S_SystemFont;
 char *PlayerFont = S_PlayerFont;
 char *WrdFont = S_WrdFont;
@@ -828,20 +1115,133 @@ extern int vorbis_ConfigDialogInfoInit(void);
 extern int vorbis_ConfigDialogInfoSaveINI(void);
 extern int vorbis_ConfigDialogInfoLoadINI(void);
 #endif
+#ifdef AU_FLAC
+extern int flac_ConfigDialogInfoInit(void);
+extern int flac_ConfigDialogInfoSaveINI(void);
+extern int flac_ConfigDialogInfoLoadINI(void);
+#endif
 
 void w32g_uninitialize(void)
 {
-	if(sp_default != NULL) free(sp_default);
-	if(st_default != NULL) free(st_default);
-	if(sp_current != NULL) free(sp_current);
-	if(st_current != NULL) free(st_current);
-	if(sp_temp != NULL) free(sp_temp);
-	if(st_temp != NULL) free(st_temp);
+	safe_free(sp_default);
+	sp_default = NULL;
+	safe_free(st_default);
+	st_default = NULL;
+	safe_free(sp_current);
+	sp_current = NULL;
+	safe_free(st_current);
+	st_current = NULL;
+	safe_free(sp_temp);
+	sp_temp = NULL;
+	safe_free(st_temp);
+	st_temp = NULL;
 }
+
+#ifdef KBTIM_SETUP
+extern void get_ini_path(char *ini);
 
 void w32g_initialize(void)
 {
-    char buffer[MAXPATH + 1024];
+    char buffer[FILEPATH_MAX] = {0};
+    char *p;
+
+    IniFile = S_IniFile;
+    ConfigFile = S_ConfigFile;
+    PlaylistFile = S_PlaylistFile;
+    PlaylistHistoryFile = S_PlaylistHistoryFile;
+    MidiFileOpenDir = S_MidiFileOpenDir;
+    ConfigFileOpenDir = S_ConfigFileOpenDir;
+    PlaylistFileOpenDir = S_PlaylistFileOpenDir;
+    DocFileExt = S_DocFileExt;
+    OutputName = S_OutputName;
+	w32g_output_dir = S_w32g_output_dir;
+    switch (PRIMARYLANGID(GetUserDefaultLangID()))
+    {
+    case LANG_JAPANESE:
+	PlayerLanguage = LANGUAGE_JAPANESE;
+	break;
+    default:
+	PlayerLanguage = LANGUAGE_ENGLISH;
+	break;
+    }
+  
+    IniFile[0] = '\0';
+    ConfigFile[0] = '\0';
+    PlaylistFile[0] = '\0';
+    PlaylistHistoryFile[0] = '\0';
+    MidiFileOpenDir[0] = '\0';
+    ConfigFileOpenDir[0] = '\0';
+    PlaylistFileOpenDir[0] = '\0';
+    OutputName[0] = '\0';
+	w32g_output_dir[0] = '\0';
+
+    strcpy(DocFileExt,DEFAULT_DOCFILEEXT);
+    strcpy(SystemFont,"‚l‚r –¾’©");
+    strcpy(PlayerFont,"‚l‚r –¾’©");
+    strcpy(WrdFont,"‚l‚r –¾’©");
+    strcpy(DocFont,"‚l‚r –¾’©");
+    strcpy(ListFont,"‚l‚r –¾’©");
+    strcpy(TracerFont,"‚l‚r –¾’©");
+
+	get_ini_path(IniFile);
+
+    st_default = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
+    sp_default = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+    st_current = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
+    sp_current = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+    st_temp = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
+    sp_temp = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+
+    memset(sp_current, 0, sizeof(SETTING_PLAYER));
+    memset(st_current, 0, sizeof(SETTING_TIMIDITY));
+    memset(sp_default, 0, sizeof(SETTING_PLAYER));
+    memset(st_default, 0, sizeof(SETTING_TIMIDITY));
+    memset(sp_temp, 0, sizeof(SETTING_PLAYER));
+    memset(st_temp, 0, sizeof(SETTING_TIMIDITY));
+
+    SaveSettingPlayer(sp_current);
+    SaveSettingTiMidity(st_current);
+    if(IniVersionCheck())
+    {
+	LoadIniFile(sp_current, st_current);
+	ApplySettingPlayer(sp_current);
+	ApplySettingTiMidity(st_current);
+	w32g_has_ini_file = 1;
+    }
+    else
+    {
+	sprintf(buffer,
+"Ini file is not found, or old format is found.\n"
+"Do you want to initialize the ini file?\n\n"
+"Ini file path: %s",
+		IniFile);
+
+	if(MessageBox(0, buffer, "TiMidity Notice", MB_YESNO) == IDYES)
+	{
+	    SaveIniFile(sp_current, st_current);
+	    w32g_has_ini_file = 1;
+	}
+	else
+	{
+	    w32g_has_ini_file = 0;
+	}
+    }
+
+    memcpy(sp_default, sp_current, sizeof(SETTING_PLAYER));
+    memcpy(st_default, st_current, sizeof(SETTING_TIMIDITY));
+
+    memcpy(sp_temp, sp_current, sizeof(SETTING_PLAYER));
+    memcpy(st_temp, st_current, sizeof(SETTING_TIMIDITY));
+
+	wrdt=wrdt_list[0];
+}
+
+
+#else
+
+void w32g_initialize(void)
+{
+    char buffer[FILEPATH_MAX] = {0};
     char *p;
 
     hInst = GetModuleHandle(0);
@@ -884,7 +1284,19 @@ void w32g_initialize(void)
     strcpy(ListFont,"‚l‚r –¾’©");
     strcpy(TracerFont,"‚l‚r –¾’©");
 
-    if(GetModuleFileName(hInst, buffer, MAXPATH))
+#if defined(WINDRV)
+    if (GetWindowsDirectory(buffer, FILEPATH_MAX - 12 - 1))
+    {
+	directory_form(buffer);
+    }
+    else
+    {
+	buffer[0] = '.';
+	buffer[1] = PATH_SEP;
+	buffer[2] = '\0';
+    }
+#else
+    if(GetModuleFileName(hInst, buffer, FILEPATH_MAX - 1))
     {
 	if((p = pathsep_strrchr(buffer)) != NULL)
 	{
@@ -904,25 +1316,47 @@ void w32g_initialize(void)
 	buffer[1] = PATH_SEP;
 	buffer[2] = '\0';
     }
+#endif /* WINDRV */
+
 	// timpp32g.ini
-    strncpy(IniFile, buffer, MAXPATH);
-    IniFile[MAXPATH] = '\0';
+    strncpy(IniFile, buffer, FILEPATH_MAX);
+    IniFile[FILEPATH_MAX - 1] = '\0';
+///r
+#if defined(TIMDRVINI)
+    strcat(IniFile,"timdrv.ini");
+#elif defined(TWSYNG32INI)
+    strcat(IniFile,"twsyng32.ini");
+#else
     strcat(IniFile,"timpp32g.ini");
+#endif
 	// timidity_window.ini
 	timidity_window_inifile = S_timidity_window_inifile;
-	strncpy(timidity_window_inifile, buffer, 200);
-    timidity_window_inifile[200] = '\0';
-    strcat(timidity_window_inifile,"timidity_window.ini");
+	strncpy(timidity_window_inifile, buffer, FILEPATH_MAX);
+    timidity_window_inifile[FILEPATH_MAX - 1] = '\0';
+    strlcat(timidity_window_inifile,"timidity_window.ini", FILEPATH_MAX);
 	// timidity_output.ini
 	timidity_output_inifile = S_timidity_output_inifile;
-	strncpy(timidity_output_inifile, buffer, 200);
-    timidity_output_inifile[200] = '\0';
-    strcat(timidity_output_inifile,"timidity_output.ini");
-  // default playlist
-	strncpy(DefaultPlaylistPath, buffer, 200);
-  DefaultPlaylistPath[200] = '\0';
-  strcat(DefaultPlaylistPath,DefaultPlaylistName);
-
+	strncpy(timidity_output_inifile, buffer, FILEPATH_MAX);
+    timidity_output_inifile[FILEPATH_MAX - 1] = '\0';
+    strlcat(timidity_output_inifile,"timidity_output.ini", FILEPATH_MAX);
+	// default playlist
+	{
+		int i, len;
+		memset(DefaultPlaylistPath, 0, sizeof(DefaultPlaylistPath));
+		for(i = 0; i < PLAYLIST_MAX; i++){		
+			strncpy(DefaultPlaylistPath[i], buffer, FILEPATH_MAX);
+			strlcat(DefaultPlaylistPath[i],"default", FILEPATH_MAX);			
+			len = strlen(DefaultPlaylistPath[i]);
+			if(i < 10)
+				DefaultPlaylistPath[i][len] = '0' + i;
+			else{
+				DefaultPlaylistPath[i][len] = '0' + i / 10;
+				DefaultPlaylistPath[i][len + 1] = '0' + i % 10;
+			}
+			strlcat(DefaultPlaylistPath[i],".pls", FILEPATH_MAX);
+		//	snprintf(DefaultPlaylistPath[i], sizeof(DefaultPlaylistPath[i]), "%sdefault%d.pls", buffer, i);	
+		}
+	}
 	//
     st_default = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
     sp_default = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
@@ -930,6 +1364,13 @@ void w32g_initialize(void)
     sp_current = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
     st_temp = (SETTING_TIMIDITY *)safe_malloc(sizeof(SETTING_TIMIDITY));
     sp_temp = (SETTING_PLAYER *)safe_malloc(sizeof(SETTING_PLAYER));
+
+    memset(sp_current, 0, sizeof(SETTING_PLAYER));
+    memset(st_current, 0, sizeof(SETTING_TIMIDITY));
+    memset(sp_default, 0, sizeof(SETTING_PLAYER));
+    memset(st_default, 0, sizeof(SETTING_TIMIDITY));
+    memset(sp_temp, 0, sizeof(SETTING_PLAYER));
+    memset(st_temp, 0, sizeof(SETTING_TIMIDITY));
 
 	{
 		DWORD dwRes;
@@ -939,6 +1380,12 @@ void w32g_initialize(void)
 #ifdef AU_VORBIS
 		vorbis_ConfigDialogInfoInit();
 #endif
+#ifdef AU_LAME
+		lame_ConfigDialogInfoInit();
+#endif
+#ifdef AU_FLAC
+		flac_ConfigDialogInfoInit();
+#endif
 		dwRes = GetFileAttributes(timidity_output_inifile);
 		if(dwRes==0xFFFFFFFF || dwRes & FILE_ATTRIBUTE_DIRECTORY){
 #ifdef AU_GOGO
@@ -947,12 +1394,24 @@ void w32g_initialize(void)
 #ifdef AU_VORBIS
 			vorbis_ConfigDialogInfoSaveINI();
 #endif
+#ifdef AU_LAME
+			lame_ConfigDialogInfoSaveINI();
+#endif
+#ifdef AU_FLAC
+			flac_ConfigDialogInfoSaveINI();
+#endif
 		} else {
 #ifdef AU_GOGO
 			gogo_ConfigDialogInfoLoadINI();
 #endif
 #ifdef AU_VORBIS
 			vorbis_ConfigDialogInfoLoadINI();
+#endif
+#ifdef AU_LAME
+			lame_ConfigDialogInfoLoadINI();
+#endif
+#ifdef AU_FLAC
+			flac_ConfigDialogInfoLoadINI();
 #endif
  		}
  	}
@@ -997,10 +1456,11 @@ void w32g_initialize(void)
     w32g_i_init();
 #endif
 }
+#endif /* KBTIM_SETUP */
 
 int IniVersionCheck(void)
 {
-    char version[INI_MAXLEN];
+    char version[INI_MAXLEN] = {0};
     if(IniGetKeyStringN(INI_SEC_PLAYER,"IniVersion",version,sizeof(version)-1) == 0 &&
        strcmp(version, IniVersion) == 0)
 	return 1; // UnChanged
@@ -1012,6 +1472,46 @@ void BitBltRect(HDC dst, HDC src, RECT *rc)
     BitBlt(dst, rc->left, rc->top,
 	   rc->right - rc->left, rc->bottom - rc->top,
 	   src, rc->left, rc->top, SRCCOPY);
+}
+
+static void SafeGetFileName_DeleteSep(char *str)
+{
+    if (str && is_last_path_sep(str)) {
+	char *p = pathsep_strrchr(str);
+	*p = '\0';
+    }
+}
+
+BOOL SafeGetOpenFileName(LPOPENFILENAMEA lpofn)
+{
+    BOOL result;
+    char currentdir[FILEPATH_MAX];
+
+    if (lpofn->lpstrFile) {
+	SafeGetFileName_DeleteSep(lpofn->lpstrFile);
+    }
+
+    GetCurrentDirectoryA(FILEPATH_MAX, currentdir);
+    result = GetOpenFileNameA(lpofn);
+    SetCurrentDirectoryA(currentdir);
+
+    return result;
+}
+
+BOOL SafeGetSaveFileName(LPOPENFILENAMEA lpofn)
+{
+    BOOL result;
+    char currentdir[FILEPATH_MAX];
+
+    if (lpofn->lpstrFile) {
+	SafeGetFileName_DeleteSep(lpofn->lpstrFile);
+    }
+
+    GetCurrentDirectoryA(FILEPATH_MAX, currentdir);
+    result = GetSaveFileNameA(lpofn);
+    SetCurrentDirectoryA(currentdir);
+
+    return result;
 }
 
 #if 0
@@ -1113,6 +1613,18 @@ int directory_form(char *buffer)
 	return 1;
 }
 
+/* Return: 0: - not separate character
+ *         1: - separate character
+ */
+int is_last_path_sep(const char *path)
+{
+    const int len = strlen(path);
+
+    if (len == 0 || !IS_PATH_SEP(path[len - 1]))
+	return 0;
+    return 1;
+}
+
 /* Return: 0: - not modified
  *         1: - modified
  */
@@ -1199,7 +1711,7 @@ void ScanDirectoryFiles(char *basedir,
 	static int depth = 0;
     static int stop_flag;	/* Stop scanning if true */
     static int error_disp;	/* Whether error is displayed or not */
-	static char pathbuf[MAXPATH]; /* pathname buffer */
+	static char pathbuf[FILEPATH_MAX]; /* pathname buffer */
 
 	if(depth == 0) /* Initialize variables at first recursive */
 	{
@@ -1316,18 +1828,44 @@ char **FilesExpandDir(int *p_nfiles, char **files)
 #ifndef IA_W32G_SYN
 int w32gLoadDefaultPlaylist(void)
 {
+	int i;
 	if(AutoloadPlaylist) {
-    w32g_lock_open_file = 1;
-    w32g_send_rc(RC_EXT_LOAD_PLAYLIST, (ptr_size_t)DefaultPlaylistPath);
+		w32g_lock_open_file = 1;
+#ifdef EXT_CONTROL_MAIN_THREAD
+		for(i = 0; i < playlist_max; i++){
+			w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, i);
+			w32g_ext_control_main_thread(RC_EXT_LOAD_PLAYLIST, (ptr_size_t)DefaultPlaylistPath[i]);
+		}
+		w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, 0);
+#else
+		for(i = 0; i < playlist_max; i++){
+			w32g_send_rc(RC_EXT_PLAYLIST_CTRL, i);
+			w32g_send_rc(RC_EXT_LOAD_PLAYLIST, (ptr_size_t)DefaultPlaylistPath[i]);
+		}
+		w32g_send_rc(RC_EXT_PLAYLIST_CTRL, 0);
+#endif
 	}
 	return 0;
 }
 
 int w32gSaveDefaultPlaylist(void)
 {
+	int i;
 	if(AutosavePlaylist) {
-    w32g_lock_open_file = 1;
-    w32g_send_rc(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DefaultPlaylistPath);
+		w32g_lock_open_file = 1;
+#ifdef EXT_CONTROL_MAIN_THREAD
+		for(i = 0; i < playlist_max; i++){
+			w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, i);
+			w32g_ext_control_main_thread(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DefaultPlaylistPath[i]);
+		}
+		w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, 0);
+#else
+		for(i = 0; i < playlist_max; i++){
+			w32g_send_rc(RC_EXT_PLAYLIST_CTRL, i);
+			w32g_send_rc(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DefaultPlaylistPath[i]);
+		}
+		w32g_send_rc(RC_EXT_PLAYLIST_CTRL, 0);
+#endif
 	}
 	return 0;
 }
@@ -1374,22 +1912,22 @@ static char *get_filename(char *src, char *dest)
 
 void CmdLineToArgv(LPSTR lpCmdLine, int *pArgc, CHAR ***pArgv)
 {
-	LPSTR p = lpCmdLine , buffer, lpsRes;
+	LPSTR p = lpCmdLine , buffer = NULL, lpsRes = NULL;
 	int i, max = -1, inc = 16;
 	int buffer_size;
 
 	*pArgv = NULL;
-	buffer_size = strlen(lpCmdLine) + 1024;
-//	buffer = safe_malloc(sizeof(CHAR) * buffer_size + 1);
-	buffer = (LPSTR)malloc(sizeof(CHAR) * buffer_size + 1);
+	buffer_size = strlen(lpCmdLine) + 4096;
+	buffer = (LPSTR)safe_malloc(sizeof(CHAR) * buffer_size + 1);
+//	buffer = (LPSTR)malloc(sizeof(CHAR) * buffer_size + 1);
 	strcpy(buffer, lpCmdLine);
 
 	for(i=0;;i++)
 	{
 	if(i > max){
 		max += inc;
-//		*pArgv = (CHAR **)safe_realloc(*pArgv, sizeof(CHAR *) * (max + 1));
-		*pArgv = (CHAR **)realloc(*pArgv, sizeof(CHAR *) * (max + 2));
+		*pArgv = (CHAR **)safe_realloc(*pArgv, sizeof(CHAR *) * (max + 2));
+//		*pArgv = (CHAR **)realloc(*pArgv, sizeof(CHAR *) * (max + 2));
 	}
 	if(i==0){
 		GetModuleFileName(NULL,buffer,buffer_size);
@@ -1397,13 +1935,13 @@ void CmdLineToArgv(LPSTR lpCmdLine, int *pArgc, CHAR ***pArgv)
 	} else
 		lpsRes = get_filename(p,buffer);
 	if(lpsRes != NULL){
-//		(*pArgv)[i] = (CHAR *)safe_malloc(sizeof(CHAR) * strlen(buffer) + 1);
-		(*pArgv)[i] = (CHAR *)malloc(sizeof(CHAR) * strlen(buffer) + 1);
+		(*pArgv)[i] = (CHAR *)safe_malloc(sizeof(CHAR) * strlen(buffer) + 1);
+//		(*pArgv)[i] = (CHAR *)malloc(sizeof(CHAR) * strlen(buffer) + 1);
 		strcpy((*pArgv)[i],buffer);
 		p = lpsRes;
 	} else {
 		*pArgc = i;
-		free(buffer);
+		safe_free(buffer);
 		return;
 	}
 	}

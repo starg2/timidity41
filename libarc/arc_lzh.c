@@ -87,9 +87,9 @@ static unsigned short get_word(void)
     return (b1 << 8) + b0;
 }
 
-static long get_longword(void)
+static int32 get_longword(void)
 {
-    long b0, b1, b2, b3;
+    int32 b0, b1, b2, b3;
 
     b0 = get_byte();
     b1 = get_byte();
@@ -103,26 +103,26 @@ static void msdos_to_unix_filename(char *name, int len)
     int i;
 
 #ifdef MULTIBYTE_CHAR
-    for(i = 0; i < len; i ++)
+    for (i = 0; i < len; i++)
     {
 	int c1, c2;
 	c1 = (int)(unsigned char)name[i];
-	c2 = (int)(unsigned char)name[i+1];
-	if(MULTIBYTE_FIRST_P(c1) && MULTIBYTE_SECOND_P(c2))
+	c2 = (int)(unsigned char)name[i + 1];
+	if (MULTIBYTE_FIRST_P(c1) && MULTIBYTE_SECOND_P(c2))
 	    i++;
-	else if(c1 == '\\')
+	else if (c1 == '\\')
 	    name[i] = '/';
-	else if(isupper(c1))
+	else if (isupper(c1))
 	    name[i] = tolower(c1);
     }
 #else
-    for(i = 0; i < len; i ++)
+    for (i = 0; i < len; i++)
     {
 	int c;
 	c = (int)(unsigned char)name[i];
-	if(c == '\\')
+	if (c == '\\')
 	    name[i] = '/';
-	else if(isupper(c))
+	else if (isupper(c))
 	    name[i] = tolower(c);
     }
 #endif
@@ -134,49 +134,49 @@ static void generic_to_unix_filename(char *name, int len)
     boolean lower_case_used = FALSE;
 
 #ifdef MULTIBYTE_CHAR
-    for(i = 0; i < len; i ++)
+    for (i = 0; i < len; i++)
     {
 	int c1, c2;
 	c1 = (int)(unsigned char)name[i];
-	c2 = (int)(unsigned char)name[i+1];
-	if(MULTIBYTE_FIRST_P(c1) && MULTIBYTE_SECOND_P(c2))
-	    i ++;
-	else if(islower(c1))
+	c2 = (int)(unsigned char)name[i + 1];
+	if (MULTIBYTE_FIRST_P(c1) && MULTIBYTE_SECOND_P(c2))
+	    i++;
+	else if (islower(c1))
 	{
 	    lower_case_used = TRUE;
 	    break;
 	}
     }
-    for(i = 0; i < len; i ++)
+    for (i = 0; i < len; i++)
     {
 	int c1, c2;
 	c1 = (int)(unsigned char)name[i];
-	c2 = (int)(unsigned char)name[i+1];
-	if(MULTIBYTE_FIRST_P(c1) && MULTIBYTE_SECOND_P(c2))
+	c2 = (int)(unsigned char)name[i + 1];
+	if (MULTIBYTE_FIRST_P(c1) && MULTIBYTE_SECOND_P(c2))
 	    i++;
-	else if(c1 == '\\')
+	else if (c1 == '\\')
 	    name[i] = '/';
-	else if(!lower_case_used && isupper(c1))
+	else if (!lower_case_used && isupper(c1))
 	    name[i] = tolower(c1);
     }
 #else
-    for(i = 0; i < len; i ++)
+    for (i = 0; i < len; i++)
     {
 	int c;
 	c = (int)(unsigned char)name[i];
-	if(islower(c))
+	if (islower(c))
 	{
 	    lower_case_used = TRUE;
 	    break;
 	}
     }
-    for(i = 0; i < len; i ++)
+    for (i = 0; i < len; i++)
     {
 	int c;
 	c = (int)(unsigned char)name[i];
-	if(c == '\\')
+	if (c == '\\')
 	    name[i] = '/';
-	else if(!lower_case_used && isupper(c))
+	else if (!lower_case_used && isupper(c))
 	    name[i] = tolower(c);
     }
 #endif
@@ -186,11 +186,11 @@ static void macos_to_unix_filename(char *name, int len)
 {
     register int i;
 
-    for(i = 0; i < len; i ++)
+    for (i = 0; i < len; i++)
     {
-	if(name[i] == ':')
+	if (name[i] == ':')
 	    name[i] = '/';
-	else if(name[i] == '/')
+	else if (name[i] == '/')
 	    name[i] = ':';
     }
 }
@@ -207,20 +207,20 @@ static unsigned char *convdelim(unsigned char *path, unsigned char delim)
 
     kflg = 0;
 #endif
-    for(p = path; (c = *p) != 0; p++)
+    for (p = path; (c = *p) != 0; p++)
     {
 #ifdef MULTIBYTE_CHAR
-	if(kflg)
+	if (kflg)
 	{
 	    kflg = 0;
 	}
-	else if(iskanji(c))
+	else if (iskanji(c))
 	{
 	    kflg = 1;
 	}
 	else
 #endif
-	    if(c == '\\' || c == DELIM || c == DELIM2)
+	    if (c == '\\' || c == DELIM || c == DELIM2)
 	    {
 		*p = delim;
 		path = p + 1;
@@ -237,12 +237,12 @@ ArchiveEntryNode *next_lzh_entry(void)
     char data[LZHEADER_STRAGE];
     char dirname[FILENAME_LENGTH];
     char filename[FILENAME_LENGTH];
-    int dir_length, name_length;
+    ptr_size_t dir_length, name_length;
     int i;
     char *ptr;
     int header_level;
     char method_id[5];
-    long compsize, origsize;
+    ptr_size_t compsize, origsize;
     int extend_type;
     int hdrsiz;
     int macbin_check;
@@ -255,15 +255,15 @@ ArchiveEntryNode *next_lzh_entry(void)
     dir_length = 0;
     name_length = 0;
 #if 0
-    if((header_size = url_getc(url)) == EOF)
+    if ((header_size = url_getc(url)) == EOF)
 	return NULL;
-    if(header_size == 0)
+    if (header_size == 0)
     {
-	if(macbin_check)
+	if (macbin_check)
 	{
 	    macbin_check = 0;
-	    url_skip(url, 128-1);
-	    if(arc_handler.isfile)
+	    url_skip(url, 128 - 1);
+	    if (arc_handler.isfile)
 		arc_handler.pos += 128;
 	    goto retry_read;
 	}
@@ -271,42 +271,42 @@ ArchiveEntryNode *next_lzh_entry(void)
     }
 
     macbin_check = 0;
-    if(url_read(url, data + I_HEADER_CHECKSUM,
+    if (url_read(url, data + I_HEADER_CHECKSUM,
 		header_size - 1) < header_size - 1)
 	return NULL;
 #else	/* a little cleverer lzh check */
-	if(macbin_check){
-/*	for(i=0;i<LZHEADER_STRAGE;i++){ */
-	for(i=0;i<1024;i++){
-		if((header_size = url_getc(url)) == EOF)
+	if (macbin_check) {
+/*	for (i = 0; i < LZHEADER_STRAGE; i++) { */
+	for (i = 0; i < 1024; i++) {
+		if ((header_size = url_getc(url)) == EOF)
 			return NULL;
 		*(data + i) = header_size;
-		if(i >= 6){
-			if(*(data + i - 4) == '-'
+		if (i >= 6) {
+			if (*(data + i - 4) == '-'
 				&& *(data + i - 3) == 'l'
 				&& *(data + i - 2) == 'h'
 				&& *(data + i - 0) == '-')
 			{
 				int j;
-				if(arc_handler.isfile)
+				if (arc_handler.isfile)
 					arc_handler.pos += i - 6;
-				for(j = 0; j<= 6; j++)
+				for (j = 0; j<= 6; j++)
 					*(data + j) = *(data + i - 6 + j);
 				header_size = (int)(unsigned char)(*(data + i - 6));
-				if(header_size == 0)
+				if (header_size == 0)
 					return NULL;
-				if(url_read(url, data + 7, header_size - 7) < header_size - 7)
+				if (url_read(url, data + 7, header_size - 7) < header_size - 7)
 					return NULL;
 				break;
 			}
 		}
 	}
-	if(i >= LZHEADER_STRAGE)
+	if (i >= LZHEADER_STRAGE)
 		return NULL;
 	} else {
-	    if((header_size = url_getc(url)) == EOF)
+	    if ((header_size = url_getc(url)) == EOF)
 			return NULL;
-		if(url_read(url, data + I_HEADER_CHECKSUM,
+		if (url_read(url, data + I_HEADER_CHECKSUM,
 			header_size - 1) < header_size - 1)
 		return NULL;
 	}
@@ -316,9 +316,9 @@ ArchiveEntryNode *next_lzh_entry(void)
     setup_get(data + I_HEADER_LEVEL);
     header_level = get_byte();
 
-    if(header_level != 2)
+    if (header_level != 2)
     {
-	if(url_read(url, data + header_size, 2) < 2)
+	if (url_read(url, data + header_size, 2) < 2)
 	    return NULL;
 	hdrsiz += 2;
     }
@@ -334,32 +334,32 @@ ArchiveEntryNode *next_lzh_entry(void)
     get_longword(); /* last_modified_stamp */
     skip_byte(); /* attribute */
 
-    if((header_level = get_byte()) != 2)
+    if ((header_level = get_byte()) != 2)
     {
 	name_length = get_byte();
-	for(i = 0; i < name_length; i ++)
+	for (i = 0; i < name_length; i++)
 	    filename[i] =(char)get_byte();
 	filename[name_length] = '\0';
     }
 
-    if(header_size - name_length >= 24)
+    if (header_size - name_length >= 24)
     {				/* EXTEND FORMAT */
 	get_word(); /* crc */
 	extend_type = get_byte();
     }
-    else if(header_size - name_length == 22)
+    else if (header_size - name_length == 22)
     {				/* Generic with CRC */
 	get_word(); /* crc */
 	extend_type = EXTEND_GENERIC;
     }
-    else if(header_size - name_length == 20)
+    else if (header_size - name_length == 20)
     {				/* Generic no CRC */
 	extend_type = EXTEND_GENERIC;
     }
     else
 	return NULL;
 
-    if(extend_type == EXTEND_UNIX && header_level == 0)
+    if (extend_type == EXTEND_UNIX && header_level == 0)
     {
 	skip_byte();		/* minor_version */
 	get_longword();		/* unix_last_modified_stamp */
@@ -369,24 +369,24 @@ ArchiveEntryNode *next_lzh_entry(void)
 	goto parse_ok;
     }
 
-    if(header_level > 0)
+    if (header_level > 0)
     {
 	/* Extend Header */
-	if(header_level != 2)
+	if (header_level != 2)
 	    setup_get(data + header_size);
 	ptr = get_ptr;
-	while((header_size = get_word()) != 0)
+	while ((header_size = get_word()) != 0)
 	{
-	    if(header_level != 2)
+	    if (header_level != 2)
 	    {
-		if(data + LZHEADER_STRAGE - get_ptr < header_size)
+		if (data + LZHEADER_STRAGE - get_ptr < header_size)
 		    return NULL;
-		if(url_read(url, get_ptr, header_size) < header_size)
+		if (url_read(url, get_ptr, header_size) < header_size)
 		    return NULL;
 		hdrsiz += header_size;
 	    }
 
-	    switch(get_byte())
+	    switch (get_byte())
 	    {
 	      case 0:
 		/*
@@ -399,10 +399,10 @@ ArchiveEntryNode *next_lzh_entry(void)
 		 * filename
 		 */
 		name_length = header_size - 3;
-		if(name_length >= sizeof(filename) - 1)
+		if (name_length >= sizeof(filename) - 1)
 		    return NULL;
-		for(i = 0; i < name_length; i++)
-		    filename[i] =(char)get_byte ();
+		for (i = 0; i < name_length; i++)
+		    filename[i] =(char)get_byte();
 		filename[name_length] = '\0';
 		break;
 	      case 2:
@@ -410,18 +410,18 @@ ArchiveEntryNode *next_lzh_entry(void)
 		 * directory
 		 */
 		dir_length = header_size - 3;
-		if(dir_length >=  sizeof(dirname) - 1)
+		if (dir_length >=  sizeof(dirname) - 1)
 		    return NULL;
-		for(i = 0; i < dir_length; i++)
-		    dirname[i] = (char)get_byte ();
+		for (i = 0; i < dir_length; i++)
+		    dirname[i] = (char)get_byte();
 		dirname[dir_length] = '\0';
-		convdelim((unsigned char *)dirname, DELIM);
+		convdelim((unsigned char*)dirname, DELIM);
 		break;
 	      case 0x40:
 		/*
 		 * MS-DOS attribute
 		 */
-		if(extend_type == EXTEND_MSDOS ||
+		if (extend_type == EXTEND_MSDOS ||
 		    extend_type == EXTEND_HUMAN ||
 		    extend_type == EXTEND_GENERIC)
 		    get_word(); /* attribute */
@@ -430,14 +430,14 @@ ArchiveEntryNode *next_lzh_entry(void)
 		/*
 		 * UNIX permission
 		 */
-		if(extend_type == EXTEND_UNIX)
+		if (extend_type == EXTEND_UNIX)
 		    get_word(); /* unix_mode */
 		break;
 	      case 0x51:
 		/*
 		 * UNIX gid and uid
 		 */
-		if(extend_type == EXTEND_UNIX)
+		if (extend_type == EXTEND_UNIX)
 		{
 		    get_word(); /* unix_gid */
 		    get_word(); /* unix_uid */
@@ -459,7 +459,7 @@ ArchiveEntryNode *next_lzh_entry(void)
 		/*
 		 * UNIX last modified time
 		 */
-		if(extend_type == EXTEND_UNIX)
+		if (extend_type == EXTEND_UNIX)
 		    get_longword(); /* unix_last_modified_stamp */
 		break;
 	      default:
@@ -470,23 +470,23 @@ ArchiveEntryNode *next_lzh_entry(void)
 		break;
 	    }
 	}
-	if(header_level != 2 && get_ptr - ptr != 2)
+	if (header_level != 2 && get_ptr - ptr != 2)
 	{
 	    compsize -= get_ptr - ptr - 2;
 	    header_size += get_ptr - ptr - 2;
 	}
     }
 
-    if(dir_length)
+    if (dir_length)
     {
 	name_length += dir_length;
-	if(name_length >= sizeof(filename) - 1)
+	if (name_length >= sizeof(filename) - 1)
 	    return NULL;
 	strcat(dirname, filename);
 	strcpy(filename, dirname);
     }
 
-    switch(extend_type)
+    switch (extend_type)
     {
       case EXTEND_MSDOS:
 	msdos_to_unix_filename(filename, name_length);
@@ -510,26 +510,26 @@ ArchiveEntryNode *next_lzh_entry(void)
     }
 
   parse_ok:
-    if(strncmp("-lhd-", method_id, 5) == 0)
+    if (!strncmp("-lhd-", method_id, 5))
     {
-	if(arc_handler.isfile)
+	if (arc_handler.isfile)
 	    arc_handler.pos += hdrsiz;
 	goto retry_read; /* Skip directory entry */
     }
 
-    for(i = 0; lzh_methods[i]; i++)
-	if(strncmp(method_id, lzh_methods[i], sizeof(method_id)) == 0)
+    for (i = 0; lzh_methods[i]; i++)
+	if (!strncmp(method_id, lzh_methods[i], sizeof(method_id)))
 	    break;
-    if(!lzh_methods[i])
+    if (!lzh_methods[i])
 	return NULL;
     entry = new_entry_node(filename, name_length);
-    if(entry == NULL)
+    if (!entry)
 	return NULL;
     entry->comptype = i + ARCHIVEC_LZHED + 1;
     entry->compsize = compsize;
     entry->origsize = origsize;
 
-    if(arc_handler.isfile)
+    if (arc_handler.isfile)
     {
 	arc_handler.pos += hdrsiz;
 	entry->start = arc_handler.pos;
@@ -539,10 +539,10 @@ ArchiveEntryNode *next_lzh_entry(void)
     }
     else
     {
-      long n;
+      ptr_size_t n = 0;
       entry->start = 0;
       entry->cache = url_dump(url, compsize, &n);
-      if(n != compsize)
+      if (n != compsize)
 	{
 	  free_entry_node(entry);
 	  return NULL;

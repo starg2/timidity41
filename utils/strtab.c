@@ -39,7 +39,7 @@ void init_string_table(StringTable *stab)
     memset(stab, 0, sizeof(StringTable));
 }
 
-StringTableNode *put_string_table(StringTable *stab, char *str, int len)
+StringTableNode *put_string_table(StringTable *stab, const char *str, int len)
 {
     StringTableNode *p;
 
@@ -84,7 +84,7 @@ char **make_string_array(StringTable *stab)
 
     if((u = (char *)safe_malloc(s)) == NULL)
     {
-	free(table);
+	safe_free(table);
 	return NULL;
     }
 

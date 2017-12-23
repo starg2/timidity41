@@ -38,8 +38,7 @@ typedef struct _StringTable
 } StringTable;
 
 extern void init_string_table(StringTable *stab);
-extern StringTableNode *put_string_table(StringTable *stab,
-					 char *str, int len);
+extern StringTableNode *put_string_table(StringTable *stab, const char *str, int len);
 extern void delete_string_table(StringTable *stab);
 extern char **make_string_array(StringTable *stab);
 

@@ -88,7 +88,9 @@ TiMidity++は，Tuukka Toivonenさんの作ったTiMidity 0.2iをベースにしてい
 
 TiMidity++は，以下のサイトで入手できるでしょう。
 
-https://sourceforge.net/projects/timidity/
+http://www.timidity.jp
+  プライマリサイト
+http://timidity.sourceforge.net
   開発はここで行われています。ソースコードが入手できます
 http://www.asahi-net.or.jp/~gb7t-ngm/timidity/
   Macintosh 版があります

@@ -135,7 +135,7 @@ static int sbk_atten(int gen, int val)
 {
 	if (val == 0)
 		return 1000;
-	return (int)(-200.0 * log10((double)val / 127.0) * 10);
+	return (int)(-200.0 * log10((double)val * DIV_127) * 10);
 }
 
 /* scale tuning */
@@ -148,7 +148,7 @@ static int sbk_scale(int gen, int val)
 static int sbk_time(int gen, int val)
 {
 	if (val <= 0) val = 1;
-	return (int)(log((double)val / 1000.0) / log(2.0) * 1200.0);
+	return (int)(log((double)val * DIV_1000) / log(2.0) * 1200.0);
 }
 
 /* time change per key */

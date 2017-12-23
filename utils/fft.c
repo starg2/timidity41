@@ -102,8 +102,8 @@ void realfft(double *x, int n_arg)
     {
 	if(trig_table == NULL)
 	    return;
-	free(trig_table);
-	free(bitrev_table);
+	safe_free(trig_table);
+	safe_free(bitrev_table);
 	trig_table = NULL;
 	return;
     }

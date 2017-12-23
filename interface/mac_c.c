@@ -1010,7 +1010,7 @@ static int ctl_read(int32* /*valp*/)
 		cuepoint_pending = 0;
 		return RC_FORWARD;
 	}
-	
+
 	//if( gCursorIsWatch ){ gCursorIsWatch=false; InitCursor(); }
 	if( gQuit ) Do_Quit();	/* Quit Apple event occured */
 	if( mac_rc ){ret=mac_rc; mac_rc=0; return ret;}
@@ -1194,10 +1194,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
-	case CTLE_CUEPOINT:
-		cuepoint = e->v1;
-		cuepoint_pending = 1;
-		break;
+      case CTLE_CUEPOINT:
+	cuepoint = e->v1;
+	cuepoint_pending = 1;
+	break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:

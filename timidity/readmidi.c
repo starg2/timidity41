@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #endif //for off_t
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -34,6 +36,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
+#include <math.h>
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -48,8 +51,8 @@
 #include "mod.h"
 #include "wrd.h"
 #include "tables.h"
-#include "reverb.h"
-#include <math.h>
+#include "effect.h"
+#include "sndfontini.h"
 
 /* rcp.c */
 int read_rcp_file(struct timidity_file *tf, char *magic0, char *fn);
@@ -78,7 +81,7 @@ int opt_trace_text_meta_event = 1;
 int opt_trace_text_meta_event = 0;
 #endif /* ALWAYS_TRACE_TEXT_META_EVENT */
 
-int opt_default_mid = 0;
+int opt_default_mid = 65;
 int opt_system_mid = 0;
 int ignore_midi_error = 1;
 ChannelBitMask quietchannels;
@@ -86,6 +89,10 @@ struct midi_file_info *current_file_info = NULL;
 int readmidi_error_flag = 0;
 int readmidi_wrd_mode = 0;
 int play_system_mode = DEFAULT_SYSTEM_MODE;
+#ifdef SUPPORT_LOOPEVENT
+int opt_use_midi_loop_repeat = 0;
+int32 opt_midi_loop_repeat = 0;
+#endif /* SUPPORT_LOOPEVENT */
 
 /* Mingw gcc3 and Borland C hack */
 /* If these are not NULL initialized cause Hang up */
@@ -108,8 +115,11 @@ void init_chorus_status_gs(void);
 void init_reverb_status_gs(void);
 void init_eq_status_gs(void);
 void init_insertion_effect_gs(void);
+void init_mfx_effect_sd(void);
 void init_multi_eq_xg(void);
+void init_multi_eq_sd(void);
 static void init_all_effect_xg(void);
+static void init_all_effect_sd(void);
 
 /* MIDI ports will be merged in several channels in the future. */
 int midi_port_number;
@@ -184,7 +194,7 @@ UserInstrument *userinst_last = (UserInstrument *)NULL;
 
 void init_userinst();
 UserInstrument *get_userinst(int bank, int prog);
-void recompute_userinst(int bank, int prog);
+void recompute_userinst(int bank, int prog, int elm);
 void recompute_userinst_altassign(int bank,int group);
 
 int32 readmidi_set_track(int trackno, int rewindp)
@@ -282,7 +292,7 @@ char *readmidi_make_string_event(int type, char *string, MidiEvent *ev,
 				 int cnv)
 {
     char *text;
-    int len;
+    size_t len;
     StringTableNode *st;
     int a, b;
 
@@ -376,7 +386,7 @@ static int32 getvl(struct timidity_file *tf)
     int32 l;
     int c;
 
-    errno = 0;
+    _set_errno(0);
     l = 0;
 
     /* 1 */
@@ -420,10 +430,10 @@ static int32 getvl(struct timidity_file *tf)
     return -1;
 }
 
-static char *add_karaoke_title(char *s1, char *s2)
+static char *add_karaoke_title(char *s1, const char *s2)
 {
     char *ks;
-    int k1, k2;
+    size_t k1, k2;
 
     if(s1 == NULL)
 	return safe_strdup(s2);
@@ -436,7 +446,7 @@ static char *add_karaoke_title(char *s1, char *s2)
     memcpy(ks, s1, k1);
     ks[k1++] = ' ';
     memcpy(ks + k1, s2, k2 + 1);
-    free(s1);
+    safe_free(s1);
 	s1 = NULL;
 
     return ks;
@@ -445,12 +455,12 @@ static char *add_karaoke_title(char *s1, char *s2)
 
 /* Print a string from the file, followed by a newline. Any non-ASCII
    or unprintable characters will be converted to periods. */
-static char *dumpstring(int type, int32 len, char *label, int allocp,
+static char *dumpstring(int type, int32 len, const char *label, int allocp,
 			struct timidity_file *tf)
 {
     char *si, *so;
-    int s_maxlen = SAFE_CONVERT_LENGTH(len);
-    int llen, solen;
+    size_t s_maxlen = SAFE_CONVERT_LENGTH(len);
+    size_t llen, solen;
 
     if(len <= 0)
     {
@@ -550,6 +560,10 @@ struct ctl_chg_types {
       { 72, ME_RELEASE_TIME },
       { 73, ME_ATTACK_TIME },
       { 74, ME_BRIGHTNESS },
+      { 75, ME_DECAY_TIME },
+      { 76, ME_VIBRATO_RATE },
+      { 77, ME_VIBRATO_DEPTH },
+      { 78, ME_VIBRATO_DELAY },
       { 84, ME_PORTAMENTO_CONTROL },
       { 91, ME_REVERB_EFFECT },
       { 92, ME_TREMOLO_EFFECT },
@@ -562,6 +576,7 @@ struct ctl_chg_types {
       { 99, ME_NRPN_MSB },
       { 100, ME_RPN_LSB },
       { 101, ME_RPN_MSB },
+      { 111, ME_LOOP_START },
       { 120, ME_ALL_SOUNDS_OFF },
       { 121, ME_RESET_CONTROLLERS },
       { 123, ME_ALL_NOTES_OFF },
@@ -571,29 +586,36 @@ struct ctl_chg_types {
 
 int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
 {
-    int i;
+    int i, ttype;
+	
     for (i = 0; i < ARRAY_SIZE(ctl_chg_list); i++) {
-	if (ctl_chg_list[i].mtype == type) {
-	    type = ctl_chg_list[i].ttype;
-	    break;
-	}
+		if (ctl_chg_list[i].mtype == type) {
+			ttype = ctl_chg_list[i].ttype;
+			break;
+		}
     }
-    if (i >= ARRAY_SIZE(ctl_chg_list))
-	type = -1;
-
-    if(type != -1)
-    {
-	if(val > 127)
-	    val = 127;
-	ev_ret->type    = type;
-	ev_ret->channel = chn;
-	ev_ret->a       = val;
-	ev_ret->b       = 0;
-	return 1;
+    if (i >= ARRAY_SIZE(ctl_chg_list)){
+		if(0 <= type && type <= 127)
+			ttype = ME_UNDEF_CTRL_CHNG;
+		else
+			ttype = -1;
+	}
+    if(ttype != -1){
+		if(val > 127)
+			val = 127;
+		ev_ret->type    = ttype;
+		ev_ret->channel = chn;
+		ev_ret->a       = val;
+		ev_ret->b       = type; // original control_change number
+		return 1;
     }
     return 0;
 }
 
+/* 
+この関数がどこで使用されるのか不明 windows以外？
+一応 ME_UNDEF_CTRL_CHNG 対応
+*/
 int unconvert_midi_control_change(MidiEvent *ev)
 {
     int i;
@@ -601,9 +623,12 @@ int unconvert_midi_control_change(MidiEvent *ev)
 	if (ctl_chg_list[i].ttype == ev->type)
 	    break;
     }
-    if (i >= ARRAY_SIZE(ctl_chg_list))
-	return -1;
-
+    if (i >= ARRAY_SIZE(ctl_chg_list)){
+		if(ev->type == ME_UNDEF_CTRL_CHNG)
+			return ev->b; // original control_change number
+		else
+			return -1;
+	}
     return ctl_chg_list[i].mtype;
 }
 
@@ -616,6 +641,8 @@ static int block_to_part(int block, int port)
 	return MERGE_CHANNEL_PORT2(p, port);
 }
 
+///r
+#if 0
 /* Map XG types onto GS types.  XG should eventually have its own tables */
 static int set_xg_reverb_type(int msb, int lsb)
 {
@@ -745,6 +772,7 @@ static int set_xg_chorus_type(int msb, int lsb)
 	ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG Set Chorus Type (%d)", type);
 	return type;
 }
+#endif
 
 /* XG SysEx parsing function by Eric A. Welsh
  * Also handles GS patch+bank changes
@@ -800,19 +828,21 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 	  if(addmid == 0x01) {	/* Effect 1 */
 	    switch(ent) {
 		case 0x00:	/* Reverb Type MSB */
-		    xg_reverb_type_msb = *body;
-#if 0	/* XG specific reverb is not supported yet, use GS instead */
+#if 1	/* XG specific reverb is supported, */
 		    SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, 0, *body, ent);
 			num_events++;
+#else	/* XG specific reverb is not supported yet, use GS instead */
+		    xg_reverb_type_msb = *body;
+
 #endif
 		    break;
 
 		case 0x01:	/* Reverb Type LSB */
-		    xg_reverb_type_lsb = *body;
-#if 0	/* XG specific reverb is not supported yet, use GS instead */
+#if 1	/* XG specific reverb is supported, */
 		    SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, 0, *body, ent);
 			num_events++;
-#else
+#else	/* XG specific reverb is not supported yet, use GS instead */
+		    xg_reverb_type_lsb = *body;
 		    v = set_xg_reverb_type(xg_reverb_type_msb, xg_reverb_type_lsb);
 		    if (v >= 0) {
 			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_GS_LSB, 0, v, 0x05);
@@ -827,19 +857,20 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 		    break;
 
 		case 0x20:	/* Chorus Type MSB */
-		    xg_chorus_type_msb = *body;
-#if 0	/* XG specific chorus is not supported yet, use GS instead */
+#if 1	/* XG specific chorus is supported, */
 		    SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, 0, *body, ent);
 			num_events++;
+#else	/* XG specific chorus is not supported yet, use GS instead */
+		    xg_chorus_type_msb = *body;
 #endif
 		    break;
 
 		case 0x21:	/* Chorus Type LSB */
-		    xg_chorus_type_lsb = *body;
-#if 0	/* XG specific chorus is not supported yet, use GS instead */
+#if 1	/* XG specific chorus is supported, */
 		    SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, 0, *body, ent);
 			num_events++;
-#else
+#else	/* XG specific chorus is not supported yet, use GS instead */
+		    xg_chorus_type_lsb = *body;
 		    v = set_xg_chorus_type(xg_chorus_type_msb, xg_chorus_type_lsb);
 		    if (v >= 0) {
 			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_GS_LSB, 0, v, 0x0D);
@@ -853,7 +884,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			num_events++;
 		    break;
 
-		default:
+		default: /* Prameter Reverb 0x02~0x15 , Chorus 0x22~0x35 , Variation 0x40~0x75 */
 		    SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, 0, *body, ent);
 			num_events++;
 		    break;
@@ -998,7 +1029,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
     }
 
     /* XG Multi Part Data parameter change */
-    else if(len >= 10 &&
+    else if(len >= 8 &&
        val[0] == 0x43 && /* Yamaha ID */
        val[2] == 0x4C && /* XG Model ID */
        ((val[1] <  0x10 && val[5] == 0x08 &&	/* Bulk Dump */
@@ -1039,18 +1070,21 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 		case 0x00:	/* Element Reserve */
 /*			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Element Reserve is not supported. (CH:%d VAL:%d)", p, *body); */
 		    break;
-
+///r
 		case 0x01:	/* bank select MSB */
+		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG SysExMP ME_TONE_BANK_MSB %d %d",p , *body);
 		    SETMIDIEVENT(evm[num_events], 0, ME_TONE_BANK_MSB, p, *body, SYSEX_TAG);
 		    num_events++;
 		    break;
 
 		case 0x02:	/* bank select LSB */
+		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG SysExMP ME_TONE_BANK_LSB %d %d",p , *body);
 		    SETMIDIEVENT(evm[num_events], 0, ME_TONE_BANK_LSB, p, *body, SYSEX_TAG);
 		    num_events++;
 		    break;
 
 		case 0x03:	/* program number */
+		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG SysExMP ME_PROGRAM %d %d",p , *body);
 		    SETMIDIEVENT(evm[num_events], 0, ME_PROGRAM, p, *body, SYSEX_TAG);
 		    num_events++;
 		    break;
@@ -1072,6 +1106,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 		    break;
 
 		case 0x07:	/* Part Mode */
+		    ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG SysExMP ME_DRUMPART %d %d",p , *body);
 			drum_setup_xg[*body] = p;
 			SETMIDIEVENT(evm[num_events], 0, ME_DRUMPART, p, *body, SYSEX_TAG);
 			num_events++;
@@ -1083,11 +1118,15 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 		    break;
 
 		case 0x09:	/* Detune 1st bit */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Detune 1st bit is not supported. (CH:%d VAL:%d)", p, *body); 
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, p, *body, ent);
+			num_events++;
+		//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Detune 1st bit is not supported. (CH:%d VAL:%d)", p, *body); 
 		    break;
 
 		case 0x0A:	/* Detune 2nd bit */
-		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Detune 2nd bit is not supported. (CH:%d VAL:%d)", p, *body); 
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, p, *body, ent);
+			num_events++;
+		//    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Detune 2nd bit is not supported. (CH:%d VAL:%d)", p, *body); 
 		    break;
 
 		case 0x0B:	/* volume */
@@ -1234,7 +1273,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 		case 0x23:	/* bend pitch control */
 		    SETMIDIEVENT(evm[num_events], 0, ME_RPN_MSB, p, 0, SYSEX_TAG);
 		    SETMIDIEVENT(evm[num_events + 1], 0, ME_RPN_LSB, p, 0, SYSEX_TAG);
-		    SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, p, (*body - 0x40) & 0x7F, SYSEX_TAG);
+		    SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, p, ((int)*body - (int)0x40) & 0xFF, SYSEX_TAG);
 		    num_events += 3;
 		    break;
 
@@ -1427,7 +1466,13 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			break;
 		
 		case 0x59:	/* AC1 Controller Number */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC1 Controller Number is not supported. (CH:%d VAL:%d)", p, *body); 
+			if(*body < 0 || *body > 95){
+				SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, -1, 0x6D); // off
+			}else{					
+				SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x6D);
+			}
+			num_events++;
+		//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC1 Controller Number is not supported. (CH:%d VAL:%d)", p, *body); 
 			break;
 
 		case 0x5A:	/* AC1 Pitch Control */
@@ -1461,7 +1506,13 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			break;
 
 		case 0x60:	/* AC2 Controller Number */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC2 Controller Number is not supported. (CH:%d VAL:%d)", p, *body); 
+			if(*body < 0 || *body > 95){
+				SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, -1, 0x6E); // off
+			}else{
+				SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x6E);
+			}
+			num_events++;
+		//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC2 Controller Number is not supported. (CH:%d VAL:%d)", p, *body); 
 			break;
 
 		case 0x61:	/* AC2 Pitch Control */
@@ -1493,29 +1544,39 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x3D);
 			num_events++;
 			break;
-
+///r
 		case 0x67:	/* Portamento Switch */
-			SETMIDIEVENT(evm[num_events], 0, ME_PORTAMENTO, p, *body, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events], 0, ME_PORTAMENTO, p, *body ? 127 : 0, SYSEX_TAG);
 		    num_events++;
+		    break;
 
 		case 0x68:	/* Portamento Time */
 			SETMIDIEVENT(evm[num_events], 0, ME_PORTAMENTO_TIME_MSB, p, *body, SYSEX_TAG);
 		    num_events++;
-
+		    break;
+///r
 		case 0x69:	/* Pitch EG Initial Level */
-		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Initial Level is not supported. (CH:%d VAL:%d)", p, *body); 
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x62);
+			num_events++;
+		//   ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Initial Level is not supported. (CH:%d VAL:%d)", p, *body); 
 		    break;
 
 		case 0x6A:	/* Pitch EG Attack Time */
-		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Attack Time is not supported. (CH:%d VAL:%d)", p, *body); 
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x64);
+			num_events++;
+		//    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Attack Time is not supported. (CH:%d VAL:%d)", p, *body); 
 		    break;
 
 		case 0x6B:	/* Pitch EG Release Level */
-		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Release Level is not supported. (CH:%d VAL:%d)", p, *body); 
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x69);
+			num_events++;
+		//    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Release Level is not supported. (CH:%d VAL:%d)", p, *body); 
 		    break;
 
 		case 0x6C:	/* Pitch EG Release Time */
-		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Release Time is not supported. (CH:%d VAL:%d)", p, *body); 
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x6A);
+			num_events++;
+		//    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Release Time is not supported. (CH:%d VAL:%d)", p, *body); 
 		    break;
 
 		case 0x6D:	/* Velocity Limit Low */
@@ -1528,12 +1589,24 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			num_events++;
 		    break;
 
+	//	case 0x6F:
+
 		case 0x70:	/* Bend Pitch Low Control */
-		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Bend Pitch Low Control is not supported. (CH:%d VAL:%d)", p, *body); 
+			/*
+			RPN 0x00 0x40 に Pitch Bend Sensitivity Low Control を追加
+			SysEx VALを符号反転してRPNに変換して反映 (RPNに変換するのはBend Pitch Controlと同じ
+			通常のBend Pitch Controlの場合は Low Controlを同値で上書き , Low Controlが後の場合にだけ機能する
+			*/
+		    SETMIDIEVENT(evm[num_events], 0, ME_RPN_MSB, p, 0, SYSEX_TAG);
+		    SETMIDIEVENT(evm[num_events + 1], 0, ME_RPN_LSB, p, 0x40, SYSEX_TAG); // low control
+		    SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, p, ((int)0x40 - (int)*body) & 0xFF, SYSEX_TAG);
+		    num_events += 3;
 		    break;
 
 		case 0x71:	/* Filter EG Depth */
-		    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Filter EG Depth is not supported. (CH:%d VAL:%d)", p, *body); 
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, p, *body, 0x6B);
+			num_events++;
+		//    ctl->cmsg(CMSG_INFO, VERB_NOISY, "Filter EG Depth is not supported. (CH:%d VAL:%d)", p, *body); 
 		    break;
 
 		case 0x72:	/* EQ BASS */
@@ -1542,24 +1615,81 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
 			num_events += 3;
 			break;
-
 		case 0x73:	/* EQ TREBLE */
 			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
 			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x31, SYSEX_TAG);
 			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
 			num_events += 3;
 			break;
-
+		case 0x74:	/* EQ MID-BASS */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x32, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x75:	/* EQ MID-TREBLE */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x33, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
 		case 0x76:	/* EQ BASS frequency */
 			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
 			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x34, SYSEX_TAG);
 			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
 			num_events += 3;
 			break;
-
 		case 0x77:	/* EQ TREBLE frequency */
 			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
 			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x35, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x78:	/* EQ MID-BASS frequency */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x36, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x79:	/* EQ MID-TREBLE frequency */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x37, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x7A:	/* EQ BASS Q */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x38, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x7B:	/* EQ TREBLE Q */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x39, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x7C:	/* EQ MID-BASS Q */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x3A, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x7D:	/* EQ MID-TREBLE Q */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x3B, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x7E:	/* EQ BASS shape */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x3C, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x7F:	/* EQ TREBLE shape */
+			SETMIDIEVENT(evm[num_events], 0,ME_NRPN_MSB, p, 0x01, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0,ME_NRPN_LSB, p, 0x3D, SYSEX_TAG);
 			SETMIDIEVENT(evm[num_events + 2], 0,ME_DATA_ENTRY_MSB, p, *body, SYSEX_TAG);
 			num_events += 3;
 			break;
@@ -1707,6 +1837,18 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
 			num_events += 3;
 			break;
+		case 0x22:	/* EQ MID-BASS */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x32, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x23:	/* EQ MID-TREBLE */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x33, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
 		case 0x24:	/* EQ BASS frequency */
 			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x34, SYSEX_TAG);
 			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
@@ -1719,14 +1861,74 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
 			num_events += 3;
 			break;
+		case 0x26:	/* EQ MID-BASS frequency */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x36, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x27:	/* EQ MID-TREBLE frequency */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x37, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x28:	/* EQ BASS Q */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x38, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x29:	/* EQ TREBLE Q */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x39, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x2A:	/* EQ MID-BASS Q */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x3A, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x2B:	/* EQ MID-TREBLE Q */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x3B, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x2C:	/* EQ BASS shape */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x3C, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x2D:	/* EQ TREBLE shape */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x3D, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+///r
 		case 0x50:	/* High Pass Filter Cutoff Frequency */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "High Pass Filter Cutoff Frequency is not supported. (CH:%d NOTE:%d VAL:%d)", dp, note, *body);
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x24, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
+			break;
+		case 0x51:	/* High Pass Filter Resonace */
+			SETMIDIEVENT(evm[num_events], 0, ME_NRPN_MSB, dp, 0x25, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB, dp, note, SYSEX_TAG);
+			SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, dp, *body, SYSEX_TAG);
+			num_events += 3;
 			break;
 		case 0x60:	/* Velocity Pitch Sense */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Velocity Pitch Sense is not supported. (CH:%d NOTE:%d VAL:%d)", dp, note, *body);
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, dp, *body, ent);
+			num_events++;
 			break;
 		case 0x61:	/* Velocity LPF Cutoff Sense */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Velocity LPF Cutoff Sense is not supported. (CH:%d NOTE:%d VAL:%d)", dp, note, *body);
+			SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_XG_LSB, dp, *body, ent);
+			num_events++;
 			break;
 		default:
 			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported XG Bulk Dump SysEx. (ADDR:%02X %02X %02X VAL:%02X)",addhigh,addmid,ent,*body);
@@ -1785,6 +1987,11 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			addr_h = 0x41;
 		}
 		addr = (((int32)addr_h)<<16 | ((int32)addr_m)<<8 | (int32)addr_l);
+		
+		/* data error */
+		if(val[7] > 0x7F){
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS SysEx: Data Error. (CH:%d ADDR:%02X %02X %02X VAL:%02X)", p, addr_h, addr_m, addr_l, val[7]);
+		}
 
 		switch(addr_h) {
 		case 0x40:
@@ -1890,9 +2097,19 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 				case 0x16:	/* Pitch Key Shift (dummy. see parse_sysex_event()) */
 					break;
 				case 0x17:	/* Pitch Offset Fine */
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x26);
-					num_events++;
+					{
+						// 1stbit bit3-0 to bit7-4 , 2ndbit bit3-0 to bit3-0
+						uint8 tmpi = (val[7] << 4) | (val[8] & 0x0F);
+						if(tmpi < 0x08)
+							tmpi = 0x08;
+						else if(tmpi > 0xF8)
+							tmpi = 0xF8;
+						SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, tmpi, 0x26);
+						num_events++;
+					}
 					break;
+			//	case 0x18:	/* Pitch Offset Fine 2ndbit */
+			//		break;
 				case 0x19:	/* Part Level */
 					SETMIDIEVENT(evm[0], 0, ME_MAINVOLUME, p, val[7], SYSEX_TAG);
 					num_events++;
@@ -1922,10 +2139,22 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 					num_events++;
 					break;
 				case 0x1F:	/* CC1 Controller Number */
-					ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 Controller Number is not supported. (CH:%d VAL:%d)", p, val[7]);
+					if(val[7] < 1 || val[7] > 95){
+						SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, p, -1, 0x6D); // off
+					}else{					
+						SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, p, val[7], 0x6D);
+					}
+					num_events++;
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 Controller Number is not supported. (CH:%d VAL:%d)", p, val[7]);
 					break;
 				case 0x20:	/* CC2 Controller Number */
-					ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 Controller Number is not supported. (CH:%d VAL:%d)", p, val[7]);
+					if(val[7] < 1 || val[7] > 95){
+						SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, p, -1, 0x6E); // off
+					}else{
+						SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, p, val[7], 0x6E);
+					}
+					num_events++;
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 Controller Number is not supported. (CH:%d VAL:%d)", p, val[7]);
 					break;
 				case 0x21:	/* Chorus Send Level */
 					SETMIDIEVENT(evm[0], 0, ME_CHORUS_EFFECT, p, val[7], SYSEX_TAG);
@@ -2428,121 +2657,65 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 					break;
 				}
 			} else if((addr & 0xFFFF00) == 0x400300) {
-				switch(addr & 0xFF) {	/* Insertion Effect Parameter */
-				case 0x00:
+				int addrl = addr & 0xFF;
+				switch(addrl) {	/* Insertion Effect Parameter */
+				case 0x00: /* efx type */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x27);
 					SETMIDIEVENT(evm[1], 0, ME_SYSEX_GS_LSB, p, val[8], 0x28);
 					num_events += 2;
 					break;
-				case 0x03:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x29);
+				case 0x03: /* efx parameter 1 */
+				case 0x04: /* efx parameter 2 */
+				case 0x05: /* efx parameter 3 */
+				case 0x06: /* efx parameter 4 */
+				case 0x07: /* efx parameter 5 */
+				case 0x08: /* efx parameter 6 */
+				case 0x09: /* efx parameter 7 */
+				case 0x0A: /* efx parameter 8 */
+				case 0x0B: /* efx parameter 9 */
+				case 0x0C: /* efx parameter 10 */
+				case 0x0D: /* efx parameter 11 */
+				case 0x0E: /* efx parameter 12 */
+				case 0x0F: /* efx parameter 13 */
+				case 0x10: /* efx parameter 14 */
+				case 0x11: /* efx parameter 15 */
+				case 0x12: /* efx parameter 16 */
+				case 0x13: /* efx parameter 17 */
+				case 0x14: /* efx parameter 18 */
+				case 0x15: /* efx parameter 19 */
+				case 0x16: /* efx parameter 20 */
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], addrl - 0x03 + 0x29); // 0x29-0x3C
 					num_events++;
 					break;
-				case 0x04:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x2A);
-					num_events++;
-					break;
-				case 0x05:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x2B);
-					num_events++;
-					break;
-				case 0x06:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x2C);
-					num_events++;
-					break;
-				case 0x07:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x2D);
-					num_events++;
-					break;
-				case 0x08:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x2E);
-					num_events++;
-					break;
-				case 0x09:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x2F);
-					num_events++;
-					break;
-				case 0x0A:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x30);
-					num_events++;
-					break;
-				case 0x0B:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x31);
-					num_events++;
-					break;
-				case 0x0C:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x32);
-					num_events++;
-					break;
-				case 0x0D:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x33);
-					num_events++;
-					break;
-				case 0x0E:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x34);
-					num_events++;
-					break;
-				case 0x0F:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x35);
-					num_events++;
-					break;
-				case 0x10:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x36);
-					num_events++;
-					break;
-				case 0x11:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x37);
-					num_events++;
-					break;
-				case 0x12:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x38);
-					num_events++;
-					break;
-				case 0x13:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x39);
-					num_events++;
-					break;
-				case 0x14:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x3A);
-					num_events++;
-					break;
-				case 0x15:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x3B);
-					num_events++;
-					break;
-				case 0x16:
-					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x3C);
-					num_events++;
-					break;
-				case 0x17:
+				case 0x17: /* efx send level to reverb */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x3D);
 					num_events++;
 					break;
-				case 0x18:
+				case 0x18: /* efx send level to chorus */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x3E);
 					num_events++;
 					break;
-				case 0x19:
+				case 0x19: /* efx send level to delay */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x3F);
 					num_events++;
 					break;
-				case 0x1B:
+				case 0x1B: /* efx control source 1 */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x40);
 					num_events++;
 					break;
-				case 0x1C:
+				case 0x1C: /* efx control depth 1 */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x41);
 					num_events++;
 					break;
-				case 0x1D:
+				case 0x1D: /* efx control source 2 */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x42);
 					num_events++;
 					break;
-				case 0x1E:
+				case 0x1E: /* efx control depth 2 */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x43);
 					num_events++;
 					break;
-				case 0x1F:
+				case 0x1F: /* efx send eq swotch */
 					SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_LSB, p, val[7], 0x44);
 					num_events++;
 					break;
@@ -2576,6 +2749,9 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 			break;
 		case 0x41:
 			switch(addr & 0xF00) {
+			case 0x000:	/* DRUM MAP NAME */
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported GS SysEx DRUM MAP NAME. (ADDR:%02X %02X %02X VAL:%02X %02X)",addr_h,addr_m,addr_l,val[7],val[8]);
+				break;
 			case 0x100:	/* Play Note Number */
 				SETMIDIEVENT(evm[0], 0, ME_SYSEX_GS_MSB, dp, val[6], 0);
 				SETMIDIEVENT(evm[1], 0, ME_SYSEX_GS_LSB, dp, val[7], 0x47);
@@ -2586,6 +2762,9 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 				SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, dp, val[6], SYSEX_TAG);
 				SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, dp, val[7], SYSEX_TAG);
 				num_events += 3;
+				break;
+			case 0x300:	/* ASSIGN GROUP NUMBER */
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported GS SysEx ASSIGN GROUP NUMBER. (ADDR:%02X %02X %02X VAL:%02X %02X)",addr_h,addr_m,addr_l,val[7],val[8]);
 				break;
 			case 0x400:
 				SETMIDIEVENT(evm[0], 0,ME_NRPN_MSB, dp, 0x1C, SYSEX_TAG);
@@ -2743,6 +2922,1269 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 		}
     }
 
+    /* parsing SD System Exclusive Message...
+     * val[5] == Parameter Address(1
+     * val[6] == Parameter Address(2
+     * val[7] == Parameter Address(3
+     * val[8] == Parameter Address(4
+     * val[9]... == Data...
+     * val[last] == Checksum(== 128 - (sum of addresses&data bytes % 128)) 
+     */
+    else if(len >= 10 &&
+       val[0] == 0x41 && /* Roland ID */
+       val[1] == 0x10 && /* Device ID */
+       val[2] == 0x00 && /* Model ID */
+       (val[3] >= 0x20 && val[3] <= 0x7F)&& /*  Model ID */
+       val[4] == 0x12) /* Data Set Command */
+    {
+		uint8 sdlen;
+		int i, checksum;
+		int mfx, part, tmp1, tmp2;
+		int16 dbyte, dbyte2, dbyte3;
+#ifdef _DEBUG
+		uint8 sysex[32];
+
+		memset(sysex, 0, sizeof(sysex));
+		for(i = 0; i < len; i++){
+			sysex[i] = val[i];
+		}
+#endif
+
+		/* calculate checksum */
+#if 1 // 怪しい・・?
+		checksum = 0;
+		for(sdlen = 10; sdlen < len; sdlen++)
+			if(val[sdlen] == 0xF7)
+				break;
+		for(i = 5; i < sdlen - 1; i++) {
+			checksum += val[i];
+		}
+		if(((128 - (checksum & 0x7F)) & 0x7F) != val[sdlen - 1]) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD SysEx: Checksum Error.");
+			return num_events;
+		}
+#endif
+
+
+		switch(val[5]){
+		case 0x00: // Setup
+			break;
+		case 0x01: // System
+			if(val[6] != 0x00){
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			}
+			switch(val[7]){
+			case 0x00: // System Common
+				switch(val[8]){
+				case 0x00: // Master Tune
+				case 0x04: // Master key Shift
+				case 0x05: // Master Level
+				case 0x06: // System Control 1 source
+				case 0x07: // System Control 2 source
+				case 0x08: // System Control 3 source
+				case 0x09: // System Control 4 source
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				default:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				}
+				break;
+			case 0x20: // System EQ
+				switch(val[8]){
+				case 0x00: // EQ Switch
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x00);
+					num_events += 3;
+					break;
+				case 0x01: // EQ Left Low Frequency
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x01);
+					num_events += 3;
+					break;
+				case 0x02: // EQ Left Low Gain
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x02);
+					num_events += 3;
+					break;
+				case 0x03: // EQ Left High Frequency
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x03);
+					num_events += 3;
+					break;
+				case 0x04: // EQ Left High Gain
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x04);
+					num_events += 3;
+					break;
+				case 0x05: // EQ Right Low Frequency
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x05);
+					num_events += 3;
+					break;
+				case 0x06: // EQ Right Low Gain
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x06);
+					num_events += 3;
+					break;
+				case 0x07: // EQ Right High Frequency
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x07);
+					num_events += 3;
+					break;
+				case 0x08: // EQ Right High Gain
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x02);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x08);
+					num_events += 3;
+					break;
+				default:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				}
+				break;
+			}
+			break;
+		case 0x02: // Audio
+			break;
+		case 0x10: // Temporary Multitimbre
+			if(val[6] != 0x00){
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			}
+			switch(val[7]){
+			case 0x00: // Multitimbre Common
+				switch(val[8]){
+				case 0x00: // Multitimbre Name 1
+				case 0x01: // Multitimbre Name 2
+				case 0x02: // Multitimbre Name 3
+				case 0x03: // Multitimbre Name 4
+				case 0x04: // Multitimbre Name 5
+				case 0x05: // Multitimbre Name 6
+				case 0x06: // Multitimbre Name 7
+				case 0x07: // Multitimbre Name 8
+				case 0x08: // Multitimbre Name 9
+				case 0x09: // Multitimbre Name 10
+				case 0x0A: // Multitimbre Name 11
+				case 0x0B: // Multitimbre Name 12
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				case 0x0C: // Solo Part Select
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				case 0x10: // Voice Reserve 1
+				case 0x11: // Voice Reserve 2
+				case 0x12: // Voice Reserve 3
+				case 0x13: // Voice Reserve 4
+				case 0x14: // Voice Reserve 5
+				case 0x15: // Voice Reserve 6
+				case 0x16: // Voice Reserve 7
+				case 0x17: // Voice Reserve 8
+				case 0x18: // Voice Reserve 9
+				case 0x19: // Voice Reserve 10
+				case 0x1A: // Voice Reserve 11
+				case 0x1B: // Voice Reserve 12
+				case 0x1C: // Voice Reserve 13
+				case 0x1D: // Voice Reserve 14
+				case 0x1E: // Voice Reserve 15
+				case 0x1F: // Voice Reserve 16
+				case 0x20: // Voice Reserve 17
+				case 0x21: // Voice Reserve 18
+				case 0x22: // Voice Reserve 19
+				case 0x23: // Voice Reserve 20
+				case 0x24: // Voice Reserve 21
+				case 0x25: // Voice Reserve 22
+				case 0x26: // Voice Reserve 23
+				case 0x27: // Voice Reserve 24
+				case 0x28: // Voice Reserve 25
+				case 0x29: // Voice Reserve 26
+				case 0x2A: // Voice Reserve 27
+				case 0x2B: // Voice Reserve 28
+				case 0x2C: // Voice Reserve 29
+				case 0x2D: // Voice Reserve 30
+				case 0x2E: // Voice Reserve 31
+				case 0x2F: // Voice Reserve 32
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				case 0x30: // MFX1 Source
+				case 0x31: // MFX2 Source
+				case 0x32: // MFX3 Source
+					tmp1 = (val[8] - 0x30);
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, tmp1, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x30);
+					num_events += 3;
+					break;
+				case 0x33: // Chorus Source
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x33);
+					num_events += 3;
+					break;
+				case 0x34: // Reverb Source
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x34);
+					num_events += 3;
+					break;
+				case 0x35: // MFX1 Control Channel
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x35);
+					num_events += 3;
+					break;
+				case 0x36: // MFX1 Control Port
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x36);
+					num_events += 3;
+					break;
+				case 0x37: // MFX2 Control Channel
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x37);
+					num_events += 3;
+					break;
+				case 0x38: // MFX2 Control Port
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x38);
+					num_events += 3;
+					break;
+				case 0x39: // MFX3 Control Channel
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x39);
+					num_events += 3;
+					break;
+				case 0x3A: // MFX3 Control Port
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x07);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x3A);
+					num_events += 3;
+					break;
+				default:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				}
+				break;
+			case 0x02: // Multitimbre Common Chorus
+				switch(val[8]){
+				case 0x00: // Chorus Type
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x08);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x00);
+					num_events += 3;
+					break;
+				case 0x01: // Chorus Level
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x08);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x01);
+					num_events += 3;
+					break;
+				case 0x03: // Chorus Output Select
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x08);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x02);
+					num_events += 3;
+					break;
+				case 0x04: // Chorus Parameter 1
+				case 0x08: // Chorus Parameter 2
+				case 0x0c: // Chorus Parameter 3
+				case 0x10: // Chorus Parameter 4
+				case 0x14: // Chorus Parameter 5
+				case 0x18: // Chorus Parameter 6
+				case 0x1C: // Chorus Parameter 7
+				case 0x20: // Chorus Parameter 8
+				case 0x24: // Chorus Parameter 9
+				case 0x28: // Chorus Parameter 10
+				case 0x2C: // Chorus Parameter 11
+				case 0x30: // Chorus Parameter 12	
+					{
+					int num = (val[8] - 0x04) >> 2;
+					int byteh = ((val[9] & 0x0F) << 4) | (val[10] & 0x0F);
+					int bytel = ((val[11] & 0x0F) << 4) | (val[12] & 0x0F);
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, byteh, 0x08);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, bytel, 0x03 + num);
+					num_events += 3;
+					}
+					break;
+				default:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				}
+				break;
+			case 0x04: // Multitimbre Common Reverb
+				switch(val[8]){
+				case 0x00: // Reverb Type
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x09);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x00);
+					num_events += 3;
+					break;
+				case 0x01: // Reverb Level
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x09);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x01);
+					num_events += 3;
+					break;
+				case 0x03: // Reverb Parameter 1
+				case 0x07: // Reverb Parameter 2
+				case 0x0B: // Reverb Parameter 3
+				case 0x0F: // Reverb Parameter 4
+				case 0x13: // Reverb Parameter 5
+				case 0x17: // Reverb Parameter 6
+				case 0x1B: // Reverb Parameter 7
+				case 0x1F: // Reverb Parameter 8
+				case 0x23: // Reverb Parameter 9
+				case 0x27: // Reverb Parameter 10
+				case 0x2B: // Reverb Parameter 11
+				case 0x2F: // Reverb Parameter 12	
+				case 0x33: // Reverb Parameter 13
+				case 0x37: // Reverb Parameter 14
+				case 0x3B: // Reverb Parameter 15
+				case 0x3F: // Reverb Parameter 16	
+				case 0x43: // Reverb Parameter 17
+				case 0x47: // Reverb Parameter 18
+				case 0x4B: // Reverb Parameter 19
+				case 0x4F: // Reverb Parameter 20	
+					{
+					int num = (val[8] - 0x03) >> 2;
+					int byteh = ((val[9] & 0x0F) << 4) | (val[10] & 0x0F);
+					int bytel = ((val[11] & 0x0F) << 4) | (val[12] & 0x0F);
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, byteh, 0x09);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, bytel, 0x02 + num);
+					num_events += 3;
+					}
+					break;
+				default:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				}
+				break;
+			case 0x06: // Multitimbre Common MFX1
+			case 0x07: // Multitimbre Common MFX1
+			case 0x08: // Multitimbre Common MFX2
+			case 0x09: // Multitimbre Common MFX2
+			case 0x0A: // Multitimbre Common MFX3
+			case 0x0B: // Multitimbre Common MFX3
+				mfx = (val[7] - 0x06) >> 1;
+				dbyte = (((uint16)val[7] & 0x01) << 8) | val[8];
+				switch(dbyte){
+				case 0x0000: // MFX Type
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x00);
+					num_events += 3;
+					break;
+				case 0x0001: // MFX Dry Send Level
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x01);
+					num_events += 3;
+					break;
+				case 0x0002: // MFX Chorus Send Level
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x02);
+					num_events += 3;
+					break;
+				case 0x0003: // MFX Reverb Send Level
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x03);
+					num_events += 3;
+					break;
+				case 0x0005: // MFX Control 1 Source
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x05);
+					num_events += 3;
+					break;
+				case 0x0006: // MFX Control 1 Sens 
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x06);
+					num_events += 3;
+					break;
+				case 0x0007: // MFX Control 2 Source
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x07);
+					num_events += 3;
+					break;
+				case 0x0008: // MFX Control 2 Sens 
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x08);
+					num_events += 3;
+					break;
+				case 0x0009: // MFX Control 3 Source
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x09);
+					num_events += 3;
+					break;
+				case 0x000A: // MFX Control 3 Sens 
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0A);
+					num_events += 3;
+					break;
+				case 0x000B: // MFX Control 4 Source
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0B);
+					num_events += 3;
+					break;
+				case 0x000C: // MFX Control 4 Sens 
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0C);
+					num_events += 3;
+					break;
+				case 0x000D: // MFX Control Assign 1
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0D);
+					num_events += 3;
+					break;
+				case 0x000E: // MFX Control Assign 2
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0E);
+					num_events += 3;
+					break;
+				case 0x000F: // MFX Control Assign 3
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0F);
+					num_events += 3;
+					break;
+				case 0x0010: // MFX Control Assign 4
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x10);
+					num_events += 3;
+					break;
+				case 0x0011: // MFX Parameter 1
+				case 0x0015: // MFX Parameter 2
+				case 0x0019: // MFX Parameter 3
+				case 0x001D: // MFX Parameter 4
+				case 0x0021: // MFX Parameter 5
+				case 0x0025: // MFX Parameter 6
+				case 0x0029: // MFX Parameter 7
+				case 0x002D: // MFX Parameter 8
+				case 0x0031: // MFX Parameter 9
+				case 0x0035: // MFX Parameter 10
+				case 0x0039: // MFX Parameter 11
+				case 0x003D: // MFX Parameter 12
+				case 0x0041: // MFX Parameter 13
+				case 0x0045: // MFX Parameter 14
+				case 0x0049: // MFX Parameter 15
+				case 0x004D: // MFX Parameter 16
+				case 0x0051: // MFX Parameter 17
+				case 0x0055: // MFX Parameter 18
+				case 0x0059: // MFX Parameter 19
+				case 0x005D: // MFX Parameter 20
+				case 0x0061: // MFX Parameter 21
+				case 0x0065: // MFX Parameter 22
+				case 0x0069: // MFX Parameter 23
+				case 0x006D: // MFX Parameter 24
+				case 0x0071: // MFX Parameter 25
+				case 0x0075: // MFX Parameter 26
+				case 0x0079: // MFX Parameter 27
+				case 0x007D: // MFX Parameter 28
+				case 0x0101: // MFX Parameter 29
+				case 0x0105: // MFX Parameter 30
+				case 0x0109: // MFX Parameter 31
+				case 0x010D: // MFX Parameter 32
+					{
+					int num = (dbyte > 0x0100) ? ((val[8] - 0x1) >> 2 + 28) : ((val[8] - 0x11) >> 2);
+					int byteh = ((val[9] & 0x0F) << 4) | (val[10] & 0x0F);
+					int bytel = ((val[11] & 0x0F) << 4) | (val[12] & 0x0F);
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, byteh, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, mfx, 0);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, bytel, 0x11 + num);
+					num_events += 3;
+					}
+					break;
+				default:
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				}
+				break;
+			case 0x20: // Multitimbre Part (part 1
+			case 0x21: // Multitimbre Part (part 2
+			case 0x22: // Multitimbre Part (part 3
+			case 0x23: // Multitimbre Part (part 4
+			case 0x24: // Multitimbre Part (part 5
+			case 0x25: // Multitimbre Part (part 6
+			case 0x26: // Multitimbre Part (part 7
+			case 0x27: // Multitimbre Part (part 8
+			case 0x28: // Multitimbre Part (part 9
+			case 0x29: // Multitimbre Part (part 10
+			case 0x2A: // Multitimbre Part (part 11
+			case 0x2B: // Multitimbre Part (part 12
+			case 0x2C: // Multitimbre Part (part 13
+			case 0x2D: // Multitimbre Part (part 14
+			case 0x2E: // Multitimbre Part (part 15
+			case 0x2F: // Multitimbre Part (part 16
+			case 0x30: // Multitimbre Part (part 17
+			case 0x31: // Multitimbre Part (part 18
+			case 0x32: // Multitimbre Part (part 19
+			case 0x33: // Multitimbre Part (part 20
+			case 0x34: // Multitimbre Part (part 21
+			case 0x35: // Multitimbre Part (part 22
+			case 0x36: // Multitimbre Part (part 23
+			case 0x37: // Multitimbre Part (part 24
+			case 0x38: // Multitimbre Part (part 25
+			case 0x39: // Multitimbre Part (part 26
+			case 0x3A: // Multitimbre Part (part 27
+			case 0x3B: // Multitimbre Part (part 28
+			case 0x3C: // Multitimbre Part (part 29
+			case 0x3D: // Multitimbre Part (part 30
+			case 0x3E: // Multitimbre Part (part 31
+			case 0x3F: // Multitimbre Part (part 32
+				part = val[7] - 0x20;
+				switch(val[8]){
+				case 0x00: // Receive Channel
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_XG_LSB, part, val[9], 0x99);
+					num_events++;
+					break;
+				case 0x01: // Receive Switch
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Receive Switch");
+					break;
+				case 0x03: // Receive MIDI Port
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Receive MIDI Port");
+					break;
+				case 0x04: // Patch Bank Select MSB (CC# 0
+					SETMIDIEVENT(evm[0], 0, ME_TONE_BANK_MSB, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x05: // Patch Bank Select LSB (CC# 32
+					SETMIDIEVENT(evm[0], 0, ME_TONE_BANK_LSB, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x06: // Patch Program Number (PC
+					SETMIDIEVENT(evm[0], 0, ME_PROGRAM, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x07: // Part Level (CC# 7
+					SETMIDIEVENT(evm[0], 0, ME_MAINVOLUME, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x08: // Part Pan (CC# 10
+					SETMIDIEVENT(evm[0], 0, ME_PAN, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x09: // Part Coarse Tune (RPN# 2
+					SETMIDIEVENT(evm[0], 0, ME_RPN_MSB, part, 0, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_RPN_LSB, part, 2, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x0A: // Part Fine Tune (RPN# 1
+					SETMIDIEVENT(evm[0], 0, ME_RPN_MSB, part, 0, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_RPN_LSB, part, 1, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x0B: // Part Mono/Poly (MONO ON/POLY ON
+					if(val[9] == 0)
+						{SETMIDIEVENT(evm[0], 0, ME_MONO, part, 0, SYSEX_TAG);}
+					else 
+						{SETMIDIEVENT(evm[0], 0, ME_POLY, part, 0, SYSEX_TAG);}
+					num_events++;
+					break;
+				case 0x0C: // Part Legato Switch (CC# 68
+					SETMIDIEVENT(evm[0], 0, ME_LEGATO_FOOTSWITCH, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x0D: // Part Pitch Bend Range (RPN# 0
+					if(val[9] >= 25){
+						ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD SysEx. Part Pitch Bend Range (Unsupported PATCH)");
+					}else{
+						SETMIDIEVENT(evm[0], 0, ME_RPN_MSB, part, 0, SYSEX_TAG);
+						SETMIDIEVENT(evm[1], 0, ME_RPN_LSB, part, 0, SYSEX_TAG);
+						SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG); // range 0-24
+						num_events += 3;
+					}
+					break;
+				case 0x0E: // Part Portamento Switch (CC# 65
+					SETMIDIEVENT(evm[0], 0, ME_PORTAMENTO, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x0F: // Part Portamento Time (CC# 5
+					SETMIDIEVENT(evm[0], 0, ME_PORTAMENTO_TIME_MSB, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x11: // Part Cutoff Offset (CC# 74
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x20, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x12: // Part Resonance Offset (CC# 71
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x21, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x13: // Part Attack Time Offset (CC# 73
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x63, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x14: // Part Release Time Offset (CC# 72
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x66, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x15: // Part Octave 
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Part Octave");
+					break;
+				case 0x16: // Part Velocity Sens Offset					
+					SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_GS_LSB, part, val[9], 0x22);
+					num_events++;
+					break;
+				case 0x17: // Part Keyboard Range Lower
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x42);
+					num_events++;
+					break;
+				case 0x18: // Part Keyboard Range Upper
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x43);
+					num_events++;
+					break;
+				case 0x19: // Part Keyboard Fade Width Lower
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Part Keyboard Fade Width Lower");
+					break;
+				case 0x1A: // Part Keyboard Fade Width Upper
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Part Keyboard Fade Width Upper");
+					break;
+				case 0x1B: // Part Mute Switch
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Part Mute Switch");
+					break;
+				case 0x1C: // Part Dry Send Level
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0B);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x1C);
+					num_events += 3;		
+					break;
+				case 0x1D: // Part Chorus Send Level (CC# 93
+					SETMIDIEVENT(evm[0], 0, ME_CHORUS_EFFECT, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x1E: // Part Reverb Send Level (CC# 91
+					SETMIDIEVENT(evm[0], 0, ME_REVERB_EFFECT, part, val[9], SYSEX_TAG);
+					num_events++;
+					break;
+				case 0x1F: // Part Output Assign
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0B);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x1F);
+					num_events += 3;		
+					break;
+				case 0x20: // Part Output MFX Select
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0B);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x20);
+					num_events += 3;
+					break;
+				case 0x21: // Part Decay Time Offset (CC# 75
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x64, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x22: // Part Vibrato Rate (CC# 76
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x08, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x23: // Part Vibrato Depth (CC# 77
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x09, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x24: // Part Vibrato Decay (CC# 78
+					SETMIDIEVENT(evm[0], 0, ME_NRPN_MSB, part, 0x01, SYSEX_TAG);
+					SETMIDIEVENT(evm[1], 0, ME_NRPN_LSB, part, 0x0A, SYSEX_TAG);
+					SETMIDIEVENT(evm[2], 0, ME_DATA_ENTRY_MSB, part, val[9], SYSEX_TAG);
+					num_events += 3;
+					break;
+				case 0x25: // Mod LFO Pitch Depth
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x1A);
+				//	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+					break;
+				case 0x26: // CAf Pithch Control
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x16);
+					num_events++;
+					break;
+				case 0x27: // CAf TVF Cutoff Control
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x17);
+					num_events++;
+					break;
+				case 0x28: // CAf Amplitude Control
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x18);
+					num_events++;
+					break;
+				case 0x29: // CAf LFO Pitch Depth
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x1A);
+					num_events++;
+					break;
+				case 0x2A: // CAf LFO TVF Depth
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x1B);
+					num_events++;
+					break;
+				case 0x2B: // CAf LFO TVA Depth
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x1C);
+					num_events++;
+					break;
+				case 0x2C: // CC Control number
+					if(val[9] < 0 || (val[9] > 31 && val[9] < 64) || val[9] > 95){
+						SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, -1, 0x6D); // off
+					}else{
+						SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x6D);
+					}
+					num_events++;
+					break;
+				case 0x2D: // CC Pithch Control
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x2C);
+					num_events++;
+					break;
+				case 0x2E: // CC TVF Cutoff Control
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x2D);
+					num_events++;
+					break;
+				case 0x2F: // CC Amplitude Control
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x2E);
+					num_events++;
+					break;
+				case 0x30: // CC LFO Pitch Depth
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x30);
+					num_events++;
+					break;
+				case 0x31: // CC LFO TVF Depth
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x31);
+					num_events++;
+					break;
+				case 0x32: // CC LFO TVA Depth
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x32);
+					num_events++;
+					break;
+				case 0x33: // Part Scale Tune for C
+				case 0x34: // Part Scale Tune for C#
+				case 0x35: // Part Scale Tune for D
+				case 0x36: // Part Scale Tune for D#
+				case 0x37: // Part Scale Tune for E
+				case 0x38: // Part Scale Tune for F
+				case 0x39: // Part Scale Tune for F#
+				case 0x3A: // Part Scale Tune for G
+				case 0x3B: // Part Scale Tune for G#
+				case 0x3C: // Part Scale Tune for A
+				case 0x3D: // Part Scale Tune for A#
+				case 0x3E: // Part Scale Tune for B
+					SETMIDIEVENT(evm[num_events], 0, ME_SCALE_TUNING, part, val[8] - 0x33, val[9]);
+					num_events++;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "Part Scale Tuning %s (CH:%d %d cent)",
+						  note_name[val[8] - 0x33], part, val[9]);
+					break;
+				case 0x3F: // GM2 Instrument Select 
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, part, val[9], 0x6C);
+					num_events++;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "Part GM2 Instrument Select (CH:%d VAL:%d)", part, val[9]);
+					break;
+				}	
+				break;
+			case 0x40: // Multitimbre MIDI (port A / channel 1
+			case 0x41: // Multitimbre MIDI (port A / channel 2
+			case 0x42: // Multitimbre MIDI (port A / channel 3
+			case 0x43: // Multitimbre MIDI (port A / channel 4
+			case 0x44: // Multitimbre MIDI (port A / channel 5
+			case 0x45: // Multitimbre MIDI (port A / channel 6
+			case 0x46: // Multitimbre MIDI (port A / channel 7
+			case 0x47: // Multitimbre MIDI (port A / channel 8
+			case 0x48: // Multitimbre MIDI (port A / channel 9
+			case 0x49: // Multitimbre MIDI (port A / channel 10
+			case 0x4A: // Multitimbre MIDI (port A / channel 11
+			case 0x4B: // Multitimbre MIDI (port A / channel 12
+			case 0x4C: // Multitimbre MIDI (port A / channel 13
+			case 0x4D: // Multitimbre MIDI (port A / channel 14
+			case 0x4E: // Multitimbre MIDI (port A / channel 15
+			case 0x4F: // Multitimbre MIDI (port A / channel 16
+			case 0x50: // Multitimbre MIDI (port B / channel 1
+			case 0x51: // Multitimbre MIDI (port B / channel 2
+			case 0x52: // Multitimbre MIDI (port B / channel 3
+			case 0x53: // Multitimbre MIDI (port B / channel 4
+			case 0x54: // Multitimbre MIDI (port B / channel 5
+			case 0x55: // Multitimbre MIDI (port B / channel 6
+			case 0x56: // Multitimbre MIDI (port B / channel 7
+			case 0x57: // Multitimbre MIDI (port B / channel 8
+			case 0x58: // Multitimbre MIDI (port B / channel 9
+			case 0x59: // Multitimbre MIDI (port B / channel 10
+			case 0x5A: // Multitimbre MIDI (port B / channel 11
+			case 0x5B: // Multitimbre MIDI (port B / channel 12
+			case 0x5C: // Multitimbre MIDI (port B / channel 13
+			case 0x5D: // Multitimbre MIDI (port B / channel 14
+			case 0x5E: // Multitimbre MIDI (port B / channel 15
+			case 0x5F: // Multitimbre MIDI (port B / channel 16				
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Multitimbre MIDI (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			default:
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			}
+			break;
+		case 0x11: // Temporary Patch/Rhythm part 1~32
+		case 0x12: // 
+		case 0x13: // 
+		case 0x14: // 
+		case 0x15: // 
+		case 0x16: // 
+		case 0x17: // 
+		case 0x18: // 
+			part = ((uint16)val[5] - 0x11) * 4 + val[6] >> 5;
+			switch(((uint16)val[6] & 0x11) << 8 | val[7]){
+			// Patch
+			case 0x0000: // Patch Common
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Patch Common (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			case 0x0002: // Patch Common Chorus
+			case 0x1002: // Rhythm Common Chorus
+				dbyte = (((uint16)val[7] & 0x01) << 8) | val[8];
+				switch(dbyte){
+				case 0x0000: // Chorus Type					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0E);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x00);
+					num_events += 3;
+					break;
+				case 0x0001: // Chorus Level					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0E);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x01);
+					num_events += 3;
+					break;
+				case 0x0003: // Chorus Output Select				
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0E);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x02);
+					num_events += 3;
+					break;
+				case 0x0004: // Chorus Parameter 1
+				case 0x0008: // Chorus Parameter 2
+				case 0x000C: // Chorus Parameter 3
+				case 0x0010: // Chorus Parameter 4
+				case 0x0014: // Chorus Parameter 5
+				case 0x0018: // Chorus Parameter 6
+				case 0x001C: // Chorus Parameter 7
+				case 0x0020: // Chorus Parameter 8
+				case 0x0024: // Chorus Parameter 9
+				case 0x0028: // Chorus Parameter 10
+				case 0x002C: // Chorus Parameter 11
+				case 0x0030: // Chorus Parameter 12
+					{
+					int num = (val[7] & 0x01) ? ((val[8] - 0x1) >> 2 + 28) : ((val[8] - 0x0004) >> 2);
+					int byteh = ((val[9] & 0x0F) << 4) | (val[10] & 0x0F);
+					int bytel = ((val[11] & 0x0F) << 4) | (val[12] & 0x0F);
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, byteh, 0x0E);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, bytel, 0x03 + num);
+					num_events += 3;
+					}
+					break;
+				}
+				break;
+			case 0x0004: // Patch Common Reverb
+			case 0x1004: // Rhythm Common Reverb
+				dbyte = (((uint16)val[7] & 0x01) << 8) | val[8];
+				switch(dbyte){
+				case 0x0000: // Reverb Type					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0F);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x00);
+					num_events += 3;
+					break;
+				case 0x0001: // Reverb Level					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x0F);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x01);
+					num_events += 3;
+					break;
+				case 0x0003: // Reverb Parameter 1
+				case 0x0007: // Reverb Parameter 2
+				case 0x000B: // Reverb Parameter 3
+				case 0x000F: // Reverb Parameter 4
+				case 0x0013: // Reverb Parameter 5
+				case 0x0017: // Reverb Parameter 6
+				case 0x001B: // Reverb Parameter 7
+				case 0x001F: // Reverb Parameter 8
+				case 0x0023: // Reverb Parameter 9
+				case 0x0027: // Reverb Parameter 10
+				case 0x002B: // Reverb Parameter 11
+				case 0x002F: // Reverb Parameter 12
+				case 0x0033: // Reverb Parameter 13
+				case 0x0037: // Reverb Parameter 14
+				case 0x003B: // Reverb Parameter 15
+				case 0x003F: // Reverb Parameter 16
+				case 0x0043: // Reverb Parameter 17
+				case 0x0047: // Reverb Parameter 18
+				case 0x004B: // Reverb Parameter 19
+				case 0x004F: // Reverb Parameter 20
+					{
+					int num = (val[7] & 0x01) ? ((val[8] - 0x1) >> 2 + 28) : ((val[8] - 0x0003) >> 2);
+					int byteh = ((val[9] & 0x0F) << 4) | (val[10] & 0x0F);
+					int bytel = ((val[11] & 0x0F) << 4) | (val[12] & 0x0F);
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, byteh, 0x0F);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, bytel, 0x02 + num);
+					num_events += 3;
+					}
+					break;
+				}
+				break;
+			case 0x0006: // Patch Common MFX
+			case 0x1006: // Rhythm Common MFX
+				dbyte = (((uint16)val[7] & 0x01) << 8) | val[8];
+				switch(dbyte){
+				case 0x0000: // MFX Type					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x00);
+					num_events += 3;
+					break;
+				case 0x0001: // MFX Dry Send Level					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x01);
+					num_events += 3;
+					break;
+				case 0x0002: // MFX Chorus Send Level					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x02);
+					num_events += 3;
+					break;
+				case 0x0003: // MFX Reverb Send Level					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x03);
+					num_events += 3;
+					break;
+				case 0x0005: // MFX Control 1 Source				
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x05);
+					num_events += 3;
+					break;
+				case 0x0006: // MFX Control 1 Sens					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x06);
+					num_events += 3;
+					break;
+				case 0x0007: // MFX Control 2 Source					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x07);
+					num_events += 3;
+					break;
+				case 0x0008: // MFX Control 2 Sens					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x08);
+					num_events += 3;
+					break;
+				case 0x0009: // MFX Control 3 Source						
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x09);
+					num_events += 3;
+					break;
+				case 0x000A: // MFX Control 3 Sens							
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0A);
+					num_events += 3;
+					break;
+				case 0x000B: // MFX Control 4 Source					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0B);
+					num_events += 3;
+					break;
+				case 0x000C: // MFX Control 4 Sens					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0C);
+					num_events += 3;
+					break;
+				case 0x000D: // MFX Control Assign 1					
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0D);
+					num_events += 3;
+					break;
+				case 0x000E: // MFX Control Assign 2				
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0E);
+					num_events += 3;
+					break;
+				case 0x000F: // MFX Control Assign 3				
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x0F);
+					num_events += 3;
+					break;
+				case 0x0010: // MFX Control Assign 4				
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, 0, 0x10);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, val[9], 0x10);
+					num_events += 3;
+					break;
+				case 0x0011: // MFX Parameter 1
+				case 0x0015: // MFX Parameter 2
+				case 0x0019: // MFX Parameter 3
+				case 0x001D: // MFX Parameter 4
+				case 0x0021: // MFX Parameter 5
+				case 0x0025: // MFX Parameter 6
+				case 0x0029: // MFX Parameter 7
+				case 0x002D: // MFX Parameter 8
+				case 0x0031: // MFX Parameter 9
+				case 0x0035: // MFX Parameter 10
+				case 0x0039: // MFX Parameter 11
+				case 0x003D: // MFX Parameter 12
+				case 0x0041: // MFX Parameter 13
+				case 0x0045: // MFX Parameter 14
+				case 0x0049: // MFX Parameter 15
+				case 0x004D: // MFX Parameter 16
+				case 0x0051: // MFX Parameter 17
+				case 0x0055: // MFX Parameter 18
+				case 0x0059: // MFX Parameter 19
+				case 0x005D: // MFX Parameter 20
+				case 0x0061: // MFX Parameter 21
+				case 0x0065: // MFX Parameter 22
+				case 0x0069: // MFX Parameter 23
+				case 0x006D: // MFX Parameter 24
+				case 0x0071: // MFX Parameter 25
+				case 0x0075: // MFX Parameter 26
+				case 0x0079: // MFX Parameter 27
+				case 0x007D: // MFX Parameter 28
+				case 0x0101: // MFX Parameter 29
+				case 0x0105: // MFX Parameter 30
+				case 0x0109: // MFX Parameter 31
+				case 0x010D: // MFX Parameter 32
+					{
+					int num = (val[7] & 0x01) ? ((val[8] - 0x1) >> 2 + 28) : ((val[8] - 0x11) >> 2);
+					int byteh = ((val[9] & 0x0F) << 4) | (val[10] & 0x0F);
+					int bytel = ((val[11] & 0x0F) << 4) | (val[12] & 0x0F);
+					SETMIDIEVENT(evm[0], 0, ME_SYSEX_SD_HSB, 0, byteh, 0x0A);
+					SETMIDIEVENT(evm[1], 0, ME_SYSEX_SD_MSB, 0, 0, part);
+					SETMIDIEVENT(evm[2], 0, ME_SYSEX_SD_LSB, 0, bytel, 0x11 + num);
+					num_events += 3;
+					}
+					break;
+				}
+				break;
+			case 0x0010: // Patch TMT (Tone Mix Table
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Patch TMT (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			case 0x0020: // Patch Tone (tone 1
+			case 0x0022: // Patch Tone (tone 2
+			case 0x0024: // Patch Tone (tone 3
+			case 0x0026: // Patch Tone (tone 4
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Patch Tone (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			// Rhythm
+			case 0x1000: // Rhythm Common
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Rhythm Common (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			case 0x1010: // Rhythm Tone (key 21
+			case 0x1012: // Rhythm Tone (key 22
+			case 0x1014: // Rhythm Tone (key 23
+			case 0x1016: // Rhythm Tone (key 24
+			case 0x1018: // Rhythm Tone (key 25
+			case 0x101A: // Rhythm Tone (key 26
+			case 0x101C: // Rhythm Tone (key 27
+			case 0x101E: // Rhythm Tone (key 28
+			case 0x1020: // Rhythm Tone (key 29
+			case 0x1022: // Rhythm Tone (key 30
+			case 0x1024: // Rhythm Tone (key 31
+			case 0x1026: // Rhythm Tone (key 32
+			case 0x1028: // Rhythm Tone (key 33
+			case 0x102A: // Rhythm Tone (key 34
+			case 0x102C: // Rhythm Tone (key 35
+			case 0x102E: // Rhythm Tone (key 36
+			case 0x1030: // Rhythm Tone (key 37
+			case 0x1032: // Rhythm Tone (key 38
+			case 0x1034: // Rhythm Tone (key 39
+			case 0x1036: // Rhythm Tone (key 40
+			case 0x1038: // Rhythm Tone (key 41
+			case 0x103A: // Rhythm Tone (key 42
+			case 0x103C: // Rhythm Tone (key 43
+			case 0x103E: // Rhythm Tone (key 44
+			case 0x1040: // Rhythm Tone (key 45
+			case 0x1042: // Rhythm Tone (key 46
+			case 0x1044: // Rhythm Tone (key 47
+			case 0x1046: // Rhythm Tone (key 48
+			case 0x1048: // Rhythm Tone (key 49
+			case 0x104A: // Rhythm Tone (key 50
+			case 0x104C: // Rhythm Tone (key 51
+			case 0x104E: // Rhythm Tone (key 52
+			case 0x1050: // Rhythm Tone (key 53
+			case 0x1052: // Rhythm Tone (key 54
+			case 0x1054: // Rhythm Tone (key 55
+			case 0x1056: // Rhythm Tone (key 56
+			case 0x1058: // Rhythm Tone (key 57
+			case 0x105A: // Rhythm Tone (key 58
+			case 0x105C: // Rhythm Tone (key 59
+			case 0x105E: // Rhythm Tone (key 60
+			case 0x1060: // Rhythm Tone (key 61
+			case 0x1062: // Rhythm Tone (key 62
+			case 0x1064: // Rhythm Tone (key 63
+			case 0x1066: // Rhythm Tone (key 64
+			case 0x1068: // Rhythm Tone (key 65
+			case 0x106A: // Rhythm Tone (key 66
+			case 0x106C: // Rhythm Tone (key 67
+			case 0x106E: // Rhythm Tone (key 68
+			case 0x1070: // Rhythm Tone (key 69
+			case 0x1072: // Rhythm Tone (key 70
+			case 0x1074: // Rhythm Tone (key 71
+			case 0x1076: // Rhythm Tone (key 72
+			case 0x1078: // Rhythm Tone (key 73
+			case 0x107A: // Rhythm Tone (key 74
+			case 0x107C: // Rhythm Tone (key 75
+			case 0x107E: // Rhythm Tone (key 76
+			case 0x1100: // Rhythm Tone (key 77
+			case 0x1102: // Rhythm Tone (key 78
+			case 0x1104: // Rhythm Tone (key 79
+			case 0x1106: // Rhythm Tone (key 80
+			case 0x1108: // Rhythm Tone (key 81
+			case 0x110A: // Rhythm Tone (key 82
+			case 0x110C: // Rhythm Tone (key 83
+			case 0x110E: // Rhythm Tone (key 84
+			case 0x1110: // Rhythm Tone (key 85
+			case 0x1112: // Rhythm Tone (key 86
+			case 0x1114: // Rhythm Tone (key 87
+			case 0x1116: // Rhythm Tone (key 88
+			case 0x1118: // Rhythm Tone (key 89
+			case 0x111A: // Rhythm Tone (key 90
+			case 0x111C: // Rhythm Tone (key 91
+			case 0x111E: // Rhythm Tone (key 92
+			case 0x1120: // Rhythm Tone (key 93
+			case 0x1122: // Rhythm Tone (key 94
+			case 0x1124: // Rhythm Tone (key 95
+			case 0x1126: // Rhythm Tone (key 96
+			case 0x1128: // Rhythm Tone (key 97
+			case 0x112A: // Rhythm Tone (key 98
+			case 0x112C: // Rhythm Tone (key 99
+			case 0x112E: // Rhythm Tone (key 100
+			case 0x1130: // Rhythm Tone (key 101
+			case 0x1132: // Rhythm Tone (key 102
+			case 0x1134: // Rhythm Tone (key 103
+			case 0x1136: // Rhythm Tone (key 104
+			case 0x1138: // Rhythm Tone (key 105
+			case 0x113A: // Rhythm Tone (key 106
+			case 0x113C: // Rhythm Tone (key 107
+			case 0x113E: // Rhythm Tone (key 108
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. Rhythm Tone (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			default:
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+				break;
+			}
+			break;
+		default:
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD SysEx. (ADDR:%02X %02X %02X %02X)",val[5],val[6],val[7],val[8]);
+			break;
+		}		
+	}
+
+	
+    /* parsing SD-50 System Exclusive Message...
+     * val[6] == Parameter Address(1
+     * val[7] == Parameter Address(2
+     * val[8] == Parameter Address(3
+     * val[9] == Parameter Address(4
+     * val[9]... == Data...
+     * val[last] == Checksum(== 128 - (sum of addresses&data bytes % 128)) 
+     */
+    else if(len >= 10 &&
+       val[0] == 0x41 && /* Roland ID */
+       val[1] == 0x10 && /* Device ID */
+       val[2] == 0x00 && // Model ID (SD-50
+	   val[3] == 0x00 && // Model ID (SD-50
+       val[4] == 0x4A && // Model ID (SD-50
+       val[5] == 0x12) /* Data Set Command */
+    {
+		uint8 sdlen;
+		int i, checksum;
+		int mfx, part, tmp1, tmp2;
+		int16 dbyte, dbyte2, dbyte3;
+#ifdef _DEBUG
+		uint8 sysex[32];
+
+		memset(sysex, 0, sizeof(sysex));
+		for(i = 0; i < len; i++){
+			sysex[i] = val[i];
+		}
+#endif
+
+		/* calculate checksum */
+#if 1 // 怪しい・・?
+		checksum = 0;
+		for(sdlen = 11; sdlen < len; sdlen++)
+			if(val[sdlen] == 0xF7)
+				break;
+		for(i = 6; i < sdlen - 1; i++) {
+			checksum += val[i];
+		}
+		if(((128 - (checksum & 0x7F)) & 0x7F) != val[sdlen - 1]) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD-50 SysEx: Checksum Error.");
+			return num_events;
+		}
+#endif
+		
+		switch(val[6]){
+		case 0x01: // Setup
+			if(val[7]){
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD-50 SysEx. Addres Error. (ADDR:%02X %02X %02X %02X)",val[6],val[7],val[8],val[9]);
+				break;	
+			}
+			switch((((uint16)val[8]) << 8) | val[9]){
+			case 0x0012: // GM map
+				// val[10] == 0
+				SETMIDIEVENT(evm[0], 0, ME_SYSEX_LSB, 0xFF, val[11] ? 1 : 0, 0x6C); // part=0xFF : all
+				num_events++;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "D-50 SysEx. GM map (CH:all VAL:%d)", val[11]);
+				break;
+			default:
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD-50 SysEx. (ADDR:%02X %02X %02X %02X)",val[6],val[7],val[8],val[9]);
+				break;
+			}
+		default:
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Unsupported SD-50 SysEx. (ADDR:%02X %02X %02X %02X)",val[6],val[7],val[8],val[9]);
+			break;
+		}
+	}
+
 	/* Non-RealTime / RealTime Universal SysEx messages
 	 * 0 0x7e(Non-RealTime) / 0x7f(RealTime)
 	 * 1 SysEx device ID.  Could be from 0x00 to 0x7f.
@@ -2751,14 +4193,18 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 	 * ...
 	 * E 0xf7
 	 */
-	else if (len > 4 && val[0] >= 0x7e)
+	else if (len > 4 && val[0] >= 0x7e){
+		int slot;
 		switch (val[2]) {
 		case 0x01:	/* Sample Dump header */
 		case 0x02:	/* Sample Dump packet */
 		case 0x03:	/* Dump Request */
 		case 0x04:	/* Device Control */
-			if (val[3] == 0x05)	{	/* Global Parameter Control */
-				if (val[7] == 0x01 && val[8] == 0x01) {	/* Reverb */
+			switch(val[3]){
+			case 0x05: /* Global Parameter Control */
+				slot = (int)val[7] << 8 | val[8];
+				switch(slot){
+				case 0x0101: /* Reverb */
 					for (i = 9; i < len && val[i] != 0xf7; i+= 2) {
 						switch(val[i]) {
 						case 0x00:	/* Reverb Type */
@@ -2771,7 +4217,8 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 							break;
 						}
 					}
-				} else if (val[7] == 0x01 && val[8] == 0x02) {	/* Chorus */
+					break;
+				case 0x0102: /* Chorus */
 					for (i = 9; i < len && val[i] != 0xf7; i+= 2) {
 						switch(val[i]) {
 						case 0x00:	/* Chorus Type */
@@ -2796,7 +4243,13 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 							break;
 						}
 					}
+					break;
+				default:
+					break;
 				}
+				break;
+			default:
+				break;
 			}
 			break;
 		case 0x05:	/* Sample Dump extensions */
@@ -2863,7 +4316,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 				break;
 			}
 			break;
-		case 0x09:	/* General MIDI Message */
+		case 0x09:	/* General MIDI Message , Controller Destination Setting */
 			switch(val[3]) {
 			case 0x01:	/* Channel Pressure */
 				for (i = 5; i < len && val[i] != 0xf7; i+= 2) {
@@ -2895,6 +4348,77 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 					}
 				}
 				break;
+			case 0x03:	/* Control Change */
+				if(val[5] <= 0 || (0x20 <= val[5] && val[5] <= 0x3F) || 0x60 <= val[5]){
+					SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], -1, 0x6D); // CC1 number NULL
+					num_events++;
+				}else{
+					SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], val[5], 0x6D); // CC1 number
+					num_events++;
+					for (i = 6; i < len && val[i] != 0xf7; i+= 2) {
+						switch(val[i]) {
+						case 0x00:	/* Pitch Control */
+							SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], val[i + 1], 0x2C);
+							num_events++;
+							break;
+						case 0x01:	/* Filter Cutoff Control */
+							SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], val[i + 1], 0x2D);
+							num_events++;
+							break;
+						case 0x02:	/* Amplitude Control */
+							SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], val[i + 1], 0x2E);
+							num_events++;
+							break;
+						case 0x03:	/* LFO Pitch Depth */
+							SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], val[i + 1], 0x30);
+							num_events++;
+							break;
+						case 0x04:	/* LFO Filter Depth */
+							SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], val[i + 1], 0x31);
+							num_events++;
+							break;
+						case 0x05:	/* LFO Amplitude Depth */
+							SETMIDIEVENT(evm[num_events], 0, ME_SYSEX_LSB, val[4], val[i + 1], 0x32);
+							num_events++;
+							break;
+						}
+					}
+				}
+				break;
+			}
+			break;
+		case 0x0A:	/* Key-Based Instrument Control */
+			switch(val[3]) {
+			case 0x01:	/* Controller */
+				for (i = 6; i < len && val[i] != 0xf7; i+= 2) {
+					switch(val[i]) {
+					case 0x07:	/* Level */
+						SETMIDIEVENT(evm[num_events    ], 0, ME_NRPN_MSB      , val[4], 0x1A,       SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB      , val[4], val[5],     SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, val[4], val[i + 1], SYSEX_TAG);
+						num_events += 3;
+						break;
+					case 0x0A:	/* Pan */
+						SETMIDIEVENT(evm[num_events    ], 0, ME_NRPN_MSB      , val[4], 0x1C,       SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB      , val[4], val[5],     SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, val[4], val[i + 1], SYSEX_TAG);
+						num_events += 3;
+						break;
+					case 0x5B:	/* Reverb Send */
+						SETMIDIEVENT(evm[num_events    ], 0, ME_NRPN_MSB      , val[4], 0x1D,       SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB      , val[4], val[5],     SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, val[4], val[i + 1], SYSEX_TAG);
+						num_events += 3;
+						break;
+					case 0x5D:	/* Chorus Send */
+						SETMIDIEVENT(evm[num_events    ], 0, ME_NRPN_MSB      , val[4], 0x1E,       SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 1], 0, ME_NRPN_LSB      , val[4], val[5],     SYSEX_TAG);
+						SETMIDIEVENT(evm[num_events + 2], 0, ME_DATA_ENTRY_MSB, val[4], val[i + 1], SYSEX_TAG);
+						num_events += 3;
+						break;
+					}
+				}
+				break;
 			}
 			break;
 		case 0x7b:	/* End of File */
@@ -2904,6 +4428,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 		case 0x7f:	/* Handshaking Message: ACK */
 			break;
 		}
+	}
 
     return(num_events);
 }
@@ -2911,180 +4436,274 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 {
 	uint16 vol;
-	
+/*
     if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
-	current_file_info->mid = val[0];
+		current_file_info->mid = val[0];
+*/
+///r
+// for SD native
+    if(len >= 10 &&
+       val[0] == 0x41 && // Roland ID
+       val[1] == 0x10 && // Device ID
+       val[2] == 0x00 && // Model ID
+       (val[3] >= 0x20 || val[3] <= 0xFF) && // Model ID
+       val[4] == 0x12) // Data Set 
+    {
+		if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
+			current_file_info->mid = 0x60;
+		if( val[5] == 0x00 && // ad setup
+			val[6] == 0x00 && // ad
+			val[7] == 0x00 && // ad
+			val[8] == 0x00 && // ad
+			val[9] == 0x00 && // data
+			val[10] == 0x00){ // data
+			current_file_info->mid = 0x60;
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: SD Native Mode");
+			SETMIDIEVENT(*ev, 0, ME_RESET, 0, SD_SYSTEM_MODE, SYSEX_TAG);
+			return 1;
+		}
+	}
 
+// for SD-50
+    if(len >= 10 &&
+       val[0] == 0x41 && // Roland ID
+       val[1] == 0x10 && // Device ID
+       val[2] == 0x00 && // Model ID (SD-50
+	   val[3] == 0x00 && // Model ID (SD-50
+       val[4] == 0x4A && // Model ID (SD-50
+       val[5] == 0x12) // Data Set 
+    {
+		if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
+			current_file_info->mid = 0x60;
+		if( val[6] == 0x01 && // ad setup
+			val[7] == 0x00 && // ad
+			val[8] == 0x00 && // ad sound mode
+			val[9] == 0x00){ // ad
+			switch( (((uint32)val[10]) << 7) | (uint32)val[11] ){ // data
+			case 1:
+				current_file_info->mid = 0x60;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: SD-50 Studio Mode");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, SD_SYSTEM_MODE, SYSEX_TAG);
+				break;		
+			case 2:
+				current_file_info->mid = 0x7e;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GM System On");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, GM_SYSTEM_MODE, SYSEX_TAG);
+				break;
+			case 3:
+				current_file_info->mid = 0x7d;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GM2 System On");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, GM2_SYSTEM_MODE, SYSEX_TAG);
+				break;		
+			case 4:
+				current_file_info->mid = 0x41;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GS System On");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, GS_SYSTEM_MODE, SYSEX_TAG);
+				break;	
+			}
+			return 1;
+		}
+	}
+
+// for KG
+    if(len >= 4 &&
+       val[0] == 0x42 && // KORG ID
+       (val[1] >= 0x30 && val[1] <= 0x3F) && // Exclusive Channel 0:Global 1~F:Excl Ch
+       (val[2] >= 0x00 && val[2] <= 0xFF)) // Machine ID
+    {
+		if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
+			current_file_info->mid = 42;
+		if( val[3] == 0x00 &&
+			val[4] == 0x00 || val[4] == 0x01){
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: KORG Mode");
+			SETMIDIEVENT(*ev, 0, ME_RESET, 0, KG_SYSTEM_MODE, SYSEX_TAG);
+			return 1;
+		}
+	}
+
+// for GS
     if(len >= 10 &&
        val[0] == 0x41 && /* Roland ID */
        val[1] == 0x10 && /* Device ID */
        val[2] == 0x42 && /* GS Model ID */
        val[3] == 0x12)   /* Data Set Command */
-    {
-	/* Roland GS-Based Synthesizers.
-	 * val[4..6] is address, val[7..len-2] is body.
-	 *
-	 * GS     Channel part number
-	 * 0      10
-	 * 1-9    1-9
-	 * 10-15  11-16
-	 */
+		{
+		/* Roland GS-Based Synthesizers.
+		 * val[4..6] is address, val[7..len-2] is body.
+		 *
+		 * GS     Channel part number
+		 * 0      10
+		 * 1-9    1-9
+		 * 10-15  11-16
+		 */
 
-	int32 addr,checksum,i;		/* SysEx address */
-	uint8 *body;		/* SysEx body */
-	uint8 p,gslen;		/* Channel part number [0..15] */
+		int32 addr,checksum,i;		/* SysEx address */
+		uint8 *body;		/* SysEx body */
+		uint8 p,gslen;		/* Channel part number [0..15] */
+///r
+		if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
+			current_file_info->mid = 0x41;
 
-	/* check Checksum */
-	checksum = 0;
-	for(gslen = 9; gslen < len; gslen++)
-		if(val[gslen] == 0xF7)
-			break;
-	for(i=4;i<gslen-1;i++) {
-		checksum += val[i];
-	}
-	if(((128 - (checksum & 0x7F)) & 0x7F) != val[gslen-1]) {
-		return 0;
-	}
+		/* check Checksum */
+		checksum = 0;
+		for(gslen = 9; gslen < len; gslen++)
+			if(val[gslen] == 0xF7)
+				break;
+		for(i=4;i<gslen-1;i++) {
+			checksum += val[i];
+		}
+		if(((128 - (checksum & 0x7F)) & 0x7F) != val[gslen-1]) {
+			return 0;
+		}
 
-	addr = (((int32)val[4])<<16 |
-		((int32)val[5])<<8 |
-		(int32)val[6]);
-	body = val + 7;
-	p = (uint8)((addr >> 8) & 0xF);
-	if(p == 0)
-	    p = 9;
-	else if(p <= 9)
-	    p--;
-	p = MERGE_CHANNEL_PORT(p);
-
-	if(val[4] == 0x50) {	/* for double module mode */
-		p += 16;
-		addr = (((int32)0x40)<<16 |
-			((int32)val[5])<<8 |
-			(int32)val[6]);
-	} else {	/* single module mode */
 		addr = (((int32)val[4])<<16 |
 			((int32)val[5])<<8 |
 			(int32)val[6]);
-	}
+		body = val + 7;
+		p = (uint8)((addr >> 8) & 0xF);
+		if(p == 0)
+			p = 9;
+		else if(p <= 9)
+			p--;
+		p = MERGE_CHANNEL_PORT(p);
 
-	if((addr & 0xFFF0FF) == 0x401015) /* Rhythm Parts */
-	{
+		if(val[4] == 0x50) {	/* for double module mode */
+			p += 16;
+			addr = (((int32)0x40)<<16 |
+				((int32)val[5])<<8 |
+				(int32)val[6]);
+		} else {	/* single module mode */
+			addr = (((int32)val[4])<<16 |
+				((int32)val[5])<<8 |
+				(int32)val[6]);
+		}
+
+		if((addr & 0xFFF0FF) == 0x401015) /* Rhythm Parts */
+		{
 #ifdef GS_DRUMPART
 /* GS drum part check from Masaaki Koyanagi's patch (GS_Drum_Part_Check()) */
 /* Modified by Masanao Izumo */
-	    SETMIDIEVENT(*ev, 0, ME_DRUMPART, p, *body, SYSEX_TAG);
-	    return 1;
+			SETMIDIEVENT(*ev, 0, ME_DRUMPART, p, *body, SYSEX_TAG);
+			return 1;
 #else
-	    return 0;
+			return 0;
 #endif /* GS_DRUMPART */
-	}
+		}
 
-	if((addr & 0xFFF0FF) == 0x401016) /* Key Shift */
-	{
-	    SETMIDIEVENT(*ev, 0, ME_KEYSHIFT, p, *body, SYSEX_TAG);
-	    return 1;
-	}
+		if((addr & 0xFFF0FF) == 0x401016) /* Key Shift */
+		{
+			SETMIDIEVENT(*ev, 0, ME_KEYSHIFT, p, *body, SYSEX_TAG);
+			return 1;
+		}
 
-	if(addr == 0x400000) /* Master Tune, not for SMF */
-	{
-		uint16 tune = ((body[1] & 0xF) << 8) | ((body[2] & 0xF) << 4) | (body[3] & 0xF);
+		if(addr == 0x400000) /* Master Tune, not for SMF */
+		{
+			uint16 tune = ((body[1] & 0xF) << 8) | ((body[2] & 0xF) << 4) | (body[3] & 0xF);
 		
-		if (tune < 0x18)
-			tune = 0x18;
-		else if (tune > 0x7E8)
-			tune = 0x7E8;
-		SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune & 0xFF, (tune >> 8) & 0x7F);
-		return 1;
-	}
+			if (tune < 0x18)
+				tune = 0x18;
+			else if (tune > 0x7E8)
+				tune = 0x7E8;
+			SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune & 0xFF, (tune >> 8) & 0x7F);
+			return 1;
+		}
 
-	if(addr == 0x400004) /* Master Volume */
-	{
-	    vol = gs_convert_master_vol(*body);
-	    SETMIDIEVENT(*ev, 0, ME_MASTER_VOLUME,
-			 0, vol & 0xFF, (vol >> 8) & 0xFF);
-	    return 1;
-	}
+		if(addr == 0x400004) /* Master Volume */
+		{
+			vol = gs_convert_master_vol(*body);
+			SETMIDIEVENT(*ev, 0, ME_MASTER_VOLUME,
+				 0, vol & 0xFF, (vol >> 8) & 0xFF);
+			return 1;
+		}
 
-	if((addr & 0xFFF0FF) == 0x401019) /* Volume on/off */
-	{
+		if((addr & 0xFFF0FF) == 0x401019) /* Volume on/off */
+		{
 #if 0
-	    SETMIDIEVENT(*ev, 0, ME_VOLUME_ONOFF, p, *body >= 64, SYSEX_TAG);
+			SETMIDIEVENT(*ev, 0, ME_VOLUME_ONOFF, p, *body >= 64, SYSEX_TAG);
 #endif
-	    return 0;
-	}
+			return 0;
+		}
 
-	if((addr & 0xFFF0FF) == 0x401002) /* Receive channel on/off */
-	{
+		if((addr & 0xFFF0FF) == 0x401002) /* Receive channel on/off */
+		{
 #if 0
-	    SETMIDIEVENT(*ev, 0, ME_RECEIVE_CHANNEL, (uint8)p, *body >= 64, SYSEX_TAG);
+			SETMIDIEVENT(*ev, 0, ME_RECEIVE_CHANNEL, (uint8)p, *body >= 64, SYSEX_TAG);
 #endif
-	    return 0;
-	}
+			return 0;
+		}
 
-	if(0x402000 <= addr && addr <= 0x402F5A) /* Controller Routing */
-	    return 0;
+		if(0x402000 <= addr && addr <= 0x402F5A) /* Controller Routing */
+			return 0;
 
-	if((addr & 0xFFF0FF) == 0x401040) /* Alternate Scale Tunings */
-	    return 0;
+		if((addr & 0xFFF0FF) == 0x401040) /* Alternate Scale Tunings */
+			return 0;
 
-	if((addr & 0xFFFFF0) == 0x400130) /* Changing Effects */
-	{
-		struct chorus_text_gs_t *chorus_text = &(chorus_status_gs.text);
-	    switch(addr & 0xF)
-	    {
-	      case 0x8: /* macro */
-		memcpy(chorus_text->macro, body, 3);
-		break;
-	      case 0x9: /* PRE-LPF */
-		memcpy(chorus_text->pre_lpf, body, 3);
-		break;
-	      case 0xa: /* level */
-		memcpy(chorus_text->level, body, 3);
-		break;
-	      case 0xb: /* feed back */
-		memcpy(chorus_text->feed_back, body, 3);
-		break;
-	      case 0xc: /* delay */
-		memcpy(chorus_text->delay, body, 3);
-		break;
-	      case 0xd: /* rate */
-		memcpy(chorus_text->rate, body, 3);
-		break;
-	      case 0xe: /* depth */
-		memcpy(chorus_text->depth, body, 3);
-		break;
-	      case 0xf: /* send level */
-		memcpy(chorus_text->send_level, body, 3);
-		break;
-		  default: break;
-	    }
+		if((addr & 0xFFFFF0) == 0x400130) /* Changing Effects */
+		{
+			struct chorus_text_gs_t *chorus_text = &(chorus_status_gs.text);
+			switch(addr & 0xF)
+			{
+			  case 0x8: /* macro */
+			memcpy(chorus_text->macro, body, 3);
+			break;
+			  case 0x9: /* PRE-LPF */
+			memcpy(chorus_text->pre_lpf, body, 3);
+			break;
+			  case 0xa: /* level */
+			memcpy(chorus_text->level, body, 3);
+			break;
+			  case 0xb: /* feed back */
+			memcpy(chorus_text->feed_back, body, 3);
+			break;
+			  case 0xc: /* delay */
+			memcpy(chorus_text->delay, body, 3);
+			break;
+			  case 0xd: /* rate */
+			memcpy(chorus_text->rate, body, 3);
+			break;
+			  case 0xe: /* depth */
+			memcpy(chorus_text->depth, body, 3);
+			break;
+			  case 0xf: /* send level */
+			memcpy(chorus_text->send_level, body, 3);
+			break;
+			  default: break;
+			}
 
-	    check_chorus_text_start();
-	    return 0;
-	}
+			check_chorus_text_start();
+			return 0;
+		}
 
-	if((addr & 0xFFF0FF) == 0x401003) /* Rx Pitch-Bend */
-	    return 0;
+		if((addr & 0xFFF0FF) == 0x401003) /* Rx Pitch-Bend */
+			return 0;
 
-	if(addr == 0x400110) /* Voice Reserve */
-	{
-	    if(len >= 25)
-		memcpy(chorus_status_gs.text.voice_reserve, body, 18);
-	    check_chorus_text_start();
-	    return 0;
-	}
-
-	if(addr == 0x40007F ||	/* GS Reset */
-	   addr == 0x00007F)	/* SC-88 Single Module */
-	{
-	    SETMIDIEVENT(*ev, 0, ME_RESET, 0, GS_SYSTEM_MODE, SYSEX_TAG);
-	    return 1;
-	}
-	return 0;
+		if(addr == 0x400110) /* Voice Reserve */
+		{
+			if(len >= 25)
+			memcpy(chorus_status_gs.text.voice_reserve, body, 18);
+			check_chorus_text_start();
+			return 0;
+		}
+///r
+		if(addr == 0x40007F)	/* GS SYSTEM ON exCM */ 
+		{
+			if(is_cm_module() || opt_system_mid == 0x30 )
+				return 0;
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GS System On");
+			SETMIDIEVENT(*ev, 0, ME_RESET, 0, GS_SYSTEM_MODE, SYSEX_TAG);
+			return 1;
+		}
+		else if(addr == 0x00007F)	/* System Mode set */
+		{
+			if(is_cm_module() || opt_system_mid == 0x30 )
+				return 0;
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: System Mode set (GS)");
+			SETMIDIEVENT(*ev, 0, ME_RESET, 0, GS_SYSTEM_MODE, SYSEX_TAG);
+			return 1;
+		}
+		return 0;
     }
-
-    if(len > 9 &&
+     if(len >= 9 &&
        val[0] == 0x41 && /* Roland ID */
        val[1] == 0x10 && /* Device ID */
        val[2] == 0x45 && 
@@ -3093,19 +4712,19 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
        val[5] == 0x00 && 
        val[6] == 0x00)
     {
-	/* Text Insert for SC */
-	uint8 save;
+		/* Text Insert for SC */
+		uint8 save;
 
-	len -= 2;
-	save = val[len];
-	val[len] = '\0';
-	if(readmidi_make_string_event(ME_INSERT_TEXT, (char *)val + 7, ev, 1))
-	{
-	    val[len] = save;
-	    return 1;
-	}
-	val[len] = save;
-	return 0;
+		len -= 2;
+		save = val[len];
+		val[len] = '\0';
+		if(readmidi_make_string_event(ME_INSERT_TEXT, (char *)val + 7, ev, 1))
+		{
+			val[len] = save;
+			return 1;
+		}
+		val[len] = save;
+		return 0;
     }
 
     if(len > 9 &&                     /* GS lcd event. by T.Nogami*/
@@ -3117,22 +4736,22 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
        val[5] == 0x01 && 
        val[6] == 0x00)
     {
-	/* Text Insert for SC */
-	uint8 save;
+		/* Text Insert for SC */
+		uint8 save;
 
-	len -= 2;
-	save = val[len];
-	val[len] = '\0';
-	if(readmidi_make_lcd_event(ME_GSLCD, (uint8 *)val + 7, ev))
-	{
-	    val[len] = save;
-	    return 1;
-	}
-	val[len] = save;
-	return 0;
+		len -= 2;
+		save = val[len];
+		val[len] = '\0';
+		if(readmidi_make_lcd_event(ME_GSLCD, (uint8 *)val + 7, ev))
+		{
+			val[len] = save;
+			return 1;
+		}
+		val[len] = save;
+		return 0;
     }
-    
-    /* val[1] can have values other than 0x10 for the XG ON event, which
+
+     /* val[1] can have values other than 0x10 for the XG ON event, which
      * work on real XG hardware.  I have several midi that use 0x1f instead
      * of 0x10.  playmidi.h lists 0x10 - 0x13 as MU50/80/90/100.  I don't
      * know what real world Device Number 0x1f would correspond to, but the
@@ -3149,44 +4768,49 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
        (val[1] >= 0x10 && val[1] <= 0x1f) &&
        val[2] == 0x4C)
     {
-	int addr = (val[3] << 16) | (val[4] << 8) | val[5];
-	
-	if (addr == 0x00007E)	/* XG SYSTEM ON */
-	{
-		SETMIDIEVENT(*ev, 0, ME_RESET, 0, XG_SYSTEM_MODE, SYSEX_TAG);
-		return 1;
-	}
-	else if (addr == 0x000000 && len >= 12)	/* XG Master Tune */
-	{
-		uint16 tune = ((val[7] & 0xF) << 8) | ((val[8] & 0xF) << 4) | (val[9] & 0xF);
-		
-		if (tune > 0x7FF)
-			tune = 0x7FF;
-		SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune & 0xFF, (tune >> 8) & 0x7F);
-		return 1;
-	}
-    }
+		int addr = (val[3] << 16) | (val[4] << 8) | val[5];
+///r
+		if(current_file_info->mid == 0 || current_file_info->mid >= 0x7e)
+			current_file_info->mid = 0x43;
 
-    if (len >= 7 && val[0] == 0x7F && val[1] == 0x7F)
-    {
-	if (val[2] == 0x04 && val[3] == 0x03)	/* GM2 Master Fine Tune */
-	{
-		uint16 tune = (val[4] & 0x7F) | (val[5] << 7) | 0x4000;
+		if (addr == 0x00007E)	/* XG SYSTEM ON */
+		{
+			current_file_info->mid = 0x43;
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: XG System On");
+			SETMIDIEVENT(*ev, 0, ME_RESET, 0, XG_SYSTEM_MODE, SYSEX_TAG);
+			return 1;
+		}
+		else if (addr == 0x000000 && len >= 12)	/* XG Master Tune */
+		{
+			uint16 tune = ((val[7] & 0xF) << 8) | ((val[8] & 0xF) << 4) | (val[9] & 0xF);
 		
-		SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune & 0xFF, (tune >> 8) & 0x7F);
-		return 1;
-	}
-	if (val[2] == 0x04 && val[3] == 0x04)	/* GM2 Master Coarse Tune */
-	{
-		uint8 tune = val[5];
+			if (tune > 0x7FF)
+				tune = 0x7FF;
+			SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune & 0xFF, (tune >> 8) & 0x7F);
+			return 1;
+		}
+		}
+
+		if (len >= 7 && val[0] == 0x7F && val[1] == 0x7F)
+		{
+		if (val[2] == 0x04 && val[3] == 0x03)	/* GM2 Master Fine Tune */
+		{
+			uint16 tune = (val[4] & 0x7F) | (val[5] << 7) | 0x4000;
 		
-		if (tune < 0x28)
-			tune = 0x28;
-		else if (tune > 0x58)
-			tune = 0x58;
-		SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune, 0x80);
-		return 1;
-	}
+			SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune & 0xFF, (tune >> 8) & 0x7F);
+			return 1;
+		}
+		if (val[2] == 0x04 && val[3] == 0x04)	/* GM2 Master Coarse Tune */
+		{
+			uint8 tune = val[5];
+		
+			if (tune < 0x28)
+				tune = 0x28;
+			else if (tune > 0x58)
+				tune = 0x58;
+			SETMIDIEVENT(*ev, 0, ME_MASTER_TUNING, 0, tune, 0x80);
+			return 1;
+		}
     }
     
 	/* Non-RealTime / RealTime Universal SysEx messages
@@ -3232,15 +4856,27 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 			break;
 		case 0x09:	/* General MIDI Message */
 			/* GM System Enable/Disable */
-			if(val[3] == 1) {
-				ctl->cmsg(CMSG_INFO, VERB_DEBUG, "SysEx: GM System On");
-				SETMIDIEVENT(*ev, 0, ME_RESET, 0, GM_SYSTEM_MODE, 0);
-			} else if(val[3] == 3) {
-				ctl->cmsg(CMSG_INFO, VERB_DEBUG, "SysEx: GM2 System On");
-				SETMIDIEVENT(*ev, 0, ME_RESET, 0, GM2_SYSTEM_MODE, 0);
-			} else {
-				ctl->cmsg(CMSG_INFO, VERB_DEBUG, "SysEx: GM System Off");
-				SETMIDIEVENT(*ev, 0, ME_RESET, 0, DEFAULT_SYSTEM_MODE, 0);
+			switch(val[3]) {
+			case 1:
+				current_file_info->mid = 0x7e;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GM System On");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, GM_SYSTEM_MODE, SYSEX_TAG);
+				break;
+			case 2:
+				current_file_info->mid = 0x60;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GM System Off");
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: SD Native Mode");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, SD_SYSTEM_MODE, SYSEX_TAG);
+				break;				
+			case 3:
+				current_file_info->mid = 0x7d;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GM2 System On");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, GM2_SYSTEM_MODE, SYSEX_TAG);
+				break;				
+			default:
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SysEx: GM System Off");
+				SETMIDIEVENT(*ev, 0, ME_RESET, 0, DEFAULT_SYSTEM_MODE, SYSEX_TAG);
+				break;
 			}
 			return 1;
 		case 0x7b:	/* End of File */
@@ -3250,46 +4886,43 @@ int parse_sysex_event(uint8 *val, int32 len, MidiEvent *ev)
 		case 0x7f:	/* Handshaking Message: ACK */
 			break;
 		}
-
-    return 0;
+	return 0;
 }
 
-static int read_sysex_event(int32 at, int me, int32 len,
-			    struct timidity_file *tf)
+static int read_sysex_event(int32 at, int me, int32 len, struct timidity_file *tf)
 {
     uint8 *val;
     MidiEvent ev, evm[260]; /* maximum number of XG bulk dump events */
     int ne, i;
 
     if(len == 0)
-	return 0;
+		return 0;
     if(me != 0xF0)
     {
-	skip(tf, len);
-	return 0;
+		skip(tf, len);
+		return 0;
     }
 
     val = (uint8 *)new_segment(&tmpbuffer, len);
     if(tf_read(val, 1, len, tf) != len)
     {
-	reuse_mblock(&tmpbuffer);
-	return -1;
+		reuse_mblock(&tmpbuffer);
+		return -1;
     }
     if(parse_sysex_event(val, len, &ev))
     {
-	ev.time = at;
-	readmidi_add_event(&ev);
+		ev.time = at;
+		readmidi_add_event(&ev);
     }
+    memset(evm, 0, sizeof(evm));//added by Kobarin
     if ((ne = parse_sysex_event_multi(val, len, evm)))
     {
-	for (i = 0; i < ne; i++) {
-	    evm[i].time = at;
-	    readmidi_add_event(&evm[i]);
-	}
+		for (i = 0; i < ne; i++) {
+			evm[i].time = at;
+			readmidi_add_event(&evm[i]);
+		}
     }
-    
     reuse_mblock(&tmpbuffer);
-
     return 0;
 }
 
@@ -3442,7 +5075,8 @@ int dump_current_timesig(MidiEvent *codes, int maxlen)
 /* Read a SMF track */
 static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 {
-    int32 len, next_pos, pos;
+    int32 len;
+    size_t next_pos, pos;
     char tmp[4];
     int lastchan, laststatus;
     int me, type, a, b, c;
@@ -3477,7 +5111,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 	if((len = getvl(tf)) < 0)
 	    return -1;
 	smf_at_time += len;
-	errno = 0;
+	_set_errno(0);
 	if((i = tf_getc(tf)) == EOF)
 	{
 	    if(errno)
@@ -3610,7 +5244,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 		  if(current_file_info->seq_name == NULL) {
 		    char *name = dumpstring(3, len, "Sequence: ", 1, tf);
 		    current_file_info->seq_name = safe_strdup(fix_string(name));
-		    free(name);
+		    safe_free(name);
 		  }
 		    else
 			dumpstring(3, len, "Sequence: ", 0, tf);
@@ -3622,7 +5256,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 			  current_read_track == 0))) {
 		  char *name = dumpstring(1, len, "Text: ", 1, tf);
 		  current_file_info->first_text = safe_strdup(fix_string(name));
-		  free(name);
+		  safe_free(name);
 		}
 		else
 		    dumpstring(type, len, label[(type>7) ? 0 : type], 0, tf);
@@ -3756,8 +5390,8 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 		     {
 			MIDIEVENT(0, ME_NOTEON, lastchan, a, 0);
 			MIDIEVENT(0, ME_NOTEOFF, lastchan, a, 0);
+			note_seen = 1;
 		     }
-		     note_seen = 1;
 		    MIDIEVENT(smf_at_time, ME_NOTEON, lastchan, a,b);
 		}
 		else /* b == 0 means Note Off */
@@ -3895,7 +5529,7 @@ static void move_channels(int *chidx)
 						if (ch < MAX_CHANNELS)
 							chidx[ch] = ch;
 						else {
-							newch = ch % MAX_CHANNELS;
+							newch = (ch & (MAX_CHANNELS - 1));
 							ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
 									"channel %d => %d (mixed)", ch, newch);
 							ch = e->event.channel = chidx[ch] = newch;
@@ -3923,75 +5557,129 @@ void change_system_mode(int mode)
     int mid;
 
     if(opt_system_mid)
-    {
-	mid = opt_system_mid;
-	mode = -1; /* Always use opt_system_mid */
-    }
+	mid = mode = opt_system_mid; /* Always use opt_system_mid */
     else
 	mid = current_file_info->mid;
     pan_table = sc_pan_table;
-    switch(mode)
-    {
+///r
+    switch(mode) {
       case GM_SYSTEM_MODE:
-	if(play_system_mode == DEFAULT_SYSTEM_MODE)
-	{
-	    play_system_mode = GM_SYSTEM_MODE;
-	    vol_table = def_vol_table;
-	}
-	break;
-      case GM2_SYSTEM_MODE:
-	play_system_mode = GM2_SYSTEM_MODE;
-	vol_table = def_vol_table;
-	pan_table = gm2_pan_table;
-	break;
-      case GS_SYSTEM_MODE:
-	play_system_mode = GS_SYSTEM_MODE;
-	vol_table = gs_vol_table;
-	break;
-      case XG_SYSTEM_MODE:
-    if (play_system_mode != XG_SYSTEM_MODE) {init_all_effect_xg();}
-	play_system_mode = XG_SYSTEM_MODE;
-	vol_table = xg_vol_table;
-	break;
-      default:
-	/* --module option */
-	if (is_gs_module()) {
-		play_system_mode = GS_SYSTEM_MODE;
+		if(play_system_mode == DEFAULT_SYSTEM_MODE)
+		{
+			play_system_mode = GM_SYSTEM_MODE;
+			vol_table = def_vol_table;
+		}
 		break;
-	} else if (is_xg_module()) {
+      case GM2_SYSTEM_MODE:
+		play_system_mode = GM2_SYSTEM_MODE;
+		vol_table = def_vol_table;
+		pan_table = gm2_pan_table;
+		break;
+      case GS_SYSTEM_MODE:
+		play_system_mode = GS_SYSTEM_MODE;
+		vol_table = gs_vol_table;
+		break;
+      case XG_SYSTEM_MODE:
 		if (play_system_mode != XG_SYSTEM_MODE) {init_all_effect_xg();}
 		play_system_mode = XG_SYSTEM_MODE;
+		vol_table = xg_vol_table;
 		break;
-	}
-	switch(mid)
-	{
-	  case 0x41:
-	    play_system_mode = GS_SYSTEM_MODE;
-	    vol_table = gs_vol_table;
-	    break;
-	  case 0x43:
-		if (play_system_mode != XG_SYSTEM_MODE) {init_all_effect_xg();}
-	    play_system_mode = XG_SYSTEM_MODE;
-	    vol_table = xg_vol_table;
-	    break;
-	  case 0x7e:
-	    play_system_mode = GM_SYSTEM_MODE;
-	    vol_table = def_vol_table;
-	    break;
-	  default:
-	    play_system_mode = DEFAULT_SYSTEM_MODE;
+      case SD_SYSTEM_MODE:
+		if (play_system_mode != SD_SYSTEM_MODE) {init_all_effect_sd();}
+		play_system_mode = SD_SYSTEM_MODE;
 		vol_table = def_vol_table;
-	    break;
-	}
+		pan_table = gm2_pan_table;
+		break;
+      case KG_SYSTEM_MODE:
+		play_system_mode = KG_SYSTEM_MODE;
+		vol_table = def_vol_table;
+		break;
+      case CM_SYSTEM_MODE:
+		play_system_mode = CM_SYSTEM_MODE;
+		vol_table = gs_vol_table;
+		break;
+      default:
+	/* --module option */
+		if (is_gs_module()) {
+			play_system_mode = GS_SYSTEM_MODE;
+			break;
+		} else if (is_xg_module()) {
+			if (play_system_mode != XG_SYSTEM_MODE) {init_all_effect_xg();}
+			play_system_mode = XG_SYSTEM_MODE;
+			break;
+		} else if (is_gm2_module()) {
+			play_system_mode = GM2_SYSTEM_MODE;
+			break;
+		} else if (is_sd_module()) {
+			if (play_system_mode != SD_SYSTEM_MODE) {init_all_effect_sd();}
+			play_system_mode = SD_SYSTEM_MODE;
+			break;
+		} else if (is_kg_module()) {
+			play_system_mode = KG_SYSTEM_MODE;
+			break;
+		} else if (is_cm_module()) {
+			play_system_mode = CM_SYSTEM_MODE;
+			break;
+		}
+		switch(mid)	{
+		case 0x41:
+			play_system_mode = GS_SYSTEM_MODE;
+			vol_table = gs_vol_table;
+			break;
+		case 0x42:
+			play_system_mode = KG_SYSTEM_MODE;
+			vol_table = def_vol_table;
+			break;
+		case 0x43:
+			if (play_system_mode != XG_SYSTEM_MODE) {init_all_effect_xg();}
+			play_system_mode = XG_SYSTEM_MODE;
+			vol_table = xg_vol_table;
+			break;
+		case 0x60:
+			if (play_system_mode != SD_SYSTEM_MODE) {init_all_effect_sd();}
+			play_system_mode = SD_SYSTEM_MODE;
+			vol_table = def_vol_table;
+			pan_table = gm2_pan_table;
+			break;
+		case 0x30:
+			play_system_mode = CM_SYSTEM_MODE;
+			vol_table = gs_vol_table;
+			break;
+		case 0x7d:
+			play_system_mode = GM2_SYSTEM_MODE;
+			vol_table = def_vol_table;
+			pan_table = gm2_pan_table;
+			break;
+		case 0x7e:
+			play_system_mode = GM_SYSTEM_MODE;
+			vol_table = def_vol_table;
+			break;
+		default:
+			play_system_mode = DEFAULT_SYSTEM_MODE;
+			vol_table = def_vol_table;
+			break;
+		}
 	break;
-    }
+	}
 }
 
+///r
 int get_default_mapID(int ch)
 {
-    if(play_system_mode == XG_SYSTEM_MODE)
-	return ISDRUMCHANNEL(ch) ? XG_DRUM_MAP : XG_NORMAL_MAP;
-    return INST_NO_MAP;
+	switch(play_system_mode){
+	case XG_SYSTEM_MODE:
+		return ISDRUMCHANNEL(ch) ? XG_DRUM_KIT_MAP : XG_NORMAL_MAP;
+	case GM2_SYSTEM_MODE:
+		return ISDRUMCHANNEL(ch) ? GM2_DRUM_MAP : GM2_TONE_MAP;
+	case SD_SYSTEM_MODE:
+		return ISDRUMCHANNEL(ch) ? SDXX_TONE96_MAP : SDXX_DRUM104_MAP;
+	case KG_SYSTEM_MODE:
+		return ISDRUMCHANNEL(ch) ? K05RW_DRUM62_MAP : K05RW_TONE0_MAP;
+	case CM_SYSTEM_MODE:
+		return ISDRUMCHANNEL(ch) ? CM32_DRUM_MAP : CM32L_TONE_MAP;
+	default:
+		return INST_NO_MAP;
+	}
 }
 
 /* Allocate an array of MidiEvents and fill it from the linked list of
@@ -4013,6 +5701,12 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
     int wrd_argc;
     int chidx[256];
     int newbank, newprog;
+	int elm;
+#ifdef SUPPORT_LOOPEVENT
+    MidiEventList *loop_startmeep;
+    int32 loop_repeat_counter, loop_event_count;
+    int32 loop_begintime, loop_eottime;
+#endif /* SUPPORT_LOOPEVENT */
 
     move_channels(chidx);
 
@@ -4056,8 +5750,33 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    current_set[j] = newbank;
 	}
 	bank_lsb[j] = bank_msb[j] = 0;
-	if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
-	    bank_msb[j] = 127; /* Use MSB=127 for XG */
+///r
+	switch(current_file_info->mid){
+	case XG_SYSTEM_MODE:
+		bank_msb[j] = (j % 16 == 9) ? 127 : 0; /* Use MSB=127 for XG */
+		mapID[j] = (j % 16 == 9) ? XG_DRUM_KIT_MAP : XG_NORMAL_MAP;
+		break;
+	case GM2_SYSTEM_MODE:
+		bank_msb[j] = (j % 16 == 9) ? 120 : 121; /* Use MSB=120 for GM2 */
+		mapID[j] = (j % 16 == 9) ? GM2_DRUM_MAP : GM2_TONE_MAP;
+		break;
+	case SD_SYSTEM_MODE:
+		bank_msb[j] = (j % 16 == 9) ? 104 : 96; /* Use MSB=104 for SD */
+		mapID[j] = (j % 16 == 9) ? SDXX_TONE96_MAP : SDXX_DRUM104_MAP;
+		break;
+	case KG_SYSTEM_MODE:
+		bank_msb[j] = (j % 16 == 9) ? 62 : 0; /* Use MSB=62 for KG */
+		mapID[j] = (j % 16 == 9) ? K05RW_DRUM62_MAP : K05RW_TONE0_MAP;
+		break;
+	case CM_SYSTEM_MODE:
+		bank_msb[j] = (j % 16 == 9) ? 127 : 0; /* Use MSB=127 for CM */
+		mapID[j] = (j % 16 == 9) ? CM32_DRUM_MAP : CM32L_TONE_MAP;
+		break;
+	default:
+		mapID[j] = INST_NO_MAP;
+		break;
+	}	
+
 	current_program[j] = default_program[j];
     }
 
@@ -4070,22 +5789,38 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	(MidiEvent *)safe_malloc(sizeof(MidiEvent) * (event_count + 1));
     meep = evlist;
 
+#ifdef SUPPORT_LOOPEVENT
+    loop_startmeep = NULL;
+    loop_repeat_counter = opt_use_midi_loop_repeat ? opt_midi_loop_repeat : 0;
+    loop_event_count = 0;
+    loop_begintime = 0;
+    loop_eottime = 0;
+#endif /* SUPPORT_LOOPEVENT */
+
     our_event_count = 0;
     st = at = sample_cum = 0;
     counting_time = 2; /* We strip any silence before the first NOTE ON. */
+#if defined(KBTIM) || defined(WINVSTI)
+    counting_time = 0;
+#endif
     wrd_argc = 0;
     change_system_mode(DEFAULT_SYSTEM_MODE);
+	
+///r
+	//for(j = 0; j < MAX_CHANNELS; j++)
+	//	mapID[j] = get_default_mapID(j);
 
-    for(j = 0; j < MAX_CHANNELS; j++)
-	mapID[j] = get_default_mapID(j);
-
-    for(i = 0; i < event_count; i++)
+#ifdef SUPPORT_LOOPEVENT
+    for (i = 0; i < event_count || (loop_startmeep && meep); i++)
+#else
+    for (i = 0; i < event_count || meep; i++)
+#endif /* SUPPORT_LOOPEVENT */
     {
 	skip_this_event = 0;
 	ch = meep->event.channel;
 	gch = GLOBAL_CHANNEL_EVENT_TYPE(meep->event.type);
 	if(!gch && ch >= MAX_CHANNELS) /* For safety */
-	    meep->event.channel = ch = ch % MAX_CHANNELS;
+	    meep->event.channel = ch = (ch & (MAX_CHANNELS - 1));
 
 	if(!gch && IS_SET_CHANNELMASK(quietchannels, ch))
 	    skip_this_event = 1;
@@ -4100,10 +5835,15 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		      (int)((double)st / play_mode->rate + 0.5));
 	    for(j = 0; j < MAX_CHANNELS; j++)
 	    {
+///r
+/*
 		if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
-		    mapID[j] = XG_DRUM_MAP;
+		    mapID[j] = XG_DRUM_KIT_MAP;
 		else
-		    mapID[j] = get_default_mapID(j);
+*/
+		mapID[j] = get_default_mapID(j);
+
+
 		if(ISDRUMCHANNEL(j))
 		    current_set[j] = 0;
 		else
@@ -4116,8 +5856,24 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 			current_set[j] = 0;
 		}
 		bank_lsb[j] = bank_msb[j] = 0;
-		if(play_system_mode == XG_SYSTEM_MODE && j % 16 == 9)
-		    bank_msb[j] = 127; /* Use MSB=127 for XG */
+///
+		switch(play_system_mode){
+		case XG_SYSTEM_MODE:
+			bank_msb[j] = (j % 16 == 9) ? 127 : 0; /* Use MSB=127 for XG */
+			break;
+		case GM2_SYSTEM_MODE:
+			bank_msb[j] = (j % 16 == 9) ? 120 : 121; /* Use MSB=120 for GM2 */
+			break;
+		case SD_SYSTEM_MODE:
+			bank_msb[j] = (j % 16 == 9) ? 104 : 96; /* Use MSB=104 for SD */
+			break;
+		case KG_SYSTEM_MODE:
+			bank_msb[j] = (j % 16 == 9) ? 62 : 0; /* Use MSB=62 for KG */
+			break;
+		case CM_SYSTEM_MODE:
+			bank_msb[j] = (j % 16 == 9) ? 127 : 0; /* Use MSB=127 for CM */
+		}
+
 		current_program[j] = default_program[j];
 	    }
 	    break;
@@ -4168,36 +5924,157 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 				case XG_SYSTEM_MODE:	/* XG */
 					switch (bank_msb[ch]) {
 					case 0:		/* Normal */
-						if (ch == 9 && bank_lsb[ch] == 127
-								&& mapID[ch] == XG_DRUM_MAP)
+#if 0
+						if (ch == 9 && bank_lsb[ch] == 127 && mapID[ch] == XG_DRUM_KIT_MAP){
 							/* FIXME: Why this part is drum?  Is this correct? */
 							ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 									"Warning: XG bank 0/127 is found. "
 									"It may be not correctly played.");
-						else {
+						}else
+#endif
+						{
 							ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 									"(XG ch=%d Normal voice)", ch);
 							midi_drumpart_change(ch, 0);
 							mapID[ch] = XG_NORMAL_MAP;
 						}
 						break;
-					case 64:	/* SFX voice */
-						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-								"(XG ch=%d SFX voice)", ch);
-						midi_drumpart_change(ch, 0);
-						mapID[ch] = XG_SFX64_MAP;
-						break;
-					case 126:	/* SFX kit */
-						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-								"(XG ch=%d SFX kit)", ch);
-						midi_drumpart_change(ch, 1);
-						mapID[ch] = XG_SFX126_MAP;
+					case 126:	/* SFX kit & MU2000 sampling kit */
+						if(113 <= newprog && newprog <= 116){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+									"(XG ch=%d Sampling kit)", ch);
+							midi_drumpart_change(ch, 1);
+							mapID[ch] = XG_SAMPLING126_MAP;
+						}else{
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+									"(XG ch=%d SFX kit)", ch);
+							midi_drumpart_change(ch, 1);
+							mapID[ch] = XG_SFX_KIT_MAP;
+						}
 						break;
 					case 127:	/* Drum kit */
 						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 								"(XG ch=%d Drum kit)", ch);
 						midi_drumpart_change(ch, 1);
-						mapID[ch] = XG_DRUM_MAP;
+						mapID[ch] = XG_DRUM_KIT_MAP;
+						break;
+					case 63:	/* FREE voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d FREE voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_FREE_MAP;
+						break;
+					case 48:	/* MU100Exc voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d MU100Exc voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_MU100EXC_MAP;
+						break;
+					case 16:	/* Sampling16 voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d Sampling16 voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_SAMPLING16_MAP;
+						break;
+					// PCM
+					case 32:	/* PCM-USER voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d PCM-USER voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_PCM_USER_MAP;
+						break;
+					case 64:	/* PCM-SFX voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d PCM-SFX voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_PCM_SFX_MAP;
+						break;
+					case 80:	/* PCM-A voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d PCM-A voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_PCM_A_MAP;
+						break;
+					case 96:	/* PCM-B voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d PCM-B voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_PCM_B_MAP;
+						break;
+					// VA
+					case 33:	/* VA-USER voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d VA-USER voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_VA_USER_MAP;
+						break;
+					case 65:	/* VA-SFX voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d VA-SFX voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_VA_SFX_MAP;
+						break;
+					case 81:	/* VA-A voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d VA-A voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_VA_A_MAP;
+						break;
+					case 97:	/* VA-B voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d VA-B voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_VA_B_MAP;
+						break;
+					// SG
+					case 34:	/* SG-USER voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d SG-USER voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_SG_USER_MAP;
+						break;
+					case 66:	/* SG-SFX voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d SG-SFX voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_SG_SFX_MAP;
+						break;
+					case 82:	/* SG-A voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d SG-A voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_SG_A_MAP;
+						break;
+					case 98:	/* SG-B voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d SG-B voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_SG_B_MAP;
+						break;
+					// FM
+					case 35:	/* FM-USER voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d FM-USER voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_FM_USER_MAP;
+						break;
+					case 67:	/* FM-SFX voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d FM-SFX voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_FM_SFX_MAP;
+						break;
+					case 83:	/* FM-A voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d FM-A voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_FM_A_MAP;
+						break;
+					case 99:	/* FM-B voice */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(XG ch=%d FM-B voice)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = XG_FM_B_MAP;
 						break;
 					default:
 						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
@@ -4207,13 +6084,473 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 					}
 					newbank = bank_lsb[ch];
 					break;
+///r
+				case SD_SYSTEM_MODE:	// SD //
 				case GM2_SYSTEM_MODE:	/* GM2 */
-					ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(GM2 ch=%d)", ch);
-					if ((bank_msb[ch] & 0xfe) == 0x78)	/* 0x78/0x79 */
-						midi_drumpart_change(ch, bank_msb[ch] == 0x78);
-					mapID[ch] = (ISDRUMCHANNEL(ch)) ? GM2_DRUM_MAP
-							: GM2_TONE_MAP;
+					switch (bank_msb[ch]) {
+					case 80:		/* Sp 1 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Special 1)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE80_MAP;
+						break;
+					case 81:	/* Sp 2 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Special 2)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE81_MAP;
+						break;
+					case 87:	/* Usr tone */ /* SD-50 Preset Tone */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Usr tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE87_MAP;
+						break;
+					case 89:	/* SD-50 Solo */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d 50Solo tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE89_MAP;
+						break;
+					case 96:	/* Clas tone */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Clas tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE96_MAP;
+						break;
+					case 97:	/* Cont tone */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Cont tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE97_MAP;
+						break;
+					case 98:	/* Solo tone */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Solo tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE98_MAP;
+						break;
+					case 99:	/* Enha tone */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Enha tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SDXX_TONE99_MAP;
+						break;
+					case 121:	/* GM2 tone */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d GM2 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = GM2_TONE_MAP;
+						break;
+					case 86:	/* Usr drum */ /* SD-50 Preset Rhythm */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Usr drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = SDXX_DRUM86_MAP;
+						break;
+					case 104:	/* Clas drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Clas drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = SDXX_DRUM104_MAP;
+						break;
+					case 105:	/* Cont drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Cont drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = SDXX_DRUM105_MAP;
+						break;
+					case 106:	/* Solo drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Solo drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = SDXX_DRUM106_MAP;
+						break;
+					case 107:	/* Clas drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d Enha drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = SDXX_DRUM107_MAP;
+						break;
+					case 120:	/* GM2 drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(SD ch=%d GM2 drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = GM2_DRUM_MAP;
+						break;
+					default:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(GM2: ch=%d Strange bank MSB %d)",
+								ch, bank_msb[ch]);
+						break;
+					}
 					newbank = bank_lsb[ch];
+					break;
+				case KG_SYSTEM_MODE:	/* AG NX */
+					switch (bank_msb[ch]) {
+					case 0:		/* NX 0 *//* 05RW 0 */
+						midi_drumpart_change(ch, 0);
+						if(opt_default_module == MODULE_AG10){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG,"(NX ch=%d 0 GMa/y tone)", ch);
+							mapID[ch] = NX5R_TONE0_MAP;
+						}else if(opt_default_module == MODULE_05RW){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG,"(05RW ch=%d 0 bankA tone)", ch);
+							mapID[ch] = K05RW_TONE0_MAP;
+						}else if(opt_default_module == MODULE_NX5R){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG,"(NX ch=%d 0 GMa/y tone)", ch);
+							mapID[ch] = NX5R_TONE0_MAP;
+						}
+						break;
+					case 1:		/* NX 1 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 1 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE1_MAP;
+						break;
+					case 2:		/* NX 2 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 2 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE2_MAP;
+						break;
+					case 3:		/* NX 3 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 3 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE3_MAP;
+						break;
+					case 4:		/* NX 4 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 4 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE4_MAP;
+						break;
+					case 5:		/* NX 5 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 5 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE5_MAP;
+						break;
+					case 6:		/* NX 6 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 6 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE6_MAP;
+						break;
+					case 7:		/* NX 7 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 7 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE7_MAP;
+						break;
+					case 8:		/* NX 8 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 8 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE8_MAP;
+						break;
+					case 9:		/* NX 9 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 9 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE9_MAP;
+						break;
+					case 10:		/* NX 10 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 10 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE10_MAP;
+						break;
+					case 11:		/* NX 11 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 11 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE11_MAP;
+						break;
+					case 16:		/* NX 16 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 16 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE16_MAP;
+						break;
+					case 17:		/* NX 17 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 17 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE17_MAP;
+						break;
+					case 18:		/* NX 18 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 18 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE18_MAP;
+						break;
+					case 19:		/* NX 19 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 19 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE19_MAP;
+						break;
+					case 24:		/* NX 24 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 24 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE24_MAP;
+						break;
+					case 25:		/* NX 25 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 25 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE25_MAP;
+						break;
+					case 26:		/* NX 26 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 26 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE26_MAP;
+						break;
+					case 32:		/* NX 32 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 32 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE32_MAP;
+						break;
+					case 33:		/* NX 33 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 33 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE33_MAP;
+						break;
+					case 40:		/* NX 40 */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 40 tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE40_MAP;
+						break;
+					case 56:		/* NX GMb */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(05RW ch=%d 56 GMb tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = K05RW_TONE56_MAP;
+						break;
+					case 57:		/* NX GMb */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(05RW ch=%d 57 GMb tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = K05RW_TONE57_MAP;
+						break;
+					case 64:		/* NX GMb */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 64 ySFX tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE56_MAP;
+						break;
+					case 80:		/* NX PrgU */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 80 PrgU tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE80_MAP;
+						break;
+					case 81:		/* NX PrgA */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 81 PrgA tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE81_MAP;
+						break;
+					case 82:		/* NX PrgU */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 82 PrgB tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE82_MAP;
+						break;
+					case 83:		/* NX PrgC */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 83 PrgC tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE83_MAP;
+						break;
+					case 88:		/* NX CmbU */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 88 CmbU tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE88_MAP;
+						break;
+					case 89:		/* NX CmbA */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 89 CmbA tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE89_MAP;
+						break;
+					case 90:		/* NX CmbB */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 90 CmbB tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE90_MAP;
+						break;
+					case 91:		/* NX CmbC */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 91 CmbC tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE91_MAP;
+						break;
+					case 125:		/* NX CM */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d 125 CM tone)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = NX5R_TONE125_MAP;
+						break;
+					case 61:	/* NX r drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d NX r drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = NX5R_DRUM61_MAP;
+						break;
+					case 62:	/* 05RW k drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(05RW ch=%d NX k drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = K05RW_DRUM62_MAP;
+						break;
+					case 126:	/* NX y1 drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d NX y1 drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = NX5R_DRUM126_MAP;
+						break;
+					case 127:	/* NX y2 drum */
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX ch=%d NX y2 drum)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = NX5R_DRUM127_MAP;
+						break;
+					default:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+								"(NX: ch=%d Strange bank MSB %d)",
+								ch, bank_msb[ch]);
+						break;
+					}
+					newbank = bank_lsb[ch];
+					break;
+				case CM_SYSTEM_MODE:	/* MT32 CMxx */
+					if(opt_default_module == MODULE_CM500D){ // CM500D 1-9GS 10-15LA 
+						if(ch < 10){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d CM300 MAP)", ch);
+							mapID[ch] = (ISDRUMCHANNEL(ch)) ? SC_55_DRUM_MAP : SC_55_TONE_MAP;
+						}else{
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d CM32L MAP)", ch);
+							mapID[ch] = CM32L_TONE_MAP;
+						}
+					}else if(ch > 15){
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(GS ch=%d SC-88Pro MAP)", ch);
+						mapID[ch] = (ISDRUMCHANNEL(ch)) ? SC_88PRO_DRUM_MAP	: SC_88PRO_TONE_MAP;
+					}else if((ch & (16 - 1)) == 9){
+	/*					if(opt_default_module == MODULE_MT32){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d MT32 drum MAP)", ch);
+							mapID[ch] = MT32_DRUM_MAP;
+						}else*/
+						{
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d CM32L drum MAP)", ch);
+							mapID[ch] = CM32_DRUM_MAP;
+						}
+					}else if((ch & (16 - 1)) < 9){
+	/*					if(opt_default_module == MODULE_MT32){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d MT32 MAP)", ch);
+							mapID[ch] = MT32_TONE_MAP;
+						}else*/
+						{
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d CM32L MAP)", ch);
+							mapID[ch] = CM32L_TONE_MAP;
+						}
+					}else if(current_program[ch] < 64){
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d CM32P MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = CM32P_TONE_MAP;
+					}else switch (opt_default_module) {
+					case MODULE_CM64_SN01:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN01 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN01_TONE_MAP;
+						break;
+					case MODULE_CM64_SN02:
+						if(current_program[ch] < 71){
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN02 drum MAP)", ch);
+							midi_drumpart_change(ch, 1);
+							mapID[ch] = SN02_DRUM_MAP;
+						}else {
+							ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN02 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+							mapID[ch] = SN02_TONE_MAP;
+						}
+						break;
+					case MODULE_CM64_SN03:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN03 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN03_TONE_MAP;
+						break;
+					case MODULE_CM64_SN04:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN04 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN04_TONE_MAP;
+						break;
+					case MODULE_CM64_SN05:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN05 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN05_TONE_MAP;
+						break;
+					case MODULE_CM64_SN06:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN06 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN06_TONE_MAP;
+						break;
+					case MODULE_CM64_SN07:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN07 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN07_TONE_MAP;
+						break;
+					case MODULE_CM64_SN08:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN08 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN08_TONE_MAP;
+						break;
+					case MODULE_CM64_SN09:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN09 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN09_TONE_MAP;
+						break;
+					case MODULE_CM64_SN10:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN10 drum MAP)", ch);
+						midi_drumpart_change(ch, 1);
+						mapID[ch] = SN10_DRUM_MAP;
+						break;
+					case MODULE_CM64_SN11:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN11 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN11_TONE_MAP;
+						break;
+					case MODULE_CM64_SN12:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN12 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN12_TONE_MAP;
+						break;
+					case MODULE_CM64_SN13:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN13 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN13_TONE_MAP;
+						break;
+					case MODULE_CM64_SN14:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN14 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN14_TONE_MAP;
+						break;
+					case MODULE_CM64_SN15:
+						ctl->cmsg(CMSG_INFO, VERB_DEBUG, "(CM ch=%d SN15 MAP)", ch);
+						midi_drumpart_change(ch, 0);
+						mapID[ch] = SN15_TONE_MAP;
+						break;
+					default:
+						break;
+					}
+					newbank = bank_msb[ch];
 					break;
 				default:
 					newbank = bank_msb[ch];
@@ -4236,49 +6573,38 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		counting_time = 1;
 	    if(ISDRUMCHANNEL(ch))
 	    {
-		newbank = current_set[ch];
-		newprog = meep->event.a;
-		instrument_map(mapID[ch], &newbank, &newprog);
-
-		if(!drumset[newbank]) /* Is this a defined drumset? */
-		{
-		    if(warn_drumset[newbank] == 0)
-		    {
-			ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
-				  "Drum set %d is undefined", newbank);
-			warn_drumset[newbank] = 1;
-		    }
-		    newbank = 0;
+			newbank = current_set[ch];
+			newprog = meep->event.a;
+			instrument_map(mapID[ch], &newbank, &newprog);
+			if(!drumset[newbank]) /* Is this a defined drumset? */
+			{
+				if(warn_drumset[newbank] == 0)
+				{
+				ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+					  "Drum set %d is undefined", newbank);
+				warn_drumset[newbank] = 1;
+				}
+				newbank = 0;
+			}
 		}
-
-		/* Mark this instrument to be loaded */
-		if(!(drumset[newbank]->tone[newprog].instrument))
-		    drumset[newbank]->tone[newprog].instrument =
-			MAGIC_LOAD_INSTRUMENT;
-	    }
-	    else
-	    {
-		if(current_program[ch] == SPECIAL_PROGRAM)
-		    break;
-		newbank = current_set[ch];
-		newprog = current_program[ch];
-		instrument_map(mapID[ch], &newbank, &newprog);
-		if(tonebank[newbank] == NULL)
+		else
 		{
-		    if(warn_tonebank[newbank] == 0)
-		    {
-			ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
-				  "Tone bank %d is undefined", newbank);
-			warn_tonebank[newbank] = 1;
-		    }
-		    newbank = 0;
+			if(current_program[ch] == SPECIAL_PROGRAM)
+				break;
+			newbank = current_set[ch];
+			newprog = current_program[ch];
+			instrument_map(mapID[ch], &newbank, &newprog);
+			if(tonebank[newbank] == NULL)
+			{
+				if(warn_tonebank[newbank] == 0)
+				{
+				ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
+						"Tone bank %d is undefined", newbank);
+				warn_tonebank[newbank] = 1;
+				}
+				newbank = 0;
+			}
 		}
-
-		/* Mark this instrument to be loaded */
-		if(!(tonebank[newbank]->tone[newprog].instrument))
-		    tonebank[newbank]->tone[newprog].instrument =
-			MAGIC_LOAD_INSTRUMENT;
-	    }
 	    break;
 
 	  case ME_TONE_BANK_MSB:
@@ -4288,6 +6614,21 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	  case ME_TONE_BANK_LSB:
 	    bank_lsb[ch] = meep->event.a;
 	    break;
+
+#ifdef SUPPORT_LOOPEVENT
+	  case ME_LOOP_START:
+	    if (loop_startmeep != meep) {
+		loop_begintime = meep->event.time;
+		loop_startmeep = meep;
+		loop_event_count = event_count + 1 - i;
+		groomed_list = lp =
+		    (MidiEvent*) safe_realloc(groomed_list, sizeof(MidiEvent) * (event_count +
+			loop_event_count * loop_repeat_counter + 1));
+		lp += our_event_count;
+	    }
+	    skip_this_event = 1;
+	    break;
+#endif /* SUPPORT_LOOPEVENT */
 
 	  case ME_CHORUS_TEXT:
 	  case ME_LYRIC:
@@ -4341,14 +6682,18 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		skip_this_event = 1;
 	    break;
 
-	case ME_CUEPOINT:
-		if (counting_time == 2)
-			skip_this_event = 1;
-		break;
+	  case ME_CUEPOINT:
+	    if (counting_time == 2)
+		skip_this_event = 1;
+	    break;
         }
 
 	/* Recompute time in samples*/
-	if((dt = meep->event.time - at) && !counting_time)
+#ifdef SUPPORT_LOOPEVENT
+	if ((dt = meep->event.time - (loop_eottime ? (loop_begintime - loop_eottime) : 0) - at) && !counting_time)
+#else
+	if ((dt = meep->event.time - at) && !counting_time)
+#endif /* SUPPORT_LOOPEVENT */
 	{
 	    samples_to_do = sample_increment * dt;
 	    sample_cum += sample_correction * dt;
@@ -4362,7 +6707,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "Overflow the sample counter");
-		free(groomed_list);
+		safe_free(groomed_list);
 		return NULL;
 	    }
 	}
@@ -4383,8 +6728,20 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	    lp++;
 	    our_event_count++;
 	}
+#ifdef SUPPORT_LOOPEVENT
+	at = meep->event.time - (loop_eottime ? (loop_begintime - loop_eottime) : 0);
+#else
 	at = meep->event.time;
+#endif /* SUPPORT_LOOPEVENT */
 	meep = meep->next;
+
+#ifdef SUPPORT_LOOPEVENT
+	if (!meep && loop_startmeep && loop_repeat_counter > 0) {
+	    loop_eottime = at;
+	    meep = loop_startmeep->next;
+	    loop_repeat_counter--;
+	}
+#endif /* SUPPORT_LOOPEVENT */
     }
     /* Add an End-of-Track event */
     lp->time = st;
@@ -4411,7 +6768,7 @@ static int read_smf_file(struct timidity_file *tf)
     else
 	karaoke_title_flag = 1;
 
-    errno = 0;
+    _set_errno(0);
     if(tf_read(&len, 4, 1, tf) != 1)
     {
 	if(errno)
@@ -4513,14 +6870,29 @@ void readmidi_read_init(void)
 	/* initialize effect status */
 	for (i = 0; i < MAX_CHANNELS; i++)
 		init_channel_layer(i);
-	free_effect_buffers();
-	init_reverb_status_gs();
-	init_delay_status_gs();
-	init_chorus_status_gs();
-	init_eq_status_gs();
-	init_insertion_effect_gs();
-	init_multi_eq_xg();
-	if (play_system_mode == XG_SYSTEM_MODE) {init_all_effect_xg();}
+	if(!first)
+		free_effect_buffers();
+	switch(play_system_mode){
+	case XG_SYSTEM_MODE:
+		init_all_effect_xg();
+		break;
+	case SD_SYSTEM_MODE:
+		init_all_effect_sd();
+		break;
+	case GM2_SYSTEM_MODE:
+		init_reverb_status_gs(); // gm2
+		init_delay_status_gs(); // gm2
+		init_multi_eq_sd();
+		break;
+	default:
+		init_reverb_status_gs();
+		init_delay_status_gs();
+		init_chorus_status_gs();
+		init_eq_status_gs();
+		init_insertion_effect_gs();
+		break;
+	
+	}
 	init_userdrum();
 	init_userinst();
 	rhythm_part[0] = rhythm_part[1] = 9;
@@ -4540,8 +6912,8 @@ void readmidi_read_init(void)
 
     if(string_event_table != NULL)
     {
-	free(string_event_table[0]);
-	free(string_event_table);
+	safe_free(string_event_table[0]);
+	safe_free(string_event_table);
 	string_event_table = NULL;
 	string_event_table_size = 0;
     }
@@ -4555,6 +6927,11 @@ void readmidi_read_init(void)
 	default_channel_program[i] = -1;
     readmidi_wrd_mode = WRD_TRACE_NOTHING;
 	first = 0;
+	
+#ifdef VST_LOADER_ENABLE
+	if (hVSTHost != NULL)
+		((vst_processing_init)GetProcAddress(hVSTHost, "effectInit"))();
+#endif
 }
 
 static void insert_note_steps(void)
@@ -4609,7 +6986,7 @@ static void insert_cuepoints(void)
 	TimeSegment *sp;
 	int32 at, st, t;
 	uint8 a0, b0, a1, b1;
-	
+
 	for (sp = time_segments; sp != NULL; sp = sp->next) {
 		if (sp->type == 0) {
 			if (sp->prev == NULL && sp->begin.s != 0) {
@@ -4669,7 +7046,7 @@ static int32 compute_smf_at_time(const int32 sample, int32 *sample_adj)
 	MidiEventList *e;
 	int32 st = 0, tempo = 500000, prev_time = 0;
 	int i;
-	
+
 	for (i = 0, e = evlist; i < event_count; i++, e = e->next) {
 		st += (double) tempo * play_mode->rate / 1000000
 				/ current_file_info->divisions
@@ -4690,7 +7067,7 @@ static int32 compute_smf_at_time2(const Measure m, int32 *sample)
 	MidiEventList *e;
 	int32 st = 0, tempo = 500000, prev_time = 0;
 	int i;
-	
+
 	for (i = 0, e = evlist; i < event_count; i++, e = e->next) {
 		st += (double) tempo * play_mode->rate / 1000000
 				/ current_file_info->divisions
@@ -4711,12 +7088,13 @@ static int32 compute_smf_at_time2(const Measure m, int32 *sample)
 void free_time_segments(void)
 {
 	TimeSegment *sp, *next;
-	
+
 	for (sp = time_segments; sp != NULL; sp = next)
 		next = sp->next, free(sp);
 	time_segments = NULL;
 }
 
+#if !defined(KBTIM) && !defined(WINVSTI) //added by Kobarin(read_midi_file の不要なコードを除去)
 MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 			  char *fn)
 {
@@ -4729,7 +7107,7 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
     COPY_CHANNELMASK(drumchannels, current_file_info->drumchannels);
     COPY_CHANNELMASK(drumchannel_mask, current_file_info->drumchannel_mask);
 
-    errno = 0;
+    _set_errno(0);
 
     if((mtype = get_module_type(fn)) > 0)
     {
@@ -4764,9 +7142,8 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
     }
 #endif
 
-    if(opt_default_mid &&
-       (current_file_info->mid == 0 || current_file_info->mid >= 0x7e))
-	current_file_info->mid = opt_default_mid;
+    if(opt_default_mid &&  (current_file_info->mid == 0 || current_file_info->mid >= 0x7e))
+		current_file_info->mid = opt_default_mid;
 
   retry_read:
     if(tf_read(magic, 1, 4, tf) != 4)
@@ -4875,7 +7252,6 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 
   grooming:
     insert_note_steps();
-    insert_cuepoints();
     ev = groom_list(current_file_info->divisions, count, sp);
     if(ev == NULL)
     {
@@ -4890,7 +7266,158 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
     current_file_info->readflag = 1;
     return ev;
 }
+#else //KBTIM // WINVSTI
+//read_midi_file 置き換え by Kobarin
+MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
+			  char *fn)
+{//以下の対応部分を除去
+ // SMF 以外の形式(RCP/着メロ等)
+ // マックバイナリ
+ // RMI(RIFF MIDI)
+ // WRD
+    char magic[4];
+    MidiEvent *ev;
+    int err, macbin_check, mtype, i;
 
+    macbin_check = 1;
+    current_file_info = get_midi_file_info(current_filename, 1);
+    COPY_CHANNELMASK(drumchannels, current_file_info->drumchannels);
+    COPY_CHANNELMASK(drumchannel_mask, current_file_info->drumchannel_mask);
+
+    _set_errno(0);
+
+#if MAX_CHANNELS > 16
+    for(i = 16; i < MAX_CHANNELS; i++)
+    {
+	if(!IS_SET_CHANNELMASK(drumchannel_mask, i))
+	{
+	    if(IS_SET_CHANNELMASK(drumchannels, i & 0xF))
+		SET_CHANNELMASK(drumchannels, i);
+	    else
+		UNSET_CHANNELMASK(drumchannels, i);
+	}
+    }
+#endif
+
+    if(opt_default_mid &&
+        (current_file_info->mid == 0 || current_file_info->mid >= 0x7e)){
+	    current_file_info->mid = opt_default_mid;
+    }
+  retry_read:
+    if(tf_read(magic, 1, 4, tf) != 4){
+	    return NULL;
+    }
+
+    if(memcmp(magic, "MThd", 4) == 0){
+	    readmidi_read_init();
+	    err = read_smf_file(tf);
+    }
+#ifdef IN_TIMIDITY // SMF以外対応 // for in_timidity
+    else if(memcmp(magic, "RCM-", 4) == 0 || memcmp(magic, "COME", 4) == 0)
+    {
+	readmidi_read_init();
+	err = read_rcp_file(tf, magic, fn);
+    }
+    else if (strncmp(magic, "RIFF", 4) == 0) {
+       if (tf_read(magic, 1, 4, tf) == 4 &&
+           tf_read(magic, 1, 4, tf) == 4 &&
+           strncmp(magic, "RMID", 4) == 0 &&
+           tf_read(magic, 1, 4, tf) == 4 &&
+           strncmp(magic, "data", 4) == 0 &&
+           tf_read(magic, 1, 4, tf) == 4) {
+           goto retry_read;
+       } else {
+           err = 1;
+           ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+                     "%s: Not a MIDI file!", current_filename);
+       }
+    }
+    else if(memcmp(magic, "melo", 4) == 0)
+    {
+	readmidi_read_init();
+	err = read_mfi_file(tf);
+    }
+    else
+    {
+	if(macbin_check && magic[0] == 0)
+	{
+	    /* Mac Binary */
+	    macbin_check = 0;
+	    skip(tf, 128 - 4);
+	    goto retry_read;
+	}
+	else if(memcmp(magic, "RIFF", 4) == 0)
+	{
+	    /* RIFF MIDI file */
+	    skip(tf, 20 - 4);
+	    goto retry_read;
+	}
+	err = 1;
+	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
+		  "%s: Not a MIDI file!", current_filename);
+    }
+#else
+    else{//SMF 以外
+        err = 1;
+    }
+#endif
+    if(err){
+	    free_midi_list();
+	    if(string_event_strtab.nstring > 0)
+	        delete_string_table(&string_event_strtab);
+	    return NULL;
+    }
+    /* Read WRD file */
+#if 0
+    if(!(play_mode->flag&PF_CAN_TRACE)){
+	    if(wrdt->start != NULL)
+	        wrdt->start(WRD_TRACE_NOTHING);
+	    readmidi_wrd_mode = WRD_TRACE_NOTHING;
+    }
+    else if(wrdt->id != '-' && wrdt->opened){
+	    readmidi_wrd_mode = import_wrd_file(fn);
+	    if(wrdt->start != NULL)
+	        if(wrdt->start(readmidi_wrd_mode) == -1){
+		        /* strip all WRD events */
+		        MidiEventList *e;
+		        int32 i;
+		        for(i = 0, e = evlist; i < event_count; i++, e = e->next)
+		            if (e->event.type == ME_WRD || e->event.type == ME_SHERRY)
+			        e->event.type = ME_NONE;
+	        }
+    }
+    else{
+	    readmidi_wrd_mode = WRD_TRACE_NOTHING;
+    }
+#else
+	readmidi_wrd_mode = WRD_TRACE_NOTHING;
+#endif
+    /* make lyric table */
+    if(string_event_strtab.nstring > 0){
+	    string_event_table_size = string_event_strtab.nstring;
+	    string_event_table = make_string_array(&string_event_strtab);
+	    if(string_event_table == NULL){
+	        delete_string_table(&string_event_strtab);
+	        string_event_table_size = 0;
+	    }
+    }
+
+  grooming:
+    insert_note_steps();
+    ev = groom_list(current_file_info->divisions, count, sp);
+    if(ev == NULL){
+	    free_midi_list();
+	    if(string_event_strtab.nstring > 0)
+	        delete_string_table(&string_event_strtab);
+	    return NULL;
+    }
+    current_file_info->samples = *sp;
+    if(current_file_info->first_text == NULL)
+	    current_file_info->first_text = safe_strdup("");
+    current_file_info->readflag = 1;
+    return ev;
+}
+#endif // ここまで by Kobarin
 
 struct midi_file_info *new_midi_file_info(const char *filename)
 {
@@ -4926,33 +7453,38 @@ void free_all_midi_file_info(void)
   info = midi_file_info;
   while (info) {
     next = info->next;
-    free(info->filename);
-    if (info->seq_name)
-      free(info->seq_name);
+    safe_free(info->filename);
+    safe_free(info->seq_name);
+    safe_free(info->artist_name);	
     if (info->karaoke_title != NULL && info->karaoke_title == info->first_text)
-      free(info->karaoke_title);
+      safe_free(info->karaoke_title);
     else {
-      if (info->karaoke_title)
-	free(info->karaoke_title);
-      if (info->first_text)
-	free(info->first_text);
-      if (info->midi_data)
-	free(info->midi_data);
-      if (info->pcm_filename)
-	free(info->pcm_filename); /* Note: this memory is freed in playmidi.c*/
+      safe_free(info->karaoke_title);
+      safe_free(info->first_text);
     }
-    free(info);
+    safe_free(info->midi_data);
+    safe_free(info->pcm_filename); /* Note: this memory is freed in playmidi.c*/
+    safe_free(info);
     info = next;
   }
   midi_file_info = NULL;
   current_file_info = NULL;
+
+///r
+	if(string_event_table != NULL)//added by Kobarin
+	{
+		safe_free(string_event_table[0]);
+		safe_free(string_event_table);
+		string_event_table = NULL;
+		string_event_table_size = 0;
+	}
 }
 
 struct midi_file_info *get_midi_file_info(char *filename, int newp)
 {
     struct midi_file_info *p;
 
-    filename = url_expand_home_dir(filename);
+    filename = (char *)url_expand_home_dir(filename);
     /* Linear search */
     for(p = midi_file_info; p; p = p->next)
 	if(!strcmp(filename, p->filename))
@@ -5005,7 +7537,7 @@ struct timidity_file *open_midi_file(char *fn,
 }
 
 #ifndef NO_MIDI_CACHE
-static long deflate_url_reader(char *buf, long size, void *user_val)
+static ptr_size_t deflate_url_reader(char *buf, ptr_size_t size, void *user_val)
 {
     return url_nread((URL)user_val, buf, size);
 }
@@ -5193,6 +7725,7 @@ static char *get_midi_title1(struct midi_file_info *p)
     return s;
 }
 
+#if !defined(KBTIM) && !defined(WINVSTI) //added by Kobarin
 char *get_midi_title(char *filename)
 {
     struct midi_file_info *p;
@@ -5245,6 +7778,7 @@ char *get_midi_title(char *filename)
 	if(title == NULL)
 	{
 	    /* No title */
+	    p->artist_name = NULL; ///r
 	    p->seq_name = NULL;
 	    p->format = 0;
 	    goto end_of_parse;
@@ -5257,7 +7791,7 @@ char *get_midi_title(char *filename)
 	p->seq_name = (char *)safe_strdup(str);
 	reuse_mblock(&tmpbuffer);
 	p->format = 0;
-	free (title);
+	safe_free (title);
 	goto end_of_parse;
     }
 
@@ -5307,7 +7841,7 @@ char *get_midi_title(char *filename)
     }
     if(memcmp(tmp, "melo", 4) == 0)
     {
-	int i;
+	size_t i;
 	char *master, *converted;
 	
 	master = get_mfi_file_title(tf);
@@ -5392,12 +7926,12 @@ char *get_midi_title(char *filename)
 
     for(trk = 0; trk < tracks; trk++)
     {
-	int32 next_pos, pos;
+	size_t next_pos, pos;
 
 	if(trk >= 1 && karaoke_format == -1)
 	    break;
 
-	if((tf_read(tmp,1,4,tf) != 4) || (tf_read(&len,4,1,tf) != 1))
+	if((tf_read(tmp,1,4,tf) != 4) || (tf_read(&len,4,1,tf) != 1)) 
 	    break;
 
 	if(memcmp(tmp, "MTrk", 4))
@@ -5435,7 +7969,8 @@ char *get_midi_title(char *filename)
 		type = tf_getc(tf);
 		if((len = getvl(tf)) < 0)
 		    goto end_of_parse;
-		if((type == 1 || type == 3) && len > 0 &&
+///r
+		if((type == 1 || type == 2 || type == 3) && len > 0 &&
 		   (trk == 0 || karaoke_format != -1))
 		{
 		    char *si, *so;
@@ -5452,12 +7987,23 @@ char *get_midi_title(char *filename)
 
 		    si[len]='\0';
 		    code_convert(si, so, s_maxlen, NULL, NULL);
+///r
+		    if(trk == 0 && type == 2)
+		    {
+		      if(p->artist_name == NULL) {
+			char *name = safe_strdup(so);
+			p->artist_name = safe_strdup(fix_string(name));
+			safe_free(name);
+		      }
+		      reuse_mblock(&tmpbuffer);
+			  continue;
+		    }
 		    if(trk == 0 && type == 3)
 		    {
 		      if(p->seq_name == NULL) {
 			char *name = safe_strdup(so);
 			p->seq_name = safe_strdup(fix_string(name));
-			free(name);
+			safe_free(name);
 		      }
 		      reuse_mblock(&tmpbuffer);
 		      if(karaoke_format == -1)
@@ -5467,7 +8013,7 @@ char *get_midi_title(char *filename)
 		      char *name;
 		      name = safe_strdup(so);
 		      p->first_text = safe_strdup(fix_string(name));
-		      free(name);
+		      safe_free(name);
 		    }
 		    if(karaoke_format != -1)
 		    {
@@ -5490,7 +8036,13 @@ char *get_midi_title(char *filename)
 		{
 		    pos = tf_tell(tf);
 		    if(pos < next_pos)
+///r
+#ifdef _WIN64
+			tf_seek_uint64(tf, next_pos - pos, SEEK_CUR);
+#else
 			tf_seek(tf, next_pos - pos, SEEK_CUR);
+#endif
+
 		    break; /* End of track */
 		}
 		else
@@ -5546,6 +8098,14 @@ char *get_midi_title(char *filename)
 	p->first_text = safe_strdup("");
     return get_midi_title1(p);
 }
+#else //KBTIM //WINVSTI by Kobarin
+
+char *get_midi_title(char *filename)
+{
+    return NULL;
+}
+
+#endif //ここまで by Kobarin
 
 int midi_file_save_as(char *in_name, char *out_name)
 {
@@ -5564,7 +8124,7 @@ int midi_file_save_as(char *in_name, char *out_name)
 
     ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Save as %s...", out_name);
 
-    errno = 0;
+    _set_errno(0);
     if((tf = open_midi_file(in_name, 1, 0)) == NULL)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -5573,7 +8133,7 @@ int midi_file_save_as(char *in_name, char *out_name)
 	return -1;
     }
 
-    errno = 0;
+    _set_errno(0);
     if((ofp = fopen(out_name, "wb")) == NULL)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -5621,31 +8181,48 @@ void init_delay_status_gs(void)
 	p->feedback = 0x50;
 	p->pre_lpf = 0;
 	recompute_delay_status_gs();
+	init_ch_delay();
 }
 
 /*! recompute Delay Effect (GS) */
+extern void init_pre_lpf(InfoPreFilter *info);
 void recompute_delay_status_gs(void)
 {
 	struct delay_status_gs_t *p = &delay_status_gs;
+
+#if 0 // move reverb.c setup_ch_delay()
 	p->time_center = delay_time_center_table[p->time_c > 0x73 ? 0x73 : p->time_c];
-	p->time_ratio_left = (double)p->time_l / 24;
-	p->time_ratio_right = (double)p->time_r / 24;
-	p->sample[0] = p->time_center * play_mode->rate / 1000.0f;
-	p->sample[1] = p->sample[0] * p->time_ratio_left;
-	p->sample[2] = p->sample[0] * p->time_ratio_right;
+	p->time_ratio_left = (double)p->time_l / 24.0;
+	p->time_ratio_right = (double)p->time_r / 24.0;
+	p->sample[0] = p->time_center * (double)play_mode->rate * DIV_1000;
+	p->sample[1] = (double)p->sample[0] * p->time_ratio_left;
+	p->sample[2] = (double)p->sample[0] * p->time_ratio_right;
+	if (p->sample[1] > play_mode->rate)
+		p->sample[1] = play_mode->rate;
+	if (p->sample[2] > play_mode->rate)
+		p->sample[2] = play_mode->rate;
+
+	//elion
+	// delay lv が 127 のものをすべて不正の値とみなす
+///r
+	if(p->level_center >= 127)
+		p->level_center = 0; //?
+
 	p->level_ratio[0] = p->level * p->level_center / (127.0f * 127.0f);
 	p->level_ratio[1] = p->level * p->level_left / (127.0f * 127.0f);
 	p->level_ratio[2] = p->level * p->level_right / (127.0f * 127.0f);
-	p->feedback_ratio = (double)(p->feedback - 64) * (0.763f * 2.0f / 100.0f);
-	p->send_reverb_ratio = (double)p->send_reverb * (0.787f / 100.0f);
+	p->feedback_ratio = (double)(p->feedback - 64) * (0.763f * 2.0f * DIV_100);
+	p->send_reverb_ratio = (double)p->send_reverb * (0.787f * DIV_100);	
 
-	if(p->level_left != 0 || (p->level_right != 0 && p->type == 0)) {
+	if((p->level_left != 0 || p->level_right != 0) && p->type == 0) {//elionadd
 		p->type = 1;	/* it needs 3-tap delay effect. */
 	}
+#endif
 
+///r
 	if(p->pre_lpf) {
-		p->lpf.a = 2.0 * ((double)(7 - p->pre_lpf) / 7.0f * 16000.0f + 200.0f) / play_mode->rate;
-		init_filter_lowpass1(&(p->lpf));
+		p->lpf.freqL = (double)(7 - p->pre_lpf) * DIV_7 * 16000.0f + 200.0f ;
+		init_pre_lpf(&p->lpf);
 	}
 }
 
@@ -5653,11 +8230,14 @@ void recompute_delay_status_gs(void)
 void set_delay_macro_gs(int macro)
 {
 	struct delay_status_gs_t *p = &delay_status_gs;
-	if(macro >= 4) {p->type = 2;}	/* cross delay */
+//	if(macro >= 4) {p->type = 2;}	/* cross delay */
 	macro *= 10;
-	p->time_center = delay_time_center_table[delay_macro_presets[macro + 1]];
-	p->time_ratio_left = (double)delay_macro_presets[macro + 2] / 24;
-	p->time_ratio_right = (double)delay_macro_presets[macro + 3] / 24;
+	//p->time_center = delay_time_center_table[delay_macro_presets[macro + 1]];
+	//p->time_ratio_left = (double)delay_macro_presets[macro + 2] / 24;
+	//p->time_ratio_right = (double)delay_macro_presets[macro + 3] / 24;	
+	p->time_c = delay_macro_presets[macro + 1];
+	p->time_l = delay_macro_presets[macro + 2];
+	p->time_r = delay_macro_presets[macro + 3];
 	p->level_center = delay_macro_presets[macro + 4];
 	p->level_left = delay_macro_presets[macro + 5];
 	p->level_right = delay_macro_presets[macro + 6];
@@ -5669,6 +8249,8 @@ void set_delay_macro_gs(int macro)
 void init_reverb_status_gs(void)
 {
 	struct reverb_status_gs_t *p = &reverb_status_gs;
+
+	p->system_mode = 0;
 	p->character = 0x04;
 	p->pre_lpf = 0;
 	p->level = 0x40;
@@ -5676,17 +8258,24 @@ void init_reverb_status_gs(void)
 	p->delay_feedback = 0;
 	p->pre_delay_time = 0;
 	recompute_reverb_status_gs();
-	init_reverb();
+	init_ch_reverb();
 }
 
 /*! recompute Reverb Effect (GS) */
 void recompute_reverb_status_gs(void)
 {
 	struct reverb_status_gs_t *p = &reverb_status_gs;
+///r
+	if(play_system_mode == SD_SYSTEM_MODE)
+		p->system_mode = 1;
+	else if(play_system_mode == GM2_SYSTEM_MODE)
+		p->system_mode = 1;
+	else
+		p->system_mode = 0;
 
 	if(p->pre_lpf) {
-		p->lpf.a = 2.0 * ((double)(7 - p->pre_lpf) / 7.0f * 16000.0f + 200.0f) / play_mode->rate;
-		init_filter_lowpass1(&(p->lpf));
+		p->lpf.freqL = (double)(7 - p->pre_lpf) * DIV_7 * 16000.0f + 200.0f ;		
+		init_pre_lpf(&p->lpf);
 	}
 }
 
@@ -5695,6 +8284,8 @@ void set_reverb_macro_gm2(int macro)
 {
 	struct reverb_status_gs_t *p = &reverb_status_gs;
 	int type = macro;
+
+	p->system_mode = 1;
 	if (macro == 8) {macro = 5;}
 	macro *= 6;
 	p->character = reverb_macro_presets[macro];
@@ -5739,6 +8330,18 @@ void set_reverb_macro_gs(int macro)
 void init_chorus_status_gs(void)
 {
 	struct chorus_status_gs_t *p = &chorus_status_gs;
+#ifdef CUSTOMIZE_CHORUS_PARAM
+	p->macro = 0x02;
+	p->pre_lpf = otd.chorus_param.pre_lpf;
+	p->level = otd.chorus_param.level;
+	p->feedback = otd.chorus_param.feedback;
+	p->delay = otd.chorus_param.delay;
+	p->rate = otd.chorus_param.rate;
+	p->depth = otd.chorus_param.depth;
+	p->send_reverb = otd.chorus_param.send_reverb;
+	p->send_delay = otd.chorus_param.send_delay;
+	recompute_chorus_status_gs();
+#else
 	p->macro = 0;
 	p->pre_lpf = 0;
 	p->level = 0x40;
@@ -5749,23 +8352,34 @@ void init_chorus_status_gs(void)
 	p->send_reverb = 0;
 	p->send_delay = 0;
 	recompute_chorus_status_gs();
+#endif
+	init_ch_chorus();
 }
 
 /*! recompute Chorus Effect (GS) */
-void recompute_chorus_status_gs()
+void recompute_chorus_status_gs(void)
 {
 	struct chorus_status_gs_t *p = &chorus_status_gs;
+///r
+	if(play_system_mode == SD_SYSTEM_MODE)
+		p->system_mode = 1;
+	else if(play_system_mode == GM2_SYSTEM_MODE)
+		p->system_mode = 1;
+	else
+		p->system_mode = 0;
 
 	if(p->pre_lpf) {
-		p->lpf.a = 2.0 * ((double)(7 - p->pre_lpf) / 7.0f * 16000.0f + 200.0f) / play_mode->rate;
-		init_filter_lowpass1(&(p->lpf));
+		p->lpf.freqL = (double)(7 - p->pre_lpf) * DIV_7 * 16000.0f + 200.0f ;		
+		init_pre_lpf(&p->lpf);
 	}
 }
 
-/*! Chorus Macro (GS), Chorus Type (GM2) */
+/*! Chorus Macro (GS) */
 void set_chorus_macro_gs(int macro)
 {
 	struct chorus_status_gs_t *p = &chorus_status_gs;
+
+	p->system_mode = 0; // GS
 	macro *= 8;
 	p->pre_lpf = chorus_macro_presets[macro];
 	p->level = chorus_macro_presets[macro + 1];
@@ -5777,6 +8391,24 @@ void set_chorus_macro_gs(int macro)
 	p->send_delay = chorus_macro_presets[macro + 7];
 }
 
+/*! Chorus Type (GM2) */
+void set_chorus_macro_gm2(int macro)
+{
+	struct chorus_status_gs_t *p = &chorus_status_gs;
+
+	p->system_mode = 1; // GM2
+	macro *= 8;
+	p->pre_lpf = chorus_macro_presets[macro];
+	p->level = chorus_macro_presets[macro + 1];
+	p->feedback = chorus_macro_presets[macro + 2];
+	p->delay = chorus_macro_presets[macro + 3];
+	p->rate = chorus_macro_presets[macro + 4];
+	p->depth = chorus_macro_presets[macro + 5];
+	p->send_reverb = chorus_macro_presets[macro + 6];
+	p->send_delay = chorus_macro_presets[macro + 7];
+}
+
+
 /*! initialize EQ (GS) */
 void init_eq_status_gs(void)
 {
@@ -5784,37 +8416,39 @@ void init_eq_status_gs(void)
 	p->low_freq = 0;
 	p->low_gain = 0x40;
 	p->high_freq = 0;
-	p->high_gain = 0x40;
+	p->high_gain = 0x40;	
+	memset(&(p->lsf), 0, sizeof(FilterCoefficients));
+	memset(&(p->hsf), 0, sizeof(FilterCoefficients));
 	recompute_eq_status_gs();
+}
+
+///r
+// SC-88 spec max 12.0 dB 0x34~0x4C
+static int clip_eq_gain(int in)
+{
+	if(in < - 12)
+		return -12;
+	else if(in > 12)
+		return 12;
+	else 
+		return in;
 }
 
 /*! recompute EQ (GS) */
 void recompute_eq_status_gs(void)
 {
-	double freq, dbGain;
 	struct eq_status_gs_t *p = &eq_status_gs;
 
 	/* Lowpass Shelving Filter */
-	if(p->low_freq == 0) {freq = 200;}
-	else {freq = 400;}
-	dbGain = p->low_gain - 0x40;
-	if(freq < play_mode->rate / 2) {
-		p->lsf.q = 0;
-		p->lsf.freq = freq;
-		p->lsf.gain = dbGain;
-		calc_filter_shelving_low(&(p->lsf));
-	}
-
-	/* Highpass Shelving Filter */
-	if(p->high_freq == 0) {freq = 3000;}
-	else {freq = 6000;}
-	dbGain = p->high_gain - 0x40;
-	if(freq < play_mode->rate / 2) {
-		p->hsf.q = 0;
-		p->hsf.freq = freq;
-		p->hsf.gain = dbGain;
-		calc_filter_shelving_high(&(p->hsf));
-	}
+	if(p->low_gain != 0x40)
+		init_sample_filter2(&(p->lsf), p->low_freq == 0 ? 200 : 400, clip_eq_gain(p->low_gain - 0x40), 0, FILTER_SHELVING_LOW);
+	else
+		init_sample_filter2(&(p->lsf), 0, 0, 0, FILTER_NONE);
+	/* Highpass Shelving Filter */	
+	if(p->high_gain != 0x40)
+		init_sample_filter2(&(p->hsf), p->high_freq == 0 ? 3000 : 6000, clip_eq_gain(p->high_gain - 0x40), 0, FILTER_SHELVING_HI);
+	else
+		init_sample_filter2(&(p->hsf), 0, 0, 0, FILTER_NONE);
 }
 
 /*! initialize Multi EQ (XG) */
@@ -5846,65 +8480,164 @@ void set_multi_eq_type_xg(int type)
 	p->gain5 = multi_eq_block_table_xg[type + 16];
 	p->freq5 = multi_eq_block_table_xg[type + 17];
 	p->q5 = multi_eq_block_table_xg[type + 18];
-	p->shape5 = multi_eq_block_table_xg[type + 19];
+	p->shape5 = multi_eq_block_table_xg[type + 19];		
+}
+
+static FLOAT_T clip_eq_q(int in)
+{
+	if(in < 1)
+		in = 1;
+	else if(in > 120)
+		in = 120;	
+	return (FLOAT_T)in * DIV_10; // 0.1 ~ 12.0
 }
 
 /*! recompute Multi EQ (XG) */
 void recompute_multi_eq_xg(void)
 {
 	struct multi_eq_xg_t *p = &multi_eq_xg;
-
+	FLOAT_T freq, gain, q;
+	int8 shape, valid = 0;
+	
 	if(p->freq1 != 0 && p->freq1 < 60 && p->gain1 != 0x40) {
+		++valid;
 		p->valid1 = 1;
-		if(p->shape1) {	/* peaking */
-			p->eq1p.q = (double)p->q1 / 10.0;
-			p->eq1p.freq = eq_freq_table_xg[p->freq1];
-			p->eq1p.gain = p->gain1 - 0x40;
-			calc_filter_peaking(&(p->eq1p));
-		} else {	/* shelving */
-			p->eq1s.q = (double)p->q1 / 10.0;
-			p->eq1s.freq = eq_freq_table_xg[p->freq1];
-			p->eq1s.gain = p->gain1 - 0x40;
-			calc_filter_shelving_low(&(p->eq1s));
-		}
-	} else {p->valid1 = 0;}
+		if     (p->freq1 < 0x04) p->freq1 = 0x04;
+		else if(p->freq1 > 0x28) p->freq1 = 0x28;
+		freq = eq_freq_table_xg[p->freq1];
+		gain = clip_eq_gain(p->gain1 - 0x40);
+		q = clip_eq_q(p->q1);
+		shape = p->shape1 ? FILTER_PEAKING : FILTER_SHELVING_LOW;
+		init_sample_filter2(&p->eq1, freq, gain, q, shape);
+	} else {
+		p->valid1 = 0;
+		init_sample_filter2(&p->eq1, 0, 0, 0, FILTER_NONE);
+	}
 	if(p->freq2 != 0 && p->freq2 < 60 && p->gain2 != 0x40) {
+		++valid;
 		p->valid2 = 1;
-		p->eq2p.q = (double)p->q2 / 10.0;
-		p->eq2p.freq = eq_freq_table_xg[p->freq2];
-		p->eq2p.gain = p->gain2 - 0x40;
-		calc_filter_peaking(&(p->eq2p));
-	} else {p->valid2 = 0;}
+		if     (p->freq2 < 0x0E) p->freq2 = 0x0E;
+		else if(p->freq2 > 0x36) p->freq2 = 0x36;
+		freq = eq_freq_table_xg[p->freq2];
+		gain = clip_eq_gain(p->gain2 - 0x40);
+		q = clip_eq_q(p->q2);
+		init_sample_filter2(&p->eq2, freq, gain, q, FILTER_PEAKING);
+	} else {
+		p->valid2 = 0;
+		init_sample_filter2(&p->eq2, 0, 0, 0, FILTER_NONE);
+	}
 	if(p->freq3 != 0 && p->freq3 < 60 && p->gain3 != 0x40) {
+		++valid;
 		p->valid3 = 1;
-		p->eq3p.q = (double)p->q3 / 10.0;
-		p->eq4p.freq = eq_freq_table_xg[p->freq3];
-		p->eq4p.gain = p->gain3 - 0x40;
-		calc_filter_peaking(&(p->eq3p));
-	} else {p->valid3 = 0;}
+		if     (p->freq3 < 0x0E) p->freq3 = 0x0E;
+		else if(p->freq3 > 0x36) p->freq3 = 0x36;
+		freq = eq_freq_table_xg[p->freq3];
+		gain = clip_eq_gain(p->gain3 - 0x40);
+		q = clip_eq_q(p->q3);
+		init_sample_filter2(&p->eq3, freq, gain, q, FILTER_PEAKING);
+	} else {
+		p->valid3 = 0;
+		init_sample_filter2(&p->eq3, 0, 0, 0, FILTER_NONE);
+	}
 	if(p->freq4 != 0 && p->freq4 < 60 && p->gain4 != 0x40) {
+		++valid;
 		p->valid4 = 1;
-		p->eq4p.q = (double)p->q4 / 10.0;
-		p->eq4p.freq = eq_freq_table_xg[p->freq4];
-		p->eq4p.gain = p->gain4 - 0x40;
-		calc_filter_peaking(&(p->eq4p));
-	} else {p->valid4 = 0;}
+		if     (p->freq4 < 0x0E) p->freq4 = 0x0E;
+		else if(p->freq4 > 0x36) p->freq4 = 0x36;
+		freq = eq_freq_table_xg[p->freq4];
+		gain = clip_eq_gain(p->gain4 - 0x40);
+		q = clip_eq_q(p->q4);
+		init_sample_filter2(&p->eq4, freq, gain, q, FILTER_PEAKING);
+	} else {
+		p->valid4 = 0;
+		init_sample_filter2(&p->eq4, 0, 0, 0, FILTER_NONE);
+	}
 	if(p->freq5 != 0 && p->freq5 < 60 && p->gain5 != 0x40) {
+		++valid;
 		p->valid5 = 1;
-		if(p->shape5) {	/* peaking */
-			p->eq5p.q = (double)p->q5 / 10.0;
-			p->eq5p.freq = eq_freq_table_xg[p->freq5];
-			p->eq5p.gain = p->gain5 - 0x40;
-			calc_filter_peaking(&(p->eq5p));
-		} else {	/* shelving */
-			p->eq5s.q = (double)p->q5 / 10.0;
-			p->eq5s.freq = eq_freq_table_xg[p->freq5];
-			p->eq5s.gain = p->gain5 - 0x40;
-			calc_filter_shelving_high(&(p->eq5s));
-		}
-	} else {p->valid5 = 0;}
-	p->valid = p->valid1 || p->valid2 || p->valid3 || p->valid4 || p->valid5;
+		if     (p->freq5 < 0x1C) p->freq5 = 0x1C;
+		else if(p->freq5 > 0x3A) p->freq5 = 0x3A;
+		freq = eq_freq_table_xg[p->freq5];
+		gain = clip_eq_gain(p->gain5 - 0x40);
+		q = clip_eq_q(p->q5);
+		shape = p->shape5 ? FILTER_PEAKING : FILTER_SHELVING_HI;
+		init_sample_filter2(&p->eq5, freq, gain, q, shape);
+	} else {
+		p->valid5 = 0;
+		init_sample_filter2(&p->eq5, 0, 0, 0, FILTER_NONE);
+	}
+	p->valid = valid ? 1 : 0;
 }
+
+
+// SD-90 spec max 15.0 dB 0x00~0x1E
+static int clip_eq_gain_sd(int in)
+{
+	in -= 15;
+	if(in < - 15)
+		return -15;
+	else if(in > 15)
+		return 15;
+	else 
+		return in;
+}
+
+/*! recompute Multi EQ (SD(GM2)) */
+void recompute_multi_eq_sd(void)
+{
+	struct multi_eq_sd_t *p = &multi_eq_sd;
+	int valid_ll, valid_lr, valid_hl, valid_hr;
+
+	if(p->gain_ll != 0x40) {
+		valid_ll = 1;
+		init_sample_filter2(&p->eq_ll, p->freq_ll == 0 ? 200 : 400, clip_eq_gain_sd(p->gain_ll), 0, FILTER_SHELVING_LOW);
+	} else {
+		valid_ll = 0;
+		init_sample_filter2(&p->eq_ll, 0, 0, 0, FILTER_NONE);
+	}
+	if(p->gain_lr != 0x40) {
+		valid_lr = 1;
+		init_sample_filter2(&p->eq_lr, p->freq_lr == 0 ? 200 : 400, clip_eq_gain_sd(p->gain_lr), 0, FILTER_SHELVING_LOW);
+	} else {
+		valid_lr = 0;
+		init_sample_filter2(&p->eq_lr, 0, 0, 0, FILTER_NONE);
+	}
+	if(p->gain_hl != 0x40) {
+		valid_hl = 1;
+		init_sample_filter2(&p->eq_hl, p->freq_hl == 0 ? 2000 : p->freq_hl == 1 ? 4000 : 8000, clip_eq_gain_sd(p->gain_hl), 0, FILTER_SHELVING_HI);
+	} else {
+		valid_hl = 0;
+		init_sample_filter2(&p->eq_hl, 0, 0, 0, FILTER_NONE);
+	}
+	if(p->gain_hr != 0x40) {
+		valid_hr = 1;
+		init_sample_filter2(&p->eq_hr, p->freq_hl == 0 ? 2000 : p->freq_hl == 1 ? 4000 : 8000, clip_eq_gain_sd(p->gain_hl), 0, FILTER_SHELVING_HI);
+	} else {
+		valid_hr = 0;
+		init_sample_filter2(&p->eq_hl, 0, 0, 0, FILTER_NONE);
+	}
+	p->valid = p->sw && (valid_ll || valid_lr || valid_hl || valid_hr);
+}
+
+/*! initialize Multi EQ (SD(GM2)) */
+void init_multi_eq_sd(void)
+{
+	struct multi_eq_sd_t *p = &multi_eq_sd;
+
+	p->sw = 1; // on 
+	p->freq_ll = 0x00; 
+	p->gain_ll = 0x0F;
+	p->freq_hl = 0x00; 
+	p->gain_hl = 0x0F;
+	p->freq_lr = 0x00; 
+	p->gain_lr = 0x0F;	
+	p->freq_hr = 0x00; 
+	p->gain_hr = 0x0F;
+
+	multi_eq_sd.valid = 0;
+	recompute_multi_eq_sd();
+}
+
 
 /*! convert GS user drumset assign groups to internal "alternate assign". */
 void recompute_userdrum_altassign(int bank, int group)
@@ -5927,7 +8660,7 @@ void recompute_userdrum_altassign(int bank, int group)
 	bk = drumset[bank];
 	bk->alt = add_altassign_string(bk->alt, params, number);
 	for (i = number - 1; i >= 0; i--)
-		free(params[i]);
+		safe_free(params[i]);
 }
 
 /*! initialize GS user drumset. */
@@ -5936,7 +8669,10 @@ void init_userdrum()
 	int i;
 	AlternateAssign *alt;
 
+///r
 	free_userdrum();
+//	free_userdrum2(); // error altassign
+
 
 	for(i=0;i<2;i++) {	/* allocate alternative assign */
 		alt = (AlternateAssign *)safe_malloc(sizeof(AlternateAssign));
@@ -5947,33 +8683,52 @@ void init_userdrum()
 }
 
 /*! recompute GS user drumset. */
-Instrument *recompute_userdrum(int bank, int prog)
+Instrument *recompute_userdrum(int bank, int prog, int elm)
 {
 	UserDrumset *p;
 	Instrument *ip = NULL;
 
 	p = get_userdrum(bank, prog);
-
-	free_tone_bank_element(&drumset[bank]->tone[prog]);
+	if(drumset[bank]->tone[prog][elm])
+		free_tone_bank_element(drumset[bank]->tone[prog][elm]);
 	if(drumset[p->source_prog]) {
-		ToneBankElement *source_tone = &drumset[p->source_prog]->tone[p->source_note];
-
-		if(source_tone->name == NULL /* NULL if "soundfont" directive is used */
-			  && source_tone->instrument == NULL) {
-			if((ip = load_instrument(1, p->source_prog, p->source_note)) == NULL) {
-				ip = MAGIC_ERROR_INSTRUMENT;
+		ToneBankElement *source_tone;
+		source_tone = drumset[p->source_prog]->tone[p->source_note][elm];
+		if(source_tone){
+			if(source_tone->name == NULL /* NULL if "soundfont" directive is used */
+				  && source_tone->instrument == NULL) {
+				if((ip = load_instrument(1, p->source_prog, p->source_note, elm)) == NULL) {
+					ip = MAGIC_ERROR_INSTRUMENT;
+				}
+				source_tone->instrument = ip;
 			}
-			source_tone->instrument = ip;
+			if(source_tone->name) {
+				if(drumset[bank]->tone[prog][elm] == NULL){
+					if(alloc_tone_bank_element(&drumset[bank]->tone[prog][elm])){
+						ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "recompute_userdrum: ToneBankElement malloc error" "%d:%d:%d", bank, prog, elm);
+						return NULL;
+					}
+				}
+				copy_tone_bank_element(drumset[bank]->tone[prog][elm], source_tone);
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Drumset (%d %d -> %d %d)", p->source_prog, p->source_note, bank, prog);
+				return ip;
+			}
 		}
-		if(source_tone->name) {
-			copy_tone_bank_element(&drumset[bank]->tone[prog], source_tone);
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Drumset (%d %d -> %d %d)", p->source_prog, p->source_note, bank, prog);
-		} else if(drumset[0]->tone[p->source_note].name) {
-			copy_tone_bank_element(&drumset[bank]->tone[prog], &drumset[0]->tone[p->source_note]);
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Drumset (%d %d -> %d %d)", 0, p->source_note, bank, prog);
-		} else {
-			ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "Referring user drum set %d, note %d not found - this instrument will not be heard as expected", bank, prog);
+		source_tone = drumset[0]->tone[p->source_note][elm];
+		if(source_tone){
+			if(source_tone->name) {
+				if(drumset[bank]->tone[prog][elm] == NULL){
+					if(alloc_tone_bank_element(&drumset[bank]->tone[prog][elm])){
+						ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "recompute_userdrum: ToneBankElement malloc error" "%d:%d:%d", bank, prog, elm);
+						return NULL;
+					}
+				}
+				copy_tone_bank_element(drumset[bank]->tone[prog][elm], source_tone);
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Drumset (%d %d -> %d %d)", 0, p->source_note, bank, prog);
+				return ip;
+			}
 		}
+		ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "Referring user drum set %d, note %d not found - this instrument will not be heard as expected", bank, prog);
 	}
 	return ip;
 }
@@ -6009,11 +8764,47 @@ void free_userdrum()
 {
 	UserDrumset *p, *next;
 
+///r
+    //added by Kobarin
+    int i;
+    for(i = 0; i < 2; i++){
+        if(drumset[64+i] && drumset[64+i]->alt){
+            struct _AlternateAssign *alt = drumset[64+i]->alt;
+            struct _AlternateAssign *del=alt;
+            while(del){
+                alt=del->next;
+                safe_free(del);
+                del=alt;
+            }
+            drumset[64+i]->alt = NULL;
+        }
+    }
+    //ここまで
+
 	for(p = userdrum_first; p != NULL; p = next){
 		next = p->next;
-		free(p);
+		safe_free(p);
     }
 	userdrum_first = userdrum_last = NULL;
+}
+
+///r
+//added by Kobarin
+void free_userdrum2()
+{
+    int i;
+    for(i = 0; i < 128 + MAP_BANK_COUNT; i++){
+        if(drumset[i] && drumset[i]->alt){
+            struct _AlternateAssign *alt = drumset[i]->alt;
+            struct _AlternateAssign *del=alt;
+            while(del){
+                alt=del->next;
+                safe_free(del);
+                del=alt;
+            }
+            drumset[i]->alt = NULL;
+        }
+    }
 }
 
 /*! initialize GS user instrument. */
@@ -6022,22 +8813,42 @@ void init_userinst()
 	free_userinst();
 }
 
+///r
 /*! recompute GS user instrument. */
-void recompute_userinst(int bank, int prog)
+void recompute_userinst(int bank, int prog, int elm)
 {
 	UserInstrument *p;
 
 	p = get_userinst(bank, prog);
-
-	free_tone_bank_element(&tonebank[bank]->tone[prog]);
+	if(tonebank[bank]->tone[prog][elm])		
+		free_tone_bank_element(tonebank[bank]->tone[prog][elm]);
 	if(tonebank[p->source_bank]) {
-		if(tonebank[p->source_bank]->tone[p->source_prog].name) {
-			copy_tone_bank_element(&tonebank[bank]->tone[prog], &tonebank[p->source_bank]->tone[p->source_prog]);
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Instrument (%d %d -> %d %d)", p->source_bank, p->source_prog, bank, prog);
-		} else if(tonebank[0]->tone[p->source_prog].name) {
-			copy_tone_bank_element(&tonebank[bank]->tone[prog], &tonebank[0]->tone[p->source_prog]);
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Instrument (%d %d -> %d %d)", 0, p->source_prog, bank, prog);
+		if(tonebank[p->source_bank]->tone[p->source_prog][elm]){
+			if(tonebank[p->source_bank]->tone[p->source_prog][elm]->name) {
+				if(tonebank[bank]->tone[prog][elm] == NULL){		
+					if(alloc_tone_bank_element(&tonebank[bank]->tone[prog][elm])){
+						ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "recompute_userinst: ToneBankElement malloc error." "%d:%d:%d", bank, prog, elm);
+						return;
+					}
+				}
+				copy_tone_bank_element(tonebank[bank]->tone[prog][elm], tonebank[p->source_bank]->tone[p->source_prog][elm]);
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Instrument (%d %d -> %d %d)", p->source_bank, p->source_prog, bank, prog);
+				return;
+			}
 		}
+		if(tonebank[0]->tone[p->source_prog][elm]){
+			if(tonebank[0]->tone[p->source_prog][elm]->name) {			
+				if(tonebank[bank]->tone[prog][elm] == NULL){		
+					if(alloc_tone_bank_element(&tonebank[bank]->tone[prog][elm])){
+						ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "recompute_userinst: ToneBankElement malloc error." "%d:%d:%d", bank, prog, elm);
+						return;
+					}
+				}
+				copy_tone_bank_element(tonebank[bank]->tone[prog][elm], tonebank[0]->tone[p->source_prog][elm]);
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"User Instrument (%d %d -> %d %d)", 0, p->source_prog, bank, prog);
+				return;
+			}
+		}		
 	}
 }
 
@@ -6064,6 +8875,8 @@ UserInstrument *get_userinst(int bank, int prog)
 	p->bank = bank;
 	p->prog = prog;
 
+	p->source_bank = 0;
+	p->source_prog = prog;
 	return p;
 }
 
@@ -6074,9 +8887,150 @@ void free_userinst()
 
 	for(p = userinst_first; p != NULL; p = next){
 		next = p->next;
-		free(p);
+		safe_free(p);
     }
 	userinst_first = userinst_last = NULL;
+}
+
+
+
+/*! recompute XG effect parameters. */
+void recompute_effect_xg(struct effect_xg_t *st, int marge)
+{
+	EffectList *efc = st->ef;
+	int j, flg = 0;
+
+	calc_send_return_xg(st);
+	if (efc == NULL) {return;}
+	if(marge){
+		for (j = 0; j < 16; j++) {
+			st->param_lsb[j] = st->set_param_lsb[j];
+		}
+		for (j = 0; j < 10; j++) {
+			st->param_msb[j] = st->set_param_msb[j];
+		}
+	}
+	while (efc != NULL && efc->info != NULL)
+	{
+		(*efc->engine->conv_xg)(st, efc);
+		(*efc->engine->do_effect)(NULL, MAGIC_INIT_EFFECT_INFO, efc);
+		efc = efc->next_ef;
+	}
+}
+
+/*! MIDI control XG variation/insertion effect parameters. */
+// ctrl_type see effect.h control_var_effect_xg[]
+void control_effect_xg(int ch)
+{
+	int i, tmp;
+
+	if(play_system_mode != XG_SYSTEM_MODE || !opt_insertion_effect)
+		return;
+	for (i = 0; i < XG_VARIATION_EFFECT_NUM; i++) {
+		struct effect_xg_t *st = &variation_effect_xg[i];
+		if(ch != st->part) {continue;} // only insertion mode
+		tmp = st->set_param_lsb[st->control_param];
+		tmp += (FLOAT_T)channel[ch].mod.val * (FLOAT_T)(st->control_depth[0] - 0x40) * DIV_64 + 0.5;
+		tmp += (FLOAT_T)channel[ch].bend.val * (FLOAT_T)(st->control_depth[1] - 0x40) * DIV_64 + 0.5;
+		tmp += (FLOAT_T)channel[ch].caf.val * (FLOAT_T)(st->control_depth[2] - 0x40) * DIV_64 + 0.5;
+		tmp += (FLOAT_T)channel[ch].cc1.val * (FLOAT_T)(st->control_depth[3] - 0x40) * DIV_64 + 0.5; // ac1
+		tmp += (FLOAT_T)channel[ch].cc2.val * (FLOAT_T)(st->control_depth[4] - 0x40) * DIV_64 + 0.5; // ac2
+		tmp += (FLOAT_T)channel[ch].cc3.val * (FLOAT_T)(st->control_depth[5] - 0x40) * DIV_64 + 0.5; // cbc1
+		tmp += (FLOAT_T)channel[ch].cc4.val * (FLOAT_T)(st->control_depth[6] - 0x40) * DIV_64 + 0.5; // cbc2
+		if(tmp > 127)
+			tmp = 127;
+		else if(tmp < 0)
+			tmp = 0;
+		if(tmp == st->param_lsb[st->control_param]){continue;} // no change
+		st->param_lsb[st->control_param] = tmp;
+		ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG VARIATION:%d Control (ctrl * depth -> param:%d)", i, tmp);
+		recompute_effect_xg(st, 0);
+		
+	}
+	for (i = 0; i < XG_INSERTION_EFFECT_NUM; i++) {
+		struct effect_xg_t *st = &insertion_effect_xg[i];
+		if(ch != st->part) {continue;}
+		tmp = st->set_param_lsb[st->control_param];
+		tmp += (FLOAT_T)channel[ch].mod.val * (FLOAT_T)(st->control_depth[0] - 0x40) * DIV_64 + 0.5;
+		tmp += (FLOAT_T)channel[ch].bend.val * (FLOAT_T)(st->control_depth[1] - 0x40) * DIV_64 + 0.5;
+		tmp += (FLOAT_T)channel[ch].caf.val * (FLOAT_T)(st->control_depth[2] - 0x40) * DIV_64 + 0.5;
+		tmp += (FLOAT_T)channel[ch].cc1.val * (FLOAT_T)(st->control_depth[3] - 0x40) * DIV_64 + 0.5; // ac1
+		tmp += (FLOAT_T)channel[ch].cc2.val * (FLOAT_T)(st->control_depth[4] - 0x40) * DIV_64 + 0.5; // ac2
+		tmp += (FLOAT_T)channel[ch].cc3.val * (FLOAT_T)(st->control_depth[5] - 0x40) * DIV_64 + 0.5; // cbc1
+		tmp += (FLOAT_T)channel[ch].cc4.val * (FLOAT_T)(st->control_depth[6] - 0x40) * DIV_64 + 0.5; // cbc2
+		if(tmp > 127)
+			tmp = 127;
+		else if(tmp < 0)
+			tmp = 0;
+		if(tmp == st->param_lsb[st->control_param]){continue;} // no change
+		st->param_lsb[st->control_param] = tmp;
+		ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG INSERTION:%d Control (ctrl * depth -> param:%d)", i, tmp);
+		recompute_effect_xg(st, 0);
+	}
+}
+
+/*! initialize XG effect parameters */
+static void init_effect_xg(struct effect_xg_t *st)
+{
+	int i;
+
+	free_effect_list(st->ef);
+	st->ef = NULL;
+
+	st->use_msb = 0;
+	st->type_msb = st->type_lsb	= 0;
+	st->type = 0;		
+	st->connection = 0;
+	st->part = 0x7f;
+	st->send_chorus = st->send_reverb = 0;
+	st->ret = st->pan = 0x40;
+	for (i = 0; i < 16; i++) {
+		st->param_lsb[i] = 0;
+		st->set_param_lsb[i] = 0;
+	}
+	for (i = 0; i < 10; i++) {
+		st->param_msb[i] = 0;
+		st->set_param_msb[i] = 0;
+	}
+	for (i = 0; i < 7; i++) {
+		st->control_depth[i] = 0x40;
+	}
+	st->control_param = 0;
+	recompute_effect_xg(st, 1);
+}
+
+///r
+/*! initialize XG effect parameters */
+static void init_all_effect_xg(void)
+{
+	int i;
+ 	init_effect_xg(&reverb_status_xg);
+
+	reverb_status_xg.type_msb = 0x01;
+	reverb_status_xg.type_lsb = 0x00;
+	reverb_status_xg.type = 0x0100;
+	reverb_status_xg.connection = XG_CONN_SYSTEM_REVERB;
+	realloc_effect_xg(&reverb_status_xg);
+	init_effect_xg(&chorus_status_xg);
+	chorus_status_xg.type_msb = 0x41;
+	chorus_status_xg.type_lsb = 0x00;
+	chorus_status_xg.type = 0x4100;
+	chorus_status_xg.connection = XG_CONN_SYSTEM_CHORUS;
+	realloc_effect_xg(&chorus_status_xg);
+	for (i = 0; i < XG_VARIATION_EFFECT_NUM; i++) {
+		init_effect_xg(&variation_effect_xg[i]);
+		variation_effect_xg[i].type_msb = 0x05;		
+		variation_effect_xg[i].type = 0x0500;
+		realloc_effect_xg(&variation_effect_xg[i]);
+	}
+	for (i = 0; i < XG_INSERTION_EFFECT_NUM; i++) {
+		init_effect_xg(&insertion_effect_xg[i]);
+		insertion_effect_xg[i].type_msb = 0x49;
+		insertion_effect_xg[i].type = 0x4900;
+		realloc_effect_xg(&insertion_effect_xg[i]);
+	}
+	init_multi_eq_xg();
+	init_ch_effect_xg();
 }
 
 static void set_effect_param_xg(struct effect_xg_t *st, int type_msb, int type_lsb)
@@ -6087,11 +9041,12 @@ static void set_effect_param_xg(struct effect_xg_t *st, int type_msb, int type_l
 		if (type_msb == effect_parameter_xg[i].type_msb
 			&& type_lsb == effect_parameter_xg[i].type_lsb) {
 			for (j = 0; j < 16; j++) {
-				st->param_lsb[j] = effect_parameter_xg[i].param_lsb[j];
+				st->set_param_lsb[j] = effect_parameter_xg[i].param_lsb[j];
 			}
 			for (j = 0; j < 10; j++) {
-				st->param_msb[j] = effect_parameter_xg[i].param_msb[j];
+				st->set_param_msb[j] = effect_parameter_xg[i].param_msb[j];
 			}
+			st->control_param = effect_parameter_xg[i].control;
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG EFX: %s", effect_parameter_xg[i].name);
 			return;
 		}
@@ -6101,29 +9056,16 @@ static void set_effect_param_xg(struct effect_xg_t *st, int type_msb, int type_l
 			&& effect_parameter_xg[i].type_lsb != -1; i++) {
 			if (type_lsb == effect_parameter_xg[i].type_lsb) {
 				for (j = 0; j < 16; j++) {
-					st->param_lsb[j] = effect_parameter_xg[i].param_lsb[j];
+					st->set_param_lsb[j] = effect_parameter_xg[i].param_lsb[j];
 				}
 				for (j = 0; j < 10; j++) {
-					st->param_msb[j] = effect_parameter_xg[i].param_msb[j];
+					st->set_param_msb[j] = effect_parameter_xg[i].param_msb[j];
 				}
+				st->control_param = effect_parameter_xg[i].control;
 				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG EFX: %s", effect_parameter_xg[i].name);
 				return;
 			}
 		}
-	}
-}
-
-/*! recompute XG effect parameters. */
-void recompute_effect_xg(struct effect_xg_t *st)
-{
-	EffectList *efc = st->ef;
-
-	if (efc == NULL) {return;}
-	while (efc != NULL && efc->info != NULL)
-	{
-		(*efc->engine->conv_xg)(st, efc);
-		(*efc->engine->do_effect)(NULL, MAGIC_INIT_EFFECT_INFO, efc);
-		efc = efc->next_ef;
 	}
 }
 
@@ -6136,119 +9078,502 @@ void realloc_effect_xg(struct effect_xg_t *st)
 	st->use_msb = 0;
 
 	switch(type_msb) {
+	case 0x01:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_HALL1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_HALL2);
+			break;
+		case 0x06:
+			st->ef = push_effect(st->ef, EFFECT_XG_HALL_M);
+			break;
+		case 0x07:
+			st->ef = push_effect(st->ef, EFFECT_XG_HALL_L);
+			break;
+		}
+		break;
+	case 0x02:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_ROOM1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_ROOM2);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_ROOM3);
+			break;
+		case 0x05:
+			st->ef = push_effect(st->ef, EFFECT_XG_ROOM_S);
+			break;
+		case 0x06:
+			st->ef = push_effect(st->ef, EFFECT_XG_ROOM_M);
+			break;
+		case 0x07:
+			st->ef = push_effect(st->ef, EFFECT_XG_ROOM_L);
+			break;
+		}
+		break;
+	case 0x03:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_STAGE1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_STAGE2);
+			break;
+		}
+		break;
+	case 0x04:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_PLATE);
+			break;
+		case 0x07:
+			st->ef = push_effect(st->ef, EFFECT_XG_GM_PLATE);
+			break;
+		}
+		break;
 	case 0x05:
 		st->use_msb = 1;
-		st->ef = push_effect(st->ef, EFFECT_DELAY_LCR);
-		st->ef = push_effect(st->ef, EFFECT_DELAY_EQ2);
+		st->ef = push_effect(st->ef, EFFECT_XG_DELAY_LCR);
 		break;
 	case 0x06:
 		st->use_msb = 1;
-		st->ef = push_effect(st->ef, EFFECT_DELAY_LR);
-		st->ef = push_effect(st->ef, EFFECT_DELAY_EQ2);
+		st->ef = push_effect(st->ef, EFFECT_XG_DELAY_LR);
 		break;
 	case 0x07:
 		st->use_msb = 1;
-		st->ef = push_effect(st->ef, EFFECT_ECHO);
-		st->ef = push_effect(st->ef, EFFECT_DELAY_EQ2);
+		st->ef = push_effect(st->ef, EFFECT_XG_ECHO);
 		break;
 	case 0x08:
 		st->use_msb = 1;
-		st->ef = push_effect(st->ef, EFFECT_CROSS_DELAY);
-		st->ef = push_effect(st->ef, EFFECT_DELAY_EQ2);
+		st->ef = push_effect(st->ef, EFFECT_XG_CROSS_DELAY);
 		break;
-	case 0x41:
-	case 0x42:
-		st->ef = push_effect(st->ef, EFFECT_CHORUS);
-		st->ef = push_effect(st->ef, EFFECT_CHORUS_EQ3);
-		break;
-	case 0x43:
-		st->ef = push_effect(st->ef, EFFECT_FLANGER);
-		st->ef = push_effect(st->ef, EFFECT_CHORUS_EQ3);
-		break;
-	case 0x44:
-		st->ef = push_effect(st->ef, EFFECT_SYMPHONIC);
-		st->ef = push_effect(st->ef, EFFECT_CHORUS_EQ3);
-		break;
-	case 0x49:
-		st->ef = push_effect(st->ef, EFFECT_STEREO_DISTORTION);
-		st->ef = push_effect(st->ef, EFFECT_OD_EQ3);
-		break;
-	case 0x4A:
-		st->ef = push_effect(st->ef, EFFECT_STEREO_OVERDRIVE);
-		st->ef = push_effect(st->ef, EFFECT_OD_EQ3);
-		break;
-	case 0x4B:
-		st->ef = push_effect(st->ef, EFFECT_STEREO_AMP_SIMULATOR);
-		break;
-	case 0x4C:
-		st->ef = push_effect(st->ef, EFFECT_EQ3);
-		break;
-	case 0x4D:
-		st->ef = push_effect(st->ef, EFFECT_EQ2);
-		break;
-	case 0x4E:
-		if (type_lsb == 0x01 || type_lsb == 0x02) {
-			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH);
-			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH_EQ2);
-			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH_OD);
-			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH_OD_EQ3);
-		} else {
-			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH);
-			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH_EQ2);
+	case 0x09:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_EARLY_REF1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_EARLY_REF2);
+			break;
 		}
 		break;
+	case 0x0A:
+		st->ef = push_effect(st->ef, EFFECT_XG_GATE_REVERB);
+		break;
+	case 0x0B:
+		st->ef = push_effect(st->ef, EFFECT_XG_REVERSE_GATE);
+		break;
+	case 0x10:
+		st->ef = push_effect(st->ef, EFFECT_XG_WHITE_ROOM);
+		break;
+	case 0x11:
+		st->ef = push_effect(st->ef, EFFECT_XG_TUNNEL);
+		break;
+	case 0x12:
+		st->ef = push_effect(st->ef, EFFECT_XG_CANYON);
+		break;
+	case 0x13:
+		st->ef = push_effect(st->ef, EFFECT_XG_BASEMENT);
+		break;
+	case 0x14:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_KARAOKE1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_KARAOKE1);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_KARAOKE3);
+			break;
+		}
+		break;
+	case 0x15:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_TEMPO_DELAY);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_TEMPO_ECHO);
+			break;
+		}
+		break;
+	case 0x16:
+		st->ef = push_effect(st->ef, EFFECT_XG_TEMPO_CROSS);
+		break;
+	case 0x41:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_CHORUS1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_CHORUS2);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_CHORUS3);
+			break;
+		case 0x03:
+			st->ef = push_effect(st->ef, EFFECT_XG_GM_CHORUS1);
+			break;
+		case 0x04:
+			st->ef = push_effect(st->ef, EFFECT_XG_GM_CHORUS2);
+			break;
+		case 0x05:
+			st->ef = push_effect(st->ef, EFFECT_XG_GM_CHORUS3);
+			break;
+		case 0x06:
+			st->ef = push_effect(st->ef, EFFECT_XG_GM_CHORUS4);
+			break;
+		case 0x07:
+			st->ef = push_effect(st->ef, EFFECT_XG_FB_CHORUS);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_CHORUS4);
+			break;
+		}
+		break;
+	case 0x42:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_CELESTE1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_CELESTE2);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_CELESTE3);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_CELESTE4);
+			break;
+		}
+		break;
+	case 0x43:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_FLANGER1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_FLANGER2);
+			break;
+		case 0x07:
+			st->ef = push_effect(st->ef, EFFECT_XG_GM_FLANGER);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_FLANGER3);
+			break;
+		}
+		break;
+	case 0x44:
+		st->ef = push_effect(st->ef, EFFECT_XG_SYMPHONIC);
+		break;
+	case 0x45:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_ROTARY_SPEAKER);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_DS_ROTARY_SPEAKER);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_OD_ROTARY_SPEAKER);
+			break;
+		case 0x03:
+			st->ef = push_effect(st->ef, EFFECT_XG_AMP_ROTARY_SPEAKER);
+			break;
+		}
+		break;
+	case 0x46:
+		st->ef = push_effect(st->ef, EFFECT_XG_TREMOLO);
+		break;
+	case 0x47:
+		st->ef = push_effect(st->ef, EFFECT_XG_AUTO_PAN);
+		break;
+	case 0x48:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_PHASER1);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_PHASER2);
+			break;
+		}
+		break;
+	case 0x49:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_DISTORTION);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_COMP_DISTORTION);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_STEREO_DISTORTION);
+			break;
+		}
+		break;
+	case 0x4A:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_OVERDRIVE);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_STEREO_OVERDRIVE);
+			break;
+		}
+		break;
+	case 0x4B:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_AMP_SIMULATOR);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_AMP_SIMULATOR2);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_STEREO_AMP_SIMULATOR);
+			break;
+		}
+		break;
+	case 0x4C:
+		st->ef = push_effect(st->ef, EFFECT_XG_EQ3);
+		break;
+	case 0x4D:
+		st->ef = push_effect(st->ef, EFFECT_XG_EQ2);
+		break;
+	case 0x4E:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH_DS);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_AUTO_WAH_OD);
+			break;
+		}
+		break;
+	case 0x51:
+		st->ef = push_effect(st->ef, EFFECT_XG_HARMONIC_ENHANCER);
+		break;
+	case 0x52:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_TOUCH_WAH1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_TOUCH_WAH_DS);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_TOUCH_WAH_OD);
+			break;
+		case 0x08:
+			st->ef = push_effect(st->ef, EFFECT_XG_TOUCH_WAH2);
+			break;
+		}
+		break;
+	case 0x53:
+		st->ef = push_effect(st->ef, EFFECT_XG_COMPRESSOR);
+		break;
+	case 0x54:
+		st->ef = push_effect(st->ef, EFFECT_XG_NOISE_GATE);
+		break;
+	case 0x56:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_2WAY_ROTARY_SPEAKER);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_DS_2WAY_ROTARY_SPEAKER);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_OD_2WAY_ROTARY_SPEAKER);
+			break;
+		case 0x03:
+			st->ef = push_effect(st->ef, EFFECT_XG_AMP_2WAY_ROTARY_SPEAKER);
+			break;
+		}
+		break;
+	case 0x57:
+		st->ef = push_effect(st->ef, EFFECT_XG_ENSEMBLE_DETUNE);
+		break;
+	case 0x58:
+		st->ef = push_effect(st->ef, EFFECT_XG_AMBIENCE);
+		break;
+	case 0x5D:
+		st->ef = push_effect(st->ef, EFFECT_XG_TALKING_MODULATOR);
+		break;
 	case 0x5E:
-		st->ef = push_effect(st->ef, EFFECT_LOFI);
+		st->ef = push_effect(st->ef, EFFECT_XG_LOFI);
+		break;
+	case 0x5F:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_DS_DELAY);
+			break;
+		case 0x01:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_OD_DELAY);
+			break;
+		}
+		break;
+	case 0x60:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_COMP_DS_DELAY);
+			break;
+		case 0x01:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_COMP_OD_DELAY);
+			break;
+		}
+		break;
+	case 0x61:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_WAH_DS_DELAY);
+			break;
+		case 0x01:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_WAH_OD_DELAY);
+			break;
+		}
+		break;
+	case 0x62:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_V_DIST_HARD);
+			break;
+		case 0x01:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_V_DIST_HARD_DELAY);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_V_DIST_SOFT);
+			break;
+		case 0x03:
+			st->use_msb = 1;
+			st->ef = push_effect(st->ef, EFFECT_XG_V_DIST_SOFT_DELAY);
+			break;
+		}
+		break;
+	case 0x63:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_DUAL_ROTAR_SPEAKER1);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_DUAL_ROTAR_SPEAKER2);
+			break;
+		}
+		break;
+	case 0x64:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_DS_TEMPO_DELAY);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_OD_TEMPO_DELAY);
+			break;
+		}
+		break;
+	case 0x65:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_COMP_DS_TEMPO_DELAY);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_COMP_OD_TEMPO_DELAY);
+			break;
+		}
+		break;
+	case 0x66:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_WAH_DS_TEMPO_DELAY);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_WAH_OD_TEMPO_DELAY);
+			break;
+		}
+		break;
+	case 0x67:
+		switch(type_lsb){
+		default:
+		case 0x00:
+			st->ef = push_effect(st->ef, EFFECT_XG_V_DIST_HARD_TEMPO_DELAY);
+			break;
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_V_DIST_SOFT_TEMPO_DELAY);
+			break;
+		}
+		break;
+	case 0x68:
+		st->ef = push_effect(st->ef, EFFECT_XG_V_FLANGER);
+		break;
+	case 0x6B:
+		st->ef = push_effect(st->ef, EFFECT_XG_TEMPO_FLANGER);
+		break;
+	case 0x6C:
+		st->ef = push_effect(st->ef, EFFECT_XG_TEMPO_FLANGER);
+		break;
+	case 0x71:
+		st->ef = push_effect(st->ef, EFFECT_XG_RING_MODULATOR);
+		break;
+	case 0x7F:
+		switch(type_lsb){
+		case 0x01:
+			st->ef = push_effect(st->ef, EFFECT_XG_3D_MANUAL);
+			break;
+		case 0x02:
+			st->ef = push_effect(st->ef, EFFECT_XG_3D_AUTO);
+			break;
+		}
 		break;
 	default:	/* Not Supported */
 		type_msb = type_lsb = 0;
 		break;
 	}
 	set_effect_param_xg(st, type_msb, type_lsb);
-	recompute_effect_xg(st);
+	recompute_effect_xg(st, 1);
 }
 
-static void init_effect_xg(struct effect_xg_t *st)
-{
-	int i;
 
-	free_effect_list(st->ef);
-	st->ef = NULL;
-
-	st->use_msb = 0;
-	st->type_msb = st->type_lsb	= st->connection =
-		st->send_reverb = st->send_chorus = 0;
-	st->part = 0x7f;
-	st->ret = st->pan = st->mw_depth = st->bend_depth =	st->cat_depth =
-		st->ac1_depth = st->ac2_depth = st->cbc1_depth = st->cbc2_depth = 0x40;
-	for (i = 0; i < 16; i++) {st->param_lsb[i] = 0;}
-	for (i = 0; i < 10; i++) {st->param_msb[i] = 0;}
-}
-
-/*! initialize XG effect parameters */
-static void init_all_effect_xg(void)
-{
-	int i;
- 	init_effect_xg(&reverb_status_xg);
-	reverb_status_xg.type_msb = 0x01;
-	reverb_status_xg.connection = XG_CONN_SYSTEM_REVERB;
-	realloc_effect_xg(&reverb_status_xg);
-	init_effect_xg(&chorus_status_xg);
-	chorus_status_xg.type_msb = 0x41;
-	chorus_status_xg.connection = XG_CONN_SYSTEM_CHORUS;
-	realloc_effect_xg(&chorus_status_xg);
-	for (i = 0; i < XG_VARIATION_EFFECT_NUM; i++) {
-		init_effect_xg(&variation_effect_xg[i]);
-		variation_effect_xg[i].type_msb = 0x05;
-		realloc_effect_xg(&variation_effect_xg[i]);
-	}
-	for (i = 0; i < XG_INSERTION_EFFECT_NUM; i++) {
-		init_effect_xg(&insertion_effect_xg[i]);
-		insertion_effect_xg[i].type_msb = 0x49;
-		realloc_effect_xg(&insertion_effect_xg[i]);
-	}
-	init_ch_effect_xg();
-}
 
 /*! initialize GS insertion effect parameters */
 void init_insertion_effect_gs(void)
@@ -6259,8 +9584,10 @@ void init_insertion_effect_gs(void)
 	free_effect_list(st->ef);
 	st->ef = NULL;
 
-	for(i = 0; i < 20; i++) {st->parameter[i] = 0;}
-
+	for(i = 0; i < 20; i++) {
+		st->parameter[i] = 0;
+		st->set_param[i] = 0;
+	}
 	st->type = 0;
 	st->type_lsb = 0;
 	st->type_msb = 0;
@@ -6272,6 +9599,8 @@ void init_insertion_effect_gs(void)
 	st->control_source2 = 0;
 	st->control_depth2 = 0x40;
 	st->send_eq_switch = 0x01;
+	st->control_param1 = -1; 
+	st->control_param2 = -1;
 }
 
 static void set_effect_param_gs(struct insertion_effect_gs_t *st, int msb, int lsb)
@@ -6282,21 +9611,33 @@ static void set_effect_param_gs(struct insertion_effect_gs_t *st, int msb, int l
 		if (msb == effect_parameter_gs[i].type_msb
 			&& lsb == effect_parameter_gs[i].type_lsb) {
 			for (j = 0; j < 20; j++) {
-				st->parameter[j] = effect_parameter_gs[i].param[j];
+				st->set_param[j] = effect_parameter_gs[i].param[j];
 			}
+			st->control_param1 = effect_parameter_gs[i].control1;
+			st->control_param2 = effect_parameter_gs[i].control2;
+#ifdef _DEBUG
+			ctl->cmsg(CMSG_INFO, VERB_NORMAL, "GS EFX: %s", effect_parameter_gs[i].name);
+#else
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS EFX: %s", effect_parameter_gs[i].name);
+#endif
 			break;
 		}
 	}
 }
 
 /*! recompute GS insertion effect parameters. */
-void recompute_insertion_effect_gs(void)
+void recompute_insertion_effect_gs(int marge)
 {
 	struct insertion_effect_gs_t *st = &insertion_effect_gs;
 	EffectList *efc = st->ef;
+	int j;
 
 	if (st->ef == NULL) {return;}
+	if(marge){
+		for (j = 0; j < 20; j++){
+			st->parameter[j] = st->set_param[j];
+		}
+	}
 	while(efc != NULL && efc->info != NULL)
 	{
 		(*efc->engine->conv_gs)(st, efc);
@@ -6305,6 +9646,66 @@ void recompute_insertion_effect_gs(void)
 	}
 }
 
+/*! EFX C.Src1/2 control GS insertion effect parameters. */
+void control_effect_gs(MidiEvent *ev)
+{
+	struct insertion_effect_gs_t *st = &insertion_effect_gs;
+	int update = 0;
+
+	if (st->ef == NULL) {return;}
+	if(ev->channel >= MAX_CHANNELS) {return;}
+	if (!channel[ev->channel].insertion_effect) {return;}
+	if(st->control_source1 && st->control_param1 != -1){
+		if ((st->control_source1 <= 95 && st->control_source1 == ev->b
+				&& ev->type >= ME_TONE_BANK_MSB && ev->type <= ME_UNDEF_CTRL_CHNG)
+			|| (st->control_source1 == 96 && ev->type == ME_CHANNEL_PRESSURE)
+			|| (st->control_source1 == 97 && ev->type == ME_PITCHWHEEL)	){
+			int val = ev->type == ME_PITCHWHEEL ? calc_bend_val(ev->a + ev->b * 128) : ev->a;
+			int var = val > 0x7F ? 127.0 : (FLOAT_T)val;
+			int depth = st->control_depth1 - 0x40;
+			int ctrl = st->control_param1;
+			int tmp = st->set_param[ctrl];
+			int base = tmp;
+			tmp += (FLOAT_T)var * (FLOAT_T)depth * DIV_64 + 0.5;
+			if(tmp > 127)
+				tmp = 127;
+			else if(tmp < 0)
+				tmp = 0;
+			st->parameter[ctrl] = tmp;
+			update = 1;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,
+				"GS INS Control1 (VAL:%d * depth:%d /64 + param:%d -> param(%d):%d)", 
+					var, depth, base, ctrl, tmp);
+		}
+	}
+	if(st->control_source2 && st->control_param2 != -1){
+		if ((st->control_source2 <= 95 && st->control_source2 == ev->b
+				&& ev->type >= ME_TONE_BANK_MSB && ev->type <= ME_UNDEF_CTRL_CHNG)
+			|| (st->control_source2 == 96 && ev->type == ME_CHANNEL_PRESSURE)
+			|| (st->control_source2 == 97 && ev->type == ME_PITCHWHEEL)	){	
+			int val = ev->type == ME_PITCHWHEEL ? calc_bend_val(ev->a + ev->b * 128) : ev->a;
+			int var = val > 0x7F ? 127.0 : (FLOAT_T)val;
+			int depth = st->control_depth2 - 0x40;
+			int ctrl = st->control_param2;
+			int tmp = st->set_param[ctrl];
+			int base = tmp;
+			tmp += (FLOAT_T)var * (FLOAT_T)depth * DIV_64 + 0.5;
+			if(tmp > 127)
+				tmp = 127;
+			else if(tmp < 0)
+				tmp = 0;
+			st->parameter[ctrl] = tmp;
+			update = 1;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,
+				"GS INS Control2 (VAL:%d * depth:%d /64 + param:%d -> param(%d):%d)", 
+					var, depth, base, ctrl, tmp);
+		}
+	}
+	if(update)
+		recompute_insertion_effect_gs(0);
+}
+
+///r
 /*! re-allocate GS insertion effect parameters. */
 void realloc_insertion_effect_gs(void)
 {
@@ -6313,40 +9714,267 @@ void realloc_insertion_effect_gs(void)
 
 	free_effect_list(st->ef);
 	st->ef = NULL;
-
 	switch(type_msb) {
 	case 0x01:
 		switch(type_lsb) {
 		case 0x00: /* Stereo-EQ */
-			st->ef = push_effect(st->ef, EFFECT_STEREO_EQ);
+			st->ef = push_effect(st->ef, EFFECT_GS_STEREO_EQ);
+			break;
+		case 0x01: /* Spectrum */
+			st->ef = push_effect(st->ef, EFFECT_GS_SPECTRUM);
+			break;
+		case 0x02: /* ehnancer */
+			st->ef = push_effect(st->ef, EFFECT_GS_ENHANCER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x03: /* Humanizer */
+			st->ef = push_effect(st->ef, EFFECT_GS_HUMANIZER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
 			break;
 		case 0x10: /* Overdrive */
-			st->ef = push_effect(st->ef, EFFECT_EQ2);
-			st->ef = push_effect(st->ef, EFFECT_OVERDRIVE1);
+			st->ef = push_effect(st->ef, EFFECT_GS_OVERDRIVE1);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
 			break;
 		case 0x11: /* Distortion */
-			st->ef = push_effect(st->ef, EFFECT_EQ2);
-			st->ef = push_effect(st->ef, EFFECT_DISTORTION1);
+			st->ef = push_effect(st->ef, EFFECT_GS_DISTORTION1);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x20: /* Phaser */
+			st->ef = push_effect(st->ef, EFFECT_GS_PHASER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x21: /* Auto Wah */
+			st->ef = push_effect(st->ef, EFFECT_GS_AUTO_WAH);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x22: /* Rotary */
+			st->ef = push_effect(st->ef, EFFECT_GS_ROTARY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x23: /* Stereo Flanger */
+			st->ef = push_effect(st->ef, EFFECT_GS_STEREO_FLANGER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x24: /* Step Flanger */
+			st->ef = push_effect(st->ef, EFFECT_GS_STEP_FLANGER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x25: /* Tremolo */
+			st->ef = push_effect(st->ef, EFFECT_GS_TREMOLO);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x26: /* Auto Pan */
+			st->ef = push_effect(st->ef, EFFECT_GS_AUTO_PAN);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x30: /* Compressor */
+			st->ef = push_effect(st->ef, EFFECT_GS_COMPRESSOR);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x31: /* Limiter */
+			st->ef = push_effect(st->ef, EFFECT_GS_LIMITER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
 			break;
 		case 0x40: /* Hexa Chorus */
-			st->ef = push_effect(st->ef, EFFECT_EQ2);
-			st->ef = push_effect(st->ef, EFFECT_HEXA_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_HEXA_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x41: /* Tremolo Chorus */
+			st->ef = push_effect(st->ef, EFFECT_GS_TREMOLO_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x42: /* Stereo Chorus */
+			st->ef = push_effect(st->ef, EFFECT_GS_STEREO_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x43: /* Space D */
+			st->ef = push_effect(st->ef, EFFECT_GS_SPACE_D);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x44: /* 3D Chorus */
+			st->ef = push_effect(st->ef, EFFECT_GS_3D_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x50: /* Stereo Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_STEREO_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x51: /* Mod Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_MOD_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x52: /* 3 Tap Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_3TAP_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x53: /* 4 Tap Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_4TAP_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x54: /* Tm Ctrl Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_TM_CTRL_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x55: /* Reverb */
+			st->ef = push_effect(st->ef, EFFECT_GS_REVERB);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x56: /* Gate Reverb */
+			st->ef = push_effect(st->ef, EFFECT_GS_GATE_REVERB);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x57: /* 3D Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_3D_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x60: /* 2 Pitch Shifter */
+			st->ef = push_effect(st->ef, EFFECT_GS_2PITCH_SHIFTER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x61: /* Fb P.Shifter */
+			st->ef = push_effect(st->ef, EFFECT_GS_FB_P_SHIFTER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x70: /* 3D Auto */
+			st->ef = push_effect(st->ef, EFFECT_GS_3D_AUTO);
+			break;
+		case 0x71: /* 3D Manual */
+			st->ef = push_effect(st->ef, EFFECT_GS_3D_MANUAL);
 			break;
 		case 0x72: /* Lo-Fi 1 */
-			st->ef = push_effect(st->ef, EFFECT_EQ2);
-			st->ef = push_effect(st->ef, EFFECT_LOFI1);
+			st->ef = push_effect(st->ef, EFFECT_GS_LOFI1);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
 			break;
 		case 0x73: /* Lo-Fi 2 */
-			st->ef = push_effect(st->ef, EFFECT_EQ2);
-			st->ef = push_effect(st->ef, EFFECT_LOFI2);
+			st->ef = push_effect(st->ef, EFFECT_GS_LOFI2);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		default: break;
+		}
+		break;
+	case 0x02:
+		switch(type_lsb) {
+		case 0x00: /* OD->Chorus */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_OD_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x01: /* OD->Flanger */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_OD_FLANGER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x02: /* OD->Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_OD_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x03: /* DS->Chorus */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_DS_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x04: /* DS->Flanger */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_DS_FLANGER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x05: /* DS->Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_DS_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x06: /* EH->Chorus */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_EH_CHORUS);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x07: /* EH->Flanger */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_EH_FLANGER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x08: /* EH->Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_EH_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x09: /* Cho->Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_CHO_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x0A: /* FL->Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_FL_DELAY);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		case 0x0B: /* Cho->Flanger */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_CHO_FLANGER);
+			st->ef = push_effect(st->ef, EFFECT_GS_POST_EQ);
+			break;
+		default: break;
+		}
+		break;
+	case 0x03:
+		switch(type_lsb) {
+		case 0x00: /* Rotary Multi */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_ROTARY_MULTI);
+			break;
+		default: break;
+		}
+		break;
+	case 0x04:
+		switch(type_lsb) {
+		case 0x00: /* GTR Multi 1 */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_GTR_MULTI1);
+			break;
+		case 0x01: /* GTR Multi 2 */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_GTR_MULTI2);
+			break;
+		case 0x02: /* GTR Multi 3 */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_GTR_MULTI3);
+			break;
+		case 0x03: /* Clean Gt Multi 1 */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_CLEAN_GT_MULTI1);
+			break;
+		case 0x04: /* Clean Gt Multi 2 */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_CLEAN_GT_MULTI2);
+			break;
+		case 0x050: /* Base Multi */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_BASE_MULTI);
+			break;
+		case 0x06: /* Rhodes Multi */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_RHODES_MULTI);
+			break;
+		default: break;
+		}
+		break;
+	case 0x05:
+		switch(type_lsb) {
+		case 0x00: /* Keyboard Multi */
+			st->ef = push_effect(st->ef, EFFECT_GS_S_KEYBOARD_MULTI);
 			break;
 		default: break;
 		}
 		break;
 	case 0x11:
 		switch(type_lsb) {
+		case 0x00: /* Cho/Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_CHO_DELAY);
+			break;
+		case 0x01: /* FL/Delay */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_FL_DELAY);
+			break;
+		case 0x02: /* Cho/Flanger */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_CHO_FLANGER);
+			break;
 		case 0x03: /* OD1 / OD2 */
-			st->ef = push_effect(st->ef, EFFECT_OD1OD2);
+			st->ef = push_effect(st->ef, EFFECT_GS_P_OD1_OD2);
+			break;
+		case 0x04: /* OD/Rotary */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_OD_ROTARY);
+			break;
+		case 0x05: /* OD/Phaser */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_OD_PHASER);
+			break;
+		case 0x06: /* OD/AutoWah */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_OD_AUTOWAH);
+			break;
+		case 0x07: /* PH/Rotary */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_PH_ROTARY);
+			break;
+		case 0x08: /* PH/AutoWah */
+			st->ef = push_effect(st->ef, EFFECT_GS_P_PH_AUTOWAH);
 			break;
 		default: break;
 		}
@@ -6356,7 +9984,614 @@ void realloc_insertion_effect_gs(void)
 
 	set_effect_param_gs(st, type_msb, type_lsb);
 
-	recompute_insertion_effect_gs();
+	recompute_insertion_effect_gs(1); // 1: set_param to parame
+}
+
+
+/*! initialize SD MFX effect parameters */
+void init_mfx_effect_sd(void)
+{
+	int h,i;
+	
+	for(h = 0; h < SD_MFX_EFFECT_NUM; h++){
+		struct mfx_effect_sd_t *st = &mfx_effect_sd[h];
+
+		free_effect_list(st->ef);
+		st->ef = NULL;		
+		st->efx_source = h; // =part
+		st->common_type = 0;
+		st->ctrl_channel = h; // mfx1:1ch, mfx2:2ch, mfx3:3ch
+		st->ctrl_port = 0; // port A
+		for(i = 0; i < 32; i++) {
+			st->common_param[i] = 0;
+			st->parameter[i] = 0;
+		}
+		st->common_dry_send = 127;
+		st->common_send_reverb = 0;
+		st->common_send_chorus = 0;
+		for(i = 0; i < 4; i++) {
+			st->common_ctrl_source[i] = 0;
+			st->common_ctrl_sens[i] = 0x40;
+			st->common_ctrl_assign[i] = 0;
+		}		
+		st->type = &channel[h].mfx_part_type;
+		st->set_param = channel[h].mfx_part_param;
+		st->ctrl_source = channel[h].mfx_part_ctrl_source;
+		st->ctrl_sens = channel[h].mfx_part_ctrl_sens;
+		st->ctrl_assign = channel[h].mfx_part_ctrl_assign;
+		for (i = 0; i < 8; i++)
+			st->ctrl_param[i] = -1;
+		st->dry_level = 1.0;
+		st->reverb_level = 0.0;
+		st->chorus_level = 0.0;
+		st->dry_leveli = TIM_FSCALE(1.0, 24);
+		st->reverb_leveli = TIM_FSCALE(0.0, 24);
+		st->chorus_leveli = TIM_FSCALE(0.0, 24);
+	}
+}
+
+static void set_mfx_effect_param_sd(struct mfx_effect_sd_t *st, int type, int patch)
+{
+	int i, j;
+	for (i = 0; effect_parameter_sd[i].type != -1; i++) {
+		if (type == effect_parameter_sd[i].type) {
+			if(patch >= 2){ // patch default
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD MFX patch default: %s", effect_parameter_sd[i].name);
+			}else if(patch){ // patch change
+				for (j = 0; j < 32; j++)
+					st->set_param[j] = effect_parameter_sd[i].param[j];
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD MFX patch change: %s", effect_parameter_sd[i].name);
+			}else{ // common change
+				for (j = 0; j < 32; j++)
+					st->set_param[j] = effect_parameter_sd[i].param[j];
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD MFX common change: %s", effect_parameter_sd[i].name);
+			}
+			for (j = 0; j < 8; j++)
+				st->ctrl_param[j] = effect_parameter_sd[i].control[j];
+			break;
+		}
+	}
+}
+
+/*! recompute SD MFX effect parameters. */
+void recompute_mfx_effect_sd(struct mfx_effect_sd_t *st, int marge)
+{
+	int j;
+	EffectList *efc = st->ef;
+	
+	calc_mfx_send_level_sd(st);
+	if (st->ef == NULL) {return;}
+	if(marge){
+		for (j = 0; j < 32; j++) {
+			st->parameter[j] = st->set_param[j];
+		}
+	}
+	while(efc != NULL && efc->info != NULL)
+	{
+		(*efc->engine->conv_sd)(st, efc);
+		(*efc->engine->do_effect)(NULL, MAGIC_INIT_EFFECT_INFO, efc);
+		efc = efc->next_ef;
+	}
+}
+
+/*! MIDI control SD MFX parameters. */
+void control_effect_sd(MidiEvent *ev)
+{
+	int i, s;
+	int update = 0;
+	int ch = ev->channel;
+
+	for (i = 0; i < SD_MFX_EFFECT_NUM; i++) {
+		struct mfx_effect_sd_t *st = &mfx_effect_sd[i];		
+		int update = 0;
+		int ctrl_ch;
+		if (st->ef == NULL) {continue;}	
+		if(st->ctrl_channel == -1) {continue;}	
+		ctrl_ch = st->ctrl_channel;
+		if(st->ctrl_port)
+			ctrl_ch += 16; // if portB 17ch~32ch
+		if(ctrl_ch != ch) {continue;}
+		for (s = 0; s < 4; s++) {
+			int source = st->ctrl_source[s];
+			if(!source) {continue;}	
+			if(source > 32 && source < 64) {continue;}	
+			if( (source <= 95 && source == ev->b && ev->type >= ME_TONE_BANK_MSB && ev->type <= ME_UNDEF_CTRL_CHNG)
+				|| (source == 96 && ev->type == ME_CHANNEL_PRESSURE)
+				|| (source == 97 && ev->type == ME_PITCHWHEEL)	
+			){
+				FLOAT_T var;
+				FLOAT_T sens = st->ctrl_sens[s] - 0x40;
+				int val, ctrl;
+				int assign = st->ctrl_assign[s];
+				if(assign <= 0) {continue;}
+				if(assign > 8){
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD MFX%d Control%d assign error (assign: %d)", i, s, assign);
+					// コントロール可能なパラメータは最大7個まで
+					// パラメータ単位だとするとパラメータ数は32個あるので足りないことになる
+					// チャンネルなのか？ それだと MFX Control Channelは何なのか
+					continue;
+				}
+				--assign;
+				ctrl = st->ctrl_param[assign];
+				if(ctrl == -1) {continue;}					
+				val = ev->type == ME_PITCHWHEEL ? calc_bend_val(ev->a + ev->b * 128) : ev->a;
+				var = val > 0x7F ? 127.0 : (FLOAT_T)val;
+				if(ctrl >= 0){
+					int tmp = st->set_param[ctrl];
+					tmp += var * sens * DIV_64 + 0.5;
+					if(tmp > 127)
+						tmp = 127;
+					else if(tmp < 0)
+						tmp = 0;
+					st->parameter[ctrl] = tmp;
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d -> param:%d)", 
+							i, s, ev->a, sens, st->set_param[ctrl], st->parameter[ctrl]);
+				}else if(ctrl == -2){
+					int tmp = st->set_param[1] * 100 + st->set_param[3];
+					int tmp2 = tmp;
+					tmp2 += var * sens * DIV_64 + 0.5;
+					if(tmp2 == 0){
+						st->set_param[1] = st->set_param[3] = 0;
+					}else if(tmp2 < 0){
+						int tmp3 = -tmp2 / 100;
+						st->parameter[1] = -tmp3;
+						st->parameter[3] = tmp2 + tmp3 * 100;
+					}else{
+						int tmp3 = tmp2 / 100;
+						st->parameter[1] = tmp3;
+						st->parameter[3] = tmp2 - tmp3 * 100;
+					}
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d[cent] -> param:%d[cent])", 
+							i, s, ev->a, sens, tmp, tmp2);					
+				}else if(ctrl == -3){
+					int tmp = st->set_param[2] * 100 + st->set_param[4];
+					int tmp2 = tmp;	
+					tmp2 += var * sens * DIV_64 + 0.5;
+					if(tmp2 == 0){
+						st->set_param[2] = st->set_param[4] = 0;
+					}else if(tmp2 < 0){
+						int tmp3 = -tmp2 / 100;
+						st->parameter[2] = -tmp3;
+						st->parameter[4] = tmp2 + tmp3 * 100;
+					}else{
+						int tmp3 = tmp2 / 100;
+						st->parameter[2] = tmp3;
+						st->parameter[4] = tmp2 - tmp3 * 100;
+					}
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d[cent] -> param:%d[cent])", 
+							i, s, ev->a, sens, tmp, tmp2);	
+				}else if(ctrl == -4){
+					int tmp = st->set_param[1] * 100 + st->set_param[2];	
+					int tmp2 = tmp;
+					tmp2 += var * sens * DIV_64 + 0.5;
+					if(tmp2 == 0){
+						st->set_param[1] = st->set_param[2] = 0;
+					}else if(tmp2 < 0){
+						int tmp3 = -tmp2 / 100;
+						st->parameter[1] = -tmp3;
+						st->parameter[2] = tmp2 + tmp3 * 100;
+					}else{
+						int tmp3 = tmp2 / 100;
+						st->parameter[1] = tmp3;
+						st->parameter[2] = tmp2 - tmp3 * 100;
+					}
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d[cent] -> param:%d[cent])", 
+							i, s, ev->a, sens, tmp, tmp2);	
+				}else if(ctrl == -5){
+					int tmp = st->set_param[1] * 100 + st->set_param[4];	
+					int tmp2 = tmp;
+					tmp2 += var * sens * DIV_64 + 0.5;
+					if(tmp2 == 0){
+						st->set_param[1] = st->set_param[4] = 0;
+					}else if(tmp2 < 0){
+						int tmp3 = -tmp2 / 100;
+						st->parameter[1] = -tmp3;
+						st->parameter[4] = tmp2 + tmp3 * 100;
+					}else{
+						int tmp3 = tmp2 / 100;
+						st->parameter[1] = tmp3;
+						st->parameter[4] = tmp2 - tmp3 * 100;
+					}
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d[cent] -> param:%d[cent])", 
+							i, s, ev->a, sens, tmp, tmp2);	
+				}else if(ctrl == -6){
+					int tmp = st->set_param[2] * 100 + st->set_param[5];	
+					int tmp2 = tmp;
+					tmp2 += var * sens * DIV_64 + 0.5;
+					if(tmp2 == 0){
+						st->set_param[2] = st->set_param[5] = 0;
+					}else if(tmp2 < 0){
+						int tmp3 = -tmp2 / 100;
+						st->parameter[2] = -tmp3;
+						st->parameter[5] = tmp2 + tmp3 * 100;
+					}else{
+						int tmp3 = tmp2 / 100;
+						st->parameter[2] = tmp3;
+						st->parameter[5] = tmp2 - tmp3 * 100;
+					}
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d[cent] -> param:%d[cent])", 
+							i, s, ev->a, sens, tmp, tmp2);	
+				}else if(ctrl == -7){
+					int tmp = st->set_param[3] * 100 + st->set_param[6];	
+					int tmp2 = tmp;
+					tmp2 += var * sens * DIV_64 + 0.5;
+					if(tmp2 == 0){
+						st->set_param[3] = st->set_param[6] = 0;
+					}else if(tmp2 < 0){
+						int tmp3 = -tmp2 / 100;
+						st->parameter[3] = -tmp3;
+						st->parameter[6] = tmp2 + tmp3 * 100;
+					}else{
+						int tmp3 = tmp2 / 100;
+						st->parameter[3] = tmp3;
+						st->parameter[6] = tmp2 - tmp3 * 100;
+					}
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d[cent] -> param:%d[cent])", 
+							i, s, ev->a, sens, tmp, tmp2);	
+				}else if(ctrl == -8){
+					int tmp = st->set_param[11] * 100 + st->set_param[12];	
+					int tmp2 = tmp;
+					tmp2 += var * sens * DIV_64 + 0.5;
+					if(tmp2 == 0){
+						st->set_param[11] = st->set_param[12] = 0;
+					}else if(tmp2 < 0){
+						int tmp3 = -tmp2 / 100;
+						st->parameter[11] = -tmp3;
+						st->parameter[12] = tmp2 + tmp3 * 100;
+					}else{
+						int tmp3 = tmp2 / 100;
+						st->parameter[11] = tmp3;
+						st->parameter[12] = tmp2 - tmp3 * 100;
+					}
+					update = 1;
+					ctl->cmsg(CMSG_INFO, VERB_NOISY,
+						"SD MFX%d Control%d assign:%d (VAL:%d * sens:%d /64 + set_param:%d[cent] -> param:%d[cent])", 
+							i, s, ev->a, sens, tmp, tmp2);	
+				}
+			}
+		}
+		if(update)
+			recompute_mfx_effect_sd(st, 0);
+	}
+}
+
+/*! re-allocate SD MFX effect parameters. */
+void realloc_mfx_effect_sd(struct mfx_effect_sd_t *st, int patch)
+{
+	int type = *st->type;
+
+	free_effect_list(st->ef);
+	st->ef = NULL;
+	switch(type) {
+	case 0x01: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_EQ); break;
+	case 0x02: st->ef = push_effect(st->ef, EFFECT_SD_OVERDRIVE); break;
+	case 0x03: st->ef = push_effect(st->ef, EFFECT_SD_DISTORTION); break;
+	case 0x04: st->ef = push_effect(st->ef, EFFECT_SD_PHASER); break;
+	case 0x05: st->ef = push_effect(st->ef, EFFECT_SD_SPECTRUM); break;
+	case 0x06: st->ef = push_effect(st->ef, EFFECT_SD_ENHANCER); break;
+	case 0x07: st->ef = push_effect(st->ef, EFFECT_SD_AUTO_WAH); break;
+	case 0x08: st->ef = push_effect(st->ef, EFFECT_SD_ROTARY); break;
+	case 0x09: st->ef = push_effect(st->ef, EFFECT_SD_COMPRESSOR); break;
+	case 0x0A: st->ef = push_effect(st->ef, EFFECT_SD_LIMITER); break;
+	case 0x0B: st->ef = push_effect(st->ef, EFFECT_SD_HEXA_CHORUS); break;
+	case 0x0C: st->ef = push_effect(st->ef, EFFECT_SD_TREMOLO_CHORUS); break;
+	case 0x0D: st->ef = push_effect(st->ef, EFFECT_SD_SPACE_D); break;
+	case 0x0E: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_CHORUS); break;
+	case 0x0F: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_FLANGER); break;
+	case 0x10: st->ef = push_effect(st->ef, EFFECT_SD_STEP_FLANGER); break;
+	case 0x11: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_DELAY); break;
+	case 0x12: st->ef = push_effect(st->ef, EFFECT_SD_MOD_DELAY); break;
+	case 0x13: st->ef = push_effect(st->ef, EFFECT_SD_3TAP_DELAY); break;
+	case 0x14: st->ef = push_effect(st->ef, EFFECT_SD_4TAP_DELAY); break;
+	case 0x15: st->ef = push_effect(st->ef, EFFECT_SD_TM_CTRL_DELAY); break;
+	case 0x16: st->ef = push_effect(st->ef, EFFECT_SD_2PITCH_SHIFTER); break;
+	case 0x17: st->ef = push_effect(st->ef, EFFECT_SD_FB_P_SHIFTER); break;
+	case 0x18: st->ef = push_effect(st->ef, EFFECT_SD_REVERB); break;
+	case 0x19: st->ef = push_effect(st->ef, EFFECT_SD_GATE_REVERB); break;
+	case 0x1A: st->ef = push_effect(st->ef, EFFECT_SD_S_OD_CHORUS); break;
+	case 0x1B: st->ef = push_effect(st->ef, EFFECT_SD_S_OD_FLANGER); break;
+	case 0x1C: st->ef = push_effect(st->ef, EFFECT_SD_S_OD_DELAY); break;
+	case 0x1D: st->ef = push_effect(st->ef, EFFECT_SD_S_DS_CHORUS); break;
+	case 0x1E: st->ef = push_effect(st->ef, EFFECT_SD_S_DS_FLANGER); break;
+	case 0x1F: st->ef = push_effect(st->ef, EFFECT_SD_S_DS_DELAY); break;
+	case 0x20: st->ef = push_effect(st->ef, EFFECT_SD_S_EH_CHORUS); break;
+	case 0x21: st->ef = push_effect(st->ef, EFFECT_SD_S_EH_FLANGER); break;
+	case 0x22: st->ef = push_effect(st->ef, EFFECT_SD_S_EH_DELAY); break;
+	case 0x23: st->ef = push_effect(st->ef, EFFECT_SD_S_CHO_DELAY); break;
+	case 0x24: st->ef = push_effect(st->ef, EFFECT_SD_S_FL_DELAY); break;
+	case 0x25: st->ef = push_effect(st->ef, EFFECT_SD_S_CHO_FLANGER); break;
+	case 0x26: st->ef = push_effect(st->ef, EFFECT_SD_P_CHO_DELAY); break;
+	case 0x27: st->ef = push_effect(st->ef, EFFECT_SD_P_FL_DELAY); break;
+	case 0x28: st->ef = push_effect(st->ef, EFFECT_SD_P_CHO_FLANGER); break;
+	case 0x29: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_PHASER); break;
+	case 0x2A: st->ef = push_effect(st->ef, EFFECT_SD_KEYSYNC_FLANGER); break;
+	case 0x2B: st->ef = push_effect(st->ef, EFFECT_SD_FORMANT_FILTER); break;
+	case 0x2C: st->ef = push_effect(st->ef, EFFECT_SD_RING_MODULATOR); break;
+	case 0x2D: st->ef = push_effect(st->ef, EFFECT_SD_MULTITAP_DELAY); break;
+	case 0x2E: st->ef = push_effect(st->ef, EFFECT_SD_REVERSE_DELAY); break;
+	case 0x2F: st->ef = push_effect(st->ef, EFFECT_SD_SHUFFLE_DELAY); break;
+	case 0x30: st->ef = push_effect(st->ef, EFFECT_SD_3D_DELAY); break;
+	case 0x31: st->ef = push_effect(st->ef, EFFECT_SD_3PITCH_SHIFTER); break;
+	case 0x32: st->ef = push_effect(st->ef, EFFECT_SD_LOFI_COMPRESS); break;
+	case 0x33: st->ef = push_effect(st->ef, EFFECT_SD_LOFI_NOISE); break;
+	case 0x34: st->ef = push_effect(st->ef, EFFECT_SD_SPEAKER_SIMULATOR); break;
+	case 0x35: st->ef = push_effect(st->ef, EFFECT_SD_OVERDRIVE2); break;
+	case 0x36: st->ef = push_effect(st->ef, EFFECT_SD_DISTORTION2); break;
+	case 0x37: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_COMPRESSOR); break;
+	case 0x38: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_LIMITER); break;
+	case 0x39: st->ef = push_effect(st->ef, EFFECT_SD_GATE); break;
+	case 0x3A: st->ef = push_effect(st->ef, EFFECT_SD_SLICER); break;
+	case 0x3B: st->ef = push_effect(st->ef, EFFECT_SD_ISOLATOR); break;
+	case 0x3C: st->ef = push_effect(st->ef, EFFECT_SD_3D_CHORUS); break;
+	case 0x3D: st->ef = push_effect(st->ef, EFFECT_SD_3D_FLANGER); break;
+	case 0x3E: st->ef = push_effect(st->ef, EFFECT_SD_TREMOLO); break;
+	case 0x3F: st->ef = push_effect(st->ef, EFFECT_SD_AUTO_PAN); break;
+	case 0x40: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_PHASER2); break;
+	case 0x41: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_AUTO_WAH); break;
+	case 0x42: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_FORMANT_FILTER); break;
+	case 0x43: st->ef = push_effect(st->ef, EFFECT_SD_MULTITAP_DELAY2); break;
+	case 0x44: st->ef = push_effect(st->ef, EFFECT_SD_REVERSE_DELAY2); break;
+	case 0x45: st->ef = push_effect(st->ef, EFFECT_SD_SHUFFLE_DELAY2); break;
+	case 0x46: st->ef = push_effect(st->ef, EFFECT_SD_3D_DELAY2); break;
+	case 0x47: st->ef = push_effect(st->ef, EFFECT_SD_ROTARY2); break;
+	case 0x48: st->ef = push_effect(st->ef, EFFECT_SD_S_ROTARY_MULTI); break;
+	case 0x49: st->ef = push_effect(st->ef, EFFECT_SD_S_KEYBOARD_MULTI); break;
+	case 0x4A: st->ef = push_effect(st->ef, EFFECT_SD_S_RHODES_MULTI); break;
+	case 0x4B: st->ef = push_effect(st->ef, EFFECT_SD_S_JD_MULTI); break;
+	case 0x4C: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_LOFI_COMPRESS); break;
+	case 0x4D: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_LOFI_NOISE); break;
+	case 0x4E: st->ef = push_effect(st->ef, EFFECT_SD_GUITAR_AMP_SIMULATOR); break;
+	case 0x4F: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_OVERDRIVE); break;
+	case 0x50: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_DISTORTION); break;
+	case 0x51: st->ef = push_effect(st->ef, EFFECT_SD_S_GUITAR_MULTI_A); break;
+	case 0x52: st->ef = push_effect(st->ef, EFFECT_SD_S_GUITAR_MULTI_B); break;
+	case 0x53: st->ef = push_effect(st->ef, EFFECT_SD_S_GUITAR_MULTI_C); break;
+	case 0x54: st->ef = push_effect(st->ef, EFFECT_SD_S_CLEAN_GUITAR_MULTI_A); break;
+	case 0x55: st->ef = push_effect(st->ef, EFFECT_SD_S_CLEAN_GUITAR_MULTI_B); break;
+	case 0x56: st->ef = push_effect(st->ef, EFFECT_SD_S_BASE_MULTI); break;
+	case 0x57: st->ef = push_effect(st->ef, EFFECT_SD_ISOLATOR2); break;
+	case 0x58: st->ef = push_effect(st->ef, EFFECT_SD_STEREO_SPECTRUM); break;
+	case 0x59: st->ef = push_effect(st->ef, EFFECT_SD_3D_AUTO_SPIN); break;
+	case 0x5A: st->ef = push_effect(st->ef, EFFECT_SD_3D_MANUAL); break;
+	// for effect test
+	case 0x7E: st->ef = push_effect(st->ef, EFFECT_SD_TEST1); break;
+	case 0x7F: st->ef = push_effect(st->ef, EFFECT_SD_TEST1); break;
+	default: break;
+	}	
+	set_mfx_effect_param_sd(st, type, patch);
+	recompute_mfx_effect_sd(st, 1);
+}
+
+
+/*! initialize SD chorus effect parameters */
+void init_chorus_status_sd(void)
+{
+	struct mfx_effect_sd_t *st = &chorus_status_sd;
+
+	free_effect_list(st->ef);
+	st->ef = NULL;		
+	st->efx_source = -1; // =common
+	st->common_type = 1; // chorus
+	st->common_dry_send = 127;
+	st->common_send_reverb = 0;
+	st->common_send_chorus = 0;
+	st->common_efx_level = 127;
+	st->common_output_select = 0; // main	
+	st->type = &st->common_type;
+	st->set_param = st->common_param;
+	st->output_select= &st->common_output_select;
+	st->chorus_level = 1.0;
+	st->chorus_leveli = TIM_FSCALE(1.0, 24);
+	st->reverb_level = 0;
+	st->reverb_leveli = 0;
+}
+
+static void set_chorus_effect_param_sd(struct mfx_effect_sd_t *st, int type, int patch)
+{
+	int i, j;
+	for (i = 0; effect_parameter_sd[i].type != -1; i++) {
+		if (type == effect_parameter_sd[i].type) {
+			if(patch >= 2){ // patch default
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD Chorus patch default: %s", effect_parameter_sd[i].name);
+			}else if(patch){ // patch change
+				for (j = 0; j < 12; j++)
+					st->set_param[j] = effect_parameter_sd[i].param[j];
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD Chorus patch change: %s", effect_parameter_sd[i].name);
+			}else{ // common change
+				for (j = 0; j < 12; j++)
+					st->set_param[j] = effect_parameter_sd[i].param[j];
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD Chorus common change: %s", effect_parameter_sd[i].name);
+			}
+			break;
+		}
+	}
+}
+
+/*! recompute SD chorus effect parameters. */
+void recompute_chorus_status_sd(struct mfx_effect_sd_t *st, int marge)
+{
+	int j;
+	EffectList *efc = st->ef;
+	
+	calc_chorus_level_sd(st);
+	if (st->ef == NULL) {return;}
+	if(marge){
+		for (j = 0; j < 12; j++) {
+			st->parameter[j] = st->set_param[j];
+		}
+	}
+	while(efc != NULL && efc->info != NULL)
+	{
+		(*efc->engine->conv_sd)(st, efc);
+		(*efc->engine->do_effect)(NULL, MAGIC_INIT_EFFECT_INFO, efc);
+		efc = efc->next_ef;
+	}
+}
+
+/*! re-allocate SD chorus effect parameters. */
+void realloc_chorus_status_sd(struct mfx_effect_sd_t *st, int patch)
+{
+	int type = *st->type;
+	int efx_param_num = 0x00; // effect.c effect_parameter_sd[]
+
+	free_effect_list(st->ef);
+	st->ef = NULL;
+	switch(type) {
+	case 0x01: st->ef = push_effect(st->ef, EFFECT_SD_CHO_CHORUS); efx_param_num = 0x60; break;
+	case 0x02: st->ef = push_effect(st->ef, EFFECT_SD_CHO_DELAY); efx_param_num = 0x61; break;
+	case 0x03: 
+		switch(st->set_param[0]){			
+		case 0x00: st->ef = push_effect(st->ef, EFFECT_SD_CHO_CHORUS1); efx_param_num = 0x62; break; // GM2_CHORUS
+		case 0x01: st->ef = push_effect(st->ef, EFFECT_SD_CHO_CHORUS2); efx_param_num = 0x63; break; // GM2_CHORUS
+		case 0x02: st->ef = push_effect(st->ef, EFFECT_SD_CHO_CHORUS3); efx_param_num = 0x64; break; // GM2_CHORUS
+		case 0x03: st->ef = push_effect(st->ef, EFFECT_SD_CHO_CHORUS4); efx_param_num = 0x65; break; // GM2_CHORUS
+		case 0x04: st->ef = push_effect(st->ef, EFFECT_SD_CHO_FB_CHORUS); efx_param_num = 0x66; break; // GM2_CHORUS
+		case 0x05: st->ef = push_effect(st->ef, EFFECT_SD_CHO_FLANGER); efx_param_num = 0x67; break; // GM2_CHORUS
+		case 0x7F: st->ef = push_effect(st->ef, EFFECT_SD_CHO_CHORUS1); efx_param_num = 0x62; break; // GM2_CHORUS
+		default: break;
+		}
+		break;
+	default: break;
+	}	
+	set_chorus_effect_param_sd(st, efx_param_num, patch);
+	recompute_chorus_status_sd(st, 1);
+}
+
+
+/*! initialize SD reverb effect parameters */
+void init_reverb_status_sd(void)
+{
+	struct mfx_effect_sd_t *st = &reverb_status_sd;
+
+	free_effect_list(st->ef);
+	st->ef = NULL;		
+	st->efx_source = -1; // =common
+	st->common_type = 3; // srv-hall
+	st->common_dry_send = 127;
+	st->common_send_reverb = 0;
+	st->common_send_chorus = 0;
+	st->common_efx_level = 100;
+	st->common_output_select = 0; // main	
+	st->type = &st->common_type;
+	st->set_param = st->common_param;
+	st->reverb_level = 100.0 * DIV_127;
+	st->reverb_leveli = TIM_FSCALE(100.0 * DIV_127, 24);
+	st->chorus_level = 0;
+	st->chorus_leveli = 0;
+}
+
+static void set_reverb_effect_param_sd(struct mfx_effect_sd_t *st, int type, int patch)
+{
+	int i, j;
+	for (i = 0; effect_parameter_sd[i].type != -1; i++) {
+		if (type == effect_parameter_sd[i].type) {
+			if(patch >= 2){ // patch default
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD Reverb patch default: %s", effect_parameter_sd[i].name);
+			}else if(patch){ // patch change
+				for (j = 0; j < 20; j++)
+					st->set_param[j] = effect_parameter_sd[i].param[j];
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD Reverb patch change: %s", effect_parameter_sd[i].name);
+			}else{ // common change
+				for (j = 0; j < 20; j++)
+					st->set_param[j] = effect_parameter_sd[i].param[j];
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD Reverb common change: %s", effect_parameter_sd[i].name);
+			}
+			break;
+		}
+	}
+}
+
+/*! recompute SD reverb effect parameters. */
+void recompute_reverb_status_sd(struct mfx_effect_sd_t *st, int marge)
+{
+	int j;
+	EffectList *efc = st->ef;
+	
+	calc_reverb_level_sd(st);
+	if (st->ef == NULL) {return;}
+	if(marge){
+		for (j = 0; j < 20; j++) {
+			st->parameter[j] = st->set_param[j];
+		}
+	}
+	while(efc != NULL && efc->info != NULL)
+	{
+		(*efc->engine->conv_sd)(st, efc);
+		(*efc->engine->do_effect)(NULL, MAGIC_INIT_EFFECT_INFO, efc);
+		efc = efc->next_ef;
+	}
+}
+
+/*! re-allocate SD reverb effect parameters. */
+void realloc_reverb_status_sd(struct mfx_effect_sd_t *st, int patch)
+{
+	int type = *st->type;
+	int efx_param_num = 0x00; // effect.c effect_parameter_sd[]
+
+	free_effect_list(st->ef);
+	st->ef = NULL;
+	switch(type) {
+	case 0x01:
+		switch(st->set_param[0]){	
+		case 0x00: st->ef = push_effect(st->ef, EFFECT_SD_REV_ROOM1); efx_param_num = 0x68; break;
+		case 0x01: st->ef = push_effect(st->ef, EFFECT_SD_REV_ROOM2); efx_param_num = 0x69; break;
+		case 0x03: st->ef = push_effect(st->ef, EFFECT_SD_REV_STAGE1); efx_param_num = 0x6A; break;
+		case 0x04: st->ef = push_effect(st->ef, EFFECT_SD_REV_STAGE2); efx_param_num = 0x6B; break;
+		case 0x05: st->ef = push_effect(st->ef, EFFECT_SD_REV_HALL1); efx_param_num = 0x6C; break;
+		case 0x06: st->ef = push_effect(st->ef, EFFECT_SD_REV_HALL2); efx_param_num = 0x6D; break;
+		case 0x07: st->ef = push_effect(st->ef, EFFECT_SD_REV_DELAY); efx_param_num = 0x6E; break;
+		case 0x08: st->ef = push_effect(st->ef, EFFECT_SD_REV_PANDELAY); efx_param_num = 0x6F; break;
+		case 0x7F: st->ef = push_effect(st->ef, EFFECT_SD_REV_HALL2); efx_param_num = 0x6D; break; // type1 default
+		default: break;
+		}
+		break;
+	case 0x02: st->ef = push_effect(st->ef, EFFECT_SD_REV_SRV_ROOM); efx_param_num = 0x70; break;
+	case 0x03: st->ef = push_effect(st->ef, EFFECT_SD_REV_SRV_HALL); efx_param_num = 0x71; break;
+	case 0x04: st->ef = push_effect(st->ef, EFFECT_SD_REV_SRV_PLATE); efx_param_num = 0x72; break;
+	case 0x05:
+		switch(st->set_param[0]){	
+		case 0x00: st->ef = push_effect(st->ef, EFFECT_SD_REV_SMALL_ROOM); efx_param_num = 0x73; break;
+		case 0x01: st->ef = push_effect(st->ef, EFFECT_SD_REV_MEDIUM_ROOM); efx_param_num = 0x74; break;
+		case 0x03: st->ef = push_effect(st->ef, EFFECT_SD_REV_LARGE_ROOM); efx_param_num = 0x75; break;
+		case 0x04: st->ef = push_effect(st->ef, EFFECT_SD_REV_MEDIUM_HALL); efx_param_num = 0x76; break;
+		case 0x05: st->ef = push_effect(st->ef, EFFECT_SD_REV_LARGE_HALL); efx_param_num = 0x77; break;
+		case 0x06: st->ef = push_effect(st->ef, EFFECT_SD_REV_PLATE); efx_param_num = 0x78; break;
+		case 0x7F: st->ef = push_effect(st->ef, EFFECT_SD_REV_MEDIUM_HALL); efx_param_num = 0x76; break; // type5 default
+		default: break;
+		}
+		break;
+	default: break;
+	}	
+	set_reverb_effect_param_sd(st, efx_param_num, patch);
+	recompute_reverb_status_sd(st, 1);
+}
+
+/*! initialize SD effect parameters */
+static void init_all_effect_sd(void)
+{
+	int i;
+
+	init_reverb_status_sd();
+	realloc_reverb_status_sd(&reverb_status_sd, 0);
+	init_chorus_status_sd();
+	realloc_chorus_status_sd(&chorus_status_sd, 0);
+	init_mfx_effect_sd();
+	init_multi_eq_sd();
+	init_ch_effect_sd();
 }
 
 /*! initialize channel layers. */
@@ -6395,20 +10630,24 @@ void remove_channel_layer(int ch)
 	SET_CHANNELMASK(channel[ch].channel_layer, ch);
 }
 
+
 void free_readmidi(void)
 {
 	reuse_mblock(&mempool);
 	free_time_segments();
 	free_all_midi_file_info();
 	free_userdrum();
+	free_userdrum2();
 	free_userinst();
 	if (string_event_strtab.nstring > 0)
 		delete_string_table(&string_event_strtab);
 	if (string_event_table != NULL) {
-		free(string_event_table[0]);
-		free(string_event_table);
+		safe_free(string_event_table[0]);
+		safe_free(string_event_table);
 		string_event_table = NULL;
 		string_event_table_size = 0;
 	}
 }
+
+
 

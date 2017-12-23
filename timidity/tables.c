@@ -50,9 +50,22 @@ void init_freq_table(void)
 	int i;
 	
 	for (i = 0; i < 128; i++) {
-		freq_table[i] = 440 * pow(2.0, (i - 69) / 12.0) * 1000 + 0.5;
+		freq_table[i] = 440 * pow(2.0, (i - 69) * DIV_12) * 1000 + 0.5;
 		freq_table_zapped[i] = freq_table[i];
 	}
+
+#if 0 // test
+	for (i = 0; i < 128; i++) {
+		int32 test;
+		int32 oct = i / 12;
+		int32 key = i % 12;
+		// 0:C 1:C# 2:D 3:D# 4:E 5:F 6:F# 7:G 8:G# 9:A 10:A# 11:B
+		if(oct == 6 && key == 4 ){
+			test = freq_table[i];
+			continue;
+		}
+	}
+#endif
 }
 
 void init_freq_table_tuning(void)
@@ -63,7 +76,7 @@ void init_freq_table_tuning(void)
 	for (i = 0; i < 128; i++)
 			freq_table_tuning[0][i] = freq_table_zapped[i];
 	for (i = 0; i < 128; i++) {
-		f = 440 * pow(2.0, (i - 69) / 12.0);
+		f = 440 * pow(2.0, (i - 69) * DIV_12);
 		for (p = 1; p < 128; p++)
 			freq_table_tuning[p][i] = f * 1000 + 0.5;
 	}
@@ -86,7 +99,7 @@ void init_freq_table_pytha(void)
 	
 	for (i = 0; i < 12; i++)
 		for (j = -1; j < 11; j++) {
-			f = 440 * pow(2.0, (i - 9) / 12.0 + j - 5);
+			f = 440 * pow(2.0, (i - 9) * DIV_12 + j - 5);
 			for (k = 0; k < 12; k++) {
 				l = i + j * 12 + k;
 				if (l < 0 || l >= 128)
@@ -130,7 +143,7 @@ void init_freq_table_meantone(void)
 	minor_ratio[11] = pow(10.0 / 3, 5.0 / 3) / 4;
 	for (i = 0; i < 12; i++)
 		for (j = -1; j < 11; j++) {
-			f = 440 * pow(2.0, (i - 9) / 12.0 + j - 5);
+			f = 440 * pow(2.0, (i - 9) * DIV_12 + j - 5);
 			for (k = 0; k < 12; k++) {
 				l = i + j * 12 + k;
 				if (l < 0 || l >= 128)
@@ -163,7 +176,7 @@ void init_freq_table_pureint(void)
 	
 	for (i = 0; i < 12; i++)
 		for (j = -1; j < 11; j++) {
-			f = 440 * pow(2.0, (i - 9) / 12.0 + j - 5);
+			f = 440 * pow(2.0, (i - 9) * DIV_12 + j - 5);
 			for (k = 0; k < 12; k++) {
 				l = i + j * 12 + k;
 				if (l < 0 || l >= 128)
@@ -188,7 +201,7 @@ void init_freq_table_user(void)
 	for (p = 0; p < 4; p++)
 		for (i = 0; i < 12; i++)
 			for (j = -1; j < 11; j++) {
-				f = 440 * pow(2.0, (i - 9) / 12.0 + j - 5);
+				f = 440 * pow(2.0, (i - 9) * DIV_12 + j - 5);
 				for (k = 0; k < 12; k++) {
 					l = i + j * 12 + k;
 					if (l < 0 || l >= 128)
@@ -202,7 +215,7 @@ void init_freq_table_user(void)
 }
 
 /* v=2.^((x/127-1) * 6) */
-FLOAT_T def_vol_table[1024];
+FLOAT_T def_vol_table[1025];
 
 void init_def_vol_table(void)
 {
@@ -210,10 +223,11 @@ void init_def_vol_table(void)
 	
 	for (i = 0; i < 1024; i++)
 		def_vol_table[i] = pow(2.0f,((double)i / 1023.0 - 1) * 6);
+	def_vol_table[1024] = 1.0;
 }
 
 /* v=2.^((x/127-1) * 8) */
-FLOAT_T gs_vol_table[1024];
+FLOAT_T gs_vol_table[1025];
 
 void init_gs_vol_table(void)
 {
@@ -221,6 +235,7 @@ void init_gs_vol_table(void)
 	
 	for (i = 0; i < 1024; i++)
 		gs_vol_table[i] = pow(2.0f,((double)i / 1023.0 - 1) * 8);
+	gs_vol_table[1024] = 1.0;
 }
 
 FLOAT_T *xg_vol_table = gs_vol_table;
@@ -234,7 +249,7 @@ void init_bend_fine(void)
 	int i;
 	
 	for (i = 0; i < 256; i++)
-		bend_fine[i] = pow(2.0, i / 12.0 / 256);
+		bend_fine[i] = pow(2.0, i * DIV_12 * DIV_256);
 }
 
 void init_bend_coarse(void)
@@ -242,7 +257,7 @@ void init_bend_coarse(void)
 	int i;
 	
 	for (i = 0; i < 128; i++)
-		bend_coarse[i] = pow(2.0, i / 12.0);
+		bend_coarse[i] = pow(2.0, i * DIV_12);
 }
 
 /*
@@ -382,6 +397,7 @@ FLOAT_T lookup_sine(int x)
       return -sine_table[0x100 - xx];
     }
 }
+
 #endif /* LOOKUP_SINE */
 
 static FLOAT_T triangular_table[257];
@@ -393,7 +409,7 @@ void init_triangular_table(void)
     init_by_array(init, length);
 
 	for (i = 0; i < 257; i++) {
-		triangular_table[i] = (double)(i/* - (genrand_int32() % 1)*/) / 256.0;
+		triangular_table[i] = (double)(i/* - (genrand_int32() % 1)*/) * DIV_256;
 		if(triangular_table[i] < 0) {triangular_table[i] = 0;}
 		else if(triangular_table[i] > 1.0) {triangular_table[i] = 1.0;}
 	}
@@ -415,6 +431,70 @@ FLOAT_T lookup_triangular(int x)
       return -triangular_table[xx];
     case 3:
       return -triangular_table[0x100 - xx];
+    }
+}
+
+///r
+static FLOAT_T saw_table[257];
+
+void init_saw_table(void)
+{
+	int i;
+
+	for (i = 0; i < 257; i++)
+		saw_table[i] = (double)i * DIV_256 * DIV_2;
+	saw_table[0] = 0.0;
+	saw_table[256] = 0.5;
+}
+
+FLOAT_T lookup_saw1(int x)
+{
+  int xx = x & 0xFF;
+  switch ((x>>8) & 0x03)
+    {
+    default:
+    case 0:
+      return saw_table[xx];
+    case 1:
+      return saw_table[xx] + 0.5;
+    case 2:
+      return -saw_table[xx];
+    case 3:
+      return -saw_table[xx] - 0.5;
+    }
+}
+
+FLOAT_T lookup_saw2(int x)
+{
+  int xx = x & 0xFF;
+  switch ((x>>8) & 0x03)
+    {
+    default:
+    case 0:
+      return saw_table[0x100 - xx] + 0.5;
+    case 1:
+      return saw_table[0x100 - xx];
+    case 2:
+      return -saw_table[0x100 - xx] - 0.5;
+    case 3:
+      return -saw_table[0x100 - xx];
+    }
+}
+
+FLOAT_T lookup_square(int x)
+{
+  int xx = x & 0xFF;
+  switch ((x>>8) & 0x03)
+    {
+    default:
+    case 0:
+      return 1.0;
+    case 1:
+      return 1.0;
+    case 2:
+      return -1.0;
+    case 3:
+      return -1.0;
     }
 }
 
@@ -462,6 +542,307 @@ int8 *iplookup;
 
 #endif
 
+
+//// table2
+// table size +1 for linear interpolation
+const uint32 table2_size_mask = TABLE2_CYCLE_LENGTH - 1;
+static FLOAT_T sine_table2[TABLE2_CYCLE_LENGTH + 1];
+static FLOAT_T sine_table2_p[TABLE2_CYCLE_LENGTH + 1];
+
+// lookup2
+// in : 0.0 ~ 1.0
+// out : -1.0 ~ 1.0 , p out : 0.0 ~ 1.0
+
+inline FLOAT_T lookup2_sine(FLOAT_T in)
+{
+	return sine_table2[(int)(in * TABLE2_CYCLE_LENGTH) & table2_size_mask];
+}
+
+// NEW_LFO
+inline FLOAT_T lookup2_sine_linear(FLOAT_T in)
+{
+	FLOAT_T fp1 = in * TABLE2_CYCLE_LENGTH;
+	FLOAT_T fp2 = floor(fp1);
+	int index = ((int)fp2) & table2_size_mask;
+	FLOAT_T v1 = sine_table2[index];
+	FLOAT_T v2 = sine_table2[index + 1];
+	return v1 + (v2 - v1) * (fp1 - fp2);
+}
+
+inline FLOAT_T lookup2_sine_p(FLOAT_T in)
+{
+	FLOAT_T fp1 = in * TABLE2_CYCLE_LENGTH;
+	FLOAT_T fp2 = floor(fp1);
+	int index = ((int)fp2) & table2_size_mask;
+	FLOAT_T v1 = sine_table2_p[index];
+	FLOAT_T v2 = sine_table2_p[index + 1];
+	return v1 + (v2 - v1) * (fp1 - fp2);
+//	return sine_table2_p[(int)(in * TABLE2_CYCLE_LENGTH) & table2_size_mask];
+}
+
+static void init_table2(void)
+{
+	int i;
+	const double div_len = 1.0 / (double)TABLE2_CYCLE_LENGTH;
+
+	for(i = 0; i < (TABLE2_CYCLE_LENGTH + 1); i++){ // 0 ~ 4096
+		FLOAT_T tmp, in = (FLOAT_T)i * div_len;
+		// sine
+		int32 tmpi = sin(in * M_PI2) * M_30BIT + 0.5;
+		FLOAT_T tmpf = (FLOAT_T)tmpi * DIV_30BIT;
+		sine_table2[i] = tmpf; // precision 30bit
+		sine_table2_p[i] = sin((in + 0.75) * M_PI2) * DIV_2 + DIV_2;
+	}
+}
+
+
+FLOAT_T filter_cb_p_table[9700];
+FLOAT_T filter_cb_m_table[9700];
+
+static void init_filter_coef(void)
+{
+	int i;
+
+	for(i = 0; i < 9700; i++){
+		filter_cb_p_table[i] = pow(10.0, (double)i * DIV_10 * DIV_40);
+		filter_cb_m_table[i] = pow(10.0, (double)i * DIV_10 * -DIV_40);
+	}
+}
+
+
+#define NOISE_TABLE_CYCLE 256 // 2^n
+#define NOISE_TABLE_CYCLE_LENGTH 32 // 2^n
+const int32 noise_table_mask = (NOISE_TABLE_CYCLE * NOISE_TABLE_CYCLE_LENGTH) - 1;
+static float noise_lowbit_table[(NOISE_TABLE_CYCLE * NOISE_TABLE_CYCLE_LENGTH) + 1];
+
+inline FLOAT_T lookup_noise_lowbit(FLOAT_T in, int32 cycle)
+{
+	return (FLOAT_T)noise_lowbit_table[(cycle * NOISE_TABLE_CYCLE_LENGTH + (int32)(in * NOISE_TABLE_CYCLE_LENGTH)) & noise_table_mask];
+}
+
+static void init_noise_lowbit_table(void)
+{
+	int i;
+
+	for(i = 0; i < ((NOISE_TABLE_CYCLE * NOISE_TABLE_CYCLE_LENGTH) + 1); i++){
+		noise_lowbit_table[i] = (double)((rand() & 0x1F) - M_4BIT) * DIV_5BIT; // 5bit mask
+	}	
+}
+
+
+#define NRPN_PARAM_TABLE_LENGTH 128 // 2^n
+static float nrpn_param_table[NRPN_PARAM_LIST_MAX][NRPN_PARAM_TABLE_LENGTH + 1];
+
+static inline int cnv_nrpn_param_table_num(FLOAT_T in, int mode)
+{
+	const int inc1 = NRPN_PARAM_TABLE_LENGTH/8;
+	const int inc2 = NRPN_PARAM_TABLE_LENGTH/8/4;
+	int i = 0;
+
+	if(in <= nrpn_param_table[mode][0])
+		return 0;
+	if(in >= nrpn_param_table[mode][NRPN_PARAM_TABLE_LENGTH - 1])
+		return NRPN_PARAM_TABLE_LENGTH - 1;
+	while(i < NRPN_PARAM_TABLE_LENGTH && in >= nrpn_param_table[mode][i]){ i += inc1; } // max 8cycle
+	i -= inc1;
+	while(i < NRPN_PARAM_TABLE_LENGTH && in >= nrpn_param_table[mode][i]){ i += inc2; } // max 4cycle
+	i -= inc2;
+	while(i < NRPN_PARAM_TABLE_LENGTH && in >= nrpn_param_table[mode][i]){ i++; } // max 4cycle
+	i--;
+	return i;
+}
+
+static inline FLOAT_T lookup_nrpn_param(int num, int mode)
+{
+	if(num <= 0)
+		num = 0;
+	else if(num >= (NRPN_PARAM_TABLE_LENGTH - 1))
+		num = NRPN_PARAM_TABLE_LENGTH - 1;
+	return nrpn_param_table[mode][num];
+}
+
+FLOAT_T calc_nrpn_param(FLOAT_T in, int add, int mode)
+{
+	int num = cnv_nrpn_param_table_num(in, mode);
+	return (lookup_nrpn_param(num + add, mode) - lookup_nrpn_param(num, mode));
+}
+
+static void init_nrpn_param_table(void)
+{
+	const double div_len = (double)1.0 / (double)NRPN_PARAM_TABLE_LENGTH;
+	int i;
+	
+	// NRPN_PARAM_GM_DELAY , NRPN_PARAM_GM_DELAY , NRPN_PARAM_GM_CUTOFF , NRPN_PARAM_GM_ATTACK , NRPN_PARAM_GM_DECAY , NRPN_PARAM_GM_RELEASE
+	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){
+		nrpn_param_table[NRPN_PARAM_GM_DELAY][i] = 5.0 * (double)i * div_len; // 0.0 ~ 5.0
+		nrpn_param_table[NRPN_PARAM_GM_RATE][i] = 10.0 * (double)i * div_len; // 0.0 ~ 10.0
+		nrpn_param_table[NRPN_PARAM_GM_CUTOFF][i] = pow((double)10.0, 2.0 * (double)i * div_len) * 200.0; // 200 ~ 20000
+		nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][i] = pow((double)10.0, 2.0 * (double)i * div_len) * 20.0; // 20 ~ 2000
+		nrpn_param_table[NRPN_PARAM_GM_ATTACK][i] = pow((double)10.0, 3.8450980400142568307122162585926 * (double)i * div_len) * 5.0; // 5.0 ~ (40000.0=128
+		nrpn_param_table[NRPN_PARAM_GM_DECAY][i] = pow((double)10.0, 3.8450980400142568307122162585926 * (double)i * div_len) * 5.0; // 5.0 ~ (40000.0=128
+		nrpn_param_table[NRPN_PARAM_GM_RELEASE][i] = pow((double)10.0, 2.9030899869919435856412166841735 * (double)i * div_len) * 5.0; // 5.0 ~ (4000.0
+	}	
+	nrpn_param_table[NRPN_PARAM_GM_DELAY][NRPN_PARAM_TABLE_LENGTH] = 5.0;
+	nrpn_param_table[NRPN_PARAM_GM_RATE][NRPN_PARAM_TABLE_LENGTH] = 10.0;
+	nrpn_param_table[NRPN_PARAM_GM_CUTOFF][NRPN_PARAM_TABLE_LENGTH] = 20000.0;	
+	nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][NRPN_PARAM_TABLE_LENGTH] = 2000.0;	
+	nrpn_param_table[NRPN_PARAM_GM_ATTACK][NRPN_PARAM_TABLE_LENGTH] = 35000.0; // ms
+	nrpn_param_table[NRPN_PARAM_GM_DECAY][NRPN_PARAM_TABLE_LENGTH] = 35000.0; // ms
+	nrpn_param_table[NRPN_PARAM_GM_RELEASE][NRPN_PARAM_TABLE_LENGTH] = 4000.0; // ms
+	
+	// NRPN_PARAM_GS_DELAY
+	// 0Ç≈0ïbÅA37Ç≈1ïbÅA52Ç≈2ïbÅA56Ç≈3ïbÅA59Ç≈4ïbÅA61Ç≈5ïbÅA63Ç≈9ïbã≠ïtãﬂ max10sec?
+	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){
+		if(i <= 37*2)
+			nrpn_param_table[NRPN_PARAM_GS_DELAY][i] = 1.0 * (double)i / (double)(37*2); // 0.0 ~ 1.0
+		else if(i <= 52*2)
+			nrpn_param_table[NRPN_PARAM_GS_DELAY][i] = 1.0 + 1.0 * ((double)i - 37*2) / (double)(52*2 - 37*2); // 1.0 ~ 2.0
+		else if(i <= 56*2)
+			nrpn_param_table[NRPN_PARAM_GS_DELAY][i] = 2.0 + 1.0 * ((double)i - 52*2) / (double)(56*2 - 52*2); // 2.0 ~ 3.0
+		else if(i <= 59*2)
+			nrpn_param_table[NRPN_PARAM_GS_DELAY][i] = 3.0 + 1.0 * ((double)i - 56*2) / (double)(59*2 - 56*2); // 3.0 ~ 4.0
+		else if(i <= 61*2)
+			nrpn_param_table[NRPN_PARAM_GS_DELAY][i] = 4.0 + 1.0 * ((double)i - 59*2) / (double)(61*2 - 59*2); // 4.0 ~ 5.0
+		else
+			nrpn_param_table[NRPN_PARAM_GS_DELAY][i] = 5.0 + 5.0 * ((double)i - 61*2) / (double)(NRPN_PARAM_TABLE_LENGTH - 61*2); // 5.0 ~ 10.0
+	}	
+	nrpn_param_table[NRPN_PARAM_GS_DELAY][NRPN_PARAM_TABLE_LENGTH] = 10.0;
+
+	// NRPN_PARAM_GS_RATE
+	// 0Ç≈1ïbä‘6âÒÇÊÇËé·ä±ëΩÇ≠ÅA-20Ç≈1ïbÇ…4âÒÅA-40Ç≈1ïbÇ…2âÒÅA-50Ç≈1ïbÇ…1âÒÅA-55Ç≈2ïbÇ…1âÒ
+	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){	
+		nrpn_param_table[NRPN_PARAM_GS_RATE][i] = rate1_table[i];
+	}	
+	nrpn_param_table[NRPN_PARAM_GS_RATE][NRPN_PARAM_TABLE_LENGTH] = 10.0;
+	
+	// NRPN_PARAM_GS_CUTOFF
+	// cutoff_freq_table_gs[]  250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, (20000?)
+	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){	
+		FLOAT_T v1 = cutoff_freq_table_gs[i];
+		FLOAT_T v2 = ((i + 8) > 127) ? 20000.0 : cutoff_freq_table_gs[i + 8];
+		nrpn_param_table[NRPN_PARAM_GS_CUTOFF][i] = v1 + (v2 - v1) * (double)(i & 0x7) * DIV_8;
+	}	
+	nrpn_param_table[NRPN_PARAM_GS_CUTOFF][NRPN_PARAM_TABLE_LENGTH] = 20000.0;
+	
+	// NRPN_PARAM_GS_CUTOFF_HPF , NRPN_PARAM_GS_ATTACK , NRPN_PARAM_GS_DECAY , NRPN_PARAM_GS_RELEASE
+	// ïsñæÇ»ÇÃÇ≈GMÇÉ}Å[ÉW
+	for(i = 0; i <= NRPN_PARAM_TABLE_LENGTH; i++){	
+		nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i] = nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i];
+		nrpn_param_table[NRPN_PARAM_GS_ATTACK][i] = nrpn_param_table[NRPN_PARAM_GM_ATTACK][i];
+		nrpn_param_table[NRPN_PARAM_GS_DECAY][i] = nrpn_param_table[NRPN_PARAM_GM_DECAY][i];
+		nrpn_param_table[NRPN_PARAM_GS_RELEASE][i] = nrpn_param_table[NRPN_PARAM_GM_RELEASE][i];
+	}	
+
+	// NRPN_PARAM_XG_DELAY
+	// 0Ç≈0ïbÅA+40Ç≈1ïbÅA+50Ç≈2ïbÅA+56Ç≈3ïbÅA+61Ç≈4ïbïtãﬂ max5sec?
+	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){
+		if(i <= 40*2)
+			nrpn_param_table[NRPN_PARAM_XG_DELAY][i] = 1.0 * (double)i / (double)(40*2); // 0.0 ~ 1.0
+		else if(i <= 50*2)
+			nrpn_param_table[NRPN_PARAM_XG_DELAY][i] = 1.0 + 1.0 * ((double)i - 40*2) / (double)(50*2 - 40*2); // 1.0 ~ 2.0
+		else if(i <= 56*2)
+			nrpn_param_table[NRPN_PARAM_XG_DELAY][i] = 2.0 + 1.0 * ((double)i - 50*2) / (double)(56*2 - 50*2); // 2.0 ~ 3.0
+		else if(i <= 61*2)
+			nrpn_param_table[NRPN_PARAM_XG_DELAY][i] = 3.0 + 1.0 * ((double)i - 56*2) / (double)(61*2 - 56*2); // 3.0 ~ 4.0
+		else
+			nrpn_param_table[NRPN_PARAM_XG_DELAY][i] = 4.0 + 1.0 * ((double)i - 61*2) / (double)(NRPN_PARAM_TABLE_LENGTH - 61*2); // 4.0 ~ 5.0
+	}	
+	nrpn_param_table[NRPN_PARAM_XG_DELAY][NRPN_PARAM_TABLE_LENGTH] = 5.0;
+
+	// NRPN_PARAM_XG_RATE
+	// 1ïbÇ…5âÒã≠ÅA-7Ç≈1ïbÇ…4âÒÅA-19Ç≈1ïbÇ…3âÒÅA-33Ç≈1ïbÇ…2âÒÅA-49Ç≈1ïbÇ…1âÒÅA-57Ç≈2ïbÇ…1âÒïtãﬂÇæÇ¡ÇΩ
+	// x-57:0.5 x-49:1.0 x-33:2.0 x-19:1.0 x-7:4.0 x-0:5.5
+	// x=72 ÇƒÇ´Ç∆Å[
+	// 15       23       39        53      65      72
+	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){		
+		if(i <= 15*1)
+			nrpn_param_table[NRPN_PARAM_XG_RATE][i] = 0.5 * (double)i / (double)(15*1); // 0.0 ~ 0.5
+		else if(i <= 23*1)
+			nrpn_param_table[NRPN_PARAM_XG_RATE][i] = 0.5 + 0.5 * ((double)i - 15*1) / (double)(23*1 - 15*1); // 0.5 ~ 1.0
+		else if(i <= 39*1)
+			nrpn_param_table[NRPN_PARAM_XG_RATE][i] = 1.0 + 1.0 * ((double)i - 23*1) / (double)(39*1 - 23*1); // 1.0 ~ 2.0
+		else if(i <= 53*1)
+			nrpn_param_table[NRPN_PARAM_XG_RATE][i] = 2.0 + 1.0 * ((double)i - 39*1) / (double)(53*1 - 39*1); // 2.0 ~ 3.0
+		else if(i <= 65*1)
+			nrpn_param_table[NRPN_PARAM_XG_RATE][i] = 3.0 + 1.0 * ((double)i - 53*1) / (double)(65*1 - 53*1); // 3.0 ~ 4.0
+		else if(i <= 72*1)
+			nrpn_param_table[NRPN_PARAM_XG_RATE][i] = 4.0 + 1.5 * ((double)i - 65*1) / (double)(72*1 - 65*1); // 4.0 ~ 5.5
+		else
+			nrpn_param_table[NRPN_PARAM_XG_RATE][i] = 5.5 + 4.5 * ((double)i - 72*1) / (double)(NRPN_PARAM_TABLE_LENGTH - 72*1); // 5.5 ~ 10.0
+	}	
+	nrpn_param_table[NRPN_PARAM_XG_RATE][NRPN_PARAM_TABLE_LENGTH] = 10.0;
+	
+	// NRPN_PARAM_XG_CUTOFF , NRPN_PARAM_XG_CUTOFF_HPF , NRPN_PARAM_XG_ATTACK , NRPN_PARAM_XG_DECAY , NRPN_PARAM_XG_RELEASE
+	// ïsñæÇ»ÇÃÇ≈GMÇÉ}Å[ÉW
+	for(i = 0; i <= NRPN_PARAM_TABLE_LENGTH; i++){	
+		nrpn_param_table[NRPN_PARAM_XG_CUTOFF][i] = nrpn_param_table[NRPN_PARAM_GM_CUTOFF][i];
+		nrpn_param_table[NRPN_PARAM_XG_CUTOFF_HPF][i] = nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][i];
+		nrpn_param_table[NRPN_PARAM_XG_ATTACK][i] = nrpn_param_table[NRPN_PARAM_GM_ATTACK][i];
+		nrpn_param_table[NRPN_PARAM_XG_DECAY][i] = nrpn_param_table[NRPN_PARAM_GM_DECAY][i];
+		nrpn_param_table[NRPN_PARAM_XG_RELEASE][i] = nrpn_param_table[NRPN_PARAM_GM_RELEASE][i];
+	}	
+}
+
+FLOAT_T portament_time_table_xg[128];
+
+static void init_portament_table(void)
+{
+	int i;
+	FLOAT_T rate;
+	const FLOAT_T xg[11] = {1000.0, 480.0, 213.0, 56.47, 28.24, 18.82, 10.0, 4.51, 2.0, 0.975, 0.125, };
+/* 
+XG portament time
+0: 12000st/s instant
+1: 1000st/s
+8:8oct/0.2sec =480st/s
+16:8oct/0.45sec =213st/s
+32:8oct/1.7sec =56.47st/s
+48:8oct/3.4sec =28.24st/s
+64:8oct/5.1sec =18.82st/s
+80:8oct/9.6sec =10.0st/s
+96:8oct/21.3sec =4.51st/s
+112:4oct/24sec = 2.0st/s
+120:1oct/12.3sec = 0.975st/s
+127:5st/40sec = 0.125st/s
+*/
+	
+	for(i = 0; i < 128; i++){	
+		if(i == 0){
+			portament_time_table_xg[i] = 12000;
+		}else if(i < 8){
+			rate = (FLOAT_T)(i - 1) * DIV_7;
+			portament_time_table_xg[i] = xg[0] * (1.0 - rate) + xg[1] * rate;
+		}else if(i < 16){
+			rate = (FLOAT_T)(i - 8) * DIV_8;
+			portament_time_table_xg[i] = xg[1] * (1.0 - rate) + xg[2] * rate;
+		}else if(i < 32){
+			rate = (FLOAT_T)(i - 16) * DIV_16;
+			portament_time_table_xg[i] = xg[2] * (1.0 - rate) + xg[3] * rate;
+		}else if(i < 48){
+			rate = (FLOAT_T)(i - 32) * DIV_16;
+			portament_time_table_xg[i] = xg[3] * (1.0 - rate) + xg[4] * rate;
+		}else if(i < 64){
+			rate = (FLOAT_T)(i - 48) * DIV_16;
+			portament_time_table_xg[i] = xg[4] * (1.0 - rate) + xg[5] * rate;
+		}else if(i < 80){
+			rate = (FLOAT_T)(i - 64) * DIV_16;
+			portament_time_table_xg[i] = xg[5] * (1.0 - rate) + xg[6] * rate;
+		}else if(i < 96){
+			rate = (FLOAT_T)(i - 80) * DIV_16;
+			portament_time_table_xg[i] = xg[6] * (1.0 - rate) + xg[7] * rate;
+		}else if(i < 112){
+			rate = (FLOAT_T)(i - 96) * DIV_16;
+			portament_time_table_xg[i] = xg[7] * (1.0 - rate) + xg[8] * rate;
+		}else if(i < 120){
+			rate = (FLOAT_T)(i - 112) * DIV_8;
+			portament_time_table_xg[i] = xg[8] * (1.0 - rate) + xg[9] * rate;
+		}else if(i < 128){
+			rate = (FLOAT_T)(i - 120) * DIV_7;
+			portament_time_table_xg[i] = xg[9] * (1.0 - rate) + xg[10] * rate;
+		}
+	}
+}
+
 void init_tables(void)
 {
 #ifdef LOOKUP_HACK
@@ -488,6 +869,13 @@ void init_tables(void)
 
 #endif
 	init_triangular_table();
+///r
+	init_saw_table();
+	init_table2();
+	init_filter_coef();
+	init_noise_lowbit_table();
+	init_nrpn_param_table();
+	init_portament_table();
 }
 
 #ifdef LOOKUP_HACK
@@ -1047,62 +1435,8 @@ uint8 delay_macro_presets[] =
 	0,110,21,31,97,127,67,64,39,0,	/* 09: Pan Repeat */
 };
 
-float delay_time_center_table[] =
-{	/* 0x00~0x73, 0.1ms~1000ms */
-	0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
-	2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,
-	5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5,
-	10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-	20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48,
-	50, 55, 60, 65, 70, 75, 80, 85, 90, 95,
-	100, 110, 120, 130, 140, 150, 160, 170, 180, 190,
-	200, 220, 240, 260, 280, 300, 320, 340, 360, 380, 400, 420, 440, 460, 480,
-	500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
-};
 
-float pre_delay_time_table[] =
-{
-	0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
-	2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9,
-	4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9,
-	5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5,
-	10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-	30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-	50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88,
-	90, 92, 94, 96, 98, 100, 100, 100,
-};
 
-float chorus_delay_time_table[] =
-{
-    0.000000, 0.078740, 0.157480, 0.236220, 0.314961, 0.393701, 0.472441, 0.551181, 
-    0.629921, 0.708661, 0.787402, 0.866142, 0.944882, 1.023622, 1.102362, 1.181102, 
-    1.259843, 1.338583, 1.417323, 1.496063, 1.574803, 1.653543, 1.732283, 1.811024, 
-    1.889764, 1.968504, 2.047244, 2.125984, 2.204724, 2.283465, 2.362205, 2.440945, 
-    2.519685, 2.598425, 2.677165, 2.755906, 2.834646, 2.913386, 2.992126, 3.070866, 
-    3.149606, 3.228346, 3.307087, 3.385827, 3.464567, 3.543307, 3.622047, 3.700787, 
-    3.779528, 3.858268, 3.937008, 4.015748, 4.094488, 4.173228, 4.251969, 4.330709, 
-    4.409449, 4.488189, 4.566929, 4.645669, 4.724409, 4.803150, 4.881890, 4.960630, 
-    5.039370, 5.118110, 5.196850, 5.275591, 5.354331, 5.433071, 5.511811, 5.590551, 
-    5.669291, 5.748031, 5.826772, 5.905512, 5.984252, 6.062992, 6.141732, 6.220472, 
-    6.299213, 6.377953, 6.456693, 6.535433, 6.614173, 6.692913, 6.771654, 6.850394, 
-    6.929134, 7.007874, 7.086614, 7.165354, 7.244094, 7.322835, 7.401575, 7.480315, 
-    7.559055, 7.637795, 7.716535, 7.795276, 10.000000, 10.555556, 11.111111, 11.666667, 
-    12.222222, 12.777778, 13.333333, 13.888889, 14.444444, 15.000000, 15.555556, 16.111111, 
-    16.666667, 17.222222, 17.777778, 18.333333, 18.888889, 19.444444, 20.000000, 20.555556, 
-    21.111111, 21.666667, 22.222222, 22.777778, 23.333333, 23.888889, 24.444444, 25.000000, 
-};
-
-float rate1_table[] =
-{
-	0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80,
-	0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60,
-	1.65, 1.70, 1.75, 1.80, 1.85, 1.90, 1.95, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25, 2.30, 2.35, 2.40,
-	2.45, 2.50, 2.55, 2.60, 2.65, 2.70, 2.75, 2.80, 2.85, 2.90, 2.95, 3.00, 3.05, 3.10, 3.15, 3.20,
-	3.25, 3.30, 3.35, 3.40, 3.45, 3.50, 3.55, 3.60, 3.65, 3.70, 3.75, 3.80, 3.85, 3.90, 3.95, 4.00,
-	4.05, 4.10, 4.15, 4.20, 4.25, 4.30, 4.35, 4.40, 4.45, 4.50, 4.55, 4.60, 4.65, 4.70, 4.75, 4.80,
-	4.85, 4.90, 4.95, 5.00, 5.10, 5.20, 5.30, 5.40, 5.50, 5.60, 5.70, 5.80, 5.90, 6.00, 6.10, 6.20,
-	6.30, 6.40, 6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.50, 8.00, 8.50, 9.00, 9.50, 10.00, 10.00, 10.00,
-};
 
 /* Derivation of Perceived Volume Curve Equation:
  *
@@ -1138,7 +1472,7 @@ void init_perceived_vol_table(void)
 	
 	for (i = 0; i < 128; i++)
 		perceived_vol_table[i] =
-				127.0 * pow((double)i / 127.0, 1.66096404744);
+				127.0 * pow((double)i * DIV_127, 1.66096404744);
 }
 
 FLOAT_T gm2_vol_table[128];
@@ -1148,7 +1482,7 @@ void init_gm2_vol_table(void)
 	int i;
 	
 	for(i = 0; i < 128; i++)
-		gm2_vol_table[i] = (i * i) / 127.0;
+		gm2_vol_table[i] = (i * i) * DIV_127;
 }
 
 FLOAT_T user_vol_table[128];
@@ -1156,9 +1490,37 @@ FLOAT_T user_vol_table[128];
 void init_user_vol_table(FLOAT_T power)
 {
 	int i;
-	
+	double diff;
+
+	if ((int)power >= 3) {
+//		diff = power - 3.0 + 0.212;
+		diff = power - 3.0;
+
+		if ((int)power == 4) {
+			for (i = 0; i < 128; i++) {
+				user_vol_table[i] = 127.0 * (1.0 - cosf((double)i * DIV_127 * M_PI)) * 0.5;
+			}
+			return;
+		}
+
+		for (i = 0; i < 64; i++) {
+//			user_vol_table[i] = 127.0 * ((1.0 - pow(1.0 - (double)i * DIV_64, 2.0)) * DIV_2);
+//			user_vol_table[i] = 127.0 * (0.8 - (pow(1.0 - (double)i * DIV_64, 2.0) * 0.8) * DIV_2);
+			user_vol_table[i] = ((1.0 - pow(1.0 - (double)i * DIV_64, 2.0)) / 1.8);
+		}
+		for (i = 64; i < 128; i++) {
+//			user_vol_table[i] = 127.0 * ((1.0 + pow(((double)i - 60.0) / 67.0, 2.0)) * DIV_2);
+//			user_vol_table[i] = 127.0 * ((0.4 + pow(((double)i - 53.0) / 74.0, 1.44)) * 0.6);
+			user_vol_table[i] = ((1.0 + pow(((double)i - 62.0) * DIV_65, 2.0)) / 1.8);
+		}
+		for (i = 0; i < 128; i++) {
+			user_vol_table[i] = 127.0 * (user_vol_table[i] * pow((double)i * DIV_127, diff));
+		}
+		return;
+	}
+
 	for (i = 0; i < 128; i++)
-		user_vol_table[i] = 127.0 * pow((double)i / 127.0, power);
+		user_vol_table[i] = 127.0 * pow((double)i * DIV_127, power);
 }
 
 /* measured value from SC-88STPro.
@@ -1260,14 +1622,16 @@ FLOAT_T sc_drum_level_table[128] =
     113.385827, 115.283465, 117.196850, 119.125984, 121.070866, 123.031496, 125.007874, 127.000000, 
 };
 
-FLOAT_T attack_vol_table[1024];
+FLOAT_T attack_vol_table[1025];
 
 void init_attack_vol_table(void)
 {
 	int i;
 	
 	for (i = 0; i < 1024; i++)
-		attack_vol_table[i] = i / 1023.0;
+		attack_vol_table[i] = (double)i / 1023.0;
+	attack_vol_table[1024] = 1.0;
+
 }
 
 float sc_eg_decay_table[128] = 
@@ -1330,7 +1694,7 @@ float sc_eg_attack_table[128] =
     0.012084, 0.012084, 0.012084, 0.012084, 0.012084, 0.012084, 0.012084, 0.012084, 
 };
 
-FLOAT_T sb_vol_table[1024];
+FLOAT_T sb_vol_table[1025];
 
 void init_sb_vol_table(void)
 {
@@ -1338,23 +1702,40 @@ void init_sb_vol_table(void)
 	
 	for (i = 0; i < 1024; i++)
 		sb_vol_table[i] = pow(10.0, (double)(1023 - i) * 960.0 / (1023.0 * -200.0));
+	sb_vol_table[1024] = 1.0;
 }
 
-FLOAT_T modenv_vol_table[1024];
+FLOAT_T modenv_vol_table[1025], sf2_concave_table[1025], sf2_convex_table[1025];
+#define SF2_CONCAVE(a) (1.0 - sqrt(1.0 - (a) * (a)))
+#define SF2_CONVEX(a) (sqrt(1.0 - (1.0 - a) * (1.0 - a)))
+//#define SF2_CONCAVE(a) (log10((double)((1.0 - a) * (1.0 - a))) * (-20.0) * DIV_96 * 0.79737513840065736552677499445091)
+//#define SF2_CONVEX(a) (1.0 - log10((double)((a) * (a))) * (-20.0) * DIV_96 * 0.79737513840065736552677499445091)
+#define CURVE_MIX(a,b,c) ((a) * (c) + (b) * (1.0 - (c)))
+// 0.591685
 
 void init_modenv_vol_table(void)
 {
 	int i;
-	double x;
-
-	modenv_vol_table[0] = (float)0;
+	double x, linear;
+	
+	modenv_vol_table[0] = (FLOAT_T)0;
+	sf2_concave_table[0] = (FLOAT_T)0;
+	sf2_convex_table[0] = (FLOAT_T)0;
 	for (i = 1; i < 1023; i++) {
-		x = (1.0 - (-20.0 / 96.0 * log(((double)i * (double)i) / (1023.0 * 1023.0)) / log(10.0)));
+		linear = (double)i * DIV_1023;
+		x = (1.0 - (-20.0 * DIV_96 * log((linear * linear) * DIV_LN10)));
 		if (x < 0) {x = 0;}
-		modenv_vol_table[i] = log(x + 1) / log(2);
+		modenv_vol_table[i] = log(x + 1) * DIV_LN2;
+	//	sf2_concave_table[i] = SF2_CONCAVE(linear);
+	//	sf2_convex_table[i] = SF2_CONVEX(linear);
+		sf2_concave_table[i] = CURVE_MIX(SF2_CONCAVE(linear), linear, 0.5);
+		sf2_convex_table[i] = CURVE_MIX(SF2_CONVEX(linear), linear, 0.5);
 	}
-	modenv_vol_table[1023] = (float)1.0;
+	modenv_vol_table[1024] = modenv_vol_table[1023] = (FLOAT_T)1.0;
+	sf2_concave_table[1024] = sf2_concave_table[1023] = (FLOAT_T)1.0;
+	sf2_convex_table[1024] = sf2_convex_table[1023] = (FLOAT_T)1.0;
 }
+
 
 float cb_to_amp_table[961] = 
 {
@@ -1481,27 +1862,6 @@ float cb_to_amp_table[961] =
     0.015625, 
 };
 
-/* Reverb Time in sec */
-float reverb_time_table[128] = 
-{
-    0.410349, 0.440872, 0.468882, 0.494640, 0.518394, 0.540373, 0.560793, 0.579854, 
-    0.597743, 0.614635, 0.630688, 0.646053, 0.660866, 0.675251, 0.689325, 0.703192, 
-    0.716947, 0.730676, 0.744456, 0.758358, 0.772441, 0.786761, 0.801365, 0.816293, 
-    0.831583, 0.847262, 0.863356, 0.879886, 0.896866, 0.914308, 0.932223, 0.950614, 
-    0.969484, 0.988835, 1.008663, 1.028967, 1.049741, 1.070980, 1.092677, 1.114826, 
-    1.137419, 1.160450, 1.183914, 1.207803, 1.232115, 1.256845, 1.281992, 1.307556, 
-    1.333540, 1.359947, 1.386784, 1.414061, 1.441788, 1.469982, 1.498661, 1.527845, 
-    1.557561, 1.587836, 1.618703, 1.650199, 1.682363, 1.715240, 1.748879, 1.783333, 
-    1.818659, 1.854921, 1.892183, 1.930517, 1.970001, 2.010713, 2.052741, 2.096173, 
-    2.141107, 2.187641, 2.235880, 2.285935, 2.337920, 2.391955, 2.448163, 2.506674, 
-    2.567622, 2.631144, 2.697384, 2.766490, 2.838612, 2.913907, 2.992536, 3.074662, 
-    3.160454, 3.250085, 3.343730, 3.441570, 3.543786, 3.650566, 3.762098, 3.878575, 
-    4.000192, 4.127146, 4.259638, 4.397868, 4.542042, 4.692364, 4.849041, 5.012281, 
-    5.182294, 5.359289, 5.543476, 5.735064, 5.934264, 6.141286, 6.356336, 6.356336, 
-    6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 
-    6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 
-};
-
 /* phase lag between left and right ear. (in ms) */
 float pan_delay_table[128] = 
 {
@@ -1541,69 +1901,180 @@ float chamberlin_filter_db_to_q_table[97] =
     382.331802, 
 };
 
-uint8 multi_eq_block_table_xg[] =
-{	/* Gain1, Freq1, Q1, Shape1, Gain2, Freq2, Q2, Not Used, Gain3, Freq3, Q3, Not Used,
-	Gain4, Freq4, Q4, Not Used, Gain5, Freq5, Shape5 */
-	64, 12, 7, 0, 64, 28, 7, 0, 64, 34, 7, 0, 64, 46, 7, 0, 64, 52, 7, 0,	/* Flat */
-	58, 8, 7, 0, 66, 16, 3, 0, 68, 33, 3, 0, 60, 44, 5, 0, 58, 50, 7, 0,	/* Jazz */
-	68, 16, 7, 0, 60, 24, 20, 0, 67, 34, 7, 0, 60, 40, 20, 0, 70, 48, 7, 0,	/* Pops */
-	71, 16, 7, 0, 68, 20, 7, 0, 60, 36, 5, 0, 68, 41, 10, 0, 66, 50, 7, 0,	/* Rock */
-	67, 12, 7, 0, 68, 24, 7, 0, 64, 34, 5, 0, 66, 50, 7, 0, 61, 52, 7, 0,	/* Concert */
-};
 
-float eq_freq_table_xg[] = 
+///r
+/********** GS SYS **********/
+/* Reverb Time in sec */
+float reverb_time_table[128] = 
 {
-	20, 22, 25, 28, 32, 36, 40, 45, 50, 56, 63, 70, 80, 90, 100, 110,
-	125, 140, 160, 180, 200, 225, 250, 280, 315, 355, 400, 450, 500, 560, 630,
-	700, 800, 900, 1000, 1100, 1200, 1400, 1600, 1800, 2000, 2200, 2500, 2800, 3200, 3600,
-	4000, 4500, 5000, 5600, 6300, 7000, 8000, 9000, 10000, 11000, 12000, 14000, 16000, 18000, 20000,
+    0.410349, 0.440872, 0.468882, 0.494640, 0.518394, 0.540373, 0.560793, 0.579854, 
+    0.597743, 0.614635, 0.630688, 0.646053, 0.660866, 0.675251, 0.689325, 0.703192, 
+    0.716947, 0.730676, 0.744456, 0.758358, 0.772441, 0.786761, 0.801365, 0.816293, 
+    0.831583, 0.847262, 0.863356, 0.879886, 0.896866, 0.914308, 0.932223, 0.950614, 
+    0.969484, 0.988835, 1.008663, 1.028967, 1.049741, 1.070980, 1.092677, 1.114826, 
+    1.137419, 1.160450, 1.183914, 1.207803, 1.232115, 1.256845, 1.281992, 1.307556, 
+    1.333540, 1.359947, 1.386784, 1.414061, 1.441788, 1.469982, 1.498661, 1.527845, 
+    1.557561, 1.587836, 1.618703, 1.650199, 1.682363, 1.715240, 1.748879, 1.783333, 
+    1.818659, 1.854921, 1.892183, 1.930517, 1.970001, 2.010713, 2.052741, 2.096173, 
+    2.141107, 2.187641, 2.235880, 2.285935, 2.337920, 2.391955, 2.448163, 2.506674, 
+    2.567622, 2.631144, 2.697384, 2.766490, 2.838612, 2.913907, 2.992536, 3.074662, 
+    3.160454, 3.250085, 3.343730, 3.441570, 3.543786, 3.650566, 3.762098, 3.878575, 
+    4.000192, 4.127146, 4.259638, 4.397868, 4.542042, 4.692364, 4.849041, 5.012281, 
+    5.182294, 5.359289, 5.543476, 5.735064, 5.934264, 6.141286, 6.356336, 6.356336, 
+    6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 
+    6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 6.356336, 
 };
 
-float lfo_freq_table_xg[] = 
+float chorus_delay_time_table[] =
 {
-	0.00, 0.04, 0.08, 0.13, 0.17, 0.21, 0.25, 0.29, 0.34, 0.38, 0.42, 0.46, 0.51, 0.55, 0.59, 0.63,
-	0.67, 0.72, 0.76, 0.80, 0.84, 0.88, 0.93, 0.97, 1.01, 1.05, 1.09, 1.14, 1.18, 1.22, 1.26, 1.30,
-	1.35, 1.39, 1.43, 1.47, 1.51, 1.56, 1.60, 1.64, 1.68, 1.72, 1.77, 1.81, 1.85, 1.89, 1.94, 1.98,
-	2.02, 2.06, 2.10, 2.15, 2.19, 2.23, 2.27, 2.31, 2.36, 2.40, 2.44, 2.48, 2.52, 2.57, 2.61, 2.65,
-	2.69, 2.78, 2.86, 2.94, 3.03, 3.11, 3.20, 2.28, 3.37, 3.45, 3.53, 3.62, 3.70, 3.87, 4.04, 4.21,
-	4.37, 4.54, 4.71, 4.88, 5.05, 5.22, 5.38, 5.55, 5.72, 6.06, 6.39, 6.73, 7.07, 7.40, 7.74, 8.08,
-	8.41, 8.75, 9.08, 9.42, 9.76, 10.1, 10.8, 11.4, 12.1, 12.8, 13.5, 14.1, 14.8, 15.5, 16.2, 16.8,
-	17.5, 18.2, 19.5, 20.9, 22.2, 23.6, 24.9, 26.2, 27.6, 28.9, 30.3, 31.6, 33.0, 34.3, 37.0, 39.7,
+    0.000000, 0.078740, 0.157480, 0.236220, 0.314961, 0.393701, 0.472441, 0.551181, 
+    0.629921, 0.708661, 0.787402, 0.866142, 0.944882, 1.023622, 1.102362, 1.181102, 
+    1.259843, 1.338583, 1.417323, 1.496063, 1.574803, 1.653543, 1.732283, 1.811024, 
+    1.889764, 1.968504, 2.047244, 2.125984, 2.204724, 2.283465, 2.362205, 2.440945, 
+    2.519685, 2.598425, 2.677165, 2.755906, 2.834646, 2.913386, 2.992126, 3.070866, 
+    3.149606, 3.228346, 3.307087, 3.385827, 3.464567, 3.543307, 3.622047, 3.700787, 
+    3.779528, 3.858268, 3.937008, 4.015748, 4.094488, 4.173228, 4.251969, 4.330709, 
+    4.409449, 4.488189, 4.566929, 4.645669, 4.724409, 4.803150, 4.881890, 4.960630, 
+    5.039370, 5.118110, 5.196850, 5.275591, 5.354331, 5.433071, 5.511811, 5.590551, 
+    5.669291, 5.748031, 5.826772, 5.905512, 5.984252, 6.062992, 6.141732, 6.220472, 
+    6.299213, 6.377953, 6.456693, 6.535433, 6.614173, 6.692913, 6.771654, 6.850394, 
+    6.929134, 7.007874, 7.086614, 7.165354, 7.244094, 7.322835, 7.401575, 7.480315, 
+    7.559055, 7.637795, 7.716535, 7.795276, 10.000000, 10.555556, 11.111111, 11.666667, 
+    12.222222, 12.777778, 13.333333, 13.888889, 14.444444, 15.000000, 15.555556, 16.111111, 
+    16.666667, 17.222222, 17.777778, 18.333333, 18.888889, 19.444444, 20.000000, 20.555556, 
+    21.111111, 21.666667, 22.222222, 22.777778, 23.333333, 23.888889, 24.444444, 25.000000, 
 };
 
-float mod_delay_offset_table_xg[] =
+float delay_time_center_table[] =
+{	/* 0x00~0x73, 0.1ms~1000ms */
+	0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
+	2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,
+	5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5,
+	10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+	20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48,
+	50, 55, 60, 65, 70, 75, 80, 85, 90, 95,
+	100, 110, 120, 130, 140, 150, 160, 170, 180, 190,
+	200, 220, 240, 260, 280, 300, 320, 340, 360, 380, 400, 420, 440, 460, 480,
+	500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
+};
+
+
+/********** GS INS **********/
+// table 1
+float pre_delay_time_table[] =
 {
-	0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5,
-	1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 
-	3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7,
-	4.8, 4.9, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6.0, 6.1, 6.2, 6.3,
-	6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7.0, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9,
-	8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5,
-	9.6, 9.7, 9.8, 9.9, 10.0, 11.1, 12.2, 13.3, 14.4, 15.5, 17.1, 18.6, 20.2, 21.8,	23.3, 24.9,
-	26.5, 28.0, 29.6, 31.2, 32.8, 34.3, 35.9, 37.5, 39.0, 40.6,	42.2, 43.7, 45.3, 46.9, 48.4, 50.0,
+	0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
+	2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9,
+	4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9,
+	5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5,
+	10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+	30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+	50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88,
+	90, 92, 94, 96, 98, 100, 100, 100,
 };
 
-float reverb_time_table_xg[] =
+// table 2
+int16 delay_time_1_table[128] =
+{ 
+	200,205,210,215,220,225,230,235,240,245,250,255,260,265,270,275,280,285,290,295,
+	300,305,310,315,320,325,330,335,340,345,350,355,360,365,370,375,380,385,390,395,
+	400,405,410,415,420,425,430,435,440,445,450,455,460,465,470,475,480,485,490,495,
+	500,505,510,515,520,525,530,535,540,545,550,560,570,580,590,600,610,620,630,640,
+	650,660,670,680,690,700,710,720,730,740,750,760,770,780,790,800,810,820,830,840,
+	850,860,870,880,890,900,910,920,930,940,950,960,970,980,990,1000,1000,1000,1000,1000,
+	1000,1000,1000,1000,1000,1000,1000,
+};
+
+// table 3
+int16 delay_time_2_table[128] =
+{ 
+	200,205,210,215,220,225,230,235,240,245,250,255,260,265,270,275,280,285,290,295,
+	300,305,310,315,320,325,330,335,340,345,350,355,360,365,370,375,380,385,390,395,
+	400,405,410,415,420,425,430,435,440,445,450,455,460,465,470,475,480,485,490,495,
+	500,505,510,515,520,525,530,535,540,545,550,555,560,565,570,575,580,585,590,595,
+	600,610,620,630,640,650,660,670,680,690,700,710,720,730,740,750,760,770,780,790,
+	800,810,820,830,840,850,860,870,880,890,900,910,920,930,940,950,960,970,980,990,
+	1000,1000,1000,1000,1000,1000,1000,1000,
+};
+
+// table 4
+float delay_time_3_table[128] =
+{	/* 0x00~0x7F, 0.0ms~500ms */
+	0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,
+	2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,
+	4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,
+	10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,
+	30,31,32,33,34,35,36,37,38,39,40,50,60,70,80,90,100,110,120,130,
+	140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,320,340,360,
+	380,400,420,440,460,480,500,500,
+};
+
+// table 5
+float delay_time_4_table[128] =
+{	/* 0x00~0x7F, 0.0ms~635ms */
+	  0.0,   5.0,  10.0,  15.0,  20.0,  25.0,  30.0,  35.0,  40.0,  45.0, 
+	 50.0,  55.0,  60.0,  65.0,  70.0,  75.0,  80.0,  85.0,  90.0,  95.0, 
+	100.0, 105.0, 110.0, 115.0, 120.0, 125.0, 130.0, 135.0, 140.0, 145.0, 
+	150.0, 155.0, 160.0, 165.0, 170.0, 175.0, 180.0, 185.0, 190.0, 195.0, 
+	200.0, 205.0, 210.0, 215.0, 220.0, 225.0, 230.0, 235.0, 240.0, 245.0, 
+	250.0, 255.0, 260.0, 265.0, 270.0, 275.0, 280.0, 285.0, 290.0, 295.0, 
+	300.0, 305.0, 310.0, 315.0, 320.0, 325.0, 330.0, 335.0, 340.0, 345.0, 
+	350.0, 355.0, 360.0, 365.0, 370.0, 375.0, 380.0, 385.0, 390.0, 395.0, 
+	400.0, 405.0, 410.0, 415.0, 420.0, 425.0, 430.0, 435.0, 440.0, 445.0, 
+	450.0, 455.0, 460.0, 465.0, 470.0, 475.0, 480.0, 485.0, 490.0, 495.0, 
+	500.0, 505.0, 510.0, 515.0, 520.0, 525.0, 530.0, 535.0, 540.0, 545.0, 
+	550.0, 555.0, 560.0, 565.0, 570.0, 575.0, 580.0, 585.0, 590.0, 595.0, 
+	600.0, 605.0, 610.0, 615.0, 620.0, 625.0, 630.0, 635.0, 
+};
+
+// table 6
+float rate1_table[] =
 {
-	0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8,
-	1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4,
-	3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0,
-	5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
-	17.0, 18.0, 19.0, 20.0, 25.0, 30.0,
+	0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80,
+	0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60,
+	1.65, 1.70, 1.75, 1.80, 1.85, 1.90, 1.95, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25, 2.30, 2.35, 2.40,
+	2.45, 2.50, 2.55, 2.60, 2.65, 2.70, 2.75, 2.80, 2.85, 2.90, 2.95, 3.00, 3.05, 3.10, 3.15, 3.20,
+	3.25, 3.30, 3.35, 3.40, 3.45, 3.50, 3.55, 3.60, 3.65, 3.70, 3.75, 3.80, 3.85, 3.90, 3.95, 4.00,
+	4.05, 4.10, 4.15, 4.20, 4.25, 4.30, 4.35, 4.40, 4.45, 4.50, 4.55, 4.60, 4.65, 4.70, 4.75, 4.80,
+	4.85, 4.90, 4.95, 5.00, 5.10, 5.20, 5.30, 5.40, 5.50, 5.60, 5.70, 5.80, 5.90, 6.00, 6.10, 6.20,
+	6.30, 6.40, 6.50, 6.60, 6.70, 6.80, 6.90, 7.00, 7.50, 8.00, 8.50, 9.00, 9.50, 10.00, 10.00, 10.00,
 };
 
-float delay_time_table_xg[] =
+// table 7
+float rate2_table[] =
 {
-	0.1, 1.7, 3.2, 4.8, 6.4, 8.0, 9.5, 11.1, 12.7, 14.3, 15.8, 17.4, 19.0, 20.6, 22.1, 23.7,
-	25.3, 26.9, 28.4, 30.0, 31.6, 33.2, 34.7, 36.3, 37.9, 39.5, 41.0, 42.6, 44.2, 45.7, 47.3, 48.9,
-	50.5, 52.0, 53.6, 55.2, 56.8, 58.3, 59.9, 61.5, 63.1, 64.6, 66.2, 67.8, 69.4, 70.9, 72.5, 74.1,
-	75.7, 77.2, 78.8, 80.4, 81.9, 83.5, 85.1, 86.7, 88.2, 89.8, 91.4, 93.0, 94.5, 96.1, 97.7, 99.3,
-	100.8, 102.4, 104.0, 105.6, 107.1, 108.7, 110.3, 111.9, 113.4, 115.0, 116.6, 118.2, 119.7, 121.3, 122.9, 124.4,
-	126.0, 127.6, 129.2, 130.7, 132.3, 133.9, 135.5, 137.0, 138.6, 140.2, 141.8, 143.3, 144.9, 146.5, 148.1, 149.6,
-	151.2, 152.8, 154.4, 155.9, 157.5, 159.1, 160.6, 162.2, 163.8, 165.4, 166.9, 168.5, 170.1, 171.7, 173.2, 174.8,
-	176.4, 178.0, 179.5, 181.1, 182.7, 184.3, 185.8, 187.4, 189.0, 190.6, 192.1, 193.7, 195.3, 196.9, 198.4, 200.0,
+	0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80,
+	0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60,
+	1.65, 1.70, 1.75, 1.80, 1.85, 1.90, 1.95, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25, 2.30, 2.35, 2.40,
+	2.45, 2.50, 2.55, 2.60, 2.65, 2.70, 2.75, 2.80, 2.85, 2.90, 2.95, 3.00, 3.05, 3.10, 3.15, 3.20,
+	3.25, 3.30, 3.35, 3.40, 3.45, 3.50, 3.55, 3.60, 3.65, 3.70, 3.75, 3.80, 3.85, 3.90, 3.95, 4.00,
+	4.05, 4.10, 4.15, 4.20, 4.25, 4.30, 4.35, 4.40, 4.45, 4.50, 4.55, 4.60, 4.65, 4.70, 4.75, 4.80,
+	4.85, 4.90, 4.95, 5.00, 5.05, 5.10, 5.15, 5.20, 5.25, 5.30, 5.35, 5.40, 5.45, 5.50, 5.55, 5.60,
+	5.65, 5.70, 5.75, 5.80, 5.85, 5.90, 5.95, 6.00, 6.05, 6.10, 6.15, 6.20, 6.25, 6.30, 6.35, 6.40,
 };
 
+// table 8
+int16 HF_damp_freq_table_gs[] =
+{
+	315, 315, 315, 315, 315, 315, 315, 315,
+	400, 400, 400, 400, 400, 400, 400, 400,
+	500, 500, 500, 500, 500, 500, 500, 500,
+	630, 630, 630, 630, 630, 630, 630, 630,
+	800, 800, 800, 800, 800, 800, 800, 800,
+	1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
+	1250, 1250, 1250, 1250, 1250, 1250, 1250, 1250,
+	1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600,
+	2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000,
+	2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500,
+	3150, 3150, 3150, 3150, 3150, 3150, 3150, 3150,
+	4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000,
+	5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
+	6300, 6300, 6300, 6300, 6300, 6300, 6300, 6300,
+	8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000,
+	22000, 22000, 22000, 22000, 22000, 22000, 22000, 22000,
+};
+
+// table 9
 int16 cutoff_freq_table_gs[] =
 {
 	250, 250, 250, 250, 250, 250, 250, 250,
@@ -1624,26 +2095,7 @@ int16 cutoff_freq_table_gs[] =
 	8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000,
 };
 
-int16 lpf_table_gs[] =
-{
-	250, 250, 250, 250, 250, 250, 250, 250,
-	315, 315, 315, 315, 315, 315, 315, 315,
-	400, 400, 400, 400, 400, 400, 400, 400,
-	500, 500, 500, 500, 500, 500, 500, 500,
-	630, 630, 630, 630, 630, 630, 630, 630,
-	800, 800, 800, 800, 800, 800, 800, 800,
-	1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
-	1250, 1250, 1250, 1250, 1250, 1250, 1250, 1250,
-	1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600,
-	2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000,
-	2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500,
-	3150, 3150, 3150, 3150, 3150, 3150, 3150, 3150,
-	4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000,
-	5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
-	6300, 6300, 6300, 6300, 6300, 6300, 6300, 6300,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-};
-
+// table 10
 int16 eq_freq_table_gs[] =
 {
 	200, 200, 200, 200, 200, 200, 200, 200,
@@ -1664,6 +2116,208 @@ int16 eq_freq_table_gs[] =
 	6300, 6300, 6300, 6300, 6300, 6300, 6300, 6300,
 };
 
+// table 11
+int16 lpf_table_gs[] =
+{
+	250, 250, 250, 250, 250, 250, 250, 250,
+	315, 315, 315, 315, 315, 315, 315, 315,
+	400, 400, 400, 400, 400, 400, 400, 400,
+	500, 500, 500, 500, 500, 500, 500, 500,
+	630, 630, 630, 630, 630, 630, 630, 630,
+	800, 800, 800, 800, 800, 800, 800, 800,
+	1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
+	1250, 1250, 1250, 1250, 1250, 1250, 1250, 1250,
+	1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600,
+	2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000,
+	2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500,
+	3150, 3150, 3150, 3150, 3150, 3150, 3150, 3150,
+	4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000,
+	5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
+	6300, 6300, 6300, 6300, 6300, 6300, 6300, 6300,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+};
+
+// table 12
+int16 manual_table[] =
+{
+	100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,
+	300,320,340,360,380,400,420,440,460,480,500,520,540,560,580,600,620,640,660,680,
+	700,720,740,760,780,800,820,840,860,880,900,920,940,960,980,1000,1100,1200,1300,1400,
+	1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,
+	3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,
+	5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,
+	7500,7600,7700,7800,7900,8000,8000,8000,
+};
+
+// table 13
+int16 azimuth_table[] =
+{
+	-180,-180,-180,-180,-180,-180,-168,-168,-168,-168,-156,-156,-156,-156,-144,-144,
+	-144,-144,-132,-132,-132,-132,-120,-120,-120,-120,-108,-108,-108,-108, -96, -96,
+	 -96, -96, -84, -84, -84, -84, -72, -72, -72, -72, -60, -60, -60, -60, -48, -48,
+	 -48, -48, -36, -36, -36, -36, -24, -24, -24, -24, -12, -12, -12, -12,   0,   0,
+	   0,   0,  12,  12,  12,  12,  24,  24,  24,  24,  36,  36,  36,  36,  48,  48,
+	  48,  48,  60,  60,  60,  60,  72,  72,  72,  72,  84,  84,  84,  84,  96,  96,
+	  96,  96, 108, 108, 108, 108, 120, 120, 120, 120, 132, 132, 132, 132, 144, 144,
+	 144, 144, 156, 156, 156, 156, 168, 168, 168, 168, 180, 180, 180, 180, 180, 180,
+};
+
+// table 14
+//float accel_table[] =
+//{
+//	0,
+//};
+
+
+
+
+/********** XG **********/
+// table 1
+float lfo_freq_table_xg[] = 
+{
+	0.00, 0.04, 0.08, 0.13, 0.17, 0.21, 0.25, 0.29, 0.34, 0.38, 0.42, 0.46, 0.51, 0.55, 0.59, 0.63,
+	0.67, 0.72, 0.76, 0.80, 0.84, 0.88, 0.93, 0.97, 1.01, 1.05, 1.09, 1.14, 1.18, 1.22, 1.26, 1.30,
+	1.35, 1.39, 1.43, 1.47, 1.51, 1.56, 1.60, 1.64, 1.68, 1.72, 1.77, 1.81, 1.85, 1.89, 1.94, 1.98,
+	2.02, 2.06, 2.10, 2.15, 2.19, 2.23, 2.27, 2.31, 2.36, 2.40, 2.44, 2.48, 2.52, 2.57, 2.61, 2.65,
+	2.69, 2.78, 2.86, 2.94, 3.03, 3.11, 3.20, 2.28, 3.37, 3.45, 3.53, 3.62, 3.70, 3.87, 4.04, 4.21,
+	4.37, 4.54, 4.71, 4.88, 5.05, 5.22, 5.38, 5.55, 5.72, 6.06, 6.39, 6.73, 7.07, 7.40, 7.74, 8.08,
+	8.41, 8.75, 9.08, 9.42, 9.76, 10.1, 10.8, 11.4, 12.1, 12.8, 13.5, 14.1, 14.8, 15.5, 16.2, 16.8,
+	17.5, 18.2, 19.5, 20.9, 22.2, 23.6, 24.9, 26.2, 27.6, 28.9, 30.3, 31.6, 33.0, 34.3, 37.0, 39.7,
+};
+
+// table 2
+float mod_delay_offset_table_xg[] =
+{
+	0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5,
+	1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 
+	3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7,
+	4.8, 4.9, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6.0, 6.1, 6.2, 6.3,
+	6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7.0, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9,
+	8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5,
+	9.6, 9.7, 9.8, 9.9, 10.0, 11.1, 12.2, 13.3, 14.4, 15.5, 17.1, 18.6, 20.2, 21.8,	23.3, 24.9,
+	26.5, 28.0, 29.6, 31.2, 32.8, 34.3, 35.9, 37.5, 39.0, 40.6,	42.2, 43.7, 45.3, 46.9, 48.4, 50.0,
+};
+
+// table 3
+float eq_freq_table_xg[] = 
+{
+	20, 22, 25, 28, 32, 36, 40, 45, 50, 56, 63, 70, 80, 90, 100, 110,
+	125, 140, 160, 180, 200, 225, 250, 280, 315, 355, 400, 450, 500, 560, 630, 700, 
+	800, 900, 1000, 1100, 1200, 1400, 1600, 1800, 2000, 2200, 2500, 2800, 3200, 3600, 4000, 4500,
+	5000, 5600, 6300, 7000, 8000, 9000, 10000, 11000, 
+	12000, 14000, 16000, 18000, 20000,
+}; // param 60
+
+
+// table 4
+float reverb_time_table_xg[] =
+{
+	0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8,
+	1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4,
+	3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0,
+	5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+	17.0, 18.0, 19.0, 20.0, 25.0, 30.0,
+};
+
+// table 5
+float delay_time_table_xg[] =
+{
+	0.1, 1.7, 3.2, 4.8, 6.4, 8.0, 9.5, 11.1, 12.7, 14.3, 15.8, 17.4, 19.0, 20.6, 22.1, 23.7,
+	25.3, 26.9, 28.4, 30.0, 31.6, 33.2, 34.7, 36.3, 37.9, 39.5, 41.0, 42.6, 44.2, 45.7, 47.3, 48.9,
+	50.5, 52.0, 53.6, 55.2, 56.8, 58.3, 59.9, 61.5, 63.1, 64.6, 66.2, 67.8, 69.4, 70.9, 72.5, 74.1,
+	75.7, 77.2, 78.8, 80.4, 81.9, 83.5, 85.1, 86.7, 88.2, 89.8, 91.4, 93.0, 94.5, 96.1, 97.7, 99.3,
+	100.8, 102.4, 104.0, 105.6, 107.1, 108.7, 110.3, 111.9, 113.4, 115.0, 116.6, 118.2, 119.7, 121.3, 122.9, 124.4,
+	126.0, 127.6, 129.2, 130.7, 132.3, 133.9, 135.5, 137.0, 138.6, 140.2, 141.8, 143.3, 144.9, 146.5, 148.1, 149.6,
+	151.2, 152.8, 154.4, 155.9, 157.5, 159.1, 160.6, 162.2, 163.8, 165.4, 166.9, 168.5, 170.1, 171.7, 173.2, 174.8,
+	176.4, 178.0, 179.5, 181.1, 182.7, 184.3, 185.8, 187.4, 189.0, 190.6, 192.1, 193.7, 195.3, 196.9, 198.4, 200.0,
+};
+
+// table 6
+float room_size_table_xg[] =
+{
+	// 0 ~ 44
+	0.1, 0.3, 0,4, 0.6, 0.7, 0.9, 1.0, 1.2, 1.4, 1.5,
+	1.7, 1.8, 2.0, 2.1, 2.3, 2.5, 2.6, 2.8, 2.9, 3.1,
+	3.2, 3.4, 3.5, 3.7, 3.9, 4.0, 4.2, 4.3, 4.5, 4.6,
+	4.8, 5.0, 5.1, 5.3, 5.4, 5.6, 5.7, 5.9, 6.1, 6.2,
+	6.4, 6.5, 6.7, 6.8, 7.0,
+};
+
+// table 7
+float delay_time_2_table_xg[] =
+{
+	  0.1,   3.2,   6.4,   9.5,  12.7,  15.8,  19.0,  22.1,  25.3,  28.4,
+	 31.6,  34.7,  37.9,  41.0,  44.2,  47.3,  50.5,  53.6,  56.8,  59.9,
+	 63.1,  66.2,  69.4,  72.5,  75.7,  78.8,  82.0,  85.1,  88.3,  91.4,
+	 94.6,  97.7, 100.9, 104.0, 107.2, 110.3, 113.5, 116.6, 119.8, 122.9,
+	126.1, 129.2, 132.4, 135.5, 138.6, 141.8, 144.9, 148.1, 151.2, 154.4,
+	157.5, 160.7, 163.8, 167.0, 170.1, 173.3, 176.4, 179.6, 182.7, 185.9,
+	189.0, 192.2, 195.3, 198.5, 201.6, 204.8, 207.9, 211.1, 214.2, 217.4,
+	220.5, 223.7, 226.8, 300.0, 233.1, 236.3, 239.4, 242.6, 245.7, 248.9,
+	252.0, 255.2, 258.3, 261.5, 254.6, 267.7, 270.9, 274.0, 277.2, 280.3,
+	283.5, 286.6, 289.8, 292.9, 296.1, 299.2, 302.4, 305.5, 308.7, 311.8,
+	315.0, 318.1, 321.3, 324.4, 327.6, 330.7, 333.9, 337.0, 340.2, 343.3,
+	346.5, 349.6, 352.8, 355.9, 359.1, 362.2, 365.4, 368.5, 371.7, 374.8,
+	378.0, 381.1, 384.3, 387.4, 390.6, 393.7, 396.9, 400.0, 
+};
+
+// table 8
+float compressor_attack_time_table_xg[] =
+{
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
+	12, 14, 16, 18, 20, 23, 26, 30, 35 ,40, 
+};
+
+// table 9
+float compressor_release_time_table_xg[] =
+{
+	10, 15, 25, 35, 45, 55, 65, 75, 85, 100, 
+	115, 140, 170, 230, 340, 680, 
+};
+
+// table 10
+float compressor_ratio_table_xg[] =
+{
+	1.0, 1.5, 2.0, 3.0, 5.0, 7.0, 10.0, 20.0,
+};
+
+// table 11
+float reverb_width_height_table_xg[] =
+{
+	// 0 ~ 104
+	 0.5,  0.8,  1.0,  1.3,  1.5,  1.8,  2.0,  2.3,  2.6,  2.8,
+	 3.1,  3.3,  3.6,  3.9,  4.1,  4.4,  4.6,  4.9,  5.2,  5.4,
+	 5.7,  5.9,  6.2,  6.5,  6.7,  7.0,  7.2,  7.5,  7.8,  8.0,
+	 8.3,  8.6,  8.8,  9.1,  9.4,  9.6,  9.9, 10.2, 10.4, 10.7,
+	11.0, 11.2, 11.5, 11.8, 11.8, 12.1, 12.3, 12.6, 12.9, 13.1,
+	13.4, 13.7, 14.0, 14.2, 14.5, 14.8, 15.1, 15.6, 15.9, 16.2,
+	16.5, 16.8, 17.1, 17.3, 17.6, 17.9, 18.2, 18.5, 18.8, 19.1,
+	19.4, 19.7, 20.0, 20.2, 20.5, 20.8, 21.1, 21.4, 21.7, 22.0,
+	22.4, 22.7, 23.0, 23.3, 23.6, 23.9, 24.2, 24.5, 24.9, 25.2,
+	25.5, 25.8, 26.1, 26.5, 26.8, 27.1, 27.5, 27.8, 28.1, 28.5,
+	28.8, 29.2, 29.5, 29.9, 30.2,
+};
+
+// table 12
+float wah_release_time_table_xg[] =
+{
+	// 52~67
+	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 
+	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 
+	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 
+	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 
+	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 
+	10, 10, 10, 15, 25, 35, 45, 55, 65, 75, 
+	85, 100, 115, 140, 170, 230, 340, 680, 680, 680, 
+	680, 680, 680, 680, 680, 680, 680, 680, 680, 680, 
+	680, 680, 680, 680, 680, 680, 680, 680, 680, 680, 
+	680, 680, 680, 680, 680, 680, 680, 680, 680, 680, 
+	680, 680, 680, 680, 680, 680, 680, 680, 680, 680, 
+	680, 680, 680, 680, 680, 680, 680, 680, 680, 680, 
+	680, 680, 680, 680, 680, 680, 680, 680,
+};
+
+//table 13
 float lofi_sampling_freq_table_xg[] =
 {
 	44100.0, 22100.0, 14700.0, 11000.0, 8800.0, 7400.0, 6300.0, 5500.0,
@@ -1683,3 +2337,379 @@ float lofi_sampling_freq_table_xg[] =
 	390.0, 387.0, 383.0, 380.0, 377.0, 374.0, 371.0, 368.0,
 	364.0, 361.0, 359.0, 356.0, 353.0, 350.0, 347.0, 345.0,
 };
+
+// table 14
+// 4th = 1.0
+float tempo_table_xg[] = {
+	DIV_8 * DIV_3,	// 64th/3
+	DIV_16 * 1.5f,	// 64th.
+	DIV_8,			// 32th
+	DIV_4 * DIV_3,	// 32th/3
+	DIV_8 * 1.5f,	// 32th.
+	DIV_4,			// 16th
+	DIV_2 * DIV_3,	// 16th/3
+	DIV_4 * 1.5f,	// 16th.
+	DIV_2,			// 8th
+	1.0f * DIV_3,	// 8th/3
+	DIV_2 * 1.5f,	// 8th.
+	1.0f,			// 4th
+	2.0f * DIV_3,	// 4th/3
+	1.0f * 1.5f,	// 4th.
+	2.0f,			// 2th
+	4.0f * DIV_3,	// 2th/3
+	2.0f * 1.5f,	// 2th.
+	4.0f,			// 4thx4
+	5.0f,			// 4thx5
+	6.0f,			// 4thx6
+	7.0f,			// 4thx7
+	8.0f,			// 4thx8
+	9.0f,			// 4thx9
+	10.0f,			// 4thx10
+	11.0f,			// 4thx11
+	12.0f,			// 4thx12
+	13.0f,			// 4thx13
+	14.0f,			// 4thx14
+	15.0f,			// 4thx15
+	16.0f,			// 4thx16
+	17.0f,			// 4thx17
+	18.0f,			// 4thx18
+	19.0f,			// 4thx19
+	20.0f,			// 4thx20
+	21.0f,			// 4thx21
+	22.0f,			// 4thx22
+	23.0f,			// 4thx23
+	24.0f,			// 4thx24
+	25.0f,			// 4thx25
+	26.0f,			// 4thx26
+	27.0f,			// 4thx27
+	28.0f,			// 4thx28
+	29.0f,			// 4thx29
+	30.0f,			// 4thx30
+	31.0f,			// 4thx31
+	32.0f,			// 4thx32
+	33.0f,			// 4thx33
+	34.0f,			// 4thx34
+	35.0f,			// 4thx35
+	36.0f,			// 4thx36
+	37.0f,			// 4thx37
+	38.0f,			// 4thx38
+	39.0f,			// 4thx39
+	40.0f,			// 4thx40
+	41.0f,			// 4thx41
+	42.0f,			// 4thx42
+	43.0f,			// 4thx43
+	44.0f,			// 4thx44
+	45.0f,			// 4thx45
+	46.0f,			// 4thx46
+	47.0f,			// 4thx47
+	48.0f,			// 4thx48
+	49.0f,			// 4thx49
+	50.0f,			// 4thx50
+	51.0f,			// 4thx51
+	52.0f,			// 4thx52
+	53.0f,			// 4thx53
+	54.0f,			// 4thx54
+	55.0f,			// 4thx55
+	56.0f,			// 4thx56
+	57.0f,			// 4thx57
+	58.0f,			// 4thx58
+	59.0f,			// 4thx59
+	60.0f,			// 4thx60
+	61.0f,			// 4thx61
+	62.0f,			// 4thx62
+	63.0f,			// 4thx63
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64 //
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+	64.0f,			// 4thx64
+};
+
+// table 15
+//float dyna_attack_time_table_xg[] =
+
+// table 16
+//float dyna_release_time_table_xg[] =
+
+//table 17
+float ring_mod_carrier_freq_course_xg[] = {
+	0.7, 1.3, 2.0, 2.7, 3.4, 4.0, 4.7, 5.4, 6.1, 6.7, 
+	7.4, 8.1, 8.7, 9.4, 10.1, 10.8, 11.4, 12.1, 12.8, 13.5, 
+	14.1, 14.8, 15.5, 16.2, 16.8, 17.5, 18.2, 19.5, 20.9, 21.5, 
+	22.9, 24.2, 25.6, 26.9, 28.9, 30.3, 32.3, 33.6, 35.7, 37.7, 
+	39.7, 42.4, 44.4, 47.1, 49.8, 52.5, 55.9, 59.2, 62.6, 65.9, 
+	70.0, 73.3, 78.1, 82.1, 86.8, 92.2, 96.9, 103.0, 108.3, 115.1, 
+	121.1, 128.5, 135.9, 143.3, 151.4, 160.2, 169.6, 179.0, 189.1, 199.9, 
+	211.3, 223.4, 236.2, 249.7, 263.8, 279.3, 294.7, 311.6, 329.7, 348.6, 
+	368.1, 389.6, 411.8, 435.4, 459.6, 485.9, 514.1, 543.1, 574.0, 607.0, 
+	642.0, 678.3, 717.3, 757.7, 801.5, 847.2, 895.0, 946.1, 1000.7, 1057.2, 
+	1117.7, 1181.7, 1249.0, 1320.3, 1395.7, 1475.1, 1559.2, 1648.7, 1742.9, 1841.8, 
+	1947.5, 2058.5, 2175.6, 2300.1, 2431.3, 2569.9, 2716.6, 2871.4, 3035.6, 4208.5, 
+	3391.6, 3585.4, 3790.0, 4006.6, 4234.8, 4477.0, 4732.1, 5002.6, 
+};
+
+// table 18
+//float v_flanger_delay_offset_table_xg[] =
+
+uint8 multi_eq_block_table_xg[] =
+{	/* Gain1, Freq1, Q1, Shape1, Gain2, Freq2, Q2, Not Used, Gain3, Freq3, Q3, Not Used,
+	Gain4, Freq4, Q4, Not Used, Gain5, Freq5, Shape5 */
+	64, 12, 7, 0, 64, 28, 7, 0, 64, 34, 7, 0, 64, 46, 7, 0, 64, 52, 7, 0,	/* Flat */
+	58, 8, 7, 0, 66, 16, 3, 0, 68, 33, 3, 0, 60, 44, 5, 0, 58, 50, 7, 0,	/* Jazz */
+	68, 16, 7, 0, 60, 24, 20, 0, 67, 34, 7, 0, 60, 40, 20, 0, 70, 48, 7, 0,	/* Pops */
+	71, 16, 7, 0, 68, 20, 7, 0, 60, 36, 5, 0, 68, 41, 10, 0, 66, 50, 7, 0,	/* Rock */
+	67, 12, 7, 0, 68, 24, 7, 0, 64, 34, 5, 0, 66, 50, 7, 0, 61, 52, 7, 0,	/* Concert */
+};
+
+
+
+
+
+/********** SD INS **********/
+
+// 4th = 1.0
+float note1_table_sd[10] = {
+	DIV_4,			// 16th
+	DIV_2 * DIV_3,	// 16th/3
+	DIV_4 * 1.5f,	// 16th.
+	DIV_2,			// 8th
+	1.0f * DIV_3,	// 8th/3
+	DIV_2 * 1.5f,	// 8th.
+	1.0f,			// 4th
+	2.0f * DIV_3,	// 4th/3
+	1.0f * 1.5f,	// 4th.
+	2.0f,			// 2th
+};
+
+float note2_table_sd[22] = {
+	DIV_16 * DIV_3,	// 64th/3
+	DIV_16,			// 64th
+	DIV_8 * DIV_3,	// 32th/3
+	DIV_8,			// 32th
+	DIV_4 * DIV_3,	// 32th/3
+	DIV_8 * 1.5f,	// 32th.
+	DIV_4,			// 16th
+	DIV_2 * DIV_3,	// 16th/3
+	DIV_4 * 1.5f,	// 16th.
+	DIV_2,			// 8th
+	1.0f * DIV_3,	// 8th/3
+	DIV_2 * 1.5f,	// 8th.
+	1.0f,			// 4th
+	2.0f * DIV_3,	// 4th/3
+	1.0f * 1.5f,	// 4th.
+	2.0f,			// 2th
+	4.0f * DIV_3,	// 2th/3
+	2.0f * 1.5f,	// 2th.
+	4.0f,			// 1th
+	8.0f * DIV_3,	// 1th/3
+	4.0f * 1.5f,	// 1th.
+	8.0f,			// 0.5th
+};
+
+
+
+
+///r
+/********** delay_out type **********/
+
+int8 delay_out_type_gs[18][128] = {
+{// MSB 0x00
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x01
+	1,1,3,1,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	3,1,2,3,3,2,2,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,4,4,4,4,4,5,5,4,0,0,0,0,0,0,0,0,
+	2,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x02
+	3,3,4,3,3,4,3,3,4,4,4,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x03
+	3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x04
+	4,3,4,4,4,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x05
+	4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x06
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x07
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x08
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x09
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x0A
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x0B
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x0C
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x0D
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x0E
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x0F
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x10
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},{// MSB 0x11
+	4,4,3,2,2,3,2,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+},
+};
+
+int8 delay_out_type_xg[128][9] = {
+{0,0,0,0,0,0,0,0,0,},{5,5,0,0,0,0,5,5,0,},{5,5,5,0,0,5,5,5,0,},{5,5,0,0,0,0,0,0,0,},{5,0,0,0,0,0,0,5,0,},
+{4,0,0,0,0,0,0,0,0,},{4,0,0,0,0,0,0,0,0,},{4,0,0,0,0,0,0,0,0,},{4,0,0,0,0,0,0,0,0,},{4,4,0,0,0,0,0,0,0,},
+{5,0,0,0,0,0,0,0,0,},{5,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{5,0,0,0,0,0,0,0,0,},{5,0,0,0,0,0,0,0,0,},{5,0,0,0,0,0,0,0,0,},{5,0,0,0,0,0,0,0,0,},
+// 20
+{4,4,4,0,0,0,0,0,0,},{4,0,0,0,0,0,0,0,4,},{4,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+// 40
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+// 60
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{3,3,3,3,3,3,3,3,3,},{3,3,3,0,0,0,0,0,3,},{3,3,0,0,0,0,0,3,3,},{3,0,0,0,0,0,0,0,0,},{2,2,2,2,0,0,0,0,0,},
+{1,0,0,0,0,0,0,0,0,},{1,1,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,3,},{2,2,0,0,0,0,0,0,2,},{2,0,0,0,0,0,0,0,2,},
+{2,2,0,0,0,0,0,0,2,},{1,0,0,0,0,0,0,0,0,},{1,0,0,0,0,0,0,0,0,},{1,2,2,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+// 80
+{4,4,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{1,2,2,0,0,0,0,0,1,},{1,0,0,0,0,0,0,0,0,},{1,0,0,0,0,0,0,0,0,},
+{1,0,0,0,0,0,0,0,0,},{2,2,2,2,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{4,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},
+{3,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{1,0,0,0,0,0,0,0,0,},{1,0,0,0,0,0,0,0,0,},
+{4,4,0,0,0,0,0,0,0,},{4,4,0,0,0,0,0,0,0,},{4,4,0,0,0,0,0,0,0,},{2,4,2,4,0,0,0,0,0,},{2,2,0,0,0,0,0,0,0,},
+// 100
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},
+{2,0,0,0,0,0,0,0,0,},{2,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{2,0,0,0,0,0,0,0,0,},
+{3,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{2,0,0,0,0,0,0,0,0,},{2,0,0,0,0,0,0,0,0,},{2,0,0,0,0,0,0,0,0,},
+{2,0,0,0,0,0,0,0,0,},{2,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{3,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+// 120
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},
+{0,0,0,0,0,0,0,0,0,},{0,0,0,0,0,0,0,0,0,},{0,3,3,3,0,0,0,0,0,},
+};
+
+/*
+// 0 : buffer mix / effect thru / no feedback (10ms
+// 1 : filter (300ms
+// 2 : multi filter + any (600ms
+// 3 : pre_delay + feedback (chorus/flanger/phaser (1500ms
+// 4 : delay // long delay + max feedbackÇæÇ∆ë´ÇËÇ»Ç¢Ç©Ç‡ (6000ms
+// 5 : reverb (12000ms
+// 6 : system reverb (30000ms
+*/
+
+int8 delay_out_type_sd[] = {
+	0,1,2,2,3,1,2,2,3,1,
+	1,3,3,3,3,3,3,4,4,4,
+	4,4,4,4,5,5,4,4,5,4,
+	4,5,4,4,5,5,5,4,5,5,
+	4,4,4,2,1,4,4,4,4,3,
+	2,2,3,2,2,1,1,1,1,1,
+	3,3,0,0,3,1,2,4,4,4,
+	4,4,4,4,4,4,1,1,1,1,
+	1,4,4,4,4,4,4,1,1,2,
+	2,6,6,6,6,6,6,6,6,6,
+};
+
+
+
+

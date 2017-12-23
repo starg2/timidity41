@@ -51,6 +51,11 @@
 #include "wrd.h"
 #include "aq.h"
 
+#ifdef USE_TRACE_TIMER
+#include "timer2.h"
+int trace_mode_update_time = DEFAULT_TRACE_TIMER_ELAPSE;
+#endif
+
 enum trace_argtypes
 {
     ARG_VOID,
@@ -230,7 +235,11 @@ void push_midi_time_vp(int32 start, void (*f)(void *), void *vp)
     midi_trace_setfunc(&node);
 }
 
+#ifdef USE_TRACE_TIMER
+static int32 do_trace_loop(void) // rename
+#else
 int32 trace_loop(void)
+#endif
 {
     int32 cur;
     int ctl_update;
@@ -241,7 +250,7 @@ int32 trace_loop(void)
 
     if(midi_trace.head == NULL)
 	return 0;
-
+	
     if((cur = current_trace_samples()) == -1 || !ctl->trace_playing)
 	cur = 0x7fffffff; /* apply all trace event */
 
@@ -277,6 +286,64 @@ int32 trace_loop(void)
 
     return 1; /* must call trace_loop() continued */
 }
+
+#ifdef USE_TRACE_TIMER
+static int use_trace_timer_flg = 0; 
+static int work_trace_timer_flg = 0;
+
+void set_trace_mode_update_time(void)
+{
+	if(trace_mode_update_time < 1){
+		trace_mode_update_time = 0; // not use timer
+		use_trace_timer_flg = 0;
+	}else if(trace_mode_update_time > MAX_TRACE_TIMER_ELAPSE){
+		trace_mode_update_time = MAX_TRACE_TIMER_ELAPSE;
+		use_trace_timer_flg = 1;
+	}else
+		use_trace_timer_flg = 1;
+}
+
+void start_trace_timer(void) // playmidi.c reset_midi()
+{
+    int flg;
+
+	if(!use_trace_timer_flg)
+		return;
+	if(work_trace_timer_flg)
+		return;
+	flg = start_timer(trace_timer, &trace_refresh, trace_mode_update_time); // (id, fnc, time)
+	if(!flg) // use timer
+		work_trace_timer_flg = 1;
+	else
+		work_trace_timer_flg = 0;
+}
+
+void stop_trace_timer(void) // playmidi.c midi_play_end() apply_controls()
+{
+	if(!work_trace_timer_flg)
+		return; // stop
+	stop_timer(trace_timer);
+	work_trace_timer_flg = 0;
+}
+
+void trace_refresh(void)
+{
+	if(work_trace_timer_flg)
+		do_trace_loop();
+	else
+		stop_trace_timer();
+}
+
+int32 trace_loop(void)
+{
+    int flg;
+
+	if(!use_trace_timer_flg)
+		return do_trace_loop();
+	else
+		return 0;
+}
+#endif // USE_TRACE_TIMER
 
 void trace_offset(int offset)
 {

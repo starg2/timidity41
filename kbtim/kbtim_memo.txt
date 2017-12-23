@@ -1,0 +1,284 @@
+原則としてオリジナルのソースに手を加えた部分のみ記述
+オリジナルのソースコードに Kobarin が手を加えた箇所には "Kobarin" という
+文字列が含まれる
+
+v0.17
+  ・freq.c::freq_initialize_fft_arrays を修正
+    length == 0 のときに落ちる
+
+v0.09
+・readmidi.c::read_sysex_event を修正
+  ・readmidi.c::parse_sysex_event_multi の内部で evm を初期化していない
+    ところがあるので、parse_sysex_event_multi を呼び出す前に配列 evm を
+    初期化するように修正
+    SETMIDIEVENT(evm[num_events], x, x, x, x, x);
+    のように呼び出している部分のいくつかが、なぜか evm[0] とかになって
+    いるのが気になる…。evm[0] とかにしている部分では num_events を
+    インクリメントしてはまずいような…。
+  ・evm.type を ME_EOT で初期化しておいた場合に、最後まで演奏されない
+    データはこのバグの修正の影響を受ける
+  ・配列 evm を初期化しておかないと、実際は終了していないのに演奏終了
+    してしまったり、再生する度に再生結果が変化することがある。
+    もしかしたら不正終了することもあるかも。
+
+v0.08
+・シーク対応のために play_midi.c に g_midi_start_time を追加していた
+  のを廃止。play_midi.c を書き換えずにシークに対応
+
+v0.07
+・sffile.c::free_layer() 修正（メモリリーク回避）
+・sndfont.c::free_soundfonts() 追加（メモリリーク回避）
+・instrument.c::free_tone_bank 修正（メモリリーク回避）
+
+v0.06
+・read_midi.c を修正
+  ・groom_list() の counting_time を 0 に修正
+  ・冒頭の無音を無視しないようにするため
+
+v0.05
+・play_midi.c を修正
+  ・シークに対応するため、グローバル変数 g_midi_start_time を追加
+  ・play_midi() 関数の skip_to() の引数を midi_restart_time から
+    g_midi_start_time に変更
+  ・ctl_read で RC_JUMP を返すようにすることで対応できるはずなのだが、
+    演奏開始直後に再生位置を変更しようとするとうまくいかない
+
+v0.04
+・resample.c を修正（実際は resample.c を書き換えずに _resample_.c を
+  修正しただけ）
+  ・resample_linear 等の ofs 値に負の値が渡されて落ちることがある問題に
+    暫定対処
+    ・確認データ：DQS8P.MID by TRIGLAV
+    ・演奏開始後7分2秒くらいの位置で発生
+    ・シークしないで演奏すると確実に発生、シークしたときは発生するとき
+      としないときがある
+    ・コンフィグファイルの内容によっては発生しない
+  ・そもそも ofs 値に負の値が渡されることがおかしい
+  ・負の値でなくても、不正に大きな値が渡されることもあるかもしれない
+  ・resample_linear 以外を使う分にはなぜか問題が起こらない
+  ・どこか全然関係ない部分に問題があるのかも？
+・common.c::try_to_open()
+  ・オリジナルをそのまま使うように修正。最新版取り込み時に修正する必要が
+    なくなった
+
+v0.03 以前
+
+メモ：
+
+オリジナルのソースコードは TiMidity++-current-040525-0000
+出来るだけオリジナルのソースコードには修正を加えないようにしている。
+修正しているファイルは以下の通り。
+
+・config.h    (末尾に #include "kbtim\kbtim_config.h")
+・interface.h (末尾に #include "kbtim\kbtim_interface.h")
+・playmidi.c  (#define REDUCE_VOICE_TIME_TUNING を削除、
+               グローバル変数 g_midi_start_time を追加、
+               play_midi_file() を修正)
+・readmidi.c  (read_midi_file(), open_midi_file(), get_midi_title())
+・resample.c （resample_inline() を追加他）
+//・common.c    (try_to_open())
+
+上記５ファイルについては、最新の TiMidity のソースコードを組み込むときにも修正
+する必要がある。
+
+バグ：
+
+・aq.c
+・recache.c
+・resample.c
+・playmidi.c
+・readmidi.c
+
+上記５ファイルでメモリリークを確認している。
+おそらくメモリ解放用の関数を追加しないと回避不可能と思われる。
+このうち、上記４ファイルについては、それぞれ
+
+・_aq_c
+・_recache_.c
+・_resample_.c
+・_playmidi_.c
+
+でオリジナルを #include し、メモリ解放関数を追加することにより、メモリリークを
+回避している。（オリジナルのソースコード自体は一切修正していない）
+オリジナルにメモリ解放関数が実装されれば、これらの修正は不要になる。
+
+readmidi.c については free_userdrum と free_all_midi_file_info を修正、
+free_userdrum2 を新設することにより、メモリリークを回避。（詳細は後述）
+
+
+具体的な修正箇所：
+
+・config.h
+    //ヘッダの末尾に以下を追加
+    //#ifdef KBTIM /*added by Kobarin*/
+    //#include "kbtim\kbtim_config.h"
+    //#endif /*KBTIM*/
+
+・interface.h
+    //ヘッダの末尾に以下を追加
+    //#ifdef KBTIM /*added by Kobarin*/
+    //#include "kbtim\kbtim_interface.h"
+    //#endif /*KBTIM*/
+
+・playmidi.c
+    //メモリリーク
+    //アプリケーション終了時に free_reverb を呼び出すようにする、あるいは
+    //free_reverb のバッファを動的に確保するのではなく、静的に確保しておく
+    //ようにすることにより回避。
+    //詳細は _playmidi_.c を参照。
+
+・playmidi.c::REDUCE_VOICE_TIME_TUNING
+    //#define されていると再生結果がおかしくなる（kbtim.kpi 固有の問題）
+    //（CPU に負担がかかりすぎであると誤認識してしまうため）
+    //宣言部の
+    //#define REDUCE_VOICE_TIME_TUNING
+    //を削除することにより回避。
+    //この部分は config.h に移動した方が良いと思われる。
+
+・readmidi.c::init_userdrum()
+    //drumset[64+0]->alt, drumset[64+1]->alt でそれぞれ 20 バイトのメモリリーク
+    //readmidi.c::free_userdrum() を以下のように修正
+    //added by Kobarin
+    //int i;
+    //for(i = 0; i < 2; i++){
+    //    if(drumset[64+i] && drumset[64+i]->alt){
+    //        free(drumset[64+i]->alt);
+    //        drumset[64+i]->alt = NULL;
+    //    }
+    //}
+    //ここまで
+    //これを追加しなくても、ファイルを開く度に init_userdrum で
+    //前回の呼び出し時に確保したメモリは解放されているが、アプリケーション
+    //終了時には解放されないので、追加しておいた方が良いと思われる。
+
+・readmidi.c
+    //コンフィグファイル読み込み時（？）に確保した drumset 関係のメモリリーク
+    //readmidi.c に以下の関数を追加
+    //void free_userdrum2()
+    //{
+    //int i;
+    //for(i = 0; i < 128 + MAP_BANK_COUNT; i++){
+    //    if(drumset[i] && drumset[i]->alt){
+    //        struct _AlternateAssign *alt = drumset[i]->alt;
+    //        struct _AlternateAssign *del=alt;
+    //        while(del){
+    //            alt=del->next;
+    //            free(del);
+    //            del=alt;
+    //        }
+    //        drumset[i]->alt = NULL;
+    //    }
+    //}
+    //アプリケーション終了時 or コンフィグファイルリロード時にこれを呼び出す。
+    //ファイルを再生する度に呼び出すと、コンフィグファイル読み込み時に drumset
+    //を設定した意味がなくなってしまう。
+}
+
+・readmidi.c::free_all_midi_file_info()
+    //メモリリーク
+    if(string_event_table != NULL)//added by Kobarin
+    {
+    free(string_event_table[0]);
+    free(string_event_table);
+    string_event_table = NULL;
+    string_event_table_size = 0;
+    }
+    //これを追加しなくても、ファイルを開く度に readmidi_read_init で
+    //解放されているが、アプリケーション終了時には解放されないので
+    //追加しておいた方が良いと思われる。
+
+・readmidi.c::read_midi_file()
+    //大幅に修正（不要なコードを削除）
+
+・readmidi.c::open_midi_file()
+    //大幅に修正（不要なコードを削除）
+
+・readmidi.c::get_midi_title()
+    //大幅に修正（不要なコードを削除）
+    
+・common.c
+    //try_to_open を大幅修正（ファイルサイズが小さくなる）
+    //修正しないとリンカエラー。
+
+・aq.c::alloc_soft_queue()
+    //メモリリーク
+    //この関数で確保した base_buckets がアプリケーション終了時に
+    //解放されない。
+    //アプリケーション終了時 or 演奏終了時に free_audio_bucket()
+    //を呼び出すようにすることにより回避。
+    //詳細は _aq_.c を参照。
+    //free_audio_bucket がオリジナルに組み込まれれば、_aq_.c は不要に
+    //なり、aq.c をそのままプロジェクトに追加するだけで良くなる。
+
+・recache.c::resamp_cache_reset
+    //メモリリーク
+    //アプリケーション終了時に free_resamp_cache_data を呼び出す
+    //ことにより回避。
+    //詳細は _recache_.c を参照。
+    //resamp_cache_reset がオリジナルに組み込まれれば、_recache_.c は不要に
+    //なり、recache.c をそのままプロジェクトに追加するだけで良くなる。
+
+・resample.c::initialize_gauss_table
+    //メモリリーク
+    //アプリケーション終了時に uninitialize_resampler_coeffs を呼び出す
+    //ことにより回避。
+    //詳細は _resample_.c を参照。
+    //uninitialize_resampler_coeffs がオリジナルに組み込まれれば、
+    //_resample_.c は不要になり、resample.c をそのままプロジェクトに
+    //追加するだけで良くなる。
+
+・output.c
+    //プロジェクトには追加していない。
+    //代わりに _output_.c を追加。
+    //不要なコードを削除。（ファイルサイズが小さくなる）
+    //そのまま output.c を使うとリンカエラー。
+
+・w32g_utl.c
+    //プロジェクトには追加していない。
+    //代わりに _w32g_utl.c を追加。
+    //不要なコードを削除。（ファイルサイズが小さくなる）
+    //そのまま w32g_utl.c を使うとリンカエラー。
+
+最新の TiMidity を組み込む場合に確認するべき箇所：
+
+・config.h
+    //ヘッダの末尾に以下を追加
+    //#ifdef KBTIM /*added by Kobarin*/
+    //#include "kbtim\kbtim_config.h"
+    //#endif /*KBTIM*/
+・interface.h
+    //ヘッダの末尾に以下を追加
+    //#ifdef KBTIM /*added by Kobarin*/
+    //#include "kbtim\kbtim_interface.h"
+    //#endif /*KBTIM*/
+・output.c
+    //general_output_convert で新しくサポートされたフォーマットが
+    //ないか確認。（32bit int/float など）
+・w32g_utl.c
+    //設定読み込み部分で、追加された設定がないか確認・
+    //追加された設定があり、それが kbtim.kpi の動作（音質面など）
+    //に影響がある場合は、_w32g_utl_.c に反映させる。
+・timidity.c/_timidity_.c
+    //timidity_start_initialize での修正を kbtim_start_initialize に反映させる。
+    //timidity_pre_load_configuration での修正を kbtim_pre_load_configuration に反映させる。
+    //timidity_post_load_configuration での修正を kbtim_post_load_configuration に反映させる。
+    //timidity_init_player での修正を kbtim_init_player に反映させる。
+・playmidi.c
+    //#define REDUCE_VOICE_TIME_TUNING を削除する。
+・readmidi.c::read_midi_file()
+・readmidi.c::open_midi_file()
+・readmidi.c::get_midi_title()
+・readmidi.c::free_userdrum()
+・readmidi.c::free_userdrum2()
+・readmidi.c::free_all_midi_file_info()
+・common.c::try_to_open()
+・最新のソースに置き換えるとリンカエラーが発生する場合
+    //原因となるグローバル変数・関数が kbtim.kpi の動作に影響がない場合
+    //は、kbtim_globals.c で実装する。
+    //例えば最新のソースで新たに追加された int foo(int a); という関数と
+    //リンク出来ないのが原因でリンカエラーになる場合は、foo を実装して
+    //いるソースファイルをプロジェクトに追加するか、あるいは
+    //int foo(int a){return 0;}
+    //を kbtim_globals.c に追加するなど。
+    //ただし、このような修正が kbtim.kpi の動作にどのような影響を与えるのか
+    //十分に考慮しておく必要がある。

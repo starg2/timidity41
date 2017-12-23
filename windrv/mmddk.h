@@ -57,9 +57,9 @@
  *    return is MMRESULT
  */
 #define DRVM_IOCTL		0x100
-#define DRVM_ADD_THRU		(DRVM_IOCTL+1)
-#define DRVM_REMOVE_THRU	(DRVM_IOCTL+2)
-#define DRVM_IOCTL_LAST		(DRVM_IOCTL+5)
+#define DRVM_ADD_THRU		(DRVM_IOCTL + 1)
+#define DRVM_REMOVE_THRU	(DRVM_IOCTL + 2)
+#define DRVM_IOCTL_LAST		(DRVM_IOCTL + 5)
 typedef struct {
     DWORD  dwSize; 	/* size of this structure */
     DWORD  dwCmd;  	/* IOCTL command code, 0x80000000 and above reserved for system */
@@ -74,10 +74,10 @@ typedef struct {
 
 #define DRVM_MAPPER			0x2000
 #define DRVM_USER			0x4000
-#define DRVM_MAPPER_STATUS		(DRVM_MAPPER+0)
-#define DRVM_MAPPER_RECONFIGURE 	(DRVM_MAPPER+1)
-#define DRVM_MAPPER_PREFERRED_GET	(DRVM_MAPPER+21)
-#define DRVM_MAPPER_CONSOLEVOICECOM_GET	(DRVM_MAPPER+23)
+#define DRVM_MAPPER_STATUS		(DRVM_MAPPER + 0)
+#define DRVM_MAPPER_RECONFIGURE 	(DRVM_MAPPER + 1)
+#define DRVM_MAPPER_PREFERRED_GET	(DRVM_MAPPER + 21)
+#define DRVM_MAPPER_CONSOLEVOICECOM_GET	(DRVM_MAPPER + 23)
 
 #define DRV_QUERYDRVENTRY		(DRV_RESERVED + 1)
 #define DRV_QUERYDEVNODE		(DRV_RESERVED + 2)
@@ -259,7 +259,7 @@ typedef struct {
 #define JOY_US_ISOEM		0x00000004l	/* joystick is an OEM defined type */
 
 
-/* struct for storing x,y, z, and rudder values */
+/* struct for storing x, y, z, and rudder values */
 typedef struct joypos_tag {
     DWORD	dwX;
     DWORD	dwY;
@@ -274,7 +274,7 @@ typedef struct joyrange_tag {
     JOYPOS	jpMin;
     JOYPOS	jpMax;
     JOYPOS	jpCenter;
-} JOYRANGE,*LPJOYRANGE;
+} JOYRANGE, *LPJOYRANGE;
 
 typedef struct joyreguservalues_tag {
     DWORD	dwTimeOut;	/* value at which to timeout joystick polling */
@@ -381,8 +381,8 @@ typedef JOYDEVMSGPROC *LPJOYDEVMSGPROC;
 #define MAKEMCIRESOURCE(wRet, wRes) MAKELRESULT((wRet), (wRes))
 
 typedef struct {
-	DWORD_PTR		dwCallback;
-	DWORD_PTR		dwInstance;
+	DWORD   		dwCallback;
+	DWORD   		dwInstance;
 	HMIDIOUT		hMidi;
 	DWORD   		dwFlags;
 } PORTALLOC, *LPPORTALLOC;
@@ -390,8 +390,8 @@ typedef struct {
 typedef struct {
 	HWAVE			hWave;
 	LPWAVEFORMATEX		lpFormat;
-	DWORD_PTR		dwCallback;
-	DWORD_PTR		dwInstance;
+	DWORD			dwCallback;
+	DWORD			dwInstance;
 	UINT			uMappedDeviceID;
         DWORD			dnDevNode;
 } WAVEOPENDESC, *LPWAVEOPENDESC;
@@ -403,9 +403,9 @@ typedef struct {
 
 typedef struct {
 	HMIDI			hMidi;
-	DWORD_PTR		dwCallback;
-	DWORD_PTR		dwInstance;
-        DWORD_PTR		dnDevNode;
+	DWORD			dwCallback;
+	DWORD			dwInstance;
+        DWORD          		dnDevNode;
         DWORD          		cIds;
         MIDIOPENSTRMID 		rgIds;
 } MIDIOPENDESC, *LPMIDIOPENDESC;
@@ -414,8 +414,8 @@ typedef struct tMIXEROPENDESC
 {
 	HMIXEROBJ		hmx;
         LPVOID			pReserved0;
-	DWORD_PTR		dwCallback;
-	DWORD_PTR		dwInstance;
+	DWORD			dwCallback;
+	DWORD			dwInstance;
 } MIXEROPENDESC, *LPMIXEROPENDESC;
 
 typedef struct {
@@ -449,14 +449,14 @@ BOOL			WINAPI	mciFreeCommandResource(UINT uTable);
 #define DCB_TYPEMASK		0x0007
 #define DCB_NOSWITCH		0x0008			/* don't switch stacks for callback */
 
-BOOL		 	WINAPI	DriverCallback(DWORD_PTR dwCallBack, UINT uFlags, HDRVR hDev,
-					       UINT wMsg, DWORD_PTR dwUser, DWORD_PTR dwParam1, DWORD_PTR dwParam2);
+BOOL		 	WINAPI	DriverCallback(DWORD dwCallBack, UINT uFlags, HDRVR hDev,
+					       UINT wMsg, DWORD dwUser, DWORD dwParam1, DWORD dwParam2);
 
-typedef void (*LPTASKCALLBACK)(DWORD_PTR dwInst);
+typedef void (*LPTASKCALLBACK)(DWORD dwInst);
 
 #define TASKERR_NOTASKSUPPORT 1
 #define TASKERR_OUTOFMEMORY   2
-MMRESULT WINAPI mmTaskCreate(LPTASKCALLBACK, HANDLE*, DWORD_PTR);
+MMRESULT WINAPI mmTaskCreate(LPTASKCALLBACK, HANDLE*, DWORD);
 void     WINAPI mmTaskBlock(HANDLE);
 BOOL     WINAPI mmTaskSignal(HANDLE);
 void     WINAPI mmTaskYield(void);

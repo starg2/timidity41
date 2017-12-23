@@ -27,11 +27,16 @@
 #endif
 #endif
 
+///r
+#include "timidity.h"
+#include "w32g.h"
+
 // ini & config
 #define IniVersion "2.2"
 typedef struct SETTING_PLAYER_ {
 // Main Window
 	int InitMinimizeFlag;
+	int main_panel_update_time;
 // SubWindow Starting Create Flag
 	int DebugWndStartFlag;
 	int ConsoleWndStartFlag;
@@ -39,6 +44,7 @@ typedef struct SETTING_PLAYER_ {
 	int TracerWndStartFlag;
 	int DocWndStartFlag;
 	int WrdWndStartFlag;
+	int SoundSpecWndStartFlag;
 // SubWindow Starting Valid Flag
 	int DebugWndFlag;
 	int ConsoleWndFlag;
@@ -50,23 +56,24 @@ typedef struct SETTING_PLAYER_ {
 // SubWindow Max Numer
 	int SubWindowMax;
 // Default File
-	char ConfigFile[MAXPATH + 32];
-	char PlaylistFile[MAXPATH + 32];
-	char PlaylistHistoryFile[MAXPATH + 32];
+	char ConfigFile[FILEPATH_MAX];
+	char PlaylistFile[FILEPATH_MAX];
+	char PlaylistHistoryFile[FILEPATH_MAX];
+	int PlaylistMax;
 // Default Dir
-	char MidiFileOpenDir[MAXPATH + 32];
-	char ConfigFileOpenDir[MAXPATH + 32];
-	char PlaylistFileOpenDir[MAXPATH + 32];
+	char MidiFileOpenDir[FILEPATH_MAX];
+	char ConfigFileOpenDir[FILEPATH_MAX];
+	char PlaylistFileOpenDir[FILEPATH_MAX];
 // Thread Priority
 	int PlayerThreadPriority;
 	int GUIThreadPriority;
 // Font
-	char SystemFont[256];
-	char PlayerFont[256];
-	char WrdFont[256];
-	char DocFont[256];
-	char ListFont[256];
-	char TracerFont[256];
+	char SystemFont[LF_FULLFACESIZE + 1];
+	char PlayerFont[LF_FULLFACESIZE + 1];
+	char WrdFont[LF_FULLFACESIZE + 1];
+	char DocFont[LF_FULLFACESIZE + 1];
+	char ListFont[LF_FULLFACESIZE + 1];
+	char TracerFont[LF_FULLFACESIZE + 1];
 	int SystemFontSize;
 	int PlayerFontSize;
 	int WrdFontSize;
@@ -78,6 +85,7 @@ typedef struct SETTING_PLAYER_ {
 	int TraceGraphicFlag;
 	int DocMaxSize;
 	char DocFileExt[256];
+	int ConsoleClearFlag;
 // End.
 	int PlayerLanguage;
 	int DocWndIndependent; 
@@ -88,7 +96,6 @@ typedef struct SETTING_PLAYER_ {
   int AutoloadPlaylist;
   int AutosavePlaylist;
   int PosSizeSave;
-  char DefaultPlaylistName[256];
 // End.
 } SETTING_PLAYER;
 
@@ -96,8 +103,10 @@ typedef struct SETTING_TIMIDITY_ {
     // Parameter from command line options.
 
     int32 amplification;	// A
+    int32 output_amplification; // --master-volume
     int antialiasing_allowed;	// a
-    int buffer_fragments;	// B
+    int buffer_fragments,	// B
+        audio_buffer_bits;      // BXX,?
     int32 control_ratio;	// C
 				// c (ignore)
     ChannelBitMask default_drumchannels, default_drumchannel_mask; // D
@@ -110,42 +119,54 @@ typedef struct SETTING_TIMIDITY_ {
     int opt_channel_pressure;	// E s/S
     int opt_trace_text_meta_event; // E t/T
     int opt_overlap_voice_allow;// E o/O
+///r
+	int opt_overlap_voice_count; //
+	int opt_max_channel_voices;
     int opt_default_mid;	// E mXX
+	int opt_system_mid;		// E MXX
     int default_tonebank;	// E b
     int special_tonebank;	// E B
-    int effect_lr_mode;		// E Fdelay
-    int effect_lr_delay_msec;	// E Fdelay
+    int opt_resample_type;  // E Fresamp
     int opt_reverb_control;	// E Freverb
     int opt_chorus_control;	// E Fchorus
     int noise_sharp_type;	// E Fns
 	int opt_surround_chorus; // E ?
+	int opt_normal_chorus_plus; // E ?
 	int opt_tva_attack;			// E ?
 	int opt_tva_decay;			// E ?
 	int opt_tva_release;		// E ?
 	int opt_delay_control;		// E ?
 	int opt_default_module;		// --module
 	int opt_lpf_def;			// E ?
+	int opt_hpf_def;			// long opt
 	int opt_drum_effect;			// E ?
 	int opt_modulation_envelope;			// E ?
-	int opt_pan_delay;			// E ?
 	int opt_eq_control;			// E ?
 	int opt_insertion_effect;	// E ?
     int opt_evil_mode;		// e
     int adjust_panning_immediately; // F
-    int fast_decay;		// f
+    int opt_fast_decay;		// f
 #ifdef SUPPORT_SOUNDSPEC
     int view_soundspec_flag;	// g
-    double spectrogram_update_sec; // g
+    FLOAT_T spectrogram_update_sec; // g
 #endif
 				// h (ignore)
-    int default_program[MAX_CHANNELS]; // I
-    char opt_ctl[30];		// i
+    int default_program[MAX_CHANNELS]; // i
+    int special_program[MAX_CHANNELS]; // I
+
+    char opt_ctl[30];		// i ?
     int opt_realtime_playing;	// j
-    int reduce_voice_threshold; // k
+///r
+	char reduce_voice_threshold[16]; // k
+	char reduce_quality_threshold[16]; // l
 				// L (ignore)
+    int min_sustain_time;       // m
+    int opt_resample_param;     // N
+///r	
+	char reduce_polyphony_threshold[16]; //n
     char opt_playmode[16];	// O
-    char OutputName[MAXPATH + 32]; // o : string
-    char OutputDirName[MAXPATH + 32]; // o : string
+    char OutputName[FILEPATH_MAX]; // o : string
+    char OutputDirName[FILEPATH_MAX]; // o : string
 	int auto_output_mode;
 				// P (ignore)
     int voices;			// p
@@ -164,24 +185,73 @@ typedef struct SETTING_TIMIDITY_ {
     int output_rate;		// s
     char output_text_code[16];	// t
     int free_instruments_afterwards; // U
+///r
+	double opt_user_volume_curve; //V
     char opt_wrd[16];		// W
+    int opt_print_fontname;
+///r
+	int compute_buffer_bits;	// Y
+
+	int32 wmme_device_id;
+	int wave_format_ext; 
+	int32 pa_wmme_device_id;
+	int32 pa_ds_device_id;
+	int32 pa_asio_device_id;
+	int32 pa_wdmks_device_id;
+	int32 pa_wasapi_device_id;
+	int pa_wasapi_flag;
+	int pa_wasapi_stream_category;
+	int pa_wasapi_stream_option;
+	int add_play_time;		// --add-play-time
+	int add_silent_time;	// --add-silent-time
+	int emu_delay_time;		// --emu-delay-time
+    int opt_resample_filter;     //
+    int opt_resample_over_sampling;  // 
+	int opt_pre_resamplation;
+
+	int opt_mix_envelope;
+	int opt_modulation_update;
+	int opt_cut_short_time;
+	int opt_limiter;
+    int opt_use_midi_loop_repeat; //
+    int opt_midi_loop_repeat;
+
 #if defined(__W32__) && defined(SMFCONV)
     int opt_rcpcv_dll;		// wr, wR
 #endif
 				// x (ignore)
 				// Z (ignore)
     /* for w32g_a.c */
-    int data_block_bits;
-    int data_block_num;
+    //int data_block_bits;
+    //int data_block_num;
+    int wmme_buffer_bits;
+    int wmme_buffer_num;
+
 //??    int waveout_data_block_size;
-#ifdef IA_W32G_SYN
+#if defined(WINDRV_SETUP)
+		DWORD syn_ThreadPriority;
+		int SynShTime;
+		uint32 opt_rtsyn_latency;	// --rtsyn-latency
+#elif defined(IA_W32G_SYN)
 		int SynIDPort[MAX_PORT];
 		int syn_AutoStart;
-		DWORD processPriority;
+//		DWORD processPriority;
 		DWORD syn_ThreadPriority;
 		int SynPortNum;
 		int SynShTime;
+		uint32 opt_rtsyn_latency;	// --rtsyn-latency
 #endif
+	int processPriority;		// --process-priority
+	int compute_thread_num;
+	
+	int trace_mode_update_time;
+	int opt_load_all_instrument;
+	
+    /* for INT_SYNTH */
+	int32 opt_int_synth_sine;
+	int32 opt_int_synth_rate;
+	int32 opt_int_synth_update;
+
 } SETTING_TIMIDITY;
 
 // #### obsoleted
@@ -220,7 +290,8 @@ extern int WrdFontSize;
 extern int DocFontSize;
 extern int ListFontSize;
 extern int TracerFontSize;
-
+///r
+extern int IniGetKeyInt64(char *section, char *key,int64 *n);
 extern int IniGetKeyInt32(char *section, char *key,int32 *n);
 extern int IniGetKeyInt32Array(char *section, char *key, int32 *n, int arraysize);
 extern int IniGetKeyInt(char *section, char *key, int *n);
@@ -230,6 +301,7 @@ extern int IniGetKeyIntArray(char *section, char *key, int *n, int arraysize);
 extern int IniGetKeyString(char *section, char *key,char *str);
 extern int IniGetKeyStringN(char *section, char *key,char *str, int size);
 extern int IniGetKeyFloat(char *section, char *key, FLOAT_T *n);
+extern int IniPutKeyInt64(char *section, char *key,int64 *n);
 extern int IniPutKeyInt32(char *section, char *key,int32 *n);
 extern int IniPutKeyInt32Array(char *section, char *key, int32 *n, int arraysize);
 extern int IniPutKeyInt(char *section, char *key, int *n);
@@ -246,6 +318,8 @@ extern void SaveSettingTiMidity(SETTING_TIMIDITY *st);
 extern void SettingCtlFlag(SETTING_TIMIDITY *st, int opt_id, int onoff);
 extern int IniVersionCheck(void);
 extern void BitBltRect(HDC dst, HDC src, RECT *rc);
+extern BOOL SafeGetOpenFileName(LPOPENFILENAMEA lpofn);
+extern BOOL SafeGetSaveFileName(LPOPENFILENAMEA lpofn);
 #if 0
 extern TmColors tm_colors[ /* TMCC_SIZE */ ];
 #define TmCc(c) (tm_colors[c].color)
@@ -257,6 +331,7 @@ extern void w32g_uninitialize(void);
 extern void w32g_initialize(void);
 extern int is_directory(char *path);
 extern int directory_form(char *path_in_out);
+extern int is_last_path_sep(const char *path);
 
 extern char *timidity_window_inifile;
 extern char *timidity_output_inifile;

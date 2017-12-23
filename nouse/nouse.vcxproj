@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{99E98188-BE49-4367-9577-4681F1D50E9C}</ProjectGuid>
+    <Keyword>MakeFileProj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC70.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC70.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC70.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC70.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Debug\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\timidity\alsa_a.c" />
+    <ClCompile Include="..\timidity\audriv_a.c" />
+    <ClCompile Include="..\timidity\audriv_al.c" />
+    <ClCompile Include="..\timidity\audriv_mme.c" />
+    <ClCompile Include="..\timidity\audriv_none.c" />
+    <ClCompile Include="..\timidity\bsd20_a.c" />
+    <ClCompile Include="..\timidity\dl_dld.c" />
+    <ClCompile Include="..\timidity\dl_dlopen.c" />
+    <ClCompile Include="..\timidity\dl_hpux.c" />
+    <ClCompile Include="..\timidity\dl_w32.c" />
+    <ClCompile Include="..\interface\dynamic_c.c" />
+    <ClCompile Include="..\interface\emacs_c.c" />
+    <ClCompile Include="..\timidity\esd_a.c" />
+    <ClCompile Include="..\interface\gtk_c.c" />
+    <ClCompile Include="..\interface\gtk_i.c" />
+    <ClCompile Include="..\interface\gtk_p.c" />
+    <ClCompile Include="..\timidity\hpux_a.c" />
+    <ClCompile Include="..\timidity\hpux_d_a.c" />
+    <ClCompile Include="..\timidity\mac_a.c" />
+    <ClCompile Include="..\interface\mac_c.c" />
+    <ClCompile Include="..\timidity\mac_dlog.c" />
+    <ClCompile Include="..\interface\mac_mag.c" />
+    <ClCompile Include="..\timidity\mac_main.c" />
+    <ClCompile Include="..\timidity\mac_qt_a.c" />
+    <ClCompile Include="..\utils\mac_readdir.c" />
+    <ClCompile Include="..\timidity\mac_soundspec.c" />
+    <ClCompile Include="..\interface\mac_trace.c" />
+    <ClCompile Include="..\utils\mac_util.c" />
+    <ClCompile Include="..\interface\mac_wrdwindow.c" />
+    <ClCompile Include="..\interface\motif_c.c" />
+    <ClCompile Include="..\interface\motif_i.c" />
+    <ClCompile Include="..\interface\motif_p.c" />
+    <ClCompile Include="..\timidity\nas_a.c" />
+    <ClCompile Include="..\interface\ncurs_c.c" />
+    <ClCompile Include="..\timidity\oss_a.c" />
+    <ClCompile Include="..\interface\server_c.c" />
+    <ClCompile Include="..\interface\slang_c.c" />
+    <ClCompile Include="..\interface\soundspec.c" />
+    <ClCompile Include="..\timidity\sun_a.c" />
+    <ClCompile Include="..\interface\tk_c.c" />
+    <ClCompile Include="..\timidity\w32g_a.c" />
+    <ClCompile Include="..\interface\w32g_wrdwindow.c" />
+    <ClCompile Include="..\interface\wrdt_mac.c" />
+    <ClCompile Include="..\interface\wrdt_w32g.c" />
+    <ClCompile Include="..\interface\wrdt_wcon.c" />
+    <ClCompile Include="..\interface\wrdt_x.c" />
+    <ClCompile Include="..\interface\x_mag.c" />
+    <ClCompile Include="..\interface\x_sherry.c" />
+    <ClCompile Include="..\interface\x_wrdwindow.c" />
+    <ClCompile Include="..\interface\xaw_c.c" />
+    <ClCompile Include="..\interface\xaw_i.c" />
+    <ClCompile Include="..\interface\xaw_redef.c" />
+    <ClCompile Include="..\interface\xskin_c.c" />
+    <ClCompile Include="..\interface\xskin_i.c" />
+    <ClCompile Include="..\interface\xskin_loadBMP.c" />
+    <ClCompile Include="..\interface\xskin_spectrum.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -29,7 +29,9 @@
 #include <sys/types.h>
 #endif /* for off_t */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -658,7 +660,7 @@ char *strdup(const char *s)
     char *p;
 
     len = strlen(s);
-    if((p = (char *)safe_malloc(len + 1)) == NULL)
+    if((p = (char *)malloc(len + 1)) == NULL)
 	return NULL;
     return strcpy(p, s);
 }
@@ -677,7 +679,7 @@ char *getcwd(char *buf, size_t size)
 	strcpy(path, ".");
     if(buf != NULL)
 	return strncpy(buf, path, size);
-    return safe_strdup(path);
+    return strdup(path);
 }
 #endif /* HAVE_GETCWD */
 
@@ -728,7 +730,7 @@ int stat(const char *filename, struct stat *st)
 	st->st_ino = 0;
 	st->st_size = 0;
 	st->st_mtime = st->st_ctime = st->st_btime = 0;
-	errno = EIO;
+	_set_errno(EIO);
 	return -1;
 }
 #endif /* __MACOS__ */
@@ -754,7 +756,9 @@ int stat(const char *filename, struct stat *st)
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters
@@ -808,7 +812,9 @@ strlcpy(char *dst, const char *src, size_t siz)
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 /*
  * Appends src to string dst of size siz (unlike strncat, siz is the

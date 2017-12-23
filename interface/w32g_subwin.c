@@ -24,9 +24,13 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include <process.h>
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
+#endif /* HAVE_STDDEF_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -42,7 +46,7 @@
 #include "controls.h"
 #include "tables.h"
 #include "miditrace.h"
-#include "reverb.h"
+#include "effect.h"
 #ifdef SUPPORT_SOUNDSPEC
 #include "soundspec.h"
 #endif /* SUPPORT_SOUNDSPEC */
@@ -108,7 +112,7 @@ CONSOLEWNDINFO ConsoleWndInfo;
 
 // ---------------------------------------------------------------------------
 // prototypes of functions
-static BOOL CALLBACK ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static LRESULT CALLBACK ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void ConsoleWndAllUpdate(void);
 static void ConsoleWndVerbosityUpdate(void);
 static void ConsoleWndVerbosityApply(void);
@@ -124,34 +128,41 @@ static int ConsoleWndInfoApply(void);
 // Initialization
 void InitConsoleWnd(HWND hParentWnd)
 {
+	HICON hIcon;
 	if (hConsoleWnd != NULL) {
 		DestroyWindow(hConsoleWnd);
 		hConsoleWnd = NULL;
 	}
+///r
+	ConsoleWndInfoReset(hConsoleWnd);
 	INILoadConsoleWnd();
+
 	switch(PlayerLanguage){
   	case LANGUAGE_ENGLISH:
 		hConsoleWnd = CreateDialog
   			(hInst,MAKEINTRESOURCE(IDD_DIALOG_CONSOLE_EN),hParentWnd,ConsoleWndProc);
 		break;
- 	default:
 	case LANGUAGE_JAPANESE:
+ 	default:
 		hConsoleWnd = CreateDialog
   			(hInst,MAKEINTRESOURCE(IDD_DIALOG_CONSOLE),hParentWnd,ConsoleWndProc);
 	break;
 	}
+	hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
+	if (hIcon!=NULL) SendMessage(hConsoleWnd,WM_SETICON,FALSE,(LPARAM)hIcon);
 	ConsoleWndInfoReset(hConsoleWnd);
-	ShowWindow(hConsoleWnd,SW_HIDE);
-	ConsoleWndInfoReset(hConsoleWnd);
+	ShowWindow(hConsoleWnd,ConsoleWndStartFlag ? SW_SHOW : SW_HIDE);
+///r
+	INILoadConsoleWnd();
+	ConsoleWndInfoApply();
 	UpdateWindow(hConsoleWnd);
 	ConsoleWndVerbosityApplyIncDec(0);
 	CheckDlgButton(hConsoleWnd, IDC_CHECKBOX_VALID, ConsoleWndFlag);
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT), ConsoleWndMaxSize);
-	ConsoleWndInfoApply();
 }
 
 // Window Procedure
-static BOOL CALLBACK
+static LRESULT CALLBACK
 ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -193,9 +204,106 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		break;
-	case WM_SIZE:
+///r
+	case WM_GETMINMAXINFO:
+		{
+			LPMINMAXINFO lpmmi = (LPMINMAXINFO) lParam;
+			lpmmi->ptMinTrackSize.x = max(380, lpmmi->ptMinTrackSize.x);
+			lpmmi->ptMinTrackSize.y = max(150, lpmmi->ptMinTrackSize.y);
+		}
+		return 0;
+	case WM_SIZE:		
 		ConsoleWndAllUpdate();
-		return FALSE;
+		switch(wParam){
+		case SIZE_MAXIMIZED:
+		case SIZE_RESTORED:
+			{	// くそめんどーー
+			int x,y,cx,cy;
+			int max = 0;
+			int width;
+			RECT rcParent;
+			RECT rcBUTTON_VERBOSITY, rcEDIT_VERBOSITY, rcBUTTON_DEC, rcBUTTON_INC, rcCHECKBOX_VALID, rcCLEAR, rcEDIT;
+			HWND hwndBUTTON_VERBOSITY, hwndEDIT_VERBOSITY, hwndBUTTON_DEC, hwndBUTTON_INC, hwndCHECKBOX_VALID, hwndCLEAR, hwndEDIT;
+			int nWidth = LOWORD(lParam);
+			int nHeight = HIWORD(lParam);				
+			hwndEDIT = GetDlgItem(hwnd,IDC_EDIT);
+			hwndBUTTON_VERBOSITY = GetDlgItem(hwnd,IDC_BUTTON_VERBOSITY);
+			hwndEDIT_VERBOSITY = GetDlgItem(hwnd,IDC_EDIT_VERBOSITY);
+			hwndBUTTON_DEC = GetDlgItem(hwnd,IDC_BUTTON_DEC);
+			hwndBUTTON_INC = GetDlgItem(hwnd,IDC_BUTTON_INC);
+			hwndCHECKBOX_VALID = GetDlgItem(hwnd,IDC_CHECKBOX_VALID);
+			hwndCLEAR = GetDlgItem(hwnd,IDCLEAR);
+			GetWindowRect(hwndEDIT,&rcEDIT); // x0y0 基準
+			GetWindowRect(hwndBUTTON_VERBOSITY,&rcBUTTON_VERBOSITY);
+			GetWindowRect(hwndEDIT_VERBOSITY,&rcEDIT_VERBOSITY);
+			GetWindowRect(hwndBUTTON_DEC,&rcBUTTON_DEC);
+			GetWindowRect(hwndBUTTON_INC,&rcBUTTON_INC);
+			GetWindowRect(hwndCHECKBOX_VALID,&rcCHECKBOX_VALID);
+			GetWindowRect(hwndCLEAR,&rcCLEAR);					
+			GetClientRect(hwnd,&rcParent);
+			// IDC_BUTTON_VERBOSITY
+			cx = rcBUTTON_VERBOSITY.right-rcBUTTON_VERBOSITY.left;
+			cy = rcBUTTON_VERBOSITY.bottom-rcBUTTON_VERBOSITY.top;
+			x = rcBUTTON_VERBOSITY.left - rcEDIT.left;
+			y = rcParent.bottom - cy - 4;
+			MoveWindow(hwndBUTTON_VERBOSITY,x,y,cx,cy,TRUE);
+			if(cy>max) max = cy;
+			// IDC_EDIT_VERBOSITY
+			cx = rcEDIT_VERBOSITY.right-rcEDIT_VERBOSITY.left;
+			cy = rcEDIT_VERBOSITY.bottom-rcEDIT_VERBOSITY.top;
+			x = rcEDIT_VERBOSITY.left - rcEDIT.left;
+			y = rcParent.bottom - cy - 4;
+			MoveWindow(hwndEDIT_VERBOSITY,x,y,cx,cy,TRUE);
+			if(cy>max) max = cy;
+			// IDC_BUTTON_DEC
+			cx = rcBUTTON_DEC.right-rcBUTTON_DEC.left;
+			cy = rcBUTTON_DEC.bottom-rcBUTTON_DEC.top;
+			x = rcBUTTON_DEC.left - rcEDIT.left;
+			y = rcParent.bottom - cy - 4;
+			MoveWindow(hwndBUTTON_DEC,x,y,cx,cy,TRUE);
+			if(cy>max) max = cy;
+			// IDC_BUTTON_INC
+			cx = rcBUTTON_INC.right-rcBUTTON_INC.left;
+			cy = rcBUTTON_INC.bottom-rcBUTTON_INC.top;
+			x = rcBUTTON_INC.left - rcEDIT.left;
+			y = rcParent.bottom - cy - 4;
+			MoveWindow(hwndBUTTON_INC,x,y,cx,cy,TRUE);
+			if(cy>max) max = cy;
+			// IDC_CHECKBOX_VALID
+			cx = rcCHECKBOX_VALID.right-rcCHECKBOX_VALID.left;
+			cy = rcCHECKBOX_VALID.bottom-rcCHECKBOX_VALID.top;
+			x = rcCHECKBOX_VALID.left - rcEDIT.left;
+			y = rcParent.bottom - cy - 4;
+			MoveWindow(hwndCHECKBOX_VALID,x,y,cx,cy,TRUE);
+			if(cy>max) max = cy;
+			// IDCLEAR
+			cx = rcCLEAR.right-rcCLEAR.left;
+			cy = rcCLEAR.bottom-rcCLEAR.top;
+			x = rcCLEAR.left - rcEDIT.left;
+			y = rcParent.bottom - cy - 4;
+			MoveWindow(hwndCLEAR,x,y,cx,cy,TRUE);
+			if(cy>max) max = cy;
+			// IDC_EDIT
+			cx = rcParent.right - rcParent.left;
+			cy = rcParent.bottom - rcParent.top - max - 8;
+			x  = rcParent.left;
+			y = rcParent.top;
+			MoveWindow(hwndEDIT,x,y,cx,cy,TRUE);
+			// 
+			InvalidateRect(hwnd,&rcParent,FALSE);
+			UpdateWindow(hwnd);
+			GetWindowRect(hwnd,&rcParent);
+			ConsoleWndInfo.Width = rcParent.right - rcParent.left;
+			ConsoleWndInfo.Height = rcParent.bottom - rcParent.top;
+			break;
+			}
+		case SIZE_MINIMIZED:
+		case SIZE_MAXHIDE:
+		case SIZE_MAXSHOW:
+		default:
+			break;
+		}
+		break;
 	case WM_MOVE:
 //		ConsoleWndInfo.PosX = (int) LOWORD(lParam);
 //		ConsoleWndInfo.PosY = (int) HIWORD(lParam);
@@ -218,7 +326,13 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 	}
 		break;
-	case WM_DESTROY:
+	case WM_DESTROY:		
+		{
+		RECT rc;
+		GetWindowRect(hwnd,&rc);
+		ConsoleWndInfo.Width = rc.right - rc.left;
+		ConsoleWndInfo.Height = rc.bottom - rc.top;
+		}
 		INISaveConsoleWnd();
 		break;
 	case WM_CLOSE:
@@ -327,11 +441,20 @@ static int ConsoleWndInfoReset(HWND hwnd)
 	memset(&ConsoleWndInfo,0,sizeof(CONSOLEWNDINFO));
 	ConsoleWndInfo.PosX = - 1;
 	ConsoleWndInfo.PosY = - 1;
+	ConsoleWndInfo.Width = 454;
+	ConsoleWndInfo.Height = 337;
+	ConsoleWndInfo.hwnd = hwnd;
 	return 0;
 }
 
 static int ConsoleWndInfoApply(void)
 {
+	
+	RECT rc;
+
+	GetWindowRect(ConsoleWndInfo.hwnd,&rc);
+	MoveWindow(ConsoleWndInfo.hwnd,rc.left,rc.top,ConsoleWndInfo.Width,ConsoleWndInfo.Height,TRUE);
+	INISaveConsoleWnd();
 	return 0;
 }
 
@@ -351,17 +474,25 @@ static int ConsoleWndInfoApply(void)
 #define IDM_LISTWND_UNIQ 		4104
 #define IDM_LISTWND_CLEAR 		4105
 #define IDM_LISTWND_CHOOSEFONT	4106
-#define IDM_LISTWND_CURRENT 4107
-#define IDM_LISTWND_SEARCH 4108
+#define IDM_LISTWND_CURRENT     4107
+#define IDM_LISTWND_SEARCH      4108
+#define IDM_LISTWND_LISTNAME    4109
+#define IDM_LISTWND_COPY        4110
+#define IDM_LISTWND_CUT         4111
+#define IDM_LISTWND_PASTE       4112
+
 
 // ---------------------------------------------------------------------------
 // Variables
 LISTWNDINFO ListWndInfo;
 HWND hListSearchWnd = NULL;
+#ifdef LISTVIEW_PLAYLIST
+HIMAGELIST hImageList = NULL;
+#endif
 
 // ---------------------------------------------------------------------------
 // Prototypes
-static BOOL CALLBACK ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static LRESULT CALLBACK ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static int ListWndInfoReset(HWND hwnd);
 static int ListWndInfoApply(void);
 static int ListWndSetFontListBox(char *fontName, int fontWidth, int fontHeght);
@@ -375,57 +506,116 @@ static int DelListWnd(int nth);
 // Grobal Functions
 void InitListWnd(HWND hParentWnd)
 {
+	HICON hIcon;
 	if (hListWnd != NULL) {
 		DestroyWindow(hListWnd);
 		hListWnd = NULL;
 	}
 	ListWndInfoReset(hListWnd);
 	INILoadListWnd();
+#ifdef LISTVIEW_PLAYLIST
 	switch(PlayerLanguage){
 	case LANGUAGE_ENGLISH:
-		hListWnd = CreateDialog
-			(hInst,MAKEINTRESOURCE(IDD_DIALOG_SIMPLE_LIST_EN),hParentWnd,ListWndProc);
+		hListWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_PLAYLIST_EN),hParentWnd,ListWndProc);
 		break;
-	default:
 	case LANGUAGE_JAPANESE:
-		hListWnd = CreateDialog
-			(hInst,MAKEINTRESOURCE(IDD_DIALOG_SIMPLE_LIST),hParentWnd,ListWndProc);
+	default:
+		hListWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_PLAYLIST),hParentWnd,ListWndProc);
 		break;
 	}
+#else
+	switch(PlayerLanguage){
+	case LANGUAGE_ENGLISH:
+		hListWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_SIMPLE_LIST_EN),hParentWnd,ListWndProc);
+		break;
+	case LANGUAGE_JAPANESE:
+	default:
+		hListWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_SIMPLE_LIST),hParentWnd,ListWndProc);
+		break;
+	}
+#endif
 	ListWndInfoReset(hListWnd);
 	ListWndInfo.hPopupMenu = CreatePopupMenu();
 	switch(PlayerLanguage){
 	case LANGUAGE_JAPANESE:
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"演奏");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,"ドキュメント");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"演奏(&P)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,"ドキュメント(&D)...");
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,"現在位置");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,"検索");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,"現在位置(&C)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,"検索(&S)...");
+#ifdef LISTVIEW_PLAYLIST
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"削除");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,"カット(&X)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,"コピー(&Z)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,"ペースト/挿入(&A)");
+#endif
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,"フォントの選択");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"削除(&R)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,"フォントの選択(&H)...");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,"リスト名変更(&L)...");		
 		break;
- 	default:
   	case LANGUAGE_ENGLISH:
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"Play");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,"Doc");
+ 	default:
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"&Play");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,"&Doc...");
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,"Current item");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,"Search");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,"&Current item");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,"&Search...");
+#ifdef LISTVIEW_PLAYLIST
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"Remove");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,"Cut(&X)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,"Copy(&Z)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,"Paste/Insert(&A)");
+#endif
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,"Choose Font");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"&Remove");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,"C&hoose Font...");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,"Rename L&ist...");
 		break;
 	}
+	hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
+	if (hIcon!=NULL) SendMessage(hListWnd,WM_SETICON,FALSE,(LPARAM)hIcon);
 
 	INILoadListWnd();
 	ListWndInfoApply();
-	ShowWindow(ListWndInfo.hwnd,SW_HIDE);
+	ShowWindow(ListWndInfo.hwnd,ListWndStartFlag ? SW_SHOW : SW_HIDE);
 	UpdateWindow(ListWndInfo.hwnd);
+	
+#ifdef EXT_CONTROL_MAIN_THREAD
+	w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, 0);
+	w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+	w32g_send_rc(RC_EXT_PLAYLIST_CTRL, 0);
 	w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
 }
+
+#ifdef LISTVIEW_PLAYLIST
+void init_imagelist(HWND hlv)
+{
+	HICON hIcon = NULL;
+	if(hImageList)
+		return;
+	if(!hImageList)
+		hImageList = ImageList_Create(12, 12, ILC_COLOR, 2, 5);
+	if(!hImageList)
+		return;
+	hIcon = (HICON)LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_PLAYLIST_PLAY), IMAGE_ICON, 12, 12, 0);
+	if(!hIcon)
+		return;
+	ImageList_AddIcon(hImageList, (HICON)hIcon);
+	ListView_SetImageList(hlv, hImageList, LVSIL_SMALL);
+}
+
+void uninit_imagelist()
+{
+	if(hImageList)
+		ImageList_Destroy(hImageList);
+	hImageList = NULL;
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Static Functions
@@ -434,9 +624,76 @@ void SetNumListWnd(int cursel, int nfiles);
 
 #define WM_CHOOSEFONT_DIAG	(WM_APP+100)
 #define WM_LIST_SEARCH_DIAG	(WM_APP+101)
+#define WM_LISTNAME_DIAG	(WM_APP+102)
 #define LISTWND_HORIZONTALEXTENT 1600
 
-static BOOL CALLBACK
+static void ListWndCreateTabItems(HWND hwnd)
+{
+    int i;
+    HWND hwnd_tab;
+
+    hwnd_tab = GetDlgItem(hwnd, IDC_TAB_PLAYLIST);
+    for (i = 0; i < playlist_max; i++) {
+		TC_ITEM tci;
+		tci.mask = TCIF_TEXT;
+		tci.pszText = ListWndInfo.ListName[i];
+		tci.cchTextMax = strlen(ListWndInfo.ListName[i]);
+		SendMessage(hwnd_tab, TCM_INSERTITEM, (WPARAM)i, (LPARAM)&tci);
+    }
+}
+
+LRESULT CALLBACK
+ListNameWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+{
+	int num;
+
+	switch (uMess){
+	case WM_INITDIALOG:
+		SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"ListName");
+		num = w32g_get_playlist_num_ctrl();
+		SetDlgItemText(hwnd, IDC_EDIT1, ListWndInfo.ListName[num]);
+		SetFocus(GetDlgItem(hwnd,IDC_EDIT1));
+		return FALSE;
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDOK:
+			num = w32g_get_playlist_num_ctrl();
+			GetDlgItemText(hwnd, IDC_EDIT1, ListWndInfo.ListName[num], LF_FULLFACESIZE + 1);
+			{
+			TC_ITEM tci;
+			HWND hwnd_tab;
+			tci.mask = TCIF_TEXT;
+			tci.pszText = ListWndInfo.ListName[num];
+			tci.cchTextMax = strlen(ListWndInfo.ListName[num]);
+			hwnd_tab = GetDlgItem(hListWnd, IDC_TAB_PLAYLIST);
+			SendMessage(hwnd_tab, TCM_SETITEM, (WPARAM)num, (LPARAM)&tci);
+			}
+#ifdef EXT_CONTROL_MAIN_THREAD
+			w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, num);
+			w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+			w32g_send_rc(RC_EXT_PLAYLIST_CTRL, num);
+			w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
+			// thru close
+		case IDCLOSE:
+		case IDCANCEL:
+			EndDialog(hwnd, TRUE);
+			break;
+		default:
+			return FALSE;
+		}
+		break;
+	case WM_CLOSE:
+		EndDialog(hwnd, TRUE);
+		break;
+	default:
+		return FALSE;
+	}
+	return FALSE;
+}
+
+static LRESULT CALLBACK
 ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static BOOL ListSearchWndShow;
@@ -444,12 +701,243 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_INITDIALOG:
 		ListSearchWndShow = 0;
 		InitListSearchWnd(hwnd);
+		ListWndCreateTabItems(hwnd);
+#ifdef LISTVIEW_PLAYLIST
+		{
+			HWND hlv = GetDlgItem(hwnd, IDC_LV_PLAYLIST);
+			volatile LVCOLUMN lvc;
+			lvc.mask = LVCF_TEXT | LVCF_WIDTH;
+			lvc.fmt = LVCFMT_LEFT;
+			lvc.cx = ListWndInfo.columWidth[0];
+			lvc.pszText = TEXT("Title");
+			lvc.cchTextMax = 256 - 1;
+			lvc.iSubItem = 0;
+			ListView_InsertColumn(hlv, 0, &lvc);
+			lvc.cx = ListWndInfo.columWidth[1];
+			lvc.pszText = TEXT("Artist");
+			ListView_InsertColumn(hlv, 1, &lvc);
+			ListWndInfo.hwndList = hlv;		
+			lvc.cx = ListWndInfo.columWidth[2];
+			lvc.pszText = TEXT("Duration");
+			ListView_InsertColumn(hlv, 2, &lvc);
+			ListWndInfo.hwndList = hlv;		
+			lvc.cx = ListWndInfo.columWidth[3];
+			lvc.pszText = TEXT("System");
+			ListView_InsertColumn(hlv, 3, &lvc);
+			ListWndInfo.hwndList = hlv;		
+			lvc.cx = ListWndInfo.columWidth[4];
+			lvc.pszText = TEXT("File Type");
+			ListView_InsertColumn(hlv, 4, &lvc);
+			ListWndInfo.hwndList = hlv;		
+			lvc.cx = ListWndInfo.columWidth[5];
+			lvc.pszText = TEXT("File Path");
+			ListView_InsertColumn(hlv, 5, &lvc);			
+			ListView_SetExtendedListViewStyle(hlv, LVS_NOSORTHEADER);
+			ListView_SetExtendedListViewStyleEx(hlv, 0xFFFFFFFF, LVS_EX_FULLROWSELECT | LVS_EX_SUBITEMIMAGES | LVS_EX_GRIDLINES | LVS_EX_UNDERLINEHOT);
+		//	ListView_SetExtendedListViewStyleEx(hlv, LVS_EX_CHECKBOXES, LVS_EX_CHECKBOXES);
+			init_imagelist(hlv);
+		}
+#else
+		ListWndInfo.hwndList = GetDlgItem(hwnd, IDC_LISTBOX_PLAYLIST);
 		SendDlgItemMessage(hwnd,IDC_LISTBOX_PLAYLIST,
 			LB_SETHORIZONTALEXTENT,(WPARAM)LISTWND_HORIZONTALEXTENT,0);
+#endif
+#ifdef EXT_CONTROL_MAIN_THREAD
+		w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, 0);
+		w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+		w32g_send_rc(RC_EXT_PLAYLIST_CTRL, 0);
 		w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
 		SetWindowPosSize(GetDesktopWindow(),hwnd,ListWndInfo.PosX, ListWndInfo.PosY );
 		return FALSE;
+	case WM_NOTIFY:
+		{
+		int i;
+		int idCtrl = (int) wParam;
+		LPNMHDR pnmh = (LPNMHDR) lParam;
+		switch(pnmh->idFrom){
+#ifdef LISTVIEW_PLAYLIST
+		case IDC_LV_PLAYLIST:
+			switch (pnmh->code) {
+			case NM_DBLCLK:
+				SendMessage(hwnd,WM_COMMAND,(WPARAM)IDM_LISTWND_PLAY,0);
+				break;
+			case NM_CLICK:
+			case NM_RCLICK:	
+			case NM_HOVER:
+				break;
+			case LVN_MARQUEEBEGIN:
+				break;
+			case LVN_BEGINDRAG:
+			case LVN_BEGINRDRAG:
+				break;
+			case LVN_KEYDOWN:
+				{
+					UINT vkey = ((LPNMLVKEYDOWN)lParam)->wVKey;					
+					switch(vkey){
+					case VK_SPACE:
+					case VK_RETURN:						
+						SendMessage(hwnd,WM_COMMAND,(WPARAM)IDM_LISTWND_PLAY,0);
+						break;
+					case 0x50:	// VK_P
+						SendMessage(hMainWnd,WM_COMMAND,MAKEWPARAM(IDM_PREV,0),0);
+						break;
+					case 0x4e:	// VK_N
+						SendMessage(hMainWnd,WM_COMMAND,MAKEWPARAM(IDM_NEXT,0),0);
+						break;
+					case 0x45:	// VK_E
+						SendMessage(hMainWnd,WM_COMMAND,MAKEWPARAM(IDM_STOP,0),0);
+						return -2;
+					case 0x53:	// VK_S
+						SendMessage(hMainWnd,WM_COMMAND,MAKEWPARAM(IDM_PAUSE,0),0);
+						break;
+					case VK_ESCAPE:
+						SendMessage(hListWnd,WM_COMMAND,MAKEWPARAM(0,IDCLOSE),0);
+						break;
+					case 0x51:	// VK_Q
+						if(MessageBox(hListWnd,"Quit TiMidity?","TiMidity",MB_ICONQUESTION|MB_YESNO)==IDYES)
+							SendMessage(hMainWnd,WM_CLOSE,0,0);
+						break;
+					case VK_BACK:
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_DELETE_PLAYLIST, -1);
+#else
+						w32g_send_rc(RC_EXT_DELETE_PLAYLIST, -1);
+#endif
+						break;
+					case 0x44:	// VK_D
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_DELETE_PLAYLIST, 0);
+#else
+						w32g_send_rc(RC_EXT_DELETE_PLAYLIST, 0);
+#endif
+						break;
+					case VK_DELETE:
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_ROTATE_PLAYLIST, -1);
+#else
+						w32g_send_rc(RC_EXT_ROTATE_PLAYLIST, -1);
+#endif
+						break;
+					case VK_INSERT:
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_ROTATE_PLAYLIST, 1);
+#else
+						w32g_send_rc(RC_EXT_ROTATE_PLAYLIST, 1);
+#endif
+						break;
+					case 0x5A:	// VK_Z
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_COPYCUT_PLAYLIST, 0);
+#endif					
+						break;
+					case 0x58:	// VK_X
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_COPYCUT_PLAYLIST, 1);
+#endif					
+						break;
+					case 0x41:	// VK_A
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_PASTE_PLAYLIST, 0);
+#endif					
+						break;
+					case 0x46:	// VK_F
+						break;
+					case 0x42:	// VK_B
+						break;
+					case 0x4D:	// VK_M
+						SendMessage(hListWnd,WM_COMMAND,MAKEWPARAM(IDC_BUTTON_REFINE,0),0);
+						break;
+					case 0x43:	// VK_C
+						SendMessage(hListWnd,WM_COMMAND,MAKEWPARAM(IDC_BUTTON_CLEAR,0),0);
+						break;
+					case 0x55:	// VK_U
+						SendMessage(hListWnd,WM_COMMAND,MAKEWPARAM(IDC_BUTTON_UNIQ,0),0);
+						break;
+					case 0x56:	// VK_V
+						SendMessage(hListWnd,WM_COMMAND,MAKEWPARAM(IDC_BUTTON_DOC,0),0);
+						break;
+					case 0x57:	// VK_W
+						SendMessage(hMainWnd,WM_COMMAND,MAKEWPARAM(IDM_WRD,0),0);
+						break;
+					case 0x49:// VK_I
+						{	
+						int nIndex = SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
+						--nIndex;
+						if(nIndex < 0)
+							nIndex = playlist_max - 1;
+						SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_SETCURSEL, (WPARAM)nIndex, (LPARAM)0);
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+						w32g_send_rc(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
+						}
+						break;
+					case 0x4F:// VK_O
+						{	
+						int nIndex = SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
+						++nIndex;
+						if(nIndex >= playlist_max)
+							nIndex = 0;
+						SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_SETCURSEL, (WPARAM)nIndex, (LPARAM)0);
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+						w32g_send_rc(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
+						}
+						break;
+					}
+
+				}
+				break;
+			case LVN_COLUMNCLICK:
+				break;
+			default:
+				break;
+			}
+			break;
+#endif
+		case IDC_TAB_PLAYLIST:
+			switch (pnmh->code) {
+			case TCN_SELCHANGE:
+			{
+			int nIndex = SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST,
+							TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
+#ifdef EXT_CONTROL_MAIN_THREAD
+			w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, nIndex);
+			w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+			w32g_send_rc(RC_EXT_PLAYLIST_CTRL, nIndex);
+			w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
+			return TRUE;
+			}
+			default:
+				break;
+			}
+			break;
+		}
+		}
+		break;
 	case WM_DESTROY:
+#ifdef LISTVIEW_PLAYLIST
+		{
+			HWND hlv = GetDlgItem(hwnd, IDC_LV_PLAYLIST);
+			volatile LVCOLUMN lvc;
+			int i;
+			for(i = 0; i < LISTWND_COLUM; i++){
+				ListWndInfo.columWidth[i] = ListView_GetColumnWidth(hlv, i);
+			}
+		}
+		uninit_imagelist();
+#endif
 		{
 		RECT rc;
 		GetWindowRect(hwnd,&rc);
@@ -458,6 +946,8 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 		DestroyMenu(ListWndInfo.hPopupMenu);
 		ListWndInfo.hPopupMenu = NULL;
+		DeleteObject(ListWndInfo.hFontList);
+		ListWndInfo.hFontList = NULL;
 		INISaveListWnd();
 		break;
 		/* マウス入力がキャプチャされていないための処理 */
@@ -468,9 +958,25 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				POINT point;
 				int res;
 				GetCursorPos(&point);
-				SetForegroundWindow ( hwnd );
+				SetForegroundWindow ( hwnd );				
+#if 1 // menu position
+				{
+				RECT rc;
+				int mw = 205 + 5, mh = 258 + 5; // menu固定 W:205 H:258 (margin+5
+			//	GetWindowRect(GetDesktopWindow(), &rc);
+				GetWindowRect(hwnd, &rc);
+				if((point.y + mh) > rc.bottom)
+					point.y = rc.bottom - mh;
+				if(point.y < 0)
+					point.y = 0;
+				if((point.x + mw) > rc.right)
+					point.x = rc.right - mw;
+				if(point.x < 0)
+					point.x = 0;
+				}
+#endif
 				res = TrackPopupMenu(ListWndInfo.hPopupMenu,TPM_TOPALIGN|TPM_LEFTALIGN,
-					point.x,point.y,0,hwnd,NULL);
+					point.x,point.y,0,hwnd,NULL);				
 				PostMessage ( hwnd, WM_NULL, 0, 0 );
 				return TRUE;
 			}
@@ -481,10 +987,10 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_CHOOSEFONT_DIAG:
 		{
-			char fontName[64];
+			char fontName[LF_FULLFACESIZE + 1];
 			int fontHeight;
 			int fontWidth;
-			strcpy(fontName,ListWndInfo.fontName);
+			strncpy(fontName,ListWndInfo.fontName,LF_FULLFACESIZE + 1);
 			fontHeight = ListWndInfo.fontHeight;
 			fontWidth = ListWndInfo.fontWidth;
 			if(DlgChooseFont(hwnd,fontName,&fontHeight,&fontWidth)==0){
@@ -494,6 +1000,9 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_LIST_SEARCH_DIAG:
 		ShowListSearch();
+		break;
+	case WM_LISTNAME_DIAG:
+		DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_SEARCHBOX), hwnd, ListNameWndProc);
 		break;
 	case WM_COMMAND:
 			switch (HIWORD(wParam)) {
@@ -520,37 +1029,82 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			case IDC_BUTTON_CLEAR:
 				if(MessageBox(hListWnd,"Clear playlist?","Playlist",
 							  MB_YESNO)==IDYES)
+#ifdef EXT_CONTROL_MAIN_THREAD
+					w32g_ext_control_main_thread(RC_EXT_CLEAR_PLAYLIST, 0);
+#else
 					w32g_send_rc(RC_EXT_CLEAR_PLAYLIST, 0);
+#endif
 				return FALSE;
 			case IDC_BUTTON_REFINE:
 				if(MessageBox(hListWnd,
 							  "Remove unsupported file types from the playlist?",
 							  "Playlist",MB_YESNO) == IDYES)
+#ifdef EXT_CONTROL_MAIN_THREAD
+					w32g_ext_control_main_thread(RC_EXT_REFINE_PLAYLIST, 0);
+#else
 					w32g_send_rc(RC_EXT_REFINE_PLAYLIST, 0);
+#endif
 				return FALSE;
 			case IDC_BUTTON_UNIQ:
 				if(MessageBox(hListWnd,
 							  "Remove the same files from the playlist and make files of the playlist unique?",
 							  "Playlist",MB_YESNO)==IDYES)
+#ifdef EXT_CONTROL_MAIN_THREAD
+					w32g_ext_control_main_thread(RC_EXT_UNIQ_PLAYLIST, 0);
+#else
 					w32g_send_rc(RC_EXT_UNIQ_PLAYLIST, 0);
+#endif
 				return FALSE;
 			case IDM_LISTWND_REMOVE:
+#ifdef EXT_CONTROL_MAIN_THREAD
+				w32g_ext_control_main_thread(RC_EXT_DELETE_PLAYLIST, 0);
+#else
 				w32g_send_rc(RC_EXT_DELETE_PLAYLIST, 0);
+#endif
 				break;
+			case IDM_LISTWND_CUT:
+#ifdef EXT_CONTROL_MAIN_THREAD
+				w32g_ext_control_main_thread(RC_EXT_COPYCUT_PLAYLIST, 1);
+#endif
+				break;
+			case IDM_LISTWND_COPY:
+#ifdef EXT_CONTROL_MAIN_THREAD
+				w32g_ext_control_main_thread(RC_EXT_COPYCUT_PLAYLIST, 0);
+#endif
+				break;
+			case IDM_LISTWND_PASTE:
+#ifdef EXT_CONTROL_MAIN_THREAD
+				w32g_ext_control_main_thread(RC_EXT_PASTE_PLAYLIST, 0);
+#endif
+				break;		
+
 			case IDC_BUTTON_DOC: {
 					int cursel;
 					w32g_get_playlist_index(NULL, NULL, &cursel);
+#ifdef EXT_CONTROL_MAIN_THREAD
+					w32g_ext_control_main_thread(RC_EXT_OPEN_DOC, cursel);
+#else
 					w32g_send_rc(RC_EXT_OPEN_DOC, cursel);
+#endif
 				}
 				break;
 			case IDM_LISTWND_PLAY:
 				{
+#ifdef LISTVIEW_PLAYLIST
+					int new_cursel =  ListView_GetNextItem(GetDlgItem(hwnd, IDC_LV_PLAYLIST), -1, LVNI_FOCUSED);
+#else
 					int new_cursel =  SendDlgItemMessage(hwnd,IDC_LISTBOX_PLAYLIST,LB_GETCURSEL,0,0);
+#endif
 					int selected, nfiles, cursel;
+					w32g_set_playlist_ctrl_play();
 					w32g_get_playlist_index(&selected, &nfiles, &cursel);
 					if ( nfiles <= new_cursel ) new_cursel = nfiles - 1;
 					if ( new_cursel >= 0 )
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_JUMP_FILE, new_cursel );
+#else
 						w32g_send_rc(RC_EXT_JUMP_FILE, new_cursel );
+#endif
 				}
 				return FALSE;
 			case IDM_LISTWND_CHOOSEFONT:
@@ -558,12 +1112,21 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
  					SendMessage(hwnd,WM_CHOOSEFONT_DIAG,0,0);
 				}
 				return FALSE;
+			case IDM_LISTWND_LISTNAME:
+				{
+ 					SendMessage(hwnd,WM_LISTNAME_DIAG,0,0);
+				}
+				return FALSE;
 			case IDM_LISTWND_CURRENT:
+				if(w32g_is_playlist_ctrl_play())
 				{
 					int selected, nfiles, cursel;
 					w32g_get_playlist_index(&selected, &nfiles, &cursel);
-					SendDlgItemMessage(hwnd,IDC_LISTBOX_PLAYLIST,
-						LB_SETCURSEL,(WPARAM)selected,0);
+#ifdef LISTVIEW_PLAYLIST
+					ListView_SetItemState(ListWndInfo.hwndList, selected, LVIS_FOCUSED, LVIS_FOCUSED);
+#else
+					SendDlgItemMessage(hwnd,IDC_LISTBOX_PLAYLIST, LB_SETCURSEL,(WPARAM)selected,0);
+#endif
 					SetNumListWnd(selected,nfiles);
 				}
 				return FALSE;
@@ -583,7 +1146,11 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					switch(vkey){
 					case VK_SPACE:
 					case VK_RETURN:
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_JUMP_FILE, nCaretPos);
+#else
 						w32g_send_rc(RC_EXT_JUMP_FILE, nCaretPos);
+#endif
 						return -2;
 					case 0x50:	// VK_P
 						SendMessage(hMainWnd,WM_COMMAND,MAKEWPARAM(IDM_PREV,0),0);
@@ -605,16 +1172,32 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 							SendMessage(hMainWnd,WM_CLOSE,0,0);
 						return -2;
 					case VK_BACK:
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_DELETE_PLAYLIST, -1);
+#else
 						w32g_send_rc(RC_EXT_DELETE_PLAYLIST, -1);
+#endif
 						return -2;
 					case 0x44:	// VK_D
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_DELETE_PLAYLIST, 0);
+#else
 						w32g_send_rc(RC_EXT_DELETE_PLAYLIST, 0);
+#endif
 						return -2;
 					case VK_DELETE:
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_ROTATE_PLAYLIST, -1);
+#else
 						w32g_send_rc(RC_EXT_ROTATE_PLAYLIST, -1);
+#endif
 						return -2;
 					case VK_INSERT:
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_ROTATE_PLAYLIST, 1);
+#else
 						w32g_send_rc(RC_EXT_ROTATE_PLAYLIST, 1);
+#endif
 						return -2;
 					case 0x46:	// VK_F
 						return -2;
@@ -635,6 +1218,38 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					case 0x57:	// VK_W
 						SendMessage(hMainWnd,WM_COMMAND,MAKEWPARAM(IDM_WRD,0),0);
 						return -2;
+					case 0x49:// VK_I
+						{	
+						int nIndex = SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
+						--nIndex;
+						if(nIndex < 0)
+							nIndex = playlist_max - 1;
+						SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_SETCURSEL, (WPARAM)nIndex, (LPARAM)0);
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+						w32g_send_rc(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
+						}
+						return -2;
+					case 0x4F:// VK_O
+						{	
+						int nIndex = SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
+						++nIndex;
+						if(nIndex >= playlist_max)
+							nIndex = 0;
+						SendDlgItemMessage(hwnd, IDC_TAB_PLAYLIST, TCM_SETCURSEL, (WPARAM)nIndex, (LPARAM)0);
+#ifdef EXT_CONTROL_MAIN_THREAD
+						w32g_ext_control_main_thread(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
+						w32g_send_rc(RC_EXT_PLAYLIST_CTRL, nIndex);
+						w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
+						}
+						return -2;
 					case VK_F1:
 					case 0x48:	// VK_H
 						if ( PlayerLanguage == LANGUAGE_JAPANESE ){
@@ -649,9 +1264,15 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 							"プレイリスト操作コマンド\n"
 							"  M: MIDIファイル以外を削除    U: 重複ファイルを削除\n"
 							"  C: プレイリストのクリア\n"
+#ifdef LISTVIEW_PLAYLIST
+							"  Z: 選択した曲をコピー    X: 選択した曲をカット\n"
+							"  A: フォーカス位置へをペースト(挿入)\n"
+#endif
 							"  D: カーソルの曲を削除    BS: カーソルの前の曲を削除\n"
 							"  INS: カーソルの曲をリストの最後に移す (Push)\n"
 							"  DEL: リストの最後の曲をカーソルの前に挿入 (Pop)\n"
+							"プレイリストタブ操作コマンド\n"
+							"  I: 次プレイリストタブ    O: 前プレイリストタブ\n"
 							"TiMidity コマンド\n"
 							"  Q: 終了\n"
 							,"ヘルプ", MB_OK);
@@ -667,8 +1288,13 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 							"Playlist command.\n"
 							"  M: Refine playlist    U: Uniq playlist\n"
 							"  C: Clear playlist\n"
+#ifdef LISTVIEW_PLAYLIST
+							"  Z: Copy    X: Cut    A: Paste(Insert)\n"
+#endif
 							"  D: Remove playlist    BS: Remove previous playlist\n"
 							"  INS: Push Playlist    DEL: Pop Playlist\n"
+							"Playlist tab command.\n"
+							"  I: next playlist tab    O: prev playlist tab\n"
 							"TiMidity command.\n"
 							"  Q: Quit\n"
 							,"Help", MB_OK);
@@ -679,6 +1305,13 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			}
 			return -1;
 		}
+	case WM_GETMINMAXINFO:
+		{
+			LPMINMAXINFO lpmmi = (LPMINMAXINFO) lParam;
+			lpmmi->ptMinTrackSize.x = max(350, lpmmi->ptMinTrackSize.x);
+			lpmmi->ptMinTrackSize.y = max(100, lpmmi->ptMinTrackSize.y);
+		}
+		return 0;
 	case WM_SIZE:
 		switch(wParam){
 		case SIZE_MAXIMIZED:
@@ -694,10 +1327,6 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				GetWindowRect(hwnd,&rcParent);
 				cx = rcParent.right-rcParent.left;
 				cy  = rcParent.bottom-rcParent.top;
-				if(cx < 380)
-					MoveWindow(hwnd,rcParent.left,rcParent.top,380,cy,TRUE);
-				if(cy < 200)
-					MoveWindow(hwnd,rcParent.left,rcParent.top,cx,200,TRUE);
 				GetClientRect(hwnd,&rcParent);
 				rcRest.left = rcParent.left; rcRest.right = rcParent.right;
 
@@ -707,8 +1336,8 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				GetWindowRect(hwndChild,&rcChild);
 				cx = rcChild.right-rcChild.left;
 				cy = rcChild.bottom-rcChild.top;
-				x = rcParent.left;
-				y = rcParent.bottom - cy;
+				x = rcParent.left + 1;
+				y = rcParent.bottom - cy - 3;
 				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
 				if(cy>maxHeight) maxHeight = cy;
 				rcRest.left += cx;
@@ -719,7 +1348,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				cx = rcChild.right-rcChild.left;
 				cy = rcChild.bottom-rcChild.top;
 				x = rcRest.left + 10;
-				y = rcParent.bottom - cy;
+				y = rcParent.bottom - cy - 1;
 				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
 				if(cy>maxHeight) maxHeight = cy;
 				rcRest.left += cx;
@@ -729,8 +1358,8 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				GetWindowRect(hwndChild,&rcChild);
 				cx = rcChild.right-rcChild.left;
 				cy = rcChild.bottom-rcChild.top;
-				x = rcParent.right - cx - 5;
-				y = rcParent.bottom - cy ;
+				x = rcParent.right - cx - 1;
+				y = rcParent.bottom - cy - 1;
 				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
 				if(cy>maxHeight) maxHeight = cy;
 				rcRest.right -= cx + 5;
@@ -742,7 +1371,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				cx = rcChild.right-rcChild.left;
 				cy = rcChild.bottom-rcChild.top;
 				x = center - cx;
-				y = rcParent.bottom - cy;
+				y = rcParent.bottom - cy - 1;
 				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
 				if(cy>maxHeight) maxHeight = cy;
 				// IDC_BUTTON_REFINE
@@ -752,17 +1381,30 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				cx = rcChild.right-rcChild.left;
 				cy = rcChild.bottom-rcChild.top;
 				x = center + 3;
-				y = rcParent.bottom - cy;
+				y = rcParent.bottom - cy - 1;
 				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
-				if(cy>maxHeight) maxHeight = cy;
-				// IDC_LISTBOX_PLAYLIST
-				idControl = IDC_LISTBOX_PLAYLIST;
+				if(cy>maxHeight) maxHeight = cy;				
+				// IDC_TAB_PLAYLIST
+				idControl = IDC_TAB_PLAYLIST;
 				hwndChild = GetDlgItem(hwnd,idControl);
-				cx = rcParent.right - rcParent.left;
+				cx = rcParent.right - rcParent.left - 2;
 				cy = rcParent.bottom - rcParent.top - maxHeight - 3;
-				x  = rcParent.left;
-				y = rcParent.top;
+				x  = rcParent.left + 1;
+				y = rcParent.top + 1;
 				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				// PLAYLIST
+#ifdef LISTVIEW_PLAYLIST
+				idControl = IDC_LV_PLAYLIST;
+#else
+				idControl = IDC_LISTBOX_PLAYLIST;
+#endif
+				hwndChild = GetDlgItem(hwnd,idControl);
+				cx = rcParent.right - rcParent.left - 2;
+				cy = rcParent.bottom - rcParent.top - maxHeight - 3 - 20; // -20: tab hight
+				x  = rcParent.left + 1;
+				y = rcParent.top + 1 + 20; // +20: tab hight
+				MoveWindow(hwndChild,x,y,cx,cy,TRUE);
+				// 
 				InvalidateRect(hwnd,&rcParent,FALSE);
 				UpdateWindow(hwnd);
 				GetWindowRect(hwnd,&rcParent);
@@ -825,6 +1467,9 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_DROPFILES:
 		SendMessage(hMainWnd,WM_DROPFILES,wParam,lParam);
 		return 0;
+	case WM_HELP:
+		PostMessage(hListWnd, WM_VKEYTOITEM, MAKEWPARAM('H', 0), 0);
+		break;
 	default:
 		return FALSE;
 	}
@@ -841,7 +1486,11 @@ static int ListWndInfoReset(HWND hwnd)
 	ListWndInfo.hPopupMenu = NULL;
 	ListWndInfo.hwnd = hwnd;
 	if ( hwnd != NULL )
-		ListWndInfo.hwndListBox = GetDlgItem(hwnd,IDC_LISTBOX_PLAYLIST);
+#ifdef LISTVIEW_PLAYLIST
+		ListWndInfo.hwndList = GetDlgItem(hwnd,IDC_LV_PLAYLIST);
+#else
+		ListWndInfo.hwndList = GetDlgItem(hwnd,IDC_LISTBOX_PLAYLIST);
+#endif
 	strcpy(ListWndInfo.fontNameEN,"Times New Roman");
 	strcpy(ListWndInfo.fontNameJA,"ＭＳ 明朝");
 	ListWndInfo.fontHeight = 12;
@@ -851,8 +1500,8 @@ static int ListWndInfoReset(HWND hwnd)
 	case LANGUAGE_ENGLISH:
 		ListWndInfo.fontName = ListWndInfo.fontNameEN;
 		break;
-	default:
 	case LANGUAGE_JAPANESE:
+	default:
 		ListWndInfo.fontName = ListWndInfo.fontNameJA;
 		break;
 	}
@@ -869,15 +1518,16 @@ static int ListWndInfoApply(void)
 			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
 	      	fdwPitch | FF_DONTCARE,ListWndInfo.fontName);
 	if(hFont != NULL){
-		hFontPre = ListWndInfo.hFontListBox;
-		ListWndInfo.hFontListBox = hFont;
-		SendMessage(ListWndInfo.hwndListBox,WM_SETFONT,(WPARAM)ListWndInfo.hFontListBox,(LPARAM)MAKELPARAM(TRUE,0));
+		hFontPre = ListWndInfo.hFontList;
+		ListWndInfo.hFontList = hFont;
+		SendMessage(ListWndInfo.hwndList,WM_SETFONT,(WPARAM)ListWndInfo.hFontList,(LPARAM)MAKELPARAM(TRUE,0));
 	}
 	GetWindowRect(ListWndInfo.hwnd,&rc);
 	MoveWindow(ListWndInfo.hwnd,rc.left,rc.top,ListWndInfo.Width,ListWndInfo.Height,TRUE);
 //	InvalidateRect(hwnd,&rc,FALSE);
 //	UpdateWindow(hwnd);
-	if(hFontPre!=NULL) CloseHandle(hFontPre);
+	if(hFontPre!=NULL)
+		DeleteObject(hFontPre);
 	INISaveListWnd();
 	return 0;
 }
@@ -899,6 +1549,8 @@ void SetNumListWnd(int cursel, int nfiles)
 }
 
 
+
+
 #if 0
 // ***************************************************************************
 // Tracer Window
@@ -912,7 +1564,7 @@ void InitTracerWnd(HWND hParentWnd)
 	}
 	hTracerWnd = CreateDialog
 		(hInst,MAKEINTRESOURCE(IDD_DIALOG_TRACER),hParentWnd,TracerWndProc);
-	ShowWindow(hTracerWnd,SW_HIDE);
+	ShowWindow(hTracerWnd,TracerWndStartFlag ? SW_SHOW : SW_HIDE);
 	UpdateWindow(hTracerWnd);
 }
 
@@ -954,7 +1606,7 @@ int DocWndIndependent = 0; /* Independent document viewer mode.(独立ドキュメント
 int DocWndAutoPopup = 0;
 DOCWNDINFO DocWndInfo;
 
-static BOOL CALLBACK DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static LRESULT CALLBACK DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void InitDocEditWnd(HWND hParentWnd);
 static void DocWndConvertText(char *in, int in_size, char *out, int out_size);
 static void DocWndSetText(char *text, int text_size);
@@ -990,8 +1642,8 @@ void InitDocWnd(HWND hParentWnd)
 		hDocWnd = CreateDialog
 			(hInst,MAKEINTRESOURCE(IDD_DIALOG_DOC_EN),hParentWnd,DocWndProc);
 		break;
- 	default:
 	case LANGUAGE_JAPANESE:
+ 	default:
 		hDocWnd = CreateDialog
 			(hInst,MAKEINTRESOURCE(IDD_DIALOG_DOC),hParentWnd,DocWndProc);
 	break;
@@ -1005,8 +1657,8 @@ void InitDocWnd(HWND hParentWnd)
 		AppendMenu(hMenu,MF_SEPARATOR,0,0);
 		AppendMenu(hMenu,MF_STRING,IDM_DOCWND_CHOOSEFONT,"フォントの選択");
 		break;
- 	default:
   	case LANGUAGE_ENGLISH:
+ 	default:
 		AppendMenu(hMenu,MF_SEPARATOR,0,0);
 		AppendMenu(hMenu,MF_STRING,IDM_DOCWND_CHOOSEFONT,"Choose Font");
 		break;
@@ -1014,13 +1666,13 @@ void InitDocWnd(HWND hParentWnd)
 	DocWndInfoReset2(hDocWnd);
 	INILoadDocWnd();
 	DocWndInfoApply();
-	ShowWindow(hDocWnd,SW_HIDE);
+	ShowWindow(hDocWnd,DocWndStartFlag ? SW_SHOW : SW_HIDE);
 	UpdateWindow(hDocWnd);
 	EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),FALSE);
 	EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),FALSE);
 }
 
-static BOOL CALLBACK
+static LRESULT CALLBACK
 DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -1042,7 +1694,7 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		switch(wParam){
 		case IDM_DOCWND_CHOOSEFONT:
 		{
-			char fontName[64];
+			char fontName[LF_FULLFACESIZE + 1];
 			int fontHeight;
 			int fontWidth;
 			strcpy(fontName,DocWndInfo.fontName);
@@ -1097,6 +1749,13 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 //		ShowWindow(hDocWnd, SW_HIDE);
 		MainWndUpdateDocButton();
 		break;
+	case WM_GETMINMAXINFO:
+		{
+			LPMINMAXINFO lpmmi = (LPMINMAXINFO) lParam;
+			lpmmi->ptMinTrackSize.x = max(300, lpmmi->ptMinTrackSize.x);
+			lpmmi->ptMinTrackSize.y = max(100, lpmmi->ptMinTrackSize.y);
+		}
+		return 0;
 	case WM_SIZE:
 		switch(wParam){
 		case SIZE_MAXIMIZED:
@@ -1113,10 +1772,6 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				GetWindowRect(hwnd,&rcParent);
 				cx = rcParent.right-rcParent.left;
 				cy  = rcParent.bottom-rcParent.top;
-				if(cx < 300)
-					MoveWindow(hwnd,rcParent.left,rcParent.top,300,cy,TRUE);
-				if(cy < 200)
-					MoveWindow(hwnd,rcParent.left,rcParent.top,cx,200,TRUE);
 				GetClientRect(hwnd,&rcParent);
 				hwndEDIT = GetDlgItem(hwnd,IDC_EDIT);
 				hwndEDIT_INFO = GetDlgItem(hwnd,IDC_EDIT_INFO);
@@ -1129,6 +1784,7 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				GetWindowRect(hwndBUTTON_PREV,&rcBUTTON_PREV);
 				GetWindowRect(hwndBUTTON_NEXT,&rcBUTTON_NEXT);
 				width = rcParent.right - rcParent.left;
+
 				cx = rcBUTTON_NEXT.right-rcBUTTON_NEXT.left;
 				cy = rcBUTTON_NEXT.bottom-rcBUTTON_NEXT.top;
 				x = rcParent.right - cx - 5;
@@ -1213,8 +1869,8 @@ static int DocWndInfoReset2(HWND hwnd)
 	case LANGUAGE_ENGLISH:
 		DocWndInfo.fontName = DocWndInfo.fontNameEN; 
 		break;
-	default:
 	case LANGUAGE_JAPANESE:
+	default:
 		DocWndInfo.fontName = DocWndInfo.fontNameJA; 
 		break;
 	}
@@ -1239,7 +1895,7 @@ static int DocWndInfoApply(void)
 	MoveWindow(DocWndInfo.hwnd,rc.left,rc.top,DocWndInfo.Width,DocWndInfo.Height,TRUE);
 //	InvalidateRect(hwnd,&rc,FALSE);
 //	UpdateWindow(hwnd);
-	if(hFontPre!=NULL) CloseHandle(hFontPre);
+	if(hFontPre!=NULL) DeleteObject(hFontPre);
 	INISaveDocWnd();
 	return 0;
 }
@@ -1360,16 +2016,16 @@ stage1_end:
 #endif
 	switch(PlayerLanguage){
   	case LANGUAGE_ENGLISH:
- 	default:
 		strncpy(out,buffer,MAX2(buffer_size-1,out_size-1));
 		out[out_size-1] = '\0';
-		free(buffer);
+		safe_free(buffer);
 		break;
 	case LANGUAGE_JAPANESE:
+ 	default:
 		strncpy(out,buffer,MAX2(buffer_size-1,out_size-1));
 		nkf_convert(buffer,out,out_size-1,NULL,"SJIS");
 		out[out_size-1] = '\0';
-		free(buffer);
+		safe_free(buffer);
 		break;
 	}
 }
@@ -1445,10 +2101,8 @@ void DocWndInfoReset(void)
 		return;
 	DocWndInfo.DocFileCur = 0;
 	DocWndInfo.DocFileMax = 0;
-	if(DocWndInfo.Text!=NULL){
-		free(DocWndInfo.Text);
-		DocWndInfo.Text = NULL;
-	}
+	safe_free(DocWndInfo.Text);
+	DocWndInfo.Text = NULL;
 	DocWndInfo.TextSize = 0;
 	DocWndSetInfo("","");
 	DocWndSetText("",0);
@@ -1470,8 +2124,8 @@ PrintfDebugWnd("DocWndAddDocFile <- [%s]\n",filename);
 	if(DocWndInfo.DocFileMax>=DOCWND_DOCFILEMAX-1)
 		goto end;
 	DocWndInfo.DocFileMax++;
-	strncpy(DocWndInfo.DocFile[DocWndInfo.DocFileMax-1],filename,MAXPATH);
-	DocWndInfo.DocFile[DocWndInfo.DocFileMax-1][MAXPATH-1] = '\0';
+	strncpy(DocWndInfo.DocFile[DocWndInfo.DocFileMax-1],filename,FILEPATH_MAX);
+	DocWndInfo.DocFile[DocWndInfo.DocFileMax-1][FILEPATH_MAX-1] = '\0';
 	if(DocWndInfo.DocFileCur==1)
 		EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_PREV),FALSE);
 	else
@@ -1489,12 +2143,12 @@ end:
 
 void DocWndSetMidifile(char *filename)
 {
-	char buffer[MAXPATH+10];
+	char buffer[FILEPATH_MAX];
 	char *p;
 	if(DocWndInfoLock()==FALSE)
 		return;
-	strncpy(buffer,filename,MAXPATH-1);
-	buffer[MAXPATH-1] = '\0';
+	strncpy(buffer,filename,FILEPATH_MAX-1);
+	buffer[FILEPATH_MAX-1] = '\0';
 	p = strrchr(buffer,'.');
 	if(p==NULL)
 		goto end;
@@ -1510,6 +2164,20 @@ void DocWndSetMidifile(char *filename)
 	p = strrchr(buffer,'#');
 	if(p==NULL)
 		goto end;
+	p ++;
+	*p = '\0';
+	strcat(buffer,"readme.txt");
+	DocWndAddDocFile(buffer);
+	*p = '\0';
+	strcat(buffer,"readme.1st");
+	DocWndAddDocFile(buffer);
+	*p = '\0';
+	strcat(buffer,"歌詞.txt");
+	DocWndAddDocFile(buffer);
+	p = strrchr(buffer,'\\');
+	if(p==NULL)
+		goto end;
+	p ++;
 	*p = '\0';
 	strcat(buffer,"readme.txt");
 	DocWndAddDocFile(buffer);
@@ -1539,10 +2207,8 @@ void DocWndReadDoc(int num)
 	tf = open_file(DocWndInfo.DocFile[DocWndInfo.DocFileCur-1],1,10);
 	if(tf==NULL)
 		goto end;
-	if(DocWndInfo.Text!=NULL){
-		free(DocWndInfo.Text);
-		DocWndInfo.Text = NULL;
-	}
+	safe_free(DocWndInfo.Text);
+	DocWndInfo.Text = NULL;
 	DocWndInfo.Text = (char *)safe_malloc(sizeof(char)*DOCWNDDOCSIZEMAX);
 	DocWndInfo.Text[0] = '\0';
 	DocWndInfo.TextSize = tf_read(DocWndInfo.Text,1,DOCWNDDOCSIZEMAX-1,tf);
@@ -1639,7 +2305,7 @@ void ClearDocWnd(void)
 #define ListSearchStringMax 256
 static char ListSearchString[ListSearchStringMax];
 
-BOOL CALLBACK ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitListSearchWnd(HWND hParentWnd)
 {
 	strcpy(ListSearchString,"");
@@ -1652,8 +2318,8 @@ void InitListSearchWnd(HWND hParentWnd)
 		hListSearchWnd = CreateDialog
 			(hInst,MAKEINTRESOURCE(IDD_DIALOG_ONE_LINE),hParentWnd,ListSearchWndProc);
 		break;
-	default:
 	case LANGUAGE_ENGLISH:
+	default:
 		hListSearchWnd = CreateDialog
 			(hInst,MAKEINTRESOURCE(IDD_DIALOG_ONE_LINE_EN),hParentWnd,ListSearchWndProc);
 		break;
@@ -1664,7 +2330,7 @@ void InitListSearchWnd(HWND hParentWnd)
 
 #define ListSearchStringBuffSize 1024*2
 
-BOOL CALLBACK
+LRESULT CALLBACK
 ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -1678,8 +2344,8 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)"次を検索");
 			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)"閉じる");
 			break;
-		default:
 		case LANGUAGE_ENGLISH:
+		default:
 			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"Playlist Search");
 			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)"Enter search keyword.");
 			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)"");
@@ -1688,6 +2354,7 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)"CLOSE");
 			break;
 		}
+		SetFocus(GetDlgItem(hwnd,IDC_EDIT_ONE_LINE));
 		return FALSE;
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
@@ -1766,24 +2433,68 @@ void HideListSearch(void)
 //****************************************************************************
 // SoundSpec Window
 
-BOOL CALLBACK SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+// ---------------------------------------------------------------------------
+// variables
+SOUNDSPECWNDINFO SoundSpecWndInfo;
+
+// ---------------------------------------------------------------------------
+// prototypes of functions
+LRESULT CALLBACK SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+#ifdef SUPPORT_SOUNDSPEC
+void TargetSpectrogramCanvas(HWND hwnd);
+void HandleSpecKeydownEvent(long message, short modifiers);
+void UpdateSpectrogramCanvas(void);
+#endif
+
+static int SoundSpecWndInfoApply(void);
+static int SoundSpecWndInfoReset(HWND hwnd);
+
+// ---------------------------------------------------------------------------
+// Global Functions
 void InitSoundSpecWnd(HWND hParentWnd)
 {
+	HICON hIcon;
 	if (hSoundSpecWnd != NULL) {
 		DestroyWindow(hSoundSpecWnd);
 		hSoundSpecWnd = NULL;
 	}
-	hSoundSpecWnd = CreateDialog
-		(hInst,MAKEINTRESOURCE(IDD_DIALOG_SOUNDSPEC),hParentWnd,SoundSpecWndProc);
-	ShowWindow(hSoundSpecWnd,SW_HIDE);
+	SoundSpecWndInfoReset(NULL);
+	INILoadSoundSpecWnd();
+	switch(PlayerLanguage){
+	case LANGUAGE_JAPANESE:
+		hSoundSpecWnd = CreateDialog
+			(hInst,MAKEINTRESOURCE(IDD_DIALOG_SOUNDSPEC),hParentWnd,SoundSpecWndProc);
+		break;
+  	case LANGUAGE_ENGLISH:
+ 	default:
+		hSoundSpecWnd = CreateDialog
+			(hInst,MAKEINTRESOURCE(IDD_DIALOG_SOUNDSPEC_EN),hParentWnd,SoundSpecWndProc);
+		break;
+	}
+	SoundSpecWndInfoReset(hSoundSpecWnd);
+	ShowWindow(hSoundSpecWnd,SoundSpecWndStartFlag ? SW_SHOW : SW_HIDE);
 	UpdateWindow(hSoundSpecWnd);
+	hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
+	if (hIcon!=NULL) SendMessage(hSoundSpecWnd,WM_SETICON,FALSE,(LPARAM)hIcon);
+	SoundSpecWndInfoApply();
 }
 
-BOOL CALLBACK
+LRESULT CALLBACK
 SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
 	case WM_INITDIALOG:
+	{
+		RECT rc;
+#ifdef SUPPORT_SOUNDSPEC
+		open_soundspec();
+		TargetSpectrogramCanvas(hwnd);
+	   	soundspec_update_wave(NULL, 0);
+#endif
+		SetWindowPosSize(GetDesktopWindow(),hwnd,SoundSpecWndInfo.PosX, SoundSpecWndInfo.PosY );
+		GetWindowRect(hwnd,&rc);
+		MoveWindow(hwnd,rc.left,rc.top,SoundSpecWndInfo.Width,SoundSpecWndInfo.Height,TRUE);
+	}
 		return FALSE;
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
@@ -1794,16 +2505,125 @@ SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		default:
 			return FALSE;
 		}
-		case WM_SIZE:
-			return FALSE;
-		case WM_CLOSE:
-			ShowWindow(hSoundSpecWnd, SW_HIDE);
-			MainWndUpdateSoundSpecButton();
-			break;
-		default:
-			return FALSE;
+		break;
+	case WM_ERASEBKGND:
+		return 0;
+	case WM_PAINT:
+#ifdef SUPPORT_SOUNDSPEC
+		UpdateSpectrogramCanvas();
+#endif
+		break;
+	case WM_SIZE:
+		InvalidateRect(hwnd, NULL, FALSE);
+		return FALSE;
+	case WM_MOVE:
+	{
+		RECT rc;
+		GetWindowRect(hwnd,&rc);
+		SoundSpecWndInfo.PosX = rc.left;
+		SoundSpecWndInfo.PosY = rc.top;
+	}
+		return FALSE;
+	case WM_DESTROY:
+	{
+		RECT rc;
+#ifdef SUPPORT_SOUNDSPEC
+		close_soundspec();
+#endif
+		GetWindowRect(hwnd,&rc);
+		SoundSpecWndInfo.Width = rc.right - rc.left;
+		SoundSpecWndInfo.Height = rc.bottom - rc.top;
+		INISaveSoundSpecWnd();
+	}
+		break;
+	case WM_CLOSE:
+		ShowWindow(hSoundSpecWnd, SW_HIDE);
+		MainWndUpdateSoundSpecButton();
+		break;
+	case WM_CHAR:
+	{
+		int nVirtKey = (int)wParam;
+		short nModifiers = (int)lParam & 0xFFFF;
+		switch(nVirtKey){
+			case 0x48:	// H
+			case 0x68:	// h
+				if ( PlayerLanguage == LANGUAGE_JAPANESE ){
+				MessageBox(hSoundSpecWnd,
+					"キーコマンド\n"
+					"スペクトログラムウインドウコマンド\n"
+					"  ESC: ヘルプを閉じる      H: ヘルプを出す\n"
+					"  UP: 縦ズームアウト    DOWN: 縦ズームイン\n"
+					"  LEFT: 横ズームアウト    RIGHT: 横ズームイン\n"
+					,"ヘルプ", MB_OK);
+				}
+				else {
+				MessageBox(hSoundSpecWnd,
+					"Usage of key.\n"
+					"Sound Spec window command.\n"
+					"  ESC: Close Help      H: Help\n"
+					"  UP: Horizontal zoom out    DOWN: Horizontal zoom in\n"
+					"  LEFT: Vertical zoom out    RIGHT: Vertical zoom in\n"
+					,"Help", MB_OK);
+				}
+				break;
+		}
+	}
+		break;
+	case WM_SYSKEYDOWN:
+	case WM_KEYDOWN:
+	{
+		int nVirtKey = (int)wParam;
+		short nModifiers = (int)lParam & 0xFFFF;
+		switch(nVirtKey){
+			case VK_ESCAPE:
+				SendMessage(hwnd,WM_CLOSE,0,0);
+				break;
+			default:
+#ifdef SUPPORT_SOUNDSPEC
+				HandleSpecKeydownEvent(nVirtKey, nModifiers);
+#endif
+				break;
+		}
+	}
+		break;
+	case WM_HELP:
+		PostMessage(hwnd, WM_CHAR, 'H', 0);
+		break;
+	case WM_GETMINMAXINFO:
+	{
+		LPMINMAXINFO lpmmi = (LPMINMAXINFO) lParam;
+		lpmmi->ptMinTrackSize.x = max(192, lpmmi->ptMinTrackSize.x);
+		lpmmi->ptMinTrackSize.y = max(100, lpmmi->ptMinTrackSize.y);
+	}
+		return 0;
+	case WM_DROPFILES:
+		SendMessage(hMainWnd,WM_DROPFILES,wParam,lParam);
+		return 0;
+	default:
+		return FALSE;
 	}
 	return FALSE;
+}
+static int SoundSpecWndInfoReset(HWND hwnd)
+{
+	if(hwnd==NULL) {
+		SoundSpecWndInfo.PosX = - 1;
+		SoundSpecWndInfo.PosY = - 1;
+		SoundSpecWndInfo.Height = 400;
+		SoundSpecWndInfo.Width = 400;
+	}
+	SoundSpecWndInfo.hwnd = hwnd;
+	return 0;
+}
+static int SoundSpecWndInfoApply(void)
+{
+	RECT rc;
+	GetWindowRect(SoundSpecWndInfo.hwnd,&rc);
+	MoveWindow(SoundSpecWndInfo.hwnd,rc.left,rc.top,SoundSpecWndInfo.Width,SoundSpecWndInfo.Height,TRUE);
+//	InvalidateRect(hwnd,&rc,FALSE);
+//	UpdateWindow(hwnd);
+	INISaveSoundSpecWnd();
+	return 0;
 }
 
 void w32g_open_doc(int close_if_no_doc)
@@ -1830,5 +2650,6 @@ void w32g_setup_doc(int idx)
 
 void w32g_free_doc(void)
 {
-	if(DocWndInfo.Text != NULL) free(DocWndInfo.Text);
+	safe_free(DocWndInfo.Text);
+	DocWndInfo.Text = NULL;
 }

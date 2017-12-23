@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #endif /* for off_t */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -37,6 +39,7 @@
 #include <signal.h> /* for SIGALRM */
 
 #include "timidity.h"
+#include "common.h"
 #include "url.h"
 #include "net.h"
 
@@ -63,9 +66,9 @@ typedef struct _URL_ftp
     int abor;
 } URL_ftp;
 
-static int name_ftp_check(char *url_string);
-static long url_ftp_read(URL url, void *buff, long size);
-static char *url_ftp_gets(URL url, char *buff, int n);
+static int name_ftp_check(const char *url_string);
+static ptr_size_t url_ftp_read(URL url, void *buff, ptr_size_t size);
+static char *url_ftp_gets(URL url, char *buff, ptr_size_t n);
 static int url_ftp_fgetc(URL url);
 static void url_ftp_close(URL url);
 static int guess_errno(char *msg);
@@ -79,9 +82,9 @@ struct URL_module URL_module_ftp =
     NULL
 };
 
-static int name_ftp_check(char *s)
+static int name_ftp_check(const char *s)
 {
-    if(strncmp(s, "ftp://", 6) == 0)
+    if (!strncmp(s, "ftp://", 6))
 	return 1;
     return 0;
 }
@@ -91,39 +94,39 @@ static int ftp_cmd(URL_ftp *url, char *buff, char *rspns)
 #ifdef DEBUG
     fprintf(stderr, "FTP<%s", buff);
 #endif
-    errno = 0;
-    if(socket_fwrite(buff, (long)strlen(buff), url->ctlofp) <= 0)
+    _set_errno(0);
+    if (socket_fwrite(buff, (int32)strlen(buff), url->ctlofp) <= 0)
     {
 	url_ftp_close((URL)url);
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	else
-	    url_errno = errno = ENOENT;
+	    _set_errno(url_errno = ENOENT);
 	return -1;
     }
     socket_fflush(url->ctlofp);
     do
     {
-	errno = 0;
-	if(socket_fgets(buff, BUFSIZ, url->ctlifp) == NULL)
+	_set_errno(0);
+	if (socket_fgets(buff, BUFSIZ, url->ctlifp) == NULL)
 	{
 	    url_ftp_close((URL)url);
-	    if(errno)
+	    if (errno)
 		url_errno = errno;
 	    else
-		url_errno = errno = ENOENT;
+		_set_errno(url_errno = ENOENT);
 	    return -1;
 	}
 #ifdef DEBUG
 	fprintf(stderr, "FTP>%s", buff);
 #endif
-	if(strncmp(buff, rspns, 3) != 0)
+	if (strncmp(buff, rspns, 3))
 	{
 	    url_ftp_close((URL)url);
-	    url_errno = errno = guess_errno(buff);
+	    _set_errno(url_errno = guess_errno(buff));
 	    return -1;
 	}
-    } while(buff[3] == '-');
+    } while (buff[3] == '-');
     return 0;
 }
 
@@ -135,23 +138,23 @@ static void timeout(int sig)
 
 static int guess_errno(char *msg)
 {
-    if(strncmp(msg, "550", 3) != 0)
+    if (strncmp(msg, "550", 3))
 	return ENOENT;
-    if((msg = strchr(msg, ':')) == NULL)
+    if ((msg = strchr(msg, ':')) == NULL)
 	return ENOENT;
     msg++;
-    if(*msg == ' ')
+    if (*msg == ' ')
 	msg++;
-    if(strncmp(msg, "No such file or directory", 25) == 0)
+    if (!strncmp(msg, "No such file or directory", 25))
 	return ENOENT;
-    if(strncmp(msg, "Permission denied", 17) == 0)
+    if (!strncmp(msg, "Permission denied", 17))
 	return EACCES;
-    if(strncmp(msg, "HTTP/1.0 500", 12) == 0) /* Proxy Error */
+    if (!strncmp(msg, "HTTP/1.0 500", 12)) /* Proxy Error */
 	return ENOENT;
     return ENOENT;
 }
 
-URL url_ftp_open(char *name)
+URL url_ftp_open(const char *name)
 {
     URL_ftp *url;
     SOCKET fd;
@@ -170,8 +173,8 @@ URL url_ftp_open(char *name)
     passwd = user_mailaddr;
     user   = "anonymous";
 
-    url = (URL_ftp *)alloc_url(sizeof(URL_ftp));
-    if(url == NULL)
+    url = (URL_ftp*)alloc_url(sizeof(URL_ftp));
+    if (!url)
     {
 	url_errno = errno;
 	return NULL;
@@ -192,7 +195,7 @@ URL url_ftp_open(char *name)
     url->ctlofp = NULL;
     url->abor = 0;
 
-    if(url_ftp_proxy_host != NULL)
+    if (url_ftp_proxy_host)
     {
 	/* proxy */
 	host = url_ftp_proxy_host;
@@ -201,7 +204,7 @@ URL url_ftp_open(char *name)
     else
     {
 	/* not proxy */
-	if(strncmp(name, "ftp://", 6) == 0)
+	if (!strncmp(name, "ftp://", 6))
 	    name += 6;
 	strncpy(buff, name, sizeof(buff));
 	buff[sizeof(buff) - 1] = '\0';
@@ -210,11 +213,11 @@ URL url_ftp_open(char *name)
 	host_buff[sizeof(host_buff) - 1] = '\0';
 	host = host_buff;
 
-	if((p = strchr(host, '/')) == NULL)
+	if ((p = strchr(host, '/')) == NULL)
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = URLERR_IURLF;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    return NULL;
 	}
 
@@ -226,12 +229,12 @@ URL url_ftp_open(char *name)
 
 	/* check user:password@host */
 	p = strchr(host, '@');
-	if(p != NULL)
+	if (p)
 	{
 	    user = host;
 	    host = p;
 	    *host++ = '\0';
-	    if((passwd = strchr(user, ':')) == NULL)
+	    if ((passwd = strchr(user, ':')) == NULL)
 		passwd = user_mailaddr;
 	    else
 		*passwd++ = '\0';
@@ -243,7 +246,7 @@ URL url_ftp_open(char *name)
                 return NULL;
             *p = '\0';
             ++host;
-        } 
+        }
 
 #ifdef DEBUG
 	fprintf(stderr, "open(host=`%s', port=`%d')\n", host, port);
@@ -261,124 +264,124 @@ URL url_ftp_open(char *name)
 	signal(SIGALRM, SIG_DFL);
 #endif /* __W32__ */
 
-	if(fd < 0)
+	if (fd < 0)
 	{
 	    VOLATILE_TOUCH(timeout_flag);
 #ifdef ETIMEDOUT
-	    if(timeout_flag)
-		errno = ETIMEDOUT;
+	    if (timeout_flag)
+		_set_errno(ETIMEDOUT);
 #endif /* ETIMEDOUT */
 
-	    if(errno)
+	    if (errno)
 		url_errno = errno;
 	    else
 	    {
 		url_errno = URLERR_CANTOPEN;
-		errno = ENOENT;
+		_set_errno(ENOENT);
 	    }
 	    url_ftp_close((URL)url);
 	    return NULL;
 	}
 
-	if((url->ctlifp = socket_fdopen(fd, "rb")) == NULL)
+	if ((url->ctlifp = socket_fdopen(fd, "rb")) == NULL)
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = errno;
 	    return NULL;
 	}
 
-	if((url->ctlofp = socket_fdopen(fd, "wb")) == NULL)
+	if ((url->ctlofp = socket_fdopen(fd, "wb")) == NULL)
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = errno;
 	    return NULL;
 	}
 
-	if(socket_fgets(buff, BUFSIZ, url->ctlifp) == NULL)
+	if (socket_fgets(buff, BUFSIZ, url->ctlifp) == NULL)
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    return NULL;
 	}
 
-	if(strncmp(buff, "220 ", 4) != 0)
+	if (strncmp(buff, "220 ", 4))
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    return NULL;
 	}
 
 	/* login */
 	sprintf(buff, "USER %s\r\n", user);
-	if(ftp_cmd(url, buff, "331") < 0)
+	if (ftp_cmd(url, buff, "331") < 0)
 	    return NULL;
 
 	/* password */
-	if(passwd == NULL)
+	if (!passwd)
 	    sprintf(buff, "PASS Unknown@liburl.a\r\n");
 	else
 	    sprintf(buff, "PASS %s\r\n", passwd);
-	if(ftp_cmd(url, buff, "230") < 0)
+	if (ftp_cmd(url, buff, "230") < 0)
 	    return NULL;
 
 	/* CWD */
-	if(path[1] == '0')
+	if (path[1] == '0')
 	    /* Here is root */;
 	else
 	{
 	    path++; /* skip '/' */
-	    while((p = strchr(path, '/')) != NULL)
+	    while ((p = strchr(path, '/')))
 	    {
 		*p = '\0';
 		sprintf(buff, "CWD %s\r\n", path);
-		if(ftp_cmd(url, buff, "250") < 0)
+		if (ftp_cmd(url, buff, "250") < 0)
 		    return NULL;
 		path = p + 1;
 	    }
-	    if(!*path)
+	    if (!*path)
 	    {
 		url_ftp_close((URL)url);
 		url_errno = URLERR_IURLF;
-		errno = ENOENT;
+		_set_errno(ENOENT);
 		return NULL;
 	    }
 	}
 
 	/* TYPE I */
 	strcpy(buff, "TYPE I\r\n");
-	if(ftp_cmd(url, buff, "200") < 0)
+	if (ftp_cmd(url, buff, "200") < 0)
 	    return NULL;
 
 	/* PASV */
 	strcpy(buff, "PASV\r\n");
-	if(ftp_cmd(url, buff, "227") < 0)
+	if (ftp_cmd(url, buff, "227") < 0)
 	    return NULL;
 
 	/* Parse PASV
-	 * 227 Entering Passive Mode (h1,h2,h3,h4,p1,p2)
+	 * 227 Entering Passive Mode (h1, h2, h3, h4, p1, p2)
 	 */
 	p = buff + 4;
 
-	while(*p && (*p < '0' || *p > '9'))
+	while (*p && (*p < '0' || *p > '9'))
 	    p++;
-	if(*p == '\0')
+	if (*p == '\0')
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    return NULL;
 	}
 	host = p;
 	n = 0; /* number of commas */
-	while(n < 4)
+	while (n < 4)
 	{
-	    if((p = strchr(p, ',')) == NULL)
+	    if ((p = strchr(p, ',')) == NULL)
 	    {
 		url_ftp_close((URL)url);
 		url_errno = URLERR_CANTOPEN;
-		errno = ENOENT;
+		_set_errno(ENOENT);
 		return NULL;
 	    }
 	    *p = '.';
@@ -387,18 +390,18 @@ URL url_ftp_open(char *name)
 	*p++ = '\0';
 
 	port = atoi(p) * 256;
-	if((p = strchr(p, ',')) == NULL)
+	if ((p = strchr(p, ',')) == NULL)
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    return NULL;
 	}
 	port += atoi(p + 1);
 
 	/* RETR */
 	socket_fwrite("RETR ", 5, url->ctlofp);
-	socket_fwrite(path, (long)strlen(path), url->ctlofp);
+	socket_fwrite(path, (int32)strlen(path), url->ctlofp);
 	socket_fwrite("\r\n", 2, url->ctlofp);
 	socket_fflush(url->ctlofp);
 
@@ -412,47 +415,47 @@ URL url_ftp_open(char *name)
     fprintf(stderr, "open(host=`%s', port=`%d')\n", host, port);
 #endif /* DEBUG */
 
-    if((fd = open_socket(host, port)) < 0)
+    if ((fd = open_socket(host, port)) < 0)
     {
 	url_ftp_close((URL)url);
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	else
-	    url_errno = errno = ENOENT;
+	    _set_errno(url_errno = ENOENT);
 	return NULL;
     }
-    if((url->datafp = socket_fdopen(fd, "rb")) == NULL)
+    if ((url->datafp = socket_fdopen(fd, "rb")) == NULL)
     {
 	url_errno = errno;
 	closesocket(fd);
 	url_ftp_close((URL)url);
-	errno = url_errno;
+	_set_errno(url_errno);
 	return NULL;
     }
 
-    if(url_ftp_proxy_host != NULL)
+    if (url_ftp_proxy_host)
     {
 	/* proxy */
 	sprintf(buff, "GET %s HTTP/1.0\r\n", name);
-	socket_write(fd, buff, (long)strlen(buff));
+	socket_write(fd, buff, (int32)strlen(buff));
 #ifdef DEBUG
 	fprintf(stderr, "FTP<%s", buff);
 #endif /* DEBUG */
 
-	if(url_user_agent)
+	if (url_user_agent)
 	{
 	    sprintf(buff, "User-Agent: %s\r\n", url_user_agent);
-	    socket_write(fd, buff, (long)strlen(buff));
+	    socket_write(fd, buff, (int32)strlen(buff));
 #ifdef DEBUG
 	    fprintf(stderr, "FTP<%s", buff);
 #endif /* DEBUG */
 	}
 	socket_write(fd, "\r\n", 2);
-	errno = 0;
-	if(socket_fgets(buff, BUFSIZ, url->datafp) == NULL)
+	_set_errno(0);
+	if (socket_fgets(buff, BUFSIZ, url->datafp) == NULL)
 	{
-	    if(errno == 0)
-		errno = ENOENT;
+	    if (errno == 0)
+		_set_errno(ENOENT);
 	    url_errno = errno;
 	    url_ftp_close((URL)url);
 	    return NULL;
@@ -462,19 +465,19 @@ URL url_ftp_open(char *name)
 #endif /* DEBUG */
 
 	p = buff;
-	if(strncmp(p, "HTTP/1.0 ", 9) == 0 || strncmp(p, "HTTP/1.1 ", 9) == 0)
+	if (!strncmp(p, "HTTP/1.0 ", 9) || !strncmp(p, "HTTP/1.1 ", 9))
 	    p += 9;
-	if(strncmp(p, "200", 3) != 0) /* Not success */
+	if (strncmp(p, "200", 3)) /* Not success */
 	{
 	    url_ftp_close((URL)url);
-	    url_errno = errno = guess_errno(buff);
+	    _set_errno(url_errno = guess_errno(buff));
 	    return NULL;
 	}
 
 	/* Skip mime header */
-	while(socket_fgets(buff, BUFSIZ, url->datafp) != NULL)
+	while (socket_fgets(buff, BUFSIZ, url->datafp))
 	{
-	    if(buff[0] == '\n' || (buff[0] == '\r' && buff[1] == '\n'))
+	    if (buff[0] == '\n' || (buff[0] == '\r' && buff[1] == '\n'))
 		break; /* end of heaer */
 #ifdef DEBUG
 	    fprintf(stderr, "FTP>%s", buff);
@@ -484,7 +487,7 @@ URL url_ftp_open(char *name)
     else
     {
 	/* not proxy */
-	if(socket_fgets(buff, BUFSIZ, url->ctlifp) == NULL)
+	if (socket_fgets(buff, BUFSIZ, url->ctlifp) == NULL)
 	{
 	    url_ftp_close((URL)url);
 	    url_errno = errno;
@@ -495,10 +498,10 @@ URL url_ftp_open(char *name)
 	fprintf(stderr, "FTP<%s", buff);
 #endif /* DEBUG */
 
-	if(strncmp(buff, "150", 3) != 0)
+	if (strncmp(buff, "150", 3))
 	{
 	    url_ftp_close((URL)url);
-	    url_errno = errno = guess_errno(buff);
+	    _set_errno(url_errno = guess_errno(buff));
 	    return NULL;
 	}
 	url->abor = 1;
@@ -511,37 +514,37 @@ URL url_ftp_open(char *name)
 #endif /* __W32__ */
 }
 
-static long url_ftp_read(URL url, void *buff, long n)
+static ptr_size_t url_ftp_read(URL url, void *buff, ptr_size_t n)
 {
-    URL_ftp *urlp = (URL_ftp *)url;
+    URL_ftp *urlp = (URL_ftp*)url;
 
     n = socket_fread(buff, n, urlp->datafp);
-    if(n <= 0)
+    if (n <= 0)
 	urlp->abor = 0;
     return n;
 }
 
-static char *url_ftp_gets(URL url, char *buff, int n)
+static char *url_ftp_gets(URL url, char *buff, ptr_size_t n)
 {
-    URL_ftp *urlp = (URL_ftp *)url;
+    URL_ftp *urlp = (URL_ftp*)url;
 
     buff = socket_fgets(buff, n, urlp->datafp);
-    if(buff == NULL)
+    if (!buff)
 	urlp->abor = 0;
     return buff;
 }
 
 static int url_ftp_fgetc(URL url)
 {
-    URL_ftp *urlp = (URL_ftp *)url;
+    URL_ftp *urlp = (URL_ftp*)url;
     int n;
     unsigned char c;
 
     n = socket_fread(&c, 1, urlp->datafp);
-    if(n <= 0)
+    if (n <= 0)
     {
 	urlp->abor = 0;
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	return EOF;
     }
@@ -550,23 +553,23 @@ static int url_ftp_fgetc(URL url)
 
 static void url_ftp_close(URL url)
 {
-    URL_ftp *urlp = (URL_ftp *)url;
+    URL_ftp *urlp = (URL_ftp*)url;
     int save_errno = errno;
 
-    if(urlp->datafp != NULL)
+    if (urlp->datafp)
 	socket_fclose(urlp->datafp);
     else
 	urlp->abor = 0;
-    if(urlp->ctlofp != NULL)
+    if (urlp->ctlofp)
     {
-	if(urlp->abor)
+	if (urlp->abor)
 	    socket_fwrite("ABOR\r\n", 6, urlp->ctlofp);
 	socket_fwrite("QUIT\r\n", 6, urlp->ctlofp);
 	socket_fflush(urlp->ctlofp);
 	socket_fclose(urlp->ctlofp);
     }
-    if(urlp->ctlifp != NULL)
+    if (urlp->ctlifp)
 	socket_fclose(urlp->ctlifp);
-    free(url);
-    errno = save_errno;
+    safe_free(url);
+    _set_errno(save_errno);
 }

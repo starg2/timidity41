@@ -1,0 +1,1208 @@
+<html lang="ja">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<title>TiMidity++ - MIDI-to-WAVE変換およびプレーヤー</title>
+</head>
+<body>
+<tt>
+timidity (1) 2014年07月12日 2.14.0<br>
+<b>名前</b>
+<div style="padding-left:3em;">
+TiMidity++ - MIDI-to-WAVE変換およびプレーヤー
+</div>
+<b>書式</b>
+<div style="padding-left:3em;">
+<b>timidity</b>
+[options] filename [...]
+</div>
+<b>説明</b>
+<div style="padding-left:3em;">
+<b>TiMidity++</b> は，標準 MIDI ファイル(*.mid)，RCP ファイル(*.rcp,*.r36, *.g18, *.g36)あるいは Module ファイル(*.mod)を，RIFF WAVE 形式等のオーディオファイルへ変換するコンバータです。<br>
+各種 MIDI ファイルからディジタルオーディオデータを生成するために，Gravis Ulstarsound 互換のpatch ファイル，あるいは AWE32/64 の SFX，SF2 ファイルなどを使用します。<br>
+<b>TiMidity++</b> によって生成されたデータは，更に加工するためにファイルに格納したり，オーディオデバイスを使ってリアルタイムに演奏したりすることができます。<br>
+リアルタイム演奏時には，KAR ファイルや WRD ファイルなどを読み込んで，歌詞を表示することもできます。<br>
+</div>
+<b>ファイル名</b>
+	<div style="padding-left:3em;">
+	<u>filename</u> には，以下の表記が使用可能です。
+	<br>
+	<br>
+	<b>-</b>
+		<a style="padding-left:2em;">
+		標準入力から読み込んだ MIDI ファイルを演奏します。
+		</a>
+		<br>
+		<br>
+	<b>path/filename</b><br>
+		<a style="padding-left:3em;">
+		ディスク上のファイルを演奏します。
+		</a>
+		<br>
+		<br>
+	<b>dir:directory</b><br>
+	<b>directory/</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		directory 内すべてのファイルを演奏します。例えば，<br>
+		<br>
+		% timidity some/where/<br>
+		<br>
+		として起動すると，<b>some/where/</b> ディレクトリ内すべてのファイルが演奏されます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>アーカイブファイル</b>
+	</div>
+		<div style="padding-left:6em;">
+		アーカイブファイルから MIDI ファイルを展開しながら演奏します。アーカイブファイル中の個々のファイルを指定するには，アーカイブファイル名の後に続けて `#' を記述し，その後に続けてアーカイブ中のファイル名を指定します。`#' の後は UNIX shell の正規表現のパターンになっています。ただし，UNIXshell の正規表現とは少し異なり，大文字/小文字は区別されません。<br>
+		ここで，\xHH という表現は，16 進数 `HH' で表した ASCII 文字列にマッチします。<br>
+		<br>
+		例:
+		<br>
+		<br>
+		% timidity file.zip#file.mid
+		<br>
+			<a style="padding-left:3em;">
+			<b>file.zip</b> 中の <b>file.mid</b> ファイルを演奏します。<br>
+			</a>
+			<br>
+		% timidity file.lzh#*.mid
+		<br>
+			<a style="padding-left:3em;">
+			<b>file.lzh</b> 中の <b>*.mid</b> にマッチするファイルを演奏します。<br>
+			</a>
+			<br>
+		% timidity file.tgz#*
+		<br>
+			<a style="padding-left:3em;">
+			これは <b>file.tgz</b> と等価です。<br>
+			</a>
+			<br>
+		これらは自前で展開していますので，Windows でもこれらのファイルを読むことができます。<br>
+		<b>TiMidity++</b> が内部で展開できるアーカイブ形式は以下の通りです。<br>
+		<br>
+		<b>tar ファイル(*.tar)</b><br>
+		<b>tar+gzip ファイル(*.tar.gz, *.tgz)</b><br>
+		<b>zip ファイル(*.zip)</b><br>
+		<b>lzh ファイル(*.lzh *.lha)</b><br>
+			<div style="padding-left:3em;">
+			(lh0，lh1，lh2，lh3，lh4，lh5，lh6，lz4，lzs，lz5 に対応)<br>
+			</div>
+		<br>
+		なお，これ以外でも，拡張子に対してその展開コマンドがコンパイル時に定義されている場合，<b>TiMidity++ </b>は指定された展開コマンドにファイルをパイプで流しこみ，展開します。<br>
+		<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>news://news-server[:port]/Message-ID</b><br>
+	<b>news://news-server[:port]/newsgroup[/first-last]</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		news-server に保存されている MIDI ファイルを演奏します。newsgroup を指定すると，そのグループに投稿されている MIDI ファイルを演奏します。<br>
+		<b>news://*</b> で指定したファイルは MIME の Multi Part を認識し，そこに投稿されている MIDI ファイルを展開して演奏することができます。また通常のファイルであっても，*.mime という拡張子で保存するか，あるいはファイル名に <b>mime:</b> というプレフィックスを指定して入力すると MIME を認識します。<br>
+		<br>
+		現在，以下のフォーマットが認識できます。<br>
+		<br>
+		<b>uu-encoded file</b><br>
+			<a style="padding-left:3em;">
+			<b>begin</b><br>
+			</a>
+			<a style="padding-left:3em;">
+			という文字から始まっている行が必要<br>
+			</a>
+		<br>
+		<b>base64 encoded</b><br>
+			<a style="padding-left:3em;">
+			<b>Content-Transfer-Encoding: base64</b><br>
+			</a>
+			<a style="padding-left:3em;">
+			が必要<br>
+			</a>
+		<br>
+		<b>quoted-string</b><br>
+			<a style="padding-left:3em;">
+			<b>Content-Transfer-Encoding: quoted-string</b><br>
+			</a>
+			<a style="padding-left:3em;">
+			が必要<br>
+			</a>
+		<br>
+		<b>Mac BinHex format</b><br>
+			<a style="padding-left:3em;">
+			HQX のみ対応<br>
+			</a>
+		</div>
+	
+	<div style="padding-left:3em;">
+	<b>http://address</b><br>
+	<b>ftp://address</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		URL で指定した MIDI ファイルを演奏します。<br>
+		<br>
+		例:<br>
+		<br>
+		% timidity http://www.goice.co.jp/member/mo/dist/midi/impromptu.mid<br>
+			<a style="padding-left:3em;">
+			ネットワークを介して MIDI ファイルを演奏します。<br>
+			</a>
+		<br>
+		同様に，*.cfg ファイル内で URL を指定すればリモートのパッチファイルを利
+		用することもできます。<br>
+		</div>
+<br>
+<b>入力ファイル</b><br>
+	<div style="padding-left:3em;">
+	<b>TiMidity++ </b>が自分で認識し，演奏することができる MIDI ファイルの形
+	式は以下の通りです。<br>
+	<br>
+	<b>.mid, .rmi (Format 0, 1, 2)</b><br>
+		<a style="padding-left:3em;">
+		標準 MIDI ファイル(SMF)です。<br>
+		</a>
+	<br>
+	<b>.rcp, .r36, .g18, .g36 (レコンポーザ形式)</b><br>
+		<a style="padding-left:3em;">
+		カモンミュージック社製レコンポーザ形式ファイルです。<br>
+		</a>
+	<br>
+	<b>.mfi (MFi Version 3 - i モード用メロディ形式)</b><br>
+		<a style="padding-left:3em;">
+		最近流行りの携帯電話の着メロも再生できます。<br>
+		</a>
+	<br>
+	<b>.kar (Karaoke フォーマット)</b><br>
+		<a style="padding-left:3em;">
+		Lyric Meta Event と同じように，歌詞が表示されます。<br>
+		</a>
+	<br>
+	<b>.mod, mod.* (Module ファイル)</b><br>
+	<br>
+	<b>.wrd (WRD 形式)</b><br>
+	</div>
+<b>オプション</b><br>
+	<div style="padding-left:3em;">
+	<b>TiMidity++ </b>では次のコマンドラインオプションが使用可能です。<br>
+	<br>
+	<b>-A</b> <u>[n][,m](a)</u><br>
+	<b>--volume=</b><u>[n][,m](a)</u><br>
+	<b>--amplification=</b><u>n</u><br>
+	<b>--drumpower=</b><u>m</u><br>
+	<b>--[no-]volume-compensation</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		全体の音量を <u>n</u>% にします。デフォルトでは 40 です。大きな値を指定するほど大きな音になります。また，通常音色の音量とドラム音色の音量の比率(ドラムパワー)を <u>m</u>% にします。<br>
+		デフォルトでは 100 です。それぞれ，<b>0</b> (無音)から <b>800</b> までの値が有効です。<br>
+		さらに，<b>-a</b> オプションに `a' の文字を付加するか，<b>--volume-compensation</b> オプションを指定することにより，音量自動補正機能を有効にします。この機能は，MIDI データの MAINVOLUME を最大音量(0x7f)に正規化するもので，できるだけダイナミックレンジを稼ぐ，曲間での音量格差を小さくする，などの目的で使用されます。<br>
+		<br>
+		例:	<br>
+		<b>-A90</b>　音量 90%，ドラム比 100%，補正無<br>
+		<b>-A,120</b>　音量 40%，ドラム比 120%，補正無<br>
+		<b>-A90,120</b>　音量 90%，ドラム比 120%，補正無<br>
+		<b>-Aa</b>　音量 40%，ドラム比 100%，補正有<br>
+		<b>-A90a</b>　音量 90%，ドラム比 100%，補正有<br>
+		<b>-A,120a</b>　音量 40%，ドラム比 120%，補正有<br>
+		<b>-A90,120a</b>　音量 90%，ドラム比 120%，補正有<br>
+		<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>--master-volume=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		全体の音量を <u>n</u>% にします。デフォルトでは 100 です。大きな値を指定するほど大きな音になります。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-a, --[no-]anti-alias</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		アンチエイリアシングを有効にします。-s オプションで低いサンプリングレートを指定したときに，折り返し雑音と呼ばれる不自然な成分が発生することがあります。<b>-a</b> オプションで起動することで，この不自然な成分を取り除くことができます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-B</b> <u>n,m</u>, <b>--buffer-fragments=</b><u>n,m</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		音源にデータを書き込む時の分割数(バッファフラグメント) <u>n</u> およびバッファサイズ 2^<u>m</u> を指定します。<br>
+		<u>n</u> は，<b>0</b> から<b>1000</b> までの値が有効です。フラグメントの数を大きくすると，プロセスが多数動いている時の音切れが減りますが，早送り，巻き戻し，ボリューム制御などに対する反応は遲くなります。また，状態表示も同期が取れなくなります。<br>
+		<u>n</u> を <b>0</b> にすると，できるだけ大きなフラグメントの値を取ります。このオプションは Linux，FreeBSD，Windows のみで有効です。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-C</b> <u>n</u> , <b>--control-ratio=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		制御レートを指定します。<b>TiMidity++ </b>では，エンベロープやトレモロなどの音量計算を 1 サンプルごとに行うのではなく，複数のサンプルをまとめて計算することで高速化を図っています。<br>
+		すなわち，<u>n</u> サンプルごとに，エンベロープやトレモロの音量が再計算されています。<u>n</u> の値を小さくすればするほど音質が良くなりますが，その分 CPU パワーを必要とします。<br>
+		<u>n</u> には <b>1</b> から <b>255</b> までの値を指定することができます。デフォルトでは 1 msec に相当するサンプル数となっています。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-c</b> <u>file</u><b>, --config-file=</b><u>file</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		<b>TiMidity++ </b>の設定ファイル <u>file</u> を読み込みます。<b>TiMidity++ </b>のデフォルトの設定ファイルを読み込んだ後，<u>file</u>が読み込まれます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-D</b> <u>n</u><b>, --drum-channel=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		<u>n</u> チャンネル目をドラムチャンネルにします。<b>-D</b> -<u>n</u> のように指定すると， <u>n</u> チャンネル目をドラムではなく，メロディチャンネルにすることできます。<u>n</u> に <b>0</b> を与えると，すべてのチャンネルがメロディチャンネルになります。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-d </b> <u>dir</u> <b>, --interface-path=</b> <u>dir</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		ダイナミックリンクインタフェースモジュールがインストールされているディ
+		レクトリを <u>dir</u> で指定します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-E </b> <u>mode</u> <b>, --ext=</b> <u>mode</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		<b>TiMidity++</b> シーケンサの拡張モードを指定します(複数指定可)。以下の
+		<u>mode</u> が指定できます。<br>
+		</div>
+		<br>
+		<div style="padding-left:6em;">
+		<b>w/W, --[no-]mod-wheel</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			モジュレーションホイール制御を有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>p/P, --[no-]portamento</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			ポルタメント制御を有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>v/V, --[no-]vibrato</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			NRPN ビブラート制御を有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>s/S, --[no-]ch-pressure</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			チャンネルプレッシャー制御を有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>e/E, --[no-]mod-envelope</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			モジュレーションエンベロープを有効/無効にします。<br>
+			</div>
+
+		<div style="padding-left:6em;">
+		<b>t/T, --[no-]trace-text-meta</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			すべての/特定のテキストメタイベントをトレースします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>o/O, --[no-]overlap-voice</b></br>
+		</div>
+			<div style="padding-left:9em;">
+			同一音の重なったボイスを許します/許しません(前の音は消音されます)。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>z/Z, --[no-]temper-control</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			MIDI Tuning Standard の音律制御を有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>j/J</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			インサーションエフェクトを有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>q/Q</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			EQ コントロールを有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>d/D</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			NRPPN ドラムエフェクトを有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>x/X</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			TVA (アタック、ディケイ、リリース) を有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>c/C</b><br>
+		</div>
+			<div style="padding-left:9em;">
+			CC#94 delay(celeste) コントロールを有効/無効にします。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>m</b><u>HH</u> <b>, --default-mid=</b><u>HH</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			デフォルトマニュファクチュア ID を 2 桁の16進数 <u>HH</u> で指定します。<br>
+			このとき，<u>HH</u> を <b>GS/gs</b>，<b>XG/xg</b>，<b>GM2/gm2</b>，<b>SD/sd</b>，<b>GM/gm</b> にすることで，それぞれ <b>41</b>，<b>43</b>，<b>7d</b>，<b>60</b>，<b>7e</b> を指定したことになります。<br>
+			入力ファイルから音源を自動的に認識できないような場合には，このパラメータでデフォルトの ID を指定することができます。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>M</b><u>HH</u> <b>, --system-mid=</b><u>HH</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			システムマニュファクチュア ID を 2 桁の16進数 <u>HH</u> で指定します。<br>
+			このオプションで指定されたマニュファクチュア ID は固定され，入力ファイルからのマニュファクチュア ID は無視されます。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>b</b><u>n</u> <b>, --default-bank=</b><u>n</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			パッチのデフォルトのバンクを <u>n</u> にします。この設定は，MIDI のBank select メッセージにより変更されます。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>B</b><u>n</u> <b>, --force-bank=</b><u>n</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			<b>-Eb</b> と異なり，すべてのチャンネルのパッチのバンクを常に <u>n</u>
+			にします。<u>n</u> を省略するとデフォルトの動作になります。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>i</b><u>n[/m]</u> <b>, --default-program=</b><u>n[/m]</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			デフォルトのプログラム番号を <u>n</u> にします。デフォルトでは <u>n</u>は <b>0</b>(通常はピアノ)となっています。<br>
+			また，<u>n</u> の後に <u>/m</u> を付けると，チャンネル <u>m</u> のデフォルトのプログラム番号を指定することができます。<u>/m</u> を省略した場合には，全チャンネルに対する指定となります。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>I</b><u>n[/m]</u> <b>, --force-program=</b><u>n[/m]</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			プログラム番号を常に <u>n</u> にします。この設定は，MIDI の Programchange メッセージを受け取っても変更されません。<br>
+			また，<u>n</u> の後に <u>/m</u> を付けると，チャンネル <u>m</u> のプログラム番号を指定することができます。<u>/m</u> を省略した場合には，全チャンネルに対する指定となります。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>F</b> <u>args</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			エフェクトオプションです。以下の <u>args</u> が指定できます。<br>
+			<br>
+			<b>delay=</b><u>(d|D)</u><b>, --delay=</b><u>(d|D)</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				イヤホンで聞いた時の音の臨場感を出すようにします。<br>
+				<br>
+				<b>d, 0</b>
+				ディレイを無効(Disable)にします(デフォルト)。<br>
+				<b>D, 1</b>
+				ディレイを有効にします。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>chorus=</b><u>(d|n|s|w|W|b|B|t|T|h|H)[,level]</u><b>, --chorus=</b><u>(d|n|s|w|W|b|B|t|T|h|H)[,level]</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				<b>d, 0</b>
+				コーラスを無効(Disable)にします。<br>
+				<b>n, 1</b>
+				標準的(Normal)な MIDI コーラス制御を有効にします。<br>
+				<b>s, 2</b>
+				サラウンド(Surround)コーラスを有効にします。<br>
+				<b>w, 3</b>
+				標準的その2(Normal2) MIDI コーラス制御を有効にします(デフォルト)。<br>
+				<b>W, 4</b>
+				サラウンド2(Surround2)コーラスを有効にします。<br>
+				<b>b, 5</b>
+				標準的その3(Normal3) MIDI コーラス制御 (2 phase) を有効にします。<br>
+				<b>B, 6</b>
+				サラウンド3(Surround3)コーラスを有効にします。<br>
+				<b>t, 7</b>
+				標準的その4(Normal4) MIDI コーラス制御 (3 phase) を有効にします。<br>
+				<b>T, 8</b>
+				サラウンド4(Surround4)コーラスを有効にします。<br>
+				<b>h, 9</b>
+				標準的その5(Normal5) MIDI コーラス制御 (6 phase) を有効にします。<br>
+				<b>H</b>
+				サラウンド5(Surround5)コーラスを有効にします。<br>
+				<u>level</u> はコーラスレベル <b>0</b> から <b>127</b> を指定するオプションです。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>reverb=</b><u>(d|n|g)[,level]</u><b>, --reverb=</b><u>(d|n|g)[,level]</u><br>
+			<b>reverb=</b><u>(f|G)[,level[,scaleroom,offsetroom,predelay]]</u><br>
+			<b>--reverb=</b><u>(f|G)[,level[,scaleroom,offsetroom,predelay]]</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				<b>d, 0</b>
+				MIDI リバーブ制御を無効(Disable)にします。<br>
+				<b>n, 1</b>
+				標準的(Normal)な MIDI リバーブ制御を有効にします。<br>
+				<b>g, 2</b>
+				グローバル(Global)リバーブを有効にします。<br>
+				<b>f, 3</b>
+				Freeverb MIDI リバーブ制御を有効にします(デフォルト)。<br>
+				<b>G, 4</b>
+				グローバル Freeverb MIDI リバーブ制御を有効にします。<br>
+				<u>level</u> はリバーブレベル <b>0</b> から <b>127</b> を指定するオプションです。<br>
+				Freeverbを有効にした場合には，追加のオプションとして <u>scaleroom</u>，
+				<u>offsetroom</u> および <u>predelay</u> を指定できます。
+				<u>scaleroom</u> と <u>offsetroom</u> は以下のリバーブのルームサイズの
+				計算に対する変数です<br>
+				roomsize = C * <u>scaleroom</u> + <u>offsetroom</u><br>
+				ここで C はリバーブのキャラクタを表します。
+				<u>predelay</u> はリバーブのプリディレイに対する倍率を百分率で指定しま
+				す。
+				いずれのパラメータも省略可能です。
+				デフォルトはそれぞれ <b>0.28</b>，<b>0.7</b>，<b>100</b> です。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>vlpf=</b><u>(d|c|m|b|i|a|o|e|t|h|B)</u><b>, --voice-lpf=</b><u>(d|c|m|b|i|a|o|e|t|h|B)</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				<b>d, 0</b>
+				ボイス単位 LPF を無効(Disable)にします。<br>
+				<b>c, 1</b>
+				Chamberlin レゾナント LPF (12dB/oct)を有効にします。<br>
+				<b>m, 2</b>
+				Moog レゾナントローパス VCF (24dB/oct)を有効にします。<br>
+				<b>b, 3</b>
+				ButterworthFilter レゾナント LPF (butterworth)を有効にします(デフォルト)。<br>
+				<b>i, 4</b>
+				Resonant IIR レゾナントローパス VCF (12dB/oct)-2 を有効にします。<br>
+				<b>a, 5</b>
+				amSynth resonant レゾナントローパス VCF (24dB/oct)-2 を有効にします。<br>
+				<b>o, 6</b>
+				1 pole 6db/oct レゾナントローパス VCF (6dB/oct) を有効にします。<br>
+				<b>e, 7</b>
+				resonant 3 pole ローパス VCF (18dB/oct) を有効にします。<br>
+				<b>t, 8</b>
+				two first order ローパス VCF を有効にします。<br>
+				<b>h, 9</b>
+				ButterworthFilter ハイパス VCF (HPF) を有効にします。<br>
+				<b>B</b>
+				ButterworthFilter バンドパス VCF (BPF) を有効にします。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>ns=</b><u>n</u><b>, --noise-shaping=</b><u>n</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				<u>n</u> 次ノイズシェーピングフィルタを有効にします。ディケイでの歪みが改善されますが，ノイズが高域にシフトし聴感上のノイズも増えます。8 ビット線形符号化のとき，<u>n</u> には <b>0</b> から <b>4</b> までの値を指定することができます。<b>0</b> のときフィルタは機能せず，<b>4</b> のとき最大の効き方となります。デフォルトでは <b>4</b> です。16 ビット線形符号化のとき，<u>n</u> には <b>0</b> から <b>4</b> までの値を指定することができます。値によって，下記の動作になります。デフォルトでは <b>4</b> です。<br>
+				<br>
+				<b>0</b>
+				ノイズシェーピングなし<br>
+				<b>1</b>
+				従来のノイズシェーピング<br>
+				<b>2</b>
+				過負荷風ソフトクリッピング + 新ノイズシェーピング<br>
+				<b>3</b>
+				真空管風ソフトクリッピング + 新ノイズシェーピング<br>
+				<b>4</b>
+				新ノイズシェーピング<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>resamp=</b><u>(d|l|c|L|n|g)</u><b>, --resample=</b><u>(d|l|c|L|n|g)</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				<b>d, 0</b>
+				補完処理を無効(Disable)にします。<br>
+				<b>l, 1</b>
+				線形(Linear)補完アルゴリズムを有効にします。<br>
+				<b>c, 2</b>
+				C スプライン補完アルゴリズムを有効にします。<br>
+				<b>L, 3</b>
+				ラグランジュ(Lagrange)補完アルゴリズムを有効にします。<br>
+				<b>n, 4</b>
+				ニュートン(Newton)補完アルゴリズムを有効にします。<br>
+				<b>g, 5</b>
+				ガウス(Gauss)風補完アルゴリズムを有効にします(デフォルト)。<br>
+				<b>s, 6</b>
+				シャープ(Sharp)補完アルゴリズムを有効にします。<br>
+				<b>p, 7</b>
+				線形パーセント(Linear%)補完アルゴリズムを有効にします。<br>
+				<b>i, 8</b>
+				サイン(Sine)補完アルゴリズムを有効にします。<br>
+				<b>q, 9</b>
+				スクウェア(Square)補完アルゴリズムを有効にします。<br>
+				<b>-EFresamp</b> は <b>-N</b> オプションの挙動に影響します。<br>
+				</div>
+	<div style="padding-left:3em;">
+	<b>-e, --evil</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		<b>TiMidity++</b> のスレッドプライオリティを上げます。Windows のみで有効です。このオプションを有効にすると，<b>TiMidity++</b> 以外のプログラムがほとんど動作できなくなる evil モードに入ります。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-F, --[no-]fast-panning</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		ファーストパンを指定します。このオプションを指定すると，Note ON のままの状態で Midi control change 10: Panning が有効になります。デフォルトではすぐには変化しないで，音量の再計算が必要になったときに変化します。改良版ではトグルオプションになっています。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-f, --[no-]fast-decay</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		ファーストディケイを指定します。このオプションを指定にすると，エンベロープの変化時間が半分になり高速に動作します。ただし，音の立ち上がりとリリース時間が短くなってしまいます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-G, --segment=</b><u>begin1-end1[,begin2-end2,...](m)</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		カンマで区切った時間セグメントを指定して，複数の区間を演奏します。<br>
+		それぞれの時間セグメントは，<i>begin</i>-<i>end</i> のように，ダッシュで区切った時間で表します。デフォルトでは，<b>0-infinity</b> です。<br>
+		<i>begin</i> から <i>end</i> までを演奏します。
+		</div>
+			<div style="padding-left:9em;">
+			時間フォーマット: <i>[&lt;分&gt;:]&lt;秒&gt;[.&lt;ミリ秒&gt;]</i><br>
+			<br>
+			
+			</div>
+		<div style="padding-left:6em;">
+		オプションに `m' の文字を付加することにより，秒の代わりに小節および拍として扱います。<br>
+		</div>
+			<div style="padding-left:9em;">
+			Time format: <I>&lt;小節&gt;[.&lt;拍&gt;]</I> (小節，拍は 1 から始まる)<br>
+			<br>
+			
+			</div>
+		<div style="padding-left:6em;">
+		例:<br>
+		</div>
+			<div style="padding-left:9em;">
+			<b>-G12-1:00.500</b><br>
+			</div>
+				<div style="padding-left:12em;">
+				12 秒スキップして演奏を開始し，1 分 00 秒 500 で演奏を終了します。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>-G-5,2:00-</b><br>
+			</div>
+				<div style="padding-left:12em;">
+				最初の 5 秒間を演奏したのち，開始から 2 分スキップして最後まで演奏します。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>-G11.4-20m -G4:00-</b><br>
+			</div>
+				<div style="padding-left:12em;">
+				第 11 小節 第 4 拍から第 20 小節を演奏したのち，開始から 4 分スキップして最後まで演奏します。<br>
+				</div>
+	<div style="padding-left:3em;">
+	<b>-g</b> <u>sec</u><b>, --spectrogram=</b><u>sec</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		サウンドスペクトログラムを表示する Window を開きます。このオプションはX Window System がサポートされている環境のみで動作します。サウンドスペクトログラムは声紋のようなもので，スペクトラムの時間変化を表現したものです。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-H</b> <u>n</u><b>, --force-keysig=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		調号の数を指定します。<u>n</u> が正の場合は♯(シャープ)の数，<u>n</u> が負の場合は♭(フラット)の数のキーに移調ながら，MIDI ファイルを演奏します。<u>n</u> には <b>-7</b> から <b>7</b> までの値を指定することができます。例えば，<u>n</u> に <b>-1</b> を与えると，いかなる調性の MIDI ファイルであっても，♭(フラット)が 1 個のヘ長調あるいはニ短調に移調しながら演奏するので，演奏しやすい調性で楽器を練習するときの伴奏などに使うと便利です。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-h, --help</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		<b>TiMidity++</b> のオプションの簡単な説明を表示します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-i</b> <u>mode</u><b>, --interface=</b><u>mode</u><br>
+	<b>--realtime-priority=</b><u>n</u><br>
+	<b>--sequencer-ports=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		ユーザインタフェースを指定します。環境によって利用可能なインタフェースが異なります。<br>
+		ALSA シーケンサインタフェースでは，別途 <b>--realtime-priority</b>オプションにより，リアルタイム・プライオリティを指定できます。また，<b>--sequencer-ports</b> オプションにより，シーケンサのポート数を指定できます。デフォルトでは <b>4</b> です。<br>
+		以下の <u>mode</u> が存在します。<br>
+		<br>
+		
+		<b>-id</b>　　dumb インタフェース<br>
+		<b>-in</b>　　ncurses インタフェース<br>
+		<b>-is</b>　　S-Lang インタフェース<br>
+		<b>-ia</b>　　X Athena Widget インタフェース<br>
+		<b>-ik</b>　　Tcl/Tk インタフェース<br>
+		<b>-im</b>　　Motif インタフェース<br>
+		<b>-iT</b>　　vt100 インタフェース<br>
+		<b>-ie</b>　　Emacs インタフェース<br>
+		
+		</div>
+			<div style="padding-left:9em;">
+			Emacs 上から ``M-x timidity'' により起動されます。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>-ii</b>　　skin インタフェース<br>
+		</div>
+			<div style="padding-left:9em;">
+			環境変数 <b>TIMIDITY_SKIN</b> に，使用する skin のパス(圧縮状態でもよい)
+			を指定しておいてください。<br>
+			</div>
+		<div style="padding-left:6em;">
+		
+		<b>-ig</b>　　GTK+ インタフェース<br>
+		<b>-ir</b>　　MIDI サーバインタフェース<br>
+		<b>-iA</b>　　ALSA シーケンサインタフェース<br>
+		<b>-iW</b>　　Windows シンセサイザインタフェース<br>
+		<b>-iN</b>　　Named Pipe シンセサイザインタフェース<br>
+		<b>-iw</b>　　Windows GUI インタフェース<br>
+		<b>-iP</b>　　PortMIDI シンセサイザインタフェース<br>
+		<b>-ip</b>　　UMP インタフェース<br>
+		
+		<br>
+		<b>インタフェースオプション</b>
+		</div>
+			<div style="padding-left:9em;">
+			上記オプションに続けて，以下の文字列を追加することができます(複数指定化)。<br>
+			<b>v, --verbose=</b><u>n</u><br>
+			　冗長表示のレベルを累積的に上げます。<br>
+			<b>q, --quiet=</b><u>n</u><br>
+			　冗長表示のレベルを累積的に下げます。<br>
+			<b>t, --[no-]trace</b><br>
+			　トレース表示を on/off します(トグル)。<br>
+			<b>l, --[no-]loop</b><br>
+			　ループ再生します(インタフェースによっては無視されます)。<br>
+			<b>r, --[no-]random</b><br>
+			　再生前にファイルリスト順をランダムにします。<br>
+			<b>s, --[no-]sort</b><br>
+			　再生前にファイルリスト順をソートします。<br>
+			<b>D, --[no-]background</b><br>
+			　<b>TiMidity++</b> をバックグラウンドでデーモン化します(alsaseq のみ)。<br>
+			</div>
+	<div style="padding-left:3em;">
+	<b>-j, --[no-]realtime-load</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		このオプションを有効にすると，演奏しながらパッチファイルを読み込みます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-K</b> <u>n</u><b>, --adjust-key=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		<u>n</u> 半音単位でキーを調節(移調)します。<u>n</u> には <b>-24</b> から<b>24</b> までの値を指定することができます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-k</b> <u>msec</u><b>, --voice-queue=</b><u>msec</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		ボイスを減少させるオーディオキュータイムを指定します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-L</b> <u>path</u><b>, --patch-path=</b><u>path</u><br>
+	</div><div style="padding-left:6em;">サーチパスに <u>path</u> を追加します。patch ファイル，設定ファイル，MIDI ファイルなどは，このサーチパスに従って探索されます。最後に加えられたディレクトリは最初に探索されます。ただし，このサーチパスに関係なく，カレントディレクトリがいつも最初に探索されるので注意すること。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-M</b> <u>name</u><b>, --pcm-file=</b><u>name</u><br>	
+	</div>
+		<div style="padding-left:6em;">
+		演奏する PCM ファイル名(*.wav または *.aiff)を指定します。<u>name</u> に<b>auto</b> を指定すると，*.mid.wav または *.mid.aiff を演奏します。<u>name</u> に <b>none</b> を指定すると，この機能を無効にします(デフォルト)。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-m</b> <u>msec</u><b>, --decay-time=</b><u>msec</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		サステインしたノートがディケイされるまでの最大時間を指定します。<br>
+		<b>-m</b><u>0</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			サステイン減衰を無効にして，サステインボリュームを一定にします(デフォルト)。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>-m</b><u>1</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			サステインが存在しないものとします。音量減衰は，標準のステージ 3 と同じです。<br>
+			</div>
+		<div style="padding-left:6em;">
+		<b>-m</b><u>3000</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			最大音量のノートがサステイン状態になってから <b>3</b> 秒 で減衰します(ステージ 3 の rate がそれ以上伸びないものとします)。十分小さくなったノートは，もちろんすぐに消えます。<br>
+			</div>
+	<div style="padding-left:3em;">
+	<b>-N</b> <u>n</u><b>, --interpolation=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		補完パラメータを指定します。<b>-N</b> オプションの挙動は<b>-EFresamp</b> オプション指定に依存します。<br>
+		<br>
+		<b>newton(n)</b><br>
+		　　<u>n</u> 次のニュートン補完を指定します。<u>n</u> には <b>1</b> から <b>57</b> までの奇数を指定することができます。<br>
+		　　デフォルトでは <b>11</b> です。<br>
+		<b>gauss(g)</b><br>
+		　　<u>n</u>+1 点ガウス風補完を指定します。<u>n</u> には <b>1</b> から <b>34</b> までの整数を指定することができます。<br>
+		　　デフォルトでは <b>24</b> です。<br>
+		<b>sharp(s)</b><br>
+		　　<u>n</u> には <b>2</b> から <b>8</b> までの偶数を指定することができます。<br>
+		　　デフォルトでは <b>2</b> です。<br>
+		<b>linearP(p)</b><br>
+		　　<u>n</u> には <b>0</b> から <b>100</b> までの整数を指定することができます。<br>
+		　　デフォルトでは <b>100</b> です。<br>
+		<br>
+		オーディオキューが 99% 以下のときは，線形補完が使われます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	
+	<b>-O</b> <u>mode</u><b>, --output-mode=</b><u>mode</u><br>
+	<b>--wave-extensible</b>
+	<b>--wave-update-step=</b><u>n</u><br>
+	<b>--flac-verify</b>
+	<b>--flac-padding=</b><u>n</u>
+	<b>--flac-complevel=</b><u>n</u>
+	<b>--oggflac</b><br>
+	<b>--opus-nframes=</b><u>n</u>
+	<b>--opus-bitrate=</b><u>n</u>
+	<b>--opus-complexity=</b><u>n</u><br>
+	<b>--[no-]opus-vbr</b>
+	<b>--[no-]opus-cvbr</b><br>
+	<b>--speex-quality=</b><u>n</u><br>
+	<b>--speex-vbr</b>
+	<b>--speex-abr=</b><u>n</u><br>
+	<b>--speex-vad</b>
+	<b>--speex-dtx</b>
+	<b>--speex-complexity=</b><u>n</u><br>
+	<b>--speex-nframes=</b><u>n</u><br>
+	
+	</div>
+		<div style="padding-left:6em;">
+		出力モードやフォーマットを指定します。<br>
+		Ogg FLAC 出力モードでは，別途 <b>--flac-verify</b>，<b>--flac-padding</b>，<b>--flac-complevel</b>，<b>--oggflac</b>オプションにより，それぞれ元波形とのべリファイ(圧縮速度が少し遅くなる)，ファイルヘッダのパディング長(デフォルトでは<b>4096</b>)，<b>0</b> から<b>8</b> までの圧縮レベル(デフォルトでは<b>5</b>)，OggFLAC ストリームで出力を指定できます。<br>
+		Ogg Speex 出力モードでは，別途 <b>--speex-quality</b>，<b>--speex-vbr</b>，<b>--speex-abr</b>，<b>--speex-vad</b>，<b>--speex-dtx</b>，<b>--speex-complexity</b> オプションにより，それぞれ<b>0</b> から <b>10</b> までの圧縮品質(デフォルトでは <b>8</b>)，VBR で出力，レート <u>n</u> の ABR で出力，VAD(voice activity detection)で出力，DTX(discontinuous transmission) で出力，<b>0</b> から <b>10</b>までの解析の複雑さ(デフォルトでは <b>3</b>)，<b>0</b> から <b>10</b> までのOgg パケット内のフレーム数(Speex の処理単位)(デフォルトでは <b>1</b>)を指定できます。<br>
+		以下の <u>mode</u> が有効です。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-Od</b><br>
+	</div>
+		<div style="padding-left:6em;">オーディオデバイスに出力します(デフォルト)。<br></div>
+	<div style="padding-left:3em;">
+	<b>-Os</b><br>
+	</div>
+		<div style="padding-left:6em;">ALSA オーディオデバイスに出力します。<br></div>
+	<div style="padding-left:3em;">
+	<b>-Or</b><br>
+	</div>
+		<div style="padding-left:6em;">ヘッダのないオーディオのデータ部分のみを出力します。下記のすべてのフォーマットオプションが使えます。一般的なフォーマットは以下の通りです。<br>
+		<br>
+		<b>-OrU</b><br>
+		　　μ-Law<br>
+		<b>-Or1sl</b><br>
+		　　16 ビット符号あり線形符号化<br>
+		<b>-Or8ul</b><br>
+		　　8 ビット符号なし線形符号化<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-Ou</b><br>
+	</div>
+		<div style="padding-left:6em;">Sun Audio (au)ファイルを出力します。<br></div>
+	<div style="padding-left:3em;">
+	<b>-Oa</b><br>
+	</div>
+		<div style="padding-left:6em;">AIFF(Audio Interchange File Format) ファイルを出力します。<br></div>
+	<div style="padding-left:3em;">
+	<b>-Ow</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		RIFF WAVE ファイルを出力します。出力がシーケンシャルファイルだったり，<b>TiMidity++</b> がファイルを閉じる前に中断された場合，ファイルヘッダは0xffffffff の RIFF およびデータブロック長フィールドを含みます。著名なサウンド変換ユーティリティ sox は，そのような規格外のファイルを読めるので，別フォーマットへのオンザフライ変換として，sox に直接データをパイプできます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-Ol</b><br>
+	</div>
+		<div style="padding-left:6em;">MIDI イベントのリストを出力します。<br></div>
+	<div style="padding-left:3em;">
+	<b>-OM</b><br>
+	</div>
+		<div style="padding-left:6em;">MOD ファイルから MIDI ファイルに変換して出力します。<br></div>
+	<div style="padding-left:3em;">
+	
+	<b>-Oe</b>　　EsounD<br>
+	<b>-Op</b>　　PortAudio (v18)<br>
+	<b>-Oo</b>　　PortAudio (V19/ASIO)<br>
+	<b>-OW</b>　　PortAudio (V19/Windows/WASAPI)<br>
+	<b>-OK</b>　　PortAudio (V19/Windows/WDM-KS)<br>
+	<b>-OP</b>　　PortAudio (V19/Windows/WIN-DS)<br>
+	<b>-Op</b>　　PortAudio (V19/Windows/WMME)<br>
+	<b>-Oj</b>　　JACK<br>
+	<b>-OR</b>　　aRts<br>
+	<b>-OA</b>　　Alib<br>
+	<b>-Ov</b>　　Ogg Vorbis<br>
+	<b>-OF</b>　　Ogg FLAC<br>
+	<b>-OU</b>　　Ogg Opus<br>
+	<b>-OS</b>　　Ogg Speex<br>
+	<b>-Og</b>　　MP3 GOGO<br>
+	<b>-OL</b>　　LameEnc<br>
+	<b>-OO</b>　　libdao<br>
+	<b>-OV</b>　　SoundFont Volume Calc<br>
+	
+	<br>
+	<b>フォーマットオプション</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		上記オプションに続けて，以下の文字を追加することで出力フォーマットを指定できます(複数可)。<br>
+		
+		<b>S, --output-stereo</b>　　ステレオ<br>
+		<b>M, --output-mono</b>　　　モノラル<br>
+		<b>s, --output-signed</b>　　符合あり出力<br>
+		<b>u, --output-unsigned</b>　符合なし出力<br>
+		<b>1, --output-16bit</b>　 　16 ビットサンプル精度<br>
+		<b>2, --output-24bit</b>　 　24 ビットサンプル精度<br>
+		<b>3, --output-32bit</b>　 　32 ビットサンプル精度<br>
+		<b>f, --output-f32bit</b>　 float 32 ビットサンプル精度<br>
+		<b>D, --output-f64bit</b>　 float 64 ビットサンプル精度<br>
+		<b>8, --output-8bit</b>　　　8 ビットサンプル精度<br>
+		<b>l, --output-linear</b>　　線形符合化<br>
+		<b>U, --output-ulaw</b>　　　μ-Law 符合化<br>
+		<b>A, --output-alaw</b>　　　A-Law 符合化<br>
+		<b>x, --[no-]output-swab</b> バイト反転出力<br>
+		
+		一部のモードでは，指定しても効果がないオプションがあります。例えば，バイト反転した RIFF WAVE ファイルを作ることはできませんし，μ-Law 出力はLinux PCM デバイスに対しては使用できません。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-o</b> <u>file</u><b>, --output-file=</b><u>file</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		出力ファイル名を指定します。出力先がファイルでない場合はこのオプションは無視されます。<u>file</u> を `-' にすると標準出力に出力されます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-P</b> <u>file</u><b>, --patch-file=</b><u>file</u><br>
+	</div>
+		<div style="padding-left:6em;">すべての楽器を <u>file</u>(パッチ) を用いて演奏します。<br></div>
+	<div style="padding-left:3em;">
+	
+	<b>-p</b> <u>[n](a)</u><br>
+	<b>--polyphony=</b><u>n</u><br>
+	<b>--[no-]polyphony-reduction</b><br>
+	
+	</div>
+		<div style="padding-left:6em;">
+		最大同時発音数を <u>n</u> にします。<br>
+		さらに，<b>-p</b> オプションに `a' の文字を付加するか，<b>--polyphony-reduction</b> オプションを指定することにより，自動で発音数の減少させることを可能にします。デフォルトでは有効です。<br>
+		</div>
+	<div style="padding-left:3em;">
+	
+	<b>-Q</b> <u>n[,...](t)</u><br>
+	<b>--mute=</b><u>n[,...]</u><br>
+	<b>--temper-mute=</b><u>n[,...]</u><br>
+	
+	</div>
+		<div style="padding-left:6em;">
+		<u>n</u> チャンネル目を演奏しないようにします。`,'（カンマ） で区切って，複数のチャンネルを指定することができます。<br>
+		<u>n</u> に <b>0</b> を指定すると，すべてのチャンネルを演奏しないようにします。続けて，-<u>n</u> を指定することにより，<u>n</u> チャンネル目だけを演奏することができます。<br>
+		一方，<b>-Q</b> オプションに `t' の文字を付加するか，<b>--temper-mute</b> オプションを指定することにより，音律種別<u>n</u> をミュートします。<br>
+		<u>n</u> には，プリセット音律種別として<b>0</b> から <b>3</b> までの値を，ユーザ定義音律種別として <b>4</b> から<b>7</b> までの値を指定することができます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-q</b> <u>sec/n</u><b>, --audio-buffer=</b><u>sec/n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		オーディオ最大バッファを <u>sec</u> 秒，オーディオ開始バッファを<u>n</u>% にします。デフォルトでは <b>5.0/100</b> です。100% のサイズはデバイスバッファサイズと等価です。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-R</b> <u>msec</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		エンベロープリリースを <u>msec</u> に修正して音響効果を得ます(疑似リバーブ)。<u>msec</u> が <b>0</b> のとき，<u>msec</u> は <b>800</b> に設定されます。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-S</b> <u>n</u><b>, --cache-size=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		リサンプリングキャッシュの大きさをバイト数で指定します。頻繁に用いられるサンプルは，あらかじめリサンプリングしておくことで高速化しています。ただし，ビブラートやピッチベンドなどによってピッチが変化するサンプルはキャッシュされません。<b>0</b> を指定すると，まったくキャッシュしません。デフォルトでは <u>n</u> は <b>2097152</b> (2MB)となっています。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-s</b> <u>freq</u><b>, --sampling-freq=</b><u>freq</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		再生サンプルレート(Hz または kHz)を指定します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-T</b> <u>n</u><b>, --adjust-tempo=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		テンポを <u>n</u>% に調節します。<u>n</u> を <b>120</b> にすると，MOD ファイルを NTSC Amiga のタイミングで演奏します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-t</b> <u>code</u><b>, --output-charset=</b><u>code</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		テキストの出力文字コードを指定します。以下の <u>code</u> が指定可能です(大文字小文字は区別されません)。<br>
+		
+		<br>
+		<b>auto</b>　 　LANG 環境変数によってコードが決まります。<br>
+		<b>ascii</b>　　非可読 ASCII をピリオド(0x2e)に変換して出力します。<br>
+		<b>nocnv</b>　　出力文字コードを変換しません。<br>
+		<b>1251</b>　　 windows-1251 から koi8-r に変換して出力します。<br>
+		<b>euc</b>　　　EUC コード(japan)で出力します。<br>
+		<b>jis</b>　　　JIS コードで出力します。<br>
+		<b>sjis</b>　　 SJIS コードで出力します。<br>
+		
+		</div>
+	<div style="padding-left:3em;">
+	<b>-U, --[no-]unload-instruments</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		このオプションを有効にすると，演奏ごとに毎回，パッチに割り当てられていたメモリを解放します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-V</b> <u>power</u><b>, --volume-curve=</b><u>power</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		ベロシティ/ボリューム/エクスプレッションカーブを amp=vol^<u>power</u> で<u>power</u> の値が <b>0</b> で自動，<b>1</b> で線形，約 <b>1.661</b> で理想，約 <b>2</b> で GS 設定となります。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-v, --version</b><br>
+	</div>
+		<div style="padding-left:6em;">
+		<b>TiMidity++</b> のバージョン情報を表示します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-W</b> <u>mode</u><b>, --wrd=</b><u>mode</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		入力ファイルの拡張子を .WRD または .wrd に変更したファイルが存在すれば，それを WRD ファイル として読み込み，そのコマンドと歌詞を表示します。<br>
+		表示方法は以下の通りです。<br>
+		
+		<b>x</b>　　　　X Window System を使用して，グラフィカルに WRD を表示します。<br>
+		<b>w</b>　　　　Windows コンソール上に WRD を表示します。<br>
+		<b>t</b>　　　　エスケープシーケンスを使用して，WRD に含まれる文字情報を表示します。<br>
+		<b>d</b>　　　　WRD のイベント情報をそのまま出力します。<br>
+		<b>-</b>　　　　WRD のトレースを行いません。<br>
+		<br>
+		<br>
+		<b>R[opts]</b> WRD 読み込み時の設定を行います。<br>
+		
+		</div>
+			<div style="padding-left:9em;">
+			<b>a1=</b><u>b1</u><b>,a2=</b><u>b2</u><b>,...</b><br>
+			</div>
+				<div style="padding-left:12em;">
+				WRD 読み込み時のオプションを指定します。<b>an</b> にオプション名，<u>bn</u> にその値が入ります。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>d=</b><u>n</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				@WAIT，@WMODE まわりの MIMPI のタイミングに関するバグをエミュレートします。以下のオプションでエミュレートレベルを変更できます。<br>
+				<br>
+				<b>-WRd=</b><u>0</u><br>　MIMPI のバグをエミュレートしないで，規格通りに動作します。<br>
+				<b>-WRd=</b><u>1</u><br>　おそらく間違いないと思われるバグのみをエミュレートします(デフォルト)。<br>
+				<b>-WRd=</b><u>2</u><br>　怪しいバグまでエミュレートします。<br>
+				エミュレートレベルをあげると，今までタイミングが合っていたものがずれる可能性があります。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>F=</b><u>file</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				WRD ファイル名を指定します。WRD ファイルが見つからない場合のみ，指定した <u>file</u> が WRD ファイルとして用いられます。<br>
+				</div>
+			<div style="padding-left:9em;">
+			<b>f=</b><u>file</u><br>
+			</div>
+				<div style="padding-left:12em;">
+				WRD ファイル名を指定します。常に指定した WRD ファイル <u>file</u> を用います。<br>
+				</div>
+		<div style="padding-left:6em;">
+		なお，WRD はトレースモードで実行しないとタイミングが合いません。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-w</b><u>mode</u><b>, --rcpcv-dll=</b><u>mode</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		Windows 用の拡張モードのオプションです。以下の <u>mode</u> が有効です。<br>
+		<br>
+		<b>-w</b><u>r</u>　　rcpcv.dll を使用します。<br>
+		<b>-w</b><u>R</u>　　rcpcv.dll を使用しません(デフォルト)。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-x</b> <u>str</u><b>, --config-string=</b><u>str</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		指定した文字列で <b>TiMidity++</b> の設定を行います。<u>str</u> の書式はtimidity.cfg と同じです。例えば<br>
+		<b>-x'bank 0\n0 violin.pat'</b><br>
+		とすると 0 番で指定される音色ををバイオリンにすることができます。<b>-x</b> に続く文字列中の `\' (ASCII 0x5c)は特別文字として扱われ，それ以降の文字(列)に対し，C 言語のリテラルと同様の展開が行われます。例えば，`\n' は改行を意味します。<br>
+		</div>
+	<div style="padding-left:3em;">
+	<b>-Z</b> <u>file</u><b>, --freq-table=</b><u>file</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		周波数テーブルを読み込みます。<u>file</u> に ``pure'' を指定すると，簡易純正律で演奏します。<br>
+				<br>
+		<b>-Zpure</b> <u>[n(m)]</u><b>, --pure-intonation=</b><u>[n(m)]</u><br>
+		</div>
+			<div style="padding-left:9em;">
+			MIDI ファイルの Key Signature メタイベントに基づき，簡易的な純正律で演奏します。<br>
+			MIDI ファイルに Key Signature メタイベントが含まれていない場合は，初期の調性として <u>n(m)</u> を指定することで，正しい純正律演奏が可能となります。<br>
+			<u>n</u> は調号の数で，♯(シャープ)の場合は正の数，♭(フラット)の場合は負の数を指定します。<u>n</u> には <b>-7</b> から <b>7</b>までの値を指定することができます。さらに，短調の場合は `m' の文字を付加します。<br>
+			</div>
+		
+	<div style="padding-left:3em;">
+	<b>--module=</b><u>n</u><br>
+	</div>
+		<div style="padding-left:6em;">
+		特定の音源モジュールの動作をできるだけ真似ます。今のところ，定義されている <u>n</u> の値は次のとおりです。<br>
+		<br>
+		
+		<b>0</b>　　　　<b>TiMidity++</b> デフォルト<br>
+		<b>1</b>　　　　Roland SC-55<br>
+		<b>2</b>　　　　Roland SC-88<br>
+		<b>3</b>　　　　Roland SC-88Pro<br>
+		<b>4</b>　　　　Roland SC-8850<br>
+		<b>5-15</b>　　 GS 用にリザーブ<br>
+		<b>16</b>　　　 YAMAHA MU-50<br>
+		<b>17</b>　　　 YAMAHA MU-80<br>
+		<b>18</b>　　　 YAMAHA MU-90<br>
+		<b>19</b>　　　 YAMAHA MU-100<br>
+		<b>20</b>　　　 YAMAHA MU-128<br>
+		<b>21</b>　　　 YAMAHA MU-500<br>
+		<b>22</b>　　　 YAMAHA MU-1000<br>
+		<b>23</b>　　　 YAMAHA MU-2000<br>
+		<b>24-31</b>　　XG 用にリザーブ<br>
+		<b>32</b>　　　 SoundBlaster Live!<br>
+		<b>33</b>　　　 SoundBlaster Audigy<br>
+		<b>34-55</b>　　任意の音源モジュール用にリザーブ<br>
+		<b>56</b>　　　 Roland MT32<br>
+		<b>57</b>　　　 Roland CM32L<br>
+		<b>58</b>　　　 Roland CM32P<br>
+		<b>59</b>　　　 Roland CM64<br>
+		<b>60-79</b>　　LA 用にリザーブ<br>
+		<b>80</b>　　　 KORG AG-10<br>
+		<b>82</b>　　　 KORG 05R/W<br>
+		<b>84</b>　　　 KORG NX5R<br>
+		<b>85-95</b>　　任意の音源モジュール用にリザーブ<br>
+		<b>96</b>　　　 Roland SD-20<br>
+		<b>97</b>　　　 Roland SD-80<br>
+		<b>98</b>　　　 Roland SD-90<br>
+		<b>99-111</b>　 任意の音源モジュール用にリザーブ<br>
+		<b>112</b>　　　<b>TiMidity++</b> スペシャル 1<br>
+		<b>113-126</b>　<b>TiMidity++</b> 特定目的用にリザーブ<br>
+		<b>127</b>　　　<b>TiMidity++</b> デバッグ<br>
+		</div>
+<b>関連項目</b><br>
+	<div style="padding-left:3em;">
+	lsmidiprog(1), mididump(1), patinfo(1), sf2text(1), wav2pat(1),timidity.cfg(5)<br>
+	</div>
+<b>著作権</b><br>
+	<div style="padding-left:3em;">
+	Copyright (C) 1999-2004 Masanao Izumo &lt;iz跡onicos.co.jp&gt;<br>
+	Copyright (C) 1995 Tuukka Toivonen &lt;tt跡cgs.fi&gt;
+	<br>
+	The original version was developed by Tuukka Toivonen &lt;tt跡cgs.fi&gt;
+	until the release of TiMidity-0.2i.  His development was discontinued
+	because of his being busy with work.
+	<br>
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the <u>GNU General Public License</u> as
+	published by the Free Software Foundation; either version 2 of the
+	License, or (at your option) any later version.
+	<br>
+	This program is distributed in the hope that it will be useful, but
+	WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the <u>GNU
+	General Public License</u> for more details.
+	<br>
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+	USA
+	</div>
+<b>入手元</b>
+	<div style="padding-left:3em;">
+	<b>TiMidity++</b> は 改良版 TiMidity のページ
+	<br>
+	URL http://www.timidity.jp/
+	<br>
+	で手に入ります。
+	</div>
+<b>バグ</b>
+	<div style="padding-left:3em;">
+	小さな CPU-time-eating 獣よりも CPU time を喰う。
+	</div>
+<b>著者</b>
+	<div style="padding-left:3em;">
+	<br>
+	<b>Version 0.2i and earlier:</b>
+	Tuukka Toivonen &lt;tt跡cgs.fi&gt;
+	<br>
+	Vincent Pagel &lt;pagel跡loria.fr&gt;
+	<br>
+	Takashi Iwai &lt;tiwai跡suse.de&gt;
+	<br>
+	Davide Moretti &lt;dave跡rimini.com&gt;
+	<br>
+	Chi Ming HUNG &lt;cmhung跡insti.physics.sunysb.edu&gt;
+	<br>
+	Riccardo Facchetti &lt;riccardo跡cdc8g5.cdc.polimi.it&gt;
+	<br>
+	<b>TiMidity++:</b>
+	出雲正尚 (IZUMO Masanao) &lt;iz跡onicos.co.jp&gt;
+	<br>
+	原田智和 (HARADA Tomokazu) <harada跡prince.pe.u-tokyo.ac.jp>
+	<br>
+	山手圭一郎 (YAMATE Keiichirou) <keiich-y跡is.aist-nara.ac.jp>
+	<br>
+	木竜雅樹 (KIRYU Masaki) &lt;mkiryu跡usa.net&gt;
+	<br>
+	青木大輔 (AOKI Daisuke) &lt;dai跡y7.net&gt;
+	<br>
+	松本庄司 (MATSUMOTO Shoji) <shom跡i.h.kyoto-u.ac.jp>
+	<br>
+	小柳雅明 (KOYANAGI Masaaki) &lt;koyanagi跡okilab.oki.co.jp&gt;
+	<br>
+	今井邦彦 (IMAI Kunihiko) <imai跡leo.ec.t.kanazawa-u.ac.jp>
+	<br>
+	野上貴哉 (NOGAMI Takaya) <t-nogami跡happy.email.ne.jp>
+	<br>
+	渡辺尊紀 (WATANABE Takanori) <takawata跡shidahara1.planet.kobe-u.ac.jp>
+	<br>
+	竹川視野 (TAKEKAWA Hiroshi) &lt;sian跡big.or.jp&gt;
+	<br>
+	長野大介 (NAGANO Daisuke) &lt;breeze.nagano跡nifty.ne.jp&gt;
+	<br>
+	木下浩介 (KINOSHITA Kosuke) <kino跡krhm.jvc-victor.co.jp>
+	<br>
+	重村法克 (SHIGEMURA Norikatsu) <nork跡ninth-nine.com>
+	<br>
+	山幡為佐久 (YAMAHATA Isaku) <yamahata跡kusm.kyoto-u.ac.jp>
+	<br>
+	荒井良重 (ARAI Yoshishige) &lt;ryo2跡on.rim.or.jp&gt;
+	<br>
+	Glenn Trigg &lt;ggt跡netspace.net.au&gt;
+	<br>
+	Tim Allen &lt;thristian跡usa.net&gt;
+	<br>
+	Michael Haardt &lt;michael跡moria.de&gt;
+	<br>
+	Eric A. Welsh &lt;ewelsh跡ccb.wustl.edu&gt;
+	<br>
+	Paolo Bonzini &lt;bonzini跡gnu.org&gt;
+	<br>
+	木本雅彦 (KIMOTO Masahiko) &lt;kimoto跡ohnolab.org&gt;
+	<br>
+	岩井隆 (IWAI Takashi) &lt;tiwai跡suse.de&gt;
+	<br>
+	Saito &lt;saito2跡digitalme.com&gt;
+	<br>
+	佐藤研太郎 (SATO Kentaro) &lt;kentaro跡ps.catv.ne.jp&gt;
+	<br>
+	田向正一 (TAMUKI Shoichi) &lt;tamuki跡linet.gr.jp&gt;
+	<br>
+	卜部昌平 (URABE Shohei) &lt;root跡mput.dip.jp&gt;
+	<br>
+	末永圭司 (SUENAGA Keishi) &lt;s_keishi跡mutt.freemail.ne.jp&gt;
+	<br>
+	SUZUKI Koji &lt;k跡kekyo.net&gt;
+	<br>
+	(敬称略・順不同)
+	<br>
+	これ以外にも，<b>TiMidity++</b> メーリングリストの皆様をはじめ多くの方か
+	ら情報，バグ報告などを頂いています。
+	<br>
+	WRDで使用される端末ターミナルエミュレーションのコードは X Consotium
+	等の kterm のコードの一部を取り込み，またそれを参考に実装を行いました。
+	<br>
+	和訳は松本庄司(MATSUMOTO Shoji <shom跡i.h.kyoto-u.ac.jp>)。この和訳は正
+	確かどうかは保証できません。あなたがこの和訳の使用でいかなる損害を受け
+	ても責任は持ちません。
+	<br>
+	<b>TiMidity++</b> のオプション，cfg ファイルの解説は出雲正尚(IZUMO
+	Masanao &lt;iz跡onicos.co.jp&gt;)が，
+	<br>
+	その nroff 化，およびマニュアルのリライトは長野大介(NAGANO Daisuke
+	&lt;breeze.nagano跡nifty.ne.jp&gt;)が行いました。
+	<br>
+	現在は，田向正一(TAMUKI Shoichi &lt;tamuki跡linet.gr.jp&gt;)と卜部昌平(URABE
+	Shohei &lt;root跡mput.dip.jp&gt;)が，マニュアルをメンテナンスしています。
+	</div>
+</tt>
+</body>
+</html>

@@ -21,8 +21,25 @@
 #ifndef __W32G2_PREF_H__
 #define __W32G2_PREF_H__
 
+
+extern void	tmdy_free_config(void);
+extern void	timidity_start_initialize(void);
+extern int read_config_file(char *name, int self, int allow_missing_file);
+
 extern volatile int PrefWndDoing;
-void PrefWndCreate(HWND hwnd);
+void PrefWndCreate(HWND hwnd, UINT cid);
+
+typedef struct wave_ConfigDialogInfo_t {
+	char optIDC_EDIT_RIFFWAVE_UPDATE_STEP[1024 + 1];
+	int optIDC_CHECKBOX_RIFFWAVE_EXTENSIBLE;
+} wave_ConfigDialogInfo_t;
+
+extern int wave_ConfigDialogInfoInit(void);
+extern int wave_ConfigDialogInfoApply(void);
+extern int wave_ConfigDialogInfoSaveINI(void);
+extern int wave_ConfigDialogInfoLoadINI(void);
+
+extern int waveConfigDialog(void);
 
 #ifdef AU_GOGO
 
@@ -83,6 +100,10 @@ extern int gogoConfigDialog(void);
 typedef struct vorbis_ConfigDialogInfo_t_ {
 	int optIDC_CHECK_DEFAULT;
 	int optIDC_COMBO_MODE;
+	int optIDC_CHECK_USE_TAG;
+	char optIDC_EDIT1[256];
+	char optIDC_EDIT2[256];
+	char optIDC_EDIT3[256];
 } vorbis_ConfigDialogInfo_t;
 
 
@@ -95,10 +116,43 @@ extern int vorbisConfigDialog(void);
 
 #endif // AU_VORBIS
 
-#ifdef AU_PORTAUDIO_DLL
+#ifdef AU_LAME
 
-extern int asioConfigDialog(void);
+typedef struct lame_ConfigDialogInfo_t_ {
+	int optIDC_LAME_CBPRESET;
+} lame_ConfigDialogInfo_t;
 
+extern int lame_encode_preset;
+
+extern int lame_ConfigDialogInfoInit(void);
+extern int lame_ConfigDialogInfoApply(void);
+extern int lame_ConfigDialogInfoSaveINI(void);
+extern int lame_ConfigDialogInfoLoadINI(void);
+
+extern int lameConfigDialog(void);
+
+#endif // AU_LAME
+
+#ifdef AU_FLAC
+
+typedef struct flac_ConfigDialogInfo_t_ {
+	int optIDC_COMBO_ENCODE_MODE;
+	int optIDC_CHECKBOX_OGGFLAC_CONTAINER;
+} flac_ConfigDialogInfo_t;
+
+
+extern int flac_ConfigDialogInfoInit(void);
+extern int flac_ConfigDialogInfoApply(void);
+extern int flac_ConfigDialogInfoSaveINI(void);
+extern int flac_ConfigDialogInfoLoadINI(void);
+
+extern int flacConfigDialog(void);
+
+#endif // AU_FLAC
+
+#ifdef AU_PORTAUDIO
+extern int portaudioConfigDialog(void);
+extern int asioConfigDialog(int deviceID);
 #endif //AU_PORTAUDIO_DLL
 
 #endif /* __W32G2_PREF_H__ */

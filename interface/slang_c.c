@@ -129,8 +129,8 @@ static void ctl_pitch_bend(int channel, int val);
 static void ctl_reset(void);
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(int32 *valp);
-static int ctl_write(char *valp, int32 size);
+static int ctl_read(ptr_size_t *valp);
+static int ctl_write(const uint8 *valp, size_t size);
 static void ctl_lyric(int valp);
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
 static void ctl_event(CtlEvent *e);
@@ -553,12 +553,12 @@ static void ctl_close(void)
 static int ctl_read(int32 *valp)
 {
   int c;
-
-	if (cuepoint_pending) {
-		*valp = cuepoint;
-		cuepoint_pending = 0;
-		return RC_FORWARD;
-	}
+  
+  if (cuepoint_pending) {
+    *valp = cuepoint;
+    cuepoint_pending = 0;
+    return RC_FORWARD;
+  }
 
   if (!SLang_input_pending(0))
     return RC_NONE;
@@ -598,7 +598,7 @@ static int ctl_read(int32 *valp)
   return RC_NONE;
 }
 
-static int ctl_write(char *valp, int32 size)
+static int ctl_write(const uint8 *valp, size_t size)
 {
   static int warned = 0;
   if (!warned) {
@@ -1027,10 +1027,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
-	case CTLE_CUEPOINT:
-		cuepoint = e->v1;
-		cuepoint_pending = 1;
-		break;
+      case CTLE_CUEPOINT:
+	cuepoint = e->v1;
+	cuepoint_pending = 1;
+	break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:

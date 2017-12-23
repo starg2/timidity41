@@ -41,10 +41,10 @@
 #define CUTUP(n)   (((n) + BIT_CHUNK_SIZE - 1) & ~(BIT_CHUNK_SIZE - 1))
 #define CUTDOWN(n) ((n) & ~(BIT_CHUNK_SIZE - 1))
 
-/* ±¦¤«¤é n ¥Ó¥Ã¥È¤ò 1 ¤Ë */
+/* ‰E‚©‚ç n ƒrƒbƒg‚ğ 1 ‚É */
 #define RFILLBITS(n) ((1u << (n)) - 1)
 
-/* º¸¤«¤é n ¥Ó¥Ã¥È¤ò 1 ¤Ë */
+/* ¶‚©‚ç n ƒrƒbƒg‚ğ 1 ‚É */
 #define LFILLBITS(n) (RFILLBITS(n) << (BIT_CHUNK_SIZE - (n)))
 
 static void print_uibits(unsigned int x)
@@ -57,7 +57,7 @@ static void print_uibits(unsigned int x)
 	    putchar('0');
 }
 
-/* bitset ¤ÎÃæ¤òÉ½¼¨ */
+/* bitset ‚Ì’†‚ğ•\¦ */
 void print_bitset(Bitset *bitset)
 {
     int i, n;
@@ -85,11 +85,12 @@ void print_bitset(Bitset *bitset)
 }
 
 /*
- * Bitset ¤Î½é´ü²½
- * ½é´ü²½¸å¡¢Á´¤Æ¤Î¥Ó¥Ã¥È¤Ï 0 ¤Ë½é´ü²½¤µ¤ì¤ë
+ * Bitset ‚Ì‰Šú‰»
+ * ‰Šú‰»ŒãA‘S‚Ä‚Ìƒrƒbƒg‚Í 0 ‚É‰Šú‰»‚³‚ê‚é
  */
 void init_bitset(Bitset *bitset, int nbits)
 {
+    safe_free(bitset->bits);
     bitset->bits = (unsigned int *)
 	safe_malloc((CUTUP(nbits) / BIT_CHUNK_SIZE)
 		    * sizeof(unsigned int));
@@ -98,7 +99,17 @@ void init_bitset(Bitset *bitset, int nbits)
 }
 
 /*
- * start ÈÖÌÜ¤Î¥Ó¥Ã¥È¤«¤é¡¢nbit Ê¬¡¢0 ¤Ë¥»¥Ã¥È¤¹¤ë¡£
+ * Bitset ‚Ì‰ğ•ú
+ */
+void finalize_bitset(Bitset *bitset)
+{
+    bitset->nbits = 0;
+    safe_free(bitset->bits);
+    bitset->bits = NULL;
+}
+
+/*
+ * start ”Ô–Ú‚Ìƒrƒbƒg‚©‚çAnbit •ªA0 ‚ÉƒZƒbƒg‚·‚éB
  */
 void clear_bitset(Bitset *bitset, int start, int nbits)
 {
@@ -112,21 +123,21 @@ void clear_bitset(Bitset *bitset, int start, int nbits)
 	nbits = bitset->nbits - start;
 
     i = CUTDOWN(start);
-    sbitoff = start - i;	/* º¸Â¦ n ¥Ó¥Ã¥ÈÌÜ¤«¤é¥¹¥¿¡¼¥È */
-    i /= BIT_CHUNK_SIZE;	/* i ÈÖÌÜ¤«¤é */
+    sbitoff = start - i;	/* ¶‘¤ n ƒrƒbƒg–Ú‚©‚çƒXƒ^[ƒg */
+    i /= BIT_CHUNK_SIZE;	/* i ”Ô–Ú‚©‚ç */
 
     j = CUTDOWN(start + nbits - 1);
-    ebitoff = start + nbits - j; /* º¸Â¦ n ¥Ó¥Ã¥ÈÌÜ¤Ş¤Ç  */
+    ebitoff = start + nbits - j; /* ¶‘¤ n ƒrƒbƒg–Ú‚Ü‚Å  */
     /* ebitoff := [1 ... BIT_CHUNK_SIZE] */
 
-    j /= BIT_CHUNK_SIZE;	/* j ÈÖÌÜ¤Ş¤Ç */
+    j /= BIT_CHUNK_SIZE;	/* j ”Ô–Ú‚Ü‚Å */
 
-    /* º¸Â¦ sbitoff ¥Ó¥Ã¥È¤Ş¤Ç¤ò 1, ¤½¤ì°Ê³°¤Ï 0 */
+    /* ¶‘¤ sbitoff ƒrƒbƒg‚Ü‚Å‚ğ 1, ‚»‚êˆÈŠO‚Í 0 */
     mask = LFILLBITS(sbitoff);
 
-    if(i == j)			/* 1 ¤Ä¤Î Chunk ¤ÎÃæ¤ËÆş¤ë  */
+    if(i == j)			/* 1 ‚Â‚Ì Chunk ‚Ì’†‚É“ü‚é  */
     {
-	/* º¸Â¦ ebitoff °Ê¹ß¤Ï 1 */
+	/* ¶‘¤ ebitoff ˆÈ~‚Í 1 */
 	mask |= RFILLBITS(BIT_CHUNK_SIZE - ebitoff);
 	bitset->bits[i] &= mask;
 	return;
@@ -140,7 +151,7 @@ void clear_bitset(Bitset *bitset, int start, int nbits)
 }
 
 /*
- * start ¥Ó¥Ã¥È¤«¤é¡¢nbits Ê¬¡¢bits ¤Ë¥»¥Ã¥È¤¹¤ë
+ * start ƒrƒbƒg‚©‚çAnbits •ªAbits ‚ÉƒZƒbƒg‚·‚é
  */
 void set_bitset(Bitset *bitset, const unsigned int *bits,
 		int start, int nbits)
@@ -155,20 +166,20 @@ void set_bitset(Bitset *bitset, const unsigned int *bits,
 	nbits = bitset->nbits - start;
 
     i = CUTDOWN(start);
-    lsbitoff = start - i;	/* º¸Â¦ n ¥Ó¥Ã¥ÈÌÜ¤«¤é¥¹¥¿¡¼¥È */
-    rsbitoff = BIT_CHUNK_SIZE - lsbitoff; /* ±¦Â¦ n ¥Ó¥Ã¥ÈÌÜ¤«¤é¥¹¥¿¡¼¥È */
-    i /= BIT_CHUNK_SIZE;	/* i ÈÖÌÜ¤«¤é */
+    lsbitoff = start - i;	/* ¶‘¤ n ƒrƒbƒg–Ú‚©‚çƒXƒ^[ƒg */
+    rsbitoff = BIT_CHUNK_SIZE - lsbitoff; /* ‰E‘¤ n ƒrƒbƒg–Ú‚©‚çƒXƒ^[ƒg */
+    i /= BIT_CHUNK_SIZE;	/* i ”Ô–Ú‚©‚ç */
 
     j = CUTDOWN(start + nbits - 1);
-    ebitoff = start + nbits - j; /* º¸Â¦ n ¥Ó¥Ã¥ÈÌÜ¤Ş¤Ç  */
+    ebitoff = start + nbits - j; /* ¶‘¤ n ƒrƒbƒg–Ú‚Ü‚Å  */
     /* ebitoff := [1 ... BIT_CHUNK_SIZE] */
 
-    j /= BIT_CHUNK_SIZE;	/* j ÈÖÌÜ¤Ş¤Ç */
+    j /= BIT_CHUNK_SIZE;	/* j ”Ô–Ú‚Ü‚Å */
 
-    /* º¸Â¦ lsbitoff ¥Ó¥Ã¥È¤Ş¤Ç¤ò 1, ¤½¤ì°Ê³°¤Ï 0 */
+    /* ¶‘¤ lsbitoff ƒrƒbƒg‚Ü‚Å‚ğ 1, ‚»‚êˆÈŠO‚Í 0 */
     mask = LFILLBITS(lsbitoff);
 
-    if(i == j)			/* 1 ¤Ä¤Î Chunk ¤ÎÃæ¤ËÆş¤ë  */
+    if(i == j)			/* 1 ‚Â‚Ì Chunk ‚Ì’†‚É“ü‚é  */
     {
 	mask |= RFILLBITS(BIT_CHUNK_SIZE - ebitoff);
 	bitset->bits[i] = ((~mask & (*bits >> lsbitoff))
@@ -197,7 +208,7 @@ void set_bitset(Bitset *bitset, const unsigned int *bits,
 }
 
 /*
- * start ¥Ó¥Ã¥È¤«¤é¡¢nbits Ê¬¡¢ÆÀ¤ë
+ * start ƒrƒbƒg‚©‚çAnbits •ªA“¾‚é
  */
 void get_bitset(const Bitset *bitset, unsigned int *bits,
 		int start, int nbits)
@@ -213,17 +224,17 @@ void get_bitset(const Bitset *bitset, unsigned int *bits,
 	nbits = bitset->nbits - start;
 
     i = CUTDOWN(start);
-    lsbitoff = start - i;	/* º¸Â¦ n ¥Ó¥Ã¥ÈÌÜ¤«¤é¥¹¥¿¡¼¥È */
-    rsbitoff = BIT_CHUNK_SIZE - lsbitoff; /* ±¦Â¦ n ¥Ó¥Ã¥ÈÌÜ¤«¤é¥¹¥¿¡¼¥È */
-    i /= BIT_CHUNK_SIZE;	/* i ÈÖÌÜ¤«¤é */
+    lsbitoff = start - i;	/* ¶‘¤ n ƒrƒbƒg–Ú‚©‚çƒXƒ^[ƒg */
+    rsbitoff = BIT_CHUNK_SIZE - lsbitoff; /* ‰E‘¤ n ƒrƒbƒg–Ú‚©‚çƒXƒ^[ƒg */
+    i /= BIT_CHUNK_SIZE;	/* i ”Ô–Ú‚©‚ç */
 
     j = CUTDOWN(start + nbits - 1);
-    ebitoff = start + nbits - j; /* º¸Â¦ n ¥Ó¥Ã¥ÈÌÜ¤Ş¤Ç  */
+    ebitoff = start + nbits - j; /* ¶‘¤ n ƒrƒbƒg–Ú‚Ü‚Å  */
     /* ebitoff := [1 ... BIT_CHUNK_SIZE] */
 
-    j /= BIT_CHUNK_SIZE;	/* j ÈÖÌÜ¤Ş¤Ç */
+    j /= BIT_CHUNK_SIZE;	/* j ”Ô–Ú‚Ü‚Å */
 
-    if(i == j)			/* 1 ¤Ä¤Î Chunk ¤ÎÃæ¤ËÆş¤ë  */
+    if(i == j)			/* 1 ‚Â‚Ì Chunk ‚Ì’†‚É“ü‚é  */
     {
 	unsigned int mask;
 	mask = LFILLBITS(lsbitoff) | RFILLBITS(BIT_CHUNK_SIZE - ebitoff);
@@ -251,8 +262,8 @@ void get_bitset(const Bitset *bitset, unsigned int *bits,
 }
 
 /*
- * bitset ¤ÎÃæ¤Ë 1 ¥Ó¥Ã¥È¤â´Ş¤Ş¤ì¤Æ¤¤¤Ê¤±¤ì¤Ğ 0 ¤òÊÖ¤·¡¤
- * 1 ¥Ó¥Ã¥È¤Ç¤â´Ş¤Ş¤ì¤Æ¤¤¤ë¾ì¹ç¤Ï 1 ¤òÊÖ¤¹¡¥
+ * bitset ‚Ì’†‚É 1 ƒrƒbƒg‚àŠÜ‚Ü‚ê‚Ä‚¢‚È‚¯‚ê‚Î 0 ‚ğ•Ô‚µC
+ * 1 ƒrƒbƒg‚Å‚àŠÜ‚Ü‚ê‚Ä‚¢‚éê‡‚Í 1 ‚ğ•Ô‚·D
  */
 unsigned int has_bitset(const Bitset *bitset)
 {

@@ -97,13 +97,13 @@ extern WRDTracer tty_wrdt_mode;
 extern WRDTracer x_wrdt_mode;
 #endif /* WRDT_X */
 
-#if defined(__W32__) && !defined(__BORLANDC__) && !defined(IA_W32GUI) && !defined(IA_W32G_SYN)
+#if defined(__W32__) && !defined(__BORLANDC__) && !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(WINDRV_SETUP)
 extern WRDTracer wcon_wrdt_mode; /* wrdt_wcon.c */
 #endif /* __W32__ */
 #if defined(__W32__) && defined(IA_W32GUI)
 extern WRDTracer w32g_wrdt_mode; /* wrdt_w32g.c */
 #endif /* __W32__ */
-#if defined(__W32__) && defined(IA_W32G_SYN)
+#if defined(__W32__) && (defined(IA_W32G_SYN) || defined(WINDRV_SETUP))
 extern WRDTracer null_wrdt_mode;
 #endif /* __W32__ */
 
@@ -112,19 +112,19 @@ WRDTracer *wrdt_list[] =
 #ifdef WRDT_X
     &x_wrdt_mode,
 #endif /* WRDT_X */
-#if defined(__W32__) && !defined(__BORLANDC__) && !defined(IA_W32GUI) && !defined(IA_W32G_SYN)
+#if defined(__W32__) && !defined(__BORLANDC__) && !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(WINDRV_SETUP)
 	&wcon_wrdt_mode,
 #endif /* __W32__ */
 #if defined(__W32__) && defined(IA_W32GUI)
 	&w32g_wrdt_mode,
 #endif /* __W32__ */
-#if !defined(__MACOS__) && !defined(IA_W32GUI) && !defined(IA_W32G_SYN)
+#if !defined(__MACOS__) && !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(WINDRV_SETUP)
     &tty_wrdt_mode,
 #endif /* __MACOS__  IA_W32GUI IA_W32G_SYN */
 #ifdef __MACOS__
     &mac_wrdt_mode,
 #endif
-#if !defined(IA_W32GUI) && !defined(IA_W32G_SYN)
+#if !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(WINDRV_SETUP)
     &dumb_wrdt_mode,
 #endif
     &null_wrdt_mode,

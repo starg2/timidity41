@@ -1,0 +1,61 @@
+======================================================================
+	TiMidity++ Installation guide
+
+					Masanao Izumo
+					<iz@onicos.co.jp>
+					Mar.01.2004
+					version 2.13.0 or later
+======================================================================
+
+TiMidity++ uses Either GUS/patch, or SoundFont(, or both) as the voice
+data to play.  You must get a SoundFont or GUS/patch files, and make
+the configuration file.  You must make the configuration file (*.cfg).
+By default, timidity.cfg is /usr/local/share/timidity/timidity.cfg (or
+C:\WINDOWS\TIMIDITY.CFG on Windows).  And please check the following
+sites for many voice(patch) data:
+
+* http://www.onicos.com/staff/iz/timidity/link.html#gus
+* http://www.onicos.com/staff/iz/timidity/dist/cfg/ (Some sample *.cfg's)
+* http://www.i.h.kyoto-u.ac.jp/~shom/timidity/ (10M and 4M patches)
+* ftp://ftp.cdrom.com/pub/gus/sound/patches/files/ (GUS site)
+
+If you got funny voice archive, extract it to appropriate directory
+and configure *.cfg files with the name and path of these voice dates.
+
+Console version:
+  timidity.exe
+
+GUI version:
+  timw32g.exe
+  Please edit timpp32g.ini for your preference.
+
+GUI Synthesizer version:
+  twsyng.exe
+  Please edit timpp32g.ini for your preference.
+
+GUI Synthesizer Service Mode version:
+  twsynsrv.exe
+  Please edit timpp32g.ini for your preference.
+
+======================================================================
+Eawpats for TiMidity++
+======================================================================
+
+TiMidity doesn't work itself.  TiMidity needs GUS/patch set which is
+set of sound patch.  There are no WAVE information in *.mid file, so
+TiMidity use GUS/patch to convert MIDI to WAVE file.  Note that this
+`patch' means one of the wave sound file in MIDI technical term.
+
+Many GUS/patches are available from the internet.  Some people collect
+these patches and make a set of the patch for TiMidity.  I recommend
+the patch of Eric A. Welsh <ewelsh@gpc.ibc.wustl.edu>.
+
+Follows are installation steps to use eawpat for TiMidity++.
+
+1. Visit http://www.stardate.bc.ca/eawpatches/html/default.htm
+2. Click "Getting Eawpatches"
+3. If you don't have UNRAR, Please install it.
+4. Download Eawpats RAR files.
+5. Make a new folder `c:\timidity' to install Eric patch set.
+6. Extract RAR files to `c:\timidity'
+7. Move all files in this directory to `c:\timidity'

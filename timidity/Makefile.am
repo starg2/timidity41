@@ -38,18 +38,24 @@ timidity_SOURCES = \
 	au_a.c \
 	audio_cnv.c \
 	audio_cnv.h \
+	benchmark_a.c \
 	common.c \
 	common.h \
 	controls.c \
 	controls.h \
 	dlutils.h \
 	effect.c \
+	effect.h \
+	envelope.c \
+	envelope.h \
 	filter.c \
 	filter.h \
 	freq.c \
 	freq.h \
 	instrum.c \
 	instrum.h \
+	int_synth.c \
+	int_synth.h \
 	list_a.c \
 	loadtab.c \
 	m2m.c \
@@ -70,6 +76,8 @@ timidity_SOURCES = \
 	mt19937ar.h \
 	optcode.c \
 	optcode.h \
+	oscillator.c \
+	oscillator.h \
 	output.c \
 	output.h \
 	playmidi.c \
@@ -84,8 +92,6 @@ timidity_SOURCES = \
 	recache.h \
 	resample.c \
 	resample.h \
-	reverb.c \
-	reverb.h \
 	sbkconv.c \
 	sffile.c \
 	sffile.h \
@@ -101,11 +107,20 @@ timidity_SOURCES = \
 	tables.h \
 	timidity.c \
 	timidity.h \
+	thread.c \
+	thread.h \
 	version.c \
+	voice_effect.c \
+	voice_effect.h \
+	voice_filter.c \
+	voice_filter.h \
 	wave_a.c \
 	wrd.h \
 	wrd_read.c \
-	wrdt.c
+	wrdt.c \
+	myini.c \
+	sndfontini.c \
+	volumecalc_a.c
 
 EXTRA_timidity_SOURCES = \
 	alsa_a.c \
@@ -123,11 +138,13 @@ EXTRA_timidity_SOURCES = \
 	dl_dyld.c \
 	dl_hpux.c \
 	bsd20_a.c \
+	flac_a.c \
 	esd_a.c \
+	gogo_a.h \
+	gogo_a.c \
 	hpux_a.c \
 	hpux_d_a.c \
 	jack_a.c \
-	oss_a.c \
 	mac_a.c \
 	mac_qt_a.c \
 	mac_com.h \
@@ -138,22 +155,23 @@ EXTRA_timidity_SOURCES = \
 	mfnode.c \
 	mfnode.h \
 	nas_a.c \
-	portaudio_a.c \
 	npipe_a.c \
+	opus_a.c \
+	oss_a.c \
+	portaudio_a.c \
+	speex_a.c \
 	sun_a.c \
 	vorbis_a.c \
-	flac_a.c \
-	speex_a.c \
 	w32_a.c \
 	w32_gogo.c \
 	w32_gogo.h \
-	gogo_a.h \
-	gogo_a.c \
 	w32g_vorbisenc_dll.c \
 	w32g_vorbis_dll.c \
 	w32g_ogg_dll.c \
+	w32g_opus_dll.c \
 	w32_portaudio.h \
 	w32_portaudio_dll.c \
+	w32_soundspec.c \
 	w32_libFLAC_dll.c \
 	w32_libFLAC_dll.h \
 	w32_libFLAC_dll_g.h \
@@ -322,7 +340,7 @@ timidity$(EXEEXT): $(timidity_OBJECTS) $(timidity_DEPENDENCIES) $(timidity_dep) 
 
 calcnewt$(EXEEXT): $(calcnewt_OBJECTS) $(calcnewt_DEPENDENCIES)
 	@rm -f calcnewt$(EXEEXT)
-	$(VCC_LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD) $(LIBS)
+	$(VCC_LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD)
 
 else
 
@@ -346,7 +364,7 @@ endif
 POCCC_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS)
 calcnewt$(EXEEXT): $(calcnewt_OBJECTS) $(calcnewt_DEPENDENCIES)
 	@rm -f calcnewt$(EXEEXT)
-	$(POCCC_LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD) $(LIBS)
+	$(POCCC_LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD)
 
 else
 
@@ -367,7 +385,7 @@ calcnewt.$(OBJEXT): calcnewt.c
 	$(CC)  -tWC  -c calcnewt.c
 calcnewt$(EXEEXT): $(calcnewt_OBJECTS) $(calcnewt_DEPENDENCIES)
 	@rm -f calcnewt$(EXEEXT)
-	$(CCLD) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD) $(LIBS)
+	$(CCLD) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD)
 
 else
 
@@ -414,14 +432,14 @@ if MINGWGCC
 if WINDRV
 calcnewt$(EXEEXT): $(calcnewt_OBJECTS) $(calcnewt_DEPENDENCIES) 
 	@rm -f calcnewt$(EXEEXT)
-	$(LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD) $(LIBS)
+	$(LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD)
 timidity$(EXEEXT): $(timidity_OBJECTS) $(timidity_DEPENDENCIES) 
 	@rm -f timidity$(EXEEXT)
 	ar -cru timidity.exe $(timidity_LDFLAGS) $(timidity_OBJECTS) $(timidity_LDADD) 
 else
 calcnewt$(EXEEXT): $(calcnewt_OBJECTS) $(calcnewt_DEPENDENCIES) 
 	@rm -f calcnewt$(EXEEXT)
-	$(LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD) $(LIBS)
+	$(LINK) $(calcnewt_LDFLAGS) $(calcnewt_OBJECTS) $(calcnewt_LDADD)
 timidity$(EXEEXT): $(timidity_OBJECTS) $(timidity_DEPENDENCIES) 
 	@rm -f timidity$(EXEEXT)
 	$(LINK) $(timidity_LDFLAGS) $(timidity_OBJECTS) $(timidity_LDADD) $(LIBS)
@@ -460,7 +478,8 @@ newton_table.c: calcnewt$(EXEEXT)
 
 else
 newton_table.c: calcnewt$(EXEEXT)
-	./calcnewt > $@
+	-cp ../configs/newton_table.c ./newton_table.c
+	-./calcnewt$(EXEEXT) > /dev/null && ./calcnewt$(EXEEXT) > $@
 
 endif
 endif

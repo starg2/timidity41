@@ -41,6 +41,21 @@
 #define _MAX_FNAME 256
 #endif /* __POCC___ */
 
+#ifndef _MAX_FNAME
+#define _MAX_FNAME 256
+#endif /* _MAX_FNAME */
+
+#ifdef __CYGWIN__
+struct _finddata_t {
+    unsigned attrib;
+    time_t time_create;
+    time_t time_access;
+    time_t time_write;
+    size_t size;
+    char name[_MAX_FNAME];
+};
+#endif /* __CYGWIN__ */
+
 #if 0
 #define API_EXPORT(type)    __declspec(dllexport) type __stdcall
 #else

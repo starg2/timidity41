@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <string.h>
 
+//#define VORBIS_DLL_UNICODE 1 // undef multibyte
+
 #ifdef AU_VORBIS
 
 #ifdef AU_VORBIS_DLL
@@ -39,8 +41,10 @@ extern int load_ogg_dll(void);
 extern void free_ogg_dll(void);
 extern int load_vorbis_dll(void);
 extern void free_vorbis_dll(void);
+#ifndef VORBIS_DLL_INCLUDE_VORBISENC
 extern int load_vorbisenc_dll(void);
 extern void free_vorbisenc_dll(void);
+#endif
 #endif
 
 #ifdef HAVE_UNISTD_H
@@ -76,7 +80,7 @@ extern void free_vorbisenc_dll(void);
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
@@ -169,55 +173,6 @@ choose_bitrate(int nch, int rate)
 }
 #endif
 
-#ifdef __W32__
-static char *w32_mbs_to_utf8(const char* str)
-{
-	int str_size = strlen(str);
-	int buff16_size = str_size;
-	wchar_t* buff16;
-	int buff8_size = 0;
-	char* buff8;
-	char* buff8_p;
-	int i;
-	if ( str_size == 0 ) {
-		return strdup ( str );
-	}
-	buff16 = (wchar_t*) malloc (sizeof(wchar_t)*buff16_size + 1);
-	if ( buff16 == NULL ) return NULL;
-	buff16_size = MultiByteToWideChar(CP_OEMCP, MB_PRECOMPOSED, str, str_size, buff16, buff16_size ) ;
-	if ( buff16_size == 0 ) {
-		free ( buff16 );
-		return NULL;
-	}
-	for ( i = 0; i < buff16_size; ++i ) {
-		wchar_t w = buff16[i];
-		if ( w < 0x0080 ) buff8_size += 1;
-		else if ( w < 0x0800 ) buff8_size += 2;
-		else buff8_size += 3;
-	}
-	buff8 = (char*) malloc ( sizeof(char)*buff8_size + 1 );
-	if ( buff8 == NULL ) {
-		free ( buff16 );
-		return NULL;
-	}
-	for ( i = 0, buff8_p = buff8; i < buff16_size; ++i ) {
-		wchar_t w = buff16[i];
-		if ( w < 0x0080 ) {
-			*(buff8_p++) = (char)w;
-		} else if ( buff16[i] < 0x0800 ) {
-			*(buff8_p++) = 0xc0 | (w >> 6);
-			*(buff8_p++) = 0x80 | (w & 0x3f);
-		} else {
-			*(buff8_p++) = 0xe0 | (w >> 12);
-			*(buff8_p++) = 0x80 | ((w >>6 ) & 0x3f);
-			*(buff8_p++) = 0x80 | (w & 0x3f);
-		}
-	}
-	*buff8_p = '\0';
-	free ( buff16 );
-	return buff8;
-}
-#endif
 
 static int ogg_output_open(const char *fname, const char *comment)
 {
@@ -232,12 +187,18 @@ static int ogg_output_open(const char *fname, const char *comment)
 	  int flag = 0;
 		if(!load_ogg_dll())
 			if(!load_vorbis_dll())
+#ifndef VORBIS_DLL_INCLUDE_VORBISENC
 				if(!load_vorbisenc_dll())
+#endif
 					flag = 1;
 		if(!flag){
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				  "DLL load failed: %s", "vorbis.dll, vorbisenc.dll, ogg.dll");
 			free_ogg_dll();
 			free_vorbis_dll();
+#ifndef VORBIS_DLL_INCLUDE_VORBISENC
 			free_vorbisenc_dll();
+#endif
 			return -1;
 		}
   }
@@ -293,41 +254,41 @@ static int ogg_output_open(const char *fname, const char *comment)
       (char *)safe_malloc(strlen(comment) + sizeof("LOCATION=") + 2);
     strcpy(location_string, "LOCATION=");
     strcat(location_string, comment);
-#ifndef __W32__
+#if defined(__W32__) && (defined(VORBIS_DLL_UNICODE) && (defined(_UNICODE) || defined(UNICODE)))
+	{
+		char* location_string_utf8 = w32_mbs_to_utf8 ( location_string );
+		if ( location_string_utf8 == NULL ) {
+		vorbis_comment_add(&vc, (char *)location_string);
+		} else {
+		vorbis_comment_add(&vc, (char *)location_string_utf8);
+			if ( location_string_utf8 != location_string )
+				free ( location_string_utf8 );
+		}
+		free(location_string);
+	}
+#else
     vorbis_comment_add(&vc, (char *)location_string);
     free(location_string);
-#else
-		{
-			char* location_string_utf8 = w32_mbs_to_utf8 ( location_string );
-			if ( location_string_utf8 == NULL ) {
-		    vorbis_comment_add(&vc, (char *)location_string);
-			} else {
-		    vorbis_comment_add(&vc, (char *)location_string_utf8);
-				if ( location_string_utf8 != location_string )
-					free ( location_string_utf8 );
-			}
-			free(location_string);
-		}
 #endif
   }
   /* add default tag */
-    if (tag_title != NULL) {
-#ifndef __W32__
-	vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
-#else
-		{
-			char* tag_title_utf8 = w32_mbs_to_utf8 ( tag_title );
-			if ( tag_title_utf8 == NULL ) {
-				vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
-			} else {
-				vorbis_comment_add_tag(&vc, "title", (char *)tag_title_utf8);
-				if ( tag_title_utf8 != tag_title )
-					free ( tag_title_utf8 );
-			}
+  if (tag_title != NULL) {
+#if defined(__W32__) && (defined(VORBIS_DLL_UNICODE) && (defined(_UNICODE) || defined(UNICODE)))
+	{
+		char* tag_title_utf8 = w32_mbs_to_utf8 ( tag_title );
+		if ( tag_title_utf8 == NULL ) {
+			vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
+		} else {
+			vorbis_comment_add_tag(&vc, "title", (char *)tag_title_utf8);
+			if ( tag_title_utf8 != tag_title )
+				free ( tag_title_utf8 );
 		}
+	}
+#else
+	vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
 #endif
   }
-
+	
   /* set up the analysis state and auxiliary encoding storage */
   vorbis_analysis_init(&vd, &vi);
   vorbis_block_init(&vd, &vb);
@@ -361,13 +322,6 @@ static int ogg_output_open(const char *fname, const char *comment)
 
   return fd;
 }
-
-/* mode
-  0,1: Default mode.
-  2: Remove the directory path of input_filename, then add output_dir.
-  3: Replace directory separator characters ('/','\',':') with '_', then add output_dir.
- */
-extern char *create_auto_output_name(const char *input_filename, char *ext_str, char *output_dir, int mode);
 
 static int auto_ogg_output_open(const char *input_filename, const char *title)
 {
@@ -405,12 +359,11 @@ static int open_output(void)
   int include_enc, exclude_enc;
 
   /********** Encode setup ************/
-
+///r
   include_enc = exclude_enc = 0;
-
   /* only 16 bit is supported */
-  include_enc |= PE_16BIT|PE_SIGNED;
-  exclude_enc |= PE_BYTESWAP|PE_24BIT;
+  include_enc |= PE_16BIT | PE_SIGNED;
+  exclude_enc |= PE_BYTESWAP | PE_ULAW | PE_ALAW | PE_24BIT | PE_32BIT | PE_F32BIT | PE_64BIT | PE_F64BIT;
   dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
 #if !defined ( IA_W32GUI ) && !defined ( IA_W32G_SYN )
@@ -435,7 +388,7 @@ static int open_output(void)
   return 0;
 }
 
-static int output_data(char *readbuffer, int32 bytes)
+static int output_data(const uint8 *readbuffer, size_t bytes)
 {
   int i, j, ch = ((dpm.encoding & PE_MONO) ? 1 : 2);
   float **buffer;
@@ -539,7 +492,9 @@ static void close_output(void)
   close(dpm.fd);
 
 #ifdef AU_VORBIS_DLL
+#ifndef VORBIS_DLL_INCLUDE_VORBISENC
   free_vorbisenc_dll();
+#endif
   free_vorbis_dll();
   free_ogg_dll();
 #endif
@@ -551,11 +506,13 @@ static int acntl(int request, void *arg)
 {
   switch(request) {
   case PM_REQ_PLAY_START:
-    if(dpm.flag & PF_AUTO_SPLIT_FILE){
-      if(  ( NULL == current_file_info ) || (NULL == current_file_info->filename ) )
-        return auto_ogg_output_open("Output.mid",NULL);
-      return auto_ogg_output_open(current_file_info->filename, current_file_info->seq_name);
-   }
+    if (dpm.flag & PF_AUTO_SPLIT_FILE) {
+      const char *filename = (current_file_info && current_file_info->filename) ?
+			     current_file_info->filename : "Output.mid";
+      const char *seq_name = (current_file_info && current_file_info->seq_name) ?
+			     current_file_info->seq_name : NULL;
+      return auto_ogg_output_open(filename, seq_name);
+    }
     return 0;
   case PM_REQ_PLAY_END:
     if(dpm.flag & PF_AUTO_SPLIT_FILE)

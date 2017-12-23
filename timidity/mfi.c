@@ -41,7 +41,7 @@
       readmidi_add_event(&event); }
 
 #ifdef LITTLE_ENDIAN
-#define BE_FCC(type)		((uint32)XCHG_LONG(type))
+#define BE_FCC(type)		((uint32)XCHG_LONG_CONST(type))
 #else /* BIG ENDIAN */
 #define BE_FCC(type)		((uint32)BE_LONG(type))
 #endif
@@ -344,7 +344,7 @@ typedef struct LastNoteInfo {
 #define SEND_LASTNOTEINFO(lni, ch)				if (LASTNOTEINFO_HAS_DATA((lni)[ch])) SendLastNoteInfo(lni, ch);
 #define SEND_AND_CLEAR_LASTNOTEINFO(lni, ch)	if (LASTNOTEINFO_HAS_DATA((lni)[ch])) { SendLastNoteInfo(lni, ch); (lni)[ch].on = NO_LAST_NOTE_INFO; }
 
-static inline void StoreLastNoteInfo(LastNoteInfo *info, int channel, int time, int duration, int note, int velocity)
+void StoreLastNoteInfo(LastNoteInfo *info, int channel, int time, int duration, int note, int velocity)
 {
 	info[channel].on = time;
 	info[channel].off = time + duration;
@@ -352,7 +352,7 @@ static inline void StoreLastNoteInfo(LastNoteInfo *info, int channel, int time, 
 	info[channel].velocity = velocity;
 }
 
-static inline void SendLastNoteInfo(const LastNoteInfo *info, int channel)
+void SendLastNoteInfo(const LastNoteInfo *info, int channel)
 {
 	NOTE_BUF_EV_DEBUGSTR(channel, info[channel].on, note_name[info[channel].note % 12], info[channel].note / 12, info[channel].velocity, info[channel].off);
 	MIDIEVENT(info[channel].on, ME_NOTEON, channel, info[channel].note, info[channel].velocity);

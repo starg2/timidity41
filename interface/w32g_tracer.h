@@ -1,7 +1,7 @@
 #ifndef __W32G_TRACER_H__
 #define __W32G_TRACER_H__
-
-#define TRACER_CHANNELS 32
+///r
+#define TRACER_CHANNELS MAX_CHANNELS
 typedef struct w32g_tracer_wnd_t_ {
 	HWND hwnd;
 	HWND hParentWnd;
@@ -48,6 +48,12 @@ typedef struct w32g_tracer_wnd_t_ {
 	RECT rc_gm;
 	RECT rc_gs;
 	RECT rc_xg;
+///r
+	RECT rc_gm2;
+	RECT rc_sd;
+	RECT rc_kg;
+	RECT rc_cm;
+
 	RECT rc_head_rest;
 
 	char current_time[30];
@@ -67,10 +73,11 @@ typedef struct w32g_tracer_wnd_t_ {
 	short mod_wheel[TRACER_CHANNELS];
 	short chorus_effect[TRACER_CHANNELS];
 	short reverb_effect[TRACER_CHANNELS];
+	int insertion_effect[TRACER_CHANNELS];
 	int8 tt[TRACER_CHANNELS];
 	char notes[TRACER_CHANNELS][256];
-	char filename[1024];
-	char titlename[1024];
+	char filename[FILEPATH_MAX];
+	char titlename[FILEPATH_MAX];
 	int play_system_mode;
 	ChannelBitMask quietchannels;
 	ChannelBitMask channel_mute;
@@ -90,13 +97,18 @@ extern w32g_tracer_wnd_t w32g_tracer_wnd;
 // [TracerWnd]
 // PosX =
 // PosY =
+// Width =
+// mode =
 typedef struct TRACERWNDINFO_ {
 	HWND hwnd;
-	int PosX;
-	int PosY;
-	int mode;
+	int PosX;		// save parameter
+	int PosY;		// save parameter
+	int Width;		// save parameter
+	int mode;		// save parameter
 } TRACERWNDINFO;
-extern TRACERWNDINFO TracerWndInfo;
+
+///r
+// extern TRACERWNDINFO TracerWndInfo;
 
 extern int INISaveTracerWnd(void);
 extern int INILoadTracerWnd(void);

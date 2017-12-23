@@ -30,7 +30,9 @@
 #include "interface.h"
 #endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -55,11 +57,15 @@
 #include "miditrace.h"
 #include "recache.h"
 #include "arc.h"
-#include "reverb.h"
+#include "effect.h"
 #include "wrd.h"
 #include "aq.h"
 #include "freq.h"
 #include "quantity.h"
+///r
+#include "resample.h"
+#include "thread.h"
+#include "sndfontini.h"
 
 extern int convert_mod_to_midi_file(MidiEvent * ev);
 
@@ -81,17 +87,26 @@ int usleep(unsigned int useconds);
 
 #include "tables.h"
 
-#define PLAY_INTERLEAVE_SEC		1.0
-#define PORTAMENTO_TIME_TUNING		(1.0 / 5000.0)
-#define PORTAMENTO_CONTROL_RATIO	256	/* controls per sec */
-#define DEFAULT_CHORUS_DELAY1		0.02
-#define DEFAULT_CHORUS_DELAY2		0.003
-#define CHORUS_OPPOSITE_THRESHOLD	32
-#define EOT_PRESEARCH_LEN		32
-#define SPEED_CHANGE_RATE		1.0594630943592953  /* 2^(1/12) */
+///r
+#define ADD_PLAY_TIME   (1)// sec
+#define ADD_SILENT_TIME	(1) // sec
+#define EMU_DELAY_TIME  (5) // 0.1msec
+
+#define PORTAMENTO_TIME_TUNING		(0.0002) //  1.0 / 5000.0
+#define PORTAMENTO_CONTROL_BIT      (13) // 13bit == tuning (see recompute_voice_pitch() // def 8bit
+#define PORTAMENTO_CONTROL_RATIO	(1<<PORTAMENTO_CONTROL_BIT) // def 256(8bit)	/* controls per sec */
+#define DEFAULT_CHORUS_DELAY1		(0.02)
+#define DEFAULT_CHORUS_DELAY2		(0.003)
+#define CHORUS_OPPOSITE_THRESHOLD	(32)
+#define EOT_PRESEARCH_LEN		(32)
+#define SPEED_CHANGE_RATE		(1.0594630943592952645618252949461)  /* 2^(1/12) */
+
+
 
 /* Undefine if you don't want to use auto voice reduce implementation */
-#define REDUCE_VOICE_TIME_TUNING	(play_mode->rate/5) /* 0.2 sec */
+///r to timidity.h
+//#define REDUCE_VOICE_TIME_TUNING	(play_mode->rate/5) /* 0.2 sec */
+//#define REDUCE_VOICE_TIME_TUNING	(play_mode->rate/200)
 #ifdef REDUCE_VOICE_TIME_TUNING
 static int max_good_nv = 1;
 static int min_bad_nv = 256;
@@ -117,6 +132,15 @@ int8 opt_force_keysig = 8;
 int32 current_play_tempo = 500000;
 int opt_realtime_playing = 0;
 int reduce_voice_threshold = -1;
+///r
+int reduce_quality_threshold = -1;
+int reduce_polyphony_threshold = -1;
+int add_play_time = ADD_PLAY_TIME;
+static int32 add_play_count = ADD_PLAY_TIME * 48000;
+int add_silent_time = ADD_SILENT_TIME;
+static int32 add_silent_count = ADD_SILENT_TIME * 48000;
+int emu_delay_time = EMU_DELAY_TIME;
+
 static MBlockList playmidi_pool;
 int check_eot_flag;
 int special_tonebank = -1;
@@ -184,14 +208,20 @@ int opt_channel_pressure = 0;
 #endif /* GM_CHANNEL_PRESSURE_ALLOW */
 
 #ifdef VOICE_CHAMBERLIN_LPF_ALLOW
-int opt_lpf_def = 1;
+#define VOICE_LPF_DEFAULT 1
+#elif defined(VOICE_MOOG_LPF_ALLOW)
+#define VOICE_LPF_DEFAULT 2
+#elif defined(VOICE_BW_LPF_ALLOW)
+#define VOICE_LPF_DEFAULT 
+#elif defined(VOICE_LPF12_2_ALLOW)
+#define VOICE_LPF_DEFAULT 4
 #else
-#ifdef VOICE_MOOG_LPF_ALLOW
-int opt_lpf_def = 2;
-#else
-int opt_lpf_def = 0;
-#endif /* VOICE_MOOG_LPF_ALLOW */
-#endif /* VOICE_CHAMBERLIN_LPF_ALLOW */
+#define VOICE_LPF_DEFAULT 0
+#endif
+int opt_lpf_def = VOICE_LPF_DEFAULT;
+#undef VOICE_LPF_DEFAULT
+
+int opt_hpf_def = 0;
 
 #ifdef OVERLAP_VOICE_ALLOW
 int opt_overlap_voice_allow = 1;
@@ -199,35 +229,64 @@ int opt_overlap_voice_allow = 1;
 int opt_overlap_voice_allow = 0;
 #endif /* OVERLAP_VOICE_ALLOW */
 
+///r
+#ifdef OVERLAP_VOICE_COUNT 
+int opt_overlap_voice_count = OVERLAP_VOICE_COUNT;
+#else
+int opt_overlap_voice_count = 0;
+#endif /* OVERLAP_VOICE_COUNT */
+
+int opt_max_channel_voices = MAX_CHANNEL_VOICES;
+
 #ifdef TEMPER_CONTROL_ALLOW
 int opt_temper_control = 1;
 #else
 int opt_temper_control = 0;
 #endif /* TEMPER_CONTROL_ALLOW */
 
-int opt_tva_attack = 0;	/* attack envelope control */
-int opt_tva_decay = 0;	/* decay envelope control */
-int opt_tva_release = 0;	/* release envelope control */
-int opt_delay_control = 0;	/* CC#94 delay(celeste) effect control */
-int opt_eq_control = 0;		/* channel equalizer control */
-int opt_insertion_effect = 0;	/* insertion effect control */
-int opt_drum_effect = 0;	/* drumpart effect control */
+int opt_tva_attack = 1;	/* attack envelope control */
+int opt_tva_decay = 1;	/* decay envelope control */
+int opt_tva_release = 1;	/* release envelope control */
+///r
+double gs_env_attack_calc = 1.0;
+double gs_env_decay_calc = 1.0;
+double gs_env_release_calc = 1.0;
+double xg_env_attack_calc = 1.0;
+double xg_env_decay_calc = 1.0;
+double xg_env_release_calc = 1.0;
+double gm2_env_attack_calc = 1.0;
+double gm2_env_decay_calc = 1.0;
+double gm2_env_release_calc = 1.0;
+double gm_env_attack_calc = 1.0;
+double gm_env_decay_calc = 1.0;
+double gm_env_release_calc = 1.0;
+double env_attack_calc = 1.0; 
+double env_decay_calc = 1.0;
+double env_release_calc = 1.0; 
+double env_add_offdelay_time = 0.0; 
+static int env_add_offdelay_count = 0;
+
+
+int opt_delay_control = 1;	/* CC#94 delay(celeste) effect control */
+int opt_eq_control = 1;		/* channel equalizer control */
+int opt_insertion_effect = 1;	/* insertion effect control */
+int opt_drum_effect = 1;	/* drumpart effect control */
 int32 opt_drum_power = 100;		/* coef. of drum amplitude */
 int opt_amp_compensation = 0;
-int opt_modulation_envelope = 0;
-int opt_pan_delay = 0;	/* phase difference between left ear and right ear. */
-int opt_user_volume_curve = 0;
-int opt_default_module = MODULE_TIMIDITY_DEFAULT;
+int opt_modulation_envelope = 1;
+///r
+double opt_user_volume_curve = 0;
+int opt_default_module = MODULE_SC88PRO; //MODULE_TIMIDITY_DEFAULT;
 int opt_preserve_silence = 0;
 
 int voices=DEFAULT_VOICES, upper_voices;
 
-int32
-    control_ratio=0,
-    amplification=DEFAULT_AMPLIFICATION;
-
-static FLOAT_T
-    master_volume;
+int32 control_ratio=0;
+double div_control_ratio;
+int32 amplification=DEFAULT_AMPLIFICATION;
+///r
+int32 output_amplification=DEFAULT_OUTPUT_AMPLIFICATION;
+static FLOAT_T input_volume;
 static int32 master_volume_ratio = 0xFFFF;
 ChannelBitMask default_drumchannel_mask;
 ChannelBitMask default_drumchannels;
@@ -237,6 +296,8 @@ int adjust_panning_immediately = 1;
 int auto_reduce_polyphony = 1;
 double envelope_modify_rate = 1.0;
 int reduce_quality_flag = 0;
+int reduce_voice_flag = 0;
+int reduce_polyphony_flag = 0;
 int no_4point_interpolation = 0;
 char* pcm_alternate_file = NULL; /* NULL or "none": Nothing (default)
 				  * "auto": Auto select
@@ -244,17 +305,62 @@ char* pcm_alternate_file = NULL; /* NULL or "none": Nothing (default)
 				  */
 
 static int32 lost_notes, cut_notes;
-static int32 common_buffer[AUDIO_BUFFER_SIZE*2], /* stereo samples */
+///r
+static ALIGN DATA_T common_buffer[AUDIO_BUFFER_SIZE*2], /* stereo samples */
              *buffer_pointer;
 static int16 wav_buffer[AUDIO_BUFFER_SIZE*2];
 static int32 buffered_count;
-static char *reverb_buffer = NULL; /* MAX_CHANNELS*AUDIO_BUFFER_SIZE*8 */
 
-#ifdef USE_DSP_EFFECT
-static int32 insertion_effect_buffer[AUDIO_BUFFER_SIZE * 2];
-#endif /* USE_DSP_EFFECT */
+///r
+int compute_buffer_bits	= DEFAULT_COMPUTE_BUFFER_BITS;
+int compute_buffer_size;
+int synth_buffer_size; // stereo size
+//int synth_buffer_size_mono;
 
-#define VIBRATO_DEPTH_MAX 384	/* 600 cent */
+static int vol_env_count, ch_vol_env_count;
+int opt_mix_envelope = 1; // ON
+int mix_env_mask = 0;
+int opt_modulation_update = 1;
+static int mix_env_count;
+int ramp_out_count;
+int opt_cut_short_time = CUT_SHORT_TIME2;
+
+double ramp_out_rate;
+double cut_short_rate;
+double cut_short_rate2;
+
+int min_sustain_time = 0; // ms
+int min_sustain_count; // ms
+
+#define TREMOLO_RATE_MAX (10.0) // Hz
+#define TREMOLO_RATE_MIN (0.001) // Hz
+static int32 tremolo_phase_increment_max = 750;
+static FLOAT_T cnv_Hz_to_trm_inc(FLOAT_T freq);
+static FLOAT_T cnv_trm_inc_to_Hz(int32 inc);
+	
+#define VIBRATO_RATE_MAX (10.0) // Hz
+#define VIBRATO_RATE_MIN (0.001) // Hz
+#define NRPN_VIBRATO_RATE (10.0) // Hz
+#define NRPN_VIBRATO_DELAY (5000.0) // ms
+#define NRPN_VIBRATO_DEPTH (50.0) // cent
+static FLOAT_T cnv_Hz_to_vib_ratio(FLOAT_T freq);
+static FLOAT_T cf_cnv_vib_rate;
+static FLOAT_T nrpn_vib_depth_cent = NRPN_VIBRATO_DEPTH;
+static FLOAT_T nrpn_vib_rate = NRPN_VIBRATO_RATE;
+static FLOAT_T nrpn_vib_delay = NRPN_VIBRATO_DELAY * 48.0; // count def48kHz 
+static int8 nrpn_vib_delay_mode = NRPN_PARAM_GM_DELAY;
+static int8 nrpn_vib_rate_mode = NRPN_PARAM_GM_RATE;
+
+#define NRPN_FILTER_FREQ_MAX (9600.0) // MOD TVF CUTOFF CONTROL と同じ変化幅
+#define NRPN_FILTER_RESO_MAX (36.0) // 仕様不明 CUTOFF同様の変化幅
+static FLOAT_T nrpn_filter_freq = NRPN_FILTER_FREQ_MAX;
+static FLOAT_T nrpn_filter_reso = NRPN_FILTER_RESO_MAX;
+static int8 nrpn_filter_freq_mode = NRPN_PARAM_GM_CUTOFF;
+//static int8 nrpn_filter_reso_mode = NRPN_PARAM_GM_RESO;
+static int8 nrpn_filter_hpf_freq_mode = NRPN_PARAM_GM_CUTOFF_HPF;
+static int8 nrpn_env_attack_mode = NRPN_PARAM_GM_ATTACK;
+static int8 nrpn_env_decay_mode = NRPN_PARAM_GM_DECAY;
+static int8 nrpn_env_release_mode = NRPN_PARAM_GM_RELEASE;
 
 static MidiEvent *event_list;
 static MidiEvent *current_event;
@@ -270,14 +376,22 @@ int temper_type_mute;			/* For temperament type mute */
 static int mainvolume_max; /* maximum value of mainvolume */
 static double compensation_ratio = 1.0; /* compensation ratio */
 
+static int32 compute_skip_count = -1; // def use do_compute_data_midi()
+
 static int find_samples(MidiEvent *, int *);
-static int select_play_sample(Sample *, int, int *, int *, MidiEvent *);
+static int select_play_sample(Sample *, int, int *, int *, MidiEvent *, int);
 static double get_play_note_ratio(int, int);
 static int find_voice(MidiEvent *);
 static void finish_note(int i);
 static void update_portamento_controls(int ch);
+#ifdef NEW_LEGATO
+static void update_legato_status(int ch);
+#endif
 static void update_rpn_map(int ch, int addr, int update_now);
 static void ctl_prog_event(int ch);
+///r
+static void ctl_note_event(int noteID);
+static void ctl_note_event2(uint8 channel, uint8 note, uint8 status, uint8 velocity);
 static void ctl_timestamp(void);
 static void ctl_updatetime(int32 samples);
 static void ctl_pause_event(int pause, int32 samples);
@@ -286,7 +400,6 @@ static void set_master_tuning(int);
 static void set_single_note_tuning(int, int, int, int);
 static void set_user_temper_entry(int, int, int);
 static void set_cuepoint(int, int, int);
-void recompute_bank_parameter(int, int);
 
 static void init_voice_filter(int);
 /* XG Part EQ */
@@ -296,16 +409,225 @@ void recompute_part_eq_xg(struct part_eq_xg *);
 static void init_midi_controller(midi_controller *);
 static float get_midi_controller_amp(midi_controller *);
 static float get_midi_controller_filter_cutoff(midi_controller *);
-static float get_midi_controller_filter_depth(midi_controller *);
 static int32 get_midi_controller_pitch(midi_controller *);
-static int16 get_midi_controller_pitch_depth(midi_controller *);
-static int16 get_midi_controller_amp_depth(midi_controller *);
+static float get_midi_controller_lfo1_pitch_depth(midi_controller *);
+static float get_midi_controller_lfo1_amp_depth(midi_controller *);
+static float get_midi_controller_lfo1_filter_depth(midi_controller *);
+static float get_midi_controller_lfo2_pitch_depth(midi_controller *);
+static float get_midi_controller_lfo2_amp_depth(midi_controller *);
+static float get_midi_controller_lfo2_filter_depth(midi_controller *);
 /* Rx. ~ (Rcv ~) */
 static void init_rx(int);
 static void set_rx(int, int32, int);
+static int32 get_rx(int ch, int32 rx);
 static void init_rx_drum(struct DrumParts *);
 static void set_rx_drum(struct DrumParts *, int32, int);
 static int32 get_rx_drum(struct DrumParts *, int32);
+
+static int is_insertion_effect_xg(int ch);
+static int is_mfx_effect_sd(int ch);
+
+// 
+#define OFFSET_MAX (0x3FFFFFFFL)
+#define OFFSET_MIN (1L)
+
+///r
+const int32 delay_out_time_ms[] = {
+	10,	// 0 : buffer mix / effect thru / no feedback
+	300,	// 1 : filter (
+	600,	// 2 : multi filter + any
+	1500,	// 3 : pre_delay + feedback (chorus/flanger/phaser
+	6000,	// 4 : delay // long delay + max feedbackだと足りないかも
+	12000,	// 5 : reverb
+	30000,	// 6 : system reverb
+};
+static int32 delay_out_count[7];
+
+///r
+// channel mixer
+#if 0 // dim ch buffer
+static ALIGN DATA_T ch_buffer_s[MAX_CHANNELS][AUDIO_BUFFER_SIZE * 2]; // max:4MB
+#else // malloc ch buffer
+#endif // malloc ch buffer
+DATA_T *ch_buffer[MAX_CHANNELS];
+
+// VST channel use flag
+#ifdef VST_LOADER_ENABLE
+int use_vst_channel = 0;
+#endif
+
+
+
+#ifndef POW2
+#if 1 // lite
+#define POW2(val) exp((float)(M_LN2 * val))
+#else // precision
+#define POW2(val) pow(2.0, val)
+#endif
+#endif /* POW2 */
+
+
+
+static inline int clip_int(int val, int min, int max)
+{
+	return ((val > max) ? max : (val < min) ? min : val);
+}
+
+void init_playmidi(void){
+	int i, tmp, tmp2;
+#ifdef ALIGN_SIZE
+	const int min_compute_sample = 8;
+	uint32 min_compute_sample_mask = ~(min_compute_sample - 1);
+#endif
+	
+	if(compute_buffer_bits < 0){ // auto
+		tmp = tmp2 = playmode_rate_ms * abs(compute_buffer_bits);
+#ifdef ALIGN_SIZE
+		tmp &= min_compute_sample_mask;
+		if(tmp < tmp2)
+			tmp += min_compute_sample; // >=1ms
+#endif
+		compute_buffer_size = tmp;
+	}else{ // ! auto
+		compute_buffer_size = 1U << compute_buffer_bits;
+#ifdef ALIGN_SIZE
+		if(compute_buffer_size < min_compute_sample)
+			compute_buffer_size = min_compute_sample; // AVX 256bit / float 32bit 
+#endif
+	}		
+	if((compute_buffer_bits < 0) && (compute_buffer_size < (1<<audio_buffer_bits))){
+		double cb_ms = compute_buffer_size * div_playmode_rate * 1000.0;
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "Auto compute_buffer_size : %d : %.3f ms",
+			compute_buffer_size, cb_ms);
+	}else if(compute_buffer_size < (1<<audio_buffer_bits)){
+		double cb_ms = compute_buffer_size * div_playmode_rate * 1000.0;
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "compute_buffer_size : %d : %.3f ms",
+			compute_buffer_size, cb_ms);
+	}else{
+		compute_buffer_bits = DEFAULT_COMPUTE_BUFFER_BITS;
+		compute_buffer_size = 1U << compute_buffer_bits;
+		audio_buffer_bits = DEFAULT_AUDIO_BUFFER_BITS;
+		ctl->cmsg(CMSG_INFO, VERB_NORMAL, "ERROR! : Auto Compute Buffer Size");
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "compute_buffer_bits Set default : %d", compute_buffer_bits);
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "audio_buffer_bits Set default : %d", audio_buffer_bits);
+	}
+
+#ifdef ALIGN_SIZE	
+	synth_buffer_size = (compute_buffer_size + min_compute_sample) * 2 * sizeof(DATA_T); // 2ch // compute_buffer_size < AUDIO_BUFFER_SIZE
+	// +8 終端付近でのSIMD store対策
+#else
+//	synth_buffer_size_mono = compute_buffer_size * sizeof(DATA_T); // 1ch // compute_buffer_size < AUDIO_BUFFER_SIZE	
+	synth_buffer_size = compute_buffer_size * 2 * sizeof(DATA_T); // 2ch // compute_buffer_size < AUDIO_BUFFER_SIZE
+#endif
+		
+	control_ratio = compute_buffer_size;
+	div_control_ratio = 1.0 / (double)control_ratio;
+	
+	add_play_count = add_play_time > 0 ? (add_play_time * play_mode->rate) : 1;
+	add_silent_count = add_silent_time > 0 ? (add_silent_time * play_mode->rate) : 1;
+	ch_vol_env_count = playmode_rate_ms * CH_VOL_ENV_TIME; // per ms channel
+	vol_env_count = playmode_rate_ms * VOL_ENV_TIME; // per ms voice
+	mix_env_count = playmode_rate_ms * VOL_ENV_TIME; // per ms
+	if(compute_buffer_size == 1)
+		opt_mix_envelope = 0; // OFF
+	if(opt_mix_envelope > 0){
+		if(control_ratio < compute_buffer_size)
+			mix_env_count = control_ratio;
+		else			
+			mix_env_count = compute_buffer_size; // per 0.1ms
+		if(opt_mix_envelope >= compute_buffer_size)
+			opt_mix_envelope = 1;
+		if(!(opt_mix_envelope == 1 || opt_mix_envelope == 2 || opt_mix_envelope == 4
+		 || opt_mix_envelope == 8 || opt_mix_envelope == 16 || opt_mix_envelope == 32
+		 || opt_mix_envelope == 64 || opt_mix_envelope == 128 || opt_mix_envelope == 256))
+			opt_mix_envelope = 1;
+		mix_env_mask = opt_mix_envelope - 1;		
+
+	}else{
+		opt_mix_envelope = 0;
+		mix_env_mask = 0;
+	}
+	if(opt_modulation_update > 100){
+		opt_modulation_update = 100;
+	}else if(opt_modulation_update < 1)	{
+		opt_modulation_update = 1;
+	}
+
+	ramp_out_count = playmode_rate_dms * MAX_DIE_TIME;
+	ramp_out_rate = (double)OFFSET_MAX * div_playmode_rate * control_ratio * 1000.0 * 10.0 / MAX_DIE_TIME;
+	cut_short_rate = (double)OFFSET_MAX * div_playmode_rate * control_ratio * 1000.0 / CUT_SHORT_TIME;
+	if(opt_cut_short_time > 0){
+		cut_short_rate2 = (double)OFFSET_MAX * div_playmode_rate * control_ratio * 1000.0 / opt_cut_short_time;
+		if(cut_short_rate2 > OFFSET_MAX)
+			cut_short_rate2 = OFFSET_MAX;
+		else if(cut_short_rate2 < OFFSET_MIN)
+			cut_short_rate2 = OFFSET_MIN;
+	}else
+		cut_short_rate2 = (double)OFFSET_MAX * div_playmode_rate * control_ratio * 1000.0 / CUT_SHORT_TIME2;
+
+	ramp_out_rate *= div_control_ratio; // rate / sample
+	cut_short_rate *= div_control_ratio; // rate / sample
+	cut_short_rate2 *= div_control_ratio; // rate / sample
+	env_add_offdelay_count = playmode_rate_ms * env_add_offdelay_time;
+
+
+	if(min_sustain_time > 0)
+		min_sustain_count = playmode_rate_ms * min_sustain_time; // per ms	
+	for(i = 0; i < 7; i++)
+		delay_out_count[i] = playmode_rate_ms * delay_out_time_ms[i]; // init delay_out count
+
+	tremolo_phase_increment_max = (int32)cnv_Hz_to_trm_inc(TREMOLO_RATE_MAX);
+	cf_cnv_vib_rate = (FLOAT_T)play_mode->rate  / (FLOAT_T)(VIBRATO_SAMPLE_INCREMENTS * 2);
+
+	
+	for(i = 0; i < MAX_CHANNELS; i++){
+#if 0 // dim ch buffer
+		ch_buffer[i] = ch_buffer_s[i];
+#else // malloc ch buffer
+#ifdef ALIGN_SIZE
+		if(ch_buffer[i]){
+			aligned_free(ch_buffer[i]);
+			ch_buffer[i] = NULL;
+		}
+		ch_buffer[i] = (DATA_T *)aligned_malloc(synth_buffer_size, ALIGN_SIZE);
+#else
+		if(ch_buffer[i]){
+			safe_free(ch_buffer[i]);
+			ch_buffer[i] = NULL;
+		}
+		ch_buffer[i] = (DATA_T *)safe_malloc(synth_buffer_size);
+#endif
+#endif // malloc ch buffer
+		memset(ch_buffer[i], 0, synth_buffer_size);
+	}
+	
+// VST channel use flag
+#ifdef VST_LOADER_ENABLE
+	use_vst_channel = opt_reverb_control == 11;
+#endif
+}
+
+
+void free_playmidi(void)
+{
+	int i;
+
+#if 0 // dim ch buffer
+#else // malloc ch buffer
+	for(i = 0; i < MAX_CHANNELS; i++){ 
+		if(ch_buffer[i]){
+#ifdef ALIGN_SIZE
+			aligned_free(ch_buffer[i]);
+#else
+			safe_free(ch_buffer[i]);
+#endif
+			ch_buffer[i] = NULL;
+		}
+	}
+#endif	
+}
+
+
 
 #define IS_SYSEX_EVENT_TYPE(event) ((event)->type == ME_NONE || (event)->type >= ME_RANDOM_PAN || (event)->b == SYSEX_TAG)
 
@@ -328,7 +650,7 @@ static char *event_name(int type)
 	EVENT_NAME(ME_MAINVOLUME);
 	EVENT_NAME(ME_BALANCE);
 	EVENT_NAME(ME_PAN);
-	EVENT_NAME(ME_EXPRESSION);
+	EVENT_NAME(ME_EXPRESSION);	
 	EVENT_NAME(ME_SUSTAIN);
 	EVENT_NAME(ME_PORTAMENTO_TIME_MSB);
 	EVENT_NAME(ME_PORTAMENTO_TIME_LSB);
@@ -342,8 +664,12 @@ static char *event_name(int type)
 	EVENT_NAME(ME_HOLD2);
 	EVENT_NAME(ME_HARMONIC_CONTENT);
 	EVENT_NAME(ME_RELEASE_TIME);
+	EVENT_NAME(ME_DECAY_TIME);
 	EVENT_NAME(ME_ATTACK_TIME);
 	EVENT_NAME(ME_BRIGHTNESS);
+	EVENT_NAME(ME_VIBRATO_RATE);
+	EVENT_NAME(ME_VIBRATO_DEPTH);
+	EVENT_NAME(ME_VIBRATO_DELAY);
 	EVENT_NAME(ME_REVERB_EFFECT);
 	EVENT_NAME(ME_TREMOLO_EFFECT);
 	EVENT_NAME(ME_CHORUS_EFFECT);
@@ -360,6 +686,7 @@ static char *event_name(int type)
 	EVENT_NAME(ME_ALL_NOTES_OFF);
 	EVENT_NAME(ME_MONO);
 	EVENT_NAME(ME_POLY);
+	EVENT_NAME(ME_UNDEF_CTRL_CHNG);
 #if 0
 	EVENT_NAME(ME_VOLUME_ONOFF);		/* Not supported */
 #endif
@@ -396,6 +723,9 @@ static char *event_name(int type)
 	EVENT_NAME(ME_SYSEX_GS_MSB);
 	EVENT_NAME(ME_SYSEX_XG_LSB);
 	EVENT_NAME(ME_SYSEX_XG_MSB);
+	EVENT_NAME(ME_SYSEX_SD_LSB);
+	EVENT_NAME(ME_SYSEX_SD_MSB);
+	EVENT_NAME(ME_SYSEX_SD_HSB);
 	EVENT_NAME(ME_WRD);
 	EVENT_NAME(ME_SHERRY);
 	EVENT_NAME(ME_BARMARKER);
@@ -407,17 +737,61 @@ static char *event_name(int type)
 #undef EVENT_NAME
 }
 
+/*! convert Hz to tremolo phase increment. */
+static FLOAT_T cnv_Hz_to_trm_inc(FLOAT_T freq)
+{
+	return (FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT)	* freq * div_playmode_rate;
+}
+
+static FLOAT_T cnv_trm_inc_to_Hz(int32 inc)
+{
+	return (FLOAT_T)inc * (FLOAT_T)play_mode->rate / (FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT);
+}
+
 /*! convert Hz to internal vibrato control ratio. */
 static FLOAT_T cnv_Hz_to_vib_ratio(FLOAT_T freq)
 {
 	return ((FLOAT_T)(play_mode->rate) / (freq * 2.0f * VIBRATO_SAMPLE_INCREMENTS));
 }
 
+static FLOAT_T cnv_vib_ratio_to_Hz(int32 ratio)
+{
+	if(ratio < 1)
+		ratio = 1;
+	return cf_cnv_vib_rate / (FLOAT_T)ratio;
+}
+
+///r
+#define DIV_COMPENSATION_RATIO_MAX ((double)(1.5259021896696421759365224689097e-5)) // 1/(0xFFFF)
+
 static void adjust_amplification(void)
 {
-    /* compensate master volume */
-    master_volume = (double)(amplification) / 100.0 *
-	((double)master_volume_ratio * (compensation_ratio/0xFFFF));
+    /* input volume */
+//    input_volume = (double)(amplification) * DIV_100 * ((double)master_volume_ratio * (compensation_ratio/0xFFFF));
+	if (opt_user_volume_curve != 0) {
+		input_volume = (double)(amplification) * DIV_100
+			* user_vol_table[(master_volume_ratio >> 9) & 0x7F] * DIV_127;
+	} else if (play_system_mode == SD_SYSTEM_MODE) {
+		input_volume = (double)(amplification) * DIV_100
+			* gm2_vol_table[(master_volume_ratio >> 9) & 0x7F] * DIV_127;
+	} else if (play_system_mode == GM2_SYSTEM_MODE) {
+		input_volume = (double)(amplification) * DIV_100
+			* gm2_vol_table[(master_volume_ratio >> 9) & 0x7F] * DIV_127;
+	} else if(play_system_mode == GS_SYSTEM_MODE) {	/* use measured curve */ 
+		input_volume = (double)(amplification) * DIV_100
+			* sc_vol_table[(master_volume_ratio >> 9) & 0x7F] * DIV_127;
+	} else if(play_system_mode == CM_SYSTEM_MODE) {	/* use measured curve */ 
+		input_volume = (double)(amplification) * DIV_100
+			* sc_vol_table[(master_volume_ratio >> 9) & 0x7F] * DIV_127;
+	} else if (IS_CURRENT_MOD_FILE) {	/* use linear curve */
+		input_volume = (double)(amplification) * DIV_100
+			* (double)master_volume_ratio * DIV_COMPENSATION_RATIO_MAX;
+	} else {	/* use generic exponential curve */
+		input_volume = (double)(amplification) * DIV_100
+			* perceived_vol_table[(master_volume_ratio >> 9) & 0x7F] * DIV_127;
+	}	
+	if(opt_amp_compensation)	
+		input_volume *= compensation_ratio;
 }
 
 static int new_vidq(int ch, int note)
@@ -450,6 +824,31 @@ static int last_vidq(int ch, int note)
     return 0;
 }
 
+static void swap_voices(Voice *a, Voice *b)
+{
+    Voice swap;
+    memcpy(&swap, a, sizeof(Voice));
+    memmove(a, b, sizeof(Voice));
+    memcpy(b, &swap, sizeof(Voice));
+}
+
+static void dup_voices(Voice *dst, const Voice *src)
+{
+#ifdef VOICE_EFFECT
+    VoiceEffect backup_vfx[VOICE_EFFECT_NUM];
+
+    /* backup pointer */
+    memcpy(&backup_vfx, dst->vfx, sizeof(VoiceEffect) * VOICE_EFFECT_NUM);
+    /* duplicate voice */
+    memmove(dst, src, sizeof(Voice));
+    /* restore pointer */
+    memcpy(dst->vfx, &backup_vfx, sizeof(VoiceEffect) * VOICE_EFFECT_NUM);
+#else
+    /* duplicate voice */
+    memmove(dst, src, sizeof(Voice));
+#endif
+}
+
 static void reset_voices(void)
 {
     int i;
@@ -457,19 +856,49 @@ static void reset_voices(void)
     {
 	voice[i].status = VOICE_FREE;
 	voice[i].temper_instant = 0;
-	voice[i].chorus_link = i;
     }
     upper_voices = 0;
     memset(vidq_head, 0, sizeof(vidq_head));
     memset(vidq_tail, 0, sizeof(vidq_tail));
 }
 
+///r
 static void kill_note(int i)
 {
+	if(voice[i].status & (VOICE_FREE | VOICE_DIE))
+		return;
     voice[i].status = VOICE_DIE;
+    if (voice[i].sample->modes & MODES_ENVELOPE)
+		if(voice[i].update_voice < UPDATE_VOICE_KILL_NOTE)
+			voice[i].update_voice = UPDATE_VOICE_KILL_NOTE; // kill_note
     if(!prescanning_flag)
 	ctl_note_event(i);
 }
+
+static void cut_note(int i)
+{
+	if(voice[i].status & (VOICE_FREE))
+		return;
+    voice[i].status = VOICE_DIE;
+    if (voice[i].sample->modes & MODES_ENVELOPE)
+		if(voice[i].update_voice < UPDATE_VOICE_CUT_NOTE)
+			voice[i].update_voice = UPDATE_VOICE_CUT_NOTE; // cut_note
+    if(!prescanning_flag)
+	ctl_note_event(i);
+}
+
+static void cut_note2(int i)
+{
+	if(voice[i].status & (VOICE_FREE))
+		return;
+    voice[i].status = VOICE_DIE;
+    if (voice[i].sample->modes & MODES_ENVELOPE)
+		if(voice[i].update_voice < UPDATE_VOICE_CUT_NOTE2)
+			voice[i].update_voice = UPDATE_VOICE_CUT_NOTE2; // cut_note2
+    if(!prescanning_flag)
+	ctl_note_event(i);
+}
+
 
 void kill_all_voices(void)
 {
@@ -485,6 +914,7 @@ void kill_all_voices(void)
 static void reset_drum_controllers(struct DrumParts *d[], int note)
 {
     int i,j;
+
 
     if(note == -1)
     {
@@ -503,7 +933,15 @@ static void reset_drum_controllers(struct DrumParts *d[], int note)
 		d[i]->play_note = -1;
 		d[i]->drum_cutoff_freq = 0;
 		d[i]->drum_resonance = 0;
-		init_rx_drum(d[i]);
+///r
+		d[i]->drum_hpf_cutoff_freq = 0;
+		d[i]->drum_hpf_resonance = 0;
+		d[i]->drum_velo_pitch_sens = 0;
+		d[i]->drum_velo_cutoff_sens = 0;
+		if(opt_eq_control && opt_drum_effect)
+			init_part_eq_xg(&d[i]->eq_xg);
+		init_rx_drum(d[i]);	
+		d[i]->rx_note_off = -1;
 	    }
     }
     else
@@ -520,13 +958,24 @@ static void reset_drum_controllers(struct DrumParts *d[], int note)
 	d[note]->play_note = -1;
 	d[note]->drum_cutoff_freq = 0;
 	d[note]->drum_resonance = 0;
+///r
+	d[note]->drum_hpf_cutoff_freq = 0;
+	d[note]->drum_hpf_resonance = 0;
+	d[note]->drum_velo_pitch_sens = 0;
+	d[note]->drum_velo_cutoff_sens = 0;
+	if(opt_eq_control && opt_drum_effect)
+		init_part_eq_xg(&d[note]->eq_xg);
 	init_rx_drum(d[note]);
+	d[note]->rx_note_off = -1;
     }
 }
 
-static void reset_module_dependent_controllers(int c)
+///r
+static void initialize_controllers(int c)
 {
-	int module = get_module();
+	/* Reset Controllers other CC#121 */
+	int i, module = get_module();
+	
 	switch(module) {	/* TONE MAP-0 NUMBER */
 	case MODULE_SC55:
 		channel[c].tone_map0_number = 1;
@@ -540,128 +989,229 @@ static void reset_module_dependent_controllers(int c)
 	case MODULE_SC8850:
 		channel[c].tone_map0_number = 4;
 		break;
+	//	case MODULE_SDMODE:
+	case MODULE_SD20:
+	case MODULE_SD80:
+	case MODULE_SD90:
+	case MODULE_SD50:
+		channel[c].tone_map0_number = 120;
+		break;
+		break;
 	default:
 		channel[c].tone_map0_number = 0;
 		break;
+	}	
+	
+	channel[c].program_flag = 0;
+
+	channel[c].damper_mode = 0;
+	channel[c].loop_timeout = 0;		
+	if(play_system_mode == XG_SYSTEM_MODE)
+		channel[c].volume = 100;
+	else
+		channel[c].volume = 90;
+	if (prescanning_flag) {
+		if (channel[c].volume > mainvolume_max) {	/* pick maximum value of mainvolume */
+			mainvolume_max = channel[c].volume;
+			ctl->cmsg(CMSG_INFO,VERB_DEBUG,"ME_MAINVOLUME/max (CH:%d VAL:%#x)",c,mainvolume_max);
+		}
 	}
-	switch(module) {	/* MIDI Controllers */
-	case MODULE_SC55:
-		channel[c].mod.lfo1_pitch_depth = 10;
-		break;
-	case MODULE_SC88:
-		channel[c].mod.lfo1_pitch_depth = 10;
-		break;
-	case MODULE_SC88PRO:
-		channel[c].mod.lfo1_pitch_depth = 10;
-		break;
-	default:
-		channel[c].mod.lfo1_pitch_depth = 50;
-		break;
-	}
-}
+	channel[c].mono = 0;
+	channel[c].portamento_time_lsb = 0;
+	channel[c].portamento_time_msb = 0;
 
-static void reset_nrpn_controllers(int c)
-{
-  int i;
+#ifdef NEW_LEGATO
+	channel[c].porta_status = 0;
+	channel[c].porta_last_note_fine = -1;
+	channel[c].legato_status = 0;
+	channel[c].legato_flag = 0;
+	channel[c].legato_note = 255;
+	channel[c].legato_note_time = 0;
+#else	
+	channel[c].legato = -1;
+	channel[c].porta_status = 0;
+#endif
 
-  /* NRPN */
-  reset_drum_controllers(channel[c].drums, -1);
-  channel[c].vibrato_ratio = 1.0;
-  channel[c].vibrato_depth = 0;
-  channel[c].vibrato_delay = 0;
-  channel[c].param_cutoff_freq = 0;
-  channel[c].param_resonance = 0;
-  channel[c].cutoff_freq_coef = 1.0;
-  channel[c].resonance_dB = 0;
+	set_reverb_level(c, -1);
+	if(opt_chorus_control == 1)
+		channel[c].chorus_level = 0;
+	else
+		channel[c].chorus_level = -opt_chorus_control;
+	channel[c].delay_level = 0;
 
-  /* System Exclusive */
-  channel[c].dry_level = 127;
-  channel[c].eq_gs = 1;
-  channel[c].insertion_effect = 0;
-  channel[c].velocity_sense_depth = 0x40;
-  channel[c].velocity_sense_offset = 0x40;
-  channel[c].pitch_offset_fine = 0;
-  if(play_system_mode == GS_SYSTEM_MODE) {channel[c].assign_mode = 1;}
-  else {
-	  if(ISDRUMCHANNEL(c)) {channel[c].assign_mode = 1;}
-	  else {channel[c].assign_mode = 2;}
-  }
-  for (i = 0; i < 12; i++)
-	  channel[c].scale_tuning[i] = 0;
-  channel[c].prev_scale_tuning = 0;
-  channel[c].temper_type = 0;
-
-  init_channel_layer(c);
-  init_part_eq_xg(&(channel[c].eq_xg));
-
-  /* channel pressure & polyphonic key pressure control */
-  init_midi_controller(&(channel[c].mod));
-  init_midi_controller(&(channel[c].bend)); 
-  init_midi_controller(&(channel[c].caf)); 
-  init_midi_controller(&(channel[c].paf)); 
-  init_midi_controller(&(channel[c].cc1)); 
-  init_midi_controller(&(channel[c].cc2)); 
-  channel[c].bend.pitch = 2;
-
-  init_rx(c);
-  channel[c].note_limit_high = 127;
-  channel[c].note_limit_low = 0;
-  channel[c].vel_limit_high = 127;
-  channel[c].vel_limit_low = 0;
-
-  free_drum_effect(c);
-
-  channel[c].legato = 0;
-  channel[c].damper_mode = 0;
-  channel[c].loop_timeout = 0;
-
-  channel[c].sysex_gs_msb_addr = channel[c].sysex_gs_msb_val =
+	/* NRPN */
+	reset_drum_controllers(channel[c].drums, -1);
+	for(i = 0; i < 6; i++) {channel[c].envelope_rate[i] = -1;}
+	channel[c].param_vibrato_rate = 0;
+	channel[c].param_vibrato_depth = 0;
+	channel[c].param_vibrato_delay = 0;	
+	channel[c].vibrato_delay = 0;	
+	channel[c].amp = 1.0;
+	channel[c].ch_amp[0] = 1.0;
+	channel[c].ch_amp[1] = 1.0;
+	channel[c].lfo_amp_depth[0] = 0;
+	channel[c].lfo_amp_depth[1] = 0;	
+	channel[c].modenv_depth = 0;
+	channel[c].param_cutoff_freq = 0;
+	channel[c].param_resonance = 0;
+	channel[c].cutoff_cent = 0;
+	channel[c].resonance_dB = 0;
+	channel[c].hpf_param_cutoff_freq = 0;
+	channel[c].hpf_param_resonance = 0;
+	channel[c].hpf_cutoff_cent = 0;
+	channel[c].hpf_resonance_dB = 0;
+	channel[c].lfo_cutoff_depth[0] = 0;
+	channel[c].lfo_cutoff_depth[1] = 0;
+	channel[c].pitch = 0;
+	channel[c].lfo_pitch_depth[0] = 0;
+	channel[c].lfo_pitch_depth[1] = 0;
+	channel[c].freq_table = freq_table;
+		
+	/* System Exclusive */
+	channel[c].sysex_gs_msb_addr = channel[c].sysex_gs_msb_val =
 	channel[c].sysex_xg_msb_addr = channel[c].sysex_xg_msb_val =
 	channel[c].sysex_msb_addr = channel[c].sysex_msb_val = 0;
+	channel[c].dry_level = 127;
+	channel[c].eq_gs = 1;
+	channel[c].insertion_effect = 0;
+	channel[c].velocity_sense_depth = 0x40;
+	channel[c].velocity_sense_offset = 0x40;
+	channel[c].pit_env_level[0] = 0x40;
+	channel[c].pit_env_level[1] = 0x40;
+	channel[c].pit_env_level[2] = 0x40;
+	channel[c].pit_env_level[3] = 0x40;
+	channel[c].pit_env_level[4] = 0x40;
+	channel[c].pit_env_time[0] = 0x40;
+	channel[c].pit_env_time[1] = 0x40;
+	channel[c].pit_env_time[2] = 0x40;
+	channel[c].pit_env_time[3] = 0x40;
+	channel[c].detune_param = 0x80;
+	channel[c].detune = 1.0;
+	channel[c].pitch_offset_fine = 0.0;
+	
+#if 1 // fix limited multi
+	channel[c].assign_mode = 1;
+#else // GS XG spec
+	if(ISDRUMCHANNEL(c) && play_system_mode == GS_SYSTEM_MODE && module == MODULE_SC55 )
+		channel[c].assign_mode = 0;
+	else
+		channel[c].assign_mode = 1;
+#endif
+
+	for (i = 0; i < 12; i++)
+		channel[c].scale_tuning[i] = 0;
+	channel[c].prev_scale_tuning = 0;
+	channel[c].temper_type = 0;
+
+	init_channel_layer(c);
+	init_part_eq_xg(&(channel[c].eq_xg));
+
+	/* channel pressure & polyphonic key pressure control */
+	init_midi_controller(&(channel[c].mod));
+	init_midi_controller(&(channel[c].bend)); 
+	init_midi_controller(&(channel[c].caf)); 
+	init_midi_controller(&(channel[c].paf)); 
+	init_midi_controller(&(channel[c].cc1)); 
+	init_midi_controller(&(channel[c].cc2)); 
+	channel[c].mod.mode = 0;
+	channel[c].bend.mode = 0;
+	channel[c].caf.mode = 0;
+	channel[c].paf.mode = 0;  
+	channel[c].cc1.mode = 0;
+	channel[c].cc2.mode = 0;
+	if(play_system_mode == XG_SYSTEM_MODE){
+		channel[c].cc3.mode = 1;
+		channel[c].cc4.mode = 1;
+	}else{
+		channel[c].cc3.mode = 0;
+		channel[c].cc4.mode = 0;	  
+	}
+	channel[c].mod.val = 0;
+	channel[c].bend.val = 0;
+	channel[c].caf.val = 0;
+	channel[c].paf.val = 0;  
+	channel[c].cc1.val = 0;
+	channel[c].cc2.val = 0;
+	channel[c].cc3.val = 0;
+	channel[c].cc4.val = 0;
+	channel[c].cc1.num = 16;
+	channel[c].cc2.num = 17;
+	channel[c].cc3.num = 18;
+	channel[c].cc4.num = 19;	
+	channel[c].bend.pitch = 2;
+	if (play_system_mode == GM2_SYSTEM_MODE)
+		channel[c].mod.lfo1_pitch_depth = 50.0; // 50cent
+	else
+		channel[c].mod.lfo1_pitch_depth = DIV_127 * 0x0A * 600.0; // max=600cent def=0x0A 47cent
+
+	init_rx(c);
+	channel[c].note_limit_high = 127;
+	channel[c].note_limit_low = 0;
+	channel[c].vel_limit_high = 127;
+	channel[c].vel_limit_low = 0;
+
+	free_drum_effect(c);
+	
+	/* SD */
+	channel[c].gm2_inst = 1; // contemp set
+	/* SD MFX */
+	// assign 1ch:part 2ch:part 3:part other:none
+	// select1ch:MFX1 2ch:MFX2 3ch:MFX3 other:MFX1
+	channel[c].sd_output_assign = c < SD_MFX_EFFECT_NUM ? 2 : 1; // 0:mfx 1:none 2:part
+	channel[c].sd_output_mfx_select = c < SD_MFX_EFFECT_NUM ? c : 0; // 0:MFX1 1:MFX2 2:MFX3
+	channel[c].sd_dry_send_level = 127;
+	channel[c].mfx_part_type = 0;
+	memset(channel[c].mfx_part_param, 0, sizeof(channel[c].mfx_part_param));
+	channel[c].mfx_part_dry_send = 127;
+	channel[c].mfx_part_send_reverb = 0;
+	channel[c].mfx_part_send_chorus = 0;
+	channel[c].mfx_part_ctrl_source[0] = 0;
+	channel[c].mfx_part_ctrl_source[1] = 0;
+	channel[c].mfx_part_ctrl_source[2] = 0;
+	channel[c].mfx_part_ctrl_source[3] = 0;
+	channel[c].mfx_part_ctrl_sens[0] = 0x40;
+	channel[c].mfx_part_ctrl_sens[1] = 0x40;
+	channel[c].mfx_part_ctrl_sens[2] = 0x40;
+	channel[c].mfx_part_ctrl_sens[3] = 0x40;
+	channel[c].mfx_part_ctrl_assign[0] = 0;
+	channel[c].mfx_part_ctrl_assign[1] = 0;
+	channel[c].mfx_part_ctrl_assign[2] = 0;
+	channel[c].mfx_part_ctrl_assign[3] = 0;
+	/* SD Chorus */
+	channel[c].chorus_part_type = 0;
+	memset(channel[c].chorus_part_param, 0, sizeof(channel[c].chorus_part_param));
+	channel[c].chorus_part_efx_level = 127;
+	channel[c].chorus_part_send_reverb = 0;
+	channel[c].chorus_part_output_select = 0;
+	/* SD Reverb */
+	channel[c].reverb_part_type = 0;
+	memset(channel[c].reverb_part_param, 0, sizeof(channel[c].reverb_part_param));
+	channel[c].reverb_part_efx_level = 100;
+	
 }
 
-/* Process the Reset All Controllers event */
+/* Process the Reset All Controllers event CC#121 */
 static void reset_controllers(int c)
 {
-  int j;
-    /* Some standard says, although the SCC docs say 0. */
-    
-  if(play_system_mode == XG_SYSTEM_MODE)
-      channel[c].volume = 100;
-  else
-      channel[c].volume = 90;
-  if (prescanning_flag) {
-    if (channel[c].volume > mainvolume_max) {	/* pick maximum value of mainvolume */
-      mainvolume_max = channel[c].volume;
-      ctl->cmsg(CMSG_INFO,VERB_DEBUG,"ME_MAINVOLUME/max (CH:%d VAL:%#x)",c,mainvolume_max);
-    }
-  }
-
-  channel[c].expression = 127; /* SCC-1 does this. */
-  channel[c].sustain = 0;
-  channel[c].sostenuto = 0;
-  channel[c].pitchbend = 0x2000;
-  channel[c].pitchfactor = 0; /* to be computed */
-  channel[c].mod.val = 0;
-  channel[c].bend.val = 0;
-  channel[c].caf.val = 0;
-  channel[c].paf.val = 0;
-  channel[c].cc1.val = 0;
-  channel[c].cc2.val = 0;
-  channel[c].portamento_time_lsb = 0;
-  channel[c].portamento_time_msb = 0;
-  channel[c].porta_control_ratio = 0;
-  channel[c].portamento = 0;
-  channel[c].last_note_fine = -1;
-  for(j = 0; j < 6; j++) {channel[c].envelope_rate[j] = -1;}
-  update_portamento_controls(c);
-  set_reverb_level(c, -1);
-  if(opt_chorus_control == 1)
-      channel[c].chorus_level = 0;
-  else
-      channel[c].chorus_level = -opt_chorus_control;
-  channel[c].mono = 0;
-  channel[c].delay_level = 0;
+	channel[c].expression = 127; /* SCC-1 does this. */
+	channel[c].sustain = 0;
+	channel[c].sostenuto = 0;
+	channel[c].pitchbend = 0x2000;
+#ifdef NEW_LEGATO
+	channel[c].portamento = 0;
+	channel[c].portamento_control = -1;
+	update_portamento_controls(c);
+	channel[c].legato = -1;
+	update_legato_status(c);
+#else
+	channel[c].portamento = 0;
+	channel[c].portamento_control = -1;
+	channel[c].last_note_fine = -1;
+	update_portamento_controls(c);
+#endif
+	channel[c].lastlrpn = channel[c].lastmrpn = 0;
+	channel[c].nrpn = -1;
+	channel[c].rpn_7f7f_flag = 1;
 }
 
 static void redraw_controllers(int c)
@@ -677,22 +1227,183 @@ static void redraw_controllers(int c)
     		c, (IS_SET_CHANNELMASK(channel_mute, c)) ? 1 : 0);
     ctl_mode_event(CTLE_CHORUS_EFFECT, 1, c, get_chorus_level(c));
     ctl_mode_event(CTLE_REVERB_EFFECT, 1, c, get_reverb_level(c));
+    if (play_system_mode == XG_SYSTEM_MODE)
+        ctl_mode_event(CTLE_INSERTION_EFFECT, 1, c, is_insertion_effect_xg(c));
+    else if (play_system_mode == SD_SYSTEM_MODE)
+        ctl_mode_event(CTLE_INSERTION_EFFECT, 1, c, is_mfx_effect_sd(c));
+    else
+        ctl_mode_event(CTLE_INSERTION_EFFECT, 1, c, channel[c].insertion_effect);
 }
 
+#ifdef MULTI_THREAD_COMPUTE
+static void reset_midi_thread(void);
+#endif
+
+static void recompute_channel_lfo(int ch);
+static void recompute_channel_amp(int ch);
+static void recompute_channel_filter(int ch);
+static void recompute_channel_pitch(int ch);
+
+///r
 void reset_midi(int playing)
 {
-	int i, cnt;
+	int i, cnt, module = get_module();
 	
+#ifdef MULTI_THREAD_COMPUTE
+	reset_midi_thread();
+#endif
+	compute_skip_count = -1;
+		
+	switch(play_system_mode){
+	case GS_SYSTEM_MODE:
+	case CM_SYSTEM_MODE:	
+		nrpn_vib_delay_mode = NRPN_PARAM_GS_DELAY;
+		nrpn_vib_rate_mode = NRPN_PARAM_GS_RATE;
+		nrpn_filter_freq_mode = NRPN_PARAM_GS_CUTOFF;
+	//	nrpn_filter_reso_mode = NRPN_PARAM_GS_RESO;
+		nrpn_filter_hpf_freq_mode = NRPN_PARAM_GS_CUTOFF_HPF;
+		nrpn_env_attack_mode = NRPN_PARAM_GS_ATTACK;
+		nrpn_env_decay_mode = NRPN_PARAM_GS_DECAY;
+		nrpn_env_release_mode = NRPN_PARAM_GS_RELEASE;
+		break;
+	case XG_SYSTEM_MODE:
+		nrpn_vib_delay_mode = NRPN_PARAM_XG_DELAY;
+		nrpn_vib_rate_mode = NRPN_PARAM_XG_RATE;
+		nrpn_filter_freq_mode = NRPN_PARAM_XG_CUTOFF;
+	//	nrpn_filter_reso_mode = NRPN_PARAM_XG_RESO;
+		nrpn_filter_hpf_freq_mode = NRPN_PARAM_XG_CUTOFF_HPF;
+		nrpn_env_attack_mode = NRPN_PARAM_XG_ATTACK;
+		nrpn_env_decay_mode = NRPN_PARAM_XG_DECAY;
+		nrpn_env_release_mode = NRPN_PARAM_XG_RELEASE;
+		break;
+	case SD_SYSTEM_MODE:
+	case GM_SYSTEM_MODE:
+	case GM2_SYSTEM_MODE:
+	default:
+		nrpn_vib_delay_mode = NRPN_PARAM_GM_DELAY;
+		nrpn_vib_rate_mode = NRPN_PARAM_GM_RATE;
+		nrpn_filter_freq_mode = NRPN_PARAM_GM_CUTOFF;
+	//	nrpn_filter_reso_mode = NRPN_PARAM_GM_RESO;
+		nrpn_filter_hpf_freq_mode = NRPN_PARAM_GM_CUTOFF_HPF;
+		nrpn_env_attack_mode = NRPN_PARAM_GM_ATTACK;
+		nrpn_env_decay_mode = NRPN_PARAM_GM_DECAY;
+		nrpn_env_release_mode = NRPN_PARAM_GM_RELEASE;
+		break;
+	}
+	if(otd.vibrato_rate != 0 )
+		nrpn_vib_rate = otd.vibrato_rate * DIV_100;
+	else
+		nrpn_vib_rate = NRPN_VIBRATO_RATE;
+	if (otd.vibrato_cent != 0 )
+		nrpn_vib_depth_cent = otd.vibrato_cent;
+	else switch(play_system_mode){
+	case GS_SYSTEM_MODE:
+		switch(module){
+		case MODULE_SC55:
+		case MODULE_SC88:
+		case MODULE_SC88PRO:
+		case MODULE_MT32:
+		case MODULE_CM32L:
+		case MODULE_CM32P:
+		case MODULE_CM64:
+		case MODULE_CM500A:
+		case MODULE_CM500D:
+		case MODULE_CM64_SN01:
+		case MODULE_CM64_SN02:
+		case MODULE_CM64_SN03:
+		case MODULE_CM64_SN04:
+		case MODULE_CM64_SN05:
+		case MODULE_CM64_SN06:
+		case MODULE_CM64_SN07:
+		case MODULE_CM64_SN08:
+		case MODULE_CM64_SN09:
+		case MODULE_CM64_SN10:
+		case MODULE_CM64_SN11:
+		case MODULE_CM64_SN12:
+		case MODULE_CM64_SN13:
+		case MODULE_CM64_SN14:
+		case MODULE_CM64_SN15:
+		// CM関連モジュールではGSリセット無効だが・・一応
+			nrpn_vib_depth_cent = 75; // 9.6cent ? /* GS NRPN from -9.6 cents to +9.45 cents. */
+			break;
+		case MODULE_SC8850:
+		default:
+			nrpn_vib_depth_cent = 100;
+			break;
+		}
+		break;
+	case CM_SYSTEM_MODE:		
+		nrpn_vib_depth_cent = 75;
+		break;
+	case SD_SYSTEM_MODE:
+	case GM2_SYSTEM_MODE:
+	default:
+		nrpn_vib_depth_cent = 100;
+		break;
+	}
+	if (otd.vibrato_delay != 0 )
+		nrpn_vib_delay = otd.vibrato_delay * playmode_rate_ms;
+	else
+		nrpn_vib_delay = NRPN_VIBRATO_DELAY * playmode_rate_ms;
+	if(otd.filter_freq != 0 )
+		nrpn_filter_freq = otd.filter_freq;
+	else
+		nrpn_filter_freq = NRPN_FILTER_FREQ_MAX;
+	if(otd.filter_reso != 0 )
+		nrpn_filter_reso = otd.filter_reso * DIV_10;
+	else
+		nrpn_filter_reso = NRPN_FILTER_RESO_MAX;	
+	// env calc
+	switch(play_system_mode){
+	case GS_SYSTEM_MODE:
+		env_attack_calc = gs_env_attack_calc;
+		env_decay_calc = gs_env_decay_calc;
+		env_release_calc = gs_env_release_calc;
+		break;
+	case XG_SYSTEM_MODE:
+		env_attack_calc = xg_env_attack_calc;
+		env_decay_calc = xg_env_decay_calc;
+		env_release_calc = xg_env_release_calc;
+		break;
+	case SD_SYSTEM_MODE:
+	case GM2_SYSTEM_MODE:
+		env_attack_calc = gm2_env_attack_calc;
+		env_decay_calc = gm2_env_decay_calc;
+		env_release_calc = gm2_env_release_calc;
+		break;
+	case GM_SYSTEM_MODE:
+	default:
+		env_attack_calc = gm_env_attack_calc;
+		env_decay_calc = gm_env_decay_calc;
+		env_release_calc = gm_env_release_calc;
+		break;
+	}
+
 	for (i = 0; i < MAX_CHANNELS; i++) {
+		initialize_controllers(i);
 		reset_controllers(i);
-		reset_nrpn_controllers(i);
-     	reset_module_dependent_controllers(i);
 		/* The rest of these are unaffected
 		 * by the Reset All Controllers event
 		 */
 		channel[i].program = default_program[i];
 		channel[i].panning = NO_PANNING;
-		channel[i].pan_random = 0;
+		channel[i].pan_random = 0;	
+///r
+		if(adjust_panning_immediately && play_system_mode == XG_SYSTEM_MODE){
+			channel[i].ch_amp[0] = channel[i].ch_amp[1] = 0;
+			init_envelope2(&channel[i].vol_env , channel[i].ch_amp[0], channel[i].ch_amp[1], ch_vol_env_count);
+			if(opt_mix_envelope)
+				init_envelope2(&channel[i].mix_env , channel[i].vol_env.vol[0], channel[i].vol_env.vol[1], mix_env_count);
+		}
+		memset(ch_buffer[i], 0, synth_buffer_size); // clear
+
+// VST channel convert DATA_T to int32
+#ifdef VST_LOADER_ENABLE
+#if (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)) && !defined(VSTWRAP_EXT)	
+		memset(vst_ch_vpblist[i], 0, synth_buffer_size); // clear
+#endif
+#endif
+
 		/* tone bank or drum set */
 		if (ISDRUMCHANNEL(i)) {
 			channel[i].bank = 0;
@@ -704,13 +1415,26 @@ void reset_midi(int playing)
 				channel[i].bank = default_tonebank;
 		}
 		channel[i].bank_lsb = channel[i].bank_msb = 0;
+///r
 		if (play_system_mode == XG_SYSTEM_MODE && i % 16 == 9)
-			channel[i].bank_msb = 127;	/* Use MSB=127 for XG */
+			channel[i].bank_msb = 127;	// Use MSB=127 for XG
+		else if (play_system_mode == GM2_SYSTEM_MODE && i % 16 == 9)
+			channel[i].bank_msb = 120;	// Use MSB=120 for GM2
+		else if (play_system_mode == SD_SYSTEM_MODE && i % 16 == 9)
+			channel[i].bank_msb = 104;	// Use MSB=105 for SD
+		else if (play_system_mode == KG_SYSTEM_MODE && i % 16 == 9)
+			channel[i].bank_msb = 61;	// Use MSB=61 for AG
 		update_rpn_map(i, RPN_ADDR_FFFF, 0);
 		channel[i].special_sample = 0;
 		channel[i].key_shift = 0;
 		channel[i].mapID = get_default_mapID(i);
-		channel[i].lasttime = 0;
+		channel[i].lasttime = INT_MIN / 2;
+		
+		recompute_channel_lfo(i);
+		recompute_channel_amp(i);
+		recompute_channel_filter(i);
+		recompute_channel_pitch(i);
+
 	}
 	if (playing) {
 		kill_all_voices();
@@ -732,215 +1456,574 @@ void reset_midi(int playing)
 		}
 	} else
 		reset_voices();
+
 	master_volume_ratio = 0xffff;
 	adjust_amplification();
 	init_freq_table_tuning();
 	master_tuning = 0;
 	if (current_file_info) {
 		COPY_CHANNELMASK(drumchannels, current_file_info->drumchannels);
-		COPY_CHANNELMASK(drumchannel_mask,
-				current_file_info->drumchannel_mask);
+		COPY_CHANNELMASK(drumchannel_mask, current_file_info->drumchannel_mask);
 	} else {
 		COPY_CHANNELMASK(drumchannels, default_drumchannels);
 		COPY_CHANNELMASK(drumchannel_mask, default_drumchannel_mask);
 	}
-	ctl_mode_event(CTLE_MASTER_VOLUME, 0, amplification, 0);
+///r
+	change_output_volume(output_amplification);
+	ctl_mode_event(CTLE_MASTER_VOLUME, 0, output_amplification, 0);
 	ctl_mode_event(CTLE_KEY_OFFSET, 0, note_key_offset, 0);
 	ctl_mode_event(CTLE_TIME_RATIO, 0, 100 / midi_time_ratio + 0.5, 0);
+
+
+	//elion add
+	{
+		int c;
+		CtlEvent ct;
+		for (c = 0; c < MAX_CHANNELS; c++) {
+			ct.type = CTLE_VOLUME;
+			ct.v1 = c;
+			ct.v2 = channel[c].volume;
+			ctl->event(&ct);
+
+			ct.type = CTLE_EXPRESSION;
+			ct.v2 = channel[c].expression;
+			ctl->event(&ct);
+		}
+	}
 }
 
-void recompute_freq(int v)
+static void recompute_channel_lfo(int ch)
+{	
+	Channel *cp = channel + ch;
+	/* MIDI controllers LFO */
+	FLOAT_T rate1 = 0, rate2 = 0;
+	FLOAT_T adepth1 = 0, adepth2 = 0;
+	FLOAT_T fdepth1 = 0, fdepth2 = 0;
+	FLOAT_T pdepth1 = 0, pdepth2 = 0;
+
+	if(opt_channel_pressure) {
+		rate1 += (cp->mod.lfo1_rate)
+			+ (cp->bend.lfo1_rate)
+			+ (cp->caf.lfo1_rate)
+			+ (cp->cc1.lfo1_rate)
+			+ (cp->cc2.lfo1_rate)
+			+ (cp->cc3.lfo1_rate)
+			+ (cp->cc4.lfo1_rate);
+		adepth1 += get_midi_controller_lfo1_amp_depth(&(cp->mod))
+			+ get_midi_controller_lfo1_amp_depth(&(cp->bend))
+			+ get_midi_controller_lfo1_amp_depth(&(cp->caf))
+			+ get_midi_controller_lfo1_amp_depth(&(cp->cc1))
+			+ get_midi_controller_lfo1_amp_depth(&(cp->cc2))
+			+ get_midi_controller_lfo1_amp_depth(&(cp->cc3))
+			+ get_midi_controller_lfo1_amp_depth(&(cp->cc4));
+		fdepth1 += get_midi_controller_lfo1_filter_depth(&(cp->mod))
+			+ get_midi_controller_lfo1_filter_depth(&(cp->bend))
+			+ get_midi_controller_lfo1_filter_depth(&(cp->caf))
+			+ get_midi_controller_lfo1_filter_depth(&(cp->cc1))
+			+ get_midi_controller_lfo1_filter_depth(&(cp->cc2))
+			+ get_midi_controller_lfo1_filter_depth(&(cp->cc3))
+			+ get_midi_controller_lfo1_filter_depth(&(cp->cc4));
+		pdepth1 += get_midi_controller_lfo1_pitch_depth(&(cp->mod))
+			+ get_midi_controller_lfo1_pitch_depth(&(cp->bend))
+			+ get_midi_controller_lfo1_pitch_depth(&(cp->caf))
+			+ get_midi_controller_lfo1_pitch_depth(&(cp->cc1))
+			+ get_midi_controller_lfo1_pitch_depth(&(cp->cc2))
+			+ get_midi_controller_lfo1_pitch_depth(&(cp->cc3))
+			+ get_midi_controller_lfo1_pitch_depth(&(cp->cc4));
+		rate2 += (cp->mod.lfo2_rate)
+			+ (cp->bend.lfo2_rate)
+			+ (cp->caf.lfo2_rate)
+			+ (cp->cc1.lfo2_rate)
+			+ (cp->cc2.lfo2_rate)
+			+ (cp->cc3.lfo2_rate)
+			+ (cp->cc4.lfo2_rate);
+		adepth2 += get_midi_controller_lfo2_amp_depth(&(cp->mod))
+			+ get_midi_controller_lfo2_amp_depth(&(cp->bend))
+			+ get_midi_controller_lfo2_amp_depth(&(cp->caf))
+			+ get_midi_controller_lfo2_amp_depth(&(cp->cc1))
+			+ get_midi_controller_lfo2_amp_depth(&(cp->cc2))
+			+ get_midi_controller_lfo2_amp_depth(&(cp->cc3))
+			+ get_midi_controller_lfo2_amp_depth(&(cp->cc4));
+		fdepth2 += get_midi_controller_lfo2_filter_depth(&(cp->mod))
+			+ get_midi_controller_lfo2_filter_depth(&(cp->bend))
+			+ get_midi_controller_lfo2_filter_depth(&(cp->caf))
+			+ get_midi_controller_lfo2_filter_depth(&(cp->cc1))
+			+ get_midi_controller_lfo2_filter_depth(&(cp->cc2))
+			+ get_midi_controller_lfo2_filter_depth(&(cp->cc3))
+			+ get_midi_controller_lfo2_filter_depth(&(cp->cc4));
+		pdepth2 += get_midi_controller_lfo2_pitch_depth(&(cp->mod))
+			+ get_midi_controller_lfo2_pitch_depth(&(cp->bend))
+			+ get_midi_controller_lfo2_pitch_depth(&(cp->caf))
+			+ get_midi_controller_lfo2_pitch_depth(&(cp->cc1))
+			+ get_midi_controller_lfo2_pitch_depth(&(cp->cc2))
+			+ get_midi_controller_lfo2_pitch_depth(&(cp->cc3))
+			+ get_midi_controller_lfo2_pitch_depth(&(cp->cc4));
+	}	
+	if(rate1 > 10.0)			{rate1 = 10.0;}
+	else if(rate1 < -10.0)		{rate1 = -10.0;}
+	cp->lfo_rate[0] = rate1;
+	if(adepth1 > 1.0)			 {adepth1 = 1.0;}
+	cp->lfo_amp_depth[0] = adepth1;	
+	if(fdepth1 > 2400.0)		{fdepth1 = 2400.0;}
+	else if(fdepth1 < -2400.0)	{fdepth1 = -2400.0;}
+	cp->lfo_cutoff_depth[0] = fdepth1;	
+	pdepth1 += (double)cp->param_vibrato_depth * DIV_64 * nrpn_vib_depth_cent; // NRPN in -64~64
+	if (pdepth1 > 600.0)		{pdepth1 = 600.0;}
+	else if (pdepth1 < -600.0)	{pdepth1 = -600.0;}
+	cp->lfo_pitch_depth[0] = pdepth1;
+	if(rate2 > 10.0)			{rate2 = 10.0;}
+	else if(rate2 < -10.0)		{rate2 = -10.0;}
+	cp->lfo_rate[1] = rate2;
+	if(adepth2 > 1.0)			{adepth2 = 1.0;}
+	cp->lfo_amp_depth[1] = adepth2;
+	if(fdepth2 > 2400.0)		{fdepth2 = 2400.0;}
+	else if(fdepth2 < -2400.0)	{fdepth2 = -2400.0;}
+	cp->lfo_cutoff_depth[1] = fdepth2;
+	if (pdepth2 > 600.0)		{pdepth2 = 600.0;}
+	else if (pdepth2 < -600.0)	{pdepth2 = -600.0;}
+	cp->lfo_pitch_depth[1] = pdepth2;
+}
+
+void recompute_voice_lfo(int v)
 {
-	int i;
-	int ch = voice[v].channel;
-	int note = voice[v].note;
-	int32 tuning = 0;
-	int8 st = channel[ch].scale_tuning[note % 12];
-	int8 tt = channel[ch].temper_type;
-	uint8 tp = channel[ch].rpnmap[RPN_ADDR_0003];
-	int32 f;
-	int pb = channel[ch].pitchbend;
-	int32 tmp;
-	FLOAT_T pf, root_freq;
-	int32 a;
-	Voice *vp = &(voice[v]);
+	Voice *vp = voice + v;
+	int ch = vp->channel;	
+	Channel *cp = channel + ch;
+	FLOAT_T rate1 = 0, rate2 = 0;
+	FLOAT_T depth1 = 0, depth2 = 0;
 
-	if (! voice[v].sample->sample_rate)
-		return;
-	if (! opt_modulation_wheel)
-		channel[ch].mod.val = 0;
-	if (! opt_portamento)
-		voice[v].porta_control_ratio = 0;
-	voice[v].vibrato_control_ratio = voice[v].orig_vibrato_control_ratio;
-	if (voice[v].vibrato_control_ratio || channel[ch].mod.val > 0) {
-		/* This instrument has vibrato. Invalidate any precomputed
-		 * sample_increments.
-		 */
-
-		/* MIDI controllers LFO pitch depth */
-		if (opt_channel_pressure || opt_modulation_wheel) {
-			vp->vibrato_depth = vp->sample->vibrato_depth + channel[ch].vibrato_depth;
-			vp->vibrato_depth += get_midi_controller_pitch_depth(&(channel[ch].mod))
-				+ get_midi_controller_pitch_depth(&(channel[ch].bend))
-				+ get_midi_controller_pitch_depth(&(channel[ch].caf))
-				+ get_midi_controller_pitch_depth(&(channel[ch].paf))
-				+ get_midi_controller_pitch_depth(&(channel[ch].cc1))
-				+ get_midi_controller_pitch_depth(&(channel[ch].cc2));
-			if (vp->vibrato_depth > VIBRATO_DEPTH_MAX) {vp->vibrato_depth = VIBRATO_DEPTH_MAX;}
-			else if (vp->vibrato_depth < 1) {vp->vibrato_depth = 1;}
-			if (vp->sample->vibrato_depth < 0) {	/* in opposite phase */
-				vp->vibrato_depth = -vp->vibrato_depth;
-			}
-		}
-		
-		/* fill parameters for modulation wheel */
-		if (channel[ch].mod.val > 0) {
-			if(vp->vibrato_control_ratio == 0) {
-				vp->vibrato_control_ratio = 
-					vp->orig_vibrato_control_ratio = (int)(cnv_Hz_to_vib_ratio(5.0) * channel[ch].vibrato_ratio);
-			}
-			vp->vibrato_delay = 0;
-		}
-
-		for (i = 0; i < VIBRATO_SAMPLE_INCREMENTS; i++)
-			vp->vibrato_sample_increment[i] = 0;
-		vp->cache = NULL;
+	if(vp->paf_ctrl){ // PAf
+		rate1 += cp->paf.lfo1_rate;
+		rate2 += cp->paf.lfo2_rate;
+		depth1 += get_midi_controller_lfo1_amp_depth(&(cp->paf));
+		depth2 += get_midi_controller_lfo2_amp_depth(&(cp->paf));
 	}
+	// rate
+	if(otd.vibrato_rate != 0 ){
+		rate1 += (double)cp->param_vibrato_rate * DIV_64 * nrpn_vib_rate; // NRPN in -64~63
+	}else if(cp->param_vibrato_rate){ 
+		int mul = (nrpn_vib_rate_mode == NRPN_PARAM_XG_RATE) ? 1 : 2;
+		rate1 += calc_nrpn_param(vp->lfo_rate[0], cp->param_vibrato_rate * mul, nrpn_vib_rate_mode);// NRPN in -64~63
+	}
+	rate1 += vp->lfo_rate[0] + cp->lfo_rate[0];
+	if(rate1 > VIBRATO_RATE_MAX)
+		rate1 = VIBRATO_RATE_MAX;
+	else if(rate1 < VIBRATO_RATE_MIN)
+		rate1 = VIBRATO_RATE_MIN;	
+	if(vp->sample->vibrato_control_ratio < 0 || vp->sample->vibrato_sweep_increment < 0)
+		init_oscillator(&vp->lfo1, 0, 0, 0, OSC_TYPE_SINE, 0);
+	else
+		reset_oscillator(&vp->lfo1, rate1);	
+	rate2 += vp->lfo_rate[1] + cp->lfo_rate[1];
+	if(rate2 > TREMOLO_RATE_MAX)
+		rate2 = TREMOLO_RATE_MAX;
+	else if(rate2 < TREMOLO_RATE_MIN)
+		rate2 = TREMOLO_RATE_MIN;
+	if(vp->sample->tremolo_phase_increment < 0 || vp->sample->tremolo_sweep_increment < 0)
+		init_oscillator(&vp->lfo2, 0, 0, 0, OSC_TYPE_SINE, 0);
+	else
+		reset_oscillator(&vp->lfo2, rate2);	
+	// amp depth
+	depth1 += (FLOAT_T)vp->sample->vibrato_to_amp * DIV_256;
+	depth1 += cp->lfo_amp_depth[0];
+	if(depth1 > 1.0) {depth1 = 1.0;}
+	else if(depth1 < 0.0) {depth1 = 0.0;}
+	vp->lfo_amp_depth[0] = depth1;	
+	depth2 += (FLOAT_T)vp->sample->tremolo_depth * DIV_256;
+	depth2 += cp->lfo_amp_depth[1];
+	if(depth2 > 1.0) {depth2 = 1.0;}
+	else if(depth2 < 0.0) {depth2 = 0.0;}
+	vp->lfo_amp_depth[1] = depth2;
+	// LFOampはvol_envを使用しないのでここで (recompute_voice_amp()と	どっちでもいいけど
+	// 後の工程  mix.c update_tremolo() -> apply_envelope_to_amp() -> mix_mystery_signal()
+	// filter/pitch は recompute_voice_filpter/pitch()
+}
+	
+/*! initialize vibrato parameters for a voice. */
+static int32 cnv_sweep_to_count(int32 inc){
+	if(inc <= 0)
+		return 0;
+	else
+		return control_ratio * (1 << SWEEP_SHIFT) / inc;
+}
+
+static void init_voice_lfo(int v)
+{
+	Voice *vp = voice + v;
+	int ch = vp->channel;	
+	Channel *cp = channel + ch;
+	FLOAT_T rate1 = 0, rate2 = 0;
+	int32 sweep1, sweep2, delay1, delay2;
+
+	/* lfo1 */
+	if(vp->sample->vibrato_control_ratio < 0 || vp->sample->vibrato_sweep_increment < 0){
+		vp->lfo_amp_depth[0] = 0;
+		vp->lfo_rate[0] = 0;
+		init_oscillator(&vp->lfo1, 0, 0, 0, OSC_TYPE_SINE, 0);
+	}else{
+		vp->lfo_amp_depth[0] = 0;
+		rate1 = vp->lfo_rate[0] = cnv_vib_ratio_to_Hz(vp->sample->vibrato_control_ratio);
+		rate1 += cp->lfo_rate[0];
+		if(rate1 > VIBRATO_RATE_MAX)
+			rate1 = VIBRATO_RATE_MAX;
+		else if(rate1 < VIBRATO_RATE_MIN)
+			rate1 = VIBRATO_RATE_MIN;		
+		sweep1 = cnv_sweep_to_count(vp->sample->vibrato_sweep_increment);
+		delay1 = vp->sample->vibrato_delay;	
+		if(otd.vibrato_delay != 0 ){
+			delay1 += (double)cp->param_vibrato_delay * DIV_64 * nrpn_vib_delay; // NRPN in -64~63	
+		}else if(cp->param_vibrato_delay){ 
+			delay1 += calc_nrpn_param((double)delay1 * div_playmode_rate, cp->param_vibrato_delay * 2, nrpn_vib_delay_mode) * play_mode->rate; // NRPN in -64~63
+		}
+		delay1 += cp->vibrato_delay;
+		if(delay1 < 0) delay1 = 0;
+		init_oscillator(&vp->lfo1, rate1, delay1, sweep1, OSC_TYPE_SINE, 0);
+	}
+	/* lfo2 */	
+	if(vp->sample->tremolo_phase_increment < 0 || vp->sample->tremolo_sweep_increment < 0){
+		vp->lfo_amp_depth[1] = 0;
+		vp->lfo_rate[1] = 0;
+		init_oscillator(&vp->lfo2, 0, 0, 0, OSC_TYPE_SINE, 0);
+	}else{
+		vp->lfo_amp_depth[1] = 0;
+		rate2 = vp->lfo_rate[1] = cnv_trm_inc_to_Hz(vp->sample->tremolo_phase_increment);		
+		rate2 += cp->lfo_rate[1];
+		if(rate2 > TREMOLO_RATE_MAX)
+			rate2 = TREMOLO_RATE_MAX;
+		else if(rate2 < TREMOLO_RATE_MIN)
+			rate2 = TREMOLO_RATE_MIN;
+		sweep2 = cnv_sweep_to_count(vp->sample->tremolo_sweep_increment);
+		delay2 = vp->sample->tremolo_delay;
+		if(delay2 < 0) delay2 = 0;
+		init_oscillator(&vp->lfo2, rate2, delay2, sweep2, OSC_TYPE_SINE, 0);
+	}
+}
+
+///r
+const FLOAT_T cvt_pitch_cent_tune = (FLOAT_T)M_13BIT * DIV_100; 
+// cent to tuning (100cent = 1semitone = 13bit , 
+// bend_coarse[tuning >> 13] , bend_fine[(tuning >> 5) & 0xff]
+
+static void recompute_channel_pitch(int ch)
+{
+	Channel *cp = channel + ch;
+	const int32 pitch_max = (24 << 13); // semitone to tune
+	const int32 pitch_min = (-24 << 13); // semitone to tune
+	int32 tuning = 0;	
+
+	/* MIDI controllers pitch control */
+	if (opt_channel_pressure) {
+		tuning += get_midi_controller_pitch(&(cp->mod))
+		//	+ get_midi_controller_pitch(&(cp->bend)) 
+			+ get_midi_controller_pitch(&(cp->caf))
+			+ get_midi_controller_pitch(&(cp->cc1))
+			+ get_midi_controller_pitch(&(cp->cc2))
+			+ get_midi_controller_pitch(&(cp->cc3))
+			+ get_midi_controller_pitch(&(cp->cc4));
+	}	
+	if(tuning > pitch_max) {tuning = pitch_max;}
+	else if(tuning < pitch_min) {tuning = pitch_min;}	
 	/* At least for GM2, it's recommended not to apply master_tuning for drum channels */
-	tuning = ISDRUMCHANNEL(ch) ? 0 : master_tuning;
+	tuning += ISDRUMCHANNEL(ch) ? 0 : master_tuning;
+	/* Pitch Bend Control */
+	if (cp->pitchbend != 0x2000){
+		int val = cp->pitchbend - 0x2000;
+		int pitch = (val > 0) ? cp->rpnmap[RPN_ADDR_0000] : cp->rpnmap[RPN_ADDR_0040]; // - : low control
+		pitch = pitch > 0x7F ? (pitch - 128) : pitch; // uint8 to int
+		tuning += val * pitch; // 13bit
+	}
+	/* Master Fine Tuning, Master Coarse Tuning */
 	/* fine: [0..128] => [-256..256]
 	 * 1 coarse = 256 fine (= 1 note)
 	 * 1 fine = 2^5 tuning
 	 */
-	tuning += (channel[ch].rpnmap[RPN_ADDR_0001] - 0x40
-			+ (channel[ch].rpnmap[RPN_ADDR_0002] - 0x40) * 64) << 7;
-	/* for NRPN Coarse Pitch of Drum (GS) & Fine Pitch of Drum (XG) */
-	if (ISDRUMCHANNEL(ch) && channel[ch].drums[note] != NULL
-			&& (channel[ch].drums[note]->fine
-			|| channel[ch].drums[note]->coarse)) {
-		tuning += (channel[ch].drums[note]->fine
-				+ channel[ch].drums[note]->coarse * 64) << 7;
-	}
-	/* MIDI controllers pitch control */
-	if (opt_channel_pressure) {
-		tuning += get_midi_controller_pitch(&(channel[ch].mod))
-			+ get_midi_controller_pitch(&(channel[ch].bend))
-			+ get_midi_controller_pitch(&(channel[ch].caf))
-			+ get_midi_controller_pitch(&(channel[ch].paf))
-			+ get_midi_controller_pitch(&(channel[ch].cc1))
-			+ get_midi_controller_pitch(&(channel[ch].cc2));
-	}
-	if (opt_modulation_envelope) {
-		if (voice[v].sample->tremolo_to_pitch) {
-			tuning += lookup_triangular(voice[v].tremolo_phase >> RATE_SHIFT)
-					* (voice[v].sample->tremolo_to_pitch << 13) / 100.0 + 0.5;
-			channel[ch].pitchfactor = 0;
-		}
-		if (voice[v].sample->modenv_to_pitch) {
-			tuning += voice[v].last_modenv_volume
-					* (voice[v].sample->modenv_to_pitch << 13) / 100.0 + 0.5;
-			channel[ch].pitchfactor = 0;
-		}
-	}
-	/* GS/XG - Scale Tuning */
-	if (! ISDRUMCHANNEL(ch)) {
-		tuning += ((st << 13) + 50) / 100;
-		if (st != channel[ch].prev_scale_tuning) {
-			channel[ch].pitchfactor = 0;
-			channel[ch].prev_scale_tuning = st;
-		}
-	}
-	if (! opt_pure_intonation
-			&& opt_temper_control && voice[v].temper_instant) {
+	tuning += (cp->rpnmap[RPN_ADDR_0001] - 0x40
+			+ (cp->rpnmap[RPN_ADDR_0002] - 0x40) * 64) << 7;	
+	cp->pitch = tuning;
+	/* XG Detune */
+	/* -128~+127 to -12.8Hz~+12.7Hz (at A3 440Hz */
+	if(cp->detune_param != 0x80)
+		cp->detune = (440.0 + (FLOAT_T)((int)cp->detune_param - 0x80) * DIV_10) * DIV_440;
+	else
+		cp->detune = 1.0;
+	/* Temper Control */
+	if (! opt_pure_intonation && opt_temper_control) {
+		int8 tt = cp->temper_type;
+		uint8 tp = cp->rpnmap[RPN_ADDR_0003];
+		int32 *table = NULL;
 		switch (tt) {
 		case 0:
-			f = freq_table_tuning[tp][note];
+			table = freq_table_tuning[tp];
 			break;
 		case 1:
 			if (current_temper_keysig < 8)
-				f = freq_table_pytha[current_temper_freq_table][note];
+				table = freq_table_pytha[current_temper_freq_table];
 			else
-				f = freq_table_pytha[current_temper_freq_table + 12][note];
+				table = freq_table_pytha[current_temper_freq_table + 12];
 			break;
 		case 2:
 			if (current_temper_keysig < 8)
-				f = freq_table_meantone[current_temper_freq_table
-						+ ((temper_adj) ? 36 : 0)][note];
+				table = freq_table_meantone[current_temper_freq_table + ((temper_adj) ? 36 : 0)];
 			else
-				f = freq_table_meantone[current_temper_freq_table
-						+ ((temper_adj) ? 24 : 12)][note];
+				table = freq_table_meantone[current_temper_freq_table + ((temper_adj) ? 24 : 12)];
 			break;
 		case 3:
 			if (current_temper_keysig < 8)
-				f = freq_table_pureint[current_temper_freq_table
-						+ ((temper_adj) ? 36 : 0)][note];
+				table = freq_table_pureint[current_temper_freq_table + ((temper_adj) ? 36 : 0)];
 			else
-				f = freq_table_pureint[current_temper_freq_table
-						+ ((temper_adj) ? 24 : 12)][note];
+				table = freq_table_pureint[current_temper_freq_table + ((temper_adj) ? 24 : 12)];
 			break;
 		default:	/* user-defined temperament */
 			if ((tt -= 0x40) >= 0 && tt < 4) {
 				if (current_temper_keysig < 8)
-					f = freq_table_user[tt][current_temper_freq_table
-							+ ((temper_adj) ? 36 : 0)][note];
+					table = freq_table_user[tt][current_temper_freq_table + ((temper_adj) ? 36 : 0)];
 				else
-					f = freq_table_user[tt][current_temper_freq_table
-							+ ((temper_adj) ? 24 : 12)][note];
+					table = freq_table_user[tt][current_temper_freq_table + ((temper_adj) ? 24 : 12)];
 			} else
-				f = freq_table[note];
+				table = freq_table;
 			break;
 		}
-		voice[v].orig_frequency = f;
+		cp->freq_table = table;
 	}
-	if (! voice[v].porta_control_ratio) {
-		if (tuning == 0 && pb == 0x2000)
-			voice[v].frequency = voice[v].orig_frequency;
-		else {
-			pb -= 0x2000;
-			if (! channel[ch].pitchfactor) {
-				/* Damn.  Somebody bent the pitch. */
-				tmp = pb * channel[ch].rpnmap[RPN_ADDR_0000] + tuning;
-				if (tmp >= 0)
-					channel[ch].pitchfactor = bend_fine[tmp >> 5 & 0xff]
-							* bend_coarse[tmp >> 13 & 0x7f];
-				else
-					channel[ch].pitchfactor = 1.0 /
-							(bend_fine[-tmp >> 5 & 0xff]
-							* bend_coarse[-tmp >> 13 & 0x7f]);
-			}
-			voice[v].frequency =
-					voice[v].orig_frequency * channel[ch].pitchfactor;
-			if (voice[v].frequency != voice[v].orig_frequency)
-				voice[v].cache = NULL;
+}
+
+///r
+void recompute_voice_pitch(int v)
+{
+	Voice *vp = voice + v;
+	int ch = vp->channel, note = vp->note;
+	Channel *cp = channel + ch;
+	int32 tuning;
+	FLOAT_T depth1 = 0, depth2 = 0;
+	const int32 porta_shift = 13 - PORTAMENTO_CONTROL_BIT; // tuning(13bit) - PORTAMENTO_CONTROL_RATIO(bit)
+
+	if (! vp->sample->sample_rate)
+		return;
+	
+	/* master tune , MIDI controllers pitch control */
+	tuning = vp->init_tuning;
+	tuning += cp->pitch;
+	/* MIDI controllers */
+	if(vp->paf_ctrl){ // PAf
+		tuning += get_midi_controller_pitch(&(cp->paf));
+		depth1 += get_midi_controller_lfo1_pitch_depth(&(cp->paf));
+		depth2 += get_midi_controller_lfo2_pitch_depth(&(cp->paf));
+	}
+	/* LFO pitch depth */
+	if(vp->lfo1.mode){
+		depth1 += vp->sample->vibrato_depth;	
+		depth1 += cp->lfo_pitch_depth[0];
+		if (depth1 > 600.0) {depth1 = 600.0;}
+		else if (depth1 < 0) {depth1 = 0;}
+	//	tuning += vp->lfo1.out * (FLOAT_T)(depth1 << 13) * DIV_100 + 0.5;
+		tuning += vp->lfo1.out * depth1 * cvt_pitch_cent_tune + 0.5; // * (1 << 13) cent to bend_fine/course
+	}
+	if(vp->lfo2.mode){
+		depth2 += vp->sample->tremolo_to_pitch;		
+		depth2 += cp->lfo_pitch_depth[1];	
+		if (depth2 > 600.0) {depth2 = 600.0;}
+		else if (depth2 < 0) {depth2 = 0;}
+	//	tuning += vp->lfo2.out * (FLOAT_T)(depth2 << 13) * DIV_100 + 0.5;
+		tuning += vp->lfo2.out * depth2 * cvt_pitch_cent_tune + 0.5; // * (1 << 13) cent to bend_fine/course
+	}
+	/* Modulation Envelope Pitch Depth , Pitch Envelope */
+	if (opt_modulation_envelope) {
+		// modulation envelope
+		if (vp->sample->modenv_to_pitch) {
+		//	tuning += vp->last_modenv_volume * (vp->sample->modenv_to_pitch << 13) * DIV_100 + 0.5;
+			tuning += vp->mod_env.volume * (FLOAT_T)vp->sample->modenv_to_pitch * cvt_pitch_cent_tune + 0.5;
 		}
-	} else {	/* Portamento */
-		pb -= 0x2000;
-		tmp = pb * channel[ch].rpnmap[RPN_ADDR_0000]
-				+ (voice[v].porta_pb << 5) + tuning;
-		if (tmp >= 0)
-			pf = bend_fine[tmp >> 5 & 0xff]
-					* bend_coarse[tmp >> 13 & 0x7f];
-		else
-			pf = 1.0 / (bend_fine[-tmp >> 5 & 0xff]
-					* bend_coarse[-tmp >> 13 & 0x7f]);
-		voice[v].frequency = voice[v].orig_frequency * pf;
-		voice[v].cache = NULL;
+		// pitch envelope
+		if(vp->pit_env.vol){
+			tuning += vp->pit_env.vol * cvt_pitch_cent_tune + 0.5; // cent to bend_fine/course
+		}
 	}
-	root_freq = voice[v].sample->root_freq;
-	a = TIM_FSCALE(((double) voice[v].sample->sample_rate
-			* ((double)voice[v].frequency + channel[ch].pitch_offset_fine))
-			/ (root_freq * play_mode->rate), FRACTION_BITS) + 0.5;
-	/* need to preserve the loop direction */
-	voice[v].sample_increment = (voice[v].sample_increment >= 0) ? a : -a;
-#ifdef ABORT_AT_FATAL
-	if (voice[v].sample_increment == 0) {
-		fprintf(stderr, "Invalid sample increment a=%e %ld %ld %ld %ld%s\n",
-				(double)a, (long) voice[v].sample->sample_rate,
-				(long) voice[v].frequency, (long) voice[v].sample->root_freq,
-				(long) play_mode->rate, (voice[v].cache) ? " (Cached)" : "");
-		abort();
+	/* Portamento / Legato */
+#ifdef NEW_LEGATO
+	if (opt_portamento){
+#if (PORTAMENTO_CONTROL_BIT == 13)
+		tuning += vp->porta_out;
+#else
+		tuning += (vp->porta_out << (13 - PORTAMENTO_CONTROL_BIT)); // tuning(13bit)
+#endif
 	}
-#endif	/* ABORT_AT_FATAL */
+#else
+	if (vp->porta_status){
+#if (PORTAMENTO_CONTROL_BIT == 13)
+		tuning += vp->porta_pb;
+#else
+		tuning += (vp->porta_pb << (13 - PORTAMENTO_CONTROL_BIT)); // tuning(13bit)
+#endif
+	}
+#endif
+	/* calc freq */ /* XG Detune */ /* GS Pitch Offset Fine */
+	if (tuning == 0){
+		if (cp->detune == 1.0 && vp->sample->tune == 1.0 && cp->pitch_offset_fine == 0.0){
+			vp->pitchfactor = 1.0;
+			vp->orig_pitchfactor = 1.0;
+			vp->frequency = vp->orig_frequency;
+		}else{
+			vp->pitchfactor = cp->detune * vp->sample->tune;
+			vp->orig_pitchfactor = 1.0;
+			vp->frequency = vp->orig_frequency * vp->pitchfactor + cp->pitch_offset_fine * 1000.0;
+			vp->cache = NULL;
+		}
+		vp->prev_tuning = 0; 
+	} else {
+		if (vp->prev_tuning != tuning) {
+			if (tuning >= 0)
+				vp->pitchfactor = bend_fine[(tuning >> 5) & 0xff] * bend_coarse[(tuning >> 13) & 0x7f];
+			else
+				vp->pitchfactor = 1.0 / (bend_fine[((-tuning) >> 5) & 0xff] * bend_coarse[((-tuning) >> 13) & 0x7f]);
+			vp->orig_pitchfactor = vp->pitchfactor;
+			vp->prev_tuning = tuning;
+		}
+		vp->pitchfactor = vp->orig_pitchfactor * cp->detune * vp->sample->tune;
+		vp->frequency = vp->orig_frequency * vp->pitchfactor + cp->pitch_offset_fine * 1000.0;
+		vp->cache = NULL;
+	}
+	
+}
+
+static void init_voice_pitch(int v)
+{
+	Voice *vp = voice + v;
+	int ch = vp->channel, note = vp->note;
+	Channel *cp = channel + ch;
+	int32 tuning = 0;
+	
+	if (! vp->sample->sample_rate)
+		return;
+	/* for Drum */
+	if (ISDRUMCHANNEL(ch) && cp->drums[note] != NULL){
+		/* for NRPN Coarse Pitch of Drum (GS) & Fine Pitch of Drum (XG) */
+		if(cp->drums[note]->fine || cp->drums[note]->coarse)
+			tuning += (cp->drums[note]->fine + cp->drums[note]->coarse * 64) << 7;		
+		/* Velocity Pitch Sense */
+		if(cp->drums[note]->drum_velo_pitch_sens)
+			tuning += (FLOAT_T)cp->drums[note]->drum_velo_pitch_sens * DIV_16
+				* (FLOAT_T)vp->velocity * DIV_127 * 150.0 * cvt_pitch_cent_tune + 0.5; // -16~+16 max150cent
+	}
+	/* GS/XG - Scale Tuning */
+	if (! ISDRUMCHANNEL(ch)) {
+		int8 st = cp->scale_tuning[note % 12];
+		tuning += ((st << 13) + 50) / 100;
+		if (cp->prev_scale_tuning != st) {
+			cp->prev_scale_tuning = st;
+		}
+	}
+	/* Temper Control */
+	if (! opt_pure_intonation && opt_temper_control && vp->temper_instant) {
+		vp->orig_frequency = cp->freq_table[note];
+	}
+	/* init_tuning */
+	vp->init_tuning = tuning;
+}
+
+///r
+static void recompute_channel_amp(int ch)
+{	
+	Channel *cp = channel + ch;
+	FLOAT_T tempamp;
+
+	/* MIDI volume expression are linear in perceived volume, 0-127
+	 * use a lookup table for the non-linear scalings		 */	
+	if (opt_user_volume_curve != 0)
+		tempamp = user_vol_table[cp->volume] * user_vol_table[cp->expression]; /* 14 bits */
+	else switch(play_system_mode){
+	case SD_SYSTEM_MODE:
+	case GM2_SYSTEM_MODE:
+		tempamp = gm2_vol_table[cp->volume] * gm2_vol_table[cp->expression]; /* 14 bits */
+		break;
+	case GS_SYSTEM_MODE:	/* use measured curve */ 
+	case CM_SYSTEM_MODE:	/* use measured curve */ 
+		tempamp = sc_vol_table[cp->volume] * sc_vol_table[cp->expression]; /* 14 bits */
+		break;
+	default:
+		if (IS_CURRENT_MOD_FILE)	/* use linear curve */
+			tempamp = cp->volume * cp->expression; /* 14 bits */
+		else	/* use generic exponential curve */
+			tempamp = perceived_vol_table[cp->volume] *	perceived_vol_table[cp->expression]; /* 14 bits */
+		break;
+	}
+	/* MIDI controllers amplitude control */
+	if(opt_channel_pressure) {
+		FLOAT_T ctrl = 1.0;
+		ctrl += get_midi_controller_amp(&(cp->mod))
+			+ get_midi_controller_amp(&(cp->bend))
+			+ get_midi_controller_amp(&(cp->caf))
+			+ get_midi_controller_amp(&(cp->cc1))
+			+ get_midi_controller_amp(&(cp->cc2))
+			+ get_midi_controller_amp(&(cp->cc3))
+			+ get_midi_controller_amp(&(cp->cc4));
+		if(ctrl > 2.0) ctrl = 2.0; // +100% 
+		else if(ctrl < 0.0) ctrl = 0.0; // -100%
+		tempamp *= ctrl;
+	}
+	tempamp *= DIV_14BIT;
+	if(tempamp > 1.0)	tempamp = 1.0;
+	/* for XG channel mixer */
+	if(adjust_panning_immediately && play_system_mode == XG_SYSTEM_MODE){
+		cp->amp = 1.0;	// for voice amp
+		if(!(play_mode->encoding & PE_MONO)){		
+			int pan = (cp->panning == NO_PANNING) ? 64 : cp->panning;
+			tempamp *= DIV_7BIT; // pan_table 7bit
+			cp->ch_amp[0] = tempamp * pan_table[128 - pan];
+			cp->ch_amp[1] = tempamp * pan_table[pan];
+		}else{
+			cp->ch_amp[0] = cp->ch_amp[1] = tempamp;
+		}
+	}else{
+		cp->amp = tempamp;	// for voice amp
+		cp->ch_amp[0] = cp->ch_amp[1] = 1.0;
+	}
+}	
+
+///r
+void recompute_voice_amp(int v)
+{
+	Voice *vp = voice + v;
+	int ch = vp->channel;
+	Channel *cp = channel + ch;
+	FLOAT_T tempamp;
+	
+	/* velocity, NRPN MIDI controllers amplitude control */
+	tempamp = vp->init_amp;
+	/* volume, expression, MIDI controllers amplitude control */
+	tempamp *= cp->amp;	
+	if(vp->paf_ctrl){ // PAf
+		tempamp *= 1.0 + get_midi_controller_amp(&(cp->paf));
+	}
+	/* applying panning to amplitude */
+	if(vp->panned == PANNED_MYSTERY)
+   	{
+		if(vp->pan_ctrl){ // update panning
+			// panning : 0 ~ 127 // 入力されるパン,テーブルの値域
+			// pan : 0=center // パンの加減はセンター0基準で処理
+			// sample_pan : -0.5~+0.5 0.0=center
+			int pan = 0, note = vp->note;
+			
+			if(ISDRUMCHANNEL(ch) && cp->drums[note] != NULL && cp->drums[note]->drum_panning != NO_PANNING)
+				pan += (int)cp->drums[note]->drum_panning - 64;
+			else
+				pan += (int)vp->sample->def_pan - 64;
+			if(!(adjust_panning_immediately && play_system_mode == XG_SYSTEM_MODE) && cp->panning != NO_PANNING)
+				pan += (int)cp->panning - 64;
+			pan += 64;
+			if (pan > 127)
+				pan = 127;
+			else if (pan < 0)
+				pan = 0;
+			vp->pan_amp[0] = pan_table[128 - pan] * (0.5 - vp->sample->sample_pan);
+			vp->pan_amp[1] = pan_table[pan] * (0.5 + vp->sample->sample_pan);
+			vp->pan_ctrl = 0; // done
+		}
+		tempamp *= DIV_6BIT; // 7bit-1
+		vp->left_amp = tempamp * vp->pan_amp[0];
+		vp->right_amp = tempamp * vp->pan_amp[1];
+   	} else { // mono
+		vp->right_amp = vp->left_amp = tempamp * DIV_7BIT; // 7bit
+    }
 }
 
 static int32 calc_velocity(int32 ch,int32 vel)
@@ -951,301 +2034,420 @@ static int32 calc_velocity(int32 ch,int32 vel)
 	return velocity;
 }
 
-static void recompute_voice_tremolo(int v)
+///r
+static void init_voice_amp(int v)
 {
-	Voice *vp = &(voice[v]);
+	Voice *vp = &voice[v];
 	int ch = vp->channel;
-	int32 depth = vp->sample->tremolo_depth;
-	depth += get_midi_controller_amp_depth(&(channel[ch].mod))
-		+ get_midi_controller_amp_depth(&(channel[ch].bend))
-		+ get_midi_controller_amp_depth(&(channel[ch].caf))
-		+ get_midi_controller_amp_depth(&(channel[ch].paf))
-		+ get_midi_controller_amp_depth(&(channel[ch].cc1))
-		+ get_midi_controller_amp_depth(&(channel[ch].cc2));
-	if(depth > 256) {depth = 256;}
-	vp->tremolo_depth = depth;
-}
-
-static void recompute_amp(int v)
-{
+	int32 velo = calc_velocity(ch, vp->velocity) & 0x7F;
 	FLOAT_T tempamp;
-	int ch = voice[v].channel;
 
-	/* master_volume and sample->volume are percentages, used to scale
-	 *  amplitude directly, NOT perceived volume
-	 *
-	 * all other MIDI volumes are linear in perceived volume, 0-127
-	 * use a lookup table for the non-linear scalings
-	 */
-	if (opt_user_volume_curve) {
-	tempamp = master_volume *
-		   voice[v].sample->volume *
-		   user_vol_table[calc_velocity(ch, voice[v].velocity)] *
-		   user_vol_table[channel[ch].volume] *
-		   user_vol_table[channel[ch].expression]; /* 21 bits */
-	} else if (play_system_mode == GM2_SYSTEM_MODE) {
-	tempamp = master_volume *
-		  voice[v].sample->volume *
-		  gm2_vol_table[calc_velocity(ch, voice[v].velocity)] *	/* velocity: not in GM2 standard */
-		  gm2_vol_table[channel[ch].volume] *
-		  gm2_vol_table[channel[ch].expression]; /* 21 bits */
-	} else if(play_system_mode == GS_SYSTEM_MODE) {	/* use measured curve */ 
-	tempamp = master_volume *
-		   voice[v].sample->volume *
-		   sc_vel_table[calc_velocity(ch, voice[v].velocity)] *
-		   sc_vol_table[channel[ch].volume] *
-		   sc_vol_table[channel[ch].expression]; /* 21 bits */
-	} else if (IS_CURRENT_MOD_FILE) {	/* use linear curve */
-	tempamp = master_volume *
-		  voice[v].sample->volume *
-		  calc_velocity(ch, voice[v].velocity) *
-		  channel[ch].volume *
-		  channel[ch].expression; /* 21 bits */
-	} else {	/* use generic exponential curve */
-	tempamp = master_volume *
-		  voice[v].sample->volume *
-		  perceived_vol_table[calc_velocity(ch, voice[v].velocity)] *
-		  perceived_vol_table[channel[ch].volume] *
-		  perceived_vol_table[channel[ch].expression]; /* 21 bits */
-	}
-
-	/* every digital effect increases amplitude,
-	 * so that it must be reduced in advance.
-	 */
-	if (! (play_mode->encoding & PE_MONO)
-	    && (opt_reverb_control || opt_chorus_control || opt_delay_control
-		|| (opt_eq_control && (eq_status_gs.low_gain != 0x40
-				       || eq_status_gs.high_gain != 0x40))
-		|| opt_insertion_effect))
-		tempamp *= 1.35f * 0.55f;
-	else
-		tempamp *= 1.35f;
-
-	/* Reduce amplitude for chorus partners.
-	 * 2x voices -> 2x power -> sqrt(2)x amplitude.
-	 * 1 / sqrt(2) = ~0.7071, which is very close to the old
-	 * CHORUS_VELOCITY_TUNING1 value of 0.7.
-	 *
-	 * The previous amp scaling for the various digital effects should
-	 * really be redone to split them into separate scalings for each
-	 * effect, rather than a single scaling if any one of them is used
-	 * (which is NOT correct).  As it is now, if partner chorus is the
-	 * only effect in use, then it is reduced in volume twice and winds
-	 * up too quiet.  Compare the output of "-EFreverb=0 -EFchorus=0",
-	 * "-EFreverb=0 -EFchorus=2", "-EFreverb=4 -EFchorus=2", and
-	 * "-EFreverb=4 -EFchorus=0" to see how the digital effect volumes
-	 * are not scaled properly.  Idealy, all the resulting output should
-	 * have the same volume, regardless of effects used.  This will
-	 * require empirically determining the amount to scale for each
-	 * individual effect.
-	 */
-    	if (voice[v].chorus_link != v)
-    	    tempamp *= 0.7071067811865f;
-
+	/* input_volume and other are percentages, used to scale
+	 *  amplitude directly, NOT perceived volume	*/	
+	tempamp = input_volume * vp->sample->volume * vp->sample->cfg_amp;
+	/* MIDI velocity are linear in perceived volume, 0-127
+	 * use a lookup table for the non-linear scalings		 */	
+	if (opt_user_volume_curve != 0)
+		tempamp *= user_vol_table[velo]; /* 7 bits */
+	else switch(play_system_mode){
+	case SD_SYSTEM_MODE:
+	case GM2_SYSTEM_MODE:
+		tempamp *= gm2_vol_table[velo];	/* velocity: not in GM2 standard *//* 7 bits */
+		break;
+	case GS_SYSTEM_MODE:	/* use measured curve */ 
+	case CM_SYSTEM_MODE:	/* use measured curve */ 
+		tempamp *= sc_vel_table[velo]; /* 7 bits */
+		break;
+	default:
+		if (IS_CURRENT_MOD_FILE)	/* use linear curve */
+			tempamp *= velo; /* 7 bits */
+		else	/* use generic exponential curve */
+			tempamp *= perceived_vol_table[velo]; /* 7 bits */
+		break;
+	}	
+	tempamp *= DIV_7BIT; // 7bit
 	/* NRPN - drum instrument tva level */
 	if(ISDRUMCHANNEL(ch)) {
-		if(channel[ch].drums[voice[v].note] != NULL) {
-			tempamp *= channel[ch].drums[voice[v].note]->drum_level;
-		}
-		tempamp *= (double)opt_drum_power * 0.01f;	/* global drum power */
+		int note = vp->note;
+		if(channel[ch].drums[note] != NULL)
+			tempamp *= channel[ch].drums[note]->drum_level;
+		tempamp *= (double)opt_drum_power * DIV_100;	/* global drum power */
 	}
+	/* filter gain */
+	if (vp->fc.type != 0) {
+		tempamp *= vp->lpf_gain;
+	}
+	/* init_amp */
+	vp->init_amp = tempamp;
+}
 
-	/* MIDI controllers amplitude control */
+///r
+double voice_filter_reso = 1.0;
+double voice_filter_gain = 1.0;
+
+#define VOICE_FILTER_FREQ_MIN (100) // Hz
+#define VOICE_FILTER2_FREQ_MAX (2000) // Hz
+
+/* lowpass/highpass filter */
+static void recompute_channel_filter(int ch)
+{
+	Channel *cp = channel + ch;
+	FLOAT_T reso = 0;
+	FLOAT_T cutoff_cent = 0;
+
+	if(cp->special_sample > 0) {return;}
+	//if(!ISDRUMCHANNEL(ch)) {
+	//		cp->cutoff_cent = 10000.0*sin(((double)cp->param_cutoff_freq + 128.0) * DIV_256 * M_PI + 4.71238898); // elion
+		if(otd.filter_freq != 0)
+			cutoff_cent += (FLOAT_T)cp->param_cutoff_freq * DIV_64 * nrpn_filter_freq;
+	//	cp->hpf_cutoff_cent = (FLOAT_T)cp->hpf_param_cutoff_freq * DIV_64 * nrpn_filter_freq;
+	//	}
+	//	cp->resonance_dB = (double)cp->param_resonance * RESONANCE_COEFF; // elion
+		reso += (FLOAT_T)cp->param_resonance * DIV_64 * nrpn_filter_reso;
+		cp->hpf_resonance_dB = (FLOAT_T)cp->hpf_param_resonance * DIV_64 * nrpn_filter_reso;
+	//}	
+	cp->resonance_dB = reso;
 	if(opt_channel_pressure) {
-		tempamp *= get_midi_controller_amp(&(channel[ch].mod))
-			* get_midi_controller_amp(&(channel[ch].bend))
-			* get_midi_controller_amp(&(channel[ch].caf))
-			* get_midi_controller_amp(&(channel[ch].paf))
-			* get_midi_controller_amp(&(channel[ch].cc1))
-			* get_midi_controller_amp(&(channel[ch].cc2));
-		recompute_voice_tremolo(v);
-	}
-
-	if (voice[v].fc.type != 0) {
-		tempamp *= voice[v].fc.gain;	/* filter gain */
-	}
-
-	/* applying panning to amplitude */
-	if(!(play_mode->encoding & PE_MONO))
-    	{
-		if(voice[v].panning == 64)
-		{
-			voice[v].panned = PANNED_CENTER;
-			voice[v].left_amp = voice[v].right_amp = TIM_FSCALENEG(tempamp * pan_table[64], 27);
-		}
-		else if (voice[v].panning < 2)
-		{
-			voice[v].panned = PANNED_LEFT;
-			voice[v].left_amp = TIM_FSCALENEG(tempamp, 20);
-			voice[v].right_amp = 0;
-		}
-		else if(voice[v].panning == 127)
-		{
-#ifdef SMOOTH_MIXING
-			if(voice[v].panned == PANNED_MYSTERY) {
-				voice[v].old_left_mix = voice[v].old_right_mix;
-				voice[v].old_right_mix = 0;
-			}
-#endif
-			voice[v].panned = PANNED_RIGHT;
-			voice[v].left_amp =  TIM_FSCALENEG(tempamp, 20);
-			voice[v].right_amp = 0;
-		}
-		else
-		{
-#ifdef SMOOTH_MIXING
-			if(voice[v].panned == PANNED_RIGHT) {
-				voice[v].old_right_mix = voice[v].old_left_mix;
-				voice[v].old_left_mix = 0;
-			}
-#endif
-			voice[v].panned = PANNED_MYSTERY;
-			voice[v].left_amp = TIM_FSCALENEG(tempamp * pan_table[128 - voice[v].panning], 27);
-			voice[v].right_amp = TIM_FSCALENEG(tempamp * pan_table[voice[v].panning], 27);
-		}
-    	}
-    	else
-    	{
-		voice[v].panned = PANNED_CENTER;
-		voice[v].left_amp = TIM_FSCALENEG(tempamp, 21);
-    	}
+		cutoff_cent += get_midi_controller_filter_cutoff(&(cp->mod))
+			+ get_midi_controller_filter_cutoff(&(cp->bend))
+			+ get_midi_controller_filter_cutoff(&(cp->caf))
+			+ get_midi_controller_filter_cutoff(&(cp->cc1))
+			+ get_midi_controller_filter_cutoff(&(cp->cc2))
+			+ get_midi_controller_filter_cutoff(&(cp->cc3))
+			+ get_midi_controller_filter_cutoff(&(cp->cc4));
+	}	
+	if(cutoff_cent > 9600.0)
+		cutoff_cent = 9600.0;
+	else if(cutoff_cent < -9600.0)
+		cutoff_cent = -9600.0;
+	cp->cutoff_cent = cutoff_cent;
 }
 
-#define RESONANCE_COEFF 0.2393
-
-void recompute_channel_filter(int ch, int note)
+static void recompute_voice_filter2(int v)
 {
-	double coef = 1.0f, reso = 0;
+	Voice *vp = voice + v;
+	int ch = vp->channel, note = vp->note;
+	Channel *cp = channel + ch;
+	int val;
+	FLOAT_T freq, reso, cent, coef = 1.0;
+	FilterCoefficients *fc = &(vp->fc2);
 
-	if(channel[ch].special_sample > 0) {return;}
-
-	/* Soft Pedal */
-	if(channel[ch].soft_pedal != 0) {
-		if(note > 49) {	/* tre corde */
-			coef *= 1.0 - 0.20 * ((double)channel[ch].soft_pedal) / 127.0f;
-		} else {	/* una corda (due corde) */
-			coef *= 1.0 - 0.25 * ((double)channel[ch].soft_pedal) / 127.0f;
-		}
-	}
-
-	if(!ISDRUMCHANNEL(ch)) {
-		/* NRPN Filter Cutoff */
-		coef *= pow(1.26, (double)(channel[ch].param_cutoff_freq) / 8.0f);
-		/* NRPN Resonance */
-		reso = (double)channel[ch].param_resonance * RESONANCE_COEFF;
-	}
-
-	channel[ch].cutoff_freq_coef = coef;
-	channel[ch].resonance_dB = reso;
+	if(fc->type == 0) {return;}
+	
+	/* MIDI controllers filter control */
+	val = vp->init_hpf_val;
+	freq = vp->hpf_orig_freq;
+//	cent = vp->init_hpf_cent;
+	reso = vp->init_hpf_reso;
+	val += cp->hpf_param_cutoff_freq;
+//	cent += cp->hpf_cutoff_cent;
+	reso += cp->hpf_resonance_dB;	
+	/* NRPN */
+	if(val)
+		freq += calc_nrpn_param(freq, val * 2, nrpn_filter_hpf_freq_mode); // NRPN in -64~63
+	// convert cent to mul
+//	if(cent != 0) {coef *= POW2(cent * DIV_1200);}
+	// original param 	
+//	freq = vp->hpf_orig_freq * (coef);
+	reso = vp->hpf_orig_reso + reso;
+	// Resonace effect control 
+	reso *= voice_filter_reso;
+	// Spec limit (SoundFont Spec 2.01 , other Sampler
+	if(freq > VOICE_FILTER2_FREQ_MAX)	{freq = VOICE_FILTER2_FREQ_MAX;}
+	else if(freq < 20)	{freq = 20;}
+	if(reso > 96.0f)	{reso = 96.0f;}
+	else if(reso < 0.0f){reso = 0.0f;}
+	// set filter param
+	set_voice_filter2_freq(fc, freq);
+	set_voice_filter2_reso(fc, reso);
 }
-
-void init_voice_filter(int i)
-{
-  memset(&(voice[i].fc), 0, sizeof(FilterCoefficients));
-  if(opt_lpf_def && voice[i].sample->cutoff_freq) {
-	  voice[i].fc.orig_freq = voice[i].sample->cutoff_freq;
-	  voice[i].fc.orig_reso_dB = (double)voice[i].sample->resonance / 10.0f - 3.01f;
-	  if (voice[i].fc.orig_reso_dB < 0.0f) {voice[i].fc.orig_reso_dB = 0.0f;}
-	  if (opt_lpf_def == 2) {
-		  voice[i].fc.gain = 1.0;
-		  voice[i].fc.type = 2;
-	  } else if(opt_lpf_def == 1) {
-		  voice[i].fc.gain = pow(10.0f, -voice[i].fc.orig_reso_dB / 2.0f / 20.0f);
-		  voice[i].fc.type = 1;
-	  }
-	  voice[i].fc.start_flag = 0;
-  } else {
-	  voice[i].fc.type = 0;
-  }
-}
-
-#define CHAMBERLIN_RESONANCE_MAX 24.0
 
 void recompute_voice_filter(int v)
 {
-	int ch = voice[v].channel, note = voice[v].note;
-	double coef = 1.0, reso = 0, cent = 0, depth_cent = 0, freq;
-	FilterCoefficients *fc = &(voice[v].fc);
-	Sample *sp = (Sample *) &voice[v].sample;
+	Voice *vp = voice + v;
+	int ch = vp->channel, note = vp->note;
+	Channel *cp = channel + ch;
+	int val;
+	FLOAT_T freq, reso, cent, coef = 1.0, depth1 = 0, depth2 = 0;
+	FilterCoefficients *fc = &(vp->fc);
+	Sample *sp = vp->sample;
 
-	if(fc->type == 0) {return;}
-	coef = channel[ch].cutoff_freq_coef;
-
-	if(ISDRUMCHANNEL(ch) && channel[ch].drums[note] != NULL) {
-		/* NRPN Drum Instrument Filter Cutoff */
-		coef *= pow(1.26, (double)(channel[ch].drums[note]->drum_cutoff_freq) / 8.0f);
-		/* NRPN Drum Instrument Filter Resonance */
-		reso += (double)channel[ch].drums[note]->drum_resonance * RESONANCE_COEFF;
+	recompute_voice_filter2(v); // hpf
+	if(fc->type == 0) {return;}	
+	
+	// original param 
+	freq = vp->lpf_orig_freq;	
+	reso = vp->lpf_orig_reso;
+	/* MIDI controllers filter control */	
+	val = vp->init_lpf_val;
+	cent = vp->init_lpf_cent;
+	reso += vp->init_lpf_reso;
+	val += cp->param_cutoff_freq;
+	cent += cp->cutoff_cent;
+	reso += cp->resonance_dB;
+	/* NRPN */
+	if(otd.filter_freq == 0)
+		if(val)
+			freq += calc_nrpn_param(freq, val * 2, nrpn_filter_freq_mode); // NRPN in -64~63
+	/* Soft Pedal */
+	if(cp->soft_pedal != 0) {
+		if(note > 49) {	/* tre corde */
+			coef *= 1.0 - 0.20 * ((FLOAT_T)cp->soft_pedal) * DIV_127;
+		} else {	/* una corda (due corde) */
+			coef *= 1.0 - 0.25 * ((FLOAT_T)cp->soft_pedal) * DIV_127;
+		}
+	}	
+	if(vp->paf_ctrl){ // PAf
+		cent += get_midi_controller_filter_cutoff(&(cp->paf));
+		depth1 += get_midi_controller_lfo1_filter_depth(&(cp->paf));
+		depth2 += get_midi_controller_lfo2_filter_depth(&(cp->paf));		
 	}
-
-	/* MIDI controllers filter cutoff control and LFO filter depth */
-	if(opt_channel_pressure) {
-		cent += get_midi_controller_filter_cutoff(&(channel[ch].mod))
-			+ get_midi_controller_filter_cutoff(&(channel[ch].bend))
-			+ get_midi_controller_filter_cutoff(&(channel[ch].caf))
-			+ get_midi_controller_filter_cutoff(&(channel[ch].paf))
-			+ get_midi_controller_filter_cutoff(&(channel[ch].cc1))
-			+ get_midi_controller_filter_cutoff(&(channel[ch].cc2));
-		depth_cent += get_midi_controller_filter_depth(&(channel[ch].mod))
-			+ get_midi_controller_filter_depth(&(channel[ch].bend))
-			+ get_midi_controller_filter_depth(&(channel[ch].caf))
-			+ get_midi_controller_filter_depth(&(channel[ch].paf))
-			+ get_midi_controller_filter_depth(&(channel[ch].cc1))
-			+ get_midi_controller_filter_depth(&(channel[ch].cc2));
+	/* lfo1,lfo2 to filter cutoff frequency */
+	if(vp->lfo1.mode){
+		depth1 += (FLOAT_T)sp->vibrato_to_fc;
+		depth1 += cp->lfo_cutoff_depth[0];
+		cent += vp->lfo1.out * depth1;
+	}	
+	if(vp->lfo2.mode){
+		depth2 += (FLOAT_T)sp->tremolo_to_fc;
+		depth2 += cp->lfo_cutoff_depth[1];
+		cent += vp->lfo2.out * depth2;
 	}
-
-	if(sp->vel_to_fc) {	/* velocity to filter cutoff frequency */
-		if(voice[v].velocity > sp->vel_to_fc_threshold)
-			cent += sp->vel_to_fc * (double)(127 - voice[v].velocity) / 127.0f;
-		else
-			coef += sp->vel_to_fc * (double)(127 - sp->vel_to_fc_threshold) / 127.0f;
-	}
-	if(sp->vel_to_resonance) {	/* velocity to filter resonance */
-		reso += (double)voice[v].velocity * sp->vel_to_resonance / 127.0f / 10.0f;
-	}
-	if(sp->key_to_fc) {	/* filter cutoff key-follow */
-		cent += sp->key_to_fc * (double)(voice[v].note - sp->key_to_fc_bpo);
-	}
-
+	/* modulation_envelope to filter cutoff frequency */
 	if(opt_modulation_envelope) {
-		if(voice[v].sample->tremolo_to_fc + (int16)depth_cent) {
-			cent += ((double)voice[v].sample->tremolo_to_fc + depth_cent) * lookup_triangular(voice[v].tremolo_phase >> RATE_SHIFT);
-		}
-		if(voice[v].sample->modenv_to_fc) {
-			cent += (double)voice[v].sample->modenv_to_fc * voice[v].last_modenv_volume;
+		if(sp->modenv_to_fc || cp->modenv_depth) {
+			cent += ((FLOAT_T)sp->modenv_to_fc + cp->modenv_depth) * vp->mod_env.volume;
 		}
 	}
+	// convert cent to mul
+	if(cent != 0) {coef *= POW2(cent * DIV_1200);}	
+	freq *= coef;	
+	// Resonace effect control 
+	reso *= voice_filter_reso;
+	// filter test
+//	freq = 20; // test freq
+//	reso = 48.0f; // test reso
+	// cutoff low limit
+	if(sp->cutoff_low_limit < 0 && !ISDRUMCHANNEL(ch))
+		vp->lpf_freq_low_limit = (FLOAT_T)vp->frequency * DIV_1000; // update
+	if(freq < vp->lpf_freq_low_limit)
+		freq = vp->lpf_freq_low_limit;
+	// Spec limit (SoundFont Spec 2.01 , other Sampler
+	if(freq > 20000)	{freq = 20000;}
+	else if(freq < VOICE_FILTER_FREQ_MIN)	{freq = VOICE_FILTER_FREQ_MIN;}
+	if(reso > 96.0f)	{reso = 96.0f;}
+	else if(reso < 0.0f){reso = 0.0f;}		
+	// set filter param
+	set_voice_filter1_freq(fc, freq);
+	set_voice_filter1_reso(fc, reso);
+}
 
-	if(cent != 0) {coef *= pow(2.0, cent / 1200.0f);}
-
-	freq = (double)fc->orig_freq * coef;
-
-	if (freq > play_mode->rate / 2) {freq = play_mode->rate / 2;}
-	else if(freq < 5) {freq = 5;}
-	fc->freq = (int32)freq;
-
-	fc->reso_dB = fc->orig_reso_dB + channel[ch].resonance_dB + reso;
-	if(fc->reso_dB < 0.0f) {fc->reso_dB = 0.0f;}
-	else if(fc->reso_dB > 96.0f) {fc->reso_dB = 96.0f;}
-
-	if(fc->type == 1) {	/* Chamberlin filter */
-		if(fc->freq > play_mode->rate / 6) {
-			if (fc->start_flag == 0) {fc->type = 0;}	/* turn off. */ 
-			else {fc->freq = play_mode->rate / 6;}
-		}
-		if(fc->reso_dB > CHAMBERLIN_RESONANCE_MAX) {fc->reso_dB = CHAMBERLIN_RESONANCE_MAX;}
-	} else if(fc->type == 2) {	/* Moog VCF */
-		if(fc->reso_dB > fc->orig_reso_dB / 2) {
-			fc->gain = pow(10.0f, (fc->reso_dB - fc->orig_reso_dB / 2) / 20.0f);
-		}
+void init_voice_filter2(int v)
+{
+	Voice *vp = voice + v;
+	int ch = vp->channel, note = vp->note;
+	FilterCoefficients *fc = &vp->fc2;
+	Sample *sp = vp->sample;
+	FLOAT_T freq, reso;
+	
+#ifdef __W32__
+	if(IsBadReadPtr(sp, sizeof(Sample))){
+#else
+	if(sp == NULL || sp == -1l){
+#endif		
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "ERROR! ch:%d note:%d  sample null pointer.", ch, note);
+		fc->type = 0;
+		return;
 	}
-	fc->start_flag = 1;	/* filter is started. */
+
+	if(sp->hpf[0] >= 0)
+		set_voice_filter2_type(fc, sp->hpf[0]);
+	else if(opt_hpf_def)
+		set_voice_filter2_type(fc, opt_hpf_def);
+	else
+		set_voice_filter2_type(fc, 0);
+	if(fc->type == 0)
+		return;
+	set_voice_filter2_ext_rate(fc, 0); // set sample rate
+
+	if(sp->hpf[1] > 0)
+		freq = sp->hpf[1];
+	else
+		freq = 10.0;	
+	if(sp->hpf[2] > 0)
+		reso = (FLOAT_T)sp->hpf[2];
+	else
+		reso = 0.0;
+	// Resonace effect control 
+	reso *= voice_filter_reso;
+	// Spec limit (SoundFont Spec 2.01 , other Sampler
+	if(freq > VOICE_FILTER2_FREQ_MAX)	{freq = VOICE_FILTER2_FREQ_MAX;}
+	else if(freq < 10)	{freq = 10;}
+	if(reso > 96.0f)	{reso = 96.0f;}
+	else if(reso < 0.0f){reso = 0.0f;}
+	// set filter param
+	vp->hpf_orig_freq = freq;
+	vp->hpf_orig_reso = reso;
+	// optimize init
+	{
+		Channel *cp = channel + ch;
+		int val = 0; 
+	//	FLOAT_T cent = 0.0; 
+		FLOAT_T reso = 0.0;		
+		/* for Drum */
+		if(ISDRUMCHANNEL(ch) && cp->drums[note] != NULL) {
+			/* NRPN Drum Instrument HPF Cutoff */
+			val += cp->drums[note]->drum_hpf_cutoff_freq;
+		//	cent += (FLOAT_T)(cp->drums[note]->drum_hpf_cutoff_freq) * DIV_64 * nrpn_filter_freq;
+			/* NRPN Drum Instrument HPF Resonance */
+			reso += (FLOAT_T)cp->drums[note]->drum_hpf_resonance * DIV_64 * nrpn_filter_reso;
+		}
+		vp->init_hpf_val = val;
+	//	vp->init_hpf_cent = cent;
+		vp->init_hpf_reso = reso;
+	}
+}
+
+void init_voice_filter(int v)
+{
+	Voice *vp = voice + v;
+	int ch = vp->channel, note = vp->note;
+	FilterCoefficients *fc = &vp->fc;
+	Sample *sp = vp->sample;
+	FLOAT_T freq, reso;
+	
+#ifdef __W32__
+	if(IsBadReadPtr(sp, sizeof(Sample))){
+#else
+	if(sp == NULL || sp == -1l){
+#endif		
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "ERROR! ch:%d note:%d  sample null pointer.", ch, note);
+		fc->type = 0;
+		return;
+	}
+
+	if(sp->lpf_type >= 0)
+		set_voice_filter1_type(fc, sp->lpf_type);
+	else if(opt_lpf_def)
+		set_voice_filter1_type(fc, opt_lpf_def);
+	else
+		set_voice_filter1_type(fc, 0);
+	if(fc->type == 0)
+		return;
+	set_voice_filter1_ext_rate(fc, 0); // set sample rate
+	if(sp->cutoff_freq > 0)
+		freq = sp->cutoff_freq;
+	else
+		freq = 20000;
+	// SF2reso cB
+	reso = (FLOAT_T)sp->resonance * DIV_10;
+	// Resonace effect control 
+	reso *= voice_filter_reso;
+	// cutoff low limit	
+	if(sp->cutoff_low_limit < 0){
+		vp->lpf_freq_low_limit = VOICE_FILTER_FREQ_MIN; // update recompute_voice_filter()
+	}else{
+		double keyf = 1.0;
+		if(sp->cutoff_low_keyf)
+			keyf = POW2((double)(vp->note - 60) * (double)sp->cutoff_low_keyf * DIV_1200);	
+		vp->lpf_freq_low_limit = sp->cutoff_low_limit * keyf;
+	}
+	// Spec limit (SoundFont Spec 2.01 , other Sampler
+	if(freq > 20000)	{freq = 20000;}
+	else if(freq < VOICE_FILTER_FREQ_MIN)	{freq = VOICE_FILTER_FREQ_MIN;}
+	if(reso > 96.0f)	{reso = 96.0f;}
+	else if(reso < 0.0f){reso = 0.0f;}
+	// set filter param
+	vp->lpf_orig_freq = freq;
+	vp->lpf_orig_reso = reso;
+	// Filter gain control 
+	vp->lpf_gain = voice_filter_gain;
+	
+	// optimize init
+	{
+		int ch = vp->channel, note = vp->note;
+		Channel *cp = channel + ch;
+		int val = 0; 
+		FLOAT_T cent = 0.0; reso = 0.0;	
+		
+		/* for Drum */
+		if(ISDRUMCHANNEL(ch) && cp->drums[note] != NULL) {
+			/* NRPN Drum Instrument Filter Cutoff */
+			if(otd.filter_freq == 0)
+				val += cp->drums[note]->drum_cutoff_freq;
+			else
+				cent += (FLOAT_T)(cp->drums[note]->drum_cutoff_freq) * DIV_64 * nrpn_filter_freq;		
+			/* NRPN Drum Instrument Filter Resonance */
+			reso += (FLOAT_T)cp->drums[note]->drum_resonance * DIV_64 * nrpn_filter_reso;
+			/* Velocity LPF Cutoff Sense */
+			if(cp->drums[note]->drum_velo_cutoff_sens)
+			cent += (FLOAT_T)cp->drums[note]->drum_velo_cutoff_sens * DIV_16
+				* (FLOAT_T)vp->velocity * DIV_127 * 150.0; // -16~+16 max600cent
+		}
+		/* velocity to filter cutoff frequency */
+		if(sp->vel_to_fc) {	
+			if(vp->velocity > sp->vel_to_fc_threshold)
+				cent += (FLOAT_T)sp->vel_to_fc * ( (127.0 - (FLOAT_T)vp->velocity) * DIV_127);
+			else
+				cent += (FLOAT_T)sp->vel_to_fc * ( (127.0 - (FLOAT_T)sp->vel_to_fc_threshold) * DIV_127);
+		}
+		/* velocity to filter resonance */
+		if(sp->vel_to_resonance) {
+			reso += (FLOAT_T)vp->velocity * DIV_127 * DIV_10 * sp->vel_to_resonance;
+		}
+		/* filter cutoff key-follow */
+		if(sp->key_to_fc) {
+			cent += (FLOAT_T)sp->key_to_fc * (FLOAT_T)(vp->note - sp->key_to_fc_bpo);
+		}
+		vp->init_lpf_val = val;
+		vp->init_lpf_cent = cent;
+		vp->init_lpf_reso = reso;
+	}
+}
+
+void recompute_resample_filter(int v)
+{
+	Voice *vp = voice + v;
+	FilterCoefficients *fc = &vp->rf_fc;
+	FLOAT_T freq;
+	
+	if(!fc->type)
+		return;	
+	freq = vp->rs_sample_rate_root * (FLOAT_T)vp->frequency;  // rate/2 rate>0
+	if(freq > playmode_rate_div2) 
+		freq = playmode_rate_div2; // rate/2
+	set_resample_filter_freq(fc, freq);
+}
+
+void init_resample_filter(int v)
+{	
+	Voice *vp = voice + v;
+	Sample *sp = vp->sample;
+	FilterCoefficients *fc = &vp->rf_fc;
+	FLOAT_T freq;
+
+#ifdef INT_SYNTH
+	if(sp->inst_type == INST_MMS || sp->inst_type == INST_SCC){
+		set_resample_filter_type(fc, 0); // off
+		return;
+	}
+#endif
+	if(sp->sample_rate_org)
+		vp->rs_sample_rate_root = (FLOAT_T)sp->sample_rate_org * DIV_2 / (FLOAT_T)sp->root_freq_org;
+	else
+		vp->rs_sample_rate_root = (FLOAT_T)sp->sample_rate * DIV_2 / (FLOAT_T)sp->root_freq;
+	if(opt_resample_over_sampling)
+		set_resample_filter_ext_rate(fc, play_mode->rate * opt_resample_over_sampling); // set sample rate * n
+	else
+		set_resample_filter_ext_rate(fc, 0); // set sample rate
+	set_resample_filter_type(fc, opt_resample_filter);
 }
 
 float calc_drum_tva_level(int ch, int note, int level)
 {
 	int def_level, nbank, nprog;
 	ToneBank *bank;
+	int elm = 0;
 
 	if(channel[ch].special_sample > 0) {return 1.0;}
 
@@ -1259,8 +2461,11 @@ float calc_drum_tva_level(int ch, int note, int level)
 	} else {
 		return 1.0;
 	}
-
-	def_level = bank->tone[nprog].tva_level;
+///r
+	if(bank->tone[nprog][elm] == NULL)
+		def_level = -1;
+	else
+		def_level = bank->tone[nprog][elm]->tva_level;
 
 	if(def_level == -1 || def_level == 0) {def_level = 127;}
 	else if(def_level > 127) {def_level = 127;}
@@ -1268,10 +2473,42 @@ float calc_drum_tva_level(int ch, int note, int level)
 	return (sc_drum_level_table[level] / sc_drum_level_table[def_level]);
 }
 
+///r
+static int32 calc_emu_delay(MidiEvent *e)
+{
+	static int32 cnt = 0, ptime = -1;
+	static uint8 ch[MAX_CHANNELS * 128], note[MAX_CHANNELS * 128]; // note 0~127
+	int i, match;
+
+	if(ISDRUMCHANNEL(e->channel)) return 0;
+
+	if(e->time != ptime)
+		cnt = 0;
+	else
+		cnt++;
+	ptime = e->time;
+	ch[cnt] = e->channel;
+	note[cnt] = MIDI_EVENT_NOTE(e);
+
+	if(cnt == 0) return 0;
+
+	match = 0;
+	for(i = 0; i < cnt; i++)
+		if(ch[i] != ch[cnt] && note[i] == note[cnt])
+			match++;
+
+//	ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "emu_delay_time: %d : %d", match, test); // test
+
+	if(match == 0)  return 0;
+	return (int32)((FLOAT_T)match * playmode_rate_dms * emu_delay_time); // 0.1msec
+
+}
+
 static int32 calc_random_delay(int ch, int note)
 {
 	int nbank, nprog;
 	ToneBank *bank;
+	int elm = 0;
 
 	if(channel[ch].special_sample > 0) {return 0;}
 
@@ -1290,16 +2527,45 @@ static int32 calc_random_delay(int ch, int note)
 		if(bank == NULL) {bank = tonebank[0];}
 	}
 
-	if (bank->tone[nprog].rnddelay == 0) {return 0;}
-	else {return (int32)((double)bank->tone[nprog].rnddelay * play_mode->rate / 1000.0
+	if (bank->tone[nprog][elm] == NULL) {return 0;}
+	if (bank->tone[nprog][elm]->rnddelay == 0) {return 0;}
+	else {return (int32)((double)bank->tone[nprog][elm]->rnddelay * playmode_rate_ms
 		* (get_pink_noise_light(&global_pink_noise_light) + 1.0f) * 0.5);}
 }
 
-void recompute_bank_parameter(int ch, int note)
+static void recompute_bank_parameter_tone(int ch)
+{
+	int nbank, nprog;
+	ToneBank *bank;
+	int elm = 0;
+
+	if(channel[ch].special_sample > 0) {return;}
+	if(ISDRUMCHANNEL(ch)) {return;}
+	nbank = channel[ch].bank;
+	nprog = channel[ch].program;
+	if (nprog == SPECIAL_PROGRAM) {return;}
+	instrument_map(channel[ch].mapID, &nbank, &nprog);
+	bank = tonebank[nbank];
+	if (bank == NULL) {bank = tonebank[0];}
+
+	if(bank->tone[nprog][elm]){
+		if(channel[ch].legato == -1)
+			channel[ch].legato = bank->tone[nprog][elm]->legato;
+		channel[ch].damper_mode = bank->tone[nprog][elm]->damper_mode;
+		channel[ch].loop_timeout = bank->tone[nprog][elm]->loop_timeout;
+	}else{
+		channel[ch].legato = 0;
+		channel[ch].damper_mode = 0;
+		channel[ch].loop_timeout = 0;
+	}
+}
+
+static void recompute_bank_parameter_drum(int ch, int note)
 {
 	int nbank, nprog;
 	ToneBank *bank;
 	struct DrumParts *drum;
+	int elm = 0;
 
 	if(channel[ch].special_sample > 0) {return;}
 
@@ -1310,76 +2576,89 @@ void recompute_bank_parameter(int ch, int note)
 		instrument_map(channel[ch].mapID, &nbank, &nprog);
 		bank = drumset[nbank];
 		if (bank == NULL) {bank = drumset[0];}
-		if (channel[ch].drums[note] == NULL)
-				play_midi_setup_drums(ch, note);
+		if (channel[ch].drums[note] == NULL){
+			play_midi_setup_drums(ch, note);
+		}
 		drum = channel[ch].drums[note];
-		if (drum->reverb_level == -1 && bank->tone[nprog].reverb_send != -1) {
-			drum->reverb_level = bank->tone[nprog].reverb_send;
+		if(bank->tone[nprog][elm]){
+			if(drum->reverb_level == -1 && bank->tone[nprog][elm]->reverb_send != -1)
+				drum->reverb_level = bank->tone[nprog][elm]->reverb_send;
+			if(drum->chorus_level == -1 && bank->tone[nprog][elm]->chorus_send != -1)
+				drum->chorus_level = bank->tone[nprog][elm]->chorus_send;
+			if(drum->delay_level == -1 && bank->tone[nprog][elm]->delay_send != -1)
+				drum->delay_level = bank->tone[nprog][elm]->delay_send;
+			if (drum->rx_note_off == -1)
+				set_rx_drum(drum, RX_NOTE_OFF, bank->tone[nprog][elm]->rx_note_off);
 		}
-		if (drum->chorus_level == -1 && bank->tone[nprog].chorus_send != -1) {
-			drum->chorus_level = bank->tone[nprog].chorus_send;
-		}
-		if (drum->delay_level == -1 && bank->tone[nprog].delay_send != -1) {
-			drum->delay_level = bank->tone[nprog].delay_send;
-		}
-	} else {
-		nprog = channel[ch].program;
-		if (nprog == SPECIAL_PROGRAM) {return;}
-		instrument_map(channel[ch].mapID, &nbank, &nprog);
-		bank = tonebank[nbank];
-		if (bank == NULL) {bank = tonebank[0];}
-		channel[ch].legato = bank->tone[nprog].legato;
-		channel[ch].damper_mode = bank->tone[nprog].damper_mode;
-		channel[ch].loop_timeout = bank->tone[nprog].loop_timeout;
 	}
 }
 
-Instrument *play_midi_load_instrument(int dr, int bk, int prog)
+///r
+Instrument *play_midi_load_instrument(int dr, int bk, int prog, int elm, int *elm_max)
 {
 	ToneBank **bank = (dr) ? drumset : tonebank;
-	ToneBankElement *tone;
-	Instrument *ip;
+	ToneBankElement *tone, *tone0;
+	Instrument *ip = NULL;
 	int load_success = 0;
+	int tmp_num = 0;
 
 	if (bank[bk] == NULL)
 		alloc_instrument_bank(dr, bk);
-
-	tone = &bank[bk]->tone[prog];
+	
+	tone = bank[bk]->tone[prog][elm];
 	/* tone->name is NULL if "soundfont" directive is used, and ip is NULL when not preloaded */
 	/* dr: not sure but only drumsets are concerned at the moment */
-	if (dr && !tone->name && ((ip = tone->instrument) == MAGIC_LOAD_INSTRUMENT || ip == NULL)
-		  && (ip = load_instrument(dr, bk, prog)) != NULL) {
-		tone->instrument = ip;
-		tone->name = safe_strdup(DYNAMIC_INSTRUMENT_NAME);
-		load_success = 1;
-	} else if (tone->name) {
-		/* Instrument is found. */
-		if ((ip = tone->instrument) == MAGIC_LOAD_INSTRUMENT
-#ifndef SUPPRESS_CHANNEL_LAYER
-			|| ip == NULL	/* see also readmidi.c: groom_list(). */
-#endif
-		) {ip = tone->instrument = load_instrument(dr, bk, prog);}
-		if (ip == NULL || IS_MAGIC_INSTRUMENT(ip)) {
-			tone->instrument = MAGIC_ERROR_INSTRUMENT;
-		} else {
+	if(tone){
+		if (dr && !tone->name && ((ip = tone->instrument) == NULL)
+			  && (ip = load_instrument(dr, bk, prog, elm)) != NULL) {
+			tone->instrument = ip;
+			tone->name = safe_strdup(DYNAMIC_INSTRUMENT_NAME);
 			load_success = 1;
+			tmp_num = bank[bk]->tone[prog][0]->element_num;
+			goto end;
+		} else if (tone->name) {
+			/* Instrument is found. */
+			ip = tone->instrument;
+#ifndef SUPPRESS_CHANNEL_LAYER
+			if (ip == NULL){
+				ip = tone->instrument = load_instrument(dr, bk, prog, elm);
+			}
+#endif
+			if (ip == NULL || IS_MAGIC_INSTRUMENT(ip)) {
+				tone->instrument = MAGIC_ERROR_INSTRUMENT;
+			} else {
+				load_success = 1;
+				tmp_num = bank[bk]->tone[prog][0]->element_num;
+			}
+			goto end;
 		}
-	} else {
-		/* Instrument is not found.
-		   Try to load the instrument from bank 0 */
-		ToneBankElement *tone0 = &bank[0]->tone[prog];
-		if ((ip = tone0->instrument) == NULL
-			|| ip == MAGIC_LOAD_INSTRUMENT)
-			ip = tone0->instrument = load_instrument(dr, 0, prog);
+	}
+	/* Instrument is not found.
+		Try to load the instrument from bank 0 */
+	tone0 = bank[0]->tone[prog][elm];
+	if(tone0){
+		if ((ip = tone0->instrument) == NULL)
+			ip = tone0->instrument = load_instrument(dr, 0, prog, elm);
 		if (ip == NULL || IS_MAGIC_INSTRUMENT(ip)) {
 			tone0->instrument = MAGIC_ERROR_INSTRUMENT;
-		} else {
+		} else {	
+			if(tone == NULL){	
+				if(alloc_tone_bank_element(&bank[bk]->tone[prog][elm])){
+					ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "play_midi_load_instrument ToneBankElement malloc error ");
+					return NULL;
+				}
+				tone = bank[bk]->tone[prog][elm];
+			}
 			copy_tone_bank_element(tone, tone0);
 			tone->instrument = ip;
 			load_success = 1;
+			tmp_num = bank[0]->tone[prog][0]->element_num;
+			goto end;
 		}
 	}
-
+end:
+	if(elm_max)
+		*elm_max = tmp_num;
 	if (load_success)
 		aq_add(NULL, 0);	/* Update software buffer */
 
@@ -1388,6 +2667,7 @@ Instrument *play_midi_load_instrument(int dr, int bk, int prog)
 
 	return ip;
 }
+
 
 #if 0
 /* reduce_voice_CPU() may not have any speed advantage over reduce_voice().
@@ -1520,48 +2800,7 @@ static int reduce_voice_CPU(void)
 	cut_notes++;
 	return lowest;
     }
-
-    /* try to remove chorus before VOICE_ON */
-    lv = 0x7FFFFFFF;
-    lowest = -0x7FFFFFFF;
-    for(j = 0; j < i; j++)
-    {
-      if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
-	    continue;
-      if(voice[j].chorus_link < j)
-      {
-	/* score notes based on both volume AND duration */
-	/* this scoring function needs some more tweaking... */
-	if (voice[j].sample->modes & MODES_LOOPING)
-	    duration = voice[j].sample_offset - voice[j].sample->loop_start;
-	else
-	    duration = voice[j].sample_offset;
-	if (voice[j].sample_increment > 0)
-	    duration /= voice[j].sample_increment;
-	v = voice[j].left_mix * duration;
-	vr = voice[j].right_mix * duration;
-	if(voice[j].panned == PANNED_MYSTERY && vr > v)
-	    v = vr;
-	if(v < lv)
-	{
-	    lv = v;
-	    lowest = j;
-	}
-      }
-    }
-    if(lowest != -0x7FFFFFFF)
-    {
-	cut_notes++;
-
-	/* fix pan */
-	j = voice[lowest].chorus_link;
-    	voice[j].panning = channel[voice[lowest].channel].panning;
-    	recompute_amp(j);
-    	apply_envelope_to_amp(j);
-
-	return lowest;
-    }
-
+	
     lost_notes++;
 
     /* try to remove non-looping voices first */
@@ -1728,43 +2967,7 @@ static int reduce_voice(void)
 	    ctl_note_event(lowest);
 	return lowest;
     }
-
-    /* try to remove chorus before VOICE_ON */
-    lv = 0x7FFFFFFF;
-    lowest = -0x7FFFFFFF;
-    for(j = 0; j < i; j++)
-    {
-      if(voice[j].status & VOICE_FREE)
-	    continue;
-      if(voice[j].chorus_link < j)
-      {
-	/* find lowest volume */
-	v = voice[j].left_mix;
-	if(voice[j].panned == PANNED_MYSTERY && voice[j].right_mix > v)
-	    v = voice[j].right_mix;
-	if(v < lv)
-	{
-	    lv = v;
-	    lowest = j;
-	}
-      }
-    }
-    if(lowest != -0x7FFFFFFF)
-    {
-	cut_notes++;
-
-	/* fix pan */
-	j = voice[lowest].chorus_link;
-    	voice[j].panning = channel[voice[lowest].channel].panning;
-    	recompute_amp(j);
-    	apply_envelope_to_amp(j);
-
-	free_voice(lowest);
-	if(!prescanning_flag)
-	    ctl_note_event(lowest);
-	return lowest;
-    }
-
+	
     lost_notes++;
 
     /* remove non-drum VOICE_ON */
@@ -1820,24 +3023,27 @@ static int reduce_voice(void)
 
 void free_voice(int v1)
 {
-    int v2;
-
-#ifdef ENABLE_PAN_DELAY
-	if (voice[v1].pan_delay_buf != NULL) {
-		free(voice[v1].pan_delay_buf);
-		voice[v1].pan_delay_buf = NULL;
-	}
-#endif /* ENABLE_PAN_DELAY */
-
-    v2 = voice[v1].chorus_link;
-    if(v1 != v2)
-    {
-	/* Unlink chorus link */
-	voice[v1].chorus_link = v1;
-	voice[v2].chorus_link = v2;
-    }
     voice[v1].status = VOICE_FREE;
     voice[v1].temper_instant = 0;
+}
+
+///r
+void free_voices(void)
+{
+	int i;
+
+//	free_int_synth();
+	if (voice) {
+		for(i = 0; i < max_voices; i++) {
+#ifdef VOICE_EFFECT
+			uninit_voice_effect(i);
+#endif
+			free_voice(i);
+		}
+	}
+
+	safe_free(voice);
+	voice = NULL;
 }
 
 static int find_free_voice(void)
@@ -1881,11 +3087,14 @@ static int find_free_voice(void)
     return lowest;
 }
 
+
+///r
 static int find_samples(MidiEvent *e, int *vlist)
 {
-	int i, j, ch, bank, prog, note, nv;
+	int i, j, ch, bank, prog, note = -1, noteo = -1, nv = 0, nvo = 0, nvt = 0; // nv
 	SpecialPatch *s;
 	Instrument *ip;
+	int elm, elm_max = 0;
 	
 	ch = e->channel;
 	if (channel[ch].special_sample > 0) {
@@ -1897,34 +3106,105 @@ static int find_samples(MidiEvent *e, int *vlist)
 		}
 		note = e->a + channel[ch].key_shift + note_key_offset;
 		note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
-		return select_play_sample(s->sample, s->samples, &note, vlist, e);
+		return select_play_sample(s->sample, s->samples, &note, vlist, e, nv);
 	}
 	bank = channel[ch].bank;
 	if (ISDRUMCHANNEL(ch)) {
+		ip = NULL;
 		note = e->a & 0x7f;
 		instrument_map(channel[ch].mapID, &bank, &note);
-		if (! (ip = play_midi_load_instrument(1, bank, note)))
-			return 0;	/* No instrument? Then we can't play. */
+		noteo = note;
+//		for(elm = 0; elm < drumset[bank]->tone[note][0].element_num + 1; elm++){
+//		for (elm = 0; drumset[bank] && elm < drumset[bank]->tone[note][0].element_num + 1; elm++) {
+//		for(elm = 0; elm < MAX_ELEMENT; elm++){
+		for(elm = 0; elm <= elm_max; elm++){			
+			ip = NULL;
+			if (! (ip = play_midi_load_instrument(1, bank, note, elm, &elm_max))) // change elm_max
+				if(elm == 0)
+					return 0;	/* No instrument? Then we can't play. */	
+				else
+					break;
 		/* if (ip->type == INST_GUS && ip->samples != 1)
 			ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
 					"Strange: percussion instrument with %d samples!",
 					ip->samples); */
 		/* "keynum" of SF2, and patch option "note=" */
-		if (ip->sample->note_to_use)
-			note = ip->sample->note_to_use;
-	} else {
-		if ((prog = channel[ch].program) == SPECIAL_PROGRAM)
-			ip = default_instrument;
-		else {
-			instrument_map(channel[ch].mapID, &bank, &prog);
-			if (! (ip = play_midi_load_instrument(0, bank, prog)))
-				return 0;	/* No instrument? Then we can't play. */
+			if (ip->sample->note_to_use)
+				note = ip->sample->note_to_use;
+			nvo = nv;
+			nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv);
+			nvt += nv;
+			/* Replace the sample if the sample is cached. */
+			if (! prescanning_flag) {
+				if (ip->sample->note_to_use)
+					note = MIDI_EVENT_NOTE(e);
+				for (i = nvo; i < nv; i++) { // i = 0
+					j = vlist[i];
+					if (! opt_realtime_playing && allocate_cache_size > 0
+							&& ! channel[ch].portamento) {
+						voice[j].cache = resamp_cache_fetch(voice[j].sample, note);
+						if (voice[j].cache)	/* cache hit */
+							voice[j].sample = voice[j].cache->resampled;
+					} else
+						voice[j].cache = NULL;
+				}
+			}
+			note = noteo;
 		}
-		note = ((ip->sample->note_to_use) ? ip->sample->note_to_use : e->a)
-				+ channel[ch].key_shift + note_key_offset;
+//		if (!ip)
+//			return 0;	/* No instrument? Then we can't play. */
+	} else if ((prog = channel[ch].program) == SPECIAL_PROGRAM){
+		ip = default_instrument;
+		note = ((ip->sample->note_to_use) ? ip->sample->note_to_use : e->a) + channel[ch].key_shift + note_key_offset;
 		note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
+		nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv);
+		nvt += nv;
+	} else {
+		instrument_map(channel[ch].mapID, &bank, &prog);
+//		for(elm = 0; elm < tonebank[bank]->tone[prog][0].element_num + 1; elm++){
+//		for(elm = 0; tonebank[bank] && elm < tonebank[bank]->tone[prog][0].element_num + 1; elm++){
+//		for(elm = 0; elm < MAX_ELEMENT; elm++){
+		for(elm = 0; elm <= elm_max; elm++){
+			ip = NULL;
+			if (! (ip = play_midi_load_instrument(0, bank, prog, elm, &elm_max))) // change elm_max
+				if(elm == 0)
+					return 0;	/* No instrument? Then we can't play. */	
+				else
+					break;
+			note = ((ip->sample->note_to_use) ? ip->sample->note_to_use : e->a) + channel[ch].key_shift + note_key_offset;
+			note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
+			nvo = nv;
+			nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv);
+			nvt += nv;
+			/* Replace the sample if the sample is cached. */
+			if (! prescanning_flag) {
+				if (ip->sample->note_to_use)
+					note = MIDI_EVENT_NOTE(e);
+				for (i = nvo; i < nv; i++) { // i = 0
+					j = vlist[i];
+					if (! opt_realtime_playing && allocate_cache_size > 0
+							&& ! channel[ch].portamento) {
+						voice[j].cache = resamp_cache_fetch(voice[j].sample, note);
+						if (voice[j].cache)	/* cache hit */
+							voice[j].sample = voice[j].cache->resampled;
+					} else
+						voice[j].cache = NULL;
+				}
+			}
+		}
+//		if(!nvt)
+		if(nvt == 0)
+			ctl->cmsg(CMSG_WARNING, VERB_NOISY, "Strange: ch %d note %d can't select play sample.", ch, e->a);
+//		if (!ip)
+//			return 0;	/* No instrument? Then we can't play. */
 	}
-	nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e);
+/*
+for(elm が追加されたことで ip の有効範囲はループ内になったのでキャッシュ置換も中に入れる必要ができた
+noteo : note_to_use で変更された場合 for(elm 条件に影響する？
+nvo : ip と対応する vlist の nv の範囲を指定する必要がある
+elm_max : 未定義バンクの場合,代替先バンクのelement_numが必要なのでplay_midi_load_instrument()内で更新
+*/
+#if 0
 	/* Replace the sample if the sample is cached. */
 	if (! prescanning_flag) {
 		if (ip->sample->note_to_use)
@@ -1940,11 +3220,12 @@ static int find_samples(MidiEvent *e, int *vlist)
 				voice[j].cache = NULL;
 		}
 	}
+#endif
 	return nv;
 }
-
+///r
 static int select_play_sample(Sample *splist,
-		int nsp, int *note, int *vlist, MidiEvent *e)
+		int nsp, int *note, int *vlist, MidiEvent *e, int nv)
 {
 	int ch = e->channel, kn = e->a & 0x7f, vel = e->b;
 	int32 f, fs, ft, fst, fc, fr, cdiff, diff, sample_link;
@@ -1953,11 +3234,12 @@ static int select_play_sample(Sample *splist,
 	Sample *sp, *spc, *spr;
 	int16 sf, sn;
 	double ratio;
-	int i, j, k, nv, nvc;
+	int i, j, k, nvc, nvo = nv;
 	
-	if (ISDRUMCHANNEL(ch))
-		f = fs = freq_table[*note];
-	else {
+	if (ISDRUMCHANNEL(ch)){
+		f = freq_table[*note];
+	//	fs = f;
+	}else {
 		if (opt_pure_intonation) {
 			if (current_keysig < 8)
 				f = freq_table_pureint[current_freq_table][*note];
@@ -2008,18 +3290,62 @@ static int select_play_sample(Sample *splist,
 			f = freq_table[*note];
 		if (! opt_pure_intonation && opt_temper_control
 				&& tt == 0 && f != freq_table[*note]) {
-			*note = log(f / 440000.0) / log(2) * 12 + 69.5;
+			*note = log(f / 440000.0) * DIV_LN2 * 12 + 69.5;
 			*note = (*note < 0) ? 0 : ((*note > 127) ? 127 : *note);
-			fs = freq_table[*note];
-		} else
-			fs = freq_table[*note];
+		//	fs = freq_table[*note];
+		}
+		//else
+		//	fs = freq_table[*note];
 	}
-	nv = 0;
+#if 0 // random vel
+	{
+		int32 rvel, rnd = rand(), flg = rnd & 0x1000, ofs = rnd & 0x7;
+		rvel = flg ? (vel - ofs) : (vel + ofs);
+		if(rvel > 127)
+			rvel = vel - ofs;
+		else if(rvel < 0)
+			rvel = vel + ofs;
+		vel = rvel;
+	}
+#endif
+#if 1
+/*
+サンプル指定は ノーナンバー,ベロシティ が各レンジ内にあるもの全て
+次に指定のサンプル設定(scale_factor)を元に再生周波数を指定
+*/
+	for (i = 0, sp = splist; i < nsp; i++, sp++) {
+		if (((sp->low_key <= *note && sp->high_key >= *note))
+			&& sp->low_vel <= vel && sp->high_vel >= vel) {	
+			/* GUS/SF2 - Scale Tuning */
+			if ((sf = sp->scale_factor) != 1024) {
+				sn = sp->scale_freq;
+				ratio = pow(2.0, (double)((*note - sn) * (sf - 1024)) * DIV_12288);
+				ft = f * ratio + 0.5;
+			} else
+				ft = f;
+			if (ISDRUMCHANNEL(ch) && channel[ch].drums[kn] != NULL)
+				if ((ratio = get_play_note_ratio(ch, kn)) != 1.0)
+					ft = ft * ratio + 0.5;
+			j = vlist[nv] = find_voice(e);
+			voice[j].orig_frequency = ft;
+			MYCHECK(voice[j].orig_frequency);
+			voice[j].sample = sp;
+			voice[j].status = VOICE_ON;
+			nv++;
+		}
+	}
+	// move to find_samples() (for add_elm
+	//if(nv == 0)
+	//	ctl->cmsg(CMSG_WARNING, VERB_NOISY, 
+	//		"Strange: ch %d note %d can't select play sample.", ch, *note);
+	return nv;
+#else
+//	nv = 0;	
 	for (i = 0, sp = splist; i < nsp; i++, sp++) {
 		/* GUS/SF2 - Scale Tuning */
 		if ((sf = sp->scale_factor) != 1024) {
 			sn = sp->scale_freq;
-			ratio = pow(2.0, (*note - sn) * (sf - 1024) / 12288.0);
+			ratio = pow(2.0, (double)((*note - sn) * (sf - 1024)) * DIV_12288);
 			ft = f * ratio + 0.5, fst = fs * ratio + 0.5;
 		} else
 			ft = f, fst = fs;
@@ -2046,7 +3372,7 @@ static int select_play_sample(Sample *splist,
 			/* GUS/SF2 - Scale Tuning */
 			if ((sf = sp->scale_factor) != 1024) {
 				sn = sp->scale_freq;
-				ratio = pow(2.0, (*note - sn) * (sf - 1024) / 12288.0);
+				ratio = pow(2.0, (double)((*note - sn) * (sf - 1024)) * DIV_12288);
 				ft = f * ratio + 0.5, fst = fs * ratio + 0.5;
 			} else
 				ft = f, fst = fs;
@@ -2076,7 +3402,7 @@ static int select_play_sample(Sample *splist,
 		nv++;
 	}
 	nvc = nv;
-	for (i = 0; i < nvc; i++) {
+	for (i = nvo; i < nvc; i++) { // i = 0
 		spc = voice[vlist[i]].sample;
 		/* If it's left sample, there must be right sample. */
 		if (spc->inst_type == INST_SF2
@@ -2090,7 +3416,7 @@ static int select_play_sample(Sample *splist,
 					/* GUS/SF2 - Scale Tuning */
 					if ((sf = sp->scale_factor) != 1024) {
 						sn = sp->scale_freq;
-						ratio = pow(2.0, (*note - sn) * (sf - 1024) / 12288.0);
+						ratio = pow(2.0, (double)((*note - sn) * (sf - 1024)) * DIV_12288);
 						ft = f * ratio + 0.5;
 					} else
 						ft = f;
@@ -2108,6 +3434,7 @@ static int select_play_sample(Sample *splist,
 		}
 	}
 	return nv;
+#endif
 }
 
 static double get_play_note_ratio(int ch, int note)
@@ -2116,12 +3443,15 @@ static double get_play_note_ratio(int ch, int note)
 	int bank = channel[ch].bank;
 	ToneBank *dbank;
 	int def_play_note;
+	int elm = 0;
 	
 	if (play_note == -1)
 		return 1.0;
 	instrument_map(channel[ch].mapID, &bank, &note);
 	dbank = (drumset[bank]) ? drumset[bank] : drumset[0];
-	if ((def_play_note = dbank->tone[note].play_note) == -1)
+	if(dbank->tone[note][elm] == NULL)
+		return 1.0;
+	if ((def_play_note = dbank->tone[note][elm]->play_note) == -1)
 		return 1.0;
 	if (play_note >= def_play_note)
 		return bend_coarse[(play_note - def_play_note) & 0x7f];
@@ -2129,40 +3459,66 @@ static double get_play_note_ratio(int ch, int note)
 		return 1 / bend_coarse[(def_play_note - play_note) & 0x7f];
 }
 
+///r
+/*
+kill_note(i); // cut sustain
+finish_note(i); // drop sustain ? NOTE_OFF ?
+cut_note(i) // cut short release // altassign,mono
+cut_note2(i) // cut short release // overlaped voice
+*/
+static void voice_control(MidiEvent *e)
+{
+	int i;
+	int ch = e->channel;
+	int note = MIDI_EVENT_NOTE(e);
+	int mono_check = channel[ch].mono;
+	AlternateAssign *altassign = find_altassign(channel[ch].altassign, note);
+	
+	for (i = 0; i < upper_voices; i++){
+		if (voice[i].status == VOICE_FREE || voice[i].channel != ch)
+			continue;
+#if 1 // opt_max_channel_voices
+		if (voice[i].channel_voice_count > 0)
+			voice[i].channel_voice_count--;
+		else
+			cut_note2(i);
+#endif
+		if (!opt_overlap_voice_allow) {
+			// overlap_voice OFF
+			if(voice[i].note == note)
+				kill_note(i);
+			else if (altassign && find_altassign(altassign, voice[i].note))
+				kill_note(i);
+			else if (mono_check)
+				kill_note(i);
+		}
+		else if (altassign && find_altassign(altassign, voice[i].note))
+			cut_note(i);
+		else if (mono_check)
+			cut_note(i);
+		else if (voice[i].note != note || channel[ch].assign_mode == 2)
+			continue;
+		else if (channel[ch].assign_mode == 0)
+			cut_note(i);
+		else if (channel[ch].assign_mode == 1){
+			if (voice[i].overlap_count > 0)
+				voice[i].overlap_count--;
+			else
+				cut_note2(i);
+		}		
+	}
+}
+
 /* Only one instance of a note can be playing on a single channel. */
 static int find_voice(MidiEvent *e)
 {
-	int ch = e->channel;
-	int note = MIDI_EVENT_NOTE(e);
-	int status_check, mono_check;
-	AlternateAssign *altassign;
 	int i, lowest = -1;
-	
-	status_check = (opt_overlap_voice_allow)
-			? (VOICE_OFF | VOICE_SUSTAINED) : 0xff;
-	mono_check = channel[ch].mono;
-	altassign = find_altassign(channel[ch].altassign, note);
+
 	for (i = 0; i < upper_voices; i++)
 		if (voice[i].status == VOICE_FREE) {
 			lowest = i;	/* lower volume */
 			break;
 		}
-	for (i = 0; i < upper_voices; i++)
-		if (voice[i].status != VOICE_FREE && voice[i].channel == ch) {
-			if (voice[i].note == note && (voice[i].status & status_check))
-				kill_note(i);
-			else if (mono_check)
-				kill_note(i);
-			else if (altassign && find_altassign(altassign, voice[i].note))
-				kill_note(i);
-			else if (voice[i].note == note && (channel[ch].assign_mode == 0
-					|| (channel[ch].assign_mode == 1 &&
-					    voice[i].proximate_flag == 0)))
-				kill_note(i);
-		}
-	for (i = 0; i < upper_voices; i++)
-		if (voice[i].channel == ch && voice[i].note == note)
-			voice[i].proximate_flag = 0;
 	if (lowest != -1)	/* Found a free voice. */
 		return lowest;
 	if (upper_voices < voices)
@@ -2170,6 +3526,19 @@ static int find_voice(MidiEvent *e)
 	return reduce_voice();
 }
 
+///r
+// DIV_12288 = 1.0 / (double)(12 * (1 << 10)); 
+int32 get_note_freq(Sample *sp, int note)
+{	
+	/* GUS/SF2 - Scale Tuning */
+	if (sp->scale_factor != 1024) {
+		double ratio = pow(2.0, (double)((note - sp->scale_freq) * (sp->scale_factor - 1024)) * DIV_12288);
+		return (int32)((double)freq_table[note] * ratio + 0.5);
+	}else
+		return freq_table[note];
+}
+
+#if 0
 int32 get_note_freq(Sample *sp, int note)
 {
 	int32 f;
@@ -2185,111 +3554,148 @@ int32 get_note_freq(Sample *sp, int note)
 	}
 	return f;
 }
+#endif
 
-static int get_panning(int ch, int note,int v)
+
+static void update_modulation_wheel(int ch)
 {
-    int pan;
-
-	if(channel[ch].panning != NO_PANNING) {pan = (int)channel[ch].panning - 64;}
-	else {pan = 0;}
-	if(ISDRUMCHANNEL(ch) &&
-	 channel[ch].drums[note] != NULL &&
-	 channel[ch].drums[note]->drum_panning != NO_PANNING) {
-		pan += channel[ch].drums[note]->drum_panning;
-	} else {
-		pan += voice[v].sample->panning;
-	}
-
-	if (pan > 127) pan = 127;
-	else if (pan < 0) pan = 0;
-
-	return pan;
+	recompute_channel_lfo(ch);
+	recompute_channel_amp(ch);
+	recompute_channel_filter(ch);
+	recompute_channel_pitch(ch);
+//   int i, uv = upper_voices;
+//    for(i = 0; i < uv; i++)
+//	if(voice[i].status != VOICE_FREE && voice[i].channel == ch)
+//	{
+//	    /* Set/Reset mod-wheel */
+////		voice[i].vibrato_control_counter = voice[i].vibrato_phase = 0; //elion comment out
+//	    recompute_amp(i);
+//		apply_envelope_to_amp(i);
+//	    recompute_freq(i);
+//		recompute_voice_filter(i);
+//	}
 }
 
-/*! initialize vibrato parameters for a voice. */
-static void init_voice_vibrato(int v)
+
+#ifdef NEW_LEGATO
+static void drop_portamento(int ch)
 {
-	Voice *vp = &(voice[v]);
-	int ch = vp->channel, j, nrpn_vib_flag;
-	double ratio;
+    int i, uv = upper_voices;
 
-	/* if NRPN vibrato is set, it's believed that there must be vibrato. */
-	nrpn_vib_flag = opt_nrpn_vibrato
-		&& (channel[ch].vibrato_ratio != 1.0 || channel[ch].vibrato_depth != 0);
-	
-	/* vibrato sweep */
-	vp->vibrato_sweep = vp->sample->vibrato_sweep_increment;
-	vp->vibrato_sweep_position = 0;
+    channel[ch].porta_status = 0;
+    for(i = 0; i < uv; i++)
+	if(voice[i].status != VOICE_FREE &&
+	   voice[i].channel == ch &&
+	   voice[i].porta_status)
+	{
+	    voice[i].porta_status = 0;
+	//    recompute_freq(i);
+		recompute_voice_pitch(i);
+	}
+	//channel[ch].porta_last_note_fine = -1;
+}
 
-	/* vibrato rate */
-	if (nrpn_vib_flag) {
-		if(vp->sample->vibrato_control_ratio == 0) {
-			ratio = cnv_Hz_to_vib_ratio(5.0) * channel[ch].vibrato_ratio;
-		} else {
-			ratio = (double)vp->sample->vibrato_control_ratio * channel[ch].vibrato_ratio;
-		}
-		if (ratio < 0) {ratio = 0;}
-		vp->vibrato_control_ratio = (int)ratio;
+static void update_portamento_controls(int ch)
+{
+    if(!channel[ch].portamento && channel[ch].portamento_control == -1){
+	//	|| (channel[ch].portamento_time_msb | channel[ch].portamento_time_lsb) == 0){
+		if(channel[ch].porta_status)
+			drop_portamento(ch);
 	} else {
-		vp->vibrato_control_ratio = vp->sample->vibrato_control_ratio;
+#if 1 // use portament_time_table		
+		double st = portament_time_table_xg[channel[ch].portamento_time_msb & 0x7F];
+		channel[ch].porta_dpb = st * PORTAMENTO_CONTROL_RATIO * div_playmode_rate;
+#else
+		const double tuning = PORTAMENTO_TIME_TUNING * 256.0 * 256.0;
+		double mt, st;
+		mt = midi_time_table[channel[ch].portamento_time_msb & 0x7F] *
+			midi_time_table2[channel[ch].portamento_time_lsb & 0x7F] * tuning;
+		st = (double)1000.0 / mt; // semitone/sec
+		channel[ch].porta_dpb = st * PORTAMENTO_CONTROL_RATIO * div_playmode_rate;
+#endif
+	//	channel[ch].porta_status = 1;
+    }
+}
+
+static void update_portamento_time(int ch)
+{
+    int i, uv = upper_voices;
+    int dpb;
+    int32 ratio;
+
+    update_portamento_controls(ch);
+    dpb = channel[ch].porta_dpb;
+    //ratio = channel[ch].porta_status;
+
+    for(i = 0; i < uv; i++)
+    {
+	if(voice[i].status != VOICE_FREE &&
+	   voice[i].channel == ch &&
+	   voice[i].porta_status)
+	{
+	 //   voice[i].porta_status = ratio;
+	    voice[i].porta_dpb = dpb;
+	//    recompute_freq(i);
+	//	recompute_voice_pitch(i);
 	}
-	
-	/* vibrato depth */
-	if (nrpn_vib_flag) {
-		vp->vibrato_depth = vp->sample->vibrato_depth + channel[ch].vibrato_depth;
-		if (vp->vibrato_depth > VIBRATO_DEPTH_MAX) {vp->vibrato_depth = VIBRATO_DEPTH_MAX;}
-		else if (vp->vibrato_depth < 1) {vp->vibrato_depth = 1;}
-		if (vp->sample->vibrato_depth < 0) {	/* in opposite phase */
-			vp->vibrato_depth = -vp->vibrato_depth;
-		}
-	} else {
-		vp->vibrato_depth = vp->sample->vibrato_depth;
+    }
+}
+
+static void drop_legato(int ch)
+{
+    int i, uv = upper_voices;
+
+    channel[ch].legato_status = 0;
+	if(channel[ch].legato_note > 127)
+		return;
+    for(i = 0; i < uv; i++)
+	if(voice[i].status != VOICE_FREE &&
+	   voice[i].channel == ch &&
+	   voice[i].note == channel[ch].legato_note)
+	{
+	    voice[i].porta_status = 0;
+	    cut_note(i);
+	//    recompute_freq(i);
+	//	recompute_voice_pitch(i);
 	}
-	
-	/* vibrato delay */
-	vp->vibrato_delay = vp->sample->vibrato_delay + channel[ch].vibrato_delay;
-	
-	/* internal parameters */
-	vp->orig_vibrato_control_ratio = vp->vibrato_control_ratio;
-	vp->vibrato_control_counter = vp->vibrato_phase = 0;
-	for (j = 0; j < VIBRATO_SAMPLE_INCREMENTS; j++) {
-		vp->vibrato_sample_increment[j] = 0;
+	channel[ch].legato_note = 255;
+	channel[ch].legato_flag = 0;
+}
+
+static void update_legato_status(int ch)
+{
+	if(channel[ch].legato <= 0){
+		if(channel[ch].legato_status)
+			drop_legato(ch);
+	}else{
+#if 1
+	//	const double ss = 4069.0104166666670; // semitone / sec
+		const double ss = 12000.0; // semitone / sec
+		channel[ch].porta_dpb = ss * PORTAMENTO_CONTROL_RATIO * div_playmode_rate;
+#else
+		const double st = 1.0 / 0.06250 * PORTAMENTO_TIME_TUNING * 0.3 * 256.0 * 256;
+		double st = (double)1.0 / mt; // semitone / ms
+		channel[ch].porta_dpb = st * PORTAMENTO_CONTROL_RATIO * 1000.0 * div_playmode_rate;
+#endif
+		//channel[ch].porta_status = 1;
 	}
 }
 
-/*! initialize panning-delay for a voice. */
-static void init_voice_pan_delay(int v)
+/*! update legato for a voice. */
+static void update_voice_legato(int ch)
 {
-#ifdef ENABLE_PAN_DELAY
-	Voice *vp = &(voice[v]);
-	int ch = vp->channel;
-	double pan_delay_diff; 
+	int i;
 
-	if (vp->pan_delay_buf != NULL) {
-		free(vp->pan_delay_buf);
-		vp->pan_delay_buf = NULL;
-	}
-	vp->pan_delay_rpt = 0;
-	if (opt_pan_delay && channel[ch].insertion_effect == 0 && !opt_surround_chorus) {
-		if (vp->panning == 64) {vp->delay += pan_delay_table[64] * play_mode->rate / 1000;}
-		else {
-			if(pan_delay_table[vp->panning] > pan_delay_table[127 - vp->panning]) {
-				pan_delay_diff = pan_delay_table[vp->panning] - pan_delay_table[127 - vp->panning];
-				vp->delay += (pan_delay_table[vp->panning] - pan_delay_diff) * play_mode->rate / 1000;
-			} else {
-				pan_delay_diff = pan_delay_table[127 - vp->panning] - pan_delay_table[vp->panning];
-				vp->delay += (pan_delay_table[127 - vp->panning] - pan_delay_diff) * play_mode->rate / 1000;
-			}
-			vp->pan_delay_rpt = pan_delay_diff * play_mode->rate / 1000;
+	for(i = 0; i < upper_voices; i++){
+		if(voice[i].status != VOICE_FREE &&
+			voice[i].channel == ch &&
+			voice[i].note == channel[ch].legato_note){
+			voice[i].porta_next_pb = channel[ch].porta_next_pb;
+			voice[i].porta_dpb = channel[ch].porta_dpb;	
+			if(voice[i].porta_pb != voice[i].porta_next_pb)
+				voice[i].porta_status = 1;
 		}
-		if(vp->pan_delay_rpt < 1) {vp->pan_delay_rpt = 0;}
-		vp->pan_delay_wpt = 0;
-		vp->pan_delay_spt = vp->pan_delay_wpt - vp->pan_delay_rpt;
-		if (vp->pan_delay_spt < 0) {vp->pan_delay_spt += PAN_DELAY_BUF_MAX;}
-		vp->pan_delay_buf = (int32 *)safe_malloc(sizeof(int32) * PAN_DELAY_BUF_MAX);
-		memset(vp->pan_delay_buf, 0, sizeof(int32) * PAN_DELAY_BUF_MAX);
-	}
-#endif	/* ENABLE_PAN_DELAY */
+	}	
 }
 
 /*! initialize portamento or legato for a voice. */
@@ -2298,127 +3704,818 @@ static void init_voice_portamento(int v)
 	Voice *vp = &(voice[v]);
 	int ch = vp->channel;
 
-  vp->porta_control_counter = 0;
-  if(channel[ch].legato && channel[ch].legato_flag) {
-	  update_legato_controls(ch);
-  } else if(channel[ch].portamento && !channel[ch].porta_control_ratio) {
-      update_portamento_controls(ch);
-  }
-  vp->porta_control_ratio = 0;
-  if(channel[ch].porta_control_ratio)
-  {
-      if(channel[ch].last_note_fine == -1) {
-	  /* first on */
-	  channel[ch].last_note_fine = vp->note * 256;
-	  channel[ch].porta_control_ratio = 0;
-      } else {
-	  vp->porta_control_ratio = channel[ch].porta_control_ratio;
-	  vp->porta_dpb = channel[ch].porta_dpb;
-	  vp->porta_pb = channel[ch].last_note_fine -
-	      vp->note * 256;
-	  if(vp->porta_pb == 0) {vp->porta_control_ratio = 0;}
-      }
-  }
+	vp->porta_status = 0;
+	vp->porta_out = 0;
+	if(!opt_portamento)
+		return;
+	if(channel[ch].porta_status || channel[ch].legato_flag) {
+		vp->porta_note_fine = channel[ch].porta_note_fine;
+		vp->porta_next_pb = channel[ch].porta_next_pb;
+		vp->porta_dpb = channel[ch].porta_dpb;
+		vp->porta_pb = channel[ch].porta_pb;		
+		if(vp->porta_pb != vp->porta_next_pb)
+			vp->porta_status = 1;
+	}
 }
 
-/*! initialize tremolo for a voice. */
-static void init_voice_tremolo(int v)
+static int note_off_legato(MidiEvent *e)
+{
+	int i, ch = e->channel, note = MIDI_EVENT_NOTE(e);
+	int count, max = 0, fnote = -1;
+	
+// -2:return finish_note()しない
+// -1:thru finish_note()する
+// 0<=:change note finish_note()する
+	if(!channel[ch].legato_status){
+		channel[ch].legato_flag = 0;
+		return -1; // thru
+	}
+	count = channel[ch].legato_hist[note];		
+	if(!count) 
+		return -1; // thru
+	channel[ch].legato_hist[note] = 0; // clear flag	
+	if(note == channel[ch].legato_note)
+		ctl_note_event2(ch, note, VOICE_SUSTAINED, channel[ch].legato_velo); // legatoの基準ノートなので表示残しておく
+	else
+		ctl_note_event2(ch, note, VOICE_FREE, channel[ch].legato_velo);
+#if 0 // 残っている最近のノートへピッチ変更
+	for (i = 0; i < 128; i++){
+		if(channel[ch].legato_hist[i] > count) // 今note_offしたnoteがnoteonしたときより後にnoteonしたnoteを探す
+			return -2; // finish_note()しない
+		if(channel[ch].legato_hist[i] > max){ // 今note_offしたnoteがnoteonしたときより前にnoteonした最近のnoteを探す
+			max = channel[ch].legato_hist[i];
+			fnote = i;
+		}
+	}
+	if(fnote != -1){ // noteがある場合		
+		uint8 pnote = channel[ch].legato_last_note;
+		channel[ch].legato_last_note = fnote;
+		channel[ch].porta_next_pb = fnote * 256;
+		update_voice_legato(ch);
+		ctl->cmsg(CMSG_INFO,VERB_DEBUG, "Legato: change note:%d (CH:%d NOTE:%d noteoff)", 
+			fnote, ch, note);
+		ctl_note_event2(ch, pnote, VOICE_SUSTAINED, channel[ch].legato_velo);
+		ctl_note_event2(ch, note, VOICE_ON, channel[ch].legato_velo); // e->b = velocity
+		return -2; // finish_note()しない
+	}
+#else // noteoffではピッチ変更しない noteがある間はlegato_noteを継続する
+	for (i = 0; i < 128; i++){
+		if(channel[ch].legato_hist[i]) // noteon中のnoteを探す
+			return -2; // finish_note()しない
+	}
+#endif
+	// 最近のnoteがない場合 (全てnoteoffした場合
+	ctl->cmsg(CMSG_INFO,VERB_DEBUG, "Legato: finish note:%d (CH:%d NOTE:%d noteoff)", 
+		channel[ch].legato_note, ch, note);
+	channel[ch].legato_flag = 0;
+	channel[ch].legato_status = 0; // legato終了
+	return channel[ch].legato_note; // last_vidq()を通すために legato開始時のnoteに書き換え 後はfinish_note()
+}
+
+/*! initialize portamento or legato for a channel. */
+static int init_channel_portamento(MidiEvent *e)
+{
+#if 1 // portamento and leagato
+    int i, ch = e->channel, note = MIDI_EVENT_NOTE(e);
+	int32 times, fine = note * PORTAMENTO_CONTROL_RATIO;
+
+	if(!(channel[ch].portamento_control != -1
+		|| channel[ch].portamento
+		|| channel[ch].legato > 0)){
+		channel[ch].porta_last_note_fine = fine; // for portamento
+		return 0;
+	}
+	if(channel[ch].legato > 0 && channel[ch].legato_flag){ // 複数ノートの2ノート目以降
+		if(channel[ch].legato_status || channel[ch].porta_status
+			&& (times = e->time - channel[ch].legato_note_time) > (play_mode->rate >> 2) ) { // legato start
+			if(!channel[ch].legato_status){
+				channel[ch].legato_status = 1; // legato start
+				channel[ch].legato_note = channel[ch].legato_last_note; // set基準ノート
+				memset(channel[ch].legato_hist, 0, sizeof(channel[ch].legato_hist)); // init						
+				channel[ch].legato_hist[channel[ch].legato_note] = channel[ch].legato_status;
+				ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+					"Legato: start legato. base note:%d (CH:%d NOTE:%d) time:%d", 
+					channel[ch].legato_note, ch, note, times);
+			}
+			if(!(channel[ch].portamento_control != -1 || channel[ch].portamento))
+				update_legato_status(ch);
+			channel[ch].legato_hist[note] = (++channel[ch].legato_status);
+			channel[ch].porta_next_pb = fine;
+			update_voice_legato(ch);
+			ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+				"Legato: update legato. change note:%d legato (CH:%d NOTE:%d)", note, ch, note);
+			ctl_note_event2(ch, channel[ch].legato_last_note, VOICE_SUSTAINED, channel[ch].legato_velo);
+			ctl_note_event2(ch, note, VOICE_ON, channel[ch].legato_velo);
+			channel[ch].legato_last_note = note;
+			channel[ch].porta_last_note_fine = fine; // for portamento
+			return 1; // legato start
+		}
+	}			
+	// start note (legatoの基準ノートになる可能性がある
+	if(channel[ch].portamento_control != -1){ // portament_control
+		update_portamento_controls(ch);	
+		channel[ch].porta_status = 1;
+		channel[ch].porta_pb = channel[ch].portamento_control * PORTAMENTO_CONTROL_RATIO;
+		ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+			"Portamento Control: start note:%d to base note:%d (CH:%d NOTE:%d)", 
+			channel[ch].portamento_control, note, ch, note);	
+		channel[ch].portamento_control = -1;
+	}else if(channel[ch].portamento){ // portament
+		update_portamento_controls(ch);	
+		channel[ch].porta_status = 1;
+		if(channel[ch].porta_last_note_fine == -1) // first noteon
+			channel[ch].porta_pb = fine;
+		else
+			channel[ch].porta_pb = channel[ch].porta_last_note_fine;		
+		ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+			"Portamento: start note:%d to base note:%d (CH:%d NOTE:%d)", 
+			channel[ch].porta_last_note_fine >> PORTAMENTO_CONTROL_BIT, note, ch, note);	
+	}else{ // if(channel[ch].legato > 0)
+		update_legato_status(ch);
+		channel[ch].porta_status = 1;
+		channel[ch].porta_pb = fine;
+	}
+	channel[ch].porta_next_pb = fine;
+	channel[ch].porta_note_fine = fine;
+	channel[ch].legato_note = 255; // 無効なノートナンバー
+	channel[ch].legato_velo = e->b; // velocity
+	channel[ch].legato_flag = 1;	
+	channel[ch].legato_note_time = e->time;
+	channel[ch].legato_last_note = note;
+	channel[ch].porta_last_note_fine = fine;
+	return 0;
+#else // portamento or leagato
+    int i, ch = e->channel, note = MIDI_EVENT_NOTE(e);
+	int32 times, fine = note * PORTAMENTO_CONTROL_RATIO;
+
+	if(channel[ch].portamento_control != -1){ // portament_control
+		update_portamento_controls(ch);	
+		channel[ch].porta_status = 1;
+		channel[ch].porta_last_note_fine = channel[ch].portamento_control * PORTAMENTO_CONTROL_RATIO;
+		channel[ch].porta_note_fine = fine;
+		channel[ch].porta_pb = channel[ch].porta_last_note_fine;
+		channel[ch].porta_next_pb = channel[ch].porta_note_fine;		
+		ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+			"Portamento Control: start note:%d to base note:%d (CH:%d NOTE:%d)", 
+			channel[ch].portamento_control, note, ch, note);	
+		channel[ch].portamento_control = -1;
+	}else if(channel[ch].portamento){ // portament
+		update_portamento_controls(ch);	
+		channel[ch].porta_status = 1;
+		if(channel[ch].porta_last_note_fine == -1) // first noteon
+			channel[ch].porta_last_note_fine = fine;
+		channel[ch].porta_note_fine = fine;
+		channel[ch].porta_pb = channel[ch].porta_last_note_fine;
+		channel[ch].porta_next_pb = channel[ch].porta_note_fine;		
+		ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+			"Portamento: start note:%d to base note:%d (CH:%d NOTE:%d)", 
+			channel[ch].porta_last_note_fine >> PORTAMENTO_CONTROL_BIT, note, ch, note);	
+	}else if(channel[ch].legato > 0){ // legato	
+		if(channel[ch].legato_flag){ // 複数ノートの2ノート目以降
+#if 0
+#ifdef _DEBUG
+ctl->cmsg(CMSG_INFO,VERB_NORMAL, "Legato: times:%d = now - prev:%d", 
+e->time - channel[ch].legato_note_time,  channel[ch].legato_note_time, ch, note);
+#endif
+#endif
+			if(!channel[ch].legato_status
+				&& (times = e->time - channel[ch].legato_note_time) < (play_mode->rate >> 2) ){ // legato start
+#if 0
+#ifdef _DEBUG
+ctl->cmsg(CMSG_INFO,VERB_NORMAL,
+"Legato: disable legato times:%d (times:%d CH:%d NOTE:%d)", times, ch, note);
+#endif
+#endif
+			}else{	
+				if(!channel[ch].legato_status){
+					channel[ch].legato_status = 1; // legato start
+					channel[ch].legato_note = channel[ch].legato_last_note; // set基準ノート
+					memset(channel[ch].legato_hist, 0, sizeof(channel[ch].legato_hist)); // init						
+					channel[ch].legato_hist[channel[ch].legato_note] = channel[ch].legato_status;
+					ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+						"Legato: start legato. base note:%d (CH:%d NOTE:%d) time:%d", 
+						channel[ch].legato_note, ch, note, times);
+				}	
+				update_legato_status(ch);
+				channel[ch].legato_hist[note] = (++channel[ch].legato_status);
+				channel[ch].porta_next_pb = fine;
+				update_voice_legato(ch);
+				ctl->cmsg(CMSG_INFO,VERB_DEBUG,
+					"Legato: update legato. change note:%d legato (CH:%d NOTE:%d)", note, ch, note);
+				ctl_note_event2(ch, channel[ch].legato_last_note, VOICE_SUSTAINED, channel[ch].legato_velo);
+				ctl_note_event2(ch, note, VOICE_ON, channel[ch].legato_velo);
+				channel[ch].legato_last_note = note;
+				channel[ch].porta_last_note_fine = fine; // for portamento
+				return 1; // legato start
+			}
+		}
+		// normal (legatoの基準ノートになる可能性がある ある程度初期化が必要
+		channel[ch].legato_note = 255; // 無効なノートナンバー
+		channel[ch].porta_note_fine = fine;
+		channel[ch].porta_pb = fine;
+		channel[ch].porta_next_pb = fine;
+		channel[ch].legato_velo = e->b; // velocity
+		channel[ch].legato_flag = 1;	
+		channel[ch].legato_note_time = e->time;
+		channel[ch].legato_last_note = note;
+	}
+	channel[ch].porta_last_note_fine = fine; // for portamento
+	return 0;
+#endif
+}
+
+#else // 
+static void drop_portamento(int ch)
+{
+    int i, uv = upper_voices;
+
+    channel[ch].porta_status = 0;
+    for(i = 0; i < uv; i++)
+	if(voice[i].status != VOICE_FREE &&
+	   voice[i].channel == ch &&
+	   voice[i].porta_status)
+	{
+	    voice[i].porta_status = 0;
+	//    recompute_freq(i);
+		recompute_voice_pitch(i);
+	}
+	//channel[ch].last_note_fine = -1;
+}
+
+static void update_portamento_controls(int ch)
+{
+    if(!channel[ch].portamento){
+	//	|| (channel[ch].portamento_time_msb | channel[ch].portamento_time_lsb) == 0){
+		if(channel[ch].porta_status)
+			drop_portamento(ch);
+	} else {
+		const double tuning = PORTAMENTO_TIME_TUNING * 256.0 * 256.0;
+		double mt, st;
+		mt = midi_time_table[channel[ch].portamento_time_msb & 0x7F] *
+			midi_time_table2[channel[ch].portamento_time_lsb & 0x7F] * tuning;
+		st = (double)1000.0 / mt; // semitone/sec
+		channel[ch].porta_dpb = st * PORTAMENTO_CONTROL_RATIO * div_playmode_rate;
+		channel[ch].porta_status = 1;
+    }
+}
+
+static void update_portamento_time(int ch)
+{
+    int i, uv = upper_voices;
+    int dpb;
+    int32 ratio;
+
+    update_portamento_controls(ch);
+    dpb = channel[ch].porta_dpb;
+    ratio = channel[ch].porta_status;
+
+    for(i = 0; i < uv; i++)
+    {
+	if(voice[i].status != VOICE_FREE &&
+	   voice[i].channel == ch &&
+	   voice[i].porta_status)
+	{
+	    voice[i].porta_status = ratio;
+	    voice[i].porta_dpb = dpb;
+	//    recompute_freq(i);
+		recompute_voice_pitch(i);
+	}
+    }
+}
+
+static void update_legato_controls(int ch)
+{
+#if 1
+//	const double ss = 4069.0104166666670; // semitone / sec
+	const double ss = 12000.0; // semitone / sec
+	channel[ch].porta_dpb = ss * PORTAMENTO_CONTROL_RATIO * div_playmode_rate;
+#else
+	const double st = 1.0 / 0.06250 * PORTAMENTO_TIME_TUNING * 0.3 * 256.0 * 256;
+	double st = (double)1.0 / mt; // semitone / ms
+	channel[ch].porta_dpb = st * PORTAMENTO_CONTROL_RATIO * 1000.0 * div_playmode_rate;
+#endif
+	channel[ch].porta_status = 1;
+}
+
+/*! initialize portamento or legato for a voice. */
+static void init_voice_portamento(int v)
 {
 	Voice *vp = &(voice[v]);
+	int ch = vp->channel;
 
-  vp->tremolo_delay = vp->sample->tremolo_delay;
-  vp->tremolo_phase = 0;
-  vp->tremolo_phase_increment = vp->sample->tremolo_phase_increment;
-  vp->tremolo_sweep = vp->sample->tremolo_sweep_increment;
-  vp->tremolo_sweep_position = 0;
-  vp->tremolo_depth = vp->sample->tremolo_depth;
+	vp->porta_status = 0;
+	if(channel[ch].porta_status) {
+		vp->porta_status = channel[ch].porta_status;
+		vp->porta_dpb = channel[ch].porta_dpb;
+		vp->porta_pb = channel[ch].porta_pb;
+		if(vp->porta_pb == 0) {vp->porta_status = 0;}
+	}
 }
 
-static void start_note(MidiEvent *e, int i, int vid, int cnt)
+/*! initialize portamento or legato for a channel. */
+static void init_channel_portamento(MidiEvent *e)
+{	
+    int i, ch = e->channel, note = MIDI_EVENT_NOTE(e);
+	int32 times, fine = note * PORTAMENTO_CONTROL_RATIO;
+
+	if(channel[ch].portamento_control != -1){ // portament_control
+		if(!channel[ch].porta_status)
+			update_portamento_controls(ch);
+		channel[ch].porta_pb = channel[ch].portamento_control * PORTAMENTO_CONTROL_RATIO - fine;
+		channel[ch].portamento_control = -1;
+	}else if(channel[ch].portamento){
+		if(!channel[ch].porta_status)
+			update_portamento_controls(ch);	
+		if(channel[ch].last_note_fine == -1) /* first on */
+			channel[ch].last_note_fine = fine;
+		channel[ch].porta_pb = channel[ch].last_note_fine - fine;			
+	}else if(channel[ch].legato){	
+		if(channel[ch].legato_flag){
+			update_legato_controls(ch);
+			if(channel[ch].last_note_fine == -1) /* first on */
+				channel[ch].last_note_fine = fine;
+			channel[ch].porta_pb = channel[ch].last_note_fine - fine;
+		}
+		channel[ch].legato_flag = 1;
+	}
+	channel[ch].last_note_fine = fine;
+}
+#endif /* NEW_LEGATO */
+
+///r
+static void recompute_amp_envelope_follow(int v, int ch)
 {
-  int j, ch, note;
+	Voice *vp = voice + v; 
+	Channel *cp = channel + ch;
+	int i, note = vp->note, dr = ISDRUMCHANNEL(ch);
+	double notesub = (double)(vp->note - 60); 
+	double amp_velsub = (double)(vp->velocity - vp->sample->envelope_velf_bpo);
+	struct DrumParts *dp = NULL;
+	int add_param[6];
 
-  ch = e->channel;
-
-  note = MIDI_EVENT_NOTE(e);
-  voice[i].status = VOICE_ON;
-  voice[i].channel = ch;
-  voice[i].note = note;
-  voice[i].velocity = e->b;
-  voice[i].chorus_link = i;	/* No link */
-  voice[i].proximate_flag = 1;
-
-  j = channel[ch].special_sample;
-  if(j == 0 || special_patch[j] == NULL)
-      voice[i].sample_offset = 0;
-  else
-  {
-      voice[i].sample_offset =
-	  special_patch[j]->sample_offset << FRACTION_BITS;
-      if(voice[i].sample->modes & MODES_LOOPING)
-      {
-	  if(voice[i].sample_offset > voice[i].sample->loop_end)
-	      voice[i].sample_offset = voice[i].sample->loop_start;
-      }
-      else if(voice[i].sample_offset > voice[i].sample->data_length)
-      {
-	  free_voice(i);
-	  return;
-      }
-  }
-  voice[i].sample_increment = 0; /* make sure it isn't negative */
-  voice[i].vid = vid;
-  voice[i].delay = voice[i].sample->envelope_delay;
-  voice[i].modenv_delay = voice[i].sample->modenv_delay;
-  voice[i].delay_counter = 0;
-
-  init_voice_tremolo(i);	/* tremolo */
-  init_voice_filter(i);		/* resonant lowpass filter */
-  init_voice_vibrato(i);	/* vibrato */
-  voice[i].panning = get_panning(ch, note, i);	/* pan */
-  init_voice_pan_delay(i);	/* panning-delay */
-  init_voice_portamento(i);	/* portamento or legato */
-
-  if(cnt == 0)
-      channel[ch].last_note_fine = voice[i].note * 256;
-
-  /* initialize modulation envelope */
-  if (voice[i].sample->modes & MODES_ENVELOPE)
-    {
-	  voice[i].modenv_stage = EG_GUS_ATTACK;
-      voice[i].modenv_volume = 0;
-      recompute_modulation_envelope(i);
-	  apply_modulation_envelope(i);
-    }
-  else
-    {
-	  voice[i].modenv_increment=0;
-	  apply_modulation_envelope(i);
-    }
-  recompute_freq(i);
-  recompute_voice_filter(i);
-
-  recompute_amp(i);
-  /* initialize volume envelope */
-  if (voice[i].sample->modes & MODES_ENVELOPE)
-    {
-      /* Ramp up from 0 */
-	  voice[i].envelope_stage = EG_GUS_ATTACK;
-      voice[i].envelope_volume = 0;
-      voice[i].control_counter = 0;
-      recompute_envelope(i);
-	  apply_envelope_to_amp(i);
-    }
-  else
-    {
-      voice[i].envelope_increment = 0;
-      apply_envelope_to_amp(i);
-    }
-
-  voice[i].timeout = -1;
-  if(!prescanning_flag)
-      ctl_note_event(i);
+	for(i = 0; i < ENV0_STAGE_LIST_MAX; i++)
+		vp->amp_env.follow[i] = 1.0;	
+	for(i = 0; i < 6; i++)
+		add_param[i] = 0;
+	
+	if (dr){
+		if(cp->drums[note] != NULL){
+			dp = cp->drums[note];
+			// amp
+			if(dp->drum_envelope_rate[EG_GUS_ATTACK] != -1)
+				add_param[EG_GUS_ATTACK] = (dp->drum_envelope_rate[EG_GUS_ATTACK] - 0x40);
+			if(dp->drum_envelope_rate[EG_GUS_DECAY] != -1)
+				add_param[EG_GUS_DECAY] = (dp->drum_envelope_rate[EG_GUS_DECAY] - 0x40);
+			if(dp->drum_envelope_rate[EG_GUS_SUSTAIN] != -1)
+				add_param[EG_GUS_SUSTAIN] = (dp->drum_envelope_rate[EG_GUS_SUSTAIN] - 0x40);
+			if(dp->drum_envelope_rate[EG_GUS_RELEASE1] != -1)
+				add_param[EG_GUS_RELEASE1] = (dp->drum_envelope_rate[EG_GUS_RELEASE1] - 0x40);
+		}
+	}else{
+		if(cp->envelope_rate[EG_GUS_ATTACK] != -1)
+			add_param[EG_GUS_ATTACK] = (cp->envelope_rate[EG_GUS_ATTACK] - 0x40);
+		if(cp->envelope_rate[EG_GUS_DECAY] != -1)
+			add_param[EG_GUS_DECAY] = (cp->envelope_rate[EG_GUS_DECAY] - 0x40);
+		if(cp->envelope_rate[EG_GUS_SUSTAIN] != -1)
+			add_param[EG_GUS_SUSTAIN] = (cp->envelope_rate[EG_GUS_SUSTAIN] - 0x40);
+		if(cp->envelope_rate[EG_GUS_RELEASE1] != -1)
+			add_param[EG_GUS_RELEASE1] = (cp->envelope_rate[EG_GUS_RELEASE1] - 0x40);
+		/* envelope key-follow */	
+		if (vp->sample->envelope_keyf[EG_GUS_ATTACK])
+			vp->amp_env.follow[ENV0_ATTACK_STAGE] *= POW2(notesub * (double)vp->sample->envelope_keyf[EG_GUS_ATTACK] * DIV_1200);
+		if (vp->sample->envelope_keyf[EG_GUS_DECAY])
+			vp->amp_env.follow[ENV0_HOLD_STAGE] *= POW2(notesub * (double)vp->sample->envelope_keyf[EG_GUS_DECAY] * DIV_1200);
+		if (vp->sample->envelope_keyf[EG_GUS_SUSTAIN])
+			vp->amp_env.follow[ENV0_DECAY_STAGE] *= POW2(notesub * (double)vp->sample->envelope_keyf[EG_GUS_SUSTAIN] * DIV_1200);
+		if (vp->sample->envelope_keyf[EG_GUS_RELEASE1])
+			vp->amp_env.follow[ENV0_RELEASE1_STAGE] *= POW2(notesub * (double)vp->sample->envelope_keyf[EG_GUS_RELEASE1] * DIV_1200);
+		if (vp->sample->envelope_keyf[EG_GUS_RELEASE2])
+			vp->amp_env.follow[ENV0_RELEASE2_STAGE] *= POW2(notesub * (double)vp->sample->envelope_keyf[EG_GUS_RELEASE2] * DIV_1200);
+		if (vp->sample->envelope_keyf[EG_GUS_RELEASE3])
+			vp->amp_env.follow[ENV0_RELEASE3_STAGE] *= POW2(notesub * (double)vp->sample->envelope_keyf[EG_GUS_RELEASE3] * DIV_1200);
+	}	
+	/* envelope velocity-follow */
+	if (vp->sample->envelope_velf[EG_GUS_ATTACK])
+		vp->amp_env.follow[ENV0_ATTACK_STAGE] *= POW2(amp_velsub * (double)vp->sample->envelope_velf[EG_GUS_ATTACK] * DIV_1200);
+	if (vp->sample->envelope_velf[EG_GUS_DECAY])
+		vp->amp_env.follow[ENV0_HOLD_STAGE] *= POW2(amp_velsub * (double)vp->sample->envelope_velf[EG_GUS_DECAY] * DIV_1200);
+	if (vp->sample->envelope_velf[EG_GUS_SUSTAIN])
+		vp->amp_env.follow[ENV0_DECAY_STAGE] *= POW2(amp_velsub * (double)vp->sample->envelope_velf[EG_GUS_SUSTAIN] * DIV_1200);
+	if (vp->sample->envelope_velf[EG_GUS_RELEASE1])
+		vp->amp_env.follow[ENV0_RELEASE1_STAGE] *= POW2(amp_velsub * (double)vp->sample->envelope_velf[EG_GUS_RELEASE1] * DIV_1200);
+	if (vp->sample->envelope_velf[EG_GUS_RELEASE2])
+		vp->amp_env.follow[ENV0_RELEASE2_STAGE] *= POW2(amp_velsub * (double)vp->sample->envelope_velf[EG_GUS_RELEASE2] * DIV_1200);
+	if (vp->sample->envelope_velf[EG_GUS_RELEASE3])
+		vp->amp_env.follow[ENV0_RELEASE3_STAGE] *= POW2(amp_velsub * (double)vp->sample->envelope_velf[EG_GUS_RELEASE3] * DIV_1200);
+	/* NRPN */
+	if(add_param[EG_GUS_ATTACK]){
+		FLOAT_T sub_ofs_div_cr = fabs(0.0 - vp->amp_env.offset[ENV0_ATTACK_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_ATTACK_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_ATTACK] * env_attack_calc, nrpn_env_attack_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->amp_env.rate[ENV0_ATTACK_STAGE] = sub_ofs_div_cr / time_ms;
+	}
+	if(add_param[EG_GUS_DECAY]){
+		FLOAT_T sub_ofs_div_cr = fabs(vp->amp_env.offset[ENV0_ATTACK_STAGE] - vp->amp_env.offset[ENV0_HOLD_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_HOLD_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_DECAY] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->amp_env.rate[ENV0_HOLD_STAGE] = sub_ofs_div_cr / time_ms;
+	}
+	if(add_param[EG_GUS_SUSTAIN]){
+		FLOAT_T sub_ofs_div_cr = fabs(vp->amp_env.offset[ENV0_HOLD_STAGE] - vp->amp_env.offset[ENV0_DECAY_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_DECAY_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_SUSTAIN] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->amp_env.rate[ENV0_DECAY_STAGE] = sub_ofs_div_cr / time_ms;
+	}
+	if(add_param[EG_GUS_RELEASE1]){
+		FLOAT_T sub_ofs_div_cr = fabs(ENV0_OFFSET_MAX - vp->amp_env.offset[ENV0_RELEASE1_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_RELEASE1_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_RELEASE1] * env_release_calc, nrpn_env_release_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->amp_env.rate[ENV0_RELEASE1_STAGE] = sub_ofs_div_cr / time_ms;
+	}
 }
+
+static void recompute_mod_envelope_follow(int v, int ch)
+{
+	Voice *vp = voice + v; 
+	Channel *cp = channel + ch;
+	int i, note = vp->note, dr = ISDRUMCHANNEL(ch);
+	double notesub = (double)(vp->note - 60); 
+	double mod_velsub = (double)(vp->velocity - vp->sample->modenv_velf_bpo);
+	struct DrumParts *dp = NULL;
+	int add_param[6];
+
+		
+	for(i = 0; i < ENV0_STAGE_LIST_MAX; i++)
+		vp->mod_env.follow[i] = 1.0;	
+	for(i = 0; i < 6; i++)
+		add_param[i] = 0;
+
+	if (dr){
+		if(cp->drums[note] != NULL){
+			dp = cp->drums[note];
+			if(dp->drum_envelope_rate[EG_GUS_ATTACK] != -1)
+				add_param[EG_GUS_ATTACK] = (dp->drum_envelope_rate[EG_GUS_ATTACK] - 0x40);
+			if(dp->drum_envelope_rate[EG_GUS_DECAY] != -1)
+				add_param[EG_GUS_DECAY] = (dp->drum_envelope_rate[EG_GUS_DECAY] - 0x40);
+			if(dp->drum_envelope_rate[EG_GUS_SUSTAIN] != -1)
+				add_param[EG_GUS_SUSTAIN] = (dp->drum_envelope_rate[EG_GUS_SUSTAIN] - 0x40);
+			if(dp->drum_envelope_rate[EG_GUS_RELEASE1] != -1)
+				add_param[EG_GUS_RELEASE1] = (dp->drum_envelope_rate[EG_GUS_RELEASE1] - 0x40);
+		}
+	}else{
+		if(cp->envelope_rate[EG_GUS_ATTACK] != -1)
+			add_param[EG_GUS_ATTACK] = (cp->envelope_rate[EG_GUS_ATTACK] - 0x40);
+		if(cp->envelope_rate[EG_GUS_DECAY] != -1)
+			add_param[EG_GUS_DECAY] = (cp->envelope_rate[EG_GUS_DECAY] - 0x40);
+		if(cp->envelope_rate[EG_GUS_SUSTAIN] != -1)
+			add_param[EG_GUS_SUSTAIN] = (cp->envelope_rate[EG_GUS_SUSTAIN] - 0x40);
+		if(cp->envelope_rate[EG_GUS_RELEASE1] != -1)
+			add_param[EG_GUS_RELEASE1] = (cp->envelope_rate[EG_GUS_RELEASE1] - 0x40);
+		/* envelope key-follow */	
+		if (vp->sample->modenv_keyf[EG_GUS_ATTACK])
+			vp->mod_env.follow[ENV0_ATTACK_STAGE] *= POW2(notesub * (double)vp->sample->modenv_keyf[EG_GUS_ATTACK] * DIV_1200);
+		if (vp->sample->modenv_keyf[EG_GUS_DECAY])
+			vp->mod_env.follow[ENV0_HOLD_STAGE] *= POW2(notesub * (double)vp->sample->modenv_keyf[EG_GUS_DECAY] * DIV_1200);
+		if (vp->sample->modenv_keyf[EG_GUS_SUSTAIN])
+			vp->mod_env.follow[ENV0_DECAY_STAGE] *= POW2(notesub * (double)vp->sample->modenv_keyf[EG_GUS_SUSTAIN] * DIV_1200);
+		if (vp->sample->modenv_keyf[EG_GUS_RELEASE1])
+			vp->mod_env.follow[ENV0_RELEASE1_STAGE] *= POW2(notesub * (double)vp->sample->modenv_keyf[EG_GUS_RELEASE1] * DIV_1200);
+		if (vp->sample->modenv_keyf[EG_GUS_RELEASE2])
+			vp->mod_env.follow[ENV0_RELEASE2_STAGE] *= POW2(notesub * (double)vp->sample->modenv_keyf[EG_GUS_RELEASE2] * DIV_1200);
+		if (vp->sample->modenv_keyf[EG_GUS_RELEASE3])
+			vp->mod_env.follow[ENV0_RELEASE3_STAGE] *= POW2(notesub * (double)vp->sample->modenv_keyf[EG_GUS_RELEASE3] * DIV_1200);
+	}	
+	/* envelope velocity-follow */
+	if (vp->sample->modenv_velf[EG_GUS_ATTACK])
+		vp->mod_env.follow[ENV0_ATTACK_STAGE] *= POW2(mod_velsub * (double)vp->sample->modenv_velf[EG_GUS_ATTACK] * DIV_1200);
+	if (vp->sample->modenv_velf[EG_GUS_DECAY])
+		vp->mod_env.follow[ENV0_HOLD_STAGE] *= POW2(mod_velsub * (double)vp->sample->modenv_velf[EG_GUS_DECAY] * DIV_1200);
+	if (vp->sample->modenv_velf[EG_GUS_SUSTAIN])
+		vp->mod_env.follow[ENV0_DECAY_STAGE] *= POW2(mod_velsub * (double)vp->sample->modenv_velf[EG_GUS_SUSTAIN] * DIV_1200);
+	if (vp->sample->modenv_velf[EG_GUS_RELEASE1])
+		vp->mod_env.follow[ENV0_RELEASE1_STAGE] *= POW2(mod_velsub * (double)vp->sample->modenv_velf[EG_GUS_RELEASE1] * DIV_1200);
+	if (vp->sample->modenv_velf[EG_GUS_RELEASE2])
+		vp->mod_env.follow[ENV0_RELEASE2_STAGE] *= POW2(mod_velsub * (double)vp->sample->modenv_velf[EG_GUS_RELEASE2] * DIV_1200);
+	if (vp->sample->modenv_velf[EG_GUS_RELEASE3])
+		vp->mod_env.follow[ENV0_RELEASE3_STAGE] *= POW2(mod_velsub * (double)vp->sample->modenv_velf[EG_GUS_RELEASE3] * DIV_1200);
+	/* NRPN */
+	if(add_param[EG_GUS_ATTACK]){
+		FLOAT_T sub_ofs_div_cr = fabs(0.0 - vp->mod_env.offset[ENV0_ATTACK_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_ATTACK_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_ATTACK] * env_attack_calc, nrpn_env_attack_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->mod_env.rate[ENV0_ATTACK_STAGE] = sub_ofs_div_cr / time_ms;
+	}
+	if(add_param[EG_GUS_DECAY]){
+		FLOAT_T sub_ofs_div_cr = fabs(vp->mod_env.offset[ENV0_ATTACK_STAGE] - vp->mod_env.offset[ENV0_HOLD_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_HOLD_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_DECAY] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->mod_env.rate[ENV0_HOLD_STAGE] = sub_ofs_div_cr / time_ms;
+	}
+	if(add_param[EG_GUS_SUSTAIN]){
+		FLOAT_T sub_ofs_div_cr = fabs(vp->mod_env.offset[ENV0_HOLD_STAGE] - vp->mod_env.offset[ENV0_DECAY_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_DECAY_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_SUSTAIN] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->mod_env.rate[ENV0_DECAY_STAGE] = sub_ofs_div_cr / time_ms;
+	}
+	if(add_param[EG_GUS_RELEASE1]){
+		FLOAT_T sub_ofs_div_cr = fabs(ENV0_OFFSET_MAX - vp->mod_env.offset[ENV0_RELEASE1_STAGE]) * div_playmode_rate * 1000.0;
+		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_RELEASE1_STAGE];
+		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_RELEASE1] * env_release_calc, nrpn_env_release_mode);
+		if(time_ms < 1.0) time_ms = 1.0;
+		vp->mod_env.rate[ENV0_RELEASE1_STAGE] = sub_ofs_div_cr / time_ms;
+	}
+}
+
+static void set_amp_envelope_param(int v)
+{
+	int i;
+	Voice *vp = voice + v;
+
+	for(i = 0; i < ENV0_STAGE_LIST_MAX; i++){
+		if(i == ENV0_END_STAGE)
+			continue;		
+		if(i == ENV0_SUSTAIN_STAGE){
+			vp->amp_env.rate[i] = div_control_ratio;
+			vp->amp_env.offset[i] = 0;
+		}else if(i == ENV0_RELEASE4_STAGE){
+			vp->amp_env.rate[i] = (double)OFFSET_MAX * DIV_RELEASE4_TIME * div_playmode_rate;
+			vp->amp_env.offset[i] = 0;
+		}else if(i < ENV0_RELEASE1_STAGE){
+			vp->amp_env.rate[i] = (double)vp->sample->envelope_rate[i - 1] * div_control_ratio;
+			vp->amp_env.offset[i] = (double)vp->sample->envelope_offset[i - 1];
+		}else{
+			vp->amp_env.rate[i] = (double)vp->sample->envelope_rate[i - 2] * div_control_ratio;
+			vp->amp_env.offset[i] = (double)vp->sample->envelope_offset[i - 2];
+		}
+	}
+	vp->amp_env.curve[ENV0_ATTACK_STAGE] = LINEAR_CURVE;
+	if(vp->sample->inst_type == INST_SF2){
+		for(i = ENV0_ATTACK_STAGE + 1; i < ENV0_STAGE_LIST_MAX; i++)
+			vp->amp_env.curve[i] = SF2_VOL_CURVE;
+	}else switch(play_system_mode){
+	case GS_SYSTEM_MODE:
+		for(i = ENV0_ATTACK_STAGE + 1; i < ENV0_STAGE_LIST_MAX; i++)
+			vp->amp_env.curve[i] = GS_VOL_CURVE;
+		break;
+	case XG_SYSTEM_MODE:
+		for(i = ENV0_ATTACK_STAGE + 1; i < ENV0_STAGE_LIST_MAX; i++)
+			vp->amp_env.curve[i] = XG_VOL_CURVE;
+		break;
+	case GM2_SYSTEM_MODE:
+	case GM_SYSTEM_MODE:
+	default:
+		for(i = ENV0_ATTACK_STAGE + 1; i < ENV0_STAGE_LIST_MAX; i++)
+			vp->amp_env.curve[i] = DEF_VOL_CURVE;
+		break;
+	}
+}
+
+static void set_mod_envelope_param(int v)
+{
+	int i;
+	Voice *vp = voice + v;
+
+	for(i = 0; i < ENV0_STAGE_LIST_MAX; i++){
+		if(i == ENV0_END_STAGE)
+			continue;
+		if(i == ENV0_SUSTAIN_STAGE){
+			vp->mod_env.rate[i] = div_control_ratio;
+			vp->mod_env.offset[i] = 0;
+		}else if(i == ENV0_RELEASE4_STAGE){
+			vp->amp_env.rate[i] = (double)OFFSET_MAX * DIV_RELEASE4_TIME * div_playmode_rate;
+			vp->amp_env.offset[i] = 0;
+		}else if(i < ENV0_RELEASE1_STAGE){
+			vp->mod_env.rate[i] = (double)vp->sample->modenv_rate[i - 1] * div_control_ratio;
+			vp->mod_env.offset[i] = (double)vp->sample->modenv_offset[i - 1];
+		}else{
+			vp->mod_env.rate[i] = (double)vp->sample->modenv_rate[i - 2] * div_control_ratio;
+			vp->mod_env.offset[i] = (double)vp->sample->modenv_offset[i - 2];
+		}
+	}
+	for(i = 0; i < ENV0_STAGE_LIST_MAX; i++){
+		if(i == ENV0_ATTACK_STAGE)
+			vp->mod_env.curve[i] = SF2_CONVEX;
+		else
+			vp->mod_env.curve[i] = SF2_CONCAVE;
+	}
+
+}
+
+/* initialize amp/mod/pitch envelope */
+static void init_voice_envelope(int i)
+{
+	Voice *vp = voice + i;
+	int ch = vp->channel;
+	int note = vp->note;
+	int add_delay_cnt = vp->add_delay_cnt;
+	
+	/* initialize amp envelope */
+	if(vp->sample->modes & MODES_ENVELOPE){		
+		init_envelope0(&vp->amp_env);
+		set_amp_envelope_param(i);
+		recompute_amp_envelope_follow(i, ch);
+		vp->amp_env.offdelay = vp->amp_env.delay = vp->sample->envelope_delay + add_delay_cnt;
+		vp->amp_env.offdelay += env_add_offdelay_count;
+		if(min_sustain_time == 1)
+			vp->amp_env.count[ENV0_SUSTAIN_STAGE] = 1; /* The sustain stage is ignored. */
+		else if(channel[ch].loop_timeout > 0 && channel[ch].loop_timeout * 1000 < min_sustain_time)
+			vp->amp_env.count[ENV0_SUSTAIN_STAGE] = channel[ch].loop_timeout * play_mode->rate; /* timeout (See also "#extension timeout" line in *.cfg file */
+		else if(min_sustain_time <= 0)
+			vp->amp_env.count[ENV0_SUSTAIN_STAGE] = 0;
+		else
+			vp->amp_env.count[ENV0_SUSTAIN_STAGE] = playmode_rate_ms * min_sustain_time;
+		apply_envelope0_param(&vp->amp_env);
+	}else{	
+		init_envelope0(&vp->amp_env);
+		vp->amp_env.offdelay = vp->amp_env.delay = vp->sample->envelope_delay + add_delay_cnt;
+		vp->amp_env.volume = 1.0;
+	}
+	/* initialize modulation envelope */
+	if (opt_modulation_envelope && vp->sample->modes & MODES_ENVELOPE){
+		init_envelope0(&vp->mod_env);	
+		set_mod_envelope_param(i);	
+		recompute_mod_envelope_follow(i, ch);
+		vp->mod_env.delay = vp->sample->modenv_delay;
+		vp->mod_env.offdelay = vp->sample->modenv_delay + env_add_offdelay_count;
+		apply_envelope0_param(&vp->mod_env);
+	}else{
+		init_envelope0(&vp->mod_env);
+		vp->mod_env.delay = vp->sample->modenv_delay;
+		vp->mod_env.offdelay = vp->sample->modenv_delay + env_add_offdelay_count;
+		vp->mod_env.volume = 1.0;
+	}
+	/* initialize pitch envelope */
+	if (opt_modulation_envelope && vp->sample->modes & MODES_ENVELOPE){
+		FLOAT_T ini_lv = vp->sample->pitch_envelope[0]; // cent init lv
+		FLOAT_T atk_lv = vp->sample->pitch_envelope[1]; // cent attack lv
+		FLOAT_T atk_tm = vp->sample->pitch_envelope[2]; // ms   attacl time
+		FLOAT_T dcy_lv = vp->sample->pitch_envelope[3]; // cent decay1 lv
+		FLOAT_T dcy_tm = vp->sample->pitch_envelope[4]; // ms   decay1 time
+		FLOAT_T sus_lv = vp->sample->pitch_envelope[5]; // cent decay2 lv
+		FLOAT_T sus_tm = vp->sample->pitch_envelope[6]; // ms   decay2 time
+		FLOAT_T rls_lv = vp->sample->pitch_envelope[7]; // cent release lv
+		FLOAT_T rls_tm = vp->sample->pitch_envelope[8]; // ms   release time
+		if(channel[ch].pit_env_level[0] != 0x40)
+			ini_lv += (double)(channel[ch].pit_env_level[0] - 64) * DIV_64 * 1280.0; // cent
+		if(channel[ch].pit_env_level[1] != 0x40)
+			atk_lv += (double)(channel[ch].pit_env_level[1] - 64) * DIV_64 * 1280.0; // cent
+		if(channel[ch].pit_env_level[2] != 0x40)
+			dcy_lv += (double)(channel[ch].pit_env_level[2] - 64) * DIV_64 * 1280.0; // cent
+		if(channel[ch].pit_env_level[3] != 0x40)
+			sus_lv += (double)(channel[ch].pit_env_level[3] - 64) * DIV_64 * 1280.0; // cent
+		if(channel[ch].pit_env_level[4] != 0x40)
+			rls_lv += (double)(channel[ch].pit_env_level[4] - 64) * DIV_64 * 1280.0; // cent
+		if(channel[ch].pit_env_time[0] != 0x40)
+			atk_tm *= POW2((double)(channel[ch].pit_env_time[0] - 64) * DIV_32); // mul 0.5~2.0
+		if(channel[ch].pit_env_time[1] != 0x40)
+			dcy_tm *= POW2((double)(channel[ch].pit_env_time[1] - 64) * DIV_32); // mul 0.5~2.0
+		if(channel[ch].pit_env_time[2] != 0x40)
+			sus_tm *= POW2((double)(channel[ch].pit_env_time[2] - 64) * DIV_32); // mul 0.5~2.0
+		if(channel[ch].pit_env_time[3] != 0x40)
+			rls_tm *= POW2((double)(channel[ch].pit_env_time[3] - 64) * DIV_32); // mul 0.5~2.0
+		init_envelope4(&vp->pit_env, 0, env_add_offdelay_count, 
+			ini_lv, 
+			atk_lv, atk_tm * playmode_rate_ms, 
+			dcy_lv, dcy_tm * playmode_rate_ms, 
+			sus_lv, sus_tm * playmode_rate_ms,  
+			rls_lv, rls_tm * playmode_rate_ms );
+	}else{
+		init_envelope4(&vp->pit_env, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	}
+}
+
+// called mix.c mix_voice() , thread_mix.c mix_voice_thread()
+void update_voice(int i)
+{
+	// 同時処理が必要になったらビットフラグ分岐に変更する可能性があるので 定数は2^nにしておく
+	// playmidi.h /* update_voice options: */
+	switch(voice[i].update_voice){
+	case UPDATE_VOICE_FINISH_NOTE: // finish note
+		reset_envelope0_release(&voice[i].amp_env, ENV0_KEEP);
+		reset_envelope0_release(&voice[i].mod_env, ENV0_KEEP);
+		reset_envelope4_noteoff(&voice[i].pit_env);
+#ifdef INT_SYNTH
+		if(voice[i].sample->inst_type == INST_MMS)
+			noteoff_int_synth_mms(i);
+		else if(voice[i].sample->inst_type == INST_SCC)
+			noteoff_int_synth_scc(i);
+#endif
+#ifdef VOICE_EFFECT
+		noteoff_voice_effect(i);	    /* voice effect */
+#endif
+		break;
+	case UPDATE_VOICE_CUT_NOTE: // cut_note
+		reset_envelope0_release(&voice[i].amp_env, cut_short_rate);
+		break;
+	case UPDATE_VOICE_CUT_NOTE2: // cut_note2
+		reset_envelope0_release(&voice[i].amp_env, cut_short_rate2);
+		break;		
+	case UPDATE_VOICE_KILL_NOTE: // kill_note
+		reset_envelope0_release(&voice[i].amp_env, ramp_out_rate);
+		break;		
+	}
+	voice[i].update_voice = 0; // flag clear
+}
+
+// called mix.c mix_voice() , thread_mix.c mix_voice_thread()
+void init_voice(int i)
+{
+	Voice *vp = voice + i;
+	int ch = vp->channel;
+	
+	vp->init_voice = 1; // init flag
+	/* pan */
+	vp->panned = (play_mode->encoding & PE_MONO) ? PANNED_CENTER : PANNED_MYSTERY;
+	vp->pan_ctrl = 1; // pan update recompute_voice_amp()	
+	init_voice_resample(i);
+#ifdef INT_SYNTH
+	if(vp->sample->inst_type == INST_MMS)
+		init_int_synth_mms(i);
+	else if(vp->sample->inst_type == INST_SCC)
+		init_int_synth_scc(i);
+#endif
+	init_voice_portamento(i); /* portamento or legato */
+	init_voice_envelope(i);   /* amp/mod/pitch envelope */
+	init_voice_lfo(i);        /* lfo1,lfo2 */
+	init_voice_filter(i);     /* resonant lowpass filter */
+	init_voice_filter2(i);    /* resonant highpass filter */	
+	init_voice_pitch(i);      /* pitch */
+	init_voice_amp(i);        /* after init_resample_filter() */	
+	recompute_voice_lfo(i);
+	recompute_voice_filter(i); 
+	recompute_voice_pitch(i); 
+	recompute_voice_amp(i);	
+	init_resample_filter(i);  /* resample filter , after voice recomp */
+	recompute_resample_filter(i); /* after voice recomp */
+	/* initialize volume envelope */
+	init_envelope2(&vp->vol_env , vp->left_amp, vp->right_amp, vol_env_count);
+	/* initialize mix envelope */
+	apply_envelope_to_amp(i);
+	if(opt_mix_envelope)
+		init_envelope2(&vp->mix_env , vp->left_mix, vp->right_mix, mix_env_count);  
+#ifdef VOICE_EFFECT
+	init_voice_effect(i);	    /* voice effect */
+#endif	
+}
+
+///r
+static void start_note(MidiEvent *e, int i, int vid, int cnt, int add_delay_cnt)
+{
+	Voice *vp = voice + i;
+	int ch = e->channel;
+	int note = MIDI_EVENT_NOTE(e);
+	int j;
+
+	/* status , control */
+	vp->status = VOICE_ON;
+	vp->channel = ch;
+	vp->note = note;
+	vp->velocity = e->b;
+	vp->vid = vid;  
+	vp->sostenuto = 0;
+	vp->paf_ctrl = 0;
+	vp->overlap_count = opt_overlap_voice_count;
+	vp->channel_voice_count = opt_max_channel_voices;
+	vp->mod_update_count = -1;
+	vp->init_voice = 0; // flag clear
+	vp->update_voice = 0; // flag clear
+	vp->finish_voice = 0; // flag clear
+	vp->add_delay_cnt = add_delay_cnt;
+	/* for pitch ctrl */
+	vp->prev_tuning = 0;
+	vp->pitchfactor = 0;
+	vp->orig_pitchfactor = 1.0;
+	/* for resample */
+	j = channel[ch].special_sample;  
+	if(!j){
+		vp->reserve_offset = 0;
+	}else{ // special_patch
+		if(!special_patch[j]){
+			vp->reserve_offset = 0;
+		}else{
+			vp->reserve_offset = special_patch[j]->sample_offset << FRACTION_BITS;
+			if(vp->sample->modes & MODES_LOOPING)  {
+				if(vp->reserve_offset > vp->sample->loop_end)
+					vp->reserve_offset = vp->sample->loop_start;
+			} else if(vp->reserve_offset > vp->sample->data_length){
+				free_voice(i);
+				return;
+			}
+		}  
+	}
+	/* update ctl */
+	if(!prescanning_flag)
+		ctl_note_event(i);
+}
+
+
 
 static void finish_note(int i)
 {
@@ -2426,13 +4523,13 @@ static void finish_note(int i)
     {
 		/* We need to get the envelope out of Sustain stage. */
 		/* Note that voice[i].envelope_stage < EG_GUS_RELEASE1 */
+//		voice[i].status = VOICE_OFF;		
+///r
+		
+		if(voice[i].status & (VOICE_FREE | VOICE_DIE | VOICE_OFF))
+			return;
 		voice[i].status = VOICE_OFF;
-		voice[i].envelope_stage = EG_GUS_RELEASE1;
-		recompute_envelope(i);
-		voice[i].modenv_stage = EG_GUS_RELEASE1;
-		recompute_modulation_envelope(i);
-		apply_modulation_envelope(i);
-		apply_envelope_to_amp(i);
+		voice[i].update_voice = UPDATE_VOICE_FINISH_NOTE ; // finish note
 		ctl_note_event(i);
 	}
     else
@@ -2456,6 +4553,7 @@ static void finish_note(int i)
     }
 }
 
+
 static void set_envelope_time(int ch, int val, int stage)
 {
 	val = val & 0x7F;
@@ -2475,322 +4573,9 @@ static void set_envelope_time(int ch, int val, int stage)
 	channel[ch].envelope_rate[stage] = val;
 }
 
-/*! pseudo Delay Effect without DSP */
-#ifndef USE_DSP_EFFECT
-static void new_delay_voice(int v1, int level)
-{
-    int v2, ch = voice[v1].channel;
-	FLOAT_T delay, vol;
-	FLOAT_T threshold = 1.0;
-
-	/* NRPN Delay Send Level of Drum */
-	if(ISDRUMCHANNEL(ch) &&	channel[ch].drums[voice[v1].note] != NULL) {
-		level *= (FLOAT_T)channel[ch].drums[voice[v1].note]->delay_level / 127.0;
-	}
-
-	vol = voice[v1].velocity * level / 127.0 * delay_status_gs.level_ratio_c;
-
-	if (vol > threshold) {
-		delay = 0;
-		if((v2 = find_free_voice()) == -1) {return;}
-		voice[v2].cache = NULL;
-		delay += delay_status_gs.time_center;
-		voice[v2] = voice[v1];	/* copy all parameters */
-		voice[v2].velocity = (uint8)vol;
-		voice[v2].delay += (int32)(play_mode->rate * delay / 1000);
-		init_voice_pan_delay(v2);
-		recompute_amp(v2);
-		apply_envelope_to_amp(v2);
-		recompute_freq(v2);
-	}
-}
 
 
-static void new_chorus_voice(int v1, int level)
-{
-    int v2, ch;
-
-    if((v2 = find_free_voice()) == -1)
-	return;
-    ch = voice[v1].channel;
-    voice[v2] = voice[v1];	/* copy all parameters */
-
-    /* NRPN Chorus Send Level of Drum */
-    if(ISDRUMCHANNEL(ch) && channel[ch].drums[voice[v1].note] != NULL) {
-	level *= (FLOAT_T)channel[ch].drums[voice[v1].note]->chorus_level / 127.0;
-    }
-
-    /* Choose lower voice index for base voice (v1) */
-    if(v1 > v2)
-    {
-    	v1 ^= v2;
-    	v2 ^= v1;
-    	v1 ^= v2;
-    }
-
-    /* v1: Base churos voice
-     * v2: Sub chorus voice (detuned)
-     */
-
-    /* Make doubled link v1 and v2 */
-    voice[v1].chorus_link = v2;
-    voice[v2].chorus_link = v1;
-
-    level >>= 2;		     /* scale level to a "better" value */
-    if(channel[ch].pitchbend + level < 0x2000)
-        voice[v2].orig_frequency *= bend_fine[level];
-    else
-	voice[v2].orig_frequency /= bend_fine[level];
-
-    MYCHECK(voice[v2].orig_frequency);
-
-    voice[v2].cache = NULL;
-
-    /* set panning & delay */
-    if(!(play_mode->encoding & PE_MONO))
-    {
-	double delay;
-
-	if(voice[v2].panned == PANNED_CENTER)
-	{
-	    voice[v2].panning = 64 + int_rand(40) - 20; /* 64 +- rand(20) */
-	    delay = 0;
-	}
-	else
-	{
-	    int panning = voice[v2].panning;
-
-	    if(panning < CHORUS_OPPOSITE_THRESHOLD)
-	    {
-		voice[v2].panning = 127;
-		delay = DEFAULT_CHORUS_DELAY1;
-	    }
-	    else if(panning > 127 - CHORUS_OPPOSITE_THRESHOLD)
-	    {
-		voice[v2].panning = 0;
-		delay = DEFAULT_CHORUS_DELAY1;
-	    }
-	    else
-	    {
-		voice[v2].panning = (panning < 64 ? 0 : 127);
-		delay = DEFAULT_CHORUS_DELAY2;
-	    }
-	}
-	voice[v2].delay += (int)(play_mode->rate * delay);
-    }
-
-    init_voice_pan_delay(v1);
-    init_voice_pan_delay(v2);
-
-    recompute_amp(v1);
-    apply_envelope_to_amp(v1);
-    recompute_amp(v2);
-    apply_envelope_to_amp(v2);
-
-    /* voice[v2].orig_frequency is changed.
-     * Update the depened parameters.
-     */
-    recompute_freq(v2);
-}
-#endif /* !USE_DSP_EFFECT */
-
-
-/* Yet another chorus implementation
- *	by Eric A. Welsh <ewelsh@gpc.wustl.edu>.
- */
-static void new_chorus_voice_alternate(int v1, int level)
-{
-    int v2, ch, panlevel;
-    uint8 pan;
-    double delay;
-    double freq, frac;
-    int note_adjusted;
-
-    if((v2 = find_free_voice()) == -1)
-	return;
-    ch = voice[v1].channel;
-    voice[v2] = voice[v1];
-
-    /* NRPN Chorus Send Level of Drum */
-    if(ISDRUMCHANNEL(ch) && channel[ch].drums[voice[v1].note] != NULL) {
-	level *= (FLOAT_T)channel[ch].drums[voice[v1].note]->chorus_level / 127.0;
-    }
-
-    /* for our purposes, hard left will be equal to 1 instead of 0 */
-    pan = voice[v1].panning;
-    if (!pan) pan = 1;
-
-    /* Choose lower voice index for base voice (v1) */
-    if(v1 > v2)
-    {
-    	v1 ^= v2;
-    	v2 ^= v1;
-    	v1 ^= v2;
-    }
-
-    /* Make doubled link v1 and v2 */
-    voice[v1].chorus_link = v2;
-    voice[v2].chorus_link = v1;
-
-    /* detune notes for chorus effect */
-    level >>= 2;		/* scale to a "better" value */
-    if (level)
-    {
-        if(channel[ch].pitchbend + level < 0x2000)
-            voice[v2].orig_frequency *= bend_fine[level];
-        else
-	    voice[v2].orig_frequency /= bend_fine[level];
-        voice[v2].cache = NULL;
-    }
-
-    MYCHECK(voice[v2].orig_frequency);
-
-    delay = 0.003;
-
-    /* Try to keep the delayed voice from cancelling out the other voice */
-    /* Pitch detection is used to find the real pitches for drums and MODs */
-    note_adjusted = voice[v1].note + voice[v1].sample->transpose_detected;
-    if (note_adjusted > 127) note_adjusted = 127;
-    else if (note_adjusted < 0) note_adjusted = 0;
-    freq = pitch_freq_table[note_adjusted];
-    delay *= freq;
-    frac = delay - floor(delay);
-
-    /* force the delay away from 0.5 period */
-    if (frac < 0.5 && frac > 0.40)
-    {
-    	delay = (floor(delay) + 0.40) / freq;
-    	if (!(play_mode->encoding & PE_MONO))
-    	    delay += (0.5 - frac) * (1.0 - labs(64 - pan) / 63.0) / freq;
-    }
-    else if (frac >= 0.5 && frac < 0.60)
-    {
-    	delay = (floor(delay) + 0.60) / freq;
-    	if (!(play_mode->encoding & PE_MONO))
-    	    delay += (0.5 - frac) * (1.0 - labs(64 - pan) / 63.0) / freq;
-    }
-    else
-	delay = 0.003;
-
-    /* set panning & delay for pseudo-surround effect */
-    if(play_mode->encoding & PE_MONO)    /* delay sounds good */
-        voice[v2].delay += (int)(play_mode->rate * delay);
-    else
-    {
-        panlevel = 63;
-        if (pan - panlevel < 1) panlevel = pan - 1;
-        if (pan + panlevel > 127) panlevel = 127 - pan;
-        voice[v1].panning -= panlevel;
-        voice[v2].panning += panlevel;
-
-        /* choose which voice is delayed based on panning */
-        if (voice[v1].panned == PANNED_CENTER) {
-            /* randomly choose which voice is delayed */
-            if (int_rand(2))
-                voice[v1].delay += (int)(play_mode->rate * delay);
-            else
-                voice[v2].delay += (int)(play_mode->rate * delay);
-        }
-        else if (pan - 64 < 0) {
-            voice[v2].delay += (int)(play_mode->rate * delay);
-        }
-        else {
-            voice[v1].delay += (int)(play_mode->rate * delay);
-        }
-    }
-
-    /* check for similar drums playing simultaneously with center pans */
-    if (!(play_mode->encoding & PE_MONO) &&
-    	ISDRUMCHANNEL(ch) && voice[v1].panned == PANNED_CENTER)
-    {
-    	int i, j;
-    
-    	/* force Rimshot (37), Snare1 (38), Snare2 (40), and XG #34 to have
-    	 * the same delay, otherwise there will be bad voice cancellation.
-    	 */
-    	if (voice[v1].note == 37 ||
-    	    voice[v1].note == 38 ||
-    	    voice[v1].note == 40 ||
-    	    (voice[v1].note == 34 && play_system_mode == XG_SYSTEM_MODE))
-    	{
-    	    for (i = 0; i < upper_voices; i++)
-    	    {
-    	    	if (voice[i].status & (VOICE_DIE | VOICE_FREE))
-    	    	    continue;
-
-    	    	if (!ISDRUMCHANNEL(voice[i].channel))
-    	    	    continue;
-
-	    	if (i == v1 || i == v2)
-	    	    continue;
-
-	    	if (voice[i].note == 37 ||
-	    	    voice[i].note == 38 ||
-	    	    voice[i].note == 40 ||
-	    	    (voice[i].note == 34 &&
-	    	     play_system_mode == XG_SYSTEM_MODE))
-	    	{
-	    	    j = voice[i].chorus_link;
-
-	    	    if (voice[i].panned == PANNED_LEFT &&
-	    	        voice[j].panned == PANNED_RIGHT)
-	    	    {
-	    	    	voice[v1].delay = voice[i].delay;
-	    	    	voice[v2].delay = voice[j].delay;
-
-	    	    	break;
-	    	    }
-	    	}
-    	    }
-    	}
-
-    	/* force Kick1 (35), Kick2 (36), and XG Kick #33 to have the same
-    	 * delay, otherwise there will be bad voice cancellation.
-    	 */
-    	if (voice[v1].note == 35 ||
-    	    voice[v1].note == 36 ||
-    	    (voice[v1].note == 33 && play_system_mode == XG_SYSTEM_MODE))
-    	{
-    	    for (i = 0; i < upper_voices; i++)
-    	    {
-    	    	if (voice[i].status & (VOICE_DIE | VOICE_FREE))
-    	    	    continue;
-
-    	    	if (!ISDRUMCHANNEL(voice[i].channel))
-    	    	    continue;
-
-	    	if (i == v1 || i == v2)
-	    	    continue;
-
-	    	if (voice[i].note == 35 ||
-	    	    voice[i].note == 36 ||
-	    	    (voice[i].note == 33 &&
-	    	     play_system_mode == XG_SYSTEM_MODE))
-	    	{
-	    	    j = voice[i].chorus_link;
-
-	    	    if (voice[i].panned == PANNED_LEFT &&
-	    	        voice[j].panned == PANNED_RIGHT)
-	    	    {
-	    	    	voice[v1].delay = voice[i].delay;
-	    	    	voice[v2].delay = voice[j].delay;
-
-	    	    	break;
-	    	    }
-	    	}
-    	    }
-    	}
-    }
-
-    init_voice_pan_delay(v1);
-    init_voice_pan_delay(v2);
-
-    recompute_amp(v1);
-    apply_envelope_to_amp(v1);
-    recompute_amp(v2);
-    apply_envelope_to_amp(v2);
-    if (level) recompute_freq(v2);
-}
+///r
 
 /*! note_on() (prescanning) */
 static void note_on_prescan(MidiEvent *ev)
@@ -2810,9 +4595,7 @@ static void note_on_prescan(MidiEvent *ev)
 		return;
 	}
 
-    if((channel[ch].portamento_time_msb |
-		channel[ch].portamento_time_lsb) == 0 ||
-	    channel[ch].portamento == 0)
+  //  if(!channel[ch].portamento && channel[ch].portamento_control != -1)
 	{
 		int nv;
 		int vlist[32];
@@ -2820,31 +4603,34 @@ static void note_on_prescan(MidiEvent *ev)
 
 		nv = find_samples(ev, vlist);
 
-		for(i = 0; i < nv; i++)
-		{
-		    vp = voice + vlist[i];
-		    start_note(ev, vlist[i], 0, nv - i - 1);
-			vp->delay += random_delay;
-			vp->modenv_delay += random_delay;
-		    resamp_cache_refer_on(vp, ev->time);
-		    vp->status = VOICE_FREE;
-		    vp->temper_instant = 0;
+		if((allocate_cache_size > 0) &&
+			ISDRUMCHANNEL(ch) ||
+			(!channel[ch].portamento && channel[ch].portamento_control != -1) ){
+			for(i = 0; i < nv; i++)
+			{
+				vp = voice + vlist[i];
+				start_note(ev, vlist[i], 0, nv - i - 1, random_delay);
+				resamp_cache_refer_on(vp, ev->time);
+				vp->status = VOICE_FREE;
+				vp->temper_instant = 0;
+			}
 		}
 	}
 }
 
 static void note_on(MidiEvent *e)
 {
-    int i, nv, v, ch, note;
+    int i, nv, v, ch = e->channel, note = MIDI_EVENT_NOTE(e);
     int vlist[32];
     int vid;
 	int32 random_delay = 0;
-
+	int porta_flg = 0;
+	int dr = ISDRUMCHANNEL(ch);
+		
 	ch = e->channel;
 	note = MIDI_EVENT_NOTE(e);
 	
-	if(ISDRUMCHANNEL(ch) &&
-	   channel[ch].drums[note] != NULL &&
+	if(dr &&  channel[ch].drums[note] != NULL &&
 	   !get_rx_drum(channel[ch].drums[note], RX_NOTE_ON)) {	/* Rx. Note On */
 		return;
 	}
@@ -2854,100 +4640,94 @@ static void note_on(MidiEvent *e)
 		channel[ch].vel_limit_high < e->b) {
 		return;
 	}
+	voice_control(e);
     if((nv = find_samples(e, vlist)) == 0)
 	return;
-
-    vid = new_vidq(e->channel, note);
-
-	recompute_bank_parameter(ch, note);
-	recompute_channel_filter(ch, note);
-	random_delay = calc_random_delay(ch, note);
-
-    for(i = 0; i < nv; i++)
-    {
-	v = vlist[i];
-	if(ISDRUMCHANNEL(ch) &&
-	   channel[ch].drums[note] != NULL &&
-	   channel[ch].drums[note]->pan_random)
-	    channel[ch].drums[note]->drum_panning = int_rand(128);
-	else if(channel[ch].pan_random)
-	{
-	    channel[ch].panning = int_rand(128);
-	    ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
-	}
-	start_note(e, v, vid, nv - i - 1);
-	voice[v].delay += random_delay;
-	voice[v].modenv_delay += random_delay;
-#ifdef SMOOTH_MIXING
-	voice[v].old_left_mix = voice[v].old_right_mix =
-	voice[v].left_mix_inc = voice[v].left_mix_offset =
-	voice[v].right_mix_inc = voice[v].right_mix_offset = 0;
-#endif
-#ifdef USE_DSP_EFFECT
-	if(opt_surround_chorus)
-	    new_chorus_voice_alternate(v, 0);
+	
+	if(dr){
+		recompute_bank_parameter_drum(ch, note);	
+	}else{
+		if(!channel[ch].program_flag) // PCがなかった場合(recompute_bank_paramしてない場合
+			recompute_bank_parameter_tone(ch);
+		/* portamento , legato */
+#ifdef NEW_LEGATO
+		if(opt_portamento)
+			if(init_channel_portamento(e)) /* portamento , legato */
+				return;
 #else
-	if((channel[ch].chorus_level || opt_surround_chorus))
-	{
-	    if(opt_surround_chorus)
-		new_chorus_voice_alternate(v, channel[ch].chorus_level);
-	    else
-		new_chorus_voice(v, channel[ch].chorus_level);
-	}
-	if(channel[ch].delay_level)
-	{
-	    new_delay_voice(v, channel[ch].delay_level);
-	}
+		if(opt_portamento)
+			init_channel_portamento(e); /* portamento , legato */
 #endif
-    }
+	}
 
-    channel[ch].legato_flag = 1;
+	if(! opt_realtime_playing && emu_delay_time > 0)
+		random_delay = calc_random_delay(ch, note) + calc_emu_delay(e);
+	else
+		random_delay = calc_random_delay(ch, note);
+	
+    vid = new_vidq(e->channel, note);
+    for(i = 0; i < nv; i++) {
+		v = vlist[i];
+		if(ISDRUMCHANNEL(ch) &&
+		   channel[ch].drums[note] != NULL &&
+		   channel[ch].drums[note]->pan_random){
+			channel[ch].drums[note]->drum_panning = int_rand(128);
+		}else if(channel[ch].pan_random)	{
+			channel[ch].panning = int_rand(128);
+			ctl_mode_event(CTLE_PANNING, 1, ch, channel[ch].panning);
+		}
+		start_note(e, v, vid, nv - i - 1, random_delay);
+    }	
 }
-
+///r
 /*! sostenuto is now implemented as an instant sustain */
 static void update_sostenuto_controls(int ch)
 {
   int uv = upper_voices, i;
 
-  if(ISDRUMCHANNEL(ch) || channel[ch].sostenuto == 0) {return;}
+  if(ISDRUMCHANNEL(ch)) {return;}
 
-  for(i = 0; i < uv; i++)
-  {
-	if ((voice[i].status & (VOICE_ON | VOICE_OFF))
-			&& voice[i].channel == ch)
-	 {
-		  voice[i].status = VOICE_SUSTAINED;
-		  ctl_note_event(i);
-		  voice[i].envelope_stage = EG_GUS_RELEASE1;
-		  recompute_envelope(i);
-	 }
-  }
+	for(i = 0; i < uv; i++)
+		if ((voice[i].status & VOICE_ON) && voice[i].channel == ch)
+		{
+			voice[i].sostenuto = channel[ch].sostenuto;
+			ctl_note_event(i);
+		}
+
 }
-
-/*! redamper effect for piano instruments */
+///r
+/*! redamper / half damper effect for piano instruments */
 static void update_redamper_controls(int ch)
 {
   int uv = upper_voices, i;
+  
+  if(ISDRUMCHANNEL(ch) || channel[ch].damper_mode == 0 || channel[ch].sustain == 0) {return;}
 
-  if(ISDRUMCHANNEL(ch) || channel[ch].damper_mode == 0) {return;}
+	for(i = 0; i < uv; i++)
+		if ((voice[i].status & (VOICE_OFF | VOICE_SUSTAINED)) && voice[i].channel == ch)
+		{
+			voice[i].status = VOICE_SUSTAINED;
+			reset_envelope0_damper(&voice[i].amp_env, channel[ch].sustain);
+			reset_envelope0_damper(&voice[i].mod_env, channel[ch].sustain);
+			ctl_note_event(i);
+#ifdef INT_SYNTH
+		if(voice[i].sample->inst_type == INST_MMS)
+			damper_int_synth_mms(i, channel[ch].sustain);
+		else if(voice[i].sample->inst_type == INST_SCC)
+			damper_int_synth_scc(i, channel[ch].sustain);
+#endif
 
-  for(i = 0; i < uv; i++)
-  {
-	if ((voice[i].status & (VOICE_ON | VOICE_OFF))
-			&& voice[i].channel == ch)
-	  {
-		  voice[i].status = VOICE_SUSTAINED;
-		  ctl_note_event(i);
-		  voice[i].envelope_stage = EG_GUS_RELEASE1;
-		  recompute_envelope(i);
-	  }
-  }
+#ifdef VOICE_EFFECT
+			damper_voice_effect(i, channel[ch].sustain);
+#endif
+		}
 }
-
+///r
 static void note_off(MidiEvent *e)
 {
   int uv = upper_voices, i;
-  int ch, note, vid, sustain;
+  int ch, note, vid;
+  int elm = 0;
 
   ch = e->channel;
   note = MIDI_EVENT_NOTE(e);
@@ -2960,49 +4740,64 @@ static void note_off(MidiEvent *e)
       nprog = note;
       instrument_map(channel[ch].mapID, &nbank, &nprog);
       
-      if (channel[ch].drums[nprog] != NULL &&
-          get_rx_drum(channel[ch].drums[nprog], RX_NOTE_OFF))
-      {
-          ToneBank *bank;
-          bank = drumset[nbank];
-          if(bank == NULL) bank = drumset[0];
-          
-          /* uh oh, this drum doesn't have an instrument loaded yet */
-          if (bank->tone[nprog].instrument == NULL)
-              return;
-
-          /* this drum is not loaded for some reason (error occured?) */
-          if (IS_MAGIC_INSTRUMENT(bank->tone[nprog].instrument))
-              return;
-
-          /* only disallow Note Off if the drum sample is not looped */
-          if (!(bank->tone[nprog].instrument->sample->modes & MODES_LOOPING))
-              return;	/* Note Off is not allowed. */
-      }
+      if (channel[ch].drums[nprog] != NULL){
+		  if(!get_rx_drum(channel[ch].drums[nprog], RX_NOTE_OFF)){ // disable NOTE_OFF
+			  return;
+		  }else{
+			  ToneBank *bank;
+			  bank = drumset[nbank];
+			  if(bank == NULL) bank = drumset[0];          
+			  if (bank->tone[nprog][elm]){
+				  /* uh oh, this drum doesn't have an instrument loaded yet */
+				  if (bank->tone[nprog][elm]->instrument == NULL)
+					  return;
+				  /* this drum is not loaded for some reason (error occured?) */
+				  if (IS_MAGIC_INSTRUMENT(bank->tone[nprog][elm]->instrument))
+					  return;
+				  /* only disallow Note Off if the drum sample is not looped */
+				  //if (!(bank->tone[nprog][elm].instrument->sample->modes & MODES_LOOPING))
+					 // return;	/* Note Off is not allowed. */
+			  }
+		  }
+	  }
   }
+  /* legato */
+#ifdef NEW_LEGATO
+  if(opt_portamento){
+	  int tmp = note_off_legato(e); // -2:return -1:thru 0<=:change note
+	  if(tmp < -1)
+		  return;
+	  else if(tmp >= 0)
+		  note = tmp;
+  }
+#else
+  if(opt_portamento)
+	  channel[ch].legato_flag = 1;
+#endif
 
   if ((vid = last_vidq(ch, note)) == -1)
       return;
-  sustain = channel[ch].sustain;
   for (i = 0; i < uv; i++)
-  {
-      if(voice[i].status == VOICE_ON &&
-	 voice[i].channel == ch &&
-	 voice[i].note == note &&
-	 voice[i].vid == vid)
+  {	  
+      if(voice[i].status == VOICE_ON && voice[i].channel == ch && voice[i].note == note && voice[i].vid == vid)
       {
-	  if(sustain)
-	  {
-	      voice[i].status = VOICE_SUSTAINED;
-	      ctl_note_event(i);
-	  }
-	  else
-	      finish_note(i);
+		  if(voice[i].sostenuto){
+			  voice[i].status = VOICE_SUSTAINED;
+			  ctl_note_event(i);
+		  }else if(channel[ch].sustain){
+			  voice[i].status = VOICE_SUSTAINED;
+			  if(channel[ch].damper_mode){
+				reset_envelope0_damper(&voice[i].amp_env, channel[ch].sustain);
+				reset_envelope0_damper(&voice[i].mod_env, channel[ch].sustain);
+			  }
+			  ctl_note_event(i);
+		  }else{
+			  finish_note(i);
+		  }
       }
   }
-
-  channel[ch].legato_flag = 0;
 }
+
 
 /* Process the All Notes Off event */
 static void all_notes_off(int c)
@@ -3050,18 +4845,18 @@ static void adjust_pressure(MidiEvent *e)
 	ch = e->channel;
     note = MIDI_EVENT_NOTE(e);
 	channel[ch].paf.val = e->b;
-	if(channel[ch].paf.pitch != 0) {channel[ch].pitchfactor = 0;}
-
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf (CH:%d NOTE:%d VAL:%d)", ch, note, channel[ch].paf.val);
     for(i = 0; i < uv; i++)
-    if(voice[i].status == VOICE_ON &&
-       voice[i].channel == ch &&
-       voice[i].note == note)
-    {
-		recompute_amp(i);
-		apply_envelope_to_amp(i);
-		recompute_freq(i);
-		recompute_voice_filter(i);
-    }
+		if(voice[i].status == VOICE_ON &&
+		   voice[i].channel == ch &&
+		   voice[i].note == note)
+		{
+			voice[i].paf_ctrl = 1;
+			//recompute_amp(i);
+			//apply_envelope_to_amp(i);
+			//recompute_freq(i);
+			//recompute_voice_filter(i);
+		}
 	}
 }
 
@@ -3075,109 +4870,60 @@ static void adjust_channel_pressure(MidiEvent *e)
 
 	ch = e->channel;
 	channel[ch].caf.val = e->a;
-	if(channel[ch].caf.pitch != 0) {channel[ch].pitchfactor = 0;}
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf (CH:%d VAL:%d)", ch, channel[ch].caf.val);
+	recompute_channel_lfo(ch);
+	recompute_channel_amp(ch);
+	recompute_channel_filter(ch);
+	recompute_channel_pitch(ch);
 	  
-	for(i = 0; i < uv; i++)
-	{
-	    if(voice[i].status == VOICE_ON && voice[i].channel == ch)
-	    {
-		recompute_amp(i);
-		apply_envelope_to_amp(i);
-		recompute_freq(i);
-		recompute_voice_filter(i);
-		}
-	}
+	//for(i = 0; i < uv; i++)
+	//{
+	//    if(voice[i].status == VOICE_ON && voice[i].channel == ch)
+	//    {
+	//		recompute_amp(i);
+	//		apply_envelope_to_amp(i);
+	//		recompute_freq(i);
+	//		recompute_voice_filter(i);
+	//	}
+	//}
     }
 }
 
 static void adjust_panning(int c)
 {
-    int i, uv = upper_voices, pan = channel[c].panning;
-    for(i = 0; i < uv; i++)
-    {
-	if ((voice[i].channel==c) &&
-	    (voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
-	{
-            /* adjust pan to include drum/sample pan offsets */
-            pan = get_panning(c, voice[i].note, i);
-
-	    /* Hack to handle -EFchorus=2 in a "reasonable" way */
-#ifdef USE_DSP_EFFECT
-	    if(opt_surround_chorus && voice[i].chorus_link != i)
-#else
-	    if((channel[c].chorus_level || opt_surround_chorus) &&
-	       voice[i].chorus_link != i)
-#endif
-	    {
-		int v1, v2;
-
-		if(i >= voice[i].chorus_link)
-		    /* `i' is not base chorus voice.
-		     *  This sub voice is already updated.
-		     */
-		    continue;
-
-		v1 = i;				/* base voice */
-		v2 = voice[i].chorus_link;	/* sub voice (detuned) */
-
-		if(opt_surround_chorus) /* Surround chorus mode by Eric. */
-		{
-		    int panlevel;
-
-		    if (!pan) pan = 1;	/* make hard left be 1 instead of 0 */
-		    panlevel = 63;
-		    if (pan - panlevel < 1) panlevel = pan - 1;
-		    if (pan + panlevel > 127) panlevel = 127 - pan;
-		    voice[v1].panning = pan - panlevel;
-		    voice[v2].panning = pan + panlevel;
+    int i, uv = upper_voices;
+	
+	recompute_channel_amp(c);
+	if(!adjust_panning_immediately)
+		return;
+    for(i = 0; i < uv; i++) {
+		if ((voice[i].channel==c) &&
+			(voice[i].status & (VOICE_ON | VOICE_SUSTAINED))){
+			voice[i].pan_ctrl = 1;
 		}
-		else
-		{
-		    voice[v1].panning = pan;
-		    if(pan > 60 && pan < 68) /* PANNED_CENTER */
-			voice[v2].panning =
-			    64 + int_rand(40) - 20; /* 64 +- rand(20) */
-		    else if(pan < CHORUS_OPPOSITE_THRESHOLD)
-			voice[v2].panning = 127;
-		    else if(pan > 127 - CHORUS_OPPOSITE_THRESHOLD)
-			voice[v2].panning = 0;
-		    else
-			voice[v2].panning = (pan < 64 ? 0 : 127);
-		}
-		recompute_amp(v2);
-		apply_envelope_to_amp(v2);
-		/* v1 == i, so v1 will be updated next */
-	    }
-	    else
-		voice[i].panning = pan;
-
-		recompute_amp(i);
-	    apply_envelope_to_amp(i);
-	}
     }
 }
 
 void play_midi_setup_drums(int ch, int note)
-{
-    channel[ch].drums[note] = (struct DrumParts *)
-	new_segment(&playmidi_pool, sizeof(struct DrumParts));
+{	
+    channel[ch].drums[note] = (struct DrumParts *)new_segment(&playmidi_pool, sizeof(struct DrumParts));
     reset_drum_controllers(channel[ch].drums, note);
+	channel[ch].drum_effect_flag |= 0x2; // add note
 }
 
 static void adjust_drum_panning(int ch, int note)
 {
-    int i, uv = upper_voices;
+ //   int i, uv = upper_voices;
 
-    for(i = 0; i < uv; i++) {
-		if(voice[i].channel == ch &&
-		   voice[i].note == note &&
-		   (voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
-		{
-			voice[i].panning = get_panning(ch, note, i);
-			recompute_amp(i);
-			apply_envelope_to_amp(i);
-		}
-	}
+ //   for(i = 0; i < uv; i++) {
+	//	if(voice[i].channel == ch &&
+	//	   voice[i].note == note &&
+	//	   (voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
+	//	{
+	//		recompute_amp(i);
+	//		apply_envelope_to_amp(i);
+	//	}
+	//}
 }
 
 static void drop_sustain(int c)
@@ -3192,52 +4938,53 @@ static void adjust_all_pitch(void)
 {
 	int ch, i, uv = upper_voices;
 	
-	for (ch = 0; ch < MAX_CHANNELS; ch++)
-		channel[ch].pitchfactor = 0;
-	for (i = 0; i < uv; i++)
-		if (voice[i].status != VOICE_FREE)
-			recompute_freq(i);
+	for (ch = 0; ch < MAX_CHANNELS; ch++){
+		recompute_channel_pitch(ch);
+	}
+	//for (i = 0; i < uv; i++)
+	//	if (voice[i].status != VOICE_FREE)
+	//		recompute_freq(i);
 }
 
 static void adjust_pitch(int c)
 {
-  int i, uv = upper_voices;
-  for(i = 0; i < uv; i++)
-    if (voice[i].status != VOICE_FREE && voice[i].channel == c)
-	recompute_freq(i);
+	recompute_channel_lfo(c);
+	recompute_channel_amp(c);
+	recompute_channel_filter(c);
+	recompute_channel_pitch(c);
+ // int i, uv = upper_voices;
+ // for(i = 0; i < uv; i++)
+ //   if (voice[i].status != VOICE_FREE && voice[i].channel == c)
+	//recompute_freq(i);
 }
 
 static void adjust_volume(int c)
 {
-  int i, uv = upper_voices;
-  for(i = 0; i < uv; i++)
-    if (voice[i].channel == c &&
-	(voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
-      {
-	recompute_amp(i);
-	apply_envelope_to_amp(i);
-      }
-}
-
-static void set_reverb_level(int ch, int level)
-{
-	if (level == -1) {
-		channel[ch].reverb_level = channel[ch].reverb_id =
-				(opt_reverb_control < 0)
-				? -opt_reverb_control & 0x7f : DEFAULT_REVERB_SEND_LEVEL;
-		make_rvid_flag = 1;
-		return;
-	}
-	channel[ch].reverb_level = level;
-	make_rvid_flag = 0;	/* to update reverb_id */
+	recompute_channel_amp(c);
+ // int i, uv = upper_voices;
+ // for(i = 0; i < uv; i++)
+ //   if (voice[i].channel == c &&
+	//(voice[i].status & (VOICE_ON | VOICE_SUSTAINED)))
+ //     {
+	//recompute_amp(i);
+	//apply_envelope_to_amp(i);
+ //     }
 }
 
 int get_reverb_level(int ch)
 {
 	if (channel[ch].reverb_level == -1)
-		return (opt_reverb_control < 0)
-			? -opt_reverb_control & 0x7f : DEFAULT_REVERB_SEND_LEVEL;
+		return (opt_reverb_control < 0) ? -opt_reverb_control & 0x7f : DEFAULT_REVERB_SEND_LEVEL;
 	return channel[ch].reverb_level;
+}
+
+static void set_reverb_level(int ch, int level)
+{
+	if (level == -1) {
+		channel[ch].reverb_level = (opt_reverb_control < 0)	? -opt_reverb_control & 0x7f : DEFAULT_REVERB_SEND_LEVEL;
+	}else{
+		channel[ch].reverb_level = level;
+	}
 }
 
 int get_chorus_level(int ch)
@@ -3246,113 +4993,201 @@ int get_chorus_level(int ch)
     if(ISDRUMCHANNEL(ch))
 	return 0; /* Not supported drum channel chorus */
 #endif
-    if(opt_chorus_control == 1)
-	return channel[ch].chorus_level;
-    return -opt_chorus_control;
+	if(channel[ch].chorus_level == -1)
+		return (opt_chorus_control<0) ? -opt_chorus_control : 0;
+  if(opt_chorus_control == 1)
+		return channel[ch].chorus_level;
+  return -opt_chorus_control;
 }
 
-#ifndef USE_DSP_EFFECT
-static void make_rvid(void)
-{
-    int i, j, lv, maxrv;
-
-    for(maxrv = MAX_CHANNELS - 1; maxrv >= 0; maxrv--)
-    {
-	if(channel[maxrv].reverb_level == -1)
-	    channel[maxrv].reverb_id = -1;
-	else if(channel[maxrv].reverb_level >= 0)
-	    break;
-    }
-
-    /* collect same reverb level. */
-    for(i = 0; i <= maxrv; i++)
-    {
-	if((lv = channel[i].reverb_level) == -1)
-	{
-	    channel[i].reverb_id = -1;
-	    continue;
-	}
-	channel[i].reverb_id = i;
-	for(j = 0; j < i; j++)
-	{
-	    if(channel[j].reverb_level == lv)
-	    {
-		channel[i].reverb_id = j;
-		break;
-	    }
-	}
-    }
-}
-#endif /* !USE_DSP_EFFECT */
 
 void free_drum_effect(int ch)
 {
-	int i;
+	int i, j;
+	struct DrumPartEffect *de;
 	if (channel[ch].drum_effect != NULL) {
-		for (i = 0; i < channel[ch].drum_effect_num; i++) {
-			if (channel[ch].drum_effect[i].buf != NULL) {
-				free(channel[ch].drum_effect[i].buf);
-				channel[ch].drum_effect[i].buf = NULL;
+		for (i = 0; i < channel[ch].drum_effect_num; i++) {	
+			de = &(channel[ch].drum_effect[i]);	
+
+#ifdef MULTI_THREAD_COMPUTE	
+
+			for (j = 0; j < 4; j++) {
+#ifdef ALIGN_SIZE
+				aligned_free(de->buf_ptr[j]);
+#else	
+				safe_free(de->buf_ptr[j]);
+#endif
+				de->buf_ptr[j] = NULL;
 			}
+			de->buf = NULL;
+
+#else  // ! MULTI_THREAD_COMPUTE
+			
+#ifdef ALIGN_SIZE
+			aligned_free(de->buf);
+#else
+			safe_free(de->buf);
+#endif
+			de->buf = NULL;	
+
+#endif // MULTI_THREAD_COMPUTE	
+
 		}
-		free(channel[ch].drum_effect);
+		safe_free(channel[ch].drum_effect);
 		channel[ch].drum_effect = NULL;
 	}
 	channel[ch].drum_effect_num = 0;
 	channel[ch].drum_effect_flag = 0;
 }
 
+///r
 static void make_drum_effect(int ch)
 {
-	int i, note, num = 0;
+	int i, j, note, num = 0, size;
 	int8 note_table[128];
 	struct DrumParts *drum;
 	struct DrumPartEffect *de;
 
+	if (!opt_drum_effect) {return;}
 	if (channel[ch].drums == NULL) {return;}
 
-	if (channel[ch].drum_effect_flag == 0) {
+	// init
+	if(!(channel[ch].drum_effect_flag & 0x1)){ 
 		free_drum_effect(ch);
 		memset(note_table, 0, sizeof(int8) * 128);
-
 		for(i = 0; i < 128; i++) {
-			if ((drum = channel[ch].drums[i]) != NULL)
-			{
-				if (drum->reverb_level != -1
-				|| drum->chorus_level != -1 || drum->delay_level != -1) {
-					note_table[num++] = i;
-				}
+			if ((drum = channel[ch].drums[i]) == NULL)
+				continue;	
+			if (drum->reverb_level != -1 || drum->chorus_level != -1 || drum->delay_level != -1 
+				|| (opt_eq_control && drum->eq_xg.valid)) {
+				note_table[num++] = i;
 			}
 		}
-
-		channel[ch].drum_effect = (struct DrumPartEffect *)safe_malloc(sizeof(struct DrumPartEffect) * num);
+		channel[ch].drum_effect = (struct DrumPartEffect *)safe_malloc(sizeof(struct DrumPartEffect) * 128); // 128=all ,  def: num
+		size = AUDIO_BUFFER_SIZE * 2 * sizeof(DATA_T);
 
 		for(i = 0; i < num; i++) {
 			de = &(channel[ch].drum_effect[i]);
-			de->note = note = note_table[i];
-			drum = channel[ch].drums[note];
+			de->note = note_table[i];
+			drum = channel[ch].drums[de->note];
 			de->reverb_send = (int32)drum->reverb_level * (int32)get_reverb_level(ch) / 127;
+	//	ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "dfx init reverb send: ch:%d note:%d : level:%d", ch, de->note, drum->reverb_level); // test
 			de->chorus_send = (int32)drum->chorus_level * (int32)channel[ch].chorus_level / 127;
 			de->delay_send = (int32)drum->delay_level * (int32)channel[ch].delay_level / 127;
-			de->buf = (int32 *)safe_malloc(AUDIO_BUFFER_SIZE * 8);
-			memset(de->buf, 0, AUDIO_BUFFER_SIZE * 8);
+			de->eq_xg = &drum->eq_xg;		
+#ifdef MULTI_THREAD_COMPUTE	
+			for (j = 0; j < 4; j++) {
+#ifdef ALIGN_SIZE
+				de->buf_ptr[j] = (DATA_T *)aligned_malloc(size, ALIGN_SIZE);
+#else	
+				de->buf_ptr[j] = (DATA_T *)safe_malloc(size);
+#endif
+				memset(de->buf_ptr[j], 0, size);
+			}
+			de->buf = de->buf_ptr[0];
+#else  // ! MULTI_THREAD_COMPUTE
+#ifdef ALIGN_SIZE
+			de->buf = (DATA_T *)aligned_malloc(size, ALIGN_SIZE);
+#else
+			de->buf = (DATA_T *)safe_malloc(size);
+#endif
+			memset(de->buf, 0, size);	
+#endif // MULTI_THREAD_COMPUTE	
+		//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Drum Effect : init note (CH:%d note:%d)", ch, de->note);
 		}
-
 		channel[ch].drum_effect_num = num;
-		channel[ch].drum_effect_flag = 1;
+		channel[ch].drum_effect_flag = 0x1;
+		return;
+	}	
+
+	// add note
+	if (channel[ch].drum_effect_flag & 0x2) { 
+		memset(note_table, 0, sizeof(int8) * 128);		
+		for(i = 0; i < 128; i++) {
+			if ((drum = channel[ch].drums[i]) == NULL)
+				continue;	
+			if (drum->reverb_level != -1 || drum->chorus_level != -1 || drum->delay_level != -1 || (opt_eq_control && drum->eq_xg.valid)) {
+				int dup = 0;
+				for (j = 0; j < channel[ch].drum_effect_num; j++) {
+					de = &(channel[ch].drum_effect[j]);
+					if(i == de->note){
+						dup = 1;
+						break;
+					}
+				}
+				if(dup) continue;
+				note_table[num++] = i;
+			}
+		}	
+		size = AUDIO_BUFFER_SIZE * 2 * sizeof(DATA_T);
+		for(i = 0; i < num; i++) {
+			int newnum = channel[ch].drum_effect_num + i;
+			if(newnum >= 128){
+				ctl->cmsg(CMSG_INFO, VERB_NORMAL, "ERROR! Drum Effect : over 128 note (CH:%d)", ch);
+				channel[ch].drum_effect_flag = 0; // reset
+				make_drum_effect(ch); // reinit
+				return;
+			}
+			de = &(channel[ch].drum_effect[newnum]);
+			de->note = note_table[i];
+			drum = channel[ch].drums[de->note];
+			de->reverb_send = (int32)drum->reverb_level * (int32)get_reverb_level(ch) / 127;
+	//	ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "dfx add reverb send: ch:%d note:%d : level:%d", ch, de->note, drum->reverb_level); // test
+			de->chorus_send = (int32)drum->chorus_level * (int32)channel[ch].chorus_level / 127;
+			de->delay_send = (int32)drum->delay_level * (int32)channel[ch].delay_level / 127;
+			de->eq_xg = &drum->eq_xg;		
+#ifdef MULTI_THREAD_COMPUTE	
+			for (j = 0; j < 4; j++) {
+#ifdef ALIGN_SIZE
+				de->buf_ptr[j] = (DATA_T *)aligned_malloc(size, ALIGN_SIZE);
+#else	
+				de->buf_ptr[j] = (DATA_T *)safe_malloc(size);
+#endif
+				memset(de->buf_ptr[j], 0, size);
+			}
+			de->buf = de->buf_ptr[0];
+#else  // ! MULTI_THREAD_COMPUTE
+#ifdef ALIGN_SIZE
+			de->buf = (DATA_T *)aligned_malloc(size, ALIGN_SIZE);
+#else
+			de->buf = (DATA_T *)safe_malloc(size);
+#endif
+			memset(de->buf, 0, size);	
+#endif // MULTI_THREAD_COMPUTE				
+		//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Drum Effect : add note (CH:%d note:%d)", ch, de->note);
+		}
+		channel[ch].drum_effect_num += num;
+		channel[ch].drum_effect_flag = 0x1;
+		return;
+	}
+
+	// update effect
+	if (channel[ch].drum_effect_flag & 0x4) {
+		if (! channel[ch].drum_effect_num) return;			
+		for (i = 0; i < channel[ch].drum_effect_num; i++) {
+			de = &(channel[ch].drum_effect[i]);
+			drum = channel[ch].drums[de->note];
+			de->reverb_send = (int32)drum->reverb_level * (int32)get_reverb_level(ch) / 127;
+	//	ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "dfx update reverb send: ch:%d note:%d : level:%d", ch, de->note, drum->reverb_level); // test
+			de->chorus_send = (int32)drum->chorus_level * (int32)channel[ch].chorus_level / 127;
+			de->delay_send = (int32)drum->delay_level * (int32)channel[ch].delay_level / 127;
+		}
+		channel[ch].drum_effect_flag = 0x1;
+		return;
 	}
 }
 
+
 static void adjust_master_volume(void)
 {
-  int i, uv = upper_voices;
+  //int i, uv = upper_voices;
   adjust_amplification();
-  for(i = 0; i < uv; i++)
-      if(voice[i].status & (VOICE_ON | VOICE_SUSTAINED))
-      {
-	  recompute_amp(i);
-	  apply_envelope_to_amp(i);
-      }
+  //for(i = 0; i < uv; i++)
+  //    if(voice[i].status & (VOICE_ON | VOICE_SUSTAINED))
+  //    {
+	 // recompute_amp(i);
+	 // apply_envelope_to_amp(i);
+  //    }
 }
 
 int midi_drumpart_change(int ch, int isdrum)
@@ -3361,21 +5196,66 @@ int midi_drumpart_change(int ch, int isdrum)
 		return 0;
 	if (isdrum) {
 		SET_CHANNELMASK(drumchannels, ch);
-		SET_CHANNELMASK(current_file_info->drumchannels, ch);
+		//SET_CHANNELMASK(current_file_info->drumchannels, ch);
 	} else {
 		UNSET_CHANNELMASK(drumchannels, ch);
-		UNSET_CHANNELMASK(current_file_info->drumchannels, ch);
+		//UNSET_CHANNELMASK(current_file_info->drumchannels, ch);
 	}
 	return 1;
+}
+
+
+int16 sd_mfx_patch_param[13][9][128][33];
+
+static void sd_mfx_patch_change(int ch, int map, int bank, int prog)
+{
+	int i, num, mfx;
+ 	if(channel[ch].sd_output_assign != 2)
+		return;
+	switch (map) {
+	case 80: num = 0; break; /* Special 1 */
+	case 81: num = 1; break; /* Special 2 */
+	case 87: num = 2; break; /* Usr Inst*/
+	case 96: num = 3; break; /* Clsc Inst */
+	case 97: num = 4; break; /* Cntn Inst */
+	case 98: num = 5; break; /* Solo Inst */
+	case 99: num = 6; break; /* Ehnc Inst */
+	case 86: num = 7; break; /* Usr Drum */
+	case 104: num = 8; break; /* Clsc Drum */
+	case 105: num = 9; break; /* Cntn Drum */
+	case 106: num = 10; break; /* Solo Drum */
+	case 107: num = 11; break; /* Ehnc Drum */
+	//case 121: num = 12; break; /* GM2 tone */ // test
+	default: num = -1; break;
+	}
+	if(num < 0) // error
+		return;
+	channel[ch].mfx_part_type = sd_mfx_patch_param[num][bank][prog][0];
+	for(i = 0; i < 32; i++)
+		channel[ch].mfx_part_param[i] = sd_mfx_patch_param[num][bank][prog][i + 1];
+	if(channel[ch].mfx_part_type <= 0){
+		ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 0);
+		return;
+	}
+	mfx = channel[ch].sd_output_mfx_select;
+	realloc_mfx_effect_sd(&mfx_effect_sd[mfx], 3);
+	ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 1);
 }
 
 void midi_program_change(int ch, int prog)
 {
 	int dr = ISDRUMCHANNEL(ch);
 	int newbank, b, p, map;
+	int elm = 0;
 	
+///r
+	channel[ch].program_flag = 1;
+
 	switch (play_system_mode) {
 	case GS_SYSTEM_MODE:	/* GS */
+///r 
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Prog GS");
+
 		if ((map = channel[ch].bank_lsb) == 0) {
 			map = channel[ch].tone_map0_number;
 		}
@@ -3399,12 +5279,52 @@ void midi_program_change(int ch, int prog)
 		}
 		newbank = channel[ch].bank_msb;
 		break;
+///r
+/*
+//elion add
+		}
+		if (map == MODULE_SDMODE){
+			if (channel[ch].bank_msb >= 104 && channel[ch].bank_msb <= 107){
+				midi_drumpart_change(ch, 1);
+				channel[ch].mapID = SDXX_DRUM1_MAP + (channel[ch].bank_msb - 104);
+				channel[ch].bank_msb = 0;
+				newbank = channel[ch].bank_msb;
+			}else{
+				if (channel[ch].bank_msb == 120) { // gm2 drum
+					midi_drumpart_change(ch, 1);
+					channel[ch].mapID = GM2_DRUM_MAP;
+					channel[ch].bank_msb = 0x78;
+					newbank = channel[ch].bank_lsb;
+				}else if (channel[ch].bank_msb == 121) { // gm2 inst
+					midi_drumpart_change(ch, 0);
+					channel[ch].mapID = GM2_TONE_MAP;
+					channel[ch].bank_msb = 0;
+					newbank = channel[ch].bank_lsb;
+				}else if (channel[ch].bank_msb >= 96 && channel[ch].bank_msb <= 99) {// sd map
+					channel[ch].mapID = SDXX_TONE_MAP;
+					midi_drumpart_change(ch, 0); 
+					channel[ch].bank_msb = 0;
+					newbank = channel[ch].bank_msb;
+				}else if (channel[ch].bank_msb == 80 || channel[ch].bank_msb == 81 || channel[ch].bank_msb == 87){
+					channel[ch].mapID = INST_NO_MAP; // spacial
+				}else if (channel[ch].bank_msb == 127)
+					channel[ch].mapID = INST_NO_MAP; // mt/cm
+				else
+					channel[ch].mapID = (dr) ? SC_8850_DRUM_MAP : SC_8850_TONE_MAP;
+			}
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		}
+		break;
+*/
 	case XG_SYSTEM_MODE:	/* XG */
+///r 
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Prog XG");
 		switch (channel[ch].bank_msb) {
 		case 0:		/* Normal */
 #if 0
 			if (ch == 9 && channel[ch].bank_lsb == 127
-					&& channel[ch].mapID == XG_DRUM_MAP)
+					&& channel[ch].mapID == XG_DRUM_KIT_MAP)
 				/* FIXME: Why this part is drum?  Is this correct? */
 				break;
 #endif
@@ -3456,19 +5376,115 @@ void midi_program_change(int ch, int prog)
 			channel[ch].mapID = XG_NORMAL_MAP;
 			dr = ISDRUMCHANNEL(ch);
 			break;
-		case 64:	/* SFX voice */
-			midi_drumpart_change(ch, 0);
-			channel[ch].mapID = XG_SFX64_MAP;
-			dr = ISDRUMCHANNEL(ch);
-			break;
-		case 126:	/* SFX kit */
-			midi_drumpart_change(ch, 1);
-			channel[ch].mapID = XG_SFX126_MAP;
-			dr = ISDRUMCHANNEL(ch);
-			break;
+///r
+		case 126:	/* SFX kit & MU2000 sampling kit*/
+			if(113 <= prog && prog <= 116){ // MU2000 sampling kit
+				midi_drumpart_change(ch, 1);
+				channel[ch].mapID = XG_SAMPLING126_MAP;
+				dr = ISDRUMCHANNEL(ch);
+			}else{ // SFX kit
+				midi_drumpart_change(ch, 1);
+				channel[ch].mapID = XG_SFX_KIT_MAP;
+				dr = ISDRUMCHANNEL(ch);
+			}
 		case 127:	/* Drum kit */
 			midi_drumpart_change(ch, 1);
-			channel[ch].mapID = XG_DRUM_MAP;
+			channel[ch].mapID = XG_DRUM_KIT_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 63:	/* FREE voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_FREE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 48:	/* MU100 exclusive voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_MU100EXC_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 16:	/* MU2000 sampling voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_SAMPLING16_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 32:	/* PCM-USER voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_PCM_USER_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 64:	/* PCM-SFX voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_PCM_SFX_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 80:	/* PCM-A voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_PCM_A_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 96:	/* PCM-B voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_PCM_B_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 33:	/* VA-USER voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_VA_USER_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 65:	/* VA-SFX voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_VA_SFX_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 81:	/* VA-A voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_VA_A_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 97:	/* VA-B voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_VA_B_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 34:	/* SG-USER voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_SG_USER_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 66:	/* SG-SFX voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_SG_SFX_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 82:	/* SG-A voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_SG_A_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 98:	/* SG-B voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_SG_B_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 35:	/* FM-USER voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_FM_USER_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 67:	/* FM-SFX voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_FM_SFX_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 83:	/* FM-A voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_FM_A_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 99:	/* FM-B voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = XG_FM_B_MAP;
 			dr = ISDRUMCHANNEL(ch);
 			break;
 		default:
@@ -3476,20 +5492,458 @@ void midi_program_change(int ch, int prog)
 		}
 		newbank = channel[ch].bank_lsb;
 		break;
+///r
+	case SD_SYSTEM_MODE:	/* SD */
 	case GM2_SYSTEM_MODE:	/* GM2 */
-		if ((channel[ch].bank_msb & 0xfe) == 0x78) {	/* 0x78/0x79 */
-			midi_drumpart_change(ch, channel[ch].bank_msb == 0x78);
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Prog GM2/SD");
+		switch (channel[ch].bank_msb) {
+		case 80:	/* Special 1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE80_MAP;
 			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 81:	/* Special 2 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE81_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 87:	/* Usr Inst */ /* SD-50 Preset Inst */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE87_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 89:	/* SD-50 Solo Inst */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE89_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 96:	/* Clsc Inst */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE96_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 97:	/* Cntn Inst */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE97_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 98:	/* Solo Inst */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE98_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 99:	/* Ehnc Inst */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SDXX_TONE99_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 86:	/* Usr Drum */ /* SD-50 Preset Rhythm */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = SDXX_DRUM86_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 104:	/* Clsc Drum */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = SDXX_DRUM104_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 105:	/* Cntn Drum */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = SDXX_DRUM105_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 106:	/* Solo Drum */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = SDXX_DRUM106_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 107:	/* Ehnc Drum */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = SDXX_DRUM107_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			sd_mfx_patch_change(ch, channel[ch].bank_msb, channel[ch].bank_lsb, prog);
+			break;
+		case 120:	/* GM2 Drum */
+			midi_drumpart_change(ch, 1);			
+			if(play_system_mode == SD_SYSTEM_MODE || is_sd_module()){
+				switch(channel[ch].gm2_inst){
+				case 0: // classic set
+					channel[ch].mapID = SDXX_DRUM104_MAP;
+					break;
+				default:
+				case 1: // contemp set
+					channel[ch].mapID = SDXX_DRUM105_MAP;
+					break;
+				case 2: // solo set
+					channel[ch].mapID = SDXX_DRUM106_MAP;
+					break;
+				case 3: // enhance set
+					channel[ch].mapID = SDXX_DRUM107_MAP;
+					break;
+				}
+			}else
+				channel[ch].mapID = GM2_DRUM_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 121:	/* GM2 Inst */
+			midi_drumpart_change(ch, 0);
+			if(play_system_mode == SD_SYSTEM_MODE || is_sd_module()){
+				switch(channel[ch].gm2_inst){
+				case 0: // classic set
+					channel[ch].mapID = SDXX_TONE96_MAP;
+					break;
+				default:
+				case 1: // contemp set
+					channel[ch].mapID = SDXX_TONE97_MAP;
+					break;
+				case 2: // solo set
+					channel[ch].mapID = SDXX_TONE98_MAP;
+					break;
+				case 3: // enhance set
+					channel[ch].mapID = SDXX_TONE99_MAP;
+					break;
+				}
+			}else
+				channel[ch].mapID = GM2_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		default:
+			break;
 		}
-		channel[ch].mapID = (dr) ? GM2_DRUM_MAP : GM2_TONE_MAP;
 		newbank = channel[ch].bank_lsb;
 		break;
+	case KG_SYSTEM_MODE:	/* AG */ /* NX */
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Prog KG");
+
+		switch (channel[ch].bank_msb) {
+		case 0:		/* GMa/y */
+			midi_drumpart_change(ch, 0);
+			if(opt_default_module == MODULE_AG10)
+				channel[ch].mapID = NX5R_TONE0_MAP;
+			else if(opt_default_module == MODULE_05RW)
+				channel[ch].mapID = K05RW_TONE0_MAP;
+			else if(opt_default_module == MODULE_NX5R)
+				channel[ch].mapID = NX5R_TONE0_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 1:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE1_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 2:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE2_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 3:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE3_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 4:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE4_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 5:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE5_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 6:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE6_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 7:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE7_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 8:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE8_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 9:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE9_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 10:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE10_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 11:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE11_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 16:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE16_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 17:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE17_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 18:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE18_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 19:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE19_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 24:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE24_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 25:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE25_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 26:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE26_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 32:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE32_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 33:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE33_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 40:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE40_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 56:		/* GMb */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = K05RW_TONE56_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 57:		/* GMb */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = K05RW_TONE57_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 61:	/* rDrm */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = NX5R_DRUM61_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 62:	/* kDrum */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = K05RW_DRUM62_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 64:	/* ySFX voice */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE64_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 80:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE80_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 81:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE81_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 82:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE82_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 83:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE83_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 88:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE88_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 89:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE89_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 90:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE90_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 91:		/* r1 */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE91_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 125:		/* CM */
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = NX5R_TONE125_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 126:	/* yDrm1 */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = NX5R_DRUM126_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case 127:	/* yDrm2 */
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = NX5R_DRUM127_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		default:
+			break;
+		}
+		newbank = channel[ch].bank_lsb;
+		break;
+	case CM_SYSTEM_MODE:	/* MT32 CMxx */
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Prog CM");
+		if(opt_default_module == MODULE_CM500D){ // CM500D 1-9GS 10-15LA 
+			if(ch < 10)
+				channel[ch].mapID = (dr) ? SC_55_DRUM_MAP : SC_55_TONE_MAP;
+			else
+				channel[ch].mapID = CM32L_TONE_MAP;
+		}else if(ch > 15){ // other CM
+			channel[ch].mapID = (dr) ? SC_88PRO_DRUM_MAP : SC_88PRO_TONE_MAP;
+		}else if((ch & (16 - 1)) == 9){
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = CM32_DRUM_MAP;
+	//		channel[ch].mapID = (opt_default_module == MODULE_MT32) ? MT32_DRUM_MAP : CM32_DRUM_MAP;
+			dr = ISDRUMCHANNEL(ch);
+		}else if((ch & (16 - 1)) < 9){
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = CM32L_TONE_MAP;
+	//		channel[ch].mapID = (opt_default_module == MODULE_MT32) ? MT32_TONE_MAP : CM32L_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+		}else if(prog < 64){
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = CM32P_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+		}else switch (opt_default_module) {
+		case MODULE_CM64_SN01:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN01_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+		case MODULE_CM64_SN02:
+			if(prog < 71){
+				midi_drumpart_change(ch, 1);
+				channel[ch].mapID = SN02_DRUM_MAP;
+				dr = ISDRUMCHANNEL(ch);
+			}else{
+				midi_drumpart_change(ch, 0);
+				channel[ch].mapID = SN02_TONE_MAP;
+				dr = ISDRUMCHANNEL(ch);
+			}
+			break;
+		case MODULE_CM64_SN03:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN03_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN04:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN04_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN05:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN05_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN06:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN06_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN07:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN07_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN08:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN08_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN09:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN09_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN10:
+			midi_drumpart_change(ch, 1);
+			channel[ch].mapID = SN10_DRUM_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN11:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN11_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN12:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN12_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN13:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN13_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN14:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN14_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		case MODULE_CM64_SN15:
+			midi_drumpart_change(ch, 0);
+			channel[ch].mapID = SN15_TONE_MAP;
+			dr = ISDRUMCHANNEL(ch);
+			break;
+		default:
+			break;
+		}
+		newbank = channel[ch].bank_msb;
+		break;
 	default:
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Prog Def");
 		newbank = channel[ch].bank_msb;
 		break;
 	}
 	if (dr) {
-		channel[ch].bank = prog;	/* newbank is ignored */
+		channel[ch].bank = prog;	// newbank is ignored
 		channel[ch].program = prog;
 		if (drumset[prog] == NULL || drumset[prog]->alt == NULL)
 			channel[ch].altassign = drumset[0]->alt;
@@ -3503,22 +5957,64 @@ void midi_program_change(int ch, int prog)
 				? SPECIAL_PROGRAM : prog;
 		channel[ch].altassign = NULL;
 		ctl_mode_event(CTLE_DRUMPART, 1, ch, 0);
+///r
+		recompute_bank_parameter_tone(ch);
 		if (opt_realtime_playing && (play_mode->flag & PF_PCM_STREAM)) {
+			int elm_max = 0;
 			b = channel[ch].bank, p = prog;
 			instrument_map(channel[ch].mapID, &b, &p);
-			play_midi_load_instrument(0, b, p);
+		//	for(elm = 0; elm < tonebank[b]->tone[p][elm].element_num + 1; elm++)
+		//	for(elm = 0; tonebank[b] && elm < tonebank[b]->tone[p][elm].element_num + 1; elm++)
+			for(elm = 0; elm <= elm_max; elm++)
+				play_midi_load_instrument(0, b, p, elm, &elm_max); // change elm_max
 		}
 	}
 }
 
-static int16 conv_lfo_pitch_depth(float val)
+
+static int32 conv_pitch_control(int val)
 {
-	return (int16)(0.0318f * val * val + 0.6858f * val + 0.5f);
+	if(val > 0x58) {val = 0x58;}
+	else if(val < 0x28) {val = 0x28;}
+	return (val - 0x40); // max +-24semitone
 }
 
-static int16 conv_lfo_filter_depth(float val)
+static float conv_cutoff_control(int val)
 {
-	return (int16)((0.0318f * val * val + 0.6858f * val) * 4.0f + 0.5f);
+	return (double)(val - 0x40) * DIV_64 * 9600.0; // max +-9600cent
+}
+
+static float conv_amp_control(int val)
+{
+	return (double)(val - 0x40) * DIV_64; // max +-100%
+}
+
+static float conv_lfo_rate(int val)
+{
+//	return (int16)(0.0318f * val * val + 0.6858f * val + 0.5f);
+	return (double)(val - 0x40) * DIV_64 * 10.0; // max +-10Hz
+}
+
+static float conv_lfo_amp_depth(int val)
+{
+	return (double)val * DIV_128; // max 100%
+}
+
+static float conv_lfo_pitch_depth(int val)
+{
+//	return (int16)(0.0318f * val * val + 0.6858f * val + 0.5f);
+	return (double)val * DIV_127 * 600.0; // max 600cent
+}
+
+static float conv_lfo_filter_depth(int val)
+{
+//	return (int16)((0.0318f * val * val + 0.6858f * val) * 4.0f + 0.5f);
+	return (double)val * DIV_127 * 2400.0; // max 2400cent
+}
+
+static float conv_modenv_depth(int val)
+{
+	return (double)(val - 0x40) * DIV_64 * 9600.0; // max +-9600cent
 }
 
 /*! process system exclusive sent from parse_sysex_event_multi(). */
@@ -3537,6 +6033,12 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 	} else if(ev == ME_SYSEX_XG_MSB) {
 		channel[ch].sysex_xg_msb_addr = b;
 		channel[ch].sysex_xg_msb_val = val;
+	} else if(ev == ME_SYSEX_SD_MSB) {
+		channel[ch].sysex_sd_msb_addr = b;
+		channel[ch].sysex_sd_msb_val = val;
+	} else if(ev == ME_SYSEX_SD_HSB) {
+		channel[ch].sysex_sd_hsb_addr = b;
+		channel[ch].sysex_sd_hsb_val = val;
 	} else if(ev == ME_SYSEX_LSB) {	/* Universal system exclusive message */
 		msb = channel[ch].sysex_msb_addr;
 		note = channel[ch].sysex_msb_val;
@@ -3544,279 +6046,267 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 		switch(b)
 		{
 		case 0x00:	/* CAf Pitch Control */
-			if(val > 0x58) {val = 0x58;}
-			else if(val < 0x28) {val = 0x28;}
-			channel[ch].caf.pitch = val - 64;
+			channel[ch].caf.pitch = conv_pitch_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf Pitch Control (CH:%d %d semitones)", ch, channel[ch].caf.pitch);
 			break;
 		case 0x01:	/* CAf Filter Cutoff Control */
-			channel[ch].caf.cutoff = (val - 64) * 150;
+			channel[ch].caf.cutoff = conv_cutoff_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].caf.cutoff);
 			break;
 		case 0x02:	/* CAf Amplitude Control */
-			channel[ch].caf.amp = (float)val / 64.0f - 1.0f;
+			channel[ch].caf.amp = conv_amp_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf Amplitude Control (CH:%d %.2f)", ch, channel[ch].caf.amp);
 			break;
 		case 0x03:	/* CAf LFO1 Rate Control */
-			channel[ch].caf.lfo1_rate = (float)(val - 64) / 6.4f;
+			channel[ch].caf.lfo1_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].caf.lfo1_rate);
 			break;
 		case 0x04:	/* CAf LFO1 Pitch Depth */
 			channel[ch].caf.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO1 Pitch Depth (CH:%d %d cents)", ch, channel[ch].caf.lfo1_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].caf.lfo1_pitch_depth); 
 			break;
 		case 0x05:	/* CAf LFO1 Filter Depth */
 			channel[ch].caf.lfo1_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO1 Filter Depth (CH:%d %d cents)", ch, channel[ch].caf.lfo1_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].caf.lfo1_tvf_depth); 
 			break;
 		case 0x06:	/* CAf LFO1 Amplitude Depth */
-			channel[ch].caf.lfo1_tva_depth = (float)val / 127.0f;
+			channel[ch].caf.lfo1_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].caf.lfo1_tva_depth); 
 			break;
 		case 0x07:	/* CAf LFO2 Rate Control */
-			channel[ch].caf.lfo2_rate = (float)(val - 64) / 6.4f;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].caf.lfo2_rate);
+			channel[ch].caf.lfo2_rate = conv_lfo_rate(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO2 Rate Control (CH:%d %.2f Hz)", ch, channel[ch].caf.lfo2_rate);
 			break;
 		case 0x08:	/* CAf LFO2 Pitch Depth */
 			channel[ch].caf.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO2 Pitch Depth (CH:%d %d cents)", ch, channel[ch].caf.lfo2_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].caf.lfo2_pitch_depth); 
 			break;
 		case 0x09:	/* CAf LFO2 Filter Depth */
 			channel[ch].caf.lfo2_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO2 Filter Depth (CH:%d %d cents)", ch, channel[ch].caf.lfo2_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].caf.lfo2_tvf_depth); 
 			break;
 		case 0x0A:	/* CAf LFO2 Amplitude Depth */
-			channel[ch].caf.lfo2_tva_depth = (float)val / 127.0f;
+			channel[ch].caf.lfo2_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAf LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].caf.lfo2_tva_depth); 
 			break;
 		case 0x0B:	/* PAf Pitch Control */
-			if(val > 0x58) {val = 0x58;}
-			else if(val < 0x28) {val = 0x28;}
-			channel[ch].paf.pitch = val - 64;
+			channel[ch].paf.pitch = conv_pitch_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf Pitch Control (CH:%d %d semitones)", ch, channel[ch].paf.pitch);
 			break;
 		case 0x0C:	/* PAf Filter Cutoff Control */
-			channel[ch].paf.cutoff = (val - 64) * 150;
+			channel[ch].paf.cutoff = conv_cutoff_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].paf.cutoff);
 			break;
 		case 0x0D:	/* PAf Amplitude Control */
-			channel[ch].paf.amp = (float)val / 64.0f - 1.0f;
+			channel[ch].paf.amp = conv_amp_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf Amplitude Control (CH:%d %.2f)", ch, channel[ch].paf.amp);
 			break;
 		case 0x0E:	/* PAf LFO1 Rate Control */
-			channel[ch].paf.lfo1_rate = (float)(val - 64) / 6.4f;
+			channel[ch].paf.lfo1_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].paf.lfo1_rate);
 			break;
 		case 0x0F:	/* PAf LFO1 Pitch Depth */
 			channel[ch].paf.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO1 Pitch Depth (CH:%d %d cents)", ch, channel[ch].paf.lfo1_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].paf.lfo1_pitch_depth); 
 			break;
 		case 0x10:	/* PAf LFO1 Filter Depth */
 			channel[ch].paf.lfo1_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO1 Filter Depth (CH:%d %d cents)", ch, channel[ch].paf.lfo1_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].paf.lfo1_tvf_depth); 
 			break;
 		case 0x11:	/* PAf LFO1 Amplitude Depth */
-			channel[ch].paf.lfo1_tva_depth = (float)val / 127.0f;
+			channel[ch].paf.lfo1_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].paf.lfo1_tva_depth); 
 			break;
 		case 0x12:	/* PAf LFO2 Rate Control */
-			channel[ch].paf.lfo2_rate = (float)(val - 64) / 6.4f;
+			channel[ch].paf.lfo2_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].paf.lfo2_rate);
 			break;
 		case 0x13:	/* PAf LFO2 Pitch Depth */
 			channel[ch].paf.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO2 Pitch Depth (CH:%d %d cents)", ch, channel[ch].paf.lfo2_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].paf.lfo2_pitch_depth); 
 			break;
 		case 0x14:	/* PAf LFO2 Filter Depth */
 			channel[ch].paf.lfo2_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO2 Filter Depth (CH:%d %d cents)", ch, channel[ch].paf.lfo2_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].paf.lfo2_tvf_depth); 
 			break;
 		case 0x15:	/* PAf LFO2 Amplitude Depth */
-			channel[ch].paf.lfo2_tva_depth = (float)val / 127.0f;
+			channel[ch].paf.lfo2_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "PAf LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].paf.lfo2_tva_depth); 
 			break;
 		case 0x16:	/* MOD Pitch Control */
-			if(val > 0x58) {val = 0x58;}
-			else if(val < 0x28) {val = 0x28;}
-			channel[ch].mod.pitch = val - 64;
+			channel[ch].mod.pitch = conv_pitch_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD Pitch Control (CH:%d %d semitones)", ch, channel[ch].mod.pitch);
 			break;
 		case 0x17:	/* MOD Filter Cutoff Control */
-			channel[ch].mod.cutoff = (val - 64) * 150;
+			channel[ch].mod.cutoff = conv_cutoff_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].mod.cutoff);
 			break;
 		case 0x18:	/* MOD Amplitude Control */
-			channel[ch].mod.amp = (float)val / 64.0f - 1.0f;
+			channel[ch].mod.amp = conv_amp_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD Amplitude Control (CH:%d %.2f)", ch, channel[ch].mod.amp);
 			break;
 		case 0x19:	/* MOD LFO1 Rate Control */
-			channel[ch].mod.lfo1_rate = (float)(val - 64) / 6.4f;
+			channel[ch].mod.lfo1_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].mod.lfo1_rate);
 			break;
 		case 0x1A:	/* MOD LFO1 Pitch Depth */
 			channel[ch].mod.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO1 Pitch Depth (CH:%d %d cents)", ch, channel[ch].mod.lfo1_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].mod.lfo1_pitch_depth); 
 			break;
 		case 0x1B:	/* MOD LFO1 Filter Depth */
 			channel[ch].mod.lfo1_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO1 Filter Depth (CH:%d %d cents)", ch, channel[ch].mod.lfo1_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].mod.lfo1_tvf_depth); 
 			break;
 		case 0x1C:	/* MOD LFO1 Amplitude Depth */
-			channel[ch].mod.lfo1_tva_depth = (float)val / 127.0f;
+			channel[ch].mod.lfo1_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].mod.lfo1_tva_depth); 
 			break;
 		case 0x1D:	/* MOD LFO2 Rate Control */
-			channel[ch].mod.lfo2_rate = (float)(val - 64) / 6.4f;
+			channel[ch].mod.lfo2_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].mod.lfo2_rate);
 			break;
 		case 0x1E:	/* MOD LFO2 Pitch Depth */
 			channel[ch].mod.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO2 Pitch Depth (CH:%d %d cents)", ch, channel[ch].mod.lfo2_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].mod.lfo2_pitch_depth); 
 			break;
 		case 0x1F:	/* MOD LFO2 Filter Depth */
 			channel[ch].mod.lfo2_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO2 Filter Depth (CH:%d %d cents)", ch, channel[ch].mod.lfo2_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].mod.lfo2_tvf_depth); 
 			break;
 		case 0x20:	/* MOD LFO2 Amplitude Depth */
-			channel[ch].mod.lfo2_tva_depth = (float)val / 127.0f;
+			channel[ch].mod.lfo2_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MOD LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].mod.lfo2_tva_depth); 
 			break;
 		case 0x21:	/* BEND Pitch Control */
-			if(val > 0x58) {val = 0x58;}
-			else if(val < 0x28) {val = 0x28;}
-			channel[ch].bend.pitch = val - 64;
+			channel[ch].bend.pitch = conv_pitch_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND Pitch Control (CH:%d %d semitones)", ch, channel[ch].bend.pitch);
 			break;
 		case 0x22:	/* BEND Filter Cutoff Control */
-			channel[ch].bend.cutoff = (val - 64) * 150;
+			channel[ch].bend.cutoff = conv_cutoff_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].bend.cutoff);
 			break;
 		case 0x23:	/* BEND Amplitude Control */
-			channel[ch].bend.amp = (float)val / 64.0f - 1.0f;
+			channel[ch].bend.amp = conv_amp_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND Amplitude Control (CH:%d %.2f)", ch, channel[ch].bend.amp);
 			break;
 		case 0x24:	/* BEND LFO1 Rate Control */
-			channel[ch].bend.lfo1_rate = (float)(val - 64) / 6.4f;
+			channel[ch].bend.lfo1_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].bend.lfo1_rate);
 			break;
 		case 0x25:	/* BEND LFO1 Pitch Depth */
 			channel[ch].bend.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO1 Pitch Depth (CH:%d %d cents)", ch, channel[ch].bend.lfo1_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].bend.lfo1_pitch_depth); 
 			break;
 		case 0x26:	/* BEND LFO1 Filter Depth */
 			channel[ch].bend.lfo1_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO1 Filter Depth (CH:%d %d cents)", ch, channel[ch].bend.lfo1_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].bend.lfo1_tvf_depth); 
 			break;
 		case 0x27:	/* BEND LFO1 Amplitude Depth */
-			channel[ch].bend.lfo1_tva_depth = (float)val / 127.0f;
+			channel[ch].bend.lfo1_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].bend.lfo1_tva_depth); 
 			break;
 		case 0x28:	/* BEND LFO2 Rate Control */
-			channel[ch].bend.lfo2_rate = (float)(val - 64) / 6.4f;
+			channel[ch].bend.lfo2_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].bend.lfo2_rate);
 			break;
 		case 0x29:	/* BEND LFO2 Pitch Depth */
 			channel[ch].bend.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO2 Pitch Depth (CH:%d %d cents)", ch, channel[ch].bend.lfo2_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].bend.lfo2_pitch_depth); 
 			break;
 		case 0x2A:	/* BEND LFO2 Filter Depth */
 			channel[ch].bend.lfo2_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO2 Filter Depth (CH:%d %d cents)", ch, channel[ch].bend.lfo2_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].bend.lfo2_tvf_depth); 
 			break;
 		case 0x2B:	/* BEND LFO2 Amplitude Depth */
-			channel[ch].bend.lfo2_tva_depth = (float)val / 127.0f;
+			channel[ch].bend.lfo2_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].bend.lfo2_tva_depth); 
 			break;
 		case 0x2C:	/* CC1 Pitch Control */
-			if(val > 0x58) {val = 0x58;}
-			else if(val < 0x28) {val = 0x28;}
-			channel[ch].cc1.pitch = val - 64;
+			channel[ch].cc1.pitch = conv_pitch_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 Pitch Control (CH:%d %d semitones)", ch, channel[ch].cc1.pitch);
 			break;
 		case 0x2D:	/* CC1 Filter Cutoff Control */
-			channel[ch].cc1.cutoff = (val - 64) * 150;
+			channel[ch].cc1.cutoff = conv_cutoff_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].cc1.cutoff);
 			break;
 		case 0x2E:	/* CC1 Amplitude Control */
-			channel[ch].cc1.amp = (float)val / 64.0f - 1.0f;
+			channel[ch].cc1.amp = conv_amp_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 Amplitude Control (CH:%d %.2f)", ch, channel[ch].cc1.amp);
 			break;
 		case 0x2F:	/* CC1 LFO1 Rate Control */
-			channel[ch].cc1.lfo1_rate = (float)(val - 64) / 6.4f;
+			channel[ch].cc1.lfo1_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc1.lfo1_rate);
 			break;
 		case 0x30:	/* CC1 LFO1 Pitch Depth */
 			channel[ch].cc1.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO1 Pitch Depth (CH:%d %d cents)", ch, channel[ch].cc1.lfo1_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc1.lfo1_pitch_depth); 
 			break;
 		case 0x31:	/* CC1 LFO1 Filter Depth */
 			channel[ch].cc1.lfo1_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO1 Filter Depth (CH:%d %d cents)", ch, channel[ch].cc1.lfo1_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc1.lfo1_tvf_depth); 
 			break;
 		case 0x32:	/* CC1 LFO1 Amplitude Depth */
-			channel[ch].cc1.lfo1_tva_depth = (float)val / 127.0f;
+			channel[ch].cc1.lfo1_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc1.lfo1_tva_depth); 
 			break;
 		case 0x33:	/* CC1 LFO2 Rate Control */
-			channel[ch].cc1.lfo2_rate = (float)(val - 64) / 6.4f;
+			channel[ch].cc1.lfo2_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc1.lfo2_rate);
 			break;
 		case 0x34:	/* CC1 LFO2 Pitch Depth */
 			channel[ch].cc1.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO2 Pitch Depth (CH:%d %d cents)", ch, channel[ch].cc1.lfo2_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc1.lfo2_pitch_depth); 
 			break;
 		case 0x35:	/* CC1 LFO2 Filter Depth */
 			channel[ch].cc1.lfo2_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO2 Filter Depth (CH:%d %d cents)", ch, channel[ch].cc1.lfo2_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc1.lfo2_tvf_depth); 
 			break;
 		case 0x36:	/* CC1 LFO2 Amplitude Depth */
-			channel[ch].cc1.lfo2_tva_depth = (float)val / 127.0f;
+			channel[ch].cc1.lfo2_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc1.lfo2_tva_depth); 
 			break;
 		case 0x37:	/* CC2 Pitch Control */
-			if(val > 0x58) {val = 0x58;}
-			else if(val < 0x28) {val = 0x28;}
-			channel[ch].cc2.pitch = val - 64;
+			channel[ch].cc2.pitch = conv_pitch_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 Pitch Control (CH:%d %d semitones)", ch, channel[ch].cc2.pitch);
 			break;
 		case 0x38:	/* CC2 Filter Cutoff Control */
-			channel[ch].cc2.cutoff = (val - 64) * 150;
+			channel[ch].cc2.cutoff = conv_cutoff_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].cc2.cutoff);
 			break;
 		case 0x39:	/* CC2 Amplitude Control */
-			channel[ch].cc2.amp = (float)val / 64.0f - 1.0f;
+			channel[ch].cc2.amp = conv_amp_control(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 Amplitude Control (CH:%d %.2f)", ch, channel[ch].cc2.amp);
 			break;
 		case 0x3A:	/* CC2 LFO1 Rate Control */
-			channel[ch].cc2.lfo1_rate = (float)(val - 64) / 6.4f;
+			channel[ch].cc2.lfo1_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc2.lfo1_rate);
 			break;
 		case 0x3B:	/* CC2 LFO1 Pitch Depth */
 			channel[ch].cc2.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO1 Pitch Depth (CH:%d %d cents)", ch, channel[ch].cc2.lfo1_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc2.lfo1_pitch_depth); 
 			break;
 		case 0x3C:	/* CC2 LFO1 Filter Depth */
 			channel[ch].cc2.lfo1_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO1 Filter Depth (CH:%d %d cents)", ch, channel[ch].cc2.lfo1_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc2.lfo1_tvf_depth); 
 			break;
 		case 0x3D:	/* CC2 LFO1 Amplitude Depth */
-			channel[ch].cc2.lfo1_tva_depth = (float)val / 127.0f;
+			channel[ch].cc2.lfo1_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc2.lfo1_tva_depth); 
 			break;
 		case 0x3E:	/* CC2 LFO2 Rate Control */
-			channel[ch].cc2.lfo2_rate = (float)(val - 64) / 6.4f;
+			channel[ch].cc2.lfo2_rate = conv_lfo_rate(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc2.lfo2_rate);
 			break;
 		case 0x3F:	/* CC2 LFO2 Pitch Depth */
 			channel[ch].cc2.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO2 Pitch Depth (CH:%d %d cents)", ch, channel[ch].cc2.lfo2_pitch_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc2.lfo2_pitch_depth); 
 			break;
 		case 0x40:	/* CC2 LFO2 Filter Depth */
 			channel[ch].cc2.lfo2_tvf_depth = conv_lfo_filter_depth(val);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO2 Filter Depth (CH:%d %d cents)", ch, channel[ch].cc2.lfo2_tvf_depth); 
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc2.lfo2_tvf_depth); 
 			break;
 		case 0x41:	/* CC2 LFO2 Amplitude Depth */
-			channel[ch].cc2.lfo2_tva_depth = (float)val / 127.0f;
+			channel[ch].cc2.lfo2_tva_depth = conv_lfo_amp_depth(val);
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc2.lfo2_tva_depth); 
 			break;
 		case 0x42:	/* Note Limit Low */
@@ -3839,6 +6329,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if (channel[ch].drums[note] == NULL)
 				play_midi_setup_drums(ch, note);
 			set_rx_drum(channel[ch].drums[note], RX_NOTE_OFF, val);
+			channel[ch].drums[note]->rx_note_off = 1;
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
 				"Drum Instrument Rx. Note Off (CH:%d NOTE:%d VAL:%d)",
 				ch, note, val);
@@ -3928,14 +6419,172 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Type (%d)", val);
 			set_reverb_macro_gm2(val);
 			recompute_reverb_status_gs();
-			init_reverb();
+			init_ch_reverb();
 			break;
 		case 0x61:	/* Chorus Type (GM2) */
 			if (val > 5) {val = 5;}
 			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Type (%d)", val);
-			set_chorus_macro_gs(val);
+			set_chorus_macro_gm2(val);
 			recompute_chorus_status_gs();
 			init_ch_chorus();
+			break;
+///r
+		case 0x62: /* Pitch EG Initial Level*/
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Initial Level (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_level[0] = val;			
+			break;
+		case 0x63:	/* Pitch EG Attack Level */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Attack Time (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_level[1] = val;	
+			break;
+		case 0x64:	/* Pitch EG Attack Time */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Attack Time (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_time[0] = val;			
+		    break;
+		case 0x65:	/* Pitch EG Decay Level */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Decay Time (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_level[2] = val;	
+			break;
+		case 0x66:	/* Pitch EG Decay Time */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Decay Time (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_time[1] = val;			
+		    break;
+		case 0x67:	/* Pitch EG Sustain Level */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Sustain Time (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_level[3] = val;	
+			break;
+		case 0x68:	/* Pitch EG Sustain Time */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Sustain Time (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_time[2] = val;			
+		    break;
+		case 0x69:	/* Pitch EG Release Level */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Release Level (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_level[4] = val;			
+		    break;
+		case 0x6A:	/* Pitch EG Release Time */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Pitch EG Release Time (CH:%d VAL:%d)", ch, val);
+			channel[ch].pit_env_time[3] = val;			
+		    break;	
+		case 0x6B:	/* Filter EG Depth */
+			channel[ch].modenv_depth = conv_modenv_depth(val);			
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Filter EG Depth (CH:%d VAL:%d)", ch, val - 0x40);
+		    break;				
+		case 0x6C:	/* GM2 Instrument Select */
+			if(ch == 0xFF){
+				int i;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "GM2 Instrument Select (CH:all VAL:%d)", ch, val);
+				for(i = 0; i < MAX_CHANNELS; i++)
+					channel[i].gm2_inst = val;
+			}else{
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "GM2 Instrument Select (CH:%d VAL:%d)", ch, val);
+				channel[ch].gm2_inst = val;
+			}
+			break;
+		case 0x6D:	/* CC1 number */		
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC1 number (CH:%d NUM:%d)", ch, val);
+			channel[ch].cc1.num = val;	
+		    break;		
+		case 0x6E:	/* CC2 number */		
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC2 number (CH:%d NUM:%d)", ch, val);
+			channel[ch].cc2.num = val;	
+		    break;		
+		case 0x6F:	/* CC3 number */		
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 number (CH:%d NUM:%d)", ch, val);
+			channel[ch].cc3.num = val;	
+		    break;		
+		case 0x70:	/* CC4 number */		
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 number (CH:%d NUM:%d)", ch, val);
+			channel[ch].cc4.num = val;	
+		    break;
+			
+		case 0x80:	/* CC3 Pitch Control */
+			channel[ch].cc3.pitch = conv_pitch_control(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 Pitch Control (CH:%d %d semitones)", ch, channel[ch].cc3.pitch);
+			break;
+		case 0x81:	/* CC3 Filter Cutoff Control */
+			channel[ch].cc3.cutoff = conv_cutoff_control(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].cc3.cutoff);
+			break;
+		case 0x82:	/* CC3 Amplitude Control */
+			channel[ch].cc3.amp = conv_amp_control(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 Amplitude Control (CH:%d %.2f)", ch, channel[ch].cc3.amp);
+			break;
+		case 0x83:	/* CC3 LFO1 Rate Control */
+			channel[ch].cc3.lfo1_rate = conv_lfo_rate(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc3.lfo1_rate);
+			break;
+		case 0x84:	/* CC3 LFO1 Pitch Depth */
+			channel[ch].cc3.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc3.lfo1_pitch_depth); 
+			break;
+		case 0x85:	/* CC3 LFO1 Filter Depth */
+			channel[ch].cc3.lfo1_tvf_depth = conv_lfo_filter_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc3.lfo1_tvf_depth); 
+			break;
+		case 0x86:	/* CC3 LFO1 Amplitude Depth */
+			channel[ch].cc3.lfo1_tva_depth = conv_lfo_amp_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc3.lfo1_tva_depth); 
+			break;
+		case 0x87:	/* CC3 LFO2 Rate Control */
+			channel[ch].cc3.lfo2_rate = conv_lfo_rate(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc3.lfo2_rate);
+			break;
+		case 0x88:	/* CC3 LFO2 Pitch Depth */
+			channel[ch].cc3.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc3.lfo2_pitch_depth); 
+			break;
+		case 0x89:	/* CC3 LFO2 Filter Depth */
+			channel[ch].cc3.lfo2_tvf_depth = conv_lfo_filter_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc3.lfo2_tvf_depth); 
+			break;
+		case 0x8A:	/* CC3 LFO2 Amplitude Depth */
+			channel[ch].cc3.lfo2_tva_depth = conv_lfo_amp_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC3 LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc3.lfo2_tva_depth); 
+			break;
+
+		case 0x90:	/* CC4 Pitch Control */
+			channel[ch].cc4.pitch = conv_pitch_control(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 Pitch Control (CH:%d %d semitones)", ch, channel[ch].cc4.pitch);
+			break;
+		case 0x91:	/* CC4 Filter Cutoff Control */
+			channel[ch].cc4.cutoff = conv_cutoff_control(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 Filter Cutoff Control (CH:%d %d cents)", ch, channel[ch].cc4.cutoff);
+			break;
+		case 0x92:	/* CC4 Amplitude Control */
+			channel[ch].cc4.amp = conv_amp_control(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 Amplitude Control (CH:%d %.2f)", ch, channel[ch].cc4.amp);
+			break;
+		case 0x93:	/* CC4 LFO1 Rate Control */
+			channel[ch].cc4.lfo1_rate = conv_lfo_rate(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO1 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc4.lfo1_rate);
+			break;
+		case 0x94:	/* CC4 LFO1 Pitch Depth */
+			channel[ch].cc4.lfo1_pitch_depth = conv_lfo_pitch_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO1 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc4.lfo1_pitch_depth); 
+			break;
+		case 0x95:	/* CC4 LFO1 Filter Depth */
+			channel[ch].cc4.lfo1_tvf_depth = conv_lfo_filter_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO1 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc4.lfo1_tvf_depth); 
+			break;
+		case 0x96:	/* CC4 LFO1 Amplitude Depth */
+			channel[ch].cc4.lfo1_tva_depth = conv_lfo_amp_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO1 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc4.lfo1_tva_depth); 
+			break;
+		case 0x97:	/* CC4 LFO2 Rate Control */
+			channel[ch].cc4.lfo2_rate = conv_lfo_rate(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO2 Rate Control (CH:%d %.1f Hz)", ch, channel[ch].cc4.lfo2_rate);
+			break;
+		case 0x98:	/* CC4 LFO2 Pitch Depth */
+			channel[ch].cc4.lfo2_pitch_depth = conv_lfo_pitch_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO2 Pitch Depth (CH:%d %.2f cents)", ch, channel[ch].cc4.lfo2_pitch_depth); 
+			break;
+		case 0x99:	/* CC4 LFO2 Filter Depth */
+			channel[ch].cc4.lfo2_tvf_depth = conv_lfo_filter_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO2 Filter Depth (CH:%d %.2f cents)", ch, channel[ch].cc4.lfo2_tvf_depth); 
+			break;
+		case 0x9A:	/* CC4 LFO2 Amplitude Depth */
+			channel[ch].cc4.lfo2_tva_depth = conv_lfo_amp_depth(val);
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CC4 LFO2 Amplitude Depth (CH:%d %.2f)", ch, channel[ch].cc4.lfo2_tva_depth); 
 			break;
 		default:
 			break;
@@ -3951,9 +6600,9 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if(!opt_eq_control) {break;}
 			if(channel[ch].eq_gs != val) {
 				if(val) {
-					ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ ON (CH:%d)",ch);
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS EQ ON (CH:%d)",ch);
 				} else {
-					ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ OFF (CH:%d)",ch);
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS EQ OFF (CH:%d)",ch);
 				}
 			}
 			channel[ch].eq_gs = val;
@@ -3962,32 +6611,32 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if(!opt_eq_control) {break;}
 			eq_status_gs.low_freq = val;
 			recompute_eq_status_gs();
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ LOW FREQ (%d)",val);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS EQ LOW FREQ (%d)",val);
 			break;
 		case 0x02:	/* EQ LOW GAIN */
 			if(!opt_eq_control) {break;}
 			eq_status_gs.low_gain = val;
 			recompute_eq_status_gs();
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ LOW GAIN (%d dB)",val - 0x40);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS EQ LOW GAIN (%d dB)",val - 0x40);
 			break;
 		case 0x03:	/* EQ HIGH FREQ */
 			if(!opt_eq_control) {break;}
 			eq_status_gs.high_freq = val;
 			recompute_eq_status_gs();
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ HIGH FREQ (%d)",val);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS EQ HIGH FREQ (%d)",val);
 			break;
 		case 0x04:	/* EQ HIGH GAIN */
 			if(!opt_eq_control) {break;}
 			eq_status_gs.high_gain = val;
 			recompute_eq_status_gs();
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ HIGH GAIN (%d dB)",val - 0x40);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS EQ HIGH GAIN (%d dB)",val - 0x40);
 			break;
 		case 0x05:	/* Reverb Macro */
 			if (val > 7) {val = 7;}
 			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Reverb Macro (%d)",val);
 			set_reverb_macro_gs(val);
 			recompute_reverb_status_gs();
-			init_reverb();
+			init_ch_reverb();
 			break;
 		case 0x06:	/* Reverb Character */
 			if (val > 7) {val = 7;}
@@ -3995,7 +6644,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if (reverb_status_gs.character != val) {
 				reverb_status_gs.character = val;
 				recompute_reverb_status_gs();
-				init_reverb();
+				init_ch_reverb();
 			}
 			break;
 		case 0x07:	/* Reverb Pre-LPF */
@@ -4011,7 +6660,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if(reverb_status_gs.level != val) {
 				reverb_status_gs.level = val;
 				recompute_reverb_status_gs();
-				init_reverb();
+				init_ch_reverb();
 			}
 			break;
 		case 0x09:	/* Reverb Time */
@@ -4019,7 +6668,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if(reverb_status_gs.time != val) {
 				reverb_status_gs.time = val;
 				recompute_reverb_status_gs();
-				init_reverb();
+				init_ch_reverb();
 			}
 			break;
 		case 0x0A:	/* Reverb Delay Feedback */
@@ -4027,7 +6676,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if(reverb_status_gs.delay_feedback != val) {
 				reverb_status_gs.delay_feedback = val;
 				recompute_reverb_status_gs();
-				init_reverb();
+				init_ch_reverb();
 			}
 			break;
 		case 0x0C:	/* Reverb Predelay Time */
@@ -4035,7 +6684,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			if(reverb_status_gs.pre_delay_time != val) {
 				reverb_status_gs.pre_delay_time = val;
 				recompute_reverb_status_gs();
-				init_reverb();
+				init_ch_reverb();
 			}
 			break;
 		case 0x0D:	/* Chorus Macro */
@@ -4210,10 +6859,11 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 		case 0x23:	/* Insertion Effect ON/OFF */
 			if(!opt_insertion_effect) {break;}
 			if(channel[ch].insertion_effect != val) {
-				if(val) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"EFX ON (CH:%d)",ch);}
-				else {ctl->cmsg(CMSG_INFO,VERB_NOISY,"EFX OFF (CH:%d)",ch);}
+				if(val) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS Insertion Effect ON (CH:%d)",ch);}
+				else {ctl->cmsg(CMSG_INFO,VERB_NOISY,"GS Insertion Effect OFF (CH:%d)",ch);}
 			}
 			channel[ch].insertion_effect = val;
+			ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, channel[ch].insertion_effect);
 			break;
 		case 0x24:	/* Assign Mode */
 			channel[ch].assign_mode = val;
@@ -4230,143 +6880,114 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Tone Map-0 Number (CH:%d VAL:%d)",ch,val);
 			break;
 		case 0x26:	/* Pitch Offset Fine */
-			channel[ch].pitch_offset_fine = (FLOAT_T)((((int32)val << 4) | (int32)val) - 0x80) / 10.0;
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Pitch Offset Fine (CH:%d %3fHz)",ch,channel[ch].pitch_offset_fine);
-			break;
-		case 0x27:	/* Insertion Effect Parameter */
-			if(!opt_insertion_effect) {break;}
-			temp = insertion_effect_gs.type;
-			insertion_effect_gs.type_msb = val;
-			insertion_effect_gs.type = ((int32)insertion_effect_gs.type_msb << 8) | (int32)insertion_effect_gs.type_lsb;
-			if(temp == insertion_effect_gs.type) {
-				recompute_insertion_effect_gs();
-			} else {
-				realloc_insertion_effect_gs();
+			{
+				if(val != 0x80)
+					channel[ch].pitch_offset_fine = (FLOAT_T)((int)val - 0x80) * DIV_10;
+				else
+					channel[ch].pitch_offset_fine = 0.0;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Pitch Offset Fine (CH:%d %3fHz)",ch,channel[ch].pitch_offset_fine);
 			}
 			break;
-		case 0x28:	/* Insertion Effect Parameter */
+		case 0x27:	/* Insertion Effect Type MSB */
+			if(!opt_insertion_effect) {break;}
+			insertion_effect_gs.type_msb = val;
+			//temp = insertion_effect_gs.type;
+			//if(temp == insertion_effect_gs.type) {
+			//	recompute_insertion_effect_gs(1);
+			//} else {
+			//	realloc_insertion_effect_gs();
+			//}
+			break;
+		case 0x28:	/* Insertion Effect Type LSB */
 			if(!opt_insertion_effect) {break;}
 			temp = insertion_effect_gs.type;
 			insertion_effect_gs.type_lsb = val;
 			insertion_effect_gs.type = ((int32)insertion_effect_gs.type_msb << 8) | (int32)insertion_effect_gs.type_lsb;
 			if(temp == insertion_effect_gs.type) {
-				recompute_insertion_effect_gs();
+				recompute_insertion_effect_gs(1);
 			} else {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "EFX TYPE (%02X %02X)", insertion_effect_gs.type_msb, insertion_effect_gs.type_lsb);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "GS Insertion Effect TYPE (%02X %02X)", 
+					insertion_effect_gs.type_msb, insertion_effect_gs.type_lsb);
 				realloc_insertion_effect_gs();
 			}
 			break;
-		case 0x29:
-			insertion_effect_gs.parameter[0] = val;
-			recompute_insertion_effect_gs();
-			break;
+		case 0x29: /* Insertion Effect Parameter */
 		case 0x2A:
-			insertion_effect_gs.parameter[1] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x2B:
-			insertion_effect_gs.parameter[2] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x2C:
-			insertion_effect_gs.parameter[3] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x2D:
-			insertion_effect_gs.parameter[4] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x2E:
-			insertion_effect_gs.parameter[5] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x2F:
-			insertion_effect_gs.parameter[6] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x30:
-			insertion_effect_gs.parameter[7] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x31:
-			insertion_effect_gs.parameter[8] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x32:
-			insertion_effect_gs.parameter[9] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x33:
-			insertion_effect_gs.parameter[10] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x34:
-			insertion_effect_gs.parameter[11] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x35:
-			insertion_effect_gs.parameter[12] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x36:
-			insertion_effect_gs.parameter[13] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x37:
-			insertion_effect_gs.parameter[14] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x38:
-			insertion_effect_gs.parameter[15] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x39:
-			insertion_effect_gs.parameter[16] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x3A:
-			insertion_effect_gs.parameter[17] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x3B:
-			insertion_effect_gs.parameter[18] = val;
-			recompute_insertion_effect_gs();
-			break;
 		case 0x3C:
-			insertion_effect_gs.parameter[19] = val;
-			recompute_insertion_effect_gs();
+			if(!opt_insertion_effect) {break;}
+			temp = b - 0x29;
+			if(val >= 0 && val <= 127){
+				insertion_effect_gs.set_param[temp] = val;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Parameter %d (VAL:%d)", temp + 1, val);
+				recompute_insertion_effect_gs(1);
+			}else{
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "ERROR! GS Insertion Parameter %d (VAL:%d)", temp + 1, val);
+			}
 			break;
 		case 0x3D:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.send_reverb = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Send Reverb Level (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x3E:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.send_chorus = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Send Chorus Level (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x3F:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.send_delay = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Send Delay Level (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x40:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.control_source1 = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Control Source 1 (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x41:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.control_depth1 = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Control Depth 1 (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x42:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.control_source2 = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Control Source 2 (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x43:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.control_depth2 = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion Control Depth 2 (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x44:
+			if(!opt_insertion_effect) {break;}
 			insertion_effect_gs.send_eq_switch = val;
-			recompute_insertion_effect_gs();
+			ctl->cmsg(CMSG_INFO, VERB_NOISY, "GS Insertion EQ Switch (VAL:%d)",val);
+			recompute_insertion_effect_gs(1);
 			break;
 		case 0x45:	/* Rx. Channel */
 			reset_controllers(ch);
@@ -4390,7 +7011,6 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
 				"Drum Instrument Play Note (CH:%d NOTE:%d VAL:%d)",
 				ch, note, channel[ch].drums[note]->play_note);
-			channel[ch].pitchfactor = 0;
 			break;
 		default:
 			break;
@@ -4399,676 +7019,1810 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 	} else if(ev == ME_SYSEX_XG_LSB) {	/* XG system exclusive message */
 		msb = channel[ch].sysex_xg_msb_addr;
 		note = channel[ch].sysex_xg_msb_val;
-		if (note == 3 && msb == 0) {	/* Effect 2 */
-		note = 0;	/* force insertion effect num 0 ?? */
-		if (note >= XG_INSERTION_EFFECT_NUM || note < 0) {return;}
-		switch(b)
-		{
-		case 0x00:	/* Insertion Effect Type MSB */
-			if (insertion_effect_xg[note].type_msb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Insertion Effect Type MSB (%d %02X)", note, val);
-				insertion_effect_xg[note].type_msb = val;
-				realloc_effect_xg(&insertion_effect_xg[note]);
+///r
+		if (note == 2 && msb >= 0 && msb < 0x40) {	/* Effect 1 */
+			note = 0;	/* not use */
+			if(b >= 0x40){ /* variation effect */
+				msb -= 1; 	/* variation effect num start 1 , dim 0*/
+				/* msb=0 variation 1 */ 
+				/* msb=n variation n+1 */ 
+				if(msb < 0 || msb >= XG_VARIATION_EFFECT_NUM){
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "ERROR! XG Variation Effect Number (%d)", msb);
+					return;
+				}
 			}
-			break;
-		case 0x01:	/* Insertion Effect Type LSB */
-			if (insertion_effect_xg[note].type_lsb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Insertion Effect Type LSB (%d %02X)", note, val);
-				insertion_effect_xg[note].type_lsb = val;
-				realloc_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x02:	/* Insertion Effect Parameter 1 - 10 */
-		case 0x03:
-		case 0x04:
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		case 0x08:
-		case 0x09:
-		case 0x0A:
-		case 0x0B:
-			if (insertion_effect_xg[note].use_msb) {break;}
-			temp = b - 0x02;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Insertion Effect Parameter %d (%d %d)", temp + 1, note, val);
-			if (insertion_effect_xg[note].param_lsb[temp] != val) {
-				insertion_effect_xg[note].param_lsb[temp] = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x0C:	/* Insertion Effect Part */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Insertion Effect Part (%d %d)", note, val);
-			if (insertion_effect_xg[note].part != val) {
-				insertion_effect_xg[note].part = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x0D:	/* MW Insertion Control Depth */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MW Insertion Control Depth (%d %d)", note, val);
-			if (insertion_effect_xg[note].mw_depth != val) {
-				insertion_effect_xg[note].mw_depth = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x0E:	/* BEND Insertion Control Depth */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND Insertion Control Depth (%d %d)", note, val);
-			if (insertion_effect_xg[note].bend_depth != val) {
-				insertion_effect_xg[note].bend_depth = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x0F:	/* CAT Insertion Control Depth */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAT Insertion Control Depth (%d %d)", note, val);
-			if (insertion_effect_xg[note].cat_depth != val) {
-				insertion_effect_xg[note].cat_depth = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x10:	/* AC1 Insertion Control Depth */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC1 Insertion Control Depth (%d %d)", note, val);
-			if (insertion_effect_xg[note].ac1_depth != val) {
-				insertion_effect_xg[note].ac1_depth = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x11:	/* AC2 Insertion Control Depth */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC2 Insertion Control Depth (%d %d)", note, val);
-			if (insertion_effect_xg[note].ac2_depth != val) {
-				insertion_effect_xg[note].ac2_depth = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x12:	/* CBC1 Insertion Control Depth */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC1 Insertion Control Depth (%d %d)", note, val);
-			if (insertion_effect_xg[note].cbc1_depth != val) {
-				insertion_effect_xg[note].cbc1_depth = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x13:	/* CBC2 Insertion Control Depth */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC2 Insertion Control Depth (%d %d)", note, val);
-			if (insertion_effect_xg[note].cbc2_depth != val) {
-				insertion_effect_xg[note].cbc2_depth = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x20:	/* Insertion Effect Parameter 11 - 16 */
-		case 0x21:
-		case 0x22:
-		case 0x23:
-		case 0x24:
-		case 0x25:
-			temp = b - 0x20 + 10;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Insertion Effect Parameter %d (%d %d)", temp + 1, note, val);
-			if (insertion_effect_xg[note].param_lsb[temp] != val) {
-				insertion_effect_xg[note].param_lsb[temp] = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x30:	/* Insertion Effect Parameter 1 - 10 MSB */
-		case 0x32:
-		case 0x34:
-		case 0x36:
-		case 0x38:
-		case 0x3A:
-		case 0x3C:
-		case 0x3E:
-		case 0x40:
-		case 0x42:
-			if (!insertion_effect_xg[note].use_msb) {break;}
-			temp = (b - 0x30) / 2;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Insertion Effect Parameter %d MSB (%d %d)", temp + 1, note, val);
-			if (insertion_effect_xg[note].param_msb[temp] != val) {
-				insertion_effect_xg[note].param_msb[temp] = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		case 0x31:	/* Insertion Effect Parameter 1 - 10 LSB */
-		case 0x33:
-		case 0x35:
-		case 0x37:
-		case 0x39:
-		case 0x3B:
-		case 0x3D:
-		case 0x3F:
-		case 0x41:
-		case 0x43:
-			if (!insertion_effect_xg[note].use_msb) {break;}
-			temp = (b - 0x31) / 2;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Insertion Effect Parameter %d LSB (%d %d)", temp + 1, note, val);
-			if (insertion_effect_xg[note].param_lsb[temp] != val) {
-				insertion_effect_xg[note].param_lsb[temp] = val;
-				recompute_effect_xg(&insertion_effect_xg[note]);
-			}
-			break;
-		default:
-			break;
-		}
-		} else if (note == 2 && msb == 1) {	/* Effect 1 */
-		note = 0;	/* force variation effect num 0 ?? */
-		switch(b)
-		{
-		case 0x00:	/* Reverb Type MSB */
-			if (reverb_status_xg.type_msb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Type MSB (%02X)", val);
+			switch(b)
+			{
+			case 0x00:	/* Reverb Type MSB */
 				reverb_status_xg.type_msb = val;
-				realloc_effect_xg(&reverb_status_xg);
-			}
-			break;
-		case 0x01:	/* Reverb Type LSB */
-			if (reverb_status_xg.type_lsb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Type LSB (%02X)", val);
-				reverb_status_xg.type_lsb = val;
-				realloc_effect_xg(&reverb_status_xg);
-			}
-			break;
-		case 0x02:	/* Reverb Parameter 1 - 10 */
-		case 0x03:
-		case 0x04:
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		case 0x08:
-		case 0x09:
-		case 0x0A:
-		case 0x0B:
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Parameter %d (%d)", b - 0x02 + 1, val);
-			if (reverb_status_xg.param_lsb[b - 0x02] != val) {
-				reverb_status_xg.param_lsb[b - 0x02] = val;
-				recompute_effect_xg(&reverb_status_xg);
-			}
-			break;
-		case 0x0C:	/* Reverb Return */
-#if 0	/* XG specific reverb is not currently implemented */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Return (%d)", val);
-			if (reverb_status_xg.ret != val) {
-				reverb_status_xg.ret = val;
-				recompute_effect_xg(&reverb_status_xg);
-			}
-#else	/* use GS reverb instead */
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Reverb Return (%d)", val);
-			if (reverb_status_gs.level != val) {
-				reverb_status_gs.level = val;
-				recompute_reverb_status_gs();
-				init_reverb();
-			}
-#endif
-			break;
-		case 0x0D:	/* Reverb Pan */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Pan (%d)", val);
-			if (reverb_status_xg.pan != val) {
-				reverb_status_xg.pan = val;
-				recompute_effect_xg(&reverb_status_xg);
-			}
-			break;
-		case 0x10:	/* Reverb Parameter 11 - 16 */
-		case 0x11:
-		case 0x12:
-		case 0x13:
-		case 0x14:
-		case 0x15:
-			temp = b - 0x10 + 10;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Parameter %d (%d)", temp + 1, val);
-			if (reverb_status_xg.param_lsb[temp] != val) {
-				reverb_status_xg.param_lsb[temp] = val;
-				recompute_effect_xg(&reverb_status_xg);
-			}
-			break;
-		case 0x20:	/* Chorus Type MSB */
-			if (chorus_status_xg.type_msb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Type MSB (%02X)", val);
+				//if (reverb_status_xg.type_msb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Type MSB (%02X)", val);
+				//	reverb_status_xg.type_msb = val;
+				//	realloc_effect_xg(&reverb_status_xg);
+				//}
+				break;
+			case 0x01:	/* Reverb Type LSB */
+				temp = reverb_status_xg.type;
+				reverb_status_xg.type_lsb = val;	
+				reverb_status_xg.type = ((int32)reverb_status_xg.type_msb << 8) | (int32)reverb_status_xg.type_lsb;				
+				if (temp == reverb_status_xg.type){
+					recompute_effect_xg(&reverb_status_xg, 1);
+				}else{
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Type (%02X %02X)", 
+						reverb_status_xg.type_msb, reverb_status_xg.type_lsb);
+					realloc_effect_xg(&reverb_status_xg);
+				}
+				//if (reverb_status_xg.type_msb = val || reverb_status_xg.type_lsb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Type LSB (%02X)", val);
+				//	reverb_status_xg.type_lsb = val;
+				//	realloc_effect_xg(&reverb_status_xg);
+				//}
+				break;
+			case 0x02:	/* Reverb Parameter 1 - 10 */
+			case 0x03:
+			case 0x04:
+			case 0x05:
+			case 0x06:
+			case 0x07:
+			case 0x08:
+			case 0x09:
+			case 0x0A:
+			case 0x0B:
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Parameter %d (%d)", b - 0x02 + 1, val);
+				if (reverb_status_xg.param_lsb[b - 0x02] != val) {
+					reverb_status_xg.param_lsb[b - 0x02] = val;
+					recompute_effect_xg(&reverb_status_xg, 1);
+				}
+				break;
+			case 0x0C:	/* Reverb Return */
+	#if 1	/* XG specific reverb is not currently implemented */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Return (%d)", val);
+				if (reverb_status_xg.ret != val) {
+					reverb_status_xg.ret = val;
+					recompute_effect_xg(&reverb_status_xg, 1);
+				}
+	#else	/* use GS reverb instead */
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Reverb Return (%d)", val);
+				if (reverb_status_gs.level != val) {
+					reverb_status_gs.level = val;
+					recompute_reverb_status_gs();
+					init_ch_reverb();
+				}
+	#endif
+				break;
+			case 0x0D:	/* Reverb Pan */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Pan (%d)", val);
+				if (reverb_status_xg.pan != val) {
+					reverb_status_xg.pan = val;
+					recompute_effect_xg(&reverb_status_xg, 1);
+				}
+				break;
+			case 0x10:	/* Reverb Parameter 11 - 16 */
+			case 0x11:
+			case 0x12:
+			case 0x13:
+			case 0x14:
+			case 0x15:
+				temp = b - 0x10 + 10;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Reverb Parameter %d (%d)", temp + 1, val);
+				if (reverb_status_xg.param_lsb[temp] != val) {
+					reverb_status_xg.param_lsb[temp] = val;
+					recompute_effect_xg(&reverb_status_xg, 1);
+				}
+				break;
+			case 0x20:	/* Chorus Type MSB */
 				chorus_status_xg.type_msb = val;
-				realloc_effect_xg(&chorus_status_xg);
-			}
-			break;
-		case 0x21:	/* Chorus Type LSB */
-			if (chorus_status_xg.type_lsb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Type LSB (%02X)", val);
+				//if (chorus_status_xg.type_msb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Type MSB (%02X)", val);
+				//	chorus_status_xg.type_msb = val;
+				//	realloc_effect_xg(&chorus_status_xg);
+				//}
+				break;
+			case 0x21:	/* Chorus Type LSB */
+				temp = chorus_status_xg.type;
 				chorus_status_xg.type_lsb = val;
-				realloc_effect_xg(&chorus_status_xg);
+				chorus_status_xg.type = ((int32)chorus_status_xg.type_msb << 8) | (int32)chorus_status_xg.type_lsb;				
+				if (temp == chorus_status_xg.type){
+					recompute_effect_xg(&chorus_status_xg, 1);
+				}else{
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Type (%02X %02X)", 
+						chorus_status_xg.type_msb, chorus_status_xg.type_lsb);
+					realloc_effect_xg(&chorus_status_xg);
+				}
+				//if (chorus_status_xg.type_lsb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Type LSB (%02X)", val);
+				//	chorus_status_xg.type_lsb = val;
+				//	realloc_effect_xg(&chorus_status_xg);
+				//}
+				break;
+			case 0x22:	/* Chorus Parameter 1 - 10 */
+			case 0x23:
+			case 0x24:
+			case 0x25:
+			case 0x26:
+			case 0x27:
+			case 0x28:
+			case 0x29:
+			case 0x2A:
+			case 0x2B:
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Parameter %d (%d)", b - 0x22 + 1, val);
+				if (chorus_status_xg.param_lsb[b - 0x22] != val) {
+					chorus_status_xg.param_lsb[b - 0x22] = val;
+					recompute_effect_xg(&chorus_status_xg, 1);
+				}
+				break;
+			case 0x2C:	/* Chorus Return */
+	#if 1	/* XG specific chorus is not currently implemented */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Return (%d)", val);
+				if (chorus_status_xg.ret != val) {
+					chorus_status_xg.ret = val;
+					recompute_effect_xg(&chorus_status_xg, 1);
+				}
+	#else	/* use GS chorus instead */
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Chorus Return (%d)", val);
+				if (chorus_status_gs.level != val) {
+					chorus_status_gs.level = val;
+					recompute_chorus_status_gs();
+					init_ch_chorus();
+				}
+	#endif
+				break;
+			case 0x2D:	/* Chorus Pan */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Pan (%d)", val);
+				if (chorus_status_xg.pan != val) {
+					chorus_status_xg.pan = val;
+					recompute_effect_xg(&chorus_status_xg, 1);
+				}
+				break;
+			case 0x2E:	/* Send Chorus To Reverb */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Send Chorus To Reverb (%d)", val);
+				if (chorus_status_xg.send_reverb != val) {
+					chorus_status_xg.send_reverb = val;
+					recompute_effect_xg(&chorus_status_xg, 1);
+				}
+				break;
+			case 0x30:	/* Chorus Parameter 11 - 16 */
+			case 0x31:
+			case 0x32:
+			case 0x33:
+			case 0x34:
+			case 0x35:
+				temp = b - 0x30 + 10;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Parameter %d (%d)", temp + 1, val);
+				if (chorus_status_xg.param_lsb[temp] != val) {
+					chorus_status_xg.param_lsb[temp] = val;
+					recompute_effect_xg(&chorus_status_xg, 1);
+				}
+				break;
+			case 0x40:	/* Variation Type MSB */
+				variation_effect_xg[msb].type_msb = val;
+				//if (variation_effect_xg[msb].type_msb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Type MSB (%02X)", msb + 1, val);
+				//	variation_effect_xg[msb].type_msb = val;
+				//	realloc_effect_xg(&variation_effect_xg[msb]);
+				//}
+				break;
+			case 0x41:	/* Variation Type LSB */
+				temp = variation_effect_xg[msb].type;
+				variation_effect_xg[msb].type_lsb = val;
+				variation_effect_xg[msb].type = ((int32)variation_effect_xg[msb].type_msb << 8) | (int32)variation_effect_xg[msb].type_lsb;
+				if(temp == variation_effect_xg[msb].type){
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}else{
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Type (%02X %02X)", msb + 1, 
+						variation_effect_xg[msb].type_msb, variation_effect_xg[msb].type_lsb);
+					realloc_effect_xg(&variation_effect_xg[msb]);
+				}
+				//if (variation_effect_xg[msb].type_lsb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Type LSB (%02X)", msb + 1, val);
+				//	variation_effect_xg[msb].type_lsb = val;
+				//	realloc_effect_xg(&variation_effect_xg[msb]);
+				//}
+				break;
+			case 0x42:	/* Variation Parameter 1 - 10 MSB */
+			case 0x44:
+			case 0x46:
+			case 0x48:
+			case 0x4A:
+			case 0x4C:
+			case 0x4E:
+			case 0x50:
+			case 0x52:
+			case 0x54:
+				temp = (b - 0x42) / 2;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Parameter MSB (%d)", msb + 1, temp, val);
+				if (variation_effect_xg[msb].set_param_msb[temp] != val) {
+					variation_effect_xg[msb].set_param_msb[temp] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x43:	/* Variation Parameter 1 - 10 LSB */
+			case 0x45:
+			case 0x47:
+			case 0x49:
+			case 0x4B:
+			case 0x4D:
+			case 0x4F:
+			case 0x51:
+			case 0x53:
+			case 0x55:
+				temp = (b - 0x43) / 2;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Parameter LSB (%d)", msb + 1, temp, val);
+				if (variation_effect_xg[msb].set_param_lsb[temp] != val) {
+					variation_effect_xg[msb].set_param_lsb[temp] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x56:	/* Variation Return */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Return (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].ret != val) {
+					variation_effect_xg[msb].ret = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x57:	/* Variation Pan */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Pan (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].pan != val) {
+					variation_effect_xg[msb].pan = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x58:	/* Send Variation To Reverb */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Send Reverb (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].send_reverb != val) {
+					variation_effect_xg[msb].send_reverb = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x59:	/* Send Variation To Chorus */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Send Chorus (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].send_chorus != val) {
+					variation_effect_xg[msb].send_chorus = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x5A:	/* Variation Connection */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Connection (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].connection != val) {
+					variation_effect_xg[msb].connection = val; // 0: insertion 1:system
+					recompute_effect_xg(&variation_effect_xg[msb], 1);	
+					{
+						int i;
+						for (i = 0; i < MAX_CHANNELS; i++)
+							ctl_mode_event(CTLE_INSERTION_EFFECT, 1, i, is_insertion_effect_xg(i));
+					}
+				}
+				break;
+			case 0x5B:	/* Variation Part */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Part (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].part != val) {
+					variation_effect_xg[msb].part = val; // 0~63:ON 64~126:disable(AD part) 127:OFF
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+					{
+						int i;
+						for (i = 0; i < MAX_CHANNELS; i++)
+							ctl_mode_event(CTLE_INSERTION_EFFECT, 1, i, is_insertion_effect_xg(i));
+					}
+				}
+				break;
+			case 0x5C:	/* MW Variation Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "MW XG Variation %d Control Depth (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].control_depth[0] != val) {
+					variation_effect_xg[msb].control_depth[0] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x5D:	/* BEND Variation Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND XG Variation %d Control Depth (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].control_depth[1] != val) {
+					variation_effect_xg[msb].control_depth[1] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x5E:	/* CAT Variation Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAT XG Variation %d Control Depth (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].control_depth[2] != val) {
+					variation_effect_xg[msb].control_depth[2] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x5F:	/* AC1 Variation Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC1 XG Variation %d Control Depth (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].control_depth[3] != val) {
+					variation_effect_xg[msb].control_depth[3] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x60:	/* AC2 Variation Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC2 XG Variation %d Control Depth (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].control_depth[4] != val) {
+					variation_effect_xg[msb].control_depth[4] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x61:	/* CBC1 Variation Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC1 XG Variation %d Control Depth (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].control_depth[5] != val) {
+					variation_effect_xg[msb].control_depth[5] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x62:	/* CBC2 Variation Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC2 XG Variation %d Control Depth (%d)", msb + 1, val);
+				if (variation_effect_xg[msb].control_depth[6] != val) {
+					variation_effect_xg[msb].control_depth[6] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			case 0x70:	/* Variation Parameter 11 - 16 */
+			case 0x71:
+			case 0x72:
+			case 0x73:
+			case 0x74:
+			case 0x75:
+				temp = b - 0x70 + 10;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Parameter %d (%d)", msb + 1, temp + 1, val);
+				if (variation_effect_xg[msb].set_param_lsb[temp] != val) {
+					variation_effect_xg[msb].set_param_lsb[temp] = val;
+					recompute_effect_xg(&variation_effect_xg[msb], 1);
+				}
+				break;
+			default:
+				break;
 			}
-			break;
-		case 0x22:	/* Chorus Parameter 1 - 10 */
-		case 0x23:
-		case 0x24:
-		case 0x25:
-		case 0x26:
-		case 0x27:
-		case 0x28:
-		case 0x29:
-		case 0x2A:
-		case 0x2B:
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Parameter %d (%d)", b - 0x22 + 1, val);
-			if (chorus_status_xg.param_lsb[b - 0x22] != val) {
-				chorus_status_xg.param_lsb[b - 0x22] = val;
-				recompute_effect_xg(&chorus_status_xg);
+
+		} else if (note == 2 && msb == 0x40) {	/* Multi EQ */
+			switch(b)
+			{
+			case 0x00:	/* EQ type */
+				if(opt_eq_control) {
+					if(val == 0) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ type (0: Flat)");}
+					else if(val == 1) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ type (1: Jazz)");}
+					else if(val == 2) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ type (2: Pops)");}
+					else if(val == 3) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ type (3: Rock)");}
+					else if(val == 4) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ type (4: Concert)");}
+					multi_eq_xg.type = val;
+					set_multi_eq_type_xg(val);
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x01:	/* EQ gain1 */
+				if(opt_eq_control) {
+					if(val > 0x4C) {val = 0x4C;}
+					else if(val < 0x34) {val = 0x34;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ gain1 (%d dB)", val - 0x40);
+					multi_eq_xg.gain1 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x02:	/* EQ frequency1 */
+				if(opt_eq_control) {
+					if(val > 60) {val = 60;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ frequency1 (%d Hz)", (int32)eq_freq_table_xg[val]);
+					multi_eq_xg.freq1 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x03:	/* EQ Q1 */
+				if(opt_eq_control) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ Q1 (%f)", (double)val / 10.0);
+					multi_eq_xg.q1 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x04:	/* EQ shape1 */
+				if(opt_eq_control) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ shape1 (%d)", val);
+					multi_eq_xg.shape1 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x05:	/* EQ gain2 */
+				if(opt_eq_control) {
+					if(val > 0x4C) {val = 0x4C;}
+					else if(val < 0x34) {val = 0x34;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ gain2 (%d dB)", val - 0x40);
+					multi_eq_xg.gain2 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x06:	/* EQ frequency2 */
+				if(opt_eq_control) {
+					if(val > 60) {val = 60;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ frequency2 (%d Hz)", (int32)eq_freq_table_xg[val]);
+					multi_eq_xg.freq2 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x07:	/* EQ Q2 */
+				if(opt_eq_control) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ Q2 (%f)", (double)val / 10.0);
+					multi_eq_xg.q2 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x09:	/* EQ gain3 */
+				if(opt_eq_control) {
+					if(val > 0x4C) {val = 0x4C;}
+					else if(val < 0x34) {val = 0x34;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ gain3 (%d dB)", val - 0x40);
+					multi_eq_xg.gain3 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x0A:	/* EQ frequency3 */
+				if(opt_eq_control) {
+					if(val > 60) {val = 60;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ frequency3 (%d Hz)", (int32)eq_freq_table_xg[val]);
+					multi_eq_xg.freq3 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x0B:	/* EQ Q3 */
+				if(opt_eq_control) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ Q3 (%f)", (double)val / 10.0);
+					multi_eq_xg.q3 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x0D:	/* EQ gain4 */
+				if(opt_eq_control) {
+					if(val > 0x4C) {val = 0x4C;}
+					else if(val < 0x34) {val = 0x34;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ gain4 (%d dB)", val - 0x40);
+					multi_eq_xg.gain4 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x0E:	/* EQ frequency4 */
+				if(opt_eq_control) {
+					if(val > 60) {val = 60;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ frequency4 (%d Hz)", (int32)eq_freq_table_xg[val]);
+					multi_eq_xg.freq4 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x0F:	/* EQ Q4 */
+				if(opt_eq_control) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ Q4 (%f)", (double)val / 10.0);
+					multi_eq_xg.q4 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x11:	/* EQ gain5 */
+				if(opt_eq_control) {
+					if(val > 0x4C) {val = 0x4C;}
+					else if(val < 0x34) {val = 0x34;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ gain5 (%d dB)", val - 0x40);
+					multi_eq_xg.gain5 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x12:	/* EQ frequency5 */
+				if(opt_eq_control) {
+					if(val > 60) {val = 60;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ frequency5 (%d Hz)", (int32)eq_freq_table_xg[val]);
+					multi_eq_xg.freq5 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x13:	/* EQ Q5 */
+				if(opt_eq_control) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ Q5 (%f)", (double)val / 10.0);
+					multi_eq_xg.q5 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x14:	/* EQ shape5 */
+				if(opt_eq_control) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG EQ shape5 (%d)", val);
+					multi_eq_xg.shape5 = val;
+					recompute_multi_eq_xg();
+				}
+				break;
 			}
-			break;
-		case 0x2C:	/* Chorus Return */
-#if 0	/* XG specific chorus is not currently implemented */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Return (%d)", val);
-			if (chorus_status_xg.ret != val) {
-				chorus_status_xg.ret = val;
-				recompute_effect_xg(&chorus_status_xg);
+
+		} else if (note == 3 && msb >= 0) {	/* Effect 2 */
+			/* msb=0 : insertion 1 */
+			/* msb=n : insertion n+1 */
+			if ( msb >= XG_INSERTION_EFFECT_NUM) {
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "ERROR! XG Insertion Effect Number (%d)", msb);
+				return;
 			}
-#else	/* use GS chorus instead */
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Chorus Return (%d)", val);
-			if (chorus_status_gs.level != val) {
-				chorus_status_gs.level = val;
-				recompute_chorus_status_gs();
-				init_ch_chorus();
+			switch(b)
+			{
+			case 0x00:	/* Insertion Effect Type MSB */
+				if(!opt_insertion_effect) {break;}
+				insertion_effect_xg[msb].type_msb = val;				
+				//if (insertion_effect_xg[msb].type_msb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Type MSB (%d %02X)", msb + 1, note, val);
+				//	insertion_effect_xg[msb].type_msb = val;
+				//	realloc_effect_xg(&insertion_effect_xg[msb]);
+				//}
+				break;
+			case 0x01:	/* Insertion Effect Type LSB */
+				if(!opt_insertion_effect) {break;}
+				temp = insertion_effect_xg[msb].type;
+				insertion_effect_xg[msb].type_lsb = val;				
+				insertion_effect_xg[msb].type = ((int32)insertion_effect_xg[msb].type_msb << 8) | (int32)insertion_effect_xg[msb].type_lsb;				
+				if(temp == insertion_effect_xg[msb].type){
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}else{
+					ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Type (%d %02X %02X)", msb + 1, note, 
+						insertion_effect_xg[msb].type_msb, insertion_effect_xg[msb].type_lsb);
+					realloc_effect_xg(&insertion_effect_xg[msb]);
+				}
+				//if (insertion_effect_xg[msb].type_lsb != val) {
+				//	ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Type LSB (%d %02X)", msb + 1, note, val);
+				//	insertion_effect_xg[msb].type_lsb = val;
+				//	realloc_effect_xg(&insertion_effect_xg[msb]);
+				//}
+				break;
+			case 0x02:	/* Insertion Effect Parameter 1 - 10 */
+			case 0x03:
+			case 0x04:
+			case 0x05:
+			case 0x06:
+			case 0x07:
+			case 0x08:
+			case 0x09:
+			case 0x0A:
+			case 0x0B:
+				if (insertion_effect_xg[msb].use_msb) {break;}
+				temp = b - 0x02;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Parameter %d (%d %d)", msb + 1, temp + 1, note, val);
+				if (insertion_effect_xg[msb].set_param_lsb[temp] != val) {
+					insertion_effect_xg[msb].set_param_lsb[temp] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x0C:	/* Insertion Effect Part */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Part (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].part != val) {
+					insertion_effect_xg[msb].part = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+					{
+						int i;
+						for (i = 0; i < MAX_CHANNELS; i++)
+							ctl_mode_event(CTLE_INSERTION_EFFECT, 1, i, is_insertion_effect_xg(i));
+					}
+				}
+				break;
+			case 0x0D:	/* MW Insertion Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "MW XG Insertion %d Control Depth (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].control_depth[0] != val) {
+					insertion_effect_xg[msb].control_depth[0] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x0E:	/* BEND Insertion Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND XG Insertion %d Control Depth (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].control_depth[1] != val) {
+					insertion_effect_xg[msb].control_depth[1] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x0F:	/* CAT Insertion Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAT XG Insertion %d Control Depth (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].control_depth[2] != val) {
+					insertion_effect_xg[msb].control_depth[2] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x10:	/* AC1 Insertion Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC1 XG Insertion %d Control Depth (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].control_depth[3] != val) {
+					insertion_effect_xg[msb].control_depth[3] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x11:	/* AC2 Insertion Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC2 XG Insertion %d Control Depth (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].control_depth[4] != val) {
+					insertion_effect_xg[msb].control_depth[4] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x12:	/* CBC1 Insertion Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC1 XG Insertion %d Control Depth (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].control_depth[5] != val) {
+					insertion_effect_xg[msb].control_depth[5] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x13:	/* CBC2 Insertion Control Depth */
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC2 XG Insertion %d Control Depth (%d %d)", msb + 1, note, val);
+				if (insertion_effect_xg[msb].control_depth[6] != val) {
+					insertion_effect_xg[msb].control_depth[6] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x20:	/* Insertion Effect Parameter 11 - 16 */
+			case 0x21:
+			case 0x22:
+			case 0x23:
+			case 0x24:
+			case 0x25:
+				temp = b - 0x20 + 10;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Parameter %d (%d %d)", msb + 1, temp + 1, note, val);
+				if (insertion_effect_xg[msb].set_param_lsb[temp] != val) {
+					insertion_effect_xg[msb].set_param_lsb[temp] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x30:	/* Insertion Effect Parameter 1 - 10 MSB */
+			case 0x32:
+			case 0x34:
+			case 0x36:
+			case 0x38:
+			case 0x3A:
+			case 0x3C:
+			case 0x3E:
+			case 0x40:
+			case 0x42:
+				if (!insertion_effect_xg[msb].use_msb) {break;}
+				temp = (b - 0x30) / 2;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Parameter %d MSB (%d %d)", msb + 1, temp + 1, note, val);
+				if (insertion_effect_xg[msb].set_param_msb[temp] != val) {
+					insertion_effect_xg[msb].set_param_msb[temp] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			case 0x31:	/* Insertion Effect Parameter 1 - 10 LSB */
+			case 0x33:
+			case 0x35:
+			case 0x37:
+			case 0x39:
+			case 0x3B:
+			case 0x3D:
+			case 0x3F:
+			case 0x41:
+			case 0x43:
+				if (!insertion_effect_xg[msb].use_msb) {break;}
+				temp = (b - 0x31) / 2;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Insertion %d Parameter %d LSB (%d %d)", msb + 1, temp + 1, note, val);
+				if (insertion_effect_xg[msb].set_param_lsb[temp] != val) {
+					insertion_effect_xg[msb].set_param_lsb[temp] = val;
+					recompute_effect_xg(&insertion_effect_xg[msb], 1);
+				}
+				break;
+			default:
+				break;
 			}
-#endif
-			break;
-		case 0x2D:	/* Chorus Pan */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Pan (%d)", val);
-			if (chorus_status_xg.pan != val) {
-				chorus_status_xg.pan = val;
-				recompute_effect_xg(&chorus_status_xg);
-			}
-			break;
-		case 0x2E:	/* Send Chorus To Reverb */
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Send Chorus To Reverb (%d)", val);
-			if (chorus_status_xg.send_reverb != val) {
-				chorus_status_xg.send_reverb = val;
-				recompute_effect_xg(&chorus_status_xg);
-			}
-			break;
-		case 0x30:	/* Chorus Parameter 11 - 16 */
-		case 0x31:
-		case 0x32:
-		case 0x33:
-		case 0x34:
-		case 0x35:
-			temp = b - 0x30 + 10;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Chorus Parameter %d (%d)", temp + 1, val);
-			if (chorus_status_xg.param_lsb[temp] != val) {
-				chorus_status_xg.param_lsb[temp] = val;
-				recompute_effect_xg(&chorus_status_xg);
-			}
-			break;
-		case 0x40:	/* Variation Type MSB */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			if (variation_effect_xg[note].type_msb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Type MSB (%02X)", val);
-				variation_effect_xg[note].type_msb = val;
-				realloc_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x41:	/* Variation Type LSB */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			if (variation_effect_xg[note].type_lsb != val) {
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Type LSB (%02X)", val);
-				variation_effect_xg[note].type_lsb = val;
-				realloc_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x42:	/* Variation Parameter 1 - 10 MSB */
-		case 0x44:
-		case 0x46:
-		case 0x48:
-		case 0x4A:
-		case 0x4C:
-		case 0x4E:
-		case 0x50:
-		case 0x52:
-		case 0x54:
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			temp = (b - 0x42) / 2;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Parameter %d MSB (%d)", temp, val);
-			if (variation_effect_xg[note].param_msb[temp] != val) {
-				variation_effect_xg[note].param_msb[temp] = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x43:	/* Variation Parameter 1 - 10 LSB */
-		case 0x45:
-		case 0x47:
-		case 0x49:
-		case 0x4B:
-		case 0x4D:
-		case 0x4F:
-		case 0x51:
-		case 0x53:
-		case 0x55:
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			temp = (b - 0x43) / 2;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Parameter %d LSB (%d)", temp, val);
-			if (variation_effect_xg[note].param_lsb[temp] != val) {
-				variation_effect_xg[note].param_lsb[temp] = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x56:	/* Variation Return */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Return (%d)", val);
-			if (variation_effect_xg[note].ret != val) {
-				variation_effect_xg[note].ret = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x57:	/* Variation Pan */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Pan (%d)", val);
-			if (variation_effect_xg[note].pan != val) {
-				variation_effect_xg[note].pan = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x58:	/* Send Variation To Reverb */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Send Variation To Reverb (%d)", val);
-			if (variation_effect_xg[note].send_reverb != val) {
-				variation_effect_xg[note].send_reverb = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x59:	/* Send Variation To Chorus */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Send Variation To Chorus (%d)", val);
-			if (variation_effect_xg[note].send_chorus != val) {
-				variation_effect_xg[note].send_chorus = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x5A:	/* Variation Connection */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Connection (%d)", val);
-			if (variation_effect_xg[note].connection != val) {
-				variation_effect_xg[note].connection = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x5B:	/* Variation Part */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Part (%d)", val);
-			if (variation_effect_xg[note].part != val) {
-				variation_effect_xg[note].part = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x5C:	/* MW Variation Control Depth */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "MW Variation Control Depth (%d)", val);
-			if (variation_effect_xg[note].mw_depth != val) {
-				variation_effect_xg[note].mw_depth = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x5D:	/* BEND Variation Control Depth */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "BEND Variation Control Depth (%d)", val);
-			if (variation_effect_xg[note].bend_depth != val) {
-				variation_effect_xg[note].bend_depth = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x5E:	/* CAT Variation Control Depth */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CAT Variation Control Depth (%d)", val);
-			if (variation_effect_xg[note].cat_depth != val) {
-				variation_effect_xg[note].cat_depth = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x5F:	/* AC1 Variation Control Depth */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC1 Variation Control Depth (%d)", val);
-			if (variation_effect_xg[note].ac1_depth != val) {
-				variation_effect_xg[note].ac1_depth = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x60:	/* AC2 Variation Control Depth */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "AC2 Variation Control Depth (%d)", val);
-			if (variation_effect_xg[note].ac2_depth != val) {
-				variation_effect_xg[note].ac2_depth = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x61:	/* CBC1 Variation Control Depth */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC1 Variation Control Depth (%d)", val);
-			if (variation_effect_xg[note].cbc1_depth != val) {
-				variation_effect_xg[note].cbc1_depth = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x62:	/* CBC2 Variation Control Depth */
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "CBC2 Variation Control Depth (%d)", val);
-			if (variation_effect_xg[note].cbc2_depth != val) {
-				variation_effect_xg[note].cbc2_depth = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		case 0x70:	/* Variation Parameter 11 - 16 */
-		case 0x71:
-		case 0x72:
-		case 0x73:
-		case 0x74:
-		case 0x75:
-			temp = b - 0x70 + 10;
-			if (note >= XG_VARIATION_EFFECT_NUM || note < 0) {break;}
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Variation Parameter %d (%d)", temp + 1, val);
-			if (variation_effect_xg[note].param_lsb[temp] != val) {
-				variation_effect_xg[note].param_lsb[temp] = val;
-				recompute_effect_xg(&variation_effect_xg[note]);
-			}
-			break;
-		default:
-			break;
-		}
-		} else if (note == 2 && msb == 40) {	/* Multi EQ */
-		switch(b)
-		{
-		case 0x00:	/* EQ type */
-			if(opt_eq_control) {
-				if(val == 0) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ type (0: Flat)");}
-				else if(val == 1) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ type (1: Jazz)");}
-				else if(val == 2) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ type (2: Pops)");}
-				else if(val == 3) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ type (3: Rock)");}
-				else if(val == 4) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ type (4: Concert)");}
-				multi_eq_xg.type = val;
-				set_multi_eq_type_xg(val);
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x01:	/* EQ gain1 */
-			if(opt_eq_control) {
-				if(val > 0x4C) {val = 0x4C;}
-				else if(val < 0x34) {val = 0x34;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ gain1 (%d dB)", val - 0x40);
-				multi_eq_xg.gain1 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x02:	/* EQ frequency1 */
-			if(opt_eq_control) {
-				if(val > 60) {val = 60;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ frequency1 (%d Hz)", (int32)eq_freq_table_xg[val]);
-				multi_eq_xg.freq1 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x03:	/* EQ Q1 */
-			if(opt_eq_control) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ Q1 (%f)", (double)val / 10.0);
-				multi_eq_xg.q1 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x04:	/* EQ shape1 */
-			if(opt_eq_control) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ shape1 (%d)", val);
-				multi_eq_xg.shape1 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x05:	/* EQ gain2 */
-			if(opt_eq_control) {
-				if(val > 0x4C) {val = 0x4C;}
-				else if(val < 0x34) {val = 0x34;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ gain2 (%d dB)", val - 0x40);
-				multi_eq_xg.gain2 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x06:	/* EQ frequency2 */
-			if(opt_eq_control) {
-				if(val > 60) {val = 60;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ frequency2 (%d Hz)", (int32)eq_freq_table_xg[val]);
-				multi_eq_xg.freq2 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x07:	/* EQ Q2 */
-			if(opt_eq_control) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ Q2 (%f)", (double)val / 10.0);
-				multi_eq_xg.q2 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x09:	/* EQ gain3 */
-			if(opt_eq_control) {
-				if(val > 0x4C) {val = 0x4C;}
-				else if(val < 0x34) {val = 0x34;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ gain3 (%d dB)", val - 0x40);
-				multi_eq_xg.gain3 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x0A:	/* EQ frequency3 */
-			if(opt_eq_control) {
-				if(val > 60) {val = 60;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ frequency3 (%d Hz)", (int32)eq_freq_table_xg[val]);
-				multi_eq_xg.freq3 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x0B:	/* EQ Q3 */
-			if(opt_eq_control) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ Q3 (%f)", (double)val / 10.0);
-				multi_eq_xg.q3 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x0D:	/* EQ gain4 */
-			if(opt_eq_control) {
-				if(val > 0x4C) {val = 0x4C;}
-				else if(val < 0x34) {val = 0x34;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ gain4 (%d dB)", val - 0x40);
-				multi_eq_xg.gain4 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x0E:	/* EQ frequency4 */
-			if(opt_eq_control) {
-				if(val > 60) {val = 60;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ frequency4 (%d Hz)", (int32)eq_freq_table_xg[val]);
-				multi_eq_xg.freq4 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x0F:	/* EQ Q4 */
-			if(opt_eq_control) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ Q4 (%f)", (double)val / 10.0);
-				multi_eq_xg.q4 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x11:	/* EQ gain5 */
-			if(opt_eq_control) {
-				if(val > 0x4C) {val = 0x4C;}
-				else if(val < 0x34) {val = 0x34;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ gain5 (%d dB)", val - 0x40);
-				multi_eq_xg.gain5 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x12:	/* EQ frequency5 */
-			if(opt_eq_control) {
-				if(val > 60) {val = 60;}
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ frequency5 (%d Hz)", (int32)eq_freq_table_xg[val]);
-				multi_eq_xg.freq5 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x13:	/* EQ Q5 */
-			if(opt_eq_control) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ Q5 (%f)", (double)val / 10.0);
-				multi_eq_xg.q5 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		case 0x14:	/* EQ shape5 */
-			if(opt_eq_control) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ shape5 (%d)", val);
-				multi_eq_xg.shape5 = val;
-				recompute_multi_eq_xg();
-			}
-			break;
-		}
+
 		} else if (note == 8 && msb == 0) {	/* Multi Part */
-		switch(b)
-		{
-		case 0x99:	/* Rcv CHANNEL, remapped from 0x04 */
-			reset_controllers(ch);
-			redraw_controllers(ch);
-			all_notes_off(ch);
-			if (val == 0x7f)
-				remove_channel_layer(ch);
-			else {
-				if((ch < REDUCE_CHANNELS) != (val < REDUCE_CHANNELS)) {
-					channel[ch].port_select = ch < REDUCE_CHANNELS ? 1 : 0;
+	///r
+			switch(b)
+			{
+	/*
+			case 0x01:	// Bank Select MSB
+				channel[ch].bank_msb = val;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG SysEx Bank Select MSB (CH:%d)",ch);
+				break;
+			case 0x02:	// Bank Select LSB
+				channel[ch].bank_lsb = val;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG SysEx Bank Select LSB (CH:%d)",ch);
+				break;
+			case 0x03:	// Program Change
+				channel[ch].program = val;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG SysEx Program Change (CH:%d)",ch);
+				break;
+			case 0x04:	// Rcv CHANNEL, remapped from 0x04 ?
+				reset_controllers(ch);
+				redraw_controllers(ch);
+				all_notes_off(ch);
+				if (val == 0x7f)
+					remove_channel_layer(ch);
+				else {
+					if((ch < REDUCE_CHANNELS) != (val < REDUCE_CHANNELS)) {
+						channel[ch].port_select = ch < REDUCE_CHANNELS ? 1 : 0;
+					}
+					if((ch % REDUCE_CHANNELS) != (val % REDUCE_CHANNELS)) {
+						add_channel_layer(ch, val);
+					}
 				}
-				if((ch % REDUCE_CHANNELS) != (val % REDUCE_CHANNELS)) {
-					add_channel_layer(ch, val);
+				break;
+			case 0x05:	// Mono/Poly Mode
+				channel[ch].mono = val;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG SysEx Mono/Poly Mode (CH:%d)",ch);
+				break;
+	*/
+	///r
+
+			case 0x06:	/* Same Note Number Key On Assign */
+				if(val == 0) {
+					channel[ch].assign_mode = 0;
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Same Note Number Key On Assign: Single (CH:%d)",ch);
+				} else if(val == 1) {
+					channel[ch].assign_mode = 1; // XG Multi : Not Full Multi
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Same Note Number Key On Assign: Multi (CH:%d)",ch);
+				} else if(val == 2) {
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Same Note Number Key On Assign: Inst is not supported. (CH:%d)",ch);
+				} else if(val == 3) {
+					channel[ch].assign_mode = 2; // Timidity Full Multi
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"Same Note Number Key On Assign: Inst is not supported. (CH:%d)",ch);
 				}
+				break;
+	/*
+			case 0x07:	// Part Mode
+				midi_drumpart_change(ch, TRUE);
+				channel[ch].bank_msb = 127;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"XG SysEx Part Mode (CH:%d)",ch);
+				break;
+			case 0x08:	// note shift
+				break;
+	*/
+			case 0x09:	/* Detune 1st bit */
+				channel[ch].detune_param &= 0x0F; // clear bit7-4
+				channel[ch].detune_param |= (val << 4) & 0xF0; // add val bit3-0 to bit7-4
+				{
+					float tmpf = (FLOAT_T)((int)channel[ch].detune_param - 0x80) * DIV_10;
+					if(channel[ch].detune_param != 0x80)
+						ctl->cmsg(CMSG_INFO,VERB_NOISY,"Detune 1st bit (CH:%d detune:%.1fHz VAL:%02X)", ch, tmpf, val);
+					else
+						ctl->cmsg(CMSG_INFO,VERB_NOISY,"Detune 1st bit (CH:%d detune:0.0Hz VAL:%02X)", ch, val);
+				}
+				break;
+			case 0x0A:	/* Detune 2nd bit */
+				channel[ch].detune_param &= 0xF0; // clear bit3-0
+				channel[ch].detune_param |= val & 0x0F; // add val bit3-0 to bit3-0
+				{
+					float tmpf = (FLOAT_T)((int)channel[ch].detune_param - 0x80) * DIV_10;
+					if(channel[ch].detune_param != 0x80)
+						ctl->cmsg(CMSG_INFO,VERB_NOISY,"Detune 2nd bit (CH:%d detune:%.1fHz VAL:%02X)", ch, tmpf, val);
+					else
+						ctl->cmsg(CMSG_INFO,VERB_NOISY,"Detune 2nd bit (CH:%d detune:0.0Hz VAL:%02X)", ch, val);
+				}
+				break;
+			case 0x11:	/* Dry Level */
+				channel[ch].dry_level = val;
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "Dry Level (CH:%d VAL:%d)", ch, val);
+				break;
+			case 0x99:	/* Rcv CHANNEL, remapped from 0x04 */
+				reset_controllers(ch);
+				redraw_controllers(ch);
+				all_notes_off(ch);
+				if (val == 0x7f)
+					remove_channel_layer(ch);
+				else {
+					if((ch < REDUCE_CHANNELS) != (val < REDUCE_CHANNELS)) {
+						channel[ch].port_select = ch < REDUCE_CHANNELS ? 1 : 0;
+					}
+					if((ch % REDUCE_CHANNELS) != (val % REDUCE_CHANNELS)) {
+						add_channel_layer(ch, val);
+					}
+				}
+				break;
 			}
-			break;
-		case 0x06:	/* Same Note Number Key On Assign */
-			if(val == 0) {
-				channel[ch].assign_mode = 0;
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Same Note Number Key On Assign: Single (CH:%d)",ch);
-			} else if(val == 1) {
-				channel[ch].assign_mode = 2;
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Same Note Number Key On Assign: Multi (CH:%d)",ch);
-			} else if(val == 2) {
-				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Same Note Number Key On Assign: Inst is not supported. (CH:%d)",ch);
-			}
-			break;
-		case 0x11:	/* Dry Level */
-			channel[ch].dry_level = val;
-			ctl->cmsg(CMSG_INFO, VERB_NOISY, "Dry Level (CH:%d VAL:%d)", ch, val);
-			break;
-		}
 		} else if ((note & 0xF0) == 0x30) {	/* Drum Setup */
-		note = msb;
-		switch(b)
-		{
-		case 0x0E:	/* EG Decay1 */
-			if (channel[ch].drums[note] == NULL)
-				play_midi_setup_drums(ch, note);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Drum Instrument EG Decay1 (CH:%d NOTE:%d VAL:%d)",
-				ch, note, val);
-			channel[ch].drums[note]->drum_envelope_rate[EG_DECAY1] = val;
-			break;
-		case 0x0F:	/* EG Decay2 */
-			if (channel[ch].drums[note] == NULL)
-				play_midi_setup_drums(ch, note);
-			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Drum Instrument EG Decay2 (CH:%d NOTE:%d VAL:%d)",
-				ch, note, val);
-			channel[ch].drums[note]->drum_envelope_rate[EG_DECAY2] = val;
-			break;
-		default:
-			break;
-		}
+			note = msb;
+			switch(b)
+			{
+			case 0x0E:	/* EG Decay1 */
+				if (channel[ch].drums[note] == NULL)
+					play_midi_setup_drums(ch, note);
+				ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"Drum Instrument EG Decay1 (CH:%d NOTE:%d VAL:%d)",
+					ch, note, val);
+				channel[ch].drums[note]->drum_envelope_rate[EG_DECAY1] = val;
+				break;
+			case 0x0F:	/* EG Decay2 */
+				if (channel[ch].drums[note] == NULL)
+					play_midi_setup_drums(ch, note);
+				ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"Drum Instrument EG Decay2 (CH:%d NOTE:%d VAL:%d)",
+					ch, note, val);
+				channel[ch].drums[note]->drum_envelope_rate[EG_DECAY2] = val;
+				break;
+			case 0x60:	/* Velocity Pitch Sense */				
+				if (channel[ch].drums[note] == NULL)
+					play_midi_setup_drums(ch, note);
+				ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"Drum Velocity Pitch Sense (CH:%d NOTE:%d VAL:%d)",
+					ch, note, val - 0x40);
+				channel[ch].drums[note]->drum_velo_pitch_sens = clip_int(val - 0x40, -16, 16);
+				break;
+			case 0x61:	/* Velocity LPF Cutoff Sense */
+				if (channel[ch].drums[note] == NULL)
+					play_midi_setup_drums(ch, note);
+				ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"Drum Velocity LPF Cutoff Sense (CH:%d NOTE:%d VAL:%d)",
+					ch, note, val - 0x40);
+				channel[ch].drums[note]->drum_velo_cutoff_sens = clip_int(val - 0x40, -16, 16);
+				break;
+			default:
+				break;
+			}
 		}
 		return;
+
+	} else if(ev == ME_SYSEX_SD_LSB) {	/* SD system exclusive message */
+		int hsb = channel[ch].sysex_sd_hsb_addr;
+		int hval = channel[ch].sysex_sd_hsb_val;
+		int part = channel[ch].sysex_sd_msb_addr;
+		int mfx = channel[ch].sysex_sd_msb_val;
+		
+		switch(hsb){
+		case 0x00: // System // System Common
+			break;
+		case 0x01: // System // System Common
+			break;
+		case 0x02: // System // System EQ
+			switch(b){
+			case 0x00: // EQ Switch
+				if(opt_eq_control) {
+					if(val == 0) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ (OFF)");}
+					else {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ (ON)");}
+					multi_eq_sd.sw = val ? 1 : 0;
+					recompute_multi_eq_sd();
+				}
+				break;
+			case 0x01: // EQ Left Low Frequency
+				if(opt_eq_control) {
+					if(val > 1) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left Low Freq (400Hz)");}
+					else {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left Low Freq (200Hz");}
+					multi_eq_sd.freq_ll = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x02: // EQ Left Low Gain
+				if(opt_eq_control) {					
+					if(val > 0x1E) {val = 0x1E;}
+					else if(val < 0x00) {val = 0x00;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left Low Gain (%ddB)", (int)val - 0x0F);
+					multi_eq_sd.gain_ll = val;
+					recompute_multi_eq_xg();
+				}	
+				break;
+			case 0x03: // EQ Left High Frequency
+				if(opt_eq_control) {
+					if(val > 2) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left High Freq (8000Hz)");}
+					else if(val > 1) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left High Freq (4000Hz)");}
+					else {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left High Freq (2000Hz)");}
+					multi_eq_sd.freq_hl = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x04: // EQ Left High Gain
+				if(opt_eq_control) {					
+					if(val > 0x1E) {val = 0x1E;}
+					else if(val < 0x00) {val = 0x00;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left High Gain (%ddB)", (int)val - 0x0F);
+					multi_eq_sd.gain_hl = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x05: // EQ Right Low Frequency
+				if(opt_eq_control) {
+					if(val > 1) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Right Low Freq (400Hz)");}
+					else {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Left Right Freq (200Hz)");}
+					multi_eq_sd.freq_lr = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x06: // EQ Right Low Gain
+				if(opt_eq_control) {					
+					if(val > 0x1E) {val = 0x1E;}
+					else if(val < 0x00) {val = 0x00;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Right Low Gain (%ddB)", (int)val - 0x0F);
+					multi_eq_sd.gain_lr = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x07: // EQ Right High Frequency
+				if(opt_eq_control) {
+					if(val > 2) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Right High (Freq 8000Hz)");}
+					else if(val > 1) {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Right High Freq (4000Hz)");}
+					else {ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Right High Freq (2000Hz)");}
+					multi_eq_sd.freq_hr = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			case 0x08: // EQ Right High Gain
+				if(opt_eq_control) {					
+					if(val > 0x1E) {val = 0x1E;}
+					else if(val < 0x00) {val = 0x00;}
+					ctl->cmsg(CMSG_INFO,VERB_NOISY,"SD EQ Right High Gain (%ddB)", (int)val - 0x0F);
+					multi_eq_sd.gain_hr = val;
+					recompute_multi_eq_xg();
+				}
+				break;
+			}
+			break;
+		case 0x03: // Audio // Audio Common
+			break;
+		case 0x04: // Audio // Audio Common Mixer Preset Mode
+			break;
+		case 0x05: // Audio // Audio Common Mixer Free Edit Mode
+			break;
+		case 0x06: // Audio // Audio Common AFX Parameter
+			break;
+		case 0x07: // Temporary Multitimbre // Multitimbre Common
+			switch(b){
+			case 0x00:
+				break;
+			case 0x30: // MFX 1/2/3 source
+				if(val == 0){
+					if(mfx_effect_sd[mfx].efx_source != -1){
+						channel[mfx_effect_sd[mfx].efx_source].sd_output_assign = 1; // mfx off
+						ctl_mode_event(CTLE_INSERTION_EFFECT, 1, mfx_effect_sd[mfx].efx_source, 0);
+					}
+					mfx_effect_sd[mfx].efx_source = -1; // common
+					mfx_effect_sd[mfx].type = &mfx_effect_sd[mfx].common_type;
+					mfx_effect_sd[mfx].set_param = mfx_effect_sd[mfx].common_param;	
+				}else{
+					int part = val - 1; // part ?
+					if(part >= 32 || part < 0) {return;}
+					mfx_effect_sd[mfx].efx_source = part; // part
+					mfx_effect_sd[mfx].type = &channel[part].mfx_part_type;
+					mfx_effect_sd[mfx].set_param = channel[part].mfx_part_param;
+				}
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX source (MFX:%d VAL:%02X)", mfx, val);
+				realloc_mfx_effect_sd(&mfx_effect_sd[mfx], 0);
+				break;
+			case 0x33: // Chorus source
+				if(val == 0){
+					chorus_status_sd.efx_source = -1; // common
+					chorus_status_sd.type = &chorus_status_sd.common_type;
+					chorus_status_sd.set_param = chorus_status_sd.common_param;	
+				}else{
+					int part = val - 1; // part ?
+					if(part >= 32 || part < 0) {return;}
+					chorus_status_sd.efx_source = part; // part
+					chorus_status_sd.type = &channel[part].chorus_part_type;
+					chorus_status_sd.set_param = channel[part].chorus_part_param;
+				}
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Chorus source (VAL:%02X)", val);
+				realloc_chorus_status_sd(&chorus_status_sd, 0);
+				break;
+			case 0x34: // Reverb source
+				if(val == 0){
+					reverb_status_sd.efx_source = -1; // common
+					reverb_status_sd.type = &chorus_status_sd.common_type;
+					reverb_status_sd.set_param = chorus_status_sd.common_param;	
+				}else{
+					int part = val - 1; // part ?
+					if(part >= 32 || part < 0) {return;}
+					reverb_status_sd.efx_source = part; // part
+					reverb_status_sd.type = &channel[part].reverb_part_type;
+					reverb_status_sd.set_param = channel[part].reverb_part_param;
+				}
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Reverb source (VAL:%02X)", val);
+				realloc_reverb_status_sd(&reverb_status_sd, 0);
+				break;
+			case 0x35: // MFX 1 control channel
+				if(val >= 0 && val <= 15)
+					mfx_effect_sd[0].ctrl_channel = val;
+				else
+					mfx_effect_sd[0].ctrl_channel = -1; // off
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MFX 1 control channel (%02X)", mfx_effect_sd[0].ctrl_channel);
+				break;
+			case 0x36: // MFX 2 control channel
+				if(val >= 0 && val <= 15)
+					mfx_effect_sd[1].ctrl_channel = val;
+				else
+					mfx_effect_sd[1].ctrl_channel = -1; // off
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MFX 2 control channel (%02X)", mfx_effect_sd[1].ctrl_channel);
+				break;
+			case 0x37: // MFX 3 control channel
+				if(val >= 0 && val <= 15)
+					mfx_effect_sd[2].ctrl_channel = val;
+				else
+					mfx_effect_sd[2].ctrl_channel = -1; // off
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MFX 3 control channel (%02X)", mfx_effect_sd[2].ctrl_channel);
+				break;
+			case 0x38: // MFX 1 control port
+				mfx_effect_sd[0].ctrl_port = val ? 1 : 0;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MFX 1 control port (%02X)", mfx_effect_sd[0].ctrl_port);
+				break;
+			case 0x39: // MFX 2 control port
+				mfx_effect_sd[1].ctrl_port = val ? 1 : 0;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MFX 2 control port (%02X)", mfx_effect_sd[1].ctrl_port);
+				break;
+			case 0x3A: // MFX 3 control port
+				mfx_effect_sd[2].ctrl_port = val ? 1 : 0;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MFX 3 control port (%02X)", mfx_effect_sd[2].ctrl_port);
+				break;
+			}
+			break;
+		case 0x08: // Temporary Multitimbre // Multitimbre Common Chorus
+			if(!opt_chorus_control) {break;}			
+			switch(b){
+			case 0x00: // Chorus Type
+				temp = chorus_status_sd.common_type;
+				chorus_status_sd.common_type = val;
+				if(temp == val) {
+					recompute_chorus_status_sd(&chorus_status_sd, 1);
+				} else {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Chorus Type (VAL:%02X)", val);
+					if(val == 0x03) // param[0]:type
+						chorus_status_sd.common_param[0] = 0x7F; // type default 
+					realloc_chorus_status_sd(&chorus_status_sd, 0);
+				}
+				break;
+			case 0x01: // Chorus Level
+				chorus_status_sd.common_efx_level = val;
+				recompute_chorus_status_sd(&chorus_status_sd, 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Chorus Level (VAl:%02X)", val);	
+				break;
+			case 0x02: // Chorus Output Select
+				chorus_status_sd.common_output_select = val;
+				recompute_chorus_status_sd(&chorus_status_sd, 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Chorus Output Select (VAl:%02X)", val);	
+				break;
+			case 0x03: // Chorus Parameter 1
+			case 0x04: // Chorus Parameter 2
+			case 0x05: // Chorus Parameter 3
+			case 0x06: // Chorus Parameter 4
+			case 0x07: // Chorus Parameter 5
+			case 0x08: // Chorus Parameter 6
+			case 0x09: // Chorus Parameter 7
+			case 0x0A: // Chorus Parameter 8
+			case 0x0B: // Chorus Parameter 9
+			case 0x0C: // Chorus Parameter 10
+			case 0x0D: // Chorus Parameter 11
+			case 0x0E: // Chorus Parameter 12
+				temp = b - 0x03;
+				if(chorus_status_sd.common_type == 0x03 && temp == 0){ // type
+					int prev = chorus_status_sd.common_param[temp];
+					chorus_status_sd.common_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					if(prev != chorus_status_sd.common_param[temp])
+						realloc_chorus_status_sd(&chorus_status_sd, 0);
+					else
+						recompute_chorus_status_sd(&chorus_status_sd, 1);
+				}else{
+					chorus_status_sd.common_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					recompute_chorus_status_sd(&chorus_status_sd, 1);
+				}
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Chorus parameter (param:%02X VAL:%02X)", temp, chorus_status_sd.common_param[temp]);
+				break;
+			}
+			break;
+		case 0x09: // Temporary Multitimbre // Multitimbre Common Reverb
+			if(!opt_reverb_control) {break;}			
+			switch(b){
+			case 0x00: // Reverb Type
+				temp = reverb_status_sd.common_type;
+				reverb_status_sd.common_type = val;
+				if(temp == val) {
+					recompute_reverb_status_sd(&reverb_status_sd, 1);
+				} else {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Reverb Type (VAL:%02X)", val);
+					if(val == 0x01 || val == 0x05) // param[0]:type
+						reverb_status_sd.common_param[0] = 0x7F; // type default 
+					realloc_reverb_status_sd(&reverb_status_sd, 0);
+				}
+				break;
+			case 0x01: // Reverb Level
+				reverb_status_sd.common_efx_level = val;
+				recompute_reverb_status_sd(&reverb_status_sd, 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Reverb Level (VAl:%02X)", val);	
+				break;
+			case 0x02: // Reverb Parameter 1
+			case 0x03: // Reverb Parameter 2
+			case 0x04: // Reverb Parameter 3
+			case 0x05: // Reverb Parameter 4
+			case 0x06: // Reverb Parameter 5
+			case 0x07: // Reverb Parameter 6
+			case 0x08: // Reverb Parameter 7
+			case 0x09: // Reverb Parameter 8
+			case 0x0A: // Reverb Parameter 9
+			case 0x0B: // Reverb Parameter 10
+			case 0x0C: // Reverb Parameter 11
+			case 0x0D: // Reverb Parameter 12
+			case 0x0E: // Reverb Parameter 13
+			case 0x0F: // Reverb Parameter 14
+			case 0x10: // Reverb Parameter 15
+			case 0x11: // Reverb Parameter 16
+			case 0x12: // Reverb Parameter 17
+			case 0x13: // Reverb Parameter 18
+			case 0x14: // Reverb Parameter 19
+			case 0x15: // Reverb Parameter 20
+				temp = b - 0x02;
+				if((reverb_status_sd.common_type == 0x01 || reverb_status_sd.common_type == 0x05) && temp == 0){ // type
+					int prev = reverb_status_sd.common_param[temp];
+					reverb_status_sd.common_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					if(prev != reverb_status_sd.common_param[temp])
+						realloc_reverb_status_sd(&reverb_status_sd, 0);
+					else
+						recompute_reverb_status_sd(&reverb_status_sd, 1);
+				}else{
+					reverb_status_sd.common_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					recompute_reverb_status_sd(&reverb_status_sd, 1);
+				}
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Reverb parameter (param:%02X VAL:%02X)", temp, reverb_status_sd.common_param[temp]);
+				break;
+			}
+			break;
+		case 0x0A: // Temporary Multitimbre // Multitimbre Common MFX1/2/3
+			if(!opt_insertion_effect) {break;}			
+			if(mfx >= SD_MFX_EFFECT_NUM || mfx < 0) {
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "Error : SD Common MFX num (%02X)", mfx);
+				break;
+			}
+			switch(b)	{
+			case 0x00: // MFX Type
+				temp = mfx_effect_sd[mfx].common_type;
+				mfx_effect_sd[mfx].common_type = val;
+				if(temp == val) {
+					recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				} else {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX type (MFX:%02X VAL:%02X)", mfx, val);
+					realloc_mfx_effect_sd(&mfx_effect_sd[mfx], 0);
+				}
+				if(val > 0){
+					int i;
+					for(i = 0; i < 32; i++)
+						if(channel[i].sd_output_assign == 0 && channel[i].sd_output_mfx_select == mfx)
+							ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 1);
+				}else{
+					int i;
+					for(i = 0; i < 32; i++)
+						if(channel[i].sd_output_assign == 0 && channel[i].sd_output_mfx_select == mfx)
+							ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 0);
+				}
+				break;
+			case 0x01: // MFX Dry Send Level
+				mfx_effect_sd[mfx].common_dry_send = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common Dry Send Level (MFX:%02X VAL:%02X)", mfx, val);		
+				break;
+			case 0x02: // MFX Chorus Send Level
+				mfx_effect_sd[mfx].common_send_chorus = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Chorus Send Level (MFX:%02X VAL:%02X)", mfx, val);	
+				break;	
+			case 0x03: // MFX Reverb Send Level
+				mfx_effect_sd[mfx].common_send_reverb = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Reverb Send Level (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			//case 0x04: // none
+			case 0x05: // MFX Control 1 Source
+				mfx_effect_sd[mfx].common_ctrl_source[0] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 1 Source (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x06: // MFX Control 1 Sens 
+				mfx_effect_sd[mfx].common_ctrl_sens[0] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 1 Sens (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x07: // MFX Control 2 Source
+				mfx_effect_sd[mfx].common_ctrl_source[1] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 2 Source (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x08: // MFX Control 2 Sens 
+				mfx_effect_sd[mfx].common_ctrl_sens[1] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 2 Sens (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x09: // MFX Control 3 Source
+				mfx_effect_sd[mfx].common_ctrl_source[2] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 3 Source (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x0A: // MFX Control 3 Sens 
+				mfx_effect_sd[mfx].common_ctrl_sens[2] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 3 Sens (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x0B: // MFX Control 4 Source
+				mfx_effect_sd[mfx].common_ctrl_source[3] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 4 Source (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x0C: // MFX Control 4 Sens 
+				mfx_effect_sd[mfx].common_ctrl_sens[3] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control 4 Sens (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x0D: // MFX Control Assign 1
+				mfx_effect_sd[mfx].common_ctrl_assign[0] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control Assign 1 (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x0E: // MFX Control Assign 2
+				mfx_effect_sd[mfx].common_ctrl_assign[1] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control Assign 2 (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x0F: // MFX Control Assign 3
+				mfx_effect_sd[mfx].common_ctrl_assign[2] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control Assign 3 (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x10: // MFX Control Assign 4
+				mfx_effect_sd[mfx].common_ctrl_assign[3] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX Control Assign 4 (MFX:%02X VAL:%02X)", mfx, val);	
+				break;
+			case 0x11: // MFX param
+			case 0x12:
+			case 0x13:
+			case 0x14:
+			case 0x15:
+			case 0x16:
+			case 0x17:
+			case 0x18:
+			case 0x19:
+			case 0x1A:
+			case 0x1B:
+			case 0x1C:
+			case 0x1D:
+			case 0x1E:
+			case 0x1F:
+			case 0x20:
+			case 0x21:	
+			case 0x22:	
+			case 0x23:	
+			case 0x24:	
+			case 0x25:	
+			case 0x26:	
+			case 0x27:	
+			case 0x28:	
+			case 0x29:	
+			case 0x2A:	
+			case 0x2B:	
+			case 0x2C:	
+			case 0x2D:	
+			case 0x2E:	
+			case 0x2F:	
+			case 0x30:	
+			case 0x31:	
+				temp = b - 0x11;
+				mfx_effect_sd[mfx].common_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Common MFX parameter (MFX:%02X param:%02X VAL:%02X)", mfx, temp, mfx_effect_sd[mfx].set_param[temp]);
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				break;
+			}
+			break;
+		case 0x0B: // Temporary Multitimbre // Multitimbre Part
+			switch(b){
+			case 0x1C: // Part Dry Send Level
+				channel[part].sd_dry_send_level = val;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Dry Send Level (%02X %02X)", part, val);
+				break;
+			case 0x1F: // Part Output Assign
+				if(val >= 33 || val < 0) {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "Error : SD Part Output Assign (%02X %02X)", part, val);
+					return;
+				}
+				channel[part].sd_output_assign = val > 2 ? 2 : val; // 0:MFX 1:NONE 2:Patch
+				if(channel[part].sd_output_assign == 0)
+					ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 1);
+				else if(channel[part].sd_output_assign == 1)
+					ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 0);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Output Assign (%02X %02X)", part, val);	
+				break;
+			case 0x20: // Part Output MFX Select
+				if(val >= SD_MFX_EFFECT_NUM || val < 0) {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "Error : SD Part Output MFX Select (%02X %02X)", part, val);
+					return;
+				}	
+				channel[part].sd_output_mfx_select = val;
+				if(channel[part].sd_output_assign != 1 && *mfx_effect_sd[val].type > 0)
+					ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 1);
+				else
+					ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 0);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Output MFX Select (%02X %02X)", part, val);
+				break;
+			}
+			break;
+		case 0x0C: // Temporary Multitimbre // Multitimbre MIDI
+			break;
+		case 0x0D: // Temporary Patch // Patch Common
+			break;
+		case 0x0E: // Temporary Patch // Patch Common Chorus // Temporary Rhythm // Rhythm Common Chorus
+			switch(b)	{
+			case 0x00:	// Chorus Type part				
+				temp = channel[part].chorus_part_type;
+				channel[part].chorus_part_type = val;
+				if(temp == val) {
+					recompute_chorus_status_sd(&chorus_status_sd, 1);
+				} else {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Chorus Type (VAL:%02X)", val);
+					if(val == 0x03) // param[0]:type
+						channel[part].chorus_part_param[0] = 0x7F; // type default 
+					realloc_chorus_status_sd(&chorus_status_sd, 0);
+				}
+				break;
+			case 0x01:	// Chorus Level part	
+				channel[part].chorus_part_efx_level = val;
+				recompute_chorus_status_sd(&chorus_status_sd, 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Chorus Level (VAl:%02X)", val);	
+				break;
+			case 0x02:	// Chorus Output Select part	
+				channel[part].chorus_part_output_select = val;
+				recompute_chorus_status_sd(&chorus_status_sd, 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Chorus Output Select (VAl:%02X)", val);	
+				break;
+			case 0x03:	// Chorus Parameter 1 part	
+			case 0x04:	// Chorus Parameter 2 part	
+			case 0x05:	// Chorus Parameter 3 part	
+			case 0x06:	// Chorus Parameter 4 part	
+			case 0x07:	// Chorus Parameter 5 part	
+			case 0x08:	// Chorus Parameter 6 part	
+			case 0x09:	// Chorus Parameter 7 part	
+			case 0x0A:	// Chorus Parameter 8 part	
+			case 0x0B:	// Chorus Parameter 9 part	
+			case 0x0C:	// Chorus Parameter 10 part	
+			case 0x0D:	// Chorus Parameter 11 part		
+			case 0x0E:	// Chorus Parameter 12 part	
+				temp = b - 0x03;
+				if(channel[part].chorus_part_type == 0x03 && temp == 0){ // type
+					int prev = channel[part].chorus_part_param[temp];
+					channel[part].chorus_part_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					if(prev != channel[part].chorus_part_param[temp])
+						realloc_chorus_status_sd(&chorus_status_sd, 0);
+					else
+						recompute_chorus_status_sd(&chorus_status_sd, 1);
+				}else{
+					channel[part].chorus_part_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					recompute_chorus_status_sd(&chorus_status_sd, 1);
+				}
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Chorus parameter (param:%02X VAL:%02X)", temp, channel[part].chorus_part_param[temp]);
+				break;
+			}
+			break;
+		case 0x0F: // Temporary Patch // Patch Common Reverb // Temporary Rhythm // Rhythm Common Reverb
+			switch(b)	{
+			case 0x00:	// Reverb Type part				
+				temp = channel[part].reverb_part_type;
+				channel[part].reverb_part_type = val;
+				if(temp == val) {
+					recompute_reverb_status_sd(&reverb_status_sd, 1);
+				} else {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Reverb Type (VAL:%02X)", val);
+					if(val == 0x01 || val == 0x05) // param[0]:type
+						channel[part].reverb_part_param[0] = 0x7F; // type default 
+					realloc_reverb_status_sd(&reverb_status_sd, 0);
+				}
+				break;
+			case 0x01:	// Reverb Level part	
+				channel[part].reverb_part_efx_level = val;
+				recompute_reverb_status_sd(&reverb_status_sd, 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Reverb Level (VAl:%02X)", val);	
+				break;
+			case 0x02:	// Reverb Parameter 1 part
+			case 0x03:	// Reverb Parameter 2 part
+			case 0x04:	// Reverb Parameter 3 part
+			case 0x05:	// Reverb Parameter 4 part
+			case 0x06:	// Reverb Parameter 5 part
+			case 0x07:	// Reverb Parameter 6 part
+			case 0x08:	// Reverb Parameter 7 part
+			case 0x09:	// Reverb Parameter 8 part
+			case 0x0A:	// Reverb Parameter 9 part
+			case 0x0B:	// Reverb Parameter 10 part
+			case 0x0C:	// Reverb Parameter 11 part
+			case 0x0D:	// Reverb Parameter 12 part
+			case 0x0E:	// Reverb Parameter 13 part
+			case 0x0F:	// Reverb Parameter 14 part
+			case 0x10:	// Reverb Parameter 15 part
+			case 0x11:	// Reverb Parameter 16 part
+			case 0x12:	// Reverb Parameter 17 part
+			case 0x13:	// Reverb Parameter 18 part
+			case 0x14:	// Reverb Parameter 19 part
+			case 0x15:	// Reverb Parameter 20 part
+				temp = b - 0x02;
+				if((channel[part].reverb_part_type == 0x01 || channel[part].reverb_part_type == 0x05) && temp == 0){ // type
+					int prev = channel[part].reverb_part_param[temp];
+					channel[part].reverb_part_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					if(prev != channel[part].reverb_part_param[temp])
+						realloc_reverb_status_sd(&reverb_status_sd, 0);
+					else
+						recompute_reverb_status_sd(&reverb_status_sd, 1);
+				}else{
+					channel[part].reverb_part_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+					recompute_reverb_status_sd(&reverb_status_sd, 1);
+				}
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Reverb Parameter (param:%02X VAL:%02X)", temp, channel[part].reverb_part_param[temp]);
+				break;
+			}
+			break;
+		case 0x10: // Temporary Patch // Patch Common MFX // Temporary Rhythm // Rhythm Common MFX
+			mfx = channel[part].sd_output_mfx_select;
+			if(!opt_insertion_effect) {break;}
+			switch(b)	{
+			case 0x00:	/* MFX Type part */
+				temp = channel[part].mfx_part_type;
+				channel[part].mfx_part_type = val;				
+				if(temp == val) {
+					recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				} else {
+					ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX type (%02X %02X)", part, val);
+					realloc_mfx_effect_sd(&mfx_effect_sd[mfx], 0);
+				}
+				if(val > 0)
+					ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 1);
+				else
+					ctl_mode_event(CTLE_INSERTION_EFFECT, 1, ch, 0);
+				break;
+			case 0x01: // MFX Dry Send Level
+				channel[part].mfx_part_dry_send = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part Dry Send Level (%02X %02X)", part, val);		
+				break;
+			case 0x02: // MFX Chorus Send Level
+				channel[part].mfx_part_send_chorus = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Chorus Send Level (%02X %02X)", part, val);	
+				break;	
+			case 0x03: // MFX Reverb Send Level
+				channel[part].mfx_part_send_reverb = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Reverb Send Level (%02X %02X)", part, val);	
+				break;
+			//case 0x04: // none
+			case 0x05: // MFX Control 1 Source
+				channel[part].mfx_part_ctrl_source[0] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 1 Source (%02X %02X)", part, val);	
+				break;
+			case 0x06: // MFX Control 1 Sens 
+				channel[part].mfx_part_ctrl_sens[0] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 1 Sens (%02X %02X)", part, val);	
+				break;
+			case 0x07: // MFX Control 2 Source
+				channel[part].mfx_part_ctrl_source[1] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 2 Source (%02X %02X)", part, val);	
+				break;
+			case 0x08: // MFX Control 2 Sens 
+				channel[part].mfx_part_ctrl_sens[1] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 2 Sens (%02X %02X)", part, val);	
+				break;
+			case 0x09: // MFX Control 3 Source
+				channel[part].mfx_part_ctrl_source[2] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 3 Source (%02X %02X)", part, val);	
+				break;
+			case 0x0A: // MFX Control 3 Sens 
+				channel[part].mfx_part_ctrl_sens[2] = val;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 3 Sens (%02X %02X)", part, val);	
+				break;
+			case 0x0B: // MFX Control 4 Source
+				channel[part].mfx_part_ctrl_source[3] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 4 Source (%02X %02X)", part, val);	
+				break;
+			case 0x0C: // MFX Control 4 Sens 
+				channel[part].mfx_part_ctrl_sens[3] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control 4 Sens (%02X %02X)", part, val);	
+				break;
+			case 0x0D: // MFX Control Assign 1
+				channel[part].mfx_part_ctrl_assign[0] = val;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control Assign 1 (%02X %02X)", part, val);	
+				break;
+			case 0x0E: // MFX Control Assign 2
+				channel[part].mfx_part_ctrl_assign[1] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control Assign 2 (%02X %02X)", part, val);	
+				break;
+			case 0x0F: // MFX Control Assign 3
+				channel[part].mfx_part_ctrl_assign[2] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control Assign 3 (%02X %02X)", part, val);	
+				break;
+			case 0x10: // MFX Control Assign 4
+				channel[part].mfx_part_ctrl_assign[3] = val;
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Control Assign 4 (%02X %02X)", part, val);	
+				break;
+			case 0x11: // MFX parameter
+			case 0x12:
+			case 0x13:
+			case 0x14:
+			case 0x15:
+			case 0x16:
+			case 0x17:
+			case 0x18:
+			case 0x19:
+			case 0x1A:
+			case 0x1B:
+			case 0x1C:
+			case 0x1D:
+			case 0x1E:
+			case 0x1F:
+			case 0x20:
+			case 0x21:	
+			case 0x22:	
+			case 0x23:	
+			case 0x24:	
+			case 0x25:	
+			case 0x26:	
+			case 0x27:	
+			case 0x28:	
+			case 0x29:	
+			case 0x2A:	
+			case 0x2B:	
+			case 0x2C:	
+			case 0x2D:	
+			case 0x2E:	
+			case 0x2F:	
+			case 0x30:	
+			case 0x31:	
+				temp = b - 0x11;
+				channel[part].mfx_part_param[temp] = (int32)(((uint16)(hval & 0xFF) << 8) | val) - 0x8000;
+				ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SD Part MFX Parameter (%02X %02X %02X)", part, temp, channel[part].mfx_part_param[temp]);
+				recompute_mfx_effect_sd(&mfx_effect_sd[mfx], 1);
+				break;
+			}
+			break;
+		case 0x11: // Temporary Patch // Patch Common TMT
+			break;
+		case 0x12: // Temporary Patch // Patch Common Tone
+			break;
+		case 0x13: // Temporary Rhythm // Rhythm Common
+			break;
+		case 0x17: // Temporary Rhythm // Rhythm Common Tone
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+/* 
+play_midi_prescan()で使用するprocess_sysex_event()の簡易版
+必要なのは ノート関連 Rx.関連 MasterVolume関連
+エフェクトなどは不要 
+コンソール出力 コントロール表示 も削除 ctl->cmsg() redraw_controllers()
+*/
+static void process_sysex_event_prescan(int ev, int ch, int val, int b)
+{
+	int temp, msb, note;
+
+	if (ch >= MAX_CHANNELS)
+		return;
+	if (ev == ME_SYSEX_MSB) {
+		channel[ch].sysex_msb_addr = b;
+		channel[ch].sysex_msb_val = val;
+	} else if(ev == ME_SYSEX_GS_MSB) {
+		channel[ch].sysex_gs_msb_addr = b;
+		channel[ch].sysex_gs_msb_val = val;
+	} else if(ev == ME_SYSEX_XG_MSB) {
+		channel[ch].sysex_xg_msb_addr = b;
+		channel[ch].sysex_xg_msb_val = val;
+	} else if(ev == ME_SYSEX_SD_MSB) {
+		channel[ch].sysex_sd_msb_addr = b;
+		channel[ch].sysex_sd_msb_val = val;
+	} else if(ev == ME_SYSEX_SD_HSB) {
+		channel[ch].sysex_sd_hsb_addr = b;
+		channel[ch].sysex_sd_hsb_val = val;
+	} else if(ev == ME_SYSEX_LSB) {	/* Universal system exclusive message */
+		msb = channel[ch].sysex_msb_addr;
+		note = channel[ch].sysex_msb_val;
+		channel[ch].sysex_msb_addr = channel[ch].sysex_msb_val = 0;
+		switch(b)
+		{
+		case 0x42:	/* Note Limit Low */
+			channel[ch].note_limit_low = val;
+			break;
+		case 0x43:	/* Note Limit High */
+			channel[ch].note_limit_high = val;
+			break;
+		case 0x44:	/* Velocity Limit Low */
+			channel[ch].vel_limit_low = val;
+			break;
+		case 0x45:	/* Velocity Limit High */
+			channel[ch].vel_limit_high = val;
+			break;
+		case 0x46:	/* Rx. Note Off */
+			if (channel[ch].drums[note] == NULL)
+				play_midi_setup_drums(ch, note);
+			set_rx_drum(channel[ch].drums[note], RX_NOTE_OFF, val);
+			channel[ch].drums[note]->rx_note_off = 1;
+			break;
+		case 0x47:	/* Rx. Note On */
+			if (channel[ch].drums[note] == NULL)
+				play_midi_setup_drums(ch, note);
+			set_rx_drum(channel[ch].drums[note], RX_NOTE_ON, val);
+			break;
+		case 0x48:	/* Rx. Pitch Bend */
+			set_rx(ch, RX_PITCH_BEND, val);
+			break;
+		case 0x49:	/* Rx. Channel Pressure */
+			set_rx(ch, RX_CH_PRESSURE, val);
+			break;
+		case 0x4A:	/* Rx. Program Change */
+			set_rx(ch, RX_PROGRAM_CHANGE, val);
+			break;
+		case 0x4B:	/* Rx. Control Change */
+			set_rx(ch, RX_CONTROL_CHANGE, val);
+			break;
+		case 0x4C:	/* Rx. Poly Pressure */
+			set_rx(ch, RX_POLY_PRESSURE, val);
+			break;
+		case 0x4D:	/* Rx. Note Message */
+			set_rx(ch, RX_NOTE_MESSAGE, val); 
+			break;
+		case 0x4E:	/* Rx. RPN */
+			set_rx(ch, RX_RPN, val);
+			break;
+		case 0x4F:	/* Rx. NRPN */
+			set_rx(ch, RX_NRPN, val);
+			break;
+		case 0x50:	/* Rx. Modulation */
+			set_rx(ch, RX_MODULATION, val);
+			break;
+		case 0x51:	/* Rx. Volume */
+			set_rx(ch, RX_VOLUME, val);
+			break;
+		case 0x52:	/* Rx. Panpot */
+			set_rx(ch, RX_PANPOT, val);
+			break;
+		case 0x53:	/* Rx. Expression */
+			set_rx(ch, RX_EXPRESSION, val); 
+			break;
+		case 0x54:	/* Rx. Hold1 */
+			set_rx(ch, RX_HOLD1, val);
+			break;
+		case 0x55:	/* Rx. Portamento */
+			set_rx(ch, RX_PORTAMENTO, val);
+			break;
+		case 0x56:	/* Rx. Sostenuto */
+			set_rx(ch, RX_SOSTENUTO, val);
+			break;
+		case 0x57:	/* Rx. Soft */
+			set_rx(ch, RX_SOFT, val);
+			break;
+		case 0x58:	/* Rx. Bank Select */
+			set_rx(ch, RX_BANK_SELECT, val); 
+			break;
+		case 0x59:	/* Rx. Bank Select LSB */
+			set_rx(ch, RX_BANK_SELECT_LSB, val);
+			break;	
+		case 0x6C:	/* GM2 Instrument Select */
+			if(ch == 0xFF){
+				int i;
+				for(i = 0; i < MAX_CHANNELS; i++)
+					channel[i].gm2_inst = val;
+			}else{
+				channel[ch].gm2_inst = val;
+			}
+			break;
+		default:
+			break;
+		}
+		return;
+	} else if(ev == ME_SYSEX_GS_LSB) {	/* GS system exclusive message */
+		msb = channel[ch].sysex_gs_msb_addr;
+		note = channel[ch].sysex_gs_msb_val;
+		channel[ch].sysex_gs_msb_addr = channel[ch].sysex_gs_msb_val = 0;
+		switch(b)
+		{
+		case 0x21:	/* Velocity Sense Depth */
+			channel[ch].velocity_sense_depth = val;
+			break;
+		case 0x22:	/* Velocity Sense Offset */
+			channel[ch].velocity_sense_offset = val;
+			break;
+		case 0x24:	/* Assign Mode */
+			channel[ch].assign_mode = val;
+			break;
+		case 0x25:	/* TONE MAP-0 NUMBER */
+			channel[ch].tone_map0_number = val;
+			break;
+		case 0x45:	/* Rx. Channel */
+			reset_controllers(ch);
+			all_notes_off(ch);
+			if (val == 0x80)
+				remove_channel_layer(ch);
+			else
+				add_channel_layer(ch, val);
+			break;
+		case 0x46:	/* Channel Msg Rx Port */
+			reset_controllers(ch);
+			all_notes_off(ch);
+			channel[ch].port_select = val;
+			break;
+		case 0x47:	/* Play Note Number */
+			if (channel[ch].drums[note] == NULL)
+				play_midi_setup_drums(ch, note);
+			channel[ch].drums[note]->play_note = val;
+			break;
+		default:
+			break;
+		}
+		return;
+	} else if(ev == ME_SYSEX_XG_LSB) {	/* XG system exclusive message */
+		msb = channel[ch].sysex_xg_msb_addr;
+		note = channel[ch].sysex_xg_msb_val;
+///r
+		if (note == 2 && msb >= 0 && msb < 0x40) {	/* Effect 1 */
+			note = 0;	/* not use */
+			if(b >= 0x40){ /* variation effect */
+				msb -= 1; 	/* variation effect num start 1 , dim 0*/
+				/* msb=0 variation 1 */ 
+				/* msb=n variation n+1 */ 
+				if(msb < 0 || msb >= XG_VARIATION_EFFECT_NUM){
+					return;
+				}
+			}
+
+		} else if (note == 2 && msb == 0x40) {	/* Multi EQ */
+
+		} else if (note == 3 && msb >= 0) {	/* Effect 2 */
+			/* msb=0 : insertion 1 */
+			/* msb=n : insertion n+1 */
+			if ( msb >= XG_INSERTION_EFFECT_NUM) {
+				return;
+			}
+
+		} else if (note == 8 && msb == 0) {	/* Multi Part */
+			switch(b)
+			{
+	/*
+			case 0x01:	// Bank Select MSB
+				channel[ch].bank_msb = val;
+				break;
+			case 0x02:	// Bank Select LSB
+				channel[ch].bank_lsb = val;
+				break;
+			case 0x03:	// Program Change
+				channel[ch].program = val;
+				break;
+			case 0x04:	// Rcv CHANNEL, remapped from 0x04 ?
+				reset_controllers(ch);
+				all_notes_off(ch);
+				if (val == 0x7f)
+					remove_channel_layer(ch);
+				else {
+					if((ch < REDUCE_CHANNELS) != (val < REDUCE_CHANNELS)) {
+						channel[ch].port_select = ch < REDUCE_CHANNELS ? 1 : 0;
+					}
+					if((ch % REDUCE_CHANNELS) != (val % REDUCE_CHANNELS)) {
+						add_channel_layer(ch, val);
+					}
+				}
+				break;
+			case 0x05:	// Mono/Poly Mode
+				channel[ch].mono = val;
+				break;
+	*/
+			case 0x06:	/* Same Note Number Key On Assign */
+				if(val == 0) {
+					channel[ch].assign_mode = 0;
+				} else if(val == 1) {
+					channel[ch].assign_mode = 1; // XG Multi : Not Full Multi
+				} else if(val == 2) {
+				} else if(val == 3) {
+					channel[ch].assign_mode = 2; // Timidity Full Multi
+				}
+				break;
+	/*
+			case 0x07:	// Part Mode
+				midi_drumpart_change(ch, TRUE);
+				channel[ch].bank_msb = 127;
+				break;
+			case 0x08:	// note shift
+				break;
+	*/
+			case 0x99:	/* Rcv CHANNEL, remapped from 0x04 */
+				reset_controllers(ch);
+				all_notes_off(ch);
+				if (val == 0x7f)
+					remove_channel_layer(ch);
+				else {
+					if((ch < REDUCE_CHANNELS) != (val < REDUCE_CHANNELS)) {
+						channel[ch].port_select = ch < REDUCE_CHANNELS ? 1 : 0;
+					}
+					if((ch % REDUCE_CHANNELS) != (val % REDUCE_CHANNELS)) {
+						add_channel_layer(ch, val);
+					}
+				}
+				break;
+			}
+		} else if ((note & 0xF0) == 0x30) {	/* Drum Setup */
+			note = msb;
+		}
+		return;
+
 	}
 }
 
@@ -5078,12 +8832,13 @@ static void play_midi_prescan(MidiEvent *ev)
     
     if(opt_amp_compensation) {mainvolume_max = 0;}
     else {mainvolume_max = 0x7f;}
-    compensation_ratio = 1.0;
+ //   compensation_ratio = 1.0;
 
     prescanning_flag = 1;
     change_system_mode(DEFAULT_SYSTEM_MODE);
     reset_midi(0);
-    resamp_cache_reset();
+	if(allocate_cache_size > 0)
+		resamp_cache_reset();
 
 	while (ev->type != ME_EOT) {
 #ifndef SUPPRESS_CHANNEL_LAYER
@@ -5112,23 +8867,39 @@ static void play_midi_prescan(MidiEvent *ev)
 	    break;
 
 	  case ME_NOTEOFF:
-	    resamp_cache_refer_off(ch, MIDI_EVENT_NOTE(ev), ev->time);
+		if(allocate_cache_size > 0)
+			resamp_cache_refer_off(ch, MIDI_EVENT_NOTE(ev), ev->time);
 	    break;
 
 	  case ME_PORTAMENTO_TIME_MSB:
-	    channel[ch].portamento_time_msb = ev->a;
+		if(opt_portamento){
+			channel[ch].portamento_time_msb = ev->a;
+		}
 	    break;
 
 	  case ME_PORTAMENTO_TIME_LSB:
-	    channel[ch].portamento_time_lsb = ev->a;
+		if(opt_portamento){
+			channel[ch].portamento_time_lsb = ev->a;
+		}
 	    break;
 
-	  case ME_PORTAMENTO:
-	    channel[ch].portamento = (ev->a >= 64);
+	  case ME_PORTAMENTO:		  
+		if(!get_rx(ch, RX_PORTAMENTO)) break;
+		if(opt_portamento){
+			channel[ch].portamento = (ev->a >= 64);
+		}
+	    break;
+
+      case ME_PORTAMENTO_CONTROL:
+		if(opt_portamento){
+			channel[ch].portamento_control = ev->a;
+		}
+		break;
 
 	  case ME_RESET_CONTROLLERS:
 	    reset_controllers(ch);
-	    resamp_cache_refer_alloff(ch, ev->time);
+		if(allocate_cache_size > 0)
+			resamp_cache_refer_alloff(ch, ev->time);
 	    break;
 
 	  case ME_PROGRAM:
@@ -5150,33 +8921,76 @@ static void play_midi_prescan(MidiEvent *ev)
 
 	  case ME_MASTER_TUNING:
 	  case ME_PITCHWHEEL:
+		adjust_pitch(ch);
 	  case ME_ALL_NOTES_OFF:
 	  case ME_ALL_SOUNDS_OFF:
 	  case ME_MONO:
 	  case ME_POLY:
-	    resamp_cache_refer_alloff(ch, ev->time);
+		if(allocate_cache_size > 0)
+			resamp_cache_refer_alloff(ch, ev->time);
 	    break;
-
+///r
 	  case ME_DRUMPART:
+		if(play_system_mode == XG_SYSTEM_MODE && ev->a)
+			channel[ch].bank_msb = 127; // Drum kit
 	    if(midi_drumpart_change(ch, ev->a))
 		midi_program_change(ch, channel[ch].program);
 	    break;
 
 	  case ME_KEYSHIFT:
-	    resamp_cache_refer_alloff(ch, ev->time);
+		if(allocate_cache_size > 0)
+			resamp_cache_refer_alloff(ch, ev->time);
 	    channel[ch].key_shift = (int)ev->a - 0x40;
 	    break;
-
+		
 	  case ME_SCALE_TUNING:
-		resamp_cache_refer_alloff(ch, ev->time);
+		if(allocate_cache_size > 0)
+			resamp_cache_refer_alloff(ch, ev->time);
 		channel[ch].scale_tuning[ev->a] = ev->b;
 		break;
 
 	  case ME_MAINVOLUME:
-	    if (ev->a > mainvolume_max) {
-	      mainvolume_max = ev->a;
-	      ctl->cmsg(CMSG_INFO,VERB_DEBUG,"ME_MAINVOLUME/max (CH:%d VAL:%#x)",ev->channel,ev->a);
-	    }
+		if(opt_amp_compensation)
+			if (ev->a > mainvolume_max) {
+			  mainvolume_max = ev->a;
+			  ctl->cmsg(CMSG_INFO,VERB_DEBUG,"ME_MAINVOLUME/max (CH:%d VAL:%#x)",ev->channel,ev->a);
+			}
+	    break;	
+
+	  case ME_SYSEX_LSB:
+	    process_sysex_event_prescan(ME_SYSEX_LSB,ch,ev->a,ev->b);
+	    break;
+
+	  case ME_SYSEX_MSB:
+	    process_sysex_event_prescan(ME_SYSEX_MSB,ch,ev->a,ev->b);
+	    break;
+
+	  case ME_SYSEX_GS_LSB:
+	    process_sysex_event_prescan(ME_SYSEX_GS_LSB,ch,ev->a,ev->b);
+	    break;
+
+	  case ME_SYSEX_GS_MSB:
+	    process_sysex_event_prescan(ME_SYSEX_GS_MSB,ch,ev->a,ev->b);
+	    break;
+
+	  case ME_SYSEX_XG_LSB:
+	    process_sysex_event_prescan(ME_SYSEX_XG_LSB,ch,ev->a,ev->b);
+	    break;
+
+	  case ME_SYSEX_XG_MSB:
+	    process_sysex_event_prescan(ME_SYSEX_XG_MSB,ch,ev->a,ev->b);
+	    break;
+
+	case ME_SYSEX_SD_LSB:
+	//	process_sysex_event_prescan(ME_SYSEX_SD_LSB,ch,ev->a,ev->b);
+	    break;
+
+	case ME_SYSEX_SD_MSB:
+	//	process_sysex_event_prescan(ME_SYSEX_SD_MSB,ch,ev->a,ev->b);
+	    break;
+
+	case ME_SYSEX_SD_HSB:
+	//	process_sysex_event_prescan(ME_SYSEX_SD_HSB,ch,ev->a,ev->b);
 	    break;
 	}
 #ifndef SUPPRESS_CHANNEL_LAYER
@@ -5186,55 +9000,39 @@ static void play_midi_prescan(MidiEvent *ev)
 #endif
 	ev++;
     }
-
+		
     /* calculate compensation ratio */
-    if (0 < mainvolume_max && mainvolume_max < 0x7f) {
-      compensation_ratio = pow((double)0x7f/(double)mainvolume_max, 4);
-      ctl->cmsg(CMSG_INFO,VERB_DEBUG,"Compensation ratio:%lf",compensation_ratio);
-    }
-
-    for(i = 0; i < MAX_CHANNELS; i++)
-	resamp_cache_refer_alloff(i, ev->time);
-    resamp_cache_create();
-    prescanning_flag = 0;
-}
-
-/*! convert GS NRPN to vibrato rate ratio. */
-/* from 0 to 3.0. */
-static double gs_cnv_vib_rate(int rate)
-{
-	double ratio;
-
-	if(rate == 0) {
-		ratio = 1.6 / 100.0;
-	} else if(rate == 64) {
-		ratio = 1.0;
-	} else if(rate <= 100) {
-		ratio = (double)rate * 1.6 / 100.0;
-	} else {
-		ratio = (double)(rate - 101) * 1.33 / 26.0 + 1.67;
+	if(opt_amp_compensation){
+		if(mainvolume_max < 1)
+			mainvolume_max = 1; // div0
+		if (opt_user_volume_curve != 0) {
+			compensation_ratio = (double)127.0 / user_vol_table[mainvolume_max & 0x7F];
+		} else if (play_system_mode == SD_SYSTEM_MODE) {
+			compensation_ratio = (double)127.0 / gm2_vol_table[mainvolume_max & 0x7F];
+		} else if (play_system_mode == GM2_SYSTEM_MODE) {
+			compensation_ratio = (double)127.0 / gm2_vol_table[mainvolume_max & 0x7F];
+		} else if(play_system_mode == GS_SYSTEM_MODE) {	/* use measured curve */ 
+			compensation_ratio = (double)127.0 / sc_vol_table[mainvolume_max & 0x7F];
+		} else if(play_system_mode == CM_SYSTEM_MODE) {	/* use measured curve */
+			compensation_ratio = (double)127.0/ sc_vol_table[mainvolume_max & 0x7F];
+		} else if (IS_CURRENT_MOD_FILE) {	/* use linear curve */
+			compensation_ratio = (double)127.0 / (double)(mainvolume_max & 0x7F);
+		} else {	/* use generic exponential curve */
+			compensation_ratio = (double)127.0 / perceived_vol_table[mainvolume_max & 0x7F];
+		}
+		ctl->cmsg(CMSG_INFO,VERB_DEBUG,"Compensation ratio:%lf",compensation_ratio);
 	}
-	return (1.0 / ratio);
-}
-
-/*! convert GS NRPN to vibrato depth. */
-/* from -9.6 cents to +9.45 cents. */
-static int32 gs_cnv_vib_depth(int depth)
-{
-	double cent;
-	cent = (double)(depth - 64) * 0.15;
-
-	return (int32)(cent * 256.0 / 400.0);
-}
-
-/*! convert GS NRPN to vibrato delay. */
-/* from 0 ms to 5074 ms. */
-static int32 gs_cnv_vib_delay(int delay)
-{
-	double ms;
-	ms = 0.2092 * exp(0.0795 * (double)delay);
-	if(delay == 0) {ms = 0;}
-	return (int32)((double)play_mode->rate * ms * 0.001);
+    //if (0 < mainvolume_max && mainvolume_max < 0x7f) {
+    //  compensation_ratio = pow((double)0x7f/(double)mainvolume_max, 4);
+    //  ctl->cmsg(CMSG_INFO,VERB_DEBUG,"Compensation ratio:%lf",compensation_ratio);
+    //}	
+	
+	if(allocate_cache_size > 0){
+		for(i = 0; i < MAX_CHANNELS; i++)
+			resamp_cache_refer_alloff(i, ev->time);
+		resamp_cache_create();
+	}
+    prescanning_flag = 0;
 }
 
 static int last_rpn_addr(int ch)
@@ -5250,10 +9048,22 @@ static int last_rpn_addr(int ch)
 		{0x010a, 0xffff, NRPN_ADDR_010A},
 		{0x0120, 0xffff, NRPN_ADDR_0120},
 		{0x0121, 0xffff, NRPN_ADDR_0121},
+		{0x0124, 0xffff, NRPN_ADDR_0124}, // hpf
+		{0x0125, 0xffff, NRPN_ADDR_0125}, // hpf
 		{0x0130, 0xffff, NRPN_ADDR_0130},
 		{0x0131, 0xffff, NRPN_ADDR_0131},
+		{0x0132, 0xffff, NRPN_ADDR_0132},
+		{0x0133, 0xffff, NRPN_ADDR_0133},
 		{0x0134, 0xffff, NRPN_ADDR_0134},
 		{0x0135, 0xffff, NRPN_ADDR_0135},
+		{0x0136, 0xffff, NRPN_ADDR_0136},
+		{0x0137, 0xffff, NRPN_ADDR_0137},
+		{0x0138, 0xffff, NRPN_ADDR_0138},
+		{0x0139, 0xffff, NRPN_ADDR_0139},
+		{0x013A, 0xffff, NRPN_ADDR_013A},
+		{0x013B, 0xffff, NRPN_ADDR_013B},
+		{0x013C, 0xffff, NRPN_ADDR_013C},
+		{0x013D, 0xffff, NRPN_ADDR_013D},
 		{0x0163, 0xffff, NRPN_ADDR_0163},
 		{0x0164, 0xffff, NRPN_ADDR_0164},
 		{0x0166, 0xffff, NRPN_ADDR_0166},
@@ -5268,10 +9078,22 @@ static int last_rpn_addr(int ch)
 		{0x1d00, 0xff00, NRPN_ADDR_1D00},
 		{0x1e00, 0xff00, NRPN_ADDR_1E00},
 		{0x1f00, 0xff00, NRPN_ADDR_1F00},
+		{0x2400, 0xff00, NRPN_ADDR_2400}, // hpf
+		{0x2500, 0xff00, NRPN_ADDR_2500}, // hpf
 		{0x3000, 0xff00, NRPN_ADDR_3000},
 		{0x3100, 0xff00, NRPN_ADDR_3100},
+		{0x3200, 0xff00, NRPN_ADDR_3200},
+		{0x3300, 0xff00, NRPN_ADDR_3300},
 		{0x3400, 0xff00, NRPN_ADDR_3400},
 		{0x3500, 0xff00, NRPN_ADDR_3500},
+		{0x3600, 0xff00, NRPN_ADDR_3600},
+		{0x3700, 0xff00, NRPN_ADDR_3700},
+		{0x3800, 0xff00, NRPN_ADDR_3800},
+		{0x3900, 0xff00, NRPN_ADDR_3900},
+		{0x3A00, 0xff00, NRPN_ADDR_3A00},
+		{0x3B00, 0xff00, NRPN_ADDR_3B00},
+		{0x3C00, 0xff00, NRPN_ADDR_3C00},
+		{0x3D00, 0xff00, NRPN_ADDR_3D00},
 		{-1, -1, 0}
 	};
 	static struct rpn_tag_map_t rpn_addr_map[] = {
@@ -5281,6 +9103,7 @@ static int last_rpn_addr(int ch)
 		{0x0003, 0xffff, RPN_ADDR_0003},
 		{0x0004, 0xffff, RPN_ADDR_0004},
 		{0x0005, 0xffff, RPN_ADDR_0005},
+		{0x0040, 0xffff, RPN_ADDR_0040},
 		{0x7f7f, 0xffff, RPN_ADDR_7F7F},
 		{0xffff, 0xffff, RPN_ADDR_FFFF},
 		{-1, -1}
@@ -5313,55 +9136,101 @@ static void update_rpn_map(int ch, int addr, int update_now)
 	case NRPN_ADDR_0108:	/* Vibrato Rate */
 		if (opt_nrpn_vibrato) {
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-					"Vibrato Rate (CH:%d VAL:%d)", ch, val - 64);
-			channel[ch].vibrato_ratio = gs_cnv_vib_rate(val);
+					"NRPN Vibrato Rate (CH:%d VAL:%d)", ch, val - 64);
+			channel[ch].param_vibrato_rate = val - 64;
 		}
-		if (update_now)
-			adjust_pitch(ch);
+		if (update_now){
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
 		break;
 	case NRPN_ADDR_0109:	/* Vibrato Depth */
 		if (opt_nrpn_vibrato) {
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-					"Vibrato Depth (CH:%d VAL:%d)", ch, val - 64);
-			channel[ch].vibrato_depth = gs_cnv_vib_depth(val);
+					"NRPN Vibrato Depth (CH:%d VAL:%d)", ch, val - 64);
+			channel[ch].param_vibrato_depth = val - 64;
 		}
-		if (update_now)
-			adjust_pitch(ch);
+		if (update_now){
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
 		break;
 	case NRPN_ADDR_010A:	/* Vibrato Delay */
 		if (opt_nrpn_vibrato) {
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-					"Vibrato Delay (CH:%d VAL:%d)", ch, val);
-			channel[ch].vibrato_delay = gs_cnv_vib_delay(val);
+					"NRPN Vibrato Delay (CH:%d VAL:%d)", ch, val - 64);
+			channel[ch].param_vibrato_delay = val - 64;
 		}
-		if (update_now)
-			adjust_pitch(ch);
+		if (update_now){
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
 		break;
 	case NRPN_ADDR_0120:	/* Filter Cutoff Frequency */
-		if (opt_lpf_def) {
+		//if (opt_lpf_def) {
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-					"Filter Cutoff (CH:%d VAL:%d)", ch, val - 64);
+					"NRPN Filter Cutoff (CH:%d VAL:%d)", ch, val - 64);
 			channel[ch].param_cutoff_freq = val - 64;
-		}
+			if (update_now)
+			//	update_channel_filter(ch);
+				recompute_channel_filter(ch);
+		//}
 		break;
 	case NRPN_ADDR_0121:	/* Filter Resonance */
-		if (opt_lpf_def) {
+		//if (opt_lpf_def) {
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-					"Filter Resonance (CH:%d VAL:%d)", ch, val - 64);
+					"NRPN Filter Resonance (CH:%d VAL:%d)", ch, val - 64);
 			channel[ch].param_resonance = val - 64;
-		}
+			if (update_now)
+			//	update_channel_filter(ch);
+				recompute_channel_filter(ch);
+		//}
+		break;
+///r
+	case NRPN_ADDR_0124:	/* HPF Filter Cutoff Frequency */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"NRPN HPF Filter Cutoff (CH:%d VAL:%d)", ch, val - 64);
+			channel[ch].hpf_param_cutoff_freq = val - 64;
+			if (update_now)
+			//	update_channel_filter2(ch);
+				recompute_channel_filter(ch);
+		break;
+	case NRPN_ADDR_0125:	/* HPF Filter Resonance */
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"NRPN HPF Filter Resonance (CH:%d VAL:%d)", ch, val - 64);
+			channel[ch].hpf_param_resonance = val - 64;
+			if (update_now)
+			//	update_channel_filter2(ch);
+				recompute_channel_filter(ch);
 		break;
 	case NRPN_ADDR_0130:	/* EQ BASS */
 		if (opt_eq_control) {
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ BASS (CH:%d %.2f dB)", ch, 0.19 * (double)(val - 0x40));
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ BASS (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
 			channel[ch].eq_xg.bass = val;
 			recompute_part_eq_xg(&(channel[ch].eq_xg));
 		}
 		break;
 	case NRPN_ADDR_0131:	/* EQ TREBLE */
 		if (opt_eq_control) {
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ TREBLE (CH:%d %.2f dB)", ch, 0.19 * (double)(val - 0x40));
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ TREBLE (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
 			channel[ch].eq_xg.treble = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_0132:	/* EQ MID-BASS */
+		if (opt_eq_control) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ MID-BASS (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
+			channel[ch].eq_xg.mid_bass = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_0133:	/* EQ MID-TREBLE */
+		if (opt_eq_control) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ MID-TREBLE (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
+			channel[ch].eq_xg.mid_treble = val;
 			recompute_part_eq_xg(&(channel[ch].eq_xg));
 		}
 		break;
@@ -5369,7 +9238,7 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (opt_eq_control) {
 			if(val < 4) {val = 4;}
 			else if(val > 40) {val = 40;}
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ BASS frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ BASS frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
 			channel[ch].eq_xg.bass_freq = val;
 			recompute_part_eq_xg(&(channel[ch].eq_xg));
 		}
@@ -5378,8 +9247,86 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (opt_eq_control) {
 			if(val < 28) {val = 28;}
 			else if(val > 58) {val = 58;}
-			ctl->cmsg(CMSG_INFO,VERB_NOISY,"EQ TREBLE frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ TREBLE frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
 			channel[ch].eq_xg.treble_freq = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_0136:	/* EQ MID-BASS frequency */
+		if (opt_eq_control) {
+			if(val < 0x0E) {val = 0x0E;}
+			else if(val > 0x36) {val = 0x36;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ MID-BASS frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			channel[ch].eq_xg.mid_bass_freq = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_0137:	/* EQ MID-TREBLE frequency */
+		if (opt_eq_control) {
+			if(val < 0x0E) {val = 0x0E;}
+			else if(val > 0x36) {val = 0x36;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ MID-TREBLE frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			channel[ch].eq_xg.mid_treble_freq = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_0138:	/* EQ BASS Q */
+		if (opt_eq_control) {
+			if(val < 0x01) {val = 0x01;}
+			else if(val > 0x78) {val = 0x78;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ BASS Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].eq_xg.bass_q = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_0139:	/* EQ TREBLE Q */
+		if (opt_eq_control) {
+			if(val < 0x01) {val = 0x01;}
+			else if(val > 0x78) {val = 0x78;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ TREBLE Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].eq_xg.treble_q = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_013A:	/* EQ MID-BASS Q */
+		if (opt_eq_control) {
+			if(val < 0x01) {val = 0x01;}
+			else if(val > 0x78) {val = 0x78;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ MID-BASS Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].eq_xg.mid_bass_q = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_013B:	/* EQ MID-TREBLE Q */
+		if (opt_eq_control) {
+			if(val < 0x01) {val = 0x01;}
+			else if(val > 0x78) {val = 0x78;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ MID-TREBLE Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].eq_xg.mid_treble_q = val;
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_013C:	/* EQ BASS shape */
+		if (opt_eq_control) {
+			if(!val) {
+				channel[ch].eq_xg.bass_shape = 0x00;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ BASS shape (CH:%d shalving)", ch);			
+			}else{
+				channel[ch].eq_xg.bass_shape = 0x01;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ BASS shape (CH:%d peaking)", ch);
+			}
+			recompute_part_eq_xg(&(channel[ch].eq_xg));
+		}
+		break;
+	case NRPN_ADDR_013D:	/* EQ TREBLE shape */
+		if (opt_eq_control) {
+			if(!val) {
+				channel[ch].eq_xg.treble_shape =0x00;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ TREBLE shape (CH:%d shalving)", ch);			
+			}else{
+				channel[ch].eq_xg.treble_shape =0x01;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN EQ TREBLE shape (CH:%d peaking)", ch);
+			}
 			recompute_part_eq_xg(&(channel[ch].eq_xg));
 		}
 		break;
@@ -5398,7 +9345,7 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Drum Instrument Filter Cutoff (CH:%d NOTE:%d VAL:%d)",
+				"NRPN Drum Instrument Filter Cutoff (CH:%d NOTE:%d VAL:%d)",
 				ch, note, val);
 		channel[ch].drums[note]->drum_cutoff_freq = val - 64;
 		break;
@@ -5408,7 +9355,7 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Drum Instrument Filter Resonance (CH:%d NOTE:%d VAL:%d)",
+				"NRPN Drum Instrument Filter Resonance (CH:%d NOTE:%d VAL:%d)",
 				ch, note, val);
 		channel[ch].drums[note]->drum_resonance = val - 64;
 		break;
@@ -5421,7 +9368,7 @@ static void update_rpn_map(int ch, int addr, int update_now)
 				play_midi_setup_drums(ch, note);
 			val	-= 64;
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-					"Drum Instrument Attack Time (CH:%d NOTE:%d VAL:%d)",
+					"NRPN Drum Instrument Attack Time (CH:%d NOTE:%d VAL:%d)",
 					ch, note, val);
 			channel[ch].drums[note]->drum_envelope_rate[EG_ATTACK] = val;
 		}
@@ -5435,7 +9382,7 @@ static void update_rpn_map(int ch, int addr, int update_now)
 				play_midi_setup_drums(ch, note);
 			val	-= 64;
 			ctl->cmsg(CMSG_INFO, VERB_NOISY,
-					"Drum Instrument Decay Time (CH:%d NOTE:%d VAL:%d)",
+					"NRPN Drum Instrument Decay Time (CH:%d NOTE:%d VAL:%d)",
 					ch, note, val);
 			channel[ch].drums[note]->drum_envelope_rate[EG_DECAY1] =
 				channel[ch].drums[note]->drum_envelope_rate[EG_DECAY2] = val;
@@ -5448,9 +9395,8 @@ static void update_rpn_map(int ch, int addr, int update_now)
 			play_midi_setup_drums(ch, note);
 		channel[ch].drums[note]->coarse = val - 64;
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-			"Drum Instrument Pitch Coarse (CH:%d NOTE:%d VAL:%d)",
+			"NRPN Drum Instrument Pitch Coarse (CH:%d NOTE:%d VAL:%d)",
 			ch, note, channel[ch].drums[note]->coarse);
-		channel[ch].pitchfactor = 0;
 		break;
 	case NRPN_ADDR_1900:	/* Fine Pitch of Drum (XG) */
 		drumflag = 1;
@@ -5459,9 +9405,8 @@ static void update_rpn_map(int ch, int addr, int update_now)
 			play_midi_setup_drums(ch, note);
 		channel[ch].drums[note]->fine = val - 64;
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Drum Instrument Pitch Fine (CH:%d NOTE:%d VAL:%d)",
+				"NRPN Drum Instrument Pitch Fine (CH:%d NOTE:%d VAL:%d)",
 				ch, note, channel[ch].drums[note]->fine);
-		channel[ch].pitchfactor = 0;
 		break;
 	case NRPN_ADDR_1A00:	/* Level of Drum */	 
 		drumflag = 1;
@@ -5469,7 +9414,7 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Drum Instrument TVA Level (CH:%d NOTE:%d VAL:%d)",
+				"NRPN Drum Instrument TVA Level (CH:%d NOTE:%d VAL:%d)",
 				ch, note, val);
 		channel[ch].drums[note]->drum_level =
 				calc_drum_tva_level(ch, note, val);
@@ -5485,9 +9430,9 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		} else
 			channel[ch].drums[note]->pan_random = 0;
 		channel[ch].drums[note]->drum_panning = val;
-		if (update_now && adjust_panning_immediately
-				&& ! channel[ch].pan_random)
-			adjust_drum_panning(ch, note);
+		//if (update_now && adjust_panning_immediately
+		//		&& ! channel[ch].pan_random)
+		//	adjust_drum_panning(ch, note);
 		break;
 	case NRPN_ADDR_1D00:	/* Reverb Send Level of Drum */
 		drumflag = 1;
@@ -5495,10 +9440,11 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Reverb Send Level of Drum (CH:%d NOTE:%d VALUE:%d)",
+				"NRPN Reverb Send Level of Drum (CH:%d NOTE:%d VALUE:%d)",
 				ch, note, val);
 		if (channel[ch].drums[note]->reverb_level != val) {
-			channel[ch].drum_effect_flag = 0;
+			if(channel[ch].drum_effect_flag)
+				channel[ch].drum_effect_flag |= 0x4; // update effect
 		}
 		channel[ch].drums[note]->reverb_level = val;
 		break;
@@ -5508,10 +9454,11 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Chorus Send Level of Drum (CH:%d NOTE:%d VALUE:%d)",
+				"NRPN Chorus Send Level of Drum (CH:%d NOTE:%d VALUE:%d)",
 				ch, note, val);
 		if (channel[ch].drums[note]->chorus_level != val) {
-			channel[ch].drum_effect_flag = 0;
+			if(channel[ch].drum_effect_flag)
+				channel[ch].drum_effect_flag |= 0x4; // update effect
 		}
 		channel[ch].drums[note]->chorus_level = val;
 		
@@ -5522,77 +9469,277 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
 		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Delay Send Level of Drum (CH:%d NOTE:%d VALUE:%d)",
+				"NRPN Delay Send Level of Drum (CH:%d NOTE:%d VALUE:%d)",
 				ch, note, val);
 		if (channel[ch].drums[note]->delay_level != val) {
-			channel[ch].drum_effect_flag = 0;
+			if(channel[ch].drum_effect_flag)
+				channel[ch].drum_effect_flag |= 0x4; // update effect
 		}
 		channel[ch].drums[note]->delay_level = val;
+		break;
+	case NRPN_ADDR_2400:	/* Drum HPF Cutoff (XG) */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);
+		ctl->cmsg(CMSG_INFO, VERB_NOISY,
+				"NRPN Drum Instrument HPF Cutoff (CH:%d NOTE:%d VAL:%d)",
+				ch, note, val);
+		channel[ch].drums[note]->drum_hpf_cutoff_freq = val - 64;
+		break;
+	case NRPN_ADDR_2500:	/* Drum HPF Resonance (XG) */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);
+		ctl->cmsg(CMSG_INFO, VERB_NOISY,
+				"NRPN Drum Instrument HPF Resonance (CH:%d NOTE:%d VAL:%d)",
+				ch, note, val);
+		channel[ch].drums[note]->drum_hpf_resonance = val - 64;
 		break;
 	case NRPN_ADDR_3000:	/* Drum EQ BASS */
 		drumflag = 1;
 		note = channel[ch].lastlrpn;
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ BASS (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
+			channel[ch].drums[note]->eq_xg.bass = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
 		break;
 	case NRPN_ADDR_3100:	/* Drum EQ TREBLE */
 		drumflag = 1;
 		note = channel[ch].lastlrpn;
 		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);		
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ TREBLE (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
+			channel[ch].drums[note]->eq_xg.treble = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3200:	/* Drum EQ MID-BASS */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ MID-BASS (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
+			channel[ch].drums[note]->eq_xg.mid_bass = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3300:	/* Drum EQ MID-TREBLE */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);		
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ MID-TREBLE (CH:%d %.2f dB)", ch, DIV_64 * 12.0 * (double)(val - 0x40));
+			channel[ch].drums[note]->eq_xg.mid_treble = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
 		break;
 	case NRPN_ADDR_3400:	/* Drum EQ BASS frequency */
 		drumflag = 1;
 		note = channel[ch].lastlrpn;
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
+		if (opt_eq_control && opt_drum_effect) {
+			if(val < 4) {val = 4;}
+			else if(val > 40) {val = 40;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ BASS frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			channel[ch].drums[note]->eq_xg.bass_freq = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
 		break;
 	case NRPN_ADDR_3500:	/* Drum EQ TREBLE frequency */
 		drumflag = 1;
 		note = channel[ch].lastlrpn;
 		if (channel[ch].drums[note] == NULL)
 			play_midi_setup_drums(ch, note);
+		channel[ch].drums[note]->eq_xg.treble_freq = val;
+		if (opt_eq_control && opt_drum_effect) {
+			if(val < 28) {val = 28;}
+			else if(val > 58) {val = 58;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ TREBLE frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			channel[ch].drums[note]->eq_xg.treble_freq = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3600:	/* Drum EQ MID-BASS frequency */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);
+		if (opt_eq_control && opt_drum_effect) {
+			if(val < 0x0E) {val = 0x0E;}
+			else if(val > 0x36) {val = 0x36;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ MID-BASS frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			channel[ch].drums[note]->eq_xg.mid_bass_freq = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3700:	/* Drum EQ MID-TREBLE frequency */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);
+		if (opt_eq_control && opt_drum_effect) {
+			if(val < 0x0E) {val = 0x0E;}
+			else if(val > 0x36) {val = 0x36;}
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ MID-TREBLE frequency (CH:%d %d Hz)", ch, (int32)eq_freq_table_xg[val]);
+			channel[ch].drums[note]->eq_xg.mid_treble_freq = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3800:	/* Drum EQ BASS Q */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ BASS Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].drums[note]->eq_xg.bass_q = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3900:	/* Drum EQ TREBLE Q */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);		
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ TREBLE Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].drums[note]->eq_xg.treble_q = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3A00:	/* Drum EQ MID-BASS Q */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);
+		channel[ch].drums[note]->eq_xg.mid_bass = val;	
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ MID-BASS Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].drums[note]->eq_xg.mid_bass_q = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3B00:	/* Drum EQ MID-TREBLE Q */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);		
+		if (opt_eq_control && opt_drum_effect) {
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ MID-TREBLE Q (CH:%d %.2f)", ch, (double)val * DIV_10);
+			channel[ch].drums[note]->eq_xg.mid_treble_q = val;
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3C00:	/* Drum EQ BASS shape */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);
+		if (opt_eq_control && opt_drum_effect) {
+			if(!val){
+				channel[ch].drums[note]->eq_xg.bass_shape = 0x0;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ BASS shape (CH:%d shelving)", ch);
+			}else{
+				channel[ch].drums[note]->eq_xg.bass_shape = 0x1;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ BASS shape (CH:%d peaking)", ch);
+			}
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
+		break;
+	case NRPN_ADDR_3D00:	/* Drum EQ TREBLE shape */
+		drumflag = 1;
+		note = channel[ch].lastlrpn;
+		if (channel[ch].drums[note] == NULL)
+			play_midi_setup_drums(ch, note);		
+		if (opt_eq_control && opt_drum_effect) {
+			if(!val){
+				channel[ch].drums[note]->eq_xg.treble_shape = 0x0;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ TREBLE shape (CH:%d shelving)", ch);
+			}else{
+				channel[ch].drums[note]->eq_xg.treble_shape = 0x1;
+				ctl->cmsg(CMSG_INFO,VERB_NOISY,"NRPN Drum EQ TREBLE shape (CH:%d peaking)", ch);
+			}
+			recompute_part_eq_xg(&(channel[ch].drums[note]->eq_xg));
+		}
 		break;
 	case RPN_ADDR_0000:		/* Pitch bend sensitivity */
-		ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-				"Pitch Bend Sensitivity (CH:%d VALUE:%d)", ch, val);
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "RPN Pitch Bend Sensitivity (CH:%d VALUE:%d)", ch, val);
 		/* for mod2mid.c, arpeggio */
-		if (! IS_CURRENT_MOD_FILE && channel[ch].rpnmap[RPN_ADDR_0000] > 24)
-			channel[ch].rpnmap[RPN_ADDR_0000] = 24;
-		channel[ch].pitchfactor = 0;
+		if (IS_CURRENT_MOD_FILE){
+			if(channel[ch].rpnmap[RPN_ADDR_0000] > 0x7F)
+				channel[ch].rpnmap[RPN_ADDR_0000] = 0x7F;
+		}else if (play_system_mode == XG_SYSTEM_MODE && channel[ch].rpnmap[RPN_ADDR_0000] > 0x7F){
+			if(channel[ch].rpnmap[RPN_ADDR_0000] < 0xE8) // 0x100 -24
+				channel[ch].rpnmap[RPN_ADDR_0000] = 0xE8; // -24
+		}else{
+			if(channel[ch].rpnmap[RPN_ADDR_0000] > 24)
+				channel[ch].rpnmap[RPN_ADDR_0000] = 24;
+		}
+		channel[ch].rpnmap[RPN_ADDR_0040] = channel[ch].rpnmap[RPN_ADDR_0000]; // update low control
 		break;
 	case RPN_ADDR_0001:		/* Master Fine Tuning */
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-				"Master Fine Tuning (CH:%d VALUE:%d)", ch, val);
-		channel[ch].pitchfactor = 0;
+				"RPN Master Fine Tuning (CH:%d VALUE:%d)", ch, val);
 		break;
 	case RPN_ADDR_0002:		/* Master Coarse Tuning */
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-				"Master Coarse Tuning (CH:%d VALUE:%d)", ch, val);
-		channel[ch].pitchfactor = 0;
+				"RPN Master Coarse Tuning (CH:%d VALUE:%d)", ch, val);
 		break;
 	case RPN_ADDR_0003:		/* Tuning Program Select */
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-				"Tuning Program Select (CH:%d VALUE:%d)", ch, val);
+				"RPN Tuning Program Select (CH:%d VALUE:%d)", ch, val);
 		for (i = 0; i < upper_voices; i++)
 			if (voice[i].status != VOICE_FREE) {
 				voice[i].temper_instant = 1;
-				recompute_freq(i);
+			//	recompute_freq(i);
+				recompute_voice_pitch(i);
 			}
 		break;
 	case RPN_ADDR_0004:		/* Tuning Bank Select */
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-				"Tuning Bank Select (CH:%d VALUE:%d)", ch, val);
+				"RPN Tuning Bank Select (CH:%d VALUE:%d)", ch, val);
 		for (i = 0; i < upper_voices; i++)
 			if (voice[i].status != VOICE_FREE) {
 				voice[i].temper_instant = 1;
-				recompute_freq(i);
+			//	recompute_freq(i);
+				recompute_voice_pitch(i);
 			}
 		break;
-	case RPN_ADDR_0005:		/* GM2: Modulation Depth Range */
-		channel[ch].mod.lfo1_pitch_depth = (((int32)channel[ch].rpnmap[RPN_ADDR_0005] << 7) | channel[ch].rpnmap_lsb[RPN_ADDR_0005]) * 100 / 128;
-		ctl->cmsg(CMSG_INFO, VERB_NOISY,
-				"Modulation Depth Range (CH:%d VALUE:%d)", ch, channel[ch].rpnmap[RPN_ADDR_0005]);
+	case RPN_ADDR_0005:		/* Modulation Depth Range */
+	//	channel[ch].mod.lfo1_pitch_depth = (((int32)channel[ch].rpnmap[RPN_ADDR_0005] << 7) | channel[ch].rpnmap_lsb[RPN_ADDR_0005]) * 100 / 128;
+		if (play_system_mode == SD_SYSTEM_MODE){
+			channel[ch].mod.lfo1_pitch_depth = 
+				(double)(((int32)channel[ch].rpnmap[RPN_ADDR_0005] << 8) | channel[ch].rpnmap_lsb[RPN_ADDR_0005])
+				* 0.03662109375; // cent 600/16384 max0x4000
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"RPN Modulation Depth Range (CH:%d MSB:%d LSB:%d cent:%.2f)", ch, 
+					channel[ch].rpnmap[RPN_ADDR_0005], channel[ch].rpnmap_lsb[RPN_ADDR_0005], channel[ch].mod.lfo1_pitch_depth);
+		}else{ // GM2_SYSTEM_MODE
+			channel[ch].mod.lfo1_pitch_depth = (double)(channel[ch].rpnmap[RPN_ADDR_0005] * 100)
+				+ (double)channel[ch].rpnmap_lsb[RPN_ADDR_0005] * 100.0 * DIV_128; // cent
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,
+					"RPN Modulation Depth Range (CH:%d MSB:%d LSB:%d cent:%.2f)", ch, 
+					channel[ch].rpnmap[RPN_ADDR_0005], channel[ch].rpnmap_lsb[RPN_ADDR_0005], channel[ch].mod.lfo1_pitch_depth);
+		}
+		break;
+	case RPN_ADDR_0040:		/* Pitch bend sensitivity low control */
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "RPN Pitch Bend Sensitivity Low Control (CH:%d VALUE:%d)", ch, val);
+		if (play_system_mode == XG_SYSTEM_MODE && channel[ch].rpnmap[RPN_ADDR_0040] > 0x7F){
+			if(channel[ch].rpnmap[RPN_ADDR_0040] < 0xE8) // 0x100 -24
+				channel[ch].rpnmap[RPN_ADDR_0040] = 0xE8; // -24
+		}else{
+			if(channel[ch].rpnmap[RPN_ADDR_0040] > 24)
+				channel[ch].rpnmap[RPN_ADDR_0040] = 24;
+		}
 		break;
 	case RPN_ADDR_7F7F:		/* RPN reset */
 		channel[ch].rpn_7f7f_flag = 1;
@@ -5602,13 +9749,13 @@ static void update_rpn_map(int ch, int addr, int update_now)
 		channel[ch].rpn_7f7f_flag = 0;
 		memset(channel[ch].rpnmap, 0, sizeof(channel[ch].rpnmap));
 		channel[ch].lastlrpn = channel[ch].lastmrpn = 0;
-		channel[ch].nrpn = 0;
+		channel[ch].nrpn = -1;
 		channel[ch].rpnmap[RPN_ADDR_0000] = 2;
 		channel[ch].rpnmap[RPN_ADDR_0001] = 0x40;
 		channel[ch].rpnmap[RPN_ADDR_0002] = 0x40;
 		channel[ch].rpnmap_lsb[RPN_ADDR_0005] = 0x40;
 		channel[ch].rpnmap[RPN_ADDR_0005] = 0;	/* +- 50 cents */
-		channel[ch].pitchfactor = 0;
+		channel[ch].rpnmap[RPN_ADDR_0040] = 2; // = RPN_ADDR_0000 = -2*-1
 		break;
 	}
 	drumflag = 0;
@@ -5618,6 +9765,107 @@ static void update_rpn_map(int ch, int addr, int update_now)
 			ctl_prog_event(ch);
 	}
 }
+
+/*
+cbc値を通常ctrl値に変換 0~127 -> -64~63 -> -63~63 -> -127~127
+ここで変換するのはget_midi_controller_amp()~等をそのまま使用するため 
+*/
+static int calc_cbc_val(int val)
+{
+	const int32 coef = (double)127 / (double)63 * (double)(1L << 24); // 127/63
+	if(val == 0x40) return 0;
+	val -= 0x40;
+	if(val < -63) val = 63;
+	return imuldiv24(val, coef);
+}
+
+/*
+bend値を通常ctrl値に変換 0~16383 -> -8192~+8191 -> -8191~+8191 -> -127~127
+ここで変換するのはget_midi_controller_amp()~等をそのまま使用するため 
+*/
+int calc_bend_val(int val)
+{
+	const int32 coef = (double)127 / (double)8191 * (double)(1L << 16); // 127/8191
+	if(val == 0x2000) return 0;
+	val -= 0x2000;
+	if(val < -8191) val = 8191;
+	return imuldiv16(val, coef);
+}
+
+static void process_channel_control_event(MidiEvent *ev)
+{
+	int ch, cc;
+
+	if(!opt_channel_pressure)
+		return;
+	if(ev->type < ME_TONE_BANK_MSB || ev->type > ME_UNDEF_CTRL_CHNG)
+		return; // not cc
+	ch = ev->channel;
+	cc = ev->b;	// original ctrl change number (if ev->type==ctrl_change
+	/*! adjust channel control 1 (CC1) */
+	if(channel[ch].cc1.num != -1 && channel[ch].cc1.num == cc){
+		if(channel[ch].cc1.mode){ // CBC mode
+			channel[ch].cc1.val = calc_cbc_val(ev->a);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC1(CBC) (CH:%d VAL:%d CVT:%d)",ch,ev->a,channel[ch].cc1.val);
+		}else{
+			channel[ch].cc1.val = ev->a;
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC1 (CH:%d VAL:%d)",ch,ev->a);
+		}
+		recompute_channel_lfo(ch);
+		recompute_channel_amp(ch);
+		recompute_channel_filter(ch);
+		recompute_channel_pitch(ch);
+		control_effect_xg(ch);
+	}
+	/*! adjust channel control 2 (CC2) */
+	if(channel[ch].cc2.num != -1 && channel[ch].cc2.num == cc){
+		if(channel[ch].cc2.mode){ // CBC mode
+			channel[ch].cc2.val = calc_cbc_val(ev->a);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC2(CBC) (CH:%d VAL:%d CVT:%d)",ch,ev->a,channel[ch].cc2.val);
+		}else{
+			channel[ch].cc2.val = ev->a;
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC2 (CH:%d VAL:%d)",ch,ev->a);
+		}
+		recompute_channel_lfo(ch);
+		recompute_channel_amp(ch);
+		recompute_channel_filter(ch);
+		recompute_channel_pitch(ch);
+		control_effect_xg(ch);
+	}
+	/*! adjust channel control 3 (CC3) */
+	if(channel[ch].cc3.num != -1 && channel[ch].cc3.num == cc){
+		if(channel[ch].cc3.mode){ // CBC mode
+			channel[ch].cc3.val = calc_cbc_val(ev->a);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC3(CBC) (CH:%d VAL:%d CVT:%d)",ch,ev->a, channel[ch].cc3.val);
+		}else{
+			channel[ch].cc3.val = ev->a;
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC3 (CH:%d VAL:%d)",ch,ev->a);
+		}
+		recompute_channel_lfo(ch);
+		recompute_channel_amp(ch);
+		recompute_channel_filter(ch);
+		recompute_channel_pitch(ch);
+		control_effect_xg(ch);
+	}
+	/*! adjust channel control 4 (CC4) */
+	if(channel[ch].cc4.num != -1 && channel[ch].cc4.num == cc){
+		if(channel[ch].cc4.mode){ // CBC mode
+			channel[ch].cc4.val = calc_cbc_val(ev->a);
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC4(CBC) (CH:%d VAL:%d CVT:%d)",ch,ev->a, channel[ch].cc4.val);
+		}else{
+			channel[ch].cc4.val = ev->a;
+			ctl->cmsg(CMSG_INFO,VERB_NOISY,"CC4 (CH:%d VAL:%d)",ch,ev->a);
+		}
+		recompute_channel_lfo(ch);
+		recompute_channel_amp(ch);
+		recompute_channel_filter(ch);
+		recompute_channel_pitch(ch);
+		control_effect_xg(ch);
+	}
+}
+
+
+
 
 static void seek_forward(int32 until_time)
 {
@@ -5645,50 +9893,115 @@ static void seek_forward(int32 until_time)
 				}
 #endif
 	ch = current_event->channel;
+		
+	if(current_event->type >= ME_TONE_BANK_MSB && current_event->type <= ME_UNDEF_CTRL_CHNG)
+		if(!get_rx(ch, RX_CONTROL_CHANGE)) 
+			current_event->type = ME_NONE;
+
+	process_channel_control_event(current_event);
+	
+	if(opt_insertion_effect){		
+		switch(play_system_mode) {
+		case GS_SYSTEM_MODE:
+			control_effect_gs(current_event);
+			break;
+		case SD_SYSTEM_MODE:
+			control_effect_sd(current_event);
+			break;
+		default:
+			break;
+		}
+	}
 	
 	switch(current_event->type)
 	{
 	  case ME_PITCHWHEEL:
-	    channel[ch].pitchbend = current_event->a + current_event->b * 128;
-	    channel[ch].pitchfactor=0;
+		if(!get_rx(ch, RX_PITCH_BEND)) break;
+		{
+			int tmp = (int)current_event->a + (int)current_event->b * 128;
+			channel[ch].pitchbend = tmp;
+			channel[ch].bend.val = calc_bend_val(tmp);
+		}
+		adjust_pitch(ch);
+		control_effect_xg(ch);
 	    break;
 
 	  case ME_MAINVOLUME:
+		if(!get_rx(ch, RX_VOLUME)) break;
 	    channel[ch].volume = current_event->a;
+		adjust_volume(ch);
 	    break;
 
 	  case ME_MASTER_VOLUME:
 	    master_volume_ratio =
 		(int32)current_event->a + 256 * (int32)current_event->b;
+		adjust_master_volume();
 	    break;
 
 	  case ME_PAN:
+		if(!get_rx(ch, RX_VOLUME)) break;
 	    channel[ch].panning = current_event->a;
 	    channel[ch].pan_random = 0;
+		if(!channel[ch].pan_random)
+			adjust_panning(ch);
 	    break;
 
-	  case ME_EXPRESSION:
+	  case ME_EXPRESSION:		  
+		if(!get_rx(ch, RX_PANPOT)) break;
 	    channel[ch].expression=current_event->a;
+		adjust_volume(ch);
 	    break;
 
+	  case ME_KEYPRESSURE:
+		if(!get_rx(ch, RX_POLY_PRESSURE)) break;
+	    adjust_pressure(current_event);
+	    break;
+
+	  case ME_CHANNEL_PRESSURE:
+		if(!get_rx(ch, RX_PROGRAM_CHANGE)) break;
+	    adjust_channel_pressure(current_event);
+		control_effect_xg(ch);
+	    break;
+		
 	  case ME_PROGRAM:
+		if(!get_rx(ch, RX_PROGRAM_CHANGE)) break;
 	    midi_program_change(ch, current_event->a);
 	    break;
 
-	  case ME_SUSTAIN:
+///r
+	  case ME_SUSTAIN:		
+		if(!get_rx(ch, RX_HOLD1)) break;		  	  
+		if (channel[ch].damper_mode == 0) {	/* half-damper is not allowed. */
+			if (current_event->a >= 64) {
+				if(channel[ch].sustain == 0){
+					channel[ch].sustain = 127;
+				}
+			}else {
+				channel[ch].sustain = 0;
+			}
+		}else{
+			if(channel[ch].sustain != current_event->a){
+				channel[ch].sustain = current_event->a;
+			}
+		}
+#if 0
 		  channel[ch].sustain = current_event->a;
 		  if (channel[ch].damper_mode == 0) {	/* half-damper is not allowed. */
 			  if (channel[ch].sustain >= 64) {channel[ch].sustain = 127;}
 			  else {channel[ch].sustain = 0;}
 		  }
+#endif
 	    break;
 
 	  case ME_SOSTENUTO:
+		if(!get_rx(ch, RX_SOSTENUTO)) break;	
 		  channel[ch].sostenuto = (current_event->a >= 64);
 	    break;
 
 	  case ME_LEGATO_FOOTSWITCH:
+		if(opt_portamento){
         channel[ch].legato = (current_event->a >= 64);
+		}
 	    break;
 
       case ME_HOLD2:
@@ -5708,28 +10021,48 @@ static void seek_forward(int32 until_time)
 	    break;
 
 	  case ME_TONE_BANK_MSB:
+		if(!get_rx(ch, RX_BANK_SELECT)) break;
 	    channel[ch].bank_msb = current_event->a;
 	    break;
 
 	  case ME_TONE_BANK_LSB:
+		if(!get_rx(ch, RX_BANK_SELECT_LSB)) break;
 	    channel[ch].bank_lsb = current_event->a;
 	    break;
 
 	  case ME_MODULATION_WHEEL:
-	    channel[ch].mod.val = current_event->a;
+		if(!get_rx(ch, RX_MODULATION)) break;
+		if(opt_modulation_wheel){
+			channel[ch].mod.val = current_event->a;
+			update_modulation_wheel(ch);
+			control_effect_xg(ch);
+		}
 	    break;
 
 	  case ME_PORTAMENTO_TIME_MSB:
-	    channel[ch].portamento_time_msb = current_event->a;
+		if(opt_portamento){
+			channel[ch].portamento_time_msb = current_event->a;
+		}
 	    break;
 
 	  case ME_PORTAMENTO_TIME_LSB:
-	    channel[ch].portamento_time_lsb = current_event->a;
+		if(opt_portamento){
+			channel[ch].portamento_time_lsb = current_event->a;
+		}
 	    break;
 
 	  case ME_PORTAMENTO:
-	    channel[ch].portamento = (current_event->a >= 64);
+		if(!get_rx(ch, RX_PORTAMENTO)) break;
+		if(opt_portamento){
+			channel[ch].portamento = (current_event->a >= 64);
+		}
 	    break;
+
+      case ME_PORTAMENTO_CONTROL:
+		if(opt_portamento){
+			channel[ch].portamento_control = current_event->a;
+		}
+		break;
 
 	  case ME_MONO:
 	    channel[ch].mono = 1;
@@ -5740,40 +10073,85 @@ static void seek_forward(int32 until_time)
 	    break;
 
 	  case ME_SOFT_PEDAL:
-		  if(opt_lpf_def) {
+		if(!get_rx(ch, RX_SOFT)) break;
+		  //if(opt_lpf_def) {
 			  channel[ch].soft_pedal = current_event->a;
 			  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Soft Pedal (CH:%d VAL:%d)",ch,channel[ch].soft_pedal);
-		  }
+		  //}
 		  break;
 
 	  case ME_HARMONIC_CONTENT:
-		  if(opt_lpf_def) {
+		  //if(opt_lpf_def) {
 			  channel[ch].param_resonance = current_event->a - 64;
 			  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Harmonic Content (CH:%d VAL:%d)",ch,channel[ch].param_resonance);
-		  }
+		//	  update_channel_filter(ch);//elion add.
+//			  recompute_voice_filter(ch);// elion add.
+			  recompute_channel_filter(ch);
+		  //}
 		  break;
 
 	  case ME_BRIGHTNESS:
-		  if(opt_lpf_def) {
+		  //if(opt_lpf_def) {
 			  channel[ch].param_cutoff_freq = current_event->a - 64;
 			  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Brightness (CH:%d VAL:%d)",ch,channel[ch].param_cutoff_freq);
-		  }
+		//	  update_channel_filter(ch);//elion add.
+//			  recompute_voice_filter(ch);// elion add.
+			  recompute_channel_filter(ch);
+		  //}
 		  break;
+
+	  case ME_VIBRATO_RATE:
+		if (opt_nrpn_vibrato) {
+			channel[ch].param_vibrato_rate = current_event->a - 64;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,"Vibrato Rate (CH:%d VAL:%d)",ch,current_event->a - 64);
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
+		break;
+
+	  case ME_VIBRATO_DEPTH:
+		if (opt_nrpn_vibrato) {
+			channel[ch].param_vibrato_depth = current_event->a - 64;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,"Vibrato Depth (CH:%d VAL:%d)",ch,current_event->a - 64);
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
+		break;
+
+	  case ME_VIBRATO_DELAY:
+		if (opt_nrpn_vibrato) {
+			channel[ch].param_vibrato_delay = current_event->a - 64;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,"Vibrato Delay (CH:%d VAL:%d)",ch,current_event->a - 64);
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
+		break;
 
 	    /* RPNs */
 	  case ME_NRPN_LSB:
+		if(!get_rx(ch, RX_NRPN)) break;
+		  channel[ch].rpn_7f7f_flag = 0;
 	    channel[ch].lastlrpn = current_event->a;
 	    channel[ch].nrpn = 1;
 	    break;
 	  case ME_NRPN_MSB:
+		if(!get_rx(ch, RX_NRPN)) break;
+		  channel[ch].rpn_7f7f_flag = 0;
 	    channel[ch].lastmrpn = current_event->a;
 	    channel[ch].nrpn = 1;
 	    break;
 	  case ME_RPN_LSB:
+		if(!get_rx(ch, RX_RPN)) break;
+		  channel[ch].rpn_7f7f_flag = 0;
 	    channel[ch].lastlrpn = current_event->a;
 	    channel[ch].nrpn = 0;
 	    break;
 	  case ME_RPN_MSB:
+		if(!get_rx(ch, RX_RPN)) break;
+		  channel[ch].rpn_7f7f_flag = 0;
 	    channel[ch].lastmrpn = current_event->a;
 	    channel[ch].nrpn = 0;
 	    break;
@@ -5804,6 +10182,8 @@ static void seek_forward(int32 until_time)
 	    {
 		channel[ch].rpnmap[i] = current_event->a;
 		update_rpn_map(ch, i, 0);
+	//	  update_channel_filter(ch);// elion add.
+//		  recompute_voice_filter(ch);// elion add.
 	    }
 	    break;
 	  case ME_DATA_ENTRY_LSB:
@@ -5817,14 +10197,20 @@ static void seek_forward(int32 until_time)
 
 	  case ME_REVERB_EFFECT:
 		  if (opt_reverb_control) {
-			if (ISDRUMCHANNEL(ch) && get_reverb_level(ch) != current_event->a) {channel[ch].drum_effect_flag = 0;}
+			if (ISDRUMCHANNEL(ch) && get_reverb_level(ch) != current_event->a) {
+				if(channel[ch].drum_effect_flag)
+					channel[ch].drum_effect_flag |= 0x4; // update effect
+			}
 			set_reverb_level(ch, current_event->a);
 		  }
 	    break;
 
 	  case ME_CHORUS_EFFECT:
 		if(opt_chorus_control == 1) {
-			if (ISDRUMCHANNEL(ch) && channel[ch].chorus_level != current_event->a) {channel[ch].drum_effect_flag = 0;}
+			if (ISDRUMCHANNEL(ch) && channel[ch].chorus_level != current_event->a) {
+				if(channel[ch].drum_effect_flag)
+					channel[ch].drum_effect_flag |= 0x4; // update effect
+			}
 			channel[ch].chorus_level = current_event->a;
 		} else {
 			channel[ch].chorus_level = -opt_chorus_control;
@@ -5841,7 +10227,10 @@ static void seek_forward(int32 until_time)
 
 	  case ME_CELESTE_EFFECT:
 		if(opt_delay_control) {
-			if (ISDRUMCHANNEL(ch) && channel[ch].delay_level != current_event->a) {channel[ch].drum_effect_flag = 0;}
+			if (ISDRUMCHANNEL(ch) && channel[ch].delay_level != current_event->a) {
+				if(channel[ch].drum_effect_flag)
+					channel[ch].drum_effect_flag |= 0x4; // update effect
+			}
 			channel[ch].delay_level = current_event->a;
 			if (play_system_mode == XG_SYSTEM_MODE) {
 				ctl->cmsg(CMSG_INFO,VERB_NOISY,"Delay Send (CH:%d LEVEL:%d)",ch,current_event->a);
@@ -5854,6 +10243,11 @@ static void seek_forward(int32 until_time)
 	  case ME_ATTACK_TIME:
 	  	if(!opt_tva_attack) { break; }
 		set_envelope_time(ch, current_event->a, EG_ATTACK);
+		break;
+
+	  case ME_DECAY_TIME:
+	  	if(!opt_tva_decay) { break; }
+		set_envelope_time(ch, current_event->a, EG_DECAY);
 		break;
 
 	  case ME_RELEASE_TIME:
@@ -5873,7 +10267,7 @@ static void seek_forward(int32 until_time)
 	  case ME_SET_PATCH:
 	    i = channel[ch].special_sample = current_event->a;
 	    if(special_patch[i] != NULL)
-		special_patch[i]->sample_offset = 0;
+		special_patch[i]->sample_offset = 0;		
 	    break;
 
 	  case ME_TEMPO:
@@ -5904,8 +10298,10 @@ static void seek_forward(int32 until_time)
 	    break;
 
 	  case ME_DRUMPART:
+		if(play_system_mode == XG_SYSTEM_MODE && current_event->a)
+			channel[ch].bank_msb = 127; // Drum kit
 	    if(midi_drumpart_change(ch, current_event->a))
-		midi_program_change(ch, channel[ch].program);
+		midi_program_change(ch, channel[ch].program);	
 	    break;
 
 	  case ME_KEYSHIFT:
@@ -5920,10 +10316,12 @@ static void seek_forward(int32 until_time)
 
 	case ME_MASTER_TUNING:
 		set_master_tuning((current_event->b << 8) | current_event->a);
+		adjust_pitch(ch);
 		break;
 
 	case ME_SCALE_TUNING:
 		channel[ch].scale_tuning[current_event->a] = current_event->b;
+		adjust_pitch(ch);
 		break;
 
 	case ME_BULK_TUNING_DUMP:
@@ -5937,19 +10335,23 @@ static void seek_forward(int32 until_time)
 	case ME_TEMPER_KEYSIG:
 		current_temper_keysig = (current_event->a + 8) % 32 - 8;
 		temper_adj = ((current_event->a + 8) & 0x20) ? 1 : 0;
+		adjust_pitch(ch);
 		break;
 
 	case ME_TEMPER_TYPE:
 		channel[ch].temper_type = current_event->a;
+		adjust_pitch(ch);
 		break;
 
 	case ME_MASTER_TEMPER_TYPE:
 		for (i = 0; i < MAX_CHANNELS; i++)
 			channel[i].temper_type = current_event->a;
+		adjust_pitch(ch);
 		break;
 
 	case ME_USER_TEMPER_ENTRY:
 		set_user_temper_entry(ch, current_event->a, current_event->b);
+		adjust_pitch(ch);
 		break;
 
 	  case ME_SYSEX_LSB:
@@ -5976,6 +10378,18 @@ static void seek_forward(int32 until_time)
 	    process_sysex_event(ME_SYSEX_XG_MSB,ch,current_event->a,current_event->b);
 	    break;
 
+	case ME_SYSEX_SD_LSB:
+		process_sysex_event(ME_SYSEX_SD_LSB,ch,current_event->a,current_event->b);
+	    break;
+
+	case ME_SYSEX_SD_MSB:
+		process_sysex_event(ME_SYSEX_SD_MSB,ch,current_event->a,current_event->b);
+	    break;
+
+	case ME_SYSEX_SD_HSB:
+		process_sysex_event(ME_SYSEX_SD_HSB,ch,current_event->a,current_event->b);
+	    break;
+
 	  case ME_EOT:
 	    current_sample = current_event->time;
 	    playmidi_seek_flag = 0;
@@ -5995,7 +10409,7 @@ static void seek_forward(int32 until_time)
 	current_event--;
     current_sample = until_time;
 }
-
+///r
 static void skip_to(int32 until_time)
 {
   int ch;
@@ -6005,8 +10419,8 @@ static void skip_to(int32 until_time)
 
   if (current_sample > until_time)
     current_sample=0;
-
-  change_system_mode(DEFAULT_SYSTEM_MODE);
+///r
+//  change_system_mode(DEFAULT_SYSTEM_MODE);
   reset_midi(0);
 
   buffered_count=0;
@@ -6016,12 +10430,13 @@ static void skip_to(int32 until_time)
 
   if (until_time)
     seek_forward(until_time);
-  for(ch = 0; ch < MAX_CHANNELS; ch++)
-      channel[ch].lasttime = current_sample;
-
   ctl_mode_event(CTLE_RESET, 0, 0, 0);
+  for(ch = 0; ch < MAX_CHANNELS; ch++){
+      channel[ch].lasttime = current_sample;
+	  redraw_controllers(ch);
+	  ctl_prog_event(ch);
+  }
   trace_offset(until_time);
-
 #ifdef SUPPORT_SOUNDSPEC
   soundspec_update_wave(NULL, 0);
 #endif /* SUPPORT_SOUNDSPEC */
@@ -6087,6 +10502,8 @@ void playmidi_output_changed(int play_state)
 {
     if(target_play_mode == NULL)
 	return;
+    if(play_mode != NULL && play_mode->close_output)
+	play_mode->close_output();
     play_mode = target_play_mode;
 
     if(play_state == 0)
@@ -6115,7 +10532,7 @@ void playmidi_output_changed(int play_state)
 int check_apply_control(void)
 {
     int rc;
-    int32 val;
+    ptr_size_t val = 0;
 
     if(file_from_stdin)
 	return RC_NONE;
@@ -6123,14 +10540,15 @@ int check_apply_control(void)
     switch(rc)
     {
       case RC_CHANGE_VOLUME:
-	if (val>0 || amplification > -val)
-	    amplification += val;
+	if (val>0 || output_amplification > -val)
+	    output_amplification += val;
 	else
-	    amplification=0;
-	if (amplification > MAX_AMPLIFICATION)
-	    amplification=MAX_AMPLIFICATION;
-	adjust_amplification();
-	ctl_mode_event(CTLE_MASTER_VOLUME, 0, amplification, 0);
+	    output_amplification=0;
+	if (output_amplification > MAX_AMPLIFICATION)
+	    output_amplification=MAX_AMPLIFICATION;
+//	adjust_amplification();
+	change_output_volume(output_amplification);
+	ctl_mode_event(CTLE_MASTER_VOLUME, 0, output_amplification, 0);
 	break;
       case RC_SYNC_RESTART:
 	aq_flush(1);
@@ -6174,7 +10592,6 @@ static void voice_increment(int n)
 	    break;
 	voice[voices].status = VOICE_FREE;
 	voice[voices].temper_instant = 0;
-	voice[voices].chorus_link = voices;
 	voices++;
     }
     if(n > 0)
@@ -6198,7 +10615,7 @@ static void voice_decrement(int n)
 		break;
 	if(j != voices)
 	{
-	    voice[j] = voice[voices];
+	    swap_voices(&voice[j], &voice[voices]);
 	    continue;	/* found */
 	}
 
@@ -6226,7 +10643,7 @@ static void voice_decrement(int n)
 	    cut_notes++;
 	    free_voice(lowest);
 	    ctl_note_event(lowest);
-	    voice[lowest] = voice[voices];
+	    swap_voices(&voice[lowest], &voice[voices]);
 	}
 	else
 	    lost_notes++;
@@ -6257,7 +10674,7 @@ static void voice_decrement_conservative(int n)
 		break;
 	if(j != finalnv)
 	{
-	    voice[j] = voice[voices-1];
+	    swap_voices(&voice[j], &voice[voices - 1]);
 	    voices--;
 	    continue;	/* found */
 	}
@@ -6289,7 +10706,7 @@ static void voice_decrement_conservative(int n)
 	    cut_notes++;
 	    free_voice(lowest);
 	    ctl_note_event(lowest);
-	    voice[lowest] = voice[voices];
+	    swap_voices(&voice[lowest], &voice[voices]);
 	}
 	else break;
     }
@@ -6310,11 +10727,11 @@ void restore_voices(int save_voices)
 #endif /* REDUCE_VOICE_TIME_TUNING */
 }
 	
-
+///r
 static int apply_controls(void)
 {
     int rc, i, jump_flag = 0;
-    int32 val, cur;
+    ptr_size_t val = 0, cur;
     FLOAT_T r;
     ChannelBitMask tmp_chbitmask;
 
@@ -6329,24 +10746,26 @@ static int apply_controls(void)
 	  case RC_NEXT:		/* >>| */
 	  case RC_REALLY_PREVIOUS: /* |<< */
 	  case RC_TUNE_END:	/* skip */
+   //     free_voices();
 	    aq_flush(1);
 	    return rc;
 
 	  case RC_CHANGE_VOLUME:
-	    if (val>0 || amplification > -val)
-		amplification += val;
+	    if (val>0 || output_amplification > -val)
+		output_amplification += val;
 	    else
-		amplification=0;
-	    if (amplification > MAX_AMPLIFICATION)
-		amplification=MAX_AMPLIFICATION;
-	    adjust_amplification();
-	    for (i=0; i<upper_voices; i++)
-		if (voice[i].status != VOICE_FREE)
-		{
-		    recompute_amp(i);
-		    apply_envelope_to_amp(i);
-		}
-	    ctl_mode_event(CTLE_MASTER_VOLUME, 0, amplification, 0);
+		output_amplification=0;
+	    if (output_amplification > MAX_AMPLIFICATION)
+		output_amplification=MAX_AMPLIFICATION;
+	 //   adjust_amplification();
+	 //   for (i=0; i<upper_voices; i++)
+		//if (voice[i].status != VOICE_FREE)
+		//{
+		//    recompute_amp(i);
+		//    apply_envelope_to_amp(i);
+		//}
+		change_output_volume(output_amplification);
+	    ctl_mode_event(CTLE_MASTER_VOLUME, 0, output_amplification, 0);
 	    continue;
 
 	  case RC_CHANGE_REV_EFFB:
@@ -6376,7 +10795,6 @@ static int apply_controls(void)
 	    continue;
 
 	  case RC_JUMP:
-	    val = val * midi_time_ratio + 0.5;
 	    if(play_pause_flag)
 	    {
 		midi_restart_time = val;
@@ -6384,7 +10802,7 @@ static int apply_controls(void)
 		continue;
 	    }
 	    aq_flush(1);
-	    if (val >= sample_count * midi_time_ratio + 0.5)
+	    if (val >= sample_count)
 		return RC_TUNE_END;
 	    skip_to(val);
 	    ctl_updatetime(val);
@@ -6393,9 +10811,9 @@ static int apply_controls(void)
 	  case RC_FORWARD:	/* >> */
 	    if(play_pause_flag)
 	    {
-		midi_restart_time += val * midi_time_ratio + 0.5;
-		if(midi_restart_time > sample_count * midi_time_ratio + 0.5)
-		    midi_restart_time = sample_count * midi_time_ratio + 0.5;
+		midi_restart_time += val;
+		if(midi_restart_time > sample_count)
+		    midi_restart_time = sample_count;
 		ctl_pause_event(1, midi_restart_time);
 		continue;
 	    }
@@ -6403,10 +10821,7 @@ static int apply_controls(void)
 	    aq_flush(1);
 	    if(cur == -1)
 		cur = current_sample;
-	    if (val == 0x7fffffff)
-		return RC_TUNE_END;
-	    val = val * midi_time_ratio + 0.5;
-	    if(val + cur >= sample_count * midi_time_ratio + 0.5)
+	    if(val + cur >= sample_count)
 		return RC_TUNE_END;
 	    skip_to(val + cur);
 	    ctl_updatetime(val + cur);
@@ -6415,7 +10830,7 @@ static int apply_controls(void)
 	  case RC_BACK:		/* << */
 	    if(play_pause_flag)
 	    {
-		midi_restart_time -= val * midi_time_ratio + 0.5;
+		midi_restart_time -= val;
 		if(midi_restart_time < 0)
 		    midi_restart_time = 0;
 		ctl_pause_event(1, midi_restart_time);
@@ -6425,7 +10840,6 @@ static int apply_controls(void)
 	    aq_flush(1);
 	    if(cur == -1)
 		cur = current_sample;
-	    val = val * midi_time_ratio + 0.5;
 	    if(cur > val)
 	    {
 		skip_to(cur - val);
@@ -6444,9 +10858,17 @@ static int apply_controls(void)
 	    {
 		play_pause_flag = 0;
 		skip_to(midi_restart_time);
+#ifdef USE_TRACE_TIMER
+		if(ctl->trace_playing)
+			start_trace_timer();
+#endif
 	    }
 	    else
 	    {
+#ifdef USE_TRACE_TIMER
+		if(ctl->trace_playing)
+			stop_trace_timer();
+#endif
 		midi_restart_time = current_trace_samples();
 		if(midi_restart_time == -1)
 		    midi_restart_time = current_sample;
@@ -6461,10 +10883,10 @@ static int apply_controls(void)
 	  case RC_KEYDOWN:
 	    note_key_offset += val;
 	    current_freq_table += val;
-	    current_freq_table -= floor(current_freq_table / 12.0) * 12;
+	    current_freq_table -= floor(current_freq_table * DIV_12) * 12;
 	    current_temper_freq_table += val;
 	    current_temper_freq_table -=
-	    		floor(current_temper_freq_table / 12.0) * 12;
+	    		floor(current_temper_freq_table * DIV_12) * 12;
 	    if(sync_restart(1) != -1)
 		jump_flag = 1;
 	    ctl_mode_event(CTLE_KEY_OFFSET, 0, note_key_offset, 0);
@@ -6620,14 +11042,104 @@ static int apply_controls(void)
     } while (rc != RC_NONE || play_pause_flag);
     return jump_flag ? RC_JUMP : RC_NONE;
 }
-
-static void mix_signal(int32 *dest, int32 *src, int32 count)
+///r
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+static inline void mix_signal(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;
+	for(i = 0; i < count; i += 8){
+		MM256_LS_ADD_PD(&dest[i], _mm256_load_pd(&src[i]));
+		MM256_LS_ADD_PD(&dest[i + 4], _mm256_load_pd(&src[i + 4]));
+	}
+}
+#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
+static inline void mix_signal(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;	
+	for(i = 0; i < count; i += 8)
+		MM256_LS_ADD_PS(&dest[i], _mm256_load_ps(&src[i]));
+}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+static inline void mix_signal(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;	
+	for(i = 0; i < count; i += 8){
+		MM_LS_ADD_PD(&dest[i], _mm_load_pd(&src[i]));
+		MM_LS_ADD_PD(&dest[i + 2], _mm_load_pd(&src[i + 2]));
+		MM_LS_ADD_PD(&dest[i + 4], _mm_load_pd(&src[i + 4]));
+		MM_LS_ADD_PD(&dest[i + 6], _mm_load_pd(&src[i + 6]));
+	}
+}
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+static inline void mix_signal(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;	
+	for(i = 0; i < count; i += 8){
+		MM_LS_ADD_PS(&dest[i], _mm_load_ps(&src[i]));
+		MM_LS_ADD_PS(&dest[i + 4], _mm_load_ps(&src[i + 4]));
+	}
+}
+#else /* floating-point implementation */
+static inline void mix_signal(DATA_T *dest, DATA_T *src, int32 count)
 {
 	int32 i;
 	for (i = 0; i < count; i++) {
 		dest[i] += src[i];
 	}
 }
+#endif
+
+// mix and clear
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+static inline void mix_signal_clear(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;	
+	for(i = 0; i < count; i += 8){
+		MM256_LS_ADD_PD(&dest[i], _mm256_load_pd(&src[i]));
+		MM256_LS_ADD_PD(&dest[i + 4], _mm256_load_pd(&src[i + 4]));
+	}
+	memset(src, 0, sizeof(DATA_T) * count);
+}
+#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
+static inline void mix_signal_clear(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;	
+	for(i = 0; i < count; i += 8)
+		MM256_LS_ADD_PS(&dest[i], _mm256_load_ps(&src[i]));
+	memset(src, 0, sizeof(DATA_T) * count);
+}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+static inline void mix_signal_clear(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;	
+	for(i = 0; i < count; i += 8){
+		MM_LS_ADD_PD(&dest[i], _mm_load_pd(&src[i]));
+		MM_LS_ADD_PD(&dest[i + 2], _mm_load_pd(&src[i + 2]));
+		MM_LS_ADD_PD(&dest[i + 4], _mm_load_pd(&src[i + 4]));
+		MM_LS_ADD_PD(&dest[i + 6], _mm_load_pd(&src[i + 6]));
+	}
+	memset(src, 0, sizeof(DATA_T) * count);
+}
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+static inline void mix_signal_clear(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;	
+	for(i = 0; i < count; i += 8){
+		MM_LS_ADD_PS(&dest[i], _mm_load_ps(&src[i]));
+		MM_LS_ADD_PS(&dest[i + 4], _mm_load_ps(&src[i + 4]));
+	}
+	memset(src, 0, sizeof(DATA_T) * count);
+}
+#else /* floating-point implementation */
+static inline void mix_signal_clear(DATA_T *dest, DATA_T *src, int32 count)
+{
+	int32 i;
+
+	for (i = 0; i < count; i++)
+		dest[i] += src[i];
+	memset(src, 0, sizeof(DATA_T) * count);
+}
+#endif
 
 #ifdef __BORLANDC__
 static int is_insertion_effect_xg(int ch)
@@ -6650,43 +11162,468 @@ inline static int is_insertion_effect_xg(int ch)
 	return 0;
 }
 
-#ifdef USE_DSP_EFFECT
+#ifdef __BORLANDC__
+static int is_mfx_effect_sd(int ch)
+#else
+inline static int is_mfx_effect_sd(int ch)
+#endif
+{
+	if(channel[ch].sd_output_assign != 1){
+		if(!mfx_effect_sd[channel[ch].sd_output_mfx_select].type) // ==NULL
+			return 0;
+		if(*mfx_effect_sd[channel[ch].sd_output_mfx_select].type > 0)
+			return 1;
+	}
+	return 0;
+}
+
+/*
+リアルタイムモード時 無音シンセ処理スキップ
+ボイス数0状態で無音と推定 ボイス数0継続中X秒経過でバッファチェックフラグ
+ (継続カウント数は下位ビット チェック回数は上位ビット チェックフラグは下位ビット0
+ (経過時間は毎回変えるのはロングディレイ音のときのチェック抜け防止
+無音確認したらスキップフラグセット (スキップフラグは -1
+ (無音判定閾値は24bits出力相当で0.5bit以下
+VST等もあるのでエフェクトの有無による無音判定変更はできない	
+前回バッファは利用できない aq_add()で上書き
+*/
+
+#define CDSS_CHECK_MAX 8 // must (CDSS_CHECK_BIT + CDSS_CHECK_MAX(bit) + 1) < 31BIT
+#define CDSS_CHECK_BIT 24 // sample rate max < 400kHz
+
+static int compute_data_midi_skip(int32 count, int32 cnt)
+{
+	int32 i;
+	const FLOAT_T cdss_check_sec[CDSS_CHECK_MAX + 1] = 
+	{ 0.25, 0.3616, 0.3535, 0.1875, 0.3333, 0.2, 0.3141, 0.175, 0.25, }; // MAX8基準 2sec
+	const uint32 cdss_check_mask = (0xFFFFFFFF << CDSS_CHECK_BIT); // 0xFFF00000
+	const DATA_T thres = (double)((1 << (MAX_BITS - GUARD_BITS - 1)) - 1) / (double)(1U << (23 + 1)); // 24bit出力0.5ビット相当
+	const uint32 cdss_count_mask = (1 << CDSS_CHECK_BIT) - 1; // 0xFFFFFF
+	const int32 cdss_check_add = (1 << CDSS_CHECK_BIT); // 0x1000000
+	const int32 cdss_check_max = cdss_check_add * (CDSS_CHECK_MAX + 1);
+
+	if(count){ // ボイス数チェック , 継続カウント
+		if(upper_voices){ // ボイス数チェック
+			compute_skip_count = 1; // reset (バッファチェック回避
+			return 0; // no skip
+		}
+		if(compute_skip_count < 0) // 処理スキップ
+			return 1; // skip
+		if((compute_skip_count += count) < 
+			(cdss_check_sec[compute_skip_count >> CDSS_CHECK_BIT] * play_mode->rate)) // 継続カウント
+			return 0; // no skip
+		compute_skip_count &= cdss_check_mask; // count 0 // buffer check on
+		return 0; // no skip
+	}else{ // バッファチェック
+		if(compute_skip_count & cdss_count_mask) // !=0
+			return 0; // no skip
+		for(i = 0; i < cnt; i += 3){ // L/R 
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+			if(fabs((DATA_T)buffer_pointer[i]) > thres){
+#else // DATA_T_INT32
+			if(abs((DATA_T)buffer_pointer[i]) > thres){
+#endif
+				compute_skip_count = 1; // reset (バッファチェック回避
+				return 0; // no skip
+			}
+		}
+		if((compute_skip_count += cdss_check_add) < cdss_check_max) // next check
+			return 0; // no skip
+		compute_skip_count = -1; // set skip flag
+		return 1; // skip
+	}
+}
+
+// source mix
+static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
+{
+	Channel *cp = channel + ch;
+	int i;
+	FLOAT_T left_mix = cp->vol_env.vol[0], right_mix = cp->vol_env.vol[1];
+	
+	if (play_mode->encoding & PE_MONO) {
+		/* Mono output. */
+		if(opt_mix_envelope > 0){
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				if(!(i & mix_env_mask)) // i==0 で通る
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+				*src++ *= cp->mix_env.vol[0];
+			}
+		}else{
+			for (i = 0; i < count; i++) {
+				*src++ *= left_mix;
+			}
+		}
+	}else{		
+		if(opt_mix_envelope >= 4){
+			
+// multi 4sample * 2ch	
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			__m128d vevolx;
+			__m256d vevol, vsp, vsp1, vsp2;
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){ // i==0 で通る
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+					vevolx = _mm_loadu_pd(cp->mix_env.vol);
+#else
+					vevolx = _mm_cvtps_pd(_mm_load_ps(cp->mix_env.vol));
+#endif
+					vevol = MM256_SET2X_PD(vevolx, vevolx);
+				}
+				MM256_LSU_MUL_PD(src, vevol);
+				src += 4;
+				MM256_LSU_MUL_PD(src, vevol);
+				src += 4;
+			}	
+	
+#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
+			__m128 vevolx;
+			__m256 vevol;
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){ // i==0 で通る
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+					vevolx = _mm_cvtpd_ps(_mm_loadu_pd(cp->mix_env.vol));
+#else
+					vevolx = _mm_loadu_ps(cp->mix_env.vol);
+#endif
+					vevolx = _mm_shuffle_ps(vevolx, vevolx, 0x44);
+					vevol = MM256_SET2X_PS(vevolx, vevolx);
+				}
+				MM256_LSU_MUL_PS(src, vevol);
+				src += 8;
+			}
+
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			__m128d vevol;
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){ // i==0 で通る
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+					vevol = _mm_loadu_pd(cp->mix_env.vol);
+#else
+					vevol = _mm_cvtps_pd(_mm_load_ps(cp->mix_env.vol));
+#endif
+				}
+				MM_LSU_MUL_PD(src, vevol);
+				src += 2;
+				MM_LSU_MUL_PD(src, vevol);
+				src += 2;
+				MM_LSU_MUL_PD(src, vevol);
+				src += 2;
+				MM_LSU_MUL_PD(src, vevol);
+				src += 2;
+			}
+
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)			
+			__m128 vevol;
+			__m128 vsp;
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){ // i==0 で通る
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+#if (USE_X86_EXT_INTRIN >= 3)
+					vevol = _mm_cvtpd_ps(_mm_loadu_pd(cp->mix_env.vol));
+#else
+					vevol = _mm_set_ps(0, 0, (float)cp->mix_env.vol[1], (float)cp->mix_env.vol[0]);
+#endif
+#else
+					vevol = _mm_loadu_ps(cp->mix_env.vol);
+#endif
+					vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
+				}
+				MM_LSU_MUL_PS(src, vevol);
+				src += 4;
+				MM_LSU_MUL_PS(src, vevol);
+				src += 4;
+			}
+
+#else // ! USE_X86_EXT_INTRIN
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				if(!(i & mix_env_mask)) // i==0 で通る
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+				*src++ *= cp->mix_env.vol[0]; *src++ *= cp->mix_env.vol[1];
+			}
+#endif // USE_X86_EXT_INTRIN
+
+		}else if(opt_mix_envelope > 0){
+
+// single 1sample * 2ch
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			__m128d vevol;
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+					vevol = _mm_loadu_pd(cp->mix_env.vol);
+#else
+					vevol = _mm_cvtps_pd(_mm_load_ps(cp->mix_env.vol));
+#endif
+				}
+				MM_LSU_MUL_PD(src, vevol);
+				src += 2;
+			}
+			
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)			
+			__m128 vevol;
+			__m128 vsp;
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+#if (USE_X86_EXT_INTRIN >= 3)
+					vevol = _mm_cvtpd_ps(_mm_loadu_pd(cp->mix_env.vol));
+#else
+					vevol = _mm_set_ps(0, 0, (float)cp->mix_env.vol[1], (float)cp->mix_env.vol[0]);
+#endif
+#else
+					vevol = _mm_loadu_ps(cp->mix_env.vol);
+#endif
+					vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
+				}
+				vsp = _mm_mul_ps(_mm_loadu_ps(src), vevol);
+#if !(defined(_MSC_VER) || defined(MSC_VER))
+				{
+				float *out = (float *)vsp;
+				*(src++) = out[0];
+				*(src++) = out[1];
+				}
+#else
+				*(src++) = vsp.m128_f32[0];
+				*(src++) = vsp.m128_f32[1];	
+#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+			}
+
+#else // ! USE_X86_EXT_INTRIN
+			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				if(!(i & mix_env_mask))
+					compute_envelope2(&cp->mix_env, opt_mix_envelope);
+				*src++ *= cp->mix_env.vol[0]; *src++ *= cp->mix_env.vol[1];
+			}
+#endif // USE_X86_EXT_INTRIN
+
+		}else{
+			for (i = 0; i < count; i++) {
+				*src++ *= left_mix; *src++ *= right_mix;
+			}
+		}
+	}
+}
+
+// drum efx mix level
+static inline void mix_dfx_signal_source(DATA_T *src, int ch, int count)
+{
+	Channel *cp = channel + ch;
+	int i;
+	FLOAT_T left_mix = cp->vol_env.vol[0], right_mix = cp->vol_env.vol[1];
+	
+	if (play_mode->encoding & PE_MONO) {
+		/* Mono output. */
+		for (i = 0; i < count; i++) {
+			*src++ *= left_mix;
+		}
+	}else{
+
+// multi 4sample * 2ch	
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+		__m128d vevolx;
+		__m256d vevol;
+#if defined(FLOAT_T_DOUBLE)	
+		vevolx = _mm_loadu_pd(cp->vol_env.vol);
+#else
+		vevolx = _mm_cvtps_pd(_mm_load_ps(cp->vol_env.vol);
+#endif
+		vevol = MM256_SET2X_PD(vevolx, vevolx);
+		for (i = 0; i < count; i += 4) {
+			MM256_LSU_MUL_PD(src, vevol);
+			src += 4;
+			MM256_LSU_MUL_PD(src, vevol);
+			src += 4;
+		}	
+
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+		__m128d vevol;
+#if defined(FLOAT_T_DOUBLE)	
+		vevol = _mm_loadu_pd(cp->vol_env.vol);
+#else
+		vevol = _mm_cvtps_pd(_mm_load_ps(cp->vol_env.vol));
+#endif
+		for (i = 0; i < count; i += 4) {
+			MM_LSU_MUL_PD(src, vevol);
+			src += 2;
+			MM_LSU_MUL_PD(src, vevol);
+			src += 2;
+			MM_LSU_MUL_PD(src, vevol);
+			src += 2;
+			MM_LSU_MUL_PD(src, vevol);
+			src += 2;
+		}	
+	
+#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
+		__m128 vevolx;
+		__m256 vevol;
+#if defined(FLOAT_T_DOUBLE)	
+		vevolx = _mm_cvtpd_ps(_mm_loadu_pd(cp->vol_env.vol));
+#else
+		vevolx = _mm_loadu_ps(cp->vol_env.vol);
+#endif
+		vevolx = _mm_shuffle_ps(vevolx, vevolx, 0x44);
+		vevol = MM256_SET2X_PS(vevolx, vevolx);
+		for (i = 0; i < count; i += 4) {
+			MM256_LSU_MUL_PS(src, vevol);
+			src += 8;
+		}
+
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)			
+		__m128 vevol;	
+#if defined(FLOAT_T_DOUBLE)	
+#if (USE_X86_EXT_INTRIN >= 3)
+		vevol = _mm_cvtpd_ps(_mm_loadu_pd(cp->vol_env.vol));
+#else
+		vevol = _mm_set_ps(0, 0, (float)cp->vol_env.vol[1], (float)cp->vol_env.vol[0]);
+#endif
+#else
+		vevol = _mm_loadu_ps(cp->vol_env.vol);
+#endif
+		vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
+		for (i = 0; i < count; i += 4) {
+			MM_LSU_MUL_PS(src, vevol);
+			src += 4;
+			MM_LSU_MUL_PS(src, vevol);
+			src += 4;
+		}
+		
+#else // ! USE_X86_EXT_INTRIN
+		for (i = 0; i < count; i++) {
+			*src++ *= left_mix;
+			*src++ *= right_mix;
+		}
+#endif // USE_X86_EXT_INTRIN
+	}
+}
+
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+static inline void mix_signal_level(DATA_T *dest, DATA_T *src, int32 count, int32 level)
+{
+	int32 i;	
+	__m256d send_level = _mm256_set1_pd((FLOAT_T)level * DIV_127);
+	for(i = 0; i < count; i += 8){
+		MM256_LS_FMA_PD(&dest[i], _mm256_load_pd(&src[i]), send_level);
+		MM256_LS_FMA_PD(&dest[i + 4], _mm256_load_pd(&src[i + 4]), send_level);
+	}
+}
+#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
+static inline void mix_signal_level(DATA_T *dest, DATA_T *src, int32 count, int32 level)
+{
+	int32 i;	
+	__m256 send_level = _mm256_set1_ps((FLOAT_T)level * DIV_127);
+	for(i = 0; i < count; i += 8)
+		MM256_LS_FMA_PS(&dest[i], _mm256_load_ps(&src[i]), send_level);
+}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+static inline void mix_signal_level(DATA_T *dest, DATA_T *src, int32 count, int32 level)
+{
+	int32 i;
+	__m128d send_level = _mm_set1_pd((FLOAT_T)level * DIV_127);
+	for(i = 0; i < count; i += 8){
+		MM_LS_FMA_PD(&dest[i], _mm_load_pd(&src[i]), send_level);
+		MM_LS_FMA_PD(&dest[i + 2], _mm_load_pd(&src[i + 2]), send_level);
+		MM_LS_FMA_PD(&dest[i + 4], _mm_load_pd(&src[i + 4]), send_level);
+		MM_LS_FMA_PD(&dest[i + 6], _mm_load_pd(&src[i + 6]), send_level);
+	}
+}
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+static inline void mix_signal_level(DATA_T *dest, DATA_T *src, int32 count, int32 level)
+{
+	int32 i;	
+	__m128 send_level = _mm_set1_ps((FLOAT_T)level * DIV_127);
+	for(i = 0; i < count; i += 8){
+		MM_LS_FMA_PS(&dest[i], _mm_load_ps(&src[i]), send_level);
+		MM_LS_FMA_PS(&dest[i + 4], _mm_load_ps(&src[i + 4]), send_level);
+	}
+}
+#else /* floating-point implementation */
+static inline void mix_signal_level(DATA_T *dest, DATA_T *src, int32 count, int32 level)
+{
+    int32 i;
+	FLOAT_T send_level = (FLOAT_T)level * DIV_127;
+
+    for(i = 0; i < count; i++)
+		dest[i] += src[i] * send_level;
+}
+#endif
+
+
+enum _send_type {
+	SEND_OUTPUT = 0, // dry : common_buffer_pointer
+	SEND_EFFECT, // reverb, chorus, delay, gs eq : set func
+	SEND_GS_INS, // gs ins : insertion_effect_buffer
+	SEND_SD_MFX, // sd mfx : mfx_effect_buffer
+};
+
+
 /* do_compute_data_midi() with DSP Effect */
 static void do_compute_data_midi(int32 count)
 {
-	int i, j, uv, stereo, n, ch, note;
-	int32 *vpblist[MAX_CHANNELS];
-	int channel_effect, channel_reverb, channel_chorus, channel_delay, channel_eq;
-	int32 cnt = count * 2, rev_max_delay_out;
+	int i, j, ch, note, uv = upper_voices, max_ch = current_file_info->max_channel;
+	int channel_effect, channel_reverb, channel_chorus, channel_delay, channel_eq, flg_ch_vst;
+	int stereo = ! (play_mode->encoding & PE_MONO);
+	int32 cnt = count * ((stereo) ? 2 : 1);
+	int32 n = cnt * sizeof(DATA_T); /* in bytes */	
 	struct DrumPartEffect *de;
+	int channel_drumfx[MAX_CHANNELS];
+	int channel_silent[MAX_CHANNELS];
+	int channel_send[MAX_CHANNELS];
 	
-	stereo = ! (play_mode->encoding & PE_MONO);
-	n = count * ((stereo) ? 8 : 4); /* in bytes */
+	/* output buffer clear */
+	memset(buffer_pointer, 0, n); // must
 
-	memset(buffer_pointer, 0, n);
-	memset(insertion_effect_buffer, 0, n);
-
-	if (opt_reverb_control == 3) {
-		rev_max_delay_out = 0x7fffffff;	/* disable */
-	} else {
-		rev_max_delay_out = REVERB_MAX_DELAY_OUT;
-	}
+	if(opt_realtime_playing)
+		if(compute_data_midi_skip(count, cnt)){	// silent skip
+			current_sample += count;
+			return;
+		}
+	
+	// clear flag
+	memset(channel_drumfx, 0, sizeof(channel_drumfx));	
+	memset(channel_silent, 0, sizeof(channel_silent));
+	memset(channel_send, 0, sizeof(channel_send));
+	
+	if(max_ch >= MAX_CHANNELS) max_ch = MAX_CHANNELS - 1;
 
 	/* are effects valid? / don't supported in mono */
-	channel_reverb = (stereo && (opt_reverb_control == 1
-			|| opt_reverb_control == 3
-			|| (opt_reverb_control < 0 && opt_reverb_control & 0x80)));
-	channel_chorus = (stereo && opt_chorus_control && !opt_surround_chorus);
-	channel_delay = (stereo && opt_delay_control > 0);
-
+	if(!stereo){
+		channel_reverb = channel_chorus = channel_delay = 0;
+	}else{
+		channel_reverb = ((opt_reverb_control > 0 && opt_reverb_control & 0x1)
+				|| (opt_reverb_control < 0 && opt_reverb_control & 0x80));
+		channel_chorus = opt_chorus_control;
+		channel_delay = opt_delay_control > 0;
+	}
 	/* is EQ valid? */
-	channel_eq = opt_eq_control && (eq_status_gs.low_gain != 0x40 || eq_status_gs.high_gain != 0x40 ||
-		play_system_mode == XG_SYSTEM_MODE);
+	channel_eq = opt_eq_control && (eq_status_gs.low_gain != 0x40 || eq_status_gs.high_gain != 0x40
+		|| play_system_mode == XG_SYSTEM_MODE);
+	
+	/* is ch vst valid? */
+#ifdef VST_LOADER_ENABLE		// elion add.
+	flg_ch_vst = (hVSTHost != NULL && use_vst_channel) ? 1 : 0;
+#else
+	flg_ch_vst = 0;
+#endif // VST_LOADER_ENABLE
 
-	channel_effect = (stereo && (channel_reverb || channel_chorus
+	channel_effect = !flg_ch_vst && (stereo && (channel_reverb || channel_chorus
 			|| channel_delay || channel_eq || opt_insertion_effect));
 
-	uv = upper_voices;
 	for(i = 0; i < uv; i++) {
 		if(voice[i].status != VOICE_FREE) {
 			channel[voice[i].channel].lasttime = current_sample + count;
@@ -6695,75 +11632,74 @@ static void do_compute_data_midi(int32 count)
 
 	/* appropriate buffers for channels */
 	if(channel_effect) {
-		int buf_index = 0;
-		
-		if(reverb_buffer == NULL) {	/* allocating buffer for channel effect */
-			reverb_buffer = (char *)safe_malloc(MAX_CHANNELS * AUDIO_BUFFER_SIZE * 8);
-		}
-
-		for(i = 0; i < MAX_CHANNELS; i++) {
-			if(opt_insertion_effect && channel[i].insertion_effect) {
-				vpblist[i] = insertion_effect_buffer;
-			} else if(channel[i].eq_gs || (get_reverb_level(i) != DEFAULT_REVERB_SEND_LEVEL
-					&& current_sample - channel[i].lasttime < rev_max_delay_out)
-					|| channel[i].chorus_level > 0 || channel[i].delay_level > 0
-					|| channel[i].eq_xg.valid
-					|| channel[i].dry_level != 127
-					|| (opt_drum_effect && ISDRUMCHANNEL(i))
-					|| is_insertion_effect_xg(i)) {
-				vpblist[i] = (int32*)(reverb_buffer + buf_index);
-				buf_index += n;
+		for(i = 0; i <= max_ch; i++) {
+			if(!IS_SET_CHANNELMASK(channel_mute, i))
+				channel_silent[i] = 1;			
+			if(flg_ch_vst){
+				channel_send[i] = SEND_OUTPUT;
+			} else if(opt_insertion_effect && channel[i].insertion_effect) { // GS INS
+				channel_send[i] = SEND_GS_INS;
+			} else if(opt_insertion_effect && (play_system_mode == SD_SYSTEM_MODE) && is_mfx_effect_sd(i)) { // SD MFX
+				channel_send[i] = SEND_SD_MFX;
+			} else if(!flg_ch_vst && opt_drum_effect && ISDRUMCHANNEL(i)	) {
+				make_drum_effect(i);
+				channel_drumfx[i] = 1;
+				channel_send[i] = SEND_EFFECT;
+			} else if((play_system_mode == XG_SYSTEM_MODE && is_insertion_effect_xg(i))
+				|| channel[i].eq_gs
+				|| channel[i].reverb_level > 0
+				|| channel[i].chorus_level > 0
+				|| channel[i].delay_level > 0
+				|| channel[i].eq_xg.valid
+				|| channel[i].dry_level != 127) {
+				channel_send[i] = SEND_EFFECT;
 			} else {
-				vpblist[i] = buffer_pointer;
+				channel_send[i] = SEND_OUTPUT;
 			}
 			/* clear buffers of drum-part effect */
-			if (opt_drum_effect && ISDRUMCHANNEL(i)) {
-				for (j = 0; j < channel[i].drum_effect_num; j++) {
-					if (channel[i].drum_effect[j].buf != NULL) {
+			if (opt_drum_effect && ISDRUMCHANNEL(i)){
+				for (j = 0; j < channel[i].drum_effect_num; j++) 
+					if (channel[i].drum_effect[j].buf != NULL) 
 						memset(channel[i].drum_effect[j].buf, 0, n);
-					}
-				}
 			}
 		}
-
-		if(buf_index) {memset(reverb_buffer, 0, buf_index);}
+	}else{
+		for(i = 0; i <= max_ch; i++)
+			if(!IS_SET_CHANNELMASK(channel_mute, i))
+				channel_silent[i] = 1;
 	}
 
 	for (i = 0; i < uv; i++) {
 		if (voice[i].status != VOICE_FREE) {
-			int32 *vpb = NULL;
 			int8 flag;
+			ch = voice[i].channel;
 			
-			if (channel_effect) {
-				flag = 0;
-				ch = voice[i].channel;
-				if (opt_drum_effect && ISDRUMCHANNEL(ch)) {
-					make_drum_effect(ch);
-					note = voice[i].note;
-					for (j = 0; j < channel[ch].drum_effect_num; j++) {
-						if (channel[ch].drum_effect[j].note == note) {
-							vpb = channel[ch].drum_effect[j].buf;
-							flag = 1;
-						}
+			if(channel_silent[ch]) {
+				int dfx_flg = 0, dfx_num = 0;
+				if(channel_drumfx[ch]){
+					for (j = 0; j < channel[ch].drum_effect_num; j++){
+						if (channel[ch].drum_effect[j].note == voice[i].note){
+							dfx_flg = 1; dfx_num = j;
+						}						
 					}
-					if (flag == 0) {vpb = vpblist[ch];}
-				} else {
-					vpb = vpblist[ch];
+				}
+				if(dfx_flg){
+					mix_voice(channel[ch].drum_effect[dfx_num].buf, i, count);
+				}else{
+					mix_voice(ch_buffer[ch], i, count);
+				}
+				if(voice[i].status == VOICE_FREE){
+					ctl_note_event(i);
+#ifdef VOICE_EFFECT
+					uninit_voice_effect(i);
+#endif
 				}
 			} else {
-				vpb = buffer_pointer;
-			}
-
-			if(!IS_SET_CHANNELMASK(channel_mute, voice[i].channel)) {
-				mix_voice(vpb, i, count);
-			} else {
 				free_voice(i);
 				ctl_note_event(i);
-			}
-
-			if(voice[i].timeout == 1 && voice[i].timeout < current_sample) {
-				free_voice(i);
-				ctl_note_event(i);
+#ifdef VOICE_EFFECT
+				uninit_voice_effect(i);
+#endif
 			}
 		}
 	}
@@ -6771,238 +11707,369 @@ static void do_compute_data_midi(int32 count)
 	while(uv > 0 && voice[uv - 1].status == VOICE_FREE)	{uv--;}
 	upper_voices = uv;
 
-	if(play_system_mode == XG_SYSTEM_MODE && channel_effect) {	/* XG */
-		if (opt_insertion_effect) { 	/* insertion effect */
-			for (i = 0; i < XG_INSERTION_EFFECT_NUM; i++) {
-				if (insertion_effect_xg[i].part <= MAX_CHANNELS) {
-					do_insertion_effect_xg(vpblist[insertion_effect_xg[i].part], cnt, &insertion_effect_xg[i]);
-				}
-			}
-			for (i = 0; i < XG_VARIATION_EFFECT_NUM; i++) {
-				if (variation_effect_xg[i].part <= MAX_CHANNELS) {
-					do_insertion_effect_xg(vpblist[variation_effect_xg[i].part], cnt, &variation_effect_xg[i]);
-				}
+	
+	if(!channel_effect){
+// channel VST
+#ifdef VST_LOADER_ENABLE		// elion add.
+		if (flg_ch_vst) {
+			// ch mixer		
+			//if(adjust_panning_immediately){
+			//	for(i = 0; i <= max_ch; i++) {
+			//		Channel *cp = channel + i;
+			//		reset_envelope2(&cp->vol_env, cp->ch_amp[0], cp->ch_amp[1], ENVELOPE_KEEP);
+			//		compute_envelope2(&cp->vol_env, count);
+			//		mix_ch_signal_source(ch_buffer[i], i, count);
+			//	}
+			//}
+			do_channel_vst(buffer_pointer, ch_buffer, cnt, max_ch);
+			/* clear buffers of channnel buffer */
+			for(i = 0; i <= max_ch; i++)
+				memset(ch_buffer[i], 0, n); // clear
+		}else 
+#endif // VST_LOADER_ENABLE
+// all effect off
+		{
+			// ch mixer		
+			//if(adjust_panning_immediately){
+			//	for(i = 0; i <= max_ch; i++) {
+			//		Channel *cp = channel + i;
+			//		reset_envelope2(&cp->vol_env, cp->ch_amp[0], cp->ch_amp[1], ENVELOPE_KEEP);
+			//		compute_envelope2(&cp->vol_env, count);
+			//		mix_ch_signal_source(ch_buffer[i], i, count);
+			//	}
+			//}
+			for(i = 0; i <= max_ch; i++) {
+				DATA_T *p = ch_buffer[i];
+	
+				mix_signal(buffer_pointer, p, cnt);
+				/* clear buffers of channnel buffer */
+				memset(p, 0, n); // clear
 			}
 		}
-		for(i = 0; i < MAX_CHANNELS; i++) {	/* system effects */
-			int32 *p;
-			p = vpblist[i];
-			if(p != buffer_pointer) {
-				if (opt_drum_effect && ISDRUMCHANNEL(i)) {
+	}else switch(play_system_mode){
+	case XG_SYSTEM_MODE:	/* XG */
+		for(i = 0; i <= max_ch; i++) {	/* system effects */
+			DATA_T *p = ch_buffer[i];
+			int silent = channel_silent[i];
+			int subtime = current_sample - channel[i].lasttime;
+			int thru;
+			int32 efx_delay_out, delay_out = 0;
+			Channel *cp = channel + i;
+		
+			if(silent && (subtime < delay_out_count[1]) ){
+				int eq_flg = 0;
+				if(!ISDRUMCHANNEL(i) ){
+					if(channel_eq && channel[i].eq_xg.valid){ /* part EQ*/
+						do_ch_eq_xg(p, cnt, &(channel[i].eq_xg));
+						eq_flg++;
+					}
+				}else if(channel_drumfx[i] ){
 					for (j = 0; j < channel[i].drum_effect_num; j++) {
 						de = &(channel[i].drum_effect[j]);
-						if (de->reverb_send > 0) {
-							set_ch_reverb(de->buf, cnt, de->reverb_send);
+						if(channel_eq && de->eq_xg->valid){	/* drum effect part EQ */
+							do_ch_eq_xg(de->buf, cnt, de->eq_xg);
+							eq_flg++;
 						}
-						if (de->chorus_send > 0) {
-							set_ch_chorus(de->buf, cnt, de->chorus_send);
-						}
-						if (de->delay_send > 0) {
-							set_ch_delay(de->buf, cnt, de->delay_send);
-						}
-						mix_signal(p, de->buf, cnt);
-					}
-				} else {
-					if(channel_eq && channel[i].eq_xg.valid) {
-						do_ch_eq_xg(p, cnt, &(channel[i].eq_xg));
-					}
-					if(channel_chorus && channel[i].chorus_level > 0) {
-						set_ch_chorus(p, cnt, channel[i].chorus_level);
-					}
-					if(channel_delay && channel[i].delay_level > 0) {
-						set_ch_delay(p, cnt, channel[i].delay_level);
-					}
-					if(channel_reverb && channel[i].reverb_level > 0
-						&& current_sample - channel[i].lasttime < rev_max_delay_out) {
-						set_ch_reverb(p, cnt, channel[i].reverb_level);
+						mix_signal(p, de->buf, cnt); // drum_efx_buf mix to ch_buff
 					}
 				}
-				if(channel[i].dry_level == 127) {
-					set_dry_signal(p, cnt);
-				} else {
-					set_dry_signal_xg(p, cnt, channel[i].dry_level);
+				if(eq_flg)
+					delay_out += delay_out_count[1];		
+			}
+			/* insertion effect */
+			if(opt_insertion_effect){
+				for (j = 0; j < XG_INSERTION_EFFECT_NUM; j++) {
+					int ch = insertion_effect_xg[j].part;
+					if(i != ch || !channel_silent[i])
+						continue;
+					efx_delay_out = delay_out_count[delay_out_type_xg[insertion_effect_xg[j].type_msb][insertion_effect_xg[j].type_lsb]];
+					if(subtime < (delay_out + efx_delay_out)){
+						do_insertion_effect_xg(p, cnt, &insertion_effect_xg[j]);
+						delay_out += efx_delay_out;
+					}
 				}
 			}
-		}
-		
-		if(channel_reverb) {
-			set_ch_reverb(buffer_pointer, cnt, DEFAULT_REVERB_SEND_LEVEL);
-		}
-		set_dry_signal(buffer_pointer, cnt);
-
+			/* variation effect (ins mode) */
+			if(opt_delay_control){	
+				for (j = 0; j < XG_VARIATION_EFFECT_NUM; j++) {
+					int ch = variation_effect_xg[j].part;
+					if(i != ch || !channel_silent[i] || variation_effect_xg[j].connection != XG_CONN_INSERTION)
+						continue;				
+					efx_delay_out = delay_out_count[delay_out_type_xg[variation_effect_xg[j].type_msb][variation_effect_xg[j].type_lsb]];
+					if(subtime < (delay_out + efx_delay_out)){
+						do_insertion_effect_xg(p, cnt, &variation_effect_xg[j]);
+						delay_out += efx_delay_out;
+					}
+				}
+			}
+			// ch mixer			
+			if(adjust_panning_immediately){
+				reset_envelope2(&cp->vol_env, cp->ch_amp[0], cp->ch_amp[1], ENVELOPE_KEEP);
+				compute_envelope2(&cp->vol_env, count);
+				mix_ch_signal_source(p, i, count);
+				if(channel_drumfx[i]){
+					for (j = 0; j < channel[i].drum_effect_num; j++) {
+						mix_dfx_signal_source(channel[i].drum_effect[j].buf, i, cnt); // drum_efx_buf mix level
+					}
+				}
+			}			
+			// send effect
+			thru = silent && (subtime < delay_out);
+			if(channel_send[i] == SEND_EFFECT){
+				if(thru) {
+					if (!is_insertion_effect_xg(i) && opt_drum_effect && ISDRUMCHANNEL(i) && channel[i].drum_effect_num) {
+						for (j = 0; j < channel[i].drum_effect_num; j++) {
+							de = &(channel[i].drum_effect[j]);
+							if (de->reverb_send > 0)
+								set_ch_reverb(de->buf, cnt, de->reverb_send);
+							if (de->chorus_send > 0)
+								set_ch_chorus(de->buf, cnt, de->chorus_send);
+							if (de->delay_send > 0)
+								set_ch_delay(de->buf, cnt, de->delay_send);
+						}
+					} else {
+						if(channel_chorus && channel[i].chorus_level > 0)
+							set_ch_chorus(p, cnt, channel[i].chorus_level);
+						if(channel_delay && channel[i].delay_level > 0)
+							set_ch_delay(p, cnt, channel[i].delay_level);
+						if(channel_reverb && channel[i].reverb_level > 0)
+							set_ch_reverb(p, cnt, channel[i].reverb_level);
+					}
+					if(channel[i].dry_level == 127)
+						mix_signal(buffer_pointer, p, cnt);
+					else if(channel[i].dry_level) // lv != 0
+						mix_signal_level(buffer_pointer, p, cnt, channel[i].dry_level);
+				
+				}				
+			}else if(channel_send[i] == SEND_OUTPUT){
+				mix_signal(buffer_pointer, p, cnt);
+			}
+			/* clear buffers of channnel buffer */
+			memset(p, 0, n); // clear
+		}	
 		/* mixing signal and applying system effects */ 
-		mix_dry_signal(buffer_pointer, cnt);
 		if(channel_delay) {do_variation_effect1_xg(buffer_pointer, cnt);}
 		if(channel_chorus) {do_ch_chorus_xg(buffer_pointer, cnt);}
-		if(channel_reverb) {do_ch_reverb(buffer_pointer, cnt);}
+		if(channel_reverb) {do_ch_reverb_xg(buffer_pointer, cnt);}
 		if(multi_eq_xg.valid) {do_multi_eq_xg(buffer_pointer, cnt);}
-	} else if(channel_effect) {	/* GM & GS */
-		if(opt_insertion_effect) { 	/* insertion effect */
-			/* applying insertion effect */
-			do_insertion_effect_gs(insertion_effect_buffer, cnt);
-			/* sending insertion effect voice to channel effect */
-			set_ch_chorus(insertion_effect_buffer, cnt, insertion_effect_gs.send_chorus);
-			set_ch_delay(insertion_effect_buffer, cnt, insertion_effect_gs.send_delay);
-			set_ch_reverb(insertion_effect_buffer, cnt,	insertion_effect_gs.send_reverb);
-			if(insertion_effect_gs.send_eq_switch && channel_eq) {
-				set_ch_eq_gs(insertion_effect_buffer, cnt);
-			} else {
-				set_dry_signal(insertion_effect_buffer, cnt);
-			}
-		}
-
-		for(i = 0; i < MAX_CHANNELS; i++) {	/* system effects */
-			int32 *p;	
-			p = vpblist[i];
-			if(p != buffer_pointer && p != insertion_effect_buffer) {
-				if (opt_drum_effect && ISDRUMCHANNEL(i)) {
-					for (j = 0; j < channel[i].drum_effect_num; j++) {
-						de = &(channel[i].drum_effect[j]);
-						if (de->reverb_send > 0) {
-							set_ch_reverb(de->buf, cnt, de->reverb_send);
-						}
-						if (de->chorus_send > 0) {
-							set_ch_chorus(de->buf, cnt, de->chorus_send);
-						}
-						if (de->delay_send > 0) {
-							set_ch_delay(de->buf, cnt, de->delay_send);
-						}
-						mix_signal(p, de->buf, cnt);
-					}
-				} else {
-					if(channel_chorus && channel[i].chorus_level > 0) {
-						set_ch_chorus(p, cnt, channel[i].chorus_level);
-					}
-					if(channel_delay && channel[i].delay_level > 0) {
-						set_ch_delay(p, cnt, channel[i].delay_level);
-					}
-					if(channel_reverb && channel[i].reverb_level > 0
-						&& current_sample - channel[i].lasttime < rev_max_delay_out) {
-						set_ch_reverb(p, cnt, channel[i].reverb_level);
-					}
-				}
-				if(channel_eq && channel[i].eq_gs) {
-					set_ch_eq_gs(p, cnt);
-				} else {
-					set_dry_signal(p, cnt);
-				}
-			}
-		}
+		break;
+	case GM2_SYSTEM_MODE:	/* GM2 */
+		{
+		int mfx_lasttime[SD_MFX_EFFECT_NUM] = {INT_MIN / 2, INT_MIN / 2, INT_MIN / 2,};
+		int mfx_silent[SD_MFX_EFFECT_NUM] = {0, 0, 0,};
 		
-		if(channel_reverb) {
-			set_ch_reverb(buffer_pointer, cnt, DEFAULT_REVERB_SEND_LEVEL);
+		for(i = 0; i <= max_ch; i++) {	/* system effects */
+			DATA_T *p = ch_buffer[i];
+			int silent = channel_silent[i];
+			int subtime = current_sample - channel[i].lasttime;
+			Channel *cp = channel + i;
+			
+			// drum effect buffer mix
+			if(channel_drumfx[i])
+				for (j = 0; j < channel[i].drum_effect_num; j++)
+					mix_signal(p, channel[i].drum_effect[j].buf, cnt);
+			// send effect			
+			if(channel_send[i] == SEND_SD_MFX){
+				if(channel[i].lasttime > mfx_lasttime[cp->sd_output_mfx_select])
+					mfx_lasttime[cp->sd_output_mfx_select] = channel[i].lasttime;
+				mfx_silent[cp->sd_output_mfx_select] += silent;
+				set_ch_mfx_sd(p, cnt, cp->sd_output_mfx_select, cp->sd_dry_send_level);
+			}else if(channel_send[i] == SEND_EFFECT){
+				if(silent && (subtime < delay_out_count[0])) 
+				{
+					if (opt_drum_effect && ISDRUMCHANNEL(i) && channel[i].drum_effect_num) {
+						for (j = 0; j < channel[i].drum_effect_num; j++) {
+							de = &(channel[i].drum_effect[j]);
+							if (de->reverb_send > 0)
+								set_ch_reverb(de->buf, cnt, de->reverb_send);
+							if (de->chorus_send > 0)
+								set_ch_chorus(de->buf, cnt, de->chorus_send);
+						}
+					} else {
+						if(channel_chorus && channel[i].chorus_level > 0)
+							set_ch_chorus(p, cnt, channel[i].chorus_level);
+						if(channel_reverb && channel[i].reverb_level > 0)
+							set_ch_reverb(p, cnt, channel[i].reverb_level);
+					}
+					mix_signal(buffer_pointer, p, cnt);
+				}
+			}else if(channel_send[i] == SEND_OUTPUT){
+				mix_signal(buffer_pointer, p, cnt);
+			}
+			/* clear buffers of channnel buffer */
+			memset(p, 0, n); // clear
 		}
-		set_dry_signal(buffer_pointer, cnt);
-
+		if(opt_insertion_effect){
+			for(j = 0; j < SD_MFX_EFFECT_NUM; j++){
+				if(mfx_silent[j]){
+					int32 efx_delay_out = delay_out_count[delay_out_type_sd[*(mfx_effect_sd[j].type)]];
+					if((current_sample - mfx_lasttime[j]) < efx_delay_out) {
+						do_mfx_effect_sd(buffer_pointer, cnt, j);			
+					}
+				}
+			}
+		}
 		/* mixing signal and applying system effects */ 
-		mix_dry_signal(buffer_pointer, cnt);
-		if(channel_eq) {do_ch_eq_gs(buffer_pointer, cnt);}
+		if(channel_chorus) {do_ch_chorus(buffer_pointer, cnt);}
+		if(channel_reverb) {do_ch_reverb(buffer_pointer, cnt);}
+		if(multi_eq_sd.valid) {do_multi_eq_sd(buffer_pointer, cnt);}
+		}
+		break;
+	case SD_SYSTEM_MODE:	/* SD */
+		{
+		int mfx_lasttime[SD_MFX_EFFECT_NUM] = {INT_MIN / 2, INT_MIN / 2, INT_MIN / 2,};
+		int mfx_silent[SD_MFX_EFFECT_NUM] = {0, 0, 0,};
+		
+		for(i = 0; i <= max_ch; i++) {	/* system effects */
+			DATA_T *p = ch_buffer[i];
+			int silent = channel_silent[i];
+			int subtime = current_sample - channel[i].lasttime;
+			Channel *cp = channel + i;
+			
+			// drum effect buffer mix
+			if(channel_drumfx[i])
+				for (j = 0; j < channel[i].drum_effect_num; j++)
+					mix_signal(p, channel[i].drum_effect[j].buf, cnt);
+			// send effect			
+			if(channel_send[i] == SEND_SD_MFX){
+				if(channel[i].lasttime > mfx_lasttime[cp->sd_output_mfx_select])
+					mfx_lasttime[cp->sd_output_mfx_select] = channel[i].lasttime;
+				mfx_silent[cp->sd_output_mfx_select] += silent;
+				set_ch_mfx_sd(p, cnt, cp->sd_output_mfx_select, cp->sd_dry_send_level);
+			}else if(channel_send[i] == SEND_EFFECT){
+				if(silent && (subtime < delay_out_count[0])) 
+				{
+					if (opt_drum_effect && ISDRUMCHANNEL(i) && channel[i].drum_effect_num) {
+						for (j = 0; j < channel[i].drum_effect_num; j++) {
+							de = &(channel[i].drum_effect[j]);
+							if (de->reverb_send > 0)
+								set_ch_reverb(de->buf, cnt, de->reverb_send);
+							if (de->chorus_send > 0)
+								set_ch_chorus(de->buf, cnt, de->chorus_send);
+						}
+					} else {
+						if(channel_chorus && channel[i].chorus_level > 0)
+							set_ch_chorus(p, cnt, channel[i].chorus_level);
+						if(channel_reverb && channel[i].reverb_level > 0)
+							set_ch_reverb(p, cnt, channel[i].reverb_level);
+					}
+					mix_signal(buffer_pointer, p, cnt);
+				}
+			}else if(channel_send[i] == SEND_OUTPUT){
+				mix_signal(buffer_pointer, p, cnt);
+			}
+			/* clear buffers of channnel buffer */
+			memset(p, 0, n); // clear
+		}
+		if(opt_insertion_effect){
+			for(j = 0; j < SD_MFX_EFFECT_NUM; j++){
+				if(mfx_silent[j]){
+					int32 efx_delay_out = delay_out_count[delay_out_type_sd[*(mfx_effect_sd[j].type)]];
+					if((current_sample - mfx_lasttime[j]) < efx_delay_out) {
+						do_mfx_effect_sd(buffer_pointer, cnt, j);			
+					}
+				}
+			}
+		}
+		/* mixing signal and applying system effects */ 
+		if(channel_chorus) {do_ch_chorus_sd(buffer_pointer, cnt);}
+		if(channel_reverb) {do_ch_reverb_sd(buffer_pointer, cnt);}
+		if(multi_eq_sd.valid) {do_multi_eq_sd(buffer_pointer, cnt);}
+		}
+		break;
+	default:	/* GM & GS */
+		{
+		int insertion_lasttime = INT_MIN / 2;
+		int insertion_silent = 0;
+
+		for(i = 0; i <= max_ch; i++) {	/* system effects */
+			DATA_T *p = ch_buffer[i];
+			int silent = channel_silent[i];
+			int subtime = current_sample - channel[i].lasttime;
+			Channel *cp = channel + i;
+			
+			// drum effect buffer mix
+			if(channel_drumfx[i])
+				for (j = 0; j < channel[i].drum_effect_num; j++)
+					mix_signal(p, channel[i].drum_effect[j].buf, cnt);
+			// ch mixer
+			//if(adjust_panning_immediately){
+			//	reset_envelope2(&cp->vol_env, cp->ch_amp[0], cp->ch_amp[1], ENVELOPE_KEEP);
+			//	compute_envelope2(&cp->vol_env, count);
+			//	mix_ch_signal_source(p, i, count);
+			//	if(channel_drumfx[i]){
+			//		for (j = 0; j < channel[i].drum_effect_num; j++) {
+			//			mix_dfx_signal_source(channel[i].drum_effect[j].buf, i, cnt); // drum_efx_buf mix level
+			//		}
+			//	}
+			//}
+			// send effect
+			if(channel_send[i] == SEND_GS_INS){
+				if(channel[i].lasttime > insertion_lasttime)
+					insertion_lasttime = channel[i].lasttime;
+				insertion_silent += silent;
+				set_ch_insertion_gs(p, cnt);
+			}else if(channel_send[i] == SEND_EFFECT){
+				if(silent && (subtime < delay_out_count[0])) {
+					if (opt_drum_effect && ISDRUMCHANNEL(i) && channel[i].drum_effect_num) {
+						for (j = 0; j < channel[i].drum_effect_num; j++) {
+							de = &(channel[i].drum_effect[j]);
+							if (de->reverb_send > 0)
+								set_ch_reverb(de->buf, cnt, de->reverb_send);
+							if (de->chorus_send > 0)
+								set_ch_chorus(de->buf, cnt, de->chorus_send);
+							if (de->delay_send > 0)
+								set_ch_delay(de->buf, cnt, de->delay_send);
+						}
+					} else {
+						if(channel_chorus && channel[i].chorus_level > 0)
+							set_ch_chorus(p, cnt, channel[i].chorus_level);
+						if(channel_delay && channel[i].delay_level > 0)
+							set_ch_delay(p, cnt, channel[i].delay_level);
+						if(channel_reverb && channel[i].reverb_level > 0)
+							set_ch_reverb(p, cnt, channel[i].reverb_level);
+					}
+					if(channel_eq && channel[i].eq_gs)	
+						set_ch_eq_gs(p, cnt);
+					else
+						mix_signal(buffer_pointer, p, cnt);
+				}
+			}else if(channel_send[i] == SEND_OUTPUT){
+				mix_signal(buffer_pointer, p, cnt);
+			}
+			/* clear buffers of channnel buffer */
+			memset(p, 0, n); // clear
+		}
+		if(opt_insertion_effect && insertion_silent){
+			int32 efx_delay_out = delay_out_count[delay_out_type_gs[insertion_effect_gs.type_msb][insertion_effect_gs.type_lsb]];
+			if((current_sample - insertion_lasttime) < efx_delay_out) {
+				/* insertion effect */ /* sending insertion effect voice to channel effect, eq, dry */
+				do_insertion_effect_gs(buffer_pointer, cnt, channel_eq);			
+			}
+		}
+		/* mixing signal and applying system effects */ 
+		if(channel_eq) {
+			do_ch_eq_gs(buffer_pointer, cnt);
+		}
 		if(channel_chorus) {do_ch_chorus(buffer_pointer, cnt);}
 		if(channel_delay) {do_ch_delay(buffer_pointer, cnt);}
 		if(channel_reverb) {do_ch_reverb(buffer_pointer, cnt);}
+		}
+		break;
 	}
+///r
+	// elion add.
+	// move effect.c do_effect()
+	//mix_compressor(buffer_pointer, cnt);
 
-	current_sample += count;
-}
-
-#else
-/* do_compute_data_midi() without DSP Effect */
-static void do_compute_data_midi(int32 count)
-{
-	int i, j, uv, stereo, n, ch, note;
-	int32 *vpblist[MAX_CHANNELS];
-	int vc[MAX_CHANNELS];
-	int channel_reverb;
-	int channel_effect;
-	int32 cnt = count * 2;
-	
-	stereo = ! (play_mode->encoding & PE_MONO);
-	n = count * ((stereo) ? 8 : 4); /* in bytes */
-	/* don't supported in mono */
-	channel_reverb = (stereo && (opt_reverb_control == 1
-			|| opt_reverb_control == 3
-			|| opt_reverb_control < 0 && opt_reverb_control & 0x80));
-	memset(buffer_pointer, 0, n);
-
-	channel_effect = (stereo && (opt_reverb_control || opt_chorus_control
-			|| opt_delay_control || opt_eq_control || opt_insertion_effect));
-	uv = upper_voices;
-	for (i = 0; i < uv; i++)
-		if (voice[i].status != VOICE_FREE)
-			channel[voice[i].channel].lasttime = current_sample + count;
-
-	if (channel_reverb) {
-		int chbufidx;
-		
-		if (! make_rvid_flag) {
-			make_rvid();
-			make_rvid_flag = 1;
-		}
-		chbufidx = 0;
-		for (i = 0; i < MAX_CHANNELS; i++) {
-			vc[i] = 0;
-			if (channel[i].reverb_id != -1
-					&& current_sample - channel[i].lasttime
-					< REVERB_MAX_DELAY_OUT) {
-				if (reverb_buffer == NULL)
-					reverb_buffer = (char *) safe_malloc(MAX_CHANNELS
-							* AUDIO_BUFFER_SIZE * 8);
-				if (channel[i].reverb_id != i)
-					vpblist[i] = vpblist[channel[i].reverb_id];
-				else {
-					vpblist[i] = (int32 *) (reverb_buffer + chbufidx);
-					chbufidx += n;
-				}
-			} else
-				vpblist[i] = buffer_pointer;
-		}
-		if (chbufidx)
-			memset(reverb_buffer, 0, chbufidx);
-	}
-	for (i = 0; i < uv; i++)
-		if (voice[i].status != VOICE_FREE) {
-			int32 *vpb;
-			
-			if (channel_reverb) {
-				int ch = voice[i].channel;
-				
-				vpb = vpblist[ch];
-				vc[ch] = 1;
-			} else
-				vpb = buffer_pointer;
-			if (! IS_SET_CHANNELMASK(channel_mute, voice[i].channel))
-				mix_voice(vpb, i, count);
-			else {
-				free_voice(i);
-				ctl_note_event(i);
-			}
-			if (voice[i].timeout == 1 && voice[i].timeout < current_sample) {
-				free_voice(i);
-				ctl_note_event(i);
-			}
-		}
-
-	while (uv > 0 && voice[uv - 1].status == VOICE_FREE)
-		uv--;
-	upper_voices = uv;
-
-	if (channel_reverb) {
-		int k;
-		
-		k = count * 2; /* calclated buffer length in int32 */
-		for (i = 0; i < MAX_CHANNELS; i++) {
-			int32 *p;
-			
-			p = vpblist[i];
-			if (p != buffer_pointer && channel[i].reverb_id == i)
-				set_ch_reverb(p, k, channel[i].reverb_level);
-		}
-		set_ch_reverb(buffer_pointer, k, DEFAULT_REVERB_SEND_LEVEL);
-		do_ch_reverb(buffer_pointer, k);
-	}
-	current_sample += count;
-}
+#ifndef MASTER_VST_EFFECT2	
+    do_effect(buffer_pointer, count);
 #endif
+	if(opt_realtime_playing)
+		compute_data_midi_skip(0, cnt); // silent skip , buffer check
+	current_sample += count;
+}
+
 
 static void do_compute_data_wav(int32 count)
 {
@@ -7048,6 +12115,11 @@ static void do_compute_data(int32 count)
     switch(current_file_info->pcm_mode)
     {
       case PCM_MODE_NON:
+#ifdef MULTI_THREAD_COMPUTE
+		if(compute_thread_ready)
+    		do_compute_data_midi_thread(count);
+		else
+#endif
     	do_compute_data_midi(count);
       	break;
       case PCM_MODE_WAV:
@@ -7081,7 +12153,8 @@ static int check_midi_play_end(MidiEvent *e, int len)
 static int compute_data(int32 count);
 static int midi_play_end(void)
 {
-    int i, rc = RC_TUNE_END;
+///r
+    int i, rc = RC_TUNE_END;//, time;
 
     check_eot_flag = 0;
 
@@ -7091,58 +12164,70 @@ static int midi_play_end(void)
 	return RC_TUNE_END;
     }
 
+///r
+    /* add play time */
+    if(opt_realtime_playing)
+		rc = compute_data((int32)(play_mode->rate * ADD_PLAY_TIME/2));
+    else if(add_play_time)
+		rc = compute_data(add_play_count);
+//	time = play_mode->rate * MAX_DIE_TIME / 1000; // time ms
+
     if(upper_voices > 0)
     {
-	int fadeout_cnt;
+		int fadeout_cnt;
 
-	rc = compute_data(play_mode->rate);
-	if(RC_IS_SKIP_FILE(rc))
-	    goto midi_end;
+		rc = compute_data(play_mode->rate);
+		if(RC_IS_SKIP_FILE(rc))
+			goto midi_end;
 
-	for(i = 0; i < upper_voices; i++)
-	    if(voice[i].status & (VOICE_ON | VOICE_SUSTAINED))
-		finish_note(i);
-	if(opt_realtime_playing)
-	    fadeout_cnt = 3;
-	else
-	    fadeout_cnt = 6;
-	for(i = 0; i < fadeout_cnt && upper_voices > 0; i++)
-	{
-	    rc = compute_data(play_mode->rate / 2);
-	    if(RC_IS_SKIP_FILE(rc))
-		goto midi_end;
-	}
+		for(i = 0; i < upper_voices; i++)
+			if(voice[i].status & (VOICE_ON | VOICE_SUSTAINED))
+			finish_note(i);
+		if(opt_realtime_playing)
+			fadeout_cnt = 3;
+		else
+			fadeout_cnt = 6;
+		for(i = 0; i < fadeout_cnt && upper_voices > 0; i++)
+		{
+			rc = compute_data(play_mode->rate / 2);
+			if(RC_IS_SKIP_FILE(rc))
+			goto midi_end;
+		}
 
-	/* kill voices */
-	kill_all_voices();
-	rc = compute_data(MAX_DIE_TIME);
-	if(RC_IS_SKIP_FILE(rc))
-	    goto midi_end;
-	upper_voices = 0;
+		/* kill voices */
+		kill_all_voices();
+///r
+//		rc = compute_data(MAX_DIE_TIME); // sample num
+		rc = compute_data(ramp_out_count);
+		if(RC_IS_SKIP_FILE(rc))
+			goto midi_end;
+		upper_voices = 0;
     }
 
     /* clear reverb echo sound */
-    init_reverb();
+    init_ch_reverb();
     for(i = 0; i < MAX_CHANNELS; i++)
     {
 	channel[i].reverb_level = -1;
-	channel[i].reverb_id = -1;
-	make_rvid_flag = 1;
     }
-
-    /* output null sound */
-    if(opt_realtime_playing)
-	rc = compute_data((int32)(play_mode->rate * PLAY_INTERLEAVE_SEC/2));
-    else
-	rc = compute_data((int32)(play_mode->rate * PLAY_INTERLEAVE_SEC));
-    if(RC_IS_SKIP_FILE(rc))
-	goto midi_end;
+///r
+    /* add silent time */
+    if(opt_realtime_playing){
+		rc = compute_data((int32)(play_mode->rate * ADD_SILENT_TIME/2));
+		if(RC_IS_SKIP_FILE(rc))
+			goto midi_end;
+	}else if(add_silent_time){
+		rc = compute_data(add_silent_count);
+	//	rc = compute_data((int32)(play_mode->rate * PLAY_INTERLEAVE_SEC));
+		if(RC_IS_SKIP_FILE(rc))
+			goto midi_end;
+	}
 
     compute_data(0); /* flush buffer to device */
 
     if(ctl->trace_playing)
     {
-	rc = aq_flush(0); /* Wait until play out */
+	rc = aq_flush(0); /* Wait until play out */	
 	if(RC_IS_SKIP_FILE(rc))
 	    goto midi_end;
     }
@@ -7169,373 +12254,227 @@ static int midi_play_end(void)
     return RC_TUNE_END;
 }
 
-/* count=0 means flush remaining buffered data to output device, then
-   flush the device itself */
-static int compute_data(int32 count)
+///r
+static void reduce_control(void)
 {
-  int rc;
+	int i, filled, s_filled , q_size , rate, nv;
+	
+	if(!reduce_voice_threshold || opt_realtime_playing || !(play_mode->flag & PF_CAN_TRACE))
+		return;
 
-  if (!count)
-    {
-      if (buffered_count)
-      {
-	  ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
-		    "output data (%d)", buffered_count);
+	/* use Auto voice reduce  &  reduce quality */
+	filled = aq_filled();
+	s_filled = aq_soft_filled();
+	q_size = aq_get_dev_queuesize();
+	rate = (int)(((double)(filled + s_filled) / q_size) * 100 + 0.5);
 
-#ifdef SUPPORT_SOUNDSPEC
-	  soundspec_update_wave(common_buffer, buffered_count);
-#endif /* SUPPORT_SOUNDSPEC */
+	if(aq_fill_buffer_flag || q_size <= 0)
+		return;
 
-	  if(aq_add(common_buffer, buffered_count) == -1)
-	      return RC_ERROR;
-      }
-      buffer_pointer=common_buffer;
-      buffered_count=0;
-      return RC_NONE;
-    }
-
-  while ((count+buffered_count) >= audio_buffer_size)
-    {
-      int i;
-
-      if((rc = apply_controls()) != RC_NONE)
-	  return rc;
-
-      do_compute_data(audio_buffer_size-buffered_count);
-      count -= audio_buffer_size-buffered_count;
-      ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
-		"output data (%d)", audio_buffer_size);
-
-#ifdef SUPPORT_SOUNDSPEC
-      soundspec_update_wave(common_buffer, audio_buffer_size);
-#endif /* SUPPORT_SOUNDSPEC */
-
-      /* fall back to linear interpolation when queue < 100% */
-      if (! opt_realtime_playing && (play_mode->flag & PF_CAN_TRACE)) {
-	  if (!aq_fill_buffer_flag &&
-	      100 * ((double)(aq_filled() + aq_soft_filled()) /
-		     aq_get_dev_queuesize()) < 99)
-	      reduce_quality_flag = 1;
-	  else
-	      reduce_quality_flag = no_4point_interpolation;
-      }
+	/* fall back to linear interpolation when queue < 100% */
+	if (reduce_quality_threshold){
+		if (rate < reduce_quality_threshold)
+			reduce_quality_flag = 1;
+		else  if(rate > reduce_quality_threshold * 1.15)
+			reduce_quality_flag = 0;
+	}
 
 #ifdef REDUCE_VOICE_TIME_TUNING
-      /* Auto voice reduce implementation by Masanao Izumo */
-      if(reduce_voice_threshold &&
-	 (play_mode->flag & PF_CAN_TRACE) &&
-	 !aq_fill_buffer_flag &&
-	 aq_get_dev_queuesize() > 0)
-      {
-	  /* Reduce voices if there is not enough audio device buffer */
-
-          int nv, filled, filled_limit, rate, rate_limit;
-          static int last_filled;
-
-	  filled = aq_filled();
-
-	  rate_limit = 75;
-	  if(reduce_voice_threshold >= 0)
-	  {
-	      filled_limit = play_mode->rate * reduce_voice_threshold / 1000
-		  + 1; /* +1 disable zero */
-	  }
-	  else /* Use default threshold */
-	  {
-	      int32 maxfill;
-	      maxfill = aq_get_dev_queuesize();
-	      filled_limit = REDUCE_VOICE_TIME_TUNING;
-	      if(filled_limit > maxfill / 5) /* too small audio buffer */
-	      {
-		  rate_limit -= 100 * audio_buffer_size / maxfill / 5;
-		  filled_limit = 1;
-	      }
-	  }
-
-	  /* Calculate rate as it is displayed in ncurs_c.c */
-	  /* The old method of calculating rate resulted in very low values
-	     when using the new high order interplation methods on "slow"
-	     CPUs when the queue was being drained WAY too quickly.  This
-	     caused premature voice reduction under Linux, even if the queue
-	     was over 2000%, leading to major voice lossage. */
-	  rate = (int)(((double)(aq_filled() + aq_soft_filled()) /
-                  	aq_get_dev_queuesize()) * 100 + 0.5);
-
-          for(i = nv = 0; i < upper_voices; i++)
-	      if(voice[i].status != VOICE_FREE)
-	          nv++;
-
-	  if(! opt_realtime_playing)
-	  {
-	      /* calculate ok_nv, the "optimum" max polyphony */
-	      if (auto_reduce_polyphony && rate < 85) {
-		/* average in current nv */
-	        if ((rate == old_rate && nv > min_bad_nv) ||
-	            (rate >= old_rate && rate < 20)) {
-	        	ok_nv_total += nv;
-	        	ok_nv_counts++;
-	        }
-	        /* increase polyphony when it is too low */
-	        else if (nv == voices &&
-	                 (rate > old_rate && filled > last_filled)) {
-	          		ok_nv_total += nv + 1;
-	          		ok_nv_counts++;
-	        }
-	        /* reduce polyphony when loosing buffer */
-	        else if (rate < 75 &&
-	        	 (rate < old_rate && filled < last_filled)) {
-	        	ok_nv_total += min_bad_nv;
+	if(!reduce_voice_threshold)
+		return;
+	/* Auto voice reduce implementation by Masanao Izumo */
+	/* Reduce voices if there is not enough audio device buffer */
+	/* Calculate rate as it is displayed in ncurs_c.c */
+	/* The old method of calculating rate resulted in very low values
+		when using the new high order interplation methods on "slow"
+		CPUs when the queue was being drained WAY too quickly.  This
+		caused premature voice reduction under Linux, even if the queue
+		was over 2000%, leading to major voice lossage. */
+	for(i = nv = 0; i < upper_voices; i++)
+		if(voice[i].status != VOICE_FREE)
+			nv++;
+	if(reduce_polyphony_threshold) {
+		/* calculate ok_nv, the "optimum" max polyphony */
+//	  if (auto_reduce_polyphony && rate < reduce_polyphony_threshold) {
+		if (rate < reduce_polyphony_threshold) {
+			reduce_polyphony_flag = 1;
+			/* average in current nv */
+			if ((rate == old_rate && nv > min_bad_nv) || (rate >= old_rate && rate < (reduce_polyphony_threshold * 0.25))) {
+				ok_nv_total += nv;
+				ok_nv_counts++;				
+			/* increase polyphony when it is too low */
+			}else if (nv == voices && (rate > old_rate)) {
+	          	ok_nv_total += nv + 1;
+	          	ok_nv_counts++;				
+			/* reduce polyphony when loosing buffer */
+			}else if (rate < (reduce_polyphony_threshold * 0.85) && (rate < old_rate)) {
+				ok_nv_total += min_bad_nv;
 	    		ok_nv_counts++;
-	        }
-	        else goto NO_RESCALE_NV;
-
-		/* rescale ok_nv stuff every 1 seconds */
-		if (current_sample >= ok_nv_sample && ok_nv_counts > 1) {
-			ok_nv_total >>= 1;
-			ok_nv_counts >>= 1;
-			ok_nv_sample = current_sample + (play_mode->rate);
-		}
-
-		NO_RESCALE_NV:;
-	      }
-	  }
-
-	  /* EAW -- if buffer is < 75%, start reducing some voices to
-	     try to let it recover.  This really helps a lot, preserves
-	     decent sound, and decreases the frequency of lost ON notes */
-	  if ((! opt_realtime_playing && rate < rate_limit)
-	      || filled < filled_limit)
-	  {
-	      if(filled <= last_filled)
-	      {
-	          int kill_nv, temp_nv;
-
-		  /* set bounds on "good" and "bad" nv */
-		  if (! opt_realtime_playing && rate > 20 &&
-		      nv < min_bad_nv) {
-		  	min_bad_nv = nv;
-	                if (max_good_nv < min_bad_nv)
-	                	max_good_nv = min_bad_nv;
-	          }
-
-		  /* EAW -- count number of !ON voices */
-		  /* treat chorus notes as !ON */
-		  for(i = kill_nv = 0; i < upper_voices; i++) {
-		      if(voice[i].status & VOICE_FREE ||
-		         voice[i].cache != NULL)
-		      		continue;
-		      
-		      if((voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
-			  !(voice[i].status & ~(VOICE_DIE) &&
-			    voice[i].sample->note_to_use)))
-				kill_nv++;
-		  }
-
-		  /* EAW -- buffer is dangerously low, drasticly reduce
-		     voices to a hopefully "safe" amount */
-		  if (filled < filled_limit &&
-		      (opt_realtime_playing || rate < 10)) {
-		      FLOAT_T n;
-
-		      /* calculate the drastic voice reduction */
-		      if(nv > kill_nv) /* Avoid division by zero */
-		      {
-			  n = (FLOAT_T) nv / (nv - kill_nv);
-			  temp_nv = (int)(nv - nv / (n + 1));
-
-			  /* reduce by the larger of the estimates */
-			  if (kill_nv < temp_nv && temp_nv < nv)
-			      kill_nv = temp_nv;
-		      }
-		      else kill_nv = nv - 1; /* do not kill all the voices */
-		  }
-		  else {
-		      /* the buffer is still high enough that we can throw
-		         fewer voices away; keep the ON voices, use the
-		         minimum "bad" nv as a floor on voice reductions */
-		      temp_nv = nv - min_bad_nv;
-		      if (kill_nv > temp_nv)
-		          kill_nv = temp_nv;
-		  }
-
-		  for(i = 0; i < kill_nv; i++)
-		      reduce_voice();
-
-		  /* lower max # of allowed voices to let the buffer recover */
-		  if (auto_reduce_polyphony) {
-		  	temp_nv = nv - kill_nv;
-		  	ok_nv = ok_nv_total / ok_nv_counts;
-
-		  	/* decrease it to current nv left */
-		  	if (voices > temp_nv && temp_nv > ok_nv)
-			    voice_decrement_conservative(voices - temp_nv);
-			/* decrease it to ok_nv */
-		  	else if (voices > ok_nv && temp_nv <= ok_nv)
-			    voice_decrement_conservative(voices - ok_nv);
-		  	/* increase the polyphony */
-		  	else if (voices < ok_nv)
-			    voice_increment(ok_nv - voices);
-		  }
-
-		  while(upper_voices > 0 &&
-			voice[upper_voices - 1].status == VOICE_FREE)
-		      upper_voices--;
-	      }
-	      last_filled = filled;
-	  }
-	  else {
-	      if (! opt_realtime_playing && rate >= rate_limit &&
-	          filled > last_filled) {
-
-		    /* set bounds on "good" and "bad" nv */
-		    if (rate > 85 && nv > max_good_nv) {
-		  	max_good_nv = nv;
-		  	if (min_bad_nv > max_good_nv)
-		  	    min_bad_nv = max_good_nv;
-		    }
-
-		    if (auto_reduce_polyphony) {
-		    	/* reset ok_nv stuff when out of danger */
-		    	ok_nv_total = max_good_nv * ok_nv_counts;
-			if (ok_nv_counts > 1) {
-			    ok_nv_total >>= 1;
-			    ok_nv_counts >>= 1;
+			}else
+				goto NO_RESCALE_NV;
+			/* rescale ok_nv stuff every 1 seconds */
+			if (current_sample >= ok_nv_sample && ok_nv_counts > 1)
+			{
+				ok_nv_total >>= 1;
+				ok_nv_counts >>= 1;
+				ok_nv_sample = current_sample + (play_mode->rate);
 			}
+			NO_RESCALE_NV:;
+		} else
+			reduce_polyphony_flag = 0;
+	}
 
-		    	/* restore max # of allowed voices to normal */
+	/* EAW -- if buffer is < 75%, start reducing some voices to
+		try to let it recover.  This really helps a lot, preserves
+		decent sound, and decreases the frequency of lost ON notes */
+	///r
+	if (rate < reduce_voice_threshold) {
+		reduce_voice_flag = 1;	
+
+		if(rate <= old_rate) {
+			int kill_nv, temp_nv;
+
+			/* set bounds on "good" and "bad" nv */
+			if (rate > (reduce_voice_threshold * 0.5) && nv < min_bad_nv) {
+				min_bad_nv = nv;
+				if (max_good_nv < min_bad_nv)
+					max_good_nv = min_bad_nv;
+			}
+			/* EAW -- count number of !ON voices */
+			/* treat chorus notes as !ON */
+			for(i = kill_nv = 0; i < upper_voices; i++) {
+				if(voice[i].status & VOICE_FREE || voice[i].cache != NULL)
+					continue;		      
+				if((voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
+					!(voice[i].status & ~(VOICE_DIE) && voice[i].sample->note_to_use)))
+					kill_nv++;
+			}
+			/* EAW -- buffer is dangerously low, drasticly reduce
+				voices to a hopefully "safe" amount */
+			if (rate < (reduce_voice_threshold * 0.25)) {
+				FLOAT_T n;
+				/* calculate the drastic voice reduction */
+				if(nv > kill_nv){ /* Avoid division by zero */
+					n = (FLOAT_T) nv / (nv - kill_nv);
+					temp_nv = (int)(nv - nv / (n + 1));
+					/* reduce by the larger of the estimates */
+					if (kill_nv < temp_nv && temp_nv < nv)
+						kill_nv = temp_nv;
+				}else
+					kill_nv = nv - 1; /* do not kill all the voices */
+			}else {
+				/* the buffer is still high enough that we can throw
+					fewer voices away; keep the ON voices, use the
+					minimum "bad" nv as a floor on voice reductions */
+				temp_nv = nv - min_bad_nv;
+				if (kill_nv > temp_nv)
+					kill_nv = temp_nv;
+			}
+			for(i = 0; i < kill_nv; i++)
+				reduce_voice();
+			/* lower max # of allowed voices to let the buffer recover */
+		//	if (auto_reduce_polyphony) {
+			if (reduce_polyphony_threshold) {
+				temp_nv = nv - kill_nv;
+				ok_nv = ok_nv_total / ok_nv_counts;
+				/* decrease it to current nv left */
+				if (voices > temp_nv && temp_nv > ok_nv)
+					voice_decrement_conservative(voices - temp_nv);
+				/* decrease it to ok_nv */
+				else if (voices > ok_nv && temp_nv <= ok_nv)
+					voice_decrement_conservative(voices - ok_nv);
+				/* increase the polyphony */
+				else if (voices < ok_nv)
+					voice_increment(ok_nv - voices);
+			}
+			while(upper_voices > 0 && voice[upper_voices - 1].status == VOICE_FREE)
+				upper_voices--;
+		}
+	}else {
+		reduce_voice_flag = 0;
+		/* set bounds on "good" and "bad" nv */
+		if (rate > (reduce_voice_threshold * 1.15) && nv > max_good_nv) {
+			max_good_nv = nv;
+			if (min_bad_nv > max_good_nv)
+				min_bad_nv = max_good_nv;
+		}
+		if (reduce_polyphony_threshold) {
+			/* reset ok_nv stuff when out of danger */
+			ok_nv_total = max_good_nv * ok_nv_counts;
+			if (ok_nv_counts > 1) {
+				ok_nv_total >>= 1;
+				ok_nv_counts >>= 1;
+			}
+			/* restore max # of allowed voices to normal */
 			restore_voices(0);
-		    }
-	      }
-
-	      last_filled = filled_limit;
-          }
-          old_rate = rate;
-      }
+		}
+	}
+	old_rate = rate;
 #endif
-
-      if(aq_add(common_buffer, audio_buffer_size) == -1)
-	  return RC_ERROR;
-
-      buffer_pointer=common_buffer;
-      buffered_count=0;
-      if(current_event->type != ME_EOT)
-	  ctl_timestamp();
-
-      /* check break signals */
-      VOLATILE_TOUCH(intr);
-      if(intr)
-	  return RC_QUIT;
-
-      if(upper_voices == 0 && check_eot_flag &&
-	 (i = check_midi_play_end(current_event, EOT_PRESEARCH_LEN)) > 0)
-      {
-	  if(i > 1)
-	      ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-			"Last %d MIDI events are ignored", i - 1);
-	  return midi_play_end();
-      }
-    }
-  if (count>0)
-    {
-      do_compute_data(count);
-      buffered_count += count;
-      buffer_pointer += (play_mode->encoding & PE_MONO) ? count : count*2;
-    }
-  return RC_NONE;
 }
 
-static void update_modulation_wheel(int ch)
+
+
+/* count=0 means flush remaining buffered data to output device, then
+   flush the device itself */
+///r
+static int compute_data(int32 count)
 {
-    int i, uv = upper_voices;
-	channel[ch].pitchfactor = 0;
-    for(i = 0; i < uv; i++)
-	if(voice[i].status != VOICE_FREE && voice[i].channel == ch)
-	{
-	    /* Set/Reset mod-wheel */
-		voice[i].vibrato_control_counter = voice[i].vibrato_phase = 0;
-	    recompute_amp(i);
-		apply_envelope_to_amp(i);
-	    recompute_freq(i);
-		recompute_voice_filter(i);
+	int rc;
+	
+	if (!count){
+		if (buffered_count){
+			do_compute_data(compute_buffer_size); // fixed size
+#ifdef _DEBUG
+			ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "output data (%d)", buffered_count);
+#endif
+#ifdef SUPPORT_SOUNDSPEC
+			soundspec_update_wave(common_buffer, compute_buffer_size);
+#endif /* SUPPORT_SOUNDSPEC */
+			if(aq_add(common_buffer, compute_buffer_size) == -1)
+				return RC_ERROR;
+		}
+		buffer_pointer=common_buffer;
+		buffered_count=0;
+		return RC_NONE;
+    }
+	count += buffered_count; // 前回の残りカウントを追加
+	buffered_count = 0;
+	if(current_event->type != ME_EOT)
+		ctl_timestamp();
+	if((rc = apply_controls()) != RC_NONE)
+		return rc;
+	while (count >= compute_buffer_size){
+		do_compute_data(compute_buffer_size); // fixed size
+		count -= compute_buffer_size;
+#ifdef _DEBUG
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "output data (%d)", compute_buffer_size);
+#endif
+#ifdef SUPPORT_SOUNDSPEC
+		soundspec_update_wave(common_buffer, compute_buffer_size);
+#endif /* SUPPORT_SOUNDSPEC */
+		if(aq_add(common_buffer, compute_buffer_size) == -1)
+			return RC_ERROR;
+		buffer_pointer=common_buffer;
+    }
+	reduce_control();
+	buffered_count = (count < 0) ? 0 : count; // save
+	/* check break signals */
+	VOLATILE_TOUCH(intr);
+	if(intr)
+		return RC_QUIT;
+	if(upper_voices == 0 && check_eot_flag){
+		int i = check_midi_play_end(current_event, EOT_PRESEARCH_LEN);
+		if(i > 1)
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "Last %d MIDI events are ignored", i - 1);
+		if(i > 0)
+			return midi_play_end();
 	}
+	return RC_NONE;
 }
 
-static void drop_portamento(int ch)
-{
-    int i, uv = upper_voices;
+int play_event(MidiEvent *ev){
 
-    channel[ch].porta_control_ratio = 0;
-    for(i = 0; i < uv; i++)
-	if(voice[i].status != VOICE_FREE &&
-	   voice[i].channel == ch &&
-	   voice[i].porta_control_ratio)
-	{
-	    voice[i].porta_control_ratio = 0;
-	    recompute_freq(i);
-	}
-    channel[ch].last_note_fine = -1;
-}
-
-static void update_portamento_controls(int ch)
-{
-    if(!channel[ch].portamento ||
-       (channel[ch].portamento_time_msb | channel[ch].portamento_time_lsb)
-       == 0)
-	drop_portamento(ch);
-    else
-    {
-	double mt, dc;
-	int d;
-
-	mt = midi_time_table[channel[ch].portamento_time_msb & 0x7F] *
-	    midi_time_table2[channel[ch].portamento_time_lsb & 0x7F] *
-		PORTAMENTO_TIME_TUNING;
-	dc = play_mode->rate * mt;
-	d = (int)(1.0 / (mt * PORTAMENTO_CONTROL_RATIO));
-	d++;
-	channel[ch].porta_control_ratio = (int)(d * dc + 0.5);
-	channel[ch].porta_dpb = d;
-    }
-}
-
-static void update_portamento_time(int ch)
-{
-    int i, uv = upper_voices;
-    int dpb;
-    int32 ratio;
-
-    update_portamento_controls(ch);
-    dpb = channel[ch].porta_dpb;
-    ratio = channel[ch].porta_control_ratio;
-
-    for(i = 0; i < uv; i++)
-    {
-	if(voice[i].status != VOICE_FREE &&
-	   voice[i].channel == ch &&
-	   voice[i].porta_control_ratio)
-	{
-	    voice[i].porta_control_ratio = ratio;
-	    voice[i].porta_dpb = dpb;
-	    recompute_freq(i);
-	}
-    }
-}
-
-static void update_legato_controls(int ch)
-{
-	double mt, dc;
-	int d;
-
-	mt = 0.06250 * PORTAMENTO_TIME_TUNING * 0.3;
-	dc = play_mode->rate * mt;
-	d = (int)(1.0 / (mt * PORTAMENTO_CONTROL_RATIO));
-	d++;
-	channel[ch].porta_control_ratio = (int)(d * dc + 0.5);
-	channel[ch].porta_dpb = d;
-}
-
-int play_event(MidiEvent *ev)
-{
     int32 i, j, cet;
     int k, l, ch, orig_ch, port_ch, offset, layered;
 
@@ -7551,22 +12490,21 @@ int play_event(MidiEvent *ev)
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
 		  "Midi Event %d: %s %d %d %d", cet,
 		  event_name(ev->type), ev->channel, ev->a, ev->b);
+
     if(cet > current_sample)
     {
 	int rc;
 
 #if ! defined(IA_WINSYN) && ! defined(IA_PORTMIDISYN) && ! defined(IA_W32G_SYN)
 	if (midi_streaming != 0)
-		if ((cet - current_sample) * 1000 / play_mode->rate
-				> stream_max_compute) {
+		if ((cet - current_sample) * 1000 / play_mode->rate > stream_max_compute) {
 			kill_all_voices();
 			/* reset_voices(); */
 			/* ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
 					"play_event: discard %d samples", cet - current_sample); */
 			current_sample = cet;
 		}
-#endif
-
+#endif	
 	rc = compute_data(cet - current_sample);
 	ctl_mode_event(CTLE_REFRESH, 0, 0, 0);
     if(rc == RC_JUMP)
@@ -7596,60 +12534,99 @@ int play_event(MidiEvent *ev)
 #endif
 	ch = ev->channel;
 
+	
+	if(ev->type >= ME_TONE_BANK_MSB && ev->type <= ME_UNDEF_CTRL_CHNG)
+		if(!get_rx(ch, RX_CONTROL_CHANGE)) 			
+			ev->type = ME_NONE;
+	
+	process_channel_control_event(ev);
+	
+	if(opt_insertion_effect){		
+		switch(play_system_mode) {
+		case GS_SYSTEM_MODE:
+			control_effect_gs(ev);
+			break;
+		case SD_SYSTEM_MODE:
+			control_effect_sd(ev);
+			break;
+		default:
+			break;
+		}
+	}
+
     switch(ev->type)
     {
 	/* MIDI Events */
       case ME_NOTEOFF:
+	if(!get_rx(ch, RX_NOTE_MESSAGE)) break;
 	note_off(ev);
 	break;
 
       case ME_NOTEON:
+	if(!get_rx(ch, RX_NOTE_MESSAGE)) break;
 	note_on(ev);
 	break;
 
       case ME_KEYPRESSURE:
+	if(!get_rx(ch, RX_POLY_PRESSURE)) break;
 	adjust_pressure(ev);
 	break;
 
       case ME_PROGRAM:
+	if(!get_rx(ch, RX_PROGRAM_CHANGE)) break;
 	midi_program_change(ch, ev->a);
 	ctl_prog_event(ch);
 	break;
 
       case ME_CHANNEL_PRESSURE:
+	if(!get_rx(ch, RX_CH_PRESSURE)) break;
 	adjust_channel_pressure(ev);
+	control_effect_xg(ch);
 	break;
 
       case ME_PITCHWHEEL:
-	channel[ch].pitchbend = ev->a + ev->b * 128;
-	channel[ch].pitchfactor = 0;
+	if(!get_rx(ch, RX_PITCH_BEND)) break;
+	{
+		int tmp = (int)ev->a + (int)ev->b * 128;
+		channel[ch].pitchbend = tmp;
+		channel[ch].bend.val = calc_bend_val(tmp);
+	}
 	/* Adjust pitch for notes already playing */
 	adjust_pitch(ch);
 	ctl_mode_event(CTLE_PITCH_BEND, 1, ch, channel[ch].pitchbend);
+	control_effect_xg(ch);
 	break;
 
 	/* Controls */
       case ME_TONE_BANK_MSB:
+	if(!get_rx(ch, RX_BANK_SELECT)) break;
 	channel[ch].bank_msb = ev->a;
 	break;
 
       case ME_TONE_BANK_LSB:
+	if(!get_rx(ch, RX_BANK_SELECT_LSB)) break;
 	channel[ch].bank_lsb = ev->a;
 	break;
 
       case ME_MODULATION_WHEEL:
-	channel[ch].mod.val = ev->a;
-	update_modulation_wheel(ch);
+	if(!get_rx(ch, RX_MODULATION)) break;
+	if(opt_modulation_wheel){
+		channel[ch].mod.val = ev->a;
+		update_modulation_wheel(ch);
+		control_effect_xg(ch);
+	}
 	ctl_mode_event(CTLE_MOD_WHEEL, 1, ch, channel[ch].mod.val);
 	break;
 
       case ME_MAINVOLUME:
+	if(!get_rx(ch, RX_VOLUME)) break;
 	channel[ch].volume = ev->a;
 	adjust_volume(ch);
 	ctl_mode_event(CTLE_VOLUME, 1, ch, ev->a);
 	break;
 
       case ME_PAN:
+	if(!get_rx(ch, RX_PANPOT)) break;
 	channel[ch].panning = ev->a;
 	channel[ch].pan_random = 0;
 	if(adjust_panning_immediately && !channel[ch].pan_random)
@@ -7658,12 +12635,34 @@ int play_event(MidiEvent *ev)
 	break;
 
       case ME_EXPRESSION:
+	if(!get_rx(ch, RX_EXPRESSION)) break;
 	channel[ch].expression = ev->a;
 	adjust_volume(ch);
 	ctl_mode_event(CTLE_EXPRESSION, 1, ch, ev->a);
 	break;
 
+///r
       case ME_SUSTAIN:
+	if(!get_rx(ch, RX_HOLD1)) break;		  
+	if (channel[ch].damper_mode == 0) {	/* half-damper is not allowed. */
+		if (ev->a >= 64) {
+			if(channel[ch].sustain == 0){
+				channel[ch].sustain = 127;
+				update_redamper_controls(ch);
+			}
+		}else {
+			channel[ch].sustain = 0;
+		}
+	}else{
+		if(channel[ch].sustain != ev->a){
+			channel[ch].sustain = ev->a;
+			update_redamper_controls(ch);
+		}
+	}
+	if(channel[ch].sustain == 0 && channel[ch].sostenuto == 0)
+	    drop_sustain(ch);
+	ctl_mode_event(CTLE_SUSTAIN, 1, ch, channel[ch].sustain);
+#if 0 
     if (channel[ch].sustain == 0 && ev->a >= 64) {
 		update_redamper_controls(ch);
 	}
@@ -7675,19 +12674,23 @@ int play_event(MidiEvent *ev)
 	if(channel[ch].sustain == 0 && channel[ch].sostenuto == 0)
 	    drop_sustain(ch);
 	ctl_mode_event(CTLE_SUSTAIN, 1, ch, channel[ch].sustain);
+#endif
 	break;
-
+///r
       case ME_SOSTENUTO:
+	if(!get_rx(ch, RX_SOSTENUTO)) break;	
 	channel[ch].sostenuto = (ev->a >= 64);
+	update_sostenuto_controls(ch);
 	if(channel[ch].sustain == 0 && channel[ch].sostenuto == 0)
 	    drop_sustain(ch);
-	else {update_sostenuto_controls(ch);}
 	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Sostenuto %d", channel[ch].sostenuto);
 	break;
 
       case ME_LEGATO_FOOTSWITCH:
+	if(opt_portamento){
     channel[ch].legato = (ev->a >= 64);
-	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Legato Footswitch (CH:%d VAL:%d)", ch, channel[ch].legato);
+	ctl->cmsg(CMSG_INFO,VERB_NOISY,"Legato Footswitch (CH:%d VAL:%d)", ch, ev->a);
+	}
 	break;
 
       case ME_HOLD2:
@@ -7707,41 +12710,95 @@ int play_event(MidiEvent *ev)
 	break;
 
       case ME_PORTAMENTO_TIME_MSB:
-	channel[ch].portamento_time_msb = ev->a;
-	update_portamento_time(ch);
+	if(opt_portamento){
+		channel[ch].portamento_time_msb = ev->a;
+		update_portamento_time(ch);
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Portamento Time MSB (CH:%d VAL:%d)",ch,ev->a);
+	}
 	break;
 
       case ME_PORTAMENTO_TIME_LSB:
-	channel[ch].portamento_time_lsb = ev->a;
-	update_portamento_time(ch);
+	if(opt_portamento){
+		channel[ch].portamento_time_lsb = ev->a;
+		update_portamento_time(ch);
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Portamento Time LSB (CH:%d VAL:%d)",ch,ev->a);
+	}
 	break;
 
       case ME_PORTAMENTO:
-	channel[ch].portamento = (ev->a >= 64);
-	if(!channel[ch].portamento)
-	    drop_portamento(ch);
+	if(!get_rx(ch, RX_PORTAMENTO)) break;	
+	if(opt_portamento){
+		channel[ch].portamento = (ev->a >= 64);
+		if(!channel[ch].portamento)
+			drop_portamento(ch);
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Portamento (CH:%d VAL:%d)",ch,ev->a);
+	}
+	break;
+
+      case ME_PORTAMENTO_CONTROL:
+	if(opt_portamento){
+		channel[ch].portamento_control = ev->a;
+		ctl->cmsg(CMSG_INFO,VERB_NOISY,"Portamento Control (CH:%d VAL:%d)",ch,ev->a);
+	}
 	break;
 
 	  case ME_SOFT_PEDAL:
-		  if(opt_lpf_def) {
+	if(!get_rx(ch, RX_SOFT)) break;	
+		  //if(opt_lpf_def) {
 			  channel[ch].soft_pedal = ev->a;
 			  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Soft Pedal (CH:%d VAL:%d)",ch,channel[ch].soft_pedal);
-		  }
+		 //}
 		  break;
 
 	  case ME_HARMONIC_CONTENT:
-		  if(opt_lpf_def) {
+		  //if(opt_lpf_def) {
 			  channel[ch].param_resonance = ev->a - 64;
 			  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Harmonic Content (CH:%d VAL:%d)",ch,channel[ch].param_resonance);
-		  }
+		//	  update_channel_filter(ch);//elion add.
+//			  recompute_voice_filter(ch);// elion add.
+			  recompute_channel_filter(ch);
+		  //}
 		  break;
 
 	  case ME_BRIGHTNESS:
-		  if(opt_lpf_def) {
+		  //if(opt_lpf_def) {
 			  channel[ch].param_cutoff_freq = ev->a - 64;
 			  ctl->cmsg(CMSG_INFO,VERB_NOISY,"Brightness (CH:%d VAL:%d)",ch,channel[ch].param_cutoff_freq);
-		  }
+		//	  update_channel_filter(ch);//elion add.
+//			  recompute_voice_filter(ch);// elion add.
+			  recompute_channel_filter(ch);
+		  //}
 		  break;
+
+	  case ME_VIBRATO_RATE:
+		if (opt_nrpn_vibrato) {
+			channel[ch].param_vibrato_rate = ev->a - 64;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,"Vibrato Rate (CH:%d VAL:%d)",ch,ev->a - 64);
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
+		break;
+
+	  case ME_VIBRATO_DEPTH:
+		if (opt_nrpn_vibrato) {
+			channel[ch].param_vibrato_depth = ev->a - 64;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,"Vibrato Depth (CH:%d VAL:%d)",ch,ev->a - 64);
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
+		break;
+
+	  case ME_VIBRATO_DELAY:
+		if (opt_nrpn_vibrato) {
+			channel[ch].param_vibrato_delay = ev->a - 64;
+			ctl->cmsg(CMSG_INFO, VERB_NOISY,"Vibrato Delay (CH:%d VAL:%d)",ch,ev->a - 64);
+		//	adjust_pitch(ch);
+			recompute_channel_lfo(ch);
+			recompute_channel_pitch(ch);
+		}
+		break;
 
       case ME_DATA_ENTRY_MSB:
 	if(channel[ch].rpn_7f7f_flag) /* disable */
@@ -7764,7 +12821,10 @@ int play_event(MidiEvent *ev)
 
 	case ME_REVERB_EFFECT:
 		if (opt_reverb_control) {
-			if (ISDRUMCHANNEL(ch) && get_reverb_level(ch) != ev->a) {channel[ch].drum_effect_flag = 0;}
+			if (ISDRUMCHANNEL(ch) && get_reverb_level(ch) != ev->a) {
+				if(channel[ch].drum_effect_flag)
+					channel[ch].drum_effect_flag |= 0x4; // update effect
+			}
 			set_reverb_level(ch, ev->a);
 			ctl_mode_event(CTLE_REVERB_EFFECT, 1, ch, get_reverb_level(ch));
 		}
@@ -7774,7 +12834,10 @@ int play_event(MidiEvent *ev)
 	if(opt_chorus_control)
 	{
 		if(opt_chorus_control == 1) {
-			if (ISDRUMCHANNEL(ch) && channel[ch].chorus_level != ev->a) {channel[ch].drum_effect_flag = 0;}
+			if (ISDRUMCHANNEL(ch) && channel[ch].chorus_level != ev->a) {
+				if(channel[ch].drum_effect_flag)
+					channel[ch].drum_effect_flag |= 0x4; // update effect
+			}
 			channel[ch].chorus_level = ev->a;
 		} else {
 			channel[ch].chorus_level = -opt_chorus_control;
@@ -7792,7 +12855,10 @@ int play_event(MidiEvent *ev)
 
       case ME_CELESTE_EFFECT:
 	if(opt_delay_control) {
-		if (ISDRUMCHANNEL(ch) && channel[ch].delay_level != ev->a) {channel[ch].drum_effect_flag = 0;}
+		if (ISDRUMCHANNEL(ch) && channel[ch].delay_level != ev->a) {
+			if(channel[ch].drum_effect_flag)
+				channel[ch].drum_effect_flag |= 0x4; // update effect
+		}
 		channel[ch].delay_level = ev->a;
 		if (play_system_mode == XG_SYSTEM_MODE) {
 			ctl->cmsg(CMSG_INFO,VERB_NOISY,"Variation Send (CH:%d LEVEL:%d)",ch,ev->a);
@@ -7805,6 +12871,11 @@ int play_event(MidiEvent *ev)
 	  case ME_ATTACK_TIME:
   	if(!opt_tva_attack) { break; }
 	set_envelope_time(ch, ev->a, EG_ATTACK);
+	break;
+
+	  case ME_DECAY_TIME:
+  	if(!opt_tva_decay) { break; }
+	set_envelope_time(ch, ev->a, EG_DECAY);
 	break;
 
 	  case ME_RELEASE_TIME:
@@ -7839,21 +12910,29 @@ int play_event(MidiEvent *ev)
 	break;
 
       case ME_NRPN_LSB:
+	if(!get_rx(ch, RX_NRPN)) break;
+	channel[ch].rpn_7f7f_flag = 0;
 	channel[ch].lastlrpn = ev->a;
 	channel[ch].nrpn = 1;
 	break;
 
       case ME_NRPN_MSB:
+	if(!get_rx(ch, RX_NRPN)) break;
+	channel[ch].rpn_7f7f_flag = 0;
 	channel[ch].lastmrpn = ev->a;
 	channel[ch].nrpn = 1;
 	break;
 
       case ME_RPN_LSB:
+	if(!get_rx(ch, RX_RPN)) break;
+	channel[ch].rpn_7f7f_flag = 0;
 	channel[ch].lastlrpn = ev->a;
 	channel[ch].nrpn = 0;
 	break;
 
       case ME_RPN_MSB:
+	if(!get_rx(ch, RX_RPN)) break;
+	channel[ch].rpn_7f7f_flag = 0;
 	channel[ch].lastmrpn = ev->a;
 	channel[ch].nrpn = 0;
 	break;
@@ -7944,6 +13023,8 @@ int play_event(MidiEvent *ev)
 	break;
 
       case ME_DRUMPART:
+		if(play_system_mode == XG_SYSTEM_MODE && current_event->a)
+			channel[ch].bank_msb = 127; // Drum kit
 	if(midi_drumpart_change(ch, current_event->a))
 	{
 	    /* Update bank information */
@@ -7965,7 +13046,7 @@ int play_event(MidiEvent *ev)
 	case ME_KEYSIG:
 		if (opt_init_keysig != 8)
 			break;
-		current_keysig = current_event->a + current_event->b * 16;
+		current_keysig = (current_event->a + current_event->b * 16)&0xff;
 		ctl_mode_event(CTLE_KEYSIG, 1, current_keysig, 0);
 		if (opt_force_keysig != 8) {
 			i = current_keysig - ((current_keysig < 8) ? 0 : 16), j = 0;
@@ -7982,8 +13063,9 @@ int play_event(MidiEvent *ev)
 		i = current_keysig + ((current_keysig < 8) ? 7 : -9), j = 0;
 		while (i != 7)
 			i += (i < 7) ? 5 : -7, j++;
-		j += note_key_offset, j -= floor(j / 12.0) * 12;
+		j += note_key_offset, j -= floor(j * DIV_12) * 12;
 		current_freq_table = j;
+		adjust_pitch(ch);
 		break;
 
 	case ME_MASTER_TUNING:
@@ -8013,14 +13095,15 @@ int play_event(MidiEvent *ev)
 		j = 0;
 		while (i != 7)
 			i += (i < 7) ? 5 : -7, j++;
-		j += note_key_offset, j -= floor(j / 12.0) * 12;
+		j += note_key_offset, j -= floor(j * DIV_12) * 12;
 		current_temper_freq_table = j;
 		if (current_event->b)
 			for (i = 0; i < upper_voices; i++)
 				if (voice[i].status != VOICE_FREE) {
 					voice[i].temper_instant = 1;
-					recompute_freq(i);
+				//	recompute_freq(i);
 				}
+		adjust_pitch(ch);
 		break;
 
 	case ME_TEMPER_TYPE:
@@ -8040,8 +13123,9 @@ int play_event(MidiEvent *ev)
 			for (i = 0; i < upper_voices; i++)
 				if (voice[i].status != VOICE_FREE) {
 					voice[i].temper_instant = 1;
-					recompute_freq(i);
+				//	recompute_freq(i);
 				}
+		adjust_pitch(ch);
 		break;
 
 	case ME_MASTER_TEMPER_TYPE:
@@ -8065,12 +13149,14 @@ int play_event(MidiEvent *ev)
 			for (i = 0; i < upper_voices; i++)
 				if (voice[i].status != VOICE_FREE) {
 					voice[i].temper_instant = 1;
-					recompute_freq(i);
+				//	recompute_freq(i);
 				}
+		adjust_pitch(ch);
 		break;
 
 	case ME_USER_TEMPER_ENTRY:
 		set_user_temper_entry(ch, current_event->a, current_event->b);
+		adjust_pitch(ch);
 		break;
 
 	case ME_SYSEX_LSB:
@@ -8097,6 +13183,18 @@ int play_event(MidiEvent *ev)
 		process_sysex_event(ME_SYSEX_XG_MSB,ch,current_event->a,current_event->b);
 	    break;
 
+	case ME_SYSEX_SD_LSB:
+		process_sysex_event(ME_SYSEX_SD_LSB,ch,current_event->a,current_event->b);
+	    break;
+
+	case ME_SYSEX_SD_MSB:
+		process_sysex_event(ME_SYSEX_SD_MSB,ch,current_event->a,current_event->b);
+	    break;
+
+	case ME_SYSEX_SD_HSB:
+		process_sysex_event(ME_SYSEX_SD_HSB,ch,current_event->a,current_event->b);
+	    break;
+
 	case ME_NOTE_STEP:
 		i = ev->a + ((ev->b & 0x0f) << 8);
 		j = ev->b >> 4;
@@ -8104,13 +13202,14 @@ int play_event(MidiEvent *ev)
 		if (readmidi_wrd_mode)
 			wrdt->update_events();
 		break;
-
+		
 	case ME_CUEPOINT:
 		set_cuepoint(ch, current_event->a, current_event->b);
 		break;
 
-      case ME_EOT:
-	return midi_play_end();
+	case ME_EOT:
+		ctl_mode_event(CTLE_CURRENT_TIME_END, 0, (long)(current_sample / (midi_time_ratio * play_mode->rate)), 0);
+		return midi_play_end();
     }
 #ifndef SUPPRESS_CHANNEL_LAYER
 		}
@@ -8150,14 +13249,15 @@ static void set_single_note_tuning(int part, int a, int b, int rt)
 	case 2:
 		if (st == 0x7f && a == 0x7f && b == 0x7f)	/* no change */
 			break;
-		f = 440 * pow(2.0, (st - 69) / 12.0);
+		f = 440 * pow(2.0, (st - 69) * DIV_12);
 		fst = pow(2.0, (a << 7 | b) / 196608.0);
 		freq_table_tuning[tp][kn] = f * fst * 1000 + 0.5;
 		if (rt)
 			for (i = 0; i < upper_voices; i++)
 				if (voice[i].status != VOICE_FREE) {
 					voice[i].temper_instant = 1;
-					recompute_freq(i);
+				//	recompute_freq(i);
+					recompute_voice_pitch(i);
 				}
 		break;
 	}
@@ -8231,7 +13331,7 @@ static void set_user_temper_entry(int part, int a, int b)
 		sc = 27 / ratio[9] / 16;	/* syntonic comma */
 		for (i = 0; i < 12; i++)
 			for (j = -1; j < 11; j++) {
-				f = 440 * pow(2.0, (i - 9) / 12.0 + j - 5);
+				f = 440 * pow(2.0, (i - 9) * DIV_12 + j - 5);
 				for (k = 0; k < 12; k++) {
 					l = i + j * 12 + k;
 					if (l < 0 || l >= 128)
@@ -8257,7 +13357,7 @@ static void set_user_temper_entry(int part, int a, int b)
 static void set_cuepoint(int part, int a, int b)
 {
 	static int a0 = 0, b0 = 0;
-	
+
 	if (part == 0) {
 		a0 = a, b0 = b;
 		return;
@@ -8271,20 +13371,21 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     static int play_count = 0;
 
     if (play_mode->id_character == 'M') {
-	int cnt, err;
+		int cnt, err;
 
-	err = convert_mod_to_midi_file(eventlist);
+		err = convert_mod_to_midi_file(eventlist);
 
-	play_count = 0;
-	cnt = free_global_mblock();	/* free unused memory */
-	if(cnt > 0)
-	    ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		      "%d memory blocks are free", cnt);
-	if (err) return RC_ERROR;
-	return RC_TUNE_END;
+		play_count = 0;
+		cnt = free_global_mblock();	/* free unused memory */
+		if(cnt > 0)
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+				  "%d memory blocks are free", cnt);
+		if (err) return RC_ERROR;
+		return RC_TUNE_END;
     }
+	
+    sample_count = samples;	
 
-    sample_count = samples;
     event_list = eventlist;
     lost_notes = cut_notes = 0;
     check_eot_flag = 1;
@@ -8292,45 +13393,67 @@ static int play_midi(MidiEvent *eventlist, int32 samples)
     wrd_midi_event(-1, -1); /* For initialize */
 
     reset_midi(0);
-    if(!opt_realtime_playing &&
-       allocate_cache_size > 0 &&
-       !IS_CURRENT_MOD_FILE &&
-       (play_mode->flag&PF_PCM_STREAM))
+ ///r	
+	// for opt_amp_compensation , see play_midi_prescan() adjust_amplification()
+	mainvolume_max = 0x7f;
+	compensation_ratio = 1.0;
+
+	if(!opt_realtime_playing
+	//	&& allocate_cache_size > 0
+		&& !IS_CURRENT_MOD_FILE
+		&& (play_mode->flag&PF_PCM_STREAM))
     {
-	play_midi_prescan(eventlist);
-	reset_midi(0);
+		play_midi_prescan(eventlist);
+		reset_midi(0);
     }
 
     rc = aq_flush(0);
     if(RC_IS_SKIP_FILE(rc))
 	return rc;
 
+#ifdef USE_TRACE_TIMER
+    if(ctl->trace_playing)
+		start_trace_timer();
+#endif
+	
     skip_to(midi_restart_time);
 
     if(midi_restart_time > 0) { /* Need to update interface display */
-      int i;
-      for(i = 0; i < MAX_CHANNELS; i++)
-	redraw_controllers(i);
+		int i;
+		for(i = 0; i < MAX_CHANNELS; i++)
+			redraw_controllers(i);
     }
     rc = RC_NONE;
+	
+///r
+#if 0
+	if(midi_streaming == 0 && add_silent_time){
+		sample_count += add_silent_count;
+		compute_data(add_silent_count);
+	}
+#endif
     for(;;)
     {
-	midi_restart_time = 1;
-	rc = play_event(current_event);
-	if(rc != RC_NONE)
-	    break;
-	if (midi_restart_time)    /* don't skip the first event if == 0 */
-	    current_event++;
+		midi_restart_time = 1;
+		rc = play_event(current_event);
+		if(rc != RC_NONE)
+			break;
+		if (midi_restart_time)    /* don't skip the first event if == 0 */
+			current_event++;
     }
+#ifdef USE_TRACE_TIMER
+    if(ctl->trace_playing)
+		stop_trace_timer();
+#endif
 
     if(play_count++ > 3)
     {
-	int cnt;
-	play_count = 0;
-	cnt = free_global_mblock();	/* free unused memory */
-	if(cnt > 0)
-	    ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
-		      "%d memory blocks are free", cnt);
+		int cnt;
+		play_count = 0;
+		cnt = free_global_mblock();	/* free unused memory */
+		if(cnt > 0)
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
+				  "%d memory blocks are free", cnt);
     }
     return rc;
 }
@@ -8392,7 +13515,7 @@ static int load_pcm_file_wav()
     }else{
 	ctl->cmsg(CMSG_INFO, VERB_NOISY,
 		      "open failed.");
-	free(filename);
+	safe_free(filename);
 	current_file_info->pcm_filename = NULL;
 	return -1;
     }
@@ -8428,7 +13551,7 @@ static int load_pcm_file_aiff()
     }else{
 	ctl->cmsg(CMSG_INFO, VERB_NOISY,
 		      "open failed.");
-	free(filename);
+	safe_free(filename);
 	current_file_info->pcm_filename = NULL;
 	return -1;
     }
@@ -8455,7 +13578,7 @@ static int play_midi_load_file(char *fn,
     else
 	file_from_stdin = 0;
 
-    ctl_mode_event(CTLE_NOW_LOADING, 0, (long)fn, 0);
+    ctl_mode_event(CTLE_NOW_LOADING, 0, (ptr_size_t)fn, 0);
     ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MIDI file: %s", fn);
     if((tf = open_midi_file(fn, 1, OF_VERBOSE)) == NULL)
     {
@@ -8497,22 +13620,6 @@ static int play_midi_load_file(char *fn,
        (play_mode->flag&PF_PCM_STREAM))
     {
 	/* FIXME: Instruments is not need for pcm_alternate_file. */
-
-	/* Load instruments
-	 * If opt_realtime_playing, the instruments will be loaded later.
-	 */
-	if(!opt_realtime_playing)
-	{
-	    rc = RC_NONE;
-	    load_missing_instruments(&rc);
-	    if(RC_IS_SKIP_FILE(rc))
-	    {
-		/* Instrument loading is terminated */
-		ctl_mode_event(CTLE_LOADING_DONE, 0, 1, 0);
-		clear_magic_instruments();
-		return rc;
-	    }
-	}
     }
     else
 	clear_magic_instruments();	/* Clear load markers */
@@ -8526,7 +13633,7 @@ int play_midi_file(char *fn)
 {
     int i, j, rc;
     static int last_rc = RC_NONE;
-    MidiEvent *event;
+    MidiEvent *event = NULL;
     int32 nsamples;
 
     /* Set current file information */
@@ -8562,7 +13669,12 @@ int play_midi_file(char *fn)
     ok_nv = 32;
     ok_nv_sample = 0;
     old_rate = -1;
-    reduce_quality_flag = no_4point_interpolation;
+///r
+//    reduce_quality_flag = no_4point_interpolation;
+    reduce_quality_flag = 0;
+	reduce_voice_flag = 0;
+	reduce_polyphony_flag = 0;
+
     restore_voices(0);
 #endif
 
@@ -8573,7 +13685,7 @@ int play_midi_file(char *fn)
 	i = current_keysig + ((current_keysig < 8) ? 7 : -9), j = 0;
 	while (i != 7)
 		i += (i < 7) ? 5 : -7, j++;
-	j += note_key_offset, j -= floor(j / 12.0) * 12;
+	j += note_key_offset, j -= floor(j * DIV_12) * 12;
 	current_freq_table = j;
 	ctl_mode_event(CTLE_TEMPO, 0, current_play_tempo, 0);
 	ctl_mode_event(CTLE_TIME_RATIO, 0, 100 / midi_time_ratio + 0.5, 0);
@@ -8601,7 +13713,7 @@ int play_midi_file(char *fn)
     if(current_file_info->pcm_tf){
     	close_file(current_file_info->pcm_tf);
     	current_file_info->pcm_tf = NULL;
-    	free( current_file_info->pcm_filename );
+    	safe_free( current_file_info->pcm_filename );
     	current_file_info->pcm_filename = NULL;
     }
     
@@ -8620,8 +13732,7 @@ int play_midi_file(char *fn)
 
     free_special_patch(-1);
 
-    if(event != NULL)
-	free(event);
+    safe_free(event);
     if(rc == RC_RELOAD)
 	goto play_reload;
 
@@ -8692,14 +13803,30 @@ void ctl_mode_event(int type, int trace, ptr_size_t arg1, ptr_size_t arg2)
 	ctl->event(&ce);
 }
 
-void ctl_note_event(int noteID)
+static void ctl_note_event(int noteID)
 {
     CtlEvent ce;
+
     ce.type = CTLE_NOTE;
     ce.v1 = voice[noteID].status;
     ce.v2 = voice[noteID].channel;
     ce.v3 = voice[noteID].note;
     ce.v4 = voice[noteID].velocity;
+    if(ctl->trace_playing)
+	push_midi_trace_ce(ctl->event, &ce);
+    else
+	ctl->event(&ce);
+}
+///r
+static void ctl_note_event2(uint8 channel, uint8 note, uint8 status, uint8 velocity)
+{
+    CtlEvent ce;
+
+    ce.type = CTLE_NOTE;
+    ce.v1 = status;
+    ce.v2 = channel;
+    ce.v3 = note;
+    ce.v4 = velocity;
     if(ctl->trace_playing)
 	push_midi_trace_ce(ctl->event, &ce);
     else
@@ -8770,19 +13897,22 @@ static void ctl_pause_event(int pause, int32 s)
     secs = (long)(s / (midi_time_ratio * play_mode->rate));
     ctl_mode_event(CTLE_PAUSE, 0, pause, secs);
 }
-
+///r
 char *channel_instrum_name(int ch)
 {
     char *comm;
     int bank, prog;
+	int elm = 0;
 
     if(ISDRUMCHANNEL(ch)) {
-	bank = channel[ch].bank;
-	if (drumset[bank] == NULL) return "";
-	prog = 0;
-	comm = drumset[bank]->tone[prog].comment;
-	if (comm == NULL) return "";
-	return comm;
+		bank = channel[ch].bank;
+		prog = 0;
+		instrument_map_no_mapped(channel[ch].mapID, &bank, &prog);
+		if (drumset[bank] == NULL) return " ----";
+		if(drumset[bank]->tone[prog][elm] == NULL) return " ----";
+		comm = drumset[bank]->tone[prog][elm]->comment;
+		if (comm == NULL) return " ----";
+		return comm;
     }
 
     if(channel[ch].program == SPECIAL_PROGRAM)
@@ -8804,14 +13934,21 @@ char *channel_instrum_name(int ch)
     instrument_map(channel[ch].mapID, &bank, &prog);
 
 	if (tonebank[bank] == NULL) {alloc_instrument_bank(0, bank);}
-	if (tonebank[bank]->tone[prog].name) {
-	    comm = tonebank[bank]->tone[prog].comment;
-		if (comm == NULL) {comm = tonebank[bank]->tone[prog].name;}
-	} else {
-	    comm = tonebank[0]->tone[prog].comment;
-		if (comm == NULL) {comm = tonebank[0]->tone[prog].name;}
+	if (tonebank[bank]->tone[prog][elm]){
+		if (tonebank[bank]->tone[prog][elm]->name) {
+			comm = tonebank[bank]->tone[prog][elm]->comment;
+		//	if (comm == NULL) {comm = tonebank[bank]->tone[prog][elm]->name;}
+			if (comm == NULL) {comm = " ----";}
+			return comm;
+		}
 	}
-	
+	if (tonebank[0]->tone[prog][elm]){
+	    comm = tonebank[0]->tone[prog][elm]->comment;
+	//	if (comm == NULL) {comm = tonebank[0]->tone[prog][elm]->name;}
+		if (comm == NULL) {comm = " ----";}
+	}else{
+		comm = " ----";
+	}	
     return comm;
 }
 
@@ -8842,7 +13979,10 @@ void playmidi_stream_init(void)
 
     /* Fill in current_file_info */
     current_file_info->readflag = 1;
+    safe_free(current_file_info->seq_name);
     current_file_info->seq_name = safe_strdup("TiMidity server");
+    safe_free(current_file_info->karaoke_title);
+    safe_free(current_file_info->first_text);
     current_file_info->karaoke_title = current_file_info->first_text = NULL;
     current_file_info->mid = 0x7f;
     current_file_info->hdrsiz = 0;
@@ -8884,88 +14024,173 @@ void playmidi_tmr_reset(void)
     buffered_count = 0;
     buffer_pointer = common_buffer;
     for(i = 0; i < MAX_CHANNELS; i++)
-	channel[i].lasttime = 0;
+		channel[i].lasttime = -M_32BIT;
 }
+
 
 void playmidi_stream_free(void)
 {
 	reuse_mblock(&playmidi_pool);
 }
 
+
+
 /*! initialize Part EQ (XG) */
 void init_part_eq_xg(struct part_eq_xg *p)
 {
 	p->bass = 0x40;
-	p->treble = 0x40;
+	p->treble = 0x40;	
+	p->mid_bass = 0x40;
+	p->mid_treble = 0x40;
 	p->bass_freq = 0x0C;
 	p->treble_freq = 0x36;
-	p->valid = 0;
+	p->mid_bass_freq = 0x22;
+	p->mid_treble_freq = 0x2E;	
+	p->bass_q = 0x07;
+	p->treble_q = 0x07;
+	p->mid_bass_q = 0x07;
+	p->mid_treble_q = 0x07;
+	p->bass_shape= 0x0; // def shelving
+	p->treble_shape = 0x0; // def shelving
+	p->valid = 0;	
+	recompute_part_eq_xg(p);
+}
+
+static FLOAT_T clip_part_eq_gain(int in)
+{
+	if(in < 0)
+		in = 0;
+	else if(in > 127)
+		in = 127;
+	in -= 0x40;
+	return (FLOAT_T)in * DIV_64 * 12.0; // -12.0~+12.0
+}
+
+static FLOAT_T clip_part_eq_q(int in)
+{
+	if(in < 1)
+		in = 1;
+	else if(in > 120)
+		in = 120;	
+	return (FLOAT_T)in * DIV_10; // 0.1 ~ 12.0
 }
 
 /*! recompute Part EQ (XG) */
 void recompute_part_eq_xg(struct part_eq_xg *p)
 {
-	int8 vbass, vtreble;
+	FLOAT_T freq, gain, q;
+	int8 shape, valid = 0;
 
-	if(p->bass_freq >= 4 && p->bass_freq <= 40 && p->bass != 0x40) {
-		vbass = 1;
-		p->basss.q = 0.7;
-		p->basss.freq = eq_freq_table_xg[p->bass_freq];
-		if(p->bass == 0) {p->basss.gain = -12.0;}
-		else {p->basss.gain = 0.19 * (double)(p->bass - 0x40);}
-		calc_filter_shelving_low(&(p->basss));
-	} else {vbass = 0;}
-	if(p->treble_freq >= 28 && p->treble_freq <= 58 && p->treble != 0x40) {
-		vtreble = 1;
-		p->trebles.q = 0.7;
-		p->trebles.freq = eq_freq_table_xg[p->treble_freq];
-		if(p->treble == 0) {p->trebles.gain = -12.0;}
-		else {p->trebles.gain = 0.19 * (double)(p->treble - 0x40);}
-		calc_filter_shelving_high(&(p->trebles));
-	} else {vtreble = 0;}
-	p->valid = vbass || vtreble;
+	if(p->bass != 0x40) {
+		++valid;
+		if     (p->bass_freq < 0x04)        p->bass_freq = 0x04;
+		else if(p->bass_freq > 0x28)        p->bass_freq = 0x28;
+		freq = eq_freq_table_xg[p->bass_freq];
+		gain = clip_part_eq_gain(p->bass);
+		q = clip_part_eq_q(p->bass_q);
+		shape = p->bass_shape ? FILTER_PEAKING : FILTER_SHELVING_LOW;
+		init_sample_filter2(&(p->basss), freq, gain, q, shape);
+	} else {
+		init_sample_filter2(&(p->basss), 0, 0, 0, FILTER_NONE);
+	}
+	if(p->treble != 0x40) {
+		++valid;
+		if     (p->treble_freq < 0x1C)      p->treble_freq = 0x1C;
+		else if(p->treble_freq > 0x3A)      p->treble_freq = 0x3A;
+		freq = eq_freq_table_xg[p->treble_freq];
+		gain = clip_part_eq_gain(p->treble);
+		q = clip_part_eq_q(p->treble_q);
+		shape = p->treble_shape ? FILTER_PEAKING : FILTER_SHELVING_HI;
+		init_sample_filter2(&(p->trebles), freq, gain, q, shape);
+	} else {
+		init_sample_filter2(&(p->trebles), 0, 0, 0, FILTER_NONE);
+	}
+	if(p->mid_bass != 0x40) {
+		++valid;
+		if     (p->mid_bass_freq < 0x0E)    p->mid_bass_freq = 0x0E;
+		else if(p->mid_bass_freq > 0x36)    p->mid_bass_freq = 0x36;
+		freq = eq_freq_table_xg[p->mid_bass_freq];
+		gain = clip_part_eq_gain(p->mid_bass);
+		q = clip_part_eq_q(p->mid_bass_q);
+		init_sample_filter2(&(p->mid_basss), freq, gain, q, FILTER_PEAKING);
+	} else {
+		init_sample_filter2(&(p->mid_basss), 0, 0, 0, FILTER_NONE);
+	}
+	if(p->mid_treble != 0x40) {
+		++valid;
+		if     (p->mid_treble_freq < 0x0E)  p->mid_treble_freq = 0x0E;
+		else if(p->mid_treble_freq > 0x36)  p->mid_treble_freq = 0x36;
+		freq = eq_freq_table_xg[p->mid_treble_freq];
+		gain = clip_part_eq_gain(p->mid_treble);
+		q = clip_part_eq_q(p->mid_treble_q);
+		init_sample_filter2(&(p->mid_trebles), freq, gain, q, FILTER_PEAKING);
+	} else {
+		init_sample_filter2(&(p->mid_trebles), 0, 0, 0, FILTER_NONE);
+	}
+	p->valid = valid ? 1 : 0;
 }
 
 static void init_midi_controller(midi_controller *p)
 {
+	p->mode = 0;
+	p->num = -1;
 	p->val = 0;
 	p->pitch = 0;
 	p->cutoff = 0;
 	p->amp = 0.0;
-	p->lfo1_rate = p->lfo2_rate = p->lfo1_tva_depth = p->lfo2_tva_depth = 0;
-	p->lfo1_pitch_depth = p->lfo2_pitch_depth = p->lfo1_tvf_depth = p->lfo2_tvf_depth = 0;
-	p->variation_control_depth = p->insertion_control_depth = 0;
+	p->lfo1_rate = p->lfo2_rate = 0;
+	p->lfo1_pitch_depth = p->lfo2_pitch_depth = 0;
+	p->lfo1_tvf_depth = p->lfo2_tvf_depth = 0;
+	p->lfo1_tva_depth = p->lfo2_tva_depth = 0;
 }
 
-static float get_midi_controller_amp(midi_controller *p)
+static inline float get_midi_controller_amp(midi_controller *p)
 {
-	return (1.0 + (float)p->val * (1.0f / 127.0f) * p->amp);
+	return (float)p->val * DIV_127 * p->amp; // -1.0 ~ +1.0
 }
 
-static float get_midi_controller_filter_cutoff(midi_controller *p)
+static inline float get_midi_controller_filter_cutoff(midi_controller *p)
 {
-	return ((float)p->val * (1.0f / 127.0f) * (float)p->cutoff);
+	return ((float)p->val * DIV_127 * (float)p->cutoff);
 }
 
-static float get_midi_controller_filter_depth(midi_controller *p)
-{
-	return ((float)p->val * (1.0f / 127.0f) * (float)p->lfo1_tvf_depth);
-}
-
-static int32 get_midi_controller_pitch(midi_controller *p)
+static inline int32 get_midi_controller_pitch(midi_controller *p)
 {
 	return ((int32)(p->val * p->pitch) << 6);
 }
 
-static int16 get_midi_controller_pitch_depth(midi_controller *p)
+static inline float get_midi_controller_lfo1_pitch_depth(midi_controller *p)
 {
-	return (int16)((float)p->val * (float)p->lfo1_pitch_depth * (1.0f / 127.0f * 256.0 / 400.0));
+//	return (int16)((float)p->val * (float)p->lfo1_pitch_depth * (1.0f * DIV_127 * 256.0 / 400.0));
+	return (float)p->val * DIV_127 * (float)p->lfo1_pitch_depth; // return cent
 }
 
-static int16 get_midi_controller_amp_depth(midi_controller *p)
+static inline float get_midi_controller_lfo1_amp_depth(midi_controller *p)
 {
-	return (int16)((float)p->val * (float)p->lfo1_tva_depth * (1.0f / 127.0f * 256.0));
+	return (float)p->val * DIV_127 * (float)p->lfo1_tva_depth; // * (1.0f);
 }
+
+static inline float get_midi_controller_lfo1_filter_depth(midi_controller *p)
+{
+	return ((float)p->val * DIV_127 * (float)p->lfo1_tvf_depth);
+}
+
+static inline float get_midi_controller_lfo2_pitch_depth(midi_controller *p)
+{
+//	return (int16)((float)p->val * (float)p->lfo2_pitch_depth * (1.0f * DIV_127 * 256.0 / 400.0));
+	return (float)p->val * DIV_127 * (float)p->lfo2_pitch_depth; // return cent
+}
+
+static inline float get_midi_controller_lfo2_amp_depth(midi_controller *p)
+{
+	return (float)p->val * DIV_127 * (float)p->lfo2_tva_depth; // * (1.0f);
+}
+
+static inline float get_midi_controller_lfo2_filter_depth(midi_controller *p)
+{
+	return (float)p->val * DIV_127 * (float)p->lfo2_tvf_depth;
+}
+
 
 static void init_rx(int ch)
 {
@@ -8979,12 +14204,11 @@ static void set_rx(int ch, int32 rx, int flag)
 	else {channel[ch].rx &= ~rx;}
 }
 
-#if 0
 static int32 get_rx(int ch, int32 rx)
 {
+	if(ch > MAX_CHANNELS) {return 0;}
 	return (channel[ch].rx & rx);
 }
-#endif
 
 static void init_rx_drum(struct DrumParts *p)
 {
@@ -9002,8 +14226,17 @@ static int32 get_rx_drum(struct DrumParts *p, int32 rx)
 	return (p->rx & rx);
 }
 
-void free_reverb_buffer(void)
+int32 get_current_play_tempo(void)
 {
-	free(reverb_buffer);
+	return current_play_tempo;	// 500000=120bpm
 }
+
+
+
+
+#ifdef MULTI_THREAD_COMPUTE
+#include "thread_playmidi.c"
+#endif
+
+
 

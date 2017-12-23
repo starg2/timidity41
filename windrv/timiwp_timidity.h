@@ -33,14 +33,14 @@ int timiwp_main_ini(int argc, char **argv);
 int timiwp_main_close(void);
 
 int timiwp_play_main_ini(int nfiles, char **files);
-int timiwp_play_main_close (void);
+int timiwp_play_main_close(void);
 
 void rtsyn_init(void);
 void rtsyn_stop_playing(void);
 void rtsyn_close(void);
 void rtsyn_reset(void);
-int rtsyn_play_one_data (int port, int32 dwParam1, double event_time);
-void rtsyn_play_one_sysex (char *sysexbuffer, int exlen, double event_time );
+int rtsyn_play_one_data(int port, int32 dwParam1, double event_time);
+void rtsyn_play_one_sysex(uint8 *sysexbuffer, int exlen, double event_time);
 void rtsyn_play_calculate(void);
 	
 double get_current_calender_time(void);

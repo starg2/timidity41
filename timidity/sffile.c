@@ -52,7 +52,9 @@
 #else
 #include <strings.h>
 #endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include "timidity.h"
 #include "common.h"
 #include "controls.h"
@@ -78,11 +80,11 @@ static SFBags prbags, inbags;
  * function prototypes
  *----------------------------------------------------------------*/
 
-#define NEW(type,nums)	(type*)safe_malloc(sizeof(type) * (nums))
+#define NEW(type, nums)	(type*) safe_malloc(sizeof(type) * (nums))
 
 static int READCHUNK(SFChunk *vp, struct timidity_file *tf)
 {
-    if(tf_read(vp, 8, 1, tf) != 1)
+    if (tf_read(vp, 8, 1, tf) != 1)
 	return -1;
     vp->size = LE_LONG(vp->size);
     return 1;
@@ -90,7 +92,7 @@ static int READCHUNK(SFChunk *vp, struct timidity_file *tf)
 
 static int READDW(uint32 *vp, struct timidity_file *tf)
 {
-    if(tf_read(vp, 4, 1, tf) != 1)
+    if (tf_read(vp, 4, 1, tf) != 1)
 	return -1;
     *vp = LE_LONG(*vp);
     return 1;
@@ -98,48 +100,48 @@ static int READDW(uint32 *vp, struct timidity_file *tf)
 
 static int READW(uint16 *vp, struct timidity_file *tf)
 {
-    if(tf_read(vp, 2, 1, tf) != 1)
+    if (tf_read(vp, 2, 1, tf) != 1)
 	return -1;
     *vp = LE_SHORT(*vp);
     return 1;
 }
 
-static int READSTR(char *str, struct timidity_file *tf)
+static off_size_t READSTR(char *str, struct timidity_file *tf)
 {
-    int n;
+    off_size_t n;
 
-    if(tf_read(str, 20, 1, tf) != 1)
+    if (tf_read(str, 20, 1, tf) != 1)
 	return -1;
     str[19] = '\0';
     n = strlen(str);
-    while(n > 0 && str[n - 1] == ' ')
+    while (n > 0 && str[n - 1] == ' ')
 	n--;
     str[n] = '\0';
     return n;
 }
 
-#define READID(var,tf)	tf_read(var, 4, 1, tf)
-#define READB(var,tf)	tf_read(&var, 1, 1, tf)
+#define READID(var, tf)	tf_read(var, 4, 1, tf)
+#define READB(var, tf)	tf_read(&var, 1, 1, tf)
 #define SKIPB(tf)	skip(tf, 1)
 #define SKIPW(tf)	skip(tf, 2)
 #define SKIPDW(tf)	skip(tf, 4)
 
-#define FSKIP(size,tf)	skip(tf, size)
+#define FSKIP(size, tf)	skip(tf, size)
 
 
 /*----------------------------------------------------------------*/
 
 static int chunkid(char *id);
-static int process_list(int size, SFInfo *sf, struct timidity_file *fd);
-static int process_info(int size, SFInfo *sf, struct timidity_file *fd);
-static int process_sdta(int size, SFInfo *sf, struct timidity_file *fd);
-static int process_pdta(int size, SFInfo *sf, struct timidity_file *fd);
-static void load_sample_names(int size, SFInfo *sf, struct timidity_file *fd);
-static void load_preset_header(int size, SFInfo *sf, struct timidity_file *fd);
-static void load_inst_header(int size, SFInfo *sf, struct timidity_file *fd);
-static void load_bag(int size, SFBags *bagp, struct timidity_file *fd);
-static void load_gen(int size, SFBags *bagp, struct timidity_file *fd);
-static void load_sample_info(int size, SFInfo *sf, struct timidity_file *fd);
+static int process_list(off_size_t size, SFInfo *sf, struct timidity_file *fd);
+static int process_info(off_size_t size, SFInfo *sf, struct timidity_file *fd);
+static int process_sdta(off_size_t size, SFInfo *sf, struct timidity_file *fd);
+static int process_pdta(off_size_t size, SFInfo *sf, struct timidity_file *fd);
+static void load_sample_names(off_size_t size, SFInfo *sf, struct timidity_file *fd);
+static void load_preset_header(off_size_t size, SFInfo *sf, struct timidity_file *fd);
+static void load_inst_header(off_size_t size, SFInfo *sf, struct timidity_file *fd);
+static void load_bag(off_size_t size, SFBags *bagp, struct timidity_file *fd);
+static void load_gen(off_size_t size, SFBags *bagp, struct timidity_file *fd);
+static void load_sample_info(off_size_t size, SFInfo *sf, struct timidity_file *fd);
 static void convert_layers(SFInfo *sf);
 static void generate_layers(SFHeader *hdr, SFHeader *next, SFBags *bags);
 static void free_layer(SFHeader *hdr);
@@ -158,7 +160,7 @@ enum {
 	IFIL_ID, ISNG_ID, IROM_ID, INAM_ID, IVER_ID, IPRD_ID, ICOP_ID,
 	ICRD_ID, IENG_ID, ISFT_ID, ICMT_ID,
 	/* sample data stuff; chunk */
-	SNAM_ID, SMPL_ID,
+	SNAM_ID, SMPL_ID, SM24_ID,
 	/* preset stuff; chunk */
 	PHDR_ID, PBAG_ID, PMOD_ID, PGEN_ID,
 	/* inst stuff; chunk */
@@ -180,6 +182,8 @@ int load_soundfont(SFInfo *sf, struct timidity_file *fd)
 	sf->sample = NULL;
 	sf->inst = NULL;
 	sf->sf_name = NULL;
+///r
+	sf->lowbitpos = 0;
 
 	prbags.bag = inbags.bag = NULL;
 	prbags.gen = inbags.gen = NULL;
@@ -200,7 +204,7 @@ int load_soundfont(SFInfo *sf, struct timidity_file *fd)
 	}
 
 	for (;;) {
-		if(READCHUNK(&chunk, fd) <= 0)
+		if (READCHUNK(&chunk, fd) <= 0)
 			break;
 		else if (chunkid(chunk.id) == LIST_ID) {
 			if (process_list(chunk.size, sf, fd))
@@ -208,7 +212,7 @@ int load_soundfont(SFInfo *sf, struct timidity_file *fd)
 		} else {
 			ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 				  "%s: *** illegal id in level 0: %4.4s %4d",
-				  current_filename, chunk.id, chunk.size);
+				  current_filename, chunk.id, (int)chunk.size);
 			FSKIP(chunk.size, fd);
 		}
 	}
@@ -217,10 +221,14 @@ int load_soundfont(SFInfo *sf, struct timidity_file *fd)
 	convert_layers(sf);
 
 	/* free private tables */
-	if (prbags.bag) free(prbags.bag);
-	if (prbags.gen) free(prbags.gen);
-	if (inbags.bag) free(inbags.bag);
-	if (inbags.gen) free(inbags.gen);
+	safe_free(prbags.bag);
+	prbags.bag = NULL;
+	safe_free(prbags.gen);
+	prbags.gen = NULL;
+	safe_free(inbags.bag);
+	inbags.bag = NULL;
+	safe_free(inbags.gen);
+	inbags.gen = NULL;
 
 	return 0;
 }
@@ -236,15 +244,19 @@ void free_soundfont(SFInfo *sf)
 	if (sf->preset) {
 		for (i = 0; i < sf->npresets; i++)
 			free_layer(&sf->preset[i].hdr);
-		free(sf->preset);
 	}
+	safe_free(sf->preset);
+	sf->preset = NULL;
 	if (sf->inst) {
 		for (i = 0; i < sf->ninsts; i++)
 			free_layer(&sf->inst[i].hdr);
-		free(sf->inst);
 	}
-	if (sf->sample) free(sf->sample);
-	if (sf->sf_name) free(sf->sf_name);
+	safe_free(sf->inst);
+	sf->inst = NULL;
+	safe_free(sf->sample);
+	sf->sample = NULL;
+	safe_free(sf->sf_name);
+	sf->sf_name = NULL;
 }
 
 
@@ -258,40 +270,41 @@ static int chunkid(char *id)
 		char *str;
 		int id;
 	} idlist[] = {
-		{"RIFF", RIFF_ID},
-		{"LIST", LIST_ID},
-		{"sfbk", SFBK_ID},
-		{"INFO", INFO_ID},
-		{"sdta", SDTA_ID},
-		{"snam", SNAM_ID},
-		{"smpl", SMPL_ID},
-		{"pdta", PDTA_ID},
-		{"phdr", PHDR_ID},
-		{"pbag", PBAG_ID},
-		{"pmod", PMOD_ID},
-		{"pgen", PGEN_ID},
-		{"inst", INST_ID},
-		{"ibag", IBAG_ID},
-		{"imod", IMOD_ID},
-		{"igen", IGEN_ID},
-		{"shdr", SHDR_ID},
-		{"ifil", IFIL_ID},
-		{"isng", ISNG_ID},
-		{"irom", IROM_ID},
-		{"iver", IVER_ID},
-		{"INAM", INAM_ID},
-		{"IPRD", IPRD_ID},
-		{"ICOP", ICOP_ID},
-		{"ICRD", ICRD_ID},
-		{"IENG", IENG_ID},
-		{"ISFT", ISFT_ID},
-		{"ICMT", ICMT_ID},
+		{ "RIFF", RIFF_ID },
+		{ "LIST", LIST_ID },
+		{ "sfbk", SFBK_ID },
+		{ "INFO", INFO_ID },
+		{ "sdta", SDTA_ID },
+		{ "snam", SNAM_ID },
+		{ "smpl", SMPL_ID },
+		{ "sm24", SM24_ID },
+		{ "pdta", PDTA_ID },
+		{ "phdr", PHDR_ID },
+		{ "pbag", PBAG_ID },
+		{ "pmod", PMOD_ID },
+		{ "pgen", PGEN_ID },
+		{ "inst", INST_ID },
+		{ "ibag", IBAG_ID },
+		{ "imod", IMOD_ID },
+		{ "igen", IGEN_ID },
+		{ "shdr", SHDR_ID },
+		{ "ifil", IFIL_ID },
+		{ "isng", ISNG_ID },
+		{ "irom", IROM_ID },
+		{ "iver", IVER_ID },
+		{ "INAM", INAM_ID },
+		{ "IPRD", IPRD_ID },
+		{ "ICOP", ICOP_ID },
+		{ "ICRD", ICRD_ID },
+		{ "IENG", IENG_ID },
+		{ "ISFT", ISFT_ID },
+		{ "ICMT", ICMT_ID },
 	};
 
-	int i;
+	ptr_size_t i;
 
-	for (i = 0; i < sizeof(idlist)/sizeof(idlist[0]); i++) {
-		if (strncmp(id, idlist[i].str, 4) == 0)
+	for (i = 0; i < sizeof(idlist) / sizeof(idlist[0]); i++) {
+		if (!strncmp(id, idlist[i].str, 4))
 			return idlist[i].id;
 	}
 
@@ -303,7 +316,7 @@ static int chunkid(char *id)
  * process a list chunk
  *================================================================*/
 
-static int process_list(int size, SFInfo *sf, struct timidity_file *fd)
+static int process_list(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
 	SFChunk chunk;
 
@@ -327,22 +340,22 @@ static int process_list(int size, SFInfo *sf, struct timidity_file *fd)
 	}
 }
 
-			
+
 /*================================================================
  * process info list
  *================================================================*/
-		
-static int process_info(int size, SFInfo *sf, struct timidity_file *fd)
+
+static int process_info(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
 	sf->infopos = tf_tell(fd);
 	sf->infosize = size;
-	
+
 	/* parse the buffer */
 	while (size > 0) {
 		SFChunk chunk;
 
 		/* read a sub chunk */
-		if(READCHUNK(&chunk, fd) <= 0)
+		if (READCHUNK(&chunk, fd) <= 0)
 		    return -1;
 		size -= 8;
 
@@ -359,18 +372,18 @@ static int process_info(int size, SFInfo *sf, struct timidity_file *fd)
 			break;
 		case INAM_ID:
 			/* name of the font */
-			sf->sf_name = (char*)safe_malloc(chunk.size + 1);
+			sf->sf_name = (char*) safe_malloc(chunk.size + 1);
 			tf_read(sf->sf_name, 1, chunk.size, fd);
 			sf->sf_name[chunk.size] = 0;
 			ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 				  "  name %s", sf->sf_name);
 			break;
-			
+
 		default:
-			if(ctl->verbosity >= VERB_DEBUG)
+			if (ctl->verbosity >= VERB_DEBUG)
 			{
 			    char buff[100];
-			    if(chunk.size < sizeof(buff) - 1)
+			    if (chunk.size < sizeof(buff) - 1)
 			    {
 				tf_read(buff, chunk.size, 1, fd);
 				buff[chunk.size] = '\0';
@@ -401,13 +414,13 @@ static int process_info(int size, SFInfo *sf, struct timidity_file *fd)
  * process sample data list
  *================================================================*/
 
-static int process_sdta(int size, SFInfo *sf, struct timidity_file *fd)
+static int process_sdta(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
 	while (size > 0) {
 		SFChunk chunk;
 
 		/* read a sub chunk */
-		if(READCHUNK(&chunk, fd) <= 0)
+		if (READCHUNK(&chunk, fd) <= 0)
 		    return -1;
 		size -= 8;
 
@@ -424,6 +437,11 @@ static int process_sdta(int size, SFInfo *sf, struct timidity_file *fd)
 			sf->samplesize = chunk.size;
 			FSKIP(chunk.size, fd);
 			break;
+		case SM24_ID:
+			/* sample data starts from here */
+			sf->lowbitpos = tf_tell(fd);
+			FSKIP(chunk.size, fd);
+			break;
 		default:
 			FSKIP(chunk.size, fd);
 			break;
@@ -438,13 +456,13 @@ static int process_sdta(int size, SFInfo *sf, struct timidity_file *fd)
  * process preset data list
  *================================================================*/
 
-static int process_pdta(int size, SFInfo *sf, struct timidity_file *fd)
+static int process_pdta(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
 	while (size > 0) {
 		SFChunk chunk;
 
 		/* read a subchunk */
-		if(READCHUNK(&chunk, fd) <= 0)
+		if (READCHUNK(&chunk, fd) <= 0)
 		    return -1;
 		size -= 8;
 
@@ -488,9 +506,10 @@ static int process_pdta(int size, SFInfo *sf, struct timidity_file *fd)
  * store sample name list; sf1 only
  *----------------------------------------------------------------*/
 
-static void load_sample_names(int size, SFInfo *sf, struct timidity_file *fd)
+static void load_sample_names(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
-	int i, nsamples;
+	ptr_size_t i;
+	off_size_t nsamples;
 	if (sf->version > 1) {
 		ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 			  "%s: *** version 2 has obsolete format??",
@@ -501,17 +520,17 @@ static void load_sample_names(int size, SFInfo *sf, struct timidity_file *fd)
 
 	/* each sample name has a fixed lentgh (20 bytes) */
 	nsamples = size / 20;
-	if (sf->sample == NULL) {
+	if (!sf->sample) {
 		sf->nsamples = nsamples;
 		sf->sample = NEW(SFSampleInfo, sf->nsamples);
 	} else if (sf->nsamples != nsamples) {
 		ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 			  "%s: *** different # of samples ?? (%d : %d)\n",
-			  current_filename, sf->nsamples, nsamples);
+			  current_filename, (int)sf->nsamples, (int)nsamples);
 		FSKIP(size, fd);
 		return;
 	}
-		
+
 	/* read each name from file */
 	for (i = 0; i < sf->nsamples; i++) {
 		READSTR(sf->sample[i].name, fd);
@@ -523,9 +542,9 @@ static void load_sample_names(int size, SFInfo *sf, struct timidity_file *fd)
  * preset header list
  *----------------------------------------------------------------*/
 
-static void load_preset_header(int size, SFInfo *sf, struct timidity_file *fd)
+static void load_preset_header(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
-	int i;
+	ptr_size_t i;
 
 	sf->npresets = size / 38;
 	sf->preset = NEW(SFPresetHdr, sf->npresets);
@@ -543,7 +562,7 @@ static void load_preset_header(int size, SFInfo *sf, struct timidity_file *fd)
 
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 			  "  Preset %d (%s) index=%d bank=%d preset=%d",
-			  i, sf->preset[i].hdr.name,
+			  (int)i, sf->preset[i].hdr.name,
 			  sf->preset[i].hdr.bagNdx,
 			  sf->preset[i].bank,
 			  sf->preset[i].preset + progbase);
@@ -555,9 +574,9 @@ static void load_preset_header(int size, SFInfo *sf, struct timidity_file *fd)
  * instrument header list
  *----------------------------------------------------------------*/
 
-static void load_inst_header(int size, SFInfo *sf, struct timidity_file *fd)
+static void load_inst_header(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
-	int i;
+	ptr_size_t i;
 
 	sf->ninsts = size / 22;
 	sf->inst = NEW(SFInstHdr, sf->ninsts);
@@ -570,7 +589,7 @@ static void load_inst_header(int size, SFInfo *sf, struct timidity_file *fd)
 
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 			  "  InstHdr %d (%s) bagNdx=%d",
-			  i, sf->inst[i].hdr.name, sf->inst[i].hdr.bagNdx);
+			  (int)i, sf->inst[i].hdr.name, sf->inst[i].hdr.bagNdx);
 	}
 }
 
@@ -579,11 +598,11 @@ static void load_inst_header(int size, SFInfo *sf, struct timidity_file *fd)
  * load preset/instrument bag list on the private table
  *----------------------------------------------------------------*/
 
-static void load_bag(int size, SFBags *bagp, struct timidity_file *fd)
+static void load_bag(off_size_t size, SFBags *bagp, struct timidity_file *fd)
 {
-	int i;
+	ptr_size_t i;
 
-	size /= 4;
+	size >>= 2;
 	bagp->bag = NEW(uint16, size);
 	for (i = 0; i < size; i++) {
 		READW(&bagp->bag[i], fd);
@@ -597,15 +616,15 @@ static void load_bag(int size, SFBags *bagp, struct timidity_file *fd)
  * load preset/instrument generator list on the private table
  *----------------------------------------------------------------*/
 
-static void load_gen(int size, SFBags *bagp, struct timidity_file *fd)
+static void load_gen(off_size_t size, SFBags *bagp, struct timidity_file *fd)
 {
-	int i;
+	ptr_size_t i;
 
-	size /= 4;
+	size >>= 2;
 	bagp->gen = NEW(SFGenRec, size);
 	for (i = 0; i < size; i++) {
-		READW((uint16 *)&bagp->gen[i].oper, fd);
-		READW((uint16 *)&bagp->gen[i].amount, fd);
+		READW((uint16*)&bagp->gen[i].oper, fd);
+		READW((uint16*)&bagp->gen[i].amount, fd);
 	}
 	bagp->ngens = size;
 }
@@ -615,9 +634,9 @@ static void load_gen(int size, SFBags *bagp, struct timidity_file *fd)
  * load sample info list
  *----------------------------------------------------------------*/
 
-static void load_sample_info(int size, SFInfo *sf, struct timidity_file *fd)
+static void load_sample_info(off_size_t size, SFInfo *sf, struct timidity_file *fd)
 {
-	int i;
+	ptr_size_t i;
 	int in_rom;
 
 	/* the record size depends on the soundfont version */
@@ -627,14 +646,14 @@ static void load_sample_info(int size, SFInfo *sf, struct timidity_file *fd)
 		sf->sample = NEW(SFSampleInfo, sf->nsamples);
 	} else  {
 		/* SBK; sample name may be read already */
-		int nsamples = size / 16;
-		if (sf->sample == NULL) {
+		ptr_size_t nsamples = divi_16(size);
+		if (!sf->sample) {
 			sf->nsamples = nsamples;
 			sf->sample = NEW(SFSampleInfo, sf->nsamples);
 		} else if (sf->nsamples != nsamples) {
 #if 0
 			fprintf(stderr, "*** different # of infos ?? (%d : %d)\n",
-			       sf->nsamples, nsamples);
+			       (int)sf->nsamples, (int)nsamples);
 			FSKIP(size, fd);
 			return;
 #endif
@@ -647,12 +666,12 @@ static void load_sample_info(int size, SFInfo *sf, struct timidity_file *fd)
 	for (i = 0; i < sf->nsamples; i++) {
 		if (sf->version > 1) /* SF2 only */
 			READSTR(sf->sample[i].name, fd);
-		READDW((uint32 *)&sf->sample[i].startsample, fd);
-		READDW((uint32 *)&sf->sample[i].endsample, fd);
-		READDW((uint32 *)&sf->sample[i].startloop, fd);
-		READDW((uint32 *)&sf->sample[i].endloop, fd);
+		READDW((uint32*)&sf->sample[i].startsample, fd);
+		READDW((uint32*)&sf->sample[i].endsample, fd);
+		READDW((uint32*)&sf->sample[i].startloop, fd);
+		READDW((uint32*)&sf->sample[i].endloop, fd);
 		if (sf->version > 1) { /* SF2 only */
-			READDW((uint32 *)&sf->sample[i].samplerate, fd);
+			READDW((uint32*)&sf->sample[i].samplerate, fd);
 			READB(sf->sample[i].originalPitch, fd);
 			READB(sf->sample[i].pitchCorrection, fd);
 			READW(&sf->sample[i].samplelink, fd);
@@ -682,8 +701,8 @@ static void convert_layers(SFInfo *sf)
 {
 	int i;
 
-	if (prbags.bag == NULL || prbags.gen == NULL ||
-	    inbags.bag == NULL || inbags.gen == NULL) {
+	if (!prbags.bag || !prbags.gen ||
+	    !inbags.bag || !inbags.gen) {
 		ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 			  "%s: *** illegal bags / gens", current_filename);
 		return;
@@ -691,12 +710,12 @@ static void convert_layers(SFInfo *sf)
 
 	for (i = 0; i < sf->npresets - 1; i++) {
 		generate_layers(&sf->preset[i].hdr,
-				&sf->preset[i+1].hdr,
+				&sf->preset[i + 1].hdr,
 				&prbags);
 	}
 	for (i = 0; i < sf->ninsts - 1; i++) {
 		generate_layers(&sf->inst[i].hdr,
-				&sf->inst[i+1].hdr,
+				&sf->inst[i + 1].hdr,
 				&inbags);
 	}
 }
@@ -710,7 +729,7 @@ static void generate_layers(SFHeader *hdr, SFHeader *next, SFBags *bags)
 {
 	int i;
 	SFGenLayer *layp;
-	
+
 	hdr->nlayers = next->bagNdx - hdr->bagNdx;
 	if (hdr->nlayers < 0) {
 		ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
@@ -720,18 +739,18 @@ static void generate_layers(SFHeader *hdr, SFHeader *next, SFBags *bags)
 	}
 	if (hdr->nlayers == 0)
 		return;
-	hdr->layer = (SFGenLayer*)safe_malloc(sizeof(SFGenLayer) * hdr->nlayers);
+	hdr->layer = (SFGenLayer*) safe_malloc(sizeof(SFGenLayer) * hdr->nlayers);
 	layp = hdr->layer;
 	for (layp = hdr->layer, i = hdr->bagNdx; i < next->bagNdx; layp++, i++) {
 		int genNdx = bags->bag[i];
-		layp->nlists = bags->bag[i+1] - genNdx;
+		layp->nlists = bags->bag[i + 1] - genNdx;
 		if (layp->nlists < 0) {
 			ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 				  "%s: illegal list numbers %d",
 				  current_filename, layp->nlists);
 			return;
 		}
-		layp->list = (SFGenRec*)safe_malloc(sizeof(SFGenRec) * layp->nlists);
+		layp->list = (SFGenRec*) safe_malloc(sizeof(SFGenRec) * layp->nlists);
 		memcpy(layp->list, &bags->gen[genNdx],
 		       sizeof(SFGenRec) * layp->nlists);
 	}
@@ -746,11 +765,23 @@ static void free_layer(SFHeader *hdr)
 	int i;
 	for (i = 0; i < hdr->nlayers; i++) {
 		SFGenLayer *layp = &hdr->layer[i];
-		if (layp->nlists >= 0)
-			free(layp->list);
+		/*if (layp->nlists > 0)
+			safe_free(layp->list);
+        */
+        //メモリリーク修正 by Kobarin
+        //generate_layers で layp->nlists==0 のときに safe_malloc(0) している
+        //safe_malloc(0) は内部的に 1 バイト malloc している
+        //
+        //layp->nlists<0 の場合は safe_malloc していない & layp->list==NULL とは限らない
+        if (layp->nlists >= 0) {
+            safe_free(layp->list);
+            layp->list = NULL;
+        }
 	}
-	if (hdr->nlayers > 0)
-		free(hdr->layer);
+    if (hdr->nlayers > 0) {
+		safe_free(hdr->layer);
+		hdr->layer = NULL;
+    }
 }
 
 /* add blank loop for each data */
@@ -759,7 +790,7 @@ void correct_samples(SFInfo *sf)
 {
 	int i;
 	SFSampleInfo *sp;
-	int prev_end;
+	ptr_size_t prev_end;
 
 	prev_end = 0;
 	for (sp = sf->sample, i = 0; i < sf->nsamples; i++, sp++) {
@@ -776,14 +807,14 @@ void correct_samples(SFInfo *sf)
 			sp->size = 0;
 		else {
 			sp->size = -1;
-			if (!auto_add_blank && i != sf->nsamples-1)
+			if (!auto_add_blank && i != sf->nsamples - 1)
 				sp->size = sp[1].startsample - sp->startsample;
 			if (sp->size < 0)
 				sp->size = sp->endsample - sp->startsample + 48;		}
 		prev_end = sp->endsample;
 
 		/* calculate short-shot loop size */
-		if (auto_add_blank || i == sf->nsamples-1)
+		if (auto_add_blank || i == sf->nsamples - 1)
 			sp->loopshot = 48;
 		else {
 			sp->loopshot = sp[1].startsample - sp->endsample;

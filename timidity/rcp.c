@@ -1055,7 +1055,7 @@ static int read_rcp_track(struct timidity_file *tf, int trackno, int gfmt)
 		}
 #endif /* RCP_LOOP_CONT_LIMIT */
 #ifdef RCP_LOOP_TIME_LIMIT
-		else if((current_tempo / 1000000.0) *
+		else if((current_tempo * DIV_1000000) *
 			(ntr_at(ntr) - stack[top].start_at)
 			/ current_file_info->divisions
 			> RCP_LOOP_TIME_LIMIT)

@@ -23,11 +23,11 @@
 
 typedef struct _UNLZHHandler *UNLZHHandler;
 
-extern UNLZHHandler open_unlzh_handler(long (* read_func)(char*,long,void*),
+extern UNLZHHandler open_unlzh_handler(ptr_size_t (*read_func)(char*, ptr_size_t, void*),
 				       const char *method,
-				       long compsize, long origsize,
+				       ptr_size_t compsize, ptr_size_t origsize,
 				       void *user_val);
-extern long unlzh(UNLZHHandler decoder, char *buff, long buff_size);
+extern ptr_size_t unlzh(UNLZHHandler decoder, char *buff, ptr_size_t buff_size);
 extern void close_unlzh_handler(UNLZHHandler decoder);
 
 extern char *lzh_methods[];

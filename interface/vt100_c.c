@@ -63,6 +63,10 @@
 #define CHECK_NOTE_SLEEP_TIME 5.0
 #define INDICATOR_UPDATE_TIME 0.2
 
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
+#endif
+
 static struct
 {
     int prog;
@@ -121,7 +125,7 @@ static void ctl_lyric(uint16 lyricid);
 static void ctl_reset(void);
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(int32 *valp);
+static int ctl_read(ptr_size_t *valp);
 static int ctl_write(char *valp, int32 size);
 static int cmsg(int type, int verbosity_level, char *fmt, ...);
 static void ctl_event(CtlEvent *e);
@@ -599,11 +603,18 @@ static int ctl_open(int using_stdin, int using_stdout)
 
 static void ctl_close(void)
 {
+    int i;
+
     if (ctl.opened)
     {
 	ctl.opened = 0;
 	vt100_move(24, 0);
 	vt100_refresh();
+    }
+
+    for (i = 0; i < MAX_CHANNELS; i ++)
+    {
+	finalize_bitset(channel_program_flags + i);
     }
 }
 
@@ -651,15 +662,15 @@ static void move_select_channel(int diff)
     }
 }
 
-static int ctl_read(int32 *valp)
+static int ctl_read(ptr_size_t *valp)
 {
     char *cmd;
-
-	if (cuepoint_pending) {
-		*valp = cuepoint;
-		cuepoint_pending = 0;
-		return RC_FORWARD;
-	}
+	
+    if (cuepoint_pending) {
+	*valp = cuepoint;
+	cuepoint_pending = 0;
+	return RC_FORWARD;
+    }
     if((cmd = vt100_getline()) == NULL)
 	return RC_NONE;
     switch(cmd[0])
@@ -1231,10 +1242,10 @@ static void ctl_event(CtlEvent *e)
 	break;
       case CTLE_PLAY_END:
 	break;
-	case CTLE_CUEPOINT:
-		cuepoint = e->v1;
-		cuepoint_pending = 1;
-		break;
+      case CTLE_CUEPOINT:
+	cuepoint = e->v1;
+	cuepoint_pending = 1;
+	break;
       case CTLE_TEMPO:
 	break;
       case CTLE_METRONOME:

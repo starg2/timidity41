@@ -38,7 +38,7 @@
 #include "tables.h"
 #include "controls.h"
 
-int load_table(char *file)
+int load_table(const char *file)
 {
 	FILE *fp;
 	char tmp[1024], *value;

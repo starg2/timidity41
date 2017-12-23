@@ -40,8 +40,8 @@ extern void aq_set_soft_queue(double soft_buff_time, double fill_start_time);
  * If fill_start_time is positive, TiMidity doesn't start playing immidiately
  * until the autio buffer is filled.
  */
-
-extern int aq_add(int32 *samples, int32 count);
+///r
+extern int aq_add(DATA_T *samples, int32 count);
 /* aq_add() adds new samples to software queue.  If samples is NULL,
  * aq_add() only updates internal software queue buffer.
  */
@@ -85,5 +85,8 @@ extern int aq_fill_buffer_flag;
 
 extern void free_soft_queue(void);
 /* free soft_que memory */
+
+extern void free_audio_bucket(void);
+/* free audio_bucket memory */
 
 #endif /* ___AQ_H_ */

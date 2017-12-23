@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2014 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -60,6 +60,7 @@ int WINAPI timeKillEvent(UINT uTimerID);
 			 * Edit_* and ListBox_* are defined in
 			 * <windowsx.h>
 			 */
+#include "interface.h"
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -76,6 +77,11 @@ int WINAPI timeKillEvent(UINT uTimerID);
 #include "w32g_ut2.h"
 #include "w32g_pref.h"
 #include "w32g_subwin.h"
+///r
+#include "aq.h"
+#ifdef INT_SYNTH
+#include "w32g_int_synth_editor.h"	
+#endif
 
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 #define WIN32GCC
@@ -122,6 +128,7 @@ void ClearDocWnd(void);
 static void DlgPlaylistSave(HWND hwnd);
 static void DlgPlaylistOpen(HWND hwnd);
 static void DlgDirOpen(HWND hwnd);
+static void DlgUrlOpen(HWND hwnd);
 static void DlgMidiFileOpen(HWND hwnd);
 void VprintfEditCtlWnd(HWND hwnd, char *fmt, va_list argList);
 void PutsEditCtlWnd(HWND hwnd, char *str);
@@ -139,7 +146,11 @@ HINSTANCE hInst;
 static int progress_jump = -1;
 static HWND hMainWndScrollbarProgressWnd;
 static HWND hMainWndScrollbarVolumeWnd;
-#define W32G_VOLUME_MAX 200
+static HWND hMainWndScrollbarProgressTTipWnd;
+static HWND hMainWndScrollbarVolumeTTipWnd;
+
+//#define W32G_VOLUME_MAX 300
+#define W32G_VOLUME_MAX MAX_AMPLIFICATION
 
 // HWND
 HWND hMainWnd = 0;
@@ -152,6 +163,7 @@ HWND hWrdWnd = 0;
 HWND hSoundSpecWnd = 0;
 HWND hDebugEditWnd = 0;
 HWND hDocEditWnd = 0;
+HWND hUrlWnd = 0;
 
 // Process.
 HANDLE hProcess = 0;
@@ -191,6 +203,7 @@ int ListWndStartFlag = 0;
 int TracerWndStartFlag = 0;
 int DocWndStartFlag = 0;
 int WrdWndStartFlag = 0;
+int SoundSpecWndStartFlag = 0;
 
 int DebugWndFlag = 1;
 int ConsoleWndFlag = 1;
@@ -199,6 +212,9 @@ int TracerWndFlag = 0;
 int DocWndFlag = 1;
 int WrdWndFlag = 0;
 int SoundSpecWndFlag = 0;
+///r
+int RestartTimidity = 0;
+int ConsoleClearFlag = 0;
 
 int WrdGraphicFlag;
 int TraceGraphicFlag;
@@ -211,8 +227,9 @@ char *MidiFileOpenDir;
 char *ConfigFileOpenDir;
 char *PlaylistFileOpenDir;
 
+///r
 // Priority
-int PlayerThreadPriority;
+//int PlayerThreadPriority;
 int MidiPlayerThreadPriority;
 int MainThreadPriority;
 int GUIThreadPriority;
@@ -221,7 +238,6 @@ int WrdThreadPriority;
 
 // dir
 int SeachDirRecursive = 0;	// 再帰的ディレクトリ検索 
-
 // Ini File
 int IniFileAutoSave = 1;	// INI ファイルの自動セーブ
 
@@ -267,32 +283,70 @@ long SetValue(int32 value, int32 min, int32 max)
 
 int w32gSecondTiMidity(int opt, int argc, char **argv);
 int w32gSecondTiMidityExit(void);
-int SecondMode = 0;
+int SecondMode = 1;
+
 void FirstLoadIniFile(void);
 
 #ifndef WIN32GCC
+#ifndef TIM_CUI
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
 int WINAPI
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 LPSTR lpCmdLine, int nCmdShow)
 {
-	int argc;
+	
+	int argc = 0;
 	CHAR **argv = NULL;
+	int errcode;
+	int i;
+	static int first = 0;
+
+	Sleep(100); // Restartで前プロセスの終了待機
+#ifdef _CRTDBG_MAP_ALLOC
+	_CrtSetDbgFlag(CRTDEBUGFLAGS);
+#endif
 	CmdLineToArgv(lpCmdLine,&argc,&argv);
 #if 0
 	FirstLoadIniFile();
 	if(w32gSecondTiMidity(SecondMode,argc,argv)==TRUE){
 		int res = win_main(argc, argv);
 		w32gSecondTiMidityExit();
+		for(i = 0; i < argc; i ++) {
+			safe_free(argv[i]);
+		}
+		safe_free(argv);
 		return res;
-	} else
+	} else {
+		for(i = 0; i < argc; i ++) {
+			safe_free(argv[i]);
+		}
+		safe_free(argv);
 		return -1;
+	}
 #else
 	wrdt=wrdt_list[0];
-	return win_main(argc, argv);
+	errcode = win_main(argc, argv);
+	for(i = 0; i < argc; i ++) {
+		safe_free(argv[i]);
+	}
+	safe_free(argv);
+
+	if(RestartTimidity){
+		PROCESS_INFORMATION pi;
+		STARTUPINFO si;
+		CHAR path[FILEPATH_MAX] = "";
+		RestartTimidity = 0;
+		memset(&si, 0, sizeof(si));
+		si.cb  = sizeof(si);
+		GetModuleFileName(hInstance, path, MAX_PATH);
+		if(CreateProcess(path, lpCmdLine, NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi) == FALSE)
+			MessageBox(NULL, "Restart Error.", "TiMidity++ Win32GUI", MB_OK | MB_ICONEXCLAMATION);
+	}
+	return errcode;
 #endif
 }
+#endif /* TIM_CUI */
 #endif /* WIN32GCC */
 
 // ***************************************************************************
@@ -365,8 +419,9 @@ void InitStartWnd(int nCmdShow)
 	EnableScrollBar(hMainWndScrollbarVolumeWnd, SB_CTL,ESB_ENABLE_BOTH);
 	SetScrollRange(hMainWndScrollbarVolumeWnd, SB_CTL,
 		       0, W32G_VOLUME_MAX, TRUE);
+///r
 	SetScrollPos(hMainWndScrollbarVolumeWnd, SB_CTL,
-		     W32G_VOLUME_MAX - amplification, TRUE);
+		     W32G_VOLUME_MAX - output_amplification, TRUE);
 }
 
 /*****************************************************************************/
@@ -404,8 +459,11 @@ SUBWINDOW SubWindowHistory[] =
 
 MAINWNDINFO MainWndInfo;
 
-BOOL CALLBACK MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static TOOLINFO SBVolumeTooltipInfo, SBProgressTooltipInfo;
+static TCHAR SBVolumeTooltipText[8], // "0000 %\0"
+	     SBProgressTooltipText[20]; // "000:00:00/000:00:00\0"
 
+LRESULT CALLBACK MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void update_subwindow(void);
 void OnShow(void);
 void OnHide(void);
@@ -414,31 +472,195 @@ static int MainWndInfoReset(HWND hwnd);
 static int MainWndInfoApply(void);
 
 extern void reload_cfg(void);
-// OUTPUT MENU
-#define IDM_OUTPUT 0x4000
-static HMENU outputMenu;
 
-static void InitOutputMenu(HWND hWnd)
+
+///r
+/*
+create top-level menu / system menu
+override w32g_res.rc IDM_MENU_MAIN IDM_MENU_MAIN_EN
+項目の変更が可能になったのでリソースメニューはイミなしに・・
+*/
+// MENU MODULE 
+#define IDM_MODULE 42000 // MainProc() sort ID
+static HMENU hMenuModule;
+// MENU OUTPUT
+#define IDM_OUTPUT 41000 // MainProc() sort ID
+#define IDM_OUTPUT_OPTIONS 41099 // MainProc() sort ID
+static const size_t outputItemStart = 2;
+static HMENU hMenuOutput;
+
+static void InitMainMenu(HWND hWnd)
 {
-	HMENU hMenu;
+	HMENU hMenu, hMenuFile, hMenuConfig, hMenuWindow, hMenuHelp;
+	HMENU hSystemMenu, hMenu2;
 	MENUITEMINFO mii;
 	int i;
 
+	// top-level menu
 	hMenu = GetMenu(hWnd);
-	if (outputMenu != NULL)	{DestroyMenu (outputMenu);}
-	outputMenu = CreateMenu();
-
+	if (hMenu != NULL)	{DestroyMenu (hMenu);}
+	hMenu = CreateMenu();
+	hMenuFile = CreateMenu();
+	hMenuConfig = CreateMenu();
+	hMenuWindow = CreateMenu();
+	hMenuModule = CreateMenu();
+	hMenuOutput = CreateMenu();
+	hMenuHelp = CreateMenu();
 	mii.cbSize = sizeof (MENUITEMINFO);
 	mii.fMask = MIIM_TYPE | MIIM_SUBMENU;
 	mii.fType = MFT_STRING;
-	mii.hSubMenu = outputMenu;
 	if (PlayerLanguage == LANGUAGE_JAPANESE) {
+		mii.hSubMenu = hMenuFile;
+		mii.dwTypeData = TEXT("ファイル(&F)");
+		InsertMenuItem(hMenu, 0, TRUE, &mii);
+		mii.hSubMenu = hMenuConfig;
+		mii.dwTypeData = TEXT("設定(&C)");
+		InsertMenuItem(hMenu, 1, TRUE, &mii);
+		mii.hSubMenu = hMenuWindow;
+		mii.dwTypeData = TEXT("ウィンドウ(&W)");
+		InsertMenuItem(hMenu, 2, TRUE, &mii);
+		mii.hSubMenu = hMenuModule;
+		mii.dwTypeData = TEXT("モジュール(&M)");
+		InsertMenuItem(hMenu, 3, TRUE, &mii);
+		mii.hSubMenu = hMenuOutput;
 		mii.dwTypeData = TEXT("出力(&O)");
-	} else {
+		InsertMenuItem(hMenu, 4, TRUE, &mii);
+		mii.hSubMenu = hMenuHelp;
+		mii.dwTypeData = TEXT("ヘルプ(&H)");
+		InsertMenuItem(hMenu, 5, TRUE, &mii);
+		// File
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENFILE, TEXT("ファイルを開く(&F)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENDIR, TEXT("フォルダを開く(&D)"));
+#ifdef SUPPORT_SOCKET
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENURL, TEXT("URL を開く(&U)"));
+#endif
+		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFLOADPLAYLIST, TEXT("プレイリストを開く(&P)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFSAVEPLAYLISTAS, TEXT("プレイリストを保存(&S)"));
+		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFRESTART, TEXT("再起動（&R)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFEXIT, TEXT("終了(&X)"));
+		// Config
+		AppendMenu(hMenuConfig, MF_STRING, IDM_SETTING, TEXT("詳細設定(&P)"));
+		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCLOADINIFILE, TEXT("設定読込(&L)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCSAVEINIFILE, TEXT("設定保存(&S)"));
+		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuConfig, MF_STRING, IDM_FORCE_RELOAD, TEXT("cfg強制再読込(&F)"));
+		// Window
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWPLAYLIST, TEXT("プレイリスト(&L)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("トレーサ(&T)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("ドキュメント(&D)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWWRDTRACER, TEXT("WRD(&W)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("コンソール(&C)"));
+#ifdef VST_LOADER_ENABLE
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("VSTマネージャ(&V)"));
+#endif /* VST_LOADER_ENABLE */
+#ifdef SUPPORT_SOUNDSPEC
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWSOUNDSPEC, TEXT("スペクトログラム(&S)"));
+#endif
+#ifdef INT_SYNTH
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWISEDITOR, TEXT("内蔵シンセエディタ(&E)"));
+#endif
+		// Help
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELP, TEXT("オンラインヘルプ(&O)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELPCFG, TEXT("コンフィグファイル詳解(&C)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHBTS, TEXT("バグ報告所(&B)"));
+		AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHTIMIDITY, TEXT("TiMidity++について(&T)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHVERSION, TEXT("バージョン情報(&V)"));
+		AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("補足(&S)"));
+	}else{
+		mii.hSubMenu = hMenuFile;
+		mii.dwTypeData = TEXT("File(&F)");
+		InsertMenuItem(hMenu, 0, TRUE, &mii);
+		mii.hSubMenu = hMenuConfig;
+		mii.dwTypeData = TEXT("Config(&C)");
+		InsertMenuItem(hMenu, 1, TRUE, &mii);
+		mii.hSubMenu = hMenuWindow;
+		mii.dwTypeData = TEXT("Window(&W)");
+		InsertMenuItem(hMenu, 2, TRUE, &mii);
+		mii.hSubMenu = hMenuModule;
+		mii.dwTypeData = TEXT("Module(&M)");
+		InsertMenuItem(hMenu, 3, TRUE, &mii);
+		mii.hSubMenu = hMenuOutput;
 		mii.dwTypeData = TEXT("Output(&O)");
+		InsertMenuItem(hMenu, 4, TRUE, &mii);
+		mii.hSubMenu = hMenuHelp;
+		mii.dwTypeData = TEXT("Help(&H)");
+		InsertMenuItem(hMenu, 5, TRUE, &mii);
+		// File
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENFILE, TEXT("Open File(&F)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENDIR, TEXT("Open Directory(&D)"));
+#ifdef SUPPORT_SOCKET
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENURL, TEXT("Open Internet URL(&U)"));
+#endif
+		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFLOADPLAYLIST, TEXT("Load Playlist(&P)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFSAVEPLAYLISTAS, TEXT("Save Playlist as(&S)"));
+		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFRESTART, TEXT("Restart(&R)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFEXIT, TEXT("Exit(&X)"));
+		// Config
+		AppendMenu(hMenuConfig, MF_STRING, IDM_SETTING, TEXT("Preference(&P)"));
+		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCLOADINIFILE, TEXT("Load ini file(&L)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCSAVEINIFILE, TEXT("Save ini file(&S)"));
+		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
+		AppendMenu(hMenuConfig, MF_STRING, IDM_FORCE_RELOAD, TEXT("Reload cfg file(&F)"));
+		// Window
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWPLAYLIST, TEXT("Play List(&L)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("Tracer(&T)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("Document(&D)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWWRDTRACER, TEXT("Wrd tracer(&W)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("Console(&C)"));
+#ifdef VST_LOADER_ENABLE
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("VST Manager(&V)"));
+#endif /* VST_LOADER_ENABLE */
+#ifdef HAVE_SOUNDSPEC
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWSOUNDSPEC, TEXT("Sound Spectrogram(&S)"));
+#endif
+#ifdef INT_SYNTH
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWISEDITOR, TEXT("Internal Synth Editor(&E)"));
+#endif
+		// Help
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELP, TEXT("Online Help(&O)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHBTS, TEXT("Bug Tracking System(&B)"));
+		AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHTIMIDITY, TEXT("TiMidity++(&T)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHVERSION, TEXT("Version(&V)"));
+		AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("Supplement(&S)"));
 	}
-	InsertMenuItem(hMenu, GetMenuItemCount(hMenu) - 1, TRUE, &mii);
-
+	// Module
+	for (i = 0; i < module_list_num; i++) {
+		mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
+		mii.wID = IDM_MODULE + i;
+		mii.fType = MFT_STRING;
+		if (st_temp->opt_default_module == module_list[i].num) {
+			mii.fState = MFS_CHECKED;
+		} else {
+			mii.fState = MFS_UNCHECKED;
+		}
+		if (i > 0 && i % (module_list_num / 2) == 0)
+			mii.fType |= MFT_MENUBARBREAK;
+		mii.dwTypeData = module_list[i].name;
+		InsertMenuItem(hMenuModule, i, TRUE, &mii);
+	}
+	// Output
+	mii.fMask = MIIM_TYPE | MIIM_ID;
+	mii.wID = IDM_OUTPUT_OPTIONS;
+	mii.fType = MFT_STRING;
+	if (PlayerLanguage == LANGUAGE_JAPANESE) {
+		mii.dwTypeData = "オプション(&O)";
+	} else {
+		mii.dwTypeData = "&Options";
+	}
+	InsertMenuItem(hMenuOutput, 0, TRUE, &mii);
+	mii.fMask = MIIM_TYPE;
+	mii.fType = MFT_SEPARATOR;
+	InsertMenuItem(hMenuOutput, 1, TRUE, &mii);
 	for (i = 0; play_mode_list[i] != 0; i++) {
 		mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
 		mii.wID = IDM_OUTPUT + i;
@@ -449,34 +671,111 @@ static void InitOutputMenu(HWND hWnd)
 			mii.fState = MFS_UNCHECKED;
 		}
 		mii.dwTypeData = play_mode_list[i]->id_name;
-		InsertMenuItem(outputMenu, i, TRUE, &mii);
+		InsertMenuItem(hMenuOutput, outputItemStart + i, TRUE, &mii);
+	}	
+#if 0
+	hMenu2 = CreateMenu();	
+	mii.cbSize = sizeof (MENUITEMINFO);
+	mii.fMask = MIIM_TYPE | MIIM_SUBMENU;
+	mii.fType = MFT_STRING;
+	mii.hSubMenu = hMenu;
+	if (PlayerLanguage == LANGUAGE_JAPANESE) {
+		mii.dwTypeData = TEXT("メニュー(&M)");
+	}else{
+		mii.dwTypeData = "Menu(&M)";
 	}
-
+	InsertMenuItem(hMenu2, 0, TRUE, &mii);
+	SetMenu(hWnd , hMenu2);
+#else
 	SetMenu(hWnd , hMenu);
+#endif
+	// system menu
+	hSystemMenu = GetSystemMenu(hWnd, FALSE);
+	RemoveMenu(hSystemMenu,SC_MAXIMIZE,MF_BYCOMMAND);
+	//RemoveMenu(hSystemMenu,SC_SIZE,MF_BYCOMMAND); // comment out for Resize MainWindow 
+	EnableMenuItem(hSystemMenu, SC_MOVE, MF_BYCOMMAND | MF_GRAYED);
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0); // 7
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION, SC_SCREENSAVE, "Screen Saver"); // 6
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0); // 5
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_STOP, "Stop"); // 4
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PAUSE, "Pause"); // 3
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PREV, "Prev"); // 2
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_NEXT, "Next"); // 1
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PLAY, "Play"); // 0	
+
+	DrawMenuBar(hWnd);
 }
 
-static void UpdateOutputMenu(HWND hWnd, UINT wId)
+static void UpdateModuleMenu(HWND hWnd, UINT wId)
 {
 	MENUITEMINFO mii;
 	int i, num = -1, oldnum;
 
-	for (i = 0; play_mode_list[i] != 0; i++) {
+	for (i = 0; i < module_list_num; i++) {
 		mii.cbSize = sizeof (MENUITEMINFO);
 		mii.fMask = MIIM_STATE | MIIM_ID;
-		GetMenuItemInfo(outputMenu, i, TRUE, &mii);
+		GetMenuItemInfo(hMenuModule, i, TRUE, &mii);
 		if (wId == mii.wID) {
 			mii.fState = MFS_CHECKED;
 			num = i;
-		} else {mii.fState = MFS_UNCHECKED;}
-		SetMenuItemInfo(outputMenu, i, TRUE, &mii);
+		} else {
+			mii.fState = MFS_UNCHECKED;
+		}
+		SetMenuItemInfo(hMenuModule, i, TRUE, &mii);
+		if (st_temp->opt_default_module == module_list[i].num) {
+			oldnum = i;
+		}
+	}
+//	if (!w32g_play_active && num != oldnum) {
+	if (num != oldnum) {
+		if (num >= 0) {st_temp->opt_default_module = module_list[num].num;}
+		else {st_temp->opt_default_module = MODULE_TIMIDITY_DEFAULT;}
+		PrefSettingApplyReally();
+	}
+}
+
+static void UpdateOutputMenu(HWND hWnd, UINT wId)
+{
+	MENUITEMINFOA mii;
+	int i, num = -1, oldnum;
+
+	for (i = 0; play_mode_list[i] != 0; i++) {
+		mii.cbSize = sizeof(MENUITEMINFOA);
+		mii.fMask = MIIM_STATE | MIIM_ID;
+		GetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
+		if (wId == mii.wID) {
+			mii.fState = MFS_CHECKED;
+			num = i;
+		} else { mii.fState = MFS_UNCHECKED; }
+		SetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
 		if (st_temp->opt_playmode[0] == play_mode_list[i]->id_character) {
 			oldnum = i;
 		}
 	}
-	if (!w32g_play_active && num != oldnum) {
-		if (num >= 0) {st_temp->opt_playmode[0] = play_mode_list[num]->id_character;}
-		else {st_temp->opt_playmode[0] = 'd';}
+//	if (!w32g_play_active && num != oldnum) {
+	if (num != oldnum) {
+		if (num >= 0) { st_temp->opt_playmode[0] = play_mode_list[num]->id_character; }
+		else { st_temp->opt_playmode[0] = 'd'; }
+		w32g_send_rc(RC_STOP, 0);
 		PrefSettingApplyReally();
+	}
+}
+
+static void RefreshOutputMenu(HWND hWnd)
+{
+	MENUITEMINFOA mii;
+	int i;
+
+	for (i = 0; play_mode_list[i] != 0; i++) {
+		mii.cbSize = sizeof(MENUITEMINFOA);
+		mii.fMask = MIIM_STATE | MIIM_ID;
+		GetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
+		if (st_temp->opt_playmode[0] == play_mode_list[i]->id_character) {
+			mii.fState = MFS_CHECKED;
+		} else {
+			mii.fState = MFS_UNCHECKED;
+		}
+		SetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
 	}
 }
 
@@ -487,12 +786,14 @@ static void InitMainWnd(HWND hParentWnd)
 		DestroyWindow ( hMainWnd );
 		hMainWnd = NULL;
 	}
+	MainWndInfoReset(NULL);
 	INILoadMainWnd();
 	if (PlayerLanguage == LANGUAGE_JAPANESE)
 	  hMainWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_MAIN),hParentWnd,MainProc);
 	else
 	  hMainWnd = CreateDialog(hInst,MAKEINTRESOURCE(IDD_DIALOG_MAIN_EN),hParentWnd,MainProc);
-	InitOutputMenu(hMainWnd);
+	//InithMenuModule(hMainWnd);
+	//InithMenuOutput(hMainWnd);
 
 	if (hIcon!=NULL) SendMessage(hMainWnd,WM_SETICON,FALSE,(LPARAM)hIcon);
 	{  // Set the title of the main window again.
@@ -500,6 +801,8 @@ static void InitMainWnd(HWND hParentWnd)
    	SendMessage( hMainWnd, WM_GETTEXT, (WPARAM)255, (LPARAM)buffer);
    	SendMessage( hMainWnd, WM_SETTEXT, (WPARAM)0, (LPARAM)buffer);
 	}
+	MainWndInfoReset(hMainWnd);
+	INILoadMainWnd();
 	MainWndInfoApply();
 }
 
@@ -507,12 +810,32 @@ static int MainWndInfoReset(HWND hwnd)
 {
 	memset(&MainWndInfo,0,sizeof(MAINWNDINFO));
 	MainWndInfo.PosX = - 1;
-	MainWndInfo.PosY = - 1;
+	MainWndInfo.PosY = - 1;	
+	MainWndInfo.Width = - 1;
+	MainWndInfo.Height = - 1;
+	MainWndInfo.hwnd = hwnd;
 	return 0;
 }
 
 static int MainWndInfoApply(void)
-{
+{	
+	RECT d_rc, w_rc;
+
+	GetClientRect ( GetDesktopWindow (), &d_rc );
+	GetWindowRect ( MainWndInfo.hwnd, &w_rc );
+	d_rc.right -= w_rc.right - w_rc.left;
+	d_rc.bottom -= w_rc.bottom - w_rc.top;
+	if ( MainWndInfo.PosX < d_rc.left ) MainWndInfo.PosX = d_rc.left; 
+	if ( MainWndInfo.PosX > d_rc.right ) MainWndInfo.PosX = d_rc.right; 
+	if ( MainWndInfo.PosY < d_rc.top ) MainWndInfo.PosY = d_rc.top; 
+	if ( MainWndInfo.PosY > d_rc.bottom ) MainWndInfo.PosY = d_rc.bottom; 
+	SetWindowPosSize(GetDesktopWindow(), MainWndInfo.hwnd, MainWndInfo.PosX, MainWndInfo.PosY );	
+	if(MainWndInfo.Width <= 0) 
+		MainWndInfo.Width = 480;
+	if(MainWndInfo.Height <= 0) 
+		MainWndInfo.Height = 160;
+	MoveWindow(MainWndInfo.hwnd, MainWndInfo.PosX, MainWndInfo.PosY, MainWndInfo.Width, MainWndInfo.Height,TRUE);
+	MainWndInfo.init = 1;
 	return 0;
 }
 
@@ -562,18 +885,33 @@ static void CALLBACK PlayerBackward(UINT IDEvent, UINT uReserved, DWORD dwUser,
 	w32g_send_rc(RC_BACK, play_mode->rate);
 }
 
+static void CallPrefWnd(UINT_PTR cId);
 extern void ShowPrefWnd ( void );
 extern void HidePrefWnd ( void );
 extern BOOL IsVisiblePrefWnd ( void );
 
-BOOL CALLBACK
+LRESULT CALLBACK
 MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static BOOL PrefWndShow;
+
 	// PrintfDebugWnd("MainProc: Mess%lx WPARAM%lx LPARAM%lx\n",uMess,wParam,lParam);
 	switch (uMess)
 	{
       case WM_INITDIALOG:
+#ifdef VST_LOADER_ENABLE
+	if (hVSTHost == NULL) {
+#ifdef _WIN64
+		hVSTHost = LoadLibrary("timvstwrap_x64.dll");
+#else
+		hVSTHost = LoadLibrary("timvstwrap.dll");
+#endif
+		if (hVSTHost != NULL) {
+			((vst_open)GetProcAddress(hVSTHost, "vstOpen"))();
+	//		((vst_open_config_all)GetProcAddress(hVSTHost, "openEffectEditorAll"))(hwnd);
+		}
+	}
+#endif
 		PrefWndShow = FALSE;
 		update_subwindow();
 		MainWndUpdateConsoleButton();
@@ -581,54 +919,75 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		MainWndUpdateListButton();
 		MainWndUpdateDocButton();
 		MainWndUpdateWrdButton();
-		MainWndUpdateSoundSpecButton();
+		MainWndUpdateSoundSpecButton();		
+		InitMainMenu(hwnd); 
 		InitPanelWnd(hwnd);
 		InitCanvasWnd(hwnd);
 		InitMainToolbar(hwnd);
 		InitSubWndToolbar(hwnd);
-	    {
-			HMENU hMenu = GetSystemMenu(hwnd, FALSE);
-#if 1
-			RemoveMenu(hMenu,SC_MAXIMIZE,MF_BYCOMMAND);
-			RemoveMenu(hMenu,SC_SIZE,MF_BYCOMMAND);
-#else
-			EnableMenuItem(hMenu, SC_MAXIMIZE, MF_BYCOMMAND	| MF_GRAYED);
-			EnableMenuItem(hMenu, SC_SIZE, MF_BYCOMMAND | MF_GRAYED);
-#endif
-			EnableMenuItem(hMenu, SC_MOVE, MF_BYCOMMAND | MF_GRAYED);
-			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
-			InsertMenu(hMenu, 0, MF_BYPOSITION, SC_SCREENSAVE, "Screen Saver");
-			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0);
-			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, IDM_STOP, "Stop");
-			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PAUSE, "Pause");
-			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PREV, "Prev");
-			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, IDM_NEXT, "Next");
-			InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PLAY, "Play");
-			DrawMenuBar(hwnd);
-    	}
-			{
-				RECT d_rc, w_rc;
-				GetClientRect ( GetDesktopWindow (), &d_rc );
-				GetWindowRect ( hwnd, &w_rc );
-				d_rc.right -= w_rc.right - w_rc.left;
-				d_rc.bottom -= w_rc.bottom - w_rc.top;
-				if ( MainWndInfo.PosX < d_rc.left ) MainWndInfo.PosX = d_rc.left; 
-				if ( MainWndInfo.PosX > d_rc.right ) MainWndInfo.PosX = d_rc.right; 
-				if ( MainWndInfo.PosY < d_rc.top ) MainWndInfo.PosY = d_rc.top; 
-				if ( MainWndInfo.PosY > d_rc.bottom ) MainWndInfo.PosY = d_rc.bottom; 
-				SetWindowPosSize(GetDesktopWindow(),hwnd,MainWndInfo.PosX, MainWndInfo.PosY );
-			}
+		{
+			RECT rc;
+			hMainWndScrollbarVolumeTTipWnd = CreateWindow(TOOLTIPS_CLASS,
+			NULL, TTS_ALWAYSTIP,
+			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+			hMainWndScrollbarVolumeWnd, NULL, hInst, NULL);
+			SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_ACTIVATE, (WPARAM)TRUE, 0);
+			hMainWndScrollbarProgressTTipWnd = CreateWindow(TOOLTIPS_CLASS,
+			NULL, TTS_ALWAYSTIP,
+			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+			hMainWndScrollbarProgressWnd, NULL, hInst, NULL);
+			SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_ACTIVATE, (WPARAM)TRUE, 0);
+
+			SBProgressTooltipInfo.cbSize = sizeof(TOOLINFO);
+			SBProgressTooltipInfo.uFlags = TTF_SUBCLASS;
+			SBProgressTooltipInfo.hwnd = hMainWndScrollbarProgressWnd;
+			SBProgressTooltipInfo.lpszText = SBProgressTooltipText;
+			GetClientRect(hMainWndScrollbarProgressWnd, &SBProgressTooltipInfo.rect);
+			SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_ADDTOOL,
+				0, (LPARAM)&SBProgressTooltipInfo);
+
+			SBVolumeTooltipInfo.cbSize = sizeof(TOOLINFO);
+			SBVolumeTooltipInfo.uFlags = TTF_SUBCLASS;
+			SBVolumeTooltipInfo.hwnd = hMainWndScrollbarVolumeWnd;
+			SBVolumeTooltipInfo.lpszText = SBVolumeTooltipText;
+			GetClientRect(hMainWndScrollbarVolumeWnd, &SBVolumeTooltipInfo.rect);
+			SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_ADDTOOL,
+				0, (LPARAM)&SBVolumeTooltipInfo);
+		}
 		return FALSE;
 	  HANDLE_MSG(hwnd,WM_COMMAND,MainCmdProc);
 
 	  case WM_DESTROY:
+		{
+			RECT rc;
+			WINDOWPLACEMENT wp;
+			GetWindowRect(hwnd,&rc);
+			GetWindowPlacement(hwnd, &wp);
+			if(wp.showCmd == SW_SHOWNORMAL){
+				// 最小化状態などで終了すると正常にサイズ取得できない (メニューが含まれないサイズになる
+				MainWndInfo.Width = rc.right - rc.left;
+				MainWndInfo.Height = rc.bottom - rc.top;
+			}
+		}
 		if(save_playlist_once_before_exit_flag) {
 			save_playlist_once_before_exit_flag = 0;
 			w32gSaveDefaultPlaylist();
 		}
 		INISaveMainWnd();
+#ifdef VST_LOADER_ENABLE
+	if (hVSTHost != NULL) {
+		// 再生中終了の場合 まだシンセは動いている
+		// vstCloseは時間かかるので先にNULLしておく
+		HMODULE htemp = hVSTHost;
+		hVSTHost = NULL; // VST使用をブロック
+		Sleep(100); // 100msもあればブロック前に開始したVSTの処理は終ってるはず
+		((vst_close)GetProcAddress(htemp,"vstClose"))();
+		FreeLibrary(htemp);
+	}
+#endif
 		PostQuitMessage(0);
 		break;
+
 	  case WM_CLOSE:
 		if(save_playlist_once_before_exit_flag) {
 			save_playlist_once_before_exit_flag = 0;
@@ -636,9 +995,29 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 		DestroyWindow(hwnd);
 		break;
-
+		
+	case WM_GETMINMAXINFO:
+		{
+			LPMINMAXINFO lpmmi = (LPMINMAXINFO) lParam;
+			lpmmi->ptMinTrackSize.x = max(345, lpmmi->ptMinTrackSize.x); // full:475
+			lpmmi->ptMinTrackSize.y = max(158, lpmmi->ptMinTrackSize.y);
+		//	lpmmi->ptMaxTrackSize.y = 158;
+		}
+		return 0;
       case WM_SIZE:
-		if(wParam == SIZE_MINIMIZED){
+		switch(wParam){
+		case SIZE_RESTORED:
+			if ( PrefWndShow ) {
+				ShowPrefWnd ();
+			}
+			if(MainWndInfo.init){
+				RECT rc, mrc;
+				GetWindowRect(hwnd,&rc);
+				MainWndInfo.Width = rc.right - rc.left;
+				MainWndInfo.Height = rc.bottom - rc.top;
+			}
+			break;
+		case SIZE_MINIMIZED:
 			if ( IsVisiblePrefWnd () )
 				PrefWndShow = TRUE;
 			else
@@ -646,10 +1025,9 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			HidePrefWnd ();
 			update_subwindow();
 			OnHide();
-		} else if ( wParam == SIZE_RESTORED ) {
-			if ( PrefWndShow ) {
-				ShowPrefWnd ();
-			}
+			break;
+		default:
+			break;
 		}
 		return FALSE;
 	  case WM_MOVE:
@@ -664,52 +1042,97 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		OnShow();
 		return FALSE;
       case WM_DROPFILES:
+#ifdef EXT_CONTROL_MAIN_THREAD
+		w32g_ext_control_main_thread(RC_EXT_DROP, (ptr_size_t)wParam);
+#else
 		w32g_send_rc(RC_EXT_DROP, (ptr_size_t)wParam);
+#endif
 		return FALSE;
       case WM_HSCROLL: {
-		  int nScrollCode = (int)LOWORD(wParam);
-		  int nPos = (int) HIWORD(wParam);
-		  HWND bar = (HWND)lParam;
+		int nScrollCode = (int)LOWORD(wParam);
+		int nPos = (int) HIWORD(wParam);
+		HWND bar = (HWND)lParam;
 
-		  if(bar != hMainWndScrollbarProgressWnd)
-			  break;
+		if(bar != hMainWndScrollbarProgressWnd)
+			break;
 
-		  switch(nScrollCode)
-		  {
-			case SB_THUMBTRACK:
-			case SB_THUMBPOSITION:
-			  progress_jump = nPos;
-			  break;
-			case SB_LINELEFT:
-			  progress_jump = GetScrollPos(bar, SB_CTL) - 1;
-			  if(progress_jump < 0)
-				  progress_jump = 0;
-			  break;
-			case SB_PAGELEFT:
-			  progress_jump = GetScrollPos(bar, SB_CTL) - 10;
-			  if(progress_jump < 0)
-				  progress_jump = 0;
-			  break;
-			case SB_LINERIGHT:
-			  progress_jump = GetScrollPos(bar, SB_CTL) + 1;
-			  break;
-			case SB_PAGERIGHT:
-			  progress_jump = GetScrollPos(bar, SB_CTL) + 10;
-			  break;
-			case SB_ENDSCROLL:
-			  if(progress_jump != -1)
-			  {
-				  w32g_send_rc(RC_JUMP, progress_jump * play_mode->rate);
-				  SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL,
-							   progress_jump, TRUE);
-				  progress_jump = -1;
-			  }
-			  break;
-		  }
-		  break;
-		}
+		switch(nScrollCode)	{
+		case SB_THUMBTRACK:
+		case SB_THUMBPOSITION:
+			progress_jump = nPos;
+			break;
+		case SB_LINELEFT:
+			progress_jump = GetScrollPos(bar, SB_CTL) - 1;
+			if(progress_jump < 0)
+				progress_jump = 0;
+			SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL, progress_jump, TRUE);
+			break;
+		case SB_PAGELEFT:
+			progress_jump = GetScrollPos(bar, SB_CTL) - 10;
+			if(progress_jump < 0)
+				progress_jump = 0;
+			SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL, progress_jump, TRUE);
+			break;
+		case SB_LINERIGHT:
+			progress_jump = GetScrollPos(bar, SB_CTL) + 1;
+			SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL, progress_jump, TRUE);
+			break;
+		case SB_PAGERIGHT:
+			progress_jump = GetScrollPos(bar, SB_CTL) + 10;
+			SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL, progress_jump, TRUE);
+			break;
+		case SB_ENDSCROLL:
+			if(progress_jump != -1)
+			{
+				w32g_send_rc(RC_JUMP, progress_jump * play_mode->rate);
+				SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL, progress_jump, TRUE);
+				progress_jump = -1;
+
+			SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_TRACKACTIVATE,
+				FALSE, (LPARAM)&SBProgressTooltipInfo);
+			SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_ACTIVATE,
+				(WPARAM)FALSE, 0);
+			}
+			break;
+	    }
+
+	    if (nScrollCode != SB_ENDSCROLL && progress_jump != -1)
+	    {
+		POINT point = { 0, 0 };
+		uint32 CurTime_h, CurTime_m, CurTime_s;
+		uint32 TotalTime_h, TotalTime_m, TotalTime_s;
+
+		CurTime_s = progress_jump;
+		CurTime_m = CurTime_s / 60;
+		CurTime_s %= 60;
+		CurTime_h = CurTime_m / 60;
+		CurTime_m %= 60;
+
+		TotalTime_s = 0;
+		GetScrollRange(hMainWndScrollbarProgressWnd, SB_CTL, &TotalTime_m, &TotalTime_s);
+		TotalTime_m = TotalTime_s / 60;
+		TotalTime_s %= 60;
+		TotalTime_h = TotalTime_m / 60;
+		TotalTime_m %= 60;
+
+		wsprintf(SBProgressTooltipText, TEXT("%02u:%02u:%02u/%02u:%02u:%02u\0"),
+						CurTime_h, CurTime_m, CurTime_s,
+						TotalTime_h, TotalTime_m, TotalTime_s);
+		SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_UPDATETIPTEXT,
+			    0, (LPARAM)&SBProgressTooltipInfo);
+
+		ClientToScreen(hMainWndScrollbarProgressWnd, &point);
+		SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_TRACKPOSITION,
+			    0, MAKELPARAM(point.x, point.y));
+
+		SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_ACTIVATE,
+			    (WPARAM)TRUE, 0);
+		SendMessage(hMainWndScrollbarProgressTTipWnd, TTM_TRACKACTIVATE,
+			    TRUE, (LPARAM)&SBProgressTooltipInfo);
+	    }
+	    break;
+	  }
 	  break;
-
 	  case WM_VSCROLL: {
 		int nScrollCode = (int) LOWORD(wParam);
 		int nPos = (int) HIWORD(wParam);
@@ -718,38 +1141,80 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 		if(bar != hMainWndScrollbarVolumeWnd)
 			break;
-
 		switch(nScrollCode)
 		{
-		  case SB_THUMBTRACK:
-		  case SB_THUMBPOSITION:
+			case SB_THUMBTRACK:
+			case SB_THUMBPOSITION:
 			pos = nPos;
 			break;
-		  case SB_LINEUP:
-		  case SB_PAGEUP:
-			pos = GetScrollPos(bar, SB_CTL) - 5;
+			case SB_LINEUP:
+			case SB_PAGEUP:
+			pos = GetScrollPos(bar, SB_CTL) - (nScrollCode == SB_LINEUP ? 5 : 20);
 			if(pos < 0)
 				pos = 0;
+			SetScrollPos(bar, SB_CTL, pos, TRUE);
 			break;
-		  case SB_LINEDOWN:
-		  case SB_PAGEDOWN:
-			pos = GetScrollPos(bar, SB_CTL) + 5;
+			case SB_LINEDOWN:
+			case SB_PAGEDOWN:
+			pos = GetScrollPos(bar, SB_CTL) + (nScrollCode == SB_LINEDOWN ? 5 : 20);
 			if(pos > W32G_VOLUME_MAX)
 				pos = W32G_VOLUME_MAX;
+			SetScrollPos(bar, SB_CTL, pos, TRUE);
 			break;
-		  case SB_ENDSCROLL:
+			case SB_ENDSCROLL:
 			if(pos != -1)
 			{
 				w32g_send_rc(RC_CHANGE_VOLUME,
-							 (W32G_VOLUME_MAX - pos) - amplification);
+								(W32G_VOLUME_MAX - pos) - output_amplification);
 				SetScrollPos(bar, SB_CTL, pos, TRUE);
 				pos = -1;
+
+				SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_TRACKACTIVATE,
+					FALSE, (LPARAM)&SBVolumeTooltipInfo);
+				SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_ACTIVATE,
+					(WPARAM)FALSE, 0);
 			}
 			break;
-		}
+	    }
+
+	    if (nScrollCode != SB_ENDSCROLL && pos != -1)
+	    {
+		POINT point = { 0, 0 };
+
+		wsprintf(SBVolumeTooltipText, TEXT("%u %%\0"), W32G_VOLUME_MAX - pos);
+		SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_UPDATETIPTEXT,
+			    0, (LPARAM)&SBVolumeTooltipInfo);
+
+		ClientToScreen(hMainWndScrollbarVolumeWnd, &point);
+		SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_TRACKPOSITION,
+			    0, MAKELPARAM(point.x, point.y));
+
+		SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_ACTIVATE,
+			    (WPARAM)TRUE, 0);
+		SendMessage(hMainWndScrollbarVolumeTTipWnd, TTM_TRACKACTIVATE,
+			    TRUE, (LPARAM)&SBVolumeTooltipInfo);
+	    }
 	  }
 	  break;
+      case WM_MOUSEWHEEL:
+      {
+		static int16 wheel_delta = 0;
+		int16 wheel_speed;
+		int pos;
 
+		wheel_delta += (int16)GET_WHEEL_DELTA_WPARAM(wParam);
+		wheel_speed = wheel_delta / WHEEL_DELTA; // upper 16bit sined int // 1knoch = 120
+		wheel_delta %= WHEEL_DELTA;
+		pos = GetScrollPos(hMainWndScrollbarVolumeWnd, SB_CTL) - wheel_speed;
+		if(pos < 0)
+			pos = 0;
+		if(pos > W32G_VOLUME_MAX)
+			pos = W32G_VOLUME_MAX;
+		w32g_send_rc(RC_CHANGE_VOLUME,
+						(W32G_VOLUME_MAX - pos) - output_amplification);
+		SetScrollPos(hMainWndScrollbarVolumeWnd, SB_CTL, pos, TRUE);
+		break;
+      }
 	  case WM_SYSCOMMAND:
 		switch(wParam){
 		  case IDM_STOP:
@@ -849,27 +1314,34 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
+extern int TracerWndDrawSkip;
+void PrefWndCreate(HWND hwnd, UINT cid);
+
 void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 {
 	 // PrintfDebugWnd("WM_COMMAND: ID%lx HWND%lx CODE%lx\n",wId,hwndCtl,wNotifyCode);
     switch(wId)
     {
       case IDM_STOP:
+			TracerWndDrawSkip = 1;
 		  w32g_send_rc(RC_STOP, 0);
 		  break;
       case IDM_PAUSE:
+			TracerWndDrawSkip = !TracerWndDrawSkip;
 		  SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_MAIN,
 									TB_CHECKBUTTON, IDM_PAUSE,
 									(LPARAM)MAKELONG(!play_pause_flag, 0));
 		  w32g_send_rc(RC_TOGGLE_PAUSE, 0);
 		  break;
       case IDM_PREV:
+			TracerWndDrawSkip = 1;
 		  w32g_send_rc(RC_REALLY_PREVIOUS, 0);
 		  break;
       case IDM_BACKWARD:
 		  /* Do nothing here. See WM_NOTIFY in MainProc() */
 		  break;
       case IDM_PLAY:
+			TracerWndDrawSkip = 0;
 		  if(play_pause_flag)
 		  {
 				SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_MAIN,
@@ -884,6 +1356,7 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 		  /* Do nothing here. See WM_NOTIFY in MainProc() */
 		  break;
       case IDM_NEXT:
+			TracerWndDrawSkip = 1;
 		  w32g_send_rc(RC_NEXT, 0);
 		  break;
       case IDM_CONSOLE:
@@ -900,7 +1373,11 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
       case IDM_MWPLAYLIST:
 		  ToggleSubWindow(hListWnd);
 		  if(IsWindowVisible(hListWnd))
+#ifdef EXT_CONTROL_MAIN_THREAD
+			w32g_ext_control_main_thread(RC_EXT_UPDATE_PLAYLIST, 0);
+#else
 			w32g_send_rc(RC_EXT_UPDATE_PLAYLIST, 0);
+#endif
 		  break;
       case IDM_DOC:
       case IDM_MWDOCUMENT:
@@ -916,8 +1393,67 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 		  break;
       case IDM_SOUNDSPEC:
       case IDM_MWSOUNDSPEC:
-		  MainWndUpdateSoundSpecButton();
-		  MessageBox(hwnd, "Not Supported.","Warning!",MB_OK);
+		  ToggleSubWindow(hSoundSpecWnd);
+//		  MainWndUpdateSoundSpecButton();
+//		  MessageBox(hwnd, "Not Supported.","Warning!",MB_OK);
+		  break;
+///r
+      case IDM_VSTMGR:
+      case IDM_MWVSTMGR:
+#ifdef VST_LOADER_ENABLE
+	if (!hVSTHost) {
+	    w32_reset_dll_directory();
+#ifdef _WIN64
+	    hVSTHost = LoadLibrary(TEXT("timvstwrap_x64.dll"));
+#else
+	    hVSTHost = LoadLibrary(TEXT("timvstwrap.dll"));
+#endif
+	    if (hVSTHost && GetProcAddress(hVSTHost, "vstOpen")) {
+		((vst_open) GetProcAddress(hVSTHost, "vstOpen"))();
+	    }
+	}
+
+	if (hVSTHost) {
+	    ((open_vst_mgr) GetProcAddress(hVSTHost, "openVSTManager"))(hwnd);
+	}
+	else if (hVSTHost) {
+#ifdef _WIN64
+	    const TCHAR *vst_nosupport,
+			 vst_nosupport_en[] = TEXT("openVSTManager could not be found in timvstwrap_x64.dll"),
+			 vst_nosupport_jp[] = TEXT("openVSTManager が timvstwrap_x64.dll から見つかりませんでした。");
+#else
+	    const TCHAR *vst_nosupport,
+			 vst_nosupport_en[] = TEXT("openVSTManager could not be found in timvstwrap.dll"),
+			 vst_nosupport_jp[] = TEXT("openVSTManager が timvstwrap.dll から見つかりませんでした。");
+#endif
+	    if (PlayerLanguage == LANGUAGE_JAPANESE)
+		vst_nosupport = vst_nosupport_jp;
+	    else
+		vst_nosupport = vst_nosupport_en;
+	    MessageBox(hwnd, vst_nosupport, TEXT("TiMidity Warning"), MB_OK | MB_ICONWARNING);
+	}
+	else {
+#ifdef _WIN64
+	    const TCHAR *vst_nosupport,
+			 vst_nosupport_en[] = TEXT("Cannot load timvstwrap_x64.dll"),
+			 vst_nosupport_jp[] = TEXT("timvstwrap_x64.dll をロードしていません。");
+#else
+	    const TCHAR *vst_nosupport,
+			 vst_nosupport_en[] = TEXT("Cannot load timvstwrap.dll"),
+			 vst_nosupport_jp[] = TEXT("timvstwrap.dll をロードしていません。");
+#endif
+	    if (PlayerLanguage == LANGUAGE_JAPANESE)
+		vst_nosupport = vst_nosupport_jp;
+	    else
+		vst_nosupport = vst_nosupport_en;
+	    MessageBox(hwnd, vst_nosupport, TEXT("TiMidity Warning"), MB_OK | MB_ICONWARNING);
+	}
+#endif
+		  break;
+	  case IDM_MWISEDITOR:
+#ifdef INT_SYNTH
+		  ISEditorWndCreate(hwnd);	
+#endif
 		  break;
       case IDOK:
 		  break;
@@ -930,18 +1466,24 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
       case IDM_MFOPENDIR:
 		  DlgDirOpen(hwnd);
 		  break;
+      case IDM_MFOPENURL:
+		  DlgUrlOpen(hwnd);
+		  break;
       case IDM_MFLOADPLAYLIST:
 		  DlgPlaylistOpen(hwnd);
 		  break;
       case IDM_MFSAVEPLAYLISTAS:
 		  DlgPlaylistSave(hwnd);
 		  break;
+      case IDM_MFRESTART:
+		  RestartTimidity = 1; // WinMain()
+		  // thru exit
       case IDM_MFEXIT:
 		  OnQuit();
 		  break;
 
       case IDM_SETTING:
-		  PrefWndCreate(hMainWnd);
+		  CallPrefWnd(0);
 		  break;
 
       case IDM_MCSAVEINIFILE:
@@ -967,7 +1509,7 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 				break;
 		  }
 		  LoadIniFile(sp_temp,st_temp);
-		  PrefWndCreate(hMainWnd);
+		  CallPrefWnd(0);
 		  break;
       case IDM_MWDEBUG:
 #ifdef W32GUI_DEBUG
@@ -1013,11 +1555,39 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 		  SupplementWnd(hwnd);
 		  break;
 	  default:
-		  UpdateOutputMenu(hwnd, wId);
-		  break;
+///r
+	// sort large ID
+	if (IDM_MODULE <= wId)
+	    UpdateModuleMenu(hwnd, wId);
+	else if (IDM_OUTPUT_OPTIONS == wId) {
+	    UINT id;
+	    if (PlayerLanguage == LANGUAGE_JAPANESE) {
+		id = IDD_PREF_TIMIDITY3;
+	    }
+	    else {
+		id = IDD_PREF_TIMIDITY3_EN;
+	    }
+	    CallPrefWnd(id);
+	}
+	else if (IDM_OUTPUT <= wId)
+	    UpdateOutputMenu(hwnd, wId);
+	break;
     }
 }
 
+static void CallPrefWnd(UINT_PTR cId)
+{
+    PrefWndCreate(hMainWnd, cId);
+
+    MPanelReadPanelInfo(1);
+    MPanelUpdateAll();
+    MPanelPaintAll();
+
+    SetScrollPos(hMainWndScrollbarVolumeWnd, SB_CTL,
+		 W32G_VOLUME_MAX - output_amplification, TRUE);
+
+    RefreshOutputMenu(hMainWnd);
+}
 
 
 void update_subwindow(void)
@@ -1109,8 +1679,17 @@ void MainWndUpdateWrdButton(void)
     	TB_CHECKBUTTON, IDM_WRD, (LPARAM)MAKELONG(FALSE, 0));
 }
 
+
 void MainWndUpdateSoundSpecButton(void)
 {
+	if(IsWindowVisible(hSoundSpecWnd))
+		SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_SUBWND,
+			TB_CHECKBUTTON, IDM_SOUNDSPEC,
+			(LPARAM)MAKELONG(TRUE, 0));
+	else
+  		SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_SUBWND,
+			TB_CHECKBUTTON, IDM_SOUNDSPEC,
+			(LPARAM)MAKELONG(FALSE, 0));
 }
 
 #undef SUBWINDOW_POS_IS_OLD_CLOSED_WINDOW
@@ -1208,6 +1787,7 @@ void DebugThread(void *args)
 	MSG msg;
 	DebugThreadExit = 0;
 	InitDebugWnd(NULL);
+//	ShowWindow(hDebugWnd,SW_SHOW);
 	AttachThreadInput(GetWindowThreadProcessId(hDebugThread,NULL),
    	GetWindowThreadProcessId(hWindowThread,NULL),TRUE);
 	AttachThreadInput(GetWindowThreadProcessId(hWindowThread,NULL),
@@ -1266,12 +1846,27 @@ static void InitMainToolbar(HWND hwnd)
 //-----------------------------------------------------------------------------
 // Toolbar SubWnd
 
+#define SUBWNDTOOLBAR_BITMAPITEMS 7
 static TBBUTTON SubWndTbb[] = {
-    {3, IDM_CONSOLE, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0},
-    {1, IDM_LIST, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0},
-    {2, IDM_TRACER, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0},
-    {0, IDM_DOC, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0},
-    {4, IDM_WRD, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0},
+    { 3, IDM_CONSOLE, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0 },
+    { 1, IDM_LIST, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0 },
+    { 2, IDM_TRACER, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0 },
+    { 0, IDM_DOC, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0 },
+    { 4, IDM_WRD, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0 },
+    { 5, IDM_VSTMGR,
+#ifdef VST_LOADER_ENABLE
+	 TBSTATE_ENABLED,
+#else
+	 0, /* disabled */
+#endif
+	 TBSTYLE_BUTTON, 0, 0 },
+    { 6, IDM_SOUNDSPEC,
+#ifdef SUPPORT_SOUNDSPEC
+	 TBSTATE_ENABLED,
+#else
+	 0, /* disabled */
+#endif
+	 TBSTYLE_CHECK, 0, 0 },
 };
 
 static void InitSubWndToolbar(HWND hwnd)
@@ -1281,16 +1876,15 @@ static void InitSubWndToolbar(HWND hwnd)
   		TB_BUTTONSTRUCTSIZE, (WPARAM)sizeof(TBBUTTON), 0);
   SendDlgItemMessage(hwnd, IDC_TOOLBARWINDOW_SUBWND,
   		TB_SETBUTTONSIZE, (WPARAM)0, (LPARAM)MAKELONG(16,16));
+  SendDlgItemMessage(hwnd, IDC_TOOLBARWINDOW_SUBWND,
+  	TB_ADDBUTTONS, (WPARAM)sizeof(SubWndTbb) / sizeof(TBBUTTON),(LPARAM)&SubWndTbb);
 	SubWndTbab.hInst = hInst;
 	SubWndTbab.nID =(int)IDB_BITMAP_SUBWND_BUTTON;
   SendDlgItemMessage(hwnd, IDC_TOOLBARWINDOW_SUBWND,
-  	TB_ADDBITMAP, 5, (LPARAM)&SubWndTbab);
-  SendDlgItemMessage(hwnd, IDC_TOOLBARWINDOW_SUBWND,
-  	TB_ADDBUTTONS, (WPARAM)5,(LPARAM)&SubWndTbb);
+  	TB_ADDBITMAP, (WPARAM)SUBWNDTOOLBAR_BITMAPITEMS, (LPARAM)&SubWndTbab);
   SendDlgItemMessage(hwnd, IDC_TOOLBARWINDOW_SUBWND,
 		TB_AUTOSIZE, 0, 0);
 }
-
 
 
 //-----------------------------------------------------------------------------
@@ -1308,7 +1902,8 @@ static void InitSubWndToolbar(HWND hwnd)
 #define CK_MAX_CHANNELS 16
 #define CMAP_MODE_16		1
 #define CMAP_MODE_32		2
-#define CMAP_MAX_CHANNELS	32
+#define CMAP_MODE_64		3
+#define CMAP_MAX_CHANNELS	64
 struct Canvas_ {
 	HWND hwnd;
 	HWND hParentWnd;
@@ -1368,7 +1963,7 @@ struct Canvas_ {
   	int xnote_reset;
 // misc
    Channel channel[MAX_W32G_MIDI_CHANNELS];
-} volatile Canvas;
+} Canvas;
 
 #define IDC_CANVAS 4242
 
@@ -1383,10 +1978,12 @@ static void CanvasPaintDo(void);
 #define IDM_CANVAS_REDRAW     2324
 #define IDM_CANVAS_MAP16      2325
 #define IDM_CANVAS_MAP32      2326
-#define IDM_CANVAS_KEYBOARD_A   2327
-#define IDM_CANVAS_KEYBOARD_B   2328
-#define IDM_CANVAS_KEYBOARD_C   2329
-#define IDM_CANVAS_GSLCD   2330
+#define IDM_CANVAS_MAP64      2327
+#define IDM_CANVAS_KEYBOARD_A   2328
+#define IDM_CANVAS_KEYBOARD_B   2329
+#define IDM_CANVAS_KEYBOARD_C   2330
+#define IDM_CANVAS_KEYBOARD_D   2331
+#define IDM_CANVAS_GSLCD   2332
 static void InitCanvasWnd(HWND hwnd)
 {
 	WNDCLASS wndclass ;
@@ -1423,10 +2020,13 @@ CanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			Canvas.hPopupMenuKeyboard = CreatePopupMenu();
 			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_A,"A Part");
 			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_B,"B Part");
+			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_C,"C Part");
+			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_D,"D Part");
 			Canvas.hPopupMenu = CreatePopupMenu();
 			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_GSLCD,"LCD Mode");
 			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP16,"Map16 Mode");
 			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP32,"Map32 Mode");
+			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP64,"Map64 Mode");
 			//	AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_KEYBOARD,"Keyboard Mode");
 			AppendMenu(Canvas.hPopupMenu,MF_POPUP,(UINT)Canvas.hPopupMenuKeyboard,"Keyboard Mode");
 			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_SLEEP,"Sleep Mode");
@@ -1441,7 +2041,11 @@ CanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			CanvasPaintDo();
     		return 0;
 		case WM_LBUTTONDBLCLK:
+#ifdef EXT_CONTROL_MAIN_THREAD
+			w32g_ext_control_main_thread(RC_EXT_MODE_CHANGE, 0);
+#else
 			w32g_send_rc(RC_EXT_MODE_CHANGE, 0);
+#endif
 			break;
       case WM_RBUTTONDOWN:
       {
@@ -1467,6 +2071,10 @@ CanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				Canvas.MapMode = CMAP_MODE_32;
 				CanvasChange(CANVAS_MODE_MAP32);
 				break;
+			case IDM_CANVAS_MAP64:
+				Canvas.MapMode = CMAP_MODE_64;
+				CanvasChange(CANVAS_MODE_MAP64);
+				break;
 			case IDM_CANVAS_KEYBOARD:
 				CanvasChange(CANVAS_MODE_KBD_A);
 				break;
@@ -1477,6 +2085,14 @@ CanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			case IDM_CANVAS_KEYBOARD_B:
 				Canvas.CKPart = 2;
 				CanvasChange(CANVAS_MODE_KBD_B);
+				break;
+			case IDM_CANVAS_KEYBOARD_C:
+				Canvas.CKPart = 3;
+				CanvasChange(CANVAS_MODE_KBD_C);
+				break;
+			case IDM_CANVAS_KEYBOARD_D:
+				Canvas.CKPart = 4;
+				CanvasChange(CANVAS_MODE_KBD_D);
 				break;
 			case IDM_CANVAS_SLEEP:
 				CanvasChange(CANVAS_MODE_SLEEP);
@@ -1601,14 +2217,18 @@ static void CanvasInit(HWND hwnd)
 	Canvas.MapDelay = 1;
 	Canvas.MapResidual = 0;
 	Canvas.MapMode = (MainWndInfo.CanvasMode == CANVAS_MODE_MAP32)
-			? CMAP_MODE_32 : CMAP_MODE_16;
+			? CMAP_MODE_32 : (MainWndInfo.CanvasMode == CANVAS_MODE_MAP64)
+			? CMAP_MODE_64 : CMAP_MODE_16;
 	Canvas.MapBarMax = 16;
 	//	Canvas.CKNoteFrom = 24;
 	//   Canvas.CKNoteTo = 24 + 96;
 	Canvas.CKNoteFrom = 12;
    Canvas.CKNoteTo = Canvas.CKNoteFrom + 96 + 3;
 	Canvas.CKCh = 16;
-	Canvas.CKPart = (MainWndInfo.CanvasMode == CANVAS_MODE_KBD_B) ? 2 : 1;
+	Canvas.CKPart = (MainWndInfo.CanvasMode == CANVAS_MODE_KBD_B)
+		? 2 : (MainWndInfo.CanvasMode == CANVAS_MODE_KBD_C)
+		? 3 : (MainWndInfo.CanvasMode == CANVAS_MODE_KBD_D)
+		? 4 : 1;
 	Canvas.UpdateAll = 0;
 	Canvas.Mode = (MainWndInfo.CanvasMode < CANVAS_MODE_GSLCD
 			|| MainWndInfo.CanvasMode > CANVAS_MODE_SLEEP)
@@ -1649,6 +2269,18 @@ static void CanvasMapReset(void)
 	if(!CanvasOK)
    	return;
 	switch(Canvas.MapMode){
+   case CMAP_MODE_64:
+		Canvas.MapCh = 64;
+#ifdef MAPBAR_LIKE_TMIDI
+		Canvas.MapBarWidth = 5;
+		Canvas.MapBarMax = 4+1;
+		Canvas.rcMapMap.bottom = Canvas.rcMapMap.top + 3*Canvas.MapBarMax*4 + 6 - 1;
+#else
+  		Canvas.MapBarWidth = 1;
+		Canvas.MapBarMax = 16;
+		Canvas.rcMapMap.bottom = Canvas.rcMapMap.top + 3*Canvas.MapBarMax - 1;
+#endif
+		break;
    case CMAP_MODE_32:
 		Canvas.MapCh = 32;
 #ifdef MAPBAR_LIKE_TMIDI
@@ -1987,7 +2619,7 @@ static void CanvasMapUpdate(int flag)
     		}
    		}
 	}
-	} else {
+	} else if(Canvas.MapMode==CMAP_MODE_32){
 	for(i=0;i<Canvas.MapCh;i++){
 		for(j=0;j<Canvas.MapBarMax;j++){
 			if(Canvas.MapMap[i][j]!=Canvas.MapMapOld[i][j] || flag){
@@ -2002,6 +2634,40 @@ static void CanvasMapUpdate(int flag)
 					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * (i-16);
 					rc.right = rc.left -1 + Canvas.MapBarWidth;
 						rc.top = -1 + Canvas.rcMap.top + (2 + 1) * j + Canvas.MapBarMax*(2+1) + 2 ;
+					rc.bottom = rc.top -1 + 2;
+				}
+				for(x=rc.left;x<=rc.right;x++)
+					for(y=rc.top;y<=rc.bottom;y++)
+	          			SetPixelV(Canvas.hmdc,x,y,color);
+				change_flag = 1;
+    		}
+   		}
+	}
+	} else if(Canvas.MapMode==CMAP_MODE_64){
+	for(i=0;i<Canvas.MapCh;i++){
+		for(j=0;j<Canvas.MapBarMax;j++){
+			if(Canvas.MapMap[i][j]!=Canvas.MapMapOld[i][j] || flag){
+				int x,y;
+				COLORREF color = CanvasColor(Canvas.MapMap[i][j]);
+				if(i<=15){
+					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * i;
+					rc.right = rc.left -1 + Canvas.MapBarWidth;
+						rc.top = -1 + Canvas.rcMap.top + (2 + 1) * j;
+					rc.bottom = rc.top -1 + 2;
+				} else if(i<=31){
+					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * (i-16);
+					rc.right = rc.left -1 + Canvas.MapBarWidth;
+						rc.top = -1 + Canvas.rcMap.top + (2 + 1) * j + Canvas.MapBarMax*(2+1) + 2 ;
+					rc.bottom = rc.top -1 + 2;
+				} else if(i<=47){
+					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * (i-32);
+					rc.right = rc.left -1 + Canvas.MapBarWidth;
+						rc.top = -1 + Canvas.rcMap.top + (2 + 1) * j + 2*Canvas.MapBarMax*(2+1) + 2*2 ;
+					rc.bottom = rc.top -1 + 2;
+				} else if(i<=63){
+					rc.left = Canvas.rcMap.left + (Canvas.MapBarWidth + 1) * (i-48);
+					rc.right = rc.left -1 + Canvas.MapBarWidth;
+						rc.top = -1 + Canvas.rcMap.top + (2 + 1) * j + 3*Canvas.MapBarMax*(2+1) + 3*2 ;
 					rc.bottom = rc.top -1 + 2;
 				}
 				for(x=rc.left;x<=rc.right;x++)
@@ -2075,6 +2741,7 @@ static void CanvasSleepUpdate(int flag)
 	BitBlt(Canvas.hmdc,x,y,Canvas.rcSleep.right,Canvas.rcSleep.bottom,hdc,0,0,SRCCOPY);
 	DeleteDC(hdc);
 	GDI_UNLOCK(); // gdi_lock
+	if(flag) {InvalidateRect(hCanvasWnd, NULL, FALSE);}
 }
 
 // Canvas GSLCD
@@ -2383,7 +3050,7 @@ static void CanvasKeyboardClear(void)
 	strcpy(buffer," ");
  	ExtTextOut(Canvas.hmdc,rc.left,rc.top,ETO_CLIPPED|ETO_OPAQUE,&rc,
  		buffer,strlen(buffer),NULL);
-	for(i=1;i<=3;i++){
+	for(i=1;i<=(MAX_CHANNELS>>4);i++){
 		if(i==Canvas.CKPart){
    		SetTextColor(Canvas.hmdc,RGB(0xff,0xff,0xff));
    		SetBkColor(Canvas.hmdc,RGB(0x00,0x00,0x00));
@@ -2445,10 +3112,13 @@ void CanvasReset(void)
 		break;
 	case CANVAS_MODE_MAP16:
 	case CANVAS_MODE_MAP32:
+	case CANVAS_MODE_MAP64:
 		CanvasMapReset();
 		break;
 	case CANVAS_MODE_KBD_A:
 	case CANVAS_MODE_KBD_B:
+	case CANVAS_MODE_KBD_C:
+	case CANVAS_MODE_KBD_D:
 		CanvasKeyboardReset();
 		break;
 	case CANVAS_MODE_SLEEP:
@@ -2467,10 +3137,13 @@ void CanvasClear(void)
 		break;
 	case CANVAS_MODE_MAP16:
 	case CANVAS_MODE_MAP32:
+	case CANVAS_MODE_MAP64:
 		CanvasMapClear();
 		break;
 	case CANVAS_MODE_KBD_A:
 	case CANVAS_MODE_KBD_B:
+	case CANVAS_MODE_KBD_C:
+	case CANVAS_MODE_KBD_D:
 		CanvasKeyboardClear();
 		break;
 	case CANVAS_MODE_SLEEP:
@@ -2489,10 +3162,13 @@ void CanvasUpdate(int flag)
 		break;
 	case CANVAS_MODE_MAP16:
 	case CANVAS_MODE_MAP32:
+	case CANVAS_MODE_MAP64:
 		CanvasMapUpdate(flag);
 		break;
 	case CANVAS_MODE_KBD_A:
 	case CANVAS_MODE_KBD_B:
+	case CANVAS_MODE_KBD_C:
+	case CANVAS_MODE_KBD_D:
 		CanvasKeyboardUpdate(flag);
 		break;
 	case CANVAS_MODE_SLEEP:
@@ -2511,10 +3187,13 @@ void CanvasReadPanelInfo(int flag)
 		break;
 	case CANVAS_MODE_MAP16:
 	case CANVAS_MODE_MAP32:
+	case CANVAS_MODE_MAP64:
 		CanvasMapReadPanelInfo(flag);
 		break;
 	case CANVAS_MODE_KBD_A:
 	case CANVAS_MODE_KBD_B:
+	case CANVAS_MODE_KBD_C:
+	case CANVAS_MODE_KBD_D:
 		CanvasKeyboardReadPanelInfo(flag);
 		break;
 	case CANVAS_MODE_SLEEP:
@@ -2537,12 +3216,21 @@ void CanvasChange(int mode)
 			Canvas.MapMode = CMAP_MODE_32;
 			Canvas.Mode = CANVAS_MODE_MAP32;
 		} else if (Canvas.Mode == CANVAS_MODE_MAP32) {
+			Canvas.MapMode = CMAP_MODE_64;
+			Canvas.Mode = CANVAS_MODE_MAP64;
+		} else if (Canvas.Mode == CANVAS_MODE_MAP64) {
 			Canvas.CKPart = 1;
 			Canvas.Mode = CANVAS_MODE_KBD_A;
 		} else if (Canvas.Mode == CANVAS_MODE_KBD_A) {
 			Canvas.CKPart = 2;
 			Canvas.Mode = CANVAS_MODE_KBD_B;
-		} else if (Canvas.Mode == CANVAS_MODE_KBD_B)
+		} else if (Canvas.Mode == CANVAS_MODE_KBD_B) {
+			Canvas.CKPart = 3;
+			Canvas.Mode = CANVAS_MODE_KBD_C;
+		} else if (Canvas.Mode == CANVAS_MODE_KBD_C) {
+			Canvas.CKPart = 4;
+			Canvas.Mode = CANVAS_MODE_KBD_D;
+		} else if (Canvas.Mode == CANVAS_MODE_KBD_D)
 			Canvas.Mode = CANVAS_MODE_SLEEP;
 	}
 	MainWndInfo.CanvasMode = Canvas.Mode;
@@ -2557,9 +3245,6 @@ int CanvasGetMode(void)
 {
 	return Canvas.Mode;
 }
-
-
-
 
 
 
@@ -2603,18 +3288,21 @@ int CanvasGetMode(void)
 #define MPANEL_YMAX 88
 
 // update flag.
-#define MP_UPDATE_ALL		0xffffL
-#define MP_UPDATE_NONE		0x0000L
-#define MP_UPDATE_TITLE		0x0001L
-#define MP_UPDATE_FILE		0x0002L
+#define MP_UPDATE_ALL		    0xffffL
+#define MP_UPDATE_NONE		    0x0000L
+#define MP_UPDATE_TITLE		    0x0001L
+#define MP_UPDATE_FILE		    0x0002L
 #define MP_UPDATE_TIME			0x0004L
 #define MP_UPDATE_METRONOME		0x0008L
 #define MP_UPDATE_VOICES		0x0010L
 #define MP_UPDATE_MVOLUME		0x0020L
 #define MP_UPDATE_RATE			0x0040L
 #define MP_UPDATE_PLAYLIST		0x0080L
-#define MP_UPDATE_MISC		0x0200L
-#define MP_UPDATE_MESSAGE	0x0400L
+///r
+#define MP_UPDATE_AQ_RATIO		0x0100L
+
+#define MP_UPDATE_MISC		    0x0200L
+#define MP_UPDATE_MESSAGE	    0x0400L
 #define MP_UPDATE_BACKGROUND	0x0800L
 #define MP_UPDATE_KEYSIG		0x1000L
 #define MP_UPDATE_TEMPO			0x2000L
@@ -2682,6 +3370,14 @@ struct MPanel_ {
 	enum play_system_modes play_system_mode;
 	int current_file_info_file_type;
 	int current_file_info_max_channel;
+///r
+	HFONT hFontAQ_RATIO;
+	RECT rcAQ_RATIO;
+	int aq_ratio;
+	char rq_flag[2];
+	char rv_flag[2];
+	char rp_flag[2];
+
 } MPanel;
 extern volatile int MPanelOK;
 
@@ -2776,8 +3472,12 @@ PanelWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				DeleteObject(MPanel.hFontKeysig);
 			if (MPanel.hFontTempo != NULL)
 				DeleteObject(MPanel.hFontTempo);
-			if(MPanel.hFontList!=NULL)
-				DeleteObject(MPanel.hFontList);
+///r
+			if(MPanel.hFontAQ_RATIO!=NULL)
+				DeleteObject(MPanel.hFontAQ_RATIO);
+	//		if(MPanel.hFontList!=NULL)
+	//			DeleteObject(MPanel.hFontList);
+
 			if(MPanel.hFontMisc!=NULL)
 				DeleteObject(MPanel.hFontMisc);
 			if(MPanel.hFontMessage!=NULL)
@@ -2863,11 +3563,19 @@ static void MPanelInit(HWND hwnd)
 			rc.top + 2 + 14 + 1 + 12 + 1 + 12 + 1 + 12 + 1,
 			rc.right - 2 - 54 - 2,
 			rc.top + 2 + 14 + 1 + 12 + 1 + 12 + 1 + 12 + 1 + 12);
-	SetRect(&(MPanel.rcList),
+///r
+// test rcAQ_RATIO replace rcList
+	SetRect(&(MPanel.rcAQ_RATIO),
 			rc.right - 2 - 54,
 			rc.top + 2 + 14 + 1 + 12 + 1 + 12 + 1 + 12 + 1,
 			rc.right - 2,
 			rc.top + 2 + 14 + 1 + 12 + 1 + 12 + 1 + 12 + 1 + 12);
+	//SetRect(&(MPanel.rcList),
+	//		rc.right - 2 - 54,
+	//		rc.top + 2 + 14 + 1 + 12 + 1 + 12 + 1 + 12 + 1,
+	//		rc.right - 2,
+	//		rc.top + 2 + 14 + 1 + 12 + 1 + 12 + 1 + 12 + 1 + 12);
+
 	SetRect(&(MPanel.rcMessage),
 			rc.left + 2,
 			rc.top + 2 + 14 + 1 + 12 + 1 + 25 + 1,
@@ -2883,7 +3591,11 @@ static void MPanelInit(HWND hwnd)
 	MPanel.hFontMetronome = NULL;
 	MPanel.hFontKeysig = NULL;
 	MPanel.hFontTempo = NULL;
-	MPanel.hFontList = NULL;
+///r
+	MPanel.hFontAQ_RATIO = NULL;
+//	MPanel.hFontList = NULL;
+
+
 //	strcpy(MPanel.Font,"Times New Roman");
 	strcpy(MPanel.Font,"Arial Bold");
 	switch(PlayerLanguage){
@@ -2895,6 +3607,8 @@ static void MPanelInit(HWND hwnd)
 	case LANGUAGE_JAPANESE:
 		strcpy(MPanel.FontLang,"ＭＳ Ｐ明朝");
 		strcpy(MPanel.FontLangFixed,"ＭＳ 明朝");
+//		strcpy(MPanel.FontLang,"ＭＳ Ｐゴシック");
+//		strcpy(MPanel.FontLangFixed,"ＭＳ ゴシック");
 		break;
 	}
 	rc = MPanel.rcTitle;
@@ -2947,11 +3661,18 @@ static void MPanelInit(HWND hwnd)
 			FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
 			CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
 			FIXED_PITCH | FF_DONTCARE, MPanel.Font);
-	rc = MPanel.rcList;
-	MPanel.hFontList =
+///r
+	rc = MPanel.rcAQ_RATIO;
+	MPanel.hFontAQ_RATIO =
 		CreateFont(rc.bottom-rc.top+1,0,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
 			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
       	DEFAULT_PITCH | FF_DONTCARE,MPanel.Font);
+	//rc = MPanel.rcList;
+	//MPanel.hFontList =
+	//	CreateFont(rc.bottom-rc.top+1,0,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
+	//		DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
+ //     	DEFAULT_PITCH | FF_DONTCARE,MPanel.Font);
+
 	rc = MPanel.rcMisc;
 	tmp = (rc.bottom-rc.top+1)/2;
 	MPanel.hFontMisc =
@@ -2964,6 +3685,7 @@ static void MPanelInit(HWND hwnd)
 		CreateFont(tmp*2,tmp,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
 			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
       	FIXED_PITCH | FF_DONTCARE,MPanel.FontLangFixed);
+
 	MPanelOK = 1;
 	GDI_UNLOCK(); // gdi_lock
 	MPanelMessageInit();
@@ -3031,6 +3753,14 @@ void MPanelReset(void)
 	MPanel.current_file_info_file_type = IS_OTHER_FILE;
 	MPanel.current_file_info_max_channel = -1;
 	MPanelMessageClearAll();
+///r
+	MPanel.aq_ratio = 0;
+	MPanel.rv_flag[0] = ' ';
+	MPanel.rv_flag[1] = '\0';
+	MPanel.rq_flag[0] = ' ';
+	MPanel.rq_flag[1] = '\0';
+	MPanel.rp_flag[0] = ' ';
+	MPanel.rp_flag[1] = '\0';
 }
 
 // パネル構造体を元に更新する。
@@ -3224,23 +3954,41 @@ void MPanelUpdate(void)
 		GDI_UNLOCK(); // gdi_lock
 		InvalidateRect(hPanelWnd, &(MPanel.rcTempo), FALSE);
 	}
-	if(MPanel.UpdateFlag & MP_UPDATE_PLAYLIST){
+///r
+	if(MPanel.UpdateFlag & MP_UPDATE_AQ_RATIO){
 		char buffer[256];
 		HGDIOBJ hgdiobj;
 		GDI_LOCK(); // gdi_lock
-		hgdiobj = SelectObject(MPanel.hmdc,MPanel.hFontList);
-   	sprintf(buffer," %04d/%04d",MPanel.PlaylistNum,MPanel.PlaylistMax);
+		hgdiobj = SelectObject(MPanel.hmdc,MPanel.hFontAQ_RATIO);
+   		sprintf(buffer,"%04d%%%s%s%s",MPanel.aq_ratio,MPanel.rq_flag,MPanel.rv_flag,MPanel.rp_flag);
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,MPanel.rcList.left,MPanel.rcList.top,
-    		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcList),
+		ExtTextOut(MPanel.hmdc,MPanel.rcAQ_RATIO.left,MPanel.rcAQ_RATIO.top,
+    		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcAQ_RATIO),
     		buffer,strlen(buffer),NULL);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
 			SelectObject(MPanel.hmdc,hgdiobj);
 		GDI_UNLOCK(); // gdi_lock
-		InvalidateRect(hPanelWnd, &(MPanel.rcList), FALSE);
+		InvalidateRect(hPanelWnd, &(MPanel.rcAQ_RATIO), FALSE);
    }
+	//if(MPanel.UpdateFlag & MP_UPDATE_PLAYLIST){
+	//	char buffer[256];
+	//	HGDIOBJ hgdiobj;
+	//	GDI_LOCK(); // gdi_lock
+	//	hgdiobj = SelectObject(MPanel.hmdc,MPanel.hFontList);
+ //  	sprintf(buffer," %04d/%04d",MPanel.PlaylistNum,MPanel.PlaylistMax);
+	//	SetTextColor(MPanel.hmdc,MPanel.FGColor);
+	//	SetBkColor(MPanel.hmdc,MPanel.BGColor);
+	//	SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
+	//	ExtTextOut(MPanel.hmdc,MPanel.rcList.left,MPanel.rcList.top,
+ //   		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcList),
+ //   		buffer,strlen(buffer),NULL);
+	//	if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
+	//		SelectObject(MPanel.hmdc,hgdiobj);
+	//	GDI_UNLOCK(); // gdi_lock
+	//	InvalidateRect(hPanelWnd, &(MPanel.rcList), FALSE);
+ //  }
 	if(MPanel.UpdateFlag & MP_UPDATE_MISC){
 		char buffer[256];
 		HGDIOBJ hgdiobj;
@@ -3251,14 +3999,26 @@ void MPanelUpdate(void)
     	case GM_SYSTEM_MODE:
 			strcat(buffer,"[GM]");
 			break;
+    	case GM2_SYSTEM_MODE:
+			strcat(buffer,"[G2]");
+			break;
     	case GS_SYSTEM_MODE:
 			strcat(buffer,"[GS]");
 			break;
     	case XG_SYSTEM_MODE:
 			strcat(buffer,"[XG]");
 			break;
+    	case SD_SYSTEM_MODE:
+			strcat(buffer,"[SD]");
+			break;
+    	case KG_SYSTEM_MODE:
+			strcat(buffer,"[KG]");
+			break;
+    	case CM_SYSTEM_MODE:
+			strcat(buffer,"[CM]");
+			break;
 		default:
-      case DEFAULT_SYSTEM_MODE:
+		case DEFAULT_SYSTEM_MODE:
 			strcat(buffer,"[--]");
 			break;
 		}
@@ -3482,8 +4242,9 @@ void MPanelReadPanelInfo(int flag)
 		MPanel.CurVoices = Panel->cur_voices;
      	MPanel.UpdateFlag |=	MP_UPDATE_VOICES;
    }
-	if(flag || MPanel.MVolume != amplification){
-		MPanel.MVolume = amplification;
+///r
+	if(flag || MPanel.MVolume != output_amplification){
+		MPanel.MVolume = output_amplification;
      	MPanel.UpdateFlag |=	MP_UPDATE_MVOLUME;
    }
 	if(flag || MPanel.Rate != play_mode->rate){
@@ -3514,7 +4275,8 @@ void MPanelReadPanelInfo(int flag)
 		MPanel.Tempo_ratio = Panel->tempo_ratio;
 		MPanel.UpdateFlag |= MP_UPDATE_TEMPO;
 	}
-
+///r
+/*
 	w32g_get_playlist_index(&cur_pl_num, &playlist_num, NULL);
 	if(playlist_num > 0)
 		cur_pl_num++;
@@ -3526,6 +4288,24 @@ void MPanelReadPanelInfo(int flag)
 		MPanel.PlaylistMax = playlist_num;
      	MPanel.UpdateFlag |=	MP_UPDATE_PLAYLIST;
    }
+*/
+	{
+		int rate;
+		float devsiz,filled;
+		devsiz = aq_get_dev_queuesize();
+		filled = aq_filled() + aq_soft_filled();
+		rate = devsiz <= 0 ?  0 : (int)(filled / devsiz * 100 + 0.5); // 
+		if(rate > 9999)
+			rate = 9999;
+		if(flag || MPanel.aq_ratio != rate){
+			MPanel.rq_flag[0] = reduce_quality_flag ? 'Q' : ' ';
+			MPanel.rv_flag[0] = reduce_voice_flag ? 'V' : ' ';
+			MPanel.rp_flag[0] = reduce_polyphony_flag ? 'P' : ' ';
+			MPanel.aq_ratio = rate;
+     		MPanel.UpdateFlag |=	MP_UPDATE_AQ_RATIO;
+		}
+	}
+
 	if(flag || MPanel.play_system_mode != play_system_mode){
 		MPanel.play_system_mode = play_system_mode;
      	MPanel.UpdateFlag |=	MP_UPDATE_MISC;
@@ -3817,7 +4597,7 @@ static void VersionWnd(HWND hParentWnd)
 "TiMidity Windows 95 port by Nicolas Witczak." NLS
 "TiMidity Win32 GUI by Daisuke Aoki <dai@y7.net>." NLS
 " Japanese menu, dialog, etc by Saito <timidity@flashmail.com>." NLS
-"TiMidity++ by Masanao Izumo <iz@onicos.co.jp>." NLS
+"TiMidity++ by Masanao Izumo <mo@goice.co.jp>." NLS
 ,(strcmp(timidity_version, "current")) ? "version " : "", timidity_version);
 	MessageBox(hParentWnd, VersionText, "Version", MB_OK);
 }
@@ -3827,12 +4607,12 @@ static void TiMidityWnd(HWND hParentWnd)
 	char TiMidityText[2024];
   sprintf(TiMidityText,
 " TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
-" Copyright (C) 1999-2014 Masanao Izumo <iz@onicos.co.jp>" NLS
+" Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 NLS
 " Win32 version by Davide Moretti <dmoretti@iper.net>" NLS
 " GUI by Daisuke Aoki <dai@y7.net>." NLS
-" Modified by Masanao Izumo <iz@onicos.co.jp>." NLS
+" Modified by Masanao Izumo <mo@goice.co.jp>." NLS
 NLS
 " This program is free software; you can redistribute it and/or modify" NLS
 " it under the terms of the GNU General Public License as published by" NLS
@@ -3893,7 +4673,7 @@ void TiMidityHeapCheck(void)
      		PrintfDebugWnd("Heap %d is Invalid\n",i+1);
    }
    PrintfDebugWnd("[Heaps Check End]\n\n");
-	free(ProcessHeaps);
+	safe_free(ProcessHeaps);
 }
 #endif
 
@@ -4151,6 +4931,8 @@ void WINAPI MainThread(void *arglist)
 				HideListSearch();
 			} else if ( msg.hwnd == hTracerWnd || IsChild ( hTracerWnd, msg.hwnd ) ) {
 				ToggleSubWindow(hTracerWnd);
+			} else if ( msg.hwnd == hSoundSpecWnd || IsChild ( hSoundSpecWnd, msg.hwnd ) ) {
+				ToggleSubWindow(hSoundSpecWnd);
 			}
 		}
 #endif
@@ -4184,9 +4966,13 @@ void WINAPI MainThread(void *arglist)
 
 // **************************************************************************
 // Misc Dialog
+#if FILEPATH_MAX < 16536
 #define DialogMaxFileName 16536
+#else
+#define DialogMaxFileName FILEPATH_MAX
+#endif
 static char DialogFileNameBuff[DialogMaxFileName];
-static char *DlgFileOpen(HWND hwnd, char *title, char *filter, char *dir)
+static char *DlgFileOpen(HWND hwnd, const char *title, const char *filter, const char *dir)
 {
 	OPENFILENAME ofn;
     memset(DialogFileNameBuff, 0, sizeof(DialogFileNameBuff));
@@ -4199,7 +4985,7 @@ static char *DlgFileOpen(HWND hwnd, char *title, char *filter, char *dir)
 	ofn.nMaxCustFilter = 0;
 	ofn.nFilterIndex = 1 ;
 	ofn.lpstrFile = DialogFileNameBuff;
-	ofn.nMaxFile = sizeof(DialogFileNameBuff);
+	ofn.nMaxFile = sizeof(DialogFileNameBuff) / sizeof(DialogFileNameBuff[0]);
 	ofn.lpstrFileTitle = 0;
 	ofn.nMaxFileTitle = 0;
 	ofn.lpstrInitialDir	= dir;
@@ -4220,12 +5006,28 @@ static char *DlgFileOpen(HWND hwnd, char *title, char *filter, char *dir)
 static void DlgMidiFileOpen(HWND hwnd)
 {
     char *dir, *file;
-    char *filter = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.lzh;*.zip;*.gz\0"
-		"midi file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi\0"
+    const char *filter;
+    const char *filter_en = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
+		"midi file\0*.mid;*.midi;*.smf;*.rmi\0"
+		"rcp file\0*.rcp;*.r36;*.g18;*.g36\0"
+		"mod file\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
 		"archive file\0*.lzh;*.zip;*.gz\0"
 		"playlist file\0*.pls;*.m3u;*.asx\0"
 		"all files\0*.*\0"
 		"\0\0";
+    const char *filter_jp = "Timidity サポート済みファイル\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
+		"SMF/RMID (*.mid;*.midi;*.smf;*.rmi)\0*.mid;*.midi;*.smf;*.rmi\0"
+		"RCP (*.rcp;*.r36;*.g18;*.g36)\0*.rcp;*.r36;*.g18;*.g36\0"
+		"MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
+		"圧縮済みアーカイブ (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0"
+		"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
+		"すべてのファイル (*.*)\0*.*\0"
+		"\0\0";
+
+    if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
+		filter = filter_jp;
+    else
+		filter = filter_en;
 
     if(w32g_lock_open_file)
 		return;
@@ -4239,7 +5041,11 @@ static void DlgMidiFileOpen(HWND hwnd)
 		return;
 
     w32g_lock_open_file = 1;
-    w32g_send_rc(RC_EXT_LOAD_FILE, (ptr_size_t)file);
+#ifdef EXT_CONTROL_MAIN_THREAD
+	w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t)file);
+#else
+	w32g_send_rc(RC_EXT_LOAD_FILE, (ptr_size_t)file);
+#endif
 }
 
 static volatile LPITEMIDLIST itemidlist_pre = NULL;
@@ -4259,8 +5065,8 @@ int CALLBACK DlgDirOpenBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, L
 static void DlgDirOpen(HWND hwnd)
 {
 	static int initflag = 1;
-	static char biBuffer[MAXPATH + 256];
-	static char Buffer[MAXPATH + 256];
+	static char biBuffer[FILEPATH_MAX];
+	static char Buffer[FILEPATH_MAX];
 	BROWSEINFO bi;
 	LPITEMIDLIST itemidlist;
 
@@ -4272,7 +5078,7 @@ static void DlgDirOpen(HWND hwnd)
 		initflag = 0;
 	}
 	memset(&bi, 0, sizeof(bi));
-	bi.hwndOwner = NULL;
+	bi.hwndOwner = hwnd;
 	bi.pidlRoot = NULL;
     bi.pszDisplayName = biBuffer;
 	if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
@@ -4293,7 +5099,132 @@ static void DlgDirOpen(HWND hwnd)
 	itemidlist_pre = itemidlist;
     w32g_lock_open_file = 1;
 	directory_form(Buffer);
-    w32g_send_rc(RC_EXT_LOAD_FILE, (ptr_size_t)Buffer);
+#ifdef EXT_CONTROL_MAIN_THREAD
+	w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t)Buffer);
+#else
+	w32g_send_rc(RC_EXT_LOAD_FILE, (ptr_size_t)Buffer);
+#endif
+}
+
+LRESULT CALLBACK UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static void DlgUrlOpen(HWND hwnd)
+{
+    char *file;
+
+    if(w32g_lock_open_file)
+		return;
+
+    switch(PlayerLanguage) {
+    case LANGUAGE_JAPANESE:
+        DialogBox(hInst,MAKEINTRESOURCE(IDD_DIALOG_ONE_LINE),hwnd,UrlOpenWndProc);
+        break;
+    case LANGUAGE_ENGLISH:
+    default:
+        DialogBox(hInst,MAKEINTRESOURCE(IDD_DIALOG_ONE_LINE_EN),hwnd,UrlOpenWndProc);
+        break;
+    }
+}
+
+#if FILEPATH_MAX < 8192
+#define UrlOpenStringMax 8192
+#else
+#define UrlOpenStringMax FILEPATH_MAX
+#endif
+
+volatile argc_argv_t UrlArgcArgv;
+LRESULT CALLBACK
+UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+{
+	static volatile argc_argv_t UrlArgcArgv;
+
+	switch (uMess){
+	case WM_INITDIALOG:
+		switch(PlayerLanguage){
+		case LANGUAGE_JAPANESE:
+			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"URL を開く");
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)"インターネットにあるファイルのアドレスを入れてください。");
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)"(例: http, ftp, news プロトコル)");
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)"演奏");
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)"リスト追加");
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)"閉じる");
+			break;
+		default:
+		case LANGUAGE_ENGLISH:
+			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"Open Internet URL");
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)"Type the address of a file (on the Internet) and the player will open it for you.");
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)"(ex. http, ftp, news protocols)");
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)"PLAY");
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)"ADD LIST");
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)"CLOSE");
+			break;
+		}
+		SendDlgItemMessage(hwnd,IDC_BUTTON_1,BM_SETSTYLE,BS_DEFPUSHBUTTON,(LONG)TRUE);
+		SendDlgItemMessage(hwnd,IDC_BUTTON_2,BM_SETSTYLE,BS_PUSHBUTTON,(LONG)TRUE);
+		SendDlgItemMessage(hwnd,IDC_BUTTON_3,BM_SETSTYLE,BS_PUSHBUTTON,(LONG)TRUE);
+		SetFocus(GetDlgItem(hwnd,IDC_EDIT_ONE_LINE));
+		SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,EM_SETSEL,(WPARAM)0,(LPARAM)0);
+		SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,EM_REPLACESEL,(WPARAM)FALSE,(LPARAM)"http://");
+		return TRUE;
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDCLOSE:
+			PostMessage(hwnd,WM_CLOSE,0,0);
+			break;
+		case IDC_BUTTON_1:
+		{
+			char UrlOpenString[UrlOpenStringMax];
+			char **argv;
+			ZeroMemory(UrlOpenString, UrlOpenStringMax * sizeof(char));
+			SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,
+				WM_GETTEXT,(WPARAM)(UrlOpenStringMax - 1),(LPARAM)UrlOpenString);
+			w32g_lock_open_file = 1;
+			UrlArgcArgv.argc = 1;
+			argv = (char **)safe_malloc((UrlArgcArgv.argc + 1) * sizeof(char *));
+			argv[0] = safe_strdup(UrlOpenString);
+			argv[1] = NULL;
+			UrlArgcArgv.argv = argv;
+			// argv, argv[0] は別のところで解放してくれる
+#ifdef EXT_CONTROL_MAIN_THREAD
+			w32g_ext_control_main_thread(RC_EXT_LOAD_FILES_AND_PLAY, (ptr_size_t)&UrlArgcArgv);
+#else
+			w32g_send_rc(RC_EXT_LOAD_FILES_AND_PLAY, (ptr_size_t)&UrlArgcArgv);
+#endif
+			w32g_lock_open_file = 0;
+			SetWindowLongPtr(hwnd,DWLP_MSGRESULT,TRUE);
+			EndDialog(hwnd,TRUE);
+		}
+			break;
+		case IDC_BUTTON_2:
+		{
+			char UrlOpenString[UrlOpenStringMax];
+			ZeroMemory(UrlOpenString, UrlOpenStringMax * sizeof(char));
+			SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,
+				WM_GETTEXT,(WPARAM)(UrlOpenStringMax - 1),(LPARAM)UrlOpenString);
+			w32g_lock_open_file = 1;
+#ifdef EXT_CONTROL_MAIN_THREAD
+			w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t)UrlOpenString);
+#else
+			w32g_send_rc(RC_EXT_LOAD_FILE, (ptr_size_t)UrlOpenString);
+#endif
+			SetWindowLongPtr(hwnd,DWLP_MSGRESULT,TRUE);
+			EndDialog(hwnd,TRUE);
+		}
+			break;
+		case IDC_BUTTON_3:
+			PostMessage(hwnd,WM_CLOSE,0,0);
+			break;
+		default:
+			return FALSE;
+	}
+		break;
+	case WM_CLOSE:
+		SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
+		EndDialog(hwnd,FALSE);
+		break;
+	default:
+		return FALSE;
+	}
+	return FALSE;
 }
 
 static void DlgPlaylistOpen(HWND hwnd)
@@ -4316,7 +5247,11 @@ static void DlgPlaylistOpen(HWND hwnd)
 		return;
 
     w32g_lock_open_file = 1;
-    w32g_send_rc(RC_EXT_LOAD_PLAYLIST, (ptr_size_t)file);
+#ifdef EXT_CONTROL_MAIN_THREAD
+	w32g_ext_control_main_thread(RC_EXT_LOAD_PLAYLIST, (ptr_size_t)file);
+#else
+	w32g_send_rc(RC_EXT_LOAD_PLAYLIST, (ptr_size_t)file);
+#endif
 }
 
 #include <sys/stat.h> /* for stat() */
@@ -4389,7 +5324,11 @@ static void DlgPlaylistSave(HWND hwnd)
 	if(!CheckOverWrite(hwnd, DialogFileNameBuff))
 		return;
     w32g_lock_open_file = 1;
-    w32g_send_rc(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DialogFileNameBuff);
+#ifdef EXT_CONTROL_MAIN_THREAD
+	w32g_ext_control_main_thread(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DialogFileNameBuff);
+#else
+	w32g_send_rc(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DialogFileNameBuff);
+#endif
 }
 
 // ****************************************************************************
@@ -4459,8 +5398,10 @@ void PutsEditCtlWnd(HWND hwnd, char *str)
     i++;
   }
 	if(IsWindow(hwnd)){
-		Edit_SetSel(hwnd,-1,-1);
-		Edit_ReplaceSel(hwnd,out);
+		SendMessage(hwnd, WM_SETREDRAW, 0, 0);
+ 		Edit_SetSel(hwnd,-1,-1);
+		SendMessage(hwnd, WM_SETREDRAW, 1, 0);
+ 		Edit_ReplaceSel(hwnd,out);
 	}
 }
 #else
@@ -4571,9 +5512,8 @@ int w32g_open(void)
 
     hPlayerThread = GetCurrentThread();
     w32g_wait_for_init = 1;
-    hMainThread = crt_beginthreadex(NULL, 0,
-				    (LPTHREAD_START_ROUTINE)MainThread,
-				    NULL, 0, &dwMainThreadID);
+    hMainThread = crt_beginthreadex(NULL, 0, (LPTHREAD_START_ROUTINE)MainThread, NULL, 0, &dwMainThreadID);
+
     while(w32g_wait_for_init)
     {
 		Sleep(0);
@@ -4603,7 +5543,7 @@ static void terminate_main_thread(void)
 }
 
 void w32g_close(void)
-{
+{	
 	terminate_main_thread();
 	if(w32g_lock_sem){
 	    CloseHandle(w32g_lock_sem);
@@ -4618,6 +5558,7 @@ void w32g_close(void)
 void w32g_restart(void)
 {
 	w32g_restart_gui_flag = 1;
+
 	terminate_main_thread();
 	if(w32g_lock_sem){
 	    CloseHandle(w32g_lock_sem);
@@ -4671,6 +5612,8 @@ void w32g_ctle_play_start(int sec)
 	MPanel.UpdateFlag |= MP_UPDATE_TITLE;
     }
     MPanelUpdate();
+
+
 }
 
 void MainWndScrollbarProgressUpdate(int sec)
@@ -4706,7 +5649,7 @@ void w32g_show_console(void)
 					   TB_CHECKBUTTON, IDM_CONSOLE, (LPARAM)MAKELONG(TRUE, 0));
 }
 
-///////////////////////////////////////////////////////////////////////
+//
 // GDI アクセスを単一スレッドに限定するためのロック機構
 
 static HANDLE volatile hMutexGDI = NULL;

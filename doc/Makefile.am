@@ -19,7 +19,7 @@
 include $(top_srcdir)/common.makefile.in
 SUFFIXES = .1 .5 .txt .ps
 
-SUBDIRS = C ja_JP.eucJP
+SUBDIRS = C ja_JP.eucJP ja_JP.utf8
 lang_target = C
 
 man_MANS = \

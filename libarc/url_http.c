@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #endif /* for off_t */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -37,10 +39,11 @@
 #include <signal.h> /* for SIGALRM */
 
 #include "timidity.h"
+#include "common.h"
 #include "url.h"
 #include "net.h"
 
-/* #define DEBUG */
+/* #define DEBUG 1 */
 
 #ifdef HTTP_PROXY_HOST
 char *url_http_proxy_host = HTTP_PROXY_HOST;
@@ -64,9 +67,9 @@ typedef struct _URL_http
     FILE *fp;
 } URL_http;
 
-static int name_http_check(char *url_string);
-static long url_http_read(URL url, void *buff, long n);
-static char *url_http_gets(URL url, char *buff, int n);
+static int name_http_check(const char *url_string);
+static ptr_size_t url_http_read(URL url, void *buff, ptr_size_t n);
+static char *url_http_gets(URL url, char *buff, ptr_size_t n);
 static int url_http_fgetc(URL url);
 static void url_http_close(URL url);
 
@@ -79,9 +82,9 @@ struct URL_module URL_module_http =
     NULL
 };
 
-static int name_http_check(char *s)
+static int name_http_check(const char *s)
 {
-    if(strncmp(s, "http://", 7) == 0)
+    if (!strncmp(s, "http://", 7))
 	return 1;
     return 0;
 }
@@ -98,7 +101,7 @@ static char *get_http_url_host_port(const char *url, char *buffer, int buffer_si
 	const char *host_end;
 	int length;
 
-	if (strncmp(host, "http://", 7) == 0)
+	if (!strncmp(host, "http://", 7))
 		host += 7;
 	if (*host == '[')
 	{
@@ -118,7 +121,7 @@ static char *get_http_url_host_port(const char *url, char *buffer, int buffer_si
 	return buffer;
 }
 
-URL url_http_open(char *name)
+URL url_http_open(const char *name)
 {
     URL_http *url;
     SOCKET fd;
@@ -132,8 +135,8 @@ URL url_http_open(char *name)
     fprintf(stderr, "url_http_open(%s)\n", name);
 #endif /* DEBUG */
 
-    url = (URL_http *)alloc_url(sizeof(URL_http));
-    if(url == NULL)
+    url = (URL_http*)alloc_url(sizeof(URL_http));
+    if (!url)
     {
 	url_errno = errno;
 	return NULL;
@@ -151,9 +154,9 @@ URL url_http_open(char *name)
     /* private members */
     url->fp = NULL;
 
-    if (get_http_url_host_port(name, wwwserver, sizeof wwwserver) == NULL)
+    if (!get_http_url_host_port(name, wwwserver, sizeof wwwserver))
 	return NULL;
-    if(url_http_proxy_host)
+    if (url_http_proxy_host)
     {
 	host = url_http_proxy_host;
 	port = url_http_proxy_port;
@@ -161,11 +164,11 @@ URL url_http_open(char *name)
     else
     {
 	n = strlen(wwwserver);
-	if(n + REQUEST_OFFSET >= sizeof buff)
+	if (n + REQUEST_OFFSET >= sizeof buff)
 	{
 	    url_http_close((URL)url);
 	    url_errno = URLERR_URLTOOLONG;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    return NULL;
 	}
 
@@ -180,10 +183,10 @@ URL url_http_open(char *name)
                 return NULL;
             *p++ = '\0'; /* terminate `host' string */
         } else
-            for(p = host; *p && *p != ':'; p++)
+            for (p = host; *p && *p != ':'; p++)
                 ;
 
-	if(*p == ':')
+	if (*p == ':')
 	{
 	    *p++ = '\0'; /* terminate `host' string */
 	    port = atoi(p);
@@ -191,9 +194,9 @@ URL url_http_open(char *name)
 	else
 	    port = 80;
 
-	if(strncmp(name, "http://", 7) == 0)
+	if (!strncmp(name, "http://", 7))
 	    name += 7;
-	if((p = strchr(name, '/')) == NULL)
+	if ((p = strchr(name, '/')) == NULL)
 	    name = "/";
 	else
 	    name = p;
@@ -215,44 +218,44 @@ URL url_http_open(char *name)
     signal(SIGALRM, SIG_DFL);
 #endif /* __W32__ */
 
-    if(fd  == (SOCKET)-1)
+    if (fd  == (SOCKET)-1)
     {
 	VOLATILE_TOUCH(timeout_flag);
 #ifdef ETIMEDOUT
-	if(timeout_flag)
-	    errno = ETIMEDOUT;
+	if (timeout_flag)
+	    _set_errno(ETIMEDOUT);
 #endif /* ETIMEDOUT */
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	else
 	{
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	}
 	url_http_close((URL)url);
 	return NULL;
     }
 
-    if((url->fp = socket_fdopen(fd, "rb")) == NULL)
+    if ((url->fp = socket_fdopen(fd, "rb")) == NULL)
     {
 	url_errno = errno;
 	closesocket(fd);
 	url_http_close((URL)url);
-	errno = url_errno;
+	_set_errno(url_errno);
 	return NULL;
     }
 
     sprintf(buff, "GET %s HTTP/1.0\r\n", name);
-    socket_write(fd, buff, (long)strlen(buff));
+    socket_write(fd, buff, (int32)strlen(buff));
 
 #ifdef DEBUG
     fprintf(stderr, "HTTP<%s", buff);
 #endif /* DEBUG */
 
-    if(url_user_agent)
+    if (url_user_agent)
     {
 	sprintf(buff, "User-Agent: %s\r\n", url_user_agent);
-	socket_write(fd, buff, (long)strlen(buff));
+	socket_write(fd, buff, (int32)strlen(buff));
 #ifdef DEBUG
 	fprintf(stderr, "HTTP<%s", buff);
 #endif /* DEBUG */
@@ -260,7 +263,7 @@ URL url_http_open(char *name)
 
     /* Host field */
     sprintf(buff, "Host: %s\r\n", wwwserver);
-    socket_write(fd, buff, (long)strlen(buff));
+    socket_write(fd, buff, (int32)strlen(buff));
 #ifdef DEBUG
     fprintf(stderr, "HTTP<%s", buff);
 #endif /* DEBUG */
@@ -269,14 +272,14 @@ URL url_http_open(char *name)
     socket_write(fd, "\r\n", 2);
     socket_shutdown(fd, 1);
 
-    if(socket_fgets(buff, BUFSIZ, url->fp) == NULL)
+    if (socket_fgets(buff, BUFSIZ, url->fp) == NULL)
     {
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	else
 	{
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	}
 	url_http_close((URL)url);
 	return NULL;
@@ -287,19 +290,19 @@ URL url_http_open(char *name)
 #endif /* DEBUG */
 
     p = buff;
-    if(strncmp(p, "HTTP/1.0 ", 9) == 0 || strncmp(p, "HTTP/1.1 ", 9) == 0)
+    if (!strncmp(p, "HTTP/1.0 ", 9) || !strncmp(p, "HTTP/1.1 ", 9))
 	p += 9;
-    if(strncmp(p, "200", 3) != 0) /* Not success */
+    if (strncmp(p, "200", 3)) /* Not success */
     {
 	url_http_close((URL)url);
-	url_errno = errno = ENOENT;
+	_set_errno(url_errno = ENOENT);
 	return NULL;
     }
 
     /* Skip mime header */
-    while(socket_fgets(buff, BUFSIZ, url->fp) != NULL)
+    while (socket_fgets(buff, BUFSIZ, url->fp))
     {
-	if(buff[0] == '\n' || (buff[0] == '\r' && buff[1] == '\n'))
+	if (buff[0] == '\n' || (buff[0] == '\r' && buff[1] == '\n'))
 	    break; /* end of heaer */
 #ifdef DEBUG
 	fprintf(stderr, "HTTP>%s", buff);
@@ -315,36 +318,36 @@ URL url_http_open(char *name)
 
 static void url_http_close(URL url)
 {
-    URL_http *urlp = (URL_http *)url;
+    URL_http *urlp = (URL_http*)url;
     int save_errno = errno;
-    if(urlp->fp != NULL)
+    if (urlp->fp)
 	socket_fclose(urlp->fp);
-    free(url);
-    errno = save_errno;
+    safe_free(url);
+    _set_errno(save_errno);
 }
 
-static long url_http_read(URL url, void *buff, long n)
+static ptr_size_t url_http_read(URL url, void *buff, ptr_size_t n)
 {
-    URL_http *urlp = (URL_http *)url;
+    URL_http *urlp = (URL_http*)url;
     return socket_fread(buff, n, urlp->fp);
 }
 
-static char *url_http_gets(URL url, char *buff, int n)
+static char *url_http_gets(URL url, char *buff, ptr_size_t n)
 {
-    URL_http *urlp = (URL_http *)url;
+    URL_http *urlp = (URL_http*)url;
     return socket_fgets(buff, n, urlp->fp);
 }
 
 static int url_http_fgetc(URL url)
 {
-    URL_http *urlp = (URL_http *)url;
+    URL_http *urlp = (URL_http*)url;
     int n;
     unsigned char c;
 
     n = socket_fread(&c, 1, urlp->fp);
-    if(n <= 0)
+    if (n <= 0)
     {
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	return EOF;
     }

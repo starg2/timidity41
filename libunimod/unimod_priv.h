@@ -49,6 +49,8 @@ extern "C"
 
 #ifdef __W32__
 #pragma warning(disable:4761)
+#undef _mm_malloc
+#undef _mm_free
 #endif
 
 /*========== Error handling */

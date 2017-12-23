@@ -33,6 +33,7 @@
 #include <strings.h>
 #endif
 
+#include "interface.h"
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -43,44 +44,600 @@
 #include "resample.h"
 #include "recache.h"
 
+#include "thread.h"
 
-/* for start/end of samples */
-static float newt_coeffs[58][58] = {
-#include "newton_table.c"
-};
+///r
+int opt_resample_type = DEFAULT_RESAMPLATION_NUM;
+int opt_resample_param = 0; //DEFAULT ORDER
+int opt_resample_filter = 0; //DEFAULT ORDER
+int opt_pre_resamplation = DEFAULT_PRE_RESAMPLATION;
+int opt_resample_over_sampling = 0;
 
-int sample_bounds_min, sample_bounds_max; /* min/max bounds for sample data */
+const int32 mlt_fraction = (1L << FRACTION_BITS);
+const int32 ml2_fraction = (2L << FRACTION_BITS);
+const FLOAT_T div_fraction = (FLOAT_T)1.0 / (FLOAT_T)(1L << FRACTION_BITS);
+
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+#define OUT_INT16  DIV_15BIT
+#define OUT_INT32  DIV_31BIT
+#define OUT_FLOAT  1.0
+#define OUT_DOUBLE 1.0
+#else // DATA_T int32
+#define OUT_INT16  1
+#define OUT_INT32  1
+#define OUT_FLOAT  M_15BIT
+#define OUT_DOUBLE M_15BIT
+#endif
+
+
+/*
+リサンプル部分限定
+実用範囲ではFRACTION_BITSを含まないサンプル点にはint64不要なので
+length 30[bit]=1073741824[samples] 22369[sec]@48[kHz] 
+length*2まで扱えれば十分
+*/
+#if (SAMPLE_LENGTH_BITS <= 32)
+#define spos_t int32
+#else
+#define spos_t splen_t
+#endif
+
+/*
+リサンプル部分限定
+サンプル小数点部分は frac*4まで扱えれば十分
+*/
+#if (FRACTION_BITS <= 28)
+#define fract_t int32
+#else
+#define fract_t int64
+#endif
+
+
+static inline int32 imuldiv_fraction(int32 a, int32 b) {
+#if (OPT_MODE == 1) && defined(SUPPORT_ASM_INTEL) /* fixed-point implementation */
+#if defined(SUPPORT_ASM_INTEL)
+	_asm {
+		mov eax, a
+		mov edx, b
+		imul edx
+		shr eax, FRACTION_BITS
+		shl edx, (32 - FRACTION_BITS)
+		or  eax, edx
+	}
+#else	
+	return (a * b) >> FRACTION_BITS;
+#endif	
+#else	
+	return (a * b) >> FRACTION_BITS;
+#endif // (OPT_MODE == 1)
+}
+
+static inline int32 imuldiv_fraction_int32(int32 a, int32 b) {
+#if (OPT_MODE == 1) && defined(SUPPORT_ASM_INTEL) /* fixed-point implementation */
+#if defined(SUPPORT_ASM_INTEL)
+	_asm {
+		mov eax, a
+		mov edx, b
+		imul edx
+		shr eax, FRACTION_BITS
+		shl edx, (32 - FRACTION_BITS)
+		or  eax, edx
+	}
+#else	
+	return (int32)(((int64)a * b) >> FRACTION_BITS);
+#endif	
+#else	
+	return (int32)(((int64)a * b) >> FRACTION_BITS);
+#endif // (OPT_MODE == 1)
+}
+
+/* No interpolation -- Earplugs recommended for maximum listening enjoyment */
+static DATA_T resample_none(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    return (DATA_T)src[ofs >> FRACTION_BITS] * OUT_INT16;
+}
+
+static DATA_T resample_none_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    return (DATA_T)src[ofs >> FRACTION_BITS] * OUT_INT32;
+}
+
+static DATA_T resample_none_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    return (DATA_T)src[ofs >> FRACTION_BITS] * OUT_FLOAT;
+}
+
+static DATA_T resample_none_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+	return (DATA_T)src[ofs >> FRACTION_BITS] * OUT_DOUBLE;
+}
+
+
+/* Simple linear interpolation */
+static DATA_T resample_linear(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+	const spos_t ofsi = ofs >> FRACTION_BITS;
+	fract_t ofsf = ofs & FRACTION_MASK;
+    int32 v1 = src[ofsi], v2 = src[ofsi + 1];
+// sample_t int8
+#if defined(LOOKUP_HACK) && defined(LOOKUP_INTERPOLATION)
+    return (sample_t)(v1 + (iplookup[(((v2 - v1) << 5) & 0x03FE0) | (ofsf >> (FRACTION_BITS-5))]));
+// sample_t int16
+#elif defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+    return ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT16; // FLOAT_T
+#else // DATA_T_IN32
+//	return v1 + (((v2 - v1) * ofsf) >> FRACTION_BITS);
+	return v1 + imuldiv_fraction(v2 - v1, ofsf);
+#endif
+}
+
+static DATA_T resample_linear_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+	const int32 *src = (const int32*)srci;
+	const spos_t ofsi = ofs >> FRACTION_BITS;
+//	FLOAT_T v1 = src[ofsi], fp = (ofs & FRACTION_MASK);
+//	return (v1 + (FLOAT_T)((int64)(src[ofsi + 1]) - (int64)(src[ofsi])) * fp * div_fraction) * OUT_INT32; // FLOAT_T
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+	FLOAT_T v1 = src[ofsi], fp = (ofs & FRACTION_MASK);
+    return (v1 + (FLOAT_T)((int64)(src[ofsi + 1]) - (int64)(src[ofsi])) * fp * div_fraction) * OUT_INT32; // FLOAT_T
+#else // DATA_T_IN32
+	fract_t ofsf = ofs & FRACTION_MASK;
+    int32 v1 = src[ofsi], v2 = src[ofsi + 1];
+	return v1 + imuldiv_fraction_int32(v2 - v1, ofsf);
+#endif
+}
+
+static DATA_T resample_linear_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+	const spos_t ofsi = ofs >> FRACTION_BITS;
+    FLOAT_T v1 = src[ofsi], v2 = src[ofsi + 1], fp = (ofs & FRACTION_MASK);
+    return (v1 + (v2 - v1) * fp * div_fraction) * OUT_FLOAT; // FLOAT_T
+}
+
+static DATA_T resample_linear_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+	const spos_t ofsi = ofs >> FRACTION_BITS;
+    FLOAT_T v1 = src[ofsi], v2 = src[ofsi + 1], fp = (ofs & FRACTION_MASK);
+    return (v1 + (v2 - v1) * fp * div_fraction) * OUT_DOUBLE; // FLOAT_T
+}
+
 
 /* 4-point interpolation by cubic spline curve. */
 
-static resample_t resample_cspline(sample_t *src, splen_t ofs, resample_rec_t *rec)
+static DATA_T resample_cspline(const sample_t *src, splen_t ofs, resample_rec_t *rec)
 {
-    int32 ofsi, ofsf, v0, v1, v2, v3, temp;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofstmp, len;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT) || (FRACTION_BITS > 12)
+	FLOAT_T v[4], temp1, temp2;
+#else // DATA_T_IN32
+	int32 v[4], temp1, temp2;
+#endif
+	int32 i, dir;
 
-    ofsi = ofs >> FRACTION_BITS;
-    v1 = src[ofsi];
-    v2 = src[ofsi + 1];
-    if((ofs<rec->loop_start+(1L<<FRACTION_BITS))||
-       ((ofs+(2L<<FRACTION_BITS))>rec->loop_end)){
-	return (v1 + ((resample_t)((v2 - v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS));
-    } else {
-	v0 = src[ofsi - 1];
-	v3 = src[ofsi + 2];
-	ofsf = ofs & FRACTION_MASK;
-	temp = v2;
-	v2 = (6 * v2 + ((((5 * v3 - 11 * v2 + 7 * v1 - v0) >> 2) *
-			 (ofsf + (1L << FRACTION_BITS)) >> FRACTION_BITS) *
-			(ofsf - (1L << FRACTION_BITS)) >> FRACTION_BITS))
-	    * ofsf;
-	v1 = (((6 * v1+((((5 * v0 - 11 * v1 + 7 * temp - v3) >> 2) *
-			 ofsf >> FRACTION_BITS) * (ofsf - (2L << FRACTION_BITS))
-			>> FRACTION_BITS)) * ((1L << FRACTION_BITS) - ofsf)) + v2)
-	    / (6L << FRACTION_BITS);
-	return ((v1 > sample_bounds_max) ? sample_bounds_max :
-		((v1 < sample_bounds_min) ? sample_bounds_min : v1));
-    }
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}				
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
+	}
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT) || (FRACTION_BITS > 12)
+loop_ofs:	
+	temp1 = v[1];
+	temp2 = v[2];
+	v[1] = 5.0 * v[0] - 11.0 * temp1 + 7.0 * temp2 - v[3];
+	v[2] = 5.0 * v[3] - 11.0 * temp2 + 7.0 * temp1 - v[0];
+	v[1] *= DIV_4;
+	v[2] *= DIV_4;
+	v[1] *= (FLOAT_T)ofsf * div_fraction;
+	v[2] *= (FLOAT_T)(ofsf + mlt_fraction) * div_fraction;
+	v[1] *= (FLOAT_T)(ofsf - ml2_fraction) * div_fraction;
+	v[2] *= (FLOAT_T)(ofsf - mlt_fraction) * div_fraction;
+	v[1] += 6.0 * temp1;
+	v[2] += 6.0 * temp2;
+	v[1] *= (FLOAT_T)(mlt_fraction - ofsf);
+	v[2] *= ofsf;
+	temp1 = (v[1] + v[2]) * DIV_6 * div_fraction;
+	return temp1 * OUT_INT16; // FLOAT_T
+do_linear:
+    v[1] = src[ofsi];
+	v[2] = (int32)(src[ofsi + 1]) - (int32)(src[ofsi]);
+    return (v[1] + v[2] * (FLOAT_T)ofsf * div_fraction) * OUT_INT16; // FLOAT_T
+#else // DATA_T_IN32
+loop_ofs:
+	temp1 = v[1];
+	temp2 = v[2];
+	//v[2] = (6 * v[2] + ((((5 * v[3] - 11 * v[2] + 7 * v[1] - v[0]) >> 2)
+	//	* (ofsf + (1L << FRACTION_BITS)) >> FRACTION_BITS)
+	//	* (ofsf - (1L << FRACTION_BITS)) >> FRACTION_BITS))
+	//    * ofsf;
+	//v[1] = ((6 * v[1]+((((5 * v[0] - 11 * v[1] + 7 * temp2 - v[3]) >> 2)
+	//	* ofsf >> FRACTION_BITS)
+	//	* (ofsf - (2L << FRACTION_BITS)) >> FRACTION_BITS))
+	//	* ((1L << FRACTION_BITS) - ofsf));
+	//temp1 = (v[1] + v[2]) / (6L << FRACTION_BITS);
+	v[1] = (5 * v[0] - 11 * temp1 + 7 * temp2 - v[3]) >> 2;
+	v[2] = (5 * v[3] - 11 * temp2 + 7 * temp1 - v[0]) >> 2;
+	v[1] = imuldiv_fraction(v[1], ofsf);
+	v[2] = imuldiv_fraction(v[2], ofsf + mlt_fraction);
+	v[1] = imuldiv_fraction(v[1], ofsf - ml2_fraction);
+	v[2] = imuldiv_fraction(v[2], ofsf - mlt_fraction);
+	v[1] = (6 * temp1 + v[1]) * (mlt_fraction - ofsf);
+	v[2] = (6 * temp2 + v[2]) * ofsf;
+	temp1 = (v[1] + v[2]) / (6L << FRACTION_BITS);
+	return temp1;
+do_linear:
+    v[1] = src[ofsi];
+	v[2] = src[ofsi + 1];
+//	return v[1] + ((v[2] - v[1]) * ofsf) >> FRACTION_BITS;
+	return v[1] + imuldiv_fraction(v[2] - v[1], ofsf);
+#endif
 }
 
+static DATA_T resample_cspline_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+    spos_t ofstmp, len;
+	FLOAT_T v[4], temp1, temp2;
+	int32 i, dir;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}			
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
+	}
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];
+loop_ofs:
+	temp1 = v[1];
+	temp2 = v[2];
+	v[2] = 5.0 * v[3] - 11.0 * temp2 + 7.0 * temp1 - v[0];
+	v[2] *= DIV_4;
+	v[2] *= (FLOAT_T)(ofsf + mlt_fraction) * div_fraction;
+	v[2] *= (FLOAT_T)(ofsf - mlt_fraction) * div_fraction;
+	v[2] += 6.0 * temp2;
+	v[2] *= ofsf;
+	v[1] = 5.0 * v[0] - 11.0 * temp1 + 7.0 * temp2 - v[3];
+	v[1] *= DIV_4;
+	v[1] *= (FLOAT_T)ofsf * div_fraction;
+	v[1] *= (FLOAT_T)(ofsf - ml2_fraction) * div_fraction;
+	v[1] += 6.0 * temp1;
+	v[1] *= (FLOAT_T)(mlt_fraction - ofsf);
+	temp1 = (v[1] + v[2]) *  DIV_6 * div_fraction;
+	return temp1 * OUT_INT32; // FLOAT_T
+do_linear:
+	//v[1] = src[ofsi];
+	//v[2] = (int64)(src[ofsi + 1]) - (int64)(src[ofsi]);
+	//return (v[1] + v[2] * (FLOAT_T)ofsf * div_fraction) * OUT_INT32; // FLOAT_T
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+    v[1] = src[ofsi];
+	v[2] = (int64)(src[ofsi + 1]) - (int64)(src[ofsi]);
+    return (v[1] + v[2] * (FLOAT_T)ofsf * div_fraction) * OUT_INT32; // FLOAT_T
+#else // DATA_T_IN32
+	v[1] = src[ofsi];
+	v[2] = src[ofsi + 1];	
+	return v[1] + imuldiv_fraction_int32(v[2] - v[1], ofsf);
+#endif
+}
+
+static DATA_T resample_cspline_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+    spos_t ofstmp, len;
+	FLOAT_T v[4], temp1, temp2;
+	int32 i, dir;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}			
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
+	}
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];
+loop_ofs:
+	temp1 = v[1];
+	temp2 = v[2];
+	v[2] = 5.0 * v[3] - 11.0 * temp2 + 7.0 * temp1 - v[0];
+	v[2] *= DIV_4;
+	v[2] *= (FLOAT_T)(ofsf + mlt_fraction) * div_fraction;
+	v[2] *= (FLOAT_T)(ofsf - mlt_fraction) * div_fraction;
+	v[2] += 6.0 * temp2;
+	v[2] *= ofsf;
+	v[1] = 5.0 * v[0] - 11.0 * temp1 + 7.0 * temp2 - v[3];
+	v[1] *= DIV_4;
+	v[1] *= (FLOAT_T)ofsf * div_fraction;
+	v[1] *= (FLOAT_T)(ofsf - ml2_fraction) * div_fraction;
+	v[1] += 6.0 * temp1;
+	v[1] *= (FLOAT_T)(mlt_fraction - ofsf);
+	temp1 = (v[1] + v[2]) *  DIV_6 * div_fraction;	
+	return temp1 * OUT_FLOAT;
+do_linear:
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	return (v[1] + (v[2] - v[1]) * (FLOAT_T)ofsf * div_fraction) * OUT_FLOAT;
+}
+
+static DATA_T resample_cspline_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+    spos_t ofstmp, len;
+	FLOAT_T v[4], temp1, temp2;
+	int32 i, dir;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}			
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
+	}
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];
+loop_ofs:
+	temp1 = v[1];
+	temp2 = v[2];
+	v[2] = 5.0 * v[3] - 11.0 * temp2 + 7.0 * temp1 - v[0];
+	v[2] *= DIV_4;
+	v[2] *= (FLOAT_T)(ofsf + mlt_fraction) * div_fraction;
+	v[2] *= (FLOAT_T)(ofsf - mlt_fraction) * div_fraction;
+	v[2] += 6.0 * temp2;
+	v[2] *= ofsf;
+	v[1] = 5.0 * v[0] - 11.0 * temp1 + 7.0 * temp2 - v[3];
+	v[1] *= DIV_4;
+	v[1] *= (FLOAT_T)ofsf * div_fraction;
+	v[1] *= (FLOAT_T)(ofsf - ml2_fraction) * div_fraction;
+	v[1] += 6.0 * temp1;
+	v[1] *= (FLOAT_T)(mlt_fraction - ofsf);
+	temp1 = (v[1] + v[2]) *  DIV_6 * div_fraction;
+	return temp1 * OUT_DOUBLE;
+do_linear:
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	return (v[1] + (v[2] - v[1]) * (FLOAT_T)ofsf * div_fraction) * OUT_DOUBLE;
+}
 
 /* 4-point interpolation by Lagrange method.
    Lagrange is now faster than C-spline.  Both have about the same accuracy,
@@ -92,141 +649,410 @@ static resample_t resample_cspline(sample_t *src, splen_t ofs, resample_rec_t *r
    just keep this labeled as resample_lagrange(), even if it really is the
    Newton form of the polynomial. */
 
-static resample_t resample_lagrange(sample_t *src, splen_t ofs, resample_rec_t *rec)
+static DATA_T resample_lagrange(const sample_t *src, splen_t ofs, resample_rec_t *rec)
 {
-    int32 ofsi, ofsf, v0, v1, v2, v3;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+    spos_t ofstmp, len;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+    FLOAT_T v[4], tmp;
+#else // DATA_T_IN32
+	int32 v[4], tmp;
+#endif
+	int32 i, dir;
 
-    ofsi = ofs >> FRACTION_BITS;
-    v1 = (int32)src[ofsi];
-    v2 = (int32)src[ofsi + 1];
-    if((ofs<rec->loop_start+(1L<<FRACTION_BITS))||
-       ((ofs+(2L<<FRACTION_BITS))>rec->loop_end)) {
-	return (v1 + ((resample_t)((v2 - v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS));
-    } else {
-	v0 = (int32)src[ofsi - 1];
-	v3 = (int32)src[ofsi + 2];
-	ofsf = (ofs & FRACTION_MASK) + (1<<FRACTION_BITS);
-	v3 += -3*v2 + 3*v1 - v0;
-	v3 *= (ofsf - (2<<FRACTION_BITS)) / 6;
-	v3 >>= FRACTION_BITS;
-	v3 += v2 - v1 - v1 + v0;
-	v3 *= (ofsf - (1<<FRACTION_BITS)) >> 1;
-	v3 >>= FRACTION_BITS;
-	v3 += v1 - v0;
-	v3 *= ofsf;
-	v3 >>= FRACTION_BITS;
-	v3 += v0;
-	return ((v3 > sample_bounds_max) ? sample_bounds_max :
-		((v3 < sample_bounds_min) ? sample_bounds_min : v3));
-    }
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:			
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}			
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
+	}
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+loop_ofs:
+	ofsf += mlt_fraction;
+	tmp = v[1] - v[0];
+	v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	v[3] *= (FLOAT_T)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	v[3] += v[2] - v[1] - tmp;
+	v[3] *= (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	v[3] += tmp;
+	v[3] *= (FLOAT_T)ofsf * div_fraction;
+	v[3] += v[0];
+	return v[3] * OUT_INT16;
+do_linear:
+    v[1] = src[ofsi];
+	v[2] = (int32)(src[ofsi + 1]) - (int32)(src[ofsi]);
+    return (v[1] + v[2] * (FLOAT_T)ofsf * div_fraction) * OUT_INT16; // FLOAT_T
+#else // DATA_T_IN32
+loop_ofs:
+	ofsf += mlt_fraction;
+	tmp = v[1] - v[0];
+	//v[3] += -3*v[2] + 3*v[1] - v[0];
+	//v[3] *= (ofsf - ml2_fraction) / 6;
+	//v[3] >>= FRACTION_BITS;
+	//v[3] += v[2] - v[1] - tmp;
+	//v[3] *= (ofsf - mlt_fraction) >> 1;
+	//v[3] >>= FRACTION_BITS;
+	//v[3] += tmp;
+	//v[3] *= ofsf;
+	//v[3] >>= FRACTION_BITS;
+	//v[3] += v[0];
+	v[3] += -3*v[2] + 3*v[1] - v[0];
+	v[3] = imuldiv_fraction(v[3], (ofsf - ml2_fraction) / 6);
+	v[3] += v[2] - v[1] - tmp;
+	v[3] = imuldiv_fraction(v[3], (ofsf - mlt_fraction) >> 1);
+	v[3] += tmp;
+	v[3] = imuldiv_fraction(v[3], ofsf);
+	v[3] += v[0];
+	return v[3];
+do_linear:
+    v[1] = src[ofsi];
+	v[2] = src[ofsi + 1];
+//	return v[1] + ((v[2] - v[1]) * ofsf >> FRACTION_BITS) >> FRACTION_BITS;
+	return v[1] + imuldiv_fraction(v[2] - v[1], ofsf);
+#endif
 }
 
-
-/* Very fast and accurate table based interpolation.  Better speed and higher
-   accuracy than Newton.  This isn't *quite* true Gauss interpolation; it's
-   more a slightly modified Gauss interpolation that I accidently stumbled
-   upon.  Rather than normalize all x values in the window to be in the range
-   [0 to 2*PI], it simply divides them all by 2*PI instead.  I don't know why
-   this works, but it does.  Gauss should only work on periodic data with the
-   window spanning exactly one period, so it is no surprise that regular Gauss
-   interpolation doesn't work too well on general audio data.  But dividing
-   the x values by 2*PI magically does.  Any other scaling produces degraded
-   results or total garbage.  If anyone can work out the theory behind why
-   this works so well (at first glance, it shouldn't ??), please contact me
-   (Eric A. Welsh, ewelsh@ccb.wustl.edu), as I would really like to have some
-   mathematical justification for doing this.  Despite the lack of any sound
-   theoretical basis, this method DOES result in highly accurate interpolation
-   (or possibly approximaton, not sure yet if it truly interpolates, but it
-   looks like it does).  -N 34 is as high as it can go before errors start
-   appearing.  But even at -N 34, it is more accurate than Newton at -N 57.
-   -N 34 has no problem running in realtime on my system, but -N 25 is the
-   default, since that is the optimal compromise between speed and accuracy.
-   I strongly recommend using Gauss interpolation.  It is the highest
-   quality interpolation option available, and is much faster than using
-   Newton polynomials. */
-
-#define DEFAULT_GAUSS_ORDER	25
-static float *gauss_table[(1<<FRACTION_BITS)] = {0};	/* don't need doubles */
-static int gauss_n = DEFAULT_GAUSS_ORDER;
-
-static resample_t resample_gauss(sample_t *src, splen_t ofs, resample_rec_t *rec)
+static DATA_T resample_lagrange_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
 {
-    sample_t *sptr;
-    int32 left, right, temp_n;
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+    spos_t ofstmp, len;
+	FLOAT_T v[4], tmp;
+	int32 i, dir;
 
-    left = (ofs>>FRACTION_BITS);
-    right = (rec->data_length>>FRACTION_BITS) - left - 1;
-    temp_n = (right<<1)-1;
-    if (temp_n > (left<<1)+1)
-	temp_n = (left<<1)+1;
-    if (temp_n < gauss_n) {
-	int ii, jj;
-	float xd, y;
-	if (temp_n <= 0)
-	    temp_n = 1;
-	xd = ofs & FRACTION_MASK;
-	xd /= (1L<<FRACTION_BITS);
-	xd += temp_n>>1;
-	y = 0;
-	sptr = src + (ofs>>FRACTION_BITS) - (temp_n>>1);
-	for (ii = temp_n; ii;) {
-	    for (jj = 0; jj <= ii; jj++)
-		y += sptr[jj] * newt_coeffs[ii][jj];
-	    y *= xd - --ii;
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}	
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}				
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
 	}
-	y += *sptr;
-	return ((y > sample_bounds_max) ? sample_bounds_max :
-		((y < sample_bounds_min) ? sample_bounds_min : y));
-    } else {
-	float *gptr, *gend;
-	float y;
-	y = 0;
-	sptr = src + left - (gauss_n>>1);
-	gptr = gauss_table[ofs&FRACTION_MASK];
-	if (gauss_n == DEFAULT_GAUSS_ORDER) {
-	    /* expanding the loop for the default case.
-	     * this will allow intensive optimization when compiled
-	     * with SSE2 capability.
-	     */
-#define do_gauss  y += *(sptr++) * *(gptr++);
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    do_gauss;
-	    y += *sptr * *gptr;
-#undef do_gauss
-	} else {
-	    gend = gptr + gauss_n;
-	    do {
-		y += *(sptr++) * *(gptr++);
-	    } while (gptr <= gend);
-	}
-	return ((y > sample_bounds_max) ? sample_bounds_max :
-		((y < sample_bounds_min) ? sample_bounds_min : y));
-    }
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];
+loop_ofs:
+	ofsf += mlt_fraction;
+	tmp = v[1] - v[0];
+	v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	v[3] *= (FLOAT_T)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	v[3] += v[2] - v[1] - tmp;
+	v[3] *= (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	v[3] += tmp;
+	v[3] *= (FLOAT_T)ofsf * div_fraction;
+	v[3] += v[0];
+	return v[3] * OUT_INT32;
+do_linear:
+	//v[1] = src[ofsi];
+	//v[2] = (int64)(src[ofsi + 1]) - (int64)(src[ofsi]);
+	//return (v[1] + v[2] * (FLOAT_T)ofsf * div_fraction) * OUT_INT32; // FLOAT_T	
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+    v[1] = src[ofsi];
+	v[2] = (int64)(src[ofsi + 1]) - (int64)(src[ofsi]);
+    return (v[1] + v[2] * (FLOAT_T)ofsf * div_fraction) * OUT_INT32; // FLOAT_T
+#else // DATA_T_IN32
+	v[1] = src[ofsi];
+	v[2] = src[ofsi + 1];	
+	return v[1] + imuldiv_fraction_int32(v[2] - v[1], ofsf);
+#endif
 }
 
+static DATA_T resample_lagrange_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+    spos_t ofstmp, len;
+	FLOAT_T v[4], tmp;
+	int32 i, dir;
+
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:			
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}					
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
+	}
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];
+loop_ofs:
+	ofsf += mlt_fraction;
+	tmp = v[1] - v[0];
+	v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	v[3] *= (FLOAT_T)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	v[3] += v[2] - v[1] - tmp;
+	v[3] *= (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	v[3] += tmp;
+	v[3] *= (FLOAT_T)ofsf * div_fraction;
+	v[3] += v[0];
+	return v[3] * OUT_FLOAT;
+do_linear:
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	return (v[1] + (v[2] - v[1]) * (FLOAT_T)ofsf * div_fraction) * OUT_FLOAT;
+}
+
+static DATA_T resample_lagrange_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+    spos_t ofstmp, len;
+	FLOAT_T v[4], tmp;
+	int32 i, dir;
+
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			goto do_linear;
+		break; // normal
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				goto do_linear;
+			if((ofsi + 2) < ofsle)
+				break; // normal
+		}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+			break; // normal		
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - 1;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need			
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		goto loop_ofs;
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					goto do_linear;
+				if((ofsi + 2) < ofsle)
+					break; // normal
+			}else if(((ofsi + 2) < ofsle) && ((ofsi - 1) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - 1;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}				
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + 1;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+		}
+		for(i = 0; i < 4; i++){
+			v[i] = src[ofstmp];			
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		goto loop_ofs;
+		break;
+	}
+normal_ofs:
+	v[0] = src[ofsi - 1];
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	v[3] = src[ofsi + 2];	
+loop_ofs:
+	ofsf += mlt_fraction;
+	tmp = v[1] - v[0];
+	v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	v[3] *= (FLOAT_T)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	v[3] += v[2] - v[1] - tmp;
+	v[3] *= (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	v[3] += tmp;
+	v[3] *= (FLOAT_T)ofsf * div_fraction;
+	v[3] += v[0];
+	return v[3] * OUT_DOUBLE;
+do_linear:
+    v[1] = src[ofsi];
+    v[2] = src[ofsi + 1];	
+	return (v[1] + (v[2] - v[1]) * (FLOAT_T)ofsf * div_fraction) * OUT_DOUBLE;
+}
 
 /* (at least) n+1 point interpolation using Newton polynomials.
    n can be set with a command line option, and
@@ -236,12 +1062,16 @@ static resample_t resample_gauss(sample_t *src, splen_t ofs, resample_rec_t *rec
    playback.  Some points will be interpolated at orders > n to both increase
    accuracy and save CPU. */
 
-static int newt_n = 11;
-static int32 newt_old_trunc_x = -1;
-static int newt_grow = -1;
-static int newt_max = 13;
-static double newt_divd[60][60];
-static double newt_recip[60] = { 0, 1, 1.0/2, 1.0/3, 1.0/4, 1.0/5, 1.0/6, 1.0/7,
+/* for start/end of samples */
+static double newt_coeffs[58][58] = {
+#include "newton_table.c"
+};
+
+#define DEFAULT_NEWTON_ORDER 11
+#define DEFAULT_NEWTON_MAX 13
+static int newt_n = DEFAULT_NEWTON_ORDER;
+static int newt_max = DEFAULT_NEWTON_MAX;
+static FLOAT_T newt_recip[65] = { 0, 1, 1.0/2, 1.0/3, 1.0/4, 1.0/5, 1.0/6, 1.0/7,
 			1.0/8, 1.0/9, 1.0/10, 1.0/11, 1.0/12, 1.0/13, 1.0/14,
 			1.0/15, 1.0/16, 1.0/17, 1.0/18, 1.0/19, 1.0/20, 1.0/21,
 			1.0/22, 1.0/23, 1.0/24, 1.0/25, 1.0/26, 1.0/27, 1.0/28,
@@ -250,223 +1080,12 @@ static double newt_recip[60] = { 0, 1, 1.0/2, 1.0/3, 1.0/4, 1.0/5, 1.0/6, 1.0/7,
 			1.0/43, 1.0/44, 1.0/45, 1.0/46, 1.0/47, 1.0/48, 1.0/49,
 			1.0/50, 1.0/51, 1.0/52, 1.0/53, 1.0/54, 1.0/55, 1.0/56,
 			1.0/57, 1.0/58, 1.0/59 };
-static sample_t *newt_old_src = NULL;
-
-static resample_t resample_newton(sample_t *src, splen_t ofs, resample_rec_t *rec)
-{
-    int n_new, n_old;
-    int32 v1, v2, diff = 0;
-    sample_t *sptr;
-    double y, xd;
-    int32 left, right, temp_n;
-    int ii, jj;
-
-    left = (ofs>>FRACTION_BITS);
-    right = (rec->data_length>>FRACTION_BITS)-(ofs>>FRACTION_BITS)-1;
-    temp_n = (right<<1)-1;
-    if (temp_n <= 0)
-	temp_n = 1;
-    if (temp_n > (left<<1)+1)
-	temp_n = (left<<1)+1;
-    if (temp_n < newt_n) {
-	xd = ofs & FRACTION_MASK;
-	xd /= (1L<<FRACTION_BITS);
-	xd += temp_n>>1;
-	y = 0;
-	sptr = src + (ofs>>FRACTION_BITS) - (temp_n>>1);
-	for (ii = temp_n; ii;) {
-	    for (jj = 0; jj <= ii; jj++)
-		y += sptr[jj] * newt_coeffs[ii][jj];
-	    y *= xd - --ii;
-	} y += *sptr;
-    }else{
-	if (newt_grow >= 0 && src == newt_old_src &&
-	    (diff = (ofs>>FRACTION_BITS) - newt_old_trunc_x) > 0){
-	    n_new = newt_n + ((newt_grow + diff)<<1);
-	    if (n_new <= newt_max){
-		n_old = newt_n + (newt_grow<<1);
-		newt_grow += diff;
-		for (v1=(ofs>>FRACTION_BITS)+(n_new>>1)+1,v2=n_new;
-		     v2 > n_old; --v1, --v2){
-		    newt_divd[0][v2] = src[v1];
-		}for (v1 = 1; v1 <= n_new; v1++)
-		    for (v2 = n_new; v2 > n_old; --v2)
-			newt_divd[v1][v2] = (newt_divd[v1-1][v2] -
-					     newt_divd[v1-1][v2-1]) *
-			    newt_recip[v1];
-	    }else newt_grow = -1;
-	}
-	if (newt_grow < 0 || src != newt_old_src || diff < 0){
-	    newt_grow = 0;
-	    for (v1=(ofs>>FRACTION_BITS)-(newt_n>>1),v2=0;
-		 v2 <= newt_n; v1++, v2++){
-		newt_divd[0][v2] = src[v1];
-	    }for (v1 = 1; v1 <= newt_n; v1++)
-		for (v2 = newt_n; v2 >= v1; --v2)
-		    newt_divd[v1][v2] = (newt_divd[v1-1][v2] -
-					 newt_divd[v1-1][v2-1]) *
-			newt_recip[v1];
-	}
-	n_new = newt_n + (newt_grow<<1);
-	v2 = n_new;
-	y = newt_divd[v2][v2];
-	xd = (double)(ofs&FRACTION_MASK) / (1L<<FRACTION_BITS) +
-	    (newt_n>>1) + newt_grow;
-	for (--v2; v2; --v2){
-	    y *= xd - v2;
-	    y += newt_divd[v2][v2];
-	}y = y*xd + **newt_divd;
-	newt_old_src = src;
-	newt_old_trunc_x = (ofs>>FRACTION_BITS);
-    }
-    return ((y > sample_bounds_max) ? sample_bounds_max :
-    	    ((y < sample_bounds_min) ? sample_bounds_min : y));
-}
-
-
-/* Simple linear interpolation */
-
-static resample_t resample_linear(sample_t *src, splen_t ofs, resample_rec_t *rec)
-{
-    int32 v1, v2, ofsi;
-
-    ofsi = ofs >> FRACTION_BITS;
-    v1 = src[ofsi];
-    v2 = src[ofsi + 1];
-#if defined(LOOKUP_HACK) && defined(LOOKUP_INTERPOLATION)
-    return (sample_t)(v1 + (iplookup[(((v2 - v1) << 5) & 0x03FE0) |
-				     ((ofs & FRACTION_MASK) >> (FRACTION_BITS-5))]));
-#else
-    return (v1 + ((resample_t)((v2 - v1) * (ofs & FRACTION_MASK)) >> FRACTION_BITS));
+#ifndef RESAMPLE_NEWTON_VOICE
+static int32 newt_old_trunc_x = -1;
+static int newt_grow = -1;
+static void *newt_old_src = NULL;
+static double newt_divd[60][60];
 #endif
-}
-
-
-/* No interpolation -- Earplugs recommended for maximum listening enjoyment */
-
-static resample_t resample_none(sample_t *src, splen_t ofs, resample_rec_t *rec)
-{
-    return src[ofs >> FRACTION_BITS];
-}
-
-
-/*
- */
-
-typedef resample_t (*resampler_t)(sample_t*, splen_t, resample_rec_t *);
-static resampler_t resamplers[] = {
-    resample_cspline,
-    resample_lagrange,
-    resample_gauss,
-    resample_newton,
-    resample_linear,
-    resample_none
-};
-
-#ifdef FIXED_RESAMPLATION
-/* don't allow to change the resamplation algorighm.
- * accessing directly to the given function.
- * hope the compiler will optimize the overhead of function calls in this case.
- */
-#define cur_resample DEFAULT_RESAMPLATION
-#else
-static resampler_t cur_resample = DEFAULT_RESAMPLATION;
-#endif
-
-#define RESAMPLATION *dest++ = cur_resample(src, ofs, &resrc);
-
-/* exported for recache.c */
-resample_t do_resamplation(sample_t *src, splen_t ofs, resample_rec_t *rec)
-{
-    return cur_resample(src, ofs, rec);
-}
-
-/* return the current resampling algorithm */
-int get_current_resampler(void)
-{
-    int i;
-    for (i = 0; i < (int)(sizeof(resamplers)/sizeof(resamplers[0])); i++)
-	if (resamplers[i] == cur_resample)
-	    return i;
-    return 0;
-}
-
-/* set the current resampling algorithm */
-int set_current_resampler(int type)
-{
-#ifdef FIXED_RESAMPLATION
-    return -1;
-#else
-    if (type < 0 || type > RESAMPLE_NONE)
-	return -1;
-    cur_resample = resamplers[type];
-    return 0;
-#endif
-}
-
-/* #define FINALINTERP if (ofs < le) *dest++=src[(ofs>>FRACTION_BITS)-1]/2; */
-#define FINALINTERP /* Nothing to do after TiMidity++ 2.9.0 */
-/* So it isn't interpolation. At least it's final. */
-
-static resample_t resample_buffer[AUDIO_BUFFER_SIZE];
-static int resample_buffer_offset;
-static resample_t *vib_resample_voice(int, int32 *, int);
-static resample_t *normal_resample_voice(int, int32 *, int);
-
-#ifdef PRECALC_LOOPS
-#if SAMPLE_LENGTH_BITS == 32 && TIMIDITY_HAVE_INT64
-#define PRECALC_LOOP_COUNT(start, end, incr) (int32)(((int64)((end) - (start) + (incr) - 1)) / (incr))
-#else
-#define PRECALC_LOOP_COUNT(start, end, incr) (int32)(((splen_t)((end) - (start) + (incr) - 1)) / (incr))
-#endif
-#endif /* PRECALC_LOOPS */
-
-void initialize_gauss_table(int n)
-{
-    int m, i, k, n_half = (n>>1);
-    double ck;
-    double x, x_inc, xz;
-    double z[35], zsin_[34 + 35], *zsin, xzsin[35];
-    float *gptr;
-
-    for (i = 0; i <= n; i++)
-    	z[i] = i / (4*M_PI);
-    zsin = &zsin_[34];
-    for (i = -n; i <= n; i++)
-    	zsin[i] = sin(i / (4*M_PI));
-
-    x_inc = 1.0 / (1<<FRACTION_BITS);
-    gptr = safe_realloc(gauss_table[0], (n+1)*sizeof(float)*(1<<FRACTION_BITS));
-    for (m = 0, x = 0.0; m < (1<<FRACTION_BITS); m++, x += x_inc)
-    {
-    	xz = (x + n_half) / (4*M_PI);
-    	for (i = 0; i <= n; i++)
-	    xzsin[i] = sin(xz - z[i]);
-    	gauss_table[m] = gptr;
-
-    	for (k = 0; k <= n; k++)
-    	{
-    	    ck = 1.0;
-
-    	    for (i = 0; i <= n; i++)
-    	    {
-    	    	if (i == k)
-    	    	    continue;
-    	
-    	    	ck *= xzsin[i] / zsin[k - i];
-    	    }
-    	    
-    	    *gptr++ = ck;
-    	}
-    }
-}
-
-void free_gauss_table(void)
-{
-	if(gauss_table[0] != 0)
-	  free(gauss_table[0]);
-	gauss_table[0] = NULL;
-}
 
 #if 0 /* NOT USED */
 /* the was calculated statically in newton_table.c */
@@ -501,309 +1120,3910 @@ static void initialize_newton_coeffs(void)
 }
 #endif /* NOT USED */
 
-/* initialize the coefficients of the current resampling algorithm */
-void initialize_resampler_coeffs(void)
-{
-    /* initialize_newton_coeffs(); */
-    initialize_gauss_table(gauss_n);
-    /* we don't have to initialize newton table any more */
+#ifdef RESAMPLE_NEWTON_VOICE
+#define NEWT_TRNC	rec->newt_old_trunc_x
+#define NEWT_GROW 	rec->newt_grow
+#define NEWT_SRC	rec->newt_old_src
+#define NEWT_DIVD	rec->newt_divd
 
-    /* bounds checking values for the appropriate sample types */
-    /* this is as good a place as any to initialize them */
-    if (play_mode->encoding & PE_24BIT)
-    {
-    	sample_bounds_min = -8388608;
-    	sample_bounds_max = 8388607;
+#else // ! RESAMPLE_NEWTON_VOICE
+#define NEWT_TRNC	newt_old_trunc_x
+#define NEWT_GROW 	newt_grow
+#define NEWT_SRC	newt_old_src
+#define NEWT_DIVD	newt_divd
+
+static int32 newt_old_trunc_x = -1;
+static int newt_grow = -1;
+static void *newt_old_src = NULL;
+static double newt_divd[60][60];
+
+#endif // RESAMPLE_NEWTON_VOICE
+
+static DATA_T resample_newton(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const sample_t *sptr;
+	spos_t temp_n, ii, jj;
+    int32 v1, v2, diff = 0;
+    int n_new, n_old;
+    FLOAT_T y, xd;
+
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		//int32 v1 = src[ofsi];
+		//int32 v2 = src[ofsi + 1];	
+		//return (DATA_T)(v1 + ((int32)((v2 - v1) * ofsf) >> FRACTION_BITS)) * OUT_INT16;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT16;
+#else // DATA_T_IN32		
+		int32 v1 = src[ofsi];
+		int32 v2 = src[ofsi + 1];	
+		return v1 + imuldiv_fraction(v2 - v1, ofsf);
+#endif
+	}
+    temp_n = (ofso<<1)-1;
+    if (temp_n <= 0)
+		temp_n = 1;
+    if (temp_n > (ofsi<<1)+1)
+		temp_n = (ofsi<<1)+1;
+    if (temp_n < newt_n) {
+		xd = ofsf;
+		xd *= div_fraction;
+		xd += temp_n>>1;
+		y = 0;
+		sptr = src + ofsi - (temp_n>>1);
+		for (ii = temp_n; ii;) {
+			for (jj = 0; jj <= ii; jj++)
+				y += sptr[jj] * newt_coeffs[ii][jj];
+			y *= xd - --ii;
+		} y += *sptr;
+    }else{
+		if (NEWT_GROW >= 0 && src == NEWT_SRC && (diff = ofsi - NEWT_TRNC) > 0){
+			n_new = newt_n + ((NEWT_GROW + diff)<<1);
+			if (n_new <= newt_max){
+				n_old = newt_n + (NEWT_GROW<<1);
+				NEWT_GROW += diff;
+				for (v1=ofsi+(n_new>>1)+1,v2=n_new;
+					 v2 > n_old; --v1, --v2){
+					NEWT_DIVD[0][v2] = src[v1];
+				}for (v1 = 1; v1 <= n_new; v1++)
+					for (v2 = n_new; v2 > n_old; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+			}else
+				NEWT_GROW = -1;
+		}
+		if (NEWT_GROW < 0 || src != NEWT_SRC || diff < 0){
+			NEWT_GROW = 0;
+			for (v1=ofsi-(newt_n>>1),v2=0; v2 <= newt_n; v1++, v2++){
+				NEWT_DIVD[0][v2] = src[v1];
+			}for (v1 = 1; v1 <= newt_n; v1++)
+				for (v2 = newt_n; v2 >= v1; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+		}
+		n_new = newt_n + (NEWT_GROW<<1);
+		v2 = n_new;
+		y = NEWT_DIVD[v2][v2];
+		xd = (FLOAT_T)ofsf * div_fraction + (newt_n>>1) + NEWT_GROW;
+		for (--v2; v2; --v2){
+			y *= xd - v2;
+			y += NEWT_DIVD[v2][v2];
+		}y = y*xd + **NEWT_DIVD;
+		NEWT_SRC = src;
+		NEWT_TRNC = ofsi;
     }
-    else /* 16-bit */
+	return y * OUT_INT16;
+}
+
+static DATA_T resample_newton_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const int32 *sptr;
+	spos_t temp_n, ii, jj;
+    int32 v1, v2, diff = 0;
+    int n_new, n_old;
+    FLOAT_T y, xd;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		//FLOAT_T v1 = src[ofsi];
+		//FLOAT_T v2 = src[ofsi + 1];	
+		//return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT32;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT32;
+#else // DATA_T_IN32	
+		int32 v1 = src[ofsi];
+		int32 v2 = src[ofsi + 1];	
+		return v1 + imuldiv_fraction_int32(v2 - v1, ofsf);
+#endif
+	}
+    temp_n = (ofso<<1)-1;
+    if (temp_n <= 0)
+		temp_n = 1;
+    if (temp_n > (ofsi<<1)+1)
+		temp_n = (ofsi<<1)+1;
+    if (temp_n < newt_n) {
+		xd = ofsf;
+		xd *= div_fraction;
+		xd += temp_n>>1;
+		y = 0;
+		sptr = src + ofsi - (temp_n>>1);
+		for (ii = temp_n; ii;) {
+			for (jj = 0; jj <= ii; jj++)
+				y += sptr[jj] * newt_coeffs[ii][jj];
+			y *= xd - --ii;
+		} y += *sptr;
+    }else{
+		if (NEWT_GROW >= 0 && src == NEWT_SRC && (diff = ofsi - NEWT_TRNC) > 0){
+			n_new = newt_n + ((NEWT_GROW + diff)<<1);
+			if (n_new <= newt_max){
+				n_old = newt_n + (NEWT_GROW<<1);
+				NEWT_GROW += diff;
+				for (v1=ofsi+(n_new>>1)+1,v2=n_new;
+					 v2 > n_old; --v1, --v2){
+					NEWT_DIVD[0][v2] = src[v1];
+				}for (v1 = 1; v1 <= n_new; v1++)
+					for (v2 = n_new; v2 > n_old; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+			}else
+				NEWT_GROW = -1;
+		}
+		if (NEWT_GROW < 0 || src != NEWT_SRC || diff < 0){
+			NEWT_GROW = 0;
+			for (v1=ofsi-(newt_n>>1),v2=0; v2 <= newt_n; v1++, v2++){
+				NEWT_DIVD[0][v2] = src[v1];
+			}for (v1 = 1; v1 <= newt_n; v1++)
+				for (v2 = newt_n; v2 >= v1; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+		}
+		n_new = newt_n + (NEWT_GROW<<1);
+		v2 = n_new;
+		y = NEWT_DIVD[v2][v2];
+		xd = (FLOAT_T)ofsf * div_fraction + (newt_n>>1) + NEWT_GROW;
+		for (--v2; v2; --v2){
+			y *= xd - v2;
+			y += NEWT_DIVD[v2][v2];
+		}y = y*xd + **NEWT_DIVD;
+		NEWT_SRC = src;
+		NEWT_TRNC = ofsi;
+    }
+	return y * OUT_INT32;
+}
+
+static DATA_T resample_newton_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const float *sptr;
+	spos_t temp_n, ii, jj;
+    int32 v1, v2, diff = 0;
+    int n_new, n_old;
+    FLOAT_T y, xd;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_FLOAT;
+	}
+    temp_n = (ofso<<1)-1;
+    if (temp_n <= 0)
+		temp_n = 1;
+    if (temp_n > (ofsi<<1)+1)
+		temp_n = (ofsi<<1)+1;
+    if (temp_n < newt_n) {
+		xd = ofsf;
+		xd *= div_fraction;
+		xd += temp_n>>1;
+		y = 0;
+		sptr = src + ofsi - (temp_n>>1);
+		for (ii = temp_n; ii;) {
+			for (jj = 0; jj <= ii; jj++)
+				y += sptr[jj] * newt_coeffs[ii][jj];
+			y *= xd - --ii;
+		} y += *sptr;
+    }else{
+		if (NEWT_GROW >= 0 && src == NEWT_SRC && (diff = ofsi - NEWT_TRNC) > 0){
+			n_new = newt_n + ((NEWT_GROW + diff)<<1);
+			if (n_new <= newt_max){
+				n_old = newt_n + (NEWT_GROW<<1);
+				NEWT_GROW += diff;
+				for (v1=ofsi+(n_new>>1)+1,v2=n_new;
+					 v2 > n_old; --v1, --v2){
+					NEWT_DIVD[0][v2] = src[v1];
+				}for (v1 = 1; v1 <= n_new; v1++)
+					for (v2 = n_new; v2 > n_old; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+			}else
+				NEWT_GROW = -1;
+		}
+		if (NEWT_GROW < 0 || src != NEWT_SRC || diff < 0){
+			NEWT_GROW = 0;
+			for (v1=(ofs>>FRACTION_BITS)-(newt_n>>1),v2=0; v2 <= newt_n; v1++, v2++){
+				NEWT_DIVD[0][v2] = src[v1];
+			}for (v1 = 1; v1 <= newt_n; v1++)
+				for (v2 = newt_n; v2 >= v1; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+		}
+		n_new = newt_n + (NEWT_GROW<<1);
+		v2 = n_new;
+		y = NEWT_DIVD[v2][v2];
+		xd = (FLOAT_T)ofsf * div_fraction + (newt_n>>1) + NEWT_GROW;
+		for (--v2; v2; --v2){
+			y *= xd - v2;
+			y += NEWT_DIVD[v2][v2];
+		}y = y*xd + **NEWT_DIVD;
+		NEWT_SRC = src;
+		NEWT_TRNC = ofsi;
+    }
+	return y * OUT_FLOAT;
+}
+
+static DATA_T resample_newton_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const double *sptr;
+	spos_t temp_n, ii, jj;
+    int32 v1, v2, diff = 0;
+    int n_new, n_old;
+    FLOAT_T y, xd;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_DOUBLE;
+	}
+    temp_n = (ofso<<1)-1;
+    if (temp_n <= 0)
+		temp_n = 1;
+    if (temp_n > (ofsi<<1)+1)
+		temp_n = (ofsi<<1)+1;
+    if (temp_n < newt_n) {
+		xd = ofsf;
+		xd *= div_fraction;
+		xd += temp_n>>1;
+		y = 0;
+		sptr = src + ofsi - (temp_n>>1);
+		for (ii = temp_n; ii;) {
+			for (jj = 0; jj <= ii; jj++)
+				y += sptr[jj] * newt_coeffs[ii][jj];
+			y *= xd - --ii;
+		} y += *sptr;
+    }else{
+		if (NEWT_GROW >= 0 && src == NEWT_SRC && (diff = ofsi - NEWT_TRNC) > 0){
+			n_new = newt_n + ((NEWT_GROW + diff)<<1);
+			if (n_new <= newt_max){
+				n_old = newt_n + (NEWT_GROW<<1);
+				NEWT_GROW += diff;
+				for (v1=ofsi+(n_new>>1)+1,v2=n_new;
+					 v2 > n_old; --v1, --v2){
+					NEWT_DIVD[0][v2] = src[v1];
+				}for (v1 = 1; v1 <= n_new; v1++)
+					for (v2 = n_new; v2 > n_old; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+			}else
+				NEWT_GROW = -1;
+		}
+		if (NEWT_GROW < 0 || src != NEWT_SRC || diff < 0){
+			NEWT_GROW = 0;
+			for (v1=ofsi-(newt_n>>1),v2=0; v2 <= newt_n; v1++, v2++){
+				NEWT_DIVD[0][v2] = src[v1];
+			}for (v1 = 1; v1 <= newt_n; v1++)
+				for (v2 = newt_n; v2 >= v1; --v2)
+					NEWT_DIVD[v1][v2] = (NEWT_DIVD[v1-1][v2] - NEWT_DIVD[v1-1][v2-1]) * newt_recip[v1];
+		}
+		n_new = newt_n + (NEWT_GROW<<1);
+		v2 = n_new;
+		y = NEWT_DIVD[v2][v2];
+		xd = (FLOAT_T)ofsf * div_fraction + (newt_n>>1) + NEWT_GROW;
+		for (--v2; v2; --v2){
+			y *= xd - v2;
+			y += NEWT_DIVD[v2][v2];
+		}y = y*xd + **NEWT_DIVD;
+		NEWT_SRC = src;
+		NEWT_TRNC = ofsi;
+    }
+	return y * OUT_DOUBLE;
+}
+
+
+/* Very fast and accurate table based interpolation.  Better speed and higher
+   accuracy than Newton.  This isn't *quite* true Gauss interpolation; it's
+   more a slightly modified Gauss interpolation that I accidently stumbled
+   upon.  Rather than normalize all x values in the window to be in the range
+   [0 to 2*PI], it simply divides them all by 2*PI instead.  I don't know why
+   this works, but it does.  Gauss should only work on periodic data with the
+   window spanning exactly one period, so it is no surprise that regular Gauss
+   interpolation doesn't work too well on general audio data.  But dividing
+   the x values by 2*PI magically does.  Any other scaling produces degraded
+   results or total garbage.  If anyone can work out the theory behind why
+   this works so well (at first glance, it shouldn't ??), please contact me
+   (Eric A. Welsh, ewelsh@ccb.wustl.edu), as I would really like to have some
+   mathematical justification for doing this.  Despite the lack of any sound
+   theoretical basis, this method DOES result in highly accurate interpolation
+   (or possibly approximaton, not sure yet if it truly interpolates, but it
+   looks like it does).  -N 34 is as high as it can go before errors start
+   appearing.  But even at -N 34, it is more accurate than Newton at -N 57.
+   -N 34 has no problem running in realtime on my system, but -N 25 is the
+   default, since that is the optimal compromise between speed and accuracy.
+   I strongly recommend using Gauss interpolation.  It is the highest
+   quality interpolation option available, and is much faster than using
+   Newton polynomials. */
+///r
+#define DEFAULT_GAUSS_ORDER	24
+static FLOAT_T *gauss_table[(1<<FRACTION_BITS)] = {0};	/* don't need doubles */
+static float *gauss_table_float[(1<<FRACTION_BITS)] = {0};	/* don't need doubles */
+static int32 *gauss_table_int32[(1<<FRACTION_BITS)] = {0};	/* don't need doubles */
+static int gauss_n = DEFAULT_GAUSS_ORDER;
+
+static void initialize_gauss_table(int n)
+{
+    int m, i, k, n_half = (n>>1);
+    double ck;
+    double x, xz;
+    double z[35], zsin_[34 + 35], *zsin, xzsin[35];
+    FLOAT_T *gptr;
+
+    for (i = 0; i <= n; i++)
+    	z[i] = i / (4*M_PI);
+    zsin = &zsin_[34];
+    for (i = -n; i <= n; i++)
+    	zsin[i] = sin(i / (4*M_PI));
+
+    gptr = (FLOAT_T *)safe_realloc(gauss_table[0], (n + 1) * sizeof(FLOAT_T) * mlt_fraction);
+    for (m = 0, x = 0.0; m < mlt_fraction; m++, x += div_fraction)
     {
-    	sample_bounds_min = -32768;
-    	sample_bounds_max = 32767;
+    	xz = (x + n_half) / (4*M_PI);
+    	for (i = 0; i <= n; i++)
+	    xzsin[i] = sin(xz - z[i]);
+    	gauss_table[m] = gptr;
+    	for (k = 0; k <= n; k++)
+    	{
+    	    ck = 1.0;
+    	    for (i = 0; i <= n; i++)
+    	    {
+    	    	if (i == k)  continue;
+     	    	ck *= xzsin[i] / zsin[k - i];
+    	    }
+    	    *gptr++ = ck;
+    	}
     }
 }
 
+static void free_gauss_table(void)
+{
+	int i;
+    if(gauss_table[0]){
+        free(gauss_table[0]);
+    }
+    for(i = 0; i < (1<<FRACTION_BITS); i++){
+        gauss_table[i] = NULL;
+    }
+	//if(gauss_table[0] != 0)
+	//  free(gauss_table[0]);
+	//gauss_table[0] = NULL;
+}
+
+static DATA_T resample_gauss(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const sample_t *sptr;
+	spos_t temp_n, temp_l;
+	FLOAT_T *gptr;
+	FLOAT_T y = 0, xd;
+    int32 i, j;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+	//	int32 v1 = src[ofsi];
+	//	int32 v2 = src[ofsi + 1];	
+	//	return (DATA_T)(v1 + ((int32)((v2 - v1) * ofsf) >> FRACTION_BITS)) * OUT_INT16;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT16;
+#else // DATA_T_IN32		
+		int32 v1 = src[ofsi];
+		int32 v2 = src[ofsi + 1];	
+		return v1 + imuldiv_fraction(v2 - v1, ofsf);
+#endif
+	}
+    temp_n = (ofso<<1)-1;
+	temp_l = (ofsi<<1)+1;
+    if (temp_n > temp_l)
+		temp_n = temp_l;
+    if (temp_n < gauss_n) { // gauss_n
+		if (temp_n < 1)
+			temp_n = 1;
+		xd = (FLOAT_T)ofsf * div_fraction + (temp_n>>1);
+		sptr = src + ofsi - (temp_n>>1);
+		for (i = temp_n; i;) {
+			for (j = 0; j <= i; j++)
+				y += sptr[j] * newt_coeffs[i][j];
+			y *= xd - --i;
+		}
+		y += *sptr;
+		return y * OUT_INT16;
+	} else	switch(gauss_n) {
+// optimization gauss_n=32,24,16,8
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m256d sum = _mm256_set_pd(0, 0, 0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		__m128d sum1, sum2;	
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+#if (USE_X86_EXT_INTRIN >= 9)
+			__m256i vec32 = _mm256_cvtepi16_epi32(_mm256_loadu_si256((__m128i *)&sptr[i])); // low i16*8 > i32*8
+			__m128i vec1 = _mm256_extracti128_si256(vec32, 0x0);
+			__m128i vec2 = _mm256_extracti128_si256(vec32, 0x1);
+#else
+			__m128i vec16a = _mm_loadu_si128((__m128i *)&sptr[i]); // i16*8 (low			
+			__m128i vec1 = _mm_cvtepi16_epi32(vec16a); // low i16*4 > i32*4 > d*4
+			__m128i vec2 = _mm_cvtepi16_epi32(_mm_shuffle_epi32(vec16a, 0x4e)); // hi i16*4 > i32*4 > d*4
+#endif
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec1), _mm256_loadu_pd(&gptr[i]), sum);
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec2), _mm256_loadu_pd(&gptr[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum1);
+		return tmp * OUT_INT16;
+		}
+#elif (USE_X86_EXT_INTRIN >= 6) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m128d sum = _mm_set_pd(0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+			__m128i vec16a = _mm_loadu_si128((__m128i *)&sptr[i]);
+			__m128i vec32l = _mm_cvtepi16_epi32(vec16a); // low i16*4 > i32*4
+			__m128i vec32h = _mm_cvtepi16_epi32(_mm_shuffle_epi32(vec16a, 0x4e)); // hi i16*4 > i32*4
+			__m128d vecd0 = _mm_cvtepi32_pd(vec32l); // low low i32*2 > d*2
+			__m128d vecd2 = _mm_cvtepi32_pd(_mm_shuffle_epi32(vec32l, 0x4e)); // low hi i32*2 > d*2
+			__m128d vecd4 = _mm_cvtepi32_pd(vec32h); // hi low i32*2 > d*2
+			__m128d vecd6 = _mm_cvtepi32_pd(_mm_shuffle_epi32(vec32h, 0x4e)); // hi hi i32*2 > d*2
+			sum = MM_FMA_PD(vecd0, _mm_loadu_pd(&gptr[i]), sum);
+			sum = MM_FMA_PD(vecd2, _mm_loadu_pd(&gptr[i + 2]), sum);
+			sum = MM_FMA_PD(vecd4, _mm_loadu_pd(&gptr[i + 4]), sum);
+			sum = MM_FMA_PD(vecd6, _mm_loadu_pd(&gptr[i + 6]), sum);
+		}
+		sum = _mm_add_pd(sum, _mm_shuffle_pd(sum, sum, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum);
+		return tmp * OUT_INT16;
+		}
+		
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m128d sum = _mm_set_pd(0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+			__m128i vec16a = _mm_loadu_si128((__m128i *)&sptr[i]);
+			__m128i vec16h = _mm_shuffle_epi32(vec16a, 0x4e); // vec16a hi 64bit to low 64bit	
+			__m128i vec32l = _mm_unpacklo_epi16(vec16a, _mm_cmpgt_epi16(_mm_setzero_si128(), vec16a)); // low i16*4 > i32*4
+			__m128i vec32h = _mm_unpacklo_epi16(vec16h, _mm_cmpgt_epi16(_mm_setzero_si128(), vec16h)); // hi i16*4 > i32*4
+			__m128d vecd0 = _mm_cvtepi32_pd(vec32l); // low low i32*2 > d*2
+			__m128d vecd2 = _mm_cvtepi32_pd(_mm_shuffle_epi32(vec32l, 0x4e)); // low hi i32*2 > d*2
+			__m128d vecd4 = _mm_cvtepi32_pd(vec32h); // hi low i32*2 > d*2
+			__m128d vecd6 = _mm_cvtepi32_pd(_mm_shuffle_epi32(vec32h, 0x4e)); // hi hi i32*2 > d*2
+			sum = MM_FMA_PD(vecd0, _mm_loadu_pd(&gptr[i]), sum);
+			sum = MM_FMA_PD(vecd2, _mm_loadu_pd(&gptr[i + 2]), sum);
+			sum = MM_FMA_PD(vecd4, _mm_loadu_pd(&gptr[i + 4]), sum);
+			sum = MM_FMA_PD(vecd6, _mm_loadu_pd(&gptr[i + 6]), sum);
+		}	
+		sum = _mm_add_pd(sum, _mm_shuffle_pd(sum, sum, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum);
+		return tmp * OUT_INT16;
+		}
+#else
+	case 32:
+		sptr = src + ofsi - 16; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +26
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +28
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +30
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +32
+		return y * OUT_INT16;
+	case 24:
+		sptr = src + ofsi - 12; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		return y * OUT_INT16;
+	case 16:
+		sptr = src + ofsi - 8; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		return y * OUT_INT16;
+	case 8:
+		sptr = src + ofsi - 4; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		return y * OUT_INT16;
+#endif
+	case 4:
+		sptr = src + ofsi - 2; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		return y * OUT_INT16;
+	case 2:
+		sptr = src + ofsi - 1; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		return y * OUT_INT16;
+	default:
+		return 0;
+	}
+}
+
+static DATA_T resample_gauss_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const int32 *sptr;
+	spos_t temp_n, temp_l;
+	FLOAT_T *gptr;
+	FLOAT_T y = 0, xd;
+    int32 i, j;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		//FLOAT_T v1 = src[ofsi];
+		//FLOAT_T v2 = src[ofsi + 1];	
+		//return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT32;		
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT32;
+#else // DATA_T_IN32	
+		int32 v1 = src[ofsi];
+		int32 v2 = src[ofsi + 1];	
+		return v1 + imuldiv_fraction_int32(v2 - v1, ofsf);
+#endif
+	}
+    temp_n = (ofso<<1)-1;
+	temp_l = (ofsi<<1)+1;
+    if (temp_n > temp_l)
+		temp_n = temp_l;
+    if (temp_n < gauss_n) { // gauss_n
+		if (temp_n < 1)
+			temp_n = 1;
+		xd = (FLOAT_T)ofsf * div_fraction + (temp_n>>1);
+		sptr = src + ofsi - (temp_n>>1);
+		for (i = temp_n; i;) {
+			for (j = 0; j <= i; j++)
+				y += sptr[j] * newt_coeffs[i][j];
+			y *= xd - --i;
+		}
+		y += *sptr;
+		return y * OUT_INT32;
+	} else switch(gauss_n) {
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m256d sum = _mm256_set_pd(0, 0, 0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		__m128d sum1, sum2;	
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+#if (USE_X86_EXT_INTRIN >= 9)
+			__m256i vec32 = _mm256_loadu_si256((__m128i *)&sptr[i]);
+			__m128i vec1 = _mm256_extracti128_si256(vec32, 0x0);
+			__m128i vec2 = _mm256_extracti128_si256(vec32, 0x1);
+#else
+			__m128i vec1 = _mm_loadu_si128((__m128i *)&sptr[i]);
+			__m128i vec2 = _mm_loadu_si128((__m128i *)&sptr[i + 4]);
+#endif
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec1), _mm256_loadu_pd(&gptr[i]), sum);
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec2), _mm256_loadu_pd(&gptr[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum1);
+		return tmp * OUT_INT32;
+		}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m128d sum = _mm_set_pd(0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+			__m128i vec32i0 = _mm_loadu_si128((__m128i *)&sptr[i]);
+			__m128i vec32i4 = _mm_loadu_si128((__m128i *)&sptr[i + 4]);
+			sum = MM_FMA_PD(_mm_cvtepi32_pd(vec32i0), _mm_loadu_pd(&gptr[i]), sum);
+			sum = MM_FMA_PD(_mm_cvtepi32_pd(_mm_shuffle_epi32(vec32i0, 0x4e)), _mm_loadu_pd(&gptr[i + 2]), sum);
+			sum = MM_FMA_PD(_mm_cvtepi32_pd(vec32i4), _mm_loadu_pd(&gptr[i + 4]), sum);
+			sum = MM_FMA_PD(_mm_cvtepi32_pd(_mm_shuffle_epi32(vec32i4, 0x4e)), _mm_loadu_pd(&gptr[i + 6]), sum);
+		}
+		sum = _mm_add_pd(sum, _mm_shuffle_pd(sum, sum, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum);
+		return tmp * OUT_INT32;
+		}
+#else
+	case 32:
+// optimization gauss_n=32,24,16,8
+		sptr = src + ofsi - 16; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +26
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +28
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +30
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +32
+		return y * OUT_INT32;
+	case 24:
+		sptr = src + ofsi - 12; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		return y * OUT_INT32;
+	case 16:
+		sptr = src + ofsi - 8; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		return y * OUT_INT32;
+	case 8:
+		sptr = src + ofsi - 4; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		return y * OUT_INT32;
+#endif
+	case 4:
+		sptr = src + ofsi - 2; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		return y * OUT_INT32;
+	case 2:
+		sptr = src + ofsi - 1; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		return y * OUT_INT32;
+	default:
+		return 0;
+	}
+}
+
+
+static DATA_T resample_gauss_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const float *sptr;
+	spos_t temp_n, temp_l;
+	FLOAT_T *gptr;
+	FLOAT_T y = 0, xd;
+    int32 i, j;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_FLOAT;
+	}
+    temp_n = (ofso<<1)-1;
+	temp_l = (ofsi<<1)+1;
+    if (temp_n > temp_l)
+		temp_n = temp_l;
+    if (temp_n < gauss_n) { // gauss_n
+		if (temp_n < 1)
+			temp_n = 1;
+		xd = (FLOAT_T)ofsf * div_fraction + (temp_n>>1);
+		sptr = src + ofsi - (temp_n>>1);
+		for (i = temp_n; i;) {
+			for (j = 0; j <= i; j++)
+				y += sptr[j] * newt_coeffs[i][j];
+			y *= xd - --i;
+		}
+		y += *sptr;
+		return y;
+	} else switch(gauss_n) {
+// optimization gauss_n=32,24,16,8
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m256d sum = _mm256_set_pd(0, 0, 0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		__m128d sum1, sum2;	
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+			__m256 vecf = _mm256_loadu_ps(&sptr[i]);
+			__m128 vec1 = _mm256_extractf128_ps(vecf, 0x0);
+			__m128 vec2 = _mm256_extractf128_ps(vecf, 0x1);
+			sum = MM256_FMA_PD(_mm256_cvtps_pd(vec1), _mm256_loadu_pd(&gptr[i]), sum);
+			sum = MM256_FMA_PD(_mm256_cvtps_pd(vec2), _mm256_loadu_pd(&gptr[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum1);
+		return tmp * OUT_FLOAT;
+		}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m128d sum = _mm_set_pd(0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+			__m128 vecf0 = _mm_loadu_ps(&sptr[i]);
+			__m128 vecf4 = _mm_loadu_ps(&sptr[i + 4]);
+			sum = MM_FMA_PD(_mm_cvtps_pd(vecf0), _mm_loadu_pd(&gptr[i]), sum);
+			sum = MM_FMA_PD(_mm_cvtps_pd(_mm_shuffle_ps(vecf0, vecf0, 0x4e)), _mm_loadu_pd(&gptr[i + 2]), sum);
+			sum = MM_FMA_PD(_mm_cvtps_pd(vecf4), _mm_loadu_pd(&gptr[i + 4]), sum);
+			sum = MM_FMA_PD(_mm_cvtps_pd(_mm_shuffle_ps(vecf4, vecf4, 0x4e)), _mm_loadu_pd(&gptr[i + 6]), sum);
+		}
+		sum = _mm_add_pd(sum, _mm_shuffle_pd(sum, sum, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum);
+		return tmp * OUT_FLOAT;
+		}
+#else
+	case 32:
+		sptr = src + ofsi - 16; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +26
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +28
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +30
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +32
+		return y * OUT_FLOAT;
+	case 24:
+		sptr = src + ofsi - 12; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		return y * OUT_FLOAT;
+	case 16:
+		sptr = src + ofsi - 8; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		return y * OUT_FLOAT;
+	case 8:
+		sptr = src + ofsi - 4; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		return y * OUT_FLOAT;
+#endif
+	case 4:
+		sptr = src + ofsi - 2; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		return y * OUT_FLOAT;
+	case 2:
+		sptr = src + ofsi - 1; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		return y * OUT_FLOAT;
+	default:
+		return 0;
+	}
+}
+
+static DATA_T resample_gauss_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 1;
+    const double *sptr;
+	spos_t temp_n, temp_l;
+	FLOAT_T *gptr;
+	FLOAT_T y = 0, xd;
+    int32 i, j;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_DOUBLE;
+	}
+    temp_n = (ofso<<1)-1;
+	temp_l = (ofsi<<1)+1;
+    if (temp_n > temp_l)
+		temp_n = temp_l;
+    if (temp_n < gauss_n) { // gauss_n
+		if (temp_n < 1)
+			temp_n = 1;
+		xd = (FLOAT_T)ofsf * div_fraction + (temp_n>>1);
+		sptr = src + ofsi - (temp_n>>1);
+		for (i = temp_n; i;) {
+			for (j = 0; j <= i; j++)
+				y += sptr[j] * newt_coeffs[i][j];
+			y *= xd - --i;
+		}
+		y += *sptr;
+		return y * OUT_DOUBLE;
+	} else switch(gauss_n) {
+// optimization gauss_n=32,24,16,8
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m256d sum = _mm256_set_pd(0, 0, 0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		__m128d sum1, sum2;	
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+			sum = MM256_FMA_PD(_mm256_loadu_pd(&sptr[i]), _mm256_loadu_pd(&gptr[i]), sum);
+			sum = MM256_FMA_PD(_mm256_loadu_pd(&sptr[i + 4]), _mm256_loadu_pd(&gptr[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum1);
+		return tmp * OUT_DOUBLE;
+		}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	case 32:
+	case 24:
+	case 16:
+	case 8:
+		sptr = src + ofsi - (gauss_n >> 1); // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		{
+		__m128d sum = _mm_set_pd(0, (FLOAT_T)(*(sptr++)) * (*gptr++));
+		double tmp;
+		for (i = 0; i < gauss_n; i += 8){
+			sum = MM_FMA_PD(_mm_loadu_pd(&sptr[i]), _mm_loadu_pd(&gptr[i]), sum);
+			sum = MM_FMA_PD(_mm_loadu_pd(&sptr[i + 2]), _mm_loadu_pd(&gptr[i + 2]), sum);
+			sum = MM_FMA_PD(_mm_loadu_pd(&sptr[i + 4]), _mm_loadu_pd(&gptr[i + 4]), sum);
+			sum = MM_FMA_PD(_mm_loadu_pd(&sptr[i + 6]), _mm_loadu_pd(&gptr[i + 6]), sum);
+		}
+		sum = _mm_add_pd(sum, _mm_shuffle_pd(sum, sum, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&tmp, sum);
+		return tmp * OUT_DOUBLE;
+		}
+#else
+	case 32:
+		sptr = src + ofsi - 16; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +26
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +28
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +30
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +32
+		return y * OUT_DOUBLE;
+	case 24:
+		sptr = src + ofsi - 12; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +18
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +20
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +22
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +24
+		return y * OUT_DOUBLE;
+	case 16:
+		sptr = src + ofsi - 8; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +10
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +12
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +14
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +16
+		return y * OUT_DOUBLE;
+	case 8:
+		sptr = src + ofsi - 4; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +6
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +8
+		return y * OUT_DOUBLE;
+#endif
+	case 4:
+		sptr = src + ofsi - 2; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +4
+		return y * OUT_DOUBLE;
+	case 2:
+		sptr = src + ofsi - 1; // gauss_n>>1
+		gptr = gauss_table[ofs&FRACTION_MASK];
+		y = *sptr * *gptr;
+		y += *(++sptr) * *(++gptr); y += *(++sptr) * *(++gptr); // +2
+		return y * OUT_DOUBLE;
+	default:
+		return 0;
+	}
+}
+
+///r 
+#define DEFAULT_SHARP_ORDER	2
+static int sharp_n = DEFAULT_SHARP_ORDER;
+static FLOAT_T sharp_recip[20] = { 10.00, -1.0, -1.0/2, -1.0/3, -1.0/4, -1.0/5, -1.0/6, -1.0/7, -1.0/8, -1.0/9,
+								-1.0/10, -1.0/11, -1.0/12, -1.0/13, -1.0/14, -1.0/15, -1.0/16, -1.0/17, -1.0/18, -1.0/19,};
+
+static DATA_T resample_sharp(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 2;
+	const FLOAT_T fp = (FLOAT_T)ofsf * div_fraction;
+	const sample_t *v1, *v2;
+    int32 i, tmp;
+	FLOAT_T c,s = 0.0, va = 0.0, vb = 0.0;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+	//	int32 v1 = src[ofsi];
+	//	int32 v2 = src[ofsi + 1];	
+	//	return (v1 + (FLOAT_T)(v2 - v1) * fp) * OUT_INT16;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * fp) * OUT_INT16;
+#else // DATA_T_IN32		
+		int32 v1 = src[ofsi];
+		int32 v2 = src[ofsi + 1];	
+		return v1 + imuldiv_fraction(v2 - v1, ofsf);
+#endif
+	}
+	tmp = sharp_n;
+	if(ofso < tmp) tmp = ofso;
+	if(tmp < 1) return (FLOAT_T)src[ofsi] * OUT_INT16;
+	v1 = src + ofsi, v2 = v1 + 1;
+	for(i = 0; i < tmp; i++){
+		va += v1[i] * sharp_recip[i];
+		vb += v2[i] * sharp_recip[i];
+		s += fabs(sharp_recip[i]);
+	}
+	c = 1.0 / s;
+	va *= c;
+	vb *= c;
+	return (va + (vb - va) * fp) * OUT_INT16;
+}
+
+static DATA_T resample_sharp_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 2;
+	const FLOAT_T fp = (FLOAT_T)ofsf * div_fraction;
+	const int32 *v1, *v2;
+    int32 i, tmp;
+	FLOAT_T c,s = 0.0, va = 0.0, vb = 0.0;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		//FLOAT_T v1 = src[ofsi];
+		//FLOAT_T v2 = src[ofsi + 1];	
+		//return (v1 + (v2 - v1) * fp) * OUT_INT32;	
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * fp) * OUT_INT32;	
+#else // DATA_T_IN32	
+		int32 v1 = src[ofsi];
+		int32 v2 = src[ofsi + 1];	
+		return v1 + imuldiv_fraction_int32(v2 - v1, ofsf);
+#endif
+	}
+	tmp = sharp_n;
+	if(ofso < tmp) tmp = ofso;
+	if(tmp < 1) return (FLOAT_T)src[ofsi] * OUT_INT32;
+	v1 = src + ofsi, v2 = v1 + 1;
+	for(i = 0; i < tmp; i++){
+		va += v1[i] * sharp_recip[i];
+		vb += v2[i] * sharp_recip[i];
+		s += fabs(sharp_recip[i]);
+	}
+	c = 1.0 / s;
+	va *= c;
+	vb *= c;
+	return (va + (vb - va) * fp) * OUT_INT32;
+}
+
+static DATA_T resample_sharp_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 2;
+	const FLOAT_T fp = (FLOAT_T)ofsf * div_fraction;
+	const float *v1, *v2;
+    int32 i, tmp;
+	FLOAT_T c,s = 0.0, va = 0.0, vb = 0.0;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * fp) * OUT_FLOAT;
+	}
+	tmp = sharp_n;
+	if(ofso < tmp) tmp = ofso;
+	if(tmp < 1) return (FLOAT_T)src[ofsi] * OUT_FLOAT;
+	v1 = src + ofsi, v2 = v1 + 1;
+	for(i = 0; i < tmp; i++){
+		va += v1[i] * sharp_recip[i];
+		vb += v2[i] * sharp_recip[i];
+		s += fabs(sharp_recip[i]);
+	}
+	c = 1.0 / s;
+	va *= c;
+	vb *= c;
+	return (va + (vb - va) * fp) * OUT_FLOAT;
+}
+
+static DATA_T resample_sharp_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofso = (rec->data_length >> FRACTION_BITS) - ofsi - 2;
+	const FLOAT_T fp = (FLOAT_T)ofsf * div_fraction;
+	const double *v1, *v2;
+    int32 i, tmp;
+	FLOAT_T c,s = 0.0, va = 0.0, vb = 0.0;
+	
+	if(rec->mode == RESAMPLE_MODE_BIDIR_LOOP){
+		FLOAT_T v1 = src[ofsi];
+		FLOAT_T v2 = src[ofsi + 1];	
+		return (v1 + (v2 - v1) * fp) * OUT_DOUBLE;
+	}
+	tmp = sharp_n;
+	if(ofso < tmp) tmp = ofso;
+	if(tmp < 1) return (FLOAT_T)src[ofsi] * OUT_DOUBLE;
+	v1 = src + ofsi, v2 = v1 + 1;
+	for(i = 0; i < tmp; i++){
+		va += v1[i] * sharp_recip[i];
+		vb += v2[i] * sharp_recip[i];
+		s += fabs(sharp_recip[i]);
+	}
+	c = 1.0 / s;
+	va *= c;
+	vb *= c;
+	return (va + (vb - va) * fp) * OUT_DOUBLE;
+}
+
+///r 
+#define DEFAULT_LINEAR_P_ORDER 100
+static int linear_n = DEFAULT_LINEAR_P_ORDER;
+
+static DATA_T resample_linear_p(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T fp;
+	int32 v1, v2;
+
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= linear_n * 0.01; // parcent // angle
+    return ((FLOAT_T)v1 + (FLOAT_T)v2 * fp) * OUT_INT16;
+
+}
+
+static DATA_T resample_linear_p_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= linear_n * 0.01; // parcent // angle
+    return (v1 + v2 * fp) * OUT_INT32; // FLOAT_T
+}
+
+static DATA_T resample_linear_p_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= linear_n * 0.01; // parcent // angle
+    return (v1 + v2 * fp) * OUT_FLOAT; // FLOAT_T
+}
+
+static DATA_T resample_linear_p_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= linear_n * 0.01; // parcent // angle
+    return (v1 + v2 * fp) * OUT_DOUBLE; // FLOAT_T
+}
+
+
+///   sine
+static DATA_T resample_sine(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T fp;
+	int32 v1, v2;
+
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp = 0.5 + sin((fp - 0.5) * M_PI) * DIV_2;
+    return ((FLOAT_T)v1 + (FLOAT_T)v2 * fp)  * OUT_INT16; // FLOAT_T
+}
+
+static DATA_T resample_sine_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp = 0.5 + sin((fp - 0.5) * M_PI) * DIV_2;
+    return (v1 + v2 * fp) * OUT_INT32; // FLOAT_T
+}
+
+static DATA_T resample_sine_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp = 0.5 + sin((fp - 0.5) * M_PI) * DIV_2;
+    return (v1 + v2 * fp)  * OUT_FLOAT; // FLOAT_T
+}
+
+static DATA_T resample_sine_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp = 0.5 + sin((fp - 0.5) * M_PI) * DIV_2;
+    return (v1 + v2 * fp) * OUT_DOUBLE; // FLOAT_T
+}
+
+
+///   square
+static DATA_T resample_square(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T fp;
+	int32 v1, v2;
+
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= fp;
+    return ((FLOAT_T)v1 + (FLOAT_T)v2 * fp)  * OUT_INT16; // FLOAT_T
+}
+
+static DATA_T resample_square_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= fp;
+    return (v1 + v2 * fp)  * OUT_INT32; // FLOAT_T
+}
+
+static DATA_T resample_square_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= fp;
+    return (v1 + v2 * fp)  * OUT_FLOAT; // FLOAT_T
+}
+
+static DATA_T resample_square_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    const fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+    FLOAT_T v1, v2, fp;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(rec->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = ofsle + (ofsle - ofsi2); // (ofsle<<1) over spos_t 31bit
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2] - v1;	
+	fp = (FLOAT_T)ofsf * div_fraction;
+	fp *= fp;
+    return (v1 + v2 * fp) * OUT_DOUBLE; // FLOAT_T
+}
+
+///r 
+#define DEFAULT_LANCZOS_ORDER 16
+#define DEFAULT_LANCZOS_ORDER_MAX 96
+static int lanczos_n = DEFAULT_LANCZOS_ORDER;
+static int lanczos_samples = DEFAULT_LANCZOS_ORDER * (1 << FRACTION_BITS);
+static FLOAT_T *lanczos_table = NULL;
+
+static void free_lanczos_table(void)
+{
+    if(lanczos_table){
+#ifdef ALIGN_SIZE
+		aligned_free(lanczos_table);
+#else
+		free(lanczos_table);
+#endif
+		lanczos_table = NULL;
+    }
+}
+
+static void initialize_lanczos_table(int n)
+{
+	int i, width = n;
+	double inc, sum = 0.0;
+
+	free_lanczos_table();
+	lanczos_samples = width * mlt_fraction;	
+#ifdef ALIGN_SIZE
+	lanczos_table = (FLOAT_T *)aligned_malloc((lanczos_samples + 1) * sizeof(FLOAT_T), ALIGN_SIZE);
+#else
+	lanczos_table = (FLOAT_T *)safe_malloc((lanczos_samples + 1) * sizeof(FLOAT_T));
+#endif
+	memset(lanczos_table, 0, (lanczos_samples + 1) * sizeof(FLOAT_T));
+	inc = (double)width / (double)lanczos_samples;
+	for (i = 0; i < lanczos_samples + 1; ++i, sum += inc){
+		if(fabs(sum) < width){
+			double tmp1 = sum, tmp2 = sum / width;
+			tmp1 = (fabs(tmp1) < 1.0e-8) ? 1.0 : (sin(tmp1 * M_PI) / (tmp1 * M_PI));
+			tmp2 = (fabs(tmp2) < 1.0e-8) ? 1.0 : (sin(tmp2 * M_PI) / (tmp2 * M_PI));
+			lanczos_table[i] = tmp1 * tmp2;
+		}else
+			lanczos_table[i] = 0.0;
+	}
+}
+
+static DATA_T resample_lanczos(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	const sample_t *v1;
+	spos_t ofstmp, len;
+	fract_t incr;
+    int32 i, lanczos_n2 = lanczos_n >> 1, width = lanczos_n2, dir;
+    ALIGN FLOAT_T coef[DEFAULT_LANCZOS_ORDER_MAX * 2];
+	FLOAT_T coef_sum = 0.0, sample_sum = 0.0;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			return (FLOAT_T)src[ofsi] * OUT_INT16; // FLOAT_T	
+		if(ofsi < width)
+			width = ofsi;
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				return (FLOAT_T)src[ofsi] * OUT_INT16; // FLOAT_T
+			if(ofsi < lanczos_n2)
+				width = ofsi;
+			if((ofsi + width) < ofsle)
+				break; // normal
+		}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+			break; // normal
+		incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];	
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - width;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		return (sample_sum / coef_sum) * OUT_INT16; // FLOAT_T	
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					return (FLOAT_T)src[ofsi] * OUT_INT16; // FLOAT_T
+				if(ofsi < lanczos_n2)
+					width = ofsi;
+				if((ofsi + width) < ofsle)
+					break; // normal
+			}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - width;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}				
+			incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + width;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+			incr = -rec->increment;
+			incr = incr > mlt_fraction ? (mlt_fraction * mlt_fraction / incr) : mlt_fraction;
+		}
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		return (sample_sum / coef_sum) * OUT_INT16; // FLOAT_T
+		break;
+	}
+	incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+	for (i = width; i >= -width + 1; --i)
+		coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+	v1 = src + ofsi - width;
+	width *= 2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x7)){
+		__m256d sum = _mm256_set_pd(0, 0, 0, 0);
+		__m128d sum1, sum2;	
+		for (i = 0; i < width; i += 8){
+#if (USE_X86_EXT_INTRIN >= 9)
+			__m256i vec32 = _mm256_cvtepi16_epi32(_mm256_loadu_si256((__m128i *)&v1[i])); // low i16*8 > i32*8
+			__m128i vec1 = _mm256_extracti128_si256(vec32, 0x0);
+			__m128i vec2 = _mm256_extracti128_si256(vec32, 0x1);
+#else
+			__m128i vec16a = _mm_loadu_si128((__m128i *)&v1[i]); // i16*8 (low			
+			__m128i vec1 = _mm_cvtepi16_epi32(vec16a); // low i16*4 > i32*4 > d*4
+			__m128i vec2 = _mm_cvtepi16_epi32(_mm_shuffle_epi32(vec16a, 0x4e)); // hi i16*4 > i32*4 > d*4
+#endif
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec1), _mm256_load_pd(&coef[i]), sum);
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec2), _mm256_load_pd(&coef[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0	
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#elif (USE_X86_EXT_INTRIN >= 6) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x3)){
+		__m128d sum = _mm_set_pd(0, 0);
+		for (i = 0; i < width; i += 4){
+			__m128i vec32l = _mm_cvtepi16_epi32(_mm_loadu_si128((__m128i *)&v1[i])); // low i16*4 > i32*4
+			__m128d vecd0 = _mm_cvtepi32_pd(vec32l); // low low i32*2 > d*2
+			__m128d vecd2 = _mm_cvtepi32_pd(_mm_shuffle_epi32(vec32l, 0x4e)); // low hi i32*2 > d*2
+			sum = MM_FMA_PD(vecd0, _mm_load_pd(&coef[i]), sum);
+			sum = MM_FMA_PD(vecd2, _mm_load_pd(&coef[i + 2]), sum);
+		}
+		sum = _mm_add_pd(sum, _mm_shuffle_pd(sum, sum, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum);
+	}else
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x3)){
+		__m128d sum1 = _mm_set_pd(0, 0);
+		__m128d sum2 = _mm_set_pd(0, 0);
+		for (i = 0; i < width; i += 4){
+			__m128d vecd0 = _mm_set_pd(v1[i + 1], v1[i]);
+			__m128d vecd2 = _mm_set_pd(v1[i + 3], v1[i + 2]);
+			sum1 = MM_FMA_PD(vecd0, _mm_load_pd(&coef[i]), sum1);
+			sum2 = MM_FMA_PD(vecd2, _mm_load_pd(&coef[i + 2]), sum2);
+		}
+		sum1 = _mm_add_pd(sum1, sum2);
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#endif
+	{
+		for (i = 0; i < width; ++i)
+			sample_sum += (FLOAT_T)v1[i] * coef[i];
+	}
+	return (sample_sum / coef_sum) * OUT_INT16; // FLOAT_T	
+}
+
+static DATA_T resample_lanczos_int32(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const int32 *src = (const int32*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	const int32 *v1;
+	spos_t ofstmp, len;
+	fract_t incr;
+    int32 i, lanczos_n2 = lanczos_n >> 1, width = lanczos_n2, dir;
+    ALIGN FLOAT_T coef[DEFAULT_LANCZOS_ORDER_MAX * 2];
+	FLOAT_T coef_sum = 0.0, sample_sum = 0.0;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			return (FLOAT_T)src[ofsi] * OUT_INT32; // FLOAT_T	
+		if(ofsi < lanczos_n2)
+			width = ofsi;
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				return (FLOAT_T)src[ofsi] * OUT_INT32; // FLOAT_T
+			if(ofsi < lanczos_n2)
+				width = ofsi;
+			if((ofsi + width) < ofsle)
+				break; // normal
+		}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+			break; // normal
+		incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];	
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - width;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		return (sample_sum / coef_sum) * OUT_INT32; // FLOAT_T	
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:
+		if(rec->increment >= 0){ // normal dir	
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					return (FLOAT_T)src[ofsi] * OUT_INT32; // FLOAT_T
+				if(ofsi < lanczos_n2)
+					width = ofsi;
+				if((ofsi + width) < ofsle)
+					break; // normal
+			}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - width;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}	
+			incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + width;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+			incr = -rec->increment;
+			incr = incr > mlt_fraction ? (mlt_fraction * mlt_fraction / incr) : mlt_fraction;
+		}
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		return (sample_sum / coef_sum) * OUT_INT32; // FLOAT_T
+		break;
+	}
+	incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+	for (i = width; i >= -width + 1; --i)
+		coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+	v1 = src + ofsi - width;
+	width *= 2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x7)){
+		__m256d sum = _mm256_set_pd(0, 0, 0, 0);
+		__m128d sum1, sum2;	
+		for (i = 0; i < width; i += 8){
+#if (USE_X86_EXT_INTRIN >= 9)
+			__m256i vec32 = _mm256_loadu_si256((__m128i *)&v1[i]);
+			__m128i vec1 = _mm256_extracti128_si256(vec32, 0x0);
+			__m128i vec2 = _mm256_extracti128_si256(vec32, 0x1);
+#else
+			__m128i vec1 = _mm_loadu_si128((__m128i *)&v1[i]);
+			__m128i vec2 = _mm_loadu_si128((__m128i *)&v1[i + 4]);
+#endif
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec1), _mm256_load_pd(&coef[i]), sum);
+			sum = MM256_FMA_PD(_mm256_cvtepi32_pd(vec2), _mm256_load_pd(&coef[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x3)){
+		__m128d sum1 = _mm_set_pd(0, 0);
+		__m128d sum2 = _mm_set_pd(0, 0);
+		for (i = 0; i < width; i += 4){
+			__m128i vec32i0 = _mm_loadu_si128((__m128i *)&v1[i]);
+			sum1 = MM_FMA_PD(_mm_cvtepi32_pd(vec32i0), _mm_load_pd(&coef[i]), sum1);
+			sum2 = MM_FMA_PD(_mm_cvtepi32_pd(_mm_shuffle_epi32(vec32i0, 0x4e)), _mm_load_pd(&coef[i + 2]), sum2);
+		}
+		sum1 = _mm_add_pd(sum1, sum2);
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#endif
+	{
+		for (i = 0; i < width; ++i)
+			sample_sum += (FLOAT_T)v1[i] * coef[i];
+	}
+	return (sample_sum / coef_sum) * OUT_INT32; // FLOAT_T	
+}
+
+static DATA_T resample_lanczos_float(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const float *src = (const float*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	const float *v1;
+	spos_t ofstmp, len;
+	fract_t incr;
+    int32 i, lanczos_n2 = lanczos_n >> 1, width = lanczos_n2, dir;
+    ALIGN FLOAT_T coef[DEFAULT_LANCZOS_ORDER_MAX * 2];
+	FLOAT_T coef_sum = 0.0, sample_sum = 0.0;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			return (FLOAT_T)src[ofsi] * OUT_FLOAT; // FLOAT_T	
+		if(ofsi < lanczos_n2)
+			width = ofsi;
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				return (FLOAT_T)src[ofsi] * OUT_FLOAT; // FLOAT_T
+			if(ofsi < lanczos_n2)
+				width = ofsi;
+			if((ofsi + width) < ofsle)
+				break; // normal
+		}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+			break; // normal
+		incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];	
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - width;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		return (sample_sum / coef_sum) * OUT_FLOAT; // FLOAT_T	
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					return (FLOAT_T)src[ofsi] * OUT_FLOAT; // FLOAT_T
+				if(ofsi < lanczos_n2)
+					width = ofsi;
+				if((ofsi + width) < ofsle)
+					break; // normal
+			}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - width;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}	
+			incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + width;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+			incr = -rec->increment;
+			incr = incr > mlt_fraction ? (mlt_fraction * mlt_fraction / incr) : mlt_fraction;
+		}
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		return (sample_sum / coef_sum) * OUT_FLOAT; // FLOAT_T
+		break;
+	}
+	incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+	for (i = width; i >= -width + 1; --i)
+		coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+	v1 = src + ofsi - width;
+	width *= 2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x7)){
+		__m256d sum = _mm256_set_pd(0, 0, 0, 0);
+		__m128d sum1, sum2;	
+		for (i = 0; i < width; i += 8){
+			__m256 vecf = _mm256_loadu_ps(&v1[i]);
+			__m128 vec1 = _mm256_extractf128_ps(vecf, 0x0);
+			__m128 vec2 = _mm256_extractf128_ps(vecf, 0x1);
+			sum = MM256_FMA_PD(_mm256_cvtps_pd(vec1), _mm256_load_pd(&coef[i]), sum);
+			sum = MM256_FMA_PD(_mm256_cvtps_pd(vec2), _mm256_load_pd(&coef[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x3)){
+		__m128d sum1 = _mm_set_pd(0, 0);
+		__m128d sum2 = _mm_set_pd(0, 0);
+		for (i = 0; i < width; i += 4){
+			__m128 vecf0 = _mm_loadu_ps(&v1[i]);
+			sum1 = MM_FMA_PD(_mm_cvtps_pd(vecf0), _mm_load_pd(&coef[i]), sum1);
+			sum2 = MM_FMA_PD(_mm_cvtps_pd(_mm_shuffle_ps(vecf0, vecf0, 0x4e)), _mm_load_pd(&coef[i + 2]), sum2);
+		}
+		sum1 = _mm_add_pd(sum1, sum2);
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#endif
+	{
+		for (i = 0; i < width; ++i)
+			sample_sum += (FLOAT_T)v1[i] * coef[i];
+	}
+	return (sample_sum / coef_sum) * OUT_FLOAT; // FLOAT_T	
+}
+
+static DATA_T resample_lanczos_double(const sample_t *srci, splen_t ofs, resample_rec_t *rec)
+{
+    const double *src = (const double*)srci;
+    const spos_t ofsi = ofs >> FRACTION_BITS;
+    fract_t ofsf = ofs & FRACTION_MASK;
+    const spos_t ofsls = rec->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = rec->loop_end >> FRACTION_BITS;
+	const double *v1;
+	spos_t ofstmp, len;
+	fract_t incr;
+    int32 i, lanczos_n2 = lanczos_n >> 1, width = lanczos_n2, dir;
+    ALIGN FLOAT_T coef[DEFAULT_LANCZOS_ORDER_MAX * 2];
+	FLOAT_T coef_sum = 0.0, sample_sum = 0.0;
+	
+	switch(rec->mode){
+	case RESAMPLE_MODE_PLAIN:
+		if(ofsi < 1)
+			return (FLOAT_T)src[ofsi] * OUT_DOUBLE; // FLOAT_T	
+		if(ofsi < lanczos_n2)
+			width = ofsi;
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi < ofsls){
+			if(ofsi < 1)
+				return (FLOAT_T)src[ofsi] * OUT_DOUBLE; // FLOAT_T
+			if(ofsi < lanczos_n2)
+				width = ofsi;
+			if((ofsi + width) < ofsle)
+				break; // normal
+		}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+			break; // normal
+		incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];	
+		len = ofsle - ofsls; // loop_length
+		ofstmp = ofsi - width;
+		if(ofstmp < ofsls) {ofstmp += len;} // if loop_length == data_length need
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			if((++ofstmp) > ofsle) {ofstmp -= len;} // -= loop_length , jump loop_start
+		}
+		return (sample_sum / coef_sum) * OUT_DOUBLE; // FLOAT_T	
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:	
+		if(rec->increment >= 0){ // normal dir
+			if(ofsi < ofsls){
+				if(ofsi < 1)
+					return (FLOAT_T)src[ofsi] * OUT_DOUBLE; // FLOAT_T
+				if(ofsi < lanczos_n2)
+					width = ofsi;
+				if((ofsi + width) < ofsle)
+					break; // normal
+			}else if(((ofsi + width) < ofsle) && ((ofsi - width) >= ofsls))
+				break; // normal
+			dir = 1;
+			ofstmp = ofsi - width;
+			if(ofstmp < ofsls){ // if loop_length == data_length need				
+				ofstmp = (ofsls << 1) - ofstmp;
+				dir = -1;
+			}	
+			incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+		}else{ // reverse dir
+			dir = -1;
+			ofstmp = ofsi + width;
+			if(ofstmp > ofsle){ // if loop_length == data_length need				
+				ofstmp = (ofsle << 1) - ofstmp;
+				dir = 1;
+			}
+			ofsf = mlt_fraction - ofsf;
+			incr = -rec->increment;
+			incr = incr > mlt_fraction ? (mlt_fraction * mlt_fraction / incr) : mlt_fraction;
+		}
+		for (i = width; i >= -width + 1; --i)
+			coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+		for (i = 0; i < width * 2; ++i){
+			sample_sum += (FLOAT_T)src[ofstmp] * coef[i];
+			ofstmp += dir;
+			if(dir < 0){ // -
+				if(ofstmp <= ofsls) {dir = 1;}
+			}else{ // +
+				if(ofstmp >= ofsle) {dir = -1;}
+			}
+		}
+		return (sample_sum / coef_sum) * OUT_DOUBLE; // FLOAT_T
+		break;
+	}
+	incr = rec->increment > mlt_fraction ? (mlt_fraction * mlt_fraction / rec->increment) : mlt_fraction;
+	for (i = width; i >= -width + 1; --i)
+		coef_sum += coef[i + width - 1] = lanczos_table[abs(ofsf - i * incr)];
+	v1 = src + ofsi - width;
+	width *= 2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x7)){
+		__m256d sum = _mm256_set_pd(0, 0, 0, 0);
+		__m128d sum1, sum2;	
+		for (i = 0; i < width; i += 8){
+			sum = MM256_FMA_PD(_mm256_loadu_pd(&v1[i]), _mm256_load_pd(&coef[i]), sum);
+			sum = MM256_FMA_PD(_mm256_loadu_pd(&v1[i + 4]), _mm256_load_pd(&coef[i + 4]), sum);
+		}
+		sum1 = _mm256_extractf128_pd(sum, 0x0); // v0,v1
+		sum2 = _mm256_extractf128_pd(sum, 0x1); // v2,v3
+		sum1 = _mm_add_pd(sum1, sum2); // v0=v0+v2 v1=v1+v3
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(width >= 16 && !(width & 0x3)){
+		__m128d sum1 = _mm_set_pd(0, 0);
+		__m128d sum2 = _mm_set_pd(0, 0);
+		for (i = 0; i < width; i += 4){		
+			sum1 = MM_FMA_PD(_mm_loadu_pd(&v1[i]), _mm_load_pd(&coef[i]), sum1);
+			sum2 = MM_FMA_PD(_mm_loadu_pd(&v1[i + 2]), _mm_load_pd(&coef[i + 2]), sum2);
+		}
+		sum1 = _mm_add_pd(sum1, sum2);
+		sum1 = _mm_add_pd(sum1, _mm_shuffle_pd(sum1, sum1, 0x1)); // v0=v0+v1 v1=v1+v0
+		_mm_store_sd(&sample_sum, sum1);
+	}else
+#endif
+	{
+		for (i = 0; i < width; ++i)
+			sample_sum += v1[i] * coef[i];
+	}
+	return (sample_sum / coef_sum) * OUT_DOUBLE; // FLOAT_T
+}
+
+
+
+typedef DATA_T (*resampler_t)(const sample_t*, splen_t, resample_rec_t *);
+
+static resampler_t resamplers[4][RESAMPLE_MAX] = {{
+// sample_t
+// cfg sort
+    resample_none,
+	resample_linear,
+    resample_cspline,
+    resample_lagrange,
+	resample_newton,
+    resample_gauss,
+    resample_sharp,
+    resample_linear_p,
+    resample_sine,
+    resample_square,
+    resample_lanczos,
+},{
+// int32
+// cfg sort
+    resample_none_int32,
+	resample_linear_int32,
+    resample_cspline_int32,
+    resample_lagrange_int32,
+	resample_newton_int32,
+    resample_gauss_int32,
+    resample_sharp_int32,
+    resample_linear_p_int32,
+    resample_sine_int32,
+    resample_square_int32,
+    resample_lanczos_int32,
+},{
+// float
+// cfg sort
+    resample_none_float,
+	resample_linear_float,
+    resample_cspline_float,
+    resample_lagrange_float,
+	resample_newton_float,
+    resample_gauss_float,
+    resample_sharp_float,
+    resample_linear_p_float,
+    resample_sine_float,
+    resample_square_float,
+    resample_lanczos_float,
+},{
+// double
+// cfg sort
+    resample_none_double,
+	resample_linear_double,
+    resample_cspline_double,
+    resample_lagrange_double,
+	resample_newton_double,
+    resample_gauss_double,
+    resample_sharp_double,
+    resample_linear_p_double,
+    resample_sine_double,
+    resample_square_double,
+    resample_lanczos_double,
+}};
+
+
+
+
+	
+#define RESAMPLATION *dest++ = vp->resrc.current_resampler(src, ofs, &vp->resrc);
+
+// for pre_resample() and recache.c
+static resampler_t current_resampler;
+
+#define PRE_RESAMPLATION *dest++ = current_resampler(src, ofs, &resrc);
+
+/* exported for recache.c */
+void set_resamplation(int data_type)
+{ 
+	current_resampler = resamplers[data_type][opt_resample_type];
+}
+
+/* exported for recache.c */
+DATA_T do_resamplation(const sample_t *src, splen_t ofs, resample_rec_t *rec)
+{ 
+	// DATA_T_FLOAT or DATA_T_DOUBLE -1.0 ~ 1.0 
+	// DATA_T_IBT16 or DATA_T_IBT32 -32768 ~ 32767
+	return current_resampler(src, ofs, rec); // filter none
+}
+
+/* return the current resampling algorithm */
+int get_current_resampler(void)
+{
+	return opt_resample_type;
+}
+
+/* set the current resampling algorithm */
+int set_current_resampler(int type)
+{
+#ifdef FIXED_RESAMPLATION
+    return -1;
+#else
+///r
+    if (type < 0 || type > (RESAMPLE_MAX - 1)){
+		opt_resample_type = DEFAULT_RESAMPLATION_NUM;
+		return -1;
+	}
+	opt_resample_type = type;
+	return 0;
+#endif
+}
+
+/* #define FINALINTERP if (ofs < le) *dest++=src[(ofs>>FRACTION_BITS)-1]/2; */
+#define FINALINTERP /* Nothing to do after TiMidity++ 2.9.0 */
+/* So it isn't interpolation. At least it's final. */
+
+
+///r
+#ifdef PRECALC_LOOPS
+#define PRECALC_LOOP_COUNT(start, end, incr) (int32)(((splen_t)((end) - (start) + (incr) - 1)) / (incr))
+#endif /* PRECALC_LOOPS */
+
+
+///r
 /* change the parameter for the current resampling algorithm */
 int set_resampler_parm(int val)
 {
-    if (cur_resample == resample_gauss) {
-	if (val < 1 || val > 34)
-	    return -1;
-	else
-	    gauss_n = val;
-    } else if (cur_resample == resample_newton) {
-	if (val < 1 || val > 57)
-	    return -1;
-	else if (val % 2 == 0)
-	    return -1;
-	else {
-	    newt_n = val;
-	    /* set optimal value for newt_max */
-	    newt_max = newt_n * 1.57730263158 - 1.875328947;
-	    if (newt_max < newt_n)
-		    newt_max = newt_n;
-	    if (newt_max > 57)
-		    newt_max = 57;
+	if (opt_resample_type != RESAMPLE_GAUSS)
+		gauss_n = 2;
+	if (opt_resample_type != RESAMPLE_LANCZOS)
+		lanczos_n = 4;
+
+	if (opt_resample_type == RESAMPLE_LINEAR_P) {
+		if (val < 0)
+		  return -1;
+		else if (val == 0)
+			linear_n = DEFAULT_LINEAR_P_ORDER;
+		else if (val >= 100)
+			linear_n = 100;
+		else 
+			linear_n = val;
+	} else if (opt_resample_type == RESAMPLE_SHARP) {
+		if (val < 0)
+		  return -1;
+		else if (val == 0)
+			sharp_n = DEFAULT_SHARP_ORDER;
+		else if (val >= 20)
+			sharp_n = 20;
+		else if (val >= 2)
+			sharp_n = val;
+		else 
+			sharp_n = 2;
+    } else if (opt_resample_type == RESAMPLE_GAUSS) {
+		if (val < 0)
+		  return -1;
+		else if (val == 0)
+			gauss_n = DEFAULT_GAUSS_ORDER;
+		else if (val >= 32)
+			gauss_n = 32;
+		else if (val >= 24)
+			gauss_n = 24;
+		else if (val >= 16)
+			gauss_n = 16;
+		else if (val >= 8)
+			gauss_n = 8;
+		else if (val >= 4)
+			gauss_n = 4;
+		else 
+			gauss_n = 2;
+    } else if (opt_resample_type == RESAMPLE_NEWTON) {
+		if (val < 0)
+		  return -1;
+		else if (val == 0)
+			newt_n = DEFAULT_NEWTON_ORDER;
+		else if(val > 57) // 45
+			newt_n = 57;
+		else if ((val % 2) == 0)
+			newt_n = val + 1;
+		else 
+			newt_n = val;
+		/* set optimal value for newt_max */
+		newt_max = newt_n * 1.57730263158 - 1.875328947;
+		if (newt_max < newt_n)
+			newt_max = newt_n;
+		if (newt_max > 57)
+			newt_max = 57;
+    } else if (opt_resample_type == RESAMPLE_LANCZOS) {
+		if (val < 0)
+		  return -1;
+		else if (val == 0)
+			lanczos_n = DEFAULT_LANCZOS_ORDER;
+		else if (val >= 96)
+			lanczos_n = 96;
+		else if (val >= 64)
+			lanczos_n = 64;
+		else if (val >= 48)
+			lanczos_n = 48;
+		else if (val >= 32)
+			lanczos_n = 32;
+		else if (val >= 24)
+			lanczos_n = 24;
+		else if (val >= 16)
+			lanczos_n = 16;
+		else if (val >= 12)
+			lanczos_n = 12;
+		else if (val >= 8)
+			lanczos_n = 8;
+		else
+			lanczos_n = 4;
 	}
-    }
     return 0;
 }
 
-/*************** resampling with fixed increment *****************/
 
-static resample_t *rs_plain_c(int v, int32 *countptr)
+/*************** over_sampling *****************/
+
+FLOAT_T div_over_sampling_ratio = 1.0;
+
+void set_resampler_over_sampling(int val)
+{
+	if (val >= RESAMPLE_OVER_SAMPLING_MAX)
+		opt_resample_over_sampling = RESAMPLE_OVER_SAMPLING_MAX;
+#if 1 // optimize
+	else if (val >= 8)
+		opt_resample_over_sampling = 8;
+	else if (val >= 4)
+		opt_resample_over_sampling = 4;
+	else if (val >= 2)
+		opt_resample_over_sampling = 2;
+#else
+	else if (val >= 2)
+		opt_resample_over_sampling = val;
+#endif
+	else 
+		opt_resample_over_sampling = 0;	
+	if(opt_resample_over_sampling){
+		div_over_sampling_ratio = (double)1.0 / (double)opt_resample_over_sampling;
+	}else{
+		div_over_sampling_ratio = 1.0;
+	}
+}
+
+void resample_down_sampling(DATA_T *ptr, int32 count)
+{
+	int32 i;
+	
+#if (USE_X86_EXT_INTRIN >= 2)
+	_mm_prefetch((const char *)&ptr, _MM_HINT_T0);
+#endif
+	switch(opt_resample_over_sampling){
+	case 0:
+		break;
+#if 1 // optimize
+	case 2:
+		for(i = 0; i < count; i++){
+			int32 ofs = i * 2;
+			FLOAT_T tmp = ptr[ofs + 0] + ptr[ofs + 1];
+			ptr[i] = tmp * DIV_2;
+		}
+		break;
+	case 4:
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+		{ // 8samples
+			const double divnv = DIV_4;
+			const __m256d divn = _mm256_broadcast_sd(&divnv);
+			for(i = 0; i < count; i += 8){
+				int32 ofs = i * 4;
+				__m256d	sum1 = _mm256_load_pd(&ptr[ofs + 0]); // v0,v1,v2,v3
+				__m256d	sum2 = _mm256_load_pd(&ptr[ofs + 4]); // v4,v5,v6,v7
+				__m256d	sum3 = _mm256_load_pd(&ptr[ofs + 8]); // v8,v9,v10,v11
+				__m256d	sum4 = _mm256_load_pd(&ptr[ofs + 12]); // v12,v13,v14,v15
+				__m256d	sum5 = _mm256_load_pd(&ptr[ofs + 16]); // v16,....
+				__m256d	sum6 = _mm256_load_pd(&ptr[ofs + 20]); // v20,....
+				__m256d	sum7 = _mm256_load_pd(&ptr[ofs + 24]); // v24,....
+				__m256d	sum8 = _mm256_load_pd(&ptr[ofs + 28]); // v28,....			
+				//_MM_TRANSPOSE4_PS(sum1, sum2, sum3, sum4)								
+				__m256d tmp0 = _mm256_shuffle_pd(sum1, sum2, 0x00); // v0,v4,v2,v6
+				__m256d tmp1 = _mm256_shuffle_pd(sum1, sum2, 0x0F); // v1,v5,v3,v7
+				__m256d tmp2 = _mm256_shuffle_pd(sum3, sum4, 0x00); // v8,v12,v10,v14
+				__m256d tmp3 = _mm256_shuffle_pd(sum3, sum4, 0x0F); // v9,v13,v11,v15
+				sum1 = _mm256_permute2f128_pd(tmp0, tmp2, (0|(2<<4))); // v0,v4,v8,v12
+				sum2 = _mm256_permute2f128_pd(tmp1, tmp3, (0|(2<<4))); // v1,v5,v9,v13
+				sum3 = _mm256_permute2f128_pd(tmp0, tmp2, (1|(3<<4))); // v2,v6,10,v14
+				sum4 = _mm256_permute2f128_pd(tmp1, tmp3, (1|(3<<4))); // v3,v7,v11,v15				
+				//_MM_TRANSPOSE4_PS(sum5, sum6, sum7, sum8)
+				tmp0 = _mm256_shuffle_pd(sum5, sum6, 0x00); // v16,....
+				tmp1 = _mm256_shuffle_pd(sum5, sum6, 0x0F); // v17,....
+				tmp2 = _mm256_shuffle_pd(sum7, sum8, 0x00); // v24,....
+				tmp3 = _mm256_shuffle_pd(sum7, sum8, 0x0F); // v25,....
+				sum5 = _mm256_permute2f128_pd(tmp0, tmp2, (0|(2<<4))); // v16,....
+				sum6 = _mm256_permute2f128_pd(tmp1, tmp3, (0|(2<<4))); // v17,....
+				sum7 = _mm256_permute2f128_pd(tmp0, tmp2, (1|(3<<4))); // v18,....
+				sum8 = _mm256_permute2f128_pd(tmp1, tmp3, (1|(3<<4))); // v19,....			
+				sum1 = _mm256_add_pd(sum1, sum2);
+				sum3 = _mm256_add_pd(sum3, sum4);
+				sum5 = _mm256_add_pd(sum5, sum6);
+				sum7 = _mm256_add_pd(sum7, sum8);
+				sum1 = _mm256_add_pd(sum1, sum3);
+				sum5 = _mm256_add_pd(sum5, sum7);
+				sum1 = _mm256_mul_pd(sum1, divn);
+				sum5 = _mm256_mul_pd(sum5, divn);
+				_mm256_store_pd(&ptr[i    ], sum1);
+				_mm256_store_pd(&ptr[i + 4], sum5);
+			}
+		}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+		{ // 4samples
+			const __m128d divn = _mm_set1_pd(DIV_4);
+			for(i = 0; i < count; i += 4){
+				int32 ofs = i * 4;
+				__m128d	sum1 = _mm_load_pd(&ptr[ofs + 0]); // v0,v1
+				__m128d	sum2 = _mm_load_pd(&ptr[ofs + 2]); // v2,v3
+				__m128d	sum3 = _mm_load_pd(&ptr[ofs + 4]); // v4,v5
+				__m128d	sum4 = _mm_load_pd(&ptr[ofs + 6]); // v6,v7
+				__m128d	sum5 = _mm_load_pd(&ptr[ofs + 8]); // v8,v9
+				__m128d	sum6 = _mm_load_pd(&ptr[ofs + 10]); // v10,v11
+				__m128d	sum7 = _mm_load_pd(&ptr[ofs + 12]); // v12,v13
+				__m128d	sum8 = _mm_load_pd(&ptr[ofs + 14]); // v14,v15
+				// ([1,2] [3,4]) ([5,6] [7,8]) ...
+				sum1 = _mm_add_pd(sum1, sum2); // (v0+v2) (v1+v3)
+				sum3 = _mm_add_pd(sum3, sum4); // (v4+v6) (v5+v7)
+				sum5 = _mm_add_pd(sum5, sum6); // (v8+v10) (v9+v11)
+				sum7 = _mm_add_pd(sum7, sum8); // (v12+v14) (v13+v15)
+				sum2 = _mm_shuffle_pd(sum1, sum3, 0x0); // (v0+v2) (v4+v6)
+				sum4 = _mm_shuffle_pd(sum1, sum3, 0x3); // (v1+v3) (v5+v7)
+				sum6 = _mm_shuffle_pd(sum5, sum7, 0x0); // (v8+v10) (v12+v14)
+				sum8 = _mm_shuffle_pd(sum5, sum7, 0x3); // (v9+v11) (v13+v15)				
+				sum2 = _mm_add_pd(sum2, sum4); // ((v0+v2)+(v1+v3)) ((v4+v6)+(v5+v7))
+				sum6 = _mm_add_pd(sum6, sum8); // ((v8+v10)+(v9+v11)) ((v12+v14)+(v13+v15))
+				sum2 = _mm_mul_pd(sum2, divn);
+				sum6 = _mm_mul_pd(sum6, divn);
+				_mm_store_pd(&ptr[i    ], sum2);
+				_mm_store_pd(&ptr[i + 2], sum6);
+			}
+		}
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+		{ // 8samples
+			const float divnv = DIV_4;
+			const __m128 divn = _mm_load1_ps(&divnv);
+			for(i = 0; i < count; i += 8){
+				int32 ofs = i * 4;
+				__m128	sum1 = _mm_load_ps(&ptr[ofs + 0]); // v0,v1,v2,v3
+				__m128	sum2 = _mm_load_ps(&ptr[ofs + 4]); // v4,v5,v6,v7
+				__m128	sum3 = _mm_load_ps(&ptr[ofs + 8]); // v8,v9,v10,v11
+				__m128	sum4 = _mm_load_ps(&ptr[ofs + 12]); // v12,v13,v14,v15
+				__m128	sum5 = _mm_load_ps(&ptr[ofs + 16]); // v16,....
+				__m128	sum6 = _mm_load_ps(&ptr[ofs + 20]); // v20,....
+				__m128	sum7 = _mm_load_ps(&ptr[ofs + 24]); // v24,....
+				__m128	sum8 = _mm_load_ps(&ptr[ofs + 28]); // v28,....			
+				//_MM_TRANSPOSE4_PS(sum1, sum2, sum3, sum4)				
+				__m128 tmp0 = _mm_shuffle_ps(sum1, sum2, 0x44); // v0,v1,v4,v5
+				__m128 tmp2 = _mm_shuffle_ps(sum1, sum2, 0xEE); // v2,v3,v6,v7
+				__m128 tmp1 = _mm_shuffle_ps(sum3, sum4, 0x44); // v8,v9,v12,v13
+				__m128 tmp3 = _mm_shuffle_ps(sum3, sum4, 0xEE); // v10,v11,v14,v5
+				sum1 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0,v4,v8,v12
+				sum2 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1,v5,v9,v13
+				sum3 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2,v6,10,v15
+				sum4 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3,v7,v11,v16				
+				//_MM_TRANSPOSE4_PS(sum5, sum6, sum7, sum8)
+				tmp0 = _mm_shuffle_ps(sum5, sum6, 0x44); // v16,....
+				tmp2 = _mm_shuffle_ps(sum5, sum6, 0xEE); // v18,....
+				tmp1 = _mm_shuffle_ps(sum7, sum8, 0x44); // v24,....
+				tmp3 = _mm_shuffle_ps(sum7, sum8, 0xEE); // v26,....
+				sum5 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v16,....
+				sum6 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v17,....
+				sum7 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v18,....
+				sum8 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v19,....
+				sum1 = _mm_add_ps(sum1, sum2);
+				sum3 = _mm_add_ps(sum3, sum4);
+				sum5 = _mm_add_ps(sum5, sum6);
+				sum7 = _mm_add_ps(sum7, sum8);
+				sum1 = _mm_add_ps(sum1, sum3);
+				sum5 = _mm_add_ps(sum5, sum7);
+				sum1 = _mm_mul_ps(sum1, divn);
+				sum5 = _mm_mul_ps(sum5, divn);
+				_mm_store_ps(&ptr[i    ], sum1);
+				_mm_store_ps(&ptr[i + 4], sum5);
+			}
+		}
+#else
+		for(i = 0; i < count; i++){
+			int32 ofs = i * 4;
+			FLOAT_T tmp = ptr[ofs + 0] + ptr[ofs + 1] + ptr[ofs + 2] + ptr[ofs + 3];
+			ptr[i] = tmp * DIV_4;
+		}
+#endif
+		break;
+	case 8:
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+		{ // 8samples
+			const double divnv = DIV_8;
+			const __m256d divn = _mm256_broadcast_sd(&divnv);
+			for(i = 0; i < count; i += 8){
+				int32 ofs = i * 8;
+				__m256d	sum1 = _mm256_load_pd(&ptr[ofs + 0]); // v0,v1,v2,v3
+				__m256d	sum2 = _mm256_load_pd(&ptr[ofs + 4]); // v4,v5,v6,v7
+				__m256d	sum3 = _mm256_load_pd(&ptr[ofs + 8]); // v8,v9,v10,v11
+				__m256d	sum4 = _mm256_load_pd(&ptr[ofs + 12]); // v12,v13,v14,v15
+				__m256d	sum5 = _mm256_load_pd(&ptr[ofs + 16]); // v16,....
+				__m256d	sum6 = _mm256_load_pd(&ptr[ofs + 20]); // v20,....
+				__m256d	sum7 = _mm256_load_pd(&ptr[ofs + 24]); // v24,....
+				__m256d	sum8 = _mm256_load_pd(&ptr[ofs + 28]); // v28,....				
+				__m256d	sum9 = _mm256_load_pd(&ptr[ofs + 32]); // v32,....
+				__m256d	sum10 = _mm256_load_pd(&ptr[ofs + 36]); // v36,....
+				__m256d	sum11 = _mm256_load_pd(&ptr[ofs + 40]); // v40,....
+				__m256d	sum12 = _mm256_load_pd(&ptr[ofs + 44]); // v44,....
+				__m256d	sum13 = _mm256_load_pd(&ptr[ofs + 48]); // v48,....
+				__m256d	sum14 = _mm256_load_pd(&ptr[ofs + 52]); // v52,....
+				__m256d	sum15 = _mm256_load_pd(&ptr[ofs + 56]); // v56,....
+				__m256d	sum16 = _mm256_load_pd(&ptr[ofs + 60]); // v60,....
+				sum1 = _mm256_add_pd(sum1, sum2); // v0~v7
+				sum3 = _mm256_add_pd(sum3, sum4); // v8~v15
+				sum5 = _mm256_add_pd(sum5, sum6); // v16~v23
+				sum7 = _mm256_add_pd(sum7, sum8); // v24~v31
+				sum9 = _mm256_add_pd(sum9, sum10); // v32~
+				sum11 = _mm256_add_pd(sum11, sum12); // v40~
+				sum13 = _mm256_add_pd(sum13, sum14); // v48~
+				sum15 = _mm256_add_pd(sum15, sum16); // v52~
+				//_mm256_TRANSPOSE4_pd(sum1, sum3, sum5, sum7)	
+				sum2 = _mm256_shuffle_pd(sum1, sum3, 0x00); // v0,v4,v2,v6
+				sum4 = _mm256_shuffle_pd(sum1, sum3, 0x0F); // v1,v5,v3,v7
+				sum6 = _mm256_shuffle_pd(sum5, sum7, 0x00); // v8,v12,v10,v14
+				sum8 = _mm256_shuffle_pd(sum5, sum7, 0x0F); // v9,v13,v11,v15
+				sum1 = _mm256_permute2f128_pd(sum2, sum6, (0|(2<<4))); // v0,v4,v8,v12
+				sum3 = _mm256_permute2f128_pd(sum4, sum8, (0|(2<<4))); // v1,v5,v9,v13
+				sum5 = _mm256_permute2f128_pd(sum2, sum6, (1|(3<<4))); // v2,v6,10,v14
+				sum7 = _mm256_permute2f128_pd(sum4, sum8, (1|(3<<4))); // v3,v7,v11,v15				
+				//_mm256_TRANSPOSE4_pd(sum9, sum11, sum13, sum15)
+				sum10 = _mm256_shuffle_pd(sum9, sum11, 0x00); // v0,v4,v2,v6
+				sum12 = _mm256_shuffle_pd(sum9, sum11, 0x0F); // v1,v5,v3,v7
+				sum14 = _mm256_shuffle_pd(sum13, sum15, 0x00); // v8,v12,v10,v14
+				sum16 = _mm256_shuffle_pd(sum13, sum15, 0x0F); // v9,v13,v11,v15
+				sum9 = _mm256_permute2f128_pd(sum10, sum14, (0|(2<<4))); // v0,v4,v8,v12
+				sum11 = _mm256_permute2f128_pd(sum12, sum16, (0|(2<<4))); // v1,v5,v9,v13
+				sum13 = _mm256_permute2f128_pd(sum10, sum14, (1|(3<<4))); // v2,v6,10,v14
+				sum15 = _mm256_permute2f128_pd(sum12, sum16, (1|(3<<4))); // v3,v7,v11,v15
+				sum1 = _mm256_add_pd(sum1, sum3);
+				sum5 = _mm256_add_pd(sum5, sum7);
+				sum9 = _mm256_add_pd(sum9, sum11);
+				sum13 = _mm256_add_pd(sum13, sum15);
+				sum1 = _mm256_add_pd(sum1, sum5);
+				sum9 = _mm256_add_pd(sum9, sum13);
+				sum1 = _mm256_mul_pd(sum1, divn);
+				sum9 = _mm256_mul_pd(sum9, divn);
+				_mm256_store_pd(&ptr[i    ], sum1);
+				_mm256_store_pd(&ptr[i + 4], sum9);
+			}
+		}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+		{ // 4samples
+			const __m128d divn = _mm_set1_pd(DIV_8);
+			for(i = 0; i < count; i += 4){
+				int32 ofs = i * 8;
+				__m128d	sum1 = _mm_load_pd(&ptr[ofs + 0]); // v0,v1
+				__m128d	sum2 = _mm_load_pd(&ptr[ofs + 2]); // v2,v3
+				__m128d	sum3 = _mm_load_pd(&ptr[ofs + 4]); // v4,v5
+				__m128d	sum4 = _mm_load_pd(&ptr[ofs + 6]); // v6,v7
+				__m128d	sum5 = _mm_load_pd(&ptr[ofs + 8]); // v8,v9
+				__m128d	sum6 = _mm_load_pd(&ptr[ofs + 10]); // v10,v11
+				__m128d	sum7 = _mm_load_pd(&ptr[ofs + 12]); // v12,v13
+				__m128d	sum8 = _mm_load_pd(&ptr[ofs + 14]); // v14,v15
+				__m128d	sum9 = _mm_load_pd(&ptr[ofs + 16]);
+				__m128d	sum10 = _mm_load_pd(&ptr[ofs + 18]);
+				__m128d	sum11 = _mm_load_pd(&ptr[ofs + 20]);
+				__m128d	sum12 = _mm_load_pd(&ptr[ofs + 22]);
+				__m128d	sum13 = _mm_load_pd(&ptr[ofs + 24]);
+				__m128d	sum14 = _mm_load_pd(&ptr[ofs + 26]);
+				__m128d	sum15 = _mm_load_pd(&ptr[ofs + 28]);
+				__m128d	sum16 = _mm_load_pd(&ptr[ofs + 30]);
+				// ([1,2,3,4] [5,6,7,8]) ([9,10,11,12] [13,14,15,16])				
+				sum1 = _mm_add_pd(sum1, sum2); // (v0+v2) (v1+v3)
+				sum3 = _mm_add_pd(sum3, sum4); // (v4+v6) (v5+v7)
+				sum5 = _mm_add_pd(sum5, sum6); // (v8+v10) (v9+v11)
+				sum7 = _mm_add_pd(sum7, sum8); // (v12+v14) (v13+v15)
+				sum9 = _mm_add_pd(sum9, sum10);
+				sum11 = _mm_add_pd(sum11, sum12);
+				sum13 = _mm_add_pd(sum13, sum14);
+				sum15 = _mm_add_pd(sum15, sum16);
+				sum1 = _mm_add_pd(sum1, sum3); // ((v0+v2)+(v4+v6)) ((v1+v3)+(v5+v7))
+				sum5 = _mm_add_pd(sum5, sum7); // ((v8+v10)+(v12+v14)) ((v9+v11)+(v13+v15))
+				sum9 = _mm_add_pd(sum9, sum11);
+				sum13 = _mm_add_pd(sum13, sum15);
+				sum2 = _mm_shuffle_pd(sum1, sum5, 0x0); // ((v0+v2)+(v4+v6)) ((v8+v10)+(v12+v14))
+				sum6 = _mm_shuffle_pd(sum1, sum5, 0x3); // ((v1+v3)+(v5+v7)) ((v9+v11)+(v13+v15))
+				sum10 = _mm_shuffle_pd(sum9, sum13, 0x0);
+				sum14 = _mm_shuffle_pd(sum9, sum13, 0x3);
+				sum2 = _mm_add_pd(sum2, sum6); // (((v0+v2)+(v4+v6))+((v1+v3)+(v5+v7))) (((v8+v10)+(v12+v14))+((v9+v11)+(v13+v15)))
+				sum10 = _mm_add_pd(sum10, sum14); // sum(16~23) sum(24~31)
+				sum2 = _mm_mul_pd(sum2, divn);
+				sum10 = _mm_mul_pd(sum10, divn);
+				_mm_store_pd(&ptr[i    ], sum2);
+				_mm_store_pd(&ptr[i + 2], sum10);
+			}
+		}
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+		{ // 8samples
+			const float divnv = DIV_8;
+			const __m128 divn = _mm_load1_ps(&divnv);
+			for(i = 0; i < count; i += 8){
+				int32 ofs = i * 8;
+				__m128	sum1 = _mm_load_ps(&ptr[ofs + 0]); // v0,v1,v2,v3
+				__m128	sum2 = _mm_load_ps(&ptr[ofs + 4]); // v4,v5,v6,v7
+				__m128	sum3 = _mm_load_ps(&ptr[ofs + 8]); // v8,v9,v10,v11
+				__m128	sum4 = _mm_load_ps(&ptr[ofs + 12]); // v12,v13,v14,v15
+				__m128	sum5 = _mm_load_ps(&ptr[ofs + 16]); // v16,....
+				__m128	sum6 = _mm_load_ps(&ptr[ofs + 20]); // v20,....
+				__m128	sum7 = _mm_load_ps(&ptr[ofs + 24]); // v24,....
+				__m128	sum8 = _mm_load_ps(&ptr[ofs + 28]); // v28,....				
+				__m128	sum9 = _mm_load_ps(&ptr[ofs + 32]); // v32,....
+				__m128	sum10 = _mm_load_ps(&ptr[ofs + 36]); // v36,....
+				__m128	sum11 = _mm_load_ps(&ptr[ofs + 40]); // v40,....
+				__m128	sum12 = _mm_load_ps(&ptr[ofs + 44]); // v44,....
+				__m128	sum13 = _mm_load_ps(&ptr[ofs + 48]); // v48,....
+				__m128	sum14 = _mm_load_ps(&ptr[ofs + 52]); // v52,....
+				__m128	sum15 = _mm_load_ps(&ptr[ofs + 56]); // v56,....
+				__m128	sum16 = _mm_load_ps(&ptr[ofs + 60]); // v60,....
+				sum1 = _mm_add_pd(sum1, sum2); // v0~v7
+				sum3 = _mm_add_pd(sum3, sum4); // v8~v15
+				sum5 = _mm_add_pd(sum5, sum6); // v16~v23
+				sum7 = _mm_add_pd(sum7, sum8); // v24~v31
+				sum9 = _mm_add_pd(sum9, sum10); // v32~
+				sum11 = _mm_add_pd(sum11, sum12); // v40~
+				sum13 = _mm_add_pd(sum13, sum14); // v48~
+				sum15 = _mm_add_pd(sum15, sum16); // v52~
+				//_MM_TRANSPOSE4_PS(sum1, sum3, sum5, sum7)				
+				sum2 = _mm_shuffle_ps(sum1, sum3, 0x44); // v0,v1,v4,v5
+				sum4 = _mm_shuffle_ps(sum1, sum3, 0xEE); // v2,v3,v6,v7
+				sum6 = _mm_shuffle_ps(sum5, sum7, 0x44); // v8,v9,v12,v13
+				sum8 = _mm_shuffle_ps(sum5, sum7, 0xEE); // v10,v11,v14,v5
+				sum1 = _mm_shuffle_ps(sum2, sum4, 0x88); // v0,v4,v8,v12
+				sum3 = _mm_shuffle_ps(sum2, sum4, 0xDD); // v1,v5,v9,v13
+				sum5 = _mm_shuffle_ps(sum6, sum8, 0x88); // v2,v6,10,v15
+				sum7 = _mm_shuffle_ps(sum6, sum8, 0xDD); // v3,v7,v11,v16				
+				//_MM_TRANSPOSE4_PS(sum9, sum11, sum13, sum15)				
+				sum10 = _mm_shuffle_ps(sum9, sum11, 0x44); // v0,v1,v4,v5
+				sum12 = _mm_shuffle_ps(sum9, sum11, 0xEE); // v2,v3,v6,v7
+				sum14 = _mm_shuffle_ps(sum13, sum15, 0x44); // v8,v9,v12,v13
+				sum16 = _mm_shuffle_ps(sum13, sum15, 0xEE); // v10,v11,v14,v5
+				sum9 = _mm_shuffle_ps(sum10, sum12, 0x88); // v0,v4,v8,v12
+				sum11 = _mm_shuffle_ps(sum10, sum12, 0xDD); // v1,v5,v9,v13
+				sum13 = _mm_shuffle_ps(sum14, sum16, 0x88); // v2,v6,10,v15
+				sum15 = _mm_shuffle_ps(sum14, sum16, 0xDD); // v3,v7,v11,v16
+				sum1 = _mm_add_ps(sum1, sum3);
+				sum5 = _mm_add_ps(sum5, sum7);
+				sum9 = _mm_add_ps(sum9, sum11);
+				sum13 = _mm_add_ps(sum13, sum15);
+				sum1 = _mm_add_ps(sum1, sum5);
+				sum9 = _mm_add_ps(sum9, sum13);
+				sum1 = _mm_mul_ps(sum1, divn);
+				sum9 = _mm_mul_ps(sum9, divn);
+				_mm_store_ps(&ptr[i    ], sum1);
+				_mm_store_ps(&ptr[i + 4], sum9);
+			}
+		}
+#else
+		for(i = 0; i < count; i++){
+			int32 ofs = i * 8;
+			FLOAT_T tmp = ptr[ofs + 0] + ptr[ofs + 1] + ptr[ofs + 2] + ptr[ofs + 3]
+				+ ptr[ofs + 4] + ptr[ofs + 5] + ptr[ofs + 6] + ptr[ofs + 7];
+			ptr[i] = tmp * DIV_8;
+		}
+#endif
+		break;
+	case 16:
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+		{ // 4samples
+			const double divnv = DIV_16;
+			const __m256d divn = _mm256_broadcast_sd(&divnv);
+			for(i = 0; i < count; i += 4){
+				int32 ofs = i * 16;
+				__m256d	sum1 = _mm256_load_pd(&ptr[ofs + 0]); // v0,v1,v2,v3
+				__m256d	sum2 = _mm256_load_pd(&ptr[ofs + 4]); // v4,v5,v6,v7
+				__m256d	sum3 = _mm256_load_pd(&ptr[ofs + 8]); // v8,v9,v10,v11
+				__m256d	sum4 = _mm256_load_pd(&ptr[ofs + 12]); // v12,v13,v14,v15
+				__m256d	sum5 = _mm256_load_pd(&ptr[ofs + 16]); // v16,....
+				__m256d	sum6 = _mm256_load_pd(&ptr[ofs + 20]); // v20,....
+				__m256d	sum7 = _mm256_load_pd(&ptr[ofs + 24]); // v24,....
+				__m256d	sum8 = _mm256_load_pd(&ptr[ofs + 28]); // v28,....	
+				__m256d	sum9 = _mm256_load_pd(&ptr[ofs + 32]); // v32,....
+				__m256d	sum10 = _mm256_load_pd(&ptr[ofs + 36]); // v36,....
+				__m256d	sum11 = _mm256_load_pd(&ptr[ofs + 40]); // v40,....
+				__m256d	sum12 = _mm256_load_pd(&ptr[ofs + 44]); // v44,....
+				__m256d	sum13 = _mm256_load_pd(&ptr[ofs + 48]); // v48,....
+				__m256d	sum14 = _mm256_load_pd(&ptr[ofs + 52]); // v52,....
+				__m256d	sum15 = _mm256_load_pd(&ptr[ofs + 56]); // v56,....
+				__m256d	sum16 = _mm256_load_pd(&ptr[ofs + 60]); // v60,....
+				sum1 = _mm256_add_pd(sum1, sum2); // v0~v7
+				sum3 = _mm256_add_pd(sum3, sum4); // v8~v15
+				sum5 = _mm256_add_pd(sum5, sum6); // v16~v23
+				sum7 = _mm256_add_pd(sum7, sum8); // v24~v31
+				sum9 = _mm256_add_pd(sum9, sum10); // v32~
+				sum11 = _mm256_add_pd(sum11, sum12); // v40~
+				sum13 = _mm256_add_pd(sum13, sum14); // v48~
+				sum15 = _mm256_add_pd(sum15, sum16); // v52~
+				sum1 = _mm256_add_pd(sum1, sum3); // v0~v15
+				sum5 = _mm256_add_pd(sum5, sum7); // v16~v31
+				sum9 = _mm256_add_pd(sum9, sum11); // v32~v47
+				sum13 = _mm256_add_pd(sum13, sum15); // v48~v63
+				//_mm256_TRANSPOSE4_pd(sum1, sum5, sum9, sum13)
+				sum2 = _mm256_shuffle_pd(sum1, sum5, 0x00); // v0,v4,v2,v6
+				sum6 = _mm256_shuffle_pd(sum1, sum5, 0x0F); // v1,v5,v3,v7
+				sum10 = _mm256_shuffle_pd(sum9, sum13, 0x00); // v8,v12,v10,v14
+				sum14 = _mm256_shuffle_pd(sum9, sum13, 0x0F); // v9,v13,v11,v15
+				sum1 = _mm256_permute2f128_pd(sum2, sum10, (0|(2<<4))); // v0,v4,v8,v12
+				sum5 = _mm256_permute2f128_pd(sum6, sum14, (0|(2<<4))); // v1,v5,v9,v13
+				sum9 = _mm256_permute2f128_pd(sum2, sum10, (1|(3<<4))); // v2,v6,10,v14
+				sum13 = _mm256_permute2f128_pd(sum6, sum14, (1|(3<<4))); // v3,v7,v11,v15
+				sum1 = _mm256_add_pd(sum1, sum3);
+				sum5 = _mm256_add_pd(sum5, sum7);
+				sum9 = _mm256_add_pd(sum9, sum11);
+				sum13 = _mm256_add_pd(sum13, sum15);
+				sum1 = _mm256_add_pd(sum1, sum5);
+				sum9 = _mm256_add_pd(sum9, sum13);
+				sum1 = _mm256_add_pd(sum1, sum9);
+				sum1 = _mm256_mul_pd(sum1, divn);
+				_mm256_store_pd(&ptr[i    ], sum1);
+			}
+		}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+		{ // 2sample
+			const __m128d divn = _mm_set1_pd(DIV_16);
+			for(i = 0; i < count; i += 2){
+				int32 ofs = i * 16;
+				__m128d	sum1 = _mm_load_pd(&ptr[ofs + 0]);
+				__m128d	sum2 = _mm_load_pd(&ptr[ofs + 2]);
+				__m128d	sum3 = _mm_load_pd(&ptr[ofs + 4]);
+				__m128d	sum4 = _mm_load_pd(&ptr[ofs + 6]);
+				__m128d	sum5 = _mm_load_pd(&ptr[ofs + 8]);
+				__m128d	sum6 = _mm_load_pd(&ptr[ofs + 10]);
+				__m128d	sum7 = _mm_load_pd(&ptr[ofs + 12]);
+				__m128d	sum8 = _mm_load_pd(&ptr[ofs + 14]);
+				__m128d	sum9 = _mm_load_pd(&ptr[ofs + 16]);
+				__m128d	sum10 = _mm_load_pd(&ptr[ofs + 18]);
+				__m128d	sum11 = _mm_load_pd(&ptr[ofs + 20]);
+				__m128d	sum12 = _mm_load_pd(&ptr[ofs + 22]);
+				__m128d	sum13 = _mm_load_pd(&ptr[ofs + 24]);
+				__m128d	sum14 = _mm_load_pd(&ptr[ofs + 26]);
+				__m128d	sum15 = _mm_load_pd(&ptr[ofs + 28]);
+				__m128d	sum16 = _mm_load_pd(&ptr[ofs + 30]);
+				// ([1,2,3,4,5,6,7,8] [9,10,11,12,13,14,15,16])
+				sum1 = _mm_add_pd(sum1, sum2);
+				sum3 = _mm_add_pd(sum3, sum4);
+				sum5 = _mm_add_pd(sum5, sum6);
+				sum7 = _mm_add_pd(sum7, sum8);
+				sum9 = _mm_add_pd(sum9, sum10);
+				sum11 = _mm_add_pd(sum11, sum12);
+				sum13 = _mm_add_pd(sum13, sum14);
+				sum15 = _mm_add_pd(sum15, sum16);
+				sum1 = _mm_add_pd(sum1, sum3);
+				sum5 = _mm_add_pd(sum5, sum7);				
+				sum9 = _mm_add_pd(sum9, sum11);
+				sum13 = _mm_add_pd(sum13, sum15);				
+				sum1 = _mm_add_pd(sum1, sum5);
+				sum9 = _mm_add_pd(sum9, sum13);					
+				sum2 = _mm_shuffle_pd(sum1, sum9, 0x0); // x10x90 
+				sum3 = _mm_shuffle_pd(sum1, sum9, 0x3); // x11x91
+				sum2 = _mm_add_pd(sum2, sum3); // v0=x10+x11 v1=x90+91
+				sum2 = _mm_mul_pd(sum2, divn);
+				_mm_store_pd(&ptr[i], sum2);
+			}
+		}
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+		{ // 4samples
+			const float divnv = DIV_16;
+			const __m128 divn = _mm_load1_ps(&divnv);
+			for(i = 0; i < count; i += 4){
+				int32 ofs = i * 16;
+				__m128	sum1 = _mm_load_ps(&ptr[ofs + 0]); // v0,v1,v2,v3
+				__m128	sum2 = _mm_load_ps(&ptr[ofs + 4]); // v4,v5,v6,v7
+				__m128	sum3 = _mm_load_ps(&ptr[ofs + 8]); // v8,v9,v10,v11
+				__m128	sum4 = _mm_load_ps(&ptr[ofs + 12]); // v12,v13,v14,v15
+				__m128	sum5 = _mm_load_ps(&ptr[ofs + 16]); // v16,....
+				__m128	sum6 = _mm_load_ps(&ptr[ofs + 20]); // v20,....
+				__m128	sum7 = _mm_load_ps(&ptr[ofs + 24]); // v24,....
+				__m128	sum8 = _mm_load_ps(&ptr[ofs + 28]); // v28,....	
+				__m128	sum9 = _mm_load_ps(&ptr[ofs + 32]); // v32,....
+				__m128	sum10 = _mm_load_ps(&ptr[ofs + 36]); // v36,....
+				__m128	sum11 = _mm_load_ps(&ptr[ofs + 40]); // v40,....
+				__m128	sum12 = _mm_load_ps(&ptr[ofs + 44]); // v44,....
+				__m128	sum13 = _mm_load_ps(&ptr[ofs + 48]); // v48,....
+				__m128	sum14 = _mm_load_ps(&ptr[ofs + 52]); // v52,....
+				__m128	sum15 = _mm_load_ps(&ptr[ofs + 56]); // v56,....
+				__m128	sum16 = _mm_load_ps(&ptr[ofs + 60]); // v60,....
+				sum1 = _mm_add_pd(sum1, sum2); // v0~v7
+				sum3 = _mm_add_pd(sum3, sum4); // v8~v15
+				sum5 = _mm_add_pd(sum5, sum6); // v16~v23
+				sum7 = _mm_add_pd(sum7, sum8); // v24~v31
+				sum9 = _mm_add_pd(sum9, sum10); // v32~
+				sum11 = _mm_add_pd(sum11, sum12); // v40~
+				sum13 = _mm_add_pd(sum13, sum14); // v48~
+				sum15 = _mm_add_pd(sum15, sum16); // v52~				
+				sum1 = _mm_add_pd(sum1, sum3); // v0~v15
+				sum5 = _mm_add_pd(sum5, sum7); // v16~v31
+				sum9 = _mm_add_pd(sum9, sum11); // v32~v47
+				sum13 = _mm_add_pd(sum13, sum15); // v48~v63
+				//_MM_TRANSPOSE4_PS(sum1, sum5, sum9, sum13)				
+				sum2 = _mm_shuffle_ps(sum1, sum5, 0x44); // v0,v1,v4,v5
+				sum6 = _mm_shuffle_ps(sum1, sum5, 0xEE); // v2,v3,v6,v7
+				sum10 = _mm_shuffle_ps(sum9, sum13, 0x44); // v8,v9,v12,v13
+				sum14 = _mm_shuffle_ps(sum9, sum13, 0xEE); // v10,v11,v14,v5
+				sum1 = _mm_shuffle_ps(sum2, sum6, 0x88); // v0,v4,v8,v12
+				sum5 = _mm_shuffle_ps(sum2, sum6, 0xDD); // v1,v5,v9,v13
+				sum9 = _mm_shuffle_ps(sum10, sum14, 0x88); // v2,v6,10,v15
+				sum13 = _mm_shuffle_ps(sum10, sum14, 0xDD); // v3,v7,v11,v16
+				sum1 = _mm_add_ps(sum1, sum3);
+				sum5 = _mm_add_ps(sum5, sum7);
+				sum9 = _mm_add_ps(sum9, sum11);
+				sum13 = _mm_add_ps(sum13, sum15);
+				sum1 = _mm_add_ps(sum1, sum5);
+				sum9 = _mm_add_ps(sum9, sum13);
+				sum1 = _mm_add_ps(sum1, sum9);
+				sum1 = _mm_mul_ps(sum1, divn);
+				_mm_store_ps(&ptr[i    ], sum1);
+			}
+		}
+#else
+		for(i = 0; i < count; i++){
+			int32 ofs = i * 16;
+			FLOAT_T tmp = ptr[ofs + 0] + ptr[ofs + 1] + ptr[ofs + 2] + ptr[ofs + 3]
+				+ ptr[ofs + 4] + ptr[ofs + 5] + ptr[ofs + 6] + ptr[ofs + 7]
+				+ ptr[ofs + 8] + ptr[ofs + 9] + ptr[ofs + 10] + ptr[ofs + 11]
+				+ ptr[ofs + 12] + ptr[ofs + 13] + ptr[ofs + 14] + ptr[ofs + 15];
+			ptr[i] = tmp * DIV_16;
+		}
+#endif
+		break;
+#else
+	default:
+		for(i = 0; i < count; i++){
+			int32 ofs = i * opt_resample_over_sampling;
+			FLOAT_T tmp = 0.0;
+			int32 j;
+			for(j = 0; j < opt_resample_over_sampling; j++){
+				tmp += ptr[ofs + j];
+			}
+			ptr[i] = tmp * div_over_sampling_ratio;
+		}
+		break;
+#endif
+
+	}
+
+}
+
+
+
+/*************** resample.c initialize uninitialize *****************/
+///r
+/* initialize the coefficients of the current resampling algorithm */
+void initialize_resampler_coeffs(void)
+{
+	set_current_resampler(opt_resample_type);
+	set_resampler_parm(opt_resample_param);
+    /* initialize_newton_coeffs(); */
+    initialize_gauss_table(gauss_n);
+    /* we don't have to initialize newton table any more */	
+	initialize_lanczos_table(lanczos_n);	
+	/* over_sampling */
+	set_resampler_over_sampling(opt_resample_over_sampling);
+}
+
+///r
+// kobarin
+void uninitialize_resampler_coeffs(void)
+{
+	free_gauss_table();
+	free_lanczos_table();
+}
+
+
+
+/*************** optimize linear resample *****************/
+#if defined(PRECALC_LOOPS)
+//#define LO_LOOP_CALC // interpolation sample loop calc
+#define LO_OPTIMIZE_INCREMENT
+
+static inline DATA_T resample_linear_single(Voice *vp)
+{	
+#ifdef LO_LOOP_CALC // interpolation sample loop calc
+/*
+補完点ループ折り返し対応
+だが最適化なのに負荷の問題が・・
+SF2仕様準拠(ループ前後4サンプル) または PAT(ループ前後1サンプル？) であればそもそも不要なもの
+*/
+	sample_t *src = vp->sample->data;
+	const resample_rec_t *resrc = &vp->resrc;
+    const fract_t ofsf = resrc->offset & FRACTION_MASK;
+    const spos_t ofsls = resrc->loop_start >> FRACTION_BITS;
+    const spos_t ofsle = resrc->loop_end >> FRACTION_BITS;
+	const spos_t ofsi = resrc->offset >> FRACTION_BITS;
+	spos_t ofsi2 = ofsi + 1;
+	int32 v1, v2;
+		
+	switch(resrc->mode){
+	case RESAMPLE_MODE_PLAIN:
+		// safe end+128 sample
+		break;
+	case RESAMPLE_MODE_LOOP:
+		if(ofsi2 >= ofsle)
+			ofsi2 = ofsi2 - (ofsle - ofsls);
+		break;
+	case RESAMPLE_MODE_BIDIR_LOOP:		
+		if(resrc->increment >= 0){
+			if(ofsi2 >= ofsle)
+				ofsi2 = (ofsle << 1) - ofsi2;
+		}
+		break;
+	}
+	v1 = src[ofsi];
+	v2 = src[ofsi2];	
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+    return ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT16;
+#else // DATA_T_IN32
+    return (v1 + imuldiv_fraction((v2 - v1), ofsf);
+#endif
+#else	
+	sample_t *src = vp->sample->data;
+    const fract_t ofsf = vp->resrc.offset & FRACTION_MASK;
+	const spos_t ofsi = vp->resrc.offset >> FRACTION_BITS;
+	const int32 v1 = src[ofsi];
+	const int32 v2 = src[ofsi + 1];	
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+    return ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT16;
+#else // DATA_T_IN32
+    return (v1 + imuldiv_fraction((v2 - v1), ofsf));
+#endif
+#endif // LO_LOOP_CALC
+}
+
+#if 0// (USE_X86_EXT_INTRIN >= 9)
+// offset:int32*8, resamp:float*8
+// ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
+static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const int32 req_count_mask = ~(0x7);
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
+	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offset計算をint32値域にする(SIMD用
+	int32 inc = resrc->increment;
+	__m256i vint = _mm256_set_epi32(inc * 7, inc * 6, inc * 5, inc * 4, inc * 3, inc * 2, inc, 0)
+	__m256i vofs = _mm256_add_epi32(_mm256_set1_epi32(start_offset), vinit);
+	__m256i vinc = _mm256_set1_epi32(inc * 8), vfmask = _mm256_set1_epi32((int32)FRACTION_MASK);
+	__m256 vec_divo = _mm256_set1_ps(DIV_15BIT), vec_divf = _mm256_set1_ps(div_fraction);
+
+#ifdef LO_OPTIMIZE_INCREMENT
+	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(linearは1) ) / オフセットデータ数
+	// ロードデータ数はint16用permutevarがないので変換後の32bit(int32/float)の8セットになる
+	// 256bitロードデータ(int16*16セット)を全て使うにはSIMD2セットで対応
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 8; // (float*8) * 1セット
+	const int32 opt_inc2 = (1 << FRACTION_BITS) * (16 - 1 - 1) / 8; // (float*8) * 2セット
+	const __m256i vvar1 = _mm256_set1_epi32(1);
+	if(inc < opt_inc1){	// 1セット	
+	for(i = 0; i < count; i += 8) {
+	__m256i vofsi1 = _mm256_srli_epi32(vofs, FRACTION_BITS);
+	__m256i vofsi2 = _mm256_add_epi32(vofsi1, vvar1);
+	int32 ofs0 = _mm_cvtsi128_si32(_mm256_extracti128si256(vofsi1, 0x0));
+	__m256i vin1 = _mm256_loadu_si256((__m256i *)&src[ofs0]); // int16*16
+	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi1, _mm256_setzero_epi32()); 
+	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); 
+	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib); 
+	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (float変換でH128bitは消える
+	__m256 vv1 = _mm256_permutevar8x32_ps(vvf1, vofsub1); // v1 ofsi
+	__m256 vv2 = _mm256_permutevar8x32_ps(vvf1, vofsub2); // v2 ofsi+1
+	// あとは通常と同じ
+	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
+	dest += 4;
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
+	dest += 4;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT 
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm256_storeu_ps(dest, vec_out);
+	dest += 8;
+#else // DATA_T_IN32
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	_mm256_storeu_si256(__m256i *)dest, _mm256_cvtps_epi32(vec_out));
+	dest += 8;
+#endif
+	vofs = _mm256_add_epi32(vofs, vinc);
+	}
+	}else
+#if 0 // 2set
+	if(inc < opt_inc2){ // 2セット
+	const __m256i vvar8 = _mm256_set1_epi32(8);
+	for(i = 0; i < count; i += 8) {
+	__m256i vofsi1 = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi
+	__m256i vofsi2 = _mm256_add_epi32(vofsi1, vadd1); // ofsi+1
+	int32 ofs0 = _mm_extract_epi32(_mm256_extracti128si256(vofsi1, 0x0), 0x0);
+	__m256i vin1 = _mm256_loadu_si256((__m256i *)&src[ofs0]); // int16*16
+	__m256i vin2 = _mm256_permutevar8x32_epi32(vin1, _mm256_set_epi32(3,2,1,0,7,6,5,4)); // H128bitをL128bitに移動
+	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (float変換でH128bitは消える
+	__m256 vvf2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin2)); // int16 to float (float変換でH128bitは消える	
+	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi, _mm256_setzero_epi32()); // ofsi[0]
+	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); // v1 ofsi
+	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib); // v2 ofsi+1
+	__m256i vrmg1 = _mm256_cmpgt_epi32(vofsub1, vvar8); // オフセット差が8超過の条件でマスク作成
+	__m256i vrmg2 = _mm256_cmpgt_epi32(vofsub2, vvar8); // オフセット差が8超過の条件でマスク作成
+	__m256i vrme1 = _mm256_cmpeq_epi32(vofsub1, vvar8); // オフセット差が8同等の条件でマスク作成
+	__m256i vrme2 = _mm256_cmpeq_epi32(vofsub2, vvar8); // オフセット差が8同等の条件でマスク作成
+	__m256i vrm1 = _mm256_or_si256(vrmg1, vrme1); // 8以上にするためにマスク合成
+	__m256i vrm2 = _mm256_or_si256(vrmg2, vrme2); // 8以上にするためにマスク合成
+	// src2 offsetが下位3bitのみ有効であれば8を超える部分にマスク不要のはず
+	__m256 vv11 = _mm256_permutevar8x32_ps(vvf1, vofsub1);
+	__m256 vv12 = _mm256_permutevar8x32_ps(vvf2, vofsub1);
+	__m256 vv21 = _mm256_permutevar8x32_ps(vvf1, vofsub2);
+	__m256 vv22 = _mm256_permutevar8x32_ps(vvf2, vofsub2);	
+	__m256 vv1 = _mm256_blendv_ps(vv11, vv12, vrm1); // v1 ofsi
+	__m256 vv2 = _mm256_blendv_ps(vv21, vv22, vrm2); // v2 ofsi+1
+	// あとは通常と同じ
+	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
+	dest += 4;
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
+	dest += 4;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm256_storeu_ps(dest, vec_out);
+	dest += 8;
+#else // DATA_T_IN32
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	_mm256_storeu_si256(__m256i *)dest, _mm256_cvtps_epi32(vec_out));
+	dest += 8;
+#endif
+	vofs = _mm256_add_epi32(vofs, vinc);
+	}
+	}else
+#endif // 2set
+#endif // LO_OPTIMIZE_INCREMENT
+
+	for(; i < count; i += 8) {
+	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
+#if !(defined(_MSC_VER) || defined(MSC_VER))
+	int32 *ofsp = (int32 *)vofsi;
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofsp[0]]); // ofsiとofsi+1をロード
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[ofsp[1]]); // 次周サンプルも同じ
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[ofsp[2]]); // 次周サンプルも同じ
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[ofsp[3]]); // 次周サンプルも同じ
+	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[ofsp[4]]); // 次周サンプルも同じ
+	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[ofsp[5]]); // 次周サンプルも同じ
+	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[ofsp[6]]); // 次周サンプルも同じ
+	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[ofsp[7]]); // 次周サンプルも同じ
+#else
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[0]]); // ofsiとofsi+1をロード
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[1]]); // 次周サンプルも同じ
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[2]]); // 次周サンプルも同じ
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[3]]); // 次周サンプルも同じ
+	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[4]]); // 次周サンプルも同じ
+	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[5]]); // 次周サンプルも同じ
+	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[6]]); // 次周サンプルも同じ
+	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[7]]); // 次周サンプルも同じ
+#endif
+	__m128i vin12 =	_mm_unpacklo_epi16(vin1, vin2); // [v11v21]e96,[v12v22]e96 to [v11v12v21v22]e64
+	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
+	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // 同じ
+	__m128i vin78 =	_mm_unpacklo_epi16(vin7, vin8); // 同じ
+	__m128i vi1234 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
+	__m128i vi5678 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26]e64,[v17v18,v27v28]e64 to [v15v16v17v18,v25v26v27v28]e0
+	__m256i viall = MM256_SET2X_SI256(vin1234, vin5678); // 256bit =128bit+128bit	
+	__m256i vsi16_1 = _mm256_permute4x64_epi64(viall, 0xD8); // v1をL128bitにまとめ
+	__m256i vsi16_2 = _mm256_permute4x64_epi64(viall, 0x8D); // v2をL128bitにまとめ
+	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vsi16_1)); // int16 to float (float変換でH128bitは消える
+	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vsi16_2)); // int16 to float (float変換でH128bitは消える
+	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
+	dest += 4;
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
+	dest += 4;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm256_storeu_ps(dest, vec_out);
+	dest += 8;
+#else // DATA_T_IN32
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	_mm256_storeu_si256(__m256i *)dest, _mm256_cvtps_epi32(vec_out));
+	dest += 8;
+#endif
+	vofs = _mm256_add_epi32(vofs, vinc);
+	}
+	resrc->offset = prec_offset + (splen_t)(vofs.m256i_i32[0]);
+	*out_count = i;
+    return dest;
+}
+
+#elif (USE_X86_EXT_INTRIN >= 3)
+// offset:int32*4, resamp:float*4
+// ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
+static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const uint32 req_count_mask = ~(0x3);
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offset計算をint32値域にする(SIMD用
+	const int32 inc = resrc->increment;
+	__m128i vofs = _mm_add_epi32(_mm_set1_epi32(start_offset), _mm_set_epi32(inc * 3, inc * 2, inc, 0));
+	const __m128i vinc = _mm_set1_epi32(inc * 4), vfmask = _mm_set1_epi32((int32)FRACTION_MASK);
+	const __m128 vec_divf = _mm_set1_ps(div_fraction);
+		
+#ifdef LO_OPTIMIZE_INCREMENT
+// AVXではopt_incのときは速いが 範囲が狭く低いサンプレートで外れやすい 2セットでは負荷高い
+#if (USE_X86_EXT_INTRIN >= 8)
+	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(linearは1) ) / オフセットデータ数
+	// ロードデータ数は_mm_permutevar_psの変換後の(float)の4セットになる
+	// 128bitロードデータ(int16*8セット)を全て使うにはSIMD2セットで対応
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (4 - 1 - 1) / 4; // (float*4) * 1セット
+	const int32 opt_inc2 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4; // (float*4) * 2セット
+	const __m128i vvar1 = _mm_set1_epi32(1);
+	const __m128 vec_divo = _mm_set1_ps(DIV_15BIT);
+	if(inc < opt_inc1){	// 1セット	
+	for(i = 0; i < count; i += 4) {
+	__m128i vofsi1 = _mm_srli_epi32(vofs, FRACTION_BITS);
+	__m128i vofsi2 = _mm_add_epi32(vofsi1, vvar1);
+	int32 ofs0 = _mm_cvtsi128_si32(vofsi1);
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*8
+	__m128 vvf1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin1)); // int16 to float (float変換でH64bitは消える
+	__m128i vofsib = _mm_set1_epi32(ofs0); 
+	__m128i vofsub1 = _mm_sub_epi32(vofsi1, vofsib); 
+	__m128i vofsub2 = _mm_sub_epi32(vofsi2, vofsib); 
+	__m128 vv1 = _mm_permutevar_ps(vvf1, vofsub1); // v1 ofsi
+	__m128 vv2 = _mm_permutevar_ps(vvf1, vofsub2); // v2 ofsi+1
+	// あとは通常と同じ
+	__m128 vfp = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(vec_out));
+	dest += 4;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT 
+	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm256_storeu_ps(dest, vec_out);
+	dest += 4;
+#else // DATA_T_IN32
+	__m128 vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);
+	_mm_storeu_si128(__m128i *)dest, _mm_cvtps_epi32(vec_out));
+	dest += 4;
+#endif
+	vofs = _mm_add_epi32(vofs, vinc);
+	}
+	}else
+#if 0 // 2set
+	if(inc < opt_inc2){ // 2セット
+	const __m128i vvar4 = _mm_set1_epi32(4);
+	for(i = 0; i < count; i += 4) {
+	__m128i vofsi1 = _mm_srli_epi32(vofs, FRACTION_BITS);
+	__m128i vofsi2 = _mm_add_epi32(vofsi1, vvar1);
+	int32 ofs0 = _mm_extract_epi32(vofsi1, 0x0);
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*8
+	__m128i vin2 = _mm_shuffle_epi32(vin1, 0x4E); // H128bitをL128bitに移動
+	__m128 vvf1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin1)); // int16 to float (float変換でH64bitは消える
+	__m128 vvf2 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin2)); // int16 to float (float変換でH64bitは消える	
+	__m128i vofsib = _mm_shuffle_epi32(vofsi1, 0x0); 
+	__m128i vofsub1 = _mm_sub_epi32(vofsi1, vofsib); 
+	__m128i vofsub2 = _mm_sub_epi32(vofsi2, vofsib); 
+	__m128i vrmg1 = _mm_cmpgt_epi32(vofsub1, vvar4); // オフセット差が4超過の条件でマスク作成
+	__m128i vrmg2 = _mm_cmpgt_epi32(vofsub2, vvar4); // オフセット差が4超過の条件でマスク作成
+	__m128i vrme1 = _mm_cmpeq_epi32(vofsub1, vvar4); // オフセット差が4同等の条件でマスク作成
+	__m128i vrme2 = _mm_cmpeq_epi32(vofsub2, vvar4); // オフセット差が4同等の条件でマスク作成
+	__m128i vrm1 = _mm_or_si128(vrmg1, vrme1); // 4以上にするためにマスク合成
+	__m128i vrm2 = _mm_or_si128(vrmg2, vrme2); // 4以上にするためにマスク合成
+	// src2 offsetが下位2bitのみ有効であれば4を超える部分にマスク不要のはず
+	__m128 vv11 = _mm_permutevar_ps(vvf1, vofsub1); // v1 ofsi
+	__m128 vv12 = _mm_permutevar_ps(vvf2, vofsub1); // v1 ofsi
+	__m128 vv21 = _mm_permutevar_ps(vvf1, vofsub2); // v2 ofsi+1
+	__m128 vv22 = _mm_permutevar_ps(vvf2, vofsub2); // v2 ofsi+1
+	__m128 vv1 = _mm_blendv_ps(vv11, vv12, *((__m128 *)&vrm1)); // v1 ofsi
+	__m128 vv2 = _mm_blendv_ps(vv21, vv22, *((__m128 *)&vrm2)); // v2 ofsi+1
+	// あとは通常と同じ
+	__m128 vfp = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(vec_out));
+	dest += 4;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT 
+	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm256_storeu_ps(dest, vec_out);
+	dest += 4;
+#else // DATA_T_IN32
+	__m128 vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);
+	_mm_storeu_si128(__m128i *)dest, _mm_cvtps_epi32(vec_out));
+	dest += 4;
+#endif
+	vofs = _mm_add_epi32(vofs, vinc);
+	}
+	}else
+#endif // 2set
+		
+// x86だとほとんど変わらない x64だとやや速い
+#elif (USE_X86_EXT_INTRIN >= 5) && defined(IX64CPU)
+	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(linearは1) ) / オフセットデータ数
+	// ロードデータ数は_mm_shuffle_epi8扱えるのint16の8セットになる (=int8*16)
+	// 128bitロードデータ(int16*8セット)を全て使用できる
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4; // (int32*4) * 1セット
+	const __m128i vvar1 = _mm_set1_epi32(1);
+	const __m128i vshuf = _mm_set_epi8(0x0C,0x0C,0xFF,0xFF,0x08,0x08,0xFF,0xFF, 0x04,0x04,0xFF,0xFF,0x00,0x00,0xFF,0xFF);
+	const __m128i vadd = _mm_set_epi8(1,0,0,0,1,0,0,0, 1,0,0,0,1,0,0,0); // 
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_DOUBLE)
+	const __m128 vec_divo = _mm_set1_ps(DIV_15BIT * DIV_16BIT);
+#else
+	const __m128 vec_divo = _mm_set1_ps(DIV_16BIT);
+#endif
+	if(inc < opt_inc1){	
+	for(i = 0; i < count; i += 4) {
+	__m128i vofsi1 = _mm_srli_epi32(vofs, FRACTION_BITS);
+	__m128i vofsi2 = _mm_add_epi32(vofsi1, vvar1);
+	int32 ofs0 = _mm_cvtsi128_si32(vofsi1);
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*8
+	__m128i vofsib = _mm_shuffle_epi32(vofsi1, 0x0); 
+	__m128i vofsub1 = _mm_sub_epi32(vofsi1, vofsib); // 0~6 の値になる ハズ
+	__m128i vofsub2 = _mm_sub_epi32(vofsi2, vofsib); // 1~7 の値になる ハズ
+	__m128i vofmul1 = _mm_slli_epi32(vofsub1, 1); // 2byte単位なのでofsetを2倍 (乗算だと64bitになるのでシフトで
+	__m128i vofmul2 = _mm_slli_epi32(vofsub2, 1); // 2byte単位なのでofsetを2倍 (乗算だと64bitになるのでシフトで
+	__m128i vofshf1 = _mm_shuffle_epi8(vofmul1, vshuf); // ***4***3***2***1 to 44**33**22**11** (2byte単位なので 4byte上位2byteにセット
+	__m128i vofshf2 = _mm_shuffle_epi8(vofmul2, vshuf); // ***8***7***6***5 to 88**77**66**55** (2byte単位なので 4byte上位2byteにセット
+	__m128i vofadd1 = _mm_add_epi8(vofshf1, vadd); // 4byte単位(最上位byteに+1 オフセット
+	__m128i vofadd2 = _mm_add_epi8(vofshf2, vadd); // 4byte単位(最上位byteに+1 オフセット
+	__m128i vi32_1 = _mm_shuffle_epi8(vin1, vofadd1); // v1 ofsi   オフセットによってint16データ移動と同時にint32化
+	__m128i vi32_2 = _mm_shuffle_epi8(vin1, vofadd2); // v2 ofsi+1
+	__m128 vv1 = _mm_cvtepi32_ps(vi32_1); // int32 to float (float変換でH64bitは消える
+	__m128 vv2 = _mm_cvtepi32_ps(vi32_2); // int32 to float (float変換でH64bitは消える
+	// あとは通常と同じ (float変換がint16ではなくint32なのでレベル変換が必要 vec_divoに変換係数を追加
+	__m128 vfp = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(vofs, vfmask)), vec_divf);
+	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+#if defined(DATA_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 8)
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(vec_out));
+	dest += 4;
+#else
+	_mm_storeu_pd(dest, _mm_cvtps_pd(vec_out));
+	dest += 2;
+	_mm_storeu_pd(dest, _mm_cvtps_pd(_mm_movehl_ps(vec_out, vec_out)));
+	dest += 2;
+#endif
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT 
+	_mm256_storeu_ps(dest, vec_out);
+	dest += 4;
+#else // DATA_T_IN32
+	_mm_storeu_si128(__m128i *)dest, _mm_cvtps_epi32(vec_out));
+	dest += 4;
+#endif
+	vofs = _mm_add_epi32(vofs, vinc);
+	}
+	}	
+#endif 
+#endif // LO_OPTIMIZE_INCREMENT
+		
+	{		
+	const __m128 vec_divo = _mm_set1_ps(DIV_15BIT);
+	for(; i < count; i += 4) {
+	__m128i vofsi = _mm_srli_epi32(vofs, FRACTION_BITS);
+#if !(defined(_MSC_VER) || defined(MSC_VER))
+	int32 *ofsp = (int32 *)vofsi;
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofsp[0]]); // ofsiとofsi+1をロード
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[ofsp[1]]); // 次周サンプルも同じ
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[ofsp[2]]); // 次周サンプルも同じ
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[ofsp[3]]); // 次周サンプルも同じ
+#else
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[0]]); // ofsiとofsi+1をロード
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[1]]); // 次周サンプルも同じ
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[2]]); // 次周サンプルも同じ
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[3]]); // 次周サンプルも同じ
+#endif		
+	__m128i vin12 =	_mm_unpacklo_epi16(vin1, vin2); // [v11v21]e96,[v12v22]e96 to [v11v12v21v22]e64
+	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
+	__m128i vi16 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
+#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 , _mm_ cvtepi16_epi32()
+	__m128i vi16_2 = _mm_shuffle_epi32(vi16, 0x4e); // ofsi+1はL64bitへ
+	__m128 vv1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vi16)); // int16 to float
+	__m128 vv2 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vi16_2)); // int16 to float
+#else
+	__m128i sign = _mm_cmpgt_epi16(_mm_setzero_si128(), vi16);
+	__m128 vv1 = _mm_cvtepi32_ps(_mm_unpacklo_epi16(vi16, sign)); // int16 to float
+	__m128 vv2 = _mm_cvtepi32_ps(_mm_unpackhi_epi16(vi16, sign)); // int16 to float
+#endif	
+	__m128 vfp = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+#if (USE_X86_EXT_INTRIN >= 8)
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(vec_out));
+	dest += 4;
+#else
+	_mm_storeu_pd(dest, _mm_cvtps_pd(vec_out));
+	dest += 2;
+	_mm_storeu_pd(dest, _mm_cvtps_pd(_mm_movehl_ps(vec_out, vec_out)));
+	dest += 2;
+#endif
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
+	_mm_storeu_ps(dest, vec_out);
+	dest += 4;
+#else // DATA_T_IN32
+	__m128 vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);
+	_mm_storeu_si128((__m128i *)dest, _mm_cvtps_epi32(vec_out));
+	dest += 4;
+#endif
+	vofs = _mm_add_epi32(vofs, vinc);
+	}
+	}
+	resrc->offset = prec_offset + (splen_t)(vofs.m128i_i32[0]);
+	*out_count = i;
+    return dest;
+}
+
+#elif (USE_X86_EXT_INTRIN >= 2) // SSE (not use MMX
+// offset:int32*4, resamp:float*4
+// ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
+static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{	
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const uint32 req_count_mask = ~(0x3);
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
+	int32 ofs = (int32)(resrc->offset & FRACTION_MASK);
+	int32 inc = resrc->increment;
+	__m128 vec_divo = _mm_set1_ps((float)DIV_15BIT), vec_divf = _mm_set1_ps((float)div_fraction);
+	for(i = 0; i < count; i += 4) {
+		int32 ofsi;		
+		__m128 vv1 = _mm_setzero_ps(), vv2 = _mm_setzero_ps(), vfp = _mm_setzero_ps(), vec_out;
+		ofsi = ofs >> FRACTION_BITS; 
+		vfp = _mm_cvt_si2ss(vfp, ofs & FRACTION_MASK), vfp = _mm_shuffle_ps(vfp, vfp, 0x0); ofs += inc;
+		vv1 = _mm_cvt_si2ss(vv1, src[ofsi]), vv1 = _mm_shuffle_ps(vv1, vv1, 0x0); // [0,0,0,0]
+		vv2 = _mm_cvt_si2ss(vv2, src[++ofsi]), vv2 = _mm_shuffle_ps(vv2, vv2, 0x0);
+		ofsi = ofs >> FRACTION_BITS; 
+		vfp = _mm_cvt_si2ss(vfp, ofs & FRACTION_MASK), vfp = _mm_shuffle_ps(vfp, vfp, 0xc0); ofs += inc;
+		vv1 = _mm_cvt_si2ss(vv1, src[ofsi]), vv1 = _mm_shuffle_ps(vv1, vv1, 0xc0); // [1,1,1,0]
+		vv2 = _mm_cvt_si2ss(vv2, src[++ofsi]), vv2 = _mm_shuffle_ps(vv2, vv2, 0xc0);
+		ofsi = ofs >> FRACTION_BITS; 
+		vfp = _mm_cvt_si2ss(vfp, ofs & FRACTION_MASK), vfp = _mm_shuffle_ps(vfp, vfp, 0xe0); ofs += inc;
+		vv1 = _mm_cvt_si2ss(vv1, src[ofsi]), vv1 = _mm_shuffle_ps(vv1, vv1, 0xe0); // [2,2,1,0]
+		vv2 = _mm_cvt_si2ss(vv2, src[++ofsi]), vv2 = _mm_shuffle_ps(vv2, vv2, 0xe0);
+		ofsi = ofs >> FRACTION_BITS; 
+		vfp = _mm_cvt_si2ss(vfp, ofs & FRACTION_MASK), vfp = _mm_shuffle_ps(vfp, vfp, 0x1b); ofs += inc;
+		vv1 = _mm_cvt_si2ss(vv1, src[ofsi]), vv1 = _mm_shuffle_ps(vv1, vv1, 0x1b); // [3,2,1,0] to [1,2,3,4]
+		vv2 = _mm_cvt_si2ss(vv2, src[++ofsi]), vv2 = _mm_shuffle_ps(vv2, vv2, 0x1b);			
+#if defined(DATA_T_DOUBLE)
+		vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), _mm_mul_ps(vfp, vec_divf), vv1), vec_divo);
+#if !(defined(_MSC_VER) || defined(MSC_VER))
+		{
+		float *out = (float *)vec_out;
+		*dest++ = (DATA_T)out[0];
+		*dest++ = (DATA_T)out[1];
+		*dest++ = (DATA_T)out[2];
+		*dest++ = (DATA_T)out[3];
+		}
+#else
+		*dest++ = (DATA_T)vec_out.m128_f32[0];
+		*dest++ = (DATA_T)vec_out.m128_f32[1];
+		*dest++ = (DATA_T)vec_out.m128_f32[2];
+		*dest++ = (DATA_T)vec_out.m128_f32[3];
+#endif
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+		_mm_storeu_ps(dest, _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), _mm_mul_ps(vfp, vec_divf), vv1), vec_divo));
+		dest += 4;
+#else // DATA_T_IN32
+		vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), _mm_mul_ps(vfp, vec_divf), vv1);		
+		*dest++ = _mm_cvt_ss2si(vec_out);
+		*dest++ = _mm_cvt_ss2si(_mm_shuffle_ps(vec_out, vec_out, 0xe5));
+		*dest++ = _mm_cvt_ss2si(_mm_shuffle_ps(vec_out, vec_out, 0xea));
+		*dest++ = _mm_cvt_ss2si(_mm_shuffle_ps(vec_out, vec_out, 0xff));
+#endif
+	}
+	resrc->offset = prec_offset + (splen_t)ofs;
+	*out_count = i;
+    return dest;
+}
+
+#elif 1 // not use MMX/SSE/AVX 
+// offset:int32*4, resamp:float*4
+// ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
+static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const uint32 req_count_mask = ~(0x3);
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
+	int32 ofs = (int32)(resrc->offset & FRACTION_MASK);
+	int32 inc = resrc->increment;
+	for(i = 0; i < count; i += 4) {
+		int32 v1, v2, ofsi, fp;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+		*dest++ = ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1)	* (FLOAT_T)fp * div_fraction) * OUT_INT16;
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+		*dest++ = ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1)	* (FLOAT_T)fp * div_fraction) * OUT_INT16;
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+		*dest++ = ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1)	* (FLOAT_T)fp * div_fraction) * OUT_INT16;
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+		*dest++ = ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1)	* (FLOAT_T)fp * div_fraction) * OUT_INT16;
+#else // DATA_T_IN32
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+	//	*dest++ = v1 + (((v2 - v1) * fp) >> FRACTION_BITS);
+		*dest++ = v1 + imuldiv_fraction((v2 - v1), fp);
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+	//	*dest++ = v1 + (((v2 - v1) * fp) >> FRACTION_BITS);
+		*dest++ = v1 + imuldiv_fraction((v2 - v1), fp);
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+	//	*dest++ = v1 + (((v2 - v1) * fp) >> FRACTION_BITS);
+		*dest++ = v1 + imuldiv_fraction((v2 - v1), fp);
+		ofsi = ofs >> FRACTION_BITS, fp = ofs & FRACTION_MASK; ofs += inc;
+		v1 = src[ofsi], v2 = src[++ofsi];
+	//	*dest++ = v1 + (((v2 - v1) * fp) >> FRACTION_BITS);
+		*dest++ = v1 + imuldiv_fraction((v2 - v1), fp);
+#endif
+	}
+	resrc->offset = prec_offset + (splen_t)ofs;
+	*out_count = i;
+    return dest;
+}
+
+#else // normal
+
+static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	int32 i;
+	resample_rec_t *resrc = &vp->resrc;
+	sample_t *src = vp->sample->data;
+
+	for(i = 0; i < req_count; i++) {	
+		spos_t ofsi = resrc->offset >> FRACTION_BITS;
+		fract_t ofsf = resrc->offset & FRACTION_MASK;		
+		int32 v1 = src[ofsi];
+		int32 v2 = src[ofsi + 1];	
+	//	*dest++ = ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT16;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		*dest++ = ((FLOAT_T)v1 + (FLOAT_T)(v2 - v1) * (FLOAT_T)ofsf * div_fraction) * OUT_INT16;
+#else
+		*dest++ = (v1 + imuldiv_fraction((v2 - v1), ofsf);
+#endif
+		resrc->offset += resrc->increment;	
+	}
+	*out_count = i;
+    return dest;
+}
+#endif
+
+
+
+static void lo_rs_plain(Voice *vp, DATA_T *dest, int32 count)
+{
+	/* Play sample until end, then free the voice. */
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0, j;
+
+#ifdef LO_LOOP_CALC
+	resrc->mode = RESAMPLE_MODE_PLAIN;
+#endif
+	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 2; // safe end+128 sample
+	if (j > count) {j = count;}
+	else if(j < 0) {j = 0;}	
+	dest = resample_linear_multi(vp, dest, j, &i);
+	for(; i < j; i++) {
+		*dest++ = resample_linear_single(vp);
+		resrc->offset += resrc->increment;
+	}
+	for(; i < count; i++) { *dest++ = 0; vp->finish_voice = 1;}
+}
+
+static void lo_rs_loop(Voice *vp, DATA_T *dest, int32 count)
+{
+	/* Play sample until end-of-loop, skip back and continue. */
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0, j;
+	
+#ifdef LO_LOOP_CALC
+	resrc->mode = RESAMPLE_MODE_LOOP;
+#endif
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->loop_end, resrc->increment) - 2; // 2point interpolation
+	if (j > count) {j = count;}
+	else if(j < 0) {j = 0;}
+	dest = resample_linear_multi(vp, dest, j, &i);
+	for(; i < count; i++) {
+		*dest++ = resample_linear_single(vp);
+		if((resrc->offset += resrc->increment) >= resrc->loop_end)
+			resrc->offset -= resrc->loop_end - resrc->loop_start;
+		/* Hopefully the loop is longer than an increment. */
+	}
+}
+
+static void lo_rs_bidir(Voice *vp, DATA_T *dest, int32 count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0, j = 0;	
+
+#ifdef LO_LOOP_CALC	
+	resrc->mode = RESAMPLE_MODE_BIDIR_LOOP;
+#endif
+	if (resrc->increment > 0){
+		j = PRECALC_LOOP_COUNT(resrc->offset, resrc->loop_end, resrc->increment) - 2; // 2point interpolation
+		if (j > count) {j = count;}
+		else if(j < 0) {j = 0;}
+		dest = resample_linear_multi(vp, dest, j, &i);
+	}
+	for(; i < count; i++) {
+		*dest++ = resample_linear_single(vp);
+		resrc->offset += resrc->increment;
+		if(resrc->increment > 0){
+			if(resrc->offset >= resrc->loop_end){
+				resrc->offset = (resrc->loop_end << 1) - resrc->offset;
+				resrc->increment = -resrc->increment;
+			}
+		}else{
+			if(resrc->offset <= resrc->loop_start){
+				resrc->offset = (resrc->loop_start << 1) - resrc->offset;
+				resrc->increment = -resrc->increment;
+			}
+		}
+	}
+}
+
+static inline void resample_voice_linear_optimize(Voice *vp, DATA_T *ptr, int32 count)
+{
+    int mode = vp->sample->modes;
+	
+	if(vp->resrc.plain_flag){ /* no loop */ /* else then loop */ 
+		lo_rs_plain(vp, ptr, count);	/* no loop */
+	}else if(!(mode & MODES_ENVELOPE) && (vp->status & (VOICE_OFF | VOICE_DIE))){ /* no env */
+		vp->resrc.plain_flag = 1; /* lock no loop */
+		lo_rs_plain(vp, ptr, count);	/* no loop */
+	}else if(mode & MODES_RELEASE && (vp->status & VOICE_OFF)){ /* release sample */
+		vp->resrc.plain_flag = 1; /* lock no loop */
+		lo_rs_plain(vp, ptr, count);	/* no loop */
+	}else if(mode & MODES_PINGPONG){ /* Bidirectional */
+		lo_rs_bidir(vp, ptr, count);	/* Bidirectional loop */
+	}else {
+		lo_rs_loop(vp, ptr, count);	/* loop */
+	}		
+}
+
+#endif /* optimize linear resample */
+
+
+
+
+/*************** resampling with fixed increment *****************/
+///r
+static void rs_plain_c(int v, DATA_T *ptr, int32 count)
 {
     Voice *vp = &voice[v];
-    resample_t *dest = resample_buffer + resample_buffer_offset;
-	sample_t *src = vp->sample->data;
-    int32 ofs, count = *countptr, i, le;
+    DATA_T *dest = ptr + vp->resrc.buffer_offset;
+	cache_t *src = (cache_t *)vp->sample->data;
+	int32 count2 = count;
+    splen_t ofs, i, le;
+	
+    le = vp->sample->loop_end >> FRACTION_BITS;
+    ofs = vp->resrc.offset >> FRACTION_BITS;
 
-    le = (int32)(vp->sample->loop_end >> FRACTION_BITS);
-    ofs = (int32)(vp->sample_offset >> FRACTION_BITS);
-
-    i = ofs + count;
+    i = ofs + count2;
     if(i > le)
-	i = le;
-    count = i - ofs;
+		i = le;
+	count2 = i - ofs;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < count2; i++) {
 		dest[i] = src[i + ofs];
 	}
-
-    ofs += count;
-    if(ofs == le)
-    {
-	vp->timeout = 1;
-	*countptr = count;
-    }
-    vp->sample_offset = ((splen_t)ofs << FRACTION_BITS);
-    return resample_buffer + resample_buffer_offset;
+	for (; i < count; i++) {
+		vp->finish_voice = 1;
+		dest[i] = 0;
+	}	
+	ofs += count2;
+	vp->resrc.offset = ofs << FRACTION_BITS;
 }
-
-static resample_t *rs_plain(int v, int32 *countptr)
+///r
+static void rs_plain(int v, DATA_T *ptr, int32 count)
 {
   /* Play sample until end, then free the voice. */
   Voice *vp = &voice[v];
-  resample_t *dest = resample_buffer + resample_buffer_offset;
-  sample_t *src = vp->sample->data;
+  DATA_T *dest = ptr;
+	sample_t *src = vp->sample->data;
+	int data_type = vp->sample->data_type;
   splen_t
-    ofs = vp->sample_offset,
+    ofs = vp->resrc.offset,
     ls = 0,
     le = vp->sample->data_length;
-  resample_rec_t resrc;
-  int32 count = *countptr, incr = vp->sample_increment;
+  int32 incr = vp->resrc.increment;
 #ifdef PRECALC_LOOPS
-  int32 i, j;
+  int32 i = 0, j;
 #endif
 
-  if(vp->cache && incr == (1 << FRACTION_BITS))
-      return rs_plain_c(v, countptr);
+	if(vp->cache && incr == (1 << FRACTION_BITS)){
+		rs_plain_c(v, ptr, count);
+		return;
+	}	
 
-  resrc.loop_start = ls;
-  resrc.loop_end = le;
-  resrc.data_length = vp->sample->data_length;
 #ifdef PRECALC_LOOPS
-  if (incr < 0) incr = -incr; /* In case we're coming out of a bidir loop */
-
+	if (incr < 0) incr = -incr; /* In case we're coming out of a bidir loop */
   /* Precalc how many times we should go through the loop.
      NOTE: Assumes that incr > 0 and that ofs <= le */
-  i = PRECALC_LOOP_COUNT(ofs, le, incr);
-
-  if (i > count)
-    {
-      i = count;
-      count = 0;
-    }
-  else count -= i;
-
-  for(j = 0; j < i; j++)
-    {
+	j = PRECALC_LOOP_COUNT(ofs, le, incr);
+  	if (j > count) {j = count;}
+	else if(j < 0) {j = 0;}	
+	for(i = 0; i < j; i++) {
       RESAMPLATION;
       ofs += incr;
     }
-
-  if (ofs >= le)
-    {
-      FINALINTERP;
-      vp->timeout = 1;
-      *countptr -= count;
-    }
+	for (; i < count; i++) {
+		*dest++ = 0;
+		vp->finish_voice = 1;
+	}	
 #else /* PRECALC_LOOPS */
-    while (count--)
-    {
-      RESAMPLATION;
-      ofs += incr;
-      if (ofs >= le)
+	while (count--)
 	{
-	  FINALINTERP;
-	  vp->timeout = 1;
-	  *countptr -= count;
-	  break;
+		if (ofs >= le){
+			*dest++ = 0;
+			vp->finish_voice = 1;
+		}else {
+			RESAMPLATION;
+			ofs += incr;
+		}
 	}
-    }
 #endif /* PRECALC_LOOPS */
 
-  vp->sample_offset = ofs; /* Update offset */
-  return resample_buffer + resample_buffer_offset;
+  vp->resrc.offset = ofs; /* Update offset */
 }
-
-static resample_t *rs_loop_c(Voice *vp, int32 count)
+static void rs_loop_c(Voice *vp, DATA_T *ptr, int32 count)
 {
-  int32
-    ofs = (int32)(vp->sample_offset >> FRACTION_BITS),
-    le = (int32)(vp->sample->loop_end >> FRACTION_BITS),
-    ll = le - (int32)(vp->sample->loop_start >> FRACTION_BITS);
-  resample_t *dest = resample_buffer + resample_buffer_offset;
-  sample_t *src = vp->sample->data;
-  int32 i, j;
+  splen_t
+		ofs = vp->resrc.offset >> FRACTION_BITS,
+		le = vp->sample->loop_end >> FRACTION_BITS,
+		ll = le - (vp->sample->loop_start >> FRACTION_BITS);
 
-  while(count)
-  {
-      while(ofs >= le)
-	  ofs -= ll;
-      /* Precalc how many times we should go through the loop */
-      i = le - ofs;
-      if(i > count)
-	  i = count;
-      count -= i;
-	  for (j = 0; j < i; j++) {
-		  dest[j] = src[j + ofs];
-	  }
-      dest += i;
-      ofs += i;
-  }
-  vp->sample_offset = ((splen_t)ofs << FRACTION_BITS);
-  return resample_buffer + resample_buffer_offset;
+	DATA_T *dest = ptr;
+	cache_t *src = (cache_t *)vp->sample->data;
+	int32 i, j;
+
+// ERROR loop_start = 4215529472 
+	if(ll < 0)
+	{	
+		vp->sample->loop_start = 0;
+		ll = le - (vp->sample->loop_start >> FRACTION_BITS);
+	}	
+
+	while(count){
+		while(ofs >= le)
+			ofs -= ll;
+		/* Precalc how many times we should go through the loop */
+		i = le - ofs;
+		if(i > count)
+			i = count;
+		count -= i;
+		for (j = 0; j < i; j++) {
+			dest[j] = src[j + ofs];
+		}
+		dest += i;
+		ofs += i;
+	}
+
+	vp->resrc.offset = ofs << FRACTION_BITS;
 }
-
-static resample_t *rs_loop(Voice *vp, int32 count)
+///r
+static void rs_loop(Voice *vp, DATA_T *ptr, int32 count)
 {
   /* Play sample until end-of-loop, skip back and continue. */
   splen_t
-    ofs = vp->sample_offset,
+    ofs = vp->resrc.offset,
     ls, le, ll;
-  resample_rec_t resrc;
-  resample_t *dest = resample_buffer + resample_buffer_offset;
-  sample_t *src = vp->sample->data;
+  DATA_T *dest = ptr;
+	sample_t *src = vp->sample->data;
+	int data_type = vp->sample->data_type;
 #ifdef PRECALC_LOOPS
   int32 i, j;
 #endif
-  int32 incr = vp->sample_increment;
+  int32 incr = vp->resrc.increment;
 
-  if(vp->cache && incr == (1 << FRACTION_BITS))
-      return rs_loop_c(vp, count);
-
-  resrc.loop_start = ls = vp->sample->loop_start;
-  resrc.loop_end = le = vp->sample->loop_end;
-  ll = le - ls;
-  resrc.data_length = vp->sample->data_length;
+	if(vp->cache && incr == (1 << FRACTION_BITS)){
+		rs_loop_c(vp, ptr, count);
+		return;
+	}
+	
+	ls = vp->sample->loop_start;
+	le = vp->sample->loop_end;
+	ll = le - ls;
 
 #ifdef PRECALC_LOOPS
-  while (count)
+	while (count)
     {
-      while (ofs >= le)	{ofs -= ll;}
-      /* Precalc how many times we should go through the loop */
-      i = PRECALC_LOOP_COUNT(ofs, le, incr);
-      if (i > count) {
-		  i = count;
-		  count = 0;
-	  } else {count -= i;}
-      for(j = 0; j < i; j++) {
-		  RESAMPLATION;
-		  ofs += incr;
-	  }
+		while (ofs >= le)	{ofs -= ll;}
+		/* Precalc how many times we should go through the loop */
+		i = PRECALC_LOOP_COUNT(ofs, le, incr);
+		if (i > count) {
+			i = count;
+			count = 0;
+		}else{
+			count -= i;
+		}
+		for(j = 0; j < i; j++) {
+			RESAMPLATION;
+			ofs += incr;
+		}
     }
 #else
-  while (count--)
-    {
-      RESAMPLATION;
-      ofs += incr;
-      if (ofs >= le)
-	ofs -= ll; /* Hopefully the loop is longer than an increment. */
-    }
+	while (count--)
+	{
+		RESAMPLATION;
+		ofs += incr;
+		if (ofs >= le)
+			ofs -= ll; /* Hopefully the loop is longer than an increment. */
+	}
 #endif
 
-  vp->sample_offset = ofs; /* Update offset */
-  return resample_buffer + resample_buffer_offset;
+  vp->resrc.offset = ofs; /* Update offset */
 }
-
-static resample_t *rs_bidir(Voice *vp, int32 count)
+///r
+static void rs_bidir(Voice *vp, DATA_T *ptr, int32 count)
 {
-#if SAMPLE_LENGTH_BITS == 32
-  int32
-#else
   splen_t
-#endif
-    ofs = vp->sample_offset,
+    ofs = vp->resrc.offset,
     le = vp->sample->loop_end,
     ls = vp->sample->loop_start;
-  resample_t *dest = resample_buffer + resample_buffer_offset;
-  sample_t *src = vp->sample->data;
-  int32 incr = vp->sample_increment;
-  resample_rec_t resrc;
+  DATA_T *dest = ptr;
+	sample_t *src = vp->sample->data;
+	int data_type = vp->sample->data_type;
+  int32 incr = vp->resrc.increment;
 
 #ifdef PRECALC_LOOPS
-#if SAMPLE_LENGTH_BITS == 32
-  int32
-#else
   splen_t
-#endif
     le2 = le << 1,
     ls2 = ls << 1;
   int32 i, j;
+
   /* Play normally until inside the loop region */
+  
 
-  resrc.loop_start = ls;
-  resrc.loop_end = le;
-  resrc.data_length = vp->sample->data_length;
-
-  if (incr > 0 && ofs < ls)
-    {
-      /* NOTE: Assumes that incr > 0, which is NOT always the case
-	 when doing bidirectional looping.  I have yet to see a case
-	 where both ofs <= ls AND incr < 0, however. */
-      i = PRECALC_LOOP_COUNT(ofs, ls, incr);
-      if (i > count)
-	{
-	  i = count;
-	  count = 0;
+	if (incr > 0 && ofs < ls){
+		/* NOTE: Assumes that incr > 0, which is NOT always the case
+		when doing bidirectional looping.  I have yet to see a case
+		where both ofs <= ls AND incr < 0, however. */
+		i = PRECALC_LOOP_COUNT(ofs, ls, incr);
+		if (i > count)
+		{
+			i = count;
+			count = 0;
+		}else
+			count -= i;
+		for(j = 0; j < i; j++){
+			RESAMPLATION;
+			ofs += incr;
+		}
 	}
-      else count -= i;
-      for(j = 0; j < i; j++)
-	{
-	  RESAMPLATION;
-	  ofs += incr;
-	}
-    }
 
   /* Then do the bidirectional looping */
 
-  while(count)
-    {
-      /* Precalc how many times we should go through the loop */
-      i = PRECALC_LOOP_COUNT(ofs, incr > 0 ? le : ls, incr);
-      if (i > count)
-	{
-	  i = count;
-	  count = 0;
+	while(count){
+		/* Precalc how many times we should go through the loop */
+		i = PRECALC_LOOP_COUNT(ofs, incr > 0 ? le : ls, incr);
+		if (i > count){
+			i = count;
+			count = 0;
+		}
+		else
+			count -= i;
+		for(j = 0; j < i; j++){
+			RESAMPLATION;
+			ofs += incr;
+		}
+		if(ofs >= 0 && ofs >= le){
+			/* fold the overshoot back in */
+			ofs = le2 - ofs;
+			incr *= -1;
+			vp->resrc.increment = incr;
+		}else if (ofs <= 0 || ofs <= ls){
+			ofs = ls2 - ofs;
+			incr *= -1;
+			vp->resrc.increment = incr;
+		}
 	}
-      else count -= i;
-      for(j = 0; j < i; j++)
-	{
-	  RESAMPLATION;
-	  ofs += incr;
-	}
-      if(ofs >= 0 && ofs >= le)
-	{
-	  /* fold the overshoot back in */
-	  ofs = le2 - ofs;
-	  incr *= -1;
-	}
-      else if (ofs <= 0 || ofs <= ls)
-	{
-	  ofs = ls2 - ofs;
-	  incr *= -1;
-	}
-    }
 
 #else /* PRECALC_LOOPS */
   /* Play normally until inside the loop region */
@@ -831,608 +5051,244 @@ static resample_t *rs_bidir(Voice *vp, int32 count)
 	    /* fold the overshoot back in */
 	    ofs = le - (ofs - le);
 	    incr = -incr;
+		vp->resrc.increment = incr;
 	  }
 	else if (ofs <= ls)
 	  {
 	    ofs = ls + (ls - ofs);
 	    incr = -incr;
+		vp->resrc.increment = incr;
 	  }
       }
 #endif /* PRECALC_LOOPS */
-  vp->sample_increment = incr;
-  vp->sample_offset = ofs; /* Update offset */
-  return resample_buffer + resample_buffer_offset;
+  vp->resrc.increment = incr;
+  vp->resrc.offset = ofs; /* Update offset */
 }
 
-/*********************** vibrato versions ***************************/
-
-/* We only need to compute one half of the vibrato sine cycle */
-static int vib_phase_to_inc_ptr(int phase)
-{
-  if (phase < VIBRATO_SAMPLE_INCREMENTS / 2)
-    return VIBRATO_SAMPLE_INCREMENTS / 2 - 1 - phase;
-  else if (phase >= 3 * VIBRATO_SAMPLE_INCREMENTS / 2)
-    return 5 * VIBRATO_SAMPLE_INCREMENTS / 2 - 1 - phase;
-  else
-    return phase - VIBRATO_SAMPLE_INCREMENTS / 2;
-}
-
-static int32 update_vibrato(Voice *vp, int sign)
-{
-  int32 depth;
-  int phase, pb;
-  double a;
-  int ch = vp->channel;
-
-  if(vp->vibrato_delay > 0)
-  {
-      vp->vibrato_delay -= vp->vibrato_control_ratio;
-      if(vp->vibrato_delay > 0)
-	  return vp->sample_increment;
-  }
-
-  if (vp->vibrato_phase++ >= 2 * VIBRATO_SAMPLE_INCREMENTS - 1)
-    vp->vibrato_phase = 0;
-  phase = vib_phase_to_inc_ptr(vp->vibrato_phase);
-
-  if (vp->vibrato_sample_increment[phase])
-    {
-      if (sign)
-	return -vp->vibrato_sample_increment[phase];
-      else
-	return vp->vibrato_sample_increment[phase];
-    }
-
-  /* Need to compute this sample increment. */
-
-  depth = vp->vibrato_depth;
-  depth <<= 7;
-
-  if (vp->vibrato_sweep && !channel[ch].mod.val)
-    {
-      /* Need to update sweep */
-      vp->vibrato_sweep_position += vp->vibrato_sweep;
-      if (vp->vibrato_sweep_position >= (1 << SWEEP_SHIFT))
-	vp->vibrato_sweep=0;
-      else
-	{
-	  /* Adjust depth */
-	  depth *= vp->vibrato_sweep_position;
-	  depth >>= SWEEP_SHIFT;
-	}
-    }
-
-  if(vp->sample->inst_type == INST_SF2) {
-  pb = (int)((lookup_triangular(vp->vibrato_phase *
-			(SINE_CYCLE_LENGTH / (2 * VIBRATO_SAMPLE_INCREMENTS)))
-	    * (double)(depth) * VIBRATO_AMPLITUDE_TUNING));
-  } else {
-  pb = (int)((lookup_sine(vp->vibrato_phase *
-			(SINE_CYCLE_LENGTH / (2 * VIBRATO_SAMPLE_INCREMENTS)))
-	    * (double)(depth) * VIBRATO_AMPLITUDE_TUNING));
-  }
-
-  a = TIM_FSCALE(((double)(vp->sample->sample_rate) *
-		  (double)(vp->frequency)) /
-		 ((double)(vp->sample->root_freq) *
-		  (double)(play_mode->rate)),
-		 FRACTION_BITS);
-
-  if(pb < 0) {
-      pb = -pb;
-      a /= bend_fine[(pb >> 5) & 0xFF] * bend_coarse[pb >> 13];
-	  pb = -pb;
-  } else {
-      a *= bend_fine[(pb >> 5) & 0xFF] * bend_coarse[pb >> 13];
-  }
-  a += 0.5;
-
-  /* If the sweep's over, we can store the newly computed sample_increment */
-  if (!vp->vibrato_sweep || channel[ch].mod.val)
-    vp->vibrato_sample_increment[phase] = (int32) a;
-
-  if (sign)
-    a = -a; /* need to preserve the loop direction */
-
-  return (int32) a;
-}
-
-static resample_t *rs_vib_plain(int v, int32 *countptr)
-{
-  /* Play sample until end, then free the voice. */
-  Voice *vp = &voice[v];
-  resample_t *dest = resample_buffer + resample_buffer_offset;
-  sample_t *src = vp->sample->data;
-  splen_t
-    ls = 0,
-    le = vp->sample->data_length,
-    ofs = vp->sample_offset;
-  resample_rec_t resrc;
-    
-  int32 count = *countptr, incr = vp->sample_increment;
-  int cc = vp->vibrato_control_counter;
-
-  resrc.loop_start = ls;
-  resrc.loop_end = le;
-  resrc.data_length = vp->sample->data_length;
-  /* This has never been tested */
-
-  if (incr < 0) incr = -incr; /* In case we're coming out of a bidir loop */
-
-  while (count--)
-    {
-      if (!cc--)
-	{
-	  cc = vp->vibrato_control_ratio;
-	  incr = update_vibrato(vp, 0);
-	}
-      RESAMPLATION;
-      ofs += incr;
-      if (ofs >= le)
-	{
-	  FINALINTERP;
-	  vp->timeout = 1;
-	  *countptr -= count;
-	  break;
-	}
-    }
-
-  vp->vibrato_control_counter = cc;
-  vp->sample_increment = incr;
-  vp->sample_offset = ofs; /* Update offset */
-  return resample_buffer + resample_buffer_offset;
-}
-
-static resample_t *rs_vib_loop(Voice *vp, int32 count)
-{
-  /* Play sample until end-of-loop, skip back and continue. */
-  splen_t
-    ofs = vp->sample_offset,
-    ls = vp->sample->loop_start,
-    le = vp->sample->loop_end,
-    ll = le - vp->sample->loop_start;
-  resample_t *dest = resample_buffer + resample_buffer_offset;
-  sample_t *src = vp->sample->data;
-  int cc = vp->vibrato_control_counter;
-  int32 incr = vp->sample_increment;
-  resample_rec_t resrc;
-#ifdef PRECALC_LOOPS
-  int32 i, j;
-  int vibflag=0;
-#endif
-
-  resrc.loop_start = ls;
-  resrc.loop_end = le;
-  resrc.data_length =vp->sample->data_length;
-
-#ifdef PRECALC_LOOPS
-  while (count)
-    {
-      /* Hopefully the loop is longer than an increment */
-      while(ofs >= le) {ofs -= ll;}
-      /* Precalc how many times to go through the loop, taking
-	 the vibrato control ratio into account this time. */
-      i = PRECALC_LOOP_COUNT(ofs, le, incr);
-      if(i > count) {
-		  i = count;
-	  }
-      if(i > cc) {
-		  i = cc;
-		  vibflag = 1;
-	  } else {cc -= i;}
-      count -= i;
-      if(vibflag) {
-		  cc = vp->vibrato_control_ratio;
-		  incr = update_vibrato(vp, 0);
-		  vibflag = 0;
-	  }
-      for(j = 0; j < i; j++) {
-		  RESAMPLATION;
-		  ofs += incr;
-	  }
-    }
-#else /* PRECALC_LOOPS */
-  while (count--)
-    {
-      if (!cc--)
-	{
-	  cc=vp->vibrato_control_ratio;
-	  incr=update_vibrato(vp, 0);
-	}
-      RESAMPLATION;
-      ofs += incr;
-      if (ofs >= le)
-	ofs -= ll; /* Hopefully the loop is longer than an increment. */
-    }
-#endif /* PRECALC_LOOPS */
-
-  vp->vibrato_control_counter = cc;
-  vp->sample_increment = incr;
-  vp->sample_offset = ofs; /* Update offset */
-  return resample_buffer + resample_buffer_offset;
-}
-
-static resample_t *rs_vib_bidir(Voice *vp, int32 count)
-{
-#if SAMPLE_LENGTH_BITS == 32
-  int32
-#else
-  splen_t
-#endif
-    ofs = vp->sample_offset,
-    le = vp->sample->loop_end,
-    ls = vp->sample->loop_start;
-  resample_t *dest = resample_buffer + resample_buffer_offset;
-  sample_t *src = vp->sample->data;
-  int cc=vp->vibrato_control_counter;
-  int32 incr = vp->sample_increment;
-  resample_rec_t resrc;
-
-#if 0 /*def PRECALC_LOOPS*/
-#if SAMPLE_LENGTH_BITS == 32
-  int32
-#else
-  splen_t
-#endif
-    le2 = le << 1,
-    ls2 = ls << 1;
-  int32 i, j;
-  int vibflag = 0;
-
-  resrc.loop_start = ls;
-  resrc.loop_end = le;
-  resrc.data_length = vp->sample->data_length;
-  /* Play normally until inside the loop region */
-  while (count && incr > 0 && ofs < ls)
-    {
-      i = PRECALC_LOOP_COUNT(ofs, ls, incr);
-      if (i > count) i = count;
-      if (i > cc)
-	{
-	  i = cc;
-	  vibflag = 1;
-	}
-      else cc -= i;
-      count -= i;
-      if (vibflag)
-	{
-	  cc = vp->vibrato_control_ratio;
-	  incr = update_vibrato(vp, 0);
-	  vibflag = 0;
-	}
-      for(j = 0; j < i; j++)
-	{
-	  RESAMPLATION;
-	  ofs += incr;
-	}
-    }
-
-  /* Then do the bidirectional looping */
-
-  while (count)
-    {
-      /* Precalc how many times we should go through the loop */
-      i = PRECALC_LOOP_COUNT(ofs, incr > 0 ? le : ls, incr);
-      if(i > count) i = count;
-      if(i > cc)
-	{
-	  i = cc;
-	  vibflag = 1;
-	}
-      else cc -= i;
-      count -= i;
-      if (vibflag)
-	{
-	  cc = vp->vibrato_control_ratio;
-	  incr = update_vibrato(vp, (incr < 0));
-	  vibflag = 0;
-	}
-      while (i--)
-	{
-	  RESAMPLATION;
-	  ofs += incr;
-	}
-      if (ofs >= 0 && ofs >= le)
-	{
-	  /* fold the overshoot back in */
-	  ofs = le2 - ofs;
-	  incr *= -1;
-	}
-      else if (ofs <= 0 || ofs <= ls)
-	{
-	  ofs = ls2 - ofs;
-	  incr *= -1;
-	}
-    }
-
-#else /* PRECALC_LOOPS */
-
-  resrc.loop_start = ls;
-  resrc.loop_end = le;
-  resrc.data_length = vp->sample->data_length;
-  /* Play normally until inside the loop region */
-
-  if (ofs < ls)
-    {
-      while (count--)
-	{
-	  if (!cc--)
-	    {
-	      cc = vp->vibrato_control_ratio;
-	      incr = update_vibrato(vp, 0);
-	    }
-	  RESAMPLATION;
-	  ofs += incr;
-	  if (ofs >= ls)
-	    break;
-	}
-    }
-
-  /* Then do the bidirectional looping */
-
-  if (count > 0)
-    while (count--)
-      {
-	if (!cc--)
-	  {
-	    cc=vp->vibrato_control_ratio;
-	    incr=update_vibrato(vp, (incr < 0));
-	  }
-	RESAMPLATION;
-	ofs += incr;
-	if (ofs >= le)
-	  {
-	    /* fold the overshoot back in */
-	    ofs = le - (ofs - le);
-	    incr = -incr;
-	  }
-	else if (ofs <= ls)
-	  {
-	    ofs = ls + (ls - ofs);
-	    incr = -incr;
-	  }
-      }
-#endif /* PRECALC_LOOPS */
-
-  /* Update changed values */
-  vp->vibrato_control_counter = cc;
-  vp->sample_increment = incr;
-  vp->sample_offset = ofs;
-  return resample_buffer + resample_buffer_offset;
-}
-
-/*********************** portamento versions ***************************/
-
-static int rs_update_porta(int v)
-{
-    Voice *vp = &voice[v];
-    int32 d;
-
-    d = vp->porta_dpb;
-    if(vp->porta_pb < 0)
-    {
-	if(d > -vp->porta_pb)
-	    d = -vp->porta_pb;
-    }
-    else
-    {
-	if(d > vp->porta_pb)
-	    d = -vp->porta_pb;
-	else
-	    d = -d;
-    }
-
-    vp->porta_pb += d;
-    if(vp->porta_pb == 0)
-    {
-	vp->porta_control_ratio = 0;
-	vp->porta_pb = 0;
-    }
-    recompute_freq(v);
-    return vp->porta_control_ratio;
-}
-
-static resample_t *porta_resample_voice(int v, int32 *countptr, int mode)
-{
-    Voice *vp = &voice[v];
-    int32 n = *countptr, i;
-    resample_t *(* resampler)(int, int32 *, int);
-    int cc = vp->porta_control_counter;
-    int loop;
-
-    if(vp->vibrato_control_ratio)
-	resampler = vib_resample_voice;
-    else
-	resampler = normal_resample_voice;
-    if(mode != 1)
-	loop = 1;
-    else
-	loop = 0;
-
-    vp->cache = NULL;
-    resample_buffer_offset = 0;
-    while(resample_buffer_offset < n)
-    {
-	if(cc == 0)
-	{
-	    if((cc = rs_update_porta(v)) == 0)
-	    {
-		i = n - resample_buffer_offset;
-		resampler(v, &i, mode);
-		resample_buffer_offset += i;
-		break;
-	    }
-	}
-
-	i = n - resample_buffer_offset;
-	if(i > cc)
-	    i = cc;
-	resampler(v, &i, mode);
-	resample_buffer_offset += i;
-
-	if(!loop && (i == 0 || vp->status == VOICE_FREE))
-	    break;
-	cc -= i;
-    }
-    *countptr = resample_buffer_offset;
-    resample_buffer_offset = 0;
-    vp->porta_control_counter = cc;
-    return resample_buffer;
-}
 
 /* interface function */
-static resample_t *vib_resample_voice(int v, int32 *countptr, int mode)
-{
-    Voice *vp = &voice[v];
-
-    vp->cache = NULL;
-    if(mode == 0)
-	return rs_vib_loop(vp, *countptr);
-    if(mode == 1)
-	return rs_vib_plain(v, countptr);
-    return rs_vib_bidir(vp, *countptr);
-}
-
-/* interface function */
-static resample_t *normal_resample_voice(int v, int32 *countptr, int mode)
-{
-    Voice *vp = &voice[v];
-    if(mode == 0)
-	return rs_loop(vp, *countptr);
-    if(mode == 1)
-	return rs_plain(v, countptr);
-    return rs_bidir(vp, *countptr);
-}
-
-/* interface function */
-resample_t *resample_voice(int v, int32 *countptr)
+///r
+void resample_voice(int v, DATA_T *ptr, int32 count)
 {
     Voice *vp = &voice[v];
     int mode;
-    resample_t *result;
-    resampler_t saved_resample;
 	int32 i;
+	int32 a;	
 
-    if(vp->sample->sample_rate == play_mode->rate &&
+	if(!opt_resample_over_sampling && vp->sample->sample_rate == play_mode->rate &&
        vp->sample->root_freq == get_note_freq(vp->sample, vp->sample->note_to_use) &&
        vp->frequency == vp->orig_frequency)
     {
-	int32 ofs;
+		int32 count2 = count;
+		splen_t ofs = vp->resrc.offset >> FRACTION_BITS; /* Kind of silly to use FRACTION_BITS here... */
 
-	/* Pre-resampled data -- just update the offset and check if
-	   we're out of data. */
-	ofs = (int32)(vp->sample_offset >> FRACTION_BITS); /* Kind of silly to use
-						   FRACTION_BITS here... */
-	if(*countptr >= (vp->sample->data_length >> FRACTION_BITS) - ofs)
-	{
-	    /* Note finished. Free the voice. */
-	    vp->timeout = 1;
+		/* Pre-resampled data -- just update the offset and check if
+		   we're out of data. */
+		if(count2 >= (vp->sample->data_length >> FRACTION_BITS) - ofs){
+			/* Note finished. Free the voice. */
+			vp->finish_voice = 1;
+			/* Let the caller know how much data we had left */
+			count2 = (int32)((vp->sample->data_length >> FRACTION_BITS) - ofs);
+		}else
+			vp->resrc.offset += (count2 << FRACTION_BITS);
 
-	    /* Let the caller know how much data we had left */
-	    *countptr = (int32)(vp->sample->data_length >> FRACTION_BITS) - ofs;
+		switch(vp->sample->data_type){
+		case SAMPLE_TYPE_INT16:
+			for (i = 0; i < count2; i++)
+				ptr[i] = vp->sample->data[i + ofs] * OUT_INT16; // data[i+ofs]
+			break;
+		case SAMPLE_TYPE_INT32:
+			for (i = 0; i < count2; i++)
+				ptr[i] = *((int32 *)vp->sample->data + i + ofs) * OUT_INT32; // data[i+ofs]
+			break;
+		case SAMPLE_TYPE_FLOAT:
+			for (i = 0; i < count2; i++)
+				ptr[i] = *((float *)vp->sample->data + i + ofs) * OUT_FLOAT; // data[i+ofs]
+			break;
+		case SAMPLE_TYPE_DOUBLE:
+			for (i = 0; i < count2; i++)
+				ptr[i] = *((double *)vp->sample->data + i + ofs) * OUT_DOUBLE; // data[i+ofs]
+			break;
+		default:
+			ctl->cmsg(CMSG_INFO, VERB_NORMAL, "invalid cache or pre_resample data_type %d", vp->sample->data_type);
+			break;
+		}
+		for (; i < count; i++)
+			ptr[i] = 0;
+		return;
+    }	
+	
+	// recalc increment
+	a = ((double)vp->sample->sample_rate * (double)vp->frequency)
+			/ (double)vp->sample->root_freq * div_playmode_rate * div_over_sampling_ratio * mlt_fraction + 0.5;
+	/* need to preserve the loop direction */
+	vp->resrc.increment = (vp->resrc.increment >= 0) ? a : -a;
+	
+#if defined(PRECALC_LOOPS)
+	if(opt_resample_type == RESAMPLE_LINEAR && vp->sample->data_type == SAMPLE_TYPE_INT16){
+		resample_voice_linear_optimize(vp, ptr, count);
+		return;
 	}
-	else
-	    vp->sample_offset += *countptr << FRACTION_BITS;
-
-	for (i = 0; i < *countptr; i++) {
-		resample_buffer[i] = vp->sample->data[i + ofs];
-	}
-	return resample_buffer;
-    }
-
+#endif
+	
     mode = vp->sample->modes;
-    if((mode & MODES_LOOPING) &&
-       ((mode & MODES_ENVELOPE) ||
-	(vp->status & (VOICE_ON | VOICE_SUSTAINED))))
-    {
-	if(mode & MODES_PINGPONG)
-	{
-	    vp->cache = NULL;
-	    mode = 2;	/* Bidir loop */
+	if(vp->resrc.plain_flag){ /* no loop */ /* else then loop */ 		
+		vp->resrc.mode = RESAMPLE_MODE_PLAIN;	/* no loop */
+		rs_plain(v, ptr, count);
+	}else if(!(mode & MODES_ENVELOPE) && (vp->status & (VOICE_OFF | VOICE_DIE))){ /* no env */
+		vp->resrc.plain_flag = 1; /* lock no loop */
+		vp->cache = NULL;
+		vp->resrc.mode = RESAMPLE_MODE_PLAIN;	/* no loop */
+		rs_plain(v, ptr, count);
+	}else if(mode & MODES_RELEASE && (vp->status & VOICE_OFF)){ /* release sample */
+		vp->resrc.plain_flag = 1; /* lock no loop */
+		vp->cache = NULL;
+		vp->resrc.mode = RESAMPLE_MODE_PLAIN;	/* no loop , release sample */
+		rs_plain(v, ptr, count);
+	}else if(mode & MODES_PINGPONG){ /* Bidirectional */
+		vp->cache = NULL;
+		vp->resrc.mode = RESAMPLE_MODE_BIDIR_LOOP;	/* Bidir loop */
+		rs_bidir(vp, ptr, count);
+	}else {
+		vp->resrc.mode = RESAMPLE_MODE_LOOP;	/* loop */
+		rs_loop(vp, ptr, count);
 	}
-	else
-	    mode = 0;	/* loop */
-    }
-    else
-	mode = 1;	/* no loop */
-
-    saved_resample = cur_resample;
-#ifndef FIXED_RESAMPLATION
-    if (reduce_quality_flag && cur_resample != resample_none)
-	cur_resample = resample_linear;
-#endif
-    if(vp->porta_control_ratio)
-	result = porta_resample_voice(v, countptr, mode);
-    else if(vp->vibrato_control_ratio)
-	result = vib_resample_voice(v, countptr, mode);
-    else
-	result = normal_resample_voice(v, countptr, mode);
-
-#ifndef FIXED_RESAMPLATION
-    cur_resample = saved_resample; /* get back */
-#endif
-    return result;
 }
 
+void init_voice_resample(int v)
+{
+	Voice *vp = voice + v; 
+	vp->resrc.offset = vp->reserve_offset;
+	vp->resrc.increment = 0; /* make sure it isn't negative */
+	vp->resrc.loop_start = vp->sample->loop_start;
+	vp->resrc.loop_end = vp->sample->loop_end;
+	vp->resrc.data_length = vp->sample->data_length;	
+	vp->resrc.mode = RESAMPLE_MODE_PLAIN; // change resample_voice()	
+	vp->resrc.plain_flag = !(vp->sample->modes & MODES_LOOPING) ? 1 : 0;
+	// newton
+#ifdef RESAMPLE_NEWTON_VOICE
+	vp->resrc.newt_old_trunc_x = -1;
+	vp->resrc.newt_grow = -1;
+	vp->resrc.newt_old_src = NULL;
+#endif
+	// set_resamplation
+    if (reduce_quality_flag) {
+#ifndef FIXED_RESAMPLATION
+	if (opt_resample_type != RESAMPLE_NONE)
+	    vp->resrc.current_resampler = resamplers[vp->sample->data_type][RESAMPLE_LINEAR];
+	else
+	    vp->resrc.current_resampler = resamplers[vp->sample->data_type][RESAMPLE_NONE];
+#else
+		vp->resrc.current_resampler = resamplers[vp->sample->data_type][RESAMPLE_NONE];
+#endif
+    } else {
+		vp->resrc.current_resampler = resamplers[vp->sample->data_type][opt_resample_type];
+    }
+}
+
+///r
 void pre_resample(Sample * sp)
 {
-  double a, b;
-  splen_t ofs, newlen;
-  sample_t *newdata, *dest, *src = (sample_t *)sp->data;
-  int32 i, count, incr, f, x;
-  resample_rec_t resrc;
+	double ratio;
+	splen_t ofs, newlen;
+	int32 i, count, incr, freq;
+	resample_rec_t resrc;
+	pre_resample_t *newdata, *dest;
+	sample_t *src = sp->data;
+	int data_type = sp->data_type;
+	int32 bytes;
 
-  ctl->cmsg(CMSG_INFO, VERB_DEBUG, " * pre-resampling for note %d (%s%d)",
-	    sp->note_to_use,
-	    note_name[sp->note_to_use % 12], (sp->note_to_use & 0x7F) / 12);
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, " * pre-resampling for note %d (%s%d)",
+		sp->note_to_use, note_name[sp->note_to_use % 12], (sp->note_to_use & 0x7F) / 12);
 
-  f = get_note_freq(sp, sp->note_to_use);
-  a = b = ((double) (sp->root_freq) * play_mode->rate) /
-      ((double) (sp->sample_rate) * f);
-  if((int64)sp->data_length * a >= 0x7fffffffL)
-  {
-      /* Too large to compute */
-      ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d",
-		sp->note_to_use);
-      return;
-  }
-  newlen = (splen_t)(sp->data_length * a);
-  count = (newlen >> FRACTION_BITS);
-  ofs = incr = (sp->data_length - 1) / (count - 1);
+	freq = get_note_freq(sp, sp->note_to_use);
+	ratio = (double)sp->root_freq * (double)play_mode->rate / ((double)sp->sample_rate * (double)freq);
 
-  if((double)newlen + incr >= 0x7fffffffL)
-  {
-      /* Too large to compute */
-      ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d",
-		sp->note_to_use);
-      return;
-  }
+	if((int64)sp->data_length * ratio >= 0x7fffffffL)
+	{
+		/* Too large to compute */
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d", sp->note_to_use);
+		return;
+	}
+	newlen = (splen_t)(sp->data_length * ratio);
+	count = (newlen >> FRACTION_BITS);
+	ofs = incr = (sp->data_length - 1) / (count - 1);
 
-  dest = newdata = (sample_t *)safe_malloc((int32)(newlen >> (FRACTION_BITS - 1)) + 2);
-  dest[newlen >> FRACTION_BITS] = 0;
+	if((double)newlen + ofs >= 0x7fffffffL)
+	{
+		/* Too large to compute */
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, " *** Can't pre-resampling for note %d", sp->note_to_use);
+		return;
+	}
 
-  *dest++ = src[0];
+	bytes = sizeof(pre_resample_t) * (count + 128); // def +1 noise ?
+	dest = newdata = (pre_resample_t *)safe_large_malloc(bytes);
+	memset(newdata, 0, bytes);
 
-  resrc.loop_start = 0;
-  resrc.loop_end = sp->data_length;
-  resrc.data_length = sp->data_length;
+	resrc.loop_start = 0;
+	resrc.loop_end = sp->data_length;
+	resrc.data_length = sp->data_length;
+	resrc.increment = incr;
+	resrc.mode = RESAMPLE_MODE_PLAIN; // plain
+#ifdef RESAMPLE_NEWTON_VOICE
+	resrc.newt_old_trunc_x = -1;
+	resrc.newt_grow = -1;
+	resrc.newt_old_src = NULL;
+#endif
 
-  /* Since we're pre-processing and this doesn't have to be done in
-     real-time, we go ahead and do the higher order interpolation. */
-  for(i = 1; i < count; i++)
-  {
-	x = cur_resample(src, ofs, &resrc);
-    *dest++ = (int16)((x > 32767) ? 32767: ((x < -32768) ? -32768 : x));
-    ofs += incr;
-  }
-
-  sp->data_length = newlen;
-  sp->loop_start = (splen_t)(sp->loop_start * b);
-  sp->loop_end = (splen_t)(sp->loop_end * b);
-  free(sp->data);
-  sp->data = (sample_t *) newdata;
-  sp->root_freq = f;
-  sp->sample_rate = play_mode->rate;
-  sp->low_freq = freq_table[0];
-  sp->high_freq = freq_table[127];
+	// set_resamplation
+	current_resampler = resamplers[data_type][opt_resample_type];
+	
+	/* Since we're pre-processing and this doesn't have to be done in
+		real-time, we go ahead and do the higher order interpolation. */
+	switch(data_type){
+	case SAMPLE_TYPE_INT16:
+		*dest++ = (FLOAT_T)(*sp->data) * OUT_INT16; // data[0] // -1.0 ~ 1.0
+		break;
+	case SAMPLE_TYPE_INT32: // DATA_T_INT32 not use
+		*dest++ = (FLOAT_T)(*(int32 *)sp->data) * OUT_INT32; // data[0] // -1.0 ~ 1.0
+		break;
+	case SAMPLE_TYPE_FLOAT:
+		*dest++ = *(float *)sp->data * OUT_FLOAT; // data[0] // -1.0 ~ 1.0
+		break;
+	case SAMPLE_TYPE_DOUBLE:
+		*dest++ = *(double *)sp->data * OUT_DOUBLE; // data[0] // -1.0 ~ 1.0
+		break;
+	default:
+		ctl->cmsg(CMSG_INFO, VERB_NORMAL, "invalid data_type %d", data_type);
+		break;
+	}
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+	for(i = 1; i < count; i++) { PRE_RESAMPLATION; ofs += incr;}
+#else // DATA_T_INT32
+#if defined(LOOKUP_HACK)
+	for(i = 1; i < count; i++) {
+		int32 x = resamplers[data_type][opt_resample_type](src, ofs, &resrc);
+		*dest++ = CLIP_INT8(x);
+		ofs += incr;
+	}
+#elif 0 // pre_resample_t int16
+	for(i = 1; i < count; i++) {
+		int32 x = resamplers[data_type][opt_resample_type](src, ofs, &resrc);
+		*dest++ = CLIP_INT16(x);
+		ofs += incr;
+	}
+#else // pre_resample_t int32
+	for(i = 1; i < count; i++) { PRE_RESAMPLATION; ofs += incr;}
+#endif
+#endif
+	safe_free(sp->data);
+	sp->data = (sample_t *) newdata;
+	sp->data_type = PRE_RESAMPLE_DATA_TYPE;
+	sp->data_length = newlen;
+	sp->loop_start = (splen_t)(sp->loop_start * ratio);
+	sp->loop_end = (splen_t)(sp->loop_end * ratio);
+///r
+	sp->root_freq_org = sp->root_freq;
+	sp->sample_rate_org = sp->sample_rate;
+	sp->root_freq = freq;
+	sp->sample_rate = play_mode->rate;
+//	sp->low_freq = freq_table[0];
+//	sp->high_freq = freq_table[127];
 }
+

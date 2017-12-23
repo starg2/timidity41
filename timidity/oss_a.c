@@ -28,8 +28,12 @@
 #endif /* HAVE_CONFIG_H */
 #define _GNU_SOURCE
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
 
 #ifndef NO_STRING_H
 #include <string.h>
@@ -37,7 +41,9 @@
 #include <strings.h>
 #endif
 
-#if defined(HAVE_SYS_SOUNDCARD_H)
+#ifdef AU_OSS
+
+#ifdef HAVE_SYS_SOUNDCARD_H
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
 #elif defined(linux)
@@ -71,11 +77,11 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int32 output_data(const uint8 *buf, int32 nbytes);
 static int acntl(int request, void *arg);
 static int detect(void);
-static int output_counter;
-static int total_bytes; /* Maximum buffer size in bytes */
+static off_size_t output_counter;
+static off_size_t total_bytes; /* Maximum buffer size in bytes */
 
 /* export the playback mode */
 
@@ -83,16 +89,12 @@ static int total_bytes; /* Maximum buffer size in bytes */
 
 PlayMode dpm = {
     DEFAULT_RATE,
-    PE_16BIT|PE_SIGNED,
-    PF_PCM_STREAM|PF_CAN_TRACE|PF_BUFF_FRAGM_OPT,
+    PE_16BIT | PE_SIGNED,
+    PF_PCM_STREAM | PF_CAN_TRACE | PF_BUFF_FRAGM_OPT,
     -1,
-    {0x7fff,0,0,0,0}, /* default: get all the buffer fragments you can */
+    { 0x7fff,0,0,0,0 }, /* default: get all the buffer fragments you can */
     "dsp device", 'd',
-#ifdef OSS_DEVICE
-    OSS_DEVICE,
-#else
-    "/dev/dsp",
-#endif
+    NULL,
     open_output,
     close_output,
     output_data,
@@ -119,14 +121,25 @@ static int detect(void)
 static int open_output(void)
 {
     int fd, tmp, i, warnings = 0;
-    int include_enc, exclude_enc;
+    int32 include_enc, exclude_enc;
 #ifdef SNDCTL_DSP_GETOSPACE
     audio_buf_info info;
 #endif /* SNDCTL_DSP_GETOSPACE */
 
+    if (!dpm.name)
+    {
+	const char dev[] =
+#ifdef OSS_DEVICE
+	    OSS_DEVICE;
+#else
+	    "/dev/dsp";
+#endif
+	dpm.name = safe_strdup(dev);
+    }
+
     /* Open the audio device */
     fd = open(dpm.name, O_WRONLY);
-    if(fd < 0)
+    if (fd < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		  dpm.name, strerror(errno));
@@ -145,8 +158,8 @@ static int open_output(void)
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NDELAY);
 
     include_enc = 0;
-    exclude_enc = PE_ULAW|PE_ALAW|PE_BYTESWAP; /* They can't mean these */
-    if(dpm.encoding & PE_16BIT)
+    exclude_enc = PE_F64BIT | PE_64BIT | PE_F32BIT | PE_32BIT | PE_24BIT | PE_ULAW | PE_ALAW | PE_BYTESWAP; /* They can't mean these */
+    if (dpm.encoding & PE_16BIT)
 	include_enc |= PE_SIGNED;
     else
 	exclude_enc |= PE_SIGNED;
@@ -156,11 +169,11 @@ static int open_output(void)
        the other one. */
 
     i = tmp = (dpm.encoding & PE_16BIT) ? AFMT_S16_NE : AFMT_U8;
-    if(ioctl(fd, SNDCTL_DSP_SETFMT, &tmp) < 0 || tmp != i)
+    if (ioctl(fd, SNDCTL_DSP_SETFMT, &tmp) < 0 || tmp != i)
     {
 	/* Try the other one */
 	i = tmp = (dpm.encoding & PE_16BIT) ? AFMT_U8 : AFMT_S16_NE;
-	if(ioctl(fd, SNDCTL_DSP_SETFMT, &tmp) < 0 || tmp != i)
+	if (ioctl(fd, SNDCTL_DSP_SETFMT, &tmp) < 0 || tmp != i)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		      "%s doesn't support 16- or 8-bit sample width",
@@ -178,11 +191,11 @@ static int open_output(void)
        the other. */
 
     i = tmp = (dpm.encoding & PE_MONO) ? 1 : 2;
-    if((ioctl(fd, SNDCTL_DSP_CHANNELS, &tmp) < 0) || tmp != i)
+    if ((ioctl(fd, SNDCTL_DSP_CHANNELS, &tmp) < 0) || tmp != i)
     {
 	i = tmp = (dpm.encoding & PE_MONO) ? 2 : 1;
 
-	if((ioctl(fd, SNDCTL_DSP_CHANNELS, &tmp) < 0) || tmp != i)
+	if ((ioctl(fd, SNDCTL_DSP_CHANNELS, &tmp) < 0) || tmp != i)
 	{
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		      "%s doesn't support mono or stereo samples",
@@ -190,10 +203,10 @@ static int open_output(void)
 	    close(fd);
 	    return -1;
 	}
-	if(tmp == 1) dpm.encoding |= PE_MONO;
+	if (tmp == 1) dpm.encoding |= PE_MONO;
 	else dpm.encoding &= ~PE_MONO;
 	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE, "Sound adjusted to %sphonic",
-		  (tmp==1) ? "mono" : "stereo");
+		  (tmp == 1) ? "mono" : "stereo");
 	warnings = 1;
     }
 
@@ -201,7 +214,7 @@ static int open_output(void)
     /* Set the sample rate */
 
     tmp = dpm.rate;
-    if(ioctl(fd, SNDCTL_DSP_SPEED, &tmp) < 0)
+    if (ioctl(fd, SNDCTL_DSP_SPEED, &tmp) < 0)
     {
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 		  "%s doesn't support a %d Hz sample rate",
@@ -209,7 +222,7 @@ static int open_output(void)
 	close(fd);
 	return -1;
     }
-    if(tmp != dpm.rate)
+    if (tmp != dpm.rate)
     {
 	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE,
 		  "Output rate adjusted to %d Hz (requested %d Hz)",
@@ -223,21 +236,21 @@ static int open_output(void)
     /* Set buffer fragments (in extra_param[0]) */
 
     tmp = audio_buffer_bits;
-    if(!(dpm.encoding & PE_MONO)) tmp++;
-    if(dpm.encoding & PE_16BIT) tmp++;
+    if (!(dpm.encoding & PE_MONO)) tmp++;
+    if (dpm.encoding & PE_16BIT) tmp++;
     i = tmp;
     tmp |= (dpm.extra_param[0] << 16);
-    if(ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &tmp) < 0)
+    if (ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &tmp) < 0)
     {
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		  "%s doesn't support %d-byte buffer fragments (%d)",
-		  dpm.name, 1<<i, i);
+		  dpm.name, 1 << i, i);
 	/* It should still work in some fashion. We should use a
 	   secondary buffer anyway -- 64k isn't enough. */
 	warnings = 1;
     }
 #else
-    if(dpm.extra_param[0])
+    if (dpm.extra_param[0])
     {
 	ctl->cmsg(CMSG_WARNING, VERB_NORMAL,
 		  "%s doesn't support buffer fragments", dpm.name);
@@ -246,7 +259,7 @@ static int open_output(void)
 #endif
 
 #ifdef SNDCTL_DSP_GETOSPACE
-    if(ioctl(fd, SNDCTL_DSP_GETOSPACE, &info) != -1) {
+    if (ioctl(fd, SNDCTL_DSP_GETOSPACE, &info) != -1) {
 	total_bytes = info.fragstotal * info.fragsize;
 	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Audio device buffer: %d x %d bytes",
 		  info.fragstotal, info.fragsize);
@@ -261,16 +274,16 @@ static int open_output(void)
     return warnings;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int32 output_data(const uint8 *buf, int32 nbytes)
 {
     int n;
 
-    while(nbytes > 0)
+    while (nbytes > 0)
     {
-	if((n = write(dpm.fd, buf, nbytes)) == -1)
+	if ((n = write(dpm.fd, buf, nbytes)) == -1)
 	{
 #if 0
-	    if(errno != XXX) /* I don't know what error should be ignored.
+	    if (errno != XXX) /* I don't know what error should be ignored.
 			      * XXX := EWOULDBLOCK??
 			      */
 	    {
@@ -298,7 +311,7 @@ static int output_data(char *buf, int32 nbytes)
 
 static void close_output(void)
 {
-    if(dpm.fd == -1)
+    if (dpm.fd == -1)
 	return;
     close(dpm.fd);
     dpm.fd = -1;
@@ -314,19 +327,19 @@ static int acntl(int request, void *arg)
 #endif /* SNDCTL_DSP_GETODELAY */
     int i;
 
-    switch(request)
+    switch (request)
     {
       case PM_REQ_RATE:
-	i = *(int *)arg; /* sample rate in and out */
-	if(ioctl(dpm.fd, SNDCTL_DSP_SPEED, &i) < 0)
+	i = *(int*)arg; /* sample rate in and out */
+	if (ioctl(dpm.fd, SNDCTL_DSP_SPEED, &i) < 0)
 	    return -1;
 	play_mode->rate = i;
 	return 0;
 
       case PM_REQ_GETQSIZ:
-	if(total_bytes <= 0)
+	if (total_bytes <= 0)
 	    return -1;
-	*((int *)arg) = total_bytes;
+	*((int*)arg) = total_bytes;
 	return 0;
 
 #ifdef SNDCTL_DSP_GETODELAY
@@ -339,79 +352,79 @@ static int acntl(int request, void *arg)
 	return ioctl(dpm.fd, SNDCTL_DSP_SYNC, NULL);
 
       case PM_REQ_GETFILLED:
-	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
+	if (total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
 	    return -1;
 	if (i > total_bytes) i = total_bytes;
-	if(!(dpm.encoding & PE_MONO)) i >>= 1;
-	if(dpm.encoding & PE_16BIT) i >>= 1;
-	*((int *)arg) = i;
+	if (!(dpm.encoding & PE_MONO)) i >>= 1;
+	if (dpm.encoding & PE_16BIT) i >>= 1;
+	*((int*)arg) = i;
 	return 0;
 
       case PM_REQ_GETFILLABLE:
-	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
+	if (total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
 	    return -1;
 	if (i > total_bytes) i = 0;
         else i = total_bytes - i;
-	if(!(dpm.encoding & PE_MONO)) i >>= 1;
-	if(dpm.encoding & PE_16BIT) i >>= 1;
-	*((int *)arg) = i;
+	if (!(dpm.encoding & PE_MONO)) i >>= 1;
+	if (dpm.encoding & PE_16BIT) i >>= 1;
+	*((int*)arg) = i;
 	return 0;
 
       case PM_REQ_GETSAMPLES:
-	if(ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
+	if (ioctl(dpm.fd, SNDCTL_DSP_GETODELAY, &i) == -1)
 	    return -1;
 	i = output_counter - i;
-	if(!(dpm.encoding & PE_MONO)) i >>= 1;
-	if(dpm.encoding & PE_16BIT) i >>= 1;
-	*((int *)arg) = i;
+	if (!(dpm.encoding & PE_MONO)) i >>= 1;
+	if (dpm.encoding & PE_16BIT) i >>= 1;
+	*((int*)arg) = i;
 	return 0;
 
 #else /* SNDCTL_DSP_GETODELAY */
       case PM_REQ_DISCARD:
-	if(ioctl(dpm.fd, SNDCTL_DSP_RESET, NULL) == -1)
+	if (ioctl(dpm.fd, SNDCTL_DSP_RESET, NULL) == -1)
 	    return -1;
-	if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
+	if (ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
 	    return -1;
 	output_counter = cinfo.bytes;
 	return 0;
 
       case PM_REQ_FLUSH:
-	if(ioctl(dpm.fd, SNDCTL_DSP_SYNC, NULL) == -1)
+	if (ioctl(dpm.fd, SNDCTL_DSP_SYNC, NULL) == -1)
 	    return -1;
-	if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
+	if (ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
 	    return -1;
 	output_counter = cinfo.bytes;
 	return 0;
 
 # ifdef SNDCTL_DSP_GETOSPACE
       case PM_REQ_GETFILLABLE:
-	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	if (total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
 	    return -1;
 	if (info.bytes > total_bytes) i = total_bytes;
 	else i = info.bytes;
-	if(!(dpm.encoding & PE_MONO)) i >>= 1;
-	if(dpm.encoding & PE_16BIT) i >>= 1;
-	*((int *)arg) = i;
+	if (!(dpm.encoding & PE_MONO)) i >>= 1;
+	if (dpm.encoding & PE_16BIT) i >>= 1;
+	*((int*)arg) = i;
 	return 0;
 
       case PM_REQ_GETFILLED:
-	if(total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
+	if (total_bytes <= 0 || ioctl(dpm.fd, SNDCTL_DSP_GETOSPACE, &info) == -1)
 	    return -1;
 	if (info.bytes > total_bytes) i = 0;
 	else i = total_bytes - info.bytes;
-	if(!(dpm.encoding & PE_MONO)) i >>= 1;
-	if(dpm.encoding & PE_16BIT) i >>= 1;
-	*((int *)arg) = i;
+	if (!(dpm.encoding & PE_MONO)) i >>= 1;
+	if (dpm.encoding & PE_16BIT) i >>= 1;
+	*((int*)arg) = i;
 	return 0;
 # endif /* SNDCTL_DSP_GETOSPACE */
 
       case PM_REQ_GETSAMPLES:
-	if(ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
+	if (ioctl(dpm.fd, SNDCTL_DSP_GETOPTR, &cinfo) == -1)
 	    return -1;
 	i = cinfo.bytes - output_counter;
-	if(!(dpm.encoding & PE_MONO)) i >>= 1;
-	if(dpm.encoding & PE_16BIT) i >>= 1;
-	*((int *)arg) = i;
+	if (!(dpm.encoding & PE_MONO)) i >>= 1;
+	if (dpm.encoding & PE_16BIT) i >>= 1;
+	*((int*)arg) = i;
 	return 0;
 #endif /* SNDCTL_DSP_GETODELAY */
 
@@ -421,3 +434,5 @@ static int acntl(int request, void *arg)
     }
     return -1;
 }
+
+#endif

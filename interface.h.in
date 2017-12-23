@@ -57,8 +57,9 @@
 
 #if defined(IA_W32GUI) || defined(IA_W32G_SYN)
 #ifndef __W32READDIR__
-#define __W32READDIR__
+#define __W32READDIR__ 1
 #endif
-#define URL_DIR_CACHE_ENABLE
-#define __W32G__        /* for Win32 GUI */
+#define URL_DIR_CACHE_ENABLE 1
+#define __W32G__ 1        /* for Win32 GUI */
 #endif
+

@@ -514,7 +514,7 @@ ctl_blocking_read(int32 *valp) {
         n = atoi(local_buf + 1);
         if (n < 0) n = 0;
         if (n > MAXVOLUME) n = MAXVOLUME;
-        *valp = (int32)(n-amplification);
+        *valp = (int32)(n-output_amplification);
         return RC_CHANGE_VOLUME;
       case S_INC_PITCH:
         *valp = (int32)1;
@@ -620,11 +620,11 @@ z3error:
 
 static int
 ctl_read(int32 *valp) {
-	if (cuepoint_pending) {
-		*valp = cuepoint;
-		cuepoint_pending = 0;
-		return RC_FORWARD;
-	}
+  if (cuepoint_pending) {
+    *valp = cuepoint;
+    cuepoint_pending = 0;
+    return RC_FORWARD;
+  }
   if (a_pipe_ready() <= 0) return RC_NONE;
   return ctl_blocking_read(valp);
 }
@@ -1033,10 +1033,10 @@ ctl_event(CtlEvent *e) {
     case CTLE_PLAY_START:
       ctl_total_time((int)e->v1 / play_mode->rate);
       break;
-	case CTLE_CUEPOINT:
-		cuepoint = e->v1;
-		cuepoint_pending = 1;
-		break;
+    case CTLE_CUEPOINT:
+      cuepoint = e->v1;
+      cuepoint_pending = 1;
+      break;
     case CTLE_TEMPO:
       ctl_tempo((int)e->v1);
       break;

@@ -22,7 +22,9 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include <ctype.h>
 #ifndef NO_STRING_H
 #include <string.h>
@@ -30,6 +32,7 @@
 #include <strings.h>
 #endif
 #include "timidity.h"
+#include "common.h"
 #include "mblock.h"
 #include "zip.h"
 #include "arc.h"
@@ -37,13 +40,13 @@
 #define TARBLKSIZ 512
 #define TARHDRSIZ 512
 
-static long octal_value(char *s, int len);
+static int32 octal_value(char *s, int len);
 static int tar_checksum(char *hdr);
 
 ArchiveEntryNode *next_tar_entry(void)
 {
     char hdr[TARHDRSIZ];
-    long size, sizeb;
+    ptr_size_t size, sizeb;
     ArchiveEntryNode *entry;
     URL url;
     int flen;
@@ -53,51 +56,51 @@ ArchiveEntryNode *next_tar_entry(void)
     macbin_check = (arc_handler.counter == 0);
 
   retry_read:
-    if(!macbin_check)
+    if (!macbin_check)
       {
-	if(url_read(url, hdr, TARHDRSIZ) != TARHDRSIZ)
+	if (url_read(url, hdr, TARHDRSIZ) != TARHDRSIZ)
 	  return NULL;
       }
     else
       {
 	int c = url_getc(url);
-	if(c == 0)
+	if (c == 0)
 	  {
 	    url_skip(url, 127);
-	    if(arc_handler.isfile)
+	    if (arc_handler.isfile)
 	      arc_handler.pos += 128;
-	    if(url_read(url, hdr, TARHDRSIZ) != TARHDRSIZ)
+	    if (url_read(url, hdr, TARHDRSIZ) != TARHDRSIZ)
 	      return NULL;
 	  }
 	else
 	  {
 	    hdr[0] = c;
-	    if(url_read(url, hdr+1, TARHDRSIZ-1) != TARHDRSIZ-1)
+	    if (url_read(url, hdr + 1, TARHDRSIZ - 1) != TARHDRSIZ - 1)
 	      return NULL;
 	  }
       }
 
     macbin_check = 0;
 
-    if(hdr[0] == '\0')
+    if (hdr[0] == '\0')
       return NULL;
-    if(!tar_checksum(hdr))
+    if (!tar_checksum(hdr))
       return NULL;
     size = octal_value(hdr + 124, 12);
     flen = strlen(hdr);
-    if(size == 0 && flen > 0 && hdr[flen - 1] == '/')
+    if (size == 0 && flen > 0 && hdr[flen - 1] == '/')
     {
-	if(arc_handler.isfile)
+	if (arc_handler.isfile)
 	    arc_handler.pos += TARHDRSIZ;
 	goto retry_read;
     }
 
     entry = new_entry_node(hdr, flen);
-    if(entry == NULL)
+    if (!entry)
 	return NULL;
-    sizeb = (((size) + (TARBLKSIZ-1)) & ~(TARBLKSIZ-1));
+    sizeb = (((size) + (TARBLKSIZ - 1)) & ~(TARBLKSIZ - 1));
 
-    if((arc_handler.isfile) || (size > MAX_SAFE_MALLOC_SIZE))
+    if ((arc_handler.isfile) || (size > MAX_SAFE_MALLOC_SIZE))
     {
 	arc_handler.pos += TARHDRSIZ;
 	entry->comptype = ARCHIVEC_STORED;
@@ -109,19 +112,18 @@ ArchiveEntryNode *next_tar_entry(void)
     else
     {
 	void *data;
-	long n;
+	ptr_size_t n;
 
 	data = url_dump(url, size, &n);
-	if(size != n)
+	if (size != n)
 	{
-	    if(data != NULL)
-		free(data);
+	    safe_free(data);
 	    free_entry_node(entry);
 	    return NULL;
 	}
 	entry->cache = arc_compress(data, size, ARC_DEFLATE_LEVEL,
 				    &entry->compsize);
-	free(data);
+	safe_free(data);
 	entry->comptype = ARCHIVEC_DEFLATED;
 	entry->origsize = size;
 	entry->start = 0;
@@ -131,20 +133,20 @@ ArchiveEntryNode *next_tar_entry(void)
     return entry;
 }
 
-static long octal_value(char *s, int len)
+static int32 octal_value(char *s, int len)
 {
-    long val;
+    int32 val;
 
-    while(len > 0 && !isdigit((int)(unsigned char)*s))
+    while (len > 0 && !isdigit((int)(unsigned char)*s))
     {
 	s++;
 	len--;
     }
 
     val = 0;
-    while(len > 0 && isdigit((int)(unsigned char)*s))
+    while (len > 0 && isdigit((int)(unsigned char)*s))
     {
-	val = ((val<<3) | (*s - '0'));
+	val = ((val << 3) | (*s - '0'));
 	s++;
 	len--;
     }
@@ -155,21 +157,21 @@ static int tar_checksum(char *hdr)
 {
     int i;
 
-    long recorded_sum;
-    long unsigned_sum;		/* the POSIX one :-) */
-    long signed_sum;		/* the Sun one :-( */
+    int32 recorded_sum;
+    int32 unsigned_sum;		/* the POSIX one :-) */
+    int32 signed_sum;		/* the Sun one :-(*/
 
     recorded_sum = octal_value(hdr + 148, 8);
     unsigned_sum = 0;
     signed_sum = 0;
-    for(i = 0; i < TARBLKSIZ; i++)
+    for (i = 0; i < TARBLKSIZ; i++)
     {
 	unsigned_sum += 0xFF & hdr[i];
 	signed_sum   += hdr[i];
     }
 
     /* Adjust checksum to count the "chksum" field as blanks.  */
-    for(i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++)
     {
 	unsigned_sum -= 0xFF & hdr[148 + i];
 	signed_sum   -= hdr[i];

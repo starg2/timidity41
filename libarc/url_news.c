@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #endif // for off_t
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -55,7 +57,7 @@ typedef struct _NewsConnection
 
 #define NNTP_OK_ID '2'
 #define ALARM_TIMEOUT 10
-/* #define DEBUG */
+/* #define DEBUG 1 */
 
 static VOLATILE int timeout_flag = 1;
 static NewsConnection *connection_cache;
@@ -81,8 +83,8 @@ enum
     ARTICLE_STATUS_4
 };
 
-static int name_news_check(char *url_string);
-static long url_news_read(URL url, void *buff, long n);
+static int name_news_check(const char *url_string);
+static ptr_size_t url_news_read(URL url, void *buff, ptr_size_t n);
 static int url_news_fgetc(URL url);
 static void url_news_close(URL url);
 
@@ -95,9 +97,9 @@ struct URL_module URL_module_news =
     NULL
 };
 
-static int name_news_check(char *s)
+static int name_news_check(const char *s)
 {
-    if(strncmp(s, "news://", 7) == 0 && strchr(s, '@') != NULL)
+    if (!strncmp(s, "news://", 7) && strchr(s, '@'))
 	return 1;
     return 0;
 }
@@ -110,14 +112,14 @@ static void timeout(int sig)
 
 static void close_news_server(NewsConnection *news)
 {
-    if(news->fd != (SOCKET)-1)
+    if (news->fd != (SOCKET)-1)
     {
 	socket_write(news->fd, "QUIT\r\n", 6);
 	closesocket(news->fd);
     }
-    if(news->fp != NULL)
+    if (news->fp)
 	socket_fclose(news->fp);
-    free(news->host);
+    safe_free(news->host);
     news->status = -1;
 }
 
@@ -126,27 +128,27 @@ static NewsConnection *open_news_server(char *host, unsigned short port)
     NewsConnection *p;
     char buff[512];
 
-    for(p = connection_cache; p != NULL; p = p->next)
+    for (p = connection_cache; p; p = p->next)
     {
-	if(p->status == 0 && strcmp(p->host, host) == 0 && p->port == port)
+	if (p->status == 0 && !strcmp(p->host, host) && p->port == port)
 	{
 	    p->status = 1;
 	    return p;
 	}
     }
-    for(p = connection_cache; p != NULL; p = p->next)
-	if(p->status == -1)
+    for (p = connection_cache; p; p = p->next)
+	if (p->status == -1)
 	    break;
-    if(p == NULL)
+    if (!p)
     {
-	if((p = (NewsConnection *)safe_malloc(sizeof(NewsConnection))) == NULL)
+	if ((p = (NewsConnection*) malloc(sizeof(NewsConnection))) == NULL)
 	    return NULL;
 	p->next = connection_cache;
 	connection_cache = p;
 	p->status = -1;
     }
 
-    if((p->host = safe_strdup(host)) == NULL)
+    if ((p->host = strdup(host)) == NULL)
 	return NULL;
     p->port = port;
 
@@ -162,50 +164,50 @@ static NewsConnection *open_news_server(char *host, unsigned short port)
     signal(SIGALRM, SIG_DFL);
 #endif /* __W32__ */
 
-    if(p->fd == (SOCKET)-1)
+    if (p->fd == (SOCKET)-1)
     {
 	int save_errno;
 
 	VOLATILE_TOUCH(timeout_flag);
 #ifdef ETIMEDOUT
-	if(timeout_flag)
-	    errno = ETIMEDOUT;
+	if (timeout_flag)
+	    _set_errno(ETIMEDOUT);
 #endif /* ETIMEDOUT */
-	if(errno)
+	if (errno)
 	    url_errno = errno;
 	else
 	{
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	}
 #ifdef DEBUG
 	perror(host);
 #endif /* DEBUG */
 
 	save_errno = errno;
-	free(p->host);
-	errno = save_errno;
+	safe_free(p->host);
+	_set_errno(save_errno);
 
 	return NULL;
     }
 
-    if((p->fp = socket_fdopen(p->fd, "rb")) == NULL)
+    if ((p->fp = socket_fdopen(p->fd, "rb")) == NULL)
     {
 	url_errno = errno;
 	closesocket(p->fd);
-	free(p->host);
-	errno = url_errno;
+	safe_free(p->host);
+	_set_errno(url_errno);
 	return NULL;
     }
 
     buff[0] = '\0';
-    if(socket_fgets(buff, sizeof(buff), p->fp) == NULL)
+    if (socket_fgets(buff, sizeof(buff), p->fp) == NULL)
     {
 	url_errno = errno;
 	closesocket(p->fd);
 	socket_fclose(p->fp);
-	free(p->host);
-	errno = url_errno;
+	safe_free(p->host);
+	_set_errno(url_errno);
 	return NULL;
     }
 
@@ -213,13 +215,13 @@ static NewsConnection *open_news_server(char *host, unsigned short port)
     fprintf(stderr, "Connect status: %s", buff);
 #endif /* DEBUG */
 
-    if(buff[0] != NNTP_OK_ID)
+    if (buff[0] != NNTP_OK_ID)
     {
 	closesocket(p->fd);
 	socket_fclose(p->fp);
-	free(p->host);
+	safe_free(p->host);
 	url_errno = URLERR_CANTOPEN;
-	errno = ENOENT;
+	_set_errno(ENOENT);
 	return NULL;
     }
     p->status = 1;
@@ -233,15 +235,15 @@ int url_news_connection_cache(int flag)
 
     oldflag = connection_cache_flag;
 
-    switch(flag)
+    switch (flag)
     {
       case URL_NEWS_CONN_NO_CACHE:
       case URL_NEWS_CONN_CACHE:
 	connection_cache_flag = flag;
 	break;
       case URL_NEWS_CLOSE_CACHE:
-	for(p = connection_cache; p != NULL; p = p->next)
-	    if(p->status == 0)
+	for (p = connection_cache; p; p = p->next)
+	    if (p->status == 0)
 		close_news_server(p);
 	break;
       case URL_NEWS_GET_FLAG:
@@ -250,7 +252,7 @@ int url_news_connection_cache(int flag)
     return oldflag;
 }
 
-URL url_news_open(char *name)
+URL url_news_open(const char *name)
 {
     URL_news *url;
     char *host, *p;
@@ -263,8 +265,8 @@ URL url_news_open(char *name)
     fprintf(stderr, "url_news_open(%s)\n", name);
 #endif /* DEBUG */
 
-    url = (URL_news *)alloc_url(sizeof(URL_news));
-    if(url == NULL)
+    url = (URL_news*)alloc_url(sizeof(URL_news));
+    if (!url)
     {
 	url_errno = errno;
 	return NULL;
@@ -284,7 +286,7 @@ URL url_news_open(char *name)
     url->status = ARTICLE_STATUS_2;
     url->eof = 0;
 
-    if(strncmp(name, "news://", 7) == 0)
+    if (!strncmp(name, "news://", 7))
 	name += 7;
 
     strncpy(buff, name, sizeof(buff) - 1);
@@ -299,18 +301,18 @@ URL url_news_open(char *name)
         ++host;
         ++p;
     } else
-        for(p = host; *p && *p != ':' && *p != '/'; p++)
+        for (p = host; *p && *p != ':' && *p != '/'; p++)
 	    ;
 
-    if(*p == ':')
+    if (*p == ':')
     {
 	*p++ = '\0'; /* terminate `host' string */
 	port = atoi(p);
 	p = strchr(p, '/');
-	if(p == NULL)
+	if (!p)
 	{
 	    url_errno = URLERR_CANTOPEN;
-	    errno = ENOENT;
+	    _set_errno(ENOENT);
 	    url_news_close((URL)url);
 	    return NULL;
 	}
@@ -318,12 +320,12 @@ URL url_news_open(char *name)
     else
 	port = 119;
     *p++ = '\0'; /* terminate `host' string */
-    if(*p == '<')
+    if (*p == '<')
 	p++;
     strncpy(messageID, p, sizeof(messageID) - 1);
     messageID[sizeof(messageID) - 1] = '\0';
     i = strlen(messageID);
-    if(i > 0 && messageID[i - 1] == '>')
+    if (i > 0 && messageID[i - 1] == '>')
 	messageID[i - 1] = '\0';
 
 #ifdef DEBUG
@@ -334,7 +336,7 @@ URL url_news_open(char *name)
     fprintf(stderr, "open(host=`%s', port=`%d')\n", host, port);
 #endif /* DEBUG */
 
-    if((url->news = open_news_server(host, port)) == NULL)
+    if ((url->news = open_news_server(host, port)) == NULL)
     {
 	url_news_close((URL)url);
 	return NULL;
@@ -349,20 +351,20 @@ URL url_news_open(char *name)
     fprintf(stderr, "CMD> %s", buff);
 #endif /* DEBUG */
 
-    socket_write(url->news->fd, buff, (long)strlen(buff));
+    socket_write(url->news->fd, buff, (int32)strlen(buff));
     buff[0] = '\0';
-    if(socket_fgets(buff, sizeof(buff), url->news->fp) == NULL)
+    if (socket_fgets(buff, sizeof(buff), url->news->fp) == NULL)
     {
-	if(check_timeout)
+	if (check_timeout)
 	{
 	    check_timeout = 0;
 	    close_news_server(url->news);
-	    if((url->news = open_news_server(host, port)) != NULL)
+	    if ((url->news = open_news_server(host, port)) != NULL)
 		goto retry_article;
 	}
 	url_news_close((URL)url);
 	url_errno = URLERR_CANTOPEN;
-	errno = ENOENT;
+	_set_errno(ENOENT);
 	return NULL;
     }
 
@@ -370,17 +372,17 @@ URL url_news_open(char *name)
     fprintf(stderr, "CMD< %s", buff);
 #endif /* DEBUG */
 
-    if(buff[0] != NNTP_OK_ID)
+    if (buff[0] != NNTP_OK_ID)
     {
-	if(check_timeout && strncmp(buff, "503", 3) == 0)
+	if (check_timeout && !strncmp(buff, "503", 3))
 	{
 	    check_timeout = 0;
 	    close_news_server(url->news);
-	    if((url->news = open_news_server(host, port)) != NULL)
+	    if ((url->news = open_news_server(host, port)) != NULL)
 		goto retry_article;
 	}
 	url_news_close((URL)url);
-	url_errno = errno = ENOENT;
+	_set_errno(url_errno = ENOENT);
 	return NULL;
     }
     return (URL)url;
@@ -388,32 +390,32 @@ URL url_news_open(char *name)
 
 static void url_news_close(URL url)
 {
-    URL_news *urlp = (URL_news *)url;
+    URL_news *urlp = (URL_news*)url;
     NewsConnection *news = urlp->news;
     int save_errno = errno;
 
-    if(news != NULL)
+    if (news)
     {
-	if(connection_cache_flag == URL_NEWS_CONN_CACHE)
+	if (connection_cache_flag == URL_NEWS_CONN_CACHE)
 	    news->status = 0;
 	else
 	    close_news_server(news);
     }
-    free(url);
+    safe_free(url);
 
-    errno = save_errno;
+    _set_errno(save_errno);
 }
 
-static long url_news_read(URL url, void *buff, long size)
+static ptr_size_t url_news_read(URL url, void *buff, ptr_size_t size)
 {
-    char *p = (char *)buff;
-    long n;
+    char *p = (char*)buff;
+    off_size_t n;
     int c;
 
     n = 0;
-    while(n < size)
+    while (n < size)
     {
-	if((c = url_news_fgetc(url)) == EOF)
+	if ((c = url_news_fgetc(url)) == EOF)
 	    break;
 	p[n++] = c;
     }
@@ -422,52 +424,52 @@ static long url_news_read(URL url, void *buff, long size)
 
 static int url_news_fgetc(URL url)
 {
-    URL_news *urlp = (URL_news *)url;
+    URL_news *urlp = (URL_news*)url;
     NewsConnection *news = urlp->news;
     int c;
 
-    if(urlp->eof)
+    if (urlp->eof)
 	return EOF;
-    if((c = socket_fgetc(news->fp)) == EOF)
+    if ((c = socket_fgetc(news->fp)) == EOF)
     {
 	urlp->eof = 1;
 	return EOF;
     }
 
-    switch(urlp->status)
+    switch (urlp->status)
     {
       case ARTICLE_STATUS_0:
-	if(c == '\r')
+	if (c == '\r')
 	    urlp->status = ARTICLE_STATUS_1;
-	else if(c == '\n')
+	else if (c == '\n')
 	    urlp->status = ARTICLE_STATUS_2;
 	break;
 
       case ARTICLE_STATUS_1:
-	if(c == '\n')
+	if (c == '\n')
 	    urlp->status = ARTICLE_STATUS_2;
 	else
 	    urlp->status = ARTICLE_STATUS_0;
 	break;
 
       case ARTICLE_STATUS_2:
-	if(c == '.')
+	if (c == '.')
 	    urlp->status = ARTICLE_STATUS_3;
 	else
 	    urlp->status = ARTICLE_STATUS_0;
 	break;
 
       case ARTICLE_STATUS_3:
-	if(c == '\r')
+	if (c == '\r')
 	    urlp->status = ARTICLE_STATUS_4;
-	else if(c == '\n')
+	else if (c == '\n')
 	    urlp->eof = 1;
 	else
 	    urlp->status = ARTICLE_STATUS_0;
 	break;
 
       case ARTICLE_STATUS_4:
-	if(c == '\n')
+	if (c == '\n')
 	    urlp->eof = 1;
 	break;
     }
@@ -482,22 +484,22 @@ void main(int argc, char **argv)
     char buff[BUFSIZ];
     int c;
 
-    if(argc != 2)
+    if (argc != 2)
     {
 	fprintf(stderr, "Usage: %s news-URL\n", argv[0]);
 	exit(1);
     }
-    if((url = url_news_open(argv[1])) == NULL)
+    if ((url = url_news_open(argv[1])) == NULL)
     {
 	fprintf(stderr, "Can't open news group: %s\n", argv[1]);
 	exit(1);
     }
 
-#if NEWS_MAIN
-    while((c = url_getc(url)) != EOF)
+#ifdef NEWS_MAIN
+    while ((c = url_getc(url)) != EOF)
 	putchar(c);
 #else
-    while((c = url_read(url, buff, sizeof(buff))) > 0)
+    while ((c = url_read(url, buff, sizeof(buff))) > 0)
 	write(1, buff, c);
 #endif
     url_close(url);

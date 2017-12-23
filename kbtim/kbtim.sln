@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual C++ Express 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kbtim_dll", "kbtim_dll.vcxproj", "{9836482C-653B-4F2D-A210-CB021336DDAE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kbtim_installer", "kbtim_installer.vcxproj", "{40F9E631-03E7-4421-8335-1941FFA446E0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kbtim_kpi", "kbtim_kpi.vcxproj", "{407693E1-3071-436C-8F85-B3FAB646F67E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9836482C-653B-4F2D-A210-CB021336DDAE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9836482C-653B-4F2D-A210-CB021336DDAE}.Debug|Win32.Build.0 = Debug|Win32
+		{9836482C-653B-4F2D-A210-CB021336DDAE}.Release|Win32.ActiveCfg = Release|Win32
+		{9836482C-653B-4F2D-A210-CB021336DDAE}.Release|Win32.Build.0 = Release|Win32
+		{40F9E631-03E7-4421-8335-1941FFA446E0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{40F9E631-03E7-4421-8335-1941FFA446E0}.Debug|Win32.Build.0 = Debug|Win32
+		{40F9E631-03E7-4421-8335-1941FFA446E0}.Release|Win32.ActiveCfg = Release|Win32
+		{40F9E631-03E7-4421-8335-1941FFA446E0}.Release|Win32.Build.0 = Release|Win32
+		{407693E1-3071-436C-8F85-B3FAB646F67E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{407693E1-3071-436C-8F85-B3FAB646F67E}.Debug|Win32.Build.0 = Debug|Win32
+		{407693E1-3071-436C-8F85-B3FAB646F67E}.Release|Win32.ActiveCfg = Release|Win32
+		{407693E1-3071-436C-8F85-B3FAB646F67E}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

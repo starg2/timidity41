@@ -62,10 +62,11 @@
 #include "instrum.h"
 #include "playmidi.h"
 #include "readmidi.h"
+#include "timer.h"
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 
 /* export the playback mode */
@@ -84,6 +85,8 @@ PlayMode dpm = {
     acntl
 };
 
+static double counter = 0.0;
+
 /*************************************************************************/
 
 /*
@@ -97,7 +100,7 @@ static const char *encoding_ext(int32 encoding) {
     return ".ul";
   }
   if(encoding & PE_ALAW) {
-    return ".raw"; /* ?? */
+    return ".al"; /* ?? */
   }
 
   p = ext;
@@ -110,6 +113,15 @@ static const char *encoding_ext(int32 encoding) {
     *p++ = 'w';
   else if(encoding & PE_24BIT)
     *p++ = '2', *p++ = '4'; /* is there any common extension? */
+///r ?
+  else if(encoding & PE_32BIT)
+    *p++ = '3', *p++ = '2'; /* is there any common extension? */
+  else if(encoding & PE_F32BIT)
+    *p++ = '3', *p++ = '2'; /* is there any common extension? */
+  else if(encoding & PE_64BIT)
+    *p++ = '6', *p++ = '4'; /* is there any common extension? */
+  else if(encoding & PE_F64BIT)
+    *p++ = '6', *p++ = '4'; /* is there any common extension? */
   else
     *p++ = 'b';
   *p = '\0';
@@ -119,6 +131,8 @@ static const char *encoding_ext(int32 encoding) {
 static int raw_output_open(const char *fname)
 {
   int fd;
+
+  counter = get_current_calender_time();
 
   if(strcmp(fname, "-") == 0)
     return 1; /* data to stdout */
@@ -190,7 +204,7 @@ static int open_output(void)
   return 0;
 }
 
-static int output_data(char *buf, int32 bytes)
+static int output_data(const uint8 *buf, size_t bytes)
 {
     int n;
 
@@ -210,6 +224,11 @@ static int output_data(char *buf, int32 bytes)
 
 static void close_output(void)
 {
+    if (dpm.fd != -1) {
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+		  "%s: Finished output (real time=%.2f)", dpm.id_name,
+		  (double)(get_current_calender_time() - counter));
+    }
     if(dpm.fd != 1 && dpm.fd != -1) /* We don't close stdout */
 	close(dpm.fd);
     dpm.fd = -1;
@@ -219,8 +238,11 @@ static int acntl(int request, void *arg)
 {
   switch(request) {
   case PM_REQ_PLAY_START:
-    if(dpm.flag & PF_AUTO_SPLIT_FILE)
-      return auto_raw_output_open(current_file_info->filename);
+    if (dpm.flag & PF_AUTO_SPLIT_FILE) {
+      const char *filename = (current_file_info && current_file_info->filename) ?
+			     current_file_info->filename : "Output.mid";
+      return auto_raw_output_open(filename);
+    }
     return 0;
   case PM_REQ_PLAY_END:
     if(dpm.flag & PF_AUTO_SPLIT_FILE)

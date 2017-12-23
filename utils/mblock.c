@@ -64,8 +64,7 @@ static MBlockNode *new_mblock_node(size_t n)
     }
     else if(free_mblock_list == NULL)
     {
-	if((p = (MBlockNode *)safe_malloc(sizeof(MBlockNode)
-				     + MIN_MBLOCK_SIZE)) == NULL)
+	if((p = (MBlockNode *)safe_malloc(sizeof(MBlockNode) + MIN_MBLOCK_SIZE)) == NULL)
 	    return NULL;
 	p->block_size = MIN_MBLOCK_SIZE;
     }
@@ -133,7 +132,7 @@ void *new_segment(MBlockList *mblock, size_t nbytes)
 static void reuse_mblock1(MBlockNode *p)
 {
     if(p->block_size > MIN_MBLOCK_SIZE)
-	free(p);
+	safe_free(p);
     else /* p->block_size <= MIN_MBLOCK_SIZE */
     {
 	p->next = free_mblock_list;
@@ -181,7 +180,7 @@ int free_global_mblock(void)
 
 	tmp = free_mblock_list;
 	free_mblock_list = free_mblock_list->next;
-	free(tmp);
+	safe_free(tmp);
 	cnt++;
     }
     return cnt;

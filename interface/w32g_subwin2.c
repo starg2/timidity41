@@ -42,7 +42,7 @@
 #include "controls.h"
 #include "tables.h"
 #include "miditrace.h"
-#include "reverb.h"
+#include "effect.h"
 #ifdef SUPPORT_SOUNDSPEC
 #include "soundspec.h"
 #endif /* SUPPORT_SOUNDSPEC */
@@ -193,8 +193,8 @@ static void wrd_wnd_unlock (void)
 }
 
 
-BOOL CALLBACK WrdWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
-BOOL CALLBACK WrdCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WrdWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WrdCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static int volatile wrd_wnd_initflag = 1;
 void TerminateWrdWnd ( void )
 {
@@ -237,7 +237,7 @@ void InitWrdWnd(HWND hParentWnd)
 		(hInst,MAKEINTRESOURCE(IDD_DIALOG_WRD),hParentWnd,WrdWndProc);
 	WrdWndInfoReset(hWrdWnd);
 	INILoadWrdWnd();
-	ShowWindow(hWrdWnd,SW_HIDE);
+	ShowWindow(hWrdWnd,WrdWndStartFlag ? SW_SHOW : SW_HIDE);
 	w32g_wrd_wnd.draw_skip = 0;
 	w32g_wrd_wnd.font_height = 16; 
 	w32g_wrd_wnd.font_width = 8; 
@@ -1982,7 +1982,7 @@ void WrdWndPaintDo(int flag)
 #define IDM_GRAPHIC_STOP 3531
 #define IDM_GRAPHIC_START 3532
 
-BOOL CALLBACK
+LRESULT CALLBACK
 WrdCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static HMENU hPopupMenu = NULL;
@@ -2044,7 +2044,7 @@ WrdCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 extern void MainWndUpdateWrdButton(void);
 
-BOOL CALLBACK
+LRESULT CALLBACK
 WrdWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){

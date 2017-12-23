@@ -32,14 +32,14 @@ enum explode_method_t
 };
 
 extern ExplodeHandler open_explode_handler(
-	long (* read_func)(char *buf, long size, void *user_val),
+	ptr_size_t (*read_func)(char *buf, ptr_size_t size, void *user_val),
 	int method,
-	long compsize, long origsize,
+	ptr_size_t compsize, ptr_size_t origsize,
 	void *user_val);
 
-extern long explode(ExplodeHandler decoder,
+extern ptr_size_t explode(ExplodeHandler decoder,
 		    char *decode_buff,
-		    long decode_buff_size);
+		    ptr_size_t decode_buff_size);
 
 extern void close_explode_handler(ExplodeHandler decoder);
 

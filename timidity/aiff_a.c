@@ -51,7 +51,7 @@
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 bytes);
+static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 static int write_u32(uint32 value);
 static int write_u16(uint16 value);
@@ -84,6 +84,12 @@ PlayMode dpm = {
 static uint32 bytes_output, next_bytes;
 static int already_warning_lseek;
 static int comm_chunk_offset, comm_chunk_size;
+
+///r
+#ifdef __W32G__
+extern char *w32g_output_dir;
+extern int w32g_auto_output_mode;
+#endif
 
 /*************************************************************************/
 
@@ -180,14 +186,17 @@ static int update_header(void)
 			  )) == -1) return -1;
     /* COMM chunk */
     /* number of frames */
+///r
     lseek(dpm.fd, comm_chunk_offset + 10, SEEK_SET);
-    f = bytes_output;
+	   f = bytes_output;
     if(!(dpm.encoding & PE_MONO))
-	f /= 2;
-    if(dpm.encoding & PE_24BIT)
-	f /= 3;
+		f /= 2;
+    if(dpm.encoding & PE_32BIT)
+		f /= 4;
+    else if(dpm.encoding & PE_24BIT)
+		f /= 3;
     else if(dpm.encoding & PE_16BIT)
-	f /= 2;
+		f /= 2;
     if(write_u32(f) == -1) return -1;
 
     /* SSND chunk */
@@ -258,9 +267,11 @@ static int aiff_output_open(const char *fname)
 
   /* number of frames (dmy) */
   if(write_u32((uint32)0xffffffff) == -1) return -1;
-
+///r
   /* bits per sample (decompressed size) */
-  if(dpm.encoding & PE_24BIT)
+  if(dpm.encoding & PE_32BIT)
+    t = 32;
+  else if(dpm.encoding & PE_24BIT)
     t = 24;
   else if(dpm.encoding & (PE_16BIT | PE_ULAW | PE_ALAW))
     t = 16;
@@ -336,10 +347,10 @@ static int auto_aiff_output_open(const char *input_filename)
 static int open_output(void)
 {
     int include_enc, exclude_enc;
-
+///r
     include_enc = PE_SIGNED;
     exclude_enc = PE_ULAW | PE_ALAW;
-    if(dpm.encoding & (PE_16BIT | PE_24BIT))
+    if(dpm.encoding & (PE_32BIT | PE_24BIT | PE_16BIT))
     {
 #ifdef LITTLE_ENDIAN
 	include_enc |= PE_BYTESWAP;
@@ -349,7 +360,8 @@ static int open_output(void)
     }
     else if(dpm.encoding & (PE_ULAW|PE_ALAW))
 	include_enc = exclude_enc = 0;
-
+///r
+	exclude_enc |= PE_F32BIT | PE_64BIT | PE_F64BIT;
     dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
     if(dpm.name == NULL) {
@@ -369,7 +381,7 @@ static int open_output(void)
     return 0;
 }
 
-static int output_data(char *buf, int32 bytes)
+static int output_data(const uint8 *buf, size_t bytes)
 {
     int n;
 
@@ -411,8 +423,11 @@ static int acntl(int request, void *arg)
 {
   switch(request) {
   case PM_REQ_PLAY_START:
-    if(dpm.flag & PF_AUTO_SPLIT_FILE)
-      return auto_aiff_output_open(current_file_info->filename);
+    if (dpm.flag & PF_AUTO_SPLIT_FILE) {
+      const char *filename = (current_file_info && current_file_info->filename) ?
+			     current_file_info->filename : "Output.mid";
+      return auto_aiff_output_open(filename);
+    }
     return 0;
   case PM_REQ_PLAY_END:
     if(dpm.flag & PF_AUTO_SPLIT_FILE)
@@ -503,16 +518,16 @@ static void ConvertToIeeeExtended(double num, char *bytes)
             loMant = FloatToUnsigned(fsMant);
         }
     }
-
-    bytes[0] = expon >> 8;
-    bytes[1] = expon;
-    bytes[2] = (char)(hiMant >> 24);
-    bytes[3] = (char)(hiMant >> 16);
-    bytes[4] = (char)(hiMant >> 8);
-    bytes[5] = (char)hiMant;
-    bytes[6] = (char)(loMant >> 24);
-    bytes[7] = (char)(loMant >> 16);
-    bytes[8] = (char)(loMant >> 8);
-    bytes[9] = (char)loMant;
+///r
+    bytes[0] = (char)((expon >> 8) & 0xFF);
+    bytes[1] = (char)(expon & 0xFF);
+    bytes[2] = (char)((hiMant >> 24) & 0xFF);
+    bytes[3] = (char)((hiMant >> 16) & 0xFF);
+    bytes[4] = (char)((hiMant >> 8) & 0xFF);
+    bytes[5] = (char)(hiMant & 0xFF);
+    bytes[6] = (char)((loMant >> 24) & 0xFF);
+    bytes[7] = (char)((loMant >> 16) & 0xFF);
+    bytes[8] = (char)((loMant >> 8) & 0xFF);
+    bytes[9] = (char)(loMant & 0xFF);
 }
 

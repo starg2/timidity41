@@ -37,10 +37,15 @@ extern void SetWindowPosSize ( HWND parent_hwnd, HWND hwnd, int x, int y );
 // [MainWnd]
 // PosX =
 // PosY =
+// Width =
+// Height =
 typedef struct MAINWNDINFO_ {
 	HWND hwnd;
-	int PosX;
-	int PosY;
+	int init;
+	int PosX;		// save parameter
+	int PosY;		// save parameter
+	int Width;		// save parameter
+	int Height;		// save parameter
 	int CanvasMode;
 } MAINWNDINFO;
 extern MAINWNDINFO MainWndInfo;
@@ -54,21 +59,24 @@ extern MAINWNDINFO MainWndInfo;
 // fontName =
 // fontWidth =
 // fontHeight =
+#define LISTWND_COLUM 6
 typedef struct LISTWNDINFO_ {
 	HWND hwnd;
-	int PosX;
-	int PosY;
+	int PosX;		// save parameter
+	int PosY;		// save parameter
 	int Width;		// save parameter
 	int Height;		// save parameter
 	HMENU hPopupMenu;
-	HWND hwndListBox;
-	HFONT hFontListBox;
+	HWND hwndList; // ListBox , ListView
+	HFONT hFontList; // ListBox , ListView
 	char *fontName;
-	char fontNameJA[64];			// save parameter
-	char fontNameEN[64];			// save parameter
+	char fontNameJA[LF_FULLFACESIZE + 1];			// save parameter
+	char fontNameEN[LF_FULLFACESIZE + 1];			// save parameter
 	int fontWidth;				// save parameter
 	int fontHeight;				// save parameter
 	int fontFlags;			// save parameter
+	char ListName[PLAYLIST_MAX][LF_FULLFACESIZE + 1]; // save parameter
+	int columWidth[LISTWND_COLUM];
 } LISTWNDINFO;
 extern LISTWNDINFO ListWndInfo;
 
@@ -83,23 +91,23 @@ extern LISTWNDINFO ListWndInfo;
 // fontHeight =
 #define DOCWND_DOCFILEMAX 10
 typedef struct DOCWNDINFO_ {
-	char DocFile[DOCWND_DOCFILEMAX][512];
+	char DocFile[DOCWND_DOCFILEMAX][FILEPATH_MAX];
 	int DocFileMax;
 	int DocFileCur;
 	char *Text;
 	int TextSize;
 
 	HWND hwnd;
-	int PosX;
-	int PosY;
+	int PosX;		// save parameter
+	int PosY;		// save parameter
 	int Width;		// save parameter
 	int Height;		// save parameter
 	HMENU hPopupMenu;
 	HWND hwndEdit;
 	HFONT hFontEdit;
 	char *fontName;
-	char fontNameJA[64];			// save parameter
-	char fontNameEN[64];			// save parameter
+	char fontNameJA[LF_FULLFACESIZE + 1];			// save parameter
+	char fontNameEN[LF_FULLFACESIZE + 1];			// save parameter
 	int fontWidth;				// save parameter
 	int fontHeight;				// save parameter
 	int fontFlags;			// save parameter
@@ -111,12 +119,31 @@ extern DOCWNDINFO DocWndInfo;
 // [ConsoleWnd]
 // PosX =
 // PosY =
+// Width =
+// Height =
 typedef struct CONSOLEWNDINFO_ {
 	HWND hwnd;
-	int PosX;
-	int PosY;
+	int PosX;		// save parameter
+	int PosY;		// save parameter
+	int Width;		// save parameter
+	int Height;		// save parameter
 } CONSOLEWNDINFO;
 extern CONSOLEWNDINFO ConsoleWndInfo;
+
+// section of ini file
+// [SoundSpecWnd]
+// PosX =
+// PosY =
+// Width =
+// Height =
+typedef struct SOUNDSPECWNDINFO_ {
+	HWND hwnd;
+	int PosX;		// save parameter
+	int PosY;		// save parameter
+	int Width;		// save parameter
+	int Height;		// save parameter
+} SOUNDSPECWNDINFO;
+extern SOUNDSPECWNDINFO SoundSpecWndInfo;
 
 extern int INISaveMainWnd(void);
 extern int INILoadMainWnd(void);
@@ -126,5 +153,7 @@ extern int INISaveDocWnd(void);
 extern int INILoadDocWnd(void);
 extern int INISaveConsoleWnd(void);
 extern int INILoadConsoleWnd(void);
+extern int INISaveSoundSpecWnd(void);
+extern int INILoadSoundSpecWnd(void);
 
 #endif /* __W32G_UT2_H__ */

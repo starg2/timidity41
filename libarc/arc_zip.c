@@ -22,7 +22,9 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif /* HAVE_STDLIB_H */
 #include "timidity.h"
 #include "arc.h"
 
@@ -31,26 +33,26 @@
 
 static unsigned short get_short(char *s)
 {
-    unsigned char *p = (unsigned char *)s;
+    unsigned char *p = (unsigned char*)s;
     return ((unsigned short)p[0] |
-	    (unsigned short)p[1]<<8);
+	    (unsigned short)p[1] << 8);
 }
 
-static unsigned long get_long(char *s)
+static uint32 get_long(char *s)
 {
-    unsigned char *p = (unsigned char *)s;
-    return ((unsigned long)p[0] |
-	    (unsigned long)p[1]<<8 |
-	    (unsigned long)p[2]<<16 |
-	    (unsigned long)p[3]<<24);
+    unsigned char *p = (unsigned char*)s;
+    return ((uint32)p[0] |
+	    (uint32)p[1] << 8 |
+	    (uint32)p[2] << 16 |
+	    (uint32)p[3] << 24);
 }
 
 ArchiveEntryNode *next_zip_entry(void)
 {
-    unsigned long magic;
+    uint32 magic;
     unsigned short flen, elen, hdrsiz;
     URL url;
-    long compsize, origsize;
+    int32 compsize, origsize;
     char buff[BUFSIZ];
     ArchiveEntryNode *entry;
     int method;
@@ -61,30 +63,30 @@ ArchiveEntryNode *next_zip_entry(void)
     macbin_check = (arc_handler.counter == 0);
 
   retry_read:
-    if(url_read(url, buff, 4) != 4)
+    if (url_read(url, buff, 4) != 4)
 	return NULL;
 
     hdrsiz = 4;
 
     magic = get_long(buff);
-    if(magic == EXTLOCSIG)
+    if (magic == EXTLOCSIG)
     {
 	/* ignored */
-	if(url_read(url, buff, 20) != 20)
+	if (url_read(url, buff, 20) != 20)
 	    return NULL;
 	magic = get_long(buff + 16);
 	hdrsiz += 20;
     }
-    else if(macbin_check && buff[0] == '0')
+    else if (macbin_check && buff[0] == '0')
     {
 	macbin_check = 0;
-	url_skip(url, 128-4);
-	if(arc_handler.isfile)
+	url_skip(url, 128 - 4);
+	if (arc_handler.isfile)
 	    arc_handler.pos += 128;
 	goto retry_read;
     }
 
-    if(magic != LOCSIG)
+    if (magic != LOCSIG)
 	return NULL;
 
     /* Version needed to extract */
@@ -92,18 +94,18 @@ ArchiveEntryNode *next_zip_entry(void)
     hdrsiz += 2;
 
     /* General purpose bit flag */
-    if(url_read(url, buff, 2) != 2)
+    if (url_read(url, buff, 2) != 2)
 	return NULL;
     flags = get_short(buff);
     hdrsiz += 2;
 
     /* Compression method */
-    if(url_read(url, buff, 2) != 2)
+    if (url_read(url, buff, 2) != 2)
 	return NULL;
     method = get_short(buff);
     hdrsiz += 2;
 
-    switch(method)
+    switch (method)
     {
       case 0: /* The file is stored (no compression) */
 	method = ARCHIVEC_STORED;
@@ -124,14 +126,14 @@ ArchiveEntryNode *next_zip_entry(void)
 	method = ARCHIVEC_REDUCED4;
 	break;
       case 6: /* The file is Imploded */
-	if(flags & 4)
+	if (flags & 4)
 	{
-	    if(flags & 2)
+	    if (flags & 2)
 		method = ARCHIVEC_IMPLODED_LIT8;
 	    else
 		method = ARCHIVEC_IMPLODED_LIT4;
 	}
-	else if(flags & 2)
+	else if (flags & 2)
 	    method = ARCHIVEC_IMPLODED_NOLIT8;
 	else
 	    method = ARCHIVEC_IMPLODED_NOLIT4;
@@ -141,6 +143,9 @@ ArchiveEntryNode *next_zip_entry(void)
 	break;
       case 8: /* The file is Deflated */
 	method = ARCHIVEC_DEFLATED;
+	break;
+      case 9: /* The file is Deflated (Deflate64) */
+	method = ARCHIVEC_DEFLATED; //ARCHIVEC_DEFLATE64;
 	break;
       default:
 	return NULL;
@@ -159,49 +164,48 @@ ArchiveEntryNode *next_zip_entry(void)
     hdrsiz += 4;
 
     /* Compressed size */
-    if(url_read(url, buff, 4) != 4)
+    if (url_read(url, buff, 4) != 4)
 	return NULL;
     hdrsiz += 4;
-    compsize = (long)get_long(buff);
+    compsize = (int32)get_long(buff);
 
     /* Uncompressed size */
-    if(url_read(url, buff, 4) != 4)
+    if (url_read(url, buff, 4) != 4)
 	return NULL;
     hdrsiz += 4;
-    origsize = (long)get_long(buff);
+    origsize = (int32)get_long(buff);
 
     /* Filename length */
-    if(url_read(url, buff, 2) != 2)
+    if (url_read(url, buff, 2) != 2)
 	return NULL;
     hdrsiz += 2;
     flen = get_short(buff);
-    if(flen >= sizeof(buff)-1)
+    if (flen >= sizeof(buff) - 1)
 	return NULL;
 
     /* Extra field length */
-    if(url_read(url, buff, 2) != 2)
+    if (url_read(url, buff, 2) != 2)
 	return NULL;
     hdrsiz += 2;
     elen = get_short(buff);
 
     /* filename */
-    if(url_read(url, buff, flen) != flen)
+    if (url_read(url, buff, flen) != flen)
 	return NULL;
     hdrsiz += flen;
     buff[flen] = '\0';
 
-    if(compsize == 0 && flen > 0 &&
+    if (compsize == 0 && flen > 0 &&
        (buff[flen - 1] == '/' || buff[flen - 1] == '\\'))
     {
 	url_skip(url, elen);
 	hdrsiz += elen;
-	if(arc_handler.isfile)
+	if (arc_handler.isfile)
 	  arc_handler.pos += hdrsiz;
 	goto retry_read;
     }
-
     entry = new_entry_node(buff, flen);
-    if(entry == NULL)
+    if (!entry)
 	return NULL;
 
     entry->comptype = method;
@@ -212,7 +216,7 @@ ArchiveEntryNode *next_zip_entry(void)
     url_skip(url, elen);
     hdrsiz += elen;
 
-    if(arc_handler.isfile)
+    if (arc_handler.isfile)
     {
       arc_handler.pos += hdrsiz;
 	entry->start = arc_handler.pos;
@@ -222,10 +226,10 @@ ArchiveEntryNode *next_zip_entry(void)
     }
     else
     {
-      long n;
+      ptr_size_t n;
       entry->start = 0;
       entry->cache = url_dump(url, compsize, &n);
-      if(n != compsize)
+      if (n != compsize)
 	{
 	  free_entry_node(entry);
 	  return NULL;

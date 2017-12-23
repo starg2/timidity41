@@ -59,10 +59,27 @@
 #include "readmidi.h"
 #include "miditrace.h"
 
+#ifdef AU_VORBIS_DLL
+#include <stdlib.h>
+#include <io.h>
+#include <ctype.h>
+extern int load_ogg_dll(void);
+extern void free_ogg_dll(void);
+#endif
+
+
+#if defined(IA_W32GUI) || defined(TWSYNG32)
+extern char *w32g_output_dir;
+extern int w32g_auto_output_mode;
+#endif
+
+
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int output_data(const uint8 *buf, size_t nbytes);
 static int acntl(int request, void *arg);
+
+
 
 /* export the playback mode */
 
@@ -255,7 +272,8 @@ void comment_init(char **comments, int* length, char *vendor_string)
 int write_ogg_header(Speex_ctx *ctx, int fd, char *comments)
 {
   int ret, result;
-  char *vendor_string = "Encoded with Timidity++-" VERSION "(compiled " __DATE__ ")";
+
+  char *vendor_string = "Encoded with Timidity++-" TIMID_VERSION "(compiled " __DATE__ ")";
   int comments_length = strlen(comments);
 
   comment_init(&comments, &comments_length, vendor_string);
@@ -294,6 +312,18 @@ static int speex_output_open(const char *fname, const char *comment)
 {
   Speex_ctx *ctx;
   int fd;
+
+#ifdef AU_VORBIS_DLL
+  {
+	  int flag = 0;
+		if(!load_ogg_dll())
+			flag = 1;
+		if(!flag){
+			free_ogg_dll();
+			return -1;
+		}
+  }
+#endif
 
   if (!(speex_ctx = (Speex_ctx *)calloc(sizeof(Speex_ctx), 1))) {
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s", strerror(errno));
@@ -395,11 +425,6 @@ static int speex_output_open(const char *fname, const char *comment)
   return fd;
 }
 
-/*
-  code from vorbis_a.c
- */
-extern char *create_auto_output_name(const char *input_filename, char *ext_str, char *output_dir, int mode);
-
 static int auto_speex_output_open(const char *input_filename, const char *title)
 {
   char *output_filename;
@@ -438,12 +463,11 @@ static int auto_speex_output_open(const char *input_filename, const char *title)
 static int open_output(void)
 {
   int include_enc, exclude_enc;
-
+///r
   include_enc = exclude_enc = 0;
-
   /* only 16 bit is supported */
-  include_enc |= PE_16BIT|PE_SIGNED;
-  exclude_enc |= PE_BYTESWAP|PE_24BIT;
+  include_enc |= PE_16BIT | PE_SIGNED;
+  exclude_enc |= PE_BYTESWAP | PE_ULAW | PE_ALAW | PE_24BIT | PE_32BIT | PE_F32BIT | PE_64BIT | PE_F64BIT;
   dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
 #if !defined (IA_W32GUI) && !defined (IA_W32G_SYN)
@@ -469,7 +493,7 @@ static int open_output(void)
   return 0;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int output_data(const uint8 *buf, size_t nbytes)
 {
   char cbits[MAX_FRAME_BYTES];
   Speex_ctx *ctx = speex_ctx;
@@ -631,6 +655,11 @@ static void close_output(void)
     speex_ctx->input = NULL;
     free(speex_ctx);
     speex_ctx = NULL;
+
+#ifdef AU_VORBIS_DLL
+  free_ogg_dll();
+#endif
+
   }
   return;
 }
@@ -639,11 +668,13 @@ static int acntl(int request, void *arg)
 {
   switch(request) {
   case PM_REQ_PLAY_START:
-    if(dpm.flag & PF_AUTO_SPLIT_FILE){
-      if(  ( NULL == current_file_info ) || (NULL == current_file_info->filename ) )
-        return auto_speex_output_open("Output.mid",NULL);
-      return auto_speex_output_open(current_file_info->filename, current_file_info->seq_name);
-   }
+    if (dpm.flag & PF_AUTO_SPLIT_FILE) {
+      const char *filename = (current_file_info && current_file_info->filename) ?
+			     current_file_info->filename : "Output.mid";
+      const char *seq_name = (current_file_info && current_file_info->seq_name) ?
+			     current_file_info->seq_name : NULL;
+      return auto_speex_output_open(filename, seq_name);
+    }
     return 0;
   case PM_REQ_PLAY_END:
     if(dpm.flag & PF_AUTO_SPLIT_FILE)

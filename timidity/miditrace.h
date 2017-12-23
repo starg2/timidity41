@@ -20,8 +20,17 @@
 
 #ifndef ___MIDITRACE_H_
 #define ___MIDITRACE_H_
+
 #include "mblock.h"
 #include "controls.h"
+
+#if defined(IA_W32GUI)
+/* トレースモード更新を全部タイマー使用 */
+//#define USE_TRACE_TIMER 1
+#define DEFAULT_TRACE_TIMER_ELAPSE (0) // ms 更新間隔
+#define MAX_TRACE_TIMER_ELAPSE (1000) // ms 更新間隔
+#endif
+
 
 typedef struct _MidiTrace
 {
@@ -56,5 +65,13 @@ extern int32 current_trace_samples(void);
 extern int32 trace_wait_samples(void);
 
 extern MidiTrace midi_trace;
+
+#ifdef USE_TRACE_TIMER
+extern int trace_mode_update_time;
+extern void set_trace_mode_update_time(void);
+extern void start_trace_timer(void);
+extern void stop_trace_timer(void);
+extern void trace_refresh(void);
+#endif // USE_TRACE_TIMER
 
 #endif /* ___MIDITRACE_H_ */

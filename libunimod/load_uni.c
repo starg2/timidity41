@@ -101,7 +101,7 @@ readstring (void)
   return s;
 }
 
-static BOOL
+BOOL 
 UNI_Test (void)
 {
   char id[6];
@@ -124,13 +124,13 @@ UNI_Test (void)
   return 0;
 }
 
-static BOOL
+BOOL 
 UNI_Init (void)
 {
   return 1;
 }
 
-static void
+void 
 UNI_Cleanup (void)
 {
   _mm_free (wh);
@@ -526,7 +526,7 @@ loadsmp5 (void)
   return 1;
 }
 
-static BOOL
+BOOL 
 UNI_Load (BOOL curious)
 {
   int t;
@@ -749,7 +749,7 @@ UNI_Load (BOOL curious)
   return 1;
 }
 
-static CHAR *
+CHAR *
 UNI_LoadTitle (void)
 {
   UBYTE ver;

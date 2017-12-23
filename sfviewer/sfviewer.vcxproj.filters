@@ -1,0 +1,172 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\timidity">
+      <UniqueIdentifier>{f680707d-2a89-4910-9095-bddecae42202}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\timidity">
+      <UniqueIdentifier>{8bafd6d4-af63-4587-974a-65459d193319}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\libarc">
+      <UniqueIdentifier>{094700e9-2521-45ee-b89d-6bf56e38d67a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\utils">
+      <UniqueIdentifier>{6539ebf7-0a92-4893-b2ed-6c5bc2da68f0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\sf_view_gui\resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sf_view_gui\OpenDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\common.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\controls.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\filter.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\instrum.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\mt19937ar.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\myini.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\output.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\playmidi.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\readmidi.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\resample.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\reverb.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\sffile.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\sfitem.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\sflayer.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\tables.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\timidity.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\wrd.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libarc\arc.h">
+      <Filter>Header Files\libarc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\mblock.h">
+      <Filter>Header Files\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\timidity\quantity.h">
+      <Filter>Header Files\timidity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\support.h">
+      <Filter>Header Files\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\interface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\sf_view_gui\sfview_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sf_view_gui\mysndfont.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sf_view_gui\OpenDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\common.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\controls.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\filter.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\freq.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\instrum.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\mt19937ar.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\myini.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\quantity.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\resample.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sbkconv.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sffile.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\sfitem.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\smplfile.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\timidity\tables.c">
+      <Filter>Source Files\timidity</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\sf_view_gui\bitmap1.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\sf_view_gui\icon1.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\sf_view_gui\sfview_dlg.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

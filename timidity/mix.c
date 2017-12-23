@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "interface.h"
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -37,2046 +38,568 @@
 #include "resample.h"
 #include "mix.h"
 
-#ifdef SMOOTH_MIXING
-#ifdef LOOKUP_HACK
-/* u2l: 0..255 -> -32256..32256
- * shift 3 bit: -> within MAX_AMP_VALUE
- */
-#define FROM_FINAL_VOLUME(a) (_u2l[(uint8) ~(a)] >> 3)
-#else
-#define FROM_FINAL_VOLUME(a) (a)
-#endif
+#include "thread.h"
+#include "int_synth.h"
+
+
+///r 
+#ifdef __BORLANDC__
+#define inline
 #endif
 
 #define OFFSET_MAX (0x3FFFFFFFL)
 
-#if OPT_MODE != 0
-#define VOICE_LPF
-#endif
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
 
-typedef int32 mix_t;
-
-#ifdef LOOKUP_HACK
-#define MIXATION(a) *lp++ += mixup[(a << 8) | (uint8) s]
-#else
+#ifdef EFFECT_LEVEL_FLOAT // effect level float // not yet
+#define MAX_AMP_VALUE ((1<<(AMP_BITS+1))-1)
+#define MIN_AMP_VALUE (MAX_AMP_VALUE >> 9)
+#define FINAL_VOLUME(v) (v)
+#define MIXATION(a) *lp++ += (a) * s
+#else // effect level int
+#define MAX_AMP_VALUE ((1<<(AMP_BITS+1))-1)
+#define MIN_AMP_VALUE (MAX_AMP_VALUE >> 9)
+const FLOAT_T sample_level = ((double)(1 << (SAMPLE_BITS - 1)));
+#define FINAL_VOLUME(v) (v * sample_level)
 #define MIXATION(a) *lp++ += (a) * s
 #endif
+const final_volume_t mul_amp = 1U << AMP_BITS;
+const final_volume_t max_amp_value = MAX_AMP_VALUE;
 
-#define DELAYED_MIXATION(a) *lp++ += pan_delay_buf[pan_delay_spt];	\
-	if (++pan_delay_spt == PAN_DELAY_BUF_MAX) {pan_delay_spt = 0;}	\
-	pan_delay_buf[pan_delay_wpt] = (a) * s;	\
-	if (++pan_delay_wpt == PAN_DELAY_BUF_MAX) {pan_delay_wpt = 0;}
+#else // DATA_T_INT32
 
-void mix_voice(int32 *, int, int32);
-static inline int do_voice_filter(int, resample_t*, mix_t*, int32);
-static inline void recalc_voice_resonance(int);
-static inline void recalc_voice_fc(int);
-static inline void ramp_out(mix_t *, int32 *, int, int32);
-static inline void mix_mono_signal(mix_t *, int32 *, int, int);
-static inline void mix_mono(mix_t *, int32 *, int, int);
-static inline void mix_mystery_signal(mix_t *, int32 *, int, int);
-static inline void mix_mystery(mix_t *, int32 *, int, int);
-static inline void mix_center_signal(mix_t *, int32 *, int, int);
-static inline void mix_center(mix_t *, int32 *, int, int);
-static inline void mix_single_signal(mix_t *, int32 *, int, int);
-static inline void mix_single(mix_t *, int32 *, int, int);
-static inline int update_signal(int);
-static inline int update_envelope(int);
-int recompute_envelope(int);
-static inline int update_modulation_envelope(int);
-int apply_modulation_envelope(int);
-int recompute_modulation_envelope(int);
-static inline void voice_ran_out(int);
-static inline int next_stage(int);
-static inline int modenv_next_stage(int);
-static inline void update_tremolo(int);
-int apply_envelope_to_amp(int);
-#ifdef SMOOTH_MIXING
-static inline void compute_mix_smoothing(Voice *);
-#endif
-
-int min_sustain_time = 5000;
-
-static mix_t filter_buffer[AUDIO_BUFFER_SIZE];
-
-/**************** interface function ****************/
-void mix_voice(int32 *buf, int v, int32 c)
-{
-	Voice *vp = voice + v;
-	resample_t *sp;
-
-	if (vp->status == VOICE_DIE) {
-		if (c >= MAX_DIE_TIME)
-			c = MAX_DIE_TIME;
-		sp = resample_voice(v, &c);
-		if (do_voice_filter(v, sp, filter_buffer, c)) {sp = filter_buffer;}
-		if (c > 0)
-			ramp_out(sp, buf, v, c);
-		free_voice(v);
-	} else {
-		vp->delay_counter = c;
-		if (vp->delay) {
-			if (c < vp->delay) {
-				vp->delay -= c;
-				if (vp->tremolo_phase_increment)
-					update_tremolo(v);
-				if (opt_modulation_envelope && vp->sample->modes & MODES_ENVELOPE)
-					update_modulation_envelope(v);
-				return;
-			}
-			if (play_mode->encoding & PE_MONO)
-				buf += vp->delay;
-			else
-				buf += vp->delay * 2;
-			c -= vp->delay;
-			vp->delay = 0;
-		}
-		sp = resample_voice(v, &c);
-		if (do_voice_filter(v, sp, filter_buffer, c)) {sp = filter_buffer;}
-
-		if (play_mode->encoding & PE_MONO) {
-			/* Mono output. */
-			if (vp->envelope_increment || vp->tremolo_phase_increment)
-				mix_mono_signal(sp, buf, v, c);
-			else
-				mix_mono(sp, buf, v, c);
-		} else {
-			if (vp->panned == PANNED_MYSTERY) {
-				if (vp->envelope_increment || vp->tremolo_phase_increment)
-					mix_mystery_signal(sp, buf, v, c);
-				else
-					mix_mystery(sp, buf, v, c);
-			} else if (vp->panned == PANNED_CENTER) {
-				if (vp->envelope_increment || vp->tremolo_phase_increment)
-					mix_center_signal(sp, buf, v, c);
-				else
-					mix_center(sp, buf, v, c);
-			} else {
-				/* It's either full left or full right. In either case,
-				 * every other sample is 0. Just get the offset right:
-				 */
-				if (vp->panned == PANNED_RIGHT)
-					buf++;
-				if (vp->envelope_increment || vp->tremolo_phase_increment)
-					mix_single_signal(sp, buf, v, c);
-				else
-					mix_single(sp, buf, v, c);
-			}
-		}
-	}
-}
-
-/* return 1 if filter is enabled. */
-#ifdef __BORLANDC__
-static int do_voice_filter(int v, resample_t *sp, mix_t *lp, int32 count)
+#ifdef LOOKUP_HACK
+#define MAX_AMP_VALUE 4095
+#define MIN_AMP_VALUE (MAX_AMP_VALUE >> 9)
+#define FINAL_VOLUME(v) ((final_volume_t)~_l2u[v])
+#define MIXATION(a) *lp++ += mixup[(a << 8) | (uint8) s]
 #else
-static inline int do_voice_filter(int v, resample_t *sp, mix_t *lp, int32 count)
+#define MAX_AMP_VALUE ((1<<(AMP_BITS+1))-1)
+#define MIN_AMP_VALUE (MAX_AMP_VALUE >> 9)
+#define FINAL_VOLUME(v) (v)
+#define MIXATION(a) *lp++ += (a) * s
 #endif
-{
-	FilterCoefficients *fc = &(voice[v].fc);
-	int32 i, f, q, p, b0, b1, b2, b3, b4, t1, t2, x;
+const final_volume_t mul_amp = 1U << AMP_BITS;
+int32 amp_bits = AMP_BITS;
+const int32 max_amp_value = MAX_AMP_VALUE;
+
+#endif // DATA_T_INT32
+
+
+void mix_voice(DATA_T *, int, int32);
+
+
+#if 0 // dim voice buffer
+static ALIGN DATA_T voice_buffer[AUDIO_BUFFER_SIZE * RESAMPLE_OVER_SAMPLING_MAX];
+#else // malloc voice buffer
+static DATA_T *voice_buffer = NULL;
+#endif // malloc voice buffer
+
+
+/*************** mix.c initialize uninitialize *****************/
+
+#ifdef MULTI_THREAD_COMPUTE
+void init_thread_mix_c(void);
+void free_thread_mix_c(void);
+#endif
+
+void init_mix_c(void)
+{	
+#ifdef ALIGN_SIZE
+	const int min_compute_sample = 8;
+	int byte = ((compute_buffer_size + min_compute_sample) * RESAMPLE_OVER_SAMPLING_MAX) * sizeof(DATA_T);
+#else
+	int byte = compute_buffer_size * RESAMPLE_OVER_SAMPLING_MAX * sizeof(DATA_T);
+#endif
+
+	if(byte < (AUDIO_BUFFER_SIZE * sizeof(DATA_T)))
+		byte = AUDIO_BUFFER_SIZE * sizeof(DATA_T);
 	
-	if (fc->type == 1) {	/* copy with applying Chamberlin's lowpass filter. */
-		recalc_voice_resonance(v);
-		recalc_voice_fc(v);
-		f = fc->f, q = fc->q, b0 = fc->b0, b1 = fc->b1, b2 = fc->b2;
-		for(i = 0; i < count; i++) {
-			b0 = b0 + imuldiv24(b2, f);
-			b1 = sp[i] - b0 - imuldiv24(b2, q);
-			b2 = imuldiv24(b1, f) + b2;
-			lp[i] = b0;
-		}
-		fc->b0 = b0, fc->b1 = b1, fc->b2 = b2;
-		return 1;
-	} else if(fc->type == 2) {	/* copy with applying Moog lowpass VCF. */
-		recalc_voice_resonance(v);
-		recalc_voice_fc(v);
-		f = fc->f, q = fc->q, p = fc->p, b0 = fc->b0, b1 = fc->b1,
-			b2 = fc->b2, b3 = fc->b3, b4 = fc->b4;
-		for(i = 0; i < count; i++) {
-			x = sp[i] - imuldiv24(q, b4);	/* feedback */
-			t1 = b1;  b1 = imuldiv24(x + b0, p) - imuldiv24(b1, f);
-			t2 = b2;  b2 = imuldiv24(b1 + t1, p) - imuldiv24(b2, f);
-			t1 = b3;  b3 = imuldiv24(b2 + t2, p) - imuldiv24(b3, f);
-			lp[i] = b4 = imuldiv24(b3 + t1, p) - imuldiv24(b4, f);
-			b0 = x;
-		}
-		fc->b0 = b0, fc->b1 = b1, fc->b2 = b2, fc->b3 = b3, fc->b4 = b4;
-		return 1;
-	} else {
-		return 0;
+#if 0 // dim voice_buffer
+
+#else // malloc voice_buffer
+#ifdef ALIGN_SIZE
+	if(voice_buffer){
+		aligned_free(voice_buffer);
+		voice_buffer = NULL;
 	}
+	voice_buffer = (DATA_T *)aligned_malloc(byte, ALIGN_SIZE);
+#else
+	if(voice_buffer){
+		safe_free(voice_buffer);
+		voice_buffer = NULL;
+	}
+	voice_buffer = (DATA_T *)safe_malloc(byte);
+#endif
+#endif // malloc voice_buffer
+	memset(voice_buffer, 0, byte);
+
+#ifdef MULTI_THREAD_COMPUTE
+	init_thread_mix_c();
+#endif		
 }
 
-//#define MOOG_RESONANCE_MAX 0.897638f
-#define MOOG_RESONANCE_MAX 0.88f
-
-static inline void recalc_voice_resonance(int v)
+void free_mix_c(void)
 {
-	double q;
-	FilterCoefficients *fc = &(voice[v].fc);
+#if 0 // dim voice_buffer
+
+#else // malloc voice_buffer
+#ifdef ALIGN_SIZE
+	if(voice_buffer){
+		aligned_free(voice_buffer);
+		voice_buffer = NULL;
+	}
+#else
+	if(voice_buffer){
+		safe_free(voice_buffer);
+		voice_buffer = NULL;
+	}
+#endif
+#endif
+#ifdef MULTI_THREAD_COMPUTE
+	free_thread_mix_c();
+#endif		
+}
+
+
+
+/****************  ****************/
+
+
+#ifdef NEW_LEGATO
+static void compute_portament(int v, int32 c)
+{
+    Voice *vp = &voice[v];
+    int32 d;
 	
-	if (fc->reso_dB != fc->last_reso_dB || fc->q == 0) {
-		fc->last_reso_dB = fc->reso_dB;
-		if(fc->type == 1) {
-			q = 1.0 / chamberlin_filter_db_to_q_table[(int)(fc->reso_dB * 4)];
-			fc->q = TIM_FSCALE(q, 24);
-			if(fc->q <= 0) {fc->q = 1;}	/* must never be 0. */
-		} else if(fc->type == 2) {
-			fc->reso_lin = fc->reso_dB * MOOG_RESONANCE_MAX / 20.0f;
-			if (fc->reso_lin > MOOG_RESONANCE_MAX) {fc->reso_lin = MOOG_RESONANCE_MAX;}
-			else if(fc->reso_lin < 0) {fc->reso_lin = 0;}
+	if(vp->porta_status != 1)
+		return;
+    d = (int32)(vp->porta_dpb * c); 
+	if(d < 1)
+		d = 1;
+	if(vp->porta_pb == vp->porta_next_pb){
+		vp->porta_status = 0; // stop portament
+	}else if(vp->porta_pb < vp->porta_next_pb){
+		vp->porta_pb += d;
+		if(vp->porta_pb >= vp->porta_next_pb){
+			vp->porta_pb = vp->porta_next_pb;
+			vp->porta_status = 0; // stop portament
 		}
-		fc->last_freq = -1;
-	}
-}
-
-static inline void recalc_voice_fc(int v)
-{
-	double f, p, q, fr;
-	FilterCoefficients *fc = &(voice[v].fc);
-
-	if (fc->freq != fc->last_freq) {
-		if(fc->type == 1) {
-			f = 2.0 * sin(M_PI * (double)fc->freq / (double)play_mode->rate);
-			fc->f = TIM_FSCALE(f, 24);
-		} else if(fc->type == 2) {
-			fr = 2.0 * (double)fc->freq / (double)play_mode->rate;
-			q = 1.0 - fr;
-			p = fr + 0.8 * fr * q;
-			f = p + p - 1.0;
-			q = fc->reso_lin * (1.0 + 0.5 * q * (1.0 - q + 5.6 * q * q));
-			fc->f = TIM_FSCALE(f, 24);
-			fc->p = TIM_FSCALE(p, 24);
-			fc->q = TIM_FSCALE(q, 24);
+	}else{ // vp->porta_pb > porta_last_note_fine
+		vp->porta_pb -= d;
+		if(vp->porta_pb <= vp->porta_next_pb){
+			vp->porta_pb = vp->porta_next_pb;
+			vp->porta_status = 0; // stop portament
 		}
-		fc->last_freq = fc->freq;
 	}
+	vp->porta_out = vp->porta_pb - vp->porta_note_fine;
 }
-
-/* Ramp a note out in c samples */
-#ifdef __BORLANDC__
-static void ramp_out(mix_t *sp, int32 *lp, int v, int32 c)
 #else
-static inline void ramp_out(mix_t *sp, int32 *lp, int v, int32 c)
-#endif
+static void compute_portament(int v, int32 c)
 {
-	/* should be final_volume_t, but uint8 gives trouble. */
-	int32 left, right, li, ri, i;
-	/* silly warning about uninitialized s */
-	mix_t s = 0;
-#ifdef ENABLE_PAN_DELAY
-	Voice *vp = &voice[v];
-	int32 pan_delay_wpt = vp->pan_delay_wpt, *pan_delay_buf = vp->pan_delay_buf,
-		pan_delay_spt = vp->pan_delay_spt;
-#endif
+    Voice *vp = &voice[v];
+    int32 d;
 
-	left = voice[v].left_mix;
-	li = -(left / c);
-	if (! li)
-		li = -1;
-#if 0
-	printf("Ramping out: left=%d, c=%d, li=%d\n", left, c, li);
-#endif
-	if (! (play_mode->encoding & PE_MONO)) {
-		if (voice[v].panned == PANNED_MYSTERY) {
-#ifdef ENABLE_PAN_DELAY
-			right = voice[v].right_mix;
-			ri = -(right / c);
-			if(vp->pan_delay_rpt == 0) {
-				for (i = 0; i < c; i++) {
-					left += li;
-					if (left < 0)
-						left = 0;
-					right += ri;
-					if (right < 0)
-						right = 0;
-					s = *sp++;
-					MIXATION(left);
-					MIXATION(right);
-				}
-			} else if(vp->panning < 64) {
-				for (i = 0; i < c; i++) {
-					left += li;
-					if (left < 0)
-						left = 0;
-					right += ri;
-					if (right < 0)
-						right = 0;
-					s = *sp++;
-					MIXATION(left);
-					DELAYED_MIXATION(right);
-				}
-			} else {
-				for (i = 0; i < c; i++) {
-					left += li;
-					if (left < 0)
-						left = 0;
-					right += ri;
-					if (right < 0)
-						right = 0;
-					s = *sp++;
-					DELAYED_MIXATION(left);
-					MIXATION(right);
-				}
-			}
-			vp->pan_delay_wpt = pan_delay_wpt;
-			vp->pan_delay_spt = pan_delay_spt;
-#else
-			right = voice[v].right_mix;
-			ri = -(right / c);
-			for (i = 0; i < c; i++) {
-				left += li;
-				if (left < 0)
-					left = 0;
-				right += ri;
-				if (right < 0)
-					right = 0;
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(right);
-			}
-#endif /* ENABLE_PAN_DELAY */
-		} else if (voice[v].panned == PANNED_CENTER)
-			for (i = 0; i < c; i++) {
-				left += li;
-				if (left < 0)
-					return;
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(left);
-			}
-		else if (voice[v].panned == PANNED_LEFT)
-			for (i = 0; i < c; i++) {
-				left += li;
-				if (left < 0)
-					return;
-				s = *sp++;
-				MIXATION(left);
-				lp++;
-			}
-		else if (voice[v].panned == PANNED_RIGHT)
-			for (i = 0; i < c; i++) {
-				left += li;
-				if (left < 0)
-					return;
-				s = *sp++;
-				lp++;
-				MIXATION(left);
-			}
-	} else
-		/* Mono output. */
-		for (i = 0; i < c; i++) {
-			left += li;
-			if (left < 0)
-				return;
-			s = *sp++;
-			MIXATION(left);
-		}
+	if(!vp->porta_status)
+		return;
+    d = vp->porta_dpb * c;
+	if(d < 1)
+		d = 1;
+    if(vp->porta_pb < 0){
+		if(d > -vp->porta_pb)
+			d = -vp->porta_pb;
+	}else{
+		if(d > vp->porta_pb)
+			d = -vp->porta_pb;
+		else
+			d = -d;
+    }
+    if((vp->porta_pb += d) == 0)
+		vp->porta_status = 0;
 }
-
-#ifdef __BORLANDC__
-static void mix_mono_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_mono_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	Voice *vp = voice + v;
-	final_volume_t left = vp->left_mix;
-	int cc, i;
-	mix_t s;
-#ifdef SMOOTH_MIXING
-	int32 linear_left;
-#endif
-	
-	if (! (cc = vp->control_counter)) {
-		cc = control_ratio;
-		if (update_signal(v))
-			/* Envelope ran out */
-			return;
-		left = vp->left_mix;
-	}
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-#endif
-	while (count)
-		if (cc < count) {
-			count -= cc;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			for (i = 0; vp->left_mix_offset && i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			vp->old_left_mix = linear_left;
-			cc -= i;
-#endif
-			for (i = 0; i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-			}
-			cc = control_ratio;
-			if (update_signal(v))
-				/* Envelope ran out */
-				return;
-			left = vp->left_mix;
-#ifdef SMOOTH_MIXING
-			compute_mix_smoothing(vp);
-#endif
-		} else {
-			vp->control_counter = cc - count;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			for (i = 0; vp->left_mix_offset && i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			vp->old_left_mix = linear_left;
-			count -= i;
-#endif
-			for (i = 0; i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-			}
-			return;
-		}
-}
-
-#ifdef __BORLANDC__
-static void mix_mono(mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_mono(mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	final_volume_t left = voice[v].left_mix;
-	mix_t s;
-	int i;
-#ifdef SMOOTH_MIXING
-	Voice *vp = voice + v;
-	int32 linear_left;
-#endif
-	
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-	linear_left = FROM_FINAL_VOLUME(left);
-	if (vp->left_mix_offset) {
-		linear_left += vp->left_mix_offset;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	for (i = 0; vp->left_mix_offset && i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-		MIXATION(left);
-		vp->left_mix_offset += vp->left_mix_inc;
-		linear_left += vp->left_mix_inc;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	vp->old_left_mix = linear_left;
-	count -= i;
-#endif
-	for (i = 0; i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-	}
-}
-
-#ifdef ENABLE_PAN_DELAY
-#ifdef __BORLANDC__
-static void mix_mystery_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_mystery_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	Voice *vp = voice + v;
-	final_volume_t left = vp->left_mix, right = vp->right_mix;
-	int cc, i;
-	mix_t s;
-#ifdef SMOOTH_MIXING
-	int32 linear_left, linear_right;
-#endif
-	int32 pan_delay_wpt = vp->pan_delay_wpt, *pan_delay_buf = vp->pan_delay_buf,
-		pan_delay_spt = vp->pan_delay_spt;
-
-	if (! (cc = vp->control_counter)) {
-		cc = control_ratio;
-		if (update_signal(v))
-			/* Envelope ran out */
-			return;
-		left = vp->left_mix;
-		right = vp->right_mix;
-	}
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-#endif
-	while (count)
-		if (cc < count) {
-			count -= cc;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			linear_right = FROM_FINAL_VOLUME(right);
-			if (vp->right_mix_offset) {
-				linear_right += vp->right_mix_offset;
-				if (linear_right > MAX_AMP_VALUE) {
-					linear_right = MAX_AMP_VALUE;
-					vp->right_mix_offset = 0;
-				}
-				right = FINAL_VOLUME(linear_right);
-			}
-			if(vp->pan_delay_rpt == 0) {
-				for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-						&& i < cc; i++) {
-					s = *sp++;
-					MIXATION(left);
-					MIXATION(right);
-					if (vp->left_mix_offset) {
-						vp->left_mix_offset += vp->left_mix_inc;
-						linear_left += vp->left_mix_inc;
-						if (linear_left > MAX_AMP_VALUE) {
-							linear_left = MAX_AMP_VALUE;
-							vp->left_mix_offset = 0;
-						}
-						left = FINAL_VOLUME(linear_left);
-					}
-					if (vp->right_mix_offset) {
-						vp->right_mix_offset += vp->right_mix_inc;
-						linear_right += vp->right_mix_inc;
-						if (linear_right > MAX_AMP_VALUE) {
-							linear_right = MAX_AMP_VALUE;
-							vp->right_mix_offset = 0;
-						}
-						right = FINAL_VOLUME(linear_right);
-					}
-				}
-			} else if(vp->panning < 64) {
-				for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-						&& i < cc; i++) {
-					s = *sp++;
-					MIXATION(left);
-					DELAYED_MIXATION(right);
-					if (vp->left_mix_offset) {
-						vp->left_mix_offset += vp->left_mix_inc;
-						linear_left += vp->left_mix_inc;
-						if (linear_left > MAX_AMP_VALUE) {
-							linear_left = MAX_AMP_VALUE;
-							vp->left_mix_offset = 0;
-						}
-						left = FINAL_VOLUME(linear_left);
-					}
-					if (vp->right_mix_offset) {
-						vp->right_mix_offset += vp->right_mix_inc;
-						linear_right += vp->right_mix_inc;
-						if (linear_right > MAX_AMP_VALUE) {
-							linear_right = MAX_AMP_VALUE;
-							vp->right_mix_offset = 0;
-						}
-						right = FINAL_VOLUME(linear_right);
-					}
-				}
-			} else {
-				for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-						&& i < cc; i++) {
-					s = *sp++;
-					DELAYED_MIXATION(left);
-					MIXATION(right);
-					if (vp->left_mix_offset) {
-						vp->left_mix_offset += vp->left_mix_inc;
-						linear_left += vp->left_mix_inc;
-						if (linear_left > MAX_AMP_VALUE) {
-							linear_left = MAX_AMP_VALUE;
-							vp->left_mix_offset = 0;
-						}
-						left = FINAL_VOLUME(linear_left);
-					}
-					if (vp->right_mix_offset) {
-						vp->right_mix_offset += vp->right_mix_inc;
-						linear_right += vp->right_mix_inc;
-						if (linear_right > MAX_AMP_VALUE) {
-							linear_right = MAX_AMP_VALUE;
-							vp->right_mix_offset = 0;
-						}
-						right = FINAL_VOLUME(linear_right);
-					}
-				}
-			}
-			vp->old_left_mix = linear_left;
-			vp->old_right_mix = linear_right;
-			cc -= i;
-#endif
-			if(vp->pan_delay_rpt == 0) {
-				for (i = 0; i < cc; i++) {
-					s = *sp++;
-					MIXATION(left);
-					MIXATION(right);
-				}
-			} else if(vp->panning < 64) {
-				for (i = 0; i < cc; i++) {
-					s = *sp++;
-					MIXATION(left);
-					DELAYED_MIXATION(right);
-				}
-			} else {
-				for (i = 0; i < cc; i++) {
-					s = *sp++;
-					DELAYED_MIXATION(left);
-					MIXATION(right);
-				}
-			}
-
-			cc = control_ratio;
-			if (update_signal(v))
-				/* Envelope ran out */
-				return;
-			left = vp->left_mix;
-			right = vp->right_mix;
-#ifdef SMOOTH_MIXING
-			compute_mix_smoothing(vp);
-#endif
-		} else {
-			vp->control_counter = cc - count;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			linear_right = FROM_FINAL_VOLUME(right);
-			if (vp->right_mix_offset) {
-				linear_right += vp->right_mix_offset;
-				if (linear_right > MAX_AMP_VALUE) {
-					linear_right = MAX_AMP_VALUE;
-					vp->right_mix_offset = 0;
-				}
-				right = FINAL_VOLUME(linear_right);
-			}
-			if(vp->pan_delay_rpt == 0) {
-				for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-						&& i < count; i++) {
-					s = *sp++;
-					MIXATION(left);
-					MIXATION(right);
-					if (vp->left_mix_offset) {
-						vp->left_mix_offset += vp->left_mix_inc;
-						linear_left += vp->left_mix_inc;
-						if (linear_left > MAX_AMP_VALUE) {
-							linear_left = MAX_AMP_VALUE;
-							vp->left_mix_offset = 0;
-						}
-						left = FINAL_VOLUME(linear_left);
-					}
-					if (vp->right_mix_offset) {
-						vp->right_mix_offset += vp->right_mix_inc;
-						linear_right += vp->right_mix_inc;
-						if (linear_right > MAX_AMP_VALUE) {
-							linear_right = MAX_AMP_VALUE;
-							vp->right_mix_offset = 0;
-						}
-						right = FINAL_VOLUME(linear_right);
-					}
-				}
-			} else if(vp->panning < 64) {
-				for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-						&& i < count; i++) {
-					s = *sp++;
-					MIXATION(left);
-					DELAYED_MIXATION(right);
-					if (vp->left_mix_offset) {
-						vp->left_mix_offset += vp->left_mix_inc;
-						linear_left += vp->left_mix_inc;
-						if (linear_left > MAX_AMP_VALUE) {
-							linear_left = MAX_AMP_VALUE;
-							vp->left_mix_offset = 0;
-						}
-						left = FINAL_VOLUME(linear_left);
-					}
-					if (vp->right_mix_offset) {
-						vp->right_mix_offset += vp->right_mix_inc;
-						linear_right += vp->right_mix_inc;
-						if (linear_right > MAX_AMP_VALUE) {
-							linear_right = MAX_AMP_VALUE;
-							vp->right_mix_offset = 0;
-						}
-						right = FINAL_VOLUME(linear_right);
-					}
-				}
-			} else {
-				for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-						&& i < count; i++) {
-					s = *sp++;
-					DELAYED_MIXATION(left);
-					MIXATION(right);
-					if (vp->left_mix_offset) {
-						vp->left_mix_offset += vp->left_mix_inc;
-						linear_left += vp->left_mix_inc;
-						if (linear_left > MAX_AMP_VALUE) {
-							linear_left = MAX_AMP_VALUE;
-							vp->left_mix_offset = 0;
-						}
-						left = FINAL_VOLUME(linear_left);
-					}
-					if (vp->right_mix_offset) {
-						vp->right_mix_offset += vp->right_mix_inc;
-						linear_right += vp->right_mix_inc;
-						if (linear_right > MAX_AMP_VALUE) {
-							linear_right = MAX_AMP_VALUE;
-							vp->right_mix_offset = 0;
-						}
-						right = FINAL_VOLUME(linear_right);
-					}
-				}
-			}
-
-			vp->old_left_mix = linear_left;
-			vp->old_right_mix = linear_right;
-			count -= i;
-#endif
-			if(vp->pan_delay_rpt == 0) {
-				for (i = 0; i < count; i++) {
-					s = *sp++;
-					MIXATION(left);
-					MIXATION(right);
-				}
-			} else if(vp->panning < 64) {
-				for (i = 0; i < count; i++) {
-					s = *sp++;
-					MIXATION(left);
-					DELAYED_MIXATION(right);
-				}
-			} else {
-				for (i = 0; i < count; i++) {
-					s = *sp++;
-					DELAYED_MIXATION(left);
-					MIXATION(right);
-				}
-			}
-			vp->pan_delay_wpt = pan_delay_wpt;
-			vp->pan_delay_spt = pan_delay_spt;
-			return;
-		}
-}
-#else	/* ENABLE_PAN_DELAY */
-static inline void mix_mystery_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-{
-	Voice *vp = voice + v;
-	final_volume_t left = vp->left_mix, right = vp->right_mix;
-	int cc, i;
-	mix_t s;
-#ifdef SMOOTH_MIXING
-	int32 linear_left, linear_right;
 #endif
 
-	if (! (cc = vp->control_counter)) {
-		cc = control_ratio;
-		if (update_signal(v))
-			/* Envelope ran out */
-			return;
-		left = vp->left_mix;
-		right = vp->right_mix;
-	}
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-#endif
-	while (count)
-		if (cc < count) {
-			count -= cc;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			linear_right = FROM_FINAL_VOLUME(right);
-			if (vp->right_mix_offset) {
-				linear_right += vp->right_mix_offset;
-				if (linear_right > MAX_AMP_VALUE) {
-					linear_right = MAX_AMP_VALUE;
-					vp->right_mix_offset = 0;
-				}
-				right = FINAL_VOLUME(linear_right);
-			}
-			for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-					&& i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(right);
-				if (vp->left_mix_offset) {
-					vp->left_mix_offset += vp->left_mix_inc;
-					linear_left += vp->left_mix_inc;
-					if (linear_left > MAX_AMP_VALUE) {
-						linear_left = MAX_AMP_VALUE;
-						vp->left_mix_offset = 0;
-					}
-					left = FINAL_VOLUME(linear_left);
-				}
-				if (vp->right_mix_offset) {
-					vp->right_mix_offset += vp->right_mix_inc;
-					linear_right += vp->right_mix_inc;
-					if (linear_right > MAX_AMP_VALUE) {
-						linear_right = MAX_AMP_VALUE;
-						vp->right_mix_offset = 0;
-					}
-					right = FINAL_VOLUME(linear_right);
-				}
-			}
-			vp->old_left_mix = linear_left;
-			vp->old_right_mix = linear_right;
-			cc -= i;
-#endif
-			for (i = 0; i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(right);
-			}
-			cc = control_ratio;
-			if (update_signal(v))
-				/* Envelope ran out */
-				return;
-			left = vp->left_mix;
-			right = vp->right_mix;
-#ifdef SMOOTH_MIXING
-			compute_mix_smoothing(vp);
-#endif
-		} else {
-			vp->control_counter = cc - count;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			linear_right = FROM_FINAL_VOLUME(right);
-			if (vp->right_mix_offset) {
-				linear_right += vp->right_mix_offset;
-				if (linear_right > MAX_AMP_VALUE) {
-					linear_right = MAX_AMP_VALUE;
-					vp->right_mix_offset = 0;
-				}
-				right = FINAL_VOLUME(linear_right);
-			}
-			for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-					&& i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(right);
-				if (vp->left_mix_offset) {
-					vp->left_mix_offset += vp->left_mix_inc;
-					linear_left += vp->left_mix_inc;
-					if (linear_left > MAX_AMP_VALUE) {
-						linear_left = MAX_AMP_VALUE;
-						vp->left_mix_offset = 0;
-					}
-					left = FINAL_VOLUME(linear_left);
-				}
-				if (vp->right_mix_offset) {
-					vp->right_mix_offset += vp->right_mix_inc;
-					linear_right += vp->right_mix_inc;
-					if (linear_right > MAX_AMP_VALUE) {
-						linear_right = MAX_AMP_VALUE;
-						vp->right_mix_offset = 0;
-					}
-					right = FINAL_VOLUME(linear_right);
-				}
-			}
-			vp->old_left_mix = linear_left;
-			vp->old_right_mix = linear_right;
-			count -= i;
-#endif
-			for (i = 0; i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(right);
-			}
-			return;
-		}
-}
-#endif	/* ENABLE_PAN_DELAY */
-
-#ifdef ENABLE_PAN_DELAY
-#ifdef __BORLANDC__
-static void mix_mystery(mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_mystery(mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	final_volume_t left = voice[v].left_mix, right = voice[v].right_mix;
-	mix_t s;
-	int i;
-#ifdef SMOOTH_MIXING
-	Voice *vp = voice + v;
-	int32 linear_left, linear_right;
-#endif
-	int32 pan_delay_wpt = vp->pan_delay_wpt, *pan_delay_buf = vp->pan_delay_buf,
-		pan_delay_spt = vp->pan_delay_spt;
-
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-	linear_left = FROM_FINAL_VOLUME(left);
-	if (vp->left_mix_offset) {
-		linear_left += vp->left_mix_offset;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	linear_right = FROM_FINAL_VOLUME(right);
-	if (vp->right_mix_offset) {
-		linear_right += vp->right_mix_offset;
-		if (linear_right > MAX_AMP_VALUE) {
-			linear_right = MAX_AMP_VALUE;
-			vp->right_mix_offset = 0;
-		}
-		right = FINAL_VOLUME(linear_right);
-	}
-	if(vp->pan_delay_rpt == 0) {
-		for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-				&& i < count; i++) {
-			s = *sp++;
-			MIXATION(left);
-			MIXATION(right);
-			if (vp->left_mix_offset) {
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			if (vp->right_mix_offset) {
-				vp->right_mix_offset += vp->right_mix_inc;
-				linear_right += vp->right_mix_inc;
-				if (linear_right > MAX_AMP_VALUE) {
-					linear_right = MAX_AMP_VALUE;
-					vp->right_mix_offset = 0;
-				}
-				right = FINAL_VOLUME(linear_right);
-			}
-		}
-	} else if(vp->panning < 64) {
-		for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-				&& i < count; i++) {
-			s = *sp++;
-			MIXATION(left);
-			DELAYED_MIXATION(right);
-			if (vp->left_mix_offset) {
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			if (vp->right_mix_offset) {
-				vp->right_mix_offset += vp->right_mix_inc;
-				linear_right += vp->right_mix_inc;
-				if (linear_right > MAX_AMP_VALUE) {
-					linear_right = MAX_AMP_VALUE;
-					vp->right_mix_offset = 0;
-				}
-				right = FINAL_VOLUME(linear_right);
-			}
-		}
-	} else {
-		for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-				&& i < count; i++) {
-			s = *sp++;
-			DELAYED_MIXATION(left);
-			MIXATION(right);
-			if (vp->left_mix_offset) {
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			if (vp->right_mix_offset) {
-				vp->right_mix_offset += vp->right_mix_inc;
-				linear_right += vp->right_mix_inc;
-				if (linear_right > MAX_AMP_VALUE) {
-					linear_right = MAX_AMP_VALUE;
-					vp->right_mix_offset = 0;
-				}
-				right = FINAL_VOLUME(linear_right);
-			}
-		}
-	}
-
-	vp->old_left_mix = linear_left;
-	vp->old_right_mix = linear_right;
-	count -= i;
-#endif
-	if(vp->pan_delay_rpt == 0) {
-		for (i = 0; i < count; i++) {
-			s = *sp++;
-			MIXATION(left);
-			MIXATION(right);
-		}
-	} else if(vp->panning < 64) {
-		for (i = 0; i < count; i++) {
-			s = *sp++;
-			MIXATION(left);
-			DELAYED_MIXATION(right);
-		}
-	} else {
-		for (i = 0; i < count; i++) {
-			s = *sp++;
-			DELAYED_MIXATION(left);
-			MIXATION(right);
-		}
-	}
-	vp->pan_delay_wpt = pan_delay_wpt;
-	vp->pan_delay_spt = pan_delay_spt;
-}
-#else	/* ENABLE_PAN_DELAY */
-static inline void mix_mystery(mix_t *sp, int32 *lp, int v, int count)
-{
-	final_volume_t left = voice[v].left_mix, right = voice[v].right_mix;
-	mix_t s;
-	int i;
-#ifdef SMOOTH_MIXING
-	Voice *vp = voice + v;
-	int32 linear_left, linear_right;
-#endif
-
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-	linear_left = FROM_FINAL_VOLUME(left);
-	if (vp->left_mix_offset) {
-		linear_left += vp->left_mix_offset;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	linear_right = FROM_FINAL_VOLUME(right);
-	if (vp->right_mix_offset) {
-		linear_right += vp->right_mix_offset;
-		if (linear_right > MAX_AMP_VALUE) {
-			linear_right = MAX_AMP_VALUE;
-			vp->right_mix_offset = 0;
-		}
-		right = FINAL_VOLUME(linear_right);
-	}
-	for (i = 0; (vp->left_mix_offset | vp->right_mix_offset)
-			&& i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-		MIXATION(right);
-		if (vp->left_mix_offset) {
-			vp->left_mix_offset += vp->left_mix_inc;
-			linear_left += vp->left_mix_inc;
-			if (linear_left > MAX_AMP_VALUE) {
-				linear_left = MAX_AMP_VALUE;
-				vp->left_mix_offset = 0;
-			}
-			left = FINAL_VOLUME(linear_left);
-		}
-		if (vp->right_mix_offset) {
-			vp->right_mix_offset += vp->right_mix_inc;
-			linear_right += vp->right_mix_inc;
-			if (linear_right > MAX_AMP_VALUE) {
-				linear_right = MAX_AMP_VALUE;
-				vp->right_mix_offset = 0;
-			}
-			right = FINAL_VOLUME(linear_right);
-		}
-	}
-	vp->old_left_mix = linear_left;
-	vp->old_right_mix = linear_right;
-	count -= i;
-#endif
-	for (i = 0; i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-		MIXATION(right);
-	}
-}
-#endif	/* ENABLE_PAN_DELAY */
-
-
-#ifdef __BORLANDC__
-static void mix_center_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_center_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	Voice *vp = voice + v;
-	final_volume_t left=vp->left_mix;
-	int cc, i;
-	mix_t s;
-#ifdef SMOOTH_MIXING
-	int32 linear_left;
-#endif
-	
-	if (! (cc = vp->control_counter)) {
-		cc = control_ratio;
-		if (update_signal(v))
-			/* Envelope ran out */
-			return;
-		left = vp->left_mix;
-	}
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-#endif
-	while (count)
-		if (cc < count) {
-			count -= cc;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			for (i = 0; vp->left_mix_offset && i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(left);
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			vp->old_left_mix = vp->old_right_mix = linear_left;
-			cc -= i;
-#endif
-			for (i = 0; i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(left);
-			}
-			cc = control_ratio;
-			if (update_signal(v))
-				/* Envelope ran out */
-				return;
-			left = vp->left_mix;
-#ifdef SMOOTH_MIXING
-			compute_mix_smoothing(vp);
-#endif
-		} else {
-			vp->control_counter = cc - count;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			for (i = 0; vp->left_mix_offset && i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(left);
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			vp->old_left_mix = vp->old_right_mix = linear_left;
-			count -= i;
-#endif
-			for (i = 0; i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-				MIXATION(left);
-			}
-			return;
-		}
-}
-
-#ifdef __BORLANDC__
-static void mix_center(mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_center(mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	final_volume_t left = voice[v].left_mix;
-	mix_t s;
-	int i;
-#ifdef SMOOTH_MIXING
-	Voice *vp = voice + v;
-	int32 linear_left;
-#endif
-	
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-	linear_left = FROM_FINAL_VOLUME(left);
-	if (vp->left_mix_offset) {
-		linear_left += vp->left_mix_offset;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	for (i = 0; vp->left_mix_offset && i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-		MIXATION(left);
-		vp->left_mix_offset += vp->left_mix_inc;
-		linear_left += vp->left_mix_inc;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	vp->old_left_mix = vp->old_right_mix = linear_left;
-	count -= i;
-#endif
-	for (i = 0; i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-		MIXATION(left);
-	}
-}
-
-#ifdef __BORLANDC__
-static void mix_single_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_single_signal(
-		mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	Voice *vp = voice + v;
-	final_volume_t left = vp->left_mix;
-	int cc, i;
-	mix_t s;
-#ifdef SMOOTH_MIXING
-	int32 linear_left;
-#endif
-	
-	if (!(cc = vp->control_counter)) {
-		cc = control_ratio;
-		if (update_signal(v))
-			/* Envelope ran out */
-			return;
-		left = vp->left_mix;
-	}
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-#endif
-	while (count)
-		if (cc < count) {
-			count -= cc;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			for (i = 0; vp->left_mix_offset && i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-				lp++;
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			vp->old_left_mix = linear_left;
-			cc -= i;
-#endif
-			for (i = 0; i < cc; i++) {
-				s = *sp++;
-				MIXATION(left);
-				lp++;
-			}
-			cc = control_ratio;
-			if (update_signal(v))
-				/* Envelope ran out */
-				return;
-			left = vp->left_mix;
-#ifdef SMOOTH_MIXING
-			compute_mix_smoothing(vp);
-#endif
-		} else {
-			vp->control_counter = cc - count;
-#ifdef SMOOTH_MIXING
-			linear_left = FROM_FINAL_VOLUME(left);
-			if (vp->left_mix_offset) {
-				linear_left += vp->left_mix_offset;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			for (i = 0; vp->left_mix_offset && i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-				lp++;
-				vp->left_mix_offset += vp->left_mix_inc;
-				linear_left += vp->left_mix_inc;
-				if (linear_left > MAX_AMP_VALUE) {
-					linear_left = MAX_AMP_VALUE;
-					vp->left_mix_offset = 0;
-				}
-				left = FINAL_VOLUME(linear_left);
-			}
-			vp->old_left_mix = linear_left;
-			count -= i;
-#endif
-			for (i = 0; i < count; i++) {
-				s = *sp++;
-				MIXATION(left);
-				lp++;
-			}
-			return;
-		}
-}
-
-#ifdef __BORLANDC__
-static void mix_single(mix_t *sp, int32 *lp, int v, int count)
-#else
-static inline void mix_single(mix_t *sp, int32 *lp, int v, int count)
-#endif
-{
-	final_volume_t left = voice[v].left_mix;
-	mix_t s;
-	int i;
-#ifdef SMOOTH_MIXING
-	Voice *vp = voice + v;
-	int32 linear_left;
-#endif
-	
-#ifdef SMOOTH_MIXING
-	compute_mix_smoothing(vp);
-	linear_left = FROM_FINAL_VOLUME(left);
-	if (vp->left_mix_offset) {
-		linear_left += vp->left_mix_offset;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	for (i = 0; vp->left_mix_offset && i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-		lp++;
-		vp->left_mix_offset += vp->left_mix_inc;
-		linear_left += vp->left_mix_inc;
-		if (linear_left > MAX_AMP_VALUE) {
-			linear_left = MAX_AMP_VALUE;
-			vp->left_mix_offset = 0;
-		}
-		left = FINAL_VOLUME(linear_left);
-	}
-	vp->old_left_mix = linear_left;
-	count -= i;
-#endif
-	for (i = 0; i < count; i++) {
-		s = *sp++;
-		MIXATION(left);
-		lp++;
-	}
-}
-
-/* Returns 1 if the note died */
-#ifdef __BORLANDC__
-static int update_signal(int v)
-#else
-static inline int update_signal(int v)
-#endif
-{
-	Voice *vp = &voice[v];
-
-	if (vp->envelope_increment && update_envelope(v))
-		return 1;
-	if (vp->tremolo_phase_increment)
-		update_tremolo(v);
-	if (opt_modulation_envelope && vp->sample->modes & MODES_ENVELOPE)
-		update_modulation_envelope(v);
-	return apply_envelope_to_amp(v);
-}
-
-#ifdef __BORLANDC__
-static int update_envelope(int v)
-#else
-static inline int update_envelope(int v)
-#endif
-{
-	Voice *vp = &voice[v];
-	
-	vp->envelope_volume += vp->envelope_increment;
-	if ((vp->envelope_increment < 0)
-			^ (vp->envelope_volume > vp->envelope_target)) {
-		vp->envelope_volume = vp->envelope_target;
-		if (recompute_envelope(v))
-			return 1;
-	}
-	return 0;
-}
-
-static int get_eg_stage(int v, int stage)
-{
-	int eg_stage;
-	Voice *vp = &voice[v];
-
-	eg_stage = stage;
-	if (vp->sample->inst_type == INST_SF2) {
-		if (stage >= EG_SF_RELEASE) {
-			eg_stage = EG_RELEASE;
-		}
-	} else {
-		if (stage == EG_GUS_DECAY) {
-			eg_stage = EG_DECAY;
-		} else if (stage == EG_GUS_SUSTAIN) {
-			eg_stage = EG_NULL;
-		} else if (stage >= EG_GUS_RELEASE1) {
-			eg_stage = EG_RELEASE;
-		}
-	}
-	return eg_stage;
-}
-
-
-/* Returns 1 if envelope runs out */
-int recompute_envelope(int v)
-{
-	int stage, ch;
-	double sustain_time;
-	int32 envelope_width;
-	Voice *vp = &voice[v];
-	
-	stage = vp->envelope_stage;
-	if (stage > EG_GUS_RELEASE3) {
-		voice_ran_out(v);
-		return 1;
-	} else if (stage > EG_GUS_SUSTAIN && vp->envelope_volume <= 0) {
-		/* Remove silent voice in the release stage */
-		voice_ran_out(v);
-		return 1;
-	}
-
-	/* Routine to decay the sustain envelope
-	 *
-	 * Disabled if !min_sustain_time.
-	 * min_sustain_time is given in msec, and is the minimum
-	 *  time it will take to decay a note to zero.
-	 * 2000-3000 msec seem to be decent values to use.
-	 */
-	if (stage == EG_GUS_RELEASE1 && vp->sample->modes & MODES_ENVELOPE
-	    && vp->status & (VOICE_ON | VOICE_SUSTAINED)) {
-
-		int32 new_rate;
-			
-		ch = vp->channel;
-
-		/* Don't adjust the current rate if VOICE_ON */
-		if (vp->status & VOICE_ON)
-			return 0;
-		
-		if (min_sustain_time > 0 || channel[ch].loop_timeout > 0) {
-			if (min_sustain_time == 1)
-				/* The sustain stage is ignored. */
-				return next_stage(v);
-
-			if (channel[ch].loop_timeout > 0 &&
-			    channel[ch].loop_timeout * 1000 < min_sustain_time) {
-				/* timeout (See also "#extension timeout" line in *.cfg file */
-				sustain_time = channel[ch].loop_timeout * 1000;
-			}
-			else {
-				sustain_time = min_sustain_time;
-			}
-
-			/* Sustain must not be 0 or else lots of dead notes! */
-			if (channel[ch].sostenuto == 0 &&
-			    channel[ch].sustain > 0) {
-				sustain_time *= (double)channel[ch].sustain / 127.0f;
-			}
-
-			/* Calculate the width of the envelope */
-			envelope_width = sustain_time * play_mode->rate
-					 / (1000.0f * (double)control_ratio);
-
-			if (vp->sample->inst_type == INST_SF2) {
-				/* If the instrument is SoundFont, it sustains at the sustain stage. */
-				vp->envelope_increment = -1;
-				vp->envelope_target = vp->envelope_volume - envelope_width;
-				if (vp->envelope_target < 0) {vp->envelope_target = 0;}
-			} else {
-				/* Otherwise, it decays at the sustain stage. */
-				vp->envelope_target = 0;
-				new_rate = vp->envelope_volume / envelope_width;
-				/* Use the Release1 rate if slower than new rate */
-				if (vp->sample->envelope_rate[EG_GUS_RELEASE1] &&
-					vp->sample->envelope_rate[EG_GUS_RELEASE1] < new_rate)
-						new_rate = vp->sample->envelope_rate[EG_GUS_RELEASE1];
-				/* Use the Sustain rate if slower than new rate */
-				/* (Sustain rate exists only in GUS patches) */
-				if (vp->sample->inst_type == INST_GUS &&
-					vp->sample->envelope_rate[EG_GUS_SUSTAIN] &&
-					vp->sample->envelope_rate[EG_GUS_SUSTAIN] < new_rate)
-						new_rate = vp->sample->envelope_rate[EG_GUS_SUSTAIN];
-				/* Avoid freezing */
-				if (!new_rate)
-					new_rate = 1;
-				vp->envelope_increment = -new_rate;
-			}
-		}
-		return 0;
-	}
-	return next_stage(v);
-}
-
-/* Envelope ran out. */
-static inline void voice_ran_out(int v)
-{
-	/* Already displayed as dead */
-	int died = (voice[v].status == VOICE_DIE);
-	
-	free_voice(v);
-	if (! died)
-		ctl_note_event(v);
-}
-
-#ifdef __BORLANDC__
-static int next_stage(int v)
-#else
-static inline int next_stage(int v)
-#endif
-{
-	int stage, ch, eg_stage;
-	int32 offset, val;
-	FLOAT_T rate, temp_rate;
-	Voice *vp = &voice[v];
-
-	stage = vp->envelope_stage++;
-	offset = vp->sample->envelope_offset[stage];
-	rate = vp->sample->envelope_rate[stage];
-	if (vp->envelope_volume == offset
-			|| (stage > EG_GUS_SUSTAIN && vp->envelope_volume < offset))
-		return recompute_envelope(v);
-	ch = vp->channel;
-	/* there is some difference between GUS patch and Soundfont at envelope. */
-	eg_stage = get_eg_stage(v, stage);
-
-	/* HACK -- force ramps to occur over 20 msec windows to avoid pops */
-	/* Do not apply to attack envelope */
-	if (eg_stage > EG_ATTACK)
-	{
-		temp_rate = control_ratio * (labs(vp->envelope_volume - offset) /
-					(play_mode->rate * 0.02));
-		if (temp_rate < 1)
-			temp_rate = 1;
-		if (rate < 0)
-			temp_rate = -temp_rate;
-		if (fabs(temp_rate) < fabs(rate))
-			rate = temp_rate;
-	}
-
-	/* envelope generator (see also playmidi.[ch]) */
-	if (ISDRUMCHANNEL(ch))
-		val = (channel[ch].drums[vp->note] != NULL)
-				? channel[ch].drums[vp->note]->drum_envelope_rate[eg_stage]
-				: -1;
-	else {
-		if (vp->sample->envelope_keyf[stage])	/* envelope key-follow */
-			rate *= pow(2.0, (double) (voice[v].note - 60)
-					* (double)vp->sample->envelope_keyf[stage] / 1200.0f);
-		val = channel[ch].envelope_rate[eg_stage];
-	}
-	if (vp->sample->envelope_velf[stage])	/* envelope velocity-follow */
-		rate *= pow(2.0, (double) (voice[v].velocity - vp->sample->envelope_velf_bpo)
-				* (double)vp->sample->envelope_velf[stage] / 1200.0f);
-
-	/* just before release-phase, some modifications are necessary */
-	if (stage > EG_GUS_SUSTAIN) {
-		/* adjusting release-rate for consistent release-time */
-		rate *= (double) vp->envelope_volume
-				/ vp->sample->envelope_offset[EG_GUS_ATTACK];
-		/* calculating current envelope scale and a inverted value for optimization */
-		vp->envelope_scale = vp->last_envelope_volume;
-		vp->inv_envelope_scale = TIM_FSCALE(OFFSET_MAX / (double)vp->envelope_volume, 16);
-	}
-
-	/* regularizing envelope */
-	if (offset < vp->envelope_volume) {	/* decaying phase */
-		if (val != -1) {
-			if(eg_stage > EG_DECAY) {
-				rate *= sc_eg_release_table[val & 0x7f];
-			} else {
-				rate *= sc_eg_decay_table[val & 0x7f];
-			}
-
-			if (fabs(rate) > OFFSET_MAX)
-				rate = (rate > 0) ? OFFSET_MAX : -OFFSET_MAX;
-			else if (fabs(rate) < 1)
-				rate = (rate > 0) ? 1 : -1;
-		}
-		if(stage < EG_SF_DECAY && rate > OFFSET_MAX) {	/* instantaneous decay */
-			vp->envelope_volume = offset;
-			return recompute_envelope(v);
-		} else if(rate > vp->envelope_volume - offset) {	/* fastest decay */
-			rate = -vp->envelope_volume + offset - 1;
-		} else if (rate < 1) {	/* slowest decay */
-			rate = -1;
-		}
-		else {	/* ordinary decay */
-			rate = -rate;
-		}
-	} else {	/* attacking phase */
-		if (val != -1) {
-			rate *= sc_eg_attack_table[val & 0x7f];
-
-			if (fabs(rate) > OFFSET_MAX)
-				rate = (rate > 0) ? OFFSET_MAX : -OFFSET_MAX;
-			else if (fabs(rate) < 1)
-				rate = (rate > 0) ? 1 : -1;
-		}
-		if(stage < EG_SF_DECAY && rate > OFFSET_MAX) {	/* instantaneous attack */
-			vp->envelope_volume = offset;
-			return recompute_envelope(v);
-		} else if(rate > offset - vp->envelope_volume) {	/* fastest attack */
-			rate = offset - vp->envelope_volume + 1;
-		} else if (rate < 1) {rate =  1;}	/* slowest attack */
-	}
-
-	/* HACK -- force ramps to occur over 20 msec windows to avoid pops */
-	/* Do not apply to attack envelope */
-	/* Must check again in case the above conditions shortened it */
-	if (eg_stage > EG_ATTACK)
-	{
-		temp_rate = control_ratio * (labs(vp->envelope_volume - offset) /
-					(play_mode->rate * 0.02));
-		if (temp_rate < 1)
-			temp_rate = 1;
-		if (rate < 0)
-			temp_rate = -temp_rate;
-		if (fabs(temp_rate) < fabs(rate))
-			rate = temp_rate;
-	}
-
-	vp->envelope_increment = (int32)rate;
-	vp->envelope_target = offset;
-
-	return 0;
-}
-
-#ifdef __BORLANDC__
-static void update_tremolo(int v)
-#else
 static inline void update_tremolo(int v)
-#endif
 {
 	Voice *vp = &voice[v];
-	int32 depth = vp->tremolo_depth << 7;
+//	const FLOAT_T tuning = TREMOLO_AMPLITUDE_TUNING; // * DIV_15BIT; // def DIV_17BIT
 
-	if(vp->tremolo_delay > 0)
-	{
-		vp->tremolo_delay -= vp->delay_counter;
-		if(vp->tremolo_delay > 0) {
-			vp->tremolo_volume = 1.0;
-			return;
-		}
-		vp->tremolo_delay = 0;
-	}
-	if (vp->tremolo_sweep) {
-		/* Update sweep position */
-		vp->tremolo_sweep_position += vp->tremolo_sweep;
-		if (vp->tremolo_sweep_position >= 1 << SWEEP_SHIFT)
-			/* Swept to max amplitude */
-			vp->tremolo_sweep = 0;
-		else {
-			/* Need to adjust depth */
-			depth *= vp->tremolo_sweep_position;
-			depth >>= SWEEP_SHIFT;
-		}
-	}
-	vp->tremolo_phase += vp->tremolo_phase_increment;
-#if 0
-	if (vp->tremolo_phase >= SINE_CYCLE_LENGTH << RATE_SHIFT)
-		vp->tremolo_phase -= SINE_CYCLE_LENGTH << RATE_SHIFT;
-#endif
-
-	if(vp->sample->inst_type == INST_SF2) {
-	vp->tremolo_volume = 1.0 + TIM_FSCALENEG(
-			lookup_sine(vp->tremolo_phase >> RATE_SHIFT)
-			* depth * TREMOLO_AMPLITUDE_TUNING, 17);
-	} else {
-	vp->tremolo_volume = 1.0 + TIM_FSCALENEG(
-			lookup_sine(vp->tremolo_phase >> RATE_SHIFT)
-			* depth * TREMOLO_AMPLITUDE_TUNING, 17);
-	}
-	/* I'm not sure about the +1.0 there -- it makes tremoloed voices'
-	 *  volumes on average the lower the higher the tremolo amplitude.
-	 */
+	FLOAT_T vol;	
+	vol = (1.0 + vp->lfo2.out * vp->lfo_amp_depth[0])
+		* (1.0 + vp->lfo1.out * vp->lfo_amp_depth[1]);
+	vp->tremolo_volume = vol;
 }
 
+
+static inline void mix_mystery_signal(DATA_T *sp, DATA_T *lp, int v, int count)
+{
+	Voice *vp = voice + v;
+	int i;
+	DATA_T s;
+	
+	if (play_mode->encoding & PE_MONO) {
+		/* Mono output. */
+		if(opt_mix_envelope > 0){
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				s = *sp++;
+				if(!(i & mix_env_mask))
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+				MIXATION(vp->mix_env.vol[0]);
+			}
+			if(!check_envelope0(&vp->amp_env) && !check_envelope2(&vp->mix_env))
+				 vp->finish_voice = 2; // set finish voice
+		}else{
+			for (i = 0; i < count; i++) {
+				s = *sp++;
+				MIXATION(vp->left_mix);
+			}
+			if(!check_envelope0(&vp->amp_env))
+				 vp->finish_voice = 2; // set finish voice
+		}
+	}else{
+		if(opt_mix_envelope >= 4){
+
+// multi 4sample * 2ch	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			__m128d vevol, vspx, vsp1, vsp2;
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+					vevol = _mm_loadu_pd(vp->mix_env.vol);
+#else
+					vevol = _mm_cvtps_pd(_mm_load_ps(vp->mix_env.vol));
+#endif
+				}
+				vspx = _mm_loadu_pd(sp);
+				vsp1 = _mm_shuffle_pd(vspx, vspx, 0x0);
+				vsp2 = _mm_shuffle_pd(vspx, vspx, 0x3);
+				MM_LSU_FMA_PD(lp, vsp1, vevol);
+				lp += 2;
+				MM_LSU_FMA_PD(lp, vsp2, vevol);
+				lp += 2;
+				sp += 2;
+				vspx = _mm_loadu_pd(sp);
+				vsp1 = _mm_shuffle_pd(vspx, vspx, 0x0);
+				vsp2 = _mm_shuffle_pd(vspx, vspx, 0x3);
+				MM_LSU_FMA_PD(lp, vsp1, vevol);
+				lp += 2;
+				MM_LSU_FMA_PD(lp, vsp2, vevol);
+				lp += 2;
+				sp += 2;
+			}	
+
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+			__m128 vevol, vsp, vsp1, vsp2;
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+#if (USE_X86_EXT_INTRIN >= 3)
+					vevol = _mm_cvtpd_ps(_mm_loadu_pd(vp->mix_env.vol));
+#else
+					vevol = _mm_set_ps(0, 0, (float)vp->mix_env.vol[1], (float)vp->mix_env.vol[0]);
+#endif
+#else
+					vevol = _mm_loadu_ps(vp->mix_env.vol);
+#endif
+					vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
+				}
+				vsp = _mm_loadu_ps(sp);
+				vsp1 = _mm_shuffle_ps(vsp, vsp, 0x50); // [0,1,2,3] to {0,0,1,1]
+				vsp2 = _mm_shuffle_ps(vsp, vsp, 0xfa); // [0,1,2,3] to {2,2,3,3]
+				MM_LSU_FMA_PS(lp, vsp1, vevol);
+				lp += 4;
+				MM_LSU_FMA_PS(lp, vsp2, vevol);
+				lp += 4;
+				sp += 4;
+			}
+
+#else // ! USE_X86_EXT_INTRIN
+			DATA_T voll, volr;
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+					voll = vp->mix_env.vol[0];
+					volr = vp->mix_env.vol[1];
+				}
+				s = *sp++;
+				MIXATION(voll); MIXATION(volr);
+				s = *sp++;
+				MIXATION(voll); MIXATION(volr);
+				s = *sp++;
+				MIXATION(voll); MIXATION(volr);
+				s = *sp++;
+				MIXATION(voll); MIXATION(volr);
+			}
+#endif // USE_X86_EXT_INTRIN
+			
+			if(!check_envelope0(&vp->amp_env) && !check_envelope2(&vp->mix_env))
+				vp->finish_voice = 2; // set finish voice
+		}else if(opt_mix_envelope > 0){
+
+// single 1sample * 2ch
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			__m128d vevol;
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+					vevol = _mm_loadu_pd(vp->mix_env.vol);
+#else
+					vevol = _mm_cvtps_pd(_mm_load_ps(vp->mix_env.vol));
+#endif
+				}
+				MM_LSU_FMA_PD(lp, MM_LOAD1_PD(sp++), vevol);
+				lp += 2;
+			}
+
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)			
+			__m128 vevol;
+			__m128 vsp;
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+#if (USE_X86_EXT_INTRIN >= 3)
+					vevol = _mm_cvtpd_ps(_mm_loadu_pd(vp->mix_env.vol));
+#else
+					vevol = _mm_set_ps(0, 0, (float)vp->mix_env.vol[1], (float)vp->mix_env.vol[0]);
+#endif
+#else
+					vevol = _mm_loadu_ps(vp->mix_env.vol);
+#endif
+					vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
+				}
+				vsp = _mm_loadu_ps(sp++);
+				vsp = _mm_shuffle_ps(vsp, vsp, 0x50); // [0,1,2,3] to {0,0,1,1]
+				vsp = MM_FMA_PS(vsp, vevol, _mm_loadu_ps(lp));
+				_mm_storel_pi((__m64 *)lp, vsp);
+				lp += 2;
+			}
+
+#else // ! USE_X86_EXT_INTRIN
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i++) {
+				s = *sp++;
+				if(!(i & mix_env_mask))
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+				MIXATION(vp->mix_env.vol[0]); MIXATION(vp->mix_env.vol[1]);
+			}
+#endif // USE_X86_EXT_INTRIN
+
+			if(!check_envelope0(&vp->amp_env) && !check_envelope2(&vp->mix_env))
+				vp->finish_voice = 2; // set finish voice
+		}else{ // mix_env off
+
+// single 2sample * 2ch
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			__m128d vevol = _mm_set_pd((double)vp->left_mix, (double)vp->left_mix);
+			for (i = 0; i < count; i += 2) {
+				MM_LSU_FMA_PD(lp, MM_LOAD1_PD(sp++), vevol);
+				lp += 2;
+				MM_LSU_FMA_PD(lp, MM_LOAD1_PD(sp++), vevol);
+				lp += 2;
+			}
+
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)	
+			__m128 vsp;		
+			__m128 vevol = _mm_set_ps(0, 0, (float)vp->right_mix, (float)vp->left_mix);
+			vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
+			for (i = 0; i < count; i += 2) {
+				vsp = _mm_loadu_ps(sp);
+				vsp = _mm_shuffle_ps(vsp, vsp, 0x50); // [0,1,2,3] to {0,0,1,1]
+				MM_LSU_FMA_PS(lp, vevol, _mm_loadu_ps(lp));
+				lp += 4;
+				sp += 2;
+			}
+			
+#else // ! USE_X86_EXT_INTRIN
+			for (i = 0; i < count; i++) {
+				s = *sp++;
+				MIXATION(vp->left_mix); MIXATION(vp->right_mix);
+			}
+#endif // USE_X86_EXT_INTRIN
+
+			if(!check_envelope0(&vp->amp_env))
+				vp->finish_voice = 2; // set finish voice
+		}
+	}
+}
+
+
+
+///r
 int apply_envelope_to_amp(int v)
 {
 	Voice *vp = &voice[v];
-	FLOAT_T lamp = vp->left_amp, ramp,
-		*v_table = vp->sample->inst_type == INST_SF2 ? sb_vol_table : vol_table;
+	double lamp, ramp;
 	int32 la, ra;
-	
+
 	if (vp->panned == PANNED_MYSTERY) {
-		ramp = vp->right_amp;
-		if (vp->tremolo_phase_increment) {
-			lamp *= vp->tremolo_volume;
-			ramp *= vp->tremolo_volume;
-		}
+
+		lamp = vp->vol_env.vol[0];
+		ramp = vp->vol_env.vol[1];
+		lamp *= vp->tremolo_volume;
+		ramp *= vp->tremolo_volume;
 		if (vp->sample->modes & MODES_ENVELOPE) {
-			if (vp->envelope_stage > 3)
-				vp->last_envelope_volume = v_table[
-						imuldiv16(vp->envelope_volume,
-						vp->inv_envelope_scale) >> 20]
-						* vp->envelope_scale;
-			else if (vp->envelope_stage > 1)
-				vp->last_envelope_volume = v_table[
-						vp->envelope_volume >> 20];
-			else
-				vp->last_envelope_volume = attack_vol_table[
-				vp->envelope_volume >> 20];
-			lamp *= vp->last_envelope_volume;
-			ramp *= vp->last_envelope_volume;
+			lamp *= vp->amp_env.volume;
+			ramp *= vp->amp_env.volume;
 		}
-		la = TIM_FSCALE(lamp, AMP_BITS);
-		if (la > MAX_AMP_VALUE)
-			la = MAX_AMP_VALUE;
-		ra = TIM_FSCALE(ramp, AMP_BITS);
-		if (ra > MAX_AMP_VALUE)
-			ra = MAX_AMP_VALUE;
-		if ((vp->status & (VOICE_OFF | VOICE_SUSTAINED))
-				&& (la | ra) <= 0) {
-			free_voice(v);
-			ctl_note_event(v);
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		lamp *= mul_amp;
+		ramp *= mul_amp;
+		if (lamp > max_amp_value){
+			lamp = max_amp_value;}
+		else if (lamp < 0){lamp = 0;}
+		if (ramp > max_amp_value){
+			ramp = max_amp_value;}
+		else if (ramp < 0){ramp = 0;}
+		vp->left_mix = FINAL_VOLUME(lamp);
+		vp->right_mix = FINAL_VOLUME(ramp);
+#else
+		la = TIM_FSCALE(lamp, amp_bits);
+		if (la > max_amp_value){la = max_amp_value;}
+		else if (la < 0){la = 0;}
+		ra = TIM_FSCALE(ramp, amp_bits);
+		if (ra > max_amp_value){ra = max_amp_value;}
+		else if (ra < 0){ra = 0;}
+#if 0
+		if ((vp->status & (VOICE_OFF | VOICE_SUSTAINED)) && (la | ra) <= 0) {
+			vp->finish_voice = 2; // set finish voice
 			return 1;
 		}
+#endif
 		vp->left_mix = FINAL_VOLUME(la);
 		vp->right_mix = FINAL_VOLUME(ra);
+#endif
+
 	} else {
-		if (vp->tremolo_phase_increment)
-			lamp *= vp->tremolo_volume;
-		if (vp->sample->modes & MODES_ENVELOPE) {
-			if (vp->envelope_stage > 3)
-				vp->last_envelope_volume = v_table[
-						imuldiv16(vp->envelope_volume,
-						vp->inv_envelope_scale) >> 20]
-						* vp->envelope_scale;
-			else if (vp->envelope_stage > 1)
-				vp->last_envelope_volume = v_table[
-						vp->envelope_volume >> 20];
-			else
-				vp->last_envelope_volume = attack_vol_table[
-				vp->envelope_volume >> 20];
-			lamp *= vp->last_envelope_volume;
-		}
-		la = TIM_FSCALE(lamp, AMP_BITS);
-		if (la > MAX_AMP_VALUE)
-		la = MAX_AMP_VALUE;
-		if ((vp->status & (VOICE_OFF | VOICE_SUSTAINED))
-				&& la <= 0) {
-			free_voice(v);
-			ctl_note_event(v);
+		lamp = vp->vol_env.vol[0];
+		lamp *= vp->tremolo_volume;
+		if (vp->sample->modes & MODES_ENVELOPE)
+			lamp *= vp->amp_env.volume;
+#if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
+		lamp *= mul_amp;
+		if (lamp > max_amp_value){lamp = max_amp_value;}
+		else if (lamp < 0){lamp = 0;}
+		vp->left_mix = FINAL_VOLUME(lamp);
+		vp->right_mix = vp->left_mix;
+#else
+		la = TIM_FSCALE(lamp, amp_bits);
+		if (la > max_amp_value){la = max_amp_value;}
+		else if (la < 0){la = 0;}
+#if 0
+		if ((vp->status & (VOICE_OFF | VOICE_SUSTAINED)) && la <= 0) {
+			vp->finish_voice = 2; // set finish voice
 			return 1;
 		}
+#endif
 		vp->left_mix = FINAL_VOLUME(la);
+#endif
 	}
 	return 0;
 }
 
-#ifdef SMOOTH_MIXING
-#ifdef __BORLANDC__
-static inline void compute_mix_smoothing(Voice *vp)
+
+/**************** interface function ****************/
+void mix_voice(DATA_T *buf, int v, int32 c)
+{
+	Voice *vp = voice + v;
+	DATA_T *sp = voice_buffer;
+	int delay_cnt, env = vp->sample->modes & MODES_ENVELOPE;
+			
+	if(!vp->init_voice)
+		init_voice(v);
+	else if(vp->update_voice)
+		update_voice(v);
+	reset_envelope2(&vp->vol_env, vp->left_amp, vp->right_amp, ENVELOPE_KEEP);
+	compute_envelope2(&vp->vol_env, c);
+	if(env)
+		delay_cnt = compute_envelope0(&vp->amp_env, c); // prev resample_voice()
+	else
+		delay_cnt = compute_envelope0_delay(&vp->amp_env, c); // only delay count
+	if (delay_cnt) {
+		if(delay_cnt == c)
+			return;
+		else if (play_mode->encoding & PE_MONO)
+			buf += delay_cnt;
+		else
+			buf += delay_cnt * 2;
+		c -= delay_cnt;
+	}		
+	if((++vp->mod_update_count) >= opt_modulation_update)
+		vp->mod_update_count = 0;
+	if(!vp->mod_update_count){	
+		int scnt = c * opt_modulation_update;		
+		if (opt_modulation_envelope && env){
+			compute_envelope0(&vp->mod_env, scnt);
+			compute_envelope4(&vp->pit_env, scnt);
+		}
+		compute_oscillator(&vp->lfo1, scnt);
+		compute_oscillator(&vp->lfo2, scnt);
+		update_tremolo(v);	
+		compute_portament(v, scnt);
+		recompute_voice_lfo(v);
+		recompute_voice_amp(v);
+		recompute_voice_pitch(v);
+		recompute_voice_filter(v);
+		recompute_resample_filter(v);
+	}
+	apply_envelope_to_amp(v);
+#ifdef INT_SYNTH
+	switch(vp->sample->inst_type){
+	case INST_GUS:
+	case INST_SF2:
+	case INST_MOD:
+	case INST_PCM:
+		if(opt_resample_over_sampling){
+			int32 c2 = c * opt_resample_over_sampling;
+			resample_voice(v, sp, c2);
+			resample_filter(v, sp, c2);
+			resample_down_sampling(sp, c);
+		}else{
+			resample_voice(v, sp, c);
+			resample_filter(v, sp, c);
+		}
+		break;
+	case INST_MMS:
+		compute_voice_mms(v, sp, c);
+		break;
+	case INST_SCC:
+		compute_voice_scc(v, sp, c);
+		break;
+	}
 #else
-static inline void compute_mix_smoothing(Voice *vp)
+	if(opt_resample_over_sampling){
+		int32 c2 = c * opt_resample_over_sampling;
+		resample_voice(v, sp, c2);
+		resample_filter(v, sp, c2);
+		resample_down_sampling(sp, c);
+	}else{
+		resample_voice(v, sp, c);
+		resample_filter(v, sp, c);
+	}
 #endif
-{
-	int32 max_win, delta;
-
-	/* reduce popping -- ramp the amp over a 20 msec window */
-	max_win = (play_mode->rate * 0.02) / control_ratio;
-	delta = FROM_FINAL_VOLUME(vp->left_mix) - vp->old_left_mix;
-	if (labs(delta) > max_win) {
-		vp->left_mix_inc = delta / max_win;
-		vp->left_mix_offset = vp->left_mix_inc * (1 - max_win);
-	} else if (delta) {
-		vp->left_mix_inc = -1;
-		if (delta > 0)
-			vp->left_mix_inc = 1;
-		vp->left_mix_offset = vp->left_mix_inc - delta;
-	}
-	delta = FROM_FINAL_VOLUME(vp->right_mix) - vp->old_right_mix;
-	if (labs(delta) > max_win) {
-		vp->right_mix_inc = delta / max_win;
-		vp->right_mix_offset = vp->right_mix_inc * (1 - max_win);
-	} else if (delta) {
-		vp->right_mix_inc = -1;
-		if (delta > 0)
-			vp->right_mix_inc = 1;
-		vp->right_mix_offset = vp->right_mix_inc - delta;
-	}
-}
+#ifdef VOICE_EFFECT
+	voice_effect(v, sp, c);
 #endif
+	voice_filter(v, sp, c);
+	mix_mystery_signal(sp, buf, v, c);	
+	if(vp->finish_voice >= 2 || vp->finish_voice && !vp->sample->keep_voice)
+		free_voice(v);
+}
 
-#ifdef __BORLANDC__
-static int update_modulation_envelope(int v)
-#else
-static inline int update_modulation_envelope(int v)
+
+
+
+
+#ifdef MULTI_THREAD_COMPUTE
+#include "thread_mix.c"
 #endif
-{
-	Voice *vp = &voice[v];
-
-	if(vp->modenv_delay > 0) {
-		vp->modenv_delay -= vp->delay_counter;
-		if(vp->modenv_delay > 0) {return 1;}
-		vp->modenv_delay = 0;
-	}
-	vp->modenv_volume += vp->modenv_increment;
-	if ((vp->modenv_increment < 0)
-			^ (vp->modenv_volume > vp->modenv_target)) {
-		vp->modenv_volume = vp->modenv_target;
-		if (recompute_modulation_envelope(v)) {
-			apply_modulation_envelope(v);
-			return 1;
-		}
-	}
-
-	apply_modulation_envelope(v);
-	
-	return 0;
-}
-
-int apply_modulation_envelope(int v)
-{
-	Voice *vp = &voice[v];
-
-	if(!opt_modulation_envelope) {return 0;}
-
-	if (vp->sample->modes & MODES_ENVELOPE) {
-		vp->last_modenv_volume = modenv_vol_table[vp->modenv_volume >> 20];
-	}
-
-	recompute_voice_filter(v);
-	if(!(vp->porta_control_ratio && vp->porta_control_counter == 0)) {
-		recompute_freq(v);
-	}
-	return 0;
-}
-
-static inline int modenv_next_stage(int v)
-{
-	int stage, ch, eg_stage;
-	int32 offset, val;
-	FLOAT_T rate;
-	Voice *vp = &voice[v];
-	
-	stage = vp->modenv_stage++;
-	offset = vp->sample->modenv_offset[stage];
-	rate = vp->sample->modenv_rate[stage];
-	if (vp->modenv_volume == offset
-			|| (stage > EG_GUS_SUSTAIN && vp->modenv_volume < offset))
-		return recompute_modulation_envelope(v);
-	else if(stage < EG_SF_DECAY && rate > OFFSET_MAX) {	/* instantaneous attack */
-			vp->modenv_volume = offset;
-			return recompute_modulation_envelope(v);
-	}
-	ch = vp->channel;
-	/* there is some difference between GUS patch and Soundfont at envelope. */
-	eg_stage = get_eg_stage(v, stage);
-
-	/* envelope generator (see also playmidi.[ch]) */
-	if (ISDRUMCHANNEL(ch))
-		val = (channel[ch].drums[vp->note] != NULL)
-				? channel[ch].drums[vp->note]->drum_envelope_rate[eg_stage]
-				: -1;
-	else {
-		if (vp->sample->modenv_keyf[stage])	/* envelope key-follow */
-			rate *= pow(2.0, (double) (voice[v].note - 60)
-					* (double)vp->sample->modenv_keyf[stage] / 1200.0f);
-		val = channel[ch].envelope_rate[eg_stage];
-	}
-	if (vp->sample->modenv_velf[stage])
-		rate *= pow(2.0, (double) (voice[v].velocity - vp->sample->modenv_velf_bpo)
-				* (double)vp->sample->modenv_velf[stage] / 1200.0f);
-
-	/* just before release-phase, some modifications are necessary */
-	if (stage > EG_GUS_SUSTAIN) {
-		/* adjusting release-rate for consistent release-time */
-		rate *= (double) vp->modenv_volume
-				/ vp->sample->modenv_offset[EG_GUS_ATTACK];
-	}
-
-	/* regularizing envelope */
-	if (offset < vp->modenv_volume) {	/* decaying phase */
-		if (val != -1) {
-			if(stage > EG_DECAY) {
-				rate *= sc_eg_release_table[val & 0x7f];
-			} else {
-				rate *= sc_eg_decay_table[val & 0x7f];
-			}
-		}
-		if(rate > vp->modenv_volume - offset) {	/* fastest decay */
-			rate = -vp->modenv_volume + offset - 1;
-		} else if (rate < 1) {	/* slowest decay */
-			rate = -1;
-		} else {	/* ordinary decay */
-			rate = -rate;
-		}
-	} else {	/* attacking phase */
-		if (val != -1)
-			rate *= sc_eg_attack_table[val & 0x7f];
-		if(rate > offset - vp->modenv_volume) {	/* fastest attack */
-			rate = offset - vp->modenv_volume + 1;
-		} else if (rate < 1) {rate = 1;}	/* slowest attack */
-	}
-	
-	vp->modenv_increment = (int32)rate;
-	vp->modenv_target = offset;
-
-	return 0;
-}
-
-int recompute_modulation_envelope(int v)
-{
-	int stage, ch;
-	double sustain_time;
-	int32 modenv_width;
-	Voice *vp = &voice[v];
-
-	if(!opt_modulation_envelope) {return 0;}
-
-	stage = vp->modenv_stage;
-	if (stage > EG_GUS_RELEASE3) {return 1;}
-	else if (stage > EG_GUS_SUSTAIN && vp->modenv_volume <= 0) {
-		return 1;
-	}
-
-	/* Routine to sustain modulation envelope
-	 *
-	 * Disabled if !min_sustain_time.
-	 * min_sustain_time is given in msec, and is the minimum
-	 *  time it will take to sustain a note.
-	 * 2000-3000 msec seem to be decent values to use.
-	 */
-	if (stage == EG_GUS_RELEASE1 && vp->sample->modes & MODES_ENVELOPE
-	    && vp->status & (VOICE_ON | VOICE_SUSTAINED)) {
-		ch = vp->channel;
-
-		/* Don't adjust the current rate if VOICE_ON */
-		if (vp->status & VOICE_ON)
-			return 0;
-		
-		if (min_sustain_time > 0 || channel[ch].loop_timeout > 0) {
-			if (min_sustain_time == 1)
-				/* The sustain stage is ignored. */
-				return modenv_next_stage(v);
-
-			if (channel[ch].loop_timeout > 0 &&
-			    channel[ch].loop_timeout * 1000 < min_sustain_time) {
-				/* timeout (See also "#extension timeout" line in *.cfg file */
-				sustain_time = channel[ch].loop_timeout * 1000;
-			}
-			else {
-				sustain_time = min_sustain_time;
-			}
-
-			/* Sustain must not be 0 or else lots of dead notes! */
-			if (channel[ch].sostenuto == 0 &&
-			    channel[ch].sustain > 0) {
-				sustain_time *= (double)channel[ch].sustain / 127.0f;
-			}
-
-			/* Calculate the width of the envelope */
-			modenv_width = sustain_time * play_mode->rate
-				       / (1000.0f * (double)control_ratio);
-			vp->modenv_increment = -1;
-			vp->modenv_target = vp->modenv_volume - modenv_width;
-			if (vp->modenv_target < 0) {vp->modenv_target = 0;}
-		}
-		return 0;
-	}
-	return modenv_next_stage(v);
-}

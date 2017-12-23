@@ -25,25 +25,31 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
+
+#ifdef AU_AO
 
 #include <ao/ao.h>
 
 #include "timidity.h"
+#include "common.h"
 #include "output.h"
 #include "controls.h"
 #include "timer.h"
 #include "instrum.h"
 #include "playmidi.h"
 #include "miditrace.h"
-#include "common.h"
 
 static int opt_ao_device_id = -2;
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
-static int output_data(char *buf, int32 nbytes);
+static int output_data(const uint8 *buf, size_t nbytes);
 static int acntl(int request, void *arg);
 static int detect(void);
 static void ao_set_options(int, ao_option **);
@@ -136,7 +142,7 @@ static int open_output(void)
 
   int driver_count;
   ao_info **devices;
-  ao_option *options = NULL;
+  ao_option *options = 0;
   int i;
 
   ao_initialize();
@@ -213,7 +219,7 @@ static int open_output(void)
   return 0;
 }
 
-static int output_data(char *buf, int32 nbytes)
+static int output_data(const uint8 *buf, size_t nbytes)
 {
   if (ao_play(ao_device_ctx, buf, nbytes) == 0) {
     ctl->cmsg(CMSG_WARNING, VERB_VERBOSE, "%s: %s",
@@ -252,7 +258,11 @@ static int detect(void)
   ao_initialize();
 
   /* Only succeed in autodetect mode when pulseaudio is available! */
+#if defined(__W32__)
+  driver_id = ao_driver_id("wmm");
+#else
   driver_id = ao_driver_id("pulse");
+#endif
 
   ao_sample_format_ctx.rate = 44100;
   ao_sample_format_ctx.bits = 16;
@@ -269,3 +279,5 @@ static int detect(void)
 
   return result;
 }
+
+#endif /* AU_AO */

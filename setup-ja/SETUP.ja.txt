@@ -1,0 +1,64 @@
+======================================================================
+	TiMidity++インストールガイド
+
+					出雲正尚
+					<iz@onicos.co.jp>
+					2004年03月01日
+					バージョン2.13.0以降
+======================================================================
+
+TiMidity++は，単体では音を鳴らすことができません。必ず音源データが必要
+になります。音源データとしては，GUS/patchかSoundFont(か両方)が使えます。
+なので，まずこれらのファイルを入手して，設定ファイルに指定する必要があ
+ります。TiMidity++の設定ファイルは，デフォルトでは
+/usr/local/share/timidity/timidity.cfg
+(WindowsではC:\WINDOWS\TIMIDITY.CFG)にあります。
+
+音源ファイルは，インターネット上にたくさん存在しています。一部は以下の
+URLからたどることができるでしょう。
+
+* http://www.onicos.com/staff/iz/timidity/link.html#gus
+* http://www.onicos.com/staff/iz/timidity/dist/cfg/ (Some sample *.cfg's)
+* http://www.i.h.kyoto-u.ac.jp/~shom/timidity/ (10M and 4M patches)
+* ftp://ftp.cdrom.com/pub/gus/sound/patches/files/ (GUS site)
+
+もし，イケてる音源アーカイブを手に入れたら，適切なディレクトリに展開し
+て，音源データの名前とパスを*.cfgファイルに設定しましょう。
+
+コンソール版:
+  timidity.exe
+
+GUI版:
+  timw32g.exe
+  お好みによりtimpp32g.iniを編集してください。
+
+GUIシンセサイザ版:
+  twsyng.exe
+  お好みによりtimpp32g.iniを編集してください。
+
+GUIシンセサイザ・サービスモード版:
+  twsynsrv.exe
+  お好みによりtimpp32g.iniを編集してください。
+
+======================================================================
+TiMidity++用Eawpatches
+======================================================================
+
+TiMidityは単体では動作せず，音源パッチを組み合わせたGUS/patchを必要とし
+ます。*.midファイルは波形情報を持っていないため，MIDIからWAVEに変換する
+のにGUS/patchを用います。なお“パッチ”とは，MIDIの専門用語で音源ファイ
+ルの一種です。
+
+多くのGUS/patchは，インターネットから入手できます。これらのパッチを集め
+て，TiMidity用にパッチセットを作っている人々がいます。Eric A. Welshさん
+<ewelsh@gpc.ibc.wustl.edu>のパッチがお勧めです。
+
+TiMidity++用Eawpatchesを使うためのインストール手順を下記に示します。
+
+1. http://www.stardate.bc.ca/eawpatches/html/default.htmを訪ねる。
+2. “Getting Eawpatches”をクリック。
+3. UNRARを持っていない場合はインストールしておく。
+4. Eawpats RARファイルをダウンロードする。
+5. Ericパッチセットを入れる新しいディレクトリ“C:\timidity”を作成する。
+6. RARファイルを“C:\timidity”に展開する。
+7. このディレクトリのファイルすべてを“C:\timidity”に移動する。
