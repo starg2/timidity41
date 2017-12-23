@@ -1,6 +1,6 @@
 
 add_library(
-    pdcurses SHARED
+    pdcurses STATIC
 
     pdcurses/addch.c
     pdcurses/addchstr.c
@@ -58,5 +58,3 @@ add_library(
     win32/pdcwin.h
     term.h
 )
-
-target_link_libraries(pdcurses user32 advapi32)

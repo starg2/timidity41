@@ -156,6 +156,7 @@ set(
     libunimod
     utils
 
+    pdcurses
     speex
 
     comctl32

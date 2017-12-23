@@ -45,9 +45,6 @@ add_definitions(
 
 # MSVCRT
     -D_CRT_SECURE_NO_WARNINGS
-
-# pdcurses
-    -DPDC_DLL_BUILD
 )
 
 if(MSVC)
@@ -78,6 +75,7 @@ endif()
 
 include_directories("." interface libarc libunimod pdcurses portaudio/pa_common timidity utils)
 
+add_subdirectory(pdcurses)
 add_subdirectory(speex)
 
 add_subdirectory(interface)
