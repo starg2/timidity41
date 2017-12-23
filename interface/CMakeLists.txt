@@ -108,11 +108,11 @@ add_library(
     ${INTERFACE_W32G_COMMON_SOURCES}
 )
 
-target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN)
+target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -DTWSYNG32)
 
 add_library(
     interface_w32gsyn_res OBJECT
     w32g_res.rc
 )
 
-target_compile_definitions(interface_w32gsyn_res PRIVATE -DIA_W32G_SYN)
+target_compile_definitions(interface_w32gsyn_res PRIVATE -DIA_W32G_SYN -DTWSYNG32)

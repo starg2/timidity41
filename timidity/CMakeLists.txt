@@ -200,5 +200,5 @@ add_executable(
     $<TARGET_OBJECTS:interface_w32gsyn_res>
 )
 
-target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN)
+target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN -DTWSYNG32)
 target_link_libraries(twsyng interface_w32gsyn ${TIMIDITY_COMMON_LIBS})
