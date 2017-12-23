@@ -25,6 +25,13 @@ add_definitions(
 
 # TiMidity++ audio
     -DAU_W32
+    -DAU_VORBIS
+    -DAU_VORBIS_DLL
+    -DAU_FLAC
+    -DAU_FLAC_DLL
+    -DAU_PORTAUDIO
+    -DAU_PORTAUDIO_DLL
+    -DPORTAUDIO_V19
 
 # network
     -DWINSOCK
@@ -69,7 +76,7 @@ else()
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -s")
 endif()
 
-include_directories("." interface libarc libunimod pdcurses timidity utils)
+include_directories("." interface libarc libunimod pdcurses portaudio/pa_common timidity utils)
 
 add_subdirectory(speex)
 
