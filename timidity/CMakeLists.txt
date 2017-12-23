@@ -156,6 +156,8 @@ set(
     libunimod
     utils
 
+    speex
+
     comctl32
     ws2_32
 )

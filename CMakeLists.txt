@@ -71,6 +71,8 @@ endif()
 
 include_directories("." interface libarc libunimod pdcurses timidity utils)
 
+add_subdirectory(speex)
+
 add_subdirectory(interface)
 add_subdirectory(libarc)
 add_subdirectory(libunimod)
