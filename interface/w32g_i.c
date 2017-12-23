@@ -60,7 +60,7 @@ int WINAPI timeKillEvent(UINT uTimerID);
 			 * Edit_* and ListBox_* are defined in
 			 * <windowsx.h>
 			 */
-#include "interface.h"
+
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"

@@ -28,7 +28,7 @@
 #ifdef __POCC__
 #include <sys/types.h>
 #endif //for off_t
-#include "interface.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -1,5 +1,5 @@
 #include "config.h"
-#include "interface.h"
+
 #include "timidity.h"
 #include "instrum.h"
 #include "common.h"

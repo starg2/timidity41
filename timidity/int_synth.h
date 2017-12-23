@@ -23,7 +23,7 @@
 #ifndef ___INT_SYNTH_H_
 #define ___INT_SYNTH_H_
 
-#include "interface.h"
+
 #include "filter.h"
 
 

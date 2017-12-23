@@ -25,7 +25,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
-#include "interface.h"
+
 #include "common.h"
 
 #ifndef VORBIS_DLL_INCLUDE_VORBISENC

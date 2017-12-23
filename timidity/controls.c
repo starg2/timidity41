@@ -29,7 +29,7 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
-#include "interface.h"
+
 #include "timidity.h"
 #include "controls.h"
 

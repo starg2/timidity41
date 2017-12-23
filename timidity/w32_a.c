@@ -28,7 +28,7 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#include "interface.h"
+
 #include "timidity.h"
 
 #include <stdio.h>
@@ -167,7 +167,7 @@ typedef WAVEFORMATEXTENSIBLE *PWAVEFORMATEXTENSIBLE, *LPWAVEFORMATEXTENSIBLE;
 #include "instrum.h"
 #include "playmidi.h"
 #include "mblock.h"
-#include "interface.h"
+
 
 #define NOT !
 

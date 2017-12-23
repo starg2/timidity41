@@ -60,7 +60,7 @@
 #include "filter.h"
 #include "freq.h"
 #include "resample.h"
-#include "interface.h"
+
 #include "sndfontini.h"
 
 #define SF2_24BIT 1

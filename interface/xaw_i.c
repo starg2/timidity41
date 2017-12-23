@@ -4590,7 +4590,7 @@ get_user_home_dir(void) {
   return p;
 }
 
-#include "interface.h"
+
 #if defined(IA_MOTIF)
 /*
  * Switch -lXm's vendorShellWidgetClass to -lXaw's vendorShellWidgetClass

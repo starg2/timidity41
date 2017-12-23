@@ -31,7 +31,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
-#include "interface.h"
+
 #ifdef STDC_HEADERS
 #include <string.h>
 #include <ctype.h>

@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
 
-#include "interface.h"
+
 #include "timidity.h"
 #include "common.h"
 #include "output.h"

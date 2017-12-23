@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #endif // for off_t
 #ifdef __W32__
-#include "interface.h"
+
 #endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H

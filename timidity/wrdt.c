@@ -35,7 +35,7 @@
 #include "playmidi.h"
 #include "readmidi.h"
 #include "arc.h"
-#include "interface.h"
+
 
 /*
  * Remap WRD @COLOR(16)-@COLOR(23) to RGB plain number.

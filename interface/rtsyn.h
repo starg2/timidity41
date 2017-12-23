@@ -26,7 +26,7 @@
             Copyright (c) 2000  Takashi Iwai <tiwai@suse.de>
         readmidi.c
 */
-#include "interface.h"
+
 
 #include <stdio.h>
 

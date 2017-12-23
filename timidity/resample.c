@@ -33,7 +33,7 @@
 #include <strings.h>
 #endif
 
-#include "interface.h"
+
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
