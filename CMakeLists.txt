@@ -26,6 +26,12 @@ add_definitions(
 # TiMidity++ audio
     -DAU_W32
 	-DAU_WASAPI
+	-DAU_OPUS
+	-DAU_OPUS_DLL
+	-DAU_SPEEX
+	-DAU_LAME
+	-DAU_GOGO
+	-DAU_GOGO_DLL
     -DAU_VORBIS
     -DAU_VORBIS_DLL
     -DAU_FLAC
