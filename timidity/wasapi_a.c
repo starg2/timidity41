@@ -51,7 +51,7 @@ Portions of this repo are provided under the SIL Open Font License.
 See the LICENSE file in individual samples for additional details
 ----
 
-Written by Starg. <https://osdn.net/users/starg/pf/timidity_mod/wiki/FrontPage>
+Written by Starg. <https://osdn.net/projects/timidity41/>
 
 */
 
