@@ -1,6 +1,7 @@
 
 add_definitions(
-    [[-DTIMID_VERSION="current"]]
+    [[-DVERSION="41.0.211.0"]]
+    [[-DTIMID_VERSION="41.0.211.0"]]
     [[-DDEFAULT_PATH=".\\"]]
 )
 
