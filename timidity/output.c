@@ -126,8 +126,14 @@ extern PlayMode portaudio_win_wdmks_play_mode;
 #endif
 extern PlayMode portaudio_win_ds_play_mode;
 extern PlayMode portaudio_win_wmme_play_mode;
+extern PlayMode portaudio_win_wasapi_play_mode;
 #endif
 #endif /* AU_PORTAUDIO */
+
+#ifdef AU_WASAPI
+extern PlayMode wasapi_shared_play_mode;
+extern PlayMode wasapi_exclusive_play_mode;
+#endif /* AU_WASAPI */
 
 #ifdef AU_NPIPE
 extern PlayMode npipe_play_mode;
@@ -221,12 +227,18 @@ PlayMode *play_mode_list[] = {
   &portaudio_win_wdmks_play_mode,
   &portaudio_win_ds_play_mode,
   &portaudio_win_wmme_play_mode,
+  &portaudio_win_wasapi_play_mode,
 #endif
 #endif /* AU_PORTAUDIO */
 
 #ifdef AU_LAME
   &lame_play_mode,
 #endif
+
+#if defined(AU_WASAPI)
+  &wasapi_shared_play_mode,
+  &wasapi_exclusive_play_mode,
+#endif /* AU_WASAPI */
 
 #if defined(AU_NPIPE)
   &npipe_play_mode,
