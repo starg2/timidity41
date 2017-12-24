@@ -81,6 +81,7 @@ set(
     vorbis_a.c
     w32_a.c
     w32_gogo.c
+	wasapi_a.c
     wave_a.c
     w32g_ogg_dll.c
     w32_portaudio_dll.c
@@ -159,6 +160,7 @@ set(
     pdcurses
     speex
 
+	avrt
     comctl32
     ws2_32
 )

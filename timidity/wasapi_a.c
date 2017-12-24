@@ -60,9 +60,6 @@ Written by Starg. <https://osdn.net/users/starg/pf/timidity_mod/wiki/FrontPage>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
-#ifdef __W32__
-#include "interface.h"
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef NO_STRING_H
@@ -73,6 +70,7 @@ Written by Starg. <https://osdn.net/users/starg/pf/timidity_mod/wiki/FrontPage>
 #include <process.h>
 #include <tchar.h>
 
+#define COBJMACROS
 #include <windows.h>
 #include <initguid.h>
 #include <objbase.h>

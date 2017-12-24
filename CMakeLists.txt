@@ -25,6 +25,7 @@ add_definitions(
 
 # TiMidity++ audio
     -DAU_W32
+	-DAU_WASAPI
     -DAU_VORBIS
     -DAU_VORBIS_DLL
     -DAU_FLAC

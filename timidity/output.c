@@ -227,7 +227,6 @@ PlayMode *play_mode_list[] = {
   &portaudio_win_wdmks_play_mode,
   &portaudio_win_ds_play_mode,
   &portaudio_win_wmme_play_mode,
-  &portaudio_win_wasapi_play_mode,
 #endif
 #endif /* AU_PORTAUDIO */
 
