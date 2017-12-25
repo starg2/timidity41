@@ -9,6 +9,7 @@
 #include "afxres.h"
 
 
+1 RT_MANIFEST "w32g_visualstyle.manifest"
 
 
 //

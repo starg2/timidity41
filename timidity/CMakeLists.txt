@@ -199,6 +199,7 @@ add_executable(
 
 target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
 target_link_libraries(timw32g interface_w32g ${TIMIDITY_COMMON_LIBS})
+DisableMSManifest(timw32g)
 
 # twsyng
 
@@ -211,3 +212,4 @@ add_executable(
 
 target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
 target_link_libraries(twsyng interface_w32gsyn ${TIMIDITY_COMMON_LIBS})
+DisableMSManifest(twsyng)

@@ -99,6 +99,13 @@ else()
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -s")
 endif()
 
+function(DisableMSManifest targetName)
+    if(MSVC)
+        get_property(linkFlags TARGET ${targetName} PROPERTY LINK_FLAGS)
+        set_target_properties(${targetName} PROPERTIES LINK_FLAGS "${linkFlags} /MANIFEST:NO")
+    endif()
+endfunction()
+
 include_directories("." interface libarc libunimod pdcurses portaudio/pa_common timidity utils)
 
 add_subdirectory(pdcurses)
