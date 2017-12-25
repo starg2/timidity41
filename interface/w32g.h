@@ -28,6 +28,8 @@
 #undef RC_NONE
 #endif
 #include <windows.h>
+#include <commdlg.h>
+#include <shellapi.h>
 #ifdef RC_NONE
 #undef RC_NONE
 #endif

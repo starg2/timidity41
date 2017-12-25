@@ -531,6 +531,7 @@ extern int errno;
 //#define VST_LOADER_ENABLE // config.h
 
 #ifdef VST_LOADER_ENABLE
+#include <windows.h>
 extern HMODULE hVSTHost;
 #include "vstwrapper.h"
 #endif

@@ -9,6 +9,7 @@ set(
     vt100.c
     vt100_c.c
     VTPrsTbl.c
+    w32g_soundspec.c
     wrdt_dumb.c
     wrdt_tty.c
     wrdt_wcon.c
@@ -101,7 +102,7 @@ add_library(
     winsyn_c.c
 )
 
-target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN)
+target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
 
 # for timw32g
 
@@ -111,14 +112,14 @@ add_library(
     ${INTERFACE_W32G_COMMON_SOURCES}
 )
 
-target_compile_definitions(interface_w32g PRIVATE -DIA_W32GUI)
+target_compile_definitions(interface_w32g PRIVATE -DIA_W32GUI -D__W32G__)
 
 add_library(
     interface_w32g_res OBJECT
     w32g_res.rc
 )
 
-target_compile_definitions(interface_w32g_res PRIVATE -DIA_W32GUI)
+target_compile_definitions(interface_w32g_res PRIVATE -DIA_W32GUI -D__W32G__)
 
 # for twsyng
 
@@ -132,11 +133,11 @@ add_library(
     winsyn_c.c
 )
 
-target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -DTWSYNG32)
+target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
 
 add_library(
     interface_w32gsyn_res OBJECT
     w32g_res.rc
 )
 
-target_compile_definitions(interface_w32gsyn_res PRIVATE -DIA_W32G_SYN -DTWSYNG32)
+target_compile_definitions(interface_w32gsyn_res PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)

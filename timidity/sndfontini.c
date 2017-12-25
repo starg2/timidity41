@@ -86,7 +86,7 @@ void OverrideSFSettingLoad()
 #include "loadsndfontini.h"
 }
 
-#elif (!defined(__W32G__) && !defined(TWSYNSRV))
+#elif !defined(__W32G__)
 
 void OverrideSFSettingLoad()
 {

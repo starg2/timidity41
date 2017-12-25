@@ -17,6 +17,7 @@
 #include <strings.h>
 #endif
 #include <windows.h>
+#include <mmsystem.h>
 
 ///r
 #define DEVLIST_MAX 20

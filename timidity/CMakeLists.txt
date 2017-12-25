@@ -185,7 +185,7 @@ add_executable(
     ${TIMIDITY_COMMON_SOURCES}
 )
 
-target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN)
+target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
 target_link_libraries(twsynsrv interface_synsrv ${TIMIDITY_COMMON_LIBS})
 
 # timw32g
@@ -197,7 +197,7 @@ add_executable(
     $<TARGET_OBJECTS:interface_w32g_res>
 )
 
-target_compile_definitions(timw32g PRIVATE -DIA_W32GUI)
+target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
 target_link_libraries(timw32g interface_w32g ${TIMIDITY_COMMON_LIBS})
 
 # twsyng
@@ -209,5 +209,5 @@ add_executable(
     $<TARGET_OBJECTS:interface_w32gsyn_res>
 )
 
-target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN -DTWSYNG32)
+target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
 target_link_libraries(twsyng interface_w32gsyn ${TIMIDITY_COMMON_LIBS})

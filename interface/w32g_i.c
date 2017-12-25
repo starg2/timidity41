@@ -29,6 +29,7 @@
 #include <process.h>
 #include <stddef.h>
 #include <windows.h>
+#include <mmsystem.h>
 #undef RC_NONE
 #include <shlobj.h>
 // #include <prsht.h>
