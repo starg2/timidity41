@@ -273,7 +273,7 @@ int write_ogg_header(Speex_ctx *ctx, int fd, char *comments)
 {
   int ret, result;
 
-  char *vendor_string = "Encoded with Timidity++-" TIMID_VERSION "(compiled " __DATE__ ")";
+  char *vendor_string = "Encoded with Timidity++";
   int comments_length = strlen(comments);
 
   comment_init(&comments, &comments_length, vendor_string);

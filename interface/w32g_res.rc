@@ -7,7 +7,7 @@
 #include <richedit.h>
 #include "w32g_res.h"
 #include "afxres.h"
-
+#include "version.h"
 
 1 RT_MANIFEST "w32g_visualstyle.manifest"
 
@@ -3682,8 +3682,8 @@ IDI_ICON_TIMIDITY  ICON           "w32g_icon.ico"
 //
 LANGUAGE LANG_JAPANESE, SUBLANG_JAPANESE_JAPAN
 VS_VERSION_INFO VERSIONINFO
-    FILEVERSION     2,13,0,0
-    PRODUCTVERSION  2,13,0,0
+    FILEVERSION     TIMID_VERSION4_COMMA
+    PRODUCTVERSION  TIMID_VERSION4_COMMA
     FILEOS          VOS__WINDOWS32
     FILETYPE        VFT_APP
     FILESUBTYPE     VFT2_UNKNOWN
@@ -3697,14 +3697,20 @@ VS_VERSION_INFO VERSIONINFO
             VALUE "Comments", "\0"
             VALUE "CompanyName", "\0"
             VALUE "FileDescription", "timw32g\0"
-            VALUE "FileVersion", "2, 13, 0, 0\0"
+            VALUE "FileVersion", TIMID_VERSION_RESSTR
+#ifdef TWSYNG32
+            VALUE "InternalName", "twsyng\0"
+            VALUE "OriginalFilename", "twsyng.exe\0"
+            VALUE "ProductName", "TiMidity++ Win32GUI Synthesizer Version\0"
+#else
             VALUE "InternalName", "timw32g\0"
+            VALUE "OriginalFilename", "timw32g.exe\0"
+            VALUE "ProductName", "TiMidity++ Win32GUI Version\0"
+#endif
             VALUE "LegalCopyright", "Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>\r\nCopyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>\0"
             VALUE "LegalTrademarks", "\0"
-            VALUE "OriginalFilename", "timw32g.exe\0"
             VALUE "PrivateBuild", "\0"
-            VALUE "ProductName", "TiMidity++ Win32GUI Version\0"
-            VALUE "ProductVersion", "2, 13, 0, 0\0"
+            VALUE "ProductVersion", TIMID_VERSION
             VALUE "SpecialBuild", "\0"
         }
     }

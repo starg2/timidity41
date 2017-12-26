@@ -22,8 +22,6 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
-#include "sysdep.h"
-#include "optcode.h"
 #include "version.h"
 
-const char *timidity_version = VERSION;
+const char *timidity_version = TIMID_VERSION;

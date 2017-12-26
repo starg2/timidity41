@@ -1,7 +1,5 @@
 
 add_definitions(
-    [[-DVERSION="41.0.211.1"]]
-    [[-DTIMID_VERSION="41.0.211.1"]]
     [[-DDEFAULT_PATH=".\\"]]
 )
 
@@ -174,6 +172,7 @@ add_executable(
     ${TIMIDITY_COMMON_SOURCES}
 )
 
+add_dependencies(timidity UpdateTim41Version)
 target_compile_definitions(timidity PRIVATE -DIA_NCURSES)
 target_link_libraries(timidity interface ${TIMIDITY_COMMON_LIBS})
 
@@ -185,6 +184,7 @@ add_executable(
     ${TIMIDITY_COMMON_SOURCES}
 )
 
+add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
 target_link_libraries(twsynsrv interface_synsrv ${TIMIDITY_COMMON_LIBS})
 
@@ -197,6 +197,7 @@ add_executable(
     $<TARGET_OBJECTS:interface_w32g_res>
 )
 
+add_dependencies(timw32g UpdateTim41Version)
 target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
 target_link_libraries(timw32g interface_w32g ${TIMIDITY_COMMON_LIBS})
 DisableMSManifest(timw32g)
@@ -210,6 +211,7 @@ add_executable(
     $<TARGET_OBJECTS:interface_w32gsyn_res>
 )
 
+add_dependencies(twsyng UpdateTim41Version)
 target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
 target_link_libraries(twsyng interface_w32gsyn ${TIMIDITY_COMMON_LIBS})
 DisableMSManifest(twsyng)

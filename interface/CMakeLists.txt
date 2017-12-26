@@ -119,6 +119,7 @@ add_library(
     w32g_res.rc
 )
 
+add_dependencies(interface_w32g_res UpdateTim41Version)
 target_compile_definitions(interface_w32g_res PRIVATE -DIA_W32GUI -D__W32G__)
 
 # for twsyng
@@ -140,4 +141,5 @@ add_library(
     w32g_res.rc
 )
 
+add_dependencies(interface_w32gsyn_res UpdateTim41Version)
 target_compile_definitions(interface_w32gsyn_res PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)

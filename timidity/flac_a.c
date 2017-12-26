@@ -560,7 +560,7 @@ static int flac_output_open(const char *fname, const char *comment)
 
   metadata[num_metadata] = FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT);
   if (metadata[num_metadata]) {
-    const char *vendor_string = "Encoded with Timidity++-" VERSION "(compiled " __DATE__ ")";
+    const char *vendor_string = "Encoded with Timidity++";
     /* Location=output_name */
     memset(&commentry, 0, sizeof(commentry));
     FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&commentry, "LOCATION", comment);

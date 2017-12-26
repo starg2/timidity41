@@ -3,6 +3,26 @@ cmake_minimum_required(VERSION 3.9)
 
 project(timidity41)
 
+find_package(Git)
+
+if("${Git_FOUND}" AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+    add_custom_target(
+        UpdateTim41Version
+        COMMAND "${CMAKE_COMMAND}"
+            -DGIT_EXECUTABLE="${GIT_EXECUTABLE}"
+            -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
+            -DOUTFILE="${CMAKE_CURRENT_BINARY_DIR}/version.h"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/WriteVersion.cmake"
+        COMMENT "Updating version info..."
+    )
+else()
+    set(tim41VersionStr "current")
+    set(tim41Version3Comma "41,0,0")
+    configure_file(version.h.in version.h)
+endif()
+
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+
 add_definitions(
 # TiMidity++ common
     -DRETSIGTYPE=int
