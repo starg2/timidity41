@@ -220,12 +220,9 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			{	// ‚­‚»‚ß‚ñ‚Ç[[
 			int x,y,cx,cy;
 			int max = 0;
-			int width;
 			RECT rcParent;
 			RECT rcBUTTON_VERBOSITY, rcEDIT_VERBOSITY, rcBUTTON_DEC, rcBUTTON_INC, rcCHECKBOX_VALID, rcCLEAR, rcEDIT;
 			HWND hwndBUTTON_VERBOSITY, hwndEDIT_VERBOSITY, hwndBUTTON_DEC, hwndBUTTON_INC, hwndCHECKBOX_VALID, hwndCLEAR, hwndEDIT;
-			int nWidth = LOWORD(lParam);
-			int nHeight = HIWORD(lParam);				
 			hwndEDIT = GetDlgItem(hwnd,IDC_EDIT);
 			hwndBUTTON_VERBOSITY = GetDlgItem(hwnd,IDC_BUTTON_VERBOSITY);
 			hwndEDIT_VERBOSITY = GetDlgItem(hwnd,IDC_EDIT_VERBOSITY);
@@ -753,8 +750,6 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		return FALSE;
 	case WM_NOTIFY:
 		{
-		int i;
-		int idCtrl = (int) wParam;
 		LPNMHDR pnmh = (LPNMHDR) lParam;
 		switch(pnmh->idFrom){
 #ifdef LISTVIEW_PLAYLIST
@@ -930,7 +925,6 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #ifdef LISTVIEW_PLAYLIST
 		{
 			HWND hlv = GetDlgItem(hwnd, IDC_LV_PLAYLIST);
-			volatile LVCOLUMN lvc;
 			int i;
 			for(i = 0; i < LISTWND_COLUM; i++){
 				ListWndInfo.columWidth[i] = ListView_GetColumnWidth(hlv, i);
@@ -1015,8 +1009,6 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				return FALSE;
 			case LBN_SELCHANGE:
 				{
-				int idListBox = (int) LOWORD(wParam);
-				HWND hwndListBox = (HWND) lParam;
 				int selected, nfiles, cursel;
 				w32g_get_playlist_index(&selected,&nfiles,&cursel);
 				SetNumListWnd(cursel,nfiles);
@@ -1322,8 +1314,6 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				int center, idControl;
 				HWND hwndChild;
 				RECT rcParent, rcChild, rcRest;
-				int nWidth = LOWORD(lParam);
-				int nHeight = HIWORD(lParam);
 				GetWindowRect(hwnd,&rcParent);
 				cx = rcParent.right-rcParent.left;
 				cy  = rcParent.bottom-rcParent.top;
@@ -1767,8 +1757,6 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				RECT rcParent;
 				RECT rcEDIT_INFO, rcEDIT_FILENAME, rcBUTTON_PREV, rcBUTTON_NEXT, rcEDIT;
 				HWND hwndEDIT_INFO, hwndEDIT_FILENAME, hwndBUTTON_PREV, hwndBUTTON_NEXT, hwndEDIT;
-				int nWidth = LOWORD(lParam);
-				int nHeight = HIWORD(lParam);
 				GetWindowRect(hwnd,&rcParent);
 				cx = rcParent.right-rcParent.left;
 				cy  = rcParent.bottom-rcParent.top;
@@ -2047,7 +2035,6 @@ static void DocWndSetText(char *text, int text_size)
 
 static void DocWndSetInfo(char *info, char *filename)
 {
-	int buffer_size = BUFFER_SIZE;
 	if(!IsWindow(hDocWnd) || !DocWndFlag)
 		return;
 	if(DocWndInfoLock()==FALSE)
@@ -2543,7 +2530,6 @@ SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_CHAR:
 	{
 		int nVirtKey = (int)wParam;
-		short nModifiers = (int)lParam & 0xFFFF;
 		switch(nVirtKey){
 			case 0x48:	// H
 			case 0x68:	// h

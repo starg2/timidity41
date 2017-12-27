@@ -653,7 +653,7 @@ void TracerWndClear(int lockflag)
 	HPEN hPen;
 	HBRUSH hBrush;
 	HGDIOBJ hgdiobj_hpen, hgdiobj_hbrush;
-	RECT rc;
+	//RECT rc;
 
 	if (lockflag) TRACER_LOCK();
 	hPen = CreatePen(PS_SOLID, 1, C_BACK);

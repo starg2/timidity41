@@ -120,7 +120,6 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCDATAProc(HWND hwnd, UINT uMess, WPAR
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_DATA_NUM, scc_data_num, TRUE);
 		for(i = 0; i < SCC_DATA_LENGTH; i++){
 			int ed_id = IDC_EDIT_SCC_DATA_VAL1 + i;
-			int sb_id = IDC_SCROLLBAR_SCC_DATA_VAL1 + i;
 			tmp = scc_data_editor_get_param(i);
 			SetDlgItemInt(hwnd, ed_id, tmp, TRUE);
 			SetScrollPos(hISEScrollbarValWnd[i], SB_CTL, 128 - tmp, TRUE);
@@ -283,7 +282,7 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCDATAProc(HWND hwnd, UINT uMess, WPAR
 
 static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i, tmp, num;
+	int i, tmp;
 	WORD clid = 0;
 	static WORD focus_clid = 0;
 	int16 wheel_speed = 0;
@@ -563,7 +562,7 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 
 static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i, tmp, num;
+	int i, tmp;
 	WORD clid = 0;
 	static WORD focus_clid = 0, prv_focus_clid = 0;
 	int16 wheel_speed = 0;
@@ -1627,7 +1626,7 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 
 LRESULT APIENTRY CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i, tmp, num;
+	int i;
 	WORD clid = 0;
 	static WORD focus_clid = 0, prv_focus_clid = 0;
 	int16 wheel_speed = 0;
@@ -1686,7 +1685,6 @@ LRESULT APIENTRY CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 
 	case WM_NOTIFY:
       {
-	int idCtrl = (int) wParam;
 	LPNMHDR pnmh = (LPNMHDR) lParam;
 	if (pnmh->idFrom == IDC_TAB_ISEDITOR) {
 	    switch (pnmh->code) {

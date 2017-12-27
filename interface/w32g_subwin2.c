@@ -517,7 +517,6 @@ static void wrd_text_update ( int x_from, int y_from, int x_to, int y_to, int lo
 		SetBkColor( hmdc_tmask, COLOR_MASK_BLACK );
 		for( y = y_from; y <= y_to; y++ ) {
 			for( x = x_from; x <= x_to; x++ ) {
-				char mbt = _MBC_SINGLE;
 				RECT rc_part;
 				if ( forecolor != w32g_wrd_wnd.pals[w32g_wrd_wnd.forecolorbuf[y][x]] ) {
 					forecolor = w32g_wrd_wnd.pals[w32g_wrd_wnd.forecolorbuf[y][x]];
@@ -593,7 +592,6 @@ extern void wrd_graphic_xcopy ( int sx1, int sy1, int sx2, int sy2, int tx, int 
 void wrd_graphic_ginit ( void )
 {
 	RECT rc;
-	int index_display_old = w32g_wrd_wnd.index_display;
 	if ( WrdWndInfo.GraphicStop ) return;
 	if ( !w32g_wrd_wnd.active ) return;
 	wrd_graphic_plane_change ( 0, 0 );
@@ -1082,7 +1080,6 @@ void wrd_graphic_gmove ( int x1, int y1, int x2, int y2, int xd, int yd, int vs,
 void wrd_graphic_mag ( char *path, int x, int y, int s, int p )
 {
 	int x_orig = x, y_orig = y;
-	int size = w32g_wrd_wnd.width * w32g_wrd_wnd.height;
 	magdata *mh;
 	int width, height;
 

@@ -528,7 +528,6 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 
 	case WM_NOTIFY:
       {
-	int idCtrl = (int) wParam;
 	LPNMHDR pnmh = (LPNMHDR) lParam;
 	if (pnmh->idFrom == IDC_TAB_MAIN) {
 	    switch (pnmh->code) {
@@ -3299,7 +3298,6 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	static int pref_channel_page;
 	static ChannelBitMask channelbitmask;
 	int i, j, tmp;
-	const TCHAR **cb_info;
 	switch (uMess){
 	case WM_INITDIALOG:
 		// BANK
@@ -4856,7 +4854,6 @@ static const TCHAR *cb_info_IDC_CHOC_EX_PHASE_NUM[] = {
 
 static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i;
 	switch (uMess) {
 	case WM_INITDIALOG:
 
@@ -4991,7 +4988,6 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 
 static LRESULT APIENTRY CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i;
 	switch (uMess) {
 	case WM_INITDIALOG:
 
@@ -5295,7 +5291,6 @@ static LRESULT APIENTRY CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WP
 
 static LRESULT APIENTRY CALLBACK PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i;
 	switch (uMess) {
 	case WM_INITDIALOG:
 ///r
@@ -5900,7 +5895,6 @@ int wave_ConfigDialogInfoSaveINI(void)
 	const char *section = SEC_WAVE;
 	const char *inifile = timidity_output_inifile;
 	char buffer[1024];
-	int len;
 #if defined(__MINGW32__) || defined(__CYGWIN__)
 #define NUMSAVE(name) \
 		sprintf(buffer, "%d", wave_ConfigDialogInfo.name); \
@@ -8223,7 +8217,7 @@ DEVICELIST cb_info_IDC_COMBO_WMME_NAME[DEVLIST_MAX];
 
 LRESULT WINAPI wmmeConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	int i = 0, cb_num = 0, cb_sel = 0;
+	int i = 0, cb_num = 0;
 
 	switch (msg) {
 		case WM_INITDIALOG:

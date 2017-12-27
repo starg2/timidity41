@@ -493,7 +493,7 @@ static HMENU hMenuOutput;
 static void InitMainMenu(HWND hWnd)
 {
 	HMENU hMenu, hMenuFile, hMenuConfig, hMenuWindow, hMenuHelp;
-	HMENU hSystemMenu, hMenu2;
+	HMENU hSystemMenu;
 	MENUITEMINFO mii;
 	int i;
 
@@ -674,22 +674,7 @@ static void InitMainMenu(HWND hWnd)
 		mii.dwTypeData = play_mode_list[i]->id_name;
 		InsertMenuItem(hMenuOutput, outputItemStart + i, TRUE, &mii);
 	}	
-#if 0
-	hMenu2 = CreateMenu();	
-	mii.cbSize = sizeof (MENUITEMINFO);
-	mii.fMask = MIIM_TYPE | MIIM_SUBMENU;
-	mii.fType = MFT_STRING;
-	mii.hSubMenu = hMenu;
-	if (PlayerLanguage == LANGUAGE_JAPANESE) {
-		mii.dwTypeData = TEXT("メニュー(&M)");
-	}else{
-		mii.dwTypeData = "Menu(&M)";
-	}
-	InsertMenuItem(hMenu2, 0, TRUE, &mii);
-	SetMenu(hWnd , hMenu2);
-#else
 	SetMenu(hWnd , hMenu);
-#endif
 	// system menu
 	hSystemMenu = GetSystemMenu(hWnd, FALSE);
 	RemoveMenu(hSystemMenu,SC_MAXIMIZE,MF_BYCOMMAND);
@@ -927,7 +912,6 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		InitMainToolbar(hwnd);
 		InitSubWndToolbar(hwnd);
 		{
-			RECT rc;
 			hMainWndScrollbarVolumeTTipWnd = CreateWindow(TOOLTIPS_CLASS,
 			NULL, TTS_ALWAYSTIP,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -1012,7 +996,7 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				ShowPrefWnd ();
 			}
 			if(MainWndInfo.init){
-				RECT rc, mrc;
+				RECT rc;
 				GetWindowRect(hwnd,&rc);
 				MainWndInfo.Width = rc.right - rc.left;
 				MainWndInfo.Height = rc.bottom - rc.top;
@@ -4203,7 +4187,7 @@ void MPanelUpdateAll(void)
 // flag は強制更新する。
 void MPanelReadPanelInfo(int flag)
 {
-	int cur_pl_num, playlist_num;
+//	int cur_pl_num, playlist_num;
 
 	if(!MPanelOK)
 		return;
@@ -5110,8 +5094,6 @@ static void DlgDirOpen(HWND hwnd)
 LRESULT CALLBACK UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void DlgUrlOpen(HWND hwnd)
 {
-    char *file;
-
     if(w32g_lock_open_file)
 		return;
 
