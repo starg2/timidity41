@@ -56,10 +56,8 @@
 #endif
 
 
-#ifndef __W32__
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 #endif
 
 
