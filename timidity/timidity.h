@@ -515,7 +515,6 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif /* HAVE_ERRNO_H */
-extern int errno;
 #ifdef HAVE_MACHINE_ENDIAN_H
 #include <machine/endian.h> /* for __byte_swap_*() */
 #endif /* HAVE_MACHINE_ENDIAN_H */
