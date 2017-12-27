@@ -66,7 +66,7 @@ extern int strncasecmp(char *s1, char *s2, unsigned int len);
 #endif /* HAVE_STRNCASECMP */
 
 #ifndef HAVE_MKSTEMP
-extern int mkstemp(char *template);
+extern int mkstemp(char *template_);
 #endif /* HAVE_MKSTEMP */
 
 #ifndef HAVE_SYS_STAT_H
