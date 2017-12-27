@@ -2909,8 +2909,8 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				EnableWindow(GetDlgItem(hwnd, IDC_EDIT_DECAY), TRUE);
 			}else{
 				SetDlgItemInt(hwnd,IDC_EDIT_DECAY,0,TRUE);
-				
-			break;EnableWindow(GetDlgItem(hwnd, IDC_EDIT_DECAY), FALSE);
+				EnableWindow(GetDlgItem(hwnd, IDC_EDIT_DECAY), FALSE);
+			break;
 			}
 		case IDC_CHECKBOX_LIMITER:
 			if(SendDlgItemMessage(hwnd, IDC_CHECKBOX_LIMITER, BM_GETCHECK, 0, 0)){
