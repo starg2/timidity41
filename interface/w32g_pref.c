@@ -2466,7 +2466,7 @@ static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_jp[] = {
-	TEXT("補完なし"),
+	TEXT("補間なし"),
 	TEXT("線形(リニア)"),
 	TEXT("Cスプライン"),
 	TEXT("ラグランジュ"),
