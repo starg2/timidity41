@@ -13,6 +13,7 @@ if("${Git_FOUND}" AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
             -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
             -DOUTFILE="${CMAKE_CURRENT_BINARY_DIR}/version.h"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/WriteVersion.cmake"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Updating version info..."
     )
 else()
@@ -113,8 +114,6 @@ if(MSVC)
 
 else()
     add_compile_options(-Wall -Wextra)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -s")
 endif()

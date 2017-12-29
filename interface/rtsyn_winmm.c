@@ -108,7 +108,7 @@ CRITICAL_SECTION mim_section;
 
 double mim_start_time;
 
-void CALLBACK MidiInProc(HMIDIIN,UINT,DWORD,DWORD,DWORD);
+void CALLBACK MidiInProc(HMIDIIN,UINT, DWORD_PTR, DWORD_PTR, DWORD_PTR);
 
 void rtsyn_get_port_list(){
 	int i;

@@ -68,7 +68,6 @@ static inline void *speex_alloc_scratch (int size)
 
 /** Speex wrapper for realloc. To do your own dynamic allocation, all you need to do is replace this function, speex_alloc and speex_free */
 #ifndef OVERRIDE_SPEEX_REALLOC
-extern void *realloc(void *ptr, int size);
 static inline void *speex_realloc (void *ptr, int size)
 {
    return realloc(ptr, size);

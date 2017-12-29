@@ -66,21 +66,23 @@ set(
     w32g_wrd.h
 )
 
-set_source_files_properties(
-    w32g_res.rc
+if(MSVC)
+    set_source_files_properties(
+        w32g_res.rc
 
-    PROPERTIES
-        OBJECT_DEPENDS
-            w32g_btn.bmp
-            w32g_icon.ico
-            w32g_icon_gray.ico
-            w32g_icon_normal.ico
-            w32g_icon_silver.ico
-            w32g_playlist_play.ico
-            w32g_sleep.bmp
-            w32g_subbtn.bmp
-            w32g_tracer.bmp
-)
+        PROPERTIES
+            OBJECT_DEPENDS
+                w32g_btn.bmp
+                w32g_icon.ico
+                w32g_icon_gray.ico
+                w32g_icon_normal.ico
+                w32g_icon_silver.ico
+                w32g_playlist_play.ico
+                w32g_sleep.bmp
+                w32g_subbtn.bmp
+                w32g_tracer.bmp
+    )
+endif()
 
 # for timidity
 

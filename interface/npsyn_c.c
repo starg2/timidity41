@@ -74,11 +74,7 @@
 #include <unistd.h>
 #endif
 
-#ifdef __GNUC__
-#include <termios.h>
-#endif
-
-#if defined(__W32__) && !defined(__GNUC__)
+#if defined(__W32__)
 #define HAVE_DOS_KEYBOARD 1
 #endif
 
