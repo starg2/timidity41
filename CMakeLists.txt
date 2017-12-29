@@ -95,7 +95,7 @@ add_definitions(
 )
 
 if(MSVC)
-    add_compile_options(-W4 -Zi -fp:fast)
+    add_compile_options(/W4 /Zi /fp:fast /permissive-)
 
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL /GS /guard:cf")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /GS /guard:cf")
