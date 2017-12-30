@@ -6,6 +6,13 @@ execute_process(
 )
 
 string(REPLACE "tim" "" tim41VersionStr "${gitDescribeResult}")
-string(REGEX MATCH "[0-9.]+\\.[0-9.]+\\.[0-9.]+" tim41Version3 "${gitDescribeResult}")
-string(REPLACE "." "," tim41Version3Comma "${tim41Version3}")
+
+if("${gitDescribeResult}" MATCHES "[0-9.]+\\.[0-9.]+\\.[0-9.]+-[0-9]+")
+    string(REGEX MATCH "[0-9.]+\\.[0-9.]+\\.[0-9.]+-[0-9]+" tim41Version4 "${gitDescribeResult}")
+else()
+    string(REGEX MATCH "[0-9.]+\\.[0-9.]+\\.[0-9.]+" tim41Version4 "${gitDescribeResult}")
+    string(APPEND tim41Version4 ".0")
+endif()
+
+string(REGEX REPLACE "[\\.\\-]" "," tim41Version4Comma "${tim41Version4}")
 configure_file(${INFILE} ${OUTFILE})

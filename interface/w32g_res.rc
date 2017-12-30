@@ -3696,13 +3696,14 @@ VS_VERSION_INFO VERSIONINFO
         {
             VALUE "Comments", "\0"
             VALUE "CompanyName", "\0"
-            VALUE "FileDescription", "timw32g\0"
             VALUE "FileVersion", TIMID_VERSION_RESSTR
 #ifdef TWSYNG32
+            VALUE "FileDescription", "TiMidity++ Win32GUI Synthesizer\0"
             VALUE "InternalName", "twsyng\0"
             VALUE "OriginalFilename", "twsyng.exe\0"
             VALUE "ProductName", "TiMidity++ Win32GUI Synthesizer Version\0"
 #else
+            VALUE "FileDescription", "TiMidity++ Win32GUI\0"
             VALUE "InternalName", "timw32g\0"
             VALUE "OriginalFilename", "timw32g.exe\0"
             VALUE "ProductName", "TiMidity++ Win32GUI Version\0"

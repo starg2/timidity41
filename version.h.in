@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #define ___VERSION_H_
 
 #define TIMID_VERSION "${tim41VersionStr}"
-#define TIMID_VERSION4_COMMA ${tim41Version3Comma},0
-#define TIMID_VERSION_RESSTR "${tim41Version3Comma},0\0"
+#define TIMID_VERSION4_COMMA ${tim41Version4Comma}
+#define TIMID_VERSION_RESSTR "${tim41Version4Comma}\0"
 
 #endif /* !___VERSION_H_ */

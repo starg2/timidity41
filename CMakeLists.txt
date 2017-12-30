@@ -18,7 +18,7 @@ if("${Git_FOUND}" AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
     )
 else()
     set(tim41VersionStr "current")
-    set(tim41Version3Comma "41,0,0")
+    set(tim41Version4Comma "41,0,0,0")
     configure_file(version.h.in version.h)
 endif()
 
