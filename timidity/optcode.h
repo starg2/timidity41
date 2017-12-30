@@ -315,7 +315,12 @@ enum{
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
-
+#if defined(__GNUC__)
+#define USE_X86_EXT_INTRIN  0
+#define USE_X86_AMD_EXT_INTRIN  0
+#define USE_X64_EXT_INTRIN      0
+#define USE_X64_AMD_EXT_INTRIN  0
+#endif
 
 
 /*****************************************************************************/
