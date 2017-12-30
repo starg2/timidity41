@@ -539,7 +539,7 @@ static void InitMainMenu(HWND hWnd)
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("トレーサ(&T)"));
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("ドキュメント(&D)"));
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWWRDTRACER, TEXT("WRD(&W)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("コンソール(&C)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("コン\x83\x5Cール(&C)"));   // コンソール
 #ifdef VST_LOADER_ENABLE
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("VSTマネージャ(&V)"));
 #endif /* VST_LOADER_ENABLE */
