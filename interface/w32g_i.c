@@ -274,7 +274,7 @@ int SecondMode = 1;
 
 void FirstLoadIniFile(void);
 
-#ifndef WIN32GCC
+#if defined(_MSC_VER) && !defined(TWSYNG32)
 #ifndef TIM_CUI
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
@@ -334,7 +334,7 @@ LPSTR lpCmdLine, int nCmdShow)
 #endif
 }
 #endif /* TIM_CUI */
-#endif /* WIN32GCC */
+#endif
 
 // ***************************************************************************
 // System Function

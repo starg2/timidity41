@@ -1825,7 +1825,6 @@ char **FilesExpandDir(int *p_nfiles, char **files)
 
 }
 
-#ifndef IA_W32G_SYN
 int w32gLoadDefaultPlaylist(void)
 {
 	int i;
@@ -1869,9 +1868,7 @@ int w32gSaveDefaultPlaylist(void)
 	}
 	return 0;
 }
-#endif
 
-#ifndef WIN32GCC
 static char *get_filename(char *src, char *dest)
 {
 	char *p = src;
@@ -1946,4 +1943,3 @@ void CmdLineToArgv(LPSTR lpCmdLine, int *pArgc, CHAR ***pArgv)
 	}
 	}
 }
-#endif /* !WIN32GCC */

@@ -118,57 +118,7 @@ static w32g_syn_t w32g_syn;
 
 // ŠeŽí•Ï” (^^;;;
 HINSTANCE hInst = NULL;
-int PlayerLanguage = LANGUAGE_ENGLISH;
-int IniFileAutoSave = 1;
-char *IniFile;
-char *ConfigFile;
-char *PlaylistFile;
-char *PlaylistHistoryFile;
-char *MidiFileOpenDir;
-char *ConfigFileOpenDir;
-char *PlaylistFileOpenDir;
-int SecondMode = 0;
-BOOL PosSizeSave = TRUE;
-int DocMaxSize;
-char *DocFileExt;
-int AutoloadPlaylist = 0;
-int AutosavePlaylist = 0;
-int SeachDirRecursive = 0;
-int DocWndIndependent = 0;
-int DocWndAutoPopup = 0;
-int TraceGraphicFlag;
-int PlayerThreadPriority;
-int MidiPlayerThreadPriority;
-int MainThreadPriority;
-int GUIThreadPriority;
-int TracerThreadPriority;
-int WrdThreadPriority;
-int SubWindowMax = 6;
-int InitMinimizeFlag = 0;
-int main_panel_update_time = 10;
-int DebugWndStartFlag = 1;
-int ConsoleWndStartFlag = 0;
-int ListWndStartFlag = 0;
-int TracerWndStartFlag = 0;
-int DocWndStartFlag = 0;
-int WrdWndStartFlag = 0;
-int SoundSpecWndStartFlag = 0;
-int DebugWndFlag = 1;
-int ConsoleWndFlag = 1;
-int ListWndFlag = 1;
-int TracerWndFlag = 0;
-int DocWndFlag = 1;
-int WrdWndFlag = 0;
-int SoundSpecWndFlag = 0;
-int WrdGraphicFlag;
-int TraceGraphicFlag;
-///r
-int RestartTimidity = 0;
-int w32g_auto_output_mode = 0;
-char *w32g_output_dir = NULL;
-int playlist_max = 1;
-int playlist_max_ini = 1;
-int ConsoleClearFlag = 0;
+extern int RestartTimidity;
 
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 
@@ -1622,95 +1572,6 @@ int w32g_syn_do_after_pref_save_restart(void)
 // ****************************************************************************
 // Edit Ctl.
 
-void VprintfEditCtlWnd(HWND hwnd, const char *fmt, va_list argList)
-{
-	 char buffer[BUFSIZ], out[BUFSIZ];
-	 char *in;
-	 int i;
-
-	 if (!IsWindow(hwnd))
-		  return;
-
-	 vsnprintf(buffer, sizeof(buffer), fmt, argList);
-	 in = buffer;
-	 i = 0;
-	 for (;;) {
-		  if (*in == '\0' || i > sizeof(out) - 3) {
-				out[i] = '\0';
-				break;
-		  }
-		  if (*in == '\n') {
-				out[i] = 13;
-				out[i + 1] = 10;
-				in++;
-				i += 2;
-				continue;
-		  }
-		  out[i] = *in;
-		  in++;
-		  i++;
-	 }
-	 Edit_SetSel(hwnd, -1, -1);
-	 Edit_ReplaceSel(hwnd, out);
-}
-
-void PrintfEditCtlWnd(HWND hwnd, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    VprintfEditCtlWnd(hwnd, fmt, ap);
-    va_end(ap);
-}
-
-#if 1
-void PutsEditCtlWnd(HWND hwnd, char *str)
-{
-	char *in = str;
-	int i;
-	char out[BUFSIZ];
-	i = 0;
-	for (;;) {
-		if (*in == '\0' || i > sizeof(out) - 3) {
-			out[i] = '\0';
-			break;
-		}
-	  	if (*in == '\n') {
-		    	out[i] = 13;
-		    	out[i + 1] = 10;
-			in++;
-			i += 2;
-			continue;
-		}
-		out[i] = *in;
-		in++;
-		i++;
-	}
-	if (IsWindow(hwnd)) {
-		Edit_SetSel(hwnd, -1, -1);
-		Edit_ReplaceSel(hwnd, out);
-	}
-}
-#else
-void PutsEditCtlWnd(HWND hwnd, char *str)
-{
-	if (!IsWindow(hwnd))
-		return;
-	PrintfEditCtlWnd(hwnd, "%s", str);
-}
-#endif
-
-void ClearEditCtlWnd(HWND hwnd)
-{
-	char pszVoid[] = "";
-	if (!IsWindow(hwnd))
-		return;
-	if (IsWindow(hwnd)) {
-//		Edit_SetSel(hwnd, 0, -1);
-		Edit_SetSel(hwnd, -1, -1);
-	}
-	Edit_SetText(hwnd, pszVoid);
-}
-
 static void VersionWnd(HWND hParentWnd)
 {
 	char VersionText[2024];
@@ -1786,36 +1647,6 @@ void ClearConsoleWnd(void);
 
 // ---------------------------------------------------------------------------
 // Global Functions
-
-// Initialization
-void InitConsoleWnd(HWND hParentWnd)
-{
-	HICON hIcon;
-	if (hConsoleWnd) {
-		DestroyWindow(hConsoleWnd);
-		hConsoleWnd = NULL;
-	}
-	switch (PlayerLanguage) {
-  	case LANGUAGE_ENGLISH:
-		hConsoleWnd = CreateDialog
-  			(hInst, MAKEINTRESOURCE(IDD_DIALOG_CONSOLE_EN), hParentWnd, ConsoleWndProc);
-		break;
- 	default:
-	case LANGUAGE_JAPANESE:
-		hConsoleWnd = CreateDialog
-  			(hInst, MAKEINTRESOURCE(IDD_DIALOG_CONSOLE), hParentWnd, ConsoleWndProc);
-	break;
-	}
-	hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
-	if (hIcon)
-		SendMessage(hConsoleWnd, WM_SETICON, FALSE, (LPARAM)hIcon);
-	ShowWindow(hConsoleWnd, ConsoleWndStartFlag ? SW_SHOW : SW_HIDE);
-	UpdateWindow(hConsoleWnd);
-
-	ConsoleWndVerbosityApplyIncDec(0);
-	CheckDlgButton(hConsoleWnd, IDC_CHECKBOX_VALID, ConsoleWndFlag);
-	Edit_LimitText(GetDlgItem(hConsoleWnd, IDC_EDIT), ConsoleWndMaxSize);
-}
 
 // Window Procedure
 static LRESULT CALLBACK
@@ -1979,39 +1810,6 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
-// puts()
-void PutsConsoleWnd(char *str)
-{
-	HWND hwnd;
-	if (!IsWindow(hConsoleWnd) || !ConsoleWndFlag)
-		return;
-	hwnd = GetDlgItem(hConsoleWnd, IDC_EDIT);
-	PutsEditCtlWnd(hwnd, str);
-}
-
-// printf()
-void PrintfConsoleWnd(const char *fmt, ...)
-{
-	HWND hwnd;
-	va_list ap;
-	if (!IsWindow(hConsoleWnd) || !ConsoleWndFlag)
-		return;
-	hwnd = GetDlgItem(hConsoleWnd, IDC_EDIT);
-	va_start(ap, fmt);
-	VprintfEditCtlWnd(hwnd, fmt, ap);
-	va_end(ap);
-}
-
-// Clear
-void ClearConsoleWnd(void)
-{
-	HWND hwnd;
-	if (!IsWindow(hConsoleWnd))
-		return;
-	hwnd = GetDlgItem(hConsoleWnd, IDC_EDIT);
-	ClearEditCtlWnd(hwnd);
-}
-
 // ---------------------------------------------------------------------------
 // Static Functions
 
@@ -2087,105 +1885,6 @@ extern void UpdateSpectrogramCanvas(void);
 
 // ---------------------------------------------------------------------------
 // Global Functions
-
-// Initialization
-// Global Functions
-void InitSoundSpecWnd(HWND hParentWnd)
-{
-	HICON hIcon;
-	if (hSoundSpecWnd) {
-		DestroyWindow(hSoundSpecWnd);
-		hSoundSpecWnd = NULL;
-	}
-	switch (PlayerLanguage) {
-	case LANGUAGE_JAPANESE:
-		hSoundSpecWnd = CreateDialog
-			(hInst, MAKEINTRESOURCE(IDD_DIALOG_SOUNDSPEC), hParentWnd, SoundSpecWndProc);
-		break;
-  	case LANGUAGE_ENGLISH:
- 	default:
-		hSoundSpecWnd = CreateDialog
-			(hInst, MAKEINTRESOURCE(IDD_DIALOG_SOUNDSPEC_EN), hParentWnd, SoundSpecWndProc);
-		break;
-	}
-	hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
-	if (hIcon)
-		SendMessage(hSoundSpecWnd, WM_SETICON, FALSE, (LPARAM)hIcon);
-	ShowWindow(hSoundSpecWnd, SoundSpecWndStartFlag ? SW_SHOW : SW_HIDE);
-	UpdateWindow(hSoundSpecWnd);
-}
-
-LRESULT CALLBACK
-SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
-{
-	switch (uMess) {
-	case WM_INITDIALOG:
-#ifdef SUPPORT_SOUNDSPEC
-		open_soundspec();
-		TargetSpectrogramCanvas(hwnd);
-	   	soundspec_update_wave(NULL, 0);
-#endif /* SUPPORT_SOUNDSPEC */
-		return FALSE;
-	case WM_COMMAND:
-		switch (LOWORD(wParam)) {
-		case IDCLOSE:
-			ShowWindow(hwnd, SW_HIDE);
-			break;
-		default:
-			return FALSE;
-		}
-		break;
-	case WM_ERASEBKGND:
-		return 0;
-	case WM_PAINT:
-#ifdef SUPPORT_SOUNDSPEC
-		UpdateSpectrogramCanvas();
-#endif /* SUPPORT_SOUNDSPEC */
-		break;
-	case WM_SIZE:
-		InvalidateRect(hwnd, NULL, FALSE);
-		return FALSE;
-	case WM_MOVE:
-		return FALSE;
-	case WM_DESTROY:
-#ifdef SUPPORT_SOUNDSPEC
-		close_soundspec();
-#endif /* SUPPORT_SOUNDSPEC */
-		break;
-	case WM_CLOSE:
-		ShowWindow(hSoundSpecWnd, SW_HIDE);
-		break;
-	case WM_CHAR:
-		break;
-	case WM_SYSKEYDOWN:
-	case WM_KEYDOWN:
-	{
-		int nVirtKey = (int)wParam;
-		short nModifiers = (int)lParam & 0xFFFF;
-		switch (nVirtKey) {
-			case VK_ESCAPE:
-				SendMessage(hwnd, WM_CLOSE, 0, 0);
-				break;
-			default:
-#ifdef SUPPORT_SOUNDSPEC
-				HandleSpecKeydownEvent(nVirtKey, nModifiers);
-#endif /* SUPPORT_SOUNDSPEC */
-				break;
-		}
-	}
-		break;
-	case WM_GETMINMAXINFO:
-	{
-		LPMINMAXINFO lpmmi = (LPMINMAXINFO) lParam;
-		lpmmi->ptMinTrackSize.x = max(192, lpmmi->ptMinTrackSize.x);
-		lpmmi->ptMinTrackSize.y = max(100, lpmmi->ptMinTrackSize.y);
-	}
-		return 0;
-	default:
-		return FALSE;
-	}
-	return FALSE;
-}
 
 // ---------------------------------------------------------------------------
 // Static Functions

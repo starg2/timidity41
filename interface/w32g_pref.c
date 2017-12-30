@@ -583,7 +583,6 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 
 extern void TracerWndApplyQuietChannel( ChannelBitMask quietchannels_ );
 
-#if !defined(IA_W32G_SYN)
 /* st_temp, sp_temp を適用する
  * 注意: MainThread からの呼び出し禁止、危険！
  */
@@ -660,7 +659,6 @@ void PrefSettingApplyReally(void)
 //		PrefWndDoing = 0;
 	}
 }
-#endif
 
 #if defined(IA_W32G_SYN)
 extern int w32g_syn_do_before_pref_apply ( void );

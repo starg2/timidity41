@@ -160,6 +160,7 @@ set(
 
     avrt
     comctl32
+    shlwapi
     winmm
     ws2_32
 )

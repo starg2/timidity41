@@ -134,10 +134,8 @@ uint8 opt_normal_chorus_plus = 5; // chorusEX
 #if defined(__W32__)
 extern DWORD processPriority;
 DWORD processPriority = NORMAL_PRIORITY_CLASS;	// プロセスのプライオリティ
-#if !defined(IA_W32G_SYN)
 int PlayerThreadPriority = THREAD_PRIORITY_NORMAL;
 int GUIThreadPriority = THREAD_PRIORITY_NORMAL;
-#endif
 #endif
 
 /* option enums */
