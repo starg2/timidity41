@@ -134,7 +134,6 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd);
 
 static int vorbisCofigDialog(void);
 static int gogoCofigDialog(void);
-static int flacConfigDialog(void);
 
 static int w32_reset_exe_directory(void)
 {
