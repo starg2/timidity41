@@ -1,6 +1,6 @@
 
 add_library(
-    utils STATIC
+    utils OBJECT
 
     bitset.c
     fft.c

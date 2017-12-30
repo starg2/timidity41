@@ -1,6 +1,6 @@
 
 add_library(
-    pdcurses STATIC
+    pdcurses OBJECT
 
     pdcurses/addch.c
     pdcurses/addchstr.c

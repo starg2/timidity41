@@ -1,6 +1,6 @@
 
 add_library(
-    libunimod STATIC
+    libunimod OBJECT
 
     load_669.c
     load_amf.c

@@ -147,17 +147,17 @@ set(
     w32_libOggFLAC_dll_g.h
     w32_libOggFLAC_dll_i.h
     wrd.h
+
+    $<TARGET_OBJECTS:libarc>
+    $<TARGET_OBJECTS:libunimod>
+    $<TARGET_OBJECTS:utils>
+
+    $<TARGET_OBJECTS:pdcurses>
+    $<TARGET_OBJECTS:speex>
 )
 
 set(
     TIMIDITY_COMMON_LIBS
-
-    libarc
-    libunimod
-    utils
-
-    pdcurses
-    speex
 
     avrt
     comctl32
@@ -172,11 +172,12 @@ add_executable(
     timidity
 
     ${TIMIDITY_COMMON_SOURCES}
+    $<TARGET_OBJECTS:interface>
 )
 
 add_dependencies(timidity UpdateTim41Version)
 target_compile_definitions(timidity PRIVATE -DIA_NCURSES)
-target_link_libraries(timidity interface ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS})
 
 # twsynsrv
 
@@ -184,11 +185,12 @@ add_executable(
     twsynsrv
 
     ${TIMIDITY_COMMON_SOURCES}
+    $<TARGET_OBJECTS:interface_synsrv>
 )
 
 add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
-target_link_libraries(twsynsrv interface_synsrv ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS})
 
 # timw32g
 
@@ -196,12 +198,12 @@ add_executable(
     timw32g WIN32
 
     ${TIMIDITY_COMMON_SOURCES}
-    $<TARGET_OBJECTS:interface_w32g_res>
+    $<TARGET_OBJECTS:interface_w32g>
 )
 
 add_dependencies(timw32g UpdateTim41Version)
 target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
-target_link_libraries(timw32g interface_w32g ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(timw32g ${TIMIDITY_COMMON_LIBS})
 DisableMSManifest(timw32g)
 
 # twsyng
@@ -210,10 +212,10 @@ add_executable(
     twsyng WIN32
 
     ${TIMIDITY_COMMON_SOURCES}
-    $<TARGET_OBJECTS:interface_w32gsyn_res>
+    $<TARGET_OBJECTS:interface_w32gsyn>
 )
 
 add_dependencies(twsyng UpdateTim41Version)
 target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
-target_link_libraries(twsyng interface_w32gsyn ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS})
 DisableMSManifest(twsyng)

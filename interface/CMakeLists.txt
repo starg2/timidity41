@@ -87,7 +87,7 @@ endif()
 # for timidity
 
 add_library(
-    interface STATIC
+    interface OBJECT
 
     ${INTERFACE_COMMON_SOURCES}
 )
@@ -97,7 +97,7 @@ target_compile_definitions(interface PRIVATE -DIA_NCURSES)
 # for twsynsrv
 
 add_library(
-    interface_synsrv STATIC
+    interface_synsrv OBJECT
 
     ${INTERFACE_COMMON_SOURCES}
     rtsyn_winmm.c
@@ -109,39 +109,27 @@ target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
 # for timw32g
 
 add_library(
-    interface_w32g STATIC
+    interface_w32g OBJECT
 
     ${INTERFACE_W32G_COMMON_SOURCES}
-)
-
-target_compile_definitions(interface_w32g PRIVATE -DIA_W32GUI -D__W32G__)
-
-add_library(
-    interface_w32g_res OBJECT
     w32g_res.rc
 )
 
-add_dependencies(interface_w32g_res UpdateTim41Version)
-target_compile_definitions(interface_w32g_res PRIVATE -DIA_W32GUI -D__W32G__)
+add_dependencies(interface_w32g UpdateTim41Version)
+target_compile_definitions(interface_w32g PRIVATE -DIA_W32GUI -D__W32G__)
 
 # for twsyng
 
 add_library(
-    interface_w32gsyn STATIC
+    interface_w32gsyn OBJECT
 
     ${INTERFACE_COMMON_SOURCES}
     ${INTERFACE_W32G_COMMON_SOURCES}
     w32g_syn.c
     rtsyn_winmm.c
     winsyn_c.c
-)
-
-target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
-
-add_library(
-    interface_w32gsyn_res OBJECT
     w32g_res.rc
 )
 
-add_dependencies(interface_w32gsyn_res UpdateTim41Version)
-target_compile_definitions(interface_w32gsyn_res PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+add_dependencies(interface_w32gsyn UpdateTim41Version)
+target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)

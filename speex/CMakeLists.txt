@@ -5,7 +5,7 @@ add_definitions(
 )
 
 add_library(
-    speex STATIC
+    speex OBJECT
 
     bits.c
     cb_search.c

@@ -5,7 +5,7 @@ add_definitions(
 )
 
 add_library(
-    libarc STATIC
+    libarc OBJECT
 
     arc.c
     arc_lzh.c
