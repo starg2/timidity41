@@ -90,6 +90,8 @@ static void close_output(void);
 static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
 
+static int auto_npipe_output_open(const char *input_filename, const char *title);
+
 /* export the playback mode */
 
 #define dpm npipe_play_mode

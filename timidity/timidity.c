@@ -2504,9 +2504,6 @@ MAIN_INTERFACE int read_config_file(const char *name, int self, int allow_missin
 		if (*w[1] == '-') {
 			int optind_save = optind;
 			optind = 0;
-#if defined(__CYGWIN__) || defined(__MINGW32__)
-			optreset = 1;
-#endif /* __CYGWIN__ || __MINGW32__ */
 			c = getopt_long(words, w, optcommands, longopts, &longind);
 			err = set_tim_opt_long(c, optarg, longind);
 			optind = optind_save;
@@ -8376,23 +8373,6 @@ int w32gSaveDefaultPlaylist(void);
 extern int volatile save_playlist_once_before_exit_flag;
 #endif /* IA_W32GUI */
 
-#if defined(__W32__) && !defined(WINDRV)
-typedef BOOL (WINAPI *SetDllDirectoryAProc)(LPCSTR lpPathName);
-
-/*! Remove the current directory for the search path of LoadLibrary. Returns 0 if failed. */
-static int w32_reset_dll_directory(void)
-{
-	HMODULE module;
-	SetDllDirectoryAProc setDllDirectory;
-	if ((module = GetModuleHandle(TEXT("Kernel32.dll"))) == NULL)
-		return 0;
-	if ((setDllDirectory = (SetDllDirectoryAProc)GetProcAddress(module, TEXT("SetDllDirectoryA"))) == NULL)
-		return 0;
-	/* Microsoft Security Advisory 2389418 */
-	return (*setDllDirectory)("") != 0;
-}
-#endif
-
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
 static int CoInitializeOK = 0;
 #endif
@@ -8544,9 +8524,6 @@ int main(int argc, char **argv)
 	opt_sf_close_each_file = 0;
 #endif 
 	optind = longind = 0;
-#if defined(__CYGWIN__) || defined(__MINGW32__)
-	optreset = 1;
-#endif
 #ifdef __W32__
 	while ((c = getopt_long(argc, argv, optcommands, longopts, &longind)) > 0)
 		if ((err = set_tim_opt_long_cfg(c, optarg, longind)) != 0)
@@ -8558,9 +8535,6 @@ int main(int argc, char **argv)
 	}
 	
 	optind = longind = 0;
-#if defined(__CYGWIN__) || defined(__MINGW32__)
-	optreset = 1;
-#endif
 	while ((c = getopt_long(argc, argv, optcommands, longopts, &longind)) > 0)
 		if ((err = set_tim_opt_long(c, optarg, longind)) != 0)
 			break;

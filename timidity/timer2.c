@@ -97,7 +97,7 @@ void stop_timer(uint32 id)
 
 #else /* IA_W32GUI */
 
-int start_timer(uint32 id, void *fnc, uint32 ms){return 1;}
+int start_timer(uint32 id, timer_func_t fnc, uint32 ms){return 1;}
 void stop_timer(uint32 id){}
 
 #endif /* IA_W32GUI */

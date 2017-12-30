@@ -167,9 +167,6 @@ int timiwp_main_ini(int argc, char **argv)
 #endif
 
     optind = longind = 0;
-#if defined(__MINGW32__) || defined(__CYGWIN__)
-    optreset = 1;
-#endif
     while ((c = getopt_long(argc, argv, optcommands, longopts, &longind)) > 0)
 	if ((err = set_tim_opt_long(c, optarg, longind)) != 0)
 	    break;

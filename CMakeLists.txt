@@ -51,6 +51,8 @@ add_definitions(
     -DENABLE_THREAD
     -DSUPPORT_SOUNDSPEC
     -DANOTHER_MAIN
+    -D__W32__
+    -D__W32READDIR__
 
 # TiMidity++ audio
     -DAU_W32
@@ -87,8 +89,8 @@ add_definitions(
 
 # Windows
     -DWIN32_LEAN_AND_MEAN
-    -D__W32__
-    -D__W32READDIR__
+    -DWINVER=0x0601
+    -D_WIN32_WINNT=0x0601
 
 # MSVCRT
     -D_CRT_SECURE_NO_WARNINGS

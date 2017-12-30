@@ -11,7 +11,6 @@ add_custom_command(
     COMMAND calcnewton newton_table.c
 )
 
-set_source_files_properties(resample.c OBJECT_DEPENDS newton_table.c)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # timidity common
@@ -161,6 +160,7 @@ set(
 
     avrt
     comctl32
+    winmm
     ws2_32
 )
 
