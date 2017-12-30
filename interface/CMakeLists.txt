@@ -2,9 +2,7 @@
 set(
     INTERFACE_COMMON_SOURCES
 
-    dumb_c.c
     ncurs_c.c
-    npsyn_c.c
     rtsyn_common.c
     vt100.c
     vt100_c.c
@@ -12,7 +10,6 @@ set(
     w32g_soundspec.c
     wrdt_dumb.c
     wrdt_tty.c
-    wrdt_wcon.c
 
     gtk_h.h
     mac_c.h
@@ -90,6 +87,8 @@ add_library(
     interface OBJECT
 
     ${INTERFACE_COMMON_SOURCES}
+    dumb_c.c
+    wrdt_wcon.c
 )
 
 target_compile_definitions(interface PRIVATE -DIA_NCURSES)
@@ -100,8 +99,10 @@ add_library(
     interface_synsrv OBJECT
 
     ${INTERFACE_COMMON_SOURCES}
+    dumb_c.c
     rtsyn_winmm.c
     winsyn_c.c
+    wrdt_wcon.c
 )
 
 target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
@@ -125,8 +126,8 @@ add_library(
 
     ${INTERFACE_COMMON_SOURCES}
     ${INTERFACE_W32G_COMMON_SOURCES}
-    w32g_syn.c
     rtsyn_winmm.c
+    w32g_syn.c
     winsyn_c.c
     w32g_res.rc
 )
