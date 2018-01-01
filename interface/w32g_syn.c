@@ -395,7 +395,7 @@ static int w32g_syn_main(void)
 	w32g_syn.hIconPause = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_SERVER_PAUSE), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
 	processPriority = NORMAL_PRIORITY_CLASS;
 	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
-	for (i = 0; i <= MAX_PORT; i++) {
+	for (i = 0; i < MAX_PORT; i++) {
 		w32g_syn_id_port[i] = i + 1;
 	}
 

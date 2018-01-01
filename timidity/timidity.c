@@ -1184,7 +1184,7 @@ static Quantity **config_parse_modulation(const char *name, int line, const char
 }
 
 ///r
-extern int16 sd_mfx_patch_param[12][9][128][33];
+extern int16 sd_mfx_patch_param[13][9][128][33];
 static int config_parse_mfx_patch(char *w[], int words, int mapid, int bank, int prog)
 {
     int i, num;

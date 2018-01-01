@@ -1299,10 +1299,12 @@ static void config_parse_scc_data(const char *cp, Preset_IS *set, int setting)
 	/* count num */
 	p = cp;
 	/* init */
-	for (i = 0; i < SCC_DATA_LENGTH + 1; i++){
+	for (i = 0; i < SCC_DATA_LENGTH; i++){
 		set->scc_data_int[setting][i] = 0; // init param
 		set->scc_data[setting][i] = 0; // init param
 	}
+    set->scc_data[setting][SCC_DATA_LENGTH] = 0;
+
 	/* regist */
 	for (i = 0; i < SCC_DATA_LENGTH; i++, p++) {
 		if (*p == ':')

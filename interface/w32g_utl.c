@@ -70,7 +70,7 @@
 #include "mix.h"
 #include "thread.h"
 #include "miditrace.h"
-
+#include "rtsyn.h"
 
 extern int opt_default_mid;
 extern int effect_lr_mode;
