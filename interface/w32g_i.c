@@ -339,8 +339,8 @@ LPSTR lpCmdLine, int nCmdShow)
 // ***************************************************************************
 // System Function
 
-void CALLBACK KillProcess(UINT IDEvent, UINT uReserved, DWORD dwUser,
-	DWORD dwReserved1, DWORD dwReserved2)
+void CALLBACK KillProcess(UINT IDEvent, UINT uReserved, DWORD_PTR dwUser,
+	DWORD_PTR dwReserved1, DWORD_PTR dwReserved2)
 {
 	exit(0);
 	//	ExitProcess(0);
@@ -845,14 +845,14 @@ static void InitMainToolbar(HWND hwnd);
 static void InitSubWndToolbar(HWND hwnd);
 
 static UINT PlayerForwardAndBackwardEventID = 0;
-static void CALLBACK PlayerForward(UINT IDEvent, UINT uReserved, DWORD dwUser,
-	DWORD dwReserved1, DWORD dwReserved2)
+static void CALLBACK PlayerForward(UINT IDEvent, UINT uReserved, DWORD_PTR dwUser,
+	DWORD_PTR dwReserved1, DWORD_PTR dwReserved2)
 {
 	w32g_send_rc(RC_FORWARD, play_mode->rate);
 }
 
-static void CALLBACK PlayerBackward(UINT IDEvent, UINT uReserved, DWORD dwUser,
-	DWORD dwReserved1, DWORD dwReserved2)
+static void CALLBACK PlayerBackward(UINT IDEvent, UINT uReserved, DWORD_PTR dwUser,
+	DWORD_PTR dwReserved1, DWORD_PTR dwReserved2)
 {
 	w32g_send_rc(RC_BACK, play_mode->rate);
 }
