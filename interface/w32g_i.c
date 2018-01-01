@@ -5334,10 +5334,8 @@ void VprintfEditCtlWnd(HWND hwnd, char *fmt, va_list argList)
 
      {
          int len = GetWindowTextLength(hwnd);
-         SendMessage(hwnd, WM_SETREDRAW, 0, 0);
          Edit_SetSel(hwnd, len, len);
          Edit_ReplaceSel(hwnd, out);
-         SendMessage(hwnd, WM_SETREDRAW, 1, 0);
      }
 }
 
@@ -5374,10 +5372,8 @@ void PutsEditCtlWnd(HWND hwnd, char *str)
   }
 	if(IsWindow(hwnd)){
         int len = GetWindowTextLength(hwnd);
-		SendMessage(hwnd, WM_SETREDRAW, 0, 0);
  		Edit_SetSel(hwnd, len, len);
  		Edit_ReplaceSel(hwnd,out);
-		SendMessage(hwnd, WM_SETREDRAW, 1, 0);
 	}
 }
 #else
