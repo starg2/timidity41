@@ -2590,6 +2590,8 @@ typedef struct {
 	InfoTremolo info_trm;
 } Info_SD_S_RhodesMulti;
 
+struct _EffectList;
+
 typedef struct {
 	double level, eh_wet, eh_dry, ph_wet, ph_dry, panl, panr;
 	int32 leveli;
@@ -2911,14 +2913,6 @@ EXTERN struct effect_parameter_sd_t effect_parameter_sd[];
 
 
 /* GS/XG/SD parameters effect */
-typedef struct _EffectList {
-	int type;
-	void *info;
-	struct _EffectEngine *engine;
-	struct _EffectList *next_ef;
-	DATA_T *efx_buf;
-} EffectList;
-
 struct _EffectEngine {
 	int type;
 	char *name;
@@ -2928,6 +2922,14 @@ struct _EffectEngine {
 	void (*conv_sd)(struct mfx_effect_sd_t *, struct _EffectList *);
 	int info_size;
 };
+
+typedef struct _EffectList {
+	int type;
+	void *info;
+	struct _EffectEngine *engine;
+	struct _EffectList *next_ef;
+	DATA_T *efx_buf;
+} EffectList;
 
 EXTERN struct _EffectEngine effect_engine[];
 
