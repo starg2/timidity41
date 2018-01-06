@@ -6968,6 +6968,11 @@ static void insert_note_steps(void)
 			if (beat != 0)
 				meas++, beat = 0;
 			num = timesig[n].a, denom = timesig[n].b, n++;
+
+            if (denom == 0) {
+                ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "warning: invalid denominator in timesig");
+                denom = 1;
+            }
 		}
 		a = (meas + 1) & 0xff;
 		b = (((meas + 1) >> 8) & 0x0f) + ((beat + 1) << 4);
