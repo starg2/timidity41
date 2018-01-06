@@ -134,6 +134,7 @@ include_directories("." interface libarc libunimod pdcurses portaudio/pa_common 
 add_subdirectory(pdcurses)
 add_subdirectory(speex)
 
+add_subdirectory(cfgforsf)
 add_subdirectory(interface)
 add_subdirectory(libarc)
 add_subdirectory(libunimod)

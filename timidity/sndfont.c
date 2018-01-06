@@ -2149,6 +2149,8 @@ PlayMode dpm = {
 		NULL
 };
 PlayMode *play_mode = &dpm;
+int free_instruments_afterwards = 1;
+int compute_buffer_size;
 #ifndef CFG_FOR_SF_SUPPORT_FFT
 int32 freq_table[1];
 FLOAT_T bend_fine[1];
@@ -2281,8 +2283,6 @@ static void cfgforsf_usage(const char *program_name, int status)
 int check_apply_control(void) { return 0; } // not pass
 int dumb_pass_playing_list(int number_of_files, char *list_of_files[]) { return 0; }
 void recompute_freq(int v) { } // not pass
-Instrument *extract_scc_file(int preset) { return 0; } // not pass
-Instrument *extract_mms_file(int preset) { return 0; } // not pass
 int32 control_ratio = 0;
 int reduce_quality_flag = 0;
 double div_playmode_rate = 1.0 / 44100;
