@@ -151,12 +151,12 @@ set(
     $<TARGET_OBJECTS:libarc>
     $<TARGET_OBJECTS:libunimod>
     $<TARGET_OBJECTS:utils>
-
-    $<TARGET_OBJECTS:speex>
 )
 
 set(
     TIMIDITY_COMMON_LIBS
+
+    speex
 
     avrt
     comctl32

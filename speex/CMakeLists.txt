@@ -5,7 +5,7 @@ add_definitions(
 )
 
 add_library(
-    speex OBJECT
+    speex SHARED
 
     bits.c
     cb_search.c
@@ -66,4 +66,6 @@ add_library(
     speex_header.h
     speex_stereo.h
     speex_types.h
+
+    libspeex.def
 )
