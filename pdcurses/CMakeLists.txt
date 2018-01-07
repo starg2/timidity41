@@ -1,6 +1,6 @@
 
 add_library(
-    pdcurses OBJECT
+    pdcurses SHARED
 
     pdcurses/addch.c
     pdcurses/addchstr.c
@@ -57,4 +57,7 @@ add_library(
     panel.h
     win32/pdcwin.h
     term.h
+
+    pdcurses.def
+    win32/pdcurses.rc
 )

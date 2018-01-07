@@ -102,6 +102,9 @@ add_definitions(
     -DHAVE_SOCKET
     -DSUPPORT_SOCKET
 
+# pdcurses
+    -DPDC_DLL_BUILD
+
 # Windows
     -DWIN32_LEAN_AND_MEAN
     -DWINVER=0x0601

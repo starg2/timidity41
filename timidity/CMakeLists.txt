@@ -152,7 +152,6 @@ set(
     $<TARGET_OBJECTS:libunimod>
     $<TARGET_OBJECTS:utils>
 
-    $<TARGET_OBJECTS:pdcurses>
     $<TARGET_OBJECTS:speex>
 )
 
@@ -177,7 +176,7 @@ add_executable(
 
 add_dependencies(timidity UpdateTim41Version)
 target_compile_definitions(timidity PRIVATE -DIA_NCURSES)
-target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS} pdcurses)
 
 # twsynsrv
 
@@ -190,7 +189,7 @@ add_executable(
 
 add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
-target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS} pdcurses)
 
 # timw32g
 
@@ -217,5 +216,5 @@ add_executable(
 
 add_dependencies(twsyng UpdateTim41Version)
 target_compile_definitions(twsyng PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
-target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS} pdcurses)
 DisableMSManifest(twsyng)
