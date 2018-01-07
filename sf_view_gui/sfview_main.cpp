@@ -298,7 +298,7 @@ LRESULT DlgMainProc_CLOSE(HWND hDlg, WPARAM wParam, LPARAM lParam)
 
 LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-#define SET_MYWINMSG(VN) case WM_ ## VN: return DlgMainProc_## VN ##(hDlg, wParam, lParam);
+#define SET_MYWINMSG(VN) case WM_ ## VN: return DlgMainProc_## VN(hDlg, wParam, lParam);
 	switch (msg) {
 		SET_MYWINMSG(INITDIALOG);
 		SET_MYWINMSG(DROPFILES);
