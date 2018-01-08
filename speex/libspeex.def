@@ -72,9 +72,3 @@ speex_encode_stereo_int
 speex_decode_stereo
 speex_decode_stereo_int
 speex_std_stereo_request_handler
-
-; modes.c
-speex_nb_mode
-speex_wb_mode
-speex_uwb_mode
-

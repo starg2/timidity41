@@ -170,13 +170,13 @@ static int speex_mode_preset()
       return 0;
     }
     else if (rate > 25000) {
-      ctx->mode = &speex_uwb_mode;
+      ctx->mode = speex_lib_get_mode(SPEEX_MODEID_UWB);
     }
     else if (rate > 12500) {
-      ctx->mode = &speex_wb_mode;
+      ctx->mode = speex_lib_get_mode(SPEEX_MODEID_WB);
     }
     else if (rate >= 6000) {
-      ctx->mode = &speex_nb_mode;
+      ctx->mode = speex_lib_get_mode(SPEEX_MODEID_NB);
     }
     else {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
