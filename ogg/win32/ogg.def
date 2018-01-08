@@ -2,7 +2,6 @@
 ;
 ; ogg.def
 ;
-LIBRARY
 EXPORTS
 ;
 oggpack_writeinit
