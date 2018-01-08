@@ -73,3 +73,5 @@ add_library(
     Dll/BladeMP3EncDLL.def
     libmp3lame/lame.rc
 )
+
+set_target_properties(lame_enc PROPERTIES PREFIX "")
