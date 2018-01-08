@@ -132,7 +132,7 @@ if(MSVC)
         -DSTDOUT_FILENO=1
     )
 else()
-    add_compile_options(-Wall -Wextra -ffast-math)
+    add_compile_options(-Wall -Wextra -ffast-math -msse4.2)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")

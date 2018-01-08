@@ -119,10 +119,10 @@ AVX2以上のビルド環境がないので 動作は不明 (VC2013?以降
 
 #define USE_SSE // テスト用
 #define USE_SSE2 // テスト用
-//#define USE_SSE3 // テスト用
-//#define USE_SSSE3 // テスト用
-//#define USE_SSE41 // テスト用
-//#define USE_SSE42 // テスト用
+#define USE_SSE3 // テスト用
+#define USE_SSSE3 // テスト用
+#define USE_SSE41 // テスト用
+#define USE_SSE42 // テスト用
 //#define USE_AVX // テスト用
 //#define USE_AVX2 // テスト用
 
