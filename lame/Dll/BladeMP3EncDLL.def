@@ -1,4 +1,3 @@
-LIBRARY  lame_enc.DLL
 EXPORTS
 
 beInitStream			@1

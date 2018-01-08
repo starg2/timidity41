@@ -147,8 +147,9 @@ function(DisableMSManifest targetName)
     endif()
 endfunction()
 
-include_directories("." interface libarc libunimod pdcurses portaudio/pa_common timidity utils)
+include_directories("." interface lame/DLL lame/include libarc libunimod pdcurses portaudio/pa_common timidity utils)
 
+add_subdirectory(lame)
 add_subdirectory(pdcurses)
 add_subdirectory(speex)
 

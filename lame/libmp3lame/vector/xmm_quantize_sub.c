@@ -25,9 +25,9 @@
 #endif
 
 #include "lame.h"
-#include "machine.h"
-#include "encoder.h"
-#include "util.h"
+#include "../machine.h"
+#include "../encoder.h"
+#include "../util.h"
 #include "lame_intrin.h"
 
 
