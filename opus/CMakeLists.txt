@@ -10,6 +10,7 @@ include_directories(
 add_definitions(
     -DUSE_ALLOCA
     -DOPUS_BUILD
+    -DFLOAT_APPROX
     -DDLL_EXPORT
     -DOPUS_X86_MAY_HAVE_SSE
     -DOPUS_X86_MAY_HAVE_SSE2

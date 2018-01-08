@@ -1,4 +1,6 @@
 
+include_directories(lib)
+
 add_library(
     libvorbis SHARED
 

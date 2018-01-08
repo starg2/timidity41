@@ -527,7 +527,7 @@ int     ogg_page_bos(ogg_page *og)
 }
 #endif
 
-int     ogg_page_eos(ogg_page *og)
+int     ogg_page_eos(const ogg_page *og)
 {
 	if(h_ogg_dll){
 		return ogg_dll.ogg_page_eos(og);

@@ -7,6 +7,13 @@ add_definitions(
     -DPACKAGE_VERSION="1.3.2"
 )
 
+if(MINGW)
+    add_definitions(
+        -DHAVE_FSEEKO
+        -DHAVE_LROUND
+    )
+endif()
+
 include_directories(src)
 
 add_library(
