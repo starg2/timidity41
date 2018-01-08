@@ -184,6 +184,8 @@ static int lame_output_open(const char *fname, const char *comment)
 	beWriteInfoTag  = (BEWRITEINFOTAG) GetProcAddress(hLame, TEXT_BEWRITEINFOTAG);
 
 	if (!beInitStream || !beEncodeChunk || !beDeinitStream || !beCloseStream || !beVersion || !beWriteVBRHeader) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			"DLL load failed: %s", "lame_enc.dll");
 		return -1;
 	}
 
@@ -403,6 +405,9 @@ static int32 output_data(const uint8 *readbuffer, size_t bytes)
 	memcpy(lame_buffer + lame_buffer_cur, readbuffer, read_size);
 	lame_buffer_cur += read_size;
 */
+	if (!beEncodeChunk) {
+		return -1;
+	}
 
 	err = beEncodeChunk(hbeStream, divi_2(bytes), (short*)readbuffer, (unsigned char*)lame_work_buffer, &dwWrite);
 	if (err != BE_ERR_SUCCESSFUL) {
