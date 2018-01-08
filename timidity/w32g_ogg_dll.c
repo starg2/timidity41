@@ -139,7 +139,7 @@ void free_ogg_dll(void)
 int load_ogg_dll(void)
 {
 	if(!h_ogg_dll){
-		h_ogg_dll = LoadLibrary("ogg.dll");
+		h_ogg_dll = LoadLibrary("libogg.dll");
 		if(!h_ogg_dll) return -1;
 	}
 //	ogg_dll.oggpack_writeinit = (type_oggpack_writeinit)GetProcAddress(h_ogg_dll,"oggpack_writeinit");
