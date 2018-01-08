@@ -240,3 +240,5 @@ add_library(
     silk/x86/VQ_WMat_EC_sse.c
     silk/x86/x86_silk_map.c
 )
+
+set_target_properties(libopus PROPERTIES PREFIX "")

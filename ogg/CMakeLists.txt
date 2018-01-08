@@ -10,3 +10,5 @@ add_library(
 
     win32/ogg.def
 )
+
+set_target_properties(libogg PROPERTIES PREFIX "")

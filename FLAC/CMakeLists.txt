@@ -91,4 +91,5 @@ add_library(
     src/windows_unicode_filenames.c
 )
 
+set_target_properties(libFLAC PROPERTIES PREFIX "")
 target_link_libraries(libFLAC libogg)

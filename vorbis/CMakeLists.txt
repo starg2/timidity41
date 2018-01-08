@@ -78,4 +78,5 @@ add_library(
     win32/vorbisfile.def
 )
 
+set_target_properties(libvorbis PROPERTIES PREFIX "")
 target_link_libraries(libvorbis libogg)
