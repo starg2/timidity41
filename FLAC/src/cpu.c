@@ -112,14 +112,13 @@ ia32_cpu_info (FLAC__CPUInfo *info)
 		return;
 #endif
 	/* http://www.sandpile.org/x86/cpuid.htm */
-	if (FLAC__HAS_X86INTRIN) {
+#if FLAC__HAS_X86INTRIN
 		FLAC__cpu_info_x86(0, &flags_eax, &flags_ebx, &flags_ecx, &flags_edx);
 		info->ia32.intel = (flags_ebx == 0x756E6547 && flags_edx == 0x49656E69 && flags_ecx == 0x6C65746E) ? true : false; /* GenuineIntel */
 		FLAC__cpu_info_x86(1, &flags_eax, &flags_ebx, &flags_ecx, &flags_edx);
-	}
-	else {
+#else
 		FLAC__cpu_info_asm_ia32(&flags_edx, &flags_ecx);
-	}
+#endif
 
 	info->ia32.cmov  = (flags_edx & FLAC__CPUINFO_IA32_CPUID_CMOV ) ? true : false;
 	info->ia32.mmx   = (flags_edx & FLAC__CPUINFO_IA32_CPUID_MMX  ) ? true : false;
