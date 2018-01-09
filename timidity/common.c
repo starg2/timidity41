@@ -1695,6 +1695,7 @@ char *w32_utf8_to_mbs(const char *str)
 		safe_free(buff8);
 		return NULL;
 	}
+	buff8[buff8_size] = '\0';
 	return buff8;
 }
 #endif
