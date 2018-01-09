@@ -54,6 +54,7 @@
 #define _WIN32_WINNT 0x0400 /* required to get waitable timer APIs */
 #include <initguid.h> /* make sure ds guids get defined */
 #include <windows.h>
+#include <mmsystem.h>
 #include <objbase.h>
 
 

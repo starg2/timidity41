@@ -67,6 +67,7 @@ of a device for the duration of active stream using those devices
 #define WINVER 0x0501
 #endif
 
+#include <stdlib.h>
 #include <string.h> /* strlen() */
 #include <assert.h>
 #include <wchar.h>  /* iswspace() */
@@ -94,6 +95,7 @@ of a device for the duration of active stream using those devices
 #endif
 
 #include <windows.h>
+#include <mmsystem.h>
 #ifndef __GNUC__ /* Fix for ticket #257: MinGW-w64: Inclusion of <winioctl.h> triggers multiple redefinition errors. */
 #include <winioctl.h>
 #endif
