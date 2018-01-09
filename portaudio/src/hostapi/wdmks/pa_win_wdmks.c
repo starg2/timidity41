@@ -171,6 +171,7 @@ Default is to use the pin category.
 #endif
 
 #include <setupapi.h>
+#include <winioctl.h>
 
 #ifndef EXTERN_C
 #define EXTERN_C extern

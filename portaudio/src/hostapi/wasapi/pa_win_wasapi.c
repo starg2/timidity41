@@ -55,14 +55,14 @@
 
 // WASAPI
 #include <mmreg.h>  // must be before other Wasapi headers
-#if defined(_MSC_VER) && (_MSC_VER >= 1400)
+#if (defined(_MSC_VER) && (_MSC_VER >= 1400)) || defined(__MINGW64_VERSION_MAJOR)
 	#include <Avrt.h>
 	#define COBJMACROS
 	#include <Audioclient.h>
 	#include <endpointvolume.h>
 	#define INITGUID // Avoid additional linkage of static libs, excessive code will be optimized out by the compiler
 	#include <mmdeviceapi.h>
-	#include <functiondiscoverykeys.h>
+	#include <functiondiscoverykeys_devpkey.h>
     #include <devicetopology.h>	// Used to get IKsJackDescription interface
 	#undef INITGUID
 #endif
