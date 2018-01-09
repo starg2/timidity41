@@ -158,7 +158,7 @@ include_directories(
     ogg/include
     opus/include
     pdcurses
-    portaudio/pa_common
+    portaudio/include
     timidity
     utils
     vorbis/include
@@ -169,6 +169,7 @@ add_subdirectory(lame)
 add_subdirectory(ogg)
 add_subdirectory(opus)
 add_subdirectory(pdcurses)
+add_subdirectory(portaudio)
 add_subdirectory(speex)
 add_subdirectory(vorbis)
 
