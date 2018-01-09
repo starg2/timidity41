@@ -63,6 +63,8 @@
 #else
 #define DIRECTSOUND_VERSION 0x0300
 #endif
+#include <windows.h>
+#include <mmsystem.h>
 #include <dsound.h>
 
 #ifdef __cplusplus
