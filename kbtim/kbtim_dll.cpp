@@ -218,7 +218,7 @@ void __fastcall KbTimDecoder::close_output(void)
 {
     m_pm.fd = -1;
 }
-int __fastcall KbTimDecoder::output_data(const uint8 *buf, size_t len)
+int32 __fastcall KbTimDecoder::output_data(const uint8 *buf, size_t len)
 {
     EnterCriticalSection(&m_cs);
     if(!m_nStart){

@@ -40,8 +40,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)"
-				PreprocessorDefinitions="WINDRV_SETUP;_WINDOWS;_DEBUG;WIN32;HAVE_CONFIG_H;_MT;"
+				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;..\rcpcv;%(AdditionalIncludeDirectories)"
+				PreprocessorDefinitions="KBTIM_SETUP;_WINDOWS;_DEBUG;WIN32;HAVE_CONFIG_H;_MT;"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -60,7 +60,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;"
+				AdditionalDependencies="wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib"
 				OutputFile="../Debug/$(ProjectName).exe"
 				GenerateDebugInformation="true"
 				LargeAddressAware="2"
@@ -119,8 +119,8 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)"
-				PreprocessorDefinitions="NDEBUG;_WINDOWS;WIN32;WINDRV_SETUP;HAVE_CONFIG_H;_MT;"
+				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;..\rcpcv;%(AdditionalIncludeDirectories)"
+				PreprocessorDefinitions="NDEBUG;_WINDOWS;WIN32;KBTIM_SETUP;HAVE_CONFIG_H;_MT;"
 				RuntimeLibrary="2"
 				StructMemberAlignment="5"
 				BufferSecurityCheck="false"
@@ -142,9 +142,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;"
+				AdditionalDependencies="wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib"
 				OutputFile="..\Release\$(ProjectName).exe"
-				IgnoreDefaultLibraryNames="libc.lib;"
+				IgnoreDefaultLibraryNames="libc.lib;LIBCMT.lib;"
 				GenerateDebugInformation="false"
 				SubSystem="2"
 				LargeAddressAware="2"
@@ -177,6 +177,18 @@
 		</Configuration>
 	</Configurations>
 	<References>
+		<ProjectReference
+			ReferencedProjectIdentifier="{11CDD90A-20E1-45AF-879E-F355742B38B7}"
+			RelativePathToProject=".\libarc\libarc.vcproj"
+		/>
+		<ProjectReference
+			ReferencedProjectIdentifier="{8DC8ADE3-145A-4C63-80DD-0C93B6587B80}"
+			RelativePathToProject=".\libunimod\libunimod.vcproj"
+		/>
+		<ProjectReference
+			ReferencedProjectIdentifier="{B05F8AA0-6140-4335-AD39-E276D17002CB}"
+			RelativePathToProject=".\utils\utils.vcproj"
+		/>
 	</References>
 	<Files>
 		<Filter
@@ -220,6 +232,10 @@
 			>
 			<File
 				RelativePath=".\kbtimsetup.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\w32_a.c"
 				>
 			</File>
 			<File
@@ -290,10 +306,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\mfnode.c"
-					>
-				</File>
-				<File
 					RelativePath="..\timidity\miditrace.c"
 					>
 				</File>
@@ -307,10 +319,6 @@
 				</File>
 				<File
 					RelativePath="..\timidity\mod2midi.c"
-					>
-				</File>
-				<File
-					RelativePath="..\timidity\modmid_a.c"
 					>
 				</File>
 				<File
@@ -338,11 +346,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\portaudio_a.c"
+					RelativePath="..\timidity\quantity.c"
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\quantity.c"
+					RelativePath="..\timidity\rcp.c"
 					>
 				</File>
 				<File
@@ -367,6 +375,10 @@
 				</File>
 				<File
 					RelativePath="..\timidity\sfitem.c"
+					>
+				</File>
+				<File
+					RelativePath="..\timidity\smfconv.c"
 					>
 				</File>
 				<File
@@ -399,14 +411,6 @@
 				</File>
 				<File
 					RelativePath="..\timidity\voice_effect.c"
-					>
-				</File>
-				<File
-					RelativePath="..\timidity\w32_a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\timidity\w32_portaudio_dll.c"
 					>
 				</File>
 				<File

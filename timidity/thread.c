@@ -84,6 +84,11 @@ static ALIGN uint8 thread_finish_all[MAX_THREADS]; // byte*16=64bit*2=128bit
 static ALIGN uint8 thread_finish[MAX_THREADS]; // byte*16=64bit*2=128bit
 CRITICAL_SECTION critThread;
 
+void set_compute_thread_priority(DWORD var)
+{
+	ComputeThreadPriority = var;
+}
+
 #if (USE_X86_EXT_INTRIN >= 3)
 #define THREAD_WAIT_MAIN _mm_pause(); // SSE2
 #define THREAD_WAIT_SUB Sleep(0);

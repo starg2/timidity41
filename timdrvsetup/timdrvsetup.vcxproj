@@ -294,6 +294,7 @@
     <ClCompile Include="..\timidity\loadtab.c" />
     <ClCompile Include="..\timidity\m2m.c" />
     <ClCompile Include="..\timidity\mfi.c" />
+    <ClCompile Include="..\timidity\mfnode.c" />
     <ClCompile Include="..\timidity\miditrace.c" />
     <ClCompile Include="..\timidity\mix.c" />
     <ClCompile Include="..\timidity\mod.c" />
@@ -324,6 +325,7 @@
     <ClCompile Include="..\timidity\voice_effect.c" />
     <ClCompile Include="..\timidity\w32_a.c" />
     <ClCompile Include="..\timidity\w32_portaudio_dll.c" />
+    <ClCompile Include="..\timidity\wasapi_a.c" />
     <ClCompile Include="..\timidity\wave_a.c" />
     <ClCompile Include="..\timidity\wrdt.c" />
     <ClCompile Include="..\timidity\wrd_read.c" />

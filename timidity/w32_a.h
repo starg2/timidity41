@@ -21,14 +21,10 @@
 ///r
 #define DEVLIST_MAX 20
 
-typedef struct tag_DEVICELIST{
+typedef struct tag_DEVICELIST {
 	int  deviceID;
 	char name[MAXPNAMELEN];
 } DEVICELIST;
-
-
-extern CRITICAL_SECTION critSect;
-
 
 //extern int data_block_bits;
 //extern int data_block_num;

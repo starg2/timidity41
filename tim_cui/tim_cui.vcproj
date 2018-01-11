@@ -122,7 +122,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\Release"
+			OutputDirectory="..\Release\"
 			IntermediateDirectory=".\Release"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC70.vsprops"
@@ -204,7 +204,7 @@
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
+				DataExecutionPrevention="2"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -566,6 +566,10 @@
 				</File>
 				<File
 					RelativePath="..\timidity\w32_soundspec.c"
+					>
+				</File>
+				<File
+					RelativePath="..\timidity\wasapi_a.c"
 					>
 				</File>
 				<File

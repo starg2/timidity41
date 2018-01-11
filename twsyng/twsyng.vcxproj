@@ -80,8 +80,8 @@
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">twsyng_c209</TargetName>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">twsyng_x64_c209</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">twsyng_c212</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">twsyng_x64_c212</TargetName>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VCInstallDir)lib\amd64;$(VCInstallDir)atlmfc\lib\amd64;$(WindowsSdkDir)lib\x64;C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\x64;</LibraryPath>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectName)_x64</TargetName>
   </PropertyGroup>
@@ -368,6 +368,7 @@
     <ClCompile Include="..\interface\w32g_utl.c" />
     <ClCompile Include="..\timidity\w32g_vorbis_dll.c" />
     <ClCompile Include="..\timidity\w32g_vorbisenc_dll.c" />
+    <ClCompile Include="..\timidity\wasapi_a.c" />
     <ClCompile Include="..\timidity\wave_a.c" />
     <ClCompile Include="..\interface\winsyn_c.c" />
     <ClCompile Include="..\timidity\wrd_read.c" />

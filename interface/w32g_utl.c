@@ -63,6 +63,9 @@
 #ifdef AU_W32
 #include "w32_a.h"
 #endif
+#ifdef AU_WASAPI
+#include "wasapi_a.h"
+#endif
 #ifdef AU_PORTAUDIO
 #include "portaudio_a.h"
 #endif
@@ -71,7 +74,7 @@
 #include "thread.h"
 #include "miditrace.h"
 
-
+///r
 extern int opt_default_mid;
 extern int effect_lr_mode;
 extern int effect_lr_delay_msec;
@@ -82,21 +85,17 @@ extern char def_instr_name[];
 extern int opt_control_ratio;
 extern char *opt_aq_max_buff;
 extern char *opt_aq_fill_buff;
-///r
 extern char *opt_reduce_voice_threshold;
 extern char *opt_reduce_quality_threshold;
 extern char *opt_reduce_polyphony_threshold;
 extern DWORD processPriority;
-
 extern int opt_evil_mode;
 #ifdef SUPPORT_SOUNDSPEC
 extern double spectrogram_update_sec;
 #endif /* SUPPORT_SOUNDSPEC */
 extern int opt_buffer_fragments;
 extern int opt_audio_buffer_bits;
-///r
 extern int opt_compute_buffer_bits;
-
 extern int32 opt_output_rate;
 extern int PlayerLanguage;
 //extern int data_block_bits;
@@ -108,23 +107,20 @@ extern int IniFileAutoSave;
 extern int SecondMode;
 extern int AutoloadPlaylist;
 extern int AutosavePlaylist;
-///r
-//char DefaultPlaylistName[PLAYLIST_MAX][] = {"default.pls"};
-//char DefaultPlaylistPath[FILEPATH_MAX] = "";
-char DefaultPlaylistPath[PLAYLIST_MAX][FILEPATH_MAX];
-
-
-extern unsigned char opt_normal_chorus_plus;
-
 extern int PosSizeSave;
- 
+extern unsigned char opt_normal_chorus_plus; 
 #ifdef AU_LAME
 extern void lame_ConfigDialogInfoLoadINI();
 extern void lame_ConfigDialogInfoSaveINI();
 #endif
 
 ///r
-extern DWORD processPriority;
+//char DefaultPlaylistName[PLAYLIST_MAX][] = {"default.pls"};
+//char DefaultPlaylistPath[FILEPATH_MAX] = "";
+char DefaultPlaylistPath[PLAYLIST_MAX][FILEPATH_MAX];
+
+
+
 
 
 
@@ -569,16 +565,12 @@ static int is_device_output_ID(int id)
 #if defined(WINDRV_SETUP)
 extern DWORD syn_ThreadPriority;
 extern int w32g_syn_port_num;
-extern int volatile stream_max_compute;
-uint32 opt_rtsyn_latency = 200; /* RTSYN_LATENCY=0.2 */
 #elif defined(IA_W32G_SYN)
 extern int w32g_syn_id_port[];
 extern int syn_AutoStart;
 //extern DWORD processPriority;
 extern DWORD syn_ThreadPriority;
 extern int w32g_syn_port_num;
-extern int volatile stream_max_compute;
-uint32 opt_rtsyn_latency = 200; /* RTSYN_LATENCY=0.2 */
 #endif
 
 void
@@ -724,6 +716,16 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	opt_wmme_device_id = st->wmme_device_id;
 	opt_wave_format_ext = st->wave_format_ext;
 #endif
+#ifdef AU_WASAPI	
+	opt_wasapi_device_id = st->wasapi_device_id;
+	opt_wasapi_latency = st->wasapi_latency;
+	opt_wasapi_format_ext = st->wasapi_format_ext;
+	opt_wasapi_exclusive = st->wasapi_exclusive;
+	opt_wasapi_polling = st->wasapi_polling;
+	opt_wasapi_priority = st->wasapi_priority;
+	opt_wasapi_stream_category = st->wasapi_stream_category;
+	opt_wasapi_stream_option = st->wasapi_stream_option;
+#endif
 #ifdef AU_PORTAUDIO
 	opt_pa_wmme_device_id = st->pa_wmme_device_id;
 	opt_pa_ds_device_id = st->pa_ds_device_id;
@@ -774,23 +776,25 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     opt_use_midi_loop_repeat = SetFlag(st->opt_use_midi_loop_repeat);
     opt_midi_loop_repeat = SetValue(st->opt_midi_loop_repeat, 0, 99);
 	
-#if defined(WINDRV_SETUP)
-//	processPriority = st->processPriority;
+#if defined(WINDRV_SETUP) || defined(WINDRV)
 	syn_ThreadPriority = st->syn_ThreadPriority;
 	stream_max_compute = st->SynShTime;
-	opt_rtsyn_latency = SetValue(st->opt_rtsyn_latency, 20, 1000);
+	opt_rtsyn_latency = SetValue(st->opt_rtsyn_latency, 1, 1000);
 	rtsyn_set_latency((double)opt_rtsyn_latency * 0.001);
+	opt_rtsyn_skip_aq = st->opt_rtsyn_skip_aq;
+	rtsyn_set_skip_aq(opt_rtsyn_skip_aq);
 #elif defined(IA_W32G_SYN)
 	for ( i = 0; i < MAX_PORT; i ++ ) {
 		w32g_syn_id_port[i] = st->SynIDPort[i];
 	}
 	syn_AutoStart = st->syn_AutoStart;
-//	processPriority = st->processPriority;
 	syn_ThreadPriority = st->syn_ThreadPriority;
 	w32g_syn_port_num = st->SynPortNum;
 	stream_max_compute = st->SynShTime;
-	opt_rtsyn_latency = SetValue(st->opt_rtsyn_latency, 20, 1000);
+	opt_rtsyn_latency = SetValue(st->opt_rtsyn_latency, 1, 1000);
 	rtsyn_set_latency((double)opt_rtsyn_latency * 0.001);
+	opt_rtsyn_skip_aq = st->opt_rtsyn_skip_aq;
+	rtsyn_set_skip_aq(opt_rtsyn_skip_aq);
 #endif
 ///r
 	processPriority = st->processPriority;
@@ -982,6 +986,16 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 #ifdef AU_W32
 	st->wmme_device_id = opt_wmme_device_id;
 	st->wave_format_ext = SetValue(opt_wave_format_ext, 0, 1);
+#endif	
+#ifdef AU_WASAPI	
+	st->wasapi_device_id = opt_wasapi_device_id;
+	st->wasapi_latency = opt_wasapi_latency;
+	st->wasapi_format_ext = opt_wasapi_format_ext;
+	st->wasapi_exclusive = opt_wasapi_exclusive;
+	st->wasapi_polling = opt_wasapi_polling;
+	st->wasapi_priority = opt_wasapi_priority;
+	st->wasapi_stream_category = opt_wasapi_stream_category;
+	st->wasapi_stream_option = opt_wasapi_stream_option;
 #endif
 #ifdef AU_PORTAUDIO
 	st->pa_wmme_device_id = opt_pa_wmme_device_id;
@@ -1021,21 +1035,21 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_modulation_update = opt_modulation_update;
 	st->opt_cut_short_time = opt_cut_short_time;
 	
-#if defined(WINDRV_SETUP)
-//	st->processPriority = processPriority;
+#if defined(WINDRV_SETUP) || defined(WINDRV)
 	st->syn_ThreadPriority = syn_ThreadPriority;
 	st->SynShTime = stream_max_compute;
 	st->opt_rtsyn_latency = opt_rtsyn_latency;
+	st->opt_rtsyn_skip_aq = opt_rtsyn_skip_aq;
 #elif defined(IA_W32G_SYN)
 	for ( i = 0; i < MAX_PORT; i ++ ) {
 		st->SynIDPort[i] = w32g_syn_id_port[i];
 	}
 	st->syn_AutoStart = syn_AutoStart;
-//	st->processPriority = processPriority;
 	st->syn_ThreadPriority = syn_ThreadPriority;
 	st->SynPortNum = w32g_syn_port_num;
 	st->SynShTime = stream_max_compute;
 	st->opt_rtsyn_latency = opt_rtsyn_latency;
+	st->opt_rtsyn_skip_aq = opt_rtsyn_skip_aq;
 #endif
 ///r
 	st->processPriority = processPriority;

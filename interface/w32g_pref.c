@@ -75,6 +75,9 @@
 #ifdef AU_W32
 #include "w32_a.h"
 #endif
+#ifdef AU_WASAPI
+#include "wasapi_a.h"
+#endif
 #ifdef AU_PORTAUDIO
 #include "portaudio_a.h"
 #ifdef AU_PORTAUDIO_DLL
@@ -178,6 +181,11 @@ double GetDlgItemFloat(HWND hwnd, UINT id);
 #ifdef AU_W32
 void wmmeConfigDialog(HWND hwnd);
 #endif
+
+#ifdef AU_WASAPI
+void wasapiConfigDialog(void);
+#endif
+
 
 #ifdef IA_W32G_SYN 
 static TCHAR **GetMidiINDrivers( void );
@@ -385,7 +393,7 @@ extern int RestartTimidity;
 
 void PrefWndCreate(HWND hwnd, UINT cid)
 {
-    UINT page = PrefSearchPageFromCID(cid);
+    UINT page = cid ? PrefSearchPageFromCID(cid) : PrefInitialPage;
 
     VOLATILE_TOUCH(PrefWndDoing);
     if (PrefWndDoing)
@@ -434,6 +442,10 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 	switch (uMess){
 	case WM_INITDIALOG:
 	{
+		int page = PrefInitialPage;
+		if (page < 0 || page > PREF_PAGE_MAX) {
+			page = 0; // default
+		}
 		hPrefWnd = hwnd;
 		// main
 #if defined(IA_W32G_SYN) || defined(IA_W32GUI)
@@ -460,10 +472,10 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 #endif
 		// table
 		PrefWndCreateTabItems(hwnd);
-		PrefWndCreatePage(hwnd, 0);
+		PrefWndCreatePage(hwnd, page);
 		SetForegroundWindow(hwnd);
-		SendDlgItemMessage ( hwnd, IDC_TAB_MAIN, TCM_SETCURSEL, (WPARAM)0, (LPARAM)0 );
-		ShowWindow ( pref_pages[0].hwnd, TRUE );
+		SendDlgItemMessage ( hwnd, IDC_TAB_MAIN, TCM_SETCURSEL, (WPARAM)(page), (LPARAM)0 );
+		ShowWindow ( pref_pages[page].hwnd, TRUE );	
 		return TRUE;
 	}
 	case WM_COMMAND:
@@ -542,6 +554,7 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 		}
 		PrefWndCreatePage(hwnd, nIndex);
 		ShowWindow(pref_pages[nIndex].hwnd, SW_SHOWNORMAL);
+		PrefInitialPage = nIndex;
 		return TRUE;
 	    }
 
@@ -761,6 +774,9 @@ void reload_cfg(void)
     free_special_patch(-1);
     tmdy_free_config();
     free_soundfonts();
+#ifdef INT_SYNTH
+	free_int_synth();
+#endif // INT_SYNTH
     free_cache_data();
     timidity_start_initialize();
     if (!sp_temp->ConfigFile[0]) {
@@ -1518,6 +1534,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #endif // defined(WINDRV_SETUP)
 		SetDlgItemInt(hwnd,IDC_EDIT_SYN_SH_TIME,st_temp->SynShTime,FALSE);
 		SetDlgItemInt(hwnd,IDC_EDIT_RTSYN_LATENCY,st_temp->opt_rtsyn_latency,FALSE);
+		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_CHECK_RTSYN_SKIP_AQ, st_temp->opt_rtsyn_skip_aq);
 
 		if(PlayerLanguage == LANGUAGE_JAPANESE) {
 			for (i = 0; i < CB_NUM(process_priority_num); i++)
@@ -1630,9 +1647,10 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #endif // !defined(WINDRV_SETUP)
 
 		st_temp->SynShTime = GetDlgItemInt(hwnd,IDC_EDIT_SYN_SH_TIME,NULL,FALSE);
-		RANGE(st_temp->SynShTime, 40, 1000);
+		RANGE(st_temp->SynShTime, 1, 1000);
 		st_temp->opt_rtsyn_latency = GetDlgItemInt(hwnd,IDC_EDIT_RTSYN_LATENCY,NULL,FALSE);
 		RANGE(st_temp->opt_rtsyn_latency, 1, 1000);
+		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_RTSYN_SKIP_AQ, st_temp->opt_rtsyn_skip_aq);
 
 		// Set process priority
 		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_PROCESS_PRIORITY, CB_GETCURSEL, 0, 0 );
@@ -3862,12 +3880,12 @@ static int cb_info_IDC_COMBO_FRAGMENTS_num[] = {
 	128,
 	160,
 	256,
-	384,
-	512,
-	768,
-	1024,
-	2048,
-	4096,
+//	384,
+//	512,
+//	768,
+//	1024,
+//	2048,
+//	4096,
 };
 static const TCHAR *cb_info_IDC_COMBO_FRAGMENTS_en[] = {
 	TEXT("2blocks"),
@@ -3884,12 +3902,12 @@ static const TCHAR *cb_info_IDC_COMBO_FRAGMENTS_en[] = {
 	TEXT("128blocks"),
 	TEXT("160blocks"),
 	TEXT("256blocks"),
-	TEXT("384blocks"),
-	TEXT("512blocks"),
-	TEXT("768blocks"),
-	TEXT("1024blocks"),
-	TEXT("2048blocks"),
-	TEXT("4096blocks"),
+//	TEXT("384blocks"),
+//	TEXT("512blocks"),
+//	TEXT("768blocks"),
+//	TEXT("1024blocks"),
+//	TEXT("2048blocks"),
+//	TEXT("4096blocks"),
 };
 static const TCHAR *cb_info_IDC_COMBO_FRAGMENTS_jp[] = {
 	TEXT("2ブロック"),
@@ -3906,12 +3924,12 @@ static const TCHAR *cb_info_IDC_COMBO_FRAGMENTS_jp[] = {
 	TEXT("128ブロック"),
 	TEXT("160ブロック"),
 	TEXT("256ブロック"),
-	TEXT("384ブロック"),
-	TEXT("512ブロック"),
-	TEXT("768ブロック"),
-	TEXT("1024ブロック"),
-	TEXT("2048ブロック"),
-	TEXT("4096ブロック"),
+//	TEXT("384ブロック"),
+//	TEXT("512ブロック"),
+//	TEXT("768ブロック"),
+//	TEXT("1024ブロック"),
+//	TEXT("2048ブロック"),
+//	TEXT("4096ブロック"),
 };
 
 // IDC_COMBO_OUTPUT_MODE
@@ -4432,6 +4450,14 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					break;
 				}
 #endif
+				
+#ifdef AU_WASAPI
+				if (st_temp->opt_playmode[0] == 'x' || st_temp->opt_playmode[0] == 'X') {
+					wasapiConfigDialog();
+					break;
+				}
+#endif
+
 #ifdef AU_VORBIS
 				if (st_temp->opt_playmode[0] == 'v') {
 					vorbisConfigDialog();
@@ -5857,6 +5883,9 @@ static void waveConfigDialogProcControlApply(HWND hwnd)
 #undef EDIT_SET
 #undef EDIT_GET
 #undef EDIT_GET_RANGE
+
+extern void wave_set_option_extensible(int);
+extern void wave_set_option_update_step(int);
 
 int waveConfigDialog(void)
 {
@@ -7872,8 +7901,8 @@ PA_DEVICELIST cb_info_IDC_COMBO_PA_WMME_NAME[PA_DEVLIST_MAX];
 PA_DEVICELIST cb_info_IDC_COMBO_PA_WDMKS_NAME[PA_DEVLIST_MAX];
 PA_DEVICELIST cb_info_IDC_COMBO_PA_WASAPI_NAME[PA_DEVLIST_MAX];
 
-#define cb_num_IDC_COMBO_WASAPI_PRIORITY 8
-static const TCHAR *cb_info_IDC_COMBO_WASAPI_PRIORITY[] = {
+#define cb_num_IDC_COMBO_PA_WASAPI_PRIORITY 8
+static const TCHAR *cb_info_IDC_COMBO_PA_WASAPI_PRIORITY[] = {
     TEXT("None"),
     TEXT("Audio (Shared Mode)"),
     TEXT("Capture"),
@@ -7884,8 +7913,8 @@ static const TCHAR *cb_info_IDC_COMBO_WASAPI_PRIORITY[] = {
     TEXT("WindowManager"),
 };
 
-#define cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY 12
-static const TCHAR *cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[] = {
+#define cb_num_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY 12
+static const TCHAR *cb_info_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY[] = {
     TEXT("Other"),
     TEXT("None"),
     TEXT("None"),
@@ -7900,8 +7929,8 @@ static const TCHAR *cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[] = {
     TEXT("Media"),
 };
 
-#define cb_num_IDC_COMBO_WASAPI_STREAM_OPTION 3
-static const TCHAR *cb_info_IDC_COMBO_WASAPI_STREAM_OPTION[] = {
+#define cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION 3
+static const TCHAR *cb_info_IDC_COMBO_PA_WASAPI_STREAM_OPTION[] = {
     TEXT("None"),
     TEXT("Raw"),
     TEXT("MatchFormat"),
@@ -7917,33 +7946,33 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 		{
 			// WASAPI Options
 			if (st_temp->pa_wasapi_flag & paWinWasapiExclusive)
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_EXCLUSIVE, BM_SETCHECK, 1, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_EXCLUSIVE, BM_SETCHECK, 1, 0);
 			else
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_EXCLUSIVE, BM_SETCHECK, 0, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_EXCLUSIVE, BM_SETCHECK, 0, 0);
 			if (st_temp->pa_wasapi_flag & paWinWasapiRedirectHostProcessor)
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_REDIRECT, BM_SETCHECK, 1, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_REDIRECT, BM_SETCHECK, 1, 0);
 			else
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_REDIRECT, BM_SETCHECK, 0, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_REDIRECT, BM_SETCHECK, 0, 0);
 			if (st_temp->pa_wasapi_flag & paWinWasapiUseChannelMask)
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_CH_MASK, BM_SETCHECK, 1, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_CH_MASK, BM_SETCHECK, 1, 0);
 			else
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_CH_MASK, BM_SETCHECK, 0, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_CH_MASK, BM_SETCHECK, 0, 0);
 			if (st_temp->pa_wasapi_flag & paWinWasapiPolling)
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_POLLING, BM_SETCHECK, 1, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_POLLING, BM_SETCHECK, 1, 0);
 			else
-				SendDlgItemMessage(hwnd, IDC_CHECKBOX_WASAPI_POLLING, BM_SETCHECK, 0, 0);
-			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_PRIORITY; i++)
-				CB_INSSTR(IDC_COMBO_WASAPI_PRIORITY, cb_info_IDC_COMBO_WASAPI_PRIORITY[i]);
-			CB_SET(IDC_COMBO_WASAPI_PRIORITY, (st_temp->pa_wasapi_flag >> 4));
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_POLLING, BM_SETCHECK, 0, 0);
+			for (i = 0; i < cb_num_IDC_COMBO_PA_WASAPI_PRIORITY; i++)
+				CB_INSSTR(IDC_COMBO_PA_WASAPI_PRIORITY, cb_info_IDC_COMBO_PA_WASAPI_PRIORITY[i]);
+			CB_SET(IDC_COMBO_PA_WASAPI_PRIORITY, (st_temp->pa_wasapi_flag >> 4));
 
-			DI_DISABLE(IDC_CHECKBOX_WASAPI_CH_MASK); // 作ってないのでOFF			
+			DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_CH_MASK); // 作ってないのでOFF			
 			// WASAPI StreamCategory
-			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY; i++)
-				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[i]);
+			for (i = 0; i < cb_num_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY; i++)
+				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, cb_info_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY[i]);
 			CB_SET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, (st_temp->pa_wasapi_stream_category));
 			// WASAPI StreamOption
-			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_OPTION; i++)
-				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_WASAPI_STREAM_OPTION[i]);
+			for (i = 0; i < cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION; i++)
+				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_PA_WASAPI_STREAM_OPTION[i]);
 			CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option));
 
 
@@ -8097,15 +8126,15 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				}
 				// WASAPI Flag
 				flag = 0;
-				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_WASAPI_EXCLUSIVE,BM_GETCHECK,0,0))
+				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_PA_WASAPI_EXCLUSIVE,BM_GETCHECK,0,0))
 					flag |= paWinWasapiExclusive;
-				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_WASAPI_REDIRECT,BM_GETCHECK,0,0))
+				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_PA_WASAPI_REDIRECT,BM_GETCHECK,0,0))
 					flag |= paWinWasapiRedirectHostProcessor;
-				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_WASAPI_CH_MASK,BM_GETCHECK,0,0))
+				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_PA_WASAPI_CH_MASK,BM_GETCHECK,0,0))
 					flag |= paWinWasapiUseChannelMask;
-				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_WASAPI_POLLING,BM_GETCHECK,0,0))
+				if(SendDlgItemMessage(hwnd,IDC_CHECKBOX_PA_WASAPI_POLLING,BM_GETCHECK,0,0))
 					flag |= paWinWasapiPolling;
-				cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WASAPI_PRIORITY, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+				cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_PA_WASAPI_PRIORITY, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
 				flag |= cb_sel << 4;
 				st_temp->pa_wasapi_flag = flag;
 				// WASAPI StreamCategory
@@ -8280,4 +8309,171 @@ void wmmeConfigDialog(HWND hwnd)
 }
 #endif
 
+
+
+#ifdef AU_WASAPI
+///////////////////////////////////////////////////////////////////////
+//
+// WASAPI Config Dialog
+//
+///////////////////////////////////////////////////////////////////////
+
+WASAPI_DEVICELIST cb_info_IDC_COMBO_WASAPI_NAME[WASAPI_DEVLIST_MAX];
+
+#define cb_num_IDC_COMBO_WASAPI_PRIORITY 8
+static const TCHAR *cb_info_IDC_COMBO_WASAPI_PRIORITY[] = {
+    TEXT("Auto"),
+    TEXT("Audio (Shared Mode)"),
+    TEXT("Capture"),
+    TEXT("Distribution"),
+    TEXT("Games"),
+    TEXT("Playback"),
+    TEXT("ProAudio (Exclusive Mode)"),
+    TEXT("WindowManager"),
+};
+
+#define cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY 12
+static const TCHAR *cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[] = {
+    TEXT("Other"),
+    TEXT("None"),
+    TEXT("None"),
+    TEXT("Communications"),
+    TEXT("Alerts"),
+    TEXT("SoundEffects"),
+    TEXT("GameEffects"),
+    TEXT("GameMedia"),
+    TEXT("GameChat"),
+    TEXT("Speech"),
+    TEXT("Movie"),
+    TEXT("Media"),
+};
+
+#define cb_num_IDC_COMBO_WASAPI_STREAM_OPTION 3
+static const TCHAR *cb_info_IDC_COMBO_WASAPI_STREAM_OPTION[] = {
+    TEXT("None"),
+    TEXT("Raw"),
+    TEXT("MatchFormat"),
+};
+
+
+LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	int i = 0, cb_num = 0, cb_sel = 0, flag;
+
+	switch (msg) {
+		case WM_INITDIALOG:
+		{
+			// WASAPI device
+			cb_num = wasapi_device_list(cb_info_IDC_COMBO_WASAPI_NAME);
+			if (cb_num == 0)
+				DI_DISABLE(IDC_COMBO_WASAPI_DEV);
+			else
+				DI_ENABLE(IDC_COMBO_WASAPI_DEV);
+			for (i = 0; i < cb_num && i < WASAPI_DEVLIST_MAX; i++) {
+				CB_INSSTRA(IDC_COMBO_WASAPI_DEV, &cb_info_IDC_COMBO_WASAPI_NAME[i].name);
+				if (st_temp->wasapi_device_id == cb_info_IDC_COMBO_WASAPI_NAME[i].deviceID)
+					cb_sel = i;
+			}
+			CB_SET(IDC_COMBO_WASAPI_DEV, (cb_sel));		
+			// Latency
+			SetDlgItemInt(hwnd, IDC_EDIT_WASAPI_LATENCY, st_temp->wasapi_latency, FALSE);
+			SetDlgItemInt(hwnd, IDC_STATIC_WASAPI_LATENCY_MIN, cb_info_IDC_COMBO_WASAPI_NAME[cb_sel].LatencyMin, FALSE);
+			SetDlgItemInt(hwnd, IDC_STATIC_WASAPI_LATENCY_MAX, cb_info_IDC_COMBO_WASAPI_NAME[cb_sel].LatencyMax, FALSE);
+			// WASAPI WAVEFORMATEX
+			if(st_temp->wasapi_format_ext == 0){
+				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WASAPI_FORMAT_EX,IDC_RADIOBUTTON_WASAPI_FORMAT_EXT,IDC_RADIOBUTTON_WASAPI_FORMAT_EX);
+			}else{
+				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WASAPI_FORMAT_EX,IDC_RADIOBUTTON_WASAPI_FORMAT_EXT,IDC_RADIOBUTTON_WASAPI_FORMAT_EXT);
+			}
+			// WASAPI Share Mode
+		//	CH_SET(IDC_CHECKBOX_WASAPI_EXCLUSIVE, st_temp->wasapi_exclusive);
+			if(st_temp->wasapi_exclusive == 0){
+				CheckRadioButton(hwnd, IDC_RADIOBUTTON_WASAPI_SHARE, IDC_RADIOBUTTON_WASAPI_EXCLUSIVE, IDC_RADIOBUTTON_WASAPI_SHARE);
+			}else{
+				CheckRadioButton(hwnd, IDC_RADIOBUTTON_WASAPI_SHARE, IDC_RADIOBUTTON_WASAPI_EXCLUSIVE, IDC_RADIOBUTTON_WASAPI_EXCLUSIVE);
+			}
+			// WASAPI Flags
+			if(st_temp->wasapi_polling == 0){
+				CheckRadioButton(hwnd, IDC_RADIOBUTTON_WASAPI_EVENT, IDC_RADIOBUTTON_WASAPI_POLLING, IDC_RADIOBUTTON_WASAPI_EVENT);
+			}else{
+				CheckRadioButton(hwnd, IDC_RADIOBUTTON_WASAPI_EVENT, IDC_RADIOBUTTON_WASAPI_POLLING, IDC_RADIOBUTTON_WASAPI_POLLING);
+			}
+			// WASAPI Thread Priority
+			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_PRIORITY; i++)
+				CB_INSSTR(IDC_COMBO_WASAPI_PRIORITY, cb_info_IDC_COMBO_WASAPI_PRIORITY[i]);
+			CB_SET(IDC_COMBO_WASAPI_PRIORITY, (st_temp->wasapi_priority));		
+			// WASAPI Stream Category
+			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY; i++)
+				CB_INSSTR(IDC_COMBO_WASAPI_STREAM_CATEGORY, cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[i]);
+			CB_SET(IDC_COMBO_WASAPI_STREAM_CATEGORY, (st_temp->wasapi_stream_category));
+			// WASAPI Stream Option
+			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_OPTION; i++)
+				CB_INSSTR(IDC_COMBO_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_WASAPI_STREAM_OPTION[i]);
+			CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option));
+
+			SetFocus(DI_GET(IDOK));
+			return TRUE;
+		}
+		case WM_CLOSE:
+			EndDialog(hwnd,FALSE);
+			break;
+		case WM_COMMAND:
+			switch (LOWORD(wp)) {
+			case IDC_COMBO_WASAPI_DEV:				
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_WASAPI_DEV))) {
+					cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WASAPI_DEV, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+					SetDlgItemInt(hwnd, IDC_STATIC_WASAPI_LATENCY_MIN, cb_info_IDC_COMBO_WASAPI_NAME[cb_sel].LatencyMin, FALSE);
+					SetDlgItemInt(hwnd, IDC_STATIC_WASAPI_LATENCY_MAX, cb_info_IDC_COMBO_WASAPI_NAME[cb_sel].LatencyMax, FALSE);
+				}	
+				break;
+			case IDCANCEL:
+				PostMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+				break;
+			case IDOK:
+				// WASAPI device
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_WASAPI_DEV))) {
+					cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WASAPI_DEV, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+					st_temp->wasapi_device_id = cb_info_IDC_COMBO_WASAPI_NAME[cb_sel].deviceID;
+				}	
+				// Latency
+				st_temp->wasapi_latency = GetDlgItemInt(hwnd, IDC_EDIT_WASAPI_LATENCY, NULL, FALSE);
+				// WASAPI WAVEFORMATEX
+				if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_WASAPI_FORMAT_EX,BM_GETCHECK,0,0))
+					st_temp->wasapi_format_ext = 0;
+				else
+					st_temp->wasapi_format_ext = 1;	
+				// WASAPI Share Mode
+			//	st_temp->wasapi_exclusive = CH_GET(IDC_CHECKBOX_WASAPI_EXCLUSIVE);
+			//	st_temp->wasapi_exclusive = CH_GET(IDC_RADIOBUTTON_WASAPI_SHARE) ? 0 : 1;
+				if(SendDlgItemMessage(hwnd, IDC_RADIOBUTTON_WASAPI_SHARE, BM_GETCHECK, 0, 0))
+					st_temp->wasapi_exclusive = 0;
+				else
+					st_temp->wasapi_exclusive = 1;
+				// WASAPI Flags
+				if(SendDlgItemMessage(hwnd, IDC_RADIOBUTTON_WASAPI_EVENT, BM_GETCHECK, 0, 0))
+					st_temp->wasapi_polling = 0;
+				else
+					st_temp->wasapi_polling = 1;
+				// WASAPI Thread Priority
+				cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WASAPI_PRIORITY, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+				st_temp->wasapi_priority = cb_sel;
+				// WASAPI Stream Category
+				st_temp->wasapi_stream_category = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
+				// WASAPI Stream Option
+				st_temp->wasapi_stream_option = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
+
+				EndDialog(hwnd,TRUE);
+				break;
+			}
+			break;
+	}
+	return FALSE;
+}
+
+void wasapiConfigDialog(void)
+{
+	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WASAPI), hPrefWnd, (DLGPROC)wasapiConfigDialogProc);
+}
+
+#endif // AU_WASAPI
 

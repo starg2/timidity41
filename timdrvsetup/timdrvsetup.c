@@ -63,7 +63,10 @@ int playlist_max = 1;
 int playlist_max_ini = 1;
 int ConsoleClearFlag = 0;
 
-DWORD syn_ThreadPriority;         // シンセスレッドのプライオリティ
+extern char *opt_reduce_voice_threshold;
+extern char *opt_reduce_quality_threshold;
+extern char *opt_reduce_polyphony_threshold;
+
 
 
 // HWND
@@ -330,7 +333,9 @@ void config_gui_main_close(void)
 	tmdy_free_config();
 	//free_reverb_buffer();
 	free_effect_buffers();
+#ifdef INT_SYNTH
 	free_int_synth();
+#endif // INT_SYNTH
 	free_voices();
 	uninitialize_resampler_coeffs();
 	for (i = 0; i < MAX_CHANNELS; i++)

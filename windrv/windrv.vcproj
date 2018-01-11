@@ -115,7 +115,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="..\Release\windrv\"
+			OutputDirectory="..\Release\"
 			IntermediateDirectory="..\Release\windrv\"
 			ConfigurationType="2"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC70.vsprops"
@@ -160,7 +160,7 @@
 				AssemblerListingLocation="..\Release\windrv\"
 				ObjectFile="..\Release\windrv\"
 				ProgramDataBaseFileName="..\Release\windrv\"
-				WarningLevel="0"
+				WarningLevel="1"
 				Detect64BitPortabilityProblems="false"
 				CompileAs="1"
 			/>
@@ -175,7 +175,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib;wsock32.lib;comctl32.lib;"
+				AdditionalDependencies="winmm.lib wsock32.lib comctl32.lib"
 				ShowProgress="1"
 				OutputFile="..\Release\timiditydrv.dll"
 				LinkIncremental="1"
@@ -191,7 +191,7 @@
 				SetChecksum="true"
 				RandomizedBaseAddress="1"
 				FixedBaseAddress="1"
-				DataExecutionPrevention="0"
+				DataExecutionPrevention="2"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -480,6 +480,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\timidity\wasapi_a.c"
+					>
+				</File>
+				<File
 					RelativePath="..\timidity\wave_a.c"
 					>
 				</File>
@@ -609,11 +613,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\vstwrapper.h"
+					RelativePath="..\timidity\vstwrapper.h"
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\vstwrapper.h"
+					RelativePath="..\vstwrapper.h"
 					>
 				</File>
 				<File

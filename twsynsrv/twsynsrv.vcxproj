@@ -308,6 +308,7 @@
     <ClCompile Include="..\interface\w32g_utl.c" />
     <ClCompile Include="..\timidity\w32g_vorbis_dll.c" />
     <ClCompile Include="..\timidity\w32g_vorbisenc_dll.c" />
+    <ClCompile Include="..\timidity\wasapi_a.c" />
     <ClCompile Include="..\timidity\wave_a.c" />
     <ClCompile Include="..\interface\winsyn_c.c" />
     <ClCompile Include="..\timidity\wrd_read.c" />

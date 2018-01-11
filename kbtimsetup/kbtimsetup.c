@@ -292,7 +292,9 @@ void config_gui_main_close(void)
 	tmdy_free_config();
 	//free_reverb_buffer();
 	free_effect_buffers();
+#ifdef INT_SYNTH
 	free_int_synth();
+#endif // INT_SYNTH
 	free_voices();
 	uninitialize_resampler_coeffs();
 	for (i = 0; i < MAX_CHANNELS; i++)

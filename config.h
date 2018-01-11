@@ -306,6 +306,7 @@
 #define TIMID_VERSION	"current"
 #define DEFAULT_PATH	".\\"
 #define AU_W32 1
+#define AU_WASAPI 1
 #define AU_VORBIS 1
 #define AU_VORBIS_DLL 1
 #define VORBIS_DLL_INCLUDE_VORBISENC 1 /* ver 1.3.3 */
@@ -477,6 +478,7 @@
 #define DEFAULT_COMPUTE_BUFFER_BITS   6 /* ratio 1.45ms (44.1kHz) */
 #define TIMDRVINI 1 // use timdrv.ini or twsyng32.ini or timpp32g.ini ??
 #define IA_WINSYN
+//#undef AU_WASAPI
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -583,6 +585,7 @@
 #endif
 
 #ifdef CFG_FOR_SF
+#undef AU_WASAPI
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -622,6 +625,7 @@
 #define IA_WINSYN
 #define WINDRV 1
 #define AU_W32 1
+#define AU_WASAPI 1
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -662,6 +666,7 @@
 #undef HAVE_POPEN
 #undef REDUCE_VOICE_TIME_TUNING //playmidi.c の宣言部の #define 部を削除しないと機能しない
 #undef AU_W32
+#undef AU_WASAPI
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -708,7 +713,8 @@ typedef __int64 int64;
 #define HAVE_MKSTEMP
 #undef HAVE_POPEN
 #undef REDUCE_VOICE_TIME_TUNING //playmidi.c の宣言部の #define 部を削除しないと機能しない
-#define AU_W32 1
+#undef AU_W32
+#undef AU_WASAPI
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -766,7 +772,8 @@ typedef __int64 int64;
 #undef HAVE_POPEN
 #undef REDUCE_VOICE_TIME_TUNING //playmidi.c の宣言部の #define 部を削除しないと機能しない
 #undef AU_BUFFER 1
-#undef AU_W32 1
+#undef AU_W32
+#undef AU_WASAPI
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO

@@ -794,6 +794,8 @@ extern ChannelBitMask drumchannel_mask;
 extern ChannelBitMask default_drumchannels;
 extern ChannelBitMask drumchannels;
 
+
+
 extern int adjust_panning_immediately;
 extern int max_voices;
 extern int voices, upper_voices;
@@ -825,6 +827,10 @@ extern int opt_modulation_envelope;
 extern int noise_sharp_type;
 extern int32 current_play_tempo;
 extern int opt_realtime_playing;
+extern int volatile stream_max_compute;
+extern uint32 opt_rtsyn_latency;
+extern int opt_rtsyn_skip_aq;
+
 extern int reduce_voice_threshold; /* msec */
 ///r
 extern int reduce_quality_threshold;

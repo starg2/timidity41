@@ -2997,15 +2997,12 @@ extern void free_effect_list(EffectList *);
 extern void free_effect_buffers(void);
 extern void init_effect(void);
 extern void do_effect(DATA_T *buf, int32 count);
-extern void do_effect2(uint8 *buf, int32 count);
-
 
 /* effect util */
 extern void set_dry_signal_int32(int32 *, int32);
 extern void set_dry_signal(DATA_T *, int32);
 extern void set_dry_signal_xg(DATA_T *, int32, int32);
 extern void mix_dry_signal(DATA_T *, int32);
-
 
 /* effect control */
 extern double voice_filter_reso;

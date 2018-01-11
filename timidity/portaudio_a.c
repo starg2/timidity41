@@ -28,8 +28,10 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-///r
+
 #ifdef AU_PORTAUDIO
+
+
 #define PORTAUDIO_V19 1
 
 #ifdef __POCC__
@@ -123,10 +125,6 @@ static unsigned int bytesPerBuffer;
 //static int  firsttime;
 static int pa_active=0;
 static int first=1;
-
-#if defined(__W32__)
-CRITICAL_SECTION critSect;
-#endif
 
 
 
@@ -277,7 +275,8 @@ void processor_output(
 	buflimit = (uint8*)pa_data.buf + bytesPerInBuffer;
 	samplesToGo = pa_data.samplesToGo;
 	bufpoint = (uint8*)pa_data.bufpoint;
-	
+
+#ifndef CNV_USE_TEMP_ENCODE		
 	if(conv24_32){ // Int24
 		samples1 = outputFrames * stereo;
 		if(samplesToGo < datalength){
@@ -299,7 +298,6 @@ void processor_output(
 				*out++ = 0;
 			}
 		}else{
-
 			for(i = 0; i < samples1; i++){
 				*out++ = 0;
 				*out++ = *(bufpoint)++;
@@ -341,7 +339,9 @@ void processor_output(
 			}
 			samplesToGo -= datalength;
 		}
-	}else{
+	}else
+#endif
+	{
 		if(samplesToGo < datalength ){
 			if(bufpoint+samplesToGo <= buflimit){
 				memcpy(out, bufpoint, samplesToGo);
@@ -380,7 +380,7 @@ void processor_output(
 }
 
 int paCallback(  const void *inputBuffer, void *outputBuffer,
-                     unsigned long framesPerBuffer,
+                     unsigned long outputFrames,
                      const PaStreamCallbackTimeInfo* timeInfo,
                      PaStreamCallbackFlags statusFlags,
 	                 void *userData )
@@ -408,13 +408,14 @@ int paCallback(  void *inputBuffer, void *outputBuffer,
 	EnterCriticalSection(&critSect);
 #endif
     out = (uint8*)outputBuffer;
-	datalength = framesPerBuffer*data_nbyte*stereo;
+	datalength = outputFrames * data_nbyte * stereo;
 //	buflimit = pa_data.buf+bytesPerInBuffer*2;
 //	buflimit = pa_data.buf+DATA_BLOCK_SIZE*2;
 	buflimit = (uint8*)pa_data.buf+bytesPerInBuffer;
 	samplesToGo = pa_data.samplesToGo;
 	bufpoint = (uint8*)pa_data.bufpoint;
 	
+#ifndef CNV_USE_TEMP_ENCODE	
 	if(conv16_32){
 		if(samplesToGo < datalength  ){		
 			for(i=0;i<(samplesToGo>>1);i++){
@@ -446,7 +447,9 @@ int paCallback(  void *inputBuffer, void *outputBuffer,
 			}
 			samplesToGo -= datalength;
 		}
-	}else{
+	}else
+#endif
+	{
 		if(samplesToGo < datalength  ){
 			if(bufpoint+samplesToGo <= buflimit){
 				memcpy(out, bufpoint, samplesToGo);
@@ -700,11 +703,6 @@ static int open_output(void)
     }
 #endif
 
-	numBuffers = dpm.extra_param[0];
-	framesPerBuffer = audio_buffer_size;
-	framesPerInBuffer = numBuffers * framesPerBuffer;	
-	bytesPerBuffer = framesPerBuffer * data_nbyte * stereo; ///r
-	bytesPerInBuffer = framesPerInBuffer * data_nbyte * stereo;
 
 	/* set StreamParameters */
 	StreamParameters.device = DeviceIndex;
@@ -727,7 +725,6 @@ static int open_output(void)
 		if( paFormatIsSupported != Pa_IsFormatSupported( NULL , &StreamParameters,(double) dpm.rate )){
 			StreamParameters.sampleFormat = paInt32;
 			conv16_32 = 1;
-			bytesPerInBuffer *= 2;  // data_nbyte*2 ??
 		} else {
 			StreamParameters.sampleFormat = paInt16;
 			conv16_32 = 0;
@@ -750,11 +747,38 @@ static int open_output(void)
 		wasapiStreamInfo.streamOption = (PaWasapiStreamOption)opt_pa_wasapi_stream_option;
 #endif
 		StreamParameters.hostApiSpecificStreamInfo = &wasapiStreamInfo;
-		conv24_32 = (SampleFormat == paInt24) ? 1 : 0; // only use RedirectHostProcessor
+		if(SampleFormat == paInt24 && (opt_pa_wasapi_flag & paWinWasapiRedirectHostProcessor) )
+			conv24_32 = 1; // only use RedirectHostProcessor
+		else
+			conv24_32 = 0;
 	}else{
 		StreamParameters.hostApiSpecificStreamInfo = NULL;
 		conv24_32 = 0;
 	}
+	
+#ifdef CNV_USE_TEMP_ENCODE
+	if(conv24_32){			
+		int tmp_enc = dpm.encoding;
+		tmp_enc &= ~PE_24BIT;
+		tmp_enc |= PE_32BIT;
+		set_temporary_encoding(tmp_enc);
+		data_nbyte = data_nbyte * 4 / 3;
+	}else if(conv16_32 == 2){			
+		int tmp_enc = dpm.encoding;
+		tmp_enc &= ~PE_16BIT;
+		tmp_enc |= PE_32BIT;
+		set_temporary_encoding(tmp_enc);
+		data_nbyte *= 2;
+	}else{
+		reset_temporary_encoding();
+	}
+#endif
+
+	numBuffers = dpm.extra_param[0];
+	framesPerBuffer = audio_buffer_size;
+	framesPerInBuffer = numBuffers * framesPerBuffer;	
+	bytesPerBuffer = framesPerBuffer * data_nbyte * stereo; ///r
+	bytesPerInBuffer = framesPerInBuffer * data_nbyte * stereo;
 
 	paStreamFlags = paNoFlag;
 
@@ -842,7 +866,24 @@ static int open_output(void)
 	pa_data.bufpoint = pa_data.buf;
 	pa_data.bufepoint = pa_data.buf;
 //	firsttime = 1;
-///r
+///r	
+#ifdef CNV_USE_TEMP_ENCODE
+	if(conv24_32){			
+		int tmp_enc = dpm.encoding;
+		tmp_enc &= ~PE_24BIT;
+		tmp_enc |= PE_32BIT;
+		set_temporary_encoding(tmp_enc);
+		data_nbyte = data_nbyte * 4 / 3;
+	}else if(conv16_32 == 2){			
+		int tmp_enc = dpm.encoding;
+		tmp_enc &= ~PE_16BIT;
+		tmp_enc |= PE_32BIT;
+		set_temporary_encoding(tmp_enc);
+		data_nbyte *= 2;
+	}else{
+		reset_temporary_encoding();
+	}
+#endif
 	numBuffers = Pa_GetMinNumBuffers( framesPerBuffer, dpm.rate );
 	//framesPerInBuffer = numBuffers * framesPerBuffer;
 	//if (framesPerInBuffer < 4096) framesPerInBuffer = 4096;
@@ -878,6 +919,9 @@ error2:
 #ifndef PORTAUDIO_V19
   free_portaudio_dll();
 #endif
+#endif
+#ifdef CNV_USE_TEMP_ENCODE
+	reset_temporary_encoding();
 #endif
 
 	return -1;
@@ -979,6 +1023,9 @@ static int output_data(const uint8 *buf, size_t nbytes)
 
 error:
 	Pa_Terminate(); pa_active=0;
+#ifdef CNV_USE_TEMP_ENCODE
+	reset_temporary_encoding();
+#endif
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "PortAudio error: %s\n", Pa_GetErrorText( err ) );
 	return -1;
 }
@@ -1026,8 +1073,10 @@ static void close_output(void)
 	err = Pa_CloseStream( stream );
 //	if( err != paNoError ) goto error;
 	Pa_Terminate(); 
-	pa_active=0;	
-
+	pa_active=0;		
+#ifdef CNV_USE_TEMP_ENCODE
+	reset_temporary_encoding();
+#endif
 #ifdef AU_PORTAUDIO_DLL
 #ifndef PORTAUDIO_V19
   free_portaudio_dll();
@@ -1038,6 +1087,9 @@ static void close_output(void)
 
 error:
 	Pa_Terminate(); pa_active=0;
+#ifdef CNV_USE_TEMP_ENCODE
+	reset_temporary_encoding();
+#endif
 #ifdef AU_PORTAUDIO_DLL
 #ifndef PORTAUDIO_V19
   free_portaudio_dll();
@@ -1276,7 +1328,6 @@ error1:
 #else
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "PortAudio error in acntl : %s\n", Pa_GetErrorText(err));
 #endif /* __W32__ */
-error2:
 	Pa_Terminate();
 	return err_unknown;
 }

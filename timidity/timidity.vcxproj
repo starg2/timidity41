@@ -107,7 +107,7 @@
       <AssemblerListingLocation>.\Debug/</AssemblerListingLocation>
       <ObjectFileName>.\Debug/</ObjectFileName>
       <ProgramDataBaseFileName>.\Debug/</ProgramDataBaseFileName>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <CompileAs>CompileAsC</CompileAs>
@@ -314,6 +314,7 @@
     <ClCompile Include="vorbis_a.c" />
     <ClCompile Include="w32_a.c" />
     <ClCompile Include="w32_gogo.c" />
+    <ClCompile Include="wasapi_a.c" />
     <ClCompile Include="wave_a.c" />
     <ClCompile Include="wrd_read.c" />
     <ClCompile Include="wrdt.c" />
@@ -373,6 +374,7 @@
     <ClInclude Include="vstwrapper.h" />
     <ClInclude Include="w32_a.h" />
     <ClInclude Include="w32_gogo.h" />
+    <ClInclude Include="wasapi_a.h" />
     <ClInclude Include="wrd.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

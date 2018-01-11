@@ -124,6 +124,10 @@
 #ifdef AU_W32
 #include "w32_a.h"
 #endif
+#ifdef AU_WASAPI
+#include "wasapi_a.h"
+#endif
+
 #ifdef AU_PORTAUDIO
 #include "portaudio_a.h"
 #endif
@@ -134,7 +138,9 @@ uint8 opt_normal_chorus_plus = 5; // chorusEX
 #if defined(__W32__)
 extern DWORD processPriority;
 DWORD processPriority = NORMAL_PRIORITY_CLASS;	// プロセスのプライオリティ
-#if !defined(IA_W32G_SYN)
+#if defined(IA_W32G_SYN) || defined(WINDRV)
+DWORD syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
+#else
 int PlayerThreadPriority = THREAD_PRIORITY_NORMAL;
 int GUIThreadPriority = THREAD_PRIORITY_NORMAL;
 #endif
@@ -202,6 +208,7 @@ enum {
 	TIM_OPT_RT_PRIO,
 	TIM_OPT_SEQ_PORTS,
 	TIM_OPT_RTSYN_LATENCY,
+	TIM_OPT_RTSYN_SKIP_AQ,
 	TIM_OPT_REALTIME_LOAD,
 	TIM_OPT_ADJUST_KEY,
 	TIM_OPT_VOICE_QUEUE,
@@ -233,6 +240,14 @@ enum {
 	TIM_OPT_OUTPUT_DEVICE_ID,
 	TIM_OPT_WMME_DEVICE_ID,
 	TIM_OPT_WAVE_FORMAT_EXT,
+	TIM_OPT_WASAPI_DEVICE_ID,
+	TIM_OPT_WASAPI_LATENCY,
+	TIM_OPT_WASAPI_FORMAT_EXT,
+	TIM_OPT_WASAPI_EXCLUSIVE,
+	TIM_OPT_WASAPI_POLLING,
+	TIM_OPT_WASAPI_PRIORITY,
+	TIM_OPT_WASAPI_STREAM_CATEGORY,
+	TIM_OPT_WASAPI_STREAM_OPTION,
 	TIM_OPT_PA_WMME_DEVICE_ID,
 	TIM_OPT_PA_DS_DEVICE_ID,
 	TIM_OPT_PA_ASIO_DEVICE_ID,
@@ -410,7 +425,7 @@ static const struct option longopts[] = {
 	{ "emu-delay-time",			required_argument, NULL, TIM_OPT_EMU_DELAY_TIME },
 #if defined(__W32__)
 	{ "process-priority",		required_argument, NULL, TIM_OPT_PROCESS_PRIORITY },
-#if !defined(IA_W32G_SYN)
+#if !(defined(IA_W32G_SYN) || defined(WINDRV))
 	{ "player-thread-priority",	required_argument, NULL, TIM_OPT_PLAYER_THREAD_PRIORITY },
 #endif
 #endif
@@ -445,13 +460,24 @@ static const struct option longopts[] = {
 	{ "output-swab",            optional_argument, NULL, TIM_OPT_OUTPUT_SWAB },
 #if defined(IA_WINSYN) || defined(IA_W32G_SYN) || defined(IA_W32GUI)
 	{ "rtsyn-latency",          required_argument, NULL, TIM_OPT_RTSYN_LATENCY },
+	{ "rtsyn-skip-aq",          required_argument, NULL, TIM_OPT_RTSYN_SKIP_AQ },
 #endif
 ///r
 	{ "output-device-id",		required_argument, NULL, TIM_OPT_OUTPUT_DEVICE_ID },
 #ifdef AU_W32
 	{ "wmme-device-id",			required_argument, NULL, TIM_OPT_WMME_DEVICE_ID },
-	{ "wave_format_ext",		required_argument, NULL, TIM_OPT_WAVE_FORMAT_EXT },
 	{ "wave-format-ext",		required_argument, NULL, TIM_OPT_WAVE_FORMAT_EXT },
+	{ "wmme-format-ext",		required_argument, NULL, TIM_OPT_WAVE_FORMAT_EXT },
+#endif
+#ifdef AU_WASAPI
+	{ "wasapi-device-id",		required_argument, NULL, TIM_OPT_WASAPI_DEVICE_ID },
+	{ "wasapi-latency",			required_argument, NULL, TIM_OPT_WASAPI_LATENCY },
+	{ "wasapi-format-ext",		required_argument, NULL, TIM_OPT_WASAPI_FORMAT_EXT },
+	{ "wasapi-exclusive",		required_argument, NULL, TIM_OPT_WASAPI_EXCLUSIVE },
+	{ "wasapi-polling",			required_argument, NULL, TIM_OPT_WASAPI_POLLING },
+	{ "wasapi-priority",		required_argument, NULL, TIM_OPT_WASAPI_PRIORITY },
+	{ "wasapi-stream-category",		required_argument, NULL, TIM_OPT_WASAPI_STREAM_CATEGORY },
+	{ "wasapi-stream-option",		required_argument, NULL, TIM_OPT_WASAPI_STREAM_OPTION },
 #endif
 #ifdef AU_PORTAUDIO	
 	{ "pa-wmme-device-id",		required_argument, NULL, TIM_OPT_PA_WMME_DEVICE_ID },
@@ -465,7 +491,6 @@ static const struct option longopts[] = {
 	{ "pa-wasapi-stream-option",required_argument, NULL, TIM_OPT_PA_WASAPI_STREAM_OPTION },
 #endif
 #endif
-
 	{ "wave-extensible",        no_argument,       NULL, TIM_OPT_WAVE_EXTENSIBLE },
 	{ "wave-update-step",       optional_argument, NULL, TIM_OPT_WAVE_UPDATE_STEP },
 #ifdef AU_FLAC
@@ -643,6 +668,7 @@ static inline int parse_opt_seq_ports(const char *);
 #endif
 #if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) || defined(IA_NPSYN) || defined(IA_W32G_SYN) || defined(IA_W32GUI)
 static inline int parse_opt_rtsyn_latency(const char *);
+static inline int parse_opt_rtsyn_skip_aq(const char *);
 #endif
 static inline int parse_opt_j(const char *);
 static inline int parse_opt_K(const char *);
@@ -666,6 +692,16 @@ static inline int parse_opt_output_device_id(const char *);
 #ifdef AU_W32
 static inline int parse_opt_wmme_device_id(const char *);
 static inline int parse_opt_wave_format_ext(const char *arg);
+#endif
+#ifdef AU_WASAPI
+static inline int parse_opt_wasapi_device_id(const char *arg);
+static inline int parse_opt_wasapi_latency(const char *arg);
+static inline int parse_opt_wasapi_format_ext(const char *arg);
+static inline int parse_opt_wasapi_exclusive(const char *arg);
+static inline int parse_opt_wasapi_poling(const char *arg);
+static inline int parse_opt_wasapi_priority(const char *arg);
+static inline int parse_opt_wasapi_stream_category(const char *arg);
+static inline int parse_opt_wasapi_stream_option(const char *arg);
 #endif
 #ifdef AU_PORTAUDIO
 static inline int parse_opt_pa_wmme_device_id(const char *);
@@ -781,7 +817,7 @@ static inline int parse_opt_od_drive_xg(const char *arg);
 
 #if defined(__W32__)
 static inline int parse_opt_process_priority(const char *arg);
-#if !defined(IA_W32G_SYN)
+#if !(defined(IA_W32G_SYN) || defined(WINDRV))
 static inline int parse_opt_player_thread_priority(const char *arg);
 #endif
 static void w32_exit(void);
@@ -4029,6 +4065,8 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 #if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) || defined(IA_NPSYN) || defined(IA_W32G_SYN) || defined(IA_W32GUI)
 	case TIM_OPT_RTSYN_LATENCY:
 		return parse_opt_rtsyn_latency(arg);
+	case TIM_OPT_RTSYN_SKIP_AQ:
+		return parse_opt_rtsyn_skip_aq(arg);
 #endif
 	case TIM_OPT_REALTIME_LOAD:
 		return parse_opt_j(arg);
@@ -4104,6 +4142,24 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 		return parse_opt_wmme_device_id(arg);
 	case TIM_OPT_WAVE_FORMAT_EXT:
 		return parse_opt_wave_format_ext(arg);
+#endif
+#ifdef AU_WASAPI
+	case TIM_OPT_WASAPI_DEVICE_ID:
+		return parse_opt_wasapi_device_id(arg);
+	case TIM_OPT_WASAPI_LATENCY:
+		return parse_opt_wasapi_latency(arg);
+	case TIM_OPT_WASAPI_FORMAT_EXT:
+		return parse_opt_wasapi_format_ext(arg);
+	case TIM_OPT_WASAPI_EXCLUSIVE:
+		return parse_opt_wasapi_exclusive(arg);
+	case TIM_OPT_WASAPI_POLLING:
+		return parse_opt_wasapi_polling(arg);
+	case TIM_OPT_WASAPI_PRIORITY:
+		return parse_opt_wasapi_priority(arg);
+	case TIM_OPT_WASAPI_STREAM_CATEGORY:
+		return parse_opt_wasapi_stream_category(arg);
+	case TIM_OPT_WASAPI_STREAM_OPTION:
+		return parse_opt_wasapi_stream_option(arg);
 #endif
 #ifdef AU_PORTAUDIO
 	case TIM_OPT_PA_WMME_DEVICE_ID:
@@ -4264,7 +4320,7 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 #if defined(__W32__)
 	case TIM_OPT_PROCESS_PRIORITY:
 		return parse_opt_process_priority(arg);
-#if !defined(IA_W32G_SYN)
+#if !(defined(IA_W32G_SYN) || defined(WINDRV))
 	case TIM_OPT_PLAYER_THREAD_PRIORITY:
 		return parse_opt_player_thread_priority(arg);
 #endif
@@ -5765,7 +5821,31 @@ static int parse_opt_h(const char *arg)
 #ifdef AU_W32
 "             --wmme-device-id=n (for Windows only)",
 "               Number of WMME device ID (-1: Default device, 0..19: other)",
-"             --wave-format-ext=n",
+"             --wave-format-ext=n , --wmme-format-ext=n (for Windows only)",
+"               WMME Enable WAVE_FORMAT_EXTENSIBLE (default is 1)",
+#endif
+#ifdef AU_WASAPI
+"             --wasapi-device-id=n (for Windows only)",
+"               Number of WASAPI device ID (-1: Default device, 0..19: other)",
+"             --wasapi-latency=n (for Windows only)",
+"               WASAPI Latency ms n=1-9999 depend device (default is 30)",
+"             --wasapi-format-ext=n (for Windows only)",
+"               WASAPI Enable WAVE_FORMAT_EXTENSIBLE (default is 1)",
+"             --wasapi-exclusive=n (for Windows only)",
+"               WASAPI 0:Shared mode 1:Exclusive mode (default is 0)",
+"             --wasapi-polling=n (for Windows only)",
+"               WASAPI Flags 0:Event 1:Polling (default is 0)",
+"             --wasapi_priority=n (for Windows only)",
+"               WASAPI ThreadPriority (default is 0)",
+"               0:None 1:Audio , 2:Capture:2 , 3:Distribution , 4:Games , 5:playback , 6:ProAudio , 7:WindowManager",
+"             --wasapi-stream-category=n (for Windows only)",
+"               WASAPI StreamCategory (default is 0)",
+"               0:Other , 1:None , 2:None , 3:Communications , 4:Alerts , 5:SoundEffects ,",
+"               6:GameEffects , 7:GameMedia , 8:GameChat , 9:Speech , 10:Movie , 11:Media",
+"               values 1,2 are deprecated on Windows 10 and not included into enumeration",
+"             --wasapi-stream-option=n (for Windows only)",
+"               WASAPI StreamOption 0:None 1:Raw 2:MatchFormat (default is 0)",
+"               1:Raw bypass WASAPI Audio Engine DSP effects, supported since Windows 8.1",
 #endif
 #ifdef AU_PORTAUDIO
 "             --pa-asio-device-id=n",
@@ -6383,13 +6463,6 @@ static inline int parse_opt_seq_ports(const char *arg)
 }
 #endif
 
-#if defined(IA_W32GUI)
-static inline int parse_opt_rtsyn_latency(const char *arg)
-{
-	/* --rtsyn-latency */
-	return 0;
-}
-#endif
 #if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) ||defined(IA_NPSYN) || defined(IA_W32G_SYN)
 static inline int parse_opt_rtsyn_latency(const char *arg)
 {
@@ -6400,6 +6473,25 @@ static inline int parse_opt_rtsyn_latency(const char *arg)
 	if (sscanf(arg, "%lf", &latency) == EOF)
 		latency = RTSYN_LATENCY;
 	rtsyn_set_latency(latency);
+	return 0;
+}
+
+static inline int parse_opt_rtsyn_skip_aq(const char *arg)
+{
+	/* --rtsyn-skip-aq */
+	if (!arg) return 0;
+	rtsyn_set_skip_aq(atoi(arg));
+	return 0;
+}
+#elif defined(IA_W32GUI)
+static inline int parse_opt_rtsyn_latency(const char *arg)
+{
+	/* --rtsyn-latency */
+	return 0;
+}
+static inline int parse_opt_rtsyn_skip_aq(const char *arg)
+{
+	/* --rtsyn-skip-aq */
 	return 0;
 }
 #endif
@@ -6713,6 +6805,64 @@ static inline int parse_opt_wmme_buffer_num(const char *arg)
 	/* --opt_wmme_buffer_num */
 	if (!arg) return 0;
 	opt_wmme_buffer_num = atoi(arg);
+	return 0;
+}
+#endif
+#ifdef AU_WASAPI
+static inline int parse_opt_wasapi_device_id(const char *arg)
+{
+	/* --wasapi-device-id */
+	if (!arg) return 0;
+	opt_wasapi_device_id = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wasapi_latency(const char *arg)
+{
+	/* --wasapi-latency */
+	if (!arg) return 0;
+	opt_wasapi_latency = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wasapi_format_ext(const char *arg)
+{
+	/* --wasapi-format_ext */
+	if (!arg) return 0;
+	opt_wasapi_format_ext = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wasapi_exclusive(const char *arg)
+{
+	/* --wasapi-exclusive */
+	if (!arg) return 0;
+	opt_wasapi_exclusive = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wasapi_polling(const char *arg)
+{
+	/* --wasapi-polling */
+	if (!arg) return 0;
+	opt_wasapi_polling = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wasapi_priority(const char *arg)
+{
+	/* --wasapi-priority */
+	if (!arg) return 0;
+	opt_wasapi_priority = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wasapi_stream_category(const char *arg)
+{
+	/* --wasapi-stream-category */
+	if (!arg) return 0;
+	opt_wasapi_stream_category = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wasapi_stream_option(const char *arg)
+{
+	/* --wasapi-stream-option */
+	if (!arg) return 0;
+	opt_wasapi_stream_option = atoi(arg);
 	return 0;
 }
 #endif
@@ -7209,7 +7359,7 @@ static inline int parse_opt_process_priority(const char *arg)
 	return 0;
 }
 
-#ifndef IA_W32G_SYN
+#if !(defined(IA_W32G_SYN) || defined(WINDRV))
 static inline int parse_opt_player_thread_priority(const char *arg)
 {
 	PlayerThreadPriority = (arg) ? (DWORD)atoi(arg) : THREAD_PRIORITY_NORMAL;
@@ -8233,7 +8383,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 		processPriority == REALTIME_PRIORITY_CLASS)
 	    if(!SetPriorityClass(GetCurrentProcess(), processPriority))
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Error changing process priority");
-#if !defined(IA_W32G_SYN)
+#if !(defined(IA_W32G_SYN) || defined(WINDRV))
 	if( PlayerThreadPriority == THREAD_PRIORITY_LOWEST ||
 		PlayerThreadPriority == THREAD_PRIORITY_BELOW_NORMAL ||
 		PlayerThreadPriority == THREAD_PRIORITY_NORMAL ||
@@ -8612,7 +8762,10 @@ int main(int argc, char **argv)
 ///r
 	load_all_instrument();
 
-#ifdef MULTI_THREAD_COMPUTE
+#ifdef MULTI_THREAD_COMPUTE	
+#if defined(__W32__) && ( defined(IA_W32G_SYN) )
+	set_compute_thread_priority(syn_ThreadPriority);
+#endif
 	begin_compute_thread();
 #endif
 	nfiles = argc - optind;

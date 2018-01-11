@@ -81,13 +81,14 @@ int rtsyn_system_mode = DEFAULT_SYSTEM_MODE;
 double rtsyn_latency = RTSYN_LATENCY;   //ratency (sec)
 int32 rtsyn_start_sample;
 int rtsyn_sample_time_mode = 0;
+int rtsyn_skip_aq = 0;
+double max_compute = RTSYN_LATENCY;	// play_event() ‚Ì compute_data() ‚ÅŒvZ‚ğ‹–‚·Å‘åŠÔ
 
 static int rtsyn_played = 0;
 static double rtsyn_start_time;
 static double last_event_time;
 static double last_calc_time;
 static int set_time_first=2;
-extern int volatile stream_max_compute;	// play_event() ‚Ì compute_data() ‚ÅŒvZ‚ğ‹–‚·Å‘åŠÔ
 
 //acitive sensing
 static int active_sensing_flag=0;
@@ -323,6 +324,11 @@ double rtsyn_set_latency(double latency){
 	return latency;
 }
 
+void rtsyn_set_skip_aq(int flg)
+{
+	rtsyn_skip_aq = flg ? 1 : 0;
+}
+
 void rtsyn_init(void){
 	int i,j;
 	MidiEvent ev;
@@ -339,7 +345,12 @@ void rtsyn_init(void){
 			  play_mode->extra_param[1]);
 	}	
 	if(ctl->id_character != 'N')
-	  aq_set_soft_queue(rtsyn_latency*(double)1.01, 0.0);
+		if(rtsyn_skip_aq) // c212 add
+		  aq_set_soft_queue(0.0, 0.0); // skip audio queue
+		else
+		  aq_set_soft_queue(rtsyn_latency, 0.0);
+	max_compute = (double)stream_max_compute * DIV_1000; //rtsyn_latency * 1000.0;
+	max_compute = (rtsyn_latency > max_compute) ? rtsyn_latency : max_compute;
 	i = current_keysig + ((current_keysig < 8) ? 7 : -9), j = 0;
 	while (i != 7)
 		i += (i < 7) ? 5 : -7, j++;
@@ -355,13 +366,16 @@ void rtsyn_init(void){
 	
 	if(play_mode && play_mode->open_output)
 	  play_mode->open_output();
+	
+	aq_setup();
+	
 	if(play_mode && play_mode->acntl)
 	  play_mode->acntl(PM_REQ_PLAY_START, NULL);
 	
-	aq_setup();
 	rtsyn_reset();
 	rtsyn_system_mode=DEFAULT_SYSTEM_MODE;
 	change_system_mode(rtsyn_system_mode);
+
 	reset_midi(0);
 }
 
@@ -384,43 +398,40 @@ void rtsyn_play_event_sample(MidiEvent *ev, int32 event_sample_time){
 void rtsyn_play_event_time(MidiEvent *ev, double event_time){
 	int gch;
 	double current_event_time, buf_time;
-	int32 max_compute;
 	MidiEvent nev;
 
-		max_compute = rtsyn_latency * 1000.0;
-		max_compute = (stream_max_compute > max_compute) ? stream_max_compute : max_compute;
-		if ( (event_time - last_event_time) > (double)max_compute * DIV_1000){
-				kill_all_voices();
-				current_sample = (double)(play_mode->rate) * get_current_calender_time()+0.5;
-				rtsyn_start_time=get_current_calender_time();
-				rtsyn_start_sample=current_sample;
-				last_event_time=rtsyn_start_time;
-		}else{
-				nev.type = ME_NONE;
-			if( (event_time - last_event_time) > 1.0/(double)TICKTIME_HZ ) {
-				buf_time = last_event_time + 1.0/(double)TICKTIME_HZ;
+	if ( (event_time - last_event_time) > max_compute){
+			kill_all_voices();
+			current_sample = (double)(play_mode->rate) * get_current_calender_time()+0.5;
+			rtsyn_start_time=get_current_calender_time();
+			rtsyn_start_sample=current_sample;
+			last_event_time=rtsyn_start_time;
+	}else{
+			nev.type = ME_NONE;
+		if( (event_time - last_event_time) > 1.0/(double)TICKTIME_HZ ) {
+			buf_time = last_event_time + 1.0/(double)TICKTIME_HZ;
+			rtsyn_seq_set_time(&nev, buf_time);
+			play_event(&nev);
+			aq_fill_nonblocking();
+				
+			while( event_time > buf_time + 1.0/(double)TICKTIME_HZ){
+				buf_time = buf_time + 1.0/(double)TICKTIME_HZ;
 				rtsyn_seq_set_time(&nev, buf_time);
 				play_event(&nev);
 				aq_fill_nonblocking();
-				
-				while( event_time > buf_time + 1.0/(double)TICKTIME_HZ){
-					buf_time = buf_time + 1.0/(double)TICKTIME_HZ;
-					rtsyn_seq_set_time(&nev, buf_time);
-					play_event(&nev);
-					aq_fill_nonblocking();
-				}
 			}
-				gch = GLOBAL_CHANNEL_EVENT_TYPE(ev->type);
-				if(gch || !IS_SET_CHANNELMASK(quietchannels, ev->channel) ){
-					rtsyn_seq_set_time(ev,event_time);
-					play_event(ev);
-					aq_fill_nonblocking();
-					last_event_time = (event_time  > last_event_time) ? event_time : last_event_time ;
-				}
+		}
+			gch = GLOBAL_CHANNEL_EVENT_TYPE(ev->type);
+			if(gch || !IS_SET_CHANNELMASK(quietchannels, ev->channel) ){
+				rtsyn_seq_set_time(ev,event_time);
+				play_event(ev);
+				aq_fill_nonblocking();
+				last_event_time = (event_time  > last_event_time) ? event_time : last_event_time ;
 			}
+		}
 //		}
 //		}
-		rtsyn_played = 1;
+	rtsyn_played = 1;
 
 
 }

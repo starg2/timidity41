@@ -2229,236 +2229,263 @@ static void conv_preset_envelope_param(int max, int32 *env, int16 *velf, int16 *
 	keyf[0] = keyf[0]; // atk time
 }
 
-// type -1:scc/mms 0:scc 1:mms , preset -1:all 0~:num
-static void conv_preset_envelope(Preset_IS *is_set, int type, int preset)
+static void load_is_scc_data(INIDATA *ini, Preset_IS *set)
 {
-	int i, j;
-	
-	if(type < 0 || type == 0){
-		for(i = 0; i < SCC_SETTING_MAX; i++){
-			Preset_SCC *set = NULL;
-			if(preset >= 0 && i != preset)
-				continue;
-			if(!is_set->scc_setting[i])
-				continue;
-			set = is_set->scc_setting[i];
-			conv_preset_envelope_param(SCC_ENV_PARAM, set->ampenv, NULL, NULL);
-			conv_preset_envelope_param(SCC_ENV_PARAM, set->pitenv, NULL, NULL);
-		}
-	}
-	if(type < 0 || type == 1){
-		for(i = 0; i < MMS_SETTING_MAX; i++){
-			Preset_MMS *set = NULL;
-			if(preset >= 0 && i != preset)
-				continue;
-			if(!is_set->mms_setting[i])
-				continue;
-			set = is_set->mms_setting[i];
-			for(j = 0; j < MMS_OP_MAX; j++){
-				conv_preset_envelope_param(MMS_OP_ENV_PARAM, set->op_ampenv[j], set->op_ampenv_velf[j], set->op_ampenv_keyf[j]);
-				conv_preset_envelope_param(MMS_OP_ENV_PARAM, set->op_modenv[j], set->op_modenv_velf[j], set->op_modenv_keyf[j]);
-				conv_preset_envelope_param(MMS_OP_ENV_PARAM, set->op_widenv[j], set->op_widenv_velf[j], set->op_widenv_keyf[j]);
-				conv_preset_envelope_param(MMS_OP_ENV_PARAM, set->op_pitenv[j], set->op_pitenv_velf[j], set->op_pitenv_keyf[j]);
-			}
-		}
-	}
-}
-
-// type -1:ascc/mms 0:scc 1:mms , preset -1:all 0~:num
-void load_int_synth_preset(const char *inifile, Preset_IS *set, int type, int preset)
-{
-	INIDATA ini={0};
 	LPINISEC sec = NULL;
 	TCHAR tbf[258] = "";
 	char *p = NULL;
 	char name[30] = "";
 	char name2[30] = "";
-	int i, j, k, param;
+	int i;
+
+	sec = MyIni_GetSection(ini, "SCC_DATA", 0);
+	for(i = 0; i < SCC_DATA_MAX; i++){
+		snprintf(name, sizeof(name), "data_%03d", i); // 桁数指定
+		snprintf(name2, sizeof(name2), "name_%03d", i); // 桁数指定
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0");
+		config_parse_scc_data(p, set, i);	
+		p = MyIni_GetString(sec, name2, tbf, 256, "none");
+		if(set->scc_data_name[i] != NULL)
+			safe_free(set->scc_data_name[i]);
+		set->scc_data_name[i] = safe_strdup(p);
+	}
+}
+
+static void load_is_scc_preset(INIDATA *ini, Preset_IS *set, int preset, int init)
+{
+	LPINISEC sec = NULL;
+	TCHAR tbf[258] = "";
+	char *p = NULL;
+	char name[30] = "";
+	char name2[30] = "";
+	void *mem = NULL;
+	int i = preset;
+	Preset_SCC *set2 = NULL;
+	
+	snprintf(name, sizeof(name), "SCC_%03d", i); // 桁数指定
+	sec = MyIni_GetSection(ini, name, 0);
+	if(sec == NULL && !init)
+		return;
+	mem = safe_malloc(sizeof(Preset_SCC));
+	if(!mem)
+		return;
+	memset(mem, 0, sizeof(Preset_SCC));
+	set->scc_setting[i] = (Preset_SCC *)mem;
+	set2 = set->scc_setting[i];
+	p = MyIni_GetString(sec, "name", tbf, 256, "SCC none");
+//	snprintf(name, sizeof(name), "[SCC] %s", p);
+	if(set->scc_setting[i]->inst_name != NULL)
+		safe_free(set->scc_setting[i]->inst_name);
+//	scc_setting[i].inst_name = safe_strdup(name);
+	set->scc_setting[i]->inst_name = safe_strdup(p);
+	p = MyIni_GetString(sec, "param", tbf, 256, "100:0");
+	config_parse_scc_param(p, set, i);
+	p = MyIni_GetString(sec, "osc", tbf, 256, "0:100:0:0");
+	config_parse_scc_osc(p, set, i);
+	p = MyIni_GetString(sec, "amp", tbf, 256, "0:0:0");
+	config_parse_scc_amp(p, set, i);
+	p = MyIni_GetString(sec, "pitch", tbf, 256, "0:0:0");
+	config_parse_scc_pitch(p, set, i);
+#define IS_SCC_ENV_DEFAULT "0:0:100:0:0:0:0:0:0:0:0:0:0:0"
+	p = MyIni_GetString(sec, "ampenv", tbf, 256, IS_SCC_ENV_DEFAULT);
+	config_parse_scc_ampenv(p, set, i);
+	p = MyIni_GetString(sec, "pitenv", tbf, 256, IS_SCC_ENV_DEFAULT);
+	config_parse_scc_pitenv(p, set, i);
+#define IS_SCC_LFO_DEFAULT "0:0:0:200"
+	p = MyIni_GetString(sec, "lfo1", tbf, 256, IS_SCC_LFO_DEFAULT);
+	config_parse_scc_lfo1(p, set, i);
+	p = MyIni_GetString(sec, "lfo2", tbf, 256, IS_SCC_LFO_DEFAULT);
+	config_parse_scc_lfo2(p, set, i);
+	// conv_preset_envelope
+	conv_preset_envelope_param(SCC_ENV_PARAM, set2->ampenv, NULL, NULL);
+	conv_preset_envelope_param(SCC_ENV_PARAM, set2->pitenv, NULL, NULL);
+}
+	
+static void load_is_mms_preset(INIDATA *ini, Preset_IS *set, int preset, int init)
+{
+	LPINISEC sec = NULL;
+	TCHAR tbf[258] = "";
+	char *p = NULL;
+	char name[30] = "";
+	char name2[30] = "";
+	void *mem = NULL;
+	int i = preset, j, k, param;
+	Preset_MMS *set2 = NULL;
+	
+	snprintf(name, sizeof(name), "MMS_%03d", i); // 桁数指定
+	sec = MyIni_GetSection(ini, name, 0);
+	if(sec == NULL && !init)
+		return;
+	mem = safe_malloc(sizeof(Preset_MMS));
+	if(!mem)
+		return;
+	memset(mem, 0, sizeof(Preset_MMS));
+	set->mms_setting[i] = (Preset_MMS *)mem;
+	set2 = set->mms_setting[i];
+	p = MyIni_GetString(sec, "name", tbf, 256, "MMS none");
+//	snprintf(name, sizeof(name), "[MMS] %s", p);
+	if(set->mms_setting[i]->inst_name != NULL)
+		safe_free(set->mms_setting[i]->inst_name);
+//	set->mms_setting[i].inst_name = safe_strdup(name);
+	set->mms_setting[i]->inst_name = safe_strdup(p);
+	set->mms_setting[i]->op_max = MyIni_GetInt32(sec, "op_max", 1);
+	for(j = 0; j < MMS_OP_MAX; j++){
+		snprintf(name, sizeof(name), "op_%d_param", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0");
+		config_parse_mms_op_param(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_range", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:127:0:127");
+		config_parse_mms_op_range(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_connect", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "-1");
+		config_parse_mms_op_connect(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_osc", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:100:0:0");
+		config_parse_mms_op_osc(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_wave", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:100:0:0:0");
+		config_parse_mms_op_wave(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_sub", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
+		config_parse_mms_op_sub(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_amp", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
+		config_parse_mms_op_amp(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_pitch", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
+		config_parse_mms_op_pitch(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_width", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
+		config_parse_mms_op_width(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_filter", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
+		config_parse_mms_op_filter(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_cutoff", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
+		config_parse_mms_op_cutoff(p, set, i, j);
+#define IS_MMS_ENV_DEFAULT "0:0:100:0:0:0:0:0:0:0:0:0:0:0"
+		snprintf(name, sizeof(name), "op_%d_ampenv", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
+		config_parse_mms_op_ampenv(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_modenv", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
+		config_parse_mms_op_modenv(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_widenv", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
+		config_parse_mms_op_widenv(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_pitenv", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
+		config_parse_mms_op_pitenv(p, set, i, j);
+#define IS_MMS_ENVF_DEFAULT "0:0:0:0:0:0:0:0:0:0:0:0:0:0"
+		snprintf(name, sizeof(name), "op_%d_ampenv_keyf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_ampenv_keyf(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_modenv_keyf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_modenv_keyf(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_widenv_keyf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_widenv_keyf(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_pitenv_keyf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_pitenv_keyf(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_ampenv_velf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_ampenv_velf(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_modenv_velf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_modenv_velf(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_widenv_velf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_widenv_velf(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_pitenv_velf", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
+		config_parse_mms_op_pitenv_velf(p, set, i, j);
+#define IS_MMS_LFO_DEFAULT "0:0:0:200"
+		snprintf(name, sizeof(name), "op_%d_lfo1", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
+		config_parse_mms_op_lfo1(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_lfo2", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
+		config_parse_mms_op_lfo2(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_lfo3", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
+		config_parse_mms_op_lfo3(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_lfo4", j);
+		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
+		config_parse_mms_op_lfo4(p, set, i, j);
+		// conv_preset_envelop
+		conv_preset_envelope_param(MMS_OP_ENV_PARAM, set2->op_ampenv[j], set2->op_ampenv_velf[j], set2->op_ampenv_keyf[j]);
+		conv_preset_envelope_param(MMS_OP_ENV_PARAM, set2->op_modenv[j], set2->op_modenv_velf[j], set2->op_modenv_keyf[j]);
+		conv_preset_envelope_param(MMS_OP_ENV_PARAM, set2->op_widenv[j], set2->op_widenv_velf[j], set2->op_widenv_keyf[j]);
+		conv_preset_envelope_param(MMS_OP_ENV_PARAM, set2->op_pitenv[j], set2->op_pitenv_velf[j], set2->op_pitenv_keyf[j]);
+	}
+}
+
+// type -1:scc/mms 0:scc 1:mms , preset -1:all 0~:num
+static void load_int_synth_preset(const char *inifile, Preset_IS *set, int type, int32 preset, int init)
+{
+	INIDATA ini={0};
+	int i;
 	
 	MyIni_Load_timidity(&ini, inifile, 1, OF_VERBOSE);
 	if(!set->scc_data_load){
 		set->scc_data_load = 1;
-		sec = MyIni_GetSection(&ini, "SCC_DATA", 0);
-		for(i = 0; i < SCC_DATA_MAX; i++){
-			if(i < 10){
-				snprintf(name, sizeof(name), "data_00%d", i); // 桁数指定わからん
-				snprintf(name2, sizeof(name2), "name_00%d", i); // 桁数指定わからん
-			}else if(i < 100){
-				snprintf(name, sizeof(name), "data_0%d", i);
-				snprintf(name2, sizeof(name2), "name_0%d", i);
-			}else{
-				snprintf(name, sizeof(name), "data_%d", i);
-				snprintf(name2, sizeof(name2), "name_%d", i);	
+		load_is_scc_data(&ini, set);
+	}
+	if(type == IS_INI_TYPE_ALL || type == IS_INI_TYPE_SCC){
+		if(preset == IS_INI_PRESET_ALL){
+			for(i = 0; i < SCC_SETTING_MAX; i++){
+				if(set->scc_setting[i])
+					continue;
+				load_is_scc_preset(&ini, set, i, init);
 			}
-			p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0");
-			config_parse_scc_data(p, set, i);	
-			p = MyIni_GetString(sec, name2, tbf, 256, "none");
-			if(set->scc_data_name[i] != NULL)
-				safe_free(set->scc_data_name[i]);
-			set->scc_data_name[i] = safe_strdup(p);
+		}else if(preset < SCC_SETTING_MAX){			
+			if(!set->scc_setting[preset])
+				load_is_scc_preset(&ini, set, preset, init);
 		}
-	}
-	if(type < 0 || type == 0){
-		for(i = 0; i < SCC_SETTING_MAX; i++){
-			void *mem = NULL;
-			if(preset >= 0 && i != preset)
-				continue;
-			if(set->scc_setting[i])
-				continue;
-			mem = safe_malloc(sizeof(Preset_SCC));
-			if(!mem)
-				continue;
-			memset(mem, 0, sizeof(Preset_SCC));
-			set->scc_setting[i] = (Preset_SCC *)mem;
-			if(i < 10)
-				snprintf(name, sizeof(name), "SCC_00%d", i); // 桁数指定わからん
-			else if(i < 100)
-				snprintf(name, sizeof(name), "SCC_0%d", i);
-			else
-				snprintf(name, sizeof(name), "SCC_%d", i);
-			sec = MyIni_GetSection(&ini, name, 0);
-			p = MyIni_GetString(sec, "name", tbf, 256, "SCC none");
-		//	snprintf(name, sizeof(name), "[SCC] %s", p);
-			if(set->scc_setting[i]->inst_name != NULL)
-				safe_free(set->scc_setting[i]->inst_name);
-		//	scc_setting[i].inst_name = safe_strdup(name);
-			set->scc_setting[i]->inst_name = safe_strdup(p);
-			p = MyIni_GetString(sec, "param", tbf, 256, "100:0");
-			config_parse_scc_param(p, set, i);
-			p = MyIni_GetString(sec, "osc", tbf, 256, "0:100:0:0");
-			config_parse_scc_osc(p, set, i);
-			p = MyIni_GetString(sec, "amp", tbf, 256, "0:0:0");
-			config_parse_scc_amp(p, set, i);
-			p = MyIni_GetString(sec, "pitch", tbf, 256, "0:0:0");
-			config_parse_scc_pitch(p, set, i);
-#define IS_SCC_ENV_DEFAULT "0:0:100:0:0:0:0:0:0:0:0:0:0:0"
-			p = MyIni_GetString(sec, "ampenv", tbf, 256, IS_SCC_ENV_DEFAULT);
-			config_parse_scc_ampenv(p, set, i);
-			p = MyIni_GetString(sec, "pitenv", tbf, 256, IS_SCC_ENV_DEFAULT);
-			config_parse_scc_pitenv(p, set, i);
-#define IS_SCC_LFO_DEFAULT "0:0:0:200"
-			p = MyIni_GetString(sec, "lfo1", tbf, 256, IS_SCC_LFO_DEFAULT);
-			config_parse_scc_lfo1(p, set, i);
-			p = MyIni_GetString(sec, "lfo2", tbf, 256, IS_SCC_LFO_DEFAULT);
-			config_parse_scc_lfo2(p, set, i);
-		}
-	}
-	if(type < 0 || type == 1){
-		for(i = 0; i < MMS_SETTING_MAX; i++){
-			void *mem = NULL;
-			if(preset >= 0 && i != preset)
-				continue;
-			if(set->mms_setting[i])
-				continue;
-			mem = safe_malloc(sizeof(Preset_MMS));
-			if(!mem)
-				continue;
-			memset(mem, 0, sizeof(Preset_MMS));
-			set->mms_setting[i] = (Preset_MMS *)mem;
-			if(i < 10)
-				snprintf(name, sizeof(name), "MMS_00%d", i); // 桁数指定わからん
-			else if(i < 100)
-				snprintf(name, sizeof(name), "MMS_0%d", i);
-			else
-				snprintf(name, sizeof(name), "MMS_%d", i);
-			sec = MyIni_GetSection(&ini, name, 0);
-			p = MyIni_GetString(sec, "name", tbf, 256, "MMS none");
-		//	snprintf(name, sizeof(name), "[MMS] %s", p);
-			if(set->mms_setting[i]->inst_name != NULL)
-				safe_free(set->mms_setting[i]->inst_name);
-		//	set->mms_setting[i].inst_name = safe_strdup(name);
-			set->mms_setting[i]->inst_name = safe_strdup(p);
-			set->mms_setting[i]->op_max = MyIni_GetInt32(sec, "op_max", 1);
-			for(j = 0; j < MMS_OP_MAX; j++){
-				snprintf(name, sizeof(name), "op_%d_param", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0");
-				config_parse_mms_op_param(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_range", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:127:0:127");
-				config_parse_mms_op_range(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_connect", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "-1");
-				config_parse_mms_op_connect(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_osc", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:100:0:0");
-				config_parse_mms_op_osc(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_wave", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:0:100:0:0:0");
-				config_parse_mms_op_wave(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_sub", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
-				config_parse_mms_op_sub(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_amp", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
-				config_parse_mms_op_amp(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_pitch", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
-				config_parse_mms_op_pitch(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_width", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
-				config_parse_mms_op_width(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_filter", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
-				config_parse_mms_op_filter(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_cutoff", j);
-				p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0");
-				config_parse_mms_op_cutoff(p, set, i, j);
-#define IS_MMS_ENV_DEFAULT "0:0:100:0:0:0:0:0:0:0:0:0:0:0"
-				snprintf(name, sizeof(name), "op_%d_ampenv", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
-				config_parse_mms_op_ampenv(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_modenv", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
-				config_parse_mms_op_modenv(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_widenv", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
-				config_parse_mms_op_widenv(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_pitenv", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENV_DEFAULT);
-				config_parse_mms_op_pitenv(p, set, i, j);
-#define IS_MMS_ENVF_DEFAULT "0:0:0:0:0:0:0:0:0:0:0:0:0:0"
-				snprintf(name, sizeof(name), "op_%d_ampenv_keyf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_ampenv_keyf(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_modenv_keyf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_modenv_keyf(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_widenv_keyf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_widenv_keyf(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_pitenv_keyf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_pitenv_keyf(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_ampenv_velf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_ampenv_velf(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_modenv_velf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_modenv_velf(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_widenv_velf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_widenv_velf(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_pitenv_velf", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
-				config_parse_mms_op_pitenv_velf(p, set, i, j);
-#define IS_MMS_LFO_DEFAULT "0:0:0:200"
-				snprintf(name, sizeof(name), "op_%d_lfo1", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
-				config_parse_mms_op_lfo1(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_lfo2", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
-				config_parse_mms_op_lfo2(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_lfo3", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
-				config_parse_mms_op_lfo3(p, set, i, j);
-				snprintf(name, sizeof(name), "op_%d_lfo4", j);
-				p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
-				config_parse_mms_op_lfo4(p, set, i, j);
+#ifdef IS_INI_LOAD_BLOCK
+		else if(preset > 0){	 
+			int32 block = (preset >> 10) - 1; // 10bit>SETTING_MAX
+			int32 min = block * IS_INI_LOAD_BLOCK; // 1block=64or128preset
+			int32 max = min + IS_INI_LOAD_BLOCK; // 1block=64or128preset
+			if(max > SCC_SETTING_MAX) 
+				max = SCC_SETTING_MAX;
+			for(i = min; i < max; i++){
+				if(set->scc_setting[i])
+					continue;
+				load_is_scc_preset(&ini, set, i, init);
 			}
 		}
+#endif
+	}
+	if(type == IS_INI_TYPE_ALL || type == IS_INI_TYPE_MMS){
+		if(preset == IS_INI_PRESET_ALL){
+			for(i = 0; i < MMS_SETTING_MAX; i++){
+				if(set->mms_setting[i])
+					continue;
+				load_is_mms_preset(&ini, set, i, init);
+			}
+		}else if(preset < MMS_SETTING_MAX){	
+			if(!set->mms_setting[preset])
+				load_is_mms_preset(&ini, set, preset, init);
+		}
+#ifdef IS_INI_LOAD_BLOCK
+		else if(preset > 0){	 
+			int32 block = (preset >> 10) - 1; // 10bit>SETTING_MAX
+			int32 min = block * IS_INI_LOAD_BLOCK; // 1block=64or128preset
+			int32 max = min + IS_INI_LOAD_BLOCK; // 1block=64or128preset
+			if(max > MMS_SETTING_MAX)
+				max = MMS_SETTING_MAX;
+			for(i = min; i < max; i++){
+				if(set->mms_setting[i])
+					continue;
+				load_is_mms_preset(&ini, set, i, init);
+			}
+		}
+#endif
 	}
 	MyIni_SectionAllClear(&ini);
-	conv_preset_envelope(set, type, preset);
 }
 	
 
@@ -2530,17 +2557,9 @@ static void scc_data_editor_save_ini(int num)
 	char key2[30] = "";
 	int i;
 
-	MyIni_Load(&ini, is_editor_inifile);	
-	if(num < 10){
-		snprintf(key1, sizeof(key1), "data_00%d", num); // 桁数指定わからん
-		snprintf(key2, sizeof(key2), "name_00%d", num); // 桁数指定わからん
-	}else if(num < 100){
-		snprintf(key1, sizeof(key1), "data_0%d", num);
-		snprintf(key2, sizeof(key2), "name_0%d", num);
-	}else{
-		snprintf(key1, sizeof(key1), "data_%d", num);
-		snprintf(key2, sizeof(key2), "name_%d", num);	
-	}
+	MyIni_Load(&ini, is_editor_inifile);
+	snprintf(key1, sizeof(key1), "data_%03d", num); // 桁数指定
+	snprintf(key2, sizeof(key2), "name_%03d", num); // 桁数指定	
 	for(i = 0; i < SCC_DATA_LENGTH; i++){
 		snprintf(data, sizeof(data), "%s%d:", data, is_editor_preset.scc_data_int[num][i]);
 	}
@@ -2757,13 +2776,7 @@ static void scc_editor_delete_ini(int num)
 	char sec[30] = "";
 	
 	MyIni_Load(&ini, is_editor_inifile);	
-	if(num < 10){
-		snprintf(sec, sizeof(sec), "SCC_00%d", num); // 桁数指定わからん
-	}else if(num < 100){
-		snprintf(sec, sizeof(sec), "SCC_0%d", num);
-	}else{
-		snprintf(sec, sizeof(sec), "SCC_%d", num);	
-	}
+	snprintf(sec, sizeof(sec), "SCC_%03d", num); // 桁数指定
 	MyIni_DeleteSection(&ini, sec);
 	MyIni_Save(&ini, is_editor_inifile);
 	MyIni_SectionAllClear(&ini);
@@ -2782,13 +2795,7 @@ static void scc_editor_save_ini(int num)
 		return;
 	setting = is_editor_preset.scc_setting[num];
 	MyIni_Load(&ini, is_editor_inifile);	
-	if(num < 10){
-		snprintf(sec, sizeof(sec), "SCC_00%d", num); // 桁数指定わからん
-	}else if(num < 100){
-		snprintf(sec, sizeof(sec), "SCC_0%d", num);
-	}else{
-		snprintf(sec, sizeof(sec), "SCC_%d", num);	
-	}	
+	snprintf(sec, sizeof(sec), "SCC_%03d", num); // 桁数指定
 	inisec = MyIni_GetSection(&ini, sec, 1);
 	MyIni_SetString(inisec, "name", setting->inst_name);
 	// param
@@ -3444,13 +3451,7 @@ static void mms_editor_delete_ini(int num)
 	char sec[30] = "";
 	
 	MyIni_Load(&ini, is_editor_inifile);	
-	if(num < 10){
-		snprintf(sec, sizeof(sec), "MMS_00%d", num); // 桁数指定わからん
-	}else if(num < 100){
-		snprintf(sec, sizeof(sec), "MMS_0%d", num);
-	}else{
-		snprintf(sec, sizeof(sec), "MMS_%d", num);	
-	}
+	snprintf(sec, sizeof(sec), "MMS_%03d", num); // 桁数指定
 	MyIni_DeleteSection(&ini, sec);
 	MyIni_Save(&ini, is_editor_inifile);
 	MyIni_SectionAllClear(&ini);
@@ -3470,13 +3471,7 @@ static void mms_editor_save_ini(int num)
 		return;
 	setting = is_editor_preset.mms_setting[num];
 	MyIni_Load(&ini, is_editor_inifile);	
-	if(num < 10){
-		snprintf(sec, sizeof(sec), "MMS_00%d", num); // 桁数指定わからん
-	}else if(num < 100){
-		snprintf(sec, sizeof(sec), "MMS_0%d", num);
-	}else{
-		snprintf(sec, sizeof(sec), "MMS_%d", num);	
-	}	
+	snprintf(sec, sizeof(sec), "MMS_%03d", num); // 桁数指定
 	inisec = MyIni_GetSection(&ini, sec, 1);
 	MyIni_SetString(inisec, "name", setting->inst_name);
 	MyIni_SetInt32(inisec, "op_max", setting->op_max);
@@ -4012,7 +4007,7 @@ void is_editor_load_ini(void)
 	scc_data_editor_override = 0; 
 	scc_editor_override = 0; 
 	mms_editor_override = 0; 	
-	load_int_synth_preset(is_editor_inifile, &is_editor_preset, -1, -1); // all	
+	load_int_synth_preset(is_editor_inifile, &is_editor_preset, IS_INI_TYPE_ALL, IS_INI_PRESET_ALL, IS_INI_PRESET_INIT); // all, init
 	scc_data_editor_load_preset(0);
 	scc_data_editor_store_preset(-1);
 	scc_editor_load_preset(0);
@@ -4235,10 +4230,41 @@ static Preset_IS *load_ini_file(char *ini_file, int type, int preset)
 	Preset_IS *set = NULL;
 	Preset_IS *newset = NULL;
 
+#if defined(IS_INI_LOAD_BLOCK)
+#if (IS_INI_LOAD_BLOCK == 32)
+	uint32 block = preset >> 5; // 1block=64preset 32block
+#elif (IS_INI_LOAD_BLOCK == 64)
+	uint32 block = preset >> 6; // 1block=64preset 16block
+#elif (IS_INI_LOAD_BLOCK == 128)
+	uint32 block = preset >> 7; // 1block=128preset 8block
+#endif
+	uint32 bit = 1L << block; // < 32bit
+	block = (block + 1) << 10; // 10bit > max(SCC_SETTING_MAX MMS_SETTING_MAX)
+#endif
+
     for (set = is_preset; set; set = set->next){
-		if (set->ini_file && !strcmp(set->ini_file, ini_file))
-			load_int_synth_preset(ini_file, set, type, preset);
+		if (set->ini_file && !strcmp(set->ini_file, ini_file)){
+#if defined(IS_INI_LOAD_TYPE)
+			if(type == IS_INI_TYPE_SCC && !set->scc_load)){
+				load_int_synth_preset(ini_file, set, type, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE);
+				set->scc_load = 1;
+			}else (type == IS_INI_TYPE_MMS && !set->mms_load){
+				load_int_synth_preset(ini_file, set, type, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE);
+				set->mms_load = 1;
+			}
+#elif defined(IS_INI_LOAD_BLOCK) // block単位ロード
+			if(type == IS_INI_TYPE_SCC && !(set->scc_load & bit)){
+				load_int_synth_preset(ini_file, set, type, block, IS_INI_PRESET_NONE);
+				set->scc_load |= bit;
+			}else if(type == IS_INI_TYPE_MMS && !(set->mms_load & bit)){
+				load_int_synth_preset(ini_file, set, type, block, IS_INI_PRESET_NONE);
+				set->mms_load |= bit;
+			}
+#elif defined(IS_INI_LOAD_PRESET) // preset単位ロード
+			load_int_synth_preset(ini_file, set, type, preset, IS_INI_PRESET_NONE);
+#endif
 			return set;
+		}
 	}
 	newset = (Preset_IS *)safe_malloc(sizeof(Preset_IS));
 	memset(newset, 0, sizeof(Preset_IS));
@@ -4252,7 +4278,25 @@ static Preset_IS *load_ini_file(char *ini_file, int type, int preset)
 		}
 	}
 	newset->ini_file = safe_strdup(ini_file);
-	load_int_synth_preset(ini_file, newset, type, preset);
+#if defined(IS_INI_LOAD_ALL) // 全部ロード
+	load_int_synth_preset(ini_file, newset, IS_INI_TYPE_ALL, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE); // 全部ロード
+	newset->scc_load = 1;
+	newset->mms_load = 1;
+#elif defined(IS_INI_LOAD_TYPE)  // type単位ロード
+	load_int_synth_preset(ini_file, newset, type, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE); // type単位ロード
+	if(type == IS_INI_TYPE_SCC)
+		newset->scc_load = 1;
+	else if(type == IS_INI_TYPE_MMS)
+		newset->mms_load = 1;
+#elif defined(IS_INI_LOAD_BLOCK) // block単位ロード
+	load_int_synth_preset(ini_file, newset, type, block, IS_INI_PRESET_NONE); // preset単位ロード
+	if(type == IS_INI_TYPE_SCC)
+		newset->scc_load |= bit;
+	else if(type == IS_INI_TYPE_MMS)
+		newset->mms_load |= bit;
+#elif defined(IS_INI_LOAD_PRESET) // preset単位ロード
+	load_int_synth_preset(ini_file, newset, type, preset, IS_INI_PRESET_NONE); // preset単位ロード
+#endif
 	return newset;
 }
 
@@ -4262,11 +4306,14 @@ Instrument *extract_scc_file(char *ini_file, int preset)
 	Sample *sample;
 	Preset_IS *set = NULL;
 
-	set = load_ini_file(ini_file, 0, preset);
+	set = load_ini_file(ini_file, IS_INI_TYPE_SCC, preset);
 	inst = (Instrument *)safe_malloc(sizeof(Instrument));
 	memset(inst, 0, sizeof(Instrument));
 	inst->instname = (char *)safe_malloc(256);
-	snprintf(inst->instname, 256, "[SCC] %d: %s", preset, (const char *)set->scc_setting[preset]->inst_name);
+	if(!set->scc_setting[preset])
+		snprintf(inst->instname, 256, "[SCC] %d: ----", preset);
+	else
+		snprintf(inst->instname, 256, "[SCC] %d: %s", preset, (const char *)set->scc_setting[preset]->inst_name);
 	inst->type = INST_SCC;
 	inst->samples = 1;
 	inst->sample = (Sample *)safe_malloc(sizeof(Sample));
@@ -4286,11 +4333,14 @@ Instrument *extract_mms_file(char *ini_file, int preset)
 	Preset_IS *set = NULL;
 		
 	load_la_rom();
-	set = load_ini_file(ini_file, 1, preset);
+	set = load_ini_file(ini_file, IS_INI_TYPE_MMS, preset);
 	inst = (Instrument *)safe_malloc(sizeof(Instrument));
 	memset(inst, 0, sizeof(Instrument));
 	inst->instname = (char *)safe_malloc(256);
-	snprintf(inst->instname, 256, "[MMS] %d: %s", preset, (const char *)set->mms_setting[preset]->inst_name);
+	if(!set->mms_setting[preset])
+		snprintf(inst->instname, 256, "[MMS] %d: ----", preset);
+	else
+		snprintf(inst->instname, 256, "[MMS] %d: %s", preset, (const char *)set->mms_setting[preset]->inst_name);
 	inst->type = INST_MMS;
 	inst->samples = 1;
 	inst->sample = (Sample *)safe_malloc(sizeof(Sample));
@@ -5360,6 +5410,12 @@ static inline void init_scc_preset(int v, InfoIS_SCC *info, Preset_IS *is_set, i
 	int tmpi;
 	FLOAT_T tmpf;
 	
+	if(set == NULL){
+		info->init = 0;
+		return;
+	}
+	info->init = 1;
+
 	// param
 	tmpi = set->param[0]; // param0= output_level
 	if(tmpi < 1)
@@ -5451,12 +5507,14 @@ static inline void init_scc_preset(int v, InfoIS_SCC *info, Preset_IS *is_set, i
 
 static void noteoff_scc(InfoIS_SCC *info)
 {
+	if(!info->init) return;
 	reset_envelope0_release(&info->amp_env, ENV0_KEEP);
 	reset_envelope0_release(&info->pit_env, ENV0_KEEP);
 }
 
 static void damper_scc(InfoIS_SCC *info, int8 damper)
 {
+	if(!info->init) return;
 	reset_envelope0_damper(&info->amp_env, damper);
 	reset_envelope0_damper(&info->pit_env, damper);
 }
@@ -5543,7 +5601,9 @@ static inline void compute_voice_scc_switch(int v, int32 count, DATA_T *is_buf, 
 	InfoIS_SCC *info = (InfoIS_SCC*)&vp->scc;
 	int32 i;
 	
-	if(!is_rs_mode){
+	if(!info->init){
+		memset(is_buf, 0, count * sizeof(DATA_T));		
+	}else if(!is_rs_mode){
 		pre_compute_scc(info, v, count);
 		for (i = 0; i < count; i++)
 #if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
@@ -5677,6 +5737,12 @@ static inline void init_mms_preset(int v, InfoIS_MMS *info, Preset_IS *is_set, i
 	int note = voice[v].note, velo = voice[v].velocity;
 	FLOAT_T sub_note = note - 60, sub_velo = 127 - velo, div_velo = (FLOAT_T)velo * DIV_127;
 	int i, j, tmpi;
+
+	if(set == NULL){
+		info->init = 0;
+		return;
+	}
+	info->init = 1;
 
 	tmpi = set->op_max; // op max
 	if(tmpi < 1 || tmpi > MMS_OP_MAX)
@@ -6070,6 +6136,7 @@ static void noteoff_mms(InfoIS_MMS *info)
 {
 	int i;
 	
+	if(!info->init) return;
 	for(i = 0; i < info->op_max; i++){
 		Info_OP *info2 = &info->op[i];
 		
@@ -6090,6 +6157,7 @@ static void damper_mms(InfoIS_MMS *info, int8 damper)
 {
 	int i;
 	
+	if(!info->init) return;
 	for(i = 0; i < info->op_max; i++){
 		Info_OP *info2 = &info->op[i];
 		
@@ -6223,7 +6291,9 @@ static inline void compute_voice_mms_switch(int v, int32 count, DATA_T *is_buf, 
 	InfoIS_MMS *info = (InfoIS_MMS*)&vp->mms;
 	int32 i;
 	
-	if(!is_rs_mode){
+	if(!info->init){
+		memset(is_buf, 0, count * sizeof(DATA_T));		
+	}else if(!is_rs_mode){
 		pre_compute_mms(info, v, count);
 		for (i = 0; i < count; i++)
 #if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
@@ -6332,6 +6402,7 @@ void free_int_synth(void)
 {
 	free_int_synth_preset();
 	free_is_editor_preset();
+	la_pcm_data_load_flg = 0;
 }
 
 void init_int_synth(void)

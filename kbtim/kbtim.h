@@ -81,7 +81,7 @@ private:
     static void s_close_output(void){
         g_pDecoder->close_output();
     }
-    static int  s_output_data(const uint8 * Data, size_t Size){
+    static int32  s_output_data(const uint8 * Data, size_t Size){
         return g_pDecoder->output_data(Data, Size);
     }
     static int  s_acntl(int request, void * arg){
@@ -93,7 +93,7 @@ private:
 //PlayMode
     int  __fastcall open_output (void);
     void __fastcall close_output(void);
-    int  __fastcall output_data (const uint8 * Data, size_t Size);
+    int32  __fastcall output_data (const uint8 * Data, size_t Size);
     int  __fastcall acntl       (int request, void * arg);
     int  __fastcall detect(void){return 1;}
 ///r

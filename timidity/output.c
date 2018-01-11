@@ -115,6 +115,10 @@ extern PlayMode arts_play_mode;
 extern PlayMode esd_play_mode;
 #endif /* AU_ESD */
 
+#ifdef AU_WASAPI
+extern PlayMode wasapi_play_mode;
+#endif /* AU_WASAPI */
+
 #ifdef AU_PORTAUDIO
 #ifndef AU_PORTAUDIO_DLL
 extern PlayMode portaudio_play_mode;
@@ -211,6 +215,10 @@ PlayMode *play_mode_list[] = {
 #ifdef AU_HPUX_ALIB
   &hpux_nplay_mode,
 #endif /* AU_HPUX_ALIB */
+  
+#if defined(AU_WASAPI)
+  &wasapi_play_mode,
+#endif /* AU_WASAPI */
 
 #if defined(AU_PORTAUDIO)
 #ifndef AU_PORTAUDIO_DLL
@@ -223,7 +231,7 @@ PlayMode *play_mode_list[] = {
   &portaudio_win_wmme_play_mode,
 #endif
 #endif /* AU_PORTAUDIO */
-
+  
 #ifdef AU_LAME
   &lame_play_mode,
 #endif
@@ -316,6 +324,23 @@ void change_output_volume(int32 vol)
     output_volume = (FLOAT_T)(vol) * DIV_100;
     if (output_volume > 7.999f) output_volume = 7.999f - 0.0001f;
     output_volumei = TIM_FSCALE(output_volume, 28);
+}
+
+static int use_temp_encoding = 0;
+static uint32 temp_encoding = 0;
+
+// called open_output()
+void set_temporary_encoding(uint32 enc)
+{	
+	temp_encoding = enc;
+	use_temp_encoding = 1;
+}
+
+// called close_output()
+void reset_temporary_encoding(void)
+{
+	use_temp_encoding = 0;
+	temp_encoding = 0;
 }
 
 
@@ -444,40 +469,6 @@ static void CALLINGCONV f64tos8(DATA_T *lp, int32 c)
 		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned
 	}
 }
-#elif (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tos8(DATA_T *lp, int32 c)
-{
-    int8 *cp=(int8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_8BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256i vec_i32 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul));
-		__m128i vec_i32_1 = _mm256_extracti128_si256(vec_i32, 0x0);
-		__m128i vec_i32_2 = _mm256_extracti128_si256(vec_i32, 0x1);
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		__m128i vec_i8 = _mm_packs_epi16(vec_i16, _mm_setzero_si128());
-		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tos8(DATA_T *lp, int32 c)
-{
-    int8 *cp=(int8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_8BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		__m128i vec_i8 = _mm_packs_epi16(vec_i16, _mm_setzero_si128());
-		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned
-	}
-}
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
 static void CALLINGCONV f64tos8(DATA_T *lp, int32 c)
 {
@@ -544,7 +535,7 @@ static void CALLINGCONV f64tou8(DATA_T *lp, int32 c)
 		__m128i vec_i32_1 = _mm256_cvttpd_epi32(_mm256_mul_pd(D256_CLIP_INPUT(&lp[i], gain), vmul));
 		__m128i vec_i32_2 = _mm256_cvttpd_epi32(_mm256_mul_pd(D256_CLIP_INPUT(&lp[i + 4], gain), vmul));
 		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		__m128i vec_i8 = _mm_packus_epi16(vec_i16, _mm_setzero_si128());
+		__m128i vec_i8 = _mm_packs_epi16(vec_i16, _mm_setzero_si128());
 		vec_i8 = _mm_xor_si128(vex, vec_i8);
 		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned	
 	}
@@ -567,45 +558,7 @@ static void CALLINGCONV f64tou8(DATA_T *lp, int32 c)
 		__m128i vec_i32_1 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f1, gain), vmul));
 		__m128i vec_i32_2 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f2, gain), vmul));
 		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		__m128i vec_i8 = _mm_packus_epi16(vec_i16, _mm_setzero_si128());
-		vec_i8 = _mm_xor_si128(vex, vec_i8);
-		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tou8(DATA_T *lp, int32 c)
-{
-	uint8 *cp=(uint8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_8BIT_SIGNED);
-	__m128i vex = _mm_set1_epi8(0x80);	
-	for(i = 0; i < c; i += 8){
-		__m256i vec_i32 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul));
-		__m128i vec_i32_1 = _mm256_extracti128_si256(vec_i32, 0x0);
-		__m128i vec_i32_2 = _mm256_extracti128_si256(vec_i32, 0x1);
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		__m128i vec_i8 = _mm_packus_epi16(vec_i16, _mm_setzero_si128());
-		vec_i8 = _mm_xor_si128(vex, vec_i8);
-		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tou8(DATA_T *lp, int32 c)
-{
-	uint8 *cp=(uint8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_8BIT_SIGNED);
-	__m128i vex = _mm_set1_epi8(0x80);	
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		__m128i vec_i8 = _mm_packus_epi16(vec_i16, _mm_setzero_si128());
+		__m128i vec_i8 = _mm_packs_epi16(vec_i16, _mm_setzero_si128());
 		vec_i8 = _mm_xor_si128(vex, vec_i8);
 		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned
 	}
@@ -624,7 +577,7 @@ static void CALLINGCONV f64tou8(DATA_T *lp, int32 c)
 		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
 		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
 		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		__m128i vec_i8 = _mm_packus_epi16(vec_i16, _mm_setzero_si128());
+		__m128i vec_i8 = _mm_packs_epi16(vec_i16, _mm_setzero_si128());
 		vec_i8 = _mm_xor_si128(vex, vec_i8);
 		_mm_storeu_si128((__m128i *)&cp[i], vec_i8); // L64bit=8bit*8 , H64bit next unaligned
 	}
@@ -719,77 +672,6 @@ static void CALLINGCONV f64toulaw(DATA_T *lp, int32 c)
 #endif //  !(defined(_MSC_VER) || defined(MSC_VER))
 	}	
 }
-#elif (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64toulaw(DATA_T *lp, int32 c)
-{
-	int8 *up=(int8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256i vec0 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec0;
-		up[i] = AUDIO_S2U(out[0]);
-		up[i + 1] = AUDIO_S2U(out[1]);
-		up[i + 2] = AUDIO_S2U(out[2]);
-		up[i + 3] = AUDIO_S2U(out[3]);
-		up[i + 4] = AUDIO_S2U(out[4]);
-		up[i + 5] = AUDIO_S2U(out[5]);
-		up[i + 6] = AUDIO_S2U(out[6]);
-		up[i + 7] = AUDIO_S2U(out[7]);
-		}
-#else
-		up[i] = AUDIO_S2U(vec0.m256i_i32[0]);
-		up[i + 1] = AUDIO_S2U(vec0.m256i_i32[1]);
-		up[i + 2] = AUDIO_S2U(vec0.m256i_i32[2]);
-		up[i + 3] = AUDIO_S2U(vec0.m256i_i32[3]);
-		up[i + 4] = AUDIO_S2U(vec0.m256i_i32[4]);
-		up[i + 5] = AUDIO_S2U(vec0.m256i_i32[5]);
-		up[i + 6] = AUDIO_S2U(vec0.m256i_i32[6]);
-		up[i + 7] = AUDIO_S2U(vec0.m256i_i32[7]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64toulaw(DATA_T *lp, int32 c)
-{
-	int8 *up=(int8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out1 = (int32 *)vec_i32_1;
-		int32 *out2 = (int32 *)vec_i32_2;
-		up[i] = AUDIO_S2U(out1[0]);
-		up[i + 1] = AUDIO_S2U(out1[1]);
-		up[i + 2] = AUDIO_S2U(out1[2]);
-		up[i + 3] = AUDIO_S2U(out1[3]);
-		up[i + 4] = AUDIO_S2U(out2[0]);
-		up[i + 5] = AUDIO_S2U(out2[1]);
-		up[i + 6] = AUDIO_S2U(out2[2]);
-		up[i + 7] = AUDIO_S2U(out2[3]);
-		}
-#else
-		up[i] = AUDIO_S2U(vec_i32_1.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2U(vec_i32_1.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2U(vec_i32_1.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2U(vec_i32_1.m128i_i32[3]);
-		up[i + 4] = AUDIO_S2U(vec_i32_2.m128i_i32[0]);
-		up[i + 5] = AUDIO_S2U(vec_i32_2.m128i_i32[1]);
-		up[i + 6] = AUDIO_S2U(vec_i32_2.m128i_i32[2]);
-		up[i + 7] = AUDIO_S2U(vec_i32_2.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
-	}
-}
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
 static void CALLINGCONV f64toulaw(DATA_T *lp, int32 c)
 {
@@ -879,102 +761,6 @@ static void CALLINGCONV f64toalaw(DATA_T *lp, int32 c)
 #endif //  !(defined(_MSC_VER) || defined(MSC_VER))
 	}
 }
-#elif (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64toalaw(DATA_T *lp, int32 c)
-{
-	int8 *up=(int8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);		
-	for(i = 0; i < c; i += 8){
-		__m256i vec0 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec0;
-		up[i] = AUDIO_S2A(out[0]);
-		up[i + 1] = AUDIO_S2A(out[1]);
-		up[i + 2] = AUDIO_S2A(out[2]);
-		up[i + 3] = AUDIO_S2A(out[3]);
-		up[i + 4] = AUDIO_S2A(out[4]);
-		up[i + 5] = AUDIO_S2A(out[5]);
-		up[i + 6] = AUDIO_S2A(out[6]);
-		up[i + 7] = AUDIO_S2A(out[7]);
-		}
-#else
-		up[i] = AUDIO_S2A(vec0.m256i_i32[0]);
-		up[i + 1] = AUDIO_S2A(vec0.m256i_i32[1]);
-		up[i + 2] = AUDIO_S2A(vec0.m256i_i32[2]);
-		up[i + 3] = AUDIO_S2A(vec0.m256i_i32[3]);
-		up[i + 4] = AUDIO_S2A(vec0.m256i_i32[4]);
-		up[i + 5] = AUDIO_S2A(vec0.m256i_i32[5]);
-		up[i + 6] = AUDIO_S2A(vec0.m256i_i32[6]);
-		up[i + 7] = AUDIO_S2A(vec0.m256i_i32[7]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64toalaw(DATA_T *lp, int32 c)
-{
-	int8 *up=(int8 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out1 = (int32 *)vec_i32_1;
-		int32 *out2 = (int32 *)vec_i32_2;
-		up[i] = AUDIO_S2A(out1[0]);
-		up[i + 1] = AUDIO_S2A(out1[1]);
-		up[i + 2] = AUDIO_S2A(out1[2]);
-		up[i + 3] = AUDIO_S2A(out1[3]);
-		up[i + 4] = AUDIO_S2A(out2[0]);
-		up[i + 5] = AUDIO_S2A(out2[1]);
-		up[i + 6] = AUDIO_S2A(out2[2]);
-		up[i + 7] = AUDIO_S2A(out2[3]);
-		}
-#else
-		up[i] = AUDIO_S2A(vec_i32_1.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2A(vec_i32_1.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2A(vec_i32_1.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2A(vec_i32_1.m128i_i32[3]);
-		up[i + 4] = AUDIO_S2A(vec_i32_2.m128i_i32[0]);
-		up[i + 5] = AUDIO_S2A(vec_i32_2.m128i_i32[1]);
-		up[i + 6] = AUDIO_S2A(vec_i32_2.m128i_i32[2]);
-		up[i + 7] = AUDIO_S2A(vec_i32_2.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64toalaw(DATA_T *lp, int32 c)
-{
-	int8 *up=(int8 *)(lp);
-	int32 i;
-	__m128 gain = _mm_set1_ps((float)INPUT_GAIN);
-	__m128 vmul = _mm_set1_ps((float)MAX_16BIT_SIGNED);		
-	for(i = 0; i < c; i += 4){
-		__m128i vec0 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec0;
-		up[i] = AUDIO_S2A(out[0]);
-		up[i + 1] = AUDIO_S2A(out[1]);
-		up[i + 2] = AUDIO_S2A(out[2]);
-		up[i + 3] = AUDIO_S2A(out[3]);
-		}
-#else
-		up[i] = AUDIO_S2A(vec0.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2A(vec0.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2A(vec0.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2A(vec0.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
-	}
-}
 #else
 static void CALLINGCONV f64toalaw(DATA_T *lp, int32 c)
 {
@@ -1016,38 +802,6 @@ static void CALLINGCONV f64tos16(DATA_T *lp, int32 c)
 		__m128 vec_f2 = _mm_shuffle_ps(vec_f21, vec_f22, 0x44);
 		__m128i vec_i32_1 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f1, gain), vmul));
 		__m128i vec_i32_2 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f2, gain), vmul));
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		_mm_store_si128((__m128i *)&sp[i], vec_i16); // 128bit=16bit*8	
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tos16(DATA_T *lp, int32 c)
-{
-	int16 *sp=(int16 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256i vec_i32 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul));
-		__m128i vec_i32_1 = _mm256_extracti128_si256(vec_i32, 0x0);
-		__m128i vec_i32_2 = _mm256_extracti128_si256(vec_i32, 0x1);
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		_mm_store_si128((__m128i *)&sp[i], vec_i16); // 128bit=16bit*8	
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tos16(DATA_T *lp, int32 c)
-{
-	int16 *sp=(int16 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
 		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
 		_mm_store_si128((__m128i *)&sp[i], vec_i16); // 128bit=16bit*8	
 	}
@@ -1143,42 +897,6 @@ static void CALLINGCONV f64tou16(DATA_T *lp, int32 c)
 		_mm_store_si128((__m128i *)&sp[i], vec_i16); // 128bit=16bit*8	
 	}
 }
-#elif (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tou16(DATA_T *lp, int32 c)
-{
-	uint16 *sp=(uint16 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);
-	__m128i vex = _mm_set1_epi16(0x8000);		
-	for(i = 0; i < c; i += 8){
-		__m256i vec_i32 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul));
-		__m128i vec_i32_1 = _mm256_extracti128_si256(vec_i32, 0x0);
-		__m128i vec_i32_2 = _mm256_extracti128_si256(vec_i32, 0x1);
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		vec_i16 = _mm_xor_si128(vex, vec_i16);
-		_mm_store_si128((__m128i *)&sp[i], vec_i16); // 128bit=16bit*8	
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tou16(DATA_T *lp, int32 c)
-{
-	uint16 *sp=(uint16 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_16BIT_SIGNED);	
-	__m128i vex = _mm_set1_epi16(0x8000);	
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-		__m128i vec_i16 = _mm_packs_epi32(vec_i32_1, vec_i32_2);
-		vec_i16 = _mm_xor_si128(vex, vec_i16);
-		_mm_store_si128((__m128i *)&sp[i], vec_i16); // 128bit=16bit*8	
-	}
-}
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
 static void CALLINGCONV f64tou16(DATA_T *lp, int32 c)
 {
@@ -1238,16 +956,11 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 	const __m128 gain = _mm_set1_ps((float)INPUT_GAIN);
 	const __m128 vmul = _mm_set1_ps((float)MAX_24BIT_SIGNED);
 #endif
-#if 0//(USE_X86_EXT_INTRIN >= 5)
-// *444*333*222*111 first data
-// ****444333222111 shuffled
-	const __m128i vs_96 = _mm_set_epi8(0xFF,0xFF,0xFF,0xFF,0x0E,0x0D,0x0C,0x0A, 0x09,0x08,0x06,0x05,0x04,0x02,0x01,0x00);
-#else
 	const __m128i vm_24l = _mm_set_epi32(0x00000000,0x00FFFFFF,0x00000000,0x00FFFFFF);
 	const __m128i vm_24h = _mm_set_epi32(0x00FFFFFF,0x00000000,0x00FFFFFF,0x00000000);
 	const __m128i vm_48l = _mm_set_epi32(0x00000000,0x00000000,0x0000FFFF,0xFFFFFFFF);
 	const __m128i vm_48h = _mm_set_epi32(0x0000FFFF,0xFFFFFFFF,0x00000000,0x00000000);
-#endif
+
 	for(i = 0; i < c; i += 8){
 #if (USE_X86_EXT_INTRIN >= 8)
 		__m128i vec_i32_1 = _mm256_cvttpd_epi32(_mm256_mul_pd(D256_CLIP_INPUT(&lp[i], gain), vmul));
@@ -1262,12 +975,6 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 		__m128i vec_i32_1 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f1, gain), vmul)); // (24bit+8bit)*4
 		__m128i vec_i32_2 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f2, gain), vmul)); // (24bit+8bit)*4
 #endif
-#if 0//(USE_X86_EXT_INTRIN >= 5) // slow!?
-		__m128i vec_i96_1 = _mm_shuffle_epi8(vec_i32_1, vs_96);
-		__m128i vec_i96_2 = _mm_shuffle_epi8(vec_i32_1, vs_96);
-		__m128i vec_i128_1 = _mm_or_si128(vec_i96_1, _mm_slli_si128(vec_i96_2, 12)); // 24bit*4+(24bit+8bit) = 128bit
-		__m128i vec_i128_2 = _mm_srli_si128(vec_i96_2, 4); // 16bit+24bit*2 = 64bit
-#else
 		__m128i vec_i24_1l = _mm_and_si128(vec_i32_1, vm_24l); 
 		__m128i vec_i24_2l = _mm_and_si128(vec_i32_2, vm_24l); 
 		__m128i vec_i24_1h = _mm_and_si128(vec_i32_1, vm_24h); 
@@ -1282,7 +989,6 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 		__m128i vec_i96_2 = _mm_or_si128(vec_i48_2l, _mm_srli_si128(vec_i48_2h, 2)); // 96bit+32bit
 		__m128i vec_i128_1 = _mm_or_si128(vec_i96_1, _mm_slli_si128(vec_i96_2, 12)); // 24bit*4+(24bit+8bit) = 128bit
 		__m128i vec_i128_2 = _mm_srli_si128(vec_i96_2, 4); // 16bit+24bit*2 = 64bit
-#endif
 #if (USE_X86_EXT_INTRIN >= 9)
 		__m256i vec_i192 = MM256_SET2X_SI256(vec_i128_1, vec_i128_2); // 24bit*8 + emp64bit
 		_mm256_storeu_si256((__m256i *)cp, vec_i192); // 192bit/256bit unalign ’´‚¦‚é•ª‚Í–³Ž‹	
@@ -1300,44 +1006,18 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 {
 	uint8 *cp = (uint8 *)(lp);
 	int32 i;
-#if (USE_X86_EXT_INTRIN >= 8)
-	const __m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	const __m256 vmul = _mm256_set1_ps((float)MAX_24BIT_SIGNED);
-#else
 	const __m128 gain = _mm_set1_ps((float)INPUT_GAIN);
 	const __m128 vmul = _mm_set1_ps((float)MAX_24BIT_SIGNED);
-#endif
-#if 0//(USE_X86_EXT_INTRIN >= 5)
-// *444*333*222*111 first data
-// ****444333222111 shuffled
-	const __m128i vs_96 = _mm_set_epi8(0xFF,0xFF,0xFF,0xFF,0x0E,0x0D,0x0C,0x0A, 0x09,0x08,0x06,0x05,0x04,0x02,0x01,0x00);
-#else
 	const __m128i vm_24l = _mm_set_epi32(0x00000000,0x00FFFFFF,0x00000000,0x00FFFFFF);
 	const __m128i vm_24h = _mm_set_epi32(0x00FFFFFF,0x00000000,0x00FFFFFF,0x00000000);
 	const __m128i vm_48l = _mm_set_epi32(0x00000000,0x00000000,0x0000FFFF,0xFFFFFFFF);
 	const __m128i vm_48h = _mm_set_epi32(0x0000FFFF,0xFFFFFFFF,0x00000000,0x00000000);
-#endif
+
 	for(i = 0; i < c; i += 8){
-#if (USE_X86_EXT_INTRIN >= 9)
-		__m256i vec_i32 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul)); // (24bit+8bit) * 8	
-#elif (USE_X86_EXT_INTRIN >= 8)
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-#else
 		__m128 vec_f1 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
 		__m128 vec_f2 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i + 4], gain), vmul);
 		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1); // (24bit+8bit)*4
 		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2); // (24bit+8bit)*4
-#endif
-#if 0//(USE_X86_EXT_INTRIN >= 5) // slow!?
-		__m128i vec_i96_1 = _mm_shuffle_epi8(vec_i32_1, vs_96);
-		__m128i vec_i96_2 = _mm_shuffle_epi8(vec_i32_1, vs_96);
-		__m128i vec_i128_1 = _mm_or_si128(vec_i96_1, _mm_slli_si128(vec_i96_2, 12)); // 24bit*4+(24bit+8bit) = 128bit
-		__m128i vec_i128_2 = _mm_srli_si128(vec_i96_2, 4); // 16bit+24bit*2 = 64bit
-#else
 		__m128i vec_i24_1l = _mm_and_si128(vec_i32_1, vm_24l); 
 		__m128i vec_i24_2l = _mm_and_si128(vec_i32_2, vm_24l); 
 		__m128i vec_i24_1h = _mm_and_si128(vec_i32_1, vm_24h); 
@@ -1352,7 +1032,6 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 		__m128i vec_i96_2 = _mm_or_si128(vec_i48_2l, _mm_srli_si128(vec_i48_2h, 2)); // 96bit+32bit
 		__m128i vec_i128_1 = _mm_or_si128(vec_i96_1, _mm_slli_si128(vec_i96_2, 12)); // 24bit*4+(24bit+8bit) = 128bit
 		__m128i vec_i128_2 = _mm_srli_si128(vec_i96_2, 4); // 16bit+24bit*2 = 64bit
-#endif
 #if (USE_X86_EXT_INTRIN >= 9)
 		__m256i vec_i192 = MM256_SET2X_SI256(vec_i128_1, vec_i128_2); // 24bit*8 + emp64bit
 		_mm256_storeu_si256((__m256i *)cp, vec_i192); // 192bit/256bit unalign ’´‚¦‚é•ª‚Í–³Ž‹	
@@ -1473,23 +1152,6 @@ static void CALLINGCONV f64tos32(DATA_T *lp, int32 c)
 		_mm256_store_si256((__m256i *)&sp[i], vec_i32); // 256bit=32bit*16	
 	}
 }
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tos32(DATA_T *lp, int32 c)
-{
-	int32 *sp=(int32 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_32BIT_SIGNED);	
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4		
-		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
-	}
-}
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
 static void CALLINGCONV f64tos32(DATA_T *lp, int32 c)
 {
@@ -1593,26 +1255,6 @@ static void CALLINGCONV f64tou32(DATA_T *lp, int32 c)
 		__m256i vec_i32 = _mm256_cvttps_epi32(_mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul));
 		vec_i32 = _mm256_xor_si256(vex, vec_i32);
 		_mm256_store_si256((__m256i *)&sp[i], vec_i32); // 256bit=32bit*16	
-	}
-}
-#elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-static void CALLINGCONV f64tou32(DATA_T *lp, int32 c)
-{
-	uint32 *sp=(uint32 *)(lp);
-	int32 i;
-	__m256 gain = _mm256_set1_ps((float)INPUT_GAIN);
-	__m256 vmul = _mm256_set1_ps((float)MAX_32BIT_SIGNED);	
-	__m128i vex = _mm_set1_epi32(0x80000000);
-	for(i = 0; i < c; i += 8){
-		__m256 vec_f = _mm256_mul_ps(F256_CLIP_INPUT(&lp[i], gain), vmul);
-		__m128 vec_f1 = _mm256_extractf128_ps(vec_f, 0x0);
-		__m128 vec_f2 = _mm256_extractf128_ps(vec_f, 0x1);
-		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
-		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
-		vec_i32_1 = _mm_xor_si128(vex, vec_i32_1);
-		vec_i32_2 = _mm_xor_si128(vex, vec_i32_2);
-		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4		
-		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
 	}
 }
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
@@ -1939,79 +1581,80 @@ static void CALLINGCONV f64tof64(DATA_T *lp, int32 c)
 
 void general_output_convert_setup(void)
 {
+	uint32 penc = use_temp_encoding ? temp_encoding : play_mode->encoding; 
+	
     convert_count = 1; //def 8bit mono
-
-    if(!(play_mode->encoding & PE_MONO))
+    if(!(penc & PE_MONO))
 		convert_count *= 2; /* Stereo samples */
 
 	convert_bytes = convert_count;
-	if(play_mode->encoding & PE_16BIT)
+	if(penc & PE_16BIT)
     {
 		convert_bytes *= 2;
-		if(play_mode->encoding & PE_BYTESWAP)
+		if(penc & PE_BYTESWAP)
 		{
-			if(play_mode->encoding & PE_SIGNED)
+			if(penc & PE_SIGNED)
 				convert_fnc = f64tos16x;
 			else
 				convert_fnc = f64tou16x;
 		}
-		else if(play_mode->encoding & PE_SIGNED)
+		else if(penc & PE_SIGNED)
 			convert_fnc = f64tos16;
 		else
 			convert_fnc = f64tou16;
     }
-	else if(play_mode->encoding & PE_24BIT) {
+	else if(penc & PE_24BIT) {
 		convert_bytes *= 3;
-		if(play_mode->encoding & PE_BYTESWAP)
+		if(penc & PE_BYTESWAP)
 		{
-			if(play_mode->encoding & PE_SIGNED)
+			if(penc & PE_SIGNED)
 				convert_fnc = f64tos24x;
 			else
 				convert_fnc = f64tou24x;
-		} else if(play_mode->encoding & PE_SIGNED)
+		} else if(penc & PE_SIGNED)
 			convert_fnc = f64tos24;
 		else
 			convert_fnc = f64tou24;
     }
-    else if(play_mode->encoding & PE_32BIT) {
+    else if(penc & PE_32BIT) {
 		convert_bytes *= 4;
-		if(play_mode->encoding & PE_BYTESWAP)
+		if(penc & PE_BYTESWAP)
 		{
-			if(play_mode->encoding & PE_SIGNED)
+			if(penc & PE_SIGNED)
 				convert_fnc = f64tos32x;
 			else
 				convert_fnc = f64tou32x;
-		} else if(play_mode->encoding & PE_SIGNED)
+		} else if(penc & PE_SIGNED)
 			convert_fnc = f64tos32;
 		else
 			convert_fnc = f64tou32;
     }
-	else if(play_mode->encoding & PE_F32BIT) {
+	else if(penc & PE_F32BIT) {
 		convert_bytes *= 4;
 		convert_fnc = f64tof32;
     }
-    else if(play_mode->encoding & PE_64BIT) {
+    else if(penc & PE_64BIT) {
 		convert_bytes *= 8;
-		if(play_mode->encoding & PE_BYTESWAP)
+		if(penc & PE_BYTESWAP)
 		{
-			if(play_mode->encoding & PE_SIGNED)
+			if(penc & PE_SIGNED)
 				convert_fnc = f64tos64x;
 			else
 				convert_fnc = f64tou64x;
-		} else if(play_mode->encoding & PE_SIGNED)
+		} else if(penc & PE_SIGNED)
 			convert_fnc = f64tos64;
 		else
 			convert_fnc = f64tou64;
     }
-	else if(play_mode->encoding & PE_F64BIT) {
+	else if(penc & PE_F64BIT) {
 		convert_bytes *= 8;
 		convert_fnc = f64tof64;
     }
-	else if(play_mode->encoding & PE_ULAW)
+	else if(penc & PE_ULAW)
 		convert_fnc = f64toulaw;
-    else if(play_mode->encoding & PE_ALAW)
+    else if(penc & PE_ALAW)
 		convert_fnc = f64toalaw;
-    else if(play_mode->encoding & PE_SIGNED)
+    else if(penc & PE_SIGNED)
 		convert_fnc = f64tos8;
     else
 		convert_fnc = f64tou8;
@@ -2921,79 +2564,80 @@ static void CALLINGCONV s32tof64(int32 *lp, int32 c)
 
 void general_output_convert_setup(void)
 {
-    convert_count = 1; //def 8bit mono
+	uint32 penc = use_temp_encoding ? temp_encoding : play_mode->encoding; 
 
-    if (!(play_mode->encoding & PE_MONO))
+    convert_count = 1; //def 8bit mono
+    if (!(penc & PE_MONO))
 	convert_count *= 2; /* Stereo samples */
 
     convert_bytes = convert_count;
-    if (play_mode->encoding & PE_16BIT)
+    if (penc & PE_16BIT)
     {
 	convert_bytes *= 2;
-	if (play_mode->encoding & PE_BYTESWAP)
+	if (penc & PE_BYTESWAP)
 	{
-	    if (play_mode->encoding & PE_SIGNED)
+	    if (penc & PE_SIGNED)
 		convert_fnc = s32tos16x;
 	    else
 		convert_fnc = s32tou16x;
 	}
-	else if (play_mode->encoding & PE_SIGNED)
+	else if (penc & PE_SIGNED)
 	    convert_fnc = s32tos16;
 	else
 	    convert_fnc = s32tou16;
     }
-    else if (play_mode->encoding & PE_24BIT) {
+    else if (penc & PE_24BIT) {
 	convert_bytes *= 3;
-	if (play_mode->encoding & PE_BYTESWAP)
+	if (penc & PE_BYTESWAP)
 	{
-	    if (play_mode->encoding & PE_SIGNED)
+	    if (penc & PE_SIGNED)
 		convert_fnc = s32tos24x;
 	    else
 		convert_fnc = s32tou24x;
-	} else if (play_mode->encoding & PE_SIGNED)
+	} else if (penc & PE_SIGNED)
 	    convert_fnc = s32tos24;
 	else
 	    convert_fnc = s32tou24;
     }
-    else if (play_mode->encoding & PE_32BIT) {
+    else if (penc & PE_32BIT) {
 	convert_bytes *= 4;
-	if (play_mode->encoding & PE_BYTESWAP)
+	if (penc & PE_BYTESWAP)
 	{
-	    if (play_mode->encoding & PE_SIGNED)
+	    if (penc & PE_SIGNED)
 		convert_fnc = s32tos32x;
 	    else
 		convert_fnc = s32tou32x;
-	} else if (play_mode->encoding & PE_SIGNED)
+	} else if (penc & PE_SIGNED)
 	    convert_fnc = s32tos32;
 	else
 	    convert_fnc = s32tou32;
     }
-    else if (play_mode->encoding & PE_F32BIT) {
+    else if (penc & PE_F32BIT) {
 	convert_bytes *= 4;
 	convert_fnc = s32tof32;
     }
-    else if (play_mode->encoding & PE_64BIT) {
+    else if (penc & PE_64BIT) {
 	convert_bytes *= 8;
-	if (play_mode->encoding & PE_BYTESWAP)
+	if (penc & PE_BYTESWAP)
 	{
-	    if (play_mode->encoding & PE_SIGNED)
+	    if (penc & PE_SIGNED)
 		convert_fnc = s32tos64x;
 	    else
 		convert_fnc = s32tou64x;
-	} else if (play_mode->encoding & PE_SIGNED)
+	} else if (penc & PE_SIGNED)
 	    convert_fnc = s32tos64;
 	else
 	    convert_fnc = s32tou64;
     }
-    else if (play_mode->encoding & PE_F64BIT) {
+    else if (penc & PE_F64BIT) {
 	convert_bytes *= 8;
 	convert_fnc = s32tof64;
     }
-    else if (play_mode->encoding & PE_ULAW)
+    else if (penc & PE_ULAW)
 	convert_fnc = s32toulaw;
-    else if (play_mode->encoding & PE_ALAW)
+    else if (penc & PE_ALAW)
 	convert_fnc = s32toalaw;
-    else if (play_mode->encoding & PE_SIGNED)
+    else if (penc & PE_SIGNED)
 	convert_fnc = s32tos8;
     else
 	convert_fnc = s32tou8;
@@ -3010,7 +2654,26 @@ int32 general_output_convert(DATA_T *buf, int32 count)
     return (count * convert_bytes);
 }
 
+///r
+int get_encoding_sample_size(int32 enc)
+{	
+	uint32 penc = use_temp_encoding ? temp_encoding : enc;
+	int size = (penc & PE_MONO) ? 1 : 2;
 
+	if(penc & PE_16BIT)
+		size *= 2;
+	else if (penc & PE_24BIT)
+		size *= 3;
+	else if (penc & PE_32BIT)
+		size *= 4;
+	else if (penc & PE_F32BIT)
+		size *= 4;
+	else if (penc & PE_64BIT)
+		size *= 8;
+	else if (penc & PE_F64BIT)
+		size *= 8;
+	return size;
+}
 
 ///r
 int validate_encoding(int enc, int include_enc, int exclude_enc)
@@ -3181,26 +2844,6 @@ const char *output_encoding_string(int enc)
 	else
 	    return "unsigned 8bit";
     /*NOTREACHED*/
-}
-///r
-int get_encoding_sample_size(int32 enc)
-{
-	int size = (enc & PE_MONO) ? 1 : 2;
-
-	if(enc & PE_16BIT)
-		size *= 2;
-	else if (enc & PE_24BIT)
-		size *= 3;
-	else if (enc & PE_32BIT)
-		size *= 4;
-	else if (enc & PE_F32BIT)
-		size *= 4;
-	else if (enc & PE_64BIT)
-		size *= 8;
-	else if (enc & PE_F64BIT)
-		size *= 8;
-
-	return size;
 }
 
 

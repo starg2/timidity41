@@ -118,7 +118,6 @@ static int old_rate = -1;
 #endif
 
 static int midi_streaming = 0;
-int volatile stream_max_compute = 500; /* compute time limit (in msec) when streaming */
 static int prescanning_flag;
 static int32 midi_restart_time = 0;
 Channel channel[MAX_CHANNELS];
@@ -131,6 +130,10 @@ int8 opt_init_keysig = 8;
 int8 opt_force_keysig = 8;
 int32 current_play_tempo = 500000;
 int opt_realtime_playing = 0;
+///r
+int volatile stream_max_compute = 500; /* compute time limit (in msec) when streaming */
+uint32 opt_rtsyn_latency = 200; 
+int opt_rtsyn_skip_aq = 0;
 int reduce_voice_threshold = -1;
 ///r
 int reduce_quality_threshold = -1;
@@ -3777,7 +3780,7 @@ static int init_channel_portamento(MidiEvent *e)
 {
 #if 1 // portamento and leagato
     int i, ch = e->channel, note = MIDI_EVENT_NOTE(e);
-	int32 times, fine = note * PORTAMENTO_CONTROL_RATIO;
+	int32 times = 0, fine = note * PORTAMENTO_CONTROL_RATIO;
 
 	if(!(channel[ch].portamento_control != -1
 		|| channel[ch].portamento
@@ -12061,10 +12064,8 @@ static void do_compute_data_midi(int32 count)
 	// elion add.
 	// move effect.c do_effect()
 	//mix_compressor(buffer_pointer, cnt);
-
-#ifndef MASTER_VST_EFFECT2	
     do_effect(buffer_pointer, count);
-#endif
+
 	if(opt_realtime_playing)
 		compute_data_midi_skip(0, cnt); // silent skip , buffer check
 	current_sample += count;

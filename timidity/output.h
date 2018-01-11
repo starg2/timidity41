@@ -26,6 +26,9 @@
 //#include "output.h"
 
 
+#define CNV_USE_TEMP_ENCODE
+// define : output.c general_output_convert() でバッファ変換 シンプルな変換1回なので速い
+// undef : 各出力でバッファ変換 変換を2回する分遅い
 
 
 /* Data format encoding bits */
@@ -214,7 +217,6 @@ extern int32 apply_encoding(int32 old_enc, int32 new_enc);
 extern const char *output_encoding_string(int enc);
 extern int get_encoding_sample_size(int32 enc);
 
-
 extern char *create_auto_output_name(const char *input_filename, const char *ext_str, char *output_dir, int mode);
 
 #if defined(__W32__)
@@ -224,6 +226,9 @@ extern char *create_auto_output_name(const char *input_filename, const char *ext
 #else /* UNIX */
 #define FILE_OUTPUT_MODE	O_WRONLY|O_CREAT|O_TRUNC, 0644
 #endif
+
+extern void set_temporary_encoding(uint32 enc); // called open_output()
+extern void reset_temporary_encoding(void); // called close_output()
 
 extern double div_playmode_rate;
 extern double playmode_rate_div2;
@@ -236,6 +241,10 @@ extern double playmode_rate_dms;
 extern double playmode_rate_us;
 extern void init_output(void);
 extern void change_output_volume(int32);
+
+#ifdef __W32__
+extern CRITICAL_SECTION critSect;
+#endif
 
 #endif /* ___OUTPUT_H_ */
 

@@ -17,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="..\Debug"
+			IntermediateDirectory=".\Debug"
 			ConfigurationType="1"
 			CharacterSet="2"
 			>
@@ -40,7 +40,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)"
+				AdditionalIncludeDirectories="..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..\portaudio\pa_common,..\pdcurses,..\pdcurses\win32,..\portmidi\pm_common,..\portmidi\porttime,..,..\..\include"
 				PreprocessorDefinitions="WINDRV_SETUP;_WINDOWS;_DEBUG;WIN32;HAVE_CONFIG_H;_MT;"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -60,8 +60,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;"
-				OutputFile="../Debug/$(ProjectName).exe"
+				AdditionalDependencies="wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib"
+				OutputFile="..\Debug\timdrvsetup.exe"
 				IgnoreDefaultLibraryNames="libc.lib;"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -92,8 +92,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="..\Release\"
+			IntermediateDirectory="..\Release\timdrvsetup\"
 			ConfigurationType="1"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
@@ -120,16 +120,17 @@
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)"
+				AdditionalIncludeDirectories="..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..\portaudio\pa_common,..\pdcurses,..\pdcurses\win32,..\portmidi\pm_common,..\portmidi\porttime,..,..\..\include"
 				PreprocessorDefinitions="NDEBUG;_WINDOWS;WIN32;WINDRV_SETUP;HAVE_CONFIG_H;_MT;"
+				ExceptionHandling="0"
 				RuntimeLibrary="2"
 				StructMemberAlignment="5"
 				BufferSecurityCheck="false"
 				EnableFunctionLevelLinking="true"
 				EnableEnhancedInstructionSet="2"
 				FloatingPointModel="2"
-				WarningLevel="3"
-				DebugInformationFormat="3"
+				WarningLevel="1"
+				DebugInformationFormat="0"
 				CompileAs="1"
 			/>
 			<Tool
@@ -143,10 +144,12 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;"
-				OutputFile="..\Release\$(ProjectName).exe"
-				EnableUAC="false"
-				IgnoreDefaultLibraryNames="libc.lib;"
+				AdditionalDependencies="odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib"
+				ShowProgress="1"
+				OutputFile="..\Release\timdrvsetup.exe"
+				LinkIncremental="1"
+				EnableUAC="true"
+				IgnoreDefaultLibraryNames="libc.lib;LIBCMT.lib;"
 				GenerateDebugInformation="false"
 				SubSystem="2"
 				LargeAddressAware="2"
@@ -179,6 +182,18 @@
 		</Configuration>
 	</Configurations>
 	<References>
+		<ProjectReference
+			ReferencedProjectIdentifier="{11CDD90A-20E1-45AF-879E-F355742B38B7}"
+			RelativePathToProject=".\libarc\libarc.vcproj"
+		/>
+		<ProjectReference
+			ReferencedProjectIdentifier="{8DC8ADE3-145A-4C63-80DD-0C93B6587B80}"
+			RelativePathToProject=".\libunimod\libunimod.vcproj"
+		/>
+		<ProjectReference
+			ReferencedProjectIdentifier="{B05F8AA0-6140-4335-AD39-E276D17002CB}"
+			RelativePathToProject=".\utils\utils.vcproj"
+		/>
 	</References>
 	<Files>
 		<Filter
@@ -205,6 +220,10 @@
 			<Filter
 				Name="timidity"
 				>
+				<File
+					RelativePath="..\timidity\portaudio_a.h"
+					>
+				</File>
 			</Filter>
 		</Filter>
 		<Filter
@@ -212,10 +231,6 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
-			<File
-				RelativePath="..\interface\dumb_c.c"
-				>
-			</File>
 			<File
 				RelativePath="..\interface\rtsyn_common.c"
 				>
@@ -229,6 +244,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\timidity\w32_portaudio_dll.c"
+				>
+			</File>
+			<File
 				RelativePath="..\interface\w32g_ini.c"
 				>
 			</File>
@@ -237,7 +256,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\interface\w32g_syn.c"
+				>
+			</File>
+			<File
 				RelativePath="..\interface\w32g_utl.c"
+				>
+			</File>
+			<File
+				RelativePath="..\interface\winsyn_c.c"
 				>
 			</File>
 			<Filter
@@ -257,6 +284,10 @@
 				</File>
 				<File
 					RelativePath="..\timidity\controls.c"
+					>
+				</File>
+				<File
+					RelativePath="..\interface\dumb_c.c"
 					>
 				</File>
 				<File
@@ -316,10 +347,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\modmid_a.c"
-					>
-				</File>
-				<File
 					RelativePath="..\timidity\mt19937ar.c"
 					>
 				</File>
@@ -352,6 +379,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\timidity\rcp.c"
+					>
+				</File>
+				<File
 					RelativePath="..\timidity\readmidi.c"
 					>
 				</File>
@@ -373,6 +404,10 @@
 				</File>
 				<File
 					RelativePath="..\timidity\sfitem.c"
+					>
+				</File>
+				<File
+					RelativePath="..\timidity\smfconv.c"
 					>
 				</File>
 				<File
@@ -412,7 +447,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\w32_portaudio_dll.c"
+					RelativePath="..\timidity\wasapi_a.c"
+					>
+				</File>
+				<File
+					RelativePath="..\timidity\wave_a.c"
 					>
 				</File>
 				<File
@@ -430,6 +469,14 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
+			<File
+				RelativePath="..\interface\w32g_icon.ico"
+				>
+			</File>
+			<File
+				RelativePath="..\interface\w32g_res.rc"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>

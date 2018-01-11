@@ -291,8 +291,8 @@ int msg_loopbuf_end = -1;
 extern int rtsyn_system_mode;
 HANDLE msg_loopbuf_hMutex = NULL; // 排他処理用
 int syn_AutoStart;                // シンセ自動起動
-DWORD processPriority;            // プロセスのプライオリティ
-DWORD syn_ThreadPriority;         // シンセスレッドのプライオリティ
+extern DWORD processPriority;            // プロセスのプライオリティ
+extern DWORD syn_ThreadPriority;         // シンセスレッドのプライオリティ
 
 extern int volatile stream_max_compute;	// play_event() の compute_data() で計算を許す最大時間。
 
@@ -443,8 +443,8 @@ static int w32g_syn_main(void)
 	w32g_syn.hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
 	w32g_syn.hIconStart = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_SERVER_START), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
 	w32g_syn.hIconPause = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_SERVER_PAUSE), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
-	processPriority = NORMAL_PRIORITY_CLASS;
-	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
+//	processPriority = NORMAL_PRIORITY_CLASS;
+//	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
 	for (i = 0; i <= MAX_PORT; i++) {
 		w32g_syn_id_port[i] = i + 1;
 	}
@@ -1229,8 +1229,8 @@ static int w32g_syn_main(void)
 	SERVICE_TABLE_ENTRYA ServiceTable[2];
 
 	w32g_syn.nid_uID = W32G_SYN_NID_UID;
-	processPriority = NORMAL_PRIORITY_CLASS;
-	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
+//	processPriority = NORMAL_PRIORITY_CLASS;
+//	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
 	for (i = 0; i <= MAX_PORT; i++) {
 		w32g_syn_id_port[i] = i + 1;
 	}
