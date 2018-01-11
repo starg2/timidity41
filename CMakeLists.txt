@@ -107,8 +107,8 @@ add_definitions(
 
 # Windows
     -DWIN32_LEAN_AND_MEAN
-    -DWINVER=0x0601
-    -D_WIN32_WINNT=0x0601
+    -DWINVER=0x0A00
+    -D_WIN32_WINNT=0x0A00
 
 # MSVCRT
     -D_CRT_SECURE_NO_WARNINGS
