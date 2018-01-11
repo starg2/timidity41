@@ -64,9 +64,6 @@ Written by Starg.
 #ifdef AU_WASAPI
 
 
-#ifdef __W32__
-#include "interface.h"
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef NO_STRING_H

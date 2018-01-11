@@ -8942,3 +8942,4 @@ static void w32_exit(void)
 
 
 #endif /* KBTIM_SETUP */
+#endif

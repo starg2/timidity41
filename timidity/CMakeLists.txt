@@ -146,6 +146,7 @@ set(
     w32_libOggFLAC_dll.h
     w32_libOggFLAC_dll_g.h
     w32_libOggFLAC_dll_i.h
+	wasapi_a.h
     wrd.h
 
     $<TARGET_OBJECTS:libarc>

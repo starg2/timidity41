@@ -3,7 +3,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#include "interface.h"
 #include "timidity.h"
 #include "common.h"
 
