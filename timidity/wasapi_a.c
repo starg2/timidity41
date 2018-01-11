@@ -819,6 +819,7 @@ int open_output(void)
 					acp.Options = AUDCLNT_STREAMOPTIONS_RAW;
 			}
 			hr = IAudioClient2_SetClientProperties((IAudioClient2 *)pAudioClient, (AudioClientProperties *)&acp);
+			if (FAILED(hr))
 				goto error;
 		}
 	}
@@ -861,6 +862,7 @@ int open_output(void)
 		IAudioClient_Release(pAudioClient);
 		pAudioClient = NULL;
 		BufferDuration = (REFERENCE_TIME)(10000.0f * 1000 * bufferSize / pwf->nSamplesPerSec + 0.5);
+		Periodicity = IsExclusive ? BufferDuration : 0;
 		if(FAILED(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient)))
 			goto error;
 		hr = IAudioClient_Initialize(pAudioClient, ShareMode, StreamFlags, BufferDuration, Periodicity,	(WAVEFORMATEX *)&wfe, NULL);
