@@ -18,6 +18,7 @@
 #define IDD_DIALOG_PREF_EN              114
 #define IDD_DIALOG_PLAYLIST_EN          115
 #define IDD_DIALOG_PLAYLIST             116
+#define IDD_DIALOG_TWSYN_BRIDGE        117
 
 #define IDD_PREF_PLAYER_EN              121
 #define IDD_PREF_TIMIDITY1_EN           122
@@ -197,13 +198,14 @@
 #define IDC_COMBO_IDPORT1              3952
 #define IDC_COMBO_IDPORT2              3953
 #define IDC_COMBO_IDPORT3              3954
+#define IDC_CHECK_USE_TWSYN_BRIDGE    3955
 // syn
-#define IDC_CHECK_SYN_AUTOSTART        3955
-#define IDC_EDIT_SYN_SH_TIME           3956
-#define IDC_EDIT_RTSYN_LATENCY         3957
-#define IDC_CHECK_RTSYN_SKIP_AQ        3958
+#define IDC_CHECK_SYN_AUTOSTART        3965
+#define IDC_EDIT_SYN_SH_TIME           3966
+#define IDC_EDIT_RTSYN_LATENCY         3967
+#define IDC_CHECK_RTSYN_SKIP_AQ        3968
 // priority
-#define IDC_COMBO_SYN_THREAD_PRIORITY  3970
+#define IDC_COMBO_SYN_THREAD_PRIORITY  3980
 
 //// effect
 // midi

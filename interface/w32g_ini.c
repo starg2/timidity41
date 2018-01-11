@@ -529,7 +529,8 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
     if ( st->opt_rtsyn_latency < 1 ) st->opt_rtsyn_latency = 1;
     if ( st->opt_rtsyn_latency > 1000 ) st->opt_rtsyn_latency = 1000;
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_use_twsyn_bridge",&(st->opt_use_twsyn_bridge));
 #else
     IniGetKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
 #endif
@@ -765,6 +766,7 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));	
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_use_twsyn_bridge",&(st->opt_use_twsyn_bridge));
 #else
     IniPutKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
 #endif

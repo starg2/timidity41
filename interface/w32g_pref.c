@@ -1386,37 +1386,67 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 #else
+
+#if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
+#include "twsyn_bridge_common.h"
+#include "twsyn_bridge_host.h"
+#endif
+
 extern int syn_ThreadPriority;
 static TCHAR **MidiINDrivers = NULL;
+static int midi_in_max = 0;	
 // 0 MIDI Mapper -1
 // 1 MIDI IN Driver 0
 // 2 MIDI IN Driver 1
 static TCHAR **GetMidiINDrivers( void )
 {
 	int i;
-	int max = midiInGetNumDevs ();
-	if ( MidiINDrivers != NULL ) {
-		for ( i = 0; MidiINDrivers[i] != NULL; i ++ ) {
-			safe_free ( MidiINDrivers[i] );
+	
+#if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
+	if(st_temp->opt_use_twsyn_bridge){		
+		midi_in_max = get_bridge_midi_devs();
+		if ( MidiINDrivers != NULL ) {
+			for ( i = 0; MidiINDrivers[i] != NULL; i ++ ) {
+				safe_free ( MidiINDrivers[i] );
+			}
+			safe_free ( MidiINDrivers );
+			MidiINDrivers = NULL;
 		}
-		safe_free ( MidiINDrivers );
-		MidiINDrivers = NULL;
-	}
-	MidiINDrivers = ( TCHAR ** ) malloc ( sizeof ( TCHAR * ) * ( max + 2 ) );
-	if ( MidiINDrivers == NULL ) return MidiINDrivers;
-	MidiINDrivers[0] = safe_strdup ( "MIDI Mapper" );
-	for ( i = 1; i <= max; i ++ ) {
-		MIDIINCAPS mic;
-		if ( midiInGetDevCaps ( i - 1, &mic, sizeof ( MIDIINCAPS ) ) == 0 ) {
-			MidiINDrivers[i] = strdup ( mic.szPname );
+		MidiINDrivers = ( TCHAR ** ) malloc ( sizeof ( TCHAR * ) * ( midi_in_max + 2 ) );
+		if ( MidiINDrivers == NULL ) return MidiINDrivers;
+		for (i = 0; i <= midi_in_max; i ++ ) {
+			MidiINDrivers[i] = strdup (get_bridge_midi_dev_name(i));
 			if ( MidiINDrivers[i] == NULL )
 				break;
-		} else {
-			MidiINDrivers[i] = NULL;
-			break;
 		}
+		MidiINDrivers[midi_in_max+1] = NULL;
+	}else
+#endif
+	{
+		midi_in_max = midiInGetNumDevs ();
+		if ( MidiINDrivers != NULL ) {
+			for ( i = 0; MidiINDrivers[i] != NULL; i ++ ) {
+				safe_free ( MidiINDrivers[i] );
+			}
+			safe_free ( MidiINDrivers );
+			MidiINDrivers = NULL;
+		}
+		MidiINDrivers = ( TCHAR ** ) malloc ( sizeof ( TCHAR * ) * ( midi_in_max + 2 ) );
+		if ( MidiINDrivers == NULL ) return MidiINDrivers;
+		MidiINDrivers[0] = safe_strdup ( "MIDI Mapper" );
+		for ( i = 1; i <= midi_in_max; i ++ ) {
+			MIDIINCAPS mic;
+			if ( midiInGetDevCaps ( i - 1, &mic, sizeof ( MIDIINCAPS ) ) == 0 ) {
+				MidiINDrivers[i] = strdup ( mic.szPname );
+				if ( MidiINDrivers[i] == NULL )
+					break;
+			} else {
+				MidiINDrivers[i] = NULL;
+				break;
+			}
+		}
+		MidiINDrivers[midi_in_max+1] = NULL;
 	}
-	MidiINDrivers[max+1] = NULL;
 	return MidiINDrivers;
 }
 
@@ -1477,7 +1507,13 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DI_DISABLE(IDC_COMBO_IDPORT1);
 		DI_DISABLE(IDC_COMBO_IDPORT2);
 		DI_DISABLE(IDC_COMBO_IDPORT3);
+		DI_DISABLE(IDC_CHECK_USE_TWSYN_BRIDGE);
 #else
+#if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
+		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);
+#else
+		DI_DISABLE(IDC_CHECK_USE_TWSYN_BRIDGE);
+#endif
 		GetMidiINDrivers();
 
 		for ( i = 0; i <= MAX_PORT; i ++ ) {
@@ -1500,18 +1536,20 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			}
 			safe_free ( MidiINDrivers );
 			MidiINDrivers = NULL;
-		}
-		
-		SendDlgItemMessage(hwnd, IDC_COMBO_PORT_NUM,
-			CB_SETCURSEL, (WPARAM) st_temp->SynPortNum, (LPARAM) 0 );
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0,
-			CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[0], (LPARAM) 0 );
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1,
-			CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[1], (LPARAM) 0 );
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2,
-			CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[2], (LPARAM) 0 );
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3,
-			CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[3], (LPARAM) 0 );		
+		}		
+		if(st_temp->SynIDPort[0] > midi_in_max)
+			st_temp->SynIDPort[0] = 0; // reset
+		if(st_temp->SynIDPort[1] > midi_in_max)
+			st_temp->SynIDPort[1] = 0; // reset
+		if(st_temp->SynIDPort[2] > midi_in_max)
+			st_temp->SynIDPort[2] = 0; // reset
+		if(st_temp->SynIDPort[3] > midi_in_max)
+			st_temp->SynIDPort[3] = 0; // reset
+		SendDlgItemMessage(hwnd, IDC_COMBO_PORT_NUM, CB_SETCURSEL, (WPARAM) st_temp->SynPortNum, (LPARAM) 0 );
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[0], (LPARAM) 0 );
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[1], (LPARAM) 0 );
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[2], (LPARAM) 0 );
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[3], (LPARAM) 0 );		
 #endif
 
 #if defined(WINDRV_SETUP)
@@ -1560,6 +1598,44 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_COMMAND:
 	switch (LOWORD(wParam)) {
+
+#if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
+		case IDC_CHECK_USE_TWSYN_BRIDGE:
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0, CB_RESETCONTENT, 0,0);
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1, CB_RESETCONTENT, 0,0);
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2, CB_RESETCONTENT, 0,0);
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3, CB_RESETCONTENT, 0,0);
+
+		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);	
+		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_PORT_NUM, CB_GETCURSEL, 0, 0 );
+		if ( tmp != CB_ERR ) st_temp->SynPortNum = tmp;		
+		GetMidiINDrivers();
+
+		if ( MidiINDrivers != NULL ) {
+			for ( i = 0; MidiINDrivers[i] != NULL; i ++ ) {
+				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0,
+					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
+				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1,
+					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
+				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2,
+					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
+				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3,
+					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
+				safe_free ( MidiINDrivers[i] );
+			}
+			safe_free ( MidiINDrivers );
+			MidiINDrivers = NULL;
+		}		
+		st_temp->SynIDPort[0] = 0; // reset
+		st_temp->SynIDPort[1] = 0; // reset
+		st_temp->SynIDPort[2] = 0; // reset
+		st_temp->SynIDPort[3] = 0; // reset
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[0], (LPARAM) 0 );
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[1], (LPARAM) 0 );
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[2], (LPARAM) 0 );
+		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[3], (LPARAM) 0 );	
+			break;
+#endif
 		case IDC_BUTTON_CONFIG_FILE:
 			{
 				TCHAR filename[FILEPATH_MAX];
@@ -1613,7 +1689,10 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			sp_temp->PlayerLanguage = LANGUAGE_JAPANESE;
 		}
 
-#if !defined(WINDRV_SETUP)
+#if !defined(WINDRV_SETUP)		
+#if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
+		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);
+#endif
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_SYN_AUTOSTART, st_temp->syn_AutoStart);
 		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_PORT_NUM, CB_GETCURSEL, 0, 0 );
 		if ( tmp != CB_ERR ) st_temp->SynPortNum = tmp;

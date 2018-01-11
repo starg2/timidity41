@@ -405,6 +405,7 @@
 #define DEFAULT_AUDIO_BUFFER_NUM     32 /* 370ms over */
 #define DEFAULT_COMPUTE_BUFFER_BITS   6 /* ratio 1.45ms (44.1kHz) */
 #define TWSYNG32INI 1 // use twsyng32.ini or timpp32g.ini ??
+#define USE_TWSYN_BRIDGE 1
 #undef ANOTHER_MAIN
 //#undef __W32G__	/* for Win32 GUI */
 #undef IA_W32GUI	/* for Win32 GUI */
@@ -442,6 +443,7 @@
 #define DEFAULT_AUDIO_BUFFER_BITS     9 /* 512sample 11ms (44.1kHz) */
 #define DEFAULT_AUDIO_BUFFER_NUM     32 /* 370ms over */
 #define DEFAULT_COMPUTE_BUFFER_BITS   6 /* ratio 1.45ms (44.1kHz) */
+#undef USE_TWSYN_BRIDGE
 /* #undef AU_NPIPE */
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
@@ -478,6 +480,7 @@
 #define DEFAULT_COMPUTE_BUFFER_BITS   6 /* ratio 1.45ms (44.1kHz) */
 #define TIMDRVINI 1 // use timdrv.ini or twsyng32.ini or timpp32g.ini ??
 #define IA_WINSYN
+#undef USE_TWSYN_BRIDGE
 //#undef AU_WASAPI
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
@@ -623,6 +626,7 @@
 #define DEFAULT_COMPUTE_BUFFER_BITS   6 /* ratio 1.45ms (44.1kHz) */
 #define TIMDRVINI 1 // use timdrv.ini or twsyng32.ini or timpp32g.ini ??
 #define IA_WINSYN
+#undef USE_TWSYN_BRIDGE
 #define WINDRV 1
 #define AU_W32 1
 #define AU_WASAPI 1

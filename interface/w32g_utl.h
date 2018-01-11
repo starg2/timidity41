@@ -250,6 +250,7 @@ typedef struct SETTING_TIMIDITY_ {
 		int SynShTime;
 		uint32 opt_rtsyn_latency;	// --rtsyn-latency
 		int opt_rtsyn_skip_aq;	// --rtsyn-skip-aq
+		int opt_use_twsyn_bridge;
 #endif
 	int processPriority;		// --process-priority
 	int compute_thread_num;

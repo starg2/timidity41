@@ -568,6 +568,7 @@ extern int w32g_syn_port_num;
 #elif defined(IA_W32G_SYN)
 extern int w32g_syn_id_port[];
 extern int syn_AutoStart;
+extern int opt_use_twsyn_bridge;
 //extern DWORD processPriority;
 extern DWORD syn_ThreadPriority;
 extern int w32g_syn_port_num;
@@ -795,6 +796,7 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	rtsyn_set_latency((double)opt_rtsyn_latency * 0.001);
 	opt_rtsyn_skip_aq = st->opt_rtsyn_skip_aq;
 	rtsyn_set_skip_aq(opt_rtsyn_skip_aq);
+	opt_use_twsyn_bridge = st->opt_use_twsyn_bridge;
 #endif
 ///r
 	processPriority = st->processPriority;
@@ -1050,6 +1052,7 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->SynShTime = stream_max_compute;
 	st->opt_rtsyn_latency = opt_rtsyn_latency;
 	st->opt_rtsyn_skip_aq = opt_rtsyn_skip_aq;
+	st->opt_use_twsyn_bridge = opt_use_twsyn_bridge;
 #endif
 ///r
 	st->processPriority = processPriority;

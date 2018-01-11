@@ -96,6 +96,11 @@ WINAPI void InitCommonControls(void);
 
 #ifdef IA_W32G_SYN
 
+#ifdef USE_TWSYN_BRIDGE
+#include "twsyn_bridge_common.h"
+#include "twsyn_bridge_host.h"
+#endif
+
 typedef struct w32g_syn_t_ {
 	UINT nid_uID;
 #ifndef TWSYNSRV
@@ -169,7 +174,7 @@ char *w32g_output_dir = NULL;
 int playlist_max = 1;
 int playlist_max_ini = 1;
 int ConsoleClearFlag = 0;
-
+int opt_use_twsyn_bridge = 0;
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 
 static int start_syn_thread(void);
@@ -471,7 +476,7 @@ static int w32g_syn_main(void)
 	while (w32g_syn.quit_state < 2) {
 		Sleep(300);
 	}
-
+	
 	return 0;
 }
 
@@ -664,6 +669,9 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			PostQuitMessage(0);
 			return -1;
 		}
+#ifdef USE_TWSYN_BRIDGE
+		init_bridge();
+#endif
 #ifdef VST_LOADER_ENABLE
 		if (!hVSTHost) {
 #ifdef _WIN64
@@ -698,6 +706,9 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			FreeLibrary(hVSTHost);
 			hVSTHost = NULL;
 		}
+#endif
+#ifdef USE_TWSYN_BRIDGE
+		close_bridge();
 #endif
 		DeleteTasktrayIcon(hwnd);
 		PostQuitMessage(0);

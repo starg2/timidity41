@@ -93,7 +93,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="cp ../Debug\pdcurses.lib ../Debug\panel.lib"
+				CommandLine=""
 			/>
 		</Configuration>
 		<Configuration
@@ -175,7 +175,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="cp ../Release\pdcurses.lib ../Release\panel.lib"
+				CommandLine=""
 			/>
 		</Configuration>
 	</Configurations>
