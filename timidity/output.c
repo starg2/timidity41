@@ -134,11 +134,6 @@ extern PlayMode portaudio_win_wasapi_play_mode;
 #endif
 #endif /* AU_PORTAUDIO */
 
-#ifdef AU_WASAPI
-extern PlayMode wasapi_shared_play_mode;
-extern PlayMode wasapi_exclusive_play_mode;
-#endif /* AU_WASAPI */
-
 #ifdef AU_NPIPE
 extern PlayMode npipe_play_mode;
 #endif /* AU_NPIPE */
@@ -241,11 +236,6 @@ PlayMode *play_mode_list[] = {
 #ifdef AU_LAME
   &lame_play_mode,
 #endif
-
-#if defined(AU_WASAPI)
-  &wasapi_shared_play_mode,
-  &wasapi_exclusive_play_mode,
-#endif /* AU_WASAPI */
 
 #if defined(AU_NPIPE)
   &npipe_play_mode,
