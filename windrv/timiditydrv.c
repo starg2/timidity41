@@ -29,7 +29,9 @@
 #define _WIN32_WINNT 0x0400
 #endif
 
-#define RTSYN_MULTITHREAD 1
+#define RTSYN_THREAD 1 // exclude RTSYN_MULTITHREAD
+// #define RTSYN_MULTITHREAD 1 // exclude RTSYN_THREAD
+
 
 #ifdef __DMC__
 unsigned long _beginthreadex(void *security, unsigned stack_size,
@@ -129,9 +131,8 @@ static DWORD dwOpenFlags;
 static CRITICAL_SECTION mim_section;
 static volatile int stop_thread;
 static HANDLE hRtsynThread;
-static DWORD processPriority;
-#ifdef RTSYN_MULTITHREAD
-LONG driverCount;
+//static DWORD processPriority;
+#if defined(RTSYN_MULTITHREAD)
 static volatile int stop_rtthread;
 static HANDLE hCalcThread;
 #endif /* RTSYN_MULTITHREAD */
@@ -258,6 +259,9 @@ extern void CloseMidiVolume(void);
 extern int GetMidiVolume(void);
 extern void SetMidiVolume(int newvolume);
 extern void MidiMidiVolume(void);
+///r
+extern DWORD processPriority;
+extern DWORD syn_ThreadPriority;
 
 //unsigned __stdcall threadfunc2(LPVOID lpV);
 //STDAPI_(LONG) DefDriverProc(DWORD dwDriverId, HDRVR hdrvr, UINT msg, LONG lParam1, LONG lParam2);
@@ -276,7 +280,7 @@ STDAPI_(LRESULT) DriverProc(DWORD_PTR dwDriverId, HDRVR hdrvr, UINT msg, LPARAM 
 
 			stop_thread = 1;    //why thread can't stop by this????
 			while (stop_thread != 0 && maxloop-- > 0) Sleep(10);
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD)
 			if (stop_thread == 0) {
 				stop_rtthread = 1;
 				while (stop_rtthread != 0 && maxloop-- > 0) Sleep(10);
@@ -297,7 +301,7 @@ STDAPI_(LRESULT) DriverProc(DWORD_PTR dwDriverId, HDRVR hdrvr, UINT msg, LPARAM 
 		return DRV_OK;
 
 	case DRV_LOAD:
-		processPriority = GetPriorityClass(GetCurrentProcess());
+	//	processPriority = GetPriorityClass(GetCurrentProcess());
 		InitializeCriticalSection(&mim_section);
 		OpenMidiVolume();
 		return DRV_OK;
@@ -448,10 +452,10 @@ static int initialize_timiwp_main(void)
 
 		if (0 == timiwp_main_ini(argc, argv)) {
 			rtsyn_init();
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD)
 			hThread = (HANDLE)_beginthreadex(NULL, 0, threadfunc, 0, 0, &thrdaddr);
-			SetPriorityClass(hThread, REALTIME_PRIORITY_CLASS);
-			SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
+			SetPriorityClass(hThread, processPriority);
+			SetThreadPriority(hThread, syn_ThreadPriority);
 #endif /* RTSYN_MULTITHREAD */
 			opend = 1;
 		}
@@ -463,7 +467,7 @@ static int initialize_timiwp_main(void)
 		cont++;
 	}
 
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD)
 	hCalcThread = hThread;
 #endif /* RTSYN_MULTITHREAD */
 
@@ -471,7 +475,7 @@ static int initialize_timiwp_main(void)
 }
 
 
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD) || defined(RTSYN_THREAD)
 
 struct evbuf_t {
 	UINT uMsg;
@@ -582,7 +586,9 @@ static int timsyn_play_some_data(void)
 
 	return played;
 }
+#endif /* defined(RTSYN_MULTITHREAD) || defined(RTSYN_THREAD) */
 
+#if defined(RTSYN_MULTITHREAD)
 static unsigned __stdcall threadfunc(LPVOID lpV)
 {
 #ifdef DEBUG_OUTPUT_STATUS
@@ -627,7 +633,7 @@ static unsigned __stdcall threadfunc2(LPVOID lpV)
 	}
 #endif /* DEBUG_OUTPUT_STATUS */
 
-	initialize_timiwp_main();
+//	initialize_timiwp_main();
 
 	while (stop_rtthread == 0) {
 		Sleep(10);
@@ -653,20 +659,26 @@ static unsigned __stdcall threadfunc(LPVOID lpV)
 		fprintf(logfile, "[%.3f] %s :",
 			get_current_calender_time(), "into threadfunc()");
 		fputs(" ", logfile);
-		fputs(path, logfile);
+		fputs("threadfunc()", logfile);
 		fprintf(logfile, "\n");
 		fclose(logfile);
 	}
 	}
 #endif /* DEBUG_OUTPUT_STATUS */
 
-	initialize_timiwp_main();
+//	initialize_timiwp_main(); // modMessage() case MODM_OPEN: ‚Æd•¡ c212
 
 	while (stop_thread == 0) {
+#if defined(RTSYN_THREAD)
+		Sleep(1);
+		timsyn_play_some_data();
+		rtsyn_play_calculate();
+#else
 		Sleep(1);
 		EnterCriticalSection(&mim_section);
 		rtsyn_play_calculate();
 		LeaveCriticalSection(&mim_section);
+#endif
 	}
 
 	rtsyn_stop_playing();
@@ -750,7 +762,7 @@ STDAPI_(DWORD) modMessage(UINT uDeviceID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR
 	MIDIHDR *IIMidiHdr;
 	int exlen = 0;
 	unsigned int thrdaddr;
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD) || defined(RTSYN_THREAD)
 	UINT evbpoint;
 	BYTE *sysexbuffer = NULL;
 #endif /* RTSYN_MULTITHREAD */
@@ -782,10 +794,10 @@ STDAPI_(DWORD) modMessage(UINT uDeviceID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR
 			}
 			dwOpenFlags = (DWORD)dwParam2;
 
-			processPriority = GetPriorityClass(GetCurrentProcess());
-			SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
+		//	processPriority = GetPriorityClass(GetCurrentProcess());
+			SetPriorityClass(GetCurrentProcess(), processPriority);
 
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD)
 			hCalcThread = NULL;
 			hRtsynThread = (HANDLE)_beginthreadex(NULL, 0, threadfunc2, 0, 0, &thrdaddr);
 			if (!hRtsynThread) {
@@ -803,7 +815,7 @@ STDAPI_(DWORD) modMessage(UINT uDeviceID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR
 				OpenCount--;
 				return MMSYSERR_NOMEM;
 			}
-			SetThreadPriority(hRtsynThread, THREAD_PRIORITY_TIME_CRITICAL);
+			SetThreadPriority(hRtsynThread, syn_ThreadPriority);
 #endif /* RTSYN_MULTITHREAD */
 			modCallback(MM_MOM_OPEN, dwParam1, dwParam2);
 			modm_closed = 0;
@@ -887,7 +899,7 @@ STDAPI_(DWORD) modMessage(UINT uDeviceID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR
 		exlen = (int)IIMidiHdr->dwBytesRecorded;
 	    }
 
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD) || defined(RTSYN_THREAD)
 	    IIMidiHdr->dwFlags &= ~MHDR_DONE;
 	    IIMidiHdr->dwFlags |= MHDR_INQUEUE;
 
@@ -937,7 +949,7 @@ STDAPI_(DWORD) modMessage(UINT uDeviceID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR
 	    EnterCriticalSection(&mim_section);
 	    {
 		const double event_time = get_current_calender_time();
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD) || defined(RTSYN_THREAD)
 		evbpoint = evbwpoint;
 		if (++evbwpoint >= EVBUFF_SIZE)
 		    evbwpoint -= EVBUFF_SIZE;
@@ -991,7 +1003,7 @@ STDAPI_(DWORD) modMessage(UINT uDeviceID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR
 
 	case MODM_CLOSE:
 		if (stop_thread != 0) return MIDIERR_STILLPLAYING;
-#ifdef RTSYN_MULTITHREAD
+#if defined(RTSYN_MULTITHREAD)
 		if (stop_rtthread != 0) return MIDIERR_STILLPLAYING;
 #endif /* RTSYN_MULTITHREAD */
 		--OpenCount;

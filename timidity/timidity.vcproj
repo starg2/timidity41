@@ -438,6 +438,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wasapi_a.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wave_a.c"
 				>
 			</File>

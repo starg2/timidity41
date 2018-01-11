@@ -470,6 +470,16 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt32(INI_SEC_TIMIDITY,"wmme_device_id",&st->wmme_device_id);
     IniGetKeyInt(INI_SEC_TIMIDITY,"wave_format_ext",&st->wave_format_ext);
 #endif
+#ifdef AU_WASAPI
+    IniGetKeyInt32(INI_SEC_TIMIDITY,"opt_wasapi_device_id",&st->wasapi_device_id);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_latency",&st->wasapi_latency);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_format_ext",&st->wasapi_format_ext);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_exclusive",&st->wasapi_exclusive);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_polling",&st->wasapi_polling);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_priority",&st->wasapi_priority);
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_category",&st->wasapi_stream_category);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_option",&st->wasapi_stream_option);
+#endif
 #ifdef AU_PORTAUDIO
     IniGetKeyInt32(INI_SEC_TIMIDITY,"pa_wmme_device_id",&st->pa_wmme_device_id);
 	IniGetKeyInt32(INI_SEC_TIMIDITY,"pa_ds_device_id",&st->pa_ds_device_id);
@@ -505,8 +515,9 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
 		if ( st->SynShTime < 0 ) st->SynShTime = 0;
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
-    if ( st->opt_rtsyn_latency < 20 ) st->opt_rtsyn_latency = 20;
+    if ( st->opt_rtsyn_latency < 1 ) st->opt_rtsyn_latency = 1;
     if ( st->opt_rtsyn_latency > 1000 ) st->opt_rtsyn_latency = 1000;	
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
 #elif defined(IA_W32G_SYN)
     IniGetKeyIntArray(INI_SEC_TIMIDITY,"SynIDPort",st->SynIDPort,MAX_PORT);
     IniGetKeyInt(INI_SEC_TIMIDITY,"syn_AutoStart",&(st->syn_AutoStart));
@@ -516,8 +527,10 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
 		if ( st->SynShTime < 0 ) st->SynShTime = 0;
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
-    if ( st->opt_rtsyn_latency < 20 ) st->opt_rtsyn_latency = 20;
+    if ( st->opt_rtsyn_latency < 1 ) st->opt_rtsyn_latency = 1;
     if ( st->opt_rtsyn_latency > 1000 ) st->opt_rtsyn_latency = 1000;
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));
+    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_use_twsyn_bridge",&(st->opt_use_twsyn_bridge));
 #else
     IniGetKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
 #endif
@@ -696,6 +709,16 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt32(INI_SEC_TIMIDITY,"wmme_device_id",&st->wmme_device_id);
 	IniPutKeyInt(INI_SEC_TIMIDITY,"wave_format_ext",&st->wave_format_ext);
 #endif
+#ifdef AU_WASAPI
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"opt_wasapi_device_id",&st->wasapi_device_id);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_latency",&st->wasapi_latency);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_format_ext",&st->wasapi_format_ext);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_exclusive",&st->wasapi_exclusive);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_polling",&st->wasapi_polling);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_priority",&st->wasapi_priority);
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_category",&st->wasapi_stream_category);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_option",&st->wasapi_stream_option);
+#endif
 #ifdef AU_PORTAUDIO
     IniPutKeyInt32(INI_SEC_TIMIDITY,"pa_wmme_device_id",&st->pa_wmme_device_id);
     IniPutKeyInt32(INI_SEC_TIMIDITY,"pa_ds_device_id",&st->pa_ds_device_id);
@@ -733,6 +756,7 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));	
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));	
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
 #elif defined(IA_W32G_SYN)
     IniPutKeyIntArray(INI_SEC_TIMIDITY,"SynIDPort",st->SynIDPort,MAX_PORT);
     IniPutKeyInt(INI_SEC_TIMIDITY,"syn_AutoStart",&(st->syn_AutoStart));
@@ -741,6 +765,8 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynPortNum",&(st->SynPortNum));
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));	
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
+    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_use_twsyn_bridge",&(st->opt_use_twsyn_bridge));
 #else
     IniPutKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
 #endif

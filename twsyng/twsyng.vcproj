@@ -51,7 +51,7 @@
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
+				AdditionalIncludeDirectories="..\twsyn_bridge,..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;HAVE_CONFIG_H;_MT;TWSYNG32"
 				StringPooling="true"
 				ExceptionHandling="0"
@@ -91,8 +91,10 @@
 				ProgramDatabaseFile=".\Release/twsyng.pdb"
 				SubSystem="2"
 				LargeAddressAware="2"
+				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
 				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
+				DataExecutionPrevention="2"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -149,7 +151,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
+				AdditionalIncludeDirectories="..\twsyn_bridge,..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
 				PreprocessorDefinitions="WIN32;__DEBUG;_WINDOWS;HAVE_CONFIG_H;_MT;TWSYNG32"
 				StringPooling="true"
 				MinimalRebuild="true"
@@ -451,6 +453,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\twsyn_bridge\twsyn_bridge_host.c"
+				>
+			</File>
+			<File
 				RelativePath="..\timidity\version.c"
 				>
 			</File>
@@ -524,6 +530,10 @@
 			</File>
 			<File
 				RelativePath="..\timidity\w32g_vorbisenc_dll.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\wasapi_a.c"
 				>
 			</File>
 			<File

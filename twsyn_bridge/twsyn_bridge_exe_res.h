@@ -1,0 +1,6 @@
+
+
+
+#define IDD_DIALOG_DUMMY   101
+#define IDI_ICON_BRIDGE16    900
+#define IDI_ICON_BRIDGE32    901

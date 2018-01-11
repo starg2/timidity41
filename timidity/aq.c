@@ -54,7 +54,7 @@
 #define TEST_SPARE_RATE 0.9
 #define MAX_BUCKET_TIME 0.5
 ///r
-#define MAX_FILLED_TIME 3000.0 // def 2.0
+#define MAX_FILLED_TIME 2000.0 // def 2.0
 
 
 static int32 device_qsize;
@@ -106,6 +106,8 @@ int aq_calc_fragsize(void)
 	bps = get_encoding_sample_size(play_mode->encoding);
     bs = audio_buffer_size * bps;
     dq = play_mode->rate * MAX_FILLED_TIME * bps;
+	if(dq > INT32_MAX) // 2GB // c212
+		dq = INT32_MAX;
     while(bs * 2 > dq)
 	bs /= 2;
 
@@ -210,8 +212,12 @@ static int32 estimate_queue_size(void)
 	general_output_convert((DATA_T*)nullsound, bucket_size / Bps);
     tb = play_mode->rate * Bps * TEST_SPARE_RATE;
     ntries = 1;
-    max_qbytes = play_mode->rate * MAX_FILLED_TIME * Bps;
-
+	{ // c212
+		int64 tmp = play_mode->rate * MAX_FILLED_TIME * Bps;
+		if(tmp > INT32_MAX) // 2GB
+			tmp = INT32_MAX;
+		max_qbytes = tmp;
+	}
   retry:
     chunktime = (double)bucket_size / Bps * div_playmode_rate;
     qbytes = 0;
@@ -251,7 +257,11 @@ static int32 estimate_queue_size(void)
 			ctl->cmsg(CMSG_ERROR, VERB_NOISY,
 				  "Can't estimate audio queue length");
 			set_bucket_size(audio_buffer_size * Bps);
+#ifdef ALIGN_SIZE
+			aligned_free(nullsound);
+#else
 			free(nullsound);
+#endif
 			return 2 * audio_buffer_size * Bps;
 		}
 
@@ -293,8 +303,6 @@ static int aq_output_data(uint8 *buff, int nbytes)
     return 0;
 }
 
-extern void do_effect2(uint8 *buf, int32 count); // effect.c
-
 int aq_add(DATA_T *samples, int32 count)
 {
     int32 nbytes, i;
@@ -313,10 +321,12 @@ int aq_add(DATA_T *samples, int32 count)
 	aq_add_count += count;
     nbytes = general_output_convert(samples, count);
     buff = (uint8 *)samples;
-    do_effect2(buff, count);
-
-    if(device_qsize == 0 || nbuckets == 0)
-      return play_mode->output_data(buff, nbytes);
+///r c212
+    if(device_qsize == 0 || nbuckets == 0){ // thru audio_queue 
+		trace_loop();
+		play_counter += count;
+		return play_mode->output_data(buff, nbytes);
+	}
 
     aq_fill_buffer_flag = (aq_add_count <= aq_start_count);
 

@@ -53,6 +53,8 @@ extern char def_instr_name[];
 
 extern CRITICAL_SECTION critSect;
 extern int opt_evil_mode;
+extern DWORD syn_ThreadPriority;
+
 
 #include "timiwp_timidity.h"
 
@@ -220,6 +222,9 @@ int timiwp_main_ini(int argc, char **argv)
 ///r
 	load_all_instrument();
 #ifdef MULTI_THREAD_COMPUTE
+#if defined(__W32__)
+	set_compute_thread_priority(syn_ThreadPriority);
+#endif
 	begin_compute_thread();
 #endif
 

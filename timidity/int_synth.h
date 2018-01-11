@@ -37,6 +37,18 @@ typedef float IS_RS_DATA_T;
 #define IS_RS_DATA_T_FLOAT
 #endif
 
+#define IS_INI_TYPE_ALL       (-1)
+#define IS_INI_TYPE_SCC       (0)
+#define IS_INI_TYPE_MMS       (1)
+#define IS_INI_PRESET_ALL     (-1)
+#define IS_INI_PRESET_NONE    (0)
+#define IS_INI_PRESET_INIT    (1)
+
+//#define IS_INI_LOAD_ALL 1 // 全部ロード , load_1_inst slowest , worst memory
+//#define IS_INI_LOAD_TYPE 1 // type単位ロード
+#define IS_INI_LOAD_BLOCK (32) // block単位ロード 1block=32/64/128preset
+//#define IS_INI_LOAD_PRESET 1 // preset単位ロード , load_all_inst very slow , load_1_inst fast , best memory
+
 
 // SCC
 #define SCC_DATA_MAX 128
@@ -45,7 +57,7 @@ typedef float IS_RS_DATA_T;
 #define MT32_DATA_MAX 128
 #define CM32L_DATA_MAX 256
 // SCC
-#define SCC_SETTING_MAX 1000
+#define SCC_SETTING_MAX 1000 // <=1000
 #define SCC_PARAM_MAX 1
 #define SCC_OSC_MAX 6
 #define SCC_AMP_MAX 4
@@ -53,7 +65,7 @@ typedef float IS_RS_DATA_T;
 #define SCC_ENV_PARAM 14
 #define SCC_LFO_PARAM 4
 // MMS (OP : operator/partial
-#define MMS_SETTING_MAX 1000
+#define MMS_SETTING_MAX 1000 // <=1000
 #define MMS_OP_MAX 16
 #define MMS_OP_PARAM_MAX 4
 #define MMS_OP_RANGE_MAX 4
@@ -193,6 +205,7 @@ typedef struct _Preset_MMS {
 typedef struct _Preset_IS {
 	char *ini_file;
 	int8 scc_data_load;
+	uint32 scc_load, mms_load;
 	char *scc_data_name[SCC_DATA_MAX];
 	int16 scc_data_int[SCC_DATA_MAX][SCC_DATA_LENGTH];
 	FLOAT_T scc_data[SCC_DATA_MAX][SCC_DATA_LENGTH + 1];
@@ -200,6 +213,7 @@ typedef struct _Preset_IS {
 	Preset_MMS *mms_setting[MMS_SETTING_MAX];
 	struct _Preset_IS *next;
 } Preset_IS;
+
 
 
 typedef FLOAT_T (*compute_osc_t)(FLOAT_T in, int32 var);
@@ -227,7 +241,7 @@ typedef struct {
 } Info_Resample;
 
 typedef struct {
-	int8 mode, scc_flag;
+	int8 init, mode, scc_flag;
 	int32 thru_count;
 	int32 cycle;
 	FLOAT_T output_level;
@@ -262,7 +276,8 @@ typedef struct _Info_OP{
 typedef void (*compute_op_t)(Info_OP *info);
 
 typedef struct _InfoIS_MMS{
-	int8 op_max;
+
+	int8 init, op_max;
 	int32 thru_count;
 	Info_OP op[MMS_OP_MAX];
 	compute_op_t op_ptr[MMS_OP_MAX];

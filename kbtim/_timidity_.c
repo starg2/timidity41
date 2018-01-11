@@ -185,7 +185,9 @@ void kbtim_uninitialize(void)
 	tmdy_free_config();
 	//free_reverb_buffer();
 	free_effect_buffers();
+#ifdef INT_SYNTH
 	free_int_synth();
+#endif // INT_SYNTH
 	free_voices();//free_voice_by_Kobarin() ‚Ì‘ã‚í‚è
     //initialize_resampler_coeffs ‚ÅŠm•Û‚µ‚½ƒƒ‚ƒŠ‚Ì‰ğ•ú
     uninitialize_resampler_coeffs();

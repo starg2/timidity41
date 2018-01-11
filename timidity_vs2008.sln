@@ -80,8 +80,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "timdrvsetup", "timdrvsetup\
 	ProjectSection(ProjectDependencies) = postProject
 		{11CDD90A-20E1-45AF-879E-F355742B38B7} = {11CDD90A-20E1-45AF-879E-F355742B38B7}
 		{B05F8AA0-6140-4335-AD39-E276D17002CB} = {B05F8AA0-6140-4335-AD39-E276D17002CB}
+		{248B20A6-9609-4A5B-AFAE-09C7572FCE54} = {248B20A6-9609-4A5B-AFAE-09C7572FCE54}
 		{8DC8ADE3-145A-4C63-80DD-0C93B6587B80} = {8DC8ADE3-145A-4C63-80DD-0C93B6587B80}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "twsyn_bridge", "twsyn_bridge\twsyn_bridge.vcproj", "{4D6B6788-F7B8-4FFB-B15F-DC5C665ABB5C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -165,6 +168,10 @@ Global
 		{DB5B22F9-4721-460B-9770-2855CA33E232}.Debug|Win32.Build.0 = Debug|Win32
 		{DB5B22F9-4721-460B-9770-2855CA33E232}.Release|Win32.ActiveCfg = Release|Win32
 		{DB5B22F9-4721-460B-9770-2855CA33E232}.Release|Win32.Build.0 = Release|Win32
+		{4D6B6788-F7B8-4FFB-B15F-DC5C665ABB5C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4D6B6788-F7B8-4FFB-B15F-DC5C665ABB5C}.Debug|Win32.Build.0 = Debug|Win32
+		{4D6B6788-F7B8-4FFB-B15F-DC5C665ABB5C}.Release|Win32.ActiveCfg = Release|Win32
+		{4D6B6788-F7B8-4FFB-B15F-DC5C665ABB5C}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -365,10 +365,9 @@ static inline void do_chorus_vst(DATA_T *buf, int32 count)
 
 ///// Master VST
 #ifdef VST_LOADER_ENABLE
-//#define MASTER_VST_EFFECT2 // 出力変換後に Master VST
-#ifndef MASTER_VST_EFFECT2 // 出力変換前にVST
 /*
-出力ビットに関係なくdouble/float/int32でVSTに渡る
+出力変換前にVST
+出力ビットに関係なくDATA_T型 (double/float/int32)でVSTに渡る
 DATA_T_DOUBLEの場合 VSTWRAP_EXTの場合
 	(double conv) (VST) (double conv) // GUARD_BITSのレベル変更
 DATA_T_DOUBLEの場合
@@ -450,53 +449,6 @@ static inline void do_master_vst(DATA_T *buf, int32 nsamples, int mono)
 	/* TODO */
 #endif /* __W32__ */
 }
-
-#else // MASTER_VST_EFFECT2 // 出力変換後にVST	
-/*
-出力ビットでVSTに渡る
-出力音量との位置関係が変わる
-*/
-static inline void do_master_vst(uint8 *buf, int32 count, int mono)
-{
-	if (!hVSTHost || samples == NULL || nsamples <= 0)
-		return;
-	if (play_mode->encoding & PE_16BIT){
-		if (mono)
-			((mix_vst_effect16)GetProcAddress(hVSTHost, "effectProcessingInt16Mono"))((short *)buff, count, vst_samplerate);
-		else
-			((mix_vst_effect16)GetProcAddress(hVSTHost, "effectProcessingInt16"))((short *)buff, count*2, vst_samplerate);
-	}else if (play_mode->encoding & PE_24BIT){
-		if (mono)
-			((mix_vst_effect24)GetProcAddress(hVSTHost, "effectProcessingInt24Mono"))((char *)buff, count, vst_samplerate);
-		else
-			((mix_vst_effect24)GetProcAddress(hVSTHost, "effectProcessingInt24"))((char *)buff, count*2, vst_samplerate);
-	}else if (play_mode->encoding & PE_32BIT){
-		if (mono)
-			((mix_vst_effect32)GetProcAddress(hVSTHost, "effectProcessingInt32Mono"))((long *)buff, count, vst_samplerate);
-		else
-			((mix_vst_effect32)GetProcAddress(hVSTHost, "effectProcessingInt32"))((long *)buff, count*2, vst_samplerate);
-	}else if (play_mode->encoding & PE_F32BIT){
-		if (mono)
-			((mix_vst_effectF)GetProcAddress(hVSTHost, "effectProcessingFloatMono"))((float *)buff, count, vst_samplerate);
-		else
-			((mix_vst_effectF)GetProcAddress(hVSTHost, "effectProcessingFloat"))((float *)buff, count*2, vst_samplerate);
-	}
-#if defined(VSTWRAP_EXT) // if support effectProcessing int64/double
-	else if (play_mode->encoding & PE_64BIT){
-		if (mono)
-			((mix_vst_effect64)GetProcAddress(hVSTHost, "effectProcessingInt64Mono"))((int64 *)buff, count, vst_samplerate);
-		else
-			((mix_vst_effect64)GetProcAddress(hVSTHost, "effectProcessingInt64"))((int64 *)buff, count*2, vst_samplerate);
-	}
-	else if (play_mode->encoding & PE_F64BIT){
-		if (mono)
-			((mix_vst_effectD)GetProcAddress(hVSTHost, "effectProcessingDoubleMono"))((double *)buff, count, vst_samplerate);
-		else
-			((mix_vst_effectD)GetProcAddress(hVSTHost, "effectProcessingDouble"))((double *)buff, count*2, vst_samplerate);
-	}
-#endif
-}
-#endif /* MASTER_VST_EFFECT2 */
 #endif /* VST_LOADER_ENABLE */
 
 ///// Channel VST
@@ -638,11 +590,9 @@ static void init_vst_effect(void)
 			  "%s could not be found in %s", funcname, libname);
 		error++;
 	}
-#ifndef MASTER_VST_EFFECT2 // 出力変換前にVST
 #if (!defined(VSTWRAP_EXT) && defined(DATA_T_DOUBLE)) || (!defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT))
 	memset(pre_vst_buffer, 0, sizeof(pre_vst_buffer));
 #endif
-#endif /* MASTER_VST_EFFECT2 */
 
 	// Channel VST	
 #if defined(VSTWRAP_EXT) // support float/double
@@ -15697,6 +15647,7 @@ static void do_gate_reverb(DATA_T *buf, int32 count, InfoGateReverb *info)
 	// gate
 	gate_out = get_gate_level(&info->gate, cnt);
 	switch(info->type){
+	default:
 	case 0: // normal
 		gateL = gate_out;
 		gateR = gate_out;
@@ -24349,6 +24300,7 @@ static double ins_xg_revchar_to_rt(struct effect_xg_t *st)
 {
 	double rt;
 	switch(st->type_msb) {
+	default:
 	case 0x01:
 		switch(st->type_lsb) {
 		default:
@@ -35733,22 +35685,11 @@ void do_effect(DATA_T *buf, int32 count)
 		do_limiter(buf, count);
 ///r
 #ifdef VST_LOADER_ENABLE
-#ifndef MASTER_VST_EFFECT2
 	do_master_vst(buf, nsamples, mono);
-#endif /* MASTER_VST_EFFECT2 */
 #endif /* VST_LOADER_ENABLE */
 	
 }
 
-
-void do_effect2(uint8 *buf, int32 count)
-{
-#ifdef VST_LOADER_ENABLE
-#ifdef MASTER_VST_EFFECT2
-	do_master_vst(buf, count, play_mode->encoding & PE_MONO);
-#endif /* MASTER_VST_EFFECT2 */
-#endif /* VST_LOADER_ENABLE */
-}
 
 
 /************************************ inialize_effect ***************************************/

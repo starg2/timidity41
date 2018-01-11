@@ -449,7 +449,7 @@ void winplaymidi(void) {
     DWORD ct = GetCurrentTime();
     if (winplaymidi_active_start_time == 0 || ct < winplaymidi_active_start_time) {
       winplaymidi_active_start_time = ct;
-    } else if (ct - winplaymidi_active_start_time > 2000) {
+    } else if (ct - winplaymidi_active_start_time > 60000) {
       winplaymidi_sleep_level = 2;
     }
   } else if (winplaymidi_sleep_level == 0) {

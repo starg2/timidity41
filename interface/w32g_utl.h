@@ -194,6 +194,14 @@ typedef struct SETTING_TIMIDITY_ {
 
 	int32 wmme_device_id;
 	int wave_format_ext; 
+	int32 wasapi_device_id;
+	int32 wasapi_latency;
+	int wasapi_format_ext;
+	int wasapi_exclusive;
+	int wasapi_polling;
+	int wasapi_priority;
+	int wasapi_stream_category;
+	int wasapi_stream_option;
 	int32 pa_wmme_device_id;
 	int32 pa_ds_device_id;
 	int32 pa_asio_device_id;
@@ -232,6 +240,7 @@ typedef struct SETTING_TIMIDITY_ {
 		DWORD syn_ThreadPriority;
 		int SynShTime;
 		uint32 opt_rtsyn_latency;	// --rtsyn-latency
+		int opt_rtsyn_skip_aq;	// --rtsyn-skip-aq
 #elif defined(IA_W32G_SYN)
 		int SynIDPort[MAX_PORT];
 		int syn_AutoStart;
@@ -240,6 +249,8 @@ typedef struct SETTING_TIMIDITY_ {
 		int SynPortNum;
 		int SynShTime;
 		uint32 opt_rtsyn_latency;	// --rtsyn-latency
+		int opt_rtsyn_skip_aq;	// --rtsyn-skip-aq
+		int opt_use_twsyn_bridge;
 #endif
 	int processPriority;		// --process-priority
 	int compute_thread_num;

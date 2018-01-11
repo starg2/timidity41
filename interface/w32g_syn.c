@@ -96,6 +96,11 @@ WINAPI void InitCommonControls(void);
 
 #ifdef IA_W32G_SYN
 
+#ifdef USE_TWSYN_BRIDGE
+#include "twsyn_bridge_common.h"
+#include "twsyn_bridge_host.h"
+#endif
+
 typedef struct w32g_syn_t_ {
 	UINT nid_uID;
 #ifndef TWSYNSRV
@@ -241,8 +246,8 @@ int msg_loopbuf_end = -1;
 extern int rtsyn_system_mode;
 HANDLE msg_loopbuf_hMutex = NULL; // 排他処理用
 int syn_AutoStart;                // シンセ自動起動
-DWORD processPriority;            // プロセスのプライオリティ
-DWORD syn_ThreadPriority;         // シンセスレッドのプライオリティ
+extern DWORD processPriority;            // プロセスのプライオリティ
+extern DWORD syn_ThreadPriority;         // シンセスレッドのプライオリティ
 
 extern int volatile stream_max_compute;	// play_event() の compute_data() で計算を許す最大時間。
 
@@ -421,7 +426,7 @@ static int w32g_syn_main(void)
 	while (w32g_syn.quit_state < 2) {
 		Sleep(300);
 	}
-
+	
 	return 0;
 }
 
@@ -614,6 +619,9 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			PostQuitMessage(0);
 			return -1;
 		}
+#ifdef USE_TWSYN_BRIDGE
+		init_bridge();
+#endif
 #ifdef VST_LOADER_ENABLE
 		if (!hVSTHost) {
 #ifdef _WIN64
@@ -648,6 +656,9 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			FreeLibrary(hVSTHost);
 			hVSTHost = NULL;
 		}
+#endif
+#ifdef USE_TWSYN_BRIDGE
+		close_bridge();
 #endif
 		DeleteTasktrayIcon(hwnd);
 		PostQuitMessage(0);
@@ -1179,8 +1190,8 @@ static int w32g_syn_main(void)
 	SERVICE_TABLE_ENTRYA ServiceTable[2];
 
 	w32g_syn.nid_uID = W32G_SYN_NID_UID;
-	processPriority = NORMAL_PRIORITY_CLASS;
-	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
+//	processPriority = NORMAL_PRIORITY_CLASS;
+//	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
 	for (i = 0; i <= MAX_PORT; i++) {
 		w32g_syn_id_port[i] = i + 1;
 	}

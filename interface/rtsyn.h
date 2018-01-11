@@ -127,6 +127,7 @@ void rtsyn_normal_modeset(void);
 void rtsyn_init(void);
 void rtsyn_close(void);
 double rtsyn_set_latency(double latency);
+void rtsyn_set_skip_aq(int flg);
 void rtsyn_play_event(MidiEvent *ev);
 void rtsyn_play_event_time(MidiEvent *ev, double event_time);
 void rtsyn_tmr_reset(void);

@@ -5,6 +5,7 @@
 
 
 #include "timidity.h"
+#include "output.h"
 
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
@@ -20,9 +21,6 @@
 ///r
 #define PA_DEVLIST_MAX 60
 #define PA_DEVLIST_LEN 64
-
-#define DEVLIST_MAX 20
-
 #define PA_DEVLIST_DEFAULT_NAME "(default)"
 #define PA_DEVLIST_ERROR_NAME "(null)"
 

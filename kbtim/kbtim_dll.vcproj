@@ -17,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\kbtim_dll_Debug"
-			IntermediateDirectory=".\kbtim_dll_Debug"
+			OutputDirectory=".\Debug"
+			IntermediateDirectory=".\Debug"
 			ConfigurationType="2"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -55,9 +55,9 @@
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				PrecompiledHeaderFile=".\kbtim_dll_Debug/kbtim_dll.pch"
-				AssemblerListingLocation=".\kbtim_dll_Debug/"
-				ObjectFile=".\kbtim_dll_Debug/"
-				ProgramDataBaseFileName=".\kbtim_dll_Debug/"
+				AssemblerListingLocation=".\Debug"
+				ObjectFile=".\Debug"
+				ProgramDataBaseFileName=".\Debug"
 				BrowseInformation="1"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
@@ -76,6 +76,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib"
 				OutputFile="../../kbtim.dll"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
@@ -114,8 +115,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\kbtim_dll_Release"
-			IntermediateDirectory=".\kbtim_dll_Release"
+			OutputDirectory="..\Release\"
+			IntermediateDirectory=".\Release\"
 			ConfigurationType="2"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -160,9 +161,9 @@
 				EnableEnhancedInstructionSet="2"
 				FloatingPointModel="2"
 				PrecompiledHeaderFile=".\kbtim_dll_Release/kbtim_dll.pch"
-				AssemblerListingLocation=".\kbtim_dll_Release/"
-				ObjectFile=".\kbtim_dll_Release/"
-				ProgramDataBaseFileName=".\kbtim_dll_Release/"
+				AssemblerListingLocation=".\Release/"
+				ObjectFile=".\Release/"
+				ProgramDataBaseFileName=".\Release/"
 				BrowseInformation="1"
 				BrowseInformationFile="$(IntDir)\"
 				WarningLevel="0"
@@ -182,7 +183,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;"
+				AdditionalDependencies="kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib"
 				OutputFile="../Release/kbtim.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -448,6 +449,10 @@
 							PreprocessorDefinitions=""
 						/>
 					</FileConfiguration>
+				</File>
+				<File
+					RelativePath="..\timidity\int_synth.c"
+					>
 				</File>
 				<File
 					RelativePath="..\timidity\loadtab.c"

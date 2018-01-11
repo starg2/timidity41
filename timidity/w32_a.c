@@ -96,6 +96,7 @@ static int  open_output     (void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output    (void);
 static int  output_data     (const uint8 * Data, size_t Size);
 static int  acntl           (int request, void * arg);
+static int  detect          (void);
 
 static void print_device_list(void);
 
@@ -153,7 +154,6 @@ static void                         WaitForBuffer   (int WaitForAllBuffers);
 
 /*****************************************************************************************************************************/
 
-static int detect(void);
 
 #define dpm w32_play_mode
 
@@ -182,14 +182,15 @@ static int open_output(void)
 ///r
     int             i;
 // 	int             IsMono;
-    WAVEFORMATEX    wf;
+	WAVEFORMATEXTENSIBLE wfe = {0};
+	WAVEFORMATEX    *pwf = NULL;
     WAVEOUTCAPS     woc;
     MMRESULT        Result;
     UINT            DeviceID;
 	int ret;
 	int tmp;
-	WAVEFORMATEXTENSIBLE wfe;
-// guid_WAVE_FORMAT.Data1 = WAVE_FORMAT_X
+	int format_ext;
+
 	GUID guid_WAVE_FORMAT = {WAVE_FORMAT_UNKNOWN,0x0000,0x0010,{0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
 	
 /*
@@ -216,64 +217,108 @@ static int open_output(void)
 /** They can't mean these. **/
 ///r
 	dpm.encoding &= ~(PE_BYTESWAP);
-	if (dpm.encoding & (PE_16BIT | PE_24BIT | PE_32BIT | PE_F32BIT | PE_64BIT | PE_F64BIT))
+	if (dpm.encoding & (PE_16BIT | PE_24BIT | PE_32BIT | PE_F32BIT | PE_64BIT | PE_F64BIT)){
         dpm.encoding |= PE_SIGNED;
-    else // 8bit PE_ULAW PE_ALAW only unsigned
+	}else // 8bit PE_ULAW PE_ALAW only unsigned
         dpm.encoding &= ~PE_SIGNED;
-
-//    IsMono  = (dpm.encoding & PE_MONO);
-    memset(&wf, 0, sizeof(wf));
-	memset(&wfe, 0, sizeof(wfe));
-
-	if (dpm.encoding & PE_16BIT){
-		wf.wFormatTag = WAVE_FORMAT_PCM; // only WAVEFORMATEX
-		wf.wBitsPerSample = (int) 16;
-	}else if (dpm.encoding & PE_24BIT){
-		wf.wFormatTag = opt_wave_format_ext == 1 ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
-		guid_WAVE_FORMAT.Data1 = WAVE_FORMAT_PCM;
-		wf.wBitsPerSample = (int) 24;
-	}else if(dpm.encoding & PE_32BIT){
-		wf.wFormatTag = opt_wave_format_ext == 1 ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
-		guid_WAVE_FORMAT.Data1 = WAVE_FORMAT_PCM;
-		wf.wBitsPerSample = (int) 32;
-	}else if(dpm.encoding & PE_F32BIT){
-		wf.wFormatTag = opt_wave_format_ext == 1 ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_IEEE_FLOAT;
-		guid_WAVE_FORMAT.Data1 = WAVE_FORMAT_IEEE_FLOAT;
-		wf.wBitsPerSample = (int) 32;
-	}else if(dpm.encoding & PE_64BIT){
-		wf.wFormatTag = opt_wave_format_ext == 1 ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
-		guid_WAVE_FORMAT.Data1 = WAVE_FORMAT_PCM;
-		wf.wBitsPerSample = (int) 64;
-	}else if(dpm.encoding & PE_F64BIT){
-		wf.wFormatTag = opt_wave_format_ext == 1 ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_IEEE_FLOAT;
-		guid_WAVE_FORMAT.Data1 = WAVE_FORMAT_IEEE_FLOAT;
-		wf.wBitsPerSample = (int) 64;
-	}else if(dpm.encoding & PE_ALAW){
-		wf.wFormatTag = WAVE_FORMAT_ALAW; // only WAVEFORMATEX
-		wf.wBitsPerSample = (int) 8;
-	}else if(dpm.encoding & PE_ULAW){
-		wf.wFormatTag = WAVE_FORMAT_MULAW; // only WAVEFORMATEX
-		wf.wBitsPerSample = (int) 8;
-	}else{ // 8bit
-		wf.wFormatTag = WAVE_FORMAT_PCM; // only WAVEFORMATEX
-		wf.wBitsPerSample = (int) 8;
+	format_ext = (dpm.encoding & (PE_ULAW | PE_ALAW)) ? 0 : opt_wave_format_ext;
+	if(format_ext){
+		pwf = &wfe.Format;
+		memcpy(&wfe.SubFormat, &guid_WAVE_FORMAT, sizeof(GUID));
+		pwf->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+		pwf->cbSize       = (WORD)22;
+	}else{
+		pwf = (WAVEFORMATEX *)&wfe;
+		pwf->cbSize       = (WORD)0;
 	}
+	if(dpm.encoding & PE_16BIT){
+		if(format_ext){			
+			wfe.SubFormat.Data1 = WAVE_FORMAT_PCM;
+			wfe.Samples.wValidBitsPerSample = 16;
+			pwf->wBitsPerSample = (WORD) 16;
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_PCM;
+			pwf->wBitsPerSample = (WORD) 16;
+		}
+	}else if(dpm.encoding & PE_24BIT){
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_PCM;
+			wfe.Samples.wValidBitsPerSample = 24;
+			pwf->wBitsPerSample = (WORD) 24;
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_PCM;
+			pwf->wBitsPerSample = (WORD) 24;
+		}
+	}else if(dpm.encoding & PE_32BIT){
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_PCM;
+			wfe.Samples.wValidBitsPerSample = 32;
+			pwf->wBitsPerSample = (WORD) 32;			
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_PCM;
+			pwf->wBitsPerSample = (WORD) 32;
+		}
+	}else if(dpm.encoding & PE_F32BIT){
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_IEEE_FLOAT;
+			wfe.Samples.wValidBitsPerSample = 32;
+			pwf->wBitsPerSample = (WORD) 32;			
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+			pwf->wBitsPerSample = (WORD) 32;
+		}
+	}else if(dpm.encoding & PE_64BIT){
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_PCM;
+			wfe.Samples.wValidBitsPerSample = 64;
+			pwf->wBitsPerSample = (WORD) 64;			
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_PCM;
+			pwf->wBitsPerSample = (WORD) 64;
+		}
+	}else if(dpm.encoding & PE_F64BIT){
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_IEEE_FLOAT;
+			wfe.Samples.wValidBitsPerSample = 64;
+			pwf->wBitsPerSample = (WORD) 64;			
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+			pwf->wBitsPerSample = (WORD) 64;
+		}		
+	}else if(dpm.encoding & PE_ALAW){
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_ALAW;
+			wfe.Samples.wValidBitsPerSample = 8;
+			pwf->wBitsPerSample = (WORD) 8;			
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_ALAW;
+			pwf->wBitsPerSample = (WORD) 8;
+		}
+	}else if(dpm.encoding & PE_ULAW){
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_MULAW;
+			wfe.Samples.wValidBitsPerSample = 8;
+			pwf->wBitsPerSample = (WORD) 8;			
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_MULAW;
+			pwf->wBitsPerSample = (WORD) 8;
+		}
+	}else{ // 8bit
+		if(format_ext){
+			wfe.SubFormat.Data1 = WAVE_FORMAT_PCM;
+			wfe.Samples.wValidBitsPerSample = 8;
+			pwf->wBitsPerSample = (WORD) 8;			
+		}else{
+			pwf->wFormatTag = WAVE_FORMAT_PCM;
+			pwf->wBitsPerSample = (WORD) 8;
+		}
+	}
+	pwf->nChannels       = (WORD)dpm.encoding & PE_MONO ? 1 : 2;
+	pwf->nSamplesPerSec  = (DWORD)dpm.rate;
+	pwf->nBlockAlign     = (WORD)(pwf->nChannels * pwf->wBitsPerSample / 8);
+	pwf->nAvgBytesPerSec = (DWORD)pwf->nSamplesPerSec * pwf->nBlockAlign;
+	wfe.dwChannelMask = pwf->nChannels==1 ? SPEAKER_MONO : SPEAKER_STEREO;
 
-	if(wf.wFormatTag == WAVE_FORMAT_EXTENSIBLE){
-		wfe.SubFormat = guid_WAVE_FORMAT;
-		wf.cbSize = (int)22;
-	}else
-		wf.cbSize = (int)0;
-
-	wf.nChannels		= (int)(dpm.encoding & PE_MONO ? 1 : 2);
-    wf.nSamplesPerSec	= (int)dpm.rate;
-	wf.nBlockAlign		= (int)(wf.nChannels * wf.wBitsPerSample / 8);
-    wf.nAvgBytesPerSec	= (int)(wf.nSamplesPerSec * wf.nBlockAlign);
-	wfe.Format = wf;
-	wfe.Samples.wValidBitsPerSample = wf.wBitsPerSample; // union
-//	wfe.Samples.wSamplesPerBlock = 1;
-//	wfe.Samples.wReserved = 0;
-	wfe.dwChannelMask = wf.nChannels==1 ? SPEAKER_MONO : SPEAKER_STEREO;
 ///r
     if (dpm.extra_param[0] < 2)
     {
@@ -297,7 +342,7 @@ static int open_output(void)
 //	data_block_trunc_size = DATA_BLOCK_SIZE - (DATA_BLOCK_SIZE % wf.nBlockAlign); 
 	data_block_num = dpm.extra_param[0];
 	data_block_size = audio_buffer_size;
-	data_block_trunc_size = data_block_size * wf.nBlockAlign;
+	data_block_trunc_size = data_block_size * pwf->nBlockAlign;
 
 /** Open the device. **/
 
@@ -313,20 +358,13 @@ static int open_output(void)
     	uDeviceID= (UINT)opt_wmme_device_id;
 	}
 ///r
-	if(wf.wFormatTag == WAVE_FORMAT_EXTENSIBLE){
-		if (AllowSynchronousWaveforms)
-			Result = waveOutOpen(&hDevice, uDeviceID, (LPCWAVEFORMATEX) &wfe, (DWORD_PTR) OnPlaybackEvent, 0, CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
-		else
-			Result = waveOutOpen(&hDevice, uDeviceID, (LPCWAVEFORMATEX) &wfe, (DWORD_PTR) OnPlaybackEvent, 0, CALLBACK_FUNCTION);
-	}else{
-		if (AllowSynchronousWaveforms)
-			Result = waveOutOpen(&hDevice, uDeviceID, (LPWAVEFORMATEX) &wf, (DWORD_PTR) OnPlaybackEvent, 0, CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
-		else
-			Result = waveOutOpen(&hDevice, uDeviceID, (LPWAVEFORMATEX) &wf, (DWORD_PTR) OnPlaybackEvent, 0, CALLBACK_FUNCTION);
-	}
+	if (AllowSynchronousWaveforms)
+		Result = waveOutOpen(&hDevice, uDeviceID, (WAVEFORMATEX *) &wfe, (DWORD_PTR) OnPlaybackEvent, 0, CALLBACK_FUNCTION | WAVE_ALLOWSYNC);
+	else
+		Result = waveOutOpen(&hDevice, uDeviceID, (WAVEFORMATEX *) &wfe, (DWORD_PTR) OnPlaybackEvent, 0, CALLBACK_FUNCTION);
     if (Result)
     {
-        ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Can't open audio device: encoding=<%s>, rate=<%d>, ch=<%d>: %s", output_encoding_string(dpm.encoding), dpm.rate, wf.nChannels, MMErrorMessage(Result));
+        ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Can't open audio device: encoding=<%s>, rate=<%d>, ch=<%d>: %s", output_encoding_string(dpm.encoding), dpm.rate, pwf->nChannels, MMErrorMessage(Result));
         return -1;
     }
 #ifdef OUTPUT_DEBUG_STR
@@ -356,7 +394,7 @@ static int open_output(void)
 /** Calculate the buffer delay. **/
 ///r
     BufferDelay = data_block_size * data_block_num * 1000 / dpm.rate;
-	BufferBlockDelay = data_block_size * 1000 / dpm.rate + 1; // 1ms~
+	BufferBlockDelay = data_block_size * 1000 / dpm.rate / 4;
 
 /** Create the buffer pool. **/
 
@@ -464,7 +502,7 @@ static int output_data(const uint8 *Data, size_t Size)
     const uint8 *  d;
     int32   s;
     int32   c;
-    const int32  max_continue = 15;
+    const int32  max_continue = 1164;
 	
     if (!hDevice)
 		return -1;

@@ -74,6 +74,10 @@
 #include "timer.h"
 
 #include "rtsyn.h"
+#ifdef USE_TWSYN_BRIDGE
+#include "twsyn_bridge_common.h"
+#include "twsyn_bridge_host.h"
+#endif
 
 int rtsyn_portnumber=1;
 unsigned int portID[MAX_PORT];
@@ -108,17 +112,29 @@ CRITICAL_SECTION mim_section;
 
 double mim_start_time;
 
-void CALLBACK MidiInProc(HMIDIIN,UINT, DWORD_PTR, DWORD_PTR, DWORD_PTR);
+void CALLBACK MidiInProc(HMIDIIN hMidiInL, UINT wMsg, DWORD_PTR dwInstance,	DWORD_PTR dwParam1, DWORD_PTR dwParam2);
 
 void rtsyn_get_port_list(){
 	int i;
 	MIDIINCAPS InCaps;
-	InNum = midiInGetNumDevs();
-	for (i=1;i <=InNum && i<=32;i++){
-		midiInGetDevCaps(i-1,(LPMIDIINCAPSA) &InCaps,sizeof(InCaps));
-		sprintf(rtsyn_portlist[i-1],"%d:%s",i,(LPSTR)InCaps.szPname);
+
+#ifdef USE_TWSYN_BRIDGE
+	if(opt_use_twsyn_bridge){
+		InNum = get_bridge_midi_devs();		
+		for (i=1;i <=InNum && i<=32;i++){
+			sprintf(rtsyn_portlist[i-1],"%d:%s",i,(LPSTR)get_bridge_midi_dev_name(i));
+		}
+		rtsyn_nportlist=i-1;
+	}else
+#endif
+	{
+		InNum = midiInGetNumDevs();
+		for (i=1;i <=InNum && i<=32;i++){
+			midiInGetDevCaps(i-1,(LPMIDIINCAPSA) &InCaps,sizeof(InCaps));
+			sprintf(rtsyn_portlist[i-1],"%d:%s",i,(LPSTR)InCaps.szPname);
+		}
+		rtsyn_nportlist=i-1;
 	}
-	rtsyn_nportlist=i-1;
 }
 
 int rtsyn_synth_start(){
@@ -132,42 +148,49 @@ int rtsyn_synth_start(){
 
 	
 	port=0;
-	sleep(2);
-	for(port=0;port<rtsyn_portnumber;port++){
-		for (i=0;i<MAX_EXBUF;i++){
-			IMidiHdr[port][i] = (MIDIHDR *)sIMidiHdr[port][i];
-			memset(IMidiHdr[port][i],0,sizeof(MIDIHDR));
-			IMidiHdr[port][i]->lpData = sImidiHdr_data[port][i];
-			memset((IMidiHdr[port][i]->lpData),0,BUFF_SIZE);
-			IMidiHdr[port][i]->dwBufferLength = BUFF_SIZE;
-		}
-	}
 	evbwpoint=0;
 	evbrpoint=0;
 	mvbuse=0;
-
-	for(port=0;port<rtsyn_portnumber;port++){
-		midiInOpen(&hMidiIn[port],portID[port],(DWORD_PTR)MidiInProc,(DWORD_PTR)port,CALLBACK_FUNCTION);
-		for (i=0;i<MAX_EXBUF;i++){
-			midiInUnprepareHeader(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
-			midiInPrepareHeader(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
-			midiInAddBuffer(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
+	sleep(1);
+#ifdef USE_TWSYN_BRIDGE
+	if(opt_use_twsyn_bridge){
+		open_bridge_midi_dev(rtsyn_portnumber, portID);
+	}else
+#endif
+	{
+		for(port=0;port<rtsyn_portnumber;port++){
+			for (i=0;i<MAX_EXBUF;i++){
+				IMidiHdr[port][i] = (MIDIHDR *)sIMidiHdr[port][i];
+				memset(IMidiHdr[port][i],0,sizeof(MIDIHDR));
+				IMidiHdr[port][i]->lpData = sImidiHdr_data[port][i];
+				memset((IMidiHdr[port][i]->lpData),0,BUFF_SIZE);
+				IMidiHdr[port][i]->dwBufferLength = BUFF_SIZE;
+			}
 		}
-	}
+
+		for(port=0;port<rtsyn_portnumber;port++){
+			midiInOpen(&hMidiIn[port],portID[port],(DWORD_PTR)MidiInProc,(DWORD_PTR)port,CALLBACK_FUNCTION);
+			for (i=0;i<MAX_EXBUF;i++){
+				midiInUnprepareHeader(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
+				midiInPrepareHeader(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
+				midiInAddBuffer(hMidiIn[port],IMidiHdr[port][i],sizeof(MIDIHDR));
+			}
+		}
 
 #ifdef __W32__
-	// HACK:midiInOpen()でリセットされてしまうため、再設定
-	SetPriorityClass(GetCurrentProcess(), processPriority);
+		// HACK:midiInOpen()でリセットされてしまうため、再設定
+		SetPriorityClass(GetCurrentProcess(), processPriority);
 #endif
-	for(port=0;port<rtsyn_portnumber;port++){
-		if(MMSYSERR_NOERROR !=midiInStart(hMidiIn[port])){
-			int i;
-			for(i=0;i<port;i++){
-				midiInStop(hMidiIn[i]);
-				midiInReset(hMidiIn[i]);
-				midiInClose(hMidiIn[i]);
+		for(port=0;port<rtsyn_portnumber;port++){
+			if(MMSYSERR_NOERROR !=midiInStart(hMidiIn[port])){
+				int i;
+				for(i=0;i<port;i++){
+					midiInStop(hMidiIn[i]);
+					midiInReset(hMidiIn[i]);
+					midiInClose(hMidiIn[i]);
+				}
+				goto winmmerror;
 			}
-			goto winmmerror;
 		}
 	}
 	mim_start_time = get_current_calender_time();
@@ -181,15 +204,19 @@ winmmerror:
 
 void rtsyn_synth_stop(){
 	rtsyn_stop_playing();
-	//	play_mode->close_output();
+	//	play_mode->close_output();	
 	rtsyn_midiports_close();
 	DeleteCriticalSection(&mim_section);
-
 	return;
 }
 void rtsyn_midiports_close(void){
 	UINT port;
-	
+
+#ifdef USE_TWSYN_BRIDGE
+	if(opt_use_twsyn_bridge)
+		close_bridge_midi_dev();
+	else
+#endif	
 	for(port=0;port<rtsyn_portnumber;port++){
 		if( MMSYSERR_NOERROR!=midiInStop(hMidiIn[port]) )
 			ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"MIDI Stop Error\n");
@@ -246,19 +273,28 @@ int rtsyn_play_some_data(void){
 				rtsyn_play_one_data (port, dwParam1, mim_start_time+(double)dwParam2 * DIV_1000);
 				break;
 			case MIM_LONGDATA:
-				IIMidiHdr = (MIDIHDR *) dwParam1;
-				exlen=(int)IIMidiHdr->dwBytesRecorded;
-				sysexbuffer=IIMidiHdr->lpData;
-				rtsyn_play_one_sysex (sysexbuffer,exlen, mim_start_time+(double)dwParam2 * DIV_1000);
-				if (MMSYSERR_NOERROR != midiInUnprepareHeader(
-						hMidiIn[port], IIMidiHdr, sizeof(MIDIHDR)))
-					ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"error1\n");
-				if (MMSYSERR_NOERROR != midiInPrepareHeader(
-						hMidiIn[port], IIMidiHdr, sizeof(MIDIHDR)))
-					ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"error5\n");
-				if (MMSYSERR_NOERROR != midiInAddBuffer(
-						hMidiIn[port], IIMidiHdr, sizeof(MIDIHDR)))
-					ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"error6\n");
+#ifdef USE_TWSYN_BRIDGE
+				if(opt_use_twsyn_bridge){
+					exlen = get_bridge_mim_databytes((int)dwParam1);
+					sysexbuffer = get_bridge_mim_longdata((int)dwParam1);
+					rtsyn_play_one_sysex(sysexbuffer, exlen, mim_start_time + (double)dwParam2 * DIV_1000);
+				}else
+#endif
+				{
+					IIMidiHdr = (MIDIHDR *) dwParam1;
+					exlen=(int)IIMidiHdr->dwBytesRecorded;
+					sysexbuffer=IIMidiHdr->lpData;
+					rtsyn_play_one_sysex (sysexbuffer,exlen, mim_start_time+(double)dwParam2 * DIV_1000);
+					if (MMSYSERR_NOERROR != midiInUnprepareHeader(
+							hMidiIn[port], IIMidiHdr, sizeof(MIDIHDR)))
+						ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"error1\n");
+					if (MMSYSERR_NOERROR != midiInPrepareHeader(
+							hMidiIn[port], IIMidiHdr, sizeof(MIDIHDR)))
+						ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"error5\n");
+					if (MMSYSERR_NOERROR != midiInAddBuffer(
+							hMidiIn[port], IIMidiHdr, sizeof(MIDIHDR)))
+						ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"error6\n");
+				}
 				break;
 			}
 		}while(rtsyn_buf_check());	
@@ -302,3 +338,4 @@ void CALLBACK MidiInProc(HMIDIIN hMidiInL, UINT wMsg, DWORD_PTR dwInstance,
 		break;
 	}
 }
+

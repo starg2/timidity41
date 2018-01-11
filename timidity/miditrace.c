@@ -380,7 +380,8 @@ int32 current_trace_samples(void)
     int32 sp;
     if((sp = aq_samples()) == -1)
 	return -1;
-    return midi_trace.offset + aq_samples();
+    return midi_trace.offset + sp; // c212
+//    return midi_trace.offset + aq_samples();
 }
 
 void init_midi_trace(void)
