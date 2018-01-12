@@ -68,6 +68,7 @@ add_definitions(
     -DANOTHER_MAIN
     -D__W32__
     -D__W32READDIR__
+	-DUSE_TWSYN_BRIDGE
 
 # TiMidity++ audio
     -DAU_W32
@@ -160,6 +161,7 @@ include_directories(
     pdcurses
     portaudio/include
     timidity
+	twsyn_bridge
     utils
     vorbis/include
 )
@@ -179,4 +181,5 @@ add_subdirectory(libarc)
 add_subdirectory(libunimod)
 add_subdirectory(sf_view_gui)
 add_subdirectory(timidity)
+add_subdirectory(twsyn_bridge)
 add_subdirectory(utils)

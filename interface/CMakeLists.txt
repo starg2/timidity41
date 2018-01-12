@@ -103,8 +103,12 @@ add_library(
     rtsyn_winmm.c
     winsyn_c.c
     wrdt_wcon.c
+
+	../twsyn_bridge/twsyn_bridge_host.c
+	../twsyn_bridge/twsyn_bridge_host.h
 )
 
+add_dependencies(interface_synsrv twsyn_bridge)
 target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
 
 # for timw32g
@@ -130,7 +134,10 @@ add_library(
     w32g_syn.c
     winsyn_c.c
     w32g_res.rc
+
+	../twsyn_bridge/twsyn_bridge_host.c
+	../twsyn_bridge/twsyn_bridge_host.h
 )
 
-add_dependencies(interface_w32gsyn UpdateTim41Version)
+add_dependencies(interface_w32gsyn UpdateTim41Version twsyn_bridge)
 target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
