@@ -7,6 +7,9 @@
 
 #ifdef USE_TWSYN_BRIDGE
 
+#include <windows.h>
+#include <mmsystem.h>
+
 #define EXE_NAME32 "twsyn_bridge_x86.exe"
 #define EXE_NAME64 "twsyn_bridge_x64.exe"
 
