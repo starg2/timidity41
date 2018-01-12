@@ -137,6 +137,7 @@ const CLSID tim_CLSID_MMDeviceEnumerator = {0xBCDE0395, 0xE52F, 0x467C, {0x8E, 0
 const IID tim_IID_IMMDeviceEnumerator    = {0xA95664D2, 0x9614, 0x4F35, {0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6}};
 const IID tim_IID_IAudioClient           = {0x1CB9AD4C, 0xDBFA, 0x4C32, {0xB1, 0x78, 0xC2, 0xF5, 0x68, 0xA7, 0x03, 0xB2}};
 const IID tim_IID_IAudioRenderClient     = {0xF294ACFC, 0x3146, 0x4483, {0xA7, 0xBF, 0xAD, 0xDC, 0xA7, 0xC2, 0x60, 0xE2}};
+const IID tim_IID_IAudioClient2          = {0x726778CD, 0xF60A, 0x4EDA, {0x82, 0xDE, 0xE4, 0x76, 0x10, 0xCD, 0x78, 0xAA}};
 
 #define SPEAKER_FRONT_LEFT        0x1
 #define SPEAKER_FRONT_RIGHT       0x2
@@ -802,9 +803,10 @@ int open_output(void)
 	
 #ifdef __IAudioClient2_INTERFACE_DEFINED__	
 	{
+		IAudioClient2 *pAudioClient2;
 		int ver = get_winver();
 
-		if(ver >= 3) // win8à»è„
+		if (SUCCEEDED(IAudioClient_QueryInterface(pAudioClient, &tim_IID_IAudioClient2, (void**)&pAudioClient2)))
 		{
 			AudioClientProperties acp = {0};
 			acp.cbSize     = sizeof(AudioClientProperties);
@@ -818,7 +820,8 @@ int open_output(void)
 				if(ver >= 6) // win8.1à»è„
 					acp.Options = AUDCLNT_STREAMOPTIONS_RAW;
 			}
-			hr = IAudioClient2_SetClientProperties((IAudioClient2 *)pAudioClient, (AudioClientProperties *)&acp);
+			hr = IAudioClient2_SetClientProperties(pAudioClient2, &acp);
+			IAudioClient2_Release(pAudioClient2);
 			if (FAILED(hr))
 				goto error;
 		}
