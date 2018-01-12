@@ -27,6 +27,8 @@
 #include "twsyn_bridge_host.h"
 #pragma hdrstop
 
+int opt_use_twsyn_bridge = 0;
+
 // bridge
 static DWORD PrcsId = 0;
 static DWORD PrcsVer = 0;

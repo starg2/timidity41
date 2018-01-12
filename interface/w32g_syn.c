@@ -123,7 +123,6 @@ static w32g_syn_t w32g_syn;
 
 // Šeí•Ï” (^^;;;
 HINSTANCE hInst = NULL;
-int opt_use_twsyn_bridge = 0;
 extern int RestartTimidity;
 
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
