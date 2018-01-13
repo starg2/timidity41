@@ -4164,7 +4164,8 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			else
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,TEXT(st_temp->OutputName));
 		} else
-			SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);	
+			SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
+		PostMessage(hwnd, WM_COMMAND, IDC_COMBO_OUTPUT_MODE, 0);	// force updating IDC_BUTTON_OUTPUT_FILE text
 #endif
 		opt = st_temp->opt_playmode + 1;	
 		if(strchr(opt, 'U')){
@@ -4592,7 +4593,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				}
 			} else {
 				if(st_temp->auto_output_mode>0){
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output File");
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output Dir");
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
 				} else {
 				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output File");
