@@ -1427,6 +1427,8 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 		vp->v.loop_end = vp->len + 1;
 	if (vp->v.loop_start > vp->len)
 		vp->v.loop_start = vp->len;
+	if (vp->v.loop_start < 0)
+		vp->v.loop_start = 0;
 	if (vp->v.loop_start >= vp->v.loop_end)
 	{
 		vp->v.loop_start = vp->len;
