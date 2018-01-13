@@ -8528,9 +8528,9 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 				cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WASAPI_PRIORITY, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
 				st_temp->wasapi_priority = cb_sel;
 				// WASAPI Stream Category
-				st_temp->wasapi_stream_category = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
+				st_temp->wasapi_stream_category = CB_GET(IDC_COMBO_WASAPI_STREAM_CATEGORY);
 				// WASAPI Stream Option
-				st_temp->wasapi_stream_option = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
+				st_temp->wasapi_stream_option = CB_GET(IDC_COMBO_WASAPI_STREAM_OPTION);
 
 				EndDialog(hwnd,TRUE);
 				break;
