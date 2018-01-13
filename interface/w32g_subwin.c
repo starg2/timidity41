@@ -323,7 +323,14 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 	}
 		break;
-	case WM_DESTROY:		
+	case WM_DROPFILES:
+#ifdef EXT_CONTROL_MAIN_THREAD
+		w32g_ext_control_main_thread(RC_EXT_DROP, (ptr_size_t)wParam);
+#else
+		w32g_send_rc(RC_EXT_DROP, (ptr_size_t)wParam);
+#endif
+		return FALSE;
+	case WM_DESTROY:
 		{
 		RECT rc;
 		GetWindowRect(hwnd,&rc);
@@ -1831,6 +1838,13 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			DocWndInfo.PosY = rc.top;
 		}
 		break;
+	case WM_DROPFILES:
+#ifdef EXT_CONTROL_MAIN_THREAD
+		w32g_ext_control_main_thread(RC_EXT_DROP, (ptr_size_t)wParam);
+#else
+		w32g_send_rc(RC_EXT_DROP, (ptr_size_t)wParam);
+#endif
+		return FALSE;
 	default:
 		return FALSE;
 	}
