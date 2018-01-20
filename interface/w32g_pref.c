@@ -94,6 +94,7 @@
 #include "gogo_a.h"
 #endif
 
+#include <versionhelpers.h>
 
 
 /* TiMidity Win32GUI preference / PropertySheet */
@@ -8038,13 +8039,25 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 
 			DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_CH_MASK); // çÏÇ¡ÇƒÇ»Ç¢ÇÃÇ≈OFF			
 			// WASAPI StreamCategory
-			for (i = 0; i < cb_num_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY; i++)
+			for (i = 0; i < (IsWindows8OrGreater() ? cb_num_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY : 1); i++)
 				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, cb_info_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY[i]);
-			CB_SET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, (st_temp->pa_wasapi_stream_category));
+			if(IsWindows8OrGreater()) {
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, (st_temp->pa_wasapi_stream_category));
+			}else{
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, 0);
+				DI_DISABLE(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
+			}
 			// WASAPI StreamOption
-			for (i = 0; i < cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION; i++)
+			for (i = 0; i < (IsWindows10OrGreater() ? cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION : IsWindows8Point1OrGreater() ? 2 : 1); i++)
 				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_PA_WASAPI_STREAM_OPTION[i]);
-			CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option));
+			if(IsWindows10OrGreater()){
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option));
+			}else if(IsWindows8Point1OrGreater()){
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option >= 2 ? 0 : st_temp->pa_wasapi_stream_option));
+			}else{
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, 0);
+				DI_DISABLE(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
+			}
 
 
 			// asio
@@ -8209,10 +8222,13 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				flag |= cb_sel << 4;
 				st_temp->pa_wasapi_flag = flag;
 				// WASAPI StreamCategory
-				st_temp->pa_wasapi_stream_category = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_PA_WASAPI_STREAM_CATEGORY))){
+					st_temp->pa_wasapi_stream_category = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
+				}
 				// WASAPI StreamOption
-				st_temp->pa_wasapi_stream_option = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
-
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_PA_WASAPI_STREAM_OPTION))){
+					st_temp->pa_wasapi_stream_option = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
+				}
 				EndDialog(hwnd,TRUE);
 				break;
 			}
@@ -8474,13 +8490,25 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 				CB_INSSTR(IDC_COMBO_WASAPI_PRIORITY, cb_info_IDC_COMBO_WASAPI_PRIORITY[i]);
 			CB_SET(IDC_COMBO_WASAPI_PRIORITY, (st_temp->wasapi_priority));		
 			// WASAPI Stream Category
-			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY; i++)
+			for (i = 0; i < (IsWindows8OrGreater() ? cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY : 1); i++)
 				CB_INSSTR(IDC_COMBO_WASAPI_STREAM_CATEGORY, cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[i]);
-			CB_SET(IDC_COMBO_WASAPI_STREAM_CATEGORY, (st_temp->wasapi_stream_category));
+			if(IsWindows8OrGreater()){
+				CB_SET(IDC_COMBO_WASAPI_STREAM_CATEGORY, (st_temp->wasapi_stream_category));
+			}else{
+				CB_SET(IDC_COMBO_WASAPI_STREAM_CATEGORY, 0);
+				DI_DISABLE(IDC_COMBO_WASAPI_STREAM_CATEGORY);
+			}
 			// WASAPI Stream Option
-			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_OPTION; i++)
+			for (i = 0; i < (IsWindows10OrGreater() ? cb_num_IDC_COMBO_WASAPI_STREAM_OPTION : IsWindows8Point1OrGreater() ? 2 : 1); i++)
 				CB_INSSTR(IDC_COMBO_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_WASAPI_STREAM_OPTION[i]);
-			CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option));
+			if(IsWindows10OrGreater()){
+				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option));
+			}else if(IsWindows8Point1OrGreater()){
+				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option >= 2 ? 0 : st_temp->wasapi_stream_option));
+			}else{
+				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, 0);
+				DI_DISABLE(IDC_COMBO_WASAPI_STREAM_OPTION);
+			}
 
 			SetFocus(DI_GET(IDOK));
 			return TRUE;
@@ -8529,9 +8557,13 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 				cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WASAPI_PRIORITY, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
 				st_temp->wasapi_priority = cb_sel;
 				// WASAPI Stream Category
-				st_temp->wasapi_stream_category = CB_GET(IDC_COMBO_WASAPI_STREAM_CATEGORY);
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_WASAPI_STREAM_CATEGORY))) {
+					st_temp->wasapi_stream_category = CB_GET(IDC_COMBO_WASAPI_STREAM_CATEGORY);
+				}
 				// WASAPI Stream Option
-				st_temp->wasapi_stream_option = CB_GET(IDC_COMBO_WASAPI_STREAM_OPTION);
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_WASAPI_STREAM_OPTION))) {
+					st_temp->wasapi_stream_option = CB_GET(IDC_COMBO_WASAPI_STREAM_OPTION);
+				}
 
 				EndDialog(hwnd,TRUE);
 				break;
