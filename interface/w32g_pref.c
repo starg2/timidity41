@@ -8048,9 +8048,9 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				DI_DISABLE(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
 			}
 			// WASAPI StreamOption
-			for (i = 0; i < (IsWindows10OrGreater() ? cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION : IsWindows8Point1OrGreater() ? 2 : 1); i++)
+			for (i = 0; i < (IsWindowsVersionOrGreater(0x0A, 0x00, 0) ? cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION : IsWindows8Point1OrGreater() ? 2 : 1); i++)
 				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_PA_WASAPI_STREAM_OPTION[i]);
-			if(IsWindows10OrGreater()){
+			if(IsWindowsVersionOrGreater(0x0A, 0x00, 0)){
 				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option));
 			}else if(IsWindows8Point1OrGreater()){
 				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option >= 2 ? 0 : st_temp->pa_wasapi_stream_option));
@@ -8499,9 +8499,9 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 				DI_DISABLE(IDC_COMBO_WASAPI_STREAM_CATEGORY);
 			}
 			// WASAPI Stream Option
-			for (i = 0; i < (IsWindows10OrGreater() ? cb_num_IDC_COMBO_WASAPI_STREAM_OPTION : IsWindows8Point1OrGreater() ? 2 : 1); i++)
+			for (i = 0; i < (IsWindowsVersionOrGreater(0x0A, 0x00, 0) ? cb_num_IDC_COMBO_WASAPI_STREAM_OPTION : IsWindows8Point1OrGreater() ? 2 : 1); i++)
 				CB_INSSTR(IDC_COMBO_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_WASAPI_STREAM_OPTION[i]);
-			if(IsWindows10OrGreater()){
+			if(IsWindowsVersionOrGreater(0x0A, 0x00, 0)){
 				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option));
 			}else if(IsWindows8Point1OrGreater()){
 				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option >= 2 ? 0 : st_temp->wasapi_stream_option));
