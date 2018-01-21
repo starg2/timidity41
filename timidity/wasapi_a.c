@@ -807,17 +807,19 @@ int open_output(void)
 		if (SUCCEEDED(IAudioClient_QueryInterface(pAudioClient, &tim_IID_IAudioClient2, (void**)&pAudioClient2)))
 		{
 			AudioClientProperties acp = {0};
-			acp.cbSize     = sizeof(AudioClientProperties);
+			acp.cbSize = min(sizeof(AudioClientProperties), ver >= 4 ? 16 : 12);
 			acp.bIsOffload = FALSE;
 			acp.eCategory  = opt_wasapi_stream_category;
 		
+#if (NTDDI_VERSION >= NTDDI_WINBLUE) && !defined(__MINGW32__)
 			if(opt_wasapi_stream_option >= 2){
 				if(ver >= 6) // win10à»è„
 					acp.Options = AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;
 			}else if(opt_wasapi_stream_option == 1){
-				if(ver >= 6) // win8.1à»è„
+				if(ver >= 4) // win8.1à»è„
 					acp.Options = AUDCLNT_STREAMOPTIONS_RAW;
 			}
+#endif
 			hr = IAudioClient2_SetClientProperties(pAudioClient2, &acp);
 			IAudioClient2_Release(pAudioClient2);
 			if (FAILED(hr))
