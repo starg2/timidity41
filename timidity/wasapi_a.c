@@ -128,7 +128,7 @@ PlayMode dpm = {
 #include <audiopolicy.h>
 #define INITGUID
 #include <mmdeviceapi.h>
-#include <functiondiscoverykeys.h>
+#include <functiondiscoverykeys_devpkey.h>
 #undef INITGUID
 
 const CLSID tim_CLSID_MMDeviceEnumerator = {0xBCDE0395, 0xE52F, 0x467C, {0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E}};
