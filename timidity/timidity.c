@@ -697,7 +697,7 @@ static inline int parse_opt_wasapi_device_id(const char *arg);
 static inline int parse_opt_wasapi_latency(const char *arg);
 static inline int parse_opt_wasapi_format_ext(const char *arg);
 static inline int parse_opt_wasapi_exclusive(const char *arg);
-static inline int parse_opt_wasapi_poling(const char *arg);
+static inline int parse_opt_wasapi_polling(const char *arg);
 static inline int parse_opt_wasapi_priority(const char *arg);
 static inline int parse_opt_wasapi_stream_category(const char *arg);
 static inline int parse_opt_wasapi_stream_option(const char *arg);
