@@ -615,8 +615,7 @@ void init_imagelist(HWND hlv)
 
 void uninit_imagelist()
 {
-	if(hImageList)
-		ImageList_Destroy(hImageList);
+	// hImageList will be destroyed by the parent list view
 	hImageList = NULL;
 }
 #endif
