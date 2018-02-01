@@ -116,7 +116,7 @@ add_definitions(
 )
 
 if(MSVC)
-    add_compile_options(/W4 /Zi /GS /fp:fast /permissive- /Qspectre)
+    add_compile_options(/W4 /Zi /GS /fp:fast /permissive- /MP /Qspectre)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /std:c++17")
 
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL /guard:cf")
