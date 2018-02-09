@@ -305,47 +305,37 @@ DEFINE_GUIDSTRUCT("A855A48C-2F78-4729-9051-1968746B9EEF", KSPROPSETID_RtAudio);
 #define KSPROPERTY_RTAUDIO_UNREGISTER_NOTIFICATION_EVENT 7
 #define KSPROPERTY_RTAUDIO_QUERY_NOTIFICATION_SUPPORT 8
 
-#ifndef KSRTAUDIO_BUFFER_PROPERTY
+#ifndef _MSC_VER
 typedef struct {
     KSPROPERTY  Property;
     PVOID       BaseAddress;
     ULONG       RequestedBufferSize;
 } KSRTAUDIO_BUFFER_PROPERTY, *PKSRTAUDIO_BUFFER_PROPERTY;
-#endif
 
-#ifndef KSRTAUDIO_BUFFER_PROPERTY_WITH_NOTIFICATION
 typedef struct {
     KSPROPERTY  Property;
     PVOID       BaseAddress;
     ULONG       RequestedBufferSize;
     ULONG       NotificationCount;
 } KSRTAUDIO_BUFFER_PROPERTY_WITH_NOTIFICATION, *PKSRTAUDIO_BUFFER_PROPERTY_WITH_NOTIFICATION;
-#endif
 
-#ifndef KSRTAUDIO_BUFFER
 typedef struct {
     PVOID   BufferAddress;
     ULONG   ActualBufferSize;
     BOOL    CallMemoryBarrier;
 } KSRTAUDIO_BUFFER, *PKSRTAUDIO_BUFFER;
-#endif
 
-#ifndef KSRTAUDIO_HWLATENCY
 typedef struct {
     ULONG   FifoSize;
     ULONG   ChipsetDelay;
     ULONG   CodecDelay;
 } KSRTAUDIO_HWLATENCY, *PKSRTAUDIO_HWLATENCY;
-#endif
 
-#ifndef KSRTAUDIO_HWREGISTER_PROPERTY
 typedef struct {
     KSPROPERTY  Property;
     PVOID       BaseAddress;
 } KSRTAUDIO_HWREGISTER_PROPERTY, *PKSRTAUDIO_HWREGISTER_PROPERTY;
-#endif
 
-#ifndef KSRTAUDIO_HWREGISTER
 typedef struct {
     PVOID       Register;
     ULONG       Width;
@@ -353,9 +343,7 @@ typedef struct {
     ULONGLONG   Denominator;
     ULONG       Accuracy;
 } KSRTAUDIO_HWREGISTER, *PKSRTAUDIO_HWREGISTER;
-#endif
 
-#ifndef KSRTAUDIO_NOTIFICATION_EVENT_PROPERTY
 typedef struct {
     KSPROPERTY  Property;
     HANDLE      NotificationEvent;
