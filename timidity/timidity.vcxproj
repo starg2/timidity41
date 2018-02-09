@@ -317,6 +317,7 @@
     <ClCompile Include="w32_gogo.c" />
     <ClCompile Include="wasapi_a.c" />
     <ClCompile Include="wave_a.c" />
+    <ClCompile Include="wdmks_a.c" />
     <ClCompile Include="wrd_read.c" />
     <ClCompile Include="wrdt.c" />
   </ItemGroup>

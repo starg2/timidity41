@@ -23,11 +23,11 @@
 
 #ifndef ___OUTPUT_H_
 #define ___OUTPUT_H_
-//#include "output.h"
 
 
-#define CNV_USE_TEMP_ENCODE
-// define : output.c general_output_convert() でバッファ変換 シンプルな変換1回なので速い
+
+#define USE_TEMP_ENCODE
+// define : output.c general_output_convert() シンプルな変換1回なので速い
 // undef : 各出力でバッファ変換 変換を2回する分遅い
 
 

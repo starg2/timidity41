@@ -17,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="Debug"
-			IntermediateDirectory="Debug"
+			OutputDirectory="..\Debug"
+			IntermediateDirectory=".\Debug"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC70.vsprops"
 			CharacterSet="2"
@@ -75,7 +75,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib"
+				AdditionalDependencies="setupapi.lib odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib"
 				OutputFile="../Debug/twsynsrv.exe"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
@@ -133,11 +133,12 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="1"
+				Optimization="3"
+				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
+				EnableFiberSafeOptimizations="true"
 				AdditionalIncludeDirectories="..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;HAVE_CONFIG_H;_MT;TWSYNG32;TWSYNSRV;"
 				StringPooling="true"
@@ -169,7 +170,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib"
+				AdditionalDependencies="setupapi.lib odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib"
 				OutputFile="..\Release\twsynsrv.exe"
 				LinkIncremental="1"
 				GenerateDebugInformation="false"
@@ -492,6 +493,10 @@
 			</File>
 			<File
 				RelativePath="..\timidity\wave_a.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\wdmks_a.c"
 				>
 			</File>
 			<File

@@ -88,7 +88,7 @@ int opt_wasapi_latency = 10; //  ms
 int opt_wasapi_format_ext = 1;
 int opt_wasapi_exclusive = 0; // shared
 int opt_wasapi_polling = 0; // 0:event 1:polling
-int opt_wasapi_priority = 0; // auto
+int opt_wasapi_priority = 0; // 0:Auto, 1:Audio, 2:Capture, 3:Distribution, 4:Games, 5:Playback, 6:ProAudio, 7:WindowManager
 int opt_wasapi_stream_category = 0;
 int opt_wasapi_stream_option = 0;
 
@@ -130,10 +130,10 @@ PlayMode dpm = {
 //#include <Avrt.h>
 #include <Audioclient.h>
 #include <audiopolicy.h>
-#define INITGUID
+//#define INITGUID
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys.h>
-#undef INITGUID
+//#undef INITGUID
 #endif
 
 const CLSID tim_CLSID_MMDeviceEnumerator = {0xBCDE0395, 0xE52F, 0x467C, {0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E}};
@@ -146,18 +146,6 @@ const IID tim_IID_IAudioRenderClient     = {0xF294ACFC, 0x3146, 0x4483, {0xA7, 0
 #define SPEAKER_FRONT_CENTER      0x4
 #define SPEAKER_MONO	          (SPEAKER_FRONT_CENTER)
 #define SPEAKER_STEREO	          (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT)
-
-const char *ThreadPriorityName[] =
-{
-	NULL,
-	"Audio",
-	"Capture",
-	"Distribution",
-	"Games",
-	"Playback",
-	"Pro Audio",
-	"Window Manager"
-};
 
 /*****************************************************************************************************************************/
 
@@ -189,6 +177,9 @@ static int is_buffer_empty(void)
 
 static size_t calc_output_bytes(size_t max_bytes)
 {
+#if 1 // use FilledByte
+	return Buffers.FilledByte > max_bytes ? max_bytes : Buffers.FilledByte;
+#else
 	size_t bytes = 0;
 	WABufferBlock *block = Buffers.pHead;
 
@@ -197,6 +188,7 @@ static size_t calc_output_bytes(size_t max_bytes)
 		block = block->pNext;
 	}
 	return bytes > max_bytes ? max_bytes : bytes;
+#endif
 }
 
 static void clear_buffer(void)
@@ -207,6 +199,7 @@ static void clear_buffer(void)
 		Buffers.pHead = NULL;
 		Buffers.pTail = NULL;
 	}
+	Buffers.FilledByte = 0;
 }
 
 static void free_buffer(void)
@@ -221,7 +214,6 @@ static void free_buffer(void)
 		block = pNext;
 	}
 	Buffers.pFree = NULL;	
-	Buffers.FilledByte = 0;
 }
 
 /* if *pbuf == NULL, appends `size` count of zeros */
@@ -245,6 +237,7 @@ static void input_buffer_partial(WABufferBlock *block, const uint8 **pbuf, size_
 static int input_buffer(const uint8 *buf, size_t bytes)
 {
 	size_t pbytes = bytes;
+	int flg = 0;
 
 	while (bytes > 0){
 		if(Buffers.pTail && Buffers.pTail->CurrentSize < Buffers.pTail->Capacity){
@@ -266,9 +259,11 @@ static int input_buffer(const uint8 *buf, size_t bytes)
 		}else{
 			size_t capacity = bytes * 4;
 			WABufferBlock *new_block = (WABufferBlock *)safe_malloc(sizeof(WABufferBlock) + capacity);
-
-			if(!new_block)
-				return FALSE;
+			
+			if(!new_block){
+				flg = 1; // error
+				break;
+			}
 			if(Buffers.pTail)
 				Buffers.pTail->pNext = new_block;
 			else
@@ -280,8 +275,8 @@ static int input_buffer(const uint8 *buf, size_t bytes)
 			input_buffer_partial(Buffers.pTail, &buf, &bytes);
 		}
 	}
-	Buffers.FilledByte += pbytes;
-	return TRUE;
+	Buffers.FilledByte += pbytes - bytes;
+	return flg ? FALSE : TRUE;
 }
 
 static void output_buffer(uint8 *buff, size_t bytes)
@@ -315,7 +310,7 @@ static void output_buffer(uint8 *buff, size_t bytes)
 		}
 		out_bytes -= tmp_bytes;
 	}
-	Buffers.FilledByte -= pbytes;
+	Buffers.FilledByte -= pbytes - bytes - out_bytes;
 }
 
 /*****************************************************************************************************************************/
@@ -338,7 +333,7 @@ static int load_avrt(void)
 	pAvSetMmThreadCharacteristics = (fAvSetMmThreadCharacteristics)GetProcAddress(hDll, "AvSetMmThreadCharacteristicsA");
 #endif
 	pAvRevertMmThreadCharacteristics = (fAvRevertMmThreadCharacteristics)GetProcAddress(hDll, "AvRevertMmThreadCharacteristics");
-	return (int)pAvSetMmThreadCharacteristics && pAvRevertMmThreadCharacteristics;
+	return (int)(pAvSetMmThreadCharacteristics && pAvRevertMmThreadCharacteristics);
 }
 
 static void free_avrt(void)
@@ -350,12 +345,34 @@ static void free_avrt(void)
 	pAvRevertMmThreadCharacteristics = NULL;
 }
 
+static const char *RTThreadPriorityName[] =
+{
+	NULL,
+	"Audio",
+	"Capture",
+	"Distribution",
+	"Games",
+	"Playback",
+	"Pro Audio",
+	"Window Manager"
+};
+
+/*****************************************************************************************************************************/
+
+static int WinVer = -1;
+
 static int get_winver(void)
 {
 	DWORD winver, major, minor;
 	int ver = 0;
-
-	winver = GetVersion();		
+	
+	if(WinVer != -1)
+		return WinVer;
+	winver = GetVersion();
+	if(winver & 0x80000000){ // Win9x
+		WinVer = 0;
+		return 0;
+	}		
 	major = (DWORD)(LOBYTE(LOWORD(winver)));
 	minor = (DWORD)(HIBYTE(LOWORD(winver)));
 	switch (major){
@@ -386,6 +403,7 @@ static int get_winver(void)
 		ver = 8; // 11?
 		break;
 	}
+	WinVer = ver;
 	return ver;
 }
 
@@ -396,7 +414,6 @@ static HANDLE hRenderThread = NULL;
 static IMMDevice* pMMDevice = NULL;
 static IAudioClient* pAudioClient = NULL;
 static IAudioRenderClient* pAudioRenderClient = NULL;
-static REFERENCE_TIME BufferDuration = 100000;
 static UINT32 FrameBytes = 0;
 static UINT32 BufferFrames = 0;
 static int ThreadPriorityNum = 0;
@@ -463,11 +480,11 @@ static unsigned int WINAPI render_thread(void *arglist)
 {
 	int ret = 1;
 	HANDLE hMmCss = NULL;
-	DWORD mmCssTaskIndex = 0;
+	DWORD mmCssTaskIndex = 0;	
 		
 	if(FAILED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED)))
 		return 1;
-	hMmCss = (pAvSetMmThreadCharacteristics)(ThreadPriorityName[ThreadPriorityNum], &mmCssTaskIndex);
+	hMmCss = (pAvSetMmThreadCharacteristics)(RTThreadPriorityName[ThreadPriorityNum], &mmCssTaskIndex);
 	if(!hMmCss)
 		goto thread_exit;
 	IsThreadStart = 1;
@@ -567,6 +584,143 @@ error:
 	return FALSE;
 }
 
+static void print_device_list(void)
+{
+	int i;
+	UINT num;
+	HRESULT hr;
+	IMMDeviceEnumerator *pde = NULL;
+	IMMDeviceCollection *pdc = NULL;
+	IPropertyStore *pps = NULL;
+	IAudioClient *tmpClient = NULL;	
+	REFERENCE_TIME LatencyMax, LatencyMin;
+	IMMDevice *defdev = NULL;	
+	WASAPI_DEVICELIST *device = NULL;
+
+	if(!get_winver())
+		goto error0;
+	if(detect() == FALSE)
+		goto error0;	
+	if(!get_default_device(&defdev))
+		goto error0;	
+	device = (WASAPI_DEVICELIST *)safe_malloc(sizeof(WASAPI_DEVICELIST) * WASAPI_DEVLIST_MAX);
+	if(!device)
+		goto error1;
+	memset(device, 0, sizeof(WASAPI_DEVICELIST) * WASAPI_DEVLIST_MAX);
+	device[0].deviceID = -1;
+	device[0].LatencyMax = 10;
+	device[0].LatencyMin = 3;
+	strcpy(device[0].name, "Default Render Device");	
+	if(FAILED(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void **)&pde)))
+		goto error1;
+	if(FAILED(IMMDeviceEnumerator_EnumAudioEndpoints(pde, eRender, DEVICE_STATE_ACTIVE, &pdc)))
+		goto error1;	
+	LatencyMax = 100000;
+	LatencyMin = 30000;
+	if(FAILED(IMMDevice_Activate(defdev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
+		LatencyMin = LatencyMin;
+	}else if(FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))){
+		LatencyMin = LatencyMin;
+	}	
+	LatencyMax /= 10000; // hns to ms
+	LatencyMin /= 10000; // hns to ms
+	if(LatencyMax > 1000)
+		LatencyMax = 1000;
+	if(LatencyMin < 0)
+		LatencyMin = 1;
+	device[0].LatencyMax = LatencyMax;
+	device[0].LatencyMin = LatencyMin;
+	if(tmpClient){
+		tmpClient->lpVtbl->Release(tmpClient);
+		tmpClient = NULL;
+	}	
+	if(defdev){
+		IMMDevice_Release(defdev);
+		defdev = NULL;
+	}
+	if(FAILED(IMMDeviceCollection_GetCount(pdc, &num)))
+		goto error1;
+	if(num <= 0)
+		goto error1;
+	if(num > WASAPI_DEVLIST_MAX - 2)
+		num = WASAPI_DEVLIST_MAX - 2;
+	for(i = 0; i < num; i++){ // -1, 0
+		IMMDevice *dev = NULL;
+		PROPVARIANT value;
+		IAudioClient *tmpClient = NULL;
+
+		if(FAILED(IMMDeviceCollection_Item(pdc, i, &dev)))
+			goto error1;	
+		device[i+1].deviceID = i;
+		if(FAILED(IMMDevice_OpenPropertyStore(dev, STGM_READ, &pps)))
+			goto error1;
+		PropVariantInit(&value);
+		if(FAILED(IPropertyStore_GetValue(pps, &PKEY_Device_FriendlyName, &value))){
+			PropVariantClear(&value);
+		}else{
+			if(value.pwszVal)
+#ifdef UNICODE
+				WideCharToMultiByte(CP_UTF8, 0, value.pwszVal, (int)wcslen(value.pwszVal), device[i+1].name, WASAPI_DEVLIST_LEN - 1, 0, 0);
+#else
+				WideCharToMultiByte(CP_ACP, 0, value.pwszVal, (int)wcslen(value.pwszVal), device[i+1].name, WASAPI_DEVLIST_LEN - 1, 0, 0);
+#endif
+			else
+				_snprintf(device[i+1].name, WASAPI_DEVLIST_LEN - 1, "Device Error %d", i);
+		}
+		PropVariantClear(&value);
+		LatencyMax = 100000;
+		LatencyMin = 30000;
+		if(FAILED(IMMDevice_Activate(dev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
+		}else if(FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))){
+		}
+		LatencyMax /= 10000; // hns to ms
+		LatencyMin /= 10000; // hns to ms
+		if(LatencyMax > 1000)
+			LatencyMax = 1000;
+		if(LatencyMin < 0)
+			LatencyMin = 1;
+		device[i+1].LatencyMax = LatencyMax;
+		device[i+1].LatencyMin = LatencyMin;
+		if(tmpClient){
+			tmpClient->lpVtbl->Release(tmpClient);
+			tmpClient = NULL;
+		}		
+		if(dev){
+			IMMDevice_Release(dev);
+			dev = NULL;
+		}
+		if(pps){
+			pps->lpVtbl->Release(pps); 
+			pps = NULL;
+		}
+	}
+	if(pdc)
+		pdc->lpVtbl->Release(pdc); 
+	if(pde)
+		IMMDeviceEnumerator_Release(pde);
+	for(i = 0; i < num; i++){
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%2d %s", device[i].deviceID, device[i].name);
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, " Latency min:%d max:%d", device[i].LatencyMin, device[i].LatencyMax);
+	}
+	if(device)
+		safe_free(device);
+	return;
+error1:
+	if(tmpClient)
+		tmpClient->lpVtbl->Release(tmpClient);
+	if(pdc){
+		pdc->lpVtbl->Release(pdc);
+	}
+	if(pde)
+		IMMDeviceEnumerator_Release(pde);
+	if(device)
+		safe_free(device);
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "WASAPI print_device_list() error.");
+	return;
+error0:
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "WASAPI output device not found");
+	return;
+}
 
 /*****************************************************************************************************************************/
 /* interface function */
@@ -612,7 +766,7 @@ void close_output(void)
 	}
 	BufferFrames = 0;
 	free_avrt();
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	reset_temporary_encoding();
 #endif
 	IsOpened = 0;
@@ -627,19 +781,26 @@ int open_output(void)
 	WAVEFORMATEX *pwf = NULL;
 	AUDCLNT_SHAREMODE ShareMode;
 	uint32 StreamFlags;
-	REFERENCE_TIME Periodicity, LatencyMax, LatencyMin;	
+	REFERENCE_TIME Periodicity, LatencyMax, LatencyMin, BufferDuration;
 	GUID guid_WAVE_FORMAT = {WAVE_FORMAT_UNKNOWN,0x0000,0x0010,{0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
 	BYTE *buf;
+	int device_id;
 
 	close_output();	
+		
 	if(!get_winver()){
-		ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "ERROR! WASAPI require Windows Vista and later.");
+		ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "WASAPI ERROR! WASAPI require Windows Vista and later.");
 		return -1;
+	}	
+	device_id = opt_output_device_id == -3 ? opt_wasapi_device_id : opt_output_device_id;
+	if(device_id == -2){
+		print_device_list();
+        return -1;
 	}
 	if(!load_avrt()){
-		ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "ERROR! AVRT.DLL function failed.");
+		ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "WASAPI ERROR! AVRT.DLL function failed.");
 		goto error;
-	}	
+	}
 	IsExclusive = opt_wasapi_exclusive;
 	IsPolling = opt_wasapi_polling;
 	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // reset manual
@@ -652,69 +813,31 @@ int open_output(void)
 		IsCoInit = 1;
 		CoInitThreadId = GetCurrentThreadId();
     }
-	if(!get_device(&pMMDevice, opt_output_device_id == -3 ? opt_wasapi_device_id : opt_output_device_id))
+	if(!get_device(&pMMDevice, device_id))
 		goto error;
 	if(FAILED(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient)))
 		goto error;	
-
-#if 0 // test format
-	{
-	IPropertyStore *pps = NULL;
-	PROPVARIANT value;
-	int cpsz;
-
-	if(FAILED(IMMDevice_OpenPropertyStore(pMMDevice, STGM_READ, &pps)))
-		goto error;
-    PropVariantInit(&value);
-    if(FAILED(IPropertyStore_GetValue(pps, &PKEY_AudioEngine_DeviceFormat, &value)))
-		goto error;
-	cpsz = min(sizeof(WAVEFORMATEXTENSIBLE), value.blob.cbSize);
-	memcpy(&wfe, value.blob.pBlobData, cpsz);
-    PropVariantClear(&value);
-	if(pps){
-		pps->lpVtbl->Release(pps); 
-		pps = NULL;
-	}
-	if(cpsz == sizeof(WAVEFORMATEX)){
-		pwf = (WAVEFORMATEX *)&wfe;
-		opt_wasapi_format_ext = 0;
-	}else{
-		pwf = &wfe.Format;
-		opt_wasapi_format_ext = 1;
-	}
-	}
-#endif
-
 	include_enc = PE_SIGNED;
 	exclude_enc = PE_BYTESWAP | PE_ULAW | PE_ALAW;	
 	if(!(dpm.encoding & (PE_F64BIT | PE_64BIT | PE_F32BIT | PE_32BIT | PE_24BIT | PE_16BIT))) // 8bit
 		include_enc |= PE_16BIT;
-	dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
-	
+	dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);	
+
 	if(opt_wasapi_format_ext){
 		pwf = &wfe.Format;
 		memcpy(&wfe.SubFormat, &guid_WAVE_FORMAT, sizeof(GUID));
 		pwf->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-		pwf->cbSize       = (WORD)22;
+		pwf->cbSize = (WORD)22;
 	}else{
 		pwf = (WAVEFORMATEX *)&wfe;
-		pwf->cbSize       = (WORD)0;
+		pwf->cbSize = (WORD)0;
 	}
 	CvtMode = 0;
 	if(dpm.encoding & PE_16BIT){
 		if(opt_wasapi_format_ext){			
 			wfe.SubFormat.Data1 = WAVE_FORMAT_PCM;
 			wfe.Samples.wValidBitsPerSample = 16;
-#if 1
 			pwf->wBitsPerSample = (WORD) 16;
-#else
-			if(opt_wasapi_exclusive){
-				pwf->wBitsPerSample = (WORD) 32;
-				CvtMode = 1;
-			}else{
-				pwf->wBitsPerSample = (WORD) 16;
-			}		
-#endif
 		}else{
 			pwf->wFormatTag = WAVE_FORMAT_PCM;
 			pwf->wBitsPerSample = (WORD) 16;
@@ -784,8 +907,9 @@ int open_output(void)
 	pwf->nBlockAlign     = (WORD)(pwf->nChannels * pwf->wBitsPerSample / 8);
 	pwf->nAvgBytesPerSec = (DWORD)pwf->nSamplesPerSec * pwf->nBlockAlign;
 	wfe.dwChannelMask = pwf->nChannels==1 ? SPEAKER_MONO : SPEAKER_STEREO;
+	FrameBytes = pwf->nBlockAlign;	
 
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	if(CvtMode == 2){			
 		int tmp_enc = dpm.encoding;
 		tmp_enc &= ~PE_24BIT;
@@ -800,15 +924,11 @@ int open_output(void)
 		reset_temporary_encoding();
 	}
 #endif
-
-	FrameBytes = pwf->nBlockAlign;
-	
 #ifdef __IAudioClient2_INTERFACE_DEFINED__	
 	{
 		int ver = get_winver();
 
-		if(ver >= 3) // win8à»è„
-		{
+		if(ver >= 3){ // win8à»è„
 			AudioClientProperties acp = {0};
 			acp.cbSize     = sizeof(AudioClientProperties);
 			acp.bIsOffload = FALSE;
@@ -825,8 +945,7 @@ int open_output(void)
 				goto error;
 		}
 	}
-#endif
-	
+#endif	
 	if(opt_wasapi_priority <= 0 || opt_wasapi_priority > 7)
 		ThreadPriorityNum = IsExclusive ? 6 : 1;
 	else
@@ -834,7 +953,7 @@ int open_output(void)
 	ShareMode = IsExclusive ? AUDCLNT_SHAREMODE_EXCLUSIVE : AUDCLNT_SHAREMODE_SHARED;
 	StreamFlags = IsPolling ? 0x0 : AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
 	StreamFlags |= AUDCLNT_STREAMFLAGS_NOPERSIST;
-#if 1
+
 	LatencyMax = 100000;
 	LatencyMin = 30000;
 	if(FAILED(IAudioClient_GetDevicePeriod(pAudioClient, &LatencyMax, &LatencyMin))){
@@ -850,11 +969,8 @@ int open_output(void)
 		BufferDuration = LatencyMax;
 	if(BufferDuration < LatencyMin)
 		BufferDuration = LatencyMin;
-#else
-	BufferDuration = (IsExclusive ? 10 : 30) * 10000; // 10ms,30ms
-#endif
 	Periodicity = IsExclusive ? BufferDuration : 0;
-	
+
 	hr = IAudioClient_Initialize(pAudioClient, ShareMode, StreamFlags, BufferDuration, Periodicity,	(WAVEFORMATEX *)&wfe, NULL);
 	if(hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED){
 		UINT32 bufferSize;
@@ -889,9 +1005,9 @@ int open_output(void)
 	QueueSize = audio_buffer_size * FrameBytes * dpm.extra_param[0];
 	WaitTime = (double)audio_buffer_size * div_playmode_rate * 1000.0 * DIV_4; // blocktime/4
 	if(IsPolling){ // for polling
-		DWORD sleep_ms_in = (double)audio_buffer_size * div_playmode_rate * 1000.0 * DIV_2;
-		DWORD sleep_ms_out = (double)BufferDuration * DIV_10000 * DIV_2; // 100ns to ms
-		ThreadWaitTime = sleep_ms_in < sleep_ms_out ? sleep_ms_in : sleep_ms_out;
+		ThreadWaitTime = BufferDuration * DIV_10000 * DIV_3; // 100ns to ms
+		if(ThreadWaitTime < 1)
+			ThreadWaitTime = 1;
 	}
 	IsOpened = 1;
 	IsThreadStart = 0;
@@ -927,13 +1043,13 @@ int output_data(const uint8 *buf, size_t nbytes)
 {
 	int flg = TRUE, i;
 	int32 max_count = 64; // wait =  blocktime/4 * max_count
-#ifndef CNV_USE_TEMP_ENCODE
+#ifndef USE_TEMP_ENCODE
 	uint8 tbuff[2 * (1L << DEFAULT_AUDIO_BUFFER_BITS) * sizeof(int16) * 2] = {0};
 #endif
 
 	if(!IsOpened) 
 		return -1;	
-#ifndef CNV_USE_TEMP_ENCODE
+#ifndef USE_TEMP_ENCODE
 	if(CvtMode == 2){ // 24bit 3byte->4byte
 		int samples = nbytes / 3;
 		uint8 *in = (uint8 *)buf, *out = tbuff;
@@ -1009,7 +1125,11 @@ int acntl(int request, void *arg)
 int detect(void)
 {
 	IMMDevice *pMMDevice = NULL;
-	int result = get_default_device(&pMMDevice);
+	int result;
+	
+	if(!get_winver())
+		return -1;
+	result = get_default_device(&pMMDevice);
 	if(pMMDevice)
 		IMMDevice_Release(pMMDevice);
 	return result;
@@ -1047,9 +1167,9 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 	LatencyMax = 100000;
 	LatencyMin = 30000;
 	if(FAILED(IMMDevice_Activate(defdev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
-		LatencyMin =LatencyMin;
+		LatencyMin = LatencyMin;
 	}else if(FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))){
-		LatencyMin =LatencyMin;
+		LatencyMin = LatencyMin;
 	}	
 	LatencyMax /= 10000; // hns to ms
 	LatencyMin /= 10000; // hns to ms

@@ -112,7 +112,23 @@ void OverrideSFSettingSave()
 	MyIni_SetFloat64(sec, "Attenuation_Pow", sf_attenuation_pow);	
 	MyIni_SetFloat64(sec, "Attenuation_Mul", sf_attenuation_mul);	
 	MyIni_SetFloat64(sec, "Attenuation_Add", sf_attenuation_add);	
-	
+		
+	MyIni_SetInt32(sec, "Limit_VolEnv_Attack", sf_limit_volenv_attack);	
+	MyIni_SetInt32(sec, "Limit_ModEnv_Attack", sf_limit_modenv_attack);	
+	MyIni_SetInt32(sec, "Limit_ModEnv_Fc", sf_limit_modenv_fc);	
+	MyIni_SetInt32(sec, "Limit_ModEnv_Pitch", sf_limit_modenv_pitch);	
+	MyIni_SetInt32(sec, "Limit_ModLfo_Fc", sf_limit_modlfo_fc);	
+	MyIni_SetInt32(sec, "Limit_ModLfo_Pitch", sf_limit_modlfo_pitch);
+	MyIni_SetInt32(sec, "Limit_VibLfo_Pitch", sf_limit_viblfo_pitch);
+	MyIni_SetInt32(sec, "Limit_ModLfo_Freq", sf_limit_modlfo_freq);
+	MyIni_SetInt32(sec, "Limit_VibLfo_Freq", sf_limit_viblfo_freq);
+		
+	MyIni_SetInt32(sec, "Default_ModLfo_Freq", sf_default_modlfo_freq);
+	MyIni_SetInt32(sec, "Default_VibLfo_Freq", sf_default_viblfo_freq);
+		
+	MyIni_SetInt8(sec, "Config_LFO_Swap", sf_config_lfo_swap);	
+	MyIni_SetInt8(sec, "Config_Addrs_Offset", sf_config_addrs_offset);
+
 	MyIni_SetInt8(sec, "_SF2ChorusSend", otd.chorus_send);
 	MyIni_SetInt8(sec, "_SF2ReverbSend", otd.reverb_send);
 	
@@ -480,6 +496,15 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_category",&st->wasapi_stream_category);
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_option",&st->wasapi_stream_option);
 #endif
+#ifdef AU_WDMKS
+    IniGetKeyInt32(INI_SEC_TIMIDITY,"opt_wdmks_device_id",&st->wdmks_device_id);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_latency",&st->wdmks_latency);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_format_ext",&st->wdmks_format_ext);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_polling",&st->wdmks_polling);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_thread__priority",&st->wdmks_thread_priority);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_pin_priority",&st->wdmks_pin_priority);
+	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_rt_priority",&st->wdmks_rt_priority);
+#endif
 #ifdef AU_PORTAUDIO
     IniGetKeyInt32(INI_SEC_TIMIDITY,"pa_wmme_device_id",&st->pa_wmme_device_id);
 	IniGetKeyInt32(INI_SEC_TIMIDITY,"pa_ds_device_id",&st->pa_ds_device_id);
@@ -718,6 +743,15 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_priority",&st->wasapi_priority);
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_category",&st->wasapi_stream_category);
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wasapi_stream_option",&st->wasapi_stream_option);
+#endif
+#ifdef AU_WDMKS
+    IniPutKeyInt32(INI_SEC_TIMIDITY,"opt_wdmks_device_id",&st->wdmks_device_id);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_latency",&st->wdmks_latency);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_format_ext",&st->wdmks_format_ext);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_polling",&st->wdmks_polling);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_thread_priority",&st->wdmks_thread_priority);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_pin_priority",&st->wdmks_pin_priority);
+	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_wdmks_rt_priority",&st->wdmks_rt_priority);
 #endif
 #ifdef AU_PORTAUDIO
     IniPutKeyInt32(INI_SEC_TIMIDITY,"pa_wmme_device_id",&st->pa_wmme_device_id);

@@ -116,7 +116,7 @@
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <ModuleDefinitionFile>.\timiditydrv.def</ModuleDefinitionFile>
       <MergedIDLBaseFileName>timiditydrv.idl</MergedIDLBaseFileName>
@@ -161,7 +161,7 @@
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <ModuleDefinitionFile>.\timiditydrv.def</ModuleDefinitionFile>
       <MergedIDLBaseFileName>timiditydrv.idl</MergedIDLBaseFileName>
@@ -208,7 +208,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <ModuleDefinitionFile>.\timiditydrv.def</ModuleDefinitionFile>
       <MergedIDLBaseFileName>timiditydrv.idl</MergedIDLBaseFileName>
@@ -259,7 +259,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;wsock32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <ModuleDefinitionFile>.\timiditydrv.def</ModuleDefinitionFile>
       <MergedIDLBaseFileName>timiditydrv.idl</MergedIDLBaseFileName>
@@ -331,6 +331,7 @@
     <ClCompile Include="..\timidity\timidity.c" />
     <ClCompile Include="..\timidity\voice_effect.c" />
     <ClCompile Include="..\timidity\wasapi_a.c" />
+    <ClCompile Include="..\timidity\wdmks_a.c" />
     <ClCompile Include="timiditydrv.c" />
     <ClCompile Include="timiwp_timidity.c" />
     <ClCompile Include="..\timidity\version.c" />

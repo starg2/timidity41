@@ -78,6 +78,9 @@
 #ifdef AU_WASAPI
 #include "wasapi_a.h"
 #endif
+#ifdef AU_WDMKS
+#include "wdmks_a.h"
+#endif
 #ifdef AU_PORTAUDIO
 #include "portaudio_a.h"
 #ifdef AU_PORTAUDIO_DLL
@@ -186,6 +189,9 @@ void wmmeConfigDialog(HWND hwnd);
 void wasapiConfigDialog(void);
 #endif
 
+#ifdef AU_WDMKS
+void wdmksConfigDialog(void);
+#endif
 
 #ifdef IA_W32G_SYN 
 static TCHAR **GetMidiINDrivers( void );
@@ -903,6 +909,7 @@ static const TCHAR *process_priority_name_en[] = {
 };
 
 static int thread_priority_num[] = {
+	THREAD_PRIORITY_IDLE,
 	THREAD_PRIORITY_LOWEST,
 	THREAD_PRIORITY_BELOW_NORMAL,
 	THREAD_PRIORITY_NORMAL,
@@ -911,6 +918,7 @@ static int thread_priority_num[] = {
 	THREAD_PRIORITY_TIME_CRITICAL,
 };
 static const TCHAR *thread_priority_name_jp[] = {
+	TEXT("アイドル"),
 	TEXT("低い"),
 	TEXT("少し低い"),
 	TEXT("普通"),
@@ -919,6 +927,7 @@ static const TCHAR *thread_priority_name_jp[] = {
 	TEXT("タイムクリティカル"),
 };
 static const TCHAR *thread_priority_name_en[] = {
+	TEXT("Idle"),
 	TEXT("Lowest"),
 	TEXT("Below Normal"),
 	TEXT("Normal"),
@@ -1238,7 +1247,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		// Select process priority
 		CB_SET(IDC_COMBO_PROCESS_PRIORITY, CB_FIND(process_priority_num, st_temp->processPriority, 2));
 		// Select thread priority
-		CB_SET(IDC_COMBO_PLAYER_THREAD_PRIORITY, CB_FIND(thread_priority_num, sp_temp->PlayerThreadPriority, 2));
+		CB_SET(IDC_COMBO_PLAYER_THREAD_PRIORITY, CB_FIND(thread_priority_num, sp_temp->PlayerThreadPriority, 3));
 		// compute_thread_num
 		for (i = 0; i <= cb_num_IDC_COMBO_COMPUTE_THREAD_NUM; i++)
 			CB_INSSTR(IDC_COMBO_COMPUTE_THREAD_NUM, cb_info_IDC_COMBO_COMPUTE_THREAD_NUM[i]);
@@ -1588,7 +1597,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		// Select process priority
 		CB_SET(IDC_COMBO_PROCESS_PRIORITY, CB_FIND(process_priority_num, st_temp->processPriority, 2));
 		// Select thread priority
-		CB_SET(IDC_COMBO_SYN_THREAD_PRIORITY, CB_FIND(thread_priority_num, st_temp->syn_ThreadPriority, 2));
+		CB_SET(IDC_COMBO_SYN_THREAD_PRIORITY, CB_FIND(thread_priority_num, st_temp->syn_ThreadPriority, 3));
 		// compute_thread_num
 		for (i = 0; i <= cb_num_IDC_COMBO_COMPUTE_THREAD_NUM; i++)
 			CB_INSSTR(IDC_COMBO_COMPUTE_THREAD_NUM, cb_info_IDC_COMBO_COMPUTE_THREAD_NUM[i]);
@@ -4531,8 +4540,15 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #endif
 				
 #ifdef AU_WASAPI
-				if (st_temp->opt_playmode[0] == 'x' || st_temp->opt_playmode[0] == 'X') {
+				if (st_temp->opt_playmode[0] == 'x') {
 					wasapiConfigDialog();
+					break;
+				}
+#endif
+				
+#ifdef AU_WDMKS
+				if (st_temp->opt_playmode[0] == 'k') {
+					wdmksConfigDialog();
 					break;
 				}
 #endif
@@ -5000,15 +5016,25 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 		SetDlgItemFloat(hwnd, IDC_SFATT_MUL, sf_attenuation_mul);
 		SetDlgItemFloat(hwnd, IDC_SFATT_ADD, sf_attenuation_add);
 
-		// compressor
-		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_COMPC_CHKENABLE, otd.timRunMode & EOWM_USE_COMPRESSOR);
-		SetDlgItemFloat(hwnd, IDC_COMPC_EDTHR, otd.compThr);
-		SetDlgItemFloat(hwnd, IDC_COMPC_EDSLOPE, otd.compSlope);
-		SetDlgItemFloat(hwnd, IDC_COMPC_EDLOOK, otd.compLook);
-		SetDlgItemFloat(hwnd, IDC_COMPC_EDWTIME, otd.compWTime);
-		SetDlgItemFloat(hwnd, IDC_COMPC_EDATIME, otd.compATime);
-		SetDlgItemFloat(hwnd, IDC_COMPC_EDRTIME, otd.compRTime);
-
+		// soundfont limit
+		SetDlgItemInt(hwnd, IDC_SFL_VOLENV_ATK, sf_limit_volenv_attack, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_MODENV_ATK, sf_limit_modenv_attack, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_MODENV_FC, sf_limit_modenv_fc, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_MODENV_PIT, sf_limit_modenv_pitch, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_MODLFO_FC, sf_limit_modlfo_fc, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_MODLFO_PIT, sf_limit_modlfo_pitch, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_VIBLFO_PIT, sf_limit_viblfo_pitch, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_MODLFO_FREQ, sf_limit_modlfo_freq, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFL_VIBLFO_FREQ, sf_limit_viblfo_freq, TRUE);
+		
+		// soundfont default
+		SetDlgItemInt(hwnd, IDC_SFD_MODLFO_FREQ, sf_default_modlfo_freq, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFD_VIBLFO_FREQ, sf_default_viblfo_freq, TRUE);
+		
+		// soundfont config
+		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_SFC_LFO_SWAP, sf_config_lfo_swap);
+		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_SFC_ADRS_OFFSET, sf_config_addrs_offset);
+		
 		return FALSE;
 	case WM_COMMAND:
 		break;
@@ -5045,7 +5071,7 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 		OverrideSample.vel_to_fc_threshold = (int)GetDlgItemInt(hwnd, IDC_SFOW_VELTHR, NULL, TRUE);
 		OverrideSample.vel_to_resonance = (int)GetDlgItemInt(hwnd, IDC_SFOW_VELRES, NULL, TRUE);
 		CHECKRANGE_SFINI_PARAM(OverrideSample.vel_to_fc, -10000, 10000);
-		CHECKRANGE_SFINI_PARAM(OverrideSample.vel_to_fc_threshold, -120, 120);
+		CHECKRANGE_SFINI_PARAM(OverrideSample.vel_to_fc_threshold, 0, 127);
 		CHECKRANGE_SFINI_PARAM(OverrideSample.vel_to_resonance, -100, 100);
 
 		OverrideSample.modenv_to_fc = (int)GetDlgItemInt(hwnd, IDC_SFOW_MODENVFC, NULL, TRUE);
@@ -5071,16 +5097,37 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 		CHECKRANGE_SFINI_PARAM(sf_attenuation_pow, 0.0, 20.0);
 		CHECKRANGE_SFINI_PARAM(sf_attenuation_mul, 0.0, 4.0);
 		CHECKRANGE_SFINI_PARAM(sf_attenuation_add, -1440.0, 1440.0);
+		
+		// soundfont limit
+		sf_limit_volenv_attack = (int)GetDlgItemInt(hwnd, IDC_SFL_VOLENV_ATK, NULL, TRUE);
+		sf_limit_modenv_attack = (int)GetDlgItemInt(hwnd, IDC_SFL_MODENV_ATK, NULL, TRUE);
+		sf_limit_modenv_fc = (int)GetDlgItemInt(hwnd, IDC_SFL_MODENV_FC, NULL, TRUE);
+		sf_limit_modenv_pitch = (int)GetDlgItemInt(hwnd, IDC_SFL_MODENV_PIT, NULL, TRUE);
+		sf_limit_modlfo_fc = (int)GetDlgItemInt(hwnd, IDC_SFL_MODLFO_FC, NULL, TRUE);
+		sf_limit_modlfo_pitch = (int)GetDlgItemInt(hwnd, IDC_SFL_MODLFO_PIT, NULL, TRUE);
+		sf_limit_viblfo_pitch = (int)GetDlgItemInt(hwnd, IDC_SFL_VIBLFO_PIT, NULL, TRUE);
+		sf_limit_modlfo_freq = (int)GetDlgItemInt(hwnd, IDC_SFL_MODLFO_FREQ, NULL, TRUE);
+		sf_limit_viblfo_freq = (int)GetDlgItemInt(hwnd, IDC_SFL_VIBLFO_FREQ, NULL, TRUE);
+		CHECKRANGE_SFINI_PARAM(sf_limit_volenv_attack, 0, 10);
+		CHECKRANGE_SFINI_PARAM(sf_limit_modenv_attack, 0, 10);
+		CHECKRANGE_SFINI_PARAM(sf_limit_modenv_fc, 0, 12000);
+		CHECKRANGE_SFINI_PARAM(sf_limit_modenv_pitch, 0, 12000);
+		CHECKRANGE_SFINI_PARAM(sf_limit_modlfo_fc, 0, 12000);
+		CHECKRANGE_SFINI_PARAM(sf_limit_modlfo_pitch, 0, 12000);
+		CHECKRANGE_SFINI_PARAM(sf_limit_viblfo_pitch, 0, 12000);
+		CHECKRANGE_SFINI_PARAM(sf_limit_modlfo_freq, 1, 100000);
+		CHECKRANGE_SFINI_PARAM(sf_limit_viblfo_freq, 1, 100000);
+		
+		// soundfont default
+		sf_default_modlfo_freq = (int)GetDlgItemInt(hwnd, IDC_SFD_MODLFO_FREQ, NULL, TRUE);
+		sf_default_viblfo_freq = (int)GetDlgItemInt(hwnd, IDC_SFD_VIBLFO_FREQ, NULL, TRUE);
+		CHECKRANGE_SFINI_PARAM(sf_default_modlfo_freq, 1, 100000);
+		CHECKRANGE_SFINI_PARAM(sf_default_viblfo_freq, 1, 100000);
+		
+		// soundfont config
+		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_SFC_LFO_SWAP, sf_config_lfo_swap);
+		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_SFC_ADRS_OFFSET, sf_config_addrs_offset);
 
-		// compressor
-		otd.timRunMode &= ~EOWM_USE_COMPRESSOR;
-		otd.timRunMode += (SendDlgItemMessage(hwnd, IDC_COMPC_CHKENABLE, BM_GETCHECK, 0, 0)?1:0) * EOWM_USE_COMPRESSOR;
-		otd.compThr = GetDlgItemFloat(hwnd, IDC_COMPC_EDTHR);
-		otd.compSlope = GetDlgItemFloat(hwnd, IDC_COMPC_EDSLOPE);
-		otd.compLook = GetDlgItemFloat(hwnd, IDC_COMPC_EDLOOK);
-		otd.compWTime = GetDlgItemFloat(hwnd, IDC_COMPC_EDWTIME);
-		otd.compATime = GetDlgItemFloat(hwnd, IDC_COMPC_EDATIME);
-		otd.compRTime = GetDlgItemFloat(hwnd, IDC_COMPC_EDRTIME);
 #undef CHECKRANGE_SFINI_PARAM
 		break;
 	case WM_SIZE:
@@ -5132,7 +5179,7 @@ static LRESULT APIENTRY CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPA
 		SetDlgItemFloat(hwnd, IDC_COMPC_EDWTIME, otd.compWTime);
 		SetDlgItemFloat(hwnd, IDC_COMPC_EDATIME, otd.compATime);
 		SetDlgItemFloat(hwnd, IDC_COMPC_EDRTIME, otd.compRTime);
-
+		
 		return FALSE;
 	case WM_COMMAND:
 		break;
@@ -5186,7 +5233,16 @@ static LRESULT APIENTRY CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPA
 		voice_filter_gain = GetDlgItemFloat(hwnd, IDC_VOICE_FILTER_GAIN_CALC);
 		CHECKRANGE_SFINI_PARAM(voice_filter_reso, 0, 8.0);
 		CHECKRANGE_SFINI_PARAM(voice_filter_gain, 0, 8.0);
-
+		
+		// compressor
+		otd.timRunMode &= ~EOWM_USE_COMPRESSOR;
+		otd.timRunMode += (SendDlgItemMessage(hwnd, IDC_COMPC_CHKENABLE, BM_GETCHECK, 0, 0)?1:0) * EOWM_USE_COMPRESSOR;
+		otd.compThr = GetDlgItemFloat(hwnd, IDC_COMPC_EDTHR);
+		otd.compSlope = GetDlgItemFloat(hwnd, IDC_COMPC_EDSLOPE);
+		otd.compLook = GetDlgItemFloat(hwnd, IDC_COMPC_EDLOOK);
+		otd.compWTime = GetDlgItemFloat(hwnd, IDC_COMPC_EDWTIME);
+		otd.compATime = GetDlgItemFloat(hwnd, IDC_COMPC_EDATIME);
+		otd.compRTime = GetDlgItemFloat(hwnd, IDC_COMPC_EDRTIME);
 #undef CHECKRANGE_SFINI_PARAM
 		break;
 	case WM_SIZE:
@@ -8556,3 +8612,168 @@ void wasapiConfigDialog(void)
 
 #endif // AU_WASAPI
 
+
+#ifdef AU_WDMKS
+///////////////////////////////////////////////////////////////////////
+//
+// WDMKS Config Dialog
+//
+///////////////////////////////////////////////////////////////////////
+
+WDMKS_DEVICELIST cb_info_IDC_COMBO_WDMKS_INFO[WDMKS_DEVLIST_MAX];
+
+#define cb_num_IDC_COMBO_WDMKS_PIN_PRIORITY 4
+static const TCHAR *cb_info_IDC_COMBO_WDMKS_PIN_PRIORITY[] = {
+    TEXT("Low"),
+    TEXT("Normal"),
+    TEXT("High"),
+    TEXT("Exclusive"),
+};
+
+#define cb_num_IDC_COMBO_WDMKS_RT_PRIORITY 8
+static const TCHAR *cb_info_IDC_COMBO_WDMKS_RT_PRIORITY[] = {
+    TEXT("None"),
+    TEXT("Audio"),
+    TEXT("Capture"),
+    TEXT("Distribution"),
+    TEXT("Games"),
+    TEXT("Playback"),
+    TEXT("ProAudio"),
+    TEXT("WindowManager"),
+};
+
+LRESULT WINAPI wdmksConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	int i = 0, cb_num = 0, cb_sel = 0, flag;
+
+	switch (msg) {
+		case WM_INITDIALOG:
+		{
+			// WDMKS device
+			cb_num = wdmks_device_list(cb_info_IDC_COMBO_WDMKS_INFO);
+			if (cb_num == 0)
+				DI_DISABLE(IDC_COMBO_WDMKS_DEV);
+			else
+				DI_ENABLE(IDC_COMBO_WDMKS_DEV);
+			for (i = 0; i < cb_num && i < WDMKS_DEVLIST_MAX; i++) {
+				CB_INSSTRA(IDC_COMBO_WDMKS_DEV, &cb_info_IDC_COMBO_WDMKS_INFO[i].name);
+				if (st_temp->wdmks_device_id == cb_info_IDC_COMBO_WDMKS_INFO[i].deviceID)
+					cb_sel = i;
+			}
+			CB_SET(IDC_COMBO_WDMKS_DEV, (cb_sel));	
+			// Device Info 			
+			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_DEVICE_ID, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].deviceID, FALSE);
+			if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isWaveRT)
+				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveRT");
+			else
+				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveCyclic");
+			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minSampleRate, FALSE);
+			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxSampleRate, FALSE);
+			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minBits, FALSE);
+			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxBits, FALSE);
+			if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isFloat)
+				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Support");
+			else
+				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Not Support");
+			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minLatency, FALSE);
+			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxLatency, FALSE);
+			// Latency
+			SetDlgItemInt(hwnd, IDC_EDIT_WDMKS_LATENCY, st_temp->wdmks_latency, FALSE);
+			// WDMKS WAVEFORMATEX
+			if(st_temp->wdmks_format_ext == 0){
+				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WDMKS_FORMAT_EX,IDC_RADIOBUTTON_WDMKS_FORMAT_EXT,IDC_RADIOBUTTON_WDMKS_FORMAT_EX);
+			}else{
+				CheckRadioButton(hwnd,IDC_RADIOBUTTON_WDMKS_FORMAT_EX,IDC_RADIOBUTTON_WDMKS_FORMAT_EXT,IDC_RADIOBUTTON_WDMKS_FORMAT_EXT);
+			}
+			// WDMKS Flags
+			if(st_temp->wdmks_polling == 0){
+				CheckRadioButton(hwnd, IDC_RADIOBUTTON_WDMKS_EVENT, IDC_RADIOBUTTON_WDMKS_POLLING, IDC_RADIOBUTTON_WDMKS_EVENT);
+			}else{
+				CheckRadioButton(hwnd, IDC_RADIOBUTTON_WDMKS_EVENT, IDC_RADIOBUTTON_WDMKS_POLLING, IDC_RADIOBUTTON_WDMKS_POLLING);
+			}
+			// WASAPI Thread Priority
+			for (i = 0; i < CB_NUM(thread_priority_num); i++)		
+				CB_INSSTR(IDC_COMBO_WDMKS_THREAD_PRIORITY, thread_priority_name_en[i] );
+			CB_SET(IDC_COMBO_WDMKS_THREAD_PRIORITY, CB_FIND(thread_priority_num, st_temp->wdmks_thread_priority, 3));	
+			// WDMKS Thread Priority
+			for (i = 0; i < cb_num_IDC_COMBO_WDMKS_PIN_PRIORITY; i++)
+				CB_INSSTR(IDC_COMBO_WDMKS_PIN_PRIORITY, cb_info_IDC_COMBO_WDMKS_PIN_PRIORITY[i]);
+			CB_SET(IDC_COMBO_WDMKS_PIN_PRIORITY, (st_temp->wdmks_pin_priority));		
+			// WDMKS Thread Priority RT
+			for (i = 0; i < cb_num_IDC_COMBO_WDMKS_RT_PRIORITY; i++)
+				CB_INSSTR(IDC_COMBO_WDMKS_RT_PRIORITY, cb_info_IDC_COMBO_WDMKS_RT_PRIORITY[i]);
+			CB_SET(IDC_COMBO_WDMKS_RT_PRIORITY, (st_temp->wdmks_rt_priority));		
+
+			SetFocus(DI_GET(IDOK));
+			return TRUE;
+		}
+		case WM_CLOSE:
+			EndDialog(hwnd,FALSE);
+			break;
+		case WM_COMMAND:
+			switch (LOWORD(wp)) {
+			case IDC_COMBO_WDMKS_DEV:				
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_WDMKS_DEV))) {
+					cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WDMKS_DEV, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+					// Device Info 	
+					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_DEVICE_ID, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].deviceID, FALSE);
+					if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isWaveRT)
+						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveRT");
+					else
+						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveCyclic");
+					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minSampleRate, FALSE);
+					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxSampleRate, FALSE);
+					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minBits, FALSE);
+					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxBits, FALSE);
+					if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isFloat)
+						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Support");
+					else
+						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Not Support");
+					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minLatency, FALSE);
+					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxLatency, FALSE);
+				}	
+				break;
+			case IDCANCEL:
+				PostMessage(hwnd,WM_CLOSE,(WPARAM)0,(LPARAM)0);
+				break;
+			case IDOK:
+				// WDMKS device
+				if(IsWindowEnabled(GetDlgItem(hwnd, IDC_COMBO_WDMKS_DEV))) {
+					cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WDMKS_DEV, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+					st_temp->wdmks_device_id = cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].deviceID;
+				}	
+				// Latency
+				st_temp->wdmks_latency = GetDlgItemInt(hwnd, IDC_EDIT_WDMKS_LATENCY, NULL, FALSE);
+				// WDMKS WAVEFORMATEX
+				if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_WDMKS_FORMAT_EX,BM_GETCHECK,0,0))
+					st_temp->wdmks_format_ext = 0;
+				else
+					st_temp->wdmks_format_ext = 1;	
+				// WDMKS Flags
+				if(SendDlgItemMessage(hwnd, IDC_RADIOBUTTON_WDMKS_EVENT, BM_GETCHECK, 0, 0))
+					st_temp->wdmks_polling = 0;
+				else
+					st_temp->wdmks_polling = 1;
+				// WDMKS Thread Priority
+				st_temp->wdmks_thread_priority = thread_priority_num[CB_GETS(IDC_COMBO_WDMKS_THREAD_PRIORITY, 2)];
+				// WDMKS KS Priority
+				cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WDMKS_PIN_PRIORITY, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+				st_temp->wdmks_pin_priority = cb_sel;
+				// WDMKS RT Priority
+				cb_sel = SendDlgItemMessage(hwnd, IDC_COMBO_WDMKS_RT_PRIORITY, CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+				st_temp->wdmks_rt_priority = cb_sel;
+
+				EndDialog(hwnd,TRUE);
+				break;
+			}
+			break;
+	}
+	return FALSE;
+}
+
+void wdmksConfigDialog(void)
+{
+	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WDMKS), hPrefWnd, (DLGPROC)wdmksConfigDialogProc);
+}
+
+#endif // AU_WDMKS

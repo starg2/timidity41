@@ -82,6 +82,9 @@ HANDLE hPlayerThread = 0;
 HANDLE hMainThreadInfo = 0;
 DWORD dwMainThreadID = 0;
 
+
+
+
 void TracerWndApplyQuietChannel(ChannelBitMask quietchannels_){}
 void w32g_restart(void){}
 void w32g_send_rc(int rc, ptr_size_t value){}

@@ -307,6 +307,7 @@
 #define DEFAULT_PATH	".\\"
 #define AU_W32 1
 #define AU_WASAPI 1
+#define AU_WDMKS 1
 #define AU_VORBIS 1
 #define AU_VORBIS_DLL 1
 #define VORBIS_DLL_INCLUDE_VORBISENC 1 /* ver 1.3.3 */
@@ -629,6 +630,7 @@
 #undef USE_TWSYN_BRIDGE
 #define WINDRV 1
 #define AU_W32 1
+#define AU_WDMKS 1
 #define AU_WASAPI 1
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
@@ -671,6 +673,7 @@
 #undef REDUCE_VOICE_TIME_TUNING //playmidi.c の宣言部の #define 部を削除しないと機能しない
 #undef AU_W32
 #undef AU_WASAPI
+#undef AU_WDMKS
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -719,6 +722,7 @@ typedef __int64 int64;
 #undef REDUCE_VOICE_TIME_TUNING //playmidi.c の宣言部の #define 部を削除しないと機能しない
 #undef AU_W32
 #undef AU_WASAPI
+#undef AU_WDMKS
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -778,6 +782,7 @@ typedef __int64 int64;
 #undef AU_BUFFER 1
 #undef AU_W32
 #undef AU_WASAPI
+#undef AU_WDMKS
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO

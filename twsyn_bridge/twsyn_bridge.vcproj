@@ -17,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="..\Debug"
+			IntermediateDirectory=".\Debug"
 			ConfigurationType="1"
 			CharacterSet="2"
 			>
@@ -87,8 +87,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="..\Release\"
+			IntermediateDirectory=".\Release\"
 			ConfigurationType="1"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
@@ -119,6 +119,7 @@
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOW"
 				RuntimeLibrary="2"
 				StructMemberAlignment="5"
+				BufferSecurityCheck="false"
 				EnableFunctionLevelLinking="true"
 				EnableEnhancedInstructionSet="2"
 				FloatingPointModel="2"
