@@ -66,6 +66,9 @@
 #ifdef AU_WASAPI
 #include "wasapi_a.h"
 #endif
+#ifdef AU_WDMKS
+#include "wdmks_a.h"
+#endif
 #ifdef AU_PORTAUDIO
 #include "portaudio_a.h"
 #endif
@@ -728,6 +731,15 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	opt_wasapi_stream_category = st->wasapi_stream_category;
 	opt_wasapi_stream_option = st->wasapi_stream_option;
 #endif
+#ifdef AU_WDMKS	
+	opt_wdmks_device_id = st->wdmks_device_id;
+	opt_wdmks_latency = st->wdmks_latency;
+	opt_wdmks_format_ext = st->wdmks_format_ext;
+	opt_wdmks_polling = st->wdmks_polling;
+	opt_wdmks_thread_priority = st->wdmks_thread_priority;
+	opt_wdmks_rt_priority = st->wdmks_rt_priority;
+	opt_wdmks_pin_priority = st->wdmks_pin_priority;
+#endif
 #ifdef AU_PORTAUDIO
 	opt_pa_wmme_device_id = st->pa_wmme_device_id;
 	opt_pa_ds_device_id = st->pa_ds_device_id;
@@ -999,6 +1011,15 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->wasapi_priority = opt_wasapi_priority;
 	st->wasapi_stream_category = opt_wasapi_stream_category;
 	st->wasapi_stream_option = opt_wasapi_stream_option;
+#endif
+#ifdef AU_WDMKS
+	st->wdmks_device_id = opt_wdmks_device_id;
+	st->wdmks_latency = opt_wdmks_latency;
+	st->wdmks_format_ext = opt_wdmks_format_ext;
+	st->wdmks_polling = opt_wdmks_polling;
+	st->wdmks_thread_priority = opt_wdmks_thread_priority;
+	st->wdmks_rt_priority = opt_wdmks_rt_priority;
+	st->wdmks_pin_priority = opt_wdmks_pin_priority;
 #endif
 #ifdef AU_PORTAUDIO
 	st->pa_wmme_device_id = opt_pa_wmme_device_id;

@@ -124,6 +124,9 @@
 #ifdef AU_W32
 #include "w32_a.h"
 #endif
+#ifdef AU_WDMKS
+#include "wdmks_a.h"
+#endif
 #ifdef AU_WASAPI
 #include "wasapi_a.h"
 #endif
@@ -239,6 +242,13 @@ enum {
 	TIM_OPT_OUTPUT_DEVICE_ID,
 	TIM_OPT_WMME_DEVICE_ID,
 	TIM_OPT_WAVE_FORMAT_EXT,
+	TIM_OPT_WDMKS_DEVICE_ID,
+	TIM_OPT_WDMKS_LATENCY,
+	TIM_OPT_WDMKS_FORMAT_EXT,
+	TIM_OPT_WDMKS_POLLING,
+	TIM_OPT_WDMKS_THREAD_PRIORITY,
+	TIM_OPT_WDMKS_RT_PRIORITY,
+	TIM_OPT_WDMKS_PIN_PRIORITY,
 	TIM_OPT_WASAPI_DEVICE_ID,
 	TIM_OPT_WASAPI_LATENCY,
 	TIM_OPT_WASAPI_FORMAT_EXT,
@@ -468,6 +478,15 @@ static const struct option longopts[] = {
 	{ "wave-format-ext",		required_argument, NULL, TIM_OPT_WAVE_FORMAT_EXT },
 	{ "wmme-format-ext",		required_argument, NULL, TIM_OPT_WAVE_FORMAT_EXT },
 #endif
+#ifdef AU_WDMKS
+	{ "wdmks-device-id",		required_argument, NULL, TIM_OPT_WDMKS_DEVICE_ID },
+	{ "wdmks-latency",			required_argument, NULL, TIM_OPT_WDMKS_LATENCY },
+	{ "wdmks-format-ext",		required_argument, NULL, TIM_OPT_WDMKS_FORMAT_EXT },
+	{ "wdmks-polling",			required_argument, NULL, TIM_OPT_WDMKS_POLLING },
+	{ "wdmks-thread-priority",	required_argument, NULL, TIM_OPT_WDMKS_THREAD_PRIORITY },
+	{ "wdmks-rt-priority",		required_argument, NULL, TIM_OPT_WDMKS_RT_PRIORITY },
+	{ "wdmks-pin-priority",		required_argument, NULL, TIM_OPT_WDMKS_PIN_PRIORITY },
+#endif
 #ifdef AU_WASAPI
 	{ "wasapi-device-id",		required_argument, NULL, TIM_OPT_WASAPI_DEVICE_ID },
 	{ "wasapi-latency",			required_argument, NULL, TIM_OPT_WASAPI_LATENCY },
@@ -587,9 +606,9 @@ char *opt_aq_max_buff = NULL,
 void timidity_init_aq_buff(void);
 int opt_control_ratio = 0; /* Save -C option */
 ///r
-char *opt_reduce_voice_threshold = NULL,
-	*opt_reduce_quality_threshold = NULL,
-	*opt_reduce_polyphony_threshold = NULL;
+char *opt_reduce_voice_threshold = NULL;
+char *opt_reduce_quality_threshold = NULL;
+char *opt_reduce_polyphony_threshold = NULL;
 
 
 int set_extension_modes(char *);
@@ -691,6 +710,15 @@ static inline int parse_opt_output_device_id(const char *);
 #ifdef AU_W32
 static inline int parse_opt_wmme_device_id(const char *);
 static inline int parse_opt_wave_format_ext(const char *arg);
+#endif
+#ifdef AU_WDMKS
+static inline int parse_opt_wdmks_device_id(const char *arg);
+static inline int parse_opt_wdmks_latency(const char *arg);
+static inline int parse_opt_wdmks_format_ext(const char *arg);
+static inline int parse_opt_wdmks_polling(const char *arg);
+static inline int parse_opt_wdmks_thread_priority(const char *arg);
+static inline int parse_opt_wdmks_rt_priority(const char *arg);
+static inline int parse_opt_wdmks_pin_priority(const char *arg);
 #endif
 #ifdef AU_WASAPI
 static inline int parse_opt_wasapi_device_id(const char *arg);
@@ -1569,6 +1597,14 @@ static int set_gus_patchconf_opts(char *name,
 		if(tone->fcaddnum)
 			safe_free(tone->fcadd);
 		tone->fcadd = config_parse_int16(cp, &tone->fcaddnum);
+	}else if (! strcmp(opts, "tremdelay")){
+		if(tone->tremdelaynum)
+			safe_free(tone->tremdelay);
+		tone->tremdelay = config_parse_int16(cp, &tone->tremdelaynum);
+	}else if (! strcmp(opts, "vibdelay")){
+		if(tone->vibdelaynum)
+			safe_free(tone->vibdelay);
+		tone->vibdelay = config_parse_int16(cp, &tone->vibdelaynum);
 	}else if (! strcmp(opts, "vibamp")){
 		if(tone->vibampnum)
 			safe_free(tone->vibamp);
@@ -4139,6 +4175,22 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 	case TIM_OPT_WAVE_FORMAT_EXT:
 		return parse_opt_wave_format_ext(arg);
 #endif
+#ifdef AU_WDMKS
+	case TIM_OPT_WDMKS_DEVICE_ID:
+		return parse_opt_wdmks_device_id(arg);
+	case TIM_OPT_WDMKS_LATENCY:
+		return parse_opt_wdmks_latency(arg);
+	case TIM_OPT_WDMKS_FORMAT_EXT:
+		return parse_opt_wdmks_format_ext(arg);
+	case TIM_OPT_WDMKS_POLLING:
+		return parse_opt_wdmks_polling(arg);
+	case TIM_OPT_WDMKS_THREAD_PRIORITY:
+		return parse_opt_wdmks_thread_priority(arg);
+	case TIM_OPT_WDMKS_RT_PRIORITY:
+		return parse_opt_wdmks_rt_priority(arg);
+	case TIM_OPT_WDMKS_PIN_PRIORITY:
+		return parse_opt_wdmks_pin_priority(arg);
+#endif
 #ifdef AU_WASAPI
 	case TIM_OPT_WASAPI_DEVICE_ID:
 		return parse_opt_wasapi_device_id(arg);
@@ -5820,11 +5872,30 @@ static int parse_opt_h(const char *arg)
 "             --wave-format-ext=n , --wmme-format-ext=n (for Windows only)",
 "               WMME Enable WAVE_FORMAT_EXTENSIBLE (default is 1)",
 #endif
+#ifdef AU_WDMKS
+"             --wdmks-device-id=n (for Windows only)",
+"               Number of WDMKS device ID (0..19:)",
+"             --wdmks-latency=n (for Windows only)",
+"               WDMKS Latency ms n=1-9999 depend device (default is 20)",
+"             --wdmks-format-ext=n (for Windows only)",
+"               WDMKS Enable WAVE_FORMAT_EXTENSIBLE (default is 1)",
+"             --wdmks-realtime=n (for Windows only)",
+"               WDMKS 0:WaveCyclic 1:WaveRT (default is 0)",
+"               supported since Windows Vista",
+"             --wdmks-polling=n (for Windows only)",
+"               WDMKS Flags RT 0:Event 1:Polling (default is 0)",
+"             --wdmks_priority=n (for Windows only)",
+"               WDMKS ThreadPriority (default is 1)",
+"               0:Low , 1:Normal , 2:High , 3:Exclusive",
+"             --wdmks_priority-rt=n (for Windows only)",
+"               WDMKS ThreadPriority RT (default is 0)",
+"               0:Auto(Audio) , 1:Audio , 2:Capture , 3:Distribution , 4:Games , 5:playback , 6:ProAudio , 7:WindowManager",
+#endif
 #ifdef AU_WASAPI
 "             --wasapi-device-id=n (for Windows only)",
 "               Number of WASAPI device ID (-1: Default device, 0..19: other)",
 "             --wasapi-latency=n (for Windows only)",
-"               WASAPI Latency ms n=1-9999 depend device (default is 30)",
+"               WASAPI Latency ms n=1-9999 depend device (default is 10)",
 "             --wasapi-format-ext=n (for Windows only)",
 "               WASAPI Enable WAVE_FORMAT_EXTENSIBLE (default is 1)",
 "             --wasapi-exclusive=n (for Windows only)",
@@ -5833,7 +5904,7 @@ static int parse_opt_h(const char *arg)
 "               WASAPI Flags 0:Event 1:Polling (default is 0)",
 "             --wasapi_priority=n (for Windows only)",
 "               WASAPI ThreadPriority (default is 0)",
-"               0:None 1:Audio , 2:Capture:2 , 3:Distribution , 4:Games , 5:playback , 6:ProAudio , 7:WindowManager",
+"               0:None , 1:Audio , 2:Capture , 3:Distribution , 4:Games , 5:playback , 6:ProAudio , 7:WindowManager",
 "             --wasapi-stream-category=n (for Windows only)",
 "               WASAPI StreamCategory (default is 0)",
 "               0:Other , 1:None , 2:None , 3:Communications , 4:Alerts , 5:SoundEffects ,",
@@ -6804,6 +6875,57 @@ static inline int parse_opt_wmme_buffer_num(const char *arg)
 	return 0;
 }
 #endif
+#ifdef AU_WDMKS
+static inline int parse_opt_wdmks_device_id(const char *arg)
+{
+	/* --wdmks-device-id */
+	if (!arg) return 0;
+	opt_wdmks_device_id = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wdmks_latency(const char *arg)
+{
+	/* --wdmks-latency */
+	if (!arg) return 0;
+	opt_wdmks_latency = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wdmks_format_ext(const char *arg)
+{
+	/* --wdmks-format_ext */
+	if (!arg) return 0;
+	opt_wdmks_format_ext = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wdmks_polling(const char *arg)
+{
+	/* --wdmks-polling */
+	if (!arg) return 0;
+	opt_wdmks_polling = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wdmks_thread_priority(const char *arg)
+{
+	/* --wdmks-thread-priority */
+	if (!arg) return 0;
+	opt_wdmks_thread_priority = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wdmks_pin_priority(const char *arg)
+{
+	/* --wdmks-pin-priority */
+	if (!arg) return 0;
+	opt_wdmks_pin_priority = atoi(arg);
+	return 0;
+}
+static inline int parse_opt_wdmks_rt_priority(const char *arg)
+{
+	/* --wdmks-rt-priority */
+	if (!arg) return 0;
+	opt_wdmks_rt_priority = atoi(arg);
+	return 0;
+}
+#endif
 #ifdef AU_WASAPI
 static inline int parse_opt_wasapi_device_id(const char *arg)
 {
@@ -6939,6 +7061,7 @@ static inline int parse_opt_wave_update_step(const char *arg)
 	wave_set_option_update_step(arg ? atoi(arg) : 0);
 	return 0;
 }
+
 
 #ifdef AU_FLAC
 extern void flac_set_option_verify(int);
@@ -8380,7 +8503,8 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 	    if(!SetPriorityClass(GetCurrentProcess(), processPriority))
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Error changing process priority");
 #if !(defined(IA_W32G_SYN) || defined(WINDRV))
-	if( PlayerThreadPriority == THREAD_PRIORITY_LOWEST ||
+	if( PlayerThreadPriority == THREAD_PRIORITY_IDLE ||
+		PlayerThreadPriority == THREAD_PRIORITY_LOWEST ||
 		PlayerThreadPriority == THREAD_PRIORITY_BELOW_NORMAL ||
 		PlayerThreadPriority == THREAD_PRIORITY_NORMAL ||
 		PlayerThreadPriority == THREAD_PRIORITY_ABOVE_NORMAL ||

@@ -110,10 +110,26 @@ extern void OverrideSFSettingLoad(void);
 extern Sample OverrideSample;
 extern OVERRIDETIMIDITYDATA otd;
 
-extern double sf_attenuation_neg;
+extern int8 sf_attenuation_neg;
 extern double sf_attenuation_pow;
 extern double sf_attenuation_mul;
 extern double sf_attenuation_add;
+
+extern int32 sf_limit_volenv_attack;
+extern int32 sf_limit_modenv_attack;
+extern int32 sf_limit_modenv_fc;
+extern int32 sf_limit_modenv_pitch;
+extern int32 sf_limit_modlfo_fc;
+extern int32 sf_limit_modlfo_pitch;
+extern int32 sf_limit_viblfo_pitch;
+extern int32 sf_limit_modlfo_freq;
+extern int32 sf_limit_viblfo_freq;
+
+extern int32 sf_default_modlfo_freq;
+extern int32 sf_default_viblfo_freq;
+
+extern int8 sf_config_lfo_swap;
+extern int8 sf_config_addrs_offset;
 
 extern double gs_env_attack_calc;
 extern double gs_env_decay_calc;

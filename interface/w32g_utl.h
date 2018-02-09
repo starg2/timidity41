@@ -202,6 +202,13 @@ typedef struct SETTING_TIMIDITY_ {
 	int wasapi_priority;
 	int wasapi_stream_category;
 	int wasapi_stream_option;
+	int32 wdmks_device_id;
+	int32 wdmks_latency;
+	int wdmks_format_ext;
+	int wdmks_polling;
+	int wdmks_thread_priority;
+	int wdmks_rt_priority;
+	int wdmks_pin_priority;
 	int32 pa_wmme_device_id;
 	int32 pa_ds_device_id;
 	int32 pa_asio_device_id;

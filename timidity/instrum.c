@@ -454,7 +454,7 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 	/* lpf_type */
 	if (tone->lpf_type != -1)	
 		for (i = 0; i < ip->samples; i++){
-			ip->sample[i].keep_voice = tone->keep_voice;
+			ip->sample[i].lpf_type = tone->lpf_type;
 		}
 	/* keep_voice */
 	if(tone->keep_voice != 0)
@@ -803,6 +803,22 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 			else if (i < tone->fcaddnum && sp->cutoff_freq)
 				sp->cutoff_freq += tone->fcadd[i];
 		}
+	if (tone->tremdelaynum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->tremdelaynum == 1)
+				sp->tremolo_delay = tone->tremdelay[0] * playmode_rate_ms;
+			else if (i < tone->tremdelaynum)
+				sp->tremolo_delay = tone->tremdelay[i] * playmode_rate_ms;
+		}
+	if (tone->vibdelaynum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->vibdelaynum == 1)
+				sp->vibrato_delay = tone->vibdelay[0] * playmode_rate_ms;
+			else if (i < tone->vibdelaynum)
+				sp->vibrato_delay = tone->vibdelay[i] * playmode_rate_ms;
+		}
 	if (tone->vibfcnum)
 		for (i = 0; i < ip->samples; i++) {
 			sp = &ip->sample[i];
@@ -1072,7 +1088,7 @@ fail:
 		sp->modenv_to_pitch = sp->modenv_to_fc = 0;
 		sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
 		sp->envelope_velf_bpo = sp->modenv_velf_bpo = 64;
-		sp->vel_to_fc_threshold = 64;
+		sp->vel_to_fc_threshold = 0;
 		sp->key_to_fc_bpo = 60;
 		sp->envelope_delay = sp->modenv_delay = 0;
 		sp->tremolo_delay = sp->vibrato_delay = 0;
@@ -1939,6 +1955,12 @@ void copy_tone_bank_element(ToneBankElement *elm, const ToneBankElement *src)
 	if (elm->fcaddnum)
 		elm->fcadd = (int16 *) safe_memdup(elm->fcadd,
 				elm->fcaddnum * sizeof(int16));
+	if (elm->tremdelaynum)
+		elm->tremdelay = (int16 *) safe_memdup(elm->tremdelay,
+				elm->tremdelaynum * sizeof(int16));
+	if (elm->vibdelaynum)
+		elm->vibdelay = (int16 *) safe_memdup(elm->vibdelay,
+				elm->vibdelaynum * sizeof(int16));
 	if (elm->vibfcnum)
 		elm->vibfc = (int16 *) safe_memdup(elm->vibfc,
 				elm->vibfcnum * sizeof(int16));
@@ -2094,7 +2116,11 @@ void free_tone_bank_element(ToneBankElement *elm)
 	safe_free(elm->fcmul);
 	elm->fcmul = NULL, elm->fcmulnum = 0;
 	safe_free(elm->fcadd);
-	elm->fcadd = NULL, elm->fcaddnum = 0;
+	elm->fcadd = NULL, elm->fcaddnum = 0;	
+	safe_free(elm->tremdelay);
+	elm->tremdelay = NULL, elm->tremdelaynum = 0;
+	safe_free(elm->vibdelay);
+	elm->vibdelay = NULL, elm->vibdelaynum = 0;
 	safe_free(elm->vibfc);
 	elm->vibfc = NULL, elm->vibfcnum = 0;
 	safe_free(elm->vibamp);

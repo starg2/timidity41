@@ -17,8 +17,8 @@
 
 	OverrideSample.vel_to_fc = MyIni_GetInt32(sec, "VelToFc", -2400);
 	OverrideSample.vel_to_fc = MyIniParamRange(OverrideSample.vel_to_fc, -10000, 10000);
-	OverrideSample.vel_to_fc_threshold = MyIni_GetInt32(sec, "VelToFcThr", 64);
-	OverrideSample.vel_to_fc_threshold = MyIniParamRange(OverrideSample.vel_to_fc_threshold, -120, 120);
+	OverrideSample.vel_to_fc_threshold = MyIni_GetInt32(sec, "VelToFcThr", 0);
+	OverrideSample.vel_to_fc_threshold = MyIniParamRange(OverrideSample.vel_to_fc_threshold, 0, 127);
 	OverrideSample.vel_to_resonance = MyIni_GetInt32(sec, "VelToRes", 0);
 	OverrideSample.vel_to_resonance = MyIniParamRange(OverrideSample.vel_to_resonance, -100, 100);
 
@@ -54,6 +54,35 @@
 	sf_attenuation_mul = MyIniParamRange(sf_attenuation_mul, 0, 4.0); // 0 ~ 4.0
 	sf_attenuation_add = MyIni_GetFloat64(sec, "Attenuation_Add", 0);
 	sf_attenuation_add = MyIniParamRange(sf_attenuation_add, -1440.0, 1440.0); // -1440.0 ~ 1440.0
+		
+	sf_limit_volenv_attack = MyIni_GetInt32(sec, "Limit_VolEnv_Attack", 6); // 1ms
+	sf_limit_volenv_attack = MyIniParamRange(sf_limit_volenv_attack, 0, 10); // 0 ~ 10
+	sf_limit_modenv_attack = MyIni_GetInt32(sec, "Limit_ModEnv_Attack", 6); // 1ms
+	sf_limit_modenv_attack = MyIniParamRange(sf_limit_modenv_attack, 0, 10); // 0 ~ 10
+	sf_limit_modenv_fc = MyIni_GetInt32(sec, "Limit_ModEnv_Fc", 1200);
+	sf_limit_modenv_fc = MyIniParamRange(sf_limit_modenv_fc, 0, 12000); // 0 ~ 12000
+	sf_limit_modenv_pitch = MyIni_GetInt32(sec, "Limit_ModEnv_Pitch", 12000);
+	sf_limit_modenv_pitch = MyIniParamRange(sf_limit_modenv_pitch, 0, 12000); // 0 ~ 12000
+	sf_limit_modlfo_fc = MyIni_GetInt32(sec, "Limit_ModLfo_Fc", 12000);
+	sf_limit_modlfo_fc = MyIniParamRange(sf_limit_modlfo_fc, 0, 12000); // 0 ~ 12000
+	sf_limit_modlfo_pitch = MyIni_GetInt32(sec, "Limit_ModLfo_Pitch", 12000);
+	sf_limit_modlfo_pitch = MyIniParamRange(sf_limit_modlfo_pitch, 0, 12000); // 0 ~ 12000
+	sf_limit_viblfo_pitch = MyIni_GetInt32(sec, "Limit_VibLfo_Pitch", 12000);
+	sf_limit_viblfo_pitch = MyIniParamRange(sf_limit_viblfo_pitch, 0, 12000); // 0 ~ 12000
+	sf_limit_modlfo_freq = MyIni_GetInt32(sec, "Limit_ModLfo_Freq", 100000);
+	sf_limit_modlfo_freq = MyIniParamRange(sf_limit_modlfo_freq, 1, 100000); // 1 ~ 100000
+	sf_limit_viblfo_freq = MyIni_GetInt32(sec, "Limit_VibLfo_Freq", 100000);
+	sf_limit_viblfo_freq = MyIniParamRange(sf_limit_viblfo_freq, 1, 100000); // 1 ~ 100000
+		
+	sf_default_modlfo_freq = MyIni_GetInt32(sec, "Default_ModLfo_Freq", 8176);
+	sf_default_modlfo_freq = MyIniParamRange(sf_default_modlfo_freq, 1, 100000); // 1 ~ 100000
+	sf_default_viblfo_freq = MyIni_GetInt32(sec, "Default_VibLfo_Freq", 8176);
+	sf_default_viblfo_freq = MyIniParamRange(sf_default_viblfo_freq, 1, 100000); // 1 ~ 100000
+
+	sf_config_lfo_swap = MyIni_GetInt8(sec, "Config_LFO_Swap", 0);
+	sf_config_lfo_swap = MyIniParamRange(sf_config_lfo_swap, 0, 1); // 0 or 1
+	sf_config_addrs_offset = MyIni_GetInt8(sec, "Config_Addrs_Offset", 0);
+	sf_config_addrs_offset = MyIniParamRange(sf_config_addrs_offset, 0, 1); // 0 or 1
 
 	otd.chorus_send = MyIni_GetInt8(sec, "_SF2ChorusSend", 0);
 	otd.chorus_send = MyIniParamRange(otd.chorus_send, 0, 127);

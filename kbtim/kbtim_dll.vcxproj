@@ -88,6 +88,7 @@
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">kbtim</TargetName>
     <ExecutablePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ExecutablePath);$(WindowsSdkMSBuildTools);$(SystemRoot)\SysWow64;$(FxCopDir);$(PATH);C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin;</ExecutablePath>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">kbtim</TargetName>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(LibraryPath);$(VSInstallDir);$(VSInstallDir)lib\amd64;$(WindowsSdkDir)lib\x64;</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Midl>
@@ -177,7 +178,7 @@
       <Culture>0x0411</Culture>
     </ResourceCompile>
     <Link>
-      <OutputFile>..\Debug\kbtim.dll</OutputFile>
+      <OutputFile>$(TargetPath)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ModuleDefinitionFile>.\kbtim_dll.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>

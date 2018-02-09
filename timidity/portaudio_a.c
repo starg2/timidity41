@@ -277,7 +277,7 @@ void processor_output(
 	samplesToGo = pa_data.samplesToGo;
 	bufpoint = (uint8*)pa_data.bufpoint;
 
-#ifndef CNV_USE_TEMP_ENCODE		
+#ifndef USE_TEMP_ENCODE		
 	if(conv24_32){ // Int24
 		samples1 = outputFrames * stereo;
 		if(samplesToGo < datalength){
@@ -416,7 +416,7 @@ int paCallback(  void *inputBuffer, void *outputBuffer,
 	samplesToGo = pa_data.samplesToGo;
 	bufpoint = (uint8*)pa_data.bufpoint;
 	
-#ifndef CNV_USE_TEMP_ENCODE	
+#ifndef USE_TEMP_ENCODE	
 	if(conv16_32){
 		if(samplesToGo < datalength  ){		
 			for(i=0;i<(samplesToGo>>1);i++){
@@ -757,7 +757,7 @@ static int open_output(void)
 		conv24_32 = 0;
 	}
 	
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	if(conv24_32){			
 		int tmp_enc = dpm.encoding;
 		tmp_enc &= ~PE_24BIT;
@@ -868,7 +868,7 @@ static int open_output(void)
 	pa_data.bufepoint = pa_data.buf;
 //	firsttime = 1;
 ///r	
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	if(conv24_32){			
 		int tmp_enc = dpm.encoding;
 		tmp_enc &= ~PE_24BIT;
@@ -921,7 +921,7 @@ error2:
   free_portaudio_dll();
 #endif
 #endif
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	reset_temporary_encoding();
 #endif
 
@@ -1024,7 +1024,7 @@ static int output_data(const uint8 *buf, size_t nbytes)
 
 error:
 	Pa_Terminate(); pa_active=0;
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	reset_temporary_encoding();
 #endif
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "PortAudio error: %s\n", Pa_GetErrorText( err ) );
@@ -1075,7 +1075,7 @@ static void close_output(void)
 //	if( err != paNoError ) goto error;
 	Pa_Terminate(); 
 	pa_active=0;		
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	reset_temporary_encoding();
 #endif
 #ifdef AU_PORTAUDIO_DLL
@@ -1088,7 +1088,7 @@ static void close_output(void)
 
 error:
 	Pa_Terminate(); pa_active=0;
-#ifdef CNV_USE_TEMP_ENCODE
+#ifdef USE_TEMP_ENCODE
 	reset_temporary_encoding();
 #endif
 #ifdef AU_PORTAUDIO_DLL

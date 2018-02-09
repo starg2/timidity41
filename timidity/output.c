@@ -115,6 +115,10 @@ extern PlayMode arts_play_mode;
 extern PlayMode esd_play_mode;
 #endif /* AU_ESD */
 
+#ifdef AU_WDMKS
+extern PlayMode wdmks_play_mode;
+#endif /* AU_WDMKS */
+
 #ifdef AU_WASAPI
 extern PlayMode wasapi_play_mode;
 #endif /* AU_WASAPI */
@@ -217,6 +221,10 @@ PlayMode *play_mode_list[] = {
   &hpux_nplay_mode,
 #endif /* AU_HPUX_ALIB */
   
+#if defined(AU_WDMKS)
+  &wdmks_play_mode,
+#endif /* AU_WDMKS */
+
 #if defined(AU_WASAPI)
   &wasapi_play_mode,
 #endif /* AU_WASAPI */

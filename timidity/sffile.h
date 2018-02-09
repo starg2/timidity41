@@ -141,6 +141,7 @@ typedef struct _SFInfo {
 	ptr_size_t ninsts;
 	SFInstHdr *inst;
 
+	int use_rom;
 } SFInfo;
 
 

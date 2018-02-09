@@ -153,12 +153,18 @@ typedef struct {
 	int16 *sclnote;
 	int scltunenum;
 	int16 *scltune;
+	// filter
 	int fcnum;
 	int16 *fc;
 	int resonum;
-	int16 *reso;
-	int trempitchnum, tremfcnum, modpitchnum, modfcnum;
-	int16 *trempitch, *tremfc, *modpitch, *modfc;
+	int16 *reso;	
+	int lpf_type;
+	int hpfnum;
+	int **hpf;
+	int fclownum, fclowkeyfnum, fcmulnum, fcaddnum;
+	int16 *fclow, *fclowkeyf, *fcmul, *fcadd;
+	int16 vel_to_fc, key_to_fc, vel_to_resonance;
+	// env
 	int envratenum, envofsnum;
 	int **envrate, **envofs;
 	int modenvratenum, modenvofsnum;
@@ -167,19 +173,19 @@ typedef struct {
 	int **envvelf, **envkeyf;
 	int modenvvelfnum, modenvkeyfnum;
 	int **modenvvelf, **modenvkeyf;
-	int tremnum, vibnum;
-	struct Quantity_ **trem, **vib;
-	int16 vel_to_fc, key_to_fc, vel_to_resonance;
-	int8 reverb_send, chorus_send, delay_send;	
-	int vibfcnum, vibampnum;
-	int16 *vibfc, *vibamp;
+	int modpitchnum, modfcnum;
+	int16 *modpitch, *modfc;
 	int pitenvnum;
 	int **pitenv;
-	int lpf_type;
-	int hpfnum;
-	int **hpf;
-	int fclownum, fclowkeyfnum, fcmulnum, fcaddnum;
-	int16 *fclow, *fclowkeyf, *fcmul, *fcadd;
+	// lfo
+	int tremnum, vibnum;
+	struct Quantity_ **trem, **vib;	
+	int trempitchnum, tremfcnum, tremdelaynum;
+	int16 *trempitch, *tremfc, *tremdelay;
+	int vibfcnum, vibampnum, vibdelaynum;
+	int16 *vibfc, *vibamp, *vibdelay;
+	// other
+	int8 reverb_send, chorus_send, delay_send;	
 	int vfxnum[VOICE_EFFECT_NUM];
 	int **vfx[VOICE_EFFECT_NUM];
 	int is_preset;

@@ -63,6 +63,28 @@
 
 #include "sndfontini.h"
 
+///r
+int8 sf_attenuation_neg = 0;
+double sf_attenuation_pow = 10.0; // sb xfi
+double sf_attenuation_mul = 0.002; // sb xfi
+double sf_attenuation_add = 0;
+
+int32 sf_limit_volenv_attack = 6;
+int32 sf_limit_modenv_attack = 6;
+int32 sf_limit_modenv_fc = 1200;
+int32 sf_limit_modenv_pitch = 12000;
+int32 sf_limit_modlfo_fc = 12000;
+int32 sf_limit_modlfo_pitch = 12000;
+int32 sf_limit_viblfo_pitch = 12000;
+int32 sf_limit_modlfo_freq = 100000;
+int32 sf_limit_viblfo_freq = 100000;
+
+int32 sf_default_modlfo_freq = 8176;
+int32 sf_default_viblfo_freq = 8176;
+
+int8 sf_config_lfo_swap = 0; // 0:ModLfo to Tremolo , VibLfo to Vibrato , 1:swap
+int8 sf_config_addrs_offset = 0; // 1:on
+
 #define SF2_24BIT 1
 
 #define FILENAME_NORMALIZE(fname) url_expand_home_dir(fname)
@@ -102,6 +124,7 @@ typedef struct _SFPatchRec {
 } SFPatchRec;
 
 typedef struct _SampleList {
+	int sfrom;
 	Sample v;
 	struct _SampleList *next;
 	off_size_t start, lowbit;
@@ -221,10 +244,87 @@ static void convert_vibrato(SampleList *vp, LayerTable *tbl);
 
 /*----------------------------------------------------------------*/
 
+#define def_drum_inst 0
+
 int opt_sf_close_each_file = SF_CLOSE_EACH_FILE;
 static SFInsts *sfrecs = NULL;
 static SFInsts *current_sfrec = NULL;
-#define def_drum_inst 0
+
+static int sfrom_load = 0;
+static SFInsts *sfrom_sfrec = NULL;
+static SFInfo sfrom_sfinfo = {0};
+
+static void load_sfrom(void)
+{
+	char *sf_file = NULL;
+	struct timidity_file *tf = NULL;
+	int i;
+
+	if(sfrom_load != 0)
+		return;
+	sf_file = FILENAME_NORMALIZE("SFROM.SF2");	
+	if ((tf = open_file(sf_file, 1, OF_VERBOSE)) == NULL) {
+		ctl->cmsg(CMSG_WARNING, VERB_NOISY, "Can't open SFROM.SF2");
+		sfrom_load = -1;
+		return;
+	}
+	memset(&sfrom_sfinfo, 0, sizeof(SFInfo));
+	if (load_soundfont(&sfrom_sfinfo, tf)){
+		close_file(tf);
+		tf = NULL;
+		ctl->cmsg(CMSG_WARNING, VERB_NOISY, "SFROM : load_soundfont() error");
+		sfrom_load = -1;
+	    return;
+	}
+	correct_samples(&sfrom_sfinfo);
+	
+	sfrom_sfrec = (SFInsts*) safe_malloc(sizeof(SFInsts));
+	if(!sfrom_sfrec){
+		close_file(tf);
+		tf = NULL;
+		ctl->cmsg(CMSG_WARNING, VERB_NOISY, "SFROM : malloc error");
+		sfrom_load = -1;
+		return;
+	}
+	memset(sfrom_sfrec, 0, sizeof(SFInsts));
+	init_mblock(&sfrom_sfrec->pool);
+	sfrom_sfrec->tf = tf;
+	sfrom_sfrec->fname = SFStrdup(sfrom_sfrec, sf_file);
+	sfrom_sfrec->def_order = DEFAULT_SOUNDFONT_ORDER;
+	sfrom_sfrec->amptune = 1.0;	
+	current_sfrec = sfrom_sfrec;
+	for (i = 0; i < sfrom_sfinfo.npresets; i++)
+		load_font(&sfrom_sfinfo, i);
+	sfrom_sfrec->version = sfrom_sfinfo.version;
+	sfrom_sfrec->minorversion = sfrom_sfinfo.minorversion;
+	sfrom_sfrec->samplepos = sfrom_sfinfo.samplepos;
+	sfrom_sfrec->lowbitpos = sfrom_sfinfo.lowbitpos;
+	sfrom_sfrec->samplesize = sfrom_sfinfo.samplesize;
+	sfrom_sfrec->inst_namebuf = NULL;
+	sfrom_load = 1;	
+	return;
+}
+
+static void free_sfrom(void)
+{
+	if(sfrom_load < 1){
+		sfrom_load = 0;
+		return;
+	}
+	if(!sfrom_sfrec){
+		sfrom_load = 0;
+		return;
+	}
+	free_soundfont(&sfrom_sfinfo);
+	if(sfrom_sfrec->tf)
+		close_file(sfrom_sfrec->tf);
+	sfrom_sfrec->tf = NULL;
+	reuse_mblock(&sfrom_sfrec->pool);
+	safe_free(sfrom_sfrec);	
+	sfrom_sfrec = NULL;
+	sfrom_load = 0;
+	return;
+}
 
 static SFInsts *find_soundfont(char *sf_file)
 {
@@ -310,6 +410,7 @@ void free_soundfonts()
 		safe_free(sf);
 	}
     sfrecs = NULL;//added by Kobarin
+	free_sfrom();
 }
 
 char *soundfont_preset_name(int bank, int preset, int keynote,
@@ -341,7 +442,7 @@ char *soundfont_preset_name(int bank, int preset, int keynote,
 
 static void init_sf(SFInsts *rec)
 {
-	SFInfo sfinfo;
+	SFInfo sfinfo = {0};
 	int i;
 
 	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Init soundfonts `%s'",
@@ -360,7 +461,8 @@ static void init_sf(SFInsts *rec)
 	    end_soundfont(rec);
 	    return;
 	}
-
+	if(sfinfo.use_rom)
+		load_sfrom();
 	correct_samples(&sfinfo);
 	current_sfrec = rec;
 	for (i = 0; i < sfinfo.npresets; i++) {
@@ -515,12 +617,6 @@ Instrument *load_soundfont_inst(int order,
 #else
 #define TO_VOLUME(level)  (uint8)(255.0 - (level) * (255.0 * DIV_1000))
 #endif
-
-///r
-double sf_attenuation_neg = 0;
-double sf_attenuation_pow = 10.0; // sb xfi
-double sf_attenuation_mul = 0.002; // sb xfi
-double sf_attenuation_add = 0;
 
 static FLOAT_T calc_volume(LayerTable *tbl)
 {
@@ -694,6 +790,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 	memset(inst->sample, 0, sizeof(Sample) * ip->samples);
 	
 	for (i = 0, sp = ip->slist; i < ip->samples && sp; i++, sp = sp->next) {
+		struct timidity_file *tf;
 		Sample *sample = inst->sample + i;
 		int32 j;
 
@@ -704,7 +801,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 		memcpy(sample, &sp->v, sizeof(Sample));
 		sample->data = NULL;
 		sample->data_alloced = 0;
-		
+				
 		if(i > 0 && (!opt_pre_resamplation || !sample->note_to_use || (sample->modes & MODES_LOOPING))){
 			SampleList *sps;
 			Sample *found, *s;
@@ -732,6 +829,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 				continue;
 			}
 		}
+		tf = sp->sfrom ? sfrom_sfrec->tf : rec->tf; ///r
 
 #if defined(SF2_24BIT) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 		if(sp->lowbit > 0 ){
@@ -749,10 +847,10 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 		    highbit = (uint16 *)safe_large_malloc(sizeof(int16) * frames); // 16bit
 		    lowbit = (uint8 *)safe_large_malloc(sizeof(int8) * frames); // 8bit
 			
-			tf_seek(rec->tf, sp->start, SEEK_SET);
-			tf_read(highbit, sp->len, 1, rec->tf);
-		    tf_seek(rec->tf, sp->lowbit, SEEK_SET);
-		    tf_read(lowbit, frames, 1, rec->tf);
+			tf_seek(tf, sp->start, SEEK_SET);
+			tf_read(highbit, sp->len, 1, tf);
+		    tf_seek(tf, sp->lowbit, SEEK_SET);
+		    tf_read(lowbit, frames, 1, tf);
 
 			tmp_data = (uint32 *)sample->data;
 		    for(j = 0; j < frames; j++) {
@@ -785,8 +883,8 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 			sample->data_alloced = 1;
 			sample->data_type = SAMPLE_TYPE_INT16;
 
-			tf_seek(rec->tf, sp->start, SEEK_SET);
-			tf_read(sample->data, sp->len, 1, rec->tf);
+			tf_seek(tf, sp->start, SEEK_SET);
+			tf_read(sample->data, sp->len, 1, tf);
 
 #ifndef LITTLE_ENDIAN
 			for (j = 0; j < frames; j++)
@@ -930,7 +1028,8 @@ static int parse_layer(SFInfo *sf, int pridx, LayerTable *tbl, int level)
 #endif
 
 	if (level >= 2) {
-		fprintf(stderr, "parse_layer: too deep instrument level\n");
+	//	fprintf(stderr, "parse_layer: too deep instrument level\n");
+		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "parse_layer: too deep instrument level :%d", pridx);///r c214
 		return AWE_RET_ERR;
 	}
 
@@ -1040,7 +1139,15 @@ static void add_item_to_table(LayerTable *tbl, int oper, int amount, int level)
 
 	switch (item->copy) {
 	case L_INHRT:
-		tbl->val[oper] += amount;
+		{ ///r
+			int32 tmp = tbl->val[oper];
+			tmp += amount;
+			if(tmp > INT16_MAX)
+				tmp = INT16_MAX;
+			else if(tmp < INT16_MIN)
+				tmp = INT16_MIN;
+			tbl->val[oper] += (short)tmp;
+		}
 		break;
 	case L_OVWRT:
 		tbl->val[oper] = amount;
@@ -1154,16 +1261,27 @@ char *sf_preset_name[129][129] = { 0 };
 #endif
 #endif
 
+static SFSampleInfo *get_sampleinfo(SFInfo *sf, LayerTable *tbl)
+{	
+    SFSampleInfo *sample;
+
+    sample = &sf->sample[tbl->val[SF_sampleId]];
+	if(sfrom_load < 1)
+		return sample;
+	if(!(sample->sampletype & SF_SAMPLETYPE_ROM))
+		return sample;
+	return &(sfrom_sfinfo.sample[tbl->val[SF_sampleId]]);
+}
+
 static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
 {
     int bank, preset, keynote;
     int keynote_from, keynote_to, done;
     int addr, order;
     InstList *ip;
-    SFSampleInfo *sample;
+    SFSampleInfo *sample = &sf->sample[tbl->val[SF_sampleId]];
     SampleList *sp;
 
-    sample = &sf->sample[tbl->val[SF_sampleId]];
 #ifdef CFG_FOR_SF
 #	ifdef SF2VIEWER_GUI
 	{
@@ -1176,13 +1294,12 @@ static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
 	cfg_for_sf_scan(sample->name, sf->preset[pridx].bank, sf->preset[pridx].preset, LOWNUM(tbl->val[SF_keyRange]),
 		HIGHNUM(tbl->val[SF_keyRange]), sample->sampletype & SF_SAMPLETYPE_ROM);
 #endif
-    if (sample->sampletype & SF_SAMPLETYPE_ROM) /* is ROM sample? */
+    if (sample->sampletype & SF_SAMPLETYPE_ROM && sfrom_load < 1) /* is ROM sample? */
     {
 	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "preset %d is ROM sample: 0x%x",
-		  pridx, sample->sampletype);
+			pridx, sample->sampletype);
 	return AWE_RET_SKIP;
     }
-
     bank = sf->preset[pridx].bank;
     preset = sf->preset[pridx].preset;
     if (bank == 128) {
@@ -1236,6 +1353,9 @@ static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
     /* new sample */
     sp = (SampleList*)SFMalloc(current_sfrec, sizeof(SampleList));
     memset(sp, 0, sizeof(SampleList));
+	
+    if(sample->sampletype & SF_SAMPLETYPE_ROM)
+		sp->sfrom = 1;
 
 	sp->bank = bank;
 	sp->keynote = keynote;
@@ -1399,25 +1519,29 @@ static void set_envelope_parameters(SampleList *vp)
 static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
     SFSampleInfo *sp = &sf->sample[tbl->val[SF_sampleId]];
+	int is_rom = 0;
 
+	if((sp->sampletype & SF_SAMPLETYPE_ROM) && sfrom_load >= 1){ ///r
+		sp = &(sfrom_sfinfo.sample[tbl->val[SF_sampleId]]);
+		is_rom = 1;
+	}
     /* set sample position */
-    vp->start = (tbl->val[SF_startAddrsHi] << 15)
-	+ tbl->val[SF_startAddrs]
-	+ sp->startsample;
-    vp->len = (tbl->val[SF_endAddrsHi] << 15)
-	+ tbl->val[SF_endAddrs]
-	+ sp->endsample - vp->start;
-
+    vp->start = sp->startsample;
+    vp->len = sp->endsample - vp->start;
+	if(sf_config_addrs_offset){
+		vp->start += (tbl->val[SF_startAddrsHi] << 15) + tbl->val[SF_startAddrs];
+		vp->len += (tbl->val[SF_endAddrsHi] << 15)	+ tbl->val[SF_endAddrs];
+	}
 	vp->start = abs(vp->start);
 	vp->len = abs(vp->len);
 
     /* set loop position */
-    vp->v.loop_start = (tbl->val[SF_startloopAddrsHi] << 15)
-	+ tbl->val[SF_startloopAddrs]
-	+ sp->startloop - vp->start;
-    vp->v.loop_end = (tbl->val[SF_endloopAddrsHi] << 15)
-	+ tbl->val[SF_endloopAddrs]
-	+ sp->endloop - vp->start;
+    vp->v.loop_start = sp->startloop - vp->start;
+    vp->v.loop_end = sp->endloop - vp->start;
+	if(sf_config_addrs_offset){
+		vp->v.loop_start += (tbl->val[SF_startloopAddrsHi] << 15) + tbl->val[SF_startloopAddrs];
+		vp->v.loop_end += (tbl->val[SF_endloopAddrsHi] << 15) + tbl->val[SF_endloopAddrs];
+	}
 
     /* set data length */
     vp->v.data_length = vp->len + 1;
@@ -1476,17 +1600,28 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     vp->v.loop_end <<= FRACTION_BITS;
 
     /* point to the file position */
-    vp->start = vp->start * 2 + sf->samplepos;
-    vp->lowbit = sf->lowbitpos;
+	vp->start = vp->start * 2 + (is_rom ? sfrom_sfinfo.samplepos : sf->samplepos); ///r
+    vp->lowbit = is_rom ? sfrom_sfinfo.lowbitpos : sf->lowbitpos; ///r
     vp->len *= 2;
 
-	vp->v.vel_to_fc = -2400;	/* SF2 default value */
+	vp->v.vel_to_fc = -2400; /* SF2 default value */
+	vp->v.vel_to_fc_threshold = 0; ///r c214  def64
 	vp->v.key_to_fc = vp->v.vel_to_resonance = 0;
-	vp->v.envelope_velf_bpo = vp->v.modenv_velf_bpo =
-		vp->v.vel_to_fc_threshold = 64;
+	vp->v.envelope_velf_bpo = vp->v.modenv_velf_bpo = 64;		
 	vp->v.key_to_fc_bpo = 60;
 	memset(vp->v.envelope_velf, 0, sizeof(vp->v.envelope_velf));
 	memset(vp->v.modenv_velf, 0, sizeof(vp->v.modenv_velf));
+	
+	vp->v.modenv_to_pitch = (tbl->set[SF_env1ToPitch]) ? tbl->val[SF_env1ToPitch] : 0;
+	if(vp->v.modenv_to_pitch > sf_limit_modenv_pitch)
+		vp->v.modenv_to_pitch = sf_limit_modenv_pitch;
+	else if(vp->v.modenv_to_pitch < -sf_limit_modenv_pitch)
+		vp->v.modenv_to_pitch = -sf_limit_modenv_pitch;
+	vp->v.modenv_to_fc = (tbl->set[SF_env1ToFilterFc]) ? tbl->val[SF_env1ToFilterFc] : 0;
+	if(vp->v.modenv_to_fc > sf_limit_modenv_fc)
+		vp->v.modenv_to_fc = sf_limit_modenv_fc;
+	else if(vp->v.modenv_to_fc < -sf_limit_modenv_fc)
+		vp->v.modenv_to_fc = -sf_limit_modenv_fc;
 ///r	
 	vp->v.cutoff_low_limit = -1; 
 	vp->v.cutoff_low_keyf = 0; // cent
@@ -1521,8 +1656,7 @@ static SampleList *last_sample_list;
 static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
     int val;
-    SFSampleInfo *sample;
-    sample = &sf->sample[tbl->val[SF_sampleId]];
+    SFSampleInfo *sample = &sf->sample[tbl->val[SF_sampleId]];
 
     /* key range */
     if (tbl->set[SF_keyRange])
@@ -1556,58 +1690,56 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->v.sf_sample_index = tbl->val[SF_sampleId];
 	vp->v.sf_sample_link = sample->samplelink;
 
-	if (sf->nsamples < vp->v.sf_sample_link) { // elionadd
+	if((sample->sampletype & SF_SAMPLETYPE_ROM) && sfrom_load > 0){
+		if(sfrom_sfinfo.nsamples < vp->v.sf_sample_link)
+			vp->v.sf_sample_link = 0;
+	}else if (sf->nsamples < vp->v.sf_sample_link) { // elionadd
 		vp->v.sf_sample_link = 0;
 	}
 
 	/* Some sf2 files don't contain valid sample links, so see if the
 	   previous sample was a matching Left / Right sample with the
 	   link missing and add it */
-	switch (sample->sampletype) {
-	case SF_SAMPLETYPE_LEFT:
+	if(sample->sampletype & SF_SAMPLETYPE_LEFT) {
 		if (vp->v.sf_sample_link == 0 &&
-		    last_sample_type == SF_SAMPLETYPE_RIGHT &&
+		    (last_sample_type & SF_SAMPLETYPE_RIGHT) &&
 		    last_sample_instrument == tbl->val[SF_instrument] &&
 		    last_sample_keyrange == tbl->val[SF_keyRange]) {
 		    	/* The previous sample was a matching right sample
 		    	   set the link */
 		    	vp->v.sf_sample_link = last_sample_list->v.sf_sample_index;
 		}
-		break;
-	case SF_SAMPLETYPE_RIGHT:
+	}else if(sample->sampletype & SF_SAMPLETYPE_RIGHT){
 		if (last_sample_list &&
 		    last_sample_list->v.sf_sample_link == 0 &&
-		    last_sample_type == SF_SAMPLETYPE_LEFT &&
+		    (last_sample_type & SF_SAMPLETYPE_LEFT) &&
 		    last_sample_instrument == tbl->val[SF_instrument] &&
 		    last_sample_keyrange == tbl->val[SF_keyRange]) {
 		    	/* The previous sample was a matching left sample
 		    	   set the link on the previous sample*/
 		    	last_sample_list->v.sf_sample_link = tbl->val[SF_sampleId];
 		}
-		break;
 	}
-	switch (sample->sampletype) {
-	case SF_SAMPLETYPE_LEFT:
+	if(sample->sampletype & SF_SAMPLETYPE_LEFT) {
+
 		if (vp->v.sf_sample_link == 0 &&
-		    last_sample_type == SF_SAMPLETYPE_RIGHT &&
+		    (last_sample_type & SF_SAMPLETYPE_RIGHT) &&
 		    last_sample_instrument == tbl->val[SF_instrument] &&
 		    last_sample_keyrange == tbl->val[SF_keyRange]) {
 		    	/* The previous sample was a matching right sample
 		    	   set the link */
 		    	vp->v.sf_sample_link = last_sample_list->v.sf_sample_index;
 		}
-		break;
-	case SF_SAMPLETYPE_RIGHT:
+	}else if(sample->sampletype & SF_SAMPLETYPE_RIGHT){
 		if (last_sample_list &&
 		    last_sample_list->v.sf_sample_link == 0 &&
-		    last_sample_type == SF_SAMPLETYPE_LEFT &&
+		    (last_sample_type & SF_SAMPLETYPE_LEFT) &&
 		    last_sample_instrument == tbl->val[SF_instrument] &&
 		    last_sample_keyrange == tbl->val[SF_keyRange]) {
 		    	/* The previous sample was a matching left sample
 		    	   set the link on the previous sample*/
 		    	last_sample_list->v.sf_sample_link = tbl->val[SF_sampleId];
 		}
-		break;
 	}
 
 	/* Remember this sample in case the next one is a match */
@@ -1626,16 +1758,16 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 		else if (val > 500)
 			val = 500;
 	}	
-    if (sample->sampletype == SF_SAMPLETYPE_MONO) {	/* monoSample = 1 */
+    if (sample->sampletype & SF_SAMPLETYPE_MONO) {	/* monoSample = 1 */
 		if(val != 0){
 			vp->v.sample_pan = (FLOAT_T)val * DIV_1000;
 		}
-	} else if (sample->sampletype == SF_SAMPLETYPE_RIGHT) {	/* rightSample = 2 */
+	} else if (sample->sampletype & SF_SAMPLETYPE_RIGHT) {	/* rightSample = 2 */
 		val += 500;
 		if (val > 500)
 			val = 500;
 		vp->v.sample_pan = (FLOAT_T)val * DIV_1000;
-	} else if (sample->sampletype == SF_SAMPLETYPE_LEFT) {	/* leftSample = 4 */
+	} else if (sample->sampletype & SF_SAMPLETYPE_LEFT) {	/* leftSample = 4 */
 		val -= 500;
 		if (val < -500)
 			val = -500;
@@ -1738,7 +1870,8 @@ static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
 	SFSampleInfo *sp = &sf->sample[tbl->val[SF_sampleId]];
 	int temp;
-
+	int is_rom = 0;
+	
 	/* scale factor */
 	vp->v.scale_factor = 1024 * (double) tbl->val[SF_scaleTuning] / 100 + 0.5;
 	/* set initial root key & fine tune */
@@ -1770,16 +1903,7 @@ static void set_rootkey(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	/* correct too high pitch */
 	if (vp->root >= (int32)(vp->high) + 60)
 		vp->root -= 60;
-	vp->v.tremolo_to_pitch = (tbl->set[SF_lfo1ToPitch]) ? tbl->val[SF_lfo1ToPitch] : 0;
-	vp->v.tremolo_to_fc = (tbl->set[SF_lfo1ToFilterFc]) ? tbl->val[SF_lfo1ToFilterFc] : 0;
-	vp->v.modenv_to_pitch = (tbl->set[SF_env1ToPitch]) ? tbl->val[SF_env1ToPitch] : 0;
-#if 0 // sf spec ??
-	/* correct tune with the sustain level of modulation envelope */
-	//temp = (double)vp->v.modenv_to_pitch
-	//		* ((double)(1000 - tbl->val[SF_sustainEnv1]) * DIV_1000) + 0.5;
-	//vp->tune += temp, vp->v.modenv_to_pitch -= temp;
-#endif
-	vp->v.modenv_to_fc = (tbl->set[SF_env1ToFilterFc]) ? tbl->val[SF_env1ToFilterFc] : 0;
+	
 }
 
 static void set_rootfreq(SampleList *vp)
@@ -1855,24 +1979,33 @@ int32 get_sf_release(int32 v)
 	return m;
 }
 
+
 /* volume envelope parameters */
 static void convert_volume_envelope(SampleList *vp, LayerTable *tbl)
 {
+	double tmp;
+
 	/* convert amp envelope */
-	vp->attack  = to_rate(65535, tbl->set[SF_attackEnv2] ? tbl->val[SF_attackEnv2] : -12000);
+	tmp = to_msec(tbl->set[SF_attackEnv2] ? tbl->val[SF_attackEnv2] : -12000);
+	if(tmp < sf_limit_volenv_attack)
+		tmp = sf_limit_volenv_attack;
+	vp->attack  = calc_rate(65535, tmp);
     vp->hold    = to_rate(1, tbl->set[SF_holdEnv2] ? tbl->val[SF_holdEnv2] : -12000);
     vp->sustain = calc_volenv_sustain(tbl->set[SF_sustainEnv2] ? tbl->val[SF_sustainEnv2] : 0);
     vp->decay   = to_rate(65534 - vp->sustain, tbl->set[SF_decayEnv2] ? tbl->val[SF_decayEnv2] : -12000);
     vp->release = get_sf_release(tbl->set[SF_releaseEnv2] ? tbl->val[SF_releaseEnv2] : -12000); // elion chg
-    vp->v.envelope_delay = (play_mode->rate * to_msec((double)(tbl->set[SF_delayEnv2] ? tbl->val[SF_delayEnv2] : -12000)) * 0.001 + 0.5) + 0.5;
+    vp->v.envelope_delay = (play_mode->rate * to_msec((double)(tbl->set[SF_delayEnv2] ? tbl->val[SF_delayEnv2] : -12000)) * 0.001);
 
 	/* convert modulation envelope */
-    vp->modattack  = to_rate(65535, tbl->set[SF_attackEnv1] ? tbl->val[SF_attackEnv1] : -12000);
+	tmp = to_msec(tbl->set[SF_attackEnv1] ? tbl->val[SF_attackEnv1] : -12000);
+	if(tmp < sf_limit_modenv_attack)
+		tmp = sf_limit_modenv_attack;
+	vp->modattack  = calc_rate(65535, tmp);
     vp->modhold    = to_rate(1, tbl->set[SF_holdEnv1] ? tbl->val[SF_holdEnv1] : -12000);
     vp->modsustain = calc_modenv_sustain(tbl->set[SF_sustainEnv1] ? tbl->val[SF_sustainEnv1] : 0);
     vp->moddecay   = to_rate(65534 - vp->modsustain, tbl->set[SF_decayEnv1] ? tbl->val[SF_decayEnv1] : -12000);
     vp->modrelease = get_sf_release(tbl->set[SF_releaseEnv1] ? tbl->val[SF_releaseEnv1] : -12000); // elion chg
-    vp->v.modenv_delay = (play_mode->rate * to_msec((double)(tbl->set[SF_delayEnv1] ? tbl->val[SF_delayEnv1] : -12000)) * 0.001 + 0.5) + 0.5;
+    vp->v.modenv_delay = (play_mode->rate * to_msec((double)(tbl->set[SF_delayEnv1] ? tbl->val[SF_delayEnv1] : -12000)) * 0.001);
 
     vp->v.modes |= MODES_ENVELOPE;
 /*
@@ -1894,67 +2027,110 @@ static void convert_volume_envelope(SampleList *vp, LayerTable *tbl)
 
 #ifndef SF_SUPPRESS_TREMOLO
 /*----------------------------------------------------------------
- * tremolo (LFO1) conversion
+ * ModLFO (LFO1) conversion
  *----------------------------------------------------------------*/
 ///r
 static void convert_tremolo(SampleList *vp, LayerTable *tbl)
 {
     int32 freq;
 	double level;
-
-    level = !tbl->set[SF_lfo1ToVolume] ? 1.0 : pow(10.0, (double)abs(tbl->val[SF_lfo1ToVolume]) * -DIV_200);
-    vp->v.tremolo_depth = 256 * (1.0 - level);
-	if ((int)tbl->val[SF_lfo1ToVolume] < 0) { vp->v.tremolo_depth = -vp->v.tremolo_depth; }
-    /* frequency in mHz */
-	freq = !tbl->set[SF_freqLfo1] ? 8176 : TO_MHZ((int)tbl->val[SF_freqLfo1]);
-	if(freq < 1) {freq = 1;	}
-    /* convert mHz to sine table increment; 1024<<rate_shift=1wave */
-//	vp->v.tremolo_phase_increment = ((play_mode->rate * freq / 1000) >> RATE_SHIFT) / control_ratio;
-	vp->v.tremolo_phase_increment = (FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT) * freq * DIV_1000 * div_playmode_rate; 
-    vp->v.tremolo_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo1]) * 0.001;
+	
+	if(sf_config_lfo_swap){		
+		vp->v.vibrato_depth = !tbl->set[SF_lfo1ToPitch] ? 0 : tbl->val[SF_lfo1ToPitch]; // cent
+		if(vp->v.vibrato_depth > sf_limit_viblfo_pitch)
+			vp->v.vibrato_depth = sf_limit_viblfo_pitch;
+		else if(vp->v.vibrato_depth < -sf_limit_viblfo_pitch)
+			vp->v.vibrato_depth = -sf_limit_viblfo_pitch;
+		vp->v.vibrato_to_fc = (tbl->set[SF_lfo1ToFilterFc]) ? tbl->val[SF_lfo1ToFilterFc] : 0;
+		if(vp->v.vibrato_to_fc > sf_limit_modlfo_fc)
+			vp->v.vibrato_to_fc = sf_limit_modlfo_fc;
+		else if(vp->v.vibrato_to_fc < -sf_limit_modlfo_fc)
+			vp->v.vibrato_to_fc = -sf_limit_modlfo_fc;
+		level = !tbl->set[SF_lfo1ToVolume] ? 1.0 : pow(10.0, (double)abs(tbl->val[SF_lfo1ToVolume]) * -DIV_200);
+		vp->v.vibrato_to_amp = 256 * (1.0 - level);
+		if ((int)tbl->val[SF_lfo1ToVolume] < 0) { vp->v.tremolo_depth = -vp->v.tremolo_depth; }
+		/* frequency in mHz */
+		freq = !tbl->set[SF_freqLfo1] ? sf_default_modlfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo1]);
+		if(freq > sf_limit_modlfo_freq)
+			freq = sf_limit_modlfo_freq;
+		if(freq < 1) {freq = 1;}
+		/* convert mHz to control ratio */
+		vp->v.vibrato_control_ratio = (1000 * play_mode->rate) / (freq * 2 * VIBRATO_SAMPLE_INCREMENTS);
+		vp->v.vibrato_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo1]) * 0.001;		
+		vp->v.vibrato_sweep_increment = 0;
+	}else{		
+		vp->v.tremolo_to_pitch = (tbl->set[SF_lfo1ToPitch]) ? tbl->val[SF_lfo1ToPitch] : 0;
+		if(vp->v.tremolo_to_pitch > sf_limit_modlfo_pitch)
+			vp->v.tremolo_to_pitch = sf_limit_modlfo_pitch;
+		else if(vp->v.tremolo_to_pitch < -sf_limit_modlfo_pitch)
+			vp->v.tremolo_to_pitch = -sf_limit_modlfo_pitch;
+		vp->v.tremolo_to_fc = (tbl->set[SF_lfo1ToFilterFc]) ? tbl->val[SF_lfo1ToFilterFc] : 0;
+		if(vp->v.tremolo_to_fc > sf_limit_modlfo_fc)
+			vp->v.tremolo_to_fc = sf_limit_modlfo_fc;
+		else if(vp->v.tremolo_to_fc < -sf_limit_modlfo_fc)
+			vp->v.tremolo_to_fc = -sf_limit_modlfo_fc;
+		level = !tbl->set[SF_lfo1ToVolume] ? 1.0 : pow(10.0, (double)abs(tbl->val[SF_lfo1ToVolume]) * -DIV_200);
+		vp->v.tremolo_depth = 256 * (1.0 - level);
+		if ((int)tbl->val[SF_lfo1ToVolume] < 0) { vp->v.tremolo_depth = -vp->v.tremolo_depth; }
+		/* frequency in mHz */
+		freq = !tbl->set[SF_freqLfo1] ? sf_default_modlfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo1]);
+		if(freq > sf_limit_modlfo_freq)
+			freq = sf_limit_modlfo_freq;
+		if(freq < 1) {freq = 1;	}
+		/* convert mHz to sine table increment; 1024<<rate_shift=1wave */
+		vp->v.tremolo_phase_increment = 
+			(FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT) * freq * DIV_1000 * div_playmode_rate; 
+		vp->v.tremolo_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo1]) * 0.001;	
+		vp->v.tremolo_sweep_increment = 0;
+	}
 }
 #endif
 
 #ifndef SF_SUPPRESS_VIBRATO
 /*----------------------------------------------------------------
- * vibrato (LFO2) conversion
+ * VibLFO (LFO2) conversion
  *----------------------------------------------------------------*/
 ///r
 static void convert_vibrato(SampleList *vp, LayerTable *tbl)
 {
-    int32 shift, freq;
-#if 0
-    int32 sf_delay, sf_freq, sf_pitch;
-
-    if (tbl->set[SF_lfo2ToPitch]) {
-		sf_delay = tbl->val[SF_delayLfo2];
-		sf_freq = tbl->val[SF_freqLfo2];
-		sf_pitch = tbl->val[SF_lfo2ToPitch];
-    } else {
-		sf_delay = tbl->val[SF_delayLfo1];
-		sf_freq = tbl->val[SF_freqLfo1];
-		sf_pitch = tbl->val[SF_lfo1ToPitch];
-    }
-
-    if (!sf_freq && !sf_pitch) {
-	vp->v.vibrato_control_ratio = 0;
-	return;
-    }
-#endif
-
-    vp->v.vibrato_depth = !tbl->set[SF_lfo2ToPitch] ? 0 : tbl->val[SF_lfo2ToPitch]; // cent
-
-    /* cents to linear; 400cents = 256 */
-	//shift = shift * 256 / 400;
-	//if (shift > 255) { shift = 255; }
-	//else if (shift < -255) { shift = -255; }
-	//vp->v.vibrato_depth = (int16)shift;
-    /* frequency in mHz */
-	freq = !tbl->set[SF_freqLfo2] ? 8176 : TO_MHZ((int)tbl->val[SF_freqLfo2]);
-	if(freq < 1) {freq = 1;}
-	/* convert mHz to control ratio */
-	vp->v.vibrato_control_ratio = (1000 * play_mode->rate) / (freq * 2 * VIBRATO_SAMPLE_INCREMENTS);
-    vp->v.vibrato_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo2]) * 0.001;
+    int32 freq;
+	
+	if(sf_config_lfo_swap){		
+		vp->v.tremolo_to_pitch = (tbl->set[SF_lfo2ToPitch]) ? tbl->val[SF_lfo2ToPitch] : 0;
+		if(vp->v.tremolo_to_pitch > sf_limit_modlfo_pitch)
+			vp->v.tremolo_to_pitch = sf_limit_modlfo_pitch;
+		else if(vp->v.tremolo_to_pitch < -sf_limit_modlfo_pitch)
+			vp->v.tremolo_to_pitch = -sf_limit_modlfo_pitch;
+		vp->v.tremolo_to_fc = 0;
+		vp->v.tremolo_depth = 0;
+		/* frequency in mHz */
+		freq = !tbl->set[SF_freqLfo2] ? sf_default_viblfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo2]);
+		if(freq > sf_limit_viblfo_freq)
+			freq = sf_limit_viblfo_freq;
+		if(freq < 1) {freq = 1;	}
+		/* convert mHz to sine table increment; 1024<<rate_shift=1wave */
+		vp->v.tremolo_phase_increment = 
+			(FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT) * freq * DIV_1000 * div_playmode_rate; 
+		vp->v.tremolo_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo2]) * 0.001;
+		vp->v.tremolo_sweep_increment = 0;
+	}else{	
+		vp->v.vibrato_depth = !tbl->set[SF_lfo2ToPitch] ? 0 : tbl->val[SF_lfo2ToPitch]; // cent
+		if(vp->v.vibrato_depth > sf_limit_viblfo_pitch)
+			vp->v.vibrato_depth = sf_limit_viblfo_pitch;
+		else if(vp->v.vibrato_depth < -sf_limit_viblfo_pitch)
+			vp->v.vibrato_depth = -sf_limit_viblfo_pitch;
+		vp->v.vibrato_to_fc = 0;
+		vp->v.vibrato_to_amp = 0;
+		/* frequency in mHz */
+		freq = !tbl->set[SF_freqLfo2] ? sf_default_viblfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo2]);
+		if(freq > sf_limit_viblfo_freq)
+			freq = sf_limit_viblfo_freq;
+		if(freq < 1) {freq = 1;}
+		/* convert mHz to control ratio */
+		vp->v.vibrato_control_ratio = (1000 * play_mode->rate) / (freq * 2 * VIBRATO_SAMPLE_INCREMENTS);
+		vp->v.vibrato_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo2]) * 0.001;
+		vp->v.vibrato_sweep_increment = 0;
+	}
 }
 #endif
 

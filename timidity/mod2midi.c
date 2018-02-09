@@ -707,8 +707,8 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->tremolo_to_pitch = sp->tremolo_to_fc = 
 		sp->modenv_to_pitch = sp->modenv_to_fc =
 		sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
-	sp->envelope_velf_bpo = sp->modenv_velf_bpo =
-		sp->vel_to_fc_threshold = 64;
+	sp->envelope_velf_bpo = sp->modenv_velf_bpo = 64;
+	sp->vel_to_fc_threshold = 0;
 	sp->key_to_fc_bpo = 60;
 	sp->scale_freq = 60;
 	sp->scale_factor = 1024;	

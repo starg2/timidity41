@@ -4143,7 +4143,7 @@ static void init_sample_param(Sample *sample)
 	sample->vel_to_resonance = 0;
 	sample->envelope_velf_bpo = 64;
 	sample->modenv_velf_bpo = 64;
-	sample->vel_to_fc_threshold = 64;
+	sample->vel_to_fc_threshold = 0;
 	sample->key_to_fc_bpo = 60;
 	sample->scale_freq = 60;
 	sample->scale_factor = 1024;

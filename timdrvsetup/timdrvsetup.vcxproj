@@ -114,7 +114,7 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
-      <AdditionalDependencies>comctl32.lib;libcmtd.lib;odbc32.lib;odbccp32.lib;winmm.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;comctl32.lib;libcmtd.lib;odbc32.lib;odbccp32.lib;winmm.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
     </Link>
     <ResourceCompile>
@@ -152,7 +152,7 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
-      <AdditionalDependencies>comctl32.lib;libcmtd.lib;odbc32.lib;odbccp32.lib;winmm.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;comctl32.lib;libcmtd.lib;odbc32.lib;odbccp32.lib;winmm.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
     </Link>
     <ResourceCompile>
@@ -197,7 +197,7 @@
       <OptimizeReferences>
       </OptimizeReferences>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalDependencies>wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libc.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <EnableUAC>false</EnableUAC>
       <ProgramDatabaseFile>.\Release/kbtimsetup.pdb</ProgramDatabaseFile>
@@ -246,7 +246,7 @@
       <OptimizeReferences>
       </OptimizeReferences>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalDependencies>wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;wsock32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libc.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <EnableUAC>false</EnableUAC>
       <ProgramDatabaseFile>.\Release/kbtimsetup.pdb</ProgramDatabaseFile>
@@ -329,6 +329,7 @@
     <ClCompile Include="..\timidity\w32_portaudio_dll.c" />
     <ClCompile Include="..\timidity\wasapi_a.c" />
     <ClCompile Include="..\timidity\wave_a.c" />
+    <ClCompile Include="..\timidity\wdmks_a.c" />
     <ClCompile Include="..\timidity\wrdt.c" />
     <ClCompile Include="..\timidity\wrd_read.c" />
     <ClCompile Include="timdrvsetup.c" />

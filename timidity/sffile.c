@@ -667,7 +667,7 @@ static void load_sample_info(off_size_t size, SFInfo *sf, struct timidity_file *
 		if (sf->version > 1) /* SF2 only */
 			READSTR(sf->sample[i].name, fd);
 		READDW((uint32*)&sf->sample[i].startsample, fd);
-		READDW((uint32*)&sf->sample[i].endsample, fd);
+ 		READDW((uint32*)&sf->sample[i].endsample, fd);
 		READDW((uint32*)&sf->sample[i].startloop, fd);
 		READDW((uint32*)&sf->sample[i].endloop, fd);
 		if (sf->version > 1) { /* SF2 only */
@@ -676,6 +676,8 @@ static void load_sample_info(off_size_t size, SFInfo *sf, struct timidity_file *
 			READB(sf->sample[i].pitchCorrection, fd);
 			READW(&sf->sample[i].samplelink, fd);
 			READW(&sf->sample[i].sampletype, fd);
+			if(sf->sample[i].sampletype & 0x8000)
+				sf->use_rom = 1;
 		} else { /* for SBK; set missing infos */
 			sf->sample[i].samplerate = 44100;
 			sf->sample[i].originalPitch = 60;
@@ -684,9 +686,10 @@ static void load_sample_info(off_size_t size, SFInfo *sf, struct timidity_file *
 			/* the first RAM data starts from address 0 */
 			if (sf->sample[i].startsample == 0)
 				in_rom = 0;
-			if (in_rom)
+			if (in_rom){
 				sf->sample[i].sampletype = 0x8001;
-			else
+				sf->use_rom = 1;
+			}else
 				sf->sample[i].sampletype = 1;
 		}
 	}

@@ -565,8 +565,9 @@ static const TCHAR *process_priority_name_en[] = {
     TEXT("realtime")
 };
 
-static const int syn_thread_priority_list_num = 6;
+static const int syn_thread_priority_list_num = 7;
 static const int syn_thread_priority_num[] = {
+    THREAD_PRIORITY_IDLE,
     THREAD_PRIORITY_LOWEST,
     THREAD_PRIORITY_BELOW_NORMAL,
     THREAD_PRIORITY_NORMAL,
@@ -575,6 +576,7 @@ static const int syn_thread_priority_num[] = {
     THREAD_PRIORITY_TIME_CRITICAL
 };
 static const TCHAR *syn_thread_priority_name_jp[] = {
+	TEXT("アイドル"),
     TEXT("低い"),
     TEXT("少し低い"),
     TEXT("普通"),
@@ -583,6 +585,7 @@ static const TCHAR *syn_thread_priority_name_jp[] = {
     TEXT("タイムクリティカル")
 };
 static const TCHAR *syn_thread_priority_name_en[] = {
+	TEXT("idle")
     TEXT("lowest"),
     TEXT("below normal"),
     TEXT("normal"),
