@@ -30,9 +30,6 @@
 
 #ifdef AU_WDMKS
 
-#ifdef __W32__
-#include "interface.h"
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef NO_STRING_H

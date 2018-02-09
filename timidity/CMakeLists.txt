@@ -89,6 +89,7 @@ set(
     w32g_opus_dll.c
     w32_libFLAC_dll.c
     w32_libOggFLAC_dll.c
+    wdmks_a.c
     wrd_read.c
     wrdt.c
     
@@ -147,6 +148,7 @@ set(
     w32_libOggFLAC_dll_g.h
     w32_libOggFLAC_dll_i.h
 	wasapi_a.h
+    wdmks_a.h
     wrd.h
 
     $<TARGET_OBJECTS:libarc>

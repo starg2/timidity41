@@ -73,6 +73,7 @@ add_definitions(
 # TiMidity++ audio
     -DAU_W32
     -DAU_WASAPI
+    -DAU_WDMKS
     -DAU_OPUS
     -DAU_OPUS_DLL
     -DAU_SPEEX
