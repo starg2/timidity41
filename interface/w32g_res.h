@@ -14,11 +14,11 @@
 #define IDD_DIALOG_SIMPLE_LIST          110
 #define IDD_DIALOG_WRD                  111
 #define IDD_DIALOG_SOUNDSPEC_EN         112
-#define IDD_DIALOG_SOUNDSPEC            112
-#define IDD_DIALOG_WAVEFORM             113
-#define IDD_DIALOG_PLAYLIST_EN          114
-#define IDD_DIALOG_PLAYLIST             115
-#define IDD_DIALOG_SEARCHBOX            116
+#define IDD_DIALOG_SOUNDSPEC            113
+#define IDD_DIALOG_WAVEFORM             114
+#define IDD_DIALOG_PLAYLIST_EN          115
+#define IDD_DIALOG_PLAYLIST             116
+#define IDD_DIALOG_SEARCHBOX            117
 #define IDD_DIALOG_ONE_LINE_EN          118
 #define IDD_DIALOG_ONE_LINE             119
 #define IDD_DIALOG_PREF_EN              120
