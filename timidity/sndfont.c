@@ -1146,7 +1146,7 @@ static void add_item_to_table(LayerTable *tbl, int oper, int amount, int level)
 				tmp = INT16_MAX;
 			else if(tmp < INT16_MIN)
 				tmp = INT16_MIN;
-			tbl->val[oper] += (short)tmp;
+			tbl->val[oper] = (short)tmp;
 		}
 		break;
 	case L_OVWRT:
