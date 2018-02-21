@@ -36,17 +36,13 @@
 #include <windows.h>
 #undef RC_NONE
 #include <shlobj.h>
-
 #include <commctrl.h>
-
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-
 #include <shlobj.h>
-
 #include <windowsx.h>   /* There is no <windowsx.h> on CYGWIN.
                          * Edit_* and ListBox_* are defined in
                          * <windowsx.h>
@@ -1179,7 +1175,7 @@ static int w32g_syn_main(void)
 	w32g_syn.nid_uID = W32G_SYN_NID_UID;
 //	processPriority = NORMAL_PRIORITY_CLASS;
 //	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
-	for (i = 0; i <= MAX_PORT; i++) {
+	for (i = 0; i < MAX_PORT; i++) {
 		w32g_syn_id_port[i] = i + 1;
 	}
 

@@ -223,37 +223,18 @@ static int32 convert_envelope_offset(uint8 offset)
   return offset << (7+15);
 }
 
-static int32 convert_vibrato_sweep(uint8 sweep, int32 vib_control_ratio)
+static int32 convert_gus_lfo_sweep(uint8 sweep)
 {
-  if (!sweep)
-    return 0;
-
-  return (int32)(TIM_FSCALE((double) (vib_control_ratio)
-			    * SWEEP_TUNING, SWEEP_SHIFT)
-		 / (double)(play_mode->rate * sweep));
-
-  /* this was overflowing with seashore.pat
-
-      ((vib_control_ratio * SWEEP_TUNING) << SWEEP_SHIFT) /
-      (play_mode->rate * sweep); */
+	if (!sweep)
+		return 0;
+	return 1000 * sweep / 38; // SWEEP_TUNING
 }
 
-static int32 convert_tremolo_sweep(uint8 sweep)
+static int32 convert_gus_lfo_rate(uint8 rate)
 {
-  if (!sweep)
-    return 0;
-  return ((control_ratio * SWEEP_TUNING) << SWEEP_SHIFT) / (play_mode->rate * sweep);
-}
-
-static int32 convert_tremolo_rate(uint8 rate)
-{
-  return ((SINE_CYCLE_LENGTH * control_ratio * rate) << RATE_SHIFT) / (TREMOLO_RATE_TUNING * play_mode->rate);
-}
-
-static int32 convert_vibrato_rate(uint8 rate)
-{
-  /* Return a suitable vibrato_control_ratio value */
-  return (VIBRATO_RATE_TUNING * play_mode->rate) / (rate * 2 * VIBRATO_SAMPLE_INCREMENTS);
+	if (!rate)
+		return 0;
+	return 1000 * rate / 38; // TREMOLO_RATE_TUNING, VIBRATO_RATE_TUNING
 }
 
 static void reverse_data(int16 *sp, int32 ls, int32 le)
@@ -575,55 +556,141 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 						sp->envelope_offset[j] = to_offset(tone->envofs[i][j]);
 			}
 		}
+///r
 	if (tone->tremnum)
 		for (i = 0; i < ip->samples; i++) {
 			sp = &ip->sample[i];
 			if (tone->tremnum == 1) {
 				if (IS_QUANTITY_DEFINED(tone->trem[0][0]))
-					sp->tremolo_sweep_increment =
-							quantity_to_int(&tone->trem[0][0], 0);
+					sp->tremolo_sweep = quantity_to_int(&tone->trem[0][0], 0);
 				if (IS_QUANTITY_DEFINED(tone->trem[0][1]))
-					sp->tremolo_phase_increment =
-							quantity_to_int(&tone->trem[0][1], 0);
+					sp->tremolo_freq = quantity_to_int(&tone->trem[0][1], 0);
 				if (IS_QUANTITY_DEFINED(tone->trem[0][2]))
-					sp->tremolo_depth =
-							quantity_to_int(&tone->trem[0][2], 0) << 1;
+					sp->tremolo_to_amp = quantity_to_int(&tone->trem[0][2], 0);
 			} else if (i < tone->tremnum) {
 				if (IS_QUANTITY_DEFINED(tone->trem[i][0]))
-					sp->tremolo_sweep_increment =
-							quantity_to_int(&tone->trem[i][0], 0);
+					sp->tremolo_sweep = quantity_to_int(&tone->trem[i][0], 0);
 				if (IS_QUANTITY_DEFINED(tone->trem[i][1]))
-					sp->tremolo_phase_increment =
-							quantity_to_int(&tone->trem[i][1], 0);
+					sp->tremolo_freq = quantity_to_int(&tone->trem[i][1], 0);
 				if (IS_QUANTITY_DEFINED(tone->trem[i][2]))
-					sp->tremolo_depth =
-							quantity_to_int(&tone->trem[i][2], 0) << 1;
+					sp->tremolo_to_amp = quantity_to_int(&tone->trem[i][2], 0);
 			}
+		}		
+	if (tone->tremdelaynum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->tremdelaynum == 1)
+				sp->tremolo_delay = tone->tremdelay[0];
+			else if (i < tone->tremdelaynum)
+				sp->tremolo_delay = tone->tremdelay[i];
 		}
+	if (tone->tremsweepnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->tremsweepnum == 1)
+				sp->tremolo_sweep = tone->tremsweep[0];
+			else if (i < tone->tremsweepnum)
+				sp->tremolo_sweep = tone->tremsweep[i];
+		}
+	if (tone->tremfreqnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->tremfreqnum == 1)
+				sp->tremolo_freq = tone->tremfreq[0];
+			else if (i < tone->tremfreqnum)
+				sp->tremolo_freq = tone->tremfreq[i];
+		}
+	if (tone->tremampnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->tremampnum == 1)
+				sp->tremolo_to_amp = tone->tremamp[0];
+			else if (i < tone->tremampnum)
+				sp->tremolo_to_amp = tone->tremamp[i];
+		}
+	if (tone->trempitchnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->trempitchnum == 1)
+				sp->tremolo_to_pitch = tone->trempitch[0];
+			else if (i < tone->trempitchnum)
+				sp->tremolo_to_pitch = tone->trempitch[i];
+		}
+	if (tone->tremfcnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->tremfcnum == 1)
+				sp->tremolo_to_fc = tone->tremfc[0];
+			else if (i < tone->tremfcnum)
+				sp->tremolo_to_fc = tone->tremfc[i];
+		}
+
 	if (tone->vibnum)
 		for (i = 0; i < ip->samples; i++) {
 			sp = &ip->sample[i];
 			if (tone->vibnum == 1) {
-				if (IS_QUANTITY_DEFINED(tone->vib[0][1]))
-					sp->vibrato_control_ratio =
-							quantity_to_int(&tone->vib[0][1], 0);
 				if (IS_QUANTITY_DEFINED(tone->vib[0][0]))
-					sp->vibrato_sweep_increment =
-							quantity_to_int(&tone->vib[0][0],
-							sp->vibrato_control_ratio);
+					sp->vibrato_sweep = quantity_to_int(&tone->vib[0][0], 0);
+				if (IS_QUANTITY_DEFINED(tone->vib[0][1]))
+					sp->vibrato_freq = quantity_to_int(&tone->vib[0][1], 0);
 				if (IS_QUANTITY_DEFINED(tone->vib[0][2]))
-					sp->vibrato_depth = quantity_to_int(&tone->vib[0][2], 0);
+					sp->vibrato_to_pitch = quantity_to_int(&tone->vib[0][2], 0);
 			} else if (i < tone->vibnum) {
-				if (IS_QUANTITY_DEFINED(tone->vib[i][1]))
-					sp->vibrato_control_ratio =
-							quantity_to_int(&tone->vib[i][1], 0);
 				if (IS_QUANTITY_DEFINED(tone->vib[i][0]))
-					sp->vibrato_sweep_increment =
-							quantity_to_int(&tone->vib[i][0],
-							sp->vibrato_control_ratio);
+					sp->vibrato_sweep = quantity_to_int(&tone->vib[i][0], 0);
+				if (IS_QUANTITY_DEFINED(tone->vib[i][1]))
+					sp->vibrato_freq = quantity_to_int(&tone->vib[i][1], 0);
 				if (IS_QUANTITY_DEFINED(tone->vib[i][2]))
-					sp->vibrato_depth = quantity_to_int(&tone->vib[i][2], 0);
+					sp->vibrato_to_pitch = quantity_to_int(&tone->vib[i][2], 0);
 			}
+		}
+	if (tone->vibdelaynum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->vibdelaynum == 1)
+				sp->vibrato_delay = tone->vibdelay[0];
+			else if (i < tone->vibdelaynum)
+				sp->vibrato_delay = tone->vibdelay[i];
+		}
+	if (tone->vibsweepnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->vibsweepnum == 1)
+				sp->vibrato_sweep = tone->vibsweep[0];
+			else if (i < tone->vibsweepnum)
+				sp->vibrato_sweep = tone->vibsweep[i];
+		}
+	if (tone->vibfreqnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->vibfreqnum == 1)
+				sp->vibrato_freq = tone->vibfreq[0];
+			else if (i < tone->vibfreqnum)
+				sp->vibrato_freq = tone->vibfreq[i];
+		}
+	if (tone->vibampnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->vibampnum == 1)
+				sp->vibrato_to_amp = tone->vibamp[0];
+			else if (i < tone->vibampnum)
+				sp->vibrato_to_amp = tone->vibamp[i];
+		}
+	if (tone->vibpitchnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->vibpitchnum == 1)
+				sp->vibrato_to_pitch = tone->vibpitch[0];
+			else if (i < tone->vibpitchnum)
+				sp->vibrato_to_pitch = tone->vibpitch[i];
+		}
+	if (tone->vibfcnum)
+		for (i = 0; i < ip->samples; i++) {
+			sp = &ip->sample[i];
+			if (tone->vibfcnum == 1)
+				sp->vibrato_to_fc = tone->vibfc[0];
+			else if (i < tone->vibfcnum)
+				sp->vibrato_to_fc = tone->vibfc[i];
 		}
 	if (tone->sclnotenum)
 		for (i = 0; i < ip->samples; i++) {
@@ -721,22 +788,6 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 						sp->modenv_velf[j] = tone->modenvvelf[i][j];
 			}
 		}
-	if (tone->trempitchnum)
-		for (i = 0; i < ip->samples; i++) {
-			sp = &ip->sample[i];
-			if (tone->trempitchnum == 1)
-				sp->tremolo_to_pitch = tone->trempitch[0];
-			else if (i < tone->trempitchnum)
-				sp->tremolo_to_pitch = tone->trempitch[i];
-		}
-	if (tone->tremfcnum)
-		for (i = 0; i < ip->samples; i++) {
-			sp = &ip->sample[i];
-			if (tone->tremfcnum == 1)
-				sp->tremolo_to_fc = tone->tremfc[0];
-			else if (i < tone->tremfcnum)
-				sp->tremolo_to_fc = tone->tremfc[i];
-		}
 	if (tone->modpitchnum)
 		for (i = 0; i < ip->samples; i++) {
 			sp = &ip->sample[i];
@@ -802,38 +853,6 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 				sp->cutoff_freq += tone->fcadd[0];
 			else if (i < tone->fcaddnum && sp->cutoff_freq)
 				sp->cutoff_freq += tone->fcadd[i];
-		}
-	if (tone->tremdelaynum)
-		for (i = 0; i < ip->samples; i++) {
-			sp = &ip->sample[i];
-			if (tone->tremdelaynum == 1)
-				sp->tremolo_delay = tone->tremdelay[0] * playmode_rate_ms;
-			else if (i < tone->tremdelaynum)
-				sp->tremolo_delay = tone->tremdelay[i] * playmode_rate_ms;
-		}
-	if (tone->vibdelaynum)
-		for (i = 0; i < ip->samples; i++) {
-			sp = &ip->sample[i];
-			if (tone->vibdelaynum == 1)
-				sp->vibrato_delay = tone->vibdelay[0] * playmode_rate_ms;
-			else if (i < tone->vibdelaynum)
-				sp->vibrato_delay = tone->vibdelay[i] * playmode_rate_ms;
-		}
-	if (tone->vibfcnum)
-		for (i = 0; i < ip->samples; i++) {
-			sp = &ip->sample[i];
-			if (tone->vibfcnum == 1)
-				sp->vibrato_to_fc = tone->vibfc[0];
-			else if (i < tone->vibfcnum)
-				sp->vibrato_to_fc = tone->vibfc[i];
-		}
-	if (tone->vibampnum)
-		for (i = 0; i < ip->samples; i++) {
-			sp = &ip->sample[i];
-			if (tone->vibampnum == 1)
-				sp->vibrato_to_amp = tone->vibamp[0];
-			else if (i < tone->vibampnum)
-				sp->vibrato_to_amp = tone->vibamp[i];
 		}
 	if (tone->pitenvnum)
 		for (i = 0; i < ip->samples; i++) {
@@ -1084,6 +1103,8 @@ fail:
 		sp->cutoff_low_limit = -1;
 		sp->cutoff_low_keyf = 0; // cent
 		sp->resonance = 0;
+		sp->tremolo_delay = sp->vibrato_delay = 0;
+		sp->vibrato_to_amp = sp->vibrato_to_fc = 0;
 		sp->tremolo_to_pitch = sp->tremolo_to_fc = 0;
 		sp->modenv_to_pitch = sp->modenv_to_fc = 0;
 		sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
@@ -1091,7 +1112,6 @@ fail:
 		sp->vel_to_fc_threshold = 0;
 		sp->key_to_fc_bpo = 60;
 		sp->envelope_delay = sp->modenv_delay = 0;
-		sp->tremolo_delay = sp->vibrato_delay = 0;
 		sp->inst_type = INST_GUS;
 		sp->sample_type = SF_SAMPLETYPE_MONO;
 		sp->sf_sample_link = -1;
@@ -1103,7 +1123,6 @@ fail:
 		sp->hpf[2] = 0;
 		sp->def_pan = 64;
 		sp->sample_pan = 0.0;
-		sp->vibrato_to_amp = sp->vibrato_to_fc = 0;
 		sp->pitch_envelope[0] = 0; // 0cent init
 		sp->pitch_envelope[1] = 0; // 0cent atk
 		sp->pitch_envelope[2] = 0; // 125ms atk
@@ -1189,31 +1208,28 @@ fail:
 		if (tf_read(tmp, 1, 18, tf) != 18)
 			goto fail;
 		if (! tmp[13] || ! tmp[14]) {
-			sp->tremolo_sweep_increment = sp->tremolo_phase_increment = 0;
-			sp->tremolo_depth = 0;
+			sp->tremolo_sweep = sp->tremolo_freq = 0;
+			sp->tremolo_to_amp = 0;
 			ctl->cmsg(CMSG_INFO, VERB_DEBUG, " * no tremolo");
 		} else {
-			sp->tremolo_sweep_increment = convert_tremolo_sweep(tmp[12]);
-			sp->tremolo_phase_increment = convert_tremolo_rate(tmp[13]);
-			sp->tremolo_depth = tmp[14];
+			sp->tremolo_sweep = convert_gus_lfo_sweep(tmp[12]);
+			sp->tremolo_freq = convert_gus_lfo_rate(tmp[13]);
+			sp->tremolo_to_amp = (int32)tmp[14] * 10000 / 255; // max255 to max10000
 			ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-					" * tremolo: sweep %d, phase %d, depth %d",
-					sp->tremolo_sweep_increment, sp->tremolo_phase_increment,
-					sp->tremolo_depth);
+					" * tremolo: sweep %d(ms), freq %d(mHz), depth %d(0.01%)",
+					sp->tremolo_sweep, sp->tremolo_freq, sp->tremolo_to_amp);
 		}
 		if (! tmp[16] || ! tmp[17]) {
-			sp->vibrato_sweep_increment = sp->vibrato_control_ratio = 0;
-			sp->vibrato_depth = 0;
+			sp->vibrato_sweep = sp->vibrato_freq = 0;
+			sp->vibrato_to_pitch = 0;
 			ctl->cmsg(CMSG_INFO, VERB_DEBUG, " * no vibrato");
 		} else {
-			sp->vibrato_control_ratio = convert_vibrato_rate(tmp[16]);
-			sp->vibrato_sweep_increment = convert_vibrato_sweep(tmp[15],
-					sp->vibrato_control_ratio);
-			sp->vibrato_depth = tmp[17];
+			sp->vibrato_freq = convert_gus_lfo_rate(tmp[16]);
+			sp->vibrato_sweep = convert_gus_lfo_sweep(tmp[15]);
+			sp->vibrato_to_pitch = tmp[17];
 			ctl->cmsg(CMSG_INFO, VERB_DEBUG,
-					" * vibrato: sweep %d, ctl %d, depth %d",
-					sp->vibrato_sweep_increment, sp->vibrato_control_ratio,
-					sp->vibrato_depth);
+					" * vibrato: sweep %d(ms), freq %d(mHz), depth %d(cent)",
+					sp->vibrato_sweep, sp->vibrato_freq, sp->vibrato_to_pitch);
 		}
 		READ_CHAR(sp->modes);
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG, " * mode: 0x%02x", sp->modes);
@@ -1866,13 +1882,49 @@ void copy_tone_bank_element(ToneBankElement *elm, const ToneBankElement *src)
 			elm->trem[i] = (Quantity *) safe_memdup(elm->trem[i],
 					3 * sizeof(Quantity));
 	}
+	if (elm->tremdelaynum)
+		elm->tremdelay = (int16 *) safe_memdup(elm->tremdelay,
+				elm->tremdelaynum * sizeof(int16));
+	if (elm->tremsweepnum)
+		elm->tremsweep = (int16 *) safe_memdup(elm->tremsweep,
+				elm->tremsweepnum * sizeof(int16));
+	if (elm->tremfreqnum)
+		elm->tremfreq = (int16 *) safe_memdup(elm->tremfreq,
+				elm->tremfreqnum * sizeof(int16));
+	if (elm->tremampnum)
+		elm->tremamp = (int16 *) safe_memdup(elm->tremamp,
+				elm->tremampnum * sizeof(int16));
+	if (elm->trempitchnum)
+		elm->trempitch = (int16 *) safe_memdup(elm->trempitch,
+				elm->trempitchnum * sizeof(int16));
+	if (elm->tremfcnum)
+		elm->tremfc = (int16 *) safe_memdup(elm->tremfc,
+				elm->tremfcnum * sizeof(int16));
 	if (elm->vibnum) {
 		elm->vib = (Quantity **) safe_memdup(elm->vib,
 				elm->vibnum * sizeof(Quantity *));
 		for (i = 0; i < elm->vibnum; i++)
 			elm->vib[i] = (Quantity *) safe_memdup(elm->vib[i],
 					3 * sizeof(Quantity));
-	}
+	}	
+	if (elm->vibdelaynum)
+		elm->vibdelay = (int16 *) safe_memdup(elm->vibdelay,
+				elm->vibdelaynum * sizeof(int16));
+	if (elm->vibsweepnum)
+		elm->vibsweep = (int16 *) safe_memdup(elm->vibsweep,
+				elm->vibsweepnum * sizeof(int16));
+	if (elm->vibfreqnum)
+		elm->vibfreq = (int16 *) safe_memdup(elm->vibfreq,
+				elm->vibfreqnum * sizeof(int16));
+	if (elm->vibampnum)
+		elm->vibamp = (int16 *) safe_memdup(elm->vibamp,
+				elm->vibampnum * sizeof(int16));
+	if (elm->vibpitchnum)
+		elm->vibpitch = (int16 *) safe_memdup(elm->vibpitch,
+				elm->vibpitchnum * sizeof(int16));
+	if (elm->vibfcnum)
+		elm->vibfc = (int16 *) safe_memdup(elm->vibfc,
+				elm->vibfcnum * sizeof(int16));
 	if (elm->sclnotenum)
 		elm->sclnote = (int16 *) safe_memdup(elm->sclnote,
 				elm->sclnotenum * sizeof(int16));
@@ -1924,12 +1976,6 @@ void copy_tone_bank_element(ToneBankElement *elm, const ToneBankElement *src)
 			elm->modenvvelf[i] = (int *) safe_memdup(elm->modenvvelf[i],
 					6 * sizeof(int));
 	}
-	if (elm->trempitchnum)
-		elm->trempitch = (int16 *) safe_memdup(elm->trempitch,
-				elm->trempitchnum * sizeof(int16));
-	if (elm->tremfcnum)
-		elm->tremfc = (int16 *) safe_memdup(elm->tremfc,
-				elm->tremfcnum * sizeof(int16));
 	if (elm->modpitchnum)
 		elm->modpitch = (int16 *) safe_memdup(elm->modpitch,
 				elm->modpitchnum * sizeof(int16));
@@ -1955,18 +2001,6 @@ void copy_tone_bank_element(ToneBankElement *elm, const ToneBankElement *src)
 	if (elm->fcaddnum)
 		elm->fcadd = (int16 *) safe_memdup(elm->fcadd,
 				elm->fcaddnum * sizeof(int16));
-	if (elm->tremdelaynum)
-		elm->tremdelay = (int16 *) safe_memdup(elm->tremdelay,
-				elm->tremdelaynum * sizeof(int16));
-	if (elm->vibdelaynum)
-		elm->vibdelay = (int16 *) safe_memdup(elm->vibdelay,
-				elm->vibdelaynum * sizeof(int16));
-	if (elm->vibfcnum)
-		elm->vibfc = (int16 *) safe_memdup(elm->vibfc,
-				elm->vibfcnum * sizeof(int16));
-	if (elm->vibampnum)
-		elm->vibamp = (int16 *) safe_memdup(elm->vibamp,
-				elm->vibampnum * sizeof(int16));
 	if (elm->pitenvnum) {
 		elm->pitenv = (int **) safe_memdup(elm->pitenv,
 				elm->pitenvnum * sizeof(int *));
@@ -2066,12 +2100,37 @@ void free_tone_bank_element(ToneBankElement *elm)
 	if (elm->envofsnum)
 		free_ptr_list(elm->envofs, elm->envofsnum);
 	elm->envofs = NULL, elm->envofsnum = 0;
+///r
 	if (elm->tremnum)
 		free_ptr_list(elm->trem, elm->tremnum);
-	elm->trem = NULL, elm->tremnum = 0;
+	elm->trem = NULL, elm->tremnum = 0;	
+	safe_free(elm->tremdelay);
+	elm->tremdelay = NULL, elm->tremdelaynum = 0;
+	safe_free(elm->tremsweep);
+	elm->tremsweep = NULL, elm->tremsweepnum = 0;
+	safe_free(elm->tremfreq);
+	elm->tremfreq = NULL, elm->tremfreqnum = 0;
+	safe_free(elm->tremamp);
+	elm->tremamp = NULL, elm->tremampnum = 0;
+	safe_free(elm->trempitch);
+	elm->trempitch = NULL, elm->trempitchnum = 0;
+	safe_free(elm->tremfc);
+	elm->tremfc = NULL, elm->tremfcnum = 0;
 	if (elm->vibnum)
 		free_ptr_list(elm->vib, elm->vibnum);
 	elm->vib = NULL, elm->vibnum = 0;
+	safe_free(elm->vibdelay);
+	elm->vibdelay = NULL, elm->vibdelaynum = 0;	
+	safe_free(elm->vibsweep);
+	elm->vibsweep = NULL, elm->vibsweepnum = 0;
+	safe_free(elm->vibfreq);
+	elm->vibfreq = NULL, elm->vibfreqnum = 0;
+	safe_free(elm->vibamp);
+	elm->vibamp = NULL, elm->vibampnum = 0;
+	safe_free(elm->vibpitch);
+	elm->vibpitch = NULL, elm->vibpitchnum = 0;
+	safe_free(elm->vibfc);
+	elm->vibfc = NULL, elm->vibfcnum = 0;
 	safe_free(elm->sclnote);
 	elm->sclnote = NULL, elm->sclnotenum = 0;
 	safe_free(elm->scltune);
@@ -2096,10 +2155,6 @@ void free_tone_bank_element(ToneBankElement *elm)
 	if (elm->modenvvelfnum)
 		free_ptr_list(elm->modenvvelf, elm->modenvvelfnum);
 	elm->modenvvelf = NULL, elm->modenvvelfnum = 0;
-	safe_free(elm->trempitch);
-	elm->trempitch = NULL, elm->trempitchnum = 0;
-	safe_free(elm->tremfc);
-	elm->tremfc = NULL, elm->tremfcnum = 0;
 	safe_free(elm->modpitch);
 	elm->modpitch = NULL, elm->modpitchnum = 0;
 	safe_free(elm->modfc);
@@ -2117,14 +2172,6 @@ void free_tone_bank_element(ToneBankElement *elm)
 	elm->fcmul = NULL, elm->fcmulnum = 0;
 	safe_free(elm->fcadd);
 	elm->fcadd = NULL, elm->fcaddnum = 0;	
-	safe_free(elm->tremdelay);
-	elm->tremdelay = NULL, elm->tremdelaynum = 0;
-	safe_free(elm->vibdelay);
-	elm->vibdelay = NULL, elm->vibdelaynum = 0;
-	safe_free(elm->vibfc);
-	elm->vibfc = NULL, elm->vibfcnum = 0;
-	safe_free(elm->vibamp);
-	elm->vibamp = NULL, elm->vibampnum = 0;
 	if (elm->pitenvnum)
 		free_ptr_list(elm->pitenv, elm->pitenvnum);
 	elm->pitenv = NULL, elm->pitenvnum = 0;

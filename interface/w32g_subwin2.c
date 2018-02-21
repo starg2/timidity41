@@ -592,6 +592,7 @@ extern void wrd_graphic_xcopy ( int sx1, int sy1, int sx2, int sy2, int tx, int 
 void wrd_graphic_ginit ( void )
 {
 	RECT rc;
+
 	if ( WrdWndInfo.GraphicStop ) return;
 	if ( !w32g_wrd_wnd.active ) return;
 	wrd_graphic_plane_change ( 0, 0 );

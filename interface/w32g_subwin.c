@@ -330,7 +330,7 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		w32g_send_rc(RC_EXT_DROP, (ptr_size_t)wParam);
 #endif
 		return FALSE;
-	case WM_DESTROY:
+	case WM_DESTROY:		
 		{
 		RECT rc;
 		GetWindowRect(hwnd,&rc);

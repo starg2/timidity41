@@ -84,6 +84,7 @@ enum {
 //	NRPN_PARAM_SD_RELEASE
 	NRPN_PARAM_LIST_MAX,
 };
+extern FLOAT_T lookup_nrpn_param(int num, int mode);
 extern FLOAT_T calc_nrpn_param(FLOAT_T in, int add, int mode);
 
 #define SINE_CYCLE_LENGTH 1024

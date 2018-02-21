@@ -48,6 +48,9 @@
 #define PE_F32BIT	(1u<<8)  /* versus ? */
 #define PE_64BIT	(1u<<9)  /* versus 8-bit, 16-bit, 24-bit, 32-bit */ // ?
 #define PE_F64BIT	(1u<<10)  /* versus ? */
+#define PE_LV8BIT	(1u<<11)  /* need PE_32BIT PE_SIGNED versus PE_BYTESWAP PE_ULAW PE_ALAW */
+#define PE_LV16BIT	(1u<<12)  /* need PE_32BIT PE_SIGNED versus PE_BYTESWAP PE_ULAW PE_ALAW */
+#define PE_LV24BIT	(1u<<13)  /* need PE_32BIT PE_SIGNED versus PE_BYTESWAP PE_ULAW PE_ALAW */
 
 /* for play_mode->acntl() */
 enum {

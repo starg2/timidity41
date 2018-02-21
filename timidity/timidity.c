@@ -1050,6 +1050,30 @@ static int16 *config_parse_int16(const char *cp, int *num)
 	return list;
 }
 
+static int16 *config_parse_lfo_rate(const char *cp, int *num)
+{
+	const char *p;
+	int16 *list;
+	int i;
+	
+	/* count num */
+	*num = 1, p = cp;
+	while ((p = strchr(p, ',')) != NULL)
+		(*num)++, p++;
+	/* alloc */
+	list = (int16 *) safe_malloc((*num) * sizeof(int16));
+	/* regist */
+	for (i = 0, p = cp; i < *num; i++, p++) {
+		if ((! strcmp(p, "off")) || (! strcmp(p, "-0")))
+			list[i] = -1;
+		else 
+			list[i] = atoi(p);
+		if (! (p = strchr(p, ',')))
+			break;
+	}
+	return list;
+}
+
 static int **config_parse_envelope(const char *cp, int *num)
 {
 	const char *p, *px;
@@ -1204,8 +1228,8 @@ static Quantity **config_parse_modulation(const char *name, int line, const char
 	int i, j;
 	static const char * qtypestr[] = {"tremolo", "vibrato"};
 	static const uint16 qtypes[] = {
-		QUANTITY_UNIT_TYPE(TREMOLO_SWEEP), QUANTITY_UNIT_TYPE(TREMOLO_RATE), QUANTITY_UNIT_TYPE(DIRECT_INT),
-		QUANTITY_UNIT_TYPE(VIBRATO_SWEEP), QUANTITY_UNIT_TYPE(VIBRATO_RATE), QUANTITY_UNIT_TYPE(DIRECT_INT)
+		QUANTITY_UNIT_TYPE(LFO_SWEEP), QUANTITY_UNIT_TYPE(LFO_RATE), QUANTITY_UNIT_TYPE(TREMOLO_DEPTH),
+		QUANTITY_UNIT_TYPE(LFO_SWEEP), QUANTITY_UNIT_TYPE(LFO_RATE), QUANTITY_UNIT_TYPE(DIRECT_INT)
 	};
 	
 	/* count num */
@@ -1509,12 +1533,62 @@ static int set_gus_patchconf_opts(char *name,
 		if ((tone->trem = config_parse_modulation(name,
 				line, cp, &tone->tremnum, 0)) == NULL)
 			return 1;
+///r
+	}else if (! strcmp(opts, "tremdelay")){
+		if(tone->tremdelaynum)
+			safe_free(tone->tremdelay);
+		tone->tremdelay = config_parse_int16(cp, &tone->tremdelaynum);
+	}else if (! strcmp(opts, "tremsweep")){
+		if(tone->tremsweepnum)
+			safe_free(tone->tremsweep);
+		tone->tremsweep = config_parse_lfo_rate(cp, &tone->tremsweepnum);
+	}else if (! strcmp(opts, "tremfreq")){
+		if(tone->tremfreqnum)
+			safe_free(tone->tremfreq);
+		tone->tremfreq = config_parse_lfo_rate(cp, &tone->tremfreqnum);		
+	}else if (! strcmp(opts, "tremamp")){
+		if(tone->tremampnum)
+			safe_free(tone->tremamp);
+		tone->tremamp = config_parse_int16(cp, &tone->tremampnum);
+	}else if (! strcmp(opts, "trempitch")){
+		if(tone->trempitchnum)
+			safe_free(tone->trempitch);
+		tone->trempitch = config_parse_int16(cp, &tone->trempitchnum);
+	}else if (! strcmp(opts, "tremfc")){
+		if(tone->tremfcnum)
+			safe_free(tone->tremfc);
+		tone->tremfc = config_parse_int16(cp, &tone->tremfcnum);
 	} else if (! strcmp(opts, "vibrato")){
 		if(tone->vibnum)
 			free_ptr_list(tone->vib, tone->vibnum);
 		if ((tone->vib = config_parse_modulation(name,
 				line, cp, &tone->vibnum, 1)) == NULL)
-			return 1;
+			return 1;	
+///r			
+	}else if (! strcmp(opts, "vibdelay")){
+		if(tone->vibdelaynum)
+			safe_free(tone->vibdelay);
+		tone->vibdelay = config_parse_int16(cp, &tone->vibdelaynum);		
+	}else if (! strcmp(opts, "vibsweep")){
+		if(tone->vibsweepnum)
+			safe_free(tone->vibsweep);
+		tone->vibsweep = config_parse_lfo_rate(cp, &tone->vibsweepnum);
+	}else if (! strcmp(opts, "vibfreq")){
+		if(tone->vibfreqnum)
+			safe_free(tone->vibfreq);
+		tone->vibfreq = config_parse_lfo_rate(cp, &tone->vibfreqnum);	
+	}else if (! strcmp(opts, "vibamp")){
+		if(tone->vibampnum)
+			safe_free(tone->vibamp);
+		tone->vibamp = config_parse_int16(cp, &tone->vibampnum);
+	}else if (! strcmp(opts, "vibpitch")){
+		if(tone->vibpitchnum)
+			safe_free(tone->vibpitch);
+		tone->vibpitch = config_parse_int16(cp, &tone->vibpitchnum);
+	}else if (! strcmp(opts, "vibfc")){
+		if(tone->vibfcnum)
+			safe_free(tone->vibfc);
+		tone->vibfc = config_parse_int16(cp, &tone->vibfcnum);
 	} else if (! strcmp(opts, "sclnote")){
 		if(tone->sclnotenum)
 			safe_free(tone->sclnote);
@@ -1560,14 +1634,6 @@ static int set_gus_patchconf_opts(char *name,
 		if(tone->modenvvelfnum)
 			free_ptr_list(tone->modenvvelf, tone->modenvvelfnum);
 		tone->modenvvelf = config_parse_envelope(cp, &tone->modenvvelfnum);
-	}else if (! strcmp(opts, "trempitch")){
-		if(tone->trempitchnum)
-			safe_free(tone->trempitch);
-		tone->trempitch = config_parse_int16(cp, &tone->trempitchnum);
-	}else if (! strcmp(opts, "tremfc")){
-		if(tone->tremfcnum)
-			safe_free(tone->tremfc);
-		tone->tremfc = config_parse_int16(cp, &tone->tremfcnum);
 	}else if (! strcmp(opts, "modpitch")){
 		if(tone->modpitchnum)
 			safe_free(tone->modpitch);
@@ -1597,22 +1663,6 @@ static int set_gus_patchconf_opts(char *name,
 		if(tone->fcaddnum)
 			safe_free(tone->fcadd);
 		tone->fcadd = config_parse_int16(cp, &tone->fcaddnum);
-	}else if (! strcmp(opts, "tremdelay")){
-		if(tone->tremdelaynum)
-			safe_free(tone->tremdelay);
-		tone->tremdelay = config_parse_int16(cp, &tone->tremdelaynum);
-	}else if (! strcmp(opts, "vibdelay")){
-		if(tone->vibdelaynum)
-			safe_free(tone->vibdelay);
-		tone->vibdelay = config_parse_int16(cp, &tone->vibdelaynum);
-	}else if (! strcmp(opts, "vibamp")){
-		if(tone->vibampnum)
-			safe_free(tone->vibamp);
-		tone->vibamp = config_parse_int16(cp, &tone->vibampnum);
-	}else if (! strcmp(opts, "vibfc")){
-		if(tone->vibfcnum)
-			safe_free(tone->vibfc);
-		tone->vibfc = config_parse_int16(cp, &tone->vibfcnum);
 	} else if (! strcmp(opts, "pitenv")){
 		if(tone->pitenvnum)
 			free_ptr_list(tone->pitenv, tone->pitenvnum);
@@ -8646,6 +8696,7 @@ int w32gSaveDefaultPlaylist(void);
 extern int volatile save_playlist_once_before_exit_flag;
 #endif /* IA_W32GUI */
 
+
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
 static int CoInitializeOK = 0;
 #endif
@@ -8805,8 +8856,7 @@ int main(int argc, char **argv)
 	if (got_a_configuration != 1){	
 		if ((err = timidity_pre_load_configuration()) != 0)
 			return err;
-	}
-	
+	}	
 	optind = longind = 0;
 	while ((c = getopt_long(argc, argv, optcommands, longopts, &longind)) > 0)
 		if ((err = set_tim_opt_long(c, optarg, longind)) != 0)

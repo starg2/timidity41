@@ -34,8 +34,6 @@
 #include <shlobj.h>
 // #include <prsht.h>
 #include <commctrl.h>
-
-#include <commctrl.h>
 #ifndef NO_STRING_H
 #include <string.h>
 #else
@@ -4173,8 +4171,6 @@ void MPanelUpdateAll(void)
 // flag ÇÕã≠êßçXêVÇ∑ÇÈÅB
 void MPanelReadPanelInfo(int flag)
 {
-//	int cur_pl_num, playlist_num;
-
 	if(!MPanelOK)
 		return;
 	if(!PInfoOK)

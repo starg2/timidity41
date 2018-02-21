@@ -610,13 +610,6 @@ Instrument *load_soundfont_inst(int order,
 }
 
 /*----------------------------------------------------------------*/
-#define TO_MHZ(abscents) (int32)(8176.0 * pow(2.0, (double)(abscents) * DIV_1200))
-#if 0
-#define TO_VOLUME(centibel) (uint8)(255 * (1.0 - \
-				(centibel) * (M_LN10 * DIV_1200 / M_LN2)))
-#else
-#define TO_VOLUME(level)  (uint8)(255.0 - (level) * (255.0 * DIV_1000))
-#endif
 
 static FLOAT_T calc_volume(LayerTable *tbl)
 {
@@ -1438,7 +1431,7 @@ static void make_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 
 	if (otd.overwriteMode & EOWM_ENABLE_TREMOLO) {
 		vp->v.tremolo_delay = play_mode->rate / 1000 * OverrideSample.tremolo_delay;
-		vp->v.tremolo_depth = OverrideSample.tremolo_depth;
+		vp->v.tremolo_to_amp = OverrideSample.tremolo_to_amp;
 		vp->v.tremolo_to_fc = OverrideSample.tremolo_to_fc;
 		vp->v.tremolo_to_pitch = OverrideSample.tremolo_to_pitch;
 	}
@@ -1456,9 +1449,9 @@ static void make_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	}
 
 	if (otd.overwriteMode & EOWM_ENABLE_VIBRATO) {
-		vp->v.vibrato_delay = play_mode->rate / 1000 * OverrideSample.vibrato_delay;
-		vp->v.vibrato_depth = OverrideSample.vibrato_depth;
-		vp->v.vibrato_sweep_increment = OverrideSample.vibrato_sweep_increment;
+		vp->v.vibrato_delay = OverrideSample.vibrato_delay;
+		vp->v.vibrato_to_pitch = OverrideSample.vibrato_to_pitch;
+		vp->v.vibrato_sweep = OverrideSample.vibrato_sweep;
 	}
 
 	if (otd.overwriteMode & EOWM_ENABLE_VEL) {
@@ -1527,21 +1520,19 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	}
     /* set sample position */
     vp->start = sp->startsample;
-    vp->len = sp->endsample - vp->start;
-	if(sf_config_addrs_offset){
+	if(sf_config_addrs_offset)
 		vp->start += (tbl->val[SF_startAddrsHi] << 15) + tbl->val[SF_startAddrs];
-		vp->len += (tbl->val[SF_endAddrsHi] << 15)	+ tbl->val[SF_endAddrs];
-	}
+    vp->len = sp->endsample - vp->start;
+	vp->len += (tbl->val[SF_endAddrsHi] << 15)	+ tbl->val[SF_endAddrs];
+
 	vp->start = abs(vp->start);
 	vp->len = abs(vp->len);
 
     /* set loop position */
     vp->v.loop_start = sp->startloop - vp->start;
     vp->v.loop_end = sp->endloop - vp->start;
-	if(sf_config_addrs_offset){
-		vp->v.loop_start += (tbl->val[SF_startloopAddrsHi] << 15) + tbl->val[SF_startloopAddrs];
-		vp->v.loop_end += (tbl->val[SF_endloopAddrsHi] << 15) + tbl->val[SF_endloopAddrs];
-	}
+	vp->v.loop_start += (tbl->val[SF_startloopAddrsHi] << 15) + tbl->val[SF_startloopAddrs];
+	vp->v.loop_end += (tbl->val[SF_endloopAddrsHi] << 15) + tbl->val[SF_endloopAddrs];
 
     /* set data length */
     vp->v.data_length = vp->len + 1;
@@ -1979,6 +1970,10 @@ int32 get_sf_release(int32 v)
 	return m;
 }
 
+static int32 abscent_to_mHz(int abscents)
+{
+	return ((double)8176 * pow(2.0, (double)abscents * DIV_1200) + 0.5);
+}
 
 /* volume envelope parameters */
 static void convert_volume_envelope(SampleList *vp, LayerTable *tbl)
@@ -2036,52 +2031,47 @@ static void convert_tremolo(SampleList *vp, LayerTable *tbl)
 	double level;
 	
 	if(sf_config_lfo_swap){		
-		vp->v.vibrato_depth = !tbl->set[SF_lfo1ToPitch] ? 0 : tbl->val[SF_lfo1ToPitch]; // cent
-		if(vp->v.vibrato_depth > sf_limit_viblfo_pitch)
-			vp->v.vibrato_depth = sf_limit_viblfo_pitch;
-		else if(vp->v.vibrato_depth < -sf_limit_viblfo_pitch)
-			vp->v.vibrato_depth = -sf_limit_viblfo_pitch;
-		vp->v.vibrato_to_fc = (tbl->set[SF_lfo1ToFilterFc]) ? tbl->val[SF_lfo1ToFilterFc] : 0;
+		vp->v.vibrato_to_pitch = !tbl->set[SF_lfo1ToPitch] ? 0 : tbl->val[SF_lfo1ToPitch]; // cent
+		if(vp->v.vibrato_to_pitch > sf_limit_viblfo_pitch)
+			vp->v.vibrato_to_pitch = sf_limit_viblfo_pitch;
+		else if(vp->v.vibrato_to_pitch < -sf_limit_viblfo_pitch)
+			vp->v.vibrato_to_pitch = -sf_limit_viblfo_pitch;
+		vp->v.vibrato_to_fc = (tbl->set[SF_lfo1ToFilterFc]) ? tbl->val[SF_lfo1ToFilterFc] : 0; // cent
 		if(vp->v.vibrato_to_fc > sf_limit_modlfo_fc)
 			vp->v.vibrato_to_fc = sf_limit_modlfo_fc;
 		else if(vp->v.vibrato_to_fc < -sf_limit_modlfo_fc)
 			vp->v.vibrato_to_fc = -sf_limit_modlfo_fc;
 		level = !tbl->set[SF_lfo1ToVolume] ? 1.0 : pow(10.0, (double)abs(tbl->val[SF_lfo1ToVolume]) * -DIV_200);
-		vp->v.vibrato_to_amp = 256 * (1.0 - level);
-		if ((int)tbl->val[SF_lfo1ToVolume] < 0) { vp->v.tremolo_depth = -vp->v.tremolo_depth; }
-		/* frequency in mHz */
-		freq = !tbl->set[SF_freqLfo1] ? sf_default_modlfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo1]);
+		vp->v.vibrato_to_amp = 10000 * (1.0 - level); // 0.01%
+		if ((int)tbl->val[SF_lfo1ToVolume] < 0) { vp->v.tremolo_to_amp = -vp->v.tremolo_to_amp; }
+		freq = !tbl->set[SF_freqLfo1] ? sf_default_modlfo_freq : abscent_to_mHz((int)tbl->val[SF_freqLfo1]);
 		if(freq > sf_limit_modlfo_freq)
 			freq = sf_limit_modlfo_freq;
 		if(freq < 1) {freq = 1;}
-		/* convert mHz to control ratio */
-		vp->v.vibrato_control_ratio = (1000 * play_mode->rate) / (freq * 2 * VIBRATO_SAMPLE_INCREMENTS);
-		vp->v.vibrato_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo1]) * 0.001;		
-		vp->v.vibrato_sweep_increment = 0;
+		vp->v.vibrato_freq = freq; // mHz
+		vp->v.vibrato_delay = to_msec(tbl->val[SF_delayLfo1]); // ms
+		vp->v.vibrato_sweep = 0; // ms
 	}else{		
-		vp->v.tremolo_to_pitch = (tbl->set[SF_lfo1ToPitch]) ? tbl->val[SF_lfo1ToPitch] : 0;
+		vp->v.tremolo_to_pitch = (tbl->set[SF_lfo1ToPitch]) ? tbl->val[SF_lfo1ToPitch] : 0; // cent
 		if(vp->v.tremolo_to_pitch > sf_limit_modlfo_pitch)
 			vp->v.tremolo_to_pitch = sf_limit_modlfo_pitch;
 		else if(vp->v.tremolo_to_pitch < -sf_limit_modlfo_pitch)
 			vp->v.tremolo_to_pitch = -sf_limit_modlfo_pitch;
-		vp->v.tremolo_to_fc = (tbl->set[SF_lfo1ToFilterFc]) ? tbl->val[SF_lfo1ToFilterFc] : 0;
+		vp->v.tremolo_to_fc = (tbl->set[SF_lfo1ToFilterFc]) ? tbl->val[SF_lfo1ToFilterFc] : 0; // cent
 		if(vp->v.tremolo_to_fc > sf_limit_modlfo_fc)
 			vp->v.tremolo_to_fc = sf_limit_modlfo_fc;
 		else if(vp->v.tremolo_to_fc < -sf_limit_modlfo_fc)
 			vp->v.tremolo_to_fc = -sf_limit_modlfo_fc;
 		level = !tbl->set[SF_lfo1ToVolume] ? 1.0 : pow(10.0, (double)abs(tbl->val[SF_lfo1ToVolume]) * -DIV_200);
-		vp->v.tremolo_depth = 256 * (1.0 - level);
-		if ((int)tbl->val[SF_lfo1ToVolume] < 0) { vp->v.tremolo_depth = -vp->v.tremolo_depth; }
-		/* frequency in mHz */
-		freq = !tbl->set[SF_freqLfo1] ? sf_default_modlfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo1]);
+		vp->v.tremolo_to_amp = 10000 * (1.0 - level); // 0.01%
+		if ((int)tbl->val[SF_lfo1ToVolume] < 0) { vp->v.tremolo_to_amp = -vp->v.tremolo_to_amp; }
+		freq = !tbl->set[SF_freqLfo1] ? sf_default_modlfo_freq : abscent_to_mHz((int)tbl->val[SF_freqLfo1]);
 		if(freq > sf_limit_modlfo_freq)
 			freq = sf_limit_modlfo_freq;
 		if(freq < 1) {freq = 1;	}
-		/* convert mHz to sine table increment; 1024<<rate_shift=1wave */
-		vp->v.tremolo_phase_increment = 
-			(FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT) * freq * DIV_1000 * div_playmode_rate; 
-		vp->v.tremolo_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo1]) * 0.001;	
-		vp->v.tremolo_sweep_increment = 0;
+		vp->v.tremolo_freq = freq + 0.5; // mHz
+		vp->v.tremolo_delay = to_msec(tbl->val[SF_delayLfo1]); // ms
+		vp->v.tremolo_sweep = 0; // ms
 	}
 }
 #endif
@@ -2096,40 +2086,35 @@ static void convert_vibrato(SampleList *vp, LayerTable *tbl)
     int32 freq;
 	
 	if(sf_config_lfo_swap){		
-		vp->v.tremolo_to_pitch = (tbl->set[SF_lfo2ToPitch]) ? tbl->val[SF_lfo2ToPitch] : 0;
+		vp->v.tremolo_to_pitch = (tbl->set[SF_lfo2ToPitch]) ? tbl->val[SF_lfo2ToPitch] : 0; // cent
 		if(vp->v.tremolo_to_pitch > sf_limit_modlfo_pitch)
 			vp->v.tremolo_to_pitch = sf_limit_modlfo_pitch;
 		else if(vp->v.tremolo_to_pitch < -sf_limit_modlfo_pitch)
 			vp->v.tremolo_to_pitch = -sf_limit_modlfo_pitch;
-		vp->v.tremolo_to_fc = 0;
-		vp->v.tremolo_depth = 0;
-		/* frequency in mHz */
-		freq = !tbl->set[SF_freqLfo2] ? sf_default_viblfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo2]);
+		vp->v.tremolo_to_fc = 0; // cent
+		vp->v.tremolo_to_amp = 0; // 0.01%
+		freq = !tbl->set[SF_freqLfo2] ? sf_default_viblfo_freq : abscent_to_mHz((int)tbl->val[SF_freqLfo2]);
 		if(freq > sf_limit_viblfo_freq)
 			freq = sf_limit_viblfo_freq;
 		if(freq < 1) {freq = 1;	}
-		/* convert mHz to sine table increment; 1024<<rate_shift=1wave */
-		vp->v.tremolo_phase_increment = 
-			(FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT) * freq * DIV_1000 * div_playmode_rate; 
-		vp->v.tremolo_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo2]) * 0.001;
-		vp->v.tremolo_sweep_increment = 0;
+		vp->v.tremolo_freq = freq; // mHz
+		vp->v.tremolo_delay = to_msec(tbl->val[SF_delayLfo2]); // ms
+		vp->v.tremolo_sweep = 0; // ms
 	}else{	
-		vp->v.vibrato_depth = !tbl->set[SF_lfo2ToPitch] ? 0 : tbl->val[SF_lfo2ToPitch]; // cent
-		if(vp->v.vibrato_depth > sf_limit_viblfo_pitch)
-			vp->v.vibrato_depth = sf_limit_viblfo_pitch;
-		else if(vp->v.vibrato_depth < -sf_limit_viblfo_pitch)
-			vp->v.vibrato_depth = -sf_limit_viblfo_pitch;
-		vp->v.vibrato_to_fc = 0;
-		vp->v.vibrato_to_amp = 0;
-		/* frequency in mHz */
-		freq = !tbl->set[SF_freqLfo2] ? sf_default_viblfo_freq : TO_MHZ((int)tbl->val[SF_freqLfo2]);
+		vp->v.vibrato_to_pitch = !tbl->set[SF_lfo2ToPitch] ? 0 : tbl->val[SF_lfo2ToPitch]; // cent
+		if(vp->v.vibrato_to_pitch > sf_limit_viblfo_pitch)
+			vp->v.vibrato_to_pitch = sf_limit_viblfo_pitch;
+		else if(vp->v.vibrato_to_pitch < -sf_limit_viblfo_pitch)
+			vp->v.vibrato_to_pitch = -sf_limit_viblfo_pitch;
+		vp->v.vibrato_to_fc = 0; // cent
+		vp->v.vibrato_to_amp = 0; // 0.01%
+		freq = !tbl->set[SF_freqLfo2] ? sf_default_viblfo_freq : abscent_to_mHz((int)tbl->val[SF_freqLfo2]);
 		if(freq > sf_limit_viblfo_freq)
 			freq = sf_limit_viblfo_freq;
 		if(freq < 1) {freq = 1;}
-		/* convert mHz to control ratio */
-		vp->v.vibrato_control_ratio = (1000 * play_mode->rate) / (freq * 2 * VIBRATO_SAMPLE_INCREMENTS);
-		vp->v.vibrato_delay = play_mode->rate * to_msec(tbl->val[SF_delayLfo2]) * 0.001;
-		vp->v.vibrato_sweep_increment = 0;
+		vp->v.vibrato_freq = freq; // mHz
+		vp->v.vibrato_delay = to_msec(tbl->val[SF_delayLfo2]); // ms
+		vp->v.vibrato_sweep = 0; // ms
 	}
 }
 #endif

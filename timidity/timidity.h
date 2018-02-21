@@ -473,24 +473,6 @@
 /* safe MAX_CHANNELS < 0x7F (SysEx broadcast, disable channel“™ */
 #define MAXMIDIPORT 16
 
-/* Vibrato and tremolo Choices of the Day */
-#define SWEEP_TUNING 38
-#define VIBRATO_AMPLITUDE_TUNING 1.0L
-#define VIBRATO_RATE_TUNING 38
-#define TREMOLO_AMPLITUDE_TUNING 1.0L
-#define TREMOLO_RATE_TUNING 38
-
-#define SWEEP_SHIFT 16
-#define RATE_SHIFT 5
-
-#define VIBRATO_SAMPLE_INCREMENTS 32
-
-#define MODULATION_WHEEL_RATE (1.0/6.0)
-/* #define MODULATION_WHEEL_RATE (midi_time_ratio/8.0) */
-/* #define MODULATION_WHEEL_RATE (current_play_tempo/500000.0/32.0) */
-
-#define VIBRATO_DEPTH_TUNING (1.0/4.0)
-
 /* you cannot but use safe_malloc(). */
 #define HAVE_SAFE_MALLOC 1
 
@@ -519,6 +501,7 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif /* HAVE_ERRNO_H */
+
 #ifdef HAVE_MACHINE_ENDIAN_H
 #include <machine/endian.h> /* for __byte_swap_*() */
 #endif /* HAVE_MACHINE_ENDIAN_H */

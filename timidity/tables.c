@@ -633,6 +633,55 @@ static void init_noise_lowbit_table(void)
 #define NRPN_PARAM_TABLE_LENGTH 128 // 2^n
 static float nrpn_param_table[NRPN_PARAM_LIST_MAX][NRPN_PARAM_TABLE_LENGTH + 1];
 
+static float nrpn_xg_attack_data[129] = {
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, //10
+	10, 12, 15, 30, 45, 60, 85, 110, 135, 160, //20
+	197, 234, 272, 310, 340, 370, 400, 430, 472, 514, //30
+	557, 600, 700, 800, 900, 1000, 1105, 1210, 1315, 1420, //40
+	1710, 1855, 2000, 2105, 2210, 2315, 2420, 2662, 2904, //50
+	3147, 3390, 3755, 4120, 4485, 4850, 5057, 5264, 5472, 5680, //60
+	6260, 6840, 7420, 8000, 8875, 9750, 10625, 11500, 12200, 12900, //70
+	13600, 14456, 15313, 16170, 16170, 16170, 16170, 16170, 16170, 16170, //80
+	16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, //90
+	16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, //100
+	16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, //110
+	16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, //120
+	16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, 16170, //128
+};
+
+static float nrpn_xg_release_data[129] = {
+	5, 6, 7, 8, 9, 10, 11, 12, 13, 14, //10
+	15, 16, 17, 18, 19, 20, 26, 32, 38, 45, //20
+	47, 49, 51, 54, 55, 56, 57, 58,	59, 60, //30
+	61, 62, 84, 106, 128, 150, 170, 190, 210, 230, //40
+	260, 290, 320, 350, 375, 400, 425, 450, 505, 560, //50
+	615, 670, 727, 784, 842, 900, 950, 1000, 1050, 1100, //60
+	1217, 1334, 1452, 1570, 1717, 1864, 2012, 2160, 2375, 2590, //70
+	2805, 3020, 3302, 3584, 3867, 4150, 4442, 4734, 5027, 5320, //80
+	5590, 5860, 6130, 6400, 6857, 7314, 7772, 8230, 8920, 9610, //90
+	10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, //100
+	10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, //110
+	10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, //120
+	10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300,//128
+};
+
+/*
+nrpn_xg_attack_data , nrpn_xg_release_data
+SYXGで測定してみた結果
+アタックタイム 0ms～16170ms(0~74) , リリースタイム 5ms～10300ms(0~90)
+	長短2種類プリセットで連続してるようなので それぞれ1個の固定値テーブルと思われる
+	途中までしかないのは初期値がテーブルの中央値以上(アタックタイム9000ms,リリースタイム1800ms)のプリセットがない？ので測定できない
+	これ以上は実用範囲外だろうし上限があるかもしれんのでそのままにする
+ディケイタイム 5ms～ nrpn=64:1.0, nrpn<64:2^((nrpn-64)/16), nrpn>64:10^((nrpn-64)/32)
+	長短2種類プリセットで全く連続しない nrpn64との比率が近似するのでおそらく 初期値への比率だと思われる
+	変化するのはディケイ2だけらしい 
+
+GSはソースにSC測定値を元にした初期値への比率のテーブルはあるけど
+アタックタイム/リリースタイムはどう設定してもSMF間で破綻することから 比率ではなく固定値テーブルと思われる ディケイは不明
+それで使わなくなったけど
+XGディケイが比率だったことで GSも比率かもしれない sc_eg_decay_tableは使えるかも
+*/
+
 static inline int cnv_nrpn_param_table_num(FLOAT_T in, int mode)
 {
 	const int inc1 = NRPN_PARAM_TABLE_LENGTH/8;
@@ -652,7 +701,7 @@ static inline int cnv_nrpn_param_table_num(FLOAT_T in, int mode)
 	return i;
 }
 
-static inline FLOAT_T lookup_nrpn_param(int num, int mode)
+FLOAT_T lookup_nrpn_param(int num, int mode)
 {
 	if(num <= 0)
 		num = 0;
@@ -664,7 +713,7 @@ static inline FLOAT_T lookup_nrpn_param(int num, int mode)
 FLOAT_T calc_nrpn_param(FLOAT_T in, int add, int mode)
 {
 	int num = cnv_nrpn_param_table_num(in, mode);
-	return (lookup_nrpn_param(num + add, mode) - lookup_nrpn_param(num, mode));
+	return lookup_nrpn_param(num + add, mode);
 }
 
 static void init_nrpn_param_table(void)
@@ -678,17 +727,17 @@ static void init_nrpn_param_table(void)
 		nrpn_param_table[NRPN_PARAM_GM_RATE][i] = 10.0 * (double)i * div_len; // 0.0 ~ 10.0
 		nrpn_param_table[NRPN_PARAM_GM_CUTOFF][i] = pow((double)10.0, 2.0 * (double)i * div_len) * 200.0; // 200 ~ 20000
 		nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][i] = pow((double)10.0, 2.0 * (double)i * div_len) * 20.0; // 20 ~ 2000
-		nrpn_param_table[NRPN_PARAM_GM_ATTACK][i] = pow((double)10.0, 3.8450980400142568307122162585926 * (double)i * div_len) * 5.0; // 5.0 ~ (40000.0=128
-		nrpn_param_table[NRPN_PARAM_GM_DECAY][i] = pow((double)10.0, 3.8450980400142568307122162585926 * (double)i * div_len) * 5.0; // 5.0 ~ (40000.0=128
-		nrpn_param_table[NRPN_PARAM_GM_RELEASE][i] = pow((double)10.0, 2.9030899869919435856412166841735 * (double)i * div_len) * 5.0; // 5.0 ~ (4000.0
+		nrpn_param_table[NRPN_PARAM_GM_ATTACK][i] = nrpn_xg_attack_data[i];
+		nrpn_param_table[NRPN_PARAM_GM_RELEASE][i] = nrpn_xg_release_data[i];
+		nrpn_param_table[NRPN_PARAM_GM_DECAY][i] = 1.0 / sc_eg_decay_table[i];
 	}	
 	nrpn_param_table[NRPN_PARAM_GM_DELAY][NRPN_PARAM_TABLE_LENGTH] = 5.0;
 	nrpn_param_table[NRPN_PARAM_GM_RATE][NRPN_PARAM_TABLE_LENGTH] = 10.0;
 	nrpn_param_table[NRPN_PARAM_GM_CUTOFF][NRPN_PARAM_TABLE_LENGTH] = 20000.0;	
 	nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][NRPN_PARAM_TABLE_LENGTH] = 2000.0;	
-	nrpn_param_table[NRPN_PARAM_GM_ATTACK][NRPN_PARAM_TABLE_LENGTH] = 35000.0; // ms
-	nrpn_param_table[NRPN_PARAM_GM_DECAY][NRPN_PARAM_TABLE_LENGTH] = 35000.0; // ms
-	nrpn_param_table[NRPN_PARAM_GM_RELEASE][NRPN_PARAM_TABLE_LENGTH] = 4000.0; // ms
+	nrpn_param_table[NRPN_PARAM_GM_ATTACK][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GM_ATTACK][127]; // ms
+	nrpn_param_table[NRPN_PARAM_GM_RELEASE][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GM_RELEASE][127]; // ms
+	nrpn_param_table[NRPN_PARAM_GM_DECAY][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GM_DECAY][127]; // ms
 	
 	// NRPN_PARAM_GS_DELAY
 	// 0で0秒、37で1秒、52で2秒、56で3秒、59で4秒、61で5秒、63で9秒強付近 max10sec?
@@ -729,9 +778,9 @@ static void init_nrpn_param_table(void)
 	for(i = 0; i <= NRPN_PARAM_TABLE_LENGTH; i++){	
 		nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i] = nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i];
 		nrpn_param_table[NRPN_PARAM_GS_ATTACK][i] = nrpn_param_table[NRPN_PARAM_GM_ATTACK][i];
-		nrpn_param_table[NRPN_PARAM_GS_DECAY][i] = nrpn_param_table[NRPN_PARAM_GM_DECAY][i];
 		nrpn_param_table[NRPN_PARAM_GS_RELEASE][i] = nrpn_param_table[NRPN_PARAM_GM_RELEASE][i];
-	}	
+		nrpn_param_table[NRPN_PARAM_GS_DECAY][i] = nrpn_param_table[NRPN_PARAM_GM_DECAY][i];
+	}
 
 	// NRPN_PARAM_XG_DELAY
 	// 0で0秒、+40で1秒、+50で2秒、+56で3秒、+61で4秒付近 max5sec?
@@ -777,10 +826,16 @@ static void init_nrpn_param_table(void)
 	for(i = 0; i <= NRPN_PARAM_TABLE_LENGTH; i++){	
 		nrpn_param_table[NRPN_PARAM_XG_CUTOFF][i] = nrpn_param_table[NRPN_PARAM_GM_CUTOFF][i];
 		nrpn_param_table[NRPN_PARAM_XG_CUTOFF_HPF][i] = nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][i];
-		nrpn_param_table[NRPN_PARAM_XG_ATTACK][i] = nrpn_param_table[NRPN_PARAM_GM_ATTACK][i];
-		nrpn_param_table[NRPN_PARAM_XG_DECAY][i] = nrpn_param_table[NRPN_PARAM_GM_DECAY][i];
-		nrpn_param_table[NRPN_PARAM_XG_RELEASE][i] = nrpn_param_table[NRPN_PARAM_GM_RELEASE][i];
-	}	
+		nrpn_param_table[NRPN_PARAM_XG_ATTACK][i] = nrpn_xg_attack_data[i];	
+		nrpn_param_table[NRPN_PARAM_XG_RELEASE][i] = nrpn_xg_release_data[i];
+		if(i == 64)
+			nrpn_param_table[NRPN_PARAM_XG_DECAY][i] = 1.0;
+		else if(i < 64)
+			nrpn_param_table[NRPN_PARAM_XG_DECAY][i] = pow(2.0, (double)(i - 64) * DIV_16);
+		else // if(i > 64)
+			nrpn_param_table[NRPN_PARAM_XG_DECAY][i] = pow(10.0, (double)(i - 64) * DIV_32);
+	}
+
 }
 
 FLOAT_T portament_time_table_xg[128];

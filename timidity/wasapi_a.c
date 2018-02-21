@@ -947,7 +947,7 @@ int open_output(void)
 				goto error;
 		}
 	}
-#endif	
+#endif
 	if(opt_wasapi_priority <= 0 || opt_wasapi_priority > 7)
 		ThreadPriorityNum = IsExclusive ? 6 : 1;
 	else

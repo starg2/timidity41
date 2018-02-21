@@ -404,6 +404,7 @@ static void packing_func_f64(FLAC__int32 *dst, const uint8 *src, int32 length)
   }
 }
 
+
 static void flac_session_close()
 {
   FLAC_ctx *ctx = flac_ctx;
@@ -537,6 +538,15 @@ static int flac_output_open(const char *fname, const char *comment)
 
   dpm.fd = fd;
   nch = (dpm.encoding & PE_MONO) ? 1 : 2;
+  
+#ifdef USE_TEMP_ENCODE
+  if (dpm.encoding & PE_24BIT) {
+    flac_options.bits = 24;
+  }
+  else {
+    flac_options.bits = 16;
+  }
+#else
   if (dpm.encoding & PE_24BIT) {
     flac_options.bits = 24;
     packing_func = packing_func_i24;
@@ -557,6 +567,7 @@ static int flac_output_open(const char *fname, const char *comment)
     flac_options.bits = 16;
     packing_func = packing_func_i16;
   }
+#endif
 
   metadata[num_metadata] = FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT);
   if (metadata[num_metadata]) {
@@ -875,23 +886,37 @@ static int open_output(void)
 #endif
 ///r
   include_enc = exclude_enc = 0;
+#ifdef USE_TEMP_ENCODE
+	include_enc = PE_SIGNED;
+	exclude_enc = PE_BYTESWAP | PE_ULAW | PE_ALAW;	
+	if(dpm.encoding & (PE_F64BIT | PE_64BIT | PE_F32BIT | PE_32BIT | PE_24BIT)){ // 24bit<=
+		include_enc |= PE_24BIT;
+		exclude_enc |= PE_F64BIT | PE_64BIT | PE_F32BIT | PE_32BIT | PE_16BIT;
+	}else{
+		include_enc |= PE_16BIT;
+		exclude_enc |= PE_F64BIT | PE_64BIT | PE_F32BIT | PE_32BIT | PE_24BIT;
+	}
+	dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);		
+	{		
+		int tmp_enc = dpm.encoding;
+		tmp_enc &= ~(PE_24BIT | PE_16BIT);
+		tmp_enc |= PE_32BIT;
+		if(dpm.encoding & PE_24BIT)
+			tmp_enc |= PE_LV24BIT;
+		else
+			tmp_enc |= PE_LV16BIT;
+		set_temporary_encoding(tmp_enc);
+	}
+#else // convert
   /* 16bit,24bit,32bit,F32bit,F64bit supported */
   include_enc |= PE_SIGNED | PE_16BIT;
   exclude_enc |= PE_BYTESWAP | PE_ULAW | PE_ALAW | PE_64BIT;
   if (dpm.encoding & (PE_64BIT)) {
     include_enc |= PE_32BIT;
   }
-#if 0
-  if (dpm.encoding & (PE_24BIT | PE_32BIT | PE_F32BIT | PE_F64BIT)) {
-    include_enc |= PE_SIGNED;
-    exclude_enc |= PE_BYTESWAP | PE_ULAW | PE_ALAW | PE_16BIT | PE_64BIT;
-  } else {
-    include_enc |= PE_SIGNED | PE_16BIT;
-    exclude_enc |= PE_BYTESWAP | PE_ULAW | PE_ALAW | PE_64BIT;
-  }
-#endif
   dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
-
+#endif
+  
 #if defined(LEGACY_FLAC) && defined(AU_OGGFLAC)
   if (flac_options.isogg) {
     ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "*** cannot write back seekpoints when encoding to Ogg yet ***");
@@ -999,8 +1024,8 @@ static int32 output_data(const uint8 *buf, size_t nbytes)
 {
   const int nch = (dpm.encoding & PE_MONO) ? 1 : 2;
   const int step = divi_8(flac_options.bits);
-  const int nsamples = nbytes / nch / step;
-  const int nlength = nbytes / step;
+  int nsamples = nbytes / nch / step;
+  int nlength = nbytes / step;
   FLAC__int32 *newoggbuf;
   FLAC_ctx *ctx = flac_ctx;
 
@@ -1011,7 +1036,12 @@ static int32 output_data(const uint8 *buf, size_t nbytes)
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC stream is not initialized");
     return -1;
   }
-
+  
+#ifdef USE_TEMP_ENCODE
+  nsamples = nbytes / nch / sizeof(int32);
+  nlength = nsamples * nch;
+  ctx->oggbuf = (FLAC__int32 *)buf;
+#else
   if (!ctx->oggbuf || ctx->oggbuf_length < nlength) {
     newoggbuf = (FLAC__int32*) realloc(ctx->oggbuf, nlength * sizeof(FLAC__int32));
     if (!newoggbuf) {
@@ -1024,8 +1054,8 @@ static int32 output_data(const uint8 *buf, size_t nbytes)
     ctx->oggbuf = newoggbuf;
     ctx->oggbuf_length = nlength;
   }
-
   (*packing_func)(ctx->oggbuf, buf, nlength);
+#endif
 
 #ifdef LEGACY_FLAC
 #ifdef AU_OGGFLAC
@@ -1120,8 +1150,13 @@ static int32 output_data(const uint8 *buf, size_t nbytes)
     return -1;
   }
 #endif
+  
+#ifdef USE_TEMP_ENCODE
+  ctx->in_bytes += nsamples * nch * step;
+  ctx->oggbuf = NULL;
+#else
   ctx->in_bytes += nbytes;
-
+#endif
   return 0;
 }
 
@@ -1177,7 +1212,10 @@ static void close_output(void)
             ctx->out_bytes, ctx->in_bytes, ((double)ctx->out_bytes / (double)ctx->in_bytes) * 100.);
 
   flac_session_close();
-
+  
+#ifdef USE_TEMP_ENCODE
+	reset_temporary_encoding();
+#endif
 #ifdef AU_FLAC_DLL
 	g_free_libFLAC_dll();
 #endif

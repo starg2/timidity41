@@ -453,6 +453,7 @@ int INILoadSoundSpecWnd(void)
 	char *section = SEC_SOUNDSPECWND;
 	char *inifile = TIMIDITY_WINDOW_INI_FILE;
 	int num;
+
 	num = GetPrivateProfileInt(section,"PosX",-1,inifile);
 	SoundSpecWndInfo.PosX = num;
 	num = GetPrivateProfileInt(section,"PosY",-1,inifile);

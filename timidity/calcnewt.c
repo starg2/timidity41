@@ -8,7 +8,6 @@ int main(int argc, const char *argv[])
 {
     int i, j, n = 57;
     double sign = 0;
-
 	FILE *fp;
 
 	if (argc != 2)
@@ -22,6 +21,7 @@ int main(int argc, const char *argv[])
 		fprintf(stderr, "cannot open file:%s\n", argv[1]);
 		return 2;
 	}
+
     newt_coeffs[0][0] = 1;
     for (i = 0; i <= n; i++)
     {
@@ -50,5 +50,6 @@ int main(int argc, const char *argv[])
 	for (j = 0; j <= n; j++)
 	    fprintf(fp, "(double)%32.32g,\n", newt_coeffs[i][j]);
 	fclose(fp);
+
     return 0;
 }

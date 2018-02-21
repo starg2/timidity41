@@ -43,7 +43,6 @@
 #pragma warning(disable: 4310)  /* cast truncates constant value */
 #endif
 
-
 const char u2c_table[TABLE_SIZE8] = {
 (char)0x82,	(char)0x86,	(char)0x8a,	(char)0x8e,	(char)0x92,	(char)0x96,	(char)0x9a,	(char)0x9e,
 (char)0xa2,	(char)0xa6,	(char)0xaa,	(char)0xae,	(char)0xb2,	(char)0xb6,	(char)0xba,	(char)0xbe,
