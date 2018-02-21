@@ -1212,6 +1212,140 @@ static void CALLINGCONV f64tos32(DATA_T *lp, int32 c)
 }
 #endif
 
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+static void CALLINGCONV f64tos32lv8(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+	__m128d gain = _mm_set1_pd((double)INPUT_GAIN);
+	__m128d vmul = _mm_set1_pd((double)MAX_8BIT_SIGNED);
+	for(i = 0; i < c; i += 8){
+		__m128i vec_i32_11 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i], gain), vmul));
+		__m128i vec_i32_12 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 2], gain), vmul));
+		__m128i vec_i32_21 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 4], gain), vmul));
+		__m128i vec_i32_22 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 6], gain), vmul));
+		__m128i vec_i32_1 = _mm_or_si128(vec_i32_11, _mm_slli_si128(vec_i32_12, 8));
+		__m128i vec_i32_2 = _mm_or_si128(vec_i32_21, _mm_slli_si128(vec_i32_22, 8));
+		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4	
+		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
+	}
+}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
+static void CALLINGCONV f64tos32lv8(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+	__m128 gain = _mm_set1_ps((float)INPUT_GAIN);
+	__m128 vmul = _mm_set1_ps((float)MAX_8BIT_SIGNED);	
+	for(i = 0; i < c; i += 8){
+		__m128 vec_f1 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
+		__m128 vec_f2 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i + 4], gain), vmul);
+		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
+		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
+		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4		
+		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
+	}
+}
+#else
+static void CALLINGCONV f64tos32lv8(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+
+	for(i = 0; i < c; i++)
+		sp[i] = (int32)(clip_input(&lp[i]) * MAX_8BIT_SIGNED);
+}
+#endif
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+static void CALLINGCONV f64tos32lv16(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+	__m128d gain = _mm_set1_pd((double)INPUT_GAIN);
+	__m128d vmul = _mm_set1_pd((double)MAX_16BIT_SIGNED);
+	for(i = 0; i < c; i += 8){
+		__m128i vec_i32_11 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i], gain), vmul));
+		__m128i vec_i32_12 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 2], gain), vmul));
+		__m128i vec_i32_21 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 4], gain), vmul));
+		__m128i vec_i32_22 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 6], gain), vmul));
+		__m128i vec_i32_1 = _mm_or_si128(vec_i32_11, _mm_slli_si128(vec_i32_12, 8));
+		__m128i vec_i32_2 = _mm_or_si128(vec_i32_21, _mm_slli_si128(vec_i32_22, 8));
+		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4	
+		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
+	}
+}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
+static void CALLINGCONV f64tos32lv16(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+	__m128 gain = _mm_set1_ps((float)INPUT_GAIN);
+	__m128 vmul = _mm_set1_ps((float)MAX_16BIT_SIGNED);	
+	for(i = 0; i < c; i += 8){
+		__m128 vec_f1 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
+		__m128 vec_f2 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i + 4], gain), vmul);
+		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
+		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
+		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4		
+		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
+	}
+}
+#else
+static void CALLINGCONV f64tos32lv16(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+
+	for(i = 0; i < c; i++)
+		sp[i] = (int32)(clip_input(&lp[i]) * MAX_16BIT_SIGNED);
+}
+#endif
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+static void CALLINGCONV f64tos32lv24(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+	__m128d gain = _mm_set1_pd((double)INPUT_GAIN);
+	__m128d vmul = _mm_set1_pd((double)MAX_24BIT_SIGNED);
+	for(i = 0; i < c; i += 8){
+		__m128i vec_i32_11 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i], gain), vmul));
+		__m128i vec_i32_12 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 2], gain), vmul));
+		__m128i vec_i32_21 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 4], gain), vmul));
+		__m128i vec_i32_22 = _mm_cvttpd_epi32(_mm_mul_pd(D128_CLIP_INPUT(&lp[i + 6], gain), vmul));
+		__m128i vec_i32_1 = _mm_or_si128(vec_i32_11, _mm_slli_si128(vec_i32_12, 8));
+		__m128i vec_i32_2 = _mm_or_si128(vec_i32_21, _mm_slli_si128(vec_i32_22, 8));
+		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4	
+		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
+	}
+}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
+static void CALLINGCONV f64tos32lv24(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+	__m128 gain = _mm_set1_ps((float)INPUT_GAIN);
+	__m128 vmul = _mm_set1_ps((float)MAX_24BIT_SIGNED);	
+	for(i = 0; i < c; i += 8){
+		__m128 vec_f1 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
+		__m128 vec_f2 = _mm_mul_ps(F128_CLIP_INPUT(&lp[i + 4], gain), vmul);
+		__m128i vec_i32_1 = _mm_cvttps_epi32(vec_f1);
+		__m128i vec_i32_2 = _mm_cvttps_epi32(vec_f2);
+		_mm_store_si128((__m128i *)&sp[i], vec_i32_1); // 128bit=32bit*4		
+		_mm_store_si128((__m128i *)&sp[i + 4], vec_i32_2); // 128bit=32bit*4	
+	}
+}
+#else
+static void CALLINGCONV f64tos32lv24(DATA_T *lp, int32 c)
+{
+	int32 *sp=(int32 *)(lp);
+	int32 i;
+
+	for(i = 0; i < c; i++)
+		sp[i] = (int32)(clip_input(&lp[i]) * MAX_24BIT_SIGNED);
+}
+#endif
 
 #if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
 static void CALLINGCONV f64tou32(DATA_T *lp, int32 c)
@@ -1632,9 +1766,16 @@ void general_output_convert_setup(void)
 				convert_fnc = f64tos32x;
 			else
 				convert_fnc = f64tou32x;
-		} else if(penc & PE_SIGNED)
-			convert_fnc = f64tos32;
-		else
+		} else if(penc & PE_SIGNED){
+			if(penc & PE_LV24BIT)
+				convert_fnc = f64tos32lv24;
+			else if(penc & PE_LV16BIT)
+				convert_fnc = f64tos32lv16;
+			else if(penc & PE_LV8BIT)
+				convert_fnc = f64tos32lv8;
+			else
+				convert_fnc = f64tos32;
+		}else
 			convert_fnc = f64tou32;
     }
 	else if(penc & PE_F32BIT) {
@@ -1883,6 +2024,51 @@ static void CALLINGCONV s32tos32(int32 *lp, int32 c)
 	l = GAIN_INT32(*lp++, leveli);
 	CLIP_GUARD_MAX(l)
 	*sp++ = (int32)(l << shift_32bit);
+    } while (lp < end);
+}
+
+static void CALLINGCONV s32tos32lv8(int32 *lp, int32 c)
+{
+    const int32 *end = lp + c;
+    int32 *sp = (int32*)(lp);
+    int32 l;
+    const int32 leveli = output_volumei;
+
+    do
+    {
+	l = GAIN_INT32(*lp++, leveli);
+	CLIP_GUARD_MAX(l)
+	*sp++ = (int32)(l >> shift_8bit);
+    } while (lp < end);
+}
+
+static void CALLINGCONV s32tos32lv16(int32 *lp, int32 c)
+{
+    const int32 *end = lp + c;
+    int32 *sp = (int32*)(lp);
+    int32 l;
+    const int32 leveli = output_volumei;
+
+    do
+    {
+	l = GAIN_INT32(*lp++, leveli);
+	CLIP_GUARD_MAX(l)
+	*sp++ = (int32)(l >> shift_16bit);
+    } while (lp < end);
+}
+
+static void CALLINGCONV s32tos32lv24(int32 *lp, int32 c)
+{
+    const int32 *end = lp + c;
+    int32 *sp = (int32*)(lp);
+    int32 l;
+    const int32 leveli = output_volumei;
+
+    do
+    {
+	l = GAIN_INT32(*lp++, leveli);
+	CLIP_GUARD_MAX(l)
+	*sp++ = (int32)(l >> shift_24bit);
     } while (lp < end);
 }
 
@@ -2615,9 +2801,16 @@ void general_output_convert_setup(void)
 		convert_fnc = s32tos32x;
 	    else
 		convert_fnc = s32tou32x;
-	} else if (penc & PE_SIGNED)
-	    convert_fnc = s32tos32;
-	else
+	} else if (penc & PE_SIGNED){
+		if(penc & PE_LV24BIT)
+			convert_fnc = s32tos32lv24;
+		else if(penc & PE_LV16BIT)
+			convert_fnc = s32tos32lv16;
+		else if(penc & PE_LV8BIT)
+			convert_fnc = s32tos32lv8;
+		else
+			convert_fnc = s32tos32;
+	}else
 	    convert_fnc = s32tou32;
     }
     else if (penc & PE_F32BIT) {

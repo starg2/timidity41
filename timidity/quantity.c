@@ -67,101 +67,30 @@ static FLOAT_T convert_DIRECT_FLOAT_NUM(FLOAT_T value, int32 param)
 	return value;
 }
 
-/* from instrum.c, convert_tremolo_sweep() */
-static int32 convert_TREMOLO_SWEEP_NUM(int32 value, int32 param)
+static int32 convert_LFO_SWEEP_NUM(int32 value, int32 param)
 {
 	uint8	sweep = value;
 	if(value < 0)
 		return -1;
 	if (!sweep)
 	return 0;
-
-	return
-	((control_ratio * SWEEP_TUNING) << SWEEP_SHIFT) /
-		(play_mode->rate * sweep);
+	return (int32)sweep * 1000 / 38; // SWEEP_TUNING
 }
 
-static int32 convert_TREMOLO_SWEEP_MS(int32 value, int32 param)
-{
-	if (value <= 0)
-		return 0;
-	#if SWEEP_SHIFT <= 16
-	return ((uint32)(control_ratio * (1000 >> 2)) << SWEEP_SHIFT) / ((play_mode->rate * value) >> 2);
-	#else
-		#error "overflow"
-	#endif
-}
-
-/* from instrum.c, convert_tremolo_rate() */
-static int32 convert_TREMOLO_RATE_NUM(int32 value, int32 param)
+static int32 convert_LFO_RATE_NUM(int32 value, int32 param)
 {
 	if(value < 0)
 		return -1;
-	return ((SINE_CYCLE_LENGTH * control_ratio * (uint8)value) << RATE_SHIFT) 
-		/ (TREMOLO_RATE_TUNING * play_mode->rate);
+	return (int32)value * 1000 / 38; // TREMOLO_RATE_TUNING, VIBRATO_RATE_TUNING
 }
 
-static int32 convert_TREMOLO_RATE_MS(int32 value, int32 param)
+static int32 convert_TREMOLO_DEPTH_NUM(int32 value, int32 param)
 {
-	#if RATE_SHIFT <= 5
-	return ((SINE_CYCLE_LENGTH * control_ratio * (1000 >> 1)) << RATE_SHIFT) /
-		((play_mode->rate * (uint32)value) >> 1);
-	#else
-		#error "overflow"
-	#endif
-}
-
-static FLOAT_T convert_TREMOLO_RATE_HZ(FLOAT_T value, int32 param)
-{
-	if (value <= 0)
-		return 0;
-	return ((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT) * value / play_mode->rate;
-}
-
-/* from instrum.c, convert_vibrato_sweep() */
-static int32 convert_VIBRATO_SWEEP_NUM(int32 value, int32 vib_control_ratio)
-{
-	uint8	sweep = value;
 	if(value < 0)
 		return -1;
-	if (!sweep)
-	return 0;
-
-	return (int32)(TIM_FSCALE((double) (vib_control_ratio)
-				* SWEEP_TUNING, SWEEP_SHIFT)
-			/ (double)(play_mode->rate * sweep));
-
-  /* this was overflowing with seashore.pat
-
-      ((vib_control_ratio * SWEEP_TUNING) << SWEEP_SHIFT) /
-      (play_mode->rate * sweep); */
+	return (int32)value * 10000 / 255; // max255 to max10000(0.01%)
 }
 
-static int32 convert_VIBRATO_SWEEP_MS(int32 value, int32 vib_control_ratio)
-{
-	if (value <= 0)
-		return 0;
-	return (TIM_FSCALE((double)vib_control_ratio * 1000, SWEEP_SHIFT)
-		/ (double)(play_mode->rate * value));
-}
-
-/* from instrum.c, to_control() */
-static int32 convert_VIBRATO_RATE_NUM(int32 control, int32 param)
-{
-	if(control < 0)
-		return -1;
-	return (int32) (0x2000 / pow(2.0, control / 31.0));
-}
-
-static int32 convert_VIBRATO_RATE_MS(int32 value, int32 param)
-{
-	return 1000 * play_mode->rate / ((2 * VIBRATO_SAMPLE_INCREMENTS) * value);
-}
-
-static FLOAT_T convert_VIBRATO_RATE_HZ(FLOAT_T value, int32 param)
-{
-	return play_mode->rate / ((2 * VIBRATO_SAMPLE_INCREMENTS) * value);
-}
 
 /*************** core functions ***************/
 
@@ -191,19 +120,11 @@ static int GetQuantityHints(uint16 type, QuantityHint *units)
 			END_QUANTITY_TYPE;
 		QUANTITY_TYPE_FLOAT(DIRECT_FLOAT);
 			END_QUANTITY_TYPE;
-		QUANTITY_TYPE_INT(TREMOLO_SWEEP);
-			REGISTER_TYPE_INT("ms", TREMOLO_SWEEP_MS);
+		QUANTITY_TYPE_INT(LFO_SWEEP);
 			END_QUANTITY_TYPE;
-		QUANTITY_TYPE_INT(TREMOLO_RATE);
-			REGISTER_TYPE_INT("ms", TREMOLO_RATE_MS);
-			REGISTER_TYPE_FLOAT("Hz", TREMOLO_RATE_HZ);
+		QUANTITY_TYPE_INT(LFO_RATE);
 			END_QUANTITY_TYPE;
-		QUANTITY_TYPE_INT(VIBRATO_RATE);
-			REGISTER_TYPE_INT("ms", VIBRATO_RATE_MS);
-			REGISTER_TYPE_FLOAT("Hz", VIBRATO_RATE_HZ);
-			END_QUANTITY_TYPE;
-		QUANTITY_TYPE_INT(VIBRATO_SWEEP);
-			REGISTER_TYPE_INT("ms", VIBRATO_SWEEP_MS);
+		QUANTITY_TYPE_INT(TREMOLO_DEPTH);
 			END_QUANTITY_TYPE;
 		default:
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Internal parameter error (%d)", type);

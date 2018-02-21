@@ -117,6 +117,11 @@ static struct portaudio_dll_ {
 
 static volatile HANDLE h_portaudio_dll = NULL;
 
+static PaError DummyPaAsio_ShowControlPanel(PaDeviceIndex device, void* systemSpecific)
+{
+    return paHostApiNotFound;
+}
+
 void free_portaudio_dll(void)
 {
 	if(h_portaudio_dll){
@@ -201,7 +206,7 @@ int load_portaudio_dll(int a)
 	portaudio_dll.Pa_Sleep = (type_Pa_Sleep)GetProcAddress(h_portaudio_dll,"Pa_Sleep");
 	if(!portaudio_dll.Pa_Sleep){ free_portaudio_dll(); return -1; }
 	portaudio_dll.PaAsio_ShowControlPanel = (type_PaAsio_ShowControlPanel)GetProcAddress(h_portaudio_dll,"PaAsio_ShowControlPanel");
-	if(!portaudio_dll.PaAsio_ShowControlPanel){ free_portaudio_dll(); return -1; }
+	if(!portaudio_dll.PaAsio_ShowControlPanel){ portaudio_dll.PaAsio_ShowControlPanel = &DummyPaAsio_ShowControlPanel; }
 	return 0;
 }
 

@@ -52,7 +52,7 @@
 #include "timer.h"
 #include "w32g.h"
 
-#if defined(SUPPORT_SOUNDSPEC) && defined(__W32G__)
+#if defined(SUPPORT_SOUNDSPEC)
 
 #include <windows.h>
 #include <wingdi.h>
@@ -671,7 +671,7 @@ void soundspec_reinit(void)
 	initialize_exp_hz_table(soundspec_zoom);
 }
 
-#endif /* SUPPORT_SOUNDSPEC && __W32G__ */
+#endif /* SUPPORT_SOUNDSPEC */
 
 #endif /* __W32__ */
 

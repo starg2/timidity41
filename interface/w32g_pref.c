@@ -98,6 +98,58 @@
 #endif
 
 
+/*****************************************************************************************************************************/
+
+static int WinVer = -1;
+
+static int get_winver(void)
+{
+	DWORD winver, major, minor;
+	int ver = 0;
+	
+	if(WinVer != -1)
+		return WinVer;
+	winver = GetVersion();
+	if(winver & 0x80000000){ // Win9x
+		WinVer = 0;
+		return 0;
+	}		
+	major = (DWORD)(LOBYTE(LOWORD(winver)));
+	minor = (DWORD)(HIBYTE(LOWORD(winver)));
+	switch (major){
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		ver = 0;
+		break;
+	case 6:
+		switch (minor){
+		case 0: ver = 1; break; // vista
+		case 1: ver = 2; break; // 7
+		case 2: ver = 3; break; // 8
+		case 3: ver = 4; break; // 8.1
+		default: ver = 5; break; // 8.2?
+		}
+		break;
+	case 10:
+		switch (minor){
+		case 0: ver = 6; break; // 10
+		default: ver = 7; break; // 10.1?
+		}
+		break;
+	default:
+		ver = 8; // 11?
+		break;
+	}
+	WinVer = ver;
+	return ver;
+}
+
+/*****************************************************************************************************************************/
+
 
 /* TiMidity Win32GUI preference / PropertySheet */
 
@@ -546,7 +598,6 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 
 	case WM_NOTIFY:
       {
-	int idCtrl = (int) wParam;
 	LPNMHDR pnmh = (LPNMHDR) lParam;
 	if (pnmh->idFrom == IDC_TAB_MAIN) {
 	    switch (pnmh->code) {
@@ -2572,7 +2623,7 @@ static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_jp[] = {
-	TEXT("補完なし"),
+	TEXT("補間なし"),
 	TEXT("線形(リニア)"),
 	TEXT("Cスプライン"),
 	TEXT("ラグランジュ"),
@@ -3016,9 +3067,9 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				EnableWindow(GetDlgItem(hwnd, IDC_EDIT_DECAY), TRUE);
 			}else{
 				SetDlgItemInt(hwnd,IDC_EDIT_DECAY,0,TRUE);
-				
-			break;EnableWindow(GetDlgItem(hwnd, IDC_EDIT_DECAY), FALSE);
+				EnableWindow(GetDlgItem(hwnd, IDC_EDIT_DECAY), FALSE);
 			}
+			break;
 		case IDC_CHECKBOX_LIMITER:
 			if(SendDlgItemMessage(hwnd, IDC_CHECKBOX_LIMITER, BM_GETCHECK, 0, 0)){
 				EnableWindow(GetDlgItem(hwnd, IDC_SLIDER_LIMITER), TRUE);
@@ -4179,6 +4230,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,TEXT(st_temp->OutputName));
 		} else
 			SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);	
+		PostMessage(hwnd, WM_COMMAND, IDC_COMBO_OUTPUT_MODE, 0);	// force updating IDC_BUTTON_OUTPUT_FILE text
 #endif
 		opt = st_temp->opt_playmode + 1;	
 		if(strchr(opt, 'U')){
@@ -4613,7 +4665,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				}
 			} else {
 				if(st_temp->auto_output_mode>0){
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output File");
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output Dir");
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
 				} else {
 				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output File");
@@ -4977,7 +5029,6 @@ static const TCHAR *cb_info_IDC_CHOC_EX_PHASE_NUM[] = {
 
 static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i;
 	switch (uMess) {
 	case WM_INITDIALOG:
 
@@ -4990,10 +5041,10 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 			
 		// soundfont override
 		SetDlgItemInt(hwnd, IDC_SFOW_VIBDELAY, OverrideSample.vibrato_delay, TRUE);
-		SetDlgItemInt(hwnd, IDC_SFOW_VIBDEPTH, OverrideSample.vibrato_depth, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFOW_VIBDEPTH, OverrideSample.vibrato_to_pitch, TRUE);
 
 		SetDlgItemInt(hwnd, IDC_SFOW_TRMDELAY, OverrideSample.tremolo_delay, TRUE);
-		SetDlgItemInt(hwnd, IDC_SFOW_TRMDEPTH, OverrideSample.tremolo_depth, TRUE);
+		SetDlgItemInt(hwnd, IDC_SFOW_TRMDEPTH, OverrideSample.tremolo_to_amp, TRUE);
 		SetDlgItemInt(hwnd, IDC_SFOW_TRMFC, OverrideSample.tremolo_to_fc, TRUE);
 		SetDlgItemInt(hwnd, IDC_SFOW_TRMPITCH, OverrideSample.tremolo_to_pitch, TRUE);
 
@@ -5054,16 +5105,16 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 		
 		// soundfont override
 		OverrideSample.vibrato_delay = (int)GetDlgItemInt(hwnd, IDC_SFOW_VIBDELAY, NULL, TRUE);
-		OverrideSample.vibrato_depth = (int)GetDlgItemInt(hwnd, IDC_SFOW_VIBDEPTH, NULL, TRUE);
+		OverrideSample.vibrato_to_pitch = (int)GetDlgItemInt(hwnd, IDC_SFOW_VIBDEPTH, NULL, TRUE);
 		CHECKRANGE_SFINI_PARAM(OverrideSample.vibrato_delay, 0, 2000);
-		CHECKRANGE_SFINI_PARAM(OverrideSample.vibrato_depth, 0, 600);
+		CHECKRANGE_SFINI_PARAM(OverrideSample.vibrato_to_pitch, 0, 600);
 
 		OverrideSample.tremolo_delay = (int)GetDlgItemInt(hwnd, IDC_SFOW_TRMDELAY, NULL, TRUE);
-		OverrideSample.tremolo_depth = (int)GetDlgItemInt(hwnd, IDC_SFOW_TRMDEPTH, NULL, TRUE);
+		OverrideSample.tremolo_to_amp = (int)GetDlgItemInt(hwnd, IDC_SFOW_TRMDEPTH, NULL, TRUE);
 		OverrideSample.tremolo_to_fc = (int)GetDlgItemInt(hwnd, IDC_SFOW_TRMFC, NULL, TRUE);
 		OverrideSample.tremolo_to_pitch = (int)GetDlgItemInt(hwnd, IDC_SFOW_TRMPITCH, NULL, TRUE);
 		CHECKRANGE_SFINI_PARAM(OverrideSample.tremolo_delay, 0, 1000);
-		CHECKRANGE_SFINI_PARAM(OverrideSample.tremolo_depth, 0, 256);
+		CHECKRANGE_SFINI_PARAM(OverrideSample.tremolo_to_amp, 0, 256);
 		CHECKRANGE_SFINI_PARAM(OverrideSample.tremolo_to_fc, -12000, 12000);
 		CHECKRANGE_SFINI_PARAM(OverrideSample.tremolo_to_pitch, -12000, 12000);
 
@@ -5143,7 +5194,6 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 
 static LRESULT APIENTRY CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i;
 	switch (uMess) {
 	case WM_INITDIALOG:
 
@@ -5456,7 +5506,6 @@ static LRESULT APIENTRY CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WP
 
 static LRESULT APIENTRY CALLBACK PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i;
 	switch (uMess) {
 	case WM_INITDIALOG:
 ///r
@@ -6064,7 +6113,7 @@ int wave_ConfigDialogInfoSaveINI(void)
 	const char *section = SEC_WAVE;
 	const char *inifile = timidity_output_inifile;
 	char buffer[1024];
-	int len;
+
 #if defined(__MINGW32__) || defined(__CYGWIN__)
 #define NUMSAVE(name) \
 		sprintf(buffer, "%d", wave_ConfigDialogInfo.name); \
@@ -8079,6 +8128,7 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 	switch (msg) {
 		case WM_INITDIALOG:
 		{
+			int max, winver = get_winver();
 			// WASAPI Options
 			if (st_temp->pa_wasapi_flag & paWinWasapiExclusive)
 				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_EXCLUSIVE, BM_SETCHECK, 1, 0);
@@ -8100,15 +8150,34 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				CB_INSSTR(IDC_COMBO_PA_WASAPI_PRIORITY, cb_info_IDC_COMBO_PA_WASAPI_PRIORITY[i]);
 			CB_SET(IDC_COMBO_PA_WASAPI_PRIORITY, (st_temp->pa_wasapi_flag >> 4));
 
-			DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_CH_MASK); // 作ってないのでOFF			
+			DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_CH_MASK); // 作ってないのでOFF
 			// WASAPI StreamCategory
-			for (i = 0; i < cb_num_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY; i++)
+			max = winver >= 3 ? cb_num_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY : 1;
+			for (i = 0; i < max; i++)
 				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, cb_info_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY[i]);
-			CB_SET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, (st_temp->pa_wasapi_stream_category));
+			if(winver >= 3) { // win8
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, (st_temp->pa_wasapi_stream_category));
+			}else{
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY, 0);
+				DI_DISABLE(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
+			}
 			// WASAPI StreamOption
-			for (i = 0; i < cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION; i++)
+			if(winver >= 6) // win10
+				max = cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION;
+			else if(winver >= 4) // win8.1
+				max = 2;
+			else
+				max = 1;
+			for (i = 0; i < max; i++)
 				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_PA_WASAPI_STREAM_OPTION[i]);
-			CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option));
+			if(winver >= 6){ // win10
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option));
+			}else if(winver >= 4){ // win8.1
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option >= 2 ? 0 : st_temp->pa_wasapi_stream_option));
+			}else{
+				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, 0);
+				DI_DISABLE(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
+			}
 
 
 			// asio
@@ -8387,7 +8456,7 @@ DEVICELIST cb_info_IDC_COMBO_WMME_NAME[DEVLIST_MAX];
 
 LRESULT WINAPI wmmeConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	int i = 0, cb_num = 0, cb_sel = 0;
+	int i = 0, cb_num = 0;
 
 	switch (msg) {
 		case WM_INITDIALOG:
@@ -8498,6 +8567,7 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 	switch (msg) {
 		case WM_INITDIALOG:
 		{
+			int max, winver = get_winver();
 			// WASAPI device
 			cb_num = wasapi_device_list(cb_info_IDC_COMBO_WASAPI_NAME);
 			if (cb_num == 0)
@@ -8538,13 +8608,32 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 				CB_INSSTR(IDC_COMBO_WASAPI_PRIORITY, cb_info_IDC_COMBO_WASAPI_PRIORITY[i]);
 			CB_SET(IDC_COMBO_WASAPI_PRIORITY, (st_temp->wasapi_priority));		
 			// WASAPI Stream Category
-			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY; i++)
+			max = winver >= 3 ? cb_num_IDC_COMBO_WASAPI_STREAM_CATEGORY : 1;
+			for (i = 0; i < max; i++)
 				CB_INSSTR(IDC_COMBO_WASAPI_STREAM_CATEGORY, cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[i]);
-			CB_SET(IDC_COMBO_WASAPI_STREAM_CATEGORY, (st_temp->wasapi_stream_category));
+			if(winver >= 3) { // win8
+				CB_SET(IDC_COMBO_WASAPI_STREAM_CATEGORY, (st_temp->wasapi_stream_category));
+			}else{
+				CB_SET(IDC_COMBO_WASAPI_STREAM_CATEGORY, 0);
+				DI_DISABLE(IDC_COMBO_WASAPI_STREAM_CATEGORY);
+			}
 			// WASAPI Stream Option
-			for (i = 0; i < cb_num_IDC_COMBO_WASAPI_STREAM_OPTION; i++)
+			if(winver >= 6) // win10
+				max = cb_num_IDC_COMBO_WASAPI_STREAM_OPTION;
+			else if(winver >= 4) // win8.1
+				max = 2;
+			else
+				max = 1;
+			for (i = 0; i < max; i++)
 				CB_INSSTR(IDC_COMBO_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_WASAPI_STREAM_OPTION[i]);
-			CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option));
+			if(winver >= 6){ // win10
+				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option));
+			}else if(winver >= 4){ // win8.1
+				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, (st_temp->wasapi_stream_option >= 2 ? 0 : st_temp->wasapi_stream_option));
+			}else{
+				CB_SET(IDC_COMBO_WASAPI_STREAM_OPTION, 0);
+				DI_DISABLE(IDC_COMBO_WASAPI_STREAM_OPTION);
+			}
 
 			SetFocus(DI_GET(IDOK));
 			return TRUE;

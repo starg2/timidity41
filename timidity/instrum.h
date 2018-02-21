@@ -37,27 +37,30 @@ typedef struct _Sample {
   int8 low_key, high_key, root_key; /* root_key‚Í•\Ž¦—p */
   FLOAT_T tune;
   int8 note_to_use;
-  int32 envelope_rate[6], envelope_offset[6],
-	modenv_rate[6], modenv_offset[6];
   FLOAT_T volume, cfg_amp;
   sample_t *data;
   int data_type;
-  int32 tremolo_sweep_increment, tremolo_phase_increment,
-    vibrato_sweep_increment, vibrato_control_ratio;
-  int16 tremolo_depth;
-  int16 vibrato_depth;
   int modes;
   uint8 data_alloced, low_vel, high_vel;
   int32 cutoff_freq, cutoff_low_limit, cutoff_low_keyf;	/* in Hz, [1, 20000] */
   int16 resonance;	/* in centibels, [0, 960] */
-  /* in cents, [-12000, 12000] */
-  int16 tremolo_to_pitch, tremolo_to_fc, modenv_to_pitch, modenv_to_fc,
-	  envelope_keyf[6], envelope_velf[6], modenv_keyf[6], modenv_velf[6],
-	  vel_to_fc, key_to_fc;
+  int16 vel_to_fc, key_to_fc; /* in cents, [-12000, 12000] */
   int16 vel_to_resonance;	/* in centibels, [-960, 960] */
+  // env
+  int32 envelope_rate[6], envelope_offset[6],
+	modenv_rate[6], modenv_offset[6];
+  int32 envelope_delay, modenv_delay;	/* in samples */
+  int16 modenv_to_pitch, modenv_to_fc,
+	  envelope_keyf[6], envelope_velf[6], modenv_keyf[6], modenv_velf[6];
   int8 envelope_velf_bpo, modenv_velf_bpo,
 	  key_to_fc_bpo, vel_to_fc_threshold;	/* in notes */
-  int32 vibrato_delay, tremolo_delay, envelope_delay, modenv_delay;	/* in samples */
+  int32 pitch_envelope[9];
+  // lfo
+  int16 tremolo_delay, tremolo_sweep, tremolo_freq;
+  int16 vibrato_delay, vibrato_sweep, vibrato_freq;
+  int16 tremolo_to_amp, tremolo_to_pitch, tremolo_to_fc;
+  int16 vibrato_to_amp, vibrato_to_pitch, vibrato_to_fc;
+  // other
   int16 scale_freq;	/* in notes */
   int16 scale_factor;	/* in 1024divs/key */
   int8 inst_type;
@@ -66,8 +69,7 @@ typedef struct _Sample {
   FLOAT_T root_freq_detected;	/* root freq from pitch detection */
   int transpose_detected;	/* note offset from detected root */
   int chord;			/* type of chord for detected pitch */
-  int16 vibrato_to_amp, vibrato_to_fc;
-  int32 pitch_envelope[9];
+  
   int lpf_type;
   int32 root_freq_org, sample_rate_org;
   int hpf[HPF_PARAM_NUM];
@@ -180,10 +182,10 @@ typedef struct {
 	// lfo
 	int tremnum, vibnum;
 	struct Quantity_ **trem, **vib;	
-	int trempitchnum, tremfcnum, tremdelaynum;
-	int16 *trempitch, *tremfc, *tremdelay;
-	int vibfcnum, vibampnum, vibdelaynum;
-	int16 *vibfc, *vibamp, *vibdelay;
+	int trempitchnum, tremfcnum, tremdelaynum, tremfreqnum, tremsweepnum, tremampnum;
+	int16 *trempitch, *tremfc, *tremdelay, *tremfreq, *tremsweep, *tremamp;
+	int vibfcnum, vibampnum, vibdelaynum, vibfreqnum, vibsweepnum, vibpitchnum;
+	int16 *vibfc, *vibamp, *vibdelay, *vibfreq, *vibsweep, *vibpitch;
 	// other
 	int8 reverb_send, chorus_send, delay_send;	
 	int vfxnum[VOICE_EFFECT_NUM];

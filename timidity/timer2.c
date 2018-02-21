@@ -69,7 +69,7 @@ LRESULT CALLBACK TimerProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		return 1; // error ?
 }
 
-int start_timer(UINT id, timer_func_t fnc, UINT ms)
+int start_timer(uint32 id, timer_func_t fnc, uint32 ms)
 {	
 	if(timer_func[id] != NULL)
 		return 0; // already start timer
@@ -82,7 +82,7 @@ int start_timer(UINT id, timer_func_t fnc, UINT ms)
 	}
 }
 
-void stop_timer(UINT id)
+void stop_timer(uint32 id)
 {
 	if(timer_func[id] == NULL)
 		return; // not start timer
@@ -97,8 +97,8 @@ void stop_timer(UINT id)
 
 #else /* IA_W32GUI */
 
-int start_timer(UINT id, void *fnc, UINT ms){return 1;}
-void stop_timer(UINT id){}
+int start_timer(uint32 id, timer_func_t fnc, uint32 ms){return 1;}
+void stop_timer(uint32 id){}
 
 #endif /* IA_W32GUI */
 
@@ -149,7 +149,7 @@ static int init_timer(void) // 0:ok 1:error
 	return 0;
 }
 
-int start_timer(UINT id, timer_func_t fnc, UINT ms)
+int start_timer(uint32 id, timer_func_t fnc, uint32 ms)
 {	
 	int nsec;
 
@@ -177,7 +177,7 @@ int start_timer(UINT id, timer_func_t fnc, UINT ms)
 	}
 }
 
-void stop_timer(UINT id)
+void stop_timer(uint32 id)
 {
 	if(timer_func[id] == NULL)
 		return; // not start timer
@@ -193,8 +193,8 @@ void stop_timer(UINT id)
 
 #else
 
-int start_timer(UINT id, void *fnc, UINT ms){return 1;}
-void stop_timer(UINT id){}
+int start_timer(uint32 id, void *fnc, uint32 ms){return 1;}
+void stop_timer(uint32 id){}
 
 #endif
 #endif /* other */

@@ -304,7 +304,7 @@ int is_x86ext_available(void)
 		flg_amd = 0;
 		break;
 	}
-	return (flg_intel && flg_amd) ? TRUE : FALSE;
+	return (flg_intel && flg_amd) ? 1 : 0;
 }
 
 

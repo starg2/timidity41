@@ -697,15 +697,16 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->note_to_use = 0;
 	sp->low_vel = 0;
 	sp->high_vel = 127;
-	sp->tremolo_sweep_increment =
-		sp->tremolo_phase_increment = sp->tremolo_depth =
-		sp->vibrato_sweep_increment = sp->vibrato_control_ratio = sp->vibrato_depth = 0;
+///r	
+	sp->tremolo_delay = sp->tremolo_sweep = sp->tremolo_freq = 0;
+	sp->tremolo_to_amp = sp->tremolo_to_pitch = sp->tremolo_to_fc = 0;
+	sp->vibrato_delay = sp->vibrato_sweep = sp->vibrato_freq = 0;
+	sp->vibrato_to_amp = sp->vibrato_to_pitch = sp->vibrato_to_fc = 0;
 	sp->cutoff_freq = 20000;
 	sp->cutoff_low_limit = -1;
 	sp->cutoff_low_keyf = 0; // cent
 	sp->resonance = 0;
-	sp->tremolo_to_pitch = sp->tremolo_to_fc = 
-		sp->modenv_to_pitch = sp->modenv_to_fc =
+	sp->modenv_to_pitch = sp->modenv_to_fc =
 		sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
 	sp->envelope_velf_bpo = sp->modenv_velf_bpo = 64;
 	sp->vel_to_fc_threshold = 0;
@@ -717,7 +718,6 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->hpf[0] = -1; // opt_hpf_def
 	sp->hpf[1] = 10;
 	sp->hpf[2] = 0;
-	sp->vibrato_to_amp = sp->vibrato_to_fc = 0;
 	sp->pitch_envelope[0] = 0; // 0cent init
 	sp->pitch_envelope[1] = 0; // 0cent atk
 	sp->pitch_envelope[2] = 0; // 125ms atk
@@ -733,8 +733,7 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	memset(sp->modenv_keyf, 0, sizeof(sp->modenv_keyf));
 	memset(sp->modenv_rate, 0, sizeof(sp->modenv_rate));
 	memset(sp->modenv_offset, 0, sizeof(sp->modenv_offset));
-	sp->envelope_delay = sp->modenv_delay =
-		sp->tremolo_delay = sp->vibrato_delay = 0;
+	sp->envelope_delay = sp->modenv_delay = 0;
 	sp->sample_type = SF_SAMPLETYPE_MONO;
 	sp->sf_sample_link = -1;
 	sp->sf_sample_index = 0;

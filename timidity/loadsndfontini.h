@@ -10,10 +10,10 @@
 
 	OverrideSample.vibrato_delay = MyIni_GetInt32(sec, "VibratoDelay", 300);
 	OverrideSample.vibrato_delay = MyIniParamRange(OverrideSample.vibrato_delay, 0, 2000);
-	OverrideSample.vibrato_depth = MyIni_GetInt32(sec, "VibratoDepth", 0);
-	OverrideSample.vibrato_depth = MyIniParamRange(OverrideSample.vibrato_depth, 0, 600);
-	OverrideSample.vibrato_sweep_increment = MyIni_GetInt32(sec, "VibratoSweep", 0);
-	OverrideSample.vibrato_sweep_increment = MyIniParamRange(OverrideSample.vibrato_sweep_increment, 0, 255);
+	OverrideSample.vibrato_to_pitch = MyIni_GetInt32(sec, "VibratoDepth", 0);
+	OverrideSample.vibrato_to_pitch = MyIniParamRange(OverrideSample.vibrato_to_pitch, 0, 600);
+	OverrideSample.vibrato_sweep = MyIni_GetInt32(sec, "VibratoSweep", 0);
+	OverrideSample.vibrato_sweep = MyIniParamRange(OverrideSample.vibrato_sweep, 0, 255);
 
 	OverrideSample.vel_to_fc = MyIni_GetInt32(sec, "VelToFc", -2400);
 	OverrideSample.vel_to_fc = MyIniParamRange(OverrideSample.vel_to_fc, -10000, 10000);
@@ -24,8 +24,8 @@
 
 	OverrideSample.tremolo_delay = MyIni_GetInt32(sec, "TremoloDelay", 0);
 	OverrideSample.tremolo_delay = MyIniParamRange(OverrideSample.tremolo_delay, 0, 1000);
-	OverrideSample.tremolo_depth = MyIni_GetInt32(sec, "TremoloDepth", 0);
-	OverrideSample.tremolo_depth = MyIniParamRange(OverrideSample.tremolo_depth, 0, 256);
+	OverrideSample.tremolo_to_amp = MyIni_GetInt32(sec, "TremoloDepth", 0);
+	OverrideSample.tremolo_to_amp = MyIniParamRange(OverrideSample.tremolo_to_amp, 0, 256);
 	OverrideSample.tremolo_to_fc = MyIni_GetInt32(sec, "TremoloToFc", 0);
 	OverrideSample.tremolo_to_fc = MyIniParamRange(OverrideSample.tremolo_to_fc, -12000, 12000);
 	OverrideSample.tremolo_to_pitch = MyIni_GetInt32(sec, "TremoloToPitch", 0);

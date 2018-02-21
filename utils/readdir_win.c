@@ -61,7 +61,7 @@ API_EXPORT(DIR *) opendir(const char *dir)
 {
     DIR *dp;
     char *filespec;
-    long handle;
+    ptr_size_t handle;
     int index;
 
     filespec = safe_malloc(strlen(dir) + 2 + 1);
@@ -76,7 +76,7 @@ API_EXPORT(DIR *) opendir(const char *dir)
     dp->finished = 0;
     dp->dir = safe_strdup(dir);
 
-    if ((handle = _findfirst(filespec, &(dp->fileinfo))) < 0) {
+    if ((handle = _findfirst(filespec, &(dp->fileinfo))) == -1) {
         if (errno == ENOENT)
             dp->finished = 1;
 	else {

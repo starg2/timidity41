@@ -36,33 +36,13 @@
 #include <windows.h>
 #undef RC_NONE
 #include <shlobj.h>
-
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
-#ifndef HAVE_NEW_MMSYSTEM
-#include <commdlg.h>
-#ifndef TPM_TOPALIGN
-#define TPM_TOPALIGN	0x0000L	/* for old version of cygwin */
-#endif
-#define TIME_ONESHOT 0
-#define TIME_PERIODIC 1
-int WINAPI timeSetEvent(UINT uDelay, UINT uResolution,
-			     void *fptc, DWORD dwUser, UINT fuEvent);
-int WINAPI timeKillEvent(UINT uTimerID);
-#endif
-#else
 #include <commctrl.h>
-#endif /* __CYGWIN32__ */
-
-#include <commctrl.h>
-
 #ifndef NO_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-
 #include <shlobj.h>
-
 #include <windowsx.h>   /* There is no <windowsx.h> on CYGWIN.
                          * Edit_* and ListBox_* are defined in
                          * <windowsx.h>
@@ -175,6 +155,8 @@ int playlist_max = 1;
 int playlist_max_ini = 1;
 int ConsoleClearFlag = 0;
 int opt_use_twsyn_bridge = 0;
+int w32g_lock_open_file = 0;
+
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 
 static int start_syn_thread(void);
@@ -450,7 +432,7 @@ static int w32g_syn_main(void)
 	w32g_syn.hIconPause = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_SERVER_PAUSE), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
 //	processPriority = NORMAL_PRIORITY_CLASS;
 //	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
-	for (i = 0; i <= MAX_PORT; i++) {
+	for (i = 0; i < MAX_PORT; i++) {
 		w32g_syn_id_port[i] = i + 1;
 	}
 
@@ -809,7 +791,7 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 						AppendMenu(hMenu, MF_STRING, IDM_PREFERENCE, TEXT("設定(&P)..."));
 #ifdef HAVE_SYN_CONSOLE
-						AppendMenu(hMenu, MF_STRING, IDM_CONSOLE_WND, TEXT("コンソール(&C)"));
+						AppendMenu(hMenu, MF_STRING, IDM_CONSOLE_WND, TEXT("コン\x83\x5Cール(&C)"));   // コンソール
 #endif /* HAVE_SYN_CONSOLE */
 ///r
 #ifdef VST_LOADER_ENABLE
@@ -1245,7 +1227,7 @@ static int w32g_syn_main(void)
 	w32g_syn.nid_uID = W32G_SYN_NID_UID;
 //	processPriority = NORMAL_PRIORITY_CLASS;
 //	syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
-	for (i = 0; i <= MAX_PORT; i++) {
+	for (i = 0; i < MAX_PORT; i++) {
 		w32g_syn_id_port[i] = i + 1;
 	}
 

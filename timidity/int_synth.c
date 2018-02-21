@@ -1299,10 +1299,11 @@ static void config_parse_scc_data(const char *cp, Preset_IS *set, int setting)
 	/* count num */
 	p = cp;
 	/* init */
-	for (i = 0; i < SCC_DATA_LENGTH + 1; i++){
+	for (i = 0; i < SCC_DATA_LENGTH; i++){
 		set->scc_data_int[setting][i] = 0; // init param
 		set->scc_data[setting][i] = 0; // init param
 	}
+	set->scc_data[setting][SCC_DATA_LENGTH] = 0;
 	/* regist */
 	for (i = 0; i < SCC_DATA_LENGTH; i++, p++) {
 		if (*p == ':')
@@ -4066,37 +4067,6 @@ static int32 convert_envelope_offset(uint8 offset)
   return offset << (7+15);
 }
 
-static int32 convert_vibrato_sweep(uint8 sweep, int32 vib_control_ratio)
-{
-  if (!sweep)
-    return 0;
-
-  return (int32)(TIM_FSCALE((double) (vib_control_ratio)
-			    * SWEEP_TUNING, SWEEP_SHIFT) / (double)(play_mode->rate * sweep));
-
-}
-
-static int32 convert_tremolo_sweep(uint8 sweep)
-{
-  if (!sweep)
-    return 0;
-  return ((control_ratio * SWEEP_TUNING) << SWEEP_SHIFT) / (play_mode->rate * sweep);
-}
-
-static int32 convert_tremolo_freq_rate(FLOAT_T freq)
-{
-	//  return ((SINE_CYCLE_LENGTH * control_ratio * rate) << RATE_SHIFT) / (TREMOLO_RATE_TUNING * play_mode->rate);  
-	return (FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT) * freq * DIV_1000 * div_playmode_rate; 
-}
-
-static int32 convert_vibrato_freq_rate(FLOAT_T freq)
-{
-  /* Return a suitable vibrato_control_ratio value */
-	//  return (VIBRATO_RATE_TUNING * play_mode->rate) / (rate * 2 * VIBRATO_SAMPLE_INCREMENTS);
-	return (play_mode->rate) / (freq * 2 * VIBRATO_SAMPLE_INCREMENTS);
-}
-
-
 static void init_sample_param(Sample *sample)
 {		
 	memset(sample, 0, sizeof(Sample));
@@ -4120,20 +4090,22 @@ static void init_sample_param(Sample *sample)
 	sample->modes = MODES_16BIT | MODES_LOOPING | MODES_SUSTAIN | MODES_ENVELOPE;
 	sample->low_vel = 0;
 	sample->high_vel = 127;
-	sample->tremolo_delay = 0;
-	sample->tremolo_phase_increment = convert_tremolo_freq_rate(5.0); // Hz
-	sample->tremolo_sweep_increment = convert_tremolo_sweep(8);
-	sample->tremolo_depth = 0;
-	sample->vibrato_delay = 0;
-	sample->vibrato_control_ratio = convert_vibrato_freq_rate(5.0); // Hz
-	sample->vibrato_sweep_increment =  convert_vibrato_sweep(8, sample->vibrato_control_ratio);
-	sample->vibrato_depth = 0;
+	sample->tremolo_delay = 0; // 0ms
+	sample->tremolo_freq = 5000; // mHz 5Hz
+	sample->tremolo_sweep = 5; // 5ms
+	sample->tremolo_to_amp = 0; // 0.01%
+	sample->tremolo_to_pitch = 0; // cent
+	sample->tremolo_to_fc = 0; // cent
+	sample->vibrato_delay = 0; // 0ms
+	sample->vibrato_freq = 5000; // mHz 5Hz
+	sample->vibrato_sweep = 5; // 5ms
+	sample->vibrato_to_amp = 0; // 0.01%
+	sample->vibrato_to_pitch = 0; // cent
+	sample->vibrato_to_fc = 0; // cent
 	sample->cutoff_freq = 20000;
 	sample->cutoff_low_limit = -1;
 	sample->cutoff_low_keyf = 0; // cent
 	sample->resonance =  0;
-	sample->tremolo_to_pitch = 0;
-	sample->tremolo_to_fc = 0;
 	sample->modenv_to_pitch = 0;
 	sample->modenv_to_fc =0;
 	sample->vel_to_fc = 0;
@@ -4158,8 +4130,6 @@ static void init_sample_param(Sample *sample)
 	sample->root_freq_detected = 0;
 	sample->transpose_detected = 0;
 	sample->chord = -1;
-	sample->vibrato_to_amp = 0;
-	sample->vibrato_to_fc = 0;
 	sample->pitch_envelope[0] = 0; // 0cent init
 	sample->pitch_envelope[1] = 0; // 0cent atk
 	sample->pitch_envelope[2] = 0; // 125ms atk

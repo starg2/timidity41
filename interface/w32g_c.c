@@ -116,7 +116,6 @@ static void w32g_ext_control_thread(void)
 
 static void w32g_uninit_ext_control_thread(void)
 {
-	int i;
 	DWORD status;
 	
 	thread_exit = 1;
@@ -220,6 +219,9 @@ static TIMECAPS tcaps;
 
 static int ctl_open(int using_stdin, int using_stdout)
 {
+    (void)using_stdin;
+    (void)using_stdout;
+
     if(ctl.opened)
 	return 0;
     ctl.opened = 1;
@@ -616,8 +618,6 @@ static int ctl_copycut_playlist(int mode)
 
 static int ctl_paste_playlist(void)
 {
-    int flg;
-	
 #ifdef LISTVIEW_PLAYLIST
 	w32g_paste_playlist(ctl.flags & CTLF_AUTOUNIQ, ctl.flags & CTLF_AUTOREFINE);
 	ctl_panel_refresh(1);

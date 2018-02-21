@@ -76,7 +76,7 @@
 #include "mix.h"
 #include "thread.h"
 #include "miditrace.h"
-
+#include "rtsyn.h"
 ///r
 extern int opt_default_mid;
 extern int effect_lr_mode;
@@ -1909,7 +1909,6 @@ int w32gSaveDefaultPlaylist(void)
 }
 #endif
 
-#ifndef WIN32GCC
 static char *get_filename(char *src, char *dest)
 {
 	char *p = src;
@@ -1984,4 +1983,3 @@ void CmdLineToArgv(LPSTR lpCmdLine, int *pArgc, CHAR ***pArgv)
 	}
 	}
 }
-#endif /* !WIN32GCC */

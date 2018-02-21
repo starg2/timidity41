@@ -1309,15 +1309,16 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 		sample->modes = MODES_16BIT;
 		sample->low_vel = 0;
 		sample->high_vel = 127;
-		sample->tremolo_sweep_increment =
-			sample->tremolo_phase_increment = sample->tremolo_depth =
-			sample->vibrato_sweep_increment = sample->vibrato_control_ratio = sample->vibrato_depth = 0;
 ///r
+		sample->tremolo_sweep = sample->tremolo_delay = sample->tremolo_freq =
+			sample->tremolo_to_amp = sample->tremolo_to_pitch = sample->tremolo_to_fc = 0;
+		sample->vibrato_sweep = sample->vibrato_delay = sample->vibrato_freq = 
+			sample->vibrato_to_amp = sample->vibrato_to_pitch = sample->vibrato_to_fc = 0;
 		sample->cutoff_freq = 20000;
 		sample->cutoff_low_limit = -1; 
 		sample->cutoff_low_keyf = 0; // cent
-		sample->resonance = sample->tremolo_to_pitch =
-			sample->tremolo_to_fc = sample->modenv_to_pitch = sample->modenv_to_fc =
+		sample->resonance = 
+			sample->modenv_to_pitch = sample->modenv_to_fc =
 			sample->vel_to_fc = sample->key_to_fc = sample->vel_to_resonance = 0;
 		sample->vel_to_fc_threshold = 0;
 		sample->envelope_velf_bpo = sample->modenv_velf_bpo = 64;
@@ -1330,8 +1331,7 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 		memset(sample->modenv_keyf, 0, sizeof(sample->modenv_keyf));
 		memset(sample->modenv_rate, 0, sizeof(sample->modenv_rate));
 		memset(sample->modenv_offset, 0, sizeof(sample->modenv_offset));
-		sample->envelope_delay = sample->modenv_delay =
-			sample->tremolo_delay = sample->vibrato_delay = 0;
+		sample->envelope_delay = sample->modenv_delay = 0;
 		sample->inst_type = INST_PCM;
 		sample->sample_type = SF_SAMPLETYPE_MONO;
 		sample->sf_sample_link = -1;
@@ -1342,7 +1342,6 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 		sample->hpf[0] = -1; // opt_hpf_def
 		sample->hpf[1] = 10;
 		sample->hpf[2] = 0;
-		sample->vibrato_to_amp = sample->vibrato_to_fc = 0;
 		sample->pitch_envelope[0] = 0; // 0cent init
 		sample->pitch_envelope[1] = 0; // 0cent atk
 		sample->pitch_envelope[2] = 0; // 125ms atk

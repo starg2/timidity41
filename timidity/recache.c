@@ -121,7 +121,7 @@ struct cache_hash *resamp_cache_fetch(Sample *sp, int note)
 	unsigned int addr;
 	struct cache_hash *p;
 	
-	if (sp->vibrato_control_ratio || (sp->modes & MODES_PINGPONG)
+	if (sp->vibrato_to_pitch || sp->tremolo_to_pitch || (sp->modes & MODES_PINGPONG)
 			|| (sp->sample_rate == play_mode->rate
 			&& sp->root_freq == get_note_freq(sp, sp->note_to_use)))
 		return NULL;

@@ -8,8 +8,6 @@ int main(int argc, const char *argv[])
 {
     int i, j, n = 57;
     double sign = 0;
-
-#ifdef _MSC_VER
 	FILE *fp;
 
 	if (argc != 2)
@@ -23,7 +21,7 @@ int main(int argc, const char *argv[])
 		fprintf(stderr, "cannot open file:%s\n", argv[1]);
 		return 2;
 	}
-#endif
+
     newt_coeffs[0][0] = 1;
     for (i = 0; i <= n; i++)
     {
@@ -48,19 +46,10 @@ int main(int argc, const char *argv[])
     	for (j = 0, sign = pow((double)-1, i); j <= i; j++, sign *= -1)
     	    newt_coeffs[i][j] *= sign;
 ///r
-#ifdef _MSC_VER
     for (i = 0; i <= n; i++)
 	for (j = 0; j <= n; j++)
 	    fprintf(fp, "(double)%32.32g,\n", newt_coeffs[i][j]);
 	fclose(fp);
-#else
-	for (i = 0; i <= n; i++) {
-		printf("{\n");
-		for (j = 0; j <= n; j++) {
-			printf("%32.32g,\n", newt_coeffs[i][j]);
-		}
-		printf("},\n");
-	}
-#endif
+
     return 0;
 }

@@ -32,22 +32,6 @@
 #undef RC_NONE
 #include <shlobj.h>
 // #include <prsht.h>
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
-#ifndef HAVE_NEW_MMSYSTEM
-#include <commdlg.h>
-#ifndef TPM_TOPALIGN
-#define TPM_TOPALIGN	0x0000L	/* for old version of cygwin */
-#endif
-#define TIME_ONESHOT 0
-#define TIME_PERIODIC 1
-int WINAPI timeSetEvent(UINT uDelay, UINT uResolution,
-			     void *fptc, DWORD dwUser, UINT fuEvent);
-int WINAPI timeKillEvent(UINT uTimerID);
-#endif
-#else
-#include <commctrl.h>
-#endif /* __CYGWIN32__ */
-
 #include <commctrl.h>
 #ifndef NO_STRING_H
 #include <string.h>
@@ -287,7 +271,7 @@ int SecondMode = 1;
 
 void FirstLoadIniFile(void);
 
-#ifndef WIN32GCC
+#if defined(_MSC_VER) && !defined(TWSYNG32)
 #ifndef TIM_CUI
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
@@ -347,13 +331,13 @@ LPSTR lpCmdLine, int nCmdShow)
 #endif
 }
 #endif /* TIM_CUI */
-#endif /* WIN32GCC */
+#endif
 
 // ***************************************************************************
 // System Function
 
-void CALLBACK KillProcess(UINT IDEvent, UINT uReserved, DWORD dwUser,
-	DWORD dwReserved1, DWORD dwReserved2)
+void CALLBACK KillProcess(UINT IDEvent, UINT uReserved, DWORD_PTR dwUser,
+	DWORD_PTR dwReserved1, DWORD_PTR dwReserved2)
 {
 	exit(0);
 	//	ExitProcess(0);
@@ -492,7 +476,7 @@ static HMENU hMenuOutput;
 static void InitMainMenu(HWND hWnd)
 {
 	HMENU hMenu, hMenuFile, hMenuConfig, hMenuWindow, hMenuHelp;
-	HMENU hSystemMenu, hMenu2;
+	HMENU hSystemMenu;
 	MENUITEMINFO mii;
 	int i;
 
@@ -552,7 +536,7 @@ static void InitMainMenu(HWND hWnd)
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("トレーサ(&T)"));
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("ドキュメント(&D)"));
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWWRDTRACER, TEXT("WRD(&W)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("コンソール(&C)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("コン\x83\x5Cール(&C)"));   // コンソール
 #ifdef VST_LOADER_ENABLE
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("VSTマネージャ(&V)"));
 #endif /* VST_LOADER_ENABLE */
@@ -673,22 +657,7 @@ static void InitMainMenu(HWND hWnd)
 		mii.dwTypeData = play_mode_list[i]->id_name;
 		InsertMenuItem(hMenuOutput, outputItemStart + i, TRUE, &mii);
 	}	
-#if 0
-	hMenu2 = CreateMenu();	
-	mii.cbSize = sizeof (MENUITEMINFO);
-	mii.fMask = MIIM_TYPE | MIIM_SUBMENU;
-	mii.fType = MFT_STRING;
-	mii.hSubMenu = hMenu;
-	if (PlayerLanguage == LANGUAGE_JAPANESE) {
-		mii.dwTypeData = TEXT("メニュー(&M)");
-	}else{
-		mii.dwTypeData = "Menu(&M)";
-	}
-	InsertMenuItem(hMenu2, 0, TRUE, &mii);
-	SetMenu(hWnd , hMenu2);
-#else
 	SetMenu(hWnd , hMenu);
-#endif
 	// system menu
 	hSystemMenu = GetSystemMenu(hWnd, FALSE);
 	RemoveMenu(hSystemMenu,SC_MAXIMIZE,MF_BYCOMMAND);
@@ -873,14 +842,14 @@ static void InitMainToolbar(HWND hwnd);
 static void InitSubWndToolbar(HWND hwnd);
 
 static UINT PlayerForwardAndBackwardEventID = 0;
-static void CALLBACK PlayerForward(UINT IDEvent, UINT uReserved, DWORD dwUser,
-	DWORD dwReserved1, DWORD dwReserved2)
+static void CALLBACK PlayerForward(UINT IDEvent, UINT uReserved, DWORD_PTR dwUser,
+	DWORD_PTR dwReserved1, DWORD_PTR dwReserved2)
 {
 	w32g_send_rc(RC_FORWARD, play_mode->rate);
 }
 
-static void CALLBACK PlayerBackward(UINT IDEvent, UINT uReserved, DWORD dwUser,
-	DWORD dwReserved1, DWORD dwReserved2)
+static void CALLBACK PlayerBackward(UINT IDEvent, UINT uReserved, DWORD_PTR dwUser,
+	DWORD_PTR dwReserved1, DWORD_PTR dwReserved2)
 {
 	w32g_send_rc(RC_BACK, play_mode->rate);
 }
@@ -926,7 +895,6 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		InitMainToolbar(hwnd);
 		InitSubWndToolbar(hwnd);
 		{
-			RECT rc;
 			hMainWndScrollbarVolumeTTipWnd = CreateWindow(TOOLTIPS_CLASS,
 			NULL, TTS_ALWAYSTIP,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -1011,7 +979,7 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				ShowPrefWnd ();
 			}
 			if(MainWndInfo.init){
-				RECT rc, mrc;
+				RECT rc;
 				GetWindowRect(hwnd,&rc);
 				MainWndInfo.Width = rc.right - rc.left;
 				MainWndInfo.Height = rc.bottom - rc.top;
@@ -4202,8 +4170,6 @@ void MPanelUpdateAll(void)
 // flag は強制更新する。
 void MPanelReadPanelInfo(int flag)
 {
-	int cur_pl_num, playlist_num;
-
 	if(!MPanelOK)
 		return;
 	if(!PInfoOK)
@@ -4591,14 +4557,22 @@ static void VersionWnd(HWND hParentWnd)
 {
 	char VersionText[2024];
   sprintf(VersionText,
-"TiMidity++ %s%s" NLS NLS
+"TiMidity++ %s%s%s" NLS NLS
 "TiMidity-0.2i by Tuukka Toivonen <tt@cgs.fi>." NLS
 "TiMidity Win32 version by Davide Moretti <dave@rimini.com>." NLS
 "TiMidity Windows 95 port by Nicolas Witczak." NLS
 "TiMidity Win32 GUI by Daisuke Aoki <dai@y7.net>." NLS
 " Japanese menu, dialog, etc by Saito <timidity@flashmail.com>." NLS
 "TiMidity++ by Masanao Izumo <mo@goice.co.jp>." NLS
-,(strcmp(timidity_version, "current")) ? "version " : "", timidity_version);
+,(strcmp(timidity_version, "current")) ? "version " : "", timidity_version,
+#if defined(_M_X64) || defined(__x86_64__)
+" [x64]"
+#elif defined(_M_IX86) || defined(__i386__)
+" [x86]"
+#else
+""
+#endif
+);
 	MessageBox(hParentWnd, VersionText, "Version", MB_OK);
 }
 
@@ -5109,8 +5083,6 @@ static void DlgDirOpen(HWND hwnd)
 LRESULT CALLBACK UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void DlgUrlOpen(HWND hwnd)
 {
-    char *file;
-
     if(w32g_lock_open_file)
 		return;
 

@@ -308,30 +308,12 @@ static int aiff_output_open(const char *fname)
 
 static int auto_aiff_output_open(const char *input_filename)
 {
-  char *output_filename = (char *)safe_malloc(strlen(input_filename) + 5);
-  char *ext, *p;
+  char *output_filename = create_auto_output_name(input_filename, ".aiff", NULL, 0);
 
-  strcpy(output_filename, input_filename);
-  if((ext = strrchr(output_filename, '.')) == NULL)
-    ext = output_filename + strlen(output_filename);
-  else {
-    /* strip ".gz" */
-    if(strcasecmp(ext, ".gz") == 0) {
-      *ext = '\0';
-      if((ext = strrchr(output_filename, '.')) == NULL)
-	ext = output_filename + strlen(output_filename);
-    }
+  if (!output_filename) {
+    return -1;
   }
 
-  /* replace '.' and '#' before ext */
-  for(p = output_filename; p < ext; p++)
-    if(*p == '.' || *p == '#')
-      *p = '_';
-
-  if(*ext && isupper(*(ext + 1)))
-    strcpy(ext, ".AIFF");
-  else
-    strcpy(ext, ".aiff");
   if(aiff_output_open(output_filename) == -1) {
     free(output_filename);
     return -1;
@@ -365,8 +347,6 @@ static int open_output(void)
     dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
     if(dpm.name == NULL) {
-      if (!current_file_info || !current_file_info->filename)
-        return -1;
       dpm.flag |= PF_AUTO_SPLIT_FILE;
     } else {
       dpm.flag &= ~PF_AUTO_SPLIT_FILE;

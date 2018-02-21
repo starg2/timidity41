@@ -33,8 +33,8 @@ enum timer_event_t {
 typedef void (*timer_func_t)(void);
 
 extern timer_func_t timer_func[MAX_TIMER_ID];
-extern int start_timer(UINT id, timer_func_t fnc, UINT ms);
-extern void stop_timer(UINT id);
+extern int start_timer(uint32 id, timer_func_t fnc, uint32 ms);
+extern void stop_timer(uint32 id);
 
 
 #endif /* ___TIMER2_H_ */

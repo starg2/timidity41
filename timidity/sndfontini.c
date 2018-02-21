@@ -1,4 +1,6 @@
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif /* HAVE_CONFIG_H */
 #include "interface.h"
 #include "timidity.h"
 #include "instrum.h"
@@ -81,7 +83,7 @@ void OverrideSFSettingLoad()
 #include "loadsndfontini.h"
 }
 
-#elif (!defined(__W32G__) && !defined(TWSYNSRV))
+#elif !defined(__W32G__)
 
 void OverrideSFSettingLoad()
 {

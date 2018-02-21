@@ -38,6 +38,11 @@
 #define TABLE_SIZE8  256
 #define TABLE_SIZE14 16384
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4310)  /* cast truncates constant value */
+#endif
+
 const char u2c_table[TABLE_SIZE8] = {
 (char)0x82,	(char)0x86,	(char)0x8a,	(char)0x8e,	(char)0x92,	(char)0x96,	(char)0x9a,	(char)0x9e,
 (char)0xa2,	(char)0xa6,	(char)0xaa,	(char)0xae,	(char)0xb2,	(char)0xb6,	(char)0xba,	(char)0xbe,
@@ -4409,6 +4414,10 @@ const char a2u_table[TABLE_SIZE8] = {
 (char)0xc0,	(char)0xc1,	(char)0xbf,	(char)0xbf,	(char)0xc4,	(char)0xc5,	(char)0xc2,	(char)0xc3,
 (char)0xd6,	(char)0xd7,	(char)0xd4,	(char)0xd5,	(char)0xda,	(char)0xdb,	(char)0xd8,	(char)0xd9,
 (char)0xcf,	(char)0xcf,	(char)0xce,	(char)0xce,	(char)0xd2,	(char)0xd3,	(char)0xd0,	(char)0xd1};
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 void convert_u2c(const char *src, char *tar, int n)
 {

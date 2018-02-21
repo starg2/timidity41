@@ -3447,7 +3447,7 @@ static void init_freeverb(InfoFreeverb *info)
 	int i, error = 0;
 	int32 tmpL, tmpR;
 	double time, samplerate = play_mode->rate, t;
-	double allpassfbk = 0.55, rtbase, rt, dif, roomsize, width;
+	double allpassfbk = 0.55, rtbase, rt, dif, roomsize, width, fbmax = 0;
 ///r
 		
 	// test
@@ -3499,6 +3499,8 @@ static void init_freeverb(InfoFreeverb *info)
 		error += freeverb_init_delay_rv(info, FREEVERV_L, i, tmpL);
 		error += freeverb_init_delay_rv(info, FREEVERV_R, i, tmpR);
 		info->feedback_rv[i] = pow(10.0, -combfbk * (double)combtunings[i] * rtbase);
+		if(fbmax < info->feedback_rv[i])
+			fbmax = info->feedback_rv[i];
 	}
 	info->feedback_ap = allpassfbk;
 	for(i = 0; i < FREEVERV_AP; i++)
@@ -3516,7 +3518,12 @@ static void init_freeverb(InfoFreeverb *info)
 	error += freeverb_init_delay1(info, FREEVERV_RD, (int32)(info->rev_dly_ms * playmode_rate_ms));
 	init_sample_filter(&info->lpf1, info->er_damp_freq, 0, FILTER_LPF6);	
 	info->feedback = info->rev_feedback * FREEVERB_FEEDBACK;
-	info->levelrv = info->rev_level * FREEVERB_RV_LEVEL;
+	if(fbmax < 0.01)
+		fbmax = 0.01;
+	else if(fbmax > 0.99)
+		fbmax = 0.99;
+	fbmax = sqrt(3.0 / pow(1.0 / (1.0 - fbmax), DIV_3_2));
+	info->levelrv = info->rev_level * FREEVERB_RV_LEVEL * fbmax;
 	info->leveler = info->er_level * FREEVERB_ER_LEVEL;	
 	info->in_level = info->rev_wet * fixedgain * extgain;	
 	info->hist[0] = info->hist[1] = 0;	
@@ -4666,7 +4673,7 @@ static inline void pre_compute_net_comb_fbc(comb2 *info, int32 count)
 // Reverb EX
 #define REV_EX_ROOMSIZE_FCT (0.0029411764705882352941176470588235)
 #define REV_EX_TIME     (1.6) 
-#define REV_EX_LEVEL    (4.0) // total
+#define REV_EX_LEVEL    (3.0) // total
 #define REV_EX_ER_LEVEL (0.613 * REV_EX_LEVEL)
 #define REV_EX_RV_LEVEL (1.022 * REV_EX_LEVEL)
 #define REV_EX_FEEDBACK (0.25)
@@ -4845,7 +4852,7 @@ static void init_reverb_ex(InfoReverbEX *info)
 	FLOAT_T pdelay_cnt, room_cnt, dtS1, dtL1, dtS2, dtL2, lenS1, lenL1, lenS2, lenL2, lenA,
 		qrt, ww, fbS, fbL, div_time;
 	int num, num_div2;
-	FLOAT_T div_num, norm;
+	FLOAT_T div_num, norm, fbmax = 0;
 
 	// test
 	// ext_reverb_ex_er_num
@@ -4912,7 +4919,9 @@ static void init_reverb_ex(InfoReverbEX *info)
 		error += rev_ex_init_delay(info, REV_EX_ER_R1, i, dtiR1);
 		// fb
 		rt = sqrt(div_num * i);
-		info->rv_feedback[i] = fbS * (1.0 - rt) + fbL * rt;
+		info->rv_feedback[i] = fbS * (1.0 - rt) + fbL * rt;		
+		if(fbmax < info->rv_feedback[i])
+			fbmax = info->rv_feedback[i];
 		// rv
 		rt = i < num_div2 ? sq(div_num * i * 2.0) : sq(1.0 - div_num * i * 2.0);
 		dt = dtS2 * (1.0 - rt) + dtL2 * rt; // dtS2->dtL2->dtS2
@@ -4982,8 +4991,13 @@ static void init_reverb_ex(InfoReverbEX *info)
 	info->feedback = info->rev_feedback * REV_EX_FEEDBACK;
 	info->leveler = norm * REV_EX_ER_LEVEL
 		* info->er_level * ext_reverb_ex_er_level * ext_reverb_ex_level;
+	if(fbmax < 0.01)
+		fbmax = 0.01;
+	else if(fbmax > 0.99)
+		fbmax = 0.99;
+	fbmax = sqrt(3.0 / pow(1.0 / (1.0 - fbmax), DIV_3_2));
 	info->levelrv = sq(norm) / (sqrt(1.0 + (fbL + fbS) * DIV_2)) * REV_EX_RV_LEVEL
-		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level; // rv_fb
+		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level * fbmax; // rv_fb
 	info->levelap = (info->density + 1.0) * DIV_2 * REV_EX_AP_LEVEL;
 	if(ext_reverb_ex_ap_num){
 		info->leveler *= REV_EX_AP_BALANCE;
@@ -6174,7 +6188,7 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	FLOAT_T pdelay_cnt, room_cnt, dtS1, dtL1, dtS2, dtL2, lenS1, lenL1, lenS2, lenL2, lenA,
 		qrt, ww, fbS, fbL, div_time;
 	int num, num_div2;
-	FLOAT_T div_num, norm;
+	FLOAT_T div_num, norm, fbmax = 0;
 	FLOAT_T lfo_rate, lfo_depth, delay_max = 0;
 
 	//units	
@@ -6230,6 +6244,8 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 		// fb
 		rt = sqrt(div_num * i);
 		info->rv_feedback[i] = fbS * (1.0 - rt) + fbL * rt;
+		if(fbmax < info->rv_feedback[i])
+			fbmax = info->rv_feedback[i];
 		// rv
 		rt = i < num_div2 ? sq(div_num * i * 2.0) : sq(1.0 - div_num * i * 2.0);
 		dt = dtS2 * (1.0 - rt) + dtL2 * rt; // dtS2->dtL2->dtS2
@@ -6331,9 +6347,14 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	info->flt_dry = 1.0 - info->flt_wet;
 	info->feedback = info->rev_feedback * REV_EX_FEEDBACK;
 	info->leveler = norm * REV_EX_ER_LEVEL
-		* info->er_level * ext_reverb_ex_er_level * ext_reverb_ex_level;
+		* info->er_level * ext_reverb_ex_er_level * ext_reverb_ex_level;	
+	if(fbmax < 0.01)
+		fbmax = 0.01;
+	else if(fbmax > 0.99)
+		fbmax = 0.99;
+	fbmax = sqrt(3.0 / pow(1.0 / (1.0 - fbmax), DIV_3_2));
 	info->levelrv = sq(norm) / (sqrt(1.0 + (fbL + fbS) * DIV_2)) * REV_EX_RV_LEVEL
-		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level; // rv_fb
+		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level * fbmax; // rv_fb
 	info->levelap = (info->density + 1.0) * DIV_2 * REV_EX_AP_LEVEL;
 	if(ext_reverb_ex_ap_num){
 		info->leveler *= REV_EX_AP_BALANCE;

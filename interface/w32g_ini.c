@@ -88,15 +88,15 @@ void OverrideSFSettingSave()
 	sec = MyIni_GetSection(&ini, "param", TRUE);
 
 	MyIni_SetInt32(sec, "VibratoDelay", OverrideSample.vibrato_delay);
-	MyIni_SetInt32(sec, "VibratoDepth", OverrideSample.vibrato_depth);
-	MyIni_SetInt32(sec, "VibratoSweep", OverrideSample.vibrato_sweep_increment);
+	MyIni_SetInt32(sec, "VibratoDepth", OverrideSample.vibrato_to_pitch);
+	MyIni_SetInt32(sec, "VibratoSweep", OverrideSample.vibrato_sweep);
 
 	MyIni_SetInt32(sec, "VelToFc", OverrideSample.vel_to_fc);
 	MyIni_SetInt32(sec, "VelToFcThr", OverrideSample.vel_to_fc_threshold);
 	MyIni_SetInt32(sec, "VelToRes", OverrideSample.vel_to_resonance);
 
 	MyIni_SetInt32(sec, "TremoloDelay", OverrideSample.tremolo_delay);
-	MyIni_SetInt32(sec, "TremoloDepth", OverrideSample.tremolo_depth);
+	MyIni_SetInt32(sec, "TremoloDepth", OverrideSample.tremolo_to_amp);
 	MyIni_SetInt32(sec, "TremoloToFc", OverrideSample.tremolo_to_fc);
 	MyIni_SetInt32(sec, "TremoloToPitch", OverrideSample.tremolo_to_pitch);
 	MyIni_SetInt32(sec, "Res", OverrideSample.resonance);

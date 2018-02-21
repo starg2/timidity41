@@ -336,18 +336,13 @@ int min_sustain_time = 0; // ms
 int min_sustain_count; // ms
 
 #define TREMOLO_RATE_MAX (10.0) // Hz
-#define TREMOLO_RATE_MIN (0.001) // Hz
-static int32 tremolo_phase_increment_max = 750;
-static FLOAT_T cnv_Hz_to_trm_inc(FLOAT_T freq);
-static FLOAT_T cnv_trm_inc_to_Hz(int32 inc);
-	
+#define TREMOLO_RATE_MIN (0.001) // Hz	
 #define VIBRATO_RATE_MAX (10.0) // Hz
 #define VIBRATO_RATE_MIN (0.001) // Hz
 #define NRPN_VIBRATO_RATE (10.0) // Hz
 #define NRPN_VIBRATO_DELAY (5000.0) // ms
 #define NRPN_VIBRATO_DEPTH (50.0) // cent
-static FLOAT_T cnv_Hz_to_vib_ratio(FLOAT_T freq);
-static FLOAT_T cf_cnv_vib_rate;
+
 static FLOAT_T nrpn_vib_depth_cent = NRPN_VIBRATO_DEPTH;
 static FLOAT_T nrpn_vib_rate = NRPN_VIBRATO_RATE;
 static FLOAT_T nrpn_vib_delay = NRPN_VIBRATO_DELAY * 48.0; // count def48kHz 
@@ -578,10 +573,6 @@ void init_playmidi(void){
 		min_sustain_count = playmode_rate_ms * min_sustain_time; // per ms	
 	for(i = 0; i < 7; i++)
 		delay_out_count[i] = playmode_rate_ms * delay_out_time_ms[i]; // init delay_out count
-
-	tremolo_phase_increment_max = (int32)cnv_Hz_to_trm_inc(TREMOLO_RATE_MAX);
-	cf_cnv_vib_rate = (FLOAT_T)play_mode->rate  / (FLOAT_T)(VIBRATO_SAMPLE_INCREMENTS * 2);
-
 	
 	for(i = 0; i < MAX_CHANNELS; i++){
 #if 0 // dim ch buffer
@@ -738,30 +729,6 @@ static char *event_name(int type)
 	}
 	return "Unknown";
 #undef EVENT_NAME
-}
-
-/*! convert Hz to tremolo phase increment. */
-static FLOAT_T cnv_Hz_to_trm_inc(FLOAT_T freq)
-{
-	return (FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT)	* freq * div_playmode_rate;
-}
-
-static FLOAT_T cnv_trm_inc_to_Hz(int32 inc)
-{
-	return (FLOAT_T)inc * (FLOAT_T)play_mode->rate / (FLOAT_T)((SINE_CYCLE_LENGTH * control_ratio) << RATE_SHIFT);
-}
-
-/*! convert Hz to internal vibrato control ratio. */
-static FLOAT_T cnv_Hz_to_vib_ratio(FLOAT_T freq)
-{
-	return ((FLOAT_T)(play_mode->rate) / (freq * 2.0f * VIBRATO_SAMPLE_INCREMENTS));
-}
-
-static FLOAT_T cnv_vib_ratio_to_Hz(int32 ratio)
-{
-	if(ratio < 1)
-		ratio = 1;
-	return cf_cnv_vib_rate / (FLOAT_T)ratio;
 }
 
 ///r
@@ -1593,61 +1560,47 @@ void recompute_voice_lfo(int v)
 	int ch = vp->channel;	
 	Channel *cp = channel + ch;
 	FLOAT_T rate1 = 0, rate2 = 0;
-	FLOAT_T depth1 = 0, depth2 = 0;
 
-	if(vp->paf_ctrl){ // PAf
-		rate1 += cp->paf.lfo1_rate;
-		rate2 += cp->paf.lfo2_rate;
-		depth1 += get_midi_controller_lfo1_amp_depth(&(cp->paf));
-		depth2 += get_midi_controller_lfo2_amp_depth(&(cp->paf));
-	}
 	// rate
+	rate1 = vp->lfo_rate[0];
 	if(otd.vibrato_rate != 0 ){
 		rate1 += (double)cp->param_vibrato_rate * DIV_64 * nrpn_vib_rate; // NRPN in -64~63
 	}else if(cp->param_vibrato_rate){ 
 		int mul = (nrpn_vib_rate_mode == NRPN_PARAM_XG_RATE) ? 1 : 2;
-		rate1 += calc_nrpn_param(vp->lfo_rate[0], cp->param_vibrato_rate * mul, nrpn_vib_rate_mode);// NRPN in -64~63
+		rate1 = calc_nrpn_param(rate1, cp->param_vibrato_rate * mul, nrpn_vib_rate_mode);// NRPN in -64~63
 	}
-	rate1 += vp->lfo_rate[0] + cp->lfo_rate[0];
+	if(vp->paf_ctrl){ // PAf
+		rate1 += cp->paf.lfo1_rate;
+		rate2 += cp->paf.lfo2_rate;
+	}
+	rate1 += cp->lfo_rate[0];
 	if(rate1 > VIBRATO_RATE_MAX)
 		rate1 = VIBRATO_RATE_MAX;
+#if 1 // 1:stop lfo
+	else if(rate1 < 0)
+		rate1 = 0;	
+#else
 	else if(rate1 < VIBRATO_RATE_MIN)
 		rate1 = VIBRATO_RATE_MIN;	
-	if(vp->sample->vibrato_control_ratio < 0 || vp->sample->vibrato_sweep_increment < 0)
+#endif
+	if(vp->sample->vibrato_freq < 0 || vp->sample->vibrato_sweep < 0)
 		init_oscillator(&vp->lfo1, 0, 0, 0, OSC_TYPE_SINE, 0);
 	else
 		reset_oscillator(&vp->lfo1, rate1);	
 	rate2 += vp->lfo_rate[1] + cp->lfo_rate[1];
 	if(rate2 > TREMOLO_RATE_MAX)
 		rate2 = TREMOLO_RATE_MAX;
+#if 1 // 1:stop lfo
+	else if(rate2 < 0)
+		rate2 = 0;	
+#else
 	else if(rate2 < TREMOLO_RATE_MIN)
 		rate2 = TREMOLO_RATE_MIN;
-	if(vp->sample->tremolo_phase_increment < 0 || vp->sample->tremolo_sweep_increment < 0)
+#endif
+	if(vp->sample->tremolo_freq < 0 || vp->sample->tremolo_sweep < 0)
 		init_oscillator(&vp->lfo2, 0, 0, 0, OSC_TYPE_SINE, 0);
 	else
 		reset_oscillator(&vp->lfo2, rate2);	
-	// amp depth
-	depth1 += (FLOAT_T)vp->sample->vibrato_to_amp * DIV_256;
-	depth1 += cp->lfo_amp_depth[0];
-	if(depth1 > 1.0) {depth1 = 1.0;}
-	else if(depth1 < 0.0) {depth1 = 0.0;}
-	vp->lfo_amp_depth[0] = depth1;	
-	depth2 += (FLOAT_T)vp->sample->tremolo_depth * DIV_256;
-	depth2 += cp->lfo_amp_depth[1];
-	if(depth2 > 1.0) {depth2 = 1.0;}
-	else if(depth2 < 0.0) {depth2 = 0.0;}
-	vp->lfo_amp_depth[1] = depth2;
-	// LFOamp‚Ívol_env‚ðŽg—p‚µ‚È‚¢‚Ì‚Å‚±‚±‚Å (recompute_voice_amp()‚Æ	‚Ç‚Á‚¿‚Å‚à‚¢‚¢‚¯‚Ç
-	// Œã‚ÌH’ö  mix.c update_tremolo() -> apply_envelope_to_amp() -> mix_mystery_signal()
-	// filter/pitch ‚Í recompute_voice_filpter/pitch()
-}
-	
-/*! initialize vibrato parameters for a voice. */
-static int32 cnv_sweep_to_count(int32 inc){
-	if(inc <= 0)
-		return 0;
-	else
-		return control_ratio * (1 << SWEEP_SHIFT) / inc;
 }
 
 static void init_voice_lfo(int v)
@@ -1659,44 +1612,54 @@ static void init_voice_lfo(int v)
 	int32 sweep1, sweep2, delay1, delay2;
 
 	/* lfo1 */
-	if(vp->sample->vibrato_control_ratio < 0 || vp->sample->vibrato_sweep_increment < 0){
+	if(vp->sample->vibrato_freq < 0 || vp->sample->vibrato_sweep < 0){
 		vp->lfo_amp_depth[0] = 0;
 		vp->lfo_rate[0] = 0;
 		init_oscillator(&vp->lfo1, 0, 0, 0, OSC_TYPE_SINE, 0);
 	}else{
 		vp->lfo_amp_depth[0] = 0;
-		rate1 = vp->lfo_rate[0] = cnv_vib_ratio_to_Hz(vp->sample->vibrato_control_ratio);
+		rate1 = vp->lfo_rate[0] = (FLOAT_T)vp->sample->vibrato_freq * DIV_1000;
 		rate1 += cp->lfo_rate[0];
 		if(rate1 > VIBRATO_RATE_MAX)
 			rate1 = VIBRATO_RATE_MAX;
+#if 1 // 1:stop lfo
+		else if(rate1 < 0)
+			rate1 = 0;	
+#else
 		else if(rate1 < VIBRATO_RATE_MIN)
-			rate1 = VIBRATO_RATE_MIN;		
-		sweep1 = cnv_sweep_to_count(vp->sample->vibrato_sweep_increment);
-		delay1 = vp->sample->vibrato_delay;	
+			rate1 = VIBRATO_RATE_MIN;	
+#endif
+		sweep1 = (FLOAT_T)vp->sample->vibrato_sweep * playmode_rate_ms;
+		delay1 = (FLOAT_T)vp->sample->vibrato_delay * DIV_1000;	
 		if(otd.vibrato_delay != 0 ){
 			delay1 += (double)cp->param_vibrato_delay * DIV_64 * nrpn_vib_delay; // NRPN in -64~63	
 		}else if(cp->param_vibrato_delay){ 
-			delay1 += calc_nrpn_param((double)delay1 * div_playmode_rate, cp->param_vibrato_delay * 2, nrpn_vib_delay_mode) * play_mode->rate; // NRPN in -64~63
+			delay1 = calc_nrpn_param((double)delay1 * div_playmode_rate, cp->param_vibrato_delay * 2, nrpn_vib_delay_mode) * play_mode->rate; // NRPN in -64~63
 		}
 		delay1 += cp->vibrato_delay;
 		if(delay1 < 0) delay1 = 0;
 		init_oscillator(&vp->lfo1, rate1, delay1, sweep1, OSC_TYPE_SINE, 0);
 	}
 	/* lfo2 */	
-	if(vp->sample->tremolo_phase_increment < 0 || vp->sample->tremolo_sweep_increment < 0){
+	if(vp->sample->tremolo_freq < 0 || vp->sample->tremolo_sweep < 0){
 		vp->lfo_amp_depth[1] = 0;
 		vp->lfo_rate[1] = 0;
 		init_oscillator(&vp->lfo2, 0, 0, 0, OSC_TYPE_SINE, 0);
 	}else{
 		vp->lfo_amp_depth[1] = 0;
-		rate2 = vp->lfo_rate[1] = cnv_trm_inc_to_Hz(vp->sample->tremolo_phase_increment);		
+		rate2 = vp->lfo_rate[1] = (FLOAT_T)vp->sample->tremolo_freq * DIV_1000;	
 		rate2 += cp->lfo_rate[1];
 		if(rate2 > TREMOLO_RATE_MAX)
 			rate2 = TREMOLO_RATE_MAX;
+#if 1 // 1:stop lfo
+		else if(rate2 < 0)
+			rate2 = 0;	
+#else
 		else if(rate2 < TREMOLO_RATE_MIN)
 			rate2 = TREMOLO_RATE_MIN;
-		sweep2 = cnv_sweep_to_count(vp->sample->tremolo_sweep_increment);
-		delay2 = vp->sample->tremolo_delay;
+#endif
+		sweep2 = (FLOAT_T)vp->sample->tremolo_sweep * playmode_rate_ms;
+		delay2 = (FLOAT_T)vp->sample->tremolo_delay * DIV_1000;	
 		if(delay2 < 0) delay2 = 0;
 		init_oscillator(&vp->lfo2, rate2, delay2, sweep2, OSC_TYPE_SINE, 0);
 	}
@@ -1814,7 +1777,7 @@ void recompute_voice_pitch(int v)
 	}
 	/* LFO pitch depth */
 	if(vp->lfo1.mode){
-		depth1 += vp->sample->vibrato_depth;	
+		depth1 += vp->sample->vibrato_to_pitch;
 		depth1 += cp->lfo_pitch_depth[0];
 		if (depth1 > 600.0) {depth1 = 600.0;}
 		else if (depth1 < 0) {depth1 = 0;}
@@ -1988,7 +1951,8 @@ void recompute_voice_amp(int v)
 	Voice *vp = voice + v;
 	int ch = vp->channel;
 	Channel *cp = channel + ch;
-	FLOAT_T tempamp;
+	FLOAT_T tempamp;	
+	FLOAT_T depth1 = 0, depth2 = 0;
 	
 	/* velocity, NRPN MIDI controllers amplitude control */
 	tempamp = vp->init_amp;
@@ -1996,7 +1960,10 @@ void recompute_voice_amp(int v)
 	tempamp *= cp->amp;	
 	if(vp->paf_ctrl){ // PAf
 		tempamp *= 1.0 + get_midi_controller_amp(&(cp->paf));
-	}
+		// LFO amp
+		depth1 += get_midi_controller_lfo1_amp_depth(&(cp->paf));
+		depth2 += get_midi_controller_lfo2_amp_depth(&(cp->paf));
+	}	
 	/* applying panning to amplitude */
 	if(vp->panned == PANNED_MYSTERY)
    	{
@@ -2027,6 +1994,19 @@ void recompute_voice_amp(int v)
    	} else { // mono
 		vp->right_amp = vp->left_amp = tempamp * DIV_7BIT; // 7bit
     }
+	
+	// LFO to amp
+	// vol_env‚ðŽg—p‚µ‚È‚¢ Œã‚ÌH’ö  mix.c update_tremolo() -> apply_envelope_to_amp() -> mix_mystery_signal()
+	depth1 += (FLOAT_T)vp->sample->vibrato_to_amp * DIV_10000;
+	depth1 += cp->lfo_amp_depth[0];
+	if(depth1 > 1.0) {depth1 = 1.0;}
+	else if(depth1 < 0.0) {depth1 = 0.0;}
+	vp->lfo_amp_depth[0] = depth1;	
+	depth2 += (FLOAT_T)vp->sample->tremolo_to_amp * DIV_10000;
+	depth2 += cp->lfo_amp_depth[1];
+	if(depth2 > 1.0) {depth2 = 1.0;}
+	else if(depth2 < 0.0) {depth2 = 0.0;}
+	vp->lfo_amp_depth[1] = depth2;
 }
 
 static int32 calc_velocity(int32 ch,int32 vel)
@@ -2147,7 +2127,7 @@ static void recompute_voice_filter2(int v)
 	reso += cp->hpf_resonance_dB;	
 	/* NRPN */
 	if(val)
-		freq += calc_nrpn_param(freq, val * 2, nrpn_filter_hpf_freq_mode); // NRPN in -64~63
+		freq = calc_nrpn_param(freq, val * 2, nrpn_filter_hpf_freq_mode); // NRPN in -64~63
 	// convert cent to mul
 //	if(cent != 0) {coef *= POW2(cent * DIV_1200);}
 	// original param 	
@@ -2191,7 +2171,7 @@ void recompute_voice_filter(int v)
 	/* NRPN */
 	if(otd.filter_freq == 0)
 		if(val)
-			freq += calc_nrpn_param(freq, val * 2, nrpn_filter_freq_mode); // NRPN in -64~63
+			freq = calc_nrpn_param(freq, val * 2, nrpn_filter_freq_mode); // NRPN in -64~63
 	/* Soft Pedal */
 	if(cp->soft_pedal != 0) {
 		if(note > 49) {	/* tre corde */
@@ -4114,29 +4094,31 @@ static void recompute_amp_envelope_follow(int v, int ch)
 	if(add_param[EG_GUS_ATTACK]){
 		FLOAT_T sub_ofs_div_cr = fabs(0.0 - vp->amp_env.offset[ENV0_ATTACK_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_ATTACK_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_ATTACK] * env_attack_calc, nrpn_env_attack_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
-		vp->amp_env.rate[ENV0_ATTACK_STAGE] = sub_ofs_div_cr / time_ms;
+		time_ms = calc_nrpn_param(time_ms, (double)add_param[EG_GUS_ATTACK] * env_attack_calc, nrpn_env_attack_mode);
+		if(time_ms <= 0.0) 
+			vp->amp_env.rate[ENV0_ATTACK_STAGE] = ENV0_OFFSET_MAX;
+		else
+			vp->amp_env.rate[ENV0_ATTACK_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 	if(add_param[EG_GUS_DECAY]){
 		FLOAT_T sub_ofs_div_cr = fabs(vp->amp_env.offset[ENV0_ATTACK_STAGE] - vp->amp_env.offset[ENV0_HOLD_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_HOLD_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_DECAY] * env_decay_calc, nrpn_env_decay_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
+		time_ms *= lookup_nrpn_param(64.0 + (double)add_param[EG_GUS_DECAY] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 5.0) time_ms = 5.0;
 		vp->amp_env.rate[ENV0_HOLD_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 	if(add_param[EG_GUS_SUSTAIN]){
 		FLOAT_T sub_ofs_div_cr = fabs(vp->amp_env.offset[ENV0_HOLD_STAGE] - vp->amp_env.offset[ENV0_DECAY_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_DECAY_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_SUSTAIN] * env_decay_calc, nrpn_env_decay_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
+		time_ms *= lookup_nrpn_param(64.0 + (double)add_param[EG_GUS_SUSTAIN] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 5.0) time_ms = 5.0;
 		vp->amp_env.rate[ENV0_DECAY_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 	if(add_param[EG_GUS_RELEASE1]){
 		FLOAT_T sub_ofs_div_cr = fabs(ENV0_OFFSET_MAX - vp->amp_env.offset[ENV0_RELEASE1_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->amp_env.rate[ENV0_RELEASE1_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_RELEASE1] * env_release_calc, nrpn_env_release_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
+		time_ms = calc_nrpn_param(time_ms, (double)add_param[EG_GUS_RELEASE1] * env_release_calc, nrpn_env_release_mode);
+		if(time_ms < 5.0) time_ms = 5.0;
 		vp->amp_env.rate[ENV0_RELEASE1_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 }
@@ -4209,29 +4191,30 @@ static void recompute_mod_envelope_follow(int v, int ch)
 	if(add_param[EG_GUS_ATTACK]){
 		FLOAT_T sub_ofs_div_cr = fabs(0.0 - vp->mod_env.offset[ENV0_ATTACK_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_ATTACK_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_ATTACK] * env_attack_calc, nrpn_env_attack_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
+		time_ms = calc_nrpn_param(time_ms, (double)add_param[EG_GUS_ATTACK] * env_attack_calc, nrpn_env_attack_mode);
+		if(time_ms <= 0.0) 
+			vp->mod_env.rate[ENV0_ATTACK_STAGE] = ENV0_OFFSET_MAX;
 		vp->mod_env.rate[ENV0_ATTACK_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 	if(add_param[EG_GUS_DECAY]){
 		FLOAT_T sub_ofs_div_cr = fabs(vp->mod_env.offset[ENV0_ATTACK_STAGE] - vp->mod_env.offset[ENV0_HOLD_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_HOLD_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_DECAY] * env_decay_calc, nrpn_env_decay_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
+		time_ms *= lookup_nrpn_param(64.0 + (double)add_param[EG_GUS_DECAY] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 5.0) time_ms = 5.0;
 		vp->mod_env.rate[ENV0_HOLD_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 	if(add_param[EG_GUS_SUSTAIN]){
 		FLOAT_T sub_ofs_div_cr = fabs(vp->mod_env.offset[ENV0_HOLD_STAGE] - vp->mod_env.offset[ENV0_DECAY_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_DECAY_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_SUSTAIN] * env_decay_calc, nrpn_env_decay_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
+		time_ms *= lookup_nrpn_param(64.0 + (double)add_param[EG_GUS_SUSTAIN] * env_decay_calc, nrpn_env_decay_mode);
+		if(time_ms < 5.0) time_ms = 5.0;
 		vp->mod_env.rate[ENV0_DECAY_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 	if(add_param[EG_GUS_RELEASE1]){
 		FLOAT_T sub_ofs_div_cr = fabs(ENV0_OFFSET_MAX - vp->mod_env.offset[ENV0_RELEASE1_STAGE]) * div_playmode_rate * 1000.0;
 		FLOAT_T time_ms = sub_ofs_div_cr / vp->mod_env.rate[ENV0_RELEASE1_STAGE];
-		time_ms += calc_nrpn_param(time_ms, (double)add_param[EG_GUS_RELEASE1] * env_release_calc, nrpn_env_release_mode);
-		if(time_ms < 1.0) time_ms = 1.0;
+		time_ms = calc_nrpn_param(time_ms, (double)add_param[EG_GUS_RELEASE1] * env_release_calc, nrpn_env_release_mode);
+		if(time_ms < 5.0) time_ms = 5.0;
 		vp->mod_env.rate[ENV0_RELEASE1_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 }
