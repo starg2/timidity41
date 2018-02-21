@@ -69,6 +69,7 @@ add_definitions(
     -D__W32__
     -D__W32READDIR__
 	-DUSE_TWSYN_BRIDGE
+    -DENABLE_SFZ
 
 # TiMidity++ audio
     -DAU_W32

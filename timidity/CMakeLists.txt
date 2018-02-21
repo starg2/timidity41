@@ -64,6 +64,7 @@ set(
     sbkconv.c
     sffile.c
     sfitem.c
+    sfz.cpp
     benchmark_a.c
     smfconv.c
     smplfile.c
@@ -130,6 +131,7 @@ set(
     sffile.h
     sfitem.h
     sflayer.h
+    sfz.h
     smfconv.h
     sndfontini.h
     sysdep.h

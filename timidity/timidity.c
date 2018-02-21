@@ -1802,6 +1802,21 @@ static int set_gus_patchconf(char *name, int line,
 		opts += 2;
     }
 #endif
+#ifdef ENABLE_SFZ
+	else if(strcmp(pat, "%sfz") == 0) /* sfz extension */
+	{
+		/* %sfz filename */
+		if (opts[0] == NULL)
+		{
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				"%s: line %d: Syntax error", name, line);
+			return 1;
+		}
+		tone->name = safe_strdup(opts[0]);
+		tone->instype = 5; // sfz
+		opts++;
+	}
+#endif
     else if(strcmp(pat, "%pat") == 0) /* pat extention */
 	{
 		tone->instype = 0; // pat

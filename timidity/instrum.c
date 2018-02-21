@@ -1656,6 +1656,11 @@ Instrument *load_instrument(int dr, int b, int prog, int elm)
 		ip = extract_scc_file(bank->tone[prog][elm]->name, bank->tone[prog][elm]->is_preset);
 		break;
 #endif
+#ifdef ENABLE_SFZ
+	case 5: /* sfz extension */
+		ip = NULL;
+		break;
+#endif
 	default:
 		goto TONEBANK_INSTRUMENT_NULL;
 		break;
