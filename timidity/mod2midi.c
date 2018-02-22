@@ -601,7 +601,7 @@ void shrink_huge_sample (Sample *sp)
     sp->data = new_data;
     sp->sample_rate = new_rate;
 
-    sp->data_length = new_data_length << FRACTION_BITS;
+    sp->data_length = (splen_t)new_data_length << FRACTION_BITS;
     sp->loop_start = loop_start * (1 << FRACTION_BITS);
     sp->loop_end = loop_end * (1 << FRACTION_BITS);
 }

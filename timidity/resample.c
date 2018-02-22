@@ -5090,7 +5090,7 @@ void resample_voice(int v, DATA_T *ptr, int32 count)
 			/* Let the caller know how much data we had left */
 			count2 = (int32)((vp->sample->data_length >> FRACTION_BITS) - ofs);
 		}else
-			vp->resrc.offset += (count2 << FRACTION_BITS);
+			vp->resrc.offset += ((splen_t)count2 << FRACTION_BITS);
 
 		switch(vp->sample->data_type){
 		case SAMPLE_TYPE_INT16:

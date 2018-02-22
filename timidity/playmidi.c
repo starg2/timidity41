@@ -4486,7 +4486,7 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt, int add_delay_cnt)
 		if(!special_patch[j]){
 			vp->reserve_offset = 0;
 		}else{
-			vp->reserve_offset = special_patch[j]->sample_offset << FRACTION_BITS;
+			vp->reserve_offset = (splen_t)special_patch[j]->sample_offset << FRACTION_BITS;
 			if(vp->sample->modes & MODES_LOOPING)  {
 				if(vp->reserve_offset > vp->sample->loop_end)
 					vp->reserve_offset = vp->sample->loop_start;
