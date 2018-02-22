@@ -50,6 +50,7 @@
 #include "quantity.h"
 #include "freq.h"
 #include "support.h"
+#include "sfz.h"
 
 #define INSTRUMENT_HASH_SIZE 128
 struct InstrumentCache
@@ -142,6 +143,9 @@ void free_instrument(Instrument *ip)
 #ifdef INT_SYNTH
 	extern void free_int_synth_file(Instrument *ip);
 #endif
+#ifdef ENABLE_SFZ
+	extern void free_sfz_file(Instrument *ip);
+#endif
 
 	if (!ip) return;
 
@@ -164,6 +168,11 @@ void free_instrument(Instrument *ip)
 	case INST_MMS:
 	case INST_SCC:
 		free_int_synth_file(ip);
+		break;
+#endif
+#ifdef ENABLE_SFZ
+	case INST_SFZ:
+		free_sfz_file(ip);
 		break;
 #endif
 	}
@@ -1658,7 +1667,7 @@ Instrument *load_instrument(int dr, int b, int prog, int elm)
 #endif
 #ifdef ENABLE_SFZ
 	case 5: /* sfz extension */
-		ip = NULL;
+		ip = extract_sfz_file(bank->tone[prog][elm]->name);
 		break;
 #endif
 	default:

@@ -439,8 +439,13 @@ public:
     {
         if (String(view, "//"))
         {
-            while (!EndOfInput(view) && !EndOfLine(view))
+            auto curView = view;
+
+            while (!EndOfInput(curView) && !EndOfLine(curView))
             {
+                char c;
+                AnyChar(curView, c);
+                view = curView;
             }
 
             return true;
@@ -558,7 +563,7 @@ public:
             auto initView = curView;
             DoSkips(curView);
 
-            if (m_InputStack.top().StartsAtMiddle)
+            if (!m_InputStack.top().StartsAtMiddle)
             {
                 if (Word(curView, "#define"))
                 {
@@ -653,44 +658,42 @@ public:
                     continue;
                 }
             }
-            else
+
+            auto skipView = initView;
+            skipView.SetLength(initView.GetLength() - curView.GetLength());
+            m_OutBuffer.Append(skipView);
+
+            if (Char(curView, '$'))
             {
-                auto skipView = initView;
-                skipView.SetLength(initView.GetLength() - curView.GetLength());
-                m_OutBuffer.Append(skipView);
-
-                if (Char(curView, '$'))
+                TextBuffer::View nameView;
+                if (!AnyWord(curView, nameView))
                 {
-                    TextBuffer::View nameView;
-                    if (!AnyWord(curView, nameView))
-                    {
-                        throw ParserException(
-                            m_FileNames[curView.GetLocationInfo().FileID],
-                            curView.GetLocationInfo().Line,
-                            "expected macro name after '$'"
-                        );
-                    }
+                    throw ParserException(
+                        m_FileNames[curView.GetLocationInfo().FileID],
+                        curView.GetLocationInfo().Line,
+                        "expected macro name after '$'"
+                    );
+                }
 
-                    auto it = m_DefinedMacros.find(nameView.ToString());
-                    if (it == m_DefinedMacros.end())
-                    {
-                        throw ParserException(
-                            m_FileNames[curView.GetLocationInfo().FileID],
-                            curView.GetLocationInfo().Line,
-                            "macro '$"s.append(nameView.ToStringView()).append("' is not defined")
-                        );
-                    }
+                auto it = m_DefinedMacros.find(nameView.ToString());
+                if (it == m_DefinedMacros.end())
+                {
+                    throw ParserException(
+                        m_FileNames[curView.GetLocationInfo().FileID],
+                        curView.GetLocationInfo().Line,
+                        "macro '$"s.append(nameView.ToStringView()).append("' is not defined")
+                    );
+                }
 
-                    m_InputStack.push({it->second, true});
-                }
-                else if (TextBuffer::View word; AnyWord(curView, word))
-                {
-                    m_OutBuffer.Append(word);
-                }
-                else if (char c; AnyChar(curView, c))
-                {
-                    m_OutBuffer.Append(c);
-                }
+                m_InputStack.push({it->second, true});
+            }
+            else if (TextBuffer::View word; AnyWord(curView, word))
+            {
+                m_OutBuffer.Append(word);
+            }
+            else if (char c; AnyChar(curView, c))
+            {
+                m_OutBuffer.Append(c);
             }
         }
     }
@@ -1137,3 +1140,26 @@ private:
 };
 
 } // namespace TimSFZ
+
+extern "C"
+{
+
+void init_sfz(void)
+{
+}
+
+void free_sfz(void)
+{
+}
+
+Instrument *extract_sfz_file(char *sample_file)
+{
+    return nullptr;
+}
+
+void free_sfz_file(Instrument *ip)
+{
+
+}
+
+} // extern "C"

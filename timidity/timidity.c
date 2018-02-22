@@ -101,6 +101,7 @@
 #include "sndfontini.h"
 #include "thread.h"
 #include "miditrace.h"
+#include "sfz.h"
 ///r
 #ifdef __BORLANDC__
 #define inline
@@ -8399,6 +8400,9 @@ MAIN_INTERFACE void timidity_init_player(void)
 #ifdef INT_SYNTH
 	init_int_synth();
 #endif // INT_SYNTH
+#ifdef ENABLE_SFZ
+	init_sfz();
+#endif
 
 #ifdef SUPPORT_SOUNDSPEC
     if(view_soundspec_flag)
@@ -9031,6 +9035,9 @@ int main(int argc, char **argv)
 	//free_reverb_buffer();
 	free_effect_buffers();
 ///r
+#ifdef ENABLE_SFZ
+	free_sfz();
+#endif
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH
@@ -9110,6 +9117,9 @@ static void w32_exit(void)
 	//free_reverb_buffer();
 	free_effect_buffers();
 ///r
+#ifdef ENABLE_SFZ
+	free_sfz();
+#endif
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH

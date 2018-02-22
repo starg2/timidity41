@@ -3,4 +3,13 @@
 
 #pragma once
 
+#ifdef ENABLE_SFZ
 
+#include "instrum.h"
+
+void init_sfz(void);
+void free_sfz(void);
+Instrument *extract_sfz_file(char *sample_file);
+void free_sfz_file(Instrument *ip);
+
+#endif /* ENABLE_SFZ */
