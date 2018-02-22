@@ -534,6 +534,44 @@ public:
 
         return false;
     }
+
+    bool DoubleQuoteStringNoEscape(TextBuffer::View& view, TextBuffer::View& str)
+    {
+        auto curView = view;
+
+        if (Char(curView, '"'))
+        {
+            auto startView = curView;
+            auto endView = startView;
+
+            while (true)
+            {
+                if (EndOfInput(curView) || EndOfLine(curView))
+                {
+                    // TODO: warn unterminated string literal
+                    break;
+                }
+                else if (Char(curView, '"'))
+                {
+                    view = curView;
+                    break;
+                }
+                else
+                {
+                    char c;
+                    AnyChar(curView, c);
+                    view = curView;
+                    endView = curView;
+                }
+            }
+
+            str = startView;
+            str.SetLength(str.GetLength() - endView.GetLength());
+            return true;
+        }
+
+        return false;
+    }
 };
 
 class Preprocessor : private BasicParser
@@ -625,7 +663,7 @@ public:
                     DoSkips(curView);
 
                     TextBuffer::View pathView;
-                    if (!AnyCharSequence(curView, pathView))
+                    if (!DoubleQuoteStringNoEscape(curView, pathView))
                     {
                         throw ParserException(
                             m_FileNames[curView.GetLocationInfo().FileID],
