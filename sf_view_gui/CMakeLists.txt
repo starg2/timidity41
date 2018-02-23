@@ -25,6 +25,7 @@ add_executable(
     ../timidity/sbkconv.c
     ../timidity/sffile.c
     ../timidity/sfitem.c
+    ../timidity/sfz.cpp
     ../timidity/smplfile.c
     ../timidity/tables.c
     ../timidity/version.c
@@ -48,6 +49,7 @@ add_executable(
     ../timidity/sffile.h
     ../timidity/sfitem.h
     ../timidity/sflayer.h
+    ../timidity/sfz.h
     ../timidity/tables.h
     ../timidity/timidity.h
     ../timidity/wrd.h
