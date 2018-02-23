@@ -117,12 +117,12 @@ AVX2以上のビルド環境がないので 動作は不明 (VC2013?以降
 #undef USE_PENTIUM_4
 #endif
 
-#define USE_SSE // テスト用
-#define USE_SSE2 // テスト用
-#define USE_SSE3 // テスト用
-#define USE_SSSE3 // テスト用
-#define USE_SSE41 // テスト用
-#define USE_SSE42 // テスト用
+//#define USE_SSE // テスト用
+//#define USE_SSE2 // テスト用
+//#define USE_SSE3 // テスト用
+//#define USE_SSSE3 // テスト用
+//#define USE_SSE41 // テスト用
+//#define USE_SSE42 // テスト用
 //#define USE_AVX // テスト用
 //#define USE_AVX2 // テスト用
 
@@ -757,8 +757,8 @@ LSU : Unalignment (use loadu/storeu
 #define MM_FMA3_PD(v00, v01, v10, v11, v20, v21) _mm_fmadd_pd(v20, v21, _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
 #define MM_FMA4_PD(v00, v01, v10, v11, v20, v21, v30, v31) _mm_add_pd(\
 	_mm_fmadd_pd(v30, v31, _mm_mul_pd(v20, v21)), _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
-#define MM_FMA5_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41) _mm_fmadd_pd(v40, v41, \
-	_mm_fmadd_pd(v30, v31, _mm_mul_pd(v20, v21)), _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
+#define MM_FMA5_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41) _mm_add_pd(_mm_fmadd_pd(v40, v41, \
+	_mm_fmadd_pd(v30, v31, _mm_mul_pd(v20, v21))), _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
 #define MM_FMA6_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41, v50, v51) _mm_add_pd(\
 	_mm_fmadd_pd(v50, v51, _mm_fmadd_pd(v40, v41, _mm_mul_pd(v30, v31))), \
 	_mm_fmadd_pd(v20, v21, _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01))) )

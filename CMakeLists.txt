@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.9)
 
 project(timidity41)
 
+set(TIM41_USE_AVX2 FALSE CACHE BOOL "Enable use of Intel AVX2 enhanced instructions")
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
@@ -117,8 +119,19 @@ add_definitions(
     -D_CRT_SECURE_NO_WARNINGS
 )
 
+if(TIM41_USE_AVX2)
+    add_definitions(-DUSE_AVX2)
+else()
+    add_definitions(-DUSE_SSE42)
+endif()
+
 if(MSVC)
     add_compile_options(/W4 /Zi /GS /fp:fast /permissive- /MP /Qspectre)
+    
+    if(TIM41_USE_AVX2)
+        add_compile_options(/arch:AVX2)
+    endif()
+    
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /std:c++17")
 
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL /guard:cf")
@@ -136,7 +149,14 @@ if(MSVC)
         -DSTDOUT_FILENO=1
     )
 else()
-    add_compile_options(-Wall -Wextra -ffast-math -msse4.2)
+    add_compile_options(-Wall -Wextra -ffast-math)
+
+    if(TIM41_USE_AVX2)
+        add_compile_options(-mavx2)
+    else()
+        add_compile_options(-msse4.2)
+    endif()
+
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
