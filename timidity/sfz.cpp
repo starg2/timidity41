@@ -8,8 +8,13 @@ extern "C"
 #endif
 #include "timidity.h"
 #include "common.h"
+#include "controls.h"
+#include "tables.h"
 
 #include "sfz.h"
+
+// smplfile.c
+Instrument *extract_sample_file(char *sample_file);
 }
 
 #include <cassert>
@@ -17,8 +22,11 @@ extern "C"
 #include <cstdio>
 
 #include <algorithm>
+#include <exception>
 #include <iterator>
 #include <memory>
+#include <numeric>
+#include <optional>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
@@ -46,15 +54,24 @@ struct TFFileCloser
     }
 };
 
-using TFFilePtr = std::unique_ptr<timidity_file, TFFileCloser>;
-
-std::string ReadEntireFile(char* pURL)
+struct InstrumentDeleter
 {
-    TFFilePtr pFile(::open_file(pURL, 1, OF_NORMAL));
+    void operator()(Instrument* pInstrument) const
+    {
+        if (pInstrument)
+        {
+            ::free_instrument(pInstrument);
+        }
+    }
+};
+
+std::string ReadEntireFile(std::string url)
+{
+    std::unique_ptr<timidity_file, TFFileCloser> pFile(::open_file(url.data(), 1, OF_NORMAL));
 
     if (!pFile)
     {
-        throw std::runtime_error("unable to open '"s + pURL + "'");
+        throw std::runtime_error("unable to open '"s + url + "'");
     }
 
     std::string buf;
@@ -577,8 +594,8 @@ public:
 class Preprocessor : private BasicParser
 {
 public:
-    explicit Preprocessor(char* pURL)
-        : m_FileNames{pURL}, m_InBuffers{TextBuffer(ReadEntireFile(pURL), FileLocationInfo{0, 1})}
+    explicit Preprocessor(std::string url)
+        : m_FileNames{url}, m_InBuffers{TextBuffer(ReadEntireFile(url), FileLocationInfo{0, 1})}
     {
         m_InputStack.push({m_InBuffers[0].GetView(), false});
     }
@@ -801,10 +818,30 @@ enum class HeaderKind
 
 struct Section
 {
+    template<typename T>
+    std::optional<T> GetAs(OpCodeKind opCode) const
+    {
+        // search in reverse order
+        auto it = std::find_if(OpCodes.rbegin(), OpCodes.rend(), [opCode] (auto&& x) { return x.OpCode == opCode; });
+
+        if (it == OpCodes.rend())
+        {
+            return std::nullopt;
+        }
+
+        const T* pValue = std::get_if<T>(&it->Value);
+
+        if (!pValue)
+        {
+            return std::nullopt;
+        }
+
+        return std::make_optional(*pValue);
+    }
+
     FileLocationInfo HeaderLocation;
     HeaderKind Header;
     std::vector<OpCodeAndValue> OpCodes;
-    std::vector<Section> Children;
 };
 
 class Parser : private BasicParser
@@ -812,6 +849,16 @@ class Parser : private BasicParser
 public:
     explicit Parser(Preprocessor& pp) : m_Preprocessor(pp)
     {
+    }
+
+    Preprocessor& GetPreprocessor()
+    {
+        return m_Preprocessor;
+    }
+
+    const std::vector<Section>& GetSections() const
+    {
+        return m_Sections;
     }
 
     void Parse()
@@ -905,28 +952,7 @@ public:
                 }
                 else
                 {
-                    switch (sec.Header)
-                    {
-                    case HeaderKind::Control:
-                    case HeaderKind::Global:
-                    case HeaderKind::Group:
-                        m_Sections.push_back(std::move(sec));
-                        break;
-
-                    case HeaderKind::Region:
-                        if (!m_Sections.empty() && m_Sections.back().Header == HeaderKind::Group)
-                        {
-                            m_Sections.back().Children.push_back(std::move(sec));
-                        }
-                        else
-                        {
-                            m_Sections.push_back(std::move(sec));
-                        }
-                        break;
-
-                    default:
-                        break;
-                    }
+                    m_Sections.push_back(std::move(sec));
                     break;
                 }
             }
@@ -1177,11 +1203,188 @@ private:
     std::vector<Section> m_Sections;
 };
 
+class InstrumentBuilder
+{
+public:
+    explicit InstrumentBuilder(Parser& parser) : m_Parser(parser)
+    {
+    }
+
+    std::unique_ptr<Instrument, InstrumentDeleter> BuildInstrument()
+    {
+        auto flatSections = FlattenSections(m_Parser.GetSections());
+        std::unique_ptr<Instrument, InstrumentDeleter> pInstrument(reinterpret_cast<Instrument*>(safe_calloc(sizeof(Instrument), 1)));
+        pInstrument->type = INST_SFZ;
+        pInstrument->instname = safe_strdup(std::string(m_Parser.GetPreprocessor().GetFileNameFromID(0)).c_str());
+
+        std::vector<std::unique_ptr<Instrument, InstrumentDeleter>> sampleInstruments;
+        sampleInstruments.reserve(flatSections.size());
+
+        for (auto&& i : flatSections)
+        {
+            sampleInstruments.push_back(BuildSample(i));
+        }
+
+        pInstrument->samples = std::accumulate(
+            sampleInstruments.begin(),
+            sampleInstruments.end(),
+            0,
+            [] (auto&& a, auto&& b)
+            {
+                return a + b->samples;
+            }
+        );
+
+        pInstrument->sample = reinterpret_cast<Sample*>(safe_calloc(sizeof(Sample), pInstrument->samples));
+        Sample* pCurrentSample = pInstrument->sample;
+
+        for (auto&& i : sampleInstruments)
+        {
+            pCurrentSample = std::copy_n(i->sample, i->samples, pCurrentSample);
+            std::for_each_n(i->sample, i->samples, [] (auto&& x) { x.data_alloced = false; });
+        }
+
+        return pInstrument;
+    }
+
+private:
+    std::unique_ptr<Instrument, InstrumentDeleter> BuildSample(const Section& flatSection)
+    {
+        if (auto sampleName = flatSection.GetAs<std::string>(OpCodeKind::Sample))
+        {
+            auto pSampleInstrument = BuildSingleSampleInstrument(*sampleName);
+
+            for (auto&& i : flatSection.OpCodes)
+            {
+                for (std::size_t j = 0; j < pSampleInstrument->samples; j++)
+                {
+                    auto pSample = &pSampleInstrument->sample[j];
+
+                    switch (i.OpCode)
+                    {
+                    case OpCodeKind::HiKey:
+                        pSample->high_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
+                        break;
+
+                    case OpCodeKind::LoKey:
+                        pSample->low_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
+                        break;
+
+                    case OpCodeKind::LoopEnd:
+                        pSample->loop_end = static_cast<splen_t>(std::get<double>(i.Value)) << FRACTION_BITS;
+                        break;
+
+                    case OpCodeKind::LoopMode:
+                        pSample->modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN);
+
+                        switch (std::get<LoopModeKind>(i.Value))
+                        {
+                            case LoopModeKind::NoLoop:
+                                break;
+
+                            case LoopModeKind::OneShot:
+                                // ???
+                                break;
+
+                            case LoopModeKind::LoopContinuous:
+                                pSample->modes |= MODES_LOOPING | MODES_SUSTAIN;
+                                break;
+
+                            case LoopModeKind::LoopSustain:
+                                pSample->modes |= MODES_LOOPING | MODES_SUSTAIN | MODES_RELEASE;
+                                break;
+                        }
+                        break;
+
+                    case OpCodeKind::LoopStart:
+                        pSample->loop_start = static_cast<splen_t>(std::get<double>(i.Value)) << FRACTION_BITS;
+                        break;
+
+                    case OpCodeKind::PitchKeyCenter:
+                        pSample->root_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
+                        pSample->root_freq = ::freq_table[pSample->root_key];
+                        break;
+
+                    case OpCodeKind::Sample:
+                        break;
+                    }
+                }
+            }
+
+            return pSampleInstrument;
+        }
+        else
+        {
+            throw ParserException(
+                m_Parser.GetPreprocessor().GetFileNameFromID(flatSection.HeaderLocation.FileID),
+                flatSection.HeaderLocation.Line,
+                "no sample specified for region"
+            );
+        }
+    }
+
+    std::unique_ptr<Instrument, InstrumentDeleter> BuildSingleSampleInstrument(std::string sampleUrl)
+    {
+        std::unique_ptr<Instrument, InstrumentDeleter> pInstrument(::extract_sample_file(sampleUrl.data()));
+
+        if (!pInstrument)
+        {
+            throw std::runtime_error("unable to load sample '"s + sampleUrl + "'");
+        }
+
+        return pInstrument;
+    }
+
+    std::vector<Section> FlattenSections(const std::vector<Section>& sections)
+    {
+        std::vector<Section> flatSections;
+        std::vector<OpCodeAndValue> controlOpCodes;
+        std::vector<OpCodeAndValue> globalOpCodes;
+        std::vector<OpCodeAndValue> groupOpCodes;
+
+        for (auto&& i : sections)
+        {
+            switch (i.Header)
+            {
+            case HeaderKind::Control:
+                controlOpCodes.insert(controlOpCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
+                break;
+
+            case HeaderKind::Global:
+                globalOpCodes.insert(globalOpCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
+                break;
+
+            case HeaderKind::Group:
+                groupOpCodes = i.OpCodes;
+                break;
+
+            case HeaderKind::Region:
+                auto& newSection = flatSections.emplace_back();
+                newSection.Header = i.Header;
+                newSection.HeaderLocation = i.HeaderLocation;
+                auto& opCodes = newSection.OpCodes;
+                opCodes.clear();
+                opCodes.reserve(controlOpCodes.size() + globalOpCodes.size() + groupOpCodes.size() + i.OpCodes.size());
+                opCodes.insert(opCodes.end(), controlOpCodes.begin(), controlOpCodes.end());
+                opCodes.insert(opCodes.end(), globalOpCodes.begin(), globalOpCodes.end());
+                opCodes.insert(opCodes.end(), groupOpCodes.begin(), groupOpCodes.end());
+                opCodes.insert(opCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
+                break;
+            }
+        }
+
+        return flatSections;
+    }
+
+    Parser& m_Parser;
+};
+
 } // namespace TimSFZ
 
 extern "C"
 {
 
+// These are no-op for now, but may be used in the future.
 void init_sfz(void)
 {
 }
@@ -1192,12 +1395,27 @@ void free_sfz(void)
 
 Instrument *extract_sfz_file(char *sample_file)
 {
-    return nullptr;
+    try
+    {
+        TimSFZ::Preprocessor pp(sample_file);
+        pp.Preprocess();
+        TimSFZ::Parser parser(pp);
+        parser.Parse();
+        TimSFZ::InstrumentBuilder builder(parser);
+        return builder.BuildInstrument().release();
+    }
+    catch (const std::exception& e)
+    {
+        char str[] = "%s";
+        ctl->cmsg(CMSG_ERROR, VERB_NORMAL, str, e.what());
+        return nullptr;
+    }
 }
 
 void free_sfz_file(Instrument *ip)
 {
-
+    safe_free(ip->instname);
+    ip->instname = nullptr;
 }
 
 } // extern "C"
