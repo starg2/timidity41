@@ -315,6 +315,12 @@ enum{
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
+#define USE_X86_EXT_ASM      0
+#define USE_X86_AMD_EXT_ASM  0
+#define USE_X64_EXT_ASM      0
+#define USE_X64_AMD_EXT_ASM  0
+#undef SUPPORT_ASM_INTEL
+
 #if defined(__GNUC__)
 #define USE_X86_EXT_INTRIN  0
 #define USE_X86_AMD_EXT_INTRIN  0
@@ -354,7 +360,7 @@ enum{
 #endif
 
 /*****************************************************************************/
-#if OPT_MODE == 1
+#if OPT_MODE == 1 && USE_X86_EXT_ASM > 0
 
 #ifdef LITTLE_ENDIAN
 #define iman_ 0
