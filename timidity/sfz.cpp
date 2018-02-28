@@ -785,10 +785,12 @@ private:
 enum class OpCodeKind
 {
     HiKey,
+    HiVelocity,
     LoKey,
     LoopEnd,
     LoopMode,
     LoopStart,
+    LoVelocity,
     PitchKeyCenter,
     Sample
 };
@@ -910,8 +912,10 @@ public:
                             }
                             break;
 
+                        case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
+                        case OpCodeKind::LoVelocity:
                             try
                             {
                                 opVal.Value = std::stod(valView.ToString());
@@ -1028,10 +1032,12 @@ private:
 
         static const std::unordered_map<std::string_view, OpCodeKind> OpCodeMap{
             {"hikey"sv, OpCodeKind::HiKey},
+            {"hivel"sv, OpCodeKind::HiVelocity},
             {"lokey"sv, OpCodeKind::LoKey},
             {"loop_end"sv, OpCodeKind::LoopEnd},
             {"loop_mode"sv, OpCodeKind::LoopMode},
             {"loop_start"sv, OpCodeKind::LoopStart},
+            {"lovel"sv, OpCodeKind::LoVelocity},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample}
         };
@@ -1266,6 +1272,10 @@ private:
                         pSample->high_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
                         break;
 
+                    case OpCodeKind::HiVelocity:
+                        pSample->high_vel = static_cast<uint8>(std::get<double>(i.Value));
+                        break;
+
                     case OpCodeKind::LoKey:
                         pSample->low_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
                         break;
@@ -1298,6 +1308,10 @@ private:
 
                     case OpCodeKind::LoopStart:
                         pSample->loop_start = static_cast<splen_t>(std::get<double>(i.Value)) << FRACTION_BITS;
+                        break;
+
+                    case OpCodeKind::LoVelocity:
+                        pSample->low_vel = static_cast<uint8>(std::get<double>(i.Value));
                         break;
 
                     case OpCodeKind::PitchKeyCenter:
