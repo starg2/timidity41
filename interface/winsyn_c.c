@@ -67,14 +67,16 @@
 #include "wsgtk_main.h"
 #endif /* USE_GTK_GUI */
 
-#ifndef __W32__
 #include <stdio.h>
+#ifndef __W32__
 #include <termios.h>
 //#include <term.h>
 #include <unistd.h>
 #endif /* __W32__ */
 
 #if defined(__W32__)
+#include <conio.h>
+#define kbhit _kbhit
 #define HAVE_DOS_KEYBOARD 1
 #endif /* __W32__ */
 

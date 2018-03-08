@@ -83,6 +83,7 @@
 #include "tables.h"
 #include "miditrace.h"
 #include "effect.h"
+#include "freq.h"
 #ifdef SUPPORT_SOUNDSPEC
 #include "soundspec.h"
 #endif /* SUPPORT_SOUNDSPEC */
@@ -101,6 +102,7 @@
 #include "sndfontini.h"
 #include "thread.h"
 #include "miditrace.h"
+#include "flac_a.h"
 #include "sfz.h"
 ///r
 #ifdef __BORLANDC__
@@ -109,6 +111,7 @@
 
 #ifdef IA_W32GUI
 #include "w32g.h"
+#include "w32g_subwin.h"
 #include "w32g_utl.h"
 #endif
 
@@ -136,10 +139,13 @@
 #include "portaudio_a.h"
 #endif
 
+#ifdef __W32G__
+#include "w32g_utl.h"
+#endif
+
 
 uint8 opt_normal_chorus_plus = 5; // chorusEX
 
-#if defined(__W32__)
 extern DWORD processPriority;
 DWORD processPriority = NORMAL_PRIORITY_CLASS;	// プロセスのプライオリティ
 #if defined(IA_W32G_SYN) || defined(WINDRV)
@@ -7130,9 +7136,6 @@ static inline int parse_opt_wave_update_step(const char *arg)
 
 
 #ifdef AU_FLAC
-extern void flac_set_option_verify(int);
-extern void flac_set_option_padding(int);
-extern void flac_set_compression_level(int);
 
 static inline int parse_opt_flac_verify(const char *arg)
 {
@@ -9141,4 +9144,3 @@ static void w32_exit(void)
 
 
 #endif /* KBTIM_SETUP */
-#endif

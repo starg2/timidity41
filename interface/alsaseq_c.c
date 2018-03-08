@@ -66,8 +66,6 @@
 #include "timer.h"
 
 
-void readmidi_read_init(void);
-
 #define MAX_PORTS	16
 
 #define TICKTIME_HZ	100

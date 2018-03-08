@@ -73,6 +73,7 @@ WINAPI void InitCommonControls(void);
 #include "w32g_utl.h"
 #include "w32g_pref.h"
 #include "w32g_res.h"
+#include "w32g_int_synth_editor.h"
 
 #ifdef IA_W32G_SYN
 

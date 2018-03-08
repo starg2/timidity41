@@ -81,9 +81,11 @@
 #include "playmidi.h"
 #include "readmidi.h"
 #include "miditrace.h"
+#include "flac_a.h"
 
 #ifdef __W32G__
 #include "w32g.h"
+#include "w32g_pref.h"
 #endif /* __W32G__ */
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */

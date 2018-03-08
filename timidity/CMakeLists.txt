@@ -102,6 +102,7 @@ set(
     controls.h
     dlutils.h
     filter.h
+    flac_a.h
     freq.h
     gogo_a.h
     instrum.h

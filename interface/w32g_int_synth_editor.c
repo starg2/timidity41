@@ -57,6 +57,7 @@
 #include "support.h"
 
 #include "w32g.h"
+#include "w32g_utl.h"
 #include <shlobj.h>
 #include <commctrl.h>
 #include <windowsx.h>

@@ -24,6 +24,7 @@
 #include "BladeMP3EncDLL.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <lame.h>
 

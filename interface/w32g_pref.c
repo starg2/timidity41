@@ -71,6 +71,7 @@
 #include "w32g.h"
 #include "w32g_res.h"
 #include "w32g_utl.h"
+#include "w32g_ut2.h"
 #include "w32g_pref.h"
 ///r
 #ifdef AU_W32
@@ -96,6 +97,10 @@
 /* #include <musenc.h>		/* for gogo */
 #include <gogo/gogo.h>		/* for gogo */
 #include "gogo_a.h"
+#endif
+
+#ifdef AU_FLAC
+#include "flac_a.h"
 #endif
 
 
@@ -154,9 +159,8 @@ static int get_winver(void)
 
 /* TiMidity Win32GUI preference / PropertySheet */
 
-#if !defined(IA_W32G_SYN)
 extern void w32g_restart(void);
-#endif
+
 extern void set_gogo_opts_use_commandline_options(char *commandline);
 
 extern void restore_voices(int save_voices);
@@ -659,6 +663,7 @@ extern void TracerWndApplyQuietChannel( ChannelBitMask quietchannels_ );
  * íçà”: MainThread Ç©ÇÁÇÃåƒÇ—èoÇµã÷é~ÅAäÎåØÅI
  */
 extern void OnQuit(void);
+extern void timidity_init_player(void); /* timidity.c */
 
 void PrefSettingApplyReally(void)
 {
