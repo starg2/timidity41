@@ -1212,7 +1212,7 @@ private:
 class InstrumentBuilder
 {
 public:
-    explicit InstrumentBuilder(Parser& parser) : m_Parser(parser)
+    InstrumentBuilder(Parser& parser, std::string_view name) : m_Parser(parser), m_Name(name)
     {
     }
 
@@ -1221,7 +1221,7 @@ public:
         auto flatSections = FlattenSections(m_Parser.GetSections());
         std::unique_ptr<Instrument, InstrumentDeleter> pInstrument(reinterpret_cast<Instrument*>(safe_calloc(sizeof(Instrument), 1)));
         pInstrument->type = INST_SFZ;
-        pInstrument->instname = safe_strdup(std::string(m_Parser.GetPreprocessor().GetFileNameFromID(0)).c_str());
+        pInstrument->instname = safe_strdup(m_Name.c_str());
 
         std::vector<std::unique_ptr<Instrument, InstrumentDeleter>> sampleInstruments;
         sampleInstruments.reserve(flatSections.size());
@@ -1391,45 +1391,128 @@ private:
     }
 
     Parser& m_Parser;
+    std::string m_Name;
 };
+
+struct InstrumentCacheEntry
+{
+    InstrumentCacheEntry(std::string_view filePath, std::unique_ptr<Instrument, InstrumentDeleter> pInstrument)
+        : FilePath(filePath), pInstrument(std::move(pInstrument))
+    {
+    }
+
+    std::string FilePath;
+    std::unique_ptr<Instrument, InstrumentDeleter> pInstrument;
+    std::vector<Instrument*> RefInstruments;
+};
+
+class InstrumentCache
+{
+public:
+    Instrument* LoadSFZ(std::string filePath)
+    {
+        auto it = std::find_if(
+            m_Instruments.begin(),
+            m_Instruments.end(),
+            [&filePath] (auto&& x)
+            {
+                return x.FilePath == filePath;
+            }
+        );
+
+        if (it == m_Instruments.end())
+        {
+            try
+            {
+                TimSFZ::Preprocessor pp(filePath);
+                pp.Preprocess();
+                TimSFZ::Parser parser(pp);
+                parser.Parse();
+                TimSFZ::InstrumentBuilder builder(parser, filePath);
+                m_Instruments.emplace_back(filePath, builder.BuildInstrument());
+            }
+            catch (const std::exception& e)
+            {
+                char str[] = "%s";
+                ctl->cmsg(CMSG_ERROR, VERB_NORMAL, str, e.what());
+                return nullptr;
+            }
+
+            it = std::prev(m_Instruments.end());
+        }
+
+        std::unique_ptr<Instrument, InstrumentDeleter> pInstRef(reinterpret_cast<Instrument*>(safe_calloc(sizeof(Instrument), 1)));
+        it->RefInstruments.push_back(pInstRef.get());
+        pInstRef->type = it->pInstrument->type;
+        pInstRef->instname = safe_strdup(it->pInstrument->instname);
+        pInstRef->samples = it->pInstrument->samples;
+        pInstRef->sample = reinterpret_cast<Sample*>(safe_calloc(sizeof(Sample), it->pInstrument->samples));
+        std::copy_n(it->pInstrument->sample, it->pInstrument->samples, pInstRef->sample);
+        std::for_each_n(pInstRef->sample, pInstRef->samples, [] (auto&& x) { x.data_alloced = false; });
+
+        return pInstRef.release();
+    }
+
+    void FreeInstrument(Instrument* pInstrument)
+    {
+        safe_free(pInstrument->instname);
+        pInstrument->instname = nullptr;
+
+        auto it = std::find_if(
+            m_Instruments.begin(),
+            m_Instruments.end(),
+            [pInstrument] (auto&& x)
+            {
+                auto it = std::find(x.RefInstruments.begin(), x.RefInstruments.end(), pInstrument);
+                return it != x.RefInstruments.end();
+            }
+        );
+
+        if (it != m_Instruments.end())
+        {
+            it->RefInstruments.erase(std::find(it->RefInstruments.begin(), it->RefInstruments.end(), pInstrument));
+
+            if (it->RefInstruments.empty())
+            {
+                m_Instruments.erase(it);
+            }
+        }
+    }
+
+    void FreeAll()
+    {
+        m_Instruments.clear();
+    }
+
+private:
+    std::vector<InstrumentCacheEntry> m_Instruments;
+};
+
+InstrumentCache GlobalInstrumentCache;
 
 } // namespace TimSFZ
 
 extern "C"
 {
 
-// These are no-op for now, but may be used in the future.
+// THis is no-op for now, but may be used in the future.
 void init_sfz(void)
 {
 }
 
 void free_sfz(void)
 {
+    TimSFZ::GlobalInstrumentCache.FreeAll();
 }
 
 Instrument *extract_sfz_file(char *sample_file)
 {
-    try
-    {
-        TimSFZ::Preprocessor pp(sample_file);
-        pp.Preprocess();
-        TimSFZ::Parser parser(pp);
-        parser.Parse();
-        TimSFZ::InstrumentBuilder builder(parser);
-        return builder.BuildInstrument().release();
-    }
-    catch (const std::exception& e)
-    {
-        char str[] = "%s";
-        ctl->cmsg(CMSG_ERROR, VERB_NORMAL, str, e.what());
-        return nullptr;
-    }
+    return TimSFZ::GlobalInstrumentCache.LoadSFZ(sample_file);
 }
 
 void free_sfz_file(Instrument *ip)
 {
-    safe_free(ip->instname);
-    ip->instname = nullptr;
+    TimSFZ::GlobalInstrumentCache.FreeInstrument(ip);
 }
 
 } // extern "C"
