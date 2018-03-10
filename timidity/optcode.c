@@ -29,6 +29,57 @@
 #endif /* stdc */
 
 #include "timidity.h"
+#include "common.h"
+
+const char *arch_string =
+#ifdef IX64CPU
+	#if USE_X64_EXT_INTRIN == 9
+		"[x64 AVX2]"
+	#elif USE_X64_EXT_INTRIN == 8
+		"[x64 AVX]"
+	#elif USE_X64_EXT_INTRIN == 7
+		"[x64 SSE4.2]"
+	#elif USE_X64_EXT_INTRIN == 6
+		"[x64 SSE4.1]"
+	#elif USE_X64_EXT_INTRIN == 5
+		"[x64 SSSE3]"
+	#elif USE_X64_EXT_INTRIN == 4
+		"[x64 SSE3]"
+	#elif USE_X64_EXT_INTRIN == 3
+		"[x64 SSE2]"
+	#elif USE_X64_EXT_INTRIN == 2
+		"[x64 SSE]"
+	#elif USE_X64_EXT_INTRIN == 1
+		"[x64 MMX]"
+	#else
+		"[x64]"
+	#endif
+#elif defined(IX86CPU)
+	#if USE_X86_EXT_INTRIN == 9
+		"[x86 AVX2]"
+	#elif USE_X86_EXT_INTRIN == 8
+		"[x86 AVX]"
+	#elif USE_X86_EXT_INTRIN == 7
+		"[x86 SSE4.2]"
+	#elif USE_X86_EXT_INTRIN == 6
+		"[x86 SSE4.1]"
+	#elif USE_X86_EXT_INTRIN == 5
+		"[x86 SSSE3]"
+	#elif USE_X86_EXT_INTRIN == 4
+		"[x86 SSE3]"
+	#elif USE_X86_EXT_INTRIN == 3
+		"[x86 SSE2]"
+	#elif USE_X86_EXT_INTRIN == 2
+		"[x86 SSE]"
+	#elif USE_X86_EXT_INTRIN == 1
+		"[x86 MMX]"
+	#else
+		"[x86]"
+	#endif
+#else
+	""
+#endif
+;
 
 
 /*****************************************************************************/

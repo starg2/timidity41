@@ -6125,7 +6125,7 @@ static int parse_opt_h(const char *arg)
 	};
 	void show_ao_device_info(FILE *fp);
 	FILE *fp;
-	char version[32], *help_args[7], per_mark[2];
+	char version[64], *help_args[7], per_mark[2];
 	int i, j;
 	char *h;
 	ControlMode *cmp, **cmpp;
@@ -6136,6 +6136,8 @@ static int parse_opt_h(const char *arg)
 	fp = open_pager();
 	strcpy(version, (!strstr(timidity_version, "current")) ? "version " : "");
 	strcat(version, timidity_version);
+	strcat(version, " ");
+	strcat(version, arch_string);
 	per_mark[0] = '%';
 	per_mark[1] = '\0';
 	help_args[0] = version;
@@ -7666,7 +7668,7 @@ static inline int parse_opt_v(const char *arg)
 #else
 		"TiMidity++ ",
 				(strcmp(timidity_version, "current")) ? "version " : "",
-				timidity_version, NLS,
+				timidity_version, " ", arch_string, NLS,
 		NLS,
 #endif
 		"Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>", NLS,
@@ -7969,7 +7971,7 @@ static inline void close_pager(FILE *fp)
 static void interesting_message(void)
 {
 	printf(
-"TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
+"TiMidity++ %s%s %s -- MIDI to WAVE converter and player" NLS
 "Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>" NLS
 "Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 			NLS
@@ -7992,7 +7994,9 @@ static void interesting_message(void)
 "along with this program; if not, write to the Free Software" NLS
 "Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA" NLS
 			NLS, (strcmp(timidity_version, "current")) ? "version " : "",
-			timidity_version);
+			timidity_version,
+			arch_string
+		);
 }
 
 /* -------- functions for getopt_long ends here --------- */
