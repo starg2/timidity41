@@ -300,34 +300,30 @@ enum{
 #endif
 
 /* asm/intrinïsâ¬èåè ëºÇ…Ç†ÇÍÇŒí«â¡ */
-#if !defined(IX86CPU)
-#define USE_X86_EXT_ASM      0
-#define USE_X86_AMD_EXT_ASM  0
-#endif
 #if !defined(IX64CPU)
-#define USE_X64_EXT_ASM      0
-#define USE_X64_AMD_EXT_ASM  0
+#undef USE_X64_EXT_INTRIN
 #define USE_X64_EXT_INTRIN   0
+#undef USE_X64_AMD_EXT_INTRIN
 #define USE_X64_AMD_EXT_INTRIN  0
 #endif
 #if !defined(IX86CPU) && !defined(IX64CPU)
+#undef USE_X86_EXT_INTRIN
 #define USE_X86_EXT_INTRIN      0
+#undef USE_X86_AMD_EXT_INTRIN
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
+/* Always disable inline asm */
+#undef USE_X86_EXT_ASM
 #define USE_X86_EXT_ASM      0
+#undef USE_X86_AMD_EXT_ASM
 #define USE_X86_AMD_EXT_ASM  0
+#undef USE_X64_EXT_ASM
 #define USE_X64_EXT_ASM      0
+#undef USE_X64_AMD_EXT_ASM
 #define USE_X64_AMD_EXT_ASM  0
+
 #undef SUPPORT_ASM_INTEL
-
-#if defined(__GNUC__)
-#define USE_X86_EXT_INTRIN  0
-#define USE_X86_AMD_EXT_INTRIN  0
-#define USE_X64_EXT_INTRIN      0
-#define USE_X64_AMD_EXT_INTRIN  0
-#endif
-
 
 /*****************************************************************************/
 /* PowerPC's AltiVec enhancement */

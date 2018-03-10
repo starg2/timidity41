@@ -5072,7 +5072,7 @@ void resample_voice(int v, DATA_T *ptr, int32 count)
 {
     Voice *vp = &voice[v];
     int mode;
-	int32 i;
+	int32 i = 0;
 	int32 a;	
 
 	if(!opt_resample_over_sampling && vp->sample->sample_rate == play_mode->rate &&

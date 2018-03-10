@@ -180,7 +180,7 @@ enum{
 static const char* x86_vendors[] = 
 {
 	"GenuineIntel",
-	"AuthenticAMD"
+	"AuthenticAMD",
 	"Unknown     ",
 };
 

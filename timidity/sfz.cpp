@@ -179,9 +179,9 @@ public:
 
         void Advance(std::size_t count = 1)
         {
-            assert(m_Length > 0);
-            m_Offset++;
-            m_Length--;
+            assert(count <= m_Length);
+            m_Offset += count;
+            m_Length -= count;
         }
 
         FileLocationInfo GetLocationInfo(std::size_t i = 0) const

@@ -1317,7 +1317,7 @@ static int config_parse_mfx_patch(char *w[], int words, int mapid, int bank, int
 }
 
 ///r
-static int set_gus_patchconf_opts(char *name,
+static int set_gus_patchconf_opts(const char *name,
 		int line, char *opts, ToneBankElement *tone)
 {
 	char *cp;
@@ -1714,7 +1714,7 @@ static int set_gus_patchconf_opts(char *name,
 
 ///r
 #define SET_GUS_PATCHCONF_COMMENT
-static int set_gus_patchconf(char *name, int line,
+static int set_gus_patchconf(const char *name, int line,
 			     ToneBankElement *tone, char *pat, char **opts)
 {
     int j;
@@ -1871,7 +1871,7 @@ CFG‚Ìcomm‚ğ—Dæ‚·‚é‚×‚«
     return 0;
 }
 ///r
-static int set_patchconf(char *name, int line, ToneBank *bank, char *w[], int dr, int mapid, int bankmapfrom, int bankno, int add)
+static int set_patchconf(const char *name, int line, ToneBank *bank, char *w[], int dr, int mapid, int bankmapfrom, int bankno, int add)
 {
     int i;
 	int elm;
