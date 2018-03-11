@@ -246,7 +246,6 @@ inline void CPUID(int32 *regs, uint32 eax)
 	regs[3] = edx;
 }
 #else
-#include <cpuid.h>
 #define CPUID __cpuid
 #endif
 enum{

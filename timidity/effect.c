@@ -7030,7 +7030,7 @@ static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
 		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
 		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
 		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],1))); // lookup2_sine_p(mc)	
+		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
 		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
 		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
 		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
