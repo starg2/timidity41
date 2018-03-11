@@ -870,7 +870,7 @@ static int open_output(void)
   int include_enc, exclude_enc;
 
 #ifdef AU_FLAC_DLL
-	if (g_load_libFLAC_dll("libFLAC.dll")) {
+	if (g_load_libFLAC_dll()) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "DLL load failed: %s", "libFLAC.dll, ogg.dll");
 		return -1;
