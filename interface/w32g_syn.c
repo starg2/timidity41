@@ -582,7 +582,7 @@ static const TCHAR *syn_thread_priority_name_jp[] = {
     TEXT("タイムクリティカル")
 };
 static const TCHAR *syn_thread_priority_name_en[] = {
-	TEXT("idle")
+	TEXT("idle"),
     TEXT("lowest"),
     TEXT("below normal"),
     TEXT("normal"),
