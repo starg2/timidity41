@@ -253,19 +253,14 @@ static void output_buffer(uint8 *buff, size_t bytes)
 #define CINTERFACE
 #define COBJMACROS
 #include <windows.h>
-#ifndef __GNUC__ 
 #include <winioctl.h>
-#endif
 #include <winbase.h>
 #include <initguid.h>
 #include <objbase.h>
-#if defined(_MSC_VER) && (_MSC_VER >= 1200)
-#undef __cplusplus
 #include <SetupAPI.h>
 #include <mmreg.h>
 #include <ks.h>
 #include <ksmedia.h>
-#endif
 
 #define WAVE_FORMAT_UNKNOWN      0x0000
 #define WAVE_FORMAT_PCM          0x0001
