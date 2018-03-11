@@ -504,20 +504,10 @@ static void CALLINGCONV f64tos8(DATA_T *lp, int32 c)
 	__m128 vmul = _mm_set1_ps((float)MAX_8BIT_SIGNED);	
 	for(i = 0; i < c; i += 4){
 		__m128 vec_f = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		float *out = (float *)vec_f;
-		cp[i] = (int8)(out[0]);
-		cp[i] = (int8)(out[1]);
-		cp[i] = (int8)(out[2]);
-		cp[i] = (int8)(out[3]);	
-		}
-#else
-		cp[i] = (int8)(vec_f.m128_f32[0]);
-		cp[i] = (int8)(vec_f.m128_f32[1]);
-		cp[i] = (int8)(vec_f.m128_f32[2]);
-		cp[i] = (int8)(vec_f.m128_f32[3]);	
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		cp[i] = (int8)(MM_EXTRACT_F32(vec_f,0));
+		cp[i] = (int8)(MM_EXTRACT_F32(vec_f,1));
+		cp[i] = (int8)(MM_EXTRACT_F32(vec_f,2));
+		cp[i] = (int8)(MM_EXTRACT_F32(vec_f,3));	
 	}
 }
 #else
@@ -601,20 +591,10 @@ static void CALLINGCONV f64tou8(DATA_T *lp, int32 c)
 	__m128i vex = _mm_set1_epi8(0x80);	
 	for(i = 0; i < c; i += 4){
 		__m128 vec_f = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		float *out = (float *)vec_f;
-		cp[i] = 0x80 ^ (uint8)(out[0]);
-		cp[i] = 0x80 ^ (uint8)(out[1]);
-		cp[i] = 0x80 ^ (uint8)(out[2]);
-		cp[i] = 0x80 ^ (uint8)(out[3]);	
-		}
-#else
-		cp[i] = 0x80 ^ (uint8)(vec_f.m128_f32[0]);
-		cp[i] = 0x80 ^ (uint8)(vec_f.m128_f32[1]);
-		cp[i] = 0x80 ^ (uint8)(vec_f.m128_f32[2]);
-		cp[i] = 0x80 ^ (uint8)(vec_f.m128_f32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		cp[i] = 0x80 ^ (uint8)(MM_EXTRACT_F32(vec_f,0));
+		cp[i] = 0x80 ^ (uint8)(MM_EXTRACT_F32(vec_f,1));
+		cp[i] = 0x80 ^ (uint8)(MM_EXTRACT_F32(vec_f,2));
+		cp[i] = 0x80 ^ (uint8)(MM_EXTRACT_F32(vec_f,3));
 	}
 }
 #else
@@ -637,20 +617,10 @@ static void CALLINGCONV f64toulaw(DATA_T *lp, int32 c)
 	__m256d vmul = _mm256_set1_pd((double)MAX_16BIT_SIGNED);	
 	for(i = 0; i < c; i += 4){
 		__m128i vec0 = _mm256_cvttpd_epi32(_mm256_mul_pd(D256_CLIP_INPUT(&lp[i], gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec0;
-		up[i] = AUDIO_S2U(out[0]);
-		up[i + 1] = AUDIO_S2U(out[1]);
-		up[i + 2] = AUDIO_S2U(out[2]);
-		up[i + 3] = AUDIO_S2U(out[3]);
-		}
-#else
-		up[i] = AUDIO_S2U(vec0.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2U(vec0.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2U(vec0.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2U(vec0.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		up[i] = AUDIO_S2U(MM_EXTRACT_I32(vec0,0));
+		up[i + 1] = AUDIO_S2U(MM_EXTRACT_I32(vec0,1));
+		up[i + 2] = AUDIO_S2U(MM_EXTRACT_I32(vec0,2));
+		up[i + 3] = AUDIO_S2U(MM_EXTRACT_I32(vec0,3));
 	}
 }
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
@@ -665,20 +635,10 @@ static void CALLINGCONV f64toulaw(DATA_T *lp, int32 c)
 		__m128 vec_f12 = _mm_cvtpd_ps(_mm_load_pd(&lp[i + 2]));
 		__m128 vec_f1 = _mm_shuffle_ps(vec_f11, vec_f12, 0x44);
 		__m128i vec_i32 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f1, gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec_i32;
-		up[i] = AUDIO_S2U(out[0]);
-		up[i + 1] = AUDIO_S2U(out[1]);
-		up[i + 2] = AUDIO_S2U(out[2]);
-		up[i + 3] = AUDIO_S2U(out[3]);
-		}
-#else
-		up[i] = AUDIO_S2U(vec_i32.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2U(vec_i32.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2U(vec_i32.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2U(vec_i32.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		up[i] = AUDIO_S2U(MM_EXTRACT_I32(vec_i32,0));
+		up[i + 1] = AUDIO_S2U(MM_EXTRACT_I32(vec_i32,1));
+		up[i + 2] = AUDIO_S2U(MM_EXTRACT_I32(vec_i32,2));
+		up[i + 3] = AUDIO_S2U(MM_EXTRACT_I32(vec_i32,3));
 	}	
 }
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_FLOAT)
@@ -690,20 +650,10 @@ static void CALLINGCONV f64toulaw(DATA_T *lp, int32 c)
 	__m128 vmul = _mm_set1_ps((float)MAX_16BIT_SIGNED);
 	for(i = 0; i < c; i += 4){
 		__m128i vec0 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec0;
-		up[i] = AUDIO_S2U(out[0]);
-		up[i + 1] = AUDIO_S2U(out[1]);
-		up[i + 2] = AUDIO_S2U(out[2]);
-		up[i + 3] = AUDIO_S2U(out[3]);
-		}
-#else
-		up[i] = AUDIO_S2U(vec0.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2U(vec0.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2U(vec0.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2U(vec0.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		up[i] = AUDIO_S2U(MM_EXTRACT_I32(vec0,0));
+		up[i + 1] = AUDIO_S2U(MM_EXTRACT_I32(vec0,1));
+		up[i + 2] = AUDIO_S2U(MM_EXTRACT_I32(vec0,2));
+		up[i + 3] = AUDIO_S2U(MM_EXTRACT_I32(vec0,3));
 	}
 }
 #else
@@ -726,20 +676,10 @@ static void CALLINGCONV f64toalaw(DATA_T *lp, int32 c)
 	__m256d vmul = _mm256_set1_pd((double)MAX_16BIT_SIGNED);		
 	for(i = 0; i < c; i += 4){
 		__m128i vec0 = _mm256_cvttpd_epi32(_mm256_mul_pd(D256_CLIP_INPUT(&lp[i], gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec0;
-		up[i] = AUDIO_S2A(out[0]);
-		up[i + 1] = AUDIO_S2A(out[1]);
-		up[i + 2] = AUDIO_S2A(out[2]);
-		up[i + 3] = AUDIO_S2A(out[3]);
-		}
-#else
-		up[i] = AUDIO_S2A(vec0.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2A(vec0.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2A(vec0.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2A(vec0.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		up[i] = AUDIO_S2A(MM_EXTRACT_I32(vec0,0));
+		up[i + 1] = AUDIO_S2A(MM_EXTRACT_I32(vec0,1));
+		up[i + 2] = AUDIO_S2A(MM_EXTRACT_I32(vec0,2));
+		up[i + 3] = AUDIO_S2A(MM_EXTRACT_I32(vec0,3));
 	}
 }
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
@@ -754,20 +694,10 @@ static void CALLINGCONV f64toalaw(DATA_T *lp, int32 c)
 		__m128 vec_f12 = _mm_cvtpd_ps(_mm_load_pd(&lp[i + 2]));
 		__m128 vec_f1 = _mm_shuffle_ps(vec_f11, vec_f12, 0x44);
 		__m128i vec_i32 = _mm_cvttps_epi32(_mm_mul_ps(F128_CLIP_MM(vec_f1, gain), vmul));
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		int32 *out = (int32 *)vec_i32;
-		up[i] = AUDIO_S2A(out[0]);
-		up[i + 1] = AUDIO_S2A(out[1]);
-		up[i + 2] = AUDIO_S2A(out[2]);
-		up[i + 3] = AUDIO_S2A(out[3]);
-		}
-#else
-		up[i] = AUDIO_S2A(vec_i32.m128i_i32[0]);
-		up[i + 1] = AUDIO_S2A(vec_i32.m128i_i32[1]);
-		up[i + 2] = AUDIO_S2A(vec_i32.m128i_i32[2]);
-		up[i + 3] = AUDIO_S2A(vec_i32.m128i_i32[3]);
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		up[i] = AUDIO_S2A(MM_EXTRACT_I32(vec_i32,0));
+		up[i + 1] = AUDIO_S2A(MM_EXTRACT_I32(vec_i32,1));
+		up[i + 2] = AUDIO_S2A(MM_EXTRACT_I32(vec_i32,2));
+		up[i + 3] = AUDIO_S2A(MM_EXTRACT_I32(vec_i32,3));
 	}
 }
 #else
@@ -840,20 +770,10 @@ static void CALLINGCONV f64tos16(DATA_T *lp, int32 c)
 	__m128 vmul = _mm_set1_ps((float)MAX_16BIT_SIGNED);	
 	for(i = 0; i < c; i += 4){
 		__m128 vec_f = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		float *out = (float *)vec_f;
-		sp[i] = (int16)(out[0]);
-		sp[i] = (int16)(out[1]);
-		sp[i] = (int16)(out[2]);
-		sp[i] = (int16)(out[3]);	
-		}
-#else
-		sp[i] = (int16)(vec_f.m128_f32[0]);
-		sp[i] = (int16)(vec_f.m128_f32[1]);
-		sp[i] = (int16)(vec_f.m128_f32[2]);
-		sp[i] = (int16)(vec_f.m128_f32[3]);		
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		sp[i] = (int16)(MM_EXTRACT_F32(vec_f,0));
+		sp[i] = (int16)(MM_EXTRACT_F32(vec_f,1));
+		sp[i] = (int16)(MM_EXTRACT_F32(vec_f,2));
+		sp[i] = (int16)(MM_EXTRACT_F32(vec_f,3));		
 	}
 }
 #else
@@ -1062,20 +982,10 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 	__m128 vmul = _mm_set1_ps((float)MAX_24BIT_SIGNED);
 	for(i = 0; i < c; i += 4){ // 108 inst in loop
 		__m128 vec_f = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		float *out = (float *)vec_f;
-		STORE_S24(cp, (int32)(out[0]));
-		STORE_S24(cp, (int32)(out[1]));
-		STORE_S24(cp, (int32)(out[2]));
-		STORE_S24(cp, (int32)(out[3]));
-		}
-#else
-		STORE_S24(cp, (int32)(vec_f.m128_f32[0]));
-		STORE_S24(cp, (int32)(vec_f.m128_f32[1]));
-		STORE_S24(cp, (int32)(vec_f.m128_f32[2]));
-		STORE_S24(cp, (int32)(vec_f.m128_f32[3]));	
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		STORE_S24(cp, (int32)(MM_EXTRACT_F32(vec_f,0)));
+		STORE_S24(cp, (int32)(MM_EXTRACT_F32(vec_f,1)));
+		STORE_S24(cp, (int32)(MM_EXTRACT_F32(vec_f,2)));
+		STORE_S24(cp, (int32)(MM_EXTRACT_F32(vec_f,3)));	
 	}
 }
 #else
@@ -1186,20 +1096,10 @@ static void CALLINGCONV f64tos32(DATA_T *lp, int32 c)
 	__m128 vmul = _mm_set1_ps((float)MAX_32BIT_SIGNED);	
 	for(i = 0; i < c; i += 4){
 		__m128 vec_f = _mm_mul_ps(F128_CLIP_INPUT(&lp[i], gain), vmul);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		float *out = (float *)vec_f;
-		sp[i] = (int32)(out[0]);
-		sp[i] = (int32)(out[1]);
-		sp[i] = (int32)(out[2]);
-		sp[i] = (int32)(out[3]);	
-		}
-#else
-		sp[i] = (int32)(vec_f.m128_f32[0]);
-		sp[i] = (int32)(vec_f.m128_f32[1]);
-		sp[i] = (int32)(vec_f.m128_f32[2]);
-		sp[i] = (int32)(vec_f.m128_f32[3]);	
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		sp[i] = (int32)(MM_EXTRACT_F32(vec_f,0));
+		sp[i] = (int32)(MM_EXTRACT_F32(vec_f,1));
+		sp[i] = (int32)(MM_EXTRACT_F32(vec_f,2));
+		sp[i] = (int32)(MM_EXTRACT_F32(vec_f,3));	
 	}
 }
 #else
@@ -1685,20 +1585,10 @@ static void CALLINGCONV f64tof64(DATA_T *lp, int32 c)
 	__m128 gain = _mm_set1_ps((float)INPUT_GAIN);
 	for(i = c - 4; i >= 0; i -= 4){
 		__m128 vec_f = F128_CLIP_INPUT(&lp[i], gain);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		float *out = (float *)vec_f;
-		sp[i] = (double)(out[0]);
-		sp[i] = (double)(out[1]);
-		sp[i] = (double)(out[2]);
-		sp[i] = (double)(out[3]);	
-		}
-#else
-		sp[i] = (double)(vec_f.m128_f32[0]);
-		sp[i] = (double)(vec_f.m128_f32[1]);
-		sp[i] = (double)(vec_f.m128_f32[2]);
-		sp[i] = (double)(vec_f.m128_f32[3]);		
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+		sp[i] = (double)(MM_EXTRACT_F32(vec_f,0));
+		sp[i] = (double)(MM_EXTRACT_F32(vec_f,1));
+		sp[i] = (double)(MM_EXTRACT_F32(vec_f,2));
+		sp[i] = (double)(MM_EXTRACT_F32(vec_f,3));		
 	}
 }
 #elif defined(DATA_T_DOUBLE)

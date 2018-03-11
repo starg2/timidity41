@@ -281,16 +281,8 @@ static inline void mix_mystery_signal_thread(DATA_T *sp, DATA_T *lp, int v, int 
 				vsp = _mm_loadu_ps(sp++);
 				vsp = _mm_shuffle_ps(vsp, vsp, 0x50); // [0,1,2,3] to {0,0,1,1]
 				vsp = _mm_mul_ps(vsp, vevol);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-				{
-				float *out = (float *)vsp;
-				*(lp++) = out[0];
-				*(lp++) = out[1];
-				}
-#else
-				*(lp++) = vsp.m128_f32[0];
-				*(lp++) = vsp.m128_f32[1];
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+				*(lp++) = MM_EXTRACT_F32(vsp,0);
+				*(lp++) = MM_EXTRACT_F32(vsp,1);
 			}
 
 #else // ! USE_X86_EXT_INTRIN

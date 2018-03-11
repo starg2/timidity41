@@ -21,11 +21,16 @@
 #ifndef OPTCODE_H_INCLUDED
 #define OPTCODE_H_INCLUDED 1
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
+
 #if defined(_M_IX86) || defined(__i386__) || defined(__i386) || defined(_X86_) || defined(__X86__) || defined(__I86__)
 #define IX86CPU 1
 #endif
 
-#if defined(_M_X64) || defined(_AMD64_) || defined(_X64_) || defined(__X64__)
+#if defined(_M_X64) || defined(_AMD64_) || defined(_X64_) || defined(__X64__) || defined(__x86_64__)
 #define IX64CPU 1
 #undef IX86CPU
 #undef IA64CPU
@@ -843,6 +848,19 @@ LSU : Unalignment (use loadu/storeu
 #define MM_LSU_MUL_PS(ptr, vec_a) _mm_storeu_ps(ptr, _mm_mul_ps(_mm_loadu_ps(ptr), vec_a))
 #endif
 
+#if (USE_X86_EXT_INTRIN >= 1)
+#if !(defined(_MSC_VER) || defined(MSC_VER))
+#define MM_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_shuffle_ps(reg,reg,idx))
+#define MM_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_shuffle_pd(reg,reg,idx))
+#define MM_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_shuffle_epi32(reg,idx))
+#define MM256_EXTRACT_I32(reg,idx) _mm256_extract_epi32(reg,idx)
+#else
+#define MM_EXTRACT_F32(reg,idx) reg.m128_f32[idx]
+#define MM_EXTRACT_F64(reg,idx) reg.m128d_f64[idx]
+#define MM_EXTRACT_I32(reg,idx) reg.m128i_i32[idx]
+#define MM256_EXTRACT_I32(reg,idx) reg.m256i_i32[idx]
+#endif
+#endif // (USE_X86_EXT_INTRIN >= 1)
 
 #define IS_ALIGN(ptr) (!((int32)ptr & (ALIGN_SIZE - 1)))
 extern int is_x86ext_available(void);
@@ -917,5 +935,9 @@ static inline void *switch_memset(void *destp, int c, size_t len)
 
 #define memset switch_memset
 #endif /* altivec */
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #endif /* OPTCODE_H_INCLUDED */

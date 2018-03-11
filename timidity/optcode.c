@@ -221,7 +221,34 @@ int32 imuldiv28(int32 a, int32 b) {
 
 /*****************************************************************************/
 #if (USE_X86_EXT_ASM || USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_ASM || USE_X86_AMD_EXT_INTRIN)
-
+#ifdef __GNUC__
+inline void CPUID(int32 *regs, uint32 eax)
+{
+	uint32 ebx,ecx,edx;
+	__asm__ __volatile__ (
+#ifdef __x86_64__
+		"push		%%rbx		\n\t"
+#else
+		"push		%%ebx		\n\t"
+#endif
+		"cpuid					\n\t"
+		"mov		%%ebx, %1	\n\t"
+#ifdef __x86_64__
+		"pop		%%rbx		\n\t"
+#else
+		"pop		%%ebx		\n\t"
+#endif
+		: "+a"(eax), "=r"(ebx), "=c"(ecx), "=d"(edx)
+	);
+	regs[0] = eax;
+	regs[1] = ebx;
+	regs[2] = ecx;
+	regs[3] = edx;
+}
+#else
+#include <cpuid.h>
+#define CPUID __cpuid
+#endif
 enum{
 	X86_VENDER_INTEL=0,
 	X86_VENDER_AMD,
@@ -238,6 +265,15 @@ static const char* x86_vendors[] =
 // Šg’£ƒtƒ‰ƒOŽæ“¾
 static inline int64	xgetbv(int index)
 {
+#if defined(__GNUC__)
+	unsigned int eax, edx;
+	__asm__ __volatile__ (
+		"xgetbv		\n\t"
+		: "=a"(eax), "=d"(edx)
+		: "c"(index)
+	);
+	return (uint64)eax|((uint64)edx<<32);
+#else
 #if (USE_X86_EXT_ASM || USE_X86_AMD_EXT_ASM)
 	uint64 flg = 0;
 	//_asm {
@@ -250,7 +286,7 @@ static inline int64	xgetbv(int index)
 #elif (USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_INTRIN)
 	return _xgetbv(index);
 #endif
-
+#endif
 }
 
 
@@ -270,7 +306,7 @@ int is_x86ext_available(void)
 	uint32 flg4; // extended feature flg pg2
 
 	memset(vendor, 0, sizeof(vendor));
-	__cpuid(reg, 0);
+	CPUID(reg,0);
 	cmd = reg[0];
 	((uint32*)vendor)[0] = reg[1];
 	((uint32*)vendor)[1] = reg[3];
@@ -280,14 +316,14 @@ int is_x86ext_available(void)
 			break;
 	}
 	if(cmd >= 0x00000001){
-		__cpuid(reg, 0x00000001);
+		CPUID(reg,0x00000001);
 		flg1 = reg[3];
 		flg2 = reg[2];
 	}
-	__cpuid(reg, 0x80000000);
+	CPUID(reg,0x80000000);
 	cmd = reg[ 0 ];
 	if(cmd >= 0x80000001){
-		__cpuid(reg, 0x80000001);
+		CPUID(reg,0x80000001);
 		flg4 = reg[2];
 		flg3 = reg[3];
 	}

@@ -29,6 +29,10 @@
 #include <sys/types.h>
 #endif
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include <stdio.h>
 
 /* Architectures */
@@ -82,7 +86,7 @@
 #if defined(IX86CPU) && (defined(_MSC_VER) || defined(__POCC__) || \
 	defined(__BORLANDC__) || defined(__WATCOMC__))
 #define CALLINGCONV __fastcall
-#elif defined(IX86CPU) && defined(__GNUC__)
+#elif defined(IX86CPU) && !defined(AMD64CPU) && defined(__GNUC__)
 #define CALLINGCONV __attribute__((fastcall))
 #else
 #define CALLINGCONV /**/
@@ -944,12 +948,13 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #ifdef __MINGW32__
 #define aligned_malloc __mingw_aligned_malloc
 #define aligned_free   __mingw_aligned_free
-#elif __STDC_VERSION__ >= 201112L
-#define aligned_malloc(s,a) aligned_alloc(a,s)
-#define aligned_free   free
-//#elif _POSIX_VERSION >= 200112L
-//#define aligned_malloc(s,a) posix_memalign(,a,s)
+/* aligned_malloc is unsafe because s must be a multiple of a */
+//#elif __STDC_VERSION__ >= 201112L
+//#define aligned_malloc(s,a) aligned_malloc(a,s)
 //#define aligned_free   free
+#elif defined(__GNUC__) && _POSIX_VERSION >= 200112L
+#define aligned_malloc(s,a) ({void *ptr; if(!s || posix_memalign(&ptr,a,s)) ptr = NULL; ptr;})
+#define aligned_free   free
 #elif _MSC_VER
 #define aligned_malloc _aligned_malloc
 #define aligned_free   _aligned_free

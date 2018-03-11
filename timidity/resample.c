@@ -4276,26 +4276,14 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-	int32 *ofsp = (int32 *)vofsi;
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofsp[0]]); // ofsiとofsi+1をロード
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[ofsp[1]]); // 次周サンプルも同じ
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[ofsp[2]]); // 次周サンプルも同じ
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[ofsp[3]]); // 次周サンプルも同じ
-	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[ofsp[4]]); // 次周サンプルも同じ
-	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[ofsp[5]]); // 次周サンプルも同じ
-	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[ofsp[6]]); // 次周サンプルも同じ
-	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[ofsp[7]]); // 次周サンプルも同じ
-#else
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[0]]); // ofsiとofsi+1をロード
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[1]]); // 次周サンプルも同じ
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[2]]); // 次周サンプルも同じ
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[3]]); // 次周サンプルも同じ
-	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[4]]); // 次周サンプルも同じ
-	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[5]]); // 次周サンプルも同じ
-	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[6]]); // 次周サンプルも同じ
-	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[vofsi.m256i_i32[7]]); // 次周サンプルも同じ
-#endif
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0)]); // ofsiとofsi+1をロード
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1)]); // 次周サンプルも同じ
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2)]); // 次周サンプルも同じ
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,3)]); // 次周サンプルも同じ
+	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,4)]); // 次周サンプルも同じ
+	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,5)]); // 次周サンプルも同じ
+	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,6)]); // 次周サンプルも同じ
+	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,7)]); // 次周サンプルも同じ
 	__m128i vin12 =	_mm_unpacklo_epi16(vin1, vin2); // [v11v21]e96,[v12v22]e96 to [v11v12v21v22]e64
 	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
 	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // 同じ
@@ -4377,7 +4365,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	dest += 4;
 #elif defined(DATA_T_FLOAT) // DATA_T_FLOAT 
 	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
-	_mm256_storeu_ps(dest, vec_out);
+	_mm_storeu_ps(dest, vec_out);
 	dest += 4;
 #else // DATA_T_IN32
 	__m128 vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);
@@ -4497,18 +4485,10 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	const __m128 vec_divo = _mm_set1_ps(DIV_15BIT);
 	for(; i < count; i += 4) {
 	__m128i vofsi = _mm_srli_epi32(vofs, FRACTION_BITS);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-	int32 *ofsp = (int32 *)vofsi;
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofsp[0]]); // ofsiとofsi+1をロード
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[ofsp[1]]); // 次周サンプルも同じ
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[ofsp[2]]); // 次周サンプルも同じ
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[ofsp[3]]); // 次周サンプルも同じ
-#else
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[0]]); // ofsiとofsi+1をロード
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[1]]); // 次周サンプルも同じ
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[2]]); // 次周サンプルも同じ
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[vofsi.m128i_i32[3]]); // 次周サンプルも同じ
-#endif		
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,0)]); // ofsiとofsi+1をロード
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,1)]); // 次周サンプルも同じ
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,2)]); // 次周サンプルも同じ
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,3)]); // 次周サンプルも同じ	
 	__m128i vin12 =	_mm_unpacklo_epi16(vin1, vin2); // [v11v21]e96,[v12v22]e96 to [v11v12v21v22]e64
 	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
 	__m128i vi16 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
@@ -4545,7 +4525,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	vofs = _mm_add_epi32(vofs, vinc);
 	}
 	}
-	resrc->offset = prec_offset + (splen_t)(vofs.m128i_i32[0]);
+	resrc->offset = prec_offset + (splen_t)(MM_EXTRACT_I32(vofs,0));
 	*out_count = i;
     return dest;
 }
@@ -4585,20 +4565,10 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 		vv2 = _mm_cvt_si2ss(vv2, src[++ofsi]), vv2 = _mm_shuffle_ps(vv2, vv2, 0x1b);			
 #if defined(DATA_T_DOUBLE)
 		vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), _mm_mul_ps(vfp, vec_divf), vv1), vec_divo);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-		{
-		float *out = (float *)vec_out;
-		*dest++ = (DATA_T)out[0];
-		*dest++ = (DATA_T)out[1];
-		*dest++ = (DATA_T)out[2];
-		*dest++ = (DATA_T)out[3];
-		}
-#else
-		*dest++ = (DATA_T)vec_out.m128_f32[0];
-		*dest++ = (DATA_T)vec_out.m128_f32[1];
-		*dest++ = (DATA_T)vec_out.m128_f32[2];
-		*dest++ = (DATA_T)vec_out.m128_f32[3];
-#endif
+		*dest++ = (DATA_T)MM_EXTRACT_F32(vec_out,0);
+		*dest++ = (DATA_T)MM_EXTRACT_F32(vec_out,1);
+		*dest++ = (DATA_T)MM_EXTRACT_F32(vec_out,2);
+		*dest++ = (DATA_T)MM_EXTRACT_F32(vec_out,3);
 #elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
 		_mm_storeu_ps(dest, _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), _mm_mul_ps(vfp, vec_divf), vv1), vec_divo));
 		dest += 4;

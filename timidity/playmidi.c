@@ -11377,16 +11377,8 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 					vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
 				}
 				vsp = _mm_mul_ps(_mm_loadu_ps(src), vevol);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-				{
-				float *out = (float *)vsp;
-				*(src++) = out[0];
-				*(src++) = out[1];
-				}
-#else
-				*(src++) = vsp.m128_f32[0];
-				*(src++) = vsp.m128_f32[1];	
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+				*(src++) = MM_EXTRACT_F32(vsp,0);
+				*(src++) = MM_EXTRACT_F32(vsp,1);	
 			}
 
 #else // ! USE_X86_EXT_INTRIN
