@@ -1247,7 +1247,7 @@ public:
         for (auto&& i : sampleInstruments)
         {
             pCurrentSample = std::copy_n(i->sample, i->samples, pCurrentSample);
-            std::for_each_n(i->sample, i->samples, [] (auto&& x) { x.data_alloced = false; });
+            std::for_each(i->sample, i->sample + i->samples, [] (auto&& x) { x.data_alloced = false; });
         }
 
         return pInstrument;
@@ -1448,7 +1448,7 @@ public:
         pInstRef->samples = it->pInstrument->samples;
         pInstRef->sample = reinterpret_cast<Sample*>(safe_calloc(sizeof(Sample), it->pInstrument->samples));
         std::copy_n(it->pInstrument->sample, it->pInstrument->samples, pInstRef->sample);
-        std::for_each_n(pInstRef->sample, pInstRef->samples, [] (auto&& x) { x.data_alloced = false; });
+        std::for_each(pInstRef->sample, pInstRef->sample + pInstRef->samples, [] (auto&& x) { x.data_alloced = false; });
 
         return pInstRef.release();
     }
