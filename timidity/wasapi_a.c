@@ -126,7 +126,7 @@ PlayMode dpm = {
 //#include <Avrt.h>
 #include <audioclient.h>
 #include <audiopolicy.h>
-//#define INITGUID
+#include <initguid.h>
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
 #undef INITGUID
