@@ -150,7 +150,7 @@ if(MSVC)
         -DSTDOUT_FILENO=1
     )
 else()
-    add_compile_options(-Wall -Wextra -ffast-math)
+    add_compile_options(-Wall -Wextra -Wno-missing-braces -ffast-math)
 
     if(TIM41_USE_AVX2)
         add_compile_options(-mavx2)
