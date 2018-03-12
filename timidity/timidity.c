@@ -8781,6 +8781,23 @@ int main(int argc, char **argv)
 	_CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
 	atexit(w32_exit);
+
+#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+	{
+		HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+		if (hStdOut != INVALID_HANDLE_VALUE)
+		{
+			DWORD mode;
+
+			if (GetConsoleMode(hStdOut, &mode))
+			{
+				SetConsoleMode(hStdOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+			}
+		}
+	}
+#endif
+
 #endif /* __W32__ */
 #if !defined(KBTIM) && !defined(WINDRV)
 	OverrideSFSettingLoad();
