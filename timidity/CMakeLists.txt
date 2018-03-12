@@ -182,7 +182,7 @@ add_executable(
 )
 
 add_dependencies(timidity UpdateTim41Version)
-target_compile_definitions(timidity PRIVATE -DIA_NCURSES)
+target_compile_definitions(timidity PRIVATE -DIA_NCURSES -DIA_VT100)
 target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS} pdcurses)
 
 # twsynsrv

@@ -3,8 +3,6 @@ set(
     INTERFACE_COMMON_SOURCES
 
     rtsyn_common.c
-    vt100.c
-    vt100_c.c
     VTPrsTbl.c
     w32g_soundspec.c
     wrdt_dumb.c
@@ -18,7 +16,6 @@ set(
     rtsyn.h
     server_defs.h
     soundspec.h
-    vt100.h
     VTparse.h
     w32g_utl.h
     xaw.h
@@ -34,6 +31,9 @@ set(
     dumb_c.c
     ncurs_c.c
     wrdt_wcon.c
+    vt100.c
+    vt100_c.c
+    vt100.h
 )
 
 set(
@@ -112,7 +112,7 @@ add_library(
     ${INTERFACE_CON_SOURCES}
 )
 
-target_compile_definitions(interface PRIVATE -DIA_NCURSES)
+target_compile_definitions(interface PRIVATE -DIA_NCURSES -DIA_VT100)
 
 # for twsynsrv
 
