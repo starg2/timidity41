@@ -38,15 +38,15 @@
 
 /* callback routines */
 static void CALLBACK winmm_in_callback(HMIDIIN hMidiIn,
-                                       WORD wMsg, DWORD_PTR dwInstance, 
-                                       DWORD_PTR dwParam1, DWORD_PTR dwParam2);
+                                       WORD wMsg, DWORD dwInstance, 
+                                       DWORD dwParam1, DWORD dwParam2);
 static void CALLBACK winmm_streamout_callback(HMIDIOUT hmo, UINT wMsg,
-                                              DWORD_PTR dwInstance, DWORD_PTR dwParam1, 
-                                              DWORD_PTR dwParam2);
+                                              DWORD dwInstance, DWORD dwParam1, 
+                                              DWORD dwParam2);
 #ifdef USE_SYSEX_BUFFERS
 static void CALLBACK winmm_out_callback(HMIDIOUT hmo, UINT wMsg,
-                                        DWORD_PTR dwInstance, DWORD_PTR dwParam1, 
-                                        DWORD_PTR dwParam2);
+                                        DWORD dwInstance, DWORD dwParam1, 
+                                        DWORD dwParam2);
 #endif
 
 extern pm_fns_node pm_winmm_in_dictionary;
