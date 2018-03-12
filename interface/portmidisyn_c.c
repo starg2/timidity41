@@ -69,13 +69,18 @@
 #include "wsgtk_main.h"
 #endif
 
-#ifndef __W32__
 #include <stdio.h>
+#ifndef __W32__
 #include <termios.h>
 //#include <term.h>
 #include <unistd.h>
 #endif
 
+#if defined(__W32__)
+#include <conio.h>
+#define kbhit _kbhit
+#define HAVE_DOS_KEYBOARD 1
+#endif
 
 #ifndef __W32__
 static struct termios initial_settings, new_settings;
