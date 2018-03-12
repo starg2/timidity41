@@ -185,6 +185,9 @@ include_directories(
     opus/include
     pdcurses
     portaudio/include
+    portmidi/pm_common
+    portmidi/pm_win
+    portmidi/porttime
     timidity
 	twsyn_bridge
     utils
@@ -197,6 +200,7 @@ add_subdirectory(ogg)
 add_subdirectory(opus)
 add_subdirectory(pdcurses)
 add_subdirectory(portaudio)
+add_subdirectory(portmidi)
 add_subdirectory(speex)
 add_subdirectory(vorbis)
 
