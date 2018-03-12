@@ -228,7 +228,7 @@ static int ctl_pass_playing_list(int n, char *args[])
 static int ctl_pass_playing_list(int n, char *args[])
 #else
 // 0: OK, 2: Require to reset.
-int ctl_pass_playing_list2(int n, char *args[])
+static int ctl_pass_playing_list2(int n, char *args[])
 #endif
 {
 	int i, j,devnum,devok;
@@ -468,43 +468,6 @@ static void doit(void)
 }
 
 #endif /* !IA_W32G_SYN */
-
-
-#ifdef IA_W32G_SYN
-static int winplaymidi_sleep_level = 2;
-static DWORD winplaymidi_active_start_time = 0;
-
-
-void winplaymidi(void){
-
-	if ( winplaymidi_sleep_level < 1 ) {
-		winplaymidi_sleep_level = 1;
-	}
-	if( 0 != rtsyn_buf_check() ){
-			winplaymidi_sleep_level =0;
-	}
-	rtsyn_play_some_data();
-	if ( winplaymidi_sleep_level == 1 ) {
-		DWORD ct = GetCurrentTime ();
-		if ( winplaymidi_active_start_time == 0 || ct < winplaymidi_active_start_time ) {
-			winplaymidi_active_start_time = ct;
-		} else if ( ct - winplaymidi_active_start_time > 60000 ) {
-			winplaymidi_sleep_level = 2;
-		}
-	} else if ( winplaymidi_sleep_level == 0 ) {
-		winplaymidi_active_start_time = 0;
-	}
-	
-	rtsyn_play_calculate();
-	
-	if ( winplaymidi_sleep_level >= 2) {
-		Sleep ( 100 );
-	} else if ( winplaymidi_sleep_level > 0 ) {
-		Sleep ( 1 );
-	}
-}
-#endif
-		
 
 /*
  * interface_<id>_loader();

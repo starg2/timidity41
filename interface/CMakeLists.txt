@@ -2,7 +2,6 @@
 set(
     INTERFACE_COMMON_SOURCES
 
-    ncurs_c.c
     rtsyn_common.c
     vt100.c
     vt100_c.c
@@ -27,6 +26,14 @@ set(
     x_mag.h
     x_sherry.h
     x_wrdwindow.h
+)
+
+set(
+    INTERFACE_CON_SOURCES
+
+    dumb_c.c
+    ncurs_c.c
+    wrdt_wcon.c
 )
 
 set(
@@ -61,6 +68,20 @@ set(
     w32g_ut2.h
     w32g_utl.h
     w32g_wrd.h
+
+    w32g_res.rc
+)
+
+set(
+    INTERFACE_SYN_SOURCES
+
+    npsyn_c.c
+    rtsyn_npipe.c
+    rtsyn_winmm.c
+    winsyn_c.c
+
+	../twsyn_bridge/twsyn_bridge_host.c
+	../twsyn_bridge/twsyn_bridge_host.h
 )
 
 if(MSVC)
@@ -87,8 +108,7 @@ add_library(
     interface OBJECT
 
     ${INTERFACE_COMMON_SOURCES}
-    dumb_c.c
-    wrdt_wcon.c
+    ${INTERFACE_CON_SOURCES}
 )
 
 target_compile_definitions(interface PRIVATE -DIA_NCURSES)
@@ -99,17 +119,12 @@ add_library(
     interface_synsrv OBJECT
 
     ${INTERFACE_COMMON_SOURCES}
-    dumb_c.c
-    rtsyn_winmm.c
-    winsyn_c.c
-    wrdt_wcon.c
-
-	../twsyn_bridge/twsyn_bridge_host.c
-	../twsyn_bridge/twsyn_bridge_host.h
+    ${INTERFACE_CON_SOURCES}
+    ${INTERFACE_SYN_SOURCES}
 )
 
 add_dependencies(interface_synsrv twsyn_bridge)
-target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
+target_compile_definitions(interface_synsrv PRIVATE -DIA_NPSYN -DIA_WINSYN -DTWSYNSRV)
 
 # for timw32g
 
@@ -117,7 +132,6 @@ add_library(
     interface_w32g OBJECT
 
     ${INTERFACE_W32G_COMMON_SOURCES}
-    w32g_res.rc
 )
 
 add_dependencies(interface_w32g UpdateTim41Version)
@@ -130,14 +144,9 @@ add_library(
 
     ${INTERFACE_COMMON_SOURCES}
     ${INTERFACE_W32G_COMMON_SOURCES}
-    rtsyn_winmm.c
+    ${INTERFACE_SYN_SOURCES}
     w32g_syn.c
-    winsyn_c.c
-    w32g_res.rc
-
-	../twsyn_bridge/twsyn_bridge_host.c
-	../twsyn_bridge/twsyn_bridge_host.h
 )
 
 add_dependencies(interface_w32gsyn UpdateTim41Version twsyn_bridge)
-target_compile_definitions(interface_w32gsyn PRIVATE -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+target_compile_definitions(interface_w32gsyn PRIVATE -DIA_NPSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)

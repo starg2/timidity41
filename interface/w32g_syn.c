@@ -64,6 +64,7 @@
 #include "readmidi.h"
 #include "output.h"
 #include "controls.h"
+#include "rtsyn.h"
 
 #ifdef WIN32GCC
 WINAPI void InitCommonControls(void);
@@ -1479,7 +1480,7 @@ int w32g_syn_ctl_pass_playing_list(int n_, char *args_[])
 #endif /* !TWSYNSRV */
 				SetPriorityClass(GetCurrentProcess(), processPriority);
 				SetThreadPriority(w32g_syn.syn_hThread, syn_ThreadPriority);
-				result = ctl_pass_playing_list2(w32g_syn_port_num, args);
+				result = ctl->pass_playing_list(w32g_syn_port_num, args);
 				SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 				SetThreadPriority(w32g_syn.syn_hThread, THREAD_PRIORITY_NORMAL);
 				if (result == 2) {
@@ -1857,6 +1858,44 @@ static void ConsoleWndVerbosityApplyIncDec(int num)
 }
 
 #endif /* HAVE_SYN_CONSOLE */
+
+#ifdef IA_W32G_SYN
+static int winplaymidi_sleep_level = 2;
+static DWORD winplaymidi_active_start_time = 0;
+
+void winplaymidi(void) {
+
+    if (winplaymidi_sleep_level < 1) {
+        winplaymidi_sleep_level = 1;
+    }
+    if (0 != rtsyn_buf_check()) {
+        winplaymidi_sleep_level = 0;
+    }
+    rtsyn_play_some_data();
+    if (winplaymidi_sleep_level == 1) {
+        DWORD ct = GetCurrentTime();
+        if (winplaymidi_active_start_time == 0 || ct < winplaymidi_active_start_time) {
+            winplaymidi_active_start_time = ct;
+        }
+        else if (ct - winplaymidi_active_start_time > 60000) {
+            winplaymidi_sleep_level = 2;
+        }
+    }
+    else if (winplaymidi_sleep_level == 0) {
+        winplaymidi_active_start_time = 0;
+    }
+
+    rtsyn_play_calculate();
+
+    if (winplaymidi_sleep_level >= 2) {
+        Sleep(100);
+    }
+    else if (winplaymidi_sleep_level > 0) {
+        Sleep(1);
+    }
+}
+#endif /* IA_W32G_SYN */
+
 
 #ifdef HAVE_SYN_SOUNDSPEC
 

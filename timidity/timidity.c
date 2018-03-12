@@ -8950,7 +8950,7 @@ int main(int argc, char **argv)
 		files = expand_file_archives(files, &nfiles);
 	if (nfiles > 0)
 		files_nbuf = files[0];
-#if !defined(IA_W32GUI) && !defined(IA_W32G_SYN)
+#if !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(IA_WINSYN)
 	if (dumb_error_count)
 		sleep(1);
 #endif
