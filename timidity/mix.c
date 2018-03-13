@@ -559,6 +559,9 @@ void mix_voice(DATA_T *buf, int v, int32 c)
 	case INST_SF2:
 	case INST_MOD:
 	case INST_PCM:
+#ifdef ENABLE_SFZ
+	case INST_SFZ:
+#endif
 		if(opt_resample_over_sampling){
 			int32 c2 = c * opt_resample_over_sampling;
 			resample_voice(v, sp, c2);
