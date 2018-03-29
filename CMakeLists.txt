@@ -153,7 +153,7 @@ else()
     add_compile_options(-Wall -Wextra -Wno-missing-braces -ffast-math)
 
     if(TIM41_USE_AVX2)
-        add_compile_options(-mavx2)
+        add_compile_options(-mavx2 -mfma)
     else()
         add_compile_options(-msse4.2)
     endif()
