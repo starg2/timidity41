@@ -1574,9 +1574,9 @@ void mix_ch_chorus_sd_thread(DATA_T *buf, int32 count, int32 byte)
 	switch(*chorus_status_sd.output_select){
 	case 0: // main
 		for(i = 0; i < count; i += 8){
-			MM256_LS_ADD_PD(&buf[i], _mm256_load_pd(&chorus_effect_buffer_sub[cdmt_buf_o][i]), cho_level);
+			MM256_LS_FMA_PD(&buf[i], _mm256_load_pd(&chorus_effect_buffer_sub[cdmt_buf_o][i]), cho_level);
 			MM256_LS_FMA_PD(&reverb_effect_buffer_thread[cdmt_ofs_1][i], _mm256_load_pd(&chorus_effect_buffer_sub[cdmt_buf_o][i]), rev_level);
-			MM256_LS_ADD_PD(&buf[i + 4], _mm256_load_pd(&chorus_effect_buffer_sub[cdmt_buf_o][i + 4]), cho_level);
+			MM256_LS_FMA_PD(&buf[i + 4], _mm256_load_pd(&chorus_effect_buffer_sub[cdmt_buf_o][i + 4]), cho_level);
 			MM256_LS_FMA_PD(&reverb_effect_buffer_thread[cdmt_ofs_1][i + 4], _mm256_load_pd(&chorus_effect_buffer_sub[cdmt_buf_o][i + 4]), rev_level);
 		}
 		break;
@@ -1608,7 +1608,7 @@ void mix_ch_chorus_sd_thread(DATA_T *buf, int32 count, int32 byte)
 	switch(*chorus_status_sd.output_select){
 	case 0: // main
 		for(i = 0; i < count; i += 8){
-			MM256_LS_ADD_PS(&buf[i], _mm256_load_ps(&chorus_effect_buffer_sub[cdmt_buf_o][i]), cho_level);
+			MM256_LS_FMA_PS(&buf[i], _mm256_load_ps(&chorus_effect_buffer_sub[cdmt_buf_o][i]), cho_level);
 			MM256_LS_FMA_PS(&reverb_effect_buffer_thread[cdmt_ofs_1][i], _mm256_load_ps(&chorus_effect_buffer_sub[cdmt_buf_o][i]), rev_level);
 		}	
 		break;
