@@ -1844,7 +1844,7 @@ void do_master_effect_thread(void)
 	if(noise_sharp_type)
 		ns_shaping(master_effect_buffer_thread[cdmt_buf_o], me_cv[cdmt_buf_o].nsamples);	
 	if (opt_limiter)
-		do_limiter(master_effect_buffer_thread[cdmt_buf_o], me_cv[cdmt_buf_o].nsamples);
+		do_limiter(master_effect_buffer_thread[cdmt_buf_o], me_cv[cdmt_buf_o].count);
 
 #ifdef VST_LOADER_ENABLE
 #ifndef MASTER_VST_EFFECT2
