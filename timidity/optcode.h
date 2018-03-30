@@ -232,7 +232,7 @@ enum{
 
 #if defined(USE_SSE5) // _MSC_VER >= 1700 VC2012?
 #define USE_X86_AMD_EXT_INTRIN  6
-#eiif defined(USE_SSE4A) // _MSC_VER >= 1600 VC2010?
+#elif defined(USE_SSE4A) // _MSC_VER >= 1600 VC2010?
 #define USE_X86_AMD_EXT_INTRIN  5
 #elif defined(USE_3DNOW_PRO)
 #define USE_X86_AMD_EXT_INTRIN  4
