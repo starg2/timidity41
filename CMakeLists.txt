@@ -37,6 +37,11 @@ else()
     set(tim41VersionStr "current")
     set(tim41Version4Comma "41,0,0,0")
     configure_file(version.h.in version.h)
+
+    add_custom_target(
+        UpdateTim41Version
+        COMMAND "${CMAKE_COMMAND}" -E echo "automatic version detection is not available"
+    )
 endif()
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
