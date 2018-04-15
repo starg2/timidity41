@@ -102,7 +102,7 @@ static int rc_thread = 0;
 static ptr_size_t value_thread = 0;
 static void w32g_ext_control_sub_thread(int rc, ptr_size_t value);
 
-static void w32g_ext_control_thread(void)
+static unsigned __stdcall w32g_ext_control_thread(void *param)
 {
 	for(;;){		
 		WaitForSingleObject(hEventTcv, INFINITE); // スレッド開始イベント待機
@@ -111,7 +111,8 @@ static void w32g_ext_control_thread(void)
 		ResetEvent(hEventTcv); // スレッド開始イベントリセット
 		thread_finish = 1; // スレッド終了フラグセット
 	}
-	crt_endthread();
+
+    return 0;
 }
 
 static void w32g_uninit_ext_control_thread(void)
@@ -155,7 +156,7 @@ static void w32g_init_ext_control_thread(void)
 	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // reset manual
 	if(hEventTcv == NULL)
 		return;
-	hThread = crt_beginthreadex(NULL, 0, (LPTHREAD_START_ROUTINE)w32g_ext_control_thread, 0, 0, &ThreadID);
+	hThread = crt_beginthreadex(NULL, 0, w32g_ext_control_thread, 0, 0, &ThreadID);
 	if(hThread == NULL)
 		return;
 }
