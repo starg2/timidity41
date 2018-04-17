@@ -4167,7 +4167,7 @@ SF2édólèÄãí(ÉãÅ[ÉvëOå„4ÉTÉìÉvÉã) Ç‹ÇΩÇÕ PAT(ÉãÅ[ÉvëOå„1ÉTÉìÉvÉãÅH) Ç≈Ç†ÇÍÇŒÇªÇ‡Ç
 #endif // LO_LOOP_CALC
 }
 
-#if 0// (USE_X86_EXT_INTRIN >= 9)
+#if (USE_X86_EXT_INTRIN >= 9)
 // offset:int32*8, resamp:float*8
 // ÉãÅ[Évì‡ïîÇÃoffsetåvéZÇint32ílàÊÇ…Ç∑ÇÈ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
@@ -4180,7 +4180,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
 	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offsetåvéZÇint32ílàÊÇ…Ç∑ÇÈ(SIMDóp
 	int32 inc = resrc->increment;
-	__m256i vint = _mm256_set_epi32(inc * 7, inc * 6, inc * 5, inc * 4, inc * 3, inc * 2, inc, 0)
+	__m256i vinit = _mm256_set_epi32(inc * 7, inc * 6, inc * 5, inc * 4, inc * 3, inc * 2, inc, 0);
 	__m256i vofs = _mm256_add_epi32(_mm256_set1_epi32(start_offset), vinit);
 	__m256i vinc = _mm256_set1_epi32(inc * 8), vfmask = _mm256_set1_epi32((int32)FRACTION_MASK);
 	__m256 vec_divo = _mm256_set1_ps(DIV_15BIT), vec_divf = _mm256_set1_ps(div_fraction);
@@ -4196,9 +4196,9 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	for(i = 0; i < count; i += 8) {
 	__m256i vofsi1 = _mm256_srli_epi32(vofs, FRACTION_BITS);
 	__m256i vofsi2 = _mm256_add_epi32(vofsi1, vvar1);
-	int32 ofs0 = _mm_cvtsi128_si32(_mm256_extracti128si256(vofsi1, 0x0));
-	__m256i vin1 = _mm256_loadu_si256((__m256i *)&src[ofs0]); // int16*16
-	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi1, _mm256_setzero_epi32()); 
+	int32 ofs0 = _mm_cvtsi128_si32(_mm256_extracti128_si256(vofsi1, 0x0));
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*16
+	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi1, _mm256_setzero_si256()); 
 	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); 
 	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib); 
 	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (floatïœä∑Ç≈H128bitÇÕè¡Ç¶ÇÈ
@@ -4265,7 +4265,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	dest += 8;
 #else // DATA_T_IN32
 	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
-	_mm256_storeu_si256(__m256i *)dest, _mm256_cvtps_epi32(vec_out));
+	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(vec_out));
 	dest += 8;
 #endif
 	vofs = _mm256_add_epi32(vofs, vinc);
@@ -4276,6 +4276,13 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
+#if 1
+	__m256i vsrc01 = _mm256_i32gather_epi32((const int*)src, vofsi, 2);
+	__m256i vsrc0 = _mm256_srai_epi32(_mm256_slli_epi32(vsrc01, 16), 16);
+	__m256i vsrc1 = _mm256_srli_epi32(vsrc01, 16);
+	__m256 vv1 = _mm256_cvtepi32_ps(vsrc0);
+	__m256 vv2 = _mm256_cvtepi32_ps(vsrc1);
+#else
 	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0)]); // ofsiÇ∆ofsi+1ÇÉçÅ[Éh
 	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1)]); // éüé¸ÉTÉìÉvÉãÇ‡ìØÇ∂
 	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2)]); // éüé¸ÉTÉìÉvÉãÇ‡ìØÇ∂
@@ -4288,13 +4295,14 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
 	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // ìØÇ∂
 	__m128i vin78 =	_mm_unpacklo_epi16(vin7, vin8); // ìØÇ∂
-	__m128i vi1234 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
-	__m128i vi5678 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26]e64,[v17v18,v27v28]e64 to [v15v16v17v18,v25v26v27v28]e0
+	__m128i vin1234 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
+	__m128i vin5678 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26]e64,[v17v18,v27v28]e64 to [v15v16v17v18,v25v26v27v28]e0
 	__m256i viall = MM256_SET2X_SI256(vin1234, vin5678); // 256bit =128bit+128bit	
 	__m256i vsi16_1 = _mm256_permute4x64_epi64(viall, 0xD8); // v1ÇL128bitÇ…Ç‹Ç∆Çﬂ
 	__m256i vsi16_2 = _mm256_permute4x64_epi64(viall, 0x8D); // v2ÇL128bitÇ…Ç‹Ç∆Çﬂ
-	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vsi16_1)); // int16 to float (floatïœä∑Ç≈H128bitÇÕè¡Ç¶ÇÈ
-	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vsi16_2)); // int16 to float (floatïœä∑Ç≈H128bitÇÕè¡Ç¶ÇÈ
+	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_1, 0))); // int16 to float (floatïœä∑Ç≈H128bitÇÕè¡Ç¶ÇÈ
+	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_2, 0))); // int16 to float (floatïœä∑Ç≈H128bitÇÕè¡Ç¶ÇÈ
+#endif
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
