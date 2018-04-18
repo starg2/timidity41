@@ -619,28 +619,7 @@ static inline int32 signlong(int32 a)
 
 #if (USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_INTRIN)
 #ifdef __GNUC__
-//#if defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 8)
-//#include <avxintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 7)
-//#include <nmmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 6)
-//#include <smmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 5)
-//#include <tmmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 4)
-//#include <pmmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 3)
-//#include <emmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 2)
-//#include <xmmintrin.h>
-//#else
-//#include <mmintrin.h>
-//#endif
-//#if defined(USE_X86_AMD_EXT_INTRIN) && (USE_X86_AMD_EXT_INTRIN >= 2)
-//#include <mm3dnow.h>
-//#endif
-#include <immintrin.h>
-
+#include <x86intrin.h>
 #elif (_MSC_VER >= 1600) // VC2010(VC10)
 #include <intrin.h>
 #else // VC2003(VC7) VC2005(VC8) VC2008(VC9)
@@ -860,6 +839,113 @@ LSU : Unalignment (use loadu/storeu
 #define MM_EXTRACT_I32(reg,idx) reg.m128i_i32[idx]
 #define MM256_EXTRACT_I32(reg,idx) reg.m256i_i32[idx]
 #endif
+#endif // (USE_X86_EXT_INTRIN >= 1)
+
+/*
+	gather and scatter
+*/
+
+#if (USE_X86_EXT_INTRIN >= 8)
+#if (USE_X86_EXT_INTRIN >= 9)
+#define MM256_I32GATHER_I32(base, offset, scale) _mm256_i32gather_epi32(base, offset, scale)
+#else
+
+static FORCEINLINE __m256i mm256_i32gather_i32_impl(const int *base, __m256i offset, int scale)
+{
+	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
+	return _mm256_set_epi32(
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 7)),
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 6)),
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 5)),
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 4)),
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 3)),
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 2)),
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 1)),
+		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 0))
+	);
+}
+
+#define MM256_I32GATHER_I32(base, offset, scale) mm256_i32gather_i32_impl(base, offset, scale)
+#endif // (USE_X86_EXT_INTRIN >= 9)
+
+static FORCEINLINE void mm256_i32scatter_i32_impl(void *base, __m256i offset, __m256i val, int scale)
+{
+	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 7)) = MM256_EXTRACT_I32(val, 7);
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 6)) = MM256_EXTRACT_I32(val, 6);
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 5)) = MM256_EXTRACT_I32(val, 5);
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 4)) = MM256_EXTRACT_I32(val, 4);
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 3)) = MM256_EXTRACT_I32(val, 3);
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 2)) = MM256_EXTRACT_I32(val, 2);
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 1)) = MM256_EXTRACT_I32(val, 1);
+	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 0)) = MM256_EXTRACT_I32(val, 0);
+}
+
+#define MM256_I32SCATTER_I32(base, offset, val, scale) mm256_i32scatter_i32_impl(base, offset, val, scale)
+
+#endif // (USE_X86_EXT_INTRIN >= 8)
+
+#if (USE_X86_EXT_INTRIN >= 1)
+#if (USE_X86_EXT_INTRIN >= 9)
+#define MM_I32GATHER_I32(base, offset, scale) _mm_i32gather_epi32(base, offset, scale)
+#else
+
+#if (USE_X86_EXT_INTRIN >= 6)
+
+static FORCEINLINE __m128i mm_i32gather_i32_impl(const int *base, __m128i offset, int scale)
+{
+	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
+	return _mm_set_epi32(
+		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 3)),
+		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 2)),
+		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 1)),
+		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 0))
+	);
+}
+
+#else
+
+static FORCEINLINE __m128i mm_i32gather_i32_impl(const int *base, __m128i offset, int scale)
+{
+	return _mm_set_epi32(
+		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 3) * scale),
+		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 2) * scale),
+		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 1) * scale),
+		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 0) * scale)
+	);
+}
+
+#endif // (USE_X86_EXT_INTRIN >= 6)
+
+#define MM_I32GATHER_I32(base, offset, scale) mm_i32gather_i32_impl(base, offset, scale)
+
+#endif // (USE_X86_EXT_INTRIN >= 9)
+
+#if (USE_X86_EXT_INTRIN >= 6)
+
+static FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offset, __m128i val, int scale)
+{
+	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
+	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 3)) = MM_EXTRACT_I32(val, 3);
+	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 2)) = MM_EXTRACT_I32(val, 2);
+	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 1)) = MM_EXTRACT_I32(val, 1);
+	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 0)) = MM_EXTRACT_I32(val, 0);
+}
+
+#else
+
+static FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offset, __m128i val, int scale)
+{
+	*(int *)((char *)base + MM_EXTRACT_I32(offset, 3) * scale) = MM_EXTRACT_I32(val, 3);
+	*(int *)((char *)base + MM_EXTRACT_I32(offset, 2) * scale) = MM_EXTRACT_I32(val, 2);
+	*(int *)((char *)base + MM_EXTRACT_I32(offset, 1) * scale) = MM_EXTRACT_I32(val, 1);
+	*(int *)((char *)base + MM_EXTRACT_I32(offset, 0) * scale) = MM_EXTRACT_I32(val, 0);
+}
+
+#endif // (USE_X86_EXT_INTRIN >= 6)
+
+#define MM_I32SCATTER_I32(base, offset, val, scale) mm_i32scatter_i32_impl(base, offset, val, scale)
+
 #endif // (USE_X86_EXT_INTRIN >= 1)
 
 #define IS_ALIGN(ptr) (!((int32)ptr & (ALIGN_SIZE - 1)))

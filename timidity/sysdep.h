@@ -97,6 +97,15 @@
 #define restrict /* not C99 */
 #endif /* !restrict */
 
+#ifndef FORCEINLINE
+#ifdef __GNUC__
+#define FORCEINLINE __attribute__((__always_inline__))
+#elif defined(_MSC_VER)
+#define FORCEINLINE __forceinline
+#else
+#define FORCEINLINE inline
+#endif
+#endif /* FORCEINLINE */
 
 /* The size of the internal buffer is 2^AUDIO_BUFFER_BITS samples.
    This determines maximum number of samples ever computed in a row.
