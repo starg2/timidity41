@@ -97,15 +97,15 @@
 #define restrict /* not C99 */
 #endif /* !restrict */
 
-#ifndef FORCEINLINE
+#ifndef TIMIDITY_FORCEINLINE
 #ifdef __GNUC__
-#define FORCEINLINE __attribute__((__always_inline__))
+#define TIMIDITY_FORCEINLINE __attribute__((__always_inline__))
 #elif defined(_MSC_VER)
-#define FORCEINLINE __forceinline
+#define TIMIDITY_FORCEINLINE __forceinline
 #else
-#define FORCEINLINE inline
+#define TIMIDITY_FORCEINLINE inline
 #endif
-#endif /* FORCEINLINE */
+#endif /* TIMIDITY_FORCEINLINE */
 
 /* The size of the internal buffer is 2^AUDIO_BUFFER_BITS samples.
    This determines maximum number of samples ever computed in a row.

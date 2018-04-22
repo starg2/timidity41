@@ -850,35 +850,74 @@ LSU : Unalignment (use loadu/storeu
 #define MM256_I32GATHER_I32(base, offset, scale) _mm256_i32gather_epi32(base, offset, scale)
 #else
 
-static FORCEINLINE __m256i mm256_i32gather_i32_impl(const int *base, __m256i offset, int scale)
+static TIMIDITY_FORCEINLINE __m256i mm256_i32gather_i32_impl(const int *base, __m256i offset, int scale)
 {
+	ALIGN32 int32 buf[8];
 	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
-	return _mm256_set_epi32(
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 7)),
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 6)),
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 5)),
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 4)),
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 3)),
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 2)),
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 1)),
-		*(const int *)((const char *)base + MM256_EXTRACT_I32(byte_offset, 0))
-	);
+#ifdef IX64CPU
+	__m256i vbase = _mm256_set1_epi64x((int64)base);
+	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, _mm256_setzero_si256()));
+	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, _mm256_setzero_si256()));
+	ALIGN32 const int32 *ptr0145[8];
+	ALIGN32 const int32 *ptr2367[8];
+	_mm256_store_si256((__m256i *)ptr0145, vptr0145);
+	_mm256_store_si256((__m256i *)ptr2367, vptr2367);
+
+	buf[0] = *ptr0145[0];
+	buf[1] = *ptr0145[1];
+	buf[2] = *ptr2367[0];
+	buf[3] = *ptr2367[1];
+	buf[4] = *ptr0145[2];
+	buf[5] = *ptr0145[3];
+	buf[6] = *ptr2367[2];
+	buf[7] = *ptr2367[3];
+#else
+	__m256i pointers = _mm256_add_epi32(_mm256_set1_epi32((int32)base), byte_offset);
+	_mm256_store_si256((__m256i *)buf, pointers);
+
+	for (int i = 0; i < 8; i++) {
+		buf[i] = *(const int *)buf[i];
+	}
+#endif
+
+	return _mm256_load_si256((const __m256i *)buf);
 }
 
 #define MM256_I32GATHER_I32(base, offset, scale) mm256_i32gather_i32_impl(base, offset, scale)
 #endif // (USE_X86_EXT_INTRIN >= 9)
 
-static FORCEINLINE void mm256_i32scatter_i32_impl(void *base, __m256i offset, __m256i val, int scale)
+static TIMIDITY_FORCEINLINE void mm256_i32scatter_i32_impl(void *base, __m256i offset, __m256i val, int scale)
 {
+	ALIGN32 int32 buf[8];
+	_mm256_store_si256((__m256i *)buf, val);
+
 	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 7)) = MM256_EXTRACT_I32(val, 7);
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 6)) = MM256_EXTRACT_I32(val, 6);
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 5)) = MM256_EXTRACT_I32(val, 5);
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 4)) = MM256_EXTRACT_I32(val, 4);
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 3)) = MM256_EXTRACT_I32(val, 3);
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 2)) = MM256_EXTRACT_I32(val, 2);
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 1)) = MM256_EXTRACT_I32(val, 1);
-	*(int *)((char *)base + MM256_EXTRACT_I32(byte_offset, 0)) = MM256_EXTRACT_I32(val, 0);
+#ifdef IX64CPU
+	__m256i vbase = _mm256_set1_epi64x((int64)base);
+	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, _mm256_setzero_si256()));
+	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, _mm256_setzero_si256()));
+	ALIGN32 int32 *ptr0145[4];
+	ALIGN32 int32 *ptr2367[4];
+	_mm256_store_si256((__m256i *)ptr0145, vptr0145);
+	_mm256_store_si256((__m256i *)ptr2367, vptr2367);
+
+	*ptr0145[0] = buf[0];
+	*ptr0145[1] = buf[1];
+	*ptr2367[0] = buf[2];
+	*ptr2367[1] = buf[3];
+	*ptr0145[2] = buf[4];
+	*ptr0145[3] = buf[5];
+	*ptr2367[2] = buf[6];
+	*ptr2367[3] = buf[7];
+#else
+	__m256i vptr = _mm256_add_epi32(_mm256_set1_epi32((int32)base), byte_offset);
+	ALIGN32 int32 *ptr[8];
+	_mm256_store_si256((__m256i *)ptr, vptr);
+
+	for (int i = 0; i < 8; i++) {
+		*ptr[i] = buf[i];
+	}
+#endif
 }
 
 #define MM256_I32SCATTER_I32(base, offset, val, scale) mm256_i32scatter_i32_impl(base, offset, val, scale)
@@ -888,61 +927,72 @@ static FORCEINLINE void mm256_i32scatter_i32_impl(void *base, __m256i offset, __
 #if (USE_X86_EXT_INTRIN >= 1)
 #if (USE_X86_EXT_INTRIN >= 9)
 #define MM_I32GATHER_I32(base, offset, scale) _mm_i32gather_epi32(base, offset, scale)
-#else
+#elif (USE_X86_EXT_INTRIN >= 6)
 
-#if (USE_X86_EXT_INTRIN >= 6)
-
-static FORCEINLINE __m128i mm_i32gather_i32_impl(const int *base, __m128i offset, int scale)
+static TIMIDITY_FORCEINLINE __m128i mm_i32gather_i32_impl(const int *base, __m128i offset, int scale)
 {
+	ALIGN16 int32 buf[4];
 	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
-	return _mm_set_epi32(
-		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 3)),
-		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 2)),
-		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 1)),
-		*(const int *)((const char *)base + MM_EXTRACT_I32(byte_offset, 0))
-	);
-}
+#ifdef IX64CPU
+	__m128i vbase = _mm_set1_epi64x((int64)base);
+	__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, _mm_setzero_si128()));
+	__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, _mm_setzero_si128()));
+	ALIGN16 const int32 *ptr01[2];
+	ALIGN16 const int32 *ptr23[2];
+	_mm_store_si128((__m128i *)ptr01, vptr01);
+	_mm_store_si128((__m128i *)ptr23, vptr23);
 
+	buf[0] = *ptr01[0];
+	buf[1] = *ptr01[1];
+	buf[2] = *ptr23[0];
+	buf[3] = *ptr23[1];
 #else
+	__m128i pointers = _mm_add_epi32(_mm_set1_epi32((int32)base), byte_offset);
+	_mm_store_si128((__m128i *)buf, pointers);
 
-static FORCEINLINE __m128i mm_i32gather_i32_impl(const int *base, __m128i offset, int scale)
-{
-	return _mm_set_epi32(
-		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 3) * scale),
-		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 2) * scale),
-		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 1) * scale),
-		*(const int *)((const char *)base + MM_EXTRACT_I32(offset, 0) * scale)
-	);
+	for (int i = 0; i < 4; i++) {
+		buf[i] = *(const int *)buf[i];
+	}
+#endif
+
+	return _mm_load_si128((const __m128i *)buf);
 }
-
-#endif // (USE_X86_EXT_INTRIN >= 6)
 
 #define MM_I32GATHER_I32(base, offset, scale) mm_i32gather_i32_impl(base, offset, scale)
-
-#endif // (USE_X86_EXT_INTRIN >= 9)
+#endif // (USE_X86_EXT_INTRIN >= 6)
+#endif // (USE_X86_EXT_INTRIN >= 1)
 
 #if (USE_X86_EXT_INTRIN >= 6)
 
-static FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offset, __m128i val, int scale)
+static TIMIDITY_FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offset, __m128i val, int scale)
 {
+	ALIGN16 int32 buf[4];
+	_mm_store_si128((__m128i *)buf, val);
+
 	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
-	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 3)) = MM_EXTRACT_I32(val, 3);
-	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 2)) = MM_EXTRACT_I32(val, 2);
-	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 1)) = MM_EXTRACT_I32(val, 1);
-	*(int *)((char *)base + MM_EXTRACT_I32(byte_offset, 0)) = MM_EXTRACT_I32(val, 0);
-}
+#ifdef IX64CPU
+	__m128i vbase = _mm_set1_epi64x((int64)base);
+	__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, _mm_setzero_si128()));
+	__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, _mm_setzero_si128()));
+	ALIGN16 int32 *ptr01[2];
+	ALIGN16 int32 *ptr23[2];
+	_mm_store_si128((__m128i *)ptr01, vptr01);
+	_mm_store_si128((__m128i *)ptr23, vptr23);
 
+	*ptr01[0] = buf[0];
+	*ptr01[1] = buf[1];
+	*ptr23[0] = buf[2];
+	*ptr23[1] = buf[3];
 #else
+	__m128i vptr = _mm_add_epi32(_mm_set1_epi32((int32)base), byte_offset);
+	ALIGN16 int32 *ptr[4];
+	_mm_store_si128((__m128i *)ptr, vptr);
 
-static FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offset, __m128i val, int scale)
-{
-	*(int *)((char *)base + MM_EXTRACT_I32(offset, 3) * scale) = MM_EXTRACT_I32(val, 3);
-	*(int *)((char *)base + MM_EXTRACT_I32(offset, 2) * scale) = MM_EXTRACT_I32(val, 2);
-	*(int *)((char *)base + MM_EXTRACT_I32(offset, 1) * scale) = MM_EXTRACT_I32(val, 1);
-	*(int *)((char *)base + MM_EXTRACT_I32(offset, 0) * scale) = MM_EXTRACT_I32(val, 0);
+	for (int i = 0; i < 4; i++) {
+		*ptr[i] = buf[i];
+	}
+#endif
 }
-
-#endif // (USE_X86_EXT_INTRIN >= 6)
 
 #define MM_I32SCATTER_I32(base, offset, val, scale) mm_i32scatter_i32_impl(base, offset, val, scale)
 
