@@ -5032,7 +5032,7 @@ static void resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 count)
 		}
 
 		// interpolate [ofsend - 2, ofsend - 1] linearly
-		while (i < count && (resrc->offset >> FRACTION_BITS) < 1) {
+		while (i < count && (resrc->offset >> FRACTION_BITS) + 1 < ofsend) {
 			*dest++ = resample_linear(src, resrc->offset, resrc);
 			resrc->offset += resrc->increment;
 			i++;
