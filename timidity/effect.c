@@ -2300,22 +2300,21 @@ type
 static void init_drive(Drive *drv, int type, double curve, double clip, double drive)
 {
 	int i;
-	FLOAT_T clip_level, div_clip_level;
+	FLOAT_T clip_level, div_amp_level;
 	FLOAT_T v1, v2, out;
 	const FLOAT_T div_size = DRIVE_SCALE_MAX / (FLOAT_T)DRIVE_TABLE_LENGTH;
 
 	if(clip < 0.01) clip = 0.01;
-	clip_level = WS_AMP_VALUE * clip;
-	div_clip_level = 1.0 / clip_level;
-
-	drv->cnv = (FLOAT_T)DRIVE_BASE_LENGTH * div_clip_level;
-	drv->cnvi = TIM_FSCALE((FLOAT_T)(1 << DRIVE_INPUT_BIT) * div_clip_level, 24);
+	clip_level = ((FLOAT_T)WS_AMP_VALUE * 0.33) * clip;
+	div_amp_level = 3.0 / ((FLOAT_T)WS_AMP_VALUE * 0.33) * drive;
+	drv->cnv = (FLOAT_T)DRIVE_BASE_LENGTH * div_amp_level;
+	drv->cnvi = TIM_FSCALE((FLOAT_T)(1 << DRIVE_INPUT_BIT) * div_amp_level, 24);
 
 	switch(type){
 	default:
 	case 0: // linear <-> clipping
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			if(v2 > 1.0) v2 = 1.0;
 			out = v1 + (v2 - v1) * curve;
@@ -2325,7 +2324,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 1: // linear <-> sq/sqrt
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			v2 = (v2 > 1.0) ? sqrt(v2) : sq(v2);
 			out = v1 + (v2 - v1) * curve;
@@ -2335,7 +2334,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 2: // linear <-> tanh
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			v2 = tanh(v2 * M_PI);
 			out = v1 + (v2 - v1) * curve;
@@ -2348,7 +2347,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		if(curve >= 1.0) curve = 1.0;
 		if(curve <= 0.0) curve = 0.001;
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			out = pow(v1, curve);
 			out *= clip_level;
 			drv->dc[i] = out;
@@ -2356,7 +2355,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 4: // sq/sqrt <-> clipping <-> tanh
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			if(curve < 0.5){	
 				v1 = (v1 > 1.0) ? sqrt(v1) : sq(v1);			
@@ -2375,7 +2374,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 6: // clipping <-> triangle
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			if(v1 > 1.0) v1 = 1.0;
 			v2 *= 4;
@@ -2392,7 +2391,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 7: // clipping <-> sine
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			if(v1 > 1.0) v1 = 1.0;
 			v2 = sin(v2 * M_PI * 0.5);			
@@ -2403,7 +2402,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 8: // tanh <-> triangle
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			v1 = tanh(v1 * M_PI);
 			v2 *= 4;
@@ -2420,7 +2419,7 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 9: // tanh <-> sine
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
-			v1 = div_size * i * drive;
+			v1 = div_size * i;
 			v2 = v1;
 			v1 = tanh(v1 * M_PI);
 			v2 = sin(v2 * M_PI * 0.5);

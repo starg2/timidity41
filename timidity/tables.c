@@ -665,6 +665,37 @@ static float nrpn_xg_release_data[129] = {
 	10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300, 10300,//128
 };
 
+static float nrpn_gs_attack_data[129] = {
+	0, 2, 6, 9, 16, 24, 40, 60, 90, 110, //10
+	140, 170, 202, 230, 260, 295, 332, 374, 416, 459, //20
+	502, 561, 620, 679, 738, 828, 918, 1009, 1100, 1219, //30
+	1338, 1458, 1578, 1743, 1908, 2074, 2240, 2453, 2666, 2880, //40
+	3094, 3393, 3692, 3991, 4290, 4687, 5084, 5482, 5880, 6417, //50
+	6954, 7492, 8030, 8772, 9514, 10257, 11000, 12000, 13000, 14000, //60
+	15000, 15712, 16424, 17850, 17850, 17850, 17850, 17850, 17850, 17850, //70
+	17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, //80
+	17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, //90
+	17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, //100
+	17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, //110
+	17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, //120
+	17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, 17850, //128
+};
+
+static float nrpn_gs_release_data[129] = {
+	5, 16, 27, 38, 50, 64, 78, 93, 108, 128, //10
+	149, 170, 191, 217, 243, 269, 296, 334, 372, 411, //20
+	450, 498, 546, 595, 645, 716, 787, 858, 930, 1022, //30
+	1114, 1207, 1300, 1430, 1560, 1690, 1820, 1998, 2176, 2354, //40
+	2533, 2766, 2999, 3232, 3465, 3783, 4102, 4121, 4740, 5171, //50
+	5602, 6033, 6465, 7078, 7692, 8306, 8920, 9715, 10510, 11305, //60
+	12100, 13150, 14200, 15250, 15250, 15250, 15250, 15250, 15250, 15250, //70
+	15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, //80
+	15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, //90
+	15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, //100
+	15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, //110
+	15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, //120
+	15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250, 15250,  //128
+};
 /*
 nrpn_xg_attack_data , nrpn_xg_release_data
 SYXGで測定してみた結果
@@ -676,10 +707,16 @@ SYXGで測定してみた結果
 	長短2種類プリセットで全く連続しない nrpn64との比率が近似するのでおそらく 初期値への比率だと思われる
 	変化するのはディケイ2だけらしい 
 
+nrpn_gs_attack_data , nrpn_gs_release_data
+VSC(VST)で測定してみた結果
+アタックタイム 0ms～17850ms(0~63) , リリースタイム 5ms～15250ms(0~63)
+	これ以上は実用範囲外だろうし上限があるかもしれんのでそのままにする
+ディケイタイム sc_eg_decay_tableを使用
+	測定だとnrpn64以下が反応しないようで475msが最小になったり よくわからん
+	従来のテーブルをそのまま使用する  
+
 GSはソースにSC測定値を元にした初期値への比率のテーブルはあるけど
-アタックタイム/リリースタイムはどう設定してもSMF間で破綻することから 比率ではなく固定値テーブルと思われる ディケイは不明
-それで使わなくなったけど
-XGディケイが比率だったことで GSも比率かもしれない sc_eg_decay_tableは使えるかも
+アタックタイム/リリースタイムはどう設定してもSMF間で破綻することから 比率ではなく固定値テーブルと思われる
 */
 
 static inline int cnv_nrpn_param_table_num(FLOAT_T in, int mode)
@@ -727,8 +764,8 @@ static void init_nrpn_param_table(void)
 		nrpn_param_table[NRPN_PARAM_GM_RATE][i] = 10.0 * (double)i * div_len; // 0.0 ~ 10.0
 		nrpn_param_table[NRPN_PARAM_GM_CUTOFF][i] = pow((double)10.0, 2.0 * (double)i * div_len) * 200.0; // 200 ~ 20000
 		nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][i] = pow((double)10.0, 2.0 * (double)i * div_len) * 20.0; // 20 ~ 2000
-		nrpn_param_table[NRPN_PARAM_GM_ATTACK][i] = nrpn_xg_attack_data[i];
-		nrpn_param_table[NRPN_PARAM_GM_RELEASE][i] = nrpn_xg_release_data[i];
+		nrpn_param_table[NRPN_PARAM_GM_ATTACK][i] = nrpn_gs_attack_data[i];
+		nrpn_param_table[NRPN_PARAM_GM_RELEASE][i] = nrpn_gs_release_data[i];
 		nrpn_param_table[NRPN_PARAM_GM_DECAY][i] = 1.0 / sc_eg_decay_table[i];
 	}	
 	nrpn_param_table[NRPN_PARAM_GM_DELAY][NRPN_PARAM_TABLE_LENGTH] = 5.0;
@@ -773,13 +810,20 @@ static void init_nrpn_param_table(void)
 	}	
 	nrpn_param_table[NRPN_PARAM_GS_CUTOFF][NRPN_PARAM_TABLE_LENGTH] = 20000.0;
 	
-	// NRPN_PARAM_GS_CUTOFF_HPF , NRPN_PARAM_GS_ATTACK , NRPN_PARAM_GS_DECAY , NRPN_PARAM_GS_RELEASE
+	// NRPN_PARAM_GS_ATTACK , NRPN_PARAM_GS_DECAY , NRPN_PARAM_GS_RELEASE
+	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){	
+		nrpn_param_table[NRPN_PARAM_GS_ATTACK][i] = nrpn_gs_attack_data[i];
+		nrpn_param_table[NRPN_PARAM_GS_RELEASE][i] = nrpn_gs_release_data[i];
+		nrpn_param_table[NRPN_PARAM_GS_DECAY][i] = 1.0 / sc_eg_decay_table[i];
+	}
+	nrpn_param_table[NRPN_PARAM_GS_ATTACK][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GS_ATTACK][127]; // ms
+	nrpn_param_table[NRPN_PARAM_GS_RELEASE][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GS_RELEASE][127]; // ms
+	nrpn_param_table[NRPN_PARAM_GS_DECAY][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GS_DECAY][127]; // ms
+
+	// NRPN_PARAM_GS_CUTOFF_HPF
 	// 不明なのでGMをマージ
 	for(i = 0; i <= NRPN_PARAM_TABLE_LENGTH; i++){	
 		nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i] = nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i];
-		nrpn_param_table[NRPN_PARAM_GS_ATTACK][i] = nrpn_param_table[NRPN_PARAM_GM_ATTACK][i];
-		nrpn_param_table[NRPN_PARAM_GS_RELEASE][i] = nrpn_param_table[NRPN_PARAM_GM_RELEASE][i];
-		nrpn_param_table[NRPN_PARAM_GS_DECAY][i] = nrpn_param_table[NRPN_PARAM_GM_DECAY][i];
 	}
 
 	// NRPN_PARAM_XG_DELAY

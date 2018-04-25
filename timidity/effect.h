@@ -531,7 +531,7 @@ out: 0.0 ~ 8.0 * clip_level
 */
 #define DRIVE_SCALE_BIT (3) // 1.0 * 2^MATH_SCALE_BIT
 #define DRIVE_SCALE_MAX (1 << DRIVE_SCALE_BIT) // table max 1.0 * MATH_SCALE_MAX
-#define DRIVE_BASE_BIT (7) // 0.0~1.0 table size
+#define DRIVE_BASE_BIT (9) // 0.0~1.0 table size
 #define DRIVE_BASE_LENGTH (1 << (DRIVE_BASE_BIT)) // 0.0~1.0:table size
 #define DRIVE_TABLE_LENGTH (1 << (DRIVE_BASE_BIT + DRIVE_SCALE_BIT)) // 0.0~1.0 * MATH_SCALE_MAX table size
 #define DRIVE_FRAC_BIT (14) // for int32
