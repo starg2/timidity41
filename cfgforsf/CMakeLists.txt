@@ -7,6 +7,7 @@ add_executable(
     ../interface/dumb_c.c
     ../timidity/common.c
     ../timidity/controls.c
+    ../timidity/decode.c
     ../timidity/envelope.c
     ../timidity/filter.c
     ../timidity/freq.c
@@ -24,9 +25,12 @@ add_executable(
     ../timidity/sndfont.c
     ../timidity/tables.c
     ../timidity/version.c
+    ../timidity/w32g_vorbis_dll.c
+    ../timidity/w32g_vorbisfile_dll.c
 
     ../timidity/common.h
     ../timidity/controls.h
+    ../timidity/decode.h
     ../timidity/envelope.h
     ../timidity/filter.h
     ../timidity/freq.h

@@ -26,6 +26,7 @@ set(
     audio_cnv.c
     common.c
     controls.c
+    decode.c
     effect.c
     envelope.c
     filter.c
@@ -87,6 +88,7 @@ set(
     w32_portaudio_dll.c
     w32g_vorbis_dll.c
     w32g_vorbisenc_dll.c
+    w32g_vorbisfile_dll.c
     w32g_opus_dll.c
     w32_libFLAC_dll.c
     w32_libOggFLAC_dll.c
@@ -100,6 +102,7 @@ set(
     audriv.h
     common.h
     controls.h
+    decode.h
     dlutils.h
     filter.h
     flac_a.h

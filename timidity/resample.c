@@ -4981,6 +4981,21 @@ static DATA_T *resample_multi_lagrange_m128(Voice *vp, DATA_T *dest, int32 *i, i
 
 #endif
 
+static void process_loop(resample_rec_t *resrc)
+{
+    if (resrc->loop_end < resrc->offset) {
+        if (resrc->mode == RESAMPLE_MODE_LOOP) {
+            resrc->offset -= resrc->loop_end - resrc->loop_start;
+        }
+        else if (resrc->mode == RESAMPLE_MODE_BIDIR_LOOP && resrc->increment > 0) {
+            resrc->increment = -resrc->increment;
+        }
+    }
+    else if (resrc->mode == RESAMPLE_MODE_BIDIR_LOOP && resrc->increment < 0 && resrc->offset < resrc->loop_start) {
+        resrc->increment = -resrc->increment;
+    }
+}
+
 static void resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 count)
 {
 	const sample_t *src = vp->sample->data;
@@ -5090,6 +5105,8 @@ static void resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 count)
 				i++;
 			}
 
+            process_loop(resrc);
+
 			while (i < count) {
 				spos_t ofsi = resrc->offset >> FRACTION_BITS;
 
@@ -5101,15 +5118,7 @@ static void resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 count)
 				resrc->offset += resrc->increment;
 				i++;
 
-				if (resrc->loop_end < resrc->offset) {
-					if (resrc->mode == RESAMPLE_MODE_LOOP) {
-						resrc->offset -= resrc->loop_end - resrc->loop_start;
-					} else if (resrc->mode == RESAMPLE_MODE_BIDIR_LOOP && resrc->increment > 0) {
-						resrc->increment = -resrc->increment;
-					}
-				} else if (resrc->mode == RESAMPLE_MODE_BIDIR_LOOP && resrc->increment < 0 && resrc->offset < resrc->loop_start) {
-					resrc->increment = -resrc->increment;
-				}
+                process_loop(resrc);
 			}
 		}
 	}
