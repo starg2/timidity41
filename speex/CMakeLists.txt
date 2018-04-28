@@ -1,7 +1,6 @@
 
 add_definitions(
     -DHAVE_CONFIG_H
-    -DFIXED_POINT
 )
 
 add_library(
