@@ -848,9 +848,18 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 				if (!(sample->modes & MODES_LOOPING)) {
 					sample->loop_start = sdr.data_length;
 					sample->loop_end = sdr.data_length + (1 << FRACTION_BITS);
-				} else {
+				}
+
+				if (sample->loop_end > sample->data_length + (1 << FRACTION_BITS))
+					sample->loop_end = sample->data_length + (1 << FRACTION_BITS);
+				if (sample->loop_start > sample->data_length)
+					sample->loop_start = sample->data_length;
+				if (sample->loop_start < 0)
 					sample->loop_start = 0;
-					sample->loop_end = sdr.data_length;
+				if (sample->loop_start >= sample->loop_end)
+				{
+					sample->loop_start = sample->data_length;
+					sample->loop_end = sample->data_length + 1;
 				}
 
 				if (sdr.channels > 1) {
@@ -934,19 +943,6 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 			}
 		}
 
-		//if (sample->loop_end > sample->data_length + 1)
-		//	sample->loop_end = sample->data_length + 1;
-		//if (sample->loop_start > sample->data_length)
-		//	sample->loop_start = sample->data_length;
-		//if (sample->loop_start < 0)
-		//	sample->loop_start = 0;
-		//if (sample->loop_start >= sample->loop_end)
-		//{
-		//	sample->loop_start = sample->data_length;
-		//	sample->loop_end = sample->data_length + 1;
-		//}
-
-///r
 		/* resample it if possible */
 		if (opt_pre_resamplation && sample->note_to_use && !(sample->modes & MODES_LOOPING))
 			pre_resample(sample);
@@ -1585,25 +1581,33 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->len = abs(vp->len);
 
     /* set loop position */
-    vp->v.loop_start = sp->startloop - vp->start;
-    vp->v.loop_end = sp->endloop - vp->start;
+	vp->v.loop_start = sp->startloop;
+	vp->v.loop_end = sp->endloop;
+
+	if (sf->version < 3) {
+		vp->v.loop_start -= vp->start;
+		vp->v.loop_end -= vp->start;
+	}
+
 	vp->v.loop_start += (tbl->val[SF_startloopAddrsHi] << 15) + tbl->val[SF_startloopAddrs];
 	vp->v.loop_end += (tbl->val[SF_endloopAddrsHi] << 15) + tbl->val[SF_endloopAddrs];
 
     /* set data length */
     vp->v.data_length = vp->len + 1;
 
-	/* fix loop position */
-	if (vp->v.loop_end > vp->len + 1)
-		vp->v.loop_end = vp->len + 1;
-	if (vp->v.loop_start > vp->len)
-		vp->v.loop_start = vp->len;
-	if (vp->v.loop_start < 0)
-		vp->v.loop_start = 0;
-	if (vp->v.loop_start >= vp->v.loop_end)
-	{
-		vp->v.loop_start = vp->len;
-		vp->v.loop_end = vp->len + 1;
+	if (sf->version < 3) {
+		/* fix loop position */
+		if (vp->v.loop_end > vp->len + 1)
+			vp->v.loop_end = vp->len + 1;
+		if (vp->v.loop_start > vp->len)
+			vp->v.loop_start = vp->len;
+		if (vp->v.loop_start < 0)
+			vp->v.loop_start = 0;
+		if (vp->v.loop_start >= vp->v.loop_end)
+		{
+			vp->v.loop_start = vp->len;
+			vp->v.loop_end = vp->len + 1;
+		}
 	}
 
     /* Sample rate */
