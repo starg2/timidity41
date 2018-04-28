@@ -1404,27 +1404,38 @@ void w32g_free_playlist(void)
 	for(j=0; j < PLAYLIST_MAX; j++){
 		for(i=0; i < playlist[j].nfiles; i++){
 			entry = &playlist[j].list[i];
-			if(entry->filepath != NULL) free(entry->filepath);
+            free(entry->filepath);
+            entry->filepath = NULL;
 #ifdef LISTVIEW_PLAYLIST
-			if(entry->duration != NULL) free(entry->duration);
-			if(entry->filetype != NULL) free(entry->filetype);
-			if(entry->system != NULL) free(entry->system);
+            free(entry->duration);
+            entry->duration = NULL;
+			free(entry->filetype);
+            entry->filetype = NULL;
+			free(entry->system);
+            entry->system = NULL;
 #endif
 		}
-		if(playlist[j].list != NULL) free(playlist[j].list);
+		free(playlist[j].list);
+        playlist[j].list = NULL;
 	}
-	if(playlist_shuffle.list != NULL) free(playlist_shuffle.list);
+	free(playlist_shuffle.list);
+    playlist_shuffle.list = NULL;
 	
 #ifdef LISTVIEW_PLAYLIST
 	// clear tmp_playlist
 	for(i = 0; i < tmp_playlist.nfiles; i++){
 		entry = &tmp_playlist.list[i];
-		if(entry->filepath != NULL) free(entry->filepath);
-		if(entry->duration != NULL) free(entry->duration);
-		if(entry->filetype != NULL) free(entry->filetype);
-		if(entry->system != NULL) free(entry->system);
+		free(entry->filepath);
+        entry->filepath = NULL;
+		free(entry->duration);
+        entry->duration = NULL;
+		free(entry->filetype);
+        entry->filetype = NULL;
+		free(entry->system);
+        entry->system = NULL;
 	}
-	if(tmp_playlist.list != NULL) free(tmp_playlist.list);
+	free(tmp_playlist.list);
+    tmp_playlist.list = NULL;
 #endif
 }
 
