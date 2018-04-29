@@ -859,7 +859,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 				if (sample->loop_start >= sample->loop_end)
 				{
 					sample->loop_start = sample->data_length;
-					sample->loop_end = sample->data_length + 1;
+					sample->loop_end = sample->data_length + (1 << FRACTION_BITS);
 				}
 
 				if (sdr.channels > 1) {
