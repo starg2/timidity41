@@ -856,8 +856,9 @@ static TIMIDITY_FORCEINLINE __m256i mm256_i32gather_i32_impl(const int *base, __
 	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
 #ifdef IX64CPU
 	__m256i vbase = _mm256_set1_epi64x((int64)base);
-	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, _mm256_setzero_si256()));
-	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, _mm256_setzero_si256()));
+	__m256i vnegative = _mm256_cmpgt_epi32(_mm256_setzero_si256(), byte_offset);
+	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, vnegative));
+	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, vnegative));
 	ALIGN32 const int32 *ptr0145[8];
 	ALIGN32 const int32 *ptr2367[8];
 	_mm256_store_si256((__m256i *)ptr0145, vptr0145);
@@ -894,8 +895,9 @@ static TIMIDITY_FORCEINLINE void mm256_i32scatter_i32_impl(void *base, __m256i o
 	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
 #ifdef IX64CPU
 	__m256i vbase = _mm256_set1_epi64x((int64)base);
-	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, _mm256_setzero_si256()));
-	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, _mm256_setzero_si256()));
+	__m256i vnegative = _mm256_cmpgt_epi32(_mm256_setzero_si256(), byte_offset);
+	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, vnegative));
+	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, vnegative));
 	ALIGN32 int32 *ptr0145[4];
 	ALIGN32 int32 *ptr2367[4];
 	_mm256_store_si256((__m256i *)ptr0145, vptr0145);
@@ -935,8 +937,9 @@ static TIMIDITY_FORCEINLINE __m128i mm_i32gather_i32_impl(const int *base, __m12
 	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
 #ifdef IX64CPU
 	__m128i vbase = _mm_set1_epi64x((int64)base);
-	__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, _mm_setzero_si128()));
-	__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, _mm_setzero_si128()));
+	__m128i vnegative = _mm_cmpgt_epi32(_mm_setzero_si128(), byte_offset);
+	__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, vnegative));
+	__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, vnegative));
 	ALIGN16 const int32 *ptr01[2];
 	ALIGN16 const int32 *ptr23[2];
 	_mm_store_si128((__m128i *)ptr01, vptr01);
@@ -972,8 +975,9 @@ static TIMIDITY_FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offs
 	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
 #ifdef IX64CPU
 	__m128i vbase = _mm_set1_epi64x((int64)base);
-	__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, _mm_setzero_si128()));
-	__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, _mm_setzero_si128()));
+	__m128i vnegative = _mm_cmpgt_epi32(_mm_setzero_si128(), byte_offset);
+	__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, vnegative));
+	__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, vnegative));
 	ALIGN16 int32 *ptr01[2];
 	ALIGN16 int32 *ptr23[2];
 	_mm_store_si128((__m128i *)ptr01, vptr01);
