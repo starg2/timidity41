@@ -38,10 +38,6 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 
 	//TreeView_DeleteAllItems(hTree);
 
-	if (_stricmp(PathFindExtension(x_sf_filename_), ".sf2")) {
-		return;
-	}
-
 	for (x_bank = 0; x_bank <= 127; x_bank++) {
 		for (x_preset = 0; x_preset <= 127; x_preset++) {
 			x_cfg_info.m_str[x_bank][x_preset] = NULL;
