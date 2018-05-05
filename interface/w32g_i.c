@@ -5060,6 +5060,7 @@ static void DlgDirOpen(HWND hwnd)
 	itemidlist = SHBrowseForFolder(&bi);
 	if(!itemidlist)
 		return; /* Cancel */
+	memset(Buffer, 0, sizeof(Buffer));
 	SHGetPathFromIDList(itemidlist, Buffer);
 	strncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
 	if(itemidlist_pre)
