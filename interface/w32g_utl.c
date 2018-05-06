@@ -1810,7 +1810,7 @@ void ScanDirectoryFiles(char *basedir,
 	url_close(dir);
 }
 
-#define EXPANDDIR_MAX_SIZE  100000	/* Limit of total bytes of the file names */
+#define EXPANDDIR_MAX_SIZE  1000000	/* Limit of total bytes of the file names */
 static int expand_dir_proc(char *filename, void *v)
 {
 	void **user_val = (void **)v;
