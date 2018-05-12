@@ -875,12 +875,49 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
         } else {
 
 #if defined(SF2_24BIT) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
-			if (sp->lowbit > 0) {
-				/* 24 bit */
-				splen_t cnt;
-				uint8 *lowbit;
-				uint16 *highbit;
-				uint32 *tmp_data;
+#if 1 /* SF2_24BIT_SAMPLE_TYPE_FLOAT */
+		if(sp->lowbit > 0 ){
+		    /* 24 bit */
+		    splen_t cnt;
+		    uint8 *lowbit;
+			uint16 *highbit;
+			float *tmp_data;
+
+			frames = divi_2(sp->len);
+		    sample->data = (sample_t*)safe_large_malloc(sizeof(float) * (frames + 128));
+		    sample->data_alloced = 1;
+			sample->data_type = SAMPLE_TYPE_FLOAT;
+		    highbit = (uint16 *)safe_large_malloc(sizeof(int16) * frames); // 16bit
+		    lowbit = (uint8 *)safe_large_malloc(sizeof(int8) * frames); // 8bit			
+			tf_seek(tf, sp->start, SEEK_SET);
+			tf_read(highbit, sp->len, 1, tf);
+		    tf_seek(tf, sp->lowbit, SEEK_SET);
+		    tf_read(lowbit, frames, 1, tf);
+			tmp_data = (float *)sample->data;
+		    for(j = 0; j < frames; j++) {
+				// 24bit to int32full
+			    int32 tmp_i = 0; // 1byte 00‚Å‚¢‚¢‚ç‚µ‚¢H
+				tmp_i |= (uint32)lowbit[j] << 8; // 2byte
+			    tmp_i |= (uint32)highbit[j] << 16; // 3-4byte
+#ifndef LITTLE_ENDIAN
+				XCHG_LONG(tmp_i)
+#endif
+				tmp_data[j] = (float)tmp_i * DIV_31BIT;
+		    }
+		    safe_free(highbit);
+		    safe_free(lowbit);
+			/* set a small blank loop at the tail for avoiding abnormal loop. */	
+			memset(&tmp_data[frames], 0, sizeof(float) * 128);
+			if (antialiasing_allowed)
+			  antialiasing_float((float *)sample->data, sample->data_length >> FRACTION_BITS, sample->sample_rate, play_mode->rate);
+		}else
+#else /* SF2_24BIT_SAMPLE_TYPE_INT32 */
+		if(sp->lowbit > 0 ){
+		    /* 24 bit */
+		    splen_t cnt;
+		    uint8 *lowbit;
+			uint16 *highbit;
+			uint32 *tmp_data;
 
 				frames = divi_2(sp->len);
 				sample->data = (sample_t*)safe_large_malloc(sizeof(int32) * (frames + 128));

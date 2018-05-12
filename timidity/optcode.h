@@ -845,7 +845,7 @@ LSU : Unalignment (use loadu/storeu
 	gather and scatter
 */
 
-#if (USE_X86_EXT_INTRIN >= 8)
+#if (USE_X86_EXT_INTRIN >= 9)
 #if (USE_X86_EXT_INTRIN >= 9)
 #define MM256_I32GATHER_I32(base, offset, scale) _mm256_i32gather_epi32(base, offset, scale)
 #else
@@ -924,7 +924,7 @@ static TIMIDITY_FORCEINLINE void mm256_i32scatter_i32_impl(void *base, __m256i o
 
 #define MM256_I32SCATTER_I32(base, offset, val, scale) mm256_i32scatter_i32_impl(base, offset, val, scale)
 
-#endif // (USE_X86_EXT_INTRIN >= 8)
+#endif // (USE_X86_EXT_INTRIN >= 9)
 
 #if (USE_X86_EXT_INTRIN >= 1)
 #if (USE_X86_EXT_INTRIN >= 9)

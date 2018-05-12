@@ -283,7 +283,11 @@ static inline int64	xgetbv(int index)
 	//return flg;
 	return 0xFFFFFFFFFFFFFFFF; // asmでxgetbv index どこ・・わからんのでスルー
 #elif (USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_INTRIN)
+#if _MSC_VER < 1600 // VC2010 (immintrin.h _xgetbv()
+	return 0xFFFFFFFFFFFFFFFF;
+#else
 	return _xgetbv(index);
+#endif /* _MSC_VER */
 #endif
 #endif
 }

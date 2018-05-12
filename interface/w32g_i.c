@@ -1751,7 +1751,7 @@ void OnHide(void)
 }
 
 #ifdef W32GUI_DEBUG
-void DebugThread(void *args)
+void WINAPI DebugThread(void *args)
 {
 	MSG msg;
 	DebugThreadExit = 0;
@@ -1774,7 +1774,7 @@ void DebugThreadInit(void)
 	DWORD dwThreadID;
 	if(!DebugThreadExit)
    	return;
-	hDebugThread = crt_beginthreadex(NULL,0,DebugThread,0,0,&dwThreadID);
+	hDebugThread = crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)DebugThread,0,0,&dwThreadID);	
 }
 #endif
 

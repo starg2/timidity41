@@ -123,6 +123,10 @@ extern PlayMode wdmks_play_mode;
 extern PlayMode wasapi_play_mode;
 #endif /* AU_WASAPI */
 
+#ifdef AU_ASIO
+extern PlayMode asio_play_mode;
+#endif /* AU_ASIO */
+
 #ifdef AU_PORTAUDIO
 #ifndef AU_PORTAUDIO_DLL
 extern PlayMode portaudio_play_mode;
@@ -228,6 +232,10 @@ PlayMode *play_mode_list[] = {
 #if defined(AU_WASAPI)
   &wasapi_play_mode,
 #endif /* AU_WASAPI */
+
+#if defined(AU_ASIO)
+  &asio_play_mode,
+#endif /* AU_ASIO */
 
 #if defined(AU_PORTAUDIO)
 #ifndef AU_PORTAUDIO_DLL
