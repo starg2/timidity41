@@ -6,6 +6,7 @@
 // SSE is enabled.
 #ifndef _USE_SSE
 #  define USE_ALLOCA
+#  define alloca _alloca
 #endif
 
 /* Default to floating point */

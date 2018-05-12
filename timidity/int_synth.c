@@ -262,36 +262,19 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vofsi = _mm_srli_epi32(vofs, FRACTION_BITS);
 	vofsf = _mm_and_si128(vofs, vfmask);
 	vfp = _mm_mul_ps(_mm_cvtepi32_ps(vofsf), vec_divf); // int32 to float // calc fp
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-	ofsp1 = (int32 *)vofsi;
 #if defined(IS_RS_DATA_T_DOUBLE)
-	tmp1 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[ofsp1[0]])); // ofsiとofsi+1をロード
-	tmp2 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[ofsp1[1]])); // 次周サンプルも同じ
-	tmp3 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[ofsp1[2]])); // 次周サンプルも同じ
-	tmp4 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[ofsp1[3]])); // 次周サンプルも同じ	
+	tmp1 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)])); // ofsiとofsi+1をロード
+	tmp2 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)])); // 次周サンプルも同じ
+	tmp3 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)])); // 次周サンプルも同じ
+	tmp4 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)])); // 次周サンプルも	
 	tmp1 = _mm_shuffle_ps(tmp1, tmp2, 0x44);
 	tmp3 = _mm_shuffle_ps(tmp3, tmp4, 0x44);
 #else // defined(IS_RS_DATA_T_FLOAT)
-	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[ofsp1[0]]); // L64bit ofsiとofsi+1をロード
-	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[ofsp1[1]]); // H64bit 次周サンプルも同じ
-	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[ofsp1[2]]); // L64bit 次周サンプルも同じ
-	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[ofsp1[3]]); // H64bit 次周サンプルも同じ
+	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // L64bit ofsiとofsi+1をロード
+	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // H64bit 次周サンプルも同じ
+	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // L64bit 次周サンプルも同じ
+	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // H64bit 次周サンプルも同じ
 #endif
-#else
-#if defined(IS_RS_DATA_T_DOUBLE)
-	tmp1 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[vofsi.m128i_i32[0]])); // ofsiとofsi+1をロード
-	tmp2 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[vofsi.m128i_i32[1]])); // 次周サンプルも同じ
-	tmp3 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[vofsi.m128i_i32[2]])); // 次周サンプルも同じ
-	tmp4 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[vofsi.m128i_i32[3]])); // 次周サンプルも	
-	tmp1 = _mm_shuffle_ps(tmp1, tmp2, 0x44);
-	tmp3 = _mm_shuffle_ps(tmp3, tmp4, 0x44);
-#else // defined(IS_RS_DATA_T_FLOAT)
-	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[vofsi.m128i_i32[0]]); // L64bit ofsiとofsi+1をロード
-	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[vofsi.m128i_i32[1]]); // H64bit 次周サンプルも同じ
-	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[vofsi.m128i_i32[2]]); // L64bit 次周サンプルも同じ
-	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[vofsi.m128i_i32[3]]); // H64bit 次周サンプルも同じ
-#endif
-#endif // !(defined(_MSC_VER) || defined(MSC_VER))	
 	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsiはv1に
 	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1はv2に移動
 	vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);	
@@ -328,18 +311,10 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vofsf = _mm_and_si128(vofs, vfmask);
 	vfp1 = _mm_mul_pd(_mm_cvtepi32_pd(vofsf), vec_divf); // int32 to double // calc fp
 	vfp2 = _mm_mul_pd(_mm_cvtepi32_pd(_mm_shuffle_epi32(vofsf, 0x4E)), vec_divf); // int32 to double // calc fp
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-	ofsp1 = (int32 *)vofsi;
-	tmp1 = _mm_loadu_pd(&rs_buf[ofsp1[0]]); // ofsiとofsi+1をロード
-	tmp2 = _mm_loadu_pd(&rs_buf[ofsp1[1]]); // 次周サンプルも同じ
-	tmp3 = _mm_loadu_pd(&rs_buf[ofsp1[2]]); // 次周サンプルも同じ
-	tmp4 = _mm_loadu_pd(&rs_buf[ofsp1[3]]); // 次周サンプルも同じ	
-#else
-	tmp1 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[0]]); // ofsiとofsi+1をロード
-	tmp2 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[1]]); // 次周サンプルも同じ
-	tmp3 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[2]]); // 次周サンプルも同じ
-	tmp4 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[3]]); // 次周サンプルも	
-#endif // !(defined(_MSC_VER) || defined(MSC_VER))	
+	tmp1 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // ofsiとofsi+1をロード
+	tmp2 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // 次周サンプルも同じ
+	tmp3 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // 次周サンプルも同じ
+	tmp4 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // 次周サンプルも	
 	vv11 = _mm_shuffle_pd(tmp1, tmp2, 0x00); // v1[0,1] // ofsiはv1に
 	vv21 = _mm_shuffle_pd(tmp1, tmp2, 0x03); // v2[0,1] // ofsi+1はv2に移動
 	vv12 = _mm_shuffle_pd(tmp3, tmp4, 0x00); // v1[2,3] // ofsiはv1に

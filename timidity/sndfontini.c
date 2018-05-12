@@ -14,6 +14,9 @@ Sample OverrideSample = {0};
 OVERRIDETIMIDITYDATA otd = {0};
 
 #if defined(__W32__)
+
+#include <windows.h>
+
 #if defined(WINDRV) || defined(WINDRV_SETUP)
 
 void timdrvOverrideSFSettingLoad(void)

@@ -7028,8 +7028,8 @@ static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
 		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
 		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
 		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
-		vd[0] = _mm_set_pd(lookup2_sine_p(vr[0].m128d_f64[1]), lookup2_sine_p(vr[0].m128d_f64[0])); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(vr[1].m128d_f64[1]), lookup2_sine_p(vr[1].m128d_f64[0])); // lookup2_sine_p(mc)	
+		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
+		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
 		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
 		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
 		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
@@ -7045,10 +7045,10 @@ static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
 		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
 		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
 #endif
-		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][vindex[0].m128i_i32[0]]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][vindex[0].m128i_i32[1]]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][vindex[1].m128i_i32[0]]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][vindex[1].m128i_i32[1]]); // v1v2
+		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
+		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
+		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
 		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
 		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
 		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
@@ -7151,8 +7151,8 @@ static void do_reverb_ex_mod_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
 		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
 		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
-		vd[0] = _mm_set_pd(lookup2_sine_p(vr[0].m128d_f64[1]), lookup2_sine_p(vr[0].m128d_f64[0])); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(vr[1].m128d_f64[1]), lookup2_sine_p(vr[1].m128d_f64[0])); // lookup2_sine_p(mc)	
+		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
+		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
 		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
 		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
 		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
@@ -7168,10 +7168,10 @@ static void do_reverb_ex_mod_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
 		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
 #endif
-		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][vindex[0].m128i_i32[0]]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][vindex[0].m128i_i32[1]]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][vindex[1].m128i_i32[0]]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][vindex[1].m128i_i32[1]]); // v1v2
+		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
+		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
+		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
 		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
 		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
 		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
@@ -7278,8 +7278,8 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
 		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
 		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
-		vd[0] = _mm_set_pd(lookup2_sine_p(vr[0].m128d_f64[1]), lookup2_sine_p(vr[0].m128d_f64[0])); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(vr[1].m128d_f64[1]), lookup2_sine_p(vr[1].m128d_f64[0])); // lookup2_sine_p(mc)	
+		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
+		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
 		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
 		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
 		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
@@ -7295,10 +7295,10 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
 		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
 #endif
-		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][vindex[0].m128i_i32[0]]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][vindex[0].m128i_i32[1]]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][vindex[1].m128i_i32[0]]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][vindex[1].m128i_i32[1]]); // v1v2
+		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
+		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
+		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
 		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
 		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
 		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
@@ -7368,8 +7368,8 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		_mm_storeu_pd(&info->acount[i][REV_EX_RV_L1], vc[1]);
 		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->aphase[i][REV_EX_ER_L1])); // count+phase
 		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->aphase[i][REV_EX_RV_L1])); // count+phase
-		vd[0] = _mm_set_pd(lookup2_sine_p(vr[0].m128d_f64[1]), lookup2_sine_p(vr[0].m128d_f64[0])); // lookup2_sine_p(count)
-		vd[1] = _mm_set_pd(lookup2_sine_p(vr[1].m128d_f64[1]), lookup2_sine_p(vr[1].m128d_f64[0])); // lookup2_sine_p(cuont)	
+		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(count)
+		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(cuont)	
 		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_ER_L1]), vd[0]); // depth* sine
 		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_RV_L1]), vd[1]); // depth* sine
 		vfp[0] = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][REV_EX_ER_L1])), vd[0]); // index-delay-depth
@@ -7385,10 +7385,10 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
 		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
 #endif
-		vtmp[0] = _mm_loadu_pd(&info->abuf[REV_EX_ER_L1][vindex[0].m128i_i32[0]]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->abuf[REV_EX_ER_R1][vindex[0].m128i_i32[1]]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->abuf[REV_EX_RV_L1][vindex[1].m128i_i32[0]]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->abuf[REV_EX_RV_R1][vindex[1].m128i_i32[1]]); // v1v2
+		vtmp[0] = _mm_loadu_pd(&info->abuf[REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->abuf[REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
+		vtmp[2] = _mm_loadu_pd(&info->abuf[REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
+		vtmp[3] = _mm_loadu_pd(&info->abuf[REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
 		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
 		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
 		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
@@ -7466,8 +7466,8 @@ static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
 		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
 		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
-		vd[0] = _mm_set_pd(lookup2_sine_p(vr[0].m128d_f64[1]), lookup2_sine_p(vr[0].m128d_f64[0])); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(vr[1].m128d_f64[1]), lookup2_sine_p(vr[1].m128d_f64[0])); // lookup2_sine_p(mc)	
+		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
+		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
 		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
 		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
 		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
@@ -7483,10 +7483,10 @@ static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
 		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
 #endif
-		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][vindex[0].m128i_i32[0]]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][vindex[0].m128i_i32[1]]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][vindex[1].m128i_i32[0]]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][vindex[1].m128i_i32[1]]); // v1v2
+		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
+		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
+		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
 		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
 		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
 		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
@@ -7555,8 +7555,8 @@ static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		_mm_storeu_pd(&info->acount[i][REV_EX_RV_L1], vc[1]);
 		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->aphase[i][REV_EX_ER_L1])); // count+phase
 		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->aphase[i][REV_EX_RV_L1])); // count+phase
-		vd[0] = _mm_set_pd(lookup2_sine_p(vr[0].m128d_f64[1]), lookup2_sine_p(vr[0].m128d_f64[0])); // lookup2_sine_p(count)
-		vd[1] = _mm_set_pd(lookup2_sine_p(vr[1].m128d_f64[1]), lookup2_sine_p(vr[1].m128d_f64[0])); // lookup2_sine_p(cuont)	
+		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(count)
+		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(cuont)	
 		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_ER_L1]), vd[0]); // depth* sine
 		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_RV_L1]), vd[1]); // depth* sine
 		vfp[0] = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][REV_EX_ER_L1])), vd[0]); // index-delay-depth
@@ -7572,10 +7572,10 @@ static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
 		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
 #endif
-		vtmp[0] = _mm_loadu_pd(&info->abuf[REV_EX_ER_L1][vindex[0].m128i_i32[0]]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->abuf[REV_EX_ER_R1][vindex[0].m128i_i32[1]]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->abuf[REV_EX_RV_L1][vindex[1].m128i_i32[0]]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->abuf[REV_EX_RV_R1][vindex[1].m128i_i32[1]]); // v1v2
+		vtmp[0] = _mm_loadu_pd(&info->abuf[REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->abuf[REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
+		vtmp[2] = _mm_loadu_pd(&info->abuf[REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
+		vtmp[3] = _mm_loadu_pd(&info->abuf[REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
 		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
 		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
 		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
@@ -11827,10 +11827,10 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
 		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
 #endif
-		vin[0] = _mm_loadu_pd(&info->ptr[vindex[0].m128i_i32[0]]); // v1v2
-		vin[1] = _mm_loadu_pd(&info->ptr[vindex[0].m128i_i32[1]]); // v1v2
-		vin[2] = _mm_loadu_pd(&info->ptr[vindex[1].m128i_i32[0]]); // v1v2
-		vin[3] = _mm_loadu_pd(&info->ptr[vindex[1].m128i_i32[1]]); // v1v2
+		vin[0] = _mm_loadu_pd(&info->ptr[MM_EXTRACT_I32(vindex[0],0)]); // v1v2
+		vin[1] = _mm_loadu_pd(&info->ptr[MM_EXTRACT_I32(vindex[0],1)]); // v1v2
+		vin[2] = _mm_loadu_pd(&info->ptr[MM_EXTRACT_I32(vindex[1],0)]); // v1v2
+		vin[3] = _mm_loadu_pd(&info->ptr[MM_EXTRACT_I32(vindex[1],1)]); // v1v2
 		vv1[0] = _mm_shuffle_pd(vin[0], vin[1], 0x0); // v1v1
 		vv1[1] = _mm_shuffle_pd(vin[2], vin[3], 0x0); // v1v1
 		vv2[0] = _mm_shuffle_pd(vin[0], vin[1], 0x3); // v2v2

@@ -303,6 +303,7 @@ extern int scc_editor_override;
 extern int mms_editor_override; 
 extern const char *scc_data_editor_load_name(int num);
 extern void scc_data_editor_store_name(int num, const char *name);
+extern void scc_data_editor_clear_param(void);
 extern void scc_data_editor_set_default_param(int set_num);
 extern int scc_data_editor_get_param(int num);
 extern void scc_data_editor_set_param(int num, int val);

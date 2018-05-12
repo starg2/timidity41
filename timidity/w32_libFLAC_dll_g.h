@@ -365,7 +365,9 @@ extern void g_free_libFLAC_dll ( void );
 
 	
 #else  /* defined(LEGACY_FLAC) */
-	
+
+extern int g_load_libFLAC_dll(void);
+extern void g_free_libFLAC_dll(void);	
 	
 	 extern const char * const *  *g_FLAC__StreamEncoderInitStatusString;
 	 extern const char * const *  *g_FLAC__StreamEncoderStateString;

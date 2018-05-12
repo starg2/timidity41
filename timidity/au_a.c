@@ -193,30 +193,12 @@ static int au_output_open(const char *fname, const char *comment)
 
 static int auto_au_output_open(const char *input_filename)
 {
-  char *output_filename = (char *)safe_malloc(strlen(input_filename) + 5);
-  char *ext, *p;
+  char *output_filename = create_auto_output_name(input_filename, ".au", NULL, 0);
 
-  strcpy(output_filename, input_filename);
-  if((ext = strrchr(output_filename, '.')) == NULL)
-    ext = output_filename + strlen(output_filename);
-  else {
-    /* strip ".gz" */
-    if(strcasecmp(ext, ".gz") == 0) {
-      *ext = '\0';
-      if((ext = strrchr(output_filename, '.')) == NULL)
-	ext = output_filename + strlen(output_filename);
-    }
+  if (!output_filename) {
+    return -1;
   }
 
-  /* replace '.' and '#' before ext */
-  for(p = output_filename; p < ext; p++)
-    if(*p == '.' || *p == '#')
-      *p = '_';
-
-  if(*ext && isupper(*(ext + 1)))
-    strcpy(ext, ".AU");
-  else
-    strcpy(ext, ".au");
   if(au_output_open(output_filename, input_filename) == -1) {
     free(output_filename);
     return -1;

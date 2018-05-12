@@ -81,9 +81,11 @@
 #include "playmidi.h"
 #include "readmidi.h"
 #include "miditrace.h"
+#include "flac_a.h"
 
 #ifdef __W32G__
 #include "w32g.h"
+#include "w32g_pref.h"
 #endif /* __W32G__ */
 
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
@@ -868,7 +870,7 @@ static int open_output(void)
   int include_enc, exclude_enc;
 
 #ifdef AU_FLAC_DLL
-	if (g_load_libFLAC_dll("libFLAC.dll")) {
+	if (g_load_libFLAC_dll()) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "DLL load failed: %s", "libFLAC.dll, ogg.dll");
 		return -1;

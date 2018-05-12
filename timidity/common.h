@@ -177,6 +177,7 @@ extern void code_convert(char *in, char *out, size_t outsiz,
 extern void safe_exit(int status);
 
 extern const char *timidity_version;
+extern const char *arch_string; /* optcode.c */
 extern MBlockList tmpbuffer;
 extern char *output_text_code;
 

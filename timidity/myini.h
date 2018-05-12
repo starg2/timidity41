@@ -6,6 +6,10 @@
 
 
 #ifdef MYINI_LIBRARY_DEFIND_VAR
+#ifdef _WIN32
+#include <windows.h>
+#else
+
 #ifndef INT8
 typedef char INT8;
 #endif
@@ -50,6 +54,7 @@ typedef unsigned long long UINT64;
 	#define CONST const
 #endif
 
+#endif
 #endif
 
 

@@ -685,6 +685,18 @@ static void init_trace_window_chan(int ch)
 			wprintw(dftwin, "(%s)", prog->comment);
 		}
 #endif
+#ifdef ENABLE_SFZ
+		else if(type == INST_SFZ)
+		{
+			if (prog->name)
+			{
+				waddch(dftwin, ' ');
+				waddstr(dftwin, prog->name);
+			}
+			if (prog->comment != NULL)
+				wprintw(dftwin, "(%s)", prog->comment);
+		}
+#endif
     }
     }
     }

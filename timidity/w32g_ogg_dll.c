@@ -26,6 +26,7 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include "interface.h"
+#include "common.h"
 
 #if defined(AU_VORBIS_DLL) || defined(AU_OPUS_DLL)
 
@@ -139,7 +140,7 @@ void free_ogg_dll(void)
 int load_ogg_dll(void)
 {
 	if(!h_ogg_dll){
-		h_ogg_dll = LoadLibrary("ogg.dll");
+		h_ogg_dll = LoadLibrary("libogg.dll");
 		if(!h_ogg_dll) return -1;
 	}
 //	ogg_dll.oggpack_writeinit = (type_oggpack_writeinit)GetProcAddress(h_ogg_dll,"oggpack_writeinit");
@@ -527,7 +528,7 @@ int     ogg_page_bos(ogg_page *og)
 }
 #endif
 
-int     ogg_page_eos(ogg_page *og)
+int     ogg_page_eos(const ogg_page *og)
 {
 	if(h_ogg_dll){
 		return ogg_dll.ogg_page_eos(og);

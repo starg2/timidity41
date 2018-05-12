@@ -53,6 +53,7 @@
 #endif /* SUPPORT_SOUNDSPEC */
 #include "wrd.h"
 #include "w32g.h"
+#include "w32g_pref.h"
 #include "w32g_utl.h"
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -112,10 +113,6 @@ extern int AutoloadPlaylist;
 extern int AutosavePlaylist;
 extern int PosSizeSave;
 extern unsigned char opt_normal_chorus_plus; 
-#ifdef AU_LAME
-extern void lame_ConfigDialogInfoLoadINI();
-extern void lame_ConfigDialogInfoSaveINI();
-#endif
 
 ///r
 //char DefaultPlaylistName[PLAYLIST_MAX][] = {"default.pls"};

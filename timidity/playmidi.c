@@ -4486,7 +4486,7 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt, int add_delay_cnt)
 		if(!special_patch[j]){
 			vp->reserve_offset = 0;
 		}else{
-			vp->reserve_offset = special_patch[j]->sample_offset << FRACTION_BITS;
+			vp->reserve_offset = (splen_t)special_patch[j]->sample_offset << FRACTION_BITS;
 			if(vp->sample->modes & MODES_LOOPING)  {
 				if(vp->reserve_offset > vp->sample->loop_end)
 					vp->reserve_offset = vp->sample->loop_start;
@@ -11377,16 +11377,8 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 					vevol = _mm_shuffle_ps(vevol, vevol, 0x44);
 				}
 				vsp = _mm_mul_ps(_mm_loadu_ps(src), vevol);
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-				{
-				float *out = (float *)vsp;
-				*(src++) = out[0];
-				*(src++) = out[1];
-				}
-#else
-				*(src++) = vsp.m128_f32[0];
-				*(src++) = vsp.m128_f32[1];	
-#endif //  !(defined(_MSC_VER) || defined(MSC_VER))
+				*(src++) = MM_EXTRACT_F32(vsp,0);
+				*(src++) = MM_EXTRACT_F32(vsp,1);	
 			}
 
 #else // ! USE_X86_EXT_INTRIN

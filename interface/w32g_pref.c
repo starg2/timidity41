@@ -65,11 +65,13 @@
 #include "resample.h"
 #include "mix.h"
 #include "thread.h"
+#include "sfz.h"
 
 #include <tchar.h>
 #include "w32g.h"
 #include "w32g_res.h"
 #include "w32g_utl.h"
+#include "w32g_ut2.h"
 #include "w32g_pref.h"
 ///r
 #ifdef AU_W32
@@ -95,6 +97,10 @@
 /* #include <musenc.h>		/* for gogo */
 #include <gogo/gogo.h>		/* for gogo */
 #include "gogo_a.h"
+#endif
+
+#ifdef AU_FLAC
+#include "flac_a.h"
 #endif
 
 
@@ -153,9 +159,8 @@ static int get_winver(void)
 
 /* TiMidity Win32GUI preference / PropertySheet */
 
-#if !defined(IA_W32G_SYN)
 extern void w32g_restart(void);
-#endif
+
 extern void set_gogo_opts_use_commandline_options(char *commandline);
 
 extern void restore_voices(int save_voices);
@@ -192,7 +197,6 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd);
 
 static int vorbisCofigDialog(void);
 static int gogoCofigDialog(void);
-static int flacConfigDialog(void);
 
 static int w32_reset_exe_directory(void)
 {
@@ -660,6 +664,7 @@ extern void TracerWndApplyQuietChannel( ChannelBitMask quietchannels_ );
  * íçà”: MainThread Ç©ÇÁÇÃåƒÇ—èoÇµã÷é~ÅAäÎåØÅI
  */
 extern void OnQuit(void);
+extern void timidity_init_player(void); /* timidity.c */
 
 void PrefSettingApplyReally(void)
 {
@@ -708,6 +713,9 @@ void PrefSettingApplyReally(void)
 #ifdef INT_SYNTH
 	init_int_synth();
 #endif // INT_SYNTH
+#ifdef ENABLE_SFZ
+	init_sfz();
+#endif
 	initialize_resampler_coeffs();
     timidity_init_player();
 	restore_voices(1);
@@ -831,6 +839,9 @@ void reload_cfg(void)
     free_special_patch(-1);
     tmdy_free_config();
     free_soundfonts();
+#ifdef ENABLE_SFZ
+	free_sfz();
+#endif
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH
@@ -3456,7 +3467,6 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	static int pref_channel_page;
 	static ChannelBitMask channelbitmask;
 	int i, j, tmp;
-	const TCHAR **cb_info;
 	switch (uMess){
 	case WM_INITDIALOG:
 		// BANK

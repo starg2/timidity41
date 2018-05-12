@@ -21,11 +21,16 @@
 #ifndef OPTCODE_H_INCLUDED
 #define OPTCODE_H_INCLUDED 1
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
+
 #if defined(_M_IX86) || defined(__i386__) || defined(__i386) || defined(_X86_) || defined(__X86__) || defined(__I86__)
 #define IX86CPU 1
 #endif
 
-#if defined(_M_X64) || defined(_AMD64_) || defined(_X64_) || defined(__X64__)
+#if defined(_M_X64) || defined(_AMD64_) || defined(_X64_) || defined(__X64__) || defined(__x86_64__)
 #define IX64CPU 1
 #undef IX86CPU
 #undef IA64CPU
@@ -227,7 +232,7 @@ enum{
 
 #if defined(USE_SSE5) // _MSC_VER >= 1700 VC2012?
 #define USE_X86_AMD_EXT_INTRIN  6
-#eiif defined(USE_SSE4A) // _MSC_VER >= 1600 VC2010?
+#elif defined(USE_SSE4A) // _MSC_VER >= 1600 VC2010?
 #define USE_X86_AMD_EXT_INTRIN  5
 #elif defined(USE_3DNOW_PRO)
 #define USE_X86_AMD_EXT_INTRIN  4
@@ -300,35 +305,30 @@ enum{
 #endif
 
 /* asm/intrin•s‰ÂðŒ ‘¼‚É‚ ‚ê‚Î’Ç‰Á */
-#if !defined(IX86CPU)
-#define USE_X86_EXT_ASM      0
-#define USE_X86_AMD_EXT_ASM  0
-#endif
 #if !defined(IX64CPU)
-#define USE_X64_EXT_ASM      0
-#define USE_X64_AMD_EXT_ASM  0
+#undef USE_X64_EXT_INTRIN
 #define USE_X64_EXT_INTRIN   0
+#undef USE_X64_AMD_EXT_INTRIN
 #define USE_X64_AMD_EXT_INTRIN  0
 #endif
 #if !defined(IX86CPU) && !defined(IX64CPU)
+#undef USE_X86_EXT_INTRIN
 #define USE_X86_EXT_INTRIN      0
+#undef USE_X86_AMD_EXT_INTRIN
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
-#if defined(__GNUC__)
-#define USE_X86_EXT_INTRIN  0
-#define USE_X86_AMD_EXT_INTRIN  0
-#define USE_X64_EXT_INTRIN      0
-#define USE_X64_AMD_EXT_INTRIN  0
-#endif
-#if defined(__GNUC__)
-#define USE_X86_EXT_INTRIN  0
-#define USE_X86_AMD_EXT_INTRIN  0
-#define USE_X64_EXT_INTRIN      0
-#define USE_X64_AMD_EXT_INTRIN  0
-#endif
+/* Always disable inline asm */
+#undef USE_X86_EXT_ASM
+#define USE_X86_EXT_ASM      0
+#undef USE_X86_AMD_EXT_ASM
+#define USE_X86_AMD_EXT_ASM  0
+#undef USE_X64_EXT_ASM
+#define USE_X64_EXT_ASM      0
+#undef USE_X64_AMD_EXT_ASM
+#define USE_X64_AMD_EXT_ASM  0
 
-
+#undef SUPPORT_ASM_INTEL
 
 /*****************************************************************************/
 /* PowerPC's AltiVec enhancement */
@@ -361,7 +361,7 @@ enum{
 #endif
 
 /*****************************************************************************/
-#if OPT_MODE == 1
+#if OPT_MODE == 1 && USE_X86_EXT_ASM > 0
 
 #ifdef LITTLE_ENDIAN
 #define iman_ 0
@@ -619,28 +619,7 @@ static inline int32 signlong(int32 a)
 
 #if (USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_INTRIN)
 #ifdef __GNUC__
-//#if defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 8)
-//#include <avxintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 7)
-//#include <nmmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 6)
-//#include <smmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 5)
-//#include <tmmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 4)
-//#include <pmmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 3)
-//#include <emmintrin.h>
-//#elif defined(USE_X86_EXT_INTRIN) && (USE_X86_EXT_INTRIN >= 2)
-//#include <xmmintrin.h>
-//#else
-//#include <mmintrin.h>
-//#endif
-//#if defined(USE_X86_AMD_EXT_INTRIN) && (USE_X86_AMD_EXT_INTRIN >= 2)
-//#include <mm3dnow.h>
-//#endif
-#include <immintrin.h>
-
+#include <x86intrin.h>
 #elif (_MSC_VER >= 1600) // VC2010(VC10)
 #include <intrin.h>
 #else // VC2003(VC7) VC2005(VC8) VC2008(VC9)
@@ -764,8 +743,8 @@ LSU : Unalignment (use loadu/storeu
 #define MM_FMA3_PD(v00, v01, v10, v11, v20, v21) _mm_fmadd_pd(v20, v21, _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
 #define MM_FMA4_PD(v00, v01, v10, v11, v20, v21, v30, v31) _mm_add_pd(\
 	_mm_fmadd_pd(v30, v31, _mm_mul_pd(v20, v21)), _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
-#define MM_FMA5_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41) _mm_fmadd_pd(v40, v41, \
-	_mm_fmadd_pd(v30, v31, _mm_mul_pd(v20, v21)), _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
+#define MM_FMA5_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41) _mm_add_pd(_mm_fmadd_pd(v40, v41, \
+	_mm_fmadd_pd(v30, v31, _mm_mul_pd(v20, v21))), _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01)) )
 #define MM_FMA6_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41, v50, v51) _mm_add_pd(\
 	_mm_fmadd_pd(v50, v51, _mm_fmadd_pd(v40, v41, _mm_mul_pd(v30, v31))), \
 	_mm_fmadd_pd(v20, v21, _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01))) )
@@ -848,6 +827,184 @@ LSU : Unalignment (use loadu/storeu
 #define MM_LSU_MUL_PS(ptr, vec_a) _mm_storeu_ps(ptr, _mm_mul_ps(_mm_loadu_ps(ptr), vec_a))
 #endif
 
+#if (USE_X86_EXT_INTRIN >= 1)
+#if !(defined(_MSC_VER) || defined(MSC_VER))
+#define MM_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_shuffle_ps(reg,reg,idx))
+#define MM_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_shuffle_pd(reg,reg,idx))
+#define MM_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_shuffle_epi32(reg,idx))
+#define MM256_EXTRACT_I32(reg,idx) _mm256_extract_epi32(reg,idx)
+#else
+#define MM_EXTRACT_F32(reg,idx) reg.m128_f32[idx]
+#define MM_EXTRACT_F64(reg,idx) reg.m128d_f64[idx]
+#define MM_EXTRACT_I32(reg,idx) reg.m128i_i32[idx]
+#define MM256_EXTRACT_I32(reg,idx) reg.m256i_i32[idx]
+#endif
+#endif // (USE_X86_EXT_INTRIN >= 1)
+
+/*
+	gather and scatter
+*/
+
+#if (USE_X86_EXT_INTRIN >= 9)
+#if (USE_X86_EXT_INTRIN >= 9)
+#define MM256_I32GATHER_I32(base, offset, scale) _mm256_i32gather_epi32(base, offset, scale)
+#else
+
+static TIMIDITY_FORCEINLINE __m256i mm256_i32gather_i32_impl(const int *base, __m256i offset, int scale)
+{
+	ALIGN32 int32 buf[8];
+	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
+#ifdef IX64CPU
+	__m256i vbase = _mm256_set1_epi64x((int64)base);
+	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, _mm256_setzero_si256()));
+	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, _mm256_setzero_si256()));
+	ALIGN32 const int32 *ptr0145[8];
+	ALIGN32 const int32 *ptr2367[8];
+	_mm256_store_si256((__m256i *)ptr0145, vptr0145);
+	_mm256_store_si256((__m256i *)ptr2367, vptr2367);
+
+	buf[0] = *ptr0145[0];
+	buf[1] = *ptr0145[1];
+	buf[2] = *ptr2367[0];
+	buf[3] = *ptr2367[1];
+	buf[4] = *ptr0145[2];
+	buf[5] = *ptr0145[3];
+	buf[6] = *ptr2367[2];
+	buf[7] = *ptr2367[3];
+#else
+	int i;
+	__m256i pointers = _mm256_add_epi32(_mm256_set1_epi32((int32)base), byte_offset);
+	_mm256_store_si256((__m256i *)buf, pointers);
+
+	for (i = 0; i < 8; i++) {
+		buf[i] = *(const int *)buf[i];
+	}
+#endif
+
+	return _mm256_load_si256((const __m256i *)buf);
+}
+
+#define MM256_I32GATHER_I32(base, offset, scale) mm256_i32gather_i32_impl(base, offset, scale)
+#endif // (USE_X86_EXT_INTRIN >= 9)
+
+static TIMIDITY_FORCEINLINE void mm256_i32scatter_i32_impl(void *base, __m256i offset, __m256i val, int scale)
+{
+	ALIGN32 int32 buf[8];
+	_mm256_store_si256((__m256i *)buf, val);
+
+	__m256i byte_offset = _mm256_mullo_epi32(offset, _mm256_set1_epi32(scale));
+#ifdef IX64CPU
+	__m256i vbase = _mm256_set1_epi64x((int64)base);
+	__m256i vptr0145 = _mm256_add_epi64(vbase, _mm256_unpacklo_epi32(byte_offset, _mm256_setzero_si256()));
+	__m256i vptr2367 = _mm256_add_epi64(vbase, _mm256_unpackhi_epi32(byte_offset, _mm256_setzero_si256()));
+	ALIGN32 int32 *ptr0145[4];
+	ALIGN32 int32 *ptr2367[4];
+	_mm256_store_si256((__m256i *)ptr0145, vptr0145);
+	_mm256_store_si256((__m256i *)ptr2367, vptr2367);
+
+	*ptr0145[0] = buf[0];
+	*ptr0145[1] = buf[1];
+	*ptr2367[0] = buf[2];
+	*ptr2367[1] = buf[3];
+	*ptr0145[2] = buf[4];
+	*ptr0145[3] = buf[5];
+	*ptr2367[2] = buf[6];
+	*ptr2367[3] = buf[7];
+#else
+	__m256i vptr = _mm256_add_epi32(_mm256_set1_epi32((int32)base), byte_offset);
+	ALIGN32 int32 *ptr[8];
+	_mm256_store_si256((__m256i *)ptr, vptr);
+
+	for (int i = 0; i < 8; i++) {
+		*ptr[i] = buf[i];
+	}
+#endif
+}
+
+#define MM256_I32SCATTER_I32(base, offset, val, scale) mm256_i32scatter_i32_impl(base, offset, val, scale)
+
+#endif // (USE_X86_EXT_INTRIN >= 9)
+
+#if (USE_X86_EXT_INTRIN >= 1)
+#if (USE_X86_EXT_INTRIN >= 9)
+#define MM_I32GATHER_I32(base, offset, scale) _mm_i32gather_epi32(base, offset, scale)
+#elif (USE_X86_EXT_INTRIN >= 6)
+
+static TIMIDITY_FORCEINLINE __m128i mm_i32gather_i32_impl(const int *base, __m128i offset, int scale)
+{
+	ALIGN16 int32 buf[4];
+	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
+#ifdef IX64CPU
+	__m128i vbase = _mm_set1_epi64x((int64)base);
+	__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, _mm_setzero_si128()));
+	__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, _mm_setzero_si128()));
+	ALIGN16 const int32 *ptr01[2];
+	ALIGN16 const int32 *ptr23[2];
+	_mm_store_si128((__m128i *)ptr01, vptr01);
+	_mm_store_si128((__m128i *)ptr23, vptr23);
+
+	buf[0] = *ptr01[0];
+	buf[1] = *ptr01[1];
+	buf[2] = *ptr23[0];
+	buf[3] = *ptr23[1];
+#else
+	int i;
+	__m128i pointers = _mm_add_epi32(_mm_set1_epi32((int32)base), byte_offset);
+	_mm_store_si128((__m128i *)buf, pointers);
+
+	for (i = 0; i < 4; i++) {
+		buf[i] = *(const int *)buf[i];
+	}
+#endif
+
+	return _mm_load_si128((const __m128i *)buf);
+}
+
+#define MM_I32GATHER_I32(base, offset, scale) mm_i32gather_i32_impl(base, offset, scale)
+#endif // (USE_X86_EXT_INTRIN >= 6)
+#endif // (USE_X86_EXT_INTRIN >= 1)
+
+#if (USE_X86_EXT_INTRIN >= 6)
+
+static TIMIDITY_FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offset, __m128i val, int scale)
+{
+	ALIGN16 int32 buf[4];
+	__m128i byte_offset;
+
+	_mm_store_si128((__m128i *)buf, val);
+	byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
+#ifdef IX64CPU
+	{
+		__m128i vbase = _mm_set1_epi64x((int64)base);
+		__m128i vptr01 = _mm_add_epi64(vbase, _mm_unpacklo_epi32(byte_offset, _mm_setzero_si128()));
+		__m128i vptr23 = _mm_add_epi64(vbase, _mm_unpackhi_epi32(byte_offset, _mm_setzero_si128()));
+		ALIGN16 int32 *ptr01[2];
+		ALIGN16 int32 *ptr23[2];
+		_mm_store_si128((__m128i *)ptr01, vptr01);
+		_mm_store_si128((__m128i *)ptr23, vptr23);
+
+		*ptr01[0] = buf[0];
+		*ptr01[1] = buf[1];
+		*ptr23[0] = buf[2];
+		*ptr23[1] = buf[3];
+	}
+#else
+	{
+		__m128i vptr = _mm_add_epi32(_mm_set1_epi32((int32)base), byte_offset);
+		ALIGN16 int32 *ptr[4];
+		_mm_store_si128((__m128i *)ptr, vptr);
+
+		*ptr[0] = buf[0];
+		*ptr[1] = buf[1];
+		*ptr[2] = buf[2];
+		*ptr[3] = buf[3];
+	}
+#endif
+}
+
+#define MM_I32SCATTER_I32(base, offset, val, scale) mm_i32scatter_i32_impl(base, offset, val, scale)
+
+#endif // (USE_X86_EXT_INTRIN >= 1)
 
 #define IS_ALIGN(ptr) (!((int32)ptr & (ALIGN_SIZE - 1)))
 extern int is_x86ext_available(void);
@@ -922,5 +1079,9 @@ static inline void *switch_memset(void *destp, int c, size_t len)
 
 #define memset switch_memset
 #endif /* altivec */
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #endif /* OPTCODE_H_INCLUDED */

@@ -201,6 +201,11 @@ extern void control_effect_xg(int ch);
 extern void recompute_multi_eq_sd(void);
 extern void recompute_mfx_effect_sd(struct mfx_effect_sd_t *st, int marge);
 extern void realloc_mfx_effect_sd(struct mfx_effect_sd_t *st, int patch);
+extern void recompute_chorus_status_sd(struct mfx_effect_sd_t *st, int marge);
+extern void realloc_chorus_status_sd(struct mfx_effect_sd_t *st, int patch);
+extern void recompute_chorus_status_sd(struct mfx_effect_sd_t *st, int marge);
+extern void realloc_reverb_status_sd(struct mfx_effect_sd_t *st, int patch);
+extern void recompute_reverb_status_sd(struct mfx_effect_sd_t *st, int marge);
 extern void control_effect_sd(MidiEvent *ev);
 
 extern Instrument *recompute_userdrum(int bank, int prog, int elm);
@@ -214,7 +219,10 @@ extern void init_channel_layer(int);
 extern void add_channel_layer(int, int);
 extern void remove_channel_layer(int);
 
+extern void readmidi_read_init(void);
 extern void free_readmidi(void);
+
+extern void free_time_segments(void);
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 

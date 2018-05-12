@@ -83,6 +83,7 @@
 #include "tables.h"
 #include "miditrace.h"
 #include "effect.h"
+#include "freq.h"
 #ifdef SUPPORT_SOUNDSPEC
 #include "soundspec.h"
 #endif /* SUPPORT_SOUNDSPEC */
@@ -101,6 +102,8 @@
 #include "sndfontini.h"
 #include "thread.h"
 #include "miditrace.h"
+#include "flac_a.h"
+#include "sfz.h"
 ///r
 #ifdef __BORLANDC__
 #define inline
@@ -108,6 +111,7 @@
 
 #ifdef IA_W32GUI
 #include "w32g.h"
+#include "w32g_subwin.h"
 #include "w32g_utl.h"
 #endif
 
@@ -133,6 +137,10 @@
 
 #ifdef AU_PORTAUDIO
 #include "portaudio_a.h"
+#endif
+
+#ifdef __W32G__
+#include "w32g_utl.h"
 #endif
 
 
@@ -1311,7 +1319,7 @@ static int config_parse_mfx_patch(char *w[], int words, int mapid, int bank, int
 }
 
 ///r
-static int set_gus_patchconf_opts(char *name,
+static int set_gus_patchconf_opts(const char *name,
 		int line, char *opts, ToneBankElement *tone)
 {
 	char *cp;
@@ -1708,7 +1716,7 @@ static int set_gus_patchconf_opts(char *name,
 
 ///r
 #define SET_GUS_PATCHCONF_COMMENT
-static int set_gus_patchconf(char *name, int line,
+static int set_gus_patchconf(const char *name, int line,
 			     ToneBankElement *tone, char *pat, char **opts)
 {
     int j;
@@ -1803,6 +1811,21 @@ static int set_gus_patchconf(char *name, int line,
 		opts += 2;
     }
 #endif
+#ifdef ENABLE_SFZ
+	else if(strcmp(pat, "%sfz") == 0) /* sfz extension */
+	{
+		/* %sfz filename */
+		if (opts[0] == NULL)
+		{
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				"%s: line %d: Syntax error", name, line);
+			return 1;
+		}
+		tone->name = safe_strdup(opts[0]);
+		tone->instype = 5; // sfz
+		opts++;
+	}
+#endif
     else if(strcmp(pat, "%pat") == 0) /* pat extention */
 	{
 		tone->instype = 0; // pat
@@ -1850,7 +1873,7 @@ CFGÇÃcommÇóDêÊÇ∑ÇÈÇ◊Ç´
     return 0;
 }
 ///r
-static int set_patchconf(char *name, int line, ToneBank *bank, char *w[], int dr, int mapid, int bankmapfrom, int bankno, int add)
+static int set_patchconf(const char *name, int line, ToneBank *bank, char *w[], int dr, int mapid, int bankmapfrom, int bankno, int add)
 {
     int i;
 	int elm;
@@ -6104,7 +6127,7 @@ static int parse_opt_h(const char *arg)
 	};
 	void show_ao_device_info(FILE *fp);
 	FILE *fp;
-	char version[32], *help_args[7], per_mark[2];
+	char version[64], *help_args[7], per_mark[2];
 	int i, j;
 	char *h;
 	ControlMode *cmp, **cmpp;
@@ -6115,6 +6138,8 @@ static int parse_opt_h(const char *arg)
 	fp = open_pager();
 	strcpy(version, (!strstr(timidity_version, "current")) ? "version " : "");
 	strcat(version, timidity_version);
+	strcat(version, " ");
+	strcat(version, arch_string);
 	per_mark[0] = '%';
 	per_mark[1] = '\0';
 	help_args[0] = version;
@@ -7115,9 +7140,6 @@ static inline int parse_opt_wave_update_step(const char *arg)
 
 
 #ifdef AU_FLAC
-extern void flac_set_option_verify(int);
-extern void flac_set_option_padding(int);
-extern void flac_set_compression_level(int);
 
 static inline int parse_opt_flac_verify(const char *arg)
 {
@@ -7648,7 +7670,7 @@ static inline int parse_opt_v(const char *arg)
 #else
 		"TiMidity++ ",
 				(strcmp(timidity_version, "current")) ? "version " : "",
-				timidity_version, NLS,
+				timidity_version, " ", arch_string, NLS,
 		NLS,
 #endif
 		"Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>", NLS,
@@ -7951,7 +7973,7 @@ static inline void close_pager(FILE *fp)
 static void interesting_message(void)
 {
 	printf(
-"TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
+"TiMidity++ %s%s %s -- MIDI to WAVE converter and player" NLS
 "Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>" NLS
 "Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 			NLS
@@ -7974,7 +7996,9 @@ static void interesting_message(void)
 "along with this program; if not, write to the Free Software" NLS
 "Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA" NLS
 			NLS, (strcmp(timidity_version, "current")) ? "version " : "",
-			timidity_version);
+			timidity_version,
+			arch_string
+		);
 }
 
 /* -------- functions for getopt_long ends here --------- */
@@ -8385,6 +8409,9 @@ MAIN_INTERFACE void timidity_init_player(void)
 #ifdef INT_SYNTH
 	init_int_synth();
 #endif // INT_SYNTH
+#ifdef ENABLE_SFZ
+	init_sfz();
+#endif
 
 #ifdef SUPPORT_SOUNDSPEC
     if(view_soundspec_flag)
@@ -8756,6 +8783,23 @@ int main(int argc, char **argv)
 	_CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
 	atexit(w32_exit);
+
+#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+	{
+		HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+		if (hStdOut != INVALID_HANDLE_VALUE)
+		{
+			DWORD mode;
+
+			if (GetConsoleMode(hStdOut, &mode))
+			{
+				SetConsoleMode(hStdOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+			}
+		}
+	}
+#endif
+
 #endif /* __W32__ */
 #if !defined(KBTIM) && !defined(WINDRV)
 	OverrideSFSettingLoad();
@@ -8925,7 +8969,7 @@ int main(int argc, char **argv)
 		files = expand_file_archives(files, &nfiles);
 	if (nfiles > 0)
 		files_nbuf = files[0];
-#if !defined(IA_W32GUI) && !defined(IA_W32G_SYN)
+#if !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(IA_WINSYN)
 	if (dumb_error_count)
 		sleep(1);
 #endif
@@ -9017,6 +9061,9 @@ int main(int argc, char **argv)
 	//free_reverb_buffer();
 	free_effect_buffers();
 ///r
+#ifdef ENABLE_SFZ
+	free_sfz();
+#endif
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH
@@ -9096,6 +9143,9 @@ static void w32_exit(void)
 	//free_reverb_buffer();
 	free_effect_buffers();
 ///r
+#ifdef ENABLE_SFZ
+	free_sfz();
+#endif
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH

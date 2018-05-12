@@ -50,6 +50,7 @@
 #include "quantity.h"
 #include "freq.h"
 #include "support.h"
+#include "sfz.h"
 
 #define INSTRUMENT_HASH_SIZE 128
 struct InstrumentCache
@@ -142,6 +143,9 @@ void free_instrument(Instrument *ip)
 #ifdef INT_SYNTH
 	extern void free_int_synth_file(Instrument *ip);
 #endif
+#ifdef ENABLE_SFZ
+	extern void free_sfz_file(Instrument *ip);
+#endif
 
 	if (!ip) return;
 
@@ -164,6 +168,11 @@ void free_instrument(Instrument *ip)
 	case INST_MMS:
 	case INST_SCC:
 		free_int_synth_file(ip);
+		break;
+#endif
+#ifdef ENABLE_SFZ
+	case INST_SFZ:
+		free_sfz_file(ip);
 		break;
 #endif
 	}
@@ -1656,6 +1665,11 @@ Instrument *load_instrument(int dr, int b, int prog, int elm)
 		ip = extract_scc_file(bank->tone[prog][elm]->name, bank->tone[prog][elm]->is_preset);
 		break;
 #endif
+#ifdef ENABLE_SFZ
+	case 5: /* sfz extension */
+		ip = extract_sfz_file(bank->tone[prog][elm]->name);
+		break;
+#endif
 	default:
 		goto TONEBANK_INSTRUMENT_NULL;
 		break;
@@ -2213,7 +2227,7 @@ void free_instruments(int reload_default_inst)
 				if(bank->tone[j][elm] == NULL)
 					continue;
 				ip = bank->tone[j][elm]->instrument;
-				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC) &&
+				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ) &&
 					(i == 0 || !tonebank[0]->tone[j][elm] || ip != tonebank[0]->tone[j][elm]->instrument) )
 						free_instrument(ip);
 				bank->tone[j][elm]->instrument = NULL;
@@ -2225,7 +2239,7 @@ void free_instruments(int reload_default_inst)
 				if(bank->tone[j][elm] == NULL)
 					continue;
 				ip = bank->tone[j][elm]->instrument;
-				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC) &&
+				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ) &&
 				   (i == 0 || !drumset[0]->tone[j][elm] || ip != drumset[0]->tone[j][elm]->instrument) )
 					free_instrument(ip);
 				bank->tone[j][elm]->instrument = NULL;

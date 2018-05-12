@@ -945,4 +945,8 @@ extern void free_playmidi(void);
 extern int32 get_current_play_tempo(void);
 extern void init_voice(int i);
 extern void update_voice(int i);
+
+extern int calc_bend_val(int val);
+extern void kill_all_voices(void);
+
 #endif /* ___PLAYMIDI_H_ */

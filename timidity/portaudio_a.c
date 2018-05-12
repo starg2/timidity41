@@ -52,6 +52,7 @@
 
 #ifdef __W32__
 #include <windows.h>
+#include <mmsystem.h>
 #endif /* __W32__ */
 #include <portaudio.h>
 #ifdef PORTAUDIO_V19

@@ -477,7 +477,7 @@ static int import_wave_load(char *sample_file, Instrument *inst)
 	{
 		uint8  modes;
 		int32  sample_rate, root_freq;
-		uint32 loopStart = 0, loopEnd = 0;
+		splen_t loopStart = 0, loopEnd = 0;
 
 		sample_rate = samplerc.dwSamplePeriod == 0 ? 0 : 1000000000L / samplerc.dwSamplePeriod;
 		root_freq = freq_table[samplerc.dwMIDIUnityNote];
@@ -494,8 +494,8 @@ static int import_wave_load(char *sample_file, Instrument *inst)
 			const uint8 loopModes[] = { MODES_LOOPING, MODES_LOOPING | MODES_PINGPONG, MODES_LOOPING | MODES_REVERSE };
 
 			modes = loopModes[samplerc.loopType];
-			loopStart = samplerc.loop_dwStart << FRACTION_BITS;
-			loopEnd = samplerc.loop_dwEnd << FRACTION_BITS;
+			loopStart = (splen_t)samplerc.loop_dwStart << FRACTION_BITS;
+			loopEnd = (splen_t)samplerc.loop_dwEnd << FRACTION_BITS;
 		}
 		else
 			modes = 0;
@@ -1294,7 +1294,7 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 		sample = &inst->sample[i];
 		sample->data_alloced = 0;
 		sample->loop_start = 0;
-		sample->loop_end = sample->data_length = frames << FRACTION_BITS;
+		sample->loop_end = sample->data_length = (splen_t)frames << FRACTION_BITS;
 		sample->sample_rate = sample_rate;
 		sample->low_key = 0;
 		sample->high_key = 127;

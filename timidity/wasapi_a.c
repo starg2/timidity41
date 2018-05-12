@@ -128,7 +128,7 @@ PlayMode dpm = {
 #include <objbase.h>
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
 //#include <Avrt.h>
-#include <Audioclient.h>
+#include <audioclient.h>
 #include <audiopolicy.h>
 //#define INITGUID
 #include <mmdeviceapi.h>

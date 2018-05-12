@@ -156,4 +156,6 @@ extern int INILoadConsoleWnd(void);
 extern int INISaveSoundSpecWnd(void);
 extern int INILoadSoundSpecWnd(void);
 
+extern int PauseOldTiMidity(void);
+
 #endif /* __W32G_UT2_H__ */

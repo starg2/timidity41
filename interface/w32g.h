@@ -28,6 +28,8 @@
 #undef RC_NONE
 #endif
 #include <windows.h>
+#include <commdlg.h>
+#include <shellapi.h>
 #ifdef RC_NONE
 #undef RC_NONE
 #endif
@@ -75,7 +77,7 @@ typedef LPTHREAD_START_ROUTINE BCC_BEGINTHREAD_START_ADDRESS;
 // (HANDLE)crt_beginthreadex(LPSECURITY_ATTRIBUTES security, DWORD stack_size, LPTHREAD_START_ROUTINE start_address, LPVOID arglist, DWORD initflag, LPDWORD thrdaddr );
 #if defined(_MSC_VER) || defined(__WATCOMC__)
 #define crt_beginthreadex(security,stack_size,start_address,arglist,initflag,thrdaddr ) \
-(HANDLE)_beginthreadex((void *)security,(unsigned)stack_size,(MSVC_BEGINTHREAD_START_ADDRESS)start_address,(void *)arglist,(unsigned)initflag,(unsigned *)thrdaddr)
+(HANDLE)_beginthreadex((void *)security,(unsigned)stack_size,start_address,(void *)arglist,(unsigned)initflag,(unsigned *)thrdaddr)
 #elif defined(_BORLANDC_)
 #define crt_beginthreadex(security,stack_size,start_address,arglist,initflag,thrdaddr ) \
 (HANDLE)_beginthreadNT((BCC_BEGINTHREAD_START_ADDRESS)start_address,(unsigned)stack_size,(void *)arglist,(void *)security_attrib,(unsigned long)create_flags,(unsigned long *)thread_id)

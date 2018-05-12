@@ -64,6 +64,7 @@
 #include "readmidi.h"
 #include "output.h"
 #include "controls.h"
+#include "rtsyn.h"
 
 #ifdef WIN32GCC
 WINAPI void InitCommonControls(void);
@@ -73,6 +74,7 @@ WINAPI void InitCommonControls(void);
 #include "w32g_utl.h"
 #include "w32g_pref.h"
 #include "w32g_res.h"
+#include "w32g_int_synth_editor.h"
 
 #ifdef IA_W32G_SYN
 
@@ -633,7 +635,7 @@ static const TCHAR *syn_thread_priority_name_jp[] = {
     TEXT("タイムクリティカル")
 };
 static const TCHAR *syn_thread_priority_name_en[] = {
-	TEXT("idle")
+	TEXT("idle"),
     TEXT("lowest"),
     TEXT("below normal"),
     TEXT("normal"),
@@ -1530,7 +1532,7 @@ int w32g_syn_ctl_pass_playing_list(int n_, char *args_[])
 #endif /* !TWSYNSRV */
 				SetPriorityClass(GetCurrentProcess(), processPriority);
 				SetThreadPriority(w32g_syn.syn_hThread, syn_ThreadPriority);
-				result = ctl_pass_playing_list2(w32g_syn_port_num, args);
+				result = ctl->pass_playing_list(w32g_syn_port_num, args);
 				SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 				SetThreadPriority(w32g_syn.syn_hThread, THREAD_PRIORITY_NORMAL);
 				if (result == 2) {
@@ -1711,7 +1713,7 @@ static void VersionWnd(HWND hParentWnd)
 {
 	char VersionText[2024];
   sprintf(VersionText,
-"TiMidity++ %s%s" NLS NLS
+"TiMidity++ %s%s %s" NLS NLS
 "TiMidity-0.2i by Tuukka Toivonen <tt@cgs.fi>." NLS
 "TiMidity Win32 version by Davide Moretti <dave@rimini.com>." NLS
 "TiMidity Windows 95 port by Nicolas Witczak." NLS
@@ -1719,7 +1721,7 @@ static void VersionWnd(HWND hParentWnd)
 "Twsynth GUI by Daisuke Aoki <dai@y7.net>." NLS
 " Japanese menu, dialog, etc by Saito <timidity@flashmail.com>." NLS
 "TiMidity++ by Masanao Izumo <mo@goice.co.jp>." NLS
-, (strcmp(timidity_version, "current")) ? "version " : "", timidity_version);
+, (strcmp(timidity_version, "current")) ? "version " : "", timidity_version, arch_string);
 	MessageBoxA(hParentWnd, VersionText, "Version", MB_OK);
 }
 
@@ -1727,7 +1729,7 @@ static void TiMidityWnd(HWND hParentWnd)
 {
 	char TiMidityText[2024];
   sprintf(TiMidityText,
-" TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
+" TiMidity++ %s%s %s -- MIDI to WAVE converter and player" NLS
 " Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 NLS
@@ -1749,7 +1751,7 @@ NLS
 " along with this program; if not, write to the Free Software" NLS
 " Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA" NLS
 ,
-(strcmp(timidity_version, "current")) ? "version " : "", timidity_version
+(strcmp(timidity_version, "current")) ? "version " : "", timidity_version, arch_string
 	);
 	MessageBoxA(hParentWnd, TiMidityText, "TiMidity", MB_OK);
 }
@@ -2060,6 +2062,44 @@ static void ConsoleWndVerbosityApplyIncDec(int num)
 }
 
 #endif /* HAVE_SYN_CONSOLE */
+
+#ifdef IA_W32G_SYN
+static int winplaymidi_sleep_level = 2;
+static DWORD winplaymidi_active_start_time = 0;
+
+void winplaymidi(void) {
+
+    if (winplaymidi_sleep_level < 1) {
+        winplaymidi_sleep_level = 1;
+    }
+    if (0 != rtsyn_buf_check()) {
+        winplaymidi_sleep_level = 0;
+    }
+    rtsyn_play_some_data();
+    if (winplaymidi_sleep_level == 1) {
+        DWORD ct = GetCurrentTime();
+        if (winplaymidi_active_start_time == 0 || ct < winplaymidi_active_start_time) {
+            winplaymidi_active_start_time = ct;
+        }
+        else if (ct - winplaymidi_active_start_time > 60000) {
+            winplaymidi_sleep_level = 2;
+        }
+    }
+    else if (winplaymidi_sleep_level == 0) {
+        winplaymidi_active_start_time = 0;
+    }
+
+    rtsyn_play_calculate();
+
+    if (winplaymidi_sleep_level >= 2) {
+        Sleep(100);
+    }
+    else if (winplaymidi_sleep_level > 0) {
+        Sleep(1);
+    }
+}
+#endif /* IA_W32G_SYN */
+
 
 #ifdef HAVE_SYN_SOUNDSPEC
 

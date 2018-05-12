@@ -62,6 +62,7 @@
 #include <windows.h>
 #endif
 #include "w32g_dib.h"
+#include "w32g_mag.h"
 #include "w32g_wrd.h"
 
 static int wrdt_open(char *dummy);

@@ -606,8 +606,7 @@ void w32g_update_playlist_pos(int pos)
 		w32g_get_midi_file_info_post(entry);
 		{
 			char *title;
-			volatile LVITEM lvi0;		
-			int len;
+			volatile LVITEM lvi0;
 			lvi0.iItem = i;
 			lvi0.iSubItem = 0;
 			lvi0.mask = LVIF_TEXT;
@@ -1258,7 +1257,7 @@ char *w32g_get_playlist_play(int idx)
 #ifdef LISTVIEW_PLAYLIST
 void w32g_copy_playlist(void)
 {
-    int i, num, pos, selnum = 0, next;
+    int i, num, pos, selnum = 0;
     HWND hList;
 	PlayListEntry *entry;
 
@@ -1330,11 +1329,10 @@ void w32g_copy_playlist(void)
 
 void w32g_paste_playlist(int uniq, int refine)
 {
-    int i, num, pos, select = 0, selnum = 0, skip = 0;
+    int i, num, pos, select = 0, skip = 0;
     HWND hList;
 
     PlayListEntry *entry;
-    char *title;
     struct midi_file_info *info;
 	
     if(!(hList = playlist_box()))

@@ -62,7 +62,7 @@ extern int opterr;
 extern int optopt;
 
 #ifndef UTILS_GETOPT_PRIVATE
-extern int getopt(int __argc, char * const *__argv, const char *__shortopts);
+extern int getopt(int argc, char * const *argv, const char *__shortopts);
 #endif /* !UTILS_GETOPT_PRIVATE */
 
 #endif /* <unistd.h> */
@@ -150,10 +150,10 @@ struct option
    arguments to the option '\0'.  This behavior is specific to the GNU
    `getopt'.  */
 
-extern int getopt_long(int __argc, char * const *__argv,
+extern int getopt_long(int argc, char * const *argv,
 			const char *__shortopts,
 		        const struct option *__longopts, int *__longind);
-extern int getopt_long_only(int __argc, char * const *__argv,
+extern int getopt_long_only(int argc, char * const *argv,
 			     const char *__shortopts,
 		             const struct option *__longopts, int *__longind);
 #endif /* !UTILS_GETOPT_PRIVATE */

@@ -57,6 +57,5 @@ void InitSoundSpecWnd(HWND hParentWnd);
 void w32g_setup_doc(int idx);
 void w32g_open_doc(int close_if_no_doc);
 void w32g_free_doc(void);
-extern void w32g_free_doc(void);
 
 #endif /* ___W32G_SUBWIN_H_ */

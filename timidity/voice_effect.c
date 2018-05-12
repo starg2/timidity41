@@ -2346,6 +2346,7 @@ static inline void do_vfx_tremolo(int v, VoiceEffect *vfx, DATA_T *sp, int32 cou
 	for(i = 0; i < count2; i += 8){
 		MM256_LSU_MUL_PS(&sp[i], vamp);
 	}
+	}
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 	{
 	const int32 req_count_mask = ~(0x7);
