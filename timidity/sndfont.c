@@ -956,6 +956,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 			}
 			else
 #endif
+#endif
 			{
 				/* 16 bit */
 				frames = divi_2(sp->len);
