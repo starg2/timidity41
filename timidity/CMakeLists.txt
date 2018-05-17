@@ -17,25 +17,62 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 # timidity common
 
 set(
-    TIMIDITY_COMMON_SOURCES
+    TIMIDITY_INTERFACE_DEPENDENT_SOURCE
 
     aiff_a.c
+    controls.c
+    flac_a.c
+    gogo_a.c
+    int_synth.c
+    lame_a.c
+    miditrace.c
+    npipe_a.c
+    opus_a.c
+    output.c
+    playmidi.c
+    portaudio_a.c
+    sndfontini.c
+    speex_a.c
+    thread.c
+    timer2.c
+    timidity.c
+    volumecalc_a.c
+    vorbis_a.c
+    wrdt.c
+    
+    controls.h
+    flac_a.h
+    gogo_a.h
+    int_synth.h
+    LameEnc.h
+    miditrace.h
+    output.h
+    portaudio_a.h
+    thread.h
+    timer2.h
+    timidity.h
+    vstwrapper.h
+    wrd.h
+
+    $<TARGET_OBJECTS:libarc>
+    $<TARGET_OBJECTS:libunimod>
+    $<TARGET_OBJECTS:utils>
+)
+
+add_library(
+    timidity_common OBJECT
+
     ao_a.c
     aq.c
     au_a.c
     audio_cnv.c
     common.c
-    controls.c
     decode.c
     effect.c
     envelope.c
     filter.c
-    flac_a.c
     freq.c
-    gogo_a.c
     instrum.c
-    int_synth.c
-    lame_a.c
     midi_a.c
     oscillator.c
     list_a.c
@@ -43,19 +80,13 @@ set(
     m2m.c
     mfi.c
     mfnode.c
-    miditrace.c
     mix.c
     mod.c
     mod2midi.c
     modmid_a.c
     mt19937ar.c
     myini.c
-    npipe_a.c
     optcode.c
-    opus_a.c
-    output.c
-    playmidi.c
-    portaudio_a.c
     quantity.c
     raw_a.c
     rcp.c
@@ -70,16 +101,9 @@ set(
     smfconv.c
     smplfile.c
     sndfont.c
-    sndfontini.c
-    speex_a.c
     tables.c
-    thread.c
-    timer2.c
-    timidity.c
     version.c
     voice_effect.c
-    volumecalc_a.c
-    vorbis_a.c
     w32_a.c
     w32_gogo.c
     wasapi_a.c
@@ -94,38 +118,29 @@ set(
     w32_libOggFLAC_dll.c
     wdmks_a.c
     wrd_read.c
-    wrdt.c
-    
+
     aenc.h
     aq.h
     audio_cnv.h
     audriv.h
     common.h
-    controls.h
     decode.h
     dlutils.h
     filter.h
-    flac_a.h
     freq.h
-    gogo_a.h
     instrum.h
-    int_synth.h
-    LameEnc.h
     oscillator.h
     loadsndfontini.h
     mac_com.h
     mac_main.h
     mfnode.h
-    miditrace.h
     mix.h
     mod.h
     mod2midi.h
     mt19937ar.h
     myini.h
     optcode.h
-    output.h
     playmidi.h
-    portaudio_a.h
     pragmapack.h
     quantity.h
     readmidi.h
@@ -140,11 +155,7 @@ set(
     sndfontini.h
     sysdep.h
     tables.h
-    thread.h
-    timer2.h
-    timidity.h
     voice_effect.h
-    vstwrapper.h
     w32_a.h
     w32_gogo.h
     w32_libFLAC_dll.h
@@ -155,11 +166,6 @@ set(
     w32_libOggFLAC_dll_i.h
 	wasapi_a.h
     wdmks_a.h
-    wrd.h
-
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:utils>
 )
 
 set(
@@ -180,8 +186,9 @@ set(
 add_executable(
     timidity
 
-    ${TIMIDITY_COMMON_SOURCES}
+    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface>
+    $<TARGET_OBJECTS:timidity_common>
 )
 
 add_dependencies(timidity UpdateTim41Version)
@@ -193,8 +200,9 @@ target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS} pdcurses)
 add_executable(
     twsynsrv
 
-    ${TIMIDITY_COMMON_SOURCES}
+    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface_synsrv>
+    $<TARGET_OBJECTS:timidity_common>
 )
 
 add_dependencies(twsynsrv UpdateTim41Version)
@@ -206,8 +214,9 @@ target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS} pdcurses)
 add_executable(
     timw32g WIN32
 
-    ${TIMIDITY_COMMON_SOURCES}
+    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface_w32g>
+    $<TARGET_OBJECTS:timidity_common>
 )
 
 add_dependencies(timw32g UpdateTim41Version)
@@ -220,8 +229,9 @@ DisableMSManifest(timw32g)
 add_executable(
     twsyng WIN32
 
-    ${TIMIDITY_COMMON_SOURCES}
+    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface_w32gsyn>
+    $<TARGET_OBJECTS:timidity_common>
 )
 
 add_dependencies(twsyng UpdateTim41Version)
