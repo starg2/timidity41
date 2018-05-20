@@ -8782,7 +8782,7 @@ int main(int argc, char **argv)
 #endif
 	atexit(w32_exit);
 
-#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#ifdef __W32__
 	{
 		HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
 
@@ -8792,7 +8792,7 @@ int main(int argc, char **argv)
 
 			if (GetConsoleMode(hStdOut, &mode))
 			{
-				SetConsoleMode(hStdOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+				SetConsoleMode(hStdOut, mode | 0x0004 /* ENABLE_VIRTUAL_TERMINAL_PROCESSING */);
 			}
 		}
 	}
