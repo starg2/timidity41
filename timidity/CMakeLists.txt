@@ -19,7 +19,6 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 set(
     TIMIDITY_INTERFACE_DEPENDENT_SOURCE
 
-    aiff_a.c
     controls.c
     flac_a.c
     gogo_a.c
@@ -36,7 +35,6 @@ set(
     thread.c
     timer2.c
     timidity.c
-    volumecalc_a.c
     vorbis_a.c
     wrdt.c
     
@@ -62,6 +60,7 @@ set(
 add_library(
     timidity_common OBJECT
 
+    aiff_a.c
     ao_a.c
     aq.c
     au_a.c
@@ -104,6 +103,7 @@ add_library(
     tables.c
     version.c
     voice_effect.c
+    volumecalc_a.c
     w32_a.c
     w32_gogo.c
     wasapi_a.c

@@ -68,11 +68,6 @@
 
 #ifdef AU_VOLUME_CALC
 
-#if defined(IA_W32GUI) || defined(TWSYNG32)
-extern char *w32g_output_dir;
-extern int w32g_auto_output_mode;
-#endif
-
 static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int32 output_data(const uint8 *buf, size_t bytes);
