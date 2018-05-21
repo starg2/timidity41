@@ -933,12 +933,17 @@ int open_output(void)
 			acp.eCategory  = opt_wasapi_stream_category;
 		
 #if (NTDDI_VERSION >= NTDDI_WINBLUE) && !defined(__MINGW32__)
-			if(opt_wasapi_stream_option >= 2){
-				if(ver >= 6) // win10à»è„
-					acp.Options = AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;
-			}else if(opt_wasapi_stream_option == 1){
+			if (opt_wasapi_stream_option & 4) {
+				if (ver >= 6) // win10à»è„
+					acp.Options |= AUDCLNT_STREAMOPTIONS_AMBISONICS;
+			}
+			if (opt_wasapi_stream_option & 2) {
+				if (ver >= 6) // win10à»è„
+					acp.Options |= AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;
+			}
+			if (opt_wasapi_stream_option & 1){
 				if(ver >= 4) // win8.1à»è„
-					acp.Options = AUDCLNT_STREAMOPTIONS_RAW;
+					acp.Options |= AUDCLNT_STREAMOPTIONS_RAW;
 			}
 #endif
 			hr = IAudioClient2_SetClientProperties(pAudioClient2, &acp);
