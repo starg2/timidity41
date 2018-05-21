@@ -836,11 +836,20 @@ LSU : Unalignment (use loadu/storeu
 #define MM_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_shuffle_ps(reg,reg,idx))
 #define MM_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_shuffle_pd(reg,reg,idx))
 #define MM_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_shuffle_epi32(reg,idx))
+#if (USE_X86_EXT_INTRIN >= 9)
+#define MM256_EXTRACT_F32(reg,idx) _mm256_cvtss_f32(_mm256_permutevar8x32_ps(reg,idx))
+#define MM256_EXTRACT_F64(reg,idx) _mm256_cvtsd_f64(_mm256_permute4x64_pd(reg,idx))
+#else
+#define MM256_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_permute_ps(_mm256_extractf128_ps(reg, idx >= 4), idx % 4))
+#define MM256_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_permute_pd(_mm256_extractf128_ps(reg, idx >= 2), idx % 2))
+#endif
 #define MM256_EXTRACT_I32(reg,idx) _mm256_extract_epi32(reg,idx)
 #else
 #define MM_EXTRACT_F32(reg,idx) reg.m128_f32[idx]
 #define MM_EXTRACT_F64(reg,idx) reg.m128d_f64[idx]
 #define MM_EXTRACT_I32(reg,idx) reg.m128i_i32[idx]
+#define MM256_EXTRACT_F32(reg,idx) reg.m256_f32[idx]
+#define MM256_EXTRACT_F64(reg,idx) reg.m256d_f64[idx]
 #define MM256_EXTRACT_I32(reg,idx) reg.m256i_i32[idx]
 #endif
 #endif // (USE_X86_EXT_INTRIN >= 1)
