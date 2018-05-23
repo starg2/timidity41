@@ -2361,8 +2361,8 @@ static inline void sample_filter_LPF12_2_double2(FILTER_T *dc, FILTER_T *db, DAT
 #endif
 	}
 
-	_mm_store_sd(db, _mm256_extractf128_pd(vbm1, 0));
-	_mm_store_sd(db + 1, _mm256_extractf128_pd(vym1, 01));
+	db[0] = _mm256_cvtsd_f64(vbm1);
+	db[1] = _mm256_cvtsd_f64(vym1);
 }
 
 #else
@@ -2408,8 +2408,8 @@ static inline void sample_filter_LPF12_2_double2(FILTER_T *dc, FILTER_T *db, DAT
 		vym1 = _mm_unpackhi_pd(vy01, vy01);
 	}
 
-	_mm_store_sd(db, vbm1);
-	_mm_store_sd(db + 1, vym1);
+	db[0] = _mm_cvtsd_f64(vbm1);
+	db[1] = _mm_cvtsd_f64(vym1);
 }
 
 #endif
