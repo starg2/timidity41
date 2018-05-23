@@ -1480,7 +1480,7 @@ int w32g_syn_ctl_pass_playing_list(int n_, char *args_[])
 #endif /* !TWSYNSRV */
 				SetPriorityClass(GetCurrentProcess(), processPriority);
 				SetThreadPriority(w32g_syn.syn_hThread, syn_ThreadPriority);
-				result = ctl->pass_playing_list(w32g_syn_port_num, args);
+				result = ctl_pass_playing_list2(w32g_syn_port_num, args);
 				SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 				SetThreadPriority(w32g_syn.syn_hThread, THREAD_PRIORITY_NORMAL);
 				if (result == 2) {
