@@ -2297,6 +2297,128 @@ static inline void recalc_filter_LPF_BW(FilterCoefficients *fc)
 	}
 }
 
+#if defined(DATA_T_DOUBLE) && (USE_X86_EXT_INTRIN >= 3)
+
+#if (USE_X86_EXT_INTRIN >= 8)
+
+static inline void sample_filter_LPF_BW_double2(FILTER_T *dc, FILTER_T *db, DATA_T *sp, int32 count)
+{
+	__m256d vcxm2m1 = _mm256_loadu_pd(dc);
+	__m256d vcx01 = _mm256_loadu_pd(dc + 4);
+	__m256d vcym2m1 = _mm256_loadu_pd(dc + 8);
+
+	__m256d vxm2m1 = _mm256_insertf128_pd(_mm256_castpd128_pd256(_mm_set1_pd(db[0])), _mm_set1_pd(db[1]), 1);
+	__m256d vym2m1 = _mm256_insertf128_pd(_mm256_castpd128_pd256(_mm_set1_pd(db[2])), _mm_set1_pd(db[3]), 1);
+
+	for (int32 i = 0; i < count; i += 2) {
+		__m256d vx01 = _mm256_insertf128_pd(_mm256_castpd128_pd256(_mm_set1_pd(sp[i])), _mm_set1_pd(sp[i + 1]), 1);
+
+		__m256d v = MM256_FMA3_PD(
+			vcxm2m1, vxm2m1,
+			vcx01, vx01,
+			vcym2m1, vym2m1
+		);
+
+		__m128d vy = _mm_add_pd(_mm256_castpd256_pd128(v), _mm256_extractf128_pd(v, 1));
+
+		_mm_storeu_pd(sp + i, vy);
+		vxm2m1 = vx01;
+		vym2m1 = _mm256_insertf128_pd(_mm256_castpd128_pd256(_mm_unpacklo_pd(vy, vy)), _mm_unpackhi_pd(vy, vy), 1);
+	}
+
+	db[0] = MM256_EXTRACT_F64(vxm2m1, 0);
+	db[1] = MM256_EXTRACT_F64(vxm2m1, 2);
+	db[2] = MM256_EXTRACT_F64(vym2m1, 0);
+	db[3] = MM256_EXTRACT_F64(vym2m1, 2);
+}
+
+#else
+
+static inline void sample_filter_LPF_BW_double2(FILTER_T *dc, FILTER_T *db, DATA_T *sp, int32 count)
+{
+	__m128d vcxm2 = _mm_loadu_pd(dc);
+	__m128d vcxm1 = _mm_loadu_pd(dc + 2);
+	__m128d vcx0 = _mm_loadu_pd(dc + 4);
+	__m128d vcx1 = _mm_loadu_pd(dc + 6);
+	__m128d vcym2 = _mm_loadu_pd(dc + 8);
+	__m128d vcym1 = _mm_loadu_pd(dc + 10);
+
+	__m128d vxm2 = _mm_set1_pd(db[0]);
+	__m128d vxm1 = _mm_set1_pd(db[1]);
+	__m128d vym2 = _mm_set1_pd(db[2]);
+	__m128d vym1 = _mm_set1_pd(db[3]);
+
+	for (int32 i = 0; i < count; i += 2) {
+		__m128d vx0 = _mm_set1_pd(sp[i]);
+		__m128d vx1 = _mm_set1_pd(sp[i + 1]);
+
+		__m128d vy = MM_FMA6_PD(
+			vcxm2, vxm2,
+			vcxm1, vxm1,
+			vcx0, vx0,
+			vcx1, vx1,
+			vcym2, vym2,
+			vcym1, vym1
+		);
+
+		_mm_storeu_pd(sp + i, vy);
+		vxm2 = vx0;
+		vxm1 = vx1;
+		vym2 = _mm_unpacklo_pd(vy, vy);
+		vym1 = _mm_unpackhi_pd(vy, vy);
+	}
+
+	db[0] = _mm_cvtsd_f64(vxm2);
+	db[1] = _mm_cvtsd_f64(vxm1);
+	db[2] = _mm_cvtsd_f64(vym2);
+	db[3] = _mm_cvtsd_f64(vym1);
+}
+
+#endif
+
+static inline void recalc_filter_LPF_BW_double2(FilterCoefficients *fc)
+{
+	FILTER_T *dc = fc->dc;
+	double q, p, p2, qp;
+
+	// elion butterworth
+	if (FLT_FREQ_MARGIN || FLT_RESO_MARGIN) {
+		CALC_MARGIN_VAL
+			CALC_FREQ_MARGIN
+			CALC_RESO_MARGIN
+			p = 1.0 / tan(M_PI * fc->freq * (double)fc->div_flt_rate); // ?
+		q = RESO_DB_CF_M(fc->reso_dB) * SQRT_2; // q>0.1
+		p2 = p * p;
+		qp = q * p;
+		FILTER_T c0 = 1.0 / (1.0 + qp + p2);
+		FILTER_T c1 = 2.0 * c0;
+		FILTER_T c2 = c0;
+		FILTER_T c3 = -2.0 * (1.0 - p2) * c0; // -
+		FILTER_T c4 = -(1.0 - qp + p2) * c0; // -
+
+		__m128d m[2][3];
+
+		m[0][0] = _mm_set_pd(c1, c2);
+		m[0][1] = _mm_set_pd(0, c0);
+		m[0][2] = _mm_set_pd(c3, c4);
+
+		m[1][0] = _mm_set_pd(c2, 0);
+		m[1][1] = _mm_set_pd(c0, c1);
+		m[1][2] = _mm_set_pd(c4, 0);
+
+		for (int i = 0; i < 3; i++) {
+			m[1][i] = MM_FMA_PD(m[0][i], _mm_set1_pd(c3), m[1][i]);
+		}
+
+		for (int i = 0; i < 3; i++) {
+			_mm_storeu_pd(dc + i * 4, _mm_unpacklo_pd(m[0][i], m[1][i]));
+			_mm_storeu_pd(dc + i * 4 + 2, _mm_unpackhi_pd(m[0][i], m[1][i]));
+		}
+	}
+}
+
+#endif
+
 static inline void sample_filter_LPF12_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
 	db[1] += (*sp - db[0]) * dc[1];
@@ -4196,6 +4318,10 @@ inline void buffer_filter(FilterCoefficients *fc, DATA_T *sp, int32 count)
 	if (fc->type == FILTER_LPF24) {
 		recalc_filter_LPF24_double2(fc);
 		sample_filter_LPF24_double2(fc->dc, &fc->db[FILTER_FB_L], sp, count);
+		return;
+	} else if (fc->type == FILTER_LPF_BW) {
+		recalc_filter_LPF_BW_double2(fc);
+		sample_filter_LPF_BW_double2(fc->dc, &fc->db[FILTER_FB_L], sp, count);
 		return;
 	} else if (fc->type == FILTER_LPF12_2) {
 		recalc_filter_LPF12_2_double2(fc);
