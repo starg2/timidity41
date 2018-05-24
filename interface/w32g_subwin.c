@@ -118,7 +118,7 @@ static void ConsoleWndVerbosityUpdate(void);
 static void ConsoleWndVerbosityApply(void);
 static void ConsoleWndValidUpdate(void);
 static void ConsoleWndValidApply(void);
-static void ConsoleWndVerbosityApplyIncDec(int num);
+static void ConsoleWndVerbosityApplySet(int num);
 static int ConsoleWndInfoReset(HWND hwnd);
 static int ConsoleWndInfoApply(void);
 
@@ -156,7 +156,7 @@ void InitConsoleWnd(HWND hParentWnd)
 	INILoadConsoleWnd();
 	ConsoleWndInfoApply();
 	UpdateWindow(hConsoleWnd);
-	ConsoleWndVerbosityApplyIncDec(0);
+	ConsoleWndVerbosityApply();
 	CheckDlgButton(hConsoleWnd, IDC_CHECKBOX_VALID, ConsoleWndFlag);
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT), ConsoleWndMaxSize);
 }
@@ -187,10 +187,18 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			ConsoleWndVerbosityApply();
 			break;
 		case IDC_BUTTON_INC:
-			ConsoleWndVerbosityApplyIncDec(1);
+			{
+				int n = (int)GetDlgItemInt(hwnd, IDC_EDIT_VERBOSITY, NULL, TRUE);
+				n++;
+				ConsoleWndVerbosityApplySet(n);
+			}
 			break;
 		case IDC_BUTTON_DEC:
-			ConsoleWndVerbosityApplyIncDec(-1);
+			{
+				int n = (int)GetDlgItemInt(hwnd, IDC_EDIT_VERBOSITY, NULL, TRUE);
+				n--;
+				ConsoleWndVerbosityApplySet(n);
+			}
 			break;
 		default:
 			break;
@@ -432,10 +440,10 @@ static void ConsoleWndVerbosityApply(void)
 	ConsoleWndVerbosityUpdate();
 }
 
-static void ConsoleWndVerbosityApplyIncDec(int num)
+static void ConsoleWndVerbosityApplySet(int num)
 {
 	if(!IsWindow(hConsoleWnd)) return;
-	ctl->verbosity += num;
+	ctl->verbosity = num;
 	RANGE(ctl->verbosity, -1, 4);
 	ConsoleWndVerbosityUpdate();
 }

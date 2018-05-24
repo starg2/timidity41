@@ -89,7 +89,7 @@ WINAPI void InitCommonControls(void);
 
 static void InitMainWnd(HWND hStartWnd);
 
-static void ConsoleWndVerbosityApplyIncDec(int num);
+static void ConsoleWndVerbosityApplySet(int num);
 void ConsoleWndVerbosityApply(void);
 
 void CanvasPaintAll(void);

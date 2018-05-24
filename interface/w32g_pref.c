@@ -794,6 +794,9 @@ static void PrefSettingApply(void)
 #ifdef INT_SYNTH
 	init_int_synth();
 #endif // INT_SYNTH
+#ifdef ENABLE_SFZ
+	init_sfz();
+#endif
 	initialize_resampler_coeffs();
 
 #ifdef SUPPORT_SOUNDSPEC
