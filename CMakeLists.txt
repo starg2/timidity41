@@ -77,6 +77,7 @@ add_definitions(
     -D__W32READDIR__
 	-DUSE_TWSYN_BRIDGE
     -DENABLE_SFZ
+	-DTIMW32G_USE_NEW_CONSOLE
 
 # TiMidity++ audio
     -DAU_W32
@@ -132,7 +133,7 @@ else()
 endif()
 
 if(MSVC)
-    add_compile_options(/W4 /Zi /GS /fp:fast /permissive- /MP /Qspectre)
+    add_compile_options(/W4 /Zi /GS /fp:fast /MP /Qspectre)
     add_compile_options(/we4013)    # '%s' undefined; assuming extern returning int
     
     if(TIM41_USE_AVX2)

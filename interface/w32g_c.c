@@ -51,6 +51,10 @@
 #include "w32g_subwin.h"
 #include "w32g_utl.h"
 
+#ifdef TIMW32G_USE_NEW_CONSOLE
+#include "w32g_new_console.h"
+#endif
+
 extern int CanvasGetMode(void);
 extern void CanvasUpdate(int flag);
 extern void CanvasReadPanelInfo(int flag);
@@ -253,6 +257,10 @@ static void ctl_close(void)
 	ctl.opened = 0;
 	safe_free(Panel);
 	Panel = NULL;
+
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	ClearNewConsoleBuffer();
+#endif
 
 //#ifdef FORCE_TIME_PERIOD
 //	timeEndPeriod(tcaps.wPeriodMin);
@@ -921,8 +929,12 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 	ShowStartupMessage();
 	w32g_msg_box(buffer, "TiMidity Error", MB_OK);
     }
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	NewConsoleBufferWriteCMsg(type, verbosity_level, buffer);
+#else
     PutsConsoleWnd(buffer);
     PutsConsoleWnd("\n");
+#endif
     return 0;
 }
 

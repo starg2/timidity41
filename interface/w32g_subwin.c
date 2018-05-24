@@ -66,6 +66,10 @@
 #include "w32g_subwin.h"
 #include "w32g_ut2.h"
 
+#ifdef TIMW32G_USE_NEW_CONSOLE
+#include "w32g_new_console.h"
+#endif
+
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 #ifndef TPM_TOPALIGN
 #define TPM_TOPALIGN	0x0000L
@@ -137,6 +141,10 @@ void InitConsoleWnd(HWND hParentWnd)
 	ConsoleWndInfoReset(hConsoleWnd);
 	INILoadConsoleWnd();
 
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	InitializeNewConsole();
+#endif
+
 	switch(PlayerLanguage){
   	case LANGUAGE_ENGLISH:
 		hConsoleWnd = CreateDialog
@@ -158,7 +166,9 @@ void InitConsoleWnd(HWND hParentWnd)
 	UpdateWindow(hConsoleWnd);
 	ConsoleWndVerbosityApply();
 	CheckDlgButton(hConsoleWnd, IDC_CHECKBOX_VALID, ConsoleWndFlag);
+#ifndef TIMW32G_USE_NEW_CONSOLE
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT), ConsoleWndMaxSize);
+#endif
 }
 
 // Window Procedure
@@ -352,12 +362,21 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 //		ShowWindow(hConsoleWnd, SW_HIDE);
 		MainWndUpdateConsoleButton();
 		break;
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	case WM_ACTIVATE:
+		if (LOWORD(wParam) != WA_INACTIVE) {
+			SetFocus(GetDlgItem(hConsoleWnd, IDC_EDIT));
+			return TRUE;
+		}
+		break;
+#else
 	case WM_SETFOCUS:
 		HideCaret(hwnd);
 		break;
 	case WM_KILLFOCUS:
 		ShowCaret(hwnd);
 		break;
+#endif
 	default:
 		return FALSE;
 	}
@@ -371,7 +390,11 @@ void PutsConsoleWnd(char *str)
 	if(!IsWindow(hConsoleWnd) || !ConsoleWndFlag)
 		return;
 	hwnd = GetDlgItem(hConsoleWnd,IDC_EDIT);
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	NewConsoleWrite(hwnd, str);
+#else
 	PutsEditCtlWnd(hwnd,str);
+#endif
 }
 
 // printf()
@@ -383,7 +406,11 @@ void PrintfConsoleWnd(char *fmt, ...)
 		return;
 	hwnd = GetDlgItem(hConsoleWnd,IDC_EDIT);
 	va_start(ap, fmt);
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	NewConsoleWriteV(hwnd, fmt, ap);
+#else
 	VprintfEditCtlWnd(hwnd,fmt,ap);
+#endif
 	va_end(ap);
 }
 
@@ -394,7 +421,11 @@ void ClearConsoleWnd(void)
 	if(!IsWindow(hConsoleWnd))
 		return;
 	hwnd = GetDlgItem(hConsoleWnd,IDC_EDIT);
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	NewConsoleClear(hwnd);
+#else
 	ClearEditCtlWnd(hwnd);
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -405,7 +436,9 @@ static void ConsoleWndAllUpdate(void)
 	ConsoleWndVerbosityUpdate();
 	ConsoleWndValidUpdate();
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT_VERBOSITY),3);
+#ifndef TIMW32G_USE_NEW_CONSOLE
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT),ConsoleWndMaxSize);
+#endif
 }
 
 static void ConsoleWndValidUpdate(void)

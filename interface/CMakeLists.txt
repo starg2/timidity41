@@ -45,6 +45,7 @@ set(
     w32g_ini.c
     w32g_int_synth_editor.c
     w32g_mag.c
+	w32g_new_console.cpp
     w32g_playlist.c
     w32g_pref.c
     w32g_subwin.c
@@ -60,6 +61,7 @@ set(
     w32g_dib.h
     w32g_int_synth_editor.h
     w32g_mag.h
+	w32g_new_console.h
     w32g_pref.h
     w32g_rec.h
     w32g_res.h
