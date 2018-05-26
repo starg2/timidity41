@@ -44,10 +44,6 @@ extern "C"
 #undef max
 #endif
 
-#define NCM_CLEAR  (WM_USER + 100)
-#define NCM_WRITE  (WM_USER + 101)  // WPARAM: COLORREF, LPARAM: LPCTSTR
-#define NCM_WRITELINE  (WM_USER + 102)  // WPARAM: COLORREF, LPARAM: LPCTSTR
-
 namespace TimW32gNewConsole
 {
 
@@ -63,6 +59,165 @@ const COLORREF InfoColor = RGB(58, 150, 221);
 
 using TString = std::basic_string<TCHAR>;
 using TStringView = std::basic_string_view<TCHAR>;
+
+template<typename T>
+class UniqueLock
+{
+public:
+    UniqueLock() : m_pLock(nullptr)
+    {
+    }
+
+    explicit UniqueLock(T& lock) : m_pLock(&lock)
+    {
+        m_pLock->DoLockUnique();
+    }
+
+    UniqueLock(const UniqueLock&) = delete;
+    UniqueLock& operator=(const UniqueLock&) = delete;
+
+    UniqueLock(UniqueLock&& rhs) noexcept : m_pLock()
+    {
+        swap(rhs);
+    }
+
+    UniqueLock& operator=(UniqueLock&& rhs) noexcept
+    {
+        UniqueLock(std::move(rhs)).swap(*this);
+        return *this;
+    }
+
+    ~UniqueLock()
+    {
+        Unlock();
+    }
+
+    void swap(UniqueLock& rhs) noexcept
+    {
+        using std::swap;
+        swap(m_pLock, rhs.m_pLock);
+    }
+
+    void Unlock()
+    {
+        if (m_pLock)
+        {
+            m_pLock->DoUnlockUnique();
+            m_pLock = nullptr;
+        }
+    }
+
+private:
+    T* m_pLock;
+};
+
+template<typename T>
+class SharedLock
+{
+public:
+    SharedLock() : m_pLock(nullptr)
+    {
+    }
+
+    explicit SharedLock(T& lock) : m_pLock(&lock)
+    {
+        m_pLock->DoLockShared();
+    }
+
+    SharedLock(const SharedLock&) = delete;
+    SharedLock& operator=(const SharedLock&) = delete;
+
+    SharedLock(SharedLock&& rhs) noexcept : m_pLock()
+    {
+        swap(rhs);
+    }
+
+    SharedLock& operator=(SharedLock&& rhs) noexcept
+    {
+        SharedLock(std::move(rhs)).swap(*this);
+        return *this;
+    }
+
+    ~SharedLock()
+    {
+        Unlock();
+    }
+
+    void swap(SharedLock& rhs) noexcept
+    {
+        using std::swap;
+        swap(m_pLock, rhs.m_pLock);
+    }
+
+    void Unlock()
+    {
+        if (m_pLock)
+        {
+            m_pLock->DoUnlockShared();
+            m_pLock = nullptr;
+        }
+    }
+
+private:
+    T* m_pLock;
+};
+
+class SRWLock
+{
+    friend class UniqueLock<SRWLock>;
+    friend class SharedLock<SRWLock>;
+
+public:
+    SRWLock()
+    {
+        ::InitializeSRWLock(&m_Lock);
+    }
+
+    SRWLock(const SRWLock&) = delete;
+    SRWLock& operator=(const SRWLock&) = delete;
+    SRWLock(SRWLock&&) = delete;
+    SRWLock& operator=(SRWLock&&) = delete;
+
+    ~SRWLock() = default;
+
+    UniqueLock<SRWLock> LockUnique()
+    {
+        return UniqueLock<SRWLock>(*this);
+    }
+
+    SharedLock<SRWLock> LockShared()
+    {
+        return SharedLock<SRWLock>(*this);
+    }
+
+    SRWLOCK* Get()
+    {
+        return &m_Lock;
+    }
+
+private:
+    void DoLockUnique()
+    {
+        ::AcquireSRWLockExclusive(&m_Lock);
+    }
+
+    void DoUnlockUnique()
+    {
+        ::ReleaseSRWLockExclusive(&m_Lock);
+    }
+
+    void DoLockShared()
+    {
+        ::AcquireSRWLockShared(&m_Lock);
+    }
+
+    void DoUnlockShared()
+    {
+        ::ReleaseSRWLockShared(&m_Lock);
+    }
+
+    SRWLOCK m_Lock;
+};
 
 struct StyledLineFragment
 {
@@ -82,7 +237,6 @@ class StyledTextBuffer
 public:
     StyledTextBuffer()
     {
-
     }
 
 	void Clear()
@@ -218,24 +372,38 @@ public:
 
 	void Clear()
 	{
-		::SendMessage(m_hWnd, NCM_CLEAR, 0, 0);
+        auto lock = m_Lock.LockUnique();
+        m_Buffer.Clear();
 	}
 
 	void Write(LPCTSTR pText)
 	{
-        ::SendMessage(m_hWnd, NCM_WRITE, NormalColor, reinterpret_cast<LPARAM>(pText));
+        Write(NormalColor, pText, false);
 	}
 
 	void WriteV(LPCTSTR pFormat, va_list args)
 	{
 		std::array<TCHAR, BUFSIZ> buf;
 		std::vsnprintf(buf.data(), buf.size(), pFormat, args);
-        ::SendMessage(m_hWnd, NCM_WRITE, NormalColor, reinterpret_cast<LPARAM>(buf.data()));
+        Write(NormalColor, buf.data(), false);
     }
 
-    void WriteLine(COLORREF color, LPCTSTR pText)
+    void Write(COLORREF color, LPCTSTR pText, bool newline)
     {
-        ::SendMessage(m_hWnd, NCM_WRITELINE, color, reinterpret_cast<LPARAM>(pText));
+        auto lock = m_Lock.LockUnique();
+        bool shouldAutoScroll = ShouldAutoScroll();
+
+        m_Buffer.Append(color, pText);
+
+        if (newline)
+        {
+            m_Buffer.AppendNewline();
+        }
+
+        if (shouldAutoScroll)
+        {
+            DoAutoScroll();
+        }
     }
 
     static LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -294,16 +462,8 @@ public:
                     pConsoleWindow->OnKeyDown(wParam, lParam);
                     return 0;
 
-                case NCM_CLEAR:
-                    pConsoleWindow->OnNewConsoleClear();
-                    return 0;
-
-                case NCM_WRITE:
-                    pConsoleWindow->OnNewConsoleWrite(wParam, lParam);
-                    return 0;
-
-                case NCM_WRITELINE:
-                    pConsoleWindow->OnNewConsoleWriteLine(wParam, lParam);
+                case WM_TIMER:
+                    pConsoleWindow->OnTimer(wParam, lParam);
                     return 0;
 
                 default:
@@ -319,8 +479,11 @@ public:
 private:
     void OnCreate()
     {
+        ::SetTimer(m_hWnd, 1, 200, nullptr);
+
+        ::ShowScrollBar(m_hWnd, SB_BOTH, true);
 		InitializeGDIResource();
-        UpdateScrollBars();
+        InvalidateRect(m_hWnd, nullptr, true);
     }
 
     void OnDestroy()
@@ -332,8 +495,8 @@ private:
 	{
 		// Recreate everything
 		InitializeGDIResource();
-        UpdateScrollBars();
-	}
+        InvalidateRect(m_hWnd, nullptr, true);
+    }
 
 	void OnPaint()
 	{
@@ -344,27 +507,32 @@ private:
 		::GetClientRect(m_hWnd, &rc);
 		::FillRect(m_hBackDC, &rc, m_hBgBrush);
 
-        int lineCount = std::min(static_cast<int>(m_Buffer.GetLineCount() - m_CurrentTopLineNumber), GetVisibleLinesInWindow());
-
-        for (int i = 0; i < lineCount; i++)
         {
-            auto lineInfo = m_Buffer.GetLines()[m_CurrentTopLineNumber + i];
-            auto first = m_Buffer.GetFragments().begin() + lineInfo.Offset;
-            auto last = first + lineInfo.Length;
+            auto lock = m_Lock.LockShared();
+            UpdateScrollBarsNoLock();
 
-            int x = -m_CurrentLeftColumnNumber * m_FontWidth;
-            int y = i * m_FontHeight;
+            int lineCount = std::min(static_cast<int>(m_Buffer.GetLineCount() - m_CurrentTopLineNumber), GetVisibleLinesInWindow());
 
-            std::for_each(
-                first,
-                last,
-                [str = m_Buffer.GetString(), hWnd = m_hWnd, hDC = m_hBackDC, &x, y, fontWidth = m_FontWidth] (const StyledLineFragment& lf)
-                {
-                    ::SetTextColor(hDC, lf.Color);
-                    ::TextOut(hDC, x, y, str.data() + lf.Offset, lf.Length);
-                    x += lf.Length * fontWidth;
-                }
-            );
+            for (int i = 0; i < lineCount; i++)
+            {
+                auto lineInfo = m_Buffer.GetLines()[m_CurrentTopLineNumber + i];
+                auto first = m_Buffer.GetFragments().begin() + lineInfo.Offset;
+                auto last = first + lineInfo.Length;
+
+                int x = -m_CurrentLeftColumnNumber * m_FontWidth;
+                int y = i * m_FontHeight;
+
+                std::for_each(
+                    first,
+                    last,
+                    [str = m_Buffer.GetString(), hWnd = m_hWnd, hDC = m_hBackDC, &x, y, fontWidth = m_FontWidth] (const StyledLineFragment& lf)
+                    {
+                        ::SetTextColor(hDC, lf.Color);
+                        ::TextOut(hDC, x, y, str.data() + lf.Offset, lf.Length);
+                        x += lf.Length * fontWidth;
+                    }
+                );
+            }
         }
 
         ::BitBlt(hDC, 0, 0, rc.right - rc.left, rc.bottom - rc.top, m_hBackDC, 0, 0, SRCCOPY);
@@ -373,6 +541,8 @@ private:
 
     void OnVScroll(WPARAM wParam, LPARAM)
     {
+        auto lock = m_Lock.LockUnique();
+
         switch (LOWORD(wParam))
         {
         case SB_TOP:
@@ -414,11 +584,13 @@ private:
             break;
         }
 
-        UpdateScrollBars();
+        InvalidateRect(m_hWnd, nullptr, true);
     }
 
     void OnHScroll(WPARAM wParam, LPARAM)
     {
+        auto lock = m_Lock.LockUnique();
+
         switch (LOWORD(wParam))
         {
         case SB_LEFT:
@@ -460,48 +632,62 @@ private:
             break;
         }
 
-        UpdateScrollBars();
+        InvalidateRect(m_hWnd, nullptr, true);
     }
 
     void OnMouseWheel(WPARAM wParam, LPARAM)
     {
+        auto lock = m_Lock.LockUnique();
+
         m_CurrentTopLineNumber = std::clamp(
             m_CurrentTopLineNumber - GET_WHEEL_DELTA_WPARAM(wParam) * 3 / WHEEL_DELTA,
             0,
             GetMaxTopLineNumber()
         );
 
-        UpdateScrollBars();
+        InvalidateRect(m_hWnd, nullptr, true);
     }
 
     void OnMouseHWheel(WPARAM wParam, LPARAM)
     {
+        auto lock = m_Lock.LockUnique();
+
         m_CurrentLeftColumnNumber = std::clamp(
             m_CurrentLeftColumnNumber + GET_WHEEL_DELTA_WPARAM(wParam) * 4 / WHEEL_DELTA,
             0,
             GetMaxLeftColumnNumber()
         );
 
-        UpdateScrollBars();
+        InvalidateRect(m_hWnd, nullptr, true);
     }
 
     void OnKeyDown(WPARAM wParam, LPARAM)
     {
+        auto lock = m_Lock.LockUnique();
+
         switch (wParam)
         {
         case VK_UP:
+        case 'K':
+        case 'P':
             m_CurrentTopLineNumber = std::max(0, m_CurrentTopLineNumber - 1);
             break;
 
         case VK_DOWN:
+        case 'J':
+        case 'N':
             m_CurrentTopLineNumber = std::min(m_CurrentTopLineNumber + 1, GetMaxTopLineNumber());
             break;
 
         case VK_LEFT:
+        case 'H':
+        case 'B':
             m_CurrentLeftColumnNumber = std::max(0, m_CurrentLeftColumnNumber - 1);
             break;
 
         case VK_RIGHT:
+        case 'L':
+        case 'F':
             m_CurrentLeftColumnNumber = std::min(m_CurrentLeftColumnNumber + 1, GetMaxLeftColumnNumber());
             break;
 
@@ -509,40 +695,12 @@ private:
             break;
         }
 
-        UpdateScrollBars();
+        InvalidateRect(m_hWnd, nullptr, true);
     }
 
-    void OnNewConsoleClear()
+    void OnTimer(WPARAM, LPARAM)
     {
-        m_Buffer.Clear();
-        UpdateScrollBars();
-    }
-
-    void OnNewConsoleWrite(WPARAM wParam, LPARAM lParam)
-    {
-        bool shouldAutoScroll = ShouldAutoScroll();
-        m_Buffer.Append(static_cast<COLORREF>(wParam), reinterpret_cast<LPCTSTR>(lParam));
-
-        if (shouldAutoScroll)
-        {
-            DoAutoScroll();
-        }
-
-        UpdateScrollBars();
-    }
-
-    void OnNewConsoleWriteLine(WPARAM wParam, LPARAM lParam)
-    {
-        bool shouldAutoScroll = ShouldAutoScroll();
-        m_Buffer.Append(static_cast<COLORREF>(wParam), reinterpret_cast<LPCTSTR>(lParam));
-        m_Buffer.AppendNewline();
-
-        if (shouldAutoScroll)
-        {
-            DoAutoScroll();
-        }
-
-        UpdateScrollBars();
+        InvalidateRect(m_hWnd, nullptr, true);
     }
 
     void InitializeGDIResource()
@@ -661,36 +819,32 @@ private:
         m_CurrentTopLineNumber = GetMaxTopLineNumber();
     }
 
-    void UpdateScrollBars()
+    void UpdateScrollBarsNoLock()
     {
-        {
-            SCROLLINFO si = {};
-            si.cbSize = sizeof(SCROLLINFO);
-            si.fMask = SIF_ALL;
-            si.nMin = 0;
-            si.nMax = m_Buffer.GetLineCount() - 1;
-            si.nPage = static_cast<UINT>(GetVisibleLinesInWindow());
-            si.nPos = m_CurrentTopLineNumber;
+        SCROLLINFO siv = {};
+        SCROLLINFO sih = {};
 
-            ::SetScrollInfo(m_hWnd, SB_VERT, &si, true);
-        }
+        siv.cbSize = sizeof(SCROLLINFO);
+        siv.fMask = SIF_ALL | SIF_DISABLENOSCROLL;
+        siv.nMin = 0;
+        siv.nMax = m_Buffer.GetLineCount() - 1;
+        siv.nPage = static_cast<UINT>(GetVisibleLinesInWindow());
+        siv.nPos = m_CurrentTopLineNumber;
 
-        {
-            SCROLLINFO si = {};
-            si.cbSize = sizeof(SCROLLINFO);
-            si.fMask = SIF_ALL;
-            si.nMin = 0;
-            si.nMax = m_Buffer.GetMaxColumnLength() - 1;
-            si.nPage = static_cast<UINT>(GetVisileColumnsInWindow());
-            si.nPos = m_CurrentLeftColumnNumber;
+        sih.cbSize = sizeof(SCROLLINFO);
+        sih.fMask = SIF_ALL | SIF_DISABLENOSCROLL;
+        sih.nMin = 0;
+        sih.nMax = m_Buffer.GetMaxColumnLength() - 1;
+        sih.nPage = static_cast<UINT>(GetVisileColumnsInWindow());
+        sih.nPos = m_CurrentLeftColumnNumber;
 
-            ::SetScrollInfo(m_hWnd, SB_HORZ, &si, true);
-        }
-
-        InvalidateRect(m_hWnd, nullptr, true);
+        ::SetScrollInfo(m_hWnd, SB_VERT, &siv, true);
+        ::SetScrollInfo(m_hWnd, SB_HORZ, &sih, true);
     }
 
 	StyledTextBuffer& m_Buffer;
+    SRWLock m_Lock;
+
 	HWND m_hWnd = nullptr;
 
     // scroll info
@@ -710,6 +864,18 @@ private:
 
 extern "C" void ClearNewConsoleBuffer(void)
 {
+    if (::IsWindow(hConsoleWnd))
+    {
+        auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(
+            ::GetWindowLongPtr(::GetDlgItem(hConsoleWnd, IDC_EDIT), GWLP_USERDATA)
+        );
+
+        if (pConsoleWindow)
+        {
+            pConsoleWindow->Clear();
+        }
+    }
+
     TimW32gNewConsole::GlobalNewConsoleBuffer.Clear();
 }
 
@@ -738,7 +904,7 @@ extern "C" void NewConsoleBufferWriteCMsg(int type, int verbosity_level, LPCTSTR
 
         if (pConsoleWindow)
         {
-            pConsoleWindow->WriteLine(color, str);
+            pConsoleWindow->Write(color, str, true);
             return;
         }
     }
