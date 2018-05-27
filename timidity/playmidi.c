@@ -13555,7 +13555,7 @@ static int play_midi_load_file(char *fn,
 	file_from_stdin = 0;
 
     ctl_mode_event(CTLE_NOW_LOADING, 0, (ptr_size_t)fn, 0);
-    ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "MIDI file: %s", fn);
+    ctl->cmsg(CMSG_INFO, VERB_NORMAL, "MIDI file: %s", fn);
     if((tf = open_midi_file(fn, 1, OF_VERBOSE)) == NULL)
     {
 	ctl_mode_event(CTLE_LOADING_DONE, 0, -1, 0);
