@@ -269,15 +269,15 @@ struct TextLocationInfo
 
 struct StyledLineFragment
 {
-	std::size_t Offset;	// offset in std::string
-	std::size_t Length;
-	COLORREF Color;
+    std::size_t Offset;	// offset in std::string
+    std::size_t Length;
+    COLORREF Color;
 };
 
 struct StyledLine
 {
-	std::size_t Offset;	// offset in std::vector<StyledLineFragment>
-	std::size_t Length;
+    std::size_t Offset;	// offset in std::vector<StyledLineFragment>
+    std::size_t Length;
 };
 
 class StyledTextBuffer
@@ -287,53 +287,53 @@ public:
     {
     }
 
-	void Clear()
-	{
-		m_Fragments.clear();
-		m_Lines.clear();
-		m_String.clear();
+    void Clear()
+    {
+        m_Fragments.clear();
+        m_Lines.clear();
+        m_String.clear();
         m_MaxColumnLength = 0;
-	}
+    }
 
-	void Append(COLORREF color, LPCTSTR pText)
-	{
-		Append(color, TStringView(pText));
-	}
+    void Append(COLORREF color, LPCTSTR pText)
+    {
+        Append(color, TStringView(pText));
+    }
 
-	void Append(COLORREF color, TStringView text)
-	{
-		std::size_t offset = 0;
+    void Append(COLORREF color, TStringView text)
+    {
+        std::size_t offset = 0;
 
-		while (offset < text.size())
-		{
+        while (offset < text.size())
+        {
             // split input into lines
-			std::size_t nlOffset = text.find_first_of(_T("\r\n"), offset);
+            std::size_t nlOffset = text.find_first_of(_T("\r\n"), offset);
 
-			if (nlOffset == text.npos)
-			{
-				AppendNoNewline(color, text.substr(offset));
-				break;
-			}
-			else
-			{
-				if (offset < nlOffset)
-				{
-					AppendNoNewline(color, text.substr(offset, offset - nlOffset));
-				}
+            if (nlOffset == text.npos)
+            {
+                AppendNoNewline(color, text.substr(offset));
+                break;
+            }
+            else
+            {
+                if (offset < nlOffset)
+                {
+                    AppendNoNewline(color, text.substr(offset, offset - nlOffset));
+                }
 
-				AppendNewline();
+                AppendNewline();
 
-				if (text[nlOffset] == _T('\r') && nlOffset + 1 < text.size() && text[nlOffset + 1] == _T('\n'))
-				{
-					offset = nlOffset + 2;
-				}
-				else
-				{
-					offset = nlOffset + 1;
-				}
-			}
-		}
-	}
+                if (text[nlOffset] == _T('\r') && nlOffset + 1 < text.size() && text[nlOffset + 1] == _T('\n'))
+                {
+                    offset = nlOffset + 2;
+                }
+                else
+                {
+                    offset = nlOffset + 1;
+                }
+            }
+        }
+    }
 
     void AppendNewline()
     {
@@ -341,9 +341,9 @@ public:
     }
 
     std::size_t GetLineCount() const
-	{
-		return m_Lines.size();
-	}
+    {
+        return m_Lines.size();
+    }
 
     std::size_t GetMaxColumnLength() const
     {
@@ -367,20 +367,20 @@ public:
         );
     }
 
-	TStringView GetString() const
-	{
-		return m_String;
-	}
+    TStringView GetString() const
+    {
+        return m_String;
+    }
 
-	const std::vector<StyledLine>& GetLines() const
-	{
-		return m_Lines;
-	}
+    const std::vector<StyledLine>& GetLines() const
+    {
+        return m_Lines;
+    }
 
-	const std::vector<StyledLineFragment>& GetFragments() const
-	{
-		return m_Fragments;
-	}
+    const std::vector<StyledLineFragment>& GetFragments() const
+    {
+        return m_Fragments;
+    }
 
     TStringView GetLineString(std::size_t line) const
     {
@@ -413,30 +413,30 @@ public:
     }
 
 private:
-	void AppendNoNewline(COLORREF color, TStringView text)
-	{
-		std::size_t stringOffset = m_String.size();
-		m_String.append(text);
+    void AppendNoNewline(COLORREF color, TStringView text)
+    {
+        std::size_t stringOffset = m_String.size();
+        m_String.append(text);
 
-		std::size_t fragmentOffset = m_Fragments.size();
-		m_Fragments.push_back({stringOffset, text.size(), color});
+        std::size_t fragmentOffset = m_Fragments.size();
+        m_Fragments.push_back({stringOffset, text.size(), color});
 
-		if (m_Lines.empty())
-		{
-			m_Lines.push_back({fragmentOffset, 1});
-		}
-		else
-		{
-			m_Lines.back().Length++;
-		}
+        if (m_Lines.empty())
+        {
+            m_Lines.push_back({fragmentOffset, 1});
+        }
+        else
+        {
+            m_Lines.back().Length++;
+        }
 
         // update m_MaxColumnLength
         m_MaxColumnLength = std::max(GetColumnLength(GetLineCount() - 1), m_MaxColumnLength);
-	}
+    }
 
-	TString m_String;
-	std::vector<StyledLine> m_Lines;
-	std::vector<StyledLineFragment> m_Fragments;
+    TString m_String;
+    std::vector<StyledLine> m_Lines;
+    std::vector<StyledLineFragment> m_Fragments;
     std::size_t m_MaxColumnLength = 0;    // max number of characters in line
 };
 
@@ -449,25 +449,25 @@ public:
     {
     }
 
-	NewConsoleWindow(const NewConsoleWindow&) = delete;
-	NewConsoleWindow& operator=(const NewConsoleWindow&) = delete;
-	~NewConsoleWindow() = default;
+    NewConsoleWindow(const NewConsoleWindow&) = delete;
+    NewConsoleWindow& operator=(const NewConsoleWindow&) = delete;
+    ~NewConsoleWindow() = default;
 
-	void Clear()
-	{
+    void Clear()
+    {
         auto lock = m_Lock.LockUnique();
         m_Buffer.Clear();
-	}
+    }
 
-	void Write(LPCTSTR pText)
-	{
+    void Write(LPCTSTR pText)
+    {
         Write(NormalColor, pText, false);
-	}
+    }
 
-	void WriteV(LPCTSTR pFormat, va_list args)
-	{
-		std::array<TCHAR, BUFSIZ> buf;
-		std::vsnprintf(buf.data(), buf.size(), pFormat, args);
+    void WriteV(LPCTSTR pFormat, va_list args)
+    {
+        std::array<TCHAR, BUFSIZ> buf;
+        std::vsnprintf(buf.data(), buf.size(), pFormat, args);
         Write(NormalColor, buf.data(), false);
     }
 
@@ -490,40 +490,40 @@ public:
     }
 
     static LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-	{
-		auto pConsoleWindow = reinterpret_cast<NewConsoleWindow*>(::GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    {
+        auto pConsoleWindow = reinterpret_cast<NewConsoleWindow*>(::GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-		switch (msg)
-		{
-		case WM_CREATE:
-			pConsoleWindow = new NewConsoleWindow(GlobalNewConsoleBuffer);
-			::SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pConsoleWindow));
-			pConsoleWindow->m_hWnd = hWnd;
+        switch (msg)
+        {
+        case WM_CREATE:
+            pConsoleWindow = new NewConsoleWindow(GlobalNewConsoleBuffer);
+            ::SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pConsoleWindow));
+            pConsoleWindow->m_hWnd = hWnd;
             pConsoleWindow->OnCreate();
-			return 0;
+            return 0;
 
-		case WM_DESTROY:
-			if (pConsoleWindow)
-			{
+        case WM_DESTROY:
+            if (pConsoleWindow)
+            {
                 pConsoleWindow->OnDestroy();
-				pConsoleWindow->m_hWnd = nullptr;
-				::SetWindowLongPtr(hWnd, GWLP_USERDATA, 0);
-				delete pConsoleWindow;
-			}
-			return 0;
+                pConsoleWindow->m_hWnd = nullptr;
+                ::SetWindowLongPtr(hWnd, GWLP_USERDATA, 0);
+                delete pConsoleWindow;
+            }
+            return 0;
 
-		default:
-			if (pConsoleWindow)
-			{
+        default:
+            if (pConsoleWindow)
+            {
                 switch (msg)
                 {
-				case WM_SIZE:
-					pConsoleWindow->OnSize();
-					return 0;
+                case WM_SIZE:
+                    pConsoleWindow->OnSize();
+                    return 0;
 
-				case WM_PAINT:
-					pConsoleWindow->OnPaint();
-					return 0;
+                case WM_PAINT:
+                    pConsoleWindow->OnPaint();
+                    return 0;
 
                 case WM_VSCROLL:
                     pConsoleWindow->OnVScroll(wParam, lParam);
@@ -564,12 +564,12 @@ public:
                 default:
                     break;
                 }
-			}
-			break;
-		}
+            }
+            break;
+        }
 
-		return ::DefWindowProc(hWnd, msg, wParam, lParam);
-	}
+        return ::DefWindowProc(hWnd, msg, wParam, lParam);
+    }
 
 private:
     void OnCreate()
@@ -577,30 +577,30 @@ private:
         ::SetTimer(m_hWnd, 1, 200, nullptr);
 
         ::ShowScrollBar(m_hWnd, SB_BOTH, true);
-		InitializeGDIResource();
+        InitializeGDIResource();
         InvalidateRect(m_hWnd, nullptr, true);
     }
 
     void OnDestroy()
     {
-		UninitializeGDIResource();
+        UninitializeGDIResource();
     }
 
-	void OnSize()
-	{
-		// Recreate everything
-		InitializeGDIResource();
+    void OnSize()
+    {
+        // Recreate everything
+        InitializeGDIResource();
         InvalidateRect(m_hWnd, nullptr, true);
     }
 
-	void OnPaint()
-	{
-		PAINTSTRUCT ps;
-		HDC hDC = ::BeginPaint(m_hWnd, &ps);
+    void OnPaint()
+    {
+        PAINTSTRUCT ps;
+        HDC hDC = ::BeginPaint(m_hWnd, &ps);
 
-		RECT rc;
-		::GetClientRect(m_hWnd, &rc);
-		::FillRect(m_hBackDC, &rc, m_hBgBrush);
+        RECT rc;
+        ::GetClientRect(m_hWnd, &rc);
+        ::FillRect(m_hBackDC, &rc, m_hBgBrush);
 
         {
             auto lock = m_Lock.LockShared();
@@ -648,8 +648,8 @@ private:
         }
 
         ::BitBlt(hDC, 0, 0, rc.right - rc.left, rc.bottom - rc.top, m_hBackDC, 0, 0, SRCCOPY);
-		::EndPaint(m_hWnd, &ps);
-	}
+        ::EndPaint(m_hWnd, &ps);
+    }
 
     void OnVScroll(WPARAM wParam, LPARAM)
     {
@@ -886,56 +886,56 @@ private:
     }
 
     void InitializeGDIResource()
-	{
-		UninitializeGDIResource();
+    {
+        UninitializeGDIResource();
 
-		HDC hDC = ::GetDC(m_hWnd);
-		m_hBackDC = ::CreateCompatibleDC(hDC);
-		m_SavedDCState = ::SaveDC(m_hBackDC);
+        HDC hDC = ::GetDC(m_hWnd);
+        m_hBackDC = ::CreateCompatibleDC(hDC);
+        m_SavedDCState = ::SaveDC(m_hBackDC);
 
-		RECT rc;
-		::GetClientRect(m_hWnd, &rc);
-		m_hBackBitmap = ::CreateCompatibleBitmap(hDC, rc.right - rc.left, rc.bottom - rc.top);
-		::SelectObject(m_hBackDC, m_hBackBitmap);
+        RECT rc;
+        ::GetClientRect(m_hWnd, &rc);
+        m_hBackBitmap = ::CreateCompatibleBitmap(hDC, rc.right - rc.left, rc.bottom - rc.top);
+        ::SelectObject(m_hBackDC, m_hBackBitmap);
 
-		::ReleaseDC(m_hWnd, hDC);
+        ::ReleaseDC(m_hWnd, hDC);
 
 #ifdef JAPANESE
-		m_hFont = ::CreateFont(
-			-14,
-			0,
-			0,
-			0,
-			FW_REGULAR,
-			false,
-			false,
-			false,
-			SHIFTJIS_CHARSET,
-			OUT_DEFAULT_PRECIS,
-			CLIP_DEFAULT_PRECIS,
-			DEFAULT_QUALITY,
-			FIXED_PITCH | FF_DONTCARE,
-			_T("ÇlÇr ÉSÉVÉbÉN")
-		);
+        m_hFont = ::CreateFont(
+            -14,
+            0,
+            0,
+            0,
+            FW_REGULAR,
+            false,
+            false,
+            false,
+            SHIFTJIS_CHARSET,
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            DEFAULT_QUALITY,
+            FIXED_PITCH | FF_DONTCARE,
+            _T("ÇlÇr ÉSÉVÉbÉN")
+        );
 #else
-		m_hFont = ::CreateFont(
-			-14,
-			0,
-			0,
-			0,
-			FW_REGULAR,
-			false,
-			false,
-			false,
-			DEFAULT_CHARSET,
-			OUT_DEFAULT_PRECIS,
-			CLIP_DEFAULT_PRECIS,
-			DEFAULT_QUALITY,
-			FIXED_PITCH | FF_DONTCARE,
-			_T("Consolas")
-		);
+        m_hFont = ::CreateFont(
+            -14,
+            0,
+            0,
+            0,
+            FW_REGULAR,
+            false,
+            false,
+            false,
+            DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            DEFAULT_QUALITY,
+            FIXED_PITCH | FF_DONTCARE,
+            _T("Consolas")
+        );
 #endif
-		::SelectObject(m_hBackDC, m_hFont);
+        ::SelectObject(m_hBackDC, m_hFont);
         ::SetBkColor(m_hBackDC, BackgroundColor);
 
         TEXTMETRIC tm;
@@ -943,29 +943,29 @@ private:
         m_FontHeight = tm.tmHeight;
         m_FontWidth = tm.tmAveCharWidth;
 
-		m_hBgBrush = ::CreateSolidBrush(BackgroundColor);
-	}
+        m_hBgBrush = ::CreateSolidBrush(BackgroundColor);
+    }
 
-	void UninitializeGDIResource()
-	{
-		if (m_hBgBrush)
-		{
-			::DeleteObject(m_hBgBrush);
-			m_hBgBrush = nullptr;
-		}
+    void UninitializeGDIResource()
+    {
+        if (m_hBgBrush)
+        {
+            ::DeleteObject(m_hBgBrush);
+            m_hBgBrush = nullptr;
+        }
 
-		if (m_hBackDC)
-		{
-			::RestoreDC(m_hBackDC, m_SavedDCState);
-			m_SavedDCState = 0;
-			::DeleteObject(m_hFont);
-			m_hFont = nullptr;
-			::DeleteObject(m_hBackBitmap);
-			m_hBackBitmap = nullptr;
-			::DeleteDC(m_hBackDC);
-			m_hBackDC = nullptr;
-		}
-	}
+        if (m_hBackDC)
+        {
+            ::RestoreDC(m_hBackDC, m_SavedDCState);
+            m_SavedDCState = 0;
+            ::DeleteObject(m_hFont);
+            m_hFont = nullptr;
+            ::DeleteObject(m_hBackBitmap);
+            m_hBackBitmap = nullptr;
+            ::DeleteDC(m_hBackDC);
+            m_hBackDC = nullptr;
+        }
+    }
 
     int GetMaxTopLineNumber() const
     {
@@ -1059,24 +1059,24 @@ private:
         };
     }
 
-	StyledTextBuffer& m_Buffer;
+    StyledTextBuffer& m_Buffer;
     std::optional<TextLocationInfo> m_SelStart;
     std::optional<TextLocationInfo> m_SelEnd;   // inclusive
     SRWLock m_Lock;
 
-	HWND m_hWnd = nullptr;
+    HWND m_hWnd = nullptr;
 
     // scroll info
     int m_CurrentTopLineNumber = 0;    // line # of the top line of the window
     int m_CurrentLeftColumnNumber = 0;
 
-	HDC m_hBackDC = nullptr;
-	int m_SavedDCState = 0;
-	HBITMAP m_hBackBitmap = nullptr;
-	HFONT m_hFont = nullptr;
+    HDC m_hBackDC = nullptr;
+    int m_SavedDCState = 0;
+    HBITMAP m_hBackBitmap = nullptr;
+    HFONT m_hFont = nullptr;
     int m_FontHeight = 0;
     int m_FontWidth = 0;   // monospace font only
-	HBRUSH m_hBgBrush = nullptr;
+    HBRUSH m_hBgBrush = nullptr;
 };
 
 } // namespace TimW32gNewConsole
@@ -1103,17 +1103,17 @@ extern "C" void NewConsoleBufferWriteCMsg(int type, int verbosity_level, LPCTSTR
     COLORREF color = TimW32gNewConsole::NormalColor;
 
     if (type == CMSG_FATAL || type == CMSG_ERROR)
-	{
+    {
         color = TimW32gNewConsole::ErrorColor;
-	}
-	else if (type == CMSG_WARNING)
-	{
+    }
+    else if (type == CMSG_WARNING)
+    {
         color = TimW32gNewConsole::WarningColor;
-	}
-	else if (type == CMSG_INFO && verbosity_level <= VERB_NORMAL)
-	{
+    }
+    else if (type == CMSG_INFO && verbosity_level <= VERB_NORMAL)
+    {
         color = TimW32gNewConsole::InfoColor;
-	}
+    }
 
     if (::IsWindow(hConsoleWnd))
     {
@@ -1135,52 +1135,52 @@ extern "C" void NewConsoleBufferWriteCMsg(int type, int verbosity_level, LPCTSTR
 extern "C" void InitializeNewConsole(void)
 {
     WNDCLASSEX wc = {};
-	wc.cbSize = sizeof(wc);
+    wc.cbSize = sizeof(wc);
 
-	if (!::GetClassInfoEx(::GetModuleHandle(nullptr), TimW32gNewConsole::pClassName, &wc))
-	{
-		wc.style = CS_HREDRAW | CS_VREDRAW;
-		wc.lpfnWndProc = &TimW32gNewConsole::NewConsoleWindow::WindowProc;
-		wc.cbClsExtra = 0;
-		wc.cbWndExtra = 0;
-		wc.hInstance = ::GetModuleHandle(nullptr);
-		wc.hIcon = nullptr;
-		wc.hCursor = ::LoadCursor(nullptr, IDC_ARROW);
-		wc.hbrBackground = nullptr;
-		wc.lpszMenuName = nullptr;
-		wc.lpszClassName = TimW32gNewConsole::pClassName;
-		wc.hIconSm = nullptr;
+    if (!::GetClassInfoEx(::GetModuleHandle(nullptr), TimW32gNewConsole::pClassName, &wc))
+    {
+        wc.style = CS_HREDRAW | CS_VREDRAW;
+        wc.lpfnWndProc = &TimW32gNewConsole::NewConsoleWindow::WindowProc;
+        wc.cbClsExtra = 0;
+        wc.cbWndExtra = 0;
+        wc.hInstance = ::GetModuleHandle(nullptr);
+        wc.hIcon = nullptr;
+        wc.hCursor = ::LoadCursor(nullptr, IDC_ARROW);
+        wc.hbrBackground = nullptr;
+        wc.lpszMenuName = nullptr;
+        wc.lpszClassName = TimW32gNewConsole::pClassName;
+        wc.hIconSm = nullptr;
 
-		::RegisterClassEx(&wc);
-	}
+        ::RegisterClassEx(&wc);
+    }
 }
 
 extern "C" void NewConsoleClear(HWND hwnd)
 {
-	auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
-	if (pConsoleWindow)
-	{
-		pConsoleWindow->Clear();
-	}
+    if (pConsoleWindow)
+    {
+        pConsoleWindow->Clear();
+    }
 }
 
 extern "C" void NewConsoleWrite(HWND hwnd, LPCTSTR str)
 {
-	auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
-	if (pConsoleWindow)
-	{
-		pConsoleWindow->Write(str);
-	}
+    if (pConsoleWindow)
+    {
+        pConsoleWindow->Write(str);
+    }
 }
 
 extern "C" void NewConsoleWriteV(HWND hwnd, LPCTSTR format, va_list args)
 {
-	auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
-	if (pConsoleWindow)
-	{
-		pConsoleWindow->WriteV(format, args);
-	}
+    if (pConsoleWindow)
+    {
+        pConsoleWindow->WriteV(format, args);
+    }
 }
