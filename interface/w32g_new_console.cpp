@@ -22,6 +22,7 @@ extern "C"
 }
 
 #include <windows.h>
+#include <windowsx.h>
 
 #include <cstddef>
 #include <cstdarg>
@@ -30,8 +31,10 @@ extern "C"
 #include <algorithm>
 #include <array>
 #include <numeric>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <tchar.h>
@@ -59,6 +62,45 @@ const COLORREF InfoColor = RGB(58, 150, 221);
 
 using TString = std::basic_string<TCHAR>;
 using TStringView = std::basic_string_view<TCHAR>;
+
+bool CopyTextToClipboard(TStringView text)
+{
+    bool ret = false;
+
+    if (::OpenClipboard(nullptr))
+    {
+        HGLOBAL hGlobal = ::GlobalAlloc(GMEM_MOVEABLE | GMEM_SHARE, (text.size() + 1) * sizeof(TCHAR));
+
+        if (hGlobal)
+        {
+            auto p = reinterpret_cast<LPTSTR>(::GlobalLock(hGlobal));
+            text.copy(p, text.size());
+            p[text.size()] = _T('\0');
+            ::GlobalUnlock(hGlobal);
+
+            ::EmptyClipboard();
+
+#ifdef UNICODE
+            UINT format = CF_UNICODETEXT;
+#else
+            UINT format = CF_TEXT;
+#endif
+
+            if (::SetClipboardData(format, hGlobal))
+            {
+                ret = true;
+            }
+            else
+            {
+                ::GlobalFree(hGlobal);
+            }
+        }
+
+        ::CloseClipboard();
+    }
+
+    return ret;
+}
 
 template<typename T>
 class UniqueLock
@@ -219,6 +261,12 @@ private:
     SRWLOCK m_Lock;
 };
 
+struct TextLocationInfo
+{
+    std::size_t Line;
+    std::size_t Column;
+};
+
 struct StyledLineFragment
 {
 	std::size_t Offset;	// offset in std::string
@@ -302,6 +350,23 @@ public:
         return m_MaxColumnLength;
     }
 
+    std::size_t GetColumnLength(std::size_t line) const
+    {
+        return std::transform_reduce(
+            m_Fragments.begin() + m_Lines[line].Offset,
+            m_Fragments.begin() + m_Lines[line].Offset + m_Lines[line].Length,
+            0,
+            [] (auto a, auto b)
+            {
+                return a + b;
+            },
+            [] (auto&& a)
+            {
+                return a.Length;
+            }
+        );
+    }
+
 	TStringView GetString() const
 	{
 		return m_String;
@@ -316,6 +381,36 @@ public:
 	{
 		return m_Fragments;
 	}
+
+    TStringView GetLineString(std::size_t line) const
+    {
+        const auto& lineInfo = m_Lines[line];
+
+        if (lineInfo.Length == 0)
+        {
+            return {};
+        }
+
+        std::size_t first = m_Fragments[lineInfo.Offset].Offset;
+        std::size_t last = lineInfo.Offset + lineInfo.Length == m_Fragments.size()
+            ? m_String.size()
+            : m_Fragments[lineInfo.Offset + lineInfo.Length].Offset;
+
+        return TStringView(m_String.data() + first, last - first);
+    }
+
+    TString CopySubstring(TextLocationInfo start, TextLocationInfo end) const
+    {
+        TString ret(GetLineString(start.Line).substr(start.Column, start.Line < end.Line ? TStringView::npos : end.Column + 1 - start.Column));
+
+        for (std::size_t line = start.Line + 1; line <= end.Line; line++)
+        {
+            ret.append(_T("\r\n"));
+            ret.append(GetLineString(line).substr(0, line < end.Line ? TStringView::npos : end.Column + 1));
+        }
+
+        return ret;
+    }
 
 private:
 	void AppendNoNewline(COLORREF color, TStringView text)
@@ -336,19 +431,7 @@ private:
 		}
 
         // update m_MaxColumnLength
-        m_MaxColumnLength = std::transform_reduce(
-            m_Fragments.begin() + m_Lines.back().Offset,
-            m_Fragments.begin() + m_Lines.back().Offset + m_Lines.back().Length,
-            m_MaxColumnLength,
-            [] (auto a, auto b)
-            {
-                return std::max(a, b);
-            },
-            [] (auto&& a)
-            {
-                return a.Length;
-            }
-        );
+        m_MaxColumnLength = std::max(GetColumnLength(GetLineCount() - 1), m_MaxColumnLength);
 	}
 
 	TString m_String;
@@ -458,6 +541,18 @@ public:
                     pConsoleWindow->OnMouseHWheel(wParam, lParam);
                     return 0;
 
+                case WM_LBUTTONDOWN:
+                    pConsoleWindow->OnLButtonDown(wParam, lParam);
+                    return 0;
+
+                case WM_LBUTTONUP:
+                    pConsoleWindow->OnLButtonUp(wParam, lParam);
+                    return 0;
+
+                case WM_MOUSEMOVE:
+                    pConsoleWindow->OnMouseMove(wParam, lParam);
+                    return 0;
+
                 case WM_KEYDOWN:
                     pConsoleWindow->OnKeyDown(wParam, lParam);
                     return 0;
@@ -532,6 +627,23 @@ private:
                         x += lf.Length * fontWidth;
                     }
                 );
+            }
+
+            if (m_SelStart.has_value() && m_SelEnd.has_value())
+            {
+                auto [x, y] = PositionFromTextLocation(*m_SelStart);
+                auto [xe, ye] = PositionFromTextLocation(*m_SelEnd);
+
+                if (m_SelStart->Line == m_SelEnd->Line)
+                {
+                    ::BitBlt(m_hBackDC, x, y, xe - x + m_FontWidth, m_FontHeight, nullptr, 0, 0, DSTINVERT);
+                }
+                else
+                {
+                    ::BitBlt(m_hBackDC, x, y, (rc.right - rc.left) - x, m_FontHeight, nullptr, 0, 0, DSTINVERT);
+                    ::BitBlt(m_hBackDC, 0, y + m_FontHeight, rc.right - rc.left, ye - (y + m_FontHeight), nullptr, 0, 0, DSTINVERT);
+                    ::BitBlt(m_hBackDC, 0, ye, xe + m_FontWidth, m_FontHeight, nullptr, 0, 0, DSTINVERT);
+                }
             }
         }
 
@@ -661,12 +773,74 @@ private:
         InvalidateRect(m_hWnd, nullptr, true);
     }
 
+    void OnLButtonDown(WPARAM, LPARAM lParam)
+    {
+        auto lock = m_Lock.LockShared();
+        m_SelStart = TextLocationFromPosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), true);
+        m_SelEnd = m_SelStart;
+
+        if (m_SelStart.has_value())
+        {
+            SetCapture(m_hWnd);
+        }
+
+        InvalidateRect(m_hWnd, nullptr, true);
+    }
+
+    void OnLButtonUp(WPARAM, LPARAM lParam)
+    {
+        if (m_SelStart.has_value())
+        {
+            ::ReleaseCapture();
+
+            auto lock = m_Lock.LockShared();
+            m_SelEnd = TextLocationFromPosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), false);
+
+            if (m_SelStart.has_value() && m_SelEnd.has_value())
+            {
+                if (std::make_pair(m_SelStart->Line, m_SelStart->Column) > std::make_pair(m_SelEnd->Line, m_SelEnd->Column))
+                {
+                    m_SelStart.swap(m_SelEnd);
+                }
+
+                CopyTextToClipboard(m_Buffer.CopySubstring(*m_SelStart, *m_SelEnd));
+            }
+            else
+            {
+                m_SelStart.reset();
+                m_SelEnd.reset();
+            }
+
+            InvalidateRect(m_hWnd, nullptr, true);
+        }
+    }
+
+    void OnMouseMove(WPARAM wParam, LPARAM lParam)
+    {
+        if (m_SelStart.has_value() && (wParam & MK_LBUTTON))
+        {
+            auto lock = m_Lock.LockShared();
+            m_SelEnd = TextLocationFromPosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), false);
+            InvalidateRect(m_hWnd, nullptr, true);
+        }
+    }
+
     void OnKeyDown(WPARAM wParam, LPARAM)
     {
         auto lock = m_Lock.LockUnique();
 
         switch (wParam)
         {
+        case 'A':
+            if (::GetKeyState(VK_CONTROL) < 0)
+            {
+                m_SelStart = {0, 0};
+                std::size_t lastLine = std::max(static_cast<std::size_t>(0), m_Buffer.GetLineCount() - 1);
+                m_SelEnd = {lastLine, std::max(static_cast<std::size_t>(0), m_Buffer.GetColumnLength(lastLine) - 1)};
+                CopyTextToClipboard(m_Buffer.CopySubstring(*m_SelStart, *m_SelEnd));
+            }
+            break;
+
         case VK_UP:
         case 'K':
         case 'P':
@@ -689,6 +863,14 @@ private:
         case 'L':
         case 'F':
             m_CurrentLeftColumnNumber = std::min(m_CurrentLeftColumnNumber + 1, GetMaxLeftColumnNumber());
+            break;
+
+        case VK_HOME:
+            m_CurrentTopLineNumber = 0;
+            break;
+
+        case VK_END:
+            m_CurrentTopLineNumber = GetMaxTopLineNumber();
             break;
 
         default:
@@ -811,7 +993,7 @@ private:
 
     bool ShouldAutoScroll() const
     {
-        return GetMaxTopLineNumber() <= m_CurrentTopLineNumber;
+        return !m_SelStart.has_value() && !m_SelEnd.has_value() && GetMaxTopLineNumber() <= m_CurrentTopLineNumber;
     }
 
     void DoAutoScroll()
@@ -842,7 +1024,44 @@ private:
         ::SetScrollInfo(m_hWnd, SB_HORZ, &sih, true);
     }
 
+    std::optional<TextLocationInfo> TextLocationFromPosition(int x, int y, bool exact) const
+    {
+        int line = m_CurrentTopLineNumber + y / m_FontHeight;
+
+        if (!exact)
+        {
+            line = std::clamp(line, 0, std::max(static_cast<int>(m_Buffer.GetLineCount() - 1), 0));
+        }
+
+        if (0 <= line && line < m_Buffer.GetLineCount())
+        {
+            int col = m_CurrentLeftColumnNumber + x / m_FontWidth;
+
+            if (!exact)
+            {
+                col = std::clamp(col, 0, std::max(static_cast<int>(m_Buffer.GetColumnLength(line) - 1), 0));
+            }
+
+            if (0 <= col && col < m_Buffer.GetColumnLength(line))
+            {
+                return TextLocationInfo{static_cast<std::size_t>(line), static_cast<std::size_t>(col)};
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    std::pair<int, int> PositionFromTextLocation(TextLocationInfo loc) const
+    {
+        return {
+            static_cast<int>((loc.Column - m_CurrentLeftColumnNumber) * m_FontWidth),
+            static_cast<int>((loc.Line - m_CurrentTopLineNumber) * m_FontHeight)
+        };
+    }
+
 	StyledTextBuffer& m_Buffer;
+    std::optional<TextLocationInfo> m_SelStart;
+    std::optional<TextLocationInfo> m_SelEnd;   // inclusive
     SRWLock m_Lock;
 
 	HWND m_hWnd = nullptr;
