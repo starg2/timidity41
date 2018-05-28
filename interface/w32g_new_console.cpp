@@ -352,17 +352,13 @@ public:
 
     std::size_t GetColumnLength(std::size_t line) const
     {
-        return std::transform_reduce(
+        return std::accumulate(
             m_Fragments.begin() + m_Lines[line].Offset,
             m_Fragments.begin() + m_Lines[line].Offset + m_Lines[line].Length,
             0,
-            [] (auto a, auto b)
+            [] (auto&& a, auto&& b)
             {
-                return a + b;
-            },
-            [] (auto&& a)
-            {
-                return a.Length;
+                return a + b.Length;
             }
         );
     }
