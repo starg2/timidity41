@@ -438,13 +438,16 @@ public:
     {
         auto initView = view;
 
-        if (!NonSpaceChar(view))
+        if (String(view, "//") || String(view, "/*") || !NonSpaceChar(view))
         {
             return false;
         }
 
-        while (NonSpaceChar(view))
+        auto curView = view;
+
+        while (!String(curView, "//") && !String(curView, "/*") && NonSpaceChar(curView))
         {
+            view = curView;
         }
 
         seq = initView;
@@ -616,7 +619,9 @@ public:
 
             auto& curView = m_InputStack.top().View;
             auto initView = curView;
-            DoSkips(curView);
+
+            // assume curview contains no preprocessor directives if m_InputStack.top().StartsAtMiddle
+            DoSkipsNL(curView);
 
             if (!m_InputStack.top().StartsAtMiddle)
             {
