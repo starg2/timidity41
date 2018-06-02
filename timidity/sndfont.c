@@ -841,8 +841,8 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
                 SampleDecodeResult sdr = decode_oggvorbis(ctf);
                 close_file(ctf);
                 sample->data = sdr.data;
-                sample->data_alloced = 1;
-                sample->data_type = SAMPLE_TYPE_INT16;
+                sample->data_alloced = sdr.data_alloced;
+                sample->data_type = sdr.data_type;
 				sample->data_length = sdr.data_length;
 
 				if (!(sample->modes & MODES_LOOPING)) {
