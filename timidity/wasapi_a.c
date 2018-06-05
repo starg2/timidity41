@@ -137,6 +137,14 @@ const IID tim_IID_IAudioClient           = {0x1CB9AD4C, 0xDBFA, 0x4C32, {0xB1, 0
 const IID tim_IID_IAudioRenderClient     = {0xF294ACFC, 0x3146, 0x4483, {0xA7, 0xBF, 0xAD, 0xDC, 0xA7, 0xC2, 0x60, 0xE2}};
 const IID tim_IID_IAudioClient2          = {0x726778CD, 0xF60A, 0x4EDA, {0x82, 0xDE, 0xE4, 0x76, 0x10, 0xCD, 0x78, 0xAA}};
 
+// Some compilers do not have the latest version of AudioClientProperties
+typedef struct {
+	UINT32 cbSize;
+	BOOL bIsOffload;
+	INT /* AUDIO_STREAM_CATEGORY */ eCategory;
+	INT /* AUDCLNT_STREAMOPTIONS */ Options;
+} timAudioClientProperties;
+
 #define SPEAKER_FRONT_LEFT        0x1
 #define SPEAKER_FRONT_RIGHT       0x2
 #define SPEAKER_FRONT_CENTER      0x4
@@ -927,25 +935,24 @@ int open_output(void)
 
 		if (SUCCEEDED(IAudioClient_QueryInterface(pAudioClient, &tim_IID_IAudioClient2, (void**)&pAudioClient2)))
 		{
-			AudioClientProperties acp = {0};
-			acp.cbSize = min(sizeof(AudioClientProperties), ver >= 4 ? 16 : 12);
+			timAudioClientProperties acp = {0};
+			acp.cbSize = (ver >= 4 ? 16 : 12);
 			acp.bIsOffload = FALSE;
 			acp.eCategory  = opt_wasapi_stream_category;
 		
-#if (NTDDI_VERSION >= NTDDI_WINBLUE) && !defined(__MINGW32__)
 			if (opt_wasapi_stream_option & 4) {
 				if (ver >= 6) // win10à»è„
-					acp.Options |= AUDCLNT_STREAMOPTIONS_AMBISONICS;
+					acp.Options |= 4 /* AUDCLNT_STREAMOPTIONS_AMBISONICS */;
 			}
 			if (opt_wasapi_stream_option & 2) {
 				if (ver >= 6) // win10à»è„
-					acp.Options |= AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;
+					acp.Options |= 2 /* AUDCLNT_STREAMOPTIONS_MATCH_FORMAT */;
 			}
 			if (opt_wasapi_stream_option & 1){
 				if(ver >= 4) // win8.1à»è„
-					acp.Options |= AUDCLNT_STREAMOPTIONS_RAW;
+					acp.Options |= 1 /* AUDCLNT_STREAMOPTIONS_RAW */;
 			}
-#endif
+
 			hr = IAudioClient2_SetClientProperties(pAudioClient2, &acp);
 			IAudioClient2_Release(pAudioClient2);
 			if (FAILED(hr))
