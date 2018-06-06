@@ -440,6 +440,12 @@ StyledTextBuffer GlobalNewConsoleBuffer;
 
 class NewConsoleWindow
 {
+    enum TimerKind
+    {
+        RedrawTimer,
+        DragScrollTimer
+    };
+
 public:
     explicit NewConsoleWindow(StyledTextBuffer& buffer) : m_Buffer(buffer)
     {
@@ -570,7 +576,7 @@ public:
 private:
     void OnCreate()
     {
-        ::SetTimer(m_hWnd, 1, 200, nullptr);
+        ::SetTimer(m_hWnd, RedrawTimer, 200, nullptr);
 
         ::ShowScrollBar(m_hWnd, SB_BOTH, true);
         InitializeGDIResource();
@@ -579,6 +585,7 @@ private:
 
     void OnDestroy()
     {
+        ::KillTimer(m_hWnd, RedrawTimer);
         UninitializeGDIResource();
     }
 
@@ -778,6 +785,7 @@ private:
         if (m_SelStart.has_value())
         {
             SetCapture(m_hWnd);
+            ::SetTimer(m_hWnd, DragScrollTimer, 100, nullptr);
         }
 
         InvalidateRect(m_hWnd, nullptr, true);
@@ -787,6 +795,7 @@ private:
     {
         if (m_SelStart.has_value())
         {
+            ::KillTimer(m_hWnd, DragScrollTimer);
             ::ReleaseCapture();
 
             auto lock = m_Lock.LockShared();
@@ -861,6 +870,14 @@ private:
             m_CurrentLeftColumnNumber = std::min(m_CurrentLeftColumnNumber + 1, GetMaxLeftColumnNumber());
             break;
 
+        case VK_PRIOR:
+            m_CurrentTopLineNumber = std::max(0, m_CurrentTopLineNumber - GetVisibleLinesInWindow());
+            break;
+
+        case VK_NEXT:
+            m_CurrentTopLineNumber = std::min(m_CurrentTopLineNumber + GetVisibleLinesInWindow(), GetMaxTopLineNumber());
+            break;
+
         case VK_HOME:
             m_CurrentTopLineNumber = 0;
             break;
@@ -876,9 +893,34 @@ private:
         InvalidateRect(m_hWnd, nullptr, true);
     }
 
-    void OnTimer(WPARAM, LPARAM)
+    void OnTimer(WPARAM wParam, LPARAM)
     {
-        InvalidateRect(m_hWnd, nullptr, true);
+        switch (wParam)
+        {
+        case RedrawTimer:
+            InvalidateRect(m_hWnd, nullptr, true);
+            break;
+
+        case DragScrollTimer:
+            {
+                POINT pt;
+                ::GetCursorPos(&pt);
+                ::ScreenToClient(m_hWnd, &pt);
+
+                auto lock = m_Lock.LockUnique();
+                DoDragScrollNoLock(pt.x, pt.y);
+
+                if (m_SelStart.has_value())
+                {
+                    m_SelEnd = TextLocationFromPosition(pt.x, pt.y, false);
+                    InvalidateRect(m_hWnd, nullptr, true);
+                }
+            }
+            break;
+
+        default:
+            break;
+        }
     }
 
     void InitializeGDIResource()
@@ -985,6 +1027,30 @@ private:
         RECT rc;
         ::GetClientRect(m_hWnd, &rc);
         return (rc.right - rc.left) / m_FontWidth;
+    }
+
+    void DoDragScrollNoLock(int x, int y)
+    {
+        RECT rc;
+        ::GetClientRect(m_hWnd, &rc);
+
+        if (x < rc.left)
+        {
+            m_CurrentLeftColumnNumber = std::max(0, m_CurrentLeftColumnNumber - 1);
+        }
+        else if (rc.right <= x)
+        {
+            m_CurrentLeftColumnNumber = std::min(m_CurrentLeftColumnNumber + 1, GetMaxLeftColumnNumber());
+        }
+
+        if (y < rc.top)
+        {
+            m_CurrentTopLineNumber = std::max(0, m_CurrentTopLineNumber - 1);
+        }
+        else if (rc.bottom <= y)
+        {
+            m_CurrentTopLineNumber = std::min(m_CurrentTopLineNumber + 1, GetMaxTopLineNumber());
+        }
     }
 
     bool ShouldAutoScroll() const
