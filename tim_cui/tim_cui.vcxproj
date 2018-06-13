@@ -345,6 +345,7 @@
     <ClCompile Include="..\timidity\benchmark_a.c" />
     <ClCompile Include="..\timidity\common.c" />
     <ClCompile Include="..\timidity\controls.c" />
+    <ClCompile Include="..\timidity\decode.c" />
     <ClCompile Include="..\timidity\effect.c" />
     <ClCompile Include="..\timidity\envelope.c" />
     <ClCompile Include="..\timidity\filter.c" />
@@ -398,6 +399,7 @@
     <ClCompile Include="..\timidity\w32g_ogg_dll.c" />
     <ClCompile Include="..\timidity\w32g_opus_dll.c" />
     <ClCompile Include="..\timidity\w32g_vorbisenc_dll.c" />
+    <ClCompile Include="..\timidity\w32g_vorbisfile_dll.c" />
     <ClCompile Include="..\timidity\w32g_vorbis_dll.c" />
     <ClCompile Include="..\timidity\w32_a.c" />
     <ClCompile Include="..\timidity\w32_gogo.c" />

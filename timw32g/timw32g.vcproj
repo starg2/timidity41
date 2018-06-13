@@ -348,6 +348,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\timidity\w32g_vorbisfile_dll.c"
+				>
+			</File>
+			<File
 				RelativePath="..\interface\wrdt_w32g.c"
 				>
 			</File>

@@ -62,6 +62,7 @@
 #include "resample.h"
 #include "interface.h"
 #include "sndfontini.h"
+#include "decode.h"
 
 ///r
 int8 sf_attenuation_neg = 0;
@@ -824,103 +825,154 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 		}
 		tf = sp->sfrom ? sfrom_sfrec->tf : rec->tf; ///r
 
+		if (rec->version >= 4) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unsupported soundfont version: %d", rec->version);
+		} else if (rec->version == 3) {
+			struct timidity_file *ctf = NULL;
+			off_size_t length = sp->len / 2;
+			off_size_t start_offset = (sp->start - rec->samplepos) / 2;
+            char *compressed_data = (char *)safe_large_malloc(length);
+			// sp->start is SAMPLEPOS + START * 2 but we want SAMPLEPOS + START
+			tf_seek(tf, sp->start - start_offset, SEEK_SET);
+            tf_read(compressed_data, length, 1, tf);
+
+            ctf = open_with_mem(compressed_data, length, OF_VERBOSE);
+
+            if (ctf) {
+                SampleDecodeResult sdr = decode_oggvorbis(ctf);
+                close_file(ctf);
+                sample->data = sdr.data;
+                sample->data_alloced = 1;
+                sample->data_type = SAMPLE_TYPE_INT16;
+				sample->data_length = sdr.data_length;
+
+				if (!(sample->modes & MODES_LOOPING)) {
+					sample->loop_start = sdr.data_length;
+					sample->loop_end = sdr.data_length + (1 << FRACTION_BITS);
+				}
+
+				if (sample->loop_end > sample->data_length + (1 << FRACTION_BITS))
+					sample->loop_end = sample->data_length + (1 << FRACTION_BITS);
+				if (sample->loop_start > sample->data_length)
+					sample->loop_start = sample->data_length;
+				if (sample->loop_start < 0)
+					sample->loop_start = 0;
+				if (sample->loop_start >= sample->loop_end)
+				{
+					sample->loop_start = sample->data_length;
+					sample->loop_end = sample->data_length + (1 << FRACTION_BITS);
+				}
+
+				if (sdr.channels > 1) {
+					sample->sample_type &= ~SF_SAMPLETYPE_MONO;
+				} else {
+					sample->sample_type |= SF_SAMPLETYPE_MONO;
+				}
+			} else {
+				ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to read compressed sample; open_with_mem() failed");
+			}
+
+			safe_free(compressed_data);
+        } else {
+
 #if defined(SF2_24BIT) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 #if 1 /* SF2_24BIT_SAMPLE_TYPE_FLOAT */
-		if(sp->lowbit > 0 ){
-		    /* 24 bit */
-		    splen_t cnt;
-		    uint8 *lowbit;
-			uint16 *highbit;
-			float *tmp_data;
+			if(sp->lowbit > 0 ){
+				/* 24 bit */
+				splen_t cnt;
+				uint8 *lowbit;
+				uint16 *highbit;
+				float *tmp_data;
 
-			frames = divi_2(sp->len);
-		    sample->data = (sample_t*)safe_large_malloc(sizeof(float) * (frames + 128));
-		    sample->data_alloced = 1;
-			sample->data_type = SAMPLE_TYPE_FLOAT;
-		    highbit = (uint16 *)safe_large_malloc(sizeof(int16) * frames); // 16bit
-		    lowbit = (uint8 *)safe_large_malloc(sizeof(int8) * frames); // 8bit			
-			tf_seek(tf, sp->start, SEEK_SET);
-			tf_read(highbit, sp->len, 1, tf);
-		    tf_seek(tf, sp->lowbit, SEEK_SET);
-		    tf_read(lowbit, frames, 1, tf);
-			tmp_data = (float *)sample->data;
-		    for(j = 0; j < frames; j++) {
-				// 24bit to int32full
-			    int32 tmp_i = 0; // 1byte 00でいいらしい？
-				tmp_i |= (uint32)lowbit[j] << 8; // 2byte
-			    tmp_i |= (uint32)highbit[j] << 16; // 3-4byte
+				frames = divi_2(sp->len);
+				sample->data = (sample_t*)safe_large_malloc(sizeof(float) * (frames + 128));
+				sample->data_alloced = 1;
+				sample->data_type = SAMPLE_TYPE_FLOAT;
+				highbit = (uint16 *)safe_large_malloc(sizeof(int16) * frames); // 16bit
+				lowbit = (uint8 *)safe_large_malloc(sizeof(int8) * frames); // 8bit			
+				tf_seek(tf, sp->start, SEEK_SET);
+				tf_read(highbit, sp->len, 1, tf);
+				tf_seek(tf, sp->lowbit, SEEK_SET);
+				tf_read(lowbit, frames, 1, tf);
+				tmp_data = (float *)sample->data;
+				for(j = 0; j < frames; j++) {
+					// 24bit to int32full
+					int32 tmp_i = 0; // 1byte 00でいいらしい？
+					tmp_i |= (uint32)lowbit[j] << 8; // 2byte
+					tmp_i |= (uint32)highbit[j] << 16; // 3-4byte
 #ifndef LITTLE_ENDIAN
-				XCHG_LONG(tmp_i)
+					XCHG_LONG(tmp_i)
 #endif
-				tmp_data[j] = (float)tmp_i * DIV_31BIT;
-		    }
-		    safe_free(highbit);
-		    safe_free(lowbit);
-			/* set a small blank loop at the tail for avoiding abnormal loop. */	
-			memset(&tmp_data[frames], 0, sizeof(float) * 128);
-			if (antialiasing_allowed)
-			  antialiasing_float((float *)sample->data, sample->data_length >> FRACTION_BITS, sample->sample_rate, play_mode->rate);
-		}else
+					tmp_data[j] = (float)tmp_i * DIV_31BIT;
+				}
+				safe_free(highbit);
+				safe_free(lowbit);
+				/* set a small blank loop at the tail for avoiding abnormal loop. */	
+				memset(&tmp_data[frames], 0, sizeof(float) * 128);
+				if (antialiasing_allowed)
+				  antialiasing_float((float *)sample->data, sample->data_length >> FRACTION_BITS, sample->sample_rate, play_mode->rate);
+			}else
 #else /* SF2_24BIT_SAMPLE_TYPE_INT32 */
-		if(sp->lowbit > 0 ){
-		    /* 24 bit */
-		    splen_t cnt;
-		    uint8 *lowbit;
-			uint16 *highbit;
-			uint32 *tmp_data;
+			if(sp->lowbit > 0 ){
+				/* 24 bit */
+				splen_t cnt;
+				uint8 *lowbit;
+				uint16 *highbit;
+				uint32 *tmp_data;
 
-			frames = divi_2(sp->len);
-		    sample->data = (sample_t*)safe_large_malloc(sizeof(int32) * (frames + 128));
-		    sample->data_alloced = 1;
-			sample->data_type = SAMPLE_TYPE_INT32;
-		    highbit = (uint16 *)safe_large_malloc(sizeof(int16) * frames); // 16bit
-		    lowbit = (uint8 *)safe_large_malloc(sizeof(int8) * frames); // 8bit			
-			tf_seek(tf, sp->start, SEEK_SET);
-			tf_read(highbit, sp->len, 1, tf);
-		    tf_seek(tf, sp->lowbit, SEEK_SET);
-		    tf_read(lowbit, frames, 1, tf);
-			tmp_data = (uint32 *)sample->data;
-		    for(j = 0; j < frames; j++) {
-				// 24bit to int32full
-			    uint32 tmp_i = 0; // 1byte 00でいいらしい？
-				tmp_i |= (uint32)lowbit[j] << 8; // 2byte
-			    tmp_i |= (uint32)highbit[j] << 16; // 3-4byte
+				frames = divi_2(sp->len);
+				sample->data = (sample_t*)safe_large_malloc(sizeof(int32) * (frames + 128));
+				sample->data_alloced = 1;
+				sample->data_type = SAMPLE_TYPE_INT32;
+				highbit = (uint16 *)safe_large_malloc(sizeof(int16) * frames); // 16bit
+				lowbit = (uint8 *)safe_large_malloc(sizeof(int8) * frames); // 8bit			
+				tf_seek(tf, sp->start, SEEK_SET);
+				tf_read(highbit, sp->len, 1, tf);
+				tf_seek(tf, sp->lowbit, SEEK_SET);
+				tf_read(lowbit, frames, 1, tf);
+				tmp_data = (uint32 *)sample->data;
+				for(j = 0; j < frames; j++) {
+					// 24bit to int32full
+					uint32 tmp_i = 0; // 1byte 00でいいらしい？
+					tmp_i |= (uint32)lowbit[j] << 8; // 2byte
+					tmp_i |= (uint32)highbit[j] << 16; // 3-4byte
 #ifndef LITTLE_ENDIAN
-				XCHG_LONG(tmp_i)
+					XCHG_LONG(tmp_i)
 #endif
-				tmp_data[j] = tmp_i;
-		    }
-		    safe_free(highbit);
-		    safe_free(lowbit);
-			/* set a small blank loop at the tail for avoiding abnormal loop. */
-		//	tmp_data[frames] = tmp_data[frames + 1] = tmp_data[frames + 2] = 0;			
-			memset(&tmp_data[frames], 0, sizeof(int32) * 128);
-			if (antialiasing_allowed)
-			  antialiasing_int32((int32 *)sample->data, sample->data_length >> FRACTION_BITS, sample->sample_rate, play_mode->rate);
-		}else
+					tmp_data[j] = tmp_i;
+				}
+				safe_free(highbit);
+				safe_free(lowbit);
+				/* set a small blank loop at the tail for avoiding abnormal loop. */
+			//	tmp_data[frames] = tmp_data[frames + 1] = tmp_data[frames + 2] = 0;			
+				memset(&tmp_data[frames], 0, sizeof(int32) * 128);
+				if (antialiasing_allowed)
+				  antialiasing_int32((int32 *)sample->data, sample->data_length >> FRACTION_BITS, sample->sample_rate, play_mode->rate);
+			}else
 #endif /* SF2_24BIT_SAMPLE_TYPE_FLOAT */
 #endif /* defined(SF2_24BIT) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)) */
-		{
-		    /* 16 bit */
-			frames = divi_2(sp->len);
-			sample->data = (sample_t *)safe_large_malloc(sizeof(sample_t) * (frames + 128));
-			memset(sample->data, 0, sizeof(sample_t) * (frames + 128));
-			sample->data_alloced = 1;
-			sample->data_type = SAMPLE_TYPE_INT16;
+			{
+				/* 16 bit */
+				frames = divi_2(sp->len);
+				sample->data = (sample_t *)safe_large_malloc(sizeof(sample_t) * (frames + 128));
+				memset(sample->data, 0, sizeof(sample_t) * (frames + 128));
+				sample->data_alloced = 1;
+				sample->data_type = SAMPLE_TYPE_INT16;
 
-			tf_seek(tf, sp->start, SEEK_SET);
-			tf_read(sample->data, sp->len, 1, tf);
+				tf_seek(tf, sp->start, SEEK_SET);
+				tf_read(sample->data, sp->len, 1, tf);
 
 #ifndef LITTLE_ENDIAN
-			for (j = 0; j < frames; j++)
-				sample->data[j] = (int16)(LE_SHORT(tmp_data[j]));
+				for (j = 0; j < frames; j++)
+					sample->data[j] = (int16)(LE_SHORT(tmp_data[j]));
 #endif
-			/* set a small blank loop at the tail for avoiding abnormal loop. */
-		//	sample->data[frames] = sample->data[frames + 1] = sample->data[frames + 2] = 0;
-			memset(&sample->data[frames], 0, sizeof(sample_t) * 128);
+				/* set a small blank loop at the tail for avoiding abnormal loop. */
+			//	sample->data[frames] = sample->data[frames + 1] = sample->data[frames + 2] = 0;
+				memset(&sample->data[frames], 0, sizeof(sample_t) * 128);
 
-			if (antialiasing_allowed)
-				antialiasing((int16 *)sample->data, sample->data_length >> FRACTION_BITS, sample->sample_rate, play_mode->rate);
+				if (antialiasing_allowed)
+					antialiasing((int16 *)sample->data, sample->data_length >> FRACTION_BITS, sample->sample_rate, play_mode->rate);
+			}
 		}
 ///r
 		/* resample it if possible */
@@ -1561,25 +1613,33 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->len = abs(vp->len);
 
     /* set loop position */
-    vp->v.loop_start = sp->startloop - vp->start;
-    vp->v.loop_end = sp->endloop - vp->start;
+	vp->v.loop_start = sp->startloop;
+	vp->v.loop_end = sp->endloop;
+
+	if (sf->version < 3) {
+		vp->v.loop_start -= vp->start;
+		vp->v.loop_end -= vp->start;
+	}
+
 	vp->v.loop_start += (tbl->val[SF_startloopAddrsHi] << 15) + tbl->val[SF_startloopAddrs];
 	vp->v.loop_end += (tbl->val[SF_endloopAddrsHi] << 15) + tbl->val[SF_endloopAddrs];
 
     /* set data length */
     vp->v.data_length = vp->len + 1;
-
-	/* fix loop position */
-	if (vp->v.loop_end > vp->len + 1)
-		vp->v.loop_end = vp->len + 1;
-	if (vp->v.loop_start > vp->len)
-		vp->v.loop_start = vp->len;
-	if (vp->v.loop_start < 0)
-		vp->v.loop_start = 0;
-	if (vp->v.loop_start >= vp->v.loop_end)
-	{
-		vp->v.loop_start = vp->len;
-		vp->v.loop_end = vp->len + 1;
+	
+	if (sf->version < 3) {
+		/* fix loop position */
+		if (vp->v.loop_end > vp->len + 1)
+			vp->v.loop_end = vp->len + 1;
+		if (vp->v.loop_start > vp->len)
+			vp->v.loop_start = vp->len;
+		if (vp->v.loop_start < 0)
+			vp->v.loop_start = 0;
+		if (vp->v.loop_start >= vp->v.loop_end)
+		{
+			vp->v.loop_start = vp->len;
+			vp->v.loop_end = vp->len + 1;
+		}
 	}
 
     /* Sample rate */

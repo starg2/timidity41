@@ -81,8 +81,8 @@
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">twsyng_c216</TargetName>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">twsyng_x64_c216</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">twsyng_c218</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">twsyng_x64_c218</TargetName>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VCInstallDir)lib\amd64;$(VCInstallDir)atlmfc\lib\amd64;$(WindowsSdkDir)lib\x64;C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\x64;</LibraryPath>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectName)_x64</TargetName>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(LibraryPath);$(VSInstallDir);$(VSInstallDir)lib\amd64;$(WindowsSdkDir)lib\x64;</LibraryPath>
@@ -310,6 +310,7 @@
     <ClCompile Include="..\timidity\audio_cnv.c" />
     <ClCompile Include="..\timidity\common.c" />
     <ClCompile Include="..\timidity\controls.c" />
+    <ClCompile Include="..\timidity\decode.c" />
     <ClCompile Include="..\timidity\effect.c" />
     <ClCompile Include="..\timidity\envelope.c" />
     <ClCompile Include="..\timidity\filter.c" />
@@ -359,6 +360,7 @@
     <ClCompile Include="..\timidity\voice_effect.c" />
     <ClCompile Include="..\timidity\vorbis_a.c" />
     <ClCompile Include="..\timidity\w32g_opus_dll.c" />
+    <ClCompile Include="..\timidity\w32g_vorbisfile_dll.c" />
     <ClCompile Include="..\timidity\w32_a.c" />
     <ClCompile Include="..\timidity\w32_gogo.c" />
     <ClCompile Include="..\timidity\w32_libFLAC_dll.c" />

@@ -267,6 +267,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\timidity\decode.c"
+				>
+			</File>
+			<File
 				RelativePath="..\timidity\effect.c"
 				>
 			</File>
@@ -532,6 +536,10 @@
 			</File>
 			<File
 				RelativePath="..\timidity\w32g_vorbisenc_dll.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\w32g_vorbisfile_dll.c"
 				>
 			</File>
 			<File

@@ -90,8 +90,8 @@
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VCInstallDir)atlmfc\lib\amd64;$(VCInstallDir)lib\amd64;$(WindowsSdkDir)lib\x64;$(FrameworkSDKDir)\lib\x64;$(WindowsSdkDir)\lib\x64;C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\x64;</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VCInstallDir)lib;$(VCInstallDir)atlmfc\lib;$(WindowsSdkDir)lib;$(FrameworkSDKDir)\lib;$(DXSDK_DIR)\ILib\x86;</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VCInstallDir)atlmfc\lib\amd64;$(VCInstallDir)lib\amd64;$(WindowsSdkDir)lib\x64;$(FrameworkSDKDir)\lib\x64;$(WindowsSdkDir)\lib\x64;C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\x64;</LibraryPath>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">timw32g_c216</TargetName>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">timw32g_x64_c216</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">timw32g_c218</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">timw32g_x64_c218</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -139,7 +139,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>setupapi.lib;comctl32.lib;libcmtd.lib;odbc32.lib;odbccp32.lib;winmm.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;comctl32.lib;odbc32.lib;odbccp32.lib;winmm.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>msvcrtd.lib;libcd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -349,6 +349,7 @@
     <ClCompile Include="..\interface\w32g_soundspec.c" />
     <ClCompile Include="..\interface\wrdt_w32g.c" />
     <ClCompile Include="..\timidity\w32g_ogg_dll.c" />
+    <ClCompile Include="..\timidity\w32g_vorbisfile_dll.c" />
     <ClCompile Include="..\timidity\w32_portaudio_dll.c" />
     <ClCompile Include="..\timidity\w32g_vorbis_dll.c" />
     <ClCompile Include="..\timidity\w32g_vorbisenc_dll.c" />

@@ -593,6 +593,10 @@ char *tf_gets(char *buff, size_t n, struct timidity_file *tf)
 
 size_t tf_read(void *buff, size_t size, size_t nitems, struct timidity_file *tf)
 {
+	if (size == 0) {
+		return 0;
+	}
+
     return url_nread(tf->url, buff, size * nitems) / size;
 }
 

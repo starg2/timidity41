@@ -313,6 +313,7 @@
   <ItemGroup>
     <ClCompile Include="..\timidity\aq.c" />
     <ClCompile Include="..\timidity\audio_cnv.c" />
+    <ClCompile Include="..\timidity\decode.c" />
     <ClCompile Include="..\timidity\envelope.c" />
     <ClCompile Include="..\timidity\freq.c" />
     <ClCompile Include="..\timidity\int_synth.c" />
@@ -328,6 +329,8 @@
     <ClCompile Include="..\timidity\sndfontini.c" />
     <ClCompile Include="..\timidity\thread.c" />
     <ClCompile Include="..\timidity\voice_effect.c" />
+    <ClCompile Include="..\timidity\w32g_vorbisfile_dll.c" />
+    <ClCompile Include="..\timidity\w32g_vorbis_dll.c" />
     <ClCompile Include="kbstr.cpp" />
     <ClCompile Include="_timidity_.c">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

@@ -226,6 +226,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\decode.c"
+				>
+			</File>
+			<File
 				RelativePath=".\effect.c"
 				>
 			</File>

@@ -1,6 +1,8 @@
 #include <string>
 #include <list>
 #include <windows.h>
+#include <commdlg.h>
+#include <shellapi.h>
 
 class CMyFileDialog
 {

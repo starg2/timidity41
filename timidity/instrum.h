@@ -116,6 +116,7 @@ enum {
 #define SF_SAMPLETYPE_RIGHT 2
 #define SF_SAMPLETYPE_LEFT 4
 #define SF_SAMPLETYPE_LINKED 8
+#define SF_SAMPLETYPE_VORBIS 0x10
 #define SF_SAMPLETYPE_ROM 0x8000
 
 typedef struct {

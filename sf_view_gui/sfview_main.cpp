@@ -1,3 +1,4 @@
+
 #define _WIN32_IE 0x500
 #define _CRT_SECURE_NO_WARNINGS
 #pragma warning(disable:4530) // アンワインド セマンティクスが無効
@@ -166,7 +167,7 @@ void ExportFile(HWND hDlg, bool bExportList)
 
 	if (bExportList) {
 		fd.setDefaultExt("txt");
-		fd.setFilter("Soundfont Preset List (*.txt)\0*.txt\0\0");
+		fd.setFilter("soundfont (*.sf2;*.sf3)\0*.sf2;*.sf3\0All files (*.*)\0*.*\0\0");
 	} else {
 		fd.setDefaultExt("cfg");
 		fd.setFilter("TiMidity++ Config File (*.cfg)\0*.cfg\0\0");
@@ -298,7 +299,7 @@ LRESULT DlgMainProc_CLOSE(HWND hDlg, WPARAM wParam, LPARAM lParam)
 
 LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-#define SET_MYWINMSG(VN) case WM_ ## VN: return DlgMainProc_## VN ##(hDlg, wParam, lParam);
+#define SET_MYWINMSG(VN) case WM_ ## VN: return DlgMainProc_## VN(hDlg, wParam, lParam);
 	switch (msg) {
 		SET_MYWINMSG(INITDIALOG);
 		SET_MYWINMSG(DROPFILES);

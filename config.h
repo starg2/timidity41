@@ -311,6 +311,7 @@
 #define AU_VORBIS 1
 #define AU_VORBIS_DLL 1
 #define VORBIS_DLL_INCLUDE_VORBISENC 1 /* ver 1.3.3 */
+//#define VORBIS_DLL_INCLUDE_VORBISFILE 1 /* ver 1.3.3 */
 #define AU_GOGO 1
 #define AU_GOGO_DLL 1
 #define AU_LAME 1
@@ -322,6 +323,7 @@
 #define AU_OPUS_DLL 1
 #define AU_SPEEX 1
 //#define AU_AO 1
+//#define AU_ASIO 1
 #define AU_PORTAUDIO 1
 #define AU_PORTAUDIO_DLL 1
 #define PORTAUDIO_V19 1
@@ -411,7 +413,7 @@
 //#undef __W32G__	/* for Win32 GUI */
 #undef IA_W32GUI	/* for Win32 GUI */
 #undef AU_VORBIS
-#undef AU_VORBIS_DLL
+//#undef AU_VORBIS_DLL
 #undef AU_GOGO
 #undef AU_GOGO_DLL
 #undef AU_LAME
@@ -433,7 +435,7 @@
 #undef AU_BENCHMARK
 #undef SMFCONV
 /* Define if you have the vorbis library (-lvorbis).  */
-#undef HAVE_LIBVORBIS
+//#undef HAVE_LIBVORBIS
 /* Define if you have the vorbis library (-lgogo).  */
 #undef HAVE_LIBGOGOL
 #endif
@@ -447,7 +449,7 @@
 #undef USE_TWSYN_BRIDGE
 /* #undef AU_NPIPE */
 #undef AU_VORBIS
-#undef AU_VORBIS_DLL
+//#undef AU_VORBIS_DLL
 #undef AU_GOGO
 #undef AU_GOGO_DLL
 /* #undef AU_PORTAUDIO */
@@ -484,7 +486,7 @@
 #undef USE_TWSYN_BRIDGE
 //#undef AU_WASAPI
 #undef AU_VORBIS
-#undef AU_VORBIS_DLL
+//#undef AU_VORBIS_DLL
 #undef AU_GOGO
 #undef AU_GOGO_DLL
 #undef AU_LAME
@@ -509,10 +511,10 @@
 #undef SMFCONV
 
 /* Define if you have the vorbis library (-lvorbis).  */
-#undef HAVE_LIBVORBIS
+//#undef HAVE_LIBVORBIS
 
 /* Define if you have the vorbis library (-lgogo).  */
-#undef HAVE_LIBGOGOL
+//#undef HAVE_LIBGOGOL
 
 #undef __W32G__	/* for Win32 GUI */
 #undef SUPPORT_SOUNDSPEC
@@ -675,7 +677,7 @@
 #undef AU_WASAPI
 #undef AU_WDMKS
 #undef AU_VORBIS
-#undef AU_VORBIS_DLL
+//#undef AU_VORBIS_DLL
 #undef AU_GOGO
 #undef AU_GOGO_DLL
 #undef AU_LAME

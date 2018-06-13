@@ -37,6 +37,9 @@
 #ifdef VORBIS_DLL_INCLUDE_VORBISENC
 #include <vorbis/vorbisenc.h>
 #endif
+#ifdef VORBIS_DLL_INCLUDE_VORBISFILE
+#include <vorbis/vorbisfile.h>
+#endif
 
 extern int load_vorbis_dll(void);
 extern void free_vorbis_dll(void);
@@ -74,6 +77,16 @@ typedef int(*type_vorbis_encode_init_vbr)(vorbis_info *vi, long channels, long r
 typedef int(*type_vorbis_encode_ctl)(vorbis_info *vi, int number, void *arg);
 #endif
 
+#ifdef VORBIS_DLL_INCLUDE_VORBISFILE
+typedef int (*type_ov_clear)(OggVorbis_File *vf);
+typedef int (*type_ov_open_callbacks)(void *datasource, OggVorbis_File *vf,
+	const char *initial, long ibytes, ov_callbacks callbacks);
+typedef ogg_int64_t(*type_ov_pcm_total)(OggVorbis_File *vf, int i);
+typedef vorbis_info *(*type_ov_info)(OggVorbis_File *vf, int link);
+typedef long (*type_ov_read)(OggVorbis_File *vf, char *buffer, int length,
+	int bigendianp, int word, int sgned, int *bitstream);
+#endif
+
 static struct vorbis_dll_ {
 	 type_vorbis_info_init vorbis_info_init;
 	 type_vorbis_info_clear vorbis_info_clear;
@@ -105,6 +118,13 @@ static struct vorbis_dll_ {
 	 type_vorbis_encode_init vorbis_encode_init;
 	 type_vorbis_encode_init_vbr vorbis_encode_init_vbr;
 	 type_vorbis_encode_ctl vorbis_encode_ctl;
+#endif
+#ifdef VORBIS_DLL_INCLUDE_VORBISFILE
+	 type_ov_clear ov_clear;
+	 type_ov_open_callbacks ov_open_callbacks;
+	 type_ov_pcm_total ov_pcm_total;
+	 type_ov_info ov_info;
+	 type_ov_read ov_read;
 #endif
 } vorbis_dll;
 
@@ -185,6 +205,18 @@ int load_vorbis_dll(void)
 	if (!vorbis_dll.vorbis_encode_init_vbr) { free_vorbis_dll(); return -1; }
 	vorbis_dll.vorbis_encode_ctl = (type_vorbis_encode_ctl) GetProcAddress(h_vorbis_dll, "vorbis_encode_ctl");
 	if (!vorbis_dll.vorbis_encode_ctl) { free_vorbis_dll(); return -1; }
+#endif
+#ifdef VORBIS_DLL_INCLUDE_VORBISFILE
+    vorbis_dll.ov_clear = (type_ov_clear)GetProcAddress(h_vorbis_dll, "ov_clear");
+    if (!vorbis_dll.ov_clear) { free_vorbis_dll(); return -1; }
+    vorbis_dll.ov_open_callbacks = (type_ov_open_callbacks)GetProcAddress(h_vorbis_dll, "ov_open_callbacks");
+    if (!vorbis_dll.ov_open_callbacks) { free_vorbis_dll(); return -1; }
+    vorbis_dll.ov_pcm_total = (type_ov_pcm_total)GetProcAddress(h_vorbis_dll, "ov_pcm_total");
+    if (!vorbis_dll.ov_pcm_total) { free_vorbis_dll(); return -1; }
+    vorbis_dll.ov_info = (type_ov_info)GetProcAddress(h_vorbis_dll, "ov_info");
+    if (!vorbis_dll.ov_info) { free_vorbis_dll(); return -1; }
+    vorbis_dll.ov_read = (type_ov_read)GetProcAddress(h_vorbis_dll, "ov_read");
+    if (!vorbis_dll.ov_read) { free_vorbis_dll(); return -1; }
 #endif
 	return 0;
 }
@@ -418,6 +450,57 @@ int vorbis_encode_ctl(vorbis_info *vi, int number, void *arg)
 	}
 	return (int)0;
 }
+#endif
+
+#ifdef VORBIS_DLL_INCLUDE_VORBISFILE
+
+int ov_clear(OggVorbis_File *vf)
+{
+	if (h_vorbis_dll) {
+		return vorbis_dll.ov_clear(vf);
+	}
+
+	return -1;
+}
+
+int ov_open_callbacks(void *datasource, OggVorbis_File *vf,
+	const char *initial, long ibytes, ov_callbacks callbacks)
+{
+	if (h_vorbis_dll) {
+		return vorbis_dll.ov_open_callbacks(datasource, vf, initial, ibytes, callbacks);
+	}
+
+	return -1;
+}
+
+ogg_int64_t ov_pcm_total(OggVorbis_File *vf, int i)
+{
+	if (h_vorbis_dll) {
+		return vorbis_dll.ov_pcm_total(vf, i);
+	}
+
+	return -1;
+}
+
+vorbis_info *ov_info(OggVorbis_File *vf, int link)
+{
+	if (h_vorbis_dll) {
+		return vorbis_dll.ov_info(vf, link);
+	}
+
+	return NULL;
+}
+
+long ov_read(OggVorbis_File *vf, char *buffer, int length,
+	int bigendianp, int word, int sgned, int *bitstream)
+{
+	if (h_vorbis_dll) {
+		return vorbis_dll.ov_read(vf, buffer, length, bigendianp, word, sgned, bitstream);
+	}
+
+	return -1;
+}
+
 #endif
 
 /***************************************************************/

@@ -261,6 +261,7 @@
     <ClCompile Include="audio_cnv.c" />
     <ClCompile Include="common.c" />
     <ClCompile Include="controls.c" />
+    <ClCompile Include="decode.c" />
     <ClCompile Include="effect.c" />
     <ClCompile Include="envelope.c" />
     <ClCompile Include="filter.c" />

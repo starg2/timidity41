@@ -235,8 +235,6 @@ static int open_output(void)
     dpm.encoding = validate_encoding(dpm.encoding, include_enc, exclude_enc);
 
     if(dpm.name == NULL) {
-      if (!current_file_info || !current_file_info->filename)
-        return -1;
       dpm.flag |= PF_AUTO_SPLIT_FILE;
     } else {
       dpm.flag &= ~PF_AUTO_SPLIT_FILE;
