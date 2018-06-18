@@ -22,13 +22,14 @@
 #define IDM_OPT_APPEND_COMMENT          40010
 #define IDM_OPT_APPEND_FSPACES          40011
 #define IDM_OPT_KEEP_FULLPATH           40012
+#define IDM_OPT_PREPEND_BASEDIR         40013
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        105
-#define _APS_NEXT_COMMAND_VALUE         40013
+#define _APS_NEXT_COMMAND_VALUE         40014
 #define _APS_NEXT_CONTROL_VALUE         1004
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

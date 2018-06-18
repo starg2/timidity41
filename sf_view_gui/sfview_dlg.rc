@@ -23,6 +23,7 @@ BEGIN
 		MENUITEM "Append first spaces(&P)", IDM_OPT_APPEND_FSPACES
 		MENUITEM SEPARATOR
 		MENUITEM "Keep original full-path(&K)", IDM_OPT_KEEP_FULLPATH
+		MENUITEM "Prepend ""dir ${basedir}""(&D)", IDM_OPT_PREPEND_BASEDIR
 	END
 END
 

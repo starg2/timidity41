@@ -80,14 +80,13 @@ extern "C" void InsertDrum(int bank, int preset, int note, const char *str, cons
 	}
 }
 
-void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outComment, int outSpace, int keepFullPath)
+void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outComment, int outSpace, int keepFullPath, int prependBaseDir)
 {
 	FILE *fp = fopen(outFileName, "w");
+	if (!outListEnable && prependBaseDir)
+		fprintf(fp, "dir \"${basedir}\"\n");
 	for (std::map< int, std::map< int, sfvSFInst > >::iterator it =  g_sfInst.begin(); it != g_sfInst.end(); ++it) {
-		if (outListEnable)
-			fprintf(fp, "bank %d\n", (*it).first);
-		else
-			fprintf(fp, "bank %d\n", (*it).first);
+		fprintf(fp, "bank %d\n", (*it).first);
 		for (std::map< int, sfvSFInst >::iterator itc = (*it).second.begin(); itc != (*it).second.end(); ++itc) {
 			const char *file = (*itc).second.str.c_str();
 			const int program = (*itc).first;
@@ -152,8 +151,8 @@ void ExportFile(HWND hDlg, bool bExportList)
 {
 	MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
 	HMENU hMenu = GetMenu(hDlg);
-	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH };
-	BOOL states[] = { FALSE, FALSE, FALSE };
+	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH, IDM_OPT_PREPEND_BASEDIR};
+	BOOL states[] = { FALSE, FALSE, FALSE, FALSE };
 	CMyFileDialog fd;
 	fd.setSaveDlgDefaultSetting();
 	fd.setTitle("Export filename ..");
@@ -172,13 +171,15 @@ void ExportFile(HWND hDlg, bool bExportList)
 		fd.setDefaultExt("cfg");
 		fd.setFilter("TiMidity++ Config File (*.cfg)\0*.cfg\0\0");
 	}
-	if (fd.Execute()) {
-		SFView_ExportConfigFile((char*)fd.getFile(0),
-					(int)bExportList,
-					(int)states[0],
-					(int)states[1],
-					(int)states[2]);
-	}
+    if (fd.Execute()) {
+        SFView_ExportConfigFile((char*)fd.getFile(0),
+            (int)bExportList,
+            (int)states[0],
+            (int)states[1],
+            (int)states[2],
+            (int)states[3]
+        );
+    }
 }
 
 HIMAGELIST g_hil = NULL;
@@ -188,8 +189,8 @@ LRESULT DlgMainProc_INITDIALOG(HWND hDlg, WPARAM wParam, LPARAM lParam)
 {
 	MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
 	HMENU hMenu = GetMenu(hDlg);
-	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH };
-	CONST UINT states[] = { MFS_UNCHECKED, MFS_UNCHECKED, MFS_CHECKED };
+	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH, IDM_OPT_PREPEND_BASEDIR};
+	CONST UINT states[] = { MFS_CHECKED, MFS_UNCHECKED, MFS_UNCHECKED, MFS_CHECKED };
 
 	if (__argc == 2) {
 		ResetSoundFontTree(hDlg);
@@ -276,6 +277,7 @@ LRESULT DlgMainProc_COMMAND(HWND hDlg, WPARAM wParam, LPARAM lParam)
 	case IDM_OPT_APPEND_COMMENT:
 	case IDM_OPT_APPEND_FSPACES:
 	case IDM_OPT_KEEP_FULLPATH:
+    case IDM_OPT_PREPEND_BASEDIR:
 		hMenu = GetMenu(hDlg);
 		mii.fMask = MIIM_STATE | MIIM_ID;
 		GetMenuItemInfo(hMenu, LOWORD(wParam), FALSE, &mii);
