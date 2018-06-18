@@ -2,6 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #pragma warning(disable:4530) // アンワインド セマンティクスが無効
 #include <windows.h>
+#include <windowsx.h>
 #include <commctrl.h>
 #include "resource.h"
 #pragma comment(lib, "shlwapi.lib")
@@ -296,6 +297,43 @@ LRESULT DlgMainProc_CLOSE(HWND hDlg, WPARAM wParam, LPARAM lParam)
 	return TRUE;
 }
 
+LRESULT DlgMainProc_SIZE(HWND hDlg, WPARAM wParam, LPARAM lParam)
+{
+    if (wParam != SC_MINIMIZE) {
+        SetWindowPos(
+            GetDlgItem(hDlg, IDC_TREE1),
+            NULL,
+            0,
+            0,
+            GET_X_LPARAM(lParam),
+            GET_Y_LPARAM(lParam) - 17,
+            SWP_NOACTIVATE | SWP_NOZORDER
+        );
+
+        SetWindowPos(
+            GetDlgItem(hDlg, IDC_EDSFLABEL),
+            NULL,
+            0,
+            GET_Y_LPARAM(lParam) - 16,
+            99,
+            16,
+            SWP_NOACTIVATE | SWP_NOZORDER
+        );
+
+        SetWindowPos(
+            GetDlgItem(hDlg, IDC_EDSFNAME),
+            NULL,
+            100,
+            GET_Y_LPARAM(lParam) - 16,
+            GET_X_LPARAM(lParam) - 100,
+            16,
+            SWP_NOACTIVATE | SWP_NOZORDER
+        );
+    }
+
+    return TRUE;
+}
+
 LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 #define SET_MYWINMSG(VN) case WM_ ## VN: return DlgMainProc_## VN(hDlg, wParam, lParam);
@@ -304,6 +342,7 @@ LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		SET_MYWINMSG(DROPFILES);
 		SET_MYWINMSG(COMMAND);
 		SET_MYWINMSG(CLOSE);
+		SET_MYWINMSG(SIZE);
 	}
 #undef  SET_MYWINMSG
 	return FALSE;
