@@ -1,6 +1,6 @@
 
 add_definitions(
-    [[-DDEFAULT_PATH=".\\"]]
+    [[-DDEFAULT_PATH="./"]]
 )
 
 # calcnewton
