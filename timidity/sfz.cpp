@@ -9,6 +9,9 @@ extern "C"
 #include "timidity.h"
 #include "common.h"
 #include "controls.h"
+#include "output.h"
+#include "instrum.h"
+#include "playmidi.h"
 #include "tables.h"
 
 #include "sfz.h"
@@ -18,6 +21,7 @@ Instrument *extract_sample_file(char *sample_file);
 }
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 
@@ -36,6 +40,14 @@ Instrument *extract_sample_file(char *sample_file);
 #include <utility>
 #include <variant>
 #include <vector>
+
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
 
 namespace TimSFZ
 {
@@ -789,6 +801,12 @@ private:
 
 enum class OpCodeKind
 {
+    AmpEG_Attack,
+    AmpEG_Decay,
+    AmpEG_Delay,
+    AmpEG_Hold,
+    AmpEG_Release,
+    AmpEG_Sustain,
     HiKey,
     HiVelocity,
     LoKey,
@@ -917,6 +935,12 @@ public:
                             }
                             break;
 
+                        case OpCodeKind::AmpEG_Attack:
+                        case OpCodeKind::AmpEG_Decay:
+                        case OpCodeKind::AmpEG_Delay:
+                        case OpCodeKind::AmpEG_Hold:
+                        case OpCodeKind::AmpEG_Release:
+                        case OpCodeKind::AmpEG_Sustain:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
@@ -1036,6 +1060,12 @@ private:
         }
 
         static const std::unordered_map<std::string_view, OpCodeKind> OpCodeMap{
+            {"ampeg_attack"sv, OpCodeKind::AmpEG_Attack},
+            {"ampeg_decay"sv, OpCodeKind::AmpEG_Decay},
+            {"ampeg_delay"sv, OpCodeKind::AmpEG_Delay},
+            {"ampeg_hold"sv, OpCodeKind::AmpEG_Hold},
+            {"ampeg_release"sv, OpCodeKind::AmpEG_Release},
+            {"ampeg_sustain"sv, OpCodeKind::AmpEG_Sustain},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hivel"sv, OpCodeKind::HiVelocity},
             {"lokey"sv, OpCodeKind::LoKey},
@@ -1265,69 +1295,74 @@ private:
         {
             auto pSampleInstrument = BuildSingleSampleInstrument(*sampleName);
 
-            for (auto&& i : flatSection.OpCodes)
+            for (int i = 0; i < pSampleInstrument->samples; i++)
             {
-                for (std::size_t j = 0; j < pSampleInstrument->samples; j++)
+                Sample& s = pSampleInstrument->sample[i];
+
+                s.high_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::HiKey).value_or(127), 0, 127));
+                s.low_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::LoKey).value_or(0), 0, 127));
+                s.root_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::PitchKeyCenter).value_or(127), 0, 127));
+                s.root_freq = ::freq_table[s.root_key];
+
+                s.high_vel = static_cast<uint8>(std::clamp(std::lround(flatSection.GetAs<double>(OpCodeKind::HiVelocity).value_or(127.0)), 0L, 127L));
+                s.low_vel = static_cast<uint8>(std::clamp(std::lround(flatSection.GetAs<double>(OpCodeKind::LoVelocity).value_or(0.0)), 0L, 127L));
+
+                s.loop_start = std::clamp(
+                    static_cast<splen_t>(flatSection.GetAs<double>(OpCodeKind::LoopStart).value_or(0) * (1 << FRACTION_BITS)),
+                    static_cast<splen_t>(0),
+                    s.data_length
+                );
+
+                s.loop_end = std::clamp(
+                    static_cast<splen_t>(flatSection.GetAs<double>(OpCodeKind::LoopEnd).value_or(s.data_length >> FRACTION_BITS) * (1 << FRACTION_BITS)),
+                    static_cast<splen_t>(0),
+                    s.data_length
+                );
+
+                s.modes |= MODES_ENVELOPE;
+                s.modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN);
+
+                LoopModeKind defaultLoopModeKind = 
+                    flatSection.GetAs<double>(OpCodeKind::LoopStart).has_value() || flatSection.GetAs<double>(OpCodeKind::LoopEnd).has_value()
+                    ? LoopModeKind::LoopContinuous
+                    : LoopModeKind::NoLoop;
+
+                switch (flatSection.GetAs<LoopModeKind>(OpCodeKind::LoopMode).value_or(defaultLoopModeKind))
                 {
-                    auto pSample = &pSampleInstrument->sample[j];
+                case LoopModeKind::NoLoop:
+                    break;
 
-                    switch (i.OpCode)
-                    {
-                    case OpCodeKind::HiKey:
-                        pSample->high_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
-                        break;
+                case LoopModeKind::OneShot:
+                    // ???
+                    break;
 
-                    case OpCodeKind::HiVelocity:
-                        pSample->high_vel = static_cast<uint8>(std::get<double>(i.Value));
-                        break;
+                case LoopModeKind::LoopContinuous:
+                    s.modes |= MODES_LOOPING | MODES_SUSTAIN;
+                    break;
 
-                    case OpCodeKind::LoKey:
-                        pSample->low_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
-                        break;
-
-                    case OpCodeKind::LoopEnd:
-                        pSample->loop_end = static_cast<splen_t>(std::get<double>(i.Value)) << FRACTION_BITS;
-                        break;
-
-                    case OpCodeKind::LoopMode:
-                        pSample->modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN);
-
-                        switch (std::get<LoopModeKind>(i.Value))
-                        {
-                            case LoopModeKind::NoLoop:
-                                break;
-
-                            case LoopModeKind::OneShot:
-                                // ???
-                                break;
-
-                            case LoopModeKind::LoopContinuous:
-                                pSample->modes |= MODES_LOOPING | MODES_SUSTAIN;
-                                break;
-
-                            case LoopModeKind::LoopSustain:
-                                pSample->modes |= MODES_LOOPING | MODES_SUSTAIN | MODES_RELEASE;
-                                break;
-                        }
-                        break;
-
-                    case OpCodeKind::LoopStart:
-                        pSample->loop_start = static_cast<splen_t>(std::get<double>(i.Value)) << FRACTION_BITS;
-                        break;
-
-                    case OpCodeKind::LoVelocity:
-                        pSample->low_vel = static_cast<uint8>(std::get<double>(i.Value));
-                        break;
-
-                    case OpCodeKind::PitchKeyCenter:
-                        pSample->root_key = static_cast<int8>(std::get<std::int32_t>(i.Value));
-                        pSample->root_freq = ::freq_table[pSample->root_key];
-                        break;
-
-                    case OpCodeKind::Sample:
-                        break;
-                    }
+                case LoopModeKind::LoopSustain:
+                    s.modes |= MODES_LOOPING | MODES_SUSTAIN | MODES_RELEASE;
+                    break;
                 }
+
+                s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
+
+                s.envelope_offset[0] = ToOffset(65535);
+                s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
+                s.envelope_offset[1] = ToOffset(65534);
+                s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
+
+                std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
+                s.envelope_offset[2] = ToOffset(sustainLevel);
+                s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+
+                double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
+                s.envelope_offset[3] = 0;
+                s.envelope_rate[3] = CalcRate(sustainLevel, releaseTime);
+                s.envelope_offset[4] = s.envelope_offset[3];
+                s.envelope_rate[4] = s.envelope_rate[3];
+                s.envelope_offset[5] = s.envelope_offset[3];
+                s.envelope_rate[5] = s.envelope_rate[3];
             }
 
             return pSampleInstrument;
@@ -1393,6 +1428,33 @@ private:
         }
 
         return flatSections;
+    }
+
+    std::int32_t CalcRate(std::int32_t diff, double sec) const
+    {
+        const std::int32_t envMax = 0x3FFFFFFF;
+        const std::int32_t envMin = 1;
+
+        if (std::abs(sec) < 1.0e-6)
+        {
+            return envMax + 1;
+        }
+
+        diff = std::max(diff, 1) << 14;
+
+        double rate = static_cast<double>(diff) / ::play_mode->rate * ::control_ratio / sec;
+
+        if (::fast_decay)
+        {
+            rate *= 2.0;
+        }
+
+        return std::clamp(static_cast<std::int32_t>(std::lround(rate)), envMin, envMax);
+    }
+
+    std::int32_t ToOffset(std::int32_t n) const
+    {
+        return n << 14;
     }
 
     Parser& m_Parser;
