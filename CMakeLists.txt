@@ -86,6 +86,7 @@ add_definitions(
     -DAU_OPUS
     -DAU_OPUS_DLL
     -DAU_SPEEX
+	-DAU_SPEEX_DLL
     -DAU_LAME
     -DAU_GOGO
     -DAU_GOGO_DLL

@@ -110,6 +110,7 @@ add_library(
     wave_a.c
     w32g_ogg_dll.c
     w32_portaudio_dll.c
+	w32_speex_dll.c
     w32g_vorbis_dll.c
     w32g_vorbisenc_dll.c
     w32g_vorbisfile_dll.c
@@ -170,8 +171,6 @@ add_library(
 
 set(
     TIMIDITY_COMMON_LIBS
-
-    speex
 
     avrt
     comctl32
