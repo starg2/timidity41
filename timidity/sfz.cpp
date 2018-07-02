@@ -1310,7 +1310,7 @@ private:
                 s.loop_start = std::clamp(
                     static_cast<splen_t>(flatSection.GetAs<double>(OpCodeKind::LoopStart).value_or(0) * (1 << FRACTION_BITS)),
                     static_cast<splen_t>(0),
-                    s.data_length
+                    std::max(static_cast<splen_t>(0), s.data_length - (1 << FRACTION_BITS))
                 );
 
                 s.loop_end = std::clamp(
