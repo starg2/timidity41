@@ -65,6 +65,7 @@
 #include "resample.h"
 #include "mix.h"
 #include "thread.h"
+#include "dls.h"
 #include "sfz.h"
 
 #include <tchar.h>
@@ -712,6 +713,9 @@ void PrefSettingApplyReally(void)
 #ifdef INT_SYNTH
 	init_int_synth();
 #endif // INT_SYNTH
+#ifdef ENABLE_DLS
+	init_dls();
+#endif
 #ifdef ENABLE_SFZ
 	init_sfz();
 #endif
@@ -794,6 +798,9 @@ static void PrefSettingApply(void)
 #ifdef INT_SYNTH
 	init_int_synth();
 #endif // INT_SYNTH
+#ifdef ENABLE_DLS
+	init_dls();
+#endif
 #ifdef ENABLE_SFZ
 	init_sfz();
 #endif
@@ -842,6 +849,9 @@ void reload_cfg(void)
     free_soundfonts();
 #ifdef ENABLE_SFZ
 	free_sfz();
+#endif
+#ifdef ENABLE_DLS
+	free_dls();
 #endif
 #ifdef INT_SYNTH
 	free_int_synth();

@@ -50,6 +50,7 @@
 #include "quantity.h"
 #include "freq.h"
 #include "support.h"
+#include "dls.h"
 #include "sfz.h"
 
 #define INSTRUMENT_HASH_SIZE 128
@@ -143,6 +144,9 @@ void free_instrument(Instrument *ip)
 #ifdef INT_SYNTH
 	extern void free_int_synth_file(Instrument *ip);
 #endif
+#ifdef ENABLE_DLS
+	extern void free_dls_file(Instrument *ip);
+#endif
 #ifdef ENABLE_SFZ
 	extern void free_sfz_file(Instrument *ip);
 #endif
@@ -173,6 +177,11 @@ void free_instrument(Instrument *ip)
 #ifdef ENABLE_SFZ
 	case INST_SFZ:
 		free_sfz_file(ip);
+		break;
+#endif
+#ifdef ENABLE_DLS
+	case INST_DLS:
+		free_dls_file(ip);
 		break;
 #endif
 	}
@@ -1668,6 +1677,14 @@ Instrument *load_instrument(int dr, int b, int prog, int elm)
 #ifdef ENABLE_SFZ
 	case 5: /* sfz extension */
 		ip = extract_sfz_file(bank->tone[prog][elm]->name);
+		break;
+#endif
+#ifdef ENABLE_DLS
+	case 6: /* dls extension */
+		font_bank = bank->tone[prog][elm]->font_bank;
+		font_preset = bank->tone[prog][elm]->font_preset;
+		font_keynote = bank->tone[prog][elm]->font_keynote;
+		ip = extract_dls_file(bank->tone[prog][elm]->name, font_bank, font_preset, font_keynote);
 		break;
 #endif
 	default:

@@ -67,6 +67,7 @@ add_library(
     audio_cnv.c
     common.c
     decode.c
+	dls.cpp
     effect.c
     envelope.c
     filter.c
@@ -126,6 +127,7 @@ add_library(
     audriv.h
     common.h
     decode.h
+	dls.h
     dlutils.h
     filter.h
     freq.h

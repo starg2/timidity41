@@ -8,6 +8,7 @@ add_executable(
     ../timidity/common.c
     ../timidity/controls.c
     ../timidity/decode.c
+    ../timidity/dls.cpp
     ../timidity/envelope.c
     ../timidity/filter.c
     ../timidity/freq.c
@@ -31,6 +32,7 @@ add_executable(
     ../timidity/common.h
     ../timidity/controls.h
     ../timidity/decode.h
+    ../timidity/dls.h
     ../timidity/envelope.h
     ../timidity/filter.h
     ../timidity/freq.h

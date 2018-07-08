@@ -78,6 +78,7 @@ add_definitions(
 	-DUSE_TWSYN_BRIDGE
     -DENABLE_SFZ
 	-DTIMW32G_USE_NEW_CONSOLE
+	-DENABLE_DLS
 
 # TiMidity++ audio
     -DAU_W32
