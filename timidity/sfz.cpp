@@ -814,6 +814,7 @@ enum class OpCodeKind
     LoopMode,
     LoopStart,
     LoVelocity,
+    Key,
     PitchKeyCenter,
     Sample
 };
@@ -1073,6 +1074,7 @@ private:
             {"loop_mode"sv, OpCodeKind::LoopMode},
             {"loop_start"sv, OpCodeKind::LoopStart},
             {"lovel"sv, OpCodeKind::LoVelocity},
+            {"key"sv, OpCodeKind::Key},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample}
         };
@@ -1299,9 +1301,22 @@ private:
             {
                 Sample& s = pSampleInstrument->sample[i];
 
-                s.high_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::HiKey).value_or(127), 0, 127));
-                s.low_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::LoKey).value_or(0), 0, 127));
-                s.root_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::PitchKeyCenter).value_or(127), 0, 127));
+                s.high_key = 127;
+                s.low_key = 0;
+                s.root_key = 60;
+
+                if (auto key = flatSection.GetAs<std::int32_t>(OpCodeKind::Key))
+                {
+                    int8 keyVal = static_cast<int8>(std::clamp(key.value(), 0, 127));
+                    s.high_key = keyVal;
+                    s.low_key = keyVal;
+                    s.root_key = keyVal;
+                }
+
+                s.high_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::HiKey).value_or(s.high_key), 0, 127));
+                s.low_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::LoKey).value_or(s.low_key), 0, 127));
+                s.root_key = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::PitchKeyCenter).value_or(s.root_key), 0, 127));
+
                 s.root_freq = ::freq_table[s.root_key];
 
                 s.high_vel = static_cast<uint8>(std::clamp(std::lround(flatSection.GetAs<double>(OpCodeKind::HiVelocity).value_or(127.0)), 0L, 127L));
