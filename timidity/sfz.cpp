@@ -801,6 +801,7 @@ private:
 
 enum class OpCodeKind
 {
+    Unknown,
     AmpEG_Attack,
     AmpEG_Decay,
     AmpEG_Delay,
@@ -982,7 +983,10 @@ public:
                             break;
                         }
 
-                        sec.OpCodes.push_back(std::move(opVal));
+                        if (opVal.OpCode != OpCodeKind::Unknown)
+                        {
+                            sec.OpCodes.push_back(std::move(opVal));
+                        }
                     }
                     else
                     {
@@ -1090,14 +1094,22 @@ private:
 
         if (it == OpCodeMap.end())
         {
-            throw ParserException(
-                m_Preprocessor.GetFileNameFromID(word.GetLocationInfo().FileID),
+            ctl->cmsg(
+                CMSG_WARNING,
+                VERB_VERBOSE,
+                "%s(%u): ignoring unsupported opcode '%s'",
+                std::string(m_Preprocessor.GetFileNameFromID(word.GetLocationInfo().FileID)).c_str(),
                 word.GetLocationInfo().Line,
-                "unknown opcode '"s.append(word.ToStringView()).append("'")
+                word.ToString().c_str()
             );
+
+            op = OpCodeKind::Unknown;
+        }
+        else
+        {
+            op = it->second;
         }
 
-        op = it->second;
         view = curView;
         return true;
     }
