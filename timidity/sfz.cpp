@@ -807,6 +807,7 @@ enum class OpCodeKind
     AmpEG_Hold,
     AmpEG_Release,
     AmpEG_Sustain,
+    AmpVelTrack,
     HiKey,
     HiVelocity,
     LoKey,
@@ -816,7 +817,8 @@ enum class OpCodeKind
     LoVelocity,
     Key,
     PitchKeyCenter,
-    Sample
+    Sample,
+    Volume
 };
 
 enum class LoopModeKind
@@ -922,6 +924,7 @@ public:
                         case OpCodeKind::HiKey:
                         case OpCodeKind::LoKey:
                         case OpCodeKind::PitchKeyCenter:
+                        case OpCodeKind::Key:
                             if (std::int32_t n; ParseMIDINoteNumber(valView, n))
                             {
                                 opVal.Value = n;
@@ -942,10 +945,12 @@ public:
                         case OpCodeKind::AmpEG_Hold:
                         case OpCodeKind::AmpEG_Release:
                         case OpCodeKind::AmpEG_Sustain:
+                        case OpCodeKind::AmpVelTrack:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
                         case OpCodeKind::LoVelocity:
+                        case OpCodeKind::Volume:
                             try
                             {
                                 opVal.Value = std::stod(valView.ToString());
@@ -1067,6 +1072,7 @@ private:
             {"ampeg_hold"sv, OpCodeKind::AmpEG_Hold},
             {"ampeg_release"sv, OpCodeKind::AmpEG_Release},
             {"ampeg_sustain"sv, OpCodeKind::AmpEG_Sustain},
+            {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hivel"sv, OpCodeKind::HiVelocity},
             {"lokey"sv, OpCodeKind::LoKey},
@@ -1076,7 +1082,8 @@ private:
             {"lovel"sv, OpCodeKind::LoVelocity},
             {"key"sv, OpCodeKind::Key},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
-            {"sample"sv, OpCodeKind::Sample}
+            {"sample"sv, OpCodeKind::Sample},
+            {"volume"sv, OpCodeKind::Volume}
         };
 
         auto it = OpCodeMap.find(word.ToStringView());
@@ -1360,6 +1367,8 @@ private:
                     break;
                 }
 
+                s.volume = std::pow(10.0, flatSection.GetAs<double>(OpCodeKind::Volume).value_or(0.0) / 10.0);
+
                 s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
 
                 s.envelope_offset[0] = ToOffset(65535);
@@ -1378,6 +1387,12 @@ private:
                 s.envelope_rate[4] = s.envelope_rate[3];
                 s.envelope_offset[5] = s.envelope_offset[3];
                 s.envelope_rate[5] = s.envelope_rate[3];
+
+                if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
+                {
+                    // convert percent to rate
+                    std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0));
+                }
             }
 
             return pSampleInstrument;
