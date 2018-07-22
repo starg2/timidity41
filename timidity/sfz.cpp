@@ -819,6 +819,7 @@ enum class OpCodeKind
     Key,
     PitchKeyCenter,
     Sample,
+    Tune,
     Volume
 };
 
@@ -951,6 +952,7 @@ public:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
                         case OpCodeKind::LoVelocity:
+                        case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
                             try
                             {
@@ -1087,6 +1089,7 @@ private:
             {"key"sv, OpCodeKind::Key},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample},
+            {"tune"sv, OpCodeKind::Tune},
             {"volume"sv, OpCodeKind::Volume}
         };
 
@@ -1380,6 +1383,7 @@ private:
                 }
 
                 s.volume = std::pow(10.0, flatSection.GetAs<double>(OpCodeKind::Volume).value_or(0.0) / 10.0);
+                s.tune = std::pow(2.0, std::clamp(flatSection.GetAs<double>(OpCodeKind::Tune).value_or(0.0), -100.0, 100.0) / 1200.0);
 
                 s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
 
