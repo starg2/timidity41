@@ -819,6 +819,7 @@ enum class OpCodeKind
     Key,
     PitchKeyCenter,
     Sample,
+    Trigger,
     Tune,
     Volume
 };
@@ -831,11 +832,19 @@ enum class LoopModeKind
     LoopSustain
 };
 
+enum class TriggerKind
+{
+    NoteOn, // not sure if this is the right name
+    Legato,
+    First,
+    Release
+};
+
 struct OpCodeAndValue
 {
     FileLocationInfo Location;
     OpCodeKind OpCode;
-    std::variant<std::int32_t, double, LoopModeKind, std::string> Value;
+    std::variant<std::int32_t, double, LoopModeKind, TriggerKind, std::string> Value;
 };
 
 enum class HeaderKind
@@ -980,6 +989,10 @@ public:
                             opVal.Value = GetLoopModeKind(valView);
                             break;
 
+                        case OpCodeKind::Trigger:
+                            opVal.Value = GetTriggerKind(valView);
+                            break;
+
                         default:
                             opVal.Value = valView.ToString();
                             break;
@@ -1089,6 +1102,7 @@ private:
             {"key"sv, OpCodeKind::Key},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample},
+            {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
             {"volume"sv, OpCodeKind::Volume}
         };
@@ -1264,6 +1278,32 @@ private:
         );
     }
 
+    TriggerKind GetTriggerKind(TextBuffer::View view)
+    {
+        auto curView = view;
+        if (TextBuffer::View word; AnyWord(curView, word))
+        {
+            static const std::unordered_map<std::string_view, TriggerKind> TriggerKindMap{
+                {"first"sv, TriggerKind::First},
+                {"legato"sv, TriggerKind::Legato},
+                {"release"sv, TriggerKind::Release}
+            };
+
+            auto it = TriggerKindMap.find(word.ToStringView());
+
+            if (it != TriggerKindMap.end())
+            {
+                return it->second;
+            }
+        }
+
+        throw ParserException(
+            m_Preprocessor.GetFileNameFromID(view.GetLocationInfo().FileID),
+            view.GetLocationInfo().Line,
+            "unknown trigger mode '"s.append(view.ToStringView()).append("'")
+        );
+    }
+
     Preprocessor& m_Preprocessor;
     std::vector<Section> m_Sections;
 };
@@ -1387,22 +1427,49 @@ private:
 
                 s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
 
-                s.envelope_offset[0] = ToOffset(65535);
-                s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
-                s.envelope_offset[1] = ToOffset(65534);
-                s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
+                TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::NoteOn);
 
-                std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
-                s.envelope_offset[2] = ToOffset(sustainLevel);
-                s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+                if (trigger == TriggerKind::Release)
+                {
+                    // HACK: don't play the sample if trigger=release
+                    // FIXME: modify playmidi.c to implement this correctly
 
-                double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
-                s.envelope_offset[3] = 0;
-                s.envelope_rate[3] = CalcRate(sustainLevel, releaseTime);
-                s.envelope_offset[4] = s.envelope_offset[3];
-                s.envelope_rate[4] = s.envelope_rate[3];
-                s.envelope_offset[5] = s.envelope_offset[3];
-                s.envelope_rate[5] = s.envelope_rate[3];
+                    s.envelope_offset[0] = ToOffset(65535);
+                    s.envelope_rate[0] = CalcRate(65535, 0.0);
+                    s.envelope_offset[1] = ToOffset(65534);
+                    s.envelope_rate[1] = CalcRate(1, 0.0);
+
+                    s.envelope_offset[2] = ToOffset(0);
+                    s.envelope_rate[2] = CalcRate(65534, 0.0);
+
+                    s.envelope_offset[3] = 0;
+                    s.envelope_rate[3] = CalcRate(0, 0.0);
+                    s.envelope_offset[4] = s.envelope_offset[3];
+                    s.envelope_rate[4] = s.envelope_rate[3];
+                    s.envelope_offset[5] = s.envelope_offset[3];
+                    s.envelope_rate[5] = s.envelope_rate[3];
+                }
+                else
+                {
+                    // TODO: support trigger=legato and trigger=first
+
+                    s.envelope_offset[0] = ToOffset(65535);
+                    s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
+                    s.envelope_offset[1] = ToOffset(65534);
+                    s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
+
+                    std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
+                    s.envelope_offset[2] = ToOffset(sustainLevel);
+                    s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+
+                    double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
+                    s.envelope_offset[3] = 0;
+                    s.envelope_rate[3] = CalcRate(sustainLevel, releaseTime);
+                    s.envelope_offset[4] = s.envelope_offset[3];
+                    s.envelope_rate[4] = s.envelope_rate[3];
+                    s.envelope_offset[5] = s.envelope_offset[3];
+                    s.envelope_rate[5] = s.envelope_rate[3];
+                }
 
                 if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
                 {
