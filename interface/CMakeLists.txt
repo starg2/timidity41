@@ -87,23 +87,21 @@ set(
 	../twsyn_bridge/twsyn_bridge_host.h
 )
 
-if(MSVC)
-    set_source_files_properties(
-        w32g_res.rc
+set_source_files_properties(
+    w32g_res.rc
 
-        PROPERTIES
-            OBJECT_DEPENDS
-                w32g_btn.bmp
-                w32g_icon.ico
-                w32g_icon_gray.ico
-                w32g_icon_normal.ico
-                w32g_icon_silver.ico
-                w32g_playlist_play.ico
-                w32g_sleep.bmp
-                w32g_subbtn.bmp
-                w32g_tracer.bmp
-    )
-endif()
+    PROPERTIES
+        OBJECT_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_btn.bmp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon.ico"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_gray.ico"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_normal.ico"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_silver.ico"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_playlist_play.ico"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_sleep.bmp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_subbtn.bmp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_tracer.bmp"
+)
 
 # for timidity
 

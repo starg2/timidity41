@@ -135,7 +135,7 @@ else()
 endif()
 
 if(MSVC)
-    add_compile_options(/W4 /Zi /GS /fp:fast /MP /Qspectre)
+    add_compile_options(/W4 /Zi /GS /fp:fast /Qspectre)
     add_compile_options(/we4013)    # '%s' undefined; assuming extern returning int
     
     if(TIM41_USE_AVX2)
