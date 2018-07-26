@@ -1,0 +1,47 @@
+version: '{branch}-{build}'
+
+branches:
+  only:
+  - dev41
+
+image: Visual Studio 2017
+
+configuration:
+  - Debug
+  - Release
+
+environment:
+  matrix:
+    - OUTNAME: timidity41-vc2017-x86
+      VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat
+      TIM41_USE_AVX2: 0
+    - OUTNAME: timidity41-vc2017-x86-avx2
+      VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat
+      TIM41_USE_AVX2: 1
+    - OUTNAME: timidity41-vc2017-x64
+      VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
+      TIM41_USE_AVX2: 0
+    - OUTNAME: timidity41-vc2017-x64-avx2
+      VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
+      TIM41_USE_AVX2: 1
+    - OUTNAME: timidity41-mingw64
+      BINDIR: C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\bin
+      TIM41_USE_AVX2: 0
+    - OUTNAME: timidity41-mingw64-avx2
+      BINDIR: C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\bin
+      TIM41_USE_AVX2: 1
+
+before_build:
+  - if defined VCVARS (call "%VCVARS%")
+  - if defined BINDIR (set "PATH=%BINDIR%;%PATH:C:\Program Files\Git\usr\bin;=%")
+  - path C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%path%
+  - md build
+  - cd build
+  - cmake -G "Ninja" -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DTIM41_USE_AVX2=%TIM41_USE_AVX2% ..
+
+build_script:
+  - ninja
+
+after_build:
+  - 7z a %OUTNAME%_%CONFIGURATION%.zip ..\tim41-readme.txt ..\gpl-2.0.txt ..\lgpl-2.0.txt -i!.\%CONFIGURATION%\bin\*.exe -i!.\%CONFIGURATION%\bin\*.dll -i!.\%CONFIGURATION%\bin\*.pdb -x!.\%CONFIGURATION%\bin\calcnewton.*
+  - appveyor PushArtifact %OUTNAME%_%CONFIGURATION%.zip
