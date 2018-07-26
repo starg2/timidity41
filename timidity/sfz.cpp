@@ -878,6 +878,21 @@ struct Section
         return std::make_optional(*pValue);
     }
 
+    FileLocationInfo GetLocationForOpCode(OpCodeKind opCode) const
+    {
+        // search in reverse order
+        auto it = std::find_if(OpCodes.rbegin(), OpCodes.rend(), [opCode] (auto&& x) { return x.OpCode == opCode; });
+
+        if (it == OpCodes.rend())
+        {
+            return HeaderLocation;
+        }
+        else
+        {
+            return it->Location;
+        }
+    }
+
     FileLocationInfo HeaderLocation;
     HeaderKind Header;
     std::vector<OpCodeAndValue> OpCodes;
@@ -1410,7 +1425,16 @@ private:
                     break;
 
                 case LoopModeKind::OneShot:
-                    // ???
+                    {
+                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::LoopMode);
+                        ctl->cmsg(
+                            CMSG_WARNING,
+                            VERB_VERBOSE,
+                            "%s(%u): 'loop_mode=one_shot' is not implemented yet",
+                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                            loc.Line
+                        );
+                    }
                     break;
 
                 case LoopModeKind::LoopContinuous:
@@ -1434,6 +1458,15 @@ private:
                     // HACK: don't play the sample if trigger=release
                     // FIXME: modify playmidi.c to implement this correctly
 
+                    auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
+                    ctl->cmsg(
+                        CMSG_WARNING,
+                        VERB_VERBOSE,
+                        "%s(%u): 'trigger=release' is not implemented yet",
+                        std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                        loc.Line
+                    );
+
                     s.envelope_offset[0] = ToOffset(65535);
                     s.envelope_rate[0] = CalcRate(65535, 0.0);
                     s.envelope_offset[1] = ToOffset(65534);
@@ -1452,6 +1485,18 @@ private:
                 else
                 {
                     // TODO: support trigger=legato and trigger=first
+
+                    if (trigger != TriggerKind::NoteOn)
+                    {
+                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
+                        ctl->cmsg(
+                            CMSG_WARNING,
+                            VERB_VERBOSE,
+                            "%s(%u): 'trigger=legato' and 'trigger=first' are not implemented yet",
+                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                            loc.Line
+                        );
+                    }
 
                     s.envelope_offset[0] = ToOffset(65535);
                     s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
