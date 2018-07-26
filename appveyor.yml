@@ -15,21 +15,33 @@ environment:
     - OUTNAME: timidity41-vc2017-x86
       VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat
       TIM41_USE_AVX2: 0
+      CC: cl
+      CXX: cl
     - OUTNAME: timidity41-vc2017-x86-avx2
       VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat
       TIM41_USE_AVX2: 1
+      CC: cl
+      CXX: cl
     - OUTNAME: timidity41-vc2017-x64
       VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
       TIM41_USE_AVX2: 0
+      CC: cl
+      CXX: cl
     - OUTNAME: timidity41-vc2017-x64-avx2
       VCVARS: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
       TIM41_USE_AVX2: 1
+      CC: cl
+      CXX: cl
     - OUTNAME: timidity41-mingw64
       BINDIR: C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\bin
       TIM41_USE_AVX2: 0
+      CC: gcc
+      CXX: g++
     - OUTNAME: timidity41-mingw64-avx2
       BINDIR: C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\bin
       TIM41_USE_AVX2: 1
+      CC: gcc
+      CXX: g++
 
 before_build:
   - if defined VCVARS (call "%VCVARS%")
