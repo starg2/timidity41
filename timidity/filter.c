@@ -2151,13 +2151,18 @@ static inline void recalc_filter_LPF24_double2(FilterCoefficients *fc)
 		}
 
 		for (int i = 0; i < 2; i++) {
-			for (int j = 0; j < 4; j++) {
-				dc[i * 20 + j * 5] = MM256_EXTRACT_F64(m[0][i], j);
-				dc[i * 20 + j * 5 + 1] = MM256_EXTRACT_F64(m[1][i], j);
-				dc[i * 20 + j * 5 + 2] = MM256_EXTRACT_F64(m[3][i], j);
-				dc[i * 20 + j * 5 + 3] = MM256_EXTRACT_F64(m[5][i], j);
-				dc[i * 20 + j * 5 + 4] = MM256_EXTRACT_F64(m[7][i], j);
-			}
+#define COPY_COEF(j) \
+	dc[i * 20 + j * 5] = MM256_EXTRACT_F64(m[0][i], j); \
+	dc[i * 20 + j * 5 + 1] = MM256_EXTRACT_F64(m[1][i], j); \
+	dc[i * 20 + j * 5 + 2] = MM256_EXTRACT_F64(m[3][i], j); \
+	dc[i * 20 + j * 5 + 3] = MM256_EXTRACT_F64(m[5][i], j); \
+	dc[i * 20 + j * 5 + 4] = MM256_EXTRACT_F64(m[7][i], j);
+
+			COPY_COEF(0)
+			COPY_COEF(1)
+			COPY_COEF(2)
+			COPY_COEF(3)
+#undef COPY_COEF
 		}
 
 #else
@@ -2243,13 +2248,16 @@ static inline void recalc_filter_LPF24_double2(FilterCoefficients *fc)
 		}
 
 		for (int i = 0; i < 4; i++) {
-			for (int j = 0; j < 2; j++) {
-				dc[i * 10 + j * 5] = MM_EXTRACT_F64(m[0][i], j);
-				dc[i * 10 + j * 5 + 1] = MM_EXTRACT_F64(m[1][i], j);
-				dc[i * 10 + j * 5 + 2] = MM_EXTRACT_F64(m[3][i], j);
-				dc[i * 10 + j * 5 + 3] = MM_EXTRACT_F64(m[5][i], j);
-				dc[i * 10 + j * 5 + 4] = MM_EXTRACT_F64(m[7][i], j);
-			}
+#define COPY_COEF(j) \
+	dc[i * 10 + j * 5] = MM_EXTRACT_F64(m[0][i], j); \
+	dc[i * 10 + j * 5 + 1] = MM_EXTRACT_F64(m[1][i], j); \
+	dc[i * 10 + j * 5 + 2] = MM_EXTRACT_F64(m[3][i], j); \
+	dc[i * 10 + j * 5 + 3] = MM_EXTRACT_F64(m[5][i], j); \
+	dc[i * 10 + j * 5 + 4] = MM_EXTRACT_F64(m[7][i], j);
+
+			COPY_COEF(0)
+			COPY_COEF(1)
+#undef COPY_COEF
 		}
 #endif
 	}

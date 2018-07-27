@@ -2252,6 +2252,12 @@ static int x_comment = 1;
 static int x_fft = 0;
 #endif
 
+/* dummy for cfgforsf and sfviewer */
+char *event2string(int id)
+{
+	return NULL;
+}
+
 typedef struct x_cfg_info_t_ {
 	char m_bank[128][128];
 	char m_preset[128][128];
