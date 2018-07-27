@@ -439,6 +439,9 @@ public:
                 pSample->hpf[0] = -1;
                 pSample->hpf[1] = 10;
 
+                pSample->tremolo_freq = 5000;
+                pSample->vibrato_freq = 5000;
+
                 double attackTime = 0.0;
                 double holdTime = 0.0;
                 double decayTime = 0.0;
@@ -468,12 +471,23 @@ public:
                                 attackTime = TimeCentToSecond(b.Scale);
                                 continue;
                             }
+                            else if (b.Source == DLSConnectionBlock::SourceKind::KeyOnVelocity && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
+                            {
+                                pSample->envelope_velf[0] = static_cast<int16>(b.Scale / 65536);
+                                continue;
+                            }
                             break;
 
                         case DLSConnectionBlock::DestinationKind::EG1DecayTime:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
                                 decayTime = TimeCentToSecond(b.Scale);
+                                continue;
+                            }
+                            else if (b.Source == DLSConnectionBlock::SourceKind::KeyNumber && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
+                            {
+                                // this is probably incorrect
+                                pSample->envelope_keyf[1] = static_cast<int16>(b.Scale / 65536);
                                 continue;
                             }
                             break;
@@ -490,6 +504,45 @@ public:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
                                 releaseTime = TimeCentToSecond(b.Scale);
+                                continue;
+                            }
+                            break;
+
+                        case DLSConnectionBlock::DestinationKind::LFOFrequency:
+                            if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
+                            {
+                                // mHz ?
+                                int16 freq = static_cast<int16>(std::lround(std::pow(2.0, (b.Scale / 65536.0 - 6900.0) / 1200.0) * 440.0 * 1000.0));
+                                pSample->tremolo_freq = freq;
+                                pSample->vibrato_freq = freq;
+                                continue;
+                            }
+                            break;
+
+                        case DLSConnectionBlock::DestinationKind::LFOStartDelay:
+                            if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
+                            {
+                                int16 delay = static_cast<int16>(std::lround(TimeCentToSecond(b.Scale) * ::play_mode->rate * 1000.0));
+                                pSample->tremolo_delay = delay;
+                                pSample->vibrato_delay = delay;
+                                continue;
+                            }
+                            break;
+
+                        case DLSConnectionBlock::DestinationKind::Attenuation:
+                            if (b.Source == DLSConnectionBlock::SourceKind::LFO && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
+                            {
+                                double gain = b.Scale / 655360.0;   // dB
+                                double rate = std::pow(10.0, gain * 0.1);
+                                pSample->tremolo_to_amp = static_cast<int16>(std::lround((rate - 1.0) * 10000.0));
+                                continue;
+                            }
+                            break;
+
+                        case DLSConnectionBlock::DestinationKind::Pitch:
+                            if (b.Source == DLSConnectionBlock::SourceKind::LFO && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
+                            {
+                                pSample->vibrato_to_pitch = static_cast<int16>(b.Scale / 65536);
                                 continue;
                             }
                             break;
