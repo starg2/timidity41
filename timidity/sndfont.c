@@ -2426,7 +2426,7 @@ void pre_resample(Sample *sp) { }
 void antialiasing(sample_t *data, splen_t data_length, int32 sample_rate, int32 output_rate) { }
 #endif
 
-char *wrdt = NULL; /* :-P */
+struct WRDTracer *wrdt = NULL; /* :-P */
 int no_4point_interpolation = 0;
 uint8 opt_normal_chorus_plus = 1;
 double gs_env_attack_calc = 1.0;
