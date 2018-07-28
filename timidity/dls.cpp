@@ -372,7 +372,7 @@ public:
 
                 pSample->data = reinterpret_cast<sample_t*>(waveInfo.pData.release());
                 pSample->data_alloced = 1;
-                pSample->data_length = static_cast<splen_t>(waveInfo.DataLength) << FRACTION_BITS;
+                pSample->data_length = static_cast<splen_t>(waveInfo.DataLength + 1) << FRACTION_BITS;
                 pSample->data_type = SAMPLE_TYPE_INT16;
                 pSample->sample_rate = static_cast<std::int32_t>(waveInfo.SamplesPerSec);
 
@@ -409,8 +409,12 @@ public:
                         pSample->volume = 1.0;
                     }
 
-                    pSample->loop_start = std::clamp<splen_t>(loop.LoopStart, 0, waveInfo.DataLength) << FRACTION_BITS;
-                    pSample->loop_end = std::clamp<splen_t>(loop.LoopStart + loop.LoopLength, loop.LoopStart, waveInfo.DataLength) << FRACTION_BITS;
+                    pSample->loop_start = std::clamp<splen_t>(loop.LoopStart, 0, waveInfo.DataLength - 1) << FRACTION_BITS;
+                    pSample->loop_end = std::clamp(
+                        pSample->loop_start + (static_cast<splen_t>(loop.LoopLength) << FRACTION_BITS),
+                        pSample->loop_start + (1 << FRACTION_BITS),
+                        pSample->data_length
+                    );
 
                     pSample->root_freq = ::freq_table[pSample->root_key];
                 }
@@ -1465,6 +1469,11 @@ private:
                         waveInfo.BlockAlign = ReadUInt16(pFile.get());
                         waveInfo.BitsPerSample = ReadUInt16(pFile.get());
 
+                        if (waveInfo.BitsPerSample != 8 && waveInfo.BitsPerSample != 16)
+                        {
+                            throw DLSParserException(m_FileName, "unsupported bit rate");
+                        }
+
                         DoSkip(pFile.get(), Align2(chunkSize) - 16);
                     }
                     else
@@ -1481,7 +1490,9 @@ private:
                 {
                     std::uint32_t chunkSize = ReadUInt32(pFile.get());
                     listSize -= 4;
-                    waveInfo.pData.reset(reinterpret_cast<char*>(safe_malloc(chunkSize)));
+
+                    std::size_t bufferSize = chunkSize + 128 * 2;
+                    waveInfo.pData.reset(reinterpret_cast<char*>(safe_large_malloc(bufferSize)));
 
 #ifdef LITTLE_ENDIAN
                     if (::tf_read(waveInfo.pData.get(), 1, chunkSize, pFile.get()) != chunkSize)
@@ -1494,6 +1505,7 @@ private:
                         reinterpret_cast<std::uint16_t*>(waveInfo.pData.get())[i] = ReadUInt16(pFile.get());
                     }
 #endif
+                    std::memset(waveInfo.pData.get() + chunkSize, 0, bufferSize - chunkSize);
                     waveInfo.DataLength = chunkSize;
 
                     if (chunkSize & 1)
