@@ -438,15 +438,15 @@ static int import_wave_load(char *sample_file, Instrument *inst)
 			{
 				if(fflg){					
 					inst->sample[i].data_type = SAMPLE_TYPE_FLOAT;
-					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(float));
+					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(float));
 					inst->sample[i].data_alloced = 1;
 				}else if(bits <= 16){ // WAVE_FORMAT_PCM
 					inst->sample[i].data_type = SAMPLE_TYPE_INT16;
-					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int16));
+					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int16));
 					inst->sample[i].data_alloced = 1;
 				}else{
 					inst->sample[i].data_type = SAMPLE_TYPE_INT32;
-					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int32));
+					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int32));
 					inst->sample[i].data_alloced = 1;
 				}
 			}
@@ -922,11 +922,11 @@ static int read_AIFFSoundData(struct timidity_file *tf, Instrument *inst, AIFFCo
 	{
 		if(bits <= 16){
 			inst->sample[i].data_type = SAMPLE_TYPE_INT16;
-			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int16));
+			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int16));
 			inst->sample[i].data_alloced = 1;
 		}else{
 			inst->sample[i].data_type = SAMPLE_TYPE_INT32;
-			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int32));
+			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int32));
 			inst->sample[i].data_alloced = 1;
 		}
 	}
