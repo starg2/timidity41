@@ -5364,6 +5364,7 @@ typedef unsigned (*type_FLAC__stream_decoder_get_bits_per_sample)(const FLAC__St
 typedef unsigned (*type_FLAC__stream_decoder_get_sample_rate)(const FLAC__StreamDecoder *decoder);
 typedef unsigned (*type_FLAC__stream_decoder_get_blocksize)(const FLAC__StreamDecoder *decoder);
 typedef FLAC__bool (*type_FLAC__stream_decoder_get_decode_position)(const FLAC__StreamDecoder *decoder, FLAC__uint64 *position);
+typedef FLAC__StreamDecoderInitStatus (*type_FLAC__stream_decoder_init_stream)(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderReadCallback read_callback, FLAC__StreamDecoderSeekCallback seek_callback, FLAC__StreamDecoderTellCallback tell_callback, FLAC__StreamDecoderLengthCallback length_callback, FLAC__StreamDecoderEofCallback eof_callback, FLAC__StreamDecoderWriteCallback write_callback, FLAC__StreamDecoderMetadataCallback metadata_callback, FLAC__StreamDecoderErrorCallback error_callback, void *client_data);
 typedef FLAC__bool (*type_FLAC__stream_decoder_finish)(FLAC__StreamDecoder *decoder);
 typedef FLAC__bool (*type_FLAC__stream_decoder_flush)(FLAC__StreamDecoder *decoder);
 typedef FLAC__bool (*type_FLAC__stream_decoder_reset)(FLAC__StreamDecoder *decoder);
@@ -5549,6 +5550,7 @@ static struct libFLAC_dll_ {
 	 type_FLAC__stream_decoder_get_sample_rate FLAC__stream_decoder_get_sample_rate;
 	 type_FLAC__stream_decoder_get_blocksize FLAC__stream_decoder_get_blocksize;
 	 type_FLAC__stream_decoder_get_decode_position FLAC__stream_decoder_get_decode_position;
+	 type_FLAC__stream_decoder_init_stream FLAC__stream_decoder_init_stream;
 	 type_FLAC__stream_decoder_finish FLAC__stream_decoder_finish;
 	 type_FLAC__stream_decoder_flush FLAC__stream_decoder_flush;
 	 type_FLAC__stream_decoder_reset FLAC__stream_decoder_reset;
@@ -5722,417 +5724,419 @@ int g_load_libFLAC_dll(void)
 		h_libFLAC_dll = LoadLibrary("libFLAC_dynamic.dll");
 		if (!h_libFLAC_dll) h_libFLAC_dll = LoadLibrary("libFLAC.dll");
 		if (!h_libFLAC_dll) return -1;
+		g_FLAC__StreamEncoderStateString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderStateString");
+		if (!g_FLAC__StreamEncoderStateString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamDecoderStateString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderStateString");
+		if (!g_FLAC__StreamDecoderStateString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamEncoderInitStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderInitStatusString");
+		if (!g_FLAC__StreamEncoderInitStatusString) { g_free_libFLAC_dll(); return -1; }
+
+		g_FLAC__StreamDecoderErrorStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderErrorStatusString");
+		if (!g_FLAC__StreamDecoderErrorStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamDecoderInitStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderInitStatusString");
+		if (!g_FLAC__StreamDecoderInitStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamDecoderLengthStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderLengthStatusString");
+		if (!g_FLAC__StreamDecoderLengthStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamDecoderReadStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderReadStatusString");
+		if (!g_FLAC__StreamDecoderReadStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamDecoderSeekStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderSeekStatusString");
+		if (!g_FLAC__StreamDecoderSeekStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamDecoderTellStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderTellStatusString");
+		if (!g_FLAC__StreamDecoderTellStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamDecoderWriteStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderWriteStatusString");
+		if (!g_FLAC__StreamDecoderWriteStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamEncoderSeekStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderSeekStatusString");
+		if (!g_FLAC__StreamEncoderSeekStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamEncoderTellStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderTellStatusString");
+		if (!g_FLAC__StreamEncoderTellStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamEncoderWriteStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderWriteStatusString");
+		if (!g_FLAC__StreamEncoderWriteStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamEncoderReadStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderReadStatusString");
+		if (!g_FLAC__StreamEncoderReadStatusString) { g_free_libFLAC_dll(); return -1; }
+
+		g_FLAC__ChannelAssignmentString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__ChannelAssignmentString");
+		if (!g_FLAC__ChannelAssignmentString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__EntropyCodingMethodTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__EntropyCodingMethodTypeString");
+		if (!g_FLAC__EntropyCodingMethodTypeString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__FrameNumberTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__FrameNumberTypeString");
+		if (!g_FLAC__FrameNumberTypeString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__MetadataTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__MetadataTypeString");
+		if (!g_FLAC__MetadataTypeString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__Metadata_ChainStatusString  = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__Metadata_ChainStatusString");
+		if (g_FLAC__Metadata_ChainStatusString  == NULL) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__Metadata_SimpleIteratorStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__Metadata_SimpleIteratorStatusString");
+		if (!g_FLAC__Metadata_SimpleIteratorStatusString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__StreamMetadata_Picture_TypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamMetadata_Picture_TypeString");
+		if (!g_FLAC__StreamMetadata_Picture_TypeString) { g_free_libFLAC_dll(); return -1; }
+		g_FLAC__SubframeTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__SubframeTypeString");
+		if (!g_FLAC__SubframeTypeString) { g_free_libFLAC_dll(); return -1; }
+
+		libFLAC_dll.FLAC__format_sample_rate_is_valid = (type_FLAC__format_sample_rate_is_valid) GetProcAddress(h_libFLAC_dll, "FLAC__format_sample_rate_is_valid");
+		if (!libFLAC_dll.FLAC__format_sample_rate_is_valid) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_sample_rate_is_subset = (type_FLAC__format_sample_rate_is_subset) GetProcAddress(h_libFLAC_dll, "FLAC__format_sample_rate_is_subset");
+		if (!libFLAC_dll.FLAC__format_sample_rate_is_subset) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_vorbiscomment_entry_name_is_legal = (type_FLAC__format_vorbiscomment_entry_name_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_vorbiscomment_entry_name_is_legal");
+		if (!libFLAC_dll.FLAC__format_vorbiscomment_entry_name_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_vorbiscomment_entry_value_is_legal = (type_FLAC__format_vorbiscomment_entry_value_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_vorbiscomment_entry_value_is_legal");
+		if (!libFLAC_dll.FLAC__format_vorbiscomment_entry_value_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_vorbiscomment_entry_is_legal = (type_FLAC__format_vorbiscomment_entry_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_vorbiscomment_entry_is_legal");
+		if (!libFLAC_dll.FLAC__format_vorbiscomment_entry_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_seektable_is_legal = (type_FLAC__format_seektable_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_seektable_is_legal");
+		if (!libFLAC_dll.FLAC__format_seektable_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_seektable_sort = (type_FLAC__format_seektable_sort) GetProcAddress(h_libFLAC_dll, "FLAC__format_seektable_sort");
+		if (!libFLAC_dll.FLAC__format_seektable_sort) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_cuesheet_is_legal = (type_FLAC__format_cuesheet_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_cuesheet_is_legal");
+		if (!libFLAC_dll.FLAC__format_cuesheet_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__format_picture_is_legal = (type_FLAC__format_picture_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_picture_is_legal");
+		if (!libFLAC_dll.FLAC__format_picture_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_new = (type_FLAC__stream_decoder_new) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_new");
+		if (!libFLAC_dll.FLAC__stream_decoder_new) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_delete = (type_FLAC__stream_decoder_delete) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_delete");
+		if (!libFLAC_dll.FLAC__stream_decoder_delete) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_ogg_serial_number = (type_FLAC__stream_decoder_set_ogg_serial_number) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_ogg_serial_number");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_ogg_serial_number) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_md5_checking = (type_FLAC__stream_decoder_set_md5_checking) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_md5_checking");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_md5_checking) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_metadata_respond = (type_FLAC__stream_decoder_set_metadata_respond) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_respond");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_respond) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_application = (type_FLAC__stream_decoder_set_metadata_respond_application) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_respond_application");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_application) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_all = (type_FLAC__stream_decoder_set_metadata_respond_all) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_respond_all");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_all) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore = (type_FLAC__stream_decoder_set_metadata_ignore) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_ignore");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_application = (type_FLAC__stream_decoder_set_metadata_ignore_application) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_ignore_application");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_application) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_all = (type_FLAC__stream_decoder_set_metadata_ignore_all) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_ignore_all");
+		if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_all) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_state = (type_FLAC__stream_decoder_get_state) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_state");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_state) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_resolved_state_string = (type_FLAC__stream_decoder_get_resolved_state_string) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_resolved_state_string");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_resolved_state_string) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_md5_checking = (type_FLAC__stream_decoder_get_md5_checking) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_md5_checking");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_md5_checking) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_total_samples = (type_FLAC__stream_decoder_get_total_samples) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_total_samples");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_total_samples) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_channels = (type_FLAC__stream_decoder_get_channels) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_channels");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_channels) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_channel_assignment = (type_FLAC__stream_decoder_get_channel_assignment) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_channel_assignment");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_channel_assignment) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_bits_per_sample = (type_FLAC__stream_decoder_get_bits_per_sample) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_bits_per_sample");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_bits_per_sample) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_sample_rate = (type_FLAC__stream_decoder_get_sample_rate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_sample_rate");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_sample_rate) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_blocksize = (type_FLAC__stream_decoder_get_blocksize) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_blocksize");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_blocksize) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_get_decode_position = (type_FLAC__stream_decoder_get_decode_position) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_decode_position");
+		if (!libFLAC_dll.FLAC__stream_decoder_get_decode_position) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_init_stream = (type_FLAC__stream_decoder_init_stream) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_init_stream");
+		if (!libFLAC_dll.FLAC__stream_decoder_init_stream) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_finish = (type_FLAC__stream_decoder_finish) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_finish");
+		if (!libFLAC_dll.FLAC__stream_decoder_finish) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_flush = (type_FLAC__stream_decoder_flush) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_flush");
+		if (!libFLAC_dll.FLAC__stream_decoder_flush) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_reset = (type_FLAC__stream_decoder_reset) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_reset");
+		if (!libFLAC_dll.FLAC__stream_decoder_reset) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_process_single = (type_FLAC__stream_decoder_process_single) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_process_single");
+		if (!libFLAC_dll.FLAC__stream_decoder_process_single) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_process_until_end_of_metadata = (type_FLAC__stream_decoder_process_until_end_of_metadata) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_process_until_end_of_metadata");
+		if (!libFLAC_dll.FLAC__stream_decoder_process_until_end_of_metadata) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_process_until_end_of_stream = (type_FLAC__stream_decoder_process_until_end_of_stream) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_process_until_end_of_stream");
+		if (!libFLAC_dll.FLAC__stream_decoder_process_until_end_of_stream) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_skip_single_frame = (type_FLAC__stream_decoder_skip_single_frame) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_skip_single_frame");
+		if (!libFLAC_dll.FLAC__stream_decoder_skip_single_frame) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_decoder_seek_absolute = (type_FLAC__stream_decoder_seek_absolute) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_seek_absolute");
+		if (!libFLAC_dll.FLAC__stream_decoder_seek_absolute) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_new = (type_FLAC__stream_encoder_new) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_new");
+		if (!libFLAC_dll.FLAC__stream_encoder_new) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_delete = (type_FLAC__stream_encoder_delete) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_delete");
+		if (!libFLAC_dll.FLAC__stream_encoder_delete) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_ogg_serial_number = (type_FLAC__stream_encoder_set_ogg_serial_number) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_ogg_serial_number");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_ogg_serial_number) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_verify = (type_FLAC__stream_encoder_set_verify) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_verify");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_verify) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_streamable_subset = (type_FLAC__stream_encoder_set_streamable_subset) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_streamable_subset");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_streamable_subset) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_channels = (type_FLAC__stream_encoder_set_channels) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_channels");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_channels) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_bits_per_sample = (type_FLAC__stream_encoder_set_bits_per_sample) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_bits_per_sample");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_bits_per_sample) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_sample_rate = (type_FLAC__stream_encoder_set_sample_rate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_sample_rate");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_sample_rate) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_compression_level = (type_FLAC__stream_encoder_set_compression_level) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_compression_level");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_compression_level) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_blocksize = (type_FLAC__stream_encoder_set_blocksize) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_blocksize");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_blocksize) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_do_mid_side_stereo = (type_FLAC__stream_encoder_set_do_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_mid_side_stereo");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_do_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_loose_mid_side_stereo = (type_FLAC__stream_encoder_set_loose_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_loose_mid_side_stereo");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_loose_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_apodization = (type_FLAC__stream_encoder_set_apodization) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_apodization");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_apodization) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_max_lpc_order = (type_FLAC__stream_encoder_set_max_lpc_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_max_lpc_order");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_max_lpc_order) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_qlp_coeff_precision = (type_FLAC__stream_encoder_set_qlp_coeff_precision) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_qlp_coeff_precision");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_qlp_coeff_precision) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_do_qlp_coeff_prec_search = (type_FLAC__stream_encoder_set_do_qlp_coeff_prec_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_qlp_coeff_prec_search");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_do_qlp_coeff_prec_search) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_do_escape_coding = (type_FLAC__stream_encoder_set_do_escape_coding) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_escape_coding");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_do_escape_coding) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_do_exhaustive_model_search = (type_FLAC__stream_encoder_set_do_exhaustive_model_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_exhaustive_model_search");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_do_exhaustive_model_search) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_min_residual_partition_order = (type_FLAC__stream_encoder_set_min_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_min_residual_partition_order");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_min_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_max_residual_partition_order = (type_FLAC__stream_encoder_set_max_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_max_residual_partition_order");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_max_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_rice_parameter_search_dist = (type_FLAC__stream_encoder_set_rice_parameter_search_dist) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_rice_parameter_search_dist");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_rice_parameter_search_dist) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_total_samples_estimate = (type_FLAC__stream_encoder_set_total_samples_estimate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_total_samples_estimate");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_total_samples_estimate) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_set_metadata = (type_FLAC__stream_encoder_set_metadata) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_metadata");
+		if (!libFLAC_dll.FLAC__stream_encoder_set_metadata) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_state = (type_FLAC__stream_encoder_get_state) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_state");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_state) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_state = (type_FLAC__stream_encoder_get_verify_decoder_state) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_verify_decoder_state");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_state) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_resolved_state_string = (type_FLAC__stream_encoder_get_resolved_state_string) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_resolved_state_string");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_resolved_state_string) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_error_stats = (type_FLAC__stream_encoder_get_verify_decoder_error_stats) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_verify_decoder_error_stats");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_error_stats) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_verify = (type_FLAC__stream_encoder_get_verify) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_verify");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_verify) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_streamable_subset = (type_FLAC__stream_encoder_get_streamable_subset) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_streamable_subset");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_streamable_subset) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_channels = (type_FLAC__stream_encoder_get_channels) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_channels");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_channels) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_bits_per_sample = (type_FLAC__stream_encoder_get_bits_per_sample) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_bits_per_sample");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_bits_per_sample) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_sample_rate = (type_FLAC__stream_encoder_get_sample_rate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_sample_rate");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_sample_rate) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_blocksize = (type_FLAC__stream_encoder_get_blocksize) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_blocksize");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_blocksize) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_do_mid_side_stereo = (type_FLAC__stream_encoder_get_do_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_mid_side_stereo");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_do_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_loose_mid_side_stereo = (type_FLAC__stream_encoder_get_loose_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_loose_mid_side_stereo");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_loose_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_max_lpc_order = (type_FLAC__stream_encoder_get_max_lpc_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_max_lpc_order");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_max_lpc_order) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_qlp_coeff_precision = (type_FLAC__stream_encoder_get_qlp_coeff_precision) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_qlp_coeff_precision");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_qlp_coeff_precision) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_do_qlp_coeff_prec_search = (type_FLAC__stream_encoder_get_do_qlp_coeff_prec_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_qlp_coeff_prec_search");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_do_qlp_coeff_prec_search) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_do_escape_coding = (type_FLAC__stream_encoder_get_do_escape_coding) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_escape_coding");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_do_escape_coding) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_do_exhaustive_model_search = (type_FLAC__stream_encoder_get_do_exhaustive_model_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_exhaustive_model_search");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_do_exhaustive_model_search) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_min_residual_partition_order = (type_FLAC__stream_encoder_get_min_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_min_residual_partition_order");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_min_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_max_residual_partition_order = (type_FLAC__stream_encoder_get_max_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_max_residual_partition_order");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_max_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_rice_parameter_search_dist = (type_FLAC__stream_encoder_get_rice_parameter_search_dist) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_rice_parameter_search_dist");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_rice_parameter_search_dist) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_get_total_samples_estimate = (type_FLAC__stream_encoder_get_total_samples_estimate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_total_samples_estimate");
+		if (!libFLAC_dll.FLAC__stream_encoder_get_total_samples_estimate) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_init_stream = (type_FLAC__stream_encoder_init_stream) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_stream");
+		if (!libFLAC_dll.FLAC__stream_encoder_init_stream) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_init_ogg_stream = (type_FLAC__stream_encoder_init_ogg_stream) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_ogg_stream");
+		if (!libFLAC_dll.FLAC__stream_encoder_init_ogg_stream) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_init_FILE = (type_FLAC__stream_encoder_init_FILE) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_FILE");
+		if (!libFLAC_dll.FLAC__stream_encoder_init_FILE) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_init_ogg_FILE = (type_FLAC__stream_encoder_init_ogg_FILE) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_ogg_FILE");
+		if (!libFLAC_dll.FLAC__stream_encoder_init_ogg_FILE) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_init_file = (type_FLAC__stream_encoder_init_file) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_file");
+		if (!libFLAC_dll.FLAC__stream_encoder_init_file) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_init_ogg_file = (type_FLAC__stream_encoder_init_ogg_file) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_ogg_file");
+		if (!libFLAC_dll.FLAC__stream_encoder_init_ogg_file) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_finish = (type_FLAC__stream_encoder_finish) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_finish");
+		if (!libFLAC_dll.FLAC__stream_encoder_finish) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_process = (type_FLAC__stream_encoder_process) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_process");
+		if (!libFLAC_dll.FLAC__stream_encoder_process) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__stream_encoder_process_interleaved = (type_FLAC__stream_encoder_process_interleaved) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_process_interleaved");
+		if (!libFLAC_dll.FLAC__stream_encoder_process_interleaved) { g_free_libFLAC_dll(); return -1; }
+
+		libFLAC_dll.FLAC__metadata_get_streaminfo = (type_FLAC__metadata_get_streaminfo) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_streaminfo");
+		if (!libFLAC_dll.FLAC__metadata_get_streaminfo) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_get_tags = (type_FLAC__metadata_get_tags) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_tags");
+		if (!libFLAC_dll.FLAC__metadata_get_tags) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_get_cuesheet = (type_FLAC__metadata_get_cuesheet) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_cuesheet");
+		if (!libFLAC_dll.FLAC__metadata_get_cuesheet) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_get_picture = (type_FLAC__metadata_get_picture) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_picture");
+		if (!libFLAC_dll.FLAC__metadata_get_picture) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_new = (type_FLAC__metadata_simple_iterator_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_new");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_new) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_delete = (type_FLAC__metadata_simple_iterator_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_delete");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_delete) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_status = (type_FLAC__metadata_simple_iterator_status) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_status");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_status) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_init = (type_FLAC__metadata_simple_iterator_init) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_init");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_init) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_is_writable = (type_FLAC__metadata_simple_iterator_is_writable) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_is_writable");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_is_writable) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_next = (type_FLAC__metadata_simple_iterator_next) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_next");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_next) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_prev = (type_FLAC__metadata_simple_iterator_prev) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_prev");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_prev) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_is_last = (type_FLAC__metadata_simple_iterator_is_last) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_is_last");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_is_last) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_get_block_offset = (type_FLAC__metadata_simple_iterator_get_block_offset) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block_offset");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block_offset) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_get_block_type = (type_FLAC__metadata_simple_iterator_get_block_type) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block_type");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block_type) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_get_block_length = (type_FLAC__metadata_simple_iterator_get_block_length) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block_length");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block_length) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_get_application_id = (type_FLAC__metadata_simple_iterator_get_application_id) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_application_id");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_application_id) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_get_block = (type_FLAC__metadata_simple_iterator_get_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_set_block = (type_FLAC__metadata_simple_iterator_set_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_set_block");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_set_block) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_insert_block_after = (type_FLAC__metadata_simple_iterator_insert_block_after) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_insert_block_after");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_insert_block_after) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_simple_iterator_delete_block = (type_FLAC__metadata_simple_iterator_delete_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_delete_block");
+		if (!libFLAC_dll.FLAC__metadata_simple_iterator_delete_block) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_new = (type_FLAC__metadata_chain_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_new");
+		if (!libFLAC_dll.FLAC__metadata_chain_new) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_delete = (type_FLAC__metadata_chain_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_delete");
+		if (!libFLAC_dll.FLAC__metadata_chain_delete) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_status = (type_FLAC__metadata_chain_status) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_status");
+		if (!libFLAC_dll.FLAC__metadata_chain_status) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_read = (type_FLAC__metadata_chain_read) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read");
+		if (!libFLAC_dll.FLAC__metadata_chain_read) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_read_ogg = (type_FLAC__metadata_chain_read_ogg) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read_ogg");
+		if (!libFLAC_dll.FLAC__metadata_chain_read_ogg) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_read_with_callbacks = (type_FLAC__metadata_chain_read_with_callbacks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read_with_callbacks");
+		if (!libFLAC_dll.FLAC__metadata_chain_read_with_callbacks) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_read_ogg_with_callbacks = (type_FLAC__metadata_chain_read_ogg_with_callbacks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read_ogg_with_callbacks");
+		if (!libFLAC_dll.FLAC__metadata_chain_read_ogg_with_callbacks) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_check_if_tempfile_needed = (type_FLAC__metadata_chain_check_if_tempfile_needed) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_check_if_tempfile_needed");
+		if (!libFLAC_dll.FLAC__metadata_chain_check_if_tempfile_needed) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_write = (type_FLAC__metadata_chain_write) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_write");
+		if (!libFLAC_dll.FLAC__metadata_chain_write) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_write_with_callbacks = (type_FLAC__metadata_chain_write_with_callbacks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_write_with_callbacks");
+		if (!libFLAC_dll.FLAC__metadata_chain_write_with_callbacks) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_write_with_callbacks_and_tempfile = (type_FLAC__metadata_chain_write_with_callbacks_and_tempfile) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_write_with_callbacks_and_tempfile");
+		if (!libFLAC_dll.FLAC__metadata_chain_write_with_callbacks_and_tempfile) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_merge_padding = (type_FLAC__metadata_chain_merge_padding) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_merge_padding");
+		if (!libFLAC_dll.FLAC__metadata_chain_merge_padding) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_chain_sort_padding = (type_FLAC__metadata_chain_sort_padding) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_sort_padding");
+		if (!libFLAC_dll.FLAC__metadata_chain_sort_padding) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_new = (type_FLAC__metadata_iterator_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_new");
+		if (!libFLAC_dll.FLAC__metadata_iterator_new) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_delete = (type_FLAC__metadata_iterator_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_delete");
+		if (!libFLAC_dll.FLAC__metadata_iterator_delete) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_init = (type_FLAC__metadata_iterator_init) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_init");
+		if (!libFLAC_dll.FLAC__metadata_iterator_init) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_next = (type_FLAC__metadata_iterator_next) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_next");
+		if (!libFLAC_dll.FLAC__metadata_iterator_next) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_prev = (type_FLAC__metadata_iterator_prev) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_prev");
+		if (!libFLAC_dll.FLAC__metadata_iterator_prev) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_get_block_type = (type_FLAC__metadata_iterator_get_block_type) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_get_block_type");
+		if (!libFLAC_dll.FLAC__metadata_iterator_get_block_type) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_get_block = (type_FLAC__metadata_iterator_get_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_get_block");
+		if (!libFLAC_dll.FLAC__metadata_iterator_get_block) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_set_block = (type_FLAC__metadata_iterator_set_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_set_block");
+		if (!libFLAC_dll.FLAC__metadata_iterator_set_block) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_delete_block = (type_FLAC__metadata_iterator_delete_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_delete_block");
+		if (!libFLAC_dll.FLAC__metadata_iterator_delete_block) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_insert_block_before = (type_FLAC__metadata_iterator_insert_block_before) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_insert_block_before");
+		if (!libFLAC_dll.FLAC__metadata_iterator_insert_block_before) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_iterator_insert_block_after = (type_FLAC__metadata_iterator_insert_block_after) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_insert_block_after");
+		if (!libFLAC_dll.FLAC__metadata_iterator_insert_block_after) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_new = (type_FLAC__metadata_object_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_new");
+		if (!libFLAC_dll.FLAC__metadata_object_new) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_clone = (type_FLAC__metadata_object_clone) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_clone");
+		if (!libFLAC_dll.FLAC__metadata_object_clone) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_delete = (type_FLAC__metadata_object_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_delete");
+		if (!libFLAC_dll.FLAC__metadata_object_delete) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_is_equal = (type_FLAC__metadata_object_is_equal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_is_equal");
+		if (!libFLAC_dll.FLAC__metadata_object_is_equal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_application_set_data = (type_FLAC__metadata_object_application_set_data) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_application_set_data");
+		if (!libFLAC_dll.FLAC__metadata_object_application_set_data) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_resize_points = (type_FLAC__metadata_object_seektable_resize_points) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_resize_points");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_resize_points) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_set_point = (type_FLAC__metadata_object_seektable_set_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_set_point");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_set_point) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_insert_point = (type_FLAC__metadata_object_seektable_insert_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_insert_point");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_insert_point) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_delete_point = (type_FLAC__metadata_object_seektable_delete_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_delete_point");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_delete_point) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_is_legal = (type_FLAC__metadata_object_seektable_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_is_legal");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_template_append_placeholders = (type_FLAC__metadata_object_seektable_template_append_placeholders) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_placeholders");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_placeholders) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_template_append_point = (type_FLAC__metadata_object_seektable_template_append_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_point");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_point) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_template_append_points = (type_FLAC__metadata_object_seektable_template_append_points) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_points");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_points) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points = (type_FLAC__metadata_object_seektable_template_append_spaced_points) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_spaced_points");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points_by_samples = (type_FLAC__metadata_object_seektable_template_append_spaced_points_by_samples) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_spaced_points_by_samples");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points_by_samples) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_seektable_template_sort = (type_FLAC__metadata_object_seektable_template_sort) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_sort");
+		if (!libFLAC_dll.FLAC__metadata_object_seektable_template_sort) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_vendor_string = (type_FLAC__metadata_object_vorbiscomment_set_vendor_string) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_set_vendor_string");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_vendor_string) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_resize_comments = (type_FLAC__metadata_object_vorbiscomment_resize_comments) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_resize_comments");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_resize_comments) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_comment = (type_FLAC__metadata_object_vorbiscomment_set_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_set_comment");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_comment) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_insert_comment = (type_FLAC__metadata_object_vorbiscomment_insert_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_insert_comment");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_insert_comment) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_append_comment = (type_FLAC__metadata_object_vorbiscomment_append_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_append_comment");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_append_comment) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_replace_comment = (type_FLAC__metadata_object_vorbiscomment_replace_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_replace_comment");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_replace_comment) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_delete_comment = (type_FLAC__metadata_object_vorbiscomment_delete_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_delete_comment");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_delete_comment) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair = (type_FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair = (type_FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_matches = (type_FLAC__metadata_object_vorbiscomment_entry_matches) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_entry_matches");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_matches) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_find_entry_from = (type_FLAC__metadata_object_vorbiscomment_find_entry_from) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_find_entry_from");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_find_entry_from) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entry_matching = (type_FLAC__metadata_object_vorbiscomment_remove_entry_matching) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_remove_entry_matching");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entry_matching) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entries_matching = (type_FLAC__metadata_object_vorbiscomment_remove_entries_matching) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_remove_entries_matching");
+		if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entries_matching) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_track_new = (type_FLAC__metadata_object_cuesheet_track_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_new");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_new) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_track_clone = (type_FLAC__metadata_object_cuesheet_track_clone) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_clone");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_clone) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete = (type_FLAC__metadata_object_cuesheet_track_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_delete");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_track_resize_indices = (type_FLAC__metadata_object_cuesheet_track_resize_indices) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_resize_indices");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_resize_indices) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_index = (type_FLAC__metadata_object_cuesheet_track_insert_index) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_insert_index");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_index) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_blank_index = (type_FLAC__metadata_object_cuesheet_track_insert_blank_index) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_insert_blank_index");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_blank_index) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete_index = (type_FLAC__metadata_object_cuesheet_track_delete_index) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_delete_index");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete_index) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_resize_tracks = (type_FLAC__metadata_object_cuesheet_resize_tracks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_resize_tracks");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_resize_tracks) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_set_track = (type_FLAC__metadata_object_cuesheet_set_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_set_track");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_set_track) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_insert_track = (type_FLAC__metadata_object_cuesheet_insert_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_insert_track");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_insert_track) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_insert_blank_track = (type_FLAC__metadata_object_cuesheet_insert_blank_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_insert_blank_track");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_insert_blank_track) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_delete_track = (type_FLAC__metadata_object_cuesheet_delete_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_delete_track");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_delete_track) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_is_legal = (type_FLAC__metadata_object_cuesheet_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_is_legal");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_is_legal) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_cuesheet_calculate_cddb_id = (type_FLAC__metadata_object_cuesheet_calculate_cddb_id) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_calculate_cddb_id");
+		if (!libFLAC_dll.FLAC__metadata_object_cuesheet_calculate_cddb_id) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_picture_set_mime_type = (type_FLAC__metadata_object_picture_set_mime_type) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_set_mime_type");
+		if (!libFLAC_dll.FLAC__metadata_object_picture_set_mime_type) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_picture_set_description = (type_FLAC__metadata_object_picture_set_description) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_set_description");
+		if (!libFLAC_dll.FLAC__metadata_object_picture_set_description) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_picture_set_data = (type_FLAC__metadata_object_picture_set_data) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_set_data");
+		if (!libFLAC_dll.FLAC__metadata_object_picture_set_data) { g_free_libFLAC_dll(); return -1; }
+		libFLAC_dll.FLAC__metadata_object_picture_is_legal = (type_FLAC__metadata_object_picture_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_is_legal");
+		if (!libFLAC_dll.FLAC__metadata_object_picture_is_legal) { g_free_libFLAC_dll(); return -1; }
 	}
-	g_FLAC__StreamEncoderStateString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderStateString");
-    if (!g_FLAC__StreamEncoderStateString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamDecoderStateString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderStateString");
-    if (!g_FLAC__StreamDecoderStateString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamEncoderInitStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderInitStatusString");
-    if (!g_FLAC__StreamEncoderInitStatusString) { g_free_libFLAC_dll(); return -1; }
-
-	g_FLAC__StreamDecoderErrorStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderErrorStatusString");
-    if (!g_FLAC__StreamDecoderErrorStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamDecoderInitStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderInitStatusString");
-    if (!g_FLAC__StreamDecoderInitStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamDecoderLengthStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderLengthStatusString");
-    if (!g_FLAC__StreamDecoderLengthStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamDecoderReadStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderReadStatusString");
-    if (!g_FLAC__StreamDecoderReadStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamDecoderSeekStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderSeekStatusString");
-    if (!g_FLAC__StreamDecoderSeekStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamDecoderTellStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderTellStatusString");
-    if (!g_FLAC__StreamDecoderTellStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamDecoderWriteStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamDecoderWriteStatusString");
-    if (!g_FLAC__StreamDecoderWriteStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamEncoderSeekStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderSeekStatusString");
-    if (!g_FLAC__StreamEncoderSeekStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamEncoderTellStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderTellStatusString");
-    if (!g_FLAC__StreamEncoderTellStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamEncoderWriteStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderWriteStatusString");
-    if (!g_FLAC__StreamEncoderWriteStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamEncoderReadStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderReadStatusString");
-    if (!g_FLAC__StreamEncoderReadStatusString) { g_free_libFLAC_dll(); return -1; }
-
-	g_FLAC__ChannelAssignmentString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__ChannelAssignmentString");
-    if (!g_FLAC__ChannelAssignmentString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__EntropyCodingMethodTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__EntropyCodingMethodTypeString");
-    if (!g_FLAC__EntropyCodingMethodTypeString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__FrameNumberTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__FrameNumberTypeString");
-    if (!g_FLAC__FrameNumberTypeString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__MetadataTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__MetadataTypeString");
-    if (!g_FLAC__MetadataTypeString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__Metadata_ChainStatusString  = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__Metadata_ChainStatusString");
-    if (g_FLAC__Metadata_ChainStatusString  == NULL) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__Metadata_SimpleIteratorStatusString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__Metadata_SimpleIteratorStatusString");
-    if (!g_FLAC__Metadata_SimpleIteratorStatusString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__StreamMetadata_Picture_TypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamMetadata_Picture_TypeString");
-    if (!g_FLAC__StreamMetadata_Picture_TypeString) { g_free_libFLAC_dll(); return -1; }
-	g_FLAC__SubframeTypeString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__SubframeTypeString");
-    if (!g_FLAC__SubframeTypeString) { g_free_libFLAC_dll(); return -1; }
-
-	libFLAC_dll.FLAC__format_sample_rate_is_valid = (type_FLAC__format_sample_rate_is_valid) GetProcAddress(h_libFLAC_dll, "FLAC__format_sample_rate_is_valid");
-	if (!libFLAC_dll.FLAC__format_sample_rate_is_valid) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_sample_rate_is_subset = (type_FLAC__format_sample_rate_is_subset) GetProcAddress(h_libFLAC_dll, "FLAC__format_sample_rate_is_subset");
-	if (!libFLAC_dll.FLAC__format_sample_rate_is_subset) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_vorbiscomment_entry_name_is_legal = (type_FLAC__format_vorbiscomment_entry_name_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_vorbiscomment_entry_name_is_legal");
-	if (!libFLAC_dll.FLAC__format_vorbiscomment_entry_name_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_vorbiscomment_entry_value_is_legal = (type_FLAC__format_vorbiscomment_entry_value_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_vorbiscomment_entry_value_is_legal");
-	if (!libFLAC_dll.FLAC__format_vorbiscomment_entry_value_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_vorbiscomment_entry_is_legal = (type_FLAC__format_vorbiscomment_entry_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_vorbiscomment_entry_is_legal");
-	if (!libFLAC_dll.FLAC__format_vorbiscomment_entry_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_seektable_is_legal = (type_FLAC__format_seektable_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_seektable_is_legal");
-	if (!libFLAC_dll.FLAC__format_seektable_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_seektable_sort = (type_FLAC__format_seektable_sort) GetProcAddress(h_libFLAC_dll, "FLAC__format_seektable_sort");
-	if (!libFLAC_dll.FLAC__format_seektable_sort) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_cuesheet_is_legal = (type_FLAC__format_cuesheet_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_cuesheet_is_legal");
-	if (!libFLAC_dll.FLAC__format_cuesheet_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__format_picture_is_legal = (type_FLAC__format_picture_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__format_picture_is_legal");
-	if (!libFLAC_dll.FLAC__format_picture_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_new = (type_FLAC__stream_decoder_new) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_new");
-	if (!libFLAC_dll.FLAC__stream_decoder_new) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_delete = (type_FLAC__stream_decoder_delete) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_delete");
-	if (!libFLAC_dll.FLAC__stream_decoder_delete) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_ogg_serial_number = (type_FLAC__stream_decoder_set_ogg_serial_number) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_ogg_serial_number");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_ogg_serial_number) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_md5_checking = (type_FLAC__stream_decoder_set_md5_checking) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_md5_checking");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_md5_checking) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_metadata_respond = (type_FLAC__stream_decoder_set_metadata_respond) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_respond");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_respond) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_application = (type_FLAC__stream_decoder_set_metadata_respond_application) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_respond_application");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_application) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_all = (type_FLAC__stream_decoder_set_metadata_respond_all) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_respond_all");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_respond_all) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore = (type_FLAC__stream_decoder_set_metadata_ignore) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_ignore");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_application = (type_FLAC__stream_decoder_set_metadata_ignore_application) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_ignore_application");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_application) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_all = (type_FLAC__stream_decoder_set_metadata_ignore_all) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_set_metadata_ignore_all");
-	if (!libFLAC_dll.FLAC__stream_decoder_set_metadata_ignore_all) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_state = (type_FLAC__stream_decoder_get_state) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_state");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_state) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_resolved_state_string = (type_FLAC__stream_decoder_get_resolved_state_string) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_resolved_state_string");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_resolved_state_string) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_md5_checking = (type_FLAC__stream_decoder_get_md5_checking) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_md5_checking");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_md5_checking) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_total_samples = (type_FLAC__stream_decoder_get_total_samples) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_total_samples");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_total_samples) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_channels = (type_FLAC__stream_decoder_get_channels) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_channels");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_channels) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_channel_assignment = (type_FLAC__stream_decoder_get_channel_assignment) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_channel_assignment");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_channel_assignment) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_bits_per_sample = (type_FLAC__stream_decoder_get_bits_per_sample) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_bits_per_sample");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_bits_per_sample) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_sample_rate = (type_FLAC__stream_decoder_get_sample_rate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_sample_rate");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_sample_rate) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_blocksize = (type_FLAC__stream_decoder_get_blocksize) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_blocksize");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_blocksize) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_get_decode_position = (type_FLAC__stream_decoder_get_decode_position) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_get_decode_position");
-	if (!libFLAC_dll.FLAC__stream_decoder_get_decode_position) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_finish = (type_FLAC__stream_decoder_finish) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_finish");
-	if (!libFLAC_dll.FLAC__stream_decoder_finish) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_flush = (type_FLAC__stream_decoder_flush) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_flush");
-	if (!libFLAC_dll.FLAC__stream_decoder_flush) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_reset = (type_FLAC__stream_decoder_reset) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_reset");
-	if (!libFLAC_dll.FLAC__stream_decoder_reset) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_process_single = (type_FLAC__stream_decoder_process_single) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_process_single");
-	if (!libFLAC_dll.FLAC__stream_decoder_process_single) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_process_until_end_of_metadata = (type_FLAC__stream_decoder_process_until_end_of_metadata) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_process_until_end_of_metadata");
-	if (!libFLAC_dll.FLAC__stream_decoder_process_until_end_of_metadata) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_process_until_end_of_stream = (type_FLAC__stream_decoder_process_until_end_of_stream) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_process_until_end_of_stream");
-	if (!libFLAC_dll.FLAC__stream_decoder_process_until_end_of_stream) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_skip_single_frame = (type_FLAC__stream_decoder_skip_single_frame) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_skip_single_frame");
-	if (!libFLAC_dll.FLAC__stream_decoder_skip_single_frame) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_decoder_seek_absolute = (type_FLAC__stream_decoder_seek_absolute) GetProcAddress(h_libFLAC_dll, "FLAC__stream_decoder_seek_absolute");
-	if (!libFLAC_dll.FLAC__stream_decoder_seek_absolute) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_new = (type_FLAC__stream_encoder_new) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_new");
-	if (!libFLAC_dll.FLAC__stream_encoder_new) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_delete = (type_FLAC__stream_encoder_delete) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_delete");
-	if (!libFLAC_dll.FLAC__stream_encoder_delete) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_ogg_serial_number = (type_FLAC__stream_encoder_set_ogg_serial_number) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_ogg_serial_number");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_ogg_serial_number) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_verify = (type_FLAC__stream_encoder_set_verify) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_verify");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_verify) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_streamable_subset = (type_FLAC__stream_encoder_set_streamable_subset) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_streamable_subset");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_streamable_subset) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_channels = (type_FLAC__stream_encoder_set_channels) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_channels");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_channels) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_bits_per_sample = (type_FLAC__stream_encoder_set_bits_per_sample) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_bits_per_sample");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_bits_per_sample) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_sample_rate = (type_FLAC__stream_encoder_set_sample_rate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_sample_rate");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_sample_rate) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_compression_level = (type_FLAC__stream_encoder_set_compression_level) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_compression_level");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_compression_level) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_blocksize = (type_FLAC__stream_encoder_set_blocksize) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_blocksize");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_blocksize) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_do_mid_side_stereo = (type_FLAC__stream_encoder_set_do_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_mid_side_stereo");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_do_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_loose_mid_side_stereo = (type_FLAC__stream_encoder_set_loose_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_loose_mid_side_stereo");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_loose_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_apodization = (type_FLAC__stream_encoder_set_apodization) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_apodization");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_apodization) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_max_lpc_order = (type_FLAC__stream_encoder_set_max_lpc_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_max_lpc_order");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_max_lpc_order) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_qlp_coeff_precision = (type_FLAC__stream_encoder_set_qlp_coeff_precision) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_qlp_coeff_precision");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_qlp_coeff_precision) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_do_qlp_coeff_prec_search = (type_FLAC__stream_encoder_set_do_qlp_coeff_prec_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_qlp_coeff_prec_search");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_do_qlp_coeff_prec_search) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_do_escape_coding = (type_FLAC__stream_encoder_set_do_escape_coding) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_escape_coding");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_do_escape_coding) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_do_exhaustive_model_search = (type_FLAC__stream_encoder_set_do_exhaustive_model_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_do_exhaustive_model_search");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_do_exhaustive_model_search) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_min_residual_partition_order = (type_FLAC__stream_encoder_set_min_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_min_residual_partition_order");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_min_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_max_residual_partition_order = (type_FLAC__stream_encoder_set_max_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_max_residual_partition_order");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_max_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_rice_parameter_search_dist = (type_FLAC__stream_encoder_set_rice_parameter_search_dist) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_rice_parameter_search_dist");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_rice_parameter_search_dist) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_total_samples_estimate = (type_FLAC__stream_encoder_set_total_samples_estimate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_total_samples_estimate");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_total_samples_estimate) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_set_metadata = (type_FLAC__stream_encoder_set_metadata) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_set_metadata");
-	if (!libFLAC_dll.FLAC__stream_encoder_set_metadata) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_state = (type_FLAC__stream_encoder_get_state) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_state");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_state) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_state = (type_FLAC__stream_encoder_get_verify_decoder_state) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_verify_decoder_state");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_state) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_resolved_state_string = (type_FLAC__stream_encoder_get_resolved_state_string) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_resolved_state_string");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_resolved_state_string) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_error_stats = (type_FLAC__stream_encoder_get_verify_decoder_error_stats) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_verify_decoder_error_stats");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_verify_decoder_error_stats) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_verify = (type_FLAC__stream_encoder_get_verify) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_verify");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_verify) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_streamable_subset = (type_FLAC__stream_encoder_get_streamable_subset) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_streamable_subset");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_streamable_subset) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_channels = (type_FLAC__stream_encoder_get_channels) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_channels");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_channels) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_bits_per_sample = (type_FLAC__stream_encoder_get_bits_per_sample) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_bits_per_sample");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_bits_per_sample) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_sample_rate = (type_FLAC__stream_encoder_get_sample_rate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_sample_rate");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_sample_rate) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_blocksize = (type_FLAC__stream_encoder_get_blocksize) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_blocksize");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_blocksize) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_do_mid_side_stereo = (type_FLAC__stream_encoder_get_do_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_mid_side_stereo");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_do_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_loose_mid_side_stereo = (type_FLAC__stream_encoder_get_loose_mid_side_stereo) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_loose_mid_side_stereo");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_loose_mid_side_stereo) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_max_lpc_order = (type_FLAC__stream_encoder_get_max_lpc_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_max_lpc_order");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_max_lpc_order) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_qlp_coeff_precision = (type_FLAC__stream_encoder_get_qlp_coeff_precision) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_qlp_coeff_precision");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_qlp_coeff_precision) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_do_qlp_coeff_prec_search = (type_FLAC__stream_encoder_get_do_qlp_coeff_prec_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_qlp_coeff_prec_search");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_do_qlp_coeff_prec_search) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_do_escape_coding = (type_FLAC__stream_encoder_get_do_escape_coding) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_escape_coding");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_do_escape_coding) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_do_exhaustive_model_search = (type_FLAC__stream_encoder_get_do_exhaustive_model_search) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_do_exhaustive_model_search");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_do_exhaustive_model_search) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_min_residual_partition_order = (type_FLAC__stream_encoder_get_min_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_min_residual_partition_order");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_min_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_max_residual_partition_order = (type_FLAC__stream_encoder_get_max_residual_partition_order) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_max_residual_partition_order");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_max_residual_partition_order) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_rice_parameter_search_dist = (type_FLAC__stream_encoder_get_rice_parameter_search_dist) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_rice_parameter_search_dist");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_rice_parameter_search_dist) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_get_total_samples_estimate = (type_FLAC__stream_encoder_get_total_samples_estimate) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_get_total_samples_estimate");
-	if (!libFLAC_dll.FLAC__stream_encoder_get_total_samples_estimate) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_init_stream = (type_FLAC__stream_encoder_init_stream) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_stream");
-	if (!libFLAC_dll.FLAC__stream_encoder_init_stream) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_init_ogg_stream = (type_FLAC__stream_encoder_init_ogg_stream) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_ogg_stream");
-	if (!libFLAC_dll.FLAC__stream_encoder_init_ogg_stream) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_init_FILE = (type_FLAC__stream_encoder_init_FILE) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_FILE");
-	if (!libFLAC_dll.FLAC__stream_encoder_init_FILE) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_init_ogg_FILE = (type_FLAC__stream_encoder_init_ogg_FILE) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_ogg_FILE");
-	if (!libFLAC_dll.FLAC__stream_encoder_init_ogg_FILE) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_init_file = (type_FLAC__stream_encoder_init_file) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_file");
-	if (!libFLAC_dll.FLAC__stream_encoder_init_file) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_init_ogg_file = (type_FLAC__stream_encoder_init_ogg_file) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_init_ogg_file");
-	if (!libFLAC_dll.FLAC__stream_encoder_init_ogg_file) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_finish = (type_FLAC__stream_encoder_finish) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_finish");
-	if (!libFLAC_dll.FLAC__stream_encoder_finish) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_process = (type_FLAC__stream_encoder_process) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_process");
-	if (!libFLAC_dll.FLAC__stream_encoder_process) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__stream_encoder_process_interleaved = (type_FLAC__stream_encoder_process_interleaved) GetProcAddress(h_libFLAC_dll, "FLAC__stream_encoder_process_interleaved");
-	if (!libFLAC_dll.FLAC__stream_encoder_process_interleaved) { g_free_libFLAC_dll(); return -1; }
-
-	libFLAC_dll.FLAC__metadata_get_streaminfo = (type_FLAC__metadata_get_streaminfo) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_streaminfo");
-	if (!libFLAC_dll.FLAC__metadata_get_streaminfo) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_get_tags = (type_FLAC__metadata_get_tags) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_tags");
-	if (!libFLAC_dll.FLAC__metadata_get_tags) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_get_cuesheet = (type_FLAC__metadata_get_cuesheet) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_cuesheet");
-	if (!libFLAC_dll.FLAC__metadata_get_cuesheet) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_get_picture = (type_FLAC__metadata_get_picture) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_get_picture");
-	if (!libFLAC_dll.FLAC__metadata_get_picture) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_new = (type_FLAC__metadata_simple_iterator_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_new");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_new) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_delete = (type_FLAC__metadata_simple_iterator_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_delete");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_delete) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_status = (type_FLAC__metadata_simple_iterator_status) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_status");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_status) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_init = (type_FLAC__metadata_simple_iterator_init) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_init");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_init) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_is_writable = (type_FLAC__metadata_simple_iterator_is_writable) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_is_writable");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_is_writable) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_next = (type_FLAC__metadata_simple_iterator_next) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_next");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_next) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_prev = (type_FLAC__metadata_simple_iterator_prev) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_prev");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_prev) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_is_last = (type_FLAC__metadata_simple_iterator_is_last) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_is_last");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_is_last) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_get_block_offset = (type_FLAC__metadata_simple_iterator_get_block_offset) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block_offset");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block_offset) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_get_block_type = (type_FLAC__metadata_simple_iterator_get_block_type) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block_type");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block_type) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_get_block_length = (type_FLAC__metadata_simple_iterator_get_block_length) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block_length");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block_length) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_get_application_id = (type_FLAC__metadata_simple_iterator_get_application_id) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_application_id");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_application_id) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_get_block = (type_FLAC__metadata_simple_iterator_get_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_get_block");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_get_block) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_set_block = (type_FLAC__metadata_simple_iterator_set_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_set_block");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_set_block) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_insert_block_after = (type_FLAC__metadata_simple_iterator_insert_block_after) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_insert_block_after");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_insert_block_after) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_simple_iterator_delete_block = (type_FLAC__metadata_simple_iterator_delete_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_simple_iterator_delete_block");
-	if (!libFLAC_dll.FLAC__metadata_simple_iterator_delete_block) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_new = (type_FLAC__metadata_chain_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_new");
-	if (!libFLAC_dll.FLAC__metadata_chain_new) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_delete = (type_FLAC__metadata_chain_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_delete");
-	if (!libFLAC_dll.FLAC__metadata_chain_delete) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_status = (type_FLAC__metadata_chain_status) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_status");
-	if (!libFLAC_dll.FLAC__metadata_chain_status) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_read = (type_FLAC__metadata_chain_read) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read");
-	if (!libFLAC_dll.FLAC__metadata_chain_read) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_read_ogg = (type_FLAC__metadata_chain_read_ogg) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read_ogg");
-	if (!libFLAC_dll.FLAC__metadata_chain_read_ogg) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_read_with_callbacks = (type_FLAC__metadata_chain_read_with_callbacks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read_with_callbacks");
-	if (!libFLAC_dll.FLAC__metadata_chain_read_with_callbacks) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_read_ogg_with_callbacks = (type_FLAC__metadata_chain_read_ogg_with_callbacks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_read_ogg_with_callbacks");
-	if (!libFLAC_dll.FLAC__metadata_chain_read_ogg_with_callbacks) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_check_if_tempfile_needed = (type_FLAC__metadata_chain_check_if_tempfile_needed) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_check_if_tempfile_needed");
-	if (!libFLAC_dll.FLAC__metadata_chain_check_if_tempfile_needed) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_write = (type_FLAC__metadata_chain_write) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_write");
-	if (!libFLAC_dll.FLAC__metadata_chain_write) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_write_with_callbacks = (type_FLAC__metadata_chain_write_with_callbacks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_write_with_callbacks");
-	if (!libFLAC_dll.FLAC__metadata_chain_write_with_callbacks) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_write_with_callbacks_and_tempfile = (type_FLAC__metadata_chain_write_with_callbacks_and_tempfile) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_write_with_callbacks_and_tempfile");
-	if (!libFLAC_dll.FLAC__metadata_chain_write_with_callbacks_and_tempfile) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_merge_padding = (type_FLAC__metadata_chain_merge_padding) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_merge_padding");
-	if (!libFLAC_dll.FLAC__metadata_chain_merge_padding) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_chain_sort_padding = (type_FLAC__metadata_chain_sort_padding) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_chain_sort_padding");
-	if (!libFLAC_dll.FLAC__metadata_chain_sort_padding) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_new = (type_FLAC__metadata_iterator_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_new");
-	if (!libFLAC_dll.FLAC__metadata_iterator_new) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_delete = (type_FLAC__metadata_iterator_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_delete");
-	if (!libFLAC_dll.FLAC__metadata_iterator_delete) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_init = (type_FLAC__metadata_iterator_init) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_init");
-	if (!libFLAC_dll.FLAC__metadata_iterator_init) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_next = (type_FLAC__metadata_iterator_next) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_next");
-	if (!libFLAC_dll.FLAC__metadata_iterator_next) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_prev = (type_FLAC__metadata_iterator_prev) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_prev");
-	if (!libFLAC_dll.FLAC__metadata_iterator_prev) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_get_block_type = (type_FLAC__metadata_iterator_get_block_type) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_get_block_type");
-	if (!libFLAC_dll.FLAC__metadata_iterator_get_block_type) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_get_block = (type_FLAC__metadata_iterator_get_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_get_block");
-	if (!libFLAC_dll.FLAC__metadata_iterator_get_block) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_set_block = (type_FLAC__metadata_iterator_set_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_set_block");
-	if (!libFLAC_dll.FLAC__metadata_iterator_set_block) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_delete_block = (type_FLAC__metadata_iterator_delete_block) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_delete_block");
-	if (!libFLAC_dll.FLAC__metadata_iterator_delete_block) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_insert_block_before = (type_FLAC__metadata_iterator_insert_block_before) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_insert_block_before");
-	if (!libFLAC_dll.FLAC__metadata_iterator_insert_block_before) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_iterator_insert_block_after = (type_FLAC__metadata_iterator_insert_block_after) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_iterator_insert_block_after");
-	if (!libFLAC_dll.FLAC__metadata_iterator_insert_block_after) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_new = (type_FLAC__metadata_object_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_new");
-	if (!libFLAC_dll.FLAC__metadata_object_new) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_clone = (type_FLAC__metadata_object_clone) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_clone");
-	if (!libFLAC_dll.FLAC__metadata_object_clone) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_delete = (type_FLAC__metadata_object_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_delete");
-	if (!libFLAC_dll.FLAC__metadata_object_delete) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_is_equal = (type_FLAC__metadata_object_is_equal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_is_equal");
-	if (!libFLAC_dll.FLAC__metadata_object_is_equal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_application_set_data = (type_FLAC__metadata_object_application_set_data) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_application_set_data");
-	if (!libFLAC_dll.FLAC__metadata_object_application_set_data) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_resize_points = (type_FLAC__metadata_object_seektable_resize_points) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_resize_points");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_resize_points) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_set_point = (type_FLAC__metadata_object_seektable_set_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_set_point");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_set_point) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_insert_point = (type_FLAC__metadata_object_seektable_insert_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_insert_point");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_insert_point) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_delete_point = (type_FLAC__metadata_object_seektable_delete_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_delete_point");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_delete_point) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_is_legal = (type_FLAC__metadata_object_seektable_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_is_legal");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_template_append_placeholders = (type_FLAC__metadata_object_seektable_template_append_placeholders) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_placeholders");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_placeholders) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_template_append_point = (type_FLAC__metadata_object_seektable_template_append_point) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_point");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_point) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_template_append_points = (type_FLAC__metadata_object_seektable_template_append_points) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_points");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_points) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points = (type_FLAC__metadata_object_seektable_template_append_spaced_points) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_spaced_points");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points_by_samples = (type_FLAC__metadata_object_seektable_template_append_spaced_points_by_samples) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_append_spaced_points_by_samples");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_template_append_spaced_points_by_samples) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_seektable_template_sort = (type_FLAC__metadata_object_seektable_template_sort) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_seektable_template_sort");
-	if (!libFLAC_dll.FLAC__metadata_object_seektable_template_sort) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_vendor_string = (type_FLAC__metadata_object_vorbiscomment_set_vendor_string) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_set_vendor_string");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_vendor_string) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_resize_comments = (type_FLAC__metadata_object_vorbiscomment_resize_comments) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_resize_comments");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_resize_comments) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_comment = (type_FLAC__metadata_object_vorbiscomment_set_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_set_comment");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_set_comment) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_insert_comment = (type_FLAC__metadata_object_vorbiscomment_insert_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_insert_comment");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_insert_comment) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_append_comment = (type_FLAC__metadata_object_vorbiscomment_append_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_append_comment");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_append_comment) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_replace_comment = (type_FLAC__metadata_object_vorbiscomment_replace_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_replace_comment");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_replace_comment) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_delete_comment = (type_FLAC__metadata_object_vorbiscomment_delete_comment) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_delete_comment");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_delete_comment) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair = (type_FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair = (type_FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_to_name_value_pair) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_matches = (type_FLAC__metadata_object_vorbiscomment_entry_matches) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_entry_matches");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_entry_matches) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_find_entry_from = (type_FLAC__metadata_object_vorbiscomment_find_entry_from) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_find_entry_from");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_find_entry_from) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entry_matching = (type_FLAC__metadata_object_vorbiscomment_remove_entry_matching) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_remove_entry_matching");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entry_matching) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entries_matching = (type_FLAC__metadata_object_vorbiscomment_remove_entries_matching) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_vorbiscomment_remove_entries_matching");
-	if (!libFLAC_dll.FLAC__metadata_object_vorbiscomment_remove_entries_matching) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_track_new = (type_FLAC__metadata_object_cuesheet_track_new) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_new");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_new) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_track_clone = (type_FLAC__metadata_object_cuesheet_track_clone) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_clone");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_clone) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete = (type_FLAC__metadata_object_cuesheet_track_delete) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_delete");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_track_resize_indices = (type_FLAC__metadata_object_cuesheet_track_resize_indices) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_resize_indices");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_resize_indices) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_index = (type_FLAC__metadata_object_cuesheet_track_insert_index) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_insert_index");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_index) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_blank_index = (type_FLAC__metadata_object_cuesheet_track_insert_blank_index) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_insert_blank_index");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_insert_blank_index) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete_index = (type_FLAC__metadata_object_cuesheet_track_delete_index) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_track_delete_index");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_track_delete_index) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_resize_tracks = (type_FLAC__metadata_object_cuesheet_resize_tracks) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_resize_tracks");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_resize_tracks) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_set_track = (type_FLAC__metadata_object_cuesheet_set_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_set_track");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_set_track) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_insert_track = (type_FLAC__metadata_object_cuesheet_insert_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_insert_track");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_insert_track) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_insert_blank_track = (type_FLAC__metadata_object_cuesheet_insert_blank_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_insert_blank_track");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_insert_blank_track) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_delete_track = (type_FLAC__metadata_object_cuesheet_delete_track) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_delete_track");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_delete_track) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_is_legal = (type_FLAC__metadata_object_cuesheet_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_is_legal");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_is_legal) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_cuesheet_calculate_cddb_id = (type_FLAC__metadata_object_cuesheet_calculate_cddb_id) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_cuesheet_calculate_cddb_id");
-	if (!libFLAC_dll.FLAC__metadata_object_cuesheet_calculate_cddb_id) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_picture_set_mime_type = (type_FLAC__metadata_object_picture_set_mime_type) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_set_mime_type");
-	if (!libFLAC_dll.FLAC__metadata_object_picture_set_mime_type) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_picture_set_description = (type_FLAC__metadata_object_picture_set_description) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_set_description");
-	if (!libFLAC_dll.FLAC__metadata_object_picture_set_description) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_picture_set_data = (type_FLAC__metadata_object_picture_set_data) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_set_data");
-	if (!libFLAC_dll.FLAC__metadata_object_picture_set_data) { g_free_libFLAC_dll(); return -1; }
-	libFLAC_dll.FLAC__metadata_object_picture_is_legal = (type_FLAC__metadata_object_picture_is_legal) GetProcAddress(h_libFLAC_dll, "FLAC__metadata_object_picture_is_legal");
-	if (!libFLAC_dll.FLAC__metadata_object_picture_is_legal) { g_free_libFLAC_dll(); return -1; }
 	return 0;
 }
 
@@ -6366,6 +6370,14 @@ FLAC__bool FLAC__stream_decoder_get_decode_position(const FLAC__StreamDecoder *d
 		return libFLAC_dll.FLAC__stream_decoder_get_decode_position(decoder, position);
 	}
 	return (FLAC__bool)0;
+}
+
+FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_stream(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderReadCallback read_callback, FLAC__StreamDecoderSeekCallback seek_callback, FLAC__StreamDecoderTellCallback tell_callback, FLAC__StreamDecoderLengthCallback length_callback, FLAC__StreamDecoderEofCallback eof_callback, FLAC__StreamDecoderWriteCallback write_callback, FLAC__StreamDecoderMetadataCallback metadata_callback, FLAC__StreamDecoderErrorCallback error_callback, void *client_data)
+{
+	if (h_libFLAC_dll) {
+		return libFLAC_dll.FLAC__stream_decoder_init_stream(decoder, read_callback, seek_callback, tell_callback, length_callback, eof_callback, write_callback, metadata_callback, error_callback, client_data);
+	}
+	return -1;
 }
 
 FLAC__bool FLAC__stream_decoder_finish(FLAC__StreamDecoder *decoder)
@@ -7586,7 +7598,6 @@ FLAC_API FLAC__bool FLAC__metadata_object_picture_is_legal(const FLAC__StreamMet
 	FLAC__stream_decoder_init_ogg_FILE
 	FLAC__stream_decoder_init_ogg_file
 	FLAC__stream_decoder_init_ogg_stream
-	FLAC__stream_decoder_init_stream
 FLAC_API_SUPPORTS_OGG_FLAC DATA
 FLAC__ENTROPY_CODING_METHOD_PARTITIONED_RICE2_ESCAPE_PARAMETER DATA
 FLAC__ENTROPY_CODING_METHOD_PARTITIONED_RICE2_PARAMETER_LEN DATA

@@ -26,6 +26,7 @@ add_executable(
     ../timidity/sndfont.c
     ../timidity/tables.c
     ../timidity/version.c
+    ../timidity/w32_libFLAC_dll.c
     ../timidity/w32g_vorbis_dll.c
     ../timidity/w32g_vorbisfile_dll.c
 

@@ -840,8 +840,15 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
             if (ctf) {
                 SampleDecodeResult sdr = decode_oggvorbis(ctf);
                 close_file(ctf);
-                sample->data = sdr.data;
-                sample->data_alloced = sdr.data_alloced;
+
+				if (sdr.channels != 1) {
+					ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "error: sf3 contains multichannel sample");
+				}
+
+				sample->sample_type |= SF_SAMPLETYPE_MONO;
+                sample->data = sdr.data[0];
+                sample->data_alloced = sdr.data_alloced[0];
+				sdr.data_alloced[0] = 0;
                 sample->data_type = sdr.data_type;
 				sample->data_length = sdr.data_length;
 
@@ -856,17 +863,13 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 					sample->loop_start = sample->data_length;
 				if (sample->loop_start < 0)
 					sample->loop_start = 0;
-				if (sample->loop_start >= sample->loop_end)
-				{
+
+				if (sample->loop_start >= sample->loop_end) {
 					sample->loop_start = sample->data_length;
 					sample->loop_end = sample->data_length + (1 << FRACTION_BITS);
 				}
 
-				if (sdr.channels > 1) {
-					sample->sample_type &= ~SF_SAMPLETYPE_MONO;
-				} else {
-					sample->sample_type |= SF_SAMPLETYPE_MONO;
-				}
+				clear_sample_decode_result(&sdr);
 			} else {
 				ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to read compressed sample; open_with_mem() failed");
 			}

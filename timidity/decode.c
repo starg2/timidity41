@@ -24,6 +24,43 @@
 #include "instrum.h"
 #include "decode.h"
 
+#include "libarc/url.h"
+
+static sample_t DummySampleData[128];
+
+int get_sample_size_for_sample_type(int data_type)
+{
+	switch (data_type)
+	{
+	case SAMPLE_TYPE_INT32:
+	case SAMPLE_TYPE_FLOAT:
+		return 4;
+
+	case SAMPLE_TYPE_DOUBLE:
+		return 8;
+
+	default:
+		return 2;
+	}
+}
+
+void clear_sample_decode_result(SampleDecodeResult *sdr)
+{
+	for (int i = 0; i < DECODE_MAX_CHANNELS; i++) {
+		if (sdr->data_alloced[i]) {
+			safe_free(sdr->data[i]);
+			sdr->data_alloced[i] = 0;
+		}
+
+		sdr->data[i] = DummySampleData;
+	}
+
+	sdr->data_type = SAMPLE_TYPE_INT16;
+	sdr->data_length = 0;
+	sdr->channels = 0;
+	sdr->sample_rate = 0;
+}
+
 #ifdef HAVE_LIBVORBIS
 
 #include <vorbis/vorbisfile.h>
@@ -33,8 +70,6 @@ extern int load_vorbis_dll(void);	// w32g_vorbis_dll.c
 #ifndef VORBIS_DLL_INCLUDE_VORBISFILE
 extern int load_vorbisfile_dll(void);	// w32g_vorbisfile_dll.c
 #endif
-
-static sample_t DummySampleData[128];
 
 static size_t oggvorbis_read_callback(void *ptr, size_t size, size_t nmemb, void *datasource)
 {
@@ -56,9 +91,12 @@ static long oggvorbis_tell_callback(void *datasource)
 
 SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 {
-    SampleDecodeResult sdr = {.data = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "decoding ogg vorbis file...");
+
+    SampleDecodeResult sdr = {.data[0] = DummySampleData, .data[1] = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
     OggVorbis_File vf;
 
+#ifdef AU_VORBIS_DLL
     if (load_vorbis_dll() != 0) {
         ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to load vorbis dll");
         return sdr;
@@ -68,6 +106,7 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
         ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to load vorbisfile dll");
         return sdr;
     }
+#endif
 #endif
 
     int result = ov_open_callbacks(
@@ -88,6 +127,13 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
     }
 
     sdr.channels = info->channels;
+
+	if (sdr.channels < 1 || DECODE_MAX_CHANNELS < sdr.channels) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "samples with more than %d channels are not supported", DECODE_MAX_CHANNELS);
+		goto cleanup;
+	}
+
+	sdr.sample_rate = info->rate;
     int64 total = ov_pcm_total(&vf, -1);
 
     if (total < 0) {
@@ -98,18 +144,17 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
     ptr_size_t data_length = info->channels * sizeof(sample_t) * total;
 	data_length = (data_length > 0 ? data_length : 4096);
 	ptr_size_t current_size = 0;
-    sdr.data = (sample_t *)safe_large_malloc(data_length);
-	sdr.data_alloced = 1;
+    sdr.data[0] = (sample_t *)safe_large_malloc(data_length);
+	sdr.data_alloced[0] = 1;
 
     while (1) {
         int bitstream = 0;
-        long ret = ov_read(&vf, (char *)(sdr.data) + current_size, data_length - current_size, 0, 2, 1, &bitstream);
+        long ret = ov_read(&vf, (char *)(sdr.data[0]) + current_size, data_length - current_size, 0, 2, 1, &bitstream);
 
         if (ret < 0) {
             ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to decode ogg vorbis data; ov_read() failed");
             goto cleanup;
         } else if (ret == 0) {
-			sdr.data_length = (splen_t)(current_size / 2) << FRACTION_BITS;
             break;
         }
 
@@ -117,26 +162,39 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 
 		if (data_length - current_size < 512) {
 			ptr_size_t new_data_length = data_length + data_length / 2;
-			sdr.data = (sample_t *)safe_large_realloc(sdr.data, new_data_length);
+			sdr.data[0] = (sample_t *)safe_large_realloc(sdr.data[0], new_data_length);
 			data_length = new_data_length;
 		}
     }
 
-    memset(((char *)sdr.data) + current_size, 0, data_length - current_size);
+    memset(((char *)sdr.data[0]) + current_size, 0, data_length - current_size);
 	ov_clear(&vf);
+
+	if (sdr.channels > 1) {
+		// split data into multiple channels
+		sample_t *single_data = sdr.data[0];
+
+		for (int i = 0; i < sdr.channels; i++) {
+			sdr.data[i] = (sample_t *)safe_large_calloc((data_length / sdr.channels) + 128, sizeof(sample_t));
+			sdr.data_alloced[i] = 1;
+		}
+
+		for (int i = 0; i < data_length / sdr.channels; i++) {
+			for (int j = 0; j < sdr.channels; j++) {
+				sdr.data[j][i] = single_data[i * sdr.channels + j];
+			}
+		}
+
+		safe_free(single_data);
+	}
+
+	sdr.data_length = (data_length / sdr.channels / sizeof(sample_t)) << FRACTION_BITS;
 	return sdr;
 
 cleanup:
     ov_clear(&vf);
-
-    if (sdr.data_alloced) {
-        safe_free(sdr.data);
-    }
-
-    sdr.data = DummySampleData;
-	sdr.data_alloced = 0;
-
-    return sdr;
+	clear_sample_decode_result(&sdr);
+	return sdr;
 }
 
 #else // HAVE_LIBVORBIS
@@ -144,7 +202,235 @@ cleanup:
 SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 {
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "ogg vorbis decoder support is disabled");
-	return (SampleDecodeResult){.data = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
+	return (SampleDecodeResult){.data[0] = DummySampleData, .data[1] = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
 }
 
 #endif // HAVE_LIBVORBIS
+
+#ifdef AU_FLAC
+
+#include <FLAC/all.h>
+
+#ifdef AU_FLAC_DLL
+
+#include "w32_libFLAC_dll_g.h"
+
+#endif // AU_FLAC_DLL
+
+typedef struct {
+	struct timidity_file *input;
+	SampleDecodeResult *output;
+	ptr_size_t current_size_in_samples;
+	ptr_size_t buffer_size_in_samples;
+} FLACDecodeContext;
+
+static FLAC__StreamDecoderReadStatus flac_read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
+{
+	struct timidity_file *tf = ((FLACDecodeContext *)client_data)->input;
+
+	if (*bytes > 0) {
+		*bytes = tf_read(buffer, 1, *bytes, tf);
+
+		if (*bytes == 0) {
+			return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
+		} else {
+			return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
+		}
+	} else {
+		return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
+	}
+}
+
+static FLAC__StreamDecoderSeekStatus flac_seek_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data)
+{
+	struct timidity_file *tf = ((FLACDecodeContext *)client_data)->input;
+
+	if (!IS_URL_SEEK_SAFE(tf->url)) {
+		return FLAC__STREAM_DECODER_SEEK_STATUS_UNSUPPORTED;
+	}
+
+	if (tf_seek_uint64(tf, absolute_byte_offset, SEEK_SET) == -1L) {
+		return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
+	} else {
+		return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
+	}
+}
+
+static FLAC__StreamDecoderTellStatus flac_tell_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data)
+{
+	struct timidity_file *tf = ((FLACDecodeContext *)client_data)->input;
+
+	if (!IS_URL_SEEK_SAFE(tf->url)) {
+		return FLAC__STREAM_DECODER_TELL_STATUS_UNSUPPORTED;
+	}
+
+	*absolute_byte_offset = (FLAC__uint64)tf_tell(tf);
+	return FLAC__STREAM_DECODER_TELL_STATUS_OK;
+}
+
+static FLAC__StreamDecoderLengthStatus flac_length_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data)
+{
+	struct timidity_file *tf = ((FLACDecodeContext *)client_data)->input;
+
+	if (!IS_URL_SEEK_SAFE(tf->url)) {
+		return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+	}
+
+	off_size_t prevpos = tf_seek(tf, 0, SEEK_END);
+
+	if (prevpos == -1L) {
+		return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
+	}
+
+	*stream_length = (FLAC__uint64)tf_tell(tf);
+
+	if (tf_seek(tf, prevpos, SEEK_SET) == -1L) {
+		return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
+	}
+
+	return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
+}
+
+static FLAC__bool flac_eof_callback(const FLAC__StreamDecoder *decoder, void *client_data)
+{
+	struct timidity_file *tf = ((FLACDecodeContext *)client_data)->input;
+	return !!url_eof(tf->url);
+}
+
+static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data)
+{
+	FLACDecodeContext *context = (FLACDecodeContext *)client_data;
+	SampleDecodeResult *sdr = context->output;
+
+	if (context->current_size_in_samples + frame->header.blocksize + 128 > context->buffer_size_in_samples) {
+		context->buffer_size_in_samples += context->buffer_size_in_samples / 2 + frame->header.blocksize + 128;
+
+		for (int i = 0; i < sdr->channels; i++) {
+			sdr->data[i] = (sample_t *)safe_large_realloc(sdr->data[i], get_sample_size_for_sample_type(sdr->data_type) * context->buffer_size_in_samples);
+		}
+	}
+
+	for (int i = 0; i < sdr->channels; i++) {
+		switch (sdr->data_type) {
+		case SAMPLE_TYPE_INT32:
+			memcpy(((FLAC__int32 *)sdr->data[i]) + context->current_size_in_samples, buffer[i], frame->header.blocksize * sizeof(FLAC__int32));
+			break;
+
+		case SAMPLE_TYPE_INT16:
+			for (unsigned int j = 0; j < frame->header.blocksize; j++) {
+				sdr->data[i][context->current_size_in_samples + j] = (FLAC__int16)buffer[i][j];
+			}
+			break;
+		}
+	}
+
+	context->current_size_in_samples += frame->header.blocksize;
+	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+}
+
+// FIXME: not safe if called multiple times
+static void flac_metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data)
+{
+	FLACDecodeContext *context = (FLACDecodeContext *)client_data;
+	SampleDecodeResult *sdr = context->output;
+
+	if (metadata->type == FLAC__METADATA_TYPE_STREAMINFO) {
+		sdr->sample_rate = metadata->data.stream_info.sample_rate;
+		sdr->data_type = (metadata->data.stream_info.bits_per_sample > 16 ? SAMPLE_TYPE_INT32 : SAMPLE_TYPE_INT16);
+
+		context->buffer_size_in_samples = metadata->data.stream_info.total_samples + 128;
+		sdr->channels = metadata->data.stream_info.channels;
+
+		if (sdr->channels > DECODE_MAX_CHANNELS) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "samples with more than %d channels are not supported", DECODE_MAX_CHANNELS);
+			sdr->channels = DECODE_MAX_CHANNELS;
+		}
+
+		for (int i = 0; i < sdr->channels; i++) {
+			sdr->data[i] = (sample_t *)safe_large_malloc(get_sample_size_for_sample_type(sdr->data_type) * context->buffer_size_in_samples);
+			sdr->data_alloced[i] = 1;
+		}
+	}
+}
+
+static void flac_error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
+{
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "an error has occurred while decoding FLAC stream [FLAC__StreamDecoderErrorStatus = %d]", status);
+}
+
+SampleDecodeResult decode_flac(struct timidity_file *tf)
+{
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "decoding FLAC file...");
+	SampleDecodeResult sdr = {.data[0] = DummySampleData, .data[1] = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
+
+#ifdef AU_FLAC_DLL
+	if (g_load_libFLAC_dll() != 0) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to load FLAC dll");
+		return sdr;
+	}
+#endif
+
+	FLAC__StreamDecoder *decoder = FLAC__stream_decoder_new();
+
+	if (!decoder) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC__stream_decoder_new() failed");
+		return sdr;
+	}
+
+	FLAC__stream_decoder_set_md5_checking(decoder, TRUE);
+
+	FLACDecodeContext context = {tf, &sdr};
+
+	FLAC__StreamDecoderInitStatus init_status = FLAC__stream_decoder_init_stream(
+		decoder,
+		&flac_read_callback,
+		&flac_seek_callback,
+		&flac_tell_callback,
+		&flac_length_callback,
+		&flac_eof_callback,
+		&flac_write_callback,
+		&flac_metadata_callback,
+		&flac_error_callback,
+		&context
+	);
+
+	if (init_status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC__stream_decoder_init_stream() failed [FLAC__StreamDecoderInitStatus = %d]", init_status);
+		goto cleanup;
+	}
+
+	if (!FLAC__stream_decoder_process_until_end_of_stream(decoder)) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC__stream_decoder_process_until_end_of_stream() failed");
+		goto cleanup;
+	}
+
+	for (int i = 0; i < sdr.channels; i++) {
+		memset(
+			(char *)sdr.data[i] + context.current_size_in_samples * get_sample_size_for_sample_type(sdr.data_type),
+			0,
+			(context.buffer_size_in_samples - context.current_size_in_samples) * get_sample_size_for_sample_type(sdr.data_type)
+		);
+	}
+
+	FLAC__stream_decoder_delete(decoder);
+	sdr.data_length = (splen_t)context.current_size_in_samples << FRACTION_BITS;
+	return sdr;
+
+cleanup:
+	if (decoder) {
+		FLAC__stream_decoder_delete(decoder);
+	}
+
+	clear_sample_decode_result(&sdr);
+	return sdr;
+}
+
+#else // AU_FLAC
+
+SampleDecodeResult decode_flac(struct timidity_file *tf)
+{
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "FLAC decoder support is disabled");
+	return (SampleDecodeResult){.data[0] = DummySampleData, .data[1] = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
+}
+
+#endif // AU_FLAC

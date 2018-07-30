@@ -37,6 +37,7 @@
 #include "timidity.h"
 #include "common.h"
 #include "controls.h"
+#include "decode.h"
 #include "filter.h"
 #include "instrum.h"
 #include "output.h"
@@ -70,10 +71,16 @@ static int import_wave_discriminant(char *sample_file);
 static int import_wave_load(char *sample_file, Instrument *inst);
 static int import_aiff_discriminant(char *sample_file);
 static int import_aiff_load(char *sample_file, Instrument *inst);
+static int import_oggvorbis_discriminant(char *sample_file);
+static int import_oggvorbis_load(char *sample_file, Instrument *inst);
+static int import_flac_discriminant(char *sample_file);
+static int import_flac_load(char *sample_file, Instrument *inst);
 
 static SampleImporter	sample_importers[] = {
 	{"wav", import_wave_discriminant, import_wave_load},
 	{"aiff", import_aiff_discriminant, import_aiff_load},
+	{"ogg", import_oggvorbis_discriminant, import_oggvorbis_load},
+	{"flac", import_flac_discriminant, import_flac_load},
 	{NULL, NULL, NULL},
 };
 
@@ -320,6 +327,8 @@ static void apply_GeneralInstrumentInfo(int samples, Sample *sample, const Gener
 #define SAMPLE_IEEE_FLOAT    (1L << 2)
 
 static int read_sample_data(int32 flags, struct timidity_file *tf, int bits, int samples, int32 frames, sample_t **sdata, Sample *sp);
+
+static int make_instrument_from_sample_decode_result(Instrument *inst, SampleDecodeResult *sdr);
 
 /*************** WAV Importer ***************/
 
@@ -1023,6 +1032,74 @@ static int AIFFGetMarkerPosition(int16 id, const AIFFMarkerData *markers, uint32
 	return 0;
 }
 
+/*************** Ogg Vorbis importer ***************/
+
+static int import_oggvorbis_discriminant(char *sample_file)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+
+	if (tf == NULL)
+		return 1;
+
+	char buf[4];
+	if (tf_read(buf, 1, 4, tf) != 4 || memcmp(buf, "OggS", 4) != 0) {
+		close_file(tf);
+		return 1;
+	}
+
+	close_file(tf);
+	return 0;
+}
+
+static int import_oggvorbis_load(char *sample_file, Instrument *inst)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+
+	if (tf == NULL)
+		return 1;
+
+	SampleDecodeResult sdr = decode_oggvorbis(tf);
+	close_file(tf);
+
+	int ret = make_instrument_from_sample_decode_result(inst, &sdr);
+	clear_sample_decode_result(&sdr);
+	return ret;
+}
+
+/*************** FLAC importer ***************/
+
+static int import_flac_discriminant(char *sample_file)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+
+	if (tf == NULL)
+		return 1;
+
+	char buf[4];
+	if (tf_read(buf, 1, 4, tf) != 4 || memcmp(buf, "fLaC", 4) != 0) {
+		close_file(tf);
+		return 1;
+	}
+
+	close_file(tf);
+	return 0;
+}
+
+static int import_flac_load(char *sample_file, Instrument *inst)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+
+	if (tf == NULL)
+		return 1;
+
+	SampleDecodeResult sdr = decode_flac(tf);
+	close_file(tf);
+
+	int ret = make_instrument_from_sample_decode_result(inst, &sdr);
+	clear_sample_decode_result(&sdr);
+	return ret;
+}
+
 /******************************/
 
 #define WAVE_BUF_SIZE (1L << 11)	/* should be power of 2 */
@@ -1420,6 +1497,28 @@ void free_pcm_sample_file(Instrument *ip)
 {
     safe_free(ip->instname);
     ip->instname = NULL;
+}
+
+static int make_instrument_from_sample_decode_result(Instrument *inst, SampleDecodeResult *sdr)
+{
+	if (sdr->channels == 0)
+		return 1;
+
+	inst->samples = sdr->channels;
+	inst->sample = (Sample *)safe_calloc(sizeof(Sample), inst->samples);
+
+	initialize_sample(inst, (int)(sdr->data_length >> FRACTION_BITS), get_sample_size_for_sample_type(sdr->data_type), sdr->sample_rate);
+
+	for (int i = 0; i < inst->samples; i++) {
+		Sample *s = &inst->sample[i];
+		s->data = sdr->data[i];
+		sdr->data[i] = NULL;
+		s->data_alloced = sdr->data_alloced[i];
+		sdr->data_alloced[i] = 0;
+		s->data_type = sdr->data_type;
+	}
+
+	return 0;
 }
 
 
