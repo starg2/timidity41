@@ -834,7 +834,7 @@ enum class LoopModeKind
 
 enum class TriggerKind
 {
-    NoteOn, // not sure if this is the right name
+    Attack,
     Legato,
     First,
     Release
@@ -1299,6 +1299,7 @@ private:
         if (TextBuffer::View word; AnyWord(curView, word))
         {
             static const std::unordered_map<std::string_view, TriggerKind> TriggerKindMap{
+                {"attack"sv, TriggerKind::Attack},
                 {"first"sv, TriggerKind::First},
                 {"legato"sv, TriggerKind::Legato},
                 {"release"sv, TriggerKind::Release}
@@ -1451,7 +1452,7 @@ private:
 
                 s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
 
-                TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::NoteOn);
+                TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack);
 
                 if (trigger == TriggerKind::Release)
                 {
@@ -1486,7 +1487,7 @@ private:
                 {
                     // TODO: support trigger=legato and trigger=first
 
-                    if (trigger != TriggerKind::NoteOn)
+                    if (trigger != TriggerKind::Attack)
                     {
                         auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
                         ctl->cmsg(
