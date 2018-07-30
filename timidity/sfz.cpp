@@ -810,6 +810,7 @@ enum class OpCodeKind
     AmpEG_Release,
     AmpEG_Sustain,
     AmpVelTrack,
+    DefaultPath,
     HiKey,
     HiVelocity,
     LoKey,
@@ -1110,6 +1111,7 @@ private:
             {"ampeg_release"sv, OpCodeKind::AmpEG_Release},
             {"ampeg_sustain"sv, OpCodeKind::AmpEG_Sustain},
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
+            {"default_path"sv, OpCodeKind::DefaultPath},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hivel"sv, OpCodeKind::HiVelocity},
             {"lokey"sv, OpCodeKind::LoKey},
@@ -1377,7 +1379,14 @@ private:
     {
         if (auto sampleName = flatSection.GetAs<std::string>(OpCodeKind::Sample))
         {
-            auto pSampleInstrument = BuildSingleSampleInstrument(*sampleName);
+            std::string pathPrefix = flatSection.GetAs<std::string>(OpCodeKind::DefaultPath).value_or("");
+
+            if (!pathPrefix.empty() && (pathPrefix.back() != '/' && pathPrefix.back() != '\\'))
+            {
+                pathPrefix += '/';
+            }
+
+            auto pSampleInstrument = BuildSingleSampleInstrument(pathPrefix + *sampleName);
 
             for (int i = 0; i < pSampleInstrument->samples; i++)
             {
