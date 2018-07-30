@@ -22,6 +22,7 @@ Instrument *extract_sample_file(char *sample_file);
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 
@@ -816,6 +817,7 @@ enum class OpCodeKind
     LoopMode,
     LoopStart,
     LoVelocity,
+    Offset,
     Key,
     PitchKeyCenter,
     Sample,
@@ -976,6 +978,7 @@ public:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
                         case OpCodeKind::LoVelocity:
+                        case OpCodeKind::Offset:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
                             try
@@ -1114,6 +1117,7 @@ private:
             {"loop_mode"sv, OpCodeKind::LoopMode},
             {"loop_start"sv, OpCodeKind::LoopStart},
             {"lovel"sv, OpCodeKind::LoVelocity},
+            {"offset"sv, OpCodeKind::Offset},
             {"key"sv, OpCodeKind::Key},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample},
@@ -1411,6 +1415,44 @@ private:
                     static_cast<splen_t>(0),
                     s.data_length
                 );
+
+                if (auto offset = flatSection.GetAs<double>(OpCodeKind::Offset))
+                {
+                    // shift sample data, data length, and loop offsets
+
+                    splen_t offsetInt = std::clamp(
+                        std::llround(offset.value()),
+                        static_cast<splen_t>(0),
+                        s.data_length >> FRACTION_BITS
+                    );
+
+                    splen_t offsetFixed = offsetInt << FRACTION_BITS;
+                    std::size_t bufferSizeInSamples = static_cast<std::size_t>(s.data_length >> FRACTION_BITS);
+                    s.data_length -= offsetFixed;
+
+                    std::size_t sampleSizeAfterShift = static_cast<std::size_t>(s.data_length >> FRACTION_BITS);
+                    std::size_t sampleSize = (s.data_type == SAMPLE_TYPE_DOUBLE ? 8 : (s.data_type == SAMPLE_TYPE_FLOAT || s.data_type == SAMPLE_TYPE_INT32 ? 4 : 2));
+
+                    std::memmove(s.data, reinterpret_cast<std::byte*>(s.data) + offsetInt * sampleSize, sampleSizeAfterShift * sampleSize);
+
+                    std::memset(
+                        reinterpret_cast<std::byte*>(s.data) + sampleSizeAfterShift * sampleSize,
+                        0,
+                        (bufferSizeInSamples - sampleSizeAfterShift) * sampleSize
+                    );
+
+                    s.loop_start = std::clamp(
+                        s.loop_start - offsetFixed,
+                        static_cast<splen_t>(0),
+                        std::max(static_cast<splen_t>(0), s.data_length - (1 << FRACTION_BITS))
+                    );
+
+                    s.loop_end = std::clamp(
+                        s.loop_end - offsetFixed,
+                        s.loop_start,
+                        s.data_length
+                    );
+                }
 
                 s.modes |= MODES_ENVELOPE;
                 s.modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN);
