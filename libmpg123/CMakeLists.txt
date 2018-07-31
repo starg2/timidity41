@@ -1,12 +1,7 @@
 
 include_directories(src src/compat src/libmpg123)
 
-add_definitions(
-    -D_CRT_SECURE_NO_WARNINGS
-	-DHAVE_SYS_STAT_H
-    -DBUILD_MPG123_DLL
-    -DOPT_GENERIC
-)
+add_definitions(-DOPT_GENERIC)
 
 add_library(
     libmpg123 SHARED
@@ -75,4 +70,5 @@ add_library(
 )
 
 set_target_properties(libmpg123 PROPERTIES PREFIX "")
+target_compile_definitions(libmpg123 PRIVATE -DBUILD_MPG123_DLL INTERFACE -DLINK_MPG123_DLL)
 target_link_libraries(libmpg123 shlwapi)
