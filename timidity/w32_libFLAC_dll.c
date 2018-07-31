@@ -5364,7 +5364,7 @@ typedef unsigned (*type_FLAC__stream_decoder_get_bits_per_sample)(const FLAC__St
 typedef unsigned (*type_FLAC__stream_decoder_get_sample_rate)(const FLAC__StreamDecoder *decoder);
 typedef unsigned (*type_FLAC__stream_decoder_get_blocksize)(const FLAC__StreamDecoder *decoder);
 typedef FLAC__bool (*type_FLAC__stream_decoder_get_decode_position)(const FLAC__StreamDecoder *decoder, FLAC__uint64 *position);
-typedef FLAC__StreamDecoderInitStatus (*type_FLAC__stream_decoder_init_stream)(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderReadCallback read_callback, FLAC__StreamDecoderSeekCallback seek_callback, FLAC__StreamDecoderTellCallback tell_callback, FLAC__StreamDecoderLengthCallback length_callback, FLAC__StreamDecoderEofCallback eof_callback, FLAC__StreamDecoderWriteCallback write_callback, FLAC__StreamDecoderMetadataCallback metadata_callback, FLAC__StreamDecoderErrorCallback error_callback, void *client_data);
+typedef FLAC__StreamDecoderInitStatus (*type_FLAC__stream_decoder_init_stream)(FLAC__StreamDecoder *decoder, FLAC__StreamDecoderReadCallback read_callback, FLAC__StreamDecoderSeekCallback seek_callback, FLAC__StreamDecoderTellCallback tell_callback, FLAC__StreamDecoderLengthCallback length_callback, FLAC__StreamDecoderEofCallback eof_callback, FLAC__StreamDecoderWriteCallback write_callback, FLAC__StreamDecoderMetadataCallback metadata_callback, FLAC__StreamDecoderErrorCallback error_callback, void *client_data);
 typedef FLAC__bool (*type_FLAC__stream_decoder_finish)(FLAC__StreamDecoder *decoder);
 typedef FLAC__bool (*type_FLAC__stream_decoder_flush)(FLAC__StreamDecoder *decoder);
 typedef FLAC__bool (*type_FLAC__stream_decoder_reset)(FLAC__StreamDecoder *decoder);
@@ -6372,7 +6372,7 @@ FLAC__bool FLAC__stream_decoder_get_decode_position(const FLAC__StreamDecoder *d
 	return (FLAC__bool)0;
 }
 
-FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_stream(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderReadCallback read_callback, FLAC__StreamDecoderSeekCallback seek_callback, FLAC__StreamDecoderTellCallback tell_callback, FLAC__StreamDecoderLengthCallback length_callback, FLAC__StreamDecoderEofCallback eof_callback, FLAC__StreamDecoderWriteCallback write_callback, FLAC__StreamDecoderMetadataCallback metadata_callback, FLAC__StreamDecoderErrorCallback error_callback, void *client_data)
+FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_stream(FLAC__StreamDecoder *decoder, FLAC__StreamDecoderReadCallback read_callback, FLAC__StreamDecoderSeekCallback seek_callback, FLAC__StreamDecoderTellCallback tell_callback, FLAC__StreamDecoderLengthCallback length_callback, FLAC__StreamDecoderEofCallback eof_callback, FLAC__StreamDecoderWriteCallback write_callback, FLAC__StreamDecoderMetadataCallback metadata_callback, FLAC__StreamDecoderErrorCallback error_callback, void *client_data)
 {
 	if (h_libFLAC_dll) {
 		return libFLAC_dll.FLAC__stream_decoder_init_stream(decoder, read_callback, seek_callback, tell_callback, length_callback, eof_callback, write_callback, metadata_callback, error_callback, client_data);
