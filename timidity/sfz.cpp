@@ -25,6 +25,7 @@ Instrument *extract_sample_file(char *sample_file);
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 
 #include <algorithm>
 #include <exception>
