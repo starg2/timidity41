@@ -175,11 +175,11 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 		sample_t *single_data = sdr.data[0];
 
 		for (int i = 0; i < sdr.channels; i++) {
-			sdr.data[i] = (sample_t *)safe_large_calloc((data_length / sdr.channels) + 128, sizeof(sample_t));
+			sdr.data[i] = (sample_t *)safe_large_calloc((current_size / sdr.channels) + 128, sizeof(sample_t));
 			sdr.data_alloced[i] = 1;
 		}
 
-		for (int i = 0; i < data_length / sdr.channels; i++) {
+		for (int i = 0; i < current_size / sdr.channels; i++) {
 			for (int j = 0; j < sdr.channels; j++) {
 				sdr.data[j][i] = single_data[i * sdr.channels + j];
 			}
@@ -188,7 +188,7 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 		safe_free(single_data);
 	}
 
-	sdr.data_length = (data_length / sdr.channels / sizeof(sample_t)) << FRACTION_BITS;
+	sdr.data_length = (current_size / sdr.channels / sizeof(sample_t)) << FRACTION_BITS;
 	return sdr;
 
 cleanup:
@@ -593,11 +593,11 @@ SampleDecodeResult decode_mp3(struct timidity_file *tf)
 		sample_t *single_data = sdr.data[0];
 
 		for (int i = 0; i < sdr.channels; i++) {
-			sdr.data[i] = (sample_t *)safe_large_calloc(buffer_size / sdr.channels + 128, 1);
+			sdr.data[i] = (sample_t *)safe_large_calloc(current_length / sdr.channels + 128, 1);
 			sdr.data_alloced[i] = 1;
 		}
 
-		for (int i = 0; i < buffer_size / get_sample_size_for_sample_type(sdr.data_type) / sdr.channels; i++) {
+		for (int i = 0; i < current_length / get_sample_size_for_sample_type(sdr.data_type) / sdr.channels; i++) {
 			for (int j = 0; j < sdr.channels; j++) {
 				memcpy(
 					&sdr.data[j][i],
@@ -610,7 +610,7 @@ SampleDecodeResult decode_mp3(struct timidity_file *tf)
 		safe_free(single_data);
 	}
 
-	sdr.data_length = (splen_t)(buffer_size / get_sample_size_for_sample_type(sdr.data_type) / sdr.channels) << FRACTION_BITS;
+	sdr.data_length = (splen_t)(current_length / get_sample_size_for_sample_type(sdr.data_type) / sdr.channels) << FRACTION_BITS;
 	return sdr;
 
 cleanup:
