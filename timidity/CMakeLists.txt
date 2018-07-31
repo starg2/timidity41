@@ -117,6 +117,7 @@ add_library(
     w32g_vorbisfile_dll.c
     w32g_opus_dll.c
     w32_libFLAC_dll.c
+    w32_libmpg123_dll.c
     w32_libOggFLAC_dll.c
     wdmks_a.c
     wrd_read.c

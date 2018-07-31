@@ -75,12 +75,15 @@ static int import_oggvorbis_discriminant(char *sample_file);
 static int import_oggvorbis_load(char *sample_file, Instrument *inst);
 static int import_flac_discriminant(char *sample_file);
 static int import_flac_load(char *sample_file, Instrument *inst);
+static int import_mp3_discriminant(char *sample_file);
+static int import_mp3_load(char *sample_file, Instrument *inst);
 
 static SampleImporter	sample_importers[] = {
 	{"wav", import_wave_discriminant, import_wave_load},
 	{"aiff", import_aiff_discriminant, import_aiff_load},
 	{"ogg", import_oggvorbis_discriminant, import_oggvorbis_load},
 	{"flac", import_flac_discriminant, import_flac_load},
+	{"mp3", import_mp3_discriminant, import_mp3_load},
 	{NULL, NULL, NULL},
 };
 
@@ -1093,6 +1096,45 @@ static int import_flac_load(char *sample_file, Instrument *inst)
 		return 1;
 
 	SampleDecodeResult sdr = decode_flac(tf);
+	close_file(tf);
+
+	int ret = make_instrument_from_sample_decode_result(inst, &sdr);
+	clear_sample_decode_result(&sdr);
+	return ret;
+}
+
+/*************** mp3 importer ***************/
+
+static int import_mp3_discriminant(char *sample_file)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+
+	if (tf == NULL)
+		return 1;
+
+	unsigned char buf[3] = {0};
+	tf_read(buf, 1, 3, tf);
+	close_file(tf);
+
+	if (buf[0] == 0xFF && buf[1] == 0xFB) {
+		return 0;
+	}
+
+	if (buf[0] == 0x49 && buf[1] == 0x44 && buf[2] == 0x33) {
+		return 0;
+	}
+
+	return 1;
+}
+
+static int import_mp3_load(char *sample_file, Instrument *inst)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+
+	if (tf == NULL)
+		return 1;
+
+	SampleDecodeResult sdr = decode_mp3(tf);
 	close_file(tf);
 
 	int ret = make_instrument_from_sample_decode_result(inst, &sdr);

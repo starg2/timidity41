@@ -18,3 +18,4 @@ void clear_sample_decode_result(SampleDecodeResult *sdr);
 
 SampleDecodeResult decode_oggvorbis(struct timidity_file *tf);
 SampleDecodeResult decode_flac(struct timidity_file *tf);
+SampleDecodeResult decode_mp3(struct timidity_file *tf);

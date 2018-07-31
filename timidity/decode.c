@@ -434,3 +434,199 @@ SampleDecodeResult decode_flac(struct timidity_file *tf)
 }
 
 #endif // AU_FLAC
+
+#ifdef HAVE_LIBMPG123
+
+#include <mpg123.h>
+
+int load_mpg123_dll(void);
+
+static ssize_t mp3_read_callback(void *handle, void *buf, size_t count)
+{
+	struct timidity_file *tf = (struct timidity_file *)handle;
+	return (ssize_t)tf_read(buf, 1, count, tf);
+}
+
+static off_t mp3_seek_callback(void *handle, off_t offset, int whence)
+{
+	struct timidity_file *tf = (struct timidity_file *)handle;
+	return tf_seek(tf, offset, whence);
+}
+
+SampleDecodeResult decode_mp3(struct timidity_file *tf)
+{
+	ctl->cmsg(CMSG_INFO, VERB_DEBUG, "decoding mp3 file...");
+	SampleDecodeResult sdr = {.data[0] = DummySampleData,.data[1] = DummySampleData,.data_type = SAMPLE_TYPE_INT16};
+
+	if (load_mpg123_dll() != 0) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to load libmpg123.dll");
+		return sdr;
+	}
+
+	if (mpg123_init() != MPG123_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_init() failed");
+		return sdr;
+	}
+
+	mpg123_handle *mh = mpg123_new(NULL, NULL);
+
+	if (!mh) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_new() failed");
+		return sdr;
+	}
+
+	if (mpg123_format_none(mh) != MPG123_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_format_none() failed");
+		goto cleanup;
+	}
+
+	// from libmpg123/format.c
+	static const long supported_rates[9] = {
+		8000, 11025, 12000,
+		16000, 22050, 24000,
+		32000, 44100, 48000
+	};
+
+	static const int supported_encodings[4] = {
+		MPG123_ENC_SIGNED_16,
+		MPG123_ENC_SIGNED_32,
+		MPG123_ENC_FLOAT_32,
+		MPG123_ENC_FLOAT_64
+	};
+
+	for (int i = 0; i < sizeof(supported_rates) / sizeof(supported_rates[0]); i++) {
+		for (int j = 0; j < sizeof(supported_encodings) / sizeof(supported_encodings[0]); j++) {
+			if (mpg123_format(mh, supported_rates[i], MPG123_STEREO | MPG123_MONO, supported_encodings[j]) != MPG123_OK) {
+				ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_format() failed");
+				goto cleanup;
+			}
+		}
+	}
+
+	if (mpg123_replace_reader_handle(mh, &mp3_read_callback, &mp3_seek_callback, NULL) != MPG123_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_replace_reader_handle() failed");
+		goto cleanup;
+	}
+
+	if (mpg123_open_handle(mh, tf) != MPG123_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_open_handle() failed");
+		goto cleanup;
+	}
+
+	long rate;
+	int channels;
+	int encoding;
+	if (mpg123_getformat(mh, &rate, &channels, &encoding) != MPG123_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_getformat() failed");
+		goto cleanup;
+	}
+
+	if (channels < 1 || DECODE_MAX_CHANNELS < channels) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "samples with more than %d channels are not supported", DECODE_MAX_CHANNELS);
+		goto cleanup;
+	}
+
+	sdr.channels = channels;
+	sdr.sample_rate = rate;
+
+	switch (encoding) {
+	case MPG123_ENC_SIGNED_16:
+		sdr.data_type = SAMPLE_TYPE_INT16;
+		break;
+
+	case MPG123_ENC_SIGNED_32:
+		sdr.data_type = SAMPLE_TYPE_INT32;
+		break;
+
+	case MPG123_ENC_FLOAT_32:
+		sdr.data_type = SAMPLE_TYPE_FLOAT;
+		break;
+
+	case MPG123_ENC_FLOAT_64:
+		sdr.data_type = SAMPLE_TYPE_DOUBLE;
+		break;
+
+	default:
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unsupported mp3 format");
+		goto cleanup;
+	}
+
+	// prevent format changes
+	if (mpg123_format_none(mh) != MPG123_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_format_none() failed");
+		goto cleanup;
+	}
+
+	if (mpg123_format(mh, rate, channels, encoding) != MPG123_OK) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_format() failed");
+		goto cleanup;
+	}
+
+	size_t current_length = 0;
+	size_t buffer_size = 1024;
+	sdr.data[0] = (sample_t *)safe_large_malloc(buffer_size);
+	sdr.data_alloced[0] = 1;
+
+	while (1) {
+		buffer_size += buffer_size / 2 + 128;
+		sdr.data[0] = (sample_t *)safe_large_realloc(sdr.data[0], buffer_size);
+
+		size_t decoded;
+		int err = mpg123_read(mh, (unsigned char *)sdr.data[0] + current_length, buffer_size - current_length - 128, &decoded);
+		current_length += decoded;
+
+		if (err == MPG123_DONE) {
+			break;
+		} else if (err != MPG123_OK) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mpg123_read() failed");
+			goto cleanup;
+		}
+	}
+
+	mpg123_close(mh);
+	mpg123_delete(mh);
+
+	memset((unsigned char *)sdr.data[0] + current_length, 0, buffer_size - current_length);
+
+	if (sdr.channels > 1) {
+		// split data into multiple channels
+		sample_t *single_data = sdr.data[0];
+
+		for (int i = 0; i < sdr.channels; i++) {
+			sdr.data[i] = (sample_t *)safe_large_calloc(buffer_size / sdr.channels + 128, 1);
+			sdr.data_alloced[i] = 1;
+		}
+
+		for (int i = 0; i < buffer_size / get_sample_size_for_sample_type(sdr.data_type) / sdr.channels; i++) {
+			for (int j = 0; j < sdr.channels; j++) {
+				memcpy(
+					&sdr.data[j][i],
+					(char *)single_data + (i * sdr.channels + j) * get_sample_size_for_sample_type(sdr.data_type),
+					get_sample_size_for_sample_type(sdr.data_type)
+				);
+			}
+		}
+
+		safe_free(single_data);
+	}
+
+	sdr.data_length = (splen_t)(buffer_size / get_sample_size_for_sample_type(sdr.data_type) / sdr.channels) << FRACTION_BITS;
+	return sdr;
+
+cleanup:
+	mpg123_close(mh);
+	mpg123_delete(mh);
+	// mpg123_exit();
+	clear_sample_decode_result(&sdr);
+	return (SampleDecodeResult){.data[0] = DummySampleData, .data[1] = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
+}
+
+#else // HAVE_LIBMPG123
+
+SampleDecodeResult decode_mp3(struct timidity_file *tf)
+{
+	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "mp3 decoder support is disabled");
+	return (SampleDecodeResult){.data[0] = DummySampleData, .data[1] = DummySampleData, .data_type = SAMPLE_TYPE_INT16};
+}
+
+#endif // HAVE_LIBMPG123
