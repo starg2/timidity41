@@ -189,6 +189,7 @@ include_directories(
     lame/DLL
     lame/include
     libarc
+    libmpg123/include
     libunimod
     ogg/include
     opus/include
@@ -205,6 +206,7 @@ include_directories(
 
 add_subdirectory(FLAC)
 add_subdirectory(lame)
+add_subdirectory(libmpg123)
 add_subdirectory(ogg)
 add_subdirectory(opus)
 add_subdirectory(pdcurses)
