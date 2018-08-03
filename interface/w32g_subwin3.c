@@ -190,7 +190,7 @@ static struct tracer_bmp_ {
 static void recalc_tracer_rc(void);
 static int get_head_rc(RECT *rc, RECT *rc_base);
 static int get_ch_rc(int ch, RECT *rc, RECT *rc_base);
-static int notes_view_draw(RECT *lprc, int note, int vel, int back_draw, int lockflag);
+static int notes_view_draw(RECT *lprc, int note, int voice, int vel, int back_draw, int lockflag);
 #if 0
 static int cheap_volume_view_draw(RECT *lprc, int vol, int max, COLORREF fore, COLORREF back, int type, int lockflag);
 #endif
@@ -616,7 +616,8 @@ void TracerWndReset(void)
 		w32g_tracer_wnd.tt[i] = 0;
 		w32g_tracer_wnd.insertion_effect[i] = 0;
 		for (j = 0; j < 256; j++) {
-			w32g_tracer_wnd.notes[i][j] = -1;
+			w32g_tracer_wnd.note_voice[i][j] = 0;
+			w32g_tracer_wnd.note_vel[i][j] = -1;
 		}
 	}
 	w32g_tracer_wnd.play_system_mode = play_system_mode;
@@ -632,7 +633,8 @@ void TracerWndReset2(void)
 	for (i = 0; i < TRACER_CHANNELS; i++) {
 		w32g_tracer_wnd.velocity[i] = 0;
 		for (j = 0; j < 128; j++) {
-			w32g_tracer_wnd.notes[i][j] = -1;
+			w32g_tracer_wnd.note_voice[i][j] = 0;
+			w32g_tracer_wnd.note_vel[i][j] = -1;
 		}
 	}
 	TRACER_LOCK();
@@ -640,7 +642,7 @@ void TracerWndReset2(void)
 		for (j = 0; j < 128; j++) {
 			RECT rc;
 			if (get_ch_rc(i, &rc, &w32g_tracer_wnd.rc_notes) == 0)
-				notes_view_draw(&rc, j, w32g_tracer_wnd.notes[i][j], TRUE, FALSE);
+				notes_view_draw(&rc, j, w32g_tracer_wnd.note_voice[i][j], w32g_tracer_wnd.note_vel[i][j], TRUE, FALSE);
 		}
 	}
 	TRACER_UNLOCK();
@@ -764,6 +766,7 @@ void w32_tracer_ctl_event(CtlEvent *e)
 		switch ((int)e->v1) {
 		case VOICE_ON:
 			w32g_tracer_wnd.velocity[(int)e->v2] += (int)e->v4;
+			w32g_tracer_wnd.note_voice[(int)e->v2][(int)e->v3]++;
 			break;
 		case VOICE_SUSTAINED:
 			vel = TRACER_VOICE_SUSTAINED;
@@ -772,14 +775,18 @@ void w32_tracer_ctl_event(CtlEvent *e)
 		case VOICE_FREE:
 		case VOICE_OFF:
 			w32g_tracer_wnd.velocity[(int)e->v2] -= (int)e->v4;
-			vel = TRACER_VOICE_OFF;
+			w32g_tracer_wnd.note_voice[(int)e->v2][(int)e->v3]--;
+			if (w32g_tracer_wnd.note_voice[(int)e->v2][(int)e->v3] <= 0) {
+				vel = TRACER_VOICE_OFF;
+				w32g_tracer_wnd.note_voice[(int)e->v2][(int)e->v3] = 0;
+			}
 			break;
 		}
 		if (w32g_tracer_wnd.velocity[(int)e->v2] < 0)
 			w32g_tracer_wnd.velocity[(int)e->v2] = 0;
 		if (get_ch_rc((int)e->v2, &rc, &w32g_tracer_wnd.rc_notes) == 0)
-			notes_view_draw(&rc, (int)e->v3, vel, FALSE, TRUE);
-		w32g_tracer_wnd.notes[(int)e->v2][(int)e->v3] = vel;
+			notes_view_draw(&rc, (int)e->v3, w32g_tracer_wnd.note_voice[(int)e->v2][(int)e->v3], vel, FALSE, TRUE);
+		w32g_tracer_wnd.note_vel[(int)e->v2][(int)e->v3] = vel;
 
 		if (get_ch_rc((int)e->v2, &rc, &w32g_tracer_wnd.rc_velocity) == 0)
 			tracer_velocity_draw_ex(&rc, w32g_tracer_wnd.velocity[(int)e->v2], vel_old, VEL_MAX, TRUE);
@@ -994,7 +1001,7 @@ static int get_ch_rc(int ch, RECT *rc, RECT *rc_base)
 	return 0;
 }
 
-static int notes_view_draw(RECT *lprc, int note, int vel, int back_draw, int lockflag)
+static int notes_view_draw(RECT *lprc, int note, int voice, int vel, int back_draw, int lockflag)
 {
 	HDC hdc = w32g_tracer_wnd.hmdc;
 	RECT rc1;
@@ -1061,16 +1068,16 @@ static int notes_view_draw(RECT *lprc, int note, int vel, int back_draw, int loc
 	}
 
 	if (lockflag) TRACER_LOCK();
-	if (vel >= 0) {
-		BitBlt(hdc, rc1.left, rc1.top, rc1.right - rc1.left, rc1.bottom - rc1.top,
-			tracer_bmp.hmdc, tracer_bmp.rc_notes_mask[note].left + left, tracer_bmp.rc_notes_mask[note].top, SRCPAINT);
-		BitBlt(hdc, rc1.left, rc1.top, rc1.right - rc1.left, rc1.bottom - rc1.top,
-			tracer_bmp.hmdc, tracer_bmp.rc_note_on[note].left + left, tracer_bmp.rc_note_on[note].top, SRCAND);
-	} else if (vel  == TRACER_VOICE_SUSTAINED) {
+	if (vel  == TRACER_VOICE_SUSTAINED) {
 		BitBlt(hdc, rc1.left, rc1.top, rc1.right - rc1.left, rc1.bottom - rc1.top,
 			tracer_bmp.hmdc, tracer_bmp.rc_notes_mask[note].left + left, tracer_bmp.rc_notes_mask[note].top, SRCPAINT);
 		BitBlt(hdc, rc1.left, rc1.top, rc1.right - rc1.left, rc1.bottom - rc1.top,
 			tracer_bmp.hmdc, tracer_bmp.rc_note_sustain[note].left + left, tracer_bmp.rc_note_sustain[note].top, SRCAND);
+	} else if (voice > 0) {
+		BitBlt(hdc, rc1.left, rc1.top, rc1.right - rc1.left, rc1.bottom - rc1.top,
+			tracer_bmp.hmdc, tracer_bmp.rc_notes_mask[note].left + left, tracer_bmp.rc_notes_mask[note].top, SRCPAINT);
+		BitBlt(hdc, rc1.left, rc1.top, rc1.right - rc1.left, rc1.bottom - rc1.top,
+			tracer_bmp.hmdc, tracer_bmp.rc_note_on[note].left + left, tracer_bmp.rc_note_on[note].top, SRCAND);
 	} else {
 		BitBlt(hdc, rc1.left, rc1.top, rc1.right - rc1.left, rc1.bottom - rc1.top,
 			tracer_bmp.hmdc, tracer_bmp.rc_notes_mask[note].left + left, tracer_bmp.rc_notes_mask[note].top, SRCPAINT);
@@ -2403,7 +2410,7 @@ void TracerWndPaintAll(int lockflag)
 
 		for (j = 0; j < 128; j++) {
 			if (get_ch_rc(i, &rc, &w32g_tracer_wnd.rc_notes) == 0)
-				notes_view_draw(&rc, j, w32g_tracer_wnd.notes[i][j], TRUE, FALSE);
+				notes_view_draw(&rc, j, w32g_tracer_wnd.note_voice[i][j], w32g_tracer_wnd.note_vel[i][j], TRUE, FALSE);
 		}
 
 	}
