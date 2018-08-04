@@ -30,6 +30,7 @@ if("${Git_FOUND}" AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
             -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
             -DOUTFILE="${CMAKE_CURRENT_BINARY_DIR}/version.h"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/WriteVersion.cmake"
+        BYPRODUCTS "${CMAKE_CURRENT_BINARY_DIR}/version.h"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Updating version info..."
     )
