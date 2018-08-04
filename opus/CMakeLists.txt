@@ -21,7 +21,7 @@ add_definitions(
 )
 
 add_library(
-    libopus SHARED
+    opus SHARED
 
     include/opus/opus.h
     include/opus/opus_custom.h
@@ -241,5 +241,3 @@ add_library(
     silk/x86/VQ_WMat_EC_sse.c
     silk/x86/x86_silk_map.c
 )
-
-set_target_properties(libopus PROPERTIES PREFIX "")

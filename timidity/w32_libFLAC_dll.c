@@ -5721,8 +5721,9 @@ int g_load_libFLAC_dll(void)
 {
 	if (!h_libFLAC_dll) {
 		w32_reset_dll_directory();
-		h_libFLAC_dll = LoadLibrary("libFLAC_dynamic.dll");
-		if (!h_libFLAC_dll) h_libFLAC_dll = LoadLibrary("libFLAC.dll");
+		h_libFLAC_dll = LoadLibrary(TEXT("FLAC.dll"));
+		if (!h_libFLAC_dll) h_libFLAC_dll = LoadLibrary(TEXT("libFLAC_dynamic.dll"));
+		if (!h_libFLAC_dll) h_libFLAC_dll = LoadLibrary(TEXT("libFLAC.dll"));
 		if (!h_libFLAC_dll) return -1;
 		g_FLAC__StreamEncoderStateString = (const char * const**) GetProcAddress(h_libFLAC_dll, "FLAC__StreamEncoderStateString");
 		if (!g_FLAC__StreamEncoderStateString) { g_free_libFLAC_dll(); return -1; }

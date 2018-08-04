@@ -17,7 +17,7 @@ endif()
 include_directories(src)
 
 add_library(
-    libFLAC SHARED
+    FLAC SHARED
 
     include/FLAC/all.h
     include/FLAC/assert.h
@@ -98,5 +98,4 @@ add_library(
     src/windows_unicode_filenames.c
 )
 
-set_target_properties(libFLAC PROPERTIES PREFIX "")
-target_link_libraries(libFLAC libogg)
+target_link_libraries(FLAC ogg)

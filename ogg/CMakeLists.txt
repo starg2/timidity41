@@ -1,6 +1,6 @@
 
 add_library(
-    libogg SHARED
+    ogg SHARED
 
     include/ogg/ogg.h
     include/ogg/os_types.h
@@ -10,5 +10,3 @@ add_library(
 
     win32/ogg.def
 )
-
-set_target_properties(libogg PROPERTIES PREFIX "")

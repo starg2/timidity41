@@ -4,7 +4,7 @@ include_directories(src src/compat src/libmpg123)
 add_definitions(-DOPT_GENERIC)
 
 add_library(
-    libmpg123 SHARED
+    mpg123 SHARED
 
     src/compat/compat.c
     src/compat/compat_str.c
@@ -69,6 +69,5 @@ add_library(
     src/libmpg123/true.h
 )
 
-set_target_properties(libmpg123 PROPERTIES PREFIX "")
-target_compile_definitions(libmpg123 PRIVATE -DBUILD_MPG123_DLL INTERFACE -DLINK_MPG123_DLL)
-target_link_libraries(libmpg123 shlwapi)
+target_compile_definitions(mpg123 PRIVATE -DBUILD_MPG123_DLL INTERFACE -DLINK_MPG123_DLL)
+target_link_libraries(mpg123 shlwapi)

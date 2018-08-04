@@ -43,7 +43,11 @@ static struct {
 int load_mpg123_dll(void)
 {
 	if (!h_mpg123_dll) {
-		h_mpg123_dll = LoadLibrary(TEXT("libmpg123.dll"));
+		h_mpg123_dll = LoadLibrary(TEXT("mpg123.dll"));
+
+		if (!h_mpg123_dll) {
+			h_mpg123_dll = LoadLibrary(TEXT("libmpg123.dll"));
+		}
 
 		if (!h_mpg123_dll) {
 			return -1;

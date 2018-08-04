@@ -2,7 +2,7 @@
 include_directories(lib)
 
 add_library(
-    libvorbis SHARED
+    vorbis SHARED
 
     include/vorbis/codec.h
     include/vorbis/vorbisenc.h
@@ -80,5 +80,4 @@ add_library(
     win32/vorbisfile.def
 )
 
-set_target_properties(libvorbis PROPERTIES PREFIX "")
-target_link_libraries(libvorbis libogg)
+target_link_libraries(vorbis ogg)
