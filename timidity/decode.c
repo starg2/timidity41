@@ -161,7 +161,7 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 		current_size += ret;
 
 		if (data_length - current_size < 512) {
-			ptr_size_t new_data_length = data_length + data_length / 2;
+			ptr_size_t new_data_length = data_length + data_length / 2 + 128;
 			sdr.data[0] = (sample_t *)safe_large_realloc(sdr.data[0], new_data_length);
 			data_length = new_data_length;
 		}
@@ -188,7 +188,7 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 		safe_free(single_data);
 	}
 
-	sdr.data_length = (current_size / sdr.channels / sizeof(sample_t)) << FRACTION_BITS;
+	sdr.data_length = (splen_t)(current_size / sdr.channels / sizeof(sample_t)) << FRACTION_BITS;
 	return sdr;
 
 cleanup:
