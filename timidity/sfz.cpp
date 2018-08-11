@@ -1334,8 +1334,19 @@ private:
 class InstrumentBuilder
 {
 public:
-    InstrumentBuilder(Parser& parser, std::string_view name) : m_Parser(parser), m_Name(name)
+    InstrumentBuilder(Parser& parser, std::string_view filePath) : m_Parser(parser)
     {
+        std::size_t pathDelimiterOffset = filePath.find_last_of("/\\");
+
+        if (pathDelimiterOffset == filePath.npos)
+        {
+            m_Name = filePath;
+        }
+        else
+        {
+            m_FileDir = filePath.substr(0, pathDelimiterOffset + 1);
+            m_Name = filePath.substr(pathDelimiterOffset + 1);
+        }
     }
 
     std::unique_ptr<Instrument, InstrumentDeleter> BuildInstrument()
@@ -1380,7 +1391,7 @@ private:
     {
         if (auto sampleName = flatSection.GetAs<std::string>(OpCodeKind::Sample))
         {
-            std::string pathPrefix = flatSection.GetAs<std::string>(OpCodeKind::DefaultPath).value_or("");
+            std::string pathPrefix = m_FileDir + flatSection.GetAs<std::string>(OpCodeKind::DefaultPath).value_or("");
 
             if (!pathPrefix.empty() && (pathPrefix.back() != '/' && pathPrefix.back() != '\\'))
             {
@@ -1669,6 +1680,7 @@ private:
     }
 
     Parser& m_Parser;
+    std::string m_FileDir;
     std::string m_Name;
 };
 
