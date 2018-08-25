@@ -72,6 +72,14 @@ static void do_compute_null(int thread_num){}
 static thread_func_t do_compute_func = do_compute_null;
 static int compute_thread_job = 0, compute_thread_job_cnt = 0;
 
+#if MULTI_THREAD_COMPUTE2
+static thread_func_t mtcs_func0 = do_compute_null;
+static thread_func_t mtcs_func1 = do_compute_null;
+static int mtcs_job_num0 = 0, mtcs_job_cnt0 = 0;
+static int mtcs_job_num1 = 0, mtcs_job_cnt1 = 0;
+static int8 mtcs_job_flg0[MTC2_JOB_MAX] = {0};
+static int8 mtcs_job_flg1[MTC2_JOB_MAX] = {0};
+#endif
 
 #if defined(MULTI_THREAD_COMPUTE) && defined(__W32__)
 
@@ -99,27 +107,52 @@ void set_compute_thread_priority(DWORD var)
 // OSデフォルトでは1~15の指定時 15.6ms 
 #endif
 
+
 static void compute_thread_core(int thread_num)
-{		
-	if(compute_thread_job <= compute_thread_ready){
-		if(thread_num < compute_thread_job)
-			do_compute_func(thread_num);
-	}else{
-#if 1 // load_balance // 空いてるスレッドにジョブ割り当て
-		for(;;){
-			int job_num;
-			EnterCriticalSection(&critThread); // single thread ~
-			job_num = (compute_thread_job_cnt++);
-			LeaveCriticalSection(&critThread); // ~ single thread
-			if(job_num >= compute_thread_job) break;
+{	
+#if MULTI_THREAD_COMPUTE2
+	for(;;){
+		int job_num, job_nums0 = 0, job_nums1 = 0;
+		EnterCriticalSection(&critThread); // single thread ~
+		job_num = (compute_thread_job_cnt++);
+		LeaveCriticalSection(&critThread); // ~ single thread
+		if(job_num < compute_thread_job)
 			do_compute_func(job_num);
+		if(mtcs_job_num0){
+			EnterCriticalSection(&critThread); // single thread ~
+			job_nums0 = (mtcs_job_cnt0++);
+			LeaveCriticalSection(&critThread); // ~ single thread
+			if(job_nums0 < mtcs_job_num0){
+				mtcs_func0(job_nums0);
+				mtcs_job_flg0[job_nums0] = 0;
+			}
 		}
-#else // normal // スレッドに均等にジョブ割り当て
-		int i;
-		for (i = thread_num; i < compute_thread_job; i += compute_thread_ready)
-			do_compute_func(i);
-#endif
+		if(mtcs_job_num1){
+			EnterCriticalSection(&critThread); // single thread ~
+			job_nums1 = (mtcs_job_cnt1++);
+			LeaveCriticalSection(&critThread); // ~ single thread
+			if(job_nums1 < mtcs_job_num1){
+				mtcs_func1(job_nums1);
+				mtcs_job_flg1[job_nums1] = 0;
+			}
+		}
+		if(job_num >= compute_thread_job && job_nums0 >= mtcs_job_num0 && job_nums1 >= mtcs_job_num1)
+			break;
 	}
+#elif 1 // load_balance // 空いてるスレッドにジョブ割り当て
+	for(;;){
+		int job_num;
+		EnterCriticalSection(&critThread); // single thread ~
+		job_num = (compute_thread_job_cnt++);
+		LeaveCriticalSection(&critThread); // ~ single thread
+		if(job_num >= compute_thread_job) break;
+		do_compute_func(job_num);
+	}
+#else // normal // スレッドに均等にジョブ割り当て
+	int i;
+	for (i = thread_num; i < compute_thread_job; i += compute_thread_ready)
+		do_compute_func(i);
+#endif
 }
 
 static void WINAPI ComputeThread(void *arglist)
@@ -135,6 +168,57 @@ static void WINAPI ComputeThread(void *arglist)
 	}
 	crt_endthread();
 }
+
+#ifdef MULTI_THREAD_COMPUTE2
+static inline void compute_thread_sub_wait(int8 *ptr)
+{
+// (MTC2_JOB_MAX == 16)
+	// byte*8を64bit単位で比較 
+	uint64 *ptr1 = (uint64 *)ptr;
+	while(ptr1[0] || ptr1[1])
+		THREAD_WAIT_MAIN
+}
+
+void go_compute_thread_sub0(thread_func_t fnc, int num)
+{
+	int i;
+	if(!compute_thread_job)
+		return; // error
+	if(mtcs_job_num0)
+		return; // error
+	if(!fnc || num < 1)
+		return; // error
+	for(i = 0; i < num; i++)
+		mtcs_job_flg0[i] = 1;
+	mtcs_func0 = fnc;
+	mtcs_job_cnt0 = 0;
+	mtcs_job_num0 = num; // start flag
+	compute_thread_core(0);
+	compute_thread_sub_wait(mtcs_job_flg0);
+	mtcs_job_num0 = 0; // end flag
+	mtcs_func0 = do_compute_null;
+}
+
+void go_compute_thread_sub1(thread_func_t fnc, int num)
+{
+	int i;
+	if(!compute_thread_job)
+		return; // error
+	if(mtcs_job_num1)
+		return; // error
+	if(!fnc || num < 1)
+		return; // error
+	for(i = 0; i < num; i++)
+		mtcs_job_flg1[i] = 1;
+	mtcs_func1 = fnc;
+	mtcs_job_cnt1 = 0;
+	mtcs_job_num1 = num; // start flag
+	compute_thread_core(0);
+	compute_thread_sub_wait(mtcs_job_flg1);
+	mtcs_job_num1 = 0; // end flag
+	mtcs_func1 = do_compute_null;
+}
+#endif // MULTI_THREAD_COMPUTE2
 
 static inline void compute_thread_wait(void)
 {	
@@ -160,6 +244,16 @@ void go_compute_thread(thread_func_t fnc, int num)
 	do_compute_func = fnc;
 	compute_thread_job = num;
 	compute_thread_job_cnt = 0;
+#ifdef MULTI_THREAD_COMPUTE2
+	mtcs_func0 = do_compute_null;
+	mtcs_job_num0 = 0;
+	mtcs_job_cnt0 = 0;
+	mtcs_func1 = do_compute_null;
+	mtcs_job_num1 = 0;
+	mtcs_job_cnt1 = 0;
+	memset(mtcs_job_flg0, 0, sizeof(mtcs_job_flg0));
+	memset(mtcs_job_flg1, 0, sizeof(mtcs_job_flg1));
+#endif // MULTI_THREAD_COMPUTE2
 #if (USE_X86_EXT_INTRIN >= 3) && (MAX_THREADS == 16)
 	_mm_store_si128((__m128i *)thread_finish, _mm_setzero_si128());  // スレッド終了フラグリセット
 	for(i = 0; i < thread; i++)
@@ -215,6 +309,12 @@ void terminate_compute_thread(void)
 	
 	thread_exit = 1;
 	compute_thread_job = 0; // デッドロック対策
+#ifdef MULTI_THREAD_COMPUTE2
+	mtcs_job_num0 = 0; // デッドロック対策
+	memset(mtcs_job_flg0, 0, sizeof(mtcs_job_flg0));
+	mtcs_job_num1 = 0; // デッドロック対策
+	memset(mtcs_job_flg1, 0, sizeof(mtcs_job_flg1));
+#endif // MULTI_THREAD_COMPUTE2
 	for(i = 0; i < (MAX_THREADS - 1); i++){
 		if(hComputeThread[i] == NULL)
 			continue;		

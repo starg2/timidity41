@@ -696,7 +696,9 @@ LSU : Unalignment (use loadu/storeu
 #if (USE_X86_EXT_INTRIN >= 9)
 #define MM256_FMA_PD(vec_a, vec_b, vec_c) _mm256_fmadd_pd(vec_a, vec_b, vec_c)
 #define MM256_FMA2_PD(vec_a, vec_b, vec_c, vec_d) _mm256_fmadd_pd(vec_a, vec_b, _mm256_mul_pd(vec_c, vec_d))
-#define MM256_FMA3_PD(v00, v01, v10, v11, v20, v21) _mm256_fmadd_pd(v20, v21, _mm256_fmadd_pd(v10, v11, _mm256_mul_pd(v00, v01))
+#define MM256_FMA3_PD(v00, v01, v10, v11, v20, v21) _mm256_fmadd_pd(v20, v21, _mm256_fmadd_pd(v10, v11, _mm256_mul_pd(v00, v01)))
+#define MM256_FMA4_PD(v00, v01, v10, v11, v20, v21, v30, v31) _mm256_add_pd(\
+	_mm256_fmadd_pd(v30, v31, _mm256_mul_pd(v20, v21)), _mm256_fmadd_pd(v10, v11, _mm256_mul_pd(v00, v01)) )
 #define MM256_LS_FMA_PD(ptr, vec_a, vec_b) _mm256_store_pd(ptr, _mm256_fmadd_pd(vec_a, vec_b, _mm256_load_pd(ptr)))
 #define MM256_LSU_FMA_PD(ptr, vec_a, vec_b) _mm256_storeu_pd(ptr, _mm256_fmadd_pd(vec_a, vec_b, _mm256_loadu_pd(ptr)))
 #define MM256_MSUB_PD(vec_a, vec_b, vec_c) _mm256_fmsub_pd(vec_a, vec_b, vec_c)
@@ -711,6 +713,8 @@ LSU : Unalignment (use loadu/storeu
 #define MM256_FMA2_PD(vec_a, vec_b, vec_c, vec_d) _mm256_add_pd(_mm256_mul_pd(vec_a, vec_b), _mm256_mul_pd(vec_c, vec_d))
 #define MM256_FMA3_PD(v00, v01, v10, v11, v20, v21) _mm256_add_pd(\
 	_mm256_add_pd(_mm256_mul_pd(v00, v01),_mm256_mul_pd(v10, v11)), _mm256_mul_pd(v20, v21))
+#define MM256_FMA4_PD(v00, v01, v10, v11, v20, v21, v30, v31) _mm256_add_pd(\
+	_mm256_add_pd(_mm256_mul_pd(v00, v01),_mm256_mul_pd(v10, v11)), _mm256_add_pd(_mm256_mul_pd(v20, v21),_mm256_mul_pd(v30, v31)))
 #define MM256_LS_FMA_PD(ptr, vec_a, vec_b) _mm256_store_pd(ptr, _mm256_add_pd(_mm256_load_pd(ptr), _mm256_mul_pd(vec_a, vec_b)))
 #define MM256_LSU_FMA_PD(ptr, vec_a, vec_b) _mm256_storeu_pd(ptr, _mm256_add_pd(_mm256_loadu_pd(ptr), _mm256_mul_pd(vec_a, vec_b)))
 #define MM256_MSUB_PD(vec_a, vec_b, vec_c) _mm256_sub_pd(_mm256_mul_pd(vec_a, vec_b), vec_c)
@@ -758,7 +762,7 @@ LSU : Unalignment (use loadu/storeu
 #define MM_FMA3_PD(v00, v01, v10, v11, v20, v21) _mm_add_pd(\
 	_mm_add_pd(_mm_mul_pd(v00, v01),_mm_mul_pd(v10, v11)), _mm_mul_pd(v20, v21) )
 #define MM_FMA4_PD(v00, v01, v10, v11, v20, v21, v30, v31) _mm_add_pd(\
-	_mm_add_pd(_mm_mul_pd(v00, v01),_mm_mul_pd(v10, v11)), _mm_add_pd(_mm_mul_pd(v20, v21),_mm_mul_pd(v30, v31))))
+	_mm_add_pd(_mm_mul_pd(v00, v01),_mm_mul_pd(v10, v11)), _mm_add_pd(_mm_mul_pd(v20, v21),_mm_mul_pd(v30, v31)))
 #define MM_FMA5_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41) _mm_add_pd(_mm_add_pd(\
 	_mm_add_pd(_mm_mul_pd(v00, v01),_mm_mul_pd(v10, v11)), _mm_add_pd(_mm_mul_pd(v20, v21),_mm_mul_pd(v30, v31)))\
 	, _mm_mul_pd(v40, v41))
@@ -832,11 +836,20 @@ LSU : Unalignment (use loadu/storeu
 #define MM_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_shuffle_ps(reg,reg,idx))
 #define MM_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_shuffle_pd(reg,reg,idx))
 #define MM_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_shuffle_epi32(reg,idx))
+#if (USE_X86_EXT_INTRIN >= 9)
+#define MM256_EXTRACT_F32(reg,idx) _mm256_cvtss_f32(_mm256_permutevar8x32_ps(reg,idx))
+#define MM256_EXTRACT_F64(reg,idx) _mm256_cvtsd_f64(_mm256_permute4x64_pd(reg,idx))
+#else
+#define MM256_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_permute_ps(_mm256_extractf128_ps(reg, idx >= 4), idx % 4))
+#define MM256_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_permute_pd(_mm256_extractf128_ps(reg, idx >= 2), idx % 2))
+#endif
 #define MM256_EXTRACT_I32(reg,idx) _mm256_extract_epi32(reg,idx)
 #else
 #define MM_EXTRACT_F32(reg,idx) reg.m128_f32[idx]
 #define MM_EXTRACT_F64(reg,idx) reg.m128d_f64[idx]
 #define MM_EXTRACT_I32(reg,idx) reg.m128i_i32[idx]
+#define MM256_EXTRACT_F32(reg,idx) reg.m256_f32[idx]
+#define MM256_EXTRACT_F64(reg,idx) reg.m256d_f64[idx]
 #define MM256_EXTRACT_I32(reg,idx) reg.m256i_i32[idx]
 #endif
 #endif // (USE_X86_EXT_INTRIN >= 1)

@@ -362,6 +362,21 @@ static inline void recalc_filter_LPF12_2(FilterCoefficients *fc)
 	}
 }
 
+static inline void buffer_filter_LPF12_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp, int32 count)
+{
+	int32 i;
+	FILTER_T db0 = db[0], db1 = db[1], dc0 = dc[0], dc1 = dc[1];
+
+	for (i = 0; i < count; i++) {
+		db1 += imuldiv28(((sp[i] << 4) - db0), dc1);
+		db0 += db1;
+		db1 = imuldiv28(db1, dc0);
+		sp[i] = db0 >> 4; /* 4.28 to 8.24 */
+	}
+	db[0] = db0;
+	db[1] = db1;
+}
+
 static inline void sample_filter_LPF24_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
 	db[0] = *sp << 4;
@@ -1873,6 +1888,7 @@ static inline void recalc_filter_LPF12_2(FilterCoefficients *fc)
 {
 	FILTER_T *dc = fc->dc;
 	FLOAT_T f, q ,p, r;
+	FLOAT_T c0, c1, a0, b1, b2;
 
 // Resonant IIR lowpass (12dB/oct) Olli Niemitalo //r
 	if(FLT_FREQ_MARGIN || FLT_RESO_MARGIN){
@@ -1881,10 +1897,69 @@ static inline void recalc_filter_LPF12_2(FilterCoefficients *fc)
 		CALC_RESO_MARGIN
 		f = M_PI2 * fc->freq * fc->div_flt_rate;
 		q = 1.0 - f / (2.0 * (RESO_DB_CF_P(fc->reso_dB) + 0.5 / (1.0 + f)) + f - 2.0);
-		dc[0] = q * q;
-		dc[1] = dc[0] + 1.0 - 2.0 * cos(f) * q;
+		
+		c0 = q * q;
+		c1 = c0 + 1.0 - 2.0 * cos(f) * q;
+		dc[0] = c0;
+		dc[1] = c1;
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		a0 = c1;
+		b1 = 1 + c0 - c1;
+		b2 = -c0;
+		dc[2] = a0;
+		dc[3] = a0 * b1;
+		dc[4] = 0;
+		dc[5] = a0;
+		dc[6] = b2;
+		dc[7] = b2 * b1;
+		dc[8] = b1;
+		dc[9] = b1 * b1 + b2;
+#endif
 	}
 }
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+// SIMD optimization (double * 2)
+static inline void buffer_filter_LPF12_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp, int32 count)
+{
+	int32 i;
+	__m128d vcx0 = _mm_loadu_pd(dc + 2);
+	__m128d vcx1 = _mm_loadu_pd(dc + 4);
+	__m128d vcym2 = _mm_loadu_pd(dc + 6);
+	__m128d vcym1 = _mm_loadu_pd(dc + 8);
+	__m128d vy = _mm_loadu_pd(db + 2);
+	__m128d vym2 = _mm_unpacklo_pd(vy, vy);
+	__m128d vym1 = _mm_unpackhi_pd(vy, vy);
+
+	for (i = 0; i < count; i += 2) {
+		__m128d vin = _mm_loadu_pd(sp + i);
+		__m128d vx0 = _mm_unpacklo_pd(vin, vin);
+		__m128d vx1 = _mm_unpackhi_pd(vin, vin);
+		vy = MM_FMA4_PD(vcx0, vx0,  vcx1, vx1,  vcym2, vym2,  vcym1, vym1);
+		_mm_storeu_pd(sp + i, vy);
+		vym2 = _mm_unpacklo_pd(vy, vy);
+		vym1 = _mm_unpackhi_pd(vy, vy);
+	}
+	_mm_storeu_pd(db + 2, vy);
+}
+
+#else // scalar
+static inline void buffer_filter_LPF12_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp, int32 count)
+{
+	int32 i;
+	FILTER_T db0 = db[0], db1 = db[1], dc0 = dc[0], dc1 = dc[1];
+
+	for (i = 0; i < count; i++) {
+		db1 += (sp[i] - db0) * dc1;
+		db0 += db1;
+		sp[i] = db0;
+		db1 *= dc0;
+	}
+	db[0] = db0;
+	db[1] = db1;
+}
+
+#endif // (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static inline void sample_filter_LPF24_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
@@ -3624,6 +3699,13 @@ inline void buffer_filter(FilterCoefficients *fc, DATA_T *sp, int32 count)
 #endif
 	if(!fc->type)
 		return; // filter none
+
+	if (fc->type == FILTER_LPF12_2) {
+		recalc_filter_LPF12_2(fc);
+		buffer_filter_LPF12_2(fc->dc, &fc->db[FILTER_FB_L], sp, count);
+		return;
+	}
+	
 	fc->recalc_filter(fc);
 	for(i = 0; i < count; i++)
 		fc->sample_filter(fc->dc, &fc->db[FILTER_FB_L], &sp[i]);
@@ -4462,8 +4544,8 @@ void apply_fir_eq(FIR_EQ *fc, DATA_T *buf, int32 count)
 				vout[1] = MM_FMA_PD(vdc, _mm_loadu_pd(&fc->buff[1][ofs]), vout[1]); // out[1] += fc->dc[j] * fc->buff[1][ofs];
 			}
 			// vout[0](L0,L1) vout[1](R0,R1)
-			tmp[0] = _mm_shuffle_pd(vout[0], vout[1], 0x0); // (L0,R0)
-			tmp[1] = _mm_shuffle_pd(vout[0], vout[1], 0x3); // (L1,R1)
+			tmp[0] = _mm_unpacklo_pd(vout[0], vout[1]); // (L0,R0)
+			tmp[1] = _mm_unpackhi_pd(vout[0], vout[1]); // (L1,R1)
 			tmp[0] = _mm_add_pd(tmp[0], tmp[1]); // (L0+L1,R0+R1)
 			_mm_store_pd(&buf[i], tmp[0]); // buf[i] = out[0]; buf[i + 1] = out[1];
 		}

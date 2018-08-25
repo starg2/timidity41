@@ -118,7 +118,7 @@ static void ConsoleWndVerbosityUpdate(void);
 static void ConsoleWndVerbosityApply(void);
 static void ConsoleWndValidUpdate(void);
 static void ConsoleWndValidApply(void);
-static void ConsoleWndVerbosityApplyIncDec(int num);
+static void ConsoleWndVerbosityApplySet(int num);
 static int ConsoleWndInfoReset(HWND hwnd);
 static int ConsoleWndInfoApply(void);
 
@@ -136,6 +136,10 @@ void InitConsoleWnd(HWND hParentWnd)
 ///r
 	ConsoleWndInfoReset(hConsoleWnd);
 	INILoadConsoleWnd();
+	
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	InitializeNewConsole();
+#endif
 
 	switch(PlayerLanguage){
   	case LANGUAGE_ENGLISH:
@@ -156,9 +160,11 @@ void InitConsoleWnd(HWND hParentWnd)
 	INILoadConsoleWnd();
 	ConsoleWndInfoApply();
 	UpdateWindow(hConsoleWnd);
-	ConsoleWndVerbosityApplyIncDec(0);
+	ConsoleWndVerbosityApply();
 	CheckDlgButton(hConsoleWnd, IDC_CHECKBOX_VALID, ConsoleWndFlag);
+#ifndef TIMW32G_USE_NEW_CONSOLE
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT), ConsoleWndMaxSize);
+#endif
 }
 
 // Window Procedure
@@ -187,10 +193,18 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			ConsoleWndVerbosityApply();
 			break;
 		case IDC_BUTTON_INC:
-			ConsoleWndVerbosityApplyIncDec(1);
+			{
+				int n = (int)GetDlgItemInt(hwnd, IDC_EDIT_VERBOSITY, NULL, TRUE);
+				n++;
+				ConsoleWndVerbosityApplySet(n);
+			}
 			break;
 		case IDC_BUTTON_DEC:
-			ConsoleWndVerbosityApplyIncDec(-1);
+			{
+				int n = (int)GetDlgItemInt(hwnd, IDC_EDIT_VERBOSITY, NULL, TRUE);
+				n--;
+				ConsoleWndVerbosityApplySet(n);
+			}
 			break;
 		default:
 			break;
@@ -344,12 +358,21 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 //		ShowWindow(hConsoleWnd, SW_HIDE);
 		MainWndUpdateConsoleButton();
 		break;
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	case WM_ACTIVATE:
+		if (LOWORD(wParam) != WA_INACTIVE) {
+			SetFocus(GetDlgItem(hConsoleWnd, IDC_EDIT));
+			return TRUE;
+		}
+		break;
+#else
 	case WM_SETFOCUS:
 		HideCaret(hwnd);
 		break;
 	case WM_KILLFOCUS:
 		ShowCaret(hwnd);
 		break;
+#endif
 	default:
 		return FALSE;
 	}
@@ -363,7 +386,11 @@ void PutsConsoleWnd(char *str)
 	if(!IsWindow(hConsoleWnd) || !ConsoleWndFlag)
 		return;
 	hwnd = GetDlgItem(hConsoleWnd,IDC_EDIT);
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	NewConsoleWrite(hwnd, str);
+#else
 	PutsEditCtlWnd(hwnd,str);
+#endif
 }
 
 // printf()
@@ -375,7 +402,11 @@ void PrintfConsoleWnd(char *fmt, ...)
 		return;
 	hwnd = GetDlgItem(hConsoleWnd,IDC_EDIT);
 	va_start(ap, fmt);
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	NewConsoleWriteV(hwnd, fmt, ap);
+#else
 	VprintfEditCtlWnd(hwnd,fmt,ap);
+#endif
 	va_end(ap);
 }
 
@@ -386,7 +417,11 @@ void ClearConsoleWnd(void)
 	if(!IsWindow(hConsoleWnd))
 		return;
 	hwnd = GetDlgItem(hConsoleWnd,IDC_EDIT);
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	NewConsoleClear(hwnd);
+#else
 	ClearEditCtlWnd(hwnd);
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +432,9 @@ static void ConsoleWndAllUpdate(void)
 	ConsoleWndVerbosityUpdate();
 	ConsoleWndValidUpdate();
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT_VERBOSITY),3);
+#ifndef TIMW32G_USE_NEW_CONSOLE
 	Edit_LimitText(GetDlgItem(hConsoleWnd,IDC_EDIT),ConsoleWndMaxSize);
+#endif
 }
 
 static void ConsoleWndValidUpdate(void)
@@ -432,10 +469,10 @@ static void ConsoleWndVerbosityApply(void)
 	ConsoleWndVerbosityUpdate();
 }
 
-static void ConsoleWndVerbosityApplyIncDec(int num)
+static void ConsoleWndVerbosityApplySet(int num)
 {
 	if(!IsWindow(hConsoleWnd)) return;
-	ctl->verbosity += num;
+	ctl->verbosity = num;
 	RANGE(ctl->verbosity, -1, 4);
 	ConsoleWndVerbosityUpdate();
 }

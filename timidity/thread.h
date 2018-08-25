@@ -9,6 +9,7 @@
 #ifdef __W32__
 #if defined(ENABLE_THREAD) // && (defined(IA_W32GUI) || defined(IA_W32G_SYN) || defined(KBTIM) || defined(TIM_CUI))
 #define MULTI_THREAD_COMPUTE 1
+#define MULTI_THREAD_COMPUTE2 1 // sub thread
 #endif
 #endif /* __W32__ */
 
@@ -46,6 +47,12 @@ extern void terminate_compute_thread(void);
 extern void reset_compute_thread(void);
 extern void go_compute_thread(thread_func_t fnc, int num);
 
+#ifdef MULTI_THREAD_COMPUTE2
+#define MTC2_JOB_MAX 16 // 
+extern void go_compute_thread_sub0(thread_func_t fnc, int num);
+extern void go_compute_thread_sub1(thread_func_t fnc, int num);
+#endif // MULTI_THREAD_COMPUTE2
+
 #define CDM_JOB_NUM 16
 // 13 <= threads , thread_paymidi.c cdm_job_num
 // thread_mix.c voice_buffer_thread[
@@ -60,10 +67,12 @@ extern void compute_voice_scc_thread(int v, DATA_T *ptr, int32 count, int thread
 extern void compute_voice_mms_thread(int v, DATA_T *ptr, int32 count, int thread);
 
 
-#if 0 // test
-extern void do_compute_effect_thread1(int thread_num);
-#endif
-
+#ifdef MULTI_THREAD_COMPUTE2
+typedef void (*effect_sub_thread_func_t)(int thread_num, void *ptr);
+extern int set_effect_sub_thread(effect_sub_thread_func_t func, void *ptr, int num);
+extern void reset_effect_sub_thread(effect_sub_thread_func_t func, void *ptr);
+extern void go_effect_sub_thread(effect_sub_thread_func_t func, void *ptr, int num);
+#endif // MULTI_THREAD_COMPUTE2
 
 
 #endif // MULTI_THREAD_COMPUTE

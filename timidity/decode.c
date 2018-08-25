@@ -21,6 +21,7 @@
 #include "timidity.h"
 #include "common.h"
 #include "controls.h"
+#include "instrum.h"
 #include "decode.h"
 
 #ifdef HAVE_LIBVORBIS
@@ -32,6 +33,8 @@ extern int load_vorbis_dll(void);	// w32g_vorbis_dll.c
 #ifndef VORBIS_DLL_INCLUDE_VORBISFILE
 extern int load_vorbisfile_dll(void);	// w32g_vorbisfile_dll.c
 #endif
+
+static sample_t DummySampleData[128];
 
 static size_t oggvorbis_read_callback(void *ptr, size_t size, size_t nmemb, void *datasource)
 {
@@ -60,6 +63,9 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 	int64 total;
 	ptr_size_t data_length;
 	ptr_size_t current_size;
+
+	sdr.data = DummySampleData;
+	sdr.data_type = SAMPLE_TYPE_INT16;
 
     if (load_vorbis_dll() != 0) {
         ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to load vorbis dll");
@@ -100,6 +106,7 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 	data_length = (data_length > 0 ? data_length : 4096);
 	current_size = 0;
     sdr.data = (sample_t *)safe_large_malloc(data_length);
+	sdr.data_alloced = 1;
 
     while (1) {
         int bitstream = 0;
@@ -128,11 +135,13 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 
 cleanup:
     ov_clear(&vf);
-
-    if (sdr.data) {
+	
+    if (sdr.data_alloced) {
         safe_free(sdr.data);
-        sdr.data = NULL;
     }
+
+    sdr.data = DummySampleData;
+	sdr.data_alloced = 0;
 
     return sdr;
 }
@@ -141,8 +150,13 @@ cleanup:
 
 SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 {
+    SampleDecodeResult sdr = {0};
+
+	sdr.data = DummySampleData;
+	sdr.data_type = SAMPLE_TYPE_INT16;
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "ogg vorbis decoder support is disabled");
-    return (SampleDecodeResult){.data = NULL, .data_type = 0};
+
+    return sdr;
 }
 
 #endif // HAVE_LIBVORBIS

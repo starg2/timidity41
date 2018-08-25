@@ -5349,7 +5349,7 @@ do_linear:
 #endif
 }
 
-#if 0 //(USE_X86_EXT_INTRIN >= 9) // 未テスト 動くかは不明 broadcastはset1だったかも・・ 
+#if (USE_X86_EXT_INTRIN >= 9)
 // offset:int32*8, resamp:float*8
 // ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
@@ -5362,24 +5362,24 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
 	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offset計算をint32値域にする(SIMD用
 	const int32 inc = resrc->increment;
-	const __m256i vinc = _mm256_broadcastd_epi32(inc * 8), vfmask = _mm256_broadcastd_epi32((int32)FRACTION_MASK);
-	__m256i vofs = _mm256_add_epi32(_mm256_broadcastd_epi32(start_offset), _mm256_set_epi32(inc*7,inc*6,inc*5,inc*4,inc*3,inc*2,inc,0));
-	const __m256 vdivf = _mm256_broadcastd_ps(div_fraction);	
-	const __m256 vfrac_6 = _mm256_broadcastd_ps(div_fraction * DIV_6);
-	const __m256 vfrac_2 = _mm256_broadcastd_ps(div_fraction * DIV_2);
-	const __m256 v3n = _mm256_broadcastd_ps(-3);
-	const __m256 v3p = _mm256_broadcastd_ps(3);
-	const __m256i vfrac = _mm256_broadcastd_epi32(mlt_fraction);
-	const __m256i vfrac2 = _mm256_broadcastd_epi32(ml2_fraction);
-	const __m256 vec_divo = _mm256_broadcastd_ps(DIV_15BIT);
+	const __m256i vinc = _mm256_set1_epi32(inc * 8), vfmask = _mm256_set1_epi32((int32)FRACTION_MASK);
+	__m256i vofs = _mm256_add_epi32(_mm256_set1_epi32(start_offset), _mm256_set_epi32(inc*7,inc*6,inc*5,inc*4,inc*3,inc*2,inc,0));
+	const __m256 vdivf = _mm256_set1_ps(div_fraction);	
+	const __m256 vfrac_6 = _mm256_set1_ps(div_fraction * DIV_6);
+	const __m256 vfrac_2 = _mm256_set1_ps(div_fraction * DIV_2);
+	const __m256 v3n = _mm256_set1_ps(-3);
+	const __m256 v3p = _mm256_set1_ps(3);
+	const __m256i vfrac = _mm256_set1_epi32(mlt_fraction);
+	const __m256i vfrac2 = _mm256_set1_epi32(ml2_fraction);
+	const __m256 vec_divo = _mm256_set1_ps(DIV_15BIT);
 #ifdef LAO_OPTIMIZE_INCREMENT
 	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(lagrangeは3) ) / オフセットデータ数
 	// ロードデータ数はint16用permutevarがないので変換後の32bit(int32/float)の8セットになる
 	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 3) / 8; // (float*8) * 1セット
 	if(inc < opt_inc1){	// 1セット
-	const __m256i vvar1n = _mm256_broadcastd_epi32(-1);
-	const __m256i vvar1 = _mm256_broadcastd_epi32(1);
-	const __m256i vvar2 = _mm256_broadcastd_epi32(2);
+	const __m256i vvar1n = _mm256_set1_epi32(-1);
+	const __m256i vvar1 = _mm256_set1_epi32(1);
+	const __m256i vvar2 = _mm256_set1_epi32(2);
 	for(i = 0; i < count; i += 8) {
 	__m256i vofsi2 = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi
 	__m256i vofsi1 = _mm256_add_epi32(vofsi2, vvar1n); // ofsi-1
@@ -5393,12 +5393,12 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m256i vofsub3 = _mm256_sub_epi32(vofsi3, vofsib); 
 	__m256i vofsub4 = _mm256_sub_epi32(vofsi4, vofsib);
 	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (i16*8->i32*8->f32*8
-	__m256 vv1 = _mm256_permutevar8x32_ps(vvf1, vofsub1); // v1 ofsi-1
-	__m256 vv2 = _mm256_permutevar8x32_ps(vvf1, vofsub2); // v2 ofsi
-	__m256 vv3 = _mm256_permutevar8x32_ps(vvf1, vofsub3); // v2 ofsi+1
-	__m256 vv4 = _mm256_permutevar8x32_ps(vvf1, vofsub4); // v2 ofsi+2
+	__m256 vv0 = _mm256_permutevar8x32_ps(vvf1, vofsub1); // v1 ofsi-1
+	__m256 vv1 = _mm256_permutevar8x32_ps(vvf1, vofsub2); // v2 ofsi
+	__m256 vv2 = _mm256_permutevar8x32_ps(vvf1, vofsub3); // v2 ofsi+1
+	__m256 vv3 = _mm256_permutevar8x32_ps(vvf1, vofsub4); // v2 ofsi+2
 	// あとは通常と同じ
-	__m256i vofsf = _mm_add_epi32(_mm_and_si128(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m256i vofsf = _mm256_add_epi32(_mm256_and_si256(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m256 vtmp = _mm256_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m256 vtmp1, vtmp2, vtmp3, vtmp4;
 	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
@@ -5454,7 +5454,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_2)); // int16 to float (16bit*8 -> 32bit*8 > float*8
 	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_3)); // int16 to float (16bit*8 -> 32bit*8 > float*8
 	__m256 vv3 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_4)); // int16 to float (16bit*8 -> 32bit*8 > float*8
-	__m256i vofsf = _mm_add_epi32(_mm_and_si128(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m256i vofsf = _mm256_add_epi32(_mm256_and_si256(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m256 vtmp = _mm256_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m256 vtmp1, vtmp2, vtmp3, vtmp4;
 	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];

@@ -141,6 +141,17 @@
 #define IDC_BUTTON_EXITPROCESS         2602
 #define IDC_BUTTON_HEAP_CHECK          2603
 #define IDC_BUTTON_VARIABLES_CHECK     2604
+#define IDC_BUTTON_VAR_ENTER           2640
+#define IDC_EDIT_VAR0                  2650
+#define IDC_EDIT_VAR1                  2651
+#define IDC_EDIT_VAR2                  2652
+#define IDC_EDIT_VAR3                  2653
+#define IDC_EDIT_VAR4                  2654
+#define IDC_EDIT_VAR5                  2655
+#define IDC_EDIT_VAR6                  2656
+#define IDC_EDIT_VAR7                  2657
+#define IDC_EDIT_VAR8                  2658
+#define IDC_EDIT_VAR9                  2659
 
 //// player
 // cfg
@@ -672,10 +683,12 @@
 #define IDC_RADIOBUTTON_WASAPI_POLLING  8056
 #define IDC_COMBO_WASAPI_PRIORITY       8058
 #define IDC_COMBO_WASAPI_STREAM_CATEGORY  8060
-#define IDC_COMBO_WASAPI_STREAM_OPTION  8061
-#define IDC_EDIT_WASAPI_LATENCY         8062
-#define IDC_STATIC_WASAPI_LATENCY_MIN   8063
-#define IDC_STATIC_WASAPI_LATENCY_MAX   8064
+#define IDC_CHECKBOX_WASAPI_STREAM_OPTIONS_RAW  8061
+#define IDC_CHECKBOX_WASAPI_STREAM_OPTIONS_MATCH_FORMAT  8062
+#define IDC_CHECKBOX_WASAPI_STREAM_OPTIONS_AMBISONICS  8063
+#define IDC_EDIT_WASAPI_LATENCY         8064
+#define IDC_STATIC_WASAPI_LATENCY_MIN   8065
+#define IDC_STATIC_WASAPI_LATENCY_MAX   8066
 // portaudio
 #define IDC_COMBO_PA_ASIO_DEV           8100
 #define IDC_BUTTON_PA_ASIO_CONFIG       8101

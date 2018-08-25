@@ -635,7 +635,7 @@
 #define AU_WDMKS 1
 #define AU_WASAPI 1
 #undef AU_VORBIS
-#undef AU_VORBIS_DLL
+//#undef AU_VORBIS_DLL
 #undef AU_GOGO
 #undef AU_GOGO_DLL
 #undef AU_LAME
@@ -726,7 +726,7 @@ typedef __int64 int64;
 #undef AU_WASAPI
 #undef AU_WDMKS
 #undef AU_VORBIS
-#undef AU_VORBIS_DLL
+//#undef AU_VORBIS_DLL
 #undef AU_GOGO
 #undef AU_GOGO_DLL
 #undef AU_LAME

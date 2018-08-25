@@ -265,15 +265,16 @@ job_num
  2; // do effect // sd_mx0 // gm2_cho // gs_ins // xg_dly
  3; // do effect // sd_mx1 // gm2_mx0 // gs_cho // xg_cho
  4; // do effect // sd_mx2 // gm2_mx1 // gs_dly // xg_meq
- 5; // do effect // sd_cho // gm2_mx2 // gs_peq // 空
- 6; // do effect // sd_meq // gm2_meq // 空     // 空
- 7; // send effect // master,eq
- 8; // send effect // reverb
- 9; // send effect // chorus
-10; // send effect // gs_dly // xg_var // sd_mfx
+ 5; // do effect // sd_cho // gm2_mx2 // gs_peq // 空    
+ 6; // do effect // sd_meq // gm2_meq // 空     // 空    
+ 7; // send effect // master,eq                          
+ 8; // send effect // reverb                             
+ 9; // send effect // chorus							 
+10; // send effect // gs_dly // xg_var // sd_mfx         
 11; // send effect // gs_ins // XG 空 // SD 空
 12; // compute_var
 4-20:ボイス/チャンネルは16分割
+これとは別にエフェクト用スレッドは1;2;以降の空いたところに追加される (RevExMod使用の場合
 
 effectは(一番分割数が多いものに合わせてるのでMIDIシステムによって空がある
 同じjob_numは1セットのジョブ (effectは数が少ないのと空きあるのでボイス/チャンネルだけのもある
@@ -283,6 +284,8 @@ effectは(一番分割数が多いものに合わせてるのでMIDIシステムによって空がある
 (XG_INS*4(別CH)の場合は16が最適
 負荷の高い可能性のある 3以下は ボイス/チャンネルと分離
 などいろいろあって 20分割	
+
+
 */
 #define CDM_JOB_VC_OFFSET 4
 const int cdm_job_num = CDM_JOB_NUM; // 13 <= num // for voice/channel

@@ -265,6 +265,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\timidity\w32g_vorbis_dll.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\w32g_vorbisfile_dll.c"
+				>
+			</File>
+			<File
 				RelativePath="..\interface\winsyn_c.c"
 				>
 			</File>
@@ -285,6 +293,10 @@
 				</File>
 				<File
 					RelativePath="..\timidity\controls.c"
+					>
+				</File>
+				<File
+					RelativePath="..\timidity\decode.c"
 					>
 				</File>
 				<File

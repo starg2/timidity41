@@ -167,7 +167,7 @@ void ExportFile(HWND hDlg, bool bExportList)
 
 	if (bExportList) {
 		fd.setDefaultExt("txt");
-		fd.setFilter("soundfont (*.sf2;*.sf3)\0*.sf2;*.sf3\0All files (*.*)\0*.*\0\0");
+		fd.setFilter("Soundfont Preset List (*.txt)\0*.txt\0\0");
 	} else {
 		fd.setDefaultExt("cfg");
 		fd.setFilter("TiMidity++ Config File (*.cfg)\0*.cfg\0\0");
@@ -247,7 +247,7 @@ LRESULT DlgMainProc_COMMAND(HWND hDlg, WPARAM wParam, LPARAM lParam)
 		CMyFileDialog fd;
 		fd.setOpenDlgDefaultSetting();
 		fd.setTitle("open soundfont");
-		fd.setFilter("soundfont (*.sf2)\0*.sf2\0\0");
+		fd.setFilter("soundfont (*.sf2;*.sf3)\0*.sf2;*.sf3\0All files (*.*)\0*.*\0\0");
 		fd.setOwner(hDlg);
 		if (fd.Execute()) {
 			const int n = fd.getIndex();

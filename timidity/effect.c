@@ -716,6 +716,11 @@ static void init_vst_effect(void)
 
 //static DATA_T efx_buffer[AUDIO_BUFFER_SIZE * 2]; // tmp buffer
 
+static inline FLOAT_T gain_FLOAT_T(FLOAT_T val)
+{
+	return pow((FLOAT_T)10.0, val * DIV_20);
+}
+
 /*! panning (pan = [0, 127]) */
 #if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT) /* fixed-point implementation */
 static inline int32 do_left_panning(int32 sample, int32 pan)
@@ -808,13 +813,16 @@ static double calc_pan_xg_right(int val)
 		return (double)(clip_int(val, 1, 127) - 0x40) * DIV_63 + 0.5;
 }
 
-///r
 static double calc_xg_level(int val, struct effect_xg_t *st)
 {
 	if(val == 0)
 		return 0.0;
-//	return (FLOAT_T)val * DIV_127;
-	return pow((FLOAT_T)val * DIV_127, 0.5); 
+#if 1 // c219
+	if(st == &variation_effect_xg[0] && st->connection == XG_CONN_INSERTION) // var ins mode
+		return (FLOAT_T)val * DIV_127 * 2.0;
+#endif
+	return (FLOAT_T)val * DIV_127;
+//	return pow((FLOAT_T)val * DIV_127, 0.5); 
 }
 
 static double calc_dry_xg(int val, struct effect_xg_t *st)
@@ -826,14 +834,12 @@ static double calc_dry_xg(int val, struct effect_xg_t *st)
 		return 0.0;
 	case XG_CONN_INSERTION:
 	default:
-		if(val == 0)
-			return 1.0;
-		else if(val == 127)
+		if(val == 127)
 			return 0.0;
-		else if(val == 64)
-			return 0.5;
+		else if(val <= 64)
+			return 1.0;
 		else
-			return 1.0 - ((double)(clip_int(val, 1, 127) - 0x40) * DIV_63 + 0.5);
+			return (double)(127 - clip_int(val, 0, 127)) * DIV_63;
 	}
 }
 
@@ -848,12 +854,10 @@ static double calc_wet_xg(int val, struct effect_xg_t *st)
 	default:
 		if(val == 0)
 			return 0.0;
-		else if(val == 127)
+		else if(val >= 64)
 			return 1.0;
-		else if(val == 64)
-			return 0.5;
 		else
-			return (double)(clip_int(val, 1, 127) - 0x40) * DIV_63 + 0.5;
+			return (double)(clip_int(val, 0, 127) - 0x1) * DIV_63;
 	}
 }
 
@@ -883,14 +887,6 @@ static double calc_pan_gs_right(int val)
 
 static double calc_dry_gs(int val)
 {
-	//if(val == 0)
-	//	return 1.0;
-	//else if(val == 127)
-	//	return 0.0;
-	//else if(val == 64)
-	//	return 0.5;
-	//else
-	//	return 1.0 - ((double)(clip_int(val, 1, 127) - 0x40) * DIV_63 + 0.5);
 	if(val == 127)
 		return 0.0;
 	else if(val <= 64)
@@ -901,14 +897,6 @@ static double calc_dry_gs(int val)
 
 static double calc_wet_gs(int val)
 {
-	//if(val == 0)
-	//	return 0.0;
-	//else if(val == 127)
-	//	return 1.0;
-	//else if(val == 64)
-	//	return 0.5;
-	//else
-	//	return (double)(clip_int(val, 1, 127) - 0x40) * DIV_63 + 0.5;
 	if(val == 0)
 		return 0.0;
 	else if(val >= 64)
@@ -2302,14 +2290,15 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 	int i;
 	FLOAT_T clip_level, div_amp_level;
 	FLOAT_T v1, v2, out;
-	const FLOAT_T div_size = DRIVE_SCALE_MAX / (FLOAT_T)DRIVE_TABLE_LENGTH;
+	FLOAT_T div_size = DRIVE_SCALE_MAX / (FLOAT_T)DRIVE_TABLE_LENGTH;
 
 	if(clip < 0.01) clip = 0.01;
-	clip_level = ((FLOAT_T)WS_AMP_VALUE * 0.33) * clip;
-	div_amp_level = 3.0 / ((FLOAT_T)WS_AMP_VALUE * 0.33) * drive;
+	div_size /= clip;
+	clip_level = ((FLOAT_T)WS_AMP_VALUE * 0.5) * clip;
+	div_amp_level = 1.0 / ((FLOAT_T)WS_AMP_VALUE * 0.5) * drive;
 	drv->cnv = (FLOAT_T)DRIVE_BASE_LENGTH * div_amp_level;
 	drv->cnvi = TIM_FSCALE((FLOAT_T)(1 << DRIVE_INPUT_BIT) * div_amp_level, 24);
-
+	
 	switch(type){
 	default:
 	case 0: // linear <-> clipping
@@ -2355,19 +2344,19 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 		break;
 	case 4: // sq/sqrt <-> clipping <-> tanh
 		for(i = 0; i < (DRIVE_TABLE_LENGTH + 1); i++){
+			double curve2;
 			v1 = div_size * i;
 			v2 = v1;
 			if(curve < 0.5){	
 				v1 = (v1 > 1.0) ? sqrt(v1) : sq(v1);			
 				if(v2 > 1.0) v2 = 1.0;
-				curve *= 2.0;
+				curve2 = curve *2.0;
 			}else{
 				if(v1 > 1.0) v1 = 1.0;
 				v2 = tanh(v2 * M_PI);
-				curve *= 2.0;
-				curve -= 1.0;
+				curve2 = (curve - 0.5) * 2.0;
 			}
-			out = v1 + (v2 - v1) * curve;
+			out = v1 + (v2 - v1) * curve2;
 			out *= clip_level;
 			drv->dc[i] = out;
 		}
@@ -2377,13 +2366,9 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 			v1 = div_size * i;
 			v2 = v1;
 			if(v1 > 1.0) v1 = 1.0;
-			v2 *= 4;
 			v2 -= floor(v2);
-			v2 *= DIV_4;
+			v2 *= 2.0;
 			if(v2 > 1.0) v2 = 2.0 - v2;
-			if(v2 < 1.0) v2 = v2;
-			else if(v1 < 3.0) v2 = 2.0 - v2;
-			else if(v1 < 5.0) v2 = -2.0 + v2;
 			out = v1 + (v2 - v1) * curve;
 			out *= clip_level;
 			drv->dc[i] = out;
@@ -2405,13 +2390,9 @@ static void init_drive(Drive *drv, int type, double curve, double clip, double d
 			v1 = div_size * i;
 			v2 = v1;
 			v1 = tanh(v1 * M_PI);
-			v2 *= 4;
 			v2 -= floor(v2);
-			v2 *= DIV_4;
+			v2 *= 2.0;
 			if(v2 > 1.0) v2 = 2.0 - v2;
-			if(v2 < 1.0) v2 = v2;
-			else if(v1 < 3.0) v2 = 2.0 - v2;
-			else if(v1 < 5.0) v2 = -2.0 + v2;
 			out = v1 + (v2 - v1) * curve;
 			out *= clip_level;
 			drv->dc[i] = out;
@@ -2515,10 +2496,24 @@ static void do_drive_mono(Drive *drv, DATA_T *inout)
 {
 	int32 index;
 	FLOAT_T in, sign, v1, v2, fp;
-	
+
+	static FLOAT_T max = 0, avg = 0, sum = 0;
+	static int32 tc = 0;
+
+
+
+
 	in = *inout;
 	sign = (in < 0) ? (-1.0) : (1.0);
 	in *= drv->cnv * sign;
+	
+	if(in > 1 && in > max)
+		max = in;
+	++tc;
+	sum += in;
+	avg = sum / (FLOAT_T)tc;
+
+
 	fp = floor(in);
 	index = fp;
 	fp = in - fp;
@@ -3552,7 +3547,7 @@ static void init_freeverb(InfoFreeverb *info)
 	default:
 		info->do_reverb_mode = do_freeverb_none;
 		break;
-	}
+	}	
 	if(error) info->do_reverb_mode = do_freeverb_none; // safe
 	info->init = 1;
 }
@@ -4701,10 +4696,13 @@ double ext_reverb_ex_ap_rate = 0.1; // 0.15Hz
 double ext_reverb_ex_ap_depth = 0.5; // 1.5ms
 
 static void do_reverb_ex_none(DATA_T *buf, int32 count, InfoReverbEX *info);
-static void do_reverb_ex_chST(DATA_T *buf, int32 count, InfoReverbEX *info);
-static void do_reverb_ex_chMS(DATA_T *buf, int32 count, InfoReverbEX *info);
-static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info);
-static void do_reverb_ex_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info);
+static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info);
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+static void do_reverb_ex_mod_chSTMS_thread(DATA_T *buf, int32 count, InfoReverbEX *info);
+static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2);
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
 
 static void rev_ex_mod_free_ap_delay(InfoReverbEX *info);
 static void init_reverb_ex_mod(InfoReverbEX *info);
@@ -4747,13 +4745,8 @@ static void rev_ex_init_rv_fbc(InfoReverbEX *info, int num, int unit_num)
 {
 	int tmp = num + unit_num * 3 / 4; // + :offset
 	if(tmp >= unit_num) tmp -= unit_num;
-	if(num & 0x2){ // swap
-		info->rv_in[num][0] = &info->rv_out[tmp][1];
-		info->rv_in[num][1] = &info->rv_out[tmp][0];
-	}else{
-		info->rv_in[num][0] = &info->rv_out[tmp][0];
-		info->rv_in[num][1] = &info->rv_out[tmp][1];
-	}
+	info->rv_in[num][0] = &info->rv_out[tmp][0];
+	info->rv_in[num][1] = &info->rv_out[tmp][1];
 	info->rv_out[num][0] = info->rv_out[num][1] = 0;
 }
 
@@ -4829,7 +4822,7 @@ static int rev_ex_init_ap_delay(InfoReverbEX *info, int32 size)
 
 static void free_reverb_ex(InfoReverbEX *info)
 {
-	int i;	
+	int i, k;	
 	if(!info)
 		return;
 	if(!info->init)
@@ -4842,6 +4835,23 @@ static void free_reverb_ex(InfoReverbEX *info)
 	}
 	rev_ex_free_rv_delay(info);
 	rev_ex_free_ap_delay(info);
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(info->tobuf != NULL){
+		aligned_free(info->tobuf);
+		info->tobuf = NULL;
+	}
+#else
+	if(info->tobuf != NULL){
+		safe_free(info->tobuf);
+		info->tobuf = NULL;
+	}
+#endif
+	reset_effect_sub_thread(do_reverb_ex_mod_chSTMS_thread1, info);
+	info->thread = 0;
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
 	info->init = 0;
 }
 
@@ -4885,7 +4895,13 @@ static void init_reverb_ex(InfoReverbEX *info)
 	num_div2 = num / 2;
 	div_num = 1.0 / (FLOAT_T)num;
 	norm = pow(div_num, DIV_3_2);
-	ext_reverb_ex_ap_num = ext_reverb_ex_ap_num ? REV_EX_AP_MAX : 0;
+	if(ext_reverb_ex_ap_num >= REV_EX_AP_MAX)
+		ext_reverb_ex_ap_num = REV_EX_AP_MAX;
+	else if(ext_reverb_ex_ap_num >= 1)
+		ext_reverb_ex_ap_num = 4;
+	else 
+		ext_reverb_ex_ap_num = 0;
+	//ext_reverb_ex_ap_num = ext_reverb_ex_ap_num ? REV_EX_AP_MAX : 0;
 	// init
 	init_prime_list();
 	pdelay_cnt = info->er_time_ms * playmode_rate_ms;	
@@ -4973,7 +4989,7 @@ static void init_reverb_ex(InfoReverbEX *info)
 		}
 		info->index2[REV_EX_AP1] = 0;
 		info->index2[REV_EX_AP2] = 0;
-		++size;
+		size++;
 		if(size < 2) size = 2;
 		info->size2[REV_EX_AP1] = size;
 		info->size2[REV_EX_AP2] = size;
@@ -4984,7 +5000,7 @@ static void init_reverb_ex(InfoReverbEX *info)
 	set_sample_filter_type(&info->hpf, FILTER_NONE);
 	init_sample_filter(&info->hpf, REV_EX_HPF_FREQ, 0, FILTER_HPF_BW);	
 	info->unit_num = num;
-	info->st_sprd = div_num; // L+,R-
+	info->st_sprd = (info->mode == CH_STEREO) ? div_num : 0.0; // L+,R-
 	info->flt_wet = (info->rev_damp_bal + 1.0) * DIV_2;
 	info->flt_dry = 1.0 - info->flt_wet;
 	info->feedback = info->rev_feedback * REV_EX_FEEDBACK;
@@ -5027,15 +5043,19 @@ static void init_reverb_ex(InfoReverbEX *info)
 	// func
 	switch(info->mode){
 	case CH_STEREO:
-		info->do_reverb_mode = ext_reverb_ex_ap_num ? do_reverb_ex_chST_ap8 : do_reverb_ex_chST;
-		break;
 	case CH_MIX_STEREO:
-		info->do_reverb_mode = ext_reverb_ex_ap_num ? do_reverb_ex_chMS_ap8 : do_reverb_ex_chMS;
+		info->do_reverb_mode = do_reverb_ex_chSTMS;
 		break;
 	default:
 		info->do_reverb_mode = do_reverb_ex_none;
 		break;
-	}
+	}	
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	reset_effect_sub_thread(do_reverb_ex_mod_chSTMS_thread1, info);
+	info->thread = 0;
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
 	if(error) info->do_reverb_mode = do_reverb_ex_none; // safe
 	info->init = 1;
 }
@@ -5047,168 +5067,8 @@ static void do_reverb_ex_none(DATA_T *buf, int32 count, InfoReverbEX *info)
 	memset(buf, 0, sizeof(DATA_T) * count); // count > 0 // wet 0 
 }
 
-
 #if (OPT_MODE == 1) && !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT) /* fixed-point implementation */
-static void do_reverb_ex_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	int32 leveler = info->leveleri, levelrv = info->levelrvi, feedback = info->feedbacki,
-		*rv_feedback = info->rv_feedbacki, flt_dry = info->flt_dryi, flt_wet = info->flt_weti,
-		*dcH = hpf->dc, *dcL = er_fc->dc, in_level = info->in_leveli, st_sprd = info->st_sprdi;
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[8], *dbL = er_fc->db; 
-	DATA_T *hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
-	// CH_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-		input[0] = buf[k]; input[1] = buf[k + 1];
-		sprd = imuldiv24((input[0] - input[1]), st_sprd);
-		input[0] = input[1] = imuldiv24((input[0] + input[1]), in_level);
-		input[0] += imuldiv24(hist[0], feedback); input[1] += imuldiv24(hist[1], feedback);
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		// unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		for (i = 0; i < info->unit_num; i++) {
-			// index inc
-			DATA_T *buf[4];
-			int32 *index[4] = {&info->index[i][0], &info->index[i][1], &info->index[i][2], &info->index[i][3],};
-			if (++(*index[0]) >= info->size[i][0]) {*index[0] = 0;}
-			if (++(*index[1]) >= info->size[i][1]) {*index[1] = 0;}
-			if (++(*index[2]) >= info->size[i][2]) {*index[2] = 0;}
-			if (++(*index[3]) >= info->size[i][3]) {*index[3] = 0;}
-			buf[0] = &info->buf[i][0][*index[0]];
-			buf[1] = &info->buf[i][1][*index[1]];
-			buf[2] = &info->buf[i][2][*index[2]];
-			buf[3] = &info->buf[i][3][*index[3]];
-			// er out
-			dat_er[0] += *buf[0]; dat_er[1] += *buf[1];
-			// er in
-			*buf[0] = input[0]; *buf[1] = input[1];
-			input[0] += sprd; input[1] -= sprd; // spread
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = *buf[2];
-			tmp1[1] = *buf[3];
-			lpf = &rv_fc[i];
-			lpf->db[0] = imuldiv28(tmp1[0], lpf->dc[0]) + imuldiv28(lpf->db[0], lpf->dc[1]);
-			lpf->db[1] = imuldiv28(tmp1[1], lpf->dc[0]) + imuldiv28(lpf->db[1], lpf->dc[1]);
-			dat_rv[0] += (info->rv_out[i][0] = imuldiv24(tmp1[0], flt_dry) + imuldiv24(lpf->db[0], flt_wet));
-			dat_rv[1] += (info->rv_out[i][1] = imuldiv24(tmp1[1], flt_dry) + imuldiv24(lpf->db[1], flt_wet));
-			// rv in
-			*buf[2] = input_rv[0] + imuldiv24(tmp_rv[0], rv_feedback[i]);
-			*buf[3] = input_rv[1] + imuldiv24(tmp_rv[1], rv_feedback[i]);
-		}
-		// er flt
-		dbL[0] = imuldiv28(dat_er[0], dcL[0]) + imuldiv28(dbL[0], dcL[1]);
-		dbL[1] = imuldiv28(dat_er[1], dcL[0]) + imuldiv28(dbL[1], dcL[1]);
-		dat_er[0] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[0], flt_wet);
-		dat_er[1] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[1], flt_wet);
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
-			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = imuldiv28(dbHR[0], dcH[0]) + imuldiv28(dbHR[1], dcH[1]) + imuldiv28(dbHR[2], dcH[2])
-			- imuldiv28(dbHR[3], dcH[3]) - imuldiv28(dbHR[4], dcH[4]);
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];		
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-}
-
-static void do_reverb_ex_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	int32 leveler = info->leveleri, levelrv = info->levelrvi, feedback = info->feedbacki,
-		*rv_feedback = info->rv_feedbacki, flt_dry = info->flt_dryi, flt_wet = info->flt_weti,
-		*dcH = hpf->dc, *dcL = er_fc->dc, in_level = info->in_leveli;
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	*hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-		input[0] = input[1] = imuldiv24((buf[k] + buf[k + 1]), info->in_level);
-		input[0] += imuldiv24(hist[0], feedback); input[1] += imuldiv24(hist[1], feedback);
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		// unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		for (i = 0; i < info->unit_num; i++) {
-			// index inc
-			DATA_T *buf[4];
-			int32 *index[4] = {&info->index[i][0], &info->index[i][1], &info->index[i][2], &info->index[i][3],};
-			if (++(*index[0]) >= info->size[i][0]) {*index[0] = 0;}
-			if (++(*index[1]) >= info->size[i][1]) {*index[1] = 0;}
-			if (++(*index[2]) >= info->size[i][2]) {*index[2] = 0;}
-			if (++(*index[3]) >= info->size[i][3]) {*index[3] = 0;}
-			buf[0] = &info->buf[i][0][*index[0]];
-			buf[1] = &info->buf[i][1][*index[1]];
-			buf[2] = &info->buf[i][2][*index[2]];
-			buf[3] = &info->buf[i][3][*index[3]];
-			// er out
-			dat_er[0] += *buf[0]; dat_er[1] += *buf[1];
-			// er in
-			*buf[0] = input[0]; *buf[1] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = *buf[2];
-			tmp1[1] = *buf[3];
-			lpf = &rv_fc[i];
-			lpf->db[0] = imuldiv28(tmp1[0], lpf->dc[0]) + imuldiv28(lpf->db[0], lpf->dc[1]);
-			lpf->db[1] = imuldiv28(tmp1[1], lpf->dc[0]) + imuldiv28(lpf->db[1], lpf->dc[1]);
-			dat_rv[0] += (info->rv_out[i][0] = imuldiv24(tmp1[0], flt_dry) + imuldiv24(lpf->db[0], flt_wet));
-			dat_rv[1] += (info->rv_out[i][1] = imuldiv24(tmp1[1], flt_dry) + imuldiv24(lpf->db[1], flt_wet));
-			// rv in
-			*buf[2] = input_rv[0] + imuldiv24(tmp_rv[0], rv_feedback[i]);
-			*buf[3] = input_rv[1] + imuldiv24(tmp_rv[1], rv_feedback[i]);
-		}
-		// er flt
-		dbL[0] = imuldiv28(dat_er[0], dcL[0]) + imuldiv28(dbL[0], dcL[1]);
-		dbL[1] = imuldiv28(dat_er[1], dcL[0]) + imuldiv28(dbL[1], dcL[1]);
-		dat_er[0] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[0], flt_wet);
-		dat_er[1] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[1], flt_wet);
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
-			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = imuldiv28(dbHR[0], dcH[0]) + imuldiv28(dbHR[1], dcH[1]) + imuldiv28(dbHR[2], dcH[2])
-			- imuldiv28(dbHR[3], dcH[3]) - imuldiv28(dbHR[4], dcH[4]);
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];		
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-}
-
-static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
+static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
 	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
 	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
@@ -5273,12 +5133,13 @@ static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
+		if(ext_reverb_ex_ap_num){
 		if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
 		info->abuf[0][*indexap] = imuldiv24(dat_er[0], levelap) + imuldiv24(fb_ap1[0], apfbi); 
 		info->abuf[1][*indexap] = imuldiv24(dat_er[1], levelap) + imuldiv24(fb_ap1[1], apfbi); 
 		info->abuf[2][*indexap] = imuldiv24(dat_rv[0], levelap) + imuldiv24(fb_ap2[0], apfbi); 
 		info->abuf[3][*indexap] = imuldiv24(dat_rv[1], levelap) + imuldiv24(fb_ap2[1], apfbi);  
-		for (i = 0; i < REV_EX_AP_MAX; i++) {
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
 			int32 index;
 			// ap1 er
 			if((index = *indexap - info->delaya[i][0]) < 0) {index += sizeap;} 
@@ -5293,112 +5154,10 @@ static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 		}
 		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
 		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
-		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
-			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = imuldiv28(dbHR[0], dcH[0]) + imuldiv28(dbHR[1], dcH[1]) + imuldiv28(dbHR[2], dcH[2])
-			- imuldiv28(dbHR[3], dcH[3]) - imuldiv28(dbHR[4], dcH[4]);
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];		
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-}
-
-static void do_reverb_ex_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	int32 leveler = info->leveleri, levelrv = info->levelrvi, feedback = info->feedbacki,
-		*rv_feedback = info->rv_feedbacki, flt_dry = info->flt_dryi, flt_wet = info->flt_weti,
-		*dcH = hpf->dc, *dcL = er_fc->dc, in_level = info->in_leveli;
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	*hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	int32 *indexap = &info->index2[REV_EX_AP1], sizeap = info->size2[REV_EX_AP1];
-	DATA_T *fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	int32 levelap = info->levelapi;
-	const int32 apfbi = TIM_FSCALE(REV_EX_AP_FB, 24);
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-		input[0] = input[1] = imuldiv24((buf[k] + buf[k + 1]), info->in_level);
-		input[0] += imuldiv24(hist[0], feedback); input[1] += imuldiv24(hist[1], feedback);
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		// unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		for (i = 0; i < info->unit_num; i++) {
-			// index inc
-			DATA_T *buf[4];
-			int32 *index[4] = {&info->index[i][0], &info->index[i][1], &info->index[i][2], &info->index[i][3],};
-			if (++(*index[0]) >= info->size[i][0]) {*index[0] = 0;}
-			if (++(*index[1]) >= info->size[i][1]) {*index[1] = 0;}
-			if (++(*index[2]) >= info->size[i][2]) {*index[2] = 0;}
-			if (++(*index[3]) >= info->size[i][3]) {*index[3] = 0;}
-			buf[0] = &info->buf[i][0][*index[0]];
-			buf[1] = &info->buf[i][1][*index[1]];
-			buf[2] = &info->buf[i][2][*index[2]];
-			buf[3] = &info->buf[i][3][*index[3]];
-			// er out
-			dat_er[0] += *buf[0]; dat_er[1] += *buf[1];
-			// er in
-			*buf[0] = input[0]; *buf[1] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = *buf[2];
-			tmp1[1] = *buf[3];
-			lpf = &rv_fc[i];
-			lpf->db[0] = imuldiv28(tmp1[0], lpf->dc[0]) + imuldiv28(lpf->db[0], lpf->dc[1]);
-			lpf->db[1] = imuldiv28(tmp1[1], lpf->dc[0]) + imuldiv28(lpf->db[1], lpf->dc[1]);
-			dat_rv[0] += (info->rv_out[i][0] = imuldiv24(tmp1[0], flt_dry) + imuldiv24(lpf->db[0], flt_wet));
-			dat_rv[1] += (info->rv_out[i][1] = imuldiv24(tmp1[1], flt_dry) + imuldiv24(lpf->db[1], flt_wet));
-			// rv in
-			*buf[2] = input_rv[0] + imuldiv24(tmp_rv[0], rv_feedback[i]);
-			*buf[3] = input_rv[1] + imuldiv24(tmp_rv[1], rv_feedback[i]);
 		}
-		// er flt
-		dbL[0] = imuldiv28(dat_er[0], dcL[0]) + imuldiv28(dbL[0], dcL[1]);
-		dbL[1] = imuldiv28(dat_er[1], dcL[0]) + imuldiv28(dbL[1], dcL[1]);
-		dat_er[0] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[0], flt_wet);
-		dat_er[1] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[1], flt_wet);
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// ap
-		if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
-		info->abuf[0][*indexap] = imuldiv24(dat_er[0], levelap) + imuldiv24(fb_ap1[0], apfbi); 
-		info->abuf[1][*indexap] = imuldiv24(dat_er[1], levelap) + imuldiv24(fb_ap1[1], apfbi); 
-		info->abuf[2][*indexap] = imuldiv24(dat_rv[0], levelap) + imuldiv24(fb_ap2[0], apfbi); 
-		info->abuf[3][*indexap] = imuldiv24(dat_rv[1], levelap) + imuldiv24(fb_ap2[1], apfbi);  
-		for (i = 0; i < REV_EX_AP_MAX; i++) {
-			int32 index;
-			// ap1 er
-			if((index = *indexap - info->delaya[i][0]) < 0) {index += sizeap;} 
-			dat_er[0] += info->abuf[0][index]; 
-			if((index = *indexap - info->delaya[i][1]) < 0) {index += sizeap;}
-			dat_er[1] += info->abuf[1][index]; 	
-			// ap2 rv
-			if((index = *indexap - info->delaya[i][2]) < 0) {index += sizeap;}
-			dat_rv[0] += info->abuf[2][index]; 
-			if((index = *indexap - info->delaya[i][3]) < 0) {index += sizeap;}
-			dat_rv[1] += info->abuf[3][index]; 
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
 		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
+		hist[0] = imuldiv16(dat_rv[0], levelrv) + imuldiv16(dat_er[0], leveler);
+		hist[1] = imuldiv16(dat_rv[1], levelrv) + imuldiv16(dat_er[1], leveler);
 		dbHL[0] = hist[0];	
 		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
 			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
@@ -5422,163 +5181,7 @@ static void do_reverb_ex_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 SSE2 128bitSIMD : double*2ch, int32*4ch
 x64AVXで問題・・?
 */
-static void do_reverb_ex_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0;
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	DATA_T *bufrd = info->buf2[REV_EX_RD];
-	__m128d	vec_dcH0 = MM_LOAD1_PD(&hpf->dc[0]), vec_dcH1 = MM_LOAD1_PD(&hpf->dc[1]), vec_dcH2 = MM_LOAD1_PD(&hpf->dc[2]), 
-		vec_dcH3 = MM_LOAD1_PD(&hpf->dc[3]), vec_dcH4 = MM_LOAD1_PD(&hpf->dc[4]),
-		vec_dcL0 = MM_LOAD1_PD(&er_fc->dc[0]), vec_dcL1 = MM_LOAD1_PD(&er_fc->dc[1]);
-	__m128d	vec_dbH0 = _mm_loadu_pd(&hpf->db[0]), vec_dbH1 = _mm_loadu_pd(&hpf->db[2]), vec_dbH2 = _mm_loadu_pd(&hpf->db[4]), 
-		vec_dbH3 = _mm_loadu_pd(&hpf->db[6]), vec_dbH4 = _mm_loadu_pd(&hpf->db[8]), vec_dbL = _mm_loadu_pd(er_fc->db);
-	__m128d vec_tmp1, vec_input_er, vec_input_rv, vec_mixer, vec_mixap, vec_mixrv, vec_tmp_rv, vec_db, vec_sprd,
-		vec_leveler = MM_LOAD1_PD(&info->leveler), vec_levelrv = MM_LOAD1_PD(&info->levelrv),
-		vec_dry = MM_LOAD1_PD(&info->flt_dry), vec_wet = MM_LOAD1_PD(&info->flt_wet),
-		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist);
-	__m128d vec_sp_sprd = _mm_set_pd(-info->st_sprd, info->st_sprd);
-	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
-	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
-	// CH_STEREO:
-	for (k = 0; k < count; k += 2)
-	{		
-		int32 tmpi0;
-		vec_sprd = _mm_mul_pd(_mm_set1_pd(buf[k] - buf[k + 1]), vec_sp_sprd);
-		vec_input_er = _mm_add_pd(_mm_set1_pd((buf[k] + buf[k + 1]) * DIV_MIX_LEVEL), _mm_mul_pd(vec_hist, vec_feedback));
-		// index2 (rv delay, ap
-		index2 = _mm_add_epi32(index2, add_idx2);
-		index2 = _mm_and_si128(index2, _mm_cmplt_epi32(index2, size2));
-		tmpi0 = MM_EXTRACT_EPI32(index2, REV_EX_RD);
-		// rv delay out
-		vec_input_rv = _mm_load_pd(&bufrd[tmpi0]); // REV_EX_RD
-		// unit
-		vec_mixer = _mm_setzero_pd(); vec_mixrv = _mm_setzero_pd();
-		for (i = 0; i < info->unit_num; i++) {
-		ALIGN int32 tmpi[4];
-		// index inc
-		__m128i vec_index = _mm_loadu_si128((__m128i *)&info->index[i][0]); 
-		__m128i vec_size = _mm_loadu_si128((__m128i *)&info->size[i][0]);
-		vec_index = _mm_add_epi32(vec_index, _mm_set_epi32(1, 1, 1, 1));
-		vec_index = _mm_and_si128(vec_index, _mm_cmplt_epi32(vec_index, vec_size));
-		_mm_storeu_si128((__m128i *)&info->index[i][0], vec_index);
-		// er
-		_mm_store_si128((__m128i *)&tmpi, vec_index);
-		vec_mixer = _mm_add_pd(vec_mixer, _mm_set_pd(info->buf[i][1][tmpi[1]], info->buf[i][0][tmpi[0]]));
-		_mm_store_sd(&(info->buf[i][0][tmpi[0]]), vec_input_er); 
-		_mm_store_sd(&(info->buf[i][1][tmpi[1]]), _mm_shuffle_pd(vec_input_er, vec_input_er, 0x1));
-		vec_input_er = _mm_add_pd(vec_input_er, vec_sprd); // spread
-		// rv save
-		vec_tmp_rv = _mm_set_pd(*info->rv_in[i][1], *info->rv_in[i][0]);
-		// rv out
-		vec_tmp1 = _mm_set_pd(info->buf[i][3][tmpi[3]], info->buf[i][2][tmpi[2]]);
-		lpf = &rv_fc[i];
-		vec_db = _mm_loadu_pd(lpf->db);
-		vec_db = MM_FMA2_PD(MM_LOAD1_PD(&lpf->dc[0]), vec_tmp1, MM_LOAD1_PD(&lpf->dc[1]), vec_db);
-		_mm_storeu_pd(lpf->db, vec_db);
-		vec_tmp1 = MM_FMA2_PD(vec_tmp1, vec_dry, vec_db, vec_wet);
-		vec_mixrv = _mm_add_pd(vec_mixrv, vec_tmp1);
-		_mm_storeu_pd(info->rv_out[i], vec_tmp1);
-		// rv in
-		vec_tmp1 = _mm_add_pd(vec_input_rv, _mm_mul_pd(vec_tmp_rv, MM_LOAD1_PD(&info->rv_feedback[i])));
-		_mm_store_sd(&(info->buf[i][2][tmpi[2]]), vec_tmp1);
-		_mm_store_sd(&(info->buf[i][3][tmpi[3]]), _mm_shuffle_pd(vec_tmp1, vec_tmp1, 0x1));
-		}
-		// er flt
-		vec_dbL = MM_FMA2_PD(vec_dcL0, vec_mixer, vec_dcL1, vec_dbL);
-		vec_mixer = MM_FMA2_PD(vec_mixer, vec_dry, vec_dbL, vec_wet);	
-		// rv delay in
-		_mm_store_pd(&bufrd[tmpi0], vec_mixer);	
-		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
-		vec_dbH0 = vec_hist;
-		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
-		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
-		_mm_store_pd(&buf[k], vec_hist);
-	}
-	_mm_storeu_pd(info->hist, vec_hist); _mm_storeu_pd(er_fc->db, vec_dbL);
-	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
-	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
-	_mm_storeu_si128((__m128i *)info->index2, index2);
-}
-
-static void do_reverb_ex_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0;
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	DATA_T *bufrd = info->buf2[REV_EX_RD];
-	__m128d	vec_dcH0 = MM_LOAD1_PD(&hpf->dc[0]), vec_dcH1 = MM_LOAD1_PD(&hpf->dc[1]), vec_dcH2 = MM_LOAD1_PD(&hpf->dc[2]), 
-		vec_dcH3 = MM_LOAD1_PD(&hpf->dc[3]), vec_dcH4 = MM_LOAD1_PD(&hpf->dc[4]),
-		vec_dcL0 = MM_LOAD1_PD(&er_fc->dc[0]), vec_dcL1 = MM_LOAD1_PD(&er_fc->dc[1]);
-	__m128d	vec_dbH0 = _mm_loadu_pd(&hpf->db[0]), vec_dbH1 = _mm_loadu_pd(&hpf->db[2]), vec_dbH2 = _mm_loadu_pd(&hpf->db[4]), 
-		vec_dbH3 = _mm_loadu_pd(&hpf->db[6]), vec_dbH4 = _mm_loadu_pd(&hpf->db[8]), vec_dbL = _mm_loadu_pd(er_fc->db);
-	__m128d vec_tmp1, vec_input_er, vec_input_rv, vec_mixer, vec_mixap, vec_mixrv, vec_tmp_rv, vec_db, 
-		vec_leveler = MM_LOAD1_PD(&info->leveler), vec_levelrv = MM_LOAD1_PD(&info->levelrv),
-		vec_dry = MM_LOAD1_PD(&info->flt_dry), vec_wet = MM_LOAD1_PD(&info->flt_wet),
-		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist),
-		vec_mix_level = _mm_set1_pd(DIV_MIX_LEVEL);
-	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
-	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k += 2)
-	{		
-		int32 tmpi0;
-		vec_input_er = _mm_add_pd(_mm_set1_pd((buf[k] + buf[k + 1]) * DIV_MIX_LEVEL), _mm_mul_pd(vec_hist, vec_feedback));
-		// index2 (rv delay, ap
-		index2 = _mm_add_epi32(index2, add_idx2);
-		index2 = _mm_and_si128(index2, _mm_cmplt_epi32(index2, size2));
-		tmpi0 = MM_EXTRACT_EPI32(index2, REV_EX_RD);
-		// rv delay out
-		vec_input_rv = _mm_load_pd(&bufrd[tmpi0]); // REV_EX_RD
-		// unit
-		vec_mixer = _mm_setzero_pd(); vec_mixrv = _mm_setzero_pd();
-		for (i = 0; i < info->unit_num; i++) {
-		ALIGN int32 tmpi[4];
-		// index inc
-		__m128i vec_index = _mm_loadu_si128((__m128i *)&info->index[i][0]); 
-		__m128i vec_size = _mm_loadu_si128((__m128i *)&info->size[i][0]);
-		vec_index = _mm_add_epi32(vec_index, _mm_set_epi32(1, 1, 1, 1));
-		vec_index = _mm_and_si128(vec_index, _mm_cmplt_epi32(vec_index, vec_size));
-		_mm_storeu_si128((__m128i *)&info->index[i][0], vec_index);
-		// er
-		_mm_store_si128((__m128i *)&tmpi, vec_index);
-		vec_mixer = _mm_add_pd(vec_mixer, _mm_set_pd(info->buf[i][1][tmpi[1]], info->buf[i][0][tmpi[0]]));
-		_mm_store_sd(&(info->buf[i][0][tmpi[0]]), vec_input_er); 
-		_mm_store_sd(&(info->buf[i][1][tmpi[1]]), _mm_shuffle_pd(vec_input_er, vec_input_er, 0x1));
-		// rv save
-		vec_tmp_rv = _mm_set_pd(*info->rv_in[i][1], *info->rv_in[i][0]);
-		// rv out
-		vec_tmp1 = _mm_set_pd(info->buf[i][3][tmpi[3]], info->buf[i][2][tmpi[2]]);
-		lpf = &rv_fc[i];
-		vec_db = _mm_loadu_pd(lpf->db);
-		vec_db = MM_FMA2_PD(MM_LOAD1_PD(&lpf->dc[0]), vec_tmp1, MM_LOAD1_PD(&lpf->dc[1]), vec_db);
-		_mm_storeu_pd(lpf->db, vec_db);
-		vec_tmp1 = MM_FMA2_PD(vec_tmp1, vec_dry, vec_db, vec_wet);
-		vec_mixrv = _mm_add_pd(vec_mixrv, vec_tmp1);
-		_mm_storeu_pd(info->rv_out[i], vec_tmp1);
-		// rv in
-		vec_tmp1 = _mm_add_pd(vec_input_rv, _mm_mul_pd(vec_tmp_rv, MM_LOAD1_PD(&info->rv_feedback[i])));
-		_mm_store_sd(&(info->buf[i][2][tmpi[2]]), vec_tmp1);
-		_mm_store_sd(&(info->buf[i][3][tmpi[3]]), _mm_shuffle_pd(vec_tmp1, vec_tmp1, 0x1));
-		}
-		// er flt
-		vec_dbL = MM_FMA2_PD(vec_dcL0, vec_mixer, vec_dcL1, vec_dbL);
-		vec_mixer = MM_FMA2_PD(vec_mixer, vec_dry, vec_dbL, vec_wet);	
-		// rv delay in
-		_mm_store_pd(&bufrd[tmpi0], vec_mixer);	
-		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
-		vec_dbH0 = vec_hist;
-		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
-		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
-		_mm_store_pd(&buf[k], vec_hist);
-	}
-	_mm_storeu_pd(info->hist, vec_hist); _mm_storeu_pd(er_fc->db, vec_dbL);
-	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
-	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
-	_mm_storeu_si128((__m128i *)info->index2, index2);
-}
-
-static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
+static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
 	int32 i, k = 0;
 	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
@@ -5650,14 +5253,15 @@ static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 		// rv delay in
 		_mm_store_pd(&bufrd[tmpi2[REV_EX_RD]], vec_mixer);
 		// ap
+		if(ext_reverb_ex_ap_num){
 		vec_index2 = _mm_shuffle_epi32(index2, 0xAA);
 		vtmp[0] = MM_FMA2_PD(vec_mixer, vec_levelap, vec_fbap1, vec_ap_fb);
 		vtmp[1] = MM_FMA2_PD(vec_mixrv, vec_levelap, vec_fbap2, vec_ap_fb);
 		_mm_store_sd(&info->abuf[REV_EX_ER_L1][tmpi2[REV_EX_AP1]], vtmp[0]); 
 		_mm_store_sd(&info->abuf[REV_EX_ER_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[0], vtmp[0], 0x3)); 
 		_mm_store_sd(&info->abuf[REV_EX_RV_L1][tmpi2[REV_EX_AP1]], vtmp[1]); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[1], vtmp[0], 0x3)); 
-		for (i = 0; i < REV_EX_AP_MAX; i++) {
+		_mm_store_sd(&info->abuf[REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[1], vtmp[1], 0x3)); 
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
 		ALIGN int32 tmpi[4];
 		__m128i vec_index;
 		vec_index = _mm_sub_epi32(vec_index2, _mm_loadu_si128((__m128i *)info->delaya[i]));
@@ -5669,111 +5273,9 @@ static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 		vec_mixrv = _mm_add_pd(vec_mixrv, _mm_set_pd(info->abuf[3][tmpi[3]], info->abuf[2][tmpi[2]]));
 		}
 		vec_fbap1 = vec_mixer; vec_fbap2 = vec_mixrv;
-		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
-		vec_dbH0 = vec_hist;
-		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
-		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
-		_mm_store_pd(&buf[k], vec_hist);
-	}
-	_mm_storeu_pd(info->hist, vec_hist); _mm_storeu_pd(er_fc->db, vec_dbL);
-	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
-	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
-	_mm_storeu_si128((__m128i *)info->index2, index2);
-	_mm_storeu_pd(info->fb_ap1, vec_fbap1); _mm_storeu_pd(info->fb_ap2, vec_fbap2);
-}
-
-static void do_reverb_ex_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0;
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	DATA_T *bufrd = info->buf2[REV_EX_RD];
-	__m128d	vec_dcH0 = MM_LOAD1_PD(&hpf->dc[0]), vec_dcH1 = MM_LOAD1_PD(&hpf->dc[1]), vec_dcH2 = MM_LOAD1_PD(&hpf->dc[2]), 
-		vec_dcH3 = MM_LOAD1_PD(&hpf->dc[3]), vec_dcH4 = MM_LOAD1_PD(&hpf->dc[4]),
-		vec_dcL0 = MM_LOAD1_PD(&er_fc->dc[0]), vec_dcL1 = MM_LOAD1_PD(&er_fc->dc[1]);
-	__m128d	vec_dbH0 = _mm_loadu_pd(&hpf->db[0]), vec_dbH1 = _mm_loadu_pd(&hpf->db[2]), vec_dbH2 = _mm_loadu_pd(&hpf->db[4]), 
-		vec_dbH3 = _mm_loadu_pd(&hpf->db[6]), vec_dbH4 = _mm_loadu_pd(&hpf->db[8]), vec_dbL = _mm_loadu_pd(er_fc->db);
-	__m128d vec_tmp1, vec_input_er, vec_input_rv, vec_mixer, vec_mixap, vec_mixrv, vec_tmp_rv, vec_db, 
-		vec_leveler = MM_LOAD1_PD(&info->leveler), vec_levelrv = MM_LOAD1_PD(&info->levelrv),
-		vec_dry = MM_LOAD1_PD(&info->flt_dry), vec_wet = MM_LOAD1_PD(&info->flt_wet),
-		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist),
-		vec_mix_level = _mm_set1_pd(DIV_MIX_LEVEL);
-	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
-	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
-	__m128i sizeap = _mm_set1_epi32(info->size2[REV_EX_AP1]);
-	__m128d vec_ap_fb = _mm_set1_pd(REV_EX_AP_FB), vec_levelap = MM_LOAD1_PD(&info->levelap), 
-		vec_fbap1 = _mm_loadu_pd(info->fb_ap1), vec_fbap2 = _mm_loadu_pd(info->fb_ap2);
-	__m128i vec_index2;
-	__m128d vtmp[2];
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k += 2)
-	{		
-		ALIGN int32 tmpi2[4];
-		vec_input_er = _mm_add_pd(_mm_set1_pd((buf[k] + buf[k + 1]) * DIV_MIX_LEVEL), _mm_mul_pd(vec_hist, vec_feedback));
-		// index2 (rv delay, ap
-		index2 = _mm_add_epi32(index2, add_idx2);
-		index2 = _mm_and_si128(index2, _mm_cmplt_epi32(index2, size2));
-		_mm_store_si128((__m128i *)&tmpi2, index2);
-		// rv delay out
-		vec_input_rv = _mm_load_pd(&bufrd[tmpi2[REV_EX_RD]]);
-		// unit
-		vec_mixer = _mm_setzero_pd(); vec_mixrv = _mm_setzero_pd();
-		for (i = 0; i < info->unit_num; i++) {
-		ALIGN int32 tmpi[4];
-		// index inc
-		__m128i vec_index = _mm_loadu_si128((__m128i *)&info->index[i][0]); 
-		__m128i vec_size = _mm_loadu_si128((__m128i *)&info->size[i][0]);
-		vec_index = _mm_add_epi32(vec_index, _mm_set_epi32(1, 1, 1, 1));
-		vec_index = _mm_and_si128(vec_index, _mm_cmplt_epi32(vec_index, vec_size));
-		_mm_storeu_si128((__m128i *)&info->index[i][0], vec_index);
-		// er
-		_mm_store_si128((__m128i *)&tmpi, vec_index);
-		vec_mixer = _mm_add_pd(vec_mixer, _mm_set_pd(info->buf[i][1][tmpi[1]], info->buf[i][0][tmpi[0]]));
-		_mm_store_sd(&(info->buf[i][0][tmpi[0]]), vec_input_er); 
-		_mm_store_sd(&(info->buf[i][1][tmpi[1]]), _mm_shuffle_pd(vec_input_er, vec_input_er, 0x1));
-		// rv save
-		vec_tmp_rv = _mm_set_pd(*info->rv_in[i][1], *info->rv_in[i][0]);
-		// rv out
-		vec_tmp1 = _mm_set_pd(info->buf[i][3][tmpi[3]], info->buf[i][2][tmpi[2]]);
-		lpf = &rv_fc[i];
-		vec_db = _mm_loadu_pd(lpf->db);
-		vec_db = MM_FMA2_PD(MM_LOAD1_PD(&lpf->dc[0]), vec_tmp1, MM_LOAD1_PD(&lpf->dc[1]), vec_db);
-		_mm_storeu_pd(lpf->db, vec_db);
-		vec_tmp1 = MM_FMA2_PD(vec_tmp1, vec_dry, vec_db, vec_wet);
-		vec_mixrv = _mm_add_pd(vec_mixrv, vec_tmp1);
-		_mm_storeu_pd(info->rv_out[i], vec_tmp1);
-		// rv in
-		vec_tmp1 = _mm_add_pd(vec_input_rv, _mm_mul_pd(vec_tmp_rv, MM_LOAD1_PD(&info->rv_feedback[i])));
-		_mm_store_sd(&(info->buf[i][2][tmpi[2]]), vec_tmp1);
-		_mm_store_sd(&(info->buf[i][3][tmpi[3]]), _mm_shuffle_pd(vec_tmp1, vec_tmp1, 0x1));
 		}
-		// er flt
-		vec_dbL = MM_FMA2_PD(vec_dcL0, vec_mixer, vec_dcL1, vec_dbL);
-		vec_mixer = MM_FMA2_PD(vec_mixer, vec_dry, vec_dbL, vec_wet);	
-		// rv delay in
-		_mm_store_pd(&bufrd[tmpi2[REV_EX_RD]], vec_mixer);	
-		// ap
-		vec_index2 = _mm_shuffle_epi32(index2, 0xAA);
-		vtmp[0] = MM_FMA2_PD(vec_mixer, vec_levelap, vec_fbap1, vec_ap_fb);
-		vtmp[1] = MM_FMA2_PD(vec_mixrv, vec_levelap, vec_fbap2, vec_ap_fb);
-		_mm_store_sd(&info->abuf[REV_EX_ER_L1][tmpi2[REV_EX_AP1]], vtmp[0]); 
-		_mm_store_sd(&info->abuf[REV_EX_ER_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[0], vtmp[0], 0x3)); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_L1][tmpi2[REV_EX_AP1]], vtmp[1]); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[1], vtmp[0], 0x3)); 
-		for (i = 0; i < REV_EX_AP_MAX; i++) {
-		ALIGN int32 tmpi[4];
-		__m128i vec_index;
-		vec_index = _mm_sub_epi32(vec_index2, _mm_loadu_si128((__m128i *)info->delaya[i]));
-		vec_index = _mm_add_epi32(vec_index, _mm_and_si128(sizeap, _mm_cmplt_epi32(vec_index, _mm_setzero_si128())));
-		_mm_store_si128((__m128i *)&tmpi, vec_index);
-		// ap1
-		vec_mixer = _mm_add_pd(vec_mixer, _mm_set_pd(info->abuf[1][tmpi[1]], info->abuf[0][tmpi[0]]));
-		// ap2
-		vec_mixrv = _mm_add_pd(vec_mixrv, _mm_set_pd(info->abuf[3][tmpi[3]], info->abuf[2][tmpi[2]]));
-		}
-		vec_fbap1 = vec_mixer; vec_fbap2 = vec_mixrv;	
 		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
+		vec_hist = _mm_add_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
 		vec_dbH0 = vec_hist;
 		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
 		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
@@ -5787,168 +5289,7 @@ static void do_reverb_ex_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 }
 
 #else /* floating-point implementation */
-static void do_reverb_ex_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
-		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
-		*dcH = hpf->dc, *dcL = er_fc->dc, st_sprd = info->st_sprd;	
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T 	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
-	// CH_STEREO:
-	RDTSC_TEST1
-	for (k = 0; k < count; k++)
-	{		
-#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
-		input[0] = buf[k] * info->in_level; input[1] = buf[k + 1] * info->in_level;
-#else
-		input[0] = buf[k]; input[1] = buf[k + 1];
-#endif
-		sprd = (input[0] - input[1]) * st_sprd;
-		input[0] = input[1] = (input[0] + input[1]) * DIV_MIX_LEVEL;
-		input[0] += hist[0] * feedback; input[1] += hist[1] * feedback;
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		//unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		for (i = 0; i < info->unit_num; i++) {
-			// index inc
-			int32 *index[4] = {&info->index[i][0], &info->index[i][1], &info->index[i][2], &info->index[i][3],};
-			if (++(*index[0]) >= info->size[i][0]) {*index[0] = 0;}
-			if (++(*index[1]) >= info->size[i][1]) {*index[1] = 0;}
-			if (++(*index[2]) >= info->size[i][2]) {*index[2] = 0;}
-			if (++(*index[3]) >= info->size[i][3]) {*index[3] = 0;}
-			// er out
-			dat_er[0] += info->buf[i][0][*index[0]]; dat_er[1] += info->buf[i][1][*index[1]];
-			// er in
-			info->buf[i][0][*index[0]] = input[0]; info->buf[i][1][*index[1]] = input[1];
-			input[0] += sprd; input[1] -= sprd; // spread
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = info->buf[i][2][*index[2]];
-			tmp1[1] = info->buf[i][3][*index[3]];
-		//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
-			lpf = &rv_fc[i];
-			lpf->db[0] = lpf->dc[0] * tmp1[0] + lpf->dc[1] * lpf->db[0];
-			lpf->db[1] = lpf->dc[0] * tmp1[1] + lpf->dc[1] * lpf->db[1];
-			dat_rv[0] += (info->rv_out[i][0] = tmp1[0] * flt_dry + lpf->db[0] * flt_wet);
-			dat_rv[1] += (info->rv_out[i][1] = tmp1[1] * flt_dry + lpf->db[1] * flt_wet);
-			// rv in
-			info->buf[i][2][*index[2]] = input_rv[0] + tmp_rv[0] * rv_feedback[i];
-			info->buf[i][3][*index[3]] = input_rv[1] + tmp_rv[1] * rv_feedback[i];
-		}
-	//	sample_filter_stereo(er_fc, &dat_er[0], &dat_er[1]);
-		dbL[0] = dcL[0] * dat_er[0] + dcL[1] * dbL[0];
-		dbL[1] = dcL[0] * dat_er[1] + dcL[1] * dbL[1];
-		dat_er[0] = dat_er[0] * flt_dry + dbL[0] * flt_wet;
-		dat_er[1] = dat_er[1] * flt_dry + dbL[1] * flt_wet;	
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
-	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = dcH[0] * dbHR[0] + dcH[1] * dbHR[1] + dcH[2] * dbHR[2] + dcH[3] * dbHR[3] + dcH[4] * dbHR[4];
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-	info->hist[0] = hist[0], info->hist[1] = hist[1];
-	RDTSC_TEST2
-}
-
-static void do_reverb_ex_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
-		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
-		*dcH = hpf->dc, *dcL = er_fc->dc;	
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL * info->in_level;
-#else
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL;
-#endif
-		input[0] += hist[0] * feedback; input[1] += hist[1] * feedback;
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		//unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		for (i = 0; i < info->unit_num; i++) {
-			// index inc
-			int32 *index[4] = {&info->index[i][0], &info->index[i][1], &info->index[i][2], &info->index[i][3],};
-			if (++(*index[0]) >= info->size[i][0]) {*index[0] = 0;}
-			if (++(*index[1]) >= info->size[i][1]) {*index[1] = 0;}
-			if (++(*index[2]) >= info->size[i][2]) {*index[2] = 0;}
-			if (++(*index[3]) >= info->size[i][3]) {*index[3] = 0;}
-			// er out
-			dat_er[0] += info->buf[i][0][*index[0]]; dat_er[1] += info->buf[i][1][*index[1]];
-			// er in
-			info->buf[i][0][*index[0]] = input[0]; info->buf[i][1][*index[1]] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = info->buf[i][2][*index[2]];
-			tmp1[1] = info->buf[i][3][*index[3]];
-		//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
-			lpf = &rv_fc[i];
-			lpf->db[0] = lpf->dc[0] * tmp1[0] + lpf->dc[1] * lpf->db[0];
-			lpf->db[1] = lpf->dc[0] * tmp1[1] + lpf->dc[1] * lpf->db[1];
-			dat_rv[0] += (info->rv_out[i][0] = tmp1[0] * flt_dry + lpf->db[0] * flt_wet);
-			dat_rv[1] += (info->rv_out[i][1] = tmp1[1] * flt_dry + lpf->db[1] * flt_wet);
-			// rv in
-			info->buf[i][2][*index[2]] = input_rv[0] + tmp_rv[0] * rv_feedback[i];
-			info->buf[i][3][*index[3]] = input_rv[1] + tmp_rv[1] * rv_feedback[i];
-		}
-	//	sample_filter_stereo(er_fc, &dat_er[0], &dat_er[1]);
-		dbL[0] = dcL[0] * dat_er[0] + dcL[1] * dbL[0];
-		dbL[1] = dcL[0] * dat_er[1] + dcL[1] * dbL[1];
-		dat_er[0] = dat_er[0] * flt_dry + dbL[0] * flt_wet;
-		dat_er[1] = dat_er[1] * flt_dry + dbL[1] * flt_wet;		
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
-	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = dcH[0] * dbHR[0] + dcH[1] * dbHR[1] + dcH[2] * dbHR[2] + dcH[3] * dbHR[3] + dcH[4] * dbHR[4];
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-	info->hist[0] = hist[0], info->hist[1] = hist[1];
-}
-
-static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
+static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
 	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
 	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
@@ -6013,12 +5354,13 @@ static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
+		if(ext_reverb_ex_ap_num){
 		if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
 		info->abuf[0][*indexap] = dat_er[0] * levelap + fb_ap1[0] * REV_EX_AP_FB; 
 		info->abuf[1][*indexap] = dat_er[1] * levelap + fb_ap1[1] * REV_EX_AP_FB; 
 		info->abuf[2][*indexap] = dat_rv[0] * levelap + fb_ap2[0] * REV_EX_AP_FB; 
 		info->abuf[3][*indexap] = dat_rv[1] * levelap + fb_ap2[1] * REV_EX_AP_FB; 
-		for (i = 0; i < REV_EX_AP_MAX; i++) {
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
 			int32 index;
 			// ap1 er
 			if((index = *indexap - info->delaya[i][0]) < 0) {index += sizeap;} 
@@ -6033,9 +5375,10 @@ static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 		}
 		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
 		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
+		}
 		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
+		hist[0] = dat_rv[0] * levelrv + dat_er[0] * leveler;
+		hist[1] = dat_rv[1] * levelrv + dat_er[1] * leveler;
 	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
 		dbHL[0] = hist[0];	
 		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
@@ -6055,114 +5398,10 @@ static void do_reverb_ex_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
 	RDTSC_TEST2
 }
 
-static void do_reverb_ex_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
-		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
-		*dcH = hpf->dc, *dcL = er_fc->dc;	
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	int32 *indexap = &info->index2[REV_EX_AP1], sizeap = info->size2[REV_EX_AP1];
-	DATA_T *fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	FLOAT_T levelap = info->levelap;
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL * info->in_level;
-#else
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL;
-#endif
-		input[0] += hist[0] * feedback; input[1] += hist[1] * feedback;
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		//unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		for (i = 0; i < info->unit_num; i++) {
-			// index inc
-			int32 *index[4] = {&info->index[i][0], &info->index[i][1], &info->index[i][2], &info->index[i][3],};
-			if (++(*index[0]) >= info->size[i][0]) {*index[0] = 0;}
-			if (++(*index[1]) >= info->size[i][1]) {*index[1] = 0;}
-			if (++(*index[2]) >= info->size[i][2]) {*index[2] = 0;}
-			if (++(*index[3]) >= info->size[i][3]) {*index[3] = 0;}
-			// er out
-			dat_er[0] += info->buf[i][0][*index[0]]; dat_er[1] += info->buf[i][1][*index[1]];
-			// er in
-			info->buf[i][0][*index[0]] = input[0]; info->buf[i][1][*index[1]] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = info->buf[i][2][*index[2]];
-			tmp1[1] = info->buf[i][3][*index[3]];
-		//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
-			lpf = &rv_fc[i];
-			lpf->db[0] = lpf->dc[0] * tmp1[0] + lpf->dc[1] * lpf->db[0];
-			lpf->db[1] = lpf->dc[0] * tmp1[1] + lpf->dc[1] * lpf->db[1];
-			dat_rv[0] += (info->rv_out[i][0] = tmp1[0] * flt_dry + lpf->db[0] * flt_wet);
-			dat_rv[1] += (info->rv_out[i][1] = tmp1[1] * flt_dry + lpf->db[1] * flt_wet);
-			// rv in
-			info->buf[i][2][*index[2]] = input_rv[0] + tmp_rv[0] * rv_feedback[i];
-			info->buf[i][3][*index[3]] = input_rv[1] + tmp_rv[1] * rv_feedback[i];
-		}
-	//	sample_filter_stereo(er_fc, &dat_er[0], &dat_er[1]);
-		dbL[0] = dcL[0] * dat_er[0] + dcL[1] * dbL[0];
-		dbL[1] = dcL[0] * dat_er[1] + dcL[1] * dbL[1];
-		dat_er[0] = dat_er[0] * flt_dry + dbL[0] * flt_wet;
-		dat_er[1] = dat_er[1] * flt_dry + dbL[1] * flt_wet;		
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// ap
-		if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
-		info->abuf[0][*indexap] = dat_er[0] * levelap + fb_ap1[0] * REV_EX_AP_FB; 
-		info->abuf[1][*indexap] = dat_er[1] * levelap + fb_ap1[1] * REV_EX_AP_FB; 
-		info->abuf[2][*indexap] = dat_rv[0] * levelap + fb_ap2[0] * REV_EX_AP_FB; 
-		info->abuf[3][*indexap] = dat_rv[1] * levelap + fb_ap2[1] * REV_EX_AP_FB; 
-		for (i = 0; i < REV_EX_AP_MAX; i++) {
-			int32 index;
-			// ap1 er
-			if((index = *indexap - info->delaya[i][0]) < 0) {index += sizeap;} 
-			dat_er[0] += info->abuf[0][index]; 
-			if((index = *indexap - info->delaya[i][1]) < 0) {index += sizeap;}
-			dat_er[1] += info->abuf[1][index]; 	
-			// ap2 rv
-			if((index = *indexap - info->delaya[i][2]) < 0) {index += sizeap;}
-			dat_rv[0] += info->abuf[2][index]; 
-			if((index = *indexap - info->delaya[i][3]) < 0) {index += sizeap;}
-			dat_rv[1] += info->abuf[3][index]; 
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
-		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
-	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = dcH[0] * dbHR[0] + dcH[1] * dbHR[1] + dcH[2] * dbHR[2] + dcH[3] * dbHR[3] + dcH[4] * dbHR[4];
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-	info->hist[0] = hist[0], info->hist[1] = hist[1];
-}
 #endif
 
 
-static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info);
-static void do_reverb_ex_mod_chMS(DATA_T *buf, int32 count, InfoReverbEX *info);
-static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info);
-static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info);
+static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info);
 
 static int rev_ex_mod_init_delay(InfoReverbEX *info, int type, int num, int32 size)
 {
@@ -6196,7 +5435,13 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	num_div2 = num / 2;
 	div_num = 1.0 / (FLOAT_T)num;
 	norm = pow(div_num, DIV_3_2);
-	ext_reverb_ex_ap_num = ext_reverb_ex_ap_num ? REV_EX_AP_MAX : 0;
+	if(ext_reverb_ex_ap_num >= REV_EX_AP_MAX)
+		ext_reverb_ex_ap_num = REV_EX_AP_MAX;
+	else if(ext_reverb_ex_ap_num >= 1)
+		ext_reverb_ex_ap_num = 4;
+	else 
+		ext_reverb_ex_ap_num = 0;
+	//ext_reverb_ex_ap_num = ext_reverb_ex_ap_num ? REV_EX_AP_MAX : 0;
 	// init
 	init_prime_list();
 	pdelay_cnt = info->er_time_ms * playmode_rate_ms;	
@@ -6341,7 +5586,7 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	set_sample_filter_type(&info->hpf, FILTER_NONE);
 	init_sample_filter(&info->hpf, REV_EX_HPF_FREQ, 0, FILTER_HPF_BW);	
 	info->unit_num = num;
-	info->st_sprd = div_num; // L+,R-
+	info->st_sprd = (info->mode == CH_STEREO) ? div_num : 0.0; // L+,R-
 	info->flt_wet = (info->rev_damp_bal + 1.0) * DIV_2;
 	info->flt_dry = 1.0 - info->flt_wet;
 	info->feedback = info->rev_feedback * REV_EX_FEEDBACK;
@@ -6384,246 +5629,502 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	// func
 	switch(info->mode){
 	case CH_STEREO:
-		info->do_reverb_mode = ext_reverb_ex_ap_num ? do_reverb_ex_mod_chST_ap8 : do_reverb_ex_mod_chST;
-		break;
 	case CH_MIX_STEREO:
-		info->do_reverb_mode = ext_reverb_ex_ap_num ? do_reverb_ex_mod_chMS_ap8 : do_reverb_ex_mod_chMS;
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+		if(!set_effect_sub_thread(do_reverb_ex_mod_chSTMS_thread1, info, 2)){
+			info->thread = 1;
+			info->do_reverb_mode = do_reverb_ex_mod_chSTMS_thread;
+			break;
+		}else
+			info->thread = 0;
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		info->do_reverb_mode = do_reverb_ex_mod_chSTMS;
 		break;
 	default:
 		info->do_reverb_mode = do_reverb_ex_none;
 		break;
+	}	
+	
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	if(info->thread){
+		int32 bytes = compute_buffer_size * 2 * sizeof(DATA_T);
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		if(info->tobuf != NULL){
+			aligned_free(info->tobuf);
+			info->tobuf = NULL;
+		}
+		info->tobuf = (DATA_T *) aligned_malloc(bytes, ALIGN_SIZE);
+#else
+		if(info->tobuf != NULL){
+			safe_free(info->tobuf);
+			info->tobuf = NULL;
+		}
+		info->tobuf = (DATA_T *) safe_large_malloc(bytes);
+#endif
+		memset(info->tobuf, 0, bytes);
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		// swap REV_EX_ER_R1 <-> REV_EX_RV_L1
+		// ER_L1,ER_R1,RV_L1,RV_R1 -> ER_L1,RV_L1,ER_R1,RV_R1
+		for(i = 0; i < ext_reverb_ex_rv_num; i++){
+			FLOAT_T tmp1, tmp2;
+			tmp1 = info->mcount[i][REV_EX_ER_R1];
+			tmp2 = info->mcount[i][REV_EX_RV_L1];
+			info->mcount[i][REV_EX_ER_R1] = tmp2;
+			info->mcount[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->mrate[i][REV_EX_ER_R1];
+			tmp2 = info->mrate[i][REV_EX_RV_L1];
+			info->mrate[i][REV_EX_ER_R1] = tmp2;
+			info->mrate[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->mdelay[i][REV_EX_ER_R1];
+			tmp2 = info->mdelay[i][REV_EX_RV_L1];
+			info->mdelay[i][REV_EX_ER_R1] = tmp2;
+			info->mdelay[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->mdepth[i][REV_EX_ER_R1];
+			tmp2 = info->mdepth[i][REV_EX_RV_L1];
+			info->mdepth[i][REV_EX_ER_R1] = tmp2;
+			info->mdepth[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->mphase[i][REV_EX_ER_R1];
+			tmp2 = info->mphase[i][REV_EX_RV_L1];
+			info->mphase[i][REV_EX_ER_R1] = tmp2;
+			info->mphase[i][REV_EX_RV_L1] = tmp1;
+		}		
+		if(ext_reverb_ex_ap_num){
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
+			FLOAT_T tmp1, tmp2;
+			tmp1 = info->acount[i][REV_EX_ER_R1];
+			tmp2 = info->acount[i][REV_EX_RV_L1];
+			info->acount[i][REV_EX_ER_R1] = tmp2;
+			info->acount[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->arate[i][REV_EX_ER_R1];
+			tmp2 = info->arate[i][REV_EX_RV_L1];
+			info->arate[i][REV_EX_ER_R1] = tmp2;
+			info->arate[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->adelay[i][REV_EX_ER_R1];
+			tmp2 = info->adelay[i][REV_EX_RV_L1];
+			info->adelay[i][REV_EX_ER_R1] = tmp2;
+			info->adelay[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->adepth[i][REV_EX_ER_R1];
+			tmp2 = info->adepth[i][REV_EX_RV_L1];
+			info->adepth[i][REV_EX_ER_R1] = tmp2;
+			info->adepth[i][REV_EX_RV_L1] = tmp1;
+			tmp1 = info->aphase[i][REV_EX_ER_R1];
+			tmp2 = info->aphase[i][REV_EX_RV_L1];
+			info->aphase[i][REV_EX_ER_R1] = tmp2;
+			info->aphase[i][REV_EX_RV_L1] = tmp1;
+		}
+		}
+#endif
+		info->tcount = 0;
+		info->index2t[0] = info->index2[0];
+		info->index2t[1] = info->index2[1];
+		info->index2t[2] = info->index2[2];
+		info->index2t[3] = info->index2[3];
 	}
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+
 	if(error) info->do_reverb_mode = do_reverb_ex_none; // safe
 	info->init = 1;
 }
 
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+static void do_reverb_ex_mod_chSTMS_thread(DATA_T *buf, int32 count, InfoReverbEX *info)
+{
+	int32 i;
+	if(info->thread){
+		info->tcount = count;
+		info->tibuf = buf; //in
+		go_effect_sub_thread(do_reverb_ex_mod_chSTMS_thread1, info, 2);
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		for (i = 0; i < count; i += 2){		
+			_mm_store_pd(&buf[i], _mm_load_pd(&info->tobuf[i])); // out
+		}
+#else
+		for (i = 0; i < count; i++){			
+			buf[i] = info->tbuf[i];	
+			i++;
+			buf[i] = info->tbuf[i];	
+		}
+#endif
+		return;
+	}
+}
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
+{
+	InfoReverbEX *info;
+	int32 i, k = 0;
+	DATA_T *ibuf, *obuf;
+	int32 chofs0, chofs2, chofslfo;
+	FILTER_T *dbH;
+	DATA_T in[2], *pin[2], hist;
+	__m128d vec_fbap; 
+	__m128i index2;
+		
+	if(thread_num >= 2)
+		return;
+	if(!info2)
+		return;
+	info = (InfoReverbEX *)info2;
+	if(!info->init)
+		return;
+	ibuf = info->tibuf;
+	obuf = info->tobuf;
+	if(thread_num == 0){ // L
+		chofs0 = 0;
+		chofs2 = 2;
+		chofslfo = 0;
+		dbH = &info->hpf.db[0];
+		pin[0] = &in[0];
+		pin[1] = &in[1];
+		hist = info->hist[0];
+		vec_fbap = _mm_loadu_pd(info->fb_ap1);
+		index2 = _mm_loadu_si128((__m128i *)info->index2);
+	}else if(thread_num == 1){ // R
+		chofs0 = 1;
+		chofs2 = 3;
+		chofslfo = 2;
+		dbH = &info->hpf.db[5];
+		pin[0] = &in[1];
+		pin[1] = &in[0];
+		hist = info->hist[1];
+		vec_fbap = _mm_loadu_pd(info->fb_ap2);
+		index2 = _mm_loadu_si128((__m128i *)info->index2t);
+	}else
+		return;	
+	{
+	DATA_T *bufrd = info->buf2[REV_EX_RD];
+	int32 mindex, msize = info->size2[REV_EX_UNIT], asize = info->size2[REV_EX_AP1];	
+	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
+	FILTER_T *dbL = er_fc->db;
+	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
+		levelap = info->levelap, st_sprd = info->st_sprd,
+		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
+		*dcH = hpf->dc, *dcL = er_fc->dc;	
+	DATA_T input, sprd, input_rv, dat_er, dat_rv, tmp_rv, tmp1;
+	__m128d vmsize = _mm_set1_pd(info->size2[REV_EX_UNIT]), vmi;
+	__m128d vasize = _mm_set1_pd(info->size2[REV_EX_AP1]), vai;
+	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1), size2 = _mm_loadu_si128((__m128i *)info->size2);
+	__m128d vec_ap_fb = _mm_set1_pd(REV_EX_AP_FB), vec_levelap = MM_LOAD1_PD(&info->levelap);
+	
+	for (k = 0; k < info->tcount; k += 2)
+	{		
+		__m128d vvtmp[2];
+		ALIGN int32 tmpi2[4];
+#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
+		in[0] = ibuf[k] * info->in_level; in[1] = ibuf[k + 1] * info->in_level;
+#else
+		in[0] = ibuf[k]; in[1] = ibuf[k + 1];
+#endif
+		sprd = (*pin[0] - *pin[1]) * st_sprd;
+		input = (*pin[0] + *pin[1]) * DIV_MIX_LEVEL;
+		input += hist * feedback;
+		// index2 (rv delay, ap
+		index2 = _mm_add_epi32(index2, add_idx2);
+		index2 = _mm_and_si128(index2, _mm_cmplt_epi32(index2, size2));
+		_mm_store_si128((__m128i *)&tmpi2, index2);
+		// rv delay out
+		input_rv = bufrd[tmpi2[REV_EX_RD] + chofs0];
+		//unit
+		dat_er = 0; dat_rv = 0;
+		vmi = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0x0));
+		mindex = _mm_cvtsi128_si32(index2);
+		for (i = 0; i < info->unit_num; i++) {
+		__m128d vc, vr, vd, vfp, vv1, vv2, vtmp[2];
+		__m128i vindex;			
+		// lfo
+		vc = _mm_add_pd(_mm_loadu_pd(&info->mcount[i][chofslfo]), _mm_loadu_pd(&info->mrate[i][chofslfo])); // mcount+mrate
+#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
+		vc = _mm_sub_pd(vc, _mm_floor_pd(vc)); // mcount-=floor(mcount)
+#else
+		vc = _mm_sub_pd(vc, _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc))); // mcount-=(int)(mcount) +のみ
+#endif
+		_mm_storeu_pd(&info->mcount[i][chofslfo], vc);
+		vr = _mm_add_pd(vc, _mm_loadu_pd(&info->mphase[i][chofslfo])); // mcount+mphase
+		vd = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr,1)), lookup2_sine_p(MM_EXTRACT_F64(vr,0))); // lookup2_sine_p(mc)
+		vd = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][chofslfo]), vd); // mdepth* sine
+		vfp = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][chofslfo])), vd); // mindex-mdelay-mdepth
+		vfp = _mm_add_pd(vfp, _mm_and_pd(vmsize, _mm_cmplt_pd(vfp, _mm_setzero_pd())));	// fp<0 ? fp+msize	
+		vindex = _mm_cvttpd_epi32(vfp); // (int)floor(fp)
+#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
+		vfp = _mm_sub_pd(vfp, _mm_floor_pd(vfp)); // fp-floor(fp)
+#else
+		vfp = _mm_sub_pd(vfp, _mm_cvtepi32_pd(vindex)); // fp-vindex
+#endif
+		vtmp[0] = _mm_loadu_pd(&info->buf[i][chofs0][MM_EXTRACT_I32(vindex,0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->buf[i][chofs2][MM_EXTRACT_I32(vindex,1)]); // v1v2
+		vv1 = _mm_unpacklo_pd(vtmp[0], vtmp[1]);
+		vv2 = _mm_unpackhi_pd(vtmp[0], vtmp[1]);
+		vv1 = MM_FMA_PD(_mm_sub_pd(vv2, vv1), vfp, vv1);
+		// er out
+		dat_er += MM_EXTRACT_F64(vv1, 0); // linear interpolation
+		// er in
+		info->buf[i][chofs0][mindex] = input;
+		input += sprd; // spread
+		// rv save
+		tmp_rv = *info->rv_in[i][chofs0];
+		// rv out	
+		tmp1 = MM_EXTRACT_F64(vv1, 1); // linear interpolation
+	//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
+		lpf = &rv_fc[i];
+		lpf->db[chofs0] = lpf->dc[0] * tmp1 + lpf->dc[1] * lpf->db[chofs0];
+		dat_rv += (info->rv_out[i][chofs0] = tmp1 * flt_dry + lpf->db[chofs0] * flt_wet);
+		// rv in
+		info->buf[i][chofs2][mindex] = input_rv + tmp_rv * rv_feedback[i];
+		if(mindex == 0){
+			info->buf[i][chofs0][msize] = info->buf[i][chofs0][0];
+			info->buf[i][chofs2][msize] = info->buf[i][chofs2][0];
+		}
+		}
+		dbL[chofs0] = dcL[0] * dat_er + dcL[1] * dbL[chofs0];
+		dat_er = dat_er * flt_dry + dbL[chofs0] * flt_wet;
+		// rv delay in
+		bufrd[tmpi2[REV_EX_RD] + chofs0] = dat_er;
+		// ap
+		if(ext_reverb_ex_ap_num){
+		__m128d vdat = _mm_set_pd(dat_rv, dat_er);
+		vai = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0xAA));
+		vvtmp[0] = MM_FMA2_PD(vdat, vec_levelap, vec_fbap, vec_ap_fb);
+		info->abuf[chofs0][tmpi2[REV_EX_AP1]] = MM_EXTRACT_F64(vvtmp[0],0); 
+		info->abuf[chofs2][tmpi2[REV_EX_AP1]] = MM_EXTRACT_F64(vvtmp[0],1); 
+		if(tmpi2[REV_EX_AP1] == 0){
+			info->abuf[chofs0][asize] = info->abuf[chofs0][0];
+			info->abuf[chofs2][asize] = info->abuf[chofs2][0];
+		}	
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
+		__m128d vc, vr, vd, vfp, vv1, vv2, vtmp[2];
+		__m128i vindex;			
+		// lfo
+		vc = _mm_add_pd(_mm_loadu_pd(&info->acount[i][chofslfo]), _mm_loadu_pd(&info->arate[i][chofslfo])); // mcount+mrate
+#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
+		vc = _mm_sub_pd(vc, _mm_floor_pd(vc)); // count-=floor(count)
+#else
+		vc = _mm_sub_pd(vc, _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc))); // count-=floor(count) +のみ
+#endif
+		_mm_storeu_pd(&info->acount[i][chofslfo], vc);
+		vr = _mm_add_pd(vc, _mm_loadu_pd(&info->aphase[i][chofslfo])); // count+phase
+		vd = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr,1)), lookup2_sine_p(MM_EXTRACT_F64(vr,0))); // lookup2_sine_p(count)
+		vd = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][chofslfo]), vd); // depth* sine
+		vfp = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][chofslfo])), vd); // index-delay-depth		
+		vfp = _mm_add_pd(vfp, _mm_and_pd(vasize, _mm_cmplt_pd(vfp, _mm_setzero_pd())));	// fp<0 ? fp+size		
+		vindex = _mm_cvttpd_epi32(vfp); // (int)floor(fp)
+#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
+		vfp = _mm_sub_pd(vfp, _mm_floor_pd(vfp)); // fp-floor(fp)
+#else
+		vfp = _mm_sub_pd(vfp, _mm_cvtepi32_pd(vindex)); // fp-vindex
+#endif
+		vtmp[0] = _mm_loadu_pd(&info->abuf[chofs0][MM_EXTRACT_I32(vindex,0)]); // v1v2
+		vtmp[1] = _mm_loadu_pd(&info->abuf[chofs2][MM_EXTRACT_I32(vindex,1)]); // v1v2
+		vv1 = _mm_unpacklo_pd(vtmp[0], vtmp[1]);
+		vv2 = _mm_unpackhi_pd(vtmp[0], vtmp[1]);
+		vv1 = MM_FMA_PD(_mm_sub_pd(vv2, vv1), vfp, vv1); // linear interpolation
+		vdat = _mm_add_pd(vdat, vv1); // dat_er += , dat_er +=
+		}
+		vec_fbap = vdat; // dat_er  // dat_rv
+		dat_er = MM_EXTRACT_F64(vdat,0);
+		dat_rv = MM_EXTRACT_F64(vdat,1);
+		}
+		// out
+		hist = dat_rv * levelrv + dat_er * leveler;
+		dbH[0] = hist;	
+		hist = dbH[2] = dcH[0] * dbH[0] + dcH[1] * dbH[1] + dcH[2] * dbH[2] + dcH[3] * dbH[3] + dcH[4] * dbH[4];
+		dbH[4] = dbH[3];
+		dbH[3] = dbH[2];
+		dbH[2] = dbH[1];
+		dbH[1] = dbH[0];
+		obuf[k + chofs0] = hist;
+	}
+	info->hist[chofs0] = hist;	
+	if(thread_num == 0){ // L
+		_mm_storeu_pd(info->fb_ap1, vec_fbap);
+		_mm_storeu_si128((__m128i *)info->index2, index2);
+	}else if(thread_num == 1){ // R
+		_mm_storeu_pd(info->fb_ap2, vec_fbap);
+		_mm_storeu_si128((__m128i *)info->index2t, index2);
+	}
+	}
+}
+#else
+static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
+{
+	InfoReverbEX *info;
+	int32 i, k = 0;
+	DATA_T *ibuf, *obuf, *phist, *fb_ap1, *fb_ap2;
+	int32 *indexrd, *mindex, *aindex;
+	FILTER_T *dbH;
+	int32 chofs0, chofs2;
+	DATA_T in[2], *pin[2];
+		
+	if(thread_num >= 2)
+		return;
+	if(!info2)
+		return;
+	info = (InfoReverbEX *)info2;
+	if(!info->init)
+		return;
+	ibuf = info->tibuf;
+	obuf = info->tobuf;
+	if(thread_num == 0){ // L
+		chofs0 = 0;
+		chofs2 = 2;
+		phist = &info->hist[0];
+		indexrd = &info->index2[REV_EX_RD];	
+		mindex = &info->index2[REV_EX_UNIT];
+		aindex = &info->index2[REV_EX_AP1];
+		fb_ap1 = &info->fb_ap1[0];
+		fb_ap2 = &info->fb_ap2[0];
+		dbH = &info->hpf.db[0];
+		pin[0] = &in[0];
+		pin[1] = &in[1];
+	}else if(thread_num == 1){ // R
+		chofs0 = 1;
+		chofs2 = 3;
+		phist = &info->hist[1];
+		indexrd = &info->index2t[REV_EX_RD];
+		mindex = &info->index2t[REV_EX_UNIT];
+		aindex = &info->index2t[REV_EX_AP1];
+		fb_ap1 = &info->fb_ap1[1];
+		fb_ap2 = &info->fb_ap2[1];
+		dbH = &info->hpf.db[5];
+		pin[0] = &in[1];
+		pin[1] = &in[0];
+	}else
+		return;	
+	{
+	DATA_T *bufrd = info->buf2[REV_EX_RD];
+	int32 msize = info->size2[REV_EX_UNIT];
+	int32 asize = info->size2[REV_EX_AP1];
+	int32 sizerd = info->size2[REV_EX_RD];
+	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
+	FILTER_T *dbL = er_fc->db;
+	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
+		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
+		*dcH = hpf->dc, *dcL = er_fc->dc;	
+	FLOAT_T st_sprd = info->st_sprd;
+	FLOAT_T levelap = info->levelap;
+	DATA_T tmp[2], tmp1;
+	DATA_T input, sprd, hist = *phist, input_rv, dat_er, dat_rv, tmp_rv;
+	FLOAT_T mindexf, aindexf;
+
+	for (k = 0; k < info->tcount; k += 2)
+	{		
+#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
+		in[0] = ibuf[k] * info->in_level; in[1] = ibuf[k + 1] * info->in_level;
+#else
+		in[0] = ibuf[k]; in[1] = ibuf[k + 1];
+#endif
+		sprd = (*pin[0] - *pin[1]) * st_sprd;
+		input = (*pin[0] + *pin[1]) * DIV_MIX_LEVEL;
+		input += hist * feedback;
+		// rv delay out
+		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
+		input_rv = bufrd[*indexrd + chofs0];
+		//unit
+		dat_er = 0; dat_rv = 0;
+		if((++*mindex) >= msize) {*mindex = 0;}
+		mindexf = *mindex;
+		for (i = 0; i < info->unit_num; i++) {
+			int32 index[2];
+			DATA_T v1[2], v2[2];
+			FLOAT_T fp1[2], fp2[2];	
+			// lfo
+			info->mcount[i][chofs0] += info->mrate[i][chofs0];
+			info->mcount[i][chofs0] -= floor(info->mcount[i][chofs0]);
+			info->mcount[i][chofs2] += info->mrate[i][chofs2];
+			info->mcount[i][chofs2] -= floor(info->mcount[i][chofs2]);
+			fp1[0] = mindexf - info->mdelay[i][chofs0] - info->mdepth[i][chofs0]
+				* lookup2_sine_p(info->mcount[i][chofs0] + info->mphase[i][chofs0]);	
+			fp1[1] = mindexf - info->mdelay[i][chofs2] - info->mdepth[i][chofs2]
+				* lookup2_sine_p(info->mcount[i][chofs2] + info->mphase[i][chofs2]);	
+			if(fp1[0] < 0) {fp1[0] += msize;}
+			if(fp1[1] < 0) {fp1[1] += msize;}			
+			fp2[0] = floor(fp1[0]);
+			fp2[1] = floor(fp1[1]);
+			index[0] = fp2[0]; 
+			index[1] = fp2[1];  
+			v1[0] = info->buf[i][chofs0][index[0]]; v2[0] = info->buf[i][chofs0][index[0] + 1];
+			v1[1] = info->buf[i][chofs2][index[1]]; v2[1] = info->buf[i][chofs2][index[1] + 1];
+			// er out
+			dat_er += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
+			// er in
+			info->buf[i][chofs0][*mindex] = input;
+			input += sprd; // spread
+			// rv save
+			tmp_rv = *info->rv_in[i][chofs0];
+			// rv out	
+			tmp1 = v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
+		//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
+			lpf = &rv_fc[i];
+			lpf->db[chofs0] = lpf->dc[0] * tmp1 + lpf->dc[1] * lpf->db[chofs0];
+			dat_rv += (info->rv_out[i][chofs0] = tmp1 * flt_dry + lpf->db[chofs0] * flt_wet);
+			// rv in
+			info->buf[i][chofs2][*mindex] = input_rv + tmp_rv * rv_feedback[i];
+			if(*mindex == 0){
+				info->buf[i][chofs0][msize] = info->buf[i][chofs0][0];
+				info->buf[i][chofs2][msize] = info->buf[i][chofs2][0];
+			}
+		}
+		dbL[chofs0] = dcL[0] * dat_er + dcL[1] * dbL[chofs0];
+		dat_er = dat_er * flt_dry + dbL[chofs0] * flt_wet;
+		// rv delay in
+		bufrd[*indexrd + chofs0] = dat_er;
+		// ap
+		if(ext_reverb_ex_ap_num){
+		if ((++(*aindex)) >= asize) {*aindex -= asize;}
+		aindexf = *aindex;
+		info->abuf[chofs0][*aindex] = dat_er * levelap + *fb_ap1 * REV_EX_AP_FB; 
+		info->abuf[chofs2][*aindex] = dat_rv * levelap + *fb_ap2 * REV_EX_AP_FB; 
+		if(*aindex == 0){
+			info->abuf[chofs0][asize] = info->abuf[chofs0][0];
+			info->abuf[chofs2][asize] = info->abuf[chofs2][0];
+		}	
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
+			int32 index[2];
+			DATA_T v1[2], v2[2];
+			FLOAT_T fp1[2], fp2[2];	
+			// lfo
+			info->acount[i][chofs0] += info->arate[i][chofs0];
+			info->acount[i][chofs0] -= floor(info->acount[i][chofs0]);
+			info->acount[i][chofs2] += info->arate[i][chofs2];
+			info->acount[i][chofs2] -= floor(info->acount[i][chofs2]);
+			fp1[0] = aindexf - info->adelay[i][chofs0] - info->adepth[i][chofs0]
+				* lookup2_sine_p(info->acount[i][chofs0] + info->aphase[i][chofs0]);	
+			fp1[1] = aindexf - info->adelay[i][chofs2] - info->adepth[i][chofs2]
+				* lookup2_sine_p(info->acount[i][chofs2] + info->aphase[i][chofs2]);	
+			if(fp1[0] < 0) {fp1[0] += asize;}
+			if(fp1[1] < 0) {fp1[1] += asize;}			
+			fp2[0] = floor(fp1[0]);
+			fp2[1] = floor(fp1[1]);
+			index[0] = fp2[0]; 
+			index[1] = fp2[1]; 
+			v1[0] = info->abuf[chofs0][index[0]]; v2[0] = info->abuf[chofs0][index[0] + 1];
+			v1[1] = info->abuf[chofs2][index[1]]; v2[1] = info->abuf[chofs2][index[1] + 1];
+			dat_er += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
+			dat_rv += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
+		}
+		*fb_ap1 = dat_er;
+		*fb_ap2 = dat_rv;
+		}
+		// out
+		hist = dat_rv * levelrv + dat_er * leveler;
+		dbH[0] = hist;	
+		hist = dbH[2] = dcH[0] * dbH[0] + dcH[1] * dbH[1] + dcH[2] * dbH[2] + dcH[3] * dbH[3] + dcH[4] * dbH[4];
+		dbH[4] = dbH[3];
+		dbH[3] = dbH[2];
+		dbH[2] = dbH[1];
+		dbH[1] = dbH[0];
+		obuf[k + chofs0] = hist;
+	}
+	*phist = hist;
+	}
+}
+#endif // (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+
 #if (OPT_MODE == 1) && !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT) /* fixed-point implementation */
-static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	int32 leveler = info->leveleri, levelrv = info->levelrvi, feedback = info->feedbacki,
-		*rv_feedback = info->rv_feedbacki, flt_dry = info->flt_dryi, flt_wet = info->flt_weti,
-		*dcH = hpf->dc, *dcL = er_fc->dc, in_level = info->in_leveli, st_sprd = info->st_sprdi;
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[8], *dbL = er_fc->db; 
-	DATA_T *hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
-	FLOAT_T mindexf;
-	// CH_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-		input[0] = buf[k]; input[1] = buf[k + 1];
-		sprd = imuldiv24((input[0] - input[1]), st_sprd);
-		input[0] = input[1] = imuldiv24((input[0] + input[1]), in_level);
-		input[0] += imuldiv24(hist[0], feedback); input[1] += imuldiv24(hist[1], feedback);
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		// unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		if((++*mindex) >= msize) {*mindex = 0;}
-		mindexf = *mindex;
-		for (i = 0; i < info->unit_num; i++) {
-			int32 index[4];
-			FLOAT_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->mcount[i][REV_EX_ER_L1] += info->mrate[i][REV_EX_ER_L1];
-			info->mcount[i][REV_EX_ER_L1] -= floor(info->mcount[i][REV_EX_ER_L1]);
-			info->mcount[i][REV_EX_ER_R1] += info->mrate[i][REV_EX_ER_R1];
-			info->mcount[i][REV_EX_ER_R1] -= floor(info->mcount[i][REV_EX_ER_R1]);
-			info->mcount[i][REV_EX_RV_L1] += info->mrate[i][REV_EX_RV_L1];
-			info->mcount[i][REV_EX_RV_L1] -= floor(info->mcount[i][REV_EX_RV_L1]);
-			info->mcount[i][REV_EX_RV_R1] += info->mrate[i][REV_EX_RV_R1];
-			info->mcount[i][REV_EX_RV_R1] -= floor(info->mcount[i][REV_EX_RV_R1]);
-			fp1[0] = mindexf - info->mdelay[i][REV_EX_ER_L1] - info->mdepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_L1] + info->mphase[i][REV_EX_ER_L1]);	
-			fp1[1] = mindexf - info->mdelay[i][REV_EX_ER_R1] - info->mdepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_R1] + info->mphase[i][REV_EX_ER_R1]);	
-			fp1[2] = mindexf - info->mdelay[i][REV_EX_RV_L1] - info->mdepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_L1] + info->mphase[i][REV_EX_RV_L1]);	
-			fp1[3] = mindexf - info->mdelay[i][REV_EX_RV_R1] - info->mdepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_R1] + info->mphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += msize;}
-			if(fp1[1] < 0) {fp1[1] += msize;}		
-			if(fp1[2] < 0) {fp1[2] += msize;}
-			if(fp1[3] < 0) {fp1[3] += msize;}			
-			fp2[0] = floor(fp1[0]); index[0] = fp2[0]; 
-			fp2[1] = floor(fp1[1]); index[1] = fp2[1];
-			fp2[2] = floor(fp1[2]); index[2] = fp2[2]; 
-			fp2[3] = floor(fp1[3]); index[3] = fp2[3]; 
-			v1[0] = info->buf[i][REV_EX_ER_L1][index[0]]; v2[0] = info->buf[i][REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->buf[i][REV_EX_ER_R1][index[1]]; v2[1] = info->buf[i][REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->buf[i][REV_EX_RV_L1][index[2]]; v2[2] = info->buf[i][REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->buf[i][REV_EX_RV_R1][index[3]]; v2[3] = info->buf[i][REV_EX_RV_R1][index[3] + 1];
-			// er out
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			// er in
-			info->buf[i][0][*mindex] = input[0]; info->buf[i][1][*mindex] = input[1];
-			input[0] += sprd; input[1] -= sprd; // spread
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			tmp1[1] = v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-			lpf = &rv_fc[i];
-			lpf->db[0] = imuldiv28(tmp1[0], lpf->dc[0]) + imuldiv28(lpf->db[0], lpf->dc[1]);
-			lpf->db[1] = imuldiv28(tmp1[1], lpf->dc[0]) + imuldiv28(lpf->db[1], lpf->dc[1]);
-			dat_rv[0] += (info->rv_out[i][0] = imuldiv24(tmp1[0], flt_dry) + imuldiv24(lpf->db[0], flt_wet));
-			dat_rv[1] += (info->rv_out[i][1] = imuldiv24(tmp1[1], flt_dry) + imuldiv24(lpf->db[1], flt_wet));
-			// rv in
-			info->buf[i][2][*mindex] = input_rv[0] + imuldiv24(tmp_rv[0], rv_feedback[i]);
-			info->buf[i][3][*mindex] = input_rv[1] + imuldiv24(tmp_rv[1], rv_feedback[i]);
-
-			if(*mindex == 0){
-				info->buf[i][0][msize] = info->buf[i][0][0];
-				info->buf[i][1][msize] = info->buf[i][1][0];
-				info->buf[i][2][msize] = info->buf[i][2][0];
-				info->buf[i][3][msize] = info->buf[i][3][0];
-			}
-		}
-		// er flt
-		dbL[0] = imuldiv28(dat_er[0], dcL[0]) + imuldiv28(dbL[0], dcL[1]);
-		dbL[1] = imuldiv28(dat_er[1], dcL[0]) + imuldiv28(dbL[1], dcL[1]);
-		dat_er[0] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[0], flt_wet);
-		dat_er[1] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[1], flt_wet);
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
-			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = imuldiv28(dbHR[0], dcH[0]) + imuldiv28(dbHR[1], dcH[1]) + imuldiv28(dbHR[2], dcH[2])
-			- imuldiv28(dbHR[3], dcH[3]) - imuldiv28(dbHR[4], dcH[4]);
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];		
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-}
-
-static void do_reverb_ex_mod_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	int32 leveler = info->leveleri, levelrv = info->levelrvi, feedback = info->feedbacki,
-		*rv_feedback = info->rv_feedbacki, flt_dry = info->flt_dryi, flt_wet = info->flt_weti,
-		*dcH = hpf->dc, *dcL = er_fc->dc, in_level = info->in_leveli;
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	*hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	FLOAT_T mindexf;
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-		input[0] = input[1] = imuldiv24((buf[k] + buf[k + 1]), info->in_level);
-		input[0] += imuldiv24(hist[0], feedback); input[1] += imuldiv24(hist[1], feedback);
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		// unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		if((++*mindex) >= msize) {*mindex = 0;}
-		mindexf = *mindex;
-		for (i = 0; i < info->unit_num; i++) {
-			int32 index[4];
-			FLOAT_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->mcount[i][REV_EX_ER_L1] += info->mrate[i][REV_EX_ER_L1];
-			info->mcount[i][REV_EX_ER_L1] -= floor(info->mcount[i][REV_EX_ER_L1]);
-			info->mcount[i][REV_EX_ER_R1] += info->mrate[i][REV_EX_ER_R1];
-			info->mcount[i][REV_EX_ER_R1] -= floor(info->mcount[i][REV_EX_ER_R1]);
-			info->mcount[i][REV_EX_RV_L1] += info->mrate[i][REV_EX_RV_L1];
-			info->mcount[i][REV_EX_RV_L1] -= floor(info->mcount[i][REV_EX_RV_L1]);
-			info->mcount[i][REV_EX_RV_R1] += info->mrate[i][REV_EX_RV_R1];
-			info->mcount[i][REV_EX_RV_R1] -= floor(info->mcount[i][REV_EX_RV_R1]);
-			fp1[0] = mindexf - info->mdelay[i][REV_EX_ER_L1] - info->mdepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_L1] + info->mphase[i][REV_EX_ER_L1]);	
-			fp1[1] = mindexf - info->mdelay[i][REV_EX_ER_R1] - info->mdepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_R1] + info->mphase[i][REV_EX_ER_R1]);	
-			fp1[2] = mindexf - info->mdelay[i][REV_EX_RV_L1] - info->mdepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_L1] + info->mphase[i][REV_EX_RV_L1]);	
-			fp1[3] = mindexf - info->mdelay[i][REV_EX_RV_R1] - info->mdepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_R1] + info->mphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += msize;}
-			if(fp1[1] < 0) {fp1[1] += msize;}		
-			if(fp1[2] < 0) {fp1[2] += msize;}
-			if(fp1[3] < 0) {fp1[3] += msize;}			
-			fp2[0] = floor(fp1[0]); index[0] = fp2[0]; 
-			fp2[1] = floor(fp1[1]); index[1] = fp2[1];
-			fp2[2] = floor(fp1[2]); index[2] = fp2[2]; 
-			fp2[3] = floor(fp1[3]); index[3] = fp2[3]; 
-			v1[0] = info->buf[i][REV_EX_ER_L1][index[0]]; v2[0] = info->buf[i][REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->buf[i][REV_EX_ER_R1][index[1]]; v2[1] = info->buf[i][REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->buf[i][REV_EX_RV_L1][index[2]]; v2[2] = info->buf[i][REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->buf[i][REV_EX_RV_R1][index[3]]; v2[3] = info->buf[i][REV_EX_RV_R1][index[3] + 1];
-			// er out
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			// er in
-			info->buf[i][0][*mindex] = input[0]; info->buf[i][1][*mindex] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			tmp1[1] = v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-			lpf = &rv_fc[i];
-			lpf->db[0] = imuldiv28(tmp1[0], lpf->dc[0]) + imuldiv28(lpf->db[0], lpf->dc[1]);
-			lpf->db[1] = imuldiv28(tmp1[1], lpf->dc[0]) + imuldiv28(lpf->db[1], lpf->dc[1]);
-			dat_rv[0] += (info->rv_out[i][0] = imuldiv24(tmp1[0], flt_dry) + imuldiv24(lpf->db[0], flt_wet));
-			dat_rv[1] += (info->rv_out[i][1] = imuldiv24(tmp1[1], flt_dry) + imuldiv24(lpf->db[1], flt_wet));
-			// rv in
-			info->buf[i][2][*mindex] = input_rv[0] + imuldiv24(tmp_rv[0], rv_feedback[i]);
-			info->buf[i][3][*mindex] = input_rv[1] + imuldiv24(tmp_rv[1], rv_feedback[i]);
-
-			if(*mindex == 0){
-				info->buf[i][0][msize] = info->buf[i][0][0];
-				info->buf[i][1][msize] = info->buf[i][1][0];
-				info->buf[i][2][msize] = info->buf[i][2][0];
-				info->buf[i][3][msize] = info->buf[i][3][0];
-			}
-		}
-		// er flt
-		dbL[0] = imuldiv28(dat_er[0], dcL[0]) + imuldiv28(dbL[0], dcL[1]);
-		dbL[1] = imuldiv28(dat_er[1], dcL[0]) + imuldiv28(dbL[1], dcL[1]);
-		dat_er[0] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[0], flt_wet);
-		dat_er[1] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[1], flt_wet);
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
-			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = imuldiv28(dbHR[0], dcH[0]) + imuldiv28(dbHR[1], dcH[1]) + imuldiv28(dbHR[2], dcH[2])
-			- imuldiv28(dbHR[3], dcH[3]) - imuldiv28(dbHR[4], dcH[4]);
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];		
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-}
-
-static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
+static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
 	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
 	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
@@ -6640,7 +6141,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 	int32 levelap = info->levelapi;
 	const int32 apfbi = TIM_FSCALE(REV_EX_AP_FB, 24);
 	FLOAT_T mindexf, aindexf;
-	// CH_STEREO:
+	// CH_STEREO: CH_MIX_STEREO:
 	for (k = 0; k < count; k++)
 	{		
 		input[0] = buf[k]; input[1] = buf[k + 1];
@@ -6722,6 +6223,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
+		if(ext_reverb_ex_ap_num){
 		if ((++(*aindex)) >= asize) {*aindex -= asize;}
 		aindexf = aindexf;	
 		info->abuf[REV_EX_ER_L1][*aindex] = imuldiv24(dat_er[0], levelap) + imuldiv24(fb_ap1[0], apfbi); 
@@ -6734,7 +6236,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 			info->abuf[2][asize] = info->abuf[2][0];
 			info->abuf[3][asize] = info->abuf[3][0];
 		}	
-		for (i = 0; i < REV_EX_AP_MAX; i++) {			
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {			
 			int32 index[4];
 			DATA_T v1[4], v2[4];
 			FLOAT_T fp1[4], fp2[4];	
@@ -6778,182 +6280,10 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		}
 		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
 		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
-		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
-			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = imuldiv28(dbHR[0], dcH[0]) + imuldiv28(dbHR[1], dcH[1]) + imuldiv28(dbHR[2], dcH[2])
-			- imuldiv28(dbHR[3], dcH[3]) - imuldiv28(dbHR[4], dcH[4]);
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];		
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-}
-
-static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	int32 *aindex = &info->index2[REV_EX_AP1], asize = info->size2[REV_EX_AP1];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	int32 leveler = info->leveleri, levelrv = info->levelrvi, feedback = info->feedbacki,
-		*rv_feedback = info->rv_feedbacki, flt_dry = info->flt_dryi, flt_wet = info->flt_weti,
-		*dcH = hpf->dc, *dcL = er_fc->dc, in_level = info->in_leveli;
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	*hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	DATA_T *bufa1 = info->buf2[REV_EX_AP1], *bufa2 = info->buf2[REV_EX_AP2], 
-		*fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	int32 levelap = info->levelapi;
-	const int32 apfbi = TIM_FSCALE(REV_EX_AP_FB, 24);
-	FLOAT_T mindexf, aindexf;
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-		input[0] = input[1] = imuldiv24((buf[k] + buf[k + 1]), info->in_level);
-		input[0] += imuldiv24(hist[0], feedback); input[1] += imuldiv24(hist[1], feedback);
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		// unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		if((++*mindex) >= msize) {*mindex = 0;}
-		mindexf = *mindex;
-		for (i = 0; i < info->unit_num; i++) {
-			int32 index[4];
-			FLOAT_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->mcount[i][REV_EX_ER_L1] += info->mrate[i][REV_EX_ER_L1];
-			info->mcount[i][REV_EX_ER_L1] -= floor(info->mcount[i][REV_EX_ER_L1]);
-			info->mcount[i][REV_EX_ER_R1] += info->mrate[i][REV_EX_ER_R1];
-			info->mcount[i][REV_EX_ER_R1] -= floor(info->mcount[i][REV_EX_ER_R1]);
-			info->mcount[i][REV_EX_RV_L1] += info->mrate[i][REV_EX_RV_L1];
-			info->mcount[i][REV_EX_RV_L1] -= floor(info->mcount[i][REV_EX_RV_L1]);
-			info->mcount[i][REV_EX_RV_R1] += info->mrate[i][REV_EX_RV_R1];
-			info->mcount[i][REV_EX_RV_R1] -= floor(info->mcount[i][REV_EX_RV_R1]);
-			fp1[0] = mindexf - info->mdelay[i][REV_EX_ER_L1] - info->mdepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_L1] + info->mphase[i][REV_EX_ER_L1]);	
-			fp1[1] = mindexf - info->mdelay[i][REV_EX_ER_R1] - info->mdepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_R1] + info->mphase[i][REV_EX_ER_R1]);	
-			fp1[2] = mindexf - info->mdelay[i][REV_EX_RV_L1] - info->mdepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_L1] + info->mphase[i][REV_EX_RV_L1]);	
-			fp1[3] = mindexf - info->mdelay[i][REV_EX_RV_R1] - info->mdepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_R1] + info->mphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += msize;}
-			if(fp1[1] < 0) {fp1[1] += msize;}		
-			if(fp1[2] < 0) {fp1[2] += msize;}
-			if(fp1[3] < 0) {fp1[3] += msize;}			
-			fp2[0] = floor(fp1[0]); index[0] = fp2[0]; 
-			fp2[1] = floor(fp1[1]); index[1] = fp2[1];
-			fp2[2] = floor(fp1[2]); index[2] = fp2[2]; 
-			fp2[3] = floor(fp1[3]); index[3] = fp2[3]; 
-			v1[0] = info->buf[i][REV_EX_ER_L1][index[0]]; v2[0] = info->buf[i][REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->buf[i][REV_EX_ER_R1][index[1]]; v2[1] = info->buf[i][REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->buf[i][REV_EX_RV_L1][index[2]]; v2[2] = info->buf[i][REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->buf[i][REV_EX_RV_R1][index[3]]; v2[3] = info->buf[i][REV_EX_RV_R1][index[3] + 1];
-			// er out
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			// er in
-			info->buf[i][0][*mindex] = input[0]; info->buf[i][1][*mindex] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			tmp1[1] = v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-			lpf = &rv_fc[i];
-			lpf->db[0] = imuldiv28(tmp1[0], lpf->dc[0]) + imuldiv28(lpf->db[0], lpf->dc[1]);
-			lpf->db[1] = imuldiv28(tmp1[1], lpf->dc[0]) + imuldiv28(lpf->db[1], lpf->dc[1]);
-			dat_rv[0] += (info->rv_out[i][0] = imuldiv24(tmp1[0], flt_dry) + imuldiv24(lpf->db[0], flt_wet));
-			dat_rv[1] += (info->rv_out[i][1] = imuldiv24(tmp1[1], flt_dry) + imuldiv24(lpf->db[1], flt_wet));
-			// rv in
-			info->buf[i][2][*mindex] = input_rv[0] + imuldiv24(tmp_rv[0], rv_feedback[i]);
-			info->buf[i][3][*mindex] = input_rv[1] + imuldiv24(tmp_rv[1], rv_feedback[i]);
-
-			if(*mindex == 0){
-				info->buf[i][0][msize] = info->buf[i][0][0];
-				info->buf[i][1][msize] = info->buf[i][1][0];
-				info->buf[i][2][msize] = info->buf[i][2][0];
-				info->buf[i][3][msize] = info->buf[i][3][0];
-			}
 		}
-		// er flt
-		dbL[0] = imuldiv28(dat_er[0], dcL[0]) + imuldiv28(dbL[0], dcL[1]);
-		dbL[1] = imuldiv28(dat_er[1], dcL[0]) + imuldiv28(dbL[1], dcL[1]);
-		dat_er[0] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[0], flt_wet);
-		dat_er[1] = imuldiv24(dat_er, flt_dry) + imuldiv24(dbL[1], flt_wet);
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// ap
-		if ((++(*aindex)) >= asize) {*aindex -= asize;}
-		aindexf = aindexf;	
-		info->abuf[REV_EX_ER_L1][*aindex] = imuldiv24(dat_er[0], levelap) + imuldiv24(fb_ap1[0], apfbi); 
-		info->abuf[REV_EX_ER_R1][*aindex] = imuldiv24(dat_er[1], levelap) + imuldiv24(fb_ap1[1], apfbi); 
-		info->abuf[REV_EX_RV_L1][*aindex] = imuldiv24(dat_rv[0], levelap) + imuldiv24(fb_ap2[0], apfbi); 
-		info->abuf[REV_EX_RV_R1][*aindex] = imuldiv24(dat_rv[1], levelap) + imuldiv24(fb_ap2[1], apfbi);
-		if(*aindex == 0){
-			info->abuf[0][asize] = info->abuf[0][0];
-			info->abuf[1][asize] = info->abuf[1][0];
-			info->abuf[2][asize] = info->abuf[2][0];
-			info->abuf[3][asize] = info->abuf[3][0];
-		}		
-		for (i = 0; i < REV_EX_AP_MAX; i++) {			
-			int32 index[4];
-			DATA_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->acount[i][REV_EX_ER_L1] += info->arate[i][REV_EX_ER_L1];
-			info->acount[i][REV_EX_ER_L1] -= floor(info->acount[i][REV_EX_ER_L1]);
-			info->acount[i][REV_EX_ER_R1] += info->arate[i][REV_EX_ER_R1];
-			info->acount[i][REV_EX_ER_R1] -= floor(info->acount[i][REV_EX_ER_R1]);
-			info->acount[i][REV_EX_RV_L1] += info->arate[i][REV_EX_RV_L1];
-			info->acount[i][REV_EX_RV_L1] -= floor(info->acount[i][REV_EX_RV_L1]);
-			info->acount[i][REV_EX_RV_R1] += info->arate[i][REV_EX_RV_R1];
-			info->acount[i][REV_EX_RV_R1] -= floor(info->acount[i][REV_EX_RV_R1]);
-			fp1[0] = aindexf - info->adelay[i][REV_EX_ER_L1] - info->adepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_L1] + info->aphase[i][REV_EX_ER_L1]);	
-			fp1[1] = aindexf - info->adelay[i][REV_EX_ER_R1] - info->adepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_R1] + info->aphase[i][REV_EX_ER_R1]);	
-			fp1[2] = aindexf - info->adelay[i][REV_EX_RV_L1] - info->adepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_L1] + info->aphase[i][REV_EX_RV_L1]);	
-			fp1[3] = aindexf - info->adelay[i][REV_EX_RV_R1] - info->adepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_R1] + info->aphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += asize;}
-			if(fp1[1] < 0) {fp1[1] += asize;}		
-			if(fp1[2] < 0) {fp1[2] += asize;}
-			if(fp1[3] < 0) {fp1[3] += asize;}			
-			fp2[0] = floor(fp1[0]);
-			fp2[1] = floor(fp1[1]);
-			fp2[2] = floor(fp1[2]);
-			fp2[3] = floor(fp1[3]);
-			index[0] = fp2[0]; 
-			index[1] = fp2[1]; 
-			index[2] = fp2[2]; 
-			index[3] = fp2[3]; 
-			v1[0] = info->abuf[REV_EX_ER_L1][index[0]]; v2[0] = info->abuf[REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->abuf[REV_EX_ER_R1][index[1]]; v2[1] = info->abuf[REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->abuf[REV_EX_RV_L1][index[2]]; v2[2] = info->abuf[REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->abuf[REV_EX_RV_R1][index[3]]; v2[3] = info->abuf[REV_EX_RV_R1][index[3] + 1];
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			dat_rv[0] += v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			dat_rv[1] += v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
 		// out
-		hist[0] = imuldiv16(dat_rv[0], levelrv) - imuldiv16(dat_er[0], leveler);
-		hist[1] = imuldiv16(dat_rv[1], levelrv) - imuldiv16(dat_er[1], leveler);
+		hist[0] = imuldiv16(dat_rv[0], levelrv) + imuldiv16(dat_er[0], leveler);
+		hist[1] = imuldiv16(dat_rv[1], levelrv) + imuldiv16(dat_er[1], leveler);
 		dbHL[0] = hist[0];	
 		hist[0] = dbHL[2] = imuldiv28(dbHL[0], dcH[0]) + imuldiv28(dbHL[1], dcH[1]) + imuldiv28(dbHL[2], dcH[2])
 			- imuldiv28(dbHL[3], dcH[3]) - imuldiv28(dbHL[4], dcH[4]);
@@ -6976,7 +6306,7 @@ static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 /*
 SSE2 128bitSIMD : double*2ch, int32*4ch
 */
-static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
+static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
 	int32 i, k = 0;
 	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
@@ -6990,253 +6320,6 @@ static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
 		vec_leveler = MM_LOAD1_PD(&info->leveler), vec_levelrv = MM_LOAD1_PD(&info->levelrv),
 		vec_dry = MM_LOAD1_PD(&info->flt_dry), vec_wet = MM_LOAD1_PD(&info->flt_wet),
 		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist);
-	__m128d vec_sp_sprd = _mm_set_pd(-info->st_sprd, info->st_sprd);
-	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
-	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
-	__m128d vmsize = _mm_set1_pd(info->size2[REV_EX_UNIT]), vmi;
-	int32 msize = info->size2[REV_EX_UNIT], mindex;
-	// CH_STEREO:
-	for (k = 0; k < count; k += 2)
-	{		
-		int32 tmpi0;
-		vec_sprd = _mm_mul_pd(_mm_set1_pd(buf[k] - buf[k + 1]), vec_sp_sprd);
-		vec_input_er = _mm_add_pd(_mm_set1_pd((buf[k] + buf[k + 1]) * DIV_MIX_LEVEL), _mm_mul_pd(vec_hist, vec_feedback));
-		// index2 (rv delay, ap
-		index2 = _mm_add_epi32(index2, add_idx2);
-		index2 = _mm_and_si128(index2, _mm_cmplt_epi32(index2, size2));
-		tmpi0 = MM_EXTRACT_EPI32(index2, REV_EX_RD);
-		// rv delay out
-		vec_input_rv = _mm_load_pd(&bufrd[tmpi0]); // REV_EX_RD
-		// unit
-		vec_mixer = _mm_setzero_pd(); vec_mixrv = _mm_setzero_pd();
-		vmi = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0x0));
-		mindex = _mm_cvtsi128_si32(index2);
-		for (i = 0; i < info->unit_num; i++) {
-		__m128d vc[2], vr[2], vd[2], vfp[2], vtmp[4], vv1[2], vv2[2];
-		__m128i vindex[2];
-		// lfo
-		vc[0] = _mm_add_pd(_mm_loadu_pd(&info->mcount[i][REV_EX_ER_L1]), _mm_loadu_pd(&info->mrate[i][REV_EX_ER_L1])); // mcount+mrate
-		vc[1] = _mm_add_pd(_mm_loadu_pd(&info->mcount[i][REV_EX_RV_L1]), _mm_loadu_pd(&info->mrate[i][REV_EX_RV_L1])); // mcount+mrate
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
-		vc[0] = _mm_sub_pd(vc[0], _mm_floor_pd(vc[0])); // mcount-=floor(mcount)
-		vc[1] = _mm_sub_pd(vc[1], _mm_floor_pd(vc[1])); // mcount-=floor(mcount)
-#else
-		vc[0] = _mm_sub_pd(vc[0], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[0]))); // mcount-=(int)(mcount) +のみ
-		vc[1] = _mm_sub_pd(vc[1], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[1]))); // mcount-=(int)(mcount) +のみ
-#endif
-		_mm_storeu_pd(&info->mcount[i][REV_EX_ER_L1], vc[0]);
-		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
-		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
-		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
-		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
-		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
-		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
-		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
-		vfp[1] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_RV_L1])), vd[1]); // mindex-mdelay-mdepth		
-		vfp[0] = _mm_add_pd(vfp[0], _mm_and_pd(vmsize, _mm_cmplt_pd(vfp[0], _mm_setzero_pd())));	// fp<0 ? fp+msize	
-		vfp[1] = _mm_add_pd(vfp[1], _mm_and_pd(vmsize, _mm_cmplt_pd(vfp[1], _mm_setzero_pd())));	// fp<0 ? fp+msize	
-		vindex[0] = _mm_cvttpd_epi32(vfp[0]); // (int)floor(fp)
-		vindex[1] = _mm_cvttpd_epi32(vfp[1]); // (int)floor(fp)
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_floor_pd(vfp[0])); // fp-floor(fp)
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_floor_pd(vfp[1])); // fp-floor(fp)
-#else
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
-#endif
-		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
-		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
-		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
-		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
-		vv2[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x3);
-		vv1[0] = MM_FMA_PD(_mm_sub_pd(vv2[0], vv1[0]), vfp[0], vv1[0]);
-		vv1[1] = MM_FMA_PD(_mm_sub_pd(vv2[1], vv1[1]), vfp[1], vv1[1]);
-		// er out
-		vec_mixer = _mm_add_pd(vec_mixer, vv1[0]);
-		_mm_store_sd(&(info->buf[i][0][mindex]), vec_input_er); 
-		_mm_store_sd(&(info->buf[i][1][mindex]), _mm_shuffle_pd(vec_input_er, vec_input_er, 0x1));
-		vec_input_er = _mm_add_pd(vec_input_er, vec_sprd); // spread
-		// rv save
-		vec_tmp_rv = _mm_set_pd(*info->rv_in[i][1], *info->rv_in[i][0]);
-		// rv out
-		vec_tmp1 = vv1[1];
-		lpf = &rv_fc[i];
-		vec_db = _mm_loadu_pd(lpf->db);
-		vec_db = MM_FMA2_PD(MM_LOAD1_PD(&lpf->dc[0]), vec_tmp1, MM_LOAD1_PD(&lpf->dc[1]), vec_db);
-		_mm_storeu_pd(lpf->db, vec_db);
-		vec_tmp1 = MM_FMA2_PD(vec_tmp1, vec_dry, vec_db, vec_wet);
-		vec_mixrv = _mm_add_pd(vec_mixrv, vec_tmp1);
-		_mm_storeu_pd(info->rv_out[i], vec_tmp1);
-		// rv in
-		vec_tmp1 = _mm_add_pd(vec_input_rv, _mm_mul_pd(vec_tmp_rv, MM_LOAD1_PD(&info->rv_feedback[i])));
-		_mm_store_sd(&(info->buf[i][2][mindex]), vec_tmp1);
-		_mm_store_sd(&(info->buf[i][3][mindex]), _mm_shuffle_pd(vec_tmp1, vec_tmp1, 0x1));
-		if(mindex == 0){
-			info->buf[i][0][msize] = info->buf[i][0][0];
-			info->buf[i][1][msize] = info->buf[i][1][0];
-			info->buf[i][2][msize] = info->buf[i][2][0];
-			info->buf[i][3][msize] = info->buf[i][3][0];
-		}
-		}
-		// er flt
-		vec_dbL = MM_FMA2_PD(vec_dcL0, vec_mixer, vec_dcL1, vec_dbL);
-		vec_mixer = MM_FMA2_PD(vec_mixer, vec_dry, vec_dbL, vec_wet);	
-		// rv delay in
-		_mm_store_pd(&bufrd[tmpi0], vec_mixer);	
-		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
-		vec_dbH0 = vec_hist;
-		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
-		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
-		_mm_store_pd(&buf[k], vec_hist);
-	}
-	_mm_storeu_pd(info->hist, vec_hist); _mm_storeu_pd(er_fc->db, vec_dbL);
-	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
-	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
-	_mm_storeu_si128((__m128i *)info->index2, index2);
-}
-
-static void do_reverb_ex_mod_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0;
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	DATA_T *bufrd = info->buf2[REV_EX_RD];
-	__m128d	vec_dcH0 = MM_LOAD1_PD(&hpf->dc[0]), vec_dcH1 = MM_LOAD1_PD(&hpf->dc[1]), vec_dcH2 = MM_LOAD1_PD(&hpf->dc[2]), 
-		vec_dcH3 = MM_LOAD1_PD(&hpf->dc[3]), vec_dcH4 = MM_LOAD1_PD(&hpf->dc[4]),
-		vec_dcL0 = MM_LOAD1_PD(&er_fc->dc[0]), vec_dcL1 = MM_LOAD1_PD(&er_fc->dc[1]);
-	__m128d	vec_dbH0 = _mm_loadu_pd(&hpf->db[0]), vec_dbH1 = _mm_loadu_pd(&hpf->db[2]), vec_dbH2 = _mm_loadu_pd(&hpf->db[4]), 
-		vec_dbH3 = _mm_loadu_pd(&hpf->db[6]), vec_dbH4 = _mm_loadu_pd(&hpf->db[8]), vec_dbL = _mm_loadu_pd(er_fc->db);
-	__m128d vec_tmp1, vec_input_er, vec_input_rv, vec_mixer, vec_mixap, vec_mixrv, vec_tmp_rv, vec_db, 
-		vec_leveler = MM_LOAD1_PD(&info->leveler), vec_levelrv = MM_LOAD1_PD(&info->levelrv),
-		vec_dry = MM_LOAD1_PD(&info->flt_dry), vec_wet = MM_LOAD1_PD(&info->flt_wet),
-		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist),
-		vec_mix_level = _mm_set1_pd(DIV_MIX_LEVEL);
-	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
-	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
-	__m128d vmsize = _mm_set1_pd(info->size2[REV_EX_UNIT]), vmi;
-	int32 msize = info->size2[REV_EX_UNIT], mindex;
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k += 2)
-	{		
-		int32 tmpi0;
-		vec_input_er = _mm_add_pd(_mm_set1_pd((buf[k] + buf[k + 1]) * DIV_MIX_LEVEL), _mm_mul_pd(vec_hist, vec_feedback));
-		// index2 (rv delay, ap
-		index2 = _mm_add_epi32(index2, add_idx2);
-		index2 = _mm_and_si128(index2, _mm_cmplt_epi32(index2, size2));
-		tmpi0 = MM_EXTRACT_EPI32(index2, REV_EX_RD);
-		// rv delay out
-		vec_input_rv = _mm_load_pd(&bufrd[tmpi0]); // REV_EX_RD
-		// unit
-		vec_mixer = _mm_setzero_pd(); vec_mixrv = _mm_setzero_pd();
-		vmi = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0x0));
-		mindex = _mm_cvtsi128_si32(index2);
-		for (i = 0; i < info->unit_num; i++) {
-		__m128d vc[2], vr[2], vd[2], vfp[2], vtmp[4], vv1[2], vv2[2];
-		__m128i vindex[2];
-		// lfo
-		vc[0] = _mm_add_pd(_mm_loadu_pd(&info->mcount[i][REV_EX_ER_L1]), _mm_loadu_pd(&info->mrate[i][REV_EX_ER_L1])); // mcount+mrate
-		vc[1] = _mm_add_pd(_mm_loadu_pd(&info->mcount[i][REV_EX_RV_L1]), _mm_loadu_pd(&info->mrate[i][REV_EX_RV_L1])); // mcount+mrate
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
-		vc[0] = _mm_sub_pd(vc[0], _mm_floor_pd(vc[0])); // mcount-=floor(mcount)
-		vc[1] = _mm_sub_pd(vc[1], _mm_floor_pd(vc[1])); // mcount-=floor(mcount)
-#else
-		vc[0] = _mm_sub_pd(vc[0], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[0]))); // mcount-=(int)(mcount) +のみ
-		vc[1] = _mm_sub_pd(vc[1], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[1]))); // mcount-=(int)(mcount) +のみ
-#endif
-		_mm_storeu_pd(&info->mcount[i][REV_EX_ER_L1], vc[0]);
-		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
-		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
-		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
-		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
-		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
-		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
-		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
-		vfp[1] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_RV_L1])), vd[1]); // mindex-mdelay-mdepth		
-		vfp[0] = _mm_add_pd(vfp[0], _mm_and_pd(vmsize, _mm_cmplt_pd(vfp[0], _mm_setzero_pd())));	// fp<0 ? fp+msize	
-		vfp[1] = _mm_add_pd(vfp[1], _mm_and_pd(vmsize, _mm_cmplt_pd(vfp[1], _mm_setzero_pd())));	// fp<0 ? fp+msize	
-		vindex[0] = _mm_cvttpd_epi32(vfp[0]); // (int)floor(fp)
-		vindex[1] = _mm_cvttpd_epi32(vfp[1]); // (int)floor(fp)
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_floor_pd(vfp[0])); // fp-floor(fp)
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_floor_pd(vfp[1])); // fp-floor(fp)
-#else
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
-#endif
-		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
-		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
-		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
-		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
-		vv2[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x3);
-		vv1[0] = MM_FMA_PD(_mm_sub_pd(vv2[0], vv1[0]), vfp[0], vv1[0]);
-		vv1[1] = MM_FMA_PD(_mm_sub_pd(vv2[1], vv1[1]), vfp[1], vv1[1]);
-		// er out
-		vec_mixer = _mm_add_pd(vec_mixer, vv1[0]);
-		_mm_store_sd(&(info->buf[i][0][mindex]), vec_input_er); 
-		_mm_store_sd(&(info->buf[i][1][mindex]), _mm_shuffle_pd(vec_input_er, vec_input_er, 0x1));
-		// rv save
-		vec_tmp_rv = _mm_set_pd(*info->rv_in[i][1], *info->rv_in[i][0]);
-		// rv out
-		vec_tmp1 = vv1[1];
-		lpf = &rv_fc[i];
-		vec_db = _mm_loadu_pd(lpf->db);
-		vec_db = MM_FMA2_PD(MM_LOAD1_PD(&lpf->dc[0]), vec_tmp1, MM_LOAD1_PD(&lpf->dc[1]), vec_db);
-		_mm_storeu_pd(lpf->db, vec_db);
-		vec_tmp1 = MM_FMA2_PD(vec_tmp1, vec_dry, vec_db, vec_wet);
-		vec_mixrv = _mm_add_pd(vec_mixrv, vec_tmp1);
-		_mm_storeu_pd(info->rv_out[i], vec_tmp1);
-		// rv in
-		vec_tmp1 = _mm_add_pd(vec_input_rv, _mm_mul_pd(vec_tmp_rv, MM_LOAD1_PD(&info->rv_feedback[i])));
-		_mm_store_sd(&(info->buf[i][2][mindex]), vec_tmp1);
-		_mm_store_sd(&(info->buf[i][3][mindex]), _mm_shuffle_pd(vec_tmp1, vec_tmp1, 0x1));
-		if(mindex == 0){
-			info->buf[i][0][msize] = info->buf[i][0][0];
-			info->buf[i][1][msize] = info->buf[i][1][0];
-			info->buf[i][2][msize] = info->buf[i][2][0];
-			info->buf[i][3][msize] = info->buf[i][3][0];
-		}
-		}
-		// er flt
-		vec_dbL = MM_FMA2_PD(vec_dcL0, vec_mixer, vec_dcL1, vec_dbL);
-		vec_mixer = MM_FMA2_PD(vec_mixer, vec_dry, vec_dbL, vec_wet);	
-		// rv delay in
-		_mm_store_pd(&bufrd[tmpi0], vec_mixer);	
-		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
-		vec_dbH0 = vec_hist;
-		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
-		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
-		_mm_store_pd(&buf[k], vec_hist);
-	}
-	_mm_storeu_pd(info->hist, vec_hist); _mm_storeu_pd(er_fc->db, vec_dbL);
-	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
-	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
-	_mm_storeu_si128((__m128i *)info->index2, index2);
-}
-
-static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0;
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	DATA_T *bufrd = info->buf2[REV_EX_RD];
-	__m128d	vec_dcH0 = MM_LOAD1_PD(&hpf->dc[0]), vec_dcH1 = MM_LOAD1_PD(&hpf->dc[1]), vec_dcH2 = MM_LOAD1_PD(&hpf->dc[2]), 
-		vec_dcH3 = MM_LOAD1_PD(&hpf->dc[3]), vec_dcH4 = MM_LOAD1_PD(&hpf->dc[4]),
-		vec_dcL0 = MM_LOAD1_PD(&er_fc->dc[0]), vec_dcL1 = MM_LOAD1_PD(&er_fc->dc[1]);
-	__m128d	vec_dbH0 = _mm_loadu_pd(&hpf->db[0]), vec_dbH1 = _mm_loadu_pd(&hpf->db[2]), vec_dbH2 = _mm_loadu_pd(&hpf->db[4]), 
-		vec_dbH3 = _mm_loadu_pd(&hpf->db[6]), vec_dbH4 = _mm_loadu_pd(&hpf->db[8]), vec_dbL = _mm_loadu_pd(er_fc->db);
-	__m128d vec_tmp1, vec_input_er, vec_input_rv, vec_mixer, vec_mixap, vec_mixrv, vec_tmp_rv, vec_db, vec_sprd,
-		vec_leveler = MM_LOAD1_PD(&info->leveler), vec_levelrv = MM_LOAD1_PD(&info->levelrv),
-		vec_dry = MM_LOAD1_PD(&info->flt_dry), vec_wet = MM_LOAD1_PD(&info->flt_wet),
-		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist);
-	__m128d vec_sp_sprd = _mm_set_pd(-info->st_sprd, info->st_sprd);
 	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
 	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
 	__m128d vec_ap_fb = _mm_set1_pd(REV_EX_AP_FB), vec_levelap = MM_LOAD1_PD(&info->levelap), 
@@ -7245,7 +6328,8 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 	__m128d vasize = _mm_set1_pd(info->size2[REV_EX_AP1]), vai;
 	__m128d vtmp[2];
 	int32 msize = info->size2[REV_EX_UNIT], mindex;
-	// CH_STEREO:
+	__m128d vec_sp_sprd = _mm_set_pd(-info->st_sprd, info->st_sprd);
+	// CH_STEREO: CH_MIX_STEREO:
 	for (k = 0; k < count; k += 2)
 	{		
 		ALIGN int32 tmpi2[4];
@@ -7338,6 +6422,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		// rv delay in
 		_mm_store_pd(&bufrd[tmpi2[REV_EX_RD]], vec_mixer);
 		// ap
+		if(ext_reverb_ex_ap_num){
 		vai = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0xAA));
 		vtmp[0] = MM_FMA2_PD(vec_mixer, vec_levelap, vec_fbap1, vec_ap_fb);
 		vtmp[1] = MM_FMA2_PD(vec_mixrv, vec_levelap, vec_fbap2, vec_ap_fb);
@@ -7351,7 +6436,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 			info->abuf[2][info->size2[REV_EX_AP1]] = info->abuf[2][0];
 			info->abuf[3][info->size2[REV_EX_AP1]] = info->abuf[3][0];
 		}		
-		for (i = 0; i < REV_EX_AP_MAX; i++) {				
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {				
 		__m128d vc[2], vr[2], vd[2], vfp[2], vtmp[4], vv1[2], vv2[2];
 		__m128i vindex[2];
 		// lfo
@@ -7397,195 +6482,9 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		vec_mixrv = _mm_add_pd(vec_mixrv, MM_FMA_PD(_mm_sub_pd(vv2[1], vv1[1]), vfp[1], vv1[1]));
 		}
 		vec_fbap1 = vec_mixer; vec_fbap2 = vec_mixrv;
+		}
 		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
-		vec_dbH0 = vec_hist;
-		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
-		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
-		_mm_store_pd(&buf[k], vec_hist);
-	}
-	_mm_storeu_pd(info->hist, vec_hist); _mm_storeu_pd(er_fc->db, vec_dbL);
-	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
-	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
-	_mm_storeu_si128((__m128i *)info->index2, index2);
-	_mm_storeu_pd(info->fb_ap1, vec_fbap1); _mm_storeu_pd(info->fb_ap2, vec_fbap2);
-}
-
-static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0;
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	DATA_T *bufrd = info->buf2[REV_EX_RD];
-	__m128d	vec_dcH0 = MM_LOAD1_PD(&hpf->dc[0]), vec_dcH1 = MM_LOAD1_PD(&hpf->dc[1]), vec_dcH2 = MM_LOAD1_PD(&hpf->dc[2]), 
-		vec_dcH3 = MM_LOAD1_PD(&hpf->dc[3]), vec_dcH4 = MM_LOAD1_PD(&hpf->dc[4]),
-		vec_dcL0 = MM_LOAD1_PD(&er_fc->dc[0]), vec_dcL1 = MM_LOAD1_PD(&er_fc->dc[1]);
-	__m128d	vec_dbH0 = _mm_loadu_pd(&hpf->db[0]), vec_dbH1 = _mm_loadu_pd(&hpf->db[2]), vec_dbH2 = _mm_loadu_pd(&hpf->db[4]), 
-		vec_dbH3 = _mm_loadu_pd(&hpf->db[6]), vec_dbH4 = _mm_loadu_pd(&hpf->db[8]), vec_dbL = _mm_loadu_pd(er_fc->db);
-	__m128d vec_tmp1, vec_input_er, vec_input_rv, vec_mixer, vec_mixap, vec_mixrv, vec_tmp_rv, vec_db, 
-		vec_leveler = MM_LOAD1_PD(&info->leveler), vec_levelrv = MM_LOAD1_PD(&info->levelrv),
-		vec_dry = MM_LOAD1_PD(&info->flt_dry), vec_wet = MM_LOAD1_PD(&info->flt_wet),
-		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist),
-		vec_mix_level = _mm_set1_pd(DIV_MIX_LEVEL);
-	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
-	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
-	__m128d vec_ap_fb = _mm_set1_pd(REV_EX_AP_FB), vec_levelap = MM_LOAD1_PD(&info->levelap), 
-		vec_fbap1 = _mm_loadu_pd(info->fb_ap1), vec_fbap2 = _mm_loadu_pd(info->fb_ap2);
-	__m128d vmsize = _mm_set1_pd(info->size2[REV_EX_UNIT]), vmi;
-	__m128d vasize = _mm_set1_pd(info->size2[REV_EX_AP1]), vai;
-	__m128d vtmp[2];
-	int32 msize = info->size2[REV_EX_UNIT], mindex;
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k += 2)
-	{		
-		ALIGN int32 tmpi2[4];
-		vec_input_er = _mm_add_pd(_mm_set1_pd((buf[k] + buf[k + 1]) * DIV_MIX_LEVEL), _mm_mul_pd(vec_hist, vec_feedback));
-		// index2 (rv delay, ap
-		index2 = _mm_add_epi32(index2, add_idx2);
-		index2 = _mm_and_si128(index2, _mm_cmplt_epi32(index2, size2));
-		_mm_store_si128((__m128i *)&tmpi2, index2);
-		// rv delay out
-		vec_input_rv = _mm_load_pd(&bufrd[tmpi2[REV_EX_RD]]);
-		// unit
-		vec_mixer = _mm_setzero_pd(); vec_mixrv = _mm_setzero_pd();
-		vmi = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0x0));
-		mindex = _mm_cvtsi128_si32(index2);
-		for (i = 0; i < info->unit_num; i++) {
-		__m128d vc[2], vr[2], vd[2], vfp[2], vtmp[4], vv1[2], vv2[2];
-		__m128i vindex[2];
-		// lfo
-		vc[0] = _mm_add_pd(_mm_loadu_pd(&info->mcount[i][REV_EX_ER_L1]), _mm_loadu_pd(&info->mrate[i][REV_EX_ER_L1])); // mcount+mrate
-		vc[1] = _mm_add_pd(_mm_loadu_pd(&info->mcount[i][REV_EX_RV_L1]), _mm_loadu_pd(&info->mrate[i][REV_EX_RV_L1])); // mcount+mrate
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
-		vc[0] = _mm_sub_pd(vc[0], _mm_floor_pd(vc[0])); // mcount-=floor(mcount)
-		vc[1] = _mm_sub_pd(vc[1], _mm_floor_pd(vc[1])); // mcount-=floor(mcount)
-#else
-		vc[0] = _mm_sub_pd(vc[0], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[0]))); // mcount-=(int)(mcount) +のみ
-		vc[1] = _mm_sub_pd(vc[1], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[1]))); // mcount-=(int)(mcount) +のみ
-#endif
-		_mm_storeu_pd(&info->mcount[i][REV_EX_ER_L1], vc[0]);
-		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
-		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->mphase[i][REV_EX_ER_L1])); // mcount+mphase
-		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->mphase[i][REV_EX_RV_L1])); // mcount+mphase
-		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(mc)
-		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(mc)	
-		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_ER_L1]), vd[0]); // mdepth* sine
-		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->mdepth[i][REV_EX_RV_L1]), vd[1]); // mdepth* sine
-		vfp[0] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_ER_L1])), vd[0]); // mindex-mdelay-mdepth
-		vfp[1] = _mm_sub_pd(_mm_sub_pd(vmi, _mm_loadu_pd(&info->mdelay[i][REV_EX_RV_L1])), vd[1]); // mindex-mdelay-mdepth		
-		vfp[0] = _mm_add_pd(vfp[0], _mm_and_pd(vmsize, _mm_cmplt_pd(vfp[0], _mm_setzero_pd())));	// fp<0 ? fp+msize	
-		vfp[1] = _mm_add_pd(vfp[1], _mm_and_pd(vmsize, _mm_cmplt_pd(vfp[1], _mm_setzero_pd())));	// fp<0 ? fp+msize	
-		vindex[0] = _mm_cvttpd_epi32(vfp[0]); // (int)floor(fp)
-		vindex[1] = _mm_cvttpd_epi32(vfp[1]); // (int)floor(fp)
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_floor_pd(vfp[0])); // fp-floor(fp)
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_floor_pd(vfp[1])); // fp-floor(fp)
-#else
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
-#endif
-		vtmp[0] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->buf[i][REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->buf[i][REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
-		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
-		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
-		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
-		vv2[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x3);
-		vv1[0] = MM_FMA_PD(_mm_sub_pd(vv2[0], vv1[0]), vfp[0], vv1[0]);
-		vv1[1] = MM_FMA_PD(_mm_sub_pd(vv2[1], vv1[1]), vfp[1], vv1[1]);
-		// er out
-		vec_mixer = _mm_add_pd(vec_mixer, vv1[0]);
-		_mm_store_sd(&(info->buf[i][0][mindex]), vec_input_er); 
-		_mm_store_sd(&(info->buf[i][1][mindex]), _mm_shuffle_pd(vec_input_er, vec_input_er, 0x1));
-		// rv save
-		vec_tmp_rv = _mm_set_pd(*info->rv_in[i][1], *info->rv_in[i][0]);
-		// rv out
-		vec_tmp1 = vv1[1];
-		lpf = &rv_fc[i];
-		vec_db = _mm_loadu_pd(lpf->db);
-		vec_db = MM_FMA2_PD(MM_LOAD1_PD(&lpf->dc[0]), vec_tmp1, MM_LOAD1_PD(&lpf->dc[1]), vec_db);
-		_mm_storeu_pd(lpf->db, vec_db);
-		vec_tmp1 = MM_FMA2_PD(vec_tmp1, vec_dry, vec_db, vec_wet);
-		vec_mixrv = _mm_add_pd(vec_mixrv, vec_tmp1);
-		_mm_storeu_pd(info->rv_out[i], vec_tmp1);
-		// rv in
-		vec_tmp1 = _mm_add_pd(vec_input_rv, _mm_mul_pd(vec_tmp_rv, MM_LOAD1_PD(&info->rv_feedback[i])));
-		_mm_store_sd(&(info->buf[i][2][mindex]), vec_tmp1);
-		_mm_store_sd(&(info->buf[i][3][mindex]), _mm_shuffle_pd(vec_tmp1, vec_tmp1, 0x1));
-		if(mindex == 0){
-			info->buf[i][0][msize] = info->buf[i][0][0];
-			info->buf[i][1][msize] = info->buf[i][1][0];
-			info->buf[i][2][msize] = info->buf[i][2][0];
-			info->buf[i][3][msize] = info->buf[i][3][0];
-		}
-		}
-		// er flt
-		vec_dbL = MM_FMA2_PD(vec_dcL0, vec_mixer, vec_dcL1, vec_dbL);
-		vec_mixer = MM_FMA2_PD(vec_mixer, vec_dry, vec_dbL, vec_wet);	
-		// rv delay in
-		_mm_store_pd(&bufrd[tmpi2[REV_EX_RD]], vec_mixer);	
-		// ap
-		vai = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0xAA));
-		vtmp[0] = MM_FMA2_PD(vec_mixer, vec_levelap, vec_fbap1, vec_ap_fb);
-		vtmp[1] = MM_FMA2_PD(vec_mixrv, vec_levelap, vec_fbap2, vec_ap_fb);
-		_mm_store_sd(&info->abuf[REV_EX_ER_L1][tmpi2[REV_EX_AP1]], vtmp[0]); 
-		_mm_store_sd(&info->abuf[REV_EX_ER_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[0], vtmp[0], 0x3)); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_L1][tmpi2[REV_EX_AP1]], vtmp[1]); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[1], vtmp[0], 0x3)); 
-		if(tmpi2[REV_EX_AP1] == 0){
-			info->abuf[0][info->size2[REV_EX_AP1]] = info->abuf[0][0];
-			info->abuf[1][info->size2[REV_EX_AP1]] = info->abuf[1][0];
-			info->abuf[2][info->size2[REV_EX_AP1]] = info->abuf[2][0];
-			info->abuf[3][info->size2[REV_EX_AP1]] = info->abuf[3][0];
-		}		
-		for (i = 0; i < REV_EX_AP_MAX; i++) {				
-		__m128d vc[2], vr[2], vd[2], vfp[2], vtmp[4], vv1[2], vv2[2];
-		__m128i vindex[2];
-		// lfo
-		vc[0] = _mm_add_pd(_mm_loadu_pd(&info->acount[i][REV_EX_ER_L1]), _mm_loadu_pd(&info->arate[i][REV_EX_ER_L1])); // mcount+mrate
-		vc[1] = _mm_add_pd(_mm_loadu_pd(&info->acount[i][REV_EX_RV_L1]), _mm_loadu_pd(&info->arate[i][REV_EX_RV_L1])); // mcount+mrate
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
-		vc[0] = _mm_sub_pd(vc[0], _mm_floor_pd(vc[0])); // count-=floor(count)
-		vc[1] = _mm_sub_pd(vc[1], _mm_floor_pd(vc[1])); // count-=floor(count)
-#else
-		vc[0] = _mm_sub_pd(vc[0], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[0]))); // count-=floor(count) +のみ
-		vc[1] = _mm_sub_pd(vc[1], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[1]))); // count-=floor(count) +のみ
-#endif
-		_mm_storeu_pd(&info->acount[i][REV_EX_ER_L1], vc[0]);
-		_mm_storeu_pd(&info->acount[i][REV_EX_RV_L1], vc[1]);
-		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->aphase[i][REV_EX_ER_L1])); // count+phase
-		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->aphase[i][REV_EX_RV_L1])); // count+phase
-		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(count)
-		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(cuont)	
-		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_ER_L1]), vd[0]); // depth* sine
-		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_RV_L1]), vd[1]); // depth* sine
-		vfp[0] = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][REV_EX_ER_L1])), vd[0]); // index-delay-depth
-		vfp[1] = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][REV_EX_RV_L1])), vd[1]); // index-delay-depth		
-		vfp[0] = _mm_add_pd(vfp[0], _mm_and_pd(vasize, _mm_cmplt_pd(vfp[0], _mm_setzero_pd())));	// fp<0 ? fp+size	
-		vfp[1] = _mm_add_pd(vfp[1], _mm_and_pd(vasize, _mm_cmplt_pd(vfp[1], _mm_setzero_pd())));	// fp<0 ? fp+size	
-		vindex[0] = _mm_cvttpd_epi32(vfp[0]); // (int)floor(fp)
-		vindex[1] = _mm_cvttpd_epi32(vfp[1]); // (int)floor(fp)
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_floor_pd(vfp[0])); // fp-floor(fp)
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_floor_pd(vfp[1])); // fp-floor(fp)
-#else
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
-#endif
-		vtmp[0] = _mm_loadu_pd(&info->abuf[REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->abuf[REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->abuf[REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->abuf[REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
-		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
-		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
-		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
-		vv2[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x3);
-		vec_mixer = _mm_add_pd(vec_mixer, MM_FMA_PD(_mm_sub_pd(vv2[0], vv1[0]), vfp[0], vv1[0]));
-		vec_mixrv = _mm_add_pd(vec_mixrv, MM_FMA_PD(_mm_sub_pd(vv2[1], vv1[1]), vfp[1], vv1[1]));
-		}
-		vec_fbap1 = vec_mixer; vec_fbap2 = vec_mixrv;	
-		// out
-		vec_hist = _mm_sub_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
+		vec_hist = _mm_add_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
 		vec_dbH0 = vec_hist;
 		vec_hist = vec_dbH2 = MM_FMA5_PD(vec_dcH0, vec_dbH0, vec_dcH1, vec_dbH1, vec_dcH2, vec_dbH2, vec_dcH3, vec_dbH3, vec_dcH4, vec_dbH4);
 		vec_dbH4 = vec_dbH3; vec_dbH3 = vec_dbH2; vec_dbH2 = vec_dbH1; vec_dbH1 = vec_dbH0;
@@ -7599,246 +6498,7 @@ static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 }
 
 #else /* floating-point implementation */
-static void do_reverb_ex_mod_chST(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
-		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
-		*dcH = hpf->dc, *dcL = er_fc->dc, st_sprd = info->st_sprd;	
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T 	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
-	FLOAT_T mindexf;
-	// CH_STEREO:
-	RDTSC_TEST1
-	for (k = 0; k < count; k++)
-	{		
-#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
-		input[0] = buf[k] * info->in_level; input[1] = buf[k + 1] * info->in_level;
-#else
-		input[0] = buf[k]; input[1] = buf[k + 1];
-#endif
-		sprd = (input[0] - input[1]) * st_sprd;
-		input[0] = input[1] = (input[0] + input[1]) * DIV_MIX_LEVEL;
-		input[0] += hist[0] * feedback; input[1] += hist[1] * feedback;
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		//unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		if((++*mindex) >= msize) {*mindex = 0;}
-		mindexf = *mindex;
-		for (i = 0; i < info->unit_num; i++) {	
-			int32 index[4];
-			DATA_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->mcount[i][REV_EX_ER_L1] += info->mrate[i][REV_EX_ER_L1];
-			info->mcount[i][REV_EX_ER_L1] -= floor(info->mcount[i][REV_EX_ER_L1]);
-			info->mcount[i][REV_EX_ER_R1] += info->mrate[i][REV_EX_ER_R1];
-			info->mcount[i][REV_EX_ER_R1] -= floor(info->mcount[i][REV_EX_ER_R1]);
-			info->mcount[i][REV_EX_RV_L1] += info->mrate[i][REV_EX_RV_L1];
-			info->mcount[i][REV_EX_RV_L1] -= floor(info->mcount[i][REV_EX_RV_L1]);
-			info->mcount[i][REV_EX_RV_R1] += info->mrate[i][REV_EX_RV_R1];
-			info->mcount[i][REV_EX_RV_R1] -= floor(info->mcount[i][REV_EX_RV_R1]);
-			fp1[0] = mindexf - info->mdelay[i][REV_EX_ER_L1] - info->mdepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_L1] + info->mphase[i][REV_EX_ER_L1]);	
-			fp1[1] = mindexf - info->mdelay[i][REV_EX_ER_R1] - info->mdepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_R1] + info->mphase[i][REV_EX_ER_R1]);	
-			fp1[2] = mindexf - info->mdelay[i][REV_EX_RV_L1] - info->mdepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_L1] + info->mphase[i][REV_EX_RV_L1]);	
-			fp1[3] = mindexf - info->mdelay[i][REV_EX_RV_R1] - info->mdepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_R1] + info->mphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += msize;}
-			if(fp1[1] < 0) {fp1[1] += msize;}		
-			if(fp1[2] < 0) {fp1[2] += msize;}
-			if(fp1[3] < 0) {fp1[3] += msize;}			
-			fp2[0] = floor(fp1[0]); index[0] = fp2[0]; 
-			fp2[1] = floor(fp1[1]); index[1] = fp2[1];
-			fp2[2] = floor(fp1[2]); index[2] = fp2[2]; 
-			fp2[3] = floor(fp1[3]); index[3] = fp2[3]; 
-			v1[0] = info->buf[i][REV_EX_ER_L1][index[0]]; v2[0] = info->buf[i][REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->buf[i][REV_EX_ER_R1][index[1]]; v2[1] = info->buf[i][REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->buf[i][REV_EX_RV_L1][index[2]]; v2[2] = info->buf[i][REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->buf[i][REV_EX_RV_R1][index[3]]; v2[3] = info->buf[i][REV_EX_RV_R1][index[3] + 1];
-			// er out
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			// er in
-			info->buf[i][0][*mindex] = input[0]; info->buf[i][1][*mindex] = input[1];
-			input[0] += sprd; input[1] -= sprd; // spread
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			tmp1[1] = v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-		//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
-			lpf = &rv_fc[i];
-			lpf->db[0] = lpf->dc[0] * tmp1[0] + lpf->dc[1] * lpf->db[0];
-			lpf->db[1] = lpf->dc[0] * tmp1[1] + lpf->dc[1] * lpf->db[1];
-			dat_rv[0] += (info->rv_out[i][0] = tmp1[0] * flt_dry + lpf->db[0] * flt_wet);
-			dat_rv[1] += (info->rv_out[i][1] = tmp1[1] * flt_dry + lpf->db[1] * flt_wet);
-			// rv in
-			info->buf[i][2][*mindex] = input_rv[0] + tmp_rv[0] * rv_feedback[i];
-			info->buf[i][3][*mindex] = input_rv[1] + tmp_rv[1] * rv_feedback[i];	
-			if(*mindex == 0){
-				info->buf[i][0][msize] = info->buf[i][0][0];
-				info->buf[i][1][msize] = info->buf[i][1][0];
-				info->buf[i][2][msize] = info->buf[i][2][0];
-				info->buf[i][3][msize] = info->buf[i][3][0];
-			}
-		}
-	//	sample_filter_stereo(er_fc, &dat_er[0], &dat_er[1]);
-		dbL[0] = dcL[0] * dat_er[0] + dcL[1] * dbL[0];
-		dbL[1] = dcL[0] * dat_er[1] + dcL[1] * dbL[1];
-		dat_er[0] = dat_er[0] * flt_dry + dbL[0] * flt_wet;
-		dat_er[1] = dat_er[1] * flt_dry + dbL[1] * flt_wet;	
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
-	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = dcH[0] * dbHR[0] + dcH[1] * dbHR[1] + dcH[2] * dbHR[2] + dcH[3] * dbHR[3] + dcH[4] * dbHR[4];
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-	info->hist[0] = hist[0], info->hist[1] = hist[1];
-	RDTSC_TEST2
-}
-
-static void do_reverb_ex_mod_chMS(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
-		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
-		*dcH = hpf->dc, *dcL = er_fc->dc;	
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	FLOAT_T mindexf;
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL * info->in_level;
-#else
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL;
-#endif
-		input[0] += hist[0] * feedback; input[1] += hist[1] * feedback;
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		//unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		if((++*mindex) >= msize) {*mindex = 0;}
-		mindexf = *mindex;
-		for (i = 0; i < info->unit_num; i++) {
-			int32 index[4];
-			DATA_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->mcount[i][REV_EX_ER_L1] += info->mrate[i][REV_EX_ER_L1];
-			info->mcount[i][REV_EX_ER_L1] -= floor(info->mcount[i][REV_EX_ER_L1]);
-			info->mcount[i][REV_EX_ER_R1] += info->mrate[i][REV_EX_ER_R1];
-			info->mcount[i][REV_EX_ER_R1] -= floor(info->mcount[i][REV_EX_ER_R1]);
-			info->mcount[i][REV_EX_RV_L1] += info->mrate[i][REV_EX_RV_L1];
-			info->mcount[i][REV_EX_RV_L1] -= floor(info->mcount[i][REV_EX_RV_L1]);
-			info->mcount[i][REV_EX_RV_R1] += info->mrate[i][REV_EX_RV_R1];
-			info->mcount[i][REV_EX_RV_R1] -= floor(info->mcount[i][REV_EX_RV_R1]);
-			fp1[0] = mindexf - info->mdelay[i][REV_EX_ER_L1] - info->mdepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_L1] + info->mphase[i][REV_EX_ER_L1]);	
-			fp1[1] = mindexf - info->mdelay[i][REV_EX_ER_R1] - info->mdepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_R1] + info->mphase[i][REV_EX_ER_R1]);	
-			fp1[2] = mindexf - info->mdelay[i][REV_EX_RV_L1] - info->mdepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_L1] + info->mphase[i][REV_EX_RV_L1]);	
-			fp1[3] = mindexf - info->mdelay[i][REV_EX_RV_R1] - info->mdepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_R1] + info->mphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += msize;}
-			if(fp1[1] < 0) {fp1[1] += msize;}		
-			if(fp1[2] < 0) {fp1[2] += msize;}
-			if(fp1[3] < 0) {fp1[3] += msize;}			
-			fp2[0] = floor(fp1[0]);
-			fp2[1] = floor(fp1[1]);
-			fp2[2] = floor(fp1[2]);
-			fp2[3] = floor(fp1[3]);
-			index[0] = fp2[0]; 
-			index[1] = fp2[1]; 
-			index[2] = fp2[2]; 
-			index[3] = fp2[3]; 
-			v1[0] = info->buf[i][REV_EX_ER_L1][index[0]]; v2[0] = info->buf[i][REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->buf[i][REV_EX_ER_R1][index[1]]; v2[1] = info->buf[i][REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->buf[i][REV_EX_RV_L1][index[2]]; v2[2] = info->buf[i][REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->buf[i][REV_EX_RV_R1][index[3]]; v2[3] = info->buf[i][REV_EX_RV_R1][index[3] + 1];
-			// er out
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			// er in
-			info->buf[i][0][*mindex] = input[0]; info->buf[i][1][*mindex] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			tmp1[1] = v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-		//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
-			lpf = &rv_fc[i];
-			lpf->db[0] = lpf->dc[0] * tmp1[0] + lpf->dc[1] * lpf->db[0];
-			lpf->db[1] = lpf->dc[0] * tmp1[1] + lpf->dc[1] * lpf->db[1];
-			dat_rv[0] += (info->rv_out[i][0] = tmp1[0] * flt_dry + lpf->db[0] * flt_wet);
-			dat_rv[1] += (info->rv_out[i][1] = tmp1[1] * flt_dry + lpf->db[1] * flt_wet);
-			// rv in
-			info->buf[i][2][*mindex] = input_rv[0] + tmp_rv[0] * rv_feedback[i];
-			info->buf[i][3][*mindex] = input_rv[1] + tmp_rv[1] * rv_feedback[i];	
-			if(*mindex == 0){
-				info->buf[i][0][msize] = info->buf[i][0][0];
-				info->buf[i][1][msize] = info->buf[i][1][0];
-				info->buf[i][2][msize] = info->buf[i][2][0];
-				info->buf[i][3][msize] = info->buf[i][3][0];
-			}
-		}
-	//	sample_filter_stereo(er_fc, &dat_er[0], &dat_er[1]);
-		dbL[0] = dcL[0] * dat_er[0] + dcL[1] * dbL[0];
-		dbL[1] = dcL[0] * dat_er[1] + dcL[1] * dbL[1];
-		dat_er[0] = dat_er[0] * flt_dry + dbL[0] * flt_wet;
-		dat_er[1] = dat_er[1] * flt_dry + dbL[1] * flt_wet;		
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
-	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = dcH[0] * dbHR[0] + dcH[1] * dbHR[1] + dcH[2] * dbHR[2] + dcH[3] * dbHR[3] + dcH[4] * dbHR[4];
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-	info->hist[0] = hist[0], info->hist[1] = hist[1];
-}
-
-static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
+static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
 	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
 	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
@@ -7854,7 +6514,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		*fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
 	FLOAT_T levelap = info->levelap;
 	FLOAT_T mindexf, aindexf;
-	// CH_STEREO:
+	// CH_STEREO: CH_MIX_STEREO:
 	RDTSC_TEST1
 	for (k = 0; k < count; k++)
 	{		
@@ -7946,6 +6606,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
+		if(ext_reverb_ex_ap_num){
 		if ((++(*aindex)) >= asize) {*aindex -= asize;}
 		aindexf = *aindex;
 		info->abuf[REV_EX_ER_L1][*aindex] = dat_er[0] * levelap + fb_ap1[0] * REV_EX_AP_FB; 
@@ -7958,7 +6619,7 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 			info->abuf[2][asize] = info->abuf[2][0];
 			info->abuf[3][asize] = info->abuf[3][0];
 		}		
-		for (i = 0; i < REV_EX_AP_MAX; i++) {			
+		for (i = 0; i < ext_reverb_ex_ap_num; i++) {			
 			int32 index[4];
 			DATA_T v1[4], v2[4];
 			FLOAT_T fp1[4], fp2[4];	
@@ -8002,9 +6663,10 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 		}
 		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
 		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
+		}
 		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
+		hist[0] = dat_rv[0] * levelrv + dat_er[0] * leveler;
+		hist[1] = dat_rv[1] * levelrv + dat_er[1] * leveler;
 	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
 		dbHL[0] = hist[0];	
 		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
@@ -8022,186 +6684,6 @@ static void do_reverb_ex_mod_chST_ap8(DATA_T *buf, int32 count, InfoReverbEX *in
 	}
 	info->hist[0] = hist[0], info->hist[1] = hist[1];
 	RDTSC_TEST2
-}
-
-static void do_reverb_ex_mod_chMS_ap8(DATA_T *buf, int32 count, InfoReverbEX *info)
-{
-	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
-	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	int32 *aindex = &info->index2[REV_EX_AP1], asize = info->size2[REV_EX_AP1];
-	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
-	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
-		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
-		*dcH = hpf->dc, *dcL = er_fc->dc;	
-	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
-	DATA_T	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
-		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2];
-	DATA_T *bufa1 = info->buf2[REV_EX_AP1], *bufa2 = info->buf2[REV_EX_AP2], 
-		*fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	FLOAT_T levelap = info->levelap;
-	FLOAT_T mindexf, aindexf;
-	// CH_MIX_STEREO:
-	for (k = 0; k < count; k++)
-	{		
-#if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL * info->in_level;
-#else
-		input[0] = input[1] = (buf[k] + buf[k + 1]) * DIV_MIX_LEVEL;
-#endif
-		input[0] += hist[0] * feedback; input[1] += hist[1] * feedback;
-		// rv delay out
-		if ((*indexrd += 2) >= sizerd) {*indexrd = 0;}
-		input_rv[0] = bufrd[*indexrd]; input_rv[1] = bufrd[*indexrd + 1];
-		//unit
-		dat_er[0] = 0; dat_er[1] = 0; dat_rv[0] = 0, dat_rv[1] = 0;
-		if((++*mindex) >= msize) {*mindex = 0;}
-		mindexf = *mindex;
-		for (i = 0; i < info->unit_num; i++) {
-			int32 index[4];
-			DATA_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->mcount[i][REV_EX_ER_L1] += info->mrate[i][REV_EX_ER_L1];
-			info->mcount[i][REV_EX_ER_L1] -= floor(info->mcount[i][REV_EX_ER_L1]);
-			info->mcount[i][REV_EX_ER_R1] += info->mrate[i][REV_EX_ER_R1];
-			info->mcount[i][REV_EX_ER_R1] -= floor(info->mcount[i][REV_EX_ER_R1]);
-			info->mcount[i][REV_EX_RV_L1] += info->mrate[i][REV_EX_RV_L1];
-			info->mcount[i][REV_EX_RV_L1] -= floor(info->mcount[i][REV_EX_RV_L1]);
-			info->mcount[i][REV_EX_RV_R1] += info->mrate[i][REV_EX_RV_R1];
-			info->mcount[i][REV_EX_RV_R1] -= floor(info->mcount[i][REV_EX_RV_R1]);
-			fp1[0] = mindexf - info->mdelay[i][REV_EX_ER_L1] - info->mdepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_L1] + info->mphase[i][REV_EX_ER_L1]);	
-			fp1[1] = mindexf - info->mdelay[i][REV_EX_ER_R1] - info->mdepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_ER_R1] + info->mphase[i][REV_EX_ER_R1]);	
-			fp1[2] = mindexf - info->mdelay[i][REV_EX_RV_L1] - info->mdepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_L1] + info->mphase[i][REV_EX_RV_L1]);	
-			fp1[3] = mindexf - info->mdelay[i][REV_EX_RV_R1] - info->mdepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->mcount[i][REV_EX_RV_R1] + info->mphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += msize;}
-			if(fp1[1] < 0) {fp1[1] += msize;}		
-			if(fp1[2] < 0) {fp1[2] += msize;}
-			if(fp1[3] < 0) {fp1[3] += msize;}			
-			fp2[0] = floor(fp1[0]);
-			fp2[1] = floor(fp1[1]);
-			fp2[2] = floor(fp1[2]);
-			fp2[3] = floor(fp1[3]);
-			index[0] = fp2[0]; 
-			index[1] = fp2[1]; 
-			index[2] = fp2[2]; 
-			index[3] = fp2[3]; 
-			v1[0] = info->buf[i][REV_EX_ER_L1][index[0]]; v2[0] = info->buf[i][REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->buf[i][REV_EX_ER_R1][index[1]]; v2[1] = info->buf[i][REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->buf[i][REV_EX_RV_L1][index[2]]; v2[2] = info->buf[i][REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->buf[i][REV_EX_RV_R1][index[3]]; v2[3] = info->buf[i][REV_EX_RV_R1][index[3] + 1];
-			// er out
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			// er in
-			info->buf[i][0][*mindex] = input[0]; info->buf[i][1][*mindex] = input[1];
-			// rv save
-			tmp_rv[0] = *info->rv_in[i][0]; tmp_rv[1] = *info->rv_in[i][1];
-			// rv out	
-			tmp1[0] = v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			tmp1[1] = v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-		//	sample_filter_stereo(&rv_fc1[i], &flt[0], &flt[1]);	
-			lpf = &rv_fc[i];
-			lpf->db[0] = lpf->dc[0] * tmp1[0] + lpf->dc[1] * lpf->db[0];
-			lpf->db[1] = lpf->dc[0] * tmp1[1] + lpf->dc[1] * lpf->db[1];
-			dat_rv[0] += (info->rv_out[i][0] = tmp1[0] * flt_dry + lpf->db[0] * flt_wet);
-			dat_rv[1] += (info->rv_out[i][1] = tmp1[1] * flt_dry + lpf->db[1] * flt_wet);
-			// rv in
-			info->buf[i][2][*mindex] = input_rv[0] + tmp_rv[0] * rv_feedback[i];
-			info->buf[i][3][*mindex] = input_rv[1] + tmp_rv[1] * rv_feedback[i];	
-			if(*mindex == 0){
-				info->buf[i][0][msize] = info->buf[i][0][0];
-				info->buf[i][1][msize] = info->buf[i][1][0];
-				info->buf[i][2][msize] = info->buf[i][2][0];
-				info->buf[i][3][msize] = info->buf[i][3][0];
-			}
-		}
-	//	sample_filter_stereo(er_fc, &dat_er[0], &dat_er[1]);
-		dbL[0] = dcL[0] * dat_er[0] + dcL[1] * dbL[0];
-		dbL[1] = dcL[0] * dat_er[1] + dcL[1] * dbL[1];
-		dat_er[0] = dat_er[0] * flt_dry + dbL[0] * flt_wet;
-		dat_er[1] = dat_er[1] * flt_dry + dbL[1] * flt_wet;		
-		// rv delay in
-		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
-		// ap
-		if ((++(*aindex)) >= asize) {*aindex -= asize;}
-		aindexf = *aindex;
-		info->abuf[REV_EX_ER_L1][*aindex] = dat_er[0] * levelap + fb_ap1[0] * REV_EX_AP_FB; 
-		info->abuf[REV_EX_ER_R1][*aindex] = dat_er[1] * levelap + fb_ap1[1] * REV_EX_AP_FB; 
-		info->abuf[REV_EX_RV_L1][*aindex] = dat_rv[0] * levelap + fb_ap2[0] * REV_EX_AP_FB; 
-		info->abuf[REV_EX_RV_R1][*aindex] = dat_rv[1] * levelap + fb_ap2[1] * REV_EX_AP_FB; 
-		if(*aindex == 0){
-			info->abuf[0][asize] = info->abuf[0][0];
-			info->abuf[1][asize] = info->abuf[1][0];
-			info->abuf[2][asize] = info->abuf[2][0];
-			info->abuf[3][asize] = info->abuf[3][0];
-		}		
-		for (i = 0; i < REV_EX_AP_MAX; i++) {			
-			int32 index[4];
-			DATA_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->acount[i][REV_EX_ER_L1] += info->arate[i][REV_EX_ER_L1];
-			info->acount[i][REV_EX_ER_L1] -= floor(info->acount[i][REV_EX_ER_L1]);
-			info->acount[i][REV_EX_ER_R1] += info->arate[i][REV_EX_ER_R1];
-			info->acount[i][REV_EX_ER_R1] -= floor(info->acount[i][REV_EX_ER_R1]);
-			info->acount[i][REV_EX_RV_L1] += info->arate[i][REV_EX_RV_L1];
-			info->acount[i][REV_EX_RV_L1] -= floor(info->acount[i][REV_EX_RV_L1]);
-			info->acount[i][REV_EX_RV_R1] += info->arate[i][REV_EX_RV_R1];
-			info->acount[i][REV_EX_RV_R1] -= floor(info->acount[i][REV_EX_RV_R1]);
-			fp1[0] = aindexf - info->adelay[i][REV_EX_ER_L1] - info->adepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_L1] + info->aphase[i][REV_EX_ER_L1]);	
-			fp1[1] = aindexf - info->adelay[i][REV_EX_ER_R1] - info->adepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_R1] + info->aphase[i][REV_EX_ER_R1]);	
-			fp1[2] = aindexf - info->adelay[i][REV_EX_RV_L1] - info->adepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_L1] + info->aphase[i][REV_EX_RV_L1]);	
-			fp1[3] = aindexf - info->adelay[i][REV_EX_RV_R1] - info->adepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_R1] + info->aphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += asize;}
-			if(fp1[1] < 0) {fp1[1] += asize;}		
-			if(fp1[2] < 0) {fp1[2] += asize;}
-			if(fp1[3] < 0) {fp1[3] += asize;}			
-			fp2[0] = floor(fp1[0]);
-			fp2[1] = floor(fp1[1]);
-			fp2[2] = floor(fp1[2]);
-			fp2[3] = floor(fp1[3]);
-			index[0] = fp2[0]; 
-			index[1] = fp2[1]; 
-			index[2] = fp2[2]; 
-			index[3] = fp2[3]; 
-			v1[0] = info->abuf[REV_EX_ER_L1][index[0]]; v2[0] = info->abuf[REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->abuf[REV_EX_ER_R1][index[1]]; v2[1] = info->abuf[REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->abuf[REV_EX_RV_L1][index[2]]; v2[2] = info->abuf[REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->abuf[REV_EX_RV_R1][index[3]]; v2[3] = info->abuf[REV_EX_RV_R1][index[3] + 1];
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			dat_rv[0] += v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			dat_rv[1] += v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
-		// out
-		hist[0] = dat_rv[0] * levelrv - dat_er[0] * leveler;
-		hist[1] = dat_rv[1] * levelrv - dat_er[1] * leveler;
-	//	sample_filter_stereo(hpf, &hist[0], &hist[1]);
-		dbHL[0] = hist[0];	
-		hist[0] = dbHL[2] = dcH[0] * dbHL[0] + dcH[1] * dbHL[1] + dcH[2] * dbHL[2] + dcH[3] * dbHL[3] + dcH[4] * dbHL[4];
-		dbHL[4] = dbHL[3];
-		dbHL[3] = dbHL[2];
-		dbHL[2] = dbHL[1];
-		dbHL[1] = dbHL[0];
-		dbHR[0] = hist[1];	
-		hist[1] = dbHR[2] = dcH[0] * dbHR[0] + dcH[1] * dbHR[1] + dcH[2] * dbHR[2] + dcH[3] * dbHR[3] + dcH[4] * dbHR[4];
-		dbHR[4] = dbHR[3];
-		dbHR[3] = dbHR[2];
-		dbHR[2] = dbHR[1];
-		dbHR[1] = dbHR[0];
-		buf[k] = hist[0]; buf[++k] = hist[1];
-	}
-	info->hist[0] = hist[0], info->hist[1] = hist[1];
 }
 #endif
 
@@ -8226,19 +6708,895 @@ static void do_reverb_ex(DATA_T *buf, int32 count, InfoReverbEX *info)
 #ifdef REV_EX2
 
 
+/* from instrum.c */
+#define READ_CHAR(thing) \
+      if (1 != tf_read(&tmpchar, 1, 1, tf)) goto fail; \
+      thing = tmpchar;
+
+#define READ_SHORT_LE(thing) \
+      if (1 != tf_read(&tmpshort, 2, 1, tf)) goto fail; \
+      thing = LE_SHORT(tmpshort);
+#define READ_LONG_LE(thing) \
+      if (1 != tf_read(&tmplong, 4, 1, tf)) goto fail; \
+      thing = LE_LONG(tmplong);
+#define READ_SHORT_BE(thing) \
+      if (1 != tf_read(&tmpshort, 2, 1, tf)) goto fail; \
+      thing = BE_SHORT(tmpshort);
+#define READ_LONG_BE(thing) \
+      if (1 != tf_read(&tmplong, 4, 1, tf)) goto fail; \
+      thing = BE_LONG(tmplong);
+
+#define  WAVE_FORMAT_UNKNOWN      0x0000
+#define  WAVE_FORMAT_PCM          0x0001
+#define  WAVE_FORMAT_ADPCM        0x0002
+#define  WAVE_FORMAT_IEEE_FLOAT   0x0003
+#define  WAVE_FORMAT_ALAW         0x0006
+#define  WAVE_FORMAT_MULAW        0x0007
+#define  WAVE_FORMAT_EXTENSIBLE   0xFFFE
+
+typedef struct {
+	uint16 wFormatTag;
+	uint16 wChannels;
+	uint32 dwSamplesPerSec;
+	uint32 dwAvgBytesPerSec;
+	uint16 wBlockAlign;
+	uint16 wBitsPerSample;
+} WAVFormatChunk;
+
+static int read_WAVFormatChunk(struct timidity_file *tf, WAVFormatChunk *fmt, int csize)
+{
+	int32 tmplong;
+	int16 tmpshort;
+
+	READ_SHORT_LE(fmt->wFormatTag);
+	READ_SHORT_LE(fmt->wChannels);
+	READ_LONG_LE(fmt->dwSamplesPerSec);
+	READ_LONG_LE(fmt->dwAvgBytesPerSec);
+	READ_SHORT_LE(fmt->wBlockAlign);
+	READ_SHORT_LE(fmt->wBitsPerSample);
+	if (tf_seek(tf, csize - 0x10, SEEK_CUR) == -1)
+		goto fail;
+	return 1;
+	fail:
+		ctl->cmsg(CMSG_WARNING, VERB_VERBOSE, "Unable to read format chunk");
+	return 0;
+}
+
+#define SAMPLE_BIG_ENDIAN    (1L << 0)
+#define SAMPLE_8BIT_UNSIGNED (1L << 1)
+#define SAMPLE_IEEE_FLOAT    (1L << 2)
+#define WAVE_BUF_SIZE (1L << 11)	/* should be power of 2 */
+#define READ_WAVE_SAMPLE(dest, b, s) \
+    if (tf_read(dest, (b) * (s), 1, tf) != 1) \
+        goto fail
+#define READ_WAVE_FRAME(dest, b, f) \
+    READ_WAVE_SAMPLE(dest, b, (f) * channels)
+
+#define BLOCK_READ_BEGIN(stype, sbyte, fch) /* sbyte may be sizeof(stype) */ \
+    { \
+        stype data[WAVE_BUF_SIZE / sizeof(stype)]; \
+        int   j; \
+        for (block_frame_count = (sizeof data / sbyte / fch); block_frame_count != 0; block_frame_count >>= 1) { \
+            while (i <= frames - block_frame_count) { \
+                READ_WAVE_FRAME(data, sbyte, block_frame_count); \
+                for (j = 0; j < (block_frame_count * (fch)); i++)
+#define BLOCK_READ_END \
+    } } }
+
+#define BLOCK_READ3_BEGIN(fch) \
+    { \
+        uint8 data[WAVE_BUF_SIZE * 3]; \
+        int   j; \
+        for (block_frame_count = (sizeof data / 3 / fch); block_frame_count != 0; block_frame_count >>= 1) { \
+            while (i <= frames - block_frame_count) { \
+                READ_WAVE_FRAME(data, 3, block_frame_count); \
+                for (j = 0; j < (block_frame_count * (fch)); i++)
+#define BLOCK_READ3_END \
+    } } }
+
+static int read_sample_data(int32 flags, struct timidity_file *tf, int bits, int channels, int32 frames, float **sdata)
+{
+	int i, block_frame_count;
+
+	i = 0;	
+	if (bits == 32 && flags & SAMPLE_IEEE_FLOAT) {
+		BLOCK_READ_BEGIN(float, 4, channels)
+		{
+			int c;
+			float a;
+			for (c = 0; c < channels; c++, j++)
+				sdata[c][i] = data[j];
+		}
+		BLOCK_READ_END
+	}
+	else if (bits == 32)
+	{
+		if (flags & SAMPLE_BIG_ENDIAN) {
+			BLOCK_READ_BEGIN(uint32, 4, channels)
+			{
+				int c;
+				for (c = 0; c < channels; c++, j++)
+					sdata[c][i] = (float)BE_LONG(data[j]) * DIV_31BIT;
+			}
+			BLOCK_READ_END
+		} else {
+			BLOCK_READ_BEGIN(uint32, 4, channels)
+			{
+				int c;
+				for (c = 0; c < channels; c++, j++)
+					sdata[c][i] = (float)LE_LONG(data[j]) * DIV_31BIT;
+			}
+			BLOCK_READ_END
+		}
+	}
+	else if (bits == 24)
+	{
+		if (flags & SAMPLE_BIG_ENDIAN) {
+			BLOCK_READ3_BEGIN(channels)
+			{
+				uint8 *ptr = (uint8*) &data + 3 * j;
+				int c;
+				for (c = 0; c < channels; c++, j++) {
+					uint32 d = (*ptr << 24) | (*(ptr + 1) << 16) | (*(ptr + 2) << 8);
+					sdata[c][i] = (float)(*(int32 *)&d) * DIV_31BIT;
+					ptr += 3;
+				}
+			}
+			BLOCK_READ3_END
+		} else {
+			BLOCK_READ3_BEGIN(channels)
+			{
+				uint8 *ptr = (uint8*) &data + 3 * j;
+				int c;
+				for (c = 0; c < channels; c++, j++) {
+					uint32 d = (*(ptr + 2) << 24) | (*(ptr + 1) << 16) | (*ptr << 8);
+					sdata[c][i] = (float)(*(int32 *)&d) * DIV_31BIT;
+					ptr += 3;
+				}
+			}
+			BLOCK_READ3_END
+		}
+	}
+	else if (bits == 16)
+	{
+		if (flags & SAMPLE_BIG_ENDIAN) {
+			BLOCK_READ_BEGIN(uint16, 2, channels)
+			{
+				int c;
+				for (c = 0; c < channels; c++, j++)
+					sdata[c][i] = (float)BE_SHORT(data[j]) * DIV_15BIT;
+			}
+			BLOCK_READ_END
+		} else {
+			BLOCK_READ_BEGIN(uint16, 2, channels)
+			{
+				int c;
+				for (c = 0; c < channels; c++, j++)
+					sdata[c][i] = (float)LE_SHORT(data[j]) * DIV_15BIT;
+			}
+			BLOCK_READ_END
+		}
+	}
+	else
+		goto fail;
+	return 1;
+	fail:
+		ctl->cmsg(CMSG_WARNING, VERB_VERBOSE, "Unable to read sample data");
+	return 0;
+}
+
+static int import_wave_load(char *sample_file, InfoReverbEX2 *info)
+{
+	struct timidity_file *tf;
+	union {
+		int32 i[3];
+		char  c[12];
+	} xbuf;
+	char                  *buf = xbuf.c;
+	int                   state;		/* initial > fmt_read > data_read */
+	int                   i, chunk_size, type_index, type_size, samples = 0;
+	int32                 chunk_flags;
+	Sample                *sample;
+	WAVFormatChunk        format = { 0, 0, 0, 0, 0, 0 };
+
+	if ((tf = open_file(sample_file, 1, OF_NORMAL)) == NULL)
+		return 1;
+	if (tf_read(buf, 12, 1, tf) != 1
+			|| memcmp(&buf[0], "RIFF", 4) != 0 || memcmp(&buf[8], "WAVE", 4) != 0)
+	{
+		close_file(tf);
+		return 1;
+	}
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(info->irdata[0] != NULL){
+		aligned_free(info->irdata[0]);
+		info->irdata[0] = NULL;
+	}
+	if(info->irdata[1] != NULL){
+		aligned_free(info->irdata[1]);
+		info->irdata[1] = NULL;
+	}
+#else
+	if(info->irdata[0] != NULL){
+		safe_free(info->irdata[0]);
+		info->irdata[0] = NULL;
+	}
+	if(info->irdata[1] != NULL){
+		safe_free(info->irdata[1]);
+		info->irdata[1] = NULL;
+	}
+#endif
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Loading IR WAV: %s", sample_file);
+	state = chunk_flags = 0;
+	type_index = 4, type_size = 8;
+	for (;;) {
+		if (tf_read(&buf[type_index], type_size, 1, tf) != 1)
+			break;
+		chunk_size = LE_LONG(xbuf.i[2]);
+		if (memcmp(&buf[4 + 0], "fmt ", 4) == 0)
+		{
+			if (state != 0					/* only one format chunk is required */
+					|| chunk_size < 0x10)	/* too small */
+				break;
+			if (!read_WAVFormatChunk(tf, &format, chunk_size))
+				break;
+			if (format.wChannels != 2 /* compressed */
+					|| !(format.wFormatTag == WAVE_FORMAT_PCM
+						|| format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT)		/* compressed */
+					|| format.wBitsPerSample & 0x7	/* padding not supported */
+					|| format.wBitsPerSample < 16	/* less than 16-bit is not supported */
+					|| format.wBitsPerSample > 32)	/* more than 32-bit is not supported */
+				break;
+			state++;
+		}
+		else if (memcmp(&buf[4 + 0], "data", 4) == 0)
+		{
+			const int32 frames = chunk_size / format.wBlockAlign, bits = format.wBitsPerSample, 
+				fflg = format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT ? 1 : 0;
+			float *sdata[2];
+			int sflg;
+			int32 bytes;
+
+			if (state != 1)
+				break;
+			samples = format.wChannels;
+			info->srate = format.dwSamplesPerSec;
+			info->frame = frames + 8; //  + 8 for simd thread
+			bytes = (frames + 16) * sizeof(float); //  + 16 for simd thread
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+			info->irdata[0] = sdata[0] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
+			info->irdata[1] = sdata[1] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
+#else
+			info->irdata[0] = sdata[0] = (float *) safe_large_malloc(bytes);
+			info->irdata[1] = sdata[1] = (float *) safe_large_malloc(bytes);
+#endif
+			memset(&info->irdata[0][frames], 0, sizeof(float) * 16);
+			memset(&info->irdata[1][frames], 0, sizeof(float) * 16);
+			sflg = fflg ? (SAMPLE_8BIT_UNSIGNED|SAMPLE_IEEE_FLOAT) : SAMPLE_8BIT_UNSIGNED;
+			if (!read_sample_data(sflg,	tf, bits, samples, frames, sdata))
+				break;
+			state++;
+		}
+		else if (tf_seek(tf, chunk_size, SEEK_CUR) == -1)
+			break;
+		type_index = 4 - (chunk_size & 1);
+		type_size = 8 + (chunk_size & 1);
+	}
+	close_file(tf);
+	return (state != 2);
+}
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+static void do_reverb_ex2_thread(int thread_num, void *info2);
+#define REV_IR_4T
+// undef LR分割での2thread 
+// define LR分割 + 入力バッファを前後分割 で4thread
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+
+void free_reverb_ex2(InfoReverbEX2 *info)
+{
+	int i, k;
+	
+	for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		if(info->irdata[i] != NULL){
+			aligned_free(info->irdata[i]);
+			info->irdata[i] = NULL;
+		}
+		if(info->buf[i] != NULL){
+			aligned_free(info->buf[i]);
+			info->buf[i] = NULL;
+		}
+#else
+		if(info->irdata[i] != NULL){
+			safe_free(info->irdata[i]);
+			info->irdata[i] = NULL;
+		}
+		if(info->buf[i] != NULL){
+			safe_free(info->buf[i]);
+			info->buf[i] = NULL;
+		}
+#endif // USE_X86_EXT_INTRIN
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+#if defined(REV_IR_4T)
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		if(info->buf2[i] != NULL){
+			aligned_free(info->buf2[i]);
+			info->buf2[i] = NULL;
+		}
+#else
+		if(info->buf2[i] != NULL){
+			safe_free(info->buf2[i]);
+			info->buf2[i] = NULL;
+		}
+#endif
+#endif // defined(REV_IR_4T)
+		for(k = 0; k < 4; k++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+			if(info->tbuf[k] != NULL){
+				aligned_free(info->tbuf[k]);
+				info->tbuf[k] = NULL;
+			}
+#else
+			if(info->tbuf[k] != NULL){
+				safe_free(info->tbuf[k]);
+				info->tbuf[k] = NULL;
+			}
+#endif // USE_X86_EXT_INTRIN
+		}
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	}
+	
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	reset_effect_sub_thread(do_reverb_ex2_thread, info);
+	info->thread = 0;
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	info->init = 0;
+}
+
+void init_reverb_ex2(InfoReverbEX2 *info)
+{
+	int i, k;
+	float div;
+	int32 bytes;
+	char *sample_file = "irfile.wav";
+
+	if(play_mode->encoding & PE_MONO){
+		info->init = 0;
+		return;
+	}
+	if(import_wave_load(sample_file, info)){
+		info->init = 0;
+		return;
+	}
+	if(info->frame < 1 || info->srate < 1){
+		info->init = 0;
+		return;
+	}
+	// irdata resample OVx2
+	if(info->srate != play_mode->rate){
+		double ratio = (double)play_mode->rate / (double)info->srate;
+		int32 nframe = (double)info->frame * ratio + 0.5;
+		int32 nbytes = (nframe + 4) * sizeof(float);
+		double rcount = 0.0, rrate = DIV_2 / ratio; // DIV_2:OVx2 
+		float *ndata[2];
+		
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		ndata[0] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
+		ndata[1] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
+#else
+		ndata[0] = (float *) safe_large_malloc(nbytes);
+		ndata[1] = (float *) safe_large_malloc(nbytes);
+#endif
+		memset(ndata[0], 0, nbytes);
+		memset(ndata[1], 0, nbytes);		
+		for (i = 0; i < nframe; i++){
+			int32 index;
+			double v1, v2, fp;
+			double tmp1, tmp2;
+			// L
+			index = (int32)rcount;
+			v1 = info->irdata[0][index];
+			v2 = info->irdata[0][index + 1];
+			fp = rcount - floor(rcount);
+			tmp1 = v1 + (v2 - v1) * fp;			
+			rcount += rrate;
+			index = (int32)rcount;
+			v1 = info->irdata[0][index];
+			v2 = info->irdata[0][index + 1];
+			fp = rcount - floor(rcount);
+			tmp2 = v1 + (v2 - v1) * fp;	
+			ndata[0][i] = (tmp1 + tmp2) * DIV_2;
+			// R		
+			index = (int32)rcount;
+			v1 = info->irdata[1][index];
+			v2 = info->irdata[1][index + 1];
+			fp = rcount - floor(rcount);
+			tmp1 = v1 + (v2 - v1) * fp;			
+			rcount += rrate;
+			index = (int32)rcount;
+			v1 = info->irdata[1][index];
+			v2 = info->irdata[1][index + 1];
+			fp = rcount - floor(rcount);
+			tmp2 = v1 + (v2 - v1) * fp;	
+			ndata[1][i] = (tmp1 + tmp2) * DIV_2;
+		}
+		for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+			if(info->irdata[i] != NULL){
+				aligned_free(info->irdata[i]);
+				info->irdata[i] = NULL;
+			}
+#else
+			if(info->irdata[i] != NULL){
+				safe_free(info->irdata[i]);
+				info->irdata[i] = NULL;
+			}
+#endif		
+		}
+		info->frame = nframe; 
+		info->srate = play_mode->rate;
+		info->irdata[0] = ndata[0];
+		info->irdata[1] = ndata[1];
+	}
+#if 0
+	{
+		int32 b = 1;
+		int32 nframe = 1;
+		int32 nbytes;
+		float fdiv;
+		float *ndata[2];
+
+		for(b = 1; b < 26; b++)	{	
+			nframe = 1 << b;
+			if(info->frame < nframe)
+				break;
+		}
+		nframe *= 2;
+		nbytes = nframe * sizeof(float);
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		ndata[0] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
+		ndata[1] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
+#else
+		ndata[0] = (float *) safe_large_malloc(nbytes);
+		ndata[1] = (float *) safe_large_malloc(nbytes);
+#endif
+		memset(ndata[0], 0, nbytes);
+		memset(ndata[1], 0, nbytes);
+		fdiv = 1.0 / nframe;
+		for (i = 0; i < info->frame; i++){
+			ndata[0][i] = info->irdata[0][i] * fdiv;
+			ndata[1][i] = info->irdata[1][i] * fdiv;
+		}
+		
+		for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+			if(info->irdata[i] != NULL){
+				aligned_free(info->irdata[i]);
+				info->irdata[i] = NULL;
+			}
+#else
+			if(info->irdata[i] != NULL){
+				safe_free(info->irdata[i]);
+				info->irdata[i] = NULL;
+			}
+#endif		
+		}
+		info->frame = nframe;
+		info->div_frame = fdiv;
+		info->srate = play_mode->rate;
+		info->irdata[0] = ndata[0];
+		info->irdata[1] = ndata[1];
+	}
+#endif
+
+
+	div = 0.125 * 48000.0 / (double)play_mode->rate * info->level * ext_reverb_ex_level;	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		__m128 vdiv = _mm_set1_ps(div);
+		for (i = 0; i < info->frame; i += 4){
+			MM_LS_MUL_PS(&info->irdata[0][i], vdiv);
+			MM_LS_MUL_PS(&info->irdata[1][i], vdiv);
+		}
+	}
+#else
+	for (i = 0; i < info->frame; i++){
+		info->irdata[0][i] *= div;
+		info->irdata[1][i] *= div;
+	}
+#endif
+	bytes = (info->frame + 4) * 2 * sizeof(float);
+	for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		if(info->buf[i] != NULL){
+			aligned_free(info->buf[i]);
+			info->buf[i] = NULL;
+		}
+		info->buf[i] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
+#else
+		if(info->buf[i] != NULL){
+			safe_free(info->buf[i]);
+			info->buf[i] = NULL;
+		}
+		info->buf[i] = (float *) safe_large_malloc(bytes);
+#endif
+		memset(info->buf[i], 0, bytes);
+	}
+	info->wcount = 0;
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	if(set_effect_sub_thread(do_reverb_ex2_thread, info, 4)){
+		info->thread = 0;
+		goto thru_thread;
+	}	
+	bytes = (info->frame + 4) * 2 * sizeof(float);
+
+#if defined(REV_IR_4T)	
+	for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		if(info->buf2[i] != NULL){
+			aligned_free(info->buf2[i]);
+			info->buf2[i] = NULL;
+		}
+		info->buf2[i] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
+#else
+		if(info->buf2[i] != NULL){
+			safe_free(info->buf2[i]);
+			info->buf2[i] = NULL;
+		}
+		info->buf2[i] = (float *) safe_large_malloc(bytes);
+#endif
+		memset(info->buf2[i], 0, bytes);
+	}
+#endif // defined(REV_IR_4T)
+
+	bytes = compute_buffer_size * sizeof(float);
+	for(k = 0; k < 4; k++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		if(info->tbuf[k] != NULL){
+			aligned_free(info->tbuf[k]);
+			info->tbuf[k] = NULL;
+		}
+		info->tbuf[k] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
+#else
+		if(info->tbuf[k] != NULL){
+			safe_free(info->tbuf[k]);
+			info->tbuf[k] = NULL;
+		}
+		info->tbuf[k] = (float *) safe_large_malloc(bytes);
+#endif
+		memset(info->tbuf[k], 0, bytes);
+	}
+	info->twcount[0] = 0;
+	info->twcount[1] = 0;
+	info->twcount[2] = 0;
+	info->twcount[3] = 0;
+	info->tcount = 0;
+	info->thread = 1;
+thru_thread:
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	info->init = 1;
+}
+
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)		
+static void do_reverb_ex2_thread(int thread_num, void *info2)
+{
+	InfoReverbEX2 *info;
+	int i, k;
+	float *buf, *ibuf, *obuf, *irdata;
+	int32 *wcount;
+	int32 scount, ecount;
+		
+#if defined(REV_IR_4T)
+	if(thread_num >= 4)
+#else
+	if(thread_num >= 2)
+#endif
+		return;
+	if(!info2)
+		return;
+	info = (InfoReverbEX2 *)info2;
+	if(!info->init)
+		return;	
+	if(thread_num == 0){ // L
+		ibuf = info->tbuf[0];
+		obuf = info->tbuf[2];
+		buf = info->buf[0];
+		irdata = info->irdata[0];
+		wcount = &info->twcount[0];
+		scount = 0;
+#if defined(REV_IR_4T)
+		ecount = info->tcount >> 1;
+#else
+		ecount = info->tcount;
+#endif
+	}else if(thread_num == 1){ // R
+		ibuf = info->tbuf[1];
+		obuf = info->tbuf[3];
+		buf = info->buf[1];
+		irdata = info->irdata[1];
+		wcount = &info->twcount[1];
+		scount = 0;
+#if defined(REV_IR_4T)
+		ecount = info->tcount >> 1;
+#else
+		ecount = info->tcount;
+#endif
+	}else
+#if defined(REV_IR_4T)
+	if(thread_num == 2){ // L
+		ibuf = info->tbuf[0];
+		obuf = info->tbuf[2];
+		buf = info->buf2[0];
+		irdata = info->irdata[0];
+		wcount = &info->twcount[2];
+		scount = info->tcount >> 1;
+		ecount = info->tcount;
+	}else if(thread_num == 3){ // R
+		ibuf = info->tbuf[1];
+		obuf = info->tbuf[3];
+		buf = info->buf2[1];
+		irdata = info->irdata[1];
+		wcount = &info->twcount[3];
+		scount = info->tcount >> 1;
+		ecount = info->tcount;
+	}else
+#endif
+		return;	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	// 4set/1ch
+	{
+	__m128i vwc = _mm_set1_epi32(*wcount);
+	__m128i vframe = _mm_set1_epi32(info->frame);
+	__m128i vi4 = _mm_set1_epi32(4), vi0 = _mm_setzero_si128(), viset = _mm_set_epi32(3, 2, 1, 0);
+	__m128i vwcp;
+
+	vwc = _mm_sub_epi32(vwc, viset);
+	vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
+#if defined(REV_IR_4T)
+	for (i = 0; i < scount; i += 4){
+		vwcp = _mm_add_epi32(vwc, vframe);
+		buf[MM_EXTRACT_I32(vwcp,0)] = buf[MM_EXTRACT_I32(vwc,0)] = ibuf[i];
+		buf[MM_EXTRACT_I32(vwcp,1)] = buf[MM_EXTRACT_I32(vwc,1)] = ibuf[i + 1];
+		buf[MM_EXTRACT_I32(vwcp,2)] = buf[MM_EXTRACT_I32(vwc,2)] = ibuf[i + 2];
+		buf[MM_EXTRACT_I32(vwcp,3)] = buf[MM_EXTRACT_I32(vwc,3)] = ibuf[i + 3];
+		vwc = _mm_sub_epi32(vwc, vi4);
+		vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
+	}
+#endif
+	for (i = scount; i < ecount; i += 4){
+		__m128 sum0 = _mm_setzero_ps();
+		__m128 sum1 = _mm_setzero_ps();
+		__m128 sum2 = _mm_setzero_ps();
+		__m128 sum3 = _mm_setzero_ps();
+		__m128 tmp0, tmp2, tmp1, tmp3; 		
+		vwcp = _mm_add_epi32(vwc, vframe);
+		buf[MM_EXTRACT_I32(vwcp,0)] = buf[MM_EXTRACT_I32(vwc,0)] = ibuf[i];
+		buf[MM_EXTRACT_I32(vwcp,1)] = buf[MM_EXTRACT_I32(vwc,1)] = ibuf[i + 1];
+		buf[MM_EXTRACT_I32(vwcp,2)] = buf[MM_EXTRACT_I32(vwc,2)] = ibuf[i + 2];
+		buf[MM_EXTRACT_I32(vwcp,3)] = buf[MM_EXTRACT_I32(vwc,3)] = ibuf[i + 3];
+		// FMAループの最後のw0w1w2w3重複部分は事前にirdata最後に0を追加することで回避
+		for (k = 0; k < info->frame; k += 4){
+			__m128 vir = _mm_load_ps(&irdata[k]);
+			vwcp = _mm_add_epi32(vwc, _mm_set1_epi32(k));
+			sum0 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,0)]), vir, sum0);
+			sum1 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,1)]), vir, sum1);
+			sum2 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,2)]), vir, sum2);
+			sum3 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,3)]), vir, sum3);
+		}
+		vwc = _mm_sub_epi32(vwc, vi4);
+		vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
+		// sum0 v0,v1,v2,v3 // sum1 v4,v5,v6,v7 // sum2 v8,v9,v10,v11 // sum3 v12,v13,v14,v15
+		tmp0 = _mm_shuffle_ps(sum0, sum1, 0x44); // v0,v1,v4,v5
+		tmp2 = _mm_shuffle_ps(sum0, sum1, 0xEE); // v2,v3,v6,v7
+		tmp1 = _mm_shuffle_ps(sum2, sum3, 0x44); // v8,v9,v12,v13
+		tmp3 = _mm_shuffle_ps(sum2, sum3, 0xEE); // v10,v11,v14,v15
+		sum0 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0,v4,v8,v12
+		sum1 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1,v5,v9,v13
+		sum2 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2,v6,v10,v14
+		sum3 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3,v7,v11,v15
+		sum0 = _mm_add_ps(sum0, sum1);
+		sum2 = _mm_add_ps(sum2, sum3);
+		sum0 = _mm_add_ps(sum0, sum2); // v0123,v4567,v89AB,vCDEF
+		_mm_store_ps(&obuf[i], sum0);
+	}
+#if defined(REV_IR_4T)
+	for (i = ecount; i < info->tcount; i += 4){
+		vwcp = _mm_add_epi32(vwc, vframe);
+		buf[MM_EXTRACT_I32(vwcp,0)] = buf[MM_EXTRACT_I32(vwc,0)] = ibuf[i];
+		buf[MM_EXTRACT_I32(vwcp,1)] = buf[MM_EXTRACT_I32(vwc,1)] = ibuf[i + 1];
+		buf[MM_EXTRACT_I32(vwcp,2)] = buf[MM_EXTRACT_I32(vwc,2)] = ibuf[i + 2];
+		buf[MM_EXTRACT_I32(vwcp,3)] = buf[MM_EXTRACT_I32(vwc,3)] = ibuf[i + 3];
+		vwc = _mm_sub_epi32(vwc, vi4);
+		vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
+	}	
+#endif
+	*wcount = MM_EXTRACT_I32(vwc,0);
+	}
+#else
+	{
+#if defined(REV_IR_4T)
+	for (i = 0; i < scount; i++){
+		int32 w0 = *wcount;	
+		--(*wcount);
+		if(*wcount < 0)
+			*wcount += info->frame;
+		buf[w0 + info->frame] = buf[w0] = ibuf[i];
+	}
+#endif
+	for (i = scount; i < ecount; i++){
+		float sum = 0;
+		int32 w = *wcount;	
+		--(*wcount);
+		if(*wcount < 0)
+			*wcount += info->frame;
+		buf[w] = ibuf[i];
+		buf[w + info->frame] = ibuf[i];
+		for (k = 0; k < info->frame; k++){
+			int32 r = w + k;
+			sum += buf[r] * irdata[k];
+		}
+		obuf[i] = sum;
+	}
+#if defined(REV_IR_4T)
+	for (i = ecount; i < info->tcount; i++){
+		int32 w0 = *wcount;	
+		--(*wcount);
+		if(*wcount < 0)
+			*wcount += info->frame;
+		buf[w0 + info->frame] = buf[w0] = ibuf[i];
+	}
+#endif
+	}
+#endif
+}
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+
+
 static void do_reverb_ex2(DATA_T *buf, int32 count, InfoReverbEX2 *info)
 {
-	int i;
+	int32 i, k;
+
 	if(count == MAGIC_INIT_EFFECT_INFO) {
 		init_reverb_ex2(info);
 		return;
 	} else if(count == MAGIC_FREE_EFFECT_INFO) {
-		free_reverb_ex(info);
+		free_reverb_ex2(info);
 		return;
-	} if(count < 0)
+	} else if(count < 0)
 		return;	
-	info->do_reverb_mode(buf, count, info);
+	else if(!info->init)
+		return;
+	if(info->thread){
+		info->tcount = count >> 1;
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		for (i = 0, k = 0; i < count; i += 8, k += 4){	
+			__m128 tmp0, tmp1, tmp2, tmp3;
+			// in
+			tmp0 = _mm_cvtpd_ps(_mm_load_pd(&buf[i]));
+			tmp1 = _mm_cvtpd_ps(_mm_load_pd(&buf[i + 2]));
+			tmp2 = _mm_cvtpd_ps(_mm_load_pd(&buf[i + 4]));
+			tmp3 = _mm_cvtpd_ps(_mm_load_pd(&buf[i + 6]));
+			tmp0 = _mm_shuffle_ps(tmp0, tmp1, 0x44);  
+			tmp2 = _mm_shuffle_ps(tmp2, tmp3, 0x44); 			
+			_mm_store_ps(&info->tbuf[0][k], _mm_shuffle_ps(tmp0, tmp2, 0x88));
+			_mm_store_ps(&info->tbuf[1][k], _mm_shuffle_ps(tmp0, tmp2, 0xdd));
+		}
+#else
+		for (i = 0, k = 0; i < count; i++, k++){			
+			info->tbuf[0][k] = buf[i];
+			i++;
+			info->tbuf[1][k] = buf[i];
+			k++;
+		}
+#endif
+#if defined(REV_IR_4T)
+		go_effect_sub_thread(do_reverb_ex2_thread, info, 4);
+#else
+		go_effect_sub_thread(do_reverb_ex2_thread, info, 2);
+#endif		
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		for (i = 0, k = 0; i < count; i += 8, k += 4){	
+			__m128 tmp0, tmp1, tmp2, tmp3;
+			// out
+			tmp1 = _mm_load_ps(&info->tbuf[2][k]);
+			tmp3 = _mm_load_ps(&info->tbuf[3][k]);
+			tmp0 = _mm_unpacklo_ps(tmp1, tmp3);
+			tmp2 = _mm_unpackhi_ps(tmp1, tmp3);
+			_mm_store_pd(&buf[i], _mm_cvtps_pd(tmp0));
+			_mm_store_pd(&buf[i + 2], _mm_cvtps_pd(_mm_shuffle_ps(tmp0, tmp0, 0x4e)));
+			_mm_store_pd(&buf[i + 4], _mm_cvtps_pd(tmp2));
+			_mm_store_pd(&buf[i + 6], _mm_cvtps_pd(_mm_shuffle_ps(tmp2, tmp2, 0x4e)));
+		}
+#else
+		for (i = 0, k = 0; i < count; i++, k++){	
+			buf[i] = info->tbuf[2][k];	
+			i++;
+			buf[i] = info->tbuf[3][k];
+		}
+#endif
+		return;
+	}
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+// 2set/1ch
+	for (i = 0; i < count; i += 4){
+		__m128 sumL1 = _mm_setzero_ps();
+		__m128 sumR1 = _mm_setzero_ps();
+		__m128 sumL2 = _mm_setzero_ps();
+		__m128 sumR2 = _mm_setzero_ps();
+		__m128 tmp0, tmp2, tmp1, tmp3, vir0, vir1; 
+		__m128 sum0, sum1, sum2, sum3;
+		int32 w1, w2;
+
+		w1 = info->wcount;
+		--info->wcount;
+		if(info->wcount < 0)
+			info->wcount += info->frame;
+		w2 = info->wcount;
+		--info->wcount;
+		if(info->wcount < 0)
+			info->wcount += info->frame;
+		info->buf[0][w1] = buf[i];
+		info->buf[1][w1] = buf[i + 1];
+		info->buf[0][w1 + info->frame] = buf[i];
+		info->buf[1][w1 + info->frame] = buf[i + 1];
+		info->buf[0][w2] = buf[i + 2];
+		info->buf[1][w2] = buf[i + 3];
+		info->buf[0][w2 + info->frame] = buf[i + 2];
+		info->buf[1][w2 + info->frame] = buf[i + 3];
+		// FMAループの最後のw1w2重複部分は事前にirdata最後に0を追加することで回避
+		for (k = 0; k < info->frame; k += 4){
+			int32 r1 = w1 + k;
+			int32 r2 = w2 + k;
+			__m128 vir0 = _mm_load_ps(&info->irdata[0][k]);
+			__m128 vir1 = _mm_load_ps(&info->irdata[1][k]);
+			sumL1 = MM_FMA_PS(_mm_loadu_ps(&info->buf[0][r1]), vir0, sumL1);
+			sumR1 = MM_FMA_PS(_mm_loadu_ps(&info->buf[1][r1]), vir1, sumR1);
+			sumL2 = MM_FMA_PS(_mm_loadu_ps(&info->buf[0][r2]), vir0, sumL2);
+			sumR2 = MM_FMA_PS(_mm_loadu_ps(&info->buf[1][r2]), vir1, sumR2);
+		}
+		// sumL1 v0,v1,v2,v3 // sumR1 v4,v5,v6,v7 // sumL2 v8,v9,v10,v11 // sumR3 v12,v13,v14,v15
+		tmp0 = _mm_shuffle_ps(sumL1, sumR1, 0x44); // v0,v1,v4,v5
+		tmp2 = _mm_shuffle_ps(sumL1, sumR1, 0xEE); // v2,v3,v6,v7
+		tmp1 = _mm_shuffle_ps(sumL2, sumR2, 0x44); // v8,v9,v12,v13
+		tmp3 = _mm_shuffle_ps(sumL2, sumR2, 0xEE); // v10,v11,v14,v15
+		sum0 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0,v4,v8,v12
+		sum1 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1,v5,v9,v13
+		sum2 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2,v6,v10,v14
+		sum3 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3,v7,v11,v15
+		sum0 = _mm_add_ps(sum0, sum1);
+		sum2 = _mm_add_ps(sum2, sum3);
+		sum0 = _mm_add_ps(sum0, sum2); // v0123,v4567,v89AB,vCDEF
+		sum1 = _mm_shuffle_ps(sum0, sum0, 0x4e);
+		_mm_store_pd(&buf[i], _mm_cvtps_pd(sum0));
+		_mm_store_pd(&buf[i + 2], _mm_cvtps_pd(sum1));
+	}
+#else
+	for (i = 0; i < count; i++){
+		float sumL = 0, sumR = 0;
+		int32 w = info->wcount;	
+		--info->wcount;
+		if(info->wcount < 0)
+			info->wcount += info->frame;
+		info->buf[0][w] = buf[i];
+		info->buf[1][w] = buf[i + 1];
+		info->buf[0][w + info->frame] = buf[i];
+		info->buf[1][w + info->frame] = buf[i + 1];
+		for (k = 0; k < info->frame; k++){
+			int32 r = w + k;
+			sumL += info->buf[0][r] * info->irdata[0][k];
+			sumR += info->buf[1][r] * info->irdata[1][k];
+		}
+		buf[i] = sumL;		
+		i++;
+		buf[i] = sumR;	
+	}
+#endif
 }
+
 #endif
 
 
@@ -12516,296 +11874,119 @@ static void do_enhancer_multi(DATA_T *buf, int32 count, InfoEnhancer *info)
 }
 
 
-#define HUMANIZER_LEVEL (0.75)
-#define HUMANIZER_CUTOFF (1500.0)
-#define HUMANIZER_RESO (6.0)
-#define HUMANIZER_LFO_RATE (0.125)
-#define HUMANIZER_LFO_DEPTH (2.0)
+#define HUMANIZER_LEVEL (2.5)
+#define HUMANIZER_CUTOFF (1000)
+#define HUMANIZER_RESO (48)
 
-const double vowel_coeff[5][11] =
+const FLOAT_T humanizer_cf[5][HUMANIZER_PHASE] = 
 {
-	{ 8.11044e-06, 8.943665402, -36.83889529, 92.01697887, -154.337906, 181.6233289,
-		-151.8651235, 89.09614114, -35.10298511, 8.388101016, -0.923313471 },  ///A
-	{ 3.33819e-06, 8.893102966, -36.49532826, 90.96543286, -152.4545478, 179.4835618,
-		-150.315433, 88.43409371, -34.98612086, 8.407803364, -0.932568035 },  ///I
-	{ 4.09431e-07, 8.997322763, -37.20218544, 93.11385476, -156.2530937, 183.7080141,
-		-153.2631681, 89.59539726, -35.12454591, 8.338655623, -0.910251753 },  ///U
-	{ 4.36215e-06, 8.90438318, -36.55179099, 91.05750846, -152.422234, 179.1170248,
-		-149.6496211, 87.78352223, -34.60687431, 8.282228154, -0.914150747 },  ///E
-	{ 1.13572e-06, 8.994734087, -37.2084849, 93.22900521, -156.6929844, 184.596544,
-		-154.3755513, 90.49663749, -35.58964535, 8.478996281, -0.929252233 },   ///O
+	{0.75, 0.81, 0.93, 0.96, 2.27, 2.54, 3.07, 4.42, 6.05, 7.04 }, // a
+	{0.26, 0.28, 0.30, 2.67, 2.92, 3.36, 3.52, 3.94, 4.48, 6.24 }, // i
+	{0.13, 0.15, 0.18, 0.20, 0.86, 0.88, 0.90, 0.92, 1.17, 2.95 }, // u
+	{0.48, 0.50, 0.60, 0.62, 1.91, 2.19, 2.48, 3.58, 4.28, 6.28 }, // e
+	{0.43, 0.44, 0.48, 0.49, 0.51, 0.57, 0.61, 0.67, 0.78, 1.76 }, // o
 };
 
+const FLOAT_T humanizer_cf2[5] = 
+{
+	1.50, // a
+	1.09, // i
+	0.35, // u
+	1.11, // e
+	7.76, // o
+};
+
+static void do_humanizer(DATA_T *buf, int32 count, InfoHumanizer *info)
+{
+	int i, k, cnt = count / 2;
+
+	if(count == MAGIC_INIT_EFFECT_INFO) {		
+		if(!info->init){
+			FLOAT_T div_phase = 1.0 / (FLOAT_T)HUMANIZER_PHASE;
+			info->init = 1;
+			info->p_vowel = info->vowel;
+			info->p_accel = info->accel;
+			for(k = 0; k < HUMANIZER_PHASE; k++){
+				init_sample_filter(&info->fc[k], HUMANIZER_CUTOFF * humanizer_cf[info->vowel][k], HUMANIZER_RESO, FILTER_BPF12_3);
+				init_envelope3(&info->env[k], HUMANIZER_CUTOFF * humanizer_cf[info->vowel][k], info->accel * playmode_rate_ms);
+			}
+			init_sample_filter(&info->fc2, HUMANIZER_CUTOFF * humanizer_cf2[info->vowel], 0, FILTER_BCF12_3);
+			init_envelope3(&info->env2, HUMANIZER_CUTOFF * humanizer_cf2[info->vowel], info->accel * playmode_rate_ms);	
+		}
+		if(info->od_sw)
+			init_drive(&info->drv, 4, 0.2, 0.7, info->drive * otd.efx_CustomHmnLvIn);
+		else
+			init_drive(&info->drv, 0, 0.0, 0.7, info->drive * otd.efx_CustomHmnLvIn);
+		if(info->p_accel != info->accel){
+			info->p_accel = info->accel;
+			for(k = 0; k < HUMANIZER_PHASE; k++)
+				reset_envelope3(&info->env[k], HUMANIZER_CUTOFF * humanizer_cf[info->vowel][k], info->accel * playmode_rate_ms);
+			reset_envelope3(&info->env2, HUMANIZER_CUTOFF * humanizer_cf2[info->vowel], info->accel * playmode_rate_ms);
+		}
+		if(info->p_vowel != info->vowel){
+			info->p_vowel = info->vowel;			
+			for(k = 0; k < HUMANIZER_PHASE; k++)
+				reset_envelope3(&info->env[k], HUMANIZER_CUTOFF * humanizer_cf[info->vowel][k], ENVELOPE_KEEP);
+			reset_envelope3(&info->env2, HUMANIZER_CUTOFF * humanizer_cf2[info->vowel], ENVELOPE_KEEP);
+		}	
+		info->inleveld = otd.efx_CustomHmnLvIn;
+		info->leveld = HUMANIZER_LEVEL * otd.efx_CustomHmnLvOut;
+		info->inleveli = TIM_FSCALE(info->inleveld, 24);
+		info->leveli = TIM_FSCALE(info->leveld, 24);		
+		return;
+	} else if(count == MAGIC_FREE_EFFECT_INFO) {
+		info->init = 0;
+		return;
+	} else if(count <= 0) {
+		return;
+	}
+	// vowel interpolation
+	for(k = 0; k < HUMANIZER_PHASE; k++){
+		compute_envelope3(&info->env[k], cnt);
+		set_sample_filter_freq(&info->fc[k], info->env[k].vol);
+		recalc_filter(&info->fc[k]);
+	}
+	// CH_MONO
+	for (i = 0; i < count; i++)
+	{
+		DATA_T tmp = 0, sum = 0;
+		tmp = buf[i];
 #if (OPT_MODE == 1) && !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT) /* fixed-point implementation */
-static void do_humanizer(DATA_T *buf, int32 count, InfoHumanizer *info)
-{
-	int i, k, cnt = count / 2;
-	FLOAT_T *dc = info->dc, *vc = info->vc;
-	FLOAT_T *db = info->db;
-
-	if(count == MAGIC_INIT_EFFECT_INFO) {		
-		if(!info->init){
-			FLOAT_T dclevel = 0.0;
-			FLOAT_T div_phase = 1.0 / (FLOAT_T)HUMANIZER_PHASE;
-			info->init = 1;
-			info->p_vowel = info->vowel;
-			for(i = 0; i < 11; i++){
-				info->dc[i] = info->vc[i] = vowel_coeff[info->vowel][i];
-				dclevel += dc[i];
-			}
-			info->fmt_level = (dclevel > 1.0) ? (1.0 / dclevel) : 1.0;
-			info->dc[11] = 0;
-			memset(info->db, 0, sizeof(info->db));
-			info->p_accel = info->accel;
-			init_envelope3(&info->env, 1.0, info->accel * playmode_rate_ms);
-			info->p_ac = info->env.vol;
-			// lfo
-			info->lfo_rate = HUMANIZER_LFO_RATE * div_playmode_rate * M_PI2;
-			info->lfo_count = 0; // min point
-			for(i = 0; i < HUMANIZER_PHASE; i++){
-				info->lfo_phase[i] = (FLOAT_T)i * div_phase * M_PI2;
-				init_sample_filter(&info->fc[i], HUMANIZER_CUTOFF, HUMANIZER_RESO, i & 0x1 ? FILTER_BCF12_3 : FILTER_BPF12_3);
-			}
-			info->flt_level = pow((FLOAT_T)div_phase, 0.666666666);
-		}
-		if(info->od_sw)
-			init_drive(&info->drv, 4, 0.2, 0.7, info->drive * otd.efx_CustomHmnLvIn);
-		else
-			init_drive(&info->drv, 0, 0.0, 0.7, 1.0);
-		info->leveld = info->flt_level * HUMANIZER_LEVEL * otd.efx_CustomHmnLvOut;
-		info->leveli = TIM_FSCALE(info->leveld, 24);
-		if(info->p_accel != info->accel){
-			info->p_accel = info->accel;
-			reset_envelope3(&info->env, 1.0, info->accel * playmode_rate_ms);
-		}
-		if(info->p_vowel != info->vowel){
-			info->p_vowel = info->vowel;
-			for(i = 0; i < 11; i++)
-				info->vc[i] = info->dc[i];
-			init_envelope3(&info->env, 0.0, info->accel * playmode_rate_ms);
-			reset_envelope3(&info->env, 1.0, ENVELOPE_KEEP);
-			info->p_ac = -1;
-		}			
-		return;
-	} else if(count == MAGIC_FREE_EFFECT_INFO) {
-		info->init = 0;
-		return;
-	} else if(count == 0) {
-		return;
-	}	
-	// vowel interpolation
-	compute_envelope3(&info->env, cnt);
-	if(info->p_ac != info->env.vol){
-		FLOAT_T dclevel = 0.0;
-		int vn = info->vowel;
-		double ac1 = info->p_ac = info->env.vol;
-		double ac2 = 1.0 - ac1;
-		for(i = 0; i < 11; i++){
-			dc[i] = vowel_coeff[vn][i];
-		//	dc[i] = vowel_coeff[vn][i] * ac1 + vc[i] * ac2;
-			dclevel += dc[i];
-		}
-		info->fmt_level = (dclevel > 1.0) ? (1.0 / dclevel) : 1.0;
-	}	
-	// lfo	
-	for(i = 0; i < HUMANIZER_PHASE; i++){
-		set_sample_filter_freq(&info->fc[i], HUMANIZER_CUTOFF * pow(HUMANIZER_LFO_DEPTH, sin(info->lfo_count + info->lfo_phase[i])));
-		recalc_filter(&info->fc[i]);
-	}
-	if ((info->lfo_count += (info->lfo_rate * cnt)) >= M_PI2) {info->lfo_count -= M_PI2;}
-	// CH_MONO
-	for (i = 0; i < count; i++)
-	{
-		DATA_T tmp = 0, sum = 0;
-		tmp = buf[i];
-		do_drive_mono(&info->drv, &tmp);
-		tmp = tmp * dc[0] + db[1] * dc[1] + db[2] * dc[2] + db[3] * dc[3]
-			+ db[4] * dc[4] + db[5] * dc[5] + db[6] * dc[6] + db[7] * dc[7]
-			+ db[8] * dc[8] + db[9] * dc[9] + db[10] * dc[10];	
-		tmp *= info->fmt_level;
-		db[10] = db[9];
-		db[9] = db[8];
-		db[8] = db[7];
-		db[7] = db[6];
-		db[6] = db[5];
-		db[5] = db[4];
-		db[4] = db[3];
-		db[3] = db[2];
-		db[2] = db[1];                     
-		db[1] = tmp;	
-		for(k = 0; k < HUMANIZER_PHASE; k++){
-			DATA_T flt = tmp;
-			sample_filter(&info->fc[k], &flt);
-			sum += flt;
-		}
-		sum = imuldiv24(sum, info->leveli);
-		buf[i] = sum;
-		i++;
-		buf[i] = sum;
-	}
-}
-#else /* floating-point implementation */
-static void do_humanizer(DATA_T *buf, int32 count, InfoHumanizer *info)
-{
-	int i, k, cnt = count / 2;
-	FLOAT_T *dc = info->dc, *vc = info->vc;
-	FLOAT_T *db = info->db;
-
-	if(count == MAGIC_INIT_EFFECT_INFO) {		
-		if(!info->init){
-			FLOAT_T dclevel = 0.0;
-			FLOAT_T div_phase = 1.0 / (FLOAT_T)HUMANIZER_PHASE;
-			info->init = 1;
-			info->p_vowel = info->vowel;
-			for(i = 0; i < 11; i++){
-				info->dc[i] = info->vc[i] = vowel_coeff[info->vowel][i];
-				dclevel += dc[i];
-			}
-			info->fmt_level = (dclevel > 1.0) ? (1.0 / dclevel) : 1.0;
-			memset(info->db, 0, sizeof(info->db));
-			info->p_accel = info->accel;
-			init_envelope3(&info->env, 1.0, info->accel * playmode_rate_ms);
-			info->p_ac = info->env.vol;
-			// lfo
-			info->lfo_rate = HUMANIZER_LFO_RATE * div_playmode_rate * M_PI2;
-			info->lfo_count = 0; // min point
-			for(i = 0; i < HUMANIZER_PHASE; i++){
-				info->lfo_phase[i] = (FLOAT_T)i * div_phase * M_PI2;
-				init_sample_filter(&info->fc[i], HUMANIZER_CUTOFF, HUMANIZER_RESO, i & 0x1 ? FILTER_BCF12_3 : FILTER_BPF12_3);
-			}
-			info->flt_level = pow((FLOAT_T)div_phase, 0.666666666);
-		}
-		if(info->od_sw)
-			init_drive(&info->drv, 4, 0.2, 0.7, info->drive * otd.efx_CustomHmnLvIn);
-		else
-			init_drive(&info->drv, 0, 0.0, 0.7, 1.0);
-		info->leveld = info->flt_level * HUMANIZER_LEVEL * otd.efx_CustomHmnLvOut;
-		if(info->p_accel != info->accel){
-			info->p_accel = info->accel;
-			reset_envelope3(&info->env, 1.0, info->accel * playmode_rate_ms);
-		}
-		if(info->p_vowel != info->vowel){
-			info->p_vowel = info->vowel;
-			for(i = 0; i < 11; i++)
-				info->vc[i] = info->dc[i];
-			init_envelope3(&info->env, 0.0, info->accel * playmode_rate_ms);
-			reset_envelope3(&info->env, 1.0, ENVELOPE_KEEP);
-			info->p_ac = -1;
-		}			
-		return;
-	} else if(count == MAGIC_FREE_EFFECT_INFO) {
-		info->init = 0;
-		return;
-	} else if(count == 0) {
-		return;
-	}	
-	// vowel interpolation
-	compute_envelope3(&info->env, cnt);
-	if(info->p_ac != info->env.vol){
-		FLOAT_T dclevel = 0.0;
-		int vn = info->vowel;
-		double ac1 = info->p_ac = info->env.vol;
-		double ac2 = 1.0 - ac1;
-		for(i = 0; i < 11; i++){
-			dc[i] = vowel_coeff[vn][i];
-		//	dc[i] = vowel_coeff[vn][i] * ac1 + vc[i] * ac2;
-			dclevel += dc[i];
-		}
-		info->fmt_level = (dclevel > 1.0) ? (1.0 / dclevel) : 1.0;
-	}
-	// lfo	
-	for(i = 0; i < HUMANIZER_PHASE; i++){
-		set_sample_filter_freq(&info->fc[i], HUMANIZER_CUTOFF * pow(HUMANIZER_LFO_DEPTH, sin(info->lfo_count + info->lfo_phase[i])));
-		recalc_filter(&info->fc[i]);
-	}
-	if ((info->lfo_count += (info->lfo_rate * cnt)) >= M_PI2) {info->lfo_count -= M_PI2;}
-	// CH_MONO
-
-	for (i = 0; i < count; i++)
-	{
-		DATA_T tmp = 0, sum = 0;
-		tmp = buf[i];
-		do_drive_mono(&info->drv, &tmp);
-		db[0] = tmp;
-	
-#if (USE_X86_EXT_INTRIN >= 3) && defined(FLOAT_T_DOUBLE) && defined(DATA_T_DOUBLE)
-		{
-		__m128d vdc0 = _mm_loadu_pd(&dc[0]), vdc2 = _mm_loadu_pd(&dc[2]), vdc4 = _mm_loadu_pd(&dc[4]),
-			vdc6 = _mm_loadu_pd(&dc[6]), vdc8 = _mm_loadu_pd(&dc[8]), vdc10 = _mm_loadu_pd(&dc[10]);
-		__m128d vdb0 = _mm_loadu_pd(&db[0]), vdb2 = _mm_loadu_pd(&db[2]), vdb4 = _mm_loadu_pd(&db[4]),
-			vdb6 = _mm_loadu_pd(&db[6]), vdb8 = _mm_loadu_pd(&db[8]), vdb10 = _mm_loadu_pd(&db[10]);		
-		__m128d vec_tmp = MM_FMA6_PD(vdb0, vdc0, vdb2, vdc2, vdb4, vdc4, vdb6, vdc6, vdb8, vdc8, vdb10, vdc10);
-		__m128d vfmtlv = _mm_load_sd(&info->fmt_level);
-		vec_tmp = _mm_add_pd(vec_tmp, _mm_shuffle_pd(vec_tmp, vec_tmp, 0x1));
-		vec_tmp = _mm_mul_sd(vec_tmp, vfmtlv);
-		_mm_store_sd(&tmp, vec_tmp);
-		vdb0 = _mm_move_sd(vdb0, vec_tmp);
-		_mm_storeu_pd(&db[9], vdb8);
-		_mm_storeu_pd(&db[7], vdb6);
-		_mm_storeu_pd(&db[5], vdb4);
-		_mm_storeu_pd(&db[3], vdb2);
-		_mm_storeu_pd(&db[1], vdb0);
-		}
-		
-#elif (USE_X86_EXT_INTRIN >= 2) && defined(FLOAT_T_FLOAT) && defined(DATA_T_FLOAT)
-		{
-		__m128 vdc0 = _mm_loadu_ps(&dc[0]), vdc4 = _mm_loadu_ps(&dc[4]), vdc8 = _mm_loadu_ps(&dc[8]);
-		__m128 vdb0 = _mm_loadu_ps(&db[0]), vdb4 = _mm_loadu_ps(&db[4]), vdb8 = _mm_loadu_ps(&db[8]);		
-		__m128 vec_tmp = MM_FMA3_PS(vdb0, vdc0, vdb4, vdc4, vdb8, vdc8);
-		__m128 vfmtlv = _mm_set1_ps(info->fmt_level);
-		vec_tmp = _mm_add_ps(vec_tmp, _mm_movehl_ps(vec_tmp, vec_tmp)); // v0=v0+v1 v1=v2+v3
-		vec_tmp = _mm_add_ps(vec_tmp, _mm_shuffle_ps(vec_tmp, vec_tmp, 0xe1)); // v0=v0+v1	
-		vec_tmp = _mm_mul_ss(vec_tmp, vfmtlv);
-		vdb0 = _mm_move_ss(vdb0, vec_tmp);
-		_mm_store_ss(&tmp,  vec_tmp);
-		_mm_storeu_ps(&db[9], vdb8);
-		_mm_storeu_ps(&db[5], vdb4);
-		_mm_storeu_ps(&db[1], vdb0);		
-		}
-
+		tmp = imuldiv24(tmp, info->inleveli);
 #else
-		tmp = db[0] * dc[0] + db[1] * dc[1] + db[2] * dc[2] + db[3] * dc[3]
-			+ db[4] * dc[4] + db[5] * dc[5] + db[6] * dc[6] + db[7] * dc[7]
-			+ db[8] * dc[8] + db[9] * dc[9] + db[10] * dc[10];	
-		tmp *= info->fmt_level;
-		db[10] = db[9];
-		db[9] = db[8];
-		db[8] = db[7];
-		db[7] = db[6];
-		db[6] = db[5];
-		db[5] = db[4];
-		db[4] = db[3];
-		db[3] = db[2];
-		db[2] = db[1];                     
-		db[1] = tmp;	
+		tmp *= info->inleveld;
 #endif
+		do_drive_mono(&info->drv, &tmp);
 		for(k = 0; k < HUMANIZER_PHASE; k++){
 			DATA_T flt = tmp;
 			sample_filter(&info->fc[k], &flt);
 			sum += flt;
 		}
+		sample_filter(&info->fc2, &sum);
+#if (OPT_MODE == 1) && !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT) /* fixed-point implementation */
+		sum = imuldiv24(sum, info->leveli);
+#else
 		sum *= info->leveld;
+#endif
 		buf[i] = sum;
 		i++;
 		buf[i] = sum;
 	}
 }
-#endif /* OPT_MODE != 0 */
 
 
 ///r
-#define OD_GAIN 1.75
-#define OD_AMP_GAIN 1.3
-#define OD_CLIP_LEVEL 0.75
-#define OD_LEVEL 1.000
+#define OD_GAIN 1.25
+#define OD_AMP_GAIN 1.125
+#define OD_CLIP_LEVEL 0.5
+#define OD_LEVEL 2.0
 #define OD_LEVEL_AMPN (0.50f)
 #define OD_LEVEL_AMP0 (1.00f)
 #define OD_LEVEL_AMP1 (1.00f)
 #define OD_LEVEL_AMP2 (1.00f)
 #define OD_LEVEL_AMP3 (1.00f)
-#define OD_FF1_OD 125.0f
-#define OD_FF1_DS 250.0f
-#define OD_FF2 5000.0f
+#define OD_FF1 125.0f
+#define OD_FF2 2500.0f // DS
 #define OD_FF3 4500.0f
 #define OD_FF4_COEF (1.025)
 #define OD_FF4_AMPN (5999.0f * OD_FF4_COEF)
@@ -12840,15 +12021,15 @@ static void do_od_ds_multi(int32 *buf, int32 count, InfoOverdrive *info)
 		/* overdrive distortion */
 		if(info->type == 0) { // overdrive
 			init_drive(&info->drv1, 4, 0.8, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			init_drive(&info->drv2, 4, 0.6, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			bw1_freq = OD_FF1_OD;
+			init_drive(&info->drv2, 0, 0.0, OD_CLIP_LEVEL, 1.0);
+			bw1_freq = OD_FF1;
 			flt2_type = FILTER_NONE;
 			flt3_type = FILTER_LPF6;
 		}else{ // distortion
-			init_drive(&info->drv1, 9, 0.5, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			init_drive(&info->drv2, 9, 0.2, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			bw1_freq = OD_FF1_DS;
-			flt2_type = FILTER_LPF_BW;
+			init_drive(&info->drv1, 4, 0.9, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
+			init_drive(&info->drv2, 4, 0.7, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
+			bw1_freq = OD_FF1;
+			flt2_type = FILTER_LPF24_2;
 			flt3_type = FILTER_LPF6;
 		}
 		/* waveshaper amp simulator */
@@ -13061,15 +12242,15 @@ static void do_od_ds_multi(DATA_T *buf, int32 count, InfoOverdrive *info)
 		/* overdrive distortion */
 		if(info->type == 0) { // overdrive
 			init_drive(&info->drv1, 4, 0.8, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			init_drive(&info->drv2, 4, 0.6, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			bw1_freq = OD_FF1_OD;
+			init_drive(&info->drv2, 0, 0.0, OD_CLIP_LEVEL, 1.0);
+			bw1_freq = OD_FF1;
 			flt2_type = FILTER_NONE;
 			flt3_type = FILTER_LPF6;
 		}else{ // distortion
-			init_drive(&info->drv1, 9, 0.5, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			init_drive(&info->drv2, 9, 0.2, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
-			bw1_freq = OD_FF1_DS;
-			flt2_type = FILTER_LPF_BW;
+			init_drive(&info->drv1, 4, 0.9, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
+			init_drive(&info->drv2, 4, 0.7, OD_CLIP_LEVEL, calc_gs_drive_gain(info->drive));
+			bw1_freq = OD_FF1;
+			flt2_type = FILTER_LPF24_2;
 			flt3_type = FILTER_LPF6;
 		}
 		/* waveshaper amp simulator */
@@ -13131,6 +12312,7 @@ static void do_od_ds_multi(DATA_T *buf, int32 count, InfoOverdrive *info)
 		init_sample_filter2(bq, OD_FF5 * otd.gsefx_CustomODFreq, 0, OD_FQ5, FILTER_BIQUAD_LOW);
 		return;
 	}
+
 	switch(info->mode){
 	case CH_STEREO:
 		for(i = 0; i < count; i++) {
@@ -13234,10 +12416,10 @@ static void do_od_ds_parallel(DATA_T *buf, int32 count, InfoOverdrive *info1, In
 
 	if(count == MAGIC_INIT_EFFECT_INFO) {
 		do_od_ds_multi(buf, count, info1);
-		do_od_ds_multi(buf, count, info2);
+		do_od_ds_multi(buf, count, info2);		
 		return;
 	}else if(count <= 0)
-		return;
+		return;	
 	for(i = 0; i < count; i++) {
 		input[0] = buf[i]; input[1] = buf[i + 1];
 		/* waveshaping amp simulation anti-aliasing */
@@ -13544,11 +12726,11 @@ static void do_phaser_multi(DATA_T *buf, int32 count, InfoPhaser *info)
 #define AW_LEVEL (1.0)
 #define AW_LPF_LEVEL (2.5 * AW_LEVEL)
 #define AW_BPF_LEVEL (5.0 * AW_LEVEL)
-#define AW_PEAK_TIME (5.0) // ms
-#define AW_SENS_ATTACK_TIME (10.0) // min ms 
-#define AW_SENS_RELEASE_TIME (10.0) // min ms 
-#define AW_MAN_ENV_TIME (10.0) // ms
-#define AW_FLT_ENV_TIME (5.0) // ms
+#define AW_PEAK_TIME (20.0) // ms
+#define AW_SENS_ATTACK_TIME (20.0) // min ms 
+#define AW_SENS_RELEASE_TIME (200.0) // min ms 
+#define AW_MAN_ENV_TIME (100.0) // ms
+#define AW_FLT_ENV_TIME (10.0) // ms
 #define AW_BPF_WIDTH (0.85)
 #define AW_DEPTH_MAX (10.66666666666666666666666666666) // 128 * DIV_12 // from XG AutoWah
 
@@ -13581,6 +12763,7 @@ static void do_auto_wah_multi(DATA_T *buf, int32 count, InfoAutoWah *info)
 {
 	int32 i, cnt = count / 2;
 	DATA_T tmp, tmpm;
+	FLOAT_T cutoff;
 
 	if(count == MAGIC_INIT_EFFECT_INFO) {
 		//info->type = 1; // 0:lpf 1:bpf
@@ -13607,7 +12790,7 @@ static void do_auto_wah_multi(DATA_T *buf, int32 count, InfoAutoWah *info)
 				set_sample_filter_type(&info->fc, FILTER_LPF_BW);
 			}
 			info->ptype = info->type;
-			init_envelope3(&info->man_env, info->manual, AW_SENS_ATTACK_TIME * playmode_rate_ms);
+			init_envelope3(&info->man_env, info->manual, AW_MAN_ENV_TIME * playmode_rate_ms);
 			set_sample_filter_freq(&info->fc, info->manual);
 			set_sample_filter_reso(&info->fc, info->peak);
 		}
@@ -13646,13 +12829,14 @@ static void do_auto_wah_multi(DATA_T *buf, int32 count, InfoAutoWah *info)
 	} else if(count == MAGIC_FREE_EFFECT_INFO) {
 		info->init = 0;
 		return;
-	} else if(count == 0) {
+	} else if(count <= 0) {
 		return;
 	}
+
 	compute_envelope3(&info->man_env, cnt);
-	if(info->sens_sw && info->lfo_sw){
-		FLOAT_T cutoff, sens_out, lfo_out;
-		// peak level
+	cutoff = info->man_env.vol;
+	if(info->sens_sw){ // sens
+		FLOAT_T sens_out;
 		if((info->peak_rate += info->peak_count * cnt) >= 1.0){
 			FLOAT_T sens_level = info->peak_level * info->sens_coef;
 			info->peak_rate -= floor(info->peak_rate); // reset count
@@ -13669,55 +12853,24 @@ static void do_auto_wah_multi(DATA_T *buf, int32 count, InfoAutoWah *info)
 			}
 			info->peak_level = 0;
 		}
-		// lfo
-		if((info->lfo_rate += info->lfo_freq * cnt) >= 1.0)
-			info->lfo_rate -= floor(info->lfo_rate); // reset count
-		lfo_out = (info->lfo_rate < 0.5) ? (info->lfo_rate * 2.0) : (info->lfo_rate * -2.0 + 2.0); // triangular // lfo_out 0.0~<1.0	
-		// cutoff
-		cutoff = info->man_env.vol * POW2(info->sens_env.vol * info->sens_mult) * POW2(lfo_out * info->depth_mult);
-		cutoff = clip_FLOAT_T(cutoff, manual_table[0], manual_table[127]);
-		reset_envelope3(&info->flt_env, cutoff, ENVELOPE_KEEP);
-	}else if(info->sens_sw){	
-		FLOAT_T cutoff, sens_out;
-		// peak level
-		if((info->peak_rate += info->peak_count * cnt) >= 1.0){
-			FLOAT_T sens_level = info->peak_level * info->sens_coef;
-			info->peak_rate -= floor(info->peak_rate); // reset count
-			if(sens_level > 1.0)
-				sens_level = 1.0;
-			if(sens_level > info->sens_level){ 
-				info->env_mode = 0; // attck
-				info->sens_level = sens_level;
-				reset_envelope3(&info->sens_env, sens_level, info->attack_cnt * (sens_level - info->sens_level));
-			}else if(sens_level < info->sens_level && (info->env_mode || !check_envelope3(&info->sens_env))){ // after attack time
-				info->env_mode = 1; // release
-				info->sens_level = sens_level;
-				reset_envelope3(&info->sens_env, sens_level, info->release_cnt * (info->sens_level - sens_level));
-			}
-			info->peak_level = 0;
-		}
 		compute_envelope3(&info->sens_env, cnt);
-		// cutoff
-		cutoff = info->man_env.vol * POW2(info->sens_env.vol * info->sens_mult);
-		cutoff = clip_FLOAT_T(cutoff, manual_table[0], manual_table[127]);
-		reset_envelope3(&info->flt_env, cutoff, ENVELOPE_KEEP);
-	}else if(info->lfo_sw){	
-		FLOAT_T cutoff, lfo_out;	
-		// lfo	
+		cutoff *= POW2(info->sens_env.vol * info->sens_mult);	
+	}
+	if(info->lfo_sw){	// lfo
+		FLOAT_T lfo_out;
 		if((info->lfo_rate += info->lfo_freq * cnt) >= 1.0)
 			info->lfo_rate -= floor(info->lfo_rate); // reset count
 		lfo_out = (info->lfo_rate < 0.5) ? (info->lfo_rate * 2.0) : (info->lfo_rate * -2.0 + 2.0); // triangular // lfo_out 0.0~<1.0	
-		// cutoff
-		cutoff = info->man_env.vol * POW2(lfo_out * info->depth_mult);
-		cutoff = clip_FLOAT_T(cutoff, manual_table[0], manual_table[127]);
-		reset_envelope3(&info->flt_env, cutoff, ENVELOPE_KEEP);
-	}else
-		reset_envelope3(&info->flt_env, info->man_env.vol, ENVELOPE_KEEP);
+		cutoff *= POW2(lfo_out * info->depth_mult);
+	}
+	// cutoff
+	cutoff = clip_FLOAT_T(cutoff, manual_table[0], manual_table[127]);
+	reset_envelope3(&info->flt_env, cutoff, ENVELOPE_KEEP);
 	compute_envelope3(&info->flt_env, cnt);
 	// filter
 	set_sample_filter_freq(&info->fc, info->flt_env.vol);
 	recalc_filter(&info->fc);
-
+	
 	switch(info->mode){
 	case CH_STEREO:
 		for (i = 0; i < count; i++)
@@ -15920,8 +15073,8 @@ static void do_echo(DATA_T *buf, int32 count, InfoEcho *info)
 
 
 ///r
-#define XG_OD_DRIVE 1.75
-#define XG_OD_CLIP_LEVEL 0.75
+#define XG_OD_DRIVE 1.25
+#define XG_OD_CLIP_LEVEL 0.5
 #define XG_OD_PDL0_GAIN 1.00 // overdrive
 #define XG_OD_PDL1_GAIN 1.00 // distortion
 #define XG_OD_PDL2_GAIN 1.00 // overdrive2
@@ -15947,9 +15100,9 @@ static void do_echo(DATA_T *buf, int32 count, InfoEcho *info)
 #define XG_OD_AMP4_LEVEL 1.00
 #define XG_OD_AMP5_LEVEL 1.00
 #define XG_OD_AMP6_LEVEL 1.00
-#define XG_OD_LEVEL 1.0
-#define XG_OD_FF1 150.0f
-#define XG_OD_FF2 5500.0f
+#define XG_OD_LEVEL 2.0
+#define XG_OD_FF1 125.0f
+#define XG_OD_FF2 2500.0f
 #define XG_OD_FF3 4800.0f
 #define XG_OD_FF4_COEF (1.025)
 #define XG_OD_FF4_TYPE0 (5999.0f * XG_OD_FF4_COEF) // off
@@ -15985,8 +15138,8 @@ static void do_stereo_od(int32 *buf, int32 count, InfoStereoOD *info)
 		switch (info->od_type) {
 		default:
 		case 0: // overdrive
-			init_drive(&info->drv1, 4, 0.8, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL0_GAIN);
-			init_drive(&info->drv2, 4, 0.6, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL0_GAIN);
+			init_drive(&info->drv1, 4, 0.7, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL0_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 1: // distortion
@@ -15995,8 +15148,8 @@ static void do_stereo_od(int32 *buf, int32 count, InfoStereoOD *info)
 			bw2_type = FILTER_LPF_BW;
 			break;
 		case 2: // overdrive2
-			init_drive(&info->drv1, 4, 0.7, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL2_GAIN);
-			init_drive(&info->drv2, 4, 0.7, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL2_GAIN);
+			init_drive(&info->drv1, 4, 0.8, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL2_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 3: // distortion2
@@ -16006,7 +15159,7 @@ static void do_stereo_od(int32 *buf, int32 count, InfoStereoOD *info)
 			break;
 		case 4: // solid od
 			init_drive(&info->drv1, 4, 0.5, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL4_GAIN);
-			init_drive(&info->drv2, 4, 0.5, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL4_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 5: // solid ds
@@ -16016,7 +15169,7 @@ static void do_stereo_od(int32 *buf, int32 count, InfoStereoOD *info)
 			break;
 		case 6: // tube od
 			init_drive(&info->drv1, 4, 1.0, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL6_GAIN);
-			init_drive(&info->drv2, 4, 0.6, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL6_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 7: // tube ds
@@ -16026,7 +15179,7 @@ static void do_stereo_od(int32 *buf, int32 count, InfoStereoOD *info)
 			break;
 		case 8: // vintage
 			init_drive(&info->drv1, 4, 0.3, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL8_GAIN);
-			init_drive(&info->drv2, 4, 0.3, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL8_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 9: // fuzz
@@ -16202,7 +15355,7 @@ static void do_stereo_od(DATA_T *buf, int32 count, InfoStereoOD *info)
 		default:
 		case 0: // overdrive
 			init_drive(&info->drv1, 4, 0.8, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL0_GAIN);
-			init_drive(&info->drv2, 4, 0.6, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL0_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 1: // distortion
@@ -16212,7 +15365,7 @@ static void do_stereo_od(DATA_T *buf, int32 count, InfoStereoOD *info)
 			break;
 		case 2: // overdrive2
 			init_drive(&info->drv1, 4, 0.7, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL2_GAIN);
-			init_drive(&info->drv2, 4, 0.7, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL2_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 3: // distortion2
@@ -16222,7 +15375,7 @@ static void do_stereo_od(DATA_T *buf, int32 count, InfoStereoOD *info)
 			break;
 		case 4: // solid od
 			init_drive(&info->drv1, 4, 0.5, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL4_GAIN);
-			init_drive(&info->drv2, 4, 0.5, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL4_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 5: // solid ds
@@ -16232,7 +15385,7 @@ static void do_stereo_od(DATA_T *buf, int32 count, InfoStereoOD *info)
 			break;
 		case 6: // tube od
 			init_drive(&info->drv1, 4, 1.0, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL6_GAIN);
-			init_drive(&info->drv2, 4, 0.6, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL6_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 7: // tube ds
@@ -16242,7 +15395,7 @@ static void do_stereo_od(DATA_T *buf, int32 count, InfoStereoOD *info)
 			break;
 		case 8: // vintage
 			init_drive(&info->drv1, 4, 0.3, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL8_GAIN);
-			init_drive(&info->drv2, 4, 0.3, XG_OD_CLIP_LEVEL, calc_xg_drive_gain(info->drive) * XG_OD_PDL8_GAIN);
+			init_drive(&info->drv2, 0, 0.0, XG_OD_CLIP_LEVEL, 1.0);
 			bw2_type = FILTER_NONE;
 			break;
 		case 9: // fuzz
@@ -16494,15 +15647,15 @@ static void do_lofi(DATA_T *buf, int32 count, InfoLoFi *info)
 	if(count == MAGIC_INIT_EFFECT_INFO) {
 		// sample rate
 		if(info->sr_rate < play_mode->rate)
-			init_sample_filter2(sr_fil, info->sr_rate * DIV_2, 0.0, 0.0, FILTER_LPF24_2x2);
+			init_sample_filter(sr_fil, info->sr_rate * DIV_2, 0.0, FILTER_LPF24_2x2);
 		else
-			init_sample_filter2(sr_fil, 0, 0, 0, FILTER_NONE);	
+			init_sample_filter(sr_fil, 0, 0, FILTER_NONE);	
 		// pre filter
-		init_sample_filter2(pre_fil, info->pre_fil_freq, info->pre_fil_reso, 0.0, info->pre_fil_type);
+		init_sample_filter(pre_fil, info->pre_fil_freq, info->pre_fil_reso, info->pre_fil_type);
 		// post filter
-		init_sample_filter2(post_fil, info->post_fil_freq, info->post_fil_reso, 0.0, info->post_fil_type);
-		info->level_up = pow(2.0, INS_LOFI_BIT - info->bit_length);
-		info->level_down = 1.0 / info->level_up;
+		init_sample_filter(post_fil, info->post_fil_freq, info->post_fil_reso, info->post_fil_type);
+		info->level_down = pow(2.0, -INS_LOFI_BIT + info->bit_length);
+		info->level_up = 1.0 / info->level_down;
 		if(info->nz_gen){
 			if(info->wp_sel){
 				init_pink_noise(pnzl);
@@ -21166,35 +20319,6 @@ static void free_effect_sd(struct mfx_effect_sd_t *st)
 	st->ef = NULL;	
 }
 
-void free_effect_buffers(void)
-{
-	int i;
-	/* free GM/GS/GM2 effects */
-	do_ch_standard_reverb(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
-	do_ch_freeverb(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
-	do_ch_reverb_ex(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
-	do_ch_reverb_ex2(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
-	do_ch_plate_reverb(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
-	do_ch_reverb_normal_delay(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
-	do_ch_chorus_free(NULL, MAGIC_FREE_EFFECT_INFO, &(chorus_status_gs.info_stereo_chorus));
-	do_ch_3tap_delay(NULL, MAGIC_FREE_EFFECT_INFO, &(delay_status_gs.info_delay));
-	free_effect_gs(&insertion_effect_gs);
-	/* free XG effects */
-	free_effect_xg(&reverb_status_xg);
-	free_effect_xg(&chorus_status_xg);
-	for (i = 0; i < XG_VARIATION_EFFECT_NUM; i++) {
-		free_effect_xg(&variation_effect_xg[i]);
-	}
-	for (i = 0; i < XG_INSERTION_EFFECT_NUM; i++) {
-		free_effect_xg(&insertion_effect_xg[i]);
-	}
-	free_effect_sd(&reverb_status_sd);
-	free_effect_sd(&chorus_status_sd);
-	for (i = 0; i < SD_MFX_EFFECT_NUM; i++) {
-		free_effect_sd(&mfx_effect_sd[i]);
-	}		
-}
-
 
 
 /********************************** GS EFFECT conv **********************************/
@@ -21362,8 +20486,8 @@ static void do_gs_overdrive(DATA_T *buf, int32 count, EffectList *ef)
 {
 	Info_GS_Overdrive *info = (Info_GS_Overdrive *)ef->info;
 	InfoOverdrive *od = &info->od;
-	
-	effect_mix_mono(buf, count);
+
+	effect_mix_mono(buf, count);	
 	do_od_ds_multi(buf, count, od);
 	effect_panning_mono_stereo(buf, count, info->panl, info->panr);
 	effect_level_stereo(buf, count, info->level);
@@ -22420,10 +21544,103 @@ static void conv_gs_lofi1(struct insertion_effect_gs_t *st, EffectList *ef)
 	lf->level_in = otd.gsefx_CustomLFLvIn;
 	lf->level_out = otd.gsefx_CustomLFLvOut;
 	lf->sr_rate = 32000;
-	lf->pre_fil_type = st->parameter[0] ? FILTER_LPF_BW : FILTER_NONE; // off,lpf
-	lf->pre_fil_freq = 16000.0 / (FLOAT_T)(clip_int(st->parameter[0], 0, 5) + 1);
-	lf->pre_fil_reso = 0.0;
-	lf->bit_length = 12 - clip_int(st->parameter[1], 0, 8);	
+	switch(st->parameter[0]){
+	case 0:
+	default:
+		lf->pre_fil_type = FILTER_NONE;
+		lf->pre_fil_freq = 16000.0;
+		lf->pre_fil_reso = 0.0;
+		break;
+	case 1:
+		lf->pre_fil_type = FILTER_LPF12_2;
+		lf->pre_fil_freq = 3500.0;
+		lf->pre_fil_reso = 3.0;
+		break;
+	case 2:
+		lf->pre_fil_type = FILTER_LPF12_2;
+		lf->pre_fil_freq = 2500.0;
+		lf->pre_fil_reso = 0.0;
+		break;
+	case 3:
+		lf->pre_fil_type = FILTER_LPF12_2;
+		lf->pre_fil_freq = 3500.0;
+		lf->pre_fil_reso = 6.0;
+		break;
+	case 4:
+		lf->pre_fil_type = FILTER_LPF12_2;
+		lf->pre_fil_freq = 2500.0;
+		lf->pre_fil_reso = 6.0;
+		break;
+	case 5:
+		lf->pre_fil_type = FILTER_LPF12_2;
+		lf->pre_fil_freq = 3500.0;
+		lf->pre_fil_reso = 12.0;
+		break;
+
+	}
+	switch(st->parameter[1]){
+	case 0:
+	default:
+		lf->bit_length = 10;
+		break;
+	case 1:
+		lf->bit_length = 8;
+		break;
+	case 2:
+		lf->bit_length = 4;
+		break;
+	case 3:
+		lf->bit_length = 9;
+		break;
+	case 4:
+		lf->bit_length = 7;
+		break;
+	case 5:
+		lf->bit_length = 11;
+		break;
+	case 6:
+		lf->bit_length = 9;
+		break;
+	case 7:
+		lf->bit_length = 6;
+		break;
+	case 8:
+		lf->bit_length = 4;
+		break;
+	}	
+	switch(st->parameter[2]){
+	case 0:
+	default:
+		lf->post_fil_type = FILTER_NONE;
+		lf->post_fil_freq = 10.0;
+		lf->post_fil_reso = 0.0;
+		break;
+	case 1:
+		lf->post_fil_type = FILTER_HPF12_2;
+		lf->post_fil_freq = 100.0;
+		lf->post_fil_reso = 0.0;
+		break;
+	case 2:
+		lf->post_fil_type = FILTER_HPF12_2;
+		lf->post_fil_freq = 400.0;
+		lf->post_fil_reso = 0.0;
+		break;
+	case 3:
+		lf->post_fil_type = FILTER_HPF12_2;
+		lf->post_fil_freq = 400.0;
+		lf->post_fil_reso = 6.0;
+		break;
+	case 4:
+		lf->post_fil_type = FILTER_HPF12_2;
+		lf->post_fil_freq = 1200.0;
+		lf->post_fil_reso = 0.0;
+		break;
+	case 5:
+		lf->post_fil_type = FILTER_HPF12_2;
+		lf->post_fil_freq = 1200.0;
+		lf->post_fil_reso = 6.0;
+		break;
+	}
 	lf->post_fil_type = st->parameter[2] ? FILTER_LPF_BW : FILTER_NONE; // off,lpf
 	lf->post_fil_freq = 16000.0 / (FLOAT_T)(clip_int(st->parameter[2], 0, 5) + 1);
 	lf->post_fil_reso = 0.0;		
@@ -25886,9 +25103,9 @@ static void conv_xg_comp_distortion(struct effect_xg_t *st, EffectList *ef)
 	cmp1->sustain = cmp2->sustain = compressor_release_time_table_xg[clip_int(st->param_lsb[12], 0, 15)]; // 10ms-500ms
 	cmp1->pre_gain = cmp2->pre_gain = (double)(127 - clip_int(st->param_lsb[13], 79, 121)); // dB
 	cmp1->post_gain = cmp2->post_gain = 0.0; // dB
-	cmp1->threshold = cmp2->threshold = 1.0; // threshold(~1.0)
+	cmp1->threshold = cmp2->threshold = 0.944; // threshold(~1.0)
 	cmp1->slope = cmp2->slope = 1.0 / compressor_ratio_table_xg[clip_int(st->param_lsb[14], 0, 7)]; // ratio?
-	cmp1->div_level_0db = cmp2->div_level_0db = div_ins_level * DIV_2;
+	cmp1->div_level_0db = cmp2->div_level_0db = div_ins_level * DIV_8;
 }
 
 static void do_xg_comp_distortion(DATA_T *buf, int32 count, EffectList *ef)
@@ -26638,9 +25855,9 @@ static void conv_xg_compressor(struct effect_xg_t *st, EffectList *ef)
 	cmp->sustain = compressor_release_time_table_xg[clip_int(st->param_lsb[1], 0, 15)]; // 10ms-500ms
 	cmp->pre_gain = (double)(127 - clip_int(st->param_lsb[2], 79, 121)); // dB
 	cmp->post_gain = 0.0; // dB
-	cmp->threshold = 1.0; // threshold(~1.0)
+	cmp->threshold = 0.944; // threshold(~1.0)
 	cmp->slope = 1.0 / compressor_ratio_table_xg[clip_int(st->param_lsb[3], 0, 7)]; // ratio?
-	cmp->div_level_0db = div_ins_level * DIV_2;
+	cmp->div_level_0db = div_ins_level * DIV_8;
 	info->level = calc_xg_level(st->param_lsb[4], st);
 }
 
@@ -27139,9 +26356,9 @@ static void conv_xg_comp_ds_delay(struct effect_xg_t *st, EffectList *ef)
 	cmp->sustain = compressor_release_time_table_xg[clip_int(st->param_lsb[11], 0, 15)]; // 10ms-500ms
 	cmp->pre_gain = (double)(127 - clip_int(st->param_lsb[12], 79, 121)); // dB
 	cmp->post_gain = 0.0; // dB
-	cmp->threshold = 1.0; // threshold(~1.0)
+	cmp->threshold = 0.944; // threshold(~1.0)
 	cmp->slope = 1.0 / compressor_ratio_table_xg[clip_int(st->param_lsb[13], 0, 7)]; // ratio?
-	cmp->div_level_0db = div_ins_level * DIV_2;
+	cmp->div_level_0db = div_ins_level * DIV_8;
 }
 
 static void do_xg_comp_ds_delay(DATA_T *buf, int32 count, EffectList *ef)
@@ -27205,9 +26422,9 @@ static void conv_xg_comp_od_delay(struct effect_xg_t *st, EffectList *ef)
 	cmp->sustain = compressor_release_time_table_xg[clip_int(st->param_lsb[11], 0, 15)]; // 10ms-500ms
 	cmp->pre_gain = (double)(127 - clip_int(st->param_lsb[12], 79, 121)); // dB
 	cmp->post_gain = 0.0; // dB
-	cmp->threshold = 1.0; // threshold(~1.0)
+	cmp->threshold = 0.944; // threshold(~1.0)
 	cmp->slope = 1.0 / compressor_ratio_table_xg[clip_int(st->param_lsb[13], 0, 7)]; // ratio?
-	cmp->div_level_0db = div_ins_level * DIV_2;
+	cmp->div_level_0db = div_ins_level * DIV_8;
 }
 
 static void do_xg_comp_od_delay(DATA_T *buf, int32 count, EffectList *ef)
@@ -27707,9 +26924,9 @@ static void conv_xg_comp_ds_tempo_delay(struct effect_xg_t *st, EffectList *ef)
 	cmp->sustain = compressor_release_time_table_xg[clip_int(st->param_lsb[11], 0, 15)]; // 10ms-500ms
 	cmp->pre_gain = (double)(127 - clip_int(st->param_lsb[12], 79, 121)); // dB
 	cmp->post_gain = 0.0;
-	cmp->threshold = 1.0; // threshold(~1.0)
+	cmp->threshold = 0.944; // threshold(~1.0)
 	cmp->slope = 1.0 / compressor_ratio_table_xg[clip_int(st->param_lsb[13], 0, 7)]; // ratio?
-	cmp->div_level_0db = div_ins_level * DIV_2;
+	cmp->div_level_0db = div_ins_level * DIV_8;
 }
 
 static void do_xg_comp_ds_tempo_delay(DATA_T *buf, int32 count, EffectList *ef)
@@ -27773,9 +26990,9 @@ static void conv_xg_comp_od_tempo_delay(struct effect_xg_t *st, EffectList *ef)
 	cmp->sustain = compressor_release_time_table_xg[clip_int(st->param_lsb[11], 0, 15)]; // 10ms-500ms
 	cmp->pre_gain = (double)(127 - clip_int(st->param_lsb[12], 79, 121)); // dB
 	cmp->post_gain = 0.0; // dB
-	cmp->threshold = 1.0 ; // threshold(~1.0)
+	cmp->threshold = 0.944; // threshold(~1.0)
 	cmp->slope = 1.0 / compressor_ratio_table_xg[clip_int(st->param_lsb[13], 0, 7)]; // ratio?
-	cmp->div_level_0db = div_ins_level * DIV_2;
+	cmp->div_level_0db = div_ins_level * DIV_8;
 }
 
 static void do_xg_comp_od_tempo_delay(DATA_T *buf, int32 count, EffectList *ef)
@@ -35648,9 +34865,92 @@ void test_fft(DATA_T *buf, int32 count)
 #endif
 
 
-
 #ifdef TEST_FIR_EQ
 FIR_EQ test_fir_eq;
+#endif
+
+
+
+#ifdef _DEBUG
+//#define TEST_FX
+#endif
+
+#ifdef TEST_FX
+
+#define TEST_FX_PHASE 8
+#define TEST_FX_RATE1 0.5
+#define TEST_FX_CUTOFF 1000
+#define TEST_FX_RESO 48
+
+typedef struct {
+	double lfo_count, lfo_rate, lfo_phase[TEST_FX_PHASE];
+	FilterCoefficients fc[TEST_FX_PHASE];
+	Envelope3 env[TEST_FX_PHASE]; 
+} InfoTestFx;
+
+InfoTestFx info_fx;
+
+FLOAT_T test_fx_cf[5][TEST_FX_PHASE] = {
+0.75, 0.87, 0.94, 0.97, 1.04, 1.12, 1.35, 1.54, // a
+0.99, 1.42, 1.54, 1.67, 1.72, 1.76, 1.79, 1.84, // i
+0.61, 0.63, 0.67, 0.74, 0.76, 0.80, 0.83, 0.85, // u
+0.43, 0.44, 0.48, 0.49, 0.81, 0.93, 0.98, 1.09, // e
+0.43, 0.44, 0.48, 0.49, 0.61, 0.77, 0.88, 0.99, // o
+};
+
+void free_fx(void)
+{
+
+}
+extern int32 test_var[10];
+
+void init_fx(void)
+{
+	InfoTestFx *info = &info_fx;	
+	int k;
+	
+	info->lfo_rate = TEST_FX_RATE1 * div_playmode_rate * M_PI2;
+	info->lfo_count = 0; // min point
+	for(k = 0; k < TEST_FX_PHASE; k++){
+		init_sample_filter(&info->fc[k], TEST_FX_CUTOFF * test_fx_cf[info->count][k], TEST_FX_RESO, FILTER_BPF12_3);
+		init_envelope3(&info->env[k], TEST_FX_CUTOFF * test_fx_cf[info->count][k], 200 * playmode_rate_ms);
+	}	
+}
+	
+void test_fx(DATA_T *buf, int32 count)
+{
+	InfoTestFx *info = &info_fx;
+	int32 i;
+	int k;
+	int32 cnt = count >> 1;	
+	
+	if ((info->lfo_count += (info->lfo_rate * cnt)) >= 1.0) {
+		info->lfo_count = 0;
+		if ((++info->count) >= 5) info->count = 0;	
+		info->count = rand() % 5; 
+		for(k = 0; k < TEST_FX_PHASE; k++){
+			reset_envelope3(&info->env[k], TEST_FX_CUTOFF * test_fx_cf[info->count][k], ENVELOPE_KEEP);
+		}
+	}	
+	for(k = 0; k < TEST_FX_PHASE; k++){
+		compute_envelope3(&info->env[k], cnt);
+		set_sample_filter_freq(&info->fc[k], info->env[k].vol);
+		recalc_filter(&info->fc[k]);
+	}
+	for (i = 0; i < count; i++)
+	{
+		DATA_T tmp = 0, sum = 0;
+		tmp = buf[i] + buf[i + 1];
+		for(k = 0; k < TEST_FX_PHASE; k++){
+			DATA_T flt = tmp;
+			sample_filter(&info->fc[k], &flt);
+			sum += flt;
+		}
+		buf[i] = sum;
+		i++;
+		buf[i] = sum;
+	}
+}
 #endif
 
 void do_effect(DATA_T *buf, int32 count)
@@ -35669,6 +34969,9 @@ void do_effect(DATA_T *buf, int32 count)
 #ifdef TEST_FIR_EQ
 	apply_fir_eq(&test_fir_eq, buf, nsamples);
 #endif	
+#ifdef TEST_FX
+	test_fx(buf, nsamples);
+#endif
 	mix_compressor(buf, nsamples); // elion add.
 	/* reverb in mono */
 	if (opt_reverb_control && mono)
@@ -35711,6 +35014,41 @@ void do_effect(DATA_T *buf, int32 count)
 }
 
 
+/************************************ free_effect ***************************************/
+
+
+void free_effect_buffers(void)
+{
+	int i;
+	/* free GM/GS/GM2 effects */
+	do_ch_standard_reverb(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
+	do_ch_freeverb(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
+	do_ch_reverb_ex(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
+	do_ch_reverb_ex2(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
+	do_ch_plate_reverb(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
+	do_ch_reverb_normal_delay(NULL, MAGIC_FREE_EFFECT_INFO, &(reverb_status_gs));
+	do_ch_chorus_free(NULL, MAGIC_FREE_EFFECT_INFO, &(chorus_status_gs.info_stereo_chorus));
+	do_ch_3tap_delay(NULL, MAGIC_FREE_EFFECT_INFO, &(delay_status_gs.info_delay));
+	free_effect_gs(&insertion_effect_gs);
+	/* free XG effects */
+	free_effect_xg(&reverb_status_xg);
+	free_effect_xg(&chorus_status_xg);
+	for (i = 0; i < XG_VARIATION_EFFECT_NUM; i++) {
+		free_effect_xg(&variation_effect_xg[i]);
+	}
+	for (i = 0; i < XG_INSERTION_EFFECT_NUM; i++) {
+		free_effect_xg(&insertion_effect_xg[i]);
+	}
+	free_effect_sd(&reverb_status_sd);
+	free_effect_sd(&chorus_status_sd);
+	for (i = 0; i < SD_MFX_EFFECT_NUM; i++) {
+		free_effect_sd(&mfx_effect_sd[i]);
+	}	
+#ifdef TEST_FX
+	free_fx();
+#endif	
+}
+
 
 /************************************ inialize_effect ***************************************/
 
@@ -35743,6 +35081,9 @@ void init_effect(void)
 #endif
 #ifdef TEST_FIR_EQ
 	init_fir_eq(&test_fir_eq);
+#endif
+#ifdef TEST_FX
+	init_fx();
 #endif
 	init_mtrand();
 	init_pink_noise(&global_pink_noise_light);

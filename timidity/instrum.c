@@ -532,11 +532,11 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 		for (i = 0; i < ip->samples; i++) {
 			sp = &ip->sample[i];
 			if (tone->tunenum == 1) {
-				sp->root_freq = adjust_tune_freq(sp->root_freq, tone->tune[0]);
-				sp->tune *= pow(2.0, (double)tone->tune[0] * DIV_12); // use int_synth
+			//	sp->root_freq = adjust_tune_freq(sp->root_freq, tone->tune[0]);
+				sp->tune *= pow(2.0, (double)tone->tune[0] * DIV_12);
 			} else if (i < tone->tunenum) {
-				sp->root_freq = adjust_tune_freq(sp->root_freq, tone->tune[i]);
-				sp->tune *= pow(2.0, (double)tone->tune[i] * DIV_12); // use int_synth
+			//	sp->root_freq = adjust_tune_freq(sp->root_freq, tone->tune[i]);
+				sp->tune *= pow(2.0, (double)tone->tune[i] * DIV_12);
 			}
 		}
 	if (tone->envratenum)
@@ -1174,13 +1174,11 @@ fail:
 		/* convert freq to key */	
 		{
 			int32 freq1, freq2;
-			int k;
-			
-			sp->root_freq = root_freq; // ルートキー周波数(freq_table[sp->root_key])との比(tune)が含まれている			
+			int k;			
+					
 			sp->low_key = 0;
 			sp->high_key = 127;
 			sp->root_key = 60;
-			sp->tune = 1.0;
 			for(k = 0; k < 128; k++){
 				if(k == 0){
 					freq1 = 0;
@@ -1199,7 +1197,13 @@ fail:
 				if(root_freq >= freq1 && root_freq < freq2)
 					sp->root_key = k;
 			}
-		//	sp->tune = (FLOAT_T)freq_table[sp->root_key] / (FLOAT_T)root_freq; // 
+#if 1 // c219 ルートキー周波数とtuneを分離
+			sp->root_freq = freq_table[sp->root_key];
+			sp->tune = (FLOAT_T)sp->root_freq / (FLOAT_T)root_freq;			
+#else // root_freqはルートキー周波数(freq_table[sp->root_key])との比(tune)が含まれている
+			sp->root_freq = root_freq;	
+			sp->tune = 1.0;
+#endif
 			ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Rate=%d LK=%d HK=%d RK=%d RF=%d Tune=%f",
 					sp->sample_rate, sp->low_key, sp->high_key, sp->root_key, sp->root_freq, sp->tune);
 		}
