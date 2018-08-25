@@ -1755,8 +1755,8 @@ void WINAPI DebugThread(void *args)
 {
 	MSG msg;
 	DebugThreadExit = 0;
-	InitDebugWnd(NULL);
-//	ShowWindow(hDebugWnd,SW_SHOW);
+//	InitDebugWnd(NULL);
+	ShowWindow(hDebugWnd,SW_SHOW);
 	AttachThreadInput(GetWindowThreadProcessId(hDebugThread,NULL),
    	GetWindowThreadProcessId(hWindowThread,NULL),TRUE);
 	AttachThreadInput(GetWindowThreadProcessId(hWindowThread,NULL),
@@ -4691,7 +4691,8 @@ void TiMidityVariablesCheck(void)
 #endif
 }
 
-
+extern int32 test_var[10];
+int32 test_var[10] = {0};
 
 
 // ****************************************************************************
@@ -4749,6 +4750,24 @@ DebugWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         	break;
       case IDC_BUTTON_VARIABLES_CHECK:
 			TiMidityVariablesCheck();
+        	break;
+	case IDC_EDIT_VAR0:
+	case IDC_EDIT_VAR1:
+	case IDC_EDIT_VAR2:
+	case IDC_EDIT_VAR3:
+	case IDC_EDIT_VAR4:
+	case IDC_EDIT_VAR5:
+	case IDC_EDIT_VAR6:
+	case IDC_EDIT_VAR7:
+	case IDC_EDIT_VAR8:
+	case IDC_EDIT_VAR9:
+     	break;
+	case IDC_BUTTON_VAR_ENTER:
+	{
+		int i;		
+		for(i=0; i<10;i++)
+			test_var[i] = GetDlgItemInt(hwnd, IDC_EDIT_VAR0 + i, NULL, TRUE);
+	}
         	break;
       default:
         		break;

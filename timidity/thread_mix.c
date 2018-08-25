@@ -193,6 +193,36 @@ static inline void mix_mystery_signal_thread(DATA_T *sp, DATA_T *lp, int v, int 
 				sp += 4;
 			}
 
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			__m128d vevol, vspx, vsp1, vsp2;
+			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
+			for (i = 0; i < count; i += 4) {
+				if(!(i & mix_env_mask)){
+					compute_envelope2(&vp->mix_env, opt_mix_envelope);
+#if defined(FLOAT_T_DOUBLE)	
+					vevol = _mm_loadu_pd(vp->mix_env.vol);
+#else
+					vevol = _mm_cvtps_pd(_mm_load_ps(vp->mix_env.vol));
+#endif
+				}
+				vspx = _mm_loadu_pd(sp);
+				vsp1 = _mm_shuffle_pd(vspx, vspx, 0x0);
+				vsp2 = _mm_shuffle_pd(vspx, vspx, 0x3);
+				_mm_storeu_pd(lp, _mm_mul_pd(vsp1, vevol));
+				lp += 2;
+				_mm_storeu_pd(lp, _mm_mul_pd(vsp2, vevol));
+				lp += 2;
+				sp += 2;
+				vspx = _mm_loadu_pd(sp);
+				vsp1 = _mm_shuffle_pd(vspx, vspx, 0x0);
+				vsp2 = _mm_shuffle_pd(vspx, vspx, 0x3);
+				_mm_storeu_pd(lp, _mm_mul_pd(vsp1, vevol));
+				lp += 2;
+				_mm_storeu_pd(lp, _mm_mul_pd(vsp2, vevol));
+				lp += 2;
+				sp += 2;
+			}
+
 #elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
 			__m128 vevol, vsp, vsp1, vsp2;
 			reset_envelope2(&vp->mix_env, vp->left_mix, vp->right_mix, ENVELOPE_KEEP);
@@ -371,7 +401,10 @@ void mix_voice_thread(DATA_T *buf, int v, int32 c, int thread)
 	if (delay_cnt) {
 		if(delay_cnt == c)
 			return;
-		else if (play_mode->encoding & PE_MONO)
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		delay_cnt &= ~(0x1); // for filter SIMD optimaize (filter.c buffer_filter()
+#endif
+		if (play_mode->encoding & PE_MONO)
 			buf += delay_cnt;
 		else
 			buf += delay_cnt * 2;

@@ -4931,10 +4931,12 @@ static const TCHAR *cb_info_IDC_COMBO_REVC_EX_RV_NUM[] = {
 // IDC_COMBO_REVC_EX_AP_NUM
 static int cb_info_IDC_COMBO_REVC_EX_AP_NUM_num[] = {
 	0,
+	4,
 	8,
 };
 static const TCHAR *cb_info_IDC_COMBO_REVC_EX_AP_NUM[] = {
 	TEXT("0"),
+	TEXT("4"),
 	TEXT("8"),
 };
 

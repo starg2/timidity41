@@ -531,7 +531,7 @@ out: 0.0 ~ 8.0 * clip_level
 */
 #define DRIVE_SCALE_BIT (3) // 1.0 * 2^MATH_SCALE_BIT
 #define DRIVE_SCALE_MAX (1 << DRIVE_SCALE_BIT) // table max 1.0 * MATH_SCALE_MAX
-#define DRIVE_BASE_BIT (9) // 0.0~1.0 table size
+#define DRIVE_BASE_BIT (6) // 0.0~1.0 table size
 #define DRIVE_BASE_LENGTH (1 << (DRIVE_BASE_BIT)) // 0.0~1.0:table size
 #define DRIVE_TABLE_LENGTH (1 << (DRIVE_BASE_BIT + DRIVE_SCALE_BIT)) // 0.0~1.0 * MATH_SCALE_MAX table size
 #define DRIVE_FRAC_BIT (14) // for int32
@@ -654,7 +654,7 @@ typedef struct _InfoFreeverb{
 		size_rv[FREEVERV_RV][2], index_rv[FREEVERV_RV][2];
 	DATA_T hist[2], *buf1[FREEVERV_DELAY1], *buf_ap[FREEVERV_AP][2], *buf_rv[FREEVERV_RV][2], fb_rv[FREEVERV_RV][2];	
 	FilterCoefficients lpf1;
-	void (*do_reverb_mode)(DATA_T *buf, int32 count, struct _InfoFreeverb *info);	
+	void (*do_reverb_mode)(DATA_T *buf, int32 count, struct _InfoFreeverb *info);
 } InfoFreeverb;
 
 
@@ -695,10 +695,35 @@ typedef struct _InfoReverbEX{
 		, mdelay[REV_EX_UNITS][REV_EX_DELAY], mdepth[REV_EX_UNITS][REV_EX_DELAY];
 	FLOAT_T acount[REV_EX_AP_MAX][REV_EX_DELAY], arate[REV_EX_AP_MAX][REV_EX_DELAY], aphase[REV_EX_AP_MAX][REV_EX_DELAY]
 		, adelay[REV_EX_AP_MAX][REV_EX_DELAY], adepth[REV_EX_AP_MAX][REV_EX_DELAY];
+	// thread
+	int8 thread;
+	int32 tcount;
+	DATA_T *tibuf; // in
+	DATA_T *tobuf; // out
+	int32 index2t[REV_EX_DELAY2];
 } InfoReverbEX;
 
-//#define REV_EX2
+
+#define REV_EX2
 //#define InfoReverbEX2 InfoReverbEX
+
+typedef struct _InfoReverbEX2{
+	int8 mode, flt_type;
+	double rev_dly_ms, rev_time_sec, rev_width, rev_damp, rev_level, rev_feedback, rev_wet;	
+	double height, width, depth, rev_damp_freq, rev_damp_type, rev_damp_bal, density;
+	double er_time_ms, er_level, level, er_damp_freq, er_roomsize;
+	FLOAT_T levelrv, leveler, feedback, flt_dry, flt_wet, rv_feedback[REV_EX_UNITS], st_sprd, in_level, levelap;
+	int32 levelrvi, leveleri, feedbacki, flt_dryi, flt_weti, rv_feedbacki[REV_EX_UNITS], st_sprdi, in_leveli, levelapi;
+	// IR rev
+	int8 init;
+	int32 frame, srate, wcount, wcycle, rcycle;
+	float *irdata[2], *buf[2];
+	// thread
+	int8 thread;
+	int32 tcount, twcount[4]; // max 4thread
+	float *tbuf[4]; // in*2,out*2
+	float *buf2[2];
+} InfoReverbEX2;
 
 
 /*! 3-Tap Stereo Delay Effect */
@@ -876,18 +901,42 @@ typedef struct {
 	FilterCoefficients fc, hsh;
 } InfoEnhancer;
 
-#define HUMANIZER_PHASE 4
+#define HUMANIZER_PHASE 10
 typedef struct {
 	int8 init, mode, od_sw, vowel, p_vowel;
 	double drive, accel;
-	double leveld, p_accel, p_ac, flt_level, fmt_level;
-	double lfo_count, lfo_rate, lfo_phase[HUMANIZER_PHASE];
-	FLOAT_T db[17], dc[16], vc[11];
-	int32 leveli, acceli, ib[11], iv[11];
+	double leveld, p_accel, p_ac, inleveld;
+	int32 leveli, acceli, inleveli;
 	Drive drv;
-	Envelope3 env;
-	FilterCoefficients fc[HUMANIZER_PHASE];
+	Envelope3 env[HUMANIZER_PHASE], env2;
+	FilterCoefficients fc[HUMANIZER_PHASE], fc2;
 } InfoHumanizer;
+
+typedef struct InfoDistortion_t{
+	int8 mode, od_sw, od_type, bass_od;
+	FLOAT_T level, drive, tone, edge;
+	FLOAT_T drived, leveld, curve1, curve2;
+	FilterCoefficients od_fc1, od_fc2, od_fc3;
+	void (*do_od1)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
+	void (*do_od2)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
+} InfoDistortion;
+
+typedef struct {
+	int8 init, mode, amp_sw, cab_sw, amp_type, cab_type;
+	FLOAT_T level, gain1, gain2, tone, bright, mic_pos, mic_level, mic_direct, ch_delay;
+	FLOAT_T eq1_gain, eq2_gain, eq3_gain, eq4_gain;
+	FLOAT_T leveld, gain1d, gain2d, curve1, curve2, curve3;
+	void (*do_amp1)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
+	void (*do_amp2)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
+	void (*do_amp3)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
+	FilterCoefficients amp_fc1, amp_fc2, amp_fc3, amp_fc4;
+	FilterCoefficients eq_fc1, eq_fc2, eq_fc3, eq_fc4;
+	FilterCoefficients cab_fc1, cab_fc2, cab_fc3;
+	int8 speaker_num, stack_num;
+	FLOAT_T mwet, mdry, flevel, blevel;
+	DATA_T *ptr1, *ptr2, *ptr3, *ptr4;
+	int32 index, offset1, offset2[3], offset3[2];
+} InfoAmpSimulator;
 
 /*! Overdrive 1 / Distortion 1 */
 typedef struct {
@@ -896,6 +945,7 @@ typedef struct {
 	int8 drive, amp_sw, amp_type, type, mode;
 	Drive drv1, drv2, drv3;
 	FilterCoefficients bw1, bw2, bw3, bw4, bq;
+	InfoAmpSimulator amp;
 } InfoOverdrive;
 
 #define PHASER_PHASE 12
@@ -1051,33 +1101,6 @@ typedef struct {
 	int32 delay_cnt;
 	simple_delay delay;
 } InfoAmbience;
-
-
-typedef struct InfoDistortion_t{
-	int8 mode, od_sw, od_type, bass_od;
-	FLOAT_T level, drive, tone, edge;
-	FLOAT_T drived, leveld, curve1, curve2;
-	FilterCoefficients od_fc1, od_fc2, od_fc3;
-	void (*do_od1)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
-	void (*do_od2)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
-} InfoDistortion;
-
-typedef struct {
-	int8 init, mode, amp_sw, cab_sw, amp_type, cab_type;
-	FLOAT_T level, gain1, gain2, tone, bright, mic_pos, mic_level, mic_direct, ch_delay;
-	FLOAT_T eq1_gain, eq2_gain, eq3_gain, eq4_gain;
-	FLOAT_T leveld, gain1d, gain2d, curve1, curve2, curve3;
-	void (*do_amp1)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
-	void (*do_amp2)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
-	void (*do_amp3)(DATA_T *buf, FLOAT_T gain, FLOAT_T curve);
-	FilterCoefficients amp_fc1, amp_fc2, amp_fc3, amp_fc4;
-	FilterCoefficients eq_fc1, eq_fc2, eq_fc3, eq_fc4;
-	FilterCoefficients cab_fc1, cab_fc2, cab_fc3;
-	int8 speaker_num, stack_num;
-	FLOAT_T mwet, mdry, flevel, blevel;
-	DATA_T *ptr1, *ptr2, *ptr3, *ptr4;
-	int32 index, offset1, offset2[3], offset3[2];
-} InfoAmpSimulator;
 
 
 

@@ -257,6 +257,10 @@ static void ctl_close(void)
 	ctl.opened = 0;
 	safe_free(Panel);
 	Panel = NULL;
+	
+#ifdef TIMW32G_USE_NEW_CONSOLE
+	ClearNewConsoleBuffer();
+#endif
 
 #ifdef TIMW32G_USE_NEW_CONSOLE
 	ClearNewConsoleBuffer();

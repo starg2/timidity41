@@ -5348,7 +5348,7 @@ do_linear:
 #endif
 }
 
-#if (USE_X86_EXT_INTRIN >= 9) // 未テスト 動くかは不明 broadcastはset1だったかも・・ 
+#if (USE_X86_EXT_INTRIN >= 9)
 // offset:int32*8, resamp:float*8
 // ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)

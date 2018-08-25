@@ -141,6 +141,17 @@
 #define IDC_BUTTON_EXITPROCESS         2602
 #define IDC_BUTTON_HEAP_CHECK          2603
 #define IDC_BUTTON_VARIABLES_CHECK     2604
+#define IDC_BUTTON_VAR_ENTER           2640
+#define IDC_EDIT_VAR0                  2650
+#define IDC_EDIT_VAR1                  2651
+#define IDC_EDIT_VAR2                  2652
+#define IDC_EDIT_VAR3                  2653
+#define IDC_EDIT_VAR4                  2654
+#define IDC_EDIT_VAR5                  2655
+#define IDC_EDIT_VAR6                  2656
+#define IDC_EDIT_VAR7                  2657
+#define IDC_EDIT_VAR8                  2658
+#define IDC_EDIT_VAR9                  2659
 
 //// player
 // cfg

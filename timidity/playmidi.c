@@ -7216,7 +7216,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			case 0x52:
 			case 0x54:
 				temp = (b - 0x42) / 2;
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Parameter MSB (%d)", msb + 1, temp, val);
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Parameter MSB %d (%d)", msb + 1, temp, val);
 				if (variation_effect_xg[msb].set_param_msb[temp] != val) {
 					variation_effect_xg[msb].set_param_msb[temp] = val;
 					recompute_effect_xg(&variation_effect_xg[msb], 1);
@@ -7233,7 +7233,7 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 			case 0x53:
 			case 0x55:
 				temp = (b - 0x43) / 2;
-				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Parameter LSB (%d)", msb + 1, temp, val);
+				ctl->cmsg(CMSG_INFO, VERB_NOISY, "XG Variation %d Parameter LSB %d (%d)", msb + 1, temp, val);
 				if (variation_effect_xg[msb].set_param_lsb[temp] != val) {
 					variation_effect_xg[msb].set_param_lsb[temp] = val;
 					recompute_effect_xg(&variation_effect_xg[msb], 1);

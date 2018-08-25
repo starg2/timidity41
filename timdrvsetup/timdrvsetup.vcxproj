@@ -287,6 +287,7 @@
     <ClCompile Include="..\timidity\audio_cnv.c" />
     <ClCompile Include="..\timidity\common.c" />
     <ClCompile Include="..\timidity\controls.c" />
+    <ClCompile Include="..\timidity\decode.c" />
     <ClCompile Include="..\timidity\effect.c" />
     <ClCompile Include="..\timidity\envelope.c" />
     <ClCompile Include="..\timidity\filter.c" />
@@ -325,6 +326,8 @@
     <ClCompile Include="..\timidity\timer2.c" />
     <ClCompile Include="..\timidity\version.c" />
     <ClCompile Include="..\timidity\voice_effect.c" />
+    <ClCompile Include="..\timidity\w32g_vorbisfile_dll.c" />
+    <ClCompile Include="..\timidity\w32g_vorbis_dll.c" />
     <ClCompile Include="..\timidity\w32_a.c" />
     <ClCompile Include="..\timidity\w32_portaudio_dll.c" />
     <ClCompile Include="..\timidity\wasapi_a.c" />

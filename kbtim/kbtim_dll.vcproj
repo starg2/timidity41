@@ -348,6 +348,14 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath="..\timidity\w32g_vorbis_dll.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\w32g_vorbisfile_dll.c"
+				>
+			</File>
 			<Filter
 				Name="timidity"
 				>
@@ -380,6 +388,10 @@
 							PreprocessorDefinitions=""
 						/>
 					</FileConfiguration>
+				</File>
+				<File
+					RelativePath="..\timidity\decode.c"
+					>
 				</File>
 				<File
 					RelativePath="..\timidity\effect.c"

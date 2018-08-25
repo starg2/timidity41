@@ -1839,6 +1839,9 @@ void do_master_effect_thread(void)
 #ifdef TEST_FIR_EQ
 	apply_fir_eq(&test_fir_eq, master_effect_buffer_thread[cdmt_buf_o], me_cv[cdmt_buf_o].nsamples);
 #endif
+#ifdef TEST_FX
+	test_fx(master_effect_buffer_thread[cdmt_buf_o], me_cv[cdmt_buf_o].nsamples);
+#endif
 	// elion add.
 	mix_compressor(master_effect_buffer_thread[cdmt_buf_o], me_cv[cdmt_buf_o].nsamples);
 	if(noise_sharp_type)
@@ -1869,9 +1872,79 @@ void do_effect_thread(DATA_T *buf, int32 count, int32 byte)
 
 
 
+/************************************ effect_sub_thread ***************************************/
 
+#ifdef MULTI_THREAD_COMPUTE2
 
+static effect_sub_thread_func_t est_func0 = NULL;
+static effect_sub_thread_func_t est_func1 = NULL;
+static void *est_ptr0 = NULL;
+static void *est_ptr1 = NULL;
 
+int set_effect_sub_thread(effect_sub_thread_func_t func, void *ptr, int num)
+{
+	//if(!compute_thread_ready) // single thread
+	//	return 1;
+	if(compute_thread_ready < 4)
+		return 1; // 
+	if(!func)
+		return 1; // error
+	if(func == est_func0 && ptr == est_ptr0)
+		return 0; // 
+	if(func == est_func1 && ptr == est_ptr1)
+		return 0; // 
+	if(est_func0 && est_func1)
+		return 1; // 
+	if(est_func0 == NULL){
+		est_func0 = func;
+		est_ptr0 = ptr;
+		return 0;
+	}
+	if(est_func1 == NULL){
+		est_func1 = func;
+		est_ptr1 = ptr;
+		return 0;
+	}
+	return 1; // error
+}
+
+void reset_effect_sub_thread(effect_sub_thread_func_t func, void *ptr)
+{
+	if(func == est_func0 && ptr == est_ptr0){
+		est_func0 = NULL;
+		est_ptr0 = NULL;
+	}else if(func == est_func1 && ptr == est_ptr1){
+		est_func1 = NULL;
+		est_ptr1 = NULL;
+	}else if(func == NULL && ptr == NULL){
+		est_func0 = NULL;
+		est_ptr0 = NULL;
+		est_func1 = NULL;
+		est_ptr1 = NULL;
+	}
+}
+
+static void effect_sub_thread0(int thread_num)
+{
+	if(est_func0)
+		est_func0(thread_num, est_ptr0);
+}
+
+static void effect_sub_thread1(int thread_num)
+{
+	if(est_func1)
+		est_func1(thread_num, est_ptr1);
+}
+
+void go_effect_sub_thread(effect_sub_thread_func_t func, void *ptr, int num)
+{
+	if(func == est_func0 && ptr == est_ptr0)
+		go_compute_thread_sub0(effect_sub_thread0, num);
+	else if(func == est_func1 && ptr == est_ptr1)
+		go_compute_thread_sub1(effect_sub_thread1, num);
+}
+
+#endif // MULTI_THREAD_COMPUTE2
 
 /************************************ inialize_effect ***************************************/
 

@@ -1,3 +1,4 @@
+
 #define _WIN32_IE 0x500
 #define _CRT_SECURE_NO_WARNINGS
 #pragma warning(disable:4530) // アンワインド セマンティクスが無効
