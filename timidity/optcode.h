@@ -832,7 +832,7 @@ LSU : Unalignment (use loadu/storeu
 #endif
 
 #if (USE_X86_EXT_INTRIN >= 1)
-#if !(defined(_MSC_VER) || defined(MSC_VER))
+#if !defined(_MSC_VER) || defined(__clang__)
 #define MM_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_shuffle_ps(reg,reg,idx))
 #define MM_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_shuffle_pd(reg,reg,idx))
 #define MM_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_shuffle_epi32(reg,idx))
