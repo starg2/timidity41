@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2008 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -5723,7 +5723,7 @@ static int parse_opt_h(const char *arg)
 #endif
 {
 	static char *help_list[] = {
-"TiMidity++ %s (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>",
+"TiMidity++ %s (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>",
 "The original version (C) 1995 Tuukka Toivonen <tt@cgs.fi>",
 "TiMidity is free software and comes with ABSOLUTELY NO WARRANTY.",
 "",
@@ -7713,7 +7713,7 @@ static inline int parse_opt_v(const char *arg)
 				timidity_version, " ", arch_string, NLS,
 		NLS,
 #endif
-		"Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>", NLS,
+		"Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>", NLS,
 		"Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>", NLS,
 		NLS,
 #ifdef __W32__
@@ -8013,8 +8013,8 @@ static inline void close_pager(FILE *fp)
 static void interesting_message(void)
 {
 	printf(
-"TiMidity++ %s%s %s -- MIDI to WAVE converter and player" NLS
-"Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>" NLS
+"TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
+"Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>" NLS
 "Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 			NLS
 #ifdef __W32__

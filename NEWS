@@ -1,3 +1,17 @@
+08/29, 2018
+    * Version 2.15.0 released.
+    * Add support for segment play option (-G, --segment) with a great
+      contribution by Yotam Medini <yotam.medini@gmail.com>.
+    * Add metronome indicator in dumb interface trace mode.
+    * Let libao backend set ao options via TIMIDITY_AO_OPTIONS
+      environment variable.
+    * Fix for CVE-2009-0179, CVE-2009-3996, CVE-2010-2546 and
+      CVE-2010-2971.
+    * Fix for CVE-2017-11546.
+    * Support for Tcl/Tk 8.6.
+    * Improve Windows MIDI driver.
+    * ...and many other bug fixes.
+
 06/29, 2012
     * Version 2.14.0 released.
     * Add --reverb option for Freeverb parameter.
@@ -7,7 +21,7 @@
       specified file is missing.
     * Support for GM2 Master Fine/Coarse Tuning, GS Master Tune and XG
       Master Tuning (4C not 27) SysEx.
-    * Allow Device Numbers other than 0x10 for XG SYSTEM ON SYSEX 
+    * Allow Device Numbers other than 0x10 for XG SYSTEM ON SYSEX
       events.
     * Fix multiple vulnerabilities found in GNU gzip also apply to lha,
       namely: CVE-2006-4335, CVE-2006-4337 and CVE-2006-4338.

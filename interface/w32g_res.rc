@@ -4075,7 +4075,7 @@ VS_VERSION_INFO VERSIONINFO
             VALUE "OriginalFilename", "timw32g.exe\0"
             VALUE "ProductName", "TiMidity++ Win32GUI Version\0"
 #endif
-            VALUE "LegalCopyright", "Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>\r\nCopyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>\0"
+            VALUE "LegalCopyright", "Copyright (C) 1999-2018 Masanao Izumo <mo@goice.co.jp>\r\nCopyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "PrivateBuild", "\0"
             VALUE "ProductVersion", TIMID_VERSION

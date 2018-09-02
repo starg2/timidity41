@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -4574,8 +4574,8 @@ static void TiMidityWnd(HWND hParentWnd)
 {
 	char TiMidityText[2024];
   sprintf(TiMidityText,
-" TiMidity++ %s%s %s -- MIDI to WAVE converter and player" NLS
-" Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>" NLS
+" TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
+" Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 NLS
 " Win32 version by Davide Moretti <dmoretti@iper.net>" NLS
