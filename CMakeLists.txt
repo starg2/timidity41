@@ -146,6 +146,10 @@ if(MSVC)
         set(CMAKE_CXX_CREATE_SHARED_LIBRARY "lld-link /dll <CMAKE_SHARED_LIBRARY_CXX_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS> <SONAME_FLAG><TARGET_SONAME> /out:<TARGET> <OBJECTS> <LINK_LIBRARIES>")
     endif()
 
+    # remove existing /W3 options
+    string(REGEX REPLACE "/W[0-4]" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
     add_compile_options(/W4 /Zi /GS /fp:fast)
 
     if(NOT "${TIM41_USE_CLANG_CL}")
