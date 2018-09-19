@@ -82,6 +82,7 @@ typedef float IS_RS_DATA_T;
 #define MMS_OP_FLT_PARAM 4
 #define MMS_OP_CUT_PARAM 4
 #define MMS_OP_MODE_MAX 2
+#define MMS_OP_LOOP_MAX 1
 
 // mt32emu
 typedef struct _LA_Ctrl_ROM_PCM_Struct {
