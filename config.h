@@ -289,8 +289,11 @@
 /* Define if you have the vorbis library (-lvorbis).  */
 #define HAVE_LIBVORBIS
 
-/* Define if you have the vorbis library (-lgogo).  */
+/* Define if you have the gogo library (-lgogo).  */
 #define HAVE_LIBGOGO
+
+/* Define if you have the mpg123 library .  */
+#define HAVE_LIBMPG123
 
 /* Define if you have the <mmsystem.h> header file for Win32. */
 #define HAVE_MMSYSTEM_H
@@ -658,6 +661,8 @@
 #undef AU_VOLUME_CALC
 #undef AU_BENCHMARK
 #undef SMFCONV
+#undef HAVE_LIBVORBIS
+#undef HAVE_LIBMPG123
 #endif
 
 
@@ -761,7 +766,8 @@ typedef __int64 int64;
 typedef __int64 int64;
 #undef HAVE_SIGNAL
 //#undef SUPPORT_SOUNDSPEC
-
+#undef HAVE_LIBVORBIS
+#undef HAVE_LIBMPG123
 #endif
 
 

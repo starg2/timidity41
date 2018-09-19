@@ -51,6 +51,10 @@
 #include "w32g_subwin.h"
 #include "w32g_utl.h"
 
+#ifdef TIMW32G_USE_NEW_CONSOLE
+#include "w32g_new_console.h"
+#endif
+
 extern int CanvasGetMode(void);
 extern void CanvasUpdate(int flag);
 extern void CanvasReadPanelInfo(int flag);

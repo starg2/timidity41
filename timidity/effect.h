@@ -681,11 +681,11 @@ typedef struct _InfoReverbEX{
 	double rev_dly_ms, rev_time_sec, rev_width, rev_damp, rev_level, rev_feedback, rev_wet;	
 	double height, width, depth, rev_damp_freq, rev_damp_type, rev_damp_bal, density;
 	double er_time_ms, er_level, level, er_damp_freq, er_roomsize;
-	FLOAT_T levelrv, leveler, feedback, flt_dry, flt_wet, rv_feedback[REV_EX_UNITS], st_sprd, in_level, levelap;
-	int32 levelrvi, leveleri, feedbacki, flt_dryi, flt_weti, rv_feedbacki[REV_EX_UNITS], st_sprdi, in_leveli, levelapi;
-	int8 init, unit_num, alloc[REV_EX_UNITS][REV_EX_DELAY], alloc2[2], aalloc[REV_EX_DELAY];
-	DATA_T *buf[REV_EX_UNITS][REV_EX_DELAY], rv_out[REV_EX_UNITS][2], *rv_in[REV_EX_UNITS][2], hist[2], *buf2[2], *abuf[REV_EX_DELAY];
-	DATA_T fb_ap1[2], fb_ap2[2];
+	FLOAT_T levelrv, leveler, feedback, flt_dry, flt_wet, rv_feedback[REV_EX_UNITS], st_sprd, in_level, levelap, fbap;
+	int32 levelrvi, leveleri, feedbacki, flt_dryi, flt_weti, rv_feedbacki[REV_EX_UNITS], st_sprdi, in_leveli, levelapi, fbapi;
+	int8 init, unit_num, ap_num, alloc[REV_EX_UNITS][REV_EX_DELAY], alloc2[2], aalloc[REV_EX_AP_MAX][REV_EX_DELAY];
+	DATA_T *buf[REV_EX_UNITS][REV_EX_DELAY], rv_out[REV_EX_UNITS][2], *rv_in[REV_EX_UNITS][2], 
+		hist[2], *buf2[2], *abuf[REV_EX_AP_MAX][REV_EX_DELAY];
 	int32 size[REV_EX_UNITS][REV_EX_DELAY], index[REV_EX_UNITS][REV_EX_DELAY];
 	int32 size2[REV_EX_DELAY2], index2[REV_EX_DELAY2], delaya[REV_EX_AP_MAX][REV_EX_DELAY];
 	FilterCoefficients er_fc, rv_fc1[REV_EX_UNITS], hpf;
@@ -693,8 +693,6 @@ typedef struct _InfoReverbEX{
 	// MOD
 	FLOAT_T mcount[REV_EX_UNITS][REV_EX_DELAY], mrate[REV_EX_UNITS][REV_EX_DELAY], mphase[REV_EX_UNITS][REV_EX_DELAY]
 		, mdelay[REV_EX_UNITS][REV_EX_DELAY], mdepth[REV_EX_UNITS][REV_EX_DELAY];
-	FLOAT_T acount[REV_EX_AP_MAX][REV_EX_DELAY], arate[REV_EX_AP_MAX][REV_EX_DELAY], aphase[REV_EX_AP_MAX][REV_EX_DELAY]
-		, adelay[REV_EX_AP_MAX][REV_EX_DELAY], adepth[REV_EX_AP_MAX][REV_EX_DELAY];
 	// thread
 	int8 thread;
 	int32 tcount;

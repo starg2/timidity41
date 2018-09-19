@@ -37,6 +37,7 @@
 #include "timidity.h"
 #include "common.h"
 #include "controls.h"
+#include "decode.h"
 #include "filter.h"
 #include "instrum.h"
 #include "output.h"
@@ -70,10 +71,19 @@ static int import_wave_discriminant(char *sample_file);
 static int import_wave_load(char *sample_file, Instrument *inst);
 static int import_aiff_discriminant(char *sample_file);
 static int import_aiff_load(char *sample_file, Instrument *inst);
+static int import_oggvorbis_discriminant(char *sample_file);
+static int import_oggvorbis_load(char *sample_file, Instrument *inst);
+static int import_flac_discriminant(char *sample_file);
+static int import_flac_load(char *sample_file, Instrument *inst);
+static int import_mp3_discriminant(char *sample_file);
+static int import_mp3_load(char *sample_file, Instrument *inst);
 
 static SampleImporter	sample_importers[] = {
 	{"wav", import_wave_discriminant, import_wave_load},
 	{"aiff", import_aiff_discriminant, import_aiff_load},
+	{"ogg", import_oggvorbis_discriminant, import_oggvorbis_load},
+	{"flac", import_flac_discriminant, import_flac_load},
+	{"mp3", import_mp3_discriminant, import_mp3_load},
 	{NULL, NULL, NULL},
 };
 
@@ -321,6 +331,8 @@ static void apply_GeneralInstrumentInfo(int samples, Sample *sample, const Gener
 
 static int read_sample_data(int32 flags, struct timidity_file *tf, int bits, int samples, int32 frames, sample_t **sdata, Sample *sp);
 
+static int make_instrument_from_sample_decode_result(Instrument *inst, SampleDecodeResult *sdr);
+
 /*************** WAV Importer ***************/
 
 #define  WAVE_FORMAT_UNKNOWN      0x0000
@@ -438,15 +450,15 @@ static int import_wave_load(char *sample_file, Instrument *inst)
 			{
 				if(fflg){					
 					inst->sample[i].data_type = SAMPLE_TYPE_FLOAT;
-					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(float));
+					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(float));
 					inst->sample[i].data_alloced = 1;
 				}else if(bits <= 16){ // WAVE_FORMAT_PCM
 					inst->sample[i].data_type = SAMPLE_TYPE_INT16;
-					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int16));
+					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int16));
 					inst->sample[i].data_alloced = 1;
 				}else{
 					inst->sample[i].data_type = SAMPLE_TYPE_INT32;
-					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int32));
+					inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int32));
 					inst->sample[i].data_alloced = 1;
 				}
 			}
@@ -922,11 +934,11 @@ static int read_AIFFSoundData(struct timidity_file *tf, Instrument *inst, AIFFCo
 	{
 		if(bits <= 16){
 			inst->sample[i].data_type = SAMPLE_TYPE_INT16;
-			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int16));
+			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int16));
 			inst->sample[i].data_alloced = 1;
 		}else{
 			inst->sample[i].data_type = SAMPLE_TYPE_INT32;
-			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames, sizeof(int32));
+			inst->sample[i].data = sdata[i] = (sample_t*) safe_large_calloc(frames + 128, sizeof(int32));
 			inst->sample[i].data_alloced = 1;
 		}
 	}
@@ -1021,6 +1033,119 @@ static int AIFFGetMarkerPosition(int16 id, const AIFFMarkerData *markers, uint32
 		marker++;
 	}
 	return 0;
+}
+
+/*************** Ogg Vorbis importer ***************/
+
+static int import_oggvorbis_discriminant(char *sample_file)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+	char buf[4];
+
+	if (tf == NULL)
+		return 1;
+
+	if (tf_read(buf, 1, 4, tf) != 4 || memcmp(buf, "OggS", 4) != 0) {
+		close_file(tf);
+		return 1;
+	}
+
+	close_file(tf);
+	return 0;
+}
+
+static int import_oggvorbis_load(char *sample_file, Instrument *inst)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+	SampleDecodeResult sdr;
+	int ret;
+
+	if (tf == NULL)
+		return 1;
+
+	sdr = decode_oggvorbis(tf);
+	close_file(tf);
+
+	ret = make_instrument_from_sample_decode_result(inst, &sdr);
+	clear_sample_decode_result(&sdr);
+	return ret;
+}
+
+/*************** FLAC importer ***************/
+
+static int import_flac_discriminant(char *sample_file)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+	char buf[4];
+
+	if (tf == NULL)
+		return 1;
+
+	if (tf_read(buf, 1, 4, tf) != 4 || memcmp(buf, "fLaC", 4) != 0) {
+		close_file(tf);
+		return 1;
+	}
+
+	close_file(tf);
+	return 0;
+}
+
+static int import_flac_load(char *sample_file, Instrument *inst)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+	SampleDecodeResult sdr;
+	int ret;
+
+	if (tf == NULL)
+		return 1;
+
+	sdr = decode_flac(tf);
+	close_file(tf);
+
+	ret = make_instrument_from_sample_decode_result(inst, &sdr);
+	clear_sample_decode_result(&sdr);
+	return ret;
+}
+
+/*************** mp3 importer ***************/
+
+static int import_mp3_discriminant(char *sample_file)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+	unsigned char buf[3] = {0};
+
+	if (tf == NULL)
+		return 1;
+
+	tf_read(buf, 1, 3, tf);
+	close_file(tf);
+
+	if (buf[0] == 0xFF && buf[1] == 0xFB) {
+		return 0;
+	}
+
+	if (buf[0] == 0x49 && buf[1] == 0x44 && buf[2] == 0x33) {
+		return 0;
+	}
+
+	return 1;
+}
+
+static int import_mp3_load(char *sample_file, Instrument *inst)
+{
+	struct timidity_file *tf = open_file(sample_file, 1, OF_NORMAL);
+	SampleDecodeResult sdr;
+	int ret;
+
+	if (tf == NULL)
+		return 1;
+
+	sdr = decode_mp3(tf);
+	close_file(tf);
+
+	ret = make_instrument_from_sample_decode_result(inst, &sdr);
+	clear_sample_decode_result(&sdr);
+	return ret;
 }
 
 /******************************/
@@ -1420,6 +1545,29 @@ void free_pcm_sample_file(Instrument *ip)
 {
     safe_free(ip->instname);
     ip->instname = NULL;
+}
+
+static int make_instrument_from_sample_decode_result(Instrument *inst, SampleDecodeResult *sdr)
+{
+	int i;
+	if (sdr->channels == 0)
+		return 1;
+
+	inst->samples = sdr->channels;
+	inst->sample = (Sample *)safe_calloc(sizeof(Sample), inst->samples);
+
+	initialize_sample(inst, (int)(sdr->data_length >> FRACTION_BITS), get_sample_size_for_sample_type(sdr->data_type), sdr->sample_rate);
+
+	for (i = 0; i < inst->samples; i++) {
+		Sample *s = &inst->sample[i];
+		s->data = sdr->data[i];
+		sdr->data[i] = NULL;
+		s->data_alloced = sdr->data_alloced[i];
+		sdr->data_alloced[i] = 0;
+		s->data_type = sdr->data_type;
+	}
+
+	return 0;
 }
 
 

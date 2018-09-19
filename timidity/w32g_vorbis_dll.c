@@ -145,79 +145,79 @@ int load_vorbis_dll(void)
 		h_vorbis_dll = LoadLibrary(TEXT("vorbis.dll"));
 		if (!h_vorbis_dll) h_vorbis_dll = LoadLibrary(TEXT("libvorbis.dll"));
 		if (!h_vorbis_dll) return -1;
-	}
-	vorbis_dll.vorbis_info_init = (type_vorbis_info_init) GetProcAddress(h_vorbis_dll, "vorbis_info_init");
-	if (!vorbis_dll.vorbis_info_init) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_info_clear = (type_vorbis_info_clear) GetProcAddress(h_vorbis_dll, "vorbis_info_clear");
-	if (!vorbis_dll.vorbis_info_clear) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_comment_init = (type_vorbis_comment_init) GetProcAddress(h_vorbis_dll, "vorbis_comment_init");
-	if (!vorbis_dll.vorbis_comment_init) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_comment_add = (type_vorbis_comment_add) GetProcAddress(h_vorbis_dll, "vorbis_comment_add");
-	if (!vorbis_dll.vorbis_comment_add) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_comment_add_tag = (type_vorbis_comment_add_tag) GetProcAddress(h_vorbis_dll, "vorbis_comment_add_tag");
-	if (!vorbis_dll.vorbis_comment_add_tag) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_comment_query = (type_vorbis_comment_query) GetProcAddress(h_vorbis_dll, "vorbis_comment_query");
-//	if (!vorbis_dll.vorbis_comment_query) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_comment_query_count = (type_vorbis_comment_query_count) GetProcAddress(h_vorbis_dll, "vorbis_comment_query_count");
-//	if (!vorbis_dll.vorbis_comment_query_count) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_comment_clear = (type_vorbis_comment_clear) GetProcAddress(h_vorbis_dll, "vorbis_comment_clear");
-	if (!vorbis_dll.vorbis_comment_clear) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_block_init = (type_vorbis_block_init) GetProcAddress(h_vorbis_dll, "vorbis_block_init");
-	if (!vorbis_dll.vorbis_block_init) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_block_clear = (type_vorbis_block_clear) GetProcAddress(h_vorbis_dll, "vorbis_block_clear");
-	if (!vorbis_dll.vorbis_block_clear) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_dsp_clear = (type_vorbis_dsp_clear) GetProcAddress(h_vorbis_dll, "vorbis_dsp_clear");
-	if (!vorbis_dll.vorbis_dsp_clear) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_analysis_init = (type_vorbis_analysis_init) GetProcAddress(h_vorbis_dll, "vorbis_analysis_init");
-	if (!vorbis_dll.vorbis_analysis_init) { free_vorbis_dll(); return -1; }
-////	vorbis_dll.vorbis_commentheader_out = (type_vorbis_commentheader_out) GetProcAddress(h_vorbis_dll, "vorbis_commentheader_out");
-////	if (!vorbis_dll.vorbis_commentheader_out) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_analysis_headerout = (type_vorbis_analysis_headerout) GetProcAddress(h_vorbis_dll, "vorbis_analysis_headerout");
-	if (!vorbis_dll.vorbis_analysis_headerout) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_analysis_buffer = (type_vorbis_analysis_buffer) GetProcAddress(h_vorbis_dll, "vorbis_analysis_buffer");
-	if (!vorbis_dll.vorbis_analysis_buffer) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_analysis_wrote = (type_vorbis_analysis_wrote) GetProcAddress(h_vorbis_dll, "vorbis_analysis_wrote");
-	if (!vorbis_dll.vorbis_analysis_wrote) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_analysis_blockout = (type_vorbis_analysis_blockout) GetProcAddress(h_vorbis_dll, "vorbis_analysis_blockout");
-	if (!vorbis_dll.vorbis_analysis_blockout) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_analysis = (type_vorbis_analysis) GetProcAddress(h_vorbis_dll, "vorbis_analysis");
-	if (!vorbis_dll.vorbis_analysis) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_bitrate_addblock = (type_vorbis_bitrate_addblock) GetProcAddress(h_vorbis_dll, "vorbis_bitrate_addblock");
-	if (!vorbis_dll.vorbis_bitrate_addblock) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_bitrate_flushpacket = (type_vorbis_bitrate_flushpacket) GetProcAddress(h_vorbis_dll, "vorbis_bitrate_flushpacket");
-	if (!vorbis_dll.vorbis_bitrate_flushpacket) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_synthesis_headerin = (type_vorbis_synthesis_headerin) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_headerin");
-//	if (!vorbis_dll.vorbis_synthesis_headerin) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_synthesis_init = (type_vorbis_synthesis_init) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_init");
-//	if (!vorbis_dll.vorbis_synthesis_init) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_synthesis = (type_vorbis_synthesis) GetProcAddress(h_vorbis_dll, "vorbis_synthesis");
-//	if (!vorbis_dll.vorbis_synthesis) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_synthesis_blockin = (type_vorbis_synthesis_blockin) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_blockin");
-//	if (!vorbis_dll.vorbis_synthesis_blockin) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_synthesis_pcmout = (type_vorbis_synthesis_pcmout) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_pcmout");
-//	if (!vorbis_dll.vorbis_synthesis_pcmout) { free_vorbis_dll(); return -1; }
-//	vorbis_dll.vorbis_synthesis_read = (type_vorbis_synthesis_read) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_read");
-//	if (!vorbis_dll.vorbis_synthesis_read) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_info_init = (type_vorbis_info_init)GetProcAddress(h_vorbis_dll, "vorbis_info_init");
+        if (!vorbis_dll.vorbis_info_init) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_info_clear = (type_vorbis_info_clear)GetProcAddress(h_vorbis_dll, "vorbis_info_clear");
+        if (!vorbis_dll.vorbis_info_clear) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_comment_init = (type_vorbis_comment_init)GetProcAddress(h_vorbis_dll, "vorbis_comment_init");
+        if (!vorbis_dll.vorbis_comment_init) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_comment_add = (type_vorbis_comment_add)GetProcAddress(h_vorbis_dll, "vorbis_comment_add");
+        if (!vorbis_dll.vorbis_comment_add) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_comment_add_tag = (type_vorbis_comment_add_tag)GetProcAddress(h_vorbis_dll, "vorbis_comment_add_tag");
+        if (!vorbis_dll.vorbis_comment_add_tag) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_comment_query = (type_vorbis_comment_query) GetProcAddress(h_vorbis_dll, "vorbis_comment_query");
+        //	if (!vorbis_dll.vorbis_comment_query) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_comment_query_count = (type_vorbis_comment_query_count) GetProcAddress(h_vorbis_dll, "vorbis_comment_query_count");
+        //	if (!vorbis_dll.vorbis_comment_query_count) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_comment_clear = (type_vorbis_comment_clear)GetProcAddress(h_vorbis_dll, "vorbis_comment_clear");
+        if (!vorbis_dll.vorbis_comment_clear) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_block_init = (type_vorbis_block_init)GetProcAddress(h_vorbis_dll, "vorbis_block_init");
+        if (!vorbis_dll.vorbis_block_init) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_block_clear = (type_vorbis_block_clear)GetProcAddress(h_vorbis_dll, "vorbis_block_clear");
+        if (!vorbis_dll.vorbis_block_clear) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_dsp_clear = (type_vorbis_dsp_clear)GetProcAddress(h_vorbis_dll, "vorbis_dsp_clear");
+        if (!vorbis_dll.vorbis_dsp_clear) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_analysis_init = (type_vorbis_analysis_init)GetProcAddress(h_vorbis_dll, "vorbis_analysis_init");
+        if (!vorbis_dll.vorbis_analysis_init) { free_vorbis_dll(); return -1; }
+        ////	vorbis_dll.vorbis_commentheader_out = (type_vorbis_commentheader_out) GetProcAddress(h_vorbis_dll, "vorbis_commentheader_out");
+        ////	if (!vorbis_dll.vorbis_commentheader_out) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_analysis_headerout = (type_vorbis_analysis_headerout)GetProcAddress(h_vorbis_dll, "vorbis_analysis_headerout");
+        if (!vorbis_dll.vorbis_analysis_headerout) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_analysis_buffer = (type_vorbis_analysis_buffer)GetProcAddress(h_vorbis_dll, "vorbis_analysis_buffer");
+        if (!vorbis_dll.vorbis_analysis_buffer) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_analysis_wrote = (type_vorbis_analysis_wrote)GetProcAddress(h_vorbis_dll, "vorbis_analysis_wrote");
+        if (!vorbis_dll.vorbis_analysis_wrote) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_analysis_blockout = (type_vorbis_analysis_blockout)GetProcAddress(h_vorbis_dll, "vorbis_analysis_blockout");
+        if (!vorbis_dll.vorbis_analysis_blockout) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_analysis = (type_vorbis_analysis)GetProcAddress(h_vorbis_dll, "vorbis_analysis");
+        if (!vorbis_dll.vorbis_analysis) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_bitrate_addblock = (type_vorbis_bitrate_addblock)GetProcAddress(h_vorbis_dll, "vorbis_bitrate_addblock");
+        if (!vorbis_dll.vorbis_bitrate_addblock) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_bitrate_flushpacket = (type_vorbis_bitrate_flushpacket)GetProcAddress(h_vorbis_dll, "vorbis_bitrate_flushpacket");
+        if (!vorbis_dll.vorbis_bitrate_flushpacket) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_synthesis_headerin = (type_vorbis_synthesis_headerin) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_headerin");
+        //	if (!vorbis_dll.vorbis_synthesis_headerin) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_synthesis_init = (type_vorbis_synthesis_init) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_init");
+        //	if (!vorbis_dll.vorbis_synthesis_init) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_synthesis = (type_vorbis_synthesis) GetProcAddress(h_vorbis_dll, "vorbis_synthesis");
+        //	if (!vorbis_dll.vorbis_synthesis) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_synthesis_blockin = (type_vorbis_synthesis_blockin) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_blockin");
+        //	if (!vorbis_dll.vorbis_synthesis_blockin) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_synthesis_pcmout = (type_vorbis_synthesis_pcmout) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_pcmout");
+        //	if (!vorbis_dll.vorbis_synthesis_pcmout) { free_vorbis_dll(); return -1; }
+        //	vorbis_dll.vorbis_synthesis_read = (type_vorbis_synthesis_read) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_read");
+        //	if (!vorbis_dll.vorbis_synthesis_read) { free_vorbis_dll(); return -1; }
 #ifdef VORBIS_DLL_INCLUDE_VORBISENC
-	vorbis_dll.vorbis_encode_init = (type_vorbis_encode_init) GetProcAddress(h_vorbis_dll, "vorbis_encode_init");
-	if (!vorbis_dll.vorbis_encode_init) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_encode_init_vbr = (type_vorbis_encode_init_vbr) GetProcAddress(h_vorbis_dll, "vorbis_encode_init_vbr");
-	if (!vorbis_dll.vorbis_encode_init_vbr) { free_vorbis_dll(); return -1; }
-	vorbis_dll.vorbis_encode_ctl = (type_vorbis_encode_ctl) GetProcAddress(h_vorbis_dll, "vorbis_encode_ctl");
-	if (!vorbis_dll.vorbis_encode_ctl) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_encode_init = (type_vorbis_encode_init)GetProcAddress(h_vorbis_dll, "vorbis_encode_init");
+        if (!vorbis_dll.vorbis_encode_init) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_encode_init_vbr = (type_vorbis_encode_init_vbr)GetProcAddress(h_vorbis_dll, "vorbis_encode_init_vbr");
+        if (!vorbis_dll.vorbis_encode_init_vbr) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_encode_ctl = (type_vorbis_encode_ctl)GetProcAddress(h_vorbis_dll, "vorbis_encode_ctl");
+        if (!vorbis_dll.vorbis_encode_ctl) { free_vorbis_dll(); return -1; }
 #endif
 #ifdef VORBIS_DLL_INCLUDE_VORBISFILE
-    vorbis_dll.ov_clear = (type_ov_clear)GetProcAddress(h_vorbis_dll, "ov_clear");
-    if (!vorbis_dll.ov_clear) { free_vorbis_dll(); return -1; }
-    vorbis_dll.ov_open_callbacks = (type_ov_open_callbacks)GetProcAddress(h_vorbis_dll, "ov_open_callbacks");
-    if (!vorbis_dll.ov_open_callbacks) { free_vorbis_dll(); return -1; }
-    vorbis_dll.ov_pcm_total = (type_ov_pcm_total)GetProcAddress(h_vorbis_dll, "ov_pcm_total");
-    if (!vorbis_dll.ov_pcm_total) { free_vorbis_dll(); return -1; }
-    vorbis_dll.ov_info = (type_ov_info)GetProcAddress(h_vorbis_dll, "ov_info");
-    if (!vorbis_dll.ov_info) { free_vorbis_dll(); return -1; }
-    vorbis_dll.ov_read = (type_ov_read)GetProcAddress(h_vorbis_dll, "ov_read");
-    if (!vorbis_dll.ov_read) { free_vorbis_dll(); return -1; }
+        vorbis_dll.ov_clear = (type_ov_clear)GetProcAddress(h_vorbis_dll, "ov_clear");
+        if (!vorbis_dll.ov_clear) { free_vorbis_dll(); return -1; }
+        vorbis_dll.ov_open_callbacks = (type_ov_open_callbacks)GetProcAddress(h_vorbis_dll, "ov_open_callbacks");
+        if (!vorbis_dll.ov_open_callbacks) { free_vorbis_dll(); return -1; }
+        vorbis_dll.ov_pcm_total = (type_ov_pcm_total)GetProcAddress(h_vorbis_dll, "ov_pcm_total");
+        if (!vorbis_dll.ov_pcm_total) { free_vorbis_dll(); return -1; }
+        vorbis_dll.ov_info = (type_ov_info)GetProcAddress(h_vorbis_dll, "ov_info");
+        if (!vorbis_dll.ov_info) { free_vorbis_dll(); return -1; }
+        vorbis_dll.ov_read = (type_ov_read)GetProcAddress(h_vorbis_dll, "ov_read");
+        if (!vorbis_dll.ov_read) { free_vorbis_dll(); return -1; }
 #endif
+	}
 	return 0;
 }
 

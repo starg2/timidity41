@@ -282,7 +282,7 @@ static int ctl_pass_playing_list(int n, char *args[])
 static int ctl_pass_playing_list(int n, char *args[])
 #else
 // 0: OK, 2: Require to reset.
-static int ctl_pass_playing_list2(int n, char *args[])
+int ctl_pass_playing_list2(int n, char *args[])
 #endif
 {
   int i, j, devnum, devok;

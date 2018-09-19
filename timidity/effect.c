@@ -4667,14 +4667,15 @@ static inline void pre_compute_net_comb_fbc(comb2 *info, int32 count)
 // Reverb EX
 #define REV_EX_ROOMSIZE_FCT (0.0029411764705882352941176470588235)
 #define REV_EX_TIME     (1.6) 
-#define REV_EX_LEVEL    (3.0) // total
+#define REV_EX_LEVEL    (2.5) // total
 #define REV_EX_ER_LEVEL (0.613 * REV_EX_LEVEL)
 #define REV_EX_RV_LEVEL (1.022 * REV_EX_LEVEL)
 #define REV_EX_FEEDBACK (0.25)
 #define REV_EX_HPF_FREQ (107.73) // Hz
-#define REV_EX_AP_LEVEL (0.33333)
-#define REV_EX_AP_FB    (0.06125)
-#define REV_EX_AP_BALANCE (0.55)
+#define REV_EX_AP_LEVEL (0.9)
+#define REV_EX_AP_FB    (0.5)
+#define REV_EX_AP_SPR   (23)
+#define REV_EX_AP_TIME  (1.946269294967117211806184384127e-6)
 #define REV_EX_DAMP     (0.5)
 
 double ext_reverb_ex_time = 1.0;
@@ -4682,7 +4683,7 @@ double ext_reverb_ex_level = 1.0;
 double ext_reverb_ex_er_level = 1.0;
 double ext_reverb_ex_rv_level = 1.0;
 int ext_reverb_ex_rv_num = 16;
-int ext_reverb_ex_ap_num = 8; // flag : 0 or 8 
+int ext_reverb_ex_ap_num = 8; // flag : 0 or 4 or 8 
 //int ext_reverb_ex_lite = 0;
 //int ext_reverb_ex_mode = 0;
 //int ext_reverb_ex_er_num = 16;
@@ -4786,36 +4787,41 @@ static int rev_ex_init_rv_delay(InfoReverbEX *info, int32 size)
 
 static void rev_ex_free_ap_delay(InfoReverbEX *info)
 {
-	int i;	
+	int i, k;	
+
+	for (k = 0; k < REV_EX_AP_MAX; k++) {
 	for (i = 0; i < REV_EX_DELAY; i++) {
-		if(info->aalloc[i]){
-			if(info->abuf[i] != NULL) {
+		if(info->aalloc[k][i]){
+			if(info->abuf[k][i] != NULL) {
 #ifdef ALIGN_SIZE
-				aligned_free(info->abuf[i]);
+				aligned_free(info->abuf[k][i]);
 #else
-				free(info->abuf[i]);
+				free(info->abuf[k][i]);
 #endif
-				info->abuf[i] = NULL;
-				info->aalloc[i] = 0;
+				info->abuf[k][i] = NULL;
+				info->aalloc[k][i] = 0;
 			}
 		}
+	}
 	}
 }
 
 static int rev_ex_init_ap_delay(InfoReverbEX *info, int32 size)
 {
-	int32 i, bytes;
+	int32 i, k, bytes;
 	rev_ex_free_ap_delay(info);	
 	bytes = sizeof(DATA_T) * (size + 1); // +1 interporation	
+	for (k = 0; k < info->ap_num; k++) {
 	for (i = 0; i < REV_EX_DELAY; i++) {
 #ifdef ALIGN_SIZE
-		info->abuf[i] = (DATA_T *)aligned_malloc(bytes, ALIGN_SIZE);
+		info->abuf[k][i] = (DATA_T *)aligned_malloc(bytes, ALIGN_SIZE);
 #else
-		info->abuf[i] = (DATA_T *)safe_malloc(bytes);
+		info->abuf[k][i] = (DATA_T *)safe_malloc(bytes);
 #endif
-		if(info->abuf[i] == NULL) {return 1;} // error
-		info->aalloc[i] = 1;
-		memset(info->abuf[i], 0, bytes);
+		if(info->abuf[k][i] == NULL) {return 1;} // error
+		info->aalloc[k][i] = 1;
+		memset(info->abuf[k][i], 0, bytes);
+	}
 	}
 	return 0;
 }
@@ -4903,6 +4909,8 @@ static void init_reverb_ex(InfoReverbEX *info)
 		ext_reverb_ex_ap_num = 0;
 	//ext_reverb_ex_ap_num = ext_reverb_ex_ap_num ? REV_EX_AP_MAX : 0;
 	// init
+	info->unit_num = ext_reverb_ex_rv_num;
+	info->ap_num = ext_reverb_ex_ap_num;
 	init_prime_list();
 	pdelay_cnt = info->er_time_ms * playmode_rate_ms;	
 	room_cnt = REV_EX_ROOMSIZE_FCT * (FLOAT_T)play_mode->rate;	// leng[m] * div_s[s/m] * rate[cnt/s]
@@ -4950,38 +4958,31 @@ static void init_reverb_ex(InfoReverbEX *info)
 		init_sample_filter(&info->rv_fc1[i], info->rev_damp_freq * pow(0.9, get_white_noise_p()) * REV_EX_DAMP, 0, FILTER_LPF6); //info->rev_damp_type);
 	}	
 	rev_ex_init_rv_delay(info, info->rev_dly_ms * playmode_rate_ms);
-	if(ext_reverb_ex_ap_num){
-		int32 size = 0, apnum_div2 = ext_reverb_ex_ap_num / 2;
-		FLOAT_T div_apnum = 1.0 / (FLOAT_T)ext_reverb_ex_ap_num;
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
-			FLOAT_T rt, dt;
+	if(info->ap_num){
+		int32 size = 0;
+		FLOAT_T cf = info->rev_time_sec * (FLOAT_T)play_mode->rate * REV_EX_AP_TIME;
+		for (i = 0; i < info->ap_num; i++) {
 			int32 dti;
 			// ap1
-			rt = div_apnum * i;
-			dt = dtS1 * (1.0 - rt) + dtL1 * rt; // dtS1->dtL1
-			dti = (dt - pdelay_cnt) * DIV_SQRT2;
-			dti += 1;
+			dti = (allpasstunings[i] + REV_EX_AP_SPR) * cf;
+			dti += 3;
 			find_prime(&dti);
 			info->delaya[i][REV_EX_ER_L1] = dti;
 			if(dti > size)
 				size = dti;
-			dti = (dt - pdelay_cnt) * DIV_SQRT2;
-			dti += 5; // st spread
+			dti = allpasstunings[i] * cf;
+			dti += 3;
 			find_prime(&dti);
 			info->delaya[i][REV_EX_ER_R1] = dti;
 			if(dti > size)
 				size = dti;
 			// ap2
-			rt = i < apnum_div2 ? sqrt(div_apnum * i * 2.0) : sqrt(1.0 - div_apnum * i * 2.0);
-			dt = dtS2 * (1.0 - rt) + dtL2 * rt; // dtS2->dtL2->dtS2
-			dti = dt * DIV_SQRT2;
-			dti += 3;
+			dti = allpasstunings[i] * cf;
 			find_prime(&dti);
 			info->delaya[i][REV_EX_RV_L1] = dti;
 			if(dti > size)
 				size = dti;
-			dti = dt * DIV_SQRT2;
-			dti += 7; // st spread
+			dti = (allpasstunings[i] + REV_EX_AP_SPR) * cf;
 			find_prime(&dti);
 			info->delaya[i][REV_EX_RV_R1] = dti;
 			if(dti > size)
@@ -4999,7 +5000,6 @@ static void init_reverb_ex(InfoReverbEX *info)
 	init_sample_filter(&info->er_fc, info->er_damp_freq * REV_EX_DAMP, 0, FILTER_LPF6); //info->rev_damp_type);
 	set_sample_filter_type(&info->hpf, FILTER_NONE);
 	init_sample_filter(&info->hpf, REV_EX_HPF_FREQ, 0, FILTER_HPF_BW);	
-	info->unit_num = num;
 	info->st_sprd = (info->mode == CH_STEREO) ? div_num : 0.0; // L+,R-
 	info->flt_wet = (info->rev_damp_bal + 1.0) * DIV_2;
 	info->flt_dry = 1.0 - info->flt_wet;
@@ -5013,11 +5013,8 @@ static void init_reverb_ex(InfoReverbEX *info)
 	fbmax = sqrt(3.0 / pow(1.0 / (1.0 - fbmax), DIV_3_2));
 	info->levelrv = sq(norm) / (sqrt(1.0 + (fbL + fbS) * DIV_2)) * REV_EX_RV_LEVEL
 		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level * fbmax; // rv_fb
-	info->levelap = (info->density + 1.0) * DIV_2 * REV_EX_AP_LEVEL;
-	if(ext_reverb_ex_ap_num){
-		info->leveler *= REV_EX_AP_BALANCE;
-		info->levelrv *= REV_EX_AP_BALANCE;
-	}
+	info->levelap = pow(1.0 + REV_EX_AP_FB, -info->ap_num) * REV_EX_AP_LEVEL;
+	info->fbap = (info->density + 1.0) * DIV_2 * REV_EX_AP_FB;
 // int32の場合 er/rvのミックス部分がint32超える気がするので 入力下げて出力上げ 8bit分
 #if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
 #if (OPT_MODE == 1)/* fixed-point implementation */
@@ -5028,7 +5025,8 @@ static void init_reverb_ex(InfoReverbEX *info)
 	info->feedbacki = TIM_FSCALE(info->feedback, 24 - 8); // input // imuldiv24 // * feedback部分
 	info->leveleri = TIM_FSCALE(info->leveler , 24); // output // imuldiv16
 	info->levelrvi = TIM_FSCALE(info->levelrv , 24); // output // imuldiv16	
-	info->levelapi = TIM_FSCALE(info->levelap , 24);;
+	info->levelapi = TIM_FSCALE(info->levelap , 24);
+	info->fbapi = TIM_FSCALE(info->fbap , 24);
 	for (i = 0; i < num; i++)
 		info->rv_feedbacki[i] = TIM_FSCALE(info->rv_feedback[i], 24);
 #else // OPT_MODE 0 /* floating-point implementation */
@@ -5038,8 +5036,6 @@ static void init_reverb_ex(InfoReverbEX *info)
 #endif /* OPT_MODE == 1 */
 #endif /* !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT) */
 	info->hist[0] = info->hist[1] = 0;	
-	info->fb_ap1[0] = info->fb_ap1[1] = 0;	
-	info->fb_ap2[0] = info->fb_ap2[1] = 0;	
 	// func
 	switch(info->mode){
 	case CH_STEREO:
@@ -5079,9 +5075,7 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 	DATA_T	*hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
 		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
 	int32 *indexap = &info->index2[REV_EX_AP1], sizeap = info->size2[REV_EX_AP1];
-	DATA_T *fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	int32 levelap = info->levelapi;
-	const int32 apfbi = TIM_FSCALE(REV_EX_AP_FB, 24);
+	int32 levelap = info->levelapi, fbap = info->fbapi;
 	// CH_STEREO:
 	for (k = 0; k < count; k++)
 	{		
@@ -5133,27 +5127,33 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
-		if(ext_reverb_ex_ap_num){
-		if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
-		info->abuf[0][*indexap] = imuldiv24(dat_er[0], levelap) + imuldiv24(fb_ap1[0], apfbi); 
-		info->abuf[1][*indexap] = imuldiv24(dat_er[1], levelap) + imuldiv24(fb_ap1[1], apfbi); 
-		info->abuf[2][*indexap] = imuldiv24(dat_rv[0], levelap) + imuldiv24(fb_ap2[0], apfbi); 
-		info->abuf[3][*indexap] = imuldiv24(dat_rv[1], levelap) + imuldiv24(fb_ap2[1], apfbi);  
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
-			int32 index;
-			// ap1 er
-			if((index = *indexap - info->delaya[i][0]) < 0) {index += sizeap;} 
-			dat_er[0] += info->abuf[0][index]; 
-			if((index = *indexap - info->delaya[i][1]) < 0) {index += sizeap;}
-			dat_er[1] += info->abuf[1][index]; 	
-			// ap2 rv
-			if((index = *indexap - info->delaya[i][2]) < 0) {index += sizeap;}
-			dat_rv[0] += info->abuf[2][index]; 
-			if((index = *indexap - info->delaya[i][3]) < 0) {index += sizeap;}
-			dat_rv[1] += info->abuf[3][index]; 
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
+		if(info->ap_num){
+			imuldiv24(dat_er[0], levelap); imuldiv24(dat_er[1], levelap);
+			imuldiv24(dat_rv[0], levelap); imuldiv24(dat_rv[1], levelap);
+			if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
+			for (i = 0; i < info->ap_num; i++) {
+				int32 index0, index1, index2, index3;
+				DATA_T tmp0, tmp1, tmp2, tmp3;
+				// 
+				if((index0 = *indexap - info->delaya[i][REV_EX_ER_L1]) < 0) {index0 += sizeap;} 
+				if((index1 = *indexap - info->delaya[i][REV_EX_ER_R1]) < 0) {index1 += sizeap;} 
+				if((index2 = *indexap - info->delaya[i][REV_EX_RV_L1]) < 0) {index2 += sizeap;} 
+				if((index3 = *indexap - info->delaya[i][REV_EX_RV_R1]) < 0) {index3 += sizeap;} 
+				// ap1 er
+				tmp0 = info->abuf[i][REV_EX_ER_L1][index0];
+				info->abuf[i][REV_EX_ER_L1][*indexap] = dat_er[0] + imuldiv24(tmp0, fbap);
+				dat_er[0] = tmp0 - dat_er[0];
+				tmp1 = info->abuf[i][REV_EX_ER_R1][index1];
+				info->abuf[i][REV_EX_ER_R1][*indexap] = dat_er[1] + imuldiv24(tmp1, fbap);
+				dat_er[1] = tmp1 - dat_er[1];
+				// ap2 rv
+				tmp2 = info->abuf[i][REV_EX_RV_L1][index2];
+				info->abuf[i][REV_EX_RV_L1][*indexap] = dat_rv[0] + imuldiv24(tmp2, fbap);
+				dat_rv[0] = tmp2 - dat_rv[0];
+				tmp3 = info->abuf[i][REV_EX_RV_R1][index3];
+				info->abuf[i][REV_EX_RV_R1][*indexap] = dat_rv[1] + imuldiv24(tmp3, fbap);
+				dat_rv[1] = tmp3 - dat_rv[1];
+			}
 		}
 		// out
 		hist[0] = imuldiv16(dat_rv[0], levelrv) + imuldiv16(dat_er[0], leveler);
@@ -5199,10 +5199,8 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
 	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
 	__m128i sizeap = _mm_set1_epi32(info->size2[REV_EX_AP1]);
-	__m128d vec_ap_fb = _mm_set1_pd(REV_EX_AP_FB), vec_levelap = MM_LOAD1_PD(&info->levelap), 
-		vec_fbap1 = _mm_loadu_pd(info->fb_ap1), vec_fbap2 = _mm_loadu_pd(info->fb_ap2);
+	__m128d vec_levelap = MM_LOAD1_PD(&info->levelap), vec_fbap = MM_LOAD1_PD(&info->fbap);
 	__m128i vec_index2;
-	__m128d vtmp[2];
 	// CH_STEREO:
 	for (k = 0; k < count; k += 2)
 	{		
@@ -5253,26 +5251,28 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 		// rv delay in
 		_mm_store_pd(&bufrd[tmpi2[REV_EX_RD]], vec_mixer);
 		// ap
-		if(ext_reverb_ex_ap_num){
+		if(info->ap_num){
 		vec_index2 = _mm_shuffle_epi32(index2, 0xAA);
-		vtmp[0] = MM_FMA2_PD(vec_mixer, vec_levelap, vec_fbap1, vec_ap_fb);
-		vtmp[1] = MM_FMA2_PD(vec_mixrv, vec_levelap, vec_fbap2, vec_ap_fb);
-		_mm_store_sd(&info->abuf[REV_EX_ER_L1][tmpi2[REV_EX_AP1]], vtmp[0]); 
-		_mm_store_sd(&info->abuf[REV_EX_ER_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[0], vtmp[0], 0x3)); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_L1][tmpi2[REV_EX_AP1]], vtmp[1]); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[1], vtmp[1], 0x3)); 
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
+		vec_mixer = _mm_mul_pd(vec_mixer, vec_levelap);
+		vec_mixrv = _mm_mul_pd(vec_mixrv, vec_levelap);
+		for (i = 0; i < info->ap_num; i++) {
 		ALIGN int32 tmpi[4];
 		__m128i vec_index;
+		__m128d vtmp1[2], vtmp2[2];
 		vec_index = _mm_sub_epi32(vec_index2, _mm_loadu_si128((__m128i *)info->delaya[i]));
 		vec_index = _mm_add_epi32(vec_index, _mm_and_si128(sizeap, _mm_cmplt_epi32(vec_index, _mm_setzero_si128())));
 		_mm_store_si128((__m128i *)&tmpi, vec_index);
-		// ap1
-		vec_mixer = _mm_add_pd(vec_mixer, _mm_set_pd(info->abuf[1][tmpi[1]], info->abuf[0][tmpi[0]]));
-		// ap2
-		vec_mixrv = _mm_add_pd(vec_mixrv, _mm_set_pd(info->abuf[3][tmpi[3]], info->abuf[2][tmpi[2]]));
+		vtmp1[0] = _mm_set_pd(info->abuf[i][REV_EX_ER_R1][tmpi[1]], info->abuf[i][REV_EX_ER_L1][tmpi[0]]);
+		vtmp1[1] = _mm_set_pd(info->abuf[i][REV_EX_RV_R1][tmpi[3]], info->abuf[i][REV_EX_RV_L1][tmpi[2]]);	
+		vtmp2[0] = MM_FMA_PD(vtmp1[0], vec_fbap, vec_mixer);
+		vtmp2[1] = MM_FMA_PD(vtmp1[1], vec_fbap, vec_mixrv);
+		_mm_store_sd(&info->abuf[i][REV_EX_ER_L1][tmpi2[REV_EX_AP1]], vtmp2[0]); 
+		_mm_store_sd(&info->abuf[i][REV_EX_ER_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp2[0], vtmp2[0], 0x3)); 
+		_mm_store_sd(&info->abuf[i][REV_EX_RV_L1][tmpi2[REV_EX_AP1]], vtmp2[1]); 
+		_mm_store_sd(&info->abuf[i][REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp2[1], vtmp2[1], 0x3)); 
+		vec_mixer = _mm_sub_pd(vtmp1[0], vec_mixer);
+		vec_mixrv = _mm_sub_pd(vtmp1[1], vec_mixrv);
 		}
-		vec_fbap1 = vec_mixer; vec_fbap2 = vec_mixrv;
 		}
 		// out
 		vec_hist = _mm_add_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
@@ -5285,7 +5285,6 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
 	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
 	_mm_storeu_si128((__m128i *)info->index2, index2);
-	_mm_storeu_pd(info->fb_ap1, vec_fbap1); _mm_storeu_pd(info->fb_ap2, vec_fbap2);
 }
 
 #else /* floating-point implementation */
@@ -5300,8 +5299,7 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 	DATA_T	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
 		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
 	int32 *indexap = &info->index2[REV_EX_AP1], sizeap = info->size2[REV_EX_AP1];
-	DATA_T *fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	FLOAT_T levelap = info->levelap;
+	FLOAT_T levelap = info->levelap, fbap = info->fbap;
 	// CH_STEREO:
 	RDTSC_TEST1
 	for (k = 0; k < count; k++)
@@ -5354,27 +5352,33 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
-		if(ext_reverb_ex_ap_num){
-		if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
-		info->abuf[0][*indexap] = dat_er[0] * levelap + fb_ap1[0] * REV_EX_AP_FB; 
-		info->abuf[1][*indexap] = dat_er[1] * levelap + fb_ap1[1] * REV_EX_AP_FB; 
-		info->abuf[2][*indexap] = dat_rv[0] * levelap + fb_ap2[0] * REV_EX_AP_FB; 
-		info->abuf[3][*indexap] = dat_rv[1] * levelap + fb_ap2[1] * REV_EX_AP_FB; 
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
-			int32 index;
-			// ap1 er
-			if((index = *indexap - info->delaya[i][0]) < 0) {index += sizeap;} 
-			dat_er[0] += info->abuf[0][index]; 
-			if((index = *indexap - info->delaya[i][1]) < 0) {index += sizeap;}
-			dat_er[1] += info->abuf[1][index]; 	
-			// ap2 rv
-			if((index = *indexap - info->delaya[i][2]) < 0) {index += sizeap;}
-			dat_rv[0] += info->abuf[2][index]; 
-			if((index = *indexap - info->delaya[i][3]) < 0) {index += sizeap;}
-			dat_rv[1] += info->abuf[3][index]; 
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
+		if(info->ap_num){
+			dat_er[0] *= levelap; dat_er[1] *= levelap;
+			dat_rv[0] *= levelap; dat_rv[1] *= levelap;
+			if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
+			for (i = 0; i < info->ap_num; i++) {
+				int32 index0, index1, index2, index3;
+				DATA_T tmp0, tmp1, tmp2, tmp3;
+				// 
+				if((index0 = *indexap - info->delaya[i][REV_EX_ER_L1]) < 0) {index0 += sizeap;} 
+				if((index1 = *indexap - info->delaya[i][REV_EX_ER_R1]) < 0) {index1 += sizeap;} 
+				if((index2 = *indexap - info->delaya[i][REV_EX_RV_L1]) < 0) {index2 += sizeap;} 
+				if((index3 = *indexap - info->delaya[i][REV_EX_RV_R1]) < 0) {index3 += sizeap;} 
+				// ap1 er
+				tmp0 = info->abuf[i][REV_EX_ER_L1][index0];
+				info->abuf[i][REV_EX_ER_L1][*indexap] = dat_er[0] + tmp0 * fbap;
+				dat_er[0] = tmp0 - dat_er[0];
+				tmp1 = info->abuf[i][REV_EX_ER_R1][index1];
+				info->abuf[i][REV_EX_ER_R1][*indexap] = dat_er[1] + tmp1 * fbap;
+				dat_er[1] = tmp1 - dat_er[1];
+				// ap2 rv
+				tmp2 = info->abuf[i][REV_EX_RV_L1][index2];
+				info->abuf[i][REV_EX_RV_L1][*indexap] = dat_rv[0] + tmp2 * fbap;
+				dat_rv[0] = tmp2 - dat_rv[0];
+				tmp3 = info->abuf[i][REV_EX_RV_R1][index3];
+				info->abuf[i][REV_EX_RV_R1][*indexap] = dat_rv[1] + tmp3 * fbap;
+				dat_rv[1] = tmp3 - dat_rv[1];
+			}
 		}
 		// out
 		hist[0] = dat_rv[0] * levelrv + dat_er[0] * leveler;
@@ -5443,6 +5447,8 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 		ext_reverb_ex_ap_num = 0;
 	//ext_reverb_ex_ap_num = ext_reverb_ex_ap_num ? REV_EX_AP_MAX : 0;
 	// init
+	info->unit_num = ext_reverb_ex_rv_num;
+	info->ap_num = ext_reverb_ex_ap_num;
 	init_prime_list();
 	pdelay_cnt = info->er_time_ms * playmode_rate_ms;	
 	room_cnt = REV_EX_ROOMSIZE_FCT * (FLOAT_T)play_mode->rate;	// leng[m] * div_s[s/m] * rate[cnt/s]
@@ -5527,65 +5533,48 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 		error += rev_ex_mod_init_delay(info, REV_EX_RV_R1, i, info->size2[REV_EX_UNIT]);
 	}
 	rev_ex_init_rv_delay(info, info->rev_dly_ms * playmode_rate_ms);
-	if(ext_reverb_ex_ap_num){
-		int32 size = 0, apnum_div2 = ext_reverb_ex_ap_num / 2;
-		FLOAT_T div_apnum = 1.0 / (FLOAT_T)ext_reverb_ex_ap_num;
-		lfo_rate = ext_reverb_ex_ap_rate * div_playmode_rate;
-		lfo_depth = ext_reverb_ex_ap_depth * playmode_rate_ms;
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
-			FLOAT_T rt, dt;
+	if(info->ap_num){
+		int32 size = 0;
+		FLOAT_T cf = info->rev_time_sec * (FLOAT_T)play_mode->rate * REV_EX_AP_TIME;
+		for (i = 0; i < info->ap_num; i++) {
 			int32 dti;
 			// ap1
-			rt = div_apnum * i;
-			dt = dtS1 * (1.0 - rt) + dtL1 * rt; // dtS1->dtL1
-			dti = (dt - pdelay_cnt) * DIV_SQRT2;
+			dti = (allpasstunings[i] + REV_EX_AP_SPR) * cf;
+			dti += 3;
 			find_prime(&dti);
-			dti = (dti + 1);
-			info->adelay[i][REV_EX_ER_L1] = dti;
-			info->adelay[i][REV_EX_ER_R1] = dti;
+			info->delaya[i][REV_EX_ER_L1] = dti;
 			if(dti > size)
 				size = dti;
-			info->acount[i][REV_EX_ER_L1] = 0;
-			info->acount[i][REV_EX_ER_R1] = 0;
-			info->arate[i][REV_EX_ER_L1] = lfo_rate * pow(1.15, get_white_noise_p());
-			info->arate[i][REV_EX_ER_R1] = lfo_rate * pow(1.15, get_white_noise_p());
-			info->adepth[i][REV_EX_ER_L1] = lfo_depth * pow(1.25, get_white_noise_p());
-			info->adepth[i][REV_EX_ER_R1] = lfo_depth * pow(1.25, get_white_noise_p());
-			info->aphase[i][REV_EX_ER_L1] = get_white_noise_p();
-			info->aphase[i][REV_EX_ER_R1] = get_white_noise_p();
+			dti = allpasstunings[i] * cf;
+			dti += 3;
+			find_prime(&dti);
+			info->delaya[i][REV_EX_ER_R1] = dti;
+			if(dti > size)
+				size = dti;
 			// ap2
-			rt = i < apnum_div2 ? sqrt(div_apnum * i * 2.0) : sqrt(1.0 - div_apnum * i * 2.0);
-			dt = dtS2 * (1.0 - rt) + dtL2 * rt; // dtS2->dtL2->dtS2
-			dti = dt * DIV_SQRT2;
+			dti = allpasstunings[i] * cf;
 			find_prime(&dti);
-			dti = (dti + 1);	
-			info->adelay[i][REV_EX_RV_L1] = dti;
-			info->adelay[i][REV_EX_RV_R1] = dti;
+			info->delaya[i][REV_EX_RV_L1] = dti;
 			if(dti > size)
 				size = dti;
-			info->acount[i][REV_EX_RV_L1] = 0;
-			info->acount[i][REV_EX_RV_R1] = 0;
-			info->arate[i][REV_EX_RV_L1] = lfo_rate * pow(1.15, get_white_noise_p());
-			info->arate[i][REV_EX_RV_R1] = lfo_rate * pow(1.15, get_white_noise_p());
-			info->adepth[i][REV_EX_RV_L1] = lfo_depth * pow(1.25, get_white_noise_p());
-			info->adepth[i][REV_EX_RV_R1] = lfo_depth * pow(1.25, get_white_noise_p());
-			info->aphase[i][REV_EX_RV_L1] = get_white_noise_p();
-			info->aphase[i][REV_EX_RV_R1] = get_white_noise_p();
+			dti = (allpasstunings[i] + REV_EX_AP_SPR) * cf;
+			find_prime(&dti);
+			info->delaya[i][REV_EX_RV_R1] = dti;
+			if(dti > size)
+				size = dti;
 		}
-		size = (FLOAT_T)size + lfo_depth * 1.26 + 0.5;
-		++size;
+		info->index2[REV_EX_AP1] = 0;
+		info->index2[REV_EX_AP2] = 0;
+		size++;
 		if(size < 2) size = 2;
 		info->size2[REV_EX_AP1] = size;
 		info->size2[REV_EX_AP2] = size;
-		info->index2[REV_EX_AP1] = 0;
-		info->index2[REV_EX_AP2] = 0;
 		error += rev_ex_init_ap_delay(info, size);
 	}
 	set_sample_filter_type(&info->er_fc, FILTER_NONE);
 	init_sample_filter(&info->er_fc, info->er_damp_freq * REV_EX_DAMP, 0, FILTER_LPF6); //info->rev_damp_type);
 	set_sample_filter_type(&info->hpf, FILTER_NONE);
 	init_sample_filter(&info->hpf, REV_EX_HPF_FREQ, 0, FILTER_HPF_BW);	
-	info->unit_num = num;
 	info->st_sprd = (info->mode == CH_STEREO) ? div_num : 0.0; // L+,R-
 	info->flt_wet = (info->rev_damp_bal + 1.0) * DIV_2;
 	info->flt_dry = 1.0 - info->flt_wet;
@@ -5599,11 +5588,8 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	fbmax = sqrt(3.0 / pow(1.0 / (1.0 - fbmax), DIV_3_2));
 	info->levelrv = sq(norm) / (sqrt(1.0 + (fbL + fbS) * DIV_2)) * REV_EX_RV_LEVEL
 		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level * fbmax; // rv_fb
-	info->levelap = (info->density + 1.0) * DIV_2 * REV_EX_AP_LEVEL;
-	if(ext_reverb_ex_ap_num){
-		info->leveler *= REV_EX_AP_BALANCE;
-		info->levelrv *= REV_EX_AP_BALANCE;
-	}
+	info->levelap = pow(1.0 + REV_EX_AP_FB, -info->ap_num) * REV_EX_AP_LEVEL;
+	info->fbap = (info->density + 1.0) * DIV_2 * REV_EX_AP_FB;
 // int32の場合 er/rvのミックス部分がint32超える気がするので 入力下げて出力上げ 8bit分
 #if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
 #if (OPT_MODE == 1)/* fixed-point implementation */
@@ -5614,7 +5600,8 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	info->feedbacki = TIM_FSCALE(info->feedback, 24 - 8); // input // imuldiv24 // * feedback部分
 	info->leveleri = TIM_FSCALE(info->leveler , 24); // output // imuldiv16
 	info->levelrvi = TIM_FSCALE(info->levelrv , 24); // output // imuldiv16	
-	info->levelapi = TIM_FSCALE(info->levelap , 24);;
+	info->levelapi = TIM_FSCALE(info->levelap , 24);
+	info->fbapi = TIM_FSCALE(info->fbap , 24);
 	for (i = 0; i < num; i++)
 		info->rv_feedbacki[i] = TIM_FSCALE(info->rv_feedback[i], 24);
 #else // OPT_MODE 0 /* floating-point implementation */
@@ -5624,8 +5611,6 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 #endif /* OPT_MODE == 1 */
 #endif /* !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT) */
 	info->hist[0] = info->hist[1] = 0;	
-	info->fb_ap1[0] = info->fb_ap1[1] = 0;	
-	info->fb_ap2[0] = info->fb_ap2[1] = 0;	
 	// func
 	switch(info->mode){
 	case CH_STEREO:
@@ -5688,31 +5673,6 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 			tmp2 = info->mphase[i][REV_EX_RV_L1];
 			info->mphase[i][REV_EX_ER_R1] = tmp2;
 			info->mphase[i][REV_EX_RV_L1] = tmp1;
-		}		
-		if(ext_reverb_ex_ap_num){
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
-			FLOAT_T tmp1, tmp2;
-			tmp1 = info->acount[i][REV_EX_ER_R1];
-			tmp2 = info->acount[i][REV_EX_RV_L1];
-			info->acount[i][REV_EX_ER_R1] = tmp2;
-			info->acount[i][REV_EX_RV_L1] = tmp1;
-			tmp1 = info->arate[i][REV_EX_ER_R1];
-			tmp2 = info->arate[i][REV_EX_RV_L1];
-			info->arate[i][REV_EX_ER_R1] = tmp2;
-			info->arate[i][REV_EX_RV_L1] = tmp1;
-			tmp1 = info->adelay[i][REV_EX_ER_R1];
-			tmp2 = info->adelay[i][REV_EX_RV_L1];
-			info->adelay[i][REV_EX_ER_R1] = tmp2;
-			info->adelay[i][REV_EX_RV_L1] = tmp1;
-			tmp1 = info->adepth[i][REV_EX_ER_R1];
-			tmp2 = info->adepth[i][REV_EX_RV_L1];
-			info->adepth[i][REV_EX_ER_R1] = tmp2;
-			info->adepth[i][REV_EX_RV_L1] = tmp1;
-			tmp1 = info->aphase[i][REV_EX_ER_R1];
-			tmp2 = info->aphase[i][REV_EX_RV_L1];
-			info->aphase[i][REV_EX_ER_R1] = tmp2;
-			info->aphase[i][REV_EX_RV_L1] = tmp1;
-		}
 		}
 #endif
 		info->tcount = 0;
@@ -5760,7 +5720,6 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 	int32 chofs0, chofs2, chofslfo;
 	FILTER_T *dbH;
 	DATA_T in[2], *pin[2], hist;
-	__m128d vec_fbap; 
 	__m128i index2;
 		
 	if(thread_num >= 2)
@@ -5780,7 +5739,6 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 		pin[0] = &in[0];
 		pin[1] = &in[1];
 		hist = info->hist[0];
-		vec_fbap = _mm_loadu_pd(info->fb_ap1);
 		index2 = _mm_loadu_si128((__m128i *)info->index2);
 	}else if(thread_num == 1){ // R
 		chofs0 = 1;
@@ -5790,7 +5748,6 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 		pin[0] = &in[1];
 		pin[1] = &in[0];
 		hist = info->hist[1];
-		vec_fbap = _mm_loadu_pd(info->fb_ap2);
 		index2 = _mm_loadu_si128((__m128i *)info->index2t);
 	}else
 		return;	
@@ -5807,7 +5764,9 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 	__m128d vmsize = _mm_set1_pd(info->size2[REV_EX_UNIT]), vmi;
 	__m128d vasize = _mm_set1_pd(info->size2[REV_EX_AP1]), vai;
 	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1), size2 = _mm_loadu_si128((__m128i *)info->size2);
-	__m128d vec_ap_fb = _mm_set1_pd(REV_EX_AP_FB), vec_levelap = MM_LOAD1_PD(&info->levelap);
+	__m128i sizeap = _mm_set1_epi32(info->size2[REV_EX_AP1]);
+	__m128d vec_levelap = MM_LOAD1_PD(&info->levelap), vec_fbap = MM_LOAD1_PD(&info->fbap);
+	__m128i vec_index2;
 	
 	for (k = 0; k < info->tcount; k += 2)
 	{		
@@ -5883,46 +5842,23 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 		// rv delay in
 		bufrd[tmpi2[REV_EX_RD] + chofs0] = dat_er;
 		// ap
-		if(ext_reverb_ex_ap_num){
+		if(info->ap_num){
 		__m128d vdat = _mm_set_pd(dat_rv, dat_er);
-		vai = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0xAA));
-		vvtmp[0] = MM_FMA2_PD(vdat, vec_levelap, vec_fbap, vec_ap_fb);
-		info->abuf[chofs0][tmpi2[REV_EX_AP1]] = MM_EXTRACT_F64(vvtmp[0],0); 
-		info->abuf[chofs2][tmpi2[REV_EX_AP1]] = MM_EXTRACT_F64(vvtmp[0],1); 
-		if(tmpi2[REV_EX_AP1] == 0){
-			info->abuf[chofs0][asize] = info->abuf[chofs0][0];
-			info->abuf[chofs2][asize] = info->abuf[chofs2][0];
-		}	
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
-		__m128d vc, vr, vd, vfp, vv1, vv2, vtmp[2];
-		__m128i vindex;			
-		// lfo
-		vc = _mm_add_pd(_mm_loadu_pd(&info->acount[i][chofslfo]), _mm_loadu_pd(&info->arate[i][chofslfo])); // mcount+mrate
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
-		vc = _mm_sub_pd(vc, _mm_floor_pd(vc)); // count-=floor(count)
-#else
-		vc = _mm_sub_pd(vc, _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc))); // count-=floor(count) +のみ
-#endif
-		_mm_storeu_pd(&info->acount[i][chofslfo], vc);
-		vr = _mm_add_pd(vc, _mm_loadu_pd(&info->aphase[i][chofslfo])); // count+phase
-		vd = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr,1)), lookup2_sine_p(MM_EXTRACT_F64(vr,0))); // lookup2_sine_p(count)
-		vd = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][chofslfo]), vd); // depth* sine
-		vfp = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][chofslfo])), vd); // index-delay-depth		
-		vfp = _mm_add_pd(vfp, _mm_and_pd(vasize, _mm_cmplt_pd(vfp, _mm_setzero_pd())));	// fp<0 ? fp+size		
-		vindex = _mm_cvttpd_epi32(vfp); // (int)floor(fp)
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
-		vfp = _mm_sub_pd(vfp, _mm_floor_pd(vfp)); // fp-floor(fp)
-#else
-		vfp = _mm_sub_pd(vfp, _mm_cvtepi32_pd(vindex)); // fp-vindex
-#endif
-		vtmp[0] = _mm_loadu_pd(&info->abuf[chofs0][MM_EXTRACT_I32(vindex,0)]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->abuf[chofs2][MM_EXTRACT_I32(vindex,1)]); // v1v2
-		vv1 = _mm_unpacklo_pd(vtmp[0], vtmp[1]);
-		vv2 = _mm_unpackhi_pd(vtmp[0], vtmp[1]);
-		vv1 = MM_FMA_PD(_mm_sub_pd(vv2, vv1), vfp, vv1); // linear interpolation
-		vdat = _mm_add_pd(vdat, vv1); // dat_er += , dat_er +=
+		vec_index2 = _mm_shuffle_epi32(index2, 0xAA);
+		vdat = _mm_mul_pd(vdat, vec_levelap);
+		for (i = 0; i < info->ap_num; i++) {
+		ALIGN int32 tmpi[4];
+		__m128i vec_index;
+		__m128d vtmp1, vtmp2;
+		vec_index = _mm_sub_epi32(vec_index2, _mm_loadu_si128((__m128i *)info->delaya[i]));
+		vec_index = _mm_add_epi32(vec_index, _mm_and_si128(sizeap, _mm_cmplt_epi32(vec_index, _mm_setzero_si128())));
+		_mm_store_si128((__m128i *)&tmpi, vec_index);
+		vtmp1 = _mm_set_pd(info->abuf[i][chofs2][tmpi[chofs2]], info->abuf[i][chofs0][tmpi[chofs0]]);
+		vtmp2 = MM_FMA_PD(vtmp1, vec_fbap, vdat);
+		_mm_store_sd(&info->abuf[i][chofs0][tmpi2[REV_EX_AP1]], vtmp2); 
+		_mm_store_sd(&info->abuf[i][chofs2][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp2, vtmp2, 0x3)); 
+		vdat = _mm_sub_pd(vtmp1, vdat);
 		}
-		vec_fbap = vdat; // dat_er  // dat_rv
 		dat_er = MM_EXTRACT_F64(vdat,0);
 		dat_rv = MM_EXTRACT_F64(vdat,1);
 		}
@@ -5938,10 +5874,8 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 	}
 	info->hist[chofs0] = hist;	
 	if(thread_num == 0){ // L
-		_mm_storeu_pd(info->fb_ap1, vec_fbap);
 		_mm_storeu_si128((__m128i *)info->index2, index2);
 	}else if(thread_num == 1){ // R
-		_mm_storeu_pd(info->fb_ap2, vec_fbap);
 		_mm_storeu_si128((__m128i *)info->index2t, index2);
 	}
 	}
@@ -5973,8 +5907,6 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 		indexrd = &info->index2[REV_EX_RD];	
 		mindex = &info->index2[REV_EX_UNIT];
 		aindex = &info->index2[REV_EX_AP1];
-		fb_ap1 = &info->fb_ap1[0];
-		fb_ap2 = &info->fb_ap2[0];
 		dbH = &info->hpf.db[0];
 		pin[0] = &in[0];
 		pin[1] = &in[1];
@@ -5984,9 +5916,7 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 		phist = &info->hist[1];
 		indexrd = &info->index2t[REV_EX_RD];
 		mindex = &info->index2t[REV_EX_UNIT];
-		aindex = &info->index2t[REV_EX_AP1];
-		fb_ap1 = &info->fb_ap1[1];
-		fb_ap2 = &info->fb_ap2[1];
+		aindex = &info->index2t[REV_EX_AP1];		
 		dbH = &info->hpf.db[5];
 		pin[0] = &in[1];
 		pin[1] = &in[0];
@@ -6003,7 +5933,7 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
 		*dcH = hpf->dc, *dcL = er_fc->dc;	
 	FLOAT_T st_sprd = info->st_sprd;
-	FLOAT_T levelap = info->levelap;
+	FLOAT_T levelap = info->levelap, fbap = info->fbap;
 	DATA_T tmp[2], tmp1;
 	DATA_T input, sprd, hist = *phist, input_rv, dat_er, dat_rv, tmp_rv;
 	FLOAT_T mindexf, aindexf;
@@ -6070,42 +6000,26 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 		dat_er = dat_er * flt_dry + dbL[chofs0] * flt_wet;
 		// rv delay in
 		bufrd[*indexrd + chofs0] = dat_er;
-		// ap
-		if(ext_reverb_ex_ap_num){
-		if ((++(*aindex)) >= asize) {*aindex -= asize;}
-		aindexf = *aindex;
-		info->abuf[chofs0][*aindex] = dat_er * levelap + *fb_ap1 * REV_EX_AP_FB; 
-		info->abuf[chofs2][*aindex] = dat_rv * levelap + *fb_ap2 * REV_EX_AP_FB; 
-		if(*aindex == 0){
-			info->abuf[chofs0][asize] = info->abuf[chofs0][0];
-			info->abuf[chofs2][asize] = info->abuf[chofs2][0];
-		}	
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {
-			int32 index[2];
-			DATA_T v1[2], v2[2];
-			FLOAT_T fp1[2], fp2[2];	
-			// lfo
-			info->acount[i][chofs0] += info->arate[i][chofs0];
-			info->acount[i][chofs0] -= floor(info->acount[i][chofs0]);
-			info->acount[i][chofs2] += info->arate[i][chofs2];
-			info->acount[i][chofs2] -= floor(info->acount[i][chofs2]);
-			fp1[0] = aindexf - info->adelay[i][chofs0] - info->adepth[i][chofs0]
-				* lookup2_sine_p(info->acount[i][chofs0] + info->aphase[i][chofs0]);	
-			fp1[1] = aindexf - info->adelay[i][chofs2] - info->adepth[i][chofs2]
-				* lookup2_sine_p(info->acount[i][chofs2] + info->aphase[i][chofs2]);	
-			if(fp1[0] < 0) {fp1[0] += asize;}
-			if(fp1[1] < 0) {fp1[1] += asize;}			
-			fp2[0] = floor(fp1[0]);
-			fp2[1] = floor(fp1[1]);
-			index[0] = fp2[0]; 
-			index[1] = fp2[1]; 
-			v1[0] = info->abuf[chofs0][index[0]]; v2[0] = info->abuf[chofs0][index[0] + 1];
-			v1[1] = info->abuf[chofs2][index[1]]; v2[1] = info->abuf[chofs2][index[1] + 1];
-			dat_er += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_rv += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-		}
-		*fb_ap1 = dat_er;
-		*fb_ap2 = dat_rv;
+		// ap	
+		if(info->ap_num){
+			dat_er *= levelap;
+			dat_rv *= levelap;
+			if ((++(*aindex)) >= asize) {*aindex -= asize;}
+			for (i = 0; i < info->ap_num; i++) {
+				int32 index0, index2;
+				DATA_T tmp0, tmp2;
+				// 
+				if((index0 = *aindex - info->delaya[i][chofs0]) < 0) {index0 += asize;} 
+				if((index2 = *aindex - info->delaya[i][chofs2]) < 0) {index2 += asize;} 
+				// ap1 er
+				tmp0 = info->abuf[i][chofs0][index0];
+				info->abuf[i][chofs0][*aindex] = dat_er + tmp0 * fbap;
+				dat_er = tmp0 - dat_er;
+				// ap2 rv
+				tmp2 = info->abuf[i][chofs2][index2];
+				info->abuf[i][chofs2][*aindex] = dat_rv + tmp2 * fbap;
+				dat_rv = tmp2 - dat_rv;
+			}
 		}
 		// out
 		hist = dat_rv * levelrv + dat_er * leveler;
@@ -6128,7 +6042,7 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 {
 	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
 	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	int32 *aindex = &info->index2[REV_EX_AP1], asize = info->size2[REV_EX_AP1];
+	int32 *indexap = &info->index2[REV_EX_AP1], sizeap = info->size2[REV_EX_AP1];
 	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
 	int32 leveler = info->leveleri, levelrv = info->levelrvi, feedback = info->feedbacki,
 		*rv_feedback = info->rv_feedbacki, flt_dry = info->flt_dryi, flt_wet = info->flt_weti,
@@ -6136,10 +6050,8 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
 	DATA_T	*hist = info->hist, *bufrd = info->buf2[REV_EX_RD],
 		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
-	DATA_T *bufa1 = info->buf2[REV_EX_AP1], *bufa2 = info->buf2[REV_EX_AP2], 
-		*fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	int32 levelap = info->levelapi;
-	const int32 apfbi = TIM_FSCALE(REV_EX_AP_FB, 24);
+	DATA_T *bufa1 = info->buf2[REV_EX_AP1], *bufa2 = info->buf2[REV_EX_AP2]; 
+	int32 levelap = info->levelapi, fbap = info->fbapi;
 	FLOAT_T mindexf, aindexf;
 	// CH_STEREO: CH_MIX_STEREO:
 	for (k = 0; k < count; k++)
@@ -6223,63 +6135,33 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
-		if(ext_reverb_ex_ap_num){
-		if ((++(*aindex)) >= asize) {*aindex -= asize;}
-		aindexf = aindexf;	
-		info->abuf[REV_EX_ER_L1][*aindex] = imuldiv24(dat_er[0], levelap) + imuldiv24(fb_ap1[0], apfbi); 
-		info->abuf[REV_EX_ER_R1][*aindex] = imuldiv24(dat_er[1], levelap) + imuldiv24(fb_ap1[1], apfbi); 
-		info->abuf[REV_EX_RV_L1][*aindex] = imuldiv24(dat_rv[0], levelap) + imuldiv24(fb_ap2[0], apfbi); 
-		info->abuf[REV_EX_RV_R1][*aindex] = imuldiv24(dat_rv[1], levelap) + imuldiv24(fb_ap2[1], apfbi);
-		if(*aindex == 0){
-			info->abuf[0][asize] = info->abuf[0][0];
-			info->abuf[1][asize] = info->abuf[1][0];
-			info->abuf[2][asize] = info->abuf[2][0];
-			info->abuf[3][asize] = info->abuf[3][0];
-		}	
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {			
-			int32 index[4];
-			DATA_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->acount[i][REV_EX_ER_L1] += info->arate[i][REV_EX_ER_L1];
-			info->acount[i][REV_EX_ER_L1] -= floor(info->acount[i][REV_EX_ER_L1]);
-			info->acount[i][REV_EX_ER_R1] += info->arate[i][REV_EX_ER_R1];
-			info->acount[i][REV_EX_ER_R1] -= floor(info->acount[i][REV_EX_ER_R1]);
-			info->acount[i][REV_EX_RV_L1] += info->arate[i][REV_EX_RV_L1];
-			info->acount[i][REV_EX_RV_L1] -= floor(info->acount[i][REV_EX_RV_L1]);
-			info->acount[i][REV_EX_RV_R1] += info->arate[i][REV_EX_RV_R1];
-			info->acount[i][REV_EX_RV_R1] -= floor(info->acount[i][REV_EX_RV_R1]);
-			fp1[0] = aindexf - info->adelay[i][REV_EX_ER_L1] - info->adepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_L1] + info->aphase[i][REV_EX_ER_L1]);	
-			fp1[1] = aindexf - info->adelay[i][REV_EX_ER_R1] - info->adepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_R1] + info->aphase[i][REV_EX_ER_R1]);	
-			fp1[2] = aindexf - info->adelay[i][REV_EX_RV_L1] - info->adepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_L1] + info->aphase[i][REV_EX_RV_L1]);	
-			fp1[3] = aindexf - info->adelay[i][REV_EX_RV_R1] - info->adepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_R1] + info->aphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += asize;}
-			if(fp1[1] < 0) {fp1[1] += asize;}		
-			if(fp1[2] < 0) {fp1[2] += asize;}
-			if(fp1[3] < 0) {fp1[3] += asize;}			
-			fp2[0] = floor(fp1[0]);
-			fp2[1] = floor(fp1[1]);
-			fp2[2] = floor(fp1[2]);
-			fp2[3] = floor(fp1[3]);
-			index[0] = fp2[0]; 
-			index[1] = fp2[1]; 
-			index[2] = fp2[2]; 
-			index[3] = fp2[3]; 
-			v1[0] = info->abuf[REV_EX_ER_L1][index[0]]; v2[0] = info->abuf[REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->abuf[REV_EX_ER_R1][index[1]]; v2[1] = info->abuf[REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->abuf[REV_EX_RV_L1][index[2]]; v2[2] = info->abuf[REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->abuf[REV_EX_RV_R1][index[3]]; v2[3] = info->abuf[REV_EX_RV_R1][index[3] + 1];
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			dat_rv[0] += v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			dat_rv[1] += v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
+		if(info->ap_num){
+			imuldiv24(dat_er[0], levelap); imuldiv24(dat_er[1], levelap);
+			imuldiv24(dat_rv[0], levelap); imuldiv24(dat_rv[1], levelap);
+			if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
+			for (i = 0; i < info->ap_num; i++) {
+				int32 index0, index1, index2, index3;
+				DATA_T tmp0, tmp1, tmp2, tmp3;
+				// 
+				if((index0 = *indexap - info->delaya[i][REV_EX_ER_L1]) < 0) {index0 += sizeap;} 
+				if((index1 = *indexap - info->delaya[i][REV_EX_ER_R1]) < 0) {index1 += sizeap;} 
+				if((index2 = *indexap - info->delaya[i][REV_EX_RV_L1]) < 0) {index2 += sizeap;} 
+				if((index3 = *indexap - info->delaya[i][REV_EX_RV_R1]) < 0) {index3 += sizeap;} 
+				// ap1 er
+				tmp0 = info->abuf[i][REV_EX_ER_L1][index0];
+				info->abuf[i][REV_EX_ER_L1][*indexap] = dat_er[0] + imuldiv24(tmp0, fbap);
+				dat_er[0] = tmp0 - dat_er[0];
+				tmp1 = info->abuf[i][REV_EX_ER_R1][index1];
+				info->abuf[i][REV_EX_ER_R1][*indexap] = dat_er[1] + imuldiv24(tmp1, fbap);
+				dat_er[1] = tmp1 - dat_er[1];
+				// ap2 rv
+				tmp2 = info->abuf[i][REV_EX_RV_L1][index2];
+				info->abuf[i][REV_EX_RV_L1][*indexap] = dat_rv[0] + imuldiv24(tmp2, fbap);
+				dat_rv[0] = tmp2 - dat_rv[0];
+				tmp3 = info->abuf[i][REV_EX_RV_R1][index3];
+				info->abuf[i][REV_EX_RV_R1][*indexap] = dat_rv[1] + imuldiv24(tmp3, fbap);
+				dat_rv[1] = tmp3 - dat_rv[1];
+			}
 		}
 		// out
 		hist[0] = imuldiv16(dat_rv[0], levelrv) + imuldiv16(dat_er[0], leveler);
@@ -6322,11 +6204,10 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 		vec_feedback = MM_LOAD1_PD(&info->feedback), vec_hist = _mm_loadu_pd(info->hist);
 	__m128i index2 = _mm_loadu_si128((__m128i *)info->index2), size2 = _mm_loadu_si128((__m128i *)info->size2);
 	__m128i add_idx2 = _mm_set_epi32(1, 1, 2, 1);
-	__m128d vec_ap_fb = _mm_set1_pd(REV_EX_AP_FB), vec_levelap = MM_LOAD1_PD(&info->levelap), 
-		vec_fbap1 = _mm_loadu_pd(info->fb_ap1), vec_fbap2 = _mm_loadu_pd(info->fb_ap2);
+	__m128i sizeap = _mm_set1_epi32(info->size2[REV_EX_AP1]);
+	__m128d vec_levelap = MM_LOAD1_PD(&info->levelap), vec_fbap = MM_LOAD1_PD(&info->fbap);
+	__m128i vec_index2;
 	__m128d vmsize = _mm_set1_pd(info->size2[REV_EX_UNIT]), vmi;
-	__m128d vasize = _mm_set1_pd(info->size2[REV_EX_AP1]), vai;
-	__m128d vtmp[2];
 	int32 msize = info->size2[REV_EX_UNIT], mindex;
 	__m128d vec_sp_sprd = _mm_set_pd(-info->st_sprd, info->st_sprd);
 	// CH_STEREO: CH_MIX_STEREO:
@@ -6422,66 +6303,28 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 		// rv delay in
 		_mm_store_pd(&bufrd[tmpi2[REV_EX_RD]], vec_mixer);
 		// ap
-		if(ext_reverb_ex_ap_num){
-		vai = _mm_cvtepi32_pd(_mm_shuffle_epi32(index2, 0xAA));
-		vtmp[0] = MM_FMA2_PD(vec_mixer, vec_levelap, vec_fbap1, vec_ap_fb);
-		vtmp[1] = MM_FMA2_PD(vec_mixrv, vec_levelap, vec_fbap2, vec_ap_fb);
-		_mm_store_sd(&info->abuf[REV_EX_ER_L1][tmpi2[REV_EX_AP1]], vtmp[0]); 
-		_mm_store_sd(&info->abuf[REV_EX_ER_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[0], vtmp[0], 0x3)); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_L1][tmpi2[REV_EX_AP1]], vtmp[1]); 
-		_mm_store_sd(&info->abuf[REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp[1], vtmp[0], 0x3)); 
-		if(tmpi2[REV_EX_AP1] == 0){
-			info->abuf[0][info->size2[REV_EX_AP1]] = info->abuf[0][0];
-			info->abuf[1][info->size2[REV_EX_AP1]] = info->abuf[1][0];
-			info->abuf[2][info->size2[REV_EX_AP1]] = info->abuf[2][0];
-			info->abuf[3][info->size2[REV_EX_AP1]] = info->abuf[3][0];
-		}		
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {				
-		__m128d vc[2], vr[2], vd[2], vfp[2], vtmp[4], vv1[2], vv2[2];
-		__m128i vindex[2];
-		// lfo
-		vc[0] = _mm_add_pd(_mm_loadu_pd(&info->acount[i][REV_EX_ER_L1]), _mm_loadu_pd(&info->arate[i][REV_EX_ER_L1])); // mcount+mrate
-		vc[1] = _mm_add_pd(_mm_loadu_pd(&info->acount[i][REV_EX_RV_L1]), _mm_loadu_pd(&info->arate[i][REV_EX_RV_L1])); // mcount+mrate
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
-		vc[0] = _mm_sub_pd(vc[0], _mm_floor_pd(vc[0])); // count-=floor(count)
-		vc[1] = _mm_sub_pd(vc[1], _mm_floor_pd(vc[1])); // count-=floor(count)
-#else
-		vc[0] = _mm_sub_pd(vc[0], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[0]))); // count-=floor(count) +のみ
-		vc[1] = _mm_sub_pd(vc[1], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[1]))); // count-=floor(count) +のみ
-#endif
-		_mm_storeu_pd(&info->acount[i][REV_EX_ER_L1], vc[0]);
-		_mm_storeu_pd(&info->acount[i][REV_EX_RV_L1], vc[1]);
-		vr[0] = _mm_add_pd(vc[0], _mm_loadu_pd(&info->aphase[i][REV_EX_ER_L1])); // count+phase
-		vr[1] = _mm_add_pd(vc[1], _mm_loadu_pd(&info->aphase[i][REV_EX_RV_L1])); // count+phase
-		vd[0] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[0],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[0],0))); // lookup2_sine_p(count)
-		vd[1] = _mm_set_pd(lookup2_sine_p(MM_EXTRACT_F64(vr[1],1)), lookup2_sine_p(MM_EXTRACT_F64(vr[1],0))); // lookup2_sine_p(cuont)	
-		vd[0] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_ER_L1]), vd[0]); // depth* sine
-		vd[1] = _mm_mul_pd(_mm_loadu_pd(&info->adepth[i][REV_EX_RV_L1]), vd[1]); // depth* sine
-		vfp[0] = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][REV_EX_ER_L1])), vd[0]); // index-delay-depth
-		vfp[1] = _mm_sub_pd(_mm_sub_pd(vai, _mm_loadu_pd(&info->adelay[i][REV_EX_RV_L1])), vd[1]); // index-delay-depth		
-		vfp[0] = _mm_add_pd(vfp[0], _mm_and_pd(vasize, _mm_cmplt_pd(vfp[0], _mm_setzero_pd())));	// fp<0 ? fp+size	
-		vfp[1] = _mm_add_pd(vfp[1], _mm_and_pd(vasize, _mm_cmplt_pd(vfp[1], _mm_setzero_pd())));	// fp<0 ? fp+size	
-		vindex[0] = _mm_cvttpd_epi32(vfp[0]); // (int)floor(fp)
-		vindex[1] = _mm_cvttpd_epi32(vfp[1]); // (int)floor(fp)
-#if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_floor_pd(vfp[0])); // fp-floor(fp)
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_floor_pd(vfp[1])); // fp-floor(fp)
-#else
-		vfp[0] = _mm_sub_pd(vfp[0], _mm_cvtepi32_pd(vindex[0])); // fp-vindex
-		vfp[1] = _mm_sub_pd(vfp[1], _mm_cvtepi32_pd(vindex[1])); // fp-vindex
-#endif
-		vtmp[0] = _mm_loadu_pd(&info->abuf[REV_EX_ER_L1][MM_EXTRACT_I32(vindex[0],0)]); // v1v2
-		vtmp[1] = _mm_loadu_pd(&info->abuf[REV_EX_ER_R1][MM_EXTRACT_I32(vindex[0],1)]); // v1v2
-		vtmp[2] = _mm_loadu_pd(&info->abuf[REV_EX_RV_L1][MM_EXTRACT_I32(vindex[1],0)]); // v1v2
-		vtmp[3] = _mm_loadu_pd(&info->abuf[REV_EX_RV_R1][MM_EXTRACT_I32(vindex[1],1)]); // v1v2
-		vv1[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x0);
-		vv1[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x0);
-		vv2[0] = _mm_shuffle_pd(vtmp[0], vtmp[1], 0x3);
-		vv2[1] = _mm_shuffle_pd(vtmp[2], vtmp[3], 0x3);
-		vec_mixer = _mm_add_pd(vec_mixer, MM_FMA_PD(_mm_sub_pd(vv2[0], vv1[0]), vfp[0], vv1[0]));
-		vec_mixrv = _mm_add_pd(vec_mixrv, MM_FMA_PD(_mm_sub_pd(vv2[1], vv1[1]), vfp[1], vv1[1]));
+		if(info->ap_num){
+		vec_index2 = _mm_shuffle_epi32(index2, 0xAA);
+		vec_mixer = _mm_mul_pd(vec_mixer, vec_levelap);
+		vec_mixrv = _mm_mul_pd(vec_mixrv, vec_levelap);
+		for (i = 0; i < info->ap_num; i++) {
+		ALIGN int32 tmpi[4];
+		__m128i vec_index;
+		__m128d vtmp1[2], vtmp2[2];
+		vec_index = _mm_sub_epi32(vec_index2, _mm_loadu_si128((__m128i *)info->delaya[i]));
+		vec_index = _mm_add_epi32(vec_index, _mm_and_si128(sizeap, _mm_cmplt_epi32(vec_index, _mm_setzero_si128())));
+		_mm_store_si128((__m128i *)&tmpi, vec_index);
+		vtmp1[0] = _mm_set_pd(info->abuf[i][REV_EX_ER_R1][tmpi[1]], info->abuf[i][REV_EX_ER_L1][tmpi[0]]);
+		vtmp1[1] = _mm_set_pd(info->abuf[i][REV_EX_RV_R1][tmpi[3]], info->abuf[i][REV_EX_RV_L1][tmpi[2]]);	
+		vtmp2[0] = MM_FMA_PD(vtmp1[0], vec_fbap, vec_mixer);
+		vtmp2[1] = MM_FMA_PD(vtmp1[1], vec_fbap, vec_mixrv);
+		_mm_store_sd(&info->abuf[i][REV_EX_ER_L1][tmpi2[REV_EX_AP1]], vtmp2[0]); 
+		_mm_store_sd(&info->abuf[i][REV_EX_ER_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp2[0], vtmp2[0], 0x3)); 
+		_mm_store_sd(&info->abuf[i][REV_EX_RV_L1][tmpi2[REV_EX_AP1]], vtmp2[1]); 
+		_mm_store_sd(&info->abuf[i][REV_EX_RV_R1][tmpi2[REV_EX_AP1]], _mm_shuffle_pd(vtmp2[1], vtmp2[1], 0x3)); 
+		vec_mixer = _mm_sub_pd(vtmp1[0], vec_mixer);
+		vec_mixrv = _mm_sub_pd(vtmp1[1], vec_mixrv);
 		}
-		vec_fbap1 = vec_mixer; vec_fbap2 = vec_mixrv;
 		}
 		// out
 		vec_hist = _mm_add_pd(_mm_mul_pd(vec_mixrv, vec_levelrv), _mm_mul_pd(vec_mixer, vec_leveler));
@@ -6494,7 +6337,6 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 	_mm_storeu_pd(&hpf->db[0], vec_dbH0); _mm_storeu_pd(&hpf->db[2], vec_dbH1); _mm_storeu_pd(&hpf->db[4], vec_dbH2);
 	_mm_storeu_pd(&hpf->db[6], vec_dbH3); _mm_storeu_pd(&hpf->db[8], vec_dbH4);
 	_mm_storeu_si128((__m128i *)info->index2, index2);
-	_mm_storeu_pd(info->fb_ap1, vec_fbap1); _mm_storeu_pd(info->fb_ap2, vec_fbap2);
 }
 
 #else /* floating-point implementation */
@@ -6502,7 +6344,7 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 {
 	int32 i, k = 0, *indexrd = &info->index2[REV_EX_RD], sizerd = info->size2[REV_EX_RD];
 	int32 *mindex = &info->index2[REV_EX_UNIT], msize = info->size2[REV_EX_UNIT];
-	int32 *aindex = &info->index2[REV_EX_AP1], asize = info->size2[REV_EX_AP1];
+	int32 *indexap = &info->index2[REV_EX_AP1], sizeap = info->size2[REV_EX_AP1];
 	FilterCoefficients *er_fc = &info->er_fc, *rv_fc = info->rv_fc1, *hpf = &info->hpf, *lpf;
 	FLOAT_T leveler = info->leveler, levelrv = info->levelrv, feedback = info->feedback,
 		*rv_feedback = info->rv_feedback, flt_dry = info->flt_dry, flt_wet = info->flt_wet,
@@ -6510,9 +6352,8 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 	FILTER_T *dbHL = &hpf->db[0], *dbHR = &hpf->db[5], *dbL = er_fc->db;
 	DATA_T	hist[2] = {info->hist[0], info->hist[1],}, *bufrd = info->buf2[REV_EX_RD],
 		input[2], input_rv[2], dat_er[2], dat_rv[2], tmp1[2], tmp_rv[2], sprd;
-	DATA_T *bufa1 = info->buf2[REV_EX_AP1], *bufa2 = info->buf2[REV_EX_AP2], 
-		*fb_ap1 = info->fb_ap1, *fb_ap2 = info->fb_ap2;
-	FLOAT_T levelap = info->levelap;
+	DATA_T *bufa1 = info->buf2[REV_EX_AP1], *bufa2 = info->buf2[REV_EX_AP2]; 
+	FLOAT_T levelap = info->levelap, fbap = info->fbap;
 	FLOAT_T mindexf, aindexf;
 	// CH_STEREO: CH_MIX_STEREO:
 	RDTSC_TEST1
@@ -6606,63 +6447,33 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 		// rv delay in
 		bufrd[*indexrd] = dat_er[0]; bufrd[*indexrd + 1] = dat_er[1];
 		// ap
-		if(ext_reverb_ex_ap_num){
-		if ((++(*aindex)) >= asize) {*aindex -= asize;}
-		aindexf = *aindex;
-		info->abuf[REV_EX_ER_L1][*aindex] = dat_er[0] * levelap + fb_ap1[0] * REV_EX_AP_FB; 
-		info->abuf[REV_EX_ER_R1][*aindex] = dat_er[1] * levelap + fb_ap1[1] * REV_EX_AP_FB; 
-		info->abuf[REV_EX_RV_L1][*aindex] = dat_rv[0] * levelap + fb_ap2[0] * REV_EX_AP_FB; 
-		info->abuf[REV_EX_RV_R1][*aindex] = dat_rv[1] * levelap + fb_ap2[1] * REV_EX_AP_FB; 
-		if(*aindex == 0){
-			info->abuf[0][asize] = info->abuf[0][0];
-			info->abuf[1][asize] = info->abuf[1][0];
-			info->abuf[2][asize] = info->abuf[2][0];
-			info->abuf[3][asize] = info->abuf[3][0];
-		}		
-		for (i = 0; i < ext_reverb_ex_ap_num; i++) {			
-			int32 index[4];
-			DATA_T v1[4], v2[4];
-			FLOAT_T fp1[4], fp2[4];	
-			// lfo
-			info->acount[i][REV_EX_ER_L1] += info->arate[i][REV_EX_ER_L1];
-			info->acount[i][REV_EX_ER_L1] -= floor(info->acount[i][REV_EX_ER_L1]);
-			info->acount[i][REV_EX_ER_R1] += info->arate[i][REV_EX_ER_R1];
-			info->acount[i][REV_EX_ER_R1] -= floor(info->acount[i][REV_EX_ER_R1]);
-			info->acount[i][REV_EX_RV_L1] += info->arate[i][REV_EX_RV_L1];
-			info->acount[i][REV_EX_RV_L1] -= floor(info->acount[i][REV_EX_RV_L1]);
-			info->acount[i][REV_EX_RV_R1] += info->arate[i][REV_EX_RV_R1];
-			info->acount[i][REV_EX_RV_R1] -= floor(info->acount[i][REV_EX_RV_R1]);
-			fp1[0] = aindexf - info->adelay[i][REV_EX_ER_L1] - info->adepth[i][REV_EX_ER_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_L1] + info->aphase[i][REV_EX_ER_L1]);	
-			fp1[1] = aindexf - info->adelay[i][REV_EX_ER_R1] - info->adepth[i][REV_EX_ER_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_ER_R1] + info->aphase[i][REV_EX_ER_R1]);	
-			fp1[2] = aindexf - info->adelay[i][REV_EX_RV_L1] - info->adepth[i][REV_EX_RV_L1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_L1] + info->aphase[i][REV_EX_RV_L1]);	
-			fp1[3] = aindexf - info->adelay[i][REV_EX_RV_R1] - info->adepth[i][REV_EX_RV_R1]
-				* lookup2_sine_p(info->acount[i][REV_EX_RV_R1] + info->aphase[i][REV_EX_RV_R1]);	
-			if(fp1[0] < 0) {fp1[0] += asize;}
-			if(fp1[1] < 0) {fp1[1] += asize;}		
-			if(fp1[2] < 0) {fp1[2] += asize;}
-			if(fp1[3] < 0) {fp1[3] += asize;}			
-			fp2[0] = floor(fp1[0]);
-			fp2[1] = floor(fp1[1]);
-			fp2[2] = floor(fp1[2]);
-			fp2[3] = floor(fp1[3]);
-			index[0] = fp2[0]; 
-			index[1] = fp2[1]; 
-			index[2] = fp2[2]; 
-			index[3] = fp2[3]; 
-			v1[0] = info->abuf[REV_EX_ER_L1][index[0]]; v2[0] = info->abuf[REV_EX_ER_L1][index[0] + 1];
-			v1[1] = info->abuf[REV_EX_ER_R1][index[1]]; v2[1] = info->abuf[REV_EX_ER_R1][index[1] + 1];
-			v1[2] = info->abuf[REV_EX_RV_L1][index[2]]; v2[2] = info->abuf[REV_EX_RV_L1][index[2] + 1];
-			v1[3] = info->abuf[REV_EX_RV_R1][index[3]]; v2[3] = info->abuf[REV_EX_RV_R1][index[3] + 1];
-			dat_er[0] += v1[0] + (v2[0] - v1[0]) * (fp1[0] - fp2[0]); // linear interpolation
-			dat_er[1] += v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]); // linear interpolation
-			dat_rv[0] += v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]); // linear interpolation
-			dat_rv[1] += v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]); // linear interpolation
-		}
-		fb_ap1[0] = dat_er[0]; fb_ap1[1] = dat_er[1];
-		fb_ap2[0] = dat_rv[0]; fb_ap2[1] = dat_rv[1];
+		if(info->ap_num){
+			dat_er[0] *= levelap; dat_er[1] *= levelap;
+			dat_rv[0] *= levelap; dat_rv[1] *= levelap;
+			if ((++(*indexap)) >= sizeap) {*indexap -= sizeap;}
+			for (i = 0; i < info->ap_num; i++) {
+				int32 index0, index1, index2, index3;
+				DATA_T tmp0, tmp1, tmp2, tmp3;
+				// 
+				if((index0 = *indexap - info->delaya[i][REV_EX_ER_L1]) < 0) {index0 += sizeap;} 
+				if((index1 = *indexap - info->delaya[i][REV_EX_ER_R1]) < 0) {index1 += sizeap;} 
+				if((index2 = *indexap - info->delaya[i][REV_EX_RV_L1]) < 0) {index2 += sizeap;} 
+				if((index3 = *indexap - info->delaya[i][REV_EX_RV_R1]) < 0) {index3 += sizeap;} 
+				// ap1 er
+				tmp0 = info->abuf[i][REV_EX_ER_L1][index0];
+				info->abuf[i][REV_EX_ER_L1][*indexap] = dat_er[0] + tmp0 * fbap;
+				dat_er[0] = tmp0 - dat_er[0];
+				tmp1 = info->abuf[i][REV_EX_ER_R1][index1];
+				info->abuf[i][REV_EX_ER_R1][*indexap] = dat_er[1] + tmp1 * fbap;
+				dat_er[1] = tmp1 - dat_er[1];
+				// ap2 rv
+				tmp2 = info->abuf[i][REV_EX_RV_L1][index2];
+				info->abuf[i][REV_EX_RV_L1][*indexap] = dat_rv[0] + tmp2 * fbap;
+				dat_rv[0] = tmp2 - dat_rv[0];
+				tmp3 = info->abuf[i][REV_EX_RV_R1][index3];
+				info->abuf[i][REV_EX_RV_R1][*indexap] = dat_rv[1] + tmp3 * fbap;
+				dat_rv[1] = tmp3 - dat_rv[1];
+			}
 		}
 		// out
 		hist[0] = dat_rv[0] * levelrv + dat_er[0] * leveler;

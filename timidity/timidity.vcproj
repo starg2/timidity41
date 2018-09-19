@@ -42,7 +42,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\..\lame\dll"
+				AdditionalIncludeDirectories="..\libmpg123\include;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\..\lame\dll"
 				PreprocessorDefinitions="_DEBUG,_MT,_WINDOWS,_LIB,WIN32,HAVE_CONFIG_H"
 				StringPooling="true"
 				MinimalRebuild="true"
@@ -131,7 +131,7 @@
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\..\lame\dll"
+				AdditionalIncludeDirectories="..\libmpg123\include;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\..\lame\dll"
 				PreprocessorDefinitions="NDEBUG,_MT,_WINDOWS,_LIB,WIN32,HAVE_CONFIG_H"
 				StringPooling="true"
 				ExceptionHandling="0"
@@ -146,7 +146,7 @@
 				AssemblerListingLocation=".\Release/"
 				ObjectFile=".\Release/"
 				ProgramDataBaseFileName=".\Release/"
-				WarningLevel="3"
+				WarningLevel="1"
 				SuppressStartupBanner="true"
 				CompileAs="1"
 			/>

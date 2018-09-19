@@ -31,7 +31,7 @@
 #include <strings.h>
 #endif
 
-#include "interface.h"
+
 #include "timidity.h"
 #include "instrum.h"
 #include "common.h"
@@ -663,18 +663,10 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vofsi = _mm_srli_epi32(vofs, FRACTION_BITS);
 	vosfsf = _mm_and_si128(vofs, vfmask);
 	vfp = _mm_mul_ps(_mm_cvtepi32_ps(vosfsf), vec_divf); // int32 to float // calc fp
-#if !(defined(_MSC_VER) || defined(MSC_VER))
-	ofsp1 = (int32 *)vofsi;	
-	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[ofsp1[0]]); // L64bit ofsiとofsi+1をロード
-	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[ofsp1[1]]); // H64bit 次周サンプルも同じ
-	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[ofsp1[2]]); // L64bit 次周サンプルも同じ
-	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[ofsp1[3]]); // H64bit 次周サンプルも同じ
-#else
-	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[vofsi.m128i_i32[0]]); // L64bit ofsiとofsi+1をロード
-	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[vofsi.m128i_i32[1]]); // H64bit 次周サンプルも同じ
-	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[vofsi.m128i_i32[2]]); // L64bit 次周サンプルも同じ
-	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[vofsi.m128i_i32[3]]); // H64bit 次周サンプルも同じ
-#endif // !(defined(_MSC_VER) || defined(MSC_VER))
+	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi.0)]); // L64bit ofsiとofsi+1をロード
+	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // H64bit 次周サンプルも同じ
+	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // L64bit 次周サンプルも同じ
+	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // H64bit 次周サンプルも同じ
 	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsiはv1に
 	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1はv2に移動
 	vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);			
@@ -714,10 +706,10 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	tmp3 = _mm_loadu_pd(&rs_buf[ofsp1[2]]); // 次周サンプルも同じ
 	tmp4 = _mm_loadu_pd(&rs_buf[ofsp1[3]]); // 次周サンプルも同じ	
 #else
-	tmp1 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[0]]); // ofsiとofsi+1をロード
-	tmp2 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[1]]); // 次周サンプルも同じ
-	tmp3 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[2]]); // 次周サンプルも同じ
-	tmp4 = _mm_loadu_pd(&rs_buf[vofsi.m128i_i32[3]]); // 次周サンプルも	
+	tmp1 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // ofsiとofsi+1をロード
+	tmp2 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // 次周サンプルも同じ
+	tmp3 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // 次周サンプルも同じ
+	tmp4 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // 次周サンプルも	
 #endif // !(defined(_MSC_VER) || defined(MSC_VER))	
 	vv11 = _mm_shuffle_pd(tmp1, tmp2, 0x00); // v1[0,1] // ofsiはv1に
 	vv21 = _mm_shuffle_pd(tmp1, tmp2, 0x03); // v2[0,1] // ofsi+1はv2に移動
@@ -1278,7 +1270,8 @@ static void config_parse_scc_data(const char *cp, Preset_IS *set, int setting)
 		set->scc_data_int[setting][i] = 0; // init param
 		set->scc_data[setting][i] = 0; // init param
 	}
-	set->scc_data[setting][SCC_DATA_LENGTH] = 0;
+    set->scc_data[setting][SCC_DATA_LENGTH] = 0;
+
 	/* regist */
 	for (i = 0; i < SCC_DATA_LENGTH; i++, p++) {
 		if (*p == ':')
@@ -1414,6 +1407,26 @@ static void config_parse_cm32l_data(const char *cp, Preset_IS *set, int setting)
 #endif
 
 //// SCC
+static void config_parse_scc_mode(const char *cp, Preset_IS *set, int setting)
+{
+	const char *p, *px;
+	int i, tmp;
+	
+	/* count num */
+	p = cp;
+	/* init */
+	for (i = 0; i < SCC_MODE_MAX; i++)
+		set->scc_setting[setting]->mode[i] = 0; // init param
+	/* regist */
+	for (i = 0; i < SCC_MODE_MAX; i++, p++) {
+		if (*p == ':')
+			continue;
+		set->scc_setting[setting]->mode[i] = atoi(p);
+		if (! (p = strchr(p, ':')))
+			break;
+	}
+}
+
 static void config_parse_scc_param(const char *cp, Preset_IS *set, int setting)
 {
 	const char *p, *px;
@@ -2150,6 +2163,26 @@ static void config_parse_mms_op_cutoff(const char *cp, Preset_IS *set, int setti
 	}
 }
 
+static void config_parse_mms_op_mode(const char *cp, Preset_IS *set, int setting, int op_num)
+{
+	const char *p, *px;
+	int i, tmp;
+	
+	/* count num */
+	p = cp;
+	/* init */
+	for (i = 0; i < MMS_OP_MODE_MAX; i++)
+		set->mms_setting[setting]->op_mode[op_num][i] = 0; // init param
+	/* regist */
+	for (i = 0; i < MMS_OP_MODE_MAX; i++, p++) {
+		if (*p == ':')
+			continue;
+		set->mms_setting[setting]->op_mode[op_num][i] = atoi(p);
+		if (! (p = strchr(p, ':')))
+			break;
+	}
+}
+
 static void conv_preset_envelope_param(int max, int32 *env, int16 *velf, int16 *keyf)
 {
 	int i;
@@ -2254,9 +2287,11 @@ static void load_is_scc_preset(INIDATA *ini, Preset_IS *set, int preset, int ini
 		safe_free(set->scc_setting[i]->inst_name);
 //	scc_setting[i].inst_name = safe_strdup(name);
 	set->scc_setting[i]->inst_name = safe_strdup(p);
+	p = MyIni_GetString(sec, "mode", tbf, 256, "0:0");
+	config_parse_scc_mode(p, set, i);
 	p = MyIni_GetString(sec, "param", tbf, 256, "100:0");
 	config_parse_scc_param(p, set, i);
-	p = MyIni_GetString(sec, "osc", tbf, 256, "0:100:0:0");
+	p = MyIni_GetString(sec, "osc", tbf, 256, "0:100:0:0:0:0:0:0");
 	config_parse_scc_osc(p, set, i);
 	p = MyIni_GetString(sec, "amp", tbf, 256, "0:0:0");
 	config_parse_scc_amp(p, set, i);
@@ -2267,7 +2302,7 @@ static void load_is_scc_preset(INIDATA *ini, Preset_IS *set, int preset, int ini
 	config_parse_scc_ampenv(p, set, i);
 	p = MyIni_GetString(sec, "pitenv", tbf, 256, IS_SCC_ENV_DEFAULT);
 	config_parse_scc_pitenv(p, set, i);
-#define IS_SCC_LFO_DEFAULT "0:0:0:200"
+#define IS_SCC_LFO_DEFAULT "0:0:0:0"
 	p = MyIni_GetString(sec, "lfo1", tbf, 256, IS_SCC_LFO_DEFAULT);
 	config_parse_scc_lfo1(p, set, i);
 	p = MyIni_GetString(sec, "lfo2", tbf, 256, IS_SCC_LFO_DEFAULT);
@@ -2306,12 +2341,15 @@ static void load_is_mms_preset(INIDATA *ini, Preset_IS *set, int preset, int ini
 	set->mms_setting[i]->inst_name = safe_strdup(p);
 	set->mms_setting[i]->op_max = MyIni_GetInt32(sec, "op_max", 1);
 	for(j = 0; j < MMS_OP_MAX; j++){
-		snprintf(name, sizeof(name), "op_%d_param", j);
-		p = MyIni_GetString(sec, name, tbf, 256, "0");
-		config_parse_mms_op_param(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_mode", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:0");
+		config_parse_mms_op_mode(p, set, i, j);
 		snprintf(name, sizeof(name), "op_%d_range", j);
 		p = MyIni_GetString(sec, name, tbf, 256, "0:127:0:127");
 		config_parse_mms_op_range(p, set, i, j);
+		snprintf(name, sizeof(name), "op_%d_param", j);
+		p = MyIni_GetString(sec, name, tbf, 256, "0:100:100");
+		config_parse_mms_op_param(p, set, i, j);
 		snprintf(name, sizeof(name), "op_%d_connect", j);
 		p = MyIni_GetString(sec, name, tbf, 256, "-1");
 		config_parse_mms_op_connect(p, set, i, j);
@@ -2377,7 +2415,7 @@ static void load_is_mms_preset(INIDATA *ini, Preset_IS *set, int preset, int ini
 		snprintf(name, sizeof(name), "op_%d_pitenv_velf", j);
 		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_ENVF_DEFAULT);
 		config_parse_mms_op_pitenv_velf(p, set, i, j);
-#define IS_MMS_LFO_DEFAULT "0:0:0:200"
+#define IS_MMS_LFO_DEFAULT "0:0:0:0"
 		snprintf(name, sizeof(name), "op_%d_lfo1", j);
 		p = MyIni_GetString(sec, name, tbf, 256, IS_MMS_LFO_DEFAULT);
 		config_parse_mms_op_lfo1(p, set, i, j);
@@ -2603,7 +2641,9 @@ const char *scc_editor_load_wave_name(int fnc)
 	int type; // osc_type
 	int num; // wave_type
 
-	if(fnc < 0){ // osc
+	switch(fnc){ // osc/lfo1/lfo2
+	default:
+	case 0:
 		num = scc_setting_edit[0].osc[3]; // scc data
 		if(num < 0){
 			type = 0; // osc_type
@@ -2611,16 +2651,33 @@ const char *scc_editor_load_wave_name(int fnc)
 		}else{
 			type = 1; // osc_type
 		}
-	}else switch(fnc){ // lfo1/lfo2
-		default:
-		case 0:
+		break;
+	case 1:
+		num = scc_setting_edit[0].osc[5]; // scc data2
+		if(num < 0){
 			type = 0; // osc_type
-			num = scc_setting_edit[0].lfo1[2]; // wave_type
-			break;
-		case 1:
+			num = OSC_NOISE_LOWBIT;
+		}else{
+			type = 1; // osc_type
+		}
+		break;
+	case 2:
+		num = scc_setting_edit[0].osc[7]; // scc data3
+		if(num < 0){
 			type = 0; // osc_type
-			num = scc_setting_edit[0].lfo2[2]; // wave_type
-			break;
+			num = OSC_NOISE_LOWBIT;
+		}else{
+			type = 1; // osc_type
+		}
+		break;
+	case 8:
+		type = 0; // osc_type
+		num = scc_setting_edit[0].lfo1[2]; // wave_type
+		break;
+	case 9:
+		type = 0; // osc_type
+		num = scc_setting_edit[0].lfo2[2]; // wave_type
+		break;
 	}
 	switch(type){
 	case 0: // wave
@@ -2651,7 +2708,15 @@ void scc_editor_set_default_param(int set_num)
 		return ;
 	else
 		set = is_editor_preset.scc_setting[set_num];
-
+	
+	for(i = 0; i < SCC_MODE_MAX; i++){
+		switch(i){
+		default:
+			num = 0;
+			break;
+		}
+		set->mode[i] = num;
+	}
 	for(i = 0; i < SCC_PARAM_MAX; i++){
 		switch(i){
 		case 0:
@@ -2712,6 +2777,7 @@ int scc_editor_get_param(int type, int num)
 	case 5: return scc_setting_edit[0].pitenv[num];
 	case 6: return scc_setting_edit[0].lfo1[num];
 	case 7: return scc_setting_edit[0].lfo2[num];
+	case 8: return scc_setting_edit[0].mode[num];
 	default: return 0;
 	}
 }
@@ -2742,6 +2808,9 @@ void scc_editor_set_param(int type, int num, int val)
 		return;
 	case 7: 
 		scc_setting_edit[0].lfo2[num] = val;
+		return;
+	case 8: 
+		scc_setting_edit[0].mode[num] = val;
 		return;
 	}
 }
@@ -2774,6 +2843,11 @@ static void scc_editor_save_ini(int num)
 	snprintf(sec, sizeof(sec), "SCC_%03d", num); // 桁数指定
 	inisec = MyIni_GetSection(&ini, sec, 1);
 	MyIni_SetString(inisec, "name", setting->inst_name);
+	// mode
+	for(i = 0; i < SCC_MODE_MAX; i++){
+		snprintf(data, sizeof(data), "%s%d:", data, setting->mode[i]);
+	}
+	MyIni_SetString(inisec, "mode", data);
 	// param
 	for(i = 0; i < SCC_PARAM_MAX; i++){
 		snprintf(data, sizeof(data), "%s%d:", data, setting->param[i]);
@@ -3030,7 +3104,7 @@ const char *mms_editor_load_filter_name(int op)
 static void mms_editor_set_default_param_op(Preset_MMS *set, int op_num)
 {
 	int i, num;;
-
+	
 	for(i = 0; i < MMS_OP_PARAM_MAX; i++){
 		switch(i){
 		case 1:
@@ -3124,11 +3198,20 @@ static void mms_editor_set_default_param_op(Preset_MMS *set, int op_num)
 		set->op_lfo3[op_num][i] = 0;
 		set->op_lfo4[op_num][i] = 0;
 	}
+	for(i = 0; i < MMS_OP_MODE_MAX; i++){
+		switch(i){
+		default:
+			num = 0;
+			break;
+		}
+		set->op_mode[op_num][i] = num;
+	}
 }
 
 void mms_editor_set_default_param(int set_num, int op_num)
 {
 	int i;
+	int32 num;
 	Preset_MMS *set = NULL;
 
 	if(set_num < 0)
@@ -3355,6 +3438,7 @@ int mms_editor_get_param(int type, int op, int num)
 	case 25: return mms_setting_edit[0].op_lfo2[op][num];
 	case 26: return mms_setting_edit[0].op_lfo3[op][num];
 	case 27: return mms_setting_edit[0].op_lfo4[op][num];
+	case 28: return mms_setting_edit[0].op_mode[op][num];
 	default: return 0;
 	}
 }
@@ -3418,6 +3502,8 @@ void mms_editor_set_param(int type, int op, int num, int val)
 		return;
 	case 27: mms_setting_edit[0].op_lfo4[op][num] = val;
 		return;
+	case 28: mms_setting_edit[0].op_mode[op][num] = val;
+		return;
 	}
 }
 
@@ -3454,6 +3540,8 @@ static void mms_editor_save_ini(int num)
 	for(j = 0; j < MMS_OP_MAX; j++){
 		if(j >= setting->op_max){
 			// 使用しないOPのキー削除
+			snprintf(key, sizeof(key), "op_%d_mode", j);
+			MyIni_DeleteKey(&ini, sec, key);	
 			snprintf(key, sizeof(key), "op_%d_range", j);	
 			MyIni_DeleteKey(&ini, sec, key);	
 			snprintf(key, sizeof(key), "op_%d_param", j);
@@ -3510,6 +3598,17 @@ static void mms_editor_save_ini(int num)
 			MyIni_DeleteKey(&ini, sec, key);	
 			break;
 		}
+		// mode
+		snprintf(key, sizeof(key), "op_%d_mode", j);
+		if(setting->op_mode[j][0] > 0){
+			memset(data, 0, sizeof(data));
+			for(i = 0; i < MMS_OP_MODE_MAX; i++){
+				if(setting->op_mode[j][i]) flg++;
+				snprintf(data, sizeof(data), "%s%d:", data, setting->op_mode[j][i]);
+			}
+			MyIni_SetString(inisec, key, data);	
+		}else
+			MyIni_DeleteKey(&ini, sec, key);
 		// range
 		snprintf(key, sizeof(key), "op_%d_range", j);	
 		memset(data, 0, sizeof(data));
@@ -5054,6 +5153,7 @@ compute_op_t compute_op[4][OP_LIST_MAX] = {
 };
 
 
+// compute_op_num
 
 #define COMP_OP_NUM (*com_ptr++)(inf_ptr++)
 
@@ -5349,17 +5449,12 @@ static void set_envelope_param_scc(Envelope0 *env, int32 *envp, int up, int down
 	apply_envelope0_param(env);
 }
 
-static inline void init_scc_preset(int v, InfoIS_SCC *info, Preset_IS *is_set, int preset)
-{
-	Preset_SCC *set = scc_editor_override ? &scc_setting_edit[0] : is_set->scc_setting[preset];
+static inline void init_scc_preset_osc(InfoIS_SCC *info, int v)
+{	
+	Preset_IS *is_set = info->is_set;
+	Preset_SCC *set = info->set;
 	int tmpi;
 	FLOAT_T tmpf;
-	
-	if(set == NULL){
-		info->init = 0;
-		return;
-	}
-	info->init = 1;
 
 	// param
 	tmpi = set->param[0]; // param0= output_level
@@ -5409,13 +5504,41 @@ static inline void init_scc_preset(int v, InfoIS_SCC *info, Preset_IS *is_set, i
 	}
 	tmpi = set->osc[3]; // osc3= SCC_DATA
 	if(scc_data_editor_override){ // IS_EDITOR
-		info->data_ptr = scc_data_edit[0];
+		info->data_ptr1 = scc_data_edit[0];
 	}else if(tmpi < 0){ // noise
-		info->data_ptr = NULL;
+		info->data_ptr1 = NULL;
 	}else{
 		if(tmpi >= SCC_DATA_MAX)
 			tmpi = 0;
-		info->data_ptr = is_set->scc_data[tmpi];
+		info->data_ptr1 = is_set->scc_data[tmpi];
+	}	
+	tmpi = set->osc[4]; // osc4= time2
+	if(tmpi < 1 || tmpi > 100000)
+		tmpi = 0;
+	info->data2_count = tmpi * is_sample_rate_ms;
+	tmpi = set->osc[5]; // osc5= SCC_DATA2
+	if(tmpi < 0){ // noise
+		info->data_ptr2 = NULL;
+	}else{
+		if(tmpi >= SCC_DATA_MAX)
+			tmpi = 0;
+		info->data_ptr2 = is_set->scc_data[tmpi];
+	}
+	tmpi = set->osc[6]; // osc6= flag3
+	tmpi = tmpi ? 1 : 0;
+	info->data3_flag = tmpi;
+	tmpi = set->osc[7]; // osc7= SCC_DATA3
+	if(tmpi < 0){ // noise
+		info->data_ptr3 = NULL;
+	}else{
+		if(tmpi >= SCC_DATA_MAX)
+			tmpi = 0;
+		info->data_ptr3 = is_set->scc_data[tmpi];
+	}	
+	if(info->data2_count){
+		info->data_ptr = info->data_ptr2;
+	}else{
+		info->data_ptr = info->data_ptr1;
 	}
 	info->rate = 0;
 	info->cycle = 0;
@@ -5441,8 +5564,33 @@ static inline void init_scc_preset(int v, InfoIS_SCC *info, Preset_IS *is_set, i
 	// lfo2
 	if(info->lfo_pitch != 0.0)
 		init_lfo(&info->lfo2, (FLOAT_T)set->lfo2[0] * DIV_100, set->lfo2[1], set->lfo2[2], set->lfo2[3], 0);
+	// mode
+	tmpi = set->mode[0]; // release
+	tmpi = tmpi ? 1 : 0;
+	info->skip_flag = tmpi;
+	tmpi = set->mode[1]; // loop ms
+	if(tmpi <= 0 || tmpi > 100000) // 100000ms 100s
+		tmpi = 0;
+	info->loop_count = tmpi * is_sample_rate_ms;
 	// other
 	info->scc_flag = 1;
+}
+
+static inline void init_scc_preset(int v, InfoIS_SCC *info, Preset_IS *is_set, int preset)
+{
+	Preset_SCC *set = scc_editor_override ? &scc_setting_edit[0] : is_set->scc_setting[preset];
+	int tmpi;
+	FLOAT_T tmpf;
+	
+	if(set == NULL){
+		info->init = 0;
+		return;
+	}
+	info->init = 1;
+	info->set = set;
+	info->is_set = is_set;
+	
+	init_scc_preset_osc(info, v);	
 	// resample
 	is_resample_init(&info->rs);
 
@@ -5453,6 +5601,11 @@ static inline void init_scc_preset(int v, InfoIS_SCC *info, Preset_IS *is_set, i
 static void noteoff_scc(InfoIS_SCC *info)
 {
 	if(!info->init) return;
+	if(info->loop_count) return;
+	if(info->skip_flag){
+		info->skip_flag = -1;
+		return;
+	}
 	reset_envelope0_release(&info->amp_env, ENV0_KEEP);
 	reset_envelope0_release(&info->pit_env, ENV0_KEEP);
 }
@@ -5460,6 +5613,8 @@ static void noteoff_scc(InfoIS_SCC *info)
 static void damper_scc(InfoIS_SCC *info, int8 damper)
 {
 	if(!info->init) return;
+	if(info->loop_count) return;	
+	if(info->skip_flag) return;
 	reset_envelope0_damper(&info->amp_env, damper);
 	reset_envelope0_damper(&info->pit_env, damper);
 }
@@ -5469,17 +5624,51 @@ static void pre_compute_scc(InfoIS_SCC *info, int v, int32 count)
 	Voice *vp = voice + v;
 	FLOAT_T amp = 1.0, pitch = 0.0;
 	int scount, thru_flg;
-
-	if(info->scc_flag == 0){ // scc off		
+	
+	if(info->scc_flag == 0 && !info->loop_count){ // scc off	
 		vp->finish_voice = 1;
 		return;
+	}
+	// release
+	if(info->skip_flag == -1){
+		init_scc_preset_osc(info, v);
+		info->skip_flag = 0;
+	}else if(info->skip_flag > 0){
+		return;
+	}
+	// loop
+	if(info->loop_count == -1){
+		init_scc_preset_osc(info, v);
+	}else if(info->loop_count > 0){
+		info->loop_count -= count;
+		if(info->loop_count <= 0)
+			info->loop_count = -1; // reset flag
+	}
+	// SCC_DATA2
+	if(info->data2_count){
+		if(info->data2_count == -1){
+			info->data_ptr = info->data_ptr1;
+			info->data2_count = 0;
+		}else{
+			info->data2_count -= count;
+			if(info->data2_count <= 0)
+				info->data2_count = -1;
+		}
+	}
+	// SCC_DATA3
+	if(info->data3_flag){
+		if(check_envelope0(&info->amp_env) >= ENV0_RELEASE1_STAGE){
+			info->data_ptr = info->data_ptr3;
+			info->data2_count = 0;
+			info->data3_flag = 0;
+		}
 	}
 	// amp
 	compute_envelope0(&info->amp_env, count);	
 	if(!check_envelope0(&info->amp_env)){ // amp_env end
 		info->amp_vol = 0.0;
-		info->scc_flag = 0; // scc off
-		vp->finish_voice = 1;
+		if(!info->loop_count)
+			info->scc_flag = 0; // scc off
 		return;
 	}
 	// thru count
@@ -5525,8 +5714,10 @@ static void pre_compute_scc(InfoIS_SCC *info, int v, int32 count)
 	info->freq *= POW2(pitch) * div_is_sample_rate; // 1/sr = 1Hz
 }
 
-static FLOAT_T compute_scc(InfoIS_SCC *info)
+static inline FLOAT_T compute_scc(InfoIS_SCC *info)
 {
+	if(info->skip_flag)
+		return 0;
 	info->rate += info->freq; // +1/sr = 1Hz
 	if(info->data_ptr){
 		info->rate -= floor(info->rate);
@@ -5675,399 +5866,422 @@ static void set_envelope_param_mms(Envelope0 *env, int32 *envp, int16 *velf, int
 	apply_envelope0_param(env);
 }
 
-static inline void init_mms_preset(int v, InfoIS_MMS *info, Preset_IS *is_set, int preset)
-{
-	Preset_MMS *set = mms_editor_override ? &mms_setting_edit[0] : is_set->mms_setting[preset];
+static inline void init_mms_preset_op(InfoIS_MMS *info, int v, int i)
+{	
+	Preset_IS *is_set = info->is_set;
+	Preset_MMS *set = info->set;
 	double delay_cnt, attack_cnt, hold_cnt, decay_cnt, sustain_vol, sustain_cnt, release_cnt;
 	int note = voice[v].note, velo = voice[v].velocity;
 	FLOAT_T sub_note = note - 60, sub_velo = 127 - velo, div_velo = (FLOAT_T)velo * DIV_127;
+	int j, tmpi;	
+	Info_OP *info2 = &info->op[i];
+
+	// param
+	tmpi = set->op_param[i][0]; // param0 = op mode 0:OSC 1:FM 2:AM 3:PM 4:AMPM 5:RM 6:SYNC (7:CLIP 8:LOWBIT
+	if(tmpi < 0 || tmpi >= OP_LIST_MAX)
+		tmpi = 0;
+	info2->mod_type = tmpi;		
+	switch(info2->mod_type){
+	default:
+		tmpi = set->op_param[i][1]; // param1 = mod level %
+		if(tmpi < 1)
+			tmpi = 100;		
+		info2->mod_level = (FLOAT_T)tmpi * DIV_100;
+		break;
+	case OP_CLIP:
+		info2->mod_level = 1.0;
+		tmpi = set->op_param[i][1]; // param1 = clip level %
+		if(tmpi < 1)
+			tmpi = 100;		
+		info2->efx_var1 = (FLOAT_T)tmpi * DIV_100;
+		break;
+	case OP_LOWBIT:
+		info2->mod_level = 1.0;
+		tmpi = set->op_param[i][1]; // param1 = multiply
+		if(tmpi < 2)
+			tmpi = 2;		
+		info2->efx_var1 = (FLOAT_T)tmpi;
+		info2->efx_var2 = 1.0 / info2->efx_var1;
+		break;
+	}
+	tmpi = set->op_param[i][2]; // param2 = op level %
+	if(tmpi < 1)
+		tmpi = 100;		
+	info2->op_level = (FLOAT_T)tmpi * DIV_100;
+	// range
+	if(note < set->op_range[i][0] // range0 = key low
+	|| note > set->op_range[i][1] // range1 = key hi
+	|| velo < set->op_range[i][2] // range2 = velo low
+	|| velo > set->op_range[i][3] // range3 = velo hi
+	)
+		info2->op_flag = 0; // off
+	else
+		info2->op_flag = 1; // on
+	// connect
+	if(info2->mod_type == OP_SYNC){
+		for(j = 0; j < MMS_OP_CON_MAX; j++){ // connect0 ~ connect3
+			tmpi = set->op_connect[i][j]; // connect0 = -1:none(def) -2:output 0~7:op num
+			if(tmpi >= 0 && tmpi <= info->op_max)
+				info2->ptr_connect[j] = &info->op[tmpi].sync; 
+			else
+				info2->ptr_connect[j] = &info->dummy;	// no connect
+		}
+	}else{
+		for(j = 0; j < MMS_OP_CON_MAX; j++){ // connect0 ~ connect3
+			tmpi = set->op_connect[i][j]; // connect0 = -1:none(def) -2:output 0~7:op num
+			if(tmpi == -2)
+				info2->ptr_connect[j] = &info->out;	// output
+			else if(tmpi <= -1 || tmpi >= info->op_max)
+				info2->ptr_connect[j] = &info->dummy;	// no connect
+			else
+				info2->ptr_connect[j] = &info->op[tmpi].in; 
+		}
+	}
+	// osc
+	switch(set->op_osc[i][0]){ // osc0= mode 0:OSC(%) 0:OSC(ppm) 1:OSC(mHz) 2:OSC(note)
+	default:
+	case 0: // var %
+		info2->mode = 0;
+		tmpi = set->op_osc[i][1]; // osc1= freq / mlt
+		if(tmpi < 1)
+			tmpi = 100;
+		info2->freq_mlt = (FLOAT_T)tmpi * DIV_100 * voice[v].sample->tune; // % to mlt
+		info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
+		info2->freq = (FLOAT_T)voice[v].frequency * DIV_1000 * info2->freq_mlt;
+		break;
+	case 1: // var ppm
+		info2->mode = 0;
+		tmpi = set->op_osc[i][1]; // osc1= freq / mlt
+		if(tmpi < 1)
+			tmpi = 1000000;
+		info2->freq_mlt = (FLOAT_T)tmpi * DIV_1000000 * voice[v].sample->tune; // ppm to mlt
+		info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
+		info2->freq = (FLOAT_T)voice[v].frequency * DIV_1000 * info2->freq_mlt;
+		break;
+	case 2: // fix mHz 
+		info2->mode = 1;
+		tmpi = set->op_osc[i][1]; // osc1= freq / mlt
+		if(tmpi < 1)
+			tmpi = 1;
+		info2->freq_mlt = (FLOAT_T)tmpi * DIV_1000 * voice[v].sample->tune; // mHz to Hz
+		info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
+		info2->freq = info2->freq_mlt;
+		break;
+	case 3: // fix note 
+		info2->mode = 1;
+		tmpi = set->op_osc[i][1]; // osc1= freq / mlt
+		if(tmpi < 0)
+			tmpi = 0;
+		else if(tmpi > 127)
+			tmpi = 127;
+		info2->freq_mlt = (FLOAT_T)freq_table[tmpi] * DIV_1000 * voice[v].sample->tune; // note to Hz
+		info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
+		info2->freq = info2->freq_mlt;
+		break;
+	}
+	// wave
+	switch(set->op_wave[i][0]){ // wave0 = osc type 0:wave 1:SCC 2:MT32 3:CM32
+	default:
+	case MMS_OSC_WAVE:
+		info2->osc_type = 0;
+		tmpi = set->op_wave[i][1]; // wave1 = wave type  wave 0:sine ~ 
+		info2->wave_type = check_is_osc_wave_type(tmpi, OSC_NOISE_LOWBIT);
+		info2->osc_ptr = compute_osc[info2->wave_type];
+		tmpi = set->op_wave[i][2]; // wave2 = osc width %
+		if(tmpi < 0)
+			tmpi = 0;
+		else if(tmpi > 200)
+			tmpi = 200;
+		info2->wave_width = (FLOAT_T)tmpi * DIV_200; // width=100%  ratio=50:50=(width/2):(1-width/2)	
+		tmpi = set->op_wave[i][3]; // wave3 = phase offset % (start rate
+		if(tmpi < 0 || tmpi > 99)
+			tmpi = 0;
+		info2->rate = (FLOAT_T)tmpi * DIV_100;	
+		info2->freq_coef = div_is_sample_rate; // +1/sr = 1Hz
+		break;
+	case MMS_OSC_SCC:
+		info2->osc_type = 1;
+		tmpi = set->op_wave[i][1]; // wave1 = scc type  , scc number 0~511
+		if(tmpi < 0 || tmpi > SCC_DATA_MAX)
+			tmpi = 0;
+		info2->wave_type = tmpi;
+		info2->data_ptr = is_set->scc_data[tmpi];			
+		if(scc_data_editor_override) // IS_EDITOR
+			info2->data_ptr = scc_data_edit[0];
+		tmpi = set->op_wave[i][2]; // wave2 = wave width %
+		if(tmpi < 0 || tmpi > 200)
+			tmpi = 0;
+		info2->wave_width = (FLOAT_T)tmpi * DIV_200; // width=100%  ratio=50:50=(width/2):(1-width/2)		
+		tmpi = set->op_wave[i][3]; // wave3 = phase offset % (start rate
+		if(tmpi < 0 || tmpi > 99)
+			tmpi = 0;
+		info2->rate = (FLOAT_T)tmpi * DIV_100;
+		info2->freq_coef = div_is_sample_rate; // +1/sr = 1Hz
+		info2->scc_ptr = compute_osc_scc_linear;
+	//	info2->scc_ptr = compute_osc_scc_sine;
+		if(!set->op_wave[i][4]) // wave4 拡張フラグ
+			break;
+		switch(set->op_wave[i][5]){ // wave5 = interpoation
+		default:
+		case 0:
+			info2->scc_ptr = compute_osc_scc_none;
+			break;
+		case 1:
+			info2->scc_ptr = compute_osc_scc_linear;
+			break;
+		case 2:
+			info2->scc_ptr = compute_osc_scc_sine;
+			break;
+		}
+		break;
+	case MMS_OSC_MT32:
+		{
+		Info_PCM *pcm_inf; 
+		info2->osc_type = 2;
+		tmpi = set->op_wave[i][1]; // wave1 = pcm type , pcm number 0~	
+		if(tmpi < 0 || tmpi >= MT32_DATA_MAX)
+			tmpi = 0;
+		pcm_inf = &mt32_pcm_inf[tmpi];
+		info2->wave_type = tmpi;
+		info2->data_ptr = mt32_pcm_data;
+		if(pcm_inf->loop){
+			info2->ofs_start = pcm_inf->loop_start;
+			info2->ofs_end = pcm_inf->loop_end;
+			info2->loop_length = pcm_inf->loop_length;
+		}else{
+			info2->ofs_start = pcm_inf->ofs_start;
+			info2->ofs_end = pcm_inf->ofs_end;
+			info2->loop_length = 0;
+		}
+		info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCMの1周期分相当
+		info2->freq_coef = div_is_sample_rate * info2->pcm_cycle; // +1/sr*pcm_rate/root_freq = 1Hz
+		info2->rate = pcm_inf->ofs_start;
+		}
+		break;
+	case MMS_OSC_CM32L:
+		{
+		Info_PCM *pcm_inf; 
+		info2->osc_type = 3;
+		tmpi = set->op_wave[i][1]; // wave1 = pcm type , pcm number 0~	
+		if(tmpi < 0 || tmpi >= CM32L_DATA_MAX)
+			tmpi = 0;
+		pcm_inf = &cm32l_pcm_inf[tmpi];
+		info2->wave_type = tmpi;
+		info2->data_ptr = cm32l_pcm_data;
+		if(pcm_inf->loop){
+			info2->ofs_start = pcm_inf->loop_start;
+			info2->ofs_end = pcm_inf->loop_end;
+			info2->loop_length = pcm_inf->loop_length;
+		}else{
+			info2->ofs_start = pcm_inf->ofs_start;
+			info2->ofs_end = pcm_inf->ofs_end;
+			info2->loop_length = 0;
+		}
+		info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCMの1周期分相当
+		info2->freq_coef = div_is_sample_rate * info2->pcm_cycle; // +1/sr*pcm_rate/root_freq = 1Hz
+		info2->rate = pcm_inf->ofs_start;
+		}
+		break;
+	}
+	// sub
+	tmpi = set->op_sub[i][0]; // sub0= velo to mod_level
+	if(tmpi < 1)
+		tmpi = 100;	
+	info2->mod_level *= mix_double(div_velo, tmpi * DIV_100, 1.0); // vel=127 modlv=100% , vel=0 modlv=tmpi%
+	tmpi = set->op_sub[i][1]; // sub1= velo to op_level
+	if(tmpi < 1)
+		tmpi = 100;	
+	info2->op_level *= mix_double(div_velo, tmpi * DIV_100, 1.0); // vel=127 modlv=100% , vel=0 modlv=tmpi%
+	tmpi = set->op_sub[i][2]; // sub2= key to mod_level
+	info2->mod_level *= POW2((FLOAT_T)sub_note * tmpi * DIV_1200);
+	tmpi = set->op_sub[i][3]; // sub3= key to op_level
+	info2->op_level *= POW2((FLOAT_T)sub_note * tmpi * DIV_1200);
+	// amp
+	tmpi = set->op_amp[i][0]; // amp0= lfo1 to amp
+	if(tmpi < 0)
+		tmpi = 0;
+	else if(tmpi > 100)
+		tmpi = 100;
+	info2->lfo_amp = (FLOAT_T)tmpi * DIV_100;
+	info2->amp_vol = 0.0;
+	// pitch
+	info2->lfo_pitch = (FLOAT_T)set->op_pitch[i][0] * DIV_1200; // pitch0= lfo2 to freq 
+	info2->env_pitch = (FLOAT_T)set->op_pitch[i][1] * DIV_1200; // pitch1= pitenv to freq cent
+	// width
+	if(info2->osc_type <= MMS_OSC_SCC){ 	
+		tmpi = set->op_width[i][0]; // width0= lfo3 to wave_width %
+		if(tmpi < -200)
+			tmpi = -200;
+		else if(tmpi > 200)
+			tmpi = 200;	
+		info2->lfo_width = (FLOAT_T)tmpi * DIV_200;
+		tmpi = set->op_width[i][1]; // width1= widenv to wave_width %
+		if(tmpi < -200)
+			tmpi = -200;
+		else if(tmpi > 200)
+			tmpi = 200;
+		info2->env_width = (FLOAT_T)tmpi * DIV_200;		
+		tmpi = set->op_width[i][2]; // width2= vel to wave_width %
+		if(tmpi < -200)
+			tmpi = -200;
+		else if(tmpi > 200)
+			tmpi = 200;	
+		info2->wave_width += div_velo * (FLOAT_T)tmpi * DIV_200;
+		if(info2->wave_width >= 1.0){
+			info2->wave_width = 1.0;
+			info2->req_wave_width1 = info2->wave_width1 = 1.0;
+			info2->req_rate_width1 = info2->rate_width1 = 0.5;
+			info2->req_rate_width2 = info2->rate_width2 = 0.0;
+		}else if(info2->wave_width <= 0.0){
+			info2->wave_width = 0.0;
+			info2->req_wave_width1 = info2->wave_width1 = 0.0;
+			info2->req_rate_width1 = info2->rate_width1 = 0.0;
+			info2->req_rate_width2 = info2->rate_width2 = 0.5;
+		}else{
+			info2->req_wave_width1 = info2->wave_width1 = info2->wave_width;
+			info2->req_rate_width1 = info2->rate_width1 = 0.5 / (info2->wave_width1);
+			info2->req_rate_width2 = info2->rate_width2 = 0.5 / (1.0 - info2->wave_width1);
+		}
+	}else{
+		info2->lfo_width = 0.0;
+		info2->env_width = 0.0;
+		info2->req_wave_width1 = info2->wave_width1 = 0.5;
+		info2->req_rate_width1 = info2->rate_width1 = 1.0;
+		info2->req_rate_width2 = info2->rate_width2 = 1.0;
+	}
+	// filter
+	set_sample_filter_type(&info2->fc, set->op_filter[i][0]); // filter 0 = type
+	if(info2->fc.type){
+		info2->flt_freq = (FLOAT_T)set->op_filter[i][1]; // filter 1 = freq	
+		info2->flt_reso = (FLOAT_T)set->op_filter[i][2]; // filter 2 = reso
+	// cutoff
+		info2->lfo_cutoff = (FLOAT_T)set->op_cutoff[i][0] * DIV_1200; // cutoff 0 = lfo4 to cutoff
+		info2->env_cutoff = (FLOAT_T)set->op_cutoff[i][1] * DIV_1200; // cutoff 1 = env to cutoff
+		info2->flt_freq *= POW2(((FLOAT_T)sub_velo * set->op_cutoff[i][2] * DIV_127 * DIV_100) // cutoff 2 = vel to cutoff
+			+ ((FLOAT_T)sub_note * set->op_cutoff[i][3] * DIV_1200)); // cutoff 3 = key to cutoff
+		set_sample_filter_ext_rate(&info2->fc, is_sample_rate);
+		set_sample_filter_freq(&info2->fc, info2->flt_freq);
+		set_sample_filter_reso(&info2->fc, info2->flt_reso);
+	}else{ // filter off
+		info2->flt_freq = 0;
+		info2->flt_reso = 0;
+		info2->env_cutoff = 0.0;
+		info2->lfo_cutoff = 0.0;
+	}		
+	// amp_env
+	if(info2->mod_type < OP_SYNC){
+		info2->amp_env_flg = 1;
+		set_envelope_param_mms(&info2->amp_env, 
+			set->op_ampenv[i], set->op_ampenv_velf[i], set->op_ampenv_keyf[i], 
+			LINEAR_CURVE, DEF_VOL_CURVE, sub_velo, sub_note);
+	}else{
+		info2->amp_env_flg = 0;
+		info2->amp_env.volume = 0.0;
+	}
+	// pit_env
+	if(info2->env_pitch != 0.0){
+		info2->pit_env_flg = 1;
+		set_envelope_param_mms(&info2->pit_env, 
+			set->op_pitenv[i], set->op_pitenv_velf[i], set->op_pitenv_keyf[i], 
+			LINEAR_CURVE, LINEAR_CURVE, sub_velo, sub_note);
+	}else{
+		info2->pit_env_flg = 0;
+		info2->pit_env.volume = 0.0;
+	}			
+	// wid_env
+	if(info2->env_width != 0.0){			
+		info2->wid_env_flg = 1;
+		set_envelope_param_mms(&info2->wid_env, 
+			set->op_widenv[i], set->op_widenv_velf[i], set->op_widenv_keyf[i], 
+			LINEAR_CURVE, LINEAR_CURVE, sub_velo, sub_note);
+	}else{
+		info2->wid_env_flg = 0;
+		info2->wid_env.volume = 0.0;
+	}
+	// mod_env
+	if(info2->env_cutoff != 0.0){
+		info2->mod_env_flg = 1;
+		set_envelope_param_mms(&info2->mod_env, 
+			set->op_modenv[i], set->op_modenv_velf[i], set->op_modenv_keyf[i], 
+			SF2_CONVEX, SF2_CONCAVE, sub_velo, sub_note);
+	}else{
+		info2->mod_env_flg = 0;
+		info2->mod_env.volume = 0.0;
+	}
+	// lfo1
+	if(info2->lfo_amp != 0.0){
+		info2->lfo1_flg = 1;
+		init_lfo(&info2->lfo1, (FLOAT_T)set->op_lfo1[i][0] * DIV_100, set->op_lfo1[i][1], set->op_lfo1[i][2], set->op_lfo1[i][3], 1);
+	}else{
+		info2->lfo1_flg = 0;
+		info2->lfo1.out = 0.0;
+	}
+	// lfo2
+	if(info2->lfo_pitch != 0.0){			
+		info2->lfo2_flg = 1;
+		init_lfo(&info2->lfo2, (FLOAT_T)set->op_lfo2[i][0] * DIV_100, set->op_lfo2[i][1], set->op_lfo2[i][2], set->op_lfo2[i][3], 0);
+	}else{
+		info2->lfo2_flg = 0;
+		info2->lfo2.out = 0.0;
+	}
+	// lfo3
+	if(info2->lfo_width != 0.0){			
+		info2->lfo3_flg = 1;
+		init_lfo(&info2->lfo3, (FLOAT_T)set->op_lfo3[i][0] * DIV_100, set->op_lfo3[i][1], set->op_lfo3[i][2], set->op_lfo3[i][3], 1);
+	}else{
+		info2->lfo3_flg = 0;
+		info2->lfo3.out = 0.0;
+	}
+	// lfo4
+	if(info2->lfo_cutoff != 0.0){			
+		info2->lfo4_flg = 1;
+		init_lfo(&info2->lfo4, (FLOAT_T)set->op_lfo4[i][0] * DIV_100, set->op_lfo4[i][1], set->op_lfo4[i][2], set->op_lfo4[i][3], 1);
+	}else{
+		info2->lfo4_flg = 0;
+		info2->lfo4.out = 0.0;
+	}
+	// mode
+	tmpi = set->op_mode[i][0]; // release
+	tmpi = tmpi ? 1 : 0;
+	info2->skip_flag = tmpi;
+	tmpi = set->op_mode[i][1]; // loop ms
+	if(tmpi <= 0 || tmpi > 100000) // 100000ms 100s
+		tmpi = 0;
+	info2->loop_count = tmpi * is_sample_rate_ms;
+	// other
+	info2->in = info2->sync = 0.0;
+	info2->cycle = 0;
+	// op_ptr
+	if(info2->op_flag)
+		info->op_ptr[i] = compute_op[info2->osc_type][info2->mod_type];
+	else
+		info->op_ptr[i] = compute_op_null;
+}
+
+static inline void init_mms_preset(int v, InfoIS_MMS *info, Preset_IS *is_set, int preset)
+{
+	Preset_MMS *set = mms_editor_override ? &mms_setting_edit[0] : is_set->mms_setting[preset];
 	int i, j, tmpi;
 
 	if(set == NULL){
 		info->init = 0;
 		return;
 	}
-	info->init = 1;
+	info->init = 1;	
+	info->set = set;
+	info->is_set = is_set;
 
 	tmpi = set->op_max; // op max
 	if(tmpi < 1 || tmpi > MMS_OP_MAX)
 		tmpi = 0;
 	info->op_max = tmpi;
+	// init op
 	for(i = 0; i < info->op_max; i++){
-		Info_OP *info2 = &info->op[i];
-		// param
-		tmpi = set->op_param[i][0]; // param0 = op mode 0:OSC 1:FM 2:AM 3:PM 4:AMPM 5:RM 6:SYNC (7:CLIP 8:LOWBIT
-		if(tmpi < 0 || tmpi >= OP_LIST_MAX)
-			tmpi = 0;
-		info2->mod_type = tmpi;		
-		switch(info2->mod_type){
-		default:
-			tmpi = set->op_param[i][1]; // param1 = mod level %
-			if(tmpi < 1)
-				tmpi = 100;		
-			info2->mod_level = (FLOAT_T)tmpi * DIV_100;
-			break;
-		case OP_CLIP:
-			info2->mod_level = 1.0;
-			tmpi = set->op_param[i][1]; // param1 = clip level %
-			if(tmpi < 1)
-				tmpi = 100;		
-			info2->efx_var1 = (FLOAT_T)tmpi * DIV_100;
-			break;
-		case OP_LOWBIT:
-			info2->mod_level = 1.0;
-			tmpi = set->op_param[i][1]; // param1 = multiply
-			if(tmpi < 2)
-				tmpi = 2;		
-			info2->efx_var1 = (FLOAT_T)tmpi;
-			info2->efx_var2 = 1.0 / info2->efx_var1;
-			break;
-		}
-		tmpi = set->op_param[i][2]; // param2 = op level %
-		if(tmpi < 1)
-			tmpi = 100;		
-		info2->op_level = (FLOAT_T)tmpi * DIV_100;
-		// range
-		if(note < set->op_range[i][0] // range0 = key low
-		|| note > set->op_range[i][1] // range1 = key hi
-		|| velo < set->op_range[i][2] // range2 = velo low
-		|| velo > set->op_range[i][3] // range3 = velo hi
-		)
-			info2->op_flag = 0; // off
-		else
-			info2->op_flag = 1; // on
-		// connect
-		if(info2->mod_type == OP_SYNC){
-			for(j = 0; j < MMS_OP_CON_MAX; j++){ // connect0 ~ connect3
-				tmpi = set->op_connect[i][j]; // connect0 = -1:none(def) -2:output 0~7:op num
-				if(tmpi >= 0 && tmpi <= info->op_max)
-					info2->ptr_connect[j] = &info->op[tmpi].sync; 
-				else
-					info2->ptr_connect[j] = &info->dummy;	// no connect
-			}
-		}else{
-			for(j = 0; j < MMS_OP_CON_MAX; j++){ // connect0 ~ connect3
-				tmpi = set->op_connect[i][j]; // connect0 = -1:none(def) -2:output 0~7:op num
-				if(tmpi == -2)
-					info2->ptr_connect[j] = &info->out;	// output
-				else if(tmpi <= -1 || tmpi >= info->op_max)
-					info2->ptr_connect[j] = &info->dummy;	// no connect
-				else
-					info2->ptr_connect[j] = &info->op[tmpi].in; 
-			}
-		}
-		// osc
-		switch(set->op_osc[i][0]){ // osc0= mode 0:OSC(%) 0:OSC(ppm) 1:OSC(mHz) 2:OSC(note)
-		default:
-		case 0: // var %
-			info2->mode = 0;
-			tmpi = set->op_osc[i][1]; // osc1= freq / mlt
-			if(tmpi < 1)
-				tmpi = 100;
-			info2->freq_mlt = (FLOAT_T)tmpi * DIV_100 * voice[v].sample->tune; // % to mlt
-			info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
-			info2->freq = (FLOAT_T)voice[v].frequency * DIV_1000 * info2->freq_mlt;
-			break;
-		case 1: // var ppm
-			info2->mode = 0;
-			tmpi = set->op_osc[i][1]; // osc1= freq / mlt
-			if(tmpi < 1)
-				tmpi = 1000000;
-			info2->freq_mlt = (FLOAT_T)tmpi * DIV_1000000 * voice[v].sample->tune; // ppm to mlt
-			info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
-			info2->freq = (FLOAT_T)voice[v].frequency * DIV_1000 * info2->freq_mlt;
-			break;
-		case 2: // fix mHz 
-			info2->mode = 1;
-			tmpi = set->op_osc[i][1]; // osc1= freq / mlt
-			if(tmpi < 1)
-				tmpi = 1;
-			info2->freq_mlt = (FLOAT_T)tmpi * DIV_1000 * voice[v].sample->tune; // mHz to Hz
-			info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
-			info2->freq = info2->freq_mlt;
-			break;
-		case 3: // fix note 
-			info2->mode = 1;
-			tmpi = set->op_osc[i][1]; // osc1= freq / mlt
-			if(tmpi < 0)
-				tmpi = 0;
-			else if(tmpi > 127)
-				tmpi = 127;
-			info2->freq_mlt = (FLOAT_T)freq_table[tmpi] * DIV_1000 * voice[v].sample->tune; // note to Hz
-			info2->freq_mlt *= POW2((FLOAT_T)set->op_osc[i][2] * DIV_1200); // osc2=tune  // cent to mlt
-			info2->freq = info2->freq_mlt;
-			break;
-		}
-		// wave
-		switch(set->op_wave[i][0]){ // wave0 = osc type 0:wave 1:SCC 2:MT32 3:CM32
-		default:
-		case MMS_OSC_WAVE:
-			info2->osc_type = 0;
-			tmpi = set->op_wave[i][1]; // wave1 = wave type  wave 0:sine ~ 
-			info2->wave_type = check_is_osc_wave_type(tmpi, OSC_NOISE_LOWBIT);
-			info2->osc_ptr = compute_osc[info2->wave_type];
-			tmpi = set->op_wave[i][2]; // wave2 = osc width %
-			if(tmpi < 0)
-				tmpi = 0;
-			else if(tmpi > 200)
-				tmpi = 200;
-			info2->wave_width = (FLOAT_T)tmpi * DIV_200; // width=100%  ratio=50:50=(width/2):(1-width/2)	
-			tmpi = set->op_wave[i][3]; // wave3 = phase offset % (start rate
-			if(tmpi < 0 || tmpi > 99)
-				tmpi = 0;
-			info2->rate = (FLOAT_T)tmpi * DIV_100;	
-			info2->freq_coef = div_is_sample_rate; // +1/sr = 1Hz
-			break;
-		case MMS_OSC_SCC:
-			info2->osc_type = 1;
-			tmpi = set->op_wave[i][1]; // wave1 = scc type  , scc number 0~511
-			if(tmpi < 0 || tmpi > SCC_DATA_MAX)
-				tmpi = 0;
-			info2->wave_type = tmpi;
-			info2->data_ptr = is_set->scc_data[tmpi];			
-			if(scc_data_editor_override) // IS_EDITOR
-				info2->data_ptr = scc_data_edit[0];
-			tmpi = set->op_wave[i][2]; // wave2 = wave width %
-			if(tmpi < 0 || tmpi > 200)
-				tmpi = 0;
-			info2->wave_width = (FLOAT_T)tmpi * DIV_200; // width=100%  ratio=50:50=(width/2):(1-width/2)		
-			tmpi = set->op_wave[i][3]; // wave3 = phase offset % (start rate
-			if(tmpi < 0 || tmpi > 99)
-				tmpi = 0;
-			info2->rate = (FLOAT_T)tmpi * DIV_100;
-			info2->freq_coef = div_is_sample_rate; // +1/sr = 1Hz
-			info2->scc_ptr = compute_osc_scc_linear;
-		//	info2->scc_ptr = compute_osc_scc_sine;
-			if(!set->op_wave[i][4]) // wave4 拡張フラグ
-				break;
-			switch(set->op_wave[i][5]){ // wave5 = interpoation
-			default:
-			case 0:
-				info2->scc_ptr = compute_osc_scc_none;
-				break;
-			case 1:
-				info2->scc_ptr = compute_osc_scc_linear;
-				break;
-			case 2:
-				info2->scc_ptr = compute_osc_scc_sine;
-				break;
-			}
-			break;
-		case MMS_OSC_MT32:
-			{
-			Info_PCM *pcm_inf; 
-			info2->osc_type = 2;
-			tmpi = set->op_wave[i][1]; // wave1 = pcm type , pcm number 0~	
-			if(tmpi < 0 || tmpi >= MT32_DATA_MAX)
-				tmpi = 0;
-			pcm_inf = &mt32_pcm_inf[tmpi];
-			info2->wave_type = tmpi;
-			info2->data_ptr = mt32_pcm_data;
-			if(pcm_inf->loop){
-				info2->ofs_start = pcm_inf->loop_start;
-				info2->ofs_end = pcm_inf->loop_end;
-				info2->loop_length = pcm_inf->loop_length;
-			}else{
-				info2->ofs_start = pcm_inf->ofs_start;
-				info2->ofs_end = pcm_inf->ofs_end;
-				info2->loop_length = 0;
-			}
-			info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCMの1周期分相当
-			info2->freq_coef = div_is_sample_rate * info2->pcm_cycle; // +1/sr*pcm_rate/root_freq = 1Hz
-			info2->rate = pcm_inf->ofs_start;
-			}
-			break;
-		case MMS_OSC_CM32L:
-			{
-			Info_PCM *pcm_inf; 
-			info2->osc_type = 3;
-			tmpi = set->op_wave[i][1]; // wave1 = pcm type , pcm number 0~	
-			if(tmpi < 0 || tmpi >= CM32L_DATA_MAX)
-				tmpi = 0;
-			pcm_inf = &cm32l_pcm_inf[tmpi];
-			info2->wave_type = tmpi;
-			info2->data_ptr = cm32l_pcm_data;
-			if(pcm_inf->loop){
-				info2->ofs_start = pcm_inf->loop_start;
-				info2->ofs_end = pcm_inf->loop_end;
-				info2->loop_length = pcm_inf->loop_length;
-			}else{
-				info2->ofs_start = pcm_inf->ofs_start;
-				info2->ofs_end = pcm_inf->ofs_end;
-				info2->loop_length = 0;
-			}
-			info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCMの1周期分相当
-			info2->freq_coef = div_is_sample_rate * info2->pcm_cycle; // +1/sr*pcm_rate/root_freq = 1Hz
-			info2->rate = pcm_inf->ofs_start;
-			}
-			break;
-		}
-		// sub
-		tmpi = set->op_sub[i][0]; // sub0= velo to mod_level
-		if(tmpi < 1)
-			tmpi = 100;	
-		info2->mod_level *= mix_double(div_velo, tmpi * DIV_100, 1.0); // vel=127 modlv=100% , vel=0 modlv=tmpi%
-		tmpi = set->op_sub[i][1]; // sub1= velo to op_level
-		if(tmpi < 1)
-			tmpi = 100;	
-		info2->op_level *= mix_double(div_velo, tmpi * DIV_100, 1.0); // vel=127 modlv=100% , vel=0 modlv=tmpi%
-		tmpi = set->op_sub[i][2]; // sub2= key to mod_level
-		info2->mod_level *= POW2((FLOAT_T)sub_note * tmpi * DIV_1200);
-		tmpi = set->op_sub[i][3]; // sub3= key to op_level
-		info2->op_level *= POW2((FLOAT_T)sub_note * tmpi * DIV_1200);
-		// amp
-		tmpi = set->op_amp[i][0]; // amp0= lfo1 to amp
-		if(tmpi < 0)
-			tmpi = 0;
-		else if(tmpi > 100)
-			tmpi = 100;
-		info2->lfo_amp = (FLOAT_T)tmpi * DIV_100;
-		info2->amp_vol = 0.0;
-		// pitch
-		info2->lfo_pitch = (FLOAT_T)set->op_pitch[i][0] * DIV_1200; // pitch0= lfo2 to freq 
-		info2->env_pitch = (FLOAT_T)set->op_pitch[i][1] * DIV_1200; // pitch1= pitenv to freq cent
-		// width
-		if(info2->osc_type <= MMS_OSC_SCC){ 	
-			tmpi = set->op_width[i][0]; // width0= lfo3 to wave_width %
-			if(tmpi < -200)
-				tmpi = -200;
-			else if(tmpi > 200)
-				tmpi = 200;	
-			info2->lfo_width = (FLOAT_T)tmpi * DIV_200;
-			tmpi = set->op_width[i][1]; // width1= widenv to wave_width %
-			if(tmpi < -200)
-				tmpi = -200;
-			else if(tmpi > 200)
-				tmpi = 200;
-			info2->env_width = (FLOAT_T)tmpi * DIV_200;		
-			tmpi = set->op_width[i][2]; // width2= vel to wave_width %
-			if(tmpi < -200)
-				tmpi = -200;
-			else if(tmpi > 200)
-				tmpi = 200;	
-			info2->wave_width += div_velo * (FLOAT_T)tmpi * DIV_200;
-			if(info2->wave_width >= 1.0){
-				info2->wave_width = 1.0;
-				info2->req_wave_width1 = info2->wave_width1 = 1.0;
-				info2->req_rate_width1 = info2->rate_width1 = 0.5;
-				info2->req_rate_width2 = info2->rate_width2 = 0.0;
-			}else if(info2->wave_width <= 0.0){
-				info2->wave_width = 0.0;
-				info2->req_wave_width1 = info2->wave_width1 = 0.0;
-				info2->req_rate_width1 = info2->rate_width1 = 0.0;
-				info2->req_rate_width2 = info2->rate_width2 = 0.5;
-			}else{
-				info2->req_wave_width1 = info2->wave_width1 = info2->wave_width;
-				info2->req_rate_width1 = info2->rate_width1 = 0.5 / (info2->wave_width1);
-				info2->req_rate_width2 = info2->rate_width2 = 0.5 / (1.0 - info2->wave_width1);
-			}
-		}else{
-			info2->lfo_width = 0.0;
-			info2->env_width = 0.0;
-			info2->req_wave_width1 = info2->wave_width1 = 0.5;
-			info2->req_rate_width1 = info2->rate_width1 = 1.0;
-			info2->req_rate_width2 = info2->rate_width2 = 1.0;
-		}
-		// filter
-		set_sample_filter_type(&info2->fc, set->op_filter[i][0]); // filter 0 = type
-		if(info2->fc.type){
-			info2->flt_freq = (FLOAT_T)set->op_filter[i][1]; // filter 1 = freq	
-			info2->flt_reso = (FLOAT_T)set->op_filter[i][2]; // filter 2 = reso
-		// cutoff
-			info2->lfo_cutoff = (FLOAT_T)set->op_cutoff[i][0] * DIV_1200; // cutoff 0 = lfo4 to cutoff
-			info2->env_cutoff = (FLOAT_T)set->op_cutoff[i][1] * DIV_1200; // cutoff 1 = env to cutoff
-			info2->flt_freq *= POW2(((FLOAT_T)sub_velo * set->op_cutoff[i][2] * DIV_127 * DIV_100) // cutoff 2 = vel to cutoff
-				+ ((FLOAT_T)sub_note * set->op_cutoff[i][3] * DIV_1200)); // cutoff 3 = key to cutoff
-			set_sample_filter_ext_rate(&info2->fc, is_sample_rate);
-			set_sample_filter_freq(&info2->fc, info2->flt_freq);
-			set_sample_filter_reso(&info2->fc, info2->flt_reso);
-		}else{ // filter off
-			info2->flt_freq = 0;
-			info2->flt_reso = 0;
-			info2->env_cutoff = 0.0;
-			info2->lfo_cutoff = 0.0;
-		}		
-		// amp_env
-		if(info2->mod_type < OP_SYNC){
-			info2->amp_env_flg = 1;
-			set_envelope_param_mms(&info2->amp_env, 
-				set->op_ampenv[i], set->op_ampenv_velf[i], set->op_ampenv_keyf[i], 
-				LINEAR_CURVE, DEF_VOL_CURVE, sub_velo, sub_note);
-		}else{
-			info2->amp_env_flg = 0;
-			info2->amp_env.volume = 0.0;
-		}
-		// pit_env
-		if(info2->env_pitch != 0.0){
-			info2->pit_env_flg = 1;
-			set_envelope_param_mms(&info2->pit_env, 
-				set->op_pitenv[i], set->op_pitenv_velf[i], set->op_pitenv_keyf[i], 
-				LINEAR_CURVE, LINEAR_CURVE, sub_velo, sub_note);
-		}else{
-			info2->pit_env_flg = 0;
-			info2->pit_env.volume = 0.0;
-		}			
-		// wid_env
-		if(info2->env_width != 0.0){			
-			info2->wid_env_flg = 1;
-			set_envelope_param_mms(&info2->wid_env, 
-				set->op_widenv[i], set->op_widenv_velf[i], set->op_widenv_keyf[i], 
-				LINEAR_CURVE, LINEAR_CURVE, sub_velo, sub_note);
-		}else{
-			info2->wid_env_flg = 0;
-			info2->wid_env.volume = 0.0;
-		}
-		// mod_env
-		if(info2->env_cutoff != 0.0){
-			info2->mod_env_flg = 1;
-			set_envelope_param_mms(&info2->mod_env, 
-				set->op_modenv[i], set->op_modenv_velf[i], set->op_modenv_keyf[i], 
-				SF2_CONVEX, SF2_CONCAVE, sub_velo, sub_note);
-		}else{
-			info2->mod_env_flg = 0;
-			info2->mod_env.volume = 0.0;
-		}
-		// lfo1
-		if(info2->lfo_amp != 0.0){
-			info2->lfo1_flg = 1;
-			init_lfo(&info2->lfo1, (FLOAT_T)set->op_lfo1[i][0] * DIV_100, set->op_lfo1[i][1], set->op_lfo1[i][2], set->op_lfo1[i][3], 1);
-		}else{
-			info2->lfo1_flg = 0;
-			info2->lfo1.out = 0.0;
-		}
-		// lfo2
-		if(info2->lfo_pitch != 0.0){			
-			info2->lfo2_flg = 1;
-			init_lfo(&info2->lfo2, (FLOAT_T)set->op_lfo2[i][0] * DIV_100, set->op_lfo2[i][1], set->op_lfo2[i][2], set->op_lfo2[i][3], 0);
-		}else{
-			info2->lfo2_flg = 0;
-			info2->lfo2.out = 0.0;
-		}
-		// lfo3
-		if(info2->lfo_width != 0.0){			
-			info2->lfo3_flg = 1;
-			init_lfo(&info2->lfo3, (FLOAT_T)set->op_lfo3[i][0] * DIV_100, set->op_lfo3[i][1], set->op_lfo3[i][2], set->op_lfo3[i][3], 1);
-		}else{
-			info2->lfo3_flg = 0;
-			info2->lfo3.out = 0.0;
-		}
-		// lfo4
-		if(info2->lfo_cutoff != 0.0){			
-			info2->lfo4_flg = 1;
-			init_lfo(&info2->lfo4, (FLOAT_T)set->op_lfo4[i][0] * DIV_100, set->op_lfo4[i][1], set->op_lfo4[i][2], set->op_lfo4[i][3], 1);
-		}else{
-			info2->lfo4_flg = 0;
-			info2->lfo4.out = 0.0;
-		}
-		// other
-		info2->in = info2->sync = 0.0;
-		info2->cycle = 0;
-		// op_ptr
-		if(info2->op_flag)
-			info->op_ptr[i] = compute_op[info2->osc_type][info2->mod_type];
-		else
+		init_mms_preset_op(info, v, i);
+		// release
+		if(info->op[i].skip_flag)
 			info->op_ptr[i] = compute_op_null;
-	}
+	}	
 	// resample
 	is_resample_init(&info->rs);
 	// mms_ptr
@@ -6087,6 +6301,12 @@ static void noteoff_mms(InfoIS_MMS *info)
 		
 		if(info2->op_flag == 0) // op off
 			continue;
+		if(info2->loop_count)
+			continue;
+		if(info2->skip_flag){
+			info2->skip_flag = -1;
+			return;
+		}
 		if(info2->amp_env_flg)
 			reset_envelope0_release(&info2->amp_env, ENV0_KEEP);
 		if(info2->pit_env_flg)
@@ -6108,6 +6328,10 @@ static void damper_mms(InfoIS_MMS *info, int8 damper)
 		
 		if(info2->op_flag == 0) // op off
 			continue;
+		if(info2->loop_count)
+			continue;
+		if(info2->skip_flag)
+			return;
 		if(damper){
 			if(info2->amp_env_flg)
 				reset_envelope0_damper(&info2->amp_env, damper);
@@ -6139,14 +6363,32 @@ static void pre_compute_mms(InfoIS_MMS *info, int v, int32 count)
 	for(i = 0; i < info->op_max; i++){
 		Info_OP *info2 = &info->op[i];
 		FLOAT_T amp = 1.0, pitch = 0.0, cutoff = 0.0, width = 0.0;
-
+		
 		if(info2->op_flag == 0) // op off
 			continue;
+		// release
+		if(info2->skip_flag == -1){
+			init_mms_preset_op(info, v, i);
+			info2->skip_flag = 0;
+		}else if(info2->skip_flag > 0){
+			++op_count;
+			continue;
+		}
+		// loop
+		if(info2->loop_count == -1){
+			init_mms_preset_op(info, v, i);
+		}else if(info2->loop_count > 0){
+			++op_count;
+			info2->loop_count -= count;
+			if(info2->loop_count <= 0)
+				info2->loop_count = -1; // reset flag
+		}
 		// amp
 		if(info2->amp_env_flg){
 			if(!check_envelope0(&info2->amp_env)){ // amp_env end
 				info2->amp_vol = 0.0;
-				info2->op_flag = 0; // operator turn off
+				if(!info2->loop_count)
+					info2->op_flag = 0; // operator turn off
 				info->op_ptr[i] = compute_op_null;
 				continue;
 			}

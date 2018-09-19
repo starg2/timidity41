@@ -69,6 +69,7 @@
 #include "output.h"
 #include "aq.h"
 #include "timer.h"
+#include "miditrace.h"
 
 #include "rtsyn.h"
 

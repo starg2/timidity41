@@ -74,8 +74,9 @@ typedef struct w32g_tracer_wnd_t_ {
 	short chorus_effect[TRACER_CHANNELS];
 	short reverb_effect[TRACER_CHANNELS];
 	int insertion_effect[TRACER_CHANNELS];
+	int note_voice[TRACER_CHANNELS][256];
+	int8 note_vel[TRACER_CHANNELS][256];
 	int8 tt[TRACER_CHANNELS];
-	char notes[TRACER_CHANNELS][256];
 	char filename[FILEPATH_MAX];
 	char titlename[FILEPATH_MAX];
 	int play_system_mode;

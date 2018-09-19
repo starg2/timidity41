@@ -1048,7 +1048,7 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 
 // from timidity.c
 #ifdef _MSC_VER
-typedef int ssize_t; 
+typedef ptrdiff_t ssize_t; 
 #endif
 
 

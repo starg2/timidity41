@@ -605,7 +605,7 @@ void w32g_update_playlist_pos(int pos)
 		PlayListEntry *entry = &playlist_ctrl->list[i];
 		w32g_get_midi_file_info_post(entry);
 		{
-			volatile LVITEM lvi0;
+			volatile LVITEM lvi0;		
 			lvi0.iItem = i;
 			lvi0.iSubItem = 0;
 			lvi0.mask = LVIF_TEXT;

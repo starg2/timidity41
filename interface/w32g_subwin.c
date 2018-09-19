@@ -66,6 +66,10 @@
 #include "w32g_subwin.h"
 #include "w32g_ut2.h"
 
+#ifdef TIMW32G_USE_NEW_CONSOLE
+#include "w32g_new_console.h"
+#endif
+
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
 #ifndef TPM_TOPALIGN
 #define TPM_TOPALIGN	0x0000L

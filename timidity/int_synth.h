@@ -59,11 +59,12 @@ typedef float IS_RS_DATA_T;
 // SCC
 #define SCC_SETTING_MAX 1000 // <=1000
 #define SCC_PARAM_MAX 1
-#define SCC_OSC_MAX 6
+#define SCC_OSC_MAX 8
 #define SCC_AMP_MAX 4
 #define SCC_PITCH_MAX 4
 #define SCC_ENV_PARAM 14
 #define SCC_LFO_PARAM 4
+#define SCC_MODE_MAX 2
 // MMS (OP : operator/partial
 #define MMS_SETTING_MAX 1000 // <=1000
 #define MMS_OP_MAX 16
@@ -80,6 +81,7 @@ typedef float IS_RS_DATA_T;
 #define MMS_OP_LFO_PARAM 4
 #define MMS_OP_FLT_PARAM 4
 #define MMS_OP_CUT_PARAM 4
+#define MMS_OP_MODE_MAX 2
 
 // mt32emu
 typedef struct _LA_Ctrl_ROM_PCM_Struct {
@@ -168,6 +170,7 @@ typedef struct _Preset_SCC {
     int32 pitenv[SCC_ENV_PARAM];
     int16 lfo1[SCC_LFO_PARAM];
     int16 lfo2[SCC_LFO_PARAM];
+	int32 mode[SCC_MODE_MAX];
 } Preset_SCC;
 
 typedef struct _Preset_MMS {
@@ -200,6 +203,7 @@ typedef struct _Preset_MMS {
     int16 op_lfo4[MMS_OP_MAX][MMS_OP_LFO_PARAM];
 	int16 op_filter[MMS_OP_MAX][MMS_OP_FLT_PARAM];
 	int16 op_cutoff[MMS_OP_MAX][MMS_OP_CUT_PARAM];	
+	int32 op_mode[MMS_OP_MAX][MMS_OP_MODE_MAX];
 } Preset_MMS;
 
 typedef struct _Preset_IS {
@@ -240,22 +244,24 @@ typedef struct {
 	IS_RS_DATA_T db[17];
 } Info_Resample;
 
-typedef struct {
-	int8 init, mode, scc_flag;
-	int32 thru_count;
-	int32 cycle;
+typedef struct _InfoIS_SCC {
+	int8 init, mode, scc_flag, data3_flag, skip_flag;
+	int32 thru_count, loop_count;
+	int32 cycle, data2_count;
 	FLOAT_T output_level;
 	FLOAT_T freq_mlt, freq, rate;
 	FLOAT_T env_pitch, pitch, lfo_amp, lfo_pitch, amp_vol;
-	FLOAT_T *data_ptr; // scc_data
+	FLOAT_T *data_ptr, *data_ptr1, *data_ptr2, *data_ptr3; // scc_data  2:attack 3:release
 	Envelope0 amp_env, pit_env;
 	Info_LFO lfo1, lfo2;
 	Info_Resample rs;
+	Preset_IS *is_set;
+	Preset_SCC *set;
 } InfoIS_SCC;
 
 typedef struct _Info_OP{
-	int8 mode, mod_type, osc_type, wave_type, update_width;
-	int32 cycle;
+	int8 mode, mod_type, osc_type, wave_type, update_width, skip_flag;
+	int32 cycle, loop_count;
 	FLOAT_T op_level, wave_width; 
 	FLOAT_T wave_width1, rate_width1, rate_width2, req_wave_width1, req_rate_width1, req_rate_width2;
 	FLOAT_T freq_mlt, freq, mod_level, cent, rate, pcm_rate, efx_var1, efx_var2, amp_vol;
@@ -276,7 +282,6 @@ typedef struct _Info_OP{
 typedef void (*compute_op_t)(Info_OP *info);
 
 typedef struct _InfoIS_MMS{
-
 	int8 init, op_max;
 	int32 thru_count;
 	Info_OP op[MMS_OP_MAX];
@@ -284,6 +289,8 @@ typedef struct _InfoIS_MMS{
 	FLOAT_T (*op_num_ptr)(struct _InfoIS_MMS *info);
 	FLOAT_T out, dummy;
 	Info_Resample rs;
+	Preset_IS *is_set;
+	Preset_MMS *set;
 } InfoIS_MMS;
 
 typedef FLOAT_T (*compute_op_num_t)(InfoIS_MMS *info);

@@ -103,6 +103,7 @@
 #include "thread.h"
 #include "miditrace.h"
 #include "flac_a.h"
+#include "dls.h"
 #include "sfz.h"
 ///r
 #ifdef __BORLANDC__
@@ -1824,6 +1825,47 @@ static int set_gus_patchconf(const char *name, int line,
 		tone->name = safe_strdup(opts[0]);
 		tone->instype = 5; // sfz
 		opts++;
+	}
+#endif
+#ifdef ENABLE_DLS
+	else if (strcmp(pat, "%dls") == 0) /* dls extension */
+	{
+		/* %dls filename bank prog [note-to-use]
+		 * %dls filename 128 bank key
+		 */
+
+		if (opts[0] == NULL || opts[1] == NULL || opts[2] == NULL ||
+			(atoi(opts[1]) == 128 && opts[3] == NULL))
+		{
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+				"%s: line %d: Syntax error", name, line);
+			return 1;
+		}
+		tone->name = safe_strdup(opts[0]);
+		tone->instype = 6; // dls
+		if (atoi(opts[1]) == 128) /* drum */
+		{
+			tone->font_bank = 128;
+			tone->font_preset = atoi(opts[2]);
+			tone->font_keynote = atoi(opts[3]);
+			opts += 4;
+		}
+		else
+		{
+			tone->font_bank = atoi(opts[1]);
+			tone->font_preset = atoi(opts[2]);
+
+			if (opts[3] && isdigit(opts[3][0]))
+			{
+				tone->font_keynote = atoi(opts[3]);
+				opts += 4;
+			}
+			else
+			{
+				tone->font_keynote = -1;
+				opts += 3;
+			}
+		}
 	}
 #endif
     else if(strcmp(pat, "%pat") == 0) /* pat extention */
@@ -8409,6 +8451,9 @@ MAIN_INTERFACE void timidity_init_player(void)
 #ifdef INT_SYNTH
 	init_int_synth();
 #endif // INT_SYNTH
+#ifdef ENABLE_DLS
+	init_dls();
+#endif
 #ifdef ENABLE_SFZ
 	init_sfz();
 #endif
@@ -9064,6 +9109,9 @@ int main(int argc, char **argv)
 #ifdef ENABLE_SFZ
 	free_sfz();
 #endif
+#ifdef ENABLE_DLS
+	free_dls();
+#endif
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH
@@ -9145,6 +9193,9 @@ static void w32_exit(void)
 ///r
 #ifdef ENABLE_SFZ
 	free_sfz();
+#endif
+#ifdef ENABLE_DLS
+	free_dls();
 #endif
 #ifdef INT_SYNTH
 	free_int_synth();

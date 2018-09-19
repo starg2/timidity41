@@ -77,12 +77,13 @@ static int open_output(void);
 static void close_output(void);
 static int acntl(int request, void *arg);
 
-static char *midibuf;
-static size_t midi_pos;
+static int IsOpened = 0;
+static char *midibuf = NULL;
+static size_t midi_pos = 0;
 #ifdef HAVE_OPEN_MEMSTREAM
-static FILE *fp;
+static FILE *fp = NULL;
 #else
-static size_t midibuf_size;
+static size_t midibuf_size = 1024;
 #define fflush(x) do {} while (0)
 #define fclose(x) do {} while (0)
 #endif
@@ -148,6 +149,8 @@ static size_t m_fwrite(const void *ptr, size_t size)
 #ifndef HAVE_OPEN_MEMSTREAM
 static void my_open_memstream(void)
 {
+	if(midibuf)
+		free(midibuf);
     midibuf_size = 1024;
     midibuf = safe_malloc(midibuf_size);
     midi_pos = 0;
@@ -156,6 +159,8 @@ static void my_open_memstream(void)
 
 static void write_midi_header(void)
 {
+	if(!IsOpened)
+		return;
     /* Write out MID file header.
      * The file will have a single track, with the configured number of
      * ticks per quarter note.
@@ -169,20 +174,31 @@ static void write_midi_header(void)
 
 static void finalize_midi_header(void)
 {
-    uint16 tpqn = BE_SHORT(ticks_per_quarter_note);
-
-    fflush(fp);
-    memcpy(midibuf + TICKS_OFFSET, &tpqn, 2);	/* #ticks / quarter note */
+    uint16 tpqn;
+	
+	if(!IsOpened)
+		return;
+#ifdef HAVE_OPEN_MEMSTREAM
+	if(fp)
+		fflush(fp);
+#endif
+	tpqn = BE_SHORT(ticks_per_quarter_note);
+	if(midibuf)
+		memcpy(midibuf + TICKS_OFFSET, &tpqn, 2);	/* #ticks / quarter note */
 }
 
 static void set_tempo(void)
 {
+	if(!IsOpened)
+		return;
     M_FWRITE_STR("\xff\x51\3");
     M_FWRITE3(tempo >> 16, tempo >> 8, tempo);
 }
 
 static void set_time_sig(void)
 {
+	if(!IsOpened)
+		return;
     /* Set the time sig to 4/4 */
     M_FWRITE_STR("\xff\x58\4\4\x2\x18\x08");
 }
@@ -193,7 +209,6 @@ static void midout_write_delta_time(int32 time)
     unsigned char c[4];
     int idx;
     int started_printing = 0;
-
 #if !IGNORE_TEMPO_EVENTS
     double div;
     delta_time = time - last_time;
@@ -226,13 +241,19 @@ static void midout_write_delta_time(int32 time)
 }
 
 static void start_midi_track(void)
-{
+{	
+	if(!IsOpened)
+		return;
     /* Write out track header.
      * The track will have a large length (0x7fffffff) because we don't know at
      * this time how big it will really be.
      */
     M_FWRITE_STR("MTrk");
+
+#ifdef HAVE_OPEN_MEMSTREAM
     fflush(fp);
+#endif
+
     track_size_pos = midi_pos;
     M_FWRITE_STR("\x7f\xff\xff\xff");	/* #chunks */
 
@@ -254,10 +275,15 @@ static void start_midi_track(void)
 static void end_midi_track(void)
 {
     int32 track_bytes;
+
+	if(!IsOpened)
+		return;
     /* Send (with delta-time of 0) "0xff 0x2f 0x0" to finish the track. */
     M_FWRITE_STR("\0\xff\x2f\0");
 
+#ifdef HAVE_OPEN_MEMSTREAM
     fflush(fp);
+#endif
 
     track_bytes = BE_LONG(midi_pos - track_size_pos - 4);
     memcpy(midibuf + track_size_pos, &track_bytes, 4);
@@ -265,6 +291,8 @@ static void end_midi_track(void)
 
 static int open_output(void)
 {
+	IsOpened = 1;
+
 #ifdef HAVE_OPEN_MEMSTREAM
     fp = open_memstream(&midibuf, &midi_pos);
 #else
@@ -273,7 +301,11 @@ static int open_output(void)
 
     ticks_per_quarter_note = 144;
     write_midi_header();
-
+	
+    if (!dmp.name){
+		const char *filename = "Output.mid";
+		dmp.name = create_auto_output_name(filename, "mid", NULL, 0);
+	}
     return 0;
 }
 
@@ -281,7 +313,10 @@ static void close_output(void)
 {
     finalize_midi_header();
 
+#ifdef HAVE_OPEN_MEMSTREAM
     fclose(fp);
+#endif
+
     if (dmp.name) {
 	#ifndef __MACOS__
 	if (strcmp(dmp.name, "-") == 0)
@@ -296,23 +331,35 @@ static void close_output(void)
 	}
 	dmp.fd = -1;
     }
-    free(midibuf);
+	if (dmp.name)
+		free(dmp.name);
+	dmp.name = NULL;
+	if(midibuf)
+		free(midibuf);
+	midibuf = NULL;
+	IsOpened = 0;
 }
 
 static void midout_noteon(int chn, int note, int vel, int32 time)
 {
+	if(!IsOpened)
+		return;
     midout_write_delta_time(time);
     M_FWRITE3((chn & 0x0f) | MIDI_NOTEON, note & 0x7f, vel & 0x7f);
 }
 
 static void midout_noteoff(int chn, int note, int vel, int32 time)
 {
+	if(!IsOpened)
+		return;
     midout_write_delta_time(time);
     M_FWRITE3((chn & 0x0f) | MIDI_NOTEOFF, note & 0x7f, vel & 0x7f);
 }
 
 static void midout_control(int chn, int control, int value, int32 time)
 {
+	if(!IsOpened)
+		return;
     midout_write_delta_time(time);
     M_FWRITE3((chn & 0x0f) | MIDI_CTL_CHANGE, control & 0x7f, value & 0x7f);
 }
@@ -325,24 +372,32 @@ static void midout_keypressure(int chn, int control, int value, int32 time)
 
 static void midout_channelpressure(int chn, int vel, int32 time)
 {
+	if(!IsOpened)
+		return;
     midout_write_delta_time(time);
     M_FWRITE2((chn & 0x0f) | MIDI_CHN_PRESSURE, vel & 0x7f);
 }
 
 static void midout_bender(int chn, int pitch, int32 time)
 {
+	if(!IsOpened)
+		return;
     midout_write_delta_time(time);
     M_FWRITE3((chn & 0x0f) | MIDI_PITCH_BEND, pitch & 0x7f, (pitch >> 7) & 0x7f);
 }
 
 static void midout_program(int chn, int pgm, int32 time)
 {
+	if(!IsOpened)
+		return;
     midout_write_delta_time(time);
     M_FWRITE2((chn & 0x0f) | MIDI_PGM_CHANGE, pgm & 0x7f);
 }
 
 static void midout_tempo(int chn, int a, int b, int32 time)
 {
+	if(!IsOpened)
+		return;
     midout_write_delta_time(time);
     tempo = (a << 16) | (b << 8) | chn;
     set_tempo();
@@ -362,6 +417,8 @@ static int find_bit(int val)
 
 static void midout_timesig(int chn, int a, int b, int32 time)
 {
+	if(!IsOpened)
+		return;
     if (chn == 0) {
 	if (!b)
 	    return;

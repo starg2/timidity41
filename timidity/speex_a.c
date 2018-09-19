@@ -67,6 +67,11 @@ extern int load_ogg_dll(void);
 extern void free_ogg_dll(void);
 #endif
 
+#ifdef AU_SPEEX_DLL
+extern int load_speex_dll(void);
+extern void free_speex_dll(void);
+#endif
+
 
 #if defined(IA_W32GUI) || defined(TWSYNG32)
 extern char *w32g_output_dir;
@@ -312,18 +317,26 @@ static int speex_output_open(const char *fname, const char *comment)
 {
   Speex_ctx *ctx;
   int fd;
-
-#ifdef AU_VORBIS_DLL
+  
   {
-	  int flag = 0;
+	int flag = 0;
+#ifdef AU_VORBIS_DLL
 		if(!load_ogg_dll())
-			flag = 1;
+#endif
+#ifdef AU_SPEEX_DLL
+			if(!load_speex_dll())
+#endif
+				flag = 1;
 		if(!flag){
+#ifdef AU_VORBIS_DLL
 			free_ogg_dll();
+#endif
+#ifdef AU_SPEEX_DLL
+			free_speex_dll();
+#endif
 			return -1;
 		}
   }
-#endif
 
   if (!(speex_ctx = (Speex_ctx *)calloc(sizeof(Speex_ctx), 1))) {
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s", strerror(errno));
@@ -658,6 +671,9 @@ static void close_output(void)
 
 #ifdef AU_VORBIS_DLL
   free_ogg_dll();
+#endif
+#ifdef AU_SPEEX_DLL
+  free_speex_dll();
 #endif
 
   }

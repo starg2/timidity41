@@ -53,7 +53,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
 				EnableFiberSafeOptimizations="true"
-				AdditionalIncludeDirectories="..\twsyn_bridge,..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
+				AdditionalIncludeDirectories="..\libmpg123\include;..\libmpg123\include,..\twsyn_bridge,..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;HAVE_CONFIG_H;_MT;TWSYNG32"
 				StringPooling="true"
 				ExceptionHandling="0"
@@ -153,7 +153,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\twsyn_bridge,..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
+				AdditionalIncludeDirectories="..\libmpg123\include;..\twsyn_bridge,..\interface,..\libarc,..\libunimod,..\timidity,..\utils,..,..\..\include,..\portaudio\pa_common"
 				PreprocessorDefinitions="WIN32;__DEBUG;_WINDOWS;HAVE_CONFIG_H;_MT;TWSYNG32"
 				StringPooling="true"
 				MinimalRebuild="true"
@@ -488,6 +488,10 @@
 			</File>
 			<File
 				RelativePath="..\timidity\w32_libFLAC_dll.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\w32_libmpg123_dll.c"
 				>
 			</File>
 			<File

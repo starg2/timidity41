@@ -28,6 +28,7 @@
 #include "interface.h"
 #include "common.h"
 
+
 #if defined(AU_VORBIS_DLL) || defined(AU_OPUS_DLL)
 
 #include <windows.h>
@@ -140,96 +141,97 @@ void free_ogg_dll(void)
 int load_ogg_dll(void)
 {
 	if(!h_ogg_dll){
-		h_ogg_dll = LoadLibrary("libogg.dll");
+		h_ogg_dll = LoadLibrary(TEXT("ogg.dll"));
+		if(!h_ogg_dll) h_ogg_dll = LoadLibrary(TEXT("libogg.dll"));
 		if(!h_ogg_dll) return -1;
+	//	ogg_dll.oggpack_writeinit = (type_oggpack_writeinit)GetProcAddress(h_ogg_dll,"oggpack_writeinit");
+	//	if(!ogg_dll.oggpack_writeinit){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_reset = (type_oggpack_reset)GetProcAddress(h_ogg_dll,"oggpack_reset");
+	//	if(!ogg_dll.oggpack_reset){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_writeclear = (type_oggpack_writeclear)GetProcAddress(h_ogg_dll,"oggpack_writeclear");
+	//	if(!ogg_dll.oggpack_writeclear){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_readinit = (type_oggpack_readinit)GetProcAddress(h_ogg_dll,"oggpack_readinit");
+	//	if(!ogg_dll.oggpack_readinit){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_write = (type_oggpack_write)GetProcAddress(h_ogg_dll,"oggpack_write");
+	//	if(!ogg_dll.oggpack_write){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_look = (type_oggpack_look)GetProcAddress(h_ogg_dll,"oggpack_look");
+	//	if(!ogg_dll.oggpack_look){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_look_huff = (type_oggpack_look_huff)GetProcAddress(h_ogg_dll,"oggpack_look_huff");
+	//	if(!ogg_dll.oggpack_look_huff){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_look1 = (type_oggpack_look1)GetProcAddress(h_ogg_dll,"oggpack_look1");
+	//	if(!ogg_dll.oggpack_look1){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_adv = (type_oggpack_adv)GetProcAddress(h_ogg_dll,"oggpack_adv");
+	//	if(!ogg_dll.oggpack_adv){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_adv_huff = (type_oggpack_adv_huff)GetProcAddress(h_ogg_dll,"oggpack_adv_huff");
+	//	if(!ogg_dll.oggpack_adv_huff){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_adv1 = (type_oggpack_adv1)GetProcAddress(h_ogg_dll,"oggpack_adv1");
+	//	if(!ogg_dll.oggpack_adv1){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_read = (type_oggpack_read)GetProcAddress(h_ogg_dll,"oggpack_read");
+	//	if(!ogg_dll.oggpack_read){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_read1 = (type_oggpack_read1)GetProcAddress(h_ogg_dll,"oggpack_read1");
+	//	if(!ogg_dll.oggpack_read1){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_bytes = (type_oggpack_bytes)GetProcAddress(h_ogg_dll,"oggpack_bytes");
+	//	if(!ogg_dll.oggpack_bytes){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_bits = (type_oggpack_bits)GetProcAddress(h_ogg_dll,"oggpack_bits");
+	//	if(!ogg_dll.oggpack_bits){ free_ogg_dll(); return -1; }
+	//	ogg_dll.oggpack_get_buffer = (type_oggpack_get_buffer)GetProcAddress(h_ogg_dll,"oggpack_get_buffer");
+	//	if(!ogg_dll.oggpack_get_buffer){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_stream_packetin = (type_ogg_stream_packetin)GetProcAddress(h_ogg_dll,"ogg_stream_packetin");
+		if(!ogg_dll.ogg_stream_packetin){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_stream_pageout = (type_ogg_stream_pageout)GetProcAddress(h_ogg_dll,"ogg_stream_pageout");
+		if(!ogg_dll.ogg_stream_pageout){ free_ogg_dll(); return -1; }
+	///r
+		ogg_dll.ogg_stream_flush = (type_ogg_stream_flush)GetProcAddress(h_ogg_dll,"ogg_stream_flush");
+	//	if(!ogg_dll.ogg_stream_flush){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_init = (type_ogg_sync_init)GetProcAddress(h_ogg_dll,"ogg_sync_init");
+	//	if(!ogg_dll.ogg_sync_init){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_clear = (type_ogg_sync_clear)GetProcAddress(h_ogg_dll,"ogg_sync_clear");
+	//	if(!ogg_dll.ogg_sync_clear){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_reset = (type_ogg_sync_reset)GetProcAddress(h_ogg_dll,"ogg_sync_reset");
+	//	if(!ogg_dll.ogg_sync_reset){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_destroy = (type_ogg_sync_destroy)GetProcAddress(h_ogg_dll,"ogg_sync_destroy");
+	//	if(!ogg_dll.ogg_sync_destroy){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_buffer = (type_ogg_sync_buffer)GetProcAddress(h_ogg_dll,"ogg_sync_buffer");
+	//	if(!ogg_dll.ogg_sync_buffer){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_wrote = (type_ogg_sync_wrote)GetProcAddress(h_ogg_dll,"ogg_sync_wrote");
+	//	if(!ogg_dll.ogg_sync_wrote){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_pageseek = (type_ogg_sync_pageseek)GetProcAddress(h_ogg_dll,"ogg_sync_pageseek");
+	//	if(!ogg_dll.ogg_sync_pageseek){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_sync_pageout = (type_ogg_sync_pageout)GetProcAddress(h_ogg_dll,"ogg_sync_pageout");
+	//	if(!ogg_dll.ogg_sync_pageout){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_stream_pagein = (type_ogg_stream_pagein)GetProcAddress(h_ogg_dll,"ogg_stream_pagein");
+	//	if(!ogg_dll.ogg_stream_pagein){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_stream_packetout = (type_ogg_stream_packetout)GetProcAddress(h_ogg_dll,"ogg_stream_packetout");
+	//	if(!ogg_dll.ogg_stream_packetout){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_stream_init = (type_ogg_stream_init)GetProcAddress(h_ogg_dll,"ogg_stream_init");
+		if(!ogg_dll.ogg_stream_init){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_stream_clear = (type_ogg_stream_clear)GetProcAddress(h_ogg_dll,"ogg_stream_clear");
+		if(!ogg_dll.ogg_stream_clear){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_stream_reset = (type_ogg_stream_reset)GetProcAddress(h_ogg_dll,"ogg_stream_reset");
+	//	if(!ogg_dll.ogg_stream_reset){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_stream_destroy = (type_ogg_stream_destroy)GetProcAddress(h_ogg_dll,"ogg_stream_destroy");
+	//	if(!ogg_dll.ogg_stream_destroy){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_stream_eos = (type_ogg_stream_eos)GetProcAddress(h_ogg_dll,"ogg_stream_eos");
+	//	if(!ogg_dll.ogg_stream_eos){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_page_version = (type_ogg_page_version)GetProcAddress(h_ogg_dll,"ogg_page_version");
+	//	if(!ogg_dll.ogg_page_version){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_page_continued = (type_ogg_page_continued)GetProcAddress(h_ogg_dll,"ogg_page_continued");
+	//	if(!ogg_dll.ogg_page_continued){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_page_bos = (type_ogg_page_bos)GetProcAddress(h_ogg_dll,"ogg_page_bos");
+	//	if(!ogg_dll.ogg_page_bos){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_page_eos = (type_ogg_page_eos)GetProcAddress(h_ogg_dll,"ogg_page_eos");
+		if(!ogg_dll.ogg_page_eos){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_page_granulepos = (type_ogg_page_granulepos)GetProcAddress(h_ogg_dll,"ogg_page_granulepos");
+	//	if(!ogg_dll.ogg_page_granulepos){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_page_serialno = (type_ogg_page_serialno)GetProcAddress(h_ogg_dll,"ogg_page_serialno");
+	//	if(!ogg_dll.ogg_page_serialno){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_page_pageno = (type_ogg_page_pageno)GetProcAddress(h_ogg_dll,"ogg_page_pageno");
+	//	if(!ogg_dll.ogg_page_pageno){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_page_packets = (type_ogg_page_packets)GetProcAddress(h_ogg_dll,"ogg_page_packets");
+	//	if(!ogg_dll.ogg_page_packets){ free_ogg_dll(); return -1; }
+	//	ogg_dll.ogg_packet_clear = (type_ogg_packet_clear)GetProcAddress(h_ogg_dll,"ogg_packet_clear");
+	//	if(!ogg_dll.ogg_packet_clear){ free_ogg_dll(); return -1; }
 	}
-//	ogg_dll.oggpack_writeinit = (type_oggpack_writeinit)GetProcAddress(h_ogg_dll,"oggpack_writeinit");
-//	if(!ogg_dll.oggpack_writeinit){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_reset = (type_oggpack_reset)GetProcAddress(h_ogg_dll,"oggpack_reset");
-//	if(!ogg_dll.oggpack_reset){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_writeclear = (type_oggpack_writeclear)GetProcAddress(h_ogg_dll,"oggpack_writeclear");
-//	if(!ogg_dll.oggpack_writeclear){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_readinit = (type_oggpack_readinit)GetProcAddress(h_ogg_dll,"oggpack_readinit");
-//	if(!ogg_dll.oggpack_readinit){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_write = (type_oggpack_write)GetProcAddress(h_ogg_dll,"oggpack_write");
-//	if(!ogg_dll.oggpack_write){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_look = (type_oggpack_look)GetProcAddress(h_ogg_dll,"oggpack_look");
-//	if(!ogg_dll.oggpack_look){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_look_huff = (type_oggpack_look_huff)GetProcAddress(h_ogg_dll,"oggpack_look_huff");
-//	if(!ogg_dll.oggpack_look_huff){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_look1 = (type_oggpack_look1)GetProcAddress(h_ogg_dll,"oggpack_look1");
-//	if(!ogg_dll.oggpack_look1){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_adv = (type_oggpack_adv)GetProcAddress(h_ogg_dll,"oggpack_adv");
-//	if(!ogg_dll.oggpack_adv){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_adv_huff = (type_oggpack_adv_huff)GetProcAddress(h_ogg_dll,"oggpack_adv_huff");
-//	if(!ogg_dll.oggpack_adv_huff){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_adv1 = (type_oggpack_adv1)GetProcAddress(h_ogg_dll,"oggpack_adv1");
-//	if(!ogg_dll.oggpack_adv1){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_read = (type_oggpack_read)GetProcAddress(h_ogg_dll,"oggpack_read");
-//	if(!ogg_dll.oggpack_read){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_read1 = (type_oggpack_read1)GetProcAddress(h_ogg_dll,"oggpack_read1");
-//	if(!ogg_dll.oggpack_read1){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_bytes = (type_oggpack_bytes)GetProcAddress(h_ogg_dll,"oggpack_bytes");
-//	if(!ogg_dll.oggpack_bytes){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_bits = (type_oggpack_bits)GetProcAddress(h_ogg_dll,"oggpack_bits");
-//	if(!ogg_dll.oggpack_bits){ free_ogg_dll(); return -1; }
-//	ogg_dll.oggpack_get_buffer = (type_oggpack_get_buffer)GetProcAddress(h_ogg_dll,"oggpack_get_buffer");
-//	if(!ogg_dll.oggpack_get_buffer){ free_ogg_dll(); return -1; }
-	ogg_dll.ogg_stream_packetin = (type_ogg_stream_packetin)GetProcAddress(h_ogg_dll,"ogg_stream_packetin");
-	if(!ogg_dll.ogg_stream_packetin){ free_ogg_dll(); return -1; }
-	ogg_dll.ogg_stream_pageout = (type_ogg_stream_pageout)GetProcAddress(h_ogg_dll,"ogg_stream_pageout");
-	if(!ogg_dll.ogg_stream_pageout){ free_ogg_dll(); return -1; }
-///r
-	ogg_dll.ogg_stream_flush = (type_ogg_stream_flush)GetProcAddress(h_ogg_dll,"ogg_stream_flush");
-//	if(!ogg_dll.ogg_stream_flush){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_init = (type_ogg_sync_init)GetProcAddress(h_ogg_dll,"ogg_sync_init");
-//	if(!ogg_dll.ogg_sync_init){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_clear = (type_ogg_sync_clear)GetProcAddress(h_ogg_dll,"ogg_sync_clear");
-//	if(!ogg_dll.ogg_sync_clear){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_reset = (type_ogg_sync_reset)GetProcAddress(h_ogg_dll,"ogg_sync_reset");
-//	if(!ogg_dll.ogg_sync_reset){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_destroy = (type_ogg_sync_destroy)GetProcAddress(h_ogg_dll,"ogg_sync_destroy");
-//	if(!ogg_dll.ogg_sync_destroy){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_buffer = (type_ogg_sync_buffer)GetProcAddress(h_ogg_dll,"ogg_sync_buffer");
-//	if(!ogg_dll.ogg_sync_buffer){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_wrote = (type_ogg_sync_wrote)GetProcAddress(h_ogg_dll,"ogg_sync_wrote");
-//	if(!ogg_dll.ogg_sync_wrote){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_pageseek = (type_ogg_sync_pageseek)GetProcAddress(h_ogg_dll,"ogg_sync_pageseek");
-//	if(!ogg_dll.ogg_sync_pageseek){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_sync_pageout = (type_ogg_sync_pageout)GetProcAddress(h_ogg_dll,"ogg_sync_pageout");
-//	if(!ogg_dll.ogg_sync_pageout){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_stream_pagein = (type_ogg_stream_pagein)GetProcAddress(h_ogg_dll,"ogg_stream_pagein");
-//	if(!ogg_dll.ogg_stream_pagein){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_stream_packetout = (type_ogg_stream_packetout)GetProcAddress(h_ogg_dll,"ogg_stream_packetout");
-//	if(!ogg_dll.ogg_stream_packetout){ free_ogg_dll(); return -1; }
-	ogg_dll.ogg_stream_init = (type_ogg_stream_init)GetProcAddress(h_ogg_dll,"ogg_stream_init");
-	if(!ogg_dll.ogg_stream_init){ free_ogg_dll(); return -1; }
-	ogg_dll.ogg_stream_clear = (type_ogg_stream_clear)GetProcAddress(h_ogg_dll,"ogg_stream_clear");
-	if(!ogg_dll.ogg_stream_clear){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_stream_reset = (type_ogg_stream_reset)GetProcAddress(h_ogg_dll,"ogg_stream_reset");
-//	if(!ogg_dll.ogg_stream_reset){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_stream_destroy = (type_ogg_stream_destroy)GetProcAddress(h_ogg_dll,"ogg_stream_destroy");
-//	if(!ogg_dll.ogg_stream_destroy){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_stream_eos = (type_ogg_stream_eos)GetProcAddress(h_ogg_dll,"ogg_stream_eos");
-//	if(!ogg_dll.ogg_stream_eos){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_page_version = (type_ogg_page_version)GetProcAddress(h_ogg_dll,"ogg_page_version");
-//	if(!ogg_dll.ogg_page_version){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_page_continued = (type_ogg_page_continued)GetProcAddress(h_ogg_dll,"ogg_page_continued");
-//	if(!ogg_dll.ogg_page_continued){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_page_bos = (type_ogg_page_bos)GetProcAddress(h_ogg_dll,"ogg_page_bos");
-//	if(!ogg_dll.ogg_page_bos){ free_ogg_dll(); return -1; }
-	ogg_dll.ogg_page_eos = (type_ogg_page_eos)GetProcAddress(h_ogg_dll,"ogg_page_eos");
-	if(!ogg_dll.ogg_page_eos){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_page_granulepos = (type_ogg_page_granulepos)GetProcAddress(h_ogg_dll,"ogg_page_granulepos");
-//	if(!ogg_dll.ogg_page_granulepos){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_page_serialno = (type_ogg_page_serialno)GetProcAddress(h_ogg_dll,"ogg_page_serialno");
-//	if(!ogg_dll.ogg_page_serialno){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_page_pageno = (type_ogg_page_pageno)GetProcAddress(h_ogg_dll,"ogg_page_pageno");
-//	if(!ogg_dll.ogg_page_pageno){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_page_packets = (type_ogg_page_packets)GetProcAddress(h_ogg_dll,"ogg_page_packets");
-//	if(!ogg_dll.ogg_page_packets){ free_ogg_dll(); return -1; }
-//	ogg_dll.ogg_packet_clear = (type_ogg_packet_clear)GetProcAddress(h_ogg_dll,"ogg_packet_clear");
-//	if(!ogg_dll.ogg_packet_clear){ free_ogg_dll(); return -1; }
 	return 0;
 }
 
