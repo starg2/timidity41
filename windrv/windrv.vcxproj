@@ -90,7 +90,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;__DEBUG;_WINDOWS;HAVE_CONFIG_H;_MD;WINDRV;TWSYNG32;TWSYNSRV;_WIN32_WINNT=0x0500;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <MinimalRebuild>true</MinimalRebuild>
@@ -137,7 +137,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WIN64;WIN32;__DEBUG;_WINDOWS;HAVE_CONFIG_H;_MD;WINDRV;TWSYNG32;TWSYNSRV;_WIN32_WINNT=0x0500;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
@@ -186,7 +186,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;HAVE_CONFIG_H;_MD;WINDRV;TWSYNG32;TWSYNSRV;_WIN32_WINNT=0x0500;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
@@ -236,7 +236,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WIN64;WIN32;NDEBUG;_WINDOWS;HAVE_CONFIG_H;_MD;WINDRV;TWSYNG32;TWSYNSRV;_WIN32_WINNT=0x0500;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
@@ -333,6 +333,7 @@
     <ClCompile Include="..\timidity\voice_effect.c" />
     <ClCompile Include="..\timidity\w32g_vorbisfile_dll.c" />
     <ClCompile Include="..\timidity\w32g_vorbis_dll.c" />
+    <ClCompile Include="..\timidity\w32_libmpg123_dll.c" />
     <ClCompile Include="..\timidity\wasapi_a.c" />
     <ClCompile Include="..\timidity\wdmks_a.c" />
     <ClCompile Include="timiditydrv.c" />

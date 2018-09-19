@@ -876,6 +876,10 @@
 #define IDC_EDIT_SCC_G2_P2              10511
 #define IDC_EDIT_SCC_G2_P3              10512
 #define IDC_EDIT_SCC_G2_P4              10513
+#define IDC_EDIT_SCC_G2_P5              10514
+#define IDC_EDIT_SCC_G2_P6              10515
+#define IDC_EDIT_SCC_G2_P7              10516
+#define IDC_EDIT_SCC_G2_P8              10517
 #define IDC_EDIT_SCC_G3_P1              10520
 #define IDC_EDIT_SCC_G3_P2              10521
 #define IDC_EDIT_SCC_G3_P3              10522
@@ -920,7 +924,13 @@
 #define IDC_EDIT_SCC_G8_P2              10591
 #define IDC_EDIT_SCC_G8_P3              10592
 #define IDC_EDIT_SCC_G8_P4              10593
-#define IDC_EDIT_SCC_WAVE_DATA_NAME     10700
+#define IDC_EDIT_SCC_G9_P1              10600
+#define IDC_EDIT_SCC_G9_P2              10601
+#define IDC_EDIT_SCC_G9_P3              10602
+#define IDC_EDIT_SCC_G9_P4              10603
+#define IDC_EDIT_SCC_WAVE1_DATA_NAME    10700
+#define IDC_EDIT_SCC_WAVE2_DATA_NAME    10701
+#define IDC_EDIT_SCC_WAVE3_DATA_NAME    10702
 #define IDC_EDIT_SCC_LFO1_WAVE_NAME     10710
 #define IDC_EDIT_SCC_LFO2_WAVE_NAME     10711
 // mms
@@ -1183,6 +1193,10 @@
 #define IDC_EDIT_MMS_G27_P2             11327
 #define IDC_EDIT_MMS_G27_P3             11328
 #define IDC_EDIT_MMS_G27_P4             11329
+#define IDC_EDIT_MMS_G28_P1             11330
+#define IDC_EDIT_MMS_G28_P2             11331
+#define IDC_EDIT_MMS_G28_P3             11332
+#define IDC_EDIT_MMS_G28_P4             11333
 #define IDC_EDIT_MMS_WAVE_DATA_NAME     11400
 #define IDC_EDIT_MMS_LFO1_WAVE_NAME     11410
 #define IDC_EDIT_MMS_LFO2_WAVE_NAME     11411

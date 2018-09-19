@@ -27,6 +27,7 @@
 #endif /* HAVE_CONFIG_H */
 
 
+
 #if defined(AU_VORBIS_DLL) || defined(AU_OPUS_DLL)
 
 #include <windows.h>

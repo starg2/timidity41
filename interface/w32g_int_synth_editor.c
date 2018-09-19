@@ -298,14 +298,13 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		SendDlgItemMessage(hwnd, IDC_SLIDER_SCC_NUM, TBM_SETPOS, (WPARAM) 1, (LPARAM) scc_preset_num);
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_NUM, scc_preset_num, TRUE);
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G1_P1, scc_editor_get_param(0, 0), TRUE); // pram
-		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G2_P1, scc_editor_get_param(1, 0), TRUE); // osc
-		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G2_P2, scc_editor_get_param(1, 1), TRUE);
-		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G2_P3, scc_editor_get_param(1, 2), TRUE);
-		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G2_P4, scc_editor_get_param(1, 3), TRUE);
+		for(i = 0; i < SCC_OSC_MAX; i++)
+			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G2_P1 + i, scc_editor_get_param(1, i), TRUE); // osc
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G3_P1, scc_editor_get_param(2, 0), TRUE); // amp
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G4_P1, scc_editor_get_param(3, 0), TRUE); // pitch
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G4_P2, scc_editor_get_param(3, 1), TRUE);
-		SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE_DATA_NAME, scc_editor_load_wave_name(-1));
+		SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, scc_editor_load_wave_name(0));
+		SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, scc_editor_load_wave_name(1));
 		for(i = 0; i < SCC_ENV_PARAM; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G5_P1 + i, scc_editor_get_param(4, i), TRUE);
 		for(i = 0; i < SCC_ENV_PARAM; i++)
@@ -314,8 +313,9 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G7_P1 + i, scc_editor_get_param(6, i), TRUE);
 		for(i = 0; i < SCC_LFO_PARAM; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G8_P1 + i, scc_editor_get_param(7, i), TRUE);
-		SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(0));
-		SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(1));
+		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G9_P1, scc_editor_get_param(8, 0), TRUE); // loop
+		SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(8));
+		SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(9));
 		break;
 	case WM_HSCROLL:
 	case WM_VSCROLL:
@@ -350,11 +350,19 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G2_P2:
 		case IDC_EDIT_SCC_G2_P3:
 		case IDC_EDIT_SCC_G2_P4:
+		case IDC_EDIT_SCC_G2_P5:
+		case IDC_EDIT_SCC_G2_P6:
+		case IDC_EDIT_SCC_G2_P7:
+		case IDC_EDIT_SCC_G2_P8:
 			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);	
 			scc_editor_set_param(1, focus_clid - IDC_EDIT_SCC_G2_P1, tmp); // osc
 			if(focus_clid == IDC_EDIT_SCC_G2_P4)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE_DATA_NAME, scc_editor_load_wave_name(-1));		
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, scc_editor_load_wave_name(0));	
+			else if(focus_clid == IDC_EDIT_SCC_G2_P6)
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, scc_editor_load_wave_name(1));	
+			else if(focus_clid == IDC_EDIT_SCC_G2_P8)
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE3_DATA_NAME, scc_editor_load_wave_name(2));	
 			break;
 		case IDC_EDIT_SCC_G3_P1:
 			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;			
@@ -414,7 +422,7 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			scc_editor_set_param(6, focus_clid - IDC_EDIT_SCC_G7_P1, tmp); // lfo1
 			if(focus_clid == IDC_EDIT_SCC_G7_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(0));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(8));
 			break;
 		case IDC_EDIT_SCC_G8_P1:
 		case IDC_EDIT_SCC_G8_P2:
@@ -425,7 +433,15 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			scc_editor_set_param(7, focus_clid - IDC_EDIT_SCC_G8_P1, tmp); // lfo2
 			if(focus_clid == IDC_EDIT_SCC_G8_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(1));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(9));
+			break;
+		case IDC_EDIT_SCC_G9_P1:
+		case IDC_EDIT_SCC_G9_P2:
+		case IDC_EDIT_SCC_G9_P3:
+		case IDC_EDIT_SCC_G9_P4:
+			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;			
+			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
+			scc_editor_set_param(8, focus_clid - IDC_EDIT_SCC_G9_P1, tmp); // loop
 			break;
 		}
 		break;	
@@ -480,10 +496,18 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G2_P2:
 		case IDC_EDIT_SCC_G2_P3:
 		case IDC_EDIT_SCC_G2_P4:
+		case IDC_EDIT_SCC_G2_P5:
+		case IDC_EDIT_SCC_G2_P6:
+		case IDC_EDIT_SCC_G2_P7:
+		case IDC_EDIT_SCC_G2_P8:
 			tmp = (int)GetDlgItemInt(hwnd, clid, NULL, TRUE);
 			scc_editor_set_param(1, clid - IDC_EDIT_SCC_G2_P1, tmp); // osc
 			if(clid == IDC_EDIT_SCC_G2_P4)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE_DATA_NAME, scc_editor_load_wave_name(-1));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, scc_editor_load_wave_name(0));
+			else if(clid == IDC_EDIT_SCC_G2_P6)
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, scc_editor_load_wave_name(1));
+			else if(clid == IDC_EDIT_SCC_G2_P8)
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE3_DATA_NAME, scc_editor_load_wave_name(2));
 			break;
 		case IDC_EDIT_SCC_G3_P1:
 			scc_editor_set_param(2, clid - IDC_EDIT_SCC_G3_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // amp
@@ -530,7 +554,7 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G7_P4:
 			scc_editor_set_param(6, clid - IDC_EDIT_SCC_G7_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo1
 			if(clid == IDC_EDIT_SCC_G7_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(0));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(8));
 			break;
 		case IDC_EDIT_SCC_G8_P1:
 		case IDC_EDIT_SCC_G8_P2:
@@ -538,10 +562,22 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G8_P4:
 			scc_editor_set_param(7, clid - IDC_EDIT_SCC_G8_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo2
 			if(clid == IDC_EDIT_SCC_G8_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(1));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(9));
 			break;
-		case IDC_EDIT_SCC_WAVE_DATA_NAME:
+		case IDC_EDIT_SCC_G9_P1:
+		case IDC_EDIT_SCC_G9_P2:
+		case IDC_EDIT_SCC_G9_P3:
+		case IDC_EDIT_SCC_G9_P4:
+			scc_editor_set_param(8, clid - IDC_EDIT_SCC_G9_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // loop
+			break;
+		case IDC_EDIT_SCC_WAVE1_DATA_NAME:
 			focus_clid = IDC_EDIT_SCC_G2_P4;
+			break;
+		case IDC_EDIT_SCC_WAVE2_DATA_NAME:
+			focus_clid = IDC_EDIT_SCC_G2_P6;
+			break;
+		case IDC_EDIT_SCC_WAVE3_DATA_NAME:
+			focus_clid = IDC_EDIT_SCC_G2_P8;
 			break;
 		case IDC_EDIT_SCC_LFO1_WAVE_NAME:
 			focus_clid = IDC_EDIT_SCC_G7_P3;
@@ -629,6 +665,8 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G26_P1 + i, mms_editor_get_param(26, mms_op_num, i), TRUE); // lfo3
 			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G27_P1 + i, mms_editor_get_param(27, mms_op_num, i), TRUE); // lfo4
 		}		
+		for(i = 0; i < MMS_OP_LOOP_MAX; i++)
+			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G28_P1 + i, mms_editor_get_param(28, mms_op_num, i), TRUE); // loop
 		SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 0));
 		SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO2_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 1));
 		SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO3_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 2));
@@ -1028,7 +1066,16 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			mms_editor_set_param(27, mms_op_num, focus_clid - IDC_EDIT_MMS_G27_P1, tmp); // lfo4
 			if(focus_clid == IDC_EDIT_MMS_G27_P3)
 				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 3));
-			break;
+			break;		
+		case IDC_EDIT_MMS_G28_P1:
+		case IDC_EDIT_MMS_G28_P2:
+		case IDC_EDIT_MMS_G28_P3:
+		case IDC_EDIT_MMS_G28_P4:
+			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;
+			if(tmp < 0) tmp = 0;
+			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
+			mms_editor_set_param(28, mms_op_num, focus_clid - IDC_EDIT_MMS_G28_P1, tmp); // loop
+			break;	
 		}
 		break;
 	case WM_COMMAND:
@@ -1404,6 +1451,12 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			mms_editor_set_param(27, mms_op_num, clid - IDC_EDIT_MMS_G27_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo4
 			if(clid == IDC_EDIT_MMS_G27_P3)
 				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 3));
+			break;
+		case IDC_EDIT_MMS_G28_P1:
+		case IDC_EDIT_MMS_G28_P2:
+		case IDC_EDIT_MMS_G28_P3:
+		case IDC_EDIT_MMS_G28_P4:
+			mms_editor_set_param(28, mms_op_num, clid - IDC_EDIT_MMS_G28_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // loop
 			break;
 		case IDC_EDIT_MMS_WAVE_DATA_NAME:
 			focus_clid = prv_focus_clid;

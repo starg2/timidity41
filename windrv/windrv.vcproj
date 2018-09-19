@@ -42,7 +42,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include"
+				AdditionalIncludeDirectories="..\libmpg123\include;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include"
 				PreprocessorDefinitions="WIN32;__DEBUG;_WINDOWS;HAVE_CONFIG_H;_MD;WINDRV;TWSYNG32;TWSYNSRV;_WIN32_WINNT=0x0500"
 				StringPooling="true"
 				MinimalRebuild="true"
@@ -145,7 +145,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
 				EnableFiberSafeOptimizations="true"
-				AdditionalIncludeDirectories="..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;"
+				AdditionalIncludeDirectories="..\libmpg123\include;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..;..\..\include;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;HAVE_CONFIG_H;_MD;WINDRV;TWSYNG32;TWSYNSRV;_WIN32_WINNT=0x0500;"
 				StringPooling="true"
 				ExceptionHandling="0"
@@ -251,6 +251,10 @@
 			</File>
 			<File
 				RelativePath=".\timiwp_timidity.c"
+				>
+			</File>
+			<File
+				RelativePath="..\timidity\w32_libmpg123_dll.c"
 				>
 			</File>
 			<File
@@ -630,11 +634,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\vstwrapper.h"
+					RelativePath="..\vstwrapper.h"
 					>
 				</File>
 				<File
-					RelativePath="..\vstwrapper.h"
+					RelativePath="..\timidity\vstwrapper.h"
 					>
 				</File>
 				<File

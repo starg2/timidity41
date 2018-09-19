@@ -59,7 +59,7 @@
 	sf_limit_volenv_attack = MyIniParamRange(sf_limit_volenv_attack, 0, 10); // 0 ~ 10
 	sf_limit_modenv_attack = MyIni_GetInt32(sec, "Limit_ModEnv_Attack", 6); // 1ms
 	sf_limit_modenv_attack = MyIniParamRange(sf_limit_modenv_attack, 0, 10); // 0 ~ 10
-	sf_limit_modenv_fc = MyIni_GetInt32(sec, "Limit_ModEnv_Fc", 1200);
+	sf_limit_modenv_fc = MyIni_GetInt32(sec, "Limit_ModEnv_Fc", 12000);
 	sf_limit_modenv_fc = MyIniParamRange(sf_limit_modenv_fc, 0, 12000); // 0 ~ 12000
 	sf_limit_modenv_pitch = MyIni_GetInt32(sec, "Limit_ModEnv_Pitch", 12000);
 	sf_limit_modenv_pitch = MyIniParamRange(sf_limit_modenv_pitch, 0, 12000); // 0 ~ 12000

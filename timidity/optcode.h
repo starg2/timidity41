@@ -984,7 +984,7 @@ static TIMIDITY_FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offs
 {
 	ALIGN16 int32 buf[4];
 	_mm_store_si128((__m128i *)buf, val);
-
+	{
 	__m128i byte_offset = _mm_mullo_epi32(offset, _mm_set1_epi32(scale));
 #ifdef IX64CPU
 	__m128i vbase = _mm_set1_epi64x((int64)base);
@@ -1009,6 +1009,7 @@ static TIMIDITY_FORCEINLINE void mm_i32scatter_i32_impl(void *base, __m128i offs
 		*ptr[i] = buf[i];
 	}
 #endif
+	}
 }
 
 #define MM_I32SCATTER_I32(base, offset, val, scale) mm_i32scatter_i32_impl(base, offset, val, scale)
