@@ -34,6 +34,7 @@
 #ifdef __POCC__
 #include <sys/types.h>
 #endif //for off_t
+#include <ctype.h>
 #include <stdio.h>
 #ifndef NO_STRING_H
 #include <string.h>

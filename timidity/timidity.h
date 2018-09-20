@@ -438,7 +438,11 @@
 
 ///r
 #define VOICE_EFFECT
+
+#ifndef CFG_FOR_SF
 #define INT_SYNTH
+#endif
+
 #define NEW_LEGATO
 //#define ENABLE_SFZ
 

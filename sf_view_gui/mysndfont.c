@@ -5,6 +5,7 @@
 #pragma warning(disable:4133)
 #pragma warning(disable:4028)
 #define main _dummy_main
+#include <windows.h>
 #include "sndfont.c"
 #include "myini.h"
 #pragma warning(pop)

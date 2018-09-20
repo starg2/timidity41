@@ -245,7 +245,7 @@ extern double playmode_rate_us;
 extern void init_output(void);
 extern void change_output_volume(int32);
 
-#ifdef __W32__
+#if defined(__W32__) && !defined(CFG_FOR_SF) 
 extern CRITICAL_SECTION critSect;
 #endif
 

@@ -36,7 +36,7 @@
 #if defined(__MACOS__)
 extern ControlMode mac_control_mode;
 #define DEFAULT_CONTROL_MODE &mac_control_mode
-#elif defined(IA_W32GUI)
+#elif defined(IA_W32GUI) || (defined(__W32__) && defined(CFG_FOR_SF))
 extern ControlMode w32gui_control_mode;
 #define DEFAULT_CONTROL_MODE &w32gui_control_mode
 #elif defined(IA_W32G_SYN) || defined(IA_WINSYN)
@@ -209,7 +209,7 @@ ControlMode *ctl_list[]={
 #ifdef IA_W32G_SYN
   &winsyn_control_mode,
 #endif /* IA_W32GUI */
-#if !defined(__MACOS__)  && !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(IA_WINSYN)
+#if !defined(__MACOS__)  && !defined(IA_W32GUI) && !defined(IA_W32G_SYN) && !defined(IA_WINSYN) && !(defined(__W32__) && defined(CFG_FOR_SF))
 	&dumb_control_mode,
 #endif
 #ifdef IA_PLUGIN
