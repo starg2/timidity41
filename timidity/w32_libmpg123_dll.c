@@ -55,23 +55,23 @@ int load_mpg123_dll(void)
 
 		mpg123_dll.mpg123_init = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_init");
 		if (!mpg123_dll.mpg123_init) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_new = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_new");
+		mpg123_dll.mpg123_new = (type_mpg123_new)GetProcAddress(h_mpg123_dll, "mpg123_new");
 		if (!mpg123_dll.mpg123_new) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_close = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_close");
+		mpg123_dll.mpg123_close = (type_mpg123_close)GetProcAddress(h_mpg123_dll, "mpg123_close");
 		if (!mpg123_dll.mpg123_close) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_delete = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_delete");
+		mpg123_dll.mpg123_delete = (type_mpg123_delete)GetProcAddress(h_mpg123_dll, "mpg123_delete");
 		if (!mpg123_dll.mpg123_delete) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_format_none = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_format_none");
+		mpg123_dll.mpg123_format_none = (type_mpg123_format_none)GetProcAddress(h_mpg123_dll, "mpg123_format_none");
 		if (!mpg123_dll.mpg123_format_none) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_format = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_format");
+		mpg123_dll.mpg123_format = (type_mpg123_format)GetProcAddress(h_mpg123_dll, "mpg123_format");
 		if (!mpg123_dll.mpg123_format) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_replace_reader_handle = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_replace_reader_handle");
+		mpg123_dll.mpg123_replace_reader_handle = (type_mpg123_replace_reader_handle)GetProcAddress(h_mpg123_dll, "mpg123_replace_reader_handle");
 		if (!mpg123_dll.mpg123_replace_reader_handle) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_open_handle = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_open_handle");
+		mpg123_dll.mpg123_open_handle = (type_mpg123_open_handle)GetProcAddress(h_mpg123_dll, "mpg123_open_handle");
 		if (!mpg123_dll.mpg123_open_handle) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_getformat = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_getformat");
+		mpg123_dll.mpg123_getformat = (type_mpg123_getformat)GetProcAddress(h_mpg123_dll, "mpg123_getformat");
 		if (!mpg123_dll.mpg123_getformat) { free_mpg123_dll(); return -1; }
-		mpg123_dll.mpg123_read = (type_mpg123_init)GetProcAddress(h_mpg123_dll, "mpg123_read");
+		mpg123_dll.mpg123_read = (type_mpg123_read)GetProcAddress(h_mpg123_dll, "mpg123_read");
 		if (!mpg123_dll.mpg123_read) { free_mpg123_dll(); return -1; }
 	}
 
