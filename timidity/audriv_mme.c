@@ -199,8 +199,8 @@ static void reset_data_block(void)
 }
 
 Bool audriv_setup_audio(void)
-/* オ〖ディオの介袋步を乖いますˉ
- * 喇根した眷圭は True を·己窃した眷圭は False を手しますˉ
+/* 僆乕僨傿僆偺弶婜壔傪峴偄傑偡丏
+ * 惉岟偟偨応崌偼 True 傪丆幐攕偟偨応崌偼 False 傪曉偟傑偡丏
  */
 {
     int i;
@@ -269,7 +269,7 @@ Bool audriv_setup_audio(void)
 }
 
 void audriv_free_audio(void)
-/* audio の稿借妄を乖いますˉ
+/* audio 偺屻張棟傪峴偄傑偡丏
  */
 {
     audriv_play_close();
@@ -464,11 +464,11 @@ static long calculate_play_samples(void)
 }
 
 long audriv_play_stop(void)
-/* 遍琳を篓郝に匿贿し·匿贿木涟のサンプル眶を手しますˉ
- * audriv_play_stop() の钙び叫しによって·audio は誓じますˉ
- * audio が贷に誓じている眷圭に audriv_play_stop() を钙び叫した眷圭は 0 を
- * 手しますˉ
- * エラ〖の眷圭は -1 を手しますˉ
+/* 墘憈傪懄嵗偵掆巭偟丆掆巭捈慜偺僒儞僾儖悢傪曉偟傑偡丏
+ * audriv_play_stop() 偺屇傃弌偟偵傛偭偰丆audio 偼暵偠傑偡丏
+ * audio 偑婛偵暵偠偰偄傞応崌偵 audriv_play_stop() 傪屇傃弌偟偨応崌偼 0 傪
+ * 曉偟傑偡丏
+ * 僄儔乕偺応崌偼 -1 傪曉偟傑偡丏
  */
 {
     MMRESULT status;
@@ -491,17 +491,17 @@ long audriv_play_stop(void)
 }
 
 Bool audriv_is_play_open(void)
-/* audio が遍琳でオ〖プンされている眷圭は True,
- * 誓じている眷圭は False を手しますˉ
+/* audio 偑墘憈偱僆乕僾儞偝傟偰偄傞応崌偼 True,
+ * 暵偠偰偄傞応崌偼 False 傪曉偟傑偡丏
  */
 {
     return IS_AUDIO_PLAY_OPEN;
 }
 
 Bool audriv_set_play_volume(int volume)
-/* 遍琳不翁を 0 × 255 の认跋柒で肋年しますˉ0 は痰不·255 は呵络不翁ˉ
- * 0 踏塔は 0·255 を亩える猛は 255 に霹擦ˉ
- * 喇根した眷圭は True を·己窃した眷圭は False を手しますˉ
+/* 墘憈壒検傪 0 ? 255 偺斖埻撪偱愝掕偟傑偡丏0 偼柍壒丆255 偼嵟戝壒検丏
+ * 0 枹枮偼 0丆255 傪挻偊傞抣偼 255 偵摍壙丏
+ * 惉岟偟偨応崌偼 True 傪丆幐攕偟偨応崌偼 False 傪曉偟傑偡丏
  */
 {
     unsigned short left, right;
@@ -527,8 +527,8 @@ Bool audriv_set_play_volume(int volume)
 }
 
 int audriv_get_play_volume(void)
-/* 遍琳不翁を 0 × 255 柒で评ますˉ0 は痰不·255 は呵络不翁ˉ
- * 己窃すると -1 を手し·そうでない眷圭は 0 × 255 柒の不翁を手しますˉ
+/* 墘憈壒検傪 0 ? 255 撪偱摼傑偡丏0 偼柍壒丆255 偼嵟戝壒検丏
+ * 幐攕偡傞偲 -1 傪曉偟丆偦偆偱側偄応崌偼 0 ? 255 撪偺壒検傪曉偟傑偡丏
  */
 {
     MMRESULT status;
@@ -549,13 +549,13 @@ int audriv_get_play_volume(void)
 
 /* FIXME */
 Bool audriv_set_play_output(int port)
-/* audio の叫蜗黎 port を回年しますˉport には笆布のどれかを回年しますˉ
+/* audio 偺弌椡愭 port 傪巜掕偟傑偡丏port 偵偼埲壓偺偳傟偐傪巜掕偟傑偡丏
  *
- *     AUDRIV_OUTPUT_SPEAKER	スピ〖カに叫蜗ˉ
- *     AUDRIV_OUTPUT_HEADPHONE	ヘッドホンに叫蜗ˉ
- *     AUDRIV_OUTPUT_LINE_OUT	ラインアウトに叫蜗ˉ
+ *     AUDRIV_OUTPUT_SPEAKER	僗僺乕僇偵弌椡丏
+ *     AUDRIV_OUTPUT_HEADPHONE	僿僢僪儂儞偵弌椡丏
+ *     AUDRIV_OUTPUT_LINE_OUT	儔僀儞傾僂僩偵弌椡丏
  *
- * 喇根した眷圭は True を·己窃した眷圭は False を手しますˉ
+ * 惉岟偟偨応崌偼 True 傪丆幐攕偟偨応崌偼 False 傪曉偟傑偡丏
  */
 {
     switch(port)
@@ -566,7 +566,7 @@ Bool audriv_set_play_output(int port)
 	output_port = port;
 	break;
       default:
-	audriv_err("回年嘲の叫蜗ポ〖トが回年されましたˉ");
+	audriv_err("巜掕奜偺弌椡億乕僩偑巜掕偝傟傑偟偨丏");
 	return False;
     }
     return True;
@@ -574,12 +574,12 @@ Bool audriv_set_play_output(int port)
 
 /* FIXME */
 int audriv_get_play_output(void)
-/* audio の叫蜗黎 port を评ますˉ
- * 己窃すると -1 を手し·喇根すると笆布のいずれかの猛を手しますˉ
+/* audio 偺弌椡愭 port 傪摼傑偡丏
+ * 幐攕偡傞偲 -1 傪曉偟丆惉岟偡傞偲埲壓偺偄偢傟偐偺抣傪曉偟傑偡丏
  *
- *     AUDRIV_OUTPUT_SPEAKER	スピ〖カに叫蜗ˉ
- *     AUDRIV_OUTPUT_HEADPHONE	ヘッドホンに叫蜗ˉ
- *     AUDRIV_OUTPUT_LINE_OUT	ラインアウトに叫蜗ˉ
+ *     AUDRIV_OUTPUT_SPEAKER	僗僺乕僇偵弌椡丏
+ *     AUDRIV_OUTPUT_HEADPHONE	僿僢僪儂儞偵弌椡丏
+ *     AUDRIV_OUTPUT_LINE_OUT	儔僀儞傾僂僩偵弌椡丏
  *
  */
 {
@@ -587,12 +587,12 @@ int audriv_get_play_output(void)
 }
 
 int audriv_write(char *buff, int n)
-/* audio に buff を n バイト尸萎し哈みますˉ
- * audriv_set_noblock_write() で润ブロックˇモ〖ドが肋年された
- * 眷圭は·この簇眶の钙び叫しは篓郝に借妄が手りますˉ
- * 手り猛は悸狠に萎し哈まれたバイト眶であり·润ブロックˇモ〖ドが肋年
- * されている眷圭は·苞眶 n より警ない眷圭がありますˉ
- * 己窃すると -1 を手し·喇根すると·悸狠に萎し哈まれたバイト眶を手しますˉ
+/* audio 偵 buff 傪 n 僶僀僩暘棳偟崬傒傑偡丏
+ * audriv_set_noblock_write() 偱旕僽儘僢僋丒儌乕僪偑愝掕偝傟偨
+ * 応崌偼丆偙偺娭悢偺屇傃弌偟偼懄嵗偵張棟偑曉傝傑偡丏
+ * 曉傝抣偼幚嵺偵棳偟崬傑傟偨僶僀僩悢偱偁傝丆旕僽儘僢僋丒儌乕僪偑愝掕
+ * 偝傟偰偄傞応崌偼丆堷悢 n 傛傝彮側偄応崌偑偁傝傑偡丏
+ * 幐攕偡傞偲 -1 傪曉偟丆惉岟偡傞偲丆幚嵺偵棳偟崬傑傟偨僶僀僩悢傪曉偟傑偡丏
  */
 {
     struct data_block_t *block;
@@ -650,9 +650,9 @@ int audriv_write(char *buff, int n)
 }
 
 Bool audriv_set_noblock_write(Bool noblock)
-/* noblock に True を回年すると·audriv_write() 钙び叫しでブロックしませんˉ
- * False を回年すると·デフォルトの觉轮に提しますˉ
- * 借妄に喇根すると True を·己窃すると False を手しますˉ
+/* noblock 偵 True 傪巜掕偡傞偲丆audriv_write() 屇傃弌偟偱僽儘僢僋偟傑偣傫丏
+ * False 傪巜掕偡傞偲丆僨僼僅儖僩偺忬懺偵栠偟傑偡丏
+ * 張棟偵惉岟偡傞偲 True 傪丆幐攕偡傞偲 False 傪曉偟傑偡丏
  */
 {
     audio_write_noblocking = noblock;
@@ -660,7 +660,7 @@ Bool audriv_set_noblock_write(Bool noblock)
 }
 
 int audriv_play_active(void)
-/* 遍琳面なら 1·遍琳面でないなら 0, エラ〖なら -1 を手しますˉ
+/* 墘憈拞側傜 1丆墘憈拞偱側偄側傜 0, 僄儔乕側傜 -1 傪曉偟傑偡丏
  */
 {
     double es;
@@ -676,7 +676,7 @@ int audriv_play_active(void)
 }
 
 long audriv_play_samples(void)
-/* 附哼遍琳面のサンプル疤弥を手しますˉ
+/* 尰嵼墘憈拞偺僒儞僾儖埵抲傪曉偟傑偡丏
  */
 {
 #if 1 /* audriv_play_samples() */
@@ -702,8 +702,8 @@ long audriv_play_samples(void)
 }
 
 long audriv_get_filled(void)
-/* オ〖ディオバッファ柒のバイト眶を手します。
- * エラ〖の眷圭は -1 を手します。
+/* 僆乕僨傿僆僶僢僼傽撪偺僶僀僩悢傪曉偟傑偡丅
+ * 僄儔乕偺応崌偼 -1 傪曉偟傑偡丅
  */
 {
     double es;
@@ -719,10 +719,10 @@ long audriv_get_filled(void)
 }
 
 const long *audriv_available_encodings(int *n_ret)
-/* マシンがサポ〖トしているすべての射规步リストを手しますˉn_ret には
- * その硷梧の眶が·手されますˉ射规步をあらわす年眶猛は
- * aenc.h 柒に年盗されている enum audio_encoding_types の猛ですˉ
- * 手り猛は free してはなりませんˉ
+/* 儅僔儞偑僒億乕僩偟偰偄傞偡傋偰偺晞崋壔儕僗僩傪曉偟傑偡丏n_ret 偵偼
+ * 偦偺庬椶偺悢偑丆曉偝傟傑偡丏晞崋壔傪偁傜傢偡掕悢抣偼
+ * aenc.h 撪偵掕媊偝傟偰偄傞 enum audio_encoding_types 偺抣偱偡丏
+ * 曉傝抣偼 free 偟偰偼側傝傑偣傫丏
  */
 {
     static const long encoding_list[] =
@@ -737,9 +737,9 @@ const long *audriv_available_encodings(int *n_ret)
 }
 
 const long *audriv_available_sample_rates(int *n_ret)
-/* マシンがサポ〖トしているすべてのサンプルレ〖トのリストを手しますˉ
- * n_ret にはその硷梧の眶が·手されますˉ
- * 手り猛は free してはなりませんˉ
+/* 儅僔儞偑僒億乕僩偟偰偄傞偡傋偰偺僒儞僾儖儗乕僩偺儕僗僩傪曉偟傑偡丏
+ * n_ret 偵偼偦偺庬椶偺悢偑丆曉偝傟傑偡丏
+ * 曉傝抣偼 free 偟偰偼側傝傑偣傫丏
  */
 {
     static const long sample_rates[] =
@@ -752,9 +752,9 @@ const long *audriv_available_sample_rates(int *n_ret)
 }
 
 const long *audriv_available_channels(int *n_ret)
-/* マシンがサポ〖トしているすべてのチャネル眶のリストを手しますˉ
- * n_ret にはその硷梧の眶が·手されますˉ
- * 手り猛は free してはなりませんˉ
+/* 儅僔儞偑僒億乕僩偟偰偄傞偡傋偰偺僠儍僱儖悢偺儕僗僩傪曉偟傑偡丏
+ * n_ret 偵偼偦偺庬椶偺悢偑丆曉偝傟傑偡丏
+ * 曉傝抣偼 free 偟偰偼側傝傑偣傫丏
  */
 {
     static const long channels[] = {1, 2};
@@ -792,8 +792,8 @@ static void set_wave_format_encoding(PCMWAVEFORMAT *format, long encoding)
 }
 
 Bool audriv_set_play_encoding(long encoding)
-/* audio 遍琳箕の射规步数及を回年しますˉ
- * 喇根した眷圭は True を·己窃した眷圭は False を手しますˉ
+/* audio 墘憈帪偺晞崋壔曽幃傪巜掕偟傑偡丏
+ * 惉岟偟偨応崌偼 True 傪丆幐攕偟偨応崌偼 False 傪曉偟傑偡丏
  */
 {
     int i, n;
@@ -810,8 +810,8 @@ Bool audriv_set_play_encoding(long encoding)
 }
 
 Bool audriv_set_play_sample_rate(long sample_rate)
-/* audio 遍琳箕のサンプルレ〖トを回年しますˉ
- * 喇根した眷圭は True を·己窃した眷圭は False を手しますˉ
+/* audio 墘憈帪偺僒儞僾儖儗乕僩傪巜掕偟傑偡丏
+ * 惉岟偟偨応崌偼 True 傪丆幐攕偟偨応崌偼 False 傪曉偟傑偡丏
  */
 {
     int i, n;
@@ -831,8 +831,8 @@ Bool audriv_set_play_sample_rate(long sample_rate)
 }
 
 Bool audriv_set_play_channels(long channels)
-/* 遍琳脱のチャネル眶を肋年しますˉ
- * 己窃すると False を手し·喇根すると True を手しますˉ
+/* 墘憈梡偺僠儍僱儖悢傪愝掕偟傑偡丏
+ * 幐攕偡傞偲 False 傪曉偟丆惉岟偡傞偲 True 傪曉偟傑偡丏
  */
 {
     int i, n;
@@ -853,7 +853,7 @@ Bool audriv_set_play_channels(long channels)
 }
 
 void audriv_wait_play(void)
-/* CPU パワ〖を喜锐しないようにするために·办箕弄に匿贿しますˉ*/
+/* CPU 僷儚乕傪楺旓偟側偄傛偆偵偡傞偨傔偵丆堦帪揑偵掆巭偟傑偡丏*/
 {
     mmeWaitForCallbacks();
 }
