@@ -614,9 +614,7 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #if defined(__W32__)
 #  define PATH_SEP '\\'
 #  define PATH_STRING "\\"
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
 #  define PATH_SEP2 '/'
-#endif
 #elif defined(__MACOS__)
 #  define PATH_SEP ':'
 #  define PATH_STRING ":"
