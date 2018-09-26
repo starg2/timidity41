@@ -97,9 +97,9 @@ char sImidiHdr_data[MAX_PORT][MAX_EXBUF][BUFF_SIZE];
 
 struct evbuf_t{
 	UINT wMsg;
-	DWORD	dwInstance;
-	DWORD	dwParam1;
-	DWORD	dwParam2;
+	DWORD_PTR	dwInstance;
+	DWORD_PTR	dwParam1;
+	DWORD_PTR	dwParam2;
 };
 #define EVBUFF_SIZE 512
 struct evbuf_t evbuf[EVBUFF_SIZE];
