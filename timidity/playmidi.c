@@ -271,7 +271,7 @@ static int mainvolume_max; /* maximum value of mainvolume */
 static double compensation_ratio = 1.0; /* compensation ratio */
 
 static int find_samples(MidiEvent *, int *);
-static int select_play_sample(Sample *, int, int *, int *, MidiEvent *);
+static int select_play_sample(Sample *, int, int *, int *, MidiEvent *, int);
 static double get_play_note_ratio(int, int);
 static int find_voice(MidiEvent *);
 static void finish_note(int i);
@@ -1897,7 +1897,8 @@ static int find_samples(MidiEvent *e, int *vlist)
 		}
 		note = e->a + channel[ch].key_shift + note_key_offset;
 		note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
-		return select_play_sample(s->sample, s->samples, &note, vlist, e);
+		return select_play_sample(s->sample, s->samples, &note, vlist, e,
+					  (s->type == INST_GUS) ? 1 : 32);
 	}
 	bank = channel[ch].bank;
 	if (ISDRUMCHANNEL(ch)) {
@@ -1924,7 +1925,8 @@ static int find_samples(MidiEvent *e, int *vlist)
 				+ channel[ch].key_shift + note_key_offset;
 		note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
 	}
-	nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e);
+	nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e,
+				(ip->type == INST_GUS) ? 1 : 32);
 	/* Replace the sample if the sample is cached. */
 	if (! prescanning_flag) {
 		if (ip->sample->note_to_use)
@@ -1944,7 +1946,8 @@ static int find_samples(MidiEvent *e, int *vlist)
 }
 
 static int select_play_sample(Sample *splist,
-		int nsp, int *note, int *vlist, MidiEvent *e)
+		int nsp, int *note, int *vlist, MidiEvent *e,
+		int maxnv)
 {
 	int ch = e->channel, kn = e->a & 0x7f, vel = e->b;
 	int32 f, fs, ft, fst, fc, fr, cdiff, diff, sample_link;
@@ -2035,7 +2038,7 @@ static int select_play_sample(Sample *splist,
 			MYCHECK(voice[j].orig_frequency);
 			voice[j].sample = sp;
 			voice[j].status = VOICE_ON;
-			nv++;
+			if (++nv == maxnv) break;
 		}
 	}
 	if (nv == 0) {	/* we must select at least one sample. */
