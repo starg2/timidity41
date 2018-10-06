@@ -1819,7 +1819,7 @@ CONFIG_INTERFACE(tcltk,TCLTK,k,
 
     tcl_lib=
     tk_lib=
-    for l in tcl tck8.6 tcl8.5 tcl8.4 tcl84 tcl8.3 tcl8.0jp tcl7.6jp tcl80jp tcl76jp tcl8.0 tcl7.6 tcl80 tcl76; do
+    for l in tcl tcl8.6 tcl8.5 tcl8.4 tcl84 tcl8.3 tcl8.0jp tcl7.6jp tcl80jp tcl76jp tcl8.0 tcl7.6 tcl80 tcl76; do
       case "x$tcl_lib" in x) AC_CHECK_LIB($l,Tcl_Init,tcl_lib=-l$l);; esac
     done
     LIBS="$LIBS $tcl_lib"
