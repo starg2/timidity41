@@ -249,7 +249,18 @@ LRESULT DlgMainProc_COMMAND(HWND hDlg, WPARAM wParam, LPARAM lParam)
 		CMyFileDialog fd;
 		fd.setOpenDlgDefaultSetting();
 		fd.setTitle("open soundfont");
-		fd.setFilter("soundfont (*.sf2;*.sf3)\0*.sf2;*.sf3\0All files (*.*)\0*.*\0\0");
+		fd.setFilter(
+#ifdef ENABLE_DLS
+            "Supported files (*.dls;*.sf2;*.sf3)\0*.dls;*.sf2;*.sf3\0"
+#else
+            "Supported files (*.sf2;*.sf3)\0*.sf2;*.sf3\0"
+#endif
+            "Soundfont (*.sf2;*.sf3)\0*.sf2;*.sf3\0"
+#ifdef ENABLE_DLS
+            "DLS (*.dls)\0*.dls\0"
+#endif
+            "All files (*.*)\0*.*\0\0"
+        );
 		fd.setOwner(hDlg);
 		if (fd.Execute()) {
 			const int n = fd.getIndex();

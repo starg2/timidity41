@@ -47,6 +47,21 @@ extern "C"
 namespace TimDLS
 {
 
+void TrimRight(std::string& str)
+{
+    using namespace std::string_view_literals;
+    std::size_t pos = str.find_last_not_of("\0 \t\r\n"sv);
+
+    if (pos == str.npos)
+    {
+        str.clear();
+    }
+    else
+    {
+        str.resize(pos + 1);
+    }
+}
+
 struct TFFileCloser
 {
     void operator()(timidity_file* pFile) const
@@ -229,6 +244,25 @@ struct DLSCollection
     std::uint32_t WavePoolOffset; // offset of wave pool from the beginning of the DLS file
 };
 
+struct DLSProgram
+{
+    std::uint8_t ProgramNumber;
+    std::string Name;
+};
+
+struct DLSBank
+{
+    std::uint8_t BankNumber;
+    std::vector<DLSProgram> Programs;
+};
+
+struct DLSDrumset
+{
+    std::uint8_t DrumsetNumber;
+    std::string Name;
+    std::vector<std::uint8_t> Notes;
+};
+
 std::int32_t CalcRate(std::int32_t diff, double sec)
 {
     const std::int32_t envMax = 0x3FFFFFFF;
@@ -278,39 +312,63 @@ public:
         }
 
         ParseRIFF(pFile.get());
+    }
 
-#if 0
-        for (const DLSInstrument& i : m_DLS.Instruments)
+    std::vector<DLSBank> GetBankList() const
+    {
+        std::vector<DLSBank> banks;
+
+        for (const TimDLS::DLSInstrument& i : m_DLS.Instruments)
+        {
+            if (i.Bank != 128)
+            {
+                auto itBank = std::lower_bound(banks.begin(), banks.end(), i.Bank, [] (auto&& a, auto&& b) { return a.BankNumber < b; });
+
+                if (itBank == banks.end() || itBank->BankNumber != i.Bank)
+                {
+                    itBank = banks.emplace(itBank);
+                    itBank->BankNumber = i.Bank;
+                }
+
+                auto& program = itBank->Programs.emplace_back();
+                program.ProgramNumber = i.ProgramNumber;
+                program.Name = i.Name;
+                TrimRight(program.Name);
+            }
+        }
+
+        for (DLSBank& b : banks)
+        {
+            std::sort(b.Programs.begin(), b.Programs.end(), [] (auto&& a, auto&& b) { return a.ProgramNumber < b.ProgramNumber; });
+        }
+
+        return banks;
+    }
+
+    std::vector<DLSDrumset> GetDrumsetList() const
+    {
+        std::vector<DLSDrumset> drumsets;
+
+        for (const TimDLS::DLSInstrument& i : m_DLS.Instruments)
         {
             if (i.Bank == 128)
             {
-                for (const DLSRegion& r : i.Regions)
+                auto& drumset = drumsets.emplace_back();
+                drumset.DrumsetNumber = i.ProgramNumber;
+                drumset.Name = i.Name;
+                TrimRight(drumset.Name);
+
+                for (const TimDLS::DLSRegion& r : i.Regions)
                 {
-                    ctl->cmsg(
-                        CMSG_INFO,
-                        VERB_NORMAL,
-                        "%d %%dls \"gm.dls\" 128 %d %d # %s",
-                        r.SampleInfo->UnityNote,
-                        i.ProgramNumber,
-                        r.SampleInfo->UnityNote,
-                        i.Name.c_str()
-                    );
+                    drumset.Notes.push_back(r.SampleInfo->UnityNote);
                 }
-            }
-            else
-            {
-                ctl->cmsg(
-                    CMSG_INFO,
-                    VERB_NORMAL,
-                    "%d %%dls \"gm.dls\" %d %d # %s",
-                    i.ProgramNumber,
-                    i.Bank,
-                    i.ProgramNumber,
-                    i.Name.c_str()
-                );
+
+                std::sort(drumset.Notes.begin(), drumset.Notes.end());
             }
         }
-#endif
+
+        std::sort(drumsets.begin(), drumsets.end(), [] (auto&& a, auto&& b) { return a.DrumsetNumber < b.DrumsetNumber; });
+        return drumsets;
     }
 
     std::unique_ptr<Instrument, InstrumentDeleter> BuildInstrument(std::uint8_t bank, std::int8_t programNumber, std::int8_t note)
@@ -1668,4 +1726,87 @@ extern "C" Instrument *extract_dls_file(char *sample_file, uint8 font_bank, int8
 extern "C" void free_dls_file(Instrument *ip)
 {
     TimDLS::GlobalInstrumentCache.FreeInstrument(ip);
+}
+
+DLSCollectionInfo *get_dls_instrument_list(const char *sample_file)
+{
+    try
+    {
+        std::string fileName = sample_file;
+        TimDLS::DLSParser dls(fileName);
+        dls.Parse();
+
+        auto banks = dls.GetBankList();
+        auto drumsets = dls.GetDrumsetList();
+
+        std::unique_ptr<DLSCollectionInfo, TimDLS::TimDeleter> pList(reinterpret_cast<DLSCollectionInfo*>(safe_calloc(sizeof(DLSCollectionInfo), 1)));
+
+        // move data from C++ to C
+        pList->banks = reinterpret_cast<DLSBankInfo*>(safe_malloc(sizeof(DLSBankInfo) * banks.size()));
+        pList->bank_count = static_cast<int>(banks.size());
+
+        for (std::size_t i = 0; i < banks.size(); i++)
+        {
+            auto& b = banks[i];
+
+            pList->banks[i].bank = b.BankNumber;
+            pList->banks[i].programs = reinterpret_cast<DLSProgramInfo*>(safe_malloc(sizeof(DLSProgramInfo) * b.Programs.size()));
+            pList->banks[i].program_count = static_cast<int>(b.Programs.size());
+
+            for (std::size_t j = 0; j < b.Programs.size(); j++)
+            {
+                pList->banks[i].programs[j].name = safe_strdup(b.Programs[j].Name.c_str());
+                pList->banks[i].programs[j].program = b.Programs[j].ProgramNumber;
+            }
+        }
+
+        pList->drumsets = reinterpret_cast<DLSDrumsetInfo*>(safe_malloc(sizeof(DLSDrumsetInfo) * drumsets.size()));
+        pList->drumset_count = static_cast<int>(drumsets.size());
+
+        for (std::size_t i = 0; i < drumsets.size(); i++)
+        {
+            auto& ds = drumsets[i];
+            pList->drumsets[i].name = safe_strdup(ds.Name.c_str());
+            pList->drumsets[i].program = ds.DrumsetNumber;
+            pList->drumsets[i].notes = reinterpret_cast<uint8*>(safe_malloc(sizeof(uint8) * ds.Notes.size()));
+            pList->drumsets[i].note_count = static_cast<int>(ds.Notes.size());
+
+            std::uninitialized_copy(ds.Notes.begin(), ds.Notes.end(), pList->drumsets[i].notes);
+        }
+
+        return pList.release();
+    }
+    catch (const std::exception&)
+    {
+        return nullptr;
+    }
+}
+
+void free_dls_instrument_list(DLSCollectionInfo *list)
+{
+    if (!list)
+    {
+        return;
+    }
+
+    for (int i = 0; i < list->bank_count; i++)
+    {
+        for (int j = 0; j < list->banks[i].program_count; j++)
+        {
+            safe_free(list->banks[i].programs[j].name);
+        }
+
+        safe_free(list->banks[i].programs);
+    }
+
+    for (int i = 0; i < list->drumset_count; i++)
+    {
+        safe_free(list->drumsets[i].name);
+        safe_free(list->drumsets[i].notes);
+    }
+
+    safe_free(list->banks);
+    safe_free(list->drumsets);
+
+    safe_free(list);
 }
