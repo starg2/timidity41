@@ -85,9 +85,12 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 {
 	FILE *fp = fopen(outFileName, "w");
 	if (!outListEnable && prependBaseDir)
-		fprintf(fp, "dir \"${basedir}\"\n");
+		fprintf(fp, "\ndir \"${basedir}\"\n");
 	for (std::map< int, std::map< int, sfvSFInst > >::iterator it =  g_sfInst.begin(); it != g_sfInst.end(); ++it) {
-		fprintf(fp, "bank %d\n", (*it).first);
+		if (outListEnable)
+			fprintf(fp, "bank %d\n", (*it).first);
+		else
+			fprintf(fp, "\nbank %d\n", (*it).first);
 		for (std::map< int, sfvSFInst >::iterator itc = (*it).second.begin(); itc != (*it).second.end(); ++itc) {
 			const char *file = (*itc).second.str.c_str();
 			const int program = (*itc).first;
@@ -105,8 +108,8 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 					fprintf(fp, "%d %%font \"%s\" %d %d", program, file, bank, preset);
 				else
 					fprintf(fp, "%d %%font %s %d %d", program, file, bank, preset);
-				if (outComment)
-					fprintf(fp, " # %s ", comment);
+				if (outComment && comment && strlen(comment))
+					fprintf(fp, " # %s", comment);
 				fprintf(fp, "\n");
 			}
 		}
@@ -116,7 +119,7 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 		if (outListEnable)
 			fprintf(fp, "drumset %d\n", (*it).first);
 		else
-			fprintf(fp, "drumset %d\n", (*it).first);
+			fprintf(fp, "\ndrumset %d\n", (*it).first);
 		for (std::map< int, sfvSFDrum >::iterator itc = (*it).second.begin(); itc != (*it).second.end(); ++itc) {
 			const char *file = (*itc).second.str.c_str();
 			const int program = (*itc).first;
@@ -135,8 +138,8 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 					fprintf(fp, "%d %%font \"%s\" %d %d %d", program, file, bank, preset, note);
 				else
 					fprintf(fp, "%d %%font %s %d %d %d", program, file, bank, preset, note);
-				if (outComment)
-					fprintf(fp, " # %s ", comment);
+				if (outComment && comment && strlen(comment))
+					fprintf(fp, " # %s", comment);
 				fprintf(fp, "\n");
 			}
 		}
