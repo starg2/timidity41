@@ -57,6 +57,8 @@ set(
     $<TARGET_OBJECTS:utils>
 )
 
+add_definitions(${TIMIDITY_FE_DEFINITIONS})
+
 add_library(
     timidity_common OBJECT
 

@@ -1,6 +1,5 @@
 
 add_definitions(-DCFG_FOR_SF)
-remove_definitions(${CFGFORSF_UNNECESSARY_DEFINITIONS})
 
 add_library(
     timidity_cfgforsf OBJECT

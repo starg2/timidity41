@@ -4,8 +4,6 @@ add_definitions(
     -DSF2VIEWER_GUI
 )
 
-remove_definitions(${CFGFORSF_UNNECESSARY_DEFINITIONS})
-
 add_executable(
     sfviewer WIN32
 

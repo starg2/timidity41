@@ -1,4 +1,6 @@
 
+add_definitions(${TIMIDITY_FE_DEFINITIONS})
+
 set(
     INTERFACE_COMMON_SOURCES
 

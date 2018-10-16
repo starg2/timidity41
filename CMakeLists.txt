@@ -48,6 +48,7 @@ endif()
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
+# base definitions
 add_definitions(
 # TiMidity++ common
     -DRETSIGTYPE=int
@@ -69,9 +70,6 @@ add_definitions(
 	-DHAVE_SYS_STAT_H
     -DHAVE_SYS_TYPES_H
     -DHAVE_FCNTL_H
-    -DHAVE_LIBVORBIS
-    -DHAVE_LIBGOGO
-    -DHAVE_LIBMPG123
     -DHAVE_MMSYSTEM_H
     -DENABLE_SHERRY
     -DENABLE_THREAD
@@ -80,12 +78,39 @@ add_definitions(
     -D__W32__
     -D__W32READDIR__
 	-DUSE_TWSYN_BRIDGE
-    -DENABLE_SFZ
 	-DTIMW32G_USE_NEW_CONSOLE
-	-DENABLE_DLS
 
 # TiMidity++ audio
     -DAU_W32
+
+# network
+    -DWINSOCK
+    -DHAVE_SOCKET
+    -DSUPPORT_SOCKET
+
+# pdcurses
+    -DPDC_DLL_BUILD
+
+# Windows
+    -DWIN32_LEAN_AND_MEAN
+    -DWINVER=0x0A00
+    -D_WIN32_WINNT=0x0A00
+
+# MSVCRT
+    -D_CRT_SECURE_NO_WARNINGS
+)
+
+set(
+	TIMIDITY_FE_DEFINITIONS
+
+# TiMidity++ common
+    -DHAVE_LIBVORBIS
+    -DHAVE_LIBGOGO
+    -DHAVE_LIBMPG123
+    -DENABLE_SFZ
+	-DENABLE_DLS
+
+# TiMidity++ audio
     -DAU_WASAPI
     -DAU_WDMKS
     -DAU_OPUS
@@ -114,61 +139,6 @@ add_definitions(
     -DAU_MODMIDI
     -DAU_VOLUME_CALC
     -DAU_BENCHMARK
-
-# network
-    -DWINSOCK
-    -DHAVE_SOCKET
-    -DSUPPORT_SOCKET
-
-# pdcurses
-    -DPDC_DLL_BUILD
-
-# Windows
-    -DWIN32_LEAN_AND_MEAN
-    -DWINVER=0x0A00
-    -D_WIN32_WINNT=0x0A00
-
-# MSVCRT
-    -D_CRT_SECURE_NO_WARNINGS
-)
-
-set(
-    CFGFORSF_UNNECESSARY_DEFINITIONS
-
-    -DAU_WASAPI
-    -DAU_VORBIS
-    -DAU_VORBIS_DLL
-    -DAU_GOGO
-    -DAU_GOGO_DLL
-    -DAU_PORTAUDIO
-    -DAU_PORTAUDIO_DLL
-    -DAU_LAME
-    -DAU_FLAC
-    -DAU_FLAC_DLL
-    -DAU_OGGFLAC
-    -DAU_OGGFLAC_DLL
-    -DAU_OPUS
-    -DAU_OPUS_DLL
-    -DAU_SPEEX
-    -DAU_AO
-    -DAU_NPIPE
-    -DAU_WRITE_MIDI
-    -DAU_LIST
-    -DAU_MODMIDI
-    -DAU_VOLUME_CALC
-    -DAU_BENCHMARK
-    -DVST_LOADER_ENABLE
-    -DSMFCONV
-    -DSUPPORT_SOCKET
-    -DSUPPORT_SOUNDSPEC
-    -D__W32G__
-    -DHAVE_POPEN
-
-    -DHAVE_LIBVORBIS
-    -DHAVE_LIBGOGO
-    -DHAVE_LIBMPG123
-    -DENABLE_SFZ
-	-DENABLE_DLS
 )
 
 if(TIM41_USE_AVX2)
