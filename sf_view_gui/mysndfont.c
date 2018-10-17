@@ -27,8 +27,8 @@ void sfgui_str_free(void **p)
 #include <shlwapi.h>
 #include "resource.h"
 
-void InsertInst(int bank, int preset, const char *str, const char *sfname);
-void InsertDrum(int bank, int preset, int note, const char *str, const char *sfname);
+void InsertInst(BOOL dls, int bank, int preset, const char *str, const char *sfname);
+void InsertDrum(BOOL dls, int bank, int preset, int note, const char *str, const char *sfname);
 
 BOOL IsDLSFile(LPCSTR filename)
 {
@@ -145,7 +145,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 					tv.item.iSelectedImage = 3;
 					TreeView_InsertItem(hTree, &tv);
 
-					InsertInst(b->bank, p->program, p->name, x_sf_filename_);
+					InsertInst(TRUE, b->bank, p->program, p->name, x_sf_filename_);
 				}
 			}
 
@@ -171,7 +171,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 					tv.item.iSelectedImage = 3;
 					TreeView_InsertItem(hTree, &tv);
 
-					InsertDrum(128, d->program, d->notes[j], "", x_sf_filename_);
+					InsertDrum(TRUE, 128, d->program, d->notes[j], "", x_sf_filename_);
 				}
 			}
 
@@ -230,7 +230,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 						tv.item.iSelectedImage = 3;
 						TreeView_InsertItem(hTree, &tv);
 
-						InsertInst(x_bank, x_preset, pname_, x_sf_filename_);
+						InsertInst(FALSE, x_bank, x_preset, pname_, x_sf_filename_);
 					}
 
 				}
@@ -286,7 +286,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 						tv.item.iImage = 2;
 						tv.item.iSelectedImage = 3;
 						TreeView_InsertItem(hTree, &tv);
-						InsertDrum(128, x_preset, x_keynote, pname_, x_sf_filename_);
+						InsertDrum(FALSE, 128, x_preset, x_keynote, pname_, x_sf_filename_);
 					}
 				}
 			}

@@ -18,6 +18,7 @@ extern "C" {
 #include <string>
 struct sfvSFInst
 {
+	BOOL dls;
 	unsigned char bank;
 	unsigned char preset;
 	std::string str;
@@ -26,6 +27,7 @@ struct sfvSFInst
 std::map< int, std::map< int, sfvSFInst > > g_sfInst;
 struct sfvSFDrum
 {
+	BOOL dls;
 	unsigned char bank;
 	unsigned char preset;
 	unsigned char note;
@@ -34,12 +36,13 @@ struct sfvSFDrum
 };
 std::map< int, std::map< int, sfvSFDrum > > g_sfDrum;
 
-extern "C" void InsertInst(int bank, int preset, char *str, const char *sfname)
+extern "C" void InsertInst(BOOL dls, int bank, int preset, char *str, const char *sfname)
 {
 	std::map< int, std::map< int, sfvSFInst > >::iterator it = g_sfInst.find(bank);
 	if (it != g_sfInst.end()) {
 
 		sfvSFInst newdata;
+        newdata.dls = dls;
 		newdata.bank		= bank;
 		newdata.preset		= preset;
 		newdata.str		= sfname;
@@ -53,16 +56,17 @@ extern "C" void InsertInst(int bank, int preset, char *str, const char *sfname)
 		}
 	} else {
 		g_sfInst.insert(std::make_pair(bank, std::map< int, sfvSFInst >()));
-		InsertInst(bank, preset, str, sfname);
+		InsertInst(dls, bank, preset, str, sfname);
 	}
 }
 
-extern "C" void InsertDrum(int bank, int preset, int note, const char *str, const char *sfname)
+extern "C" void InsertDrum(BOOL dls, int bank, int preset, int note, const char *str, const char *sfname)
 {
 	std::map< int, std::map< int, sfvSFDrum > >::iterator it = g_sfDrum.find(preset);
 	if (it != g_sfDrum.end()) {
 
 		sfvSFDrum newdata;
+        newdata.dls = dls;
 		newdata.bank		= bank;
 		newdata.preset		= preset;
 		newdata.note		= note;
@@ -77,7 +81,7 @@ extern "C" void InsertDrum(int bank, int preset, int note, const char *str, cons
 		}
 	} else {
 		g_sfDrum.insert(std::make_pair(preset, std::map< int, sfvSFDrum >()));
-		InsertDrum(bank, preset, note, str, sfname);
+		InsertDrum(dls, bank, preset, note, str, sfname);
 	}
 }
 
@@ -87,11 +91,11 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 	if (!outListEnable && prependBaseDir)
 		fprintf(fp, "\ndir \"${basedir}\"\n");
 	for (std::map< int, std::map< int, sfvSFInst > >::iterator it =  g_sfInst.begin(); it != g_sfInst.end(); ++it) {
-		if (outListEnable)
-			fprintf(fp, "bank %d\n", (*it).first);
-		else
-			fprintf(fp, "\nbank %d\n", (*it).first);
+		if (!outListEnable)
+			fprintf(fp, "\n");
+		fprintf(fp, "bank %d\n", (*it).first);
 		for (std::map< int, sfvSFInst >::iterator itc = (*it).second.begin(); itc != (*it).second.end(); ++itc) {
+			BOOL dls = (*itc).second.dls;
 			const char *file = (*itc).second.str.c_str();
 			const int program = (*itc).first;
 			const int bank = (*itc).second.bank;
@@ -105,9 +109,9 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 				fprintf(fp, "%03d:%03d %s (%s)\n", bank, preset, comment, file);
 			else {
 				if (strstr(file, " "))
-					fprintf(fp, "%d %%font \"%s\" %d %d", program, file, bank, preset);
+					fprintf(fp, "%d %s \"%s\" %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset);
 				else
-					fprintf(fp, "%d %%font %s %d %d", program, file, bank, preset);
+					fprintf(fp, "%d %s %s %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset);
 				if (outComment && comment && strlen(comment))
 					fprintf(fp, " # %s", comment);
 				fprintf(fp, "\n");
@@ -116,11 +120,11 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 	}
 
 	for (std::map< int, std::map< int, sfvSFDrum > >::iterator it =  g_sfDrum.begin(); it != g_sfDrum.end(); ++it) {
-		if (outListEnable)
-			fprintf(fp, "drumset %d\n", (*it).first);
-		else
-			fprintf(fp, "\ndrumset %d\n", (*it).first);
+		if (!outListEnable)
+			fprintf(fp, "\n");
+		fprintf(fp, "drumset %d\n", (*it).first);
 		for (std::map< int, sfvSFDrum >::iterator itc = (*it).second.begin(); itc != (*it).second.end(); ++itc) {
+			BOOL dls = (*itc).second.dls;
 			const char *file = (*itc).second.str.c_str();
 			const int program = (*itc).first;
 			const int bank = (*itc).second.bank;
@@ -135,9 +139,9 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 				fprintf(fp, "%03d:%03d %s (%s)\n", preset, note, comment, file);
 			else {
 				if (strstr(file, " "))
-					fprintf(fp, "%d %%font \"%s\" %d %d %d", program, file, bank, preset, note);
+					fprintf(fp, "%d %s \"%s\" %d %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset, note);
 				else
-					fprintf(fp, "%d %%font %s %d %d %d", program, file, bank, preset, note);
+					fprintf(fp, "%d %s %s %d %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset, note);
 				if (outComment && comment && strlen(comment))
 					fprintf(fp, " # %s", comment);
 				fprintf(fp, "\n");
