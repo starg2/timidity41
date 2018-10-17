@@ -4,7 +4,6 @@ cmake_minimum_required(VERSION 3.9)
 project(timidity41)
 
 set(TIM41_USE_AVX2 FALSE CACHE BOOL "Enable use of Intel AVX2 enhanced instructions")
-set(TIM41_USE_CLANG_CL FALSE CACHE BOOL "Compile with clang-cl")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
@@ -148,7 +147,7 @@ else()
 endif()
 
 if(MSVC)
-    if("${TIM41_USE_CLANG_CL}")
+    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
         set(CMAKE_C_LINK_EXECUTABLE "lld-link <CMAKE_C_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> /out:<TARGET> <LINK_LIBRARIES>")
         set(CMAKE_CXX_LINK_EXECUTABLE "lld-link <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> /out:<TARGET> <LINK_LIBRARIES>")
         set(CMAKE_C_CREATE_SHARED_LIBRARY "lld-link /dll <CMAKE_SHARED_LIBRARY_C_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS> <SONAME_FLAG><TARGET_SONAME> /out:<TARGET> <OBJECTS> <LINK_LIBRARIES>")
@@ -161,7 +160,7 @@ if(MSVC)
 
     add_compile_options(/W4 /Zi /GS /fp:fast)
 
-    if(NOT "${TIM41_USE_CLANG_CL}")
+    if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
         add_compile_options(/Qspectre)
     endif()
 
@@ -173,7 +172,7 @@ if(MSVC)
     
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /std:c++17")
 
-    if("${TIM41_USE_CLANG_CL}")
+    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto=thin")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto=thin")
     else()
@@ -181,7 +180,7 @@ if(MSVC)
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /guard:cf")
     endif()
 
-    if("${TIM41_USE_CLANG_CL}")
+    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
         set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} /DEBUG")
 
