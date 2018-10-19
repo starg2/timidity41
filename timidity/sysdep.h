@@ -277,7 +277,7 @@ typedef uint64 u_ptr_size_t;
 /* 32/64bit arch */
 typedef          long   ptr_size_t;
 typedef unsigned long u_ptr_size_t;
-#elif defined(_MSC_VER) && !defined(__POCC__)
+#elif defined(_MSC_VER) && !defined(__clang__) && !defined(__POCC__)
 typedef _w64  int32   ptr_size_t;
 typedef _w64 uint32 u_ptr_size_t;
 #else
