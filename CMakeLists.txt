@@ -168,6 +168,10 @@ if(MSVC)
     
     if(TIM41_USE_AVX2)
         add_compile_options(/arch:AVX2)
+    else()
+        if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+            add_compile_options(-msse4.2)
+        endif()
     endif()
     
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /std:c++17")
