@@ -1,4 +1,6 @@
 
+add_definitions(-D_WINDLL)
+
 add_library(
     portmidi SHARED
 
