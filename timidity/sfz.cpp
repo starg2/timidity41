@@ -28,6 +28,7 @@ Instrument *extract_sample_file(char *sample_file);
 #include <cstring>
 
 #include <algorithm>
+#include <deque>
 #include <exception>
 #include <iterator>
 #include <memory>
@@ -795,7 +796,7 @@ private:
     };
 
     std::vector<std::string> m_FileNames;
-    std::vector<TextBuffer> m_InBuffers;
+    std::deque<TextBuffer> m_InBuffers;
     std::stack<InputStackItem, std::vector<InputStackItem>> m_InputStack;
     TextBuffer m_OutBuffer;
     std::unordered_map<std::string, TextBuffer::View> m_DefinedMacros;
