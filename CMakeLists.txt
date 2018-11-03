@@ -139,6 +139,9 @@ set(
     -DAU_MODMIDI
     -DAU_VOLUME_CALC
     -DAU_BENCHMARK
+
+# FLAC
+    -DFLAC__NO_DLL
 )
 
 if(TIM41_USE_AVX2)
