@@ -26,6 +26,7 @@ add_library(
     include/opus/opus.h
     include/opus/opus_custom.h
     include/opus/opus_defines.h
+    include/opus/opus_projection.h
     include/opus/opus_multistream.h
     include/opus/opus_types.h
 
@@ -92,7 +93,7 @@ add_library(
     celt/vq.c
     celt/vq.h
     celt/_kiss_fft_guts.h
-    celt/x86/celt_lpc_sse.c
+    celt/x86/celt_lpc_sse4_1.c
     celt/x86/celt_lpc_sse.h
     celt/x86/pitch_sse.c
     celt/x86/pitch_sse.h
@@ -234,10 +235,10 @@ add_library(
     silk/float/warped_autocorrelation_FLP.c
     silk/float/wrappers_FLP.c
     silk/x86/main_sse.h
-    silk/x86/NSQ_del_dec_sse.c
-    silk/x86/NSQ_sse.c
+    silk/x86/NSQ_del_dec_sse4_1.c
+    silk/x86/NSQ_sse4_1.c
     silk/x86/SigProc_FIX_sse.h
-    silk/x86/VAD_sse.c
-    silk/x86/VQ_WMat_EC_sse.c
+    silk/x86/VAD_sse4_1.c
+    silk/x86/VQ_WMat_EC_sse4_1.c
     silk/x86/x86_silk_map.c
 )
