@@ -1702,4 +1702,71 @@ char *w32_utf8_to_mbs(const char *str)
 	buff8[buff8_size] = '\0';
 	return buff8;
 }
+
+extern wchar_t *w32_utf8_to_utf16(const char *str)
+{
+	const int str_size = strlen(str);
+	int buff16_size;
+	wchar_t *buff16;
+	if (str_size == 0) {
+		return (wchar_t *)safe_calloc(2, 1);
+	}
+	buff16_size = MultiByteToWideChar(CP_UTF8, 0, str, str_size, NULL, 0);
+	buff16 = (wchar_t*)safe_malloc(sizeof(wchar_t) * buff16_size + 2);
+	if (!buff16) return NULL;
+	buff16_size = MultiByteToWideChar(CP_UTF8, 0, str, str_size, buff16, buff16_size);
+	if (buff16_size == 0) {
+		safe_free(buff16);
+		return NULL;
+	}
+	buff16[buff16_size] = L'\0';
+	return buff16;
+}
+
+extern char *w32_utf16_to_utf8(const wchar_t *str)
+{
+	const int str_size = lstrlenW(str);
+	int buff8_size;
+	char *buff8;
+	if (str_size == 0) {
+		return safe_strdup("");
+	}
+	buff8_size = WideCharToMultiByte(CP_UTF8, 0, str, str_size, NULL, 0, NULL, NULL);
+	buff8 = (char *)safe_malloc(sizeof(char) * (buff8_size + 1));
+	if (!buff8) return NULL;
+	buff8_size = WideCharToMultiByte(CP_UTF8, 0, str, str_size, buff8, buff8_size, NULL, NULL);
+	if (buff8_size == 0) {
+		safe_free(buff8);
+		return NULL;
+	}
+	buff8[buff8_size] = '\0';
+	return buff8;
+}
+
+#endif
+
+#if defined(__W32__) && defined(UNICODE)
+
+extern TCHAR *char_to_tchar(const char *str)
+{
+	return w32_utf8_to_utf16(str);
+}
+
+extern char *tchar_to_char(const TCHAR *str)
+{
+	return w32_utf16_to_utf8(str);
+}
+
+#else
+
+extern TCHAR *char_to_tchar(const char *str)
+{
+	return safe_strdup(str);
+}
+
+extern char *tchar_to_char(const TCHAR *str)
+{
+	return safe_strdup(str);
+}
+
 #endif

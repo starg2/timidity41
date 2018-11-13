@@ -38,6 +38,11 @@
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#ifdef __W32__
+#include <tchar.h>
+#else
+typedef char TCHAR;
+#endif
 
 #ifndef VERSION
 #define VERSION "current"
@@ -185,7 +190,14 @@ extern char *output_text_code;
 #ifdef __W32__
 extern char *w32_mbs_to_utf8(const char *str);
 extern char *w32_utf8_to_mbs(const char *str);
+extern wchar_t *w32_utf8_to_utf16(const char *str);
+extern char *w32_utf16_to_utf8(const wchar_t *str);
+
 #endif
+
+// converts UTF8 <-> UTF16 in Unicode mode, does nothing (just duplicates input) in ANSI mode
+extern TCHAR *char_to_tchar(const char *str);
+extern char *tchar_to_char(const TCHAR *str);
 
 #ifdef __cplusplus
 }

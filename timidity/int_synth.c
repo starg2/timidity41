@@ -2241,7 +2241,7 @@ static void conv_preset_envelope_param(int max, int32 *env, int16 *velf, int16 *
 static void load_is_scc_data(INIDATA *ini, Preset_IS *set)
 {
 	LPINISEC sec = NULL;
-	TCHAR tbf[258] = "";
+	char tbf[258] = "";
 	char *p = NULL;
 	char name[30] = "";
 	char name2[30] = "";
@@ -2263,7 +2263,7 @@ static void load_is_scc_data(INIDATA *ini, Preset_IS *set)
 static void load_is_scc_preset(INIDATA *ini, Preset_IS *set, int preset, int init)
 {
 	LPINISEC sec = NULL;
-	TCHAR tbf[258] = "";
+	char tbf[258] = "";
 	char *p = NULL;
 	char name[30] = "";
 	char name2[30] = "";
@@ -2315,7 +2315,7 @@ static void load_is_scc_preset(INIDATA *ini, Preset_IS *set, int preset, int ini
 static void load_is_mms_preset(INIDATA *ini, Preset_IS *set, int preset, int init)
 {
 	LPINISEC sec = NULL;
-	TCHAR tbf[258] = "";
+	char tbf[258] = "";
 	char *p = NULL;
 	char name[30] = "";
 	char name2[30] = "";
@@ -2566,7 +2566,7 @@ void scc_data_editor_set_param(int num, int val)
 static void scc_data_editor_save_ini(int num)
 {
 	INIDATA ini={0};
-	TCHAR data[258] = "";
+	char data[258] = "";
 	char key1[30] = "";
 	char key2[30] = "";
 	int i;
@@ -2832,7 +2832,7 @@ static void scc_editor_save_ini(int num)
 	Preset_SCC *setting = NULL;
 	INIDATA ini={0};
 	LPINISEC inisec = NULL;
-	TCHAR data[258] = "";
+	char data[258] = "";
 	char sec[30] = "";
 	int i, flg;
 		
@@ -3524,7 +3524,7 @@ static void mms_editor_save_ini(int num)
 	Preset_MMS *setting = NULL;
 	INIDATA ini={0};
 	LPINISEC inisec = NULL;
-	TCHAR data[258] = "";
+	char data[258] = "";
 	char sec[30] = "";
 	char key[30] = "";
 	int i, j, flg;
