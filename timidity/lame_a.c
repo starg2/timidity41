@@ -167,7 +167,7 @@ static int lame_output_open(const char *fname, const char *comment)
 #endif
 
 	w32_reset_dll_directory();
-	hLame = LoadLibrary("lame_enc.dll");
+	hLame = LoadLibraryA("lame_enc.dll");
   	if (NULL == hLame) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
 			  "DLL load failed: %s", "lame_enc.dll");

@@ -42,6 +42,7 @@
 #include <tchar.h>
 #else
 typedef char TCHAR;
+#define _T(x) (x)
 #endif
 
 #ifndef VERSION

@@ -73,16 +73,16 @@ void OverrideSFSettingLoad()
 	INIDATA ini={0};
 	LPINISEC sec = NULL;
 
-	char fn[FILEPATH_MAX] = "";
+	TCHAR fn[FILEPATH_MAX] = {0};
     if(GetModuleFileName(GetModuleHandle(0), fn, FILEPATH_MAX - 1)){
 		PathRemoveFileSpec(fn);
-		strcat(fn,"\\");
+		_tcscat(fn, _T("\\"));
 	}else{
-		fn[0] = '.';
-		fn[1] = PATH_SEP;
-		fn[2] = '\0';
+		fn[0] = _T('.');
+		fn[1] = _T(PATH_SEP);
+		fn[2] = _T('\0');
     }
-    strlcat(fn,"soundfont.ini",FILEPATH_MAX);
+	_tcsncat(fn, _T("soundfont.ini"), FILEPATH_MAX);
 #include "loadsndfontini.h"
 }
 
