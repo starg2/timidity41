@@ -171,9 +171,11 @@ static void *w32_mmap(char *fname, ptr_size_t *size_ret, HANDLE *hFilePtr, HANDL
 {
     void *map;
     DWORD dwFileSizeHigh = 0;
+	TCHAR *tfname = char_to_tchar(fname);
 
-    *hFilePtr = CreateFile(fname, GENERIC_READ, FILE_SHARE_READ, NULL,
+    *hFilePtr = CreateFile(tfname, GENERIC_READ, FILE_SHARE_READ, NULL,
 			   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	safe_free(tfname);
     if (*hFilePtr == INVALID_HANDLE_VALUE)
 	return NULL;
     *size_ret = GetFileSize(*hFilePtr, &dwFileSizeHigh);
