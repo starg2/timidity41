@@ -1325,7 +1325,7 @@ int pa_device_list(PA_DEVICELIST *device, int HostApiTypeId)
 error1:
 //  	free_portaudio_dll();
 #ifdef __W32__
-	MessageBox(NULL, Pa_GetErrorText(err), "Port Audio error", MB_OK | MB_ICONEXCLAMATION);
+	MessageBoxA(NULL, Pa_GetErrorText(err), "Port Audio error", MB_OK | MB_ICONEXCLAMATION);
 #else
 	ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "PortAudio error in acntl : %s\n", Pa_GetErrorText(err));
 #endif /* __W32__ */
