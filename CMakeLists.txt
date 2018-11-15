@@ -162,7 +162,8 @@ if(MSVC)
     endif()
 
     add_compile_options(/we4013)    # '%s' undefined; assuming extern returning int
-    
+    add_compile_options(/we4133)    # 'function': incompatible types - from '%s' to '%s'
+
     if(TIM41_USE_AVX2)
         add_compile_options(/arch:AVX2)
     else()
