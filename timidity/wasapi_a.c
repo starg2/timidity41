@@ -953,7 +953,7 @@ int open_output(void)
 					acp.Options |= 1 /* AUDCLNT_STREAMOPTIONS_RAW */;
 			}
 
-			hr = IAudioClient2_SetClientProperties(pAudioClient2, &acp);
+			hr = IAudioClient2_SetClientProperties(pAudioClient2, (AudioClientProperties *)&acp);
 			IAudioClient2_Release(pAudioClient2);
 			if (FAILED(hr))
 				goto error;
