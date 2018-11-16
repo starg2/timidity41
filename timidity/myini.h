@@ -50,22 +50,13 @@ typedef unsigned long long UINT64;
 #endif
 #endif
 
-#ifndef CONST
-	#define CONST const
+#ifndef const
+	#define const const
 #endif
 
 #endif
 #endif
 
-
-#ifndef _TCHAR_DEFINED
-	#ifdef _UNICODE
-		#define TCHAR wchar_t
-	#else
-		#define TCHAR char
-	#endif
-#define _TCHAR_DEFINED
-#endif
 
 typedef enum Enum_MyIni_DataType
 { 
@@ -83,14 +74,14 @@ typedef enum Enum_MyIni_DataType
 
 typedef struct tagKey {
 	unsigned long Hash;
-	TCHAR *Name;
-	TCHAR *Data;
+	char *Name;
+	char *Data;
 	struct tagKey *Next;
 }INIKEY, *LPINIKEY;
 
 typedef struct tagSection {
 	unsigned long Hash;
-	TCHAR *Name;
+	char *Name;
 	LPINIKEY Key;
 	struct tagSection *Next;
 }INISEC, *LPINISEC;
@@ -103,13 +94,13 @@ typedef struct tagini {
 /*------------------------------------------------*
 ** ファイルロード
 **------------------------------------------------*/
-extern void MyIni_Load(INIDATA *Ini, CONST TCHAR *str);
-extern void MyIni_Load_timidity(INIDATA *Ini, CONST TCHAR *str, int decompress, int noise_mode);
+extern void MyIni_Load(INIDATA *Ini, const char *str);
+extern void MyIni_Load_timidity(INIDATA *Ini, const char *str, int decompress, int noise_mode);
 
 /*------------------------------------------------*
 ** ファイルセーブ
 **------------------------------------------------*/
-extern void MyIni_Save(INIDATA *Ini, CONST TCHAR *fn);
+extern void MyIni_Save(INIDATA *Ini, const char *fn);
 
 /*------------------------------------------------*
 ** キークリア
@@ -124,64 +115,64 @@ extern void MyIni_SectionAllClear(INIDATA *Ini);
 /*------------------------------------------------*
 ** セクション/キー削除関数
 **------------------------------------------------*/
-extern int MyIni_DeleteSection(INIDATA *Ini, CONST TCHAR *SecName);
-extern int MyIni_DeleteKey(INIDATA *Ini, CONST TCHAR *SecName, CONST TCHAR *KeyName);
+extern int MyIni_DeleteSection(INIDATA *Ini, const char *SecName);
+extern int MyIni_DeleteKey(INIDATA *Ini, const char *SecName, const char *KeyName);
 
 /*------------------------------------------------*
 ** セクション/キー検索関数
 **------------------------------------------------*/
-extern int MyIni_SectionExists(INIDATA *Ini, CONST TCHAR *SecName);
-extern int MyIni_KeyExists(INIDATA *Ini, CONST TCHAR *SecName, CONST TCHAR *KeyName);
+extern int MyIni_SectionExists(INIDATA *Ini, const char *SecName);
+extern int MyIni_KeyExists(INIDATA *Ini, const char *SecName, const char *KeyName);
 
 /*------------------------------------------------*
 ** 取得関数
 **------------------------------------------------*/
-extern TCHAR *MyIni_GetString2(INIDATA *Ini, CONST TCHAR *Section, CONST TCHAR *KeyName, TCHAR *Buf, size_t Size, CONST TCHAR *DefParam);
-extern TCHAR *MyIni_GetString(INISEC *Sec, CONST TCHAR *KeyName, TCHAR *Buf, size_t Size, CONST TCHAR *DefParam);
+extern char *MyIni_GetString2(INIDATA *Ini, const char *Section, const char *KeyName, char *Buf, size_t Size, const char *DefParam);
+extern char *MyIni_GetString(INISEC *Sec, const char *KeyName, char *Buf, size_t Size, const char *DefParam);
 
-extern INT8 MyIni_GetInt8(INISEC *Sec, const TCHAR *KeyName, INT8 def);
-extern INT16 MyIni_GetInt16(INISEC *Sec, const TCHAR *KeyName, INT16 def);
-extern INT32 MyIni_GetInt32(INISEC *Sec, const TCHAR *KeyName, INT32 def);
-extern INT64 MyIni_GetInt64(INISEC *Sec, const TCHAR *KeyName, INT64 def);
+extern INT8 MyIni_GetInt8(INISEC *Sec, const char *KeyName, INT8 def);
+extern INT16 MyIni_GetInt16(INISEC *Sec, const char *KeyName, INT16 def);
+extern INT32 MyIni_GetInt32(INISEC *Sec, const char *KeyName, INT32 def);
+extern INT64 MyIni_GetInt64(INISEC *Sec, const char *KeyName, INT64 def);
 
-extern UINT8 MyIni_GetUint8(INISEC *Sec, const TCHAR *KeyName, UINT8 def);
-extern UINT16 MyIni_GetUint16(INISEC *Sec, const TCHAR *KeyName, UINT16 def);
-extern UINT32 MyIni_GetUint32(INISEC *Sec, const TCHAR *KeyName, UINT32 def);
-extern UINT64 MyIni_GetUint64(INISEC *Sec, const TCHAR *KeyName, UINT64 def);
+extern UINT8 MyIni_GetUint8(INISEC *Sec, const char *KeyName, UINT8 def);
+extern UINT16 MyIni_GetUint16(INISEC *Sec, const char *KeyName, UINT16 def);
+extern UINT32 MyIni_GetUint32(INISEC *Sec, const char *KeyName, UINT32 def);
+extern UINT64 MyIni_GetUint64(INISEC *Sec, const char *KeyName, UINT64 def);
 
-extern float MyIni_GetFloat32(INISEC *Sec, const TCHAR *KeyName, float def);
-extern double MyIni_GetFloat64(INISEC *Sec, const TCHAR *KeyName, double def);
+extern float MyIni_GetFloat32(INISEC *Sec, const char *KeyName, float def);
+extern double MyIni_GetFloat64(INISEC *Sec, const char *KeyName, double def);
 
-extern INT32 MyIni_GetBool(INISEC *Sec, const TCHAR *KeyName, INT32 def);
+extern INT32 MyIni_GetBool(INISEC *Sec, const char *KeyName, INT32 def);
 
 /*------------------------------------------------*
 ** 代入関数
 **------------------------------------------------*/
-extern void MyIni_SetString2(INIDATA *Ini, CONST TCHAR *SecName, CONST TCHAR *KeyName, CONST TCHAR *Data);
-extern void MyIni_SetString(INISEC *Sec, CONST TCHAR *KeyName, CONST TCHAR *Data);
+extern void MyIni_SetString2(INIDATA *Ini, const char *SecName, const char *KeyName, const char *Data);
+extern void MyIni_SetString(INISEC *Sec, const char *KeyName, const char *Data);
 
-extern void MyIni_SetInt8(INISEC *Sec, const TCHAR *KeyName, INT8 prm);
-extern void MyIni_SetInt16(INISEC *Sec, const TCHAR *KeyName, INT16 prm);
-extern void MyIni_SetInt32(INISEC *Sec, const TCHAR *KeyName, INT32 prm);
-extern void MyIni_SetInt64(INISEC *Sec, const TCHAR *KeyName, INT64 prm);
+extern void MyIni_SetInt8(INISEC *Sec, const char *KeyName, INT8 prm);
+extern void MyIni_SetInt16(INISEC *Sec, const char *KeyName, INT16 prm);
+extern void MyIni_SetInt32(INISEC *Sec, const char *KeyName, INT32 prm);
+extern void MyIni_SetInt64(INISEC *Sec, const char *KeyName, INT64 prm);
 
-extern void MyIni_SetUint8(INISEC *Sec, const TCHAR *KeyName, UINT8 prm);
-extern void MyIni_SetUint16(INISEC *Sec, const TCHAR *KeyName, UINT16 prm);
-extern void MyIni_SetUint32(INISEC *Sec, const TCHAR *KeyName, UINT32 prm);
-extern void MyIni_SetUint64(INISEC *Sec, const TCHAR *KeyName, UINT64 prm);
+extern void MyIni_SetUint8(INISEC *Sec, const char *KeyName, UINT8 prm);
+extern void MyIni_SetUint16(INISEC *Sec, const char *KeyName, UINT16 prm);
+extern void MyIni_SetUint32(INISEC *Sec, const char *KeyName, UINT32 prm);
+extern void MyIni_SetUint64(INISEC *Sec, const char *KeyName, UINT64 prm);
 
-extern void MyIni_SetFloat32(INISEC *Sec, const TCHAR *KeyName, float prm);
-extern void MyIni_SetFloat64(INISEC *Sec, const TCHAR *KeyName, double prm);
+extern void MyIni_SetFloat32(INISEC *Sec, const char *KeyName, float prm);
+extern void MyIni_SetFloat64(INISEC *Sec, const char *KeyName, double prm);
 
-extern void MyIni_SetBool(INISEC *Sec, const TCHAR *KeyName, INT32 prm);
+extern void MyIni_SetBool(INISEC *Sec, const char *KeyName, INT32 prm);
 
-extern void MyIni_SetParam(INISEC *Sec, CONST TCHAR *KeyName, UINT64 Param, size_t Size, MyIni_DataType DataType);
-extern CONST void *MyIni_GetParam(INISEC *Sec, CONST TCHAR *KeyName, void *bf, size_t Size, MyIni_DataType DataType);
-extern LPINISEC MyIni_GetSection(INIDATA *Ini, CONST TCHAR *Sec, int AutoCreateEnable);
+extern void MyIni_SetParam(INISEC *Sec, const char *KeyName, UINT64 Param, size_t Size, MyIni_DataType DataType);
+extern const void *MyIni_GetParam(INISEC *Sec, const char *KeyName, void *bf, size_t Size, MyIni_DataType DataType);
+extern LPINISEC MyIni_GetSection(INIDATA *Ini, const char *Sec, int AutoCreateEnable);
 extern UINT64 MyIni_DoubleToInt64(double v);
-extern void MyIni_CreateIniCFile(CONST TCHAR *fn);
+extern void MyIni_CreateIniCFile(const char *fn);
 
-extern const TCHAR *MyIni_PathFindFileName(CONST TCHAR *str);
+extern const char *MyIni_PathFindFileName(const char *str);
 
 
 
