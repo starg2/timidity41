@@ -155,7 +155,7 @@ static const char * MMErrorMessage(MMRESULT ErrorCode)
 
         if (ErrorCode > DIM(waverr_code_sring))
         {
-            wsprintf(s, "Unknown wave error %d", ErrorCode);
+            wsprintfA(s, "Unknown wave error %d", ErrorCode);
             return s;
         }
         else
@@ -164,7 +164,7 @@ static const char * MMErrorMessage(MMRESULT ErrorCode)
     else
     if (ErrorCode > DIM(mmsyserr_code_string))
     {
-        wsprintf(s, "Unknown multimedia error %d", ErrorCode);
+        wsprintfA(s, "Unknown multimedia error %d", ErrorCode);
         return s;
     }
     else
@@ -300,7 +300,9 @@ static void print_device_list(void)
 	for(i = 0 ; i < num  && i < DEVLIST_MAX ; i++){
 		if (MMSYSERR_NOERROR == waveOutGetDevCaps((UINT)i, &woc, sizeof(woc)) ){
 			device[list_num].deviceID=i;
-			strcpy(device[list_num].name, woc.szPname);
+			char *s = tchar_to_char(woc.szPname);
+			strncpy(device[list_num].name, MAXPNAMELEN, s);
+			safe_free(s);
 			list_num++;
 		}
 	}
@@ -675,7 +677,9 @@ int wmme_device_list(DEVICELIST *device)
 	for(i = -1 ; i < num  && i < (DEVLIST_MAX - 2) ; i++){ // -1, 0
 		waveOutGetDevCaps((UINT)i, &woc, sizeof(woc));
 		device[i+1].deviceID=i;
-		strcpy(device[i+1].name, woc.szPname);
+		char *s = tchar_to_char(woc.szPname);
+		strncpy(device[i+1].name, MAXPNAMELEN, s);
+		safe_free(s);
 	}
 	return num;
 }

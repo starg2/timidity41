@@ -376,6 +376,7 @@ static int ctl_drop_file(HDROP hDrop)
 {
     StringTable st;
     int i, n, len;
+    TCHAR tbuffer[FILEPATH_MAX];
     char buffer[FILEPATH_MAX];
     char **files;
     int prevnfiles;
@@ -386,7 +387,10 @@ static int ctl_drop_file(HDROP hDrop)
     n = DragQueryFile(hDrop,0xffffffffL, NULL, 0);
     for(i = 0; i < n; i++)
     {
-	DragQueryFile(hDrop, i, buffer, sizeof(buffer));
+	DragQueryFile(hDrop, i, tbuffer, sizeof(tbuffer));
+	char *s = tchar_to_char(tbuffer);
+	strcpy(buffer, s);
+	safe_free(s);
 	if(is_directory(buffer))
 	    directory_form(buffer);
 	len = strlen(buffer);
@@ -934,7 +938,9 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 	w32g_msg_box(buffer, "TiMidity Error", MB_OK);
     }
 #ifdef TIMW32G_USE_NEW_CONSOLE
-	NewConsoleBufferWriteCMsg(type, verbosity_level, buffer);
+	TCHAR *tbuffer = char_to_tchar(buffer);
+	NewConsoleBufferWriteCMsg(type, verbosity_level, tbuffer);
+	safe_free(tbuffer);
 #else
     PutsConsoleWnd(buffer);
     PutsConsoleWnd("\n");

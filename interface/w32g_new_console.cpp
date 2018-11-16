@@ -469,7 +469,7 @@ public:
     void WriteV(LPCTSTR pFormat, va_list args)
     {
         std::array<TCHAR, BUFSIZ> buf;
-        std::vsnprintf(buf.data(), buf.size(), pFormat, args);
+        _vsntprintf(buf.data(), buf.size(), pFormat, args);
         Write(NormalColor, buf.data(), false);
     }
 

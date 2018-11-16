@@ -315,13 +315,10 @@ void CreateKeyData(LPINIKEY Key, const char *Data)
   ŒöŠJŠÖ”
   Ini ‚ðLoad ‚·‚é
 -------------------------------------------------------------*/
-void MyIni_Load(INIDATA *Ini, const char *str)
+static void MyIni_LoadF(INIDATA *Ini, FILE *fp)
 {
 	char *ptok = NULL;
 	char buf[2048] = "";
-	TCHAR *tstr = char_to_tchar(str);
-	FILE *fp = _tfopen(tstr, _T("r"));
-	safe_free(tstr);
 	LPINISEC nowSec = NULL;
 	LPINIKEY Key = NULL;
 	char *pbf = NULL;
@@ -366,6 +363,18 @@ void MyIni_Load(INIDATA *Ini, const char *str)
 	}
 
 	fclose(fp);
+}
+
+void MyIni_Load(INIDATA *Ini, const char *str)
+{
+	TCHAR *tstr = char_to_tchar(str);
+	MyIni_LoadF(Ini, _tfopen(tstr, _T("r")));
+	safe_free(tstr);
+}
+
+void MyIni_LoadT(INIDATA *Ini, const TCHAR *str)
+{
+	MyIni_LoadF(Ini, _tfopen(str, _T("r")));
 }
 
 /*-------------------------------------------------------------
@@ -429,13 +438,10 @@ void MyIni_Load_timidity(INIDATA *Ini, const char *str, int decompress, int nois
   ŒöŠJŠÖ”
   Ini ‚ð Save ‚·‚é
 -------------------------------------------------------------*/
-void MyIni_Save(INIDATA *Ini, const char *fn)
+static void MyIni_SaveF(INIDATA *Ini, FILE *fp)
 {
 	LPINISEC Sec = Ini->Sec;
 	LPINIKEY Key;
-	TCHAR *tfn = char_to_tchar(fn);
-	FILE *fp = _tfopen(tfn, _T("w"));
-	safe_free(tfn);
 	if (!fp) return;
 
 	while (Sec) {
@@ -453,6 +459,18 @@ void MyIni_Save(INIDATA *Ini, const char *fn)
 		fprintf(fp, "\n");
 	}
 	fclose(fp);
+}
+
+void MyIni_Save(INIDATA *Ini, const char *fn)
+{
+	TCHAR *tfn = char_to_tchar(fn);
+	MyIni_SaveF(Ini, _tfopen(tfn, _T("w")));
+	safe_free(tfn);
+}
+
+void MyIni_SaveT(INIDATA *Ini, const TCHAR *fn)
+{
+	MyIni_SaveF(Ini, _tfopen(fn, _T("w")));
 }
 
 /*-------------------------------------------------------------

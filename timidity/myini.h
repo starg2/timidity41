@@ -95,12 +95,14 @@ typedef struct tagini {
 ** ファイルロード
 **------------------------------------------------*/
 extern void MyIni_Load(INIDATA *Ini, const char *str);
+extern void MyIni_LoadT(INIDATA *Ini, const TCHAR *str);
 extern void MyIni_Load_timidity(INIDATA *Ini, const char *str, int decompress, int noise_mode);
 
 /*------------------------------------------------*
 ** ファイルセーブ
 **------------------------------------------------*/
 extern void MyIni_Save(INIDATA *Ini, const char *fn);
+extern void MyIni_SaveT(INIDATA *Ini, const TCHAR *fn);
 
 /*------------------------------------------------*
 ** キークリア

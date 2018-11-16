@@ -383,7 +383,7 @@ static fAvRevertMmThreadCharacteristics pAvRevertMmThreadCharacteristics = NULL;
 static int load_avrt(void)
 {
 	if(!hDllAvrt)
-	  hDllAvrt = LoadLibrary("avrt.dll");
+		hDllAvrt = LoadLibrary(_T("avrt.dll"));
     if(!hDllAvrt)
         return FALSE;	
 #ifdef UNICODE

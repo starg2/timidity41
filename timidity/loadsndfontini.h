@@ -1,6 +1,6 @@
 
 	memset(&OverrideSample, 0, sizeof OverrideSample);
-	MyIni_Load(&ini, fn);
+	MyIni_LoadT(&ini, fn);
 	sec = MyIni_GetSection(&ini, "param", 0);
 	
 #ifdef MyIniParamRange
@@ -260,7 +260,7 @@
 		MyIni_DeleteKey(&ini, "param", "_OverWriteModEnv");
 		MyIni_DeleteKey(&ini, "param", "_OverWriteCutoff");
 
-		MyIni_Save(&ini, fn);
+		MyIni_SaveT(&ini, fn);
 	}
 	otd.overwriteMode = 0;
 	otd.overwriteMode |= MyIni_GetBool(sec, "OverWriteVibrato", 0) * EOWM_ENABLE_VIBRATO;

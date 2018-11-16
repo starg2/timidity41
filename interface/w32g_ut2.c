@@ -60,7 +60,7 @@ int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *
 
 //	lf.lfHeight = 16;
 //	lf.lfWidth = 8;
-	strcpy(lf.lfFaceName,"ＭＳ 明朝");
+	_tcscpy(lf.lfFaceName, _T("ＭＳ 明朝"));
     cf.lStructSize = sizeof(CHOOSEFONT);
     cf.hwndOwner = hwnd;
 //    cf.hDC = NULL;
@@ -85,9 +85,11 @@ int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *
 		CloseHandle(hFontPre);
 	hFont = CreateFontIndirect(&lf);
 	SendMessage(hwndFontChange,WM_SETFONT,(WPARAM)hFont,(LPARAM)MAKELPARAM(TRUE,0));
-	if(fontname!=NULL) strcpy(fontname,lf.lfFaceName);
+	char *facename = tchar_to_char(lf.lfFaceName);
+	if(fontname!=NULL) strcpy(fontname, facename);
 	if(fontheight!=NULL) *fontheight = lf.lfHeight;
 	if(fontwidth!=NULL) *fontwidth = lf.lfWidth;
+	safe_free(facename);
 	return 0;
 }
 
@@ -99,7 +101,9 @@ int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
 	memset(&lf,0,sizeof(LOGFONT));
 	if(fontHeight!=NULL) lf.lfHeight = *fontHeight;
 	if(fontWidth!=NULL) lf.lfWidth = *fontWidth;
-	if(fontName!=NULL) strcpy(lf.lfFaceName,fontName);
+	TCHAR *tfontname = char_to_tchar(fontName);
+	if(fontName!=NULL) _tcscpy(lf.lfFaceName, tfontname);
+	safe_free(tfontname);
 
 	memset(&cf,0,sizeof(CHOOSEFONT));
     cf.lStructSize = sizeof(CHOOSEFONT);
@@ -121,9 +125,11 @@ int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
 	if(ChooseFont(&cf)!=TRUE)
 		return -1;
 
-	if(fontName!=NULL) strcpy(fontName,lf.lfFaceName);
+	char *facename = tchar_to_char(lf.lfFaceName);
+	if(fontName!=NULL) strcpy(fontName, facename);
 	if(fontHeight!=NULL) *fontHeight = abs(lf.lfHeight);
 	if(fontWidth!=NULL) *fontWidth = lf.lfWidth;
+	safe_free(facename);
 	return 0;
 }
 
@@ -167,14 +173,14 @@ void SetWindowPosSize ( HWND parent_hwnd, HWND hwnd, int x, int y )
 /**********************************************************************/
 BOOL PosSizeSave = TRUE;
 
-#define SEC_MAINWND "MainWnd"
+#define SEC_MAINWND _T("MainWnd")
 int INISaveMainWnd(void)
 {
-	char *section = SEC_MAINWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
-	char buffer[256];
+	TCHAR *section = SEC_MAINWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
+	TCHAR buffer[256];
 	if ( PosSizeSave ) {
-		sprintf(buffer,"%d",MainWndInfo.PosX);
+		_stprintf(buffer, _T("%d"), MainWndInfo.PosX);
 		if ( MainWndInfo.PosX >= 0 || MainWndInfo.PosY >= 0 ) {
 			if ( MainWndInfo.PosX < 0 )
 				MainWndInfo.PosX = 0;
@@ -182,47 +188,49 @@ int INISaveMainWnd(void)
 				MainWndInfo.PosY = 0;
 		}
 		if ( MainWndInfo.PosX >= 0 )
-		WritePrivateProfileString(section,"PosX",buffer,inifile);
-		sprintf(buffer,"%d",MainWndInfo.PosY);
+			WritePrivateProfileString(section, _T("PosX"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), MainWndInfo.PosY);
 		if ( MainWndInfo.PosY >= 0 )
-		WritePrivateProfileString(section,"PosY",buffer,inifile);		
-		sprintf(buffer,"%d",MainWndInfo.Width);
-		WritePrivateProfileString(section,"Width",buffer,inifile);
-		sprintf(buffer,"%d",MainWndInfo.Height);
-		WritePrivateProfileString(section,"Height",buffer,inifile);
+			WritePrivateProfileString(section, _T("PosY"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), MainWndInfo.Width);
+		WritePrivateProfileString(section, _T("Width"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), MainWndInfo.Height);
+		WritePrivateProfileString(section, _T("Height"), buffer, inifile);
 	}
-	sprintf(buffer,"%d",MainWndInfo.CanvasMode);
-	WritePrivateProfileString(section,"CanvasMode",buffer,inifile);		
+	_stprintf(buffer, _T("%d"), MainWndInfo.CanvasMode);
+	WritePrivateProfileString(section, _T("CanvasMode"), buffer, inifile);
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+	safe_free(inifile);
 	return 0;
 }
 
 int INILoadMainWnd(void)
 {
-	char *section = SEC_MAINWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
+	TCHAR *section = SEC_MAINWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
 	int num;
-	num = GetPrivateProfileInt(section,"PosX",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("PosX"), -1, inifile);
 	MainWndInfo.PosX = num;
-	num = GetPrivateProfileInt(section,"PosY",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("PosY"), -1, inifile);
 	MainWndInfo.PosY = num;
-	num = GetPrivateProfileInt(section,"Width",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("Width"), -1, inifile);
 	MainWndInfo.Width = num;
-	num = GetPrivateProfileInt(section,"Height",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("Height"), -1, inifile);
 	MainWndInfo.Height = num;
-	num = GetPrivateProfileInt(section,"CanvasMode",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("CanvasMode"), -1, inifile);
 	MainWndInfo.CanvasMode = num;
+	safe_free(inifile);
 	return 0;
 }
 
-#define SEC_LISTWND "ListWnd"
+#define SEC_LISTWND _T("ListWnd")
 int INISaveListWnd(void)
 {
-	char *section = SEC_LISTWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
-	char buffer[256];
+	TCHAR *section = SEC_LISTWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
+	TCHAR buffer[256];
 	int i;
-	char key[30] = "";
+	TCHAR key[30] = _T("");
 
 	if ( PosSizeSave ) {
 		if ( ListWndInfo.PosX >= 0 || ListWndInfo.PosY >= 0 ) {
@@ -231,92 +239,112 @@ int INISaveListWnd(void)
 			if ( ListWndInfo.PosY < 0 )
 				ListWndInfo.PosY = 0;
 		}
-		sprintf(buffer,"%d",ListWndInfo.PosX);
+		_stprintf(buffer, _T("%d"), ListWndInfo.PosX);
 		if ( ListWndInfo.PosX >= 0 )
-		WritePrivateProfileString(section,"PosX",buffer,inifile);
-		sprintf(buffer,"%d",ListWndInfo.PosY);
+			WritePrivateProfileString(section, _T("PosX"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), ListWndInfo.PosY);
 		if ( ListWndInfo.PosY >= 0 )
-		WritePrivateProfileString(section,"PosY",buffer,inifile);
-		sprintf(buffer,"%d",ListWndInfo.Width);
-		WritePrivateProfileString(section,"Width",buffer,inifile);
-		sprintf(buffer,"%d",ListWndInfo.Height);
-		WritePrivateProfileString(section,"Height",buffer,inifile);
+			WritePrivateProfileString(section, _T("PosY"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), ListWndInfo.Width);
+		WritePrivateProfileString(section, _T("Width"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), ListWndInfo.Height);
+		WritePrivateProfileString(section, _T("Height"), buffer, inifile);
 	}
-	WritePrivateProfileString(section,"fontNameEN",ListWndInfo.fontNameEN,inifile);
-	WritePrivateProfileString(section,"fontNameJA",ListWndInfo.fontNameJA,inifile);
-	sprintf(buffer,"%d",ListWndInfo.fontWidth);
-	WritePrivateProfileString(section,"fontWidth",buffer,inifile);
-	sprintf(buffer,"%d",ListWndInfo.fontHeight);
-	WritePrivateProfileString(section,"fontHeight",buffer,inifile);
-	sprintf(buffer,"%d",ListWndInfo.fontFlags);
-	WritePrivateProfileString(section,"fontFlags",buffer,inifile);
+	TCHAR *tstr = char_to_tchar(ListWndInfo.fontNameEN);
+	WritePrivateProfileString(section, _T("fontNameEN"), tstr, inifile);
+	safe_free(tstr);
+	tstr = char_to_tchar(ListWndInfo.fontNameJA);
+	WritePrivateProfileString(section, _T("fontNameJA"), tstr, inifile);
+	safe_free(tstr);
+	_stprintf(buffer, _T("%d"), ListWndInfo.fontWidth);
+	WritePrivateProfileString(section, _T("fontWidth"), buffer, inifile);
+	_stprintf(buffer, _T("%d"), ListWndInfo.fontHeight);
+	WritePrivateProfileString(section, _T("fontHeight"), buffer, inifile);
+	_stprintf(buffer, _T("%d"), ListWndInfo.fontFlags);
+	WritePrivateProfileString(section, _T("fontFlags"), buffer, inifile);
 	// ListName
 	for(i = 0; i < playlist_max; i++){
-		snprintf(key, sizeof(key), "ListName%d", i);
-		WritePrivateProfileString(section,key,ListWndInfo.ListName[i],inifile);
+		_sntprintf(key, sizeof(key), _T("ListName%d"), i);
+		TCHAR *tname = char_to_tchar(ListWndInfo.ListName[i]);
+		WritePrivateProfileString(section, key, tname, inifile);
+		safe_free(tname);
 	}
 	// columWidth
 	for(i = 0; i < LISTWND_COLUM; i++){
-		snprintf(key, sizeof(key), "ColumWidth%d", i);
-		sprintf(buffer,"%d",ListWndInfo.columWidth[i]);
-		WritePrivateProfileString(section,key,buffer,inifile);
+		_sntprintf(key, sizeof(key), _T("ColumWidth%d"), i);
+		_stprintf(buffer, _T("%d"), ListWndInfo.columWidth[i]);
+		WritePrivateProfileString(section, key, buffer, inifile);
 	}
 	//
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+	safe_free(inifile);
 	return 0;
 }
 
 
 int INILoadListWnd(void)
 {
-	char *section = SEC_LISTWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
+	TCHAR *section = SEC_LISTWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
 	int num;
-	char buffer[LF_FULLFACESIZE + 1];
+	TCHAR buffer[LF_FULLFACESIZE + 1];
 	int i;
-	char key[30] = "", name[30] = "";
+	TCHAR key[30] = _T(""), name[30] = _T("");
 	const int def_columWidth[LISTWND_COLUM] = {400, 150, 60, 50, 150, 600};
 
-	num = GetPrivateProfileInt(section,"PosX",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("PosX"), -1, inifile);
 	ListWndInfo.PosX = num;
-	num = GetPrivateProfileInt(section,"PosY",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("PosY"), -1, inifile);
 	ListWndInfo.PosY = num;
-	num = GetPrivateProfileInt(section,"Width",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("Width"), -1, inifile);
 	if(num!=-1) ListWndInfo.Width = num;
-	num = GetPrivateProfileInt(section,"Height",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("Height"), -1, inifile);
 	if(num!=-1) ListWndInfo.Height = num;
-	GetPrivateProfileString(section,"fontNameEN","",buffer,LF_FULLFACESIZE + 1,inifile);
-	if(buffer[0]!=0) strcpy(ListWndInfo.fontNameEN,buffer);
-	GetPrivateProfileString(section,"fontNameJA","",buffer,LF_FULLFACESIZE + 1,inifile);
-	if(buffer[0]!=0) strcpy(ListWndInfo.fontNameJA,buffer);
-	num = GetPrivateProfileInt(section,"fontWidth",-1,inifile);
+	GetPrivateProfileString(section, _T("fontNameEN"), _T(""), buffer, LF_FULLFACESIZE + 1, inifile);
+	if (buffer[0] != 0) {
+		char *text = tchar_to_char(buffer);
+		strcpy(ListWndInfo.fontNameEN, text);
+		safe_free(text);
+	}
+	GetPrivateProfileString(section, _T("fontNameJA"), _T(""), buffer, LF_FULLFACESIZE + 1, inifile);
+	if (buffer[0] != 0) {
+		char *text = tchar_to_char(buffer);
+		strcpy(ListWndInfo.fontNameJA, text);
+		safe_free(text);
+	}
+	num = GetPrivateProfileInt(section, _T("fontWidth"), -1, inifile);
 	if(num!=-1) ListWndInfo.fontWidth = num;
-	num = GetPrivateProfileInt(section,"fontHeight",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("fontHeight"), -1, inifile);
 	if(num!=-1) ListWndInfo.fontHeight = num;
-	num = GetPrivateProfileInt(section,"fontFlags",-1,inifile);
+	num = GetPrivateProfileInt(section, _T("fontFlags"), -1, inifile);
 	if(num!=-1) ListWndInfo.fontFlags = num;
 	// ListName
 	for(i = 0; i < PLAYLIST_MAX; i++){
-		snprintf(key, sizeof(key), "ListName%d", i);
-		snprintf(name, sizeof(name), "default%d", i);
+		_sntprintf(key, sizeof(key), _T("ListName%d"), i);
+		_sntprintf(name, sizeof(name), _T("default%d"), i);
 		GetPrivateProfileString(section,key,name,buffer,LF_FULLFACESIZE + 1,inifile);
-		if(buffer[0]!=0) strcpy(ListWndInfo.ListName[i],buffer);
+		if (buffer[0] != 0) {
+			char *text = tchar_to_char(buffer);
+			strcpy(ListWndInfo.ListName[i], text);
+			safe_free(text);
+		}
 	}
 	// columWidth
 	for(i = 0; i < LISTWND_COLUM; i++){
-		snprintf(key, sizeof(key), "ColumWidth%d", i);
+		_sntprintf(key, sizeof(key), _T("ColumWidth%d"), i);
 		num = GetPrivateProfileInt(section,key, def_columWidth[i],inifile);
 		ListWndInfo.columWidth[i] = num;
 	}
+	safe_free(inifile);
 	return 0;
 }
 
-#define SEC_DOCWND "DocWnd"
+#define SEC_DOCWND _T("DocWnd")
 int INISaveDocWnd(void)
 {
-	char *section = SEC_DOCWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
-	char buffer[256];
+	TCHAR *section = SEC_DOCWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
+	TCHAR buffer[256];
 	if ( PosSizeSave ) {
 		if ( DocWndInfo.PosX >= 0 || DocWndInfo.PosY >= 0 ) {
 			if ( DocWndInfo.PosX < 0 )
@@ -324,62 +352,76 @@ int INISaveDocWnd(void)
 			if ( DocWndInfo.PosY < 0 )
 				DocWndInfo.PosY = 0;
 		}
-		sprintf(buffer,"%d",DocWndInfo.PosX);
+		_stprintf(buffer,_T("%d"),DocWndInfo.PosX);
 		if ( DocWndInfo.PosX >= 0 )
-		WritePrivateProfileString(section,"PosX",buffer,inifile);
-		sprintf(buffer,"%d",DocWndInfo.PosY);
+		WritePrivateProfileString(section,_T("PosX"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),DocWndInfo.PosY);
 		if ( DocWndInfo.PosY >= 0 )
-		WritePrivateProfileString(section,"PosY",buffer,inifile);
-		sprintf(buffer,"%d",DocWndInfo.Width);
-		WritePrivateProfileString(section,"Width",buffer,inifile);
-		sprintf(buffer,"%d",DocWndInfo.Height);
-		WritePrivateProfileString(section,"Height",buffer,inifile);
+		WritePrivateProfileString(section,_T("PosY"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),DocWndInfo.Width);
+		WritePrivateProfileString(section,_T("Width"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),DocWndInfo.Height);
+		WritePrivateProfileString(section,_T("Height"),buffer,inifile);
 	}
-	WritePrivateProfileString(section,"fontNameEN",DocWndInfo.fontNameEN,inifile);
-	WritePrivateProfileString(section,"fontNameJA",DocWndInfo.fontNameJA,inifile);
-	sprintf(buffer,"%d",DocWndInfo.fontWidth);
-	WritePrivateProfileString(section,"fontWidth",buffer,inifile);
-	sprintf(buffer,"%d",DocWndInfo.fontHeight);
-	WritePrivateProfileString(section,"fontHeight",buffer,inifile);
-	sprintf(buffer,"%d",DocWndInfo.fontFlags);
-	WritePrivateProfileString(section,"fontFlags",buffer,inifile);
+	TCHAR *tstr = char_to_tchar(DocWndInfo.fontNameEN);
+	WritePrivateProfileString(section,_T("fontNameEN"),tstr,inifile);
+	safe_free(tstr);
+	tstr = char_to_tchar(DocWndInfo.fontNameJA);
+	WritePrivateProfileString(section,_T("fontNameJA"),tstr,inifile);
+	safe_free(tstr);
+	_stprintf(buffer,_T("%d"),DocWndInfo.fontWidth);
+	WritePrivateProfileString(section,_T("fontWidth"),buffer,inifile);
+	_stprintf(buffer,_T("%d"),DocWndInfo.fontHeight);
+	WritePrivateProfileString(section,_T("fontHeight"),buffer,inifile);
+	_stprintf(buffer,_T("%d"),DocWndInfo.fontFlags);
+	WritePrivateProfileString(section,_T("fontFlags"),buffer,inifile);
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+	safe_free(inifile);
 	return 0;
 }
 
 int INILoadDocWnd(void)
 {
-	char *section = SEC_DOCWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
+	TCHAR *section = SEC_DOCWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
 	int num;
-	char buffer[LF_FULLFACESIZE + 1];
-	num = GetPrivateProfileInt(section,"PosX",-1,inifile);
+	TCHAR buffer[LF_FULLFACESIZE + 1];
+	num = GetPrivateProfileInt(section,_T("PosX"),-1,inifile);
 	DocWndInfo.PosX = num;
-	num = GetPrivateProfileInt(section,"PosY",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("PosY"),-1,inifile);
 	DocWndInfo.PosY = num;
-	num = GetPrivateProfileInt(section,"Width",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("Width"),-1,inifile);
 	if(num!=-1) DocWndInfo.Width = num;
-	num = GetPrivateProfileInt(section,"Height",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("Height"),-1,inifile);
 	if(num!=-1) DocWndInfo.Height = num;
-	GetPrivateProfileString(section,"fontNameEN","",buffer,LF_FULLFACESIZE + 1,inifile);
-	if(buffer[0]!=0) strcpy(DocWndInfo.fontNameEN,buffer);
-	GetPrivateProfileString(section,"fontNameJA","",buffer,LF_FULLFACESIZE + 1,inifile);
-	if(buffer[0]!=0) strcpy(DocWndInfo.fontNameJA,buffer);
-	num = GetPrivateProfileInt(section,"fontWidth",-1,inifile);
+	GetPrivateProfileString(section,_T("fontNameEN"),_T(""),buffer,LF_FULLFACESIZE + 1,inifile);
+	if (buffer[0] != 0) {
+		char *text = tchar_to_char(buffer);
+		strcpy(DocWndInfo.fontNameEN, text);
+		safe_free(text);
+	}
+	GetPrivateProfileString(section,_T("fontNameJA"),_T(""),buffer,LF_FULLFACESIZE + 1,inifile);
+	if (buffer[0] != 0) {
+		char *text = tchar_to_char(buffer);
+		strcpy(DocWndInfo.fontNameJA, text);
+		safe_free(text);
+	}
+	num = GetPrivateProfileInt(section,_T("fontWidth"),-1,inifile);
 	if(num!=-1) DocWndInfo.fontWidth = num;
-	num = GetPrivateProfileInt(section,"fontHeight",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("fontHeight"),-1,inifile);
 	if(num!=-1) DocWndInfo.fontHeight = num;
-	num = GetPrivateProfileInt(section,"fontFlags",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("fontFlags"),-1,inifile);
 	if(num!=-1) DocWndInfo.fontFlags = num;
+	safe_free(inifile);
 	return 0;
 }
 
-#define SEC_CONSOLEWND "ConsoleWnd"
+#define SEC_CONSOLEWND _T("ConsoleWnd")
 int INISaveConsoleWnd(void)
 {
-	char *section = SEC_CONSOLEWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
-	char buffer[256];
+	TCHAR *section = SEC_CONSOLEWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
+	TCHAR buffer[256];
 	if ( PosSizeSave ) {
 		if ( ConsoleWndInfo.PosX >= 0 || ConsoleWndInfo.PosY >= 0 ) {
 			if ( ConsoleWndInfo.PosX < 0 )
@@ -387,45 +429,47 @@ int INISaveConsoleWnd(void)
 			if ( ConsoleWndInfo.PosY < 0 )
 				ConsoleWndInfo.PosY = 0;
 		}
-		sprintf(buffer,"%d",ConsoleWndInfo.PosX);
+		_stprintf(buffer,_T("%d"),ConsoleWndInfo.PosX);
 		if ( ConsoleWndInfo.PosX >= 0 )
-		WritePrivateProfileString(section,"PosX",buffer,inifile);
-		sprintf(buffer,"%d",ConsoleWndInfo.PosY);
+		WritePrivateProfileString(section,_T("PosX"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),ConsoleWndInfo.PosY);
 		if ( ConsoleWndInfo.PosY >= 0 )
-		WritePrivateProfileString(section,"PosY",buffer,inifile);
+		WritePrivateProfileString(section,_T("PosY"),buffer,inifile);
 		///r
-		sprintf(buffer,"%d",ConsoleWndInfo.Width);
-		WritePrivateProfileString(section,"Width",buffer,inifile);
-		sprintf(buffer,"%d",ConsoleWndInfo.Height);
-		WritePrivateProfileString(section,"Height",buffer,inifile);
+		_stprintf(buffer,_T("%d"),ConsoleWndInfo.Width);
+		WritePrivateProfileString(section,_T("Width"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),ConsoleWndInfo.Height);
+		WritePrivateProfileString(section,_T("Height"),buffer,inifile);
 	}
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+	safe_free(inifile);
 	return 0;
 }
 
 int INILoadConsoleWnd(void)
 {
-	char *section = SEC_CONSOLEWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
+	TCHAR *section = SEC_CONSOLEWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
 	int num;
-	num = GetPrivateProfileInt(section,"PosX",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("PosX"),-1,inifile);
 	ConsoleWndInfo.PosX = num;
-	num = GetPrivateProfileInt(section,"PosY",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("PosY"),-1,inifile);
 	ConsoleWndInfo.PosY = num;
 	///r
-	num = GetPrivateProfileInt(section,"Width",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("Width"),-1,inifile);
 	if(num!=-1) ConsoleWndInfo.Width = num;
-	num = GetPrivateProfileInt(section,"Height",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("Height"),-1,inifile);
 	if(num!=-1) ConsoleWndInfo.Height = num;
+	safe_free(inifile);
 	return 0;
 }
 
-#define SEC_SOUNDSPECWND "SoundSpecWnd"
+#define SEC_SOUNDSPECWND _T("SoundSpecWnd")
 int INISaveSoundSpecWnd(void)
 {
-	char *section = SEC_SOUNDSPECWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
-	char buffer[256];
+	TCHAR *section = SEC_SOUNDSPECWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
+	TCHAR buffer[256];
 	if ( PosSizeSave ) {
 		if ( SoundSpecWndInfo.PosX >= 0 || SoundSpecWndInfo.PosY >= 0 ) {
 			if ( SoundSpecWndInfo.PosX < 0 )
@@ -433,35 +477,37 @@ int INISaveSoundSpecWnd(void)
 			if ( SoundSpecWndInfo.PosY < 0 )
 				SoundSpecWndInfo.PosY = 0;
 		}
-		sprintf(buffer,"%d",SoundSpecWndInfo.PosX);
+		_stprintf(buffer,_T("%d"),SoundSpecWndInfo.PosX);
 		if ( SoundSpecWndInfo.PosX >= 0 )
-		WritePrivateProfileString(section,"PosX",buffer,inifile);
-		sprintf(buffer,"%d",SoundSpecWndInfo.PosY);
+		WritePrivateProfileString(section,_T("PosX"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),SoundSpecWndInfo.PosY);
 		if ( SoundSpecWndInfo.PosY >= 0 )
-		WritePrivateProfileString(section,"PosY",buffer,inifile);
-		sprintf(buffer,"%d",SoundSpecWndInfo.Width);
-		WritePrivateProfileString(section,"Width",buffer,inifile);
-		sprintf(buffer,"%d",SoundSpecWndInfo.Height);
-		WritePrivateProfileString(section,"Height",buffer,inifile);
+		WritePrivateProfileString(section,_T("PosY"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),SoundSpecWndInfo.Width);
+		WritePrivateProfileString(section,_T("Width"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),SoundSpecWndInfo.Height);
+		WritePrivateProfileString(section,_T("Height"),buffer,inifile);
 	}
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+	safe_free(inifile);
 	return 0;
 }
 
 int INILoadSoundSpecWnd(void)
 {
-	char *section = SEC_SOUNDSPECWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
+	TCHAR *section = SEC_SOUNDSPECWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
 	int num;
 
-	num = GetPrivateProfileInt(section,"PosX",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("PosX"),-1,inifile);
 	SoundSpecWndInfo.PosX = num;
-	num = GetPrivateProfileInt(section,"PosY",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("PosY"),-1,inifile);
 	SoundSpecWndInfo.PosY = num;
-	num = GetPrivateProfileInt(section,"Width",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("Width"),-1,inifile);
 	if(num!=-1) SoundSpecWndInfo.Width = num;
-	num = GetPrivateProfileInt(section,"Height",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("Height"),-1,inifile);
 	if(num!=-1) SoundSpecWndInfo.Height = num;
+	safe_free(inifile);
 	return 0;
 }
 
@@ -469,7 +515,7 @@ int INILoadSoundSpecWnd(void)
 /**********************************************************************/
 // プロセス間通信用にメールスロットのサーバースレッドを用意する
 
-#define TIMIDITY_MAILSLOT "\\\\.\\mailslot\\timiditypp_mailslot_ver_1_0"
+#define TIMIDITY_MAILSLOT _T("\\\\.\\mailslot\\timiditypp_mailslot_ver_1_0")
 
 // メールスロットに渡される形式
 // ヘッダ
@@ -579,7 +625,7 @@ int WriteMailslot(HANDLE hmailslot, char *buffer, int size)
 {
 	DWORD dwWrittenSize;
 	BOOL bRes;
-	bRes = WriteFile(hmailslot,buffer,(DWORD)lstrlen(buffer) + 1,&dwWrittenSize,(LPOVERLAPPED)NULL);
+	bRes = WriteFile(hmailslot,buffer,(DWORD)strlen(buffer) + 1,&dwWrittenSize,(LPOVERLAPPED)NULL);
 	if(bRes==FALSE){
 		return FALSE;
 	}
@@ -766,7 +812,7 @@ void w32gMailslotThread(void)
 	}
 }
 
-#define TIMIDTY_MUTEX_NAME "TiMidity_pp_Win32GUI_ver_1_0_0"
+#define TIMIDTY_MUTEX_NAME _T("TiMidity_pp_Win32GUI_ver_1_0_0")
 static HANDLE hMutexTiMidity = NULL;
 // TiMidity が唯一なることを主張します
 // その証拠の Mutex を hMutexTiMidity に保持します
@@ -829,11 +875,14 @@ int SendFilesToOldTiMidity(int nfiles, char **files)
 	sprintf(buffer,"%d",nfiles);
 	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
 	for(i=0;i<nfiles;i++){
-		char filepath[FILEPATH_MAX];
-		char *p;
+		TCHAR tfilepath[FILEPATH_MAX];
+		TCHAR *tfile = char_to_tchar(files[i]);
+		TCHAR *p;
 //		if(url_check_type(files[i])==-1 && GetFullPathName(files[i],1000,filepath,&p)!=0){
-		if(isURLFile(files[i])==FALSE && GetFullPathName(files[i],FILEPATH_MAX-1,filepath,&p)!=0){
+		if(isURLFile(files[i])==FALSE && GetFullPathName(tfile,FILEPATH_MAX-1,tfilepath,&p)!=0){
+			char *filepath = tchar_to_char(tfilepath);
 			size = strlen(filepath); WriteMailslot(hmailslot,filepath,size);
+			safe_free(filepath);
 		} else {
 			size = strlen(files[i]); WriteMailslot(hmailslot,files[i],size);
 		}

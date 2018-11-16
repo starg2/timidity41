@@ -108,7 +108,9 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCDATAProc(HWND hwnd, UINT uMess, WPAR
 		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_CHK_SCC_DATA_OVERRIDE, scc_data_editor_override);		
 		SendDlgItemMessage(hwnd, IDC_SLIDER_SCC_DATA_NUM, TBM_SETRANGEMAX, (WPARAM) 0, (LPARAM) SCC_DATA_MAX - 1);
 		SendDlgItemMessage(hwnd, IDC_SLIDER_SCC_DATA_NUM, TBM_SETRANGEMIN, (WPARAM) 0, (LPARAM) 0);
-		SetDlgItemText(hwnd,IDC_EDIT_SCC_DATA_NAME, scc_data_editor_load_name(scc_data_num));
+		TCHAR *tname = char_to_tchar(scc_data_editor_load_name(scc_data_num));
+		SetDlgItemText(hwnd,IDC_EDIT_SCC_DATA_NAME, tname);
+		safe_free(tname);
 		for(i = 0; i < SCC_DATA_LENGTH; i++){
 			int sb_id = IDC_SCROLLBAR_SCC_DATA_VAL1 + i;
 			hISEScrollbarValWnd[i] = GetDlgItem(hwnd, sb_id);

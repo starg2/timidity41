@@ -128,77 +128,77 @@ void w32g_get_midi_file_info_post(PlayListEntry *entry)
 		// see readmidi.h /* MIDI file types */
 		switch(entry->info->file_type){
 		case IS_SMF_FILE:
-			entry->filetype = safe_strdup(TEXT("Standard MIDI File"));	break;
+			entry->filetype = safe_strdup("Standard MIDI File");	break;
 		case IS_MCP_FILE:
-			entry->filetype = safe_strdup(TEXT("MCP File"));	break;
+			entry->filetype = safe_strdup("MCP File");	break;
 		case IS_RCP_FILE:
 		case IS_R36_FILE:
 		case IS_G18_FILE:
 		case IS_G36_FILE:
-			entry->filetype = safe_strdup(TEXT("Recomposer"));	break;
+			entry->filetype = safe_strdup("Recomposer");	break;
 		case IS_SNG_FILE:
-			entry->filetype = safe_strdup(TEXT("SNG File"));	break;
+			entry->filetype = safe_strdup("SNG File");	break;
 		case IS_MM2_FILE:
-			entry->filetype = safe_strdup(TEXT("MM2 File"));	break;
+			entry->filetype = safe_strdup("MM2 File");	break;
 		case IS_MML_FILE:
-			entry->filetype = safe_strdup(TEXT("MML File"));	break;
+			entry->filetype = safe_strdup("MML File");	break;
 		case IS_FM_FILE:
-			entry->filetype = safe_strdup(TEXT("FM File"));	break;
+			entry->filetype = safe_strdup("FM File");	break;
 		case IS_FPD_FILE:
-			entry->filetype = safe_strdup(TEXT("FPD File"));	break;
+			entry->filetype = safe_strdup("FPD File");	break;
 		case IS_MOD_FILE:
-			entry->filetype = safe_strdup(TEXT("Pro/Fast/Star/Noise Tracker"));	break;
+			entry->filetype = safe_strdup("Pro/Fast/Star/Noise Tracker");	break;
 		case IS_669_FILE:
-			entry->filetype = safe_strdup(TEXT("Composer669/UNIS669"));	break;
+			entry->filetype = safe_strdup("Composer669/UNIS669");	break;
 		case IS_MTM_FILE:
-			entry->filetype = safe_strdup(TEXT("MultiModuleEdit"));	break;
+			entry->filetype = safe_strdup("MultiModuleEdit");	break;
 		case IS_STM_FILE:
-			entry->filetype = safe_strdup(TEXT("ScreamTracker2"));	break;
+			entry->filetype = safe_strdup("ScreamTracker2");	break;
 		case IS_S3M_FILE:
-			entry->filetype = safe_strdup(TEXT("ScreamTracker3"));	break;
+			entry->filetype = safe_strdup("ScreamTracker3");	break;
 		case IS_ULT_FILE:
-			entry->filetype = safe_strdup(TEXT("UltraTracker"));	break;
+			entry->filetype = safe_strdup("UltraTracker");	break;
 		case IS_XM_FILE:
-			entry->filetype = safe_strdup(TEXT("FastTracker2"));	break;
+			entry->filetype = safe_strdup("FastTracker2");	break;
 		case IS_FAR_FILE:
-			entry->filetype = safe_strdup(TEXT("Farandole Composer"));	break;
+			entry->filetype = safe_strdup("Farandole Composer");	break;
 		case IS_WOW_FILE:
-			entry->filetype = safe_strdup(TEXT("Grave Composer"));	break;
+			entry->filetype = safe_strdup("Grave Composer");	break;
 		case IS_OKT_FILE:
-			entry->filetype = safe_strdup(TEXT("Oktalyzer"));	break;
+			entry->filetype = safe_strdup("Oktalyzer");	break;
 		case IS_DMF_FILE:
-			entry->filetype = safe_strdup(TEXT("X-Tracker"));	break;
+			entry->filetype = safe_strdup("X-Tracker");	break;
 		case IS_MED_FILE:
-			entry->filetype = safe_strdup(TEXT("MED/OctaMED"));	break;
+			entry->filetype = safe_strdup("MED/OctaMED");	break;
 		case IS_IT_FILE:
-			entry->filetype = safe_strdup(TEXT("ImpulseTracker"));	break;
+			entry->filetype = safe_strdup("ImpulseTracker");	break;
 		case IS_PTM_FILE:
-			entry->filetype = safe_strdup(TEXT("PolyTracker"));	break;
+			entry->filetype = safe_strdup("PolyTracker");	break;
 		case IS_MFI_FILE:
-			entry->filetype = safe_strdup(TEXT("i-mode Melody Format"));	break;
+			entry->filetype = safe_strdup("i-mode Melody Format");	break;
 		default:
-			entry->filetype = safe_strdup(TEXT("Other File"));	break;
+			entry->filetype = safe_strdup("Other File");	break;
 		}
 	}
 	// system
 	if(entry->system == NULL && entry->info->mid > 0){		
 		switch(entry->info->mid){
 		case 0x41:
-			entry->system = safe_strdup(TEXT("GS"));	break;
+			entry->system = safe_strdup("GS");	break;
 		case 0x42:
-			entry->system = safe_strdup(TEXT("Korg"));	break;
+			entry->system = safe_strdup("Korg");	break;
 		case 0x43:
-			entry->system = safe_strdup(TEXT("XG"));	break;
+			entry->system = safe_strdup("XG");	break;
 		case 0x7d:
-			entry->system = safe_strdup(TEXT("GM2"));	break;
+			entry->system = safe_strdup("GM2");	break;
 		case 0x7e:
-			entry->system = safe_strdup(TEXT("GM"));	break;
+			entry->system = safe_strdup("GM");	break;
 		case 0x60:
-			entry->system = safe_strdup(TEXT("SD"));	break;
+			entry->system = safe_strdup("SD");	break;
 		case 0x30:
-			entry->system = safe_strdup(TEXT("CM"));	break;
+			entry->system = safe_strdup("CM");	break;
 		default:
-			entry->system = safe_strdup(TEXT("Other"));	break;
+			entry->system = safe_strdup("Other");	break;
 		}
 	}
 }
@@ -605,19 +605,22 @@ void w32g_update_playlist_pos(int pos)
 		PlayListEntry *entry = &playlist_ctrl->list[i];
 		w32g_get_midi_file_info_post(entry);
 		{
+			const char *text;
 			volatile LVITEM lvi0;		
 			lvi0.iItem = i;
 			lvi0.iSubItem = 0;
 			lvi0.mask = LVIF_TEXT;
 			if(entry->title == NULL || entry->title[0] == '\0'){
 				if(entry->info->file_type == IS_ERROR_FILE)
-					lvi0.pszText = " --SKIP-- ";
+					text = " --SKIP-- ";
 				else
-					lvi0.pszText = entry->filename;
+					text = entry->filename;
 			}else
-				lvi0.pszText = entry->title;
+				text = entry->title;
+			lvi0.pszText = char_to_tchar(text);
 			if(! ListView_SetItem(hList, (LPARAM)&lvi0))
 				ListView_InsertItem(hList, (LPARAM)&lvi0);
+			safe_free(lvi0.pszText);
 		}
 		{
 			volatile LVITEM lvi0;	
@@ -631,11 +634,21 @@ void w32g_update_playlist_pos(int pos)
 			}
 			ListView_SetItem(hList, (LPARAM)&lvi0);
 		}
-		ListView_SetItemText(hList, i, 1, entry->artist ? entry->artist : TEXT("----"));
-		ListView_SetItemText(hList, i, 2, entry->duration ? entry->duration : TEXT("--:--:--"));
-		ListView_SetItemText(hList, i, 3, entry->system ? entry->system : TEXT("----"));
-		ListView_SetItemText(hList, i, 4, entry->filetype ? entry->filetype : TEXT("----"));
-		ListView_SetItemText(hList, i, 5, entry->filepath ? entry->filepath : TEXT("----"));
+		TCHAR *str = char_to_tchar(entry->artist ? entry->artist : "----");
+		ListView_SetItemText(hList, i, 1, str);
+		safe_free(str);
+		str = char_to_tchar; (entry->duration ? entry->duration : "--:--:--");
+		ListView_SetItemText(hList, i, 2, str);
+		safe_free(str);
+		str = char_to_tchar(entry->system ? entry->system : "----");
+		ListView_SetItemText(hList, i, 3, str);
+		safe_free(str);
+		str = char_to_tchar(entry->filetype ? entry->filetype : "----");
+		ListView_SetItemText(hList, i, 4, str);
+		safe_free(str);
+		str = char_to_tchar(entry->filepath ? entry->filepath : "----");
+		ListView_SetItemText(hList, i, 5, str);
+		safe_free(str);
     }
     if(cur==pos) {
 		if(cur < 0)

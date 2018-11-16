@@ -103,15 +103,15 @@ MERET	MPGE_initializeWork(void)
 	if( hModule == NULL ){
 		// (DLLが読み込まれていない場合)
 		// カレントディレクトリ、及びsystemディレクトリのGOGO.DLLの読み込み
-		hModule = LoadLibrary("gogo.dll");
+		hModule = LoadLibrary(_T("gogo.dll"));
 		if( hModule == NULL ){			// DLLが見つからない場合
 			#define Key		HKEY_CURRENT_USER
-			#define SubKey "Software\\MarineCat\\GOGO_DLL"
+			#define SubKey _T("Software\\MarineCat\\GOGO_DLL")
 			HKEY	hKey;
 			DWORD	dwType, dwKeySize;
 			LONG	lResult;
-			static	char	*szName = "INSTPATH";
-			char	szPathName[ _MAX_PATH + 8];
+			static	TCHAR	*szName = _T("INSTPATH");
+			TCHAR	szPathName[ _MAX_PATH + 8];
 			dwKeySize = sizeof( szPathName );
 
 			// レジストリ項目の HEY_CURENT_USER\Software\MarineCat\GOGO_DLLキー以下の 
@@ -273,18 +273,18 @@ int gogo_dll_check(void)
 	HANDLE hDLL = NULL;
 	if(hModule)
 		return 1;
-	hDLL = LoadLibrary("gogo.dll");
+	hDLL = LoadLibrary(_T("gogo.dll"));
 	if(hDLL){
 		FreeLibrary(hDLL);
 		return 1;
 	} else {
 #define Key		HKEY_CURRENT_USER
-#define SubKey "Software\\MarineCat\\GOGO_DLL"
+#define SubKey _T("Software\\MarineCat\\GOGO_DLL")
 		HKEY	hKey;
 		DWORD	dwType, dwKeySize;
 		LONG	lResult;
-		static	char	*szName = "INSTPATH";
-		char	szPathName[ _MAX_PATH + 8];
+		static	TCHAR	*szName = _T("INSTPATH");
+		TCHAR	szPathName[ _MAX_PATH + 8];
 		dwKeySize = sizeof( szPathName );
 		if( RegOpenKeyEx(Key,SubKey,0,KEY_ALL_ACCESS,&hKey ) == ERROR_SUCCESS ){
 			lResult = RegQueryValueEx(hKey,szName,0,&dwType,(BYTE *)szPathName,&dwKeySize);

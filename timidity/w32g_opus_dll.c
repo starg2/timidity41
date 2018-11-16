@@ -10,6 +10,7 @@
 #ifdef AU_OPUS_DLL
 
 #include <windows.h>
+#include <tchar.h>
 #include <opus/opus.h>
 
 typedef BOOL (WINAPI *SetDllDirectoryAProc)(LPCSTR lpPathName);
@@ -122,9 +123,9 @@ int load_opus_dll(void)
 {
 	if(!h_opus_dll){
 		w32_reset_dll_directory();
-		h_opus_dll = LoadLibrary("opus.dll");
-		if(!h_opus_dll) h_opus_dll = LoadLibrary("libopus.dll");
-		if(!h_opus_dll) h_opus_dll = LoadLibrary("libopus-0.dll");
+		h_opus_dll = LoadLibrary(_T("opus.dll"));
+		if (!h_opus_dll) h_opus_dll = LoadLibrary(_T("libopus.dll"));
+		if (!h_opus_dll) h_opus_dll = LoadLibrary(_T("libopus-0.dll"));
 		if(!h_opus_dll) return -1;
 	}
 	opus_dll.opus_encoder_get_size = (type_opus_encoder_get_size)GetProcAddress(h_opus_dll,"opus_encoder_get_size");

@@ -59,7 +59,7 @@ void OverrideSFSettingSave()
 {
 	INIDATA ini = {0};
 	LPINISEC sec = NULL;
-	char fn[FILEPATH_MAX] = "";
+	TCHAR fn[FILEPATH_MAX] = _T("");
 	char *p = NULL;
 
 #if defined(WINDRV)
@@ -71,20 +71,20 @@ void OverrideSFSettingSave()
 #else
 	if(GetModuleFileName(GetModuleHandle(0), fn, FILEPATH_MAX - 1)){
 		PathRemoveFileSpec(fn);
-		strcat(fn,"\\");
+		_tcscat(fn, _T("\\"));
 	}else{
-		fn[0] = '.';
-		fn[1] = PATH_SEP;
-		fn[2] = '\0';
+		fn[0] = _T('.');
+		fn[1] = _T(PATH_SEP);
+		fn[2] = _T('\0');
     }
-    strcat(fn,"soundfont.ini");
+	_tcscat(fn, _T("soundfont.ini"));
 #endif
 ///r
 	//if (otd.vibrato_cent == 0 && otd.vibrato_delay == 0) {
 	//	OverrideSFSettingLoad();
 	//}
 
-	MyIni_Load(&ini, fn);
+	MyIni_LoadT(&ini, fn);
 	sec = MyIni_GetSection(&ini, "param", TRUE);
 
 	MyIni_SetInt32(sec, "VibratoDelay", OverrideSample.vibrato_delay);
@@ -287,7 +287,7 @@ void OverrideSFSettingSave()
 	MyIni_SetFloat64(sec, "XG_Variation_Send_Reverb", xg_variation_send_reverb);
 	MyIni_SetFloat64(sec, "XG_Variation_Send_Chorus", xg_variation_send_chorus);
 	
-	MyIni_Save(&ini, fn);
+	MyIni_SaveT(&ini, fn);
 	MyIni_SectionAllClear(&ini);
 }
 
@@ -331,8 +331,12 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyInt(INI_SEC_PLAYER,"ConsoleClearFlag",&(sp->ConsoleClearFlag));
     IniGetKeyStringN(INI_SEC_PLAYER,"ConfigFile",sp->ConfigFile,FILEPATH_MAX);
     if(!sp->ConfigFile[0]) {
-      GetWindowsDirectory(sp->ConfigFile, sizeof(sp->ConfigFile) - 14);
-      strcat(sp->ConfigFile, "\\TIMIDITY.CFG");
+		TCHAR tstr[FILEPATH_MAX];
+		GetWindowsDirectory(tstr, sizeof(tstr) - 14);
+		char *str = tchar_to_char(tstr);
+		strncpy(sp->ConfigFile, str, sizeof(sp->ConfigFile) - 14);
+		safe_free(str);
+		strcat(sp->ConfigFile, "\\TIMIDITY.CFG");
     }
     IniGetKeyStringN(INI_SEC_PLAYER,"PlaylistFile",sp->PlaylistFile,FILEPATH_MAX);
     IniGetKeyStringN(INI_SEC_PLAYER,"PlaylistHistoryFile",sp->PlaylistHistoryFile,FILEPATH_MAX);
@@ -826,11 +830,15 @@ static char S_IniFile[FILEPATH_MAX];
 void FirstLoadIniFile(void)
 {
 	char buffer[FILEPATH_MAX];
+	TCHAR tbuffer[FILEPATH_MAX];
 	char *prevIniFile = IniFile;
 	char *p;
 	IniFile = S_IniFile;
-    if(GetModuleFileName(GetModuleHandle(0), buffer, FILEPATH_MAX))
+    if(GetModuleFileName(GetModuleHandle(0), tbuffer, FILEPATH_MAX))
     {
+		char *str = tchar_to_char(tbuffer);
+		strncpy(buffer, str, FILEPATH_MAX);
+		safe_free(str);
 	if((p = pathsep_strrchr(buffer)) != NULL)
 	{
 	    p++;
