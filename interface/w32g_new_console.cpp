@@ -27,6 +27,7 @@ extern "C"
 #include <cstddef>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 
 #include <algorithm>
 #include <array>
@@ -461,17 +462,29 @@ public:
         m_Buffer.Clear();
     }
 
-    void Write(LPCTSTR pText)
+    void Write(const char* pText)
     {
         Write(NormalColor, pText, false);
     }
 
-    void WriteV(LPCTSTR pFormat, va_list args)
+    void WriteV(const char* pFormat, va_list args)
     {
-        std::array<TCHAR, BUFSIZ> buf;
-        _vsntprintf(buf.data(), buf.size(), pFormat, args);
+        std::array<char, BUFSIZ> buf;
+        std::snprintf(buf.data(), buf.size(), pFormat, args);
         Write(NormalColor, buf.data(), false);
     }
+
+#ifdef UNICODE
+    void Write(COLORREF color, const char* pText, bool newline)
+    {
+        int sLen = static_cast<int>(std::strlen(pText));
+        int wLen = ::MultiByteToWideChar(CP_UTF8, 0, pText, sLen, nullptr, 0);
+        std::wstring wstr(wLen, L'\0');
+        ::MultiByteToWideChar(CP_UTF8, 0, pText, sLen, wstr.data(), wLen);
+
+        Write(color, wstr.c_str(), newline);
+    }
+#endif
 
     void Write(COLORREF color, LPCTSTR pText, bool newline)
     {
@@ -1160,7 +1173,7 @@ extern "C" void ClearNewConsoleBuffer(void)
     TimW32gNewConsole::GlobalNewConsoleBuffer.Clear();
 }
 
-extern "C" void NewConsoleBufferWriteCMsg(int type, int verbosity_level, LPCTSTR str)
+extern "C" void NewConsoleBufferWriteCMsg(int type, int verbosity_level, const char* str)
 {
     COLORREF color = TimW32gNewConsole::NormalColor;
 
@@ -1190,7 +1203,15 @@ extern "C" void NewConsoleBufferWriteCMsg(int type, int verbosity_level, LPCTSTR
         }
     }
 
+#ifdef UNICODE
+    int sLen = static_cast<int>(std::strlen(str));
+    int wLen = ::MultiByteToWideChar(CP_UTF8, 0, str, sLen, nullptr, 0);
+    std::wstring wstr(wLen, L'\0');
+    ::MultiByteToWideChar(CP_UTF8, 0, str, sLen, wstr.data(), wLen);
+    TimW32gNewConsole::GlobalNewConsoleBuffer.Append(color, wstr);
+#else
     TimW32gNewConsole::GlobalNewConsoleBuffer.Append(color, str);
+#endif
     TimW32gNewConsole::GlobalNewConsoleBuffer.AppendNewline();
 }
 
@@ -1227,7 +1248,7 @@ extern "C" void NewConsoleClear(HWND hwnd)
     }
 }
 
-extern "C" void NewConsoleWrite(HWND hwnd, LPCTSTR str)
+extern "C" void NewConsoleWrite(HWND hwnd, const char* str)
 {
     auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
@@ -1237,7 +1258,7 @@ extern "C" void NewConsoleWrite(HWND hwnd, LPCTSTR str)
     }
 }
 
-extern "C" void NewConsoleWriteV(HWND hwnd, LPCTSTR format, va_list args)
+extern "C" void NewConsoleWriteV(HWND hwnd, const char* format, va_list args)
 {
     auto pConsoleWindow = reinterpret_cast<TimW32gNewConsole::NewConsoleWindow*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
 

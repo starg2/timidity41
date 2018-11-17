@@ -938,9 +938,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 	w32g_msg_box(buffer, "TiMidity Error", MB_OK);
     }
 #ifdef TIMW32G_USE_NEW_CONSOLE
-	TCHAR *tbuffer = char_to_tchar(buffer);
-	NewConsoleBufferWriteCMsg(type, verbosity_level, tbuffer);
-	safe_free(tbuffer);
+	NewConsoleBufferWriteCMsg(type, verbosity_level, buffer);
 #else
     PutsConsoleWnd(buffer);
     PutsConsoleWnd("\n");
