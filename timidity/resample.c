@@ -1772,7 +1772,7 @@ static DATA_T resample_gauss_int32(const sample_t *srci, splen_t ofs, resample_r
 		double tmp;
 		for (i = 0; i < gauss_n; i += 8){
 #if (USE_X86_EXT_INTRIN >= 9)
-			__m256i vec32 = _mm256_loadu_si256((__m128i *)&sptr[i]);
+			__m256i vec32 = _mm256_loadu_si256((const __m256i *)&sptr[i]);
 			__m128i vec1 = _mm256_extracti128_si256(vec32, 0x0);
 			__m128i vec2 = _mm256_extracti128_si256(vec32, 0x1);
 #else
@@ -3031,7 +3031,7 @@ static DATA_T resample_lanczos_int32(const sample_t *srci, splen_t ofs, resample
 		__m128d sum1, sum2;	
 		for (i = 0; i < width; i += 8){
 #if (USE_X86_EXT_INTRIN >= 9)
-			__m256i vec32 = _mm256_loadu_si256((__m128i *)&v1[i]);
+			__m256i vec32 = _mm256_loadu_si256((const __m256i *)&v1[i]);
 			__m128i vec1 = _mm256_extracti128_si256(vec32, 0x0);
 			__m128i vec2 = _mm256_extracti128_si256(vec32, 0x1);
 #else
