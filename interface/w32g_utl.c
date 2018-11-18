@@ -129,7 +129,7 @@ char DefaultPlaylistPath[PLAYLIST_MAX][FILEPATH_MAX];
 // ini
 
 // INI file
-CHAR *INI_INVALID = "INVALID PARAMETER";
+TCHAR *INI_INVALID = _T("INVALID PARAMETER");
 CHAR *INI_SEC_PLAYER = "PLAYER";
 CHAR *INI_SEC_TIMIDITY = "TIMIDITY";
 #define INI_MAXLEN 1024
@@ -138,11 +138,17 @@ CHAR *INI_SEC_TIMIDITY = "TIMIDITY";
 int
 IniGetKeyInt64(char *section, char *key,int64 *n)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    *n =_atoi64(buffer);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    *n =_ttoi64(buffer);
     return 0;
   } else
     return 1;
@@ -151,11 +157,17 @@ IniGetKeyInt64(char *section, char *key,int64 *n)
 int
 IniGetKeyInt32(char *section, char *key,int32 *n)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    *n =atol(buffer);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    *n =_ttol(buffer);
     return 0;
   } else
     return 1;
@@ -164,11 +176,17 @@ IniGetKeyInt32(char *section, char *key,int32 *n)
 int
 IniGetKeyInt(char *section, char *key,int *n)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    *n =atoi(buffer);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    *n =_ttoi(buffer);
     return 0;
   } else
     return 1;
@@ -177,11 +195,17 @@ IniGetKeyInt(char *section, char *key,int *n)
 int
 IniGetKeyInt8(char *section, char *key,int8 *n)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    *n = (int8)atoi(buffer);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    *n = (int8)_ttoi(buffer);
     return 0;
   } else
     return 1;
@@ -192,17 +216,23 @@ IniGetKeyInt32Array(char *section, char *key, int32 *n, int arraysize)
 {
   int i;
   int ret = 0;
-  CHAR buffer[INI_MAXLEN];
-  char keybuffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  TCHAR keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
-    sprintf(keybuffer,"%s%d",key,i);
+    _stprintf(keybuffer,_T("%ls%d"),tKey,i);
     GetPrivateProfileString
-      (section,keybuffer,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-    if(strcasecmp(buffer,INI_INVALID))
-      n[i] =atol(buffer);
+      (tSection,keybuffer,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+    if(_tcsicmp(buffer,INI_INVALID))
+      n[i] =_ttol(buffer);
     else
       ret++;
   }
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return ret;
 }
 
@@ -211,29 +241,45 @@ IniGetKeyIntArray(char *section, char *key, int *n, int arraysize)
 {
   int i;
   int ret = 0;
-  CHAR buffer[INI_MAXLEN];
-  char keybuffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  TCHAR keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
-    sprintf(keybuffer,"%s%d",key,i);
+#ifdef UNICODE
+    swprintf(keybuffer,L"%ls%d",tKey,i);
+#else
+    sprintf(keybuffer,"%s%d",tKey,i);
+#endif
     GetPrivateProfileString
-      (section,keybuffer,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-    if(strcasecmp(buffer,INI_INVALID))
-      n[i] =atol(buffer);
+      (tSection,keybuffer,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+    if(_tcsicmp(buffer,INI_INVALID))
+      n[i] =_ttol(buffer);
     else
       ret++;
   }
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return ret;
 }
 
 int
 IniGetKeyFloat(char *section, char *key, FLOAT_T *n)
 {
-    CHAR buffer[INI_MAXLEN];
-    GetPrivateProfileString(section, key, INI_INVALID, buffer,
-			    INI_MAXLEN-1, IniFile);
-    if(strcasecmp(buffer, INI_INVALID))
+	TCHAR *tIniFile = char_to_tchar(IniFile);
+	TCHAR *tSection = char_to_tchar(section);
+	TCHAR *tKey = char_to_tchar(key);
+	TCHAR buffer[INI_MAXLEN];
+	GetPrivateProfileString(tSection, tKey, INI_INVALID, buffer,
+			    INI_MAXLEN-1, tIniFile);
+	safe_free(tKey);
+	safe_free(tSection);
+	safe_free(tIniFile);
+	if(_tcsicmp(buffer, INI_INVALID))
     {
-	*n = (FLOAT_T)atof(buffer);
+	*n = (FLOAT_T)_ttof(buffer);
 	return 0;
     }
     else
@@ -255,11 +301,19 @@ IniGetKeyChar(char *section, char *key, char *c)
 int
 IniGetKeyString(char *section, char *key,char *str)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    strcpy(str,buffer);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    char *s = tchar_to_char(buffer);
+    strcpy(str,s);
+	safe_free(s);
     return 0;
   } else
     return 1;
@@ -268,11 +322,19 @@ IniGetKeyString(char *section, char *key,char *str)
 int
 IniGetKeyStringN(char *section, char *key,char *str, int size)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    strncpy(str,buffer,size);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    char *s = tchar_to_char(buffer);
+    strncpy(str,s,size);
+	safe_free(s);
     return 0;
   }	else
     return 1;
@@ -281,40 +343,64 @@ IniGetKeyStringN(char *section, char *key,char *str, int size)
 int
 IniPutKeyInt64(char *section, char *key,int64 *n)
 {
-  CHAR buffer[INI_MAXLEN];
-  sprintf(buffer,"%ld",*n);
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  _stprintf(buffer, _T("%ld"), *n);
   WritePrivateProfileString
-    (section,key,buffer,IniFile);
+    (tSection,tKey,buffer,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
 int
 IniPutKeyInt32(char *section, char *key,int32 *n)
 {
-  CHAR buffer[INI_MAXLEN];
-  sprintf(buffer,"%ld",*n);
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  _stprintf(buffer, _T("%ld"), *n);
   WritePrivateProfileString
-    (section,key,buffer,IniFile);
+    (tSection,tKey,buffer,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
 int
 IniPutKeyInt(char *section, char *key,int *n)
 {
-  CHAR buffer[INI_MAXLEN];
-  sprintf(buffer,"%ld",*n);
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  _stprintf(buffer, _T("%ld"), *n);
   WritePrivateProfileString
-    (section,key,buffer,IniFile);
+    (tSection,tKey,buffer,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
 int
 IniPutKeyInt8(char *section, char *key,int8 *n)
 {
-  CHAR buffer[INI_MAXLEN];
-  sprintf(buffer,"%ld",(int)(*n));
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  _stprintf(buffer, _T("%ld"), (int)(*n));
   WritePrivateProfileString
-    (section,key,buffer,IniFile);
+    (tSection,tKey,buffer,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
@@ -322,13 +408,23 @@ int
 IniPutKeyInt32Array(char *section, char *key, int32 *n, int arraysize)
 {
   int i;
-  CHAR buffer[INI_MAXLEN];
-  CHAR keybuffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  TCHAR keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
-    sprintf(buffer,"%ld",n[i]);
+    _stprintf(buffer, _T("%ld"), n[i]);
+#ifdef UNICODE
+    _swprintf(keybuffer,L"%ls%d",key,i);
+#else
     sprintf(keybuffer,"%s%d",key,i);
-    WritePrivateProfileString(section,keybuffer,buffer,IniFile);
+#endif
+    WritePrivateProfileString(tSection,keybuffer,buffer,tIniFile);
   }
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
@@ -336,13 +432,23 @@ int
 IniPutKeyIntArray(char *section, char *key, int *n, int arraysize)
 {
   int i;
-  CHAR buffer[INI_MAXLEN];
-  CHAR keybuffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  TCHAR keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
-    sprintf(buffer,"%ld",n[i]);
+    _stprintf(buffer,_T("%ld"),n[i]);
+#ifdef UNICODE
+    _swprintf(keybuffer,L"%ls%d",key,i);
+#else
     sprintf(keybuffer,"%s%d",key,i);
-    WritePrivateProfileString(section,keybuffer,buffer,IniFile);
+#endif
+    WritePrivateProfileString(tSection,keybuffer,buffer,tIniFile);
   }
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
@@ -357,29 +463,57 @@ IniPutKeyChar(char *section, char *key, char *c)
 int
 IniPutKeyString(char *section, char *key, char *str)
 {
-  WritePrivateProfileString(section,key,str,IniFile);
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR *tStr = char_to_tchar(str);
+  WritePrivateProfileString(tSection,tKey,tStr,tIniFile);
+  safe_free(tStr);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
 int
 IniPutKeyStringN(char *section, char *key, char *str, int size)
 {
-  WritePrivateProfileString(section,key,str,IniFile);
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  char *s = safe_malloc(size + 1);
+  strncpy(s, str, size);
+  s[size] = '\0';
+  TCHAR *tStr = char_to_tchar(s);
+  WritePrivateProfileString(tSection,tKey,tStr,tIniFile);
+  safe_free(s);
+  safe_free(tStr);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
 int
 IniPutKeyFloat(char *section, char *key,FLOAT_T n)
 {
-    CHAR buffer[INI_MAXLEN];
-    sprintf(buffer,"%f", (double)n);
-    WritePrivateProfileString(section, key, buffer, IniFile);
-    return 0;
+	TCHAR *tIniFile = char_to_tchar(IniFile);
+	TCHAR *tSection = char_to_tchar(section);
+	TCHAR *tKey = char_to_tchar(key);
+    TCHAR buffer[INI_MAXLEN];
+	_stprintf(buffer, _T("%f"), (double)n);
+    WritePrivateProfileString(tSection, tKey, buffer, tIniFile);
+	safe_free(tKey);
+	safe_free(tSection);
+	safe_free(tIniFile);
+	return 0;
 }
 
 void IniFlush(void)
 {
-	WritePrivateProfileString(NULL,NULL,NULL,IniFile);
+	TCHAR *tIniFile = char_to_tchar(IniFile);
+	WritePrivateProfileString(NULL,NULL,NULL,tIniFile);
+	safe_free(tIniFile);
 }
 
 // LoadIniFile() , SaveIniFile()
@@ -1332,8 +1466,13 @@ void w32g_initialize(void)
 	buffer[2] = '\0';
     }
 #else
-    if(GetModuleFileName(hInst, buffer, FILEPATH_MAX - 1))
+	TCHAR tbuffer[FILEPATH_MAX];
+    if(GetModuleFileName(hInst, tbuffer, FILEPATH_MAX - 1))
     {
+		char *s = tchar_to_char(tbuffer);
+		strncpy(buffer, s, FILEPATH_MAX - 1);
+		buffer[FILEPATH_MAX - 1] = '\0';
+		safe_free(s);
 	if((p = pathsep_strrchr(buffer)) != NULL)
 	{
 	    p++;
@@ -1422,7 +1561,9 @@ void w32g_initialize(void)
 #ifdef AU_FLAC
 		flac_ConfigDialogInfoInit();
 #endif
-		dwRes = GetFileAttributes(timidity_output_inifile);
+		TCHAR *timidity_output_inifile_t = char_to_tchar(timidity_output_inifile);
+		dwRes = GetFileAttributes(timidity_output_inifile_t);
+		safe_free(timidity_output_inifile_t);
 		if(dwRes==0xFFFFFFFF || dwRes & FILE_ATTRIBUTE_DIRECTORY){
 #ifdef AU_GOGO
 			gogo_ConfigDialogInfoSaveINI();
@@ -1468,8 +1609,8 @@ void w32g_initialize(void)
 "Do you want to initialize the ini file?\n\n"
 "Ini file path: %s",
 		IniFile);
-
-	if(MessageBox(0, buffer, "TiMidity Notice", MB_YESNO) == IDYES)
+	TCHAR *tmsg = char_to_tchar(buffer);
+	if (MessageBox(0, tmsg, _T("TiMidity Notice"), MB_YESNO) == IDYES)
 	{
 	    SaveIniFile(sp_current, st_current);
 	    w32g_has_ini_file = 1;
@@ -1478,6 +1619,7 @@ void w32g_initialize(void)
 	{
 	    w32g_has_ini_file = 0;
 	}
+	safe_free(tmsg);
     }
 
     memcpy(sp_default, sp_current, sizeof(SETTING_PLAYER));
@@ -1510,42 +1652,44 @@ void BitBltRect(HDC dst, HDC src, RECT *rc)
 	   src, rc->left, rc->top, SRCCOPY);
 }
 
-static void SafeGetFileName_DeleteSep(char *str)
+static void SafeGetFileName_DeleteSep(TCHAR *str)
 {
-    if (str && is_last_path_sep(str)) {
-	char *p = pathsep_strrchr(str);
-	*p = '\0';
-    }
+	if (str) {
+		size_t len = _tcslen(str);
+		if (IS_PATH_SEP(str[len - 1])) {
+			str[len - 1] = _T('\0');
+		}
+	}
 }
 
-BOOL SafeGetOpenFileName(LPOPENFILENAMEA lpofn)
+BOOL SafeGetOpenFileName(LPOPENFILENAME lpofn)
 {
     BOOL result;
-    char currentdir[FILEPATH_MAX];
+    TCHAR currentdir[FILEPATH_MAX];
 
     if (lpofn->lpstrFile) {
 	SafeGetFileName_DeleteSep(lpofn->lpstrFile);
     }
 
-    GetCurrentDirectoryA(FILEPATH_MAX, currentdir);
-    result = GetOpenFileNameA(lpofn);
-    SetCurrentDirectoryA(currentdir);
+    GetCurrentDirectory(FILEPATH_MAX, currentdir);
+    result = GetOpenFileName(lpofn);
+    SetCurrentDirectory(currentdir);
 
     return result;
 }
 
-BOOL SafeGetSaveFileName(LPOPENFILENAMEA lpofn)
+BOOL SafeGetSaveFileName(LPOPENFILENAME lpofn)
 {
     BOOL result;
-    char currentdir[FILEPATH_MAX];
+    TCHAR currentdir[FILEPATH_MAX];
 
     if (lpofn->lpstrFile) {
 	SafeGetFileName_DeleteSep(lpofn->lpstrFile);
     }
 
-    GetCurrentDirectoryA(FILEPATH_MAX, currentdir);
-    result = GetSaveFileNameA(lpofn);
-    SetCurrentDirectoryA(currentdir);
+    GetCurrentDirectory(FILEPATH_MAX, currentdir);
+    result = GetSaveFileName(lpofn);
+    SetCurrentDirectory(currentdir);
 
     return result;
 }
@@ -1624,12 +1768,19 @@ void TmFillRect(HDC hdc, RECT *rc, int color)
 #endif /* S_ISDIR */
 int is_directory(char *path)
 {
-	struct stat st;
-	if(*path == '@') /* special identifire for playlist file */
+	struct _stat st;
+	TCHAR *tpath = char_to_tchar(path);
+	if (*tpath == _T('@')) /* special identifire for playlist file */ {
+		safe_free(tpath);
 		return 0;
-	if(stat(path, &st) != -1)
+	}
+	if (_tstat(tpath, &st) != -1) {
+		safe_free(tpath);
 		return S_ISDIR(st.st_mode);
-	return GetFileAttributes(path) == FILE_ATTRIBUTE_DIRECTORY;
+	}
+	int ret = GetFileAttributes(tpath) == FILE_ATTRIBUTE_DIRECTORY;
+	safe_free(tpath);
+	return ret;
 }
 
 /* Return: 0: - not modified
@@ -1963,7 +2114,11 @@ void CmdLineToArgv(LPSTR lpCmdLine, int *pArgc, CHAR ***pArgv)
 //		*pArgv = (CHAR **)realloc(*pArgv, sizeof(CHAR *) * (max + 2));
 	}
 	if(i==0){
-		GetModuleFileName(NULL,buffer,buffer_size);
+		TCHAR tbuffer[FILEPATH_MAX];
+		GetModuleFileName(NULL, tbuffer, FILEPATH_MAX);
+		char *s = tchar_to_char(tbuffer);
+		strncpy(buffer, s, buffer_size);
+		safe_free(s);
 		lpsRes = p;
 	} else
 		lpsRes = get_filename(p,buffer);

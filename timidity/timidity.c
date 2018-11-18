@@ -8212,19 +8212,23 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 #if defined(__W32__)
     /* Windows */
     char *strp;
-    int check;
+    struct timidity_file *check;
     char local[1024];
 
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
     extern char *ConfigFile;
     if(!ConfigFile[0]) {
-      GetWindowsDirectory(ConfigFile, 1023 - 13);
+      TCHAR tbuf[1024];
+      GetWindowsDirectory(tbuf, 1023 - 13);
+	  char *s = tchar_to_char(tbuf);
+	  strncpy(ConfigFile, s, 1023 - 13);
+	  safe_free(s);
       strcat(ConfigFile, "\\TIMIDITY.CFG");
     }
     strncpy(local, ConfigFile, sizeof(local) - 1);
-    if((check = open(local, 0)) >= 0)
+    if((check = open_file(local, 0, OF_NORMAL)) >= 0)
     {
-	close(check);
+	close_file(check);
 	if(!read_config_file(local, 0, 0)) {
 	    got_a_configuration = 1;
 		return 0;
@@ -8234,16 +8238,21 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 	/* First, try read configuration file which is in the
      * TiMidity directory.
      */
-    if(GetModuleFileName(NULL, local, 1023))
+	TCHAR tbuf[1024];
+    if(GetModuleFileName(NULL, tbuf, 1023))
     {
+		char *s = tchar_to_char(tbuf);
+		strncpy(local, s, 1023);
+		safe_free(s);
         local[1023] = '\0';
+
 	if(strp = strrchr(local, '\\'))
 	{
 	    *(++strp)='\0';
 	    strncat(local,"TIMIDITY.CFG",sizeof(local)-strlen(local)-1);
-	    if((check = open(local, 0)) >= 0)
+	    if((check = open_file(local, 0, OF_NORMAL)) >= 0)
 	    {
-		close(check);
+		close_file(check);
 		if(!read_config_file(local, 0, 0)) {
 		    got_a_configuration = 1;
 			return 0;
@@ -8955,6 +8964,7 @@ int main(int argc, char **argv)
 		if (!got_a_configuration) {
 #ifdef __W32__
 			char config1[1024], config2[1024];
+			TCHAR tconfig2[1024];
 			
 			memset(config1, 0, sizeof(config1));
 			memset(config2, 0, sizeof(config2));
@@ -8968,7 +8978,10 @@ int main(int argc, char **argv)
 			GetWindowsDirectory(config1, 1023 - 13);
 			strcat(config1, "\\TIMIDITY.CFG");
 #endif
-			if (GetModuleFileName(NULL, config2, 1023)) {
+			if (GetModuleFileName(NULL, tconfig2, 1023)) {
+				char *s = tchar_to_char(tconfig2);
+				strncpy(config2, s, 1023);
+				safe_free(s);
 				char *strp;
 				
 				config2[1023] = '\0';

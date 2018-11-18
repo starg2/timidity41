@@ -468,12 +468,12 @@ static void ConsoleWndVerbosityUpdate(void)
 
 static void ConsoleWndVerbosityApply(void)
 {
-	char buffer[64];
+	TCHAR buffer[64];
 	HWND hwnd;
 	hwnd = GetDlgItem(hConsoleWnd,IDC_EDIT_VERBOSITY);
 	if(!IsWindow(hConsoleWnd)) return;
 	if(Edit_GetText(hwnd,buffer,60)<=0) return;
-	ctl->verbosity = atoi(buffer);
+	ctl->verbosity = _ttoi(buffer);
 	ConsoleWndVerbosityUpdate();
 }
 
@@ -587,41 +587,41 @@ void InitListWnd(HWND hParentWnd)
 	ListWndInfo.hPopupMenu = CreatePopupMenu();
 	switch(PlayerLanguage){
 	case LANGUAGE_JAPANESE:
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"演奏(&P)");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,"ドキュメント(&D)...");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,_T("演奏(&P)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,_T("ドキュメント(&D)..."));
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,"現在位置(&C)");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,"検索(&S)...");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,_T("現在位置(&C)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,_T("検索(&S)..."));
 #ifdef LISTVIEW_PLAYLIST
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,"カット(&X)");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,"コピー(&Z)");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,"ペースト/挿入(&A)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,_T("カット(&X)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,_T("コピー(&Z)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,_T("ペースト/挿入(&A)"));
 #endif
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"削除(&R)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,_T("削除(&R)"));
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,"フォントの選択(&H)...");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,"リスト名変更(&L)...");		
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,_T("フォントの選択(&H)..."));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,_T("リスト名変更(&L)..."));		
 		break;
   	case LANGUAGE_ENGLISH:
  	default:
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,"&Play");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,"&Doc...");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,_T("&Play"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,_T("&Doc..."));
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,"&Current item");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,"&Search...");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,_T("&Current item"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,_T("&Search..."));
 #ifdef LISTVIEW_PLAYLIST
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,"Cut(&X)");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,"Copy(&Z)");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,"Paste/Insert(&A)");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,_T("Cut(&X)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,_T("Copy(&Z)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,_T("Paste/Insert(&A)"));
 #endif
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,"&Remove");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,_T("&Remove"));
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,"C&hoose Font...");
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,"Rename L&ist...");
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,_T("C&hoose Font..."));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,_T("Rename L&ist..."));
 		break;
 	}
 	hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
@@ -685,7 +685,7 @@ static void ListWndCreateTabItems(HWND hwnd)
 		TC_ITEM tci;
 		tci.mask = TCIF_TEXT;
 		tci.pszText = ListWndInfo.ListName[i];
-		tci.cchTextMax = strlen(ListWndInfo.ListName[i]);
+		tci.cchTextMax = _tcslen(ListWndInfo.ListName[i]);
 		SendMessage(hwnd_tab, TCM_INSERTITEM, (WPARAM)i, (LPARAM)&tci);
     }
 }
@@ -712,7 +712,7 @@ ListNameWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			HWND hwnd_tab;
 			tci.mask = TCIF_TEXT;
 			tci.pszText = ListWndInfo.ListName[num];
-			tci.cchTextMax = strlen(ListWndInfo.ListName[num]);
+			tci.cchTextMax = _tcslen(ListWndInfo.ListName[num]);
 			hwnd_tab = GetDlgItem(hListWnd, IDC_TAB_PLAYLIST);
 			SendMessage(hwnd_tab, TCM_SETITEM, (WPARAM)num, (LPARAM)&tci);
 			}
@@ -842,7 +842,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						SendMessage(hListWnd,WM_COMMAND,MAKEWPARAM(0,IDCLOSE),0);
 						break;
 					case 0x51:	// VK_Q
-						if(MessageBox(hListWnd,"Quit TiMidity?","TiMidity",MB_ICONQUESTION|MB_YESNO)==IDYES)
+						if (MessageBox(hListWnd, _T("Quit TiMidity?"), _T("TiMidity"), MB_ICONQUESTION | MB_YESNO) == IDYES)
 							SendMessage(hMainWnd,WM_CLOSE,0,0);
 						break;
 					case VK_BACK:
@@ -1070,7 +1070,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			}
 			switch (LOWORD(wParam)) {
 			case IDC_BUTTON_CLEAR:
-				if(MessageBox(hListWnd,"Clear playlist?","Playlist",
+				if (MessageBox(hListWnd, _T("Clear playlist?"), _T("Playlist"),
 							  MB_YESNO)==IDYES)
 #ifdef EXT_CONTROL_MAIN_THREAD
 					w32g_ext_control_main_thread(RC_EXT_CLEAR_PLAYLIST, 0);
@@ -1080,8 +1080,8 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				return FALSE;
 			case IDC_BUTTON_REFINE:
 				if(MessageBox(hListWnd,
-							  "Remove unsupported file types from the playlist?",
-							  "Playlist",MB_YESNO) == IDYES)
+							  _T("Remove unsupported file types from the playlist?"),
+							  _T("Playlist"),MB_YESNO) == IDYES)
 #ifdef EXT_CONTROL_MAIN_THREAD
 					w32g_ext_control_main_thread(RC_EXT_REFINE_PLAYLIST, 0);
 #else
@@ -1090,8 +1090,8 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				return FALSE;
 			case IDC_BUTTON_UNIQ:
 				if(MessageBox(hListWnd,
-							  "Remove the same files from the playlist and make files of the playlist unique?",
-							  "Playlist",MB_YESNO)==IDYES)
+							  _T("Remove the same files from the playlist and make files of the playlist unique?"),
+							  _T("Playlist"),MB_YESNO)==IDYES)
 #ifdef EXT_CONTROL_MAIN_THREAD
 					w32g_ext_control_main_thread(RC_EXT_UNIQ_PLAYLIST, 0);
 #else
@@ -1211,7 +1211,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						SendMessage(hListWnd,WM_COMMAND,MAKEWPARAM(0,IDCLOSE),0);
 						return -2;
 					case 0x51:	// VK_Q
-						if(MessageBox(hListWnd,"Quit TiMidity?","TiMidity",MB_ICONQUESTION|MB_YESNO)==IDYES)
+						if (MessageBox(hListWnd, _T("Quit TiMidity?"), _T("TiMidity"), MB_ICONQUESTION | MB_YESNO) == IDYES)
 							SendMessage(hMainWnd,WM_CLOSE,0,0);
 						return -2;
 					case VK_BACK:
@@ -1297,50 +1297,50 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					case 0x48:	// VK_H
 						if ( PlayerLanguage == LANGUAGE_JAPANESE ){
 						MessageBox(hListWnd,
-							"キーコマンド\n"
-							"リストウインドウコマンド\n"
-							"  ESC: ヘルプを閉じる      H: ヘルプを出す\n"
-							"  V: ドキュメントを見る      W: WRD ウインドウを開く\n"
-							"プレイヤーコマンド\n"
-							"  SPACE/ENTER: 演奏開始    E: 停止    S: 一時停止\n"
-							"  P: 前の曲    N: 次の曲\n"
-							"プレイリスト操作コマンド\n"
-							"  M: MIDIファイル以外を削除    U: 重複ファイルを削除\n"
-							"  C: プレイリストのクリア\n"
+							_T("キーコマンド\n")
+							_T("リストウインドウコマンド\n")
+							_T("  ESC: ヘルプを閉じる      H: ヘルプを出す\n")
+							_T("  V: ドキュメントを見る      W: WRD ウインドウを開く\n")
+							_T("プレイヤーコマンド\n")
+							_T("  SPACE/ENTER: 演奏開始    E: 停止    S: 一時停止\n")
+							_T("  P: 前の曲    N: 次の曲\n")
+							_T("プレイリスト操作コマンド\n")
+							_T("  M: MIDIファイル以外を削除    U: 重複ファイルを削除\n")
+							_T("  C: プレイリストのクリア\n")
 #ifdef LISTVIEW_PLAYLIST
-							"  Z: 選択した曲をコピー    X: 選択した曲をカット\n"
-							"  A: フォーカス位置へをペースト(挿入)\n"
+							_T("  Z: 選択した曲をコピー    X: 選択した曲をカット\n")
+							_T("  A: フォーカス位置へをペースト(挿入)\n")
 #endif
-							"  D: カーソルの曲を削除    BS: カーソルの前の曲を削除\n"
-							"  INS: カーソルの曲をリストの最後に移す (Push)\n"
-							"  DEL: リストの最後の曲をカーソルの前に挿入 (Pop)\n"
-							"プレイリストタブ操作コマンド\n"
-							"  I: 次プレイリストタブ    O: 前プレイリストタブ\n"
-							"TiMidity コマンド\n"
-							"  Q: 終了\n"
-							,"ヘルプ", MB_OK);
+							_T("  D: カーソルの曲を削除    BS: カーソルの前の曲を削除\n")
+							_T("  INS: カーソルの曲をリストの最後に移す (Push)\n")
+							_T("  DEL: リストの最後の曲をカーソルの前に挿入 (Pop)\n")
+							_T("プレイリストタブ操作コマンド\n")
+							_T("  I: 次プレイリストタブ    O: 前プレイリストタブ\n")
+							_T("TiMidity コマンド\n")
+							_T("  Q: 終了\n")
+							, _T("ヘルプ"), MB_OK);
 						} else {
 						MessageBox(hListWnd,
-							"Usage of key.\n"
-							"List window command.\n"
-							"  ESC: Close Help      H: Help\n"
-							"  V: View Document   W: Open WRD window\n"
-							"Player command.\n"
-							"  SPACE/ENTER: PLAY    E: Stop    S: Pause\n"
-							"  P: Prev    N: Next\n"
-							"Playlist command.\n"
-							"  M: Refine playlist    U: Uniq playlist\n"
-							"  C: Clear playlist\n"
+							_T("Usage of key.\n")
+							_T("List window command.\n")
+							_T("  ESC: Close Help      H: Help\n")
+							_T("  V: View Document   W: Open WRD window\n")
+							_T("Player command.\n")
+							_T("  SPACE/ENTER: PLAY    E: Stop    S: Pause\n")
+							_T("  P: Prev    N: Next\n")
+							_T("Playlist command.\n")
+							_T("  M: Refine playlist    U: Uniq playlist\n")
+							_T("  C: Clear playlist\n")
 #ifdef LISTVIEW_PLAYLIST
-							"  Z: Copy    X: Cut    A: Paste(Insert)\n"
+							_T("  Z: Copy    X: Cut    A: Paste(Insert)\n")
 #endif
-							"  D: Remove playlist    BS: Remove previous playlist\n"
-							"  INS: Push Playlist    DEL: Pop Playlist\n"
-							"Playlist tab command.\n"
-							"  I: next playlist tab    O: prev playlist tab\n"
-							"TiMidity command.\n"
-							"  Q: Quit\n"
-							,"Help", MB_OK);
+							_T("  D: Remove playlist    BS: Remove previous playlist\n")
+							_T("  INS: Push Playlist    DEL: Pop Playlist\n")
+							_T("Playlist tab command.\n")
+							_T("  I: next playlist tab    O: prev playlist tab\n")
+							_T("TiMidity command.\n")
+							_T("  Q: Quit\n")
+							, _T("Help"),  MB_OK);
 						}
 						return -2;
 					default:
@@ -1554,10 +1554,12 @@ static int ListWndInfoApply(void)
 	HFONT hFontPre = NULL;
 	DWORD fdwPitch = (ListWndInfo.fontFlags&FONT_FLAGS_FIXED)?FIXED_PITCH:VARIABLE_PITCH;	
 	DWORD fdwItalic = (ListWndInfo.fontFlags&FONT_FLAGS_ITALIC)?TRUE:FALSE;
+	TCHAR *tfontname = char_to_tchar(ListWndInfo.fontName);
 	HFONT hFont =
 		CreateFont(ListWndInfo.fontHeight,ListWndInfo.fontWidth,0,0,FW_DONTCARE,fdwItalic,FALSE,FALSE,
 			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
-	      	fdwPitch | FF_DONTCARE,ListWndInfo.fontName);
+	      	fdwPitch | FF_DONTCARE, tfontname);
+	safe_free(tfontname);
 	if(hFont != NULL){
 		hFontPre = ListWndInfo.hFontList;
 		ListWndInfo.hFontList = hFont;
@@ -1584,8 +1586,8 @@ static int ListWndSetFontListBox(char *fontName, int fontWidth, int fontHeight)
 
 void SetNumListWnd(int cursel, int nfiles)
 {
-	char buff[64];
-	sprintf(buff,"%04d/%04d",cursel+1,nfiles);
+	TCHAR buff[64];
+	_stprintf(buff, _T("%04d/%04d"), cursel + 1, nfiles);
 	SetDlgItemText(hListWnd,IDC_EDIT_NUM,buff);
 }
 
@@ -1696,12 +1698,12 @@ void InitDocWnd(HWND hParentWnd)
 	switch(PlayerLanguage){
 	case LANGUAGE_JAPANESE:
 		AppendMenu(hMenu,MF_SEPARATOR,0,0);
-		AppendMenu(hMenu,MF_STRING,IDM_DOCWND_CHOOSEFONT,"フォントの選択");
+		AppendMenu(hMenu, MF_STRING, IDM_DOCWND_CHOOSEFONT, _T("フォントの選択"));
 		break;
   	case LANGUAGE_ENGLISH:
  	default:
 		AppendMenu(hMenu,MF_SEPARATOR,0,0);
-		AppendMenu(hMenu,MF_STRING,IDM_DOCWND_CHOOSEFONT,"Choose Font");
+		AppendMenu(hMenu, MF_STRING, IDM_DOCWND_CHOOSEFONT, _T("Choose Font"));
 		break;
 	}
 	DocWndInfoReset2(hDocWnd);
@@ -1928,10 +1930,12 @@ static int DocWndInfoApply(void)
 	HFONT hFontPre = NULL;
 	DWORD fdwPitch = (DocWndInfo.fontFlags&FONT_FLAGS_FIXED)?FIXED_PITCH:VARIABLE_PITCH;	
 	DWORD fdwItalic = (DocWndInfo.fontFlags&FONT_FLAGS_ITALIC)?TRUE:FALSE;
+	TCHAR *tfontname = char_to_tchar(DocWndInfo.fontName);
 	HFONT hFont =
 		CreateFont(DocWndInfo.fontHeight,DocWndInfo.fontWidth,0,0,FW_DONTCARE,fdwItalic,FALSE,FALSE,
 			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
-	      	fdwPitch | FF_DONTCARE,DocWndInfo.fontName);
+	      	fdwPitch | FF_DONTCARE,tfontname);
+	safe_free(tfontname);
 	if(hFont != NULL){
 		hFontPre = DocWndInfo.hFontEdit;
 		DocWndInfo.hFontEdit = hFont;
@@ -2087,7 +2091,9 @@ static void DocWndSetText(char *text, int text_size)
 		return;
 //	Edit_SetText(GetDlgItem(hDocWnd,IDC_EDIT),text);
 	DocWndConvertText(text,text_size,buffer,buffer_size);
-	Edit_SetText(GetDlgItem(hDocWnd,IDC_EDIT),buffer);
+	TCHAR *t = char_to_tchar(buffer);
+	Edit_SetText(GetDlgItem(hDocWnd,IDC_EDIT),t);
+	safe_free(t);
 	DocWndInfoUnLock();
 }
 
@@ -2097,8 +2103,12 @@ static void DocWndSetInfo(char *info, char *filename)
 		return;
 	if(DocWndInfoLock()==FALSE)
 		return;
-	Edit_SetText(GetDlgItem(hDocWnd,IDC_EDIT_INFO),info);
-	Edit_SetText(GetDlgItem(hDocWnd,IDC_EDIT_FILENAME),filename);
+	TCHAR *t = char_to_tchar(info);
+	Edit_SetText(GetDlgItem(hDocWnd,IDC_EDIT_INFO),t);
+	safe_free(t);
+	t = char_to_tchar(filename);
+	Edit_SetText(GetDlgItem(hDocWnd,IDC_EDIT_FILENAME),t);
+	safe_free(t);
 	DocWndInfoUnLock();
 }
 
@@ -2593,21 +2603,21 @@ SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			case 0x68:	// h
 				if ( PlayerLanguage == LANGUAGE_JAPANESE ){
 				MessageBox(hSoundSpecWnd,
-					"キーコマンド\n"
-					"スペクトログラムウインドウコマンド\n"
-					"  ESC: ヘルプを閉じる      H: ヘルプを出す\n"
-					"  UP: 縦ズームアウト    DOWN: 縦ズームイン\n"
-					"  LEFT: 横ズームアウト    RIGHT: 横ズームイン\n"
-					,"ヘルプ", MB_OK);
+					_T("キーコマンド\n")
+					_T("スペクトログラムウインドウコマンド\n")
+					_T("  ESC: ヘルプを閉じる      H: ヘルプを出す\n")
+					_T("  UP: 縦ズームアウト    DOWN: 縦ズームイン\n")
+					_T("  LEFT: 横ズームアウト    RIGHT: 横ズームイン\n")
+					,_T("ヘルプ"), MB_OK);
 				}
 				else {
 				MessageBox(hSoundSpecWnd,
-					"Usage of key.\n"
-					"Sound Spec window command.\n"
-					"  ESC: Close Help      H: Help\n"
-					"  UP: Horizontal zoom out    DOWN: Horizontal zoom in\n"
-					"  LEFT: Vertical zoom out    RIGHT: Vertical zoom in\n"
-					,"Help", MB_OK);
+					_T("Usage of key.\n")
+					_T("Sound Spec window command.\n")
+					_T("  ESC: Close Help      H: Help\n")
+					_T("  UP: Horizontal zoom out    DOWN: Horizontal zoom in\n")
+					_T("  LEFT: Vertical zoom out    RIGHT: Vertical zoom in\n")
+					,_T("Help"), MB_OK);
 				}
 				break;
 		}

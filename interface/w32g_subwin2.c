@@ -265,9 +265,9 @@ void InitWrdWnd(HWND hParentWnd)
 //	wndclass.hbrBackground = (HBRUSH)(COLOR_SCROLLBAR + 1);
 	wndclass.hbrBackground = w32g_wrd_wnd.hNullBrush;
 	wndclass.lpszMenuName  = NULL;
-	wndclass.lpszClassName = "wrd canvas wnd";
+	wndclass.lpszClassName = _T("wrd canvas wnd");
 	RegisterClass(&wndclass);
-  	w32g_wrd_wnd.hwnd = CreateWindowEx(0,"wrd canvas wnd",0,WS_CHILD,
+	w32g_wrd_wnd.hwnd = CreateWindowEx(0, _T("wrd canvas wnd"), 0, WS_CHILD,
 		CW_USEDEFAULT,0,w32g_wrd_wnd.width,w32g_wrd_wnd.height,
 		hWrdWnd,0,hInst,0);
 	w32g_wrd_wnd.hdc = GetDC(w32g_wrd_wnd.hwnd);
@@ -305,11 +305,11 @@ void InitWrdWnd(HWND hParentWnd)
 	ReleaseDC(w32g_wrd_wnd.hwnd,w32g_wrd_wnd.hdc);
 
 	{
-		char fontname[1024];
+		TCHAR fontname[1024];
 		if ( PlayerLanguage == LANGUAGE_JAPANESE )
-			strcpy(fontname,"‚l‚r –¾’©");
+			_tcscpy(fontname, _T("‚l‚r –¾’©"));
 		else
-			strcpy(fontname,"Times New Roman");
+			_tcscpy(fontname, _T("Times New Roman"));
 		w32g_wrd_wnd.hFont = CreateFont(w32g_wrd_wnd.font_height,w32g_wrd_wnd.font_width,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
 			DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
 	      	FIXED_PITCH | FF_MODERN	,fontname);
@@ -2020,9 +2020,9 @@ WrdCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					DestroyMenu ( hPopupMenu );
 				hPopupMenu = CreatePopupMenu();
 				if ( WrdWndInfo.GraphicStop ) {
-					AppendMenu(hPopupMenu,MF_STRING,IDM_GRAPHIC_START,"Graphic Start");
+					AppendMenu(hPopupMenu,MF_STRING,IDM_GRAPHIC_START,_T("Graphic Start"));
 				} else {
-					AppendMenu(hPopupMenu,MF_STRING,IDM_GRAPHIC_STOP,"Graphic Stop");
+					AppendMenu(hPopupMenu,MF_STRING,IDM_GRAPHIC_STOP,_T("Graphic Stop"));
 				}
 				GetCursorPos(&point);
 				SetForegroundWindow ( hwnd );
@@ -2116,12 +2116,12 @@ static COLORREF RGBQUADtoRGB ( RGBQUAD rq )
 
 extern int PosSizeSave;
 
-#define SEC_WRDWND "WrdWnd"
+#define SEC_WRDWND _T("WrdWnd")
 int INISaveWrdWnd(void)
 {
-	char *section = SEC_WRDWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
-	char buffer[256];
+	TCHAR *section = SEC_WRDWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
+	TCHAR buffer[256];
 	if ( PosSizeSave ) {
 		if ( WrdWndInfo.PosX >= 0 || WrdWndInfo.PosY >= 0 ) {
 			if ( WrdWndInfo.PosX < 0 )
@@ -2129,30 +2129,32 @@ int INISaveWrdWnd(void)
 			if ( WrdWndInfo.PosY < 0 )
 				WrdWndInfo.PosY = 0;
 		}
-		sprintf(buffer,"%d",WrdWndInfo.PosX);
+		_stprintf(buffer,_T("%d"),WrdWndInfo.PosX);
 		if ( WrdWndInfo.PosX >= 0 )
-		WritePrivateProfileString(section,"PosX",buffer,inifile);
-		sprintf(buffer,"%d",WrdWndInfo.PosY);
+		WritePrivateProfileString(section,_T("PosX"),buffer,inifile);
+		_stprintf(buffer,_T("%d"),WrdWndInfo.PosY);
 		if ( WrdWndInfo.PosY >= 0 )
-		WritePrivateProfileString(section,"PosY",buffer,inifile);
+		WritePrivateProfileString(section,_T("PosY"),buffer,inifile);
 	}
-	sprintf(buffer,"%d",WrdWndInfo.GraphicStop);
-	WritePrivateProfileString(section,"GraphicStop",buffer,inifile);
+	_stprintf(buffer,_T("%d"),WrdWndInfo.GraphicStop);
+	WritePrivateProfileString(section,_T("GraphicStop"),buffer,inifile);
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
+	safe_free(inifile);
 	return 0;
 }
 
 int INILoadWrdWnd(void)
 {
-	char *section = SEC_WRDWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
+	TCHAR *section = SEC_WRDWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
 	int num;
-	num = GetPrivateProfileInt(section,"PosX",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("PosX"),-1,inifile);
 	WrdWndInfo.PosX = num;
-	num = GetPrivateProfileInt(section,"PosY",-1,inifile);
+	num = GetPrivateProfileInt(section,_T("PosY"),-1,inifile);
 	WrdWndInfo.PosY = num;
-	num = GetPrivateProfileInt(section,"GraphicStop",1,inifile);
+	num = GetPrivateProfileInt(section,_T("GraphicStop"),1,inifile);
 	WrdWndInfo.GraphicStop = num;
+	safe_free(inifile);
 	return 0;
 }
 

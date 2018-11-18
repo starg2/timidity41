@@ -75,7 +75,7 @@ typedef struct LISTWNDINFO_ {
 	int fontWidth;				// save parameter
 	int fontHeight;				// save parameter
 	int fontFlags;			// save parameter
-	char ListName[PLAYLIST_MAX][LF_FULLFACESIZE + 1]; // save parameter
+	TCHAR ListName[PLAYLIST_MAX][LF_FULLFACESIZE + 1]; // save parameter
 	int columWidth[LISTWND_COLUM];
 } LISTWNDINFO;
 extern LISTWNDINFO ListWndInfo;

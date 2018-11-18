@@ -192,7 +192,7 @@ static LRESULT APIENTRY PrefCustom1DialogProc(HWND hwnd, UINT uMess, WPARAM wPar
 static LRESULT APIENTRY PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static LRESULT APIENTRY PrefIntSynthDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 
-static int DlgOpenConfigFile(char *Filename, HWND hwnd);
+static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd);
 static int DlgOpenOutputFile(char *Filename, HWND hwnd);
 static int DlgOpenOutputDir(char *Dirname, HWND hwnd);
 
@@ -352,7 +352,7 @@ static void PrefWndCreateTabItems(HWND hwnd)
 	TC_ITEM tci;
 	tci.mask = TCIF_TEXT;
 	tci.pszText = pref_pages[i].title;
-	tci.cchTextMax = strlen(pref_pages[i].title);
+	tci.cchTextMax = _tcslen(pref_pages[i].title);
 	SendMessage(hwnd_tab, TCM_INSERTITEM, (WPARAM)i, (LPARAM)&tci);
 
 	pref_pages[i].hwnd = NULL;
@@ -526,7 +526,9 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 #else
 		EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_INI_FILE), FALSE);
 #endif
-		SetDlgItemText(hwnd, IDC_EDIT_INI_FILE, TEXT(IniFile));
+		TCHAR *tIniFile = char_to_tchar(IniFile);
+		SetDlgItemText(hwnd, IDC_EDIT_INI_FILE, tIniFile);
+		safe_free(tIniFile);
 #ifdef VST_LOADER_ENABLE
 		if (hVSTHost != NULL)
 			EnableWindow(GetDlgItem(hwnd, IDC_OPENVSTMGR), TRUE);
@@ -736,7 +738,7 @@ void PrefSettingApplyReally(void)
 	if(IniFileAutoSave)
 		SaveIniFile(sp_current, st_current);
 	if(restart &&
-	   MessageBox(hListWnd,"Restart TiMidity?", "TiMidity",
+		MessageBox(hListWnd, _T("Restart TiMidity?"), _T("TiMidity"),
 				  MB_YESNO)==IDYES)
 	{
 		w32g_restart();
@@ -1253,7 +1255,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_SETFONT,(WPARAM)hFontConfigFile,(LPARAM)MAKELPARAM(TRUE,0));
 			}
 		}
-		SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,TEXT(sp_temp->ConfigFile));
+		TCHAR *tfile = char_to_tchar(sp_temp->ConfigFile);
+		SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,tfile);
+		safe_free(tfile);
 
 		switch(sp_temp->PlayerLanguage){
 		case LANGUAGE_ENGLISH:
@@ -1340,21 +1344,25 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	switch (LOWORD(wParam)) {
 		case IDC_BUTTON_CONFIG_FILE:
 			{
-				char filename[FILEPATH_MAX];
+				TCHAR filename[FILEPATH_MAX];
 				filename[0] = '\0';
 				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
-					(WPARAM)FILEPATH_MAX-1,(LPARAM)TEXT(filename));
+					(WPARAM)FILEPATH_MAX-1,(LPARAM)filename);
 				if(!DlgOpenConfigFile(filename,hwnd))
 				if(filename[0]!='\0')
-						SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,TEXT(filename));
+						SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,filename);
 	   }
 			break;
 		case IDC_BUTTON_CFG_EDIT:
 		w32_reset_exe_directory();
-		if(getenv("TIMIDITY_CFG_EDITOR") != NULL){
-			ShellExecute(NULL, "open", getenv("TIMIDITY_CFG_EDITOR"), ConfigFile, NULL, SW_SHOWNORMAL);
-		}else{	
-			ShellExecute(NULL, "open", "notepad.exe", ConfigFile, NULL, SW_SHOWNORMAL);
+		{
+			TCHAR *t = char_to_tchar(ConfigFile);
+			if (_tgetenv(_T("TIMIDITY_CFG_EDITOR")) != NULL) {
+				ShellExecute(NULL, _T("open"), _tgetenv(_T("TIMIDITY_CFG_EDITOR")), t, NULL, SW_SHOWNORMAL);
+			}else{	
+				ShellExecute(NULL, _T("open"), _T("notepad.exe"), t, NULL, SW_SHOWNORMAL);
+			}
+			safe_free(t);
 		}
 			break;		 
 /*			ShellExecute(NULL, "open", "notepad.exe", ConfigFile, NULL, SW_SHOWNORMAL);
@@ -1393,8 +1401,12 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		if ( initflag ) break;
 	{
 		char *p;
+		TCHAR tbuff[FILEPATH_MAX];
 		SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
-			(WPARAM)FILEPATH_MAX,(LPARAM)TEXT(sp_temp->ConfigFile));
+			(WPARAM)FILEPATH_MAX,(LPARAM)tbuff);
+		char *s = tchar_to_char(tbuff);
+		strncpy(sp_temp->ConfigFile, s, FILEPATH_MAX - 1);
+		sp_temp->ConfigFile[FILEPATH_MAX - 1] = '\0';
 
 		if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_ENGLISH,BM_GETCHECK,0,0))
 			sp_temp->PlayerLanguage = LANGUAGE_ENGLISH;
@@ -4247,10 +4259,16 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		if(st_temp->auto_output_mode==0){
 			if(st_temp->OutputName[0]=='\0')
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,TEXT("output.wav"));
-			else
-				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,TEXT(st_temp->OutputName));
-		} else
-			SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);	
+			else {
+				TCHAR *t = char_to_tchar(st_temp->OutputName);
+				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
+				safe_free(t);
+			}
+		} else {
+			TCHAR *t = char_to_tchar(st_temp->OutputDirName);
+			SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
+			safe_free(t);
+		}
 		PostMessage(hwnd, WM_COMMAND, IDC_COMBO_OUTPUT_MODE, 0);	// force updating IDC_BUTTON_OUTPUT_FILE text
 #endif
 		opt = st_temp->opt_playmode + 1;	
@@ -4365,10 +4383,10 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #else
 		// AUDIO_BUFFER
 		{
-		char *max_buff = safe_strdup(st_temp->opt_qsize);
-		char *fill_buff = strchr(max_buff, '/');
+		TCHAR *max_buff = char_to_tchar(st_temp->opt_qsize);
+		TCHAR *fill_buff = _tcschr(max_buff, '/');
 		if(fill_buff)
-			*fill_buff = '\0', ++ fill_buff;
+			*fill_buff = _T('\0'), ++ fill_buff;
 		SetDlgItemText(hwnd, IDC_EDIT_AUDIO_BUFFER_MAX, max_buff);
 		if(fill_buff)
 			SetDlgItemText(hwnd, IDC_EDIT_AUDIO_BUFFER_FILL, fill_buff);
@@ -4379,17 +4397,23 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		// reduce_polyphony_threshold
 		tmp = atof(st_temp->reduce_polyphony_threshold);
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_REDUCE_POLYPHONY, (tmp!=0));
-		SetDlgItemText(hwnd, IDC_EDIT_REDUCE_POLYPHONY, st_temp->reduce_polyphony_threshold);
+		TCHAR *t = char_to_tchar(st_temp->reduce_polyphony_threshold);
+		SetDlgItemText(hwnd, IDC_EDIT_REDUCE_POLYPHONY, t);
+		safe_free(t);
 		EnableWindow(GetDlgItem(hwnd, IDC_EDIT_REDUCE_POLYPHONY), tmp);
 		// reduce_voice_threshold
 		tmp = atof(st_temp->reduce_voice_threshold);
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_REDUCE_VOICE, tmp);
-		SetDlgItemText(hwnd, IDC_EDIT_REDUCE_VOICE, st_temp->reduce_voice_threshold);
+		t = char_to_tchar(st_temp->reduce_voice_threshold);
+		SetDlgItemText(hwnd, IDC_EDIT_REDUCE_VOICE, t);
+		safe_free(t);
 		EnableWindow(GetDlgItem(hwnd, IDC_EDIT_REDUCE_VOICE), tmp);
 		// reduce_quality_threshold
 		tmp = atof(st_temp->reduce_quality_threshold);
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_REDUCE_QUALITY, tmp);
-		SetDlgItemText(hwnd,IDC_EDIT_REDUCE_QUALITY, st_temp->reduce_quality_threshold);
+		t = char_to_tchar(st_temp->reduce_quality_threshold);
+		SetDlgItemText(hwnd,IDC_EDIT_REDUCE_QUALITY, t);
+		safe_free(t);
 		EnableWindow(GetDlgItem(hwnd, IDC_EDIT_REDUCE_QUALITY), tmp);
 #endif
 
@@ -4678,19 +4702,27 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			}
 			if (PlayerLanguage == LANGUAGE_JAPANESE) {
 				if(st_temp->auto_output_mode>0){
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力先");
-				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("出力先"));
+				TCHAR *t = char_to_tchar(st_temp->OutputDirName);
+				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
+				safe_free(t);
 				} else {
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"出力ファイル");
-				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("出力ファイル"));
+				TCHAR *t = char_to_tchar(st_temp->OutputName);
+				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
+				safe_free(t);
 				}
 			} else {
 				if(st_temp->auto_output_mode>0){
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output Dir");
-				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("Output Dir"));
+				TCHAR *t = char_to_tchar(st_temp->OutputDirName);
+				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
+				safe_free(t);
 				} else {
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)"Output File");
-				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("Output File"));
+				TCHAR *t = char_to_tchar(st_temp->OutputName);
+				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
+				safe_free(t);
 				}
 			}
 		}
@@ -4797,42 +4829,75 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			st_temp->audio_buffer_bits = 12;
 		}
 
- 		if(st_temp->auto_output_mode==0)
-			GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName,(WPARAM)sizeof(st_temp->OutputName));
-		else
-			GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName,(WPARAM)sizeof(st_temp->OutputDirName));
+ 		if(st_temp->auto_output_mode==0) {
+			TCHAR tname[FILEPATH_MAX];
+			GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,tname,FILEPATH_MAX);
+			char *s = tchar_to_char(tname);
+			strncpy(st_temp->OutputName, s, FILEPATH_MAX);
+			safe_free(s);
+			st_temp->OutputName[FILEPATH_MAX - 1] = '\0';
+		} else {
+			TCHAR tname[FILEPATH_MAX];
+			GetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,tname,FILEPATH_MAX);
+			char *s = tchar_to_char(tname);
+			strncpy(st_temp->OutputDirName, s, FILEPATH_MAX);
+			safe_free(s);
+			st_temp->OutputDirName[FILEPATH_MAX - 1] = '\0';
+		}
 
 ///r
 #if !(defined(IA_W32G_SYN) || defined(WINDRV_SETUP))
 		// AUDIO_BUFFER
 		{
-		char max_buff[15], fill_buff[15];
-		GetDlgItemText(hwnd,IDC_EDIT_AUDIO_BUFFER_MAX, max_buff, (WPARAM)sizeof(max_buff));
-		if(strlen(max_buff) == 0)
-			strcpy(max_buff, "5.0");
-		GetDlgItemText(hwnd,IDC_EDIT_AUDIO_BUFFER_FILL, fill_buff, (WPARAM)sizeof(fill_buff));
-		if(strlen(fill_buff) == 0)
-			strcpy(fill_buff, "100%");
-		snprintf(st_temp->opt_qsize,sizeof(st_temp->opt_qsize),"%s/%s", max_buff, fill_buff);
+		TCHAR max_buff[15], fill_buff[15];
+		GetDlgItemText(hwnd,IDC_EDIT_AUDIO_BUFFER_MAX, max_buff, (WPARAM)sizeof(max_buff) / sizeof(TCHAR));
+		if(_tcslen(max_buff) == 0)
+			_tcscpy(max_buff, _T("5.0"));
+		GetDlgItemText(hwnd,IDC_EDIT_AUDIO_BUFFER_FILL, fill_buff, (WPARAM)sizeof(fill_buff) / sizeof(TCHAR));
+		if(_tcslen(fill_buff) == 0)
+			_tcscpy(fill_buff, _T("100%"));
+		char *smax = tchar_to_char(max_buff);
+		char *sfill = tchar_to_char(fill_buff);
+		snprintf(st_temp->opt_qsize,sizeof(st_temp->opt_qsize),"%s/%s", smax, sfill);
+		safe_free(sfill);
+		safe_free(smax);
 		}
-		// reduce_polyphony_threshold
-		DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_REDUCE_POLYPHONY,tmp);
-		if(!tmp)
-			snprintf(st_temp->reduce_polyphony_threshold,sizeof(st_temp->reduce_polyphony_threshold),"0");
-		else
-			GetDlgItemText(hwnd,IDC_EDIT_REDUCE_POLYPHONY, st_temp->reduce_polyphony_threshold, (WPARAM)sizeof(st_temp->reduce_polyphony_threshold));
-		// reduce_voice_threshold
-		DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_REDUCE_VOICE,tmp);
-		if(!tmp)
-			snprintf(st_temp->reduce_voice_threshold,sizeof(st_temp->reduce_voice_threshold),"0");
-		else
-			GetDlgItemText(hwnd,IDC_EDIT_REDUCE_VOICE, st_temp->reduce_voice_threshold, (WPARAM)sizeof(st_temp->reduce_voice_threshold));
-		// reduce_quality_threshold
-		DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_REDUCE_QUALITY,tmp);
-		if(!tmp)
-			snprintf(st_temp->reduce_quality_threshold,sizeof(st_temp->reduce_quality_threshold),"0");
-		else
-			GetDlgItemText(hwnd,IDC_EDIT_REDUCE_QUALITY, st_temp->reduce_quality_threshold, (WPARAM)sizeof(st_temp->reduce_quality_threshold));
+		{
+			TCHAR tbuf[16];
+			// reduce_polyphony_threshold
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_REDUCE_POLYPHONY,tmp);
+			if(!tmp)
+				_sntprintf(tbuf, sizeof(tbuf) / sizeof(TCHAR), _T("0"));
+			else
+				GetDlgItemText(hwnd,IDC_EDIT_REDUCE_POLYPHONY, tbuf, (WPARAM)sizeof(tbuf) / sizeof(TCHAR));
+			char *s = tchar_to_char(tbuf);
+			strncpy(st_temp->reduce_polyphony_threshold, s, sizeof(st_temp->reduce_polyphony_threshold));
+			safe_free(s);
+		}
+		{
+			TCHAR tbuf[16];
+			// reduce_voice_threshold
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_REDUCE_VOICE,tmp);
+			if (!tmp)
+				_sntprintf(tbuf, sizeof(tbuf) / sizeof(TCHAR), _T("0"));
+			else
+				GetDlgItemText(hwnd,IDC_EDIT_REDUCE_VOICE, tbuf, (WPARAM)sizeof(tbuf) / sizeof(TCHAR));
+			char *s = tchar_to_char(tbuf);
+			strncpy(st_temp->reduce_voice_threshold, s, sizeof(st_temp->reduce_voice_threshold));
+			safe_free(s);
+		}
+		{
+			TCHAR tbuf[16];
+			// reduce_quality_threshold
+			DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_REDUCE_QUALITY,tmp);
+			if(!tmp)
+				_sntprintf(tbuf,sizeof(tbuf) / sizeof(TCHAR),_T("0"));
+			else
+				GetDlgItemText(hwnd,IDC_EDIT_REDUCE_QUALITY, tbuf, (WPARAM)sizeof(tbuf) / sizeof(TCHAR));
+			char *s = tchar_to_char(tbuf);
+			strncpy(st_temp->reduce_quality_threshold, s, sizeof(st_temp->reduce_quality_threshold));
+			safe_free(s);
+		}
 #endif
 
 		// others
@@ -4859,16 +4924,16 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 void SetDlgItemFloat(HWND hwnd, UINT id, double v)
 {
-	char buf[128]="";
-	_snprintf(buf, 100, "%g", v);
+	TCHAR buf[128] = _T("");
+	_sntprintf(buf, 100, _T("%g"), v);
 	SetDlgItemText(hwnd, id, buf);
 }
 
 double GetDlgItemFloat(HWND hwnd, UINT id)
 {
-	char buf[128]="";
+	TCHAR buf[128] = _T("");
 	GetDlgItemText(hwnd,id,buf,100);
-	return strtod(buf, NULL);
+	return _tcstod(buf, NULL);
 }
 
 
@@ -5475,11 +5540,11 @@ static LRESULT APIENTRY CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WP
 		// ch delay
 		otd.delay_param.delay = GetDlgItemFloat(hwnd, IDC_DELAY_EDDELAY);
 		if (otd.delay_param.delay < 0.01) {
-			MessageBox(hwnd, "delay point is range [0.01 - 2.0]\r\n1.0 = 100%", "err", MB_OK);
+			MessageBox(hwnd, _T("delay point is range [0.01 - 2.0]\r\n1.0 = 100%"), _T("err"), MB_OK);
 			otd.delay_param.delay = 0.01;
 		}
 		if (otd.delay_param.delay > 2.0) {
-			MessageBox(hwnd, "delay point is range [0.01 - 2.0]\r\n1.0 = 100%", "err", MB_OK);
+			MessageBox(hwnd, _T("delay point is range [0.01 - 2.0]\r\n1.0 = 100%"), _T("err"), MB_OK);
 			otd.delay_param.delay = 2.00;
 		}
 		otd.delay_param.level = GetDlgItemFloat(hwnd, IDC_DELAY_EDLEVEL);
@@ -5747,22 +5812,22 @@ BOOL IsVisiblePrefWnd ( void )
 	return IsWindowVisible ( hPrefWnd );
 }
 
-static int DlgOpenConfigFile(char *Filename, HWND hwnd)
+static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 {
-	OPENFILENAMEA ofn;
-	char filename[FILEPATH_MAX],
+	OPENFILENAME ofn;
+	TCHAR filename[FILEPATH_MAX],
 	     dir[FILEPATH_MAX];
 	int res;
-	const char *filter,
-		   *filter_en = "Config file (*.cfg;*.config)\0*.cfg;*.config\0"
-				"All files (*.*)\0*.*\0"
-				"\0\0",
-		   *filter_jp = "Config ファイル (*.cfg;*.config)\0*.cfg;*.config\0"
-				"すべてのファイル (*.*)\0*.*\0"
-				"\0\0";
-	const char *title,
-		   *title_en = "Open Config File",
-		   *title_jp = "Config ファイルを開く";
+	const TCHAR *filter,
+		*filter_en = _T("Config file (*.cfg;*.config)\0*.cfg;*.config\0")
+				_T("All files (*.*)\0*.*\0")
+				_T("\0\0"),
+		   *filter_jp = _T("Config ファイル (*.cfg;*.config)\0*.cfg;*.config\0")
+				_T("すべてのファイル (*.*)\0*.*\0")
+				_T("\0\0");
+	const TCHAR *title,
+		   *title_en = _T("Open Config File"),
+		   *title_jp = _T("Config ファイルを開く");
 
 	if (PlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -5773,16 +5838,19 @@ static int DlgOpenConfigFile(char *Filename, HWND hwnd)
 		title = title_en;
 	}
 
-	strncpy(dir, ConfigFileOpenDir, FILEPATH_MAX);
-	dir[FILEPATH_MAX - 1] = '\0';
-	strncpy(filename, Filename, FILEPATH_MAX);
-	filename[FILEPATH_MAX - 1] = '\0';
-	if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
-		strlcat(filename, "timidity.cfg", FILEPATH_MAX);
+	TCHAR *t = char_to_tchar(ConfigFileOpenDir);
+	_tcsncpy(dir, t, FILEPATH_MAX);
+	safe_free(t);
+	dir[FILEPATH_MAX - 1] = _T('\0');
+	_tcsncpy(filename, Filename, FILEPATH_MAX);
+	filename[FILEPATH_MAX - 1] = _T('\0');
+	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1])) {
+		_tcsncat(filename, _T("timidity.cfg"), FILEPATH_MAX - 1);
+		filename[FILEPATH_MAX - 1] = _T('\0');
 	}
 
-	ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
-	ofn.lStructSize = sizeof(OPENFILENAMEA);
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));
+	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = hwnd;
 	ofn.hInstance = hInst;
 	ofn.lpstrFilter = filter;
@@ -5793,7 +5861,7 @@ static int DlgOpenConfigFile(char *Filename, HWND hwnd)
 	ofn.nMaxFile = FILEPATH_MAX;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
-	if (dir[0] != '\0')
+	if (dir[0] != _T('\0'))
 		ofn.lpstrInitialDir	= dir;
 	else
 		ofn.lpstrInitialDir	= 0;
@@ -5806,37 +5874,39 @@ static int DlgOpenConfigFile(char *Filename, HWND hwnd)
 	ofn.lpTemplateName = 0;
 
 	res = SafeGetOpenFileName(&ofn);
-	strncpy(ConfigFileOpenDir, dir, FILEPATH_MAX);
+	char *cfgdir = tchar_to_char(dir);
+	strncpy(ConfigFileOpenDir, cfgdir, FILEPATH_MAX);
+	safe_free(cfgdir);
 	ConfigFileOpenDir[FILEPATH_MAX - 1] = '\0';
 	if (res != FALSE) {
-		strncpy(Filename, filename, FILEPATH_MAX);
-		Filename[FILEPATH_MAX - 1] = '\0';
+		_tcsncpy(Filename, filename, FILEPATH_MAX);
+		Filename[FILEPATH_MAX - 1] = _T('\0');
 		return 0;
 	}
 	else {
-		Filename[0] = '\0';
+		Filename[0] = _T('\0');
 		return -1;
 	}
 }
 
 static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 {
-	OPENFILENAMEA ofn;
-	char filename[FILEPATH_MAX],
+	OPENFILENAME ofn;
+	TCHAR filename[FILEPATH_MAX],
 	     dir[FILEPATH_MAX];
 	int res;
-	static char OutputFileOpenDir[FILEPATH_MAX];
+	static TCHAR OutputFileOpenDir[FILEPATH_MAX];
 	static int initflag = 1;
-	const char *filter,
-		   *filter_en = "wave file\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0"
-				"all files\0*.*\0"
-				"\0\0",
-		   *filter_jp = "波形ファイル (*.wav;*.aif)\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0"
-				"すべてのファイル (*.*)\0*.*\0"
-				"\0\0";
-	const char *title,
-		   *title_en = "Output File",
-		   *title_jp = "出力ファイルを選ぶ";
+	const TCHAR *filter,
+		   *filter_en = _T("wave file\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0")
+				_T("all files\0*.*\0")
+				_T("\0\0"),
+		   *filter_jp = _T("波形ファイル (*.wav;*.aif)\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0")
+				_T("すべてのファイル (*.*)\0*.*\0")
+				_T("\0\0");
+	const TCHAR *title,
+		   *title_en = _T("Output File"),
+		   *title_jp = _T("出力ファイルを選ぶ");
 
 	if (PlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -5848,19 +5918,22 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 	}
 
 	if (initflag) {
-		OutputFileOpenDir[0] = '\0';
+		OutputFileOpenDir[0] = _T('\0');
 		initflag = 0;
 	}
-	strncpy(dir, OutputFileOpenDir, FILEPATH_MAX);
-	dir[FILEPATH_MAX - 1] = '\0';
-	strncpy(filename, Filename, FILEPATH_MAX);
-	filename[FILEPATH_MAX - 1] = '\0';
-	if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
-		strlcat(filename, "output.wav", FILEPATH_MAX);
+	_tcsncpy(dir, OutputFileOpenDir, FILEPATH_MAX);
+	dir[FILEPATH_MAX - 1] = _T('\0');
+	TCHAR *tfilename = char_to_tchar(Filename);
+	_tcsncpy(filename, tfilename, FILEPATH_MAX);
+	safe_free(tfilename);
+	filename[FILEPATH_MAX - 1] = _T('\0');
+	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1])) {
+		_tcsncat(filename, _T("output.wav"), FILEPATH_MAX);
+		filename[FILEPATH_MAX - 1] = _T('\0');
 	}
 
-	ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
-	ofn.lStructSize = sizeof(OPENFILENAMEA);
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));
+	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = hwnd;
 	ofn.hInstance = hInst;
 	ofn.lpstrFilter = filter;
@@ -5871,7 +5944,7 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 	ofn.nMaxFile = FILEPATH_MAX;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
-	if (dir[0] != '\0')
+	if (dir[0] != _T('\0'))
 		ofn.lpstrInitialDir	= dir;
 	else
 		ofn.lpstrInitialDir	= 0;
@@ -5883,10 +5956,12 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 	ofn.lpTemplateName = 0;
 
 	res = SafeGetSaveFileName(&ofn);
-	strncpy(OutputFileOpenDir, dir, FILEPATH_MAX);
-	OutputFileOpenDir[FILEPATH_MAX - 1] = '\0';
+	_tcsncpy(OutputFileOpenDir, dir, FILEPATH_MAX);
+	OutputFileOpenDir[FILEPATH_MAX - 1] = _T('\0');
 	if (res != FALSE) {
-		strncpy(Filename, filename, FILEPATH_MAX);
+		char *s = tchar_to_char(filename);
+		strncpy(Filename, s, FILEPATH_MAX);
+		safe_free(s);
 		Filename[FILEPATH_MAX - 1] = '\0';
 		return 0;
 	} else {
@@ -5913,13 +5988,13 @@ DlgOpenOutputDirBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM l
 static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 {
 	static int initflag = 1;
-	static char biBuffer[FILEPATH_MAX];
-	char Buffer[FILEPATH_MAX];
-	BROWSEINFOA bi;
+	static TCHAR biBuffer[FILEPATH_MAX];
+	TCHAR Buffer[FILEPATH_MAX];
+	BROWSEINFO bi;
 	LPITEMIDLIST itemidlist;
-	const char *title,
-		   *title_en = "Select output directory.",
-		   *title_jp = "出力先のディレクトリを選択してください。";
+	const TCHAR *title,
+		   *title_en = _T("Select output directory."),
+		   *title_jp = _T("出力先のディレクトリを選択してください。");
 
 	if (PlayerLanguage == LANGUAGE_JAPANESE)
 		title = title_jp;
@@ -5939,20 +6014,25 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 	bi.lpfn = DlgOpenOutputDirBrowseCallbackProc;
 	bi.lParam = 0;
 	bi.iImage = 0;
-	itemidlist = SHBrowseForFolderA(&bi);
+	itemidlist = SHBrowseForFolder(&bi);
 
 	if (!itemidlist)
 		return -1; /* Cancel */
 
 	SHGetPathFromIDList(itemidlist, Buffer);
-	strncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
+	_tcsncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
 
 	if (itemidlist_pre)
 		CoTaskMemFree(itemidlist_pre);
 	itemidlist_pre = itemidlist;
 
-	directory_form(Buffer);
-	strcpy(Dirname, Buffer);
+	char buf[FILEPATH_MAX];
+	char *s = tchar_to_char(Buffer);
+	strncpy(buf, s, FILEPATH_MAX);
+	safe_free(s);
+	buf[FILEPATH_MAX - 1] = '\0';
+	directory_form(buf);
+	strcpy(Dirname, buf);
 	return 0;
 }
 
@@ -6986,17 +7066,20 @@ int gogo_ConfigDialogInfoApply(void)
 	return 0;
 }
 
-#define SEC_GOGO	"gogo"
+#define SEC_GOGO	_T("gogo")
 int gogo_ConfigDialogInfoSaveINI(void)
 {
-	char *section = SEC_GOGO;
-	char *inifile = timidity_output_inifile;
-	char buffer[1024];
+	TCHAR *section = SEC_GOGO;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
+	TCHAR buffer[1024];
+	TCHAR *t;
 #define NUMSAVE(name) \
-		sprintf(buffer,"%d",gogo_ConfigDialogInfo.name ); \
-		WritePrivateProfileString(section, #name ,buffer,inifile);
+		_stprintf(buffer,_T("%d"),gogo_ConfigDialogInfo.name ); \
+		WritePrivateProfileString(section, _T(#name), buffer, inifile);
 #define STRSAVE(name) \
-		WritePrivateProfileString(section,(char *) #name ,(char *)gogo_ConfigDialogInfo.name ,inifile);
+		t = char_to_tchar(gogo_ConfigDialogInfo.name); \
+		WritePrivateProfileString(section, _T(#name), t, inifile); \
+		safe_free(t);
 	NUMSAVE(optIDC_CHECK_DEFAULT)
 	NUMSAVE(optIDC_CHECK_COMMANDLINE_OPTS)
 	STRSAVE(optIDC_EDIT_COMMANDLINE_OPTION)
@@ -7037,22 +7120,26 @@ int gogo_ConfigDialogInfoSaveINI(void)
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
 #undef NUMSAVE
 #undef STRSAVE
+	safe_free(inifile);
 	return 0;
 }
 int gogo_ConfigDialogInfoLoadINI(void)
 {
-	char *section = SEC_GOGO;
-	char *inifile = timidity_output_inifile;
+	TCHAR *section = SEC_GOGO;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
 	int num;
-	char buffer[1024];
+	TCHAR buffer[1024];
 #define NUMLOAD(name) \
-		num = GetPrivateProfileInt(section, #name ,-1,inifile); \
+		num = GetPrivateProfileInt(section, _T(#name), -1, inifile); \
 		if(num!=-1) gogo_ConfigDialogInfo.name = num;
 #define STRLOAD(name,len) \
-		GetPrivateProfileString(section,(char *) #name ,"",buffer,len,inifile); \
-		buffer[len-1] = '\0'; \
-		if(buffer[0]!=0) \
-			strcpy((char *)gogo_ConfigDialogInfo.name ,buffer);
+		GetPrivateProfileString(section, _T(#name), _T(""), buffer, len, inifile); \
+		buffer[len-1] = _T('\0'); \
+		if(buffer[0]!=0) { \
+			char *s = tchar_to_char(buffer); \
+			strcpy(gogo_ConfigDialogInfo.name, s); \
+			safe_free(s); \
+		}
 	gogo_ConfigDialogInfoLock();
 	NUMLOAD(optIDC_CHECK_DEFAULT)
 	NUMLOAD(optIDC_CHECK_COMMANDLINE_OPTS)
@@ -7093,6 +7180,7 @@ int gogo_ConfigDialogInfoLoadINI(void)
 	NUMLOAD(optIDC_CHECK_16KHZ_LOW_PASS_FILTER)
 #undef NUMLOAD
 #undef STRLOAD
+	safe_free(inifile);
 	gogo_ConfigDialogInfoUnLock();
 	return 0;
 }
@@ -7437,18 +7525,21 @@ int vorbis_ConfigDialogInfoApply(void)
 	return 0;
 }
 
-#define SEC_VORBIS	"vorbis"
+#define SEC_VORBIS	_T("vorbis")
 int vorbis_ConfigDialogInfoSaveINI(void)
 {
-	char *section = SEC_VORBIS;
-	char *inifile = timidity_output_inifile;
-	char buffer[1024];
+	TCHAR *section = SEC_VORBIS;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
+	TCHAR buffer[1024];
+	TCHAR *t;
 //	int len;
 #define NUMSAVE(name) \
-		sprintf(buffer,"%d",vorbis_ConfigDialogInfo.name ); \
-		WritePrivateProfileString(section, #name ,buffer,inifile);
+		_stprintf(buffer,_T("%d"),vorbis_ConfigDialogInfo.name ); \
+		WritePrivateProfileString(section, _T(#name), buffer, inifile);
 #define STRSAVE(name,len) \
-		WritePrivateProfileString(section,(char *) #name ,(char *)vorbis_ConfigDialogInfo.name ,inifile);
+		t = char_to_tchar(vorbis_ConfigDialogInfo.name); \
+		WritePrivateProfileString(section, _T(#name), t, inifile); \
+		safe_free(t);
 	NUMSAVE(optIDC_CHECK_DEFAULT)
 	NUMSAVE(optIDC_COMBO_MODE)
 	NUMSAVE(optIDC_CHECK_USE_TAG)
@@ -7458,22 +7549,26 @@ int vorbis_ConfigDialogInfoSaveINI(void)
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
 #undef NUMSAVE
 #undef STRSAVE
+	safe_free(inifile);
 	return 0;
 }
 int vorbis_ConfigDialogInfoLoadINI(void)
 {
-	char *section = SEC_VORBIS;
-	char *inifile = timidity_output_inifile;
+	TCHAR *section = SEC_VORBIS;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
 	int num;
-	char buffer[1024];
+	TCHAR buffer[1024];
 #define NUMLOAD(name) \
-		num = GetPrivateProfileInt(section, #name ,-1,inifile); \
+		num = GetPrivateProfileInt(section, _T(#name), -1, inifile); \
 		if(num!=-1) vorbis_ConfigDialogInfo.name = num;
 #define STRLOAD(name,len) \
-		GetPrivateProfileString(section,(char *) #name ,"",buffer,len,inifile); \
+		GetPrivateProfileString(section, _T(#name), _T(""), buffer, len, inifile); \
 		buffer[len-1] = '\0'; \
-		if(buffer[0]!=0) \
-			strcpy((char *)vorbis_ConfigDialogInfo.name ,buffer);
+		if(buffer[0]!=0) { \
+			char *s = tchar_to_char(buffer); \
+			strcpy(vorbis_ConfigDialogInfo.name, s); \
+			safe_free(s); \
+		}
 	vorbis_ConfigDialogInfoLock();
 	NUMLOAD(optIDC_CHECK_DEFAULT)
 	NUMLOAD(optIDC_COMBO_MODE)
@@ -7483,6 +7578,7 @@ int vorbis_ConfigDialogInfoLoadINI(void)
 	STRLOAD(optIDC_EDIT3,256)
 #undef NUMLOAD
 #undef STRLOAD
+	safe_free(inifile);
 	vorbis_ConfigDialogInfoUnLock();
 	return 0;
 }
@@ -7671,32 +7767,33 @@ int lame_ConfigDialogInfoApply(void)
 	return 0;
 }
 
-#define SEC_LAME	"lame"
+#define SEC_LAME	_T("lame")
 int lame_ConfigDialogInfoSaveINI(void)
 {
-	char *section = SEC_LAME;
-	char *inifile = timidity_output_inifile;
-	char buffer[1024];
+	TCHAR *section = SEC_LAME;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
+	TCHAR buffer[1024];
 //	int len;
 #define NUMSAVE(name) \
-		sprintf(buffer,"%d",lame_ConfigDialogInfo.name ); \
-		WritePrivateProfileString(section, #name ,buffer,inifile);
+		_stprintf(buffer,_T("%d"),lame_ConfigDialogInfo.name ); \
+		WritePrivateProfileString(section, _T(#name), buffer, inifile);
 //#define STRSAVE(name,len) \
 //		WritePrivateProfileString(section,(char *) #name ,(char *)lame_ConfigDialogInfo.name ,inifile);
 	NUMSAVE(optIDC_LAME_CBPRESET)
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
 #undef NUMSAVE
 //#undef STRSAVE
+	safe_free(inifile);
 	return 0;
 }
 int lame_ConfigDialogInfoLoadINI(void)
 {
-	char *section = SEC_LAME;
-	char *inifile = timidity_output_inifile;
+	TCHAR *section = SEC_LAME;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
 	int num;
 //	char buffer[1024];
 #define NUMLOAD(name) \
-		num = GetPrivateProfileInt(section, #name ,-1,inifile); \
+		num = GetPrivateProfileInt(section, _T(#name), -1, inifile); \
 		if(num!=-1) lame_ConfigDialogInfo.name = num;
 //#define STRLOAD(name,len) \
 //		GetPrivateProfileString(section,(char *) #name ,"",buffer,len,inifile); \
@@ -7707,6 +7804,7 @@ int lame_ConfigDialogInfoLoadINI(void)
 	NUMLOAD(optIDC_LAME_CBPRESET)
 #undef NUMLOAD
 //#undef STRLOAD
+	safe_free(inifile);
 	lame_encode_preset = lame_ConfigDialogInfo.optIDC_LAME_CBPRESET;
 	lame_ConfigDialogInfoUnLock();
 	return 0;
@@ -7950,16 +8048,16 @@ int flac_ConfigDialogInfoApply(void)
 	return 0;
 }
 
-#define SEC_FLAC	"FLAC"
+#define SEC_FLAC	_T("FLAC")
 int flac_ConfigDialogInfoSaveINI(void)
 {
-	char *section = SEC_FLAC;
-	char *inifile = timidity_output_inifile;
-	char buffer[1024];
+	TCHAR *section = SEC_FLAC;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
+	TCHAR buffer[1024];
 //	int len;
 #define NUMSAVE(name) \
-		sprintf(buffer,"%d",flac_ConfigDialogInfo.name ); \
-		WritePrivateProfileString(section, #name ,buffer,inifile);
+		_stprintf(buffer,_T("%d"),flac_ConfigDialogInfo.name ); \
+		WritePrivateProfileString(section, _T(#name), buffer, inifile);
 //#define STRSAVE(name,len) \
 //		WritePrivateProfileString(section,(char *) #name ,(char *)flac_ConfigDialogInfo.name ,inifile);
 	NUMSAVE(optIDC_COMBO_ENCODE_MODE)
@@ -7967,16 +8065,17 @@ int flac_ConfigDialogInfoSaveINI(void)
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
 #undef NUMSAVE
 //#undef STRSAVE
+	safe_free(inifile);
 	return 0;
 }
 int flac_ConfigDialogInfoLoadINI(void)
 {
-	char *section = SEC_FLAC;
-	char *inifile = timidity_output_inifile;
+	TCHAR *section = SEC_FLAC;
+	TCHAR *inifile = char_to_tchar(timidity_output_inifile);
 	int num;
 //	char buffer[1024];
 #define NUMLOAD(name) \
-		num = GetPrivateProfileInt(section, #name ,-1,inifile); \
+		num = GetPrivateProfileInt(section, _T(#name), -1, inifile); \
 		if(num!=-1) flac_ConfigDialogInfo.name = num;
 //#define STRLOAD(name,len) \
 //		GetPrivateProfileString(section,(char *) #name ,"",buffer,len,inifile); \
@@ -7987,7 +8086,8 @@ int flac_ConfigDialogInfoLoadINI(void)
 	NUMLOAD(optIDC_COMBO_ENCODE_MODE)
 	NUMLOAD(optIDC_CHECKBOX_OGGFLAC_CONTAINER)
 #undef NUMLOAD
-//#undef STRLOAD
+		//#undef STRLOAD
+	safe_free(inifile);
 	flac_set_compression_level(flac_ConfigDialogInfo.optIDC_COMBO_ENCODE_MODE);
 	flac_ConfigDialogInfoUnLock();
 	return 0;
@@ -8367,7 +8467,9 @@ int asioConfigDialog(int deviceID)
 	
 error1:
 //  	free_portaudio_dll();
-	MessageBox(NULL, Pa_GetErrorText( err ), "Port Audio (asio) error", MB_OK | MB_ICONEXCLAMATION);
+	TCHAR *t = char_to_tchar(Pa_GetErrorText(err));
+	MessageBox(NULL, t, _T("Port Audio (asio) error"), MB_OK | MB_ICONEXCLAMATION);
+	safe_free(t);
 error2:
 	Pa_Terminate();
 	return -1;

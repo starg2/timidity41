@@ -287,7 +287,7 @@ extern void SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st);
 
 extern SETTING_PLAYER *sp_default, *sp_current, *sp_temp;
 extern SETTING_TIMIDITY *st_default, *st_current, *st_temp;
-extern CHAR *INI_INVALID;
+extern TCHAR *INI_INVALID;
 extern CHAR *INI_SEC_PLAYER;
 extern CHAR *INI_SEC_TIMIDITY;
 extern char *SystemFont;
@@ -336,8 +336,8 @@ extern void SaveSettingTiMidity(SETTING_TIMIDITY *st);
 extern void SettingCtlFlag(SETTING_TIMIDITY *st, int opt_id, int onoff);
 extern int IniVersionCheck(void);
 extern void BitBltRect(HDC dst, HDC src, RECT *rc);
-extern BOOL SafeGetOpenFileName(LPOPENFILENAMEA lpofn);
-extern BOOL SafeGetSaveFileName(LPOPENFILENAMEA lpofn);
+extern BOOL SafeGetOpenFileName(LPOPENFILENAME lpofn);
+extern BOOL SafeGetSaveFileName(LPOPENFILENAME lpofn);
 #if 0
 extern TmColors tm_colors[ /* TMCC_SIZE */ ];
 #define TmCc(c) (tm_colors[c].color)

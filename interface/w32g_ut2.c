@@ -265,9 +265,7 @@ int INISaveListWnd(void)
 	// ListName
 	for(i = 0; i < playlist_max; i++){
 		_sntprintf(key, sizeof(key), _T("ListName%d"), i);
-		TCHAR *tname = char_to_tchar(ListWndInfo.ListName[i]);
-		WritePrivateProfileString(section, key, tname, inifile);
-		safe_free(tname);
+		WritePrivateProfileString(section, key, ListWndInfo.ListName[i], inifile);
 	}
 	// columWidth
 	for(i = 0; i < LISTWND_COLUM; i++){
@@ -324,9 +322,8 @@ int INILoadListWnd(void)
 		_sntprintf(name, sizeof(name), _T("default%d"), i);
 		GetPrivateProfileString(section,key,name,buffer,LF_FULLFACESIZE + 1,inifile);
 		if (buffer[0] != 0) {
-			char *text = tchar_to_char(buffer);
-			strcpy(ListWndInfo.ListName[i], text);
-			safe_free(text);
+			_tcsncpy(ListWndInfo.ListName[i], buffer, LF_FULLFACESIZE);
+			ListWndInfo.ListName[i][LF_FULLFACESIZE] = _T('\0');
 		}
 	}
 	// columWidth

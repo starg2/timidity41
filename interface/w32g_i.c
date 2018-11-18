@@ -277,8 +277,8 @@ void FirstLoadIniFile(void);
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
 int WINAPI
-WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-LPSTR lpCmdLine, int nCmdShow)
+_tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+LPTSTR lpCmdLine, int nCmdShow)
 {
 	
 	int argc = 0;
@@ -291,7 +291,9 @@ LPSTR lpCmdLine, int nCmdShow)
 #ifdef _CRTDBG_MAP_ALLOC
 	_CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
-	CmdLineToArgv(lpCmdLine,&argc,&argv);
+	char *cmdline = tchar_to_char(lpCmdLine);
+	CmdLineToArgv(cmdline,&argc,&argv);
+	safe_free(cmdline);
 #if 0
 	FirstLoadIniFile();
 	if(w32gSecondTiMidity(SecondMode,argc,argv)==TRUE){
@@ -320,13 +322,13 @@ LPSTR lpCmdLine, int nCmdShow)
 	if(RestartTimidity){
 		PROCESS_INFORMATION pi;
 		STARTUPINFO si;
-		CHAR path[FILEPATH_MAX] = "";
+		TCHAR path[FILEPATH_MAX] = _T("");
 		RestartTimidity = 0;
 		memset(&si, 0, sizeof(si));
 		si.cb  = sizeof(si);
 		GetModuleFileName(hInstance, path, MAX_PATH);
 		if(CreateProcess(path, lpCmdLine, NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi) == FALSE)
-			MessageBox(NULL, "Restart Error.", "TiMidity++ Win32GUI", MB_OK | MB_ICONEXCLAMATION);
+			MessageBox(NULL, _T("Restart Error."), _T("TiMidity++ Win32GUI"), MB_OK | MB_ICONEXCLAMATION);
 	}
 	return errcode;
 #endif
@@ -638,9 +640,9 @@ static void InitMainMenu(HWND hWnd)
 	mii.wID = IDM_OUTPUT_OPTIONS;
 	mii.fType = MFT_STRING;
 	if (PlayerLanguage == LANGUAGE_JAPANESE) {
-		mii.dwTypeData = "ƒIƒvƒVƒ‡ƒ“(&O)";
+		mii.dwTypeData = _T("ƒIƒvƒVƒ‡ƒ“(&O)");
 	} else {
-		mii.dwTypeData = "&Options";
+		mii.dwTypeData = _T("&Options");
 	}
 	InsertMenuItem(hMenuOutput, 0, TRUE, &mii);
 	mii.fMask = MIIM_TYPE;
@@ -655,8 +657,9 @@ static void InitMainMenu(HWND hWnd)
 		} else {
 			mii.fState = MFS_UNCHECKED;
 		}
-		mii.dwTypeData = play_mode_list[i]->id_name;
+		mii.dwTypeData = char_to_tchar(play_mode_list[i]->id_name);
 		InsertMenuItem(hMenuOutput, outputItemStart + i, TRUE, &mii);
+		safe_free(mii.dwTypeData);
 	}	
 	SetMenu(hWnd , hMenu);
 	// system menu
@@ -665,13 +668,13 @@ static void InitMainMenu(HWND hWnd)
 	//RemoveMenu(hSystemMenu,SC_SIZE,MF_BYCOMMAND); // comment out for Resize MainWindow 
 	EnableMenuItem(hSystemMenu, SC_MOVE, MF_BYCOMMAND | MF_GRAYED);
 	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0); // 7
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION, SC_SCREENSAVE, "Screen Saver"); // 6
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION, SC_SCREENSAVE, _T("Screen Saver")); // 6
 	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0); // 5
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_STOP, "Stop"); // 4
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PAUSE, "Pause"); // 3
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PREV, "Prev"); // 2
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_NEXT, "Next"); // 1
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PLAY, "Play"); // 0	
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_STOP, _T("Stop")); // 4
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PAUSE, _T("Pause")); // 3
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PREV, _T("Prev")); // 2
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_NEXT, _T("Next")); // 1
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PLAY, _T("Play")); // 0	
 
 	DrawMenuBar(hWnd);
 }
@@ -706,11 +709,11 @@ static void UpdateModuleMenu(HWND hWnd, UINT wId)
 
 static void UpdateOutputMenu(HWND hWnd, UINT wId)
 {
-	MENUITEMINFOA mii;
+	MENUITEMINFO mii;
 	int i, num = -1, oldnum;
 
 	for (i = 0; play_mode_list[i] != 0; i++) {
-		mii.cbSize = sizeof(MENUITEMINFOA);
+		mii.cbSize = sizeof(MENUITEMINFO);
 		mii.fMask = MIIM_STATE | MIIM_ID;
 		GetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
 		if (wId == mii.wID) {
@@ -733,11 +736,11 @@ static void UpdateOutputMenu(HWND hWnd, UINT wId)
 
 static void RefreshOutputMenu(HWND hWnd)
 {
-	MENUITEMINFOA mii;
+	MENUITEMINFO mii;
 	int i;
 
 	for (i = 0; play_mode_list[i] != 0; i++) {
-		mii.cbSize = sizeof(MENUITEMINFOA);
+		mii.cbSize = sizeof(MENUITEMINFO);
 		mii.fMask = MIIM_STATE | MIIM_ID;
 		GetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
 		if (st_temp->opt_playmode[0] == play_mode_list[i]->id_character) {
@@ -872,9 +875,9 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #ifdef VST_LOADER_ENABLE
 	if (hVSTHost == NULL) {
 #ifdef _WIN64
-		hVSTHost = LoadLibrary("timvstwrap_x64.dll");
+		hVSTHost = LoadLibrary(_T("timvstwrap_x64.dll"));
 #else
-		hVSTHost = LoadLibrary("timvstwrap.dll");
+		hVSTHost = LoadLibrary(_T("timvstwrap.dll"));
 #endif
 		if (hVSTHost != NULL) {
 			((vst_open)GetProcAddress(hVSTHost, "vstOpen"))();
@@ -1273,7 +1276,7 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	}
 		break;
       default:
-		if (uMess == RegisterWindowMessage("TaskbarCreated")) {
+		  if (uMess == RegisterWindowMessage(_T("TaskbarCreated"))) {
 			ShowWindow(hMainWnd, SW_HIDE);
 			ShowWindow(hMainWnd, SW_SHOWNOACTIVATE);
 			return 0;
@@ -1458,23 +1461,23 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
       case IDM_MCSAVEINIFILE:
 		  VOLATILE_TOUCH(PrefWndDoing);
 		  if(PrefWndDoing){
-				MessageBox(hMainWnd, "Can't Save Ini file while preference dialog.",
-							  "Warning", MB_OK);
+			  MessageBox(hMainWnd, _T("Can't Save Ini file while preference dialog."),
+				  _T("Warning"), MB_OK);
 				break;
 		  }
 		  SaveIniFile(sp_current, st_current);
 		  break;
       case IDM_MCLOADINIFILE:
 		 if(!w32g_has_ini_file) {
-		     MessageBox(hMainWnd, "Can't load Ini file.",
-				"Warning", MB_OK);
+			 MessageBox(hMainWnd, _T("Can't load Ini file."),
+				 _T("Warning"), MB_OK);
 		     break;
 		 }
 
 		  VOLATILE_TOUCH(PrefWndDoing);
 		  if(PrefWndDoing){
-				MessageBox(hMainWnd, "Can't load Ini file while preference dialog.",
-							  "Warning", MB_OK);
+			  MessageBox(hMainWnd, _T("Can't load Ini file while preference dialog."),
+				  _T("Warning"), MB_OK);
 				break;
 		  }
 		  LoadIniFile(sp_temp,st_temp);
@@ -1489,27 +1492,27 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
 #endif
 		  break;
       case IDM_MHTOPIC:
-		  MessageBox(hwnd, "Not Supported.","Warning!",MB_OK);
+		  MessageBox(hwnd, _T("Not Supported."), _T("Warning!"), MB_OK);
 		  break;
       case IDM_MHHELP:
-		  MessageBox(hwnd, "Not Supported.","Warning!",MB_OK);
+		  MessageBox(hwnd, _T("Not Supported."), _T("Warning!"), MB_OK);
 		  break;
       case IDM_MHONLINEHELP:
 		  if (PlayerLanguage == LANGUAGE_JAPANESE) {
-			  ShellExecute(HWND_DESKTOP, NULL, "http://timidity-docs.sourceforge.jp/", NULL, NULL, SW_SHOWNORMAL);
+			  ShellExecute(HWND_DESKTOP, NULL, _T("http://timidity-docs.sourceforge.jp/"), NULL, NULL, SW_SHOWNORMAL);
 		  } else {
-			  ShellExecute(HWND_DESKTOP, NULL, "http://timidity.sourceforge.net/index.html.en", NULL, NULL, SW_SHOWNORMAL);
+			  ShellExecute(HWND_DESKTOP, NULL, _T("http://timidity.sourceforge.net/index.html.en"), NULL, NULL, SW_SHOWNORMAL);
 		  }
 		  break;
       case IDM_MHBTS:
 		  if (PlayerLanguage == LANGUAGE_JAPANESE) {
-			  ShellExecute(HWND_DESKTOP, NULL, "http://timidity-docs.sourceforge.jp/cgi-bin/kagemai-ja/guest.cgi", NULL, NULL, SW_SHOWNORMAL);
+			  ShellExecute(HWND_DESKTOP, NULL, _T("http://timidity-docs.sourceforge.jp/cgi-bin/kagemai-ja/guest.cgi"), NULL, NULL, SW_SHOWNORMAL);
 		  } else {
-			  ShellExecute(HWND_DESKTOP, NULL, "http://timidity-docs.sourceforge.jp/cgi-bin/kagemai-en/guest.cgi", NULL, NULL, SW_SHOWNORMAL);
+			  ShellExecute(HWND_DESKTOP, NULL, _T("http://timidity-docs.sourceforge.jp/cgi-bin/kagemai-en/guest.cgi"), NULL, NULL, SW_SHOWNORMAL);
 		  }
 		  break;
       case IDM_MHONLINEHELPCFG:
-		  ShellExecute(HWND_DESKTOP, NULL, "http://timidity-docs.sourceforge.jp/cgi-bin/hiki/hiki.cgi?%28ja%29timidity.cfg", NULL, NULL, SW_SHOWNORMAL);
+		  ShellExecute(HWND_DESKTOP, NULL, _T("http://timidity-docs.sourceforge.jp/cgi-bin/hiki/hiki.cgi?%28ja%29timidity.cfg"), NULL, NULL, SW_SHOWNORMAL);
 		  break;
       case IDM_MHVERSION:
 		  VersionWnd(hwnd);
@@ -1937,7 +1940,7 @@ struct Canvas_ {
 #define IDC_CANVAS 4242
 
 static HWND hCanvasWnd;
-static char CanvasWndClassName[] = "TiMidity Canvas";
+static TCHAR CanvasWndClassName[] = _T("TiMidity Canvas");
 static LRESULT CALLBACK CanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void CanvasPaintDo(void);
 
@@ -1987,20 +1990,20 @@ CanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_CREATE:
 			Canvas.hPopupMenuKeyboard = CreatePopupMenu();
-			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_A,"A Part");
-			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_B,"B Part");
-			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_C,"C Part");
-			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_D,"D Part");
+			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_A,_T("A Part"));
+			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_B,_T("B Part"));
+			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_C,_T("C Part"));
+			AppendMenu(Canvas.hPopupMenuKeyboard,MF_STRING,IDM_CANVAS_KEYBOARD_D,_T("D Part"));
 			Canvas.hPopupMenu = CreatePopupMenu();
-			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_GSLCD,"LCD Mode");
-			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP16,"Map16 Mode");
-			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP32,"Map32 Mode");
-			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP64,"Map64 Mode");
-			//	AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_KEYBOARD,"Keyboard Mode");
-			AppendMenu(Canvas.hPopupMenu,MF_POPUP,(UINT)Canvas.hPopupMenuKeyboard,"Keyboard Mode");
-			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_SLEEP,"Sleep Mode");
+			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_GSLCD,_T("LCD Mode"));
+			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP16,_T("Map16 Mode"));
+			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP32,_T("Map32 Mode"));
+			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_MAP64,_T("Map64 Mode"));
+			//	AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_KEYBOARD,_T("Keyboard Mode"));
+			AppendMenu(Canvas.hPopupMenu,MF_POPUP,(UINT)Canvas.hPopupMenuKeyboard,_T("Keyboard Mode"));
+			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_SLEEP,_T("Sleep Mode"));
 			AppendMenu(Canvas.hPopupMenu,MF_SEPARATOR,0,0);
-			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_REDRAW,"Redraw");
+			AppendMenu(Canvas.hPopupMenu,MF_STRING,IDM_CANVAS_REDRAW,_T("Redraw"));
 			break;
 		case WM_DESTROY:
 			DestroyMenu ( Canvas.hPopupMenuKeyboard );
@@ -2983,7 +2986,7 @@ static void CanvasKeyboardClear(void)
 	HFONT hfont;
    HGDIOBJ hgdiobj;
 	RECT rc;
-	char buffer[16];
+	TCHAR buffer[16];
 	if(!CanvasOK)
    	return;
  	GDI_LOCK(); // gdi_lock
@@ -3007,7 +3010,7 @@ static void CanvasKeyboardClear(void)
 
 	hfont = CreateFont(7,7,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
 		DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
-     	DEFAULT_PITCH | FF_DONTCARE,"Arial Bold");
+     	DEFAULT_PITCH | FF_DONTCARE,_T("Arial Bold"));
 	hgdiobj = SelectObject(Canvas.hmdc,hfont);
    SetTextAlign(Canvas.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
 	rc.left =	Canvas.rcMe.left+1 ;
@@ -3016,9 +3019,9 @@ static void CanvasKeyboardClear(void)
 	rc.bottom =	Canvas.rcMe.bottom;
 	SetTextColor(Canvas.hmdc,RGB(0xff,0xff,0xff));
 	SetBkColor(Canvas.hmdc,RGB(0x00,0x00,0x00));
-	strcpy(buffer," ");
+	_tcscpy(buffer,_T(" "));
  	ExtTextOut(Canvas.hmdc,rc.left,rc.top,ETO_CLIPPED|ETO_OPAQUE,&rc,
- 		buffer,strlen(buffer),NULL);
+ 		buffer,_tcslen(buffer),NULL);
 	for(i=1;i<=(MAX_CHANNELS>>4);i++){
 		if(i==Canvas.CKPart){
    		SetTextColor(Canvas.hmdc,RGB(0xff,0xff,0xff));
@@ -3031,9 +3034,9 @@ static void CanvasKeyboardClear(void)
 		rc.top =		Canvas.rcMe.bottom-7;
 		rc.right =	Canvas.rcMe.left+1 + 0 + (i)*24 - 1;
 		rc.bottom =	Canvas.rcMe.bottom;
-		sprintf(buffer,"[%c]",i+'A'-1);
+		_stprintf(buffer,_T("[%c]"),i+_T('A')-1);
  	 	ExtTextOut(Canvas.hmdc,rc.left,rc.top,ETO_CLIPPED|ETO_OPAQUE,&rc,
-   		buffer,strlen(buffer),NULL);
+   		buffer,_tcslen(buffer),NULL);
 	}
    if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
    	SelectObject(Canvas.hmdc,hgdiobj);
@@ -3288,9 +3291,9 @@ struct MPanel_ {
 	HBITMAP hbitmapBG;			/* the background bitmap */
 	HBITMAP hbitmapBGFilter;	/* the background bitmap filter */
 	HFONT hfont;
-	char Font[256];
-	char FontLang[256];
-	char FontLangFixed[256];
+	TCHAR Font[256];
+	TCHAR FontLang[256];
+	TCHAR FontLangFixed[256];
 	RECT rcMe;
 	RECT rcTitle;
 	RECT rcFile;
@@ -3373,7 +3376,7 @@ void MPanelMessageNext(void);
 void MPanelMessageUpdate(void);
 
 static HWND hPanelWnd;
-static char PanelWndClassName[] = "TiMidity Main Panel";
+static TCHAR PanelWndClassName[] = _T("TiMidity Main Panel");
 static LRESULT CALLBACK PanelWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 int MPanelMode = 0;
 
@@ -3565,17 +3568,17 @@ static void MPanelInit(HWND hwnd)
 //	MPanel.hFontList = NULL;
 
 
-//	strcpy(MPanel.Font,"Times New Roman");
-	strcpy(MPanel.Font,"Arial Bold");
+//	_tcscpy(MPanel.Font,_T("Times New Roman"));
+	_tcscpy(MPanel.Font,_T("Arial Bold"));
 	switch(PlayerLanguage){
    case LANGUAGE_ENGLISH:
-		strcpy(MPanel.FontLang,"Times New Roman");
-		strcpy(MPanel.FontLangFixed,"Times New Roman");
+		_tcscpy(MPanel.FontLang,_T("Times New Roman"));
+		_tcscpy(MPanel.FontLangFixed,_T("Times New Roman"));
      	break;
 	default:
 	case LANGUAGE_JAPANESE:
-		strcpy(MPanel.FontLang,"‚l‚r ‚o–¾’©");
-		strcpy(MPanel.FontLangFixed,"‚l‚r –¾’©");
+		_tcscpy(MPanel.FontLang,_T("‚l‚r ‚o–¾’©"));
+		_tcscpy(MPanel.FontLangFixed,_T("‚l‚r –¾’©"));
 //		strcpy(MPanel.FontLang,"‚l‚r ‚oƒSƒVƒbƒN");
 //		strcpy(MPanel.FontLangFixed,"‚l‚r ƒSƒVƒbƒN");
 		break;
@@ -3768,9 +3771,11 @@ void MPanelUpdate(void)
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 	//#include "w32g2_c.h"
 	SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
+	TCHAR *ttitle = char_to_tchar(MPanel.Title);
 		ExtTextOut(MPanel.hmdc,MPanel.rcTitle.left,MPanel.rcTitle.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcTitle),
-    		MPanel.Title,strlen(MPanel.Title),NULL);
+			ttitle,_tcslen(ttitle),NULL);
+		safe_free(ttitle);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
 			SelectObject(MPanel.hmdc,hgdiobj);
 		GDI_UNLOCK(); // gdi_lock
@@ -3783,9 +3788,11 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
+		TCHAR *t = char_to_tchar(MPanel.File);
 		ExtTextOut(MPanel.hmdc,MPanel.rcFile.left,MPanel.rcFile.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcFile),
-    		MPanel.File,strlen(MPanel.File),NULL);
+    		t,_tcslen(t),NULL);
+		safe_free(t);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
 			SelectObject(MPanel.hmdc,hgdiobj);
 		GDI_UNLOCK(); // gdi_lock

@@ -389,14 +389,14 @@ void InitTracerWnd(HWND hParentWnd)
 	ReleaseDC(w32g_tracer_wnd.hwnd, w32g_tracer_wnd.hdc);
 
 	{
-		char fontname[LF_FULLFACESIZE + 1];
+		TCHAR fontname[LF_FULLFACESIZE + 1];
 		if (PlayerLanguage == LANGUAGE_JAPANESE) {
-			strncpy(fontname, "ＭＳ Ｐ明朝", LF_FULLFACESIZE + 1);
+			_tcsncpy(fontname, _T("ＭＳ Ｐ明朝"), LF_FULLFACESIZE + 1);
 //			strncpy(fontname, "ＭＳ Ｐゴシック", LF_FULLFACESIZE + 1);
 //			w32g_tracer_wnd.font_common_height = -13;
 //			w32g_tracer_wnd.font_common_width = 0;
 		} else {
-			strncpy(fontname, "Arial", LF_FULLFACESIZE + 1);
+			_tcsncpy(fontname, _T("Arial"), LF_FULLFACESIZE + 1);
 			w32g_tracer_wnd.font_common_height = 16;
 		}
 		w32g_tracer_wnd.hFontCommon = CreateFont(w32g_tracer_wnd.font_common_height, w32g_tracer_wnd.font_common_width, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
@@ -404,7 +404,7 @@ void InitTracerWnd(HWND hParentWnd)
 			DEFAULT_PITCH | FF_MODERN, fontname);
 		w32g_tracer_wnd.hFontHalf = CreateFont(-10, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
 			DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
-			DEFAULT_PITCH | FF_MODERN, "Courier");
+			DEFAULT_PITCH | FF_MODERN, _T("Courier"));
 	}
 	TracerWndReset();
 
@@ -2674,7 +2674,7 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			case 0x68:	// h
 				if (PlayerLanguage == LANGUAGE_JAPANESE) {
 				MessageBox(hTracerWnd,
-					"キーコマンド\n"
+					_T("キーコマンド\n"
 					"トレーサウインドウコマンド\n"
 					"  ESC: ヘルプを閉じる      H: ヘルプを出す\n"
 					"  +: キーアップ    -: キーダウン\n"
@@ -2686,11 +2686,11 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					"  SPACE/ENTER: 演奏開始    E: 停止    S: 一時停止\n"
 					"  P: 前の曲    N: 次の曲\n"
 					"TiMidity コマンド\n"
-					"  Q: 終了\n"
-					, "ヘルプ", MB_OK);
+					"  Q: 終了\n")
+					, _T("ヘルプ"), MB_OK);
 				} else {
 				MessageBox(hTracerWnd,
-					"Usage of key.\n"
+					_T("Usage of key.\n"
 					"Tracer window command.\n"
 					"  ESC: Close Help      H: Help\n"
 					"  +: Key up    -: Key down\n"
@@ -2702,8 +2702,8 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					"  SPACE/ENTER: PLAY    E: Stop    S: Pause\n"
 					"  P: Prev    N: Next\n"
 					"TiMidity command.\n"
-					"  Q: Quit\n"
-					, "Help", MB_OK);
+					"  Q: Quit\n")
+					, _T("Help"), MB_OK);
 				}
 				return 0;
 			case 0x52:	// R
@@ -2718,7 +2718,7 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				return 0;
 			case 0x51:	// Q
 			case 0x71:	// q
-				if (MessageBox(hTracerWnd, "Quit TiMidity?", "TiMidity", MB_ICONQUESTION|MB_YESNO) == IDYES)
+				if (MessageBox(hTracerWnd, _T("Quit TiMidity?"), _T("TiMidity"), MB_ICONQUESTION | MB_YESNO) == IDYES)
 					SendMessage(hMainWnd, WM_CLOSE, 0, 0);
 				return 0;
 			case VK_SPACE:
@@ -2883,12 +2883,12 @@ TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 extern int PosSizeSave;
 
-#define SEC_TRACERWND "TracerWnd"
+#define SEC_TRACERWND _T("TracerWnd")
 int INISaveTracerWnd(void)
 {
-	char *section = SEC_TRACERWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
-	char buffer[256];
+	TCHAR *section = SEC_TRACERWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
+	TCHAR buffer[256];
 	int num;
 	if (PosSizeSave) {
 		if (TracerWndInfo.PosX >= 0 || TracerWndInfo.PosY >= 0) {
@@ -2897,45 +2897,47 @@ int INISaveTracerWnd(void)
 			if (TracerWndInfo.PosY < 0)
 				TracerWndInfo.PosY = 0;
 		}
-		sprintf(buffer, "%d", TracerWndInfo.PosX);
+		_stprintf(buffer, _T("%d"), TracerWndInfo.PosX);
 		if (TracerWndInfo.PosX >= 0)
-		WritePrivateProfileString(section, "PosX", buffer, inifile);
-		sprintf(buffer, "%d", TracerWndInfo.PosY);
+			WritePrivateProfileString(section, _T("PosX"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), TracerWndInfo.PosY);
 		if (TracerWndInfo.PosY >= 0)
-		WritePrivateProfileString(section, "PosY", buffer, inifile);
-		sprintf(buffer, "%d", TracerWndInfo.Width);
+			WritePrivateProfileString(section, _T("PosY"), buffer, inifile);
+		_stprintf(buffer, _T("%d"), TracerWndInfo.Width);
 		if (TracerWndInfo.Width >= 0)
-		WritePrivateProfileString(section, "Width", buffer, inifile);
+			WritePrivateProfileString(section, _T("Width"), buffer, inifile);
 	}
 	if (TracerWndInfo.mode == TWI_MODE_16CH)
 		num = 2;
 	else
 		num = 1;
-	sprintf(buffer, "%d", num);
-	WritePrivateProfileString(section, "mode", buffer, inifile);
+	_stprintf(buffer, _T("%d"), num);
+	WritePrivateProfileString(section, _T("mode"), buffer, inifile);
 	WritePrivateProfileString(NULL, NULL, NULL, inifile); 		// Write Flush
+	safe_free(inifile);
 	return 0;
 }
 
 int INILoadTracerWnd(void)
 {
-	char *section = SEC_TRACERWND;
-	char *inifile = TIMIDITY_WINDOW_INI_FILE;
+	TCHAR *section = SEC_TRACERWND;
+	TCHAR *inifile = char_to_tchar(TIMIDITY_WINDOW_INI_FILE);
 	int num;
-	num = GetPrivateProfileInt(section, "PosX", -1, inifile);
+	num = GetPrivateProfileInt(section, _T("PosX"), -1, inifile);
 	TracerWndInfo.PosX = num;
-	num = GetPrivateProfileInt(section, "PosY", -1, inifile);
+	num = GetPrivateProfileInt(section, _T("PosY"), -1, inifile);
 	TracerWndInfo.PosY = num;
-	num = GetPrivateProfileInt(section, "Width", TRACER_DEFWIDTH, inifile);
+	num = GetPrivateProfileInt(section, _T("Width"), TRACER_DEFWIDTH, inifile);
 	TracerWndInfo.Width = num;
 	RANGE(TracerWndInfo.Width, TRACER_MINWIDTH, TRACER_MAXWIDTH);
-	num = GetPrivateProfileInt(section, "mode", 0, inifile); // 0 TWI_MODE_DEFAULT
+	num = GetPrivateProfileInt(section, _T("mode"), 0, inifile); // 0 TWI_MODE_DEFAULT
 	if (num == 1)
 		TracerWndInfo.mode = TWI_MODE_32CH;
 	else if (num == 2 || num == 3)
 		TracerWndInfo.mode = TWI_MODE_16CH;
 	else
 		TracerWndInfo.mode = TWI_MODE_DEFAULT;
+	safe_free(inifile);
 	return 0;
 }
 

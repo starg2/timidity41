@@ -223,15 +223,21 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCDATAProc(HWND hwnd, UINT uMess, WPAR
 			DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHK_SCC_DATA_OVERRIDE, scc_data_editor_override);
 			break;
 		case IDC_BUTTON_SCC_DATA_LOAD_PRESET:
-			SetDlgItemText(hwnd,IDC_EDIT_SCC_DATA_NAME, scc_data_editor_load_name(scc_data_num));
+			{
+				TCHAR *t = char_to_tchar(scc_data_editor_load_name(scc_data_num));
+				SetDlgItemText(hwnd,IDC_EDIT_SCC_DATA_NAME, t);
+				safe_free(t);
+			}
 			scc_data_editor_load_preset(scc_data_num);
 			SendMessage(hwnd, WM_ISE_RESTORE, (WPARAM)0, (LPARAM)0 );
 			break;
 		case IDC_BUTTON_SCC_DATA_SAVE_PRESET:	
 			{
-				char buff[256];
+				TCHAR buff[256];
 				GetDlgItemText(hwnd, IDC_EDIT_SCC_DATA_NAME, buff, (WPARAM)sizeof(buff));
-				scc_data_editor_store_name(scc_data_num, (const char *)buff);
+				char *s = tchar_to_char(buff);
+				scc_data_editor_store_name(scc_data_num, s);
+				safe_free(s);
 				scc_data_editor_store_preset(scc_data_num);
 			}		
 			break;
@@ -294,7 +300,12 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 	case WM_INITDIALOG:		
 		SendDlgItemMessage(hwnd, IDC_SLIDER_SCC_NUM, TBM_SETRANGEMAX, (WPARAM) 0, (LPARAM) SCC_SETTING_MAX - 1);
 		SendDlgItemMessage(hwnd, IDC_SLIDER_SCC_NUM, TBM_SETRANGEMIN, (WPARAM) 0, (LPARAM) 0);
-		SetDlgItemText(hwnd,IDC_EDIT_SCC_NAME, scc_editor_load_name(scc_preset_num));
+
+		{
+			TCHAR *t = char_to_tchar(scc_editor_load_name(scc_preset_num));
+			SetDlgItemText(hwnd,IDC_EDIT_SCC_NAME, t);
+			safe_free(t);
+		}
 	case WM_ISE_RESTORE:
 		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_CHK_SCC_OVERRIDE, scc_editor_override);		
 		SendDlgItemMessage(hwnd, IDC_SLIDER_SCC_NUM, TBM_SETPOS, (WPARAM) 1, (LPARAM) scc_preset_num);
@@ -305,8 +316,16 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G3_P1, scc_editor_get_param(2, 0), TRUE); // amp
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G4_P1, scc_editor_get_param(3, 0), TRUE); // pitch
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G4_P2, scc_editor_get_param(3, 1), TRUE);
-		SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, scc_editor_load_wave_name(0));
-		SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, scc_editor_load_wave_name(1));
+		{
+			TCHAR *t = char_to_tchar(scc_editor_load_wave_name(0));
+			SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, t);
+			safe_free(t);
+		}
+		{
+			TCHAR *t = char_to_tchar(scc_editor_load_wave_name(1));
+			SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, t);
+			safe_free(t);
+		}
 		for(i = 0; i < SCC_ENV_PARAM; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G5_P1 + i, scc_editor_get_param(4, i), TRUE);
 		for(i = 0; i < SCC_ENV_PARAM; i++)
@@ -316,8 +335,16 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		for(i = 0; i < SCC_LFO_PARAM; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G8_P1 + i, scc_editor_get_param(7, i), TRUE);
 		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G9_P1, scc_editor_get_param(8, 0), TRUE); // loop
-		SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(8));
-		SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(9));
+		{
+			TCHAR *t = char_to_tchar(scc_editor_load_wave_name(8));
+			SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, t);
+			safe_free(t);
+		}
+		{
+			TCHAR *t = char_to_tchar(scc_editor_load_wave_name(9));
+			SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, t);
+			safe_free(t);
+		}
 		break;
 	case WM_HSCROLL:
 	case WM_VSCROLL:
@@ -359,12 +386,19 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);	
 			scc_editor_set_param(1, focus_clid - IDC_EDIT_SCC_G2_P1, tmp); // osc
-			if(focus_clid == IDC_EDIT_SCC_G2_P4)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, scc_editor_load_wave_name(0));	
-			else if(focus_clid == IDC_EDIT_SCC_G2_P6)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, scc_editor_load_wave_name(1));	
-			else if(focus_clid == IDC_EDIT_SCC_G2_P8)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE3_DATA_NAME, scc_editor_load_wave_name(2));	
+			if(focus_clid == IDC_EDIT_SCC_G2_P4) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(0));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, t);
+				safe_free(t);
+			} else if(focus_clid == IDC_EDIT_SCC_G2_P6) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(1));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, t);
+				safe_free(t);
+			} else if(focus_clid == IDC_EDIT_SCC_G2_P8) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(2));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE3_DATA_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_SCC_G3_P1:
 			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;			
@@ -423,8 +457,11 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			scc_editor_set_param(6, focus_clid - IDC_EDIT_SCC_G7_P1, tmp); // lfo1
-			if(focus_clid == IDC_EDIT_SCC_G7_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(8));
+			if(focus_clid == IDC_EDIT_SCC_G7_P3) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(8));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_SCC_G8_P1:
 		case IDC_EDIT_SCC_G8_P2:
@@ -434,8 +471,11 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			scc_editor_set_param(7, focus_clid - IDC_EDIT_SCC_G8_P1, tmp); // lfo2
-			if(focus_clid == IDC_EDIT_SCC_G8_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(9));
+			if(focus_clid == IDC_EDIT_SCC_G8_P3) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(9));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_SCC_G9_P1:
 		case IDC_EDIT_SCC_G9_P2:
@@ -459,15 +499,21 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			scc_editor_delete_preset(scc_preset_num);
 			break;
 		case IDC_BUTTON_SCC_LOAD_PRESET:
-			SetDlgItemText(hwnd,IDC_EDIT_SCC_NAME, scc_editor_load_name(scc_preset_num));
+			{
+				TCHAR *t = char_to_tchar(scc_editor_load_name(scc_preset_num));
+				SetDlgItemText(hwnd,IDC_EDIT_SCC_NAME, t);
+				safe_free(t);
+			}
 			scc_editor_load_preset(scc_preset_num);
 			SendMessage(hwnd, WM_ISE_RESTORE, (WPARAM)0, (LPARAM)0 );
 			break;
 		case IDC_BUTTON_SCC_SAVE_PRESET:	
 			{
-				char buff[256];
+				TCHAR buff[256];
 				GetDlgItemText(hwnd, IDC_EDIT_SCC_NAME, buff, (WPARAM)sizeof(buff));
-				scc_editor_store_name(scc_preset_num, (const char *)buff);
+				char *s = tchar_to_char(buff);
+				scc_editor_store_name(scc_preset_num, s);
+				safe_free(s);
 				scc_editor_store_preset(scc_preset_num);
 			}		
 			break;
@@ -504,12 +550,19 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G2_P8:
 			tmp = (int)GetDlgItemInt(hwnd, clid, NULL, TRUE);
 			scc_editor_set_param(1, clid - IDC_EDIT_SCC_G2_P1, tmp); // osc
-			if(clid == IDC_EDIT_SCC_G2_P4)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, scc_editor_load_wave_name(0));
-			else if(clid == IDC_EDIT_SCC_G2_P6)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, scc_editor_load_wave_name(1));
-			else if(clid == IDC_EDIT_SCC_G2_P8)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE3_DATA_NAME, scc_editor_load_wave_name(2));
+			if(clid == IDC_EDIT_SCC_G2_P4) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(0));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE1_DATA_NAME, t);
+				safe_free(t);
+			} else if(clid == IDC_EDIT_SCC_G2_P6) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(1));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE2_DATA_NAME, t);
+				safe_free(t);
+			} else if(clid == IDC_EDIT_SCC_G2_P8) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(2));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_WAVE3_DATA_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_SCC_G3_P1:
 			scc_editor_set_param(2, clid - IDC_EDIT_SCC_G3_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // amp
@@ -555,16 +608,22 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G7_P3:
 		case IDC_EDIT_SCC_G7_P4:
 			scc_editor_set_param(6, clid - IDC_EDIT_SCC_G7_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo1
-			if(clid == IDC_EDIT_SCC_G7_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, scc_editor_load_wave_name(8));
+			if(clid == IDC_EDIT_SCC_G7_P3) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(8));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_SCC_G8_P1:
 		case IDC_EDIT_SCC_G8_P2:
 		case IDC_EDIT_SCC_G8_P3:
 		case IDC_EDIT_SCC_G8_P4:
 			scc_editor_set_param(7, clid - IDC_EDIT_SCC_G8_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo2
-			if(clid == IDC_EDIT_SCC_G8_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, scc_editor_load_wave_name(9));
+			if(clid == IDC_EDIT_SCC_G8_P3) {
+				TCHAR *t = char_to_tchar(scc_editor_load_wave_name(9));
+				SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO2_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_SCC_G9_P1:
 		case IDC_EDIT_SCC_G9_P2:
@@ -611,7 +670,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		SendDlgItemMessage(hwnd, IDC_SLIDER_MMS_NUM, TBM_SETRANGEMAX, (WPARAM) 0, (LPARAM) MMS_SETTING_MAX - 1);
 		SendDlgItemMessage(hwnd, IDC_SLIDER_MMS_NUM, TBM_SETRANGEMIN, (WPARAM) 0, (LPARAM) 0);
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_NUM, mms_preset_num, TRUE);
-		SetDlgItemText(hwnd,IDC_EDIT_MMS_NAME, mms_editor_load_name(mms_preset_num));	
+		{
+			TCHAR *t = char_to_tchar(mms_editor_load_name(mms_preset_num));
+			SetDlgItemText(hwnd,IDC_EDIT_MMS_NAME, t);
+			safe_free(t);
+		}
 	case WM_ISE_RESTORE:
 		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_CHK_MMS_OVERRIDE, mms_editor_override);		
 		SendDlgItemMessage(hwnd, IDC_SLIDER_MMS_NUM, TBM_SETPOS, (WPARAM) 1, (LPARAM) mms_preset_num);
@@ -630,7 +693,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_G4_P3, mms_editor_get_param(4, mms_op_num, 2), TRUE); // osc	
 		for(i = 0; i < MMS_OP_WAVE_MAX; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G5_P1 + i, mms_editor_get_param(5, mms_op_num, i), TRUE); // wave	
-		SetDlgItemText(hwnd, IDC_EDIT_MMS_WAVE_DATA_NAME, mms_editor_load_wave_name(mms_op_num, -1));
+		{
+			TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, -1));
+			SetDlgItemText(hwnd, IDC_EDIT_MMS_WAVE_DATA_NAME, t);
+			safe_free(t);
+		}
 		for(i = 0; i < MMS_OP_SUB_MAX; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G6_P1 + i, mms_editor_get_param(6, mms_op_num, i), TRUE); // sub
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_G7_P1, mms_editor_get_param(7, mms_op_num, 0), TRUE); // amp
@@ -641,7 +708,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_G9_P2, mms_editor_get_param(9, mms_op_num, 1), TRUE); // wid
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_G9_P3, mms_editor_get_param(9, mms_op_num, 2), TRUE); // wid
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_G10_P1, mms_editor_get_param(10, mms_op_num, 0), TRUE); // flt
-		SetDlgItemText(hwnd, IDC_EDIT_MMS_FILTER_NAME, mms_editor_load_filter_name(mms_op_num)); // flt type
+		{
+			TCHAR *t = char_to_tchar(mms_editor_load_filter_name(mms_op_num));
+			SetDlgItemText(hwnd, IDC_EDIT_MMS_FILTER_NAME, t); // flt type
+			safe_free(t);
+		}
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_G10_P2, mms_editor_get_param(10, mms_op_num, 1), TRUE); // flt
 		SetDlgItemInt(hwnd, IDC_EDIT_MMS_G10_P3, mms_editor_get_param(10, mms_op_num, 2), TRUE); // flt
 		for(i = 0; i < MMS_OP_CUT_PARAM; i++)
@@ -669,10 +740,20 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		}		
 		for(i = 0; i < MMS_OP_LOOP_MAX; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G28_P1 + i, mms_editor_get_param(28, mms_op_num, i), TRUE); // loop
-		SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 0));
-		SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO2_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 1));
-		SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO3_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 2));
-		SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 3));
+		{
+			TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 0));
+			SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, t);
+			safe_free(t);
+			t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 1));
+			SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO2_WAVE_NAME, t);
+			safe_free(t);
+			t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 2));
+			SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO3_WAVE_NAME, t);
+			safe_free(t);
+			t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 3));
+			SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, t);
+			safe_free(t);
+		}
 		break;
 	case WM_HSCROLL:
 	case WM_VSCROLL:
@@ -753,8 +834,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			mms_editor_set_param(5, mms_op_num, focus_clid - IDC_EDIT_MMS_G5_P1, tmp); // wave
-			if(focus_clid == IDC_EDIT_MMS_G5_P1 || focus_clid == IDC_EDIT_MMS_G5_P2)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_WAVE_DATA_NAME, mms_editor_load_wave_name(mms_op_num, -1));
+			if(focus_clid == IDC_EDIT_MMS_G5_P1 || focus_clid == IDC_EDIT_MMS_G5_P2) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, -1));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_WAVE_DATA_NAME, t);
+				safe_free(t);
+			}
 			break;		
 		case IDC_EDIT_MMS_G6_P1:
 		case IDC_EDIT_MMS_G6_P2:
@@ -794,8 +878,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			mms_editor_set_param(10, mms_op_num, focus_clid - IDC_EDIT_MMS_G10_P1, tmp); // filter
-			if(focus_clid == IDC_EDIT_MMS_G10_P1)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_FILTER_NAME, mms_editor_load_filter_name(mms_op_num));
+			if(focus_clid == IDC_EDIT_MMS_G10_P1) {
+				TCHAR *t = char_to_tchar(mms_editor_load_filter_name(mms_op_num));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_FILTER_NAME, t);
+				safe_free(t);
+			}
 			break;	
 		case IDC_EDIT_MMS_G11_P1:
 		case IDC_EDIT_MMS_G11_P2:
@@ -1033,8 +1120,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			mms_editor_set_param(24, mms_op_num, focus_clid - IDC_EDIT_MMS_G24_P1, tmp); // lfo1
-			if(focus_clid == IDC_EDIT_MMS_G24_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 0));
+			if(focus_clid == IDC_EDIT_MMS_G24_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 0));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_MMS_G25_P1:
 		case IDC_EDIT_MMS_G25_P2:
@@ -1044,8 +1134,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			mms_editor_set_param(25, mms_op_num, focus_clid - IDC_EDIT_MMS_G25_P1, tmp); // lfo2
-			if(focus_clid == IDC_EDIT_MMS_G25_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO2_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 1));
+			if(focus_clid == IDC_EDIT_MMS_G25_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 1));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO2_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_MMS_G26_P1:
 		case IDC_EDIT_MMS_G26_P2:
@@ -1055,8 +1148,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			mms_editor_set_param(26, mms_op_num, focus_clid - IDC_EDIT_MMS_G26_P1, tmp); // lfo3
-			if(focus_clid == IDC_EDIT_MMS_G26_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO3_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 2));
+			if(focus_clid == IDC_EDIT_MMS_G26_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 2));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO3_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_MMS_G27_P1:
 		case IDC_EDIT_MMS_G27_P2:
@@ -1066,8 +1162,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
 			mms_editor_set_param(27, mms_op_num, focus_clid - IDC_EDIT_MMS_G27_P1, tmp); // lfo4
-			if(focus_clid == IDC_EDIT_MMS_G27_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 3));
+			if(focus_clid == IDC_EDIT_MMS_G27_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 3));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;		
 		case IDC_EDIT_MMS_G28_P1:
 		case IDC_EDIT_MMS_G28_P2:
@@ -1093,15 +1192,21 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			mms_editor_delete_preset(mms_preset_num);
 			break;
 		case IDC_BUTTON_MMS_LOAD_PRESET:
-			SetDlgItemText(hwnd,IDC_EDIT_MMS_NAME, mms_editor_load_name(mms_preset_num));
+			{
+				TCHAR *t = char_to_tchar(mms_editor_load_name(mms_preset_num));
+				SetDlgItemText(hwnd,IDC_EDIT_MMS_NAME, t);
+				safe_free(t);
+			}
 			mms_editor_load_preset(mms_preset_num);
 			SendMessage(hwnd, WM_ISE_RESTORE, (WPARAM)0, (LPARAM)0 );
 			break;
 		case IDC_BUTTON_MMS_SAVE_PRESET:	
 			{
-				char buff[256];
+				TCHAR buff[256];
 				GetDlgItemText(hwnd, IDC_EDIT_MMS_NAME, buff, (WPARAM)sizeof(buff));
-				mms_editor_store_name(mms_preset_num, (const char *)buff);
+				char *s = tchar_to_char(buff);
+				mms_editor_store_name(mms_preset_num, s);
+				safe_free(s);
 				mms_editor_store_preset(mms_preset_num);
 			}		
 			break;
@@ -1191,8 +1296,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_MMS_G5_P7:
 		case IDC_EDIT_MMS_G5_P8:
 			mms_editor_set_param(5, mms_op_num, clid - IDC_EDIT_MMS_G5_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // wave
-			if(clid == IDC_EDIT_MMS_G5_P1 || clid == IDC_EDIT_MMS_G5_P2)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_WAVE_DATA_NAME, mms_editor_load_wave_name(mms_op_num, -1));
+			if(clid == IDC_EDIT_MMS_G5_P1 || clid == IDC_EDIT_MMS_G5_P2) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, -1));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_WAVE_DATA_NAME, t);
+				safe_free(t);
+			}
 			break;		
 		case IDC_EDIT_MMS_G6_P1:
 		case IDC_EDIT_MMS_G6_P2:
@@ -1221,8 +1329,11 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_MMS_G10_P3:
 		case IDC_EDIT_MMS_G10_P4:
 			mms_editor_set_param(10, mms_op_num, clid - IDC_EDIT_MMS_G10_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // filter
-			if(clid == IDC_EDIT_MMS_G10_P1)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_FILTER_NAME, mms_editor_load_filter_name(mms_op_num));
+			if(clid == IDC_EDIT_MMS_G10_P1) {
+				TCHAR *t = char_to_tchar(mms_editor_load_filter_name(mms_op_num));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_FILTER_NAME, t);
+				safe_free(t);
+			}
 			break;	
 		case IDC_EDIT_MMS_G11_P1:
 		case IDC_EDIT_MMS_G11_P2:
@@ -1427,32 +1538,44 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_MMS_G24_P3:
 		case IDC_EDIT_MMS_G24_P4:
 			mms_editor_set_param(24, mms_op_num, clid - IDC_EDIT_MMS_G24_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo1
-			if(clid == IDC_EDIT_MMS_G24_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 0));
+			if(clid == IDC_EDIT_MMS_G24_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 0));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_MMS_G25_P1:
 		case IDC_EDIT_MMS_G25_P2:
 		case IDC_EDIT_MMS_G25_P3:
 		case IDC_EDIT_MMS_G25_P4:
 			mms_editor_set_param(25, mms_op_num, clid - IDC_EDIT_MMS_G25_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo2
-			if(clid == IDC_EDIT_MMS_G25_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO2_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 1));
+			if(clid == IDC_EDIT_MMS_G25_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 1));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO2_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_MMS_G26_P1:
 		case IDC_EDIT_MMS_G26_P2:
 		case IDC_EDIT_MMS_G26_P3:
 		case IDC_EDIT_MMS_G26_P4:
 			mms_editor_set_param(26, mms_op_num, clid - IDC_EDIT_MMS_G26_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo3
-			if(clid == IDC_EDIT_MMS_G26_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO3_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 2));
+			if(clid == IDC_EDIT_MMS_G26_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 2));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO3_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_MMS_G27_P1:
 		case IDC_EDIT_MMS_G27_P2:
 		case IDC_EDIT_MMS_G27_P3:
 		case IDC_EDIT_MMS_G27_P4:
 			mms_editor_set_param(27, mms_op_num, clid - IDC_EDIT_MMS_G27_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // lfo4
-			if(clid == IDC_EDIT_MMS_G27_P3)
-				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, mms_editor_load_wave_name(mms_op_num, 3));
+			if(clid == IDC_EDIT_MMS_G27_P3) {
+				TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 3));
+				SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO4_WAVE_NAME, t);
+				safe_free(t);
+			}
 			break;
 		case IDC_EDIT_MMS_G28_P1:
 		case IDC_EDIT_MMS_G28_P2:
@@ -1546,7 +1669,7 @@ static void ISEditorWndCreateTabItems(HWND hwnd)
 	TC_ITEM tci;
 	tci.mask = TCIF_TEXT;
 	tci.pszText = is_editor_pages[i].title;
-	tci.cchTextMax = strlen(is_editor_pages[i].title);
+	tci.cchTextMax = _tcslen(is_editor_pages[i].title);
 	SendMessage(hwnd_tab, TCM_INSERTITEM, (WPARAM)i, (LPARAM)&tci);
 
 	is_editor_pages[i].hwnd = NULL;
@@ -1610,20 +1733,20 @@ static void ISEditorWndCreatePage(HWND hwnd, UINT page)
 
 static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 {
-	OPENFILENAMEA ofn;
-	char filename[FILEPATH_MAX];
-	static char dir[FILEPATH_MAX];
+	OPENFILENAME ofn;
+	TCHAR filename[FILEPATH_MAX];
+	static TCHAR dir[FILEPATH_MAX];
 	int res;
-	const char *filter,
-		   *filter_en = "Ini file (*.ini)\0*.ini\0"
-				"All files (*.*)\0*.*\0"
-				"\0\0",
-		   *filter_jp = "Ini ファイル (*.ini)\0*.ini\0"
-				"すべてのファイル (*.*)\0*.*\0"
-				"\0\0";
-	const char *title,
-		   *title_en = "Open Ini File",
-		   *title_jp = "Iniファイルを開く";
+	const TCHAR *filter,
+		   *filter_en = _T("Ini file (*.ini)\0*.ini\0")
+				_T("All files (*.*)\0*.*\0")
+				_T("\0\0"),
+		   *filter_jp = _T("Ini ファイル (*.ini)\0*.ini\0")
+				_T("すべてのファイル (*.*)\0*.*\0")
+				_T("\0\0");
+	const TCHAR *title,
+		   *title_en = _T("Open Ini File"),
+		   *title_jp = _T("Iniファイルを開く");
 
 	if (PlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -1635,15 +1758,20 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 	}
 	if(ISIniFileOpenDir[0] == '\0')
 		strncpy(ISIniFileOpenDir, ConfigFileOpenDir, FILEPATH_MAX);
-	strncpy(dir, ISIniFileOpenDir, FILEPATH_MAX);
-	dir[FILEPATH_MAX - 1] = '\0';
-	strncpy(filename, Filename, FILEPATH_MAX);
-	filename[FILEPATH_MAX - 1] = '\0';
-	if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
-		strlcat(filename, "int_synth.ini", FILEPATH_MAX);
+	TCHAR *tinidir = char_to_tchar(ISIniFileOpenDir);
+	_tcsncpy(dir, tinidir, FILEPATH_MAX);
+	safe_free(tinidir);
+	dir[FILEPATH_MAX - 1] = _T('\0');
+	TCHAR *tfilename = char_to_tchar(Filename);
+	_tcsncpy(filename, tfilename, FILEPATH_MAX);
+	safe_free(tfilename);
+	filename[FILEPATH_MAX - 1] = _T('\0');
+	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1])) {
+		_tcsncat(filename, _T("int_synth.ini"), FILEPATH_MAX);
+		filename[FILEPATH_MAX - 1] = _T('\0');
 	}
-	ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
-	ofn.lStructSize = sizeof(OPENFILENAMEA);
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));
+	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = hwnd;
 	ofn.hInstance = hInst;
 	ofn.lpstrFilter = filter;
@@ -1654,7 +1782,7 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 	ofn.nMaxFile = FILEPATH_MAX;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
-	if (dir[0] != '\0')
+	if (dir[0] != _T('\0'))
 		ofn.lpstrInitialDir	= dir;
 	else
 		ofn.lpstrInitialDir	= 0;
@@ -1667,10 +1795,14 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 	ofn.lpTemplateName = 0;
 
 	res = SafeGetOpenFileName(&ofn);
-	strncpy(ISIniFileOpenDir, dir, FILEPATH_MAX);
+	char *inidir = tchar_to_char(dir);
+	strncpy(ISIniFileOpenDir, inidir, FILEPATH_MAX);
+	safe_free(inidir);
 	ISIniFileOpenDir[FILEPATH_MAX - 1] = '\0';
 	if (res != FALSE) {
-		strncpy(Filename, filename, FILEPATH_MAX);
+		char *fname = tchar_to_char(filename);
+		strncpy(Filename, fname, FILEPATH_MAX);
+		safe_free(fname);
 		Filename[FILEPATH_MAX - 1] = '\0';
 		return 0;
 	}
@@ -1693,7 +1825,9 @@ LRESULT APIENTRY CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 	{
 		hISEditorWnd = hwnd;
 		// main		
-		SetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, is_editor_get_ini_path());
+		TCHAR *t = char_to_tchar(is_editor_get_ini_path());
+		SetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, t);
+		safe_free(t);
 		// table
 		ISEditorWndCreateTabItems(hwnd);
 		ISEditorWndCreatePage(hwnd, 0);
@@ -1716,12 +1850,19 @@ LRESULT APIENTRY CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 		switch (clid) {
 		case IDC_BUTTON_IS_INI_FILE:
 			{
+				TCHAR tfilename[FILEPATH_MAX];
 				filename[0] = '\0';
-				GetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, filename, (WPARAM)sizeof(filename));
+				GetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, tfilename, (WPARAM)sizeof(tfilename));
+				char *s = tchar_to_char(tfilename);
+				strncpy(filename, s, FILEPATH_MAX);
+				safe_free(s);
+				filename[FILEPATH_MAX - 1] = '\0';
 				if(!DlgOpenISIniFile(filename, hwnd))
 				if(filename[0] != '\0'){
-					SetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, TEXT(filename));
-					is_editor_set_ini_path((const char *)filename);
+					TCHAR *t = char_to_tchar(filename);
+					SetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, t);
+					safe_free(t);
+					is_editor_set_ini_path(filename);
 					is_editor_load_ini();
 					SendMessage(hwnd, WM_ISE_RESTORE, (WPARAM)0, (LPARAM)0 );
 				}
@@ -1729,9 +1870,12 @@ LRESULT APIENTRY CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 			break;
 		case IDC_BUTTON_IS_LOAD_INI_FILE:
 			{
+				TCHAR tfilename[FILEPATH_MAX];
 				filename[0] = '\0';
-				GetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, filename, (WPARAM)sizeof(filename));
-				is_editor_set_ini_path((const char *)filename);
+				GetDlgItemText(hwnd, IDC_EDIT_IS_INI_FILE, tfilename, (WPARAM)sizeof(tfilename));
+				char *s = tchar_to_char(tfilename);
+				is_editor_set_ini_path(s);
+				safe_free(s);
 				is_editor_load_ini();
 				SendMessage(hwnd, WM_ISE_RESTORE, (WPARAM)0, (LPARAM)0 );
 			}
