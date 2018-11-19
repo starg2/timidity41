@@ -4974,8 +4974,9 @@ void WINAPI MainThread(void *arglist)
 #define DialogMaxFileName FILEPATH_MAX
 #endif
 static char DialogFileNameBuff[DialogMaxFileName];
-static char *DlgFileOpen(HWND hwnd, const char *title, const char *filter, const char *dir)
+static char *DlgFileOpen(HWND hwnd, const TCHAR *title, const TCHAR *filter, const TCHAR *dir)
 {
+	TCHAR tfile[DialogMaxFileName] = _T("");
 	OPENFILENAME ofn;
     memset(DialogFileNameBuff, 0, sizeof(DialogFileNameBuff));
 	memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -4986,8 +4987,8 @@ static char *DlgFileOpen(HWND hwnd, const char *title, const char *filter, const
 	ofn.lpstrCustomFilter = NULL;
 	ofn.nMaxCustFilter = 0;
 	ofn.nFilterIndex = 1 ;
-	ofn.lpstrFile = DialogFileNameBuff;
-	ofn.nMaxFile = sizeof(DialogFileNameBuff) / sizeof(DialogFileNameBuff[0]);
+	ofn.lpstrFile = tfile;
+	ofn.nMaxFile = sizeof(tfile) / sizeof(tfile[0]);
 	ofn.lpstrFileTitle = 0;
 	ofn.nMaxFileTitle = 0;
 	ofn.lpstrInitialDir	= dir;
@@ -4999,32 +5000,37 @@ static char *DlgFileOpen(HWND hwnd, const char *title, const char *filter, const
 	ofn.lpfnHook = 0;
 	ofn.lpTemplateName= 0;
 
-	if(GetOpenFileName(&ofn)==TRUE)
+	if(GetOpenFileName(&ofn)==TRUE) {
+		char *s = tchar_to_char(tfile);
+		strncpy(DialogFileNameBuff, s, DialogMaxFileName - 1);
+		safe_free(s);
+		DialogFileNameBuff[DialogMaxFileName - 1] = '\0';
 		return DialogFileNameBuff;
-	else
+	} else
 		return NULL;
 }
 
 static void DlgMidiFileOpen(HWND hwnd)
 {
-    char *dir, *file;
-    const char *filter;
-    const char *filter_en = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
-		"midi file\0*.mid;*.midi;*.smf;*.rmi\0"
-		"rcp file\0*.rcp;*.r36;*.g18;*.g36\0"
-		"mod file\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
-		"archive file\0*.lzh;*.zip;*.gz\0"
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
-    const char *filter_jp = "Timidity サポート済みファイル\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
-		"SMF/RMID (*.mid;*.midi;*.smf;*.rmi)\0*.mid;*.midi;*.smf;*.rmi\0"
-		"RCP (*.rcp;*.r36;*.g18;*.g36)\0*.rcp;*.r36;*.g18;*.g36\0"
-		"MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
-		"圧縮済みアーカイブ (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0"
-		"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
-		"すべてのファイル (*.*)\0*.*\0"
-		"\0\0";
+	TCHAR *dir;
+	char *file;
+    const TCHAR *filter;
+    const TCHAR *filter_en = _T("timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0")
+		_T("midi file\0*.mid;*.midi;*.smf;*.rmi\0")
+		_T("rcp file\0*.rcp;*.r36;*.g18;*.g36\0")
+		_T("mod file\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0")
+		_T("archive file\0*.lzh;*.zip;*.gz\0")
+		_T("playlist file\0*.pls;*.m3u;*.asx\0")
+		_T("all files\0*.*\0")
+		_T("\0\0");
+    const TCHAR *filter_jp = _T("Timidity サポート済みファイル\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0")
+		_T("SMF/RMID (*.mid;*.midi;*.smf;*.rmi)\0*.mid;*.midi;*.smf;*.rmi\0")
+		_T("RCP (*.rcp;*.r36;*.g18;*.g36)\0*.rcp;*.r36;*.g18;*.g36\0")
+		_T("MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0")
+		_T("圧縮済みアーカイブ (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0")
+		_T("プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
+		_T("すべてのファイル (*.*)\0*.*\0")
+		_T("\0\0");
 
     if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
 		filter = filter_jp;
@@ -5035,11 +5041,13 @@ static void DlgMidiFileOpen(HWND hwnd)
 		return;
 
     if(MidiFileOpenDir[0])
-		dir = MidiFileOpenDir;
+		dir = char_to_tchar(MidiFileOpenDir);
     else
 		dir = NULL;
 
-	if((file = DlgFileOpen(hwnd, NULL, filter, dir)) == NULL)
+	file = DlgFileOpen(hwnd, NULL, filter, dir);
+	safe_free(dir);
+	if(file == NULL)
 		return;
 
     w32g_lock_open_file = 1;
@@ -5067,7 +5075,8 @@ int CALLBACK DlgDirOpenBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, L
 static void DlgDirOpen(HWND hwnd)
 {
 	static int initflag = 1;
-	static char biBuffer[FILEPATH_MAX];
+	static TCHAR biBuffer[FILEPATH_MAX];
+	static TCHAR tBuffer[FILEPATH_MAX];
 	static char Buffer[FILEPATH_MAX];
 	BROWSEINFO bi;
 	LPITEMIDLIST itemidlist;
@@ -5076,7 +5085,7 @@ static void DlgDirOpen(HWND hwnd)
 	    return;
 
 	if(initflag==1){
-		biBuffer[0] = '\0';
+		biBuffer[0] = _T('\0');
 		initflag = 0;
 	}
 	memset(&bi, 0, sizeof(bi));
@@ -5084,9 +5093,9 @@ static void DlgDirOpen(HWND hwnd)
 	bi.pidlRoot = NULL;
     bi.pszDisplayName = biBuffer;
 	if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
-		bi.lpszTitle = "MIDI ファイルのあるディレクトリを御選択なされますよう。";
+		bi.lpszTitle = _T("MIDI ファイルのあるディレクトリを御選択なされますよう。");
 	else
-		bi.lpszTitle = "Select a directory with MIDI files.";
+		bi.lpszTitle = _T("Select a directory with MIDI files.");
 	bi.ulFlags = 0;
 	bi.lpfn = DlgDirOpenBrowseCallbackProc;
     bi.lParam = 0;
@@ -5094,13 +5103,17 @@ static void DlgDirOpen(HWND hwnd)
 	itemidlist = SHBrowseForFolder(&bi);
 	if(!itemidlist)
 		return; /* Cancel */
-	memset(Buffer, 0, sizeof(Buffer));
-	SHGetPathFromIDList(itemidlist, Buffer);
-	strncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
+	memset(tBuffer, 0, sizeof(tBuffer));
+	SHGetPathFromIDList(itemidlist, tBuffer);
+	_tcsncpy(biBuffer, tBuffer, sizeof(tBuffer) / sizeof(TCHAR) - 1);
 	if(itemidlist_pre)
 		CoTaskMemFree(itemidlist_pre);
 	itemidlist_pre = itemidlist;
     w32g_lock_open_file = 1;
+	char *s = tchar_to_char(tBuffer);
+	strncpy(Buffer, s, sizeof(Buffer) / sizeof(char) - 1);
+	safe_free(s);
+	Buffer[sizeof(Buffer) / sizeof(char) - 1] = '\0';
 	directory_form(Buffer);
 #ifdef EXT_CONTROL_MAIN_THREAD
 	w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t)Buffer);
@@ -5230,21 +5243,24 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 static void DlgPlaylistOpen(HWND hwnd)
 {
-    char *dir, *file;
-    char *filter =
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
+	TCHAR *dir;
+	char *file;
+	TCHAR *filter =
+		_T("playlist file\0*.pls;*.m3u;*.asx\0")
+		_T("all files\0*.*\0")
+		_T("\0\0");
 
     if(w32g_lock_open_file)
 		return;
 
     if(MidiFileOpenDir[0])
-		dir = MidiFileOpenDir;
+		dir = char_to_tchar(MidiFileOpenDir);
     else
 		dir = NULL;
 
-	if((file = DlgFileOpen(hwnd, NULL, filter, dir)) == NULL)
+	file = DlgFileOpen(hwnd, NULL, filter, dir);
+	safe_free(dir);
+	if(file == NULL)
 		return;
 
     w32g_lock_open_file = 1;
@@ -5278,23 +5294,27 @@ static int CheckOverWrite(HWND hwnd, char *filename)
 	if(!exists)
 		return 1;
 	snprintf(buff, sizeof(buff), "%s exists. Overwrite it?", filename);
-	return MessageBox(hwnd, buff, "Warning", MB_YESNO) == IDYES;
+	TCHAR *t = char_to_tchar(buff);
+	int ret = MessageBox(hwnd, t, _T("Warning"), MB_YESNO) == IDYES;
+	safe_free(t);
+	return ret;
 }
 
 static void DlgPlaylistSave(HWND hwnd)
 {
 	OPENFILENAME ofn;
-	static char *dir;
-    char *filter =
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
+	static TCHAR *dir;
+    TCHAR *filter =
+		_T("playlist file\0*.pls;*.m3u;*.asx\0")
+		_T("all files\0*.*\0")
+		_T("\0\0");
+	TCHAR tfilename[DialogMaxFileName] = _T("");
 
     if(w32g_lock_open_file)
 		return;
 
     if(MidiFileOpenDir[0])
-		dir = MidiFileOpenDir;
+		dir = char_to_tchar(MidiFileOpenDir);
     else
 		dir = NULL;
 
@@ -5307,20 +5327,26 @@ static void DlgPlaylistSave(HWND hwnd)
 	ofn.lpstrCustomFilter = NULL;
 	ofn.nMaxCustFilter = 0;
 	ofn.nFilterIndex = 1 ;
-	ofn.lpstrFile = DialogFileNameBuff;
-	ofn.nMaxFile = sizeof(DialogFileNameBuff);
+	ofn.lpstrFile = tfilename;
+	ofn.nMaxFile = sizeof(tfilename) / sizeof(TCHAR);
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
 	ofn.lpstrInitialDir	= dir;
-	ofn.lpstrTitle	= "Save Playlist File";
+	ofn.lpstrTitle	= _T("Save Playlist File");
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_HIDEREADONLY;
 // ofn.lpstrDefExt = 0;
-	ofn.lpstrDefExt = "pls";
+	ofn.lpstrDefExt = _T("pls");
 	ofn.lCustData = 0;
 	ofn.lpfnHook = 0;
 	ofn.lpTemplateName= 0;
 
-	if(GetSaveFileName(&ofn) != TRUE)
+	BOOL ret = GetSaveFileName(&ofn);
+	safe_free(dir);
+	char *sfilename = tchar_to_char(tfilename);
+	strncpy(DialogFileNameBuff, sfilename, sizeof(DialogFileNameBuff) / sizeof(char));
+	safe_free(sfilename);
+	DialogFileNameBuff[sizeof(DialogFileNameBuff) / sizeof(char) - 1] = '\0';
+	if(ret != TRUE)
 		return;
 	if(!CheckOverWrite(hwnd, DialogFileNameBuff))
 		return;
@@ -5419,7 +5445,7 @@ void PutsEditCtlWnd(HWND hwnd, char *str)
 
 void ClearEditCtlWnd(HWND hwnd)
 {
-	char pszVoid[]="";
+	TCHAR pszVoid[] = _T("");
 	if(!IsWindow(hwnd))
 		return;
 	if(IsWindow(hwnd)){
@@ -5435,7 +5461,12 @@ void ClearEditCtlWnd(HWND hwnd)
 
 int w32g_msg_box(char *message, char *title, int type)
 {
-    return MessageBox(hMainWnd, message, title, type);
+	TCHAR *tmsg = char_to_tchar(message);
+	TCHAR *ttitle = char_to_tchar(title);
+    int ret = MessageBox(hMainWnd, tmsg, ttitle, type);
+	safe_free(ttitle);
+	safe_free(tmsg);
+	return ret;
 }
 
 
@@ -5511,8 +5542,8 @@ int w32g_open(void)
     SaveSettingTiMidity(st_current);
     memcpy(st_temp, st_current, sizeof(SETTING_TIMIDITY));
 
-    w32g_lock_sem = CreateSemaphore(NULL, 1, 1, "TiMidity Mutex Lock");
-    w32g_empty_sem = CreateSemaphore(NULL, 0, 8, "TiMidity Empty Lock");
+    w32g_lock_sem = CreateSemaphore(NULL, 1, 1, _T("TiMidity Mutex Lock"));
+    w32g_empty_sem = CreateSemaphore(NULL, 0, 8, _T("TiMidity Empty Lock"));
 
     hPlayerThread = GetCurrentThread();
     w32g_wait_for_init = 1;
