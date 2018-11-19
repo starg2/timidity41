@@ -2218,7 +2218,9 @@ static int cheap_string_view_draw_font(RECT *lprc, char *str, COLORREF fore, COL
 	old_back = SetBkColor(hdc, back);
 	hgdiobj = SelectObject(hdc, hFont);
 //	ExtTextOutA(hdc, left, top, ETO_CLIPPED | ETO_OPAQUE, lprc, str, strlen(str), NULL);
-	ExtTextOutA(hdc, left, bottom - 2, ETO_CLIPPED | ETO_OPAQUE, lprc, str, strlen(str), NULL);
+	TCHAR *t = char_to_tchar(str);
+	ExtTextOut(hdc, left, bottom - 2, ETO_CLIPPED | ETO_OPAQUE, lprc, t, _tcslen(t), NULL);
+	safe_free(t);
 	SetTextColor(hdc, old_fore);
 	SetBkColor(hdc, old_back);
 	SelectObject(hdc, hgdiobj);
