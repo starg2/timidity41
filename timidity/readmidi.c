@@ -485,6 +485,9 @@ static char *dumpstring(int type, int32 len, const char *label, int allocp,
 	karaoke_format = 1;
 
     code_convert(si, so, s_maxlen, NULL, NULL);
+#if defined(__W32__) && defined(UNICODE)
+	so = w32_mbs_to_utf8(so);
+#endif
 
     llen = strlen(label);
     solen = strlen(so);
@@ -7991,7 +7994,10 @@ char *get_midi_title(char *filename)
 		    }
 
 		    si[len]='\0';
-		    code_convert(si, so, s_maxlen, NULL, NULL);
+		    code_convert(si, so, s_maxlen, NULL, OUTPUT_TEXT_CODE);
+#if defined(__W32__) && defined(UNICODE)
+			so = w32_mbs_to_utf8(so);
+#endif
 ///r
 		    if(trk == 0 && type == 2)
 		    {
