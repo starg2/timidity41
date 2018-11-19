@@ -8226,7 +8226,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
       strcat(ConfigFile, "\\TIMIDITY.CFG");
     }
     strncpy(local, ConfigFile, sizeof(local) - 1);
-    if((check = open_file(local, 0, OF_NORMAL)) >= 0)
+    if((check = open_file(local, 0, OF_NORMAL)))
     {
 	close_file(check);
 	if(!read_config_file(local, 0, 0)) {
@@ -8250,7 +8250,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 	{
 	    *(++strp)='\0';
 	    strncat(local,"TIMIDITY.CFG",sizeof(local)-strlen(local)-1);
-	    if((check = open_file(local, 0, OF_NORMAL)) >= 0)
+	    if((check = open_file(local, 0, OF_NORMAL)))
 	    {
 		close_file(check);
 		if(!read_config_file(local, 0, 0)) {

@@ -2796,8 +2796,11 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			CB_SET(IDC_COMBO_MIDI_TYPE, CB_FIND(cb_info_IDC_COMBO_MIDI_TYPE_num, st_temp->opt_default_mid, 0));
 
 		// MODULE
-		for (i = 0; i < module_list_num; i++)
-			CB_INSSTR(IDC_COMBO_MODULE, module_list[i].name);
+		for (i = 0; i < module_list_num; i++) {
+			TCHAR *t = char_to_tchar(module_list[i].name);
+			CB_INSSTR(IDC_COMBO_MODULE, t);
+			safe_free(t);
+		}
 		CB_SET(IDC_COMBO_MODULE, cb_find_module(st_temp->opt_default_module));
 
 		// REVERB
@@ -4230,7 +4233,9 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #else
 		SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_RESETCONTENT,(WPARAM)0,(LPARAM)0);
 		for(i=0;play_mode_list[i]!=0;i++){
-			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)play_mode_list[i]->id_name);
+			TCHAR *t = char_to_tchar(play_mode_list[i]->id_name);
+			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)t);
+			safe_free(t);
 		}
 		if (PlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
@@ -8493,7 +8498,9 @@ LRESULT WINAPI wmmeConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			// WMME_DEV
 			cb_num = wmme_device_list(cb_info_IDC_COMBO_WMME_NAME);
 			for (i = 0; i < (cb_num + 1); i++){
-				SendDlgItemMessage(hwnd, IDC_COMBO_WMME_DEV, CB_INSERTSTRING, (WPARAM) -1, (LPARAM) &cb_info_IDC_COMBO_WMME_NAME[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_WMME_NAME[i].name);
+				SendDlgItemMessage(hwnd, IDC_COMBO_WMME_DEV, CB_INSERTSTRING, (WPARAM) -1, (LPARAM) t);
+				safe_free(t);
 			}
 			SendDlgItemMessage(hwnd, IDC_COMBO_WMME_DEV, CB_SETCURSEL, (WPARAM) (st_temp->wmme_device_id + 1), (LPARAM) 0);
 
@@ -8597,7 +8604,9 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			else
 				DI_ENABLE(IDC_COMBO_WASAPI_DEV);
 			for (i = 0; i < cb_num && i < WASAPI_DEVLIST_MAX; i++) {
-				CB_INSSTRA(IDC_COMBO_WASAPI_DEV, &cb_info_IDC_COMBO_WASAPI_NAME[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_WASAPI_NAME[i].name);
+				CB_INSSTR(IDC_COMBO_WASAPI_DEV, t);
+				safe_free(t);
 				if (st_temp->wasapi_device_id == cb_info_IDC_COMBO_WASAPI_NAME[i].deviceID)
 					cb_sel = i;
 			}

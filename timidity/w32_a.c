@@ -678,7 +678,8 @@ int wmme_device_list(DEVICELIST *device)
 		waveOutGetDevCaps((UINT)i, &woc, sizeof(woc));
 		device[i+1].deviceID=i;
 		char *s = tchar_to_char(woc.szPname);
-		strncpy(device[i+1].name, MAXPNAMELEN, s);
+		strncpy(device[i+1].name, s, MAXPNAMELEN - 1);
+		device[i + 1].name[MAXPNAMELEN - 1] = '\0';
 		safe_free(s);
 	}
 	return num;

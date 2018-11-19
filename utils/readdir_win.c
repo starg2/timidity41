@@ -76,7 +76,10 @@ API_EXPORT(DIR *) opendir(const char *dir)
     dp->finished = 0;
     dp->dir = safe_strdup(dir);
 
-    if ((handle = _findfirst(filespec, &(dp->fileinfo))) == -1) {
+	TCHAR *tfilespec = char_to_tchar(filespec);
+	handle = _tfindfirst(tfilespec, &(dp->fileinfo));
+	safe_free(tfilespec);
+    if (handle == -1) {
         if (errno == ENOENT)
             dp->finished = 1;
 	else {
@@ -98,7 +101,7 @@ API_EXPORT(struct dirent *) readdir(DIR *dp)
     if (!dp || dp->finished) return NULL;
 
     if (dp->offset != 0) {
-        if (_findnext(dp->handle, &(dp->fileinfo)) < 0) {
+        if (_tfindnext(dp->handle, &(dp->fileinfo)) < 0) {
             dp->finished = 1;
             return NULL;
         }
@@ -109,7 +112,9 @@ API_EXPORT(struct dirent *) readdir(DIR *dp)
 /* Borland C++ */
     strncpy(dp->dent.d_name, dp->fileinfo.ff_name, _MAX_FNAME);
 #else
-    strncpy(dp->dent.d_name, dp->fileinfo.name, _MAX_FNAME);
+	char *s = tchar_to_char(dp->fileinfo.name);
+    strncpy(dp->dent.d_name, s, _MAX_FNAME);
+	safe_free(s);
 #endif /* __BORLANDC__ */
 
     dp->dent.d_name[_MAX_FNAME] = '\0';

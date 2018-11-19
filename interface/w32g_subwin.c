@@ -1533,7 +1533,9 @@ static int ListWndInfoReset(HWND hwnd)
 		ListWndInfo.hwndList = GetDlgItem(hwnd,IDC_LISTBOX_PLAYLIST);
 #endif
 	strcpy(ListWndInfo.fontNameEN,"Times New Roman");
-	strcpy(ListWndInfo.fontNameJA,"‚l‚r –¾’©");
+	char *s = tchar_to_char(_T("‚l‚r –¾’©"));
+	strcpy(ListWndInfo.fontNameJA,s);
+	safe_free(s);
 	ListWndInfo.fontHeight = 12;
 	ListWndInfo.fontWidth = 6;
 	ListWndInfo.fontFlags = FONT_FLAGS_FIXED;

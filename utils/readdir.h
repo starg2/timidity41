@@ -78,7 +78,7 @@ typedef struct {
 #ifdef __BORLANDC__
     struct ffblk       fileinfo;/* from _findfirst/_findnext */
 #else
-    struct _finddata_t fileinfo;/* from _findfirst/_findnext */
+    struct _tfinddata_t fileinfo;/* from _findfirst/_findnext */
 #endif /* __BORLANDC__ */
 
     char *dir;			/* the dir we are reading */

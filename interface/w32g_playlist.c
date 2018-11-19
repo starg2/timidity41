@@ -637,7 +637,7 @@ void w32g_update_playlist_pos(int pos)
 		TCHAR *str = char_to_tchar(entry->artist ? entry->artist : "----");
 		ListView_SetItemText(hList, i, 1, str);
 		safe_free(str);
-		str = char_to_tchar; (entry->duration ? entry->duration : "--:--:--");
+		str = char_to_tchar(entry->duration ? entry->duration : "--:--:--");
 		ListView_SetItemText(hList, i, 2, str);
 		safe_free(str);
 		str = char_to_tchar(entry->system ? entry->system : "----");
