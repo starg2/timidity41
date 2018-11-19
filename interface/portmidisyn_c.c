@@ -268,9 +268,9 @@ rtsyn_get_port_list();
 					n=0;
 #ifdef IA_W32G_SYN
 					{
-						char buff[1024];
-						sprintf ( buff, "MIDI IN Device ID %d is not available. So set a proper ID for the MIDI port %d and restart.", portID[port], port );
-						MessageBox ( NULL, buff, "Error", MB_OK );
+						TCHAR buff[1024];
+						_stprintf ( buff, _T("MIDI IN Device ID %d is not available. So set a proper ID for the MIDI port %d and restart."), portID[port], port );
+						MessageBox ( NULL, buff, _T("Error"), MB_OK );
 						return 2;
 					}
 #endif

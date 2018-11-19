@@ -128,7 +128,7 @@ static int w32g_syn_create_win(void);
 
 #define MYWM_NOTIFYICON (WM_USER + 501)
 #define MYWM_QUIT (WM_USER + 502)
-#define W32G_SYNWIN_CLASSNAME "TWSYNTH GUI"
+#define W32G_SYNWIN_CLASSNAME _T("TWSYNTH GUI")
 #define W32G_SYN_TIP "TWSYNTH GUI"
 
 ///r
@@ -251,8 +251,8 @@ extern int w32g_syn_do_after_pref_apply(void);
 	　シンセサイザースレッド：発音部分
 */
 int WINAPI
-WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-				LPSTR lpCmdLine, int nCmdShow)
+_tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+				LPTSTR lpCmdLine, int nCmdShow)
 {
 	HANDLE hMutex;
 	int i;
@@ -274,7 +274,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		return 0;
 	}
 
+#ifdef UNICODE
+	char *s = tchar_to_char(lpCmdLine);
+	CmdLineToArgv(s, &w32g_syn.argc, &w32g_syn.argv);
+	safe_free(s);
+#else
 	CmdLineToArgv(lpCmdLine, &w32g_syn.argc, &w32g_syn.argv);
+#endif
 
 #ifdef TWSYNSRV
 	// Service install and uninstall handling
@@ -323,13 +329,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	if(RestartTimidity){
 		PROCESS_INFORMATION pi;
 		STARTUPINFO si;
-		CHAR path[FILEPATH_MAX] = "";
+		TCHAR path[FILEPATH_MAX] = _T("");
 		RestartTimidity = 0;
 		memset(&si, 0, sizeof(si));
 		si.cb  = sizeof(si);
 		GetModuleFileName(hInstance, path, MAX_PATH);
 		if(CreateProcess(path, lpCmdLine, NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi) == FALSE)
-			MessageBox(NULL, "Restart Error.", "TiMidity++ Synth Win32GUI", MB_OK | MB_ICONEXCLAMATION);
+			MessageBox(NULL, _T("Restart Error."), _T("TiMidity++ Synth Win32GUI"), MB_OK | MB_ICONEXCLAMATION);
 	}
 	return 0;
 }
@@ -1848,12 +1854,12 @@ static void ConsoleWndVerbosityUpdate(void)
 
 static void ConsoleWndVerbosityApply(void)
 {
-	char buffer[64];
+	TCHAR buffer[64];
 	HWND hwnd;
 	hwnd = GetDlgItem(hConsoleWnd, IDC_EDIT_VERBOSITY);
 	if (!IsWindow(hConsoleWnd)) return;
 	if (Edit_GetText(hwnd, buffer, 60) <= 0) return;
-	ctl->verbosity = atoi(buffer);
+	ctl->verbosity = _ttoi(buffer);
 	ConsoleWndVerbosityUpdate();
 }
 

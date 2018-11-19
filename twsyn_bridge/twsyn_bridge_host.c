@@ -22,6 +22,8 @@
 #pragma comment(lib, "shlwapi.lib")
 #include <shlwapi.h>
 #include <mmsystem.h>
+#include "timidity.h"
+#include "common.h"
 #include "w32g_res.h"
 #include "twsyn_bridge_common.h"
 #include "twsyn_bridge_host.h"
@@ -37,7 +39,7 @@ static UINT uControlMess = 0;
 // host
 static HWND hControlWndHost = NULL;
 static UINT uControlMessHost = 0;
-static char ExePath[FILEPATH_MAX + 4] = "";
+static TCHAR ExePath[FILEPATH_MAX + 4] = _T("");
 static HANDLE hFileMap = NULL;
 static fm_bridge_t *shared_data = NULL;
 static PROCESS_INFORMATION pi;
@@ -46,11 +48,13 @@ static int error_bridge = 0;
 
 static void ErrorMessageBox(const char *text,DWORD errorcode)
 {
-	const char title[] = "twsyn_bridge(host)";
+	const TCHAR title[] = _T("twsyn_bridge(host)");
 	char buf[0x800];
 
 	wsprintfA(buf,"%s (code:%d)", text, errorcode);
-	MessageBox(NULL, buf, title, MB_OK | MB_ICONEXCLAMATION);
+	TCHAR *t = char_to_tchar(buf);
+	MessageBox(NULL, t, title, MB_OK | MB_ICONEXCLAMATION);
+	safe_free(t);
 }
 
 static void uninit_bridge(void)
@@ -193,13 +197,13 @@ void init_bridge(void)
 	// bridge exe path
     if(GetModuleFileName(hInstance, ExePath, FILEPATH_MAX - 1)){
 		PathRemoveFileSpec(ExePath);
-		strcat(ExePath,"\\");
+		_tcscat(ExePath,_T("\\"));
 	}else{
-		ExePath[0] = '.';
-		ExePath[1] = '\\';
-		ExePath[2] = '\0';
+		ExePath[0] = _T('.');
+		ExePath[1] = _T('\\');
+		ExePath[2] = _T('\0');
     }
-	strcat(ExePath, EXE_NAME);
+	_tcscat(ExePath, _T(EXE_NAME));
 	// check bridge exe
 	hfile = CreateFile(ExePath, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);	
 	if(hfile == INVALID_HANDLE_VALUE){
@@ -211,7 +215,7 @@ void init_bridge(void)
 	CloseHandle(hfile);
 	hfile = NULL;
 	// CreateFileMapping
-	hFileMap = CreateFileMapping(FILE_HANDLE, NULL, PAGE_READWRITE, 0, sizeof(fm_bridge_t), COMMON_FM_NAME);
+	hFileMap = CreateFileMapping(FILE_HANDLE, NULL, PAGE_READWRITE, 0, sizeof(fm_bridge_t), _T(COMMON_FM_NAME));
 	if(hFileMap == NULL){
 		errortext = "bridge host error : CreateFileMapping.";
 		goto error;
@@ -234,7 +238,7 @@ void init_bridge(void)
 	// send process Version	
 	shared_data->PrcsVerHost = GetProcessVersion(shared_data->PrcsIdHost);
 	// resister ctrl message
-	uControlMessHost = RegisterWindowMessage("twsyn_bridge_host");
+	uControlMessHost = RegisterWindowMessage(_T("twsyn_bridge_host"));
 	if(!uControlMessHost){
 		errortext = "bridge host error : RegisterWindowMessage.";
 		goto error;	

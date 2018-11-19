@@ -126,10 +126,12 @@ static int npipe_input_open(const char *pipe_name)
  overlapped.hEvent = hEvent;
 	
   sprintf(PipeName, "\\\\.\\pipe\\%s", pipe_name);
-  hPipe = CreateNamedPipe(PipeName, PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED, 
+  TCHAR *tPipeName = char_to_tchar(PipeName);
+  hPipe = CreateNamedPipe(tPipeName, PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED, 
 //    PIPE_WAIT|
   	PIPE_READMODE_BYTE |PIPE_TYPE_BYTE, 2, 
    0, PIPE_BUFFER_SIZE, 0, NULL);
+  safe_free(tPipeName);
   if (hPipe == INVALID_HANDLE_VALUE) {
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Can't create Named Pipe %s : %ld",
     	pipe_name, GetLastError());

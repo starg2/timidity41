@@ -1509,7 +1509,7 @@ static TCHAR **GetMidiINDrivers( void )
 		MidiINDrivers = ( TCHAR ** ) malloc ( sizeof ( TCHAR * ) * ( midi_in_max + 2 ) );
 		if ( MidiINDrivers == NULL ) return MidiINDrivers;
 		for (i = 0; i <= midi_in_max; i ++ ) {
-			MidiINDrivers[i] = strdup (get_bridge_midi_dev_name(i));
+			MidiINDrivers[i] = char_to_tchar(get_bridge_midi_dev_name(i));
 			if ( MidiINDrivers[i] == NULL )
 				break;
 		}
@@ -1527,11 +1527,11 @@ static TCHAR **GetMidiINDrivers( void )
 		}
 		MidiINDrivers = ( TCHAR ** ) malloc ( sizeof ( TCHAR * ) * ( midi_in_max + 2 ) );
 		if ( MidiINDrivers == NULL ) return MidiINDrivers;
-		MidiINDrivers[0] = safe_strdup ( "MIDI Mapper" );
+		MidiINDrivers[0] = char_to_tchar ( "MIDI Mapper" );
 		for ( i = 1; i <= midi_in_max; i ++ ) {
 			MIDIINCAPS mic;
 			if ( midiInGetDevCaps ( i - 1, &mic, sizeof ( MIDIINCAPS ) ) == 0 ) {
-				MidiINDrivers[i] = strdup ( mic.szPname );
+				MidiINDrivers[i] = _tcsdup ( mic.szPname );
 				if ( MidiINDrivers[i] == NULL )
 					break;
 			} else {
@@ -1579,7 +1579,9 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_SETFONT,(WPARAM)hFontConfigFile,(LPARAM)MAKELPARAM(TRUE,0));
 			}
 		}
-		SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,TEXT(sp_temp->ConfigFile));
+		TCHAR *t = char_to_tchar(sp_temp->ConfigFile);
+		SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,t);
+		safe_free(t);
 
 		switch(sp_temp->PlayerLanguage){
 		case LANGUAGE_ENGLISH:
@@ -1612,7 +1614,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 		for ( i = 0; i <= MAX_PORT; i ++ ) {
 			TCHAR buff[32];
-			sprintf ( buff, "%d", i );
+			_stprintf ( buff, _T("%d"), i );
 			SendDlgItemMessage(hwnd, IDC_COMBO_PORT_NUM,
 				CB_INSERTSTRING, (WPARAM) -1, (LPARAM) buff );
 		}
@@ -1732,22 +1734,26 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #endif
 		case IDC_BUTTON_CONFIG_FILE:
 			{
-				TCHAR filename[FILEPATH_MAX];
-				filename[0] = '\0';
+				TCHAR filename[FILEPATH_MAX] = _T("");
+				filename[0] = _T('\0');
 				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
-					(WPARAM)FILEPATH_MAX-1,(LPARAM)TEXT(filename));
+					(WPARAM)FILEPATH_MAX-1,(LPARAM)filename);
 				if(!DlgOpenConfigFile(filename,hwnd))
-				if(filename[0]!='\0')
-						SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,TEXT(filename));
+				if(filename[0]!=_T('\0'))
+					SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,filename);
 	   }
 			break;
 		case IDC_BUTTON_CFG_EDIT:
-		w32_reset_exe_directory();
-		if(getenv("TIMIDITY_CFG_EDITOR") != NULL){
-			ShellExecute(NULL, "open", getenv("TIMIDITY_CFG_EDITOR"), ConfigFile, NULL, SW_SHOWNORMAL);
-		}else{	
-			ShellExecute(NULL, "open", "notepad.exe", ConfigFile, NULL, SW_SHOWNORMAL);
-		}
+			{
+				w32_reset_exe_directory();
+				TCHAR *tConfigFile = char_to_tchar(ConfigFile);
+				if(_tgetenv(_T("TIMIDITY_CFG_EDITOR")) != NULL){
+					ShellExecute(NULL, _T("open"), _tgetenv(_T("TIMIDITY_CFG_EDITOR")), tConfigFile, NULL, SW_SHOWNORMAL);
+				}else{	
+					ShellExecute(NULL, _T("open"), _T("notepad.exe"), tConfigFile, NULL, SW_SHOWNORMAL);
+				}
+				safe_free(tConfigFile);
+			}
 			break;		 
 /*			ShellExecute(NULL, "open", "notepad.exe", ConfigFile, NULL, SW_SHOWNORMAL);
 			break;
@@ -1775,8 +1781,15 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 	case WM_MYSAVE:
 		if ( initflag ) break;
-		SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
-			(WPARAM)FILEPATH_MAX,(LPARAM)TEXT(sp_temp->ConfigFile));
+		{
+			TCHAR tfile[FILEPATH_MAX] = _T("");
+			SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
+				(WPARAM)FILEPATH_MAX,(LPARAM)tfile);
+			char *s = tchar_to_char(tfile);
+			strncpy(sp_temp->ConfigFile, s, FILEPATH_MAX - 1);
+			safe_free(s);
+			sp_temp->ConfigFile[FILEPATH_MAX - 1] = '\0';
+		}
 		if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_ENGLISH,BM_GETCHECK,0,0)){
 			sp_temp->PlayerLanguage = LANGUAGE_ENGLISH;
 		} else if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_JAPANESE,BM_GETCHECK,0,0)){

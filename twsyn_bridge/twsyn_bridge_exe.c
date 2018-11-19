@@ -52,7 +52,7 @@ static void ErrorMessageBox(const char *text)
 	char buf[0x800];
 
 	wsprintfA(buf,"%s", text);
-	MessageBox(NULL, buf, title, MB_OK | MB_ICONEXCLAMATION);
+	MessageBoxA(NULL, buf, title, MB_OK | MB_ICONEXCLAMATION);
 }
 
 static void uninit_bridge(void)
@@ -278,7 +278,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	unsigned int dwThreadID = 0;
 	
 	// resister ctrl message
-	uControlMess = RegisterWindowMessage("twsyn_bridge_exe");
+	uControlMess = RegisterWindowMessage(_T("twsyn_bridge_exe"));
 	if(!uControlMess){
 		errortext = "bridge.exe error : RegisterWindowMessage.";
 		goto error;	
@@ -290,7 +290,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		goto error;	
 	}	
 	// create mutex
-	hMutex = CreateMutex(NULL, TRUE, COMMON_MUTEX_NAME);
+	hMutex = CreateMutex(NULL, TRUE, _T(COMMON_MUTEX_NAME));
 	if(!hMutex){
 		errortext = "bridge.exe error : CreateMutex.";
 		goto error;	
@@ -306,7 +306,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	ShowWindow(hControlWnd, SW_HIDE);
 //	ShowWindow(hControlWnd, SW_SHOW);
 	// open file mapping
-	hFileMap = OpenFileMapping(FILE_MAP_ALL_ACCESS, TRUE, COMMON_FM_NAME);
+	hFileMap = OpenFileMapping(FILE_MAP_ALL_ACCESS, TRUE, _T(COMMON_FM_NAME));
 	if(!hFileMap){
 		errortext = "bridge.exe error : OpenFileMapping.";
 		goto error;	

@@ -130,8 +130,10 @@ void rtsyn_get_port_list(){
 	{
 		InNum = midiInGetNumDevs();
 		for (i=1;i <=InNum && i<=32;i++){
-			midiInGetDevCaps(i-1,(LPMIDIINCAPSA) &InCaps,sizeof(InCaps));
-			sprintf(rtsyn_portlist[i-1],"%d:%s",i,(LPSTR)InCaps.szPname);
+			midiInGetDevCaps(i-1, &InCaps,sizeof(InCaps));
+			char *s = tchar_to_char(InCaps.szPname);
+			sprintf(rtsyn_portlist[i-1],"%d:%s",i,s);
+			safe_free(s);
 		}
 		rtsyn_nportlist=i-1;
 	}
