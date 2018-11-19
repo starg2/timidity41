@@ -3809,7 +3809,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,MPanel.rcTime.left,MPanel.rcTime.top,
+		ExtTextOutA(MPanel.hmdc,MPanel.rcTime.left,MPanel.rcTime.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcTime),
     		buffer,strlen(buffer),NULL);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
@@ -3826,7 +3826,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,MPanel.rcVoices.left,MPanel.rcVoices.top,
+		ExtTextOutA(MPanel.hmdc,MPanel.rcVoices.left,MPanel.rcVoices.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcVoices),
     		buffer,strlen(buffer),NULL);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
@@ -3843,7 +3843,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,MPanel.rcMVolume.left,MPanel.rcMVolume.top,
+		ExtTextOutA(MPanel.hmdc,MPanel.rcMVolume.left,MPanel.rcMVolume.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMVolume),
     		buffer,strlen(buffer),NULL);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
@@ -3860,7 +3860,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,MPanel.rcRate.left,MPanel.rcRate.top,
+		ExtTextOutA(MPanel.hmdc,MPanel.rcRate.left,MPanel.rcRate.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcRate),
     		buffer,strlen(buffer),NULL);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
@@ -3878,7 +3878,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc, MPanel.FGColor);
 		SetBkColor(MPanel.hmdc, MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,
+		ExtTextOutA(MPanel.hmdc,
 				MPanel.rcMetronome.left, MPanel.rcMetronome.top,
 				ETO_CLIPPED | ETO_OPAQUE, &(MPanel.rcMetronome),
 				buffer, strlen(buffer), NULL);
@@ -3900,7 +3900,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc, MPanel.FGColor);
 		SetBkColor(MPanel.hmdc, MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,
+		ExtTextOutA(MPanel.hmdc,
 				MPanel.rcKeysig.left + 2, MPanel.rcKeysig.top,
 				ETO_CLIPPED | ETO_OPAQUE, &(MPanel.rcKeysig),
 				buffer, strlen(buffer), NULL);
@@ -3920,7 +3920,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc, MPanel.FGColor);
 		SetBkColor(MPanel.hmdc, MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,
+		ExtTextOutA(MPanel.hmdc,
 				MPanel.rcTempo.left + 2, MPanel.rcTempo.top,
 				ETO_CLIPPED | ETO_OPAQUE, &(MPanel.rcTempo),
 				buffer, strlen(buffer), NULL);
@@ -3940,7 +3940,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,MPanel.rcAQ_RATIO.left,MPanel.rcAQ_RATIO.top,
+		ExtTextOutA(MPanel.hmdc,MPanel.rcAQ_RATIO.left,MPanel.rcAQ_RATIO.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcAQ_RATIO),
     		buffer,strlen(buffer),NULL);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
@@ -4091,7 +4091,7 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
-		ExtTextOut(MPanel.hmdc,MPanel.rcMisc.left,MPanel.rcMisc.top,
+		ExtTextOutA(MPanel.hmdc,MPanel.rcMisc.left,MPanel.rcMisc.top,
     		ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMisc),
     		buffer,strlen(buffer),NULL);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
