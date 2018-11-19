@@ -538,6 +538,26 @@ static void wrd_text_update ( int x_from, int y_from, int x_to, int y_to, int lo
 					}
 					attr = w32g_wrd_wnd.attrbuf[y][x];
 				}
+#ifdef UNICODE
+				if ((w32g_wrd_wnd.textbuf[y][x] >> 6) != 2) { // UTF-8 lead byte
+					TCHAR t[4] = _T("");
+					int len = 1;
+					if ((w32g_wrd_wnd.textbuf[y][x] >> 5) == 4 + 2)
+						len = 2;
+					else if ((w32g_wrd_wnd.textbuf[y][x] >> 4) == 8 + 4 + 2)
+						len = 3;
+					else if ((w32g_wrd_wnd.textbuf[y][x] >> 3) == 16 + 8 + 4 + 2)
+						len = 4;
+					MultiByteToWideChar(CP_UTF8, 0, w32g_wrd_wnd.textbuf[y] + x, len, t, 3);
+					int width = (w32g_wrd_wnd.textbuf[y][x] >> 7) + 1;
+					SetRect(&rc_part, x * w32g_wrd_wnd.font_width, y * w32g_wrd_wnd.font_height,
+						(x + width) * w32g_wrd_wnd.font_width, (y + 1) * w32g_wrd_wnd.font_height);
+					if (w32g_wrd_wnd.flag & WRD_FLAG_TEXT)
+						ExtTextOut(w32g_wrd_wnd.hmdc, rc_part.left, rc_part.top, ETO_OPAQUE | ETO_CLIPPED, &rc_part, t, width, NULL);
+					ExtTextOut(hmdc_tmask, rc_part.left, rc_part.top, ETO_OPAQUE | ETO_CLIPPED, &rc_part, t, width, NULL);
+					x += len - 1;
+				}
+#else
 				if ( PlayerLanguage == LANGUAGE_JAPANESE && _mbbtype( w32g_wrd_wnd.textbuf[y][x], _MBC_SINGLE ) == _MBC_LEAD ) {
 					SetRect ( &rc_part, x * w32g_wrd_wnd.font_width, y * w32g_wrd_wnd.font_height,
 						(x + 2) * w32g_wrd_wnd.font_width, (y + 1) * w32g_wrd_wnd.font_height );
@@ -552,6 +572,7 @@ static void wrd_text_update ( int x_from, int y_from, int x_to, int y_to, int lo
 						ExtTextOut( w32g_wrd_wnd.hmdc, rc_part.left, rc_part.top, ETO_OPAQUE | ETO_CLIPPED, &rc_part, w32g_wrd_wnd.textbuf[y] + x, 1, NULL);
 					ExtTextOut( hmdc_tmask, rc_part.left, rc_part.top, ETO_OPAQUE | ETO_CLIPPED, &rc_part, w32g_wrd_wnd.textbuf[y] + x, 1, NULL);
 				}
+#endif
 			}
 		}
 		SetTextColor( w32g_wrd_wnd.hmdc, prevforecolor);
