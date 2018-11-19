@@ -319,7 +319,7 @@ static void output_buffer(uint8 *buff, size_t bytes)
 
 /*****************************************************************************************************************************/
 
-typedef HANDLE (WINAPI *fAvSetMmThreadCharacteristics)(LPCSTR,LPDWORD);
+typedef HANDLE (WINAPI *fAvSetMmThreadCharacteristics)(LPCTSTR,LPDWORD);
 typedef BOOL   (WINAPI *fAvRevertMmThreadCharacteristics)(HANDLE);
 
 static HINSTANCE hDll = NULL;
@@ -488,7 +488,9 @@ static unsigned int WINAPI render_thread(void *arglist)
 		
 	if(FAILED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED)))
 		return 1;
-	hMmCss = (pAvSetMmThreadCharacteristics)(RTThreadPriorityName[ThreadPriorityNum], &mmCssTaskIndex);
+	TCHAR *t = char_to_tchar(RTThreadPriorityName[ThreadPriorityNum]);
+	hMmCss = (pAvSetMmThreadCharacteristics)(t, &mmCssTaskIndex);
+	safe_free(t);
 	if(!hMmCss)
 		goto thread_exit;
 	IsThreadStart = 1;
