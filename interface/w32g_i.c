@@ -4106,28 +4106,30 @@ void MPanelUpdate(void)
 		SetTextColor(MPanel.hmdc,MPanel.FGColor);
 		SetBkColor(MPanel.hmdc,MPanel.BGColor);
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
+		TCHAR *t = char_to_tchar(MPanelMessageData.buff);
 		switch ( MPanelMessageData.curmode ) {
 		case 0:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-    			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+    			t,_tcslen(t),NULL);
 		case 1:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-    			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+    			t,_tcslen(t),NULL);
 //			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left-(MPanel.rcMessage.bottom-MPanel.rcMessage.top)*2,
 //				MPanel.rcMessage.top, ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-//    			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+//    			t,_tcslen(t),NULL);
 		case 2:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-    			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+    			t,_tcslen(t),NULL);
 		case -1:
 		default:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-    			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+    			t,_tcslen(t),NULL);
 		}
+		safe_free(t);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
 			SelectObject(MPanel.hmdc,hgdiobj);
 		GDI_UNLOCK(); // gdi_lock
@@ -4564,7 +4566,7 @@ void MPanelMessageUpdate(void)
 static void VersionWnd(HWND hParentWnd)
 {
 	char VersionText[2024];
-  sprintf(VersionText,
+  snprintf(VersionText, sizeof(VersionText) / sizeof(char),
 "TiMidity++ %s%s %s" NLS NLS
 "TiMidity-0.2i by Tuukka Toivonen <tt@cgs.fi>." NLS
 "TiMidity Win32 version by Davide Moretti <dave@rimini.com>." NLS
@@ -4574,13 +4576,15 @@ static void VersionWnd(HWND hParentWnd)
 "TiMidity++ by Masanao Izumo <mo@goice.co.jp>." NLS
 ,(strcmp(timidity_version, "current")) ? "version " : "", timidity_version, arch_string
 );
-	MessageBox(hParentWnd, VersionText, "Version", MB_OK);
+  TCHAR *t = char_to_tchar(VersionText);
+	MessageBox(hParentWnd, t, _T("Version"), MB_OK);
+	safe_free(t);
 }
 
 static void TiMidityWnd(HWND hParentWnd)
 {
 	char TiMidityText[2024];
-  sprintf(TiMidityText,
+  snprintf(TiMidityText, sizeof(TiMidityText) / sizeof(char),
 " TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
 " Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
@@ -4605,16 +4609,20 @@ NLS
 ,
 (strcmp(timidity_version, "current")) ? "version " : "", timidity_version, arch_string
 	);
-	MessageBox(hParentWnd, TiMidityText, "TiMidity++", MB_OK);
+  TCHAR *t = char_to_tchar(TiMidityText);
+	MessageBox(hParentWnd, t, _T("TiMidity++"), MB_OK);
+	safe_free(t);
 }
 
 static void SupplementWnd(HWND hParentWnd)
 {
 	char SupplementText[2024];
-  sprintf(SupplementText,
+  snprintf(SupplementText, sizeof(SupplementText) / sizeof(char),
 "GS is a registered trademark of Roland Corporation. " NLS
 "XG is a registered trademark of Yamaha Corporation. " NLS );
-	  MessageBox(hParentWnd, SupplementText, "Supplement", MB_OK);
+  TCHAR *t = char_to_tchar(SupplementText);
+	  MessageBox(hParentWnd, t, _T("Supplement"), MB_OK);
+	  safe_free(t);
 }
 
 
