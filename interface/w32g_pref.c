@@ -8792,7 +8792,9 @@ LRESULT WINAPI wdmksConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			else
 				DI_ENABLE(IDC_COMBO_WDMKS_DEV);
 			for (i = 0; i < cb_num && i < WDMKS_DEVLIST_MAX; i++) {
-				CB_INSSTRA(IDC_COMBO_WDMKS_DEV, &cb_info_IDC_COMBO_WDMKS_INFO[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_WDMKS_INFO[i].name);
+				CB_INSSTR(IDC_COMBO_WDMKS_DEV, t);
+				safe_free(t);
 				if (st_temp->wdmks_device_id == cb_info_IDC_COMBO_WDMKS_INFO[i].deviceID)
 					cb_sel = i;
 			}
@@ -8800,17 +8802,17 @@ LRESULT WINAPI wdmksConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			// Device Info 			
 			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_DEVICE_ID, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].deviceID, FALSE);
 			if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isWaveRT)
-				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveRT");
+				SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_STREAM_TYPE, WM_SETTEXT, 0, (LPARAM)_T("WaveRT"));
 			else
-				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveCyclic");
+				SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_STREAM_TYPE, WM_SETTEXT, 0, (LPARAM)_T("WaveCyclic"));
 			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minSampleRate, FALSE);
 			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxSampleRate, FALSE);
 			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minBits, FALSE);
 			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxBits, FALSE);
 			if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isFloat)
-				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Support");
+				SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_FLOAT, WM_SETTEXT, 0, (LPARAM)_T("Support"));
 			else
-				SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Not Support");
+				SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_FLOAT, WM_SETTEXT, 0, (LPARAM)_T("Not Support"));
 			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minLatency, FALSE);
 			SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxLatency, FALSE);
 			// Latency
@@ -8854,17 +8856,17 @@ LRESULT WINAPI wdmksConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 					// Device Info 	
 					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_DEVICE_ID, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].deviceID, FALSE);
 					if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isWaveRT)
-						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveRT");
+						SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_STREAM_TYPE, WM_SETTEXT, 0, (LPARAM)_T("WaveRT"));
 					else
-						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_STREAM_TYPE,WM_SETTEXT,0,(LPARAM)"WaveCyclic");
+						SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_STREAM_TYPE, WM_SETTEXT, 0, (LPARAM)_T("WaveCyclic"));
 					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minSampleRate, FALSE);
 					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_RATE_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxSampleRate, FALSE);
 					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minBits, FALSE);
 					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_BITS_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxBits, FALSE);
 					if(cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].isFloat)
-						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Support");
+						SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_FLOAT, WM_SETTEXT, 0, (LPARAM)_T("Support"));
 					else
-						SendDlgItemMessage(hwnd,IDC_STATIC_WDMKS_FLOAT,WM_SETTEXT,0,(LPARAM)"Not Support");
+						SendDlgItemMessage(hwnd, IDC_STATIC_WDMKS_FLOAT, WM_SETTEXT, 0, (LPARAM)_T("Not Support"));
 					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MIN, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].minLatency, FALSE);
 					SetDlgItemInt(hwnd, IDC_STATIC_WDMKS_LATENCY_MAX, cb_info_IDC_COMBO_WDMKS_INFO[cb_sel].maxLatency, FALSE);
 				}	
