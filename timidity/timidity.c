@@ -6180,6 +6180,9 @@ static int parse_opt_h(const char *arg)
 	strcat(version, timidity_version);
 	strcat(version, " ");
 	strcat(version, arch_string);
+#ifdef UNICODE
+	strcat(version, " [Unicode]");
+#endif
 	per_mark[0] = '%';
 	per_mark[1] = '\0';
 	help_args[0] = version;
@@ -7710,7 +7713,11 @@ static inline int parse_opt_v(const char *arg)
 #else
 		"TiMidity++ ",
 				(strcmp(timidity_version, "current")) ? "version " : "",
-				timidity_version, " ", arch_string, NLS,
+				timidity_version, " ", arch_string,
+#ifdef UNICODE
+				" [Unicode]",
+#endif
+		NLS,
 		NLS,
 #endif
 		"Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>", NLS,
@@ -8013,7 +8020,11 @@ static inline void close_pager(FILE *fp)
 static void interesting_message(void)
 {
 	printf(
-"TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
+"TiMidity++ %s%s"
+#ifdef UNICODE
+" [Unicode]"
+#endif
+" -- MIDI to WAVE converter and player" NLS
 "Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>" NLS
 "Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 			NLS

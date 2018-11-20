@@ -4567,7 +4567,11 @@ static void VersionWnd(HWND hParentWnd)
 {
 	char VersionText[2024];
   snprintf(VersionText, sizeof(VersionText) / sizeof(char),
-"TiMidity++ %s%s %s" NLS NLS
+"TiMidity++ %s%s %s"
+#ifdef UNICODE
+" [Unicode]"
+#endif
+NLS NLS
 "TiMidity-0.2i by Tuukka Toivonen <tt@cgs.fi>." NLS
 "TiMidity Win32 version by Davide Moretti <dave@rimini.com>." NLS
 "TiMidity Windows 95 port by Nicolas Witczak." NLS
@@ -4585,7 +4589,11 @@ static void TiMidityWnd(HWND hParentWnd)
 {
 	char TiMidityText[2024];
   snprintf(TiMidityText, sizeof(TiMidityText) / sizeof(char),
-" TiMidity++ %s%s -- MIDI to WAVE converter and player" NLS
+" TiMidity++ %s%s"
+#ifdef UNICODE
+" [Unicode]"
+#endif
+" -- MIDI to WAVE converter and player" NLS
 " Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>" NLS
 " Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>" NLS
 NLS
