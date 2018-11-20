@@ -308,8 +308,13 @@ static int lame_output_open(const char *fname, const char *comment)
 
 #endif
   }
-
+#ifdef __W32__
+	TCHAR *t = char_to_tchar(fname);
+	lame_fpout = _tfopen(t, _T("wb"));
+	safe_free(t);
+#else
 	lame_fpout = fopen(fname, "wb");
+#endif
 	lame_buffer = (unsigned char*) safe_malloc(dwSamples * 8);
 	lame_work_buffer = (unsigned char*) safe_malloc(dwSamples * 8);
 	lame_buffer_cur = 0;

@@ -136,7 +136,14 @@ static int raw_output_open(const char *fname)
 
   if(strcmp(fname, "-") == 0)
     return 1; /* data to stdout */
-  if((fd = open(fname, FILE_OUTPUT_MODE)) < 0)
+#ifdef __W32__
+  TCHAR *t = char_to_tchar(fname);
+  fd = _topen(t, FILE_OUTPUT_MODE);
+  safe_free(t);
+#else
+  fd = open(fname, FILE_OUTPUT_MODE);
+#endif
+  if(fd < 0)
     ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 	      fname, strerror(errno));
   return fd;

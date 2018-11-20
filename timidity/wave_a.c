@@ -215,7 +215,13 @@ static int wav_output_open(const char *fname)
 	fd = STDOUT_FILENO; /* data to stdout */
     else {
 	/* Open the audio file */
+#ifdef __W32__
+	TCHAR *t = char_to_tchar(fname);
+	fd = _topen(t, FILE_OUTPUT_MODE);
+	safe_free(t);
+#else
 	fd = open(fname, FILE_OUTPUT_MODE);
+#endif
 	if (fd < 0) {
 	    ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		      fname, strerror(errno));

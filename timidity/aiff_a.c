@@ -216,8 +216,14 @@ static int aiff_output_open(const char *fname)
     dpm.fd = 1; /* data to stdout */
   } else {
     /* Open the audio file */
-    dpm.fd = open(fname, FILE_OUTPUT_MODE);
-    if(dpm.fd < 0) {
+#ifdef __W32__
+	  TCHAR *t = char_to_tchar(fname);
+	  dpm.fd = _topen(t, FILE_OUTPUT_MODE);
+	  safe_free(t);
+#else
+	  dpm.fd = open(fname, FILE_OUTPUT_MODE);
+#endif
+	  if(dpm.fd < 0) {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		fname, strerror(errno));
       return -1;

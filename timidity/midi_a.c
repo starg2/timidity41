@@ -324,6 +324,13 @@ static void close_output(void)
 	else
 	#endif
 	    dmp.fd = open(dmp.name, FILE_OUTPUT_MODE);
+#ifdef __W32__
+	TCHAR *t = char_to_tchar(dmp.name);
+	dmp.fd = _topen(t, FILE_OUTPUT_MODE);
+	safe_free(t);
+#else
+	dmp.fd = open(dmp.name, FILE_OUTPUT_MODE);
+#endif
 	if (dmp.fd != -1) {
 	    std_write(dmp.fd, midibuf, midi_pos);
 	    if (strcmp(dmp.name, "-") != 0)
