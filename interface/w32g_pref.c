@@ -8242,7 +8242,9 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				DI_DISABLE(IDC_BUTTON_PA_ASIO_CONFIG);
 			}
 			for (i = 0; i < cb_num && i < 100; i++) {
-				CB_INSSTRA(IDC_COMBO_PA_ASIO_DEV, &cb_info_IDC_COMBO_PA_ASIO_NAME[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_PA_ASIO_NAME[i].name);
+				CB_INSSTR(IDC_COMBO_PA_ASIO_DEV, t);
+				safe_free(t);
 				if (st_temp->pa_asio_device_id == cb_info_IDC_COMBO_PA_ASIO_NAME[i].deviceID)
 					cb_sel = i;
 			}
@@ -8252,7 +8254,8 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 			if (cb_num == 0)
 				DI_DISABLE(IDC_COMBO_PA_DS_DEV);
 			for (i = 0; i < cb_num && i < 100; i++) {
-				CB_INSSTRA(IDC_COMBO_PA_DS_DEV, &cb_info_IDC_COMBO_PA_DS_NAME[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_PA_DS_NAME[i].name);
+				CB_INSSTR(IDC_COMBO_PA_DS_DEV, t); safe_free(t);
 				if (st_temp->pa_ds_device_id == cb_info_IDC_COMBO_PA_DS_NAME[i].deviceID)
 					cb_sel = i;
 			}
@@ -8262,7 +8265,9 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 			if (cb_num == 0)
 				DI_DISABLE(IDC_COMBO_PA_WMME_DEV);
 			for (i = 0; i < cb_num && i < 100; i++) {
-				CB_INSSTRA(IDC_COMBO_PA_WMME_DEV, &cb_info_IDC_COMBO_PA_WMME_NAME[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_PA_WMME_NAME[i].name);
+				CB_INSSTR(IDC_COMBO_PA_WMME_DEV, t);
+				safe_free(t);
 				if (st_temp->pa_wmme_device_id == cb_info_IDC_COMBO_PA_WMME_NAME[i].deviceID)
 					cb_sel = i;
 			}
@@ -8272,7 +8277,9 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 			if (cb_num == 0)
 				DI_DISABLE(IDC_COMBO_PA_WDMKS_DEV);
 			for (i = 0; i < cb_num && i < 100; i++) {
-				CB_INSSTRA(IDC_COMBO_PA_WDMKS_DEV, &cb_info_IDC_COMBO_PA_WDMKS_NAME[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_PA_WDMKS_NAME[i].name);
+				CB_INSSTR(IDC_COMBO_PA_WDMKS_DEV, t);
+				safe_free(t);
 				if (st_temp->pa_wdmks_device_id == cb_info_IDC_COMBO_PA_WDMKS_NAME[i].deviceID)
 					cb_sel = i;
 			}
@@ -8282,7 +8289,9 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 			if (cb_num == 0)
 				DI_DISABLE(IDC_COMBO_PA_WASAPI_DEV);
 			for (i = 0; i < cb_num && i < 100; i++) {
-				CB_INSSTRA(IDC_COMBO_PA_WASAPI_DEV, &cb_info_IDC_COMBO_PA_WASAPI_NAME[i].name);
+				TCHAR *t = char_to_tchar(cb_info_IDC_COMBO_PA_WASAPI_NAME[i].name);
+				CB_INSSTR(IDC_COMBO_PA_WASAPI_DEV, t);
+				safe_free(t);
 				if (st_temp->pa_wasapi_device_id == cb_info_IDC_COMBO_PA_WASAPI_NAME[i].deviceID)
 					cb_sel = i;
 			}

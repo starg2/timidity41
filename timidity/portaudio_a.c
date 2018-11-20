@@ -1189,16 +1189,29 @@ static char *convert_device_name_dup(const char *name, PaHostApiIndex hostApi)
 	const PaHostApiIndex paIdxWDMKS = Pa_HostApiTypeIdToHostApiIndex(paWDMKS);
 	const PaHostApiIndex paIdxWASAPI = Pa_HostApiTypeIdToHostApiIndex(paWASAPI);
 
+#ifdef UNICODE
 	if (hostApi == paIdxWDMKS || hostApi == paIdxWASAPI /* || hostApi == paIdxASIO */
-#if defined(_UNICODE) || defined(UNICODE)
-	    || hostApi == paIdxDirectSound || hostApi == paIdxMME
-#endif /* UNICODE */
+//	    || hostApi == paIdxDirectSound || hostApi == paIdxMME
 	    )
+	{
+		return safe_strdup(name);
+	}
+	else
+	{
+		return (char *)w32_mbs_to_utf8(name);
+	}
+#else
+	if (hostApi == paIdxWDMKS || hostApi == paIdxWASAPI /* || hostApi == paIdxASIO */
+//		|| hostApi == paIdxDirectSound || hostApi == paIdxMME
+		)
 	{
 		return (char *)w32_utf8_to_mbs(name);
 	}
-
-	return safe_strdup(name);
+	else
+	{
+		return safe_strdup(name);
+	}
+#endif
 }
 #else
 static char *convert_device_name_dup(const char *name, PaHostApiIndex hostApi)
