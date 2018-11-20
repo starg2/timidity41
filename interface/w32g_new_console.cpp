@@ -26,6 +26,7 @@ extern "C"
 
 #include <cstddef>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 
@@ -35,6 +36,7 @@ extern "C"
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -647,18 +649,30 @@ private:
 
             if (m_SelStart.has_value() && m_SelEnd.has_value())
             {
-                auto [x, y] = PositionFromTextLocation(*m_SelStart);
-                auto [xe, ye] = PositionFromTextLocation(*m_SelEnd);
+                auto selStart = *m_SelStart;
+                auto selEnd = *m_SelEnd;
+
+                if (std::tie(selStart.Line, selStart.Column) <= std::tie(selEnd.Line, selEnd.Column))
+                {
+                    selEnd.Column++;
+                }
+                else
+                {
+                    selStart.Column++;
+                }
+
+                auto [x, y] = PositionFromTextLocation(selStart);
+                auto [xe, ye] = PositionFromTextLocation(selEnd);
 
                 if (m_SelStart->Line == m_SelEnd->Line)
                 {
-                    ::BitBlt(m_hBackDC, x, y, xe - x + m_FontWidth, m_FontHeight, nullptr, 0, 0, DSTINVERT);
+                    ::BitBlt(m_hBackDC, x, y, xe - x, m_FontHeight, nullptr, 0, 0, DSTINVERT);
                 }
                 else
                 {
                     ::BitBlt(m_hBackDC, x, y, (rc.right - rc.left) - x, m_FontHeight, nullptr, 0, 0, DSTINVERT);
                     ::BitBlt(m_hBackDC, 0, y + m_FontHeight, rc.right - rc.left, ye - (y + m_FontHeight), nullptr, 0, 0, DSTINVERT);
-                    ::BitBlt(m_hBackDC, 0, ye, xe + m_FontWidth, m_FontHeight, nullptr, 0, 0, DSTINVERT);
+                    ::BitBlt(m_hBackDC, 0, ye, xe, m_FontHeight, nullptr, 0, 0, DSTINVERT);
                 }
             }
         }
@@ -1110,6 +1124,32 @@ private:
 
         if (0 <= line && line < m_Buffer.GetLineCount())
         {
+#ifdef UNICODE
+            float col = m_CurrentLeftColumnNumber + static_cast<float>(x) / m_FontWidth;
+            auto lineStr = m_Buffer.GetLineString(static_cast<std::size_t>(line));
+            float currentVisualColumn = 0.0f;
+            std::size_t charCount = 0;
+            bool done = false;
+
+            for (wchar_t c : lineStr)
+            {
+                int d = (c < 128 ? 1 : 2);
+
+                if (col <= currentVisualColumn + d)
+                {
+                    done = true;
+                    break;
+                }
+
+                currentVisualColumn += d;
+                charCount++;
+            }
+
+            if (done || !exact)
+            {
+                return TextLocationInfo{static_cast<std::size_t>(line), static_cast<std::size_t>(charCount)};
+            }
+#else
             int col = m_CurrentLeftColumnNumber + x / m_FontWidth;
 
             if (!exact)
@@ -1121,6 +1161,7 @@ private:
             {
                 return TextLocationInfo{static_cast<std::size_t>(line), static_cast<std::size_t>(col)};
             }
+#endif
         }
 
         return std::nullopt;
@@ -1128,10 +1169,25 @@ private:
 
     std::pair<int, int> PositionFromTextLocation(TextLocationInfo loc) const
     {
+#ifdef UNICODE
+        auto lineStr = m_Buffer.GetLineString(loc.Line);
+        int col = 0;
+
+        for (wchar_t c : lineStr.substr(0, loc.Column))
+        {
+            col += (c < 128 ? 1 : 2);
+        }
+
+        return {
+            static_cast<int>((col - m_CurrentLeftColumnNumber) * m_FontWidth),
+            static_cast<int>((loc.Line - m_CurrentTopLineNumber) * m_FontHeight)
+        };
+#else
         return {
             static_cast<int>((loc.Column - m_CurrentLeftColumnNumber) * m_FontWidth),
             static_cast<int>((loc.Line - m_CurrentTopLineNumber) * m_FontHeight)
         };
+#endif
     }
 
     StyledTextBuffer& m_Buffer;
