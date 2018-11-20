@@ -747,7 +747,7 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 						AppendMenu(hMenu, MF_STRING, IDM_PREFERENCE, TEXT("設定(&P)..."));
 #ifdef HAVE_SYN_CONSOLE
-						AppendMenu(hMenu, MF_STRING, IDM_CONSOLE_WND, TEXT("コン\x83\x5Cール(&C)"));   // コンソール
+						AppendMenu(hMenu, MF_STRING, IDM_CONSOLE_WND, TEXT("コンソール(&C)"));
 #endif /* HAVE_SYN_CONSOLE */
 ///r
 #ifdef VST_LOADER_ENABLE
