@@ -632,8 +632,10 @@ static void InitMainMenu(HWND hWnd)
 		}
 		if (i > 0 && i % (module_list_num / 2) == 0)
 			mii.fType |= MFT_MENUBARBREAK;
-		mii.dwTypeData = module_list[i].name;
+		TCHAR *t = char_to_tchar(module_list[i].name);
+		mii.dwTypeData = t;
 		InsertMenuItem(hMenuModule, i, TRUE, &mii);
+		safe_free(t);
 	}
 	// Output
 	mii.fMask = MIIM_TYPE | MIIM_ID;
