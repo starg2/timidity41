@@ -4,8 +4,8 @@ add_definitions(
     -Dpclose=_pclose
 )
 
-add_library(
-    libarc OBJECT
+set(
+    LIBARC_SOURCES
 
     arc.c
     arc_lzh.c
@@ -39,3 +39,7 @@ add_library(
     url.h
     zip.h
 )
+
+add_library(libarc OBJECT ${LIBARC_SOURCES})
+add_library(libarc_u8 OBJECT ${LIBARC_SOURCES})
+target_compile_definitions(libarc_u8 PRIVATE -DUNICODE -D_UNICODE)

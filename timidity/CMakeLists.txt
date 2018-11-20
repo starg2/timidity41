@@ -51,16 +51,12 @@ set(
     timidity.h
     vstwrapper.h
     wrd.h
-
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:utils>
 )
 
 add_definitions(${TIMIDITY_FE_DEFINITIONS})
 
-add_library(
-    timidity_common OBJECT
+set(
+    TIMIDITY_COMMON_SOURCES
 
     aiff_a.c
     ao_a.c
@@ -174,6 +170,10 @@ add_library(
     wdmks_a.h
 )
 
+add_library(timidity_common OBJECT ${TIMIDITY_COMMON_SOURCES})
+add_library(timidity_common_u8 OBJECT ${TIMIDITY_COMMON_SOURCES})
+target_compile_definitions(timidity_common_u8 PRIVATE -DUNICODE -D_UNICODE)
+
 set(
     TIMIDITY_COMMON_LIBS
 
@@ -192,7 +192,10 @@ add_executable(
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface>
+    $<TARGET_OBJECTS:libarc>
+    $<TARGET_OBJECTS:libunimod>
     $<TARGET_OBJECTS:timidity_common>
+    $<TARGET_OBJECTS:utils>
 )
 
 add_dependencies(timidity UpdateTim41Version)
@@ -206,7 +209,10 @@ add_executable(
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface_synsrv>
+    $<TARGET_OBJECTS:libarc>
+    $<TARGET_OBJECTS:libunimod>
     $<TARGET_OBJECTS:timidity_common>
+    $<TARGET_OBJECTS:utils>
 )
 
 add_dependencies(twsynsrv UpdateTim41Version)
@@ -220,7 +226,10 @@ add_executable(
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface_w32g>
+    $<TARGET_OBJECTS:libarc>
+    $<TARGET_OBJECTS:libunimod>
     $<TARGET_OBJECTS:timidity_common>
+    $<TARGET_OBJECTS:utils>
 )
 
 add_dependencies(timw32g UpdateTim41Version)
@@ -235,10 +244,49 @@ add_executable(
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
     $<TARGET_OBJECTS:interface_w32gsyn>
+    $<TARGET_OBJECTS:libarc>
+    $<TARGET_OBJECTS:libunimod>
     $<TARGET_OBJECTS:timidity_common>
+    $<TARGET_OBJECTS:utils>
 )
 
 add_dependencies(twsyng UpdateTim41Version)
 target_compile_definitions(twsyng PRIVATE -DIA_NPSYN -DIA_PORTMIDISYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
 target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS} pdcurses)
 DisableMSManifest(twsyng)
+
+# timw32g_u8
+
+add_executable(
+    timw32g_u8 WIN32
+
+    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
+    $<TARGET_OBJECTS:interface_w32g_u8>
+    $<TARGET_OBJECTS:libarc_u8>
+    $<TARGET_OBJECTS:libunimod>
+    $<TARGET_OBJECTS:timidity_common_u8>
+    $<TARGET_OBJECTS:utils_u8>
+)
+
+add_dependencies(timw32g_u8 UpdateTim41Version)
+target_compile_definitions(timw32g_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_W32GUI -D__W32G__)
+target_link_libraries(timw32g_u8 ${TIMIDITY_COMMON_LIBS})
+DisableMSManifest(timw32g_u8)
+
+# twsyng_u8
+
+add_executable(
+    twsyng_u8 WIN32
+
+    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
+    $<TARGET_OBJECTS:interface_w32gsyn_u8>
+    $<TARGET_OBJECTS:libarc_u8>
+    $<TARGET_OBJECTS:libunimod>
+    $<TARGET_OBJECTS:timidity_common_u8>
+    $<TARGET_OBJECTS:utils_u8>
+)
+
+add_dependencies(twsyng_u8 UpdateTim41Version)
+target_compile_definitions(twsyng_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_NPSYN -DIA_PORTMIDISYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS} pdcurses)
+DisableMSManifest(twsyng_u8)

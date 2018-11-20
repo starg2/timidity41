@@ -1,6 +1,6 @@
 
-add_library(
-    utils OBJECT
+set(
+    UTILS_SOURCES
 
     bitset.c
     fft.c
@@ -29,3 +29,7 @@ add_library(
     support.h
     timer.h
 )
+
+add_library(utils OBJECT ${UTILS_SOURCES})
+add_library(utils_u8 OBJECT ${UTILS_SOURCES})
+target_compile_definitions(utils_u8 PRIVATE -DUNICODE -D_UNICODE)

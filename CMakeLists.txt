@@ -4,7 +4,6 @@ cmake_minimum_required(VERSION 3.9)
 project(timidity41)
 
 set(TIM41_USE_AVX2 FALSE CACHE BOOL "Enable use of Intel AVX2 enhanced instructions")
-set(TIM41_UNICODE TRUE CACHE BOOL "Use Unicode")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
@@ -100,10 +99,6 @@ add_definitions(
 # MSVCRT
     -D_CRT_SECURE_NO_WARNINGS
 )
-
-if("${TIM41_UNICODE}")
-    add_definitions(-DUNICODE -D_UNICODE)
-endif()
 
 set(
 	TIMIDITY_FE_DEFINITIONS
@@ -213,9 +208,6 @@ if(MSVC)
     )
 else()
     add_compile_options(-Wall -Wextra -Wno-missing-braces -ffast-math)
-    if("${TIM41_UNICODE}")
-        add_compile_options(-municode)
-    endif()
 
     if(TIM41_USE_AVX2)
         add_compile_options(-mavx2 -mfma)
