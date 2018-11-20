@@ -301,7 +301,8 @@ static void print_device_list(void)
 		if (MMSYSERR_NOERROR == waveOutGetDevCaps((UINT)i, &woc, sizeof(woc)) ){
 			device[list_num].deviceID=i;
 			char *s = tchar_to_char(woc.szPname);
-			strncpy(device[list_num].name, MAXPNAMELEN, s);
+			strncpy(device[list_num].name, WMME_DEVICE_NAME_MAX_LENGTH, s);
+			device[list_num].name[WMME_DEVICE_NAME_MAX_LENGTH - 1] = '\0';
 			safe_free(s);
 			list_num++;
 		}
@@ -678,8 +679,8 @@ int wmme_device_list(DEVICELIST *device)
 		waveOutGetDevCaps((UINT)i, &woc, sizeof(woc));
 		device[i+1].deviceID=i;
 		char *s = tchar_to_char(woc.szPname);
-		strncpy(device[i+1].name, s, MAXPNAMELEN - 1);
-		device[i + 1].name[MAXPNAMELEN - 1] = '\0';
+		strncpy(device[i+1].name, s, WMME_DEVICE_NAME_MAX_LENGTH - 1);
+		device[i + 1].name[WMME_DEVICE_NAME_MAX_LENGTH - 1] = '\0';
 		safe_free(s);
 	}
 	return num;

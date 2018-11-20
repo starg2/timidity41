@@ -21,10 +21,11 @@
 
 ///r
 #define DEVLIST_MAX 20
+#define WMME_DEVICE_NAME_MAX_LENGTH 64
 
 typedef struct tag_DEVICELIST {
 	int  deviceID;
-	char name[MAXPNAMELEN];
+	char name[WMME_DEVICE_NAME_MAX_LENGTH];
 } DEVICELIST;
 
 //extern int data_block_bits;
