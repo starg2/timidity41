@@ -1749,12 +1749,12 @@ extern char *w32_utf16_to_utf8(const wchar_t *str)
 
 extern TCHAR *char_to_tchar(const char *str)
 {
-	return w32_utf8_to_utf16(str);
+	return w32_utf8_to_utf16(str ? str : "");
 }
 
 extern char *tchar_to_char(const TCHAR *str)
 {
-	return w32_utf16_to_utf8(str);
+	return w32_utf16_to_utf8(str ? str : _T(""));
 }
 
 #else
