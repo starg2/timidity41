@@ -334,7 +334,7 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G7_P1 + i, scc_editor_get_param(6, i), TRUE);
 		for(i = 0; i < SCC_LFO_PARAM; i++)
 			SetDlgItemInt(hwnd, IDC_EDIT_SCC_G8_P1 + i, scc_editor_get_param(7, i), TRUE);
-		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G9_P1, scc_editor_get_param(8, 0), TRUE); // loop
+		SetDlgItemInt(hwnd, IDC_EDIT_SCC_G9_P1, scc_editor_get_param(8, 0), TRUE); // mode
 		{
 			TCHAR *t = char_to_tchar(scc_editor_load_wave_name(8));
 			SetDlgItemText(hwnd, IDC_EDIT_SCC_LFO1_WAVE_NAME, t);
@@ -483,7 +483,7 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G9_P4:
 			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;			
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
-			scc_editor_set_param(8, focus_clid - IDC_EDIT_SCC_G9_P1, tmp); // loop
+			scc_editor_set_param(8, focus_clid - IDC_EDIT_SCC_G9_P1, tmp); // mode
 			break;
 		}
 		break;	
@@ -629,7 +629,7 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_SCC_G9_P2:
 		case IDC_EDIT_SCC_G9_P3:
 		case IDC_EDIT_SCC_G9_P4:
-			scc_editor_set_param(8, clid - IDC_EDIT_SCC_G9_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // loop
+			scc_editor_set_param(8, clid - IDC_EDIT_SCC_G9_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // mode
 			break;
 		case IDC_EDIT_SCC_WAVE1_DATA_NAME:
 			focus_clid = IDC_EDIT_SCC_G2_P4;
@@ -739,7 +739,7 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G27_P1 + i, mms_editor_get_param(27, mms_op_num, i), TRUE); // lfo4
 		}		
 		for(i = 0; i < MMS_OP_LOOP_MAX; i++)
-			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G28_P1 + i, mms_editor_get_param(28, mms_op_num, i), TRUE); // loop
+			SetDlgItemInt(hwnd, IDC_EDIT_MMS_G28_P1 + i, mms_editor_get_param(28, mms_op_num, i), TRUE); // mode
 		{
 			TCHAR *t = char_to_tchar(mms_editor_load_wave_name(mms_op_num, 0));
 			SetDlgItemText(hwnd, IDC_EDIT_MMS_LFO1_WAVE_NAME, t);
@@ -1175,7 +1175,7 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 			tmp = (int)GetDlgItemInt(hwnd, focus_clid, NULL, TRUE) + wheel_speed;
 			if(tmp < 0) tmp = 0;
 			SetDlgItemInt(hwnd, focus_clid, tmp, TRUE);
-			mms_editor_set_param(28, mms_op_num, focus_clid - IDC_EDIT_MMS_G28_P1, tmp); // loop
+			mms_editor_set_param(28, mms_op_num, focus_clid - IDC_EDIT_MMS_G28_P1, tmp); // mode
 			break;	
 		}
 		break;
@@ -1581,7 +1581,7 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 		case IDC_EDIT_MMS_G28_P2:
 		case IDC_EDIT_MMS_G28_P3:
 		case IDC_EDIT_MMS_G28_P4:
-			mms_editor_set_param(28, mms_op_num, clid - IDC_EDIT_MMS_G28_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // loop
+			mms_editor_set_param(28, mms_op_num, clid - IDC_EDIT_MMS_G28_P1, (int)GetDlgItemInt(hwnd, clid, NULL, TRUE)); // mode
 			break;
 		case IDC_EDIT_MMS_WAVE_DATA_NAME:
 			focus_clid = prv_focus_clid;

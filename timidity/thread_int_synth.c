@@ -26,12 +26,20 @@ static IS_RS_DATA_T is_resample_buffer_thread[CDM_JOB_NUM][AUDIO_BUFFER_SIZE + 8
 
 void compute_voice_scc_thread(int v, DATA_T *ptr, int32 count, int thread)
 {
+	Voice *vp = voice + v;	
+
+	if(!vp->scc)
+		return;
 	compute_voice_scc_switch(v, count, ptr, is_resample_buffer_thread[thread]);
 }
 
 
 void compute_voice_mms_thread(int v, DATA_T *ptr, int32 count, int thread)
 {
+	Voice *vp = voice + v;	
+
+	if(!vp->mms)
+		return;
 	compute_voice_mms_switch(v, count, ptr, is_resample_buffer_thread[thread]);
 }
 
