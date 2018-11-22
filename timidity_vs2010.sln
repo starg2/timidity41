@@ -261,6 +261,7 @@ Global
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D}.Release|Win32.ActiveCfg = Release|Win32
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D}.Release|Win32.Build.0 = Release|Win32
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D}.Release|x64.ActiveCfg = Release|x64
+		{D3CD5655-ECDB-41A2-A310-7B931E9E495D}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

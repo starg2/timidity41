@@ -1795,6 +1795,7 @@ static int set_gus_patchconf(const char *name, int line,
 		tone->name = safe_strdup(opts[0]);
 		tone->instype = 3; // mms
 		tone->is_preset = atoi(opts[1]);
+		cfg_flg_int_synth_mms = 1;
 		opts += 2;
     }
     else if(strcmp(pat, "%scc") == 0) /* scc extention */
@@ -1809,6 +1810,7 @@ static int set_gus_patchconf(const char *name, int line,
 		tone->name = safe_strdup(opts[0]);
 		tone->instype = 4; // scc
 		tone->is_preset = atoi(opts[1]);
+		cfg_flg_int_synth_scc = 1;
 		opts += 2;
     }
 #endif

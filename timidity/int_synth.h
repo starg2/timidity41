@@ -344,17 +344,22 @@ extern void uninit_is_editor_param(void);
 
 /**************** interface function SCC MMS ****************/
 // SCC
+extern void free_int_synth_scc(int v);
 extern void init_int_synth_scc(int v);
 extern void noteoff_int_synth_scc(int v);
 extern void damper_int_synth_scc(int v, int8 damper);
 extern void compute_voice_scc(int v, DATA_T *ptr, int32 count);
+
 // MMS
+extern void free_int_synth_mms(int v);
 extern void init_int_synth_mms(int v);
 extern void noteoff_int_synth_mms(int v);
 extern void damper_int_synth_mms(int v, int8 damper);
 extern void compute_voice_mms(int v, DATA_T *ptr, int32 count);
 
 /**************** interface function internal synth ****************/
+extern int cfg_flg_int_synth_scc;
+extern int cfg_flg_int_synth_mms;
 extern void free_int_synth_preset(void);
 extern void free_int_synth(void);
 extern void init_int_synth(void);

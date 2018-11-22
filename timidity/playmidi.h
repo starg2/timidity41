@@ -518,7 +518,6 @@ typedef struct {
   FLOAT_T pan_amp[2];
   
   /* for voice control */
-//  int8 proximate_flag; // change overlap_count
   int32 overlap_count; 
   int32 channel_voice_count; 
   int8 init_voice, update_voice, finish_voice;
@@ -545,9 +544,6 @@ typedef struct {
   
   /* for cache */
   struct cache_hash *cache;
-      
-  /* for old envelope/lfo */
-  int32 delay_counter;  
 
   /* for envelope */
   int delay; /* Note ON delay samples */
@@ -566,17 +562,6 @@ typedef struct {
   Envelope2 vol_env, mix_env;  
   
   /* for lfo */
-  //int16 tremolo_depth;
-  //int32 tremolo_delay;
-  //int32 tremolo_phase, tremolo_phase_increment, orig_tremolo_phase_increment;
-  //int32 tremolo_sweep, tremolo_sweep_position;
-  //int control_counter;
-  //int32 vibrato_delay;
-  //int vibrato_depth;
-  //int32 vibrato_sample_increment[VIBRATO_SAMPLE_INCREMENTS];
-  //int vibrato_phase, vibrato_control_ratio; //, orig_vibrato_control_ratio, 
-  //int32 vibrato_control_counter;
-  //int32 vibrato_sweep, vibrato_sweep_position;
   FLOAT_T tremolo_volume;
   FLOAT_T lfo_rate[2];
   FLOAT_T lfo_amp_depth[2];
@@ -604,8 +589,8 @@ typedef struct {
   
   /* for int synth */
 #ifdef INT_SYNTH
-  InfoIS_SCC scc;
-  InfoIS_MMS mms;
+  InfoIS_SCC *scc;
+  InfoIS_MMS *mms;
 #endif
 } Voice;
 
