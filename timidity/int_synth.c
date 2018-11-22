@@ -143,9 +143,16 @@ static void set_sample_rate(void)
 		is_sample_rate_ms = playmode_rate_ms;
 		resample_ratio = 1.0;
 		is_rs_increment = is_fraction;
-	}else if(opt_int_synth_rate < 0){	
+	}else if(opt_int_synth_rate == -1){	
 		is_rs_mode = 1; // up resample , play_mode->rate / 2
 		is_sample_rate = play_mode->rate / 2;
+		div_is_sample_rate = 1.0 / is_sample_rate;	
+		is_sample_rate_ms = is_sample_rate * DIV_1000;
+		resample_ratio = is_sample_rate * div_playmode_rate * div_is_rs_over_sampling;
+		is_rs_increment = resample_ratio * is_fraction;
+	}else if(opt_int_synth_rate < 0){	
+		is_rs_mode = 2; // down resample , play_mode->rate * 2
+		is_sample_rate = play_mode->rate * -opt_int_synth_rate;
 		div_is_sample_rate = 1.0 / is_sample_rate;	
 		is_sample_rate_ms = is_sample_rate * DIV_1000;
 		resample_ratio = is_sample_rate * div_playmode_rate * div_is_rs_over_sampling;
@@ -4571,7 +4578,7 @@ FLOAT_T compute_osc_scc_sine(FLOAT_T in, FLOAT_T *data)
 	ofsi = fp;
 //	fp = 0.5 + sin((in - ofsi - 0.5) * M_PI) * DIV_2;
 //	fp = 0.5 + sine_table[(int32)((in - ofsi - 0.5) * M_12BIT) & table_size_mask] * DIV_2;
-	fp = lookup2_sine_p(in - fp);
+	fp = lookup2_sine_p((in - fp) * DIV_2);
 	ofsi &= 0x1F;
     v1 = data[ofsi];
     v2 = data[ofsi + 1];
@@ -5734,7 +5741,7 @@ static inline FLOAT_T compute_scc(InfoIS_SCC *info)
 static inline void compute_voice_scc_switch(int v, int32 count, DATA_T *is_buf, IS_RS_DATA_T *rs_buf)
 {
 	Voice *vp = voice + v;
-	InfoIS_SCC *info = (InfoIS_SCC*)&vp->scc;
+	InfoIS_SCC *info = vp->scc;
 	int32 i;
 	
 	if(!info->init){
@@ -6475,7 +6482,7 @@ static void pre_compute_mms(InfoIS_MMS *info, int v, int32 count)
 static inline void compute_voice_mms_switch(int v, int32 count, DATA_T *is_buf, IS_RS_DATA_T *rs_buf)
 {
 	Voice *vp = voice + v;
-	InfoIS_MMS *info = (InfoIS_MMS*)&vp->mms;
+	InfoIS_MMS *info = vp->mms;
 	int32 i;
 	
 	if(!info->init){
@@ -6507,47 +6514,79 @@ static inline void compute_voice_mms_switch(int v, int32 count, DATA_T *is_buf, 
 void init_int_synth_scc(int v)
 {
 	Voice *vp = voice + v;	
-	init_scc_preset(v, &vp->scc, (Preset_IS *)vp->sample->data, vp->sample->sf_sample_index);
+		
+	if(!vp->scc)
+		return;
+	init_scc_preset(v, vp->scc, (Preset_IS *)vp->sample->data, vp->sample->sf_sample_index);
 }
 
 void noteoff_int_synth_scc(int v)
 {	
-	noteoff_scc(&voice[v].scc);
+	Voice *vp = voice + v;	
+	
+	if(!vp->scc)
+		return;
+	noteoff_scc(vp->scc);
 }
 
 void damper_int_synth_scc(int v, int8 damper)
 {
-	damper_scc(&voice[v].scc, damper);
+	Voice *vp = voice + v;	
+	
+	if(!vp->scc)
+		return;
+	damper_scc(vp->scc, damper);
 }
 
 void compute_voice_scc(int v, DATA_T *ptr, int32 count)
 {
+	Voice *vp = voice + v;	
+	
+	if(!vp->scc)
+		return;
 	compute_voice_scc_switch(v, count, ptr, is_resample_buffer);
 }
 
 void init_int_synth_mms(int v)
 {
 	Voice *vp = voice + v;	
-	init_mms_preset(v, &vp->mms, (Preset_IS *)vp->sample->data, vp->sample->sf_sample_index);
+	
+	if(!vp->mms)
+		return;
+	init_mms_preset(v, vp->mms, (Preset_IS *)vp->sample->data, vp->sample->sf_sample_index);
 }
 
 void noteoff_int_synth_mms(int v)
 {
-	noteoff_mms(&voice[v].mms);
+	Voice *vp = voice + v;	
+	
+	if(!vp->mms)
+		return;
+	noteoff_mms(vp->mms);
 }
 
 void damper_int_synth_mms(int v, int8 damper)
 {
-	damper_mms(&voice[v].mms, damper);
+	Voice *vp = voice + v;
+	
+	if(!vp->mms)
+		return;
+	damper_mms(vp->mms, damper);
 }
 
 void compute_voice_mms(int v, DATA_T *ptr, int32 count)
 {
+	Voice *vp = voice + v;	
+	
+	if(!vp->mms)
+		return;
 	compute_voice_mms_switch(v, count, ptr, is_resample_buffer);
 }
 
 
-///// free
+///// init / free
+int cfg_flg_int_synth_scc = 0;
+int cfg_flg_int_synth_mms = 0;
 
 void free_int_synth_preset(void)
 {
@@ -6587,15 +6626,60 @@ void free_int_synth_preset(void)
 
 void free_int_synth(void)
 {
+	int i;
+
 	free_int_synth_preset();
 	free_is_editor_preset();
-	la_pcm_data_load_flg = 0;
+	la_pcm_data_load_flg = 0;	
+	
+	if (voice) {
+		for(i = 0; i < max_voices; i++) {			
+			Voice *vp = voice + i;	
+
+			if(!vp)
+				return;
+			if(vp->scc){
+				free(vp->scc);
+				vp->scc = NULL;
+			}
+			if(vp->mms){
+				free(vp->mms);
+				vp->mms = NULL;
+			}
+
+		}
+	}
+	cfg_flg_int_synth_scc = 0;
+	cfg_flg_int_synth_mms = 0;
 }
 
 void init_int_synth(void)
 {
+	int i;
+
 	set_sample_rate();
 	init_int_synth_lite();
+
+	if (voice) {
+		for(i = 0; i < max_voices; i++) {			
+			Voice *vp = voice + i;	
+
+			if(!vp)
+				continue;
+			if(cfg_flg_int_synth_scc && !vp->scc){
+				vp->scc = (InfoIS_SCC *)safe_malloc(sizeof(InfoIS_SCC));
+				if(!vp->scc)
+					continue;
+				memset(vp->scc, 0, sizeof(InfoIS_SCC));
+			}	
+			if(cfg_flg_int_synth_mms && !vp->mms){
+				vp->mms = (InfoIS_MMS *)safe_malloc(sizeof(InfoIS_MMS));
+				if(!vp->mms)
+					continue;
+				memset(vp->mms, 0, sizeof(InfoIS_MMS));
+			}
+		}
+	}
 }
 
 

@@ -87,8 +87,8 @@ static char pipe_name[256];
 typedef struct rtsyn_evbuf_t{
 	UINT wMsg;
 	UINT port;
-	DWORD	dwParam1;
-	DWORD	dwParam2;
+	DWORD_PTR	dwParam1;
+	DWORD_PTR	dwParam2;
 	int  exlen;
 	char *exbuffer;
 }  RtsynEvBuf;
@@ -184,8 +184,8 @@ static int read_pipe_data(void);
 int rtsyn_np_play_some_data(void)
 {
 	UINT wMsg;
-	DWORD	dwParam1;
-	DWORD	dwParam2;
+	DWORD_PTR	dwParam1;
+	DWORD_PTR	dwParam2;
 	MidiEvent ev;
 	MidiEvent evm[260];
 	UINT evbpoint;
@@ -263,8 +263,8 @@ int rtsyn_np_play_some_data(void)
 static void parse_ev(char* buffer, int *len){
 	UINT wMsg;
 	UINT port;
-	DWORD	dwParam1;
-	DWORD	dwParam2;
+	DWORD_PTR	dwParam1;
+	DWORD_PTR	dwParam2;
 	int  exlen;
 	char *exbuffer;
 	
