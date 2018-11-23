@@ -329,8 +329,14 @@
 /* UNIX (Select "AUTO" or "ASCII" or "NOCNV" or "EUC" or "JIS" or "SJIS") */
 #define OUTPUT_TEXT_CODE "AUTO"
 #else
+
+#ifdef UNICODE
+/* Windows (Unicode) */
+#define OUTPUT_TEXT_CODE "UTF-8"
+#else
 /* Windows (Select "ASCII" or "NOCNV" or "SJIS") */
 #define OUTPUT_TEXT_CODE "SJIS"
+#endif
 #endif
 #endif
 
