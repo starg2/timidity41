@@ -1068,7 +1068,11 @@ void w32_code_convert_japanese(char *in, char *out, size_t outsiz, char *icode, 
 	IMultiLanguage2 *pMLang = NULL;
 
 	if (SUCCEEDED(CoCreateInstance(&CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, &IID_IMultiLanguage2, (void **)&pMLang))) {
+#ifdef JAPANESE
+		DWORD in_code_page = 932;
+#else
 		DWORD in_code_page = CP_ACP;
+#endif
 
 		if (icode && strcmp(icode, "AUTO"))
 			in_code_page = w32_code_page_id_from_string(icode);
@@ -1256,6 +1260,11 @@ static void code_convert_japan(char *in, char *out, size_t maxlen,
 	{
 	    mode = "EUC";
 	    wrd_mode = "EUCK";
+	}
+	else if (!strcmp(mode, "UTF-8"))
+	{
+		mode = "UTF-8";
+		wrd_mode = "UTF-8";
 	}
 	else
 	{
