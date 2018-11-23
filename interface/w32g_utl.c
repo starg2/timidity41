@@ -218,19 +218,19 @@ IniGetKeyInt32Array(char *section, char *key, int32 *n, int arraysize)
   int ret = 0;
   TCHAR *tIniFile = char_to_tchar(IniFile);
   TCHAR *tSection = char_to_tchar(section);
-  TCHAR *tKey = char_to_tchar(key);
   TCHAR buffer[INI_MAXLEN];
-  TCHAR keybuffer[INI_MAXLEN];
+  char keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
-    _stprintf(keybuffer,_T("%ls%d"),tKey,i);
+    sprintf(keybuffer,"%s%d",key,i);
+	TCHAR *tkey = char_to_tchar(keybuffer);
     GetPrivateProfileString
-      (tSection,keybuffer,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+      (tSection,tkey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+	safe_free(tkey);
     if(_tcsicmp(buffer,INI_INVALID))
       n[i] =_ttol(buffer);
     else
       ret++;
   }
-  safe_free(tKey);
   safe_free(tSection);
   safe_free(tIniFile);
   return ret;
@@ -243,23 +243,19 @@ IniGetKeyIntArray(char *section, char *key, int *n, int arraysize)
   int ret = 0;
   TCHAR *tIniFile = char_to_tchar(IniFile);
   TCHAR *tSection = char_to_tchar(section);
-  TCHAR *tKey = char_to_tchar(key);
   TCHAR buffer[INI_MAXLEN];
-  TCHAR keybuffer[INI_MAXLEN];
+  char keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
-#ifdef UNICODE
-    swprintf(keybuffer,L"%ls%d",tKey,i);
-#else
-    sprintf(keybuffer,"%s%d",tKey,i);
-#endif
+    sprintf(keybuffer,"%s%d",key,i);
+	TCHAR *tkey = char_to_tchar(keybuffer);
     GetPrivateProfileString
-      (tSection,keybuffer,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+      (tSection,tkey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+	safe_free(tkey);
     if(_tcsicmp(buffer,INI_INVALID))
       n[i] =_ttol(buffer);
     else
       ret++;
   }
-  safe_free(tKey);
   safe_free(tSection);
   safe_free(tIniFile);
   return ret;
@@ -410,19 +406,15 @@ IniPutKeyInt32Array(char *section, char *key, int32 *n, int arraysize)
   int i;
   TCHAR *tIniFile = char_to_tchar(IniFile);
   TCHAR *tSection = char_to_tchar(section);
-  TCHAR *tKey = char_to_tchar(key);
   TCHAR buffer[INI_MAXLEN];
-  TCHAR keybuffer[INI_MAXLEN];
+  char keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
     _stprintf(buffer, _T("%ld"), n[i]);
-#ifdef UNICODE
-    _swprintf(keybuffer,L"%ls%d",key,i);
-#else
     sprintf(keybuffer,"%s%d",key,i);
-#endif
-    WritePrivateProfileString(tSection,keybuffer,buffer,tIniFile);
+	TCHAR *tkey = char_to_tchar(keybuffer);
+    WritePrivateProfileString(tSection,tkey,buffer,tIniFile);
+	safe_free(tkey);
   }
-  safe_free(tKey);
   safe_free(tSection);
   safe_free(tIniFile);
   return 0;
@@ -434,19 +426,15 @@ IniPutKeyIntArray(char *section, char *key, int *n, int arraysize)
   int i;
   TCHAR *tIniFile = char_to_tchar(IniFile);
   TCHAR *tSection = char_to_tchar(section);
-  TCHAR *tKey = char_to_tchar(key);
   TCHAR buffer[INI_MAXLEN];
-  TCHAR keybuffer[INI_MAXLEN];
+  char keybuffer[INI_MAXLEN];
   for(i=0;i<arraysize;i++){
     _stprintf(buffer,_T("%ld"),n[i]);
-#ifdef UNICODE
-    _swprintf(keybuffer,L"%ls%d",key,i);
-#else
     sprintf(keybuffer,"%s%d",key,i);
-#endif
-    WritePrivateProfileString(tSection,keybuffer,buffer,tIniFile);
+	TCHAR *tkey = char_to_tchar(keybuffer);
+    WritePrivateProfileString(tSection,tkey,buffer,tIniFile);
+	safe_free(tkey);
   }
-  safe_free(tKey);
   safe_free(tSection);
   safe_free(tIniFile);
   return 0;
