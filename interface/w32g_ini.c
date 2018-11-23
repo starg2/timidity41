@@ -478,7 +478,11 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 	IniGetKeyInt(INI_SEC_TIMIDITY,"opt_pure_intonation",&(st->opt_pure_intonation));
 	IniGetKeyInt8(INI_SEC_TIMIDITY,"opt_init_keysig",&(st->opt_init_keysig));
     IniGetKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
+#ifdef UNICODE
+    IniGetKeyStringN(INI_SEC_TIMIDITY,"output_text_code_u8",st->output_text_code,sizeof(st->output_text_code)-1);
+#else
     IniGetKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,sizeof(st->output_text_code)-1);
+#endif
     IniGetKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
 ///r
 	v_float = 0.0;
@@ -728,7 +732,11 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_TIMIDITY,"output_rate",&(st->output_rate));
     if(st->output_rate == 0)
 	st->output_rate = play_mode->rate;
+#ifdef UNICODE
+    IniPutKeyStringN(INI_SEC_TIMIDITY,"output_text_code_u8",st->output_text_code,sizeof(st->output_text_code));
+#else
     IniPutKeyStringN(INI_SEC_TIMIDITY,"output_text_code",st->output_text_code,sizeof(st->output_text_code));
+#endif
 ///r
 	IniPutKeyFloat(INI_SEC_TIMIDITY,"opt_user_volume_curve",st->opt_user_volume_curve);
     IniPutKeyInt(INI_SEC_TIMIDITY,"free_instruments_afterwards",&(st->free_instruments_afterwards));
