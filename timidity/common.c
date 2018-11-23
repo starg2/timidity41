@@ -61,6 +61,7 @@
 #endif /* HAVE_UNISTD_H */
 #else
 #include <windows.h>
+#include <mlang.h>
 #include <process.h>
 #include <io.h>
 #endif /* __W32__ */
@@ -1046,6 +1047,66 @@ void clean_up_pathlist(void)
 int volatile_touch(void *dmy) { return 1; }
 #endif /* HAVE_VOLATILE */
 
+#ifdef __W32__
+
+static DWORD w32_code_page_id_from_string(const char *code)
+{
+	if (!strcmp(code, "EUC"))
+		return 51932;
+	else if (!strcmp(code, "JIS"))
+		return 50220;
+	else if (!strcmp(code, "SJIS"))
+		return 932;
+	else if (!strcmp(code, "UTF-8"))
+		return 65001;
+	else
+		return CP_ACP;
+}
+
+void w32_code_convert_japanese(char *in, char *out, size_t outsiz, char *icode, char *ocode)
+{
+	IMultiLanguage2 *pMLang = NULL;
+
+	if (SUCCEEDED(CoCreateInstance(&CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, &IID_IMultiLanguage2, (void **)&pMLang))) {
+		DWORD in_code_page = CP_ACP;
+
+		if (icode && strcmp(icode, "AUTO"))
+			in_code_page = w32_code_page_id_from_string(icode);
+		else {
+			int src_size = strlen(in);
+			DetectEncodingInfo encode_info;
+			int encode_info_count = 1;
+
+			if (pMLang->lpVtbl->DetectInputCodepage(pMLang, MLDETECTCP_NONE, 0, in, &src_size, &encode_info, &encode_info_count) == S_OK)
+				in_code_page = encode_info.nCodePage;
+		}
+
+		DWORD out_code_page = w32_code_page_id_from_string(ocode && ocode != (char*)-1 && strcmp(ocode, "AUTO") ? ocode : OUTPUT_TEXT_CODE);
+
+		DWORD mode = 0;
+		UINT in_size = strlen(in);
+		UINT out_size = outsiz - 1;
+
+		if (pMLang->lpVtbl->ConvertString(pMLang, &mode, in_code_page, out_code_page, in, &in_size, out, &out_size) == S_OK) {
+			out[out_size] = '\0';
+			pMLang->lpVtbl->Release(pMLang);
+			return;
+		}
+	}
+
+	ctl->cmsg(CMSG_ERROR, VERB_DEBUG, "w32_code_convert_japanese() failed");
+
+	if (pMLang)
+		pMLang->lpVtbl->Release(pMLang);
+
+	if (outsiz > 0) {
+		strncpy(out, in, outsiz - 1);
+		out[outsiz - 1] = '\0';
+	}
+}
+
+#endif /* __W32__ */
+
 /* code converters */
 static unsigned char
       w2k[] = { 128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
@@ -1108,7 +1169,11 @@ static void code_convert_japan(char *in, char *out, size_t maxlen,
 
     if (ocode && ocode != (char*)-1)
     {
+#ifdef __W32__
+	w32_code_convert_japanese(in, out, maxlen, icode, ocode);
+#else
 	nkf_convert(in, out, maxlen, icode, ocode);
+#endif
 	if (out)
 	    out[maxlen] = '\0';
 	return;
@@ -1212,7 +1277,11 @@ static void code_convert_japan(char *in, char *out, size_t maxlen,
 	    code_convert_dump(in, out, maxlen, "ASCII");
 	else
 	{
+#ifdef __W32__
+		w32_code_convert_japanese(in, out, maxlen, icode, mode);
+#else
 	    nkf_convert(in, out, maxlen, icode, mode);
+#endif
 	    if (out)
 		out[maxlen] = '\0';
 	}
@@ -1230,7 +1299,11 @@ static void code_convert_japan(char *in, char *out, size_t maxlen,
 	    code_convert_dump(in, out, maxlen, "ASCII");
 	else
 	{
+#ifdef __W32__
+		w32_code_convert_japanese(in, out, maxlen, icode, wrd_mode);
+#else
 	    nkf_convert(in, out, maxlen, icode, wrd_mode);
+#endif
 	    if (out)
 		out[maxlen] = '\0';
 	}
