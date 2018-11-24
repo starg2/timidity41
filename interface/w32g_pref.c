@@ -682,10 +682,6 @@ void PrefSettingApplyReally(void)
 
 	restart = (PlayerLanguage != sp_temp->PlayerLanguage);
 //	restart |= (strcmp(sp_temp->ConfigFile,ConfigFile) != 0);
-	if(sp_temp->PlayerLanguage == LANGUAGE_JAPANESE)
-		strcpy(st_temp->output_text_code, "SJIS");
-	else
-		strcpy(st_temp->output_text_code, "ASCII");
 	uninitialize_resampler_coeffs();
 #ifdef SUPPORT_SOUNDSPEC
 //	if(view_soundspec_flag)
