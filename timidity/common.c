@@ -1085,7 +1085,7 @@ void w32_code_convert_japanese(char *in, char *out, size_t outsiz, char *icode, 
 				in_code_page = encode_info.nCodePage;
 		}
 
-		DWORD out_code_page = w32_code_page_id_from_string(ocode && ocode != (char*)-1 && strcmp(ocode, "AUTO") ? ocode : OUTPUT_TEXT_CODE);
+		DWORD out_code_page = w32_code_page_id_from_string(ocode && ocode != (char*)-1 && strcmp(ocode, "AUTO") ? ocode : output_text_code);
 
 		DWORD mode = 0;
 		UINT in_size = strlen(in);
