@@ -87,6 +87,8 @@ typedef struct w32g_tracer_wnd_t_ {
 
 	HBRUSH hNullBrush;
 	HPEN hNullPen;
+
+	TCHAR *tmp_tip_text;
 } w32g_tracer_wnd_t;
 
 extern void TracerWndReset(void);

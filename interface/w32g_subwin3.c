@@ -2819,11 +2819,24 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			if (((LPNMHDR)lParam)->code == TTN_NEEDTEXT) {
 				LPNMTTDISPINFO pn = (LPNMTTDISPINFO)lParam;
 
+				if (w32g_tracer_wnd.tmp_tip_text) {
+					safe_free(w32g_tracer_wnd.tmp_tip_text);
+					w32g_tracer_wnd.tmp_tip_text = NULL;
+				}
+
 				// + 1 to skip the space character
 				if (pn->hdr.idFrom == TRACER_CHANNELS)
-					pn->lpszText = w32g_tracer_wnd.titlename + 1;
+					w32g_tracer_wnd.tmp_tip_text = char_to_tchar(w32g_tracer_wnd.titlename + 1);
 				else if (pn->hdr.idFrom < TRACER_CHANNELS)
-					pn->lpszText = w32g_tracer_wnd.instrument[pn->hdr.idFrom] + 1;
+					w32g_tracer_wnd.tmp_tip_text = char_to_tchar(w32g_tracer_wnd.instrument[pn->hdr.idFrom] + 1);
+
+				pn->lpszText = w32g_tracer_wnd.tmp_tip_text;
+			}
+			break;
+		case WM_DESTROY:
+			if (w32g_tracer_wnd.tmp_tip_text) {
+				safe_free(w32g_tracer_wnd.tmp_tip_text);
+				w32g_tracer_wnd.tmp_tip_text = NULL;
 			}
 			break;
 		default:
