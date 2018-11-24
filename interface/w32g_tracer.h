@@ -5,6 +5,7 @@
 typedef struct w32g_tracer_wnd_t_ {
 	HWND hwnd;
 	HWND hParentWnd;
+	HWND hTool;
 	HDC hdc;
 	HDC hmdc;
 	HGDIOBJ hgdiobj_hmdcprev;
@@ -90,6 +91,7 @@ typedef struct w32g_tracer_wnd_t_ {
 
 extern void TracerWndReset(void);
 extern void TracerWndClear(int lockflag);
+extern void TracerWndRecalcLayout(int lockflag);
 extern void TracerWndPaintAll(int lockflag);
 extern void TracerWndPaintDo(int flag);
 extern w32g_tracer_wnd_t w32g_tracer_wnd;
