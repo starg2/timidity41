@@ -697,7 +697,7 @@ ListNameWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 	switch (uMess){
 	case WM_INITDIALOG:
-		SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"ListName");
+		SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)_T("ListName"));
 		num = w32g_get_playlist_num_ctrl();
 		SetDlgItemText(hwnd, IDC_EDIT1, ListWndInfo.ListName[num]);
 		SetFocus(GetDlgItem(hwnd,IDC_EDIT1));
@@ -2394,21 +2394,21 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_INITDIALOG:
 		switch(PlayerLanguage){
 		case LANGUAGE_JAPANESE:
-			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"プレイリストの検索");
-			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)"検索キーワードを入れてください。");
-			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)"");
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)"検索");
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)"次を検索");
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)"閉じる");
+			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)_T("プレイリストの検索"));
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)_T("検索キーワードを入れてください。"));
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)_T(""));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)_T("検索"));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)_T("次を検索"));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)_T("閉じる"));
 			break;
 		case LANGUAGE_ENGLISH:
 		default:
-			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"Playlist Search");
-			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)"Enter search keyword.");
-			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)"");
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)"SEACH");
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)"NEXT SEARCH");
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)"CLOSE");
+			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)_T("Playlist Search"));
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)_T("Enter search keyword."));
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)_T(""));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)_T("SEACH"));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)_T("NEXT SEARCH"));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)_T("CLOSE"));
 			break;
 		}
 		SetFocus(GetDlgItem(hwnd,IDC_EDIT_ONE_LINE));
@@ -2422,8 +2422,13 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		case IDC_BUTTON_2:
 		{
 			int selected, nfiles, cursel;
+			TCHAR tListSearchString[ListSearchStringMax] = _T("");
 			SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,
-				WM_GETTEXT,(WPARAM)250,(LPARAM)ListSearchString);
+				WM_GETTEXT,(WPARAM)250,(LPARAM)tListSearchString);
+			char *s = tchar_to_char(tListSearchString);
+			strncpy(ListSearchString, s, ListSearchStringMax - 1);
+			safe_free(s);
+			ListSearchString[ListSearchStringMax - 1] = '\0';
 			w32g_get_playlist_index(&selected, &nfiles, &cursel);
 			if ( LOWORD(wParam) == IDC_BUTTON_2 )
 				cursel++;
