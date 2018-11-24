@@ -674,6 +674,33 @@ void TracerWndClear(int lockflag)
 
 }
 
+void TracerWndRecalcLayout(int lockflag)
+{
+	if (lockflag) TRACER_LOCK();
+
+	TTTOOLINFO ti = {0};
+	ti.cbSize = sizeof(ti);
+	ti.uFlags = TTF_SUBCLASS;
+	ti.hwnd = w32g_tracer_wnd.hwnd;
+	ti.lpszText = LPSTR_TEXTCALLBACK;
+
+	// title
+	ti.uId = TRACER_CHANNELS;
+	if (get_head_rc(&ti.rect, &w32g_tracer_wnd.rc_head_rest) != 0)
+		memset(&ti.rect, 0, sizeof(ti.rect));
+	SendMessage(w32g_tracer_wnd.hTool, TTM_NEWTOOLRECT, 0, (LPARAM)&ti);
+
+	// instruments
+	for (int i = 0; i < TRACER_CHANNELS; i++) {
+		ti.uId = i;
+		if (get_ch_rc(i, &ti.rect, &w32g_tracer_wnd.rc_instrument) != 0)
+			memset(&ti.rect, 0, sizeof(ti.rect));
+		SendMessage(w32g_tracer_wnd.hTool, TTM_NEWTOOLRECT, 0, (LPARAM)&ti);
+	}
+
+	if (lockflag) TRACER_UNLOCK();
+}
+
 #define TRACER_VOICE_OFF -1
 #define TRACER_VOICE_SUSTAINED -2
 
@@ -2449,6 +2476,42 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	switch (uMess)
 	{
 		case WM_CREATE:
+			{
+				w32g_tracer_wnd.hTool = CreateWindowEx(
+					0,
+					TOOLTIPS_CLASS,
+					NULL,
+					TTS_ALWAYSTIP | TTS_NOPREFIX,
+					CW_USEDEFAULT,
+					CW_USEDEFAULT,
+					CW_USEDEFAULT,
+					CW_USEDEFAULT,
+					hwnd,
+					NULL,
+					((LPCREATESTRUCT)lParam)->hInstance,
+					NULL
+				);
+
+				TTTOOLINFO ti = {0};
+				ti.cbSize = sizeof(ti);
+				ti.uFlags = TTF_SUBCLASS;
+				ti.hwnd = hwnd;
+				ti.lpszText = LPSTR_TEXTCALLBACK;
+
+				// title
+				ti.uId = TRACER_CHANNELS;
+				if (get_head_rc(&ti.rect, &w32g_tracer_wnd.rc_head_rest) != 0)
+					memset(&ti.rect, 0, sizeof(ti.rect));
+				SendMessage(w32g_tracer_wnd.hTool, TTM_ADDTOOL, 0, (LPARAM)&ti);
+
+				// instruments
+				for (int i = 0; i < TRACER_CHANNELS; i++) {
+					ti.uId = i;
+					if (get_ch_rc(i, &ti.rect, &w32g_tracer_wnd.rc_instrument) != 0)
+						memset(&ti.rect, 0, sizeof(ti.rect));
+					SendMessage(w32g_tracer_wnd.hTool, TTM_ADDTOOL, 0, (LPARAM)&ti);
+				}
+			}
 			break;
 		case WM_ERASEBKGND:
 			break;
@@ -2578,6 +2641,7 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 			RANGE(TracerWndViewCh, 0, TRACER_CHANNELS - TracerWndInfo.mode);
 			TracerWndClear(TRUE);
+			TracerWndRecalcLayout(TRUE);
 			TracerWndPaintAll(TRUE);
 			break;
 		}
@@ -2609,6 +2673,7 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			RANGE(TracerWndViewCh, 0, TRACER_CHANNELS - TracerWndInfo.mode);
 			//change_tracer_wnd_mode(TracerWndInfo.mode);
 			TracerWndClear(TRUE);
+			TracerWndRecalcLayout(TRUE);
 			TracerWndPaintAll(TRUE);
 			work = FALSE;
 			break;
@@ -2647,6 +2712,7 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			if (changed) {
 				//change_tracer_wnd_mode(TracerWndInfo.mode);
 				TracerWndClear(TRUE);
+				TracerWndRecalcLayout(TRUE);
 				TracerWndPaintAll(TRUE);
 			}
 			work = FALSE;
@@ -2747,6 +2813,17 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				return 0;
 #endif
 			}
+		case WM_NOTIFY:
+			if (((LPNMHDR)lParam)->code == TTN_NEEDTEXT) {
+				LPNMTTDISPINFO pn = (LPNMTTDISPINFO)lParam;
+
+				// + 1 to skip the space character
+				if (pn->hdr.idFrom == TRACER_CHANNELS)
+					pn->lpszText = w32g_tracer_wnd.titlename + 1;
+				else if (pn->hdr.idFrom < TRACER_CHANNELS)
+					pn->lpszText = w32g_tracer_wnd.instrument[pn->hdr.idFrom] + 1;
+			}
+			break;
 		default:
 			return DefWindowProc(hwnd, uMess, wParam, lParam);
 	}
@@ -2818,6 +2895,7 @@ TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			//MoveWindow(w32g_tracer_wnd.hwnd, 0, 0, w32g_tracer_wnd.width, w32g_tracer_wnd.height, TRUE);
 
 			TracerWndClear(TRUE);
+			TracerWndRecalcLayout(TRUE);
 			TracerWndPaintAll(TRUE);
 
 			TracerWndInfo.Width = w32g_tracer_wnd.width;
@@ -2838,6 +2916,7 @@ TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			//MoveWindow(w32g_tracer_wnd.hwnd, 0, 0, w32g_tracer_wnd.width, w32g_tracer_wnd.height, TRUE);
 
 			//TracerWndClear(TRUE);
+			//TracerWndRecalcLayout(TRUE);
 			//TracerWndPaintAll(TRUE);
 
 			TracerWndInfo.Width = w32g_tracer_wnd.width;
@@ -2859,6 +2938,7 @@ TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		if (wParam) {
 			w32g_tracer_wnd.active = TRUE;
 			TracerWndClear(TRUE);
+			TracerWndRecalcLayout(TRUE);
 			TracerWndPaintAll(TRUE);
 		} else {
 			w32g_tracer_wnd.active = FALSE;
@@ -2978,6 +3058,7 @@ static int change_tracer_wnd_mode(int mode)
 	//MoveWindow(w32g_tracer_wnd.hwnd, 0, 0, w32g_tracer_wnd.width, w32g_tracer_wnd.height, TRUE);
 	TracerWndInfo.mode = mode;
 	TracerWndClear(TRUE);
+	TracerWndRecalcLayout(TRUE);
 	TracerWndPaintAll(TRUE);
 	return 0;
 }
