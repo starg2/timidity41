@@ -5011,10 +5011,13 @@ static char *DlgFileOpen(HWND hwnd, const TCHAR *title, const TCHAR *filter, con
 	ofn.lpTemplateName= 0;
 
 	if(GetOpenFileName(&ofn)==TRUE) {
-		char *s = tchar_to_char(tfile);
-		strncpy(DialogFileNameBuff, s, DialogMaxFileName - 1);
-		safe_free(s);
-		DialogFileNameBuff[DialogMaxFileName - 1] = '\0';
+		// tfile may contain null characters
+#ifdef UNICODE
+		// "DialogMaxFileName - 2" to ensure the buffer ends with two null characters
+		WideCharToMultiByte(CP_UTF8, 0, tfile, DialogMaxFileName, DialogFileNameBuff, DialogMaxFileName - 2, NULL, NULL);
+#else
+		memcpy(DialogFileNameBuff, tfile, sizeof(DialogFileNameBuff));
+#endif
 		return DialogFileNameBuff;
 	} else
 		return NULL;
