@@ -61,7 +61,6 @@
 #endif /* HAVE_UNISTD_H */
 #else
 #include <windows.h>
-#include <mlang.h>
 #include <process.h>
 #include <io.h>
 #endif /* __W32__ */
@@ -1049,7 +1048,42 @@ int volatile_touch(void *dmy) { return 1; }
 
 #ifdef __W32__
 
-static DWORD w32_code_page_id_from_string(const char *code)
+static DWORD w32_detect_code_page(const char *text)
+{
+	size_t len = strlen(text);
+	const char *p = text;
+	int escape_count = 0;	// number of 0x1B (ESC), unique to ISO-2022-JP (JIS)
+	int utf8_ja_prefix_count = 0;	// number of 0xE3, appears in Japanese texts encoded in UTF-8
+	int sjis_like_prefix_count = 0;	// number of [0x81, 0x8D] and [0x90-0x9F], often appears in Shift_JIS
+	int non_ascii_count = 0;	// number of code >= 0x80
+
+	while (*p) {
+		if (*p >= 0x80)
+			non_ascii_count++;
+
+		if (*p == 0x1B)
+			escape_count++;
+		else if (*p == 0xE3)
+			utf8_ja_prefix_count++;
+		else if ((0x81 <= *p && *p <= 0x8D) || (0x90 <= *p && *p <= 0x9F))
+			sjis_like_prefix_count++;
+
+		p++;
+	}
+
+	if (escape_count > 0)
+		return 50220;	// JIS
+	else if (utf8_ja_prefix_count > len / 4)
+		return 65001;	// UTF-8
+	else if (sjis_like_prefix_count > 0)
+		return 932;	// SJIS
+	else if (non_ascii_count > 0)
+		return 51932;	// EUC
+	else
+		return CP_ACP;
+}
+
+static DWORD w32_code_page_from_id(const char *code)
 {
 	if (!strcmp(code, "EUC"))
 		return 51932;
@@ -1065,48 +1099,12 @@ static DWORD w32_code_page_id_from_string(const char *code)
 
 void w32_code_convert_japanese(char *in, char *out, size_t outsiz, char *icode, char *ocode)
 {
-	IMultiLanguage2 *pMLang = NULL;
+	DWORD in_code = icode ? w32_code_page_from_id(icode) : w32_detect_code_page(in);
+	int wlen = MultiByteToWideChar(in_code, 0, in, -1, NULL, NULL);
+	wchar_t *wstr = (wchar_t *)safe_malloc(wlen * sizeof(wchar_t));
+	MultiByteToWideChar(in_code, 0, in, -1, wstr, wlen);
 
-	if (SUCCEEDED(CoCreateInstance(&CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, &IID_IMultiLanguage2, (void **)&pMLang))) {
-#ifdef JAPANESE
-		DWORD in_code_page = 932;
-#else
-		DWORD in_code_page = CP_ACP;
-#endif
-
-		if (icode && strcmp(icode, "AUTO"))
-			in_code_page = w32_code_page_id_from_string(icode);
-		else {
-			int src_size = strlen(in);
-			DetectEncodingInfo encode_info;
-			int encode_info_count = 1;
-
-			if (pMLang->lpVtbl->DetectInputCodepage(pMLang, MLDETECTCP_NONE, 0, in, &src_size, &encode_info, &encode_info_count) == S_OK)
-				in_code_page = encode_info.nCodePage;
-		}
-
-		DWORD out_code_page = w32_code_page_id_from_string(ocode && ocode != (char*)-1 && strcmp(ocode, "AUTO") ? ocode : output_text_code);
-
-		DWORD mode = 0;
-		UINT in_size = strlen(in);
-		UINT out_size = outsiz - 1;
-
-		if (pMLang->lpVtbl->ConvertString(pMLang, &mode, in_code_page, out_code_page, in, &in_size, out, &out_size) == S_OK) {
-			out[out_size] = '\0';
-			pMLang->lpVtbl->Release(pMLang);
-			return;
-		}
-	}
-
-	ctl->cmsg(CMSG_ERROR, VERB_DEBUG, "w32_code_convert_japanese() failed");
-
-	if (pMLang)
-		pMLang->lpVtbl->Release(pMLang);
-
-	if (outsiz > 0) {
-		strncpy(out, in, outsiz - 1);
-		out[outsiz - 1] = '\0';
-	}
+	WideCharToMultiByte(w32_code_page_from_id(ocode ? ocode : output_text_code), 0, wstr, wlen, out, outsiz, NULL, NULL);
 }
 
 #endif /* __W32__ */
