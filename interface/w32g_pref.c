@@ -5858,7 +5858,7 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 	dir[FILEPATH_MAX - 1] = _T('\0');
 	_tcsncpy(filename, Filename, FILEPATH_MAX);
 	filename[FILEPATH_MAX - 1] = _T('\0');
-	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1])
+	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1]))
 		_tcsncat(filename, _T("timidity.cfg"), FILEPATH_MAX - _tcslen(filename) - 1);
 
 	ZeroMemory(&ofn, sizeof(OPENFILENAME));
