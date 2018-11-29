@@ -82,7 +82,7 @@ void OverrideSFSettingLoad()
 		fn[1] = _T(PATH_SEP);
 		fn[2] = _T('\0');
     }
-	_tcsncat(fn, _T("soundfont.ini"), FILEPATH_MAX);
+	_tcsncat(fn, _T("soundfont.ini"), FILEPATH_MAX - _tcslen(fn) - 1);
 #include "loadsndfontini.h"
 }
 

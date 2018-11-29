@@ -1766,10 +1766,9 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 	_tcsncpy(filename, tfilename, FILEPATH_MAX);
 	safe_free(tfilename);
 	filename[FILEPATH_MAX - 1] = _T('\0');
-	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1])) {
-		_tcsncat(filename, _T("int_synth.ini"), FILEPATH_MAX);
-		filename[FILEPATH_MAX - 1] = _T('\0');
-	}
+	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1]))
+		_tcsncat(filename, _T("int_synth.ini"), FILEPATH_MAX - _tcslen(filename) - 1);
+
 	ZeroMemory(&ofn, sizeof(OPENFILENAME));
 	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = hwnd;
