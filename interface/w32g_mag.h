@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 #ifndef __W32G_MAG_H__
 #define __W32G_MAG_H__
 
-typedef struct _magdata{
+typedef struct _magdata {
   char *filename;
   char machine;
   char mflag;
@@ -43,14 +43,14 @@ typedef struct _magdata{
   uint8 *pxldata;
   struct _magdata *next;
 #define PALSIZE 16
-  int pal[PALSIZE+1];
+  int pal[PALSIZE + 1];
 } magdata;
 
-extern magdata	*mag_create ( char *file );
-extern void		mag_deletetab ( void );
-extern magdata	*mag_search ( char *file );
-extern void		mag_load_pixel ( char *image, int width, int height, magdata *mh );
-extern int pho_load_pixel ( char *image, int width, int height, char *filename );
-extern void mag_delete(magdata *mg);
+extern magdata  *mag_create(const char *file);
+extern void      mag_deletetab(void);
+extern magdata  *mag_search(const char *file);
+extern void      mag_load_pixel(char *image, int width, int height, magdata *mh);
+extern int       pho_load_pixel(char *image, int width, int height, const char *filename);
+extern void      mag_delete(magdata *mg);
 
-#endif	// __W32G_MAG_H__
+#endif  /* __W32G_MAG_H__ */

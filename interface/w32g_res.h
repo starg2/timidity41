@@ -202,6 +202,13 @@
 #define IDC_COMBO_PLAYER_THREAD_PRIORITY  3801
 // compute_thread_num
 #define IDC_COMBO_COMPUTE_THREAD_NUM   3900
+// loop
+#define IDC_GROUPBOX_LOOP              3950
+#define IDC_EDIT_LOOP_REPEAT           3951
+#define IDC_CHECKBOX_LOOP_CC111        3952
+#define IDC_CHECKBOX_LOOP_AB_MARK      3953
+#define IDC_CHECKBOX_LOOP_SE_MARK      3954
+#define IDC_CHECKBOX_LOOP_CC2          3955
 
 //// synth
 // port
@@ -263,8 +270,6 @@
 #define IDC_CHECKBOX_LIMITER           4166
 #define IDC_EDIT_LIMITER			   4167
 #define IDC_SLIDER_LIMITER		       4168
-#define IDC_EDIT_LOOP_REPEAT           4169
-#define IDC_CHECKBOX_LOOP_REPEAT       4170
 
 // play
 #define IDC_COMBO_VOICES               4411

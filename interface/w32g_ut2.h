@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -26,12 +26,12 @@ extern int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWi
 extern void SetWindowPosSize ( HWND parent_hwnd, HWND hwnd, int x, int y );
 
 // ini file of timidity window information
-#define TIMIDITY_WINDOW_INI_FILE	timidity_window_inifile
+#define TIMIDITY_WINDOW_INI_FILE        timidity_window_inifile
 
-#define FONT_FLAGS_NONE			0x00
-#define FONT_FLAGS_FIXED		0x01
-#define FONT_FLAGS_ITALIC		0x02
-#define FONT_FLAGS_BOLD			0x04
+#define FONT_FLAGS_NONE                 0x00
+#define FONT_FLAGS_FIXED                0x01
+#define FONT_FLAGS_ITALIC               0x02
+#define FONT_FLAGS_BOLD                 0x04
 
 // section of ini file
 // [MainWnd]
@@ -40,13 +40,13 @@ extern void SetWindowPosSize ( HWND parent_hwnd, HWND hwnd, int x, int y );
 // Width =
 // Height =
 typedef struct MAINWNDINFO_ {
-	HWND hwnd;
-	int init;
-	int PosX;		// save parameter
-	int PosY;		// save parameter
-	int Width;		// save parameter
-	int Height;		// save parameter
-	int CanvasMode;
+        HWND hwnd;
+        int init;
+        int PosX;               // save parameter
+        int PosY;               // save parameter
+        int Width;              // save parameter
+        int Height;             // save parameter
+        int CanvasMode;
 } MAINWNDINFO;
 extern MAINWNDINFO MainWndInfo;
 
@@ -61,22 +61,22 @@ extern MAINWNDINFO MainWndInfo;
 // fontHeight =
 #define LISTWND_COLUM 6
 typedef struct LISTWNDINFO_ {
-	HWND hwnd;
-	int PosX;		// save parameter
-	int PosY;		// save parameter
-	int Width;		// save parameter
-	int Height;		// save parameter
-	HMENU hPopupMenu;
-	HWND hwndList; // ListBox , ListView
-	HFONT hFontList; // ListBox , ListView
-	char *fontName;
-	char fontNameJA[LF_FULLFACESIZE + 1];			// save parameter
-	char fontNameEN[LF_FULLFACESIZE + 1];			// save parameter
-	int fontWidth;				// save parameter
-	int fontHeight;				// save parameter
-	int fontFlags;			// save parameter
-	char ListName[PLAYLIST_MAX][LF_FULLFACESIZE + 1]; // save parameter
-	int columWidth[LISTWND_COLUM];
+        HWND hwnd;
+        int PosX;               // save parameter
+        int PosY;               // save parameter
+        int Width;              // save parameter
+        int Height;             // save parameter
+        HMENU hPopupMenu;
+        HWND hwndList; // ListBox , ListView
+        HFONT hFontList; // ListBox , ListView
+        char *fontName;
+        char fontNameJA[LF_FULLFACESIZE + 4];                   // save parameter
+        char fontNameEN[LF_FULLFACESIZE + 4];                   // save parameter
+        int fontWidth;                          // save parameter
+        int fontHeight;                         // save parameter
+        int fontFlags;                  // save parameter
+        char ListName[PLAYLIST_MAX][LF_FULLFACESIZE + 4]; // save parameter
+        int columWidth[LISTWND_COLUM];
 } LISTWNDINFO;
 extern LISTWNDINFO ListWndInfo;
 
@@ -91,27 +91,27 @@ extern LISTWNDINFO ListWndInfo;
 // fontHeight =
 #define DOCWND_DOCFILEMAX 10
 typedef struct DOCWNDINFO_ {
-	char DocFile[DOCWND_DOCFILEMAX][FILEPATH_MAX];
-	int DocFileMax;
-	int DocFileCur;
-	char *Text;
-	int TextSize;
+        char DocFile[DOCWND_DOCFILEMAX][FILEPATH_MAX];
+        int DocFileMax;
+        int DocFileCur;
+        char *Text;
+        int TextSize;
 
-	HWND hwnd;
-	int PosX;		// save parameter
-	int PosY;		// save parameter
-	int Width;		// save parameter
-	int Height;		// save parameter
-	HMENU hPopupMenu;
-	HWND hwndEdit;
-	HFONT hFontEdit;
-	char *fontName;
-	char fontNameJA[LF_FULLFACESIZE + 1];			// save parameter
-	char fontNameEN[LF_FULLFACESIZE + 1];			// save parameter
-	int fontWidth;				// save parameter
-	int fontHeight;				// save parameter
-	int fontFlags;			// save parameter
-//	HANDLE hMutex;
+        HWND hwnd;
+        int PosX;               // save parameter
+        int PosY;               // save parameter
+        int Width;              // save parameter
+        int Height;             // save parameter
+        HMENU hPopupMenu;
+        HWND hwndEdit;
+        HFONT hFontEdit;
+        char *fontName;
+        char fontNameJA[LF_FULLFACESIZE + 4];                   // save parameter
+        char fontNameEN[LF_FULLFACESIZE + 4];                   // save parameter
+        int fontWidth;                          // save parameter
+        int fontHeight;                         // save parameter
+        int fontFlags;                  // save parameter
+//      HANDLE hMutex;
 } DOCWNDINFO;
 extern DOCWNDINFO DocWndInfo;
 
@@ -122,11 +122,11 @@ extern DOCWNDINFO DocWndInfo;
 // Width =
 // Height =
 typedef struct CONSOLEWNDINFO_ {
-	HWND hwnd;
-	int PosX;		// save parameter
-	int PosY;		// save parameter
-	int Width;		// save parameter
-	int Height;		// save parameter
+        HWND hwnd;
+        int PosX;               // save parameter
+        int PosY;               // save parameter
+        int Width;              // save parameter
+        int Height;             // save parameter
 } CONSOLEWNDINFO;
 extern CONSOLEWNDINFO ConsoleWndInfo;
 
@@ -137,11 +137,11 @@ extern CONSOLEWNDINFO ConsoleWndInfo;
 // Width =
 // Height =
 typedef struct SOUNDSPECWNDINFO_ {
-	HWND hwnd;
-	int PosX;		// save parameter
-	int PosY;		// save parameter
-	int Width;		// save parameter
-	int Height;		// save parameter
+        HWND hwnd;
+        int PosX;               // save parameter
+        int PosY;               // save parameter
+        int Width;              // save parameter
+        int Height;             // save parameter
 } SOUNDSPECWNDINFO;
 extern SOUNDSPECWNDINFO SoundSpecWndInfo;
 

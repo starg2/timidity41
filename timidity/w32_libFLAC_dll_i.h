@@ -134,7 +134,7 @@
 /* #define IGNORE_libFLAC_FLAC__stream_encoder_finish  /* */
 #define IGNORE_libFLAC_FLAC__stream_encoder_process  /* */
 /* #define IGNORE_libFLAC_FLAC__stream_encoder_process_interleaved  /* */
-#define IGNORE_libFLAC_FLAC__stream_decoder_new  /* */
+/* #define IGNORE_libFLAC_FLAC__stream_decoder_new  /* */
 #define IGNORE_libFLAC_FLAC__stream_decoder_delete  /* */
 #define IGNORE_libFLAC_FLAC__stream_decoder_set_read_callback  /* */
 #define IGNORE_libFLAC_FLAC__stream_decoder_set_write_callback  /* */
@@ -159,7 +159,7 @@
 #define IGNORE_libFLAC_FLAC__stream_decoder_reset  /* */
 #define IGNORE_libFLAC_FLAC__stream_decoder_process_single  /* */
 #define IGNORE_libFLAC_FLAC__stream_decoder_process_until_end_of_metadata  /* */
-#define IGNORE_libFLAC_FLAC__stream_decoder_process_until_end_of_stream  /* */
+/* #define IGNORE_libFLAC_FLAC__stream_decoder_process_until_end_of_stream  /* */
 /* #define IGNORE_libFLAC_FLAC__seekable_stream_encoder_new  /* */
 /* #define IGNORE_libFLAC_FLAC__seekable_stream_encoder_delete  /* */
 /* #define IGNORE_libFLAC_FLAC__seekable_stream_encoder_set_verify  /* */

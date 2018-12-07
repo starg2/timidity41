@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -89,11 +89,11 @@ static Widget menu_bar, open_option, quit_option, auto_next_option;
 static Widget open_dialog , add_all_button;
 
 static Widget btnForm, backBtn,fwdBtn, restartBtn, pauseBtn, quitBtn,
-	      nextBtn, prevBtn;
+              nextBtn, prevBtn;
 
 static Pixmap backPixmap, fwdPixmap, pausePixmap , restartPixmap,
-	      prevPixmap, nextPixmap, quitPixmap,
-	      timidityPixmap;
+              prevPixmap, nextPixmap, quitPixmap,
+              timidityPixmap;
 
 static Widget countFrame, countForm, counterlbl, totlbl , count_headlbl;
 static int last_sec=0;
@@ -101,7 +101,7 @@ static int max_sec=0;
 
 static Widget file_namelbl, file_headlbl;
 
-static Widget volume_scale , locator_scale ;
+static Widget volume_scale , locator_scale;
 static Boolean locator_scale_button= ButtonRelease;
 
 static Widget file_list;
@@ -141,35 +141,35 @@ static void CreatePixmaps(Widget parent)
     d=RootWindowOfScreen(XtScreen(toplevel));
 
     backPixmap = XCreatePixmapFromBitmapData(disp, d,
-					     back_bits, back_width, back_height,
-					     fg, bg,depth);
+                                             back_bits, back_width, back_height,
+                                             fg, bg,depth);
     fwdPixmap = XCreatePixmapFromBitmapData( disp, d,
-					     fwd_bits, fwd_width, fwd_height,
-					     fg, bg,depth);
+                                             fwd_bits, fwd_width, fwd_height,
+                                             fg, bg,depth);
     pausePixmap = XCreatePixmapFromBitmapData(disp, d,
-					pause_bits, pause_width, pause_height,
-					fg, bg,depth);
+                                              pause_bits, pause_width, pause_height,
+                                              fg, bg,depth);
 
     restartPixmap = XCreatePixmapFromBitmapData(disp, d,
-					  restart_bits, restart_width, restart_height,
-					  fg, bg,depth);
+                                                restart_bits, restart_width, restart_height,
+                                                fg, bg,depth);
 
     nextPixmap  = XCreatePixmapFromBitmapData(disp, d,
-					next_bits, next_width, next_height,
-					fg, bg,depth);
+                                              next_bits, next_width, next_height,
+                                              fg, bg,depth);
 
     prevPixmap  = XCreatePixmapFromBitmapData(disp, d,
-					prev_bits, prev_width, prev_height,
-					fg, bg,depth);
+                                              prev_bits, prev_width, prev_height,
+                                              fg, bg,depth);
 
     quitPixmap  = XCreatePixmapFromBitmapData(disp, d,
-					quit_bits, quit_width, quit_height,
-					fg, bg,depth);
+                                              quit_bits, quit_width, quit_height,
+                                              fg, bg,depth);
 
     timidityPixmap  = XCreatePixmapFromBitmapData(disp, d,
-						  timidity_bits, timidity_width, timidity_height,
-						  WhitePixelOfScreen(XtScreen(toplevel)),
-						  BlackPixelOfScreen(XtScreen(toplevel)),depth);
+                                                  timidity_bits, timidity_width, timidity_height,
+                                                  WhitePixelOfScreen(XtScreen(toplevel)),
+                                                  BlackPixelOfScreen(XtScreen(toplevel)),depth);
 }
 
 
@@ -186,17 +186,17 @@ static void CreatePixmaps(Widget parent)
 static void  GenericCB(Widget widget, int data, XtPointer call_data)
 {
 
-	if(data != MOTIF_QUIT && data != MOTIF_NEXT && data != MOTIF_PREV)
-	{
-		Arg al[10];
-		int ac, nbfile;
+    if (data != MOTIF_QUIT && data != MOTIF_NEXT && data != MOTIF_PREV)
+    {
+        Arg al[10];
+        int ac, nbfile;
 
-		ac=0;
-		XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
-		XtGetValues(file_list, al, ac);
-		if(file_number_to_play==0||file_number_to_play>nbfile)
-			return;
-	}
+        ac=0;
+        XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
+        XtGetValues(file_list, al, ac);
+        if (file_number_to_play==0||file_number_to_play>nbfile)
+            return;
+    }
     m_pipe_int_write( data );
 }
 
@@ -206,22 +206,22 @@ static void  GenericCB(Widget widget, int data, XtPointer call_data)
 /*ARGSUSED*/
 static void Generic_scaleCB(Widget widget, int data, XtPointer call_data)
 {
-    XmScaleCallbackStruct *cbs = (XmScaleCallbackStruct *) call_data;
+    XmScaleCallbackStruct *cbs = (XmScaleCallbackStruct*) call_data;
 
-	if(data == MOTIF_CHANGE_LOCATOR)
-	{
-		Arg al[10];
-		int ac, nbfile;
+    if (data == MOTIF_CHANGE_LOCATOR)
+    {
+        Arg al[10];
+        int ac, nbfile;
 
-		ac=0;
-		XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
-		XtGetValues(file_list, al, ac);
-		if(file_number_to_play<=0||file_number_to_play>nbfile)
-		{
-			XmScaleSetValue(locator_scale,0);
-			return;
-		}
-	}
+        ac=0;
+        XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
+        XtGetValues(file_list, al, ac);
+        if (file_number_to_play<=0||file_number_to_play>nbfile)
+        {
+            XmScaleSetValue(locator_scale,0);
+            return;
+        }
+    }
     m_pipe_int_write(  data );
     m_pipe_int_write(cbs->value);
 }
@@ -243,9 +243,9 @@ static void Locator_btn(Widget w,XtPointer client_data,XEvent *event,Boolean *co
 /*ARGSUSED*/
 static void File_ListCB(Widget widget, int data, XtPointer call_data)
 {
-    XmListCallbackStruct *cbs= (XmListCallbackStruct *) call_data;
+    XmListCallbackStruct *cbs= (XmListCallbackStruct*) call_data;
     char *text;
-    int nbvisible, first_visible ;
+    int nbvisible, first_visible;
     Arg al[10];
     int ac;
 
@@ -257,7 +257,7 @@ static void File_ListCB(Widget widget, int data, XtPointer call_data)
 
     if ( ( first_visible > cbs->item_position) ||
          ((first_visible+nbvisible) <= cbs->item_position))
-	XmListSetPos(widget, cbs->item_position);
+        XmListSetPos(widget, cbs->item_position);
 
     /* Tell the application to play the requested file */
     XmStringGetLtoR(cbs->item,char_set,&text);
@@ -274,23 +274,23 @@ static void File_ListCB(Widget widget, int data, XtPointer call_data)
 static void menuCB(Widget w,int client_data,XmAnyCallbackStruct *call_data)
 {
     switch (client_data)
-	{
-	case MENU_OPEN:
-	{
-	    XtManageChild(open_dialog);
-	}
-	break;
+    {
+    case MENU_OPEN:
+    {
+        XtManageChild(open_dialog);
+    }
+    break;
 
-	case MENU_QUIT : {
-	    m_pipe_int_write(MOTIF_QUIT);
-	}
-	    break;
-	case MENU_TOGGLE : {
-	    /* Toggle modified : for the moment , nothing to do ! */
-	    /* if (XmToggleButtonGetState(w)) TRUE else FALSE */
-	    }
-	    break;
-	}
+    case MENU_QUIT : {
+        m_pipe_int_write(MOTIF_QUIT);
+    }
+        break;
+    case MENU_TOGGLE : {
+        /* Toggle modified : for the moment , nothing to do ! */
+        /* if (XmToggleButtonGetState(w)) TRUE else FALSE */
+        }
+        break;
+    }
 }
 
 /*
@@ -300,54 +300,54 @@ static void menuCB(Widget w,int client_data,XmAnyCallbackStruct *call_data)
 static void openCB(Widget w,int client_data,XmFileSelectionBoxCallbackStruct *call_data)
 {
     if (client_data==DIALOG_CANCEL)
-	{ /* do nothing if cancel is selected. */
-	    XtUnmanageChild(open_dialog);
-	    return;
-	}
+    { /* do nothing if cancel is selected. */
+        XtUnmanageChild(open_dialog);
+        return;
+    }
     else if (client_data==DIALOG_ALL)
-	{ /* Add all the listed files  */
-	    Arg al[10];
-	    int ac;
-	    Widget the_list;
-	    int nbfile;
-	    XmStringTable files;
-		char *text;
-	    int i;
+    { /* Add all the listed files  */
+        Arg al[10];
+        int ac;
+        Widget the_list;
+        int nbfile;
+        XmStringTable files;
+        char *text;
+        int i;
 
-	    the_list=XmFileSelectionBoxGetChild(open_dialog,XmDIALOG_LIST);
-	    if (!XmIsList(the_list))
-		{
-		    fprintf(stderr, "PANIC: List are not what they used to be"
-			    NLS);
-		    exit(1);
-		}
+        the_list=XmFileSelectionBoxGetChild(open_dialog,XmDIALOG_LIST);
+        if (!XmIsList(the_list))
+        {
+            fprintf(stderr, "PANIC: List are not what they used to be"
+                NLS);
+            exit(1);
+        }
 
-	    ac=0;
-	    XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
-	    XtSetArg(al[ac], XmNitems, &files); ac++;
-	    XtGetValues(the_list, al, ac);
+        ac=0;
+        XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
+        XtSetArg(al[ac], XmNitems, &files); ac++;
+        XtGetValues(the_list, al, ac);
 
-	    m_pipe_int_write(MOTIF_EXPAND);
-	    m_pipe_int_write(nbfile);
-	    for (i=0;i<nbfile;i++)
-		{
-			XmStringGetLtoR(files[i],char_set,&text);
-			m_pipe_string_write(text);
-			XtFree(text);
-		}
-	    XtUnmanageChild(open_dialog);
-	}
+        m_pipe_int_write(MOTIF_EXPAND);
+        m_pipe_int_write(nbfile);
+        for (i=0;i<nbfile;i++)
+        {
+            XmStringGetLtoR(files[i],char_set,&text);
+            m_pipe_string_write(text);
+            XtFree(text);
+        }
+        XtUnmanageChild(open_dialog);
+    }
     else
-	{   /* get filename from file selection box and add it to the list*/
-		char *text;
+    {   /* get filename from file selection box and add it to the list*/
+        char *text;
 
-	    m_pipe_int_write(MOTIF_EXPAND);
-	    m_pipe_int_write(1);
-		XmStringGetLtoR(call_data->value,char_set,&text);
-	    m_pipe_string_write(text);
-		XtFree(text);
-	    XtUnmanageChild(open_dialog);
-	}
+        m_pipe_int_write(MOTIF_EXPAND);
+        m_pipe_int_write(1);
+        XmStringGetLtoR(call_data->value,char_set,&text);
+        m_pipe_string_write(text);
+        XtFree(text);
+        XtUnmanageChild(open_dialog);
+    }
 }
 
 
@@ -367,331 +367,331 @@ static void handle_input(client_data, source, id)
     m_pipe_int_read(&message);
 
     switch (message)
-	{
-	case REFRESH_MESSAGE : {
-	    fprintf(stderr, "REFRESH MESSAGE IS OBSOLETE !!!" NLS);
-	}
-	    break;
+    {
+    case REFRESH_MESSAGE : {
+        fprintf(stderr, "REFRESH MESSAGE IS OBSOLETE !!!" NLS);
+    }
+        break;
 
-	case TOTALTIME_MESSAGE : {
-	    int tseconds;
-	    int minutes,seconds;
-	    char local_string[20];
-	    Arg al[10];
-	    int ac;
+    case TOTALTIME_MESSAGE : {
+        int tseconds;
+        int minutes,seconds;
+        char local_string[20];
+        Arg al[10];
+        int ac;
 
-	    m_pipe_int_read(&tseconds);
+        m_pipe_int_read(&tseconds);
 
-	    seconds=tseconds;
-	    minutes=seconds/60;
-	    seconds-=minutes*60;
-	    sprintf(local_string,"/ %02d:%02d",minutes,seconds);
-	    ac=0;
-	    XtSetArg(al[ac], XmNlabelString,
-		     XmStringCreate(local_string, char_set)); ac++;
-	    XtSetValues(totlbl, al, ac);
+        seconds=tseconds;
+        minutes=seconds/60;
+        seconds-=minutes*60;
+        sprintf(local_string,"/ %02d:%02d",minutes,seconds);
+        ac=0;
+        XtSetArg(al[ac], XmNlabelString,
+                 XmStringCreate(local_string, char_set)); ac++;
+        XtSetValues(totlbl, al, ac);
 
-	    /* Readjust the time scale */
-	    XmScaleSetValue(locator_scale,0);
-	    ac=0;
-	    XtSetArg(al[ac], XmNmaximum, tseconds); ac++;
-	    XtSetValues(locator_scale, al, ac);
-	    max_sec=tseconds;
-	}
-	    break;
+        /* Readjust the time scale */
+        XmScaleSetValue(locator_scale,0);
+        ac=0;
+        XtSetArg(al[ac], XmNmaximum, tseconds); ac++;
+        XtSetValues(locator_scale, al, ac);
+        max_sec=tseconds;
+    }
+        break;
 
-	case MASTERVOL_MESSAGE: {
-	    int volume;
+    case MASTERVOL_MESSAGE: {
+        int volume;
 
-	    m_pipe_int_read(&volume);
-	    XmScaleSetValue(volume_scale,volume);
-	}
-	    break;
+        m_pipe_int_read(&volume);
+        XmScaleSetValue(volume_scale,volume);
+    }
+        break;
 
-	case FILENAME_MESSAGE : {
-	    char filename[255], separator[255];
-	    Arg al[10];
-	    char *pc;
-	    int ac, i;
-	    short nbcol;
+    case FILENAME_MESSAGE : {
+        char filename[255], separator[255];
+        Arg al[10];
+        char *pc;
+        int ac, i;
+        short nbcol;
 
-	    m_pipe_string_read(filename);
+        m_pipe_string_read(filename);
 
-	    /* Extract basename of the file */
-	    pc=strrchr(filename,'/');
-	    if (pc==NULL)
-		pc=filename;
-	    else
-		pc++;
+        /* Extract basename of the file */
+        pc=strrchr(filename,'/');
+        if (pc==NULL)
+        pc=filename;
+        else
+        pc++;
 
-	    ac=0;
-	    XtSetArg(al[ac], XmNlabelString,
-		     XmStringCreate(pc, char_set)); ac++;
-	    XtSetValues(file_namelbl, al, ac);
+        ac=0;
+        XtSetArg(al[ac], XmNlabelString,
+                 XmStringCreate(pc, char_set)); ac++;
+        XtSetValues(file_namelbl, al, ac);
 
-	    /* Change the icon  */
-	    ac=0;
-	    XtSetArg(al[ac], XmNiconName,pc); ac++;
-	    XtSetValues(toplevel,al,ac);
+        /* Change the icon  */
+        ac=0;
+        XtSetArg(al[ac], XmNiconName,pc); ac++;
+        XtSetValues(toplevel,al,ac);
 
-	    /* Put a separator in the text Window */
-	    ac=0;
-	    nbcol=10;
-	    XtSetArg(al[ac], XmNcolumns,&nbcol); ac++;
-	    XtGetValues(text,al,ac);
+        /* Put a separator in the text Window */
+        ac=0;
+        nbcol=10;
+        XtSetArg(al[ac], XmNcolumns,&nbcol); ac++;
+        XtGetValues(text,al,ac);
 
-	    for (i=0;i<nbcol;i++)
-		separator[i]='*';
-	    separator[i]='\0';
+        for (i=0;i<nbcol;i++)
+        separator[i]='*';
+        separator[i]='\0';
 
-	    XmTextInsert(text,wpr_position, separator);
-	    wpr_position+= strlen(separator);
-	    XmTextInsert(text,wpr_position++,"\n");
-	    XtVaSetValues(text,XmNcursorPosition, wpr_position,NULL);
-	    XmTextShowPosition(text,wpr_position);
-	}
-	    break;
+        XmTextInsert(text,wpr_position, separator);
+        wpr_position+= strlen(separator);
+        XmTextInsert(text,wpr_position++,"\n");
+        XtVaSetValues(text,XmNcursorPosition, wpr_position,NULL);
+        XmTextShowPosition(text,wpr_position);
+    }
+        break;
 
-	case FILE_LIST_MESSAGE : {
-	    char filename[255];
-	    int i, number_of_files;
-	    XmString s;
+    case FILE_LIST_MESSAGE : {
+        char filename[255];
+        int i, number_of_files;
+        XmString s;
 
-	    /* reset the playing list : play from the start */
-	    file_number_to_play=0;
+        /* reset the playing list : play from the start */
+        file_number_to_play=0;
 
-	    m_pipe_int_read(&number_of_files);
+        m_pipe_int_read(&number_of_files);
 
-	    for (i=0;i<number_of_files;i++)
-		{
-		    m_pipe_string_read(filename);
-		    s=XmStringCreate(filename,char_set);
-		    XmListAddItemUnselected(file_list,s,0);
-		    XmStringFree(s);
-		}
-	}
-	    break;
+        for (i=0;i<number_of_files;i++)
+        {
+            m_pipe_string_read(filename);
+            s=XmStringCreate(filename,char_set);
+            XmListAddItemUnselected(file_list,s,0);
+            XmStringFree(s);
+        }
+    }
+        break;
 
-	case ERROR_MESSAGE :
-	case NEXT_FILE_MESSAGE :
-	case PREV_FILE_MESSAGE :
-	case TUNE_END_MESSAGE :{
-	    Arg al[10];
-	    int ac;
-	    int nbfile;
-	    XmStringTable files;
+    case ERROR_MESSAGE :
+    case NEXT_FILE_MESSAGE :
+    case PREV_FILE_MESSAGE :
+    case TUNE_END_MESSAGE :{
+        Arg al[10];
+        int ac;
+        int nbfile;
+        XmStringTable files;
 
-	    /* When a file ends, launch next if auto_next toggle */
-	    if ((message==TUNE_END_MESSAGE) &&
-		!XmToggleButtonGetState(auto_next_option))
-		return;
+        /* When a file ends, launch next if auto_next toggle */
+        if ((message==TUNE_END_MESSAGE) &&
+        !XmToggleButtonGetState(auto_next_option))
+        return;
 
-	    /* Total number of file to play in the list */
-	    ac=0;
-	    XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
-	    XtGetValues(file_list, al, ac);
-	    XmListDeselectAllItems(file_list);
+        /* Total number of file to play in the list */
+        ac=0;
+        XtSetArg(al[ac], XmNitemCount, &nbfile); ac++;
+        XtGetValues(file_list, al, ac);
+        XmListDeselectAllItems(file_list);
 
-	    if (message==NEXT_FILE_MESSAGE||message==TUNE_END_MESSAGE)
-		file_number_to_play++;
-	    else if (message==PREV_FILE_MESSAGE)
-		file_number_to_play--;
-		else
-		{
-			ac=0;
-			XtSetArg(al[ac], XmNitems, &files); ac++;
-			XtGetValues(file_list, al, ac);
-			XmListDeleteItem(file_list, files[file_number_to_play-1]);
-			XmListSelectPos(file_list,file_number_to_play,TRUE);
-			return;
-		}
+        if (message==NEXT_FILE_MESSAGE||message==TUNE_END_MESSAGE)
+        file_number_to_play++;
+        else if (message==PREV_FILE_MESSAGE)
+        file_number_to_play--;
+        else
+        {
+            ac=0;
+            XtSetArg(al[ac], XmNitems, &files); ac++;
+            XtGetValues(file_list, al, ac);
+            XmListDeleteItem(file_list, files[file_number_to_play-1]);
+            XmListSelectPos(file_list,file_number_to_play,TRUE);
+            return;
+        }
 
-	    /* Do nothing if requested file is before first one */
-	    if (file_number_to_play<=0)
-		{
-			file_number_to_play=0;
-			XmScaleSetValue(locator_scale,0);
-		    return;
-		}
+        /* Do nothing if requested file is before first one */
+        if (file_number_to_play<=0)
+        {
+            file_number_to_play=0;
+            XmScaleSetValue(locator_scale,0);
+            return;
+        }
 
-	    /* Stop after playing the last file */
-	    if (file_number_to_play>nbfile)
-		{
-			file_number_to_play=nbfile+1;
-			XmScaleSetValue(locator_scale,0);
-		    return;
-		}
+        /* Stop after playing the last file */
+        if (file_number_to_play>nbfile)
+        {
+            file_number_to_play=nbfile+1;
+            XmScaleSetValue(locator_scale,0);
+            return;
+        }
 
-	    XmListSelectPos(file_list,file_number_to_play,TRUE);
-	}
-	    break;
+        XmListSelectPos(file_list,file_number_to_play,TRUE);
+    }
+        break;
 
-	case CURTIME_MESSAGE : {
-	    int tseconds;
-	    int  sec,seconds, minutes;
-	    int nbvoice;
-	    char local_string[20];
-	    Arg al[10];
-	    int ac;
+    case CURTIME_MESSAGE : {
+        int tseconds;
+        int  sec,seconds, minutes;
+        int nbvoice;
+        char local_string[20];
+        Arg al[10];
+        int ac;
 
-	    m_pipe_int_read(&tseconds);
-	    m_pipe_int_read(&nbvoice);
+        m_pipe_int_read(&tseconds);
+        m_pipe_int_read(&nbvoice);
 
-	    sec=seconds=tseconds;
+        sec=seconds=tseconds;
 
-				/* To avoid blinking */
-	    if (sec!=last_sec)
-		{
-		    minutes=seconds/60;
-		    seconds-=minutes*60;
+                /* To avoid blinking */
+        if (sec!=last_sec)
+        {
+            minutes=seconds/60;
+            seconds-=minutes*60;
 
-		    sprintf(local_string,"%02d:%02d",
-			    minutes, seconds);
+            sprintf(local_string,"%02d:%02d",
+                    minutes, seconds);
 
-		    ac=0;
-		    XtSetArg(al[ac], XmNlabelString,
-			     XmStringCreate(local_string, char_set)); ac++;
-		    XtSetValues(counterlbl, al, ac);
-		}
+            ac=0;
+            XtSetArg(al[ac], XmNlabelString,
+                     XmStringCreate(local_string, char_set)); ac++;
+            XtSetValues(counterlbl, al, ac);
+        }
 
-	    last_sec=sec;
+        last_sec=sec;
 
-	    /* Readjust the time scale if not dragging the scale */
-	    if ( (locator_scale_button==ButtonRelease) &&
-		 (tseconds<max_sec))
-		XmScaleSetValue(locator_scale, tseconds);
-	}
-	    break;
+        /* Readjust the time scale if not dragging the scale */
+        if ( (locator_scale_button==ButtonRelease) &&
+         (tseconds<max_sec))
+        XmScaleSetValue(locator_scale, tseconds);
+    }
+        break;
 
-	case NOTE_MESSAGE : {
-	    int channel;
-	    int note;
+    case NOTE_MESSAGE : {
+        int channel;
+        int note;
 
-	    m_pipe_int_read(&channel);
-	    m_pipe_int_read(&note);
+        m_pipe_int_read(&channel);
+        m_pipe_int_read(&note);
 #ifdef DEBUG
-	    fprintf(stderr, "NOTE chn%i %i\n",channel,note);
+        fprintf(stderr, "NOTE chn%i %i\n",channel,note);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
-	case    PROGRAM_MESSAGE :{
-	    int channel;
-	    int pgm;
+    case    PROGRAM_MESSAGE :{
+        int channel;
+        int pgm;
 
-	    m_pipe_int_read(&channel);
-	    m_pipe_int_read(&pgm);
+        m_pipe_int_read(&channel);
+        m_pipe_int_read(&pgm);
 #ifdef DEBUG
-	    fprintf(stderr, "NOTE chn%i %i\n",channel,pgm);
+        fprintf(stderr, "NOTE chn%i %i\n",channel,pgm);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
-	case VOLUME_MESSAGE : {
-	    int channel;
-	    int volume;
+    case VOLUME_MESSAGE : {
+        int channel;
+        int volume;
 
-	    m_pipe_int_read(&channel);
-	    m_pipe_int_read(&volume);
+        m_pipe_int_read(&channel);
+        m_pipe_int_read(&volume);
 #ifdef DEBUG
-	    fprintf(stderr, "VOLUME= chn%i %i \n",channel, volume);
+        fprintf(stderr, "VOLUME= chn%i %i \n",channel, volume);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
 
-	case EXPRESSION_MESSAGE : {
-	    int channel;
-	    int express;
+    case EXPRESSION_MESSAGE : {
+        int channel;
+        int express;
 
-	    m_pipe_int_read(&channel);
-	    m_pipe_int_read(&express);
+        m_pipe_int_read(&channel);
+        m_pipe_int_read(&express);
 #ifdef DEBUG
-	    fprintf(stderr, "EXPRESSION= chn%i %i \n",channel, express);
+        fprintf(stderr, "EXPRESSION= chn%i %i \n",channel, express);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
-	case PANNING_MESSAGE : {
-	    int channel;
-	    int pan;
+    case PANNING_MESSAGE : {
+        int channel;
+        int pan;
 
-	    m_pipe_int_read(&channel);
-	    m_pipe_int_read(&pan);
+        m_pipe_int_read(&channel);
+        m_pipe_int_read(&pan);
 #ifdef DEBUG
-	    fprintf(stderr, "PANNING= chn%i %i \n",channel, pan);
+        fprintf(stderr, "PANNING= chn%i %i \n",channel, pan);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
-	case  SUSTAIN_MESSAGE : {
-	    int channel;
-	    int sust;
+    case  SUSTAIN_MESSAGE : {
+        int channel;
+        int sust;
 
-	    m_pipe_int_read(&channel);
-	    m_pipe_int_read(&sust);
+        m_pipe_int_read(&channel);
+        m_pipe_int_read(&sust);
 #ifdef DEBUG
-	    fprintf(stderr, "SUSTAIN= chn%i %i \n",channel, sust);
+        fprintf(stderr, "SUSTAIN= chn%i %i \n",channel, sust);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
-	case  PITCH_MESSAGE : {
-	    int channel;
-	    int bend;
+    case  PITCH_MESSAGE : {
+        int channel;
+        int bend;
 
-	    m_pipe_int_read(&channel);
-	    m_pipe_int_read(&bend);
+        m_pipe_int_read(&channel);
+        m_pipe_int_read(&bend);
 #ifdef DEBUG
-	    fprintf(stderr, "PITCH BEND= chn%i %i \n",channel, bend);
+        fprintf(stderr, "PITCH BEND= chn%i %i \n",channel, bend);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
-	case RESET_MESSAGE : {
+    case RESET_MESSAGE : {
 #ifdef DEBUG
-	    fprintf(stderr, "RESET_MESSAGE\n");
+        fprintf(stderr, "RESET_MESSAGE" NLS);
 #endif /* DEBUG */
-	}
-	    break;
+    }
+        break;
 
-	case CLOSE_MESSAGE : {
+    case CLOSE_MESSAGE : {
 #ifdef DEBUG
-	    fprintf(stderr, "CLOSE_MESSAGE\n");
+        fprintf(stderr, "CLOSE_MESSAGE" NLS);
 #endif /* DEBUG */
-	    exit(0);
-	}
-	    break;
+        exit(0);
+    }
+        break;
 
-	case CMSG_MESSAGE : {
-	    int type;
-	    char message[1000];
+    case CMSG_MESSAGE : {
+        int type;
+        char message[1000];
 
-	    m_pipe_int_read(&type);
-	    m_pipe_string_read(message);
+        m_pipe_int_read(&type);
+        m_pipe_string_read(message);
 
-	    XmTextInsert(text,wpr_position, message);
-	    wpr_position+= strlen(message);
-	    XmTextInsert(text,wpr_position++, "\n");
-	    XtVaSetValues(text,XmNcursorPosition, wpr_position,NULL);
-	    XmTextShowPosition(text,wpr_position);
-	}
-	    break;
-	case LYRIC_MESSAGE : {
-	    char message[1000];
+        XmTextInsert(text,wpr_position, message);
+        wpr_position+= strlen(message);
+        XmTextInsert(text,wpr_position++, "\n");
+        XtVaSetValues(text,XmNcursorPosition, wpr_position,NULL);
+        XmTextShowPosition(text,wpr_position);
+    }
+        break;
+    case LYRIC_MESSAGE : {
+        char message[1000];
 
-	    m_pipe_string_read(message);
+        m_pipe_string_read(message);
 
-	    XmTextInsert(text, wpr_position, message);
-	    wpr_position += strlen(message);
-	    XtVaSetValues(text,XmNcursorPosition, wpr_position,NULL);
-	    XmTextShowPosition(text,wpr_position);
-	    XmTextInsert(text,wpr_position, ""); /* Update cursor */
-	}
-	    break;
-	default:
-	    fprintf(stderr,"UNKNOW MOTIF MESSAGE %i" NLS, message);
-	}
+        XmTextInsert(text, wpr_position, message);
+        wpr_position += strlen(message);
+        XtVaSetValues(text,XmNcursorPosition, wpr_position,NULL);
+        XmTextShowPosition(text,wpr_position);
+        XmTextInsert(text,wpr_position, ""); /* Update cursor */
+    }
+        break;
+    default:
+        fprintf(stderr,"UNKNOW MOTIF MESSAGE %i" NLS, message);
+    }
 
 }
 
@@ -709,7 +709,7 @@ static void add_accelerator(Widget w,char *acc_text,char *key)
 
     ac=0;
     XtSetArg(al[ac],XmNacceleratorText,
-	     XmStringCreate(acc_text,char_set)); ac++;
+             XmStringCreate(acc_text,char_set)); ac++;
     XtSetArg(al[ac],XmNaccelerator,key); ac++;
     XtSetValues(w,al,ac);
 }
@@ -723,18 +723,18 @@ static Widget make_menu_toggle(char *item_name, int client_data, Widget menu)
 
     ac = 0;
     XtSetArg(al[ac],XmNlabelString, XmStringCreateLtoR(item_name,
-						       char_set)); ac++;
+                                                       char_set)); ac++;
     item=XmCreateToggleButton(menu,item_name,al,ac);
     XtManageChild(item);
     XtAddCallback(item, XmNvalueChangedCallback,
-		  (XtCallbackProc) menuCB,(XtPointer) client_data);
+                  (XtCallbackProc) menuCB,(XtPointer) client_data);
     XtSetSensitive(item, True);
     return(item);
 }
 
 /* Adds an option to an existing menu. */
 static Widget make_menu_option(char *option_name, KeySym mnemonic,
-			       int client_data, Widget menu)
+                               int client_data, Widget menu)
 {
     int ac;
     Arg al[10];
@@ -742,12 +742,12 @@ static Widget make_menu_option(char *option_name, KeySym mnemonic,
 
     ac = 0;
     XtSetArg(al[ac], XmNlabelString,
-	     XmStringCreateLtoR(option_name, char_set)); ac++;
+             XmStringCreateLtoR(option_name, char_set)); ac++;
     XtSetArg (al[ac], XmNmnemonic, mnemonic); ac++;
     b=XtCreateManagedWidget(option_name,xmPushButtonWidgetClass,
-			    menu,al,ac);
+                            menu,al,ac);
     XtAddCallback (b, XmNactivateCallback,
-		   (XtCallbackProc) menuCB, (XtPointer) client_data);
+                   (XtCallbackProc) menuCB, (XtPointer) client_data);
     return(b);
 }
 
@@ -765,7 +765,7 @@ static Widget make_menu(char *menu_name,KeySym  mnemonic, Widget menu_bar)
     XtSetArg (al[ac], XmNsubMenuId, menu); ac++;
     XtSetArg (al[ac], XmNmnemonic, mnemonic); ac++;
     XtSetArg(al[ac], XmNlabelString,
-        XmStringCreateLtoR(menu_name, char_set)); ac++;
+             XmStringCreateLtoR(menu_name, char_set)); ac++;
     cascade = XmCreateCascadeButton (menu_bar, menu_name, al, ac);
     XtManageChild (cascade);
 
@@ -805,12 +805,12 @@ static void create_dialog_boxes(void)
     XtSetArg(al[ac],XmNmustMatch,True); ac++;
     XtSetArg(al[ac],XmNautoUnmanage,False); ac++;
     XtSetArg(al[ac],XmNdialogTitle,
-	     XmStringCreateLtoR("TIMIDITY: Open",char_set)); ac++;
+             XmStringCreateLtoR("TIMIDITY: Open",char_set)); ac++;
     open_dialog=XmCreateFileSelectionDialog(toplevel,"open_dialog",al,ac);
     XtAddCallback(open_dialog, XmNokCallback,
-		  (XtCallbackProc) openCB, (XtPointer) DIALOG_OK);
+                  (XtCallbackProc) openCB, (XtPointer) DIALOG_OK);
     XtAddCallback(open_dialog, XmNcancelCallback,
-		  (XtCallbackProc) openCB, (XtPointer) DIALOG_CANCEL);
+                  (XtCallbackProc) openCB, (XtPointer) DIALOG_CANCEL);
     XtUnmanageChild(XmFileSelectionBoxGetChild(open_dialog, XmDIALOG_HELP_BUTTON));
 
     ac = 0;
@@ -822,7 +822,7 @@ static void create_dialog_boxes(void)
     add_all_button = XmCreatePushButton(open_dialog, "add_all",al, ac);
     XtManageChild(add_all_button);
     XtAddCallback(add_all_button, XmNactivateCallback,
-		  (XtCallbackProc) openCB, (XtPointer) DIALOG_ALL);
+                  (XtCallbackProc) openCB, (XtPointer) DIALOG_ALL);
 }
 
 void Launch_Motif_Process(int pipe_number)
@@ -835,7 +835,7 @@ void Launch_Motif_Process(int pipe_number)
 
     /* create the toplevel shell */
     toplevel = XtAppInitialize(&context,"timidity",NULL,0,&argc,NULL,
-			       NULL,NULL,0);
+                               NULL,NULL,0);
 
     /*******************/
     /* Main form       */
@@ -903,7 +903,7 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
     XtSetArg(al[ac], XmNalignment,XmALIGNMENT_END); ac++;
     XtSetArg(al[ac], XmNlabelString,
-	     XmStringCreate("Playing:",char_set)); ac++;
+             XmStringCreate("Playing:",char_set)); ac++;
     file_headlbl = XmCreateLabel(mainForm,"fileheadlbl",al,ac);
     XtManageChild(file_headlbl);
 
@@ -921,7 +921,7 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
     XtSetArg(al[ac], XmNalignment,XmALIGNMENT_BEGINNING); ac++;
     XtSetArg(al[ac], XmNlabelString,
-	     XmStringCreate("NONE           ",char_set)); ac++;
+             XmStringCreate("NONE       ",char_set)); ac++;
     file_namelbl = XmCreateLabel(mainForm,"filenameLbl",al,ac);
     XtManageChild(file_namelbl);
 
@@ -967,7 +967,7 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNtraversalOn, False); ac++;
     XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
     XtSetArg(al[ac], XmNlabelString,
-	     XmStringCreate("Time:",char_set)); ac++;
+             XmStringCreate("Time:",char_set)); ac++;
     count_headlbl = XmCreateLabel(countForm,"countheadLbl",al,ac);
     XtManageChild(count_headlbl);
 
@@ -981,7 +981,7 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
     XtSetArg(al[ac], XmNalignment,XmALIGNMENT_END); ac++;
     XtSetArg(al[ac], XmNlabelString,
-	     XmStringCreate("00:00",char_set)); ac++;
+             XmStringCreate("00:00",char_set)); ac++;
     counterlbl = XmCreateLabel(countForm,"counterLbl",al,ac);
     XtManageChild(counterlbl);
 
@@ -998,55 +998,55 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
     XtSetArg(al[ac], XmNalignment,XmALIGNMENT_BEGINNING); ac++;
     XtSetArg(al[ac], XmNlabelString,
-	     XmStringCreate("/ 00:00",char_set)); ac++;
+             XmStringCreate("/ 00:00",char_set)); ac++;
     totlbl = XmCreateLabel(countForm,"TotalTimeLbl",al,ac);
     XtManageChild(totlbl);
 
     /******************/
     /* Locator Scale  */
     /******************/
-    {	/*
-	 * We need to add an xevent manager for buton pressing since
-	 * locator_scale is a critical ressource that can be modified
-	 * by shared by the handle input function
-	 */
+    {   /*
+         * We need to add an xevent manager for buton pressing since
+         * locator_scale is a critical ressource that can be modified
+         * by shared by the handle input function
+         */
 
-	WidgetList WList;
-	Cardinal Card;
+        WidgetList WList;
+        Cardinal Card;
 
-	ac = 0;
-	XtSetArg(al[ac], XmNleftOffset, 10); ac++;
-	XtSetArg(al[ac], XmNrightOffset, 10); ac++;
-	XtSetArg(al[ac], XmNtopOffset, 10); ac++;
-	XtSetArg(al[ac], XmNbottomOffset, 10); ac++;
-	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNtopWidget, countForm); ac++;
-	XtSetArg(al[ac], XmNleftAttachment,XmATTACH_FORM); ac++;
-	XtSetArg(al[ac], XmNrightAttachment,XmATTACH_FORM); ac++;
-	XtSetArg(al[ac], XmNmaximum, 100); ac++;
-	XtSetArg(al[ac], XmNminimum, 0); ac++;
-	XtSetArg(al[ac], XmNshowValue, True); ac++;
-	XtSetArg(al[ac], XmNdecimalPoints, 0); ac++;
-	XtSetArg(al[ac], XmNorientation, XmHORIZONTAL); ac++;
-	XtSetArg(al[ac], XmNtraversalOn, False); ac++;
-	XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
-	locator_scale = XmCreateScale(mainForm,"locator",al,ac);
-	XtManageChild(locator_scale);
-	XtAddCallback(locator_scale,XmNvalueChangedCallback,
-		      (XtCallbackProc) Generic_scaleCB,
-		      (XtPointer) MOTIF_CHANGE_LOCATOR);
+        ac = 0;
+        XtSetArg(al[ac], XmNleftOffset, 10); ac++;
+        XtSetArg(al[ac], XmNrightOffset, 10); ac++;
+        XtSetArg(al[ac], XmNtopOffset, 10); ac++;
+        XtSetArg(al[ac], XmNbottomOffset, 10); ac++;
+        XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
+        XtSetArg(al[ac], XmNtopWidget, countForm); ac++;
+        XtSetArg(al[ac], XmNleftAttachment,XmATTACH_FORM); ac++;
+        XtSetArg(al[ac], XmNrightAttachment,XmATTACH_FORM); ac++;
+        XtSetArg(al[ac], XmNmaximum, 100); ac++;
+        XtSetArg(al[ac], XmNminimum, 0); ac++;
+        XtSetArg(al[ac], XmNshowValue, True); ac++;
+        XtSetArg(al[ac], XmNdecimalPoints, 0); ac++;
+        XtSetArg(al[ac], XmNorientation, XmHORIZONTAL); ac++;
+        XtSetArg(al[ac], XmNtraversalOn, False); ac++;
+        XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
+        locator_scale = XmCreateScale(mainForm,"locator",al,ac);
+        XtManageChild(locator_scale);
+        XtAddCallback(locator_scale,XmNvalueChangedCallback,
+                      (XtCallbackProc) Generic_scaleCB,
+                      (XtPointer) MOTIF_CHANGE_LOCATOR);
 
-	/* Reach the scrollbar child in the scale  */
-	ac = 0;
-	XtSetArg(al[ac], XtNchildren, &WList); ac++;
-	XtSetArg(al[ac], XtNnumChildren, &Card); ac++;
-	XtGetValues(locator_scale,al,ac);
-	if ((Card!=2)||
-	    strcmp(XtName(WList[1]),"Scrollbar"))
-	    fprintf(stderr,"PANIC: Scale has be redefined.. may cause bugs\n");
+        /* Reach the scrollbar child in the scale  */
+        ac = 0;
+        XtSetArg(al[ac], XtNchildren, &WList); ac++;
+        XtSetArg(al[ac], XtNnumChildren, &Card); ac++;
+        XtGetValues(locator_scale,al,ac);
+        if ((Card!=2)||
+            strcmp(XtName(WList[1]),"Scrollbar"))
+            fprintf(stderr,"PANIC: Scale has be redefined.. may cause bugs\n");
 
- 	XtAddEventHandler(WList[1],ButtonPressMask|ButtonReleaseMask,
-			  FALSE,Locator_btn,NULL);
+        XtAddEventHandler(WList[1],ButtonPressMask|ButtonReleaseMask,
+                          FALSE,Locator_btn,NULL);
     }
 
     /*****************************/
@@ -1077,7 +1077,7 @@ void Launch_Motif_Process(int pipe_number)
     prevBtn = XmCreatePushButton(btnForm, "previous",al, ac);
     XtManageChild(prevBtn);
     XtAddCallback(prevBtn, XmNactivateCallback,
-		  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_PREV);
+                  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_PREV);
 
 
     /* Backward Button */
@@ -1094,7 +1094,7 @@ void Launch_Motif_Process(int pipe_number)
     backBtn = XmCreatePushButton(btnForm, "backward",al, ac);
     XtManageChild(backBtn);
     XtAddCallback(backBtn, XmNactivateCallback,
-		  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_RWD);
+                  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_RWD);
 
     /* Restart Button */
     ac = 0;
@@ -1110,7 +1110,7 @@ void Launch_Motif_Process(int pipe_number)
     restartBtn = XmCreatePushButton(btnForm,"restartBtn", al, ac);
     XtManageChild(restartBtn);
     XtAddCallback(restartBtn, XmNactivateCallback,
-		  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_RESTART);
+                  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_RESTART);
 
     /* Quit Button */
     ac = 0;
@@ -1126,7 +1126,7 @@ void Launch_Motif_Process(int pipe_number)
     quitBtn = XmCreatePushButton(btnForm,"quitBtn", al, ac);
     XtManageChild(quitBtn);
     XtAddCallback(quitBtn, XmNactivateCallback,
-		  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_QUIT);
+                  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_QUIT);
 
     /* Pause Button */
 
@@ -1142,7 +1142,7 @@ void Launch_Motif_Process(int pipe_number)
     pauseBtn =  XmCreatePushButton(btnForm,"pauseBtn", al, ac);
     XtManageChild(pauseBtn);
     XtAddCallback(pauseBtn, XmNactivateCallback,
-		  (XtCallbackProc) GenericCB,(XtPointer) MOTIF_PAUSE);
+                  (XtCallbackProc) GenericCB,(XtPointer) MOTIF_PAUSE);
 
     /* Forward Button */
 
@@ -1158,7 +1158,7 @@ void Launch_Motif_Process(int pipe_number)
     fwdBtn =  XmCreatePushButton(btnForm,"fwdBtn", al, ac);
     XtManageChild(fwdBtn);
     XtAddCallback(fwdBtn, XmNactivateCallback,
-		  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_FWD);
+                  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_FWD);
 
     /* Next Button */
     ac = 0;
@@ -1175,7 +1175,7 @@ void Launch_Motif_Process(int pipe_number)
     nextBtn = XmCreatePushButton(btnForm,"nextBtn", al, ac);
     XtManageChild(nextBtn);
     XtAddCallback(nextBtn, XmNactivateCallback,
-		  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_NEXT);
+                  (XtCallbackProc) GenericCB, (XtPointer) MOTIF_NEXT);
 
     /********************/
     /* Volume scale     */
@@ -1197,12 +1197,12 @@ void Launch_Motif_Process(int pipe_number)
     XtSetArg(al[ac], XmNtraversalOn, False); ac++;
     XtSetArg(al[ac], XmNhighlightThickness,0); ac++;
     XtSetArg(al[ac], XmNtitleString,
-	     XmStringCreate("VOL",char_set)); ac++;
+             XmStringCreate("VOL",char_set)); ac++;
     volume_scale = XmCreateScale(mainForm,"volscale",al,ac);
     XtManageChild(volume_scale);
     XtAddCallback(volume_scale, XmNvalueChangedCallback,
-		  (XtCallbackProc) Generic_scaleCB,
-		  (XtPointer) MOTIF_CHANGE_VOLUME);
+                  (XtCallbackProc) Generic_scaleCB,
+                  (XtPointer) MOTIF_CHANGE_VOLUME);
 
 
     /********************/
@@ -1231,8 +1231,8 @@ void Launch_Motif_Process(int pipe_number)
     file_list = XmCreateScrolledList(mainForm,"File List",al,ac);
     XtManageChild(file_list);
     XtAddCallback(file_list, XmNsingleSelectionCallback,
-		  (XtCallbackProc) File_ListCB,
-		  NULL);
+                  (XtCallbackProc) File_ListCB,
+                  NULL);
 
     /*
      * Last details on toplevel
@@ -1253,7 +1253,7 @@ void Launch_Motif_Process(int pipe_number)
   /*******************************************************/
 
     XtAppAddInput(context,pipe_number,
-		  (XtPointer) XtInputReadMask,handle_input,NULL);
+                  (XtPointer) XtInputReadMask,handle_input,NULL);
 
     XtRealizeWidget(toplevel);
     XtAppMainLoop(context);

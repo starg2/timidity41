@@ -1,6 +1,6 @@
-/* 
+/*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,9 +17,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-	Macintosh interface for TiMidity
-	by T.Nogami	<t-nogami@happy.email.ne.jp>
-		
+        Macintosh interface for TiMidity
+        by T.Nogami     <t-nogami@happy.email.ne.jp>
+
     mac_mag.c
     Macintosh mag loader
 */
@@ -44,13 +44,13 @@
 #define BUFSIZE 512
 static const char *MAGSIG="MAKI02  ";
 
-#define READSHORT(p) ((int)*(uint8*)((p)+1)*256+(int)*(uint8 *)(p))
+#define READSHORT(p) ((int) *(uint8*)((p)+1) *256+(int) *(uint8*)(p))
 #define READLONG(p) (\
-		     (int)*(uint8*)((p)+3)*256*256*256+\
-		     (int)*(uint8*)((p)+2)*256*256+\
-		     (int)*(uint8*)((p)+1)*256+\
-		     (int)*(uint8 *)(p)\
-		     )
+                     (int) *(uint8*)((p)+3) *256*256*256+\
+                     (int) *(uint8*)((p)+2) *256*256+\
+                     (int) *(uint8*)((p)+1) *256+\
+                     (int) *(uint8*)(p)\
+                     )
 #define MAGHDRLEN 31
 
 static void mag_delete(magdata *mg);
@@ -72,44 +72,44 @@ struct magfilehdr{
 };
 static int read_flag_1line(magdata * mh,uint8 *flag )
 {
-  int		x, flagA,flagB,j;
+  int           x, flagA,flagB,j;
   j=0;
-  for( x=0; x<=mh->xend-(mh->xorig/8*8); ){
+  for ( x=0; x<=mh->xend-(mh->xorig/8*8); ) {
     flagA= mh->flagadata[mh->flagapos/8] & (0x80 >> (mh->flagapos & 0x07) );
     mh->flagapos++;
-    if( flagA ){
+    if ( flagA ) {
       flagB= mh->flagbdata[mh->flagbpos++];
-    }else{
+    } else {
       flagB= 0;
     }
-    flag[x] ^= flagB>>4;	 x+=4;j++;
+    flag[x] ^= flagB>>4;         x+=4;j++;
     flag[x] ^= flagB & 0x0F; x+=4;j++;
   }
   return j;
 }
 
 /*This Function Requires Blank XImage*/
-Bool pho_load_pixel(XImage *image,XColor *pallet,char *filename){
+Bool pho_load_pixel(XImage *image,XColor *pallet,char *filename) {
   int i,j,k,l;
   static const int shift[4]={0,2,1,3};/*B,R,G,E*/
   struct timidity_file *fp;
   char buffer[640/8];
 
-  if((fp=wrd_open_file(filename))==NULL)
+  if ((fp=wrd_open_file(filename))==NULL)
     return False;
-  for(l=0;l<4;l++){
-    for(i=0;i<400;i++){
-      if(tf_read(buffer,sizeof(buffer),1,fp)==0){
-	goto close;
+  for (l=0;l<4;l++) {
+    for (i=0;i<400;i++) {
+      if (tf_read(buffer,sizeof(buffer),1,fp)==0) {
+        goto close;
       }
-      for(j=0;j<sizeof(buffer);j++){
-	for(k=0;k<8;k++)
-	  if((buffer[j]<<k)&0x80)
-	    XPutPixel(image,j*8+k,i,XGetPixel(image,j*8+k,i)
-		      |pallet[1<<shift[l]].pixel);
-	  else
-	    XPutPixel(image,j*8+k,i,XGetPixel(image,j*8+k,i)
-		      |pallet[0].pixel);
+      for (j=0;j<sizeof(buffer);j++) {
+        for (k=0;k<8;k++)
+          if ((buffer[j]<<k) &0x80)
+            XPutPixel(image,j*8+k,i,XGetPixel(image,j*8+k,i)
+                      |pallet[1L<<shift[l]].pixel);
+          else
+            XPutPixel(image,j*8+k,i,XGetPixel(image,j*8+k,i)
+                      |pallet[0].pixel);
       }
     }
   }
@@ -120,33 +120,33 @@ Bool pho_load_pixel(XImage *image,XColor *pallet,char *filename){
 
 void mag_load_pixel(XImage *image,XColor *pallet,magdata *mh)
 {
-  int 		x,y,i, dx,dy,pxlpos,w,j,repl;
+  int           x,y,i, dx,dy,pxlpos,w,j,repl;
   uint8 flag[640];
   long pixels;
-  const int	DX[]={0,-4,-8,-16,  0,-4,  0,-4,-8,  0,-4,-8,  0,-4,-8, 0},
+  const int     DX[]={0,-4,-8,-16,  0,-4,  0,-4,-8,  0,-4,-8,  0,-4,-8, 0},
   DY[]={0, 0, 0,  0, -1,-1, -2,-2,-2, -4,-4,-4, -8,-8,-8, -16};
   memset(flag,0,640);
   mh->flagapos=mh->flagbpos=pxlpos=0;
   w=image->width;
-  for( y=0; y<=mh->yend-mh->yorig; y++ ){
+  for ( y=0; y<=mh->yend-mh->yorig; y++ ) {
     repl=read_flag_1line( mh,flag );
     x=0;
-    for( j=0; j<repl; j++ ){
-      if( flag[x]==0 ){
-	pixels=mh->pxldata[pxlpos]*256+mh->pxldata[pxlpos+1];
-	pxlpos+=2;
-	for( i=3; i>=0; i-- ){
-	  if(x+i < w)
-	    XPutPixel(image,x+i, y, pallet[pixels & 0x000F].pixel);
-	  pixels >>= 4;
-	}
+    for ( j=0; j<repl; j++ ) {
+      if ( flag[x]==0 ) {
+        pixels=mh->pxldata[pxlpos]*256+mh->pxldata[pxlpos+1];
+        pxlpos+=2;
+        for ( i=3; i>=0; i-- ) {
+          if (x+i < w)
+            XPutPixel(image,x+i, y, pallet[pixels & 0x000F].pixel);
+          pixels >>= 4;
+        }
       } else {
-	dx=DX[flag[x]];
-	dy=DY[flag[x]];
-	for(i=0;i<4;i++) {
-	  if(x+i < w)
-	    XPutPixel(image,x+i,y,XGetPixel(image,x+dx+i,y+dy));
-	}
+        dx=DX[flag[x]];
+        dy=DY[flag[x]];
+        for (i=0;i<4;i++) {
+          if (x+i < w)
+            XPutPixel(image,x+i,y,XGetPixel(image,x+dx+i,y+dy));
+        }
       }
       x+=4;
     }
@@ -155,13 +155,13 @@ void mag_load_pixel(XImage *image,XColor *pallet,magdata *mh)
 
 void mag_deletetab(void)
 {
-  if(top!=NULL){
+  if (top!=NULL) {
     mag_delete(top);
   }
   top=NULL;
 }
-static void mag_delete(magdata *mg){
-  if(mg->next!=NULL)
+static void mag_delete(magdata *mg) {
+  if (mg->next!=NULL)
     mag_delete(mg->next);
   free(mg->filename);
   free(mg->flagadata);
@@ -172,8 +172,8 @@ static void mag_delete(magdata *mg){
 magdata *mag_search(char *filename)
 {
   magdata *m;
-  for(m=top;m!=NULL;m=m->next)
-    if(strcmp(filename,m->filename)==0)
+  for (m=top;m!=NULL;m=m->next)
+    if (strcmp(filename,m->filename)==0)
       return m;
   return NULL;
 }
@@ -188,31 +188,31 @@ magdata *mag_create(char *file)
   struct magfilehdr mfh;
   int len,c,header_pos;
   char *flaga=NULL,*flagb=NULL,*pixels=NULL;
-  if((res=mag_search(file))){
+  if ((res=mag_search(file))) {
     return res;
   }
   mg.filename=safe_malloc(strlen(file)+2);
   strcpy(mg.filename,file);
   fp=wrd_open_file(file);
-  if(fp==NULL){
+  if (fp==NULL) {
     goto error;
   }
   header_pos=0;
-  while((c=tf_getc(fp))!=0){
+  while ((c=tf_getc(fp)) !=0) {
     len=strlen(MAGSIG);
-    if(header_pos<len)
+    if (header_pos<len)
       buffer[header_pos]=c;
-    else if(header_pos==len){
-      if(memcmp(MAGSIG,buffer,len)!=0){
-	ctl->cmsg(CMSG_INFO,VERB_VERBOSE,"BAD SIGNATURE\n");
-	goto error;
+    else if (header_pos==len) {
+      if (memcmp(MAGSIG,buffer,len) !=0) {
+        ctl->cmsg(CMSG_INFO,VERB_VERBOSE,"BAD SIGNATURE\n");
+        goto error;
       }
     }
     header_pos++;
   }
   /*READ FHDR*/
   {
-    if(tf_read(&mfh,sizeof(mfh),1,fp)==0){
+    if (tf_read(&mfh,sizeof(mfh),1,fp)==0) {
       fprintf(stderr,"FOO!\n");
       goto error;
     }
@@ -231,8 +231,8 @@ magdata *mag_create(char *file)
   }
   /*READ PALLET*/
   pal=mg.pal+1;
-  for(i=0;i<PALSIZE;i++){
-    if(tf_read(buffer,1,3,fp)<3){
+  for (i=0;i<PALSIZE;i++) {
+    if (tf_read(buffer,1,3,fp)<3) {
       exit(-1);
     }
 #if 0
@@ -240,53 +240,50 @@ magdata *mag_create(char *file)
 #else
     pal[i]=buffer[0]/16*16+buffer[1]/16*256+buffer[2]/16;
 #endif
-  } 
-  
+  }
+
   {
     int flaga_size,res;
     flaga_size=mg.flagboff-mg.flagaoff;
-    if(tf_seek(fp,mg.flagaoff+header_pos,SEEK_SET)==-1)
+    if (tf_seek(fp,mg.flagaoff+header_pos,SEEK_SET)==-1)
       goto error;
     flaga=safe_malloc(flaga_size+100);
-    if((res=tf_read(flaga,1,flaga_size,fp))<flaga_size)
+    if ((res=tf_read(flaga,1,flaga_size,fp))<flaga_size)
       goto error;
     mg.flagadata=flaga;
   }
   {
     flagb=safe_malloc(mg.flagbsize+100);
-    if(tf_seek(fp,mg.flagboff+header_pos,SEEK_SET)==-1)
+    if (tf_seek(fp,mg.flagboff+header_pos,SEEK_SET)==-1)
       goto error;
-    if(tf_read(flagb,1,mg.flagbsize,fp)<mg.flagbsize)
+    if (tf_read(flagb,1,mg.flagbsize,fp)<mg.flagbsize)
       goto error;
     mg.flagbdata=flagb;
   }
   {
     pixels=safe_malloc(mg.pxlsize+100);
-    if(tf_seek(fp,mg.pxloff+header_pos,SEEK_SET)==-1)
+    if (tf_seek(fp,mg.pxloff+header_pos,SEEK_SET)==-1)
       goto error;
-    if(tf_read(pixels,1,mg.pxlsize,fp)<mg.pxlsize)
+    if (tf_read(pixels,1,mg.pxlsize,fp)<mg.pxlsize)
       goto error;
     mg.pxldata=pixels;
   }
   res=safe_malloc(sizeof(magdata));
-  
+
   *res=mg;
   close_file(fp);
   res->next=top;
   top=res;
   return res;
  error:
-  if(fp!=NULL)
+  if (fp!=NULL)
   {
     close_file(fp);
     ctl->cmsg(CMSG_INFO,VERB_VERBOSE,"Mag error: %s\n", file);
   }
   free(mg.filename);
-  if(flaga != NULL)
-      free(flaga);
-  if(flagb != NULL)
-      free(flagb);
-  if(pixels != NULL)
-      free(pixels);
+  safe_free(flaga);
+  safe_free(flagb);
+  safe_free(pixels);
   return NULL;
 }

@@ -1,36 +1,36 @@
 /* interface.h.  Generated from interface.h.in by configure.  */
 /* Define if you have EMACS interface. */
-/* #undef IA_EMACS */
+#define IA_EMACS 1
 
 /* Define if you have GTK interface. */
-/* #undef IA_GTK */
+#define IA_GTK 1
 
 /* Define if you have KMIDI interface. */
 /* #undef IA_KMIDI */
 
 /* Define if you have MOTIF interface. */
-/* #undef IA_MOTIF */
+#define IA_MOTIF 1
 
 /* Define if you have NCURSES interface. */
-/* #undef IA_NCURSES */
+#define IA_NCURSES 1
 
 /* Define if you have PLUGIN interface. */
 /* #undef IA_PLUGIN */
 
 /* Define if you have SLANG interface. */
-/* #undef IA_SLANG */
+#define IA_SLANG 1
 
 /* Define if you have TCLTK interface. */
-/* #undef IA_TCLTK */
+#define IA_TCLTK 1
 
 /* Define if you have VT100 interface. */
-/* #undef IA_VT100 */
+#define IA_VT100 1
 
 /* Define if you have XAW interface. */
-/* #undef IA_XAW */
+#define IA_XAW 1
 
 /* Define if you have XSKIN interface. */
-/* #undef IA_XSKIN */
+#define IA_XSKIN 1
 
 /* Define if you have DYNAMIC interface. */
 /* #undef IA_DYNAMIC */
@@ -42,10 +42,10 @@
 /* #undef IA_W32G_SYN */
 
 /* Define if you have Remote MIDI interface. */
-/* #undef IA_SERVER */
+#define IA_SERVER 1
 
 /* Define if you have Remote MIDI interface. */
-/* #undef IA_ALSASEQ */
+#define IA_ALSASEQ 1
 
 /* Define if you have Windows synthesizer mode interface. */
 /* #undef IA_WINSYN */

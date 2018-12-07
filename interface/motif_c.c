@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -33,11 +33,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
+#include "_string.h"
 
 #include "timidity.h"
 #include "common.h"
@@ -57,8 +53,8 @@ static void ctl_current_time(int secs, int v);
 static void ctl_lyric(int lyricid);
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(ptr_size_t *valp)
-static int cmsg(int type, int verbosity_level, char *fmt, ...);
+static int ctl_read(ptr_size_t *valp);
+static int cmsg(int type, int verbosity_level, const char *fmt, ...);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]);
 static void ctl_event(CtlEvent *e);
 
@@ -91,28 +87,28 @@ static int cuepoint_pending = 0;
 /***********************************************************************/
 /* Put controls on the pipe                                            */
 /***********************************************************************/
-static int cmsg(int type, int verbosity_level, char *fmt, ...)
+static int cmsg(int type, int verbosity_level, const char *fmt, ...)
 {
     char local[255];
 
     va_list ap;
     if ((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
-	ctl.verbosity<verbosity_level)
-	return 0;
+        ctl.verbosity<verbosity_level)
+        return 0;
 
     va_start(ap, fmt);
     if (!motif_ready)
-	{
-	    vfprintf(stderr, fmt, ap);
-	    fprintf(stderr, NLS);
-	}
+        {
+            vfprintf(stderr, fmt, ap);
+            fprintf(stderr, NLS);
+        }
     else
-	{
-	    vsnprintf(local, sizeof(local), fmt, ap);
-	    m_pipe_int_write(CMSG_MESSAGE);
-	    m_pipe_int_write(type);
-	    m_pipe_string_write(local);
-	}
+        {
+            vsnprintf(local, sizeof(local), fmt, ap);
+            m_pipe_int_write(CMSG_MESSAGE);
+            m_pipe_int_write(type);
+            m_pipe_string_write(local);
+        }
     va_end(ap);
     return 0;
 }
@@ -158,75 +154,75 @@ static void ctl_current_time(int secs, int v)
 
 static void ctl_lyric(int lyricid)
 {
-    char *lyric;
+    const char *lyric;
     static char lyric_buf[300];
 
     lyric = event2string(lyricid);
-    if(lyric != NULL)
+    if (lyric != NULL)
     {
-	if(lyric[0] == ME_KARAOKE_LYRIC)
-	{
-	    if(!lyric[1])
-		return;
-	    if(lyric[1] == '/' || lyric[1] == '\\')
-	    {
-		snprintf(lyric_buf, sizeof(lyric_buf), "\n%s", lyric + 2);
-		m_pipe_int_write(LYRIC_MESSAGE);
-		m_pipe_string_write(lyric_buf);
-	    }
-	    else if(lyric[1] == '@')
-	    {
-		if(lyric[2] == 'L')
-		    snprintf(lyric_buf, sizeof(lyric_buf), "Language: %s\n", lyric + 3);
-		else if(lyric[2] == 'T')
-		    snprintf(lyric_buf, sizeof(lyric_buf), "Title: %s\n", lyric + 3);
-		else
-		    snprintf(lyric_buf, sizeof(lyric_buf), "%s\n", lyric + 1);
-		m_pipe_int_write(LYRIC_MESSAGE);
-		m_pipe_string_write(lyric_buf);
-	    }
-	    else
-	    {
-		strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf) - 1);
-		m_pipe_int_write(LYRIC_MESSAGE);
-		m_pipe_string_write(lyric_buf);
-	    }
-	}
-	else
-	{
-	    strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf) - 1);
-	    m_pipe_int_write(LYRIC_MESSAGE);
-	    m_pipe_string_write(lyric_buf);
-	}
+        if (lyric[0] == ME_KARAOKE_LYRIC)
+        {
+            if (!lyric[1])
+                return;
+            if (lyric[1] == '/' || lyric[1] == '\\')
+            {
+                snprintf(lyric_buf, sizeof(lyric_buf), "\n%s", lyric + 2);
+                m_pipe_int_write(LYRIC_MESSAGE);
+                m_pipe_string_write(lyric_buf);
+            }
+            else if (lyric[1] == '@')
+            {
+                if (lyric[2] == 'L')
+                    snprintf(lyric_buf, sizeof(lyric_buf), "Language: %s\n", lyric + 3);
+                else if (lyric[2] == 'T')
+                    snprintf(lyric_buf, sizeof(lyric_buf), "Title: %s\n", lyric + 3);
+                else
+                    snprintf(lyric_buf, sizeof(lyric_buf), "%s\n", lyric + 1);
+                m_pipe_int_write(LYRIC_MESSAGE);
+                m_pipe_string_write(lyric_buf);
+            }
+            else
+            {
+                strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf) - 1);
+                m_pipe_int_write(LYRIC_MESSAGE);
+                m_pipe_string_write(lyric_buf);
+            }
+        }
+        else
+        {
+            strncpy(lyric_buf, lyric + 1, sizeof(lyric_buf) - 1);
+            m_pipe_int_write(LYRIC_MESSAGE);
+            m_pipe_string_write(lyric_buf);
+        }
     }
 }
 
 static void ctl_event(CtlEvent *e)
 {
-    switch(e->type)
+    switch (e->type)
     {
       case CTLE_NOW_LOADING:
-	ctl_file_name((char *)e->v1);
-	break;
+        ctl_file_name((char*) e->v1);
+        break;
       case CTLE_PLAY_START:
-	ctl_total_time((int)e->v1);
-	break;
+        ctl_total_time((int) e->v1);
+        break;
       case CTLE_CUEPOINT:
-	cuepoint = e->v1;
-	cuepoint_pending = 1;
-	break;
+        cuepoint = e->v1;
+        cuepoint_pending = 1;
+        break;
       case CTLE_CURRENT_TIME:
-	ctl_current_time((int)e->v1, (int)e->v2);
-	break;
+        ctl_current_time((int) e->v1, (int) e->v2);
+        break;
       case CTLE_MASTER_VOLUME:
-	ctl_master_volume((int)e->v1);
-	break;
+        ctl_master_volume((int) e->v1);
+        break;
       case CTLE_LYRIC:
-	ctl_lyric((int)e->v1);
-	break;
+        ctl_lyric((int) e->v1);
+        break;
       case CTLE_REFRESH:
-	ctl_refresh();
-	break;
+        ctl_refresh();
+        break;
     }
 }
 
@@ -239,7 +235,7 @@ static int ctl_open(int using_stdin, int using_stdout)
 {
   ctl.opened=1;
 #if 0
-  ctl.trace_playing=1;	/* Default mode with Motif interface */
+  ctl.trace_playing=1;  /* Default mode with Motif interface */
 #endif
 
   /* The child process won't come back from this call  */
@@ -253,9 +249,9 @@ static void ctl_close(void)
 {
   if (ctl.opened)
     {
-	m_pipe_int_write(CLOSE_MESSAGE);
-	ctl.opened=0;
-	motif_ready = 0;
+        m_pipe_int_write(CLOSE_MESSAGE);
+        ctl.opened=0;
+        motif_ready = 0;
     }
 }
 
@@ -263,7 +259,7 @@ static void ctl_close(void)
 /*
  * Read information coming from the window in a BLOCKING way
  */
-static int ctl_blocking_read(int32 *valp)
+static int ctl_blocking_read(ptr_size_t *valp)
 {
   int command;
   int new_volume;
@@ -274,67 +270,67 @@ static int ctl_blocking_read(int32 *valp)
 
   m_pipe_int_read(&command);
 
-  for(;;)    /* Loop after pause sleeping to treat other buttons! */
+  for (;;)    /* Loop after pause sleeping to treat other buttons! */
       {
 
-	  switch(command)
-	      {
-	      case MOTIF_CHANGE_VOLUME:
-		  m_pipe_int_read(&new_volume);
-		  *valp= new_volume - output_amplification ;
-		  return RC_CHANGE_VOLUME;
+          switch (command)
+              {
+              case MOTIF_CHANGE_VOLUME:
+                  m_pipe_int_read(&new_volume);
+                  *valp= new_volume - output_amplification;
+                  return RC_CHANGE_VOLUME;
 
-	      case MOTIF_CHANGE_LOCATOR:
-		  m_pipe_int_read(&new_secs);
-		  *valp= new_secs * play_mode->rate;
-		  return RC_JUMP;
+              case MOTIF_CHANGE_LOCATOR:
+                  m_pipe_int_read(&new_secs);
+                  *valp= new_secs * play_mode->rate;
+                  return RC_JUMP;
 
-	      case MOTIF_QUIT:
-		  return RC_QUIT;
+              case MOTIF_QUIT:
+                  return RC_QUIT;
 
-	      case MOTIF_PLAY_FILE:
-		  return RC_LOAD_FILE;
+              case MOTIF_PLAY_FILE:
+                  return RC_LOAD_FILE;
 
-	      case MOTIF_NEXT:
-		  return RC_NEXT;
+              case MOTIF_NEXT:
+                  return RC_NEXT;
 
-	      case MOTIF_PREV:
-		  return RC_REALLY_PREVIOUS;
+              case MOTIF_PREV:
+                  return RC_REALLY_PREVIOUS;
 
-	      case MOTIF_RESTART:
-		  return RC_RESTART;
+              case MOTIF_RESTART:
+                  return RC_RESTART;
 
-	      case MOTIF_FWD:
-		  *valp=play_mode->rate;
-		  return RC_FORWARD;
+              case MOTIF_FWD:
+                  *valp=play_mode->rate;
+                  return RC_FORWARD;
 
-	      case MOTIF_RWD:
-		  *valp=play_mode->rate;
-		  return RC_BACK;
+              case MOTIF_RWD:
+                  *valp=play_mode->rate;
+                  return RC_BACK;
 
-	      case MOTIF_EXPAND:
-		  m_pipe_int_read(&nfiles);
-		  for (i=0;i<nfiles;i++)
-		  {
-			m_pipe_string_read(buf[i]);
-			files[i] = buf[i];
-		  }
-		  ret = expand_file_archives(files, &nfiles);
-		  m_pipe_int_write(FILE_LIST_MESSAGE);
-		  m_pipe_int_write(nfiles);
-		  for (i=0;i<nfiles;i++)
-			m_pipe_string_write(ret[i]);
-		  if(ret != files)
-		      free(ret);
-		  return RC_NONE;
+              case MOTIF_EXPAND:
+                  m_pipe_int_read(&nfiles);
+                  for (i=0;i<nfiles;i++)
+                  {
+                        m_pipe_string_read(buf[i]);
+                        files[i] = buf[i];
+                  }
+                  ret = expand_file_archives(files, &nfiles);
+                  m_pipe_int_write(FILE_LIST_MESSAGE);
+                  m_pipe_int_write(nfiles);
+                  for (i=0;i<nfiles;i++)
+                        m_pipe_string_write(ret[i]);
+                  if (ret != files)
+                      free(ret);
+                  return RC_NONE;
 
-		case MOTIF_PAUSE:
-		  return RC_TOGGLE_PAUSE;
+                case MOTIF_PAUSE:
+                  return RC_TOGGLE_PAUSE;
 
-		default:
-		  fprintf(stderr,"UNKNOWN RC_MESSAGE %d" NLS, command);
-		  return RC_NONE;
-	      }
+                default:
+                  fprintf(stderr,"UNKNOWN RC_MESSAGE %d" NLS, command);
+                  return RC_NONE;
+              }
       }
 }
 
@@ -344,7 +340,7 @@ static int ctl_blocking_read(int32 *valp)
 static int ctl_read(ptr_size_t *valp)
 {
   int num;
-  
+
   if (cuepoint_pending) {
       *valp = cuepoint;
       cuepoint_pending = 0;
@@ -377,7 +373,7 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
     m_pipe_int_write(FILE_LIST_MESSAGE);
     m_pipe_int_write(number_of_files);
     for (i=0;i<number_of_files;i++)
-	m_pipe_string_write(list_of_files[i]);
+        m_pipe_string_write(list_of_files[i]);
 
     /* Ask the interface for a filename to play -> begin to play automatically */
     m_pipe_int_write(NEXT_FILE_MESSAGE);
@@ -386,47 +382,47 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 
     /* Main Loop */
     for (;;)
-	{
-	    if (command==RC_LOAD_FILE)
-		{
-		    /* Read a LoadFile command */
-		    m_pipe_string_read(file_to_play);
-		    command=play_midi_file(file_to_play);
-		}
-	    else
-		{
-		    if (command==RC_QUIT)
-			return 0;
+        {
+            if (command==RC_LOAD_FILE)
+                {
+                    /* Read a LoadFile command */
+                    m_pipe_string_read(file_to_play);
+                    command=play_midi_file(file_to_play);
+                }
+            else
+                {
+                    if (command==RC_QUIT)
+                        return 0;
 
-		    switch(command)
-			{
-			case RC_ERROR:
-			    m_pipe_int_write(ERROR_MESSAGE);
-			    retval=1;
-			    break;
-			case RC_NONE:
-			    break;
-			case RC_NEXT:
-			    m_pipe_int_write(NEXT_FILE_MESSAGE);
-			    break;
-			case RC_REALLY_PREVIOUS:
-			    m_pipe_int_write(PREV_FILE_MESSAGE);
-			    break;
-			case RC_TUNE_END:
-			    m_pipe_int_write(TUNE_END_MESSAGE);
-			    break;
-			case RC_CHANGE_VOLUME:
-				output_amplification += val;
-				break;
-			default:
-			    fprintf(stderr,
-				    "PANIC !!! OTHER COMMAND ERROR ?!?! %i"
-				    NLS, command);
-			}
+                    switch (command)
+                        {
+                        case RC_ERROR:
+                            m_pipe_int_write(ERROR_MESSAGE);
+                            retval=1;
+                            break;
+                        case RC_NONE:
+                            break;
+                        case RC_NEXT:
+                            m_pipe_int_write(NEXT_FILE_MESSAGE);
+                            break;
+                        case RC_REALLY_PREVIOUS:
+                            m_pipe_int_write(PREV_FILE_MESSAGE);
+                            break;
+                        case RC_TUNE_END:
+                            m_pipe_int_write(TUNE_END_MESSAGE);
+                            break;
+                        case RC_CHANGE_VOLUME:
+                                output_amplification += val;
+                                break;
+                        default:
+                            fprintf(stderr,
+                                    "PANIC !!! OTHER COMMAND ERROR ?!?! %i"
+                                    NLS, command);
+                        }
 
-		    command = ctl_blocking_read(&val);
-		}
-	}
+                    command = ctl_blocking_read(&val);
+                }
+        }
     return retval;
 }
 

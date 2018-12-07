@@ -33,29 +33,11 @@
 #endif /* HAVE_CONFIG_H */
 #include "interface.h"
 
+#ifdef IA_WINSYN
+
 #ifdef __POCC__
 #include <sys/types.h>
 #endif //for off_t
-
-#include <stdio.h>
-
-#include <stdarg.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#include <sys/types.h>
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#endif
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
-#include <math.h>
-#include <signal.h>
-
-#include "server_defs.h"
 
 #ifdef __W32__
 #include <windows.h>
@@ -74,12 +56,12 @@
 #include "timer.h"
 
 #include "rtsyn.h"
+#include "rtsyn_internal.h"
 #ifdef USE_TWSYN_BRIDGE
 #include "twsyn_bridge_common.h"
 #include "twsyn_bridge_host.h"
 #endif
 
-int rtsyn_portnumber=1;
 unsigned int portID[MAX_PORT];
 char rtsyn_portlist[32][80];
 int rtsyn_nportlist;
@@ -114,7 +96,25 @@ double mim_start_time;
 
 void CALLBACK MidiInProc(HMIDIIN hMidiInL, UINT wMsg, DWORD_PTR dwInstance,	DWORD_PTR dwParam1, DWORD_PTR dwParam2);
 
-void rtsyn_get_port_list(){
+static void rtsyn_ws_get_port_list(void);
+static int  rtsyn_ws_synth_start(void);
+static void rtsyn_ws_synth_stop(void);
+static int  rtsyn_ws_play_some_data(void);
+static void rtsyn_ws_midiports_close(void);
+static int  rtsyn_ws_buf_check(void);
+
+void rtsyn_ws_setup(void)
+{
+    rtsyn.id_character    = 'W';
+    rtsyn.get_port_list   = rtsyn_ws_get_port_list;
+    rtsyn.synth_start     = rtsyn_ws_synth_start;
+    rtsyn.synth_stop      = rtsyn_ws_synth_stop;
+    rtsyn.play_some_data  = rtsyn_ws_play_some_data;
+    rtsyn.midiports_close = rtsyn_ws_midiports_close;
+    rtsyn.buf_check       = rtsyn_ws_buf_check;
+}
+
+void rtsyn_ws_get_port_list(){
 	int i;
 	MIDIINCAPS InCaps;
 
@@ -137,7 +137,7 @@ void rtsyn_get_port_list(){
 	}
 }
 
-int rtsyn_synth_start(){
+int rtsyn_ws_synth_start(){
 	int i;
 	UINT port;
 
@@ -202,14 +202,14 @@ winmmerror:
 	return 0;
 }
 
-void rtsyn_synth_stop(){
+void rtsyn_ws_synth_stop(){
 	rtsyn_stop_playing();
 	//	play_mode->close_output();	
 	rtsyn_midiports_close();
 	DeleteCriticalSection(&mim_section);
 	return;
 }
-void rtsyn_midiports_close(void){
+void rtsyn_ws_midiports_close(void){
 	UINT port;
 
 #ifdef USE_TWSYN_BRIDGE
@@ -227,7 +227,7 @@ void rtsyn_midiports_close(void){
 	}
 }
 
-int rtsyn_buf_check(void){
+int rtsyn_ws_buf_check(void){
 	int retval;
 	EnterCriticalSection(&mim_section);
 	retval = (evbrpoint != evbwpoint) ? ~0 :  0;
@@ -235,7 +235,7 @@ int rtsyn_buf_check(void){
 	return retval;
 }
 
-int rtsyn_play_some_data(void){
+int rtsyn_ws_play_some_data(void){
 	UINT wMsg;
 	DWORD_PTR	dwInstance;
 	DWORD_PTR	dwParam1;
@@ -338,4 +338,6 @@ void CALLBACK MidiInProc(HMIDIIN hMidiInL, UINT wMsg, DWORD_PTR dwInstance,
 		break;
 	}
 }
+
+#endif /* IA_WINSYN */
 

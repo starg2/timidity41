@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -164,13 +164,13 @@
 #define TXTMETA_N 6
 #define MAX_OPTION_N 7
 
-#define MODUL_BIT (1<<MODUL_N)
-#define PORTA_BIT (1<<PORTA_N)
-#define NRPNV_BIT (1<<NRPNV_N)
-#define REVERB_BIT (1<<REVERB_N)
-#define CHPRESSURE_BIT (1<<CHPRESSURE_N)
-#define OVERLAPV_BIT (1<<OVERLAPV_N)
-#define TXTMETA_BIT (1<<TXTMETA_N)
+#define MODUL_BIT (1L<<MODUL_N)
+#define PORTA_BIT (1L<<PORTA_N)
+#define NRPNV_BIT (1L<<NRPNV_N)
+#define REVERB_BIT (1L<<REVERB_N)
+#define CHPRESSURE_BIT (1L<<CHPRESSURE_N)
+#define OVERLAPV_BIT (1L<<OVERLAPV_N)
+#define TXTMETA_BIT (1L<<TXTMETA_N)
 
 #ifdef MODULATION_WHEEL_ALLOW
 #define INIT_OPTIONS0 MODUL_BIT

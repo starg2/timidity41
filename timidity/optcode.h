@@ -182,6 +182,39 @@ enum{
 	X86_SSE5,
 };
 
+#if defined(__GNUC__) || defined(__MINGW32__) /* target specific option mismatch... */
+#ifndef __MMX__
+#undef  USE_MMX
+#endif
+#ifndef __SSE__
+#undef  USE_SSE
+#undef  USE_MMX2
+#endif
+#ifndef __SSE2__
+#undef  USE_SSE2
+#endif
+#ifndef __SSE3__
+#undef  USE_SSE3
+#endif
+#ifndef __SSSE3__
+#undef  USE_SSSE3
+#endif
+#ifndef __SSE4_1__
+#undef  USE_SSE4
+#undef  USE_SSE42
+#endif
+#ifndef __SSE4_2__
+#undef  USE_SSE4
+#undef  USE_SSE42
+#endif
+#ifndef __AVX__
+#undef  USE_AVX
+#endif
+#ifndef __AVX2__
+#undef  USE_AVX2
+#endif
+#endif /* __GNUC__ */
+
 #if defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
 #define USE_X86_EXT_INTRIN  9
 #elif defined(USE_AVX) // _MSC_VER >= 1600 VC2010?

@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -29,19 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#if defined(TIME_WITH_SYS_TIME)
-#include <sys/time.h>
-#include <time.h>
-#elif defined(HAVE_SYS_TIME_H)
-#include <sys/time.h>
-#else
-#include <time.h>
-#endif /* TIME_WITH_SYS_TIME */
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif /* NO_STRING_H */
+#include "_systime.h"
+#include "_string.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -59,29 +48,29 @@
 #include "xaw.h"
 
 extern void timidity_init_aq_buff(void); /* From timidity/timidity.c */
-static int cmsg(int, int, char *, ...);
-static int ctl_blocking_read(int32 *);
+static int cmsg(int, int, char*, ...);
+static int ctl_blocking_read(ptr_size_t*);
 static void ctl_close(void);
-static void ctl_event(CtlEvent *);
-static int ctl_read(int32 *);
+static void ctl_event(CtlEvent*);
+static int ctl_read(ptr_size_t*);
 static int ctl_open(int, int);
-static int ctl_pass_playing_list(int, char **);
+static int ctl_pass_playing_list(int, char**);
 ControlMode *interface_a_loader(void);
 
 static void a_pipe_open(void);
 static int a_pipe_ready(void);
-int a_pipe_read(char *, size_t);
-int a_pipe_nread(char *, size_t);
+int a_pipe_read(char*, size_t);
+int a_pipe_nread(char*, size_t);
 void a_pipe_sync(void);
-void a_pipe_write(const char *, ...);
-static void a_pipe_write_buf(const char *, int);
-static void a_pipe_write_msg(char *);
-static void a_pipe_write_msg_nobr(char *);
+void a_pipe_write(const char*, ...);
+static void a_pipe_write_buf(const char*, int);
+static void a_pipe_write_msg(char*);
+static void a_pipe_write_msg_nobr(char*);
 extern void a_start_interface(int);
 
 static void ctl_current_time(int, int);
 static void ctl_drumpart(int, int);
-static void ctl_event(CtlEvent *);
+static void ctl_event(CtlEvent*);
 static void ctl_expression(int, int);
 static void ctl_keysig(int);
 static void ctl_key_offset(int);
@@ -93,7 +82,7 @@ static void ctl_note(int, int, int, int);
 static void ctl_panning(int, int);
 static void ctl_pause(int, int);
 static void ctl_pitch_bend(int, int);
-static void ctl_program(int, int, const char *, uint32);
+static void ctl_program(int, int, const char*, uint32);
 static void ctl_reset(void);
 static void ctl_sustain(int, int);
 static void ctl_tempo(int);
@@ -102,12 +91,12 @@ static void ctl_total_time(int);
 static void ctl_refresh(void);
 static void ctl_volume(int, int);
 static void set_otherinfo(int, int, char);
-static void shuffle(int, int *);
+static void shuffle(int, int*);
 static void query_outputs(void);
 static void update_indicator(void);
-static void xaw_add_midi_file(char *);
+static void xaw_add_midi_file(char*);
 static void xaw_delete_midi_file(int);
-static void xaw_output_flist(const char *);
+static void xaw_output_flist(const char*);
 #define BANKS(ch) (channel[ch].bank | (channel[ch].bank_lsb << 8) | (channel[ch].bank_msb << 16))
 
 static double indicator_last_update = 0;
@@ -160,7 +149,7 @@ static char local_buf[PIPE_LENGTH];
 /***********************************************************************/
 #define CMSG_MESSAGE 16
 
-static int cmsg(int type, int verbosity_level, char *fmt, ...) {
+static int cmsg(int type, int verbosity_level, const char *fmt, ...) {
   va_list ap;
   char *buff;
   MBlockList pool;
@@ -179,7 +168,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...) {
   }
 
   init_mblock(&pool);
-  buff = (char *)new_segment(&pool, MIN_MBLOCK_SIZE);
+  buff = (char*) new_segment(&pool, MIN_MBLOCK_SIZE);
   vsnprintf(buff, MIN_MBLOCK_SIZE, fmt, ap);
   a_pipe_write_msg(buff);
   reuse_mblock(&pool);
@@ -259,7 +248,7 @@ ctl_pitch_bend(int ch, int val) {
 #ifdef WIDGET_IS_LABEL_WIDGET
 static void
 ctl_lyric(int lyricid) {
-  char *lyric;
+  const char *lyric;
   static int lyric_col = 0;
   static char lyric_buf[PIPE_LENGTH];
 
@@ -297,12 +286,12 @@ ctl_lyric(int lyricid) {
 #else
 static void
 ctl_lyric(int lyricid) {
-  char *lyric;
+  const char *lyric;
 
   lyric = event2string(lyricid);
   if (lyric != NULL) {
     if (lyric[0] == ME_KARAOKE_LYRIC) {
-      if ((lyric[1] == '/') || (lyric[1] == '\\')) { 
+      if ((lyric[1] == '/') || (lyric[1] == '\\')) {
         lyric[1] = '\n';
         a_pipe_write_msg_nobr(lyric + 1);
       }
@@ -354,17 +343,17 @@ xaw_add_midi_file(char *additional_path) {
   nfiles = 1;
   ret = expand_file_archives(files, &nfiles);
   if (ret == NULL) return;
-  titles = (char **)safe_realloc(titles,
-             (number_of_files + nfiles) * sizeof(char *));
-  list_of_files = (char **)safe_realloc(list_of_files,
-                   (number_of_files + nfiles) * sizeof(char *));
-  if (nfiles > 0) local_len = (int *)safe_malloc(nfiles * sizeof(int));
+  titles = (char**) safe_realloc(titles,
+             (number_of_files + nfiles) * sizeof(char*));
+  list_of_files = (char**) safe_realloc(list_of_files,
+                   (number_of_files + nfiles) * sizeof(char*));
+  if (nfiles > 0) local_len = (int*) safe_malloc(nfiles * sizeof(int));
   for (i=0, nfit=0;i<nfiles;i++) {
       if (check_midi_file(ret[i]) >= 0) {
           p = strrchr(ret[i], '/');
           if (p == NULL) p = ret[i]; else p++;
           titles[number_of_files+nfit] =
-            (char *)safe_malloc(sizeof(char) * (strlen(p) +  9));
+            (char*) safe_malloc(sizeof(char) * (strlen(p) +  9));
           list_of_files[number_of_files + nfit] = safe_strdup(ret[i]);
           local_len[nfit] = sprintf(titles[number_of_files + nfit],
                                   "%d. %s", number_of_files + nfit + 1, p);
@@ -372,9 +361,9 @@ xaw_add_midi_file(char *additional_path) {
       }
   }
   if (nfit > 0) {
-      file_table = (int *)safe_realloc(file_table,
+      file_table = (int*) safe_realloc(file_table,
                                      (number_of_files + nfit) * sizeof(int));
-      for(i = number_of_files; i < number_of_files + nfit; i++)
+      for (i = number_of_files; i < number_of_files + nfit; i++)
           file_table[i] = i;
       number_of_files += nfit;
       a_pipe_write("%c%d", M_FILE_LIST, nfit);
@@ -392,21 +381,21 @@ xaw_delete_midi_file(int delete_num) {
     char *p;
 
     if (delete_num < 0) {
-        for(i=0;i<number_of_files;i++){
+        for (i=0;i<number_of_files;i++) {
             free(list_of_files[i]);
             free(titles[i]);
         }
         list_of_files = NULL; titles = NULL;
-        file_table = (int *)safe_realloc(file_table, 1*sizeof(int));
+        file_table = (int*) safe_realloc(file_table, 1*sizeof(int));
         file_table[0] = 0;
         number_of_files = 0;
         current_no = 0;
     } else {
         free(titles[delete_num]); titles[delete_num] = NULL;
-        for(i=delete_num; i<number_of_files-1; i++) {
+        for (i=delete_num; i<number_of_files-1; i++) {
             list_of_files[i] = list_of_files[i+1];
             p = strchr(titles[i+1], '.');
-            titles[i] = (char *)safe_realloc(titles[i],
+            titles[i] = (char*) safe_realloc(titles[i],
                                   strlen(titles[i+1]) * sizeof(char));
             sprintf(titles[i], "%d%s", i+1, p);
         }
@@ -422,14 +411,14 @@ xaw_output_flist(const char *filename) {
 
   a_pipe_write("%c%d %s", M_SAVE_PLAYLIST, number_of_files, temp);
   free(temp);
-  for(i=0;i<number_of_files;i++) {
+  for (i=0;i<number_of_files;i++) {
     a_pipe_write("%s", list_of_files[i]);
   }
 }
 
 /*ARGSUSED*/
 static int
-ctl_blocking_read(int32 *valp) {
+ctl_blocking_read(ptr_size_t *valp) {
   int n;
 
   a_pipe_read(local_buf, sizeof(local_buf));
@@ -486,7 +475,7 @@ ctl_blocking_read(int32 *valp) {
         return RC_JUMP;
       case S_SET_MUTE:
         n = atoi(local_buf + 1);
-        *valp = (int32)n;
+        *valp = (int32) n;
         return RC_TOGGLE_MUTE;
       case S_DEC_VOL:
         *valp = (int32)1;
@@ -520,7 +509,7 @@ ctl_blocking_read(int32 *valp) {
         *valp = (int32)1;
         return RC_KEYUP;
       case S_DEC_PITCH:
-        *valp = (int32)-1;
+        *valp = (int32) -1;
         return RC_KEYDOWN;
       case S_INC_SPEED:
         *valp = (int32)1;
@@ -530,7 +519,7 @@ ctl_blocking_read(int32 *valp) {
         return RC_SPEEDDOWN;
       case S_SET_SOLO:
         n = atoi(local_buf + 1);
-        *valp = (int32)n;
+        *valp = (int32) n;
         return RC_SOLO_PLAY;
       case S_SET_RECORDING:
         if (olddpm == NULL) {
@@ -539,7 +528,7 @@ ctl_blocking_read(int32 *valp) {
 
           target_play_mode = NULL;
           for (ii = play_mode_list; *ii != NULL; ii++)
-            if ((*ii)->id_character == id) 
+            if ((*ii)->id_character == id)
               target_play_mode = *ii;
           if (target_play_mode == NULL) goto z1error;
           p = strchr(local_buf, ' ');
@@ -619,7 +608,7 @@ z3error:
 }
 
 static int
-ctl_read(int32 *valp) {
+ctl_read(ptr_size_t *valp) {
   if (cuepoint_pending) {
     *valp = cuepoint;
     cuepoint_pending = 0;
@@ -685,23 +674,23 @@ ctl_pass_playing_list(int init_number_of_files, char **init_list_of_files) {
   query_outputs();
 
   /* Make title string */
-  titles = (char **)safe_malloc(init_number_of_files * sizeof(char *));
-  list_of_files = (char **)safe_malloc(init_number_of_files * sizeof(char *));
+  titles = (char**) safe_malloc(init_number_of_files * sizeof(char*));
+  list_of_files = (char**) safe_malloc(init_number_of_files * sizeof(char*));
   for (i=0, j=0;i<init_number_of_files;i++) {
     if (check_midi_file(init_list_of_files[i]) >= 0) {
       p = strrchr(init_list_of_files[i], '/');
       if (p == NULL) p = safe_strdup(init_list_of_files[i]);
       else p++;
       list_of_files[j] = safe_strdup(init_list_of_files[i]);
-      titles[j] = (char *)safe_malloc(sizeof(char) * (strlen(p) +  9));
+      titles[j] = (char*) safe_malloc(sizeof(char) * (strlen(p) +  9));
       sprintf(titles[j], "%d. %s", j+1, p);
       j++;
     }
   }
   number_of_files = j;
-  titles = (char **)safe_realloc(titles, number_of_files * sizeof(char *));
-  list_of_files = (char **)safe_realloc(list_of_files,
-                                         number_of_files * sizeof(char *));
+  titles = (char**) safe_realloc(titles, number_of_files * sizeof(char*));
+  list_of_files = (char**) safe_realloc(list_of_files,
+                                         number_of_files * sizeof(char*));
 
   /* Send title string */
   a_pipe_write("%d", number_of_files);
@@ -709,7 +698,7 @@ ctl_pass_playing_list(int init_number_of_files, char **init_list_of_files) {
     a_pipe_write("%s", titles[i]);
 
   /* Make the table of play sequence */
-  file_table = (int *)safe_malloc(number_of_files * sizeof(int));
+  file_table = (int*) safe_malloc(number_of_files * sizeof(int));
   for (i=0;i<number_of_files;i++) file_table[i] = i;
 
   /* Draw the title of the first file */
@@ -723,7 +712,7 @@ ctl_pass_playing_list(int init_number_of_files, char **init_list_of_files) {
   for (;;) {
     /* Play file */
     if ((command == RC_LOAD_FILE) && (number_of_files != 0)) {
-      char *title;
+      const char *title;
       a_pipe_write("%c%s", M_LISTITEM, titles[file_table[current_no]]);
       if ((title = get_midi_title(list_of_files[file_table[current_no]]))
             == NULL)
@@ -951,7 +940,7 @@ ctl_note(int status, int ch, int note, int velocity) {
   char c;
 
   if (ch >= MAX_XAW_MIDI_CHANNELS) return;
-  if(!ctl.trace_playing || midi_trace.flush_flag) return;
+  if (!ctl.trace_playing || midi_trace.flush_flag) return;
 
   switch (status) {
   case VOICE_ON:
@@ -968,7 +957,7 @@ ctl_note(int status, int ch, int note, int velocity) {
     break;
   }
   a_pipe_write("%c%d%c%c%03d%d", MT_NOTE, ch, CH_END_TOKEN,
-               c, (unsigned char)note, velocity);
+               c, (unsigned char) note, velocity);
 
   if (active[ch] == 0) {
     active[ch] = 1;
@@ -1005,7 +994,7 @@ static void
 ctl_pause(int is_paused, int time) {
   if (is_paused) {
     a_pipe_write("%c1", M_PAUSE);
-  } else { 
+  } else {
     ctl_current_time(time, -1);
     a_pipe_write("%c0", M_PAUSE);
   }
@@ -1023,61 +1012,61 @@ ctl_max_voices(int voices) {
 
 static void
 ctl_event(CtlEvent *e) {
-  switch(e->type) {
+  switch (e->type) {
     case CTLE_CURRENT_TIME:
-      ctl_current_time((int)e->v1, (int)e->v2);
+      ctl_current_time((int) e->v1, (int) e->v2);
       break;
     case CTLE_NOTE:
-      ctl_note((int)e->v1, (int)e->v2, (int)e->v3, (int)e->v4);
+      ctl_note((int) e->v1, (int) e->v2, (int) e->v3, (int) e->v4);
       break;
     case CTLE_PLAY_START:
-      ctl_total_time((int)e->v1 / play_mode->rate);
+      ctl_total_time((int) e->v1 / play_mode->rate);
       break;
     case CTLE_CUEPOINT:
       cuepoint = e->v1;
       cuepoint_pending = 1;
       break;
     case CTLE_TEMPO:
-      ctl_tempo((int)e->v1);
+      ctl_tempo((int) e->v1);
       break;
     case CTLE_TIME_RATIO:
-      ctl_timeratio((int)e->v1);
+      ctl_timeratio((int) e->v1);
       break;
     case CTLE_PROGRAM:
-      ctl_program((int)e->v1, (int)e->v2, (char *)e->v3, (uint32)e->v4);
+      ctl_program((int) e->v1, (int) e->v2, (char*) e->v3, (uint32) e->v4);
       break;
     case CTLE_DRUMPART:
-      ctl_drumpart((int)e->v1, (int)e->v2);
+      ctl_drumpart((int) e->v1, (int) e->v2);
       break;
     case CTLE_VOLUME:
-      ctl_volume((int)e->v1, (int)e->v2);
+      ctl_volume((int) e->v1, (int) e->v2);
       break;
     case CTLE_EXPRESSION:
-      ctl_expression((int)e->v1, (int)e->v2);
+      ctl_expression((int) e->v1, (int) e->v2);
       break;
     case CTLE_PANNING:
-      ctl_panning((int)e->v1, (int)e->v2);
+      ctl_panning((int) e->v1, (int) e->v2);
       break;
     case CTLE_SUSTAIN:
-      ctl_sustain((int)e->v1, (int)e->v2);
+      ctl_sustain((int) e->v1, (int) e->v2);
       break;
     case CTLE_PITCH_BEND:
-      ctl_pitch_bend((int)e->v1, (int)e->v2);
+      ctl_pitch_bend((int) e->v1, (int) e->v2);
       break;
     case CTLE_MOD_WHEEL:
-      ctl_pitch_bend((int)e->v1, e->v2 ? -1 : 0x2000);
+      ctl_pitch_bend((int) e->v1, e->v2 ? -1 : 0x2000);
       break;
     case CTLE_CHORUS_EFFECT:
-      set_otherinfo((int)e->v1, (int)e->v2, MTP_CHORUS);
+      set_otherinfo((int) e->v1, (int) e->v2, MTP_CHORUS);
       break;
     case CTLE_REVERB_EFFECT:
-      set_otherinfo((int)e->v1, (int)e->v2, MTP_REVERB);
+      set_otherinfo((int) e->v1, (int) e->v2, MTP_REVERB);
       break;
     case CTLE_LYRIC:
-      ctl_lyric((int)e->v1);
+      ctl_lyric((int) e->v1);
       break;
     case CTLE_MASTER_VOLUME:
-      ctl_master_volume((int)e->v1);
+      ctl_master_volume((int) e->v1);
       break;
     case CTLE_REFRESH:
       ctl_refresh();
@@ -1086,22 +1075,22 @@ ctl_event(CtlEvent *e) {
       ctl_reset();
       break;
     case CTLE_MUTE:
-      ctl_mute((int)e->v1, (int)e->v2);
+      ctl_mute((int) e->v1, (int) e->v2);
       break;
     case CTLE_KEYSIG:
-      ctl_keysig((int)e->v1);
+      ctl_keysig((int) e->v1);
       break;
     case CTLE_KEY_OFFSET:
-      ctl_key_offset((int)e->v1);
+      ctl_key_offset((int) e->v1);
       break;
     case CTLE_PAUSE:
-      ctl_pause((int)e->v1, (int)e->v2);
+      ctl_pause((int) e->v1, (int) e->v2);
       break;
     case CTLE_MAXVOICES:
-      ctl_max_voices((int)e->v1);
+      ctl_max_voices((int) e->v1);
       break;
     case CTLE_LOADING_DONE:
-      a_pipe_write("%c%d", M_LOADING_DONE, (int)e->v2);
+      a_pipe_write("%c%d", M_LOADING_DONE, (int) e->v2);
       break;
 #if 0
     case CTLE_PLAY_END:
@@ -1133,9 +1122,9 @@ ctl_reset(void) {
   if (!ctl.trace_playing) return;
 
   indicator_last_update = get_current_calender_time();
-  ctl_tempo((int)current_play_tempo);
+  ctl_tempo((int) current_play_tempo);
   ctl_timeratio((int)(100 / midi_time_ratio + 0.5));
-  ctl_keysig((int)current_keysig);
+  ctl_keysig((int) current_keysig);
   ctl_key_offset(note_key_offset);
   ctl_max_voices(voices);
   for (i=0; i<MAX_XAW_MIDI_CHANNELS; i++) {

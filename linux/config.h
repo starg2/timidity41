@@ -4,41 +4,41 @@
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
-/* Define `double' audio data type. */
+/* Define to 1 if you need `double' audio data type. */
 #define DATA_T_DOUBLE 1
 
-/* Define `float' audio data type. */
+/* Define to 1 if you need `float' audio data type. */
 /* #undef DATA_T_FLOAT */
 
-/* Define `int32' audio data type. */
+/* Define to 1 if you need `int32' audio data type. */
 /* #undef DATA_T_INT32 */
 
 /* Define to 1 if you are in debug mode */
 /* #undef DEBUG */
 
 /* place to install patches */
-#define DEFAULT_PATH "/usr/local/share/timidity"
+#define DEFAULT_PATH "/etc/timidity"
 
 /* Define resampler. */
-/* #undef DEFAULT_RESAMPLATION */
+#define DEFAULT_RESAMPLATION resample_gauss
 
 /* Define resampler filter. */
-/* #undef DEFAULT_RESAMPLATION_FILTER */
+#define DEFAULT_RESAMPLATION_FILTER 0
 
 /* Define resampler num. */
-/* #undef DEFAULT_RESAMPLATION_NUM */
+#define DEFAULT_RESAMPLATION_NUM 5
 
 /* Define resampler order. */
-/* #undef DEFAULT_RESAMPLATION_ORDER */
+#define DEFAULT_RESAMPLATION_ORDER 24
 
 /* Define to 1 if you have to add "_" to every identifiers. */
 /* #undef DLSYM_NEEDS_UNDERSCORE */
 
 /* Define to 1 if you enable Sherry WRD */
-/* #undef ENABLE_SHERRY */
+#define ENABLE_SHERRY 1
 
 /* Define to 1 if you need thread support */
-/* #undef ENABLE_THREAD */
+#define ENABLE_THREAD 1
 
 /* Define to 1 if you have the `alarm' function. */
 #define HAVE_ALARM 1
@@ -53,17 +53,20 @@
 /* #undef HAVE_ARTS */
 
 /* Define to 1 if you have the <curses.h> header file. */
-/* #undef HAVE_CURSES_H */
+#define HAVE_CURSES_H 1
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #define HAVE_DIRENT_H 1
 
+/* Define to 1 if you have the <dld.h> header file. */
+/* #undef HAVE_DLD_H */
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the `dlopen' function. */
-/* #undef HAVE_DLOPEN */
+#define HAVE_DLOPEN 1
 
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 /* #undef HAVE_DOPRNT */
@@ -117,7 +120,7 @@
 #define HAVE_GLOB_H 1
 
 /* Define to 1 if you have GTK+ 2.x */
-/* #undef HAVE_GTK_2 */
+#define HAVE_GTK_2 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -128,14 +131,26 @@
 /* Define to 1 if you have the `asound' library (-lasound). */
 #define HAVE_LIBASOUND 1
 
+/* Define to 1 if you have the <FLAC/all.h> header file. */
+#define HAVE_LIBFLAC 1
+
+/* Define to 1 if you have the <gogo/gogo.h> header file. */
+/* #undef HAVE_LIBGOGO */
+
 /* Define to 1 if you have the `ICE' library (-lICE). */
-/* #undef HAVE_LIBICE */
+#define HAVE_LIBICE 1
 
 /* Define to 1 if you have the `m' library (-lm). */
 #define HAVE_LIBM 1
 
+/* Define to 1 if you have the <mpg123.h> header file. */
+#define HAVE_LIBMPG123 1
+
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 /* #undef HAVE_LIBNSL */
+
+/* Define to 1 if you have the <OggFLAC/all.h> header file. */
+/* #undef HAVE_LIBOGGFLAC */
 
 /* Define to 1 if you have the `ossaudio' library (-lossaudio). */
 /* #undef HAVE_LIBOSSAUDIO */
@@ -143,11 +158,14 @@
 /* Define to 1 if you have the `socket' library (-lsocket). */
 /* #undef HAVE_LIBSOCKET */
 
+/* Define to 1 if you have the <vorbis/codec.h> header file. */
+#define HAVE_LIBVORBIS 1
+
 /* Define to 1 if you have the `X11' library (-lX11). */
 #define HAVE_LIBX11 1
 
 /* Define to 1 if you have the 'Xft' library. */
-/* #undef HAVE_LIBXFT */
+#define HAVE_LIBXFT 1
 
 /* Define to 1 if you have the `xpg4' library (-lxpg4). */
 /* #undef HAVE_LIBXPG4 */
@@ -192,7 +210,7 @@
 /* #undef HAVE_NCURSES_CURSES_H */
 
 /* Define to 1 if you have the <ncurses.h> header file. */
-/* #undef HAVE_NCURSES_H */
+#define HAVE_NCURSES_H 1
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 /* #undef HAVE_NDIR_H */
@@ -207,7 +225,10 @@
 /* #undef HAVE_NEW_MMSYSTEM */
 
 /* Define to 1 if you have the <nlist.h> header file. */
-/* #undef HAVE_NLIST_H */
+#define HAVE_NLIST_H 1
+
+/* Define to 1 if you have the <ogg/ogg.h> header file. */
+#define HAVE_OGG 1
 
 /* Define to 1 if you have `open_memstream' function */
 #define HAVE_OPEN_MEMSTREAM 1
@@ -234,7 +255,7 @@
 #define HAVE_SIGNAL 1
 
 /* Define to 1 if you have the <slang.h> header file. */
-/* #undef HAVE_SLANG_H */
+#define HAVE_SLANG_H 1
 
 /* Define to 1 if you have the <slang/slang.h> header file. */
 /* #undef HAVE_SLANG_SLANG_H */
@@ -396,22 +417,22 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Define to 1 if you have the <X11/extensions/XShm.h> header file. */
-/* #undef HAVE_X11_EXTENSIONS_XSHM_H */
+#define HAVE_X11_EXTENSIONS_XSHM_H 1
 
 /* Define to 1 if you have the <X11/Xlib.h> header file. */
 #define HAVE_X11_XLIB_H 1
 
 /* Define to 1 if you have the <X11/Xmu/ExtAgent.h> header file. */
-/* #undef HAVE_X11_XMU_EXTAGENT_H */
+#define HAVE_X11_XMU_EXTAGENT_H 1
 
 /* Define to 1 if you have the <X11/Xaw3d/Tip.h> header file. */
 /* #undef HAVE_XAW3D_TIP */
 
 /* Define to 1 if you have the `XmuRegisterExternalAgent' function. */
-/* #undef HAVE_XMUREGISTEREXTERNALAGENT */
+#define HAVE_XMUREGISTEREXTERNALAGENT 1
 
 /* Define to 1 if you have the `XShmCreatePixmap' function. */
-/* #undef HAVE_XSHMCREATEPIXMAP */
+#define HAVE_XSHMCREATEPIXMAP 1
 
 /* Define to 1 if you are NOT in debug mode */
 #define NDEBUG 1
@@ -441,7 +462,7 @@
 #define PACKAGE_NAME "TiMidity++"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "TiMidity++ 2.14.0"
+#define PACKAGE_STRING "TiMidity++ 2.15.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "TiMidity++"
@@ -450,19 +471,29 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.14.0"
+#define PACKAGE_VERSION "2.15.0"
 
 /* a compatibility matter. ignore it. */
 #define PKGDATADIR DEFAULT_PATH
 
 /* place to install modules */
-#define PKGLIBDIR "/usr/local/lib/timidity"
+#define PKGLIBDIR "/usr/lib/timidity"
 
 /* Define to 1 if the C compiler supports function prototypes. */
 #define PROTOTYPES 1
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#ifndef VOID_SIGHANDLER
+#define VOID_SIGHANDLER 1
+#endif
+
+/* Define to 1 if the `setvbuf' function takes the buffering type as its
+   second argument and the buffer pointer as the third, as on System V before
+   release 3. */
+/* #undef SETVBUF_REVERSED */
 
 /* shared library extention */
 /* #undef SHARED_LIB_EXT */
@@ -471,16 +502,16 @@
 #define STDC_HEADERS 1
 
 /* Define to 1 if you need network support */
-/* #undef SUPPORT_SOCKET */
+#define SUPPORT_SOCKET 1
 
 /* Define to 1 if you need spectrogram viewer. */
-/* #undef SUPPORT_SOUNDSPEC */
+#define SUPPORT_SOUNDSPEC 1
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define TIME_WITH_SYS_TIME 1
 
 /* the output specification */
-#define TIMIDITY_OUTPUT_ID "s"
+#define TIMIDITY_OUTPUT_ID "d"
 
 /* for windows gui */
 /* #undef TIMID_VERSION */
@@ -491,8 +522,38 @@
 /* Define to 1 if you use altivec */
 /* #undef USE_ALTIVEC */
 
+/* Define to 1 if you need AVX instructions. */
+/* #undef USE_AVX */
+
+/* Define to 1 if you need AVX2 instructions. */
+/* #undef USE_AVX2 */
+
+/* Define to 1 if you need MMX instructions. */
+/* #undef USE_MMX */
+
 /* Define to 1 if you use PDcurses */
 /* #undef USE_PDCURSES */
+
+/* Define to 1 if you need SSE instructions. */
+/* #undef USE_SSE */
+
+/* Define to 1 if you need SSE2 instructions. */
+/* #undef USE_SSE2 */
+
+/* Define to 1 if you need SSE3 instructions. */
+#define USE_SSE3 1
+
+/* Define to 1 if you need SSE4 instructions. */
+/* #undef USE_SSE4 */
+
+/* Define to 1 if you need SSE4.1 instructions. */
+/* #undef USE_SSE41 */
+
+/* Define to 1 if you need SSE4.2 instructions. */
+/* #undef USE_SSE42 */
+
+/* Define to 1 if you need SSSE3 instructions. */
+/* #undef USE_SSSE3 */
 
 /* A 'va_copy' style function */
 #define VA_COPY va_copy
@@ -501,10 +562,13 @@
 #define VA_COPY_AS_ARRAY 1
 
 /* Version number of package */
-#define VERSION "2.14.0"
+#define VERSION "2.15.0"
 
 /* Define version information prefix. */
 #define VERSION_DATA_T "f64"
+
+/* Define ext-instruction information prefix. */
+#define VERSION_EXT_INST "sse3"
 
 /* Define to 1 if you need spectrogram viewer. */
 /* #undef W32SOUNDSPEC */
@@ -525,7 +589,7 @@
 #endif
 
 /* Define to 1 if you need wrd support for X. */
-/* #undef WRDT_X */
+#define WRDT_X 1
 
 /* Define to 1 if you use libXaw3d. */
 /* #undef XAW3D */
@@ -534,16 +598,16 @@
 /* #undef XAWPLUS */
 
 /* Define to 1 if you want xdnd support. */
-/* #undef XDND */
+#define XDND 1
 
 /* Define to 1 if the X Window System is missing or not being used. */
 /* #undef X_DISPLAY_MISSING */
 
 /* Get 64-bit file size support */
-/* #undef _FILE_OFFSET_BITS */
+#define _FILE_OFFSET_BITS 64
 
 /* Define for ftello and fseeko extension. */
-/* #undef _LARGEFILE_SOURCE */
+#define _LARGEFILE_SOURCE 1
 
 /* Define to 1 if type `char' is unsigned and you are not using gcc.  */
 #ifndef __CHAR_UNSIGNED__
@@ -562,7 +626,7 @@
 /* #undef inline */
 #endif
 
-/* Define to `long int' if <sys/types.h> does not define. */
+/* Define to `long' if <sys/types.h> does not define. */
 /* #undef off_t */
 
 /* for VC */
@@ -574,7 +638,7 @@
 /* for VC */
 /* #undef popen */
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef size_t */
 
 /* for VC */

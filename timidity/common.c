@@ -399,6 +399,24 @@ struct timidity_file *open_with_mem(char *mem, int32 memlen, int noise_mode)
     return tf;
 }
 
+struct timidity_file *open_with_constmem(const char *mem, ptr_size_t memlen, int noise_mode)
+{
+    URL url;
+    struct timidity_file *tf;
+
+    errno = 0;
+    if ((url = url_constmem_open(mem, memlen)) == NULL)
+    {
+        if (noise_mode >= 2)
+            ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Can't open.");
+        return NULL;
+    }
+    tf = (struct timidity_file*) safe_malloc(sizeof(struct timidity_file));
+    tf->url = url;
+    tf->tmpname = NULL;
+    return tf;
+}
+
 /*
  * This is meant to find and open files for reading, possibly piping
  * them through a decompressor.
@@ -1428,7 +1446,7 @@ int int_rand(int n)
 }
 #endif /* RAND_MAX */
 
-int check_file_extension(char *filename, char *ext, int decompress)
+int check_file_extension(const char *filename, char *ext, int decompress)
 {
     size_t len, elen, i;
 #ifdef DECOMPRESSOR_LIST
@@ -1523,34 +1541,91 @@ void sort_pathname(char **files, int nfiles)
 	  (int (*)(const void*, const void*))pathcmp_qsort);
 }
 
+static int is_sjis_leadbyte(char c)
+{
+    int f = 0;
+    f |= (0x81 <= c) && (c <= 0x9F);
+    f |= (0xE0 <= c) && (c <= 0xFC);
+    return f ? 1 : 0;
+}
+
 char *pathsep_strchr(const char *path)
 {
+#if defined(__W32__) // sjis
+    int tail = 0;
+    while (*path)
+    {
+        if (is_sjis_leadbyte(*path)) { // lead
+            tail = 1;
+            path++;
+            continue;
+        }
+        if (tail == 0) {
+#ifdef PATH_SEP2
+            if (*path == PATH_SEP || *path == PATH_SEP2)
+                return (char*) path;
+#else
+            if (*path == PATH_SEP)
+                return (char*) path;
+#endif
+        }
+        tail = 0;
+        path++;
+    }
+    return NULL;
+#else // ascii
 #ifdef PATH_SEP2
     while (*path)
     {
         if (*path == PATH_SEP || *path == PATH_SEP2)
-	    return (char*)path;
-	path++;
+            return (char*) path;
+        path++;
     }
     return NULL;
 #else
     return strchr(path, PATH_SEP);
 #endif
+#endif
 }
 
 char *pathsep_strrchr(const char *path)
 {
+#if defined(__W32__) // sjis
+    char *last_sep = NULL;
+    int tail = 0;
+    while (*path)
+    {
+        if (is_sjis_leadbyte(*path)) { // lead
+            tail = 1;
+            path++;
+            continue;
+        }
+        if (tail == 0) {
+#ifdef PATH_SEP2
+            if (*path == PATH_SEP || *path == PATH_SEP2)
+                last_sep = (char*) path;
+#else
+            if (*path == PATH_SEP)
+                last_sep = (char*) path;
+#endif
+        }
+        tail = 0;
+        path++;
+    }
+    return last_sep;
+#else // ascii
 #ifdef PATH_SEP2
     char *last_sep = NULL;
     while (*path)
     {
         if (*path == PATH_SEP || *path == PATH_SEP2)
-	    last_sep = (char*)path;
-	path++;
+            last_sep = (char*) path;
+        path++;
     }
     return last_sep;
 #else
     return strrchr(path, PATH_SEP);
+#endif
 #endif
 }
 
@@ -1558,10 +1633,10 @@ int str2mID(const char *str)
 {
     int val;
 ///r
-    if (!strncasecmp(str, "gm", 2))
-		val = 0x7e;
-    else if (!strncasecmp(str, "gm2", 2))
+	if (!strncasecmp(str, "gm2", 3))
 		val = 0x7d;
+    else if (!strncasecmp(str, "gm", 2))
+		val = 0x7e;
     else if (!strncasecmp(str, "gs", 2))
 		val = 0x41;
     else if (!strncasecmp(str, "kg", 2))

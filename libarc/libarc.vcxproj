@@ -248,6 +248,7 @@
     <ClCompile Include="url_b64decode.c" />
     <ClCompile Include="url_buff.c" />
     <ClCompile Include="url_cache.c" />
+    <ClCompile Include="url_constmem.c" />
     <ClCompile Include="url_dir.c" />
     <ClCompile Include="url_file.c" />
     <ClCompile Include="url_ftp.c" />

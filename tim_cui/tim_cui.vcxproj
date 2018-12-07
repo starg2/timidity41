@@ -291,7 +291,7 @@
       <AssemblerListingLocation>.\Release/</AssemblerListingLocation>
       <ObjectFileName>.\Release/</ObjectFileName>
       <ProgramDataBaseFileName>.\Release/</ProgramDataBaseFileName>
-      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <WarningLevel>Level1</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <CompileAs>CompileAsC</CompileAs>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
@@ -390,6 +390,7 @@
     <ClCompile Include="..\timidity\speex_a.c" />
     <ClCompile Include="..\timidity\tables.c" />
     <ClCompile Include="..\timidity\thread.c" />
+    <ClCompile Include="..\timidity\timer2.c" />
     <ClCompile Include="..\timidity\timidity.c" />
     <ClCompile Include="..\interface\winsyn_c.c" />
     <ClCompile Include="..\timidity\version.c" />

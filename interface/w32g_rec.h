@@ -1,5 +1,5 @@
 //  TiMidity++ -- MIDI to WAVE converter and player
-//  Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+//  Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
 //  Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 //
 //  This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 //
 
 // Next default values for new objects
-// 
+//
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
