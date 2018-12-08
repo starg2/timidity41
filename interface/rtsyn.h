@@ -37,8 +37,6 @@
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
-#include "_systime.h"
-#include "_string.h"
 #include <math.h>
 #include <signal.h>
 

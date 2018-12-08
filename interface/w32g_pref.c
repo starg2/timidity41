@@ -8181,6 +8181,46 @@ int flac_ConfigDialogInfoLoadINI(void)
 #endif	// AU_FLAC
 
 
+#ifdef AU_OPUS
+// Opus
+
+int opus_ConfigDialogInfoInit(void)
+{
+	return 0;
+}
+
+int opus_ConfigDialogInfoSaveINI(void)
+{
+	return 0;
+}
+
+int opus_ConfigDialogInfoLoadINI(void)
+{
+	return 0;
+}
+
+#endif
+
+#ifdef AU_SPEEX
+// Speex
+
+int speex_ConfigDialogInfoInit(void)
+{
+	return 0;
+}
+
+int speex_ConfigDialogInfoSaveINI(void)
+{
+	return 0;
+}
+
+int speex_ConfigDialogInfoLoadINI(void)
+{
+	return 0;
+}
+
+#endif
+
 #ifdef AU_PORTAUDIO_DLL
 ///////////////////////////////////////////////////////////////////////
 //

@@ -31,7 +31,6 @@
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>
 #endif /* HAVE_STDDEF_H */
-#include "_string.h"
 
 #include "timidity.h"
 #include "common.h"

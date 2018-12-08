@@ -30,7 +30,6 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <sys/types.h>
-#include "_string.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

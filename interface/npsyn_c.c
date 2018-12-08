@@ -54,8 +54,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#include "interface.h"
-
 #ifdef IA_NPSYN
 
 #ifdef __POCC__

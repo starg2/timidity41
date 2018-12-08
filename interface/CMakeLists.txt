@@ -82,6 +82,7 @@ set(
     npsyn_c.c
     portmidisyn_c.c
     rtsyn_npipe.c
+    rtsyn_portmidi.c
     rtsyn_winmm.c
     winsyn_c.c
 
@@ -127,7 +128,7 @@ add_library(
 )
 
 add_dependencies(interface_synsrv twsyn_bridge)
-target_compile_definitions(interface_synsrv PRIVATE -DIA_NPSYN -DIA_PORTMIDISYN -DIA_WINSYN -DTWSYNSRV)
+target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
 
 # for timw32g
 
@@ -152,4 +153,4 @@ add_library(
 )
 
 add_dependencies(interface_w32gsyn UpdateTim41Version twsyn_bridge)
-target_compile_definitions(interface_w32gsyn PRIVATE -DIA_NPSYN -DIA_PORTMIDISYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+target_compile_definitions(interface_w32gsyn PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)

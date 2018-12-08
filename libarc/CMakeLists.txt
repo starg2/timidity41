@@ -20,6 +20,7 @@ add_library(
     url_b64decode.c
     url_buff.c
     url_cache.c
+    url_constmem.c
     url_dir.c
     url_file.c
     url_ftp.c

@@ -23,7 +23,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
-#include "_string.h"
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"

@@ -63,8 +63,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#include "interface.h"
-
 #ifdef IA_PORTMIDISYN
 
 #include "rtsyn.h"

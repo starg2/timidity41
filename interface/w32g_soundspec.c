@@ -32,7 +32,6 @@
 #include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
 #include <math.h>
-#include "_string.h"
 
 #ifdef __W32__
 

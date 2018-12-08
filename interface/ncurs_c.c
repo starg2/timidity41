@@ -26,8 +26,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#include "interface.h"
-
 #ifdef IA_NCURSES
 
 #ifdef __POCC__
@@ -56,7 +54,6 @@ extern unsigned int sleep(unsigned int);
 
 #include <stdarg.h>
 #include <ctype.h>
-#include "_string.h"
 #include <math.h>
 
 #ifdef __W32__

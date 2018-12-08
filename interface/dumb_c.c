@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #endif /* STDC_HEADERS */
-#include "_string.h"
 
 #include "timidity.h"
 #include "common.h"

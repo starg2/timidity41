@@ -864,6 +864,8 @@ static inline int parse_opt_od_level_gs(const char *arg);
 static inline int parse_opt_od_drive_gs(const char *arg);
 static inline int parse_opt_od_level_xg(const char *arg);
 static inline int parse_opt_od_drive_xg(const char *arg);
+static inline int parse_opt_od_level_sd(const char *arg);
+static inline int parse_opt_od_drive_sd(const char *arg);
 
 #if defined(__W32__)
 static inline int parse_opt_process_priority(const char *arg);

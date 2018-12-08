@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
 #include <stdio.h>
-#include "_string.h"
 #include <ctype.h>
 
 #include "timidity.h"

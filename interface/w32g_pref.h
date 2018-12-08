@@ -148,6 +148,7 @@ extern int flac_ConfigDialogInfoLoadINI(void);
 #ifdef AU_OPUS
 
 typedef struct opus_ConfigDialogInfo_t_ {
+	char unused;
 } opus_ConfigDialogInfo_t;
 
 extern int opus_ConfigDialogInfoInit(void);
@@ -161,6 +162,7 @@ extern int opus_ConfigDialogInfoLoadINI(void);
 #ifdef AU_SPEEX
 
 typedef struct speex_ConfigDialogInfo_t_ {
+	char unused;
 } speex_ConfigDialogInfo_t;
 
 extern int speex_ConfigDialogInfoInit(void);

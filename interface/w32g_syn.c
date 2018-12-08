@@ -37,7 +37,6 @@
 #undef RC_NONE
 #include <shlobj.h>
 #include <commctrl.h>
-#include "_string.h"
 #include <shlobj.h>
 #include <windowsx.h>   /* There is no <windowsx.h> on CYGWIN.
                          * Edit_* and ListBox_* are defined in
@@ -1533,7 +1532,7 @@ void w32g_syn_doit(void)
         }
 
         winplaymidi();
-        pump_timer_event();
+        //pump_timer_event();
         Sleep(sleep_time);
     }
 }

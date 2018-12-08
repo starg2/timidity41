@@ -58,8 +58,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#include "interface.h"
-
 #ifdef IA_WINSYN
 
 #ifdef __POCC__

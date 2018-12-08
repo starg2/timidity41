@@ -35,7 +35,6 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
-#include "_string.h"
 
 #include "timidity.h"
 #include "common.h"

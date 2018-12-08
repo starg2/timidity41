@@ -52,7 +52,6 @@ int WINAPI timeKillEvent(UINT uTimerID);
 #endif /* __CYGWIN32__ */
 
 #include <commctrl.h>
-#include "_string.h"
 #include <shlobj.h>
 
 #include <windowsx.h>	/* There is no <windowsx.h> on CYGWIN.
@@ -293,7 +292,7 @@ int SecondMode = 1;
 
 void FirstLoadIniFile(void);
 
-#if (defined(__W32G__) || defined(TWSYNG32)) && !defined(WIN32GCC)
+#if (defined(__W32G__) && !defined(TWSYNG32)) && !defined(WIN32GCC)
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
 int WINAPI
@@ -350,7 +349,7 @@ LPSTR lpCmdLine, int nCmdShow)
     return errcode;
 #endif
 }
-#endif /* (__W32G__ || TWSYNG32) && !WIN32GCC */
+#endif /* (__W32G__ && !TWSYNG32) && !WIN32GCC */
 
 // ***************************************************************************
 // System Function

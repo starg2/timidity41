@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
 #include <stdarg.h>
-#include "_string.h"
 #include "timidity.h"
 #include "common.h"
 #include "output.h"
