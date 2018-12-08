@@ -5933,12 +5933,12 @@ static int DlgOpenConfigFile(char *Filename, HWND hwnd)
 	     dir[FILEPATH_MAX];
     int i, res;
     const char *filter,
-           filter_en[] = "All Supported file (*.cfg;*.config;*.sf2)\0*.cfg;*.config;*.sf2;*.sf3\0"
+           filter_en[] = "All Supported files (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0"
                 "SoundFont file (*.sf2)\0*.sf2;*.sf3\0"
                 "Config file (*.cfg;*.config)\0*.cfg;*.config\0"
                 "All files (*.*)\0*.*\0"
                 "\0\0",
-           filter_jp[] = "すべての対応ファイル (*.cfg;*.config;*.sf2)\0*.cfg;*.config;*.sf2;*.sf3\0"
+           filter_jp[] = "すべての対応ファイル (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0"
                 "SoundFont ファイル (*.sf2)\0*.sf2;*.sf3\0"
                 "Config ファイル (*.cfg;*.config)\0*.cfg;*.config\0"
                 "すべてのファイル (*.*)\0*.*\0"
