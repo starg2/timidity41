@@ -118,6 +118,14 @@ IDM_MENU_MAIN MENU
         MENUITEM "スペクトログラム(&S)", IDM_MWSOUNDSPEC
         MENUITEM "内蔵シンセエディタ(&E)", IDM_MWISEDITOR
     }
+    POPUP "モジュール(&M)"
+    {
+        MENUITEM SEPARATOR
+    }
+    POPUP "出力(&O)"
+    {
+        MENUITEM SEPARATOR
+    }
     POPUP "ヘルプ(&H)"
     {
         MENUITEM "オンラインヘルプ(&O)", IDM_MHONLINEHELP
@@ -169,6 +177,14 @@ IDM_MENU_MAIN_EN MENU
         MENUITEM "VST Manager(&V)", IDM_MWVSTMGR
         MENUITEM "Sound Spectrogram(&S)", IDM_MWSOUNDSPEC
         MENUITEM "Int Synth Editor(&E)", IDM_MWISEDITOR
+    }
+    POPUP "Module(&M)"
+    {
+        MENUITEM SEPARATOR
+    }
+    POPUP "Output(&O)"
+    {
+        MENUITEM SEPARATOR
     }
     POPUP "Help(&H)"
     {
