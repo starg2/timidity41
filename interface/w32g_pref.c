@@ -1723,7 +1723,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             strcpy(sp_temp->ConfigFile, ConfigFile);
         }
 		TCHAR *tConfigFile = char_to_tchar(sp_temp->ConfigFile);
-        EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, tConfigFile);
+        EB_SETTEXT(IDC_EDIT_CONFIG_FILE, tConfigFile);
 		safe_free(tConfigFile);
         tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
         SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
