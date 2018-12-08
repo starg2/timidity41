@@ -6001,10 +6001,14 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 	     dir[FILEPATH_MAX];
 	int res;
 	const TCHAR *filter,
-		*filter_en = _T("Config file (*.cfg;*.config)\0*.cfg;*.config\0")
+		*filter_en = _T("All Supported files (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0")
+                _T("SoundFont file (*.sf2;*.sf3)\0*.sf2;*.sf3\0")
+                _T("Config file (*.cfg;*.config)\0*.cfg;*.config\0")
 				_T("All files (*.*)\0*.*\0")
 				_T("\0\0"),
-		   *filter_jp = _T("Config ファイル (*.cfg;*.config)\0*.cfg;*.config\0")
+		   *filter_jp = _T("すべての対応ファイル (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0")
+                _T("SoundFont ファイル (*.sf2;*.sf3)\0*.sf2;*.sf3\0")
+                _T("Config ファイル (*.cfg;*.config)\0*.cfg;*.config\0")
 				_T("すべてのファイル (*.*)\0*.*\0")
 				_T("\0\0");
 	const TCHAR *title,

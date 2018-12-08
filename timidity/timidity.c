@@ -2285,7 +2285,7 @@ MAIN_INTERFACE int read_config_file(const char *name, int self, int allow_missin
         tf = open_with_constmem(name, strlen(name), OF_VERBOSE);
         name = "(configuration)";
     }
-    else if (check_file_extension(name, ".sf2", 0) == 1)
+    else if (check_file_extension(name, ".sf2", 0) == 1 || check_file_extension(name, ".sf3", 0) == 1)
     {
         const char fmt[] = "soundfont \"%s\"\n";
         onmemory = (char*) safe_malloc(strlen(fmt) + strlen(name) + 1);
