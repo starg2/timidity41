@@ -1311,7 +1311,8 @@ extern DWORD processPriority;
 static LRESULT APIENTRY
 PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-    static int initflag = 1;
+	static HFONT hFontConfigFile = NULL;
+	static int initflag = 1;
     int i, tmp;
 
 	switch (uMess){
@@ -1547,6 +1548,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		if ( initflag ) break;
 	{
 		char *p;
+		int flag;
 		TCHAR tbuff[FILEPATH_MAX];
 		SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
 			(WPARAM)FILEPATH_MAX,(LPARAM)tbuff);
@@ -1718,7 +1720,8 @@ static TCHAR **GetMidiINDrivers( void )
 static BOOL APIENTRY
 PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-    static int initflag = 1;
+	static HFONT hFontConfigFile = NULL;
+	static int initflag = 1;
     int i, tmp;
     static const DWORD dwCtlPortIDs[] = {
           IDC_COMBO_IDPORT0, IDC_COMBO_IDPORT1,

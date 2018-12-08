@@ -1713,6 +1713,7 @@ static void SafeGetFileName_DeleteSep(TCHAR *str)
 	}
 }
 
+#ifdef __W32G__
 BOOL SafeGetOpenFileName(LPOPENFILENAME lpofn)
 {
     BOOL result;

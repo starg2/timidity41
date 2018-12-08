@@ -3640,7 +3640,7 @@ static void MPanelInit(HWND hwnd)
 ///r
     rc = MPanel.rcAQ_RATIO;
     MPanel.hFontAQ_RATIO =
-        CreateFontA(rc.bottom-rc.top+1,0,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
+        CreateFont(rc.bottom-rc.top+1,0,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
             DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE,MPanel.Font);
     //rc = MPanel.rcList;
@@ -3652,13 +3652,13 @@ static void MPanelInit(HWND hwnd)
     rc = MPanel.rcMisc;
     tmp = (rc.bottom-rc.top+1)/2;
     MPanel.hFontMisc =
-        CreateFontA(tmp*2,tmp,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
+        CreateFont(tmp*2,tmp,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
             DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
             FIXED_PITCH | FF_DONTCARE,MPanel.Font);
     rc = MPanel.rcMessage;
     tmp = (rc.bottom-rc.top+1)/2;
     MPanel.hFontMessage =
-        CreateFontA(tmp*2,tmp,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
+        CreateFont(tmp*2,tmp,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
             DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
             FIXED_PITCH | FF_DONTCARE,MPanel.FontLangFixed);
 
@@ -5424,6 +5424,7 @@ static void DlgPlaylistSave(HWND hwnd)
             _T("プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
             _T("すべてのファイル (*.*)\0*.*\0")
             _T("\0\0");
+	TCHAR tfilename[DialogMaxFileName] = _T("");
 
     if (PlayerLanguage == LANGUAGE_JAPANESE)
         filter = filter_jp;

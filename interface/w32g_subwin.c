@@ -671,7 +671,7 @@ static void ListWndCreateTabItems(HWND hwnd)
         TC_ITEM tci;
         tci.mask = TCIF_TEXT;
         tci.pszText = ListWndInfo.ListName[i];
-        tci.cchTextMax = strlen(ListWndInfo.ListName[i]);
+        tci.cchTextMax = _tcslen(ListWndInfo.ListName[i]);
         SendMessage(hwnd_tab, TCM_INSERTITEM, (WPARAM) i, (LPARAM) &tci);
     }
 }

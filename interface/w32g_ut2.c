@@ -54,11 +54,11 @@ extern char *timidity_window_inifile;
 // hFontPre: Previous Font of hwndFontChange (Call CloseHandle())
 int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *fontname, int *fontheight, int *fontwidth)
 {
-    LOGFONTA lf;
-    CHOOSEFONTA cf;
+    LOGFONT lf;
+    CHOOSEFONT cf;
     HFONT hFont;
-    ZeroMemory(&lf, sizeof(LOGFONTA));
-    ZeroMemory(&cf, sizeof(CHOOSEFONTA));
+    ZeroMemory(&lf, sizeof(LOGFONT));
+    ZeroMemory(&cf, sizeof(CHOOSEFONT));
 
 //	lf.lfHeight = 16;
 //	lf.lfWidth = 8;
@@ -79,7 +79,7 @@ int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *
     cf.nFontType = SCREEN_FONTTYPE;
 //  cf.nSizeMin = 4;
 //  cf.nSizeMax = 72;
-    ChooseFontA(&cf);
+    ChooseFont(&cf);
 
 //	if(ChooseFont(&cf)==TRUE)
 //		return -1;
@@ -97,8 +97,8 @@ int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *
 
 int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
 {
-    LOGFONTA lf;
-    CHOOSEFONTA cf;
+    LOGFONT lf;
+    CHOOSEFONT cf;
 
 	memset(&lf,0,sizeof(LOGFONT));
 	if(fontHeight!=NULL) lf.lfHeight = *fontHeight;
@@ -107,8 +107,8 @@ int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
 	if(fontName!=NULL) _tcscpy(lf.lfFaceName, tfontname);
 	safe_free(tfontname);
 
-    ZeroMemory(&cf, sizeof(CHOOSEFONTA));
-    cf.lStructSize = sizeof(CHOOSEFONTA);
+    ZeroMemory(&cf, sizeof(CHOOSEFONT));
+    cf.lStructSize = sizeof(CHOOSEFONT);
     cf.hwndOwner = hwnd;
 //  cf.hDC = NULL;
     cf.lpLogFont = &lf;
@@ -124,7 +124,7 @@ int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
     cf.nFontType = SCREEN_FONTTYPE;
 //  cf.nSizeMin = 4;
 //  cf.nSizeMax = 72;
-    if (ChooseFontA(&cf) != TRUE)
+    if (ChooseFont(&cf) != TRUE)
         return -1;
 
 	char *facename = tchar_to_char(lf.lfFaceName);
@@ -610,7 +610,7 @@ void ReadFromMailslotIgnore(HANDLE hmailslot, int num)
 HANDLE *OpenMailslot(void)
 {
     HANDLE hFile;
-    hFile = CreateFileA(TIMIDITY_MAILSLOT,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,(HANDLE) NULL);
+    hFile = CreateFile(TIMIDITY_MAILSLOT,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,(HANDLE) NULL);
     if (hFile==INVALID_HANDLE_VALUE)
         return NULL;
     else
@@ -643,7 +643,7 @@ void w32gMailslotThread(void)
     MailslotArgcArgv.argc = 0;
     MailslotArgcArgv.argv = NULL;
     for (i=0;i<10;i++) {
-        hMailslot = CreateMailslotA(TIMIDITY_MAILSLOT,0,MAILSLOT_WAIT_FOREVER,(LPSECURITY_ATTRIBUTES) NULL);
+        hMailslot = CreateMailslot(TIMIDITY_MAILSLOT,0,MAILSLOT_WAIT_FOREVER,(LPSECURITY_ATTRIBUTES) NULL);
         if (hMailslot != INVALID_HANDLE_VALUE) {
             break;
         }
@@ -817,7 +817,7 @@ static HANDLE hMutexTiMidity = NULL;
 // ‚»‚ÌØ‹’‚Ì Mutex ‚ð hMutexTiMidity ‚É•ÛŽ‚µ‚Ü‚·
 int UniqTiMidity(void)
 {
-    hMutexTiMidity = CreateMutexA(NULL,TRUE,TIMIDTY_MUTEX_NAME);
+    hMutexTiMidity = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
     if (hMutexTiMidity!=NULL && GetLastError()==0) {
         return TRUE;
     }
@@ -834,7 +834,7 @@ int UniqTiMidity(void)
 // ‚·‚Å‚É TiMidity ‚ª‘¶Ý‚·‚é‚©
 int ExistOldTiMidity(void)
 {
-    HANDLE hMutex = CreateMutexA(NULL,TRUE,TIMIDTY_MUTEX_NAME);
+    HANDLE hMutex = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
     if (GetLastError()==ERROR_ALREADY_EXISTS) {
         if (hMutex!=NULL)
             CloseHandle(hMutex);

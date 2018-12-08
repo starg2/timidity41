@@ -79,7 +79,6 @@ void OverrideSFSettingSave(void)
     }
 	_tcscat(fn, _T(SNDFNT_INITFILE_NAME));
 #endif
-    strlcat(fn, sndfontini, FILEPATH_MAX);
 ///r
     //if (otd.vibrato_cent == 0 && otd.vibrato_delay == 0) {
     //      OverrideSFSettingLoad();
@@ -838,6 +837,7 @@ extern int SecondMode;
 static char S_IniFile[FILEPATH_MAX];
 void FirstLoadIniFile(void)
 {
+	const char timini[] = TIMW32_INITFILE_NAME;
 	char buffer[FILEPATH_MAX];
 	TCHAR tbuffer[FILEPATH_MAX];
 	char *prevIniFile = IniFile;
