@@ -91,7 +91,7 @@ int readmidi_wrd_mode = 0;
 int play_system_mode = DEFAULT_SYSTEM_MODE;
 #ifdef SUPPORT_LOOPEVENT
 int opt_use_midi_loop_repeat = 0;
-int32 opt_midi_loop_repeat = 0;
+int32 opt_midi_loop_repeat = 3;
 #endif /* SUPPORT_LOOPEVENT */
 
 /* Mingw gcc3 and Borland C hack */
@@ -5704,8 +5704,20 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	int elm;
 #ifdef SUPPORT_LOOPEVENT
     MidiEventList *loop_startmeep;
-    int32 loop_repeat_counter, loop_event_count;
-    int32 loop_begintime, loop_eottime;
+    int32 loop_add_at;
+    int32 loop_repeat_counter;
+    int32 loop_begin_time, loop_end_time;
+    int32 loop_begin_event_count, loop_end_event_count;
+    enum {
+        LOOP_TYPE_UNKNOWN = 0,
+        LOOP_TYPE_CC111_TO_EOT,
+        LOOP_TYPE_MARK_A_TO_B,
+        LOOP_TYPE_MARK_S_TO_E,
+        LOOP_TYPE_CC2_TO_CC4,
+    };
+    int loop_type;
+    const int loop_filter = opt_use_midi_loop_repeat;
+    int loop_startflag;
 #endif /* SUPPORT_LOOPEVENT */
 
     move_channels(chidx);
@@ -5788,13 +5800,14 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
     groomed_list = lp =
 	(MidiEvent *)safe_malloc(sizeof(MidiEvent) * (event_count + 1));
     meep = evlist;
-
+	
 #ifdef SUPPORT_LOOPEVENT
     loop_startmeep = NULL;
     loop_repeat_counter = opt_use_midi_loop_repeat ? opt_midi_loop_repeat : 0;
-    loop_event_count = 0;
-    loop_begintime = 0;
-    loop_eottime = 0;
+    loop_end_event_count = loop_begin_event_count = 0;
+    loop_add_at = loop_end_time = loop_begin_time = 0;
+    loop_type = LOOP_TYPE_UNKNOWN;
+    loop_startflag = 0;
 #endif /* SUPPORT_LOOPEVENT */
 
     our_event_count = 0;
@@ -5809,12 +5822,9 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 ///r
 	//for(j = 0; j < MAX_CHANNELS; j++)
 	//	mapID[j] = get_default_mapID(j);
-
-#ifdef SUPPORT_LOOPEVENT
-    for (i = 0; i < event_count || (loop_startmeep && meep); i++)
-#else
+	
+//    for (i = 0; i < event_count || (loop_startmeep && meep); i++)
     for (i = 0; i < event_count || meep; i++)
-#endif /* SUPPORT_LOOPEVENT */
     {
 	skip_this_event = 0;
 	ch = meep->event.channel;
@@ -6614,25 +6624,166 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 	  case ME_TONE_BANK_LSB:
 	    bank_lsb[ch] = meep->event.a;
 	    break;
-
+		
 #ifdef SUPPORT_LOOPEVENT
-	  case ME_LOOP_START:
-	    if (loop_startmeep != meep) {
-		loop_begintime = meep->event.time;
-		loop_startmeep = meep;
-		loop_event_count = event_count + 1 - i;
-		groomed_list = lp =
-		    (MidiEvent*) safe_realloc(groomed_list, sizeof(MidiEvent) * (event_count +
-			loop_event_count * loop_repeat_counter + 1));
-		lp += our_event_count;
-	    }
-	    skip_this_event = 1;
-	    break;
+          /* CC#111 - End of Track */
+          case ME_LOOP_START: /* CC#111 */
+            if ((loop_filter & LF_CC111_TO_EOT) != 0 &&
+                (loop_type == LOOP_TYPE_UNKNOWN || loop_type == LOOP_TYPE_CC111_TO_EOT) &&
+                loop_startmeep != meep)
+            {
+                loop_type = LOOP_TYPE_CC111_TO_EOT;
+                loop_begin_time = meep->event.time;
+                loop_startmeep = meep;
+                loop_begin_event_count = i;
+                loop_end_event_count = event_count + 1;
+                ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                          "ME_LOOP_START: %d", loop_begin_time);
+                groomed_list = lp =
+                    (MidiEvent*) safe_large_realloc(groomed_list, sizeof(MidiEvent) * (event_count +
+                        (loop_end_event_count - loop_begin_event_count) *
+                            loop_repeat_counter + 1));
+                lp += our_event_count;
+            }
+            skip_this_event = 1;
+            break;
+
+          /* CC#2 - CC#4 */
+          case ME_BREATH: /* CC#2 */
+            if ((loop_filter & LF_CC2_TO_CC4) != 0) {
+                ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                          "ME_BREATH(LOOP BEGIN): %d", meep->event.time);
+                if ((loop_type == LOOP_TYPE_UNKNOWN || loop_type == LOOP_TYPE_CC2_TO_CC4) &&
+                    loop_startmeep != meep)
+                {
+                    loop_type = LOOP_TYPE_CC2_TO_CC4;
+                    loop_begin_time = meep->event.time;
+                    loop_startmeep = meep;
+                    loop_begin_event_count = i;
+                }
+            }
+            skip_this_event = 1;
+            break;
+
+          case ME_FOOT: /* CC#4 */
+            if ((loop_filter & LF_CC2_TO_CC4) != 0) {
+                ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                          "ME_FOOT(LOOP END): %d", meep->event.time);
+                if (loop_type == LOOP_TYPE_CC2_TO_CC4 &&
+                        loop_startmeep && loop_repeat_counter > 0)
+                {
+                    if (loop_end_event_count == 0) {
+                        loop_end_event_count = i;
+                        groomed_list = lp =
+                            (MidiEvent*) safe_large_realloc(groomed_list, sizeof(MidiEvent) * (event_count +
+                                (loop_end_event_count - loop_begin_event_count) *
+                                    loop_repeat_counter + 1));
+                        lp += our_event_count;
+                    }
+
+                    loop_startflag = 1;
+                }
+            }
+            skip_this_event = 1;
+            break;
+
+          /* Marker jump */
+          case ME_MARKER: {
+            int16 nstring = meep->event.a | ((int) meep->event.b << 8);
+            const char *text = event2string(nstring);
+            if (text) {
+                /* A-B */
+                if (strcmp(text + 1, "(A)") == 0) {
+                    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                              "ME_MARKER(%c): %d", 'A', meep->event.time);
+                    if ((loop_filter & LF_MARK_A_TO_B) != 0 &&
+                        (loop_type == LOOP_TYPE_UNKNOWN || loop_type == LOOP_TYPE_MARK_A_TO_B) &&
+                        loop_end_event_count == 0 &&
+                        loop_startmeep != meep)
+                    {
+                        loop_type = LOOP_TYPE_MARK_A_TO_B;
+                        loop_begin_time = meep->event.time;
+                        loop_startmeep = meep;
+                        loop_begin_event_count = i;
+                    }
+                    skip_this_event = 1;
+                }
+                if (strcmp(text + 1, "(B)") == 0) {
+                    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                              "ME_MARKER(%c): %d", 'B', meep->event.time);
+                    if (loop_type == LOOP_TYPE_MARK_A_TO_B &&
+                            loop_startmeep && loop_repeat_counter > 0)
+                    {
+                        if (loop_end_event_count == 0) {
+                            loop_end_event_count = i;
+                            groomed_list = lp =
+                                (MidiEvent*) safe_large_realloc(groomed_list, sizeof(MidiEvent) * (event_count +
+                                    (loop_end_event_count - loop_begin_event_count) *
+                                        loop_repeat_counter + 1));
+                            lp += our_event_count;
+                        }
+
+                        loop_startflag = 1;
+                    }
+                    skip_this_event = 1;
+                }
+
+                /* Loop_Start-Loop_End */
+                if (strcmp(text + 1, "(Loop_Start)") == 0) {
+                    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                              "ME_MARKER(%c): %d", 'S', meep->event.time);
+                    if ((loop_filter & LF_MARK_S_TO_E) != 0 &&
+                        (loop_type == LOOP_TYPE_UNKNOWN || loop_type == LOOP_TYPE_MARK_S_TO_E) &&
+                        loop_end_event_count == 0 &&
+                        loop_startmeep != meep)
+                    {
+                        loop_type = LOOP_TYPE_MARK_S_TO_E;
+                        loop_begin_time = meep->event.time;
+                        loop_startmeep = meep;
+                        loop_begin_event_count = i;
+                    }
+                    skip_this_event = 1;
+                }
+                if (strcmp(text + 1, "(Loop_End)") == 0) {
+                    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                              "ME_MARKER(%c): %d", 'E', meep->event.time);
+                    if (loop_type == LOOP_TYPE_MARK_S_TO_E &&
+                            loop_startmeep && loop_repeat_counter > 0)
+                    {
+                        if (loop_end_event_count == 0) {
+                            loop_end_event_count = i;
+                            groomed_list = lp =
+                                (MidiEvent*) safe_large_realloc(groomed_list, sizeof(MidiEvent) * (event_count +
+                                    (loop_end_event_count - loop_begin_event_count) *
+                                        loop_repeat_counter + 1));
+                            lp += our_event_count;
+                        }
+
+                        loop_startflag = 1;
+                    }
+                    skip_this_event = 1;
+                }
+            }
+            if (counting_time && ctl->trace_playing)
+                counting_time = 1;
+            break; }
+#else
+          case ME_BREATH:
+            if (counting_time == 2)
+                skip_this_event = 1;
+            break;
+
+          case ME_FOOT:
+            if (counting_time == 2)
+                skip_this_event = 1;
+            break;
+
+          case ME_MARKER:
+            // thru
 #endif /* SUPPORT_LOOPEVENT */
 
 	  case ME_CHORUS_TEXT:
 	  case ME_LYRIC:
-	  case ME_MARKER:
 	  case ME_INSERT_TEXT:
 	  case ME_TEXT:
 	  case ME_KARAOKE_LYRIC:
@@ -6687,60 +6838,72 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 		skip_this_event = 1;
 	    break;
         }
-
-	/* Recompute time in samples*/
+		
+        /* Recompute time in samples*/
+        dt = meep->event.time - at;
 #ifdef SUPPORT_LOOPEVENT
-	if ((dt = meep->event.time - (loop_eottime ? (loop_begintime - loop_eottime) : 0) - at) && !counting_time)
-#else
-	if ((dt = meep->event.time - at) && !counting_time)
+        dt += loop_add_at;
 #endif /* SUPPORT_LOOPEVENT */
-	{
-	    samples_to_do = sample_increment * dt;
-	    sample_cum += sample_correction * dt;
-	    if(sample_cum & 0xFFFF0000)
-	    {
-		samples_to_do += ((sample_cum >> 16) & 0xFFFF);
-		sample_cum &= 0x0000FFFF;
-	    }
-	    st += samples_to_do;
-	    if(st < 0)
-	    {
-		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-			  "Overflow the sample counter");
-		safe_free(groomed_list);
-		return NULL;
-	    }
-	}
-	else if(counting_time == 1)
-	    counting_time = 0;
+        if (dt != 0 && !counting_time) {
+            samples_to_do = sample_increment * dt;
+            sample_cum += sample_correction * dt;
+            if (sample_cum & 0xFFFF0000) {
+                samples_to_do += ((sample_cum >> 16) & 0xFFFF);
+                sample_cum &= 0x0000FFFF;
+            }
+            st += samples_to_do;
+            if (st < 0) {
+                ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+                          "Overflow the sample counter");
+                safe_free(groomed_list);
+                return NULL;
+            }
+        }
+        else if (counting_time == 1)
+            counting_time = 0;
 
-	if(meep->event.type == ME_TEMPO)
-	{
-	    tempo = ch + meep->event.b * 256 + meep->event.a * 65536;
-	    compute_sample_increment(tempo, divisions);
-	}
+        if (meep->event.type == ME_TEMPO) {
+            tempo = ch + meep->event.b * 256 + meep->event.a * 65536;
+            compute_sample_increment(tempo, divisions);
+        }
 
-	if(!skip_this_event)
-	{
-	    /* Add the event to the list */
-	    *lp = meep->event;
-	    lp->time = st;
-	    lp++;
-	    our_event_count++;
-	}
+        if (!skip_this_event) {
+            /* Add the event to the list */
+            *lp = meep->event;
+            lp->time = st;
+            lp++;
+            our_event_count++;
+        }
+        at = meep->event.time;
 #ifdef SUPPORT_LOOPEVENT
-	at = meep->event.time - (loop_eottime ? (loop_begintime - loop_eottime) : 0);
-#else
-	at = meep->event.time;
+        at += loop_add_at;
 #endif /* SUPPORT_LOOPEVENT */
-	meep = meep->next;
+        meep = meep->next;
 
 #ifdef SUPPORT_LOOPEVENT
-	if (!meep && loop_startmeep && loop_repeat_counter > 0) {
-	    loop_eottime = at;
-	    meep = loop_startmeep->next;
-	    loop_repeat_counter--;
-	}
+        if (!meep && loop_type == LOOP_TYPE_CC111_TO_EOT &&
+                loop_startmeep && loop_repeat_counter > 0)
+        {
+            // End of Track
+            loop_startflag = 1;
+            ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                      "End of Track: %d", at);
+        }
+
+        if (loop_startflag) {
+            if (loop_startmeep) {
+                if (loop_end_time == 0)
+                    loop_end_time = at;
+                loop_add_at += (loop_end_time - loop_begin_time);
+                meep = loop_startmeep->next;
+                ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+                          "Loop jump: from %d, to %d",
+                          loop_end_time,
+                          meep->event.time);
+            }
+            loop_repeat_counter--;
+            loop_startflag = 0;
+        }
 #endif /* SUPPORT_LOOPEVENT */
     }
     /* Add an End-of-Track event */

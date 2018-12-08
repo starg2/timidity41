@@ -5,7 +5,7 @@
 
 
 #ifdef INT_SYNTH
-extern void ISEditorWndCreate(HWND hwnd);	
+extern void ISEditorWndCreate(HWND hwnd);
 #endif
 
 

@@ -805,7 +805,7 @@
 #undef SUPPORT_SOCKET
 #undef SUPPORT_SOUNDSPEC
 #undef W32SOUNDSPEC
-#undef __W32G__	/* for Win32 GUI */
+#undef __W32G__ /* for Win32 GUI */
 #endif
 
 /* Win32 Driver */
@@ -844,7 +844,7 @@
 #undef SUPPORT_SOCKET
 #undef SUPPORT_SOUNDSPEC
 #undef W32SOUNDSPEC
-#undef __W32G__	/* for Win32 GUI */
+#undef __W32G__ /* for Win32 GUI */
 #endif
 
 /* Win32GUI Standalone */
@@ -868,7 +868,7 @@
 #undef AU_WRITE_MIDI
 /* #undef AU_LIST */
 /* #undef AU_MODMIDI */
-#undef IA_W32G_SYN	/* for Win32 GUI */
+#undef IA_W32G_SYN      /* for Win32 GUI */
 #define FORCE_TIME_PERIOD 1
 #endif
 

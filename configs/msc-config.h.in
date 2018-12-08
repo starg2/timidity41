@@ -256,14 +256,29 @@
 /* Define if you have the socket library (-lsocket).  */
 #undef HAVE_LIBSOCKET
 
-/* Define if you have the vorbis library (-lvorbis).  */
+/* Define to 1 if you have the <ogg/ogg.h> header file. */
+#define HAVE_OGG
+
+/* Define to 1 if you have the <vorbis/codec.h> header file. */
 #define HAVE_LIBVORBIS
+
+/* Define to 1 if you have the <FLAC/all.h> header file. */
+#define HAVE_FLAC
+
+/* Define to 1 if you have the <OggFLAC/all.h> header file. */
+#define HAVE_OGGFLAC
+
+/* Define to 1 if you have the <mpg123.h> header file. */
+#define HAVE_MPG123
 
 /* Define if you have the vorbis library (-lgogo).  */
 #define HAVE_LIBGOGO
 
 /* Define if you havee the <mmsystem.h> header file for Win32. */
 #define HAVE_MMSYSTEM_H
+
+/* Define to 1 if `WinMainCRTStartup' works */
+#define SUPPORT_WINMAIN 1
 
 /* In VDS Macro AAA=BBB is not available. */
 #define __W32__
@@ -272,6 +287,8 @@
 #define AU_W32
 #define AU_VORBIS
 #define AU_VORBIS_DLL
+#define AU_FLAC
+#define AU_FLAC_DLL
 #define AU_GOGO
 #define AU_GOGO_DLL
 #define WINSOCK

@@ -50,7 +50,7 @@
 /* #undef IA_W32G_SYN */
 
 /* Define if you have Remote MIDI interface. */
-/* #undef IA_SERVER */
+#define IA_SERVER 1
 
 /* Define if you have Remote MIDI interface. */
 /* #undef IA_ALSASEQ */
@@ -75,6 +75,7 @@
 #undef IA_NCURSES
 #undef IA_VT100
 #undef IA_DYNAMIC
+#undef IA_SERVER
 /* #undef IA_WINSYN */
 #undef IA_PORTMIDISYN
 #undef IA_NPSYN
@@ -96,10 +97,12 @@
 
 /* Define if you have Windows32 CUI interface. */
 #if defined(__W32__) && !defined(__W32G__) && !TWSYNSRV
-#undef IA_W32G_SYN	/* for Win32 GUI */
+#undef IA_W32G_SYN      /* for Win32 GUI */
 #undef IA_W32GUI
 /* #undef IA_NCURSES */
 /* #undef IA_VT100 */
+/* #undef IA_DYNAMIC */
+/* #undef IA_SERVER */
 /* #undef IA_WINSYN */
 /* #undef IA_PORTMIDISYN */
 /* #undef IA_NPSYN */
@@ -108,11 +111,12 @@
 /* Define if you have Windows32 Service mode interface. */
 #ifdef TWSYNSRV
 #define IA_W32G_SYN 1
-#undef __W32G__	/* for Win32 GUI */
+#undef __W32G__ /* for Win32 GUI */
 #undef IA_W32GUI
 #undef IA_NCURSES
 #undef IA_VT100
 #undef IA_DYNAMIC
+#undef IA_SERVER
 /* #undef IA_WINSYN */
 #undef IA_PORTMIDISYN
 #undef IA_NPSYN
@@ -121,11 +125,12 @@
 /* Define if you have Windows32 Driver mode interface. */
 #ifdef WINDRV
 #define IA_W32G_SYN 1
-#undef __W32G__	/* for Win32 GUI */
+#undef __W32G__ /* for Win32 GUI */
 #undef IA_W32GUI
 #undef IA_NCURSES
 #undef IA_VT100
 #undef IA_DYNAMIC
+#undef IA_SERVER
 /* #undef IA_WINSYN */
 #undef IA_PORTMIDISYN
 #undef IA_NPSYN
@@ -136,6 +141,7 @@
 #undef IA_NCURSES
 #undef IA_VT100
 #undef IA_DYNAMIC
+#undef IA_SERVER
 #undef IA_WINSYN
 #undef IA_PORTMIDISYN
 #undef IA_NPSYN
@@ -146,6 +152,7 @@
 #undef IA_NCURSES
 #undef IA_VT100
 #undef IA_DYNAMIC
+#undef IA_SERVER
 #undef IA_WINSYN
 #undef IA_PORTMIDISYN
 #undef IA_NPSYN
@@ -164,6 +171,7 @@
 #undef IA_NCURSES
 #undef IA_VT100
 #undef IA_DYNAMIC
+#undef IA_SERVER
 #undef IA_WINSYN
 #undef IA_PORTMIDISYN
 #undef IA_NPSYN

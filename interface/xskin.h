@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -35,11 +35,7 @@
 #include <X11/cursorfont.h>
 #endif /* __MACOS__ */
 
-#ifndef NO_STRING_H
-#include <string.h>
-#else /* NO_STRING_H */
-#include <strings.h>
-#endif /* NO_STRING_H */
+#include "_string.h"
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -56,13 +52,13 @@
 #define XSKIN_RES_CLASS   "timidity"
 #define XSKIN_RES_NAME    "Timidity"
 
-extern Pixmap xskin_loadBMP( Display *, Window, char *, int *, int * );
-extern int xskin_loadviscolor( Display *, Window, char * );
+extern Pixmap xskin_loadBMP( Display*, Window, char*, int*, int* );
+extern int xskin_loadviscolor( Display*, Window, char* );
 
 
 /* text */
 
-extern void ts_puttext( int, int, char * );
+extern void ts_puttext( int, int, char* );
 
 /* numbers */
 
@@ -108,7 +104,7 @@ extern int ts_pan(int,int);
 
 /* spectrum analizer */
 
-extern void ts_spectrum( int, unsigned char * );
+extern void ts_spectrum( int, unsigned char* );
 
 /* positions */
 

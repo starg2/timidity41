@@ -8,7 +8,26 @@
 #undef PACKAGE_VERSION
 #undef PACKAGE_STRING
 #undef VERSION_DATA_T
+#undef DEFAULT_PATH
 
+
+/* Define to 1 if you have the <ogg/ogg.h> header file. */
+#define HAVE_OGG 1
+
+/* Define to 1 if you have the <FLAC/all.h> header file. */
+#define HAVE_LIBFLAC 1
+
+/* Define to 1 if you have the <gogo/gogo.h> header file. */
+#define HAVE_LIBGOGO 1
+
+/* Define to 1 if you have the <mpg123.h> header file. */
+#define HAVE_LIBMPG123 1
+
+/* Define to 1 if you have the <OggFLAC/all.h> header file. */
+/* #undef HAVE_LIBOGGFLAC */
+
+/* Define to 1 if you have the <vorbis/codec.h> header file. */
+#define HAVE_LIBVORBIS 1
 
 /* Define to 1 if you have the `vwprintw' function. */
 #define HAVE_VWPRINTW 1
@@ -57,8 +76,11 @@
 #define OPT_MODE 1
 #endif
 
+#define DEFAULT_PATH ".\\"
 #define CONFIG_FILE DEFAULT_PATH "timidity.cfg"
 #define AU_W32 1
+/*#define AU_WDMKS 1*/
+/*#define AU_WASAPI 1*/
 #define AU_NPIPE 1
 #define AU_VORBIS 1
 #define AU_VORBIS_DLL 1
@@ -67,7 +89,7 @@
 #define AU_LAME 1
 #define AU_FLAC 1
 #define AU_FLAC_DLL 1
-#define AU_OGGFLAC 1
+/* #define AU_OGGFLAC 1 */
 /* #define AU_OGGFLAC_DLL 1 */
 #define AU_OPUS 1
 #define AU_OPUS_DLL 1
@@ -134,6 +156,8 @@
 #define DEFAULT_AUDIO_BUFFER_NUM     13 /* 150ms over */
 #define DEFAULT_COMPUTE_BUFFER_BITS   8 /* ratio 5ms (44.1kHz) */
 #define TWSYNG32INI 1 // use twsyng32.ini or timpp32g.ini ??
+/* #undef AU_WDMKS */
+/* #undef AU_WASAPI */
 /* #undef AU_NPIPE */
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
@@ -170,7 +194,9 @@
 #define DEFAULT_AUDIO_BUFFER_NUM     13 /* 150ms over */
 #define DEFAULT_COMPUTE_BUFFER_BITS   8 /* ratio 5ms (44.1kHz) */
 #define TWSYNG32INI 1 // use twsyng32.ini or timpp32g.ini ??
-/* #undef AU_NPIPE */
+#undef AU_WDMKS
+#undef AU_WASAPI
+#undef AU_NPIPE
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
 #undef AU_GOGO
@@ -197,7 +223,7 @@
 #undef SUPPORT_SOCKET
 #undef SUPPORT_SOUNDSPEC
 #undef W32SOUNDSPEC
-#undef __W32G__	/* for Win32 GUI */
+#undef __W32G__ /* for Win32 GUI */
 #endif
 
 /* Win32 Driver */
@@ -209,6 +235,8 @@
 #define DEFAULT_AUDIO_BUFFER_NUM     13 /* 150ms over */
 #define DEFAULT_COMPUTE_BUFFER_BITS   8 /* ratio 5ms (44.1kHz) */
 #define TIMDRVINI 1 // use timdrv.ini or twsyng32.ini or timpp32g.ini ??
+#undef AU_WDMKS
+#undef AU_WASAPI
 #undef AU_NPIPE
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
@@ -236,7 +264,7 @@
 #undef SUPPORT_SOCKET
 #undef SUPPORT_SOUNDSPEC
 #undef W32SOUNDSPEC
-#undef __W32G__	/* for Win32 GUI */
+#undef __W32G__ /* for Win32 GUI */
 #endif
 
 /* Win32GUI Standalone */
@@ -260,7 +288,7 @@
 #undef AU_WRITE_MIDI
 /* #undef AU_LIST */
 /* #undef AU_MODMIDI */
-#undef IA_W32G_SYN	/* for Win32 GUI */
+#undef IA_W32G_SYN      /* for Win32 GUI */
 #define FORCE_TIME_PERIOD 1
 #endif
 
@@ -270,6 +298,8 @@
 #define _AMD64_ 1
 #endif
 
+/* #undef AU_WDMKS */
+/* #undef AU_WASAPI */
 /* #undef AU_NPIPE */
 /* #undef AU_VORBIS */
 /* #undef AU_VORBIS_DLL */
@@ -293,6 +323,8 @@
 
 /* cfgforsf */
 #ifdef CFG_FOR_SF
+#undef AU_WDMKS
+#undef AU_WASAPI
 #undef AU_NPIPE
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL
@@ -329,6 +361,8 @@
 #include "kbtim/kbtim_config.h"
 #define KBTIM32 1
 
+#undef AU_WDMKS
+#undef AU_WASAPI
 #undef AU_NPIPE
 #undef AU_VORBIS
 #undef AU_VORBIS_DLL

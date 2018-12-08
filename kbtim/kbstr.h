@@ -46,25 +46,25 @@ int __fastcall kbStrNCmpI(const char *cszStr1, const char *cszStr2, int nLen);
 const char* __fastcall kbStrChr(const char *cszString, char cFind);
 inline char *__fastcall kbStrChr(char *szString, char cFind)
 {
-    return (char*)kbStrChr((const char*)szString, cFind);
+    return (char*) kbStrChr((const char*) szString, cFind);
 }
 //文字列 cszString から 文字 cFind を検索し、最後に見つかった文字へのポインタを返す
 //見つからない場合は NULL を返す
 const char* __fastcall kbStrRChr(const char *cszString, char cFind);
 inline char *__fastcall kbStrRChr(char *szString, char cFind)
 {
-    return (char*)kbStrRChr((const char*)szString, cFind);
+    return (char*) kbStrRChr((const char*) szString, cFind);
 }
 
 const char* __fastcall kbStrStr(const char *cszString, const char *cszSearch);
 inline char *__fastcall kbStrStr(char *szString, const char *cszSearch)
 {
-    return (char*)kbStrStr((const char*)szString, cszSearch);
+    return (char*) kbStrStr((const char*) szString, cszSearch);
 }
 const char* __fastcall kbStrStrI(const char *cszString, const char *cszSearch);
 inline char *__fastcall kbStrStrI(char *szString, const char *cszSearch)
 {
-    return (char*)kbStrStrI((const char*)szString, cszSearch);
+    return (char*) kbStrStrI((const char*) szString, cszSearch);
 }
 
 char* __fastcall kbStrUpr(char *pszString);

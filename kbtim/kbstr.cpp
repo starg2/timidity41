@@ -19,11 +19,11 @@ void __fastcall kbStr_Initialize(void)
 {//テーブル初期化
  //使用前に１度だけ呼ばなければならない
     static LONG uInit = -1; //初期化開始後は 0
-    if(InterlockedIncrement(&uInit) == 0){
+    if (InterlockedIncrement(&uInit) == 0) {
         char szLowerUpper[4] = {0};
         int i;
-        for(i = 0; i < 256; i++){
-            g_byLeadByteTable[i] = (BYTE)IsDBCSLeadByte((BYTE)i);
+        for (i = 0; i < 256; i++) {
+            g_byLeadByteTable[i] = (BYTE) IsDBCSLeadByte((BYTE) i);
             szLowerUpper[0] = i;
             CharLower(szLowerUpper);
             g_byToLowerTable[i] = szLowerUpper[0];
@@ -31,7 +31,7 @@ void __fastcall kbStr_Initialize(void)
             g_byToUpperTable[i] = szLowerUpper[0];
         }
     }
-    else{
+    else {
         InterlockedDecrement(&uInit);
     }
 }
@@ -40,14 +40,14 @@ int __fastcall kbStrLen(const char *cszString)
 {//cszString の長さを返す
  //cszString の終端が途中で途切れている場合は、有効な部分までの長さを返す
     const char *s = cszString;
-    while(*s){
-        if(kbIsLeadByte(*s)){
-            if(!*(s+1)){
+    while (*s) {
+        if (kbIsLeadByte(*s)) {
+            if (!*(s+1)) {
                 break;
             }
             s += 2;
         }
-        else{
+        else {
             s++;
         }
     }
@@ -61,26 +61,26 @@ int __fastcall kbStrLCpy(char *szDest, const char *cszSrc, int nBufSize)
  // cszSrc の有効な長さ(kbStrLen(cszSrc))を返す
  // 戻り値 >= nBufSize の場合、文字列を切り捨てたことを意味する
     int p = 0;
-    while(*cszSrc){
-        if(kbIsLeadByte(*cszSrc)){
-            if(!*(cszSrc+1)){
+    while (*cszSrc) {
+        if (kbIsLeadByte(*cszSrc)) {
+            if (!*(cszSrc+1)) {
                 break;
             }
             p += 2;
-            if(p < nBufSize){
-                *(WORD*)szDest = *(const WORD*)cszSrc;
+            if (p < nBufSize) {
+                *(WORD*) szDest = *(const WORD*) cszSrc;
                 szDest += 2;
             }
             cszSrc += 2;
         }
-        else if(++p < nBufSize){
+        else if (++p < nBufSize) {
             *szDest++ = *cszSrc++;
         }
-        else{
+        else {
             cszSrc++;
         }
     }
-    if(nBufSize > 0){
+    if (nBufSize > 0) {
         *szDest = 0;
     }
     return p;
@@ -95,17 +95,17 @@ int __fastcall kbStrLCat(char *szDest, const char *cszSrc, int nBufSize)
  //
     //min(kbStrLen(szDest) + nBufSize) とコピー先バッファへのポインタを得る
     int nDestLen = 0;
-    while(*szDest && nDestLen < nBufSize){
-        if(kbIsLeadByte(*szDest)){
-            if(!*(szDest+1) || nDestLen >= nBufSize-2){
+    while (*szDest && nDestLen < nBufSize) {
+        if (kbIsLeadByte(*szDest)) {
+            if (!*(szDest+1) || nDestLen >= nBufSize-2) {
                 break;
             }
-            else{
+            else {
                 szDest += 2;
                 nDestLen += 2;
             }
         }
-        else{
+        else {
             szDest++;
             nDestLen++;
         }
@@ -117,39 +117,39 @@ int __fastcall kbStrLCat(char *szDest, const char *cszSrc, int nBufSize)
 char* __fastcall kbStrTrimRight(char* szString)
 {//文字列lpszStringの終端から空白文字を取り除く
     register char *p = szString;
-    if(p){
+    if (p) {
         char *Space = NULL;
-        while(*p){
-            if(kbIsLeadByte(*p)){//全角
-                /*if(*(WORD*)p == wWSpace){
+        while (*p) {
+            if (kbIsLeadByte(*p)) {//全角
+                /*if (*(WORD*) p == wWSpace) {
                 //全角スペースが見つかった
-                    if(!Space){
+                    if (!Space) {
                         Space = p;
                     }
                 }
-                else*/ if(p[1]){
+                else*/ if (p[1]) {
                     Space = NULL;//空白以外が見つかった
                 }
-                else{//文字列が途中で途切れてしまっている？
+                else {//文字列が途中で途切れてしまっている？
                     *p = 0;//全角１バイト目の部分は切り捨てる
                     break;
                 }
                 p += 2;
             }
-            else{//半角
-                if(*p == ' '){
+            else {//半角
+                if (*p == ' ') {
                 //半角スペース
-                    if(!Space){
+                    if (!Space) {
                         Space = p;
                     }
                 }
-                else{
+                else {
                     Space = NULL;//空白以外が見つかった
                 }
                 p++;
             }
         }
-        if(Space){
+        if (Space) {
             *Space = 0;
         }
     }
@@ -159,17 +159,17 @@ char* __fastcall kbStrTrimRight(char* szString)
 char* __fastcall kbStrTrimLeft(char* szString)
 {//文字列lpszStringの先頭から空白文字を取り除く
     register char *src = szString;
-    if(src){
-        while(*src){
-            if(*src == ' '){//半角スペース
+    if (src) {
+        while (*src) {
+            if (*src == ' ') {//半角スペース
                 src++;
             }
-            else{
-                if(src != szString){
+            else {
+                if (src != szString) {
                     register char *dst = szString;
                     do{
                         *dst++ = *src++;
-                    }while(*src);
+                    }while (*src);
                     *dst = 0;
                 }
                 return szString;
@@ -188,17 +188,17 @@ char* __fastcall kbStrTrim(char *szString)
 char* __fastcall kbCRLFtoSpace(char *szString)
 {//改行・復帰文字とタブ文字を半角スペースに変換する
     register char* p = szString;
-    if(p){
-        while(*p){
-            if(kbIsLeadByte(*p)){//全角
-                if(!p[1]){//文字列が途中で途切れている
+    if (p) {
+        while (*p) {
+            if (kbIsLeadByte(*p)) {//全角
+                if (!p[1]) {//文字列が途中で途切れている
                     *p = 0;
                     break;
                 }
                 p += 2;
             }
-            else{//半角
-                if(*p == '\n' || *p == '\r' || *p == '\t'){
+            else {//半角
+                if (*p == '\n' || *p == '\r' || *p == '\t') {
                     *p = ' ';
                 }
                 p++;
@@ -210,41 +210,41 @@ char* __fastcall kbCRLFtoSpace(char *szString)
 ///////////////////////////////////////////////////////////////////////////////
 int __fastcall kbStrCmp(const char *cszStr1, const char *cszStr2)
 {
-    while(*cszStr1){
-        if(!*cszStr2){
+    while (*cszStr1) {
+        if (!*cszStr2) {
             break;
         }
-        if(kbIsLeadByte(*cszStr1)){
-            if(kbIsLeadByte(*cszStr2)){
-                int cmp = *(WORD*)cszStr1 - *(WORD*)cszStr2;
-                if(cmp == 0 && cszStr1[1]){
+        if (kbIsLeadByte(*cszStr1)) {
+            if (kbIsLeadByte(*cszStr2)) {
+                int cmp = *(WORD*) cszStr1 - *(WORD*) cszStr2;
+                if (cmp == 0 && cszStr1[1]) {
                     cszStr1 += 2;
                     cszStr2 += 2;
                 }
-                else{
-                    if(*cszStr1 == *cszStr2){
-                        return (BYTE)cszStr1[1] - (BYTE)cszStr2[1];
+                else {
+                    if (*cszStr1 == *cszStr2) {
+                        return (BYTE) cszStr1[1] - (BYTE) cszStr2[1];
                     }
-                    return (BYTE)cszStr1[0] - (BYTE)cszStr2[0];
+                    return (BYTE) cszStr1[0] - (BYTE) cszStr2[0];
                 }
             }
-            else{
+            else {
                 break;
             }
         }
-        else{
-            if(kbIsLeadByte(*cszStr2)){
+        else {
+            if (kbIsLeadByte(*cszStr2)) {
                 break;
             }
             int cmp = (BYTE)(*cszStr1) - (BYTE)(*cszStr2);
-            if(cmp){
+            if (cmp) {
                 return cmp;
             }
             cszStr1++;
             cszStr2++;
         }
     }
-    return (BYTE)*cszStr1 - (BYTE)*cszStr2;
+    return (BYTE) *cszStr1 - (BYTE) *cszStr2;
 }
 ///////////////////////////////////////////////////////////////////////////////
 //#define KBSTRCMPI_DEBUG
@@ -256,14 +256,14 @@ int __fastcall kbStrCmpI(const char *cszStr1, const char *cszStr2)
     int ret1  = kbStrCmpI_(cszStr1, cszStr2);
     int ret2 = strcmpi(cszStr1, cszStr2);
     ret = ret1;
-    if(ret1){
+    if (ret1) {
         ret1 /= abs(ret1);
     }
-    if(ret2){
+    if (ret2) {
         ret2 /= abs(ret2);
     }
-    if(ret1 != ret2){
-        if(!ret1 || !ret2){
+    if (ret1 != ret2) {
+        if (!ret1 || !ret2) {
         //致命的エラー
             int t = 0;
         }
@@ -276,76 +276,76 @@ static int __fastcall kbStrCmpI_(const char *cszStr1, const char *cszStr2)
 int __fastcall kbStrCmpI(const char *cszStr1, const char *cszStr2)
 #endif
 {
-    while(*cszStr1){
-        if(!*cszStr2){
+    while (*cszStr1) {
+        if (!*cszStr2) {
             break;
         }
-        if(kbIsLeadByte(*cszStr1)){
-            if(kbIsLeadByte(*cszStr2)){
-                int cmp = *(WORD*)cszStr1 - *(WORD*)cszStr2;
-                if(cmp == 0 && cszStr1[1]){
+        if (kbIsLeadByte(*cszStr1)) {
+            if (kbIsLeadByte(*cszStr2)) {
+                int cmp = *(WORD*) cszStr1 - *(WORD*) cszStr2;
+                if (cmp == 0 && cszStr1[1]) {
                     cszStr1 += 2;
                     cszStr2 += 2;
                 }
-                else{
-                    if(*cszStr1 == *cszStr2){
-                        return (BYTE)cszStr1[1] - (BYTE)cszStr2[1];
+                else {
+                    if (*cszStr1 == *cszStr2) {
+                        return (BYTE) cszStr1[1] - (BYTE) cszStr2[1];
                     }
-                    return (BYTE)cszStr1[0] - (BYTE)cszStr2[0];
+                    return (BYTE) cszStr1[0] - (BYTE) cszStr2[0];
                 }
             }
-            else{
+            else {
                 break;
             }
         }
-        else{
-            if(kbIsLeadByte(*cszStr2)){
+        else {
+            if (kbIsLeadByte(*cszStr2)) {
                 break;
             }
             int cmp = kbToLower(*cszStr1) - kbToLower(*cszStr2);
             //int cmp = tolower(*cszStr1) - tolower(*cszStr2);
-            if(cmp){
+            if (cmp) {
                 return cmp;
             }
             cszStr1++;
             cszStr2++;
         }
     }
-    return (BYTE)*cszStr1 - (BYTE)*cszStr2;
+    return (BYTE) *cszStr1 - (BYTE) *cszStr2;
 }
 ///////////////////////////////////////////////////////////////////////////////
 int __fastcall kbStrNCmp(const char *cszStr1, const char *cszStr2, int nLen)
 {
-    while(nLen > 0 && *cszStr1){
-        if(!*cszStr2){
+    while (nLen > 0 && *cszStr1) {
+        if (!*cszStr2) {
             return 0;
         }
-        if(kbIsLeadByte(*cszStr1)){
-            if(kbIsLeadByte(*cszStr2)){
-                int cmp = *(WORD*)cszStr1 - *(WORD*)cszStr2;
-                if(cmp == 0 && cszStr1[1]){
+        if (kbIsLeadByte(*cszStr1)) {
+            if (kbIsLeadByte(*cszStr2)) {
+                int cmp = *(WORD*) cszStr1 - *(WORD*) cszStr2;
+                if (cmp == 0 && cszStr1[1]) {
                     cszStr1 += 2;
                     cszStr2 += 2;
                     nLen -= 2;
                 }
-                else{
-                    if(*cszStr1 == *cszStr2){
-                        return (BYTE)cszStr1[1] - (BYTE)cszStr2[1];
+                else {
+                    if (*cszStr1 == *cszStr2) {
+                        return (BYTE) cszStr1[1] - (BYTE) cszStr2[1];
                     }
-                    return (BYTE)cszStr1[0] - (BYTE)cszStr2[0];
+                    return (BYTE) cszStr1[0] - (BYTE) cszStr2[0];
                 }
             }
-            else{
+            else {
                 break;
             }
         }
-        else{
-            if(kbIsLeadByte(*cszStr2)){
+        else {
+            if (kbIsLeadByte(*cszStr2)) {
                 break;
             }
             int cmp = (BYTE)(*cszStr1) - (BYTE)(*cszStr2);
             //int cmp = tolower(*cszStr1) - tolower(*cszStr2);
-            if(cmp){
+            if (cmp) {
                 return cmp;
             }
             cszStr1++;
@@ -353,46 +353,46 @@ int __fastcall kbStrNCmp(const char *cszStr1, const char *cszStr2, int nLen)
             nLen--;
         }
     }
-    if(nLen > 0){
-        return (BYTE)*cszStr1 - (BYTE)*cszStr2;
+    if (nLen > 0) {
+        return (BYTE) *cszStr1 - (BYTE) *cszStr2;
     }
-    else{
+    else {
         return 0;
     }
 }
 ///////////////////////////////////////////////////////////////////////////////
 int __fastcall kbStrNCmpI(const char *cszStr1, const char *cszStr2, int nLen)
 {
-    while(nLen > 0 && *cszStr1){
-        if(!*cszStr2){
+    while (nLen > 0 && *cszStr1) {
+        if (!*cszStr2) {
             return 0;
         }
-        if(kbIsLeadByte(*cszStr1)){
-            if(kbIsLeadByte(*cszStr2)){
-                int cmp = *(WORD*)cszStr1 - *(WORD*)cszStr2;
-                if(cmp == 0 && cszStr1[1]){
+        if (kbIsLeadByte(*cszStr1)) {
+            if (kbIsLeadByte(*cszStr2)) {
+                int cmp = *(WORD*) cszStr1 - *(WORD*) cszStr2;
+                if (cmp == 0 && cszStr1[1]) {
                     cszStr1 += 2;
                     cszStr2 += 2;
                     nLen -= 2;
                 }
-                else{
-                    if(*cszStr1 == *cszStr2){
-                        return (BYTE)cszStr1[1] - (BYTE)cszStr2[1];
+                else {
+                    if (*cszStr1 == *cszStr2) {
+                        return (BYTE) cszStr1[1] - (BYTE) cszStr2[1];
                     }
-                    return (BYTE)cszStr1[0] - (BYTE)cszStr2[0];
+                    return (BYTE) cszStr1[0] - (BYTE) cszStr2[0];
                 }
             }
-            else{
+            else {
                 break;
             }
         }
-        else{
-            if(kbIsLeadByte(*cszStr2)){
+        else {
+            if (kbIsLeadByte(*cszStr2)) {
                 break;
             }
             int cmp = kbToLower(*cszStr1) - kbToLower(*cszStr2);
             //int cmp = tolower(*cszStr1) - tolower(*cszStr2);
-            if(cmp){
+            if (cmp) {
                 return cmp;
             }
             cszStr1++;
@@ -400,10 +400,10 @@ int __fastcall kbStrNCmpI(const char *cszStr1, const char *cszStr2, int nLen)
             nLen--;
         }
     }
-    if(nLen > 0){
-        return (BYTE)*cszStr1 - (BYTE)*cszStr2;
+    if (nLen > 0) {
+        return (BYTE) *cszStr1 - (BYTE) *cszStr2;
     }
-    else{
+    else {
         return 0;
     }
 }
@@ -413,26 +413,26 @@ const char* __fastcall kbStrChr(const char *cszString, char cFind)
  //見つからない場合は NULL を返す
  //cFind は '\0' も有効
  //cFind == '\0' で文字列が途切れているとき、途切れた最初の文字へのポインタを返す
-    if(!cszString)return NULL;
-    while(1){
-        if((BYTE)*cszString == (BYTE)cFind){
+    if (!cszString) return NULL;
+    while (1) {
+        if ((BYTE) *cszString == (BYTE) cFind) {
             return cszString;
         }
-        else if(kbIsLeadByte((BYTE)*cszString)){
-            if(cszString[1]){
+        else if (kbIsLeadByte((BYTE) *cszString)) {
+            if (cszString[1]) {
                 cszString += 2;
             }
-            else if(cFind){//文字列が途切れている
+            else if (cFind) {//文字列が途切れている
                 return NULL;
             }
-            else{//途切れた最初の文字へのポインタ
+            else {//途切れた最初の文字へのポインタ
                 return cszString;
             }
         }
-        else if(*cszString){
+        else if (*cszString) {
             cszString++;
         }
-        else{
+        else {
             return NULL;
         }
     }
@@ -443,28 +443,28 @@ const char* __fastcall kbStrRChr(const char *cszString, char cFind)
  //見つからない場合は NULL を返す
  //cFind は '\0' も有効
  //cFind == '\0' で文字列が途切れているとき、途切れた最初の文字へのポインタを返す
-    if(!cszString)return NULL;
+    if (!cszString) return NULL;
     const char *cszRet = NULL;
-    while(1){
-        if((BYTE)*cszString == (BYTE)cFind){
+    while (1) {
+        if ((BYTE) *cszString == (BYTE) cFind) {
             cszRet = cszString;
         }
-        else if(kbIsLeadByte((BYTE)*cszString)){
-            if(cszString[1]){
+        else if (kbIsLeadByte((BYTE) *cszString)) {
+            if (cszString[1]) {
                 cszString += 2;
                 continue;
             }
-            else if(cFind){//文字列が途切れている
+            else if (cFind) {//文字列が途切れている
                 return cszRet;
             }
-            else{//途切れた最初の文字へのポインタ
+            else {//途切れた最初の文字へのポインタ
                 return cszString;
             }
         }
-        if(*cszString){
+        if (*cszString) {
             cszString++;
         }
-        else{
+        else {
             break;
         }
     }
@@ -474,23 +474,23 @@ const char* __fastcall kbStrRChr(const char *cszString, char cFind)
 const char* __fastcall kbStrStr(const char *cszString, const char *cszSearch)
 {
     int nSearchLen = -1;
-    while(*cszString){
-        if(*cszString == *cszSearch){
-            if(nSearchLen < 0){
+    while (*cszString) {
+        if (*cszString == *cszSearch) {
+            if (nSearchLen < 0) {
                 nSearchLen = kbStrLen(cszSearch);
             }
-            //if(strncmp(cszString, cszSearch, nSearchLen) == 0){
-            if(kbStrNCmp(cszString, cszSearch, nSearchLen) == 0){
+            //if (strncmp(cszString, cszSearch, nSearchLen) == 0) {
+            if (kbStrNCmp(cszString, cszSearch, nSearchLen) == 0) {
                 return cszString;
             }
         }
-        if(kbIsLeadByte(*cszString)){
-            if(!cszString[1]){
+        if (kbIsLeadByte(*cszString)) {
+            if (!cszString[1]) {
                 break;
             }
             cszString += 2;
         }
-        else{
+        else {
             cszString++;
         }
     }
@@ -500,20 +500,20 @@ const char* __fastcall kbStrStr(const char *cszString, const char *cszSearch)
 const char* __fastcall kbStrStrI(const char *cszString, const char *cszSearch)
 {
     int nSearchLen = kbStrLen(cszSearch);
-    while(*cszString){
-        //if(strnicmp(cszString, cszSearch, nSearchLen) == 0){
+    while (*cszString) {
+        //if (strnicmp(cszString, cszSearch, nSearchLen) == 0) {
         //    return cszString;
         //}
-        if(kbStrNCmpI(cszString, cszSearch, nSearchLen) == 0){
+        if (kbStrNCmpI(cszString, cszSearch, nSearchLen) == 0) {
             return cszString;
         }
-        if(kbIsLeadByte(*cszString)){
-            if(!cszString[1]){
+        if (kbIsLeadByte(*cszString)) {
+            if (!cszString[1]) {
                 break;
             }
             cszString += 2;
         }
-        else{
+        else {
             cszString++;
         }
     }
@@ -523,7 +523,7 @@ const char* __fastcall kbStrStrI(const char *cszString, const char *cszSearch)
 char* __fastcall kbStrUpr(char *pszString)
 {
     char *p = pszString;
-    while(*p){
+    while (*p) {
         *p = kbToUpper(*p);
         p++;
     }
@@ -533,7 +533,7 @@ char* __fastcall kbStrUpr(char *pszString)
 char* __fastcall kbStrLwr(char *pszString)
 {
     char *p = pszString;
-    while(*p){
+    while (*p) {
         *p = kbToLower(*p);
         p++;
     }
@@ -544,10 +544,10 @@ char* __fastcall kbStrTok(char *pszString, const char *cszDelimiter, char **ppsz
 {
     *ppszNext = NULL;
     char *p = pszString;
-    if(p){
-        while(*p){
-            if(kbIsLeadByte(*p)){
-                if(!p[1]){//文字列が途切れている
+    if (p) {
+        while (*p) {
+            if (kbIsLeadByte(*p)) {
+                if (!p[1]) {//文字列が途切れている
                     *p = 0;
                     return pszString;
                 }
@@ -555,8 +555,8 @@ char* __fastcall kbStrTok(char *pszString, const char *cszDelimiter, char **ppsz
                 continue;
             }
             const char *delim = cszDelimiter;
-            while(*delim){
-                if(*p == *delim++){
+            while (*delim) {
+                if (*p == *delim++) {
                     *p++ = 0;
                     *ppszNext = p;
                     return pszString;
@@ -564,7 +564,7 @@ char* __fastcall kbStrTok(char *pszString, const char *cszDelimiter, char **ppsz
             }
             p++;
         }
-        if(*pszString){
+        if (*pszString) {
             return pszString;
         }
     }
@@ -581,35 +581,35 @@ int __fastcall kbStrToIntDef(const char* p, int nDefault)
  //変換できない場合は nDefault を返す
     int nSign = 1;//符号
     //空白をとばす
-	while(*p == ' '){
+        while (*p == ' ') {
         p++;
     }
     //符号
-	switch(*p){
-		case '-':
-			nSign = -1;
+        switch (*p) {
+                case '-':
+                        nSign = -1;
             p++;
             break;
-		case '+':
-			p++;
+                case '+':
+                        p++;
             break;
-	}
-    if(is_digit(*p)){
+        }
+    if (is_digit(*p)) {
         //整数部分
         int nReturn = (*p++ - '0');
-        while(is_digit(*p)){
+        while (is_digit(*p)) {
             nReturn *= 10;
             nReturn += (*p++ - '0');
         }
         //小数部分
-        if(*p == '.'){
-            while(is_digit(*++p));//小数部分はすべて無視
+        if (*p == '.') {
+            while (is_digit(*++p));//小数部分はすべて無視
         }
         //数値の部分以降に空白以外の文字が見つかった場合は nDefault を返す
-    	while(*p == ' '){
+        while (*p == ' ') {
             p++;
         }
-        if(!*p){
+        if (!*p) {
             return nSign*nReturn;
         }
     }
@@ -620,40 +620,40 @@ double __fastcall kbStrToDoubleDef(const char* p, double nDefault)
  //変換できない場合は nDefault を返す
     int nSign = 1;//符号
     //空白をとばす
-	while(*p == ' '){
+        while (*p == ' ') {
         p++;
     }
     //符号
-	switch(*p){
-		case '-':
-			nSign = -1;
+        switch (*p) {
+                case '-':
+                        nSign = -1;
             p++;
             break;
-		case '+':
-			p++;
+                case '+':
+                        p++;
             break;
-	}
-    if(is_digit(*p)){
+        }
+    if (is_digit(*p)) {
         //整数部分
         double nReturn = (*p++ - '0');
-        while(is_digit(*p)){
+        while (is_digit(*p)) {
             nReturn *= 10;
             nReturn += (*p++ - '0');
         }
         //小数部分
-        if(*p == '.'){
+        if (*p == '.') {
             int multi = 1;
-	    ++p;
-	    while(is_digit(*p)){
-	      multi *= 10;
-	      nReturn += (double)(*p++ - '0') / multi;
-	    }
+            ++p;
+            while (is_digit(*p)) {
+              multi *= 10;
+              nReturn += (double)(*p++ - '0') / multi;
+            }
         }
         //数値の部分以降に空白以外の文字が見つかった場合は nDefault を返す
-    	while(*p == ' '){
+        while (*p == ' ') {
             p++;
         }
-        if(!*p){
+        if (!*p) {
             return nSign*nReturn;
         }
     }
@@ -663,26 +663,26 @@ double __fastcall kbStrToDoubleDef(const char* p, double nDefault)
 int __fastcall kbStrToIntDef(const char* cszStr, int nDefault)
 {//cszStr を整数に変換する
  //変換できない場合は nDefault を返す
-    if(!cszStr){
+    if (!cszStr) {
         return nDefault;
     }
     const int cMaxLen = 1024;
     const int len = kbStrLen(cszStr) + 1;
-    if(len > cMaxLen){
+    if (len > cMaxLen) {
         return nDefault;//文字列が長すぎる
     }
     char szCopy[cMaxLen];
     memcpy(szCopy, cszStr, len);
     kbStrTrim(szCopy);
     int ret;
-    if(szCopy[0]){
+    if (szCopy[0]) {
         char *szEndStr = NULL;
         ret = strtol(szCopy, &szEndStr, 10);
-        if(szEndStr && szEndStr[0]){
+        if (szEndStr && szEndStr[0]) {
             ret = nDefault;
         }
     }
-    else{
+    else {
         ret = nDefault;
     }
     return ret;
@@ -690,26 +690,26 @@ int __fastcall kbStrToIntDef(const char* cszStr, int nDefault)
 double __fastcall kbStrToDoubleDef(const char* cszStr, double nDefault)
 {//cszStr を小数に変換する
  //変換できない場合は nDefault を返す
-    if(!cszStr){
+    if (!cszStr) {
         return nDefault;
     }
     const int cMaxLen = 1024;
     const int len = kbStrLen(cszStr) + 1;
-    if(len > cMaxLen){
+    if (len > cMaxLen) {
         return nDefault;//文字列が長すぎる
     }
     char szCopy[cMaxLen];
     memcpy(szCopy, cszStr, len);
     kbStrTrim(szCopy);
     int ret;
-    if(szCopy[0]){
+    if (szCopy[0]) {
         char *szEndStr = NULL;
         ret = strtof(szCopy, &szEndStr, 10);
-        if(szEndStr && szEndStr[0]){
+        if (szEndStr && szEndStr[0]) {
             ret = nDefault;
         }
     }
-    else{
+    else {
         ret = nDefault;
     }
     return ret;
@@ -729,50 +729,50 @@ int __fastcall kbStringReplace(char *dst,
  //戻り値 >= size の場合、置換後の文字列が一部切り捨てられたことを意味する
     int ret = 0;
     const int old_pattern_len = kbStrLen(old_pattern);
-    while(1){
-        if(ret < size &&
+    while (1) {
+        if (ret < size &&
            *src == *old_pattern &&
-           kbStrNCmp(src, old_pattern, old_pattern_len) == 0){
+           kbStrNCmp(src, old_pattern, old_pattern_len) == 0) {
             const int new_pattern_len = kbStrLCpy(dst, new_pattern, size - ret);
-            if(new_pattern_len < size - ret){
+            if (new_pattern_len < size - ret) {
                 dst += new_pattern_len;
             }
-            else{
+            else {
                 dst += (size - ret);
             }
             ret += new_pattern_len;
-            if(!*src){
+            if (!*src) {
                 break;
             }
             src += old_pattern_len;
             continue;
         }
-        if(kbIsLeadByte(*src)){
-            if(src[1]){
+        if (kbIsLeadByte(*src)) {
+            if (src[1]) {
                 ret += 2;
-                if(ret < size){
-                    *((WORD*)dst) = *((WORD*)src);
+                if (ret < size) {
+                    *((WORD*) dst) = *((WORD*) src);
                     dst += 2;
                 }
                 src += 2;
             }
-            else{
+            else {
                 break;
             }
         }
-        else if(*src){
-            if(++ret < size){
+        else if (*src) {
+            if (++ret < size) {
                 *dst++ = *src++;
             }
-            else{
+            else {
                 src++;
             }
         }
-        else{
+        else {
             break;
         }
     }
-    if(size > 0){
+    if (size > 0) {
         *dst = 0;
     }
     return ret;
@@ -785,7 +785,7 @@ int __fastcall kbMultiByteToWideChar(const char *cszMultiByte,
     int ret = MultiByteToWideChar(CP_ACP, 0, cszMultiByte, -1,
                                       wszWideChar, cchWideChar);
     //バッファサイズが足りない場合、wszWideChar の終端文字は \0 にならない
-    if(cchWideChar){
+    if (cchWideChar) {
         wszWideChar[cchWideChar-1] = 0;//終端を \0 にする
     }
     return ret;
@@ -798,9 +798,9 @@ int __fastcall kbWideCharToMultiByte(const wchar_t *wcszWideChar,
     int ret = WideCharToMultiByte(CP_ACP, 0, wcszWideChar, -1,
                                 szMultiByte, cchMultiByte, NULL, NULL);
     //バッファサイズが足りない場合、szMultiByte の終端文字は \0 にならない
-    if(cchMultiByte){
+    if (cchMultiByte) {
         szMultiByte[cchMultiByte-1] = 0;//終端を \0 にする
-        if(ret == 0){//サイズが足りない(↑で終端文字がマルチバイトの2バイト目だった場合に対処）
+        if (ret == 0) {//サイズが足りない(↑で終端文字がマルチバイトの2バイト目だった場合に対処）
             int nLen = kbStrLen(szMultiByte);//文字列が途切れてる場合は有効な部分までの長さを返す
             szMultiByte[nLen] = 0;           //途切れてる場合は途切れた部分が除去される
         }
@@ -815,31 +815,31 @@ int __fastcall kbWideCharToMultiByte(const wchar_t *wcszWideChar,
 const char* __fastcall kbExtractFileExt(const char* cszSrc)
 {//cszSrc 内の拡張子部分のポインタを返す
  //見つからない場合は空文字列を返す（NULL ではない）
-    if(!cszSrc)return gcszEmpty;
+    if (!cszSrc) return gcszEmpty;
     const BYTE* LastPeriod = NULL;
     const BYTE* LastPathDelimiter = NULL;
-    while(*cszSrc){
-        if(kbIsLeadByte((*((const BYTE*)cszSrc)))){
-            if(cszSrc[1]){
+    while (*cszSrc) {
+        if (kbIsLeadByte((*((const BYTE*) cszSrc)))) {
+            if (cszSrc[1]) {
                 cszSrc+=2;
                 continue;
             }
-            else{//文字列が途中で途切れている
+            else {//文字列が途中で途切れている
                 break;
             }
         }
-        if((BYTE)*cszSrc == (BYTE)'.'){
-            LastPeriod = (BYTE*)cszSrc;
+        if ((BYTE) *cszSrc == (BYTE)'.') {
+            LastPeriod = (BYTE*) cszSrc;
         }
-        else if((BYTE)*cszSrc == (BYTE)'\\'){
-            LastPathDelimiter = (BYTE*)cszSrc;
+        else if ((BYTE) *cszSrc == (BYTE)'\\') {
+            LastPathDelimiter = (BYTE*) cszSrc;
         }
         cszSrc++;
     }
-    if(LastPeriod && (DWORD)LastPeriod > (DWORD)LastPathDelimiter){
+    if (LastPeriod && (DWORD) LastPeriod > (DWORD) LastPathDelimiter) {
         //ピリオドが見つかっても、拡張子とは限らない
         //例：C:\\hoge.hoge\\hogehoge
-        return (const char*)LastPeriod;
+        return (const char*) LastPeriod;
     }
     return gcszEmpty;
 }
@@ -847,10 +847,10 @@ const char* __fastcall kbExtractFileExt(const char* cszSrc)
 const char* __fastcall kbExtractFileName(const char* cszFileName)
 {//cszFileName からパスを取り除いたもの（ファイル名部分）のポインタを返す
     const char *cszLastDelimiter = kbStrRChr(cszFileName, '\\');
-    if(cszLastDelimiter){
+    if (cszLastDelimiter) {
         return cszLastDelimiter + 1;
     }
-    if(cszFileName)return cszFileName;
+    if (cszFileName) return cszFileName;
     return gcszEmpty;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -859,9 +859,9 @@ char* __fastcall kbExtractFilePath(char *szDest, const char *cszFileName, int nS
  //szDest == cszFileName であってはならない
     szDest[0] = 0;
     const char *cszLastPathDelimiter = kbStrRChr(cszFileName, '\\');
-    if(cszLastPathDelimiter){
+    if (cszLastPathDelimiter) {
         int nLen = cszLastPathDelimiter - cszFileName + 1;
-        if(nLen < nSize){
+        if (nLen < nSize) {
             memcpy(szDest, cszFileName, nLen);
             szDest[nLen] =0;
         }
@@ -875,13 +875,13 @@ const char* __fastcall kbExtractFileNameInArc(const char *cszFileName)
  //例２：C:\hoge\hoge.lzh>test/test2.mid の戻り値＝test2.mid
  //例３：C:\hoge\hoge.lzh>test/testzip.zip>test3.mid の戻り値 = test3.mid
  //例４：C:\hoge\hoge.lzh>test/testzip.zip>test/test4.mid の戻り値 = test4.mid
-    if(!cszFileName)return gcszEmpty;
+    if (!cszFileName) return gcszEmpty;
     const char *cszDelimiter = kbStrRChr(cszFileName, '>');
-    if(cszDelimiter){
+    if (cszDelimiter) {
         cszFileName = cszDelimiter + 1;
     }
     cszDelimiter = kbStrRChr(cszFileName, '/');
-    if(cszDelimiter){
+    if (cszDelimiter) {
         return cszDelimiter + 1;
     }
     return cszFileName;
@@ -893,20 +893,20 @@ const char* __fastcall kbExtractFilePathInArc(char *szDest, const char *cszFileN
  //例２：C:\hoge\hoge.lzh>test/test2.mid の戻り値 = C:\hoge\hoge.lzh>test/
  //例３：C:\hoge\hoge.lzh>test/testzip.zip>test3.mid の戻り値 = C:\hoge\hoge.lzh>test/testzip.zip>
  //例４：C:\hoge\hoge.lzh>test/testzip.zip>test/test4.mid の戻り値 = C:\hoge\hoge.lzh>test/testzip.zip>test/
-    if(!szDest)return NULL;
+    if (!szDest) return NULL;
     szDest[0] = 0;
-    if(!cszFileName)return szDest;
+    if (!cszFileName) return szDest;
     const char *cszFirst = cszFileName;
     const char *cszDelimiter = kbStrRChr(cszFileName, '>');
-    if(cszDelimiter){
+    if (cszDelimiter) {
         cszFileName = cszDelimiter + 1;
     }
     cszDelimiter = kbStrRChr(cszFileName, '/');
-    if(cszDelimiter){
+    if (cszDelimiter) {
         cszFileName = cszDelimiter + 1;
     }
     int nCopySize = cszFileName - cszFirst;
-    if(nCopySize > 0){
+    if (nCopySize > 0) {
         memcpy(szDest, cszFirst, nCopySize);
         szDest[nCopySize] = 0;
     }
@@ -918,24 +918,24 @@ char* __fastcall kbExtractReplacedFileExt(char *szDest,
                                           const char *cszExt)
 {//cszFileName の拡張子を cszExt に置き換えて szDest にコピーする
  //szDest のサイズは cszFileName と cszExt の合計より大きいことが前提
-    if(!szDest){
+    if (!szDest) {
         return NULL;
     }
-    if(!cszExt){
+    if (!cszExt) {
         cszExt = gcszEmpty;
     }
-    if(!cszFileName){
+    if (!cszFileName) {
         strcpy(szDest, cszExt);
         return szDest;
     }
     const char *ext =  kbStrRChr(cszFileName, '.');
     const char *path = kbStrRChr(cszFileName, '\\');
-    if(ext && ext > path){
+    if (ext && ext > path) {
         const int len = ext - cszFileName;
         memcpy(szDest, cszFileName, len);
         strcpy(szDest + len, cszExt);
     }
-    else{
+    else {
         strcpy(szDest, cszFileName);
         strcat(szDest, cszExt);
     }
@@ -949,21 +949,21 @@ void __fastcall kbAddPathDelimiter(char *szPath)
     char *p = szPath;
     char *last = p;
     //終端文字を探す
-    while(*p){
+    while (*p) {
         last = p;
-        if(kbIsLeadByte(*p)){
-            if(!p[1]){//文字列が途切れている
+        if (kbIsLeadByte(*p)) {
+            if (!p[1]) {//文字列が途切れている
                 *p = 0;
                 p = last = szPath;
                 continue;//最初からやり直す
             }
             p += 2;
         }
-        else{
+        else {
             p++;
         }
     }
-    if(*last != '\\'){
+    if (*last != '\\') {
         p[0] = '\\';
         p[1] = 0;
     }
@@ -974,7 +974,7 @@ void __fastcall kbCombinePath(char *szDest, const char *cszSrc,
 {
     kbStrLCpy(szDest, cszSrc, nDestSize);
     char *p = kbStrRChr(szDest, '\\');
-    if(!p || p[1]){//\ が含まれない or 含むが終端ではない
+    if (!p || p[1]) {//\ が含まれない or 含むが終端ではない
         kbStrLCat(szDest, "\\", nDestSize);//kbAddPathDelimiter だとバッファサイズのチェックをしないので使用不可
     }
     kbStrLCat(szDest, cszAdd, nDestSize);
@@ -983,7 +983,7 @@ void __fastcall kbCombinePath(char *szDest, const char *cszSrc,
 void __fastcall kbRemovePathDelimiter(char *szPath)
 {   //ドライブのルートでない場合は終端の \ を除く
     char *p = kbStrRChr(szPath, '\\');
-    if(p && !p[1] && (p - szPath >= 3)){
+    if (p && !p[1] && (p - szPath >= 3)) {
         *p = 0;
     }
 }

@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -69,17 +69,17 @@ void vt100_move(int row, int col)
 
 void vt100_set_attr(int attr)
 {
-    switch(attr)
+    switch (attr)
     {
       case VT100_ATTR_UNDERLINE:
-	fputs("\033[4m", stdout);
-	break;
+        fputs("\033[4m", stdout);
+        break;
       case VT100_ATTR_REVERSE:
-	fputs("\033[7m", stdout);
-	break;
+        fputs("\033[7m", stdout);
+        break;
       case VT100_ATTR_BOLD:
-	fputs("\033[1m", stdout);
-	break;
+        fputs("\033[1m", stdout);
+        break;
     }
 }
 

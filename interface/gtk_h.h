@@ -1,6 +1,6 @@
-/* 
+/*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -18,10 +18,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     motif.h: written by Vincent Pagel (pagel@loria.fr) 10/4/95
-   
+
     */
 
-/* 
+/*
  * MESSAGE FROM KERNEL TO MOTIF
  */
 #define REFRESH_MESSAGE 1
@@ -75,13 +75,13 @@ typedef enum {
 #define DIALOG_OK 2
 #define DIALOG_ALL 3
 
-void	gtk_pipe_int_write(int c);
-void	gtk_pipe_int_read(int *c);
+void    gtk_pipe_int_write(int c);
+void    gtk_pipe_int_read(int *c);
 
-void	gtk_pipe_string_write(char *str);
-void	gtk_pipe_string_read(char *str);
+void    gtk_pipe_string_write(char *str);
+void    gtk_pipe_string_read(char *str);
 
-void	gtk_pipe_open(void);
-int	gtk_pipe_read_ready(void);
+void    gtk_pipe_open(void);
+int     gtk_pipe_read_ready(void);
 
 void Launch_Gtk_Process(int pipe_number);

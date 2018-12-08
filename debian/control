@@ -2,15 +2,52 @@ Source: timidity
 Section: sound
 Priority: optional
 Maintainer: Debian QA Group <packages@qa.debian.org>
-Build-Depends: debhelper (>= 7), libasound2-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386], libaudiofile-dev, libesd0-dev, libjack-dev, libaudio-dev, libportaudio-dev (>= 18.0), libportmidi-dev, libvorbis-dev (>= 1.0.0-3), libspeex-dev (>= 1.0), libflac-dev (>= 1.1.4), libncurses-dev, libslang2-dev, libx11-dev, libxext-dev, libxmu-dev, libxpm-dev, libxt-dev, libxaw7-dev, tcl8.4-dev, tk8.4-dev, libgtk2.0-dev, autotools-dev
-Standards-Version: 3.8.3
+Build-Depends:
+ autotools-dev,
+ debhelper (>= 7),
+ libasound2-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386],
+ libaudio-dev,
+ libaudiofile-dev,
+ libesd0-dev,
+ libflac-dev (>= 1.1.4),
+ libgtk2.0-dev,
+ libjack-dev,
+ libao-dev,
+ libaudio-dev,
+ portaudio19-dev (>= 18.0),
+ libportmidi-dev,
+ libncurses-dev,
+ libpng-dev,
+ libslang2-dev,
+ libspeex-dev (>= 1.0),
+ libvorbis-dev (>= 1.0.0-3),
+ libopus-dev,
+ libmpg123-dev (>= 1.0),
+ libmotif-dev (>= 2.0),
+ libx11-dev,
+ libxaw7-dev,
+ libxext-dev,
+ libxmu-dev,
+ libxpm-dev,
+ libxt-dev,
+ tcl-dev,
+ tk-dev,
+Standards-Version: 3.9.2
 Homepage: http://timidity.sourceforge.net/
 
 Package: timidity
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, lsb-base (>= 3.2-13)
-Recommends: freepats, timidity-daemon
-Suggests: pmidi, fluid-soundfont-gm, fluid-soundfont-gs
+Depends:
+ lsb-base (>= 3.2-13),
+ ${misc:Depends},
+ ${shlibs:Depends},
+Recommends:
+ freepats,
+ timidity-daemon,
+Suggests:
+ fluid-soundfont-gm,
+ fluid-soundfont-gs,
+ pmidi,
 Description: Software sound renderer (MIDI sequencer, MOD player)
  TiMidity++ is a very high quality software-only MIDI sequencer and MOD player.
  It uses sound fonts (GUS-compatible or SF2-compatible) to render MIDI files,
@@ -33,8 +70,12 @@ Description: Software sound renderer (MIDI sequencer, MOD player)
 
 Package: timidity-interfaces-extra
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, timidity (= ${binary:Version})
-Replaces: timidity (<< 2.12.0)
+Depends:
+ timidity (= ${binary:Version}),
+ ${misc:Depends},
+ ${shlibs:Depends},
+Replaces:
+ timidity (<< 2.12.0),
 Description: TiMidity++ extra user interfaces
  TiMidity++ is a very high quality software-only MIDI sequencer and MOD 
  player.
@@ -47,8 +88,11 @@ Description: TiMidity++ extra user interfaces
 Package: timidity-el
 Section: lisp
 Architecture: all
-Depends: emacsen-common, ${misc:Depends}, timidity (>= ${source:Version})
-Description: An Emacs front end to Timidity++
+Depends:
+ emacsen-common,
+ timidity (>= ${source:Version}),
+ ${misc:Depends},
+Description: Emacs front end to Timidity++
  The timidity.el Emacs-Lisp program is a front-end to the TiMidity++ software-
  only MIDI sequencer and MOD player.  You can play MIDI amd MOD files directly
  from Emacs with this package.
@@ -56,8 +100,12 @@ Description: An Emacs front end to Timidity++
 Package: timidity-daemon
 Section: sound
 Architecture: all
-Depends: ${misc:Depends}, timidity (>= ${source:Version}), adduser
-Replaces: timidity (<< 2.13.2-31)
+Depends:
+ adduser,
+ timidity (>= ${source:Version}),
+ ${misc:Depends},
+Replaces:
+ timidity (<< 2.13.2-31),
 Description: runs TiMidity++ as a system-wide MIDI sequencer
  TiMidity++ is a very high quality software-only MIDI sequencer and MOD 
  player.

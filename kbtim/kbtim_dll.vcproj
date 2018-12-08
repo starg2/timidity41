@@ -1034,6 +1034,10 @@
 					</FileConfiguration>
 				</File>
 				<File
+					RelativePath="..\libarc\url_constmem.c"
+					>
+				</File>
+				<File
 					RelativePath="..\libarc\url_dir.c"
 					>
 					<FileConfiguration

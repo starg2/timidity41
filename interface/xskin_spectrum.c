@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -33,9 +33,9 @@
 #include "controls.h"
 #include "miditrace.h"
 
-extern void xskin_pipe_write(char *);
-extern void xskin_pipe_read_direct(int32 *, int);
-extern int xskin_getcolor( Display *, int, int, int );
+extern void xskin_pipe_write(char*);
+extern void xskin_pipe_read_direct(int32*, int);
+extern int xskin_getcolor( Display*, int, int, int );
 
 extern Display *xskin_d;
 extern Window xskin_w;
@@ -45,8 +45,8 @@ extern unsigned int xskin_depth;
 extern Visual *xskin_vis;
 
 #ifdef SUPPORT_SOUNDSPEC
-static void xskin_spe_ana( unsigned char * );
-static void xskin_wave( unsigned char * );
+static void xskin_spe_ana( unsigned char* );
+static void xskin_wave( unsigned char* );
 #endif /* SUPPORT_SOUNDSPEC */
 
 static int foreground;
@@ -89,23 +89,23 @@ int xskin_loadviscolor( Display *d, Window w, char *filename ) {
   sc = DefaultScreen(d);
   if ( filename==NULL ) { /* Initialize */
     spe_line = XCreateImage( d, xskin_vis,
-			     xskin_depth,ZPixmap, 0, NULL,
-			     SPE_W, SPE_H, 8, 0 );
-    spe_line->data = (char *)safe_malloc( spe_line->bytes_per_line*
-					  spe_line->height );
-    spe_background = (char *)safe_malloc( spe_line->bytes_per_line*
-					  spe_line->height );
+                             xskin_depth,ZPixmap, 0, NULL,
+                             SPE_W, SPE_H, 8, 0 );
+    spe_line->data = (char*) safe_malloc( spe_line->bytes_per_line*
+                                          spe_line->height );
+    spe_background = (char*) safe_malloc( spe_line->bytes_per_line*
+                                          spe_line->height );
 
     foreground = xskin_getcolor( d, 0x4103, 0x4924, 0x4924 );
     background = xskin_getcolor( d, 0, 0, 0 );
     if ( background == 0 ) background = BlackPixel( d, sc );
     if ( foreground == 0 ) foreground = BlackPixel( d, sc );
-    for ( i=0 ; i<16 ; i++ ) {
+    for ( i=0; i<16; i++ ) {
       spe_pixel[i] = xskin_getcolor( d, r0[i], g0[i], b0[i] );
       if ( i && spe_pixel[i] == 0 )
-	spe_pixel[i] = spe_pixel[i-1];
+        spe_pixel[i] = spe_pixel[i-1];
     }
-    for ( i=0 ; i<5 ; i++ ) {
+    for ( i=0; i<5; i++ ) {
       wave_pixel[i] = WhitePixel( d, sc );
     }
 
@@ -113,36 +113,36 @@ int xskin_loadviscolor( Display *d, Window w, char *filename ) {
 
     fp = open_file( filename, 1, OF_SILENT );
     if ( fp == NULL ) return 0;
-    
+
     if ( (i = readrgb(d,fp))<0 ) goto end; /* spe_ana : background */
     background = i;
     if ( (i = readrgb(d,fp))<0 ) goto end; /* spe_ana : background */
     foreground = i;
-    
-    for ( i=0 ; i<16 ; i++ ) {
+
+    for ( i=0; i<16; i++ ) {
       j = readrgb(d,fp);
       if ( j<0 ) goto end;
       spe_pixel[i] = j;
     }
-    for ( i=0 ; i<5 ; i++ ) {
+    for ( i=0; i<5; i++ ) {
       j = readrgb(d,fp);
       if ( j<0 ) goto end;
       wave_pixel[i] = j;
     }
-    
+
   end:
     close_file( fp );
   }
-  
-  for ( y=0 ; y<SPE_H ; y++ ) {
-    for ( x=0 ; x<SPE_W ; x++ ) {
+
+  for ( y=0; y<SPE_H; y++ ) {
+    for ( x=0; x<SPE_W; x++ ) {
       if ( (x%2)==0 && (y%2)==0 ) i=foreground;
       else i=background;
       XPutPixel( spe_line, x, y, i );
     }
   }
   memcpy( spe_background, spe_line->data,
-	  spe_line->bytes_per_line * spe_line->height );
+          spe_line->bytes_per_line * spe_line->height );
 
   return 1;
 }
@@ -151,19 +151,19 @@ void ts_spectrum( int mode, unsigned char *buf ) {
 
   static int last_mode;
 
-  switch( mode ) {
+  switch ( mode ) {
 
   case -1:  /* initialize */
     if ( last_mode != -1 ) {
       XCopyArea( xskin_d, xskin_back, xskin_w, xskin_gc,
-		 SPE_SX, SPE_SY, SPE_W, SPE_H, SPE_SX, SPE_SY );
+                 SPE_SX, SPE_SY, SPE_W, SPE_H, SPE_SX, SPE_SY );
     }
     break;
 
   case 0:  /* blank */
     if ( last_mode != 0 ) {
       XCopyArea( xskin_d, xskin_back, xskin_w, xskin_gc,
-		 SPE_SX, SPE_SY, SPE_W, SPE_H, SPE_SX, SPE_SY );
+                 SPE_SX, SPE_SY, SPE_W, SPE_H, SPE_SX, SPE_SY );
     }
     break;
 
@@ -182,7 +182,7 @@ void ts_spectrum( int mode, unsigned char *buf ) {
   }
 
   last_mode=mode;
-  return ;
+  return;
 }
 
 #ifdef SUPPORT_SOUNDSPEC
@@ -192,20 +192,20 @@ static void xskin_spe_ana( unsigned char *buf ) {
   int yt;
 
   memcpy( spe_line->data, spe_background,
-	  spe_line->bytes_per_line * spe_line->height );
+          spe_line->bytes_per_line * spe_line->height );
 
   if ( buf != NULL ) {
-    for ( x=0 ; x<SPE_W ; x++ ) {
+    for ( x=0; x<SPE_W; x++ ) {
       yt = 16 * buf[x] / 256;
-      
-      for ( y=(SPE_H-yt),i=0 ; y<SPE_H ; y++,i++ ) {
-	if ( i>15 ) i=15;
-	XPutPixel( spe_line, x, y, spe_pixel[i] );
+
+      for ( y=(SPE_H-yt),i=0; y<SPE_H; y++,i++ ) {
+        if ( i>15 ) i=15;
+        XPutPixel( spe_line, x, y, spe_pixel[i] );
       }
     }
   }
   XPutImage( xskin_d, xskin_w, xskin_gc, spe_line,
-	     0, 0, SPE_SX, SPE_SY, SPE_W, SPE_H );
+             0, 0, SPE_SX, SPE_SY, SPE_W, SPE_H );
 
   return;
 }
@@ -215,10 +215,10 @@ static void xskin_wave( unsigned char *buf ) {
   int x,y,c;
 
   memcpy( spe_line->data, spe_background,
-	  spe_line->bytes_per_line * spe_line->height );
+          spe_line->bytes_per_line * spe_line->height );
 
   if ( buf != NULL ) {
-    for ( x=0 ; x<SPE_W ; x++ ) {
+    for ( x=0; x<SPE_W; x++ ) {
       y = SPE_H - buf[x]*SPE_H/256-1;
       if ( y<4 ) c=4-y;
       else if ( y>=12 ) c=y-11;
@@ -227,7 +227,7 @@ static void xskin_wave( unsigned char *buf ) {
     }
   }
   XPutImage( xskin_d, xskin_w, xskin_gc, spe_line,
-	     0, 0, SPE_SX, SPE_SY, SPE_W, SPE_H );
+             0, 0, SPE_SX, SPE_SY, SPE_W, SPE_H );
 
   return;
 }

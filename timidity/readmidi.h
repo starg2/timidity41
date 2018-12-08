@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -57,6 +57,14 @@
 #define IS_MFI_FILE	800	/* Melody Format for i-mode */
 
 #define REDUCE_CHANNELS		16
+
+#ifdef SUPPORT_LOOPEVENT
+#define LF_CC111_TO_EOT         (1L << 0)
+#define LF_MARK_A_TO_B          (1L << 1)
+#define LF_MARK_S_TO_E          (1L << 2)
+#define LF_CC2_TO_CC4           (1L << 3)
+#endif /* SUPPORT_LOOPEVENT */
+
 ///r
 enum play_system_modes
 {

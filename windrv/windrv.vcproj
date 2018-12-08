@@ -477,6 +477,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\timidity\timer2.c"
+					>
+				</File>
+				<File
 					RelativePath="..\timidity\timidity.c"
 					>
 				</File>
@@ -634,11 +638,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\vstwrapper.h"
+					RelativePath="..\timidity\vstwrapper.h"
 					>
 				</File>
 				<File
-					RelativePath="..\timidity\vstwrapper.h"
+					RelativePath="..\vstwrapper.h"
 					>
 				</File>
 				<File

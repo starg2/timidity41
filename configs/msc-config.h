@@ -265,6 +265,9 @@
 /* Define if you havee the <mmsystem.h> header file for Win32. */
 #define HAVE_MMSYSTEM_H
 
+/* Define to 1 if `WinMainCRTStartup' works */
+#define SUPPORT_WINMAIN 1
+
 /* In VDS Macro AAA=BBB is not available. */
 #define __W32__
 #define TIMID_VERSION	"2.12.0-pre1b"

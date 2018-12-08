@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,8 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- 
-    x_trace.h: 
+
+    x_trace.h:
         based on code by Yoshishige Arai (ryo2@on.rim.or.jp)
         modified by Yair Kalvariski <cesium2@gmail.com>
 */
@@ -40,16 +40,16 @@
 #endif /* MAX_TRACE_CHANNELS > 16 */
 
 #define TRACE_UPDATE_TIME 0.1
-#define DELTA_VEL	32
+#define DELTA_VEL       32
 
-#define TRACE_WIDTH	627	/* default width of trace_vport */
-#define TRACE_HEADER	22
-#define TRACE_FOOT	22
-#define TRACE_HOFS	0
-#define FOOT_HOFS	2
-#define BAR_SPACE	20
-#define BAR_HEIGHT	16	/* BAR_SPACE without border lines */
-#define INST_NAME_SIZE	16
+#define TRACE_WIDTH     627     /* default width of trace_vport */
+#define TRACE_HEADER    22
+#define TRACE_FOOT      22
+#define TRACE_HOFS      0
+#define FOOT_HOFS       2
+#define BAR_SPACE       20
+#define BAR_HEIGHT      16      /* BAR_SPACE without border lines */
+#define INST_NAME_SIZE  16
 
 #define CHANNEL_HEIGHT(ch) BAR_SPACE*(ch)+TRACE_HEADER
 #define TRACE_HEIGHT CHANNEL_HEIGHT(D_VISIBLE_CHANNELS)
@@ -73,9 +73,9 @@ typedef struct _tconfig {
 
 extern int getLowestVisibleChan(void);
 extern int getVisibleChanNum(void);
-extern int handleTraceinput(char *);
+extern int handleTraceinput(char*);
 extern void initStatus(void);
-extern void initTrace(Display *, Window, char *, tconfig *);
+extern void initTrace(Display*, Window, char*, tconfig*);
 extern void redrawCaption(Boolean);
 extern void redrawTrace(Boolean);
 extern void scrollTrace(int);

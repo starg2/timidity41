@@ -70,6 +70,10 @@ if ENABLE_SOUND_SPEC
 SOUND_SPEC_OBJS = fft.$(OBJEXT)
 endif
 
+if W32SOUNDSPEC
+SOUND_SPEC_OBJS = fft.$(OBJEXT)
+endif
+
 if W32READDIR
 W32READDIR_OBJS = readdir_win.$(OBJEXT)
 endif

@@ -436,6 +436,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\timidity\timer2.c"
+					>
+				</File>
+				<File
 					RelativePath="..\timidity\version.c"
 					>
 				</File>

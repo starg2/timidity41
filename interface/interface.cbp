@@ -1,0 +1,493 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="interface" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Linux - Debug">
+				<Option output="../Debug-Linux-cb/interface" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="../Debug-Linux-cb/obj/interface/" />
+				<Option type="2" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-Wextra" />
+					<Add option="-Wall" />
+					<Add option="-g" />
+					<Add option="-O0" />
+					<Add option="-D_DEBUG" />
+					<Add directory="../linux" />
+					<Add directory=".." />
+					<Add directory="/usr/include/tcl8.6" />
+					<Add directory="/usr/include/gtk-2.0" />
+					<Add directory="/usr/include/gio-unix-2.0/" />
+					<Add directory="/usr/include/cairo" />
+					<Add directory="/usr/include/pango-1.0" />
+					<Add directory="/usr/include/atk-1.0" />
+					<Add directory="/usr/include/pixman-1" />
+					<Add directory="/usr/include/libpng16" />
+					<Add directory="/usr/include/gdk-pixbuf-2.0" />
+					<Add directory="/usr/include/harfbuzz" />
+					<Add directory="/usr/include/glib-2.0" />
+					<Add directory="/usr/include/freetype2" />
+					<Add directory="/usr/lib/x86_64-linux-gnu/gtk-2.0/include" />
+					<Add directory="/usr/lib/x86_64-linux-gnu/glib-2.0/include" />
+				</Compiler>
+				<Linker>
+					<Add option="-g" />
+				</Linker>
+			</Target>
+			<Target title="Linux - Release">
+				<Option output="../Release-Linux-cb/interface" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="../Release-Linux-cb/obj/interface/" />
+				<Option type="2" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-DNDEBUG" />
+					<Add directory="../linux" />
+					<Add directory=".." />
+					<Add directory="/usr/include/tcl8.6" />
+					<Add directory="/usr/include/gtk-2.0" />
+					<Add directory="/usr/include/gio-unix-2.0/" />
+					<Add directory="/usr/include/cairo" />
+					<Add directory="/usr/include/pango-1.0" />
+					<Add directory="/usr/include/atk-1.0" />
+					<Add directory="/usr/include/pixman-1" />
+					<Add directory="/usr/include/libpng16" />
+					<Add directory="/usr/include/gdk-pixbuf-2.0" />
+					<Add directory="/usr/include/harfbuzz" />
+					<Add directory="/usr/include/glib-2.0" />
+					<Add directory="/usr/include/freetype2" />
+					<Add directory="/usr/lib/x86_64-linux-gnu/gtk-2.0/include" />
+					<Add directory="/usr/lib/x86_64-linux-gnu/glib-2.0/include" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+			<Target title="MinGW - Debug">
+				<Option output="../Debug-MinGW-cb/interface" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="../Debug-MinGW-cb/obj/interface/" />
+				<Option type="2" />
+				<Option compiler="mingw" />
+				<Option createDefFile="1" />
+				<Option projectIncludeDirsRelation="2" />
+				<Compiler>
+					<Add option="-Wextra" />
+					<Add option="-Wall" />
+					<Add option="-g" />
+					<Add option="-O0" />
+					<Add option="-D_DEBUG" />
+					<Add option="-D_WIN32" />
+					<Add option="-DWINVER=0x0400" />
+					<Add option="-D_WIN32_WINDOWS=0x0400" />
+					<Add option="-D_WIN32_IE=0x0400" />
+					<Add option="-D__W32__" />
+					<Add directory="../cygwin/" />
+					<Add directory="../pdcurses" />
+					<Add directory="../portmidi/pm_common" />
+					<Add directory="../portmidi/porttime" />
+				</Compiler>
+				<Linker>
+					<Add option="-g" />
+				</Linker>
+			</Target>
+			<Target title="MinGW - Release">
+				<Option output="../Release-MinGW-cb/interface" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="../Release-MinGW-cb/obj/interface/" />
+				<Option type="2" />
+				<Option compiler="mingw" />
+				<Option createDefFile="1" />
+				<Option projectIncludeDirsRelation="2" />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-DNDEBUG" />
+					<Add option="-D_WIN32" />
+					<Add option="-DWINVER=0x0400" />
+					<Add option="-D_WIN32_WINDOWS=0x0400" />
+					<Add option="-D_WIN32_IE=0x0400" />
+					<Add option="-D__W32__" />
+					<Add directory="../cygwin/" />
+					<Add directory="../pdcurses" />
+					<Add directory="../portmidi/pm_common" />
+					<Add directory="../portmidi/porttime" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+			<Target title="MinGW-x64 - Debug">
+				<Option output="../Debug-MinGW-x64-cb/interface" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="../Debug-MinGW-x64-cb/obj/interface/" />
+				<Option type="2" />
+				<Option compiler="mingw-w64-x64" />
+				<Option createDefFile="1" />
+				<Option projectIncludeDirsRelation="2" />
+				<Compiler>
+					<Add option="-Wextra" />
+					<Add option="-Wall" />
+					<Add option="-g" />
+					<Add option="-O0" />
+					<Add option="-D_DEBUG" />
+					<Add option="-D_WIN32" />
+					<Add option="-DWINVER=0x0501" />
+					<Add option="-D_WIN32_WINNT=0x0501" />
+					<Add option="-D_WIN32_IE=0x0600" />
+					<Add option="-D__W32__" />
+					<Add directory="../cygwin/" />
+					<Add directory="../pdcurses" />
+					<Add directory="../portmidi/pm_common" />
+					<Add directory="../portmidi/porttime" />
+				</Compiler>
+				<Linker>
+					<Add option="-g" />
+				</Linker>
+			</Target>
+			<Target title="MinGW-x64 - Release">
+				<Option output="../Release-MinGW-x64-cb/interface" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="../Release-MinGW-x64-cb/obj/interface/" />
+				<Option type="2" />
+				<Option compiler="mingw-w64-x64" />
+				<Option createDefFile="1" />
+				<Option projectIncludeDirsRelation="2" />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-DNDEBUG" />
+					<Add option="-D_WIN32" />
+					<Add option="-DWINVER=0x0501" />
+					<Add option="-D_WIN32_WINNT=0x0501" />
+					<Add option="-D_WIN32_IE=0x0600" />
+					<Add option="-D__W32__" />
+					<Add directory="../cygwin/" />
+					<Add directory="../pdcurses" />
+					<Add directory="../portmidi/pm_common" />
+					<Add directory="../portmidi/porttime" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<VirtualTargets>
+			<Add alias="Linux - f64 - Debug" targets="Linux - Debug;" />
+			<Add alias="Linux - f64 - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64avx - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64avx2 - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64mmx - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64sse - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64sse2 - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64sse3 - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64sse41 - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64sse42 - Release" targets="Linux - Release;" />
+			<Add alias="Linux - f64ssse3 - Release" targets="Linux - Release;" />
+			<Add alias="Linux - i32 - Debug" targets="Linux - Debug;" />
+			<Add alias="Linux - i32 - Release" targets="Linux - Release;" />
+			<Add alias="MinGW - f64 - Debug" targets="MinGW - Debug;" />
+			<Add alias="MinGW - f64 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64avx - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64avx2 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64mmx - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64sse - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64sse2 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64sse3 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64sse41 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64sse42 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - f64ssse3 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW - i32 - Debug" targets="MinGW - Debug;" />
+			<Add alias="MinGW - i32 - Release" targets="MinGW - Release;" />
+			<Add alias="MinGW-x64 - f64 - Debug" targets="MinGW-x64 - Debug;" />
+			<Add alias="MinGW-x64 - f64 - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64avx - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64avx2 - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64mmx - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64sse - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64sse2 - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64sse3 - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64sse41 - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64sse42 - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - f64ssse3 - Release" targets="MinGW-x64 - Release;" />
+			<Add alias="MinGW-x64 - i32 - Debug" targets="MinGW-x64 - Debug;" />
+			<Add alias="MinGW-x64 - i32 - Release" targets="MinGW-x64 - Release;" />
+		</VirtualTargets>
+		<Compiler>
+			<Add option="-Wno-unused" />
+			<Add option="-D_MBCS" />
+			<Add option="-DHAVE_CONFIG_H" />
+			<Add directory="." />
+			<Add directory="../timidity/" />
+			<Add directory="../utils/" />
+			<Add directory="../libarc/" />
+		</Compiler>
+		<Unit filename="../config.h" />
+		<Unit filename="../cygwin/config.h" />
+		<Unit filename="../cygwin/interface.h" />
+		<Unit filename="../cygwin/version.h" />
+		<Unit filename="../timidity/common.h" />
+		<Unit filename="../timidity/controls.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../timidity/controls.h" />
+		<Unit filename="../timidity/optcode.h" />
+		<Unit filename="../timidity/sysdep.h" />
+		<Unit filename="../timidity/timidity.h" />
+		<Unit filename="AFXRES.H" />
+		<Unit filename="VTPrsTbl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="VTparse.h" />
+		<Unit filename="alsaseq_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="dumb_c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="emacs_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="gtk_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="gtk_h.h" />
+		<Unit filename="gtk_i.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="gtk_p.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="mac_c.c">
+			<Option compilerVar="CC" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="mac_c.h" />
+		<Unit filename="mac_mag.c">
+			<Option compilerVar="CC" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="mac_mag.h" />
+		<Unit filename="mac_trace.c">
+			<Option compilerVar="CC" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="mac_wrdwindow.c">
+			<Option compilerVar="CC" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="mac_wrdwindow.h" />
+		<Unit filename="motif.h" />
+		<Unit filename="motif_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="motif_i.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="motif_p.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="ncurs_c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="npsyn_c.c">
+			<Option compilerVar="CC" />
+			<Option target="MinGW - Debug" />
+			<Option target="MinGW - Release" />
+			<Option target="MinGW-x64 - Debug" />
+			<Option target="MinGW-x64 - Release" />
+		</Unit>
+		<Unit filename="portmidisyn_c.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="resource.h" />
+		<Unit filename="rtsyn.h" />
+		<Unit filename="rtsyn_common.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="rtsyn_internal.h" />
+		<Unit filename="rtsyn_npipe.c">
+			<Option compilerVar="CC" />
+			<Option target="MinGW - Debug" />
+			<Option target="MinGW - Release" />
+			<Option target="MinGW-x64 - Debug" />
+			<Option target="MinGW-x64 - Release" />
+		</Unit>
+		<Unit filename="rtsyn_portmidi.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="rtsyn_winmm.c">
+			<Option compilerVar="CC" />
+			<Option target="MinGW - Debug" />
+			<Option target="MinGW - Release" />
+			<Option target="MinGW-x64 - Debug" />
+			<Option target="MinGW-x64 - Release" />
+		</Unit>
+		<Unit filename="server_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="server_defs.h" />
+		<Unit filename="slang_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="soundspec.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="soundspec.h" />
+		<Unit filename="tk_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="version.h" />
+		<Unit filename="vt100.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="vt100.h" />
+		<Unit filename="vt100_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="w32g.h" />
+		<Unit filename="w32g_res_escaped.rc">
+			<Option target="MinGW - Debug" />
+			<Option target="MinGW - Release" />
+			<Option target="MinGW-x64 - Debug" />
+			<Option target="MinGW-x64 - Release" />
+		</Unit>
+		<Unit filename="winsyn_c.c">
+			<Option compilerVar="CC" />
+			<Option target="MinGW - Debug" />
+			<Option target="MinGW - Release" />
+			<Option target="MinGW-x64 - Debug" />
+			<Option target="MinGW-x64 - Release" />
+		</Unit>
+		<Unit filename="wrdt_dumb.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="wrdt_mac.c">
+			<Option compilerVar="CC" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="wrdt_tty.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="wrdt_wcon.c">
+			<Option compilerVar="CC" />
+			<Option target="MinGW - Debug" />
+			<Option target="MinGW - Release" />
+			<Option target="MinGW-x64 - Debug" />
+			<Option target="MinGW-x64 - Release" />
+		</Unit>
+		<Unit filename="wrdt_x.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="x_mag.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="x_mag.h" />
+		<Unit filename="x_sherry.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="x_sherry.h" />
+		<Unit filename="x_trace.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="x_trace.h" />
+		<Unit filename="x_wrdwindow.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="x_wrdwindow.h" />
+		<Unit filename="xaw.h" />
+		<Unit filename="xaw_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="xaw_i.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="xaw_p.h" />
+		<Unit filename="xaw_redef.c">
+			<Option compilerVar="CC" />
+			<Option compile="0" />
+			<Option link="0" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="xdnd.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="xdnd.h" />
+		<Unit filename="xskin.h" />
+		<Unit filename="xskin_c.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="xskin_i.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="xskin_loadBMP.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Unit filename="xskin_spectrum.c">
+			<Option compilerVar="CC" />
+			<Option target="Linux - Debug" />
+			<Option target="Linux - Release" />
+		</Unit>
+		<Extensions>
+			<code_completion />
+			<debugger />
+			<envvars />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
