@@ -1349,31 +1349,16 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         DI_DISABLE(IDC_CHECKBOX_LOOP_CC2);
         DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
 #endif
-		{
-			HDC hdc;
-			int ptHeight;
-			hdc = GetDC(hwnd);
-			switch(sp_temp->PlayerLanguage){
-			case LANGUAGE_ENGLISH:
-				ptHeight = 8;
-				break;
-			case LANGUAGE_JAPANESE:
-			default:
-				ptHeight = 9;
-				break;
-			}
-			hFontConfigFile =
-				CreateFont(-MulDiv(ptHeight,GetDeviceCaps(hdc,LOGPIXELSY),72),0,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
-					DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
-	      				FIXED_PITCH|FF_DONTCARE,NULL);
-			ReleaseDC(hwnd, hdc);
-			if(hFontConfigFile != NULL){
-				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_SETFONT,(WPARAM)hFontConfigFile,(LPARAM)MAKELPARAM(TRUE,0));
-			}
+		if (!sp_temp->ConfigFile[0]) {
+			strcpy(sp_temp->ConfigFile, ConfigFile);
 		}
-		TCHAR *tfile = char_to_tchar(sp_temp->ConfigFile);
-		SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,tfile);
-		safe_free(tfile);
+		TCHAR *tConfigFile = char_to_tchar(sp_temp->ConfigFile);
+		EB_SETTEXT(IDC_EDIT_CONFIG_FILE, tConfigFile);
+		safe_free(tConfigFile);
+		tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+		SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM)tmp, (LPARAM)tmp); // A/W
+		safe_free(CurrentConfigFile);
+		CurrentConfigFile = safe_strdup(sp_temp->ConfigFile);
 
         switch (CurrentPlayerLanguage) {
         case LANGUAGE_ENGLISH:
@@ -1737,7 +1722,9 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         if (!sp_temp->ConfigFile[0]) {
             strcpy(sp_temp->ConfigFile, ConfigFile);
         }
-        EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, sp_temp->ConfigFile);
+		TCHAR *tConfigFile = char_to_tchar(sp_temp->ConfigFile);
+        EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, tConfigFile);
+		safe_free(tConfigFile);
         tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
         SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
         safe_free(CurrentConfigFile);
