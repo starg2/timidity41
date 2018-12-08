@@ -86,7 +86,7 @@ URL url_cache_open(URL url, int autoclose)//common.c, readmidi.c, arc.c
 void url_cache_disable(URL url)//readmidi.c
 {
 }
-int get_module_type (char *fn)//readmidi.c
+int get_module_type(const char *fn)//readmidi.c
 {
     return IS_OTHER_FILE;
 }

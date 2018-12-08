@@ -1,18 +1,18 @@
-/* 
+/*
  * Copyright (C) 2000-2004 the xine project
- * 
+ *
  * This file is part of xine, a unix video player.
- * 
+ *
  * xine is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * xine is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
@@ -47,11 +47,11 @@
 
 static int _is_atom_match(DndClass *xdnd, Atom **atom) {
   int i, j;
-  
-  for(i = 0; (*atom)[i] != 0; i++) {
-    for(j = 0; j < MAX_SUPPORTED_TYPE; j++) {
-      if((*atom)[i] == xdnd->supported[j])
-	return i;
+
+  for (i = 0; (*atom)[i] != 0; i++) {
+    for (j = 0; j < MAX_SUPPORTED_TYPE; j++) {
+      if ((*atom)[i] == xdnd->supported[j])
+        return i;
     }
   }
 
@@ -64,7 +64,7 @@ static int _is_atom_match(DndClass *xdnd, Atom **atom) {
 static void _dnd_send_finished (DndClass *xdnd, Window window, Window from) {
   XEvent xevent;
 
-  if((xdnd == NULL) || (window == None) || (from == None))
+  if ((xdnd == NULL) || (window == None) || (from == None))
     return;
 
   memset(&xevent, 0, sizeof(xevent));
@@ -84,32 +84,32 @@ static void _dnd_send_finished (DndClass *xdnd, Window window, Window from) {
 static void unescape_string(char *src, char *dest) {
   char *s, *d;
 
-  if((src == NULL) || (dest == NULL)) {
+  if ((src == NULL) || (dest == NULL)) {
     fprintf(stderr, "unescape got NULL argument(s)\n");
     return;
   }
 
-  if(!strlen(src))
+  if (!strlen(src))
     return;
 
   s = src;
   d = dest;
 
-  while(*s != '\0') {
+  while (*s != '\0') {
 
-    switch(*s) {
+    switch (*s) {
     case '%':
       if ((*(s) == '%') && (*(s + 1) != '%')) {
-	char    buffer[5] = { '0', 'x', *(s + 1) , *(s + 2), '\0' };
-	char   *p         = buffer;
-	int     character = strtol(p, &p, 16);
-	
-	*d = character;
-	s += 2;
+        char    buffer[5] = { '0', 'x', *(s + 1) , *(s + 2), '\0' };
+        char   *p         = buffer;
+        int     character = strtol(p, &p, 16);
+
+        *d = character;
+        s += 2;
       }
       else {
-	*d++ = '%';
-	*d = '%';
+        *d++ = '%';
+        *d = '%';
       }
       break;
 
@@ -124,10 +124,10 @@ static void unescape_string(char *src, char *dest) {
 }
 
 /*
- * WARNING: X unlocked function 
+ * WARNING: X unlocked function
  */
 static int _dnd_paste_prop_internal(DndClass *xdnd, Window from, Window insert,
-				    Atom prop, Bool delete_prop) {
+                                    Atom prop, Bool delete_prop) {
   long           nread;
   unsigned long  nitems;
   unsigned long  bytes_after;
@@ -139,15 +139,15 @@ static int _dnd_paste_prop_internal(DndClass *xdnd, Window from, Window insert,
     int       actual_fmt;
     unsigned  char *s = NULL;
 
-    if (XGetWindowProperty(xdnd->display, insert, prop, 
-			nread / (sizeof(unsigned char *)), 65536,
-			delete_prop, AnyPropertyType, 
-			&actual_type, &actual_fmt, &nitems, &bytes_after,
-			&s) != Success) 
-	{
-		if (s) XFree(s);
-		return 1;
-	}
+    if (XGetWindowProperty(xdnd->display, insert, prop,
+                        nread / (sizeof(unsigned char*)), 65536,
+                        delete_prop, AnyPropertyType,
+                        &actual_type, &actual_fmt, &nitems, &bytes_after,
+                        &s) != Success)
+        {
+                if (s) XFree(s);
+                return 1;
+        }
 
     nread += nitems;
     if (!nread) {
@@ -168,7 +168,7 @@ static int _dnd_paste_prop_internal(DndClass *xdnd, Window from, Window insert,
       int   plen;
 
       /* Extract all data, '\n' separated */
-      p = strtok((char *)s, "\n");
+      p = strtok((char*) s, "\n");
       while (p != NULL) {
 
         plen = strlen(p) - 1;
@@ -181,7 +181,7 @@ static int _dnd_paste_prop_internal(DndClass *xdnd, Window from, Window insert,
         if (plen) {
           char *obuf;
           if (!strncmp(p, "file:", 5)) {
-            obuf = (char *)safe_malloc(2*plen + 1);
+            obuf = (char*) safe_malloc(2*plen + 1);
             unescape_string(p, obuf);
           }
           else obuf = p;
@@ -201,7 +201,7 @@ static int _dnd_paste_prop_internal(DndClass *xdnd, Window from, Window insert,
     }
 
     XFree(s);
-  } while(bytes_after);
+  } while (bytes_after);
 
   return 0;
 }
@@ -218,12 +218,12 @@ static void _dnd_get_selection (DndClass *xdnd, Window from, Atom prop,
   unsigned long   nitems;
   unsigned char  *s = NULL;
 
-  if((xdnd == NULL) || (prop == None))
+  if ((xdnd == NULL) || (prop == None))
     return;
 
   XLockDisplay(xdnd->display);
-  if(XGetWindowProperty(xdnd->display, insert, prop, 0, 8, False, AnyPropertyType, 
-			&actual_type, &actual_fmt, &nitems, &bytes_after, &s) != Success) {
+  if (XGetWindowProperty(xdnd->display, insert, prop, 0, 8, False, AnyPropertyType,
+                        &actual_type, &actual_fmt, &nitems, &bytes_after, &s) != Success) {
     XFree(s);
     XUnlockDisplay(xdnd->display);
     return;
@@ -231,7 +231,7 @@ static void _dnd_get_selection (DndClass *xdnd, Window from, Atom prop,
 
   XFree(s);
 
-  if(actual_type != xdnd->_XA_INCR) {
+  if (actual_type != xdnd->_XA_INCR) {
     (void) _dnd_paste_prop_internal(xdnd, from, insert, prop, True);
     XUnlockDisplay(xdnd->display);
     return;
@@ -240,19 +240,19 @@ static void _dnd_get_selection (DndClass *xdnd, Window from, Atom prop,
   XDeleteProperty(xdnd->display, insert, prop);
   gettimeofday(&tv_start, 0);
 
-  for(;;) {
+  for (;;) {
     long    t;
     fd_set  r;
     XEvent  xe;
 
-    if(XCheckMaskEvent(xdnd->display, PropertyChangeMask, &xe)) {
-      if((xe.type == PropertyNotify) && (xe.xproperty.state == PropertyNewValue)) {
+    if (XCheckMaskEvent(xdnd->display, PropertyChangeMask, &xe)) {
+      if ((xe.type == PropertyNotify) && (xe.xproperty.state == PropertyNewValue)) {
 
-	/* time between arrivals of data */
-	gettimeofday (&tv_start, 0);
+        /* time between arrivals of data */
+        gettimeofday (&tv_start, 0);
 
-	if(_dnd_paste_prop_internal(xdnd, from, insert, prop, True))
-	  break;
+        if (_dnd_paste_prop_internal(xdnd, from, insert, prop, True))
+          break;
       }
     } else {
       tv.tv_sec  = 0;
@@ -261,15 +261,15 @@ static void _dnd_get_selection (DndClass *xdnd, Window from, Atom prop,
       FD_SET(ConnectionNumber(xdnd->display), &r);
       select(ConnectionNumber(xdnd->display) + 1, &r, 0, 0, &tv);
 
-      if(FD_ISSET(ConnectionNumber(xdnd->display), &r))
-	continue;
+      if (FD_ISSET(ConnectionNumber(xdnd->display), &r))
+        continue;
     }
     gettimeofday(&tv, 0);
     t = (tv.tv_sec - tv_start.tv_sec) * 1000000L + (tv.tv_usec - tv_start.tv_usec);
 
     /* No data for five seconds, so quit */
-    if(t > 5000000L) {
-      XUnlockDisplay(xdnd->display); 
+    if (t > 5000000L) {
+      XUnlockDisplay(xdnd->display);
       return;
     }
   }
@@ -288,18 +288,18 @@ static void _dnd_get_type_list (DndClass *xdnd, Window window, Atom **typelist) 
 
   *typelist = NULL;
 
-  if((xdnd == NULL) || (window == None))
+  if ((xdnd == NULL) || (window == None))
     return;
 
   XLockDisplay(xdnd->display);
-  XGetWindowProperty(xdnd->display, window, xdnd->_XA_XdndTypeList, 0, 0x8000000L, 
-		     False, XA_ATOM, &type, &format, &count, &remaining, &data);
+  XGetWindowProperty(xdnd->display, window, xdnd->_XA_XdndTypeList, 0, 0x8000000L,
+                     False, XA_ATOM, &type, &format, &count, &remaining, &data);
 
   XUnlockDisplay(xdnd->display);
 
-  if((type != XA_ATOM) || (format != 32) || (count == 0) || (!data)) {
+  if ((type != XA_ATOM) || (format != 32) || (count == 0) || (!data)) {
 
-    if(data) {
+    if (data) {
       XLockDisplay(xdnd->display);
       XFree(data);
       XUnlockDisplay(xdnd->display);
@@ -311,10 +311,10 @@ static void _dnd_get_type_list (DndClass *xdnd, Window window, Atom **typelist) 
     return;
   }
 
-  *typelist = (Atom *)safe_malloc((count + 1) * sizeof(Atom));
-  a = (Atom *) data;
+  *typelist = (Atom*) safe_malloc((count + 1) * sizeof(Atom));
+  a = (Atom*) data;
 
-  for(i = 0; i < count; i++)
+  for (i = 0; i < count; i++)
     (*typelist)[i] = a[i];
 
   (*typelist)[count] = 0;
@@ -330,12 +330,12 @@ static void _dnd_get_type_list (DndClass *xdnd, Window window, Atom **typelist) 
 static void _dnd_get_three_types (XEvent * xevent, Atom **typelist) {
   int i;
 
-  *typelist = (Atom *)safe_malloc((XDND_THREE + 1) * sizeof(Atom) );
+  *typelist = (Atom*) safe_malloc((XDND_THREE + 1) * sizeof(Atom) );
 
-  for(i = 0; i < XDND_THREE; i++)
+  for (i = 0; i < XDND_THREE; i++)
     (*typelist)[i] = XDND_ENTER_TYPE(xevent, i);
   /* although (*typelist)[1] or (*typelist)[2] may also be set to nill */
-  (*typelist)[XDND_THREE] = 0;	
+  (*typelist)[XDND_THREE] = 0;
 }
 
 /*
@@ -374,16 +374,16 @@ char *mime_names[MAX_SUPPORTED_TYPE] = {
 
   XUnlockDisplay(display);
 
-  xdnd->display			= display;
-  xdnd->version			= XDND_VERSION;
-  xdnd->callback		= NULL;
-  xdnd->dragger_typelist	= NULL;
-  xdnd->desired			= 0;
-  xdnd->in_progress		= False;
+  xdnd->display                 = display;
+  xdnd->version                 = XDND_VERSION;
+  xdnd->callback                = NULL;
+  xdnd->dragger_typelist        = NULL;
+  xdnd->desired                 = 0;
+  xdnd->in_progress             = False;
 }
 
 /*
- * Add/Replace the XdndAware property of given window. 
+ * Add/Replace the XdndAware property of given window.
  */
 int make_window_dnd_aware(DndClass *xdnd, Window window,
                           dnd_callback_t cb) {
@@ -392,26 +392,26 @@ int make_window_dnd_aware(DndClass *xdnd, Window window,
    * we'll never get the error messages.
    */
 
-  if(!xdnd->display)
+  if (!xdnd->display)
     return 0;
 
   XLockDisplay(xdnd->display);
   status = XChangeProperty(xdnd->display, window, xdnd->_XA_XdndAware, XA_ATOM,
-			   32, PropModeReplace, (unsigned char *)&xdnd->version, 1);
+                           32, PropModeReplace, (unsigned char*) &xdnd->version, 1);
   XUnlockDisplay(xdnd->display);
-  
-  if((status == BadAlloc) || (status == BadAtom) || 
+
+  if ((status == BadAlloc) || (status == BadAtom) ||
      (status == BadMatch) || (status == BadValue) || (status == BadWindow)) {
     fprintf(stderr, "XChangeProperty() failed.\n");
     return 0;
   }
-  
+
   XLockDisplay(xdnd->display);
   XChangeProperty(xdnd->display, window, xdnd->_XA_XdndTypeList, XA_ATOM, 32,
-		  PropModeAppend, (unsigned char *)&xdnd->supported, 1);
+                  PropModeAppend, (unsigned char*) &xdnd->supported, 1);
   XUnlockDisplay(xdnd->display);
-  
-  if((status == BadAlloc) || (status == BadAtom) || 
+
+  if ((status == BadAlloc) || (status == BadAtom) ||
      (status == BadMatch) || (status == BadValue) || (status == BadWindow)) {
     fprintf(stderr, "XChangeProperty() failed.\n");
     return 0;
@@ -429,12 +429,12 @@ int make_window_dnd_aware(DndClass *xdnd, Window window,
 int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
   int retval = 0;
 
-  if((xdnd == NULL) || (event == NULL))
+  if ((xdnd == NULL) || (event == NULL))
     return 0;
 
-  if(event->type == ClientMessage) {
+  if (event->type == ClientMessage) {
 
-    if((xdnd->in_progress == True) && (event->xclient.format == 32) && 
+    if ((xdnd->in_progress == True) && (event->xclient.format == 32) &&
        (XDND_ENTER_SOURCE_WIN(event) == xdnd->_XA_WM_DELETE_WINDOW)) {
       XEvent xevent;
 
@@ -457,15 +457,15 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
 
       retval = 1;
     }
-    else if(event->xclient.message_type == xdnd->_XA_XdndEnter) {
+    else if (event->xclient.message_type == xdnd->_XA_XdndEnter) {
 
 #ifdef DEBUG_DND
       printf("XdndEnter\n");
 #endif
 
-      if((XDND_ENTER_VERSION(event) < 3) || 
+      if ((XDND_ENTER_VERSION(event) < 3) ||
          (xdnd->in_progress == True)) {
-	return 0;
+        return 0;
       }
       else xdnd->in_progress = True;
 
@@ -476,96 +476,96 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
       free(xdnd->dragger_typelist);
       xdnd->dragger_typelist = NULL;
 
-      if(XDND_ENTER_THREE_TYPES(event)) {
+      if (XDND_ENTER_THREE_TYPES(event)) {
 #ifdef DEBUG_DND
-	printf("Three types only\n");
+        printf("Three types only\n");
 #endif
-	_dnd_get_three_types(event, &xdnd->dragger_typelist);
-      } 
-      else {
-#ifdef DEBUG_DND
-	printf("More than three types - getting list\n");
-#endif
-	_dnd_get_type_list(xdnd, xdnd->dragger_window, &xdnd->dragger_typelist);
-      }
-
-      if(xdnd->dragger_typelist) {
-	int atom_match;
-#ifdef DEBUG_DND
-	{
-	  int   i;
-	  for(i = 0; xdnd->dragger_typelist[i] != 0; i++) {
-	    XLockDisplay(xdnd->display);
-	    printf("%d: '%s' ", i, XGetAtomName(xdnd->display, xdnd->dragger_typelist[i]));
-	    XUnlockDisplay(xdnd->display);
-	    printf("\n");
-	  }
-	}
-#endif
-
-	if((atom_match = _is_atom_match(xdnd, &xdnd->dragger_typelist)) >= 0) {
-	  xdnd->desired = xdnd->dragger_typelist[atom_match];
-	}
-
+        _dnd_get_three_types(event, &xdnd->dragger_typelist);
       }
       else {
-	fprintf(stderr,
+#ifdef DEBUG_DND
+        printf("More than three types - getting list\n");
+#endif
+        _dnd_get_type_list(xdnd, xdnd->dragger_window, &xdnd->dragger_typelist);
+      }
+
+      if (xdnd->dragger_typelist) {
+        int atom_match;
+#ifdef DEBUG_DND
+        {
+          int   i;
+          for (i = 0; xdnd->dragger_typelist[i] != 0; i++) {
+            XLockDisplay(xdnd->display);
+            printf("%d: '%s' ", i, XGetAtomName(xdnd->display, xdnd->dragger_typelist[i]));
+            XUnlockDisplay(xdnd->display);
+            printf("\n");
+          }
+        }
+#endif
+
+        if ((atom_match = _is_atom_match(xdnd, &xdnd->dragger_typelist)) >= 0) {
+          xdnd->desired = xdnd->dragger_typelist[atom_match];
+        }
+
+      }
+      else {
+        fprintf(stderr,
         "xdnd.c@%d: xdnd->dragger_typelist is zero length!\n", __LINE__);
-	/* Probably doesn't work */
-	if ((event->xclient.data.l[1] & 1) == 0) {
-	  xdnd->desired = (Atom) event->xclient.data.l[1];
-	}
+        /* Probably doesn't work */
+        if ((event->xclient.data.l[1] & 1) == 0) {
+          xdnd->desired = (Atom) event->xclient.data.l[1];
+        }
       }
       retval = 1;
     }
-    else if(event->xclient.message_type == xdnd->_XA_XdndLeave) {
+    else if (event->xclient.message_type == xdnd->_XA_XdndLeave) {
 #ifdef DEBUG_DND
       printf("XdndLeave\n");
 #endif
 
-      if((event->xany.window == xdnd->dropper_toplevel) && (xdnd->dropper_window != None))
-	event->xany.window = xdnd->dropper_window;
+      if ((event->xany.window == xdnd->dropper_toplevel) && (xdnd->dropper_window != None))
+        event->xany.window = xdnd->dropper_window;
 
-      if(xdnd->dragger_window == XDND_LEAVE_SOURCE_WIN(event)) {
-	free(xdnd->dragger_typelist);
-	xdnd->dragger_typelist = NULL;
-	xdnd->dropper_toplevel = xdnd->dropper_window = None;
-	xdnd->desired = 0;
+      if (xdnd->dragger_window == XDND_LEAVE_SOURCE_WIN(event)) {
+        free(xdnd->dragger_typelist);
+        xdnd->dragger_typelist = NULL;
+        xdnd->dropper_toplevel = xdnd->dropper_window = None;
+        xdnd->desired = 0;
         xdnd->in_progress = False;
       }
 
       retval = 1;
-    } 
-    else if(event->xclient.message_type == xdnd->_XA_XdndDrop) {
+    }
+    else if (event->xclient.message_type == xdnd->_XA_XdndDrop) {
       Window  win;
 
 #ifdef DEBUG_DND
       printf("XdndDrop\n");
 #endif
-      if(xdnd->dragger_window == XDND_DROP_SOURCE_WIN(event)) {
+      if (xdnd->dragger_window == XDND_DROP_SOURCE_WIN(event)) {
 
-      if(xdnd->desired != 0) {
+      if (xdnd->desired != 0) {
 
-	if((event->xany.window == xdnd->dropper_toplevel) && (xdnd->dropper_window != None))
-	  event->xany.window = xdnd->dropper_window;
-	
-	  xdnd->time = XDND_DROP_TIME (event);
+        if ((event->xany.window == xdnd->dropper_toplevel) && (xdnd->dropper_window != None))
+          event->xany.window = xdnd->dropper_window;
 
-	  XLockDisplay(xdnd->display);
-	  if(!(win = XGetSelectionOwner(xdnd->display,
+          xdnd->time = XDND_DROP_TIME (event);
+
+          XLockDisplay(xdnd->display);
+          if (!(win = XGetSelectionOwner(xdnd->display,
                                         xdnd->_XA_XdndSelection)))
           {
-	    fprintf(stderr,
+            fprintf(stderr,
                       "xdnd.c@%d: XGetSelectionOwner() failed.\n", __LINE__);
-	    XUnlockDisplay(xdnd->display);
-	    return 0;
-	  }
+            XUnlockDisplay(xdnd->display);
+            return 0;
+          }
 
-	  XConvertSelection(xdnd->display, xdnd->_XA_XdndSelection,
+          XConvertSelection(xdnd->display, xdnd->_XA_XdndSelection,
           xdnd->desired, xdnd->TIMIDITY_PROTOCOL_ATOM,
           xdnd->dropper_toplevel, xdnd->time);
-	  XUnlockDisplay (xdnd->display);
-	}
+          XUnlockDisplay (xdnd->display);
+        }
 
          _dnd_send_finished(xdnd, xdnd->dragger_window,
          xdnd->dropper_toplevel);
@@ -573,7 +573,7 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
 
       retval = 1;
     }
-    else if(event->xclient.message_type == xdnd->_XA_XdndPosition) {
+    else if (event->xclient.message_type == xdnd->_XA_XdndPosition) {
       XEvent  xevent;
       Window  parent, child, new_child;
 
@@ -589,19 +589,19 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
       parent   = DefaultRootWindow(xdnd->display);
       child    = xdnd->dropper_toplevel;
 
-      for(;;) {
-	int xd, yd;
-	
-	new_child = None;
-	if(!XTranslateCoordinates (xdnd->display, parent, child, 
-				   XDND_POSITION_ROOT_X(event), XDND_POSITION_ROOT_Y(event),
-				   &xd, &yd, &new_child))
-	  break;
+      for (;;) {
+        int xd, yd;
 
-	if(new_child == None)
-	  break;
+        new_child = None;
+        if (!XTranslateCoordinates (xdnd->display, parent, child,
+                                    XDND_POSITION_ROOT_X(event), XDND_POSITION_ROOT_Y(event),
+                                    &xd, &yd, &new_child))
+          break;
 
-	child = new_child;
+        if (new_child == None)
+          break;
+
+        child = new_child;
       }
 
       XUnlockDisplay(xdnd->display);
@@ -632,17 +632,17 @@ int process_client_dnd_message(DndClass *xdnd, XEvent *event) {
 
     retval = 1;
   }
-  else if(event->type == SelectionNotify) {
+  else if (event->type == SelectionNotify) {
 
 #ifdef DEBUG_DND
       printf("SelectionNotify\n");
 #endif
 
-    if(event->xselection.property == xdnd->TIMIDITY_PROTOCOL_ATOM) {
-      _dnd_get_selection(xdnd, xdnd->dragger_window, 
-			 event->xselection.property, event->xany.window);
+    if (event->xselection.property == xdnd->TIMIDITY_PROTOCOL_ATOM) {
+      _dnd_get_selection(xdnd, xdnd->dragger_window,
+                         event->xselection.property, event->xany.window);
       _dnd_send_finished(xdnd, xdnd->dragger_window, xdnd->dropper_toplevel);
-    } 
+    }
 
     free(xdnd->dragger_typelist);
     xdnd->dragger_typelist = NULL;

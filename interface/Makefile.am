@@ -23,9 +23,11 @@ SUFFIXES = .ptcl .tcl .pel .el .@so@
 SUBDIRS = motif_bitmaps bitmaps pixmaps
 
 INCLUDES = \
+	-I$(top_srcdir) \
 	-I$(top_srcdir)/timidity \
 	-I$(top_srcdir)/libarc \
-	-I$(top_srcdir)/utils
+	-I$(top_srcdir)/utils \
+	$(EXTRAINCS)
 
 noinst_LIBRARIES = libinterface.a
 
@@ -119,6 +121,7 @@ EXTRA_libinterface_a_SOURCES = \
 	w32g_subwin2.c \
 	w32g_wrd.h \
 	wrdt_w32g.c \
+	w32g_soundspec.c \
 	w32g_subwin3.c \
 	w32g_tracer.h \
 	w32g_tracer.bmp \

@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -25,13 +25,10 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
+#ifdef STDC_HEADERS
 #include <stdlib.h>
 #include <stdarg.h>
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
+#endif /* STDC_HEADERS */
 
 #include "timidity.h"
 #include "common.h"
@@ -47,10 +44,10 @@
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
 static int ctl_read(ptr_size_t *valp);
-static int cmsg(int type, int verbosity_level, char *fmt, ...);
-static void ctl_total_time(long tt);
-static void ctl_file_name(char *name);
-static void ctl_current_time(int ct);
+static int cmsg(int type, int verbosity_level, const char *fmt, ...);
+static void ctl_total_time(int32 tt);
+static void ctl_file_name(const char *name);
+static void ctl_current_time(int32 ct);
 static void ctl_metronome(int, int);
 static void ctl_lyric(int lyricid);
 static void ctl_event(CtlEvent *e);
@@ -60,11 +57,11 @@ static void ctl_event(CtlEvent *e);
 
 #define ctl dumb_control_mode
 
-ControlMode ctl=
+ControlMode ctl =
 {
     "dumb interface", 'd',
     "dumb",
-    1,0,0,
+    1, 0, 0,
     0,
     ctl_open,
     ctl_close,
@@ -86,18 +83,18 @@ int dumb_error_count;
 /*ARGSUSED*/
 static int ctl_open(int using_stdin, int using_stdout)
 {
-  if(using_stdout)
-    outfp=stderr;
+  if (using_stdout)
+    outfp = stderr;
   else
-    outfp=stdout;
-  ctl.opened=1;
+    outfp = stdout;
+  ctl.opened = 1;
   return 0;
 }
 
 static void ctl_close(void)
 {
   fflush(outfp);
-  ctl.opened=0;
+  ctl.opened = 0;
 }
 
 /*ARGSUSED*/
@@ -111,15 +108,15 @@ static int ctl_read(ptr_size_t *valp)
   return RC_NONE;
 }
 
-static int cmsg(int type, int verbosity_level, char *fmt, ...)
+static int cmsg(int type, int verbosity_level, const char *fmt, ...)
 {
   va_list ap;
 
-  if ((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
-      ctl.verbosity<verbosity_level)
+  if ((type == CMSG_TEXT || type == CMSG_INFO || type == CMSG_WARNING) &&
+      ctl.verbosity < verbosity_level)
     return 0;
   va_start(ap, fmt);
-  if(type == CMSG_WARNING || type == CMSG_ERROR || type == CMSG_FATAL)
+  if (type == CMSG_WARNING || type == CMSG_ERROR || type == CMSG_FATAL)
       dumb_error_count++;
   if (!ctl.opened)
     {
@@ -136,40 +133,41 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
   return 0;
 }
 
-static void ctl_total_time(long tt)
+static void ctl_total_time(int32 tt)
 {
-  int mins, secs;
+  int32 mins, secs;
   if (ctl.trace_playing)
     {
-      secs=(int)(tt/play_mode->rate);
-      mins=secs/60;
-      secs-=mins*60;
+      secs = (int32)(tt/play_mode->rate);
+      mins = secs / 60;
+      secs -= mins * 60;
       cmsg(CMSG_INFO, VERB_NORMAL,
-	   "Total playing time: %3d min %02d s", mins, secs);
+           "Total playing time: %3d min %02d s", mins, secs);
     }
 }
 
-static void ctl_file_name(char *name)
+static void ctl_file_name(const char *name)
 {
-  if (ctl.verbosity>=0 || ctl.trace_playing)
+  if (ctl.verbosity >= 0 || ctl.trace_playing)
       cmsg(CMSG_INFO, VERB_NORMAL, "Playing %s", name);
 }
 
-static void ctl_current_time(int secs)
+static void ctl_current_time(int32 secs)
 {
-  int mins;
-  static int prev_secs = -1;
+  int32 mins, meas, beat;
+  static int32 prev_secs = -1;
 
 #ifdef __W32__
-	  if(wrdt->id == 'w')
-	    return;
+  if (wrdt->id == 'w')
+      return;
 #endif /* __W32__ */
   if (ctl.trace_playing && secs != prev_secs)
     {
-      prev_secs = secs;
-      mins=secs/60;
-      secs-=mins*60;
-      fprintf(outfp, "\r%3d:%02d", mins, secs);
+      curr_secs = prev_secs = secs;
+      mins = secs / 60;
+      secs -= mins * 60;
+      meas = curr_meas, beat = curr_beat;
+      fprintf(outfp, "\r%3d:%02d  %03d.%02d", mins, secs, meas, beat);
       fflush(outfp);
     }
 }
@@ -178,7 +176,7 @@ static void ctl_metronome(int meas, int beat)
 {
   int mins, secs;
   static int prev_meas = -1, prev_beat = -1;
-	
+
 #ifdef __W32__
   if (wrdt->id == 'w')
       return;
@@ -193,67 +191,67 @@ static void ctl_metronome(int meas, int beat)
 
 static void ctl_lyric(int lyricid)
 {
-    char *lyric;
+    const char *lyric;
 
     lyric = event2string(lyricid);
-    if(lyric != NULL)
+    if (lyric != NULL)
     {
-	if(lyric[0] == ME_KARAOKE_LYRIC)
-	{
-	    if(lyric[1] == '/' || lyric[1] == '\\')
-	    {
-		fprintf(outfp, "\n%s", lyric + 2);
-		fflush(outfp);
-	    }
-	    else if(lyric[1] == '@')
-	    {
-		if(lyric[2] == 'L')
-		    fprintf(outfp, "\nLanguage: %s\n", lyric + 3);
-		else if(lyric[2] == 'T')
-		    fprintf(outfp, "Title: %s\n", lyric + 3);
-		else
-		    fprintf(outfp, "%s\n", lyric + 1);
-	    }
-	    else
-	    {
-		fputs(lyric + 1, outfp);
-		fflush(outfp);
-	    }
-	}
-	else
-	{
-	    if(lyric[0] == ME_CHORUS_TEXT || lyric[0] == ME_INSERT_TEXT)
-		fprintf(outfp, "\r");
-	    fputs(lyric + 1, outfp);
-	    fflush(outfp);
-	}
+        if (lyric[0] == ME_KARAOKE_LYRIC)
+        {
+            if (lyric[1] == '/' || lyric[1] == '\\')
+            {
+                fprintf(outfp, "\n%s", lyric + 2);
+                fflush(outfp);
+            }
+            else if (lyric[1] == '@')
+            {
+                if (lyric[2] == 'L')
+                    fprintf(outfp, "\nLanguage: %s\n", lyric + 3);
+                else if (lyric[2] == 'T')
+                    fprintf(outfp, "Title: %s\n", lyric + 3);
+                else
+                    fprintf(outfp, "%s\n", lyric + 1);
+            }
+            else
+            {
+                fputs(lyric + 1, outfp);
+                fflush(outfp);
+            }
+        }
+        else
+        {
+            if (lyric[0] == ME_CHORUS_TEXT || lyric[0] == ME_INSERT_TEXT)
+                fprintf(outfp, "\r");
+            fputs(lyric + 1, outfp);
+            fflush(outfp);
+        }
     }
 }
 
 static void ctl_event(CtlEvent *e)
 {
-    switch(e->type)
+    switch (e->type)
     {
       case CTLE_NOW_LOADING:
-	ctl_file_name((char *)e->v1);
-	break;
+        ctl_file_name((char*) e->v1);
+        break;
       case CTLE_PLAY_START:
-	ctl_total_time(e->v1);
-	break;
+        ctl_total_time(e->v1);
+        break;
       case CTLE_CUEPOINT:
-	cuepoint = e->v1;
-	cuepoint_pending = 1;
-	break;
+        cuepoint = e->v1;
+        cuepoint_pending = 1;
+        break;
       case CTLE_CURRENT_TIME:
-	ctl_current_time((int)e->v1);
-	break;
+        ctl_current_time((int) e->v1);
+        break;
       case CTLE_METRONOME:
-	ctl_metronome(e->v1, e->v2);
-	break;
+        ctl_metronome(e->v1, e->v2);
+        break;
 #ifndef CFG_FOR_SF
       case CTLE_LYRIC:
-	ctl_lyric((int)e->v1);
-	break;
+        ctl_lyric((int) e->v1);
+        break;
 #endif
     }
 }

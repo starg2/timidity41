@@ -109,6 +109,7 @@ set(
     -DHAVE_LIBMPG123
     -DENABLE_SFZ
 	-DENABLE_DLS
+    -DSNDFNT_INITFILE_NAME="soundfont.ini"
 
 # TiMidity++ audio
     -DAU_WASAPI
@@ -143,6 +144,12 @@ set(
 # FLAC
     -DFLAC__NO_DLL
 )
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_definitions(-DVST_LIBRARY_NAME="timvstwrap_x64.dll")
+else()
+    add_definitions(-DVST_LIBRARY_NAME="timvstwrap.dll")
+endif()
 
 if(TIM41_USE_AVX2)
     add_definitions(-DUSE_AVX2)

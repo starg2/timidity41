@@ -1,6 +1,6 @@
-/* 
+/*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -17,9 +17,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-	Macintosh interface for TiMidity
-	by T.Nogami	<t-nogami@happy.email.ne.jp>
-		
+        Macintosh interface for TiMidity
+        by T.Nogami     <t-nogami@happy.email.ne.jp>
+
     mac_mag.h
     Macintosh mag loader
 */
@@ -30,7 +30,7 @@
 //#include <palettes.h>
 
 int mac_mag_load(const char* fn, int dx, int dy, PixMapHandle pixmap,
-							int mode, Rect *imageRect);
+                                                        int mode, Rect *imageRect);
 int mac_pho_load(const char* fn, PixMapHandle pm);
 
 #endif //MAC_MAG_H

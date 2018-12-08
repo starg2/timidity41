@@ -329,6 +329,7 @@
     <ClCompile Include="..\timidity\sndfontini.c" />
     <ClCompile Include="..\timidity\tables.c" />
     <ClCompile Include="..\timidity\thread.c" />
+    <ClCompile Include="..\timidity\timer2.c" />
     <ClCompile Include="..\timidity\timidity.c" />
     <ClCompile Include="..\timidity\voice_effect.c" />
     <ClCompile Include="..\timidity\w32g_vorbisfile_dll.c" />

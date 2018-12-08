@@ -247,14 +247,6 @@
 				RelativePath="..\interface\w32g_utl.c"
 				>
 			</File>
-			<File
-				RelativePath="..\timidity\w32g_vorbis_dll.c"
-				>
-			</File>
-			<File
-				RelativePath="..\timidity\w32g_vorbisfile_dll.c"
-				>
-			</File>
 			<Filter
 				Name="timidity"
 				>
@@ -408,6 +400,10 @@
 				</File>
 				<File
 					RelativePath="..\timidity\thread.c"
+					>
+				</File>
+				<File
+					RelativePath="..\timidity\timer2.c"
 					>
 				</File>
 				<File

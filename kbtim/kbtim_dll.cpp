@@ -180,7 +180,7 @@ int __fastcall KbTimDecoder::ctl_read(ptr_size_t *valp) ///r
     }
     return 0;
 }
-int __cdecl KbTimDecoder::ctl_cmsg(int type, int verbosity_level, char *fmt, ...)
+int __cdecl KbTimDecoder::ctl_cmsg(int type, int verbosity_level, const char *fmt, ...)
 {
 #if 0
     //kbtim_config.h の #define cmsg(X) をコメントアウトしないと

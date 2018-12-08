@@ -22,7 +22,7 @@
  */
 
 /*
- *This file is a part of "kterm" and partially preprocessed and modified 
+ *This file is a part of "kterm" and partially preprocessed and modified
  *to fit my purpose.
  * Takanori Watanabe
  */
@@ -41,162 +41,162 @@
 
 Const int groundtable[] =
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-CASE_PRINT, 
-/*	@		A		B		C	*/
 CASE_PRINT,
+/*      @               A               B               C       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	D		E		F		G	*/
 CASE_PRINT,
+/*      D               E               F               G       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	H		I		J		K	*/
 CASE_PRINT,
+/*      H               I               J               K       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	L		M		N		O	*/
 CASE_PRINT,
+/*      L               M               N               O       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	P		Q		R		S	*/
 CASE_PRINT,
+/*      P               Q               R               S       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	T		U		V		W	*/
 CASE_PRINT,
+/*      T               U               V               W       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	X		Y		Z		[	*/
 CASE_PRINT,
+/*      X               Y               Z               [       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	\		]		^		_	*/
 CASE_PRINT,
+/*      \               ]               ^               _       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	`		a		b		c	*/
 CASE_PRINT,
+/*      `               a               b               c       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	d		e		f		g	*/
 CASE_PRINT,
+/*      d               e               f               g       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	h		i		j		k	*/
 CASE_PRINT,
+/*      h               i               j               k       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	l		m		n		o	*/
 CASE_PRINT,
+/*      l               m               n               o       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	p		q		r		s	*/
 CASE_PRINT,
+/*      p               q               r               s       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	t		u		v		w	*/
 CASE_PRINT,
+/*      t               u               v               w       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	x		y		z		{	*/
 CASE_PRINT,
+/*      x               y               z               {       */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
-/*	|		}		~		DEL	*/
+CASE_PRINT,
+/*      |               }               ~               DEL     */
 CASE_PRINT,
 CASE_PRINT,
 CASE_PRINT,
@@ -363,49 +363,49 @@ CASE_PRINT,
 CASE_PRINT,
 };
 
-Const int csitable[] =		/* ESC [ */
+Const int csitable[] =          /* ESC [ */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 #ifndef BUGGY_VTPARSE
 CASE_ESC_IGNORE,
 #else
@@ -414,95 +414,95 @@ CASE_ESC_DIGIT,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_IGNORE,
 CASE_ESC_SEMI,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_DEC_STATE,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_ICH,
 CASE_CUU,
 CASE_CUD,
 CASE_CUF,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_CUB,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_CUP,
 CASE_GROUND_STATE,
 CASE_ED,
 CASE_EL,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_IL,
 CASE_DL,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_DCH,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_TRACK_MOUSE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 #ifndef BUGGY_VTPARSE
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_DA1,
 #else
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GROUND_STATE,
 CASE_CUU,
 CASE_CUD,
 CASE_CUF,
 #endif
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 #ifndef BUGGY_VTPARSE
 CASE_GROUND_STATE,
 #else
@@ -511,7 +511,7 @@ CASE_CUB,
 CASE_GROUND_STATE,
 CASE_CUP,
 CASE_TBC,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_SET,
 CASE_GROUND_STATE,
 #ifndef BUGGY_VTPARSE
@@ -520,27 +520,27 @@ CASE_GROUND_STATE,
 CASE_ED,
 #endif
 CASE_GROUND_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_RST,
 CASE_SGR,
 CASE_CPR,
 CASE_GROUND_STATE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_MY_GRAPHIC_CMD,
 CASE_GROUND_STATE,
 CASE_DECSTBM,
 CASE_DECSC,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_DECRC,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_DECREQTPARM,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
@@ -707,164 +707,164 @@ CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 };
 
-Const int dectable[] =		/* ESC [ ? */
+Const int dectable[] =          /* ESC [ ? */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_ESC_DIGIT,
 CASE_ESC_DIGIT,
 CASE_IGNORE,
 CASE_ESC_SEMI,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_DECSET,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_DECRST,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_XTERM_RESTORE,
 CASE_XTERM_SAVE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
@@ -1031,165 +1031,165 @@ CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 };
 
-Const int eigtable[] =		/* CASE_ESC_IGNORE */
+Const int eigtable[] =          /* CASE_ESC_IGNORE */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	,
-	-		.		/	*/
+/*      ,
+        -               .               /       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
@@ -1356,164 +1356,164 @@ CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 };
 
-Const int esctable[] =		/* ESC */
+Const int esctable[] =          /* ESC */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_SCR_STATE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_MBCS,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_SCS_STATE,
 CASE_SCS_STATE,
 CASE_SCS_STATE,
 CASE_SCS_STATE,
-/*	,		-		.		/	*/
-CASE_SCS_STATE,	/* not defined in ISO2022 but used in Mule */
+/*      ,               -               .               /       */
+CASE_SCS_STATE, /* not defined in ISO2022 but used in Mule */
 CASE_SCS_STATE,
 CASE_SCS_STATE,
 CASE_SCS_STATE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_DECSC,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_DECRC,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_GROUND_STATE,
 CASE_DECKPAM,
 CASE_DECKPNM,
 CASE_GROUND_STATE,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_IND,
 CASE_NEL,
 CASE_HP_BUGGY_LL,
 CASE_GROUND_STATE,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_HTS,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_GROUND_STATE,
 CASE_RI,
 CASE_SS2,
 CASE_SS3,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_IGNORE_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_XTERM_TITLE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_DECID,
 CASE_CSI_STATE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GROUND_STATE,
 CASE_OSC,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_RIS,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_HP_MEM_LOCK,
 CASE_HP_MEM_UNLOCK,
 CASE_LS2,
 CASE_LS3,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_LS3R,
 CASE_LS2R,
 CASE_LS1R,
@@ -1680,164 +1680,164 @@ CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 };
 
-Const int iestable[] =		/* CASE_IGNORE_ESC */
+Const int iestable[] =          /* CASE_IGNORE_ESC */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GROUND_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
@@ -2004,164 +2004,164 @@ CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 };
 
-Const int igntable[] =		/* CASE_IGNORE_STATE */
+Const int igntable[] =          /* CASE_IGNORE_STATE */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
-CASE_GROUND_STATE, 
+/*      CAN             EM              SUB             ESC     */
+CASE_GROUND_STATE,
 CASE_IGNORE,
 CASE_GROUND_STATE,
 CASE_IGNORE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
@@ -2328,164 +2328,164 @@ CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 };
 
-Const int scrtable[] =		/* ESC # */
+Const int scrtable[] =          /* ESC # */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_DECALN,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
@@ -2652,164 +2652,164 @@ CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 };
 
-Const int scstable[] =		/* ESC ( etc. */
+Const int scstable[] =          /* ESC ( etc. */
 {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	@		A		B		C	*/
+/*      @               A               B               C       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	D		E		F		G	*/
+/*      D               E               F               G       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	H		I		J		K	*/
+/*      H               I               J               K       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	L		M		N		O	*/
+/*      L               M               N               O       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	P		Q		R		S	*/
+/*      P               Q               R               S       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GROUND_STATE, /* GSET('p') >= 0x40 (MBCS flag) */
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE, /* empty character set */
@@ -2977,162 +2977,162 @@ CASE_GROUND_STATE,
 };
 
 Const int mbcstable[] = {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_SCS_STATE,
 CASE_SCS_STATE,
 CASE_SCS_STATE,
 CASE_SCS_STATE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_ESC_IGNORE,
 CASE_SCS_STATE,
 CASE_SCS_STATE,
 CASE_SCS_STATE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	@		A		B		C	*/
-CASE_GSETS,	/* ESC-$-@ (JIS-78) */
-CASE_GSETS,	/* ESC-$-A (GB) */
-CASE_GSETS,	/* ESC-$-B (JIS-83) */
+/*      @               A               B               C       */
+CASE_GSETS,     /* ESC-$-@ (JIS-78) */
+CASE_GSETS,     /* ESC-$-A (GB) */
+CASE_GSETS,     /* ESC-$-B (JIS-83) */
 CASE_GROUND_STATE,
-/*	D		E		F		G	*/
-CASE_GROUND_STATE,
-CASE_GROUND_STATE,
-CASE_GROUND_STATE,
-CASE_GROUND_STATE,
-/*	H		I		J		K	*/
+/*      D               E               F               G       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	L		M		N		O	*/
+/*      H               I               J               K       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	P		Q		R		S	*/
+/*      L               M               N               O       */
+CASE_GROUND_STATE,
+CASE_GROUND_STATE,
+CASE_GROUND_STATE,
+CASE_GROUND_STATE,
+/*      P               Q               R               S       */
 CASE_IGNORE_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	T		U		V		W	*/
+/*      T               U               V               W       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	X		Y		Z		[	*/
+/*      X               Y               Z               [       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	\		]		^		_	*/
+/*      \               ]               ^               _       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_IGNORE_STATE,
 CASE_IGNORE_STATE,
-/*	`		a		b		c	*/
+/*      `               a               b               c       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
@@ -3300,162 +3300,162 @@ CASE_GROUND_STATE,
 };
 
 Const int smbcstable[] = {
-/*	NUL		SOH		STX		ETX	*/
+/*      NUL             SOH             STX             ETX     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	EOT		ENQ		ACK		BEL	*/
+/*      EOT             ENQ             ACK             BEL     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_BELL,
-/*	BS		HT		NL		VT	*/
+/*      BS              HT              NL              VT      */
 CASE_BS,
 CASE_TAB,
 CASE_VMOT,
 CASE_VMOT,
-/*	NP		CR		SO		SI	*/
+/*      NP              CR              SO              SI      */
 CASE_VMOT,
 CASE_CR,
 CASE_SO,
 CASE_SI,
-/*	DLE		DC1		DC2		DC3	*/
+/*      DLE             DC1             DC2             DC3     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	DC4		NAK		SYN		ETB	*/
+/*      DC4             NAK             SYN             ETB     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	CAN		EM		SUB		ESC	*/
+/*      CAN             EM              SUB             ESC     */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_ESC,
-/*	FS		GS		RS		US	*/
+/*      FS              GS              RS              US      */
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
 CASE_IGNORE,
-/*	SP		!		"		#	*/
+/*      SP              !               "               #       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	$		%		&		'	*/
+/*      $               %               &               '       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	(		)		*		+	*/
+/*      (               )               *               +       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	,		-		.		/	*/
+/*      ,               -               .               /       */
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
 CASE_ESC_IGNORE,
-/*	0		1		2		3	*/
+/*      0               1               2               3       */
 CASE_GROUND_STATE, /* (2-byte or more) private character set */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	4		5		6		7	*/
+/*      4               5               6               7       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	8		9		:		;	*/
+/*      8               9               :               ;       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	<		=		>		?	*/
+/*      <               =               >               ?       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	@		A		B		C	*/
-CASE_GSETS,	/* ESC-$-I-F */
+/*      @               A               B               C       */
+CASE_GSETS,     /* ESC-$-I-F */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	D		E		F		G	*/
-CASE_GSETS,
-CASE_GSETS,
-CASE_GSETS,
-CASE_GSETS,
-/*	H		I		J		K	*/
+/*      D               E               F               G       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	L		M		N		O	*/
+/*      H               I               J               K       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	P		Q		R		S	*/
+/*      L               M               N               O       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	T		U		V		W	*/
+/*      P               Q               R               S       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	X		Y		Z		[	*/
+/*      T               U               V               W       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	\		]		^		_	*/
+/*      X               Y               Z               [       */
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
 CASE_GSETS,
-/*	`		a		b		c	*/
+/*      \               ]               ^               _       */
+CASE_GSETS,
+CASE_GSETS,
+CASE_GSETS,
+CASE_GSETS,
+/*      `               a               b               c       */
 CASE_GROUND_STATE, /* 3-byte character set */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	d		e		f		g	*/
+/*      d               e               f               g       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	h		i		j		k	*/
+/*      h               i               j               k       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	l		m		n		o	*/
+/*      l               m               n               o       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	p		q		r		s	*/
+/*      p               q               r               s       */
 CASE_GROUND_STATE, /* 4-byte character set */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	t		u		v		w	*/
+/*      t               u               v               w       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	x		y		z		{	*/
+/*      x               y               z               {       */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
-/*	|		}		~		DEL	*/
+/*      |               }               ~               DEL     */
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,
 CASE_GROUND_STATE,

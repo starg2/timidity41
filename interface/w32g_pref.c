@@ -61,6 +61,7 @@
 #include "strtab.h"
 #include "wrd.h"
 #include "mid.defs"
+#include "timer2.h"
 ///r
 #include "resample.h"
 #include "mix.h"
@@ -107,58 +108,103 @@
 
 /*****************************************************************************************************************************/
 
+static char *CurrentConfigFile;
+
 static int WinVer = -1;
 
 static int get_winver(void)
 {
-	DWORD winver, major, minor;
-	int ver = 0;
-	
-	if(WinVer != -1)
-		return WinVer;
-	winver = GetVersion();
-	if(winver & 0x80000000){ // Win9x
-		WinVer = 0;
-		return 0;
-	}		
-	major = (DWORD)(LOBYTE(LOWORD(winver)));
-	minor = (DWORD)(HIBYTE(LOWORD(winver)));
-	switch (major){
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-		ver = 0;
-		break;
-	case 6:
-		switch (minor){
-		case 0: ver = 1; break; // vista
-		case 1: ver = 2; break; // 7
-		case 2: ver = 3; break; // 8
-		case 3: ver = 4; break; // 8.1
-		default: ver = 5; break; // 8.2?
-		}
-		break;
-	case 10:
-		switch (minor){
-		case 0: ver = 6; break; // 10
-		default: ver = 7; break; // 10.1?
-		}
-		break;
-	default:
-		ver = 8; // 11?
-		break;
-	}
-	WinVer = ver;
-	return ver;
+    DWORD winver, major, minor;
+    int ver = 0;
+
+    if (WinVer != -1)
+        return WinVer;
+    winver = GetVersion();
+    if (winver & 0x80000000) { // Win9x
+        WinVer = 0;
+        return 0;
+    }
+    major = (DWORD)(LOBYTE(LOWORD(winver)));
+    minor = (DWORD)(HIBYTE(LOWORD(winver)));
+    switch (major) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+        ver = 0;
+        break;
+    case 6:
+        switch (minor) {
+        case 0: ver = 1; break; // vista
+        case 1: ver = 2; break; // 7
+        case 2: ver = 3; break; // 8
+        case 3: ver = 4; break; // 8.1
+        default: ver = 5; break; // 8.2?
+        }
+        break;
+    case 10:
+        switch (minor) {
+        case 0: ver = 6; break; // 10
+        default: ver = 7; break; // 10.1?
+        }
+        break;
+    default:
+        ver = 8; // 11?
+        break;
+    }
+    WinVer = ver;
+    return ver;
 }
 
+static int char_count(const char *s, int c)
+{
+    int n = 0;
+    while (*s)
+        n += (*s++ == c);
+    return n;
+}
+
+static int get_verbosity_level(void)
+{
+    int lv = char_count(st_temp->opt_ctl + 1, 'v') + 1;
+    lv -= char_count(st_temp->opt_ctl + 1, 'q');
+    return lv;
+}
+
+///r
+// for COMBOBOX
+static int cb_find_item(int cb_num , const int *cb_info, int val, int miss)
+{
+    int i;
+    for (i = 0; i < cb_num; i++)
+        if (val == cb_info[i]) { return i; }
+    return miss;
+}
+
+static void SetDlgItemFloat(HWND hwnd, UINT id, double v)
+{
+    char buf[128];
+#ifdef _MSC_VER
+    snprintf(buf, ARRAY_SIZE(buf) - 1, "%g", v);
+#else
+    snprintf(buf, ARRAY_SIZE(buf) - 1, "%#.6f", v);
+#endif
+    floatpoint_grooming(buf);
+    SetDlgItemTextA(hwnd, id, buf); // A
+}
+
+static double GetDlgItemFloat(HWND hwnd, UINT id)
+{
+    char buf[128];
+    buf[0] = '\0';
+    GetDlgItemTextA(hwnd, id, buf, ARRAY_SIZE(buf)); // A
+    return strtod(buf, NULL);
+}
+
+
 /*****************************************************************************************************************************/
-
-
-/* TiMidity Win32GUI preference / PropertySheet */
 
 extern void w32g_restart(void);
 
@@ -166,13 +212,125 @@ extern void set_gogo_opts_use_commandline_options(char *commandline);
 
 extern void restore_voices(int save_voices);
 
-extern void TracerWndApplyQuietChannel( ChannelBitMask quietchannels_ );
+extern void ConsoleWndApplyLevel(void);
+
+extern void TracerWndApplyQuietChannel(ChannelBitMask quietchannels_);
 
 volatile int PrefWndDoing = 0;
 
 static int PrefInitialPage = 0;
 
 static void PrefSettingApply(void);
+
+enum pref_load_mode {
+    pref_load_delay_mode = 0,
+    pref_load_each_mode,
+    pref_load_all_mode
+};
+
+static int prefLoadMode = pref_load_each_mode;
+static int CurrentPlayerLanguage = -1;
+
+#if defined(KBTIM_SETUP) || defined(WINDRV_SETUP)
+extern void set_config_hwnd(HWND hwnd);
+#endif
+
+#if defined(IA_W32G_SYN) || defined(IA_W32GUI)
+extern int RestartTimidity;
+#endif
+
+static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd);
+static int DlgOpenOutputFile(char *Filename, HWND hwnd);
+static int DlgOpenOutputDir(char *Dirname, HWND hwnd);
+
+static HFONT hFixedPointFont;
+
+static int w32_reset_exe_directory(void)
+{
+    char path[FILEPATH_MAX], *p;
+    GetModuleFileNameA(NULL, path, FILEPATH_MAX - 1);
+    p = pathsep_strrchr(path);
+    if (p) {
+        p++;
+        *p = '\0';
+    }
+    else {
+        GetWindowsDirectoryA(path, FILEPATH_MAX - 1);
+    }
+    return SetCurrentDirectoryA(path) != 0;
+}
+
+//#if defined(__CYGWIN32__) || defined(__MINGW32__)
+#if 0 /* New version of mingw */
+//#define pszTemplate   u1.pszTemplate
+//#define pszIcon       u2.pszIcon
+#ifndef NONAMELESSUNION
+#define NONAMELESSUNION
+#endif
+#ifndef DUMMYUNIONNAME
+#define DUMMYUNIONNAME  u1
+#endif
+#ifndef DUMMYUNIONNAME2
+#define DUMMYUNIONNAME2 u2
+#endif
+#ifndef DUMMYUNIONNAME3
+#define DUMMYUNIONNAME3 u3
+#endif
+#endif
+
+
+extern int waveConfigDialog(void);
+#ifdef AU_W32
+extern void wmmeConfigDialog(HWND hwnd);
+#endif
+#ifdef AU_WASAPI
+extern void wasapiConfigDialog(void);
+#endif
+#ifdef AU_WDMKS
+extern void wdmksConfigDialog(void);
+#endif
+#ifdef AU_VORBIS
+extern int vorbisConfigDialog(void);
+#endif
+#ifdef AU_GOGO
+extern int gogoConfigDialog(void);
+#endif
+#ifdef AU_PORTAUDIO_DLL
+extern int portaudioConfigDialog(void);
+extern int asioConfigDialog(int deviceID);
+#endif
+#ifdef AU_LAME
+extern int lameConfigDialog(void);
+#endif
+#ifdef AU_FLAC
+extern int flacConfigDialog(void);
+#endif
+#ifdef AU_OPUS
+extern int opusConfigDialog(void);
+#endif
+#ifdef AU_SPEEX
+extern int speexConfigDialog(void);
+#endif
+
+#ifdef IA_W32G_SYN
+static TCHAR **GetMidiINDrivers(void);
+#endif
+
+#define WM_MYSAVE    (WM_USER + 100)
+#define WM_MYRESTORE (WM_USER + 101)
+
+/* WindowsXP Theme API */
+#ifndef ETDT_DISABLE
+#define ETDT_DISABLE        (1)
+#define ETDT_ENABLE         (2)
+#define ETDT_USETABTEXTURE  (4)
+#define ETDT_ENABLETAB      (ETDT_ENABLE | ETDT_USETABTEXTURE)
+#endif
+
+
+/*****************************************************************************************************************************/
+
+/* TiMidity Win32GUI preference / PropertySheet */
 
 static volatile int PrefWndSetOK = 0;
 static HWND hPrefWnd = NULL;
@@ -192,80 +350,6 @@ static LRESULT APIENTRY PrefCustom1DialogProc(HWND hwnd, UINT uMess, WPARAM wPar
 static LRESULT APIENTRY PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static LRESULT APIENTRY PrefIntSynthDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 
-static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd);
-static int DlgOpenOutputFile(char *Filename, HWND hwnd);
-static int DlgOpenOutputDir(char *Dirname, HWND hwnd);
-
-static int vorbisCofigDialog(void);
-static int gogoCofigDialog(void);
-
-static int w32_reset_exe_directory(void)
-{
-	char path[FILEPATH_MAX], *p;
-	GetModuleFileNameA(NULL, path, FILEPATH_MAX - 1);
-	p = pathsep_strrchr(path);
-	if(p) {
-		p ++;
-		*p = '\0';
-	}
-	else {
-		GetWindowsDirectoryA(path, FILEPATH_MAX - 1);
-	}
-	return SetCurrentDirectoryA(path) != 0;
-}
-
-///r
-void SetDlgItemFloat(HWND hwnd, UINT id, double v);
-double GetDlgItemFloat(HWND hwnd, UINT id);
-
-
-//#if defined(__CYGWIN32__) || defined(__MINGW32__)
-#if 0 /* New version of mingw */
-//#define pszTemplate	u1.pszTemplate
-//#define pszIcon		u2.pszIcon
-#ifndef NONAMELESSUNION
-#define NONAMELESSUNION
-#endif
-#ifndef DUMMYUNIONNAME
-#define DUMMYUNIONNAME	u1
-#endif
-#ifndef DUMMYUNIONNAME2
-#define DUMMYUNIONNAME2	u2
-#endif
-#ifndef DUMMYUNIONNAME3
-#define DUMMYUNIONNAME3	u3
-#endif
-#endif
-
-
-#ifdef AU_W32
-void wmmeConfigDialog(HWND hwnd);
-#endif
-
-#ifdef AU_WASAPI
-void wasapiConfigDialog(void);
-#endif
-
-#ifdef AU_WDMKS
-void wdmksConfigDialog(void);
-#endif
-
-#ifdef IA_W32G_SYN 
-static TCHAR **GetMidiINDrivers( void );
-#endif
-
-#define WM_MYSAVE (WM_USER + 100)
-#define WM_MYRESTORE (WM_USER + 101)
-
-/* WindowsXP Theme API */
-#define ETDT_DISABLE (1)
-#define ETDT_ENABLE (2)
-#define ETDT_USETABTEXTURE (4)
-#define ETDT_ENABLETAB (ETDT_ENABLE|ETDT_USETABTEXTURE)
-
-typedef BOOL (WINAPI *IsThemeActiveFn)(void);
-typedef HRESULT (WINAPI *EnableThemeDialogTextureFn)(HWND hwnd, DWORD dwFlags);
-
 typedef struct pref_page_t_ {
 	int index;
 	TCHAR *title;
@@ -274,6 +358,7 @@ typedef struct pref_page_t_ {
 	DLGPROC dlgproc;
 	int opt;
 } pref_page_t;
+
 ///r
 static pref_page_t pref_pages_ja[] = {
 #if defined(IA_W32G_SYN) || defined(WINDRV_SETUP)
@@ -332,12 +417,15 @@ static pref_page_t pref_pages_en[] = {
 
 static pref_page_t *pref_pages;
 
+static int prefWndLoadedPage;
+
+
 static void PrefWndCreateTabItems(HWND hwnd)
 {
     int i;
     HWND hwnd_tab;
 
-    switch (PlayerLanguage) {
+    switch (CurrentPlayerLanguage) {
     case LANGUAGE_JAPANESE:
 	pref_pages = pref_pages_ja;
 	break;
@@ -361,6 +449,8 @@ static void PrefWndCreateTabItems(HWND hwnd)
 
 static void PrefWndCreatePage(HWND hwnd, UINT page)
 {
+    typedef BOOL (WINAPI *IsThemeActiveFn)(void);
+    typedef HRESULT (WINAPI *EnableThemeDialogTextureFn)(HWND hwnd, DWORD dwFlags);
     RECT rc;
     HWND hwnd_tab;
     HANDLE hUXTheme;
@@ -371,7 +461,7 @@ static void PrefWndCreatePage(HWND hwnd, UINT page)
     if (page >= PREF_PAGE_MAX || pref_pages[page].hwnd)
 	return;
 
-    switch (PlayerLanguage) {
+    switch (CurrentPlayerLanguage) {
     case LANGUAGE_JAPANESE:
 	pref_pages = pref_pages_ja;
 	break;
@@ -427,7 +517,7 @@ static UINT PrefSearchPageFromCID(UINT cid)
     UINT num = 0;
     pref_page_t *page;
 
-    switch (PlayerLanguage) {
+    switch (CurrentPlayerLanguage) {
     case LANGUAGE_JAPANESE:
 	page = pref_pages_ja;
 	break;
@@ -446,13 +536,20 @@ static UINT PrefSearchPageFromCID(UINT cid)
     return num;
 }
 
-#if defined(KBTIM_SETUP) || defined(WINDRV_SETUP)
-extern void set_config_hwnd(HWND hwnd);
-#endif
-
-#if defined(IA_W32G_SYN) || defined(IA_W32GUI)
-extern int RestartTimidity;
-#endif
+static void PrefWndDelayLoad(void)
+{
+    static DWORD prevTime;
+    if (prefWndLoadedPage == 0)
+        prevTime = 0;
+    if (GetTickCount() - prevTime <= 1.5 * 1000)
+        return;
+    PrefWndCreatePage(hPrefWnd, prefWndLoadedPage);
+    prefWndLoadedPage++;
+    prevTime = GetTickCount();
+    if (prefWndLoadedPage >= PREF_PAGE_MAX)
+        stop_timer(pref_timer);
+    return;
+}
 
 void PrefWndCreate(HWND hwnd, UINT cid)
 {
@@ -465,8 +562,9 @@ void PrefWndCreate(HWND hwnd, UINT cid)
     PrefWndSetOK = 1;
 
     PrefInitialPage = page;
+    CurrentPlayerLanguage = PlayerLanguage;
 #if defined(KBTIM_SETUP) || defined(WINDRV_SETUP)
-	switch(PlayerLanguage) {
+	switch(CurrentPlayerLanguage) {
 		case LANGUAGE_JAPANESE:
 			set_config_hwnd((HWND)CreateDialog ( hInst, MAKEINTRESOURCE(IDD_DIALOG_PREF), hwnd, PrefWndDialogProc ));
 			break;
@@ -476,7 +574,7 @@ void PrefWndCreate(HWND hwnd, UINT cid)
 			break;
 	}
 #else
-	switch(PlayerLanguage) {
+	switch(CurrentPlayerLanguage) {
 		case LANGUAGE_JAPANESE:
 			DialogBox ( hInst, MAKEINTRESOURCE(IDD_DIALOG_PREF), hwnd, PrefWndDialogProc );
 			break;
@@ -487,6 +585,7 @@ void PrefWndCreate(HWND hwnd, UINT cid)
 	}	
 #endif
 	hPrefWnd = NULL;
+    CurrentPlayerLanguage = -1;
 	PrefWndSetOK = 0;
 	PrefWndDoing = 0;
 	return;
@@ -509,7 +608,24 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 		if (page < 0 || page > PREF_PAGE_MAX) {
 			page = 0; // default
 		}
-		hPrefWnd = hwnd;
+
+        hPrefWnd = hwnd;
+
+        if (hFixedPointFont == NULL) {
+            HDC hdc;
+            int ptHeight = 9;
+            hdc = GetDC(hwnd);
+            switch (CurrentPlayerLanguage) {
+            case LANGUAGE_ENGLISH: ptHeight = 8; break;
+            default: break;
+            }
+            hFixedPointFont =
+                CreateFont(-MulDiv(ptHeight, GetDeviceCaps(hdc, LOGPIXELSY), 72), 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
+                    DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+                        FIXED_PITCH|FF_DONTCARE, NULL);
+            ReleaseDC(hwnd, hdc);
+        }
+
 		// main
 #if defined(IA_W32G_SYN) || defined(IA_W32GUI)
 		EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_SAVE_RESTART), TRUE);
@@ -538,9 +654,23 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 		// table
 		PrefWndCreateTabItems(hwnd);
 		PrefWndCreatePage(hwnd, page);
+
+        // preload
+        if (prefLoadMode == pref_load_all_mode) {
+            for (i = 0; i < PREF_PAGE_MAX; ++i)
+                PrefWndCreatePage(hPrefWnd, i);
+        }
+
 		SetForegroundWindow(hwnd);
 		SendDlgItemMessage ( hwnd, IDC_TAB_MAIN, TCM_SETCURSEL, (WPARAM)(page), (LPARAM)0 );
 		ShowWindow ( pref_pages[page].hwnd, TRUE );	
+        SetFocus(GetDlgItem(hwnd, IDC_TAB_MAIN));
+
+        // background
+        if (prefLoadMode == pref_load_delay_mode) {
+            prefWndLoadedPage = 0;
+            start_timer(pref_timer, PrefWndDelayLoad, 0.1 * 1000);
+        }
 		return TRUE;
 	}
 	case WM_COMMAND:
@@ -679,8 +809,10 @@ void PrefSettingApplyReally(void)
 	//	play_mode->close_output();
 	if (play_mode->close_output)
 		play_mode->close_output();
+    if (CurrentPlayerLanguage == -1)
+        CurrentPlayerLanguage = PlayerLanguage;
 
-	restart = (PlayerLanguage != sp_temp->PlayerLanguage);
+    restart = (CurrentPlayerLanguage != sp_temp->PlayerLanguage);
 //	restart |= (strcmp(sp_temp->ConfigFile,ConfigFile) != 0);
 	uninitialize_resampler_coeffs();
 #ifdef SUPPORT_SOUNDSPEC
@@ -831,7 +963,7 @@ void reload_cfg(void)
         const TCHAR *cfg_msg,
                 cfg_msg_en[] = TEXT("Cannot reload between playing!"),
                 cfg_msg_jp[] = TEXT("再生中にリロードできません!");
-        if (PlayerLanguage == LANGUAGE_JAPANESE)
+        if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
                 cfg_msg = cfg_msg_jp;
         else
                 cfg_msg = cfg_msg_en;
@@ -880,24 +1012,6 @@ void reload_cfg(void)
 #endif
 }
 
-
-static int char_count(char *s, int c)
-{
-	 int n = 0;
-	 while(*s)
-		  n += (*s++ == c);
-	 return n;
-}
-
-///r
-// for COMBOBOX
-static int cb_find_item(int cb_num , int *cb_info, int val, int miss)
-{
-	int i;
-	for (i = 0; i < cb_num; i++)
-		if (val == cb_info[i]) {return i;}
-	return miss;
-}
 
 // 設定値が不連続な場合などの処理の簡略化 nameリストに対応するnumリスト作成して使用 
 // cb_info : int num_list[] , val : find value , miss : then not find value
@@ -1197,9 +1311,9 @@ extern DWORD processPriority;
 static LRESULT APIENTRY
 PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	static HFONT hFontConfigFile = NULL;
-	static int initflag = 1; 
-	int i, tmp;
+    static int initflag = 1;
+    int i, tmp;
+
 	switch (uMess){
 	case WM_INITDIALOG:		
 #if defined(KBTIM_SETUP)
@@ -1228,6 +1342,11 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DI_DISABLE(IDC_COMBO_SUBWINDOW_MAX);
 		DI_DISABLE(IDC_COMBO_PLAYLIST_MAX);
 		DI_DISABLE(IDC_COMBO_SECOND_MODE);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_CC111);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_AB_MARK);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_SE_MARK);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_CC2);
+        DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
 #endif
 		{
 			HDC hdc;
@@ -1255,18 +1374,19 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,tfile);
 		safe_free(tfile);
 
-		switch(sp_temp->PlayerLanguage){
-		case LANGUAGE_ENGLISH:
-			CheckRadioButton(hwnd,IDC_RADIOBUTTON_JAPANESE,IDC_RADIOBUTTON_ENGLISH,
-			IDC_RADIOBUTTON_ENGLISH);
-			break;
-		case LANGUAGE_JAPANESE:
-		default:
-			CheckRadioButton(hwnd,IDC_RADIOBUTTON_JAPANESE,IDC_RADIOBUTTON_ENGLISH,
-			IDC_RADIOBUTTON_JAPANESE);
-			break;
-		}
-
+        switch (CurrentPlayerLanguage) {
+        case LANGUAGE_ENGLISH:
+            CheckRadioButton(hwnd, IDC_RADIOBUTTON_JAPANESE, IDC_RADIOBUTTON_ENGLISH,
+                             IDC_RADIOBUTTON_ENGLISH);
+            break;
+        case LANGUAGE_JAPANESE:
+        default:
+            CheckRadioButton(hwnd, IDC_RADIOBUTTON_JAPANESE, IDC_RADIOBUTTON_ENGLISH,
+                             IDC_RADIOBUTTON_JAPANESE);
+            break;
+        }
+		
+        // ctl
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_AUTOQUIT, strchr(st_temp->opt_ctl + 1, 'x'));
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_AUTOUNIQ, strchr(st_temp->opt_ctl + 1, 'u'));
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_AUTOREFINE, strchr(st_temp->opt_ctl + 1, 'R'));
@@ -1306,7 +1426,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			CB_INSSTR(IDC_COMBO_SUBWINDOW_MAX, cb_info_IDC_COMBO_SUBWINDOW_MAX[i]);
 		CB_SET(IDC_COMBO_SUBWINDOW_MAX, RANGE(sp_temp->SubWindowMax, 0, cb_num_IDC_COMBO_SUBWINDOW_MAX));
 
-		if(PlayerLanguage == LANGUAGE_JAPANESE) {
+		if(CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 			for (i = 0; i < CB_NUM(process_priority_num); i++)
 				CB_INSSTR(IDC_COMBO_PROCESS_PRIORITY, process_priority_name_jp[i]);
 			for (i = 0; i < CB_NUM(thread_priority_num); i++)		
@@ -1333,6 +1453,22 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		for (i = 0; i <= cb_num_IDC_COMBO_SECOND_MODE; i++)
 			CB_INSSTR(IDC_COMBO_SECOND_MODE, cb_info_IDC_COMBO_SECOND_MODE[i]);
 		CB_SET(IDC_COMBO_SECOND_MODE, CB_FIND(cb_info_IDC_COMBO_SECOND_MODE_num, sp_temp->SecondMode, 0));
+		
+        // CC/Mark loop repeat
+        CH_SET(IDC_CHECKBOX_LOOP_CC111, st_temp->opt_use_midi_loop_repeat & LF_CC111_TO_EOT);
+        CH_SET(IDC_CHECKBOX_LOOP_AB_MARK, st_temp->opt_use_midi_loop_repeat & LF_MARK_A_TO_B);
+        CH_SET(IDC_CHECKBOX_LOOP_SE_MARK, st_temp->opt_use_midi_loop_repeat & LF_MARK_S_TO_E);
+        CH_SET(IDC_CHECKBOX_LOOP_CC2, (st_temp->opt_use_midi_loop_repeat & LF_CC2_TO_CC4) != 0);
+        SendMessage(hwnd, WM_COMMAND, IDC_CHECKBOX_LOOP_CC111, 0);
+        EB_SET_INT(IDC_EDIT_LOOP_REPEAT, st_temp->opt_midi_loop_repeat);
+
+#ifndef SUPPORT_LOOPEVENT
+        DI_DISABLE(IDC_CHECKBOX_LOOP_CC111);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_AB_MARK);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_SE_MARK);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_CC2);
+        DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
+#endif
 
 		initflag = 0;
 		break;
@@ -1387,6 +1523,20 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				EnableWindow(GetDlgItem(hwnd, IDC_COMBO_TRACE_MODE_UPDATE), FALSE);
 			break;
 #endif
+			
+#ifdef SUPPORT_LOOPEVENT
+        case IDC_CHECKBOX_LOOP_CC111:
+        case IDC_CHECKBOX_LOOP_AB_MARK:
+        case IDC_CHECKBOX_LOOP_SE_MARK:
+        case IDC_CHECKBOX_LOOP_CC2:
+            if (CH_GET(IDC_CHECKBOX_LOOP_CC111) || CH_GET(IDC_CHECKBOX_LOOP_AB_MARK) ||
+                    CH_GET(IDC_CHECKBOX_LOOP_SE_MARK) || CH_GET(IDC_CHECKBOX_LOOP_CC2))
+                DI_ENABLE(IDC_EDIT_LOOP_REPEAT);
+            else
+                DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
+            break;
+#endif
+
 		default:
 			break;
 	  }
@@ -1462,16 +1612,41 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		sp_temp->PlaylistMax =  cb_info_IDC_COMBO_PLAYLIST_MAX_num[CB_GETS(IDC_COMBO_PLAYLIST_MAX, 0)];
 		// second mode
 		sp_temp->SecondMode =  cb_info_IDC_COMBO_SECOND_MODE_num[CB_GETS(IDC_COMBO_SECOND_MODE, 1)];
-	}
-		break;
-	case WM_SIZE:
-		return FALSE;
-	case WM_DESTROY:
-		DeleteObject(hFontConfigFile);
-		hFontConfigFile = NULL;
-		break;
-	default:
-	  break;
+
+        // CC/Mark loop repeat
+        st_temp->opt_use_midi_loop_repeat = 0;
+#ifdef SUPPORT_LOOPEVENT
+        flag = CH_GET(IDC_CHECKBOX_LOOP_CC111) ? 1 : 0;
+        st_temp->opt_use_midi_loop_repeat |= LF_CC111_TO_EOT * flag;
+        flag = CH_GET(IDC_CHECKBOX_LOOP_AB_MARK) ? 1 : 0;
+        st_temp->opt_use_midi_loop_repeat |= LF_MARK_A_TO_B * flag;
+        flag = CH_GET(IDC_CHECKBOX_LOOP_SE_MARK) ? 1 : 0;
+        st_temp->opt_use_midi_loop_repeat |= LF_MARK_S_TO_E * flag;
+        flag = CH_GET(IDC_CHECKBOX_LOOP_CC2) ? 1 : 0;
+        st_temp->opt_use_midi_loop_repeat |= LF_CC2_TO_CC4 * flag;
+        st_temp->opt_midi_loop_repeat = EB_GET_INT(IDC_EDIT_LOOP_REPEAT);
+#endif
+
+        break; }
+
+    case WM_DESTROY:
+        if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
+            const TCHAR *msg,
+                   msg_en[] = TEXT("Press the Reload button to apply instruments"),
+                   msg_jp[] = TEXT("音色情報は強制再読込ボタンを押すと反映されます");
+            switch (CurrentPlayerLanguage) {
+            case LANGUAGE_ENGLISH: msg = msg_en; break;
+            case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
+            }
+            if (get_verbosity_level() >= VERB_NORMAL)
+                MessageBox(hMainWnd, msg, TEXT("TiMidity"), MB_OK | MB_ICONWARNING);
+        }
+        safe_free(CurrentConfigFile);
+        CurrentConfigFile = 0;
+        break;
+
+    default:
+        break;
 	}
 	return FALSE;
 }
@@ -1543,15 +1718,32 @@ static TCHAR **GetMidiINDrivers( void )
 static BOOL APIENTRY
 PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	static HFONT hFontConfigFile = NULL;
-	static int initflag = 1; 
-	int i, tmp;
+    static int initflag = 1;
+    int i, tmp;
+    static const DWORD dwCtlPortIDs[] = {
+          IDC_COMBO_IDPORT0, IDC_COMBO_IDPORT1,
+          IDC_COMBO_IDPORT2, IDC_COMBO_IDPORT3,
+          /*IDC_COMBO_IDPORT4, IDC_COMBO_IDPORT5,
+          IDC_COMBO_IDPORT6, IDC_COMBO_IDPORT7*/ };
 	switch (uMess){
-  case WM_INITDIALOG:
+    case WM_INITDIALOG:
+        if (hFixedPointFont != NULL)
+            SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_SETFONT, (WPARAM) hFixedPointFont, MAKELPARAM(TRUE, 0));
+
+
+        if (!sp_temp->ConfigFile[0]) {
+            strcpy(sp_temp->ConfigFile, ConfigFile);
+        }
+        EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, sp_temp->ConfigFile);
+        tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+        SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
+        safe_free(CurrentConfigFile);
+        CurrentConfigFile = safe_strdup(sp_temp->ConfigFile);
+
 #if defined(WINDRV_SETUP)
-		DI_DISABLE(IDC_BUTTON_CFG_RELOAD);
-		DI_DISABLE(IDC_BUTTON_CONFIG_FILE);
-#endif   
+        DI_DISABLE(IDC_BUTTON_CFG_RELOAD);
+        DI_DISABLE(IDC_BUTTON_CONFIG_FILE);
+#endif
 
 		{
 			HDC hdc;
@@ -1593,20 +1785,20 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_INIFILE_AUTOSAVE,
 								sp_temp->IniFileAutoSave);
 
+        // MIDI In
 #if defined(WINDRV_SETUP)
-		DI_DISABLE(IDC_COMBO_PORT_NUM);
-		DI_DISABLE(IDC_COMBO_IDPORT0);
-		DI_DISABLE(IDC_COMBO_IDPORT1);
-		DI_DISABLE(IDC_COMBO_IDPORT2);
-		DI_DISABLE(IDC_COMBO_IDPORT3);
-		DI_DISABLE(IDC_CHECK_USE_TWSYN_BRIDGE);
+        DI_DISABLE(IDC_COMBO_PORT_NUM);
+        for (i = 0; i < ARRAY_SIZE(dwCtlPortIDs); i++) {
+            DI_DISABLE(dwCtlPortIDs[i]);
+        }
+        DI_DISABLE(IDC_CHECK_USE_TWSYN_BRIDGE);
 #else
 #if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
-		DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);
+        DLG_FLAG_TO_CHECKBUTTON(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);
 #else
-		DI_DISABLE(IDC_CHECK_USE_TWSYN_BRIDGE);
+        DI_DISABLE(IDC_CHECK_USE_TWSYN_BRIDGE);
 #endif
-		GetMidiINDrivers();
+        GetMidiINDrivers();
 
 		for ( i = 0; i <= MAX_PORT; i ++ ) {
 			TCHAR buff[32];
@@ -1690,43 +1882,39 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-
+		
 #if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
-		case IDC_CHECK_USE_TWSYN_BRIDGE:
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0, CB_RESETCONTENT, 0,0);
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1, CB_RESETCONTENT, 0,0);
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2, CB_RESETCONTENT, 0,0);
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3, CB_RESETCONTENT, 0,0);
+        case IDC_CHECK_USE_TWSYN_BRIDGE:
+            for (i = 0; i < ARRAY_SIZE(dwCtlPortIDs); i++) {
+                CB_RESET(dwCtlPortIDs[i]);
+            }
 
-		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);	
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_PORT_NUM, CB_GETCURSEL, 0, 0 );
-		if ( tmp != CB_ERR ) st_temp->SynPortNum = tmp;		
-		GetMidiINDrivers();
+            DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);
+            tmp = CB_GET(IDC_COMBO_PORT_NUM);
+            if (tmp != CB_ERR)
+                st_temp->SynPortNum = tmp;
 
-		if ( MidiINDrivers != NULL ) {
-			for ( i = 0; MidiINDrivers[i] != NULL; i ++ ) {
-				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0,
-					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
-				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1,
-					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
-				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2,
-					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
-				SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3,
-					CB_INSERTSTRING, (WPARAM) -1, (LPARAM) MidiINDrivers[i] );
-				safe_free ( MidiINDrivers[i] );
-			}
-			safe_free ( MidiINDrivers );
-			MidiINDrivers = NULL;
-		}		
-		st_temp->SynIDPort[0] = 0; // reset
-		st_temp->SynIDPort[1] = 0; // reset
-		st_temp->SynIDPort[2] = 0; // reset
-		st_temp->SynIDPort[3] = 0; // reset
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT0, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[0], (LPARAM) 0 );
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT1, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[1], (LPARAM) 0 );
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT2, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[2], (LPARAM) 0 );
-		SendDlgItemMessage(hwnd, IDC_COMBO_IDPORT3, CB_SETCURSEL, (WPARAM) st_temp->SynIDPort[3], (LPARAM) 0 );	
-			break;
+            GetMidiINDrivers();
+
+            if (MidiINDrivers != NULL) {
+                for (i = 0; MidiINDrivers[i] != NULL; i ++) {
+                    const TCHAR *str = MidiINDrivers[i];
+                    int j;
+                    for (j = 0; j < ARRAY_SIZE(dwCtlPortIDs); j++) {
+                        CB_INSSTR(dwCtlPortIDs[j], str ? str : TEXT(""));
+                    }
+                    safe_free(MidiINDrivers[i] );
+                }
+                safe_free(MidiINDrivers);
+                MidiINDrivers = NULL;
+            }
+            for (i = 0; i < MAX_PORT; i++) {
+                st_temp->SynIDPort[i] = 0; // reset
+            }
+            for (i = 0; i < MAX_PORT && i < ARRAY_SIZE(dwCtlPortIDs); i++) {
+                CB_SET(dwCtlPortIDs[i], st_temp->SynIDPort[i]);
+            }
+            break;
 #endif
 		case IDC_BUTTON_CONFIG_FILE:
 			{
@@ -1792,63 +1980,79 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			sp_temp->PlayerLanguage = LANGUAGE_JAPANESE;
 		}
 
-#if !defined(WINDRV_SETUP)		
+#if !defined(WINDRV_SETUP)
 #if defined(TWSYNG32) && !defined(TWSYNSRV) && defined(USE_TWSYN_BRIDGE)
-		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);
+        DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_USE_TWSYN_BRIDGE, st_temp->opt_use_twsyn_bridge);
 #endif
-		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_SYN_AUTOSTART, st_temp->syn_AutoStart);
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_PORT_NUM, CB_GETCURSEL, 0, 0 );
-		if ( tmp != CB_ERR ) st_temp->SynPortNum = tmp;
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_IDPORT0, CB_GETCURSEL, 0, 0 );
-		if ( tmp != CB_ERR ) st_temp->SynIDPort[0] = tmp;
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_IDPORT1, CB_GETCURSEL, 0, 0 );
-		if ( tmp != CB_ERR ) st_temp->SynIDPort[1] = tmp;
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_IDPORT2, CB_GETCURSEL, 0, 0 );
-		if ( tmp != CB_ERR ) st_temp->SynIDPort[2] = tmp;
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_IDPORT3, CB_GETCURSEL, 0, 0 );
-		if ( tmp != CB_ERR ) st_temp->SynIDPort[3] = tmp;
-		// console
-		{
-			char *p;
-			/* remove 'v' and 'q' from st_temp->opt_ctl */
-			while(strchr(st_temp->opt_ctl + 1, 'v'))
-				 SettingCtlFlag(st_temp, 'v', 0);
-			while(strchr(st_temp->opt_ctl + 1, 'q'))
-				 SettingCtlFlag(st_temp, 'q', 0);
-			/* append 'v' or 'q' */
-			p = st_temp->opt_ctl + strlen(st_temp->opt_ctl);
-			tmp = cb_info_IDC_COMBO_CTL_VEBOSITY_num[CB_GETS(IDC_COMBO_CTL_VEBOSITY, 1)];
-			tmp = RANGE(tmp, -1, 4); /* -1..4 */
-			while(tmp > 1) { *p++ = 'v'; tmp--; }
-			while(tmp < 1) { *p++ = 'q'; tmp++; }
-		}
-		// spectrogram
+        st_temp->syn_AutoStart = CH_GET(IDC_CHECK_SYN_AUTOSTART);
+        tmp = CB_GET(IDC_COMBO_PORT_NUM);
+        if (tmp != CB_ERR) st_temp->SynPortNum = tmp;
+        for (i = 0; i < MAX_PORT && i < ARRAY_SIZE(dwCtlPortIDs); i++) {
+            tmp = CB_GET(dwCtlPortIDs[i]);
+            if (tmp != CB_ERR) st_temp->SynIDPort[i] = tmp;
+        }
+
+        // console
+        {
+            char *p;
+            /* remove 'v' and 'q' from st_temp->opt_ctl */
+            while (strchr(st_temp->opt_ctl + 1, 'v'))
+                 SettingCtlFlag(st_temp, 'v', 0);
+            while (strchr(st_temp->opt_ctl + 1, 'q'))
+                 SettingCtlFlag(st_temp, 'q', 0);
+            /* append 'v' or 'q' */
+            p = st_temp->opt_ctl + strlen(st_temp->opt_ctl);
+            tmp = cb_info_IDC_COMBO_CTL_VEBOSITY_num[CB_GETS(IDC_COMBO_CTL_VEBOSITY, 1)];
+            RANGE(tmp, -1, 4); /* -1..4 */
+            while (tmp > 1) { *p++ = 'v'; tmp--; }
+            while (tmp < 1) { *p++ = 'q'; tmp++; }
+        }
+
+        // spectrogram
 #ifdef SUPPORT_SOUNDSPEC
-		st_temp->spectrogram_update_sec = GetDlgItemFloat(hwnd, IDC_EDIT_SPECTROGRAM_UPDATE);
-#endif
+        st_temp->spectrogram_update_sec = GetDlgItemFloat(hwnd, IDC_EDIT_SPECTROGRAM_UPDATE);
+#endif /* SUPPORT_SOUNDSPEC */
 #endif // !defined(WINDRV_SETUP)
 
-		st_temp->SynShTime = GetDlgItemInt(hwnd,IDC_EDIT_SYN_SH_TIME,NULL,FALSE);
-		RANGE(st_temp->SynShTime, 1, 1000);
-		st_temp->opt_rtsyn_latency = GetDlgItemInt(hwnd,IDC_EDIT_RTSYN_LATENCY,NULL,FALSE);
-		RANGE(st_temp->opt_rtsyn_latency, 1, 1000);
-		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_RTSYN_SKIP_AQ, st_temp->opt_rtsyn_skip_aq);
+        // synthesize
+        st_temp->SynShTime = EB_GET_UINT(IDC_EDIT_SYN_SH_TIME);
+        RANGE(st_temp->SynShTime, 1, 1000);
+        st_temp->opt_rtsyn_latency = EB_GET_UINT(IDC_EDIT_RTSYN_LATENCY);
+        RANGE(st_temp->opt_rtsyn_latency, 1, 1000);
+        DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_RTSYN_SKIP_AQ, st_temp->opt_rtsyn_skip_aq);
 
-		// Set process priority
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_PROCESS_PRIORITY, CB_GETCURSEL, 0, 0 );
-		if(tmp != CB_ERR)
-			st_temp->processPriority = process_priority_num[tmp];
-		// Set thread priority
-		tmp = SendDlgItemMessage ( hwnd, IDC_COMBO_SYN_THREAD_PRIORITY, CB_GETCURSEL, 0, 0 );
-		if(tmp != CB_ERR)
-			st_temp->syn_ThreadPriority = thread_priority_num[tmp];
-		// compute_thread_num
-		st_temp->compute_thread_num = cb_info_IDC_COMBO_COMPUTE_THREAD_NUM_num[CB_GETS(IDC_COMBO_COMPUTE_THREAD_NUM, 0)];
-		
-		SetWindowLongPtr(hwnd,DWLP_MSGRESULT,FALSE);
-		break;
-	default:
-	  break;
+        // Set process priority
+        tmp = CB_GET(IDC_COMBO_PROCESS_PRIORITY);
+        if (tmp != CB_ERR)
+            st_temp->processPriority = process_priority_num[tmp];
+        // Set thread priority
+        tmp = CB_GET(IDC_COMBO_SYN_THREAD_PRIORITY);
+        if (tmp != CB_ERR)
+            st_temp->syn_ThreadPriority = thread_priority_num[tmp];
+        // compute_thread_num
+        st_temp->compute_thread_num = cb_info_IDC_COMBO_COMPUTE_THREAD_NUM_num[CB_GETS(IDC_COMBO_COMPUTE_THREAD_NUM, 0)];
+
+        SetWindowLongPtr(hwnd, DWLP_MSGRESULT, FALSE);
+        break;
+
+    case WM_DESTROY:
+        if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
+            const TCHAR *msg,
+                   msg_en[] = TEXT("Press the Reload button to apply instruments"),
+                   msg_jp[] = TEXT("音色情報は強制再読込ボタンを押すと反映されます");
+            switch (CurrentPlayerLanguage) {
+            case LANGUAGE_ENGLISH: msg = msg_en; break;
+            case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
+            }
+            if (get_verbosity_level() >= VERB_NORMAL)
+                MessageBox(hwnd, msg, TEXT(""), MB_OK | MB_ICONWARNING);
+        }
+        safe_free(CurrentConfigFile);
+        CurrentConfigFile = 0;
+        break;
+
+    default:
+        break;
 	}
 	return FALSE;
 }
@@ -2793,7 +2997,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_INITDIALOG:
 		// MIDI effect
 		// MIDI SYSTEM
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_MIDI_TYPE_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_MIDI_TYPE_en;
@@ -2813,7 +3017,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		CB_SET(IDC_COMBO_MODULE, cb_find_module(st_temp->opt_default_module));
 
 		// REVERB
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_REVERB_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_REVERB_en;
@@ -2840,7 +3044,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 
 		// CHORUS
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_CHORUS_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_CHORUS_en;
@@ -2874,7 +3078,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 
 		// DELAY
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_DELAY_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_DELAY_en;
@@ -2887,7 +3091,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		SendDlgItemMessage(hwnd, IDC_COMBO_DELAY, CB_SETCURSEL,
 				(WPARAM) st_temp->opt_delay_control, (LPARAM) 0);
 		// LPF
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_LPF_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_LPF_en;
@@ -2895,7 +3099,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			CB_INSSTR(IDC_COMBO_LPF, (LPARAM) cb_info[i]);
 		CB_SET(IDC_COMBO_LPF, (WPARAM) st_temp->opt_lpf_def);
 		// HPF
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_HPF_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_HPF_en;
@@ -2977,18 +3181,6 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_LIMITER), FALSE);
 		}
 		
-		// CC#111 loop repeat		
-		CH_SET(IDC_CHECKBOX_LOOP_REPEAT, st_temp->opt_use_midi_loop_repeat);
-		SendMessage(hwnd, WM_COMMAND, IDC_CHECKBOX_LOOP_REPEAT, 0);
-		EB_SET_INT(IDC_EDIT_LOOP_REPEAT, st_temp->opt_midi_loop_repeat);
-
-#if defined(IA_W32G_SYN) || defined(WINDRV_SETUP)
-		DI_DISABLE(IDC_CHECKBOX_LOOP_REPEAT);
-		DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
-#elif !defined(SUPPORT_LOOPEVENT)
-		DI_DISABLE(IDC_CHECKBOX_LOOP_REPEAT);
-		DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
-#endif
 
 		// play
 		// VOICES
@@ -3033,7 +3225,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		// ANTIALIAS
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_ANTIALIAS,st_temp->antialiasing_allowed);
 		// NOISESHAPING
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_NOISESHARPING_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_NOISESHARPING_en;
@@ -3041,7 +3233,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendDlgItemMessage(hwnd, IDC_COMBO_NOISESHARPING, CB_INSERTSTRING, (WPARAM) -1, (LPARAM) cb_info[i]);
 		SendDlgItemMessage(hwnd, IDC_COMBO_NOISESHARPING, CB_SETCURSEL, (WPARAM) st_temp->noise_sharp_type, (LPARAM) 0);
 		// RESAMPLE
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_RESAMPLE_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_RESAMPLE_en;
@@ -3052,7 +3244,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			CB_INSSTR(IDC_COMBO_RESAMPLE_PARAM, cb_info_IDC_COMBO_RESAMPLE_PARAM[i]);
 		CB_SET(IDC_COMBO_RESAMPLE_PARAM, CB_FIND(cb_info_IDC_COMBO_RESAMPLE_PARAM_num,st_temp->opt_resample_param ,0));
 
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info = cb_info_IDC_COMBO_RESAMPLE_FILTER_jp;
 		else 
 			cb_info = cb_info_IDC_COMBO_RESAMPLE_FILTER_en;
@@ -3124,15 +3316,6 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				EnableWindow(GetDlgItem(hwnd, IDC_SLIDER_LIMITER), FALSE);
 				EnableWindow(GetDlgItem(hwnd, IDC_EDIT_LIMITER), FALSE);
 			}
-			break;
-		case IDC_CHECKBOX_LOOP_REPEAT:
-#if defined(SUPPORT_LOOPEVENT)
-			if (CH_GET(IDC_CHECKBOX_LOOP_REPEAT))
-				DI_ENABLE(IDC_EDIT_LOOP_REPEAT);
-			else
-				DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
-			break;
-#endif
 			break;
 		default:
 			PrefWndSetOK = 1;
@@ -3233,12 +3416,7 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		// LIMITER
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECKBOX_LIMITER, flag);
 		st_temp->opt_limiter = !flag ? 0 : EB_GET_INT(IDC_EDIT_LIMITER);
-
-		// CC#111 loop repeat
-#if defined(SUPPORT_LOOPEVENT)
-		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECKBOX_LOOP_REPEAT, st_temp->opt_use_midi_loop_repeat);
-		st_temp->opt_midi_loop_repeat = EB_GET_INT(IDC_EDIT_LOOP_REPEAT);
-#endif		
+	
 		//play
 		// Maximum voices
 		st_temp->voices = GetDlgItemInt(hwnd,IDC_COMBO_VOICES,NULL,FALSE);
@@ -3501,6 +3679,7 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	static int pref_channel_mode;
 	static int pref_channel_page;
 	static ChannelBitMask channelbitmask;
+    static const TCHAR **cache_info_BANK_PROGRAM = 0;
 	int i, j, tmp;
 	switch (uMess){
 	case WM_INITDIALOG:
@@ -3518,6 +3697,8 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		for (i = 0; i < PREF_PROGRAM_PAGE_NUM; i++)
 			CB_INSSTR(IDC_COMBO_PROGRAM, cb_info_IDC_COMBO_PROGRAM[i]);
 		CB_SET(IDC_COMBO_PROGRAM, pref_program_page);
+		
+        cache_info_BANK_PROGRAM = 0;
 		SendMessage(hwnd,WM_MYRESTORE,(WPARAM)RESTORE_PROGRAM,(LPARAM)0);
 
 		// CAHHNEL
@@ -3581,31 +3762,43 @@ PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_MYRESTORE:
 		switch (wParam) {
 		case RESTORE_PROGRAM:
-			switch(pref_program_mode){
-			case PREF_PROGRAM_MODE_DEFAULT_PROGRAM:
-				SendDlgItemMessage(hwnd,IDC_CHECKBOX_DEFAULT_PROGRAM,BM_SETCHECK,1,0);
-				SendDlgItemMessage(hwnd,IDC_CHECKBOX_SPECIAL_PROGRAM,BM_SETCHECK,0,0);
-				for (i = 0; i < 16; i++){
-					SetDlgItemText(hwnd, IDC_STATIC_PROGRAM01 + i, info_CHANNEL[pref_program_page * 16 + i]);
-					CB_RESET(IDC_COMBO_PROGRAM01 + i); // delete info
-					for (j = 0; j < num_BANK_PROGRAM -1; j++)
-						CB_INSSTR(IDC_COMBO_PROGRAM01 + i, info_BANK_PROGRAM[j+1]);
-					CB_SET(IDC_COMBO_PROGRAM01 + i,st_temp->default_program[pref_program_page * 16 + i]);
-				}
-				break;
-			case PREF_PROGRAM_MODE_SPECIAL_PROGRAM:
-				SendDlgItemMessage(hwnd,IDC_CHECKBOX_DEFAULT_PROGRAM,BM_SETCHECK,0,0);
-				SendDlgItemMessage(hwnd,IDC_CHECKBOX_SPECIAL_PROGRAM,BM_SETCHECK,1,0);
-				for (i = 0; i < 16; i++){
-					SetDlgItemText(hwnd, IDC_STATIC_PROGRAM01 + i, info_CHANNEL[pref_program_page * 16 + i]);
-					CB_RESET(IDC_COMBO_PROGRAM01 + i); // delete info
-					for (j = 0; j < num_BANK_PROGRAM; j++)
-						CB_INSSTR(IDC_COMBO_PROGRAM01 + i, info_BANK_PROGRAM[j]);
-					CB_SET(IDC_COMBO_PROGRAM01 + i, st_temp->special_program[pref_program_page * 16 + i] + 1);
-				}
-				break;
-			}
-			break;
+            switch (pref_program_mode) {
+            case PREF_PROGRAM_MODE_DEFAULT_PROGRAM:
+                CH_SET(IDC_CHECKBOX_DEFAULT_PROGRAM, 1);
+                CH_SET(IDC_CHECKBOX_SPECIAL_PROGRAM, 0);
+                if (cache_info_BANK_PROGRAM != info_BANK_PROGRAM + 1) {
+                    cache_info_BANK_PROGRAM = info_BANK_PROGRAM + 1;
+                    for (i = 0; i < 16; i++) {
+                        CB_RESET(IDC_COMBO_PROGRAM01 + i); // delete info
+                        for (j = 0; j < num_BANK_PROGRAM -1; j++)
+                            CB_INSSTR(IDC_COMBO_PROGRAM01 + i, cache_info_BANK_PROGRAM[j]);
+                    }
+                }
+                for (i = 0; i < 16; i++) {
+                    EB_SETTEXT(IDC_STATIC_PROGRAM01 + i, info_CHANNEL[pref_program_page * 16 + i]);
+                    CB_SET(IDC_COMBO_PROGRAM01 + i, st_temp->default_program[pref_program_page * 16 + i]);
+                }
+                break;
+
+            case PREF_PROGRAM_MODE_SPECIAL_PROGRAM:
+                CH_SET(IDC_CHECKBOX_DEFAULT_PROGRAM, 0);
+                CH_SET(IDC_CHECKBOX_SPECIAL_PROGRAM, 1);
+                if (cache_info_BANK_PROGRAM != info_BANK_PROGRAM) {
+                    cache_info_BANK_PROGRAM = info_BANK_PROGRAM;
+                    for (i = 0; i < 16; i++) {
+                        CB_RESET(IDC_COMBO_PROGRAM01 + i); // delete info
+                        for (j = 0; j < num_BANK_PROGRAM; j++)
+                            CB_INSSTR(IDC_COMBO_PROGRAM01 + i, cache_info_BANK_PROGRAM[j]);
+                    }
+                }
+                for (i = 0; i < 16; i++) {
+                    EB_SETTEXT(IDC_STATIC_PROGRAM01 + i, info_CHANNEL[pref_program_page * 16 + i]);
+                    CB_SET(IDC_COMBO_PROGRAM01 + i, st_temp->special_program[pref_program_page * 16 + i] + 1);
+                }
+                break;
+            }
+            break;
+
 		case RESTORE_CHANNEL:
 			switch(pref_channel_mode){
 			case PREF_CHANNEL_MODE_DRUM_CHANNEL_MASK:
@@ -4246,7 +4439,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)t);
 			safe_free(t);
 		}
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 			cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
 		else
 			cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_en;
@@ -4304,7 +4497,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendDlgItemMessage(hwnd,IDC_CHECKBOX_LINEAR,BM_SETCHECK,1,0);
 		}
 		// BANDWIDTH
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		  cb_info_IDC_COMBO_BANDWIDTH = cb_info_IDC_COMBO_BANDWIDTH_jp;
 		else
 		  cb_info_IDC_COMBO_BANDWIDTH = cb_info_IDC_COMBO_BANDWIDTH_en;
@@ -4360,7 +4553,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		CB_SET(IDC_COMBO_SAMPLE_RATE, CB_FIND(cb_info_IDC_COMBO_SAMPLE_RATE_num, st_temp->output_rate, 9));
 
 		// COMPUTE_BUFFER_BITS
-		if (PlayerLanguage == LANGUAGE_JAPANESE){
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE){
 			for (i = 0; i < CB_NUM(cb_info_IDC_COMBO_COMPUTE_BUFFER_BITS_num); i++)
 				CB_INSSTR(IDC_COMBO_COMPUTE_BUFFER_BITS, cb_info_IDC_COMBO_COMPUTE_BUFFER_BITS_jp[i]);
 		}else{
@@ -4370,7 +4563,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		CB_SET(IDC_COMBO_COMPUTE_BUFFER_BITS, CB_FIND(cb_info_IDC_COMBO_COMPUTE_BUFFER_BITS_num, st_temp->compute_buffer_bits, 0));
 
 		// DATA_BLOCK
-		if (PlayerLanguage == LANGUAGE_JAPANESE){
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE){
 			for (i = 0; i < CB_NUM(cb_info_IDC_COMBO_BUFFER_BITS_num); i++)
 				CB_INSSTR(IDC_COMBO_BUFFER_BITS, cb_info_IDC_COMBO_BUFFER_BITS_jp[i]);
 			for (i = 0; i < CB_NUM(cb_info_IDC_COMBO_FRAGMENTS_num); i++)
@@ -4704,7 +4897,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		{
 			int cb_num1, cb_num2;
 			cb_num1 = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
-			if (PlayerLanguage == LANGUAGE_JAPANESE)
+			if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 				cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
 			else
 				cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_en;
@@ -4714,7 +4907,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					break;
 				}
 			}
-			if (PlayerLanguage == LANGUAGE_JAPANESE) {
+			if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 				if(st_temp->auto_output_mode>0){
 				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("出力先"));
 				TCHAR *t = char_to_tchar(st_temp->OutputDirName);
@@ -4933,21 +5126,6 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	  break;
 	}
 	return FALSE;
-}
-
-
-void SetDlgItemFloat(HWND hwnd, UINT id, double v)
-{
-	TCHAR buf[128] = _T("");
-	_sntprintf(buf, 100, _T("%g"), v);
-	SetDlgItemText(hwnd, id, buf);
-}
-
-double GetDlgItemFloat(HWND hwnd, UINT id)
-{
-	TCHAR buf[128] = _T("");
-	GetDlgItemText(hwnd,id,buf,100);
-	return _tcstod(buf, NULL);
 }
 
 
@@ -5783,7 +5961,7 @@ static LRESULT APIENTRY CALLBACK PrefIntSynthDialogProc(HWND hwnd, UINT uMess, W
 		SetDlgItemInt(hwnd, IDC_EDIT_INT_SYNTH_UPDATE, st_temp->opt_int_synth_update, TRUE);
 	//	SetDlgItemInt(hwnd, IDC_EDIT_INT_SYNTH_SINE, st_temp->opt_int_synth_sine, TRUE);
 		// INT_SYNTH_SINE
-		if (PlayerLanguage == LANGUAGE_JAPANESE){
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE){
 			for (i = 0; i < cb_num_IDC_COMBO_INT_SYNTH_SINE; i++)
 				CB_INSSTR(IDC_COMBO_INT_SYNTH_SINE, cb_info_IDC_COMBO_INT_SYNTH_SINE_jp[i]);
 		}else{
@@ -5843,7 +6021,7 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 		   *title_en = _T("Open Config File"),
 		   *title_jp = _T("Config ファイルを開く");
 
-	if (PlayerLanguage == LANGUAGE_JAPANESE) {
+	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
 		title = title_jp;
 	}
@@ -5920,7 +6098,7 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 		   *title_en = _T("Output File"),
 		   *title_jp = _T("出力ファイルを選ぶ");
 
-	if (PlayerLanguage == LANGUAGE_JAPANESE) {
+	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
 		title = title_jp;
 	}
@@ -6006,7 +6184,7 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 		   *title_en = _T("Select output directory."),
 		   *title_jp = _T("出力先のディレクトリを選択してください。");
 
-	if (PlayerLanguage == LANGUAGE_JAPANESE)
+	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		title = title_jp;
 	else
 		title = title_en;
@@ -6187,7 +6365,7 @@ extern void wave_set_option_update_step(int);
 int waveConfigDialog(void)
 {
 	int changed = 0;
-	if (PlayerLanguage == LANGUAGE_JAPANESE)
+	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_RIFFWAVE), hPrefWnd, (DLGPROC)waveConfigDialogProc);
 	else
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_RIFFWAVE_EN), hPrefWnd, (DLGPROC)waveConfigDialogProc);
@@ -6926,7 +7104,7 @@ int gogoConfigDialog(void)
 {
 	int changed = 0;
 #ifdef AU_GOGO
-	if (PlayerLanguage == LANGUAGE_JAPANESE)
+	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_GOGO), hPrefWnd, (DLGPROC)gogoConfigDialogProc);
 	else
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_GOGO_EN), hPrefWnd, (DLGPROC)gogoConfigDialogProc);
@@ -7363,7 +7541,7 @@ static LRESULT APIENTRY CALLBACK vorbisConfigDialogProc(HWND hwnd, UINT uMess, W
 	{
 		int i;
 		// コンボボックスの初期化
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		  cb_info_IDC_COMBO_MODE = cb_info_IDC_COMBO_MODE_jp;
 		else
 		  cb_info_IDC_COMBO_MODE = cb_info_IDC_COMBO_MODE_en;
@@ -7491,7 +7669,7 @@ int vorbisConfigDialog(void)
 {
 	int changed = 0;
 #ifdef AU_VORBIS
-	if (PlayerLanguage == LANGUAGE_JAPANESE)
+	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_VORBIS), hPrefWnd, (DLGPROC)vorbisConfigDialogProc);
 	else
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_VORBIS_EN), hPrefWnd, (DLGPROC)vorbisConfigDialogProc);
@@ -7928,7 +8106,7 @@ static LRESULT APIENTRY CALLBACK flacConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	{
 		int i;
 		// コンボボックスの初期化
-		if (PlayerLanguage == LANGUAGE_JAPANESE)
+		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		  cb_info_flac_IDC_COMBO_ENCODE_MODE = cb_info_flac_IDC_COMBO_ENCODE_MODE_jp;
 		else
 		  cb_info_flac_IDC_COMBO_ENCODE_MODE = cb_info_flac_IDC_COMBO_ENCODE_MODE_en;
@@ -8021,7 +8199,7 @@ int flacConfigDialog(void)
 {
 	int changed = 0;
 #ifdef AU_FLAC
-	if (PlayerLanguage == LANGUAGE_JAPANESE)
+	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_FLAC), hPrefWnd, (DLGPROC)flacConfigDialogProc);
 	else
 		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_FLAC_EN), hPrefWnd, (DLGPROC)flacConfigDialogProc);
@@ -8105,6 +8283,46 @@ int flac_ConfigDialogInfoLoadINI(void)
 
 #endif	// AU_FLAC
 
+
+#ifdef AU_OPUS
+// Opus
+
+int opus_ConfigDialogInfoInit(void)
+{
+	return 0;
+}
+
+int opus_ConfigDialogInfoSaveINI(void)
+{
+	return 0;
+}
+
+int opus_ConfigDialogInfoLoadINI(void)
+{
+	return 0;
+}
+
+#endif
+
+#ifdef AU_SPEEX
+// Speex
+
+int speex_ConfigDialogInfoInit(void)
+{
+	return 0;
+}
+
+int speex_ConfigDialogInfoSaveINI(void)
+{
+	return 0;
+}
+
+int speex_ConfigDialogInfoLoadINI(void)
+{
+	return 0;
+}
+
+#endif
 
 #ifdef AU_PORTAUDIO_DLL
 ///////////////////////////////////////////////////////////////////////
@@ -8301,7 +8519,7 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 					pa_msg_en[] = TEXT("Cannot load portaudio_x86.dll"),
 					pa_msg_jp[] = TEXT("portaudio_x86.dll をロードしていません。");
 #endif
-				if (PlayerLanguage == LANGUAGE_JAPANESE)
+				if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 					pa_msg = pa_msg_jp;
 				else
 					pa_msg = pa_msg_en;
@@ -8311,7 +8529,7 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				const TCHAR *pa_msg,
 					pa_msg_en[] = TEXT("Couldn't close device"),
 					pa_msg_jp[] = TEXT("出力デバイスを閉じれません。");
-				if (PlayerLanguage == LANGUAGE_JAPANESE)
+				if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 					pa_msg = pa_msg_jp;
 				else
 					pa_msg = pa_msg_en;
@@ -8327,7 +8545,7 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 					pa_msg_en[] = TEXT("Failed initialize portaudio_x86.dll"),
 					pa_msg_jp[] = TEXT("portaudio_x86.dll を使用できません。");
 #endif
-				if (PlayerLanguage == LANGUAGE_JAPANESE)
+				if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 					pa_msg = pa_msg_jp;
 				else
 					pa_msg = pa_msg_en;

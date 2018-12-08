@@ -26,8 +26,9 @@
 
 // timer ID list
 enum timer_event_t {
-	trace_timer = 0,
-	MAX_TIMER_ID, // last
+        trace_timer = 0,
+        pref_timer,
+        MAX_TIMER_ID, // last
 };
 
 typedef void (*timer_func_t)(void);

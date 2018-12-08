@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -31,11 +31,6 @@
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>
 #endif /* HAVE_STDDEF_H */
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
 
 #include "timidity.h"
 #include "common.h"
@@ -80,28 +75,28 @@ static char ISIniFileOpenDir[FILEPATH_MAX] = "";
 #ifdef DLG_CHECKBUTTON_TO_FLAG
 #undef DLG_CHECKBUTTON_TO_FLAG
 #endif
-#define DLG_CHECKBUTTON_TO_FLAG(hwnd,ctlid,x)	\
-	((SendDlgItemMessage((hwnd),(ctlid),BM_GETCHECK,0,0))?((x)=1):((x)=0))
+#define DLG_CHECKBUTTON_TO_FLAG(hwnd,ctlid,x)   \
+        ((SendDlgItemMessage((hwnd),(ctlid),BM_GETCHECK,0,0))?((x)=1):((x)=0))
 
 #ifdef DLG_FLAG_TO_CHECKBUTTON
 #undef DLG_FLAG_TO_CHECKBUTTON
 #endif
-#define DLG_FLAG_TO_CHECKBUTTON(hwnd,ctlid,x)	\
-	((x)?(SendDlgItemMessage((hwnd),(ctlid),BM_SETCHECK,1,0)):\
-	(SendDlgItemMessage((hwnd),(ctlid),BM_SETCHECK,0,0)))
+#define DLG_FLAG_TO_CHECKBUTTON(hwnd,ctlid,x)   \
+        ((x)?(SendDlgItemMessage((hwnd),(ctlid),BM_SETCHECK,1,0)):\
+        (SendDlgItemMessage((hwnd),(ctlid),BM_SETCHECK,0,0)))
 
 #ifdef CHECKRANGE_ISEDITOR_PARAM
 #undef CHECKRANGE_ISEDITOR_PARAM
 #endif
 #define CHECKRANGE_ISEDITOR_PARAM(SV, SMIN,SMAX) SV = ((SV < SMIN) ?SMIN : ((SV > SMAX) ? SMAX : SV))
 
-static LRESULT APIENTRY CALLBACK ISEditorSCCDATAProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK ISEditorSCCDATAProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i, tmp, num;
-	WORD clid = 0;
-	static WORD focus_clid = 0;
-	int16 wheel_speed = 0;
-	static HWND hISEScrollbarValWnd[32];
+        int i, tmp, num;
+        WORD clid = 0;
+        static WORD focus_clid = 0;
+        int16 wheel_speed = 0;
+        static HWND hISEScrollbarValWnd[32];
 
 	switch (uMess) {
 	case WM_INITDIALOG:
@@ -289,12 +284,12 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCDATAProc(HWND hwnd, UINT uMess, WPAR
 }
 
 
-static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i, tmp;
-	WORD clid = 0;
-	static WORD focus_clid = 0;
-	int16 wheel_speed = 0;
+        int i, tmp;
+        WORD clid = 0;
+        static WORD focus_clid = 0;
+        int16 wheel_speed = 0;
 
 	switch (uMess) {
 	case WM_INITDIALOG:		
@@ -658,12 +653,12 @@ static LRESULT APIENTRY CALLBACK ISEditorSCCProc(HWND hwnd, UINT uMess, WPARAM w
 	return FALSE;
 }
 
-static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i, tmp;
-	WORD clid = 0;
-	static WORD focus_clid = 0, prv_focus_clid = 0;
-	int16 wheel_speed = 0;
+        int i, tmp;
+        WORD clid = 0;
+        static WORD focus_clid = 0, prv_focus_clid = 0;
+        int16 wheel_speed = 0;
 
 	switch (uMess) {
 	case WM_INITDIALOG:
@@ -1614,24 +1609,24 @@ static LRESULT APIENTRY CALLBACK ISEditorMMSProc(HWND hwnd, UINT uMess, WPARAM w
 }
 
 typedef struct is_editor_page_t_ {
-	int index;
-	TCHAR *title;
-	HWND hwnd;
-	UINT control;
-	DLGPROC dlgproc;
-	int opt;
+        int index;
+        TCHAR *title;
+        HWND hwnd;
+        UINT control;
+        DLGPROC dlgproc;
+        int opt;
 } is_editor_page_t;
 
 static is_editor_page_t is_editor_pages_ja[] = {
-	{ 0, TEXT("SCC_DATA"), (HWND)NULL, IDD_ISEDITOR_SCC_DATA, (DLGPROC) ISEditorSCCDATAProc, 0 },
-	{ 1, TEXT("SCC"), (HWND)NULL, IDD_ISEDITOR_SCC, (DLGPROC) ISEditorSCCProc, 0 },
-	{ 2, TEXT("MMS"), (HWND)NULL, IDD_ISEDITOR_MMS, (DLGPROC) ISEditorMMSProc, 0 },
+        { 0, TEXT("SCC_DATA"), (HWND) NULL, IDD_ISEDITOR_SCC_DATA, (DLGPROC) ISEditorSCCDATAProc, 0 },
+        { 1, TEXT("SCC"), (HWND) NULL, IDD_ISEDITOR_SCC, (DLGPROC) ISEditorSCCProc, 0 },
+        { 2, TEXT("MMS"), (HWND) NULL, IDD_ISEDITOR_MMS, (DLGPROC) ISEditorMMSProc, 0 },
 };
 
 static is_editor_page_t is_editor_pages_en[] = {
-	{ 0, TEXT("SCC_DATA"), (HWND)NULL, IDD_ISEDITOR_SCC_DATA_EN, (DLGPROC) ISEditorSCCDATAProc, 0 },
-	{ 1, TEXT("SCC"), (HWND)NULL, IDD_ISEDITOR_SCC_EN, (DLGPROC) ISEditorSCCProc, 0 },
-	{ 2, TEXT("MMS"), (HWND)NULL, IDD_ISEDITOR_MMS_EN, (DLGPROC) ISEditorMMSProc, 0 },
+        { 0, TEXT("SCC_DATA"), (HWND) NULL, IDD_ISEDITOR_SCC_DATA_EN, (DLGPROC) ISEditorSCCDATAProc, 0 },
+        { 1, TEXT("SCC"), (HWND) NULL, IDD_ISEDITOR_SCC_EN, (DLGPROC) ISEditorSCCProc, 0 },
+        { 2, TEXT("MMS"), (HWND) NULL, IDD_ISEDITOR_MMS_EN, (DLGPROC) ISEditorMMSProc, 0 },
 };
 
 #define ISEDITOR_PAGE_MAX 3
@@ -1656,12 +1651,12 @@ static void ISEditorWndCreateTabItems(HWND hwnd)
 
     switch (PlayerLanguage) {
     case LANGUAGE_JAPANESE:
-	is_editor_pages = is_editor_pages_ja;
-	break;
+        is_editor_pages = is_editor_pages_ja;
+        break;
     default:
     case LANGUAGE_ENGLISH:
-	is_editor_pages = is_editor_pages_en;
-	break;
+        is_editor_pages = is_editor_pages_en;
+        break;
     }
 
     hwnd_tab = GetDlgItem(hwnd, IDC_TAB_ISEDITOR);
@@ -1672,7 +1667,7 @@ static void ISEditorWndCreateTabItems(HWND hwnd)
 	tci.cchTextMax = _tcslen(is_editor_pages[i].title);
 	SendMessage(hwnd_tab, TCM_INSERTITEM, (WPARAM)i, (LPARAM)&tci);
 
-	is_editor_pages[i].hwnd = NULL;
+        is_editor_pages[i].hwnd = NULL;
     }
 }
 
@@ -1686,48 +1681,48 @@ static void ISEditorWndCreatePage(HWND hwnd, UINT page)
     BOOL theme_active = FALSE;
 
     if (page >= ISEDITOR_PAGE_MAX || is_editor_pages[page].hwnd)
-		return;
+                return;
     switch (PlayerLanguage) {
     case LANGUAGE_JAPANESE:
-		is_editor_pages = is_editor_pages_ja;
-		break;
+                is_editor_pages = is_editor_pages_ja;
+                break;
     default:
     case LANGUAGE_ENGLISH:
-		is_editor_pages = is_editor_pages_en;
-		break;
+                is_editor_pages = is_editor_pages_en;
+                break;
     }
     hwnd_tab = GetDlgItem(hwnd, IDC_TAB_ISEDITOR);
     if (!hwnd_tab)
-		return;
+                return;
 
     GetClientRect(hwnd_tab, &rc);
-    SendDlgItemMessage(hwnd, IDC_TAB_ISEDITOR, TCM_ADJUSTRECT, (WPARAM)0, (LPARAM)&rc);
+    SendDlgItemMessage(hwnd, IDC_TAB_ISEDITOR, TCM_ADJUSTRECT, (WPARAM) 0, (LPARAM) &rc);
     {
-	RECT rc_tab;
-	POINT pt_wnd;
-	GetWindowRect(hwnd_tab, &rc_tab);
-	pt_wnd.x = rc_tab.left, pt_wnd.y = rc_tab.top;
-	ScreenToClient(hwnd, &pt_wnd);
-	rc.left   += pt_wnd.x;
-	rc.top    += pt_wnd.y;
-	rc.right  += pt_wnd.x;
-	rc.bottom += pt_wnd.y;
+        RECT rc_tab;
+        POINT pt_wnd;
+        GetWindowRect(hwnd_tab, &rc_tab);
+        pt_wnd.x = rc_tab.left, pt_wnd.y = rc_tab.top;
+        ScreenToClient(hwnd, &pt_wnd);
+        rc.left   += pt_wnd.x;
+        rc.top    += pt_wnd.y;
+        rc.right  += pt_wnd.x;
+        rc.bottom += pt_wnd.y;
     }
     hUXTheme = GetModuleHandle(TEXT("UXTHEME")); //LoadLibrary(TEXT("UXTHEME"));
     if (hUXTheme) {
-		pfnIsThemeActive = (IsThemeActiveFn) GetProcAddress(hUXTheme, "IsThemeActive");
-		pfnEnableThemeDialogTexture = (EnableThemeDialogTextureFn) GetProcAddress(hUXTheme, "EnableThemeDialogTexture");
-		if (pfnIsThemeActive && pfnEnableThemeDialogTexture && (*pfnIsThemeActive)() != FALSE)
-			theme_active = TRUE;
+                pfnIsThemeActive = (IsThemeActiveFn) GetProcAddress(hUXTheme, "IsThemeActive");
+                pfnEnableThemeDialogTexture = (EnableThemeDialogTextureFn) GetProcAddress(hUXTheme, "EnableThemeDialogTexture");
+                if (pfnIsThemeActive && pfnEnableThemeDialogTexture && (*pfnIsThemeActive)() != FALSE)
+                        theme_active = TRUE;
     }
     is_editor_pages[page].hwnd = CreateDialog(hInst, MAKEINTRESOURCE(is_editor_pages[page].control),
-	hwnd, is_editor_pages[page].dlgproc);
+        hwnd, is_editor_pages[page].dlgproc);
     ShowWindow(is_editor_pages[page].hwnd, SW_HIDE);
     MoveWindow(is_editor_pages[page].hwnd, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, TRUE);
     if (theme_active)
-	(*pfnEnableThemeDialogTexture)(is_editor_pages[page].hwnd, ETDT_ENABLETAB);
+        (*pfnEnableThemeDialogTexture)(is_editor_pages[page].hwnd, ETDT_ENABLETAB);
     if (hUXTheme) {
-		hUXTheme = NULL;
+                hUXTheme = NULL;
     }
 }
 
@@ -1811,13 +1806,13 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 	}
 }
 
-LRESULT APIENTRY CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	int i;
-	WORD clid = 0;
-	static WORD focus_clid = 0, prv_focus_clid = 0;
-	int16 wheel_speed = 0;
-	char filename[FILEPATH_MAX];
+        int i;
+        WORD clid = 0;
+        static WORD focus_clid = 0, prv_focus_clid = 0;
+        int16 wheel_speed = 0;
+        char filename[FILEPATH_MAX];
 
 	switch (uMess){
 	case WM_INITDIALOG:
@@ -1882,50 +1877,50 @@ LRESULT APIENTRY CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wP
 		}
 		break;
 
-	case WM_NOTIFY:
+        case WM_NOTIFY:
       {
-	LPNMHDR pnmh = (LPNMHDR) lParam;
-	if (pnmh->idFrom == IDC_TAB_ISEDITOR) {
-	    switch (pnmh->code) {
-	    case TCN_SELCHANGE:
-	    {
-		int nIndex = SendDlgItemMessage(hwnd, IDC_TAB_ISEDITOR, TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
-		for (i = 0; i < ISEDITOR_PAGE_MAX; i++) {
-		    if (is_editor_pages[i].hwnd)
-			ShowWindow(is_editor_pages[i].hwnd, SW_HIDE);
-		}
-		ISEditorWndCreatePage(hwnd, nIndex);
-		ShowWindow(is_editor_pages[nIndex].hwnd, SW_SHOWNORMAL);
-		return TRUE;
-	    }
+        LPNMHDR pnmh = (LPNMHDR) lParam;
+        if (pnmh->idFrom == IDC_TAB_ISEDITOR) {
+            switch (pnmh->code) {
+            case TCN_SELCHANGE:
+            {
+                int nIndex = SendDlgItemMessage(hwnd, IDC_TAB_ISEDITOR, TCM_GETCURSEL, (WPARAM) 0, (LPARAM) 0);
+                for (i = 0; i < ISEDITOR_PAGE_MAX; i++) {
+                    if (is_editor_pages[i].hwnd)
+                        ShowWindow(is_editor_pages[i].hwnd, SW_HIDE);
+                }
+                ISEditorWndCreatePage(hwnd, nIndex);
+                ShowWindow(is_editor_pages[nIndex].hwnd, SW_SHOWNORMAL);
+                return TRUE;
+            }
 
-	    default:
-		break;
-	    }
-	}
+            default:
+                break;
+            }
+        }
       }
       break;
 
-	case WM_SIZE:
-	{
-		RECT rc;
-		HWND hwnd_tab = GetDlgItem ( hwnd, IDC_TAB_ISEDITOR );
-		GetClientRect ( hwnd_tab, &rc );
-		SendDlgItemMessage ( hwnd, IDC_TAB_ISEDITOR, TCM_ADJUSTRECT, (WPARAM)TRUE, (LPARAM)&rc );
-		for ( i = 0; i < ISEDITOR_PAGE_MAX; i++ ) {
-			MoveWindow ( is_editor_pages[i].hwnd, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, TRUE );
-		}
-		return TRUE;
-	}
-	case WM_DESTROY:
-	case WM_CLOSE:			
-		EndDialog ( hwnd, FALSE );
-		uninit_is_editor_param();
-		break;
-	default:
-	  break;
-	}
-	return FALSE;
+        case WM_SIZE:
+        {
+                RECT rc;
+                HWND hwnd_tab = GetDlgItem ( hwnd, IDC_TAB_ISEDITOR );
+                GetClientRect ( hwnd_tab, &rc );
+                SendDlgItemMessage ( hwnd, IDC_TAB_ISEDITOR, TCM_ADJUSTRECT, (WPARAM) TRUE, (LPARAM) &rc );
+                for ( i = 0; i < ISEDITOR_PAGE_MAX; i++ ) {
+                        MoveWindow ( is_editor_pages[i].hwnd, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, TRUE );
+                }
+                return TRUE;
+        }
+        case WM_DESTROY:
+        case WM_CLOSE:
+                EndDialog ( hwnd, FALSE );
+                uninit_is_editor_param();
+                break;
+        default:
+          break;
+        }
+        return FALSE;
 }
 
 static UINT ISEditorSearchPageFromCID(UINT cid)
@@ -1936,17 +1931,17 @@ static UINT ISEditorSearchPageFromCID(UINT cid)
 
     switch (PlayerLanguage) {
     case LANGUAGE_JAPANESE:
-		page = is_editor_pages_ja;
-		break;
+                page = is_editor_pages_ja;
+                break;
     default:
-		case LANGUAGE_ENGLISH:
-		page = is_editor_pages_en;
-		break;
+                case LANGUAGE_ENGLISH:
+                page = is_editor_pages_en;
+                break;
     }
     for (i = 0; i < ISEDITOR_PAGE_MAX; i++) {
-		if (page[i].control == cid) {
-			num = i;
-		}
+                if (page[i].control == cid) {
+                        num = i;
+                }
     }
     return num;
 }
@@ -1954,39 +1949,39 @@ static UINT ISEditorSearchPageFromCID(UINT cid)
 void ISEditorWndCreate(HWND hwnd)
 {
     UINT page = ISEditorSearchPageFromCID(0);
-	HICON hIcon;
+        HICON hIcon;
 
     VOLATILE_TOUCH(ISEditorWndDoing);
     if (ISEditorWndDoing)
-	return;
-	init_is_editor_param();
-	scc_data_num = 0;
-	scc_preset_num = 0;
-	mms_preset_num = 0;
-	mms_op_num = 0;
-	focus_wnd = 0;
+        return;
+    init_is_editor_param();
+        scc_data_num = 0;
+        scc_preset_num = 0;
+        mms_preset_num = 0;
+        mms_op_num = 0;
+        focus_wnd = 0;
     ISEditorWndDoing = 1;
     ISEditorWndSetOK = 1;
     ISEditorInitialPage = page;
-	switch(PlayerLanguage) {
-		case LANGUAGE_JAPANESE:
-		//	DialogBox ( hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR), hwnd, ISEditorWndDialogProc );
-			hISEditorWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR), hwnd, ISEditorWndDialogProc);
-			break;
-		default:
-		case LANGUAGE_ENGLISH:
-		//	DialogBox ( hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR_EN), hwnd, ISEditorWndDialogProc );
-			hISEditorWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR), hwnd, ISEditorWndDialogProc);
-			break;
-	}
-	ISEditorWndSetOK = 0;
-	ISEditorWndDoing = 0;		
-	ShowWindow(hISEditorWnd, SW_HIDE);
-	hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
-	if (hIcon) SendMessage(hISEditorWnd, WM_SETICON, FALSE, (LPARAM)hIcon);
-	UpdateWindow(hISEditorWnd);
-	ShowWindow(hISEditorWnd, SW_SHOW);
-	return;
+        switch (PlayerLanguage) {
+                case LANGUAGE_JAPANESE:
+                //      DialogBox ( hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR), hwnd, ISEditorWndDialogProc );
+                        hISEditorWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR), hwnd, ISEditorWndDialogProc);
+                        break;
+                default:
+                case LANGUAGE_ENGLISH:
+                //      DialogBox ( hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR_EN), hwnd, ISEditorWndDialogProc );
+                        hISEditorWnd = CreateDialog(hInst, MAKEINTRESOURCE(IDD_DIALOG_ISEDITOR), hwnd, ISEditorWndDialogProc);
+                        break;
+        }
+        ISEditorWndSetOK = 0;
+        ISEditorWndDoing = 0;
+        ShowWindow(hISEditorWnd, SW_HIDE);
+        hIcon = LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON_TIMIDITY), IMAGE_ICON, 16, 16, 0);
+        if (hIcon) SendMessage(hISEditorWnd, WM_SETICON, FALSE, (LPARAM) hIcon);
+        UpdateWindow(hISEditorWnd);
+        ShowWindow(hISEditorWnd, SW_SHOW);
+        return;
 }
 
 

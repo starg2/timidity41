@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,9 @@
 #define VT100_COLS 80
 #define VT100_ROWS 24
 
-#define VT100_ATTR_UNDERLINE	000000400000
-#define VT100_ATTR_REVERSE	000001000000
-#define VT100_ATTR_BOLD		000010000000
+#define VT100_ATTR_UNDERLINE    000000400000
+#define VT100_ATTR_REVERSE      000001000000
+#define VT100_ATTR_BOLD         000010000000
 
 /* vt100 utility functions */
 extern void vt100_init_screen(void);

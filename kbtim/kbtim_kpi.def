@@ -1,4 +1,5 @@
+LIBRARY KBTIM
 EXPORTS
     kmp_GetTestModule
     kmp_Config
-    winampGetInModule2
+;    winampGetInModule2

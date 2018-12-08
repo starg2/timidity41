@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -32,11 +32,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif /* !NO_STRING_H */
+#include "_string.h"
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
@@ -112,10 +108,10 @@
 #include "bitmaps/timidity.xbm"
 
 #ifndef S_ISDIR
-#define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
+#define S_ISDIR(mode)   (((mode) &0xF000) == 0x4000)
 #endif /* !S_ISDIR */
 
-#define DEFAULT_REG_WIDTH	400 /* default width when not in trace mode */
+#define DEFAULT_REG_WIDTH   400 /* default width when not in trace mode */
 
 #define INIT_FLISTNUM MAX_DIRECTORY_ENTRY
 
@@ -163,7 +159,7 @@ typedef load_dialog *ldPointer;
 
 typedef struct {
  ldPointer ld;
- const char *name; 
+ const char *name;
  struct ldStore_t *next;
 } ldStore;
 
@@ -230,21 +226,21 @@ static Boolean lockevents = False;
  */
 
 typedef struct {
-  Boolean	confirmexit;
-  Boolean	repeat;
-  Boolean	autostart;
-  Boolean	autoexit;
-  Boolean	disptext;
-  Boolean	shuffle;
-  Boolean	disptrace;
-  int		amplitude;
-  int		extendopt;
-  int		chorusopt;
-  Boolean	tooltips;
-  Boolean	showdotfiles;
-  char		*DefaultDir;
-  Boolean	save_list;
-  Boolean	save_config;
+  Boolean   confirmexit;
+  Boolean   repeat;
+  Boolean   autostart;
+  Boolean   autoexit;
+  Boolean   disptext;
+  Boolean   shuffle;
+  Boolean   disptrace;
+  int       amplitude;
+  int       extendopt;
+  int       chorusopt;
+  Boolean   tooltips;
+  Boolean   showdotfiles;
+  char      *DefaultDir;
+  Boolean   save_list;
+  Boolean   save_config;
 } Config;
 
 /* Default configuration for Xaw interface */
@@ -289,9 +285,9 @@ static const char *cfg_items[CFGITEMSNUMBER] = {
   "File"
 };
 
-#define COMMON_BGCOLOR		"gray67"
-#define COMMANDBUTTON_COLOR	"gray78"
-#define TEXTBG_COLOR		"gray82"
+#define COMMON_BGCOLOR      "gray67"
+#define COMMANDBUTTON_COLOR "gray78"
+#define TEXTBG_COLOR        "gray82"
 
 typedef struct {
   char id_char;
@@ -321,7 +317,7 @@ static Pixmap check_mark, arrow_mark, on_mark, off_mark;
 
 #define GET_BITMAP(Pix) XCreateBitmapFromData(disp, \
                         RootWindowOfScreen(XtScreen(toplevel)), \
-                        (char *)Pix##_bits, Pix##_width, Pix##_height)
+                        (char*) Pix##_bits, Pix##_width, Pix##_height)
 
 #ifdef XDND
 static DndClass _DND;
@@ -362,43 +358,43 @@ static struct _app_resources {
          save_LISTDIALOGBASENAME_title;
 } app_resources;
 
-#define capcolor	app_resources.tracecfg.caption_color
-#define bgcolor		app_resources.common_bgcolor
-#define buttonbgcolor	app_resources.button_bgcolor
-#define buttoncolor	app_resources.button_fgcolor
-#define menubcolor	app_resources.menub_bgcolor
-#define textcolor	app_resources.tracecfg.common_fgcolor
-#define textbgcolor	app_resources.tracecfg.text_bgcolor
-#define text2bgcolor	app_resources.text2_bgcolor
-#define togglecolor	app_resources.toggle_fgcolor
+#define capcolor        app_resources.tracecfg.caption_color
+#define bgcolor         app_resources.common_bgcolor
+#define buttonbgcolor   app_resources.button_bgcolor
+#define buttoncolor     app_resources.button_fgcolor
+#define menubcolor      app_resources.menub_bgcolor
+#define textcolor       app_resources.tracecfg.common_fgcolor
+#define textbgcolor     app_resources.tracecfg.text_bgcolor
+#define text2bgcolor    app_resources.text2_bgcolor
+#define togglecolor     app_resources.toggle_fgcolor
 
 /* These numbers are hardcoded in the resource files */
-#define ID_LOAD			100
-#define ID_SAVE			101
-#define ID_LOAD_PLAYLIST	102
-#define ID_SAVE_PLAYLIST	103
-#define ID_SAVECONFIG		104
-#define ID_HIDETXT		105
-#define ID_HIDETRACE		106
-#define ID_SHUFFLE		107
-#define ID_REPEAT		108
-#define ID_AUTOSTART		109
-#define ID_AUTOQUIT		110
-#define ID_LINE			111
-#define ID_FILELIST		112
-#define ID_OPTIONS		113
-#define ID_LINE2		114
-#define ID_ABOUT		115
-#define ID_QUIT			116
+#define ID_LOAD                 100
+#define ID_SAVE                 101
+#define ID_LOAD_PLAYLIST        102
+#define ID_SAVE_PLAYLIST        103
+#define ID_SAVECONFIG           104
+#define ID_HIDETXT              105
+#define ID_HIDETRACE            106
+#define ID_SHUFFLE              107
+#define ID_REPEAT               108
+#define ID_AUTOSTART            109
+#define ID_AUTOQUIT             110
+#define ID_LINE                 111
+#define ID_FILELIST             112
+#define ID_OPTIONS              113
+#define ID_LINE2                114
+#define ID_ABOUT                115
+#define ID_QUIT                 116
 
 #define R(x) #x
 #define S(x) R(x)
 
 typedef struct {
-  const int	id;
-  const String	name;
-  WidgetClass	*wclass;
-  Widget	widget;
+  const int     id;
+  const String  name;
+  WidgetClass   *wclass;
+  Widget        widget;
 } ButtonRec;
 
 static ButtonRec file_menu[] = {
@@ -422,8 +418,8 @@ static ButtonRec file_menu[] = {
 };
 
 typedef struct {
-  const int	bit;
-  Widget	widget;
+  const int     bit;
+  Widget        widget;
 } OptionRec;
 
 static OptionRec option_num[] = {
@@ -448,40 +444,40 @@ static char *dotfile = NULL;
 
 static void a_init_interface(int);
 void a_start_interface(int);
-extern void a_pipe_write(const char *, ...);
-extern int a_pipe_read(char *, size_t);
-extern int a_pipe_nread(char *, size_t);
+extern void a_pipe_write(const char*, ...);
+extern int a_pipe_read(char*, size_t);
+extern int a_pipe_nread(char*, size_t);
 extern void a_pipe_sync(void);
-static void a_print_text(Widget, const char *);
+static void a_print_text(Widget, const char*);
 static void a_print_msg(Widget);
-static void handle_input(XtPointer, int *, XtInputId *);
+static void handle_input(XtPointer, int*, XtInputId*);
 
-static int a_readconfig(Config *, char ***);
-static void a_saveconfig(const char *, Boolean);
-static void aboutACT(Widget, XEvent *, String *, Cardinal *);
-static void addOneFile(int, long, const char *);
-static void addFlist(const char *, long);
-static void backspaceACT(Widget, XEvent *, String *, Cardinal *);
+static int a_readconfig(Config*, char***);
+static void a_saveconfig(const char*, Boolean);
+static void aboutACT(Widget, XEvent*, String*, Cardinal*);
+static void addOneFile(int, long, const char*);
+static void addFlist(const char*, long);
+static void backspaceACT(Widget, XEvent*, String*, Cardinal*);
 static void backCB(Widget, XtPointer, XtPointer);
 static void callFilterDirList(Widget, XtPointer, XtPointer);
 static void callRedrawTrace(Boolean);
 static void callInitTrace(void);
-static void cancelACT(Widget, XEvent *, String *, Cardinal *);
+static void cancelACT(Widget, XEvent*, String*, Cardinal*);
 static void cancelCB(Widget, XtPointer, XtPointer);
-static char *canonicalize_path(char *);
+static char *canonicalize_path(char*);
 #ifdef TimNmenu
-static void checkRightAndPopupSubmenuACT(Widget, XEvent *, String *,Cardinal *);
+static void checkRightAndPopupSubmenuACT(Widget, XEvent*, String*,Cardinal*);
 static void popdownSubmenuCB(Widget, XtPointer, XtPointer);
-static void popdownSubmenuACT(Widget, XEvent *, String *, Cardinal *);
+static void popdownSubmenuACT(Widget, XEvent*, String*, Cardinal*);
 #endif /* TimNmenu */
 #ifdef CLEARVALUE
 static void clearValue(Widget);
 #endif /* CLEARVALUE */
-static void closeParentACT(Widget, XEvent *, String *, Cardinal *);
+static void closeParentACT(Widget, XEvent*, String*, Cardinal*);
 static void closeWidgetCB(Widget, XtPointer, XtPointer);
-static int configcmp(const char *, int *);
-static int confirmCB(Widget, const char *, Boolean);
-static void completeDirACT(Widget , XEvent *, String *, Cardinal *);
+static int configcmp(const char*, int*);
+static int confirmCB(Widget, const char*, Boolean);
+static void completeDirACT(Widget , XEvent*, String*, Cardinal*);
 static void createBars(void);
 static void createButtons(void);
 static void createDialog(Widget, ldPointer);
@@ -489,24 +485,24 @@ static void createFlist(void);
 static void createOptions(void);
 static void createTraceWidgets(void);
 static Widget
-  createOutputSelectionWidgets(Widget, Widget, Widget, outputs *, Boolean);
+  createOutputSelectionWidgets(Widget, Widget, Widget, outputs*, Boolean);
 #ifndef WIDGET_IS_LABEL_WIDGET
-static void deleteTextACT(Widget, XEvent *, String *, Cardinal *);
+static void deleteTextACT(Widget, XEvent*, String*, Cardinal*);
 #endif /* !WIDGET_IS_LABEL_WIDGET */
 static void destroyWidgetCB(Widget, XtPointer, XtPointer);
-static void downACT(Widget, XEvent *, String *, Cardinal *);
-static void exchgWidthACT(Widget, XEvent *, String *, Cardinal *);
-static char *expandDir(char *, DirPath *, const char *);
+static void downACT(Widget, XEvent*, String*, Cardinal*);
+static void exchgWidthACT(Widget, XEvent*, String*, Cardinal*);
+static char *expandDir(char*, DirPath*, const char*);
 static void fdelallCB(Widget, XtPointer, XtPointer);
 static void fdeleteCB(Widget, XtPointer, XtPointer);
 #ifdef OFFIX
-static void FileDropedHandler(Widget, XtPointer, XEvent *, Boolean *);
+static void FileDropedHandler(Widget, XtPointer, XEvent*, Boolean*);
 #endif /* OFFIX */
-static void filemenuACT(Widget, XEvent *, String *, Cardinal *);
+static void filemenuACT(Widget, XEvent*, String*, Cardinal*);
 static void filemenuCB(Widget, XtPointer, XtPointer);
 static void filterDirList(ldPointer, Boolean);
-static void flistMoveACT(Widget, XEvent *, String *, Cardinal *);
-static void flistpopupACT(Widget, XEvent *, String *, Cardinal *);
+static void flistMoveACT(Widget, XEvent*, String*, Cardinal*);
+static void flistpopupACT(Widget, XEvent*, String*, Cardinal*);
 static void forwardCB(Widget, XtPointer, XtPointer);
 static void fselectCB(Widget, XtPointer, XtPointer);
 #if 0
@@ -514,73 +510,73 @@ static void free_ldS(ldStorePointer ldS);
 #endif
 static void freevarCB(Widget, XtPointer, XtPointer);
 static char *get_user_home_dir(void);
-static int getClickedChan(XEvent *);
+static int getClickedChan(XEvent*);
 static ldStorePointer getldsPointer(ldStorePointer lds, const char *Popname);
 static ldStorePointer init_ldS(void);
 static void init_output_lists(void);
 static Boolean IsTracePlaying(void);
-static Boolean IsEffectiveFile(char *);
-static void leaveSubmenuACT(Widget, XEvent *, String *, Cardinal *);
+static Boolean IsEffectiveFile(char*);
+static void leaveSubmenuACT(Widget, XEvent*, String*, Cardinal*);
 static void menuCB(Widget, XtPointer, XtPointer);
-static void muteChanACT(Widget, XEvent *, String *, Cardinal *);
+static void muteChanACT(Widget, XEvent*, String*, Cardinal*);
 static void nextCB(Widget, XtPointer, XtPointer);
-static void notifyDoubleClickACT(Widget, XEvent *, String *, Cardinal *);
+static void notifyDoubleClickACT(Widget, XEvent*, String*, Cardinal*);
 static void offPauseButton(void);
 static void offPlayButton(void);
 static Boolean onPlayOffPause(void);
 static void okCB(Widget, XtPointer, XtPointer);
-static void okACT(Widget, XEvent *, String *, Cardinal *);
+static void okACT(Widget, XEvent*, String*, Cardinal*);
 static void optionsCB(Widget, XtPointer, XtPointer);
 static void optionscloseCB(Widget, XtPointer, XtPointer);
-static void optionspopupACT(Widget, XEvent *, String *, Cardinal *);
+static void optionspopupACT(Widget, XEvent*, String*, Cardinal*);
 static void pauseCB(Widget, XtPointer, XtPointer);
 static void pitchCB(Widget, XtPointer, XtPointer);
 static void playCB(Widget, XtPointer, XtPointer);
 static void popdownAddALL(Widget, XtPointer, XtPointer);
-static void popdownAddALLACT(Widget, XEvent *, String *, Cardinal *);
+static void popdownAddALLACT(Widget, XEvent*, String*, Cardinal*);
 static void popdownCB(Widget, XtPointer, XtPointer);
 static void popdownLoadfile(Widget, XtPointer, XtPointer);
 static void popdownLoadPL(Widget, XtPointer, XtPointer);
 static void popdownSavefile(Widget, XtPointer, XtPointer);
 static void popdownSavePL(Widget, XtPointer, XtPointer);
-static void popdownfilemenuACT(Widget, XEvent *, String *, Cardinal *);
-static void popupfilemenuACT(Widget, XEvent *, String *, Cardinal *);
-static void popupDialog(Widget, char *, String *, XtCallbackProc,
+static void popdownfilemenuACT(Widget, XEvent*, String*, Cardinal*);
+static void popupfilemenuACT(Widget, XEvent*, String*, Cardinal*);
+static void popupDialog(Widget, char*, String*, XtCallbackProc,
                         ldStorePointer);
 static void prevCB(Widget, XtPointer, XtPointer);
 static void quitCB(Widget, XtPointer, XtPointer);
 static void randomCB(Widget, XtPointer, XtPointer);
-static int readPlaylist(const char *);
+static int readPlaylist(const char*);
 static void recordCB(Widget, XtPointer, XtPointer);
-static void recordACT(Widget, XEvent *, String *, Cardinal *);
-static void redrawACT(Widget, XEvent *, String *, Cardinal *);
-static void redrawCaptionACT(Widget, XEvent *, String *, Cardinal *);
+static void recordACT(Widget, XEvent*, String*, Cardinal*);
+static void redrawACT(Widget, XEvent*, String*, Cardinal*);
+static void redrawCaptionACT(Widget, XEvent*, String*, Cardinal*);
 static void repeatCB(Widget, XtPointer, XtPointer);
-static void resizeToplevelACT(Widget, XEvent *, String *, Cardinal *);
+static void resizeToplevelACT(Widget, XEvent*, String*, Cardinal*);
 static void restoreDefaultOSelectionCB(Widget, XtPointer, XtPointer);
-static void restoreLDPointer(Widget, XtPointer, XEvent *, Boolean *);
-static void savePlaylist(const char *, int);
+static void restoreLDPointer(Widget, XtPointer, XEvent*, Boolean*);
+static void savePlaylist(const char*, int);
 static void saveformatDialog(Widget);
-static void scrollTextACT(Widget, XEvent *, String *, Cardinal *);
-static void scrollTraceACT(Widget, XEvent *, String *, Cardinal *);
-static void scrollListACT(Widget, XEvent *, String *, Cardinal *);
+static void scrollTextACT(Widget, XEvent*, String*, Cardinal*);
+static void scrollTraceACT(Widget, XEvent*, String*, Cardinal*);
+static void scrollListACT(Widget, XEvent*, String*, Cardinal*);
 static Widget seekTransientShell(Widget);
-static void setDirACT(Widget, XEvent *, String *, Cardinal *);
-static int setDirList(ldPointer, char *);
-static void setDirLoadCB(Widget, XtPointer, XawListReturnStruct *);
-static void setFileLoadCB(Widget, XtPointer, XawListReturnStruct *);
+static void setDirACT(Widget, XEvent*, String*, Cardinal*);
+static int setDirList(ldPointer, char*);
+static void setDirLoadCB(Widget, XtPointer, XawListReturnStruct*);
+static void setFileLoadCB(Widget, XtPointer, XawListReturnStruct*);
 static void setThumb(Widget, barfloat);
 static void setupWindow(Widget, String, Boolean, Boolean);
 static void setNetWMIcon(void);
 static void setSizeHints(Dimension);
-static void sndspecACT(Widget, XEvent *, String *, Cardinal *);
-static void soloChanACT(Widget, XEvent *, String *, Cardinal *);
-static void soundkeyACT(Widget, XEvent *, String *, Cardinal *);
-static void speedACT(Widget, XEvent *, String *, Cardinal *);
+static void sndspecACT(Widget, XEvent*, String*, Cardinal*);
+static void soloChanACT(Widget, XEvent*, String*, Cardinal*);
+static void soundkeyACT(Widget, XEvent*, String*, Cardinal*);
+static void speedACT(Widget, XEvent*, String*, Cardinal*);
 static void simulateArrowsCB(Widget, XtPointer, XtPointer);
-static void StartScrollACT(Widget, XEvent *, String *, Cardinal *);
+static void StartScrollACT(Widget, XEvent*, String*, Cardinal*);
 static void stopCB(Widget, XtPointer, XtPointer);
-static char *strmatch(char *, const char *);
+static char *strmatch(char*, const char*);
 static void tempoCB(Widget, XtPointer, XtPointer);
 #ifdef HAVE_TIP
 static void TipEnable(Widget, String);
@@ -589,21 +585,21 @@ static void xawTipSet(Boolean);
 #endif /* HAVE_TIP */
 static void tnotifyCB(Widget, XtPointer, XtPointer);
 static void toggleMark(Widget, Boolean);
-static void toggleTraceACT(Widget, XEvent *, String *, Cardinal *);
-static void tunesetACT(Widget, XEvent *, String *, Cardinal *);
+static void toggleTraceACT(Widget, XEvent*, String*, Cardinal*);
+static void tunesetACT(Widget, XEvent*, String*, Cardinal*);
 static void tuneslideCB(Widget, XtPointer, XtPointer);
-static void upACT(Widget, XEvent *, String *, Cardinal *);
-static void voiceACT(Widget, XEvent *, String *, Cardinal *);
+static void upACT(Widget, XEvent*, String*, Cardinal*);
+static void voiceACT(Widget, XEvent*, String*, Cardinal*);
 static void volsetCB(Widget, XtPointer, XtPointer);
-static void volupdownACT(Widget, XEvent *, String *, Cardinal *);
-static Widget warnCB(Widget, const char *, Boolean);
+static void volupdownACT(Widget, XEvent*, String*, Cardinal*);
+static Widget warnCB(Widget, const char*, Boolean);
 static void xaw_vendor_setup(void);
-static void xawtipsetACT(Widget, XEvent *, String *, Cardinal *);
+static void xawtipsetACT(Widget, XEvent*, String*, Cardinal*);
 #ifdef XDND
 static void a_dnd_init(void);
-static void enable_dnd_for_widget(DndClass *, Widget, dnd_callback_t);
-static void xdnd_file_drop_handler(const char *);
-static void xdnd_listener(Widget, XtPointer, XEvent *, Boolean *);
+static void enable_dnd_for_widget(DndClass*, Widget, dnd_callback_t);
+static void xdnd_file_drop_handler(const char*);
+static void xdnd_listener(Widget, XtPointer, XEvent*, Boolean*);
 #endif /* XDND */
 
 static void
@@ -711,11 +707,11 @@ aboutACT(Widget w, XEvent *e, String *v, Cardinal *n) {
                                 popup_about, XtNwidth,320, XtNheight,120,
                                 XtNorientation,XtorientVertical,
                                 XtNbackground,bgcolor, NULL);
-  for(i=0, p=info[0]; p; p=info[++i]) {
+  for (i=0, p=info[0]; p; p=info[++i]) {
     snprintf(s, sizeof(s), "about_lbl%d", i);
     snprintf(lbuf, sizeof(lbuf), p,
-    		(strcmp(timidity_version, "current")) ? "version " : "",
-    		timidity_version);
+                (strstr(timidity_version, "current")) ? "version " : "",
+                timidity_version);
     XtVaCreateManagedWidget(s,labelWidgetClass,popup_abox,
                                 XtNlabel,lbuf, XtNwidth,320, XtNresize,False,
                                 XtNfontSet,app_resources.label_font,
@@ -723,10 +719,10 @@ aboutACT(Widget w, XEvent *e, String *v, Cardinal *n) {
                                 XtNbackground,bgcolor, NULL);
   }
   popup_aok = XtVaCreateManagedWidget("OK",commandWidgetClass,popup_abox,
-                                XtNwidth,320, XtNresize,False, NULL);
-  XtAddCallback(popup_aok, XtNcallback,closeWidgetCB, (XtPointer)popup_about);
+                                      XtNwidth,320, XtNresize,False, NULL);
+  XtAddCallback(popup_aok, XtNcallback,closeWidgetCB, (XtPointer) popup_about);
   XtVaSetValues(popup_about, XtNx,root_width/2 - 160,
-                  XtNy,root_height/2 - 60, NULL);
+                XtNy,root_height/2 - 60, NULL);
   setupWindow(popup_about, "do-closeparent()", False, True);
   XtSetKeyboardFocus(popup_about, popup_abox);
 }
@@ -737,8 +733,8 @@ optionscloseCB(Widget w, XtPointer client_data, XtPointer call_data) {
   id_list *result = NULL;
   int flags = 0, cflag = 0, i;
 
-  if (play != NULL) result = (id_list *)XawToggleGetCurrent(play->formatGroup);
-  for(i=0; i<MAX_OPTION_N; i++) {
+  if (play != NULL) result = (id_list*) XawToggleGetCurrent(play->formatGroup);
+  for (i=0; i<MAX_OPTION_N; i++) {
     XtVaGetValues(option_num[i].widget, XtNstate,&s1, NULL);
     flags |= s1?option_num[i].bit:0;
   }
@@ -778,7 +774,7 @@ warnCB(Widget w, const char *mesname, Boolean destroy) {
   popup_warning = XtVaCreatePopupShell("popup_warning",
             transientShellWidgetClass,toplevel, NULL);
   popup_wbox = XtVaCreateManagedWidget("popup_wbox", boxWidgetClass,
-				  popup_warning, XtNbackground,bgcolor,
+                                  popup_warning, XtNbackground,bgcolor,
                                   XtNorientation,XtorientVertical, NULL);
   XtVaCreateManagedWidget(mesname, labelWidgetClass,
                                           popup_wbox,
@@ -790,7 +786,7 @@ warnCB(Widget w, const char *mesname, Boolean destroy) {
   popup_wok = XtVaCreateManagedWidget("OK",commandWidgetClass,
                     popup_wbox, XtNbackground,buttonbgcolor,
                     XtNresize,False, NULL);
-  XtAddCallback(popup_wok, XtNcallback,closeWidgetCB, (XtPointer)popup_warning);
+  XtAddCallback(popup_wok, XtNcallback,closeWidgetCB, (XtPointer) popup_warning);
   XtSetKeyboardFocus(popup_warning, popup_wbox);
   setupWindow(popup_warning, "do-closeparent()", False, destroy);
   return popup_warning;
@@ -798,7 +794,7 @@ warnCB(Widget w, const char *mesname, Boolean destroy) {
 
 static void
 closeWidgetCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  XtPopdown((Widget)client_data);
+  XtPopdown((Widget) client_data);
 }
 
 static int
@@ -832,15 +828,15 @@ confirmCB(Widget w, const char *mesname, Boolean multiple) {
                     XtNresize,False, XtNfromVert,popup_message, NULL);
   popup_ccancel = XtVaCreateManagedWidget("Cancel",commandWidgetClass,
                     popup_cform, XtNbackground,buttonbgcolor,
-                    XtNresize,False, XtNfromVert,popup_message, 
+                    XtNresize,False, XtNfromVert,popup_message,
                     XtNfromHoriz,popup_cok, NULL);
   XtVaGetValues(popup_message, XtNwidth,&mw, NULL);
   XtVaGetValues(popup_cok, XtNwidth,&ow, NULL);
   XtVaGetValues(popup_ccancel, XtNwidth,&cw, NULL);
   if (mw > ow+cw) XtVaSetValues(popup_cok, XtNhorizDistance,(mw-ow-cw)/2, NULL);
 
-  XtAddCallback(popup_cok, XtNcallback,okCB, (XtPointer)popup_confirm);
-  XtAddCallback(popup_ccancel, XtNcallback,cancelCB, (XtPointer)popup_confirm);
+  XtAddCallback(popup_cok, XtNcallback,okCB, (XtPointer) popup_confirm);
+  XtAddCallback(popup_ccancel, XtNcallback,cancelCB, (XtPointer) popup_confirm);
   XtSetKeyboardFocus(popup_confirm, popup_cform);
   setupWindow(popup_confirm, "do-cancel()", False, True);
   response.val = NORESPONSE;
@@ -853,7 +849,7 @@ confirmCB(Widget w, const char *mesname, Boolean multiple) {
 
 static void
 okCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  response.widget = (Widget)client_data;
+  response.widget = (Widget) client_data;
   response.val = OK;
 }
 
@@ -865,7 +861,7 @@ okACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 cancelCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  response.widget = (Widget)client_data;
+  response.widget = (Widget) client_data;
   response.val = CANCEL;
 }
 
@@ -879,7 +875,7 @@ static void
 quitCB(Widget w, XtPointer client_data, XtPointer call_data) {
   if (Cfg.confirmexit == True) {
 #ifdef XAW3D
-      XtPopdown(file_sm); 
+      XtPopdown(file_sm);
      /* Otherwise, when selecting "Quit" from the file menu, the menu
       * may obscure the confirm dialog on XAW3D v1.5.
       */
@@ -929,7 +925,7 @@ playCB(Widget w, XtPointer client_data, XtPointer call_data) {
 
 static void
 soundkeyACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  if (*(int *)n == 0) {
+  if (*(int*) n == 0) {
     if (IsTracePlaying())
       XtCallActionProc(keyup_b, "set", NULL, NULL, ZERO);
     a_pipe_write("%c", S_INC_PITCH);
@@ -942,7 +938,7 @@ soundkeyACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 speedACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  if (*(int *)n == 0) {
+  if (*(int*) n == 0) {
     if (IsTracePlaying())
       XtCallActionProc(fast_b, "set", NULL, NULL, ZERO);
     a_pipe_write("%c", S_INC_SPEED);
@@ -955,7 +951,7 @@ speedACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 voiceACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  a_pipe_write("%c", *(int *)n == 0 ? S_DEC_VOL:S_INC_VOL);
+  a_pipe_write("%c", *(int*) n == 0 ? S_DEC_VOL:S_INC_VOL);
 }
 
 static void
@@ -1019,7 +1015,7 @@ backCB(Widget w, XtPointer client_data, XtPointer call_data) {
 static void
 repeatCB(Widget w, XtPointer client_data, XtPointer call_data) {
   Boolean s;
-  Boolean *set = (Boolean *)client_data;
+  Boolean *set = (Boolean*) client_data;
 
   if (set != NULL) {
     s = *set;
@@ -1037,7 +1033,7 @@ repeatCB(Widget w, XtPointer client_data, XtPointer call_data) {
 static void
 randomCB(Widget w, XtPointer client_data, XtPointer call_data) {
   Boolean s;
-  Boolean *set = (Boolean *)client_data;
+  Boolean *set = (Boolean*) client_data;
 
   onPlayOffPause();
   if (set != NULL) {
@@ -1061,19 +1057,19 @@ randomCB(Widget w, XtPointer client_data, XtPointer call_data) {
 
 static void
 tempoCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  a_pipe_write("%c", (client_data == (XtPointer)TRUE) ? S_INC_SPEED:S_DEC_SPEED);
+  a_pipe_write("%c", (client_data == (XtPointer) TRUE) ? S_INC_SPEED:S_DEC_SPEED);
 }
 
 static void
 pitchCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  a_pipe_write("%c", (client_data == (XtPointer)TRUE) ? S_INC_PITCH:S_DEC_PITCH);
+  a_pipe_write("%c", (client_data == (XtPointer) TRUE) ? S_INC_PITCH:S_DEC_PITCH);
 }
 
 static void
 menuCB(Widget w, XtPointer client_data, XtPointer call_data) {
   onPlayOffPause();
   lockevents = True;
-  a_pipe_write("%c%ld", S_PLAY_FILE, ((long)client_data)+1);
+  a_pipe_write("%c%ld", S_PLAY_FILE, ((long) client_data)+1);
 }
 
 static void
@@ -1090,13 +1086,13 @@ setVolbar(int val) {
     a_pipe_write("%c%d", S_SET_VOL_BEFORE_PLAYING, amplitude);
   snprintf(s, sizeof(s), "%d", amplitude);
   XtVaSetValues(vol_l, XtNlabel,s, NULL);
-  thumb.f = (float)amplitude / (float)MAXVOLUME;
+  thumb.f = (float) amplitude / (float) MAXVOLUME;
   setThumb(vol_bar, thumb);
 }
 
 static void
 volsetCB(Widget w, XtPointer client_data, XtPointer percent_ptr) {
-  float percent = *(float *)percent_ptr;
+  float percent = *(float*) percent_ptr;
   int val = MAXVOLUME * percent;
 
   if (amplitude == val) return;
@@ -1126,7 +1122,7 @@ tunesetACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
     snprintf(s, sizeof(s), "%d:%02d", curr_time / 60, curr_time % 60);
     XtVaSetValues(tune_l0, XtNlabel,s, NULL);
-    thumb.f = (float)curr_time / (float)total_time;
+    thumb.f = (float) curr_time / (float) total_time;
     setThumb(tune_bar, thumb);
     return;
   }
@@ -1139,7 +1135,7 @@ static void
 tuneslideCB(Widget w, XtPointer client_data, XtPointer percent_ptr) {
   char s[16];
   int value;
-  float l_thumb = *(float *)percent_ptr;
+  float l_thumb = *(float*) percent_ptr;
 
   halt = 1;
   value = l_thumb * total_time;
@@ -1173,7 +1169,7 @@ setSizeHints(Dimension height) {
 
 static void
 resizeToplevelACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  XConfigureEvent *xce = (XConfigureEvent *)e;
+  XConfigureEvent *xce = (XConfigureEvent*) e;
 
   if (xce != NULL) {
     if ((xce->width == curr_width) && (xce->height == curr_height))
@@ -1209,7 +1205,7 @@ resizeToplevelACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 static ldStorePointer
 init_ldS(void) {
   ldStorePointer p;
-  p = (ldStorePointer)safe_malloc(sizeof(ldStore));
+  p = (ldStorePointer) safe_malloc(sizeof(ldStore));
   p->name = NULL;
   return p;
 }
@@ -1220,7 +1216,7 @@ free_ldS(ldStorePointer ldS) {
   if (ldS == NULL) return;
   if (ldS->name == NULL) free(ldS);
   else {
-    free_ldS( (ldStorePointer)ldS->next);
+    free_ldS( (ldStorePointer) ldS->next);
     free(ldS->fdirlist); free(ldS->ddirlist); free(ldS->fulldirlist);
     free(ldS->ld);
     free(ldS->name);
@@ -1238,7 +1234,7 @@ getldsPointer(ldStorePointer lds, const char *Popname) {
   }
   if (lds->name == NULL) {
     lds->name = safe_strdup(Popname);
-    lds->ld = (ldPointer)safe_malloc(sizeof(load_dialog));
+    lds->ld = (ldPointer) safe_malloc(sizeof(load_dialog));
     strlcpy(lds->ld->ld_popupname, Popname, MAX_POPUPNAME);
     strlcpy(lds->ld->ld_basepath, Cfg.DefaultDir, sizeof(lds->ld->ld_basepath));
     lds->ld->ld_cur_filter[0] = '\0';
@@ -1249,16 +1245,16 @@ getldsPointer(ldStorePointer lds, const char *Popname) {
     lds->ld->ld_fdirlist.StringArray = NULL;
     lds->ld->ld_ddirlist.StringArray = NULL;
     lds->ld->ld_fulldirlist.StringArray = NULL;
-    lds->next = (struct ldStore_t *)init_ldS();
+    lds->next = (struct ldStore_t*) init_ldS();
     return lds;
   }
   if (!strncmp(lds->name, Popname, MAX_POPUPNAME)) return lds;
-  return getldsPointer( (ldStorePointer)lds->next, Popname);
+  return getldsPointer( (ldStorePointer) lds->next, Popname);
 }
 
 static void
 restoreLDPointer(Widget w, XtPointer client_data, XEvent *ev, Boolean *b) {
-  if (ev->xany.type == FocusIn) ld = (ldPointer)client_data;
+  if (ev->xany.type == FocusIn) ld = (ldPointer) client_data;
   return;
 }
 
@@ -1288,8 +1284,8 @@ createDialog(Widget w, ldPointer ld) {
   load_t = XtNameToWidget(load_d, "value");
   load_l = XtNameToWidget(load_d, "label");
   load_ok = XtVaCreateManagedWidget("OK",commandWidgetClass,load_d, NULL);
-  XawDialogAddButton(load_d, "add", popdownAddALL, (XtPointer)ld);
-  XawDialogAddButton(load_d, "Cancel", popdownCB, (XtPointer)ld);
+  XawDialogAddButton(load_d, "add", popdownAddALL, (XtPointer) ld);
+  XawDialogAddButton(load_d, "Cancel", popdownCB, (XtPointer) ld);
   load_f = XtVaCreateManagedWidget("filter",toggleWidgetClass,load_d,
            XtNforeground,togglecolor, XtNbackground,buttonbgcolor, NULL);
 
@@ -1320,13 +1316,13 @@ createDialog(Widget w, ldPointer ld) {
   XtVaSetValues(load_l, XtNwidth,(int)(ldwidth/1.5), NULL);
 
   XtAddCallback(load_flist, XtNcallback,
-                 (XtCallbackProc)setFileLoadCB, (XtPointer)ld); 
+                 (XtCallbackProc) setFileLoadCB, (XtPointer) ld);
   XtAddCallback(load_dlist, XtNcallback,
-                 (XtCallbackProc)setDirLoadCB, (XtPointer)ld); 
-  XtAddCallback(load_f, XtNcallback,callFilterDirList, (XtPointer)ld);
+                 (XtCallbackProc) setDirLoadCB, (XtPointer) ld);
+  XtAddCallback(load_f, XtNcallback,callFilterDirList, (XtPointer) ld);
   XtInstallAccelerators(load_t, load_f);
   XtAddEventHandler(popup_load, FocusChangeMask, False,
-                    restoreLDPointer, (XtPointer)ld);
+                    restoreLDPointer, (XtPointer) ld);
 }
 
 static void
@@ -1339,7 +1335,7 @@ popupDialog(Widget w, char *Popname, String *title,
   if (popup_load == NULL) createDialog(w, ldlocal);
 
   XtRemoveAllCallbacks(load_ok,XtNcallback);
-  XtAddCallback(load_ok, XtNcallback,OKfunc, (XtPointer)ldlocal);
+  XtAddCallback(load_ok, XtNcallback,OKfunc, (XtPointer) ldlocal);
   if (title != NULL) XtVaSetValues(popup_load, XtNtitle,*title, NULL);
 
   setDirList(ldlocal, basepath);
@@ -1361,7 +1357,7 @@ popupDialog(Widget w, char *Popname, String *title,
 
 static void
 popdownCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
 
   XtPopdown(popup_load);
 }
@@ -1374,7 +1370,7 @@ popdownAddALLACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 static void
 popdownAddALL(Widget w, XtPointer client_data, XtPointer call_data) {
   char *p;
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
   String *filelist = fdirlist;
   Boolean toggle;
 
@@ -1397,7 +1393,7 @@ addallpopdown:
 static void
 popdownLoadfile(Widget w, XtPointer client_data, XtPointer call_data) {
   char *p, *p2;
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
 
   p = XawDialogGetValueString(load_d);
   if ((!strncmp(p, "http:", 5)) || (!strncmp(p, "ftp:", 4))) goto lfiledown;
@@ -1433,7 +1429,7 @@ popdownSavefile(Widget w, XtPointer client_data, XtPointer call_data) {
   char *p, *p2;
   char lbuf[PIPE_LENGTH];
   struct stat st;
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
 
   p = XawDialogGetValueString(XtParent(w));
   if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
@@ -1452,7 +1448,7 @@ popdownSavefile(Widget w, XtPointer client_data, XtPointer call_data) {
 static void
 popdownLoadPL(Widget w, XtPointer client_data, XtPointer call_data) {
   char *p, *p2;
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
 
   p = XawDialogGetValueString(load_d);
   if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
@@ -1485,7 +1481,7 @@ static void
 popdownSavePL(Widget w, XtPointer client_data, XtPointer call_data) {
   char *p, *p2;
   struct stat st;
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
 
   p = XawDialogGetValueString(XtParent(w));
   if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
@@ -1503,7 +1499,7 @@ popdownSavePL(Widget w, XtPointer client_data, XtPointer call_data) {
   XtPopdown(popup_load);
 }
 
-static void 
+static void
 saveformatDialog(Widget parent) {
   Widget popup_sform, popup_sformat, popup_slabel, sbox_rbox, sbox_ratelabel,
          sbox_ratetext, popup_sbuttons, popup_sok, popup_scancel, lowBox;
@@ -1558,9 +1554,9 @@ saveformatDialog(Widget parent) {
                     XtNresize,False, XtNfromVert,sbox_rbox,
                     XtNfromHoriz,popup_sok, XtNwidth,90, NULL);
 
-  XtAddCallback(popup_sok, XtNcallback,recordCB, (XtPointer)sbox_ratetext);
+  XtAddCallback(popup_sok, XtNcallback,recordCB, (XtPointer) sbox_ratetext);
   XtAddCallback(popup_scancel, XtNcallback,closeWidgetCB,
-                (XtPointer)popup_sformat);
+                (XtPointer) popup_sformat);
 
   setupWindow(popup_sformat, "do-closeparent()", False, True);
   XtSetKeyboardFocus(popup_sformat, sbox_ratetext);
@@ -1573,8 +1569,8 @@ recordCB(Widget w, XtPointer client_data, XtPointer call_data) {
   id_list *result;
   int i;
 
-  if (client_data != NULL) w = (Widget)client_data;
-  result = (id_list *)XawToggleGetCurrent(record->formatGroup);
+  if (client_data != NULL) w = (Widget) client_data;
+  result = (id_list*) XawToggleGetCurrent(record->formatGroup);
   XtVaGetValues(w, XtNstring,&rate, NULL);
   i = atoi(rate);
   if ((i < MIN_OUTPUT_RATE) || (i > MAX_OUTPUT_RATE)) return;
@@ -1675,7 +1671,7 @@ static void
 filemenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   int i = atoi(*v);
 
-  filemenuCB(file_menu[i-100].widget, (XtPointer)&file_menu[i-100].id, NULL);
+  filemenuCB(file_menu[i-100].widget, (XtPointer) &file_menu[i-100].id, NULL);
 }
 
 static void
@@ -1692,7 +1688,7 @@ popdownfilemenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 filemenuCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  int *id = (int *)client_data;
+  int *id = (int*) client_data;
 
   switch (*id) {
     case ID_LOAD:
@@ -1703,12 +1699,12 @@ filemenuCB(Widget w, XtPointer client_data, XtPointer call_data) {
       popupDialog(w, "dialog_sfile", NULL, popdownSavefile, ldSstart);
       break;
     case ID_LOAD_PLAYLIST:
-      popupDialog(w, LISTDIALOGBASENAME, 
+      popupDialog(w, LISTDIALOGBASENAME,
                 &app_resources.load_LISTDIALOGBASENAME_title,
                 popdownLoadPL, ldSstart);
       break;
     case ID_SAVE_PLAYLIST:
-      popupDialog(w, LISTDIALOGBASENAME, 
+      popupDialog(w, LISTDIALOGBASENAME,
                  &app_resources.save_LISTDIALOGBASENAME_title,
                  popdownSavePL, ldSstart);
       break;
@@ -1742,8 +1738,8 @@ filemenuCB(Widget w, XtPointer client_data, XtPointer call_data) {
         xawTipSet(Cfg.tooltips);
 #endif /* HAVE_TIP */
        /*
-        * In the case lyric_t is not managed, the maximum height has been 
-        * defined to curr_height by setSizeHints. We need to increase it 
+        * In the case lyric_t is not managed, the maximum height has been
+        * defined to curr_height by setSizeHints. We need to increase it
         * otherwise the trace may not be shown - the WM may cap
         * XConfigureEvent->height to
         * maximum_height - WINDOW_DECORATIONS_HEIGHT.
@@ -1823,11 +1819,11 @@ filemenuCB(Widget w, XtPointer client_data, XtPointer call_data) {
       break;
     case ID_SHUFFLE:
       Cfg.shuffle ^= True;
-      randomCB(NULL, (XtPointer)&Cfg.shuffle, NULL);
+      randomCB(NULL, (XtPointer) &Cfg.shuffle, NULL);
       break;
     case ID_REPEAT:
       Cfg.repeat ^= True;
-      repeatCB(NULL, (XtPointer)&Cfg.repeat, NULL);
+      repeatCB(NULL, (XtPointer) &Cfg.repeat, NULL);
       break;
     case ID_OPTIONS:
       optionspopupACT(w, NULL, NULL, NULL);
@@ -1849,10 +1845,10 @@ static void
 a_print_msg(Widget w) {
   size_t i, msglen;
 
-  a_pipe_nread((char *)&msglen, sizeof(size_t));
+  a_pipe_nread((char*) &msglen, sizeof(size_t));
   while (msglen > 0) {
     i = msglen;
-    if (i > sizeof(local_buf)-1) i = sizeof(local_buf)-1;
+    if (i > sizeof(local_buf) -1) i = sizeof(local_buf) -1;
     a_pipe_nread(local_buf, i);
     local_buf[i] = '\0';
     XtVaSetValues(w, XtNlabel,local_buf, NULL);
@@ -1876,7 +1872,7 @@ a_print_msg(Widget w) {
   tb.format = XawFmt8Bit;
   pos = XawTextGetInsertionPoint(w);
 
-  a_pipe_nread((char *)&msglen, sizeof(size_t));
+  a_pipe_nread((char*) &msglen, sizeof(size_t));
   while (msglen > 0) {
     i = msglen;
     if (i > sizeof(local_buf)) i = sizeof(local_buf);
@@ -1942,7 +1938,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
     sprintf(s, "%d:%02ld", n, i);
     XtVaSetValues(tune_l0, XtNlabel,s, NULL);
     if (total_time > 0) {
-      thumb.f = (float)curr_time / (float)total_time;
+      thumb.f = (float) curr_time / (float) total_time;
       setThumb(tune_bar, thumb);
     }
     break;
@@ -1974,7 +1970,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
     if (app_resources.arrange_title) {
       const char *p = local_buf+1;
       if (!strcmp(p, "(null)"))
-        p = (const char *)app_resources.tracecfg.untitled;
+        p = (const char*) app_resources.tracecfg.untitled;
       snprintf(window_title, sizeof(window_title), "%s : %s", APP_CLASS, p);
       XtVaSetValues(toplevel, XtNtitle,window_title, NULL);
     }
@@ -2001,7 +1997,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
     amplitude = atoi(local_buf+1);
     snprintf(s, sizeof(s), "%d", amplitude);
     XtVaSetValues(vol_l, XtNlabel,s, NULL);
-    thumb.f = (float)amplitude / (float)MAXVOLUME;
+    thumb.f = (float) amplitude / (float) MAXVOLUME;
     setThumb(vol_bar, thumb);
     break;
   case M_FILE_LIST:
@@ -2054,7 +2050,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
     break;
   case MT_PITCH:
   case MT_TEMPO:
-    if (IsTracePlaying()) (void)handleTraceinput(local_buf);
+    if (IsTracePlaying()) (void) handleTraceinput(local_buf);
     break;
   case MT_PITCH_OFFSET:
     if (IsTracePlaying()) {
@@ -2064,7 +2060,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
       XtCallActionProc(keyup_b, "unhighlight", NULL, NULL, ZERO);
       XtCallActionProc(keydown_b, "unhighlight", NULL, NULL, ZERO);
 #endif /* XAWPLUS */
-      (void)handleTraceinput(local_buf);
+      (void) handleTraceinput(local_buf);
     }
     break;
   case MT_RATIO:
@@ -2075,7 +2071,7 @@ handle_input(XtPointer data, int *source, XtInputId *id) {
       XtCallActionProc(fast_b, "unhighlight", NULL, NULL, ZERO);
       XtCallActionProc(slow_b, "unhighlight", NULL, NULL, ZERO);
 #endif /* XAWPLUS */
-      (void)handleTraceinput(local_buf);
+      (void) handleTraceinput(local_buf);
     }
     break;
   case M_PAUSE:
@@ -2184,8 +2180,8 @@ expandDir(char *path, DirPath *full, const char *bpath) {
       full->dirname = newfull;
     }
     return newfull;
-  } else 
-    if ((*p != '~') && ((tail = strrchr(path, '/')) == NULL) 
+  } else
+    if ((*p != '~') && ((tail = strrchr(path, '/')) == NULL)
          && (strcmp(p, ".")) && (strcmp(p, "..")) )
   {
     p = tmp;
@@ -2246,7 +2242,7 @@ setDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   p = XawDialogGetValueString(load_d);
   if ((p2 = expandDir(p, NULL, basepath)) != NULL) p = p2;
   if ((stat(p, &st) == -1) || (!S_ISDIR(st.st_mode)))
-    XtCallCallbacks(load_ok, XtNcallback, (XtPointer)ld);
+    XtCallCallbacks(load_ok, XtNcallback, (XtPointer) ld);
   else {
     p2 = strrchr(p, '/');
     if (p2 && (*(p2+1) == '\0') && (p2 != p)) *p2 = '\0';
@@ -2265,7 +2261,7 @@ static void
 callFilterDirList(Widget w, XtPointer client_data, XtPointer call_data) {
   Boolean toggle;
 
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
   XtVaGetValues(load_f, XtNstate,&toggle, NULL);
   filterDirList(ld, toggle);
 }
@@ -2305,9 +2301,9 @@ filterDirList(ldPointer ld, Boolean toggle) {
   }
   filenum = f_num;
   if (f_num > 0)
-    filelist = (String *)make_string_array(&strtab);
+    filelist = (String*) make_string_array(&strtab);
   else {
-    filelist = (String *)safe_malloc(sizeof(String));
+    filelist = (String*) safe_malloc(sizeof(String));
     *filelist = '\0';
   }
   XawListChange(load_flist, filelist, f_num, 0, True);
@@ -2322,7 +2318,7 @@ filterDirList(ldPointer ld, Boolean toggle) {
 
 static int
 cmpstringp(const void *p1, const void *p2) {
-  return strcmp(* (char * const *) p1, * (char * const *) p2);
+  return strcmp(* (char * const*) p1, * (char * const*) p2);
 }
 
 static int
@@ -2346,7 +2342,7 @@ setDirList(ldPointer ld, char *curr_dir) {
 
     init_string_table(&strftab); init_string_table(&strdtab);
     while (url_gets(dirp, filename, sizeof(filename)) != NULL) {
-      fullpath = (char *)new_segment(&pool, strlen(curr_dir) + 
+      fullpath = (char*) new_segment(&pool, strlen(curr_dir) +
                                      strlen(filename) + 2);
       sprintf(fullpath, "%s/%s", curr_dir, filename);
       if (filename[0] == '.') {
@@ -2368,17 +2364,17 @@ setDirList(ldPointer ld, char *curr_dir) {
     reuse_mblock(&pool);
 
     if (d_num > 0) {
-      ddirlist = (String *)make_string_array(&strdtab);
-      qsort (ddirlist, d_num, sizeof (char *), cmpstringp);
+      ddirlist = (String*) make_string_array(&strdtab);
+      qsort (ddirlist, d_num, sizeof (char*), cmpstringp);
     } else {
-      ddirlist = (String *)safe_malloc(sizeof(String));
+      ddirlist = (String*) safe_malloc(sizeof(String));
       *ddirlist = '\0';
     }
     if (f_num > 0) {
-      fulldirlist = (String *)make_string_array(&strftab);
-      qsort (fulldirlist, f_num, sizeof (char *), cmpstringp);
+      fulldirlist = (String*) make_string_array(&strftab);
+      qsort (fulldirlist, f_num, sizeof (char*), cmpstringp);
     } else {
-      fulldirlist = (String *)safe_malloc(sizeof(String));
+      fulldirlist = (String*) safe_malloc(sizeof(String));
       *fulldirlist = '\0';
     }
     fullfilenum = f_num; dirnum = d_num;
@@ -2418,12 +2414,12 @@ notifyDoubleClickACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
   lrs->list_index = XAW_LIST_NONE;
   XtCallCallbacks(w, XtNcallback, lrs);
-  XtFree((char *)lrs);
+  XtFree((char*) lrs);
 }
 
 static void
 setFileLoadCB(Widget list, XtPointer client_data, XawListReturnStruct *lrs) {
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
   Widget Text = XtNameToWidget(load_d, "value");
 
 #ifdef CLEARVALUE
@@ -2442,11 +2438,11 @@ setFileLoadCB(Widget list, XtPointer client_data, XawListReturnStruct *lrs) {
 
 static void
 setDirLoadCB(Widget list, XtPointer client_data, XawListReturnStruct *lrs) {
-  ldPointer ld = (ldPointer)client_data;
+  ldPointer ld = (ldPointer) client_data;
   struct stat st;
   char curr_dir[PATH_MAX];
 
-  snprintf(curr_dir, sizeof(curr_dir)-1, "%s/%s", basepath, lrs->string);
+  snprintf(curr_dir, sizeof(curr_dir) -1, "%s/%s", basepath, lrs->string);
   canonicalize_path(curr_dir);
   if (stat(curr_dir, &st) == -1) return;
   if (!setDirList(ld, curr_dir) ) {
@@ -2468,7 +2464,7 @@ getClickedChan(XEvent *e) {
 
   if (e->xbutton.y <= TRACE_HEADER) return -1;
   c = (e->xbutton.y - TRACE_FOOT - BAR_SPACE + BAR_HEIGHT)/BAR_SPACE;
-  if ((c > getVisibleChanNum()-1) || (c < 0)) return -1;
+  if ((c > getVisibleChanNum() -1) || (c < 0)) return -1;
   return c+getLowestVisibleChan();
 }
 
@@ -2550,7 +2546,7 @@ completeDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
       while (url_gets(dirp, filename, sizeof(filename)) != NULL) {
         if (!strncmp(full.basename, filename, lenb)) {
 
-          fullpath = (char *)new_segment(&pool,
+          fullpath = (char*) new_segment(&pool,
                             lend + strlen(filename) + 2);
           sprintf(fullpath, "%s/%s", full.dirname, filename);
 
@@ -2578,7 +2574,7 @@ completeDirACT(Widget w, XEvent *e, String *v, Cardinal *n) {
         clearValue(XtParent(w));
 #endif /* CLEARVALUE */
         snprintf(filename, sizeof(filename), "%s/%s", full.dirname, matchstr);
-        XtVaSetValues(load_dialog_widget, XtNvalue,filename, NULL); 
+        XtVaSetValues(load_dialog_widget, XtNvalue,filename, NULL);
       }
     }
   }
@@ -2616,7 +2612,7 @@ savePlaylist(const char *file, int n) {
 
     snprintf(prefix, sizeof(prefix), SPREFIX "%s ", cfg_items[S_MidiFile]);
     if ((fp = fopen(dotfile, "a")) != NULL) {
-      for(i=0; i<n; i++) {
+      for (i=0; i<n; i++) {
         a_pipe_read(local_buf, sizeof(local_buf));
         if (fprintf(fp,"%s%s\n", prefix, local_buf) < 0) goto error;
       }
@@ -2627,7 +2623,7 @@ savePlaylist(const char *file, int n) {
     if ((fp = fopen(file, "w")) != NULL) {
       if (fputc('\0', fp) == EOF) goto error;
       if (fprintf(fp, "timidity playlist:\n") < 0) goto error;
-      for(i=0; i<n; i++) {
+      for (i=0; i<n; i++) {
         a_pipe_read(local_buf, sizeof(local_buf));
         if (fprintf(fp,"%s\n", local_buf) < 0) goto error;
       }
@@ -2638,7 +2634,7 @@ savePlaylist(const char *file, int n) {
   return;
 error:
   if (fp != NULL) fclose(fp);
-  for(i=0; i<n; i++) a_pipe_read(local_buf, sizeof(local_buf));
+  for (i=0; i<n; i++) a_pipe_read(local_buf, sizeof(local_buf));
   warnCB(toplevel, "saveplaylisterror", True);
   return;
 }
@@ -2652,7 +2648,7 @@ a_readconfig (Config *Cfg, char ***dotfile_flist) {
   FILE *fp;
 
   if (home != NULL) {
-    dotfile = (char *)safe_malloc(sizeof(char) * PATH_MAX);
+    dotfile = (char*) safe_malloc(sizeof(char) * PATH_MAX);
     snprintf(dotfile, PATH_MAX, "%s/%s", home, INITIAL_CONFIG);
     if ( (fp = fopen(dotfile, "r")) != NULL) {
       while ((p = fgets(s, SLINELEN, fp)) != NULL) {
@@ -2660,37 +2656,37 @@ a_readconfig (Config *Cfg, char ***dotfile_flist) {
         if (strncasecmp(s, SPREFIX, SPLEN) != 0) continue;
         switch (configcmp(s+SPLEN, &k)) {
         case S_ConfirmExit:
-          Cfg->confirmexit = (Boolean)k; break;
+          Cfg->confirmexit = (Boolean) k; break;
         case S_RepeatPlay:
-          Cfg->repeat = (Boolean)k; break;
+          Cfg->repeat = (Boolean) k; break;
         case S_AutoStart:
-          Cfg->autostart = (Boolean)k; break;
+          Cfg->autostart = (Boolean) k; break;
         case S_AutoExit:
-          Cfg->autoexit = (Boolean)k; break;
+          Cfg->autoexit = (Boolean) k; break;
         case S_DispText:
-          Cfg->disptext = (Boolean)k;
+          Cfg->disptext = (Boolean) k;
           break;
         case S_ShufflePlay:
-          Cfg->shuffle = (Boolean)k; break;
+          Cfg->shuffle = (Boolean) k; break;
         case S_DispTrace:
-          Cfg->disptrace = (Boolean)k; break;
+          Cfg->disptrace = (Boolean) k; break;
         case S_CurVol:
-          Cfg->amplitude = (int)k;
+          Cfg->amplitude = (int) k;
           if (Cfg->amplitude > MAXVOLUME) Cfg->amplitude = MAXVOLUME;
           else if (Cfg->amplitude < 0) Cfg->amplitude = 0;
           break;
         case S_ExtOptions:
-          Cfg->extendopt = (int)k; break;
+          Cfg->extendopt = (int) k; break;
         case S_ChorusOption:
-          Cfg->chorusopt = (int)k; break;
+          Cfg->chorusopt = (int) k; break;
         case S_Tooltips:
-          Cfg->tooltips = (Boolean)k; break;
+          Cfg->tooltips = (Boolean) k; break;
         case S_Showdotfiles:
-          Cfg->showdotfiles = (Boolean)k; break;
+          Cfg->showdotfiles = (Boolean) k; break;
         case S_SaveList:
-          Cfg->save_list = (Boolean)k; break;
+          Cfg->save_list = (Boolean) k; break;
         case S_SaveConfig:
-          Cfg->save_config = (Boolean)k; break;
+          Cfg->save_config = (Boolean) k; break;
         case S_DefaultDirectory:
           p = s+k;
           pp = expandDir(p, NULL, "/");
@@ -2704,7 +2700,7 @@ a_readconfig (Config *Cfg, char ***dotfile_flist) {
         case S_MidiFile:
           if (dotfile_flist == NULL) break;
           if (*dotfile_flist == NULL)
-            *dotfile_flist = (char **)safe_malloc(sizeof(char *) *
+            *dotfile_flist = (char**) safe_malloc(sizeof(char*) *
                                                   INIT_FLISTNUM);
           p = s+k;
           if (dot_nfile < INIT_FLISTNUM) {
@@ -2781,7 +2777,7 @@ FileDropedHandler(Widget widget, XtPointer data, XEvent *event, Boolean *b) {
   int Type;
 
   Type = DndDataType(event);
-  for(i=0;AcceptType[i] != DndNotDnd;i++) {
+  for (i=0;AcceptType[i] != DndNotDnd;i++) {
     if (AcceptType[i] == Type)
       goto OK;
   }
@@ -2805,7 +2801,7 @@ OK:
 
 static void
 leaveSubmenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  XLeaveWindowEvent *leave_event = (XLeaveWindowEvent *)e;
+  XLeaveWindowEvent *leave_event = (XLeaveWindowEvent*) e;
   Dimension height;
 
   XtVaGetValues(w, XtNheight,&height, NULL);
@@ -2817,14 +2813,14 @@ leaveSubmenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 #ifdef TimNmenu
 static void
 checkRightAndPopupSubmenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
-  XLeaveWindowEvent *leave_ev = (XLeaveWindowEvent *)e;
+  XLeaveWindowEvent *leave_ev = (XLeaveWindowEvent*) e;
   Dimension nheight, height, width;
   Position x, y;
   int i;
 
   if (maxentry_on_a_menu == 0) return;
 
-  if (e == NULL) i = *(int *)n;
+  if (e == NULL) i = *(int*) n;
   else i = atoi(*v);
   if (w != title_sm) {
     if ((leave_ev->x <= 0) || (leave_ev->y < 0)) {
@@ -2850,7 +2846,7 @@ checkRightAndPopupSubmenuACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
 static void
 popdownSubmenuCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  long i = (long)client_data;
+  long i = (long) client_data;
 
   if (i < 0) i = submenu_n -1;
   while (i >= 0) XtPopdown(psmenu[i--]);
@@ -2885,9 +2881,9 @@ flistMoveACT(Widget w, XEvent *e, String *v, Cardinal *n) {
       XtVaGetValues(file_list, XtNheight,&listheight, NULL);
       XtVaGetValues(file_vport, XtNheight,&vportheight, NULL);
       perpage = ceil((max_files * vportheight) / listheight - 0.5);
-      if (*(int *)n == 1) {
+      if (*(int*) n == 1) {
         i += lr->list_index;
-      } else if (*(int *)n == 2) {
+      } else if (*(int*) n == 2) {
         i = lr->list_index + i*perpage;
       } else {
         if (i > 0) i = max_files-1;
@@ -2907,7 +2903,7 @@ flistMoveACT(Widget w, XEvent *e, String *v, Cardinal *n) {
           String arg[1];
 
           if (((i - 1) < covered) && (i <= perpage/2)) thumb.f = 0;
-          else thumb.f = (float)(i - perpage/2) / (float)max_files;
+          else thumb.f = (float)(i - perpage/2) / (float) max_files;
           arg[0] = XtNewString("Continuous");
           XtCallActionProc(scrollbar, "StartScroll", e, arg, ONE);
           XtFree(arg[0]);
@@ -2928,7 +2924,7 @@ static void
 addFlist(const char *fname, long current_n) {
   if (max_num < current_n+1) {
     max_num += 64;
-    flist = (String *)safe_realloc(flist, (max_num+1)*sizeof(String));
+    flist = (String*) safe_realloc(flist, (max_num+1) *sizeof(String));
   }
   free(flist[current_n]);
   flist[current_n] = safe_strdup(fname);
@@ -2958,16 +2954,16 @@ addOneFile(int max_files, long curr_num, const char *fname) {
     }
     if (jjj >= maxentry_on_a_menu) {
       if (!psmenu) {
-        psmenu = (Widget *)safe_malloc(sizeof(Widget)
+        psmenu = (Widget*) safe_malloc(sizeof(Widget)
                               * ((int)(max_files / curr_num) + 2));
 #ifndef TimNmenu
-       sb = (String *)safe_malloc(sizeof(String));
+       sb = (String*) safe_malloc(sizeof(String));
 #endif
       } else {
-        psmenu = (Widget *)safe_realloc((char *)psmenu,
-                    sizeof(Widget)*(submenu_n + 2));
+        psmenu = (Widget*) safe_realloc((char*) psmenu,
+                    sizeof(Widget) *(submenu_n + 2));
 #ifndef TimNmenu
-        sb = (String *)safe_realloc(sb, sizeof(String)*(submenu_n + 2));
+        sb = (String*) safe_realloc(sb, sizeof(String) *(submenu_n + 2));
 #endif
       }
       snprintf(sbuf, sizeof(sbuf), "morebox%ld", submenu_n);
@@ -3003,7 +2999,7 @@ addOneFile(int max_files, long curr_num, const char *fname) {
   }
   if (maxentry_on_a_menu != 0) jjj++;
   bsb = XtVaCreateManagedWidget(fname,smeBSBObjectClass,tmpw, NULL);
-  XtAddCallback(bsb, XtNcallback,menuCB, (XtPointer)curr_num);
+  XtAddCallback(bsb, XtNcallback,menuCB, (XtPointer) curr_num);
   XtVaGetValues(bsb, XtNheight,&tmpi, NULL);
   if (maxentry_on_a_menu == 0) menu_height += tmpi;
   else psmenu[submenu_n] = NULL;
@@ -3035,7 +3031,7 @@ createOptions(void) {
   XtVaCreateManagedWidget("modul_lbl",labelWidgetClass,modul_bb,
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   porta_bb = XtVaCreateManagedWidget("porta_box",boxWidgetClass,popup_optform,
-                       XtNfromVert,modul_bb, 
+                       XtNfromVert,modul_bb,
                        XtNorientation,XtorientHorizontal,
                        XtNbackground,bgcolor, NULL);
   porta_b = XtVaCreateManagedWidget("porta_button",toggleWidgetClass,porta_bb,
@@ -3044,7 +3040,7 @@ createOptions(void) {
   XtVaCreateManagedWidget("porta_lbl",labelWidgetClass,porta_bb,
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   nrpnv_bb = XtVaCreateManagedWidget("nrpnv_box",boxWidgetClass,popup_optform,
-                       XtNfromVert,porta_bb, 
+                       XtNfromVert,porta_bb,
                        XtNorientation,XtorientHorizontal,
                        XtNbackground,bgcolor, NULL);
   nrpnv_b = XtVaCreateManagedWidget("nrpnv_button",toggleWidgetClass,nrpnv_bb,
@@ -3064,7 +3060,7 @@ createOptions(void) {
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   chorus_bb = XtVaCreateManagedWidget("chorus_box",boxWidgetClass,
                        popup_optform, XtNorientation,XtorientHorizontal,
-                       XtNfromVert,reverb_bb, 
+                       XtNfromVert,reverb_bb,
                        XtNbackground,bgcolor, NULL);
   chorus_b = XtVaCreateManagedWidget("chorus_button",toggleWidgetClass,
                        chorus_bb, XtNbitmap,off_mark, XtNfromVert,reverb_b,
@@ -3074,7 +3070,7 @@ createOptions(void) {
                        XtNforeground,textcolor, XtNbackground,bgcolor, NULL);
   chpressure_bb = XtVaCreateManagedWidget("chpressure_box",boxWidgetClass,
                        popup_optform, XtNorientation,XtorientHorizontal,
-                       XtNfromVert,chorus_bb, 
+                       XtNfromVert,chorus_bb,
                        XtNbackground,bgcolor, NULL);
   chpressure_b = XtVaCreateManagedWidget("chpressure_button",
                        toggleWidgetClass,chpressure_bb, XtNbitmap,off_mark,
@@ -3085,10 +3081,10 @@ createOptions(void) {
                        XtNbackground,bgcolor, NULL);
   overlapv_bb = XtVaCreateManagedWidget("overlapvoice_box",boxWidgetClass,
                        popup_optform, XtNorientation,XtorientHorizontal,
-                       XtNfromVert,chpressure_bb, 
+                       XtNfromVert,chpressure_bb,
                        XtNbackground,bgcolor, NULL);
   overlapv_b = XtVaCreateManagedWidget("overlapvoice_button",
-                       toggleWidgetClass,overlapv_bb, XtNbitmap,off_mark, 
+                       toggleWidgetClass,overlapv_bb, XtNbitmap,off_mark,
                        XtNfromVert,chpressure_b, XtNforeground,togglecolor,
                        XtNbackground,buttonbgcolor, NULL);
   XtVaCreateManagedWidget("overlapv_lbl",labelWidgetClass,
@@ -3096,7 +3092,7 @@ createOptions(void) {
                        XtNbackground,bgcolor, NULL);
   txtmeta_bb = XtVaCreateManagedWidget("txtmeta_box",boxWidgetClass,
                        popup_optform, XtNorientation,XtorientHorizontal,
-                       XtNfromVert,overlapv_bb, 
+                       XtNfromVert,overlapv_bb,
                        XtNbackground,bgcolor, NULL);
   txtmeta_b = XtVaCreateManagedWidget("txtmeta_button",toggleWidgetClass,
                        txtmeta_bb, XtNbitmap,off_mark, XtNfromVert,overlapv_b,
@@ -3121,7 +3117,7 @@ createOptions(void) {
                                           XtNfromHoriz,popup_ook, XtNwidth,80,
                                           NULL);
   XtAddCallback(popup_ook, XtNcallback,optionscloseCB, NULL);
-  XtAddCallback(popup_ocancel, XtNcallback,closeWidgetCB, (XtPointer)popup_opt);
+  XtAddCallback(popup_ocancel, XtNcallback,closeWidgetCB, (XtPointer) popup_opt);
   XtAddCallback(modul_b, XtNcallback,optionsCB, NULL);
   XtAddCallback(porta_b, XtNcallback,optionsCB, NULL);
   XtAddCallback(nrpnv_b, XtNcallback,optionsCB, NULL);
@@ -3141,7 +3137,7 @@ createOptions(void) {
   if (init_options != 0) {
     int i;
 
-    for(i=0; i<MAX_OPTION_N; i++) {
+    for (i=0; i<MAX_OPTION_N; i++) {
       if (init_options & option_num[i].bit)
         XtVaSetValues(option_num[i].widget, XtNstate,True,
                       XtNbitmap,on_mark, NULL);
@@ -3183,13 +3179,13 @@ fdeleteCB(Widget w, XtPointer client_data, XtPointer call_data) {
       current_n_displayed--;
     }
     if (p != NULL) XtVaSetValues(title_mb, XtNlabel,p+1, NULL);
-    else fprintf(stderr, "No space character in flist!\n"); 
+    else fprintf(stderr, "No space character in flist!\n");
          /* Should never happen */
   }
   a_pipe_write("%c%d", S_DEL_FROM_PLAYLIST, n);
   --max_files;
   free(flist[n]);
-  for(i=n; i<max_files; i++) {
+  for (i=n; i<max_files; i++) {
     p = strchr(flist[i+1], '.');
     snprintf(flist[i+1], strlen(flist[i+1])+1, "%ld%s", i+1, p);
     flist[i] = flist[i+1];
@@ -3200,7 +3196,7 @@ fdeleteCB(Widget w, XtPointer client_data, XtPointer call_data) {
     if (n >= max_files) --n;
     XawListHighlight(file_list, n);
   }
-  if (psmenu != NULL) { 
+  if (psmenu != NULL) {
     free(psmenu);
     psmenu = NULL;
 #ifndef TimNmenu
@@ -3217,7 +3213,7 @@ fdeleteCB(Widget w, XtPointer client_data, XtPointer call_data) {
                                 title_mb, XtNforeground,textcolor,
                                 XtNbackground,textbgcolor, XtNsaveUnder,False,
                                 XtNbackingStore,NotUseful, NULL);
-  for(i=0; i<max_files; i++)
+  for (i=0; i<max_files; i++)
     addOneFile(max_files, i, flist[i]);
 }
 
@@ -3227,14 +3223,14 @@ fdelallCB(Widget w, XtPointer client_data, XtPointer call_data) {
 
   stopCB(w, NULL, NULL);
   a_pipe_write("%c", S_DEL_CUR_PLAYLIST);
-  for(i=1; i<max_files; i++) free(flist[i]);
+  for (i=1; i<max_files; i++) free(flist[i]);
   /* We keep a single member in flist. Otherwise, Xaw will display the
    * widget's name as a member, also letting the user "delete" it (with a
    * crash to follow).
    */
   max_files = 0;
   current_n_displayed = 0;
-  if (*flist == NULL) *flist = (String)safe_malloc(sizeof(char *));
+  if (*flist == NULL) *flist = (String) safe_malloc(sizeof(char*));
   **flist = '\0';
   if (XtIsRealized(popup_file))
     XawListChange(file_list, flist, max_files?max_files:1, 0, True);
@@ -3288,7 +3284,7 @@ deleteTextACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 #ifdef CLEARVALUE
   Widget TextSrc;
 
-  XtVaGetValues(lyric_t, XtNtextSource,&TextSrc, NULL); 
+  XtVaGetValues(lyric_t, XtNtextSource,&TextSrc, NULL);
   XawAsciiSourceFreeString(TextSrc);
 #endif /* CLEARVALUE */
   XtVaSetValues(lyric_t, XtNstring,"<< TiMidity Messages >>\n", NULL);
@@ -3338,7 +3334,7 @@ createFlist(void) {
     popup_fclose = XtVaCreateManagedWidget("closebutton",commandWidgetClass,
                     flist_cmdbox, XtNfontSet,app_resources.volume_font, NULL);
     XtAddCallback(popup_fclose, XtNcallback,closeWidgetCB,
-                  (XtPointer)popup_file);
+                  (XtPointer) popup_file);
     XtAddCallback(popup_fplay, XtNcallback,fselectCB, NULL);
     XtAddCallback(popup_fdelete, XtNcallback,fdeleteCB, NULL);
     XtAddCallback(popup_fdelall, XtNcallback,fdelallCB, NULL);
@@ -3408,23 +3404,23 @@ a_dnd_init(void) {
 static void
 enable_dnd_for_widget(DndClass *dnd, Widget widget, dnd_callback_t cb) {
   make_window_dnd_aware(dnd, XtWindow(widget), cb);
-  XtAddEventHandler(widget, ClientMessage, True, 
-                     xdnd_listener, (XtPointer)dnd);
-  XtAddEventHandler(widget, SelectionNotify, True, 
-                     xdnd_listener, (XtPointer)dnd);
+  XtAddEventHandler(widget, ClientMessage, True,
+                     xdnd_listener, (XtPointer) dnd);
+  XtAddEventHandler(widget, SelectionNotify, True,
+                     xdnd_listener, (XtPointer) dnd);
 }
 
 static void
 xdnd_listener(Widget w, XtPointer client_data, XEvent *ev, Boolean *dummy) {
-  DndClass *dnd = (DndClass *)client_data;
+  DndClass *dnd = (DndClass*) client_data;
   dnd->win = XtWindow(w);
-  process_client_dnd_message(dnd, ev); 
+  process_client_dnd_message(dnd, ev);
 }
 #endif /* XDND */
 
 static void
 destroyWidgetCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  w = (Widget)client_data;
+  w = (Widget) client_data;
   if (XtIsRealized(XtParent(w))) {
     XWindowAttributes war;
     Window win;
@@ -3451,11 +3447,11 @@ setupWindow(Widget w, String action, Boolean xdnd,
   snprintf(s, sizeof(s), "<Message>WM_PROTOCOLS: %s", action);
   XtOverrideTranslations(w, XtParseTranslationTable(s));
   if (destroyWidgetOnPopdown == True)
-    XtAddCallback(w, XtNpopdownCallback,destroyWidgetCB, (XtPointer)w);
+    XtAddCallback(w, XtNpopdownCallback,destroyWidgetCB, (XtPointer) w);
   XtPopup(w, XtGrabNone);
   XSetWMProtocols(disp, XtWindow(w), &wm_delete_window, 1);
   XChangeProperty(disp, XtWindow(w), net_wm_pid, XA_CARDINAL, 32,
-                    PropModeReplace, (unsigned char *)&pid, 1);
+                    PropModeReplace, (unsigned char*) &pid, 1);
   /* The WM spec requires setting up WM_CLIENT_MACHINE along with
    * _NET_WM_PID. Xt sets it up automatically for us.
    */
@@ -3503,10 +3499,10 @@ createTraceWidgets(void) {
                 XtNforeground,togglecolor, XtNbackground,buttonbgcolor,
                 XtNbitmap,GET_BITMAP(keydown), XtNfromHoriz,keyup_b, NULL);
 
-  XtAddCallback(fast_b, XtNcallback,tempoCB, (XtPointer)TRUE);
-  XtAddCallback(slow_b, XtNcallback,tempoCB, (XtPointer)FALSE);
-  XtAddCallback(keyup_b, XtNcallback,pitchCB, (XtPointer)TRUE);
-  XtAddCallback(keydown_b, XtNcallback,pitchCB, (XtPointer)FALSE);
+  XtAddCallback(fast_b, XtNcallback,tempoCB, (XtPointer) TRUE);
+  XtAddCallback(slow_b, XtNcallback,tempoCB, (XtPointer) FALSE);
+  XtAddCallback(keyup_b, XtNcallback,pitchCB, (XtPointer) TRUE);
+  XtAddCallback(keydown_b, XtNcallback,pitchCB, (XtPointer) FALSE);
 
 #ifndef XawTraversal
   XtSetKeyboardFocus(fast_b, base_f);
@@ -3576,7 +3572,7 @@ createBars(void) {
             XtNhorizDistance,vol_hd,
             XtNleft,XawChainLeft, XtNright,XawChainLeft,
             XtNbackground,textbgcolor, NULL);
-  thumb.f = (float)amplitude / (float)MAXVOLUME;
+  thumb.f = (float) amplitude / (float) MAXVOLUME;
   setThumb(vol_bar, thumb);
   tune_l0 = XtVaCreateManagedWidget("tune_label0",labelWidgetClass,t_box,
             XtNwidth,k, XtNlabel,"0:00",
@@ -3599,9 +3595,9 @@ createBars(void) {
   XtVaGetValues(vol_bar, XtNminimumThumb,&m, NULL);
   XtVaGetValues(tune_bar, XtNminimumThumb,&m2, NULL);
   XtVaSetValues(vol_bar,
-                  XtNlength,DEFAULT_REG_WIDTH-(i+j+30+vol_hd)-m, NULL);
+                  XtNlength,DEFAULT_REG_WIDTH-(i+j+30+vol_hd) -m, NULL);
   XtVaSetValues(tune_bar,
-                  XtNlength,DEFAULT_REG_WIDTH-(k+l+30+tune_hd)-m2, NULL);
+                  XtNlength,DEFAULT_REG_WIDTH-(k+l+30+tune_hd) -m2, NULL);
 #endif /* SCROLLBARLENGTHBUG */
 
  /*
@@ -3612,15 +3608,15 @@ createBars(void) {
   * Note that this check could work only after the scrollbar class is inited.
   */
   XtGetActionList(scrollbarWidgetClass, &action_list, &num_actions);
-  j = (int)num_actions;
+  j = (int) num_actions;
   for (i = 0; i < j; i++)
     if (!strcasecmp(action_list[i].string, "StartScroll")) {
-      XtFree((char *)action_list);
+      XtFree((char*) action_list);
       return;
     }
   XtAppAddActions(app_con, startscroll_act, XtNumber(startscroll_act));
   use_own_start_scroll = True;
-  XtFree((char *)action_list);
+  XtFree((char*) action_list);
 }
 
 static void
@@ -3684,10 +3680,10 @@ static void
 init_output_lists(void) {
   int i = 0, j = 0;
 
-  play = (outputs *)safe_malloc(sizeof(outputs));
-  record = (outputs *)safe_malloc(sizeof(outputs));
-  play->output_list = (id_list *)safe_malloc(sizeof(id_list) * 7);
-  record->output_list = (id_list *)safe_malloc(sizeof(id_list) * 7);
+  play = (outputs*) safe_malloc(sizeof(outputs));
+  record = (outputs*) safe_malloc(sizeof(outputs));
+  play->output_list = (id_list*) safe_malloc(sizeof(id_list) * 7);
+  record->output_list = (id_list*) safe_malloc(sizeof(id_list) * 7);
   play->current = play->def = 0; play->formatGroup = NULL;
   record->current = record->def = 0; record->formatGroup = NULL;
   while (strcmp(local_buf, CHECKPOST "0")) {
@@ -3695,7 +3691,7 @@ init_output_lists(void) {
     if ((*local_buf == M_FILE_OUTPUT) || (*local_buf == M_FILE_CUR_OUTPUT)) {
       record->output_list[i].id_char = *(local_buf + 1);
       record->output_list[i].id_name = safe_strdup(local_buf + 3);
-      if (((i+1) % 7) == 0) record->output_list = (id_list *)safe_realloc(
+      if (((i+1) % 7) == 0) record->output_list = (id_list*) safe_realloc(
                                                           record->output_list,
                                                           sizeof(id_list) *
                                                           (7 * ((i+1)/7 + 1)));
@@ -3704,7 +3700,7 @@ init_output_lists(void) {
                (*local_buf == M_DEVICE_CUR_OUTPUT)) {
       play->output_list[j].id_char = *(local_buf + 1);
       play->output_list[j].id_name = safe_strdup(local_buf + 3);
-      if (((j+1) % 7) == 0) play->output_list = (id_list *)safe_realloc(
+      if (((j+1) % 7) == 0) play->output_list = (id_list*) safe_realloc(
                                                          play->output_list,
                                                          sizeof(id_list) *
                                                          (7 * ((j+1)/7 + 1)));
@@ -3718,7 +3714,7 @@ init_output_lists(void) {
     record = NULL;
     XtVaSetValues(file_menu[ID_SAVE - 100].widget, XtNsensitive,False, NULL);
   } else {
-    record->output_list = (id_list *)safe_realloc(record->output_list,
+    record->output_list = (id_list*) safe_realloc(record->output_list,
                                                 sizeof(id_list) * i);
     record->max = i;
     record->lbuf = NULL;
@@ -3728,7 +3724,7 @@ init_output_lists(void) {
     free(play);
     play = NULL;
   } else {
-    play->output_list = (id_list *)safe_realloc(play->output_list,
+    play->output_list = (id_list*) safe_realloc(play->output_list,
                                                sizeof(id_list) * j);
     play->max = j;
     play->lbuf = NULL;
@@ -3745,22 +3741,22 @@ setNetWMIcon(void) {
 
   h = timidity_height;
   w = timidity_width;
-  if (w & 7) extra = 1 << (w & 7);
+  if (w & 7) extra = 1L << (w & 7);
   else extra = 0;
 
-  argb_image = (unsigned long *)safe_malloc((2+w*h)*sizeof(unsigned long));
+  argb_image = (unsigned long*) safe_malloc((2+w*h) *sizeof(unsigned long));
   argb_image[0] = w; argb_image[1] = h; pos = 0; ip = argb_image + 2;
   for (i = 0, count = 1; i < sizeof(timidity_bits); ++i, ++count) {
     if ((!extra) || (count != (w/8 + 1))) bit_max = 256;
     else {
       count = 0;
-      /* Discard the extra bits if XBM width is not divisible by 8 and 
+      /* Discard the extra bits if XBM width is not divisible by 8 and
        * we're at the last byte of the row. */
       bit_max = extra;
     }
     for (bit = 1; bit != bit_max; bit <<= 1) {
       if ((timidity_bits[pos] & bit) == 0) {
-        *ip++ = 0xFFFFFFFF; /* White, no transparency */ 
+        *ip++ = 0xFFFFFFFF; /* White, no transparency */
       } else {
         *ip++ = 0xFF000000; /* Black, no transparency */
       }
@@ -3769,7 +3765,7 @@ setNetWMIcon(void) {
   }
 
   XChangeProperty(disp, XtWindow(toplevel), net_wm_icon, XA_CARDINAL, 32,
-                  PropModeReplace, (const unsigned char *)argb_image,
+                  PropModeReplace, (const unsigned char*) argb_image,
                   2+w*h);
   free(argb_image);
 }
@@ -3777,11 +3773,11 @@ setNetWMIcon(void) {
 static void
 a_init_interface(int pipe_in) {
   static XtActionsRec actions[] = {
-    {"do-quit", (XtActionProc)quitCB},
+    {"do-quit", (XtActionProc) quitCB},
     {"show-menu", popupfilemenuACT},
     {"hide-menu", popdownfilemenuACT},
 #ifdef OLDXAW
-    {"fix-menu", (XtActionProc)filemenuCB},
+    {"fix-menu", (XtActionProc) filemenuCB},
 #endif
     {"do-menu", filemenuACT},
     {"do-addall", popdownAddALLACT},
@@ -3793,14 +3789,14 @@ a_init_interface(int pipe_in) {
     {"do-mutechan", muteChanACT},
     {"do-solochan", soloChanACT},
     {"do-revcaption", redrawCaptionACT},
-    {"do-play", (XtActionProc)playCB},
+    {"do-play", (XtActionProc) playCB},
     {"do-sndspec", sndspecACT},
-    {"do-pause", (XtActionProc)pauseCB},
-    {"do-stop", (XtActionProc)stopCB},
-    {"do-next", (XtActionProc)nextCB},
-    {"do-prev", (XtActionProc)prevCB},
-    {"do-forward", (XtActionProc)forwardCB},
-    {"do-back", (XtActionProc)backCB},
+    {"do-pause", (XtActionProc) pauseCB},
+    {"do-stop", (XtActionProc) stopCB},
+    {"do-next", (XtActionProc) nextCB},
+    {"do-prev", (XtActionProc) prevCB},
+    {"do-forward", (XtActionProc) forwardCB},
+    {"do-back", (XtActionProc) backCB},
     {"do-key", soundkeyACT},
     {"do-speed", speedACT},
     {"do-voice", voiceACT},
@@ -3818,15 +3814,15 @@ a_init_interface(int pipe_in) {
 #endif
     {"leaveSubmenu", leaveSubmenuACT},
     {"do-options", optionspopupACT},
-    {"do-optionsclose", (XtActionProc)optionscloseCB},
+    {"do-optionsclose", (XtActionProc) optionscloseCB},
     {"do-filelist", flistpopupACT},
     {"do-about", aboutACT},
     {"do-toggle-tooltips", xawtipsetACT},
     {"do-closeparent", closeParentACT},
     {"do-flistmove", flistMoveACT},
-    {"do-fselect", (XtActionProc)fselectCB},
-    {"do-fdelete", (XtActionProc)fdeleteCB},
-    {"do-fdelall", (XtActionProc)fdelallCB},
+    {"do-fselect", (XtActionProc) fselectCB},
+    {"do-fdelete", (XtActionProc) fdeleteCB},
+    {"do-fdelall", (XtActionProc) fdelallCB},
     {"do-backspace", backspaceACT},
     {"do-cancel", cancelACT},
     {"do-ok", okACT},
@@ -3841,9 +3837,9 @@ a_init_interface(int pipe_in) {
 #define offset(entry) XtOffset(struct _app_resources*, entry)
 #define toffset(entry) XtOffset(struct _app_resources*, tracecfg.entry)
   {"arrangeTitle", "ArrangeTitle", XtRBoolean, sizeof(Boolean),
-   offset(arrange_title), XtRImmediate, (XtPointer)False},
+   offset(arrange_title), XtRImmediate, (XtPointer) False},
   {"gradientBar", "GradientBar", XtRBoolean, sizeof(Boolean),
-   toffset(gradient_bar), XtRImmediate, (XtPointer)False},
+   toffset(gradient_bar), XtRImmediate, (XtPointer) False},
 #ifdef WIDGET_IS_LABEL_WIDGET
   {"textLHeight", "TextLHeight", XtRShort, sizeof(short),
    offset(text_height), XtRImmediate, (XtPointer)30},
@@ -3852,9 +3848,9 @@ a_init_interface(int pipe_in) {
    offset(text_height), XtRImmediate, (XtPointer)120},
 #endif /* WIDGET_IS_LABEL_WIDGET */
   {"traceWidth", "TraceWidth", XtRShort, sizeof(short),
-   toffset(trace_width), XtRImmediate, (XtPointer)TRACE_WIDTH},
+   toffset(trace_width), XtRImmediate, (XtPointer) TRACE_WIDTH},
   {"traceHeight", "TraceHeight", XtRShort, sizeof(short),
-   toffset(trace_height), XtRImmediate, (XtPointer)TRACE_HEIGHT_WITH_FOOTER},
+   toffset(trace_height), XtRImmediate, (XtPointer) TRACE_HEIGHT_WITH_FOOTER},
   {"menuWidth", "MenuWidth", XtRShort, sizeof(Dimension),
    offset(menu_width), XtRImmediate, (XtPointer)200},
   {"foreground", XtCForeground, XtRPixel, sizeof(Pixel),
@@ -4032,9 +4028,9 @@ a_init_interface(int pipe_in) {
     "*lyric_text.height: 120",
     "*lyric_text.scrollVertical: Always",
     "*lyric_text.translations: #override\\n\
-        <Btn2Down>:	do-deltext()\\n\
-        <Btn4Down>:	do-scroll-lyrics(-1)\\n\
-        <Btn5Down>:	do-scroll-lyrics(1)",
+        <Btn2Down>:     do-deltext()\\n\
+        <Btn4Down>:     do-scroll-lyrics(-1)\\n\
+        <Btn5Down>:     do-scroll-lyrics(1)",
 #else
     "*lyric_text.height: 30",
     "*lyric_text.label: MessageWindow",
@@ -4089,9 +4085,9 @@ a_init_interface(int pipe_in) {
         <BtnDown>: StartScroll(Continuous) MoveThumb() NotifyThumb()\\n\
         <BtnUp>: NotifyScroll(FullLength) EndScroll()",
     "*tune_bar.translations: #override\\n\
-        <BtnDown>:	StartScroll(Continuous) MoveThumb() NotifyThumb()\\n\
-        <BtnMotion>:	MoveThumb() NotifyThumb()\\n\
-        <BtnUp>:	do-tuneset() NotifyScroll(FullLength) EndScroll()",
+        <BtnDown>:      StartScroll(Continuous) MoveThumb() NotifyThumb()\\n\
+        <BtnMotion>:    MoveThumb() NotifyThumb()\\n\
+        <BtnUp>:        do-tuneset() NotifyScroll(FullLength) EndScroll()",
     "*file_simplemenu.load.label: Load (Meta-N)",
     "*file_simplemenu.load.underline: 0",
     "*file_simplemenu.save.label: Save (Ctrl-V)",
@@ -4102,9 +4098,9 @@ a_init_interface(int pipe_in) {
     "*file_simplemenu.save_playlist.underline: 5",
     "*file_simplemenu.saveconfig.label: Save Config (Meta-S)",
     "*file_simplemenu.saveconfig.underline: 0",
-    "*file_simplemenu.hidetext.label: (Un)Hide Messages (Ctrl-M)",
+    "*file_simplemenu.hidetext.label: (Un) Hide Messages (Ctrl-M)",
     "*file_simplemenu.hidetext.underline: 9",
-    "*file_simplemenu.hidetrace.label: (Un)Hide Trace (Ctrl-T)",
+    "*file_simplemenu.hidetrace.label: (Un) Hide Trace (Ctrl-T)",
     "*file_simplemenu.hidetrace.underline: 9",
     "*file_simplemenu.shuffle.label: Shuffle (Ctrl-S)",
     "*file_simplemenu.shuffle.underline: 1",
@@ -4123,26 +4119,26 @@ a_init_interface(int pipe_in) {
     "*file_simplemenu.quit.label: Quit (Meta-Q, Q)",
     "*file_simplemenu.quit.underline: 0",
     "*file_simplemenu.translations: #override\\n\
-        <Key>n:		MenuPopdown() do-menu(" S(ID_LOAD) ")\\n\
-        ~Meta<Key>l:	MenuPopdown() do-menu(" S(ID_LOAD) ")\\n\
-        <Key>v:		MenuPopdown() do-menu(" S(ID_SAVE) ")\\n\
-        Meta<Key>l:	MenuPopdown() do-menu(" S(ID_LOAD_PLAYLIST) ")\\n\
-        <Key>d:		MenuPopdown() do-menu(" S(ID_LOAD_PLAYLIST) ")\\n\
-        <Key>p:		MenuPopdown() do-menu(" S(ID_SAVE_PLAYLIST) ")\\n\
-        ~Ctrl<Key>s:	MenuPopdown() do-menu(" S(ID_SAVECONFIG) ")\\n\
-        <Key>h:		MenuPopdown() do-menu(" S(ID_SHUFFLE) ")\\n\
-        Ctrl<Key>s:	MenuPopdown() do-menu(" S(ID_SHUFFLE) ")\\n\
-        <Key>r:		MenuPopdown() do-menu(" S(ID_REPEAT) ")\\n\
-        <Key>m:		MenuPopdown() do-menu(" S(ID_HIDETXT) ")\\n\
-        <Key>t:		MenuPopdown() do-menu(" S(ID_HIDETRACE) ")\\n\
-        <Key>u:		MenuPopdown() do-menu(" S(ID_AUTOSTART) ")\\n\
-        <Key>e:		MenuPopdown() do-menu(" S(ID_AUTOQUIT) ")\\n\
-        ~Meta<Key>f:	MenuPopdown() do-filelist()\\n\
-        <Key>o:		MenuPopdown() do-options()\\n\
-        <Key>a:		MenuPopdown() do-about()\\n\
-        <Key>q:		MenuPopdown() do-quit()\\n\
-        <Key>Escape:	MenuPopdown()\\n\
-        <Motion>:	highlight()",
+        <Key>n:         MenuPopdown() do-menu(" S(ID_LOAD) ")\\n\
+        ~Meta<Key>l:    MenuPopdown() do-menu(" S(ID_LOAD) ")\\n\
+        <Key>v:         MenuPopdown() do-menu(" S(ID_SAVE) ")\\n\
+        Meta<Key>l:     MenuPopdown() do-menu(" S(ID_LOAD_PLAYLIST) ")\\n\
+        <Key>d:         MenuPopdown() do-menu(" S(ID_LOAD_PLAYLIST) ")\\n\
+        <Key>p:         MenuPopdown() do-menu(" S(ID_SAVE_PLAYLIST) ")\\n\
+        ~Ctrl<Key>s:    MenuPopdown() do-menu(" S(ID_SAVECONFIG) ")\\n\
+        <Key>h:         MenuPopdown() do-menu(" S(ID_SHUFFLE) ")\\n\
+        Ctrl<Key>s:     MenuPopdown() do-menu(" S(ID_SHUFFLE) ")\\n\
+        <Key>r:         MenuPopdown() do-menu(" S(ID_REPEAT) ")\\n\
+        <Key>m:         MenuPopdown() do-menu(" S(ID_HIDETXT) ")\\n\
+        <Key>t:         MenuPopdown() do-menu(" S(ID_HIDETRACE) ")\\n\
+        <Key>u:         MenuPopdown() do-menu(" S(ID_AUTOSTART) ")\\n\
+        <Key>e:         MenuPopdown() do-menu(" S(ID_AUTOQUIT) ")\\n\
+        ~Meta<Key>f:    MenuPopdown() do-filelist()\\n\
+        <Key>o:         MenuPopdown() do-options()\\n\
+        <Key>a:         MenuPopdown() do-about()\\n\
+        <Key>q:         MenuPopdown() do-quit()\\n\
+        <Key>Escape:    MenuPopdown()\\n\
+        <Motion>:       highlight()",
     "*load_dialog.add.label: Add ALL",
     "*load_dialog.filter.label: Filter",
     "*flist_cmdbox.fplaybutton.label: Play",
@@ -4159,52 +4155,52 @@ a_init_interface(int pipe_in) {
     "*txtmeta_box.txtmeta_lbl.label: Tracing All Text Meta Events",
     "*sbox_ratelabel.label: Rate",
     "*base_form.translations: #override\\n\
-        ~Ctrl Meta<Key>n:	do-menu(" S(ID_LOAD) ")\\n\
-        Ctrl ~Shift<Key>v:	do-menu(" S(ID_SAVE) ")\\n\
-        Meta<Key>l:		do-menu(" S(ID_LOAD_PLAYLIST) ")\\n\
-        Meta<Key>p:		do-menu(" S(ID_SAVE_PLAYLIST) ")\\n\
-        ~Ctrl Meta<Key>s:	do-menu(" S(ID_SAVECONFIG) ")\\n\
-        Ctrl<Key>r:		do-menu(" S(ID_REPEAT) ")\\n\
-        Ctrl<Key>s:		do-menu(" S(ID_SHUFFLE) ")\\n\
-        Ctrl<Key>t:		do-menu(" S(ID_HIDETRACE) ")\\n\
-        Ctrl<Key>m:		do-menu(" S(ID_HIDETXT) ")\\n\
-        ~Ctrl<Key>q:		do-quit()\\n\
-        ~Ctrl<Key>r:		do-play()\\n\
-        <Key>Return:		do-play()\\n\
-        <Key>KP_Enter:		do-play()\\n\
-        ~Ctrl<Key>g:		do-sndspec()\\n\
-        ~Ctrl<Key>space:	do-pause()\\n\
-        ~Ctrl<Key>s:		do-stop()\\n\
-        ~Meta<Key>p:		do-prev()\\n\
-        <Key>Left:		do-prev()\\n\
-        ~Meta<Key>n:		do-next()\\n\
-        <Key>Right:		do-next()\\n\
-        ~Ctrl ~Meta<Key>f:	do-forward()\\n\
-        ~Ctrl<Key>b:		do-back()\\n\
-        ~Ctrl<Key>plus:		do-key()\\n\
-        ~Shift<Key>-:		do-key(1)\\n\
-        <Key>KP_Add:		do-key()\\n\
-        <Key>KP_Subtract:	do-key(1)\\n\
-        ~Ctrl<Key>greater:	do-speed()\\n\
-        ~Ctrl<Key>less:		do-speed(1)\\n\
-        ~Ctrl ~Shift<Key>o:	do-voice()\\n\
-        ~Ctrl Shift<Key>o:	do-voice(1)\\n\
-        Ctrl<Key>o:		do-options()\\n\
-        ~Meta Ctrl<Key>f:	do-filelist()\\n\
-        ~Meta<Key>l:		do-filelist()\\n\
-        <Key>a:			do-about()\\n\
-        Ctrl<Key>d:		do-toggle-tooltips(-1)\\n\
-        ~Ctrl ~Shift<Key>v:	do-volupdown(-10)\\n\
-        ~Ctrl Shift<Key>v:	do-volupdown(10)\\n\
-        <Key>Down:		do-volupdown(-10)\\n\
-        <Key>Up:		do-volupdown(10)\\n\
-        ~Ctrl<Key>x:		do-exchange()\\n\
-        ~Ctrl<Key>t:		do-toggletrace()\\n\
-        ~Ctrl Meta <Key>f:	show-menu()\\n\
-        <Key>z:			show-menu()\\n\
-        <Key>j:			changetrace(1)\\n\
-        <BtnDown>:		hide-menu()\\n\
-        <ConfigureNotify>:	do-resize()",
+        ~Ctrl Meta<Key>n:       do-menu(" S(ID_LOAD) ")\\n\
+        Ctrl ~Shift<Key>v:      do-menu(" S(ID_SAVE) ")\\n\
+        Meta<Key>l:             do-menu(" S(ID_LOAD_PLAYLIST) ")\\n\
+        Meta<Key>p:             do-menu(" S(ID_SAVE_PLAYLIST) ")\\n\
+        ~Ctrl Meta<Key>s:       do-menu(" S(ID_SAVECONFIG) ")\\n\
+        Ctrl<Key>r:             do-menu(" S(ID_REPEAT) ")\\n\
+        Ctrl<Key>s:             do-menu(" S(ID_SHUFFLE) ")\\n\
+        Ctrl<Key>t:             do-menu(" S(ID_HIDETRACE) ")\\n\
+        Ctrl<Key>m:             do-menu(" S(ID_HIDETXT) ")\\n\
+        ~Ctrl<Key>q:            do-quit()\\n\
+        ~Ctrl<Key>r:            do-play()\\n\
+        <Key>Return:            do-play()\\n\
+        <Key>KP_Enter:          do-play()\\n\
+        ~Ctrl<Key>g:            do-sndspec()\\n\
+        ~Ctrl<Key>space:        do-pause()\\n\
+        ~Ctrl<Key>s:            do-stop()\\n\
+        ~Meta<Key>p:            do-prev()\\n\
+        <Key>Left:              do-prev()\\n\
+        ~Meta<Key>n:            do-next()\\n\
+        <Key>Right:             do-next()\\n\
+        ~Ctrl ~Meta<Key>f:      do-forward()\\n\
+        ~Ctrl<Key>b:            do-back()\\n\
+        ~Ctrl<Key>plus:         do-key()\\n\
+        ~Shift<Key>-:           do-key(1)\\n\
+        <Key>KP_Add:            do-key()\\n\
+        <Key>KP_Subtract:       do-key(1)\\n\
+        ~Ctrl<Key>greater:      do-speed()\\n\
+        ~Ctrl<Key>less:         do-speed(1)\\n\
+        ~Ctrl ~Shift<Key>o:     do-voice()\\n\
+        ~Ctrl Shift<Key>o:      do-voice(1)\\n\
+        Ctrl<Key>o:             do-options()\\n\
+        ~Meta Ctrl<Key>f:       do-filelist()\\n\
+        ~Meta<Key>l:            do-filelist()\\n\
+        <Key>a:                 do-about()\\n\
+        Ctrl<Key>d:             do-toggle-tooltips(-1)\\n\
+        ~Ctrl ~Shift<Key>v:     do-volupdown(-10)\\n\
+        ~Ctrl Shift<Key>v:      do-volupdown(10)\\n\
+        <Key>Down:              do-volupdown(-10)\\n\
+        <Key>Up:                do-volupdown(10)\\n\
+        ~Ctrl<Key>x:            do-exchange()\\n\
+        ~Ctrl<Key>t:            do-toggletrace()\\n\
+        ~Ctrl Meta <Key>f:      show-menu()\\n\
+        <Key>z:                 show-menu()\\n\
+        <Key>j:                 changetrace(1)\\n\
+        <BtnDown>:              hide-menu()\\n\
+        <ConfigureNotify>:      do-resize()",
 
     "*Viewport.useBottom: True",
     "*List.baseTranslations: #override\\n\
@@ -4214,51 +4210,51 @@ a_init_interface(int pipe_in) {
         <Btn4Down>:   StartScroll(Backward)\\n\
         <Btn5Down>:   StartScroll(Forward)",
     "*Text.baseTranslations: #override\\n\
-        ~Shift<Key>Delete:	delete-next-character()\\n\
-        Ctrl<Key>V:		insert-selection(CLIPBOARD)",
+        ~Shift<Key>Delete:      delete-next-character()\\n\
+        Ctrl<Key>V:             insert-selection(CLIPBOARD)",
     "*TransientShell.Box.baseTranslations: #override\\n\
-        ~Ctrl<Key>c:	do-closeparent()\\n\
-        <Key>Escape:	do-closeparent()\\n\
-        <Key>KP_Enter:	do-closeparent()\\n\
-        <Key>Return:	do-closeparent()",
+        ~Ctrl<Key>c:    do-closeparent()\\n\
+        <Key>Escape:    do-closeparent()\\n\
+        <Key>KP_Enter:  do-closeparent()\\n\
+        <Key>Return:    do-closeparent()",
     "*load_dialog.value.translations: #override\\n\
-        ~Ctrl Meta<Key>KP_Enter:	do-addall()\\n\
-        ~Ctrl Meta<Key>Return:		do-addall()\\n\
-        ~Ctrl ~Meta<Key>KP_Enter:	do-chgdir()\\n\
-        ~Ctrl ~Meta<Key>Return:		do-chgdir()\\n\
-        ~Ctrl ~Meta<Key>Tab:		do-complete() end-of-line()\\n\
-        Ctrl ~Shift<Key>g:		do-closeparent()\\n\
-        <Key>BackSpace:		do-backspace() delete-previous-character()\\n\
-        Ctrl<Key>H:		do-backspace() delete-previous-character()\\n\
-        <Key>Escape:		do-closeparent()",
+        ~Ctrl Meta<Key>KP_Enter:        do-addall()\\n\
+        ~Ctrl Meta<Key>Return:          do-addall()\\n\
+        ~Ctrl ~Meta<Key>KP_Enter:       do-chgdir()\\n\
+        ~Ctrl ~Meta<Key>Return:         do-chgdir()\\n\
+        ~Ctrl ~Meta<Key>Tab:            do-complete() end-of-line()\\n\
+        Ctrl ~Shift<Key>g:              do-closeparent()\\n\
+        <Key>BackSpace:         do-backspace() delete-previous-character()\\n\
+        Ctrl<Key>H:             do-backspace() delete-previous-character()\\n\
+        <Key>Escape:            do-closeparent()",
     "*load_dialog.filter.accelerators: #override\\n\
         Ctrl<KeyPress>`: toggle() notify()",
     "*load_dialog*files.translations: #override\\n\
-        <Btn1Down>, <Btn1Up>:	Set() Notify()\\n\
-        <Btn1Up>(2+):		Set() notify-doubleclick()",
+        <Btn1Down>, <Btn1Up>:   Set() Notify()\\n\
+        <Btn1Up>(2+):           Set() notify-doubleclick()",
     "*dialog_sfile*load_dialog.add.Sensitive: False",
     "*" LISTDIALOGBASENAME "*load_dialog.add.Sensitive: False",
     "*trace.translations: #override\\n\
-        <Btn1Down>:	do-toggletrace()\\n\
-        <Btn2Down>:	do-solochan()\\n\
-        <Btn3Down>:	do-mutechan()\\n\
-        <Btn4Down>:	changetrace(-1)\\n\
-        <Btn5Down>:	changetrace(1)\\n\
-        <EnterNotify>:	do-revcaption()\\n\
-        <LeaveNotify>:	do-revcaption()\\n\
-        <Expose>:	draw-trace()",
+        <Btn1Down>:     do-toggletrace()\\n\
+        <Btn2Down>:     do-solochan()\\n\
+        <Btn3Down>:     do-mutechan()\\n\
+        <Btn4Down>:     changetrace(-1)\\n\
+        <Btn5Down>:     changetrace(1)\\n\
+        <EnterNotify>:  do-revcaption()\\n\
+        <LeaveNotify>:  do-revcaption()\\n\
+        <Expose>:       draw-trace()",
     "*time_label.translations: #override\\n\
-        <Btn2Down>:	do-menu(" S(ID_HIDETRACE) ")\\n\
-        <Btn3Down>:	do-exchange()",
+        <Btn2Down>:     do-menu(" S(ID_HIDETRACE) ")\\n\
+        <Btn3Down>:     do-exchange()",
     "*popup_optform.translations: #override\\n\
-        ~Ctrl<Key>c:	do-closeparent()\\n\
-        ~Ctrl<Key>q:	do-quit()\\n\
-        <Key>Escape:	do-closeparent()\\n\
-        <Key>KP_Enter:	do-optionsclose()\\n\
-        <Key>Return:	do-optionsclose()",
+        ~Ctrl<Key>c:    do-closeparent()\\n\
+        ~Ctrl<Key>q:    do-quit()\\n\
+        <Key>Escape:    do-closeparent()\\n\
+        <Key>KP_Enter:  do-optionsclose()\\n\
+        <Key>Return:    do-optionsclose()",
     "*popup_file*filelist.translations: #override\\n\
-        <Btn1Up>(2+):	do-fselect()\\n\
-        <Btn3Up>:	do-stop()",
+        <Btn1Up>(2+):   do-fselect()\\n\
+        <Btn3Up>:       do-stop()",
     "*flist_cmdbox.width: 272",
     "*flist_cmdbox.height: 24",
     "*flist_cmdbox.borderWidth: 0",
@@ -4266,82 +4262,82 @@ a_init_interface(int pipe_in) {
     "*file_vport.height: 336",
     "*file_vport.borderWidth: 1",
     "*popup_fform.translations: #override\\n\
-        ~Ctrl<Key>c:	do-closeparent()\\n\
-        <Key>Escape:	do-closeparent()\\n\
-        <Key>Home:	do-flistmove(-1, 0, 0)\\n\
-        <Key>Prior:	do-flistmove(-1, 0)\\n\
-        <Key>Right:	do-flistmove(-5)\\n\
-        <Key>Up:	do-flistmove(-1)\\n\
-        <Key>p:		do-flistmove(-1)\\n\
-        ~Ctrl<Key>r:	do-fselect()\\n\
-        <Key>Return:	do-fselect()\\n\
-        <Key>KP_Enter:	do-fselect()\\n\
-        Ctrl<Key>m:	do-fselect()\\n\
-        <Key>space:	do-pause()\\n\
-        <Key>s:		do-stop()\\n\
-        <Key>Down:	do-flistmove(1)\\n\
-        <Key>n:		do-flistmove(1)\\n\
-        <Key>Left:	do-flistmove(5)\\n\
-        <Key>Next:	do-flistmove(1, 0)\\n\
-        <Key>End:	do-flistmove(1, 0, 0)\\n\
-        <Key>d:		do-fdelete()\\n\
-        :<Key>A:	do-fdelall()\\n\
-        ~Shift<Key>v:	do-volupdown(-10)\\n\
-        Shift<Key>v:	do-volupdown(10)\\n\
-        ~Ctrl<Key>f:	do-forward()\\n\
-        ~Ctrl<Key>b:	do-back()\\n\
-        ~Ctrl<Key>q:	do-quit()",
+        ~Ctrl<Key>c:    do-closeparent()\\n\
+        <Key>Escape:    do-closeparent()\\n\
+        <Key>Home:      do-flistmove(-1, 0, 0)\\n\
+        <Key>Prior:     do-flistmove(-1, 0)\\n\
+        <Key>Right:     do-flistmove(-5)\\n\
+        <Key>Up:        do-flistmove(-1)\\n\
+        <Key>p:         do-flistmove(-1)\\n\
+        ~Ctrl<Key>r:    do-fselect()\\n\
+        <Key>Return:    do-fselect()\\n\
+        <Key>KP_Enter:  do-fselect()\\n\
+        Ctrl<Key>m:     do-fselect()\\n\
+        <Key>space:     do-pause()\\n\
+        <Key>s:         do-stop()\\n\
+        <Key>Down:      do-flistmove(1)\\n\
+        <Key>n:         do-flistmove(1)\\n\
+        <Key>Left:      do-flistmove(5)\\n\
+        <Key>Next:      do-flistmove(1, 0)\\n\
+        <Key>End:       do-flistmove(1, 0, 0)\\n\
+        <Key>d:         do-fdelete()\\n\
+        :<Key>A:        do-fdelall()\\n\
+        ~Shift<Key>v:   do-volupdown(-10)\\n\
+        Shift<Key>v:    do-volupdown(10)\\n\
+        ~Ctrl<Key>f:    do-forward()\\n\
+        ~Ctrl<Key>b:    do-back()\\n\
+        ~Ctrl<Key>q:    do-quit()",
     "*popup_cform.translations: #override\\n\
-        ~Ctrl<Key>c:	do-cancel()\\n\
-        <Key>Escape:	do-cancel()\\n\
-        <Key>KP_Enter:	do-ok()\\n\
-        <Key>Return:	do-ok()",
+        ~Ctrl<Key>c:    do-cancel()\\n\
+        <Key>Escape:    do-cancel()\\n\
+        <Key>KP_Enter:  do-ok()\\n\
+        <Key>Return:    do-ok()",
     "*sbox_ratetext.translations: #override\\n\
-        <Key>Escape:	do-closeparent()\\n\
-        <Key>KP_Enter:	do-record()\\n\
-        <Key>Return:	do-record()\\n\
-        <Key>BackSpace:	delete-previous-character()\\n\
-        ~Ctrl<Key>0:	insert-char()\\n\
-        ~Ctrl<Key>KP_0:	insert-char()\\n\
-        ~Ctrl<Key>1:	insert-char()\\n\
-        ~Ctrl<Key>KP_1:	insert-char()\\n\
-        ~Ctrl<Key>2:	insert-char()\\n\
-        ~Ctrl<Key>KP_2:	insert-char()\\n\
-        ~Ctrl<Key>3:	insert-char()\\n\
-        ~Ctrl<Key>KP_3:	insert-char()\\n\
-        ~Ctrl<Key>4:	insert-char()\\n\
-        ~Ctrl<Key>KP_4:	insert-char()\\n\
-        ~Ctrl<Key>5:	insert-char()\\n\
-        ~Ctrl<Key>KP_5:	insert-char()\\n\
-        ~Ctrl<Key>6:	insert-char()\\n\
-        ~Ctrl<Key>KP_6:	insert-char()\\n\
-        ~Ctrl<Key>7:	insert-char()\\n\
-        ~Ctrl<Key>KP_7:	insert-char()\\n\
-        ~Ctrl<Key>8:	insert-char()\\n\
-        ~Ctrl<Key>KP_8:	insert-char()\\n\
-        ~Ctrl<Key>9:	insert-char()\\n\
-        ~Ctrl<Key>KP_9:	insert-char()\\n\
-        <Key>Home:	beginning-of-file()\\n\
-        :<Key>KP_Home:	beginning-of-file()\\n\
-        <Key>End:	end-of-file()\\n\
-        :<Key>KP_End:	end-of-file()\\n\
-        <Key>Right:	forward-character()\\n\
-        :<Key>KP_Right:	forward-character()\\n\
-        <Key>Left:	backward-character()\\n\
-        :<Key>KP_Left:	backward-character()\\n\
-        Ctrl<Key>:	no-op()\\n\
-        Shift<Key>:	no-op()\\n\
-        Hyper<Key>:	no-op()\\n\
-        Super<Key>:	no-op()\\n\
-        None<Key>:	no-op()\\n\
-        Alt<Key>:	no-op()\\n\
-        Meta<Key>:	no-op()\\n\
-        Lock<Key>:	no-op()",
+        <Key>Escape:    do-closeparent()\\n\
+        <Key>KP_Enter:  do-record()\\n\
+        <Key>Return:    do-record()\\n\
+        <Key>BackSpace: delete-previous-character()\\n\
+        ~Ctrl<Key>0:    insert-char()\\n\
+        ~Ctrl<Key>KP_0: insert-char()\\n\
+        ~Ctrl<Key>1:    insert-char()\\n\
+        ~Ctrl<Key>KP_1: insert-char()\\n\
+        ~Ctrl<Key>2:    insert-char()\\n\
+        ~Ctrl<Key>KP_2: insert-char()\\n\
+        ~Ctrl<Key>3:    insert-char()\\n\
+        ~Ctrl<Key>KP_3: insert-char()\\n\
+        ~Ctrl<Key>4:    insert-char()\\n\
+        ~Ctrl<Key>KP_4: insert-char()\\n\
+        ~Ctrl<Key>5:    insert-char()\\n\
+        ~Ctrl<Key>KP_5: insert-char()\\n\
+        ~Ctrl<Key>6:    insert-char()\\n\
+        ~Ctrl<Key>KP_6: insert-char()\\n\
+        ~Ctrl<Key>7:    insert-char()\\n\
+        ~Ctrl<Key>KP_7: insert-char()\\n\
+        ~Ctrl<Key>8:    insert-char()\\n\
+        ~Ctrl<Key>KP_8: insert-char()\\n\
+        ~Ctrl<Key>9:    insert-char()\\n\
+        ~Ctrl<Key>KP_9: insert-char()\\n\
+        <Key>Home:      beginning-of-file()\\n\
+        :<Key>KP_Home:  beginning-of-file()\\n\
+        <Key>End:       end-of-file()\\n\
+        :<Key>KP_End:   end-of-file()\\n\
+        <Key>Right:     forward-character()\\n\
+        :<Key>KP_Right: forward-character()\\n\
+        <Key>Left:      backward-character()\\n\
+        :<Key>KP_Left:  backward-character()\\n\
+        Ctrl<Key>:      no-op()\\n\
+        Shift<Key>:     no-op()\\n\
+        Hyper<Key>:     no-op()\\n\
+        Super<Key>:     no-op()\\n\
+        None<Key>:      no-op()\\n\
+        Alt<Key>:       no-op()\\n\
+        Meta<Key>:      no-op()\\n\
+        Lock<Key>:      no-op()",
     "*fbox_toggle0.accelerators: #override\\n\
-        <Key>Up:	do-up()\\n\
-        <Key>Down:	do-down()\\n\
-        <Btn4Down>:	do-up()\\n\
-        <Btn5Down>:	do-down()",
+        <Key>Up:        do-up()\\n\
+        <Key>Down:      do-down()\\n\
+        <Btn4Down>:     do-up()\\n\
+        <Btn5Down>:     do-down()",
     "*confirmexit.label: Do you wish to exit?",
     "*warnoverwrite.label: Do you wish to overfile this file?",
     "*saveplaylisterror.label: Could not save playlist!",
@@ -4362,7 +4358,7 @@ a_init_interface(int pipe_in) {
   XtSetLanguageProc(NULL, NULL, NULL);
   toplevel = XtVaAppInitialize(&app_con, APP_CLASS, NULL, ZERO, &argc, &argv,
                          fallback_resources, NULL);
-  XtGetApplicationResources(toplevel, (XtPointer)&app_resources,
+  XtGetApplicationResources(toplevel, (XtPointer) &app_resources,
                             xaw_resources, XtNumber(xaw_resources), NULL, 0);
   umask(022);
   home = get_user_home_dir();
@@ -4407,11 +4403,11 @@ a_init_interface(int pipe_in) {
             file_mb, XtNforeground,textcolor, XtNbackground,textbgcolor,
             XtNresize,False, XtNbackingStore,NotUseful, XtNsaveUnder,False,
             XtNwidth,app_resources.menu_width+100, NULL);
-  for (i = 0; i < (int)XtNumber(file_menu); i++) {
+  for (i = 0; i < (int) XtNumber(file_menu); i++) {
     bsb = XtVaCreateManagedWidget(file_menu[i].name,
             *(file_menu[i].wclass), file_sm,XtNleftBitmap,None,
              XtNleftMargin,24, NULL);
-    XtAddCallback(bsb, XtNcallback,filemenuCB, (XtPointer)&file_menu[i].id);
+    XtAddCallback(bsb, XtNcallback,filemenuCB, (XtPointer) &file_menu[i].id);
     file_menu[i].widget = bsb;
   }
   snprintf(local_buf, sizeof(local_buf), "TiMidity++ %s", timidity_version);
@@ -4452,9 +4448,9 @@ a_init_interface(int pipe_in) {
   XtAddCallback(vol_bar, XtNjumpProc,volsetCB, NULL);
   XtAddCallback(tune_bar, XtNjumpProc,tuneslideCB, NULL);
   XtAddCallback(time_l, XtNcallback,filemenuCB,
-                (XtPointer)&file_menu[ID_HIDETXT-100].id);
+                (XtPointer) &file_menu[ID_HIDETXT-100].id);
   XtAppAddInput(app_con, pipe_in,
-                (XtPointer)XtInputReadMask, handle_input, NULL);
+                (XtPointer) XtInputReadMask, handle_input, NULL);
 
   pid = getpid();
   XInternAtoms(disp, atom_names, XtNumber(Atoms), False, Atoms);
@@ -4492,7 +4488,7 @@ a_init_interface(int pipe_in) {
   init_output_lists();
   a_pipe_read(local_buf, sizeof(local_buf));
   max_files = atoi(local_buf);
-  flist = (String *)safe_malloc((INIT_FLISTNUM+1)*sizeof(char *));
+  flist = (String*) safe_malloc((INIT_FLISTNUM+1) *sizeof(char*));
   *flist = NULL;
   for (i=0; i<max_files; i++) {
     a_pipe_read(local_buf, sizeof(local_buf));
@@ -4606,7 +4602,7 @@ static void
 xaw_vendor_setup(void) {
   memcpy(&vendorShellClassRec, &xaw_vendorShellClassRec,
          sizeof(VendorShellClassRec));
-  vendorShellWidgetClass = (WidgetClass)&xaw_vendorShellWidgetClass;
+  vendorShellWidgetClass = (WidgetClass) &xaw_vendorShellWidgetClass;
 }
 #else
 static void
@@ -4618,21 +4614,21 @@ static void
 clearValue(Widget w) {
   Widget TextSrc;
 
-  XtVaGetValues(XtNameToWidget(w, "value"), XtNtextSource, &TextSrc, NULL); 
+  XtVaGetValues(XtNameToWidget(w, "value"), XtNtextSource, &TextSrc, NULL);
   XawAsciiSourceFreeString(TextSrc);
 }
 #endif /* CLEARVALUE */
 
 static void
 simulateArrowsCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  long offset = (long)call_data;
-  XEvent *e = (XEvent *)client_data;
+  long offset = (long) call_data;
+  XEvent *e = (XEvent*) client_data;
   barfloat thumb;
   Dimension len;
 
   XtVaGetValues(w, XtNtopOfThumb,&thumb.f, XtNlength,&len, NULL);
   if (abs(offset) >= len) return;
-  thumb.f += (float)offset/(float)len;
+  thumb.f += (float) offset/(float) len;
   if (thumb.f < 0) thumb.f = 0;
   else if (thumb.f > 1) thumb.f = 1;
   setThumb(w, thumb);
@@ -4650,14 +4646,14 @@ StartScrollACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   if (Orientation == XtorientHorizontal) call_data = e->xbutton.x;
   else call_data = e->xbutton.y;
   if (!strcasecmp("Continuous", *v)) {
-    XtAddCallback(w, XtNscrollProc,simulateArrowsCB, (XtPointer)e);
+    XtAddCallback(w, XtNscrollProc,simulateArrowsCB, (XtPointer) e);
     XtCallActionProc(w, "NotifyScroll", e, NULL, ZERO);
-    XtRemoveCallback(w, XtNscrollProc,simulateArrowsCB, (XtPointer)e);
+    XtRemoveCallback(w, XtNscrollProc,simulateArrowsCB, (XtPointer) e);
     return;
   } else if (!strcasecmp("Backward", *v)) {
     call_data = -call_data;
   }
-  XtCallCallbacks(w, XtNscrollProc, (XtPointer)call_data);
+  XtCallCallbacks(w, XtNscrollProc, (XtPointer) call_data);
 }
 
 /* XawScrollbarSetThumb is buggy. */
@@ -4686,7 +4682,7 @@ static Widget seekTransientShell(Widget w) {
 
 static void
 freevarCB(Widget w, XtPointer client_data, XtPointer call_data) {
-  outputs *out = (outputs *)client_data;
+  outputs *out = (outputs*) client_data;
 
   free(out->lbuf);
   free(out->toggleGroup);
@@ -4695,7 +4691,7 @@ freevarCB(Widget w, XtPointer client_data, XtPointer call_data) {
 static void
 restoreDefaultOSelectionCB(Widget w, XtPointer client_data,
                            XtPointer call_data) {
-  outputs *out = (outputs *)client_data;
+  outputs *out = (outputs*) client_data;
 
   XawToggleSetCurrent(out->formatGroup,
                       (XtPointer)(out->output_list + out->def));
@@ -4710,9 +4706,9 @@ tnotifyCB(Widget w, XtPointer client_data, XtPointer call_data) {
 
   XtVaGetValues(w, XtNstate,&s, NULL);
   if (s == False) return;
-  if ((Widget)client_data == play->formatGroup) out = play;
+  if ((Widget) client_data == play->formatGroup) out = play;
   else out = record;
-  result = (id_list *)XawToggleGetCurrent(out->formatGroup);
+  result = (id_list*) XawToggleGetCurrent(out->formatGroup);
   for (i=0; i<out->max; i++)
     if (result->id_char == (out->output_list[i].id_char)) break;
   out->current = i;
@@ -4728,7 +4724,7 @@ upACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
   if (w == play->formatGroup) out = play;
   else out = record;
-  result = (id_list *)XawToggleGetCurrent(out->formatGroup);
+  result = (id_list*) XawToggleGetCurrent(out->formatGroup);
   for (i=0; i<out->max; i++)
     if (result->id_char == (out->output_list[i].id_char)) break;
   if (i == 0) i = out->max-1;
@@ -4751,7 +4747,7 @@ downACT(Widget w, XEvent *e, String *v, Cardinal *n) {
 
   if (w == play->formatGroup) out = play;
   else out = record;
-  result = (id_list *)XawToggleGetCurrent(out->formatGroup);
+  result = (id_list*) XawToggleGetCurrent(out->formatGroup);
   for (i=0; i<out->max; i++)
     if (result->id_char == (out->output_list[i].id_char)) break;
   if (i >= out->max-1) i = 0;
@@ -4780,7 +4776,7 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
 
   if (out == NULL) return fromVert;
   list = out->output_list;
-  pw = (Widget *)safe_malloc(sizeof(Widget) * 3 * i);
+  pw = (Widget*) safe_malloc(sizeof(Widget) * 3 * i);
   out->toggleGroup = pw;
 
   sbox_fbox = pw;
@@ -4799,7 +4795,7 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
                                       XtNbackground,buttonbgcolor,
                                       XtNforeground,togglecolor,
                                       XtNradioGroup,NULL, XtNborderWidth,1,
-                                      XtNradioData,(XtPointer)list,
+                                      XtNradioData,(XtPointer) list,
 #ifndef DONTUSEOVALTOGGLES
                                       XtNshapeStyle,XmuShapeOval,
 #endif /* !DONTUSEOVALTOGGLES */
@@ -4814,7 +4810,7 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
                                             XtNborderWidth,0, NULL);
   out->formatGroup = formatGroup = fbox_toggle[0];
   XtAddCallback(fbox_toggle[0], XtNcallback,tnotifyCB,
-                (XtPointer)formatGroup);
+                (XtPointer) formatGroup);
 
   for (j = 1; j < i; j++) {
     snprintf(s, sizeof(s), "sbox_fbox%d", j);
@@ -4835,11 +4831,11 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
 #endif /* !DONTUSEOVALTOGGLES */
                                         XtNinternalWidth,3, XtNinternalHeight,1,
                                         XtNwidth,17, XtNheight,17, XtNlabel,"",
-					XtNtranslations,ToggleTrans,
+                                        XtNtranslations,ToggleTrans,
                                         XtNborderColor,togglecolor,
                                         XtNborderWidth,1, NULL);
     XtAddCallback(fbox_toggle[j], XtNcallback,tnotifyCB,
-                  (XtPointer)formatGroup);
+                  (XtPointer) formatGroup);
     snprintf(s, sizeof(s), "fbox_label%d", j);
     fbox_label[j] = XtVaCreateManagedWidget(s,labelWidgetClass,sbox_fbox[j],
                                               XtNfromHoriz,fbox_toggle[j],
@@ -4852,10 +4848,10 @@ createOutputSelectionWidgets(Widget popup, Widget parent,
   XtCallActionProc(fbox_toggle[out->def], "set", NULL, NULL, ZERO);
 
   XtAddCallback(popup, XtNdestroyCallback,freevarCB,
-                (XtPointer)out);
+                (XtPointer) out);
   if (restoreDefault == True)
     XtAddCallback(popup, XtNpopdownCallback,restoreDefaultOSelectionCB,
-                  (XtPointer)out);
+                  (XtPointer) out);
   XtInstallAccelerators(parent, formatGroup);
   XtInstallAccelerators(popup, formatGroup);
 
@@ -4890,7 +4886,7 @@ xawtipsetACT(Widget w, XEvent *e, String *v, Cardinal *n) {
   int state = atoi(*v);
 
   if (state == -1) Cfg.tooltips ^= True;
-  else Cfg.tooltips = (Boolean)state;
+  else Cfg.tooltips = (Boolean) state;
   xawTipSet(Cfg.tooltips);
 }
 

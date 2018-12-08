@@ -1,6 +1,6 @@
-/* 
+/*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -16,10 +16,10 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-	
-	Macintosh interface for TiMidity
-	by T.Nogami	<t-nogami@happy.email.ne.jp>
-	
+
+        Macintosh interface for TiMidity
+        by T.Nogami     <t-nogami@happy.email.ne.jp>
+
     mac_c.h
     header for Macintosh control mode
 */
@@ -42,17 +42,17 @@ void mac_setVolume(short amplitude);
 void ctl_speana_data(double *val, int size);
 
 pascal OSErr DragTrackingProc(
-	DragTrackingMessage theMessage, WindowPtr window,
-	 void*	/*theRefCon*/,	DragReference /*drag*/);
+    DragTrackingMessage theMessage, WindowPtr window,
+     void*	/*theRefCon*/,	DragReference /*drag*/);
 pascal OSErr DragReceiveFunc(
-	WindowPtr /*window*/, void* /*theRefCon*/,
-	DragReference	drag);
+    WindowPtr /*window*/, void* /*theRefCon*/,
+    DragReference   drag);
 
 enum{
-	MW_SKIN_LOAD_BMP,
-	MW_SKIN_TOTAL_TIME,
-	MW_SKIN_TIME,
-	MW_SKIN_FILENAME
+    MW_SKIN_LOAD_BMP,
+    MW_SKIN_TOTAL_TIME,
+    MW_SKIN_TIME,
+    MW_SKIN_FILENAME
 };
 
 #define SKIN_ACTION_PREV() {mac_rc=RC_PREVIOUS;mac_HandleControl();}

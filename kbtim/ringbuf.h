@@ -16,16 +16,16 @@ private:
 public:
     KbRingBuffer(DWORD dwInitialSize = 0);
     ~KbRingBuffer(void);
-    inline void __fastcall Reset(void){
+    inline void __fastcall Reset(void) {
         m_dwReadPos = m_dwWritePos = m_dwWritten = 0;
     }
-    inline DWORD __fastcall GetSize(void)const{//リングバッファのサイズ
+    inline DWORD __fastcall GetSize(void) const{//リングバッファのサイズ
         return m_dwBufferSize;
     }
-    inline DWORD __fastcall GetWritten(void)const{//書き込んだバッファのサイズ
+    inline DWORD __fastcall GetWritten(void) const{//書き込んだバッファのサイズ
         return m_dwWritten;
     }
-    inline DWORD __fastcall GetRemain(void)const{//書き込み可能な残りのバッファサイズ
+    inline DWORD __fastcall GetRemain(void) const{//書き込み可能な残りのバッファサイズ
         return m_dwBufferSize-m_dwWritten;
     }
     void  __fastcall SetSize(DWORD dwSize);//リングバッファのサイズを設定する

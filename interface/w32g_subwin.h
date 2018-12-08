@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -23,9 +23,10 @@
 
 // Console Window
 void InitConsoleWnd(HWND hParentWnd);
-void PutsConsoleWnd(char *str);
-void PrintfConsoleWnd(char *fmt, ...);
+void PutsConsoleWnd(const char *str);
+void PrintfConsoleWnd(const char *fmt, ...);
 void ClearConsoleWnd(void);
+void ConsoleWndApplyLevel(void);
 
 // Tracer Window
 void InitTracerWnd(HWND hParentWnd);
@@ -38,14 +39,14 @@ extern int DocWndIndependent;
 extern int DocWndAutoPopup;
 void InitDocWnd(HWND hParentWnd);
 void DocWndInfoReset(void);
-void DocWndAddDocFile(char *filename);
-void DocWndSetMidifile(char *filename);
+void DocWndAddDocFile(const char *filename);
+void DocWndSetMidifile(const char *filename);
 void DocWndReadDoc(int num);
 void DocWndReadDocNext(void);
 void DocWndReadDocPrev(void);
 
-void PutsDocWnd(char *str);
-void PrintfDocWnd(char *fmt, ...);
+void PutsDocWnd(const char *str);
+void PrintfDocWnd(const char *fmt, ...);
 void ClearDocWnd(void);
 
 // Wrd Window

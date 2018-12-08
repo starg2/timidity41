@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -45,6 +45,8 @@
 
 extern char *timidity_window_inifile;
 
+#define DEFAULT_CANVAS_MODE     CANVAS_MODE_MAP32
+
 // ****************************************************************************
 // DlgChooseFont
 // hwnd: Owner Window of This Dialog
@@ -52,32 +54,32 @@ extern char *timidity_window_inifile;
 // hFontPre: Previous Font of hwndFontChange (Call CloseHandle())
 int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *fontname, int *fontheight, int *fontwidth)
 {
-	LOGFONT lf;
-	CHOOSEFONT cf;
-	HFONT hFont;
-	memset(&lf,0,sizeof(LOGFONT));
-	memset(&cf,0,sizeof(CHOOSEFONT));
+    LOGFONTA lf;
+    CHOOSEFONTA cf;
+    HFONT hFont;
+    ZeroMemory(&lf, sizeof(LOGFONTA));
+    ZeroMemory(&cf, sizeof(CHOOSEFONTA));
 
 //	lf.lfHeight = 16;
 //	lf.lfWidth = 8;
 	_tcscpy(lf.lfFaceName, _T("ＭＳ 明朝"));
     cf.lStructSize = sizeof(CHOOSEFONT);
     cf.hwndOwner = hwnd;
-//    cf.hDC = NULL;
+//  cf.hDC = NULL;
     cf.lpLogFont = &lf;
-//    cf.iPointSize = 16;
-//    cf.Flags = CF_ANSIONLY | CF_FORCEFONTEXIST ;
-    cf.Flags = CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT;;
-//    cf.rgbColors = RGB(0,0,0);
-//    cf.lCustData = NULL;
-//    cf.lpfnHook = NULL;
-//    cf.lpTemplateName = NULL;
-//    cf.hInstance = 0;
-//    cf.lpszStyle = NULL;
+//  cf.iPointSize = 16;
+//  cf.Flags = CF_ANSIONLY | CF_FORCEFONTEXIST;
+    cf.Flags = CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT;
+//  cf.rgbColors = RGB(0, 0, 0);
+//  cf.lCustData = NULL;
+//  cf.lpfnHook = NULL;
+//  cf.lpTemplateName = NULL;
+//  cf.hInstance = 0;
+//  cf.lpszStyle = NULL;
     cf.nFontType = SCREEN_FONTTYPE;
-//    cf.nSizeMin = 4;
-//    cf.nSizeMax = 72;
-	ChooseFont(&cf);
+//  cf.nSizeMin = 4;
+//  cf.nSizeMax = 72;
+    ChooseFontA(&cf);
 
 //	if(ChooseFont(&cf)==TRUE)
 //		return -1;
@@ -95,8 +97,8 @@ int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *
 
 int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
 {
-	LOGFONT lf;
-	CHOOSEFONT cf;
+    LOGFONTA lf;
+    CHOOSEFONTA cf;
 
 	memset(&lf,0,sizeof(LOGFONT));
 	if(fontHeight!=NULL) lf.lfHeight = *fontHeight;
@@ -105,25 +107,25 @@ int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
 	if(fontName!=NULL) _tcscpy(lf.lfFaceName, tfontname);
 	safe_free(tfontname);
 
-	memset(&cf,0,sizeof(CHOOSEFONT));
-    cf.lStructSize = sizeof(CHOOSEFONT);
+    ZeroMemory(&cf, sizeof(CHOOSEFONTA));
+    cf.lStructSize = sizeof(CHOOSEFONTA);
     cf.hwndOwner = hwnd;
-//    cf.hDC = NULL;
+//  cf.hDC = NULL;
     cf.lpLogFont = &lf;
-//    cf.iPointSize = 16;
-//    cf.Flags = CF_ANSIONLY | CF_FORCEFONTEXIST ;
+//  cf.iPointSize = 16;
+//  cf.Flags = CF_ANSIONLY | CF_FORCEFONTEXIST;
     cf.Flags = CF_ANSIONLY | CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT;
-//    cf.rgbColors = RGB(0,0,0);
-//    cf.lCustData = NULL;
-//    cf.lpfnHook = NULL;
-//    cf.lpTemplateName = NULL;
-//    cf.hInstance = 0;
-//    cf.lpszStyle = NULL;
+//  cf.rgbColors = RGB(0,0,0);
+//  cf.lCustData = NULL;
+//  cf.lpfnHook = NULL;
+//  cf.lpTemplateName = NULL;
+//  cf.hInstance = 0;
+//  cf.lpszStyle = NULL;
     cf.nFontType = SCREEN_FONTTYPE;
-//    cf.nSizeMin = 4;
-//    cf.nSizeMax = 72;
-	if(ChooseFont(&cf)!=TRUE)
-		return -1;
+//  cf.nSizeMin = 4;
+//  cf.nSizeMax = 72;
+    if (ChooseFontA(&cf) != TRUE)
+        return -1;
 
 	char *facename = tchar_to_char(lf.lfFaceName);
 	if(fontName!=NULL) strcpy(fontName, facename);
@@ -134,40 +136,40 @@ int DlgChooseFont(HWND hwnd, char *fontName, int *fontHeight, int *fontWidth)
 }
 
 /**********************************************************************/
-void SetWindowPosSize ( HWND parent_hwnd, HWND hwnd, int x, int y )
+void SetWindowPosSize(HWND parent_hwnd, HWND hwnd, int x, int y)
 {
-	RECT rc1, rc2;
-	int width1, height1;
-	int width2, height2;
-	if ( GetWindowRect ( hwnd, &rc1 ) ) {
-		width1 = rc1.right - rc1.left;
-		height1 = rc1.bottom - rc1.top;
-		if ( x >= 0 ) {
-			rc1.right = rc1.right - rc1.left + x;
-			rc1.left = x;
-		} else {
-//			rc1.right = rc1.right - rc1.left;
-//			rc1.left = 0;
-		}
-		if ( y >= 0 ) {
-			rc1.bottom = rc1.bottom - rc1.top + y;
-			rc1.top = y;
-		} else {
-//			rc1.bottom = rc1.bottom - rc1.top;
-//			rc1.top = 0;
-		}
-		if ( GetClientRect ( parent_hwnd, &rc2 ) ) {
-			width2 = rc2.right - rc2.left;
-			height2 = rc2.bottom - rc2.top;
-			if ( rc1.left < rc2.left ) rc1.left = rc2.left;
-			if ( rc1.left > rc2.right ) rc1.left = rc2.right;
-			if ( rc1.top < rc2.top ) rc1.top = rc2.top;
-			if ( rc1.top > rc2.bottom ) rc1.top = rc2.bottom;
-			if ( width1 > width2 ) width1 = width2;
-			if ( height1 > height2 ) height1 = height2;
-			MoveWindow ( hwnd, rc1.left, rc1.top, width1, height1, TRUE );
-		}
-	}
+    RECT rc1, rc2;
+    int width1, height1;
+    int width2, height2;
+    if (GetWindowRect(hwnd, &rc1)) {
+        width1 = rc1.right - rc1.left;
+        height1 = rc1.bottom - rc1.top;
+        if (x >= 0) {
+            rc1.right = rc1.right - rc1.left + x;
+            rc1.left = x;
+        } else {
+//          rc1.right = rc1.right - rc1.left;
+//          rc1.left = 0;
+        }
+        if (y >= 0) {
+            rc1.bottom = rc1.bottom - rc1.top + y;
+            rc1.top = y;
+        } else {
+//          rc1.bottom = rc1.bottom - rc1.top;
+//          rc1.top = 0;
+        }
+        if (GetClientRect(parent_hwnd, &rc2)) {
+            width2 = rc2.right - rc2.left;
+            height2 = rc2.bottom - rc2.top;
+            if (rc1.left < rc2.left) rc1.left = rc2.left;
+            if (rc1.left > rc2.right) rc1.left = rc2.right;
+            if (rc1.top < rc2.top) rc1.top = rc2.top;
+            if (rc1.top > rc2.bottom) rc1.top = rc2.bottom;
+            if (width1 > width2) width1 = width2;
+            if (height1 > height2) height1 = height2;
+            MoveWindow(hwnd, rc1.left, rc1.top, width1, height1, TRUE);
+        }
+    }
 }
 
 /**********************************************************************/
@@ -523,35 +525,35 @@ int INILoadSoundSpecWnd(void)
 //   ...
 
 // ヘッダ
-#define MC_HEADER	"TiMidity++Win32GUI Mailslot-1.0"	
+#define MC_HEADER       "TiMidity++Win32GUI Mailslot-1.0"
 // コマンド名
 // TiMidity の終了
-#define MC_TERMINATE	"Terminate"
+#define MC_TERMINATE    "Terminate"
 // ファイルを指定
 #define MC_FILES "Files Argc Argv"
 // オプション１ : ファイル名１
 //   ...
 // プレイリストのクリア
-#define MC_PLAYLIST_CLEAR	"Playlist Clear"
+#define MC_PLAYLIST_CLEAR       "Playlist Clear"
 // 演奏開始
-#define MC_PLAY			"Play"
+#define MC_PLAY                 "Play"
 // 次のファイルの演奏
-#define MC_PLAY_NEXT	"Play Next"
+#define MC_PLAY_NEXT    "Play Next"
 // 前のファイルの演奏
-#define MC_PLAY_PREV	"Play Prev"
+#define MC_PLAY_PREV    "Play Prev"
 // 演奏停止
-#define MC_STOP	"Stop"
+#define MC_STOP "Stop"
 // 演奏一時停止
-#define MC_PAUSE	"Pause"
+#define MC_PAUSE        "Pause"
 // TiMidity の状態を指定メールスロットに送信
-#define MC_SEND_TIMIDITY_INFO	"Send TiMidity Info"
+#define MC_SEND_TIMIDITY_INFO   "Send TiMidity Info"
 // オプション１ : メールスロット名
 // オプション２ : 状態１
 //   ...
 // 状態
 // "PlayFileName:～" : 演奏ファイル名
-// "PlayTile:～"		: 演奏タイトル名
-// "PlayStatus:～"		: 演奏状態(～:PLAY,STOP,PAUSE)
+// "PlayTile:～"                : 演奏タイトル名
+// "PlayStatus:～"              : 演奏状態(～:PLAY,STOP,PAUSE)
 
 static HANDLE hMailslot = NULL;
 
@@ -559,64 +561,64 @@ void w32gMailslotThread(void);
 
 int w32gStartMailslotThread(void)
 {
-	DWORD dwThreadID;
-	HANDLE hThread;
-	hThread = (HANDLE)crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)w32gMailslotThread,NULL,0,&dwThreadID);
-	if((unsigned long)hThread==-1){
-		return FALSE;	// Error!
-	}
-	return TRUE;
+    DWORD dwThreadID;
+    HANDLE hThread;
+    hThread = (HANDLE) crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE) w32gMailslotThread,NULL,0,&dwThreadID);
+        if ((ULONG_PTR) hThread == -1) {
+        return FALSE;   // Error!
+    }
+    return TRUE;
 }
 
 int ReadFromMailslot(HANDLE hmailslot, char *buffer, int *size)
 {
-	DWORD dwMessageSize, dwMessageNum, dwMessageReadSize;
-	BOOL bRes;
-	int i;
-	bRes = GetMailslotInfo(hmailslot,NULL,&dwMessageSize,&dwMessageNum,(LPDWORD)NULL);
-	if(bRes==FALSE || dwMessageSize==MAILSLOT_NO_MESSAGE)
-		return FALSE;
-	for(i=0;i<10;i++){
-		bRes = ReadFile(hMailslot,buffer,dwMessageSize,&dwMessageReadSize,(LPOVERLAPPED)NULL);
+    DWORD dwMessageSize, dwMessageNum, dwMessageReadSize;
+    BOOL bRes;
+    int i;
+    bRes = GetMailslotInfo(hmailslot,NULL,&dwMessageSize,&dwMessageNum,(LPDWORD) NULL);
+    if (bRes==FALSE || dwMessageSize==MAILSLOT_NO_MESSAGE)
+        return FALSE;
+    for (i=0;i<10;i++) {
+        bRes = ReadFile(hMailslot,buffer,dwMessageSize,&dwMessageReadSize,(LPOVERLAPPED) NULL);
 #ifdef W32GUI_DEBUG
 PrintfDebugWnd("[%s]\n",buffer);
 #endif
-		if(bRes==TRUE){
-			break;
-		}
-		Sleep(300);
-	}
-	if(bRes==TRUE){
-		*size = (int)dwMessageSize;
-		return TRUE;
-	} else
-		return FALSE;
+        if (bRes==TRUE) {
+            break;
+        }
+        Sleep(300);
+    }
+    if (bRes==TRUE) {
+        *size = (int) dwMessageSize;
+        return TRUE;
+    } else
+        return FALSE;
 }
 // 無視する版
 void ReadFromMailslotIgnore(HANDLE hmailslot, int num)
 {
-	int i;
-	char buffer[10240];
-	int size;
-	for(i=0;i<num;i++){
-		if(ReadFromMailslot(hmailslot,buffer,&size)==FALSE)
-			return;
-	}
-	return;
+    int i;
+    char buffer[10240];
+    int size;
+    for (i=0;i<num;i++) {
+        if (ReadFromMailslot(hmailslot,buffer,&size)==FALSE)
+            return;
+    }
+    return;
 }
 // メールスロットに書き込む
 HANDLE *OpenMailslot(void)
 {
-	HANDLE hFile;
-	hFile = CreateFile(TIMIDITY_MAILSLOT,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,(HANDLE) NULL);
-	if(hFile==INVALID_HANDLE_VALUE)
-		return NULL;
-	else
-		return hFile;
+    HANDLE hFile;
+    hFile = CreateFileA(TIMIDITY_MAILSLOT,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,(HANDLE) NULL);
+    if (hFile==INVALID_HANDLE_VALUE)
+        return NULL;
+    else
+        return hFile;
 }
 void CloseMailslot(HANDLE hmailslot)
 {
-	CloseHandle(hmailslot);
+    CloseHandle(hmailslot);
 }
 int WriteMailslot(HANDLE hmailslot, char *buffer, int size)
 {
@@ -629,184 +631,184 @@ int WriteMailslot(HANDLE hmailslot, char *buffer, int size)
 	return TRUE;
 }
 
-int isURLFile(char *filename);
+int isURLFile(const char *filename);
 extern volatile DWORD dwWindowThreadID;
 volatile argc_argv_t MailslotArgcArgv;
-volatile int MailslotThreadTeminateFlag = FALSE; 
+volatile int MailslotThreadTeminateFlag = FALSE;
 void w32gMailslotThread(void)
 {
-	int i;
-	char buffer[1024];
-	int size;
-	MailslotArgcArgv.argc = 0;
-	MailslotArgcArgv.argv = NULL;
-	for(i=0;i<10;i++){
-		hMailslot = CreateMailslot(TIMIDITY_MAILSLOT,0,MAILSLOT_WAIT_FOREVER,(LPSECURITY_ATTRIBUTES)NULL);
-		if (hMailslot != INVALID_HANDLE_VALUE) {
-			break;
-		}
-		hMailslot = NULL;
-		Sleep(300);
-	}
-	if(hMailslot==NULL){
-		return;
-	}
-	for(;;){
-		Sleep(1000);
-		if(MailslotThreadTeminateFlag==TRUE){
-			if(hMailslot!=NULL)
-				CloseHandle(hMailslot);
-			break;
-		}
-		for(;;){
-			Sleep(200);
-			if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-				Sleep(1000);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_HEADER)!=0){
-				continue;
-			}
-			if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-				Sleep(1000);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_TERMINATE)==0){
-				CloseHandle(hMailslot);
-			    w32g_send_rc(RC_STOP, 0);
-			    w32g_send_rc(RC_QUIT, 0);
-//				PostThreadMessage(dwWindowThreadID,WM_CLOSE,0,0);
-//				PostThreadMessage(dwWindowThreadID,WM_QUIT,0,0);
-				Sleep(500);
-				return;
-			}
-			if(strcasecmp(buffer,MC_FILES)==0){
-				char **files;
-				int nfiles;
-				int flag = TRUE;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				nfiles = atoi(buffer);
-				// MailslotArgcArgv　が初期化されていなかったら処理途中として無視
-				if(MailslotArgcArgv.argc!=0 || MailslotArgcArgv.argv!=NULL){
-					ReadFromMailslotIgnore(hMailslot,nfiles);
-					continue;
-				}
-				files = (char **)malloc(sizeof(char *)*nfiles);
-				if(files==NULL){
-					ReadFromMailslotIgnore(hMailslot,nfiles);
-					continue;
-				}
-				for(i=0;i<nfiles;i++){
-					if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-						flag = FALSE;
-						break;
-					}
-					files[i] = (char *)malloc(sizeof(char)*(size+1));
-					if(files[i]==NULL){
-						int j;
-						ReadFromMailslotIgnore(hMailslot,nfiles-i-1);
-						for(j=0;j<i;j++){
-							safe_free(files[j]);
-						}
-						flag = FALSE;
-						break;
-					}
-					strncpy(files[i],buffer,size);
-					files[i][size] = 0;
-				}
-				if(flag==FALSE){
-					safe_free(files);
-					continue;
-				}
-				MailslotArgcArgv.argc = nfiles;
-				MailslotArgcArgv.argv = files;
-				// files は別のところで解放してくれる
+    int i;
+    char buffer[1024];
+    int size;
+    MailslotArgcArgv.argc = 0;
+    MailslotArgcArgv.argv = NULL;
+    for (i=0;i<10;i++) {
+        hMailslot = CreateMailslotA(TIMIDITY_MAILSLOT,0,MAILSLOT_WAIT_FOREVER,(LPSECURITY_ATTRIBUTES) NULL);
+        if (hMailslot != INVALID_HANDLE_VALUE) {
+            break;
+        }
+        hMailslot = NULL;
+        Sleep(300);
+    }
+    if (hMailslot==NULL) {
+        return;
+    }
+    for (;;) {
+        Sleep(1000);
+        if (MailslotThreadTeminateFlag==TRUE) {
+            if (hMailslot!=NULL)
+                CloseHandle(hMailslot);
+            break;
+        }
+        for (;;) {
+            Sleep(200);
+            if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                Sleep(1000);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_HEADER) !=0) {
+                continue;
+            }
+            if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                Sleep(1000);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_TERMINATE)==0) {
+                CloseHandle(hMailslot);
+                w32g_send_rc(RC_STOP, 0);
+                w32g_send_rc(RC_QUIT, 0);
+//                  PostThreadMessage(dwWindowThreadID,WM_CLOSE,0,0);
+//                  PostThreadMessage(dwWindowThreadID,WM_QUIT,0,0);
+                Sleep(500);
+                return;
+            }
+            if (strcasecmp(buffer,MC_FILES)==0) {
+                char **files;
+                int nfiles;
+                int flag = TRUE;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                nfiles = atoi(buffer);
+                // MailslotArgcArgv　が初期化されていなかったら処理途中として無視
+                if (MailslotArgcArgv.argc!=0 || MailslotArgcArgv.argv!=NULL) {
+                    ReadFromMailslotIgnore(hMailslot,nfiles);
+                    continue;
+                }
+                files = (char**) malloc(sizeof(char*) *nfiles);
+                if (files==NULL) {
+                    ReadFromMailslotIgnore(hMailslot,nfiles);
+                    continue;
+                }
+                for (i=0;i<nfiles;i++) {
+                    if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                        flag = FALSE;
+                        break;
+                    }
+                    files[i] = (char*) malloc(sizeof(char) *(size+1));
+                    if (files[i]==NULL) {
+                        int j;
+                        ReadFromMailslotIgnore(hMailslot,nfiles-i-1);
+                        for (j=0;j<i;j++) {
+                            safe_free(files[j]);
+                        }
+                        flag = FALSE;
+                        break;
+                    }
+                    strncpy(files[i],buffer,size);
+                    files[i][size] = 0;
+                }
+                if (flag==FALSE) {
+                    safe_free(files);
+                    continue;
+                }
+                MailslotArgcArgv.argc = nfiles;
+                MailslotArgcArgv.argv = files;
+                // files は別のところで解放してくれる
 #ifdef EXT_CONTROL_MAIN_THREAD
-				w32g_ext_control_main_thread(RC_EXT_LOAD_FILES_AND_PLAY,(ptr_size_t)&MailslotArgcArgv);
+                w32g_ext_control_main_thread(RC_EXT_LOAD_FILES_AND_PLAY,(ptr_size_t) &MailslotArgcArgv);
 #else
-				w32g_send_rc(RC_EXT_LOAD_FILES_AND_PLAY,(ptr_size_t)&MailslotArgcArgv);
-//				w32g_send_rc(RC_EXT_LOAD_FILE,(ptr_size_t))files[0]);
+                w32g_send_rc(RC_EXT_LOAD_FILES_AND_PLAY,(ptr_size_t) &MailslotArgcArgv);
+//              w32g_send_rc(RC_EXT_LOAD_FILE,(ptr_size_t)) files[0]);
 #endif
-				continue;
-			}
-			if(strcasecmp(buffer,MC_PLAYLIST_CLEAR)==0){
-				int param_num;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				param_num = atoi(buffer);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_PLAYLIST_CLEAR)==0) {
+                int param_num;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                param_num = atoi(buffer);
 #ifdef EXT_CONTROL_MAIN_THREAD
-				w32g_ext_control_main_thread(RC_EXT_CLEAR_PLAYLIST,0);
+                w32g_ext_control_main_thread(RC_EXT_CLEAR_PLAYLIST,0);
 #else
-				w32g_send_rc(RC_EXT_CLEAR_PLAYLIST,0);
+                w32g_send_rc(RC_EXT_CLEAR_PLAYLIST,0);
 #endif
-				ReadFromMailslotIgnore(hMailslot,param_num);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_PLAY)==0){
-				int param_num;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				param_num = atoi(buffer);
-				w32g_send_rc(RC_LOAD_FILE,0);
-				ReadFromMailslotIgnore(hMailslot,param_num);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_PLAY_NEXT)==0){
-				int param_num;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				param_num = atoi(buffer);
-				w32g_send_rc(RC_NEXT,0);
-				ReadFromMailslotIgnore(hMailslot,param_num);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_PLAY_PREV)==0){
-				int param_num;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				param_num = atoi(buffer);
-				w32g_send_rc(RC_REALLY_PREVIOUS,0);
-				ReadFromMailslotIgnore(hMailslot,param_num);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_STOP)==0){
-				int param_num;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				param_num = atoi(buffer);
-				w32g_send_rc(RC_STOP,0);
-				ReadFromMailslotIgnore(hMailslot,param_num);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_PAUSE)==0){
-				int param_num;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				param_num = atoi(buffer);
-				w32g_send_rc(RC_PAUSE,0);
-				ReadFromMailslotIgnore(hMailslot,param_num);
-				continue;
-			}
-			if(strcasecmp(buffer,MC_SEND_TIMIDITY_INFO)==0){
-				int param_num;
-				if(ReadFromMailslot(hMailslot,buffer,&size)==FALSE){
-					continue;
-				}
-				param_num = atoi(buffer);
-				ReadFromMailslotIgnore(hMailslot,param_num);
-				// 何もしない
-				continue;
-			}
-		}
-	}
+                ReadFromMailslotIgnore(hMailslot,param_num);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_PLAY)==0) {
+                int param_num;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                param_num = atoi(buffer);
+                w32g_send_rc(RC_LOAD_FILE,0);
+                ReadFromMailslotIgnore(hMailslot,param_num);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_PLAY_NEXT)==0) {
+                int param_num;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                param_num = atoi(buffer);
+                w32g_send_rc(RC_NEXT,0);
+                ReadFromMailslotIgnore(hMailslot,param_num);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_PLAY_PREV)==0) {
+                int param_num;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                param_num = atoi(buffer);
+                w32g_send_rc(RC_REALLY_PREVIOUS,0);
+                ReadFromMailslotIgnore(hMailslot,param_num);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_STOP)==0) {
+                int param_num;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                param_num = atoi(buffer);
+                w32g_send_rc(RC_STOP,0);
+                ReadFromMailslotIgnore(hMailslot,param_num);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_PAUSE)==0) {
+                int param_num;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                param_num = atoi(buffer);
+                w32g_send_rc(RC_PAUSE,0);
+                ReadFromMailslotIgnore(hMailslot,param_num);
+                continue;
+            }
+            if (strcasecmp(buffer,MC_SEND_TIMIDITY_INFO)==0) {
+                int param_num;
+                if (ReadFromMailslot(hMailslot,buffer,&size)==FALSE) {
+                    continue;
+                }
+                param_num = atoi(buffer);
+                ReadFromMailslotIgnore(hMailslot,param_num);
+                // 何もしない
+                continue;
+            }
+        }
+    }
 }
 
 #define TIMIDTY_MUTEX_NAME _T("TiMidity_pp_Win32GUI_ver_1_0_0")
@@ -815,45 +817,45 @@ static HANDLE hMutexTiMidity = NULL;
 // その証拠の Mutex を hMutexTiMidity に保持します
 int UniqTiMidity(void)
 {
-	hMutexTiMidity = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
-	if(hMutexTiMidity!=NULL && GetLastError()==0){
-		return TRUE;
-	}
-	if(GetLastError()==ERROR_ALREADY_EXISTS){
-		;
-	}
-	if(hMutexTiMidity!=NULL){
-		CloseHandle(hMutexTiMidity);
-	}
-	hMutexTiMidity = NULL;
-	return FALSE;
+    hMutexTiMidity = CreateMutexA(NULL,TRUE,TIMIDTY_MUTEX_NAME);
+    if (hMutexTiMidity!=NULL && GetLastError()==0) {
+        return TRUE;
+    }
+    if (GetLastError()==ERROR_ALREADY_EXISTS) {
+        ;
+    }
+    if (hMutexTiMidity!=NULL) {
+        CloseHandle(hMutexTiMidity);
+    }
+    hMutexTiMidity = NULL;
+    return FALSE;
 }
 
 // すでに TiMidity が存在するか
 int ExistOldTiMidity(void)
 {
-	HANDLE hMutex = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
-	if(GetLastError()==ERROR_ALREADY_EXISTS){
-		if(hMutex!=NULL)
-	CloseHandle(hMutex);
-	return TRUE;
-	}
-	if(hMutex!=NULL)
-		CloseHandle(hMutex);
-	return FALSE;
+    HANDLE hMutex = CreateMutexA(NULL,TRUE,TIMIDTY_MUTEX_NAME);
+    if (GetLastError()==ERROR_ALREADY_EXISTS) {
+        if (hMutex!=NULL)
+            CloseHandle(hMutex);
+        return TRUE;
+    }
+    if (hMutex!=NULL)
+        CloseHandle(hMutex);
+    return FALSE;
 }
 
 // 何回か唯一の TiMidity になろうとします
 int TryUniqTiMidity(int num)
 {
-	int i;
-	for(i=0;i<num;i++){
-		if(UniqTiMidity()==TRUE){
-			return TRUE;
-		}
-		Sleep(1000);
-	}
-	return FALSE;
+    int i;
+    for (i=0;i<num;i++) {
+        if (UniqTiMidity()==TRUE) {
+            return TRUE;
+        }
+        Sleep(1000);
+    }
+    return FALSE;
 }
 
 int SendFilesToOldTiMidity(int nfiles, char **files)
@@ -890,57 +892,57 @@ int SendFilesToOldTiMidity(int nfiles, char **files)
 
 int SendCommandNoParamOldTiMidity(char *command)
 {
-	HANDLE hmailslot;
-	char buffer[1024];
-	int size;
-	hmailslot = OpenMailslot();
-	if(hmailslot==NULL)
-		return FALSE;
-	strcpy(buffer,MC_HEADER);
-	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
-	strcpy(buffer,command);
-	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
-	strcpy(buffer,"0");
-	size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
-	CloseMailslot(hmailslot);
-	return TRUE;
+    HANDLE hmailslot;
+    char buffer[1024];
+    int size;
+    hmailslot = OpenMailslot();
+    if (hmailslot==NULL)
+        return FALSE;
+    strcpy(buffer,MC_HEADER);
+    size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+    strcpy(buffer,command);
+    size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+    strcpy(buffer,"0");
+    size = strlen(buffer); WriteMailslot(hmailslot,buffer,size);
+    CloseMailslot(hmailslot);
+    return TRUE;
 }
 
 int TerminateOldTiMidity(void)
 {
-	return  SendCommandNoParamOldTiMidity(MC_TERMINATE);
+    return SendCommandNoParamOldTiMidity(MC_TERMINATE);
 }
 int ClearPlaylistOldTiMidity(void)
 {
-	return  SendCommandNoParamOldTiMidity(MC_PLAYLIST_CLEAR);
+    return SendCommandNoParamOldTiMidity(MC_PLAYLIST_CLEAR);
 }
 int PlayOldTiMidity(void)
 {
-	return  SendCommandNoParamOldTiMidity(MC_PLAY);
+    return SendCommandNoParamOldTiMidity(MC_PLAY);
 }
 
 int PlayNextOldTiMidity(void)
 {
-	return  SendCommandNoParamOldTiMidity(MC_PLAY_NEXT);
+    return SendCommandNoParamOldTiMidity(MC_PLAY_NEXT);
 }
 int PlayPrevOldTiMidity(void)
 {
-	return  SendCommandNoParamOldTiMidity(MC_PLAY_PREV);
+    return SendCommandNoParamOldTiMidity(MC_PLAY_PREV);
 }
 int StopOldTiMidity(void)
 {
-	return  SendCommandNoParamOldTiMidity(MC_STOP);
+    return SendCommandNoParamOldTiMidity(MC_STOP);
 }
 int PauseOldTiMidity(void)
 {
-	return  SendCommandNoParamOldTiMidity(MC_PAUSE);
+    return SendCommandNoParamOldTiMidity(MC_PAUSE);
 }
 
 // ２重起動時の処理
 // opt==0 : ファイルを古い TiMidity に渡して自分は終了。古い TiMidity がないときは自分が起動。
-//                古いプレイリストはクリアする。
+//          古いプレイリストはクリアする。
 // opt==1 : ファイルを古い TiMidity に渡して自分は終了。古い TiMidity がないときは自分が起動。
-//               古いプレイリストはクリアしない。
+//          古いプレイリストはクリアしない。
 // opt==2 : 古い TiMidity を終了して、自分が演奏する
 // opt==3 : 自分は何もせず終了。古い TiMidity がないときは自分が起動。
 // opt==4 : 古い TiMidity を終了して、自分は何もせず終了
@@ -949,82 +951,83 @@ int PauseOldTiMidity(void)
 // 自分が終了するべきでないときは TRUE を返す
 int w32gSecondTiMidity(int opt, int argc, char **argv)
 {
-	int i;
-	switch(opt){
-	case 0:
-	case 1:
-	case 3:
-		if(ExistOldTiMidity()==TRUE){
-			if(opt==3)
-				return FALSE;
-			if(opt==0)
-				ClearPlaylistOldTiMidity();
-			SendFilesToOldTiMidity(argc > 0 ? argc-1 : 0, argv+1);
-			return FALSE;
-		} else {
-			if(TryUniqTiMidity(20)==TRUE){
-				w32gStartMailslotThread();
-				return TRUE;
-			}
-			return FALSE;
-		}
-	case 2:
-		if(ExistOldTiMidity()==TRUE){
-			for(i=0;i<=20;i++){
-				TerminateOldTiMidity();
-				if(UniqTiMidity()==TRUE){
-					w32gStartMailslotThread();
-					return TRUE;
-				}
-				Sleep(1000);
-			}
-		} else {
-			if(TryUniqTiMidity(20)==TRUE){
-				w32gStartMailslotThread();
-				return TRUE;
-			}
-		}
-		return FALSE;
-	case 4:
-		if(ExistOldTiMidity()==TRUE){
-			for(i=0;i<=20;i++){
-				TerminateOldTiMidity();
-				if(ExistOldTiMidity()==FALSE){
-					return FALSE;
-				}
-				Sleep(1000);
-			}
-		}
-		return FALSE;
-	case 5:
-		return TRUE;
-	default:
-		return FALSE;
-	}
+    int i;
+    switch (opt) {
+    case 0:
+    case 1:
+    case 3:
+        if (ExistOldTiMidity()==TRUE) {
+            if (opt==3)
+                return FALSE;
+            if (opt==0)
+                ClearPlaylistOldTiMidity();
+            SendFilesToOldTiMidity(argc > 0 ? argc-1 : 0, argv+1);
+            return FALSE;
+        } else {
+            if (TryUniqTiMidity(20)==TRUE) {
+                w32gStartMailslotThread();
+                return TRUE;
+            }
+            return FALSE;
+        }
+    case 2:
+        if (ExistOldTiMidity()==TRUE) {
+            for (i=0;i<=20;i++) {
+                TerminateOldTiMidity();
+                if (UniqTiMidity()==TRUE) {
+                    w32gStartMailslotThread();
+                    return TRUE;
+                }
+                Sleep(1000);
+            }
+        } else {
+            if (TryUniqTiMidity(20)==TRUE) {
+                w32gStartMailslotThread();
+                return TRUE;
+            }
+        }
+        return FALSE;
+    case 4:
+        if (ExistOldTiMidity()==TRUE) {
+            for (i=0;i<=20;i++) {
+                TerminateOldTiMidity();
+                if (ExistOldTiMidity()==FALSE) {
+                    return FALSE;
+                }
+                Sleep(1000);
+            }
+        }
+        return FALSE;
+    case 5:
+        return TRUE;
+    default:
+        return FALSE;
+    }
 }
 
 // w32gSecondTiMidity() の後処理
 int w32gSecondTiMidityExit(void)
 {
-	MailslotThreadTeminateFlag = TRUE;
-	Sleep(300);
-	if(hMailslot!=NULL)
-		CloseHandle(hMailslot);
-	ReleaseMutex(hMutexTiMidity);
-	CloseHandle(hMutexTiMidity);
-	return 0;
+    MailslotThreadTeminateFlag = TRUE;
+    Sleep(300);
+    if (hMailslot!=NULL)
+        CloseHandle(hMailslot);
+    ReleaseMutex(hMutexTiMidity);
+    CloseHandle(hMutexTiMidity);
+    return 0;
 }
 
 // Before it call timidity_start_initialize()
-int isURLFile(char *filename)
+int isURLFile(const char *filename)
 {
-	if(strncasecmp(filename,"http://",7)==0
-		|| strncasecmp(filename,"ftp://",6)==0
-		|| strncasecmp(filename,"news://",7)==0
-		|| strncasecmp(filename,"file:",5)==0
-		|| strncasecmp(filename,"dir:",4)==0){
-		return TRUE;
-	} else {
-		return FALSE;
-	}
+    if (strncasecmp(filename,"http://",7)==0
+        //|| strncasecmp(filename,"https://",8)==0
+        || strncasecmp(filename,"ftp://",6)==0
+        || strncasecmp(filename,"news://",7)==0
+        || strncasecmp(filename,"file:",5)==0
+        || strncasecmp(filename,"dir:",4)==0) {
+        return TRUE;
+    } else {
+        return FALSE;
+    }
 }

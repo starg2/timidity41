@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -33,18 +33,10 @@
 #include <stdarg.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif /* HAVE_UNISTD_H */
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#endif
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
 #include <math.h>
 #include <signal.h>
 
@@ -53,7 +45,7 @@
 #ifdef __W32__
 #include <windows.h>
 #include <mmsystem.h>
-#endif
+#endif /* __W32__ */
 
 
 #ifdef HAVE_STDLIB_H
@@ -96,6 +88,9 @@ extern VOLATILE int intr;
 /* latency (sec)  > 1.0 / TICKTIME_HZ * 4.0 */
 #define RTSYN_LATENCY 0.20
 
+#define MAX_RTSYN_PORTLIST_NUM 32
+#define MAX_RTSYN_PORTLIST_LEN 80
+
 
 extern double rtsyn_latency;   /* = RTYSN_LATENCY */
 extern int rtsyn_system_mode;
@@ -134,9 +129,9 @@ void rtsyn_tmr_reset(void);
 void rtsyn_server_reset(void);
 void rtsyn_reset(void);
 void rtsyn_stop_playing(void);
-int rtsyn_play_one_data (int port, int32 dwParam1, double event_time);
+extern int rtsyn_play_one_data(int port, uint32 dwParam, double event_time);
 ///r
-extern void rtsyn_play_one_sysex (uint8 *sysexbuffer, int exlen, double event_time );
+extern void rtsyn_play_one_sysex(uint8 *sysexbuffer, int exlen, double event_time);
 void rtsyn_play_calculate(void);
 
 
@@ -146,64 +141,72 @@ void rtsyn_play_calculate(void);
 /*  Interface dependent functions (see rtsyn_winmm.c rtsyn_portmidi.c)        */
 /*                                                                            */
 /******************************************************************************/
-#if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) || defined(IA_W32G_SYN) 
+#if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) || defined(IA_NPSYN) || defined(IA_W32G_SYN)
 
+#ifndef MAX_PORT
 #define MAX_PORT 4
+#endif /* !MAX_PORT */
 extern int rtsyn_portnumber;
 extern unsigned int portID[MAX_PORT];
-extern char  rtsyn_portlist[32][80];
+extern char rtsyn_portlist[MAX_RTSYN_PORTLIST_NUM][MAX_RTSYN_PORTLIST_LEN];
 extern int rtsyn_nportlist;
 
+#if defined(IA_WINSYN) || defined(IA_W32G_SYN)
+extern void rtsyn_ws_setup(void);
+#endif /* IA_WINSYN || IA_W32G_SYN */
+#if defined(IA_NPSYN)
+extern void rtsyn_np_setup(void);
+#endif /* IA_NPSYN */
+#if defined(IA_PORTMIDISYN)
+extern void rtsyn_pm_setup(void);
+#endif /* IA_PORTMIDISYN */
 void rtsyn_get_port_list(void);
 int rtsyn_synth_start(void);
 void rtsyn_synth_stop(void);
-int rtsyn_play_some_data (void);
+int rtsyn_play_some_data(void);
 void rtsyn_midiports_close(void);
-
-#if defined(IA_WINSYN) || defined(IA_W32G_SYN)
 int rtsyn_buf_check(void);
-#endif
+void rtsyn_print_port_list(void);
 
-#endif /* IA_WINSYN IA_PORTMIDISYN IA_W32G_SYN */
+#endif /* IA_WINSYN || IA_PORTMIDISYN || IA_NPSYN || IA_W32G_SYN */
 
 #ifdef IA_NPSYN
 #define RTSYN_NP_DATA 1
 #define RTSYN_NP_LONGDATA 2
 
-typedef struct rtsyn_np_evbuf_t{
-	uint32 wMsg;
-	union {
-		uint32 port;
-		uint32  exlen;
-	};
-	union {
-		uint32	dwParam1;
-	};
-	uint32	dwParam2;
-}  RtsynNpEvBuf;
+typedef struct rtsyn_np_evbuf_t
+{
+    uint32 wMsg;
+    union {
+        uint32 port;
+        uint32 exlen;
+    };
+    uint32 dwParam1;
+    union {
+        uint32 dwParam2;
+        float  fParam2;
+    };
+} RtsynNpEvBuf;
 
-void rtsyn_np_set_pipe_name(char*);
-int rtsyn_np_synth_start(void);
-void rtsyn_np_synth_stop(void);
-int rtsyn_np_play_some_data (void);
-void rtsyn_np_pipe_close();
+void rtsyn_np_set_pipe_name(const char*);
+const char* rtsyn_np_get_pipe_path(void);
+#define MAX_RTSYN_NP_NAME_LEN 256
 #endif
 
 #ifdef USE_WINSYN_TIMER_I
 
-#if defined(__W32__)
+#ifdef __W32__
 typedef CRITICAL_SECTION  rtsyn_mutex_t;
-#define rtsyn_mutex_init(_m)	InitializeCriticalSection(&_m)
+#define rtsyn_mutex_init(_m)    InitializeCriticalSection(&_m)
 #define rtsyn_mutex_destroy(_m) DeleteCriticalSection(&_m)
 #define rtsyn_mutex_lock(_m)    EnterCriticalSection(&_m)
 #define rtsyn_mutex_unlock(_m)  LeaveCriticalSection(&_m)
-
 #else
 typedef pthread_mutex_t rtsyn_mutex_t;
-#define rtsyn_mutex_init(_m)      pthread_mutex_init(&(_m), NULL)
-#define rtsyn_mutex_destroy(_m)   pthread_mutex_destroy(&(_m))
-#define rtsyn_mutex_lock(_m)      pthread_mutex_lock(&(_m))
-#define rtsyn_mutex_unlock(_m)    pthread_mutex_unlock(&(_m))
+#define rtsyn_mutex_init(_m)    pthread_mutex_init(&(_m), NULL)
+#define rtsyn_mutex_destroy(_m) pthread_mutex_destroy(&(_m))
+#define rtsyn_mutex_lock(_m)    pthread_mutex_lock(&(_m))
+#define rtsyn_mutex_unlock(_m)  pthread_mutex_unlock(&(_m))
 #endif
 
 #endif

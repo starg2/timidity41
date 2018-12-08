@@ -93,27 +93,29 @@ struct timidity_file
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+	
 extern void add_to_pathlist(const char *s);
 extern void clean_up_pathlist(void);
 extern int is_url_prefix(const char *name);
-extern struct timidity_file *open_file(char *name, int decompress,
-		int noise_mode);
-extern struct timidity_file *open_file_r(char *name, int decompress,
-		int noise_mode);
-extern struct timidity_file *open_with_mem(char *mem, int32 memlen,
-		int noise_mode);
+extern struct timidity_file *open_file(const char *name, int decompress,
+                                       int noise_mode);
+extern struct timidity_file *open_file_r(const char *name, int decompress,
+                                         int noise_mode);
+extern struct timidity_file *open_with_mem(char *mem, ptr_size_t memlen,
+                                           int noise_mode);
+extern struct timidity_file *open_with_constmem(const char *mem, ptr_size_t memlen,
+                                           int noise_mode);
 extern void close_file(struct timidity_file *tf);
 extern void skip(struct timidity_file *tf, size_t len);
 extern char *tf_gets(char *buff, size_t n, struct timidity_file *tf);
 #define tf_getc(tf) (url_getc((tf)->url))
 extern size_t tf_read(void *buff, size_t size, size_t nitems,
-		    struct timidity_file *tf);
+                      struct timidity_file *tf);
 extern off_size_t tf_seek(struct timidity_file *tf, off_size_t offset, int whence);
 extern off_size_t tf_seek_uint64(struct timidity_file *tf, uint64 offset, int whence);
 extern off_size_t tf_tell(struct timidity_file *tf);
-extern int int_rand(int n);	/* random [0..n-1] */
-extern int check_file_extension(char *filename, char *ext, int decompress);
+extern int int_rand(int n); /* random [0..n-1] */
+extern int check_file_extension(const char *filename, char *ext, int decompress);
 
 #ifdef TIMIDITY_LEAK_CHECK
 extern void *safe_ptrchk(void *ptr);
@@ -183,12 +185,14 @@ extern void code_convert(char *in, char *out, size_t outsiz,
 extern void safe_exit(int status);
 
 extern const char *timidity_version;
+extern const char *timidity_compile_date;
 extern const char *arch_string; /* optcode.c */
 extern MBlockList tmpbuffer;
 extern char *output_text_code;
 
 
 #ifdef __W32__
+extern int w32_reset_dll_directory(void);
 extern char *w32_mbs_to_utf8(const char *str);
 extern char *w32_utf8_to_mbs(const char *str);
 extern wchar_t *w32_utf8_to_utf16(const char *str);

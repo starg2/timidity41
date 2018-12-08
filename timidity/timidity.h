@@ -38,6 +38,12 @@
  section 1: some customize issues
 \*****************************************************************************/
 
+#define CONFIG_FILE_NAME "timidity.cfg"
+#ifdef __W32__
+#define CONFIG_FILE_NAME_P "\\timidity.cfg"
+#else
+#define CONFIG_FILE_NAME_P "/timidity.cfg"
+#endif
 
 /* You could specify a complete path, e.g. "/etc/timidity.cfg", and
    then specify the library directory in the configuration file. */
@@ -451,6 +457,7 @@
 
 #define NEW_LEGATO
 //#define ENABLE_SFZ
+//#define ENABLE_DLS
 
 
 /*****************************************************************************\

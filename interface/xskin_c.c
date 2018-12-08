@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -28,11 +28,7 @@
 #include <stdarg.h>
 #include <math.h>
 #include <sys/time.h>
-#ifndef NO_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
+#include "_string.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -53,16 +49,16 @@ static void ctl_current_time(int secs, int v);
 static void ctl_lyric(int lyricid);
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(int32 *valp);
-static int cmsg(int type, int verbosity_level, char *fmt, ...);
+static int ctl_read(ptr_size_t *valp);
+static int cmsg(int type, int verbosity_level, const char *fmt, ...);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]);
 static void ctl_event(CtlEvent *e);
 static void initialize_exp_hz_table( void );
 
 static void xskin_pipe_open(void);
-void xskin_pipe_write(char *);
+void xskin_pipe_write(char*);
 static int xskin_pipe_ready(void);
-int xskin_pipe_read(char *,int);
+int xskin_pipe_read(char*,int);
 
 static int isspeanaenabled;
 static unsigned char *speana_buf;
@@ -104,7 +100,7 @@ static int pipe_in_fd,pipe_out_fd=-1;
 /***********************************************************************/
 /* Put controls on the pipe                                            */
 /***********************************************************************/
-static int cmsg(int type, int verbosity_level, char *fmt, ...) {
+static int cmsg(int type, int verbosity_level, const char *fmt, ...) {
 
   va_list ap;
   if ((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
@@ -114,7 +110,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...) {
   va_start(ap, fmt);
 
 #ifdef MSGWINDOW
-  if(!xskin_ready)
+  if (!xskin_ready)
 #endif
   {
     vfprintf(stderr, fmt, ap);
@@ -124,7 +120,7 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...) {
   }
 
   vsnprintf(local_buf+2,100,fmt,ap);
-  if(pipe_out_fd==-1) {
+  if (pipe_out_fd==-1) {
       fputs(local_buf + 2, stderr);
       fputs(NLS, stderr);
   } else {
@@ -163,7 +159,7 @@ static void ctl_master_volume(int mv) {
   if ( mv != lastvol ) {
     if ( mv == CTL_LAST_STATUS ) mv = lastvol;
     else lastvol = mv;
-    
+
     sprintf( local_buf, "V %d", mv );
     xskin_pipe_write(local_buf);
   }
@@ -183,55 +179,55 @@ static void ctl_current_time(int sec, int v) {
 
 static void ctl_lyric(int lyricid)
 {
-    char *lyric;
-	static int lyric_col = 2;
-	static char lyric_buf[300];
+    const char *lyric;
+    static int lyric_col = 2;
+    static char lyric_buf[300];
 
     lyric = event2string(lyricid);
-    if(lyric != NULL)
+    if (lyric != NULL)
     {
-	if(lyric[0] == ME_KARAOKE_LYRIC)
-	{
-	    if(lyric[1] == '/' || lyric[1] == '\\')
-	    {
-		lyric_buf[0] = 'L';
-		lyric_buf[1] = ' ';
-		snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "%s", lyric + 2);
-		xskin_pipe_write(lyric_buf);
-		lyric_col = strlen(lyric + 2) + 2;
-	    }
-	    else if(lyric[1] == '@')
-	    {
-		lyric_buf[0] = 'L';
-		lyric_buf[1] = ' ';
-		if(lyric[2] == 'L')
-		    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "Language: %s", lyric + 3);
-		else if(lyric[2] == 'T')
-		    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "Title: %s", lyric + 3);
-		else
-		    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "%s", lyric + 1);
-		xskin_pipe_write(lyric_buf);
-	    }
-	    else
-	    {
-		lyric_buf[0] = 'L';
-		lyric_buf[1] = ' ';
-		snprintf(lyric_buf + lyric_col, sizeof (lyric_buf) - lyric_col, "%s", lyric + 1);
-		xskin_pipe_write(lyric_buf);
-		lyric_col += strlen(lyric + 1);
-	    }
-	}
-	else
-	{
-	    if(lyric[0] == ME_CHORUS_TEXT || lyric[0] == ME_INSERT_TEXT)
-		lyric_col = 0;
-	    snprintf(lyric_buf + lyric_col, sizeof (lyric_buf) - lyric_col, "%s", lyric + 1);
-	    xskin_pipe_write(lyric_buf);
-	}
+        if (lyric[0] == ME_KARAOKE_LYRIC)
+        {
+            if (lyric[1] == '/' || lyric[1] == '\\')
+            {
+                lyric_buf[0] = 'L';
+                lyric_buf[1] = ' ';
+                snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "%s", lyric + 2);
+                xskin_pipe_write(lyric_buf);
+                lyric_col = strlen(lyric + 2) + 2;
+            }
+            else if (lyric[1] == '@')
+            {
+                lyric_buf[0] = 'L';
+                lyric_buf[1] = ' ';
+                if (lyric[2] == 'L')
+                    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "Language: %s", lyric + 3);
+                else if (lyric[2] == 'T')
+                    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "Title: %s", lyric + 3);
+                else
+                    snprintf(lyric_buf + 2, sizeof (lyric_buf) - 2, "%s", lyric + 1);
+                xskin_pipe_write(lyric_buf);
+            }
+            else
+            {
+                lyric_buf[0] = 'L';
+                lyric_buf[1] = ' ';
+                snprintf(lyric_buf + lyric_col, sizeof (lyric_buf) - lyric_col, "%s", lyric + 1);
+                xskin_pipe_write(lyric_buf);
+                lyric_col += strlen(lyric + 1);
+            }
+        }
+        else
+        {
+            if (lyric[0] == ME_CHORUS_TEXT || lyric[0] == ME_INSERT_TEXT)
+                lyric_col = 0;
+            snprintf(lyric_buf + lyric_col, sizeof (lyric_buf) - lyric_col, "%s", lyric + 1);
+            xskin_pipe_write(lyric_buf);
+        }
     }
 }
 
-#if 0
+#if 1
 static void ctl_speana_data(double *val, int size) {
 
   /* 0 <= val[n] <= (AMP*NCOLOR) */
@@ -253,18 +249,18 @@ static void ctl_speana_data(double *val, int size) {
   if ( isspeanaenabled ) {
 
     px=0.0;
-    speana_buf[0] = (unsigned char)val[0];
-    for ( i=1 ; i<SPE_W-1 ; i++ ) {
+    speana_buf[0] = (unsigned char) val[0];
+    for ( i=1; i<SPE_W-1; i++ ) {
       s=0.0;
       n=0;
       tx=exp_hz_table[i];
-      x=(int)px;
+      x=(int) px;
 
       do {
-	a=val[x];
-	s += a + (tx-x)*(val[x+1]-a);
-	n++;
-	x++;
+        a=val[x];
+        s += a + (tx-x) *(val[x+1]-a);
+        n++;
+        x++;
       } while ( x<tx );
 
       s/=n;
@@ -309,7 +305,7 @@ static void ctl_close(void)
 static int exitflag=0,randomflag=0,repeatflag=0,selectflag=0;
 
 /*ARGSUSED*/
-static int ctl_blocking_read(int32 *valp  /* Now, valp is not used */ ) {
+static int ctl_blocking_read(ptr_size_t *valp  /* Now, valp is not used */ ) {
   xskin_pipe_read(local_buf,sizeof(local_buf));
   for (;;) {
     switch (local_buf[0]) {
@@ -331,7 +327,7 @@ static int ctl_blocking_read(int32 *valp  /* Now, valp is not used */ ) {
   }
 }
 
-static int ctl_read(int32 *valp) {
+static int ctl_read(ptr_size_t *valp) {
   if (cuepoint_pending) {
     *valp = cuepoint;
     cuepoint_pending = 0;
@@ -373,20 +369,20 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]) {
     int shmid;
     isspeanaenabled=1;
     shmid = atoi(local_buf);
-    speana_buf = (unsigned char *)shmat(shmid,0,0);
+    speana_buf = (unsigned char*) shmat(shmid,0,0);
   } else {
     isspeanaenabled=0;
   }
 
   /* Make title string */
-  titles=(char **)safe_malloc(number_of_files*sizeof(char *));
+  titles=(char**) safe_malloc(number_of_files*sizeof(char*));
   for (i=0;i<number_of_files;i++) {
     p=strrchr(list_of_files[i],'/');
     if (p==NULL) {
       p=list_of_files[i];
     } else p++;
     sprintf(local_buf,"%d. %s",i+1,p);
-    titles[i]=(char *)safe_malloc(strlen(local_buf)+1);
+    titles[i]=(char*) safe_malloc(strlen(local_buf)+1);
     strcpy(titles[i],local_buf);
   }
 
@@ -396,7 +392,7 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]) {
   for (i=0;i<number_of_files;i++) xskin_pipe_write(titles[i]);
 
   /* Make the table of play sequence */
-  file_table=(int *)safe_malloc(number_of_files*sizeof(int));
+  file_table=(int*) safe_malloc(number_of_files*sizeof(int));
   for (i=0;i<number_of_files;i++) file_table[i]=i;
 
   /* Draw the title of the first file */
@@ -418,56 +414,56 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]) {
       if (exitflag) return 0;
       /* Stop playing */
       if (command==RC_QUIT) {
-	sprintf(local_buf,"T 00:00");
-	xskin_pipe_write(local_buf);
-	/* Shuffle the table */
-	if (randomflag) {
-	  current_no=0;
-	  if (randomflag==1) {
-	    shuffle(number_of_files,file_table);
-	    randomflag=0;
-	    command=RC_LOAD_FILE;
-	    continue;
-	  }
-	  randomflag=0;
-	  for (i=0;i<number_of_files;i++) file_table[i]=i;
-	  sprintf(local_buf,"F %s",titles[file_table[current_no]]);
-	  xskin_pipe_write(local_buf);
-	}
-	/* Play the selected file */
-	if (selectflag) {
-	  for (i=0;i<number_of_files;i++)
-	    if (file_table[i]==selectflag-1) break;
-	  if (i!=number_of_files) current_no=i;
-	  selectflag=0;
-	  command=RC_LOAD_FILE;
-	  continue;
-	}
+        sprintf(local_buf,"T 00:00");
+        xskin_pipe_write(local_buf);
+        /* Shuffle the table */
+        if (randomflag) {
+          current_no=0;
+          if (randomflag==1) {
+            shuffle(number_of_files,file_table);
+            randomflag=0;
+            command=RC_LOAD_FILE;
+            continue;
+          }
+          randomflag=0;
+          for (i=0;i<number_of_files;i++) file_table[i]=i;
+          sprintf(local_buf,"F %s",titles[file_table[current_no]]);
+          xskin_pipe_write(local_buf);
+        }
+        /* Play the selected file */
+        if (selectflag) {
+          for (i=0;i<number_of_files;i++)
+            if (file_table[i]==selectflag-1) break;
+          if (i!=number_of_files) current_no=i;
+          selectflag=0;
+          command=RC_LOAD_FILE;
+          continue;
+        }
       /* After the all file played */
       } else if (command==RC_TUNE_END || command==RC_ERROR) {
-	if (current_no+1<number_of_files) {
-	  current_no++;
-	  command=RC_LOAD_FILE;
-	  continue;
-	/* Repeat */
-	} else if (repeatflag) {
-	  current_no=0;
-	  command=RC_LOAD_FILE;
-	  continue;
-	/* Off the play button */
-	} else {
-	  xskin_pipe_write("O");
-	}
+        if (current_no+1<number_of_files) {
+          current_no++;
+          command=RC_LOAD_FILE;
+          continue;
+        /* Repeat */
+        } else if (repeatflag) {
+          current_no=0;
+          command=RC_LOAD_FILE;
+          continue;
+        /* Off the play button */
+        } else {
+          xskin_pipe_write("O");
+        }
       /* Play the next */
       } else if (command==RC_NEXT) {
-	if (current_no+1<number_of_files) current_no++;
-	command=RC_LOAD_FILE;
-	continue;
+        if (current_no+1<number_of_files) current_no++;
+        command=RC_LOAD_FILE;
+        continue;
       /* Play the previous */
       } else if (command==RC_REALLY_PREVIOUS) {
-	if (current_no>0) current_no--;
-	command=RC_LOAD_FILE;
-	continue;
+        if (current_no>0) current_no--;
+        command=RC_LOAD_FILE;
+        continue;
       }
 
       command=ctl_blocking_read(&val);
@@ -514,7 +510,7 @@ static int xskin_pipe_ready(void) {
   FD_SET(pipe_in_fd,&fds);
   tv.tv_sec=0;
   tv.tv_usec=0;
-  if((cnt=select(pipe_in_fd+1,&fds,NULL,NULL,&tv))<0)
+  if ((cnt=select(pipe_in_fd+1,&fds,NULL,NULL,&tv))<0)
     return -1;
   return cnt > 0 && FD_ISSET(pipe_in_fd, &fds) != 0;
 }
@@ -541,27 +537,27 @@ int xskin_pipe_read_direct(int32 *buf, int bufsize) {
 
 static void ctl_event(CtlEvent *e)
 {
-    switch(e->type)
+    switch (e->type)
     {
     case CTLE_PLAY_START:
-      ctl_total_time((int)e->v1);
+      ctl_total_time((int) e->v1);
       break;
     case CTLE_CUEPOINT:
       cuepoint = e->v1;
       cuepoint_pending = 1;
       break;
     case CTLE_CURRENT_TIME:
-      ctl_current_time((int)e->v1, (int)e->v2);
+      ctl_current_time((int) e->v1, (int) e->v2);
       break;
     case CTLE_MASTER_VOLUME:
-      ctl_master_volume((int)e->v1);
+      ctl_master_volume((int) e->v1);
       break;
     case CTLE_LYRIC:
-      ctl_lyric((int)e->v1);
+      ctl_lyric((int) e->v1);
       break;
 #ifdef SUPPORT_SOUNDSPEC
     case CTLE_SPEANA:
-      ctl_speana_data((double *)e->v1, (int)e->v2);
+      ctl_speana_data((double*) e->v1, (int) e->v2);
     break;
 #endif /* SUPPORT_SOUNDSPEC */
 
@@ -579,12 +575,12 @@ ControlMode *interface_i_loader(void)
 static void initialize_exp_hz_table( void ) {
   int i;
   double r, x, w;
-  
-  w = (double)play_mode->rate * 0.5 / DEFAULT_ZOOM;
+
+  w = (double) play_mode->rate * 0.5 / DEFAULT_ZOOM;
   r = exp(log(w) * (1.0/SPE_W));
   w = (FFTSIZE/2.0) / (w - 1.0);
 
-  for(i = 0, x = 1.0; i <= SPE_W; i++, x *= r)
+  for (i = 0, x = 1.0; i <= SPE_W; i++, x *= r)
     exp_hz_table[i] = (x - 1.0) * w;
 
 }

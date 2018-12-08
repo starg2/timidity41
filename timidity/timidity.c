@@ -219,6 +219,7 @@ enum {
 	TIM_OPT_SEQ_PORTS,
 	TIM_OPT_RTSYN_LATENCY,
 	TIM_OPT_RTSYN_SKIP_AQ,
+    TIM_OPT_RTSYN_PRINT_PORTS,
 	TIM_OPT_REALTIME_LOAD,
 	TIM_OPT_ADJUST_KEY,
 	TIM_OPT_VOICE_QUEUE,
@@ -235,6 +236,8 @@ enum {
 	TIM_OPT_OD_DRIVE_GS,
 	TIM_OPT_OD_LEVEL_XG,
 	TIM_OPT_OD_DRIVE_XG,
+    TIM_OPT_OD_LEVEL_SD,
+    TIM_OPT_OD_DRIVE_SD,
 
 	TIM_OPT_PATCH_PATH,
 	TIM_OPT_PCM_FILE,
@@ -310,6 +313,7 @@ enum {
 	TIM_OPT_TRACE_MODE_UPDATE,	
 	TIM_OPT_LOAD_ALL_INSTRUMENT,
 	TIM_OPT_LOOP_REPEAT,
+	TIM_OPT_LOOP_FILTER,
 
 	TIM_OPT_CACHE_SIZE,
 	TIM_OPT_SAMPLE_FREQ,
@@ -475,10 +479,13 @@ static const struct option longopts[] = {
 	{ "output-alaw",            no_argument,       NULL, TIM_OPT_OUTPUT_FORMAT },
 	{ "no-output-swab",         no_argument,       NULL, TIM_OPT_OUTPUT_SWAB },
 	{ "output-swab",            optional_argument, NULL, TIM_OPT_OUTPUT_SWAB },
-#if defined(IA_WINSYN) || defined(IA_W32G_SYN) || defined(IA_W32GUI)
-	{ "rtsyn-latency",          required_argument, NULL, TIM_OPT_RTSYN_LATENCY },
-	{ "rtsyn-skip-aq",          required_argument, NULL, TIM_OPT_RTSYN_SKIP_AQ },
-#endif
+#if defined(IA_WINSYN) || defined(IA_NPSYN) || defined(IA_PORTMIDI) || \
+    defined(IA_W32G_SYN) || defined(IA_W32GUI)
+    { "rtsyn-latency",              required_argument, NULL, TIM_OPT_RTSYN_LATENCY },
+    { "rtsyn-skip-aq",              required_argument, NULL, TIM_OPT_RTSYN_SKIP_AQ },
+    { "rtsyn-print-ports",          no_argument,       NULL, TIM_OPT_RTSYN_PRINT_PORTS },
+    { "rtsyn-list",                 no_argument,       NULL, TIM_OPT_RTSYN_PRINT_PORTS },
+#endif /* RTSYN || IA_W32GUI */
 ///r
 	{ "output-device-id",		required_argument, NULL, TIM_OPT_OUTPUT_DEVICE_ID },
 #ifdef AU_W32
@@ -562,6 +569,7 @@ static const struct option longopts[] = {
 	{ "trace-mode-update-time", required_argument, NULL, TIM_OPT_TRACE_MODE_UPDATE },	
 	{ "load-all-instrument",    required_argument, NULL, TIM_OPT_LOAD_ALL_INSTRUMENT },	
 	{ "loop-repeat",            required_argument, NULL, TIM_OPT_LOOP_REPEAT },
+    { "loop-filter",            required_argument, NULL, TIM_OPT_LOOP_FILTER },
 
 	{ "cache-size",             required_argument, NULL, TIM_OPT_CACHE_SIZE },
 	{ "sampling-freq",          required_argument, NULL, TIM_OPT_SAMPLE_FREQ },
@@ -618,6 +626,10 @@ char *opt_reduce_voice_threshold = NULL;
 char *opt_reduce_quality_threshold = NULL;
 char *opt_reduce_polyphony_threshold = NULL;
 
+#if (defined(IA_W32GUI) || defined(IA_W32G_SYN)) && \
+    defined(__GNUC__) && !defined(SUPPORT_WINMAIN)
+extern int RestartTimidity;
+#endif /* (IA_W32GUI || IA_W32G_SYN) && __GNUC__ && !SUPPORT_WINMAIN */
 
 int set_extension_modes(char *);
 int set_ctl(char *);
@@ -692,10 +704,12 @@ static inline int parse_opt_background(const char *);
 static inline int parse_opt_rt_prio(const char *);
 static inline int parse_opt_seq_ports(const char *);
 #endif
-#if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) || defined(IA_NPSYN) || defined(IA_W32G_SYN) || defined(IA_W32GUI)
-static inline int parse_opt_rtsyn_latency(const char *);
-static inline int parse_opt_rtsyn_skip_aq(const char *);
-#endif
+#if defined(IA_WINSYN) || defined(IA_NPSYN) || defined(IA_PORTMIDI) || \
+    defined(IA_W32G_SYN) || defined(IA_W32GUI)
+static inline int parse_opt_rtsyn_latency(const char*);
+static inline int parse_opt_rtsyn_skip_aq(const char*);
+static inline int parse_opt_rtsyn_print_ports(const char*);
+#endif /* RTSYN || IA_W32GUI */
 static inline int parse_opt_j(const char *);
 static inline int parse_opt_K(const char *);
 static inline int parse_opt_k(const char *);
@@ -844,11 +858,14 @@ static inline int parse_opt_int_synth_sine(const char *arg);
 static inline int parse_opt_int_synth_update(const char *arg);
 #ifdef SUPPORT_LOOPEVENT
 static inline int parse_opt_midi_loop_repeat(const char*);
+static inline int parse_opt_midi_loop_filter(const char *arg);
 #endif /* SUPPORT_LOOPEVENT */
 static inline int parse_opt_od_level_gs(const char *arg);
 static inline int parse_opt_od_drive_gs(const char *arg);
 static inline int parse_opt_od_level_xg(const char *arg);
 static inline int parse_opt_od_drive_xg(const char *arg);
+static inline int parse_opt_od_level_sd(const char *arg);
+static inline int parse_opt_od_drive_sd(const char *arg);
 
 #if defined(__W32__)
 static inline int parse_opt_process_priority(const char *arg);
@@ -2254,21 +2271,30 @@ MAIN_INTERFACE int read_config_file(const char *name, int self, int allow_missin
     int extension_flag, param_parse_err;
     MBlockList varbuf;
     char *basedir = NULL, *sep = NULL;
+    char *onmemory = NULL;
 
     if (rcf_count > 50)
     {
-	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		  "Probable source loop in configuration files");
-	return READ_CONFIG_RECURSION;
+        ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+                  "Probable source loop in configuration files");
+        return READ_CONFIG_RECURSION;
     }
 
     if (self)
     {
-	tf = open_with_mem(name, (int32)strlen(name), OF_VERBOSE);
-	name = "(configuration)";
+        tf = open_with_constmem(name, strlen(name), OF_VERBOSE);
+        name = "(configuration)";
+    }
+    else if (check_file_extension(name, ".sf2", 0) == 1)
+    {
+        const char fmt[] = "soundfont \"%s\"\n";
+        onmemory = (char*) safe_malloc(strlen(fmt) + strlen(name) + 1);
+        snprintf(onmemory, strlen(fmt) + strlen(name), fmt, name);
+        tf = open_with_mem(onmemory, strlen(onmemory), OF_VERBOSE);
+        name = "(configuration)";
     }
     else
-	tf = open_file(name, 1, allow_missing_file ? OF_NORMAL : OF_VERBOSE);
+        tf = open_file(name, 1, allow_missing_file ? OF_NORMAL : OF_VERBOSE);
     if (!tf)
 	return allow_missing_file ? READ_CONFIG_FILE_NOT_FOUND :
 				    READ_CONFIG_ERROR;
@@ -4210,12 +4236,15 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 	case TIM_OPT_SEQ_PORTS:
 		return parse_opt_seq_ports(arg);
 #endif
-#if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) || defined(IA_NPSYN) || defined(IA_W32G_SYN) || defined(IA_W32GUI)
-	case TIM_OPT_RTSYN_LATENCY:
-		return parse_opt_rtsyn_latency(arg);
-	case TIM_OPT_RTSYN_SKIP_AQ:
-		return parse_opt_rtsyn_skip_aq(arg);
-#endif
+#if defined(IA_WINSYN) || defined(IA_NPSYN) || defined(IA_PORTMIDI) || \
+    defined(IA_W32G_SYN) || defined(IA_W32GUI)
+    case TIM_OPT_RTSYN_LATENCY:
+        return parse_opt_rtsyn_latency(arg);
+    case TIM_OPT_RTSYN_SKIP_AQ:
+        return parse_opt_rtsyn_skip_aq(arg);
+    case TIM_OPT_RTSYN_PRINT_PORTS:
+        return parse_opt_rtsyn_print_ports(arg);
+#endif /* RTSYN || IA_W32GUI */
 	case TIM_OPT_REALTIME_LOAD:
 		return parse_opt_j(arg);
 	case TIM_OPT_ADJUST_KEY:
@@ -4471,6 +4500,8 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 #ifdef SUPPORT_LOOPEVENT
 	case TIM_OPT_LOOP_REPEAT:
 		return parse_opt_midi_loop_repeat(arg);
+	case TIM_OPT_LOOP_FILTER:
+        return parse_opt_midi_loop_filter(arg);		
 #endif /* SUPPORT_LOOPEVENT */
 	case TIM_OPT_OD_LEVEL_GS:
 		return parse_opt_od_level_gs(arg);
@@ -4480,6 +4511,10 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 		return parse_opt_od_level_xg(arg);
 	case TIM_OPT_OD_DRIVE_XG:
 		return parse_opt_od_drive_xg(arg);
+    case TIM_OPT_OD_LEVEL_SD:
+        return parse_opt_od_level_sd(arg);
+    case TIM_OPT_OD_DRIVE_SD:
+        return parse_opt_od_drive_sd(arg);
 				
 #if defined(__W32__)
 	case TIM_OPT_PROCESS_PRIORITY:
@@ -6147,7 +6182,15 @@ static int parse_opt_h(const char *arg)
 " --limiter=n (gain per)",
 #ifdef SUPPORT_LOOPEVENT
 "  --loop-repeat=n",
-"               Set number of repeat count between CC#111 and EOT (CC#111)",
+"               Set number of unwind repeat count",
+"  --loop-filter=types",
+"               Enable loop-event types:",
+"                 type=0 : Filter reset",
+"                      1 : CC#111 - Last End of Track",
+"                      m : Mark A - B",
+"                      l : Mark Loop_Start - Loop_End",
+"                      2 : CC#2 - CC#4",
+"                  All: --loop-filter=1ml2",
 #endif /* SUPPORT_LOOPEVENT */
 #ifdef ENABLE_THREAD
 "  --compute-thread-num=n",
@@ -6651,36 +6694,55 @@ static inline int parse_opt_seq_ports(const char *arg)
 }
 #endif
 
-#if defined(IA_WINSYN) || defined(IA_PORTMIDISYN) ||defined(IA_NPSYN) || defined(IA_W32G_SYN)
+#if defined(IA_WINSYN) || defined(IA_NPSYN) || defined(IA_PORTMIDI) || \
+    defined(IA_W32G_SYN)
 static inline int parse_opt_rtsyn_latency(const char *arg)
 {
-	/* --rtsyn-latency */
-	double latency;
-	if (!arg) arg = "";
-	
-	if (sscanf(arg, "%lf", &latency) == EOF)
-		latency = RTSYN_LATENCY;
-	rtsyn_set_latency(latency);
-	return 0;
+    /* --rtsyn-latency */
+    double latency;
+    if (!arg) arg = "";
+
+    if (sscanf(arg, "%lf", &latency) == EOF)
+        latency = RTSYN_LATENCY;
+    rtsyn_set_latency(latency);
+    return 0;
 }
 
 static inline int parse_opt_rtsyn_skip_aq(const char *arg)
 {
-	/* --rtsyn-skip-aq */
-	if (!arg) return 0;
-	rtsyn_set_skip_aq(atoi(arg));
-	return 0;
+    /* --rtsyn-skip-aq */
+    rtsyn_set_skip_aq(y_or_n_p(arg));
+    return 0;
+}
+
+__attribute__((noreturn))
+static inline int parse_opt_rtsyn_print_ports(const char *arg)
+{
+    /* --rtsyn-print-ports */
+    const char c = ctl->id_character;
+    if (c == 'W' || c == 'P') {
+        ctl->open(0, 0);
+        rtsyn_get_port_list();
+        rtsyn_print_port_list();
+        ctl->close();
+    }
+    exit(EXIT_SUCCESS);
 }
 #elif defined(IA_W32GUI)
 static inline int parse_opt_rtsyn_latency(const char *arg)
 {
-	/* --rtsyn-latency */
-	return 0;
+    /* --rtsyn-latency */
+    return 0;
 }
 static inline int parse_opt_rtsyn_skip_aq(const char *arg)
 {
-	/* --rtsyn-skip-aq */
-	return 0;
+    /* --rtsyn-skip-aq */
+    return 0;
+}
+static inline int parse_opt_rtsyn_print_ports(const char *arg)
+{
+    /* --rtsyn-print-ports */
+    return 0;
 }
 #endif
 
@@ -7551,6 +7613,50 @@ static inline int parse_opt_midi_loop_repeat(const char *arg)
 	opt_use_midi_loop_repeat = (opt_midi_loop_repeat >= 1) ? 1 : 0;
 	return 0;
 }
+
+static inline int parse_opt_midi_loop_filter(const char *arg)
+{
+    int err = 0;
+    if (!arg) return err;
+    opt_use_midi_loop_repeat = 0;
+
+    while (*arg) {
+        switch (*arg) {
+        case '0':
+            /* clear */
+            opt_use_midi_loop_repeat = 0;
+            break;
+
+        case '1':
+            /* Control change #111 */
+            opt_use_midi_loop_repeat |= LF_CC111_TO_EOT;
+            break;
+
+        case 'm':
+            /* Mark `A'-`B'*/
+            opt_use_midi_loop_repeat |= LF_MARK_A_TO_B;
+            break;
+
+        case 'l':
+            /* Mark `Loop_Start'-`Loop_End'*/
+            opt_use_midi_loop_repeat |= LF_MARK_S_TO_E;
+            break;
+
+        case '2':
+            /* Control change #2 - CC#4 */
+            opt_use_midi_loop_repeat |= LF_CC2_TO_CC4;
+            break;
+
+        default:
+            ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+                      "--loop-filter: Illegal mode `%c'", *arg);
+            err++;
+            break;
+        }
+        arg++;
+    }
+    return err;
+}
 #endif /* SUPPORT_LOOPEVENT */
 
 static inline int parse_opt_od_level_gs(const char *arg)
@@ -7587,6 +7693,24 @@ static inline int parse_opt_od_drive_xg(const char *arg)
 		return 1;
 	otd.xgefx_CustomODDrive = level / 100.0;
 	return 0;
+}
+
+static inline int parse_opt_od_level_sd(const char *arg)
+{
+    int level;
+    if (set_value(&level, arg ? atoi(arg) : 100, 1, 400, "SD OD Level adjust"))
+        return 1;
+    otd.sdefx_CustomODLv = level / 100.0;
+    return 0;
+}
+
+static inline int parse_opt_od_drive_sd(const char *arg)
+{
+    int level;
+    if (set_value(&level, arg ? atoi(arg) : 100, 1, 400, "SD OD Drive adjust"))
+        return 1;
+    otd.sdefx_CustomODDrive = level / 100.0;
+    return 0;
 }
 
 #ifdef __W32__
@@ -8022,7 +8146,7 @@ static inline void close_pager(FILE *fp)
 static void interesting_message(void)
 {
 	printf(
-"TiMidity++ %s%s"
+"TiMidity++ %s%s %s"
 #ifdef UNICODE
 " [Unicode]"
 #endif
@@ -8222,13 +8346,13 @@ MAIN_INTERFACE void timidity_start_initialize(void)
 
 MAIN_INTERFACE int timidity_pre_load_configuration(void)
 {
-#if defined(__W32__)
+#ifdef __W32__
     /* Windows */
     char *strp;
     struct timidity_file *check;
     char local[1024];
 
-#if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
+#if defined(IA_W32GUI) || defined(IA_W32G_SYN)
     extern char *ConfigFile;
     if(!ConfigFile[0]) {
       TCHAR tbuf[1024];
@@ -8248,7 +8372,8 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 	}
     }
 #endif
-	/* First, try read configuration file which is in the
+
+    /* First, try read configuration file which is in the
      * TiMidity directory.
      */
 	TCHAR tbuf[1024];
@@ -8287,24 +8412,22 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 	}
     }
 #endif
-
     }
-
 #else
     /* UNIX */
-    if(!read_config_file(CONFIG_FILE, 0, 0))
-		got_a_configuration = 1;
-#endif
+    if (!read_config_file(CONFIG_FILE, 0, 0))
+        got_a_configuration = 1;
+#endif /* __W32__ */
 
     /* Try read configuration file which is in the
      * $HOME (or %HOME% for DOS) directory.
      * Please setup each user preference in $HOME/.timidity.cfg
      * (or %HOME%/timidity.cfg for DOS)
      */
-    if(read_user_config_file()) {
-	ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
-		  "Error: Syntax error in ~/.timidity.cfg");
-	return 1;
+    if (read_user_config_file()) {
+        ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+                  "Error: Syntax error in ~/." CONFIG_FILE_NAME);
+        return 1;
     }
 
     return 0;
@@ -8908,20 +9031,40 @@ int main(int argc, char **argv)
 		program_name++;
 	else
 		program_name = argv[0];
-	if (strncmp(program_name, "timidity", 8) == 0)
-		;
-	else if (strncmp(program_name, "kmidi", 5) == 0)
-		set_ctl("q");
-	else if (strncmp(program_name, "tkmidi", 6) == 0)
-		set_ctl("k");
-	else if (strncmp(program_name, "gtkmidi", 6) == 0)
-		set_ctl("g");
-	else if (strncmp(program_name, "xmmidi", 6) == 0)
-		set_ctl("m");
-	else if (strncmp(program_name, "xawmidi", 7) == 0)
-		set_ctl("a");
-	else if (strncmp(program_name, "xskinmidi", 9) == 0)
-		set_ctl("i");
+    if (strncmp(program_name, "timidity", 8) == 0)
+        ;
+#ifdef IA_KMIDI
+    else if (strncasecmp(program_name, "kmidi", 5) == 0)
+        set_ctl("q");
+#endif /* IA_KMIDI */
+#ifdef IA_TCLTK
+    else if (strncasecmp(program_name, "tkmidi", 6) == 0)
+        set_ctl("k");
+#endif /* IA_TCLTK */
+#ifdef IA_GTK
+    else if (strncasecmp(program_name, "gtkmidi", 6) == 0)
+        set_ctl("g");
+#endif /* IA_GTK */
+#ifdef IA_MOTIF
+    else if (strncasecmp(program_name, "xmmidi", 6) == 0)
+        set_ctl("m");
+#endif /* IA_MOTIF */
+#ifdef IA_XAW
+    else if (strncasecmp(program_name, "xawmidi", 7) == 0)
+        set_ctl("a");
+#endif /* IA_XAW */
+#ifdef IA_XSKIN
+    else if (strncasecmp(program_name, "xskinmidi", 9) == 0)
+        set_ctl("i");
+#endif /* IA_XSKIN */
+#ifdef IA_WINSYN
+    else if (strncasecmp(program_name, "twsync", 6) == 0) /* twsync*.exe */
+        set_ctl("W");
+    else if (strncasecmp(program_name, "tmidisyn", 8) == 0) /* tmidisyn*.exe */
+        set_ctl("W");
+    else if (strncasecmp(program_name, "tmidis~", 7) == 0) /* tmidis~1.exe */
+        set_ctl("W");
+#endif /* IA_WINSYN */
 	if (argc == 1 && !strchr(INTERACTIVE_INTERFACE_IDS, ctl->id_character)) {
 		interesting_message();
 		return 0;
@@ -9151,6 +9294,35 @@ int main(int argc, char **argv)
 		hVSTHost = NULL;
 	}
 #endif
+#if (defined(IA_W32GUI) || defined(IA_W32G_SYN)) && \
+    defined(__GNUC__) && !defined(SUPPORT_WINMAIN)
+    if (RestartTimidity) {
+        PROCESS_INFORMATION pi;
+        STARTUPINFOA si;
+        char path[MAX_PATH];
+        char cmdline[4096];
+        char *params;
+        RestartTimidity = 0;
+        ZeroMemory(&pi, sizeof(pi));
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        path[0] = '\0';
+        GetModuleFileNameA(NULL, path, MAX_PATH);
+        cmdline[0] = '\0';
+        //ArgvToCmdLine(); // ToDo
+        params = (char*) safe_malloc(strlen(path) + 3 + strlen(cmdline) + 1);
+        strcpy(params, "\"");
+        strcat(params, path);
+        strcat(params, "\"" " ");
+        strcat(params, cmdline);
+        if (CreateProcessA(NULL, params, NULL, NULL, TRUE,
+                           CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi) == FALSE)
+            MessageBoxA(NULL, "Restart Error.", "TiMidity++ Win32GUI", MB_OK | MB_ICONEXCLAMATION);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        safe_free(params);
+    }
+#endif /* (IA_W32GUI || IA_W32G_SYN) && __GNUC__ && !SUPPORT_WINMAIN */
 	return main_ret;
 }
 #endif /* !ANOTHER_MAIN || __W32__ */

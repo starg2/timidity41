@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
+    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -33,10 +33,10 @@
 #ifdef RC_NONE
 #undef RC_NONE
 #endif
-#define RC_NONE	0
+#define RC_NONE 0
 
-#define LANGUAGE_JAPANESE				0x0001
-#define LANGUAGE_ENGLISH				0x0002
+#define LANGUAGE_JAPANESE                               0x0001
+#define LANGUAGE_ENGLISH                                0x0002
 extern int PlayerLanguage;
 extern int PlayerMode;
 
@@ -48,15 +48,15 @@ extern int PlayerMode;
 #define _midi_play_mode midi_play_mode
 
 typedef struct argc_argv_t_ {
-	int argc;
-	char **argv;
+        int argc;
+        char **argv;
 } argc_argv_t;
 
 #if defined(_MSC_VER) || defined(__WATCOMC__)
-//typedef void (__cdecl *MSVC_BEGINTHREAD_START_ADDRESS)(void *);
+//typedef void (__cdecl *MSVC_BEGINTHREAD_START_ADDRESS)(void*);
 typedef LPTHREAD_START_ROUTINE MSVC_BEGINTHREAD_START_ADDRESS;
 #elif defined(_BORLANDC_)
-// typedef _USERENTRY (*BCC_BEGINTHREAD_START_ADDRESS)(void *);
+// typedef _USERENTRY (*BCC_BEGINTHREAD_START_ADDRESS)(void*);
 typedef LPTHREAD_START_ROUTINE BCC_BEGINTHREAD_START_ADDRESS;
 #endif
 
@@ -65,25 +65,25 @@ typedef LPTHREAD_START_ROUTINE BCC_BEGINTHREAD_START_ADDRESS;
 // HANDLE crt_beginthread(LPTHREAD_START_ROUTINE start_address, DWORD stack_size, LPVOID arglist);
 #if defined(_MSC_VER) || defined(__WATCOMC__)
 #define crt_beginthread(start_address,stack_size,arglist) \
-(HANDLE)_beginthread((MSVC_BEGINTHREAD_START_ADDRESS)start_address,(unsigned)stack_size,(void *)arglist)
+(HANDLE) _beginthread((MSVC_BEGINTHREAD_START_ADDRESS) start_address,(unsigned) stack_size,(void*) arglist)
 #elif defined(_BORLANDC_)
 #define crt_beginthread(start_address,stack_size,arglist) \
-(HANDLE)_beginthread((BCC_BEGINTHREAD_START_ADDRESS)start_address,(unsigned)stack_size,(void *)arglist)
+(HANDLE) _beginthread((BCC_BEGINTHREAD_START_ADDRESS) start_address,(unsigned) stack_size,(void*) arglist)
 #else
 #define crt_beginthread(start_address,stack_size,arglist) \
-(HANDLE)CreateThread(NULL,(DWORD)stack_size,(LPTHREAD_START_ROUTINE)start_address,(LPVOID)arglist,0,&dwTmp)
+(HANDLE) CreateThread(NULL,(DWORD) stack_size,(LPTHREAD_START_ROUTINE) start_address,(LPVOID) arglist,0,&dwTmp)
 #endif
 
-// (HANDLE)crt_beginthreadex(LPSECURITY_ATTRIBUTES security, DWORD stack_size, LPTHREAD_START_ROUTINE start_address, LPVOID arglist, DWORD initflag, LPDWORD thrdaddr );
+// (HANDLE) crt_beginthreadex(LPSECURITY_ATTRIBUTES security, DWORD stack_size, LPTHREAD_START_ROUTINE start_address, LPVOID arglist, DWORD initflag, LPDWORD thrdaddr );
 #if defined(_MSC_VER) || defined(__WATCOMC__)
 #define crt_beginthreadex(security,stack_size,start_address,arglist,initflag,thrdaddr ) \
-(HANDLE)_beginthreadex((void *)security,(unsigned)stack_size,start_address,(void *)arglist,(unsigned)initflag,(unsigned *)thrdaddr)
+(HANDLE) _beginthreadex((void*) security,(unsigned) stack_size,start_address,(void*) arglist,(unsigned) initflag,(unsigned*) thrdaddr)
 #elif defined(_BORLANDC_)
 #define crt_beginthreadex(security,stack_size,start_address,arglist,initflag,thrdaddr ) \
-(HANDLE)_beginthreadNT((BCC_BEGINTHREAD_START_ADDRESS)start_address,(unsigned)stack_size,(void *)arglist,(void *)security_attrib,(unsigned long)create_flags,(unsigned long *)thread_id)
+(HANDLE) _beginthreadNT((BCC_BEGINTHREAD_START_ADDRESS) start_address,(unsigned) stack_size,(void*) arglist,(void*) security_attrib,(unsigned long) create_flags,(unsigned long*) thread_id)
 #else
 #define crt_beginthreadex(security,stack_size,start_address,arglist,initflag,thrdaddr ) \
-(HANDLE)CreateThread((LPSECURITY_ATTRIBUTES)security,(DWORD)stack_size,(LPTHREAD_START_ROUTINE)start_address,(LPVOID)arglist,(DWORD)initflag,(LPDWORD)thrdaddr)
+(HANDLE) CreateThread((LPSECURITY_ATTRIBUTES) security,(DWORD) stack_size,(LPTHREAD_START_ROUTINE) start_address,(LPVOID) arglist,(DWORD) initflag,(LPDWORD) thrdaddr)
 #endif
 
 #if defined(_MSC_VER) || defined(__WATCOMC__)
@@ -114,7 +114,7 @@ enum {
     RC_EXT_CLEAR_PLAYLIST,
     RC_EXT_OPEN_DOC,
     RC_EXT_RESTART_GUI,
-	RC_EXT_LOAD_FILES_AND_PLAY,
+    RC_EXT_LOAD_FILES_AND_PLAY,
 ///r
     RC_EXT_PLAYLIST_CTRL,
     RC_EXT_COPYCUT_PLAYLIST,
@@ -122,121 +122,121 @@ enum {
     RC_EXT_PLAYLIST_CTRL_UPDATE,
 };
 ///r
-#define MAX_W32G_MIDI_CHANNELS	MAX_CHANNELS
+#define MAX_W32G_MIDI_CHANNELS  MAX_CHANNELS
 
 
 // Toolbar Macros
-#define IDM_STOP		2501
-#define IDM_PAUSE		2502
-#define IDM_PREV		2503
-#define IDM_FOREWARD	2504
-#define IDM_PLAY		2505
-#define IDM_BACKWARD	2506
-#define IDM_NEXT		2507
+#define IDM_STOP                2501
+#define IDM_PAUSE               2502
+#define IDM_PREV                2503
+#define IDM_FOREWARD    2504
+#define IDM_PLAY                2505
+#define IDM_BACKWARD    2506
+#define IDM_NEXT                2507
 
-#define IDM_CONSOLE		2511
-#define IDM_LIST		2512
-#define IDM_TRACER	 	2513
-#define IDM_DOC			2514
-#define IDM_WRD			2515
-#define IDM_SOUNDSPEC	2516
+#define IDM_CONSOLE             2511
+#define IDM_LIST                2512
+#define IDM_TRACER              2513
+#define IDM_DOC                 2514
+#define IDM_WRD                 2515
+#define IDM_SOUNDSPEC   2516
 ///r
-#define IDM_VSTMGR		2517
+#define IDM_VSTMGR              2517
 
-#define FLAG_NOTE_OFF	1
-#define FLAG_NOTE_ON	2
+#define FLAG_NOTE_OFF   1
+#define FLAG_NOTE_ON    2
 
-#define FLAG_BANK	0x0001
-#define FLAG_PROG	0x0002
-#define FLAG_PAN	0x0004
-#define FLAG_SUST	0x0008
+#define FLAG_BANK       0x0001
+#define FLAG_PROG       0x0002
+#define FLAG_PAN        0x0004
+#define FLAG_SUST       0x0008
 
-#define FLAG_NOTE_OFF	1
-#define FLAG_NOTE_ON	2
+#define FLAG_NOTE_OFF   1
+#define FLAG_NOTE_ON    2
 
-#define FLAG_BANK	0x0001
-#define FLAG_PROG	0x0002
-#define FLAG_PAN	0x0004
-#define FLAG_SUST	0x0008
+#define FLAG_BANK       0x0001
+#define FLAG_PROG       0x0002
+#define FLAG_PAN        0x0004
+#define FLAG_SUST       0x0008
 
 typedef struct {
-	int reset_panel;
-	int wait_reset;
-	int multi_part;
+        int reset_panel;
+        int wait_reset;
+        int multi_part;
 
-	char v_flags[MAX_W32G_MIDI_CHANNELS];
-	int16 cnote[MAX_W32G_MIDI_CHANNELS];
-	int16 cvel[MAX_W32G_MIDI_CHANNELS];
-	int16 ctotal[MAX_W32G_MIDI_CHANNELS];
-	char c_flags[MAX_W32G_MIDI_CHANNELS];
-	Channel channel[MAX_W32G_MIDI_CHANNELS];
+        char v_flags[MAX_W32G_MIDI_CHANNELS];
+        int16 cnote[MAX_W32G_MIDI_CHANNELS];
+        int16 cvel[MAX_W32G_MIDI_CHANNELS];
+        int16 ctotal[MAX_W32G_MIDI_CHANNELS];
+        char c_flags[MAX_W32G_MIDI_CHANNELS];
+        Channel channel[MAX_W32G_MIDI_CHANNELS];
 
-	int32 total_time;
-	int total_time_h;
-	int total_time_m;
-	int total_time_s;
-	int total_time_ss;
-	int32 cur_time;
-	int cur_time_h;
-	int cur_time_m;
-	int cur_time_s;
-	int cur_time_ss;
-	int cur_voices;
-	int voices;
-	int upper_voices;
-	char filename[FILEPATH_MAX];
-	char titlename[FILEPATH_MAX];
-	int filename_setflag;
-	int titlename_setflag;
-	int32 master_volume;
-	int32 master_volume_max;
-	int meas;
-	int beat;
-	char keysig[7];
-	int key_offset;
-	int tempo;
-	int tempo_ratio;
-	int invalid_flag;
+        int32 total_time;
+        int total_time_h;
+        int total_time_m;
+        int total_time_s;
+        int total_time_ss;
+        int32 cur_time;
+        int cur_time_h;
+        int cur_time_m;
+        int cur_time_s;
+        int cur_time_ss;
+        int cur_voices;
+        int voices;
+        int upper_voices;
+        char filename[FILEPATH_MAX];
+        char titlename[FILEPATH_MAX];
+        int filename_setflag;
+        int titlename_setflag;
+        int32 master_volume;
+        int32 master_volume_max;
+        int meas;
+        int beat;
+        char keysig[7];
+        int key_offset;
+        int tempo;
+        int tempo_ratio;
+        int invalid_flag;
 
-	int32 xnote[MAX_W32G_MIDI_CHANNELS][4];
-	int aq_ratio;
+        int32 xnote[MAX_W32G_MIDI_CHANNELS][4];
+        int aq_ratio;
 
-	int changed;
-	char dummy[1024];
+        int changed;
+        char dummy[1024];
 
-	int8 GSLCD[20][16];
-	double gslcd_last_display_time;
-	int8 gslcd_displayed_flag;
+        int8 GSLCD[20][16];
+        double gslcd_last_display_time;
+        int8 gslcd_displayed_flag;
 } PanelInfo;
 extern PanelInfo *Panel;
 
-#define PANELRESET_TIME			0x0001
-#define PANELRESET_CHANNEL		0x0002
-#define PANELRESET_MIDIINFO	0x0004
-#define PANELRESET_MISC			0x0008
-#define PANELRESET_EFFECT		0x0010
+#define PANELRESET_TIME                 0x0001
+#define PANELRESET_CHANNEL              0x0002
+#define PANELRESET_MIDIINFO     0x0004
+#define PANELRESET_MISC                 0x0008
+#define PANELRESET_EFFECT               0x0010
 
 
-#define CANVAS_MODE_GSLCD		0x0001
-#define CANVAS_MODE_MAP16		0x0002
-#define CANVAS_MODE_MAP32		0x0003
-#define CANVAS_MODE_MAP64		0x0004
-#define CANVAS_MODE_KBD_A		0x0005
-#define CANVAS_MODE_KBD_B		0x0006
-#define CANVAS_MODE_KBD_C		0x0007
-#define CANVAS_MODE_KBD_D		0x0008
-#define CANVAS_MODE_SLEEP		0x0009
+#define CANVAS_MODE_GSLCD               0x0001
+#define CANVAS_MODE_MAP16               0x0002
+#define CANVAS_MODE_MAP32               0x0003
+#define CANVAS_MODE_MAP64               0x0004
+#define CANVAS_MODE_KBD_A               0x0005
+#define CANVAS_MODE_KBD_B               0x0006
+#define CANVAS_MODE_KBD_C               0x0007
+#define CANVAS_MODE_KBD_D               0x0008
+#define CANVAS_MODE_SLEEP               0x0009
 
 #if 0
-#define TMCCC_BLACK	RGB(0x00,0x00,0x00)
-#define TMCCC_WHITE	RGB(0xff,0xff,0xff)
-#define TMCCC_RED	RGB(0xff,0x00,0x00)
+#define TMCCC_BLACK     RGB(0x00,0x00,0x00)
+#define TMCCC_WHITE     RGB(0xff,0xff,0xff)
+#define TMCCC_RED       RGB(0xff,0x00,0x00)
 
-#define TMCCC_FORE	TMCCC_BLACK // Aliased
-#define TMCCC_BACK 	RGB(0x00, 0xf0, 0x00)
-#define TMCCC_LOW	RGB(0x80, 0xd0, 0x00)
-#define TMCCC_MIDDLE	RGB(0xb0, 0xb0, 0x00)
-#define TMCCC_HIGH	RGB(0xe0, 0x00, 0x00)
+#define TMCCC_FORE      TMCCC_BLACK // Aliased
+#define TMCCC_BACK      RGB(0x00, 0xf0, 0x00)
+#define TMCCC_LOW       RGB(0x80, 0xd0, 0x00)
+#define TMCCC_MIDDLE    RGB(0xb0, 0xb0, 0x00)
+#define TMCCC_HIGH      RGB(0xe0, 0x00, 0x00)
 
 enum {
     TMCC_BLACK, // Aliased FORE
@@ -270,7 +270,7 @@ extern int w32g_get_rc(ptr_size_t *value, int wait_if_empty);
 extern void w32g_lock(void);
 extern void w32g_unlock(void);
 extern void MainWndScrollbarProgressUpdate(int sec);
-extern void PutsConsoleWnd(char *str);
+extern void PutsConsoleWnd(const char *str);
 extern void w32g_ctle_play_start(int sec);
 extern void SettingWndApply(void);
 extern int w32g_lock_open_file;
@@ -278,14 +278,14 @@ extern void w32g_i_init(void);
 extern void CanvasChange(int mode);
 extern HINSTANCE hInst;
 extern void w32g_show_console(void);
-extern void MPanelStartLoad(char *filename);
+extern void MPanelStartLoad(const char *filename);
 
 
 /* w32g_utl.c */
 
 /* w32g_playlist.c */
 extern int w32g_add_playlist(int nfiles, char **files, int expand_flag,
-			     int autouniq, int autorefine);
+                             int autouniq, int autorefine);
 extern char *w32g_get_playlist(int idx);
 extern int w32g_next_playlist(int skip_invalid_file);
 extern int w32g_prev_playlist(int skip_invalid_file);
@@ -328,7 +328,7 @@ extern void w32g_paste_playlist(int uniq, int refine);
 #if 0
 /* w32g_panel.c */
 extern void w32g_init_panel(HWND hwnd);
-extern void TmPanelStartToLoad(char *filename);
+extern void TmPanelStartToLoad(const char *filename);
 extern void TmPanelStartToPlay(int total_sec);
 extern void TmPanelSetVoices(int v);
 //extern void TmPanelInit(HWND hwnd);
@@ -421,9 +421,18 @@ extern int gdi_lock(void);
 extern int gdi_unlock(void);
 #define GDI_SAFETY(command) (gdi_lock(),(command),gdi_unlock);
 
+// use twsyng32.ini or timpp32g.ini ??
+#if defined(TIMDRVINI)
+#define TIMW32_INITFILE_NAME "timdrv.ini"
+#elif defined(TWSYNG32INI)
+#define TIMW32_INITFILE_NAME "twsyng32.ini"
+#else
+#define TIMW32_INITFILE_NAME "timpp32g.ini"
+#endif
+
 #define W32G_RANDOM_IS_SHUFFLE
 
-#ifndef BELOW_NORMAL_PRIORITY_CLASS	/* VC6.0 doesn't support them. */
+#ifndef BELOW_NORMAL_PRIORITY_CLASS     /* VC6.0 doesn't support them. */
 #define BELOW_NORMAL_PRIORITY_CLASS 0x4000
 #define ABOVE_NORMAL_PRIORITY_CLASS 0x8000
 #endif /* BELOW_NORMAL_PRIORITY_CLASS */
