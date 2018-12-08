@@ -4658,7 +4658,7 @@ static void TiMidityWnd(HWND hParentWnd)
 {
 	char TiMidityText[2024];
   snprintf(TiMidityText, sizeof(TiMidityText) / sizeof(char),
-" TiMidity++ %s%s"
+" TiMidity++ %s%s %s"
 #ifdef UNICODE
 " [Unicode]"
 #endif
