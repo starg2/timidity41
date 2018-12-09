@@ -5238,21 +5238,21 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
     case WM_INITDIALOG:
         switch (PlayerLanguage) {
         case LANGUAGE_ENGLISH:
-            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)"Open Internet URL");
-            SendMessage(GetDlgItem(hwnd, IDC_STATIC_HEAD), WM_SETTEXT, 0, (LPARAM)"Type the address of a file (on the Internet) and the player will open it for you.");
-            SendMessage(GetDlgItem(hwnd, IDC_STATIC_TAIL), WM_SETTEXT, 0, (LPARAM)"(ex. http, ftp, news protocols)");
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_1), WM_SETTEXT, 0, (LPARAM)"PLAY");
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_2), WM_SETTEXT, 0, (LPARAM)"ADD LIST");
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_3), WM_SETTEXT, 0, (LPARAM)"CLOSE");
+            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)_T("Open Internet URL"));
+            SendMessage(GetDlgItem(hwnd, IDC_STATIC_HEAD), WM_SETTEXT, 0, (LPARAM)_T("Type the address of a file (on the Internet) and the player will open it for you."));
+            SendMessage(GetDlgItem(hwnd, IDC_STATIC_TAIL), WM_SETTEXT, 0, (LPARAM)_T("(ex. http, ftp, news protocols)"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_1), WM_SETTEXT, 0, (LPARAM)_T("PLAY"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_2), WM_SETTEXT, 0, (LPARAM)_T("ADD LIST"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_3), WM_SETTEXT, 0, (LPARAM)_T("CLOSE"));
             break;
         case LANGUAGE_JAPANESE:
         default:
-            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)"URL を開く");
-            SendMessage(GetDlgItem(hwnd, IDC_STATIC_HEAD), WM_SETTEXT, 0, (LPARAM)"インターネットにあるファイルのアドレスを入れてください。");
-            SendMessage(GetDlgItem(hwnd, IDC_STATIC_TAIL), WM_SETTEXT, 0, (LPARAM)"(例: http, ftp, news プロトコル)");
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_1), WM_SETTEXT, 0, (LPARAM)"演奏");
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_2), WM_SETTEXT, 0, (LPARAM)"リスト追加");
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_3), WM_SETTEXT, 0, (LPARAM)"閉じる");
+            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)_T("URL を開く"));
+            SendMessage(GetDlgItem(hwnd, IDC_STATIC_HEAD), WM_SETTEXT, 0, (LPARAM)_T("インターネットにあるファイルのアドレスを入れてください。"));
+            SendMessage(GetDlgItem(hwnd, IDC_STATIC_TAIL), WM_SETTEXT, 0, (LPARAM)_T("(例: http, ftp, news プロトコル)"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_1), WM_SETTEXT, 0, (LPARAM)_T("演奏"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_2), WM_SETTEXT, 0, (LPARAM)_T("リスト追加"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_3), WM_SETTEXT, 0, (LPARAM)_T("閉じる"));
             break;
         }
         SendDlgItemMessage(hwnd, IDC_BUTTON_1, BM_SETSTYLE, BS_DEFPUSHBUTTON, (LONG)TRUE);
@@ -5260,7 +5260,7 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         SendDlgItemMessage(hwnd, IDC_BUTTON_3, BM_SETSTYLE, BS_PUSHBUTTON, (LONG)TRUE);
         SetFocus(GetDlgItem(hwnd, IDC_EDIT_ONE_LINE));
         SendDlgItemMessage(hwnd, IDC_EDIT_ONE_LINE, EM_SETSEL, (WPARAM)0, (LPARAM)0);
-        SendDlgItemMessage(hwnd, IDC_EDIT_ONE_LINE, EM_REPLACESEL, (WPARAM)FALSE, (LPARAM)"http://");
+        SendDlgItemMessage(hwnd, IDC_EDIT_ONE_LINE, EM_REPLACESEL, (WPARAM)FALSE, (LPARAM)_T("http://"));
         return TRUE;
 
     case WM_COMMAND:
@@ -5270,15 +5270,15 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             break;
 
         case IDC_BUTTON_1: {
-            char UrlOpenString[UrlOpenStringMax];
+            TCHAR UrlOpenString[UrlOpenStringMax];
             char **argv;
-            ZeroMemory(UrlOpenString, UrlOpenStringMax * sizeof(char));
+            ZeroMemory(UrlOpenString, UrlOpenStringMax * sizeof(TCHAR));
             SendDlgItemMessage(hwnd, IDC_EDIT_ONE_LINE,
                 WM_GETTEXT, (WPARAM)(UrlOpenStringMax - 1), (LPARAM)UrlOpenString);
             w32g_lock_open_file = 1;
             UrlArgcArgv.argc = 1;
             argv = (char**) safe_malloc((UrlArgcArgv.argc + 1) * sizeof(char*));
-            argv[0] = safe_strdup(UrlOpenString);
+            argv[0] = tchar_to_char(UrlOpenString);
             argv[1] = NULL;
             UrlArgcArgv.argv = argv;
             // argv, argv[0] は別のところで解放してくれる
@@ -5293,11 +5293,16 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             break; }
 
         case IDC_BUTTON_2: {
-            char UrlOpenString[UrlOpenStringMax];
+            static char UrlOpenString[UrlOpenStringMax];
+            TCHAR tUrlOpenString[UrlOpenStringMax];
             ZeroMemory(UrlOpenString, UrlOpenStringMax * sizeof(char));
+            ZeroMemory(tUrlOpenString, UrlOpenStringMax * sizeof(TCHAR));
             SendDlgItemMessage(hwnd, IDC_EDIT_ONE_LINE,
-                WM_GETTEXT, (WPARAM)(UrlOpenStringMax - 1), (LPARAM)UrlOpenString);
+                WM_GETTEXT, (WPARAM)(UrlOpenStringMax - 1), (LPARAM)tUrlOpenString);
             w32g_lock_open_file = 1;
+			char *s = tchar_to_char(tUrlOpenString);
+			strlcpy(UrlOpenString, s, UrlOpenStringMax - 1);
+			safe_free(s);
 #ifdef EXT_CONTROL_MAIN_THREAD
             w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t) UrlOpenString);
 #else
