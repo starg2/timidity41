@@ -1073,18 +1073,24 @@ static DWORD w32_detect_code_page(const char *text)
 	int escape_count = 0;	// number of 0x1B (ESC), unique to ISO-2022-JP (JIS)
 	int utf8_ja_prefix_count = 0;	// number of 0xE3, appears in Japanese texts encoded in UTF-8
 	int sjis_like_prefix_count = 0;	// number of [0x81, 0x8D] and [0x90-0x9F], often appears in Shift_JIS
+	int big5_like_char_count = 0;	// number of [0xA1, 0xBF], maybe Big5?
+	int gb_like_char_count = 0;	// number of [0xC1, 0xDF], maybe GB-2312?
 	int non_ascii_count = 0;	// number of code >= 0x80
 
 	while (*p) {
-		if (*p >= 0x80)
+		if ((uint8)*p >= 0x80)
 			non_ascii_count++;
 
-		if (*p == 0x1B)
+		if ((uint8)*p == 0x1B)
 			escape_count++;
-		else if (*p == 0xE3)
+		else if ((uint8)*p == 0xE3)
 			utf8_ja_prefix_count++;
-		else if ((0x81 <= *p && *p <= 0x8D) || (0x90 <= *p && *p <= 0x9F))
+		else if ((0x81 <= (uint8)*p && (uint8)*p <= 0x8D) || (0x90 <= (uint8)*p && (uint8)*p <= 0x9F))
 			sjis_like_prefix_count++;
+		else if (0xA1 <= (uint8)*p && (uint8)*p <= 0xBF)
+			big5_like_char_count++;
+		else if (0xC0 <= (uint8)*p && (uint8)*p <= 0xDF)
+			gb_like_char_count++;
 
 		p++;
 	}
@@ -1095,10 +1101,19 @@ static DWORD w32_detect_code_page(const char *text)
 		return 65001;	// UTF-8
 	else if (sjis_like_prefix_count > 0)
 		return 932;	// SJIS
-	else if (non_ascii_count > 0)
+	else if ((gb_like_char_count > len / 6) && (big5_like_char_count > len / 6)) {
+		if (gb_like_char_count * 2 > big5_like_char_count * 3)
+			return 54936;
+		else
+			return 950;
+	} else if (gb_like_char_count > len / 4)
+		return 54936;
+	else if (big5_like_char_count > len / 4)
+		return 950;
+	else if (non_ascii_count > len / 4)
 		return 51932;	// EUC
 	else
-		return CP_ACP;
+		return 1252;
 }
 
 static DWORD w32_code_page_from_id(const char *code)
@@ -1118,11 +1133,12 @@ static DWORD w32_code_page_from_id(const char *code)
 void w32_code_convert_japanese(char *in, char *out, size_t outsiz, char *icode, char *ocode)
 {
 	DWORD in_code = icode ? w32_code_page_from_id(icode) : w32_detect_code_page(in);
-	int wlen = MultiByteToWideChar(in_code, 0, in, -1, NULL, NULL);
+	int wlen = MultiByteToWideChar(in_code, 0, in, -1, NULL, NULL);	// includes a null terminator
 	wchar_t *wstr = (wchar_t *)safe_malloc(wlen * sizeof(wchar_t));
 	MultiByteToWideChar(in_code, 0, in, -1, wstr, wlen);
 
 	WideCharToMultiByte(w32_code_page_from_id(ocode ? ocode : output_text_code), 0, wstr, wlen, out, outsiz, NULL, NULL);
+	safe_free(wstr);
 }
 
 #endif /* __W32__ */
