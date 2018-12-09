@@ -1647,7 +1647,7 @@ static int is_sjis_leadbyte(char c)
 
 char *pathsep_strchr(const char *path)
 {
-#if defined(__W32__) // sjis
+#if defined(__W32__) && defined(JAPANESE) && !defined(UNICODE) // sjis
     int tail = 0;
     while (*path)
     {
@@ -1686,7 +1686,7 @@ char *pathsep_strchr(const char *path)
 
 char *pathsep_strrchr(const char *path)
 {
-#if defined(__W32__) // sjis
+#if defined(__W32__) && defined(JAPANESE) && !defined(UNICODE) // sjis
     char *last_sep = NULL;
     int tail = 0;
     while (*path)
