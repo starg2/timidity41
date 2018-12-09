@@ -366,6 +366,30 @@ public:
         );
     }
 
+    std::size_t GetVisualColumnLength(std::size_t line) const
+    {
+        return std::accumulate(
+            m_Fragments.begin() + m_Lines[line].Offset,
+            m_Fragments.begin() + m_Lines[line].Offset + m_Lines[line].Length,
+            0,
+            [str = TStringView(m_String)](auto&& a, auto&& b)
+            {
+#ifdef UNICODE
+                std::size_t visualLength = 0;
+
+                for (wchar_t c : str.substr(b.Offset, b.Length))
+                {
+                    visualLength += (c < 128 ? 1 : 2);
+                }
+
+                return a + visualLength;
+#else
+                return a + b.Length;
+#endif
+            }
+        );
+    }
+
     TStringView GetString() const
     {
         return m_String;
@@ -430,7 +454,7 @@ private:
         }
 
         // update m_MaxColumnLength
-        m_MaxColumnLength = std::max(GetColumnLength(GetLineCount() - 1), m_MaxColumnLength);
+        m_MaxColumnLength = std::max(GetVisualColumnLength(GetLineCount() - 1), m_MaxColumnLength);
     }
 
     TString m_String;
@@ -752,11 +776,11 @@ private:
             break;
 
         case SB_PAGELEFT:
-            m_CurrentLeftColumnNumber = std::max(0, m_CurrentLeftColumnNumber - GetVisileColumnsInWindow());
+            m_CurrentLeftColumnNumber = std::max(0, m_CurrentLeftColumnNumber - GetVisibleColumnsInWindow());
             break;
 
         case SB_PAGERIGHT:
-            m_CurrentLeftColumnNumber = std::min(m_CurrentLeftColumnNumber + GetVisileColumnsInWindow(), GetMaxLeftColumnNumber());
+            m_CurrentLeftColumnNumber = std::min(m_CurrentLeftColumnNumber + GetVisibleColumnsInWindow(), GetMaxLeftColumnNumber());
             break;
 
         case SB_THUMBPOSITION:
@@ -1039,7 +1063,7 @@ private:
 
     int GetMaxLeftColumnNumber() const
     {
-        return m_Buffer.GetMaxColumnLength() - GetVisileColumnsInWindow();
+        return m_Buffer.GetMaxColumnLength() - GetVisibleColumnsInWindow();
     }
 
     int GetVisibleLinesInWindow() const
@@ -1049,7 +1073,7 @@ private:
         return (rc.bottom - rc.top) / m_FontHeight;
     }
 
-    int GetVisileColumnsInWindow() const
+    int GetVisibleColumnsInWindow() const
     {
         RECT rc;
         ::GetClientRect(m_hWnd, &rc);
@@ -1106,7 +1130,7 @@ private:
         sih.fMask = SIF_ALL | SIF_DISABLENOSCROLL;
         sih.nMin = 0;
         sih.nMax = m_Buffer.GetMaxColumnLength() - 1;
-        sih.nPage = static_cast<UINT>(GetVisileColumnsInWindow());
+        sih.nPage = static_cast<UINT>(GetVisibleColumnsInWindow());
         sih.nPos = m_CurrentLeftColumnNumber;
 
         ::SetScrollInfo(m_hWnd, SB_VERT, &siv, true);
