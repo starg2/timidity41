@@ -5083,6 +5083,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
     int i;
     int32 smf_at_time;
     int note_seen = (! opt_preserve_silence);
+	int hascc111;
 
     smf_at_time = readmidi_set_track(trackno, rewindp);
 
@@ -5103,6 +5104,7 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
     }
 
     lastchan = laststatus = 0;
+	hascc111 = 0;
 
     for(;;)
     {
@@ -5279,6 +5281,8 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 		    break;
 
 		  case 0x2F: /* End of Track */
+            if (hascc111 != 0)
+                MIDIEVENT(smf_at_time, ME_NONE, 0, 0, 0);
 		    pos = tf_tell(tf);
 		    if(pos < next_pos)
 			tf_seek(tf, next_pos - pos, SEEK_CUR);
@@ -5408,6 +5412,12 @@ static int read_smf_track(struct timidity_file *tf, int trackno, int rewindp)
 	      case 3: /* Control change */
 		b = tf_getc(tf);
 		readmidi_add_ctl_event(smf_at_time, lastchan, a, b);
+		if (a == 111) {
+			if (hascc111 == 0)
+				ctl->cmsg(CMSG_INFO, VERB_DEBUG,
+					"Detection loop start event CC#111");
+			hascc111 = 1;
+		}
 		break;
 
 	      case 4: /* Program change */
