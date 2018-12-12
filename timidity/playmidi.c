@@ -4031,7 +4031,7 @@ static void recompute_amp_envelope_follow(int v, int ch)
 	Voice *vp = voice + v; 
 	Channel *cp = channel + ch;
 	int i, note = vp->note, dr = ISDRUMCHANNEL(ch);
-	double notesub = (double)(vp->note - 60); 
+	double notesub = (double)(vp->note - vp->sample->envelope_keyf_bpo); 
 	double amp_velsub = (double)(vp->velocity - vp->sample->envelope_velf_bpo);
 	struct DrumParts *dp = NULL;
 	int add_param[6];
@@ -4128,7 +4128,7 @@ static void recompute_mod_envelope_follow(int v, int ch)
 	Voice *vp = voice + v; 
 	Channel *cp = channel + ch;
 	int i, note = vp->note, dr = ISDRUMCHANNEL(ch);
-	double notesub = (double)(vp->note - 60); 
+	double notesub = (double)(vp->note - vp->sample->modenv_keyf_bpo);
 	double mod_velsub = (double)(vp->velocity - vp->sample->modenv_velf_bpo);
 	struct DrumParts *dp = NULL;
 	int add_param[6];
@@ -4275,8 +4275,8 @@ static void set_mod_envelope_param(int v)
 			vp->mod_env.rate[i] = div_control_ratio;
 			vp->mod_env.offset[i] = 0;
 		}else if(i == ENV0_RELEASE4_STAGE){
-			vp->amp_env.rate[i] = (double)OFFSET_MAX * DIV_RELEASE4_TIME * div_playmode_rate;
-			vp->amp_env.offset[i] = 0;
+			vp->mod_env.rate[i] = (double)OFFSET_MAX * DIV_RELEASE4_TIME * div_playmode_rate;
+			vp->mod_env.offset[i] = 0;
 		}else if(i < ENV0_RELEASE1_STAGE){
 			vp->mod_env.rate[i] = (double)vp->sample->modenv_rate[i - 1] * div_control_ratio;
 			vp->mod_env.offset[i] = (double)vp->sample->modenv_offset[i - 1];

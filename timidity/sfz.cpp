@@ -1574,7 +1574,7 @@ private:
 
                     double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
                     s.envelope_offset[3] = 0;
-                    s.envelope_rate[3] = CalcRate(sustainLevel, releaseTime);
+                    s.envelope_rate[3] = CalcRate(65535, releaseTime);
                     s.envelope_offset[4] = s.envelope_offset[3];
                     s.envelope_rate[4] = s.envelope_rate[3];
                     s.envelope_offset[5] = s.envelope_offset[3];

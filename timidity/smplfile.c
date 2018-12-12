@@ -1441,6 +1441,7 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 			sample->vel_to_fc = sample->key_to_fc = sample->vel_to_resonance = 0;
 		sample->vel_to_fc_threshold = 0;
 		sample->envelope_velf_bpo = sample->modenv_velf_bpo = 64;
+		sample->envelope_keyf_bpo = sample->modenv_keyf_bpo = 60;
 		sample->key_to_fc_bpo = 60;
 		sample->scale_freq = 60;
 		sample->scale_factor = 1024;
