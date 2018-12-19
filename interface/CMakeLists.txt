@@ -128,7 +128,7 @@ add_library(
 )
 
 add_dependencies(interface_synsrv twsyn_bridge)
-target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
+target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 
 # for timw32g
 
@@ -153,4 +153,4 @@ add_library(
 )
 
 add_dependencies(interface_w32gsyn UpdateTim41Version twsyn_bridge)
-target_compile_definitions(interface_w32gsyn PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+target_compile_definitions(interface_w32gsyn PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
