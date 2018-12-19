@@ -178,4 +178,4 @@ add_library(
 )
 
 add_dependencies(interface_w32gsyn_u8 UpdateTim41Version twsyn_bridge)
-target_compile_definitions(interface_w32gsyn_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+target_compile_definitions(interface_w32gsyn_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)

@@ -287,6 +287,6 @@ add_executable(
 )
 
 add_dependencies(twsyng_u8 UpdateTim41Version)
-target_compile_definitions(twsyng_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+target_compile_definitions(twsyng_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
 target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS} pdcurses)
 DisableMSManifest(twsyng_u8)
