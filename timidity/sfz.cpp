@@ -1541,7 +1541,7 @@ private:
                     s.envelope_rate[2] = CalcRate(65534, 0.0);
 
                     s.envelope_offset[3] = 0;
-                    s.envelope_rate[3] = CalcRate(0, 0.0);
+                    s.envelope_rate[3] = CalcRate(65535, 0.0);
                     s.envelope_offset[4] = s.envelope_offset[3];
                     s.envelope_rate[4] = s.envelope_rate[3];
                     s.envelope_offset[5] = s.envelope_offset[3];

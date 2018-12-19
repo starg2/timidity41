@@ -558,7 +558,7 @@ public:
                         case DLSConnectionBlock::DestinationKind::EG1SustainLevel:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                sustainLevel = std::clamp(b.Scale / 1000, 1, 65533);
+                                sustainLevel = std::clamp(b.Scale / 1000, 0, 65533);
                                 continue;
                             }
                             break;
