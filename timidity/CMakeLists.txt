@@ -216,7 +216,7 @@ add_executable(
 )
 
 add_dependencies(twsynsrv UpdateTim41Version)
-target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV)
+target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS} pdcurses)
 
 # timw32g
@@ -251,7 +251,7 @@ add_executable(
 )
 
 add_dependencies(twsyng UpdateTim41Version)
-target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32)
+target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
 target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS} pdcurses)
 DisableMSManifest(twsyng)
 
