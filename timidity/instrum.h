@@ -52,7 +52,7 @@ typedef struct _Sample {
   int32 envelope_delay, modenv_delay;	/* in samples */
   int16 modenv_to_pitch, modenv_to_fc,
 	  envelope_keyf[6], envelope_velf[6], modenv_keyf[6], modenv_velf[6];
-  int8 envelope_velf_bpo, modenv_velf_bpo,
+  int8 envelope_velf_bpo, modenv_velf_bpo, envelope_keyf_bpo, modenv_keyf_bpo,
 	  key_to_fc_bpo, vel_to_fc_threshold;	/* in notes */
   int32 pitch_envelope[9];
   // lfo

@@ -999,7 +999,9 @@ void reload_cfg(void)
 	}
 	read_config_file(sp_temp->ConfigFile, 0, 0);
     }
-    PrefSettingApply();
+	safe_free(CurrentConfigFile);
+	CurrentConfigFile = safe_strdup(sp_temp->ConfigFile);
+	PrefSettingApply();
 
 #if defined(WINDRV) || defined(WINDRV_SETUP)
 	timdrvOverrideSFSettingLoad();

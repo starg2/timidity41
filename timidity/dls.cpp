@@ -488,8 +488,10 @@ public:
 
                 pSample->cutoff_freq = 20000;
                 pSample->cutoff_low_limit = -1;
-                pSample->envelope_velf_bpo = 64;
-                pSample->modenv_velf_bpo = 64;
+                pSample->envelope_velf_bpo = 0;
+                pSample->modenv_velf_bpo = 0;
+                pSample->envelope_keyf_bpo = 0;
+                pSample->modenv_keyf_bpo = 0;
                 pSample->key_to_fc_bpo = 60;
                 pSample->scale_freq = 60;
                 pSample->scale_factor = 1024;
@@ -530,12 +532,12 @@ public:
                         case DLSConnectionBlock::DestinationKind::EG1AttackTime:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                attackTime = TimeCentToSecond(b.Scale);
+                                attackTime = std::clamp(TimeCentToSecond(b.Scale), 0.0, 20.0);
                                 continue;
                             }
                             else if (b.Source == DLSConnectionBlock::SourceKind::KeyOnVelocity && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                pSample->envelope_velf[0] = static_cast<int16>(b.Scale / 65536);
+                                pSample->envelope_velf[0] = static_cast<int16>(b.Scale / 128 / 65536);
                                 continue;
                             }
                             break;
@@ -543,13 +545,12 @@ public:
                         case DLSConnectionBlock::DestinationKind::EG1DecayTime:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                decayTime = TimeCentToSecond(b.Scale);
+                                decayTime = std::clamp(TimeCentToSecond(b.Scale), 0.0, 40.0);
                                 continue;
                             }
                             else if (b.Source == DLSConnectionBlock::SourceKind::KeyNumber && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                // this is probably incorrect
-                                pSample->envelope_keyf[1] = static_cast<int16>(b.Scale / 65536);
+                                pSample->envelope_keyf[1] = static_cast<int16>(b.Scale / 128 / 65536);
                                 continue;
                             }
                             break;
@@ -557,7 +558,7 @@ public:
                         case DLSConnectionBlock::DestinationKind::EG1SustainLevel:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                sustainLevel = std::lround(65533.0 * std::clamp(b.Scale, 0, 1000) / 1000.0);
+                                sustainLevel = std::clamp(b.Scale / 1000, 0, 65533);
                                 continue;
                             }
                             break;
@@ -565,7 +566,7 @@ public:
                         case DLSConnectionBlock::DestinationKind::EG1ReleaseTime:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                releaseTime = TimeCentToSecond(b.Scale);
+                                releaseTime = std::clamp(TimeCentToSecond(b.Scale), 0.0, 20.0);
                                 continue;
                             }
                             break;
@@ -633,14 +634,16 @@ public:
                 pSample->envelope_rate[1] = CalcRate(1, holdTime);
 
                 pSample->envelope_offset[2] = ToOffset(sustainLevel);
-                pSample->envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(decayTime, 0.0, 100.0));
+                pSample->envelope_rate[2] = CalcRate(65534 - sustainLevel, decayTime);
 
                 pSample->envelope_offset[3] = 0;
-                pSample->envelope_rate[3] = CalcRate(sustainLevel, releaseTime);
-                pSample->envelope_offset[4] = pSample->envelope_offset[3];
+                pSample->envelope_rate[3] = CalcRate(65535, releaseTime);
+                pSample->envelope_offset[4] = 0;
                 pSample->envelope_rate[4] = pSample->envelope_rate[3];
-                pSample->envelope_offset[5] = pSample->envelope_offset[3];
+                pSample->envelope_offset[5] = 0;
                 pSample->envelope_rate[5] = pSample->envelope_rate[3];
+
+                pSample->modes |= MODES_ENVELOPE;
 
                 filledSamples++;
 
