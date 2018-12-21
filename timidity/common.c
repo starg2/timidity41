@@ -1068,6 +1068,7 @@ int volatile_touch(void *dmy) { return 1; }
 
 static DWORD w32_detect_code_page(const char *text)
 {
+#if 0
 	size_t len = strlen(text);
 	const char *p = text;
 	int escape_count = 0;	// number of 0x1B (ESC), unique to ISO-2022-JP (JIS)
@@ -1114,6 +1115,9 @@ static DWORD w32_detect_code_page(const char *text)
 		return 51932;	// EUC
 	else
 		return 1252;
+#else
+	return 932;
+#endif
 }
 
 static DWORD w32_code_page_from_id(const char *code)
