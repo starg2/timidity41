@@ -1528,7 +1528,7 @@ private:
                     s.envelope_offset[1] = ToOffset(2);
                     s.envelope_rate[1] = CalcRate(1, 0.0);
                     s.envelope_offset[2] = ToOffset(1);
-                    s.envelope_rate[2] = CalcRate(65534, 0.0);
+                    s.envelope_rate[2] = CalcRate(1, 0.0);
 
                     s.envelope_offset[3] = ToOffset(65535);
                     s.envelope_rate[3] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
@@ -1569,20 +1569,6 @@ private:
                     s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
 
                     double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
-                    s.envelope_offset[3] = 0;
-                    s.envelope_rate[3] = CalcRate(65535, releaseTime);
-                    s.envelope_offset[4] = s.envelope_offset[3];
-                    s.envelope_rate[4] = s.envelope_rate[3];
-                    s.envelope_offset[5] = s.envelope_offset[3];
-                    s.envelope_rate[5] = s.envelope_rate[3];
-
-                    s.envelope_offset[0] = 0;
-                    s.envelope_rate[0] = 0;
-                    s.envelope_offset[1] = 0;
-                    s.envelope_rate[1] = 0;
-
-                    s.envelope_offset[2] = 0;
-                    s.envelope_rate[2] = 0;
                     s.envelope_offset[3] = 0;
                     s.envelope_rate[3] = CalcRate(65535, releaseTime);
                     s.envelope_offset[4] = s.envelope_offset[3];
