@@ -811,6 +811,8 @@ enum class OpCodeKind
     AmpEG_Hold,
     AmpEG_Release,
     AmpEG_Sustain,
+    AmpKeyCenter,
+    AmpKeyTrack,
     AmpVelTrack,
     DefaultPath,
     HiKey,
@@ -953,6 +955,7 @@ public:
                     {
                         switch (opVal.OpCode)
                         {
+                        case OpCodeKind::AmpKeyCenter:
                         case OpCodeKind::HiKey:
                         case OpCodeKind::LoKey:
                         case OpCodeKind::PitchKeyCenter:
@@ -977,6 +980,7 @@ public:
                         case OpCodeKind::AmpEG_Hold:
                         case OpCodeKind::AmpEG_Release:
                         case OpCodeKind::AmpEG_Sustain:
+                        case OpCodeKind::AmpKeyTrack:
                         case OpCodeKind::AmpVelTrack:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
@@ -1114,6 +1118,8 @@ private:
             {"ampeg_hold"sv, OpCodeKind::AmpEG_Hold},
             {"ampeg_release"sv, OpCodeKind::AmpEG_Release},
             {"ampeg_sustain"sv, OpCodeKind::AmpEG_Sustain},
+            {"amp_keycenter"sv, OpCodeKind::AmpKeyCenter},
+            {"amp_keytrack"sv, OpCodeKind::AmpKeyTrack},
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"default_path"sv, OpCodeKind::DefaultPath},
             {"hikey"sv, OpCodeKind::HiKey},
@@ -1522,9 +1528,11 @@ private:
                         + std::clamp(flatSection.GetAs<double>(OpCodeKind::Tune).value_or(0.0), -100.0, 100.0) / 1200.0
                 );
 
+                s.envelope_keyf_bpo = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::AmpKeyCenter).value_or(60), -127, 127));
                 s.envelope_velf_bpo = 0;
                 s.modenv_velf_bpo = 0;
-                s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
+
+                s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * s.sample_rate);
 
                 TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack);
 
@@ -1584,6 +1592,11 @@ private:
                     s.envelope_rate[4] = s.envelope_rate[3];
                     s.envelope_offset[5] = s.envelope_offset[3];
                     s.envelope_rate[5] = s.envelope_rate[3];
+                }
+
+                if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
+                {
+                    std::fill(std::begin(s.envelope_keyf), std::end(s.envelope_keyf), std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0));
                 }
 
                 if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
