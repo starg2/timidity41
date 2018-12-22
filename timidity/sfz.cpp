@@ -1522,6 +1522,8 @@ private:
                         + std::clamp(flatSection.GetAs<double>(OpCodeKind::Tune).value_or(0.0), -100.0, 100.0) / 1200.0
                 );
 
+                s.envelope_velf_bpo = 0;
+                s.modenv_velf_bpo = 0;
                 s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
 
                 TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack);
@@ -1587,7 +1589,7 @@ private:
                 if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
                 {
                     // convert percent to rate
-                    std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0));
+                    std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0);
                 }
             }
 
