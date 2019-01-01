@@ -1642,11 +1642,11 @@ private:
             switch (i.Header)
             {
             case HeaderKind::Control:
-                controlOpCodes.insert(controlOpCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
+                controlOpCodes = i.OpCodes;
                 break;
 
             case HeaderKind::Global:
-                globalOpCodes.insert(globalOpCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
+                globalOpCodes = i.OpCodes;
                 break;
 
             case HeaderKind::Group:
