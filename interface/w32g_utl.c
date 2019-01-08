@@ -1660,6 +1660,11 @@ void w32g_initialize(void)
         case LANGUAGE_JAPANESE: default: confirm = confirm_ja; break;
         }
 
+		_tcsncpy(tbuffer, confirm, FILEPATH_MAX - 1);
+		TCHAR* tIniFile = char_to_tchar(IniFile);
+		_tcsncat(tbuffer, tIniFile, FILEPATH_MAX - 1 - _tcslen(tbuffer));
+		safe_free(tIniFile);
+
         if (MessageBox(0, tbuffer, _T("TiMidity Notice"), MB_YESNO | MB_ICONINFORMATION | MB_SYSTEMMODAL) == IDYES)
         {
             SaveIniFile(sp_current, st_current);
