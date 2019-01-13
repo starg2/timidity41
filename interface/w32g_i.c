@@ -602,7 +602,7 @@ static void InitMainMenu(HWND hWnd)
         AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("&Supplement..."));
     }
     // Module
-    for (i = 0; i < (module_list_num - 1); i++) {
+    for (i = 0; i < module_list_num; i++) {
         flags = MF_STRING;
         if (st_temp->opt_default_module == module_list[i].num)
             flags |= MFS_CHECKED;
@@ -690,6 +690,20 @@ static void UpdateOutputMenu(HWND hWnd, UINT wId)
         else { st_temp->opt_playmode[0] = 'd'; }
         w32g_send_rc(RC_STOP, 0);
         PrefSettingApplyReally();
+    }
+}
+
+static void RefreshModuleMenu(HWND hWnd)
+{
+    UINT flags;
+    int i;
+
+    for (i = 0; i < module_list_num; i++) {
+        flags = MF_STRING;
+        if (st_temp->opt_default_module == module_list[i].num) {
+            flags |= MFS_CHECKED;
+        }
+        CheckMenuItem(hMenuModule, IDM_MODULE + i, MF_BYCOMMAND | flags);
     }
 }
 
@@ -1598,6 +1612,7 @@ static void CallPrefWnd(UINT_PTR cId)
                  W32G_VOLUME_MAX - output_amplification, TRUE);
 
     RefreshOutputMenu(hMainWnd);
+    RefreshModuleMenu(hMainWnd);
 }
 
 
