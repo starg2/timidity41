@@ -600,7 +600,7 @@ static void InitMainMenu(HWND hWnd)
         AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("&Supplement..."));
     }
     // Module
-    for (i = 0; i < (module_list_num - 1); i++) {
+    for (i = 0; i < module_list_num; i++) {
         flags = MF_STRING;
         if (st_temp->opt_default_module == module_list[i].num)
             flags |= MFS_CHECKED;
