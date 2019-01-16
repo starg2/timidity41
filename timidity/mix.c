@@ -166,7 +166,6 @@ void free_mix_c(void)
 /****************  ****************/
 
 
-#ifdef NEW_LEGATO
 static void compute_portament(int v, int32 c)
 {
     Voice *vp = &voice[v];
@@ -194,30 +193,6 @@ static void compute_portament(int v, int32 c)
 	}
 	vp->porta_out = vp->porta_pb - vp->porta_note_fine;
 }
-#else
-static void compute_portament(int v, int32 c)
-{
-    Voice *vp = &voice[v];
-    int32 d;
-
-	if(!vp->porta_status)
-		return;
-    d = vp->porta_dpb * c;
-	if(d < 1)
-		d = 1;
-    if(vp->porta_pb < 0){
-		if(d > -vp->porta_pb)
-			d = -vp->porta_pb;
-	}else{
-		if(d > vp->porta_pb)
-			d = -vp->porta_pb;
-		else
-			d = -d;
-    }
-    if((vp->porta_pb += d) == 0)
-		vp->porta_status = 0;
-}
-#endif
 
 static inline void update_tremolo(int v)
 {

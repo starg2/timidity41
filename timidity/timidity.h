@@ -445,7 +445,6 @@
 ///r
 #define VOICE_EFFECT
 #define INT_SYNTH
-#define NEW_LEGATO
 //#define ENABLE_SFZ
 //#define ENABLE_DLS
 

@@ -378,7 +378,6 @@ typedef struct {
   int pitchbend;
   
   /* For portamento */
-#ifdef NEW_LEGATO
   int8	portamento, portamento_control;
   uint8 portamento_time_msb, portamento_time_lsb;
   int porta_status;
@@ -390,16 +389,7 @@ typedef struct {
   int8 legato_flag;	/* note-on flag for legato */  
   uint8 legato_note, legato_last_note, legato_velo, legato_hist[128];
   int32 legato_note_time;
-#else
-  int8	portamento, portamento_control;
-  uint8 portamento_time_msb, portamento_time_lsb;
-  int porta_status;
-  FLOAT_T porta_dpb;
-  int32 porta_pb;
-  int32 last_note_fine;
-  int8 legato;	/* legato footswitch */
-  int8 legato_flag;	/* note-on flag for legato */
-#endif
+
   /* For Drum part */
   struct DrumParts *drums[128];
 
@@ -532,27 +522,18 @@ typedef struct {
   FLOAT_T pitchfactor, orig_pitchfactor; /* precomputed pitch bend factor to save some fdiv's */
 
   /* for portamento */
-#ifdef NEW_LEGATO
   int porta_status;
   FLOAT_T porta_dpb;
   int32 porta_pb, porta_next_pb, porta_out, porta_note_fine;
-#else
-  int porta_status;
-  FLOAT_T porta_dpb;
-  int32 porta_pb;
-#endif
   
   /* for cache */
   struct cache_hash *cache;
 
   /* for envelope */
   int delay; /* Note ON delay samples */
-  int32 modenv_delay;
   int32 mod_update_count;
   int add_delay_cnt;
   Envelope0 amp_env, mod_env;
-  int32 pit_env_release_count;
-  FLOAT_T pit_env_release_cent;
   Envelope4 pit_env;
   
   /* for amp/mix  */
@@ -583,8 +564,8 @@ typedef struct {
   
   /* for voive effect */
 #ifdef VOICE_EFFECT
-  int voice_effect_flg; // use/nouse
-  VoiceEffect vfx[VOICE_EFFECT_NUM]; // Voive Effect
+  int vfxe_num;
+  VoiceEffect *vfx[VOICE_EFFECT_NUM]; // Voive Effect
 #endif
   
   /* for int synth */
@@ -902,7 +883,6 @@ extern void playmidi_output_changed(int play_state);
 extern Instrument *play_midi_load_instrument(int dr, int bk, int prog, int elm, int *elm_max);
 extern void midi_program_change(int ch, int prog);
 extern void free_voice(int v);
-extern void free_voices(void);
 //extern void free_reverb_buffer(void);
 extern void play_midi_setup_drums(int ch,int note);
 
@@ -933,5 +913,16 @@ extern void update_voice(int i);
 
 extern int calc_bend_val(int val);
 extern void kill_all_voices(void);
+
+
+#ifdef VOICE_EFFECT
+extern int cfg_flg_vfx;
+#endif
+#ifdef INT_SYNTH
+extern int cfg_flg_int_synth_scc;
+extern int cfg_flg_int_synth_mms;
+#endif
+extern void free_voice_pointer(void);
+extern void init_voice_pointer(void);
 
 #endif /* ___PLAYMIDI_H_ */

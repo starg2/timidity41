@@ -68,6 +68,14 @@ inialize_effect
 #include "mt19937ar.h"
 #include "sndfontini.h"
 
+#if defined(__W32__)
+#include <windows.h>
+//#if defined(IA_W32GUI) || defined(IA_W32G_SYN) defined(KBTIM) || defined(WINVSTI)
+#pragma comment(lib, "shlwapi.lib")
+#include <shlwapi.h>
+//#endif
+#endif /* defined(__W32__) */
+
 #if defined(_M_IX86) || defined(__i386__) || defined(__i386) || defined(_X86_) || defined(__X86__) || defined(__I86__)
 #define IX86CPU 1
 #endif
@@ -5176,10 +5184,10 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 	}
 }
 
-#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#elif defined(IX86CPU) && (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 /*
 SSE2 128bitSIMD : double*2ch, int32*4ch
-x64AVXで問題・・?
+x64で問題・・?
 */
 static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
@@ -5616,7 +5624,9 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 	case CH_STEREO:
 	case CH_MIX_STEREO:
 #if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
-		if(!set_effect_sub_thread(do_reverb_ex_mod_chSTMS_thread1, info, 2)){
+		if(compute_thread_ready < 4)
+			info->thread = 0;
+		else if(!set_effect_sub_thread(do_reverb_ex_mod_chSTMS_thread1, info, 2)){
 			info->thread = 1;
 			info->do_reverb_mode = do_reverb_ex_mod_chSTMS_thread;
 			break;
@@ -5711,7 +5721,7 @@ static void do_reverb_ex_mod_chSTMS_thread(DATA_T *buf, int32 count, InfoReverbE
 	}
 }
 
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+#if defined(IX86CPU) && (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
 static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 {
 	InfoReverbEX *info;
@@ -6184,7 +6194,7 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 	}
 }
 
-#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+#elif defined(IX86CPU) && (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
 /*
 SSE2 128bitSIMD : double*2ch, int32*4ch
 */
@@ -6515,9 +6525,111 @@ static void do_reverb_ex(DATA_T *buf, int32 count, InfoReverbEX *info)
 
 
 
-// reverb ex2
-#ifdef REV_EX2
+// reverb ex2 (sampling reverb
 
+#define REV_EX2_LEVEL    (1.0) // total
+#define REV_EX2_ST_CROSS (0.3)
+#define REV_EX2_REV_LEVEL (0.5 * (1.0 - REV_EX2_ST_CROSS))
+
+double ext_reverb_ex2_level = 1.0;
+int ext_reverb_ex2_rsmode = 3;
+int ext_reverb_ex2_fftmode = 0;
+
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+static void do_reverb_ex2_thread(int thread_num, void *info2);
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+#if defined(REV_EX2_FFT)
+static void init_reverb_ex2_fft(InfoReverbEX2 *info);
+static void do_reverb_ex2_fft_thread(int thread_num, void *info2);
+static void do_reverb_ex2_fft(DATA_T *buf, int32 count, InfoReverbEX2 *info);
+#endif
+
+
+#define MYINI_LIBRARY_DEFIND_VAR
+#include "myini.h"
+
+const TCHAR *ini_rev_type_name[] = {
+	"GS_ROOM1",
+	"GS_ROOM2",
+	"GS_ROOM3",
+	"GS_HALL1",
+	"GS_HALL2",
+	"GS_PLATE",
+	"XG_HALL1",
+	"XG_HALL2",
+	"XG_HALL_M",
+	"XG_HALL_L",
+	"XG_ROOM1",
+	"XG_ROOM2",
+	"XG_ROOM3",
+	"XG_ROOM_S",
+	"XG_ROOM_M",
+	"XG_ROOM_L",
+	"XG_STAGE1",
+	"XG_STAGE2",
+	"XG_PLATE",
+	"XG_GM_PLATE",
+	"XG_WHITE_ROOM",
+	"XG_TUNNEL",
+	"XG_CANYON",
+	"XG_BASEMENT",
+	"SD_ROOM1",
+	"SD_ROOM2",
+	"SD_STAGE1",
+	"SD_STAGE2",
+	"SD_HALL1",
+	"SD_HALL2",
+	"SD_SRV_ROOM",
+	"SD_SRV_HALL",
+	"SD_SRV_PLATE",
+	"SD_GM2_SMALL_ROOM",
+	"SD_GM2_MEDIUM_ROOM",
+	"SD_GM2_LARGE_ROOM",
+	"SD_GM2_MEDIUM_HALL",
+	"SD_GM2_LARGE_HALL",
+	"SD_GM2_PLATE",
+};
+
+static void reverb_ex2_read_ini(int32 revtype, TCHAR *path, int32 *amp)
+{
+	INIDATA ini = {0};
+	LPINISEC sec = NULL;
+	TCHAR tbf[FILEPATH_MAX] = "";
+	TCHAR *p = NULL;
+	TCHAR *ini_file = "timidity_irfile.ini";
+	char fn[FILEPATH_MAX] = "";
+	int len;
+	
+	if(revtype < 0 || revtype >= 39)
+		return;
+	memcpy(fn, sfini_path, sizeof(sfini_path));
+#if defined(__W32__)
+	PathRemoveFileSpec(fn);
+	strcat(fn, "\\");
+#else
+	len = strlen(fn);
+	if(len < 13) // "soundfont.ini" の分 UNICODEでは不明 
+		return;
+	fn[len -  13] = '\0';  // soundfont.ini の分 UNICODEでは不明 
+#endif /* defined(__W32__) */
+    strlcat(fn, ini_file, FILEPATH_MAX);
+	MyIni_Load(&ini, fn);
+//	MyIni_Load_timidity(&ini, ini_file, 1, OF_SILENT); // dir指定のところからロードしたいがなぜかエラー・・・
+	sec = MyIni_GetSection(&ini, ini_rev_type_name[revtype], 0);
+	if(sec == NULL) 
+		return;
+	p = MyIni_GetString(sec, "path", tbf, FILEPATH_MAX, "");
+	if(p)
+		strcpy(path, p);
+	*amp = MyIni_GetInt32(sec, "amp", 100);
+	if(*amp < 0)
+		*amp = 0;
+	else if(*amp > 1600)
+		*amp = 1600;
+	return;
+}
 
 /* from instrum.c */
 #define READ_CHAR(thing) \
@@ -6626,16 +6738,20 @@ static int read_sample_data(int32 flags, struct timidity_file *tf, int bits, int
 			BLOCK_READ_BEGIN(uint32, 4, channels)
 			{
 				int c;
-				for (c = 0; c < channels; c++, j++)
-					sdata[c][i] = (float)BE_LONG(data[j]) * DIV_31BIT;
+				for (c = 0; c < channels; c++, j++){
+					uint32 d = BE_LONG(data[j]);
+					sdata[c][i] = (float)(*(int32 *)&d) * DIV_31BIT;
+				}
 			}
 			BLOCK_READ_END
 		} else {
 			BLOCK_READ_BEGIN(uint32, 4, channels)
 			{
 				int c;
-				for (c = 0; c < channels; c++, j++)
-					sdata[c][i] = (float)LE_LONG(data[j]) * DIV_31BIT;
+				for (c = 0; c < channels; c++, j++){
+					uint32 d = LE_LONG(data[j]);
+					sdata[c][i] = (float)(*(int32 *)&d) * DIV_31BIT;
+				}
 			}
 			BLOCK_READ_END
 		}
@@ -6674,16 +6790,20 @@ static int read_sample_data(int32 flags, struct timidity_file *tf, int bits, int
 			BLOCK_READ_BEGIN(uint16, 2, channels)
 			{
 				int c;
-				for (c = 0; c < channels; c++, j++)
-					sdata[c][i] = (float)BE_SHORT(data[j]) * DIV_15BIT;
+				for (c = 0; c < channels; c++, j++){
+					uint16 tmp = BE_SHORT(data[j]);
+					sdata[c][i] = (float)(*(int16 *)&tmp) * DIV_15BIT;
+				}
 			}
 			BLOCK_READ_END
 		} else {
 			BLOCK_READ_BEGIN(uint16, 2, channels)
 			{
 				int c;
-				for (c = 0; c < channels; c++, j++)
-					sdata[c][i] = (float)LE_SHORT(data[j]) * DIV_15BIT;
+				for (c = 0; c < channels; c++, j++){
+					uint16 tmp = LE_SHORT(data[j]);
+					sdata[c][i] = (float)(*(int16 *)&tmp) * DIV_15BIT;
+				}
 			}
 			BLOCK_READ_END
 		}
@@ -6696,7 +6816,7 @@ static int read_sample_data(int32 flags, struct timidity_file *tf, int bits, int
 	return 0;
 }
 
-static int import_wave_load(char *sample_file, InfoReverbEX2 *info)
+static int reverb_ex2_import_wave(char *sample_file, InfoReverbEX2 *info)
 {
 	struct timidity_file *tf;
 	union {
@@ -6710,7 +6830,7 @@ static int import_wave_load(char *sample_file, InfoReverbEX2 *info)
 	Sample                *sample;
 	WAVFormatChunk        format = { 0, 0, 0, 0, 0, 0 };
 
-	if ((tf = open_file(sample_file, 1, OF_NORMAL)) == NULL)
+	if ((tf = open_file(sample_file, 1, OF_SILENT)) == NULL)
 		return 1;
 	if (tf_read(buf, 12, 1, tf) != 1
 			|| memcmp(&buf[0], "RIFF", 4) != 0 || memcmp(&buf[8], "WAVE", 4) != 0)
@@ -6737,7 +6857,7 @@ static int import_wave_load(char *sample_file, InfoReverbEX2 *info)
 		info->irdata[1] = NULL;
 	}
 #endif
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Loading IR WAV: %s", sample_file);
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "Loading IR: %s", sample_file);
 	state = chunk_flags = 0;
 	type_index = 4, type_size = 8;
 	for (;;) {
@@ -6772,8 +6892,8 @@ static int import_wave_load(char *sample_file, InfoReverbEX2 *info)
 				break;
 			samples = format.wChannels;
 			info->srate = format.dwSamplesPerSec;
-			info->frame = frames + 8; //  + 8 for simd thread
-			bytes = (frames + 16) * sizeof(float); //  + 16 for simd thread
+			info->frame = frames + 32; //  for hpf
+			bytes = (frames + 32 + 16) * sizeof(float); //  + 16 for simd thread
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 			info->irdata[0] = sdata[0] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
 			info->irdata[1] = sdata[1] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
@@ -6781,8 +6901,8 @@ static int import_wave_load(char *sample_file, InfoReverbEX2 *info)
 			info->irdata[0] = sdata[0] = (float *) safe_large_malloc(bytes);
 			info->irdata[1] = sdata[1] = (float *) safe_large_malloc(bytes);
 #endif
-			memset(&info->irdata[0][frames], 0, sizeof(float) * 16);
-			memset(&info->irdata[1][frames], 0, sizeof(float) * 16);
+			memset(info->irdata[0], 0, bytes);
+			memset(info->irdata[1], 0, bytes);
 			sflg = fflg ? (SAMPLE_8BIT_UNSIGNED|SAMPLE_IEEE_FLOAT) : SAMPLE_8BIT_UNSIGNED;
 			if (!read_sample_data(sflg,	tf, bits, samples, frames, sdata))
 				break;
@@ -6797,12 +6917,94 @@ static int import_wave_load(char *sample_file, InfoReverbEX2 *info)
 	return (state != 2);
 }
 
-#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
-static void do_reverb_ex2_thread(int thread_num, void *info2);
-#define REV_IR_4T
-// undef LR分割での2thread 
-// define LR分割 + 入力バッファを前後分割 で4thread
-#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+static void do_reverb_ex2_resample(float *in0, float *in1, float *out0, float *out1, int32 nframe, double rrate)
+{
+	int32 i;
+	double rcount = 0.0;
+
+	for (i = 0; i < nframe; i++){
+		int32 index;
+		double v01, v02, v11, v12, fp;
+		double tmp01, tmp02, tmp11, tmp12;
+		index = (int32)rcount;
+		v01 = in0[index];
+		v11 = in1[index];
+		v02 = in0[index + 1];
+		v12 = in1[index + 1];
+		fp = rcount - floor(rcount);	
+		rcount += rrate;
+		tmp01 = v01 + (v02 - v01) * fp;		
+		tmp11 = v11 + (v12 - v11) * fp;	
+		out0[i] = tmp01;
+		out1[i] = tmp11;	
+	}
+}
+
+static void do_reverb_ex2_resample_ov2(float *in0, float *in1, float *out0, float *out1, int32 nframe, double rate)
+{
+	int32 i;
+	double rcount = 0.0, rrate = DIV_2 * rate; // DIV_2:OVx2 
+
+	for (i = 0; i < nframe; i++){
+		int32 index;
+		double v01, v02, v11, v12, fp;
+		double tmp01, tmp02, tmp11, tmp12;
+		index = (int32)rcount;
+		v01 = in0[index];
+		v11 = in1[index];
+		v02 = in0[index + 1];
+		v12 = in1[index + 1];
+		fp = rcount - floor(rcount);	
+		rcount += rrate;
+		tmp01 = v01 + (v02 - v01) * fp;		
+		tmp11 = v11 + (v12 - v11) * fp;		
+		index = (int32)rcount;
+		v01 = in0[index];
+		v11 = in1[index];
+		v02 = in0[index + 1];
+		v12 = in1[index + 1];
+		fp = rcount - floor(rcount);	
+		rcount += rrate;
+		tmp02 = v01 + (v02 - v01) * fp;		
+		tmp12 = v11 + (v12 - v11) * fp;	
+		out0[i] = (tmp01 + tmp02) * DIV_2;
+		out1[i] = (tmp11 + tmp12) * DIV_2;	
+	}
+}
+
+static void do_reverb_ex2_resample_ds2(float *in0, float *in1, float *out0, float *out1, int32 nframe)
+{
+	int32 i, k;
+
+	for (i = 0, k = 0; i < nframe; i++, k += 2){		
+		out0[i] = (in0[k] + in0[k + 1]) * DIV_2;
+		out1[i] = (in1[k] + in1[k + 1]) * DIV_2;
+	}
+}
+
+static void do_reverb_ex2_resample_ds4(float *in0, float *in1, float *out0, float *out1, int32 nframe)
+{
+	int32 i, k;
+	
+	for (i = 0, k = 0; i < nframe; i++, k += 4){	
+		out0[i] = (in0[k] + in0[k + 1] + in0[k + 2] + in0[k + 3]) * DIV_4;
+		out1[i] = (in1[k] + in1[k + 1] + in1[k + 1] + in1[k + 3]) * DIV_4;
+	}
+}
+
+static void do_reverb_ex2_resample_ds8(float *in0, float *in1, float *out0, float *out1, int32 nframe)
+{
+	int32 i, k;
+
+	for (i = 0, k = 0; i < nframe; i++, k += 8){	
+		out0[i] = (
+			in0[k    ] + in0[k + 1] + in0[k + 2] + in0[k + 3] + 
+			in0[k + 4] + in0[k + 5] + in0[k + 6] + in0[k + 7]) * DIV_8;
+		out1[i] = (
+			in1[k    ] + in1[k + 1] + in1[k + 1] + in1[k + 3] +
+			in1[k + 4] + in1[k + 5] + in1[k + 6] + in1[k + 7]) * DIV_8;
+	}
+}
 
 void free_reverb_ex2(InfoReverbEX2 *info)
 {
@@ -6810,128 +7012,192 @@ void free_reverb_ex2(InfoReverbEX2 *info)
 	
 	for(i = 0; i < 2; i++){
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-		if(info->irdata[i] != NULL){
-			aligned_free(info->irdata[i]);
-			info->irdata[i] = NULL;
-		}
-		if(info->buf[i] != NULL){
-			aligned_free(info->buf[i]);
-			info->buf[i] = NULL;
-		}
+		if(info->irdata[i] != NULL){ aligned_free(info->irdata[i]); info->irdata[i] = NULL; }
+		if(info->buf[i] != NULL){ aligned_free(info->buf[i]); info->buf[i] = NULL; }
+		if(info->tbuf[i] != NULL){ aligned_free(info->tbuf[i]); info->tbuf[i] = NULL; }
 #else
-		if(info->irdata[i] != NULL){
-			safe_free(info->irdata[i]);
-			info->irdata[i] = NULL;
-		}
-		if(info->buf[i] != NULL){
-			safe_free(info->buf[i]);
-			info->buf[i] = NULL;
-		}
+		if(info->irdata[i] != NULL){ safe_free(info->irdata[i]); info->irdata[i] = NULL; }
+		if(info->buf[i] != NULL){ safe_free(info->buf[i]); info->buf[i] = NULL; }
+		if(info->tbuf[i] != NULL){ safe_free(info->tbuf[i]); info->tbuf[i] = NULL; }	
 #endif // USE_X86_EXT_INTRIN
-#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
-#if defined(REV_IR_4T)
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-		if(info->buf2[i] != NULL){
-			aligned_free(info->buf2[i]);
-			info->buf2[i] = NULL;
-		}
-#else
-		if(info->buf2[i] != NULL){
-			safe_free(info->buf2[i]);
-			info->buf2[i] = NULL;
-		}
-#endif
-#endif // defined(REV_IR_4T)
-		for(k = 0; k < 4; k++){
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-			if(info->tbuf[k] != NULL){
-				aligned_free(info->tbuf[k]);
-				info->tbuf[k] = NULL;
-			}
-#else
-			if(info->tbuf[k] != NULL){
-				safe_free(info->tbuf[k]);
-				info->tbuf[k] = NULL;
-			}
-#endif // USE_X86_EXT_INTRIN
-		}
-#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
 	}
-	
+
+#if defined(REV_EX2_FFT)
+	for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		if(info->rvs[i] != NULL){ aligned_free(info->rvs[i]); info->rvs[i] = NULL; }
+		if(info->rs[i] != NULL){ aligned_free(info->rs[i]); info->rs[i] = NULL; }
+		if(info->is[i] != NULL){ aligned_free(info->is[i]); info->is[i] = NULL; }
+		if(info->ss[i] != NULL){ aligned_free(info->ss[i]); info->ss[i] = NULL; }
+		if(info->os[i] != NULL){ aligned_free(info->os[i]); info->os[i] = NULL; }
+		if(info->fs[i] != NULL){ aligned_free(info->fs[i]); info->fs[i] = NULL; }
+		if(info->fi[i] != NULL){ aligned_free(info->fi[i]); info->fi[i] = NULL; }
+		if(info->bd[i] != NULL){ aligned_free(info->bd[i]); info->bd[i] = NULL; }	
+		if(info->ios[i] != NULL){ aligned_free(info->ios[i]); info->ios[i] = NULL; }
+#else
+		if(info->rvs[i] != NULL){ safe_freeinfo->rvs[i]); info->rvs[i] = NULL; }
+		if(info->rs[i] != NULL){ safe_freeinfo->rs[i]); info->rs[i] = NULL; }
+		if(info->is[i] != NULL){ safe_freeinfo->is[i]); info->is[i] = NULL; }
+		if(info->ss[i] != NULL){ safe_freeinfo->ss[i]); info->ss[i] = NULL; }
+		if(info->os[i] != NULL){ safe_freeinfo->os[i]); info->os[i] = NULL; }
+		if(info->fs[i] != NULL){ safe_freeinfo->fs[i]); info->fs[i] = NULL; }
+		if(info->fi[i] != NULL){ safe_freeinfo->fi[i]); info->fi[i] = NULL; }
+		if(info->bd[i] != NULL){ safe_freeinfo->bd[i]); info->bd[i] = NULL; }	
+		if(info->ios[i] != NULL){ safe_freeinfo->ios[i]); info->ios[i] = NULL; }	
+#endif // USE_X86_EXT_INTRIN
+	}
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	if(info->sint != NULL){ aligned_free(info->sint); info->sint = NULL; }
+#else
+	if(info->sint != NULL){ safe_free(info->sint); info->sint = NULL; }
+#endif // USE_X86_EXT_INTRIN
+#endif // defined(REV_EX2_FFT)
+
 #if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
 	reset_effect_sub_thread(do_reverb_ex2_thread, info);
 	info->thread = 0;
+	info->ithread = 0;
 #endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	info->rsfb[0] = 0;	
+	info->rsfb[1] = 0;
 	info->init = 0;
 }
 
-void init_reverb_ex2(InfoReverbEX2 *info)
+static void init_reverb_ex2(InfoReverbEX2 *info)
 {
-	int i, k;
+	int i, k, flg = 0;
 	float div;
-	int32 bytes;
+	int32 bytes, rsrate, cbs;
 	char *sample_file = "irfile.wav";
+	int32 amp = 100;
+	TCHAR path[FILEPATH_MAX] = {0};
+	
+#if defined(REV_EX2_FFT)
+	if(ext_reverb_ex2_fftmode){
+		init_reverb_ex2_fft(info);
+		return;
+	}
+	if(info->fftmode)
+		free_reverb_ex2(info);
+	info->fftmode = 0;
+#endif
+	if(info->init){
+		if(info->pmr_p != play_mode->rate || info->rt_p != info->revtype)
+			free_reverb_ex2(info);
+		else
+			return;
+	}
+	if(play_mode->encoding & PE_MONO)
+		goto error;	
 
-	if(play_mode->encoding & PE_MONO){
-		info->init = 0;
-		return;
+	reverb_ex2_read_ini(info->revtype, path, &amp);
+	if(!(*path)){
+		flg = 1;
+	}else{
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, 
+			"SamplingReverb: Trying to load IR %s (type:%s)", path, ini_rev_type_name[info->revtype]);
+		if(reverb_ex2_import_wave(path, info)){
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, 
+				"SamplingReverb: Can't load IR %s (type:%s)", path, ini_rev_type_name[info->revtype]);
+			flg = 1;
+		}
+	}	
+	if(flg){
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SamplingReverb: Trying to load IR %s", sample_file);
+		amp = 100;
+		if(reverb_ex2_import_wave(sample_file, info)){
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SamplingReverb: ERROR Can't load IR %s", sample_file);
+			goto error;
+		}
+	}	
+	
+	if(info->frame < 1 || info->srate < 1)
+		goto error;
+	info->fm_p = info->fftmode;
+	info->rt_p = info->revtype;
+	info->pmr_p = play_mode->rate;
+	switch(ext_reverb_ex2_rsmode){
+	default:
+	case 3:
+		if(play_mode->rate >= 128000){
+			info->rsmode = 3;
+			rsrate = play_mode->rate >> 3;
+			cbs = compute_buffer_size >> 3;
+			break;
+		} // else thru
+	case 2:
+		if(play_mode->rate >= 64000){
+			info->rsmode = 2;
+			rsrate = play_mode->rate >> 2;
+			cbs = compute_buffer_size >> 2;
+			break;
+		} // else thru
+	case 1:
+		if(play_mode->rate >= 32000){
+			info->rsmode = 1;
+			rsrate = play_mode->rate >> 1;
+			cbs = compute_buffer_size >> 1;
+			break;
+		} // else thru
+	case 0:
+		info->rsmode = 0;
+		rsrate = play_mode->rate;
+		cbs = compute_buffer_size;
+		break;
 	}
-	if(import_wave_load(sample_file, info)){
-		info->init = 0;
-		return;
-	}
-	if(info->frame < 1 || info->srate < 1){
-		info->init = 0;
-		return;
-	}
-	// irdata resample OVx2
-	if(info->srate != play_mode->rate){
-		double ratio = (double)play_mode->rate / (double)info->srate;
+
+	// irdata resample
+	if(info->srate != rsrate)
+	{
+		double ratio = (double)rsrate / (double)info->srate;
 		int32 nframe = (double)info->frame * ratio + 0.5;
-		int32 nbytes = (nframe + 4) * sizeof(float);
-		double rcount = 0.0, rrate = DIV_2 / ratio; // DIV_2:OVx2 
-		float *ndata[2];
-		
+		int32 nbytes = (nframe + 8) * sizeof(float);
+		double rate = 1.0 / ratio; // 
+		float *ndata[2];		
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 		ndata[0] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
 		ndata[1] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
 #else
 		ndata[0] = (float *) safe_large_malloc(nbytes);
 		ndata[1] = (float *) safe_large_malloc(nbytes);
-#endif
+#endif		
+		if(!ndata[0] || !ndata[0])
+			goto error;
 		memset(ndata[0], 0, nbytes);
-		memset(ndata[1], 0, nbytes);		
-		for (i = 0; i < nframe; i++){
-			int32 index;
-			double v1, v2, fp;
-			double tmp1, tmp2;
-			// L
-			index = (int32)rcount;
-			v1 = info->irdata[0][index];
-			v2 = info->irdata[0][index + 1];
-			fp = rcount - floor(rcount);
-			tmp1 = v1 + (v2 - v1) * fp;			
-			rcount += rrate;
-			index = (int32)rcount;
-			v1 = info->irdata[0][index];
-			v2 = info->irdata[0][index + 1];
-			fp = rcount - floor(rcount);
-			tmp2 = v1 + (v2 - v1) * fp;	
-			ndata[0][i] = (tmp1 + tmp2) * DIV_2;
-			// R		
-			index = (int32)rcount;
-			v1 = info->irdata[1][index];
-			v2 = info->irdata[1][index + 1];
-			fp = rcount - floor(rcount);
-			tmp1 = v1 + (v2 - v1) * fp;			
-			rcount += rrate;
-			index = (int32)rcount;
-			v1 = info->irdata[1][index];
-			v2 = info->irdata[1][index + 1];
-			fp = rcount - floor(rcount);
-			tmp2 = v1 + (v2 - v1) * fp;	
-			ndata[1][i] = (tmp1 + tmp2) * DIV_2;
+		memset(ndata[1], 0, nbytes);
+		{
+			FilterCoefficients lpf;	
+			set_sample_filter_type(&lpf, FILTER_LPF6);
+			set_sample_filter_ext_rate(&lpf, info->srate);
+			set_sample_filter_freq(&lpf, rsrate * 0.45); // 90%
+			recalc_filter(&lpf);
+			for (i = 0; i < info->frame; i++){
+				DATA_T in0 = info->irdata[0][i];
+				DATA_T in1 = info->irdata[1][i];
+				sample_filter_stereo(&lpf, &in0, &in1);
+				info->irdata[0][i] = in0;
+				info->irdata[1][i] = in1;
+			}
 		}
+		if(rate == 1.0){
+			memcpy(ndata[0], info->irdata[0], nframe * sizeof(float));
+			memcpy(ndata[1], info->irdata[1], nframe * sizeof(float));
+		}else if(rate == 8.0)
+			do_reverb_ex2_resample_ds8(info->irdata[0], info->irdata[1], ndata[0], ndata[1], info->frame >> 3);
+		else if(rate == 4.0)
+			do_reverb_ex2_resample_ds4(info->irdata[0], info->irdata[1], ndata[0], ndata[1], info->frame >> 2);
+		else if(rate == 2.0)
+			do_reverb_ex2_resample_ds2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], info->frame >> 1);
+		else if(rate > 4.0){
+			do_reverb_ex2_resample_ds4(info->irdata[0], info->irdata[1], info->irdata[0], info->irdata[1], info->frame >> 2);
+			do_reverb_ex2_resample_ov2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate * DIV_4);
+		}else if(rate > 2.0){
+			do_reverb_ex2_resample_ds2(info->irdata[0], info->irdata[1], info->irdata[0], info->irdata[1], info->frame >> 1);
+			do_reverb_ex2_resample_ov2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate * DIV_2);
+		}else if(rate > 1.0)	
+			do_reverb_ex2_resample_ov2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate);
+		else
+			do_reverb_ex2_resample(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate);
 		for(i = 0; i < 2; i++){
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 			if(info->irdata[i] != NULL){
@@ -6946,78 +7212,46 @@ void init_reverb_ex2(InfoReverbEX2 *info)
 #endif		
 		}
 		info->frame = nframe; 
-		info->srate = play_mode->rate;
+		info->srate = rsrate;
 		info->irdata[0] = ndata[0];
 		info->irdata[1] = ndata[1];
 	}
-#if 0
-	{
-		int32 b = 1;
-		int32 nframe = 1;
-		int32 nbytes;
-		float fdiv;
-		float *ndata[2];
-
-		for(b = 1; b < 26; b++)	{	
-			nframe = 1 << b;
-			if(info->frame < nframe)
-				break;
-		}
-		nframe *= 2;
-		nbytes = nframe * sizeof(float);
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-		ndata[0] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
-		ndata[1] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
-#else
-		ndata[0] = (float *) safe_large_malloc(nbytes);
-		ndata[1] = (float *) safe_large_malloc(nbytes);
-#endif
-		memset(ndata[0], 0, nbytes);
-		memset(ndata[1], 0, nbytes);
-		fdiv = 1.0 / nframe;
-		for (i = 0; i < info->frame; i++){
-			ndata[0][i] = info->irdata[0][i] * fdiv;
-			ndata[1][i] = info->irdata[1][i] * fdiv;
-		}
 		
-		for(i = 0; i < 2; i++){
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-			if(info->irdata[i] != NULL){
-				aligned_free(info->irdata[i]);
-				info->irdata[i] = NULL;
-			}
-#else
-			if(info->irdata[i] != NULL){
-				safe_free(info->irdata[i]);
-				info->irdata[i] = NULL;
-			}
-#endif		
-		}
-		info->frame = nframe;
-		info->div_frame = fdiv;
-		info->srate = play_mode->rate;
-		info->irdata[0] = ndata[0];
-		info->irdata[1] = ndata[1];
-	}
-#endif
-
-
-	div = 0.125 * 48000.0 / (double)play_mode->rate * info->level * ext_reverb_ex_level;	
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	// DC
 	{
-		__m128 vdiv = _mm_set1_ps(div);
-		for (i = 0; i < info->frame; i += 4){
-			MM_LS_MUL_PS(&info->irdata[0][i], vdiv);
-			MM_LS_MUL_PS(&info->irdata[1][i], vdiv);
+		FilterCoefficients hpf;
+		set_sample_filter_type(&hpf, FILTER_HPF6);
+		set_sample_filter_ext_rate(&hpf, info->srate);
+		set_sample_filter_freq(&hpf, 5);
+		recalc_filter(&hpf);
+		for (i = 0; i < info->frame; i++){
+			DATA_T in0 = info->irdata[0][i];
+			DATA_T in1 = info->irdata[1][i];
+			sample_filter_stereo(&hpf, &in0, &in1);
+			info->irdata[0][i] = in0;
+			info->irdata[1][i] = in1;
 		}
 	}
-#else
-	for (i = 0; i < info->frame; i++){
-		info->irdata[0][i] *= div;
-		info->irdata[1][i] *= div;
-	}
-#endif
-	bytes = (info->frame + 4) * 2 * sizeof(float);
+
+//	div = 1.0;
+//#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+//	{
+//		__m128 vdiv = _mm_set1_ps(div);
+//		for (i = 0; i < info->frame; i += 4){
+//			MM_LS_MUL_PS(&info->irdata[0][i], vdiv);
+//			MM_LS_MUL_PS(&info->irdata[1][i], vdiv);
+//		}
+//	}
+//#else
+//	for (i = 0; i < info->frame; i++){
+//		info->irdata[0][i] *= div;
+//		info->irdata[1][i] *= div;
+//	}
+//#endif
+
+	info->frame = ((info->frame >> 2) + 1) << 2; // 4samples * n
+	info->bsize = info->frame + cbs * 3;
+	bytes = (info->bsize + 8) * 2 * sizeof(float);
 	for(i = 0; i < 2; i++){
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 		if(info->buf[i] != NULL){
@@ -7032,38 +7266,13 @@ void init_reverb_ex2(InfoReverbEX2 *info)
 		}
 		info->buf[i] = (float *) safe_large_malloc(bytes);
 #endif
+		if(!info->buf[i])
+			goto error;
 		memset(info->buf[i], 0, bytes);
 	}
-	info->wcount = 0;
-
-#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
-	if(set_effect_sub_thread(do_reverb_ex2_thread, info, 4)){
-		info->thread = 0;
-		goto thru_thread;
-	}	
-	bytes = (info->frame + 4) * 2 * sizeof(float);
-
-#if defined(REV_IR_4T)	
-	for(i = 0; i < 2; i++){
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-		if(info->buf2[i] != NULL){
-			aligned_free(info->buf2[i]);
-			info->buf2[i] = NULL;
-		}
-		info->buf2[i] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
-#else
-		if(info->buf2[i] != NULL){
-			safe_free(info->buf2[i]);
-			info->buf2[i] = NULL;
-		}
-		info->buf2[i] = (float *) safe_large_malloc(bytes);
-#endif
-		memset(info->buf2[i], 0, bytes);
-	}
-#endif // defined(REV_IR_4T)
-
+		
 	bytes = compute_buffer_size * sizeof(float);
-	for(k = 0; k < 4; k++){
+	for(k = 0; k < 2; k++){
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 		if(info->tbuf[k] != NULL){
 			aligned_free(info->tbuf[k]);
@@ -7077,199 +7286,687 @@ void init_reverb_ex2(InfoReverbEX2 *info)
 		}
 		info->tbuf[k] = (float *) safe_large_malloc(bytes);
 #endif
+		if(!info->tbuf[k])
+			goto error;
 		memset(info->tbuf[k], 0, bytes);
 	}
-	info->twcount[0] = 0;
-	info->twcount[1] = 0;
-	info->twcount[2] = 0;
-	info->twcount[3] = 0;
-	info->tcount = 0;
-	info->thread = 1;
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{ // 
+		int tr = 2, tc = 0;
+		if(compute_thread_ready < 2){
+			info->thread = 0;
+			goto thru_thread;
+		}
+		if(compute_thread_ready == 2){
+			info->thread = 2;
+		}else{
+			for(;;){
+				int tdiv;
+				if(compute_thread_ready < tr)
+					break;
+				tdiv = 4 * (tr >> 1);
+				if((cbs % tdiv) == 0)
+					tc = tr;
+				tr += 2;
+			}
+			if(tc < 2){
+				info->thread = 0;
+				goto thru_thread;
+			}
+			info->thread = tc;
+		}
+		info->ithread = compute_thread_ready > info->thread ? 1 : 0;
+		if(set_effect_sub_thread(do_reverb_ex2_thread, info, info->thread + info->ithread)){
+			info->thread = 0;
+			goto thru_thread;
+		}	
+	}
 thru_thread:
-#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	info->levelrv = (double)amp * DIV_100 * info->level * ext_reverb_ex2_level * REV_EX2_REV_LEVEL * REV_EX2_LEVEL;
+	info->bcount = cbs + 3; // align 4sample  [-3,-2,-1,0] -> [0,1,2,3]
+	info->tbcount = 3; // align 4sample  [-3,-2,-1,0] -> [0,1,2,3]
+	info->tcount = 0;
+	info->count = 0;
+	info->rsfb[0] = 0;
+	info->rsfb[1] = 0;
 	info->init = 1;
+	return;
+error:
+	info->init = 0;
+	return;
 }
 
+static void do_reverb_ex2_process(int ch, int32 scount, int32 ecount, InfoReverbEX2 *info)
+{
+	int i, k;
+	float *obuf = info->tbuf[ch], *buf = info->buf[ch], *irdata = info->irdata[ch];
+	int32 bcount = info->bcount;	
+
+	bcount -= scount;	
+	if(bcount < 0)
+		bcount += info->bsize;
+	
+#if (USE_X86_EXT_INTRIN >= 3)
+// 4set/1ch simd optimize 4samples
+	{
+		__m128i vwc = _mm_cvtsi32_si128(bcount);
+		const __m128i vbsize = _mm_cvtsi32_si128(info->bsize);
+		const __m128i vi4 = _mm_cvtsi32_si128(4), vi0 = _mm_setzero_si128();
+		int32 nc = bcount - (ecount - scount);
+		float *nbuf = nc < 0 ? buf : buf + nc;
+		_mm_prefetch((const char *)&nbuf, _MM_HINT_T0);
+		_mm_prefetch((const char *)&irdata, _MM_HINT_T0);
+		for (i = scount; i < ecount; i += 4){
+#if (USE_X86_EXT_INTRIN >= 9)
+			__m256 ysum0 = _mm256_setzero_ps();
+			__m256 ysum1 = _mm256_setzero_ps();
+			__m256 ysum2 = _mm256_setzero_ps();
+			__m256 ysum3 = _mm256_setzero_ps();
+#endif
+			__m128 sum0 = _mm_setzero_ps();
+			__m128 sum1 = _mm_setzero_ps();
+			__m128 sum2 = _mm_setzero_ps();
+			__m128 sum3 = _mm_setzero_ps();
+			__m128 tmp0, tmp2, tmp1, tmp3;
+			int32 bc = _mm_cvtsi128_si32(vwc);
+			float *bcbuf = buf + bc - 3; // aligned 4sample
+			vwc = _mm_sub_epi32(vwc, vi4);
+			vwc = _mm_add_epi32(vwc, _mm_and_si128(vbsize, _mm_cmplt_epi32(vwc, vi0)));
+#if (USE_X86_EXT_INTRIN >= 9)
+			for (k = 0; k < info->frame; k += 8){
+				__m256 yvir = _mm256_load_ps(&irdata[k]);
+				float *tmpbuf = bcbuf + k;
+				__m256 yvtb0 = _mm256_load_ps(tmpbuf     ); // [01234567] // aligned 4sample
+				__m256 yvtb1 = _mm256_loadu_ps(tmpbuf + 1); // [12345678]
+				__m256 yvtb2 = _mm256_loadu_ps(tmpbuf + 2); // [23456789]
+				__m256 yvtb3 = _mm256_loadu_ps(tmpbuf + 3); // [3456789A]
+				ysum3 = MM256_FMA_PS(yvtb0, yvir, ysum3); // buf + bcount - 3
+				ysum2 = MM256_FMA_PS(yvtb1, yvir, ysum2); // buf + bcount - 2
+				ysum1 = MM256_FMA_PS(yvtb2, yvir, ysum1); // buf + bcount - 1
+				ysum0 = MM256_FMA_PS(yvtb3, yvir, ysum0); // buf + bcount - 0
+			}
+			// ymm to xmm
+			sum0 = _mm_add_ps(_mm256_extractf128_ps(ysum0, 0x0), _mm256_extractf128_ps(ysum0, 0x1));
+			sum1 = _mm_add_ps(_mm256_extractf128_ps(ysum1, 0x0), _mm256_extractf128_ps(ysum1, 0x1));
+			sum2 = _mm_add_ps(_mm256_extractf128_ps(ysum2, 0x0), _mm256_extractf128_ps(ysum2, 0x1));
+			sum3 = _mm_add_ps(_mm256_extractf128_ps(ysum3, 0x0), _mm256_extractf128_ps(ysum3, 0x1));
+#else
+			for (k = 0; k < info->frame; k += 4){
+				__m128 vir = _mm_load_ps(&irdata[k]);
+				float *tmpbuf = bcbuf + k;
+				__m128 vtb0 = _mm_load_ps(tmpbuf     ); // [0123] // aligned 4sample
+				__m128 vtb1 = _mm_loadu_ps(tmpbuf + 1); // [1234]
+				__m128 vtb2 = _mm_loadu_ps(tmpbuf + 2); // [2345]
+				__m128 vtb3 = _mm_loadu_ps(tmpbuf + 3); // [3456]
+				sum3 = MM_FMA_PS(vtb0, vir, sum3); // buf + bcount - 3
+				sum2 = MM_FMA_PS(vtb1, vir, sum2); // buf + bcount - 2
+				sum1 = MM_FMA_PS(vtb2, vir, sum1); // buf + bcount - 1
+				sum0 = MM_FMA_PS(vtb3, vir, sum0); // buf + bcount - 0
+			}
+#endif
+			// sum0 v0,v1,v2,v3 // sum1 v4,v5,v6,v7 // sum2 v8,v9,v10,v11 // sum3 v12,v13,v14,v15
+			tmp0 = _mm_shuffle_ps(sum0, sum1, 0x44); // v0,v1,v4,v5
+			tmp2 = _mm_shuffle_ps(sum0, sum1, 0xEE); // v2,v3,v6,v7
+			tmp1 = _mm_shuffle_ps(sum2, sum3, 0x44); // v8,v9,v12,v13
+			tmp3 = _mm_shuffle_ps(sum2, sum3, 0xEE); // v10,v11,v14,v15
+			sum0 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0,v4,v8,v12
+			sum1 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1,v5,v9,v13
+			sum2 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2,v6,v10,v14
+			sum3 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3,v7,v11,v15
+			sum0 = _mm_add_ps(sum0, sum1);
+			sum2 = _mm_add_ps(sum2, sum3);
+			sum0 = _mm_add_ps(sum0, sum2); // v0123,v4567,v89AB,vCDEF
+			_mm_store_ps(&obuf[i], sum0);
+		}
+	}
+
+#else
+	{
+		for (i = scount; i < ecount; i++){
+			float sum = 0;
+			float tmpbuf = buf + bcount;
+			for (k = 0; k < info->frame; k++)
+				sum += tmpbuf[k] * irdata[k];
+			if((--bcount) < 0)
+				bcount += info->bsize;
+			obuf[i] = sum;
+		}
+	}
+#endif
+}
+
+static void do_reverb_ex2_rsmode0_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->tbcount;
+
+	for (i = 0; i < count; i += 2){
+		int32 bcount2 = bcount + info->bsize;
+		info->buf[0][bcount2] = info->buf[0][bcount] = buf[i];
+		info->buf[1][bcount2] = info->buf[1][bcount] = buf[i + 1];
+		if((--bcount) < 0) bcount += info->bsize;
+	}	
+	info->tbcount = bcount;
+}
+
+static void do_reverb_ex2_rsmode1_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->tbcount;
+	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vdiv2 = _mm_set1_pd(0.5);
+		for (i = 0; i < count; i += 4){
+			int32 bcount2 = bcount + info->bsize;
+			__m128d vin0 = _mm_load_pd(&buf[i    ]);
+			__m128d vin2 = _mm_load_pd(&buf[i + 2]);
+			__m128d vt = _mm_mul_pd(_mm_add_pd(vin0, vin2), vdiv2);
+			__m128 vo = _mm_cvtpd_ps(vt);
+			info->buf[0][bcount2] = info->buf[0][bcount] = MM_EXTRACT_F32(vo, 0);
+			info->buf[1][bcount2] = info->buf[1][bcount] = MM_EXTRACT_F32(vo, 1);
+			if((--bcount) < 0) bcount += info->bsize;
+		}
+	}
+#else
+	{
+		for (i = 0; i < count; i += 4){
+			int32 bcount2 = bcount + info->bsize;
+			info->buf[0][bcount2] = info->buf[0][bcount] = (buf[i    ] + buf[i + 2]) * 0.5;
+			info->buf[1][bcount2] = info->buf[1][bcount] = (buf[i + 1] + buf[i + 3]) * 0.5;
+			if((--bcount) < 0) bcount += info->bsize;
+		}	
+	}
+#endif
+	info->tbcount = bcount;
+}
+
+static void do_reverb_ex2_rsmode2_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->tbcount;
+	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vdiv4 = _mm_set1_pd(0.25);
+		for (i = 0; i < count; i += 8){
+			int32 bcount2 = bcount + info->bsize;
+			__m128d vin0 = _mm_load_pd(&buf[i    ]);
+			__m128d vin2 = _mm_load_pd(&buf[i + 2]);
+			__m128d vin4 = _mm_load_pd(&buf[i + 4]);
+			__m128d vin6 = _mm_load_pd(&buf[i + 6]);
+			__m128d vt = _mm_mul_pd(_mm_add_pd(_mm_add_pd(vin0, vin2), _mm_add_pd(vin4, vin6)), vdiv4);
+			__m128 vo = _mm_cvtpd_ps(vt);
+			info->buf[0][bcount2] = info->buf[0][bcount] = MM_EXTRACT_F32(vo, 0);
+			info->buf[1][bcount2] = info->buf[1][bcount] = MM_EXTRACT_F32(vo, 1);
+			if((--bcount) < 0) bcount += info->bsize;
+		}
+	}
+#else
+	{
+		for (i = 0; i < count; i += 8){
+			int32 bcount2 = bcount + info->bsize;
+			info->buf[0][bcount2] = info->buf[0][bcount] = (buf[i    ] + buf[i + 2] + buf[i + 4] + buf[i + 6]) * 0.25;
+			info->buf[1][bcount2] = info->buf[1][bcount] = (buf[i + 1] + buf[i + 3] + buf[i + 5] + buf[i + 7]) * 0.25;
+			if((--bcount) < 0) bcount += info->bsize;
+		}
+	}
+#endif
+	info->tbcount = bcount;
+}
+
+static void do_reverb_ex2_rsmode3_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->tbcount;
+		
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vdiv8 = _mm_set1_pd(0.125);
+		for (i = 0; i < count; i += 16){
+			int32 bcount2 = bcount + info->bsize;
+#if (USE_X86_EXT_INTRIN >= 9)
+			__m256d yvin0 = _mm256_load_pd(&buf[i    ]);
+			__m256d yvin4 = _mm256_load_pd(&buf[i + 4]);
+			__m256d yvin8 = _mm256_load_pd(&buf[i + 8]);
+			__m256d yvin12 = _mm256_load_pd(&buf[i + 12]);
+			__m256d yvt = _mm256_add_pd(_mm256_add_pd(yvin0, yvin4), _mm256_add_pd(yvin8, yvin12));
+			__m128d vt = _mm_mul_pd(_mm_add_pd(
+				_mm256_extractf128_pd(yvt, 0x0), _mm256_extractf128_pd(yvt, 0x1)
+				), vdiv8);	
+#else
+			__m128d vin0 = _mm_load_pd(&buf[i    ]);
+			__m128d vin2 = _mm_load_pd(&buf[i + 2]);
+			__m128d vin4 = _mm_load_pd(&buf[i + 4]);
+			__m128d vin6 = _mm_load_pd(&buf[i + 6]);
+			__m128d vin8 = _mm_load_pd(&buf[i + 8]);
+			__m128d vin10 = _mm_load_pd(&buf[i + 10]);
+			__m128d vin12 = _mm_load_pd(&buf[i + 12]);
+			__m128d vin14 = _mm_load_pd(&buf[i + 14]);
+			__m128d vt = _mm_mul_pd(_mm_add_pd(
+				_mm_add_pd(_mm_add_pd(vin0, vin2), _mm_add_pd(vin4, vin6)),
+				_mm_add_pd(_mm_add_pd(vin8, vin10), _mm_add_pd(vin12, vin14))
+				), vdiv8);
+#endif
+			__m128 vo = _mm_cvtpd_ps(vt);
+			info->buf[0][bcount2] = info->buf[0][bcount] = MM_EXTRACT_F32(vo, 0);
+			info->buf[1][bcount2] = info->buf[1][bcount] = MM_EXTRACT_F32(vo, 1);
+			if((--bcount) < 0) bcount += info->bsize;
+		}
+	}
+#else
+	{
+		for (i = 0; i < count; i += 16){
+			int32 bcount2 = bcount + info->bsize;
+			info->buf[0][bcount2] = info->buf[0][bcount] = (
+				buf[i    ] + buf[i + 2] + buf[i + 4] + buf[i + 6] + 
+				buf[i + 6] + buf[i + 8] + buf[i + 12] + buf[i + 14]
+				) * 0.125;
+			info->buf[1][bcount2] = info->buf[1][bcount] = (
+				buf[i + 1] + buf[i + 3] + buf[i + 5] + buf[i + 7] + 
+				buf[i + 9] + buf[i + 11] + buf[i + 13] + buf[i + 15]
+				) * 0.125;
+			if((--bcount) < 0) bcount += info->bsize;
+		}
+	}
+#endif
+	info->tbcount = bcount;
+}
+
+static void do_reverb_ex2_rsmode0_out(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vlv = _mm_set1_pd(info->levelrv);
+		const __m128d vst = _mm_set1_pd(REV_EX2_ST_CROSS * info->levelrv);
+		for (i = 0, k = 0; i < count; i += 2, k++){
+			__m128d vi = _mm_set_pd(info->tbuf[1][k], info->tbuf[0][k]);
+			__m128d vo = MM_FMA2_PD(vi, vlv, _mm_shuffle_pd(vi, vi, 0x1), vst);
+			_mm_store_pd(&buf[i], vo);	
+		}
+	}
+#else
+	const FLOAT_T vlv = info->levelrv;
+	const FLOAT_T vst = REV_EX2_ST_CROSS * info->levelrv;
+	for (i = 0, k = 0; i < count; i += 2, k++){	
+		buf[i    ] = info->tbuf[0][k] * vlv + info->tbuf[1][k] * vst;	
+		buf[i + 1] = info->tbuf[1][k] * vlv + info->tbuf[0][k] * vst;	
+	}
+#endif
+}
+
+static void do_reverb_ex2_rsmode1_out(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vlv = _mm_set1_pd(info->levelrv);
+		const __m128d vst = _mm_set1_pd(REV_EX2_ST_CROSS);
+		const __m128d vdiv2 = _mm_set1_pd(0.5);
+		__m128d vfb = _mm_loadu_pd(info->rsfb);
+		for (i = 0, k = 0; i < count; i += 4, k++){	
+			__m128d vi = _mm_set_pd(info->tbuf[1][k], info->tbuf[0][k]);
+			__m128d vrs, vo0, vo2;	
+			vrs = _mm_mul_pd(_mm_add_pd(vfb, vi), vdiv2);
+			vo0 = MM_FMA_PD(_mm_shuffle_pd(vi, vi, 0x1), vst, vi);
+			vo2 = MM_FMA_PD(_mm_shuffle_pd(vrs, vrs, 0x1), vst, vrs);
+			vo0 = _mm_mul_pd(vo0, vlv); 
+			vo2 = _mm_mul_pd(vo2, vlv); 
+			_mm_store_pd(&buf[i    ], vo0);	
+			_mm_store_pd(&buf[i + 2], vo2);	
+			vfb = vi;
+		}
+		_mm_storeu_pd(info->rsfb, vfb);
+	}
+#else
+	{
+		const FLOAT_T vlv = info->levelrv;
+		const FLOAT_T vst = REV_EX2_ST_CROSS * info->levelrv;
+		FLOAT_T fb0 = info->rsfb[0];
+		FLOAT_T fb1 = info->rsfb[1];
+		for (i = 0, k = 0; i < count; i += 4, k++){	
+			FLOAT_T in0 = info->tbuf[0][k];
+			FLOAT_T in1 = info->tbuf[1][k];
+			FLOAT_T rs0, rs1, rs2, rs3;	
+			rs2 = (fb0 + in0) * 0.5;
+			rs3 = (fb1 + in1) * 0.5;
+			rs0 = in0 * vlv + in1 * vst;
+			rs1 = in1 * vlv + in0 * vst;
+			rs2 = rs0 * vlv + rs1 * vst;
+			rs3 = rs1 * vlv + rs0 * vst;
+			buf[i    ] = rs0;	
+			buf[i + 1] = rs1;	
+			buf[i + 2] = rs2;	
+			buf[i + 3] = rs3;	
+			fb0 = in0;
+			fb0 = in1;
+		}
+		info->rsfb[0] = fb0;
+		info->rsfb[1] = fb1;
+	}
+#endif
+}
+
+static void do_reverb_ex2_rsmode2_out(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+
+#if (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m256d yvlv = _mm256_set1_pd(info->levelrv);
+		const __m256d yvst = _mm256_set1_pd(REV_EX2_ST_CROSS);
+		const __m256d yvdiv4_43 = _mm256_set_pd(0.75, 0.75, 1.0, 1.0);
+		const __m256d yvdiv4_21 = _mm256_set_pd(0.25, 0.25, 0.5, 0.5);
+		const __m256d yvdiv4_01 = _mm256_set_pd(0.25, 0.25, 0.0, 0.0);
+		const __m256d yvdiv4_23 = _mm256_set_pd(0.75, 0.75, 0.5, 0.5);
+		__m128d vfb = _mm_loadu_pd(info->rsfb);
+		__m256d yvfb = MM256_SET2X_PD(vfb, vfb);
+		for (i = 0, k = 0; i < count; i += 8, k++){	
+			__m128d vi = _mm_set_pd(info->tbuf[1][k], info->tbuf[0][k]);
+			__m256d yvi = MM256_SET2X_PD(vi, vi);
+			__m256d yvrs0, yvrs4, yvo0, yvo4;			
+			yvrs0 = MM256_FMA2_PD(yvfb, yvdiv4_43, yvi, yvdiv4_01);
+			yvrs4 = MM256_FMA2_PD(yvfb, yvdiv4_21, yvi, yvdiv4_23);
+			yvo0 = MM256_FMA_PD(_mm256_shuffle_pd(yvrs0, yvrs0, 0xA), yvst, yvrs0);
+			yvo4 = MM256_FMA_PD(_mm256_shuffle_pd(yvrs4, yvrs4, 0xA), yvst, yvrs4);
+			yvo0 = _mm256_mul_pd(yvo0, yvlv); 
+			yvo4 = _mm256_mul_pd(yvo4, yvlv); 
+			_mm256_store_pd(&buf[i    ], yvo0);
+			_mm256_store_pd(&buf[i + 4], yvo4);
+			yvfb = yvi;
+		}
+		_mm_storeu_pd(info->rsfb, _mm256_extractf128_pd(yvfb, 0x0));
+	}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vlv = _mm_set1_pd(info->levelrv);
+		const __m128d vst = _mm_set1_pd(REV_EX2_ST_CROSS);
+		const __m128d vdiv4_1 = _mm_set1_pd(0.25);
+		const __m128d vdiv4_2 = _mm_set1_pd(0.5);
+		const __m128d vdiv4_3 = _mm_set1_pd(0.75);
+		__m128d vfb = _mm_loadu_pd(info->rsfb);
+		for (i = 0, k = 0; i < count; i += 8, k++){	
+			__m128d vi = _mm_set_pd(info->tbuf[1][k], info->tbuf[0][k]);
+			__m128d vrs2, vrs4, vrs6, vo0, vo2, vo4, vo6;			
+			vrs2 = MM_FMA2_PD(vfb, vdiv4_3, vi, vdiv4_1);
+			vrs4 = _mm_mul_pd(_mm_add_pd(vfb, vi), vdiv4_2);
+			vrs6 = MM_FMA2_PD(vfb, vdiv4_1, vi, vdiv4_3);
+			vo0 = MM_FMA_PD(_mm_shuffle_pd(vi, vi, 0x1), vst, vi);
+			vo2 = MM_FMA_PD(_mm_shuffle_pd(vrs2, vrs2, 0x1), vst, vrs2);
+			vo4 = MM_FMA_PD(_mm_shuffle_pd(vrs4, vrs4, 0x1), vst, vrs4);
+			vo6 = MM_FMA_PD(_mm_shuffle_pd(vrs6, vrs6, 0x1), vst, vrs6);
+			vo0 = _mm_mul_pd(vo0, vlv); 
+			vo2 = _mm_mul_pd(vo2, vlv); 
+			vo4 = _mm_mul_pd(vo4, vlv); 
+			vo6 = _mm_mul_pd(vo6, vlv); 
+			_mm_store_pd(&buf[i    ], vo0);	
+			_mm_store_pd(&buf[i + 2], vo2);	
+			_mm_store_pd(&buf[i + 4], vo4);	
+			_mm_store_pd(&buf[i + 6], vo6);
+			vfb = vi;
+		}
+		_mm_storeu_pd(info->rsfb, vfb);
+	}
+#else
+	{
+		const FLOAT_T vlv = info->levelrv;
+		const FLOAT_T vst = REV_EX2_ST_CROSS * info->levelrv;
+		FLOAT_T fb0 = info->rsfb[0];
+		FLOAT_T fb1 = info->rsfb[1];
+		for (i = 0, k = 0; i < count; i += 8, k++){	
+			FLOAT_T in0 = info->tbuf[0][k];
+			FLOAT_T in1 = info->tbuf[1][k];
+			FLOAT_T rs0, rs1, rs2, rs3, rs4, rs5, rs6, rs7;
+			rs2 = fb0 * 0.75 + in0 * 0.25;
+			rs3 = fb1 * 0.75 + in1 * 0.25;
+			rs4 = (fb0 + in0) * 0.5;
+			rs5 = (fb1 + in1) * 0.5;
+			rs6 = fb0 * 0.25 + in0 * 0.75;
+			rs7 = fb1 * 0.25 + in1 * 0.75;			
+			rs0 = in0 * vlv + in1 * vst;
+			rs1 = in1 * vlv + in0 * vst;
+			rs2 = rs2 * vlv + rs3 * vst;
+			rs3 = rs3 * vlv + rs2 * vst;
+			rs4 = rs4 * vlv + rs5 * vst;
+			rs5 = rs5 * vlv + rs4 * vst;
+			rs6 = rs6 * vlv + rs7 * vst;
+			rs7 = rs7 * vlv + rs6 * vst;
+			buf[i    ] = rs0;	
+			buf[i + 1] = rs1;	
+			buf[i + 2] = rs2;	
+			buf[i + 3] = rs3;	
+			buf[i + 4] = rs4;	
+			buf[i + 5] = rs5;
+			buf[i + 6] = rs6;	
+			buf[i + 7] = rs7;
+			fb0 = in0;
+			fb0 = in1;
+		}
+		info->rsfb[0] = fb0;
+		info->rsfb[1] = fb1;	
+	}
+#endif
+}
+
+static void do_reverb_ex2_rsmode3_out(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	
+#if (USE_X86_EXT_INTRIN >= 9) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m256d yvlv = _mm256_set1_pd(info->levelrv);
+		const __m256d yvst = _mm256_set1_pd(REV_EX2_ST_CROSS);
+		const __m256d yvdiv8_87 = _mm256_set_pd(0.875, 0.875, 1.0, 1.0);
+		const __m256d yvdiv8_65 = _mm256_set_pd(0.625, 0.625, 0.75, 0.75);
+		const __m256d yvdiv8_43 = _mm256_set_pd(0.375, 0.375, 0.5, 0.5);
+		const __m256d yvdiv8_21 = _mm256_set_pd(0.125, 0.125, 0.25, 0.25);
+		const __m256d yvdiv8_01 = _mm256_set_pd(0.25, 0.25, 0.0, 0.0);
+		const __m256d yvdiv8_23 = _mm256_set_pd(0.75, 0.75, 0.5, 0.5);
+		const __m256d yvdiv8_45 = _mm256_set_pd(0.75, 0.75, 0.5, 0.5);
+		const __m256d yvdiv8_67 = _mm256_set_pd(0.75, 0.75, 0.5, 0.5);
+		__m128d vfb = _mm_loadu_pd(info->rsfb);
+		__m256d yvfb = MM256_SET2X_PD(vfb, vfb);
+		for (i = 0, k = 0; i < count; i += 16, k++){
+			__m128d vi = _mm_set_pd(info->tbuf[1][k], info->tbuf[0][k]);
+			__m256d yvi = MM256_SET2X_PD(vi, vi);
+			__m256d yvrs0, yvrs4, yvrs8, yvrs12, yvo0, yvo4, yvo8, yvo12;			
+			yvrs0 = MM256_FMA2_PD(yvfb, yvdiv8_87, yvi, yvdiv8_01);
+			yvrs4 = MM256_FMA2_PD(yvfb, yvdiv8_65, yvi, yvdiv8_23);
+			yvrs8 = MM256_FMA2_PD(yvfb, yvdiv8_43, yvi, yvdiv8_45);
+			yvrs12 = MM256_FMA2_PD(yvfb, yvdiv8_21, yvi, yvdiv8_67);
+			yvo0 = MM256_FMA_PD(_mm256_shuffle_pd(yvrs0, yvrs0, 0xA), yvst, yvrs0);
+			yvo4 = MM256_FMA_PD(_mm256_shuffle_pd(yvrs4, yvrs4, 0xA), yvst, yvrs4);
+			yvo8 = MM256_FMA_PD(_mm256_shuffle_pd(yvrs8, yvrs8, 0xA), yvst, yvrs8);
+			yvo12 = MM256_FMA_PD(_mm256_shuffle_pd(yvrs12, yvrs12, 0xA), yvst, yvrs12);
+			yvo0 = _mm256_mul_pd(yvo0, yvlv); 
+			yvo4 = _mm256_mul_pd(yvo4, yvlv); 
+			yvo8 = _mm256_mul_pd(yvo8, yvlv); 
+			yvo12 = _mm256_mul_pd(yvo12, yvlv); 
+			_mm256_store_pd(&buf[i    ], yvo0);
+			_mm256_store_pd(&buf[i + 4], yvo4);
+			_mm256_store_pd(&buf[i + 8], yvo8);
+			_mm256_store_pd(&buf[i + 12], yvo12);
+			yvfb = yvi;
+		}
+		_mm_storeu_pd(info->rsfb, _mm256_extractf128_pd(yvfb, 0x0));
+	}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vlv = _mm_set1_pd(info->levelrv);
+		const __m128d vst = _mm_set1_pd(REV_EX2_ST_CROSS);
+		const __m128d vdiv8_1 = _mm_set1_pd(0.125);
+		const __m128d vdiv8_2 = _mm_set1_pd(0.25);
+		const __m128d vdiv8_3 = _mm_set1_pd(0.375);
+		const __m128d vdiv8_4 = _mm_set1_pd(0.5);
+		const __m128d vdiv8_5 = _mm_set1_pd(0.625);
+		const __m128d vdiv8_6 = _mm_set1_pd(0.75);
+		const __m128d vdiv8_7 = _mm_set1_pd(0.875);
+		__m128d vfb = _mm_loadu_pd(info->rsfb);
+		for (i = 0, k = 0; i < count; i += 16, k++){	
+			__m128d vi = _mm_set_pd(info->tbuf[1][k], info->tbuf[0][k]);
+			__m128d vrs2, vrs4, vrs6, vrs8, vrs10, vrs12, vrs14, vo0, vo2, vo4, vo6, vo8, vo10, vo12, vo14;					
+			vrs2 = MM_FMA2_PD(vfb, vdiv8_7, vi, vdiv8_1);		
+			vrs4 = MM_FMA2_PD(vfb, vdiv8_6, vi, vdiv8_2);
+			vrs6 = MM_FMA2_PD(vfb, vdiv8_5, vi, vdiv8_3);
+			vrs8 = _mm_mul_pd(_mm_add_pd(vfb, vi), vdiv8_4);
+			vrs10 = MM_FMA2_PD(vfb, vdiv8_3, vi, vdiv8_5);	
+			vrs12 = MM_FMA2_PD(vfb, vdiv8_2, vi, vdiv8_6);
+			vrs14 = MM_FMA2_PD(vfb, vdiv8_1, vi, vdiv8_7);
+			vo0 = MM_FMA_PD(_mm_shuffle_pd(vi, vi, 0x1), vst, vi);
+			vo2 = MM_FMA_PD(_mm_shuffle_pd(vrs2, vrs2, 0x1), vst, vrs2);
+			vo4 = MM_FMA_PD(_mm_shuffle_pd(vrs4, vrs4, 0x1), vst, vrs4);
+			vo6 = MM_FMA_PD(_mm_shuffle_pd(vrs6, vrs6, 0x1), vst, vrs6);
+			vo8 = MM_FMA_PD(_mm_shuffle_pd(vrs8, vrs8, 0x1), vst, vrs8);
+			vo10 = MM_FMA_PD(_mm_shuffle_pd(vrs10, vrs10, 0x1), vst, vrs10);
+			vo12 = MM_FMA_PD(_mm_shuffle_pd(vrs12, vrs12, 0x1), vst, vrs12);
+			vo14 = MM_FMA_PD(_mm_shuffle_pd(vrs14, vrs14, 0x1), vst, vrs14);
+			vo0 = _mm_mul_pd(vo0, vlv); 
+			vo2 = _mm_mul_pd(vo2, vlv); 
+			vo4 = _mm_mul_pd(vo4, vlv); 
+			vo6 = _mm_mul_pd(vo6, vlv); 
+			vo8 = _mm_mul_pd(vo8, vlv); 
+			vo10 = _mm_mul_pd(vo10, vlv); 
+			vo12 = _mm_mul_pd(vo12, vlv); 
+			vo14 = _mm_mul_pd(vo14, vlv); 
+			_mm_store_pd(&buf[i    ], vo0);	
+			_mm_store_pd(&buf[i + 2], vo2);	
+			_mm_store_pd(&buf[i + 4], vo4);	
+			_mm_store_pd(&buf[i + 6], vo6);
+			_mm_store_pd(&buf[i + 8], vo8);	
+			_mm_store_pd(&buf[i + 10], vo10);
+			_mm_store_pd(&buf[i + 12], vo12);	
+			_mm_store_pd(&buf[i + 14], vo14);
+			vfb = vi;
+		}
+		_mm_storeu_pd(info->rsfb, vfb);
+	}
+#else
+	{
+		const FLOAT_T vst = REV_EX2_ST_CROSS;
+		FLOAT_T fb0 = info->rsfb[0];
+		FLOAT_T fb1 = info->rsfb[1];
+		for (i = 0, k = 0; i < count; i += 16, k++){	
+			FLOAT_T in0 = info->tbuf[0][k];
+			FLOAT_T in1 = info->tbuf[1][k];
+			FLOAT_T rs0, rs1, rs2, rs3, rs4, rs5, rs6, rs7, rs8, rs9, rs10, rs11, rs12, rs13, rs14, rs15;
+			rs2 = fb0 * 0.875 + in0 * 0.125;
+			rs3 = fb1 * 0.875 + in1 * 0.125;
+			rs4 = fb0 * 0.75 + in0 * 0.25;
+			rs5 = fb1 * 0.75 + in1 * 0.25;
+			rs6 = fb0 * 0.625 + in0 * 0.375;
+			rs7 = fb1 * 0.625 + in1 * 0.375;			
+			rs8 = (fb0 + in0) * 0.5;
+			rs9 = (fb1 + in1) * 0.5;
+			rs10 = fb0 * 0.375 + in0 * 0.625;
+			rs11 = fb1 * 0.375 + in1 * 0.625;	
+			rs12 = fb0 * 0.25 + in0 * 0.75;
+			rs13 = fb1 * 0.25 + in1 * 0.75;
+			rs14 = fb0 * 0.125 + in0 * 0.875;
+			rs15 = fb1 * 0.125 + in1 * 0.875;
+			rs0 = in0 + in1 * vst;
+			rs1 = in1 + in0 * vst;
+			rs2 = rs2 + rs3 * vst;
+			rs3 = rs3 + rs2 * vst;
+			rs4 = rs4 + rs5 * vst;
+			rs5 = rs5 + rs4 * vst;
+			rs6 = rs6 + rs7 * vst;
+			rs7 = rs7 + rs6 * vst;
+			rs8 = rs8 + rs9 * vst;
+			rs9 = rs9 + rs8 * vst;
+			rs10 = rs10 + rs11 * vst;
+			rs11 = rs11 + rs10 * vst;
+			rs12 = rs12 + rs13 * vst;
+			rs13 = rs13 + rs12 * vst;
+			rs14 = rs14 + rs15 * vst;
+			rs15 = rs15 + rs14 * vst;
+			buf[i    ] = rs0;	
+			buf[i + 1] = rs1;	
+			buf[i + 2] = rs2;	
+			buf[i + 3] = rs3;	
+			buf[i + 4] = rs4;	
+			buf[i + 5] = rs5;
+			buf[i + 6] = rs6;	
+			buf[i + 7] = rs7;
+			buf[i + 8] = rs8;	
+			buf[i + 9] = rs9;
+			buf[i + 10] = rs10;	
+			buf[i + 11] = rs11;
+			buf[i + 12] = rs12;	
+			buf[i + 13] = rs13;
+			buf[i + 14] = rs14;	
+			buf[i + 15] = rs15;
+			fb0 = in0;
+			fb0 = in1;
+		}
+		info->rsfb[0] = fb0;
+		info->rsfb[1] = fb1;	
+	}
+#endif
+}
+
+static void do_reverb_ex2_pre_process(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	switch(info->rsmode){
+	case 0: do_reverb_ex2_rsmode0_in(buf, count, info); break;
+	case 1: do_reverb_ex2_rsmode1_in(buf, count, info); break;
+	case 2: do_reverb_ex2_rsmode2_in(buf, count, info); break;
+	case 3: do_reverb_ex2_rsmode3_in(buf, count, info); break;
+	}
+}
+
+static void do_reverb_ex2_post_process(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	switch(info->rsmode){
+	case 0: do_reverb_ex2_rsmode0_out(buf, count, info); break;
+	case 1: do_reverb_ex2_rsmode1_out(buf, count, info); break;
+	case 2: do_reverb_ex2_rsmode2_out(buf, count, info); break;
+	case 3: do_reverb_ex2_rsmode3_out(buf, count, info); break;
+	}
+}
 
 #if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)		
 static void do_reverb_ex2_thread(int thread_num, void *info2)
 {
 	InfoReverbEX2 *info;
-	int i, k;
-	float *buf, *ibuf, *obuf, *irdata;
-	int32 *wcount;
-	int32 scount, ecount;
+	int i, k, ch;
+	int32 scount, ecount, tc, tn;
 		
-#if defined(REV_IR_4T)
-	if(thread_num >= 4)
-#else
-	if(thread_num >= 2)
-#endif
-		return;
 	if(!info2)
 		return;
 	info = (InfoReverbEX2 *)info2;
 	if(!info->init)
+		return;
+#if defined(REV_EX2_FFT)
+	if(info->fftmode){
+		do_reverb_ex2_fft_thread(thread_num, info2);
+		return;
+	}
+#endif
+	if(thread_num >= (info->thread + info->ithread))
 		return;	
-	if(thread_num == 0){ // L
-		ibuf = info->tbuf[0];
-		obuf = info->tbuf[2];
-		buf = info->buf[0];
-		irdata = info->irdata[0];
-		wcount = &info->twcount[0];
-		scount = 0;
-#if defined(REV_IR_4T)
-		ecount = info->tcount >> 1;
-#else
-		ecount = info->tcount;
-#endif
-	}else if(thread_num == 1){ // R
-		ibuf = info->tbuf[1];
-		obuf = info->tbuf[3];
-		buf = info->buf[1];
-		irdata = info->irdata[1];
-		wcount = &info->twcount[1];
-		scount = 0;
-#if defined(REV_IR_4T)
-		ecount = info->tcount >> 1;
-#else
-		ecount = info->tcount;
-#endif
-	}else
-#if defined(REV_IR_4T)
-	if(thread_num == 2){ // L
-		ibuf = info->tbuf[0];
-		obuf = info->tbuf[2];
-		buf = info->buf2[0];
-		irdata = info->irdata[0];
-		wcount = &info->twcount[2];
-		scount = info->tcount >> 1;
-		ecount = info->tcount;
-	}else if(thread_num == 3){ // R
-		ibuf = info->tbuf[1];
-		obuf = info->tbuf[3];
-		buf = info->buf2[1];
-		irdata = info->irdata[1];
-		wcount = &info->twcount[3];
-		scount = info->tcount >> 1;
-		ecount = info->tcount;
-	}else
-#endif
-		return;	
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-	// 4set/1ch
-	{
-	__m128i vwc = _mm_set1_epi32(*wcount);
-	__m128i vframe = _mm_set1_epi32(info->frame);
-	__m128i vi4 = _mm_set1_epi32(4), vi0 = _mm_setzero_si128(), viset = _mm_set_epi32(3, 2, 1, 0);
-	__m128i vwcp;
-
-	vwc = _mm_sub_epi32(vwc, viset);
-	vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
-#if defined(REV_IR_4T)
-	for (i = 0; i < scount; i += 4){
-		vwcp = _mm_add_epi32(vwc, vframe);
-		buf[MM_EXTRACT_I32(vwcp,0)] = buf[MM_EXTRACT_I32(vwc,0)] = ibuf[i];
-		buf[MM_EXTRACT_I32(vwcp,1)] = buf[MM_EXTRACT_I32(vwc,1)] = ibuf[i + 1];
-		buf[MM_EXTRACT_I32(vwcp,2)] = buf[MM_EXTRACT_I32(vwc,2)] = ibuf[i + 2];
-		buf[MM_EXTRACT_I32(vwcp,3)] = buf[MM_EXTRACT_I32(vwc,3)] = ibuf[i + 3];
-		vwc = _mm_sub_epi32(vwc, vi4);
-		vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
-	}
-#endif
-	for (i = scount; i < ecount; i += 4){
-		__m128 sum0 = _mm_setzero_ps();
-		__m128 sum1 = _mm_setzero_ps();
-		__m128 sum2 = _mm_setzero_ps();
-		__m128 sum3 = _mm_setzero_ps();
-		__m128 tmp0, tmp2, tmp1, tmp3; 		
-		vwcp = _mm_add_epi32(vwc, vframe);
-		buf[MM_EXTRACT_I32(vwcp,0)] = buf[MM_EXTRACT_I32(vwc,0)] = ibuf[i];
-		buf[MM_EXTRACT_I32(vwcp,1)] = buf[MM_EXTRACT_I32(vwc,1)] = ibuf[i + 1];
-		buf[MM_EXTRACT_I32(vwcp,2)] = buf[MM_EXTRACT_I32(vwc,2)] = ibuf[i + 2];
-		buf[MM_EXTRACT_I32(vwcp,3)] = buf[MM_EXTRACT_I32(vwc,3)] = ibuf[i + 3];
-		// FMAループの最後のw0w1w2w3重複部分は事前にirdata最後に0を追加することで回避
-		for (k = 0; k < info->frame; k += 4){
-			__m128 vir = _mm_load_ps(&irdata[k]);
-			vwcp = _mm_add_epi32(vwc, _mm_set1_epi32(k));
-			sum0 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,0)]), vir, sum0);
-			sum1 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,1)]), vir, sum1);
-			sum2 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,2)]), vir, sum2);
-			sum3 = MM_FMA_PS(_mm_loadu_ps(&buf[MM_EXTRACT_I32(vwcp,3)]), vir, sum3);
+	if(info->ithread){
+		if(thread_num == info->thread){
+			do_reverb_ex2_pre_process(info->ptr, info->count, info);
+			return;
 		}
-		vwc = _mm_sub_epi32(vwc, vi4);
-		vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
-		// sum0 v0,v1,v2,v3 // sum1 v4,v5,v6,v7 // sum2 v8,v9,v10,v11 // sum3 v12,v13,v14,v15
-		tmp0 = _mm_shuffle_ps(sum0, sum1, 0x44); // v0,v1,v4,v5
-		tmp2 = _mm_shuffle_ps(sum0, sum1, 0xEE); // v2,v3,v6,v7
-		tmp1 = _mm_shuffle_ps(sum2, sum3, 0x44); // v8,v9,v12,v13
-		tmp3 = _mm_shuffle_ps(sum2, sum3, 0xEE); // v10,v11,v14,v15
-		sum0 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0,v4,v8,v12
-		sum1 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1,v5,v9,v13
-		sum2 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2,v6,v10,v14
-		sum3 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3,v7,v11,v15
-		sum0 = _mm_add_ps(sum0, sum1);
-		sum2 = _mm_add_ps(sum2, sum3);
-		sum0 = _mm_add_ps(sum0, sum2); // v0123,v4567,v89AB,vCDEF
-		_mm_store_ps(&obuf[i], sum0);
+	}else if(thread_num == 0){
+		do_reverb_ex2_pre_process(info->ptr, info->count, info);
 	}
-#if defined(REV_IR_4T)
-	for (i = ecount; i < info->tcount; i += 4){
-		vwcp = _mm_add_epi32(vwc, vframe);
-		buf[MM_EXTRACT_I32(vwcp,0)] = buf[MM_EXTRACT_I32(vwc,0)] = ibuf[i];
-		buf[MM_EXTRACT_I32(vwcp,1)] = buf[MM_EXTRACT_I32(vwc,1)] = ibuf[i + 1];
-		buf[MM_EXTRACT_I32(vwcp,2)] = buf[MM_EXTRACT_I32(vwc,2)] = ibuf[i + 2];
-		buf[MM_EXTRACT_I32(vwcp,3)] = buf[MM_EXTRACT_I32(vwc,3)] = ibuf[i + 3];
-		vwc = _mm_sub_epi32(vwc, vi4);
-		vwc = _mm_add_epi32(vwc, _mm_and_si128(vframe, _mm_cmplt_epi32(vwc, vi0)));
-	}	
-#endif
-	*wcount = MM_EXTRACT_I32(vwc,0);
-	}
-#else
-	{
-#if defined(REV_IR_4T)
-	for (i = 0; i < scount; i++){
-		int32 w0 = *wcount;	
-		--(*wcount);
-		if(*wcount < 0)
-			*wcount += info->frame;
-		buf[w0 + info->frame] = buf[w0] = ibuf[i];
-	}
-#endif
-	for (i = scount; i < ecount; i++){
-		float sum = 0;
-		int32 w = *wcount;	
-		--(*wcount);
-		if(*wcount < 0)
-			*wcount += info->frame;
-		buf[w] = ibuf[i];
-		buf[w + info->frame] = ibuf[i];
-		for (k = 0; k < info->frame; k++){
-			int32 r = w + k;
-			sum += buf[r] * irdata[k];
-		}
-		obuf[i] = sum;
-	}
-#if defined(REV_IR_4T)
-	for (i = ecount; i < info->tcount; i++){
-		int32 w0 = *wcount;	
-		--(*wcount);
-		if(*wcount < 0)
-			*wcount += info->frame;
-		buf[w0 + info->frame] = buf[w0] = ibuf[i];
-	}
-#endif
-	}
-#endif
+	tc = info->tcount / (info->thread >> 1);
+	tn = thread_num >> 1;
+	scount = tc * tn;
+	ecount = tc * (tn + 1);
+	do_reverb_ex2_process(thread_num & 0x1, scount, ecount, info);
 }
-#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
-
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static void do_reverb_ex2(DATA_T *buf, int32 count, InfoReverbEX2 *info)
 {
-	int32 i, k;
-
 	if(count == MAGIC_INIT_EFFECT_INFO) {
 		init_reverb_ex2(info);
 		return;
@@ -7280,135 +7977,850 @@ static void do_reverb_ex2(DATA_T *buf, int32 count, InfoReverbEX2 *info)
 		return;	
 	else if(!info->init)
 		return;
+#if defined(REV_EX2_FFT)
+	if(info->fftmode){
+		do_reverb_ex2_fft(buf, count, info);
+		return;
+	}
+#endif
+	info->ptr = buf;
+	info->count = count;
+	info->tcount = count >> (1 + info->rsmode);	
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
 	if(info->thread){
-		info->tcount = count >> 1;
+		go_effect_sub_thread(do_reverb_ex2_thread, info, info->thread + info->ithread);
+	}else
+#endif
+	{		
+		do_reverb_ex2_pre_process(buf, count, info);
+		do_reverb_ex2_process(0, 0, info->tcount, info);
+		do_reverb_ex2_process(1, 0, info->tcount, info);
+	}
+	info->bcount = info->tbcount;
+	do_reverb_ex2_post_process(buf, count, info);
+}
+
+
+#if defined(REV_EX2_FFT)
+// freeverb3 irmodel2zl.cpp を参考に書いてみたが・・
+
+
+#define REV_EX2_FFT_LEVEL (1. * (1.0 - REV_EX2_ST_CROSS))
+#define REV_EX2_FRAGBIT (12) // 10 ~ 14 
+#define REV_EX2_FRAGSIZE (1 << REV_EX2_FRAGBIT) // 2^REV_EX2_FRAGBIT > synthbuffer size
+#define REV_EX2_FFTSIZE (REV_EX2_FRAGSIZE << 1)
+
+static void do_reverb_ex2__fft(float *fft, float *st)
+{	
+	const int32 cosofs = REV_EX2_FRAGSIZE >> 2;
+	const uint32 stmask = REV_EX2_FRAGSIZE - 1;
+	float *ar = fft;
+	float *ai = fft + REV_EX2_FRAGSIZE;
+	int i = 0, j, k, m, mh, irev;
+	float xr, xi;
+
+	for (j = 1; j < (REV_EX2_FRAGSIZE - 1); j++){
+		for(k = (REV_EX2_FRAGSIZE >> 1); k > (i ^= k); k >>= 1){}
+		if(j < i){
+			xr = *(ar + j);
+			xi = *(ai + j);
+			*(ar + j) = *(ar + i);
+			*(ai + j) = *(ai + i);
+			*(ar + i) = xr;
+			*(ai + i) = xi;
+		}
+	}
+	for(mh = 1; (m = mh << 1) <= REV_EX2_FRAGSIZE; mh = m){
+		irev = 0;
+		for(i = 0; i < REV_EX2_FRAGSIZE; i += m){
+			float tsin = st[irev & stmask];
+			float tcos = st[(irev + cosofs) & stmask];
+			for(k = (REV_EX2_FRAGSIZE >> 2); k > (irev ^= k); k >>= 1){}
+			for(j = i; j < mh + i; j++){
+				k = j + mh;
+				xr = *(ar + j) - *(ar + k);
+				xi = *(ai + j) - *(ai + k);
+				*(ar + j) += *(ar + k);
+				*(ai + j) += *(ai + k);
+				*(ar + k) = tcos * xr - tsin * xi;
+				*(ai + k) = tcos * xi + tsin * xr;
+			}
+		}
+	}
+}
+
+static void do_reverb_ex2_R2HC(float *iL, float *oL, float *st)
+{	
+	const int32 fbyte = sizeof(float) * REV_EX2_FRAGSIZE;
+	int32 i = 0;
+	ALIGN float fo[REV_EX2_FFTSIZE] = {0};
+
+	memcpy(fo, iL, fbyte);
+	do_reverb_ex2__fft(fo, st);
+#if 0
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		oL[i        ] = fo[i]; 
+		oL[REV_EX2_FFTSIZE - 1 - 1] = fo[REV_EX2_FFTSIZE - 1 - i];
+	}
+#elif 0
+    oL[0] = fo[0]; 
+	oL[1] = fo[REV_EX2_FRAGSIZE];
+	for(i = 1; i < REV_EX2_FRAGSIZE; i++){
+		oL[2 * i    ] = fo[REV_EX2_FFTSIZE - i]; 
+		oL[2 * i + 1] = fo[REV_EX2_FFTSIZE - i];
+	}
+#elif 0
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		oL[2 * i    ] = fo[i]; 
+		oL[2 * i + 1] = fo[REV_EX2_FFTSIZE - 1 - i];
+	}
+#else
+	memcpy(oL, fo, sizeof(float) * REV_EX2_FFTSIZE);
+#endif
+
+}
+
+static void do_reverb_ex2_HC2R(float *iL, float *oL, float *st)
+{
+	int32 i = 0;
+	ALIGN float fo[REV_EX2_FFTSIZE] = {0};
+	
+#if 0
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		fo[i] = iL[i        ]; 
+		fo[REV_EX2_FFTSIZE - 1 - 1] = iL[REV_EX2_FFTSIZE - 1 - i];
+	}
+
+#elif 0
+	fo[0] = iL[0];
+	fo[REV_EX2_FRAGSIZE] = iL[1];
+	for(i = 1; i < REV_EX2_FRAGSIZE; i++){
+		fo[REV_EX2_FFTSIZE - i] = iL[2 * i    ];
+		fo[REV_EX2_FFTSIZE - i] = iL[2 * i + 1];
+	}
+#elif 0
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		fo[i                      ] = iL[2 * i    ]; 
+		fo[REV_EX2_FFTSIZE - 1 - i] = iL[2 * i + 1];
+	}
+#else
+	memcpy(fo, iL, sizeof(float) * REV_EX2_FFTSIZE);
+#endif
+	do_reverb_ex2__fft(fo, st);
+	{
+		float *pfor = fo;
+		float *pfoi = fo + REV_EX2_FRAGSIZE;
+		float *or = oL;
+		float *oi = oL + REV_EX2_FRAGSIZE;
+		const float divfr = 1.0;// / (double)REV_EX2_FRAGSIZE;
+		const float divfi = -1.0;// / (double)REV_EX2_FRAGSIZE;
+		for(i = 0; i < REV_EX2_FFTSIZE; i++){
+		//	or[i] += pfor[i] * divfi;
+			or[REV_EX2_FFTSIZE - 1 - i] += pfor[i] * divfr;
+		//	oi[i] += pfoi[i] * divfi;
+		}
+	}
+}
+
+static void do_reverb_ex2_mul(float *iL, float *fL, float *oL)
+{
+	int32 i;
+#if 0
+	float tL0 = oL[0] + iL[0] * fL[0];
+	float tL1 = oL[1] + iL[1] * fL[1];
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	const __m128 vm1 = _mm_set_ps(1, -1, 1, -1);
+	for(i = 0; i < REV_EX2_FRAGSIZE; i += 2){
+		__m128 vo = _mm_load_ps(&oL[2 * i]);
+		__m128 vi = _mm_loadu_ps(&iL[2 * i]);
+		__m128 vf0 = _mm_load_ps(&fL[2 * i]);
+		__m128 vf1 = _mm_shuffle_ps(vf0, vf0, 0xB1);
+		__m128 vi0 = _mm_shuffle_ps(vi, vi, 0xA0);
+		__m128 vi1 = _mm_shuffle_ps(vi, vi, 0xF5);	
+		vf1 = _mm_mul_ps(vf1, vm1);
+		vo = MM_FMA_PS(vi0, vf0, vo);
+		vo = MM_FMA_PS(vi1, vf1, vo);
+		_mm_store_ps(&oL[2 * i], vo);	
+	}
+#else
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		float i0 = iL[2 * i + 0];
+		float i1 = iL[2 * i + 1];
+		float f0 = fL[2 * i + 0];
+		float f1 = fL[2 * i + 1];
+		oL[2 * i + 0] += i0 * f0 - i1 * f1;
+		oL[2 * i + 1] += i0 * f1 + i1 * f0;		
+	}
+#endif
+	oL[0] = tL0;
+	oL[1] = tL1;
+
+#else	
+	float *ir = iL;
+	float *ii = iL + REV_EX2_FRAGSIZE;
+	float *fr = fL;
+	float *fi = fL + REV_EX2_FRAGSIZE;
+	float *or = oL;
+	float *oi = oL + REV_EX2_FRAGSIZE;
+	float tor = or[0] + ir[0] * fr[0];
+	float toi = oi[0] + ii[0] * fi[0];
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	const __m128 vm1 = _mm_set1_ps(-1);
+	for(i = 0; i < REV_EX2_FRAGSIZE; i += 4){
+		__m128 vir = _mm_load_ps(&ir[i]);
+		__m128 vii = _mm_load_ps(&ii[i]);
+		__m128 vfr = _mm_load_ps(&fr[i]);
+		__m128 vfi = _mm_load_ps(&fi[i]);
+		__m128 vor = _mm_load_ps(&or[i]);
+		__m128 voi = _mm_load_ps(&oi[i]);
+		__m128 vfm = _mm_mul_ps(vfi, vm1);
+		vor = MM_FMA_PS(vir, vfr , vor);
+		vor = MM_FMA_PS(vii, vfm , vor);
+		voi = MM_FMA_PS(vir, vfi, voi);
+		voi = MM_FMA_PS(vii, vfr, voi);
+		_mm_store_ps(&or[i], vor);
+		_mm_store_ps(&oi[i], voi);
+	}
+#else
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		float tir = ir[i];
+		float tii = ii[i];
+		float tfr = fr[i];
+		float tfi = fi[i];
+		or[i] += tir * tfr - tii * tfi;
+		oi[i] += tir * tfi + tii * tfr;		
+	}
+#endif
+	or[0] = tor;
+	oi[0] = toi;
+
+#endif
+}
+
+static float* do_reverb_ex2_delay(float *in, int32 prev, float *dbuf, int32 *bcount, int32 bnum)
+{
+	if(prev == 0){
+		float *pos;
+
+		*bcount = (*bcount + 1) % bnum;
+		pos = dbuf + REV_EX2_FFTSIZE * *bcount;
+		memcpy(pos, in, sizeof(float) * REV_EX2_FFTSIZE);
+		return pos;
+	}else{
+		return dbuf + REV_EX2_FFTSIZE * ((bnum + *bcount - prev) % bnum);
+	}
+}
+
+static void init_reverb_ex2_fft(InfoReverbEX2 *info)
+{
+	int i, k, flg = 0;
+	float div;
+	int32 bytes, rsrate, cbs;
+	int32 fnum, ibytes;
+	char *sample_file = "irfile.wav";
+	int32 amp = 100;
+	TCHAR path[FILEPATH_MAX] = {0};
+
+	if(ext_reverb_ex2_fftmode == 1)
+		info->fftmode = 1;
+	else if(ext_reverb_ex2_fftmode == 2)
+		info->fftmode = 2;
+	else
+		goto error;
+	if(info->init){
+		if(info->fm_p != info->fftmode || info->pmr_p != play_mode->rate || info->rt_p != info->revtype)
+			free_reverb_ex2(info);
+		else
+			return;
+	}
+	if(play_mode->encoding & PE_MONO)
+		goto error;	
+	
+	reverb_ex2_read_ini(info->revtype, path, &amp);
+	if(!(*path)){
+		flg = 1;
+	}else{
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, 
+			"SamplingReverb: Trying to load IR %s (type:%s)", path, ini_rev_type_name[info->revtype]);
+		if(reverb_ex2_import_wave(path, info)){
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, 
+				"SamplingReverb: Can't load IR %s (type:%s)", path, ini_rev_type_name[info->revtype]);
+			flg = 1;
+		}
+	}	
+	if(flg){
+		ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SamplingReverb: Trying to load IR %s", sample_file);
+		amp = 100;
+		if(reverb_ex2_import_wave(sample_file, info)){
+			ctl->cmsg(CMSG_INFO, VERB_VERBOSE, "SamplingReverb: ERROR Can't load IR %s", sample_file);
+			goto error;
+		}
+	}	
+
+	if(info->frame < 1 || info->srate < 1)
+		goto error;
+	info->fm_p = info->fftmode;
+	info->rt_p = info->revtype;
+	info->pmr_p = play_mode->rate;
+	switch(ext_reverb_ex2_rsmode){
+	default:
+	case 3:
+		if(play_mode->rate >= 128000){
+			info->rsmode = 3;
+			rsrate = play_mode->rate >> 3;
+			cbs = compute_buffer_size >> 3;
+			break;
+		} // else thru
+	case 2:
+		if(play_mode->rate >= 64000){
+			info->rsmode = 2;
+			rsrate = play_mode->rate >> 2;
+			cbs = compute_buffer_size >> 2;
+			break;
+		} // else thru
+	case 1:
+		if(play_mode->rate >= 32000){
+			info->rsmode = 1;
+			rsrate = play_mode->rate >> 1;
+			cbs = compute_buffer_size >> 1;
+			break;
+		} // else thru
+	case 0:
+		info->rsmode = 0;
+		rsrate = play_mode->rate;
+		cbs = compute_buffer_size;
+		break;
+	}
+
+	// irdata resample (align fragsize
+	{
+		double ratio = (double)rsrate / (double)info->srate;
+		int32 nframe = (double)info->frame * ratio + 0.5;
+		double rate = 1.0 / ratio; // 
+		float *ndata[2];		
+		int32 fnum, tframe, nbytes, frest;
+		fnum = nframe / REV_EX2_FRAGSIZE;
+		frest = nframe % REV_EX2_FRAGSIZE;
+		fnum = frest ? (fnum + 1) : fnum;
+		tframe = fnum * REV_EX2_FRAGSIZE;
+		nbytes = (tframe + 16) * sizeof(float);	
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		ndata[0] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
+		ndata[1] = (float *) aligned_malloc(nbytes, ALIGN_SIZE);
+#else
+		ndata[0] = (float *) safe_large_malloc(nbytes);
+		ndata[1] = (float *) safe_large_malloc(nbytes);
+#endif		
+		if(!ndata[0] || !ndata[0])
+			goto error;
+		memset(ndata[0], 0, nbytes);
+		memset(ndata[1], 0, nbytes);
+		if(rate > 1.0){
+			FilterCoefficients lpf;		
+			set_sample_filter_type(&lpf, FILTER_LPF6);
+			set_sample_filter_ext_rate(&lpf, info->srate);
+			set_sample_filter_freq(&lpf, rsrate * 0.9);
+			recalc_filter(&lpf);
+			for (i = 0; i < info->frame; i++){
+				DATA_T in0 = info->irdata[0][i];
+				DATA_T in1 = info->irdata[1][i];
+				sample_filter_stereo(&lpf, &in0, &in1);
+				info->irdata[0][i] = in0;
+				info->irdata[1][i] = in1;
+			}
+		}	
+		if(rate == 1.0){
+			memcpy(ndata[0], info->irdata[0], nframe * sizeof(float));
+			memcpy(ndata[1], info->irdata[1], nframe * sizeof(float));
+		}else if(rate == 8.0)
+			do_reverb_ex2_resample_ds8(info->irdata[0], info->irdata[1], ndata[0], ndata[1], info->frame >> 3);
+		else if(rate == 4.0)
+			do_reverb_ex2_resample_ds4(info->irdata[0], info->irdata[1], ndata[0], ndata[1], info->frame >> 2);
+		else if(rate == 2.0)
+			do_reverb_ex2_resample_ds2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], info->frame >> 1);
+		else if(rate > 4.0){
+			do_reverb_ex2_resample_ds4(info->irdata[0], info->irdata[1], info->irdata[0], info->irdata[1], info->frame >> 2);
+			do_reverb_ex2_resample_ov2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate * DIV_4);
+		}else if(rate > 2.0){
+			do_reverb_ex2_resample_ds2(info->irdata[0], info->irdata[1], info->irdata[0], info->irdata[1], info->frame >> 1);
+			do_reverb_ex2_resample_ov2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate * DIV_2);
+		}else if(rate > 1.0)	
+			do_reverb_ex2_resample_ov2(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate);
+		else 
+			do_reverb_ex2_resample(info->irdata[0], info->irdata[1], ndata[0], ndata[1], nframe, rate);
+		for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+			if(info->irdata[i] != NULL){ aligned_free(info->irdata[i]); info->irdata[i] = NULL; }
+#else
+			if(info->irdata[i] != NULL){ safe_free(info->irdata[i]); info->irdata[i] = NULL; }
+#endif		
+		}
+		info->frame = nframe; 
+		info->srate = rsrate;
+		info->irdata[0] = ndata[0];
+		info->irdata[1] = ndata[1];
+	}	
+	// DC
+	{
+		FilterCoefficients hpf;
+		set_sample_filter_type(&hpf, FILTER_HPF6);
+		set_sample_filter_ext_rate(&hpf, info->srate);
+		set_sample_filter_freq(&hpf, 5);
+		recalc_filter(&hpf);
+		for (i = 0; i < info->frame; i++){
+			DATA_T in0 = info->irdata[0][i];
+			DATA_T in1 = info->irdata[1][i];
+			sample_filter_stereo(&hpf, &in0, &in1);
+			info->irdata[0][i] = in0;
+			info->irdata[1][i] = in1;
+		}
+	}
+	//
+	div = 1.0 / (double)(REV_EX2_FRAGSIZE * 2);	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		__m128 vdiv = _mm_set1_ps(div);
+		for (i = 0; i < info->frame; i += 4){
+			MM_LS_MUL_PS(&info->irdata[0][i], vdiv);
+			MM_LS_MUL_PS(&info->irdata[1][i], vdiv);
+		}
+	}
+#else
+	for (i = 0; i < info->frame; i++){
+		info->irdata[0][i] *= div;
+		info->irdata[1][i] *= div;
+	}
+#endif
+	// create buffers
+	fnum = info->frame / REV_EX2_FRAGSIZE;
+	bytes = sizeof(float) * (REV_EX2_FRAGSIZE + 8);
+	ibytes = sizeof(int32) * REV_EX2_FRAGSIZE;
+	for(i = 0; i < 2; i++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		info->rvs[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->rs[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->is[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->ss[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->os[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->fs[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->fi[i] = (float *) aligned_malloc(bytes * 2 * fnum, ALIGN_SIZE);
+		info->bd[i] = (float *) aligned_malloc(bytes * 2 * fnum, ALIGN_SIZE);
+		info->ios[i] = (float *) aligned_malloc(bytes * 3, ALIGN_SIZE);
+#else
+		info->rvs[i] = (float *) safe_large_malloc(bytes * 2);
+		info->rs[i] = (float *) safe_large_malloc(bytes * 2);
+		info->is[i] = (float *) safe_large_malloc(bytes * 2);
+		info->ss[i] = (float *) safe_large_malloc(bytes * 2);
+		info->os[i] = (float *) safe_large_malloc(bytes * 2);
+		info->fs[i] = (float *) safe_large_malloc(bytes * 2);
+		info->ios[i] = (float *) safe_large_malloc(bytes * 3);
+		info->fi[i] = (float *) safe_large_malloc(bytes * 2 * fnum);
+		info->bd[i] = (float *) safe_large_malloc(bytes * 2 * fnum);
+#endif
+		if(!info->rvs[i] || !info->rs[i] || !info->is[i] || !info->ss[i] || !info->os[i]
+			|| !info->fs[i] || !info->fi[i] || !info->bd[i] || !info->ios[i] 
+			){
+			goto error;
+		}
+		memset(info->rvs[i], 0, bytes * 2);
+		memset(info->rs[i], 0, bytes * 2);
+		memset(info->is[i], 0, bytes * 2);
+		memset(info->ss[i], 0, bytes * 2);
+		memset(info->os[i], 0, bytes * 2);
+		memset(info->fs[i], 0, bytes * 2);
+		memset(info->fi[i], 0, bytes * 2 * fnum);
+		memset(info->bd[i], 0, bytes * 2 * fnum);
+		memset(info->ios[i], 0, bytes * 3);
+	}
+	// sin table
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	info->sint = (float *) aligned_malloc(bytes, ALIGN_SIZE);
+#else
+	info->sint = (float *) safe_large_malloc(bytes);
+#endif
+	if(!info->sint)
+		goto error;
+	memset(info->sint, 0, bytes);
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){ 
+		const double rad = M_PI * 2.0 / REV_EX2_FRAGSIZE;
+		info->sint[i] = (float)((double)sin(rad * i));
+	}
+	// impulse
+	for(i = 0; i < fnum; i++){
+		int32 fofs = REV_EX2_FRAGSIZE * i;
+		int32 riofs = REV_EX2_FFTSIZE * i;
+		do_reverb_ex2_R2HC(info->irdata[0] + fofs, info->fi[0] + riofs, info->sint);	
+		do_reverb_ex2_R2HC(info->irdata[1] + fofs, info->fi[1] + riofs, info->sint);	
+	}
+	info->fnum = fnum;
+	// create input/output buffers	
+	info->bsize = compute_buffer_size;
+	bytes = (compute_buffer_size + 8) * sizeof(float); // + 8 for simd
+	for(k = 0; k < 2; k++){
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		info->buf[k] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->tbuf[k] = (float *) aligned_malloc(bytes, ALIGN_SIZE);
+#else
+		info->buf[k] = (float *) safe_large_malloc(bytes * 2);
+		info->tbuf[k] = (float *) safe_large_malloc(bytes);
+#endif
+		if(!info->buf[k] || !info->tbuf[k])
+			goto error;
+		memset(info->buf[k], 0, bytes * 2);
+		memset(info->tbuf[k], 0, bytes);
+	}	
+	
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	if(compute_thread_ready < 2){
+		info->thread = 0;
+		goto thru_thread;
+	}
+	info->thread = 2;
+	info->ithread = compute_thread_ready >= 3 ? 1 : 0;
+	if(set_effect_sub_thread(do_reverb_ex2_thread, info, info->thread + info->ithread)){
+		info->thread = 0;
+		goto thru_thread;
+	}		
+thru_thread:
+#endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	info->levelrv = (double)amp * DIV_100 * info->level * ext_reverb_ex2_level * REV_EX2_LEVEL * REV_EX2_FFT_LEVEL * M_31BIT;
+	info->scount[0] = 0;
+	info->scount[1] = 0;
+	info->bdcount[0] = 0;
+	info->bdcount[1] = 0;
+	info->bcount = 0;
+	info->tcount = 0;
+	info->init = 1;
+	return;
+error:
+	free_reverb_ex2(info);
+	info->init = 0;
+	return;
+}
+
+static void do_reverb_ex2_fft_process1(int32 ofs, int32 count, int32 ch, InfoReverbEX2 *info)
+{
+	int32 i;
+	int32 bcount = info->bcount ? 0 : info->bsize;
+	float *input = info->buf[ch] + ofs + bcount;
+	float *output = info->tbuf[ch] + ofs;
+	const int32 fbyte = sizeof(float) * REV_EX2_FRAGSIZE;
+	const int32 f2byte = sizeof(float) * REV_EX2_FRAGSIZE * 2;
+	const int32 cbyte = sizeof(float) * count; 
+	const int32 ribyte = sizeof(float) * REV_EX2_FFTSIZE;
+	float *rvsc, *rsc;
+
+	if(info->scount[ch] == 0){
+		memset(info->fs[ch], 0, ribyte);
+		memset(info->ss[ch], 0, ribyte);		
+		memset(info->rvs[ch] + REV_EX2_FRAGSIZE - 1, 0, sizeof(float) * (REV_EX2_FRAGSIZE + 1));
+		for(i = 1; i < info->fnum; i++){
+			float *bd0 = do_reverb_ex2_delay(info->is[ch], i - 1, info->bd[ch], &info->bdcount[ch], info->fnum);
+			do_reverb_ex2_mul(bd0, info->fi[ch] + REV_EX2_FFTSIZE * i, info->ss[ch]);
+		}
+	}
+	memset(info->os[ch], 0, fbyte);	
+	memcpy(info->fs[ch] + info->scount[ch], input, cbyte);
+	memcpy(info->os[ch] + info->scount[ch], input, cbyte);
+	do_reverb_ex2_R2HC(info->os[ch], info->is[ch], info->sint);		
+    do_reverb_ex2_mul(info->is[ch], info->fi[ch], info->ss[ch]);
+	memset(info->rvs[ch], 0, fbyte);
+	do_reverb_ex2_HC2R(info->ss[ch], info->rvs[ch], info->sint);
+	rvsc = info->rvs[ch] + info->scount[ch];
+	rsc = info->rs[ch] + info->scount[ch];
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	for(i = 0; i < count; i += 4)
+		_mm_storeu_ps(&output[i], _mm_add_ps(_mm_loadu_ps(&rvsc[i]), _mm_loadu_ps(&rsc[i])));
+#else
+	for(i = 0; i < count; i++)
+		output[i] = rvsc[i] + rsc[i];
+#endif
+	info->scount[ch] += count;
+	if(info->scount[ch] == REV_EX2_FRAGSIZE){
+		const int32 fbyte2 = sizeof(float) * (REV_EX2_FRAGSIZE - 1);
+		do_reverb_ex2_R2HC(info->fs[ch], info->is[ch], info->sint);  
+		memcpy(info->rs[ch], info->rvs[ch] + REV_EX2_FRAGSIZE, sizeof(float) * (REV_EX2_FRAGSIZE - 1));		
+		info->scount[ch] = 0;
+	}
+}
+
+static void do_reverb_ex2_fft_process2(int32 count, int32 ch, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->bcount ? 0 : info->bsize;
+	float *input = info->buf[ch] + bcount;
+	float *output = info->tbuf[ch];
+	const int32 fbyte = sizeof(float) * REV_EX2_FRAGSIZE;
+	const int32 f2byte = sizeof(float) * REV_EX2_FRAGSIZE * 2;
+	const int32 cbyte = sizeof(float) * count; 
+	const int32 ribyte = sizeof(float) * REV_EX2_FFTSIZE;
+	
+	memcpy(info->ios[ch] + info->scount[ch] + REV_EX2_FRAGSIZE, input, cbyte);
+	if((info->scount[ch] + count) >= REV_EX2_FRAGSIZE) {
+		do_reverb_ex2_R2HC(info->ios[ch] + REV_EX2_FRAGSIZE, info->is[ch], info->sint);	
+		memset(info->ss[ch], 0, ribyte);	
+		for(i = 1; i < info->fnum; i++){
+			float *bd0 = do_reverb_ex2_delay(info->is[ch], i - 1, info->bd[ch], &info->bdcount[ch], info->fnum);
+			do_reverb_ex2_mul(bd0, info->fi[ch] + REV_EX2_FFTSIZE * i, info->ss[ch]);
+		}
+		do_reverb_ex2_HC2R(info->ss[ch], info->rvs[ch], info->sint);
+		memcpy(info->ios[ch] + REV_EX2_FRAGSIZE, info->rvs[ch], fbyte);
+		memcpy(info->rvs[ch], info->rvs[ch] + REV_EX2_FRAGSIZE, fbyte);
+		memset(info->rvs[ch] + REV_EX2_FRAGSIZE - 1, 0, sizeof(float) * (REV_EX2_FRAGSIZE + 1));
+	}
+	memcpy(output, info->ios[ch] + info->scount[ch], cbyte);
+	info->scount[ch] += count;
+	if(info->scount[ch] >= REV_EX2_FRAGSIZE) {
+		memcpy(info->ios[ch], info->ios[ch] + REV_EX2_FRAGSIZE, f2byte);
+		info->scount[ch] -= REV_EX2_FRAGSIZE;
+	}
+	return;
+}
+
+static void do_reverb_ex2_fft_process(int32 count, int32 ch, InfoReverbEX2 *info)
+{	
+	if(info->fftmode == 1){ // process1
+		int32 cursor = REV_EX2_FRAGSIZE - info->scount[ch];
+		if(cursor >= count){
+			do_reverb_ex2_fft_process1(0, count, ch, info);
+		}else{
+			do_reverb_ex2_fft_process1(0, cursor, ch, info);
+			do_reverb_ex2_fft_process1(cursor, count - cursor, ch, info);
+		}
+	}else if(info->fftmode == 2){ // process2
+		do_reverb_ex2_fft_process2(count, ch, info);
+	}
+}
+
+static void do_reverb_ex2_fft_rsmode0_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->bcount ? info->bsize : 0;
+	float *ibuf0 = info->buf[0] + bcount;
+	float *ibuf1 = info->buf[1] + bcount;
+	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{		
+		const __m128 vcnv = _mm_set1_ps(DIV_31BIT);
 		for (i = 0, k = 0; i < count; i += 8, k += 4){	
 			__m128 tmp0, tmp1, tmp2, tmp3;
-			// in
 			tmp0 = _mm_cvtpd_ps(_mm_load_pd(&buf[i]));
 			tmp1 = _mm_cvtpd_ps(_mm_load_pd(&buf[i + 2]));
 			tmp2 = _mm_cvtpd_ps(_mm_load_pd(&buf[i + 4]));
 			tmp3 = _mm_cvtpd_ps(_mm_load_pd(&buf[i + 6]));
 			tmp0 = _mm_shuffle_ps(tmp0, tmp1, 0x44);  
-			tmp2 = _mm_shuffle_ps(tmp2, tmp3, 0x44); 			
-			_mm_store_ps(&info->tbuf[0][k], _mm_shuffle_ps(tmp0, tmp2, 0x88));
-			_mm_store_ps(&info->tbuf[1][k], _mm_shuffle_ps(tmp0, tmp2, 0xdd));
+			tmp2 = _mm_shuffle_ps(tmp2, tmp3, 0x44); 	
+			tmp1 = _mm_shuffle_ps(tmp0, tmp2, 0x88);
+			tmp3 = _mm_shuffle_ps(tmp0, tmp2, 0xdd);
+			tmp1 = _mm_mul_ps(tmp1, vcnv);
+			tmp3 = _mm_mul_ps(tmp3, vcnv);
+			_mm_store_ps(&ibuf0[k], tmp1);
+			_mm_store_ps(&ibuf1[k], tmp3);
 		}
-#else
-		for (i = 0, k = 0; i < count; i++, k++){			
-			info->tbuf[0][k] = buf[i];
-			i++;
-			info->tbuf[1][k] = buf[i];
-			k++;
-		}
-#endif
-#if defined(REV_IR_4T)
-		go_effect_sub_thread(do_reverb_ex2_thread, info, 4);
-#else
-		go_effect_sub_thread(do_reverb_ex2_thread, info, 2);
-#endif		
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-		for (i = 0, k = 0; i < count; i += 8, k += 4){	
-			__m128 tmp0, tmp1, tmp2, tmp3;
-			// out
-			tmp1 = _mm_load_ps(&info->tbuf[2][k]);
-			tmp3 = _mm_load_ps(&info->tbuf[3][k]);
-			tmp0 = _mm_unpacklo_ps(tmp1, tmp3);
-			tmp2 = _mm_unpackhi_ps(tmp1, tmp3);
-			_mm_store_pd(&buf[i], _mm_cvtps_pd(tmp0));
-			_mm_store_pd(&buf[i + 2], _mm_cvtps_pd(_mm_shuffle_ps(tmp0, tmp0, 0x4e)));
-			_mm_store_pd(&buf[i + 4], _mm_cvtps_pd(tmp2));
-			_mm_store_pd(&buf[i + 6], _mm_cvtps_pd(_mm_shuffle_ps(tmp2, tmp2, 0x4e)));
-		}
-#else
-		for (i = 0, k = 0; i < count; i++, k++){	
-			buf[i] = info->tbuf[2][k];	
-			i++;
-			buf[i] = info->tbuf[3][k];
-		}
-#endif
-		return;
-	}
-
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-// 2set/1ch
-	for (i = 0; i < count; i += 4){
-		__m128 sumL1 = _mm_setzero_ps();
-		__m128 sumR1 = _mm_setzero_ps();
-		__m128 sumL2 = _mm_setzero_ps();
-		__m128 sumR2 = _mm_setzero_ps();
-		__m128 tmp0, tmp2, tmp1, tmp3, vir0, vir1; 
-		__m128 sum0, sum1, sum2, sum3;
-		int32 w1, w2;
-
-		w1 = info->wcount;
-		--info->wcount;
-		if(info->wcount < 0)
-			info->wcount += info->frame;
-		w2 = info->wcount;
-		--info->wcount;
-		if(info->wcount < 0)
-			info->wcount += info->frame;
-		info->buf[0][w1] = buf[i];
-		info->buf[1][w1] = buf[i + 1];
-		info->buf[0][w1 + info->frame] = buf[i];
-		info->buf[1][w1 + info->frame] = buf[i + 1];
-		info->buf[0][w2] = buf[i + 2];
-		info->buf[1][w2] = buf[i + 3];
-		info->buf[0][w2 + info->frame] = buf[i + 2];
-		info->buf[1][w2 + info->frame] = buf[i + 3];
-		// FMAループの最後のw1w2重複部分は事前にirdata最後に0を追加することで回避
-		for (k = 0; k < info->frame; k += 4){
-			int32 r1 = w1 + k;
-			int32 r2 = w2 + k;
-			__m128 vir0 = _mm_load_ps(&info->irdata[0][k]);
-			__m128 vir1 = _mm_load_ps(&info->irdata[1][k]);
-			sumL1 = MM_FMA_PS(_mm_loadu_ps(&info->buf[0][r1]), vir0, sumL1);
-			sumR1 = MM_FMA_PS(_mm_loadu_ps(&info->buf[1][r1]), vir1, sumR1);
-			sumL2 = MM_FMA_PS(_mm_loadu_ps(&info->buf[0][r2]), vir0, sumL2);
-			sumR2 = MM_FMA_PS(_mm_loadu_ps(&info->buf[1][r2]), vir1, sumR2);
-		}
-		// sumL1 v0,v1,v2,v3 // sumR1 v4,v5,v6,v7 // sumL2 v8,v9,v10,v11 // sumR3 v12,v13,v14,v15
-		tmp0 = _mm_shuffle_ps(sumL1, sumR1, 0x44); // v0,v1,v4,v5
-		tmp2 = _mm_shuffle_ps(sumL1, sumR1, 0xEE); // v2,v3,v6,v7
-		tmp1 = _mm_shuffle_ps(sumL2, sumR2, 0x44); // v8,v9,v12,v13
-		tmp3 = _mm_shuffle_ps(sumL2, sumR2, 0xEE); // v10,v11,v14,v15
-		sum0 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0,v4,v8,v12
-		sum1 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1,v5,v9,v13
-		sum2 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2,v6,v10,v14
-		sum3 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3,v7,v11,v15
-		sum0 = _mm_add_ps(sum0, sum1);
-		sum2 = _mm_add_ps(sum2, sum3);
-		sum0 = _mm_add_ps(sum0, sum2); // v0123,v4567,v89AB,vCDEF
-		sum1 = _mm_shuffle_ps(sum0, sum0, 0x4e);
-		_mm_store_pd(&buf[i], _mm_cvtps_pd(sum0));
-		_mm_store_pd(&buf[i + 2], _mm_cvtps_pd(sum1));
 	}
 #else
-	for (i = 0; i < count; i++){
-		float sumL = 0, sumR = 0;
-		int32 w = info->wcount;	
-		--info->wcount;
-		if(info->wcount < 0)
-			info->wcount += info->frame;
-		info->buf[0][w] = buf[i];
-		info->buf[1][w] = buf[i + 1];
-		info->buf[0][w + info->frame] = buf[i];
-		info->buf[1][w + info->frame] = buf[i + 1];
-		for (k = 0; k < info->frame; k++){
-			int32 r = w + k;
-			sumL += info->buf[0][r] * info->irdata[0][k];
-			sumR += info->buf[1][r] * info->irdata[1][k];
+	{
+		const FLOAT_T cnv = DIV_31BIT;
+		for(i = 0, k = 0; i < count; i += 2, k++){
+			ibuf0[k] = (FLOAT_T)buf[i    ] * cnv;
+			ibuf1[k] = (FLOAT_T)buf[i + 1] * cnv;
 		}
-		buf[i] = sumL;		
-		i++;
-		buf[i] = sumR;	
 	}
 #endif
 }
 
+static void do_reverb_ex2_fft_rsmode1_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->bcount ? info->bsize : 0;
+	float *ibuf0 = info->buf[0] + bcount;
+	float *ibuf1 = info->buf[1] + bcount;
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128 vcvt = _mm_set1_ps(DIV_31BIT * DIV_2);
+		for(i = 0, k = 0; i < count; i += 16, k += 4){
+			__m128d vin0 = _mm_load_pd(&buf[i    ]);
+			__m128d vin2 = _mm_load_pd(&buf[i + 2]);
+			__m128d vin4 = _mm_load_pd(&buf[i + 4]);
+			__m128d vin6 = _mm_load_pd(&buf[i + 6]);
+			__m128d vin8 = _mm_load_pd(&buf[i + 8]);
+			__m128d vin10 = _mm_load_pd(&buf[i + 10]);
+			__m128d vin12 = _mm_load_pd(&buf[i + 12]);
+			__m128d vin14 = _mm_load_pd(&buf[i + 14]);
+			__m128d vt0 = _mm_add_pd(vin0, vin2);
+			__m128d vt1 = _mm_add_pd(vin4, vin6);
+			__m128d vt2 = _mm_add_pd(vin8, vin10);
+			__m128d vt3 = _mm_add_pd(vin12, vin14);
+			__m128 vo00 = _mm_cvtpd_ps(_mm_shuffle_pd(vt0, vt1, 0x0));
+			__m128 vo01 = _mm_cvtpd_ps(_mm_shuffle_pd(vt0, vt1, 0x3));
+			__m128 vo10 = _mm_cvtpd_ps(_mm_shuffle_pd(vt2, vt3, 0x0));
+			__m128 vo11 = _mm_cvtpd_ps(_mm_shuffle_pd(vt2, vt3, 0x3));
+			__m128 vo0 = _mm_mul_ps(_mm_shuffle_ps(vo00, vo10, 0x44), vcvt);
+			__m128 vo1 = _mm_mul_ps(_mm_shuffle_ps(vo01, vo11, 0x44), vcvt);
+			_mm_store_ps(&ibuf0[k], vo0);
+			_mm_store_ps(&ibuf1[k], vo1);
+		}
+	}
+#else
+	{
+		const FLOAT_T cnv = DIV_31BIT * DIV_4;
+		for(i = 0, k = 0; i < count; i += 8, k++){
+			ibuf0[k] = (FLOAT_T)(buf[i    ] + buf[i + 2] + buf[i + 4] + buf[i + 6]) * cnv;
+			ibuf1[k] = (FLOAT_T)(buf[i + 1] + buf[i + 3] + buf[i + 5] + buf[i + 7]) * cnv;
+		}
+	}
 #endif
+}
+
+static void do_reverb_ex2_fft_rsmode2_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->bcount ? info->bsize : 0;
+	float *ibuf0 = info->buf[0] + bcount;
+	float *ibuf1 = info->buf[1] + bcount;
+	
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vcvt = _mm_set1_pd(DIV_31BIT * DIV_4);
+		for(i = 0, k = 0; i < count; i += 16, k += 2){
+			__m128d vin0 = _mm_load_pd(&buf[i    ]);
+			__m128d vin2 = _mm_load_pd(&buf[i + 2]);
+			__m128d vin4 = _mm_load_pd(&buf[i + 4]);
+			__m128d vin6 = _mm_load_pd(&buf[i + 6]);
+			__m128d vin8 = _mm_load_pd(&buf[i + 8]);
+			__m128d vin10 = _mm_load_pd(&buf[i + 10]);
+			__m128d vin12 = _mm_load_pd(&buf[i + 12]);
+			__m128d vin14 = _mm_load_pd(&buf[i + 14]);
+			__m128d vt0 = _mm_mul_pd(_mm_add_pd(_mm_add_pd(vin0, vin2), _mm_add_pd(vin4, vin6)), vcvt);
+			__m128d vt1 = _mm_mul_pd(_mm_add_pd(_mm_add_pd(vin8, vin10), _mm_add_pd(vin12, vin14)), vcvt);
+			__m128 vo0 = _mm_cvtpd_ps(_mm_shuffle_pd(vt0, vt1, 0x0));
+			__m128 vo1 = _mm_cvtpd_ps(_mm_shuffle_pd(vt0, vt1, 0x3));
+			_mm_storel_pi((__m64 *)&ibuf0[k], vo0);
+			_mm_storel_pi((__m64 *)&ibuf1[k], vo1);
+		}
+	}
+#else
+	{
+		const FLOAT_T cnv = DIV_31BIT * DIV_4;
+		for(i = 0, k = 0; i < count; i += 8, k++){
+			ibuf0[k] = (FLOAT_T)(buf[i    ] + buf[i + 2] + buf[i + 4] + buf[i + 6]) * cnv;
+			ibuf1[k] = (FLOAT_T)(buf[i + 1] + buf[i + 3] + buf[i + 5] + buf[i + 7]) * cnv;
+		}
+	}
+#endif
+}
+
+static void do_reverb_ex2_fft_rsmode3_in(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;
+	int32 bcount = info->bcount ? info->bsize : 0;
+	float *ibuf0 = info->buf[0] + bcount;
+	float *ibuf1 = info->buf[1] + bcount;
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	{
+		const __m128d vcvt = _mm_set1_pd(DIV_31BIT * DIV_8);
+		for(i = 0, k = 0; i < count; i += 16, k++){
+#if (USE_X86_EXT_INTRIN >= 9)
+			__m256d yvin0 = _mm256_load_pd(&buf[i    ]);
+			__m256d yvin4 = _mm256_load_pd(&buf[i + 4]);
+			__m256d yvin8 = _mm256_load_pd(&buf[i + 8]);
+			__m256d yvin12 = _mm256_load_pd(&buf[i + 12]);
+			__m256d yvt = _mm256_add_pd(_mm256_add_pd(yvin0, yvin4), _mm256_add_pd(yvin8, yvin12));
+			__m128d vt = _mm_mul_pd(_mm_add_pd(
+				_mm256_extractf128_pd(yvt, 0x0), _mm256_extractf128_pd(yvt, 0x1)
+				), vcvt);	
+#else
+			__m128d vin0 = _mm_load_pd(&buf[i    ]);
+			__m128d vin2 = _mm_load_pd(&buf[i + 2]);
+			__m128d vin4 = _mm_load_pd(&buf[i + 4]);
+			__m128d vin6 = _mm_load_pd(&buf[i + 6]);
+			__m128d vin8 = _mm_load_pd(&buf[i + 8]);
+			__m128d vin10 = _mm_load_pd(&buf[i + 10]);
+			__m128d vin12 = _mm_load_pd(&buf[i + 12]);
+			__m128d vin14 = _mm_load_pd(&buf[i + 14]);
+			__m128d vt = _mm_mul_pd(_mm_add_pd(
+				_mm_add_pd(_mm_add_pd(vin0, vin2), _mm_add_pd(vin4, vin6)),
+				_mm_add_pd(_mm_add_pd(vin8, vin10), _mm_add_pd(vin12, vin14))
+				), vcvt);
+#endif
+			__m128 vo = _mm_cvtpd_ps(vt);
+			ibuf0[k] = MM_EXTRACT_F32(vo, 0);
+			ibuf1[k] = MM_EXTRACT_F32(vo, 1);
+		}
+	}
+#else
+	{
+		const FLOAT_T cnv = DIV_31BIT * DIV_8;
+		for(i = 0, k = 0; i < count; i += 16, k++){
+			ibuf0[k] = (FLOAT_T)(
+				buf[i    ] + buf[i + 2] + buf[i + 4] + buf[i + 6] +
+				buf[i + 8] + buf[i + 10] + buf[i + 12] + buf[i + 14]
+				) * cnv;
+			ibuf1[k] = (FLOAT_T)(
+				buf[i + 1] + buf[i + 3] + buf[i + 5] + buf[i + 7] +
+				buf[i + 9] + buf[i + 11] + buf[i + 13] + buf[i + 15]
+				) * cnv;
+		}
+	}
+#endif
+}
+
+static void do_reverb_ex2_fft_pre_process(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	switch(info->rsmode){
+	case 0: do_reverb_ex2_fft_rsmode0_in(buf, count, info); break;
+	case 1: do_reverb_ex2_fft_rsmode1_in(buf, count, info); break;
+	case 2: do_reverb_ex2_fft_rsmode2_in(buf, count, info); break;
+	case 3: do_reverb_ex2_fft_rsmode3_in(buf, count, info); break;
+	}
+}
+
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+static void do_reverb_ex2_fft_thread(int thread_num, void *info2)
+{
+	InfoReverbEX2 *info = (InfoReverbEX2 *)info2;
+
+	if(thread_num >= (info->thread + info->ithread))
+		return;	
+	if(info->ithread){
+		if(thread_num == info->thread){
+			do_reverb_ex2_fft_pre_process(info->ptr, info->count, info);
+			return;
+		}
+	}else if(thread_num == 0){
+		do_reverb_ex2_fft_pre_process(info->ptr, info->count, info);
+	}	
+	do_reverb_ex2_fft_process(info->tcount, thread_num, info);
+}
+#endif
+
+static void do_reverb_ex2_fft(DATA_T *buf, int32 count, InfoReverbEX2 *info)
+{
+	int32 i, k;	
+		
+	info->ptr = buf;
+	info->count = count;
+	info->tcount = count >> (1 + info->rsmode);	
+#if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
+	if(info->thread){
+		go_effect_sub_thread(do_reverb_ex2_thread, info, info->thread + info->ithread);
+	}else
+#endif
+	{
+		do_reverb_ex2_fft_pre_process(buf, count, info);
+		do_reverb_ex2_fft_process(info->tcount, 0, info);
+		do_reverb_ex2_fft_process(info->tcount, 1, info);
+	}
+	info->bcount = 1 - info->bcount;
+	do_reverb_ex2_post_process(buf, count, info);
+}
+
+#endif
+
 
 
 
@@ -17325,76 +18737,15 @@ static void CALLINGCONV do_ch_reverb_ex(DATA_T *buf, int32 count, struct reverb_
 	do_reverb_ex(buf, count, info);
 }
 
-#ifdef REV_EX2	
 static void setup_ch_reverb_ex2(InfoReverbEX2 *info)
 {
 	info->mode = CH_STEREO;
-
-	switch(reverb_status_gs.character){
-	case 0: // room1
-		info->height = 3.0; // m
-		info->width = 5.0; // m
-		info->depth = 7.0; // m
-		info->rev_damp_freq = 17000.0; // Hz
-		info->rev_damp_type = FILTER_LPF6;
-		info->rev_damp_bal = 0.5;
-		info->er_level = 0.50;
-		info->rev_level = 0.50;
-		info->density = 1.0;
-		break;
-	case 1: // room2
-		info->height = 4.0; // m
-		info->width = 8.0; // m
-		info->depth = 10.0; // m
-		info->rev_damp_freq = 15000.0; // Hz
-		info->rev_damp_type = FILTER_LPF6;
-		info->rev_damp_bal = 0.85;
-		info->er_level = 0.45;
-		info->rev_level = 0.55;
-		info->density = 0.75;
-		break;
-	case 2: // room3
-		info->height = 8.0; // m
-		info->width = 12.0; // m
-		info->depth = 15.0; // m
-		info->rev_damp_freq = 13000.0; // Hz
-		info->rev_damp_type = FILTER_LPF6;
-		info->rev_damp_bal = 1.0;
-		info->er_level = 0.55;
-		info->rev_level = 0.45;
-		break;
-	case 3: // hall1
-		info->height = 12.0; // m
-		info->width = 14.0; // m
-		info->depth = 20.0; // m
-		info->rev_damp_freq = 11000.0; // Hz
-		info->rev_damp_type = FILTER_LPF6x2;
-		info->rev_damp_bal = 0.75;
-		info->er_level = 0.50;
-		info->rev_level = 0.50;
-		info->density = 1.0;
-		break;
-	default:
-	case 4: // hall2
-		info->height = 16.0; // m
-		info->width = 18.0; // m
-		info->depth = 31.0; // m
-		info->rev_damp_freq = 9000.0; // Hz
-		info->rev_damp_type = FILTER_LPF6x2;
-		info->rev_damp_bal = 0.95;
-		info->er_level = 0.45;
-		info->rev_level = 0.55;
-		info->density = 0.75;
-		break;
-	}
+	info->revtype = clip_int(reverb_status_gs.character, 0, 5);
 	info->er_time_ms = reverb_status_gs.pre_delay_time;
 	info->er_damp_freq = HF_damp_freq_table_gs[0x7F];
 	info->rev_time_sec = reverb_time_table[reverb_status_gs.time];	
 	info->rev_feedback = 0.0; // reverb_status_gs.delay_feedback
-	info->density = 1.0;
 	info->level = calc_gs_level(reverb_status_gs.level);
-	info->er_level *= info->level;
-	info->rev_level *= info->level;
 }
 
 static void CALLINGCONV do_ch_reverb_ex2(DATA_T *buf, int32 count, struct reverb_status_gs_t *rs)
@@ -17410,9 +18761,6 @@ static void CALLINGCONV do_ch_reverb_ex2(DATA_T *buf, int32 count, struct reverb
 	}
 	do_reverb_ex2(buf, count, info);
 }
-#else
-#define do_ch_reverb_ex2 do_ch_reverb_ex
-#endif
 
 
 #define REVERB_DELAY_TIME_MAX (500.0) // ms // def 476.25 ?
@@ -17526,7 +18874,11 @@ void init_ch_reverb(void)
 	/* Old non-freeverb must be initialized for mono reverb not to crash */
 		switch(reverb_status_gs.character) {	/* select reverb algorithm */
 		case 5:	/* Plate Reverb */
-			p_do_ch_reverb = do_ch_plate_reverb;
+			if (opt_reverb_control >= 7 && opt_reverb_control < 9
+				|| opt_reverb_control <= -768 && opt_reverb_control > 1024)
+				p_do_ch_reverb = do_ch_reverb_ex2;
+			else
+				p_do_ch_reverb = do_ch_plate_reverb;
 		//	REV_INP_LEV = reverb_status_gs.info_plate_reverb.wet;
 			break;
 		case 6:	/* Delay */
@@ -20968,87 +22320,7 @@ static void conv_gs_reverb(struct insertion_effect_gs_t *st, EffectList *ef)
 	Info_GS_Reverb *info = (Info_GS_Reverb *)ef->info;
 	InfoFreeverb *rvb = &info->rvb;	
 	InfoReverbEX *rvb2 = &info->rvb2;	
-#ifdef REV_EX2
-	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
 
-#ifdef REV_EX2			
-	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
-		info->rev_type = 2; // reverb ex2
-		rvb3->mode = CH_MIX_STEREO;
-		switch(clip_int(st->parameter[0], 0x00, 0x05)){
-		case 0: // room1
-			rvb3->height = 3.0; // m
-			rvb3->width = 5.0; // m
-			rvb3->depth = 7.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
-			break;
-		case 1: // room2
-			rvb3->height = 4.0; // m
-			rvb3->width = 8.0; // m
-			rvb3->depth = 10.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.99;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
-			break;
-		case 2: // stage1
-			rvb3->height = 10.0; // m
-			rvb3->width = 12.0; // m
-			rvb3->depth = 15.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.85;
-			rvb3->er_level = 0.40;
-			rvb3->rev_level = 0.60;
-			rvb3->density = 0.75;
-			break;
-		case 3: // stage2
-			rvb3->height = 12.0; // m
-			rvb3->width = 13.0; // m
-			rvb3->depth = 18.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.95;
-			rvb3->er_level = 0.60;
-			rvb3->rev_level = 0.40;
-			rvb3->density = 1.0;
-			break;
-		case 4: // hall1
-			rvb3->height = 12.0; // m
-			rvb3->width = 16.0; // m
-			rvb3->depth = 20.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
-			break;
-		default:
-		case 5: // hall2
-			rvb3->height = 16.0; // m
-			rvb3->width = 20.0; // m
-			rvb3->depth = 31.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.95;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
-			break;
-		}		
-		rvb3->er_time_ms = pre_delay_time_table[st->parameter[1]];
-		rvb3->rev_time_sec = reverb_time_table[st->parameter[2]];
-		rvb3->rev_damp_freq = HF_damp_freq_table_gs[st->parameter[3]];
-		rvb3->er_damp_freq = HF_damp_freq_table_gs[st->parameter[3]];
-		rvb3->rev_feedback = 0.0; // reverb_status_gs.delay_feedback
-		rvb3->rev_dly_ms = 0;
-		rvb3->density = 1.0;
-		rvb3->level = 1.0;
-	}else 
-#endif
 	if(otd.efx_CustomRevType){
 		info->rev_type = 1; // reverb ex
 		rvb2->mode = CH_MIX_STEREO;
@@ -21151,16 +22423,8 @@ static void do_gs_reverb(DATA_T *buf, int32 count, EffectList *ef)
 	Info_GS_Reverb *info = (Info_GS_Reverb *)ef->info;
 	InfoFreeverb *rvb = &info->rvb;
 	InfoReverbEX *rvb2 = &info->rvb2;
-#ifdef REV_EX2
-	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
 
 	send_efx_buffer(ef, buf, count);
-#ifdef REV_EX2	
-	if(info->rev_type == 2)
-		do_reverb_ex2(ef->efx_buf, count, rvb3);
-	else 
-#endif
 	if(info->rev_type)
 		do_reverb_ex(ef->efx_buf, count, rvb2);
 	else
@@ -23401,57 +24665,56 @@ static double ins_xg_revchar_to_rt(struct effect_xg_t *st)
 
 static void conv_xg_reverb1(struct effect_xg_t *st, EffectList *ef)
 {
-	Info_XG_Reverb1 *info = (Info_XG_Reverb1 *)ef->info;
+	Info_XG_Reverb1 *info = (Info_XG_Reverb1 *)ef->info;	
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;
 	InfoReverbEX *rvb2 = &info->rvb2;	
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif	
 	InfoPreFilter *bpf = &info->bpf;
 
 	bpf->freqH = eq_freq_table_xg[clip_int(st->param_lsb[3], 0x00, 0x34)];
 	bpf->freqL = eq_freq_table_xg[clip_int(st->param_lsb[4], 0x22, 0x3C)];
 	init_pre_bpf(bpf);
 
-#ifdef REV_EX2		
-	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
-		info->rev_type = 2; // reverb ex2
+	if(st->connection == XG_CONN_SYSTEM_REVERB){ 
+		if((opt_reverb_control >= 7 && opt_reverb_control < 9) ||
+			(opt_reverb_control <= -768 && opt_reverb_control > -1024)){
+			info->rev_type = 3; // reverb ex2
+		}else if((opt_reverb_control >= 5 && opt_reverb_control < 7) ||
+			(opt_reverb_control <= -512 && opt_reverb_control > -768)){
+			info->rev_type = 2; // reverb ex
+		}else if((opt_reverb_control >= 3 && opt_reverb_control < 5) ||
+			(opt_reverb_control <= -256 && opt_reverb_control > -512)){
+			info->rev_type = 1; // freeverb
+		}else
+			info->rev_type = 0; // standerd reverb
+	}else{
+		if(otd.efx_CustomRevType)
+			info->rev_type = 2;
+		else
+			info->rev_type = 1;
+	}
+	if(info->rev_type == 3){
 		if(st->connection == XG_CONN_SYSTEM_REVERB){
 			rvb3->mode = CH_STEREO;
 		}else{
 			rvb3->mode = CH_MIX_STEREO;
-		}	
+		}		
 		switch(st->type_msb) {
 		case 0x01:
 			switch(st->type_lsb) {
 			default:
 			case 0x00:/* Hall 1 */
-				rvb3->height = 12.0; // m
-				rvb3->width = 14.0; // m
-				rvb3->depth = 20.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.75;
+				rvb3->revtype = 6;
 				break;
 			case 0x01:/* Hall 2 */
-				rvb3->height = 16.0; // m
-				rvb3->width = 18.0; // m
-				rvb3->depth = 27.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.95;
+				rvb3->revtype = 7;
 				break;
 			case 0x06:/* Hall M */
-				rvb3->height = 12.0; // m
-				rvb3->width = 16.0; // m
-				rvb3->depth = 23.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.85;
+				rvb3->revtype = 8;
 				break;
 			case 0x07:/* Hall L */
-				rvb3->height = 18.0; // m
-				rvb3->width = 21.0; // m
-				rvb3->depth = 30.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.85;
+				rvb3->revtype = 9;
 				break;
 			}
 			break;
@@ -23459,46 +24722,22 @@ static void conv_xg_reverb1(struct effect_xg_t *st, EffectList *ef)
 			switch(st->type_lsb) {
 			default:
 			case 0x00:/* Room 1 */
-				rvb3->height = 3.0; // m
-				rvb3->width = 5.0; // m
-				rvb3->depth = 7.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.5;
+				rvb3->revtype = 10;
 				break;
 			case 0x01:/* Room 2 */
-				rvb3->height = 4.0; // m
-				rvb3->width = 8.0; // m
-				rvb3->depth = 10.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.75;
+				rvb3->revtype = 11;
 				break;
 			case 0x02:/* Room 3 */
-				rvb3->height = 5.0; // m
-				rvb3->width = 12.0; // m
-				rvb3->depth = 15.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.95;
+				rvb3->revtype = 12;
 				break;
 			case 0x05:/* Room S */
-				rvb3->height = 3.0; // m
-				rvb3->width = 4.0; // m
-				rvb3->depth = 5.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.45;
+				rvb3->revtype = 13;
 				break;
 			case 0x06:/* Room M */
-				rvb3->height = 4.0; // m
-				rvb3->width = 8.0; // m
-				rvb3->depth = 10.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.80;
+				rvb3->revtype = 14;
 				break;
 			case 0x07:/* Room L */
-				rvb3->height = 5.0; // m
-				rvb3->width = 12.0; // m
-				rvb3->depth = 15.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.98;
+				rvb3->revtype = 15;
 				break;
 			}
 			break;
@@ -23506,37 +24745,21 @@ static void conv_xg_reverb1(struct effect_xg_t *st, EffectList *ef)
 			switch(st->type_lsb) {
 			default:
 			case 0x00:/* Stage 1 */
-				rvb3->height = 10.0; // m
-				rvb3->width = 12.0; // m
-				rvb3->depth = 15.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.85;
+				rvb3->revtype = 16;
 				break;
 			case 0x01:/* Stage 2 */
-				rvb3->height = 12.0; // m
-				rvb3->width = 13.0; // m
-				rvb3->depth = 18.0; // m
-				rvb3->rev_damp_type = FILTER_LPF6;
-				rvb3->rev_damp_bal = 0.95;
+				rvb3->revtype = 17;
 				break;
 			}
 			break;
 		}
 		rvb3->rev_time_sec = reverb_time_table_xg[clip_int(st->param_lsb[0], 0x00, 0x45)];
-	//	rvb3->rev_dif = 0.5 * (10 + clip_int(st->param_lsb[1], 0x00, 0x0a)) * DIV_20;		
 		rvb3->er_time_ms = delay_time_table_xg[clip_int(st->param_lsb[2], 0x00, 0x3F)];
 		rvb3->rev_dly_ms = delay_time_table_xg[clip_int(st->param_lsb[10], 0x00, 0x3F)];
-		rvb3->density = (double)clip_int(st->param_lsb[11], 0x00, 0x04) * DIV_4;
-		rvb3->er_level = calc_option_level(clip_int(st->param_lsb[12], 0x01, 0x7F));
-		rvb3->rev_level = calc_option_level(127 - clip_int(st->param_lsb[12], 0x01, 0x7F));		
-		rvb3->rev_damp_freq = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10 * 22000.0;
 		rvb3->er_damp_freq = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10 * 22000.0;
 		rvb3->rev_feedback = (double)(clip_int(st->param_lsb[14], 0x01, 0x7F) - 0x40) * DIV_127; //0.125;
 		rvb3->level = 1.0;
-	}else 
-#endif
-	if(otd.efx_CustomRevType){
-		info->rev_type = 1; // reverb ex
+	}else if(info->rev_type == 2){
 		if(st->connection == XG_CONN_SYSTEM_REVERB){
 			rvb2->mode = CH_STEREO;
 		}else{
@@ -23654,9 +24877,8 @@ static void conv_xg_reverb1(struct effect_xg_t *st, EffectList *ef)
 		rvb2->er_damp_freq = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10 * 22000.0;
 		rvb2->rev_feedback = (double)(clip_int(st->param_lsb[14], 0x01, 0x7F) - 0x40) * DIV_127; //0.125;
 		rvb2->level = 1.0;
-	}else{
+	}else if(info->rev_type == 1){
 // freeverb
-		info->rev_type = 0;
 		if(st->connection == XG_CONN_SYSTEM_REVERB){
 			rvb->mode = CH_STEREO;
 		}else{
@@ -23676,6 +24898,68 @@ static void conv_xg_reverb1(struct effect_xg_t *st, EffectList *ef)
 		rvb->rev_roomsize = ins_xg_revchar_to_roomsize(st);
 		rvb->rev_wet = ins_xg_revchar_to_level(st);
 		rvb->rev_width = initialwidth;
+	}else{ // StandardReverb
+		int type;
+		if(st->connection == XG_CONN_SYSTEM_REVERB){
+			rvb0->mode = CH_STEREO;
+		}else{
+			rvb0->mode = CH_MIX_STEREO;
+		}	
+		switch(st->type_msb) {
+		case 0x01:
+			switch(st->type_lsb) {
+			default:
+			case 0x00:/* Hall 1 */
+			case 0x06:/* Hall M */
+				type = 3;
+				break;
+			case 0x01:/* Hall 2 */
+			case 0x07:/* Hall L */
+				type = 4;
+				break;
+			}
+			break;
+		case 0x02:
+			switch(st->type_lsb) {
+			default:
+			case 0x00:/* Room 1 */
+			case 0x05:/* Room S */
+				type = 0;
+				break;
+			case 0x01:/* Room 2 */
+			case 0x06:/* Room M */
+				type = 1;
+				break;
+			case 0x02:/* Room 3 */
+			case 0x07:/* Room L */
+				type = 2;
+				break;
+			}
+			break;
+		case 0x03:
+			switch(st->type_lsb) {
+			default:
+			case 0x00:/* Stage 1 */
+				type = 2;
+				break;
+			case 0x01:/* Stage 2 */
+				type = 3;
+				break;
+			}
+			break;
+		}
+		rvb0->rev_time_sec = reverb_time_table_xg[clip_int(st->param_lsb[0], 0x00, 0x45)];
+		rvb0->rev_rt = gs_revchar_to_rt(type);
+	//	rvb0->rev_wet = (double)reverb_status_gs.level * DIV_127 * gs_revchar_to_level(reverb_status_gs.character);
+		rvb0->rev_wet = calc_option_level(127 - clip_int(st->param_lsb[12], 0x01, 0x7F))
+			* gs_revchar_to_level(type);
+		rvb0->rev_roomsize = gs_revchar_to_roomsize(type);
+		rvb0->rev_width = 0.125;
+		rvb0->rev_damp = 0.5;
+		rvb0->rev_feedback = 0.125;
+		rvb0->rev_level = 1.0;
+		rvb0->er_time_ms = delay_time_table_xg[clip_int(st->param_lsb[2], 0x00, 0x3F)];
+		rvb0->er_level = 0.25;
 	}
 	info->rev_dry = calc_dry_xg(st->param_lsb[9], st);
 	info->rev_wet = calc_wet_xg(st->param_lsb[9], st);
@@ -23684,25 +24968,23 @@ static void conv_xg_reverb1(struct effect_xg_t *st, EffectList *ef)
 
 static void do_xg_reverb1(DATA_T *buf, int32 count, EffectList *ef)
 {
-	Info_XG_Reverb1 *info = (Info_XG_Reverb1 *)ef->info;
+	Info_XG_Reverb1 *info = (Info_XG_Reverb1 *)ef->info;	
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;
 	InfoReverbEX *rvb2 = &info->rvb2;
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
 	InfoPreFilter *bpf = &info->bpf;
 
 	send_efx_buffer(ef, buf, count);
 	do_pre_bpf(ef->efx_buf, count, bpf);	
-#ifdef REV_EX2	
-	if(info->rev_type == 2)
+	if(info->rev_type == 3)
 		do_reverb_ex2(ef->efx_buf, count, rvb3);
-	else 
-#endif
-	if(info->rev_type)
+	else if(info->rev_type == 2)
 		do_reverb_ex(ef->efx_buf, count, rvb2);
-	else
+	else if(info->rev_type)
 		do_freeverb(ef->efx_buf, count, rvb);
+	else
+		do_standard_reverb(buf, count, rvb0);
 	return_efx_buffer(ef, buf, count, info->rev_wet, info->rev_dry, info->rev_level);
 }
 
@@ -23710,40 +24992,82 @@ static void conv_xg_plate(struct effect_xg_t *st, EffectList *ef)
 {
 	Info_XG_Plate *info = (Info_XG_Plate *)ef->info;
 	InfoPlateReverb *rvb = &info->rvb;		
+	InfoReverbEX2 *rvb3 = &info->rvb3;
 	InfoPreFilter *bpf = &info->bpf;
 
 	bpf->freqH = eq_freq_table_xg[clip_int(st->param_lsb[3], 0x00, 0x34)];
 	bpf->freqL = eq_freq_table_xg[clip_int(st->param_lsb[4], 0x22, 0x3C)];
 	init_pre_bpf(bpf);
-
-	if(st->connection == XG_CONN_SYSTEM_REVERB){
-		rvb->mode = CH_STEREO;
+	
+	if(st->connection == XG_CONN_SYSTEM_REVERB){ 
+		if((opt_reverb_control >= 7 && opt_reverb_control < 9) ||
+			(opt_reverb_control <= -768 && opt_reverb_control > -1024)){
+			info->rev_type = 1; // reverb ex2
+		}else
+			info->rev_type = 0; // plate
 	}else{
-		rvb->mode = CH_MIX_STEREO;
+		info->rev_type = 0; // plate
 	}
-	rvb->rev_time_sec = reverb_time_table_xg[clip_int(st->param_lsb[0], 0x00, 0x45)];
-	rvb->rev_diff = 0.5 * (10 + clip_int(st->param_lsb[1], 0x00, 0x0a)) * DIV_20;
-	rvb->er_time_ms = delay_time_table_xg[clip_int(st->param_lsb[2], 0x00, 0x3F)];
-//	rvb->rev_delay = delay_time_table_xg[clip_int(st->param_lsb[10], 0x00, 0x3F)];
-//	rvb->density = clip_int(st->param_lsb[11], 0x00, 0x04);
-	rvb->er_level = calc_option_level(clip_int(st->param_lsb[12], 0x01, 0x7F));
-	rvb->rev_level = calc_option_level(127 - clip_int(st->param_lsb[12], 0x01, 0x7F));
-	rvb->rev_damp = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10; // initialdamp;
-	rvb->rev_feedback = (double)(clip_int(st->param_lsb[14], 0x01, 0x7F) - 0x40) * DIV_127; //0.125;
-	rvb->rev_wet = 1.0;	
+	if(info->rev_type){
+		if(st->connection == XG_CONN_SYSTEM_REVERB){
+			rvb3->mode = CH_STEREO;
+		}else{
+			rvb3->mode = CH_MIX_STEREO;
+		}		
+		switch(st->type_msb) {
+		case 0x04:
+			switch(st->type_lsb) {
+			default:
+			case 0x00:/* Plate */
+				rvb3->revtype = 18;
+				break;
+			case 0x07:/* GM Plate */
+				rvb3->revtype = 19;
+				break;
+			}
+			break;
+		}
+		rvb3->rev_time_sec = reverb_time_table_xg[clip_int(st->param_lsb[0], 0x00, 0x45)];
+		rvb3->er_time_ms = delay_time_table_xg[clip_int(st->param_lsb[2], 0x00, 0x3F)];
+		rvb3->rev_dly_ms = delay_time_table_xg[clip_int(st->param_lsb[10], 0x00, 0x3F)];
+		rvb3->er_damp_freq = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10 * 22000.0;
+		rvb3->rev_feedback = (double)(clip_int(st->param_lsb[14], 0x01, 0x7F) - 0x40) * DIV_127; //0.125;
+		rvb3->level = 1.0;
+	}else{
+		if(st->connection == XG_CONN_SYSTEM_REVERB){
+			rvb->mode = CH_STEREO;
+		}else{
+			rvb->mode = CH_MIX_STEREO;
+		}
+		rvb->rev_time_sec = reverb_time_table_xg[clip_int(st->param_lsb[0], 0x00, 0x45)];
+		rvb->rev_diff = 0.5 * (10 + clip_int(st->param_lsb[1], 0x00, 0x0a)) * DIV_20;
+		rvb->er_time_ms = delay_time_table_xg[clip_int(st->param_lsb[2], 0x00, 0x3F)];
+	//	rvb->rev_delay = delay_time_table_xg[clip_int(st->param_lsb[10], 0x00, 0x3F)];
+	//	rvb->density = clip_int(st->param_lsb[11], 0x00, 0x04);
+		rvb->er_level = calc_option_level(clip_int(st->param_lsb[12], 0x01, 0x7F));
+		rvb->rev_level = calc_option_level(127 - clip_int(st->param_lsb[12], 0x01, 0x7F));
+		rvb->rev_damp = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10; // initialdamp;
+		rvb->rev_feedback = (double)(clip_int(st->param_lsb[14], 0x01, 0x7F) - 0x40) * DIV_127; //0.125;
+		rvb->rev_wet = 1.0;	
+	}
 	info->rev_dry = calc_dry_xg(st->param_lsb[9], st);
 	info->rev_wet = calc_wet_xg(st->param_lsb[9], st);
 	info->rev_level = 1.0;
 }
+
 static void do_xg_plate(DATA_T *buf, int32 count, EffectList *ef)
 {
 	Info_XG_Plate *info = (Info_XG_Plate *)ef->info;
 	InfoPlateReverb *rvb = &info->rvb;
+	InfoReverbEX2 *rvb3 = &info->rvb3;
 	InfoPreFilter *bpf = &info->bpf;
 
 	send_efx_buffer(ef, buf, count);
 	do_pre_bpf(ef->efx_buf, count, bpf);
-	do_plate_reverb(ef->efx_buf, count, rvb);
+	if(info->rev_type)
+		do_reverb_ex2(ef->efx_buf, count, rvb3);
+	else
+		do_plate_reverb(ef->efx_buf, count, rvb);
 	return_efx_buffer(ef, buf, count, info->rev_wet, info->rev_dry, info->rev_level);
 }
 
@@ -24017,21 +25341,36 @@ static void do_xg_gate_reverb(DATA_T *buf, int32 count, EffectList *ef)
 
 static void conv_xg_reverb2(struct effect_xg_t *st, EffectList *ef)
 {
-	Info_XG_Reverb2 *info = (Info_XG_Reverb2 *)ef->info;
+	Info_XG_Reverb2 *info = (Info_XG_Reverb2 *)ef->info;	
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;
 	InfoReverbEX *rvb2 = &info->rvb2;
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
 	InfoPreFilter *bpf = &info->bpf;
-
+	
 	bpf->freqH = eq_freq_table_xg[clip_int(st->param_lsb[3], 0x00, 0x34)];
 	bpf->freqL = eq_freq_table_xg[clip_int(st->param_lsb[4], 0x22, 0x3C)];
 	init_pre_bpf(bpf);
-
-#ifdef REV_EX2	
-	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
-		info->rev_type = 2; // reverb ex2
+	
+	if(st->connection == XG_CONN_SYSTEM_REVERB){ 
+		if((opt_reverb_control >= 7 && opt_reverb_control < 9) ||
+			(opt_reverb_control <= -768 && opt_reverb_control > -1024)){
+			info->rev_type = 3; // reverb ex2
+		}else if((opt_reverb_control >= 5 && opt_reverb_control < 7) ||
+			(opt_reverb_control <= -512 && opt_reverb_control > -768)){
+			info->rev_type = 2; // reverb ex
+		}else if((opt_reverb_control >= 3 && opt_reverb_control < 5) ||
+			(opt_reverb_control <= -256 && opt_reverb_control > -512)){
+			info->rev_type = 1; // freeverb
+		}else
+			info->rev_type = 0; // standerd reverb
+	}else{
+		if(otd.efx_CustomRevType)
+			info->rev_type = 2;
+		else
+			info->rev_type = 1;
+	}
+	if(info->rev_type == 3){
 		if(st->connection == XG_CONN_SYSTEM_REVERB){
 			rvb3->mode = CH_STEREO;
 		}else{
@@ -24040,38 +25379,25 @@ static void conv_xg_reverb2(struct effect_xg_t *st, EffectList *ef)
 		switch(st->type_msb) {
 		default:
 		case 0x10:/* White Room */
-			rvb3->rev_damp_type = FILTER_LPF6;
+			rvb3->revtype = 20;
 			break;
 		case 0x11:/* Tunnel */
-			rvb3->rev_damp_type = FILTER_LPF6x2;
+			rvb3->revtype = 21;
 			break;
 		case 0x12:/* Canyon */
-			rvb3->rev_damp_type = FILTER_LPF6;
+			rvb3->revtype = 22;
 			break;
 		case 0x13:/* Basement */
-			rvb3->rev_damp_type = FILTER_LPF6;
+			rvb3->revtype = 23;
 			break;
 		}
 		rvb3->rev_time_sec = reverb_time_table_xg[clip_int(st->param_lsb[0], 0x00, 0x45)];
-	//	rvb3->rev_dif = 0.5 * (10 + clip_int(st->param_lsb[1], 0x00, 0x0a)) * DIV_20;		
 		rvb3->er_time_ms = delay_time_table_xg[clip_int(st->param_lsb[2], 0x00, 0x3F)];
-		rvb3->width = reverb_width_height_table_xg[clip_int(st->param_lsb[5], 0x00, 37)];
-		rvb3->height = reverb_width_height_table_xg[clip_int(st->param_lsb[6], 0x00, 73)];
-		rvb3->depth = reverb_width_height_table_xg[clip_int(st->param_lsb[7], 0x00, 104)];
-		rvb3->rev_damp_bal = (double)clip_int(st->param_lsb[8], 0x00, 30) * DIV_30;
-	//	rvb3->rev_wall = reverb_width_height_table_xg[clip_int(st->param_lsb[8], 0x00, 30)];
 		rvb3->rev_dly_ms = delay_time_table_xg[clip_int(st->param_lsb[10], 0x00, 0x3F)];
-		rvb3->density = (double)clip_int(st->param_lsb[11], 0x00, 0x04) * DIV_4;
-		rvb3->er_level = calc_option_level(clip_int(st->param_lsb[12], 0x01, 0x7F));
-		rvb3->rev_level = calc_option_level(127 - clip_int(st->param_lsb[12], 0x01, 0x7F));		
-		rvb3->rev_damp_freq = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10 * 22000.0;
 		rvb3->er_damp_freq = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10 * 22000.0;
 		rvb3->rev_feedback = (double)(clip_int(st->param_lsb[14], 0x01, 0x7F) - 0x40) * DIV_127; //0.125;
-		rvb3->level = 1.0;	
-	}else
-#endif
-	if(otd.efx_CustomRevType){
-		info->rev_type = 1; // reverb ex
+		rvb3->level = 1.0;
+	}else if(info->rev_type == 2){
 		if(st->connection == XG_CONN_SYSTEM_REVERB){
 			rvb2->mode = CH_STEREO;
 		}else{
@@ -24108,8 +25434,7 @@ static void conv_xg_reverb2(struct effect_xg_t *st, EffectList *ef)
 		rvb2->er_damp_freq = (double)clip_int(st->param_lsb[13], 0x01, 0x0A) * DIV_10 * 22000.0;
 		rvb2->rev_feedback = (double)(clip_int(st->param_lsb[14], 0x01, 0x7F) - 0x40) * DIV_127; //0.125;
 		rvb2->level = 1.0;	
-	}else{
-		info->rev_type = 0; // freeverb
+	}else if(info->rev_type == 1){
 		if(st->connection == XG_CONN_SYSTEM_REVERB){
 			rvb->mode = CH_STEREO;
 		}else{
@@ -24132,6 +25457,40 @@ static void conv_xg_reverb2(struct effect_xg_t *st, EffectList *ef)
 			* DIV_1600); // max 6222.408
 		rvb->rev_wet = ins_xg_revchar_to_level(st);
 		rvb->rev_width = initialwidth;
+	}else{ // StandardReverb
+		int type;
+		if(st->connection == XG_CONN_SYSTEM_REVERB){
+			rvb0->mode = CH_STEREO;
+		}else{
+			rvb0->mode = CH_MIX_STEREO;
+		}	
+		switch(st->type_msb) {
+		default:
+		case 0x10:/* White Room */
+			type = 0;
+			break;
+		case 0x11:/* Tunnel */
+			type = 2;
+			break;
+		case 0x12:/* Canyon */
+			type = 4;
+			break;
+		case 0x13:/* Basement */
+			type = 4;
+			break;
+		}
+		rvb0->rev_time_sec = reverb_time_table_xg[clip_int(st->param_lsb[0], 0x00, 0x45)];
+		rvb0->rev_rt = gs_revchar_to_rt(type);
+	//	rvb0->rev_wet = (double)reverb_status_gs.level * DIV_127 * gs_revchar_to_level(reverb_status_gs.character);
+		rvb0->rev_wet = calc_option_level(127 - clip_int(st->param_lsb[12], 0x01, 0x7F))
+			* gs_revchar_to_level(type);
+		rvb0->rev_roomsize = gs_revchar_to_roomsize(type);
+		rvb0->rev_width = 0.125;
+		rvb0->rev_damp = 0.5;
+		rvb0->rev_feedback = 0.125;
+		rvb0->rev_level = 1.0;
+		rvb0->er_time_ms = delay_time_table_xg[clip_int(st->param_lsb[2], 0x00, 0x3F)];
+		rvb0->er_level = 0.25;
 	}
 	info->rev_dry = calc_dry_xg(st->param_lsb[9], st);
 	info->rev_wet = calc_wet_xg(st->param_lsb[9], st);
@@ -24141,24 +25500,22 @@ static void conv_xg_reverb2(struct effect_xg_t *st, EffectList *ef)
 static void do_xg_reverb2(DATA_T *buf, int32 count, EffectList *ef)
 {
 	Info_XG_Reverb2 *info = (Info_XG_Reverb2 *)ef->info;
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;
 	InfoReverbEX *rvb2 = &info->rvb2;
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
 	InfoPreFilter *bpf = &info->bpf;
 
 	send_efx_buffer(ef, buf, count);
 	do_pre_bpf(ef->efx_buf, count, bpf);
-#ifdef REV_EX2	
-	if(info->rev_type == 2)
+	if(info->rev_type == 3)
 		do_reverb_ex2(ef->efx_buf, count, rvb3);
-	else 
-#endif
-	if(info->rev_type)
+	else if(info->rev_type == 2)
 		do_reverb_ex(ef->efx_buf, count, rvb2);
-	else
+	else if(info->rev_type)
 		do_freeverb(ef->efx_buf, count, rvb);
+	else
+		do_standard_reverb(buf, count, rvb0);
 	return_efx_buffer(ef, buf, count, info->rev_wet, info->rev_dry, info->rev_level);
 }
 
@@ -25189,7 +26546,7 @@ static void conv_xg_auto_wah(struct effect_xg_t *st, EffectList *ef)
 	//aw->drive = (double)st->param_lsb[10] * DIV_127;	
 	info->dry = calc_dry_xg(st->param_lsb[9], st);
 	info->wet = calc_wet_xg(st->param_lsb[9], st);
-	od->mode = CH_MIX_MONO;
+	od->mode = st->param_lsb[10] == 0 ? CH_NONE : CH_MIX_MONO;
 	od->od_type = 1;
 	od->amp_type = 0;
 	od->cab_type = 0;
@@ -25464,8 +26821,8 @@ static void conv_xg_touch_wah1(struct effect_xg_t *st, EffectList *ef)
 	aw->lfo_sw = 0; // off
 	aw->rate = 0.0;	
 	info->dry = calc_dry_xg(st->param_lsb[9], st);
-	info->wet = calc_wet_xg(st->param_lsb[9], st);
-	od->mode = CH_MIX_MONO;
+	info->wet = calc_wet_xg(st->param_lsb[9], st);	
+	od->mode = st->param_lsb[10] == 0 ? CH_NONE : CH_MIX_MONO;
 	od->od_type = 1;
 	od->amp_type = 0;
 	od->cab_type = 0;
@@ -25621,7 +26978,7 @@ static void conv_xg_touch_wah2(struct effect_xg_t *st, EffectList *ef)
 	eq->low_gain = clip_int(st->param_lsb[6] - 64, -12, 12);
 	eq->high_freq = eq_freq_table_xg[clip_int(st->param_lsb[7], 28, 58)];
 	eq->high_gain = clip_int(st->param_lsb[8] - 64, -12, 12);	
-	od->mode = CH_MIX_MONO;
+	od->mode = st->param_lsb[10] == 0 ? CH_NONE : CH_MIX_MONO;
 	od->od_type = 0;
 	od->amp_type = 0;
 	od->cab_type = 0;
@@ -28204,88 +29561,8 @@ static void conv_sd_reverb(struct mfx_effect_sd_t *st, EffectList *ef)
 	Info_SD_Reverb *info = (Info_SD_Reverb *)ef->info;
 	InfoFreeverb *rvb = &info->rvb;	
 	InfoReverbEX *rvb2 = &info->rvb2;	
-#ifdef REV_EX2
-	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
 	InfoEQ2 *eq = &info->eq; 
 
-#ifdef REV_EX2			
-	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
-		info->rev_type = 2; // reverb ex2
-		rvb3->mode = CH_MIX_STEREO;
-		switch(clip_int(st->parameter[0], 0x00, 0x05)){
-		case 0: // room1
-			rvb3->height = 3.0; // m
-			rvb3->width = 5.0; // m
-			rvb3->depth = 7.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
-			break;
-		case 1: // room2
-			rvb3->height = 4.0; // m
-			rvb3->width = 8.0; // m
-			rvb3->depth = 10.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.99;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
-			break;
-		case 2: // stage1
-			rvb3->height = 10.0; // m
-			rvb3->width = 12.0; // m
-			rvb3->depth = 15.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.85;
-			rvb3->er_level = 0.40;
-			rvb3->rev_level = 0.60;
-			rvb3->density = 0.75;
-			break;
-		case 3: // stage2
-			rvb3->height = 12.0; // m
-			rvb3->width = 13.0; // m
-			rvb3->depth = 18.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.95;
-			rvb3->er_level = 0.60;
-			rvb3->rev_level = 0.40;
-			rvb3->density = 1.0;
-			break;
-		case 4: // hall1
-			rvb3->height = 12.0; // m
-			rvb3->width = 16.0; // m
-			rvb3->depth = 20.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
-			break;
-		default:
-		case 5: // hall2
-			rvb3->height = 16.0; // m
-			rvb3->width = 20.0; // m
-			rvb3->depth = 31.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.95;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
-			break;
-		}		
-		rvb3->er_time_ms = pre_delay_time_table[st->parameter[1]];
-		rvb3->rev_time_sec = reverb_time_table[clip_int(st->parameter[2], 0, 127)];
-		rvb3->rev_damp_freq = EQ_FREQb_SD(st->parameter[3]);
-		rvb3->er_damp_freq = EQ_FREQb_SD(st->parameter[3]);
-		rvb3->rev_feedback = 0.0; // reverb_status_gs.delay_feedback
-		rvb3->rev_dly_ms = 0;
-		rvb3->density = 1.0;
-		rvb3->level = 1.0;
-	}else 
-#endif
 	if(otd.efx_CustomRevType){
 		info->rev_type = 1; // reverb ex
 		rvb2->mode = CH_MIX_STEREO;
@@ -28393,17 +29670,9 @@ static void do_sd_reverb(DATA_T *buf, int32 count, EffectList *ef)
 	Info_SD_Reverb *info = (Info_SD_Reverb *)ef->info;
 	InfoFreeverb *rvb = &info->rvb;
 	InfoReverbEX *rvb2 = &info->rvb2;
-#ifdef REV_EX2
-	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
 	InfoEQ2 *eq = &info->eq; 
 
 	send_efx_buffer(ef, buf, count);
-#ifdef REV_EX2	
-	if(info->rev_type == 2)
-		do_reverb_ex2(ef->efx_buf, count, rvb3);
-	else 
-#endif
 	if(info->rev_type)
 		do_reverb_ex(ef->efx_buf, count, rvb2);
 	else
@@ -32066,90 +33335,43 @@ static float HF_damp_freq_table_sd[6] = {4000, 5000, 6400, 8000, 10000, 12500,};
 static void conv_sd_reverb1(struct mfx_effect_sd_t *st, EffectList *ef)
 {
 	Info_SD_Rev_Reverb *info = (Info_SD_Rev_Reverb *)ef->info;
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;	
 	InfoReverbEX *rvb2 = &info->rvb2;	
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif 
-
-#ifdef REV_EX2			
+		
 	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
 		info->rev_type = 2; // reverb ex2
 		rvb3->mode = CH_STEREO;
 		switch(clip_int(st->parameter[0], 0x00, 0x05)){
 		case 0: // room1
-			rvb3->height = 3.0; // m
-			rvb3->width = 5.0; // m
-			rvb3->depth = 7.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
+			rvb3->revtype = 24;
 			break;
 		case 1: // room2
-			rvb3->height = 4.0; // m
-			rvb3->width = 8.0; // m
-			rvb3->depth = 10.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.99;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
+			rvb3->revtype = 25;
 			break;
 		case 2: // stage1
-			rvb3->height = 10.0; // m
-			rvb3->width = 12.0; // m
-			rvb3->depth = 15.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.85;
-			rvb3->er_level = 0.40;
-			rvb3->rev_level = 0.60;
-			rvb3->density = 0.75;
+			rvb3->revtype = 26;
 			break;
 		case 3: // stage2
-			rvb3->height = 12.0; // m
-			rvb3->width = 13.0; // m
-			rvb3->depth = 18.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.95;
-			rvb3->er_level = 0.60;
-			rvb3->rev_level = 0.40;
-			rvb3->density = 1.0;
+			rvb3->revtype = 27;
 			break;
 		case 4: // hall1
-			rvb3->height = 12.0; // m
-			rvb3->width = 16.0; // m
-			rvb3->depth = 20.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
+			rvb3->revtype = 28;
 			break;
 		default:
 		case 5: // hall2
-			rvb3->height = 16.0; // m
-			rvb3->width = 20.0; // m
-			rvb3->depth = 31.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.95;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
+			rvb3->revtype = 29;
 			break;
 		}		
 		rvb3->er_time_ms = rev_sd_type_predelay(st->parameter[0]);
 		rvb3->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
-		rvb3->rev_damp_freq = EQ_FREQb_SD(st->parameter[2]);
 		rvb3->er_damp_freq = EQ_FREQb_SD(st->parameter[2]);
 		rvb3->rev_feedback = 0.0; // reverb_status_gs.delay_feedback
 		rvb3->rev_dly_ms = 0;
-		rvb3->density = 1.0;
 		rvb3->level = 1.0;
 	}else 
-#endif
-	if(otd.efx_CustomRevType){
+	if((opt_reverb_control >= 5 && opt_reverb_control < 7) || (opt_reverb_control <= -512 && opt_reverb_control > -768)){
 		info->rev_type = 1; // reverb ex
 		rvb2->mode = CH_STEREO;
 		switch(clip_int(st->parameter[0], 0x00, 0x05)){
@@ -32223,7 +33445,8 @@ static void conv_sd_reverb1(struct mfx_effect_sd_t *st, EffectList *ef)
 		rvb2->rev_dly_ms = 0;
 		rvb2->density = 1.0;
 		rvb2->level = 1.0;
-	}else{
+	}else
+	if((opt_reverb_control >= 3 && opt_reverb_control < 5) || (opt_reverb_control <= -256 && opt_reverb_control > -512)){
 // freeverb
 		info->rev_type = 0;
 		rvb->mode = CH_STEREO;		
@@ -32240,47 +33463,69 @@ static void conv_sd_reverb1(struct mfx_effect_sd_t *st, EffectList *ef)
 		rvb->rev_dly_ms = 0;
 		rvb->rev_level = 0.65;
 		rvb->rev_dif = 1.0;
+	}else{ // StandardReverb
+		int type;
+		info->rev_type = 0;
+		rvb3->mode = CH_STEREO;
+		switch(clip_int(st->parameter[0], 0x00, 0x05)){
+		case 0: // room1
+			type = 0;
+			break;
+		case 1: // room2
+			type = 1;
+			break;
+		case 2: // stage1
+			type = 2;
+			break;
+		case 3: // stage2
+			type = 3;
+			break;
+		case 4: // hall1
+			type = 3;
+			break;
+		default:
+		case 5: // hall2
+			type = 4;
+			break;
+		}
+		rvb0->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
+		rvb0->rev_rt = gs_revchar_to_rt(type);
+		rvb0->rev_wet = gs_revchar_to_level(type);
+		rvb0->rev_roomsize = gs_revchar_to_roomsize(type);
+		rvb0->rev_width = 0.125;
+		rvb0->rev_damp = 0.5;
+		rvb0->rev_feedback = 0.125;
+		rvb0->rev_level = 1.0;
+		rvb0->er_time_ms = rev_sd_type_predelay(st->parameter[0]);
+		rvb0->er_level = 0.25;
 	}
 }
 
 static void conv_sd_reverb2(struct mfx_effect_sd_t *st, EffectList *ef)
 {
 	Info_SD_Rev_Reverb *info = (Info_SD_Rev_Reverb *)ef->info;
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;	
 	InfoReverbEX *rvb2 = &info->rvb2;	
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif 
-
-#ifdef REV_EX2			
+	
 	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
-		info->rev_type = 2; // reverb ex2
+		info->rev_type = 3; // reverb ex2
 		rvb3->mode = CH_STEREO;
+		switch(*reverb_status_sd.type) {
+		case 0x02: rvb3->revtype = 30; break;
+		case 0x03: rvb3->revtype = 31; break;
+		case 0x04: rvb3->revtype = 32; break;
+		}	
 		rvb3->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
 		rvb3->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];		
-		rvb3->height = 2.25 + 1.25 * clip_int(st->parameter[2], 1, 8); // m
-		rvb3->width = 4.0 + 2.5 * clip_int(st->parameter[2], 1, 8); // m
-		rvb3->depth = 4.0 + 2.75 * clip_int(st->parameter[2], 1, 8); // m
-		// st->parameter[3] // hicut freq
-		rvb3->density = 0.5 + clip_int(st->parameter[4], 0, 127) * DIV_256;
-		// st->parameter[5] diffusion
-		// st->parameter[6] lf damp freq
-		// st->parameter[7] lf damp gain
-		rvb3->rev_damp_freq = HF_damp_freq_table_sd[clip_int(st->parameter[8], 0, 5)];
 		rvb3->er_damp_freq = HF_damp_freq_table_sd[clip_int(st->parameter[8], 0, 5)];
-		// st->parameter[9] hf damp gain
-		rvb3->rev_damp_type = FILTER_LPF6;
-		rvb3->rev_damp_bal = 0.95;
-		rvb3->er_level = 0.45;
-		rvb3->rev_level = 0.55;
 		rvb3->rev_feedback = 0.0;
 		rvb3->rev_dly_ms = 0;
-		rvb3->density = 1.0;
 		rvb3->level = 1.0;
 	}else 
-#endif
-	if(otd.efx_CustomRevType){
-		info->rev_type = 1; // reverb ex
+	if((opt_reverb_control >= 5 && opt_reverb_control < 7) || (opt_reverb_control <= -512 && opt_reverb_control > -768)){
+		info->rev_type = 2; // reverb ex
 		rvb2->mode = CH_STEREO;
 		rvb2->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
 		rvb2->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];		
@@ -32303,8 +33548,10 @@ static void conv_sd_reverb2(struct mfx_effect_sd_t *st, EffectList *ef)
 		rvb2->rev_dly_ms = 0;
 		rvb2->density = 1.0;
 		rvb2->level = 1.0;
-	}else{
+	}else
+	if((opt_reverb_control >= 3 && opt_reverb_control < 5) || (opt_reverb_control <= -256 && opt_reverb_control > -512)){
 // freeverb
+		info->rev_type = 1;
 		info->rev_type = 0;
 		rvb->mode = CH_STEREO;		
 		rvb->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
@@ -32320,89 +33567,70 @@ static void conv_sd_reverb2(struct mfx_effect_sd_t *st, EffectList *ef)
 		rvb->rev_dly_ms = 0;
 		rvb->rev_level = 0.55;
 		rvb->rev_dif = 1.0;
+	}else{ // StandardReverb
+		int type;
+		info->rev_type = 0;
+		rvb3->mode = CH_STEREO;
+		switch(*reverb_status_sd.type) {
+		case 0x02: type = 2; break;
+		case 0x03: type = 4; break;
+		case 0x04: type = 4; break;
+		}	
+		rvb0->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];	
+		rvb0->rev_rt = gs_revchar_to_rt(type);
+		rvb0->rev_wet = gs_revchar_to_level(type);
+		rvb0->rev_roomsize = gs_revchar_to_roomsize(type);
+		rvb0->rev_width = 0.125;
+		rvb0->rev_damp = 0.5;
+		rvb0->rev_feedback = 0.125;
+		rvb0->rev_level = 1.0;
+		rvb0->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
+		rvb0->er_level = 0.25;
 	}
 }
 
 static void conv_sd_gm2_reverb(struct mfx_effect_sd_t *st, EffectList *ef)
 {
 	Info_SD_Rev_Reverb *info = (Info_SD_Rev_Reverb *)ef->info;
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;	
 	InfoReverbEX *rvb2 = &info->rvb2;	
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif 
 	int type = (st->parameter[0] >= 3) ? (st->parameter[0] + 1) : st->parameter[0];
 
-#ifdef REV_EX2			
 	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
-		info->rev_type = 2; // reverb ex2
+		info->rev_type = 3; // reverb ex2
 		rvb3->mode = CH_STEREO;
 		switch(clip_int(type, 0x00, 0x05)){
 		case 0: // small room1
-			rvb3->height = 3.0; // m
-			rvb3->width = 4.5; // m
-			rvb3->depth = 6.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
+			rvb3->revtype = 33;
 			break;
 		case 1: // medium room2
-			rvb3->height = 4.0; // m
-			rvb3->width = 8.0; // m
-			rvb3->depth = 10.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.99;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
+			rvb3->revtype = 34;
 			break;
 		case 2: // large room1
-			rvb3->height = 4.0; // m
-			rvb3->width = 13.0; // m
-			rvb3->depth = 16.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.85;
-			rvb3->er_level = 0.40;
-			rvb3->rev_level = 0.60;
-			rvb3->density = 0.75;
+			rvb3->revtype = 35;
 			break;
 		case 3: // medium hall
-		case 4: // medium hall
-			rvb3->height = 12.0; // m
-			rvb3->width = 13.0; // m
-			rvb3->depth = 19.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.65;
-			rvb3->er_level = 0.50;
-			rvb3->rev_level = 0.50;
-			rvb3->density = 1.0;
+			rvb3->revtype = 36;
 			break;
 		default:
-		case 5: // large hall
-			rvb3->height = 15.0; // m
-			rvb3->width = 20.0; // m
-			rvb3->depth = 31.0; // m
-			rvb3->rev_damp_type = FILTER_LPF6;
-			rvb3->rev_damp_bal = 0.85;
-			rvb3->er_level = 0.45;
-			rvb3->rev_level = 0.55;
-			rvb3->density = 0.75;
+		case 4: // large hall
+			rvb3->revtype = 37;
+			break;
+		case 5: // plate
+			rvb3->revtype = 38;
 			break;
 		}		
 		rvb3->er_time_ms = rev_sd_type_predelay(type);
 		rvb3->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
-		rvb3->rev_damp_freq = 8000;
-		rvb3->er_damp_freq = 8000;
+		rvb3->er_damp_freq = 18000;
 		rvb3->rev_feedback = 0.0; // reverb_status_gs.delay_feedback
 		rvb3->rev_dly_ms = 0;
-		rvb3->density = 1.0;
 		rvb3->level = 1.0;
 	}else 
-#endif
-	if(otd.efx_CustomRevType){
-		info->rev_type = 1; // reverb ex
+	if((opt_reverb_control >= 5 && opt_reverb_control < 7) || (opt_reverb_control <= -512 && opt_reverb_control > -768)){
+		info->rev_type = 2; // reverb ex
 		rvb2->mode = CH_STEREO;
 		switch(clip_int(type, 0x00, 0x05)){
 		case 0: // room1
@@ -32467,9 +33695,10 @@ static void conv_sd_gm2_reverb(struct mfx_effect_sd_t *st, EffectList *ef)
 		rvb2->rev_dly_ms = 0;
 		rvb2->density = 1.0;
 		rvb2->level = 1.0;
-	}else{
+	}else
+	if((opt_reverb_control >= 3 && opt_reverb_control < 5) || (opt_reverb_control <= -256 && opt_reverb_control > -512)){
 // freeverb
-		info->rev_type = 0;
+		info->rev_type = 1;
 		rvb->mode = CH_STEREO;		
 		rvb->er_time_ms = rev_sd_type_predelay(type);
 		rvb->rev_rt = ins_gs_revchar_to_rt(clip_int(type, 0x00, 0x05));
@@ -32484,45 +33713,86 @@ static void conv_sd_gm2_reverb(struct mfx_effect_sd_t *st, EffectList *ef)
 		rvb->rev_dly_ms = 0;
 		rvb->rev_level = 0.65;
 		rvb->rev_dif = 1.0;
+	}else{ // StandardReverb
+		info->rev_type = 0;
+		rvb3->mode = CH_STEREO;
+		rvb0->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
+		rvb0->rev_rt = gs_revchar_to_rt(type);
+		rvb0->rev_wet = gs_revchar_to_level(type);
+		rvb0->rev_roomsize = gs_revchar_to_roomsize(type);
+		rvb0->rev_width = 0.125;
+		rvb0->rev_damp = 0.5;
+		rvb0->rev_feedback = 0.125;
+		rvb0->rev_level = 1.0;
+		rvb0->er_time_ms = rev_sd_type_predelay(type);
+		rvb0->er_level = 0.25;
 	}
 }
 
 static void conv_sd_plate1(struct mfx_effect_sd_t *st, EffectList *ef)
 {
 	Info_SD_Rev_Plate *info = (Info_SD_Rev_Plate *)ef->info;
-	InfoPlateReverb *rvb = &info->rvb;		
-
-	rvb->mode = CH_STEREO;
-	rvb->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
-	rvb->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
-	rvb->rev_diff = 0.5 * (10 + clip_int(st->parameter[2], 0, 8)) * DIV_20;
-	// st->parameter[3] high cut
-	// st->parameter[4] density
-	// st->parameter[5] diffusion
-	// st->parameter[6] lf damp freq
-	// st->parameter[7] lf damp gain
-	rvb->rev_damp = HF_damp_freq_table_sd[clip_int(st->parameter[8], 0, 5)] / 22050.0; // initialdamp;
-	// st->parameter[9] hf damp gain
-	rvb->er_level = 0.25;
-	rvb->rev_level = 0.75;
-	rvb->rev_feedback = 0; //0.125;
-	rvb->rev_wet = 1.0;	
+	InfoPlateReverb *rvb = &info->rvb;	
+	InfoReverbEX2 *rvb3 = &info->rvb3;	
+	
+	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
+		info->rev_type = 1; // reverb ex2
+		rvb3->mode = CH_STEREO;
+		rvb3->revtype = 32; // srv plate
+		rvb3->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
+		rvb3->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
+		rvb3->er_damp_freq = 18000;
+		rvb3->rev_feedback = 0.0; // reverb_status_gs.delay_feedback
+		rvb3->rev_dly_ms = 0;
+		rvb3->level = 1.0;
+	}else{ 
+		info->rev_type = 0;
+		rvb->mode = CH_STEREO;
+		rvb->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
+		rvb->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
+		rvb->rev_diff = 0.5 * (10 + clip_int(st->parameter[2], 0, 8)) * DIV_20;
+		// st->parameter[3] high cut
+		// st->parameter[4] density
+		// st->parameter[5] diffusion
+		// st->parameter[6] lf damp freq
+		// st->parameter[7] lf damp gain
+		rvb->rev_damp = HF_damp_freq_table_sd[clip_int(st->parameter[8], 0, 5)] / 22050.0; // initialdamp;
+		// st->parameter[9] hf damp gain
+		rvb->er_level = 0.25;
+		rvb->rev_level = 0.75;
+		rvb->rev_feedback = 0; //0.125;
+		rvb->rev_wet = 1.0;	
+	}
 }
 
 static void conv_sd_gm2_plate(struct mfx_effect_sd_t *st, EffectList *ef)
 {
 	Info_SD_Rev_Plate *info = (Info_SD_Rev_Plate *)ef->info;
-	InfoPlateReverb *rvb = &info->rvb;		
-
-	rvb->mode = CH_STEREO;
-	rvb->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
-	rvb->rev_diff = 0.5 * (10 + 5) * DIV_20;	
-	rvb->er_time_ms = 5.0;
-	rvb->rev_damp = 8000.0 / 22050.0; // initialdamp;
-	rvb->er_level = 0.25;
-	rvb->rev_level = 0.75;
-	rvb->rev_feedback = 0; //0.125;
-	rvb->rev_wet = 1.0;	
+	InfoPlateReverb *rvb = &info->rvb;	
+	InfoReverbEX2 *rvb3 = &info->rvb3;	
+	
+	if((opt_reverb_control >= 7 && opt_reverb_control < 9) || (opt_reverb_control <= -768 && opt_reverb_control > -1024)){
+		info->rev_type = 1; // reverb ex2
+		rvb3->mode = CH_STEREO;
+		rvb3->revtype = 38; // gm2 plate
+		rvb3->er_time_ms = pre_delay_time_table[clip_int(st->parameter[0], 0, 127)];
+		rvb3->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
+		rvb3->er_damp_freq = 18000;
+		rvb3->rev_feedback = 0.0; // reverb_status_gs.delay_feedback
+		rvb3->rev_dly_ms = 0;
+		rvb3->level = 1.0;
+	}else{
+		info->rev_type = 0;
+		rvb->mode = CH_STEREO;
+		rvb->rev_time_sec = reverb_time_table[clip_int(st->parameter[1], 0, 127)];
+		rvb->rev_diff = 0.5 * (10 + 5) * DIV_20;	
+		rvb->er_time_ms = 5.0;
+		rvb->rev_damp = 8000.0 / 22050.0; // initialdamp;
+		rvb->er_level = 0.25;
+		rvb->rev_level = 0.75;
+		rvb->rev_feedback = 0; //0.125;
+		rvb->rev_wet = 1.0;	
+	}
 }
 
 static void conv_sd_delay2(struct mfx_effect_sd_t *st, EffectList *ef)
@@ -32542,30 +33812,32 @@ static void conv_sd_delay2(struct mfx_effect_sd_t *st, EffectList *ef)
 
 static void do_sd_reverb1(DATA_T *buf, int32 count, EffectList *ef)
 {
-	Info_SD_Rev_Reverb *info = (Info_SD_Rev_Reverb *)ef->info;
+	Info_SD_Rev_Reverb *info = (Info_SD_Rev_Reverb *)ef->info;	
+	InfoStandardReverb *rvb0 = &info->rvb0;
 	InfoFreeverb *rvb = &info->rvb;
 	InfoReverbEX *rvb2 = &info->rvb2;
-#ifdef REV_EX2
 	InfoReverbEX2 *rvb3 = &info->rvb3;
-#endif
-
-#ifdef REV_EX2	
-	if(info->rev_type == 2)
-		do_reverb_ex2(buf, count, rvb3);
-	else 
-#endif
-	if(info->rev_type)
-		do_reverb_ex(buf, count, rvb2);
+	
+	if(info->rev_type == 3)
+		do_reverb_ex2(ef->efx_buf, count, rvb3);
+	else if(info->rev_type == 2)
+		do_reverb_ex(ef->efx_buf, count, rvb2);
+	else if(info->rev_type)
+		do_freeverb(ef->efx_buf, count, rvb);
 	else
-		do_freeverb(buf, count, rvb);
+		do_standard_reverb(buf, count, rvb0);
 }
 
 static void do_sd_plate1(DATA_T *buf, int32 count, EffectList *ef)
 {
 	Info_SD_Rev_Plate *info = (Info_SD_Rev_Plate *)ef->info;
 	InfoPlateReverb *rvb = &info->rvb;
-
-	do_plate_reverb(buf, count, rvb);
+	InfoReverbEX2 *rvb3 = &info->rvb3;
+	
+	if(info->rev_type)
+		do_reverb_ex2(ef->efx_buf, count, rvb3);
+	else
+		do_plate_reverb(buf, count, rvb);
 }
 
 static void do_sd_delay2(DATA_T *buf, int32 count, EffectList *ef)

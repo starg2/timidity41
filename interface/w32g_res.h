@@ -616,9 +616,13 @@
 #define IDC_COMBO_REVC_EX_RV_NUM        7716
 #define IDC_COMBO_REVC_EX_AP_NUM        7717
 #define IDC_REVC_EX_MOD                 7718
+// reverb ex2
+#define IDC_REVC_SR_LEVEL               7720
+#define IDC_COMBO_REVC_SR_RS_MODE       7721
+#define IDC_COMBO_REVC_SR_FFT_MODE      7722
 // plate reverb
-#define IDC_REVC_PLATE_LEVEL            7720
-#define IDC_REVC_PLATE_TIME             7721
+#define IDC_REVC_PLATE_LEVEL            7730
+#define IDC_REVC_PLATE_TIME             7731
 // chorus
 #define IDC_CHOC_EXT_LEVEL              7770
 #define IDC_CHOC_EXT_FEEDBACK           7771

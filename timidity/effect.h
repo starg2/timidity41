@@ -702,25 +702,22 @@ typedef struct _InfoReverbEX{
 } InfoReverbEX;
 
 
-#define REV_EX2
-//#define InfoReverbEX2 InfoReverbEX
-
+//#define REV_EX2_FFT
 typedef struct _InfoReverbEX2{
-	int8 mode, flt_type;
-	double rev_dly_ms, rev_time_sec, rev_width, rev_damp, rev_level, rev_feedback, rev_wet;	
-	double height, width, depth, rev_damp_freq, rev_damp_type, rev_damp_bal, density;
-	double er_time_ms, er_level, level, er_damp_freq, er_roomsize;
-	FLOAT_T levelrv, leveler, feedback, flt_dry, flt_wet, rv_feedback[REV_EX_UNITS], st_sprd, in_level, levelap;
-	int32 levelrvi, leveleri, feedbacki, flt_dryi, flt_weti, rv_feedbacki[REV_EX_UNITS], st_sprdi, in_leveli, levelapi;
-	// IR rev
-	int8 init;
-	int32 frame, srate, wcount, wcycle, rcycle;
-	float *irdata[2], *buf[2];
-	// thread
-	int8 thread;
-	int32 tcount, twcount[4]; // max 4thread
-	float *tbuf[4]; // in*2,out*2
-	float *buf2[2];
+	int8 mode;
+	int32 revtype;
+	double er_time_ms, er_damp_freq, rev_dly_ms, rev_time_sec, rev_feedback, level;
+	FLOAT_T levelrv;
+	int8 init, thread, ithread, rsmode, fftmode, fm_p;
+	int32 frame, srate, count, tcount, bsize, bcount, tbcount, pmr_p, rt_p;	
+	float *irdata[2], *buf[2], *tbuf[2]; // buf:delay(in)*2 , tbuf:out*2
+	FLOAT_T rsfb[2];
+	DATA_T *ptr;
+#if defined(REV_EX2_FFT)	// fft
+	int32 fnum, scount[2], bdcount[2];
+	float *fs[2], *ss[2], *rvs[2], *rs[2], *is[2], *os[2], *fi[2], *bd[2], *ios[2];
+	float *sint;
+#endif
 } InfoReverbEX2;
 
 
@@ -1264,9 +1261,6 @@ typedef struct {
 //	InfoReverb rvb;
 	InfoFreeverb rvb;
 	InfoReverbEX rvb2;
-#ifdef REV_EX2
-	InfoReverbEX2 rvb3;
-#endif
 	int rev_type;
 } Info_GS_Reverb;
 
@@ -1556,12 +1550,10 @@ typedef struct {
 	double rev_level, rev_wet, rev_dry;
 	int32 leveli;
 	InfoPreFilter bpf;
-//	InfoReverb rvb;
+	InfoStandardReverb rvb0;
 	InfoFreeverb rvb;
 	InfoReverbEX rvb2;
-#ifdef REV_EX2
 	InfoReverbEX2 rvb3;
-#endif
 	int rev_type;
 } Info_XG_Reverb1;
 
@@ -1571,6 +1563,8 @@ typedef struct {
 	InfoPreFilter bpf;
 //	InfoReverb rvb;
 	InfoPlateReverb rvb;
+	InfoReverbEX2 rvb3;
+	int rev_type;
 } Info_XG_Plate;
 
 typedef struct {
@@ -1627,12 +1621,10 @@ typedef struct {
 	double rev_level, rev_wet, rev_dry;
 	int32 leveli;	
 	InfoPreFilter bpf;
-//	InfoReverb rvb;
+	InfoStandardReverb rvb0;
 	InfoFreeverb rvb;
 	InfoReverbEX rvb2;
-#ifdef REV_EX2
 	InfoReverbEX2 rvb3;
-#endif
 	int rev_type;
 } Info_XG_Reverb2;
 
@@ -2156,17 +2148,18 @@ typedef struct {
 	int8 rev_type;
 	double level;
 	int32 leveli;
+	InfoStandardReverb rvb0;
 	InfoFreeverb rvb;
 	InfoReverbEX rvb2;
-#ifdef REV_EX2
 	InfoReverbEX2 rvb3;
-#endif
 } Info_SD_Rev_Reverb;
 
 typedef struct {
 	double level;
 	int32 leveli;
 	InfoPlateReverb rvb;
+	InfoReverbEX2 rvb3;
+	int rev_type;
 } Info_SD_Rev_Plate;
 
 typedef struct {
@@ -2338,9 +2331,6 @@ typedef struct {
 //	InfoReverb rvb;
 	InfoFreeverb rvb;
 	InfoReverbEX rvb2;
-#ifdef REV_EX2
-	InfoReverbEX2 rvb3;
-#endif
 	int rev_type;
     InfoEQ2 eq;
 } Info_SD_Reverb;
@@ -2760,9 +2750,7 @@ EXTERN struct reverb_status_gs_t
 	InfoPlateReverb info_plate_reverb;
 	InfoFreeverb info_freeverb;
 	InfoReverbEX info_reverb_ex;
-#ifdef REV_EX2
 	InfoReverbEX2 info_reverb_ex2;
-#endif
 	InfoDelay3 info_reverb_delay;
 	InfoPreFilter lpf;
 } reverb_status_gs;
@@ -3052,6 +3040,10 @@ extern int ext_reverb_ex_ap_num;
 //extern int ext_reverb_ex_rv_type;
 //extern int ext_reverb_ex_ap_type;
 extern int ext_reverb_ex_mod;
+
+extern double ext_reverb_ex2_level;
+extern int ext_reverb_ex2_rsmode;
+extern int ext_reverb_ex2_fftmode;
 
 extern double ext_plate_reverb_level;
 extern double ext_plate_reverb_time;

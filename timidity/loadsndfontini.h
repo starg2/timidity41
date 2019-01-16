@@ -304,6 +304,10 @@
 	//ext_reverb_ex_rv_type = MyIni_GetInt32(sec, "Ext_EX_RV_Type", 1);
 	//ext_reverb_ex_ap_type = MyIni_GetInt32(sec, "Ext_EX_AP_Type", 0);
 	ext_reverb_ex_mod = MyIni_GetInt32(sec, "Ext_EX_Mod", 0);
+	// reverb ex2	
+	ext_reverb_ex2_level = MyIni_GetFloat32(sec, "Ext_SR_Level", 1.0);
+	ext_reverb_ex2_rsmode = MyIni_GetInt32(sec, "Ext_SR_RS_Mode", 3);
+	ext_reverb_ex2_fftmode = MyIni_GetInt32(sec, "Ext_SR_FFT_Mode", 0);
 	// plate reverb
 	ext_plate_reverb_level = MyIni_GetFloat32(sec, "Ext_Plate_Level", 1.0);
 	ext_plate_reverb_level = MyIniParamRange(ext_plate_reverb_level, 0.001, 8.0);

@@ -6585,8 +6585,6 @@ void compute_voice_mms(int v, DATA_T *ptr, int32 count)
 
 
 ///// init / free
-int cfg_flg_int_synth_scc = 0;
-int cfg_flg_int_synth_mms = 0;
 
 void free_int_synth_preset(void)
 {
@@ -6626,60 +6624,15 @@ void free_int_synth_preset(void)
 
 void free_int_synth(void)
 {
-	int i;
-
 	free_int_synth_preset();
 	free_is_editor_preset();
 	la_pcm_data_load_flg = 0;	
-	
-	if (voice) {
-		for(i = 0; i < max_voices; i++) {			
-			Voice *vp = voice + i;	
-
-			if(!vp)
-				return;
-			if(vp->scc){
-				free(vp->scc);
-				vp->scc = NULL;
-			}
-			if(vp->mms){
-				free(vp->mms);
-				vp->mms = NULL;
-			}
-
-		}
-	}
-	cfg_flg_int_synth_scc = 0;
-	cfg_flg_int_synth_mms = 0;
 }
 
 void init_int_synth(void)
 {
-	int i;
-
 	set_sample_rate();
 	init_int_synth_lite();
-
-	if (voice) {
-		for(i = 0; i < max_voices; i++) {			
-			Voice *vp = voice + i;	
-
-			if(!vp)
-				continue;
-			if(cfg_flg_int_synth_scc && !vp->scc){
-				vp->scc = (InfoIS_SCC *)safe_malloc(sizeof(InfoIS_SCC));
-				if(!vp->scc)
-					continue;
-				memset(vp->scc, 0, sizeof(InfoIS_SCC));
-			}	
-			if(cfg_flg_int_synth_mms && !vp->mms){
-				vp->mms = (InfoIS_MMS *)safe_malloc(sizeof(InfoIS_MMS));
-				if(!vp->mms)
-					continue;
-				memset(vp->mms, 0, sizeof(InfoIS_MMS));
-			}
-		}
-	}
 }
 
 
