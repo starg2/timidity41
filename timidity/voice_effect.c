@@ -2791,112 +2791,80 @@ struct _VFX_Engine vfx_engine[] = {
 };
 
 
+/**************** interface function VFX ****************/
+
+// 初期化/終了処理のシンプルにするため InfoVFX_@の固定サイズバファを使用してinit_vfx()の中ではallocしない
+// なので今のところ uninit_vfx()は不要
 
 void free_voice_effect(int v)
 {
 	int i;
 
 	for(i = 0; i < VOICE_EFFECT_NUM; i++){
-		VoiceEffect *vfx = &voice[v].vfx[i];
+		VoiceEffect *vfx = voice[v].vfx[i];
 		
-		if(vfx->engine == &(vfx_engine[VFX_NONE]))
+		if(!vfx)
 			continue;
-		vfx->engine->uninit_vfx(v, vfx);
-		vfx->engine = &(vfx_engine[VFX_NONE]);
-		safe_free(vfx->info);
-		vfx->info = NULL;
-	}
-	voice[v].voice_effect_flg = 0;
-}
-
-void init_voice_effect(int v)
-{
-	int i, j, error = 0, flg = 0;
-
-	for(i = 0; i < VOICE_EFFECT_NUM; i++){
-		VoiceEffect *vfx = &voice[v].vfx[i];
-		
-		// param[0] = effect type
-	    memset(&(vfx->param), 0, sizeof(int) * VOICE_EFFECT_PARAM_NUM);
-		vfx->engine = NULL;
-		for(j = 0; j < VOICE_EFFECT_PARAM_NUM; j++){
-			vfx->param[j] = voice[v].sample->vfx[i][j];
-		}
-		if(vfx->param[0] < 0 || vfx->param[0] >= VFX_LIST_MAX)
-			vfx->param[0] = 0;		
-
-		for(j = 0; vfx_engine[j].type != -1; j++) {
-			if (vfx_engine[j].type == vfx->param[0]) {
-				vfx->engine = &(vfx_engine[j]);
-				break;
-			}
-		}
-		if (vfx->engine == NULL) { // error
-			error = 1;
-			break;
-		}
 		if (vfx->info) {
 			safe_free(vfx->info);
 			vfx->info = NULL;
 		}
-		if(vfx->param[0] == 0) // effect_none 
-			continue;
+	}
+	voice[v].vfxe_num = 0;
+}
+
+void init_voice_effect(int v)
+{
+	int i, flg = 0;
+
+	for(i = 0; i < voice[v].sample->vfxe_num; i++){
+		VoiceEffect *vfx = voice[v].vfx[i];
+		int num = voice[v].sample->vfx[i][0]; // [0] = effect type
+			
+		if(num <= VFX_NONE || num >= VFX_LIST_MAX)
+			break;
+		memcpy(vfx->param, voice[v].sample->vfx[i], sizeof(int) * VOICE_EFFECT_PARAM_NUM);
+		vfx->engine = &(vfx_engine[vfx->param[0]]);
+		if (vfx->info) {
+			safe_free(vfx->info);
+			vfx->info = NULL;
+		}
 		vfx->info = safe_large_malloc(vfx->engine->info_size);
 		memset(vfx->info, 0, vfx->engine->info_size);
 		vfx->engine->init_vfx(v, vfx);
-		flg += 1; // effect on
+		flg = i + 1; // effect on
 	}
-	voice[v].voice_effect_flg = flg ? 1 : 0;
-	if(error)
-		free_voice_effect(v);
+	voice[v].vfxe_num = flg;
 }
 
 void uninit_voice_effect(int v)
 {
-	int i;
-	
-	if(!voice[v].voice_effect_flg)
-		return;
-	free_voice_effect(v);
+	voice[v].vfxe_num = 0;
 }
 
 void noteoff_voice_effect(int v)
 {
 	int i;
 	
-	if(!voice[v].voice_effect_flg)
-		return;
-	for(i = 0; i < VOICE_EFFECT_NUM; i++){
-		voice[v].vfx[i].engine->noteoff_vfx(v, &voice[v].vfx[i]);
-	}
+	for(i = 0; i < voice[v].vfxe_num; i++)
+		voice[v].vfx[i]->engine->noteoff_vfx(v, voice[v].vfx[i]);
 }
 
 void damper_voice_effect(int v, int8 damper)
 {
 	int i;
 	
-	if(!voice[v].voice_effect_flg)
-		return;
-	for(i = 0; i < VOICE_EFFECT_NUM; i++){
-		voice[v].vfx[i].engine->damper_vfx(v, &voice[v].vfx[i], damper);
-	}
+	for(i = 0; i < voice[v].vfxe_num; i++)
+		voice[v].vfx[i]->engine->damper_vfx(v, voice[v].vfx[i], damper);
 }
 
 void voice_effect(int v, DATA_T *sp, int32 count)
 {
 	int i;
-
-	if(!voice[v].voice_effect_flg)
-		return;
-	for(i = 0; i < VOICE_EFFECT_NUM; i++){
-		voice[v].vfx[i].engine->do_vfx(v, &voice[v].vfx[i], sp, count);
-	}
+	
+	for(i = 0; i < voice[v].vfxe_num; i++)
+		voice[v].vfx[i]->engine->do_vfx(v, voice[v].vfx[i], sp, count);
 }
-
-
-
-
-
 
 #undef POW2 
 

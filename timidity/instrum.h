@@ -73,6 +73,7 @@ typedef struct _Sample {
   int lpf_type;
   int32 root_freq_org, sample_rate_org;
   int hpf[HPF_PARAM_NUM];
+  int vfxe_num;
   int vfx[VOICE_EFFECT_NUM][VOICE_EFFECT_PARAM_NUM];
   int8 keep_voice;
   int8 def_pan;
@@ -192,7 +193,8 @@ typedef struct {
 	int vibfcnum, vibampnum, vibdelaynum, vibfreqnum, vibsweepnum, vibpitchnum;
 	int16 *vibfc, *vibamp, *vibdelay, *vibfreq, *vibsweep, *vibpitch;
 	// other
-	int8 reverb_send, chorus_send, delay_send;	
+	int8 reverb_send, chorus_send, delay_send;
+	int vfxe_num;
 	int vfxnum[VOICE_EFFECT_NUM];
 	int **vfx[VOICE_EFFECT_NUM];
 	int is_preset;

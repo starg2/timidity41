@@ -359,8 +359,6 @@ extern void damper_int_synth_mms(int v, int8 damper);
 extern void compute_voice_mms(int v, DATA_T *ptr, int32 count);
 
 /**************** interface function internal synth ****************/
-extern int cfg_flg_int_synth_scc;
-extern int cfg_flg_int_synth_mms;
 extern void free_int_synth_preset(void);
 extern void free_int_synth(void);
 extern void init_int_synth(void);

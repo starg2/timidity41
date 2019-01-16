@@ -1709,7 +1709,9 @@ static int set_gus_patchconf_opts(const char *name,
 		if(tone->hpfnum)
 			free_ptr_list(tone->hpf, tone->hpfnum);
 		tone->hpf = config_parse_hpfparam(cp, &tone->hpfnum);
+#ifdef VOICE_EFFECT
 	}else if (! strcmp(opts, "vfx")){		/* voice effect*/
+		cfg_flg_vfx = 1;
 		for (i = 0; i < VOICE_EFFECT_NUM; i++){
 			if(tone->vfxnum[i]) // already use
 				continue;
@@ -1718,8 +1720,10 @@ static int set_gus_patchconf_opts(const char *name,
 				continue; // error check
 			}
 			tone->vfx[i] = config_parse_vfxparam(cp, &tone->vfxnum[i]);
+			tone->vfxe_num = i + 1;
 			break;
 		}
+#endif
 ///r
 	}else {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -2272,6 +2276,14 @@ MAIN_INTERFACE int read_config_file(const char *name, int self, int allow_missin
     MBlockList varbuf;
     char *basedir = NULL, *sep = NULL;
     char *onmemory = NULL;
+
+#ifdef VOICE_EFFECT
+	cfg_flg_vfx = 0;
+#endif
+#ifdef INT_SYNTH
+	cfg_flg_int_synth_mms = 0;
+	cfg_flg_int_synth_scc = 0;
+#endif
 
     if (rcf_count > 50)
     {
@@ -8547,9 +8559,8 @@ MAIN_INTERFACE void timidity_init_player(void)
     initialize_resampler_coeffs();
 
     /* Allocate voice[] */
-    free_voices();
-    safe_free(voice);
-    voice = (Voice*) safe_calloc(max_voices, sizeof(Voice));
+	free_voice_pointer();
+	init_voice_pointer();
 
     /* Set play mode parameters */
     if(opt_output_rate != 0)
@@ -9282,7 +9293,7 @@ int main(int argc, char **argv)
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH
-	free_voices();
+	free_voice_pointer();
 	uninitialize_resampler_coeffs();
 	for (i = 0; i < MAX_CHANNELS; i++)
 		free_drum_effect(i);
@@ -9396,7 +9407,7 @@ static void w32_exit(void)
 #ifdef INT_SYNTH
 	free_int_synth();
 #endif // INT_SYNTH
-	free_voices();
+	free_voice_pointer();
 	uninitialize_resampler_coeffs();
 	for (i = 0; i < MAX_CHANNELS; i++)
 		free_drum_effect(i);

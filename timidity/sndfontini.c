@@ -12,6 +12,8 @@
 
 Sample OverrideSample = {0};
 OVERRIDETIMIDITYDATA otd = {0};
+char sfini_path[FILEPATH_MAX] = "";
+
 
 #if defined(__W32__)
 
@@ -30,6 +32,7 @@ void timdrvOverrideSFSettingLoad(void)
 		fn[strlen(fn) - 1] = 0;
 	strlcat(fn, "\\", FILEPATH_MAX);
 	strlcat(fn, "timdrv_soundfont.ini", FILEPATH_MAX);
+	memcpy(sfini_path, fn, FILEPATH_MAX);
 
 #include "loadsndfontini.h"
 }
@@ -60,6 +63,7 @@ void OverrideSFSettingLoad(const char *kbini, int size)
     }
 #endif
     strlcat(fn,"soundfont.ini",FILEPATH_MAX);
+	memcpy(sfini_path, fn, FILEPATH_MAX);
 #include "loadsndfontini.h"
 }
 
@@ -83,6 +87,7 @@ void OverrideSFSettingLoad()
 		fn[2] = _T('\0');
     }
 	_tcsncat(fn, _T("soundfont.ini"), FILEPATH_MAX - _tcslen(fn) - 1);
+    memcpy(sfini_path, fn, FILEPATH_MAX);
 #include "loadsndfontini.h"
 }
 
@@ -111,6 +116,7 @@ void OverrideSFSettingLoad()
     }
 
     strlcat(fn,"soundfont.ini",FILEPATH_MAX);
+	memcpy(sfini_path, fn, FILEPATH_MAX);
 
 #include "loadsndfontini.h"
 
@@ -132,6 +138,7 @@ void OverrideSFSettingLoad()
 #endif
 	strlcat(fn, PATH_STRING, FILEPATH_MAX);
     strlcat(fn, "soundfont.ini", FILEPATH_MAX);
+	memcpy(sfini_path, fn, FILEPATH_MAX);
 #include "loadsndfontini.h"
 }
 

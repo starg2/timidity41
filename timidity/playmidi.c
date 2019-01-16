@@ -382,9 +382,7 @@ static double get_play_note_ratio(int, int);
 static int find_voice(MidiEvent *);
 static void finish_note(int i);
 static void update_portamento_controls(int ch);
-#ifdef NEW_LEGATO
 static void update_legato_status(int ch);
-#endif
 static void update_rpn_map(int ch, int addr, int update_now);
 static void ctl_prog_event(int ch);
 ///r
@@ -465,11 +463,114 @@ int use_vst_channel = 0;
 #endif /* POW2 */
 
 
-
 static inline int clip_int(int val, int min, int max)
 {
 	return ((val > max) ? max : (val < min) ? min : val);
 }
+
+
+
+#ifdef VOICE_EFFECT
+int cfg_flg_vfx = 0;
+#endif
+#ifdef INT_SYNTH
+int cfg_flg_int_synth_scc = 0;
+int cfg_flg_int_synth_mms = 0;
+#endif
+
+// free voice[]
+void free_voice_pointer(void)
+{
+	int i, j;
+	
+	if (!voice)
+		return;
+	
+	for(i = 0; i < max_voices; i++) {			
+		Voice *vp = voice + i;	
+
+		if(!vp)
+			continue;
+#ifdef VOICE_EFFECT
+		for(j = 0; j < VOICE_EFFECT_NUM; j++){
+			if(vp->vfx[j]){
+				free(vp->vfx[j]);
+				vp->vfx[j] = NULL;
+			}	
+		}
+#endif
+#ifdef INT_SYNTH
+		if(vp->scc){
+			free(vp->scc);
+			vp->scc = NULL;
+		}
+		if(vp->mms){
+			free(vp->mms);
+			vp->mms = NULL;
+		}
+#endif
+	}
+
+    safe_free(voice);
+	voice = NULL;
+}
+
+// Allocate voice[]
+void init_voice_pointer(void)
+{	
+	int i, j, error = 0;
+
+    voice = (Voice*) safe_calloc(max_voices, sizeof(Voice));
+	memset(voice, 0, sizeof(voice));
+	if (!voice)
+		return;
+	for(i = 0; i < max_voices; i++) {			
+		Voice *vp = voice + i;	
+
+		if(!vp){
+			error++;
+			break;
+		}
+#ifdef VOICE_EFFECT
+		if(cfg_flg_vfx){
+			for(j = 0; j < VOICE_EFFECT_NUM; j++){
+				if(!vp->vfx[j]){
+					vp->vfx[j] = (VoiceEffect *)safe_malloc(sizeof(VoiceEffect));
+					if(!vp->vfx[j]){
+						error++;
+						break;
+					}
+					memset(vp->vfx[j], 0, sizeof(VoiceEffect));
+				}	
+			}
+		}
+#endif
+#ifdef INT_SYNTH
+		if(cfg_flg_int_synth_scc && !vp->scc){
+			vp->scc = (InfoIS_SCC *)safe_malloc(sizeof(InfoIS_SCC));
+			if(!vp->scc){
+				error++;
+				break;
+			}
+			memset(vp->scc, 0, sizeof(InfoIS_SCC));
+		}	
+		if(cfg_flg_int_synth_mms && !vp->mms){
+			vp->mms = (InfoIS_MMS *)safe_malloc(sizeof(InfoIS_MMS));
+			if(!vp->mms){
+				error++;
+				break;
+			}
+			memset(vp->mms, 0, sizeof(InfoIS_MMS));
+		}
+#endif
+	}
+
+	if(error)
+		free_voice_pointer();
+}
+
+
+
 
 void init_playmidi(void){
 	int i, tmp, tmp2;
@@ -618,7 +719,15 @@ void free_playmidi(void)
 			ch_buffer[i] = NULL;
 		}
 	}
-#endif	
+#endif
+	
+#ifdef VOICE_EFFECT
+	if (!voice)
+		return;	
+	for(i = 0; i < max_voices; i++) {	
+		free_voice_effect(i);
+	}
+#endif
 }
 
 
@@ -802,23 +911,6 @@ static void swap_voices(Voice *a, Voice *b)
     memcpy(b, &swap, sizeof(Voice));
 }
 
-static void dup_voices(Voice *dst, const Voice *src)
-{
-#ifdef VOICE_EFFECT
-    VoiceEffect backup_vfx[VOICE_EFFECT_NUM];
-
-    /* backup pointer */
-    memcpy(&backup_vfx, dst->vfx, sizeof(VoiceEffect) * VOICE_EFFECT_NUM);
-    /* duplicate voice */
-    memmove(dst, src, sizeof(Voice));
-    /* restore pointer */
-    memcpy(dst->vfx, &backup_vfx, sizeof(VoiceEffect) * VOICE_EFFECT_NUM);
-#else
-    /* duplicate voice */
-    memmove(dst, src, sizeof(Voice));
-#endif
-}
-
 static void reset_voices(void)
 {
     int i;
@@ -989,18 +1081,12 @@ static void initialize_controllers(int c)
 	channel[c].mono = 0;
 	channel[c].portamento_time_lsb = 0;
 	channel[c].portamento_time_msb = 0;
-
-#ifdef NEW_LEGATO
 	channel[c].porta_status = 0;
 	channel[c].porta_last_note_fine = -1;
 	channel[c].legato_status = 0;
 	channel[c].legato_flag = 0;
 	channel[c].legato_note = 255;
 	channel[c].legato_note_time = 0;
-#else	
-	channel[c].legato = -1;
-	channel[c].porta_status = 0;
-#endif
 
 	set_reverb_level(c, -1);
 	if(opt_chorus_control == 1)
@@ -1167,18 +1253,11 @@ static void reset_controllers(int c)
 	channel[c].sustain = 0;
 	channel[c].sostenuto = 0;
 	channel[c].pitchbend = 0x2000;
-#ifdef NEW_LEGATO
 	channel[c].portamento = 0;
 	channel[c].portamento_control = -1;
 	update_portamento_controls(c);
 	channel[c].legato = -1;
 	update_legato_status(c);
-#else
-	channel[c].portamento = 0;
-	channel[c].portamento_control = -1;
-	channel[c].last_note_fine = -1;
-	update_portamento_controls(c);
-#endif
 	channel[c].lastlrpn = channel[c].lastmrpn = 0;
 	channel[c].nrpn = -1;
 	channel[c].rpn_7f7f_flag = 1;
@@ -1805,7 +1884,6 @@ void recompute_voice_pitch(int v)
 		}
 	}
 	/* Portamento / Legato */
-#ifdef NEW_LEGATO
 	if (opt_portamento){
 #if (PORTAMENTO_CONTROL_BIT == 13)
 		tuning += vp->porta_out;
@@ -1813,15 +1891,6 @@ void recompute_voice_pitch(int v)
 		tuning += (vp->porta_out << (13 - PORTAMENTO_CONTROL_BIT)); // tuning(13bit)
 #endif
 	}
-#else
-	if (vp->porta_status){
-#if (PORTAMENTO_CONTROL_BIT == 13)
-		tuning += vp->porta_pb;
-#else
-		tuning += (vp->porta_pb << (13 - PORTAMENTO_CONTROL_BIT)); // tuning(13bit)
-#endif
-	}
-#endif
 	/* calc freq */ /* XG Detune */ /* GS Pitch Offset Fine */
 	if (tuning == 0){
 		if (cp->detune == 1.0 && vp->sample->tune == 1.0 && cp->pitch_offset_fine == 0.0){
@@ -2113,7 +2182,7 @@ static void recompute_voice_filter2(int v)
 	Channel *cp = channel + ch;
 	int val;
 	FLOAT_T freq, reso, cent, coef = 1.0;
-	FilterCoefficients *fc = &(vp->fc2);
+	FilterCoefficients *fc = &vp->fc2;
 
 	if(fc->type == 0) {return;}
 	
@@ -2152,7 +2221,7 @@ void recompute_voice_filter(int v)
 	Channel *cp = channel + ch;
 	int val;
 	FLOAT_T freq, reso, cent, coef = 1.0, depth1 = 0, depth2 = 0;
-	FilterCoefficients *fc = &(vp->fc);
+	FilterCoefficients *fc = &vp->fc;
 	Sample *sp = vp->sample;
 
 	recompute_voice_filter2(v); // hpf
@@ -3010,25 +3079,6 @@ void free_voice(int v1)
     voice[v1].temper_instant = 0;
 }
 
-///r
-void free_voices(void)
-{
-	int i;
-
-//	free_int_synth();
-	if (voice) {
-		for(i = 0; i < max_voices; i++) {
-#ifdef VOICE_EFFECT
-			uninit_voice_effect(i);
-#endif
-			free_voice(i);
-		}
-	}
-
-	safe_free(voice);
-	voice = NULL;
-}
-
 static int find_free_voice(void)
 {
     int i, nv = voices, lowest;
@@ -3560,7 +3610,6 @@ static void update_modulation_wheel(int ch)
 }
 
 
-#ifdef NEW_LEGATO
 static void drop_portamento(int ch)
 {
     int i, uv = upper_voices;
@@ -3907,123 +3956,7 @@ ctl->cmsg(CMSG_INFO,VERB_NORMAL,
 #endif
 }
 
-#else // 
-static void drop_portamento(int ch)
-{
-    int i, uv = upper_voices;
 
-    channel[ch].porta_status = 0;
-    for(i = 0; i < uv; i++)
-	if(voice[i].status != VOICE_FREE &&
-	   voice[i].channel == ch &&
-	   voice[i].porta_status)
-	{
-	    voice[i].porta_status = 0;
-	//    recompute_freq(i);
-		recompute_voice_pitch(i);
-	}
-	//channel[ch].last_note_fine = -1;
-}
-
-static void update_portamento_controls(int ch)
-{
-    if(!channel[ch].portamento){
-	//	|| (channel[ch].portamento_time_msb | channel[ch].portamento_time_lsb) == 0){
-		if(channel[ch].porta_status)
-			drop_portamento(ch);
-	} else {
-		const double tuning = PORTAMENTO_TIME_TUNING * 256.0 * 256.0;
-		double mt, st;
-		mt = midi_time_table[channel[ch].portamento_time_msb & 0x7F] *
-			midi_time_table2[channel[ch].portamento_time_lsb & 0x7F] * tuning;
-		st = (double)1000.0 / mt; // semitone/sec
-		channel[ch].porta_dpb = st * PORTAMENTO_CONTROL_RATIO * div_playmode_rate;
-		channel[ch].porta_status = 1;
-    }
-}
-
-static void update_portamento_time(int ch)
-{
-    int i, uv = upper_voices;
-    int dpb;
-    int32 ratio;
-
-    update_portamento_controls(ch);
-    dpb = channel[ch].porta_dpb;
-    ratio = channel[ch].porta_status;
-
-    for(i = 0; i < uv; i++)
-    {
-	if(voice[i].status != VOICE_FREE &&
-	   voice[i].channel == ch &&
-	   voice[i].porta_status)
-	{
-	    voice[i].porta_status = ratio;
-	    voice[i].porta_dpb = dpb;
-	//    recompute_freq(i);
-		recompute_voice_pitch(i);
-	}
-    }
-}
-
-static void update_legato_controls(int ch)
-{
-#if 1
-//	const double ss = 4069.0104166666670; // semitone / sec
-	const double ss = 12000.0; // semitone / sec
-	channel[ch].porta_dpb = ss * PORTAMENTO_CONTROL_RATIO * div_playmode_rate;
-#else
-	const double st = 1.0 / 0.06250 * PORTAMENTO_TIME_TUNING * 0.3 * 256.0 * 256;
-	double st = (double)1.0 / mt; // semitone / ms
-	channel[ch].porta_dpb = st * PORTAMENTO_CONTROL_RATIO * 1000.0 * div_playmode_rate;
-#endif
-	channel[ch].porta_status = 1;
-}
-
-/*! initialize portamento or legato for a voice. */
-static void init_voice_portamento(int v)
-{
-	Voice *vp = &(voice[v]);
-	int ch = vp->channel;
-
-	vp->porta_status = 0;
-	if(channel[ch].porta_status) {
-		vp->porta_status = channel[ch].porta_status;
-		vp->porta_dpb = channel[ch].porta_dpb;
-		vp->porta_pb = channel[ch].porta_pb;
-		if(vp->porta_pb == 0) {vp->porta_status = 0;}
-	}
-}
-
-/*! initialize portamento or legato for a channel. */
-static void init_channel_portamento(MidiEvent *e)
-{	
-    int i, ch = e->channel, note = MIDI_EVENT_NOTE(e);
-	int32 times, fine = note * PORTAMENTO_CONTROL_RATIO;
-
-	if(channel[ch].portamento_control != -1){ // portament_control
-		if(!channel[ch].porta_status)
-			update_portamento_controls(ch);
-		channel[ch].porta_pb = channel[ch].portamento_control * PORTAMENTO_CONTROL_RATIO - fine;
-		channel[ch].portamento_control = -1;
-	}else if(channel[ch].portamento){
-		if(!channel[ch].porta_status)
-			update_portamento_controls(ch);	
-		if(channel[ch].last_note_fine == -1) /* first on */
-			channel[ch].last_note_fine = fine;
-		channel[ch].porta_pb = channel[ch].last_note_fine - fine;			
-	}else if(channel[ch].legato){	
-		if(channel[ch].legato_flag){
-			update_legato_controls(ch);
-			if(channel[ch].last_note_fine == -1) /* first on */
-				channel[ch].last_note_fine = fine;
-			channel[ch].porta_pb = channel[ch].last_note_fine - fine;
-		}
-		channel[ch].legato_flag = 1;
-	}
-	channel[ch].last_note_fine = fine;
-}
-#endif /* NEW_LEGATO */
 
 ///r
 static void recompute_amp_envelope_follow(int v, int ch)
@@ -4380,17 +4313,19 @@ static void init_voice_envelope(int i)
 // called mix.c mix_voice() , thread_mix.c mix_voice_thread()
 void update_voice(int i)
 {
+	Voice *vp = voice + i;
+
 	// 同時処理が必要になったらビットフラグ分岐に変更する可能性があるので 定数は2^nにしておく
 	// playmidi.h /* update_voice options: */
-	switch(voice[i].update_voice){
+	switch(vp->update_voice){
 	case UPDATE_VOICE_FINISH_NOTE: // finish note
-		reset_envelope0_release(&voice[i].amp_env, ENV0_KEEP);
-		reset_envelope0_release(&voice[i].mod_env, ENV0_KEEP);
-		reset_envelope4_noteoff(&voice[i].pit_env);
+		reset_envelope0_release(&vp->amp_env, ENV0_KEEP);
+		reset_envelope0_release(&vp->mod_env, ENV0_KEEP);
+		reset_envelope4_noteoff(&vp->pit_env);
 #ifdef INT_SYNTH
-		if(voice[i].sample->inst_type == INST_MMS)
+		if(vp->sample->inst_type == INST_MMS)
 			noteoff_int_synth_mms(i);
-		else if(voice[i].sample->inst_type == INST_SCC)
+		else if(vp->sample->inst_type == INST_SCC)
 			noteoff_int_synth_scc(i);
 #endif
 #ifdef VOICE_EFFECT
@@ -4398,16 +4333,16 @@ void update_voice(int i)
 #endif
 		break;
 	case UPDATE_VOICE_CUT_NOTE: // cut_note
-		reset_envelope0_release(&voice[i].amp_env, cut_short_rate);
+		reset_envelope0_release(&vp->amp_env, cut_short_rate);
 		break;
 	case UPDATE_VOICE_CUT_NOTE2: // cut_note2
-		reset_envelope0_release(&voice[i].amp_env, cut_short_rate2);
+		reset_envelope0_release(&vp->amp_env, cut_short_rate2);
 		break;		
 	case UPDATE_VOICE_KILL_NOTE: // kill_note
-		reset_envelope0_release(&voice[i].amp_env, ramp_out_rate);
+		reset_envelope0_release(&vp->amp_env, ramp_out_rate);
 		break;		
 	}
-	voice[i].update_voice = 0; // flag clear
+	vp->update_voice = 0; // flag clear
 }
 
 // called mix.c mix_voice() , thread_mix.c mix_voice_thread()
@@ -4636,14 +4571,9 @@ static void note_on(MidiEvent *e)
 		if(!channel[ch].program_flag) // PCがなかった場合(recompute_bank_paramしてない場合
 			recompute_bank_parameter_tone(ch);
 		/* portamento , legato */
-#ifdef NEW_LEGATO
 		if(opt_portamento)
 			if(init_channel_portamento(e)) /* portamento , legato */
 				return;
-#else
-		if(opt_portamento)
-			init_channel_portamento(e); /* portamento , legato */
-#endif
 	}
 
 	if(! opt_realtime_playing && emu_delay_time > 0)
@@ -4748,7 +4678,6 @@ static void note_off(MidiEvent *e)
 	  }
   }
   /* legato */
-#ifdef NEW_LEGATO
   if(opt_portamento){
 	  int tmp = note_off_legato(e); // -2:return -1:thru 0<=:change note
 	  if(tmp < -1)
@@ -4756,10 +4685,6 @@ static void note_off(MidiEvent *e)
 	  else if(tmp >= 0)
 		  note = tmp;
   }
-#else
-  if(opt_portamento)
-	  channel[ch].legato_flag = 1;
-#endif
 
   if ((vid = last_vidq(ch, note)) == -1)
       return;
@@ -10732,7 +10657,6 @@ static int apply_controls(void)
 	  case RC_NEXT:		/* >>| */
 	  case RC_REALLY_PREVIOUS: /* |<< */
 	  case RC_TUNE_END:	/* skip */
-   //     free_voices();
 	    aq_flush(1);
 	    return rc;
 

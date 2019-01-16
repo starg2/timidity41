@@ -1885,8 +1885,8 @@ int set_effect_sub_thread(effect_sub_thread_func_t func, void *ptr, int num)
 {
 	//if(!compute_thread_ready) // single thread
 	//	return 1;
-	if(compute_thread_ready < 4)
-		return 1; // 
+	//if(compute_thread_ready < 4)
+	//	return 1; // 
 	if(!func)
 		return 1; // error
 	if(func == est_func0 && ptr == est_ptr0)

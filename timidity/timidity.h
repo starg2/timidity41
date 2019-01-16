@@ -455,7 +455,6 @@
 #define INT_SYNTH
 #endif
 
-#define NEW_LEGATO
 //#define ENABLE_SFZ
 //#define ENABLE_DLS
 
