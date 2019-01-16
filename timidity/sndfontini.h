@@ -95,7 +95,7 @@ typedef struct OverrideTiMidityData {
 	short DriverRVolume;
 }OVERRIDETIMIDITYDATA ;
 
-
+extern char sfini_path[FILEPATH_MAX];
 
 
 #if defined(WINDRV) || defined(WINDRV_SETUP)
@@ -169,6 +169,10 @@ extern int ext_reverb_ex_ap_num;
 //extern int ext_reverb_ex_rv_type;
 //extern int ext_reverb_ex_ap_type;
 extern int ext_reverb_ex_mod;
+
+extern double ext_reverb_ex2_level;
+extern int ext_reverb_ex2_rsmode;
+extern int ext_reverb_ex2_fftmode;
 
 extern double ext_plate_reverb_level;
 extern double ext_plate_reverb_time;

@@ -583,9 +583,9 @@ void PrefWndCreate(HWND hwnd, UINT cid)
 			DialogBox ( hInst, MAKEINTRESOURCE(IDD_DIALOG_PREF_EN), hwnd, PrefWndDialogProc );
 			break;
 	}	
-#endif
 	hPrefWnd = NULL;
     CurrentPlayerLanguage = -1;
+#endif
 	PrefWndSetOK = 0;
 	PrefWndDoing = 0;
 	return;
@@ -2126,16 +2126,8 @@ static const TCHAR *cb_info_IDC_COMBO_REVERB_en[] = {
 	TEXT("Global New Reverb 1"),
 	TEXT("Standard Reverb EX"),
 	TEXT("Global Reverb EX"),
-#if 0
-	TEXT("Standard Reverb EX2"),
-	TEXT("Global Reverb EX2")
-#elif 0
 	TEXT("Sampling Reverb"),
 	TEXT("Global Sampling Reverb"),
-#else
-	TEXT("Ignore"),
-	TEXT("Ignore"),
-#endif
 	TEXT("Reverb VST"),
 	TEXT("Global Reverb VST"),
 	TEXT("Channel VST"),
@@ -2149,16 +2141,8 @@ static const TCHAR *cb_info_IDC_COMBO_REVERB_jp[] = {
 	TEXT("新リバーブ (グローバル)"),
 	TEXT("標準リバーブ EX"),
 	TEXT("標準リバーブ EX (グローバル)"),
-#if 0
-	TEXT("標準リバーブ EX2"),
-	TEXT("標準リバーブ EX2 (グローバル)"),
-#elif 0
 	TEXT("サンプリングリバーブ"),
 	TEXT("サンプリングリバーブ (グローバル)"),
-#else
-	TEXT("無効"),
-	TEXT("無効"),
-#endif
 	TEXT("リバーブ VST"),
 	TEXT("リバーブ VST (グローバル)"),
 	TEXT("チャンネル VST"),
@@ -3402,10 +3386,9 @@ PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 		RANGE(st_temp->voices, 1, MAX_VOICES); /* 1..1024 */
 		if (st_temp->voices > max_voices) {
-			free_voices();
-			safe_free(voice);
+			free_voice_pointer();
 			max_voices = st_temp->voices;
-			voice = (Voice*) safe_calloc(max_voices, sizeof(Voice));
+			init_voice_pointer();
 		}
 		
 		st_temp->output_amplification = GetDlgItemInt(hwnd,IDC_EDIT_OUTPUT_AMP,NULL,FALSE);
@@ -5121,81 +5104,6 @@ static const TCHAR *cb_info_IDC_COMBO_REVC_EX_AP_NUM[] = {
 	TEXT("8"),
 };
 
-#if 0
-// IDC_COMBO_REVC_EX_ER_NUM
-static int cb_info_IDC_COMBO_REVC_EX_ER_NUM_num[] = {
-	2,
-	3,
-	4,
-	6,
-	8,
-	12,
-	16,
-	20,
-	24,
-	32,
-	40,
-	48,
-	56,
-	64,
-};
-static const TCHAR *cb_info_IDC_COMBO_REVC_EX_ER_NUM[] = {
-	TEXT("2"),
-	TEXT("3"),
-	TEXT("4"),
-	TEXT("6"),
-	TEXT("8"),
-	TEXT("12"),
-	TEXT("16"),
-	TEXT("20"),
-	TEXT("24"),
-	TEXT("32"),
-	TEXT("40"),
-	TEXT("48"),
-	TEXT("56"),
-	TEXT("64"),
-};
-
-// IDC_COMBO_REVC_EX_RV_TYPE
-static int cb_info_IDC_COMBO_REVC_EX_RV_TYPE_num[] = {
-	0,
-	1,
-	2,
-	3,
-};
-
-static const TCHAR *cb_info_IDC_COMBO_REVC_EX_RV_TYPE[] = {
-	TEXT("comb2"),
-	TEXT("mod_comb2"),
-	TEXT("net_comb"),
-	TEXT("net_comb2"),
-};
-
-// IDC_COMBO_REVC_EX_AP_TYPE
-static int cb_info_IDC_COMBO_REVC_EX_AP_TYPE_num[] = {
-	0,
-	1,
-	2,
-};
-
-static const TCHAR *cb_info_IDC_COMBO_REVC_EX_AP_TYPE[] = {
-	TEXT("none"),
-	TEXT("allpass2"),
-	TEXT("mod_allpass2"),
-};
-
-// IDC_COMBO_REVC_EX_MODE
-static int cb_info_IDC_COMBO_REVC_EX_MODE_num[] = {
-	0,
-	1,
-};
-
-static const TCHAR *cb_info_IDC_COMBO_REVC_EX_MODE[] = {
-	TEXT("2ch"),
-	TEXT("3ch"),
-};
-#endif
-
 // IDC_SFOW_EFX_REV_TYPE
 static int cb_info_IDC_SFOW_EFX_REV_TYPE_num[] = {
 	0,
@@ -5205,6 +5113,32 @@ static int cb_info_IDC_SFOW_EFX_REV_TYPE_num[] = {
 static const TCHAR *cb_info_IDC_SFOW_EFX_REV_TYPE[] = {
 	TEXT("Freeverb"),
 	TEXT("ReverbEX"),
+};
+
+// IDC_COMBO_REVC_SR_RS_MODE
+static int cb_info_IDC_COMBO_REVC_SR_RS_MODE_num[] = {
+	0,
+	1,
+	2,
+	3,
+};
+static const TCHAR *cb_info_IDC_COMBO_REVC_SR_RS_MODE[] = {
+	TEXT("OFF"),
+	TEXT("SR1/2"),
+	TEXT("SR1/4"),
+	TEXT("SR1/8"),
+};
+
+// IDC_COMBO_REVC_SR_FFT_MODE
+static int cb_info_IDC_COMBO_REVC_SR_FFT_MODE_num[] = {
+	0,
+	1,
+	2,
+};
+static const TCHAR *cb_info_IDC_COMBO_REVC_SR_FFT_MODE[] = {
+	TEXT("OFF"),
+	TEXT("Zero Latency"),
+	TEXT("Large Latency"),
 };
 
 // IDC_CHOC_EX_PHASE_NUM
@@ -5559,7 +5493,14 @@ static LRESULT APIENTRY CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WP
 		for (i = 0; i < CB_NUM(cb_info_IDC_SFOW_EFX_REV_TYPE_num); i++)
 			CB_INSSTR(IDC_SFOW_EFX_REV_TYPE, cb_info_IDC_SFOW_EFX_REV_TYPE[i]);
 		CB_SET(IDC_SFOW_EFX_REV_TYPE, CB_FIND(cb_info_IDC_SFOW_EFX_REV_TYPE_num, otd.efx_CustomRevType, 5));
-
+		// reverb ex2
+		SetDlgItemFloat(hwnd, IDC_REVC_SR_LEVEL, ext_reverb_ex2_level);
+		for (i = 0; i < CB_NUM(cb_info_IDC_COMBO_REVC_SR_RS_MODE_num); i++)
+			CB_INSSTR(IDC_COMBO_REVC_SR_RS_MODE, cb_info_IDC_COMBO_REVC_SR_RS_MODE[i]);
+		CB_SET(IDC_COMBO_REVC_SR_RS_MODE, CB_FIND(cb_info_IDC_COMBO_REVC_SR_RS_MODE_num, ext_reverb_ex2_rsmode, 3));
+		for (i = 0; i < CB_NUM(cb_info_IDC_COMBO_REVC_SR_FFT_MODE_num); i++)
+			CB_INSSTR(IDC_COMBO_REVC_SR_FFT_MODE, cb_info_IDC_COMBO_REVC_SR_FFT_MODE[i]);
+		CB_SET(IDC_COMBO_REVC_SR_FFT_MODE, CB_FIND(cb_info_IDC_COMBO_REVC_SR_FFT_MODE_num, ext_reverb_ex2_fftmode, 0));
 		// ch chorus
 		SetDlgItemFloat(hwnd, IDC_CHOC_EXT_LEVEL, ext_chorus_level);
 		SetDlgItemFloat(hwnd, IDC_CHOC_EXT_FEEDBACK, ext_chorus_feedback);
@@ -5635,6 +5576,11 @@ static LRESULT APIENTRY CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WP
 		//ext_reverb_ex_ap_type = cb_info_IDC_COMBO_REVC_EX_AP_TYPE_num[CB_GETS(IDC_COMBO_REVC_EX_AP_TYPE, 0)];
 		//ext_reverb_ex_mode = cb_info_IDC_COMBO_REVC_EX_MODE_num[CB_GETS(IDC_COMBO_REVC_EX_MODE, 0)];
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_REVC_EX_MOD, ext_reverb_ex_mod);
+		// reverb ex2
+		ext_reverb_ex2_level = GetDlgItemFloat(hwnd, IDC_REVC_SR_LEVEL);
+		CHECKRANGE_SFINI_PARAM(ext_reverb_ex2_level, 0.001, 16.000);	
+		ext_reverb_ex2_rsmode = cb_info_IDC_COMBO_REVC_SR_RS_MODE_num[CB_GETS(IDC_COMBO_REVC_SR_RS_MODE, 3)];
+		ext_reverb_ex2_fftmode = cb_info_IDC_COMBO_REVC_SR_FFT_MODE_num[CB_GETS(IDC_COMBO_REVC_SR_FFT_MODE, 0)];
 		// plate reverb
 		ext_plate_reverb_level = GetDlgItemFloat(hwnd, IDC_REVC_PLATE_LEVEL);
 		ext_plate_reverb_time = GetDlgItemFloat(hwnd, IDC_REVC_PLATE_TIME);

@@ -930,6 +930,7 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 		if (tone->vfxnum[k])
 			for (i = 0; i < ip->samples; i++) {
 				sp = &ip->sample[i];
+				sp->vfxe_num = tone->vfxe_num;
 				if (tone->vfxnum[k] == 1) {
 					for (j = 0; j < VOICE_EFFECT_PARAM_NUM; j++)
 						sp->vfx[k][j] = tone->vfx[k][0][j];
@@ -2456,6 +2457,7 @@ static void init_tone_bank_element(ToneBankElement *tone)
 	tone->def_pan = -1;
 	tone->sample_pan = -1;
 	tone->sample_width = -1;
+	tone->vfxe_num = 0;
 }
 
 ///r
