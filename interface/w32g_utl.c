@@ -1503,7 +1503,7 @@ int IniVersionCheck(void)
     return 0;
 }
 
-void BitBltRect(HDC dst, HDC src, RECT *rc)
+void BitBltRect(HDC dst, HDC src, const RECT *rc)
 {
     BitBlt(dst, rc->left, rc->top,
 	   rc->right - rc->left, rc->bottom - rc->top,
@@ -1622,7 +1622,7 @@ void TmFillRect(HDC hdc, RECT *rc, int color)
 #ifndef S_ISDIR
 #define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
 #endif /* S_ISDIR */
-int is_directory(char *path)
+int is_directory(const char *path)
 {
 	struct stat st;
 	if(*path == '@') /* special identifire for playlist file */

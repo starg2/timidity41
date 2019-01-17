@@ -8202,7 +8202,7 @@ static RETSIGTYPE sigterm_exit(int sig)
 }
 #endif /* HAVE_SIGNAL */
 
-static void timidity_arc_error_handler(char *error_message)
+static void timidity_arc_error_handler(const char *error_message)
 {
     extern int open_file_noise_mode;
     if(open_file_noise_mode)
