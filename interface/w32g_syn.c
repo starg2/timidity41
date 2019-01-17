@@ -419,7 +419,7 @@ static int w32g_syn_main(void)
 	return 0;
 }
 
-static VOID CALLBACK forced_exit(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
+static VOID CALLBACK forced_exit(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	exit(0);
 }
