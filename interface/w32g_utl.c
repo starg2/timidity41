@@ -1549,7 +1549,9 @@ void w32g_initialize(void)
 #ifdef AU_FLAC
 		flac_ConfigDialogInfoInit();
 #endif
-		dwRes = GetFileAttributes(timidity_output_inifile);
+        TCHAR *timidity_output_inifile_t = char_to_tchar(timidity_output_inifile);
+		dwRes = GetFileAttributes(timidity_output_inifile_t);
+		safe_free(timidity_output_inifile_t);
 		if(dwRes==0xFFFFFFFF || dwRes & FILE_ATTRIBUTE_DIRECTORY){
 #ifdef AU_GOGO
 			gogo_ConfigDialogInfoSaveINI();
@@ -1557,13 +1559,8 @@ void w32g_initialize(void)
 #ifdef AU_VORBIS
 			vorbis_ConfigDialogInfoSaveINI();
 #endif
-        TCHAR *timidity_output_inifile_t = char_to_tchar(timidity_output_inifile);
-		dwRes = GetFileAttributes(timidity_output_inifile_t);
-		safe_free(timidity_output_inifile_t);
-		if(dwRes==0xFFFFFFFF || dwRes & FILE_ATTRIBUTE_DIRECTORY){
-
-#ifdef AU_GOGO
-			gogo_ConfigDialogInfoSaveINI();
+#ifdef AU_LAME
+			lame_ConfigDialogInfoSaveINI();
 #endif
 #ifdef AU_FLAC
 			flac_ConfigDialogInfoSaveINI();

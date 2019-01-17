@@ -837,7 +837,6 @@ extern int SecondMode;
 static char S_IniFile[FILEPATH_MAX];
 void FirstLoadIniFile(void)
 {
-	const char timini[] = TIMW32_INITFILE_NAME;
 	char buffer[FILEPATH_MAX];
 	TCHAR tbuffer[FILEPATH_MAX];
 	char *prevIniFile = IniFile;

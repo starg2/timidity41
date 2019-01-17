@@ -6550,7 +6550,7 @@ static void do_reverb_ex2_fft(DATA_T *buf, int32 count, InfoReverbEX2 *info);
 #define MYINI_LIBRARY_DEFIND_VAR
 #include "myini.h"
 
-const TCHAR *ini_rev_type_name[] = {
+const char *ini_rev_type_name[] = {
 	"GS_ROOM1",
 	"GS_ROOM2",
 	"GS_ROOM3",
@@ -6592,28 +6592,25 @@ const TCHAR *ini_rev_type_name[] = {
 	"SD_GM2_PLATE",
 };
 
-static void reverb_ex2_read_ini(int32 revtype, TCHAR *path, int32 *amp)
+static void reverb_ex2_read_ini(int32 revtype, char *path, int32 *amp)
 {
 	INIDATA ini = {0};
 	LPINISEC sec = NULL;
-	TCHAR tbf[FILEPATH_MAX] = "";
-	TCHAR *p = NULL;
-	TCHAR *ini_file = "timidity_irfile.ini";
+	char tbf[FILEPATH_MAX] = "";
+	char *p = NULL;
+	char *ini_file = "timidity_irfile.ini";
 	char fn[FILEPATH_MAX] = "";
 	int len;
 	
 	if(revtype < 0 || revtype >= 39)
 		return;
 	memcpy(fn, sfini_path, sizeof(sfini_path));
-#if defined(__W32__)
-	PathRemoveFileSpec(fn);
-	strcat(fn, "\\");
-#else
-	len = strlen(fn);
-	if(len < 13) // "soundfont.ini" の分 UNICODEでは不明 
-		return;
-	fn[len -  13] = '\0';  // soundfont.ini の分 UNICODEでは不明 
-#endif /* defined(__W32__) */
+	for (char *p = &fn[strlen(fn) - 1]; fn <= p; p--) {
+		if (IS_PATH_SEP(*p)) {
+			*(p + 1) = '\0';
+			break;
+		}
+	}
     strlcat(fn, ini_file, FILEPATH_MAX);
 	MyIni_Load(&ini, fn);
 //	MyIni_Load_timidity(&ini, ini_file, 1, OF_SILENT); // dir指定のところからロードしたいがなぜかエラー・・・
@@ -7070,7 +7067,7 @@ static void init_reverb_ex2(InfoReverbEX2 *info)
 	int32 bytes, rsrate, cbs;
 	char *sample_file = "irfile.wav";
 	int32 amp = 100;
-	TCHAR path[FILEPATH_MAX] = {0};
+	char path[FILEPATH_MAX] = {0};
 	
 #if defined(REV_EX2_FFT)
 	if(ext_reverb_ex2_fftmode){
