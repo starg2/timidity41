@@ -824,6 +824,7 @@ enum class OpCodeKind
     LoVelocity,
     Offset,
     Key,
+    Pan,
     PitchKeyCenter,
     Sample,
     Transpose,
@@ -987,6 +988,7 @@ public:
                         case OpCodeKind::LoopStart:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
+                        case OpCodeKind::Pan:
                         case OpCodeKind::Transpose:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
@@ -1124,13 +1126,14 @@ private:
             {"default_path"sv, OpCodeKind::DefaultPath},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hivel"sv, OpCodeKind::HiVelocity},
+            {"key"sv, OpCodeKind::Key},
             {"lokey"sv, OpCodeKind::LoKey},
             {"loop_end"sv, OpCodeKind::LoopEnd},
             {"loop_mode"sv, OpCodeKind::LoopMode},
             {"loop_start"sv, OpCodeKind::LoopStart},
             {"lovel"sv, OpCodeKind::LoVelocity},
             {"offset"sv, OpCodeKind::Offset},
-            {"key"sv, OpCodeKind::Key},
+            {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample},
             {"transpose"sv, OpCodeKind::Transpose},
@@ -1527,6 +1530,8 @@ private:
                     std::clamp(flatSection.GetAs<double>(OpCodeKind::Transpose).value_or(0.0), -127.0, 127.0) / 12.0
                         + std::clamp(flatSection.GetAs<double>(OpCodeKind::Tune).value_or(0.0), -100.0, 100.0) / 1200.0
                 );
+
+                s.sample_pan = std::clamp(flatSection.GetAs<double>(OpCodeKind::Pan).value_or(0.0), -100.0, 100.0) / 200.0;
 
                 s.envelope_keyf_bpo = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::AmpKeyCenter).value_or(60), -127, 127));
                 s.envelope_velf_bpo = 0;
