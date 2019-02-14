@@ -8225,7 +8225,7 @@ static void init_reverb_ex2_fft(InfoReverbEX2 *info)
 	int32 fnum, ibytes;
 	char *sample_file = "irfile.wav";
 	int32 amp = 100;
-	TCHAR path[FILEPATH_MAX] = {0};
+	char path[FILEPATH_MAX] = {0};
 
 	if(ext_reverb_ex2_fftmode == 1)
 		info->fftmode = 1;
