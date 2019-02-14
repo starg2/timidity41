@@ -285,6 +285,7 @@ Appendix :
     w[] and ip[] are compatible with all routines.
 */
 
+#include "optcode.h"
 
 void cdft(int n, int isgn, float *a, int *ip, float *w)
 {
@@ -357,6 +358,52 @@ void rdft(int n, int isgn, float *a, int *ip, float *w)
     }
 }
 
+
+void rdft_simd(int n, int isgn, float *a, int *ip, float *w)
+{
+    void makewt(int nw, int *ip, float *w);
+    void makect(int nc, int *ip, float *c);
+    void bitrv2(int n, int *ip, float *a);
+    void cftfsub_simd(int n, float *a, float *w);
+    void cftbsub_simd(int n, float *a, float *w);
+    void rftfsub(int n, float *a, int nc, float *c);
+    void rftbsub(int n, float *a, int nc, float *c);
+    int nw, nc;
+    float xi;
+    
+    nw = ip[0];
+    if (n > (nw << 2)) {
+        nw = n >> 2;
+        makewt(nw, ip, w);
+    }
+    nc = ip[1];
+    if (n > (nc << 2)) {
+        nc = n >> 2;
+        makect(nc, ip, w + nw);
+    }
+    if (isgn >= 0) {
+        if (n > 4) {
+            bitrv2(n, ip + 2, a);
+            cftfsub_simd(n, a, w);
+            rftfsub(n, a, nc, w + nw);
+        } else if (n == 4) {
+            cftfsub(n, a, w);
+        }
+        xi = a[0] - a[1];
+        a[0] += a[1];
+        a[1] = xi;
+    } else {
+        a[1] = 0.5 * (a[0] - a[1]);
+        a[0] -= a[1];
+        if (n > 4) {
+            rftbsub(n, a, nc, w + nw);
+            bitrv2(n, ip + 2, a);
+            cftbsub_simd(n, a, w);
+        } else if (n == 4) {
+            cftfsub(n, a, w);
+        }
+    }
+}
 
 void ddct(int n, int isgn, float *a, int *ip, float *w)
 {
@@ -976,6 +1023,84 @@ void cftfsub(int n, float *a, float *w)
     }
 }
 
+void cftfsub_simd(int n, float *a, float *w)
+{
+    void cft1st(int n, float *a, float *w);
+    void cftmdl(int n, int l, float *a, float *w);
+    int j, j1, j2, j3, l;
+    float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
+    
+    l = 2;
+    if (n > 8) {
+        cft1st(n, a, w);
+        l = 8;
+        while ((l << 2) < n) {
+            cftmdl(n, l, a, w);
+            l <<= 2;
+        }
+    }
+    if ((l << 2) == n) {
+#if (USE_X86_EXT_INTRIN >= 2)
+		const __m128 vma1 = _mm_set_ps(1, -1, 1, -1);
+		const __m128 vam1 = _mm_set_ps(-1, 1, -1, 1);
+        for (j = 0; j < l; j += 4) {
+			__m128 vj0, vj1, vj2, vj3, vx0, vx1, vx2, vx3;
+            j1 = j + l;
+            j2 = j1 + l;
+            j3 = j2 + l;
+			vj0 = _mm_load_ps(&a[j]);
+			vj1 = _mm_load_ps(&a[j1]);
+			vj2 = _mm_load_ps(&a[j2]);
+			vj3 = _mm_load_ps(&a[j3]);
+            vx0 = _mm_add_ps(vj0, vj1);
+			vx1 = _mm_sub_ps(vj0, vj1);
+			vx2 = _mm_add_ps(vj2, vj3);
+			vx3 = _mm_sub_ps(vj2, vj3);
+			vj0 = _mm_add_ps(vx0, vx2);
+			vj2 = _mm_sub_ps(vx0, vx2);
+			vx3 = _mm_shuffle_ps(vx3, vx3, 0xB1);
+			vj1 = MM_FMA_PS(vx3, vma1, vx1);
+			vj3 = MM_FMA_PS(vx3, vam1, vx1);
+			_mm_store_ps(&a[j], vj0); 
+			_mm_store_ps(&a[j1], vj1); 
+			_mm_store_ps(&a[j2], vj2); 
+			_mm_store_ps(&a[j3], vj3); 
+        }
+#else
+        for (j = 0; j < l; j += 2) {
+            j1 = j + l;
+            j2 = j1 + l;
+            j3 = j2 + l;
+            x0r = a[j] + a[j1];
+            x0i = a[j + 1] + a[j1 + 1];
+            x1r = a[j] - a[j1];
+            x1i = a[j + 1] - a[j1 + 1];
+            x2r = a[j2] + a[j3];
+            x2i = a[j2 + 1] + a[j3 + 1];
+            x3r = a[j2] - a[j3];
+            x3i = a[j2 + 1] - a[j3 + 1];
+            a[j] = x0r + x2r;
+            a[j + 1] = x0i + x2i;
+            a[j2] = x0r - x2r;
+            a[j2 + 1] = x0i - x2i;
+            a[j1] = x1r - x3i;
+            a[j1 + 1] = x1i + x3r;
+            a[j3] = x1r + x3i;
+            a[j3 + 1] = x1i - x3r;
+        }
+#endif
+    } else {
+        for (j = 0; j < l; j += 2) {
+            j1 = j + l;
+            x0r = a[j] - a[j1];
+            x0i = a[j + 1] - a[j1 + 1];
+            a[j] += a[j1];
+            a[j + 1] += a[j1 + 1];
+            a[j1] = x0r;
+            a[j1 + 1] = x0i;
+        }
+    }
+}
 
 void cftbsub(int n, float *a, float *w)
 {
@@ -1028,6 +1153,85 @@ void cftbsub(int n, float *a, float *w)
     }
 }
 
+void cftbsub_simd(int n, float *a, float *w)
+{
+    void cft1st(int n, float *a, float *w);
+    void cftmdl(int n, int l, float *a, float *w);
+    int j, j1, j2, j3, l;
+    float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
+    
+    l = 2;
+    if (n > 8) {
+        cft1st(n, a, w);
+        l = 8;
+        while ((l << 2) < n) {
+            cftmdl(n, l, a, w);
+            l <<= 2;
+        }
+    }
+    if ((l << 2) == n) {
+#if (USE_X86_EXT_INTRIN >= 2)
+		const __m128 vma1 = _mm_set_ps(1, -1, 1, -1);
+		const __m128 vam1 = _mm_set_ps(-1, 1, -1, 1);
+        for (j = 0; j < l; j += 4) {
+			__m128 vj0, vj1, vj2, vj3, vx0, vx1, vx2, vx3;
+            j1 = j + l;
+            j2 = j1 + l;
+            j3 = j2 + l;
+			vj0 = _mm_load_ps(&a[j]);
+			vj1 = _mm_load_ps(&a[j1]);
+			vj2 = _mm_load_ps(&a[j2]);
+			vj3 = _mm_load_ps(&a[j3]);
+			vj0 = _mm_mul_ps(vj0, vam1);
+            vx0 = MM_FMA_PS(vj1, vam1, vj0);
+			vx1 = MM_FMA_PS(vj1, vma1, vj0);
+			vx2 = _mm_add_ps(vj2, vj3);
+			vx3 = _mm_sub_ps(vj2, vj3);			
+			vj0 = MM_FMA_PS(vx2, vam1, vx0);
+			vj2 = MM_FMA_PS(vx2, vma1, vx0);
+			vx3 = _mm_shuffle_ps(vx3, vx3, 0xB1);			
+			vj1 = _mm_sub_ps(vx1, vx3);
+			vj3 = _mm_add_ps(vx1, vx3);
+			_mm_store_ps(&a[j], vj0); 
+			_mm_store_ps(&a[j1], vj1); 
+			_mm_store_ps(&a[j2], vj2); 
+			_mm_store_ps(&a[j3], vj3); 
+        }
+#else
+        for (j = 0; j < l; j += 2) {
+            j1 = j + l;
+            j2 = j1 + l;
+            j3 = j2 + l;
+            x0r = a[j] + a[j1];
+            x0i = -a[j + 1] - a[j1 + 1];
+            x1r = a[j] - a[j1];
+            x1i = -a[j + 1] + a[j1 + 1];
+            x2r = a[j2] + a[j3];
+            x2i = a[j2 + 1] + a[j3 + 1];
+            x3r = a[j2] - a[j3];
+            x3i = a[j2 + 1] - a[j3 + 1];
+            a[j] = x0r + x2r;
+            a[j + 1] = x0i - x2i;
+            a[j2] = x0r - x2r;
+            a[j2 + 1] = x0i + x2i;
+            a[j1] = x1r - x3i;
+            a[j1 + 1] = x1i - x3r;
+            a[j3] = x1r + x3i;
+            a[j3 + 1] = x1i + x3r;
+        }
+#endif
+    } else {
+        for (j = 0; j < l; j += 2) {
+            j1 = j + l;
+            x0r = a[j] - a[j1];
+            x0i = -a[j + 1] + a[j1 + 1];
+            a[j] += a[j1];
+            a[j + 1] = -a[j + 1] - a[j1 + 1];
+            a[j1] = x0r;
+            a[j1 + 1] = x0i;
+        }
+    }
+}
 
 void cft1st(int n, float *a, float *w)
 {
@@ -1284,7 +1488,6 @@ void rftfsub(int n, float *a, int nc, float *c)
         a[k + 1] -= yi;
     }
 }
-
 
 void rftbsub(int n, float *a, int nc, float *c)
 {
