@@ -776,8 +776,6 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_modulation_update",&(st->opt_modulation_update));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_cut_short_time",&st->opt_cut_short_time);
 	IniPutKeyInt(INI_SEC_TIMIDITY,"opt_limiter",&st->opt_limiter);
-    if (st->opt_use_midi_loop_repeat)
-	st->opt_use_midi_loop_repeat = 1;
     IniPutKeyInt(INI_SEC_TIMIDITY, "opt_use_midi_loop_repeat", &st->opt_use_midi_loop_repeat);
     IniPutKeyInt(INI_SEC_TIMIDITY, "opt_midi_loop_repeat", &st->opt_midi_loop_repeat);
 	

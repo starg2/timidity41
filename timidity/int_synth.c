@@ -4825,7 +4825,7 @@ static inline void compute_op_null(Info_OP *info){}
 
 static inline void compute_op_wave_none(Info_OP *info)
 {
-	FLOAT_T osc, lfo1, lfo2;
+	FLOAT_T osc;
 	
 	info->in = 0.0; // clear
 	info->rate += info->freq; // +1/sr = 1Hz
@@ -4837,7 +4837,7 @@ static inline void compute_op_wave_none(Info_OP *info)
 
 static inline void compute_op_wave_fm(Info_OP *info)
 {
-	FLOAT_T osc, rt;
+	FLOAT_T osc;
 	FLOAT_T in = info->in;
 	
 	info->in = 0.0; // clear
@@ -4924,7 +4924,7 @@ static inline void compute_op_wave_lowbit(Info_OP *info)
 
 static inline void compute_op_scc_none(Info_OP *info)
 {
-	FLOAT_T osc, lfo1, lfo2;
+	FLOAT_T osc;
 	
 	info->in = 0.0; // clear
 	info->rate += info->freq; // +1/sr = 1Hz
@@ -4985,10 +4985,7 @@ static inline void compute_op_scc_ampm(Info_OP *info)
 	info->rate += info->freq; // +1/sr = 1Hz
 	RESET_OP_RATE
 	rt = info->rate + in * info->mod_level; // mod level;
-	if(rt >= 1.0)
-		rt -= floor(rt);
-	else if(rt < 0.0)
-		rt += floor(rt);
+	rt -= floor(rt);
 	osc = info->scc_ptr(calc_op_width(info, rt), info->data_ptr);
 	osc *= (1.0 - ((FLOAT_T)in * DIV_2 + 0.5) * info->mod_level);
 	op_filter(&info->fc, &osc);
@@ -5041,7 +5038,7 @@ static inline void compute_op_pcm_fm(Info_OP *info)
 	FLOAT_T in = info->in; // 
 	
 	info->in = 0.0; // clear
-	info->rate += info->freq * (1.0 + (FLOAT_T)in * info->mod_level); // +1/sr*pcm_rate/root_freq = 1Hz
+	info->pcm_rate = info->rate += info->freq * (1.0 + (FLOAT_T)in * info->mod_level); // +1/sr*pcm_rate/root_freq = 1Hz
 	osc = compute_pcm_linear(info);
 	op_filter(&info->fc, &osc);
 	compute_op_output(info, osc * info->amp_vol); // include info->op_level
