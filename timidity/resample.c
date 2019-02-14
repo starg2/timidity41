@@ -4218,7 +4218,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
 #if 1
-	__m256i vsrc01 = MM256_I32GATHER_I32((const int*)src, vofsi, 2);
+	__m256i vsrc01 = _mm256_i32gather_epi32((const int*)src, vofsi, 2);
 	__m256i vsrc0 = _mm256_srai_epi32(_mm256_slli_epi32(vsrc01, 16), 16);
 	__m256i vsrc1 = _mm256_srai_epi32(vsrc01, 16);
 	__m256 vv1 = _mm256_cvtepi32_ps(vsrc0);
