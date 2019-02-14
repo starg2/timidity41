@@ -1443,9 +1443,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		CB_SET(IDC_COMBO_SECOND_MODE, CB_FIND(cb_info_IDC_COMBO_SECOND_MODE_num, sp_temp->SecondMode, 0));
 		
         // CC/Mark loop repeat
-        CH_SET(IDC_CHECKBOX_LOOP_CC111, st_temp->opt_use_midi_loop_repeat & LF_CC111_TO_EOT);
-        CH_SET(IDC_CHECKBOX_LOOP_AB_MARK, st_temp->opt_use_midi_loop_repeat & LF_MARK_A_TO_B);
-        CH_SET(IDC_CHECKBOX_LOOP_SE_MARK, st_temp->opt_use_midi_loop_repeat & LF_MARK_S_TO_E);
+        CH_SET(IDC_CHECKBOX_LOOP_CC111, (st_temp->opt_use_midi_loop_repeat & LF_CC111_TO_EOT) != 0);
+        CH_SET(IDC_CHECKBOX_LOOP_AB_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_A_TO_B) != 0);
+        CH_SET(IDC_CHECKBOX_LOOP_SE_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_S_TO_E) != 0);
         CH_SET(IDC_CHECKBOX_LOOP_CC2, (st_temp->opt_use_midi_loop_repeat & LF_CC2_TO_CC4) != 0);
         SendMessage(hwnd, WM_COMMAND, IDC_CHECKBOX_LOOP_CC111, 0);
         EB_SET_INT(IDC_EDIT_LOOP_REPEAT, st_temp->opt_midi_loop_repeat);

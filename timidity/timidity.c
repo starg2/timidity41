@@ -2277,13 +2277,15 @@ MAIN_INTERFACE int read_config_file(const char *name, int self, int allow_missin
     char *basedir = NULL, *sep = NULL;
     char *onmemory = NULL;
 
+	if(rcf_count == 0){
 #ifdef VOICE_EFFECT
-	cfg_flg_vfx = 0;
+		cfg_flg_vfx = 0;
 #endif
 #ifdef INT_SYNTH
-	cfg_flg_int_synth_mms = 0;
-	cfg_flg_int_synth_scc = 0;
+		cfg_flg_int_synth_mms = 0;
+		cfg_flg_int_synth_scc = 0;
 #endif
+	}
 
     if (rcf_count > 50)
     {

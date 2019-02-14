@@ -67,6 +67,7 @@ inialize_effect
 #include "effect.h"
 #include "mt19937ar.h"
 #include "sndfontini.h"
+#include "fft4g.h"
 
 #if defined(__W32__)
 #include <windows.h>
@@ -6529,7 +6530,7 @@ static void do_reverb_ex(DATA_T *buf, int32 count, InfoReverbEX *info)
 
 #define REV_EX2_LEVEL    (1.0) // total
 #define REV_EX2_ST_CROSS (0.3)
-#define REV_EX2_REV_LEVEL (0.5 * (1.0 - REV_EX2_ST_CROSS))
+#define REV_EX2_REV_LEVEL (0.25 * (1.0 - REV_EX2_ST_CROSS))
 
 double ext_reverb_ex2_level = 1.0;
 int ext_reverb_ex2_rsmode = 3;
@@ -6540,11 +6541,9 @@ int ext_reverb_ex2_fftmode = 0;
 static void do_reverb_ex2_thread(int thread_num, void *info2);
 #endif // defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
-#if defined(REV_EX2_FFT)
 static void init_reverb_ex2_fft(InfoReverbEX2 *info);
 static void do_reverb_ex2_fft_thread(int thread_num, void *info2);
 static void do_reverb_ex2_fft(DATA_T *buf, int32 count, InfoReverbEX2 *info);
-#endif
 
 
 #define MYINI_LIBRARY_DEFIND_VAR
@@ -6972,7 +6971,7 @@ static void do_reverb_ex2_resample_ov2(float *in0, float *in1, float *out0, floa
 static void do_reverb_ex2_resample_ds2(float *in0, float *in1, float *out0, float *out1, int32 nframe)
 {
 	int32 i, k;
-
+	
 	for (i = 0, k = 0; i < nframe; i++, k += 2){		
 		out0[i] = (in0[k] + in0[k + 1]) * DIV_2;
 		out1[i] = (in1[k] + in1[k + 1]) * DIV_2;
@@ -6983,16 +6982,90 @@ static void do_reverb_ex2_resample_ds4(float *in0, float *in1, float *out0, floa
 {
 	int32 i, k;
 	
+#if (USE_X86_EXT_INTRIN >= 2) // 4samples
+	const __m128 divn = _mm_set1_ps(DIV_4);
+	for (i = 0, k = 0; i < nframe; i += 4, k += 16){
+		__m128	sum1 = _mm_load_ps(&in0[k + 0]); // v0,v1,v2,v3
+		__m128	sum2 = _mm_load_ps(&in0[k + 4]); // v4,v5,v6,v7
+		__m128	sum3 = _mm_load_ps(&in0[k + 8]); // v8,v9,v10,v11
+		__m128	sum4 = _mm_load_ps(&in0[k + 12]); // v12,v13,v14,v15
+		__m128	sum5 = _mm_load_ps(&in1[k + 0]); // v0,v1,v2,v3
+		__m128	sum6 = _mm_load_ps(&in1[k + 4]); // v4,v5,v6,v7
+		__m128	sum7 = _mm_load_ps(&in1[k + 8]); // v8,v9,v10,v11
+		__m128	sum8 = _mm_load_ps(&in1[k + 12]); // v12,v13,v14,v15	
+		//_MM_TRANSPOSE4_PS(sum1, sum2, sum3, sum4)				
+		__m128 tmp0 = _mm_shuffle_ps(sum1, sum2, 0x44); // v0,v1,v4,v5
+		__m128 tmp2 = _mm_shuffle_ps(sum1, sum2, 0xEE); // v2,v3,v6,v7
+		__m128 tmp1 = _mm_shuffle_ps(sum3, sum4, 0x44); // v8,v9,v12,v13
+		__m128 tmp3 = _mm_shuffle_ps(sum3, sum4, 0xEE); // v10,v11,v14,v5
+		sum1 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0,v4,v8,v12
+		sum2 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1,v5,v9,v13
+		sum3 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2,v6,10,v15
+		sum4 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3,v7,v11,v16				
+		//_MM_TRANSPOSE4_PS(sum5, sum6, sum7, sum8)
+		tmp0 = _mm_shuffle_ps(sum5, sum6, 0x44); // v16,....
+		tmp2 = _mm_shuffle_ps(sum5, sum6, 0xEE); // v18,....
+		tmp1 = _mm_shuffle_ps(sum7, sum8, 0x44); // v24,....
+		tmp3 = _mm_shuffle_ps(sum7, sum8, 0xEE); // v26,....
+		sum5 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v16,....
+		sum6 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v17,....
+		sum7 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v18,....
+		sum8 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v19,....
+		sum1 = _mm_add_ps(sum1, sum2);
+		sum3 = _mm_add_ps(sum3, sum4);
+		sum5 = _mm_add_ps(sum5, sum6);
+		sum7 = _mm_add_ps(sum7, sum8);
+		sum1 = _mm_add_ps(sum1, sum3);
+		sum5 = _mm_add_ps(sum5, sum7);
+		sum1 = _mm_mul_ps(sum1, divn);
+		sum5 = _mm_mul_ps(sum5, divn);
+		_mm_store_ps(&out0[i], sum1);
+		_mm_store_ps(&out1[i], sum5);
+	}
+#else
 	for (i = 0, k = 0; i < nframe; i++, k += 4){	
 		out0[i] = (in0[k] + in0[k + 1] + in0[k + 2] + in0[k + 3]) * DIV_4;
 		out1[i] = (in1[k] + in1[k + 1] + in1[k + 1] + in1[k + 3]) * DIV_4;
 	}
+#endif
 }
 
 static void do_reverb_ex2_resample_ds8(float *in0, float *in1, float *out0, float *out1, int32 nframe)
 {
 	int32 i, k;
-
+	
+#if (USE_X86_EXT_INTRIN >= 2) // 2samples
+	const __m128 divn = _mm_set1_ps(DIV_8);
+	for (i = 0, k = 0; i < nframe; i += 2, k += 16){
+		__m128	vin1 = _mm_load_ps(&in0[k + 0]); // v0,v1,v2,v3
+		__m128	vin2 = _mm_load_ps(&in0[k + 4]); // v4,v5,v6,v7
+		__m128	vin3 = _mm_load_ps(&in0[k + 8]); // v8,v9,v10,v11
+		__m128	vin4 = _mm_load_ps(&in0[k + 12]); // v12,v13,v14,v15
+		__m128	vin5 = _mm_load_ps(&in1[k + 0]); // v0,v1,v2,v3
+		__m128	vin6 = _mm_load_ps(&in1[k + 4]); // v4,v5,v6,v7
+		__m128	vin7 = _mm_load_ps(&in1[k + 8]); // v8,v9,v10,v11
+		__m128	vin8 = _mm_load_ps(&in1[k + 12]); // v12,v13,v14,v15
+		__m128 sum1 = _mm_add_ps(vin1, vin2); // v0v4,v1v5,v2v6,v3v7
+		__m128 sum2 = _mm_add_ps(vin3, vin4); // v8v12,v9v13,v10v14,v11v15
+		__m128 sum3 = _mm_add_ps(vin5, vin6); // v0v4,v1v5,v2v6,v3v7
+		__m128 sum4 = _mm_add_ps(vin7, vin8); // v8v12,v9v13,v10v14,v11v15
+		//_MM_TRANSPOSE4_PS(sum1, sum2, sum3, sum4)				
+		__m128 tmp0 = _mm_shuffle_ps(sum1, sum2, 0x44); // v0,v1,v4,v5
+		__m128 tmp2 = _mm_shuffle_ps(sum1, sum2, 0xEE); // v2,v3,v6,v7
+		__m128 tmp1 = _mm_shuffle_ps(sum3, sum4, 0x44); // v8,v9,v12,v13
+		__m128 tmp3 = _mm_shuffle_ps(sum3, sum4, 0xEE); // v10,v11,v14,v15
+		sum1 = _mm_shuffle_ps(tmp0, tmp1, 0x88); // v0v4,v8v12,v0v4,v8v12
+		sum2 = _mm_shuffle_ps(tmp0, tmp1, 0xDD); // v1v5,v9v13,v1v5,v9v13
+		sum3 = _mm_shuffle_ps(tmp2, tmp3, 0x88); // v2v6,v10v15,v2v6,v10v15
+		sum4 = _mm_shuffle_ps(tmp2, tmp3, 0xDD); // v3v7,v11v16,v3v7,v11v16			
+		sum1 = _mm_add_ps(sum1, sum2);
+		sum3 = _mm_add_ps(sum3, sum4);
+		sum1 = _mm_add_ps(sum1, sum3);
+		sum1 = _mm_mul_ps(sum1, divn);
+		_mm_storel_pi((__m64*)&out0[i], sum1);
+		_mm_storeh_pi((__m64*)&out1[i], sum1);
+	}
+#else
 	for (i = 0, k = 0; i < nframe; i++, k += 8){	
 		out0[i] = (
 			in0[k    ] + in0[k + 1] + in0[k + 2] + in0[k + 3] + 
@@ -7001,6 +7074,7 @@ static void do_reverb_ex2_resample_ds8(float *in0, float *in1, float *out0, floa
 			in1[k    ] + in1[k + 1] + in1[k + 1] + in1[k + 3] +
 			in1[k + 4] + in1[k + 5] + in1[k + 6] + in1[k + 7]) * DIV_8;
 	}
+#endif
 }
 
 void free_reverb_ex2(InfoReverbEX2 *info)
@@ -7018,8 +7092,6 @@ void free_reverb_ex2(InfoReverbEX2 *info)
 		if(info->tbuf[i] != NULL){ safe_free(info->tbuf[i]); info->tbuf[i] = NULL; }	
 #endif // USE_X86_EXT_INTRIN
 	}
-
-#if defined(REV_EX2_FFT)
 	for(i = 0; i < 2; i++){
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 		if(info->rvs[i] != NULL){ aligned_free(info->rvs[i]); info->rvs[i] = NULL; }
@@ -7031,6 +7103,8 @@ void free_reverb_ex2(InfoReverbEX2 *info)
 		if(info->fi[i] != NULL){ aligned_free(info->fi[i]); info->fi[i] = NULL; }
 		if(info->bd[i] != NULL){ aligned_free(info->bd[i]); info->bd[i] = NULL; }	
 		if(info->ios[i] != NULL){ aligned_free(info->ios[i]); info->ios[i] = NULL; }
+		if(info->fftw[i] != NULL){ aligned_free(info->fftw[i]); info->fftw[i] = NULL; }
+		if(info->ffti[i] != NULL){ aligned_free(info->ffti[i]); info->ffti[i] = NULL; }
 #else
 		if(info->rvs[i] != NULL){ safe_freeinfo->rvs[i]); info->rvs[i] = NULL; }
 		if(info->rs[i] != NULL){ safe_freeinfo->rs[i]); info->rs[i] = NULL; }
@@ -7041,15 +7115,10 @@ void free_reverb_ex2(InfoReverbEX2 *info)
 		if(info->fi[i] != NULL){ safe_freeinfo->fi[i]); info->fi[i] = NULL; }
 		if(info->bd[i] != NULL){ safe_freeinfo->bd[i]); info->bd[i] = NULL; }	
 		if(info->ios[i] != NULL){ safe_freeinfo->ios[i]); info->ios[i] = NULL; }	
+		if(info->fftw[i] != NULL){ safe_freeinfo->fftw[i]); info->fftw[i] = NULL; }
+		if(info->ffti[i] != NULL){ safe_freeinfo->ffti[i]); info->ffti[i] = NULL; }
 #endif // USE_X86_EXT_INTRIN
 	}
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-	if(info->sint != NULL){ aligned_free(info->sint); info->sint = NULL; }
-#else
-	if(info->sint != NULL){ safe_free(info->sint); info->sint = NULL; }
-#endif // USE_X86_EXT_INTRIN
-#endif // defined(REV_EX2_FFT)
-
 #if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
 	reset_effect_sub_thread(do_reverb_ex2_thread, info);
 	info->thread = 0;
@@ -7069,7 +7138,6 @@ static void init_reverb_ex2(InfoReverbEX2 *info)
 	int32 amp = 100;
 	char path[FILEPATH_MAX] = {0};
 	
-#if defined(REV_EX2_FFT)
 	if(ext_reverb_ex2_fftmode){
 		init_reverb_ex2_fft(info);
 		return;
@@ -7077,7 +7145,7 @@ static void init_reverb_ex2(InfoReverbEX2 *info)
 	if(info->fftmode)
 		free_reverb_ex2(info);
 	info->fftmode = 0;
-#endif
+
 	if(info->init){
 		if(info->pmr_p != play_mode->rate || info->rt_p != info->revtype)
 			free_reverb_ex2(info);
@@ -7938,12 +8006,10 @@ static void do_reverb_ex2_thread(int thread_num, void *info2)
 	info = (InfoReverbEX2 *)info2;
 	if(!info->init)
 		return;
-#if defined(REV_EX2_FFT)
 	if(info->fftmode){
 		do_reverb_ex2_fft_thread(thread_num, info2);
 		return;
 	}
-#endif
 	if(thread_num >= (info->thread + info->ithread))
 		return;	
 	if(info->ithread){
@@ -7974,12 +8040,10 @@ static void do_reverb_ex2(DATA_T *buf, int32 count, InfoReverbEX2 *info)
 		return;	
 	else if(!info->init)
 		return;
-#if defined(REV_EX2_FFT)
 	if(info->fftmode){
 		do_reverb_ex2_fft(buf, count, info);
 		return;
 	}
-#endif
 	info->ptr = buf;
 	info->count = count;
 	info->tcount = count >> (1 + info->rsmode);	
@@ -7998,161 +8062,90 @@ static void do_reverb_ex2(DATA_T *buf, int32 count, InfoReverbEX2 *info)
 }
 
 
-#if defined(REV_EX2_FFT)
-// freeverb3 irmodel2zl.cpp を参考に書いてみたが・・
+// REV_EX2_FFT
+// freeverb3 irmodel2zl.cpp irmodel2.cpp を参考に
 
-
-#define REV_EX2_FFT_LEVEL (1. * (1.0 - REV_EX2_ST_CROSS))
-#define REV_EX2_FRAGBIT (12) // 10 ~ 14 
+#define REV_EX2_FFT_LEVEL (0.25 * (1.0 - REV_EX2_ST_CROSS))
+#define REV_EX2_FRAGBIT (10) // 10 ~ 14 
 #define REV_EX2_FRAGSIZE (1 << REV_EX2_FRAGBIT) // 2^REV_EX2_FRAGBIT > synthbuffer size
 #define REV_EX2_FFTSIZE (REV_EX2_FRAGSIZE << 1)
 
-static void do_reverb_ex2__fft(float *fft, float *st)
+static void do_reverb_ex2_rdft(float *fft, int d, int *ip, float *w)
 {	
-	const int32 cosofs = REV_EX2_FRAGSIZE >> 2;
-	const uint32 stmask = REV_EX2_FRAGSIZE - 1;
-	float *ar = fft;
-	float *ai = fft + REV_EX2_FRAGSIZE;
-	int i = 0, j, k, m, mh, irev;
-	float xr, xi;
-
-	for (j = 1; j < (REV_EX2_FRAGSIZE - 1); j++){
-		for(k = (REV_EX2_FRAGSIZE >> 1); k > (i ^= k); k >>= 1){}
-		if(j < i){
-			xr = *(ar + j);
-			xi = *(ai + j);
-			*(ar + j) = *(ar + i);
-			*(ai + j) = *(ai + i);
-			*(ar + i) = xr;
-			*(ai + i) = xi;
-		}
-	}
-	for(mh = 1; (m = mh << 1) <= REV_EX2_FRAGSIZE; mh = m){
-		irev = 0;
-		for(i = 0; i < REV_EX2_FRAGSIZE; i += m){
-			float tsin = st[irev & stmask];
-			float tcos = st[(irev + cosofs) & stmask];
-			for(k = (REV_EX2_FRAGSIZE >> 2); k > (irev ^= k); k >>= 1){}
-			for(j = i; j < mh + i; j++){
-				k = j + mh;
-				xr = *(ar + j) - *(ar + k);
-				xi = *(ai + j) - *(ai + k);
-				*(ar + j) += *(ar + k);
-				*(ai + j) += *(ai + k);
-				*(ar + k) = tcos * xr - tsin * xi;
-				*(ai + k) = tcos * xi + tsin * xr;
-			}
-		}
-	}
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	rdft_simd(REV_EX2_FFTSIZE, d, fft, ip, w);
+#else
+	rdft(REV_EX2_FFTSIZE, d, fft, ip, w);
+#endif
 }
 
-static void do_reverb_ex2_R2HC(float *iL, float *oL, float *st)
+static void do_reverb_ex2_R2HC(float *iL, float *oL, int *ip, float *w)
 {	
 	const int32 fbyte = sizeof(float) * REV_EX2_FRAGSIZE;
-	int32 i = 0;
+	const int32 ribyte = sizeof(float) * REV_EX2_FFTSIZE;
+	int32 i, k;
 	ALIGN float fo[REV_EX2_FFTSIZE] = {0};
+	float *or = oL;
+	float *oi = oL + REV_EX2_FRAGSIZE;
 
 	memcpy(fo, iL, fbyte);
-	do_reverb_ex2__fft(fo, st);
-#if 0
-	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
-		oL[i        ] = fo[i]; 
-		oL[REV_EX2_FFTSIZE - 1 - 1] = fo[REV_EX2_FFTSIZE - 1 - i];
-	}
-#elif 0
-    oL[0] = fo[0]; 
-	oL[1] = fo[REV_EX2_FRAGSIZE];
-	for(i = 1; i < REV_EX2_FRAGSIZE; i++){
-		oL[2 * i    ] = fo[REV_EX2_FFTSIZE - i]; 
-		oL[2 * i + 1] = fo[REV_EX2_FFTSIZE - i];
-	}
-#elif 0
-	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
-		oL[2 * i    ] = fo[i]; 
-		oL[2 * i + 1] = fo[REV_EX2_FFTSIZE - 1 - i];
+	do_reverb_ex2_rdft(fo, 1, ip, w);
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	for(i = 0, k = 0; i < REV_EX2_FRAGSIZE; i += 4, k += 8){
+		__m128 vin0 = _mm_load_ps(&fo[k]); // [0123]
+		__m128 vin1 = _mm_load_ps(&fo[k + 4]); // [4567]
+		vin0 = _mm_shuffle_ps(vin0, vin0, 0xD8); // [0213]
+		vin1 = _mm_shuffle_ps(vin1, vin1, 0xD8); // [4657]
+		_mm_store_ps(&or[i], _mm_shuffle_ps(vin0, vin1, 0x44)); // [0246]
+		_mm_store_ps(&oi[i], _mm_shuffle_ps(vin0, vin1, 0xEE)); // [1357]
 	}
 #else
-	memcpy(oL, fo, sizeof(float) * REV_EX2_FFTSIZE);
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		or[i] = fo[2 * i    ]; 
+		oi[i] = fo[2 * i + 1];
+	}
 #endif
-
 }
 
-static void do_reverb_ex2_HC2R(float *iL, float *oL, float *st)
+static void do_reverb_ex2_HC2R(float *iL, float *oL, int *ip, float *w)
 {
-	int32 i = 0;
+	const int32 ribyte = sizeof(float) * REV_EX2_FFTSIZE;
+	int32 i, k;
 	ALIGN float fo[REV_EX2_FFTSIZE] = {0};
+	float *ir = iL;
+	float *ii = iL + REV_EX2_FRAGSIZE;
 	
-#if 0
-	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
-		fo[i] = iL[i        ]; 
-		fo[REV_EX2_FFTSIZE - 1 - 1] = iL[REV_EX2_FFTSIZE - 1 - i];
-	}
-
-#elif 0
-	fo[0] = iL[0];
-	fo[REV_EX2_FRAGSIZE] = iL[1];
-	for(i = 1; i < REV_EX2_FRAGSIZE; i++){
-		fo[REV_EX2_FFTSIZE - i] = iL[2 * i    ];
-		fo[REV_EX2_FFTSIZE - i] = iL[2 * i + 1];
-	}
-#elif 0
-	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
-		fo[i                      ] = iL[2 * i    ]; 
-		fo[REV_EX2_FFTSIZE - 1 - i] = iL[2 * i + 1];
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	for(i = 0, k = 0; i < REV_EX2_FRAGSIZE; i += 4, k += 8){
+		__m128 vin0 = _mm_load_ps(&ir[i]); // [0246]
+		__m128 vin1 = _mm_load_ps(&ii[i]); // [1357]
+		__m128 vt0 = _mm_shuffle_ps(vin0, vin1, 0x44); // [0213]
+		__m128 vt1 = _mm_shuffle_ps(vin0, vin1, 0xEE); // [4657]		
+		_mm_store_ps(&fo[k    ], _mm_shuffle_ps(vt0, vt0, 0xD8)); // [0123]
+		_mm_store_ps(&fo[k + 4], _mm_shuffle_ps(vt1, vt1, 0xD8)); // [4567]
 	}
 #else
-	memcpy(fo, iL, sizeof(float) * REV_EX2_FFTSIZE);
-#endif
-	do_reverb_ex2__fft(fo, st);
-	{
-		float *pfor = fo;
-		float *pfoi = fo + REV_EX2_FRAGSIZE;
-		float *or = oL;
-		float *oi = oL + REV_EX2_FRAGSIZE;
-		const float divfr = 1.0;// / (double)REV_EX2_FRAGSIZE;
-		const float divfi = -1.0;// / (double)REV_EX2_FRAGSIZE;
-		for(i = 0; i < REV_EX2_FFTSIZE; i++){
-		//	or[i] += pfor[i] * divfi;
-			or[REV_EX2_FFTSIZE - 1 - i] += pfor[i] * divfr;
-		//	oi[i] += pfoi[i] * divfi;
-		}
+	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
+		fo[2 * i    ] = ir[i]; 
+		fo[2 * i + 1] = ii[i];
 	}
+#endif
+	do_reverb_ex2_rdft(fo, -1, ip, w);
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	for(i = 0; i < REV_EX2_FFTSIZE; i += 8)
+		MM256_LS_ADD_PS(&oL[i], _mm256_load_ps(&fo[i]));
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	for(i = 0; i < REV_EX2_FFTSIZE; i += 4)
+		MM_LS_ADD_PS(&oL[i], _mm_load_ps(&fo[i]));
+#else
+	for(i = 0; i < REV_EX2_FFTSIZE; i++)
+		oL[i] += fo[i];
+#endif
 }
 
 static void do_reverb_ex2_mul(float *iL, float *fL, float *oL)
 {
 	int32 i;
-#if 0
-	float tL0 = oL[0] + iL[0] * fL[0];
-	float tL1 = oL[1] + iL[1] * fL[1];
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-	const __m128 vm1 = _mm_set_ps(1, -1, 1, -1);
-	for(i = 0; i < REV_EX2_FRAGSIZE; i += 2){
-		__m128 vo = _mm_load_ps(&oL[2 * i]);
-		__m128 vi = _mm_loadu_ps(&iL[2 * i]);
-		__m128 vf0 = _mm_load_ps(&fL[2 * i]);
-		__m128 vf1 = _mm_shuffle_ps(vf0, vf0, 0xB1);
-		__m128 vi0 = _mm_shuffle_ps(vi, vi, 0xA0);
-		__m128 vi1 = _mm_shuffle_ps(vi, vi, 0xF5);	
-		vf1 = _mm_mul_ps(vf1, vm1);
-		vo = MM_FMA_PS(vi0, vf0, vo);
-		vo = MM_FMA_PS(vi1, vf1, vo);
-		_mm_store_ps(&oL[2 * i], vo);	
-	}
-#else
-	for(i = 0; i < REV_EX2_FRAGSIZE; i++){
-		float i0 = iL[2 * i + 0];
-		float i1 = iL[2 * i + 1];
-		float f0 = fL[2 * i + 0];
-		float f1 = fL[2 * i + 1];
-		oL[2 * i + 0] += i0 * f0 - i1 * f1;
-		oL[2 * i + 1] += i0 * f1 + i1 * f0;		
-	}
-#endif
-	oL[0] = tL0;
-	oL[1] = tL1;
-
-#else	
 	float *ir = iL;
 	float *ii = iL + REV_EX2_FRAGSIZE;
 	float *fr = fL;
@@ -8162,7 +8155,24 @@ static void do_reverb_ex2_mul(float *iL, float *fL, float *oL)
 	float tor = or[0] + ir[0] * fr[0];
 	float toi = oi[0] + ii[0] * fi[0];
 
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+	const __m256 vm1 = _mm256_set1_ps(-1);
+	for(i = 0; i < REV_EX2_FRAGSIZE; i += 8){
+		__m256 vir = _mm256_load_ps(&ir[i]);
+		__m256 vii = _mm256_load_ps(&ii[i]);
+		__m256 vfr = _mm256_load_ps(&fr[i]);
+		__m256 vfi = _mm256_load_ps(&fi[i]);
+		__m256 vor = _mm256_load_ps(&or[i]);
+		__m256 voi = _mm256_load_ps(&oi[i]);
+		__m256 vfm = _mm256_mul_ps(vfi, vm1);
+		vor = MM256_FMA_PS(vir, vfr , vor);
+		vor = MM256_FMA_PS(vii, vfm , vor);
+		voi = MM256_FMA_PS(vir, vfi, voi);
+		voi = MM256_FMA_PS(vii, vfr, voi);
+		_mm256_store_ps(&or[i], vor);
+		_mm256_store_ps(&oi[i], voi);
+	}
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 	const __m128 vm1 = _mm_set1_ps(-1);
 	for(i = 0; i < REV_EX2_FRAGSIZE; i += 4){
 		__m128 vir = _mm_load_ps(&ir[i]);
@@ -8191,8 +8201,6 @@ static void do_reverb_ex2_mul(float *iL, float *fL, float *oL)
 #endif
 	or[0] = tor;
 	oi[0] = toi;
-
-#endif
 }
 
 static float* do_reverb_ex2_delay(float *in, int32 prev, float *dbuf, int32 *bcount, int32 bnum)
@@ -8309,7 +8317,7 @@ static void init_reverb_ex2_fft(InfoReverbEX2 *info)
 #else
 		ndata[0] = (float *) safe_large_malloc(nbytes);
 		ndata[1] = (float *) safe_large_malloc(nbytes);
-#endif		
+#endif		fnum
 		if(!ndata[0] || !ndata[0])
 			goto error;
 		memset(ndata[0], 0, nbytes);
@@ -8354,7 +8362,7 @@ static void init_reverb_ex2_fft(InfoReverbEX2 *info)
 			if(info->irdata[i] != NULL){ safe_free(info->irdata[i]); info->irdata[i] = NULL; }
 #endif		
 		}
-		info->frame = nframe; 
+		info->frame = tframe; 
 		info->srate = rsrate;
 		info->irdata[0] = ndata[0];
 		info->irdata[1] = ndata[1];
@@ -8393,7 +8401,7 @@ static void init_reverb_ex2_fft(InfoReverbEX2 *info)
 	// create buffers
 	fnum = info->frame / REV_EX2_FRAGSIZE;
 	bytes = sizeof(float) * (REV_EX2_FRAGSIZE + 8);
-	ibytes = sizeof(int32) * REV_EX2_FRAGSIZE;
+	ibytes = sizeof(int) * (REV_EX2_FRAGSIZE + 8);
 	for(i = 0; i < 2; i++){
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 		info->rvs[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
@@ -8405,6 +8413,8 @@ static void init_reverb_ex2_fft(InfoReverbEX2 *info)
 		info->fi[i] = (float *) aligned_malloc(bytes * 2 * fnum, ALIGN_SIZE);
 		info->bd[i] = (float *) aligned_malloc(bytes * 2 * fnum, ALIGN_SIZE);
 		info->ios[i] = (float *) aligned_malloc(bytes * 3, ALIGN_SIZE);
+		info->fftw[i] = (float *) aligned_malloc(bytes * 2, ALIGN_SIZE);
+		info->ffti[i] = (int *) aligned_malloc(ibytes * 2, ALIGN_SIZE);
 #else
 		info->rvs[i] = (float *) safe_large_malloc(bytes * 2);
 		info->rs[i] = (float *) safe_large_malloc(bytes * 2);
@@ -8415,9 +8425,12 @@ static void init_reverb_ex2_fft(InfoReverbEX2 *info)
 		info->ios[i] = (float *) safe_large_malloc(bytes * 3);
 		info->fi[i] = (float *) safe_large_malloc(bytes * 2 * fnum);
 		info->bd[i] = (float *) safe_large_malloc(bytes * 2 * fnum);
+		info->fftw[i] = (float *) safe_large_malloc(bytes * 2);
+		info->ffti[i] = (int *) safe_large_malloc(ibytes * 2);
 #endif
 		if(!info->rvs[i] || !info->rs[i] || !info->is[i] || !info->ss[i] || !info->os[i]
-			|| !info->fs[i] || !info->fi[i] || !info->bd[i] || !info->ios[i] 
+			|| !info->fs[i] || !info->fi[i] || !info->bd[i] || !info->ios[i]
+			|| !info->fftw[i] || !info->ffti[i]
 			){
 			goto error;
 		}
@@ -8430,26 +8443,15 @@ static void init_reverb_ex2_fft(InfoReverbEX2 *info)
 		memset(info->fi[i], 0, bytes * 2 * fnum);
 		memset(info->bd[i], 0, bytes * 2 * fnum);
 		memset(info->ios[i], 0, bytes * 3);
-	}
-	// sin table
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-	info->sint = (float *) aligned_malloc(bytes, ALIGN_SIZE);
-#else
-	info->sint = (float *) safe_large_malloc(bytes);
-#endif
-	if(!info->sint)
-		goto error;
-	memset(info->sint, 0, bytes);
-	for(i = 0; i < REV_EX2_FRAGSIZE; i++){ 
-		const double rad = M_PI * 2.0 / REV_EX2_FRAGSIZE;
-		info->sint[i] = (float)((double)sin(rad * i));
+		memset(info->fftw[i], 0, bytes * 2);
+		memset(info->ffti[i], 0, ibytes * 2);
 	}
 	// impulse
 	for(i = 0; i < fnum; i++){
 		int32 fofs = REV_EX2_FRAGSIZE * i;
 		int32 riofs = REV_EX2_FFTSIZE * i;
-		do_reverb_ex2_R2HC(info->irdata[0] + fofs, info->fi[0] + riofs, info->sint);	
-		do_reverb_ex2_R2HC(info->irdata[1] + fofs, info->fi[1] + riofs, info->sint);	
+		do_reverb_ex2_R2HC(info->irdata[0] + fofs, info->fi[0] + riofs, info->ffti[0], info->fftw[0]);	
+		do_reverb_ex2_R2HC(info->irdata[1] + fofs, info->fi[1] + riofs, info->ffti[1], info->fftw[1]);	
 	}
 	info->fnum = fnum;
 	// create input/output buffers	
@@ -8514,17 +8516,17 @@ static void do_reverb_ex2_fft_process1(int32 ofs, int32 count, int32 ch, InfoRev
 		memset(info->ss[ch], 0, ribyte);		
 		memset(info->rvs[ch] + REV_EX2_FRAGSIZE - 1, 0, sizeof(float) * (REV_EX2_FRAGSIZE + 1));
 		for(i = 1; i < info->fnum; i++){
-			float *bd0 = do_reverb_ex2_delay(info->is[ch], i - 1, info->bd[ch], &info->bdcount[ch], info->fnum);
-			do_reverb_ex2_mul(bd0, info->fi[ch] + REV_EX2_FFTSIZE * i, info->ss[ch]);
+			float *bd = do_reverb_ex2_delay(info->is[ch], i - 1, info->bd[ch], &info->bdcount[ch], info->fnum);
+			do_reverb_ex2_mul(bd, info->fi[ch] + REV_EX2_FFTSIZE * i, info->ss[ch]);
 		}
 	}
-	memset(info->os[ch], 0, fbyte);	
+	memset(info->os[ch], 0, f2byte);	
 	memcpy(info->fs[ch] + info->scount[ch], input, cbyte);
 	memcpy(info->os[ch] + info->scount[ch], input, cbyte);
-	do_reverb_ex2_R2HC(info->os[ch], info->is[ch], info->sint);		
+	do_reverb_ex2_R2HC(info->os[ch], info->is[ch], info->ffti[ch], info->fftw[ch]);		
     do_reverb_ex2_mul(info->is[ch], info->fi[ch], info->ss[ch]);
-	memset(info->rvs[ch], 0, fbyte);
-	do_reverb_ex2_HC2R(info->ss[ch], info->rvs[ch], info->sint);
+	memset(info->rvs[ch], 0, f2byte);
+	do_reverb_ex2_HC2R(info->ss[ch], info->rvs[ch], info->ffti[ch], info->fftw[ch]);
 	rvsc = info->rvs[ch] + info->scount[ch];
 	rsc = info->rs[ch] + info->scount[ch];
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
@@ -8536,8 +8538,7 @@ static void do_reverb_ex2_fft_process1(int32 ofs, int32 count, int32 ch, InfoRev
 #endif
 	info->scount[ch] += count;
 	if(info->scount[ch] == REV_EX2_FRAGSIZE){
-		const int32 fbyte2 = sizeof(float) * (REV_EX2_FRAGSIZE - 1);
-		do_reverb_ex2_R2HC(info->fs[ch], info->is[ch], info->sint);  
+		do_reverb_ex2_R2HC(info->fs[ch], info->is[ch], info->ffti[ch], info->fftw[ch]);  
 		memcpy(info->rs[ch], info->rvs[ch] + REV_EX2_FRAGSIZE, sizeof(float) * (REV_EX2_FRAGSIZE - 1));		
 		info->scount[ch] = 0;
 	}
@@ -8553,24 +8554,26 @@ static void do_reverb_ex2_fft_process2(int32 count, int32 ch, InfoReverbEX2 *inf
 	const int32 f2byte = sizeof(float) * REV_EX2_FRAGSIZE * 2;
 	const int32 cbyte = sizeof(float) * count; 
 	const int32 ribyte = sizeof(float) * REV_EX2_FFTSIZE;
-	
-	memcpy(info->ios[ch] + info->scount[ch] + REV_EX2_FRAGSIZE, input, cbyte);
+	float *iobuf = info->ios[ch] + REV_EX2_FRAGSIZE;
+
+	memcpy(iobuf + info->scount[ch], input, cbyte);
 	if((info->scount[ch] + count) >= REV_EX2_FRAGSIZE) {
-		do_reverb_ex2_R2HC(info->ios[ch] + REV_EX2_FRAGSIZE, info->is[ch], info->sint);	
+		do_reverb_ex2_R2HC(iobuf, info->is[ch], info->ffti[ch], info->fftw[ch]);	
 		memset(info->ss[ch], 0, ribyte);	
-		for(i = 1; i < info->fnum; i++){
-			float *bd0 = do_reverb_ex2_delay(info->is[ch], i - 1, info->bd[ch], &info->bdcount[ch], info->fnum);
-			do_reverb_ex2_mul(bd0, info->fi[ch] + REV_EX2_FFTSIZE * i, info->ss[ch]);
+		for(i = 0; i < info->fnum; i++){
+			float *bd = do_reverb_ex2_delay(info->is[ch], i, info->bd[ch], &info->bdcount[ch], info->fnum);			
+			do_reverb_ex2_mul(bd, info->fi[ch] + REV_EX2_FFTSIZE * i, info->ss[ch]);
 		}
-		do_reverb_ex2_HC2R(info->ss[ch], info->rvs[ch], info->sint);
-		memcpy(info->ios[ch] + REV_EX2_FRAGSIZE, info->rvs[ch], fbyte);
+		do_reverb_ex2_HC2R(info->ss[ch], info->rvs[ch], info->ffti[ch], info->fftw[ch]);
+		memcpy(iobuf, info->rvs[ch], fbyte);
 		memcpy(info->rvs[ch], info->rvs[ch] + REV_EX2_FRAGSIZE, fbyte);
 		memset(info->rvs[ch] + REV_EX2_FRAGSIZE - 1, 0, sizeof(float) * (REV_EX2_FRAGSIZE + 1));
 	}
 	memcpy(output, info->ios[ch] + info->scount[ch], cbyte);
 	info->scount[ch] += count;
 	if(info->scount[ch] >= REV_EX2_FRAGSIZE) {
-		memcpy(info->ios[ch], info->ios[ch] + REV_EX2_FRAGSIZE, f2byte);
+		memcpy(info->ios[ch], iobuf, f2byte);
+		memset(iobuf + REV_EX2_FRAGSIZE, 0, fbyte);
 		info->scount[ch] -= REV_EX2_FRAGSIZE;
 	}
 	return;
@@ -8815,9 +8818,6 @@ static void do_reverb_ex2_fft(DATA_T *buf, int32 count, InfoReverbEX2 *info)
 	info->bcount = 1 - info->bcount;
 	do_reverb_ex2_post_process(buf, count, info);
 }
-
-#endif
-
 
 
 

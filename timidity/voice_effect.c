@@ -2821,6 +2821,8 @@ void init_voice_effect(int v)
 		VoiceEffect *vfx = voice[v].vfx[i];
 		int num = voice[v].sample->vfx[i][0]; // [0] = effect type
 			
+		if(!vfx)
+			break;
 		if(num <= VFX_NONE || num >= VFX_LIST_MAX)
 			break;
 		memcpy(vfx->param, voice[v].sample->vfx[i], sizeof(int) * VOICE_EFFECT_PARAM_NUM);

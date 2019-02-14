@@ -906,8 +906,10 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
 	opt_mix_envelope = st->opt_mix_envelope;
 	opt_modulation_update = st->opt_modulation_update;
 	opt_cut_short_time = st->opt_cut_short_time;
-    opt_use_midi_loop_repeat = SetFlag(st->opt_use_midi_loop_repeat);
+#ifdef SUPPORT_LOOPEVENT
+    opt_use_midi_loop_repeat = st->opt_use_midi_loop_repeat;
     opt_midi_loop_repeat = SetValue(st->opt_midi_loop_repeat, 0, 99);
+#endif /* SUPPORT_LOOPEVENT */
 	
 #if defined(WINDRV_SETUP) || defined(WINDRV)
 	syn_ThreadPriority = st->syn_ThreadPriority;
@@ -1171,8 +1173,10 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->add_silent_time = add_silent_time;
 	st->emu_delay_time = emu_delay_time;
 	st->opt_limiter = opt_limiter;
-    st->opt_use_midi_loop_repeat = SetValue(opt_use_midi_loop_repeat, 0, 1);
+#ifdef SUPPORT_LOOPEVENT
+    st->opt_use_midi_loop_repeat = opt_use_midi_loop_repeat;
     st->opt_midi_loop_repeat = opt_midi_loop_repeat;
+#endif /* SUPPORT_LOOPEVENT */
   
 	st->opt_mix_envelope = opt_mix_envelope;
 	st->opt_modulation_update = opt_modulation_update;
@@ -1209,7 +1213,26 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_int_synth_update = opt_int_synth_update;
 }
 
-
+void
+InitSettingTiMidity(SETTING_TIMIDITY *st)
+{
+    st->voices = voices = DEFAULT_VOICES;
+    st->output_rate = opt_output_rate = DEFAULT_RATE;
+#if defined(TWSYNSRV) || defined(TWSYNG32)
+    st->audio_buffer_bits = opt_audio_buffer_bits = DEFAULT_AUDIO_BUFFER_BITS;
+    st->opt_reverb_control = opt_reverb_control = 0; /* default off */
+    st->opt_chorus_control = opt_chorus_control = 0; /* default off */
+    st->opt_surround_chorus = opt_surround_chorus = 0; /* default off */
+    st->opt_normal_chorus_plus = opt_normal_chorus_plus = 0; /* default off */
+    st->opt_lpf_def = opt_lpf_def = 0; /* default off */
+    st->noise_sharp_type = noise_sharp_type = 0; /* default off */
+    st->opt_resample_type = opt_resample_type = 0; /* default off */
+#endif /* TWSYNSRV || TWSYNG32 */
+#ifdef SUPPORT_LOOPEVENT
+    st->opt_use_midi_loop_repeat = 0;
+    st->opt_midi_loop_repeat = 3;
+#endif /* SUPPORT_LOOPEVENT */
+}
 
 
 
@@ -1359,6 +1382,7 @@ void w32g_initialize(void)
 
     SaveSettingPlayer(sp_current);
     SaveSettingTiMidity(st_current);
+    InitSettingTiMidity(st_current);
     if(IniVersionCheck())
     {
 	LoadIniFile(sp_current, st_current);
@@ -1583,6 +1607,7 @@ void w32g_initialize(void)
 
     SaveSettingPlayer(sp_current);
     SaveSettingTiMidity(st_current);
+    InitSettingTiMidity(st_current);
     if(IniVersionCheck())
     {
 	LoadIniFile(sp_current, st_current);

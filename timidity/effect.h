@@ -702,7 +702,6 @@ typedef struct _InfoReverbEX{
 } InfoReverbEX;
 
 
-//#define REV_EX2_FFT
 typedef struct _InfoReverbEX2{
 	int8 mode;
 	int32 revtype;
@@ -713,11 +712,10 @@ typedef struct _InfoReverbEX2{
 	float *irdata[2], *buf[2], *tbuf[2]; // buf:delay(in)*2 , tbuf:out*2
 	FLOAT_T rsfb[2];
 	DATA_T *ptr;
-#if defined(REV_EX2_FFT)	// fft
 	int32 fnum, scount[2], bdcount[2];
 	float *fs[2], *ss[2], *rvs[2], *rs[2], *is[2], *os[2], *fi[2], *bd[2], *ios[2];
-	float *sint;
-#endif
+	float *fftw[2];
+	int *ffti[2];
 } InfoReverbEX2;
 
 
