@@ -600,10 +600,10 @@ static int read_rcp_track(struct timidity_file *tf, int trackno, int gfmt)
     ntr_init(&ntr, gfmt, readmidi_set_track(trackno, 1));
     if(trackno == 0 && init_tempo != 120)
 	ntr.tempo = current_tempo = rcp_tempo_change(&ntr, 64, 0);
-	if (trackno == 0) {
-		rcp_timesig_change(ntr_at(ntr));
-		rcp_keysig_change(ntr_at(ntr), init_keysig);
-	}
+    if (trackno == 0) {
+	rcp_timesig_change(ntr_at(ntr));
+	rcp_keysig_change(ntr_at(ntr), init_keysig);
+    }
     ntr_incr(&ntr, time_offset);
 
     data_top = tf_tell(tf);

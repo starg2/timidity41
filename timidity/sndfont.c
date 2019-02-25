@@ -524,7 +524,7 @@ static FLOAT_T calc_volume(LayerTable *tbl)
     if(!tbl->set[SF_initAtten] || (int)tbl->val[SF_initAtten] == 0)
 	return (FLOAT_T)1.0;
 
-	v = (int)tbl->val[SF_initAtten];
+    v = (int)tbl->val[SF_initAtten];
     if(v < 0) {v = 0;}
     else if(v > 960) {v = 960;}
 	return cb_to_amp_table[v];
@@ -1085,8 +1085,8 @@ static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
     } else
 	keynote_from = keynote_to = -1;
 
-	done = 0;
-	for(keynote=keynote_from;keynote<=keynote_to;keynote++){
+  done = 0;
+  for(keynote=keynote_from;keynote<=keynote_to;keynote++){
 
     ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
 	      "SF make inst pridx=%d bank=%d preset=%d keynote=%d",
@@ -1171,7 +1171,7 @@ static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
     }
     ip->samples++;
 
-	} /* for(;;) */
+  } /* for(;;) */
 
 
 	if(done==0)

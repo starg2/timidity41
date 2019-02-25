@@ -3154,7 +3154,7 @@ static void adjust_panning(int c)
 	    else
 		voice[i].panning = pan;
 
-		recompute_amp(i);
+	    recompute_amp(i);
 	    apply_envelope_to_amp(i);
 	}
     }
@@ -7759,10 +7759,10 @@ int play_event(MidiEvent *ev)
       case ME_DATA_ENTRY_LSB:
 	if(channel[ch].rpn_7f7f_flag) /* disable */
 	    break;
-	    if((i = last_rpn_addr(ch)) >= 0)
-	    {
-		channel[ch].rpnmap_lsb[i] = ev->a;
-	    }
+	if((i = last_rpn_addr(ch)) >= 0)
+	{
+	    channel[ch].rpnmap_lsb[i] = ev->a;
+	}
 	break;
 
 	case ME_REVERB_EFFECT:

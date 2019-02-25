@@ -1270,8 +1270,10 @@ MAIN_INTERFACE int read_config_file(char *name, int self, int allow_missing_file
     else
 	tf = open_file(name, 1, allow_missing_file ? OF_NORMAL : OF_VERBOSE);
     if(tf == NULL)
+    {
 	return allow_missing_file ? READ_CONFIG_FILE_NOT_FOUND :
 	                            READ_CONFIG_ERROR;
+    }
 
 	init_mblock(&varbuf);
 	if (!self)
