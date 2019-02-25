@@ -723,9 +723,11 @@ URL url_arc_open(char *name)
 
     if((afl = find_arc_filelist(base)) == NULL)
 	afl = regist_archive(base);
-    reuse_mblock(&arc_buffer);	/* free `base' */
     if(afl == NULL)
+    {
+	reuse_mblock(&arc_buffer);	/* free `base' */
 	return NULL;
+    }
     name += len + 1;
     
     /* skip path separators right after '#' */
@@ -749,7 +751,10 @@ URL url_arc_open(char *name)
 	    break;
     }
     if(entry == NULL)
+    {
+	reuse_mblock(&arc_buffer);	/* free `base' */
 	return NULL;
+    }
 
     if(entry->cache != NULL)
 	instream = url_mem_open((char *)entry->cache + entry->start,
@@ -757,9 +762,13 @@ URL url_arc_open(char *name)
     else
     {
 	if((instream = url_file_open(base)) == NULL)
+	{
+	    reuse_mblock(&arc_buffer);	/* free `base' */
 	    return NULL;
+	}
 	url_seek(instream, entry->start, 0);
     }
+    reuse_mblock(&arc_buffer);	/* free `base' */
 
     url = (URL_arc *)alloc_url(sizeof(URL_arc));
     if(url == NULL)
