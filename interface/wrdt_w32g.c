@@ -738,7 +738,7 @@ to be ignored in kterm)*/
 	snprintf(p, MIN_MBLOCK_SIZE, "@PAL(%03x", wrd_args[0]);
 	for(i = 1; i < 17; i++) {
 	    char q[5];
-	    snprintf(q, sizeof(q)-1, ",%03x", wrd_args[i]);
+	    snprintf(q, sizeof(q), ",%03x", wrd_args[i]);
 	    strncat(p, q, MIN_MBLOCK_SIZE - strlen(p) - 1);
 	}
 	strncat(p, ")", MIN_MBLOCK_SIZE - strlen(p) - 1);
