@@ -1710,12 +1710,10 @@ private:
 
 struct InstrumentCacheEntry
 {
-    InstrumentCacheEntry(std::string_view filePath, std::unique_ptr<Instrument, InstrumentDeleter> pInstrument)
-        : FilePath(filePath), pInstrument(std::move(pInstrument))
+    InstrumentCacheEntry(std::unique_ptr<Instrument, InstrumentDeleter> pInstrument) : pInstrument(std::move(pInstrument))
     {
     }
 
-    std::string FilePath;
     std::unique_ptr<Instrument, InstrumentDeleter> pInstrument;
     std::vector<Instrument*> RefInstruments;
 };
@@ -1725,14 +1723,7 @@ class InstrumentCache
 public:
     Instrument* LoadSFZ(std::string filePath)
     {
-        auto it = std::find_if(
-            m_Instruments.begin(),
-            m_Instruments.end(),
-            [&filePath] (auto&& x)
-            {
-                return x.FilePath == filePath;
-            }
-        );
+        auto it = m_Instruments.find(filePath);
 
         if (it == m_Instruments.end())
         {
@@ -1743,7 +1734,7 @@ public:
                 TimSFZ::Parser parser(pp);
                 parser.Parse();
                 TimSFZ::InstrumentBuilder builder(parser, filePath);
-                m_Instruments.emplace_back(filePath, builder.BuildInstrument());
+                it = m_Instruments.emplace(filePath, builder.BuildInstrument()).first;
             }
             catch (const std::exception& e)
             {
@@ -1756,12 +1747,12 @@ public:
         }
 
         std::unique_ptr<Instrument, InstrumentDeleter> pInstRef(reinterpret_cast<Instrument*>(safe_calloc(sizeof(Instrument), 1)));
-        it->RefInstruments.push_back(pInstRef.get());
-        pInstRef->type = it->pInstrument->type;
-        pInstRef->instname = safe_strdup(it->pInstrument->instname);
-        pInstRef->samples = it->pInstrument->samples;
-        pInstRef->sample = reinterpret_cast<Sample*>(safe_calloc(sizeof(Sample), it->pInstrument->samples));
-        std::copy_n(it->pInstrument->sample, it->pInstrument->samples, pInstRef->sample);
+        it->second.RefInstruments.push_back(pInstRef.get());
+        pInstRef->type = it->second.pInstrument->type;
+        pInstRef->instname = safe_strdup(it->second.pInstrument->instname);
+        pInstRef->samples = it->second.pInstrument->samples;
+        pInstRef->sample = reinterpret_cast<Sample*>(safe_calloc(sizeof(Sample), it->second.pInstrument->samples));
+        std::copy_n(it->second.pInstrument->sample, it->second.pInstrument->samples, pInstRef->sample);
         std::for_each(pInstRef->sample, pInstRef->sample + pInstRef->samples, [] (auto&& x) { x.data_alloced = false; });
 
         return pInstRef.release();
@@ -1777,16 +1768,16 @@ public:
             m_Instruments.end(),
             [pInstrument] (auto&& x)
             {
-                auto it = std::find(x.RefInstruments.begin(), x.RefInstruments.end(), pInstrument);
-                return it != x.RefInstruments.end();
+                auto it = std::find(x.second.RefInstruments.begin(), x.second.RefInstruments.end(), pInstrument);
+                return it != x.second.RefInstruments.end();
             }
         );
 
         if (it != m_Instruments.end())
         {
-            it->RefInstruments.erase(std::find(it->RefInstruments.begin(), it->RefInstruments.end(), pInstrument));
+            it->second.RefInstruments.erase(std::find(it->second.RefInstruments.begin(), it->second.RefInstruments.end(), pInstrument));
 
-            if (it->RefInstruments.empty())
+            if (it->second.RefInstruments.empty())
             {
                 m_Instruments.erase(it);
             }
@@ -1799,7 +1790,7 @@ public:
     }
 
 private:
-    std::vector<InstrumentCacheEntry> m_Instruments;
+    std::unordered_map<std::string, InstrumentCacheEntry> m_Instruments;
 };
 
 InstrumentCache GlobalInstrumentCache;
