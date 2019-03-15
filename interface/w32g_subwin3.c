@@ -397,10 +397,10 @@ void InitTracerWnd(HWND hParentWnd)
         }
         // ToDo: トレーサーのフォントをiniから読めるようにしたい
         w32g_tracer_wnd.hFontCommon = CreateFontA(w32g_tracer_wnd.font_common_height, w32g_tracer_wnd.font_common_width, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
             DEFAULT_PITCH | FF_MODERN, fontname);
         w32g_tracer_wnd.hFontHalf = CreateFontA(-10, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
             DEFAULT_PITCH | FF_MODERN, "Courier");
     }
     TracerWndReset();
