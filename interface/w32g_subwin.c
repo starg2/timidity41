@@ -1850,7 +1850,9 @@ static int DocWndInfoReset2(HWND hwnd)
     if ( hwnd != NULL )
         DocWndInfo.hwndEdit = GetDlgItem(hwnd,IDC_EDIT);
     strcpy(DocWndInfo.fontNameEN,"Times New Roman");
-    strcpy(DocWndInfo.fontNameJA,"‚l‚r –¾’©");
+	char* s = tchar_to_char(_T("‚l‚r –¾’©"));
+    strcpy(DocWndInfo.fontNameJA,s);
+	safe_free(s);
     DocWndInfo.fontHeight = 12;
     DocWndInfo.fontWidth = 6;
     DocWndInfo.fontFlags = FONT_FLAGS_FIXED;
