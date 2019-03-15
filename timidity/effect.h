@@ -431,30 +431,6 @@ typedef struct {
 	int32 feedbacki;
 } mod_allpass;
 
-/*! Moog VCF (resonant IIR state variable filter) */
-typedef struct {
-	int16 freq, last_freq;	/* in Hz */
-	double res_dB, last_res_dB; /* in dB */
-	FLOAT_T df, dq, dp;	/* coefficients in fixed-point */
-	FLOAT_T db0, db1, db2, db3, db4;
-	int32 f, q, p;	/* coefficients in fixed-point */
-	int32 ib0, ib1, ib2, ib3, ib4;
-} filter_moog;
-
-/*! Moog VCF (resonant IIR state variable filter with distortion) */
-typedef struct {
-	int16 freq, last_freq;	/* in Hz */
-	double res_dB, last_res_dB; /* in dB */
-	double dist, last_dist, f, q, p, d, b0, b1, b2, b3, b4;
-} filter_moog_dist;
-
-/*! LPF18 (resonant IIR lowpass filter with waveshaping) */
-typedef struct {
-	int16 freq, last_freq;	/* in Hz */
-	double dist, res, last_dist, last_res; /* in linear */
-	double ay1, ay2, aout, lastin, kres, value, kp, kp1h;
-} filter_lpf18;
-
 
 /*! allpass filter */
 typedef struct _allpass {
@@ -939,6 +915,7 @@ typedef struct {
 	Drive drv1, drv2, drv3;
 	FilterCoefficients bw1, bw2, bw3, bw4, bq;
 	InfoAmpSimulator amp;
+	simple_delay dly;
 } InfoOverdrive;
 
 #define PHASER_PHASE 12

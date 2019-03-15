@@ -13636,15 +13636,21 @@ static void do_od_ds_parallel(DATA_T *buf, int32 count, InfoOverdrive *info1, In
 {
 	int32 i, j, k;
 	DATA_T input[2];
+	simple_delay *dly = &info2->dly;
 
 	if(count == MAGIC_INIT_EFFECT_INFO) {
 		do_od_ds_multi(buf, count, info1);
-		do_od_ds_multi(buf, count, info2);		
+		do_od_ds_multi(buf, count, info2);			
+		set_delay(&info2->dly, playmode_rate_ms * 1.5);
+		return; 
+	}else if(count == MAGIC_FREE_EFFECT_INFO) {
+		free_delay(&info2->dly);
 		return;
 	}else if(count <= 0)
 		return;	
 	for(i = 0; i < count; i++) {
 		input[0] = buf[i]; input[1] = buf[i + 1];
+		do_delay(&input[1], dly->buf, dly->size, &dly->index);
 		/* waveshaping amp simulation anti-aliasing */
 		sample_filter_left(&info1->bw1, &input[0]);
 		sample_filter_left(&info2->bw1, &input[1]);
