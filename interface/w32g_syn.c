@@ -103,7 +103,7 @@ typedef struct w32g_syn_t_ {
 } w32g_syn_t;
 static w32g_syn_t w32g_syn;
 
-// Šeí•Ï” (^^;;;
+// å„ç¨®å¤‰æ•° (^^;;;
 HINSTANCE hInst = NULL;
 extern int RestartTimidity;
 
@@ -132,7 +132,7 @@ static int w32g_syn_create_win(void);
 #define W32G_SYN_TIP "TWSYNTH GUI"
 
 ///r
-// ƒ|ƒbƒvƒAƒbƒvƒƒjƒ…[
+// ãƒãƒƒãƒ—ã‚¢ãƒƒãƒ—ãƒ¡ãƒ‹ãƒ¥ãƒ¼
 #define IDM_NOTHING                            400
 #define IDM_QUIT                               401
 #define IDM_START                              402
@@ -196,15 +196,15 @@ static BOOL UninstallService();
 #define W32G_SYN_MESSAGE_MAX              100
 #define W32G_SYN_NONE                     0
 #define W32G_SYN_QUIT	                  10
-#define W32G_SYN_START	                  11		// ‰‰‘tó‘Ô‚ÖˆÚs
-#define W32G_SYN_STOP	                  12		// ‰‰‘t’â~ó‘Ô‚ÖˆÚs
+#define W32G_SYN_START	                  11		// æ¼”å¥çŠ¶æ…‹ã¸ç§»è¡Œ
+#define W32G_SYN_STOP	                  12		// æ¼”å¥åœæ­¢çŠ¶æ…‹ã¸ç§»è¡Œ
 ///r
 #define W32G_SYN_SYSTEM_RESET             15
-#define W32G_SYN_SYSTEM_RESET_X           20 // IDM_SYSTEM_RESET_X ‚Æ“¯‚¶•À‚Ñ‚Å‚ ‚é‚±‚Æ
+#define W32G_SYN_SYSTEM_RESET_X           20 // IDM_SYSTEM_RESET_X ã¨åŒã˜ä¸¦ã³ã§ã‚ã‚‹ã“ã¨
 // reserve ~29
-#define W32G_SYN_CHANGE_SYSTEM_X          30 // IDM_CHANGE_SYSTEM_X ‚Æ“¯‚¶•À‚Ñ‚Å‚ ‚é‚±‚Æ
+#define W32G_SYN_CHANGE_SYSTEM_X          30 // IDM_CHANGE_SYSTEM_X ã¨åŒã˜ä¸¦ã³ã§ã‚ã‚‹ã“ã¨
 // reserve ~39
-#define W32G_SYN_MODULE                   50 // IDM_MODULE ‚Æ“¯‚¶•À‚Ñ‚Å‚ ‚é‚±‚Æ
+#define W32G_SYN_MODULE                   50 // IDM_MODULE ã¨åŒã˜ä¸¦ã³ã§ã‚ã‚‹ã“ã¨
 // reserve ~99
 
 
@@ -227,12 +227,12 @@ w32g_syn_message_t msg_loopbuf[W32G_SYN_MESSAGE_MAX];
 int msg_loopbuf_start = -1;
 int msg_loopbuf_end = -1;
 extern int rtsyn_system_mode;
-HANDLE msg_loopbuf_hMutex = NULL; // ”r‘¼ˆ——p
-int syn_AutoStart;                // ƒVƒ“ƒZ©“®‹N“®
-extern DWORD processPriority;            // ƒvƒƒZƒX‚Ìƒvƒ‰ƒCƒIƒŠƒeƒB
-extern DWORD syn_ThreadPriority;         // ƒVƒ“ƒZƒXƒŒƒbƒh‚Ìƒvƒ‰ƒCƒIƒŠƒeƒB
+HANDLE msg_loopbuf_hMutex = NULL; // æ’ä»–å‡¦ç†ç”¨
+int syn_AutoStart;                // ã‚·ãƒ³ã‚»è‡ªå‹•èµ·å‹•
+extern DWORD processPriority;            // ãƒ—ãƒ­ã‚»ã‚¹ã®ãƒ—ãƒ©ã‚¤ã‚ªãƒªãƒ†ã‚£
+extern DWORD syn_ThreadPriority;         // ã‚·ãƒ³ã‚»ã‚¹ãƒ¬ãƒƒãƒ‰ã®ãƒ—ãƒ©ã‚¤ã‚ªãƒªãƒ†ã‚£
 
-extern int volatile stream_max_compute;	// play_event() ‚Ì compute_data() ‚ÅŒvZ‚ğ‹–‚·Å‘åŠÔB
+extern int volatile stream_max_compute;	// play_event() ã® compute_data() ã§è¨ˆç®—ã‚’è¨±ã™æœ€å¤§æ™‚é–“ã€‚
 
 static int w32g_syn_main(void);
 static int start_syn_thread(void);
@@ -247,9 +247,9 @@ extern int w32g_syn_do_after_pref_apply(void);
 
 
 /*
-  \‘¢
-	@ƒƒCƒ“ƒXƒŒƒbƒhFGUI‚ÌƒƒbƒZ[ƒWƒ‹[ƒv
-	@ƒVƒ“ƒZƒTƒCƒU[ƒXƒŒƒbƒhF”­‰¹•”•ª
+  æ§‹é€ 
+	ã€€ãƒ¡ã‚¤ãƒ³ã‚¹ãƒ¬ãƒƒãƒ‰ï¼šGUIã®ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ãƒ«ãƒ¼ãƒ—
+	ã€€ã‚·ãƒ³ã‚»ã‚µã‚¤ã‚¶ãƒ¼ã‚¹ãƒ¬ãƒƒãƒ‰ï¼šç™ºéŸ³éƒ¨åˆ†
 */
 int WINAPI
 _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
@@ -259,12 +259,12 @@ _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	int i;
 
 	
-	Sleep(100); // Restart‚Å‘OƒvƒƒZƒX‚ÌI—¹‘Ò‹@
+	Sleep(100); // Restartã§å‰ãƒ—ãƒ­ã‚»ã‚¹ã®çµ‚äº†å¾…æ©Ÿ
 #ifdef TIMIDITY_LEAK_CHECK
 	_CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
 
-	// ¡‚Ì‚Æ‚±‚ë‚Qd‹N“®‚Í‚Å‚«‚È‚¢‚æ‚¤‚É‚µ‚Æ‚­B
+	// ä»Šã®ã¨ã“ã‚ï¼’é‡èµ·å‹•ã¯ã§ããªã„ã‚ˆã†ã«ã—ã¨ãã€‚
 	hMutex = OpenMutex(0, FALSE, W32G_MUTEX_NAME);
 	if (hMutex) {
 		CloseHandle(hMutex);
@@ -368,7 +368,7 @@ static int w32g_syn_create_win(void)
 		return -1;
 	}
 	ShowWindow(w32g_syn.nid_hWnd, SW_HIDE);
-	UpdateWindow(w32g_syn.nid_hWnd);		// •K—v‚È‚¢‚Æv‚¤‚ñ‚¾‚¯‚ÇB
+	UpdateWindow(w32g_syn.nid_hWnd);		// å¿…è¦ãªã„ã¨æ€ã†ã‚“ã ã‘ã©ã€‚
 	return 0;
 }
 
@@ -504,24 +504,24 @@ static const int system_mode_num[] = {
     DEFAULT_SYSTEM_MODE
 };
 static const TCHAR *system_mode_name_reset_jp[] = {
-    TEXT("GM ƒŠƒZƒbƒg"),
-    TEXT("GS ƒŠƒZƒbƒg"),
-    TEXT("XG ƒŠƒZƒbƒg"),
-    TEXT("GM2 ƒŠƒZƒbƒg"),
-    TEXT("SD ƒŠƒZƒbƒg"),
-    TEXT("KG ƒŠƒZƒbƒg"),
-    TEXT("CM ƒŠƒZƒbƒg"),
-    TEXT("ƒfƒtƒHƒ‹ƒgƒVƒXƒeƒ€ ƒŠƒZƒbƒg")
+    TEXT("GM ãƒªã‚»ãƒƒãƒˆ"),
+    TEXT("GS ãƒªã‚»ãƒƒãƒˆ"),
+    TEXT("XG ãƒªã‚»ãƒƒãƒˆ"),
+    TEXT("GM2 ãƒªã‚»ãƒƒãƒˆ"),
+    TEXT("SD ãƒªã‚»ãƒƒãƒˆ"),
+    TEXT("KG ãƒªã‚»ãƒƒãƒˆ"),
+    TEXT("CM ãƒªã‚»ãƒƒãƒˆ"),
+    TEXT("ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã‚·ã‚¹ãƒ†ãƒ  ãƒªã‚»ãƒƒãƒˆ")
 };
 static const TCHAR *system_mode_name_change_jp[] = {
-    TEXT("GM ƒVƒXƒeƒ€‚Ö•ÏX"),
-    TEXT("GS ƒVƒXƒeƒ€‚Ö•ÏX"),
-    TEXT("XG ƒVƒXƒeƒ€‚Ö•ÏX"),
-    TEXT("GM2 ƒVƒXƒeƒ€‚Ö•ÏX"),
-    TEXT("SD ƒVƒXƒeƒ€‚Ö•ÏX"),
-    TEXT("KG ƒVƒXƒeƒ€‚Ö•ÏX"),
-    TEXT("CM ƒVƒXƒeƒ€‚Ö•ÏX"),
-    TEXT("ƒfƒtƒHƒ‹ƒgƒVƒXƒeƒ€‚Ö•ÏX")
+    TEXT("GM ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"),
+    TEXT("GS ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"),
+    TEXT("XG ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"),
+    TEXT("GM2 ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"),
+    TEXT("SD ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"),
+    TEXT("KG ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"),
+    TEXT("CM ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"),
+    TEXT("ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´")
 };
 static const TCHAR *system_mode_name_reset_en[] = {
     TEXT("GM Reset"),
@@ -554,12 +554,12 @@ static const int process_priority_num[] = {
     REALTIME_PRIORITY_CLASS
 };
 static const TCHAR *process_priority_name_jp[] = {
-    TEXT("’á‚¢"),
-    TEXT("­‚µ’á‚¢"),
-    TEXT("•’Ê"),
-    TEXT("­‚µ‚‚¢"),
-    TEXT("‚‚¢"),
-    TEXT("ƒŠƒAƒ‹ƒ^ƒCƒ€")
+    TEXT("ä½ã„"),
+    TEXT("å°‘ã—ä½ã„"),
+    TEXT("æ™®é€š"),
+    TEXT("å°‘ã—é«˜ã„"),
+    TEXT("é«˜ã„"),
+    TEXT("ãƒªã‚¢ãƒ«ã‚¿ã‚¤ãƒ ")
 };
 static const TCHAR *process_priority_name_en[] = {
     TEXT("lowest"),
@@ -581,13 +581,13 @@ static const int syn_thread_priority_num[] = {
     THREAD_PRIORITY_TIME_CRITICAL
 };
 static const TCHAR *syn_thread_priority_name_jp[] = {
-	TEXT("ƒAƒCƒhƒ‹"),
-    TEXT("’á‚¢"),
-    TEXT("­‚µ’á‚¢"),
-    TEXT("•’Ê"),
-    TEXT("­‚µ‚‚¢"),
-    TEXT("‚‚¢"),
-    TEXT("ƒ^ƒCƒ€ƒNƒŠƒeƒBƒJƒ‹")
+	TEXT("ã‚¢ã‚¤ãƒ‰ãƒ«"),
+    TEXT("ä½ã„"),
+    TEXT("å°‘ã—ä½ã„"),
+    TEXT("æ™®é€š"),
+    TEXT("å°‘ã—é«˜ã„"),
+    TEXT("é«˜ã„"),
+    TEXT("ã‚¿ã‚¤ãƒ ã‚¯ãƒªãƒ†ã‚£ã‚«ãƒ«")
 };
 static const TCHAR *syn_thread_priority_name_en[] = {
 	TEXT("idle"),
@@ -700,13 +700,13 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				hMenuSynPriority = CreateMenu();
 				if (PlayerLanguage == LANGUAGE_JAPANESE) {
 					if (w32g_syn_status == run) {
-						AppendMenu(hMenu, MF_STRING, IDM_STOP, TEXT("ƒVƒ“ƒZ’â~(&S)"));
+						AppendMenu(hMenu, MF_STRING, IDM_STOP, TEXT("ã‚·ãƒ³ã‚»åœæ­¢(&S)"));
 					} else if (w32g_syn_status == stop) {
-						AppendMenu(hMenu, MF_STRING, IDM_START, TEXT("ƒVƒ“ƒZŠJn(&S)"));
+						AppendMenu(hMenu, MF_STRING, IDM_START, TEXT("ã‚·ãƒ³ã‚»é–‹å§‹(&S)"));
 					} else if (w32g_syn_status == quit) {
-						AppendMenu(hMenu, MF_STRING | MF_GRAYED, IDM_START, TEXT("I—¹’†cc"));
+						AppendMenu(hMenu, MF_STRING | MF_GRAYED, IDM_START, TEXT("çµ‚äº†ä¸­â€¦â€¦"));
 					}
-					AppendMenu(hMenu, MF_STRING, IDM_SYSTEM_RESET, TEXT("ƒVƒXƒeƒ€ƒŠƒZƒbƒg(&R)"));
+					AppendMenu(hMenu, MF_STRING, IDM_SYSTEM_RESET, TEXT("ã‚·ã‚¹ãƒ†ãƒ ãƒªã‚»ãƒƒãƒˆ(&R)"));
 ///r
 					for (i = 0; i < module_list_num && module_list[i].name; i++) {
 						flag = MF_STRING;
@@ -737,35 +737,35 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					}
 
 					AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-					AppendMenu(hMenu, MF_POPUP, (UINT)hMenuReset, TEXT("ŠeíƒVƒXƒeƒ€ƒŠƒZƒbƒg"));
-					AppendMenu(hMenu, MF_POPUP, (UINT)hMenuChange, TEXT("“Á’è‚ÌƒVƒXƒeƒ€‚Ö•ÏX"));
-					AppendMenu(hMenu, MF_POPUP, (UINT)hMenuModule, TEXT("“Á’è‚Ì‰¹Œ¹ƒ‚[ƒh‚Ö•ÏX"));
+					AppendMenu(hMenu, MF_POPUP, (UINT)hMenuReset, TEXT("å„ç¨®ã‚·ã‚¹ãƒ†ãƒ ãƒªã‚»ãƒƒãƒˆ"));
+					AppendMenu(hMenu, MF_POPUP, (UINT)hMenuChange, TEXT("ç‰¹å®šã®ã‚·ã‚¹ãƒ†ãƒ ã¸å¤‰æ›´"));
+					AppendMenu(hMenu, MF_POPUP, (UINT)hMenuModule, TEXT("ç‰¹å®šã®éŸ³æºãƒ¢ãƒ¼ãƒ‰ã¸å¤‰æ›´"));
 
 					if (uMess != WM_LBUTTONDOWN) {
 						AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-						AppendMenu(hMenu, MF_POPUP, (UINT)hMenuProcessPriority, TEXT("ƒvƒƒZƒXƒvƒ‰ƒCƒIƒŠƒeƒBİ’è"));
-						AppendMenu(hMenu, MF_POPUP, (UINT)hMenuSynPriority, TEXT("ƒVƒ“ƒZƒXƒŒƒbƒhƒvƒ‰ƒCƒIƒŠƒeƒBİ’è"));
+						AppendMenu(hMenu, MF_POPUP, (UINT)hMenuProcessPriority, TEXT("ãƒ—ãƒ­ã‚»ã‚¹ãƒ—ãƒ©ã‚¤ã‚ªãƒªãƒ†ã‚£è¨­å®š"));
+						AppendMenu(hMenu, MF_POPUP, (UINT)hMenuSynPriority, TEXT("ã‚·ãƒ³ã‚»ã‚¹ãƒ¬ãƒƒãƒ‰ãƒ—ãƒ©ã‚¤ã‚ªãƒªãƒ†ã‚£è¨­å®š"));
 						AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-						AppendMenu(hMenu, MF_STRING, IDM_PREFERENCE, TEXT("İ’è(&P)..."));
+						AppendMenu(hMenu, MF_STRING, IDM_PREFERENCE, TEXT("è¨­å®š(&P)..."));
 #ifdef HAVE_SYN_CONSOLE
-						AppendMenu(hMenu, MF_STRING, IDM_CONSOLE_WND, TEXT("ƒRƒ“ƒ\[ƒ‹(&C)"));
+						AppendMenu(hMenu, MF_STRING, IDM_CONSOLE_WND, TEXT("ã‚³ãƒ³ã‚½ãƒ¼ãƒ«(&C)"));
 #endif /* HAVE_SYN_CONSOLE */
 ///r
 #ifdef VST_LOADER_ENABLE
-						AppendMenu(hMenu, MF_STRING, IDM_VSTMGR_WND, TEXT("VSTƒ}ƒl[ƒWƒƒ(&V)"));
+						AppendMenu(hMenu, MF_STRING, IDM_VSTMGR_WND, TEXT("VSTãƒãƒãƒ¼ã‚¸ãƒ£(&V)"));
 #endif /* VST_LOADER_ENABLE */
 #ifdef HAVE_SYN_SOUNDSPEC
-						AppendMenu(hMenu, MF_STRING, IDM_MWSOUNDSPEC, TEXT("ƒXƒyƒNƒgƒƒOƒ‰ƒ€(&O)"));
+						AppendMenu(hMenu, MF_STRING, IDM_MWSOUNDSPEC, TEXT("ã‚¹ãƒšã‚¯ãƒˆãƒ­ã‚°ãƒ©ãƒ (&O)"));
 #endif /* HAVE_SYN_SOUNDSPEC */
 #ifdef INT_SYNTH
-						AppendMenu(hMenu, MF_STRING, IDM_ISEDITOR_WND, TEXT("“à‘ ƒVƒ“ƒZƒGƒfƒBƒ^"));
+						AppendMenu(hMenu, MF_STRING, IDM_ISEDITOR_WND, TEXT("å†…è”µã‚·ãƒ³ã‚»ã‚¨ãƒ‡ã‚£ã‚¿"));
 #endif /* INT_SYNTH */
 						AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-						AppendMenu(hMenu, MF_STRING, IDM_VERSION, TEXT("ƒo[ƒWƒ‡ƒ“î•ñ"));
-						AppendMenu(hMenu, MF_STRING, IDM_TIMIDITY, TEXT("TiMidity++ ‚É‚Â‚¢‚Ä(&A)"));
+						AppendMenu(hMenu, MF_STRING, IDM_VERSION, TEXT("ãƒãƒ¼ã‚¸ãƒ§ãƒ³æƒ…å ±"));
+						AppendMenu(hMenu, MF_STRING, IDM_TIMIDITY, TEXT("TiMidity++ ã«ã¤ã„ã¦(&A)"));
 						AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-						AppendMenu(hMenu, MF_STRING, IDM_RESTART, TEXT("Ä‹N“®(&R)"));
-						AppendMenu(hMenu, MF_STRING, IDM_QUIT, TEXT("I—¹(&X)"));
+						AppendMenu(hMenu, MF_STRING, IDM_RESTART, TEXT("å†èµ·å‹•(&R)"));
+						AppendMenu(hMenu, MF_STRING, IDM_QUIT, TEXT("çµ‚äº†(&X)"));
 					}
 				} else {
 					if (w32g_syn_status == run) {
@@ -837,9 +837,9 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						AppendMenu(hMenu, MF_STRING, IDM_QUIT, TEXT("E&xit"));
 					}
 				}
-				// ƒ|ƒbƒvƒAƒbƒvƒƒjƒ…[‚ª‚«‚¿‚ñ‚ÆÁ‚¦‚é‚½‚ß‚Ì‘€ìB
-				// http://support.microsoft.com/default.aspx?scid = KB;EN-US;Q135788& QÆ
-#if 0		// Win 98/2000 ˆÈ~—pH
+				// ãƒãƒƒãƒ—ã‚¢ãƒƒãƒ—ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãŒãã¡ã‚“ã¨æ¶ˆãˆã‚‹ãŸã‚ã®æ“ä½œã€‚
+				// http://support.microsoft.com/default.aspx?scid = KB;EN-US;Q135788& å‚ç…§
+#if 0		// Win 98/2000 ä»¥é™ç”¨ï¼Ÿ
 				{
 					DWORD dwThreadID = GetWindowThreadProcessId(hwnd, NULL);
 					if (dwThreadID != w32g_syn.gui_dwThreadId) {
@@ -850,12 +850,12 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 						SetForegroundWindow(hwnd);
 					}
 				}
-#else	// ‚±‚ê‚Å‚¢‚¢‚ç‚µ‚¢H
+#else	// ã“ã‚Œã§ã„ã„ã‚‰ã—ã„ï¼Ÿ
 				SetForegroundWindow(hwnd);
 #endif
 				TrackPopupMenu(hMenu, TPM_TOPALIGN | TPM_LEFTALIGN,
 					point.x, point.y, 0, hwnd, NULL);
-				PostMessage(hwnd, WM_NULL, 0, 0);	// ‚±‚ê‚àƒ|ƒbƒvƒAƒbƒvƒƒjƒ…[‚ÌƒeƒNƒjƒbƒN‚ç‚µ‚¢B
+				PostMessage(hwnd, WM_NULL, 0, 0);	// ã“ã‚Œã‚‚ãƒãƒƒãƒ—ã‚¢ãƒƒãƒ—ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã®ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ã‚‰ã—ã„ã€‚
 				DestroyMenu(hMenu);
 				have_popupmenu = 0;
 				return 0;
@@ -868,7 +868,7 @@ SynWinProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			RestartTimidity = 1; // WinMain()
 			// thru quit
 		case IDM_QUIT:
-#if 1/* ‹­§I—¹ */
+#if 1/* å¼·åˆ¶çµ‚äº† */
 			/* Exit after 20 sec. */
 			SetTimer(NULL, 0, 20000, forced_exit);
 #endif
@@ -1201,9 +1201,9 @@ static int w32g_syn_main(void)
         OutputLastError("StartServiceCtrlDispatcher() == FALSE");
 #endif
 #if 0
-        // ƒfƒoƒbƒO—p
-        // ƒVƒ“ƒZ‚ª“®ì‚·‚é‚©Šm”F‚·‚é‚½‚ß‚ÌŠÖ”ŒÄ‚Ño‚µ
-        // ’â~•û–@‚Íƒ^ƒXƒNƒ}ƒl[ƒWƒƒ‚©taskkill‚©‚ç‚Ì‹­§I—¹
+        // ãƒ‡ãƒãƒƒã‚°ç”¨
+        // ã‚·ãƒ³ã‚»ãŒå‹•ä½œã™ã‚‹ã‹ç¢ºèªã™ã‚‹ãŸã‚ã®é–¢æ•°å‘¼ã³å‡ºã—
+        // åœæ­¢æ–¹æ³•ã¯ã‚¿ã‚¹ã‚¯ãƒãƒãƒ¼ã‚¸ãƒ£ã‹taskkillã‹ã‚‰ã®å¼·åˆ¶çµ‚äº†
         ServiceMain(0, 0);
 #endif
         return -1;
@@ -1342,8 +1342,8 @@ static BOOL UninstallService(void)
 #endif	// !TWSYNSRV
 
 
-// ‰Â•Ï’·ˆø”‚É‚·‚é—\’ècc
-// 0: ¬Œ÷A1: ’Ç‰Á‚Å‚«‚È‚©‚Á‚½
+// å¯å¤‰é•·å¼•æ•°ã«ã™ã‚‹äºˆå®šâ€¦â€¦
+// 0: æˆåŠŸã€1: è¿½åŠ ã§ããªã‹ã£ãŸ
 int w32g_message_set(int cmd)
 {
 	int res = 0, i;
@@ -1352,14 +1352,14 @@ int w32g_message_set(int cmd)
 	} else {
 		WaitForSingleObject(msg_loopbuf_hMutex, INFINITE);
 	}
-	if (cmd == W32G_SYN_QUIT){	// —Dæ‚·‚éƒƒbƒZ[ƒWB
+	if (cmd == W32G_SYN_QUIT){	// å„ªå…ˆã™ã‚‹ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã€‚
 		for(i = 0; i < W32G_SYN_MESSAGE_MAX; i++)
 			msg_loopbuf[i].cmd = cmd;
 		msg_loopbuf_start = 0;
 		msg_loopbuf_end = 0;
 		ReleaseMutex(msg_loopbuf_hMutex);
 		return res;
-	} else if (cmd == W32G_SYN_START || cmd == W32G_SYN_STOP) {	// —Dæ‚·‚éƒƒbƒZ[ƒWB
+	} else if (cmd == W32G_SYN_START || cmd == W32G_SYN_STOP) {	// å„ªå…ˆã™ã‚‹ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã€‚
 		msg_loopbuf_start = 0;
 		msg_loopbuf_end = 0;
 		msg_loopbuf[msg_loopbuf_end].cmd = cmd;
@@ -1751,7 +1751,7 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		switch(wParam){
 		case SIZE_MAXIMIZED:
 		case SIZE_RESTORED:
-			{	// ‚­‚»‚ß‚ñ‚Ç[[
+			{	// ããã‚ã‚“ã©ãƒ¼ãƒ¼
 			int x,y,cx,cy;
 			int max = 0;
 			int width;
@@ -1767,7 +1767,7 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			hwndBUTTON_INC = GetDlgItem(hwnd,IDC_BUTTON_INC);
 			hwndCHECKBOX_VALID = GetDlgItem(hwnd,IDC_CHECKBOX_VALID);
 			hwndCLEAR = GetDlgItem(hwnd,IDCLEAR);
-			GetWindowRect(hwndEDIT,&rcEDIT); // x0y0 Šî€
+			GetWindowRect(hwndEDIT,&rcEDIT); // x0y0 åŸºæº–
 			GetWindowRect(hwndBUTTON_VERBOSITY,&rcBUTTON_VERBOSITY);
 			GetWindowRect(hwndEDIT_VERBOSITY,&rcEDIT_VERBOSITY);
 			GetWindowRect(hwndBUTTON_DEC,&rcBUTTON_DEC);

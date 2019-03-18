@@ -271,17 +271,17 @@ void InitWrdWnd(HWND hParentWnd)
 		hWrdWnd,0,hInst,0);
 	w32g_wrd_wnd.hdc = GetDC(w32g_wrd_wnd.hwnd);
 
-    // ‘åŒ³
+    // å¤§å…ƒ
     w32g_wrd_wnd.hbitmap = CreateCompatibleBitmap(w32g_wrd_wnd.hdc, w32g_wrd_wnd.width, w32g_wrd_wnd.height);
     w32g_wrd_wnd.hmdc = CreateCompatibleDC(w32g_wrd_wnd.hdc);
     w32g_wrd_wnd.hgdiobj_hmdcprev = SelectObject(w32g_wrd_wnd.hmdc, w32g_wrd_wnd.hbitmap);
     SelectObject(w32g_wrd_wnd.hmdc, w32g_wrd_wnd.hNullBrush);
     SelectObject(w32g_wrd_wnd.hmdc, w32g_wrd_wnd.hNullPen);
 
-    // ƒ[ƒN
+    // ãƒ¯ãƒ¼ã‚¯
     w32g_wrd_wnd.hbmp_work = CreateCompatibleBitmap(w32g_wrd_wnd.hdc, w32g_wrd_wnd.width, w32g_wrd_wnd.height);
 
-    // ƒeƒLƒXƒgƒ}ƒXƒN
+    // ãƒ†ã‚­ã‚¹ãƒˆãƒã‚¹ã‚¯
 //  w32g_wrd_wnd.hbmp_tmask = CreateBitmap(w32g_wrd_wnd.width, w32g_wrd_wnd.height, 1, 1, NULL);
     w32g_wrd_wnd.hbmp_tmask = CreateCompatibleBitmap(w32g_wrd_wnd.hdc, w32g_wrd_wnd.width, w32g_wrd_wnd.height);
     {
@@ -298,7 +298,7 @@ void InitWrdWnd(HWND hParentWnd)
         DeleteObject(hbrush);
     }
 
-    // ƒOƒ‰ƒtƒBƒbƒN
+    // ã‚°ãƒ©ãƒ•ã‚£ãƒƒã‚¯
     wrd_graphic_init(w32g_wrd_wnd.hdc);
 
     ReleaseDC(w32g_wrd_wnd.hwnd, w32g_wrd_wnd.hdc);
@@ -306,7 +306,7 @@ void InitWrdWnd(HWND hParentWnd)
 	{
 		TCHAR fontname[1024];
 		if ( PlayerLanguage == LANGUAGE_JAPANESE )
-			_tcscpy(fontname, _T("‚l‚r –¾’©"));
+			_tcscpy(fontname, _T("ï¼­ï¼³ æ˜æœ"));
 		else
 			_tcscpy(fontname, _T("Times New Roman"));
 		w32g_wrd_wnd.hFont = CreateFont(w32g_wrd_wnd.font_height,w32g_wrd_wnd.font_width,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,
@@ -344,7 +344,7 @@ static void wrd_graphic_terminate(void)
     wrd_wnd_unlock();
 }
 
-// ƒvƒŒ[ƒ“ index ‚ÌƒOƒ‰ƒtƒBƒbƒN‚Ì‰Šú‰»
+// ãƒ—ãƒ¬ãƒ¼ãƒ³ index ã®ã‚°ãƒ©ãƒ•ã‚£ãƒƒã‚¯ã®åˆæœŸåŒ–
 static void wrd_graphic_init(HDC hdc)
 {
     int index;
@@ -421,7 +421,7 @@ static void wrd_graphic_reset_all(void)
     wrd_wnd_unlock();
 }
 
-// ƒvƒŒ[ƒ“ index ‚ÌƒOƒ‰ƒtƒBƒbƒN‚Ì lprc —Ìˆæ‚ğ hmdc_graphic ‚ÖXV
+// ãƒ—ãƒ¬ãƒ¼ãƒ³ index ã®ã‚°ãƒ©ãƒ•ã‚£ãƒƒã‚¯ã® lprc é ˜åŸŸã‚’ hmdc_graphic ã¸æ›´æ–°
 static void wrd_graphic_apply(RECT *lprc, int index, int lockflag)
 {
 #if 0
@@ -434,14 +434,14 @@ static void wrd_graphic_apply(RECT *lprc, int index, int lockflag)
 #endif
 }
 
-// lprc —Ìˆæ‚ÌƒOƒ‰ƒtƒBƒbƒN‚ğXV
+// lprc é ˜åŸŸã®ã‚°ãƒ©ãƒ•ã‚£ãƒƒã‚¯ã‚’æ›´æ–°
 static void wrd_graphic_update(RECT *lprc, int lockflag)
 {
     if (WrdWndInfo.GraphicStop) return;
     if (w32g_wrd_wnd.draw_skip) return;
     wrd_wnd_lock();
     if (lockflag) GDI_LOCK();
-    // ‰æ‘œˆ—‚µ‚½ŠÖ”‚Ås‚¤B
+    // ç”»åƒå‡¦ç†ã—ãŸé–¢æ•°ã§è¡Œã†ã€‚
     if (w32g_wrd_wnd.flag & WRD_FLAG_GRAPHIC) {
         if (w32g_wrd_wnd.flag & WRD_FLAG_TEXT) {
             HDC hmdc_work, hmdc_tmask, hmdc_graphic;
@@ -476,7 +476,7 @@ static void wrd_graphic_update(RECT *lprc, int lockflag)
     wrd_wnd_unlock();
 }
 
-// —Ìˆæ‚ÌƒeƒLƒXƒg‚ğXV
+// é ˜åŸŸã®ãƒ†ã‚­ã‚¹ãƒˆã‚’æ›´æ–°
 static void wrd_text_update(int x_from, int y_from, int x_to, int y_to, int lockflag)
 {
     RECT rc;
@@ -678,7 +678,7 @@ void wrd_graphic_gon(int sw)
     if (WrdWndInfo.GraphicStop) return;
     if (!w32g_wrd_wnd.active) return;
     if (sw && !sw_old) {
-        w32g_wrd_wnd.flag |= WRD_FLAG_GRAPHIC;        // æ‚Éİ’è
+        w32g_wrd_wnd.flag |= WRD_FLAG_GRAPHIC;        // å…ˆã«è¨­å®š
         if (w32g_wrd_wnd.index_active == w32g_wrd_wnd.index_display) {
             RECT rc;
             SetRect(&rc, 0, 0, w32g_wrd_wnd.width, w32g_wrd_wnd.height);
@@ -977,7 +977,7 @@ void wrd_graphic_fadestep(int v)
 #if 1
     InvalidateRect(w32g_wrd_wnd.hwnd, &rc, FALSE);
 #else
-    { // ƒpƒŒƒbƒg‚Ì•Ï‰»‚Å‘S‰æ–Ê‚ğXV‚µ‚È‚¢‚ÅÏ‚Ş‚æ‚¤‚Éƒ`ƒFƒbƒN‚µ‚Ä‚İ‚éB‚¯‚ÇAd‚¢‚Ì‚Å•sÌ—pB
+    { // ãƒ‘ãƒ¬ãƒƒãƒˆã®å¤‰åŒ–ã§å…¨ç”»é¢ã‚’æ›´æ–°ã—ãªã„ã§æ¸ˆã‚€ã‚ˆã†ã«ãƒã‚§ãƒƒã‚¯ã—ã¦ã¿ã‚‹ã€‚ã‘ã©ã€é‡ã„ã®ã§ä¸æ¡ç”¨ã€‚
 #define BITS_DIV 10
         int j;
         char *bits;
@@ -1177,7 +1177,7 @@ void wrd_graphic_mag(const char *path, int x, int y, int s, int p)
     if (p == 0 || p == 2) {
         wrd_graphic_pal_g4r4b4(0, mh->pal, 16);
     } else {
-        // wrd_graphic_pal_g4r4b4() ‚ğÀs‚µ‚È‚¢‚Æ—Ìˆæ‚ªXV‚³‚ê‚È‚¢B
+        // wrd_graphic_pal_g4r4b4() ã‚’å®Ÿè¡Œã—ãªã„ã¨é ˜åŸŸãŒæ›´æ–°ã•ã‚Œãªã„ã€‚
         if (w32g_wrd_wnd.index_active == w32g_wrd_wnd.index_display) {
             RECT rc;
             SetRect(&rc, x_orig, y_orig, width, height);
@@ -1194,7 +1194,7 @@ void wrd_text_ton(int sw)
 
     if (!w32g_wrd_wnd.active) return;
     if (sw && !sw_old) {
-        w32g_wrd_wnd.flag |= WRD_FLAG_TEXT;        // æ‚Éİ’è
+        w32g_wrd_wnd.flag |= WRD_FLAG_TEXT;        // å…ˆã«è¨­å®š
         if (w32g_wrd_wnd.index_active == w32g_wrd_wnd.index_display) {
             wrd_text_update(0, 0, w32g_wrd_wnd.width, w32g_wrd_wnd.height, TRUE);
         }
@@ -1456,7 +1456,7 @@ void wrd_graphic_xcopy(int sx1, int sy1, int sx2, int sy2, int tx, int ty, int s
             }
         }
         break;
-    case 9:    // ‚¿‚å‚Á‚Æ‚í‚©‚ç‚È‚©‚Á‚½B
+    case 9:    // ã¡ã‚‡ã£ã¨ã‚ã‹ã‚‰ãªã‹ã£ãŸã€‚
         break;
     case 10:    // COPY opt1, opt2
         if (opt1 < 0 || opt2 < 0)
@@ -1472,7 +1472,7 @@ void wrd_graphic_xcopy(int sx1, int sy1, int sx2, int sy2, int tx, int ty, int s
                 &w32g_wrd_wnd.graphic_dib[ss]->bits[i_src + sx1], d);
         }
         break;
-    case 11:    // Clipping Copy    ‚Ó‚Â‚¤‚ÌƒRƒs[‚Å‘ã—pB
+    case 11:    // Clipping Copy    ãµã¤ã†ã®ã‚³ãƒ”ãƒ¼ã§ä»£ç”¨ã€‚
         d = sx2 - sx1 + 1;
         for (y = sy1; y <= sy2; y++) {
             int i_src = y * w32g_wrd_wnd.width;
@@ -1552,7 +1552,7 @@ void WrdWndCurStateSaveAndRestore(int saveflag)
     }
 }
 
-// from_from s‚©‚ç from_to s‚Ü‚Å‚ğ to_from s‚ğæ“ª‚ÉƒRƒs[B
+// from_from è¡Œã‹ã‚‰ from_to è¡Œã¾ã§ã‚’ to_from è¡Œã‚’å…ˆé ­ã«ã‚³ãƒ”ãƒ¼ã€‚
 void WrdWndCopyLineS(int from_from, int from_to, int to_from, int lockflag)
 {
     int y, to_to;
@@ -1604,14 +1604,14 @@ void WrdWndCopyLineS(int from_from, int from_to, int to_from, int lockflag)
     wrd_text_update(0, to_from, w32g_wrd_wnd.row - 1, to_to, lockflag);
 }
 
-// from s‚ğ to s‚ÉƒRƒs[B
+// from è¡Œã‚’ to è¡Œã«ã‚³ãƒ”ãƒ¼ã€‚
 void WrdWndCopyLine(int from, int to, int lockflag)
 {
     if (!w32g_wrd_wnd.active) return;
     WrdWndCopyLineS(from, from, to, lockflag);
 }
 
-// froms‚©‚ç to s‚Ü‚ÅƒNƒŠƒA
+// fromè¡Œã‹ã‚‰ to è¡Œã¾ã§ã‚¯ãƒªã‚¢
 void WrdWndClearLineFromTo(int from, int to, int lockflag)
 {
     int i;
@@ -1632,7 +1632,7 @@ void WrdWndClearLineFromTo(int from, int to, int lockflag)
     wrd_text_update(0, from, w32g_wrd_wnd.row - 1, to, lockflag);
 }
 
-// from s‚ğ to s‚ÉˆÚ“®B
+// from è¡Œã‚’ to è¡Œã«ç§»å‹•ã€‚
 void WrdWndMoveLine(int from, int to, int lockflag)
 {
     if (!w32g_wrd_wnd.active) return;
@@ -1643,7 +1643,7 @@ void WrdWndMoveLine(int from, int to, int lockflag)
     WrdWndClearLineFromTo(from, from, lockflag);
 }
 
-// ƒXƒNƒ[ƒ‹ƒ_ƒEƒ“‚·‚éB
+// ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«ãƒ€ã‚¦ãƒ³ã™ã‚‹ã€‚
 void WrdWndScrollDown(int lockflag)
 {
     if (!w32g_wrd_wnd.active) return;
@@ -1651,7 +1651,7 @@ void WrdWndScrollDown(int lockflag)
     WrdWndClearLineFromTo(0, 0, lockflag);
 }
 
-// ƒXƒNƒ[ƒ‹ƒAƒbƒv‚·‚éB
+// ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«ã‚¢ãƒƒãƒ—ã™ã‚‹ã€‚
 void WrdWndScrollUp(int lockflag)
 {
     if (!w32g_wrd_wnd.active) return;
@@ -1659,21 +1659,21 @@ void WrdWndScrollUp(int lockflag)
     WrdWndClearLineFromTo(w32g_wrd_wnd.col - 1, w32g_wrd_wnd.col - 1, lockflag);
 }
 
-// ‰æ–ÊÁ‹
+// ç”»é¢æ¶ˆå»
 void WrdWndClear(int lockflag)
 {
     if (!w32g_wrd_wnd.active) return;
     WrdWndClearLineFromTo(0, w32g_wrd_wnd.col - 1, lockflag);
 }
 
-// •¶šo—Í
+// æ–‡å­—å‡ºåŠ›
 void WrdWndPutString(char *str, int lockflag)
 {
     if (!w32g_wrd_wnd.active) return;
     WrdWndPutStringN(str, strlen(str), lockflag);
 }
 
-// •¶šo—Í(n•¶š)
+// æ–‡å­—å‡ºåŠ›(næ–‡å­—)
 void WrdWndPutStringN(char *str, int n, int lockflag)
 {
     int i;
@@ -1747,8 +1747,8 @@ void WrdWndPutStringN(char *str, int n, int lockflag)
     if (lockflag) wrd_wnd_unlock();
 }
 
-// left == TRUE : s‚Ì¶Á‹
-// left != TRUE : s‚Ì‰EÁ‹
+// left == TRUE : è¡Œã®å·¦æ¶ˆå»
+// left != TRUE : è¡Œã®å³æ¶ˆå»
 void WrdWndLineClearFrom(int left, int lockflag)
 {
     if (!w32g_wrd_wnd.active) return;
@@ -1776,29 +1776,29 @@ void WrdWndLineClearFrom(int left, int lockflag)
     }
 }
 
-// PC98 ‚ÌƒAƒgƒŠƒrƒ…[ƒg‚Åİ’è
+// PC98 ã®ã‚¢ãƒˆãƒªãƒ“ãƒ¥ãƒ¼ãƒˆã§è¨­å®š
 void WrdWndSetAttr98(int attr)
 {
     if (!w32g_wrd_wnd.active) return;
     switch (attr) {
-    case 0:    // ‹K’è’l
+    case 0:    // è¦å®šå€¤
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_WHITE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 1: // ƒnƒCƒ‰ƒCƒg
+    case 1: // ãƒã‚¤ãƒ©ã‚¤ãƒˆ
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 2: // ƒo[ƒeƒBƒJƒ‹ƒ‰ƒCƒ“
+    case 2: // ãƒãƒ¼ãƒ†ã‚£ã‚«ãƒ«ãƒ©ã‚¤ãƒ³
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 4: // ƒAƒ“ƒ_[ƒ‰ƒCƒ“
+    case 4: // ã‚¢ãƒ³ãƒ€ãƒ¼ãƒ©ã‚¤ãƒ³
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 5: // ƒuƒŠƒ“ƒN
+    case 5: // ãƒ–ãƒªãƒ³ã‚¯
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 7: // ƒŠƒo[ƒX
+    case 7: // ãƒªãƒãƒ¼ã‚¹
         {
             char tmp = w32g_wrd_wnd.curbackcolor;
             w32g_wrd_wnd.curbackcolor = w32g_wrd_wnd.curforecolor;
@@ -1807,134 +1807,134 @@ void WrdWndSetAttr98(int attr)
             w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         }
         break;
-    case 8: // ƒV[ƒNƒŒƒbƒg
+    case 8: // ã‚·ãƒ¼ã‚¯ãƒ¬ãƒƒãƒˆ
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 16:    // •
+    case 16:    // é»’
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 17:    // Ô
+    case 17:    // èµ¤
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_RED;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 18:    // Â
+    case 18:    // é’
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLUE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 19:    // ‡
+    case 19:    // ç´«
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_PURPLE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 20:        // —Î
+    case 20:        // ç·‘
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_GREEN;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 21:    // ‰©F
+    case 21:    // é»„è‰²
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_YELLOW;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 22:    // …F
+    case 22:    // æ°´è‰²
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_LIGHTBLUE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 23: // ”’
+    case 23: // ç™½
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_WHITE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 30:    // •
+    case 30:    // é»’
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 31:    // Ô
+    case 31:    // èµ¤
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_RED;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 32:    // —Î
+    case 32:    // ç·‘
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_GREEN;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 33:    // ‰©F
+    case 33:    // é»„è‰²
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_YELLOW;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 34:    // Â
+    case 34:    // é’
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLUE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 35:    // ‡
+    case 35:    // ç´«
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_PURPLE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 36:    // …F
+    case 36:    // æ°´è‰²
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_LIGHTBLUE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 37:    // ”’
+    case 37:    // ç™½
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_WHITE;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         break;
-    case 40:    // •”½“]
+    case 40:    // é»’åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curattr = 0;
         w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         break;
-    case 41:    // Ô”½“]
+    case 41:    // èµ¤åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_RED;
         w32g_wrd_wnd.curattr = 0;
         w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         break;
-    case 42:    // —Î”½“]
+    case 42:    // ç·‘åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_GREEN;
         w32g_wrd_wnd.curattr = 0;
         w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         break;
-    case 43:    // ‰©F”½“]
+    case 43:    // é»„è‰²åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_YELLOW;
         w32g_wrd_wnd.curattr = 0;
         w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         break;
-    case 44:    // Â”½“]
+    case 44:    // é’åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_BLUE;
         w32g_wrd_wnd.curattr = 0;
         w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         break;
-    case 45:    // ‡”½“]
+    case 45:    // ç´«åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_PURPLE;
         w32g_wrd_wnd.curattr = 0;
         w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         break;
-    case 46:    // …F”½“]
+    case 46:    // æ°´è‰²åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_LIGHTBLUE;
         w32g_wrd_wnd.curattr = 0;
         w32g_wrd_wnd.curattr |= W32G_WRDWND_ATTR_REVERSE;
         break;
-    case 47:    // ”’”½“]
+    case 47:    // ç™½åè»¢
         w32g_wrd_wnd.curforecolor = W32G_WRDWND_BLACK;
         w32g_wrd_wnd.curbackcolor = W32G_WRDWND_WHITE;
         w32g_wrd_wnd.curattr = 0;
@@ -1948,7 +1948,7 @@ void WrdWndSetAttr98(int attr)
     }
 }
 
-// ƒAƒgƒŠƒrƒ…[ƒg‚ÌƒŠƒZƒbƒg
+// ã‚¢ãƒˆãƒªãƒ“ãƒ¥ãƒ¼ãƒˆã®ãƒªã‚»ãƒƒãƒˆ
 void WrdWndSetAttrReset(void)
 {
     if (!w32g_wrd_wnd.active) return;
@@ -1957,7 +1957,7 @@ void WrdWndSetAttrReset(void)
     w32g_wrd_wnd.curattr = 0;
 }
 
-// ƒJ[ƒ\ƒ‹ƒ|ƒWƒVƒ‡ƒ“‚ÌˆÚ“®
+// ã‚«ãƒ¼ã‚½ãƒ«ãƒã‚¸ã‚·ãƒ§ãƒ³ã®ç§»å‹•
 void WrdWndGoto(int x, int y)
 {
     if (!w32g_wrd_wnd.active) return;
@@ -1975,7 +1975,7 @@ void WrdWndPaintAll(int lockflag)
     wrd_text_update(0, 0, w32g_wrd_wnd.row - 1, w32g_wrd_wnd.col - 1, TRUE);
 }
 
-// SetInvalidateRect() ‚Í WM_PAINT ‚ğŒÄ‚Ô‰Â”\«‚ª‚ ‚éB
+// SetInvalidateRect() ã¯ WM_PAINT ã‚’å‘¼ã¶å¯èƒ½æ€§ãŒã‚ã‚‹ã€‚
 void WrdWndPaintDo(int flag)
 {
     RECT rc;

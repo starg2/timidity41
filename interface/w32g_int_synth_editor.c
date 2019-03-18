@@ -1736,12 +1736,12 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 		   *filter_en = _T("Ini file (*.ini)\0*.ini\0")
 				_T("All files (*.*)\0*.*\0")
 				_T("\0\0"),
-		   *filter_jp = _T("Ini ƒtƒ@ƒCƒ‹ (*.ini)\0*.ini\0")
-				_T("‚·‚×‚Ä‚Ìƒtƒ@ƒCƒ‹ (*.*)\0*.*\0")
+		   *filter_jp = _T("Ini ãƒ•ã‚¡ã‚¤ãƒ« (*.ini)\0*.ini\0")
+				_T("ã™ã¹ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ« (*.*)\0*.*\0")
 				_T("\0\0");
 	const TCHAR *title,
 		   *title_en = _T("Open Ini File"),
-		   *title_jp = _T("Iniƒtƒ@ƒCƒ‹‚ğŠJ‚­");
+		   *title_jp = _T("Iniãƒ•ã‚¡ã‚¤ãƒ«ã‚’é–‹ã");
 
 	if (PlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;

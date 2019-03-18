@@ -130,30 +130,32 @@ add_library(
 add_dependencies(interface_synsrv twsyn_bridge)
 target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 
-# for timw32g
+if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
+    # for timw32g
 
-add_library(
-    interface_w32g OBJECT
+    add_library(
+        interface_w32g OBJECT
 
-    ${INTERFACE_W32G_COMMON_SOURCES}
-)
+        ${INTERFACE_W32G_COMMON_SOURCES}
+    )
 
-add_dependencies(interface_w32g UpdateTim41Version)
-target_compile_definitions(interface_w32g PRIVATE -DIA_W32GUI -D__W32G__)
+    add_dependencies(interface_w32g UpdateTim41Version)
+    target_compile_definitions(interface_w32g PRIVATE -DIA_W32GUI -D__W32G__)
 
-# for twsyng
+    # for twsyng
 
-add_library(
-    interface_w32gsyn OBJECT
+    add_library(
+        interface_w32gsyn OBJECT
 
-    ${INTERFACE_COMMON_SOURCES}
-    ${INTERFACE_W32G_COMMON_SOURCES}
-    ${INTERFACE_SYN_SOURCES}
-    w32g_syn.c
-)
+        ${INTERFACE_COMMON_SOURCES}
+        ${INTERFACE_W32G_COMMON_SOURCES}
+        ${INTERFACE_SYN_SOURCES}
+        w32g_syn.c
+    )
 
-add_dependencies(interface_w32gsyn UpdateTim41Version twsyn_bridge)
-target_compile_definitions(interface_w32gsyn PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
+    add_dependencies(interface_w32gsyn UpdateTim41Version twsyn_bridge)
+    target_compile_definitions(interface_w32gsyn PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
+endif()
 
 # for timw32g_u8
 

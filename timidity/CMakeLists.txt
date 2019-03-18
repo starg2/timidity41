@@ -219,41 +219,43 @@ add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS} pdcurses)
 
-# timw32g
+if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
+    # timw32g
 
-add_executable(
-    timw32g WIN32
+    add_executable(
+        timw32g WIN32
 
-    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-    $<TARGET_OBJECTS:interface_w32g>
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:timidity_common>
-    $<TARGET_OBJECTS:utils>
-)
+        ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
+        $<TARGET_OBJECTS:interface_w32g>
+        $<TARGET_OBJECTS:libarc>
+        $<TARGET_OBJECTS:libunimod>
+        $<TARGET_OBJECTS:timidity_common>
+        $<TARGET_OBJECTS:utils>
+    )
 
-add_dependencies(timw32g UpdateTim41Version)
-target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
-target_link_libraries(timw32g ${TIMIDITY_COMMON_LIBS})
-DisableMSManifest(timw32g)
+    add_dependencies(timw32g UpdateTim41Version)
+    target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
+    target_link_libraries(timw32g ${TIMIDITY_COMMON_LIBS})
+    DisableMSManifest(timw32g)
 
-# twsyng
+    # twsyng
 
-add_executable(
-    twsyng WIN32
+    add_executable(
+        twsyng WIN32
 
-    ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-    $<TARGET_OBJECTS:interface_w32gsyn>
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:timidity_common>
-    $<TARGET_OBJECTS:utils>
-)
+        ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
+        $<TARGET_OBJECTS:interface_w32gsyn>
+        $<TARGET_OBJECTS:libarc>
+        $<TARGET_OBJECTS:libunimod>
+        $<TARGET_OBJECTS:timidity_common>
+        $<TARGET_OBJECTS:utils>
+    )
 
-add_dependencies(twsyng UpdateTim41Version)
-target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
-target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS} pdcurses)
-DisableMSManifest(twsyng)
+    add_dependencies(twsyng UpdateTim41Version)
+    target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
+    target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS} pdcurses)
+    DisableMSManifest(twsyng)
+endif()
 
 # timw32g_u8
 

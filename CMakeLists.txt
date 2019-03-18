@@ -165,7 +165,7 @@ if(MSVC)
     add_compile_options(/W4 /Zi /GS /fp:fast)
 
     if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
-        add_compile_options(/Qspectre)
+        add_compile_options(/Qspectre /source-charset:UTF-8)
     endif()
 
     add_compile_options(/we4013)    # '%s' undefined; assuming extern returning int
@@ -183,6 +183,7 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /std:c++17")
 
     if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+        string(REPLACE "/JMC" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto=thin")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto=thin")
     else()

@@ -111,10 +111,10 @@ extern void ClearEditCtlWnd(HWND hwnd);
 #define C_TEXT_BACK_INSERTION RGB(0xDF, 0x90, 0x20)
 
 #define CVV_TYPE_NONE 0
-#define CVV_TYPE_LEFT 1     // ¶‚©‚ç‰E
-#define CVV_TYPE_RIGHT 2    // ‰E‚©‚ç¶
-#define CVV_TYPE_TOP 3      // ã‚©‚ç‰º
-#define CVV_TYPE_BOTTOM 4       // ‰º‚©‚çã
+#define CVV_TYPE_LEFT 1     // å·¦ã‹ã‚‰å³
+#define CVV_TYPE_RIGHT 2    // å³ã‹ã‚‰å·¦
+#define CVV_TYPE_TOP 3      // ä¸Šã‹ã‚‰ä¸‹
+#define CVV_TYPE_BOTTOM 4       // ä¸‹ã‹ã‚‰ä¸Š
 
 #define VEL_MAX 128 * 4
 
@@ -387,8 +387,8 @@ void InitTracerWnd(HWND hParentWnd)
 	{
 		TCHAR fontname[LF_FULLFACESIZE + 1];
 		if (PlayerLanguage == LANGUAGE_JAPANESE) {
-			_tcsncpy(fontname, _T("‚l‚r ‚o–¾’©"), LF_FULLFACESIZE + 1);
-//			strncpy(fontname, "‚l‚r ‚oƒSƒVƒbƒN", LF_FULLFACESIZE + 1);
+			_tcsncpy(fontname, _T("ï¼­ï¼³ ï¼°æ˜æœ"), LF_FULLFACESIZE + 1);
+//			strncpy(fontname, "ï¼­ï¼³ ï¼°ã‚´ã‚·ãƒƒã‚¯", LF_FULLFACESIZE + 1);
 //			w32g_tracer_wnd.font_common_height = -13;
 //			w32g_tracer_wnd.font_common_width = 0;
 		} else {
@@ -514,8 +514,8 @@ static int init_tracer_bmp(HDC hdc)
         DeleteObject((HGDIOBJ) tracer_bmp.hbmp);
     tracer_bmp.hbmp = CreateCompatibleBitmap(hdc, TRACER_CANVAS_SIZE_X, TRACER_CANVAS_SIZE_Y);
     tracer_bmp.hmdc = CreateCompatibleDC(hdc);
-    SelectObject(tracer_bmp.hmdc, w32g_tracer_wnd.hNullBrush); /* •K—v‚È‚¢‚©‚à‚µ‚ê‚È‚¢‚ª */
-    SelectObject(tracer_bmp.hmdc, w32g_tracer_wnd.hNullPen); /* •K—v‚È‚¢‚©‚à‚µ‚ê‚È‚¢‚ª */
+    SelectObject(tracer_bmp.hmdc, w32g_tracer_wnd.hNullBrush); /* å¿…è¦ãªã„ã‹ã‚‚ã—ã‚Œãªã„ãŒ */
+    SelectObject(tracer_bmp.hmdc, w32g_tracer_wnd.hNullPen); /* å¿…è¦ãªã„ã‹ã‚‚ã—ã‚Œãªã„ãŒ */
     SelectObject(tracer_bmp.hmdc, tracer_bmp.hbmp);
 
     hbmp = LoadBitmap(hInst, MAKEINTRESOURCE(IDB_BITMAP_TRACER));
@@ -645,7 +645,7 @@ void TracerWndReset2(void)
 }
 
 
-// ‰æ–ÊÁ‹
+// ç”»é¢æ¶ˆå»
 void TracerWndClear(int lockflag)
 {
     HPEN hPen;
@@ -1550,12 +1550,12 @@ static int effect_view_border_draw(RECT *lprc, int lockflag)
     if (lockflag) TRACER_LOCK();
     hOldPen = (HPEN) SelectObject(hdc, GetStockObject(NULL_PEN));
 
-    // ‰Eü
+    // å³ç·š
     SelectObject(hdc, hPen3);
     MoveToEx(hdc, lprc->right, lprc->top - 1, NULL);
     LineTo(hdc, lprc->right, lprc->bottom + 1);
 
-    // ‰ºü
+    // ä¸‹ç·š
     SelectObject(hdc, hPen1);
     MoveToEx(hdc, lprc->left - 1, lprc->bottom, NULL);
     LineTo(hdc, lprc->right + 1, lprc->bottom);
@@ -1591,12 +1591,12 @@ static int tracer_velocity_draw_ex(RECT *lprc, int vol, int vol_old, int max, in
     RANGE(vol_old, 0, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // •K—v‚È‚¾‚¯ƒxƒƒVƒeƒBƒo[‚Ì”wŒi‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘ãƒ™ãƒ­ã‚·ãƒ†ã‚£ãƒãƒ¼ã®èƒŒæ™¯ã‚’æç”»
 //  BitBlt(hdc, lprc->left +  vol, lprc->top, lprc->right - lprc->left -  vol, lprc->bottom - lprc->top,
     BitBlt(hdc, lprc->left +  vol, lprc->top, vol_old - vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_velocity[0].left + vol, tracer_bmp.rc_velocity[0].top, SRCCOPY);
 
-    // •K—v‚È‚¾‚¯ƒxƒƒVƒeƒBƒo[‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘ãƒ™ãƒ­ã‚·ãƒ†ã‚£ãƒãƒ¼ã‚’æç”»
     BitBlt(hdc, lprc->left, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_velocity[0].left, tracer_bmp.rc_velocity[0].top + 1 + ITEM_HEIGHT, SRCCOPY);
 
@@ -1620,10 +1620,10 @@ static int tracer_volume_draw(RECT *lprc, int vol, int max, int lockflag)
     RANGE(vol, 0, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // •K—v‚È‚¾‚¯”wŒi‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left +  vol, lprc->top, lprc->right - lprc->left -  vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_volume.left, tracer_bmp.rc_volume.top, SRCCOPY);
-    // •K—v‚È‚¾‚¯•`‰æ
+    // å¿…è¦ãªã ã‘æç”»
     BitBlt(hdc, lprc->left, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_volume.left, tracer_bmp.rc_volume.top + 9 + 1, SRCCOPY);
     if (lockflag) TRACER_UNLOCK();
@@ -1645,10 +1645,10 @@ static int tracer_expression_draw(RECT *lprc, int vol, int max, int lockflag)
     RANGE(vol, 0, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // •K—v‚È‚¾‚¯”wŒi‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left +  vol, lprc->top, lprc->right - lprc->left -  vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_expression.left, tracer_bmp.rc_expression.top, SRCCOPY);
-    // •K—v‚È‚¾‚¯•`‰æ
+    // å¿…è¦ãªã ã‘æç”»
     BitBlt(hdc, lprc->left, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_expression.left, tracer_bmp.rc_expression.top + 9 + 1, SRCCOPY);
     if (lockflag) TRACER_UNLOCK();
@@ -1670,14 +1670,14 @@ static int tracer_pan_draw(RECT *lprc, int vol, int max, int lockflag)
     RANGE(vol, -view_max, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // ”wŒi‚ğ•`‰æ
+    // èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left, lprc->top, lprc->right - lprc->left, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_pan.left, tracer_bmp.rc_pan.top, SRCCOPY);
-    // ¦ˆÈ‰º‚Ì2‚Â‚Ì“]‘—ˆ—‚Å‚Í–³‘Ê‚È•”•ª‚à“]‘—‚µ‚Ä‚¢‚é‚Ì‚ÅA‚¤‚Ü‚­‚â‚ê‚ÎÈ‚¯‚éB
-    // ƒ}ƒXƒN‚ğ•`‰æ
+    // â€»ä»¥ä¸‹ã®2ã¤ã®è»¢é€å‡¦ç†ã§ã¯ç„¡é§„ãªéƒ¨åˆ†ã‚‚è»¢é€ã—ã¦ã„ã‚‹ã®ã§ã€ã†ã¾ãã‚„ã‚Œã°çœã‘ã‚‹ã€‚
+    // ãƒã‚¹ã‚¯ã‚’æç”»
     BitBlt(hdc, lprc->left + vol, lprc->top, lprc->right - lprc->left, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_pan.left, tracer_bmp.rc_pan.top + (9 + 1) * 2, SRCPAINT);
-    // ‚Â‚Ü‚İ‚ğ•`‰æ
+    // ã¤ã¾ã¿ã‚’æç”»
     BitBlt(hdc, lprc->left + vol, lprc->top, lprc->right - lprc->left, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_pan.left, tracer_bmp.rc_pan.top + 9 + 1, SRCAND);
     if (lockflag) TRACER_UNLOCK();
@@ -1699,10 +1699,10 @@ static int tracer_sustain_draw(RECT *lprc, int vol, int lockflag)
     RANGE(vol, 0, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // •K—v‚È‚¾‚¯”wŒi‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left +  vol, lprc->top, lprc->right - lprc->left -  vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_sustain.left, tracer_bmp.rc_sustain.top, SRCCOPY);
-    // •K—v‚È‚¾‚¯•`‰æ
+    // å¿…è¦ãªã ã‘æç”»
     BitBlt(hdc, lprc->left, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_sustain.left, tracer_bmp.rc_sustain.top + 9 + 1, SRCCOPY);
     if (lockflag) TRACER_UNLOCK();
@@ -1738,10 +1738,10 @@ static int tracer_pitch_bend_draw(RECT *lprc, int vol, int max, int lockflag)
     RANGE(vol, -view_max, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // ”wŒi‚ğ•`‰æ
+    // èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left, lprc->top, lprc->right - lprc->left, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_pitch_bend.left, tracer_bmp.rc_pitch_bend.top, SRCCOPY);
-    if (vol > 0) {  // •K—v‚È‚¾‚¯•`‰æ
+    if (vol > 0) {  // å¿…è¦ãªã ã‘æç”»
     BitBlt(hdc, lprc->left + view_max, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_pitch_bend.left + view_max, tracer_bmp.rc_pitch_bend.top + 9 + 1, SRCCOPY);
     } else if (vol < 0) {
@@ -1767,10 +1767,10 @@ static int tracer_mod_wheel_draw(RECT *lprc, int vol, int max, int lockflag)
     RANGE(vol, 0, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // •K—v‚È‚¾‚¯”wŒi‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left +  vol, lprc->top, lprc->right - lprc->left -  vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_mod_wheel.left, tracer_bmp.rc_mod_wheel.top, SRCCOPY);
-    // •K—v‚È‚¾‚¯•`‰æ
+    // å¿…è¦ãªã ã‘æç”»
     BitBlt(hdc, lprc->left, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_mod_wheel.left, tracer_bmp.rc_mod_wheel.top + 9 + 1, SRCCOPY);
     if (lockflag) TRACER_UNLOCK();
@@ -1792,10 +1792,10 @@ static int tracer_chorus_effect_draw(RECT *lprc, int vol, int max, int lockflag)
     RANGE(vol, 0, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // •K—v‚È‚¾‚¯”wŒi‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left +  vol, lprc->top, lprc->right - lprc->left -  vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_chorus_effect.left, tracer_bmp.rc_chorus_effect.top, SRCCOPY);
-    // •K—v‚È‚¾‚¯•`‰æ
+    // å¿…è¦ãªã ã‘æç”»
     BitBlt(hdc, lprc->left, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_chorus_effect.left, tracer_bmp.rc_chorus_effect.top + 9 + 1, SRCCOPY);
     if (lockflag) TRACER_UNLOCK();
@@ -1817,10 +1817,10 @@ static int tracer_reverb_effect_draw(RECT *lprc, int vol, int max, int lockflag)
     RANGE(vol, 0, view_max);
 
     if (lockflag) TRACER_LOCK();
-    // •K—v‚È‚¾‚¯”wŒi‚ğ•`‰æ
+    // å¿…è¦ãªã ã‘èƒŒæ™¯ã‚’æç”»
     BitBlt(hdc, lprc->left +  vol, lprc->top, lprc->right - lprc->left -  vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_reverb_effect.left, tracer_bmp.rc_reverb_effect.top, SRCCOPY);
-    // •K—v‚È‚¾‚¯•`‰æ
+    // å¿…è¦ãªã ã‘æç”»
     BitBlt(hdc, lprc->left, lprc->top, vol, lprc->bottom - lprc->top,
         tracer_bmp.hmdc, tracer_bmp.rc_reverb_effect.left, tracer_bmp.rc_reverb_effect.top + 9 + 1, SRCCOPY);
     if (lockflag) TRACER_UNLOCK();
@@ -2170,22 +2170,22 @@ static int string_view_border_draw(RECT *lprc, COLORREF back, int lockflag)
     if (lockflag) TRACER_LOCK();
     hOldPen = (HPEN) SelectObject(hdc, GetStockObject(NULL_PEN));
 
-    // ãü
+    // ä¸Šç·š
     SelectObject(hdc, hPen1);
     MoveToEx(hdc, lprc->left, lprc->top, NULL);
     LineTo(hdc, lprc->right, lprc->top);
 
-    // ¶ü
+    // å·¦ç·š
     SelectObject(hdc, hPen3);
     MoveToEx(hdc, lprc->left, lprc->top, NULL);
     LineTo(hdc, lprc->left, lprc->bottom);
 
-    // ‰ºü
+    // ä¸‹ç·š
     SelectObject(hdc, hPen2);
     MoveToEx(hdc, lprc->left, lprc->bottom - 1, NULL);
     LineTo(hdc, lprc->right, lprc->bottom - 1);
 
-    // ‰Eü
+    // å³ç·š
     SelectObject(hdc, hPen4);
     MoveToEx(hdc, lprc->right - 1, lprc->top, NULL);
     LineTo(hdc, lprc->right - 1, lprc->bottom);
@@ -2306,7 +2306,7 @@ void TracerWndPaintAll(int lockflag)
     if (!w32g_tracer_wnd.active)
         return;
     if (lockflag) TRACER_LOCK();
-    // ƒ^ƒCƒgƒ‹
+    // ã‚¿ã‚¤ãƒˆãƒ«
     strcpy(buff, "ch");
     get_head_rc(&rc, &w32g_tracer_wnd.rc_channel_top);
     cheap_string_view_draw(&rc, buff, C_TEXT_FORE, C_TEXT_BACK, CSV_CENTER, FALSE);
@@ -2371,7 +2371,7 @@ void TracerWndPaintAll(int lockflag)
     get_head_rc(&rc, &w32g_tracer_wnd.rc_head_rest);
     cheap_string_view_draw(&rc, buff, C_TEXT_FORE, C_TEXT_BACK, CSV_LEFT, FALSE);
 
-    // Šeƒ`ƒƒƒ“ƒlƒ‹
+    // å„ãƒãƒ£ãƒ³ãƒãƒ«
     //for (i = 0; i < TRACER_CHANNELS; i++) {
     for (i = TracerWndViewCh - min(TracerWndViewCh, 2); i < min(TracerWndViewCh + TracerWndInfo.mode + 1, TRACER_CHANNELS); i++) {
 #if 0
@@ -2436,7 +2436,7 @@ void TracerWndPaintAll(int lockflag)
     InvalidateRect(w32g_tracer_wnd.hwnd, NULL, FALSE);
 }
 
-// GUI ƒXƒŒƒbƒh‚©‚ç‚Ì‚İŒÄ‚×‚é
+// GUI ã‚¹ãƒ¬ãƒƒãƒ‰ã‹ã‚‰ã®ã¿å‘¼ã¹ã‚‹
 void TracerWndPaintDo(int flag)
 {
     RECT rc;
@@ -2727,24 +2727,24 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			case 0x68:	// h
 				if (PlayerLanguage == LANGUAGE_JAPANESE) {
 				MessageBox(hTracerWnd,
-					_T("ƒL[ƒRƒ}ƒ“ƒh" NLS
-					"ƒgƒŒ[ƒTƒEƒCƒ“ƒhƒEƒRƒ}ƒ“ƒh" NLS
-					"  ESC: ƒwƒ‹ƒv‚ğ•Â‚¶‚é      H: ƒwƒ‹ƒv‚ğo‚·" NLS
-					"  +: ƒL[ƒAƒbƒv    -: ƒL[ƒ_ƒEƒ“" NLS
-					"  >: ƒXƒs[ƒhƒAƒbƒv    <: ƒXƒs[ƒhƒ_ƒEƒ“" NLS
-					"  UP: -1ch ƒXƒNƒ[ƒ‹    DOWN: +1ch ƒXƒNƒ[ƒ‹" NLS
-					"  PgUp: ƒy[ƒWƒAƒbƒvƒXƒNƒ[ƒ‹    PgDn: ƒy[ƒWƒ_ƒEƒ“ƒXƒNƒ[ƒ‹" NLS
-					"  HOME: ƒy[ƒWƒAƒbƒvƒXƒNƒ[ƒ‹    END: ƒy[ƒWƒ_ƒEƒ“ƒXƒNƒ[ƒ‹" NLS
-					"ƒvƒŒƒCƒ„[ƒRƒ}ƒ“ƒh" NLS
-					"  SPACE/ENTER: ‰‰‘tŠJn    E: ’â~    S: ˆê’â~" NLS
-					"  P: ‘O‚Ì‹È    N: Ÿ‚Ì‹È" NLS
-					"TiMidity ƒRƒ}ƒ“ƒh" NLS
-					"  Q: I—¹" NLS
-                    "ƒ}ƒEƒXƒRƒ}ƒ“ƒh" NLS
-                    "  ƒ`ƒƒƒ“ƒlƒ‹”Ô†: ƒ~ƒ…[ƒgOn/Off" NLS
-                    "  ƒ`ƒƒƒ“ƒlƒ‹ƒJƒ‰ƒ€ƒwƒbƒ_: ‘Sƒ`ƒƒƒ“ƒlƒ‹‚Ìƒ~ƒ…[ƒgOn/Off" NLS
-                    "  ƒgƒŒ[ƒT[: ƒ`ƒƒƒ“ƒlƒ‹•\¦Ø‚è‘Ö‚¦" NLS)
-					, _T("ƒwƒ‹ƒv"), MB_OK);
+					_T("ã‚­ãƒ¼ã‚³ãƒãƒ³ãƒ‰" NLS
+					"ãƒˆãƒ¬ãƒ¼ã‚µã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦ã‚³ãƒãƒ³ãƒ‰" NLS
+					"  ESC: ãƒ˜ãƒ«ãƒ—ã‚’é–‰ã˜ã‚‹      H: ãƒ˜ãƒ«ãƒ—ã‚’å‡ºã™" NLS
+					"  +: ã‚­ãƒ¼ã‚¢ãƒƒãƒ—    -: ã‚­ãƒ¼ãƒ€ã‚¦ãƒ³" NLS
+					"  >: ã‚¹ãƒ”ãƒ¼ãƒ‰ã‚¢ãƒƒãƒ—    <: ã‚¹ãƒ”ãƒ¼ãƒ‰ãƒ€ã‚¦ãƒ³" NLS
+					"  UP: -1ch ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«    DOWN: +1ch ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«" NLS
+					"  PgUp: ãƒšãƒ¼ã‚¸ã‚¢ãƒƒãƒ—ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«    PgDn: ãƒšãƒ¼ã‚¸ãƒ€ã‚¦ãƒ³ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«" NLS
+					"  HOME: ãƒšãƒ¼ã‚¸ã‚¢ãƒƒãƒ—ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«    END: ãƒšãƒ¼ã‚¸ãƒ€ã‚¦ãƒ³ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«" NLS
+					"ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚³ãƒãƒ³ãƒ‰" NLS
+					"  SPACE/ENTER: æ¼”å¥é–‹å§‹    E: åœæ­¢    S: ä¸€æ™‚åœæ­¢" NLS
+					"  P: å‰ã®æ›²    N: æ¬¡ã®æ›²" NLS
+					"TiMidity ã‚³ãƒãƒ³ãƒ‰" NLS
+					"  Q: çµ‚äº†" NLS
+                    "ãƒã‚¦ã‚¹ã‚³ãƒãƒ³ãƒ‰" NLS
+                    "  ãƒãƒ£ãƒ³ãƒãƒ«ç•ªå·: ãƒŸãƒ¥ãƒ¼ãƒˆOn/Off" NLS
+                    "  ãƒãƒ£ãƒ³ãƒãƒ«ã‚«ãƒ©ãƒ ãƒ˜ãƒƒãƒ€: å…¨ãƒãƒ£ãƒ³ãƒãƒ«ã®ãƒŸãƒ¥ãƒ¼ãƒˆOn/Off" NLS
+                    "  ãƒˆãƒ¬ãƒ¼ã‚µãƒ¼: ãƒãƒ£ãƒ³ãƒãƒ«è¡¨ç¤ºåˆ‡ã‚Šæ›¿ãˆ" NLS)
+					, _T("ãƒ˜ãƒ«ãƒ—"), MB_OK);
 				} else {
 				MessageBox(hTracerWnd,
 					_T("Usage of key." NLS

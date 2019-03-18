@@ -229,9 +229,9 @@ int TracerThreadPriority;
 int WrdThreadPriority;
 
 // dir
-int SeachDirRecursive = 0;      // Ä‹A“IƒfƒBƒŒƒNƒgƒŠŒŸõ
+int SeachDirRecursive = 0;      // å†å¸°çš„ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªæ¤œç´¢
 // Ini File
-int IniFileAutoSave = 1;        // INI ƒtƒ@ƒCƒ‹‚Ì©“®ƒZ[ƒu
+int IniFileAutoSave = 1;        // INI ãƒ•ã‚¡ã‚¤ãƒ«ã®è‡ªå‹•ã‚»ãƒ¼ãƒ–
 
 // misc
 int DocMaxSize;
@@ -292,7 +292,7 @@ LPTSTR lpCmdLine, int nCmdShow)
     int i;
     static int first = 0;
 
-    Sleep(100); // Restart‚Å‘OƒvƒƒZƒX‚ÌI—¹‘Ò‹@
+    Sleep(100); // Restartã§å‰ãƒ—ãƒ­ã‚»ã‚¹ã®çµ‚äº†å¾…æ©Ÿ
 #ifdef TIMIDITY_LEAK_CHECK
     _CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
@@ -397,7 +397,7 @@ void OnQuit(void)
 
 // ***************************************************************************
 // Start Window
-// ‘åŒ³‚ÌƒEƒBƒ“ƒhƒE‚Ì’nˆÊ‚ÍMain Window‚É÷‚èA¡‚Å‚Í‚½‚¾‚Ì‰Šú‰»ŠÖ”
+// å¤§å…ƒã®ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®åœ°ä½ã¯Main Windowã«è­²ã‚Šã€ä»Šã§ã¯ãŸã ã®åˆæœŸåŒ–é–¢æ•°
 
 void InitStartWnd(int nCmdShow)
 {
@@ -476,7 +476,7 @@ extern void reload_cfg(void);
 /*
 create top-level menu / system menu
 override w32g_res.rc IDM_MENU_MAIN IDM_MENU_MAIN_EN
-€–Ú‚Ì•ÏX‚ª‰Â”\‚É‚È‚Á‚½‚Ì‚ÅƒŠƒ\[ƒXƒƒjƒ…[‚ÍƒCƒ~‚È‚µ‚ÉEE
+é …ç›®ã®å¤‰æ›´ãŒå¯èƒ½ã«ãªã£ãŸã®ã§ãƒªã‚½ãƒ¼ã‚¹ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã¯ã‚¤ãƒŸãªã—ã«ãƒ»ãƒ»
 */
 // MENU MODULE
 #define IDM_MODULE 42000 // MainProc() sort ID
@@ -515,48 +515,48 @@ static void InitMainMenu(HWND hWnd)
     for (i = GetMenuItemCount(hMenuHelp); i >= 0; i--) RemoveMenu(hMenuHelp, i, MF_BYPOSITION);
     if (PlayerLanguage == LANGUAGE_JAPANESE) {
         // File
-        AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENFILE, TEXT("ƒtƒ@ƒCƒ‹‚ğŠJ‚­(&F)..."));
-        AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENDIR, TEXT("ƒtƒHƒ‹ƒ_‚ğŠJ‚­(&D)..."));
+        AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENFILE, TEXT("ãƒ•ã‚¡ã‚¤ãƒ«ã‚’é–‹ã(&F)..."));
+        AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENDIR, TEXT("ãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ã(&D)..."));
 #ifdef SUPPORT_SOCKET
-        AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENURL, TEXT("URL ‚ğŠJ‚­(&U)..."));
+        AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENURL, TEXT("URL ã‚’é–‹ã(&U)..."));
 #endif
 		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFLOADPLAYLIST, TEXT("ƒvƒŒƒCƒŠƒXƒg‚ğŠJ‚­(&P)"));
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFSAVEPLAYLISTAS, TEXT("ƒvƒŒƒCƒŠƒXƒg‚ğ•Û‘¶(&S)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFLOADPLAYLIST, TEXT("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã‚’é–‹ã(&P)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFSAVEPLAYLISTAS, TEXT("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã‚’ä¿å­˜(&S)"));
 		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFRESTART, TEXT("Ä‹N“®i&R)"));
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFEXIT, TEXT("I—¹(&X)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFRESTART, TEXT("å†èµ·å‹•ï¼ˆ&R)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFEXIT, TEXT("çµ‚äº†(&X)"));
 		// Config
-		AppendMenu(hMenuConfig, MF_STRING, IDM_SETTING, TEXT("Ú×İ’è(&P)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_SETTING, TEXT("è©³ç´°è¨­å®š(&P)"));
 		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuConfig, MF_STRING, IDM_MCLOADINIFILE, TEXT("İ’è“Ç(&L)"));
-		AppendMenu(hMenuConfig, MF_STRING, IDM_MCSAVEINIFILE, TEXT("İ’è•Û‘¶(&S)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCLOADINIFILE, TEXT("è¨­å®šèª­è¾¼(&L)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCSAVEINIFILE, TEXT("è¨­å®šä¿å­˜(&S)"));
 		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuConfig, MF_STRING, IDM_FORCE_RELOAD, TEXT("cfg‹­§Ä“Ç(&F)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_FORCE_RELOAD, TEXT("cfgå¼·åˆ¶å†èª­è¾¼(&F)"));
 		// Window
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWPLAYLIST, TEXT("ƒvƒŒƒCƒŠƒXƒg(&L)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("ƒgƒŒ[ƒT(&T)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("ƒhƒLƒ…ƒƒ“ƒg(&D)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWPLAYLIST, TEXT("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆ(&L)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("ãƒˆãƒ¬ãƒ¼ã‚µ(&T)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("ãƒ‰ã‚­ãƒ¥ãƒ¡ãƒ³ãƒˆ(&D)"));
         AppendMenu(hMenuWindow, MF_STRING, IDM_MWWRDTRACER, TEXT("WRD(&W)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("ƒRƒ“ƒ\[ƒ‹(&C)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("ã‚³ãƒ³ã‚½ãƒ¼ãƒ«(&C)"));
 #ifdef VST_LOADER_ENABLE
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("VSTƒ}ƒl[ƒWƒƒ(&V)..."));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("VSTãƒãƒãƒ¼ã‚¸ãƒ£(&V)..."));
 #endif /* VST_LOADER_ENABLE */
 #ifdef SUPPORT_SOUNDSPEC
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWSOUNDSPEC, TEXT("ƒXƒyƒNƒgƒƒOƒ‰ƒ€(&S)..."));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWSOUNDSPEC, TEXT("ã‚¹ãƒšã‚¯ãƒˆãƒ­ã‚°ãƒ©ãƒ (&S)..."));
 #endif
 #ifdef INT_SYNTH
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWISEDITOR, TEXT("“à‘ ƒVƒ“ƒZƒGƒfƒBƒ^(&E)..."));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWISEDITOR, TEXT("å†…è”µã‚·ãƒ³ã‚»ã‚¨ãƒ‡ã‚£ã‚¿(&E)..."));
 #endif
         // Help
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELP, TEXT("ƒIƒ“ƒ‰ƒCƒ“ƒwƒ‹ƒv(&O)..."));
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELPCFG, TEXT("ƒRƒ“ƒtƒBƒOƒtƒ@ƒCƒ‹Ú‰ğ(&C)..."));
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHBTS, TEXT("ƒoƒO•ñŠ(&B)..."));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELP, TEXT("ã‚ªãƒ³ãƒ©ã‚¤ãƒ³ãƒ˜ãƒ«ãƒ—(&O)..."));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELPCFG, TEXT("ã‚³ãƒ³ãƒ•ã‚£ã‚°ãƒ•ã‚¡ã‚¤ãƒ«è©³è§£(&C)..."));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHBTS, TEXT("ãƒã‚°å ±å‘Šæ‰€(&B)..."));
         AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHTIMIDITY, TEXT("TiMidity++‚É‚Â‚¢‚Ä(&T)..."));
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHVERSION, TEXT("ƒo[ƒWƒ‡ƒ“î•ñ(&V)..."));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHTIMIDITY, TEXT("TiMidity++ã«ã¤ã„ã¦(&T)..."));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHVERSION, TEXT("ãƒãƒ¼ã‚¸ãƒ§ãƒ³æƒ…å ±(&V)..."));
         AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("•â‘«(&S)..."));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("è£œè¶³(&S)..."));
     } else {
         // File
         AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENFILE, TEXT("Open &File..."));
@@ -612,7 +612,7 @@ static void InitMainMenu(HWND hWnd)
     }
     // Output
     if (PlayerLanguage == LANGUAGE_JAPANESE) {
-        AppendMenu(hMenuOutput, MF_STRING, IDM_OUTPUT_OPTIONS, TEXT("ƒIƒvƒVƒ‡ƒ“(&O)..."));
+        AppendMenu(hMenuOutput, MF_STRING, IDM_OUTPUT_OPTIONS, TEXT("ã‚ªãƒ—ã‚·ãƒ§ãƒ³(&O)..."));
     } else {
         AppendMenu(hMenuOutput, MF_STRING, IDM_OUTPUT_OPTIONS, TEXT("&Options..."));
     }
@@ -907,7 +907,7 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         GetWindowRect(hwnd,&rc);
         GetWindowPlacement(hwnd, &wp);
         if (wp.showCmd == SW_SHOWNORMAL) {
-            // Å¬‰»ó‘Ô‚È‚Ç‚ÅI—¹‚·‚é‚Æ³í‚ÉƒTƒCƒYæ“¾‚Å‚«‚È‚¢ (ƒƒjƒ…[‚ªŠÜ‚Ü‚ê‚È‚¢ƒTƒCƒY‚É‚È‚é
+            // æœ€å°åŒ–çŠ¶æ…‹ãªã©ã§çµ‚äº†ã™ã‚‹ã¨æ­£å¸¸ã«ã‚µã‚¤ã‚ºå–å¾—ã§ããªã„ (ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãŒå«ã¾ã‚Œãªã„ã‚µã‚¤ã‚ºã«ãªã‚‹
             MainWndInfo.Width = rc.right - rc.left;
             MainWndInfo.Height = rc.bottom - rc.top;
         }
@@ -919,11 +919,11 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         INISaveMainWnd();
 #ifdef VST_LOADER_ENABLE
         if (hVSTHost != NULL) {
-            // Ä¶’†I—¹‚Ìê‡ ‚Ü‚¾ƒVƒ“ƒZ‚Í“®‚¢‚Ä‚¢‚é
-            // vstClose‚ÍŠÔ‚©‚©‚é‚Ì‚Åæ‚ÉNULL‚µ‚Ä‚¨‚­
+            // å†ç”Ÿä¸­çµ‚äº†ã®å ´åˆ ã¾ã ã‚·ãƒ³ã‚»ã¯å‹•ã„ã¦ã„ã‚‹
+            // vstCloseã¯æ™‚é–“ã‹ã‹ã‚‹ã®ã§å…ˆã«NULLã—ã¦ãŠã
             HMODULE htemp = hVSTHost;
-            hVSTHost = NULL; // VSTg—p‚ğƒuƒƒbƒN
-            Sleep(100); // 100ms‚à‚ ‚ê‚ÎƒuƒƒbƒN‘O‚ÉŠJn‚µ‚½VST‚Ìˆ—‚ÍI‚Á‚Ä‚é‚Í‚¸
+            hVSTHost = NULL; // VSTä½¿ç”¨ã‚’ãƒ–ãƒ­ãƒƒã‚¯
+            Sleep(100); // 100msã‚‚ã‚ã‚Œã°ãƒ–ãƒ­ãƒƒã‚¯å‰ã«é–‹å§‹ã—ãŸVSTã®å‡¦ç†ã¯çµ‚ã£ã¦ã‚‹ã¯ãš
             ((vst_close) GetProcAddress(htemp,"vstClose"))();
             FreeLibrary(htemp);
         }
@@ -1439,7 +1439,7 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
       else if (hVSTHost) {
           const TCHAR *vst_nosupport,
                vst_nosupport_en[] = TEXT("openVSTManager could not be found in ") TEXT(VST_LIBRARY_NAME),
-               vst_nosupport_jp[] = TEXT("openVSTManager ‚ª ") TEXT(VST_LIBRARY_NAME) TEXT(" ‚©‚çŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B");
+               vst_nosupport_jp[] = TEXT("openVSTManager ãŒ ") TEXT(VST_LIBRARY_NAME) TEXT(" ã‹ã‚‰è¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚");
           if (PlayerLanguage == LANGUAGE_JAPANESE)
               vst_nosupport = vst_nosupport_jp;
           else
@@ -1449,7 +1449,7 @@ void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)
       else {
           const TCHAR *vst_nosupport,
                vst_nosupport_en[] = TEXT("Cannot load ") TEXT(VST_LIBRARY_NAME),
-               vst_nosupport_jp[] = TEXT(VST_LIBRARY_NAME) TEXT(" ‚ğƒ[ƒh‚µ‚Ä‚¢‚Ü‚¹‚ñB");
+               vst_nosupport_jp[] = TEXT(VST_LIBRARY_NAME) TEXT(" ã‚’ãƒ­ãƒ¼ãƒ‰ã—ã¦ã„ã¾ã›ã‚“ã€‚");
           if (PlayerLanguage == LANGUAGE_JAPANESE)
               vst_nosupport = vst_nosupport_jp;
           else
@@ -1747,7 +1747,7 @@ void ShowSubWindow(HWND hwnd, int showflag)
                 }
             }
 #ifdef SUBWINDOW_POS_IS_OLD_CLOSED_WINDOW
-        // ƒTƒuƒEƒCƒ“ƒhƒE‚ğÅ‘å”‚ğ‰z‚¦‚Ä•Â‚¶‚ç‚ê‚éŒÃ‚¢ƒEƒCƒ“ƒhƒE‚É‡‚í‚¹‚éd—l‚Í~‚ß‚é‚±‚Æ‚É‚µ‚½B
+        // ã‚µãƒ–ã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦ã‚’æœ€å¤§æ•°ã‚’è¶Šãˆã¦é–‰ã˜ã‚‰ã‚Œã‚‹å¤ã„ã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦ã«åˆã‚ã›ã‚‹ä»•æ§˜ã¯æ­¢ã‚ã‚‹ã“ã¨ã«ã—ãŸã€‚
         if (max>0) {
             GetWindowRect(hwnd, &rc2);
             MoveWindow(hwnd,rc.left,rc.top,rc2.right-rc2.left,rc2.bottom-rc2.top,TRUE);
@@ -2149,7 +2149,7 @@ CanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #define CCR_LOW    RGB(0x80, 0xd0, 0x00)
 #define CCR_MIDDLE RGB(0xb0, 0xb0, 0x00)
 #define CCR_HIGH   RGB(0xe0, 0x00, 0x00)
-// F‚ğ m : n ‚Å¬‚º‚é
+// è‰²ã‚’ m : n ã§æ··ãœã‚‹
 static COLORREF HalfColorMN(COLORREF fc, COLORREF bc, int m, int n)
 {
     return fc*m/(m+n) + bc*n/(m+n);
@@ -2379,7 +2379,7 @@ static void CanvasMapReadPanelInfo(int flag)
         }
         if (v < 0) v = 0; else if (v > Canvas.MapBarMax - 1) v = Canvas.MapBarMax - 1;
         if (v != Canvas.MapBar[ch]) {
-            // ’x‰„
+            // é…å»¶
             if (Canvas.MapDelay) {
                 int old = Canvas.MapBar[ch];
                 if (Canvas.MapBar[ch] < 0)
@@ -2473,7 +2473,7 @@ static void CanvasMapDrawMapBar(int flag)
             if (i <= Canvas.MapBar[ch]) {
                 Canvas.MapMap[ch][y] = color1;
                 Canvas.MapResidual = 1;
-#if 1       // c‘œ
+#if 1       // æ®‹åƒ
             } else if (i <= Canvas.MapBarOld[ch]) {
                 Canvas.MapMap[ch][y] = color2;
                 Canvas.MapResidual = 1;
@@ -3313,7 +3313,7 @@ int CanvasGetMode(void)
 
 //-----------------------------------------------------------------------------
 // Main Panel
-//  ƒƒCƒ“ƒpƒlƒ‹ƒEƒCƒ“ƒhƒEŠÖ˜A
+//  ãƒ¡ã‚¤ãƒ³ãƒ‘ãƒãƒ«ã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦é–¢é€£
 //
 //
 //
@@ -3421,19 +3421,19 @@ extern volatile int MPanelOK;
 
 #define MP_MESSAGEDATA_MAX		1024
 static struct MPanelMessageData_ {
-    int len;            // ƒƒbƒZ[ƒWƒ{ƒbƒNƒX‚Ì’·‚³B
-    char buff[MP_MESSAGEDATA_MAX];	// Àƒoƒbƒtƒ@B
+    int len;            // ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ãƒœãƒƒã‚¯ã‚¹ã®é•·ã•ã€‚
+    char buff[MP_MESSAGEDATA_MAX];	// å®Ÿãƒãƒƒãƒ•ã‚¡ã€‚
     DWORD prevtime;
-    int msec;           // Àc‚è•bB
-    int pointer;        // Œ»İ‚Ìƒ|ƒCƒ“ƒ^B
+    int msec;           // å®Ÿæ®‹ã‚Šç§’ã€‚
+    int pointer;        // ç¾åœ¨ã®ãƒã‚¤ãƒ³ã‚¿ã€‚
 
     char curbuff[MP_MESSAGEDATA_MAX];
     int curbuffsize;
-    int curmode;        // Œ»İƒƒbƒZ[ƒW‚Ìƒ‚[ƒhB
-    int curmsec;        // Œ»İƒƒbƒZ[ƒW‚Ìc‚è•bB
+    int curmode;        // ç¾åœ¨ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã®ãƒ¢ãƒ¼ãƒ‰ã€‚
+    int curmsec;        // ç¾åœ¨ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã®æ®‹ã‚Šç§’ã€‚
     char nextbuff[MP_MESSAGEDATA_MAX];
-    int nextmode;       // Œ»İƒƒbƒZ[ƒW‚Ìƒ‚[ƒhB
-    int nextmsec;       // Œ»İƒƒbƒZ[ƒW‚Ìc‚è•bB
+    int nextmode;       // ç¾åœ¨ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã®ãƒ¢ãƒ¼ãƒ‰ã€‚
+    int nextmsec;       // ç¾åœ¨ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã®æ®‹ã‚Šç§’ã€‚
 } MPanelMessageData;
 void MPanelMessageInit(void);
 void MPanelMessageAdd(const char *message, int msec, int mode);
@@ -3583,10 +3583,10 @@ static void MPanelInit(HWND hwnd)
      	break;
 	default:
 	case LANGUAGE_JAPANESE:
-		_tcscpy(MPanel.FontLang,_T("‚l‚r ‚o–¾’©"));
-		_tcscpy(MPanel.FontLangFixed,_T("‚l‚r –¾’©"));
-//		strcpy(MPanel.FontLang,"‚l‚r ‚oƒSƒVƒbƒN");
-//		strcpy(MPanel.FontLangFixed,"‚l‚r ƒSƒVƒbƒN");
+		_tcscpy(MPanel.FontLang,_T("ï¼­ï¼³ ï¼°æ˜æœ"));
+		_tcscpy(MPanel.FontLangFixed,_T("ï¼­ï¼³ æ˜æœ"));
+//		strcpy(MPanel.FontLang,"ï¼­ï¼³ ï¼°ã‚´ã‚·ãƒƒã‚¯");
+//		strcpy(MPanel.FontLangFixed,"ï¼­ï¼³ ã‚´ã‚·ãƒƒã‚¯");
 		break;
 	}
 	rc = MPanel.rcTitle;
@@ -3746,7 +3746,7 @@ void MPanelResize(void)
             rc.top + 2 + 14 + 1 + 12 + 1 + 12 + 1 + 12 + 1 + 12);
 }
 
-// ƒpƒlƒ‹\‘¢‘Ì‚ğƒŠƒZƒbƒg‚·‚éB
+// ãƒ‘ãƒãƒ«æ§‹é€ ä½“ã‚’ãƒªã‚»ãƒƒãƒˆã™ã‚‹ã€‚
 void MPanelReset(void)
 {
     if (!MPanelOK)
@@ -3818,7 +3818,7 @@ void MPanelReset(void)
     MPanel.rp_flag[1] = '\0';
 }
 
-// ƒpƒlƒ‹\‘¢‘Ì‚ğŒ³‚ÉXV‚·‚éB
+// ãƒ‘ãƒãƒ«æ§‹é€ ä½“ã‚’å…ƒã«æ›´æ–°ã™ã‚‹ã€‚
 void MPanelUpdate(void)
 {
 	if(!MPanelOK)
@@ -3827,7 +3827,7 @@ void MPanelUpdate(void)
 	if(MPanel.UpdateFlag==MP_UPDATE_NONE)
 	   	return;
 	if(MPanel.UpdateFlag & MP_UPDATE_BACKGROUND){
-		// ƒrƒbƒgƒ}ƒbƒv‚ğ“\‚è•t‚¯‚é‚ª¡‚Í“h‚è‚Â‚Ô‚µB
+		// ãƒ“ãƒƒãƒˆãƒãƒƒãƒ—ã‚’è²¼ã‚Šä»˜ã‘ã‚‹ãŒä»Šã¯å¡—ã‚Šã¤ã¶ã—ã€‚
 		HPEN hPen;
       HBRUSH hBrush;
 //		COLORREF color = MPanel.FGColor;
@@ -4237,20 +4237,20 @@ static void MPanelPaintDo(void)
     }
 }
 
-// •`‰æ
+// æç”»
 void MPanelPaint(void)
 {
     UpdateWindow(hPanelWnd);
 }
 
-// Š®‘S•`‰æ
+// å®Œå…¨æç”»
 void MPanelPaintAll(void)
 {
     InvalidateRect(hPanelWnd, NULL, FALSE);
     MPanelPaint();
 }
 
-// ƒpƒlƒ‹\‘¢‘Ì‚ğŒ³‚ÉŠ®‘SXV‚ğ‚·‚éB
+// ãƒ‘ãƒãƒ«æ§‹é€ ä½“ã‚’å…ƒã«å®Œå…¨æ›´æ–°ã‚’ã™ã‚‹ã€‚
 void MPanelUpdateAll(void)
 {
     if (!MPanelOK)
@@ -4259,8 +4259,8 @@ void MPanelUpdateAll(void)
     MPanelUpdate();
 }
 
-// PanelInfo \‘¢‘Ì‚ğ“Ç‚İ‚ñ‚Åƒpƒlƒ‹\‘¢‘Ì‚Ö“K—p‚·‚éB
-// flag ‚Í‹­§XV‚·‚éB
+// PanelInfo æ§‹é€ ä½“ã‚’èª­ã¿è¾¼ã‚“ã§ãƒ‘ãƒãƒ«æ§‹é€ ä½“ã¸é©ç”¨ã™ã‚‹ã€‚
+// flag ã¯å¼·åˆ¶æ›´æ–°ã™ã‚‹ã€‚
 void MPanelReadPanelInfo(int flag)
 {
     if (!MPanelOK)
@@ -4395,10 +4395,10 @@ void MPanelMessageInit(void)
     MPanelMessageClearAll();
 }
 
-// sec •b‚Å message ‚ğ—¬‚·B
-// mode 0: sec •b‚¾‚¯ message ‚ğ•\¦BƒfƒtƒHƒ‹ƒgB
-// mode 1: sec •b‚ÌŠÔ‚É message ‚ğ‰E‚©‚ç¶‚É—¬‚·B
-// mode 2: sec •b‚ÌŠÔ‚É messege ‚ğ•\¦Bƒ|ƒCƒ“ƒ^‚ğ¶‚©‚ç‰E‚ÉˆÚ‚·Bƒ|ƒCƒ“ƒ^‚ğ‹«ŠE‚ÉF‚ğ•Ï‚¦‚éB
+// sec ç§’ã§ message ã‚’æµã™ã€‚
+// mode 0: sec ç§’ã ã‘ message ã‚’è¡¨ç¤ºã€‚ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã€‚
+// mode 1: sec ç§’ã®é–“ã« message ã‚’å³ã‹ã‚‰å·¦ã«æµã™ã€‚
+// mode 2: sec ç§’ã®é–“ã« messege ã‚’è¡¨ç¤ºã€‚ãƒã‚¤ãƒ³ã‚¿ã‚’å·¦ã‹ã‚‰å³ã«ç§»ã™ã€‚ãƒã‚¤ãƒ³ã‚¿ã‚’å¢ƒç•Œã«è‰²ã‚’å¤‰ãˆã‚‹ã€‚
 void MPanelMessageAdd(const char *message, int msec, int mode)
 {
     if ( MPanelMessageData.nextmode >= 0 ) {
@@ -5014,7 +5014,7 @@ void WINAPI MainThread(void *arglist)
 //  PrintfDebugWnd("H%lu M%lu WP%lu LP%lu T%lu x%d y%d\n",
 //                 msg.hwnd, msg.message, msg.wParam, msg.lParam, msg.time, msg.pt.x, msg.pt.y);
 #if 1
-        // ESC ‚Å‘‹‚ğ•Â‚¶‚éB
+        // ESC ã§çª“ã‚’é–‰ã˜ã‚‹ã€‚
         if ( msg.message == WM_KEYDOWN && (int) msg.wParam == VK_ESCAPE ) {
             if ( msg.hwnd == hConsoleWnd || IsChild ( hConsoleWnd, msg.hwnd ) ) {
                 ToggleSubWindow(hConsoleWnd);
@@ -5121,13 +5121,13 @@ static void DlgMidiFileOpen(HWND hwnd)
 		_T("playlist file\0*.pls;*.m3u;*.asx\0")
 		_T("all files\0*.*\0")
 		_T("\0\0");
-    const TCHAR *filter_jp = _T("Timidity ƒTƒ|[ƒgÏ‚İƒtƒ@ƒCƒ‹\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0")
+    const TCHAR *filter_jp = _T("Timidity ã‚µãƒãƒ¼ãƒˆæ¸ˆã¿ãƒ•ã‚¡ã‚¤ãƒ«\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0")
 		_T("SMF/RMID (*.mid;*.midi;*.smf;*.rmi)\0*.mid;*.midi;*.smf;*.rmi\0")
 		_T("RCP (*.rcp;*.r36;*.g18;*.g36)\0*.rcp;*.r36;*.g18;*.g36\0")
 		_T("MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0")
-		_T("ˆ³kÏ‚İƒA[ƒJƒCƒu (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0")
-		_T("ƒvƒŒƒCƒŠƒXƒgƒtƒ@ƒCƒ‹ (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
-		_T("‚·‚×‚Ä‚Ìƒtƒ@ƒCƒ‹ (*.*)\0*.*\0")
+		_T("åœ§ç¸®æ¸ˆã¿ã‚¢ãƒ¼ã‚«ã‚¤ãƒ– (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0")
+		_T("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ« (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
+		_T("ã™ã¹ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ« (*.*)\0*.*\0")
 		_T("\0\0");
 
     if (PlayerLanguage == LANGUAGE_JAPANESE)
@@ -5192,7 +5192,7 @@ static void DlgDirOpen(HWND hwnd)
 	bi.pidlRoot = NULL;
     bi.pszDisplayName = biBuffer;
 	if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
-		bi.lpszTitle = _T("MIDI ƒtƒ@ƒCƒ‹‚Ì‚ ‚éƒfƒBƒŒƒNƒgƒŠ‚ğŒä‘I‘ğ‚È‚³‚ê‚Ü‚·‚æ‚¤B");
+		bi.lpszTitle = _T("MIDI ãƒ•ã‚¡ã‚¤ãƒ«ã®ã‚ã‚‹ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‚’å¾¡é¸æŠãªã•ã‚Œã¾ã™ã‚ˆã†ã€‚");
 	else
 		bi.lpszTitle = _T("Select a directory with MIDI files.");
 	bi.ulFlags = 0;
@@ -5262,12 +5262,12 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             break;
         case LANGUAGE_JAPANESE:
         default:
-            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)_T("URL ‚ğŠJ‚­"));
-            SendMessage(GetDlgItem(hwnd, IDC_STATIC_HEAD), WM_SETTEXT, 0, (LPARAM)_T("ƒCƒ“ƒ^[ƒlƒbƒg‚É‚ ‚éƒtƒ@ƒCƒ‹‚ÌƒAƒhƒŒƒX‚ğ“ü‚ê‚Ä‚­‚¾‚³‚¢B"));
-            SendMessage(GetDlgItem(hwnd, IDC_STATIC_TAIL), WM_SETTEXT, 0, (LPARAM)_T("(—á: http, ftp, news ƒvƒƒgƒRƒ‹)"));
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_1), WM_SETTEXT, 0, (LPARAM)_T("‰‰‘t"));
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_2), WM_SETTEXT, 0, (LPARAM)_T("ƒŠƒXƒg’Ç‰Á"));
-            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_3), WM_SETTEXT, 0, (LPARAM)_T("•Â‚¶‚é"));
+            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)_T("URL ã‚’é–‹ã"));
+            SendMessage(GetDlgItem(hwnd, IDC_STATIC_HEAD), WM_SETTEXT, 0, (LPARAM)_T("ã‚¤ãƒ³ã‚¿ãƒ¼ãƒãƒƒãƒˆã«ã‚ã‚‹ãƒ•ã‚¡ã‚¤ãƒ«ã®ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’å…¥ã‚Œã¦ãã ã•ã„ã€‚"));
+            SendMessage(GetDlgItem(hwnd, IDC_STATIC_TAIL), WM_SETTEXT, 0, (LPARAM)_T("(ä¾‹: http, ftp, news ãƒ—ãƒ­ãƒˆã‚³ãƒ«)"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_1), WM_SETTEXT, 0, (LPARAM)_T("æ¼”å¥"));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_2), WM_SETTEXT, 0, (LPARAM)_T("ãƒªã‚¹ãƒˆè¿½åŠ "));
+            SendMessage(GetDlgItem(hwnd, IDC_BUTTON_3), WM_SETTEXT, 0, (LPARAM)_T("é–‰ã˜ã‚‹"));
             break;
         }
         SendDlgItemMessage(hwnd, IDC_BUTTON_1, BM_SETSTYLE, BS_DEFPUSHBUTTON, (LONG)TRUE);
@@ -5296,7 +5296,7 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             argv[0] = tchar_to_char(UrlOpenString);
             argv[1] = NULL;
             UrlArgcArgv.argv = argv;
-            // argv, argv[0] ‚Í•Ê‚Ì‚Æ‚±‚ë‚Å‰ğ•ú‚µ‚Ä‚­‚ê‚é
+            // argv, argv[0] ã¯åˆ¥ã®ã¨ã“ã‚ã§è§£æ”¾ã—ã¦ãã‚Œã‚‹
 #ifdef EXT_CONTROL_MAIN_THREAD
             w32g_ext_control_main_thread(RC_EXT_LOAD_FILES_AND_PLAY, (ptr_size_t) &UrlArgcArgv);
 #else
@@ -5357,8 +5357,8 @@ static void DlgPlaylistOpen(HWND hwnd)
            _T("all files\0*.*\0")
            _T("\0\0"),
         filter_jp[] =
-            _T("ƒvƒŒƒCƒŠƒXƒgƒtƒ@ƒCƒ‹ (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
-            _T("‚·‚×‚Ä‚Ìƒtƒ@ƒCƒ‹ (*.*)\0*.*\0")
+            _T("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ« (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
+            _T("ã™ã¹ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ« (*.*)\0*.*\0")
             _T("\0\0");
 
     if (PlayerLanguage == LANGUAGE_JAPANESE)
@@ -5428,8 +5428,8 @@ static void DlgPlaylistSave(HWND hwnd)
            _T("all files\0*.*\0")
            _T("\0\0"),
         filter_jp[] =
-            _T("ƒvƒŒƒCƒŠƒXƒgƒtƒ@ƒCƒ‹ (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
-            _T("‚·‚×‚Ä‚Ìƒtƒ@ƒCƒ‹ (*.*)\0*.*\0")
+            _T("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ« (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0")
+            _T("ã™ã¹ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ« (*.*)\0*.*\0")
             _T("\0\0");
 	TCHAR tfilename[DialogMaxFileName] = _T("");
 
@@ -5814,7 +5814,7 @@ void w32g_show_console(void)
 }
 
 //
-// GDI ƒAƒNƒZƒX‚ğ’PˆêƒXƒŒƒbƒh‚ÉŒÀ’è‚·‚é‚½‚ß‚ÌƒƒbƒN‹@\
+// GDI ã‚¢ã‚¯ã‚»ã‚¹ã‚’å˜ä¸€ã‚¹ãƒ¬ãƒƒãƒ‰ã«é™å®šã™ã‚‹ãŸã‚ã®ãƒ­ãƒƒã‚¯æ©Ÿæ§‹
 
 static HANDLE volatile hMutexGDI = NULL;
 // static int volatile lock_num = 0;

@@ -1004,7 +1004,7 @@ private:
             CLIP_DEFAULT_PRECIS,
             DEFAULT_QUALITY,
             FIXED_PITCH | FF_DONTCARE,
-            _T("‚l‚r ƒSƒVƒbƒN")
+            _T("ï¼­ï¼³ ã‚´ã‚·ãƒƒã‚¯")
         );
 #else
         m_hFont = ::CreateFont(

@@ -591,7 +591,7 @@ ApplySettingPlayer(SETTING_PLAYER *sp)
 ///r
 	main_panel_update_time = sp->main_panel_update_time;
 
-	if(!first){ // ‰‰ñ‚Ì‚İ
+	if(!first){ // åˆå›ã®ã¿
 		first++;
 		playlist_max = playlist_max_ini;
 	}
@@ -780,7 +780,7 @@ ApplySettingTiMidity(SETTING_TIMIDITY *st)
     strncpy(OutputName, st->OutputName, FILEPATH_MAX);
 #if 0
     if (OutputName[0] && !is_device_output_ID(play_mode->id_character))
-		play_mode->name = safe_strdup(OutputName);		// ƒƒ‚ƒŠƒŠ[ƒN‚·‚é‚©‚ÈH ‚Í‚¸‚·‚Æ‚¾‚ß‚¾‚µB
+		play_mode->name = safe_strdup(OutputName);		// ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯ã™ã‚‹ã‹ãªï¼Ÿ ã¯ãšã™ã¨ã ã‚ã ã—ã€‚
 #elif 0
     if (OutputName[0] && !is_device_output_ID(play_mode->id_character))
 		play_mode->name = OutputName;
@@ -1357,12 +1357,12 @@ void w32g_initialize(void)
 	w32g_output_dir[0] = '\0';
 
     strcpy(DocFileExt,DEFAULT_DOCFILEEXT);
-    strcpy(SystemFont,"‚l‚r –¾’©");
-    strcpy(PlayerFont,"‚l‚r –¾’©");
-    strcpy(WrdFont,"‚l‚r –¾’©");
-    strcpy(DocFont,"‚l‚r –¾’©");
-    strcpy(ListFont,"‚l‚r –¾’©");
-    strcpy(TracerFont,"‚l‚r –¾’©");
+    strcpy(SystemFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(PlayerFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(WrdFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(DocFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(ListFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(TracerFont,"ï¼­ï¼³ æ˜æœ");
 
 	get_ini_path(IniFile);
 
@@ -1459,12 +1459,12 @@ void w32g_initialize(void)
 	w32g_output_dir[0] = '\0';
 
     strcpy(DocFileExt,DEFAULT_DOCFILEEXT);
-    strcpy(SystemFont,"‚l‚r –¾’©");
-    strcpy(PlayerFont,"‚l‚r –¾’©");
-    strcpy(WrdFont,"‚l‚r –¾’©");
-    strcpy(DocFont,"‚l‚r –¾’©");
-    strcpy(ListFont,"‚l‚r –¾’©");
-    strcpy(TracerFont,"‚l‚r –¾’©");
+    strcpy(SystemFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(PlayerFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(WrdFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(DocFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(ListFont,"ï¼­ï¼³ æ˜æœ");
+    strcpy(TracerFont,"ï¼­ï¼³ æ˜æœ");
 
 #if defined(WINDRV)
     if (GetWindowsDirectory(buffer, FILEPATH_MAX - 12 - 1))
@@ -1621,9 +1621,9 @@ void w32g_initialize(void)
             confirm_en[] = _T("Ini file is not found, or old format is found." NLS
                            "Do you want to initialize the ini file?" NLS NLS
                            "Ini file path: "),
-            confirm_ja[] = _T("İ’èƒtƒ@ƒCƒ‹‚ªŒ©‚Â‚©‚ç‚È‚¢‚©ŒÃ‚¢Œ`®‚Å‚·B" NLS
-                           "İ’èƒtƒ@ƒCƒ‹‚ğ‰Šú‰»‚µ‚Ü‚·‚©H" NLS NLS
-                           "İ’èƒtƒ@ƒCƒ‹‚ÌƒpƒX: ");
+            confirm_ja[] = _T("è¨­å®šãƒ•ã‚¡ã‚¤ãƒ«ãŒè¦‹ã¤ã‹ã‚‰ãªã„ã‹å¤ã„å½¢å¼ã§ã™ã€‚" NLS
+                           "è¨­å®šãƒ•ã‚¡ã‚¤ãƒ«ã‚’åˆæœŸåŒ–ã—ã¾ã™ã‹ï¼Ÿ" NLS NLS
+                           "è¨­å®šãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ‘ã‚¹: ");
         switch (PlayerLanguage) {
         case LANGUAGE_ENGLISH: confirm = confirm_en; break;
         case LANGUAGE_JAPANESE: default: confirm = confirm_ja; break;

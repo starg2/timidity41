@@ -62,7 +62,7 @@ int DlgChooseFontAndApply(HWND hwnd, HWND hwndFontChange, HFONT hFontPre, char *
 
 //	lf.lfHeight = 16;
 //	lf.lfWidth = 8;
-	_tcscpy(lf.lfFaceName, _T("‚l‚r –¾’©"));
+	_tcscpy(lf.lfFaceName, _T("ï¼­ï¼³ æ˜æœ"));
     cf.lStructSize = sizeof(CHOOSEFONT);
     cf.hwndOwner = hwnd;
 //  cf.hDC = NULL;
@@ -512,48 +512,48 @@ int INILoadSoundSpecWnd(void)
 
 
 /**********************************************************************/
-// ƒvƒƒZƒXŠÔ’ÊM—p‚Éƒ[ƒ‹ƒXƒƒbƒg‚ÌƒT[ƒo[ƒXƒŒƒbƒh‚ğ—pˆÓ‚·‚é
+// ãƒ—ãƒ­ã‚»ã‚¹é–“é€šä¿¡ç”¨ã«ãƒ¡ãƒ¼ãƒ«ã‚¹ãƒ­ãƒƒãƒˆã®ã‚µãƒ¼ãƒãƒ¼ã‚¹ãƒ¬ãƒƒãƒ‰ã‚’ç”¨æ„ã™ã‚‹
 
 #define TIMIDITY_MAILSLOT _T("\\\\.\\mailslot\\timiditypp_mailslot_ver_1_0")
 
-// ƒ[ƒ‹ƒXƒƒbƒg‚É“n‚³‚ê‚éŒ`®
-// ƒwƒbƒ_
-// ƒRƒ}ƒ“ƒh–¼
-// ƒIƒvƒVƒ‡ƒ“”
-// ƒIƒvƒVƒ‡ƒ“‚P
-// ƒIƒvƒVƒ‡ƒ“‚Q
+// ãƒ¡ãƒ¼ãƒ«ã‚¹ãƒ­ãƒƒãƒˆã«æ¸¡ã•ã‚Œã‚‹å½¢å¼
+// ãƒ˜ãƒƒãƒ€
+// ã‚³ãƒãƒ³ãƒ‰å
+// ã‚ªãƒ—ã‚·ãƒ§ãƒ³æ•°
+// ã‚ªãƒ—ã‚·ãƒ§ãƒ³ï¼‘
+// ã‚ªãƒ—ã‚·ãƒ§ãƒ³ï¼’
 //   ...
 
-// ƒwƒbƒ_
+// ãƒ˜ãƒƒãƒ€
 #define MC_HEADER       "TiMidity++Win32GUI Mailslot-1.0"
-// ƒRƒ}ƒ“ƒh–¼
-// TiMidity ‚ÌI—¹
+// ã‚³ãƒãƒ³ãƒ‰å
+// TiMidity ã®çµ‚äº†
 #define MC_TERMINATE    "Terminate"
-// ƒtƒ@ƒCƒ‹‚ğw’è
+// ãƒ•ã‚¡ã‚¤ãƒ«ã‚’æŒ‡å®š
 #define MC_FILES "Files Argc Argv"
-// ƒIƒvƒVƒ‡ƒ“‚P : ƒtƒ@ƒCƒ‹–¼‚P
+// ã‚ªãƒ—ã‚·ãƒ§ãƒ³ï¼‘ : ãƒ•ã‚¡ã‚¤ãƒ«åï¼‘
 //   ...
-// ƒvƒŒƒCƒŠƒXƒg‚ÌƒNƒŠƒA
+// ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã®ã‚¯ãƒªã‚¢
 #define MC_PLAYLIST_CLEAR       "Playlist Clear"
-// ‰‰‘tŠJn
+// æ¼”å¥é–‹å§‹
 #define MC_PLAY                 "Play"
-// Ÿ‚Ìƒtƒ@ƒCƒ‹‚Ì‰‰‘t
+// æ¬¡ã®ãƒ•ã‚¡ã‚¤ãƒ«ã®æ¼”å¥
 #define MC_PLAY_NEXT    "Play Next"
-// ‘O‚Ìƒtƒ@ƒCƒ‹‚Ì‰‰‘t
+// å‰ã®ãƒ•ã‚¡ã‚¤ãƒ«ã®æ¼”å¥
 #define MC_PLAY_PREV    "Play Prev"
-// ‰‰‘t’â~
+// æ¼”å¥åœæ­¢
 #define MC_STOP "Stop"
-// ‰‰‘tˆê’â~
+// æ¼”å¥ä¸€æ™‚åœæ­¢
 #define MC_PAUSE        "Pause"
-// TiMidity ‚Ìó‘Ô‚ğw’èƒ[ƒ‹ƒXƒƒbƒg‚É‘—M
+// TiMidity ã®çŠ¶æ…‹ã‚’æŒ‡å®šãƒ¡ãƒ¼ãƒ«ã‚¹ãƒ­ãƒƒãƒˆã«é€ä¿¡
 #define MC_SEND_TIMIDITY_INFO   "Send TiMidity Info"
-// ƒIƒvƒVƒ‡ƒ“‚P : ƒ[ƒ‹ƒXƒƒbƒg–¼
-// ƒIƒvƒVƒ‡ƒ“‚Q : ó‘Ô‚P
+// ã‚ªãƒ—ã‚·ãƒ§ãƒ³ï¼‘ : ãƒ¡ãƒ¼ãƒ«ã‚¹ãƒ­ãƒƒãƒˆå
+// ã‚ªãƒ—ã‚·ãƒ§ãƒ³ï¼’ : çŠ¶æ…‹ï¼‘
 //   ...
-// ó‘Ô
-// "PlayFileName:`" : ‰‰‘tƒtƒ@ƒCƒ‹–¼
-// "PlayTile:`"                : ‰‰‘tƒ^ƒCƒgƒ‹–¼
-// "PlayStatus:`"              : ‰‰‘tó‘Ô(`:PLAY,STOP,PAUSE)
+// çŠ¶æ…‹
+// "PlayFileName:ï½" : æ¼”å¥ãƒ•ã‚¡ã‚¤ãƒ«å
+// "PlayTile:ï½"                : æ¼”å¥ã‚¿ã‚¤ãƒˆãƒ«å
+// "PlayStatus:ï½"              : æ¼”å¥çŠ¶æ…‹(ï½:PLAY,STOP,PAUSE)
 
 static HANDLE hMailslot = NULL;
 
@@ -594,7 +594,7 @@ PrintfDebugWnd("[%s]\n",buffer);
     } else
         return FALSE;
 }
-// –³‹‚·‚é”Å
+// ç„¡è¦–ã™ã‚‹ç‰ˆ
 void ReadFromMailslotIgnore(HANDLE hmailslot, int num)
 {
     int i;
@@ -606,7 +606,7 @@ void ReadFromMailslotIgnore(HANDLE hmailslot, int num)
     }
     return;
 }
-// ƒ[ƒ‹ƒXƒƒbƒg‚É‘‚«‚Ş
+// ãƒ¡ãƒ¼ãƒ«ã‚¹ãƒ­ãƒƒãƒˆã«æ›¸ãè¾¼ã‚€
 HANDLE *OpenMailslot(void)
 {
     HANDLE hFile;
@@ -690,7 +690,7 @@ void w32gMailslotThread(void)
                     continue;
                 }
                 nfiles = atoi(buffer);
-                // MailslotArgcArgv@‚ª‰Šú‰»‚³‚ê‚Ä‚¢‚È‚©‚Á‚½‚çˆ—“r’†‚Æ‚µ‚Ä–³‹
+                // MailslotArgcArgvã€€ãŒåˆæœŸåŒ–ã•ã‚Œã¦ã„ãªã‹ã£ãŸã‚‰å‡¦ç†é€”ä¸­ã¨ã—ã¦ç„¡è¦–
                 if (MailslotArgcArgv.argc!=0 || MailslotArgcArgv.argv!=NULL) {
                     ReadFromMailslotIgnore(hMailslot,nfiles);
                     continue;
@@ -724,7 +724,7 @@ void w32gMailslotThread(void)
                 }
                 MailslotArgcArgv.argc = nfiles;
                 MailslotArgcArgv.argv = files;
-                // files ‚Í•Ê‚Ì‚Æ‚±‚ë‚Å‰ğ•ú‚µ‚Ä‚­‚ê‚é
+                // files ã¯åˆ¥ã®ã¨ã“ã‚ã§è§£æ”¾ã—ã¦ãã‚Œã‚‹
 #ifdef EXT_CONTROL_MAIN_THREAD
                 w32g_ext_control_main_thread(RC_EXT_LOAD_FILES_AND_PLAY,(ptr_size_t) &MailslotArgcArgv);
 #else
@@ -804,7 +804,7 @@ void w32gMailslotThread(void)
                 }
                 param_num = atoi(buffer);
                 ReadFromMailslotIgnore(hMailslot,param_num);
-                // ‰½‚à‚µ‚È‚¢
+                // ä½•ã‚‚ã—ãªã„
                 continue;
             }
         }
@@ -813,8 +813,8 @@ void w32gMailslotThread(void)
 
 #define TIMIDTY_MUTEX_NAME _T("TiMidity_pp_Win32GUI_ver_1_0_0")
 static HANDLE hMutexTiMidity = NULL;
-// TiMidity ‚ª—Bˆê‚È‚é‚±‚Æ‚ğå’£‚µ‚Ü‚·
-// ‚»‚ÌØ‹’‚Ì Mutex ‚ğ hMutexTiMidity ‚É•Û‚µ‚Ü‚·
+// TiMidity ãŒå”¯ä¸€ãªã‚‹ã“ã¨ã‚’ä¸»å¼µã—ã¾ã™
+// ãã®è¨¼æ‹ ã® Mutex ã‚’ hMutexTiMidity ã«ä¿æŒã—ã¾ã™
 int UniqTiMidity(void)
 {
     hMutexTiMidity = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
@@ -831,7 +831,7 @@ int UniqTiMidity(void)
     return FALSE;
 }
 
-// ‚·‚Å‚É TiMidity ‚ª‘¶İ‚·‚é‚©
+// ã™ã§ã« TiMidity ãŒå­˜åœ¨ã™ã‚‹ã‹
 int ExistOldTiMidity(void)
 {
     HANDLE hMutex = CreateMutex(NULL,TRUE,TIMIDTY_MUTEX_NAME);
@@ -845,7 +845,7 @@ int ExistOldTiMidity(void)
     return FALSE;
 }
 
-// ‰½‰ñ‚©—Bˆê‚Ì TiMidity ‚É‚È‚ë‚¤‚Æ‚µ‚Ü‚·
+// ä½•å›ã‹å”¯ä¸€ã® TiMidity ã«ãªã‚ã†ã¨ã—ã¾ã™
 int TryUniqTiMidity(int num)
 {
     int i;
@@ -938,17 +938,17 @@ int PauseOldTiMidity(void)
     return SendCommandNoParamOldTiMidity(MC_PAUSE);
 }
 
-// ‚Qd‹N“®‚Ìˆ—
-// opt==0 : ƒtƒ@ƒCƒ‹‚ğŒÃ‚¢ TiMidity ‚É“n‚µ‚Ä©•ª‚ÍI—¹BŒÃ‚¢ TiMidity ‚ª‚È‚¢‚Æ‚«‚Í©•ª‚ª‹N“®B
-//          ŒÃ‚¢ƒvƒŒƒCƒŠƒXƒg‚ÍƒNƒŠƒA‚·‚éB
-// opt==1 : ƒtƒ@ƒCƒ‹‚ğŒÃ‚¢ TiMidity ‚É“n‚µ‚Ä©•ª‚ÍI—¹BŒÃ‚¢ TiMidity ‚ª‚È‚¢‚Æ‚«‚Í©•ª‚ª‹N“®B
-//          ŒÃ‚¢ƒvƒŒƒCƒŠƒXƒg‚ÍƒNƒŠƒA‚µ‚È‚¢B
-// opt==2 : ŒÃ‚¢ TiMidity ‚ğI—¹‚µ‚ÄA©•ª‚ª‰‰‘t‚·‚é
-// opt==3 : ©•ª‚Í‰½‚à‚¹‚¸I—¹BŒÃ‚¢ TiMidity ‚ª‚È‚¢‚Æ‚«‚Í©•ª‚ª‹N“®B
-// opt==4 : ŒÃ‚¢ TiMidity ‚ğI—¹‚µ‚ÄA©•ª‚Í‰½‚à‚¹‚¸I—¹
-// opt==5 : ‚Qd‚É‹N“®‚·‚é
-// ©•ª‚ªI—¹‚·‚é‚×‚«‚Æ‚«‚Í FALSE ‚ğ•Ô‚·
-// ©•ª‚ªI—¹‚·‚é‚×‚«‚Å‚È‚¢‚Æ‚«‚Í TRUE ‚ğ•Ô‚·
+// ï¼’é‡èµ·å‹•æ™‚ã®å‡¦ç†
+// opt==0 : ãƒ•ã‚¡ã‚¤ãƒ«ã‚’å¤ã„ TiMidity ã«æ¸¡ã—ã¦è‡ªåˆ†ã¯çµ‚äº†ã€‚å¤ã„ TiMidity ãŒãªã„ã¨ãã¯è‡ªåˆ†ãŒèµ·å‹•ã€‚
+//          å¤ã„ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã¯ã‚¯ãƒªã‚¢ã™ã‚‹ã€‚
+// opt==1 : ãƒ•ã‚¡ã‚¤ãƒ«ã‚’å¤ã„ TiMidity ã«æ¸¡ã—ã¦è‡ªåˆ†ã¯çµ‚äº†ã€‚å¤ã„ TiMidity ãŒãªã„ã¨ãã¯è‡ªåˆ†ãŒèµ·å‹•ã€‚
+//          å¤ã„ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã¯ã‚¯ãƒªã‚¢ã—ãªã„ã€‚
+// opt==2 : å¤ã„ TiMidity ã‚’çµ‚äº†ã—ã¦ã€è‡ªåˆ†ãŒæ¼”å¥ã™ã‚‹
+// opt==3 : è‡ªåˆ†ã¯ä½•ã‚‚ã›ãšçµ‚äº†ã€‚å¤ã„ TiMidity ãŒãªã„ã¨ãã¯è‡ªåˆ†ãŒèµ·å‹•ã€‚
+// opt==4 : å¤ã„ TiMidity ã‚’çµ‚äº†ã—ã¦ã€è‡ªåˆ†ã¯ä½•ã‚‚ã›ãšçµ‚äº†
+// opt==5 : ï¼’é‡ã«èµ·å‹•ã™ã‚‹
+// è‡ªåˆ†ãŒçµ‚äº†ã™ã‚‹ã¹ãã¨ãã¯ FALSE ã‚’è¿”ã™
+// è‡ªåˆ†ãŒçµ‚äº†ã™ã‚‹ã¹ãã§ãªã„ã¨ãã¯ TRUE ã‚’è¿”ã™
 int w32gSecondTiMidity(int opt, int argc, char **argv)
 {
     int i;
@@ -1005,7 +1005,7 @@ int w32gSecondTiMidity(int opt, int argc, char **argv)
     }
 }
 
-// w32gSecondTiMidity() ‚ÌŒãˆ—
+// w32gSecondTiMidity() ã®å¾Œå‡¦ç†
 int w32gSecondTiMidityExit(void)
 {
     MailslotThreadTeminateFlag = TRUE;

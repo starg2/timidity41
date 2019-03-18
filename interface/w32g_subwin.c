@@ -227,7 +227,7 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         ConsoleWndAllUpdate();
         switch (wParam) {
         case SIZE_MAXIMIZED:
-        case SIZE_RESTORED: {       // ‚­‚»‚ß‚ñ‚Ç[[
+        case SIZE_RESTORED: {       // ããã‚ã‚“ã©ãƒ¼ãƒ¼
             int x,y,cx,cy;
             int max = 0;
             RECT rcParent;
@@ -240,7 +240,7 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             hwndBUTTON_INC = GetDlgItem(hwnd,IDC_BUTTON_INC);
             hwndCHECKBOX_VALID = GetDlgItem(hwnd,IDC_CHECKBOX_VALID);
             hwndCLEAR = GetDlgItem(hwnd,IDCLEAR);
-            GetWindowRect(hwndEDIT,&rcEDIT); // x0y0 Šî€
+            GetWindowRect(hwndEDIT,&rcEDIT); // x0y0 åŸºæº–
             GetWindowRect(hwndBUTTON_VERBOSITY,&rcBUTTON_VERBOSITY);
             GetWindowRect(hwndEDIT_VERBOSITY,&rcEDIT_VERBOSITY);
             GetWindowRect(hwndBUTTON_DEC,&rcBUTTON_DEC);
@@ -573,22 +573,22 @@ void InitListWnd(HWND hParentWnd)
 	ListWndInfo.hPopupMenu = CreatePopupMenu();
 	switch(PlayerLanguage){
 	case LANGUAGE_JAPANESE:
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,_T("‰‰‘t(&P)"));
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,_T("ƒhƒLƒ…ƒƒ“ƒg(&D)..."));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PLAY,_T("æ¼”å¥(&P)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDC_BUTTON_DOC,_T("ãƒ‰ã‚­ãƒ¥ãƒ¡ãƒ³ãƒˆ(&D)..."));
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,_T("Œ»İˆÊ’u(&C)"));
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,_T("ŒŸõ(&S)..."));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CURRENT,_T("ç¾åœ¨ä½ç½®(&C)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_SEARCH,_T("æ¤œç´¢(&S)..."));
 #ifdef LISTVIEW_PLAYLIST
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,_T("ƒJƒbƒg(&X)"));
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,_T("ƒRƒs[(&Z)"));
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,_T("ƒy[ƒXƒg/‘}“ü(&A)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CUT,_T("ã‚«ãƒƒãƒˆ(&X)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_COPY,_T("ã‚³ãƒ”ãƒ¼(&Z)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_PASTE,_T("ãƒšãƒ¼ã‚¹ãƒˆ/æŒ¿å…¥(&A)"));
 #endif
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,_T("íœ(&R)"));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_REMOVE,_T("å‰Šé™¤(&R)"));
 		AppendMenu(ListWndInfo.hPopupMenu,MF_SEPARATOR,0,0);
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,_T("ƒtƒHƒ“ƒg‚Ì‘I‘ğ(&H)..."));
-		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,_T("ƒŠƒXƒg–¼•ÏX(&L)..."));		
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_CHOOSEFONT,_T("ãƒ•ã‚©ãƒ³ãƒˆã®é¸æŠ(&H)..."));
+		AppendMenu(ListWndInfo.hPopupMenu,MF_STRING,IDM_LISTWND_LISTNAME,_T("ãƒªã‚¹ãƒˆåå¤‰æ›´(&L)..."));		
 		break;
   	case LANGUAGE_ENGLISH:
  	default:
@@ -971,11 +971,11 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         ListWndInfo.hFontList = NULL;
         INISaveListWnd();
         break;
-        /* ƒ}ƒEƒX“ü—Í‚ªƒLƒƒƒvƒ`ƒƒ‚³‚ê‚Ä‚¢‚È‚¢‚½‚ß‚Ìˆ— */
+        /* ãƒã‚¦ã‚¹å…¥åŠ›ãŒã‚­ãƒ£ãƒ—ãƒãƒ£ã•ã‚Œã¦ã„ãªã„ãŸã‚ã®å‡¦ç† */
     case WM_SETCURSOR:
         switch (HIWORD(lParam)) {
         case WM_RBUTTONDOWN:
-            if (LOWORD(lParam) !=HTCAPTION) {       // ƒ^ƒCƒgƒ‹ƒo[‚É‚È‚¢‚Æ‚«
+            if (LOWORD(lParam) !=HTCAPTION) {       // ã‚¿ã‚¤ãƒˆãƒ«ãƒãƒ¼ã«ãªã„ã¨ã
                 POINT point;
                 int res;
                 GetCursorPos(&point);
@@ -983,7 +983,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 #if 1 // menu position
                 {
                     RECT rc;
-                    int mw = 205 + 5, mh = 258 + 5; // menuŒÅ’è W:205 H:258 (margin+5
+                    int mw = 205 + 5, mh = 258 + 5; // menuå›ºå®š W:205 H:258 (margin+5
                     //GetWindowRect(GetDesktopWindow(), &rc);
                     GetWindowRect(hwnd, &rc);
                     if ((point.y + mh) > rc.bottom)
@@ -1259,28 +1259,28 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					case 0x48:	// VK_H
 						if ( PlayerLanguage == LANGUAGE_JAPANESE ){
 						MessageBox(hListWnd,
-							_T("ƒL[ƒRƒ}ƒ“ƒh\n")
-							_T("ƒŠƒXƒgƒEƒCƒ“ƒhƒEƒRƒ}ƒ“ƒh\n")
-							_T("  ESC: ƒwƒ‹ƒv‚ğ•Â‚¶‚é      H: ƒwƒ‹ƒv‚ğo‚·\n")
-							_T("  V: ƒhƒLƒ…ƒƒ“ƒg‚ğŒ©‚é      W: WRD ƒEƒCƒ“ƒhƒE‚ğŠJ‚­\n")
-							_T("ƒvƒŒƒCƒ„[ƒRƒ}ƒ“ƒh\n")
-							_T("  SPACE/ENTER: ‰‰‘tŠJn    E: ’â~    S: ˆê’â~\n")
-							_T("  P: ‘O‚Ì‹È    N: Ÿ‚Ì‹È\n")
-							_T("ƒvƒŒƒCƒŠƒXƒg‘€ìƒRƒ}ƒ“ƒh\n")
-							_T("  M: MIDIƒtƒ@ƒCƒ‹ˆÈŠO‚ğíœ    U: d•¡ƒtƒ@ƒCƒ‹‚ğíœ\n")
-							_T("  C: ƒvƒŒƒCƒŠƒXƒg‚ÌƒNƒŠƒA\n")
+							_T("ã‚­ãƒ¼ã‚³ãƒãƒ³ãƒ‰\n")
+							_T("ãƒªã‚¹ãƒˆã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦ã‚³ãƒãƒ³ãƒ‰\n")
+							_T("  ESC: ãƒ˜ãƒ«ãƒ—ã‚’é–‰ã˜ã‚‹      H: ãƒ˜ãƒ«ãƒ—ã‚’å‡ºã™\n")
+							_T("  V: ãƒ‰ã‚­ãƒ¥ãƒ¡ãƒ³ãƒˆã‚’è¦‹ã‚‹      W: WRD ã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦ã‚’é–‹ã\n")
+							_T("ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚³ãƒãƒ³ãƒ‰\n")
+							_T("  SPACE/ENTER: æ¼”å¥é–‹å§‹    E: åœæ­¢    S: ä¸€æ™‚åœæ­¢\n")
+							_T("  P: å‰ã®æ›²    N: æ¬¡ã®æ›²\n")
+							_T("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆæ“ä½œã‚³ãƒãƒ³ãƒ‰\n")
+							_T("  M: MIDIãƒ•ã‚¡ã‚¤ãƒ«ä»¥å¤–ã‚’å‰Šé™¤    U: é‡è¤‡ãƒ•ã‚¡ã‚¤ãƒ«ã‚’å‰Šé™¤\n")
+							_T("  C: ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã®ã‚¯ãƒªã‚¢\n")
 #ifdef LISTVIEW_PLAYLIST
-							_T("  Z: ‘I‘ğ‚µ‚½‹È‚ğƒRƒs[    X: ‘I‘ğ‚µ‚½‹È‚ğƒJƒbƒg\n")
-							_T("  A: ƒtƒH[ƒJƒXˆÊ’u‚Ö‚ğƒy[ƒXƒg(‘}“ü)\n")
+							_T("  Z: é¸æŠã—ãŸæ›²ã‚’ã‚³ãƒ”ãƒ¼    X: é¸æŠã—ãŸæ›²ã‚’ã‚«ãƒƒãƒˆ\n")
+							_T("  A: ãƒ•ã‚©ãƒ¼ã‚«ã‚¹ä½ç½®ã¸ã‚’ãƒšãƒ¼ã‚¹ãƒˆ(æŒ¿å…¥)\n")
 #endif
-							_T("  D: ƒJ[ƒ\ƒ‹‚Ì‹È‚ğíœ    BS: ƒJ[ƒ\ƒ‹‚Ì‘O‚Ì‹È‚ğíœ\n")
-							_T("  INS: ƒJ[ƒ\ƒ‹‚Ì‹È‚ğƒŠƒXƒg‚ÌÅŒã‚ÉˆÚ‚· (Push)\n")
-							_T("  DEL: ƒŠƒXƒg‚ÌÅŒã‚Ì‹È‚ğƒJ[ƒ\ƒ‹‚Ì‘O‚É‘}“ü (Pop)\n")
-							_T("ƒvƒŒƒCƒŠƒXƒgƒ^ƒu‘€ìƒRƒ}ƒ“ƒh\n")
-							_T("  I: ŸƒvƒŒƒCƒŠƒXƒgƒ^ƒu    O: ‘OƒvƒŒƒCƒŠƒXƒgƒ^ƒu\n")
-							_T("TiMidity ƒRƒ}ƒ“ƒh\n")
-							_T("  Q: I—¹\n")
-							, _T("ƒwƒ‹ƒv"), MB_OK);
+							_T("  D: ã‚«ãƒ¼ã‚½ãƒ«ã®æ›²ã‚’å‰Šé™¤    BS: ã‚«ãƒ¼ã‚½ãƒ«ã®å‰ã®æ›²ã‚’å‰Šé™¤\n")
+							_T("  INS: ã‚«ãƒ¼ã‚½ãƒ«ã®æ›²ã‚’ãƒªã‚¹ãƒˆã®æœ€å¾Œã«ç§»ã™ (Push)\n")
+							_T("  DEL: ãƒªã‚¹ãƒˆã®æœ€å¾Œã®æ›²ã‚’ã‚«ãƒ¼ã‚½ãƒ«ã®å‰ã«æŒ¿å…¥ (Pop)\n")
+							_T("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã‚¿ãƒ–æ“ä½œã‚³ãƒãƒ³ãƒ‰\n")
+							_T("  I: æ¬¡ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã‚¿ãƒ–    O: å‰ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã‚¿ãƒ–\n")
+							_T("TiMidity ã‚³ãƒãƒ³ãƒ‰\n")
+							_T("  Q: çµ‚äº†\n")
+							, _T("ãƒ˜ãƒ«ãƒ—"), MB_OK);
 						} else {
 						MessageBox(hListWnd,
 							_T("Usage of key.\n")
@@ -1321,7 +1321,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		switch(wParam){
 		case SIZE_MAXIMIZED:
 		case SIZE_RESTORED:
-			{		// ‚È‚ñ‚©ˆÓ–¡‚È‚­–Ê“|(^^;;
+			{		// ãªã‚“ã‹æ„å‘³ãªãé¢å€’(^^;;
 				int x,y,cx,cy;
 				int maxHeight = 0;
 				int center, idControl;
@@ -1488,7 +1488,7 @@ static int ListWndInfoReset(HWND hwnd)
         ListWndInfo.hwndList = GetDlgItem(hwnd,IDC_LISTBOX_PLAYLIST);
 #endif
 	strcpy(ListWndInfo.fontNameEN,"Times New Roman");
-	char *s = tchar_to_char(_T("‚l‚r –¾’©"));
+	char *s = tchar_to_char(_T("ï¼­ï¼³ æ˜æœ"));
 	strcpy(ListWndInfo.fontNameJA,s);
 	safe_free(s);
 	ListWndInfo.fontHeight = 12;
@@ -1603,7 +1603,7 @@ TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 // Doc Window
 
 #define IDM_DOCWND_CHOOSEFONT 4232
-int DocWndIndependent = 0; /* Independent document viewer mode.(“Æ—§ƒhƒLƒ…ƒƒ“ƒgƒrƒ…ƒ[ƒ‚[ƒh) */
+int DocWndIndependent = 0; /* Independent document viewer mode.(ç‹¬ç«‹ãƒ‰ã‚­ãƒ¥ãƒ¡ãƒ³ãƒˆãƒ“ãƒ¥ãƒ¯ãƒ¼ãƒ¢ãƒ¼ãƒ‰) */
 int DocWndAutoPopup = 0;
 DOCWNDINFO DocWndInfo;
 
@@ -1656,7 +1656,7 @@ void InitDocWnd(HWND hParentWnd)
 	switch(PlayerLanguage){
 	case LANGUAGE_JAPANESE:
 		AppendMenu(hMenu,MF_SEPARATOR,0,0);
-		AppendMenu(hMenu, MF_STRING, IDM_DOCWND_CHOOSEFONT, _T("ƒtƒHƒ“ƒg‚Ì‘I‘ğ"));
+		AppendMenu(hMenu, MF_STRING, IDM_DOCWND_CHOOSEFONT, _T("ãƒ•ã‚©ãƒ³ãƒˆã®é¸æŠ"));
 		break;
   	case LANGUAGE_ENGLISH:
  	default:
@@ -1748,7 +1748,7 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
         switch (wParam) {
         case SIZE_MAXIMIZED:
-        case SIZE_RESTORED: {           // ‚È‚ñ‚©ˆÓ–¡‚È‚­–Ê“|(^^;;
+        case SIZE_RESTORED: {           // ãªã‚“ã‹æ„å‘³ãªãé¢å€’(^^;;
             int x,y,cx,cy;
             int max = 0;
             int width;
@@ -1850,7 +1850,7 @@ static int DocWndInfoReset2(HWND hwnd)
     if ( hwnd != NULL )
         DocWndInfo.hwndEdit = GetDlgItem(hwnd,IDC_EDIT);
     strcpy(DocWndInfo.fontNameEN,"Times New Roman");
-	char* s = tchar_to_char(_T("‚l‚r –¾’©"));
+	char* s = tchar_to_char(_T("ï¼­ï¼³ æ˜æœ"));
     strcpy(DocWndInfo.fontNameJA,s);
 	safe_free(s);
     DocWndInfo.fontHeight = 12;
@@ -2173,7 +2173,7 @@ void DocWndSetMidifile(const char *filename)
 	strcat(buffer, "lyrics.txt");
 	DocWndAddDocFile(buffer);
 	*p = '\0';
-    strcat(buffer,"‰ÌŒ.txt");
+    strcat(buffer,"æ­Œè©.txt");
     DocWndAddDocFile(buffer);
     p = strrchr(buffer,PATH_SEP);
     if (p==NULL)
@@ -2189,7 +2189,7 @@ void DocWndSetMidifile(const char *filename)
 	strcat(buffer, "lyrics.txt");
 	DocWndAddDocFile(buffer);
 	*p = '\0';
-    strcat(buffer,"‰ÌŒ.txt");
+    strcat(buffer,"æ­Œè©.txt");
     DocWndAddDocFile(buffer);
 end:
     DocWndInfoUnLock();
@@ -2341,12 +2341,12 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	case WM_INITDIALOG:
 		switch(PlayerLanguage){
 		case LANGUAGE_JAPANESE:
-			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)_T("ƒvƒŒƒCƒŠƒXƒg‚ÌŒŸõ"));
-			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)_T("ŒŸõƒL[ƒ[ƒh‚ğ“ü‚ê‚Ä‚­‚¾‚³‚¢B"));
+			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)_T("ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã®æ¤œç´¢"));
+			SendMessage(GetDlgItem(hwnd,IDC_STATIC_HEAD),WM_SETTEXT,0,(LPARAM)_T("æ¤œç´¢ã‚­ãƒ¼ãƒ¯ãƒ¼ãƒ‰ã‚’å…¥ã‚Œã¦ãã ã•ã„ã€‚"));
 			SendMessage(GetDlgItem(hwnd,IDC_STATIC_TAIL),WM_SETTEXT,0,(LPARAM)_T(""));
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)_T("ŒŸõ"));
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)_T("Ÿ‚ğŒŸõ"));
-			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)_T("•Â‚¶‚é"));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_1),WM_SETTEXT,0,(LPARAM)_T("æ¤œç´¢"));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_2),WM_SETTEXT,0,(LPARAM)_T("æ¬¡ã‚’æ¤œç´¢"));
+			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)_T("é–‰ã˜ã‚‹"));
 			break;
 		case LANGUAGE_ENGLISH:
 		default:
@@ -2552,12 +2552,12 @@ SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			case 0x68:	// h
 				if ( PlayerLanguage == LANGUAGE_JAPANESE ){
 				MessageBox(hSoundSpecWnd,
-					_T("ƒL[ƒRƒ}ƒ“ƒh\n")
-					_T("ƒXƒyƒNƒgƒƒOƒ‰ƒ€ƒEƒCƒ“ƒhƒEƒRƒ}ƒ“ƒh\n")
-					_T("  ESC: ƒwƒ‹ƒv‚ğ•Â‚¶‚é      H: ƒwƒ‹ƒv‚ğo‚·\n")
-					_T("  UP: cƒY[ƒ€ƒAƒEƒg    DOWN: cƒY[ƒ€ƒCƒ“\n")
-					_T("  LEFT: ‰¡ƒY[ƒ€ƒAƒEƒg    RIGHT: ‰¡ƒY[ƒ€ƒCƒ“\n")
-					,_T("ƒwƒ‹ƒv"), MB_OK);
+					_T("ã‚­ãƒ¼ã‚³ãƒãƒ³ãƒ‰\n")
+					_T("ã‚¹ãƒšã‚¯ãƒˆãƒ­ã‚°ãƒ©ãƒ ã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦ã‚³ãƒãƒ³ãƒ‰\n")
+					_T("  ESC: ãƒ˜ãƒ«ãƒ—ã‚’é–‰ã˜ã‚‹      H: ãƒ˜ãƒ«ãƒ—ã‚’å‡ºã™\n")
+					_T("  UP: ç¸¦ã‚ºãƒ¼ãƒ ã‚¢ã‚¦ãƒˆ    DOWN: ç¸¦ã‚ºãƒ¼ãƒ ã‚¤ãƒ³\n")
+					_T("  LEFT: æ¨ªã‚ºãƒ¼ãƒ ã‚¢ã‚¦ãƒˆ    RIGHT: æ¨ªã‚ºãƒ¼ãƒ ã‚¤ãƒ³\n")
+					,_T("ãƒ˜ãƒ«ãƒ—"), MB_OK);
 				}
 				else {
 				MessageBox(hSoundSpecWnd,

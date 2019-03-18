@@ -362,25 +362,25 @@ typedef struct pref_page_t_ {
 ///r
 static pref_page_t pref_pages_ja[] = {
 #if defined(IA_W32G_SYN) || defined(WINDRV_SETUP)
-	{ 0, TEXT("ƒVƒ“ƒZƒTƒCƒU"), (HWND)NULL, IDD_PREF_SYN1, (DLGPROC) PrefSyn1DialogProc, 0 },
-	{ 1, TEXT("ƒGƒtƒFƒNƒg"), (HWND)NULL, IDD_PREF_TIMIDITY1, (DLGPROC) PrefTiMidity1DialogProc, 0 },
-	{ 2, TEXT("‚»‚Ì‘¼"), (HWND)NULL, IDD_PREF_TIMIDITY2, (DLGPROC) PrefTiMidity2DialogProc, 0 },
-	{ 3, TEXT("o—Í"), (HWND)NULL, IDD_PREF_TIMIDITY3, (DLGPROC) PrefTiMidity3DialogProc, 0 },
+	{ 0, TEXT("ã‚·ãƒ³ã‚»ã‚µã‚¤ã‚¶"), (HWND)NULL, IDD_PREF_SYN1, (DLGPROC) PrefSyn1DialogProc, 0 },
+	{ 1, TEXT("ã‚¨ãƒ•ã‚§ã‚¯ãƒˆ"), (HWND)NULL, IDD_PREF_TIMIDITY1, (DLGPROC) PrefTiMidity1DialogProc, 0 },
+	{ 2, TEXT("ãã®ä»–"), (HWND)NULL, IDD_PREF_TIMIDITY2, (DLGPROC) PrefTiMidity2DialogProc, 0 },
+	{ 3, TEXT("å‡ºåŠ›"), (HWND)NULL, IDD_PREF_TIMIDITY3, (DLGPROC) PrefTiMidity3DialogProc, 0 },
 	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1, (DLGPROC) PrefSFINI1DialogProc, 0 },
 	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2, (DLGPROC) PrefSFINI2DialogProc, 0 },
 	{ 6, TEXT("Custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, (DLGPROC) PrefCustom1DialogProc, 0 },
 	{ 7, TEXT("Custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, (DLGPROC) PrefCustom2DialogProc, 0 },
-	{ 8, TEXT("“à‘ ƒVƒ“ƒZ"), (HWND)NULL, IDD_PREF_INT_SYNTH, (DLGPROC) PrefIntSynthDialogProc, 0 },
+	{ 8, TEXT("å†…è”µã‚·ãƒ³ã‚»"), (HWND)NULL, IDD_PREF_INT_SYNTH, (DLGPROC) PrefIntSynthDialogProc, 0 },
 #else
-	{ 0, TEXT("ƒvƒŒƒCƒ„"), (HWND)NULL, IDD_PREF_PLAYER, (DLGPROC) PrefPlayerDialogProc, 0 },
-	{ 1, TEXT("ƒGƒtƒFƒNƒg"), (HWND)NULL, IDD_PREF_TIMIDITY1, (DLGPROC) PrefTiMidity1DialogProc, 0 },
-	{ 2, TEXT("‚»‚Ì‘¼"), (HWND)NULL, IDD_PREF_TIMIDITY2, (DLGPROC) PrefTiMidity2DialogProc, 0 },
-	{ 3, TEXT("o—Í"), (HWND)NULL, IDD_PREF_TIMIDITY3, (DLGPROC) PrefTiMidity3DialogProc, 0 },
+	{ 0, TEXT("ãƒ—ãƒ¬ã‚¤ãƒ¤"), (HWND)NULL, IDD_PREF_PLAYER, (DLGPROC) PrefPlayerDialogProc, 0 },
+	{ 1, TEXT("ã‚¨ãƒ•ã‚§ã‚¯ãƒˆ"), (HWND)NULL, IDD_PREF_TIMIDITY1, (DLGPROC) PrefTiMidity1DialogProc, 0 },
+	{ 2, TEXT("ãã®ä»–"), (HWND)NULL, IDD_PREF_TIMIDITY2, (DLGPROC) PrefTiMidity2DialogProc, 0 },
+	{ 3, TEXT("å‡ºåŠ›"), (HWND)NULL, IDD_PREF_TIMIDITY3, (DLGPROC) PrefTiMidity3DialogProc, 0 },
 	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1, (DLGPROC) PrefSFINI1DialogProc, 0 },
 	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2, (DLGPROC) PrefSFINI2DialogProc, 0 },
 	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, (DLGPROC) PrefCustom1DialogProc, 0 },
 	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, (DLGPROC) PrefCustom2DialogProc, 0 },
-	{ 8, TEXT("“à‘ ƒVƒ“ƒZ"), (HWND)NULL, IDD_PREF_INT_SYNTH, (DLGPROC) PrefIntSynthDialogProc, 0 },
+	{ 8, TEXT("å†…è”µã‚·ãƒ³ã‚»"), (HWND)NULL, IDD_PREF_INT_SYNTH, (DLGPROC) PrefIntSynthDialogProc, 0 },
 #endif
 };
 ///r
@@ -677,7 +677,7 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 		switch (LOWORD(wParam)) {
 		case IDC_BUTTON_INI_FILE:
 #if defined(KBTIM_SETUP)
-			// •ÒW‚·‚éini‚ğØ‚è‘Ö‚¦‚é‰½‚© 
+			// ç·¨é›†ã™ã‚‹iniã‚’åˆ‡ã‚Šæ›¿ãˆã‚‹ä½•ã‹ 
 #endif
 			break;
 		case IDC_OPENVSTMGR:
@@ -792,8 +792,8 @@ LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam
 
 extern void TracerWndApplyQuietChannel( ChannelBitMask quietchannels_ );
 
-/* st_temp, sp_temp ‚ğ“K—p‚·‚é
- * ’ˆÓ: MainThread ‚©‚ç‚ÌŒÄ‚Ño‚µ‹Ö~AŠëŒ¯I
+/* st_temp, sp_temp ã‚’é©ç”¨ã™ã‚‹
+ * æ³¨æ„: MainThread ã‹ã‚‰ã®å‘¼ã³å‡ºã—ç¦æ­¢ã€å±é™ºï¼
  */
 extern void OnQuit(void);
 extern void timidity_init_player(void); /* timidity.c */
@@ -962,7 +962,7 @@ void reload_cfg(void)
     {
         const TCHAR *cfg_msg,
                 cfg_msg_en[] = TEXT("Cannot reload between playing!"),
-                cfg_msg_jp[] = TEXT("Ä¶’†‚ÉƒŠƒ[ƒh‚Å‚«‚Ü‚¹‚ñ!");
+                cfg_msg_jp[] = TEXT("å†ç”Ÿä¸­ã«ãƒªãƒ­ãƒ¼ãƒ‰ã§ãã¾ã›ã‚“!");
         if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
                 cfg_msg = cfg_msg_jp;
         else
@@ -1015,14 +1015,14 @@ void reload_cfg(void)
 }
 
 
-// İ’è’l‚ª•s˜A‘±‚Èê‡‚È‚Ç‚Ìˆ—‚ÌŠÈ—ª‰» nameƒŠƒXƒg‚É‘Î‰‚·‚énumƒŠƒXƒgì¬‚µ‚Äg—p 
+// è¨­å®šå€¤ãŒä¸é€£ç¶šãªå ´åˆãªã©ã®å‡¦ç†ã®ç°¡ç•¥åŒ– nameãƒªã‚¹ãƒˆã«å¯¾å¿œã™ã‚‹numãƒªã‚¹ãƒˆä½œæˆã—ã¦ä½¿ç”¨ 
 // cb_info : int num_list[] , val : find value , miss : then not find value
-// ƒŠƒXƒg”
+// ãƒªã‚¹ãƒˆæ•°
 #define CB_NUM(cb_info)				(sizeof(cb_info) / sizeof(int))
-// numƒŠƒXƒg‚©‚çˆê’v‚·‚é’l‚ğŒŸõ‚µƒRƒ“ƒ{ƒJƒEƒ“ƒg‚ğ•Ô‚·
+// numãƒªã‚¹ãƒˆã‹ã‚‰ä¸€è‡´ã™ã‚‹å€¤ã‚’æ¤œç´¢ã—ã‚³ãƒ³ãƒœã‚«ã‚¦ãƒ³ãƒˆã‚’è¿”ã™
 #define CB_FIND(cb_info, val, miss)	(cb_find_item(CB_NUM(cb_info), cb_info, val, miss))
 
-// ˆÈ‰º ƒRƒ“ƒ{ŠÖ˜AƒƒbƒZ[ƒW’ZkŒ`
+// ä»¥ä¸‹ ã‚³ãƒ³ãƒœé–¢é€£ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸çŸ­ç¸®å½¢
 // must WHND hwnd , cb_id : IDC_COMBO_hoge , error : then CB_ERROR value
 // CB_SETCURSEL
 #define CB_SET(cb_id, set_num)		(SendDlgItemMessage(hwnd, cb_id, CB_SETCURSEL, (WPARAM) set_num, (LPARAM) 0))
@@ -1042,7 +1042,7 @@ void reload_cfg(void)
 #define CB_INSSTR(cb_id, cstr)			CB_INSSTRA(cb_id, cstr)
 #endif
 
-// ˆÈ‰º ƒGƒfƒBƒbƒgŠÖ˜AŠÖ”’ZkŒ`
+// ä»¥ä¸‹ ã‚¨ãƒ‡ã‚£ãƒƒãƒˆé–¢é€£é–¢æ•°çŸ­ç¸®å½¢
 // must WHND hwnd , cb_id : IDC_EDIT_hoge value
 #define EB_GETTEXTA(cb_id, cstr, len)	GetDlgItemTextA(hwnd, cb_id, cstr, len)
 #define EB_GETTEXTW(cb_id, cstr, len)	GetDlgItemTextW(hwnd, cb_id, cstr, len)
@@ -1060,11 +1060,11 @@ void reload_cfg(void)
 #define EB_GET_UINT(cb_id)			((UINT)GetDlgItemInt(hwnd, cb_id, NULL, FALSE))
 #define EB_SET_UINT(cb_id, set_num)	((UINT)SetDlgItemInt(hwnd, cb_id, set_num, FALSE))
 
-// ˆÈ‰º ƒ`ƒFƒbƒNƒ{ƒbƒNƒXŠÖ˜AƒƒbƒZ[ƒW’ZkŒ`
+// ä»¥ä¸‹ ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹é–¢é€£ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸çŸ­ç¸®å½¢
 #define CH_GET(cb_id)			(SendDlgItemMessageA(hwnd, cb_id, BM_GETCHECK, 0, 0))
 #define CH_SET(cb_id, flag)		(DLG_FLAG_TO_CHECKBUTTON(hwnd, cb_id, flag))
 
-// ˆÈ‰º ƒ_ƒCƒAƒƒOŠÖ˜AŠÖ”’ZkŒ`
+// ä»¥ä¸‹ ãƒ€ã‚¤ã‚¢ãƒ­ã‚°é–¢é€£é–¢æ•°çŸ­ç¸®å½¢
 #define DI_GET(cb_id)			(GetDlgItem(hwnd, cb_id))
 #define DI_ENABLE(cb_id)		(EnableWindow(DI_GET(cb_id), TRUE))
 #define DI_DISABLE(cb_id)		(EnableWindow(DI_GET(cb_id), FALSE))
@@ -1079,12 +1079,12 @@ static int process_priority_num[] = {
 	REALTIME_PRIORITY_CLASS,
 };
 static const TCHAR *process_priority_name_jp[] = {
-	TEXT("’á‚¢"),
-	TEXT("­‚µ’á‚¢"),
-	TEXT("•’Ê"),
-	TEXT("­‚µ‚‚¢"),
-	TEXT("‚‚¢"),
-	TEXT("ƒŠƒAƒ‹ƒ^ƒCƒ€"),
+	TEXT("ä½ã„"),
+	TEXT("å°‘ã—ä½ã„"),
+	TEXT("æ™®é€š"),
+	TEXT("å°‘ã—é«˜ã„"),
+	TEXT("é«˜ã„"),
+	TEXT("ãƒªã‚¢ãƒ«ã‚¿ã‚¤ãƒ "),
 };
 static const TCHAR *process_priority_name_en[] = {
 	TEXT("Lowest"),
@@ -1105,13 +1105,13 @@ static int thread_priority_num[] = {
 	THREAD_PRIORITY_TIME_CRITICAL,
 };
 static const TCHAR *thread_priority_name_jp[] = {
-	TEXT("ƒAƒCƒhƒ‹"),
-	TEXT("’á‚¢"),
-	TEXT("­‚µ’á‚¢"),
-	TEXT("•’Ê"),
-	TEXT("­‚µ‚‚¢"),
-	TEXT("‚‚¢"),
-	TEXT("ƒ^ƒCƒ€ƒNƒŠƒeƒBƒJƒ‹"),
+	TEXT("ã‚¢ã‚¤ãƒ‰ãƒ«"),
+	TEXT("ä½ã„"),
+	TEXT("å°‘ã—ä½ã„"),
+	TEXT("æ™®é€š"),
+	TEXT("å°‘ã—é«˜ã„"),
+	TEXT("é«˜ã„"),
+	TEXT("ã‚¿ã‚¤ãƒ ã‚¯ãƒªãƒ†ã‚£ã‚«ãƒ«"),
 };
 static const TCHAR *thread_priority_name_en[] = {
 	TEXT("Idle"),
@@ -1622,7 +1622,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
             const TCHAR *msg,
                    msg_en[] = TEXT("Press the Reload button to apply instruments"),
-                   msg_jp[] = TEXT("‰¹Fî•ñ‚Í‹­§Ä“Çƒ{ƒ^ƒ“‚ğ‰Ÿ‚·‚Æ”½‰f‚³‚ê‚Ü‚·");
+                   msg_jp[] = TEXT("éŸ³è‰²æƒ…å ±ã¯å¼·åˆ¶å†èª­è¾¼ãƒœã‚¿ãƒ³ã‚’æŠ¼ã™ã¨åæ˜ ã•ã‚Œã¾ã™");
             switch (CurrentPlayerLanguage) {
             case LANGUAGE_ENGLISH: msg = msg_en; break;
             case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
@@ -2031,7 +2031,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
             const TCHAR *msg,
                    msg_en[] = TEXT("Press the Reload button to apply instruments"),
-                   msg_jp[] = TEXT("‰¹Fî•ñ‚Í‹­§Ä“Çƒ{ƒ^ƒ“‚ğ‰Ÿ‚·‚Æ”½‰f‚³‚ê‚Ü‚·");
+                   msg_jp[] = TEXT("éŸ³è‰²æƒ…å ±ã¯å¼·åˆ¶å†èª­è¾¼ãƒœã‚¿ãƒ³ã‚’æŠ¼ã™ã¨åæ˜ ã•ã‚Œã¾ã™");
             switch (CurrentPlayerLanguage) {
             case LANGUAGE_ENGLISH: msg = msg_en; break;
             case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
@@ -2095,21 +2095,21 @@ static const TCHAR *cb_info_IDC_COMBO_MIDI_TYPE_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_MIDI_TYPE_jp[] = {
-//	TEXT("DEFAULT (ƒfƒtƒHƒ‹ƒg)"),
-    TEXT("GM (ƒfƒtƒHƒ‹ƒg)"),
-    TEXT("GM2 (ƒfƒtƒHƒ‹ƒg)"),
-    TEXT("GS (ƒfƒtƒHƒ‹ƒg)"),
-    TEXT("XG (ƒfƒtƒHƒ‹ƒg)"),
-	TEXT("SD (ƒfƒtƒHƒ‹ƒg)"),
-	TEXT("KORG (ƒfƒtƒHƒ‹ƒg)"),
-	TEXT("CM/LA (ƒfƒtƒHƒ‹ƒg)"),
-    TEXT("GM (ŒÅ’è)"),
-    TEXT("GM2 (ŒÅ’è)"),
-    TEXT("GS (ŒÅ’è)"),
-    TEXT("XG (ŒÅ’è)"),
-	TEXT("SD (ŒÅ’è)"),
-	TEXT("KORG (ŒÅ’è)"),
-	TEXT("CM/LA (ŒÅ’è)"),
+//	TEXT("DEFAULT (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+    TEXT("GM (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+    TEXT("GM2 (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+    TEXT("GS (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+    TEXT("XG (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+	TEXT("SD (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+	TEXT("KORG (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+	TEXT("CM/LA (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"),
+    TEXT("GM (å›ºå®š)"),
+    TEXT("GM2 (å›ºå®š)"),
+    TEXT("GS (å›ºå®š)"),
+    TEXT("XG (å›ºå®š)"),
+	TEXT("SD (å›ºå®š)"),
+	TEXT("KORG (å›ºå®š)"),
+	TEXT("CM/LA (å›ºå®š)"),
 };
 
 // IDC_COMBO_MODULE
@@ -2144,18 +2144,18 @@ static const TCHAR *cb_info_IDC_COMBO_REVERB_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_REVERB_jp[] = {
-	TEXT("ƒŠƒo[ƒu‚È‚µ"),
-	TEXT("•W€ƒŠƒo[ƒu"),
-	TEXT("•W€ƒŠƒo[ƒu (ƒOƒ[ƒoƒ‹)"),
-	TEXT("VƒŠƒo[ƒu"),
-	TEXT("VƒŠƒo[ƒu (ƒOƒ[ƒoƒ‹)"),
-	TEXT("•W€ƒŠƒo[ƒu EX"),
-	TEXT("•W€ƒŠƒo[ƒu EX (ƒOƒ[ƒoƒ‹)"),
-	TEXT("ƒTƒ“ƒvƒŠƒ“ƒOƒŠƒo[ƒu"),
-	TEXT("ƒTƒ“ƒvƒŠƒ“ƒOƒŠƒo[ƒu (ƒOƒ[ƒoƒ‹)"),
-	TEXT("ƒŠƒo[ƒu VST"),
-	TEXT("ƒŠƒo[ƒu VST (ƒOƒ[ƒoƒ‹)"),
-	TEXT("ƒ`ƒƒƒ“ƒlƒ‹ VST"),
+	TEXT("ãƒªãƒãƒ¼ãƒ–ãªã—"),
+	TEXT("æ¨™æº–ãƒªãƒãƒ¼ãƒ–"),
+	TEXT("æ¨™æº–ãƒªãƒãƒ¼ãƒ– (ã‚°ãƒ­ãƒ¼ãƒãƒ«)"),
+	TEXT("æ–°ãƒªãƒãƒ¼ãƒ–"),
+	TEXT("æ–°ãƒªãƒãƒ¼ãƒ– (ã‚°ãƒ­ãƒ¼ãƒãƒ«)"),
+	TEXT("æ¨™æº–ãƒªãƒãƒ¼ãƒ– EX"),
+	TEXT("æ¨™æº–ãƒªãƒãƒ¼ãƒ– EX (ã‚°ãƒ­ãƒ¼ãƒãƒ«)"),
+	TEXT("ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ãƒªãƒãƒ¼ãƒ–"),
+	TEXT("ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ãƒªãƒãƒ¼ãƒ– (ã‚°ãƒ­ãƒ¼ãƒãƒ«)"),
+	TEXT("ãƒªãƒãƒ¼ãƒ– VST"),
+	TEXT("ãƒªãƒãƒ¼ãƒ– VST (ã‚°ãƒ­ãƒ¼ãƒãƒ«)"),
+	TEXT("ãƒãƒ£ãƒ³ãƒãƒ« VST"),
 };
 
 // IDC_SLIDER_REVERB
@@ -2182,15 +2182,15 @@ static const TCHAR *cb_info_IDC_COMBO_CHORUS_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_CHORUS_jp[] = {
-	TEXT("ƒR[ƒ‰ƒX‚È‚µ"),
-	TEXT("•W€ƒR[ƒ‰ƒX"),
-	TEXT("•W€ƒR[ƒ‰ƒX2"),
-	TEXT("•W€ƒR[ƒ‰ƒX3 2phase"),
-	TEXT("•W€ƒR[ƒ‰ƒX4 3phase"),
-	TEXT("•W€ƒR[ƒ‰ƒX5 6phase"),
-	TEXT("•W€ƒR[ƒ‰ƒX EX"),
-	TEXT("ƒR[ƒ‰ƒX VST"),
-	TEXT("•W€ƒR[ƒ‰ƒX EX2"),
+	TEXT("ã‚³ãƒ¼ãƒ©ã‚¹ãªã—"),
+	TEXT("æ¨™æº–ã‚³ãƒ¼ãƒ©ã‚¹"),
+	TEXT("æ¨™æº–ã‚³ãƒ¼ãƒ©ã‚¹2"),
+	TEXT("æ¨™æº–ã‚³ãƒ¼ãƒ©ã‚¹3 2phase"),
+	TEXT("æ¨™æº–ã‚³ãƒ¼ãƒ©ã‚¹4 3phase"),
+	TEXT("æ¨™æº–ã‚³ãƒ¼ãƒ©ã‚¹5 6phase"),
+	TEXT("æ¨™æº–ã‚³ãƒ¼ãƒ©ã‚¹ EX"),
+	TEXT("ã‚³ãƒ¼ãƒ©ã‚¹ VST"),
+	TEXT("æ¨™æº–ã‚³ãƒ¼ãƒ©ã‚¹ EX2"),
 };
 
 // IDC_SLIDER_CHORUS
@@ -2207,9 +2207,9 @@ static const TCHAR *cb_info_IDC_COMBO_DELAY_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_DELAY_jp[] = {
-	TEXT("ƒfƒBƒŒƒC‚È‚µ"),
-	TEXT("•W€ƒfƒBƒŒƒC"),
-	TEXT("ƒfƒBƒŒƒC VST"),
+	TEXT("ãƒ‡ã‚£ãƒ¬ã‚¤ãªã—"),
+	TEXT("æ¨™æº–ãƒ‡ã‚£ãƒ¬ã‚¤"),
+	TEXT("ãƒ‡ã‚£ãƒ¬ã‚¤ VST"),
 };
 
 ///r
@@ -2263,7 +2263,7 @@ static const TCHAR *cb_info_IDC_COMBO_LPF_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_LPF_jp[] = {
-	TEXT("ƒtƒBƒ‹ƒ^‚È‚µ"),
+	TEXT("ãƒ•ã‚£ãƒ«ã‚¿ãªã—"),
 	TEXT("LPF (12dB/oct)"),
 	TEXT("LPF (24dB/oct)"),
 	TEXT("LPF (butterworth)"),
@@ -2315,7 +2315,7 @@ static const TCHAR *cb_info_IDC_COMBO_HPF_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_HPF_jp[] = {
-	TEXT("ƒtƒBƒ‹ƒ^‚È‚µ"),
+	TEXT("ãƒ•ã‚£ãƒ«ã‚¿ãªã—"),
 	TEXT("HPF (butterworth)"),
 	TEXT("HPF (12dB/oct)-3"),
 	TEXT("HPF (6dB/oct)"),
@@ -2821,11 +2821,11 @@ static const TCHAR *cb_info_IDC_COMBO_NOISESHARPING_en[] = {
 }; 
 
 static const TCHAR *cb_info_IDC_COMBO_NOISESHARPING_jp[] = {
-	TEXT("NS‚È‚µ"),
-	TEXT("]—ˆ‚ÌNS"),
-	TEXT("OD + VNS"),
-	TEXT("^‹óŠÇ + VNS"),
-	TEXT("VNS"),
+	TEXT("NSãªã—"),
+	TEXT("å¾“æ¥ã®NS"),
+	TEXT("OD + æ–°NS"),
+	TEXT("çœŸç©ºç®¡ + æ–°NS"),
+	TEXT("æ–°NS"),
 };
 
 // IDC_COMBO_RESAMPLE
@@ -2846,16 +2846,16 @@ static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_jp[] = {
-	TEXT("•âŠÔ‚È‚µ"),
-	TEXT("üŒ`(ƒŠƒjƒA)"),
-	TEXT("CƒXƒvƒ‰ƒCƒ“"),
-	TEXT("ƒ‰ƒOƒ‰ƒ“ƒWƒ…"),
-	TEXT("ƒjƒ…[ƒgƒ“"),
-	TEXT("ƒKƒEƒX•—"),
-	TEXT("ƒVƒƒ[ƒv"),
-	TEXT("üŒ` %"),
-	TEXT("ƒTƒCƒ“"),
-	TEXT("ƒXƒNƒGƒA"),
+	TEXT("è£œé–“ãªã—"),
+	TEXT("ç·šå½¢(ãƒªãƒ‹ã‚¢)"),
+	TEXT("Cã‚¹ãƒ—ãƒ©ã‚¤ãƒ³"),
+	TEXT("ãƒ©ã‚°ãƒ©ãƒ³ã‚¸ãƒ¥"),
+	TEXT("ãƒ‹ãƒ¥ãƒ¼ãƒˆãƒ³"),
+	TEXT("ã‚¬ã‚¦ã‚¹é¢¨"),
+	TEXT("ã‚·ãƒ£ãƒ¼ãƒ—"),
+	TEXT("ç·šå½¢ %"),
+	TEXT("ã‚µã‚¤ãƒ³"),
+	TEXT("ã‚¹ã‚¯ã‚¨ã‚¢"),
 	TEXT("Lanczos"),
 };
 
@@ -2933,7 +2933,7 @@ static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_FILTER_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_FILTER_jp[] = {
-	TEXT("ƒtƒBƒ‹ƒ^‚È‚µ"),
+	TEXT("ãƒ•ã‚£ãƒ«ã‚¿ãªã—"),
 	TEXT("LPFBW x1"),
 	TEXT("LPFBW x2"),
 	TEXT("LPFBW x3"),
@@ -4062,13 +4062,13 @@ static const TCHAR *cb_info_IDC_COMBO_BANDWIDTH_en[] = {
 	TEXT("64-bit float")
 };
 static const TCHAR *cb_info_IDC_COMBO_BANDWIDTH_jp[] = {
-	TEXT("8ƒrƒbƒg"),
-	TEXT("16ƒrƒbƒg"),
-	TEXT("24ƒrƒbƒg"),
-	TEXT("32ƒrƒbƒg"),
-	TEXT("32ƒrƒbƒgfloat"),
-	TEXT("64ƒrƒbƒg"),
-	TEXT("64ƒrƒbƒgfloat")
+	TEXT("8ãƒ“ãƒƒãƒˆ"),
+	TEXT("16ãƒ“ãƒƒãƒˆ"),
+	TEXT("24ãƒ“ãƒƒãƒˆ"),
+	TEXT("32ãƒ“ãƒƒãƒˆ"),
+	TEXT("32ãƒ“ãƒƒãƒˆfloat"),
+	TEXT("64ãƒ“ãƒƒãƒˆ"),
+	TEXT("64ãƒ“ãƒƒãƒˆfloat")
 };
 static const TCHAR **cb_info_IDC_COMBO_BANDWIDTH;
 
@@ -4166,22 +4166,22 @@ static const TCHAR *cb_info_IDC_COMBO_COMPUTE_BUFFER_BITS_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_COMPUTE_BUFFER_BITS_jp[] = {
-	TEXT("©“®İ’è –ñ1ms"),
-	TEXT("©“®İ’è –ñ2ms"),
-	TEXT("©“®İ’è –ñ3ms"),
-	TEXT("©“®İ’è –ñ4ms"),
-	TEXT("©“®İ’è –ñ5ms"),
-	TEXT("1ƒTƒ“ƒvƒ‹ 0bit"),
-	TEXT("2ƒTƒ“ƒvƒ‹ 1bit"),
-	TEXT("4ƒTƒ“ƒvƒ‹ 2bit"),
-	TEXT("8ƒTƒ“ƒvƒ‹ 3bit"),
-	TEXT("16ƒTƒ“ƒvƒ‹ 4bit"),
-	TEXT("32ƒTƒ“ƒvƒ‹ 5bit"),
-	TEXT("64ƒTƒ“ƒvƒ‹ 6bit"),
-	TEXT("128ƒTƒ“ƒvƒ‹ 7bit"),
-	TEXT("256ƒTƒ“ƒvƒ‹ 8bit"),
-	TEXT("512ƒTƒ“ƒvƒ‹ 9bit"),
-	TEXT("1024ƒTƒ“ƒvƒ‹ 10bit"),
+	TEXT("è‡ªå‹•è¨­å®š ç´„1ms"),
+	TEXT("è‡ªå‹•è¨­å®š ç´„2ms"),
+	TEXT("è‡ªå‹•è¨­å®š ç´„3ms"),
+	TEXT("è‡ªå‹•è¨­å®š ç´„4ms"),
+	TEXT("è‡ªå‹•è¨­å®š ç´„5ms"),
+	TEXT("1ã‚µãƒ³ãƒ—ãƒ« 0bit"),
+	TEXT("2ã‚µãƒ³ãƒ—ãƒ« 1bit"),
+	TEXT("4ã‚µãƒ³ãƒ—ãƒ« 2bit"),
+	TEXT("8ã‚µãƒ³ãƒ—ãƒ« 3bit"),
+	TEXT("16ã‚µãƒ³ãƒ—ãƒ« 4bit"),
+	TEXT("32ã‚µãƒ³ãƒ—ãƒ« 5bit"),
+	TEXT("64ã‚µãƒ³ãƒ—ãƒ« 6bit"),
+	TEXT("128ã‚µãƒ³ãƒ—ãƒ« 7bit"),
+	TEXT("256ã‚µãƒ³ãƒ—ãƒ« 8bit"),
+	TEXT("512ã‚µãƒ³ãƒ—ãƒ« 9bit"),
+	TEXT("1024ã‚µãƒ³ãƒ—ãƒ« 10bit"),
 };
 
 // IDC_COMBO_BUFFER_BITS
@@ -4206,14 +4206,14 @@ static const TCHAR *cb_info_IDC_COMBO_BUFFER_BITS_en[] = {
 	TEXT("4096samples 12bit"),
 };
 static const TCHAR *cb_info_IDC_COMBO_BUFFER_BITS_jp[] = {
-	TEXT("32ƒTƒ“ƒvƒ‹ 5bit"),
-	TEXT("64ƒTƒ“ƒvƒ‹ 6bit"),
-	TEXT("128ƒTƒ“ƒvƒ‹ 7bit"),
-	TEXT("256ƒTƒ“ƒvƒ‹ 8bit"),
-	TEXT("512ƒTƒ“ƒvƒ‹ 9bit"),
-	TEXT("1024ƒTƒ“ƒvƒ‹ 10bit"),
-	TEXT("2048ƒTƒ“ƒvƒ‹ 11bit"),
-	TEXT("4096ƒTƒ“ƒvƒ‹ 12bit"),
+	TEXT("32ã‚µãƒ³ãƒ—ãƒ« 5bit"),
+	TEXT("64ã‚µãƒ³ãƒ—ãƒ« 6bit"),
+	TEXT("128ã‚µãƒ³ãƒ—ãƒ« 7bit"),
+	TEXT("256ã‚µãƒ³ãƒ—ãƒ« 8bit"),
+	TEXT("512ã‚µãƒ³ãƒ—ãƒ« 9bit"),
+	TEXT("1024ã‚µãƒ³ãƒ—ãƒ« 10bit"),
+	TEXT("2048ã‚µãƒ³ãƒ—ãƒ« 11bit"),
+	TEXT("4096ã‚µãƒ³ãƒ—ãƒ« 12bit"),
 };
 
 // IDC_COMBO_FRAGMENTS
@@ -4262,39 +4262,39 @@ static const TCHAR *cb_info_IDC_COMBO_FRAGMENTS_en[] = {
 //	TEXT("4096blocks"),
 };
 static const TCHAR *cb_info_IDC_COMBO_FRAGMENTS_jp[] = {
-	TEXT("2ƒuƒƒbƒN"),
-	TEXT("4ƒuƒƒbƒN"),
-	TEXT("6ƒuƒƒbƒN"),
-	TEXT("8ƒuƒƒbƒN"),
-	TEXT("12ƒuƒƒbƒN"),
-	TEXT("16ƒuƒƒbƒN"),
-	TEXT("24ƒuƒƒbƒN"),
-	TEXT("32ƒuƒƒbƒN"),
-	TEXT("48ƒuƒƒbƒN"),
-	TEXT("64ƒuƒƒbƒN"),
-	TEXT("96ƒuƒƒbƒN"),
-	TEXT("128ƒuƒƒbƒN"),
-	TEXT("160ƒuƒƒbƒN"),
-	TEXT("256ƒuƒƒbƒN"),
-//	TEXT("384ƒuƒƒbƒN"),
-//	TEXT("512ƒuƒƒbƒN"),
-//	TEXT("768ƒuƒƒbƒN"),
-//	TEXT("1024ƒuƒƒbƒN"),
-//	TEXT("2048ƒuƒƒbƒN"),
-//	TEXT("4096ƒuƒƒbƒN"),
+	TEXT("2ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("4ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("6ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("8ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("12ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("16ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("24ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("32ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("48ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("64ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("96ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("128ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("160ãƒ–ãƒ­ãƒƒã‚¯"),
+	TEXT("256ãƒ–ãƒ­ãƒƒã‚¯"),
+//	TEXT("384ãƒ–ãƒ­ãƒƒã‚¯"),
+//	TEXT("512ãƒ–ãƒ­ãƒƒã‚¯"),
+//	TEXT("768ãƒ–ãƒ­ãƒƒã‚¯"),
+//	TEXT("1024ãƒ–ãƒ­ãƒƒã‚¯"),
+//	TEXT("2048ãƒ–ãƒ­ãƒƒã‚¯"),
+//	TEXT("4096ãƒ–ãƒ­ãƒƒã‚¯"),
 };
 
 // IDC_COMBO_OUTPUT_MODE
 static const TCHAR *cb_info_IDC_COMBO_OUTPUT_MODE_jp[] = {
-	TEXT("ˆÈ‰º‚Ìƒtƒ@ƒCƒ‹‚Éo—Í"), (TCHAR*)0,
+	TEXT("ä»¥ä¸‹ã®ãƒ•ã‚¡ã‚¤ãƒ«ã«å‡ºåŠ›"), (TCHAR*)0,
 #if defined(__CYGWIN32__) || defined(__MINGW32__)
-	TEXT("ƒtƒ@ƒCƒ‹–¼‚ğ©“®‚ÅŒˆ’è‚µAƒ\\[ƒX‚Æ“¯‚¶ƒtƒHƒ‹ƒ_‚Éo—Í"), (TCHAR*)1,
+	TEXT("ãƒ•ã‚¡ã‚¤ãƒ«åã‚’è‡ªå‹•ã§æ±ºå®šã—ã€ã‚½\ãƒ¼ã‚¹ã¨åŒã˜ãƒ•ã‚©ãƒ«ãƒ€ã«å‡ºåŠ›"), (TCHAR*)1,
 #else
-	TEXT("ƒtƒ@ƒCƒ‹–¼‚ğ©“®‚ÅŒˆ’è‚µAƒ\[ƒX‚Æ“¯‚¶ƒtƒHƒ‹ƒ_‚Éo—Í"), (TCHAR*)1,
+	TEXT("ãƒ•ã‚¡ã‚¤ãƒ«åã‚’è‡ªå‹•ã§æ±ºå®šã—ã€ã‚½ãƒ¼ã‚¹ã¨åŒã˜ãƒ•ã‚©ãƒ«ãƒ€ã«å‡ºåŠ›"), (TCHAR*)1,
 #endif
 
-	TEXT("ƒtƒ@ƒCƒ‹–¼‚ğ©“®‚ÅŒˆ’è‚µAˆÈ‰º‚ÌƒtƒHƒ‹ƒ_‚Éo—Í"), (TCHAR*)2,
-	TEXT("ƒtƒ@ƒCƒ‹–¼‚ğ©“®‚ÅŒˆ’è‚µAˆÈ‰º‚ÌƒtƒHƒ‹ƒ_‚Éo—Í(ƒtƒHƒ‹ƒ_–¼•t‚«)"), (TCHAR*)3,
+	TEXT("ãƒ•ã‚¡ã‚¤ãƒ«åã‚’è‡ªå‹•ã§æ±ºå®šã—ã€ä»¥ä¸‹ã®ãƒ•ã‚©ãƒ«ãƒ€ã«å‡ºåŠ›"), (TCHAR*)2,
+	TEXT("ãƒ•ã‚¡ã‚¤ãƒ«åã‚’è‡ªå‹•ã§æ±ºå®šã—ã€ä»¥ä¸‹ã®ãƒ•ã‚©ãƒ«ãƒ€ã«å‡ºåŠ›(ãƒ•ã‚©ãƒ«ãƒ€åä»˜ã)"), (TCHAR*)3,
 	NULL,
 };
 static const TCHAR *cb_info_IDC_COMBO_OUTPUT_MODE_en[] = {
@@ -4884,12 +4884,12 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			}
 			if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 				if(st_temp->auto_output_mode>0){
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("o—Íæ"));
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("å‡ºåŠ›å…ˆ"));
 				TCHAR *t = char_to_tchar(st_temp->OutputDirName);
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
 				safe_free(t);
 				} else {
-				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("o—Íƒtƒ@ƒCƒ‹"));
+				SendDlgItemMessage(hwnd,IDC_BUTTON_OUTPUT_FILE,WM_SETTEXT,0,(LPARAM)_T("å‡ºåŠ›ãƒ•ã‚¡ã‚¤ãƒ«"));
 				TCHAR *t = char_to_tchar(st_temp->OutputName);
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,t);
 				safe_free(t);
@@ -5885,9 +5885,9 @@ static const TCHAR *cb_info_IDC_COMBO_INT_SYNTH_SINE_en[] = {
 };
 
 static const TCHAR *cb_info_IDC_COMBO_INT_SYNTH_SINE_jp[] = {
-	TEXT("mathŠÖ” (¸“xd‹)"),
-	TEXT("10bitƒe[ƒuƒ‹ •âŠÔ‚È‚µ"),
-	TEXT("10bitƒe[ƒuƒ‹ ƒŠƒjƒA•âŠÔ"),
+	TEXT("mathé–¢æ•° (ç²¾åº¦é‡è¦–)"),
+	TEXT("10bitãƒ†ãƒ¼ãƒ–ãƒ« è£œé–“ãªã—"),
+	TEXT("10bitãƒ†ãƒ¼ãƒ–ãƒ« ãƒªãƒ‹ã‚¢è£œé–“"),
 };
 
 static LRESULT APIENTRY CALLBACK PrefIntSynthDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
@@ -5954,14 +5954,14 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
                 _T("Config file (*.cfg;*.config)\0*.cfg;*.config\0")
 				_T("All files (*.*)\0*.*\0")
 				_T("\0\0"),
-		   *filter_jp = _T("‚·‚×‚Ä‚Ì‘Î‰ƒtƒ@ƒCƒ‹ (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0")
-                _T("SoundFont ƒtƒ@ƒCƒ‹ (*.sf2;*.sf3)\0*.sf2;*.sf3\0")
-                _T("Config ƒtƒ@ƒCƒ‹ (*.cfg;*.config)\0*.cfg;*.config\0")
-				_T("‚·‚×‚Ä‚Ìƒtƒ@ƒCƒ‹ (*.*)\0*.*\0")
+		   *filter_jp = _T("ã™ã¹ã¦ã®å¯¾å¿œãƒ•ã‚¡ã‚¤ãƒ« (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0")
+                _T("SoundFont ãƒ•ã‚¡ã‚¤ãƒ« (*.sf2;*.sf3)\0*.sf2;*.sf3\0")
+                _T("Config ãƒ•ã‚¡ã‚¤ãƒ« (*.cfg;*.config)\0*.cfg;*.config\0")
+				_T("ã™ã¹ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ« (*.*)\0*.*\0")
 				_T("\0\0");
 	const TCHAR *title,
 		   *title_en = _T("Open Config File"),
-		   *title_jp = _T("Config ƒtƒ@ƒCƒ‹‚ğŠJ‚­");
+		   *title_jp = _T("Config ãƒ•ã‚¡ã‚¤ãƒ«ã‚’é–‹ã");
 
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -6033,12 +6033,12 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 		   *filter_en = _T("wave file\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0")
 				_T("all files\0*.*\0")
 				_T("\0\0"),
-		   *filter_jp = _T("”gŒ`ƒtƒ@ƒCƒ‹ (*.wav;*.aif)\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0")
-				_T("‚·‚×‚Ä‚Ìƒtƒ@ƒCƒ‹ (*.*)\0*.*\0")
+		   *filter_jp = _T("æ³¢å½¢ãƒ•ã‚¡ã‚¤ãƒ« (*.wav;*.aif)\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0")
+				_T("ã™ã¹ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ« (*.*)\0*.*\0")
 				_T("\0\0");
 	const TCHAR *title,
 		   *title_en = _T("Output File"),
-		   *title_jp = _T("o—Íƒtƒ@ƒCƒ‹‚ğ‘I‚Ô");
+		   *title_jp = _T("å‡ºåŠ›ãƒ•ã‚¡ã‚¤ãƒ«ã‚’é¸ã¶");
 
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -6124,7 +6124,7 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 	LPITEMIDLIST itemidlist;
 	const TCHAR *title,
 		   *title_en = _T("Select output directory."),
-		   *title_jp = _T("o—Íæ‚ÌƒfƒBƒŒƒNƒgƒŠ‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢B");
+		   *title_jp = _T("å‡ºåŠ›å…ˆã®ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‚’é¸æŠã—ã¦ãã ã•ã„ã€‚");
 
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		title = title_jp;
@@ -6181,27 +6181,27 @@ int w32g_gogo_id3_tag_dialog(void)
 
 volatile wave_ConfigDialogInfo_t wave_ConfigDialogInfo;
 
-// ƒ`ƒFƒbƒN‚³‚ê‚Ä‚¢‚é‚©B
+// ãƒã‚§ãƒƒã‚¯ã•ã‚Œã¦ã„ã‚‹ã‹ã€‚
 #define IS_CHECK(id) CH_GET(id)
-// ƒ`ƒFƒbƒN‚·‚éB
+// ãƒã‚§ãƒƒã‚¯ã™ã‚‹ã€‚
 #define CHECK(id) SendDlgItemMessage(hwnd, id, BM_SETCHECK, 1, 0)
-// ƒ`ƒFƒbƒN‚ğ‚Í‚¸‚·B
+// ãƒã‚§ãƒƒã‚¯ã‚’ã¯ãšã™ã€‚
 #define UNCHECK(id) SendDlgItemMessage(hwnd, id, BM_SETCHECK, 0, 0)
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğİ’è‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’è¨­å®šã™ã‚‹ã€‚
 #define CHECKBOX_SET(id) \
 	if (wave_ConfigDialogInfo.opt##id > 0) \
 		SendDlgItemMessage(hwnd, id, BM_SETCHECK, 1, 0); \
 	else \
 		SendDlgItemMessage(hwnd, id, BM_SETCHECK, 0, 0); \
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CHECKBOX_GET(id) \
 	if (CH_GET(id)) \
 		wave_ConfigDialogInfo.opt##id = 1; \
 	else \
 		wave_ConfigDialogInfo.opt##id = 0; \
-// id ‚ÌƒGƒfƒBƒbƒg‚ğİ’è‚·‚éB
+// id ã®ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã‚’è¨­å®šã™ã‚‹ã€‚
 #define EDIT_SET(id) SendDlgItemMessageA(hwnd, id, WM_SETTEXT, 0, (LPARAM)wave_ConfigDialogInfo.opt##id);
-// id ‚ÌƒGƒfƒBƒbƒg‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define EDIT_GET(id, size) SendDlgItemMessageA(hwnd, id, WM_GETTEXT, (WPARAM)size, (LPARAM)wave_ConfigDialogInfo.opt##id);
 #define EDIT_GET_RANGE(id, size, min, max) \
 { \
@@ -6215,9 +6215,9 @@ volatile wave_ConfigDialogInfo_t wave_ConfigDialogInfo;
 	strncpy((char*)wave_ConfigDialogInfo.opt##id, tmpbuf, size); \
 	(wave_ConfigDialogInfo.opt##id)[size] = '\0'; \
 }
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹åŒ–
 #define ENABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd, id), TRUE);
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì–³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®ç„¡åŠ¹åŒ–
 #define DISABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd, id), FALSE);
 
 static void waveConfigDialogProcControlEnableDisable(HWND hwnd);
@@ -6230,7 +6230,7 @@ static LRESULT APIENTRY CALLBACK waveConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	switch (uMess) {
 	case WM_INITDIALOG:
 	{
-		// İ’è
+		// è¨­å®š
 		waveConfigDialogProcControlReset(hwnd);
 
 		SetFocus(DI_GET(IDOK));
@@ -6270,28 +6270,28 @@ static LRESULT APIENTRY CALLBACK waveConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	return FALSE;
 }
 
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 static void waveConfigDialogProcControlEnableDisable(HWND hwnd)
 {
 }
 
 static void waveConfigDialogProcControlReset(HWND hwnd)
 {
-	// ƒGƒfƒBƒbƒg‚Ìİ’è
+	// ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã®è¨­å®š
 	EDIT_SET(IDC_EDIT_RIFFWAVE_UPDATE_STEP)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_SET(IDC_CHECKBOX_RIFFWAVE_EXTENSIBLE)
-	// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+	// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 	waveConfigDialogProcControlEnableDisable(hwnd);
 }
 
 static void waveConfigDialogProcControlApply(HWND hwnd)
 {
-	// ƒGƒfƒBƒbƒg‚Ìİ’è
+	// ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã®è¨­å®š
 	EDIT_GET_RANGE(IDC_EDIT_RIFFWAVE_UPDATE_STEP, 6, 0, 99999)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_GET(IDC_CHECKBOX_RIFFWAVE_EXTENSIBLE)
-	// ƒŠƒZƒbƒg
+	// ãƒªã‚»ãƒƒãƒˆ
 	waveConfigDialogProcControlReset(hwnd);
 }
 
@@ -6392,13 +6392,13 @@ int wave_ConfigDialogInfoLoadINI(void)
 //
 //
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ìî•ñ‚Ì’è‹`
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®æƒ…å ±ã®å®šç¾©
 #define CB_INFO_TYPE1_BEGIN(id) static int cb_info_ ## id [] = {
 #define CB_INFO_TYPE1_END };
 #define CB_INFO_TYPE2_BEGIN(id) static const TCHAR * cb_info_ ## id [] = {
 #define CB_INFO_TYPE2_END };
 
-// cb_info_type1_‚h‚c  cb_info_type2_‚h‚c ‚Æ‚¢‚¤‚Ó‚¤‚É‚È‚éB
+// cb_info_type1_ï¼©ï¼¤  cb_info_type2_ï¼©ï¼¤ ã¨ã„ã†ãµã†ã«ãªã‚‹ã€‚
 
 // IDC_COMBO_OUTPUT_FORMAT
 CB_INFO_TYPE2_BEGIN(IDC_COMBO_OUTPUT_FORMAT)
@@ -6461,7 +6461,7 @@ CB_INFO_TYPE2_BEGIN(IDC_COMBO_VBR)
 	NULL
 CB_INFO_TYPE2_END
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚ğ‘I‘ğ‚Ìİ’è‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã‚’é¸æŠã®è¨­å®šã™ã‚‹ã€‚
 #define CB_SETCURSEL_TYPE1(id) \
 { \
 	int cb_num; \
@@ -6484,7 +6484,7 @@ CB_INFO_TYPE2_END
 		} \
 	} \
 }
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğ‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CB_GETCURSEL_TYPE1(id) \
 { \
 	int cb_num1, cb_num2; \
@@ -6505,27 +6505,27 @@ CB_INFO_TYPE2_END
 			break; \
 		} \
 }
-// ƒ`ƒFƒbƒN‚³‚ê‚Ä‚¢‚é‚©B
+// ãƒã‚§ãƒƒã‚¯ã•ã‚Œã¦ã„ã‚‹ã‹ã€‚
 #define IS_CHECK(id) SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)
-// ƒ`ƒFƒbƒN‚·‚éB
+// ãƒã‚§ãƒƒã‚¯ã™ã‚‹ã€‚
 #define CHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0)
-// ƒ`ƒFƒbƒN‚ğ‚Í‚¸‚·B
+// ãƒã‚§ãƒƒã‚¯ã‚’ã¯ãšã™ã€‚
 #define UNCHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0)
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğİ’è‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’è¨­å®šã™ã‚‹ã€‚
 #define CHECKBOX_SET(id) \
 	if(gogo_ConfigDialogInfo.opt ## id>0) \
 		SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0); \
 	else \
 		SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0); \
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CHECKBOX_GET(id) \
 	if(SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)) \
 		gogo_ConfigDialogInfo.opt ## id = 1; \
 	else \
 		gogo_ConfigDialogInfo.opt ## id = 0; \
-// id ‚ÌƒGƒfƒBƒbƒg‚ğİ’è‚·‚éB
+// id ã®ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã‚’è¨­å®šã™ã‚‹ã€‚
 #define EDIT_SET(id) SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)gogo_ConfigDialogInfo.opt ## id);
-// id ‚ÌƒGƒfƒBƒbƒg‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define EDIT_GET(id,size) SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)gogo_ConfigDialogInfo.opt ## id);
 #define EDIT_GET_RANGE(id,size,min,max) \
 { \
@@ -6539,9 +6539,9 @@ CB_INFO_TYPE2_END
 	strncpy((char *)gogo_ConfigDialogInfo.opt ## id,tmpbuf,size); \
 	(gogo_ConfigDialogInfo.opt ## id)[size] = '\0'; \
 }
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹åŒ–
 #define ENABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),TRUE);
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì–³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®ç„¡åŠ¹åŒ–
 #define DISABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),FALSE);
 
 static void gogoConfigDialogProcControlEnableDisable(HWND hwnd);
@@ -6556,7 +6556,7 @@ static LRESULT APIENTRY CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	case WM_INITDIALOG:
 	{
 		int i;
-		// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‰Šú‰»
+		// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®åˆæœŸåŒ–
 		for(i=0;cb_info_IDC_COMBO_OUTPUT_FORMAT[i];i+=2){
 			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_FORMAT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_OUTPUT_FORMAT[i]);
 		}
@@ -6585,7 +6585,7 @@ static LRESULT APIENTRY CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPA
 		for(i=0;cb_info_IDC_COMBO_VBR[i];i+=2){
 			SendDlgItemMessage(hwnd,IDC_COMBO_VBR,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_VBR[i]);
 		}
-		// İ’è
+		// è¨­å®š
 		gogoConfigDialogProcControlReset(hwnd);
 
 		SetFocus(GetDlgItem(hwnd, IDOK));
@@ -6745,7 +6745,7 @@ static LRESULT APIENTRY CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	return FALSE;
 }
 
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 static void gogoConfigDialogProcControlEnableDisable(HWND hwnd)
 {
 	ENABLE_CONTROL(IDC_CHECK_DEFAULT);
@@ -6934,7 +6934,7 @@ static void gogoConfigDialogProcControlEnableDisable(HWND hwnd)
 
 static void gogoConfigDialogProcControlReset(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_SETCURSEL_TYPE2(IDC_COMBO_OUTPUT_FORMAT)
 	CB_SETCURSEL_TYPE1(IDC_COMBO_MPEG1_AUDIO_BITRATE)
 	CB_SETCURSEL_TYPE1(IDC_COMBO_MPEG2_AUDIO_BITRATE)
@@ -6943,7 +6943,7 @@ static void gogoConfigDialogProcControlReset(HWND hwnd)
 	CB_SETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_LOW)
 	CB_SETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_HIGH)
 	CB_SETCURSEL_TYPE2(IDC_COMBO_VBR)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_SET(IDC_CHECK_DEFAULT)
 	CHECKBOX_SET(IDC_CHECK_COMMANDLINE_OPTS)
 	CHECKBOX_SET(IDC_CHECK_OUTPUT_FORMAT)
@@ -6967,20 +6967,20 @@ static void gogoConfigDialogProcControlReset(HWND hwnd)
 	CHECKBOX_SET(IDC_CHECK_USEPSY)
 	CHECKBOX_SET(IDC_CHECK_VERIFY)
 	CHECKBOX_SET(IDC_CHECK_16KHZ_LOW_PASS_FILTER)
-	// ƒGƒfƒBƒbƒg‚Ìİ’è
+	// ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã®è¨­å®š
 	EDIT_SET(IDC_EDIT_OUTFREQ)
 	EDIT_SET(IDC_EDIT_MSTHRESHOLD_THRESHOLD)
 	EDIT_SET(IDC_EDIT_MSTHRESHOLD_MSPOWER)
 	EDIT_SET(IDC_EDIT_COMMANDLINE_OPTION)
 	EDIT_SET(IDC_EDIT_LPF_PARA1)
 	EDIT_SET(IDC_EDIT_LPF_PARA2)
-	// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+	// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 	gogoConfigDialogProcControlEnableDisable(hwnd);
 }
 
 static void gogoConfigDialogProcControlApply(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_GETCURSEL_TYPE2(IDC_COMBO_OUTPUT_FORMAT)
 	CB_GETCURSEL_TYPE1(IDC_COMBO_MPEG1_AUDIO_BITRATE)
 	CB_GETCURSEL_TYPE1(IDC_COMBO_MPEG2_AUDIO_BITRATE)
@@ -6989,7 +6989,7 @@ static void gogoConfigDialogProcControlApply(HWND hwnd)
 	CB_GETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_LOW)
 	CB_GETCURSEL_TYPE1(IDC_COMBO_VBR_BITRATE_HIGH)
 	CB_GETCURSEL_TYPE2(IDC_COMBO_VBR)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_GET(IDC_CHECK_DEFAULT)
 	CHECKBOX_GET(IDC_CHECK_COMMANDLINE_OPTS)
 	CHECKBOX_GET(IDC_CHECK_OUTPUT_FORMAT)
@@ -7013,16 +7013,16 @@ static void gogoConfigDialogProcControlApply(HWND hwnd)
 	CHECKBOX_GET(IDC_CHECK_USEPSY)
 	CHECKBOX_GET(IDC_CHECK_VERIFY)
 	CHECKBOX_GET(IDC_CHECK_16KHZ_LOW_PASS_FILTER)
-	// ƒGƒfƒBƒbƒg‚Ìİ’è
+	// ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã®è¨­å®š
 	EDIT_GET_RANGE(IDC_EDIT_OUTFREQ,6,MIN_OUTPUT_RATE,MAX_OUTPUT_RATE)
 	EDIT_GET_RANGE(IDC_EDIT_MSTHRESHOLD_THRESHOLD,4,0,100)
 	EDIT_GET_RANGE(IDC_EDIT_MSTHRESHOLD_MSPOWER,4,0,100)
 	EDIT_GET(IDC_EDIT_COMMANDLINE_OPTION,1024)
 	EDIT_GET_RANGE(IDC_EDIT_LPF_PARA1,4,0,100)
 	EDIT_GET_RANGE(IDC_EDIT_LPF_PARA2,4,0,100)
-	// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+	// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 	gogoConfigDialogProcControlEnableDisable(hwnd);
-	// ƒŠƒZƒbƒg
+	// ãƒªã‚»ãƒƒãƒˆ
 	gogoConfigDialogProcControlReset(hwnd);
 }
 
@@ -7178,12 +7178,12 @@ int gogo_ConfigDialogInfoApply(void)
 	if(gogo_ConfigDialogInfo.optIDC_CHECK_16KHZ_LOW_PASS_FILTER>0){
 		gogo_opts.optUSELPF16 = TRUE;
 	}
-//	gogo_opts.optINPFREQ;			// SYSTEM USE(ƒVƒXƒeƒ€‚Åg—p‚·‚é‚©‚çw’è‚Å‚«‚È‚¢)
+//	gogo_opts.optINPFREQ;			// SYSTEM USE(ã‚·ã‚¹ãƒ†ãƒ ã§ä½¿ç”¨ã™ã‚‹ã‹ã‚‰æŒ‡å®šã§ããªã„)
 //	gogo_opts.optSTARTOFFSET;	// SYSTEM USE
 //	gogo_opts.optADDTAGnum;		// SYSTEM USE
 //	gogo_opts.optADDTAG_len[64];	// SYSTEM USE
 //	gogo_opts.optADDTAG_buf[64];	// SYSTEM USE
-//	gogo_opts.optCPU;					// PREPAIRING(€”õ’†)
+//	gogo_opts.optCPU;					// PREPAIRING(æº–å‚™ä¸­)
 //	gogo_opts.optBYTE_SWAP;			// SYSTEM USE
 //	gogo_opts.opt8BIT_PCM;			// SYSTEM USE
 //	gogo_opts.optMONO_PCM;		// SYSTEM USE
@@ -7327,35 +7327,35 @@ int gogo_ConfigDialogInfoLoadINI(void)
 
 volatile vorbis_ConfigDialogInfo_t vorbis_ConfigDialogInfo;
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ìî•ñ‚Ì’è‹`
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®æƒ…å ±ã®å®šç¾©
 #define CB_INFO_TYPE1_BEGIN(id) static int cb_info_ ## id [] = {
 #define CB_INFO_TYPE1_END };
 #define CB_INFO_TYPE2_BEGIN(id) static const TCHAR * cb_info_ ## id [] = {
 #define CB_INFO_TYPE2_END };
 
-// cb_info_type1_‚h‚c  cb_info_type2_‚h‚c ‚Æ‚¢‚¤‚Ó‚¤‚É‚È‚éB
+// cb_info_type1_ï¼©ï¼¤  cb_info_type2_ï¼©ï¼¤ ã¨ã„ã†ãµã†ã«ãªã‚‹ã€‚
 
 // IDC_COMBO_MODE_jp
 CB_INFO_TYPE2_BEGIN(IDC_COMBO_MODE_jp)
-	TEXT("VBR •i¿ 1 (’á)"), (TCHAR*)1,
-	TEXT("VBR •i¿ 2"), (TCHAR*)2,
-	TEXT("VBR •i¿ 3"), (TCHAR*)3,
-	TEXT("VBR •i¿ 4"), (TCHAR*)4,
-	TEXT("VBR •i¿ 4.99"), (TCHAR*)499,
-	TEXT("VBR •i¿ 5"), (TCHAR*)5,
-	TEXT("VBR •i¿ 6"), (TCHAR*)6,
-	TEXT("VBR •i¿ 7"), (TCHAR*)7,
-	TEXT("VBR •i¿ 8 (ƒfƒtƒHƒ‹ƒg)"), (TCHAR*)8,
-	TEXT("VBR •i¿ 9"), (TCHAR*)9,
-	TEXT("VBR •i¿ 10 (‚)"), (TCHAR*)10,
+	TEXT("VBR å“è³ª 1 (ä½)"), (TCHAR*)1,
+	TEXT("VBR å“è³ª 2"), (TCHAR*)2,
+	TEXT("VBR å“è³ª 3"), (TCHAR*)3,
+	TEXT("VBR å“è³ª 4"), (TCHAR*)4,
+	TEXT("VBR å“è³ª 4.99"), (TCHAR*)499,
+	TEXT("VBR å“è³ª 5"), (TCHAR*)5,
+	TEXT("VBR å“è³ª 6"), (TCHAR*)6,
+	TEXT("VBR å“è³ª 7"), (TCHAR*)7,
+	TEXT("VBR å“è³ª 8 (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"), (TCHAR*)8,
+	TEXT("VBR å“è³ª 9"), (TCHAR*)9,
+	TEXT("VBR å“è³ª 10 (é«˜)"), (TCHAR*)10,
 #if 0
-	"ƒfƒtƒHƒ‹ƒg(–ñ128kbps VBR)",(char *)0,
-	"–ñ112kbps VBR",(char *)1,
-	"–ñ128kbps VBR",(char *)2,
-	"–ñ160kbps VBR",(char *)3,
-	"–ñ192kbps VBR",(char *)4,
-	"–ñ256kbps VBR",(char *)5,
-	"–ñ350kbps VBR",(char *)6,
+	"ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ(ç´„128kbps VBR)",(char *)0,
+	"ç´„112kbps VBR",(char *)1,
+	"ç´„128kbps VBR",(char *)2,
+	"ç´„160kbps VBR",(char *)3,
+	"ç´„192kbps VBR",(char *)4,
+	"ç´„256kbps VBR",(char *)5,
+	"ç´„350kbps VBR",(char *)6,
 #endif
 	NULL
 CB_INFO_TYPE2_END
@@ -7387,7 +7387,7 @@ CB_INFO_TYPE2_END
 
 static const TCHAR **cb_info_IDC_COMBO_MODE;
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚ğ‘I‘ğ‚Ìİ’è‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã‚’é¸æŠã®è¨­å®šã™ã‚‹ã€‚
 #define CB_SETCURSEL_TYPE1(id) \
 { \
 	int cb_num; \
@@ -7410,7 +7410,7 @@ static const TCHAR **cb_info_IDC_COMBO_MODE;
 		} \
 	} \
 }
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğ‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CB_GETCURSEL_TYPE1(id) \
 { \
 	int cb_num1, cb_num2; \
@@ -7431,27 +7431,27 @@ static const TCHAR **cb_info_IDC_COMBO_MODE;
 			break; \
 		} \
 }
-// ƒ`ƒFƒbƒN‚³‚ê‚Ä‚¢‚é‚©B
+// ãƒã‚§ãƒƒã‚¯ã•ã‚Œã¦ã„ã‚‹ã‹ã€‚
 #define IS_CHECK(id) SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)
-// ƒ`ƒFƒbƒN‚·‚éB
+// ãƒã‚§ãƒƒã‚¯ã™ã‚‹ã€‚
 #define CHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0)
-// ƒ`ƒFƒbƒN‚ğ‚Í‚¸‚·B
+// ãƒã‚§ãƒƒã‚¯ã‚’ã¯ãšã™ã€‚
 #define UNCHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0)
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğİ’è‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’è¨­å®šã™ã‚‹ã€‚
 #define CHECKBOX_SET(id) \
 	if(vorbis_ConfigDialogInfo.opt ## id>0) \
 		SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0); \
 	else \
 		SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0); \
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CHECKBOX_GET(id) \
 	if(SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)) \
 		vorbis_ConfigDialogInfo.opt ## id = 1; \
 	else \
 		vorbis_ConfigDialogInfo.opt ## id = 0; \
-// id ‚ÌƒGƒfƒBƒbƒg‚ğİ’è‚·‚éB
+// id ã®ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã‚’è¨­å®šã™ã‚‹ã€‚
 #define EDIT_SET(id) SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)vorbis_ConfigDialogInfo.opt ## id);
-// id ‚ÌƒGƒfƒBƒbƒg‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define EDIT_GET(id,size) SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)vorbis_ConfigDialogInfo.opt ## id);
 #define EDIT_GET_RANGE(id,size,min,max) \
 { \
@@ -7465,9 +7465,9 @@ static const TCHAR **cb_info_IDC_COMBO_MODE;
 	strncpy((char *)vorbis_ConfigDialogInfo.opt ## id,tmpbuf,size); \
 	(vorbis_ConfigDialogInfo.opt ## id)[size] = '\0'; \
 }
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹åŒ–
 #define ENABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),TRUE);
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì–³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®ç„¡åŠ¹åŒ–
 #define DISABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),FALSE);
 
 
@@ -7482,7 +7482,7 @@ static LRESULT APIENTRY CALLBACK vorbisConfigDialogProc(HWND hwnd, UINT uMess, W
 	case WM_INITDIALOG:
 	{
 		int i;
-		// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‰Šú‰»
+		// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®åˆæœŸåŒ–
 		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		  cb_info_IDC_COMBO_MODE = cb_info_IDC_COMBO_MODE_jp;
 		else
@@ -7491,7 +7491,7 @@ static LRESULT APIENTRY CALLBACK vorbisConfigDialogProc(HWND hwnd, UINT uMess, W
 		for(i=0;cb_info_IDC_COMBO_MODE[i];i+=2){
 			SendDlgItemMessage(hwnd,IDC_COMBO_MODE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_MODE[i]);
 		}
-		// İ’è
+		// è¨­å®š
 		vorbisConfigDialogProcControlReset(hwnd);
 
 		SetFocus(GetDlgItem(hwnd, IDOK));
@@ -7541,7 +7541,7 @@ static LRESULT APIENTRY CALLBACK vorbisConfigDialogProc(HWND hwnd, UINT uMess, W
 	return FALSE;
 }
 
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 static void vorbisConfigDialogProcControlEnableDisable(HWND hwnd)
 {
 	ENABLE_CONTROL(IDC_CHECK_DEFAULT);
@@ -7563,31 +7563,31 @@ static void vorbisConfigDialogProcControlEnableDisable(HWND hwnd)
 
 static void vorbisConfigDialogProcControlReset(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_SETCURSEL_TYPE2(IDC_COMBO_MODE)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_SET(IDC_CHECK_DEFAULT)
-	// ƒGƒfƒBƒbƒg‚Ìİ’è
+	// ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã®è¨­å®š
 	EDIT_SET(IDC_EDIT1);
 	EDIT_SET(IDC_EDIT2);
 	EDIT_SET(IDC_EDIT3);
-	// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+	// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 	vorbisConfigDialogProcControlEnableDisable(hwnd);
 }
 
 static void vorbisConfigDialogProcControlApply(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_GETCURSEL_TYPE2(IDC_COMBO_MODE)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_GET(IDC_CHECK_DEFAULT)
-	// ƒGƒfƒBƒbƒg‚Ìİ’è
+	// ã‚¨ãƒ‡ã‚£ãƒƒãƒˆã®è¨­å®š
 	EDIT_GET(IDC_EDIT1,256-1);
 	EDIT_GET(IDC_EDIT2,256-1);
 	EDIT_GET(IDC_EDIT3,256-1);
-	// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+	// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 	vorbisConfigDialogProcControlEnableDisable(hwnd);
-	// ƒŠƒZƒbƒg
+	// ãƒªã‚»ãƒƒãƒˆ
 	vorbisConfigDialogProcControlReset(hwnd);
 }
 
@@ -7725,11 +7725,11 @@ int vorbis_ConfigDialogInfoLoadINI(void)
 
 volatile lame_ConfigDialogInfo_t lame_ConfigDialogInfo;
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ìî•ñ‚Ì’è‹`
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®æƒ…å ±ã®å®šç¾©
 #define CB_INFO_TYPE2_BEGIN(id) static const TCHAR * cb_info_lame_ ## id [] = {
 #define CB_INFO_TYPE2_END };
 
-// cb_info_type1_‚h‚c  cb_info_type2_‚h‚c ‚Æ‚¢‚¤‚Ó‚¤‚É‚È‚éB
+// cb_info_type1_ï¼©ï¼¤  cb_info_type2_ï¼©ï¼¤ ã¨ã„ã†ãµã†ã«ãªã‚‹ã€‚
 
 // IDC_LAME_CBPRESET_en
 CB_INFO_TYPE2_BEGIN(IDC_LAME_CBPRESET_en)
@@ -7755,7 +7755,7 @@ CB_INFO_TYPE2_END
 
 static const TCHAR **cb_info_lame_IDC_LAME_CBPRESET;
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚ğ‘I‘ğ‚Ìİ’è‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã‚’é¸æŠã®è¨­å®šã™ã‚‹ã€‚
 #define CB_SETCURSEL_TYPE2(id) \
 { \
 	int cb_num; \
@@ -7767,7 +7767,7 @@ static const TCHAR **cb_info_lame_IDC_LAME_CBPRESET;
 		} \
 	} \
 }
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğ‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CB_GETCURSEL_TYPE2(id) \
 { \
 	int cb_num1, cb_num2; \
@@ -7778,9 +7778,9 @@ static const TCHAR **cb_info_lame_IDC_LAME_CBPRESET;
 			break; \
 		} \
 }
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹åŒ–
 #define ENABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),TRUE);
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì–³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®ç„¡åŠ¹åŒ–
 #define DISABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),FALSE);
 
 
@@ -7794,13 +7794,13 @@ static LRESULT APIENTRY CALLBACK lameConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	case WM_INITDIALOG:
 	{
 		int i;
-		// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‰Šú‰»
+		// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®åˆæœŸåŒ–
 		cb_info_lame_IDC_LAME_CBPRESET = cb_info_lame_IDC_LAME_CBPRESET_en;
 
 		for(i=0;cb_info_lame_IDC_LAME_CBPRESET[i];i+=2){
 			SendDlgItemMessage(hwnd,IDC_LAME_CBPRESET,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_lame_IDC_LAME_CBPRESET[i]);
 		}
-		// İ’è
+		// è¨­å®š
 		lameConfigDialogProcControlReset(hwnd);
 
 		SetFocus(GetDlgItem(hwnd, IDOK));
@@ -7844,15 +7844,15 @@ static LRESULT APIENTRY CALLBACK lameConfigDialogProc(HWND hwnd, UINT uMess, WPA
 
 static void lameConfigDialogProcControlReset(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_SETCURSEL_TYPE2(IDC_LAME_CBPRESET)
 }
 
 static void lameConfigDialogProcControlApply(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_GETCURSEL_TYPE2(IDC_LAME_CBPRESET)
-	// ƒŠƒZƒbƒg
+	// ãƒªã‚»ãƒƒãƒˆ
 	lameConfigDialogProcControlReset(hwnd);
 }
 
@@ -7952,24 +7952,24 @@ int lame_ConfigDialogInfoLoadINI(void)
 
 volatile flac_ConfigDialogInfo_t flac_ConfigDialogInfo;
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ìî•ñ‚Ì’è‹`
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®æƒ…å ±ã®å®šç¾©
 #define CB_INFO_TYPE2_BEGIN(id) static const TCHAR * cb_info_flac_ ## id [] = {
 #define CB_INFO_TYPE2_END };
 
-// cb_info_type1_‚h‚c  cb_info_type2_‚h‚c ‚Æ‚¢‚¤‚Ó‚¤‚É‚È‚éB
+// cb_info_type1_ï¼©ï¼¤  cb_info_type2_ï¼©ï¼¤ ã¨ã„ã†ãµã†ã«ãªã‚‹ã€‚
 
 // IDC_COMBO_ENCODE_MODE_jp
 CB_INFO_TYPE2_BEGIN(IDC_COMBO_ENCODE_MODE_jp)
-	TEXT("ƒfƒtƒHƒ‹ƒg"), (TCHAR*)5,
-	TEXT("ƒŒƒxƒ‹ 0 (’á)"), (TCHAR*)0,
-	TEXT("ƒŒƒxƒ‹ 1"), (TCHAR*)1,
-	TEXT("ƒŒƒxƒ‹ 2"), (TCHAR*)2,
-	TEXT("ƒŒƒxƒ‹ 3"), (TCHAR*)3,
-	TEXT("ƒŒƒxƒ‹ 4"), (TCHAR*)4,
-	TEXT("ƒŒƒxƒ‹ 5 (ƒfƒtƒHƒ‹ƒg)"), (TCHAR*)5,
-	TEXT("ƒŒƒxƒ‹ 6"), (TCHAR*)6,
-	TEXT("ƒŒƒxƒ‹ 7"), (TCHAR*)7,
-	TEXT("ƒŒƒxƒ‹ 8 (‚)"), (TCHAR*)8,
+	TEXT("ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ"), (TCHAR*)5,
+	TEXT("ãƒ¬ãƒ™ãƒ« 0 (ä½)"), (TCHAR*)0,
+	TEXT("ãƒ¬ãƒ™ãƒ« 1"), (TCHAR*)1,
+	TEXT("ãƒ¬ãƒ™ãƒ« 2"), (TCHAR*)2,
+	TEXT("ãƒ¬ãƒ™ãƒ« 3"), (TCHAR*)3,
+	TEXT("ãƒ¬ãƒ™ãƒ« 4"), (TCHAR*)4,
+	TEXT("ãƒ¬ãƒ™ãƒ« 5 (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"), (TCHAR*)5,
+	TEXT("ãƒ¬ãƒ™ãƒ« 6"), (TCHAR*)6,
+	TEXT("ãƒ¬ãƒ™ãƒ« 7"), (TCHAR*)7,
+	TEXT("ãƒ¬ãƒ™ãƒ« 8 (é«˜)"), (TCHAR*)8,
 	NULL
 CB_INFO_TYPE2_END
 
@@ -7990,7 +7990,7 @@ CB_INFO_TYPE2_END
 
 static const TCHAR **cb_info_flac_IDC_COMBO_ENCODE_MODE;
 
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚ğ‘I‘ğ‚Ìİ’è‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã‚’é¸æŠã®è¨­å®šã™ã‚‹ã€‚
 #define CB_SETCURSEL_TYPE2(id) \
 { \
 	int cb_num; \
@@ -8002,7 +8002,7 @@ static const TCHAR **cb_info_flac_IDC_COMBO_ENCODE_MODE;
 		} \
 	} \
 }
-// id ‚ÌƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğ‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CB_GETCURSEL_TYPE2(id) \
 { \
 	int cb_num1, cb_num2; \
@@ -8013,27 +8013,27 @@ static const TCHAR **cb_info_flac_IDC_COMBO_ENCODE_MODE;
 			break; \
 		} \
 }
-// ƒ`ƒFƒbƒN‚³‚ê‚Ä‚¢‚é‚©B
+// ãƒã‚§ãƒƒã‚¯ã•ã‚Œã¦ã„ã‚‹ã‹ã€‚
 #define IS_CHECK(id) SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)
-// ƒ`ƒFƒbƒN‚·‚éB
+// ãƒã‚§ãƒƒã‚¯ã™ã‚‹ã€‚
 #define CHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0)
-// ƒ`ƒFƒbƒN‚ğ‚Í‚¸‚·B
+// ãƒã‚§ãƒƒã‚¯ã‚’ã¯ãšã™ã€‚
 #define UNCHECK(id) SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0)
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğİ’è‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’è¨­å®šã™ã‚‹ã€‚
 #define CHECKBOX_SET(id) \
 	if(flac_ConfigDialogInfo.opt ## id>0) \
 		SendDlgItemMessage(hwnd,id,BM_SETCHECK,1,0); \
 	else \
 		SendDlgItemMessage(hwnd,id,BM_SETCHECK,0,0); \
-// id ‚Ìƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚ğ•Ï”‚É‘ã“ü‚·‚éB
+// id ã®ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã‚’å¤‰æ•°ã«ä»£å…¥ã™ã‚‹ã€‚
 #define CHECKBOX_GET(id) \
 	if(SendDlgItemMessage(hwnd,id,BM_GETCHECK,0,0)) \
 		flac_ConfigDialogInfo.opt ## id = 1; \
 	else \
 		flac_ConfigDialogInfo.opt ## id = 0; \
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹åŒ–
 #define ENABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),TRUE);
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì–³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®ç„¡åŠ¹åŒ–
 #define DISABLE_CONTROL(id) EnableWindow(GetDlgItem(hwnd,id),FALSE);
 
 static void flacConfigDialogProcControlEnableDisable(HWND hwnd);
@@ -8047,7 +8047,7 @@ static LRESULT APIENTRY CALLBACK flacConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	case WM_INITDIALOG:
 	{
 		int i;
-		// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‰Šú‰»
+		// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®åˆæœŸåŒ–
 		if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		  cb_info_flac_IDC_COMBO_ENCODE_MODE = cb_info_flac_IDC_COMBO_ENCODE_MODE_jp;
 		else
@@ -8056,7 +8056,7 @@ static LRESULT APIENTRY CALLBACK flacConfigDialogProc(HWND hwnd, UINT uMess, WPA
 		for(i=0;cb_info_flac_IDC_COMBO_ENCODE_MODE[i];i+=2){
 			SendDlgItemMessage(hwnd,IDC_COMBO_ENCODE_MODE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_flac_IDC_COMBO_ENCODE_MODE[i]);
 		}
-		// İ’è
+		// è¨­å®š
 		flacConfigDialogProcControlReset(hwnd);
 
 		SetFocus(GetDlgItem(hwnd, IDOK));
@@ -8100,7 +8100,7 @@ static LRESULT APIENTRY CALLBACK flacConfigDialogProc(HWND hwnd, UINT uMess, WPA
 	return FALSE;
 }
 
-// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 static void flacConfigDialogProcControlEnableDisable(HWND hwnd)
 {
 #if !defined(AU_OGGFLAC)
@@ -8110,21 +8110,21 @@ static void flacConfigDialogProcControlEnableDisable(HWND hwnd)
 
 static void flacConfigDialogProcControlReset(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_SETCURSEL_TYPE2(IDC_COMBO_ENCODE_MODE)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_SET(IDC_CHECKBOX_OGGFLAC_CONTAINER)
-	// ƒRƒ“ƒgƒ[ƒ‹‚Ì—LŒø / –³Œø‰»
+	// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã®æœ‰åŠ¹ / ç„¡åŠ¹åŒ–
 	flacConfigDialogProcControlEnableDisable(hwnd);
 }
 
 static void flacConfigDialogProcControlApply(HWND hwnd)
 {
-	// ƒRƒ“ƒ{ƒ{ƒbƒNƒX‚Ì‘I‘ğİ’è
+	// ã‚³ãƒ³ãƒœãƒœãƒƒã‚¯ã‚¹ã®é¸æŠè¨­å®š
 	CB_GETCURSEL_TYPE2(IDC_COMBO_ENCODE_MODE)
-	// ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ìİ’è
+	// ãƒã‚§ãƒƒã‚¯ãƒœãƒƒã‚¯ã‚¹ã®è¨­å®š
 	CHECKBOX_GET(IDC_CHECKBOX_OGGFLAC_CONTAINER)
-	// ƒŠƒZƒbƒg
+	// ãƒªã‚»ãƒƒãƒˆ
 	flacConfigDialogProcControlReset(hwnd);
 }
 
@@ -8348,7 +8348,7 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				CB_INSSTR(IDC_COMBO_PA_WASAPI_PRIORITY, cb_info_IDC_COMBO_PA_WASAPI_PRIORITY[i]);
 			CB_SET(IDC_COMBO_PA_WASAPI_PRIORITY, (st_temp->pa_wasapi_flag >> 4));
 
-			DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_CH_MASK); // ì‚Á‚Ä‚È‚¢‚Ì‚ÅOFF
+			DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_CH_MASK); // ä½œã£ã¦ãªã„ã®ã§OFF
 			// WASAPI StreamCategory
 			max = winver >= 3 ? cb_num_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY : 1;
 			for (i = 0; i < max; i++)
@@ -8455,11 +8455,11 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 #ifdef _WIN64
 				const TCHAR *pa_msg,
 					pa_msg_en[] = TEXT("Cannot load portaudio_x64.dll"),
-					pa_msg_jp[] = TEXT("portaudio_x64.dll ‚ğƒ[ƒh‚µ‚Ä‚¢‚Ü‚¹‚ñB");
+					pa_msg_jp[] = TEXT("portaudio_x64.dll ã‚’ãƒ­ãƒ¼ãƒ‰ã—ã¦ã„ã¾ã›ã‚“ã€‚");
 #else
 				const TCHAR *pa_msg,
 					pa_msg_en[] = TEXT("Cannot load portaudio_x86.dll"),
-					pa_msg_jp[] = TEXT("portaudio_x86.dll ‚ğƒ[ƒh‚µ‚Ä‚¢‚Ü‚¹‚ñB");
+					pa_msg_jp[] = TEXT("portaudio_x86.dll ã‚’ãƒ­ãƒ¼ãƒ‰ã—ã¦ã„ã¾ã›ã‚“ã€‚");
 #endif
 				if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 					pa_msg = pa_msg_jp;
@@ -8470,7 +8470,7 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 			else if (cb_num == -3) {
 				const TCHAR *pa_msg,
 					pa_msg_en[] = TEXT("Couldn't close device"),
-					pa_msg_jp[] = TEXT("o—ÍƒfƒoƒCƒX‚ğ•Â‚¶‚ê‚Ü‚¹‚ñB");
+					pa_msg_jp[] = TEXT("å‡ºåŠ›ãƒ‡ãƒã‚¤ã‚¹ã‚’é–‰ã˜ã‚Œã¾ã›ã‚“ã€‚");
 				if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 					pa_msg = pa_msg_jp;
 				else
@@ -8481,11 +8481,11 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 #ifdef _WIN64
 				const TCHAR *pa_msg,
 					pa_msg_en[] = TEXT("Failed initialize portaudio_x64.dll"),
-					pa_msg_jp[] = TEXT("portaudio_x86.dll ‚ğg—p‚Å‚«‚Ü‚¹‚ñB");
+					pa_msg_jp[] = TEXT("portaudio_x86.dll ã‚’ä½¿ç”¨ã§ãã¾ã›ã‚“ã€‚");
 #else
 				const TCHAR *pa_msg,
 					pa_msg_en[] = TEXT("Failed initialize portaudio_x86.dll"),
-					pa_msg_jp[] = TEXT("portaudio_x86.dll ‚ğg—p‚Å‚«‚Ü‚¹‚ñB");
+					pa_msg_jp[] = TEXT("portaudio_x86.dll ã‚’ä½¿ç”¨ã§ãã¾ã›ã‚“ã€‚");
 #endif
 				if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 					pa_msg = pa_msg_jp;
@@ -8687,8 +8687,8 @@ LRESULT WINAPI wmmeConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			// WMME_BUFFER (data_block
 			SetDlgItemInt(hwnd, IDC_EDIT_WMME_BUFFER_BIT, st_temp->wmme_buffer_bits, FALSE);
 			SetDlgItemInt(hwnd, IDC_EDIT_WMME_BUFFER_NUM, st_temp->wmme_buffer_num, FALSE);
-			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_WMME_BUFFER_BIT), FALSE); // ƒoƒbƒtƒ@İ’è‹¤—L‚È‚Ì‚Å •sg—p
-			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_WMME_BUFFER_NUM), FALSE); // ƒoƒbƒtƒ@İ’è‹¤—L‚È‚Ì‚Å •sg—p
+			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_WMME_BUFFER_BIT), FALSE); // ãƒãƒƒãƒ•ã‚¡è¨­å®šå…±æœ‰ãªã®ã§ ä¸ä½¿ç”¨
+			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_WMME_BUFFER_NUM), FALSE); // ãƒãƒƒãƒ•ã‚¡è¨­å®šå…±æœ‰ãªã®ã§ ä¸ä½¿ç”¨
 			return TRUE;
 		case WM_CLOSE:
 			EndDialog(hwnd,TRUE);
