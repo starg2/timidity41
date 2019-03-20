@@ -521,7 +521,6 @@ void init_voice_pointer(void)
 	int i, j, error = 0;
 
     voice = (Voice*) safe_calloc(max_voices, sizeof(Voice));
-	memset(voice, 0, sizeof(voice));
 	if (!voice)
 		return;
 	for(i = 0; i < max_voices; i++) {			
