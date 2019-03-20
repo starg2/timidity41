@@ -56,11 +56,11 @@ typedef struct tagini {
 */
 
 /*
-  ƒnƒbƒVƒ…‚ğì¬‚·‚é
-  ˆø”:
-    str: •¶š—ñ
-  –ß‚è’l
-    ƒnƒbƒVƒ…
+  ãƒãƒƒã‚·ãƒ¥ã‚’ä½œæˆã™ã‚‹
+  å¼•æ•°:
+    str: æ–‡å­—åˆ—
+  æˆ»ã‚Šå€¤
+    ãƒãƒƒã‚·ãƒ¥
 */
 static UINT32 CreateHash(const char *str)
 {
@@ -178,14 +178,14 @@ static LPINISEC PushSection(const char *Section)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  w’è‚µ‚½ Section ‚ğŒŸõ‚·‚é
-  ˆø”:
-    Ini: INIDATA ‚Ì‚Û‚¢‚ñ‚½
-	SecName: ŒŸõ‚µ‚½‚¢ƒZƒNƒVƒ‡ƒ“–¼
-	AutoCreateEnable: Section‚ª‚È‚©‚Á‚½ê‡©“®“I‚Éì¬‚·‚é
-  –ß‚è’l
-    Œ©‚Â‚©‚Á‚½ Section ‚Ì ƒ|ƒCƒ“ƒ^
+  å…¬é–‹é–¢æ•°
+  æŒ‡å®šã—ãŸ Section ã‚’æ¤œç´¢ã™ã‚‹
+  å¼•æ•°:
+    Ini: INIDATA ã®ã½ã„ã‚“ãŸ
+	SecName: æ¤œç´¢ã—ãŸã„ã‚»ã‚¯ã‚·ãƒ§ãƒ³å
+	AutoCreateEnable: SectionãŒãªã‹ã£ãŸå ´åˆè‡ªå‹•çš„ã«ä½œæˆã™ã‚‹
+  æˆ»ã‚Šå€¤
+    è¦‹ã¤ã‹ã£ãŸ Section ã® ãƒã‚¤ãƒ³ã‚¿
 ---------------------------------------------------------------*/
 LPINISEC SearchSection(INIDATA *Ini, const char *Section, int AutoCreateEnable)
 {
@@ -220,12 +220,12 @@ LPINISEC SearchSection(INIDATA *Ini, const char *Section, int AutoCreateEnable)
 }
 
 /*-------------------------------------------------------------
-  ”ñŒöŠJŠÖ”
-  Key ‚ğ¶¬‚·‚é
-  ˆø”:
-    KeyName: ¶¬–¼
-  –ß‚è’l
-    Šm•Û‚µ‚½ƒ|ƒCƒ“ƒ^
+  éå…¬é–‹é–¢æ•°
+  Key ã‚’ç”Ÿæˆã™ã‚‹
+  å¼•æ•°:
+    KeyName: ç”Ÿæˆå
+  æˆ»ã‚Šå€¤
+    ç¢ºä¿ã—ãŸãƒã‚¤ãƒ³ã‚¿
 -------------------------------------------------------------*/
 LPINIKEY PushKey(const char *KeyName)
 {
@@ -239,14 +239,14 @@ LPINIKEY PushKey(const char *KeyName)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  w’è‚µ‚½ Key ‚ğŒŸõ‚·‚é
-  ˆø”:
-    Sec: Section ‚Ì‚Û‚¢‚ñ‚½
-	KeyName: ŒŸõ‚µ‚½‚¢ƒL[–¼
-	AutoCreateEnable: Key ‚ª‚È‚©‚Á‚½ê‡©“®“I‚Éì¬‚·‚é
-  –ß‚è’l
-    Œ©‚Â‚©‚Á‚½ Key ‚Ì ƒ|ƒCƒ“ƒ^
+  å…¬é–‹é–¢æ•°
+  æŒ‡å®šã—ãŸ Key ã‚’æ¤œç´¢ã™ã‚‹
+  å¼•æ•°:
+    Sec: Section ã®ã½ã„ã‚“ãŸ
+	KeyName: æ¤œç´¢ã—ãŸã„ã‚­ãƒ¼å
+	AutoCreateEnable: Key ãŒãªã‹ã£ãŸå ´åˆè‡ªå‹•çš„ã«ä½œæˆã™ã‚‹
+  æˆ»ã‚Šå€¤
+    è¦‹ã¤ã‹ã£ãŸ Key ã® ãƒã‚¤ãƒ³ã‚¿
 -------------------------------------------------------------*/
 LPINIKEY SearchKey(LPINISEC Sec, const char *KeyName, int AutoCreateEnable)
 {
@@ -282,13 +282,13 @@ LPINIKEY SearchKey(LPINISEC Sec, const char *KeyName, int AutoCreateEnable)
 }
 
 /*-------------------------------------------------------------
-  ”ñŒöŠJŠÖ”
-  KeyData ‚ğ¶¬‚·‚é
-  ˆø”:
-    KeyName: Key–¼
+  éå…¬é–‹é–¢æ•°
+  KeyData ã‚’ç”Ÿæˆã™ã‚‹
+  å¼•æ•°:
+    KeyName: Keyå
 	Data: data
-  –ß‚è’l
-    Šm•Û‚µ‚½ƒ|ƒCƒ“ƒ^
+  æˆ»ã‚Šå€¤
+    ç¢ºä¿ã—ãŸãƒã‚¤ãƒ³ã‚¿
 -------------------------------------------------------------*/
 void CreateKeyData(LPINIKEY Key, const char *Data)
 {
@@ -312,8 +312,8 @@ void CreateKeyData(LPINIKEY Key, const char *Data)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  Ini ‚ğLoad ‚·‚é
+  å…¬é–‹é–¢æ•°
+  Ini ã‚’Load ã™ã‚‹
 -------------------------------------------------------------*/
 static void MyIni_LoadF(INIDATA *Ini, FILE *fp)
 {
@@ -378,11 +378,11 @@ void MyIni_LoadT(INIDATA *Ini, const TCHAR *str)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  Ini ‚ğLoad ‚·‚é
-  timidity_file‘Î‰”Å , CFG dir ‚©‚çŒŸõ
-  save‚Ì‚Æ‚«‚Íabs_pathg—p‚·‚é‚Ì‚Å load‚Ì‚İ‚Å‚¢‚¢‚Í‚¸
-  tf_gets()‚ª_fgets()‚Æ“¯‚¶“®ì‚©‚Í•s–¾
+  å…¬é–‹é–¢æ•°
+  Ini ã‚’Load ã™ã‚‹
+  timidity_fileå¯¾å¿œç‰ˆ , CFG dir ã‹ã‚‰æ¤œç´¢
+  saveã®ã¨ãã¯abs_pathä½¿ç”¨ã™ã‚‹ã®ã§ loadã®ã¿ã§ã„ã„ã¯ãš
+  tf_gets()ãŒ_fgets()ã¨åŒã˜å‹•ä½œã‹ã¯ä¸æ˜
 -------------------------------------------------------------*/
 void MyIni_Load_timidity(INIDATA *Ini, const char *str, int decompress, int noise_mode)
 {
@@ -435,8 +435,8 @@ void MyIni_Load_timidity(INIDATA *Ini, const char *str, int decompress, int nois
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  Ini ‚ğ Save ‚·‚é
+  å…¬é–‹é–¢æ•°
+  Ini ã‚’ Save ã™ã‚‹
 -------------------------------------------------------------*/
 static void MyIni_SaveF(INIDATA *Ini, FILE *fp)
 {
@@ -474,8 +474,8 @@ void MyIni_SaveT(INIDATA *Ini, const TCHAR *fn)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  w’è‚µ‚½Section ‚Ì Key ‚ğ‚·‚×‚ÄÁ‹‚·‚é
+  å…¬é–‹é–¢æ•°
+  æŒ‡å®šã—ãŸSection ã® Key ã‚’ã™ã¹ã¦æ¶ˆå»ã™ã‚‹
 -------------------------------------------------------------*/
 void KeyAllClear(LPINISEC Sec)
 {
@@ -493,11 +493,11 @@ void KeyAllClear(LPINISEC Sec)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  ‚·‚×‚Ä‚Ì Section ‚ğƒƒ‚ƒŠ[ã‚©‚çíœ‚·‚é
-  ˆø”:
-    Ini: INIDATA ‚Ì‚Û‚¢‚ñ‚½
-	SecName: Á‹‚µ‚½‚¢ƒZƒNƒVƒ‡ƒ“–¼
+  å…¬é–‹é–¢æ•°
+  ã™ã¹ã¦ã® Section ã‚’ãƒ¡ãƒ¢ãƒªãƒ¼ä¸Šã‹ã‚‰å‰Šé™¤ã™ã‚‹
+  å¼•æ•°:
+    Ini: INIDATA ã®ã½ã„ã‚“ãŸ
+	SecName: æ¶ˆå»ã—ãŸã„ã‚»ã‚¯ã‚·ãƒ§ãƒ³å
 -------------------------------------------------------------*/
 void MyIni_SectionAllClear(INIDATA *Ini)
 {
@@ -516,11 +516,11 @@ void MyIni_SectionAllClear(INIDATA *Ini)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  w’è‚µ‚½ Section ‚ğƒƒ‚ƒŠ[ã‚©‚çíœ‚·‚é
-  ˆø”:
-    Ini: INIDATA ‚Ì‚Û‚¢‚ñ‚½
-	SecName: Á‹‚µ‚½‚¢ƒZƒNƒVƒ‡ƒ“–¼
+  å…¬é–‹é–¢æ•°
+  æŒ‡å®šã—ãŸ Section ã‚’ãƒ¡ãƒ¢ãƒªãƒ¼ä¸Šã‹ã‚‰å‰Šé™¤ã™ã‚‹
+  å¼•æ•°:
+    Ini: INIDATA ã®ã½ã„ã‚“ãŸ
+	SecName: æ¶ˆå»ã—ãŸã„ã‚»ã‚¯ã‚·ãƒ§ãƒ³å
 -------------------------------------------------------------*/
 int MyIni_DeleteSection(INIDATA *Ini, const char *SecName)
 {
@@ -545,8 +545,8 @@ int MyIni_DeleteSection(INIDATA *Ini, const char *SecName)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  ƒL[‚ğíœ‚·‚é
+  å…¬é–‹é–¢æ•°
+  ã‚­ãƒ¼ã‚’å‰Šé™¤ã™ã‚‹
 -------------------------------------------------------------*/
 int MyIni_DeleteKey(INIDATA *Ini, const char *SecName, const char *KeyName)
 {
@@ -579,8 +579,8 @@ int MyIni_DeleteKey(INIDATA *Ini, const char *SecName, const char *KeyName)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  ƒZƒNƒVƒ‡ƒ“‚ğŒŸõ‚·‚é
+  å…¬é–‹é–¢æ•°
+  ã‚»ã‚¯ã‚·ãƒ§ãƒ³ã‚’æ¤œç´¢ã™ã‚‹
 -------------------------------------------------------------*/
 int MyIni_SectionExists(INIDATA *Ini, const char *SecName)
 {
@@ -588,8 +588,8 @@ int MyIni_SectionExists(INIDATA *Ini, const char *SecName)
 }
 
 /*-------------------------------------------------------------
-  ŒöŠJŠÖ”
-  ƒL[‚ğŒŸõ‚·‚é
+  å…¬é–‹é–¢æ•°
+  ã‚­ãƒ¼ã‚’æ¤œç´¢ã™ã‚‹
 -------------------------------------------------------------*/
 int MyIni_KeyExists(INIDATA *Ini, const char *SecName, const char *KeyName)
 {
@@ -954,7 +954,7 @@ void MyIni_CreateIniCFile(const char *fn)
 }
 
 //--------------------------
-// Define ‚ğ‹ìg‚µ‚½ŠÖ”“WŠJ
+// Define ã‚’é§†ä½¿ã—ãŸé–¢æ•°å±•é–‹
 
 
 #define MYINI_GETPARAMFUNC(MIVAR, FUNCNAME, CONVFUNC) \

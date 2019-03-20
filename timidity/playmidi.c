@@ -349,8 +349,8 @@ static FLOAT_T nrpn_vib_delay = NRPN_VIBRATO_DELAY * 48.0; // count def48kHz
 static int8 nrpn_vib_delay_mode = NRPN_PARAM_GM_DELAY;
 static int8 nrpn_vib_rate_mode = NRPN_PARAM_GM_RATE;
 
-#define NRPN_FILTER_FREQ_MAX (9600.0) // MOD TVF CUTOFF CONTROL ‚Ж“Ї‚¶•П‰»•ќ
-#define NRPN_FILTER_RESO_MAX (36.0) // Ћd—l•s–ѕ CUTOFF“Ї—l‚М•П‰»•ќ
+#define NRPN_FILTER_FREQ_MAX (9600.0) // MOD TVF CUTOFF CONTROL гЃЁеђЊгЃе¤‰еЊ–е№…
+#define NRPN_FILTER_RESO_MAX (36.0) // д»•ж§дёЌжЋ CUTOFFеђЊж§гЃ®е¤‰еЊ–е№…
 static FLOAT_T nrpn_filter_freq = NRPN_FILTER_FREQ_MAX;
 static FLOAT_T nrpn_filter_reso = NRPN_FILTER_RESO_MAX;
 static int8 nrpn_filter_freq_mode = NRPN_PARAM_GM_CUTOFF;
@@ -433,7 +433,7 @@ const int32 delay_out_time_ms[] = {
 	300,	// 1 : filter (
 	600,	// 2 : multi filter + any
 	1500,	// 3 : pre_delay + feedback (chorus/flanger/phaser
-	6000,	// 4 : delay // long delay + max feedback‚ѕ‚Ж‘«‚и‚И‚ў‚©‚а
+	6000,	// 4 : delay // long delay + max feedbackгЃ гЃЁи¶іг‚ЉгЃЄгЃ„гЃ‹г‚‚
 	12000,	// 5 : reverb
 	30000,	// 6 : system reverb
 };
@@ -613,7 +613,7 @@ void init_playmidi(void){
 
 #ifdef ALIGN_SIZE	
 	synth_buffer_size = (compute_buffer_size + min_compute_sample) * 2 * sizeof(DATA_T); // 2ch // compute_buffer_size < AUDIO_BUFFER_SIZE
-	// +8 ЏI’[•t‹Я‚Е‚МSIMD store‘ОЌф
+	// +8 зµ‚з«Їд»иї‘гЃ§гЃ®SIMD storeеЇѕз­–
 #else
 //	synth_buffer_size_mono = compute_buffer_size * sizeof(DATA_T); // 1ch // compute_buffer_size < AUDIO_BUFFER_SIZE	
 	synth_buffer_size = compute_buffer_size * 2 * sizeof(DATA_T); // 2ch // compute_buffer_size < AUDIO_BUFFER_SIZE
@@ -1372,7 +1372,7 @@ void reset_midi(int playing)
 		case MODULE_CM64_SN13:
 		case MODULE_CM64_SN14:
 		case MODULE_CM64_SN15:
-		// CMЉЦAѓ‚ѓWѓ…Ѓ[ѓ‹‚Е‚НGSѓЉѓZѓbѓg–іЊш‚ѕ‚ЄЃEЃE€к‰ћ
+		// CMй–ўйЂЈгѓўг‚ёгѓҐгѓјгѓ«гЃ§гЃЇGSгѓЄг‚»гѓѓгѓ€з„ЎеЉ№гЃ гЃЊгѓ»гѓ»дёЂеїњ
 			nrpn_vib_depth_cent = 75; // 9.6cent ? /* GS NRPN from -9.6 cents to +9.45 cents. */
 			break;
 		case MODULE_SC8850:
@@ -2037,8 +2037,8 @@ void recompute_voice_amp(int v)
 	if(vp->panned == PANNED_MYSTERY)
    	{
 		if(vp->pan_ctrl){ // update panning
-			// panning : 0 ~ 127 // “ь—Н‚і‚к‚йѓpѓ“,ѓeЃ[ѓuѓ‹‚М’l€ж
-			// pan : 0=center // ѓpѓ“‚М‰БЊё‚НѓZѓ“ѓ^Ѓ[0ЉоЏЂ‚ЕЏ€—ќ
+			// panning : 0 ~ 127 // е…ҐеЉ›гЃ•г‚Њг‚‹гѓ‘гѓі,гѓ†гѓјгѓ–гѓ«гЃ®еЂ¤еџџ
+			// pan : 0=center // гѓ‘гѓігЃ®еЉ жё›гЃЇг‚»гѓіг‚їгѓј0еџєжє–гЃ§е‡¦зђ†
 			// sample_pan : -0.5~+0.5 0.0=center
 			int pan = 0, note = vp->note;
 			
@@ -2065,7 +2065,7 @@ void recompute_voice_amp(int v)
     }
 	
 	// LFO to amp
-	// vol_env‚рЋg—p‚µ‚И‚ў Њг‚МЌH’ц  mix.c update_tremolo() -> apply_envelope_to_amp() -> mix_mystery_signal()
+	// vol_envг‚’дЅїз”ЁгЃ—гЃЄгЃ„ еѕЊгЃ®е·ҐзЁ‹  mix.c update_tremolo() -> apply_envelope_to_amp() -> mix_mystery_signal()
 	depth1 += (FLOAT_T)vp->sample->vibrato_to_amp * DIV_10000;
 	depth1 += cp->lfo_amp_depth[0];
 	if(depth1 > 1.0) {depth1 = 1.0;}
@@ -3232,10 +3232,10 @@ static int find_samples(MidiEvent *e, int *vlist)
 //			return 0;	/* No instrument? Then we can't play. */
 	}
 /*
-for(elm ‚Є’З‰Б‚і‚к‚Ѕ‚±‚Ж‚Е ip ‚М—LЊш”Н€Н‚Нѓ‹Ѓ[ѓv“а‚Й‚И‚Б‚Ѕ‚М‚ЕѓLѓѓѓbѓVѓ…’uЉ·‚а’†‚Й“ь‚к‚й•K—v‚Є‚Е‚«‚Ѕ
-noteo : note_to_use ‚Е•ПЌX‚і‚к‚ЅЏкЌ‡ for(elm ЏрЊЏ‚Й‰e‹ї‚·‚йЃH
-nvo : ip ‚Ж‘О‰ћ‚·‚й vlist ‚М nv ‚М”Н€Н‚рЋw’и‚·‚й•K—v‚Є‚ ‚й
-elm_max : –ў’и‹`ѓoѓ“ѓN‚МЏкЌ‡,‘г‘Цђжѓoѓ“ѓN‚Мelement_num‚Є•K—v‚И‚М‚Еplay_midi_load_instrument()“а‚ЕЌXђV
+for(elm гЃЊиїЅеЉ гЃ•г‚ЊгЃџгЃ“гЃЁгЃ§ ip гЃ®жњ‰еЉ№зЇ„е›ІгЃЇгѓ«гѓјгѓ—е†…гЃ«гЃЄгЃЈгЃџгЃ®гЃ§г‚­гѓЈгѓѓг‚·гѓҐзЅ®жЏ›г‚‚дё­гЃ«е…Ґг‚Њг‚‹еї…и¦ЃгЃЊгЃ§гЃЌгЃџ
+noteo : note_to_use гЃ§е¤‰ж›ґгЃ•г‚ЊгЃџе ґеђ€ for(elm жќЎд»¶гЃ«еЅ±йџїгЃ™г‚‹пјџ
+nvo : ip гЃЁеЇѕеїњгЃ™г‚‹ vlist гЃ® nv гЃ®зЇ„е›Іг‚’жЊ‡е®љгЃ™г‚‹еї…и¦ЃгЃЊгЃ‚г‚‹
+elm_max : жњЄе®љзѕ©гѓђгѓіг‚ЇгЃ®е ґеђ€,д»Јж›їе…€гѓђгѓіг‚ЇгЃ®element_numгЃЊеї…и¦ЃгЃЄгЃ®гЃ§play_midi_load_instrument()е†…гЃ§ж›ґж–°
 */
 #if 0
 	/* Replace the sample if the sample is cached. */
@@ -3343,8 +3343,8 @@ static int select_play_sample(Sample *splist,
 #endif
 #if 1
 /*
-ѓTѓ“ѓvѓ‹Ћw’и‚Н ѓmЃ[ѓiѓ“ѓoЃ[,ѓxѓЌѓVѓeѓB ‚ЄЉeѓЊѓ“ѓW“а‚Й‚ ‚й‚а‚М‘S‚Д
-Ћџ‚ЙЋw’и‚МѓTѓ“ѓvѓ‹ђЭ’и(scale_factor)‚рЊі‚ЙЌДђ¶Ћь”gђ”‚рЋw’и
+г‚µгѓігѓ—гѓ«жЊ‡е®љгЃЇ гѓЋгѓјгѓЉгѓігѓђгѓј,гѓ™гѓ­г‚·гѓ†г‚Ј гЃЊеђ„гѓ¬гѓіг‚ёе†…гЃ«гЃ‚г‚‹г‚‚гЃ®е…ЁгЃ¦
+ж¬ЎгЃ«жЊ‡е®љгЃ®г‚µгѓігѓ—гѓ«иЁ­е®љ(scale_factor)г‚’е…ѓгЃ«е†Ќз”џе‘Ёжіўж•°г‚’жЊ‡е®љ
 */
 	for (i = 0, sp = splist; i < nsp; i++, sp++) {
 		if (((sp->low_key <= *note && sp->high_key >= *note))
@@ -3755,9 +3755,9 @@ static int note_off_legato(MidiEvent *e)
 	int i, ch = e->channel, note = MIDI_EVENT_NOTE(e);
 	int count, max = 0, fnote = -1;
 	
-// -2:return finish_note()‚µ‚И‚ў
-// -1:thru finish_note()‚·‚й
-// 0<=:change note finish_note()‚·‚й
+// -2:return finish_note()гЃ—гЃЄгЃ„
+// -1:thru finish_note()гЃ™г‚‹
+// 0<=:change note finish_note()гЃ™г‚‹
 	if(!channel[ch].legato_status){
 		channel[ch].legato_flag = 0;
 		return -1; // thru
@@ -3767,19 +3767,19 @@ static int note_off_legato(MidiEvent *e)
 		return -1; // thru
 	channel[ch].legato_hist[note] = 0; // clear flag	
 	if(note == channel[ch].legato_note)
-		ctl_note_event2(ch, note, VOICE_SUSTAINED, channel[ch].legato_velo); // legato‚МЉоЏЂѓmЃ[ѓg‚И‚М‚Е•\Ћ¦Ћc‚µ‚Д‚Ё‚­
+		ctl_note_event2(ch, note, VOICE_SUSTAINED, channel[ch].legato_velo); // legatoгЃ®еџєжє–гѓЋгѓјгѓ€гЃЄгЃ®гЃ§иЎЁз¤єж®‹гЃ—гЃ¦гЃЉгЃЏ
 	else
 		ctl_note_event2(ch, note, VOICE_FREE, channel[ch].legato_velo);
-#if 0 // Ћc‚Б‚Д‚ў‚йЌЕ‹Я‚МѓmЃ[ѓg‚Цѓsѓbѓ`•ПЌX
+#if 0 // ж®‹гЃЈгЃ¦гЃ„г‚‹жњЂиї‘гЃ®гѓЋгѓјгѓ€гЃёгѓ”гѓѓгѓЃе¤‰ж›ґ
 	for (i = 0; i < 128; i++){
-		if(channel[ch].legato_hist[i] > count) // ЌЎnote_off‚µ‚Ѕnote‚Єnoteon‚µ‚Ѕ‚Ж‚«‚ж‚иЊг‚Йnoteon‚µ‚Ѕnote‚р’T‚·
-			return -2; // finish_note()‚µ‚И‚ў
-		if(channel[ch].legato_hist[i] > max){ // ЌЎnote_off‚µ‚Ѕnote‚Єnoteon‚µ‚Ѕ‚Ж‚«‚ж‚и‘O‚Йnoteon‚µ‚ЅЌЕ‹Я‚Мnote‚р’T‚·
+		if(channel[ch].legato_hist[i] > count) // д»Љnote_offгЃ—гЃџnoteгЃЊnoteonгЃ—гЃџгЃЁгЃЌг‚€г‚ЉеѕЊгЃ«noteonгЃ—гЃџnoteг‚’жЋўгЃ™
+			return -2; // finish_note()гЃ—гЃЄгЃ„
+		if(channel[ch].legato_hist[i] > max){ // д»Љnote_offгЃ—гЃџnoteгЃЊnoteonгЃ—гЃџгЃЁгЃЌг‚€г‚Ље‰ЌгЃ«noteonгЃ—гЃџжњЂиї‘гЃ®noteг‚’жЋўгЃ™
 			max = channel[ch].legato_hist[i];
 			fnote = i;
 		}
 	}
-	if(fnote != -1){ // note‚Є‚ ‚йЏкЌ‡		
+	if(fnote != -1){ // noteгЃЊгЃ‚г‚‹е ґеђ€		
 		uint8 pnote = channel[ch].legato_last_note;
 		channel[ch].legato_last_note = fnote;
 		channel[ch].porta_next_pb = fnote * 256;
@@ -3788,20 +3788,20 @@ static int note_off_legato(MidiEvent *e)
 			fnote, ch, note);
 		ctl_note_event2(ch, pnote, VOICE_SUSTAINED, channel[ch].legato_velo);
 		ctl_note_event2(ch, note, VOICE_ON, channel[ch].legato_velo); // e->b = velocity
-		return -2; // finish_note()‚µ‚И‚ў
+		return -2; // finish_note()гЃ—гЃЄгЃ„
 	}
-#else // noteoff‚Е‚Нѓsѓbѓ`•ПЌX‚µ‚И‚ў note‚Є‚ ‚йЉФ‚Нlegato_note‚рЊp‘±‚·‚й
+#else // noteoffгЃ§гЃЇгѓ”гѓѓгѓЃе¤‰ж›ґгЃ—гЃЄгЃ„ noteгЃЊгЃ‚г‚‹й–“гЃЇlegato_noteг‚’з¶™з¶љгЃ™г‚‹
 	for (i = 0; i < 128; i++){
-		if(channel[ch].legato_hist[i]) // noteon’†‚Мnote‚р’T‚·
-			return -2; // finish_note()‚µ‚И‚ў
+		if(channel[ch].legato_hist[i]) // noteonдё­гЃ®noteг‚’жЋўгЃ™
+			return -2; // finish_note()гЃ—гЃЄгЃ„
 	}
 #endif
-	// ЌЕ‹Я‚Мnote‚Є‚И‚ўЏкЌ‡ (‘S‚Дnoteoff‚µ‚ЅЏкЌ‡
+	// жњЂиї‘гЃ®noteгЃЊгЃЄгЃ„е ґеђ€ (е…ЁгЃ¦noteoffгЃ—гЃџе ґеђ€
 	ctl->cmsg(CMSG_INFO,VERB_DEBUG, "Legato: finish note:%d (CH:%d NOTE:%d noteoff)", 
 		channel[ch].legato_note, ch, note);
 	channel[ch].legato_flag = 0;
-	channel[ch].legato_status = 0; // legatoЏI—№
-	return channel[ch].legato_note; // last_vidq()‚р’К‚·‚Ѕ‚Я‚Й legatoЉJЋnЋћ‚Мnote‚ЙЏ‘‚«Љ·‚¦ Њг‚Нfinish_note()
+	channel[ch].legato_status = 0; // legatoзµ‚дє†
+	return channel[ch].legato_note; // last_vidq()г‚’йЂљгЃ™гЃџг‚ЃгЃ« legatoй–‹е§‹ж™‚гЃ®noteгЃ«ж›ёгЃЌжЏ›гЃ€ еѕЊгЃЇfinish_note()
 }
 
 /*! initialize portamento or legato for a channel. */
@@ -3817,12 +3817,12 @@ static int init_channel_portamento(MidiEvent *e)
 		channel[ch].porta_last_note_fine = fine; // for portamento
 		return 0;
 	}
-	if(channel[ch].legato > 0 && channel[ch].legato_flag){ // •Ўђ”ѓmЃ[ѓg‚М2ѓmЃ[ѓg–Ъ€ИЌ~
+	if(channel[ch].legato > 0 && channel[ch].legato_flag){ // и¤‡ж•°гѓЋгѓјгѓ€гЃ®2гѓЋгѓјгѓ€з›®д»Ґй™Ќ
 		if(channel[ch].legato_status || channel[ch].porta_status
 			&& (times = e->time - channel[ch].legato_note_time) > (play_mode->rate >> 2) ) { // legato start
 			if(!channel[ch].legato_status){
 				channel[ch].legato_status = 1; // legato start
-				channel[ch].legato_note = channel[ch].legato_last_note; // setЉоЏЂѓmЃ[ѓg
+				channel[ch].legato_note = channel[ch].legato_last_note; // setеџєжє–гѓЋгѓјгѓ€
 				memset(channel[ch].legato_hist, 0, sizeof(channel[ch].legato_hist)); // init						
 				channel[ch].legato_hist[channel[ch].legato_note] = channel[ch].legato_status;
 				ctl->cmsg(CMSG_INFO,VERB_DEBUG,
@@ -3843,7 +3843,7 @@ static int init_channel_portamento(MidiEvent *e)
 			return 1; // legato start
 		}
 	}			
-	// start note (legato‚МЉоЏЂѓmЃ[ѓg‚Й‚И‚й‰В”\ђ«‚Є‚ ‚й
+	// start note (legatoгЃ®еџєжє–гѓЋгѓјгѓ€гЃ«гЃЄг‚‹еЏЇиѓЅжЂ§гЃЊгЃ‚г‚‹
 	if(channel[ch].portamento_control != -1){ // portament_control
 		update_portamento_controls(ch);	
 		channel[ch].porta_status = 1;
@@ -3869,7 +3869,7 @@ static int init_channel_portamento(MidiEvent *e)
 	}
 	channel[ch].porta_next_pb = fine;
 	channel[ch].porta_note_fine = fine;
-	channel[ch].legato_note = 255; // –іЊш‚ИѓmЃ[ѓgѓiѓ“ѓoЃ[
+	channel[ch].legato_note = 255; // з„ЎеЉ№гЃЄгѓЋгѓјгѓ€гѓЉгѓігѓђгѓј
 	channel[ch].legato_velo = e->b; // velocity
 	channel[ch].legato_flag = 1;	
 	channel[ch].legato_note_time = e->time;
@@ -3903,7 +3903,7 @@ static int init_channel_portamento(MidiEvent *e)
 			"Portamento: start note:%d to base note:%d (CH:%d NOTE:%d)", 
 			channel[ch].porta_last_note_fine >> PORTAMENTO_CONTROL_BIT, note, ch, note);	
 	}else if(channel[ch].legato > 0){ // legato	
-		if(channel[ch].legato_flag){ // •Ўђ”ѓmЃ[ѓg‚М2ѓmЃ[ѓg–Ъ€ИЌ~
+		if(channel[ch].legato_flag){ // и¤‡ж•°гѓЋгѓјгѓ€гЃ®2гѓЋгѓјгѓ€з›®д»Ґй™Ќ
 #if 0
 #ifdef _DEBUG
 ctl->cmsg(CMSG_INFO,VERB_NORMAL, "Legato: times:%d = now - prev:%d", 
@@ -3921,7 +3921,7 @@ ctl->cmsg(CMSG_INFO,VERB_NORMAL,
 			}else{	
 				if(!channel[ch].legato_status){
 					channel[ch].legato_status = 1; // legato start
-					channel[ch].legato_note = channel[ch].legato_last_note; // setЉоЏЂѓmЃ[ѓg
+					channel[ch].legato_note = channel[ch].legato_last_note; // setеџєжє–гѓЋгѓјгѓ€
 					memset(channel[ch].legato_hist, 0, sizeof(channel[ch].legato_hist)); // init						
 					channel[ch].legato_hist[channel[ch].legato_note] = channel[ch].legato_status;
 					ctl->cmsg(CMSG_INFO,VERB_DEBUG,
@@ -3941,8 +3941,8 @@ ctl->cmsg(CMSG_INFO,VERB_NORMAL,
 				return 1; // legato start
 			}
 		}
-		// normal (legato‚МЉоЏЂѓmЃ[ѓg‚Й‚И‚й‰В”\ђ«‚Є‚ ‚й ‚ ‚й’ц“xЏ‰Љъ‰»‚Є•K—v
-		channel[ch].legato_note = 255; // –іЊш‚ИѓmЃ[ѓgѓiѓ“ѓoЃ[
+		// normal (legatoгЃ®еџєжє–гѓЋгѓјгѓ€гЃ«гЃЄг‚‹еЏЇиѓЅжЂ§гЃЊгЃ‚г‚‹ гЃ‚г‚‹зЁ‹еє¦е€ќжњџеЊ–гЃЊеї…и¦Ѓ
+		channel[ch].legato_note = 255; // з„ЎеЉ№гЃЄгѓЋгѓјгѓ€гѓЉгѓігѓђгѓј
 		channel[ch].porta_note_fine = fine;
 		channel[ch].porta_pb = fine;
 		channel[ch].porta_next_pb = fine;
@@ -4315,7 +4315,7 @@ void update_voice(int i)
 {
 	Voice *vp = voice + i;
 
-	// “ЇЋћЏ€—ќ‚Є•K—v‚Й‚И‚Б‚Ѕ‚зѓrѓbѓgѓtѓ‰ѓO•ЄЉт‚Й•ПЌX‚·‚й‰В”\ђ«‚Є‚ ‚й‚М‚Е ’иђ”‚Н2^n‚Й‚µ‚Д‚Ё‚­
+	// еђЊж™‚е‡¦зђ†гЃЊеї…и¦ЃгЃ«гЃЄгЃЈгЃџг‚‰гѓ“гѓѓгѓ€гѓ•гѓ©г‚°е€†еІђгЃ«е¤‰ж›ґгЃ™г‚‹еЏЇиѓЅжЂ§гЃЊгЃ‚г‚‹гЃ®гЃ§ е®љж•°гЃЇ2^nгЃ«гЃ—гЃ¦гЃЉгЃЏ
 	// playmidi.h /* update_voice options: */
 	switch(vp->update_voice){
 	case UPDATE_VOICE_FINISH_NOTE: // finish note
@@ -4568,7 +4568,7 @@ static void note_on(MidiEvent *e)
 	if(dr){
 		recompute_bank_parameter_drum(ch, note);	
 	}else{
-		if(!channel[ch].program_flag) // PC‚Є‚И‚©‚Б‚ЅЏкЌ‡(recompute_bank_param‚µ‚Д‚И‚ўЏкЌ‡
+		if(!channel[ch].program_flag) // PCгЃЊгЃЄгЃ‹гЃЈгЃџе ґеђ€(recompute_bank_paramгЃ—гЃ¦гЃЄгЃ„е ґеђ€
 			recompute_bank_parameter_tone(ch);
 		/* portamento , legato */
 		if(opt_portamento)
@@ -8479,10 +8479,10 @@ static void process_sysex_event(int ev, int ch, int val, int b)
 }
 
 /* 
-play_midi_prescan()‚ЕЋg—p‚·‚йprocess_sysex_event()‚МЉИ€Х”Е
-•K—v‚И‚М‚Н ѓmЃ[ѓgЉЦA Rx.ЉЦA MasterVolumeЉЦA
-ѓGѓtѓFѓNѓg‚И‚З‚Н•s—v 
-ѓRѓ“ѓ\Ѓ[ѓ‹Џo—Н ѓRѓ“ѓgѓЌЃ[ѓ‹•\Ћ¦ ‚аЌнЏњ ctl->cmsg() redraw_controllers()
+play_midi_prescan()гЃ§дЅїз”ЁгЃ™г‚‹process_sysex_event()гЃ®з°Ўж“з‰€
+еї…и¦ЃгЃЄгЃ®гЃЇ гѓЋгѓјгѓ€й–ўйЂЈ Rx.й–ўйЂЈ MasterVolumeй–ўйЂЈ
+г‚Ёгѓ•г‚§г‚Їгѓ€гЃЄгЃ©гЃЇдёЌи¦Ѓ 
+г‚ігѓіг‚Ѕгѓјгѓ«е‡єеЉ› г‚ігѓігѓ€гѓ­гѓјгѓ«иЎЁз¤є г‚‚е‰Љй™¤ ctl->cmsg() redraw_controllers()
 */
 static void process_sysex_event_prescan(int ev, int ch, int val, int b)
 {
@@ -9678,8 +9678,8 @@ static void update_rpn_map(int ch, int addr, int update_now)
 }
 
 /*
-cbc’l‚р’КЏнctrl’l‚Й•ПЉ· 0~127 -> -64~63 -> -63~63 -> -127~127
-‚±‚±‚Е•ПЉ·‚·‚й‚М‚Нget_midi_controller_amp()~“™‚р‚»‚М‚Ь‚ЬЋg—p‚·‚й‚Ѕ‚Я 
+cbcеЂ¤г‚’йЂљеёёctrlеЂ¤гЃ«е¤‰жЏ› 0~127 -> -64~63 -> -63~63 -> -127~127
+гЃ“гЃ“гЃ§е¤‰жЏ›гЃ™г‚‹гЃ®гЃЇget_midi_controller_amp()~з­‰г‚’гЃќгЃ®гЃѕгЃѕдЅїз”ЁгЃ™г‚‹гЃџг‚Ѓ 
 */
 static int calc_cbc_val(int val)
 {
@@ -9691,8 +9691,8 @@ static int calc_cbc_val(int val)
 }
 
 /*
-bend’l‚р’КЏнctrl’l‚Й•ПЉ· 0~16383 -> -8192~+8191 -> -8191~+8191 -> -127~127
-‚±‚±‚Е•ПЉ·‚·‚й‚М‚Нget_midi_controller_amp()~“™‚р‚»‚М‚Ь‚ЬЋg—p‚·‚й‚Ѕ‚Я 
+bendеЂ¤г‚’йЂљеёёctrlеЂ¤гЃ«е¤‰жЏ› 0~16383 -> -8192~+8191 -> -8191~+8191 -> -127~127
+гЃ“гЃ“гЃ§е¤‰жЏ›гЃ™г‚‹гЃ®гЃЇget_midi_controller_amp()~з­‰г‚’гЃќгЃ®гЃѕгЃѕдЅїз”ЁгЃ™г‚‹гЃџг‚Ѓ 
 */
 int calc_bend_val(int val)
 {
@@ -11088,14 +11088,14 @@ inline static int is_mfx_effect_sd(int ch)
 }
 
 /*
-ѓЉѓAѓ‹ѓ^ѓCѓЂѓ‚Ѓ[ѓhЋћ –і‰№ѓVѓ“ѓZЏ€—ќѓXѓLѓbѓv
-ѓ{ѓCѓXђ”0Џу‘Ф‚Е–і‰№‚Жђ„’и ѓ{ѓCѓXђ”0Њp‘±’†X•bЊo‰Я‚Еѓoѓbѓtѓ@ѓ`ѓFѓbѓNѓtѓ‰ѓO
- (Њp‘±ѓJѓEѓ“ѓgђ”‚Н‰є€Кѓrѓbѓg ѓ`ѓFѓbѓN‰сђ”‚НЏг€Кѓrѓbѓg ѓ`ѓFѓbѓNѓtѓ‰ѓO‚Н‰є€Кѓrѓbѓg0
- (Њo‰ЯЋћЉФ‚Н–€‰с•П‚¦‚й‚М‚НѓЌѓ“ѓOѓfѓBѓЊѓC‰№‚М‚Ж‚«‚Мѓ`ѓFѓbѓN”І‚Ї–hЋ~
-–і‰№Љm”F‚µ‚Ѕ‚зѓXѓLѓbѓvѓtѓ‰ѓOѓZѓbѓg (ѓXѓLѓbѓvѓtѓ‰ѓO‚Н -1
- (–і‰№”»’ии‡’l‚Н24bitsЏo—Н‘Љ“–‚Е0.5bit€И‰є
-VST“™‚а‚ ‚й‚М‚ЕѓGѓtѓFѓNѓg‚М—L–і‚Й‚ж‚й–і‰№”»’и•ПЌX‚Н‚Е‚«‚И‚ў	
-‘O‰сѓoѓbѓtѓ@‚Н——p‚Е‚«‚И‚ў aq_add()‚ЕЏгЏ‘‚«
+гѓЄг‚ўгѓ«г‚їг‚¤гѓ гѓўгѓјгѓ‰ж™‚ з„Ўйџіг‚·гѓіг‚»е‡¦зђ†г‚№г‚­гѓѓгѓ—
+гѓњг‚¤г‚№ж•°0зЉ¶ж…‹гЃ§з„ЎйџігЃЁжЋЁе®љ гѓњг‚¤г‚№ж•°0з¶™з¶љдё­Xз§’зµЊйЃЋгЃ§гѓђгѓѓгѓ•г‚ЎгѓЃг‚§гѓѓг‚Їгѓ•гѓ©г‚°
+ (з¶™з¶љг‚«г‚¦гѓігѓ€ж•°гЃЇдё‹дЅЌгѓ“гѓѓгѓ€ гѓЃг‚§гѓѓг‚Їе›ћж•°гЃЇдёЉдЅЌгѓ“гѓѓгѓ€ гѓЃг‚§гѓѓг‚Їгѓ•гѓ©г‚°гЃЇдё‹дЅЌгѓ“гѓѓгѓ€0
+ (зµЊйЃЋж™‚й–“гЃЇжЇЋе›ће¤‰гЃ€г‚‹гЃ®гЃЇгѓ­гѓіг‚°гѓ‡г‚Јгѓ¬г‚¤йџігЃ®гЃЁгЃЌгЃ®гѓЃг‚§гѓѓг‚ЇжЉњгЃ‘йІж­ў
+з„ЎйџізўєиЄЌгЃ—гЃџг‚‰г‚№г‚­гѓѓгѓ—гѓ•гѓ©г‚°г‚»гѓѓгѓ€ (г‚№г‚­гѓѓгѓ—гѓ•гѓ©г‚°гЃЇ -1
+ (з„Ўйџіе€¤е®љй–ѕеЂ¤гЃЇ24bitsе‡єеЉ›з›ёеЅ“гЃ§0.5bitд»Ґдё‹
+VSTз­‰г‚‚гЃ‚г‚‹гЃ®гЃ§г‚Ёгѓ•г‚§г‚Їгѓ€гЃ®жњ‰з„ЎгЃ«г‚€г‚‹з„Ўйџіе€¤е®ље¤‰ж›ґгЃЇгЃ§гЃЌгЃЄгЃ„	
+е‰Ќе›ћгѓђгѓѓгѓ•г‚ЎгЃЇе€©з”ЁгЃ§гЃЌгЃЄгЃ„ aq_add()гЃ§дёЉж›ёгЃЌ
 */
 
 #define CDSS_CHECK_MAX 8 // must (CDSS_CHECK_BIT + CDSS_CHECK_MAX(bit) + 1) < 31BIT
@@ -11105,26 +11105,26 @@ static int compute_data_midi_skip(int32 count, int32 cnt)
 {
 	int32 i;
 	const FLOAT_T cdss_check_sec[CDSS_CHECK_MAX + 1] = 
-	{ 0.25, 0.3616, 0.3535, 0.1875, 0.3333, 0.2, 0.3141, 0.175, 0.25, }; // MAX8ЉоЏЂ 2sec
+	{ 0.25, 0.3616, 0.3535, 0.1875, 0.3333, 0.2, 0.3141, 0.175, 0.25, }; // MAX8еџєжє– 2sec
 	const uint32 cdss_check_mask = (0xFFFFFFFF << CDSS_CHECK_BIT); // 0xFFF00000
-	const DATA_T thres = (double)((1 << (MAX_BITS - GUARD_BITS - 1)) - 1) / (double)(1U << (23 + 1)); // 24bitЏo—Н0.5ѓrѓbѓg‘Љ“–
+	const DATA_T thres = (double)((1 << (MAX_BITS - GUARD_BITS - 1)) - 1) / (double)(1U << (23 + 1)); // 24bitе‡єеЉ›0.5гѓ“гѓѓгѓ€з›ёеЅ“
 	const uint32 cdss_count_mask = (1 << CDSS_CHECK_BIT) - 1; // 0xFFFFFF
 	const int32 cdss_check_add = (1 << CDSS_CHECK_BIT); // 0x1000000
 	const int32 cdss_check_max = cdss_check_add * (CDSS_CHECK_MAX + 1);
 
-	if(count){ // ѓ{ѓCѓXђ”ѓ`ѓFѓbѓN , Њp‘±ѓJѓEѓ“ѓg
-		if(upper_voices){ // ѓ{ѓCѓXђ”ѓ`ѓFѓbѓN
-			compute_skip_count = 1; // reset (ѓoѓbѓtѓ@ѓ`ѓFѓbѓN‰с”р
+	if(count){ // гѓњг‚¤г‚№ж•°гѓЃг‚§гѓѓг‚Ї , з¶™з¶љг‚«г‚¦гѓігѓ€
+		if(upper_voices){ // гѓњг‚¤г‚№ж•°гѓЃг‚§гѓѓг‚Ї
+			compute_skip_count = 1; // reset (гѓђгѓѓгѓ•г‚ЎгѓЃг‚§гѓѓг‚Їе›ћйЃї
 			return 0; // no skip
 		}
-		if(compute_skip_count < 0) // Џ€—ќѓXѓLѓbѓv
+		if(compute_skip_count < 0) // е‡¦зђ†г‚№г‚­гѓѓгѓ—
 			return 1; // skip
 		if((compute_skip_count += count) < 
-			(cdss_check_sec[compute_skip_count >> CDSS_CHECK_BIT] * play_mode->rate)) // Њp‘±ѓJѓEѓ“ѓg
+			(cdss_check_sec[compute_skip_count >> CDSS_CHECK_BIT] * play_mode->rate)) // з¶™з¶љг‚«г‚¦гѓігѓ€
 			return 0; // no skip
 		compute_skip_count &= cdss_check_mask; // count 0 // buffer check on
 		return 0; // no skip
-	}else{ // ѓoѓbѓtѓ@ѓ`ѓFѓbѓN
+	}else{ // гѓђгѓѓгѓ•г‚ЎгѓЃг‚§гѓѓг‚Ї
 		if(compute_skip_count & cdss_count_mask) // !=0
 			return 0; // no skip
 		for(i = 0; i < cnt; i += 3){ // L/R 
@@ -11133,7 +11133,7 @@ static int compute_data_midi_skip(int32 count, int32 cnt)
 #else // DATA_T_INT32
 			if(abs((DATA_T)buffer_pointer[i]) > thres){
 #endif
-				compute_skip_count = 1; // reset (ѓoѓbѓtѓ@ѓ`ѓFѓbѓN‰с”р
+				compute_skip_count = 1; // reset (гѓђгѓѓгѓ•г‚ЎгѓЃг‚§гѓѓг‚Їе›ћйЃї
 				return 0; // no skip
 			}
 		}
@@ -11156,7 +11156,7 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 		if(opt_mix_envelope > 0){
 			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
 			for (i = 0; i < count; i++) {
-				if(!(i & mix_env_mask)) // i==0 ‚Е’К‚й
+				if(!(i & mix_env_mask)) // i==0 гЃ§йЂљг‚‹
 					compute_envelope2(&cp->mix_env, opt_mix_envelope);
 				*src++ *= cp->mix_env.vol[0];
 			}
@@ -11174,7 +11174,7 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 			__m256d vevol, vsp, vsp1, vsp2;
 			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
 			for (i = 0; i < count; i += 4) {
-				if(!(i & mix_env_mask)){ // i==0 ‚Е’К‚й
+				if(!(i & mix_env_mask)){ // i==0 гЃ§йЂљг‚‹
 					compute_envelope2(&cp->mix_env, opt_mix_envelope);
 #if defined(FLOAT_T_DOUBLE)	
 					vevolx = _mm_loadu_pd(cp->mix_env.vol);
@@ -11194,7 +11194,7 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 			__m256 vevol;
 			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
 			for (i = 0; i < count; i += 4) {
-				if(!(i & mix_env_mask)){ // i==0 ‚Е’К‚й
+				if(!(i & mix_env_mask)){ // i==0 гЃ§йЂљг‚‹
 					compute_envelope2(&cp->mix_env, opt_mix_envelope);
 #if defined(FLOAT_T_DOUBLE)	
 					vevolx = _mm_cvtpd_ps(_mm_loadu_pd(cp->mix_env.vol));
@@ -11212,7 +11212,7 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 			__m128d vevol;
 			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
 			for (i = 0; i < count; i += 4) {
-				if(!(i & mix_env_mask)){ // i==0 ‚Е’К‚й
+				if(!(i & mix_env_mask)){ // i==0 гЃ§йЂљг‚‹
 					compute_envelope2(&cp->mix_env, opt_mix_envelope);
 #if defined(FLOAT_T_DOUBLE)	
 					vevol = _mm_loadu_pd(cp->mix_env.vol);
@@ -11235,7 +11235,7 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 			__m128 vsp;
 			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
 			for (i = 0; i < count; i += 4) {
-				if(!(i & mix_env_mask)){ // i==0 ‚Е’К‚й
+				if(!(i & mix_env_mask)){ // i==0 гЃ§йЂљг‚‹
 					compute_envelope2(&cp->mix_env, opt_mix_envelope);
 #if defined(FLOAT_T_DOUBLE)	
 #if (USE_X86_EXT_INTRIN >= 3)
@@ -11257,7 +11257,7 @@ static inline void mix_ch_signal_source(DATA_T *src, int ch, int count)
 #else // ! USE_X86_EXT_INTRIN
 			reset_envelope2(&cp->mix_env, left_mix, right_mix, ENVELOPE_KEEP);
 			for (i = 0; i < count; i++) {
-				if(!(i & mix_env_mask)) // i==0 ‚Е’К‚й
+				if(!(i & mix_env_mask)) // i==0 гЃ§йЂљг‚‹
 					compute_envelope2(&cp->mix_env, opt_mix_envelope);
 				*src++ *= cp->mix_env.vol[0]; *src++ *= cp->mix_env.vol[1];
 			}
@@ -12338,7 +12338,7 @@ static int compute_data(int32 count)
 		buffered_count=0;
 		return RC_NONE;
     }
-	count += buffered_count; // ‘O‰с‚МЋc‚иѓJѓEѓ“ѓg‚р’З‰Б
+	count += buffered_count; // е‰Ќе›ћгЃ®ж®‹г‚Љг‚«г‚¦гѓігѓ€г‚’иїЅеЉ 
 	buffered_count = 0;
 	if(current_event->type != ME_EOT)
 		ctl_timestamp();

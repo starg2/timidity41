@@ -613,8 +613,8 @@ int convert_midi_control_change(int chn, int type, int val, MidiEvent *ev_ret)
 }
 
 /* 
-‚±‚ÌŠÖ”‚ª‚Ç‚±‚Åg—p‚³‚ê‚é‚Ì‚©•s–¾ windowsˆÈŠOH
-ˆê‰ ME_UNDEF_CTRL_CHNG ‘Î‰
+ã“ã®é–¢æ•°ãŒã©ã“ã§ä½¿ç”¨ã•ã‚Œã‚‹ã®ã‹ä¸æ˜ windowsä»¥å¤–ï¼Ÿ
+ä¸€å¿œ ME_UNDEF_CTRL_CHNG å¯¾å¿œ
 */
 int unconvert_midi_control_change(MidiEvent *ev)
 {
@@ -1593,9 +1593,9 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 
 		case 0x70:	/* Bend Pitch Low Control */
 			/*
-			RPN 0x00 0x40 ‚É Pitch Bend Sensitivity Low Control ‚ğ’Ç‰Á
-			SysEx VAL‚ğ•„†”½“]‚µ‚ÄRPN‚É•ÏŠ·‚µ‚Ä”½‰f (RPN‚É•ÏŠ·‚·‚é‚Ì‚ÍBend Pitch Control‚Æ“¯‚¶
-			’Êí‚ÌBend Pitch Control‚Ìê‡‚Í Low Control‚ğ“¯’l‚Åã‘‚« , Low Control‚ªŒã‚Ìê‡‚É‚¾‚¯‹@”\‚·‚é
+			RPN 0x00 0x40 ã« Pitch Bend Sensitivity Low Control ã‚’è¿½åŠ 
+			SysEx VALã‚’ç¬¦å·åè»¢ã—ã¦RPNã«å¤‰æ›ã—ã¦åæ˜  (RPNã«å¤‰æ›ã™ã‚‹ã®ã¯Bend Pitch Controlã¨åŒã˜
+			é€šå¸¸ã®Bend Pitch Controlã®å ´åˆã¯ Low Controlã‚’åŒå€¤ã§ä¸Šæ›¸ã , Low ControlãŒå¾Œã®å ´åˆã«ã ã‘æ©Ÿèƒ½ã™ã‚‹
 			*/
 		    SETMIDIEVENT(evm[num_events], 0, ME_RPN_MSB, p, 0, SYSEX_TAG);
 		    SETMIDIEVENT(evm[num_events + 1], 0, ME_RPN_LSB, p, 0x40, SYSEX_TAG); // low control
@@ -2951,7 +2951,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 #endif
 
 		/* calculate checksum */
-#if 1 // ‰ö‚µ‚¢EE?
+#if 1 // æ€ªã—ã„ãƒ»ãƒ»?
 		checksum = 0;
 		for(sdlen = 10; sdlen < len; sdlen++)
 			if(val[sdlen] == 0xF7)
@@ -4148,7 +4148,7 @@ int parse_sysex_event_multi(uint8 *val, int32 len, MidiEvent *evm)
 #endif
 
 		/* calculate checksum */
-#if 1 // ‰ö‚µ‚¢EE?
+#if 1 // æ€ªã—ã„ãƒ»ãƒ»?
 		checksum = 0;
 		for(sdlen = 11; sdlen < len; sdlen++)
 			if(val[sdlen] == 0xF7)
@@ -7272,7 +7272,7 @@ void free_time_segments(void)
 	time_segments = NULL;
 }
 
-#if !defined(KBTIM) && !defined(WINVSTI) //added by Kobarin(read_midi_file ‚Ì•s—v‚ÈƒR[ƒh‚ğœ‹)
+#if !defined(KBTIM) && !defined(WINVSTI) //added by Kobarin(read_midi_file ã®ä¸è¦ãªã‚³ãƒ¼ãƒ‰ã‚’é™¤å»)
 MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 			  char *fn)
 {
@@ -7445,12 +7445,12 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
     return ev;
 }
 #else //KBTIM // WINVSTI
-//read_midi_file ’u‚«Š·‚¦ by Kobarin
+//read_midi_file ç½®ãæ›ãˆ by Kobarin
 MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 			  char *fn)
-{//ˆÈ‰º‚Ì‘Î‰•”•ª‚ğœ‹
- // SMF ˆÈŠO‚ÌŒ`®(RCP/’…ƒƒ“™)
- // ƒ}ƒbƒNƒoƒCƒiƒŠ
+{//ä»¥ä¸‹ã®å¯¾å¿œéƒ¨åˆ†ã‚’é™¤å»
+ // SMF ä»¥å¤–ã®å½¢å¼(RCP/ç€ãƒ¡ãƒ­ç­‰)
+ // ãƒãƒƒã‚¯ãƒã‚¤ãƒŠãƒª
  // RMI(RIFF MIDI)
  // WRD
     char magic[4];
@@ -7490,7 +7490,7 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 	    readmidi_read_init();
 	    err = read_smf_file(tf);
     }
-#ifdef IN_TIMIDITY // SMFˆÈŠO‘Î‰ // for in_timidity
+#ifdef IN_TIMIDITY // SMFä»¥å¤–å¯¾å¿œ // for in_timidity
     else if(memcmp(magic, "RCM-", 4) == 0 || memcmp(magic, "COME", 4) == 0)
     {
 	readmidi_read_init();
@@ -7535,7 +7535,7 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
 		  "%s: Not a MIDI file!", current_filename);
     }
 #else
-    else{//SMF ˆÈŠO
+    else{//SMF ä»¥å¤–
         err = 1;
     }
 #endif
@@ -7595,7 +7595,7 @@ MidiEvent *read_midi_file(struct timidity_file *tf, int32 *count, int32 *sp,
     current_file_info->readflag = 1;
     return ev;
 }
-#endif // ‚±‚±‚Ü‚Å by Kobarin
+#endif // ã“ã“ã¾ã§ by Kobarin
 
 struct midi_file_info *new_midi_file_info(const char *filename)
 {
@@ -8283,7 +8283,7 @@ char *get_midi_title(char *filename)
     return NULL;
 }
 
-#endif //‚±‚±‚Ü‚Å by Kobarin
+#endif //ã“ã“ã¾ã§ by Kobarin
 
 int midi_file_save_as(char *in_name, char *out_name)
 {
@@ -8381,7 +8381,7 @@ void recompute_delay_status_gs(void)
 		p->sample[2] = play_mode->rate;
 
 	//elion
-	// delay lv ‚ª 127 ‚Ì‚à‚Ì‚ğ‚·‚×‚Ä•s³‚Ì’l‚Æ‚İ‚È‚·
+	// delay lv ãŒ 127 ã®ã‚‚ã®ã‚’ã™ã¹ã¦ä¸æ­£ã®å€¤ã¨ã¿ãªã™
 ///r
 	if(p->level_center >= 127)
 		p->level_center = 0; //?
@@ -8957,7 +8957,7 @@ void free_userdrum()
             drumset[64+i]->alt = NULL;
         }
     }
-    //‚±‚±‚Ü‚Å
+    //ã“ã“ã¾ã§
 
 	for(p = userdrum_first; p != NULL; p = next){
 		next = p->next;
@@ -10284,9 +10284,9 @@ void control_effect_sd(MidiEvent *ev)
 				if(assign <= 0) {continue;}
 				if(assign > 8){
 					ctl->cmsg(CMSG_INFO, VERB_NOISY, "SD MFX%d Control%d assign error (assign: %d)", i, s, assign);
-					// ƒRƒ“ƒgƒ[ƒ‹‰Â”\‚Èƒpƒ‰ƒ[ƒ^‚ÍÅ‘å7ŒÂ‚Ü‚Å
-					// ƒpƒ‰ƒ[ƒ^’PˆÊ‚¾‚Æ‚·‚é‚Æƒpƒ‰ƒ[ƒ^”‚Í32ŒÂ‚ ‚é‚Ì‚Å‘«‚è‚È‚¢‚±‚Æ‚É‚È‚é
-					// ƒ`ƒƒƒ“ƒlƒ‹‚È‚Ì‚©H ‚»‚ê‚¾‚Æ MFX Control Channel‚Í‰½‚È‚Ì‚©
+					// ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«å¯èƒ½ãªãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã¯æœ€å¤§7å€‹ã¾ã§
+					// ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿å˜ä½ã ã¨ã™ã‚‹ã¨ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿æ•°ã¯32å€‹ã‚ã‚‹ã®ã§è¶³ã‚Šãªã„ã“ã¨ã«ãªã‚‹
+					// ãƒãƒ£ãƒ³ãƒãƒ«ãªã®ã‹ï¼Ÿ ãã‚Œã ã¨ MFX Control Channelã¯ä½•ãªã®ã‹
 					continue;
 				}
 				--assign;

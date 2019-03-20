@@ -43,8 +43,8 @@ extern int wave_ConfigDialogInfoLoadINI(void);
 
 #ifdef AU_GOGO
 
-// �_�C�A���O�̏����قƂ�ǂ��̂܂ܕۑ�����B
-// �R���{�{�b�N�X�ɂ��Ă� Index �͖��Ӗ��Ȃ̂Œl��ۑ�����B
+// ダイアログの情報をほとんどそのまま保存する。
+// コンボボックスについては Index は無意味なので値を保存する。
 typedef struct gogo_ConfigDialogInfo_t_ {
         int optIDC_CHECK_DEFAULT;
         int optIDC_CHECK_COMMANDLINE_OPTS;

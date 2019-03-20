@@ -290,7 +290,7 @@ int freq_initialize_fft_arrays(Sample *sp)
         float f0;
     
         //if (oldfftsize > 0){//del by Kobarin
-        if(magdata){//add by Kobarin(‘O‰ñ‚ª length == 0 ‚¾‚Á‚½‚Æ‚«‚Éƒƒ‚ƒŠƒŠ[ƒN)
+        if(magdata){//add by Kobarin(å‰å›žãŒ length == 0 ã ã£ãŸã¨ãã«ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯)
             free(magdata);
             free(prunemagdata);
             free(ip);
@@ -300,12 +300,12 @@ int freq_initialize_fft_arrays(Sample *sp)
         magdata = (float *) safe_malloc(length * sizeof(float));
         prunemagdata = (float *) safe_malloc(length * sizeof(float));
         //ip = (int *) safe_malloc(2 + sqrt(length) * sizeof(int));//del by Kobarin
-        //C³ by Kobarin
-        //length == 0 ‚Ì‚Æ‚«‚Éƒƒ‚ƒŠ‚ð”j‰ó‚·‚é
-        //2+sqrt(length) ‚Ì 2 == 16bit Žž‘ã‚Ì sizeof(int)?
-        //(1+sqrt(length))*sizeof(int) ‚Å—Ç‚¢‚©‚à
+        //ä¿®æ­£ by Kobarin
+        //length == 0 ã®ã¨ãã«ãƒ¡ãƒ¢ãƒªã‚’ç ´å£Šã™ã‚‹
+        //2+sqrt(length) ã® 2 == 16bit æ™‚ä»£ã® sizeof(int)?
+        //(1+sqrt(length))*sizeof(int) ã§è‰¯ã„ã‹ã‚‚
         ip = (int*)safe_malloc((2+sqrt(length))*sizeof(int));
-        //‚±‚±‚Ü‚Å
+        //ã“ã“ã¾ã§
         *ip = 0;
         w = (float *) safe_malloc((length >> 1) * sizeof(float));
 ///r

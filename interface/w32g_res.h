@@ -302,7 +302,7 @@
 #define IDC_CHECKBOX_DEFAULT_PROGRAM   4550
 #define IDC_CHECKBOX_SPECIAL_PROGRAM   4551
 #define IDC_COMBO_PROGRAM              4600
-// IDC_COMBO_PROGRAMXX は連続した値であること
+// IDC_COMBO_PROGRAMXX 縺ｯ騾｣邯壹＠縺溷､縺ｧ縺ゅｋ縺薙→
 #define IDC_COMBO_PROGRAM01            4601
 #define IDC_COMBO_PROGRAM02            4602
 #define IDC_COMBO_PROGRAM03            4603
@@ -319,7 +319,7 @@
 #define IDC_COMBO_PROGRAM14            4614
 #define IDC_COMBO_PROGRAM15            4615
 #define IDC_COMBO_PROGRAM16            4616
-// IDC_STATIC_PROGRAMXX は連続した値であること
+// IDC_STATIC_PROGRAMXX 縺ｯ騾｣邯壹＠縺溷､縺ｧ縺ゅｋ縺薙→
 #define IDC_STATIC_PROGRAM01           4701
 #define IDC_STATIC_PROGRAM02           4702 
 #define IDC_STATIC_PROGRAM03           4703
@@ -338,7 +338,7 @@
 #define IDC_STATIC_PROGRAM16           4716
 
 // channel
-// IDC_CHECKBOX_CHXX は連続した値であること
+// IDC_CHECKBOX_CHXX 縺ｯ騾｣邯壹＠縺溷､縺ｧ縺ゅｋ縺薙→
 #define IDC_CHECKBOX_CH01               5001
 #define IDC_CHECKBOX_CH02               5002
 #define IDC_CHECKBOX_CH03               5003

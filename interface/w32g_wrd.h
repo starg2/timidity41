@@ -29,28 +29,28 @@ typedef struct w32g_wrd_wnd_t_ {
         HGDIOBJ hgdiobj_hmdcprev;
         HBITMAP hbitmap;
 
-        int flag;       // ƒtƒ‰ƒO
+        int flag;       // ãƒ•ãƒ©ã‚°
         int draw_skip;
 
-        // ƒ[ƒN
+        // ãƒ¯ãƒ¼ã‚¯
         HBITMAP hbmp_work;
-        // ƒeƒLƒXƒgƒ}ƒXƒN
+        // ãƒ†ã‚­ã‚¹ãƒˆãƒã‚¹ã‚¯
         HBITMAP hbmp_tmask;
-        // ƒOƒ‰ƒtƒBƒbƒN
+        // ã‚°ãƒ©ãƒ•ã‚£ãƒƒã‚¯
         w32g_dib_t *graphic_dib[W32G_WRDWND_GRAPHIC_PLANE_MAX];
-        int index_active;               // ƒAƒNƒeƒBƒu‰æ–Ê
-        int index_display;              // ƒfƒBƒXƒvƒŒƒC‰æ–Ê
+        int index_active;               // ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ç”»é¢
+        int index_display;              // ãƒ‡ã‚£ã‚¹ãƒ—ãƒ¬ã‚¤ç”»é¢
         int gmode;
-        // ‰æ‘œƒf[ƒ^‚ÌŒ`®
+        // ç”»åƒãƒ‡ãƒ¼ã‚¿ã®å½¢å¼
         BITMAPINFO *bmi_graphic[W32G_WRDWND_GRAPHIC_PLANE_MAX];
-        // ƒpƒŒƒbƒgƒx[ƒX‚Ì‰æ‘œƒf[ƒ^
+        // ãƒ‘ãƒ¬ãƒƒãƒˆãƒ™ãƒ¼ã‚¹ã®ç”»åƒãƒ‡ãƒ¼ã‚¿
         char *bits_mag_work;
-        // ƒOƒ‰ƒtƒBƒbƒNƒpƒŒƒbƒgƒoƒbƒtƒ@
+        // ã‚°ãƒ©ãƒ•ã‚£ãƒƒã‚¯ãƒ‘ãƒ¬ãƒƒãƒˆãƒãƒƒãƒ•ã‚¡
         RGBQUAD default_gpal[W32G_WRDWND_GRAPHIC_PALLETE_MAX];
         RGBQUAD gpal_buff[W32G_WRDWND_GRAPHIC_PALLETE_BUF_MAX][W32G_WRDWND_GRAPHIC_PALLETE_MAX];
-        // •ÏXî•ñ
+        // å¤‰æ›´æƒ…å ±
         int modified_graphic[W32G_WRDWND_GRAPHIC_PLANE_MAX];
-        // ƒtƒF[ƒh
+        // ãƒ•ã‚§ãƒ¼ãƒ‰
         int fade_from;
         int fade_to;
         //

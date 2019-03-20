@@ -148,7 +148,7 @@
 uint8 opt_normal_chorus_plus = 5; // chorusEX
 
 extern DWORD processPriority;
-DWORD processPriority = NORMAL_PRIORITY_CLASS;	// ƒvƒƒZƒX‚Ìƒvƒ‰ƒCƒIƒŠƒeƒB
+DWORD processPriority = NORMAL_PRIORITY_CLASS;	// ãƒ—ãƒ­ã‚»ã‚¹ã®ãƒ—ãƒ©ã‚¤ã‚ªãƒªãƒ†ã‚£
 #if defined(IA_W32G_SYN) || defined(WINDRV)
 DWORD syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
 #else
@@ -1908,10 +1908,10 @@ static int set_gus_patchconf(const char *name, int line,
     }
 #if 0 // c210 CFG comm
 /*
-‚±‚±‚Åtone->comment‚ðƒZƒbƒg‚·‚é——R‚ª•s–¾
-CFG‚Ìcomm‚ÅƒZƒbƒg‚µ‚½‚©‚Ç‚¤‚©‚ªŒã‚Å‚í‚©‚ç‚È‚­‚È‚é 
-CFG‚Ìcomm‚ð—Dæ‚·‚é‚×‚«
-ƒTƒ“ƒvƒ‹ƒ[ƒh‚ÌŽž‚É instrum.c *load_instrument() ‚ÅƒZƒbƒg‚·‚é
+ã“ã“ã§tone->commentã‚’ã‚»ãƒƒãƒˆã™ã‚‹ç†ç”±ãŒä¸æ˜Ž
+CFGã®commã§ã‚»ãƒƒãƒˆã—ãŸã‹ã©ã†ã‹ãŒå¾Œã§ã‚ã‹ã‚‰ãªããªã‚‹ 
+CFGã®commã‚’å„ªå…ˆã™ã‚‹ã¹ã
+ã‚µãƒ³ãƒ—ãƒ«ãƒ­ãƒ¼ãƒ‰ã®æ™‚ã« instrum.c *load_instrument() ã§ã‚»ãƒƒãƒˆã™ã‚‹
 */
 #ifdef SET_GUS_PATCHCONF_COMMENT
 	if(tone->comment == NULL ||
@@ -7408,7 +7408,7 @@ static inline int parse_opt_p(const char *arg)
 {
 	if (!arg) return 0;
 #if 1 //def __W32__
-	// safe_calloc() sizeof(Voice) < MAX_SAFE_MALLOC_SIZE ‚Å‚ ‚ê‚Î‚¢‚¢‚Í‚¸ (winˆÈŠO‚Í•s–¾
+	// safe_calloc() sizeof(Voice) < MAX_SAFE_MALLOC_SIZE ã§ã‚ã‚Œã°ã„ã„ã¯ãš (winä»¥å¤–ã¯ä¸æ˜Ž
 	if (set_value(&voices, atoi(arg), 1, MAX_VOICES, "Polyphony"))
 		return 1;
 #else

@@ -376,7 +376,7 @@ static int32 output_data(const uint8 *readbuffer, size_t bytes)
 	size_t read_size = 0;
 	int32 sample_sz = dwSamples * 2;
 	size_t total_pos = 0;
-	int32 bytes_tmp = bytes; // “Ç‚Ýž‚Þ‚½‚Ñ‚ÉƒfƒNƒŠ
+	int32 bytes_tmp = bytes; // èª­ã¿è¾¼ã‚€ãŸã³ã«ãƒ‡ã‚¯ãƒª
 /*
 	while ((bytes_tmp + lame_buffer_cur) > sample_sz) {
 		read_size = abs(bytes_tmp - lame_buffer_cur);

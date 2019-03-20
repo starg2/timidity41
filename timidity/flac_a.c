@@ -413,8 +413,8 @@ static void flac_session_close()
 
 #if 1
   /*
-  ¡Œã flac_output_open ŠÖ”“à•”‚Å‘Ä¶ŠÔ‚ğ’²‚×‚é•û–@‚ªì‚ç‚ê‚½‚ç
-  FLAC__stream_encoder_set_total_samples_estimate ŠÖ”‚ğg‚Á‚Ä‚­‚¾‚³‚¢
+  ä»Šå¾Œ flac_output_open é–¢æ•°å†…éƒ¨ã§ç·å†ç”Ÿæ™‚é–“ã‚’èª¿ã¹ã‚‹æ–¹æ³•ãŒä½œã‚‰ã‚ŒãŸã‚‰
+  FLAC__stream_encoder_set_total_samples_estimate é–¢æ•°ã‚’ä½¿ã£ã¦ãã ã•ã„
    */
 #ifdef AU_OGGFLAC
   if (flac_options.isogg) {

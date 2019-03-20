@@ -57,37 +57,37 @@ double ext_filter_shelving_q = 1.0;
 double ext_filter_peaking_gain = 1.0;
 double ext_filter_peaking_reduce = 1.0;
 double ext_filter_peaking_q = 1.0;
-const double ext_filter_margin = 0.010; // 1cB,+-20cent‚æ‚è¬‚³‚¢ •‰‰×Œ¸­¬
-//const double ext_filter_margin = 0.05; // 5cB,+-100cent‚æ‚è¬‚³‚¢ •‰‰×Œ¸­‘å
+const double ext_filter_margin = 0.010; // 1cB,+-20centã‚ˆã‚Šå°ã•ã„ è² è·æ¸›å°‘å°
+//const double ext_filter_margin = 0.05; // 5cB,+-100centã‚ˆã‚Šå°ã•ã„ è² è·æ¸›å°‘å¤§
 
 
 ///r
 /*        sample_filter       */
 /*
 voice_filter1(LPF), voice_filter2(HPF), resample_filter
-ƒtƒBƒ‹ƒ^•”•ª‹¤’Ê
-ƒtƒBƒ‹ƒ^©‘Ì‚Í freq[Hz], reso_dB[dB] ,(EQ‚Ìê‡ q[0.0~1.0]
+ãƒ•ã‚£ãƒ«ã‚¿éƒ¨åˆ†å…±é€š
+ãƒ•ã‚£ãƒ«ã‚¿è‡ªä½“ã¯ freq[Hz], reso_dB[dB] ,(EQã®å ´åˆ q[0.0~1.0]
 
-voice_filter(LPF) ‚Ìê‡
+voice_filter(LPF) ã®å ´åˆ
 	playmidi.c init_voice_filter(int i)
 
 input freq 20 < freq < 20000 , input 0 < reso < 96
 
-0<n<‡, 0<n<1, 1>n>0 (ŠeƒtƒBƒ‹ƒ^‘¤ƒŒƒ]ƒiƒ“ƒX•”•ª’lˆæ‚ª‚±‚ñ‚ÈŠ´‚¶‚Åƒoƒ‰ƒoƒ‰
-n=f(rez) (ŠeƒtƒBƒ‹ƒ^‚Ìf()‚ª‰½‚È‚Ì‚©
-q, 1/q, 1-1/q ‚±‚¤‚·‚é‚Æ‹¤’Ê‚µ‚½’lˆæ 1<q<‡ ‚É‚È‚é
-0<rez ‚È‚Ì‚Å q=X^rez ‚Å q‚Ì’lˆæ‚É•ÏŠ·
-‚±‚ê‚É§ŒÀ‚â‚çŒW”‚ª‚Â‚­
+0<n<âˆ, 0<n<1, 1>n>0 (å„ãƒ•ã‚£ãƒ«ã‚¿å´ãƒ¬ã‚¾ãƒŠãƒ³ã‚¹éƒ¨åˆ†å€¤åŸŸãŒã“ã‚“ãªæ„Ÿã˜ã§ãƒãƒ©ãƒãƒ©
+n=f(rez) (å„ãƒ•ã‚£ãƒ«ã‚¿ã®f()ãŒä½•ãªã®ã‹
+q, 1/q, 1-1/q ã“ã†ã™ã‚‹ã¨å…±é€šã—ãŸå€¤åŸŸ 1<q<âˆ ã«ãªã‚‹
+0<rez ãªã®ã§ q=X^rez ã§ qã®å€¤åŸŸã«å¤‰æ›
+ã“ã‚Œã«åˆ¶é™ã‚„ã‚‰ä¿‚æ•°ãŒã¤ã
 
-ˆ—‡˜
-1: type‚ğw’è set_type() (‰‰ñ‚Ü‚½‚Ítype•Ï‰»‚Ìê‡ FilterCoefficients 0ƒNƒŠƒA
-2: “Áê‚ÈƒTƒ“ƒvƒ‹ƒŒ[ƒg‚Ìê‡‚Í set_ext_rate()
-3: orig_freq,orig_reso‚ğg—p‚·‚éê‡‚Í set_orig_freq() set_orig_reso() 
-4: freq,reso‚ğw’è set_freq() set_reso() (EQ‚Ìê‡ set_q()
-5: sample_filter‚Ìê‡‚Í ŒW”ŒvZ recalc_filter()
-6: ƒtƒBƒ‹ƒ^ˆ— filter() (buffer_filter‚Íˆ—‘O‚ÉŒW”ŒvZ‚³‚ê‚é
+å‡¦ç†é †åº
+1: typeã‚’æŒ‡å®š set_type() (åˆå›ã¾ãŸã¯typeå¤‰åŒ–ã®å ´åˆ FilterCoefficients 0ã‚¯ãƒªã‚¢
+2: ç‰¹æ®Šãªã‚µãƒ³ãƒ—ãƒ«ãƒ¬ãƒ¼ãƒˆã®å ´åˆã¯ set_ext_rate()
+3: orig_freq,orig_resoã‚’ä½¿ç”¨ã™ã‚‹å ´åˆã¯ set_orig_freq() set_orig_reso() 
+4: freq,resoã‚’æŒ‡å®š set_freq() set_reso() (EQã®å ´åˆ set_q()
+5: sample_filterã®å ´åˆã¯ ä¿‚æ•°è¨ˆç®— recalc_filter()
+6: ãƒ•ã‚£ãƒ«ã‚¿å‡¦ç† filter() (buffer_filterã¯å‡¦ç†å‰ã«ä¿‚æ•°è¨ˆç®—ã•ã‚Œã‚‹
 
-1:~5:‚ğ‚Ü‚Æ‚ß‚½ init_sample_filter()‚Å‚à‚¢‚¢ (EQ‚Ìê‡ init_sample_filter2()
+1:~5:ã‚’ã¾ã¨ã‚ãŸ init_sample_filter()ã§ã‚‚ã„ã„ (EQã®å ´åˆ init_sample_filter2()
 
 */
 
@@ -141,15 +141,15 @@ num	filter_define		type	cutoff_limit (oversampling)	desc
 40	FILTER_BIQUAD_HI,	HPF		sr / 2
 // last
 41	FILTER_LIST_MAX,
-cutoff_limit sr/2–¢–‚Ì‚à‚Ì‚Íoversampling‚Åsr/2‚ğˆµ‚¦‚é‚æ‚¤‚É‚·‚é
+cutoff_limit sr/2æœªæº€ã®ã‚‚ã®ã¯oversamplingã§sr/2ã‚’æ‰±ãˆã‚‹ã‚ˆã†ã«ã™ã‚‹
 */
 
 
 
 #if 1 // recalc filter margin
 /*
-ŒW”ÄŒvZ‚Í•‰‰×‚ª‘å‚«‚­ ƒ{ƒCƒXƒtƒBƒ‹ƒ^‚Åg—p‰ñ”‚à‘½‚¢‚Ì‚Å ‚ ‚é’ö“xí‚Á‚Äˆ—‰ñ”‚ğŒ¸‚ç‚·
-ƒ{ƒCƒXƒtƒBƒ‹ƒ^‚Í•Ï“®‚µ‚Ä‚é‚à‚Ì‚¾‚©‚ç100centƒYƒŒ‚Ä‚àˆá‚¢‚Í‚í‚©‚ç‚È‚¢ EQ‚Í•Ï“®‚µ‚È‚¢‚µ
+ä¿‚æ•°å†è¨ˆç®—ã¯è² è·ãŒå¤§ãã ãƒœã‚¤ã‚¹ãƒ•ã‚£ãƒ«ã‚¿ã§ä½¿ç”¨å›æ•°ã‚‚å¤šã„ã®ã§ ã‚ã‚‹ç¨‹åº¦å‰Šã£ã¦å‡¦ç†å›æ•°ã‚’æ¸›ã‚‰ã™
+ãƒœã‚¤ã‚¹ãƒ•ã‚£ãƒ«ã‚¿ã¯å¤‰å‹•ã—ã¦ã‚‹ã‚‚ã®ã ã‹ã‚‰100centã‚ºãƒ¬ã¦ã‚‚é•ã„ã¯ã‚ã‹ã‚‰ãªã„ EQã¯å¤‰å‹•ã—ãªã„ã—
 */
 
 #define INIT_MARGIN_VAL { \
@@ -1521,7 +1521,7 @@ static inline void recalc_filter_LPF_FIR(FilterCoefficients *fc)
 	}
 }
 
-// shelving ‹¤’Ê 
+// shelving å…±é€š 
 static inline void sample_filter_shelving(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
 	db[0] = *sp;
@@ -1595,7 +1595,7 @@ static inline void recalc_filter_shelving_hi(FilterCoefficients *fc)
 	}
 }
 
-// peaking ‹¤’Ê 
+// peaking å…±é€š 
 static inline void sample_filter_peaking(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
 	db[0] = *sp;
@@ -1643,7 +1643,7 @@ static inline void recalc_filter_peaking(FilterCoefficients *fc)
 	}
 }
 
-// biquad ‹¤’Ê 
+// biquad å…±é€š 
 static inline void sample_filter_biquad(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
 	// input
@@ -2157,7 +2157,7 @@ static inline void sample_filter_BPF_BW(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 	db[10] = db[9];
 	db[9] = db[8]; // flt in
 	// con	
-	db[8] = db[4]; // db[4]‚©‚çdb[8]‚Ö‚Í’x‰„‚µ‚Ä‚à‚¢‚¢
+	db[8] = db[4]; // db[4]ã‹ã‚‰db[8]ã¸ã¯é…å»¶ã—ã¦ã‚‚ã„ã„
 	// LPF
 	db[4] = db[3];
 	db[3] = db[2]; // flt out
@@ -3158,7 +3158,7 @@ static inline void recalc_filter_LPF_FIR(FilterCoefficients *fc)
 	}
 }
 
-// shelving ‹¤’Ê 
+// shelving å…±é€š 
 static inline void sample_filter_shelving(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {	
 	// input
@@ -3242,7 +3242,7 @@ static inline void recalc_filter_shelving_hi(FilterCoefficients *fc)
 	}
 }
 
-// peaking ‹¤’Ê 
+// peaking å…±é€š 
 static inline void sample_filter_peaking(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
 	// input
@@ -3290,10 +3290,10 @@ static inline void recalc_filter_peaking(FilterCoefficients *fc)
 	}
 }
 
-// biquad ‹¤’Ê 
+// biquad å…±é€š 
 static inline void sample_filter_biquad(FILTER_T *dc, FILTER_T *db, DATA_T *sp)
 {
-//	db[2] = db[0] * dc[0] + db[1] * dc[1] + db[2] * dc[2] + db[3] * dc[3] + db[4] * dc[4]; // dc[0]=dc[2] BW‚Æ“¯‚¶ 
+//	db[2] = db[0] * dc[0] + db[1] * dc[1] + db[2] * dc[2] + db[3] * dc[3] + db[4] * dc[4]; // dc[0]=dc[2] BWã¨åŒã˜ 
 	db[2] = db[1] * dc[1] + (*sp + db[2]) * dc[2] + db[3] * dc[3] + db[4] * dc[4]; // -dc3 -dc4 
 #if defined(DENORMAL_FIX)
 	db[2] += denormal_add;

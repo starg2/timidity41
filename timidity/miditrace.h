@@ -25,10 +25,10 @@
 #include "controls.h"
 
 #if defined(IA_W32GUI)
-/* トレースモード更新を全部タイマー使用 */
+/* 繝医Ξ繝ｼ繧ｹ繝｢繝ｼ繝画峩譁ｰ繧貞�ｨ驛ｨ繧ｿ繧､繝槭�ｼ菴ｿ逕ｨ */
 //#define USE_TRACE_TIMER 1
-#define DEFAULT_TRACE_TIMER_ELAPSE (0) // ms 更新間隔
-#define MAX_TRACE_TIMER_ELAPSE (1000) // ms 更新間隔
+#define DEFAULT_TRACE_TIMER_ELAPSE (0) // ms 譖ｴ譁ｰ髢馴囈
+#define MAX_TRACE_TIMER_ELAPSE (1000) // ms 譖ｴ譁ｰ髢馴囈
 #endif
 
 

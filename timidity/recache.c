@@ -87,17 +87,17 @@ static int cache_resampling(struct cache_hash *);
 static void loop_connect(cache_t *, int32, int32);
 
 void free_cache_data(void) {
-    //C³ by Kobarin
+    //ä¿®æ­£ by Kobarin
 	//free(cache_data);
     //reuse_mblock(&hash_entry_pool);
-    //cache_data ‚ğ NULL ‚É‚µ‚Ä‚¨‚©‚È‚¢‚ÆA‚±‚ÌŠÖ”ŒÄ‚Ño‚µŒã‚É
-    //resamp_cache_reset ‚ğŒÄ‚Ô‚Æ—‚¿‚é
+    //cache_data ã‚’ NULL ã«ã—ã¦ãŠã‹ãªã„ã¨ã€ã“ã®é–¢æ•°å‘¼ã³å‡ºã—å¾Œã«
+    //resamp_cache_reset ã‚’å‘¼ã¶ã¨è½ã¡ã‚‹
     if(cache_data){
         free(cache_data);
         cache_data = NULL;
         reuse_mblock(&hash_entry_pool);
     }
-    //‚±‚±‚Ü‚Å
+    //ã“ã“ã¾ã§
 }
 ///r
 void resamp_cache_reset(void)

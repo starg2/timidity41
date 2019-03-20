@@ -28,7 +28,7 @@
 
 /*
 source code layout	
-ƒGƒtƒFƒNƒgÀ‘Ô‚Íã•” ƒGƒtƒFƒNƒg”­s“™‚Í‰º•” 
+ã‚¨ãƒ•ã‚§ã‚¯ãƒˆå®Ÿæ…‹ã¯ä¸Šéƒ¨ ã‚¨ãƒ•ã‚§ã‚¯ãƒˆç™ºè¡Œç­‰ã¯ä¸‹éƒ¨ 
 include, define, extern
 VST
 EFFECT Utilities
@@ -228,7 +228,7 @@ const FLOAT_T mlt_vst_guard = (FLOAT_T)VST_MAX_GUARD_SIGNED;
 const FLOAT_T div_vst_guard = 1.0 / (double)(VST_MAX_GUARD_SIGNED + 1);
 
 #if defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT)
-// float/double‚Ìê‡ VSTd—l‚ÌƒŒƒxƒ‹(-1.0~+1.0)‚É‚·‚é•K—v‚ª‚ ‚é
+// float/doubleã®å ´åˆ VSTä»•æ§˜ã®ãƒ¬ãƒ™ãƒ«(-1.0~+1.0)ã«ã™ã‚‹å¿…è¦ãŒã‚ã‚‹
 #if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
 static inline void cnv_level_vst_send(DATA_T *buf, int32 count)
 {
@@ -375,18 +375,18 @@ static inline void do_chorus_vst(DATA_T *buf, int32 count)
 ///// Master VST
 #ifdef VST_LOADER_ENABLE
 /*
-o—Í•ÏŠ·‘O‚ÉVST
-o—Íƒrƒbƒg‚ÉŠÖŒW‚È‚­DATA_TŒ^ (double/float/int32)‚ÅVST‚É“n‚é
-DATA_T_DOUBLE‚Ìê‡ VSTWRAP_EXT‚Ìê‡
-	(double conv) (VST) (double conv) // GUARD_BITS‚ÌƒŒƒxƒ‹•ÏX
-DATA_T_DOUBLE‚Ìê‡
-	float pre_vst_buffer[]‚ğg—p‚µ‚Ä
-	(double-float conv) (VST) (float-double conv) // GUARD_BITS‚ÌƒŒƒxƒ‹•ÏX
-DATA_T_FLOAT‚Ìê‡
-	(float conv) (VST) (float conv) // GUARD_BITS‚ÌƒŒƒxƒ‹•ÏX
+å‡ºåŠ›å¤‰æ›å‰ã«VST
+å‡ºåŠ›ãƒ“ãƒƒãƒˆã«é–¢ä¿‚ãªãDATA_Tå‹ (double/float/int32)ã§VSTã«æ¸¡ã‚‹
+DATA_T_DOUBLEã®å ´åˆ VSTWRAP_EXTã®å ´åˆ
+	(double conv) (VST) (double conv) // GUARD_BITSã®ãƒ¬ãƒ™ãƒ«å¤‰æ›´
+DATA_T_DOUBLEã®å ´åˆ
+	float pre_vst_buffer[]ã‚’ä½¿ç”¨ã—ã¦
+	(double-float conv) (VST) (float-double conv) // GUARD_BITSã®ãƒ¬ãƒ™ãƒ«å¤‰æ›´
+DATA_T_FLOATã®å ´åˆ
+	(float conv) (VST) (float conv) // GUARD_BITSã®ãƒ¬ãƒ™ãƒ«å¤‰æ›´
 DATA_T_INT32
-	float pre_vst_buffer[]‚ğg—p‚µ‚Ä
-	(int32-float conv) (VST) (float-int32 conv) // GUARD_BITS‚ÌƒŒƒxƒ‹•ÏX
+	float pre_vst_buffer[]ã‚’ä½¿ç”¨ã—ã¦
+	(int32-float conv) (VST) (float-int32 conv) // GUARD_BITSã®ãƒ¬ãƒ™ãƒ«å¤‰æ›´
 */
 #if (defined(DATA_T_DOUBLE) && !defined(VSTWRAP_EXT)) || (!defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT))
 static ALIGN float pre_vst_buffer[AUDIO_BUFFER_SIZE * 2]; // 2ch
@@ -468,7 +468,7 @@ int32 ALIGN vst_ch_buffer[VST_CHANNEL_MAX][AUDIO_BUFFER_SIZE * 2];
 int32 *vst_ch_vpblist[MAX_CHANNELS];
 #endif
 
-// float/double‚Ìê‡ VSTd—l‚ÌƒŒƒxƒ‹(-1.0~+1.0)‚É‚·‚é•K—v‚ª‚ ‚é , DATA_T == VST data_type
+// float/doubleã®å ´åˆ VSTä»•æ§˜ã®ãƒ¬ãƒ™ãƒ«(-1.0~+1.0)ã«ã™ã‚‹å¿…è¦ãŒã‚ã‚‹ , DATA_T == VST data_type
 #if defined(VSTWRAP_EXT) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 #if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
 static inline void channel_vst_return(DATA_T *out_buf, DATA_T *in_buf, int32 count)
@@ -520,7 +520,7 @@ static inline void channel_vst_return(DATA_T *out_buf, DATA_T *in_buf, int32 cou
 }
 #endif // USE_X86_EXT_INTRIN
 #else // ! defined(VSTWRAP_EXT) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
-// VST data type ‚ªint32‚Ìê‡‚ÍƒŒƒxƒ‹•ÏX‚µ‚È‚¢
+// VST data type ãŒint32ã®å ´åˆã¯ãƒ¬ãƒ™ãƒ«å¤‰æ›´ã—ãªã„
 static inline void channel_vst_return_int32(DATA_T *out_buf, int32 *in_buf, int32 count)
 {
 	int32 i;
@@ -742,10 +742,10 @@ static inline int32 do_right_panning(int32 sample, int32 pan)
 	return imuldiv8(sample, pan + pan);
 }
 #else /* floating-point implementation */
-// MIDIƒpƒ‰ƒ[ƒ^‚É‚æ‚é‚Ìƒpƒ“‚É‚Â‚¢‚Ä
-// ƒpƒ“ŒvZ‚ÍƒGƒtƒFƒNƒgŠO‚Éo‚µ‚ÄGS/XG‹KŠi‚É‡‚í‚¹‚Ä calc_panning()
-// –ˆ‰ñƒpƒ“ŒW”‚ğŒvZ‚µ‚È‚¢‚Å panl, panr ‚Å•Û‚·‚é
-// ‚»‚êˆÈŠO‚Ìƒpƒ“‚É‚Â‚¢‚Ä ƒŒƒxƒ‹•Ï‰»‚ª­‚È‚»‚¤‚ÈGM2ƒe[ƒuƒ‹‚É‚·‚é
+// MIDIãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã«ã‚ˆã‚‹ã®ãƒ‘ãƒ³ã«ã¤ã„ã¦
+// ãƒ‘ãƒ³è¨ˆç®—ã¯ã‚¨ãƒ•ã‚§ã‚¯ãƒˆå¤–ã«å‡ºã—ã¦GS/XGè¦æ ¼ã«åˆã‚ã›ã¦ calc_panning()
+// æ¯å›ãƒ‘ãƒ³ä¿‚æ•°ã‚’è¨ˆç®—ã—ãªã„ã§ panl, panr ã§ä¿æŒã™ã‚‹
+// ãã‚Œä»¥å¤–ã®ãƒ‘ãƒ³ã«ã¤ã„ã¦ ãƒ¬ãƒ™ãƒ«å¤‰åŒ–ãŒå°‘ãªãã†ãªGM2ãƒ†ãƒ¼ãƒ–ãƒ«ã«ã™ã‚‹
 static inline DATA_T do_left_panning(DATA_T sample, int32 pan)
 {
 	return sample * (FLOAT_T)gm2_vol_table[127 - pan] * DIV_127;
@@ -3702,7 +3702,7 @@ static void do_freeverb_chMS(DATA_T *buf, int32 count, InfoFreeverb *info)
 }
 
 #elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-// İ’è‚É‚æ‚Á‚ÄƒmƒCƒY”­¶‚·‚é‚Ì‚Åundef
+// è¨­å®šã«ã‚ˆã£ã¦ãƒã‚¤ã‚ºç™ºç”Ÿã™ã‚‹ã®ã§undef
 #if 1 // rv,ap 2unit 
 static void do_freeverb_chST(DATA_T *buf, int32 count, InfoFreeverb *info)
 {
@@ -4592,8 +4592,8 @@ static void init_net_comb_fbc(comb2 *base, int info_num, int max_num)
 	info->cf[0] = 1.0; // 1/1
 #endif
 	// xnet (net_comb2
-	// ‚ ‚é’ö“x•ªU‚µ‚Ä ƒmƒCƒY‰»‚µ‚È‚¢•Ï‰»‘¬“x‚Å feedback line‚ğØ‚è‘Ö‚¦‚é cf‚Ì˜a=1.0 ˆê”ÔƒVƒ“ƒvƒ‹‚È•û–@H
-	// feedback 2line‚ğ‘Î‚É‚µ‚Älfo triangluar‚Åcrossfade mix, 2mix‚ğ‘Î‚É‚µ‚Älfo‚ğcrossfade mix, ...
+	// ã‚ã‚‹ç¨‹åº¦åˆ†æ•£ã—ã¦ ãƒã‚¤ã‚ºåŒ–ã—ãªã„å¤‰åŒ–é€Ÿåº¦ã§ feedback lineã‚’åˆ‡ã‚Šæ›¿ãˆã‚‹ cfã®å’Œ=1.0 ä¸€ç•ªã‚·ãƒ³ãƒ—ãƒ«ãªæ–¹æ³•ï¼Ÿ
+	// feedback 2lineã‚’å¯¾ã«ã—ã¦lfo triangluarã§crossfade mix, 2mixã‚’å¯¾ã«ã—ã¦lfoã‚’crossfade mix, ...
 	// lfo wave:triangular(lite) out:0.0~1.0 freq:2.25Hz~4.133Hz, random:freq,phase
 	for(i = 0; i < NET_COMB_LFO; i++){
 		info->lfo_count[i] = 2.25 * div_playmode_rate * pow(1.75, get_white_noise_p());
@@ -5024,14 +5024,14 @@ static void init_reverb_ex(InfoReverbEX *info)
 		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level * fbmax; // rv_fb
 	info->levelap = pow(1.0 + REV_EX_AP_FB, -info->ap_num) * REV_EX_AP_LEVEL;
 	info->fbap = (info->density + 1.0) * DIV_2 * REV_EX_AP_FB;
-// int32‚Ìê‡ er/rv‚Ìƒ~ƒbƒNƒX•”•ª‚ªint32’´‚¦‚é‹C‚ª‚·‚é‚Ì‚Å “ü—Í‰º‚°‚Äo—Íã‚° 8bit•ª
+// int32ã®å ´åˆ er/rvã®ãƒŸãƒƒã‚¯ã‚¹éƒ¨åˆ†ãŒint32è¶…ãˆã‚‹æ°—ãŒã™ã‚‹ã®ã§ å…¥åŠ›ä¸‹ã’ã¦å‡ºåŠ›ä¸Šã’ 8bitåˆ†
 #if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
 #if (OPT_MODE == 1)/* fixed-point implementation */
-	info->in_leveli = TIM_FSCALE(DIV_MIX_LEVEL, 24 - 8); // input // imuldiv24 //  * DIV_MIX_LEVEL•”•ª
-	info->st_sprdi = TIM_FSCALE(info->st_sprd, 24 - 8); // input // imuldiv24 // * st_sprd•”•ª
+	info->in_leveli = TIM_FSCALE(DIV_MIX_LEVEL, 24 - 8); // input // imuldiv24 //  * DIV_MIX_LEVELéƒ¨åˆ†
+	info->st_sprdi = TIM_FSCALE(info->st_sprd, 24 - 8); // input // imuldiv24 // * st_sprdéƒ¨åˆ†
 	info->flt_weti = TIM_FSCALE(info->flt_wet, 24);
 	info->flt_dryi = TIM_FSCALE(info->flt_dry, 24);
-	info->feedbacki = TIM_FSCALE(info->feedback, 24 - 8); // input // imuldiv24 // * feedback•”•ª
+	info->feedbacki = TIM_FSCALE(info->feedback, 24 - 8); // input // imuldiv24 // * feedbackéƒ¨åˆ†
 	info->leveleri = TIM_FSCALE(info->leveler , 24); // output // imuldiv16
 	info->levelrvi = TIM_FSCALE(info->levelrv , 24); // output // imuldiv16	
 	info->levelapi = TIM_FSCALE(info->levelap , 24);
@@ -5188,7 +5188,7 @@ static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 #elif defined(IX86CPU) && (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 /*
 SSE2 128bitSIMD : double*2ch, int32*4ch
-x64‚Å–â‘èEE?
+x64ã§å•é¡Œãƒ»ãƒ»?
 */
 static void do_reverb_ex_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info)
 {
@@ -5599,14 +5599,14 @@ static void init_reverb_ex_mod(InfoReverbEX *info)
 		* info->rev_level * ext_reverb_ex_rv_level * ext_reverb_ex_level * fbmax; // rv_fb
 	info->levelap = pow(1.0 + REV_EX_AP_FB, -info->ap_num) * REV_EX_AP_LEVEL;
 	info->fbap = (info->density + 1.0) * DIV_2 * REV_EX_AP_FB;
-// int32‚Ìê‡ er/rv‚Ìƒ~ƒbƒNƒX•”•ª‚ªint32’´‚¦‚é‹C‚ª‚·‚é‚Ì‚Å “ü—Í‰º‚°‚Äo—Íã‚° 8bit•ª
+// int32ã®å ´åˆ er/rvã®ãƒŸãƒƒã‚¯ã‚¹éƒ¨åˆ†ãŒint32è¶…ãˆã‚‹æ°—ãŒã™ã‚‹ã®ã§ å…¥åŠ›ä¸‹ã’ã¦å‡ºåŠ›ä¸Šã’ 8bitåˆ†
 #if !defined(DATA_T_DOUBLE) && !defined(DATA_T_FLOAT)
 #if (OPT_MODE == 1)/* fixed-point implementation */
-	info->in_leveli = TIM_FSCALE(DIV_MIX_LEVEL, 24 - 8); // input // imuldiv24 //  * DIV_MIX_LEVEL•”•ª
-	info->st_sprdi = TIM_FSCALE(info->st_sprd, 24 - 8); // input // imuldiv24 // * st_sprd•”•ª
+	info->in_leveli = TIM_FSCALE(DIV_MIX_LEVEL, 24 - 8); // input // imuldiv24 //  * DIV_MIX_LEVELéƒ¨åˆ†
+	info->st_sprdi = TIM_FSCALE(info->st_sprd, 24 - 8); // input // imuldiv24 // * st_sprdéƒ¨åˆ†
 	info->flt_weti = TIM_FSCALE(info->flt_wet, 24);
 	info->flt_dryi = TIM_FSCALE(info->flt_dry, 24);
-	info->feedbacki = TIM_FSCALE(info->feedback, 24 - 8); // input // imuldiv24 // * feedback•”•ª
+	info->feedbacki = TIM_FSCALE(info->feedback, 24 - 8); // input // imuldiv24 // * feedbackéƒ¨åˆ†
 	info->leveleri = TIM_FSCALE(info->leveler , 24); // output // imuldiv16
 	info->levelrvi = TIM_FSCALE(info->levelrv , 24); // output // imuldiv16	
 	info->levelapi = TIM_FSCALE(info->levelap , 24);
@@ -5809,7 +5809,7 @@ static void do_reverb_ex_mod_chSTMS_thread1(int thread_num, void *info2)
 #if (USE_X86_EXT_INTRIN >= 6) // sse4.1
 		vc = _mm_sub_pd(vc, _mm_floor_pd(vc)); // mcount-=floor(mcount)
 #else
-		vc = _mm_sub_pd(vc, _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc))); // mcount-=(int)(mcount) +‚Ì‚İ
+		vc = _mm_sub_pd(vc, _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc))); // mcount-=(int)(mcount) +ã®ã¿
 #endif
 		_mm_storeu_pd(&info->mcount[i][chofslfo], vc);
 		vr = _mm_add_pd(vc, _mm_loadu_pd(&info->mphase[i][chofslfo])); // mcount+mphase
@@ -6247,8 +6247,8 @@ static void do_reverb_ex_mod_chSTMS(DATA_T *buf, int32 count, InfoReverbEX *info
 		vc[0] = _mm_sub_pd(vc[0], _mm_floor_pd(vc[0])); // mcount-=floor(mcount)
 		vc[1] = _mm_sub_pd(vc[1], _mm_floor_pd(vc[1])); // mcount-=floor(mcount)
 #else
-		vc[0] = _mm_sub_pd(vc[0], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[0]))); // mcount-=(int)(mcount) +‚Ì‚İ
-		vc[1] = _mm_sub_pd(vc[1], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[1]))); // mcount-=(int)(mcount) +‚Ì‚İ
+		vc[0] = _mm_sub_pd(vc[0], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[0]))); // mcount-=(int)(mcount) +ã®ã¿
+		vc[1] = _mm_sub_pd(vc[1], _mm_cvtepi32_pd(_mm_cvttpd_epi32(vc[1]))); // mcount-=(int)(mcount) +ã®ã¿
 #endif
 		_mm_storeu_pd(&info->mcount[i][REV_EX_ER_L1], vc[0]);
 		_mm_storeu_pd(&info->mcount[i][REV_EX_RV_L1], vc[1]);
@@ -6612,7 +6612,7 @@ static void reverb_ex2_read_ini(int32 revtype, char *path, int32 *amp)
 	}
     strlcat(fn, ini_file, FILEPATH_MAX);
 	MyIni_Load(&ini, fn);
-//	MyIni_Load_timidity(&ini, ini_file, 1, OF_SILENT); // dirw’è‚Ì‚Æ‚±‚ë‚©‚çƒ[ƒh‚µ‚½‚¢‚ª‚È‚º‚©ƒGƒ‰[EEE
+//	MyIni_Load_timidity(&ini, ini_file, 1, OF_SILENT); // diræŒ‡å®šã®ã¨ã“ã‚ã‹ã‚‰ãƒ­ãƒ¼ãƒ‰ã—ãŸã„ãŒãªãœã‹ã‚¨ãƒ©ãƒ¼ãƒ»ãƒ»ãƒ»
 	sec = MyIni_GetSection(&ini, ini_rev_type_name[revtype], 0);
 	if(sec == NULL) 
 		return;
@@ -8063,7 +8063,7 @@ static void do_reverb_ex2(DATA_T *buf, int32 count, InfoReverbEX2 *info)
 
 
 // REV_EX2_FFT
-// freeverb3 irmodel2zl.cpp irmodel2.cpp ‚ğQl‚É
+// freeverb3 irmodel2zl.cpp irmodel2.cpp ã‚’å‚è€ƒã«
 
 #define REV_EX2_FFT_LEVEL (0.25 * (1.0 - REV_EX2_ST_CROSS))
 #define REV_EX2_FRAGBIT (10) // 10 ~ 14 
@@ -9565,7 +9565,7 @@ static void do_plate_reverb(DATA_T *buf, int32 count, InfoPlateReverb *info)
 use
 GS System Effect Delay
 GS System Effect Reverb (RevType Normal Delay, Panning Delay)
-DELAY MACRO, REVERB_MACRO ‚ÌƒfƒtƒHƒ‹ƒg’l‚©‚ç”ƒpƒ^[ƒ“‚Ìƒ^ƒCƒv‚ÉÅ“K‰»
+DELAY MACRO, REVERB_MACRO ã®ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤ã‹ã‚‰æ•°ãƒ‘ã‚¿ãƒ¼ãƒ³ã®ã‚¿ã‚¤ãƒ—ã«æœ€é©åŒ–
 */ 
 #define DELAY3_CH_C         0 // center
 #define DELAY3_CH_L         1 // left
@@ -9884,14 +9884,14 @@ static inline double calc_chorus_depth_xg(int val)
 static inline double calc_chorus_depth_cent(double depth_cent, double lfo_rate)
 {
 #if 0 //def _DEBUG
-	// depth[cent]‚Ìê‡‚Ì“Ç‚İo‚µƒJƒEƒ“ƒg‚Ì”{—¦
+	// depth[cent]ã®å ´åˆã®èª­ã¿å‡ºã—ã‚«ã‚¦ãƒ³ãƒˆã®å€ç‡
 	double mul = pow(2.0, depth_cent * DIV_1200);
-	// ƒsƒbƒ`•Ï‰»‚ªÅ‘å‚É‚È‚é‚Ì‚Í0“x‚ğ’†S‚Æ‚µ‚½1ƒJƒEƒ“ƒg•ª(-0.5x~+0.5x) ‚È‚Ì‚Å 2.0*sin(0.5x) x=(lfo_rate[Hz]/sample_rate[Hz]*2pi)
+	// ãƒ”ãƒƒãƒå¤‰åŒ–ãŒæœ€å¤§ã«ãªã‚‹ã®ã¯0åº¦ã‚’ä¸­å¿ƒã¨ã—ãŸ1ã‚«ã‚¦ãƒ³ãƒˆåˆ†(-0.5x~+0.5x) ãªã®ã§ 2.0*sin(0.5x) x=(lfo_rate[Hz]/sample_rate[Hz]*2pi)
 	double max = 2.0 * sin(lfo_rate * div_playmode_rate * M_PI);
 	// depth[multiply] = 1.0[sample_cnt] + depth[cnt] * 2.0 * sin(0.5 * lfo_rate[Hz]/sample_rate[Hz] * 2.0 * M_PI)
-	// depth[cnt] = ‚É•ÏŒ`
+	// depth[cnt] = ã«å¤‰å½¢
 	double cnt = (mul - 1.0) / max;
-	// ”äŠr—p‚Édepth[ms]‚É•ÏŠ·
+	// æ¯”è¼ƒç”¨ã«depth[ms]ã«å¤‰æ›
 	double ms = cnt * div_playmode_rate * 1000;
 	return cnt;
 #endif
@@ -12375,10 +12375,10 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 			info->rscount[i] += info->rsdelay;
 		vcf[0] = _mm_add_pd(vtmp1[0], vrate1); // cf[0] = info->rscount[i]; cf[1] = info->rscount[i] + rate;
 		vcf[1] = _mm_add_pd(vtmp1[0], vrate2); // cf[2] = info->rscount[i] + rate * 2; cf[3] = info->rscount[i] + rate * 3;		
-		vtmp1[0] = _mm_and_pd(vrsd_n, _mm_cmpge_pd(vcf[0], vrsd)); // cf>=rsd ? -rsd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp1[1] = _mm_and_pd(vrsd_n, _mm_cmpge_pd(vcf[1], vrsd)); // cf>=rsd ? -rsd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp2[0] = _mm_and_pd(vrsd, _mm_cmplt_pd(vcf[0], vrsd_n)); // cf<-rsd ? -rsd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp2[1] = _mm_and_pd(vrsd, _mm_cmplt_pd(vcf[1], vrsd_n)); // cf<-rsd ? -rsd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
+		vtmp1[0] = _mm_and_pd(vrsd_n, _mm_cmpge_pd(vcf[0], vrsd)); // cf>=rsd ? -rsd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp1[1] = _mm_and_pd(vrsd_n, _mm_cmpge_pd(vcf[1], vrsd)); // cf>=rsd ? -rsd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp2[0] = _mm_and_pd(vrsd, _mm_cmplt_pd(vcf[0], vrsd_n)); // cf<-rsd ? -rsd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp2[1] = _mm_and_pd(vrsd, _mm_cmplt_pd(vcf[1], vrsd_n)); // cf<-rsd ? -rsd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
 		vcf[0] = _mm_add_pd(_mm_add_pd(vcf[0], vtmp1[0]), vtmp2[0]); // mix vcf+= (-rsd or rsd or 0.0);
 		vcf[1] = _mm_add_pd(_mm_add_pd(vcf[1], vtmp1[1]), vtmp2[1]); // mix vcf+= (-rsd or rsd or 0.0);
 		// rcount
@@ -12389,10 +12389,10 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 			info->rcount[i] -= wdelay;
 		vfp[0] = _mm_add_pd(vdelay, vcf[0]);
 		vfp[1] = _mm_add_pd(vdelay, vcf[1]);
-		vtmp1[0] = _mm_and_pd(vwd_n, _mm_cmpge_pd(vfp[0], vwd)); // cf>=wd ? -wd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp1[1] = _mm_and_pd(vwd_n, _mm_cmpge_pd(vfp[1], vwd)); // cf>=wd ? -wd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp2[0] = _mm_and_pd(vwd, _mm_cmplt_pd(vfp[0], _mm_setzero_pd())); // cf<0 ? wd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp2[1] = _mm_and_pd(vwd, _mm_cmplt_pd(vfp[1], _mm_setzero_pd())); // cf<0 ? wd : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
+		vtmp1[0] = _mm_and_pd(vwd_n, _mm_cmpge_pd(vfp[0], vwd)); // cf>=wd ? -wd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp1[1] = _mm_and_pd(vwd_n, _mm_cmpge_pd(vfp[1], vwd)); // cf>=wd ? -wd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp2[0] = _mm_and_pd(vwd, _mm_cmplt_pd(vfp[0], _mm_setzero_pd())); // cf<0 ? wd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp2[1] = _mm_and_pd(vwd, _mm_cmplt_pd(vfp[1], _mm_setzero_pd())); // cf<0 ? wd : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
 		vfp[0] = _mm_add_pd(_mm_add_pd(vfp[0], vtmp1[0]), vtmp2[0]); // mix vfp+= (-wd or wd or 0.0);
 		vfp[1] = _mm_add_pd(_mm_add_pd(vfp[1], vtmp1[1]), vtmp2[1]); // mix vfp+= (-wd or wd or 0.0);
 		//interpolation
@@ -12416,7 +12416,7 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 		// linear interpolation
 		vv1[0] = MM_FMA_PD(_mm_sub_pd(vv2[0], vv1[0]), vfp[0], vv1[0]);
 		vv1[1] = MM_FMA_PD(_mm_sub_pd(vv2[1], vv1[1]), vfp[1], vv1[1]);
-		// cross fade ratio // read_delayƒTƒCƒY‚ğ1üŠú‚Æ‚·‚éOŠp”¼”g ƒJƒEƒ“ƒgƒŠƒZƒbƒg•”•ª‚ª0‚É‚È‚é
+		// cross fade ratio // read_delayã‚µã‚¤ã‚ºã‚’1å‘¨æœŸã¨ã™ã‚‹ä¸‰è§’åŠæ³¢ ã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆéƒ¨åˆ†ãŒ0ã«ãªã‚‹
 		vcf[0] = _mm_mul_pd(vcf[0], vdivcf);
 		vcf[1] = _mm_mul_pd(vcf[1], vdivcf);
 #if (USE_X86_EXT_INTRIN >= 6) // sse4.1 floor
@@ -12425,16 +12425,16 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 		vcf[1] = _mm_sub_pd(vcf[1], _mm_floor_pd(vcf[1])); // fp-floor(fp)
 #else
 		// if(vcf<0) vcf+=1.0;
-		vtmp1[0] = _mm_and_pd(var1, _mm_cmplt_pd(vcf[0], _mm_setzero_pd())); // cf<0 ? 1.0 : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp1[1] = _mm_and_pd(var1, _mm_cmplt_pd(vcf[1], _mm_setzero_pd())); // cf<0 ? 1.0 : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
+		vtmp1[0] = _mm_and_pd(var1, _mm_cmplt_pd(vcf[0], _mm_setzero_pd())); // cf<0 ? 1.0 : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp1[1] = _mm_and_pd(var1, _mm_cmplt_pd(vcf[1], _mm_setzero_pd())); // cf<0 ? 1.0 : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
 		vcf[0] = _mm_add_pd(vcf[0], vtmp1[0]); // mix vcf+= (1.0 or 0.0);
 		vcf[1] = _mm_add_pd(vcf[1], vtmp1[1]); // mix vcf+= (1.0 or 0.0);
 #endif
-		// if(cf > 0.5) cf = 2.0 - cf[0]; ‚à‚Á‚ÆƒVƒ“ƒvƒ‹‚É‚È‚ç‚ñ‚©‚ÈƒRƒŒEE
-		vtmp1[0] = _mm_and_pd(vcf[0], _mm_cmple_pd(vcf[0], vdiv2)); // cf<=0.5 ? cf : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp1[1] = _mm_and_pd(vcf[1], _mm_cmple_pd(vcf[1], vdiv2)); // cf<=0.5 ? cf : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp2[0] = _mm_and_pd(_mm_sub_pd(var1, vcf[0]), _mm_cmpgt_pd(vcf[0], vdiv2)); // cf>0.5 ? (1.0-cf) : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
-		vtmp2[1] = _mm_and_pd(_mm_sub_pd(var1, vcf[1]), _mm_cmpgt_pd(vcf[1], vdiv2)); // cf>0.5 ? (1.0-cf) : 0; (ƒ}ƒXƒN‚Å’Ê‚·’Ê‚³‚È‚¢
+		// if(cf > 0.5) cf = 2.0 - cf[0]; ã‚‚ã£ã¨ã‚·ãƒ³ãƒ—ãƒ«ã«ãªã‚‰ã‚“ã‹ãªã‚³ãƒ¬ãƒ»ãƒ»
+		vtmp1[0] = _mm_and_pd(vcf[0], _mm_cmple_pd(vcf[0], vdiv2)); // cf<=0.5 ? cf : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp1[1] = _mm_and_pd(vcf[1], _mm_cmple_pd(vcf[1], vdiv2)); // cf<=0.5 ? cf : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp2[0] = _mm_and_pd(_mm_sub_pd(var1, vcf[0]), _mm_cmpgt_pd(vcf[0], vdiv2)); // cf>0.5 ? (1.0-cf) : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
+		vtmp2[1] = _mm_and_pd(_mm_sub_pd(var1, vcf[1]), _mm_cmpgt_pd(vcf[1], vdiv2)); // cf>0.5 ? (1.0-cf) : 0; (ãƒã‚¹ã‚¯ã§é€šã™é€šã•ãªã„
 		vcf[0] = _mm_add_pd(vtmp1[0], vtmp2[0]); // mix
 		vcf[1] = _mm_add_pd(vtmp1[1], vtmp2[1]); // mix
 		// cross fade mix 
@@ -12448,9 +12448,9 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 	// for linear interpolation
 	if(info->wcycle){
 		if(info->wcount == 0)
-			info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()‚Åindex+1‚Ì’lˆæƒ`ƒFƒbƒN‚ğÈ—ª
+			info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()ã§index+1ã®å€¤åŸŸãƒã‚§ãƒƒã‚¯ã‚’çœç•¥
 	}
-	// write count // 0 ~ (wdelay-1) ‚ÌƒŠƒ“ƒOƒoƒbƒtƒ@
+	// write count // 0 ~ (wdelay-1) ã®ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡
 	if (++info->wcount >= info->wdelay){
 		info->wcount = 0;
 		info->wcycle++;
@@ -12551,7 +12551,7 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 		tmp[1] = v1[1] + (v2[1] - v1[1]) * (fp1[1] - fp2[1]);
 		tmp[2] = v1[2] + (v2[2] - v1[2]) * (fp1[2] - fp2[2]);
 		tmp[3] = v1[3] + (v2[3] - v1[3]) * (fp1[3] - fp2[3]);
-		// cross fade ratio // read_delayƒTƒCƒY‚ğ1üŠú‚Æ‚·‚éOŠp”¼”g ƒJƒEƒ“ƒgƒŠƒZƒbƒg•”•ª‚ª0‚É‚È‚é
+		// cross fade ratio // read_delayã‚µã‚¤ã‚ºã‚’1å‘¨æœŸã¨ã™ã‚‹ä¸‰è§’åŠæ³¢ ã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆéƒ¨åˆ†ãŒ0ã«ãªã‚‹
 		cf[0] *= info->div_cf;
 		cf[1] *= info->div_cf;
 		cf[2] *= info->div_cf;
@@ -12572,9 +12572,9 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 	// for linear interpolation
 	if(info->wcycle){
 		if(info->wcount == 0)
-			info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()‚Åindex+1‚Ì’lˆæƒ`ƒFƒbƒN‚ğÈ—ª
+			info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()ã§index+1ã®å€¤åŸŸãƒã‚§ãƒƒã‚¯ã‚’çœç•¥
 	}
-	// write count // 0 ~ (wdelay-1) ‚ÌƒŠƒ“ƒOƒoƒbƒtƒ@
+	// write count // 0 ~ (wdelay-1) ã®ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡
 	if (++info->wcount >= info->wdelay){
 		info->wcount = 0;
 		info->wcycle++;
@@ -12610,7 +12610,7 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 		v2 = info->ptr[index + 1];
 		// linear interpolation
 		tmp = v1 + (v2 - v1) * (fp1 - fp2);
-		// cross fade ratio // read_delayƒTƒCƒY‚ğ1üŠú‚Æ‚·‚éOŠp”¼”g ƒJƒEƒ“ƒgƒŠƒZƒbƒg•”•ª‚ª0‚É‚È‚é
+		// cross fade ratio // read_delayã‚µã‚¤ã‚ºã‚’1å‘¨æœŸã¨ã™ã‚‹ä¸‰è§’åŠæ³¢ ã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆéƒ¨åˆ†ãŒ0ã«ãªã‚‹
 		cf = info->rscount[i] * info->div_cf;
 		cf -= floor(cf);
 		if(cf > 0.5) cf = 1.0 - cf;
@@ -12646,7 +12646,7 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 		v2 = info->ptr[index + 1];
 		// linear interpolation
 		tmp = v1 + (v2 - v1) * (fp1 - fp2);
-		// cross fade ratio // read_delayƒTƒCƒY‚ğ1üŠú‚Æ‚·‚éOŠp”¼”g ƒJƒEƒ“ƒgƒŠƒZƒbƒg•”•ª‚ª0‚É‚È‚é
+		// cross fade ratio // read_delayã‚µã‚¤ã‚ºã‚’1å‘¨æœŸã¨ã™ã‚‹ä¸‰è§’åŠæ³¢ ã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆéƒ¨åˆ†ãŒ0ã«ãªã‚‹
 		cf = info->rscount[i] * info->div_cf;
 		cf -= floor(cf);
 		if(cf > 0.5) cf = 1.0 - cf;
@@ -12678,9 +12678,9 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 	info->ptr[info->wcount] = *buf + out * info->feedback; // feedback
 	// for linear interpolation
 	if(info->wcycle && info->wcount == 0){
-		info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()‚Åindex+1‚Ì’lˆæƒ`ƒFƒbƒN‚ğÈ—ª
+		info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()ã§index+1ã®å€¤åŸŸãƒã‚§ãƒƒã‚¯ã‚’çœç•¥
 	}
-	// write count // 0 ~ (wdelay-1) ‚ÌƒŠƒ“ƒOƒoƒbƒtƒ@
+	// write count // 0 ~ (wdelay-1) ã®ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡
 	if (++info->wcount >= info->wdelay){
 		info->wcount = 0;
 		info->wcycle++;
@@ -12721,7 +12721,7 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 		v2 = info->ptr[index + 1];
 		// linear interpolation
 		tmp = v1 + (v2 - v1) * (fp1 - fp2);
-		// cross fade ratio // read_delayƒTƒCƒY‚ğ1üŠú‚Æ‚·‚éOŠp”¼”g ƒJƒEƒ“ƒgƒŠƒZƒbƒg•”•ª‚ª0‚É‚È‚é
+		// cross fade ratio // read_delayã‚µã‚¤ã‚ºã‚’1å‘¨æœŸã¨ã™ã‚‹ä¸‰è§’åŠæ³¢ ã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆéƒ¨åˆ†ãŒ0ã«ãªã‚‹
 		cf = info->rscount[i] * info->div_cf;
 		cf -= floor(cf);
 		if(cf > 0.5) cf = 1.0 - cf;
@@ -12754,9 +12754,9 @@ static inline void do_pitch_shifter_core(DATA_T *buf, InfoPitchShifter_core *inf
 	info->ptr[info->wcount] = *buf + out * info->feedback; // feedback
 	// for linear interpolation
 	if(info->wcycle && info->wcount == 0){
-		info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()‚Åindex+1‚Ì’lˆæƒ`ƒFƒbƒN‚ğÈ—ª
+		info->ptr[info->wdelay] = info->ptr[0]; // read_pitch_shifter()ã§index+1ã®å€¤åŸŸãƒã‚§ãƒƒã‚¯ã‚’çœç•¥
 	}
-	// write count // 0 ~ (wdelay-1) ‚ÌƒŠƒ“ƒOƒoƒbƒtƒ@
+	// write count // 0 ~ (wdelay-1) ã®ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡
 	if (++info->wcount >= info->wdelay){
 		info->wcount = 0;
 		info->wcycle++;
@@ -14241,7 +14241,7 @@ static void do_rotary_multi(DATA_T *buf, int32 count, InfoRotary *info)
 	hi_pan = (lookup2_sine_p(info->hi_rate + DIV_4) * ROTARY_PAN_DEPTH - 0.5) * info->separate + 0.5;	
 	l_lv = (1.0 - low_vol) * info->low_leveld;
 	h_lv = (1.0 - hi_vol) * info->hi_leveld;
-	// low‚Æhi‚Å‰ñ“]•ûŒü‹t‚É‚·‚é
+	// lowã¨hiã§å›è»¢æ–¹å‘é€†ã«ã™ã‚‹
 	ll_lv = l_lv * (1.0 - low_pan);
 	lh_lv = h_lv * hi_pan;
 	rl_lv = l_lv * low_pan;
@@ -14814,19 +14814,19 @@ static void do_compressor_multi(DATA_T *buf, int32 count, InfoCompressor *cmp)
 #define INS_LIMITER_MAX_FIX (0.80)
 /*
 threshold 0.0 ~ 1.0;
-	ˆ³kŠJnƒŒƒxƒ‹ “à•”‚Å‚Ílimiter_max*threshold‚ğ‚µ‚«‚¢’l‚Æ‚·‚é
+	åœ§ç¸®é–‹å§‹ãƒ¬ãƒ™ãƒ« å†…éƒ¨ã§ã¯limiter_max*thresholdã‚’ã—ãã„å€¤ã¨ã™ã‚‹
 ratio 0.0~ 1.0;
-	ˆ³k—¦‚ÌãŒÀ(¬‚³‚¢‚Ù‚Ç‚‚¢) 0ˆÈ‰º‚Í–³ŒÀ‚Æ‚·‚é
+	åœ§ç¸®ç‡ã®ä¸Šé™(å°ã•ã„ã»ã©é«˜ã„) 0ä»¥ä¸‹ã¯ç„¡é™ã¨ã™ã‚‹
 ahead : ms
-	ˆ³kŠJn‚µ‚Ä‚©‚çw’èˆ³k—¦‚É“’B‚·‚é‚Ü‚Å‚ÌŠÔ 10ms’ö“x
+	åœ§ç¸®é–‹å§‹ã—ã¦ã‹ã‚‰æŒ‡å®šåœ§ç¸®ç‡ã«åˆ°é”ã™ã‚‹ã¾ã§ã®æ™‚é–“ 10msç¨‹åº¦
 release : ms
-	w’èˆ³k—¦‚É“’B‚µ‚Ä‚©‚ç “ü—ÍƒŒƒxƒ‹‚ªˆ³kŠJnƒŒƒxƒ‹–¢–‚É‰º‚ª‚Á‚½‚Æ‚«
-	ˆ³k—¦‚ğ‰º‚°I‚í‚é‚Ü‚Å‚ÌŠÔ
-	‰º‚°‚Ä‚é“r’†‚Å“ü—ÍƒŒƒxƒ‹‚ªˆ³kŠJnƒŒƒxƒ‹‚ğ’´‚¦‚½ê‡‚Í‚Ü‚½ˆ³kŠJn‚·‚é	
+	æŒ‡å®šåœ§ç¸®ç‡ã«åˆ°é”ã—ã¦ã‹ã‚‰ å…¥åŠ›ãƒ¬ãƒ™ãƒ«ãŒåœ§ç¸®é–‹å§‹ãƒ¬ãƒ™ãƒ«æœªæº€ã«ä¸‹ãŒã£ãŸã¨ã
+	åœ§ç¸®ç‡ã‚’ä¸‹ã’çµ‚ã‚ã‚‹ã¾ã§ã®æ™‚é–“
+	ä¸‹ã’ã¦ã‚‹é€”ä¸­ã§å…¥åŠ›ãƒ¬ãƒ™ãƒ«ãŒåœ§ç¸®é–‹å§‹ãƒ¬ãƒ™ãƒ«ã‚’è¶…ãˆãŸå ´åˆã¯ã¾ãŸåœ§ç¸®é–‹å§‹ã™ã‚‹	
 pre_gain : dB
-	“ü—ÍƒQƒCƒ“
+	å…¥åŠ›ã‚²ã‚¤ãƒ³
 post_gain : dB
-	o—ÍƒQƒCƒ“
+	å‡ºåŠ›ã‚²ã‚¤ãƒ³
 */
 static void do_limiter_multi(DATA_T *buf, int32 count, InfoLimiter *info)
 {
@@ -15512,12 +15512,12 @@ static void do_mod_delay_multi(DATA_T *buf, int32 count, InfoModDelay *info)
 
 #define MULTI_TAP_DELAY_FEEDBACK (0.70)
 /*
-ƒfƒBƒŒƒC“ü—Í‚ÍmixŒã1ch‚Å‘Stap‹¤’Ê‚È‚Ì‚Åƒoƒbƒtƒ@‚Í1ŒÂ
-ƒoƒbƒtƒ@ƒTƒCƒY‚Íˆê”Ô’·‚¢ƒfƒBƒŒƒCƒ^ƒCƒ€‚É‡‚í‚¹‚é XG
-Šeƒ^ƒbƒv‚Ì“Ç‚İo‚µƒJƒEƒ“ƒg = ƒoƒbƒtƒ@‘‚«‚İƒJƒEƒ“ƒg - Šeƒ^ƒbƒv‚ÌƒfƒBƒŒƒCƒ^ƒCƒ€(ƒTƒCƒY)
+ãƒ‡ã‚£ãƒ¬ã‚¤å…¥åŠ›ã¯mixå¾Œ1chã§å…¨tapå…±é€šãªã®ã§ãƒãƒƒãƒ•ã‚¡ã¯1å€‹
+ãƒãƒƒãƒ•ã‚¡ã‚µã‚¤ã‚ºã¯ä¸€ç•ªé•·ã„ãƒ‡ã‚£ãƒ¬ã‚¤ã‚¿ã‚¤ãƒ ã«åˆã‚ã›ã‚‹ XG
+å„ã‚¿ãƒƒãƒ—ã®èª­ã¿å‡ºã—ã‚«ã‚¦ãƒ³ãƒˆ = ãƒãƒƒãƒ•ã‚¡æ›¸ãè¾¼ã¿ã‚«ã‚¦ãƒ³ãƒˆ - å„ã‚¿ãƒƒãƒ—ã®ãƒ‡ã‚£ãƒ¬ã‚¤ã‚¿ã‚¤ãƒ (ã‚µã‚¤ã‚º)
 
 [0]~[tap-1] tap_delay
-[tap] feedbak_delay (for XG, GS‚Å‚Í[tap]=[0]ms
+[tap] feedbak_delay (for XG, GSã§ã¯[tap]=[0]ms
 */
 
 static void do_multi_tap_delay(DATA_T *buf, int32 count, InfoMultiTapDelay *info)
@@ -19175,7 +19175,7 @@ static inline void mix_delay_buffer(DATA_T *buf, int32 count, InfoDelay3 *info)
 }
 #endif
 
-// GS system effect delay ‹¤’Ê
+// GS system effect delay å…±é€š
 static void setup_ch_3tap_delay(DATA_T *buf, int32 count, InfoDelay3 *info)
 {
 	struct delay_status_gs_t *p = &delay_status_gs;
@@ -19497,7 +19497,7 @@ static inline void mix_chorus_buffer(DATA_T *buf, int32 count, InfoStereoChorus 
 #endif
 
 
-// GS/GM2 system effect chorus ‹¤’Ê
+// GS/GM2 system effect chorus å…±é€š
 static inline void setup_ch_chorus(InfoStereoChorus *info)
 {
 	info->mode = CH_STEREO;
@@ -21295,21 +21295,21 @@ static FLOAT_T calc_xg_return(int8 ret)
 	else if(ret == 0x40)
 		return 1.0;
 	else{
-#if 1 // -/+‚ª•ÊƒJ[ƒu
+#if 1 // -/+ãŒåˆ¥ã‚«ãƒ¼ãƒ–
 		FLOAT_T val = ret - 0x40;
 		if(ret > 0x40)
 			return pow(10.0, val * DIV_64 * XG_SEND_RETURN_DB * DIV_20); // +6db
 		else
 			return pow(10.0, val * DIV_20); // -64db?
-#elif 1 // -/+‚ª“¯ƒJ[ƒu
-		return pow(10.0, (FLOAT_T)(ret - 0x40) * DIV_64 * XG_SEND_RETURN_DB * DIV_20); // -dB‚ª+dB‚Æ“¯‚¶‚©‚Ç‚¤‚©‚Í•s–¾
-#elif 1 // mu100 man , -/+‚ª•ÊƒJ[ƒu
+#elif 1 // -/+ãŒåŒã‚«ãƒ¼ãƒ–
+		return pow(10.0, (FLOAT_T)(ret - 0x40) * DIV_64 * XG_SEND_RETURN_DB * DIV_20); // -dBãŒ+dBã¨åŒã˜ã‹ã©ã†ã‹ã¯ä¸æ˜
+#elif 1 // mu100 man , -/+ãŒåˆ¥ã‚«ãƒ¼ãƒ–
 		FLOAT_T val = ret - 0x60;
 		if(ret > 0x60)
 			return pow(10.0, val * DIV_32 * XG_SEND_RETURN_DB * DIV_20); // +6db
 		else
 			return pow(10.0, val * DIV_20); // -96db
-#else // mu100 man , -/+‚ª“¯ƒJ[ƒu
+#else // mu100 man , -/+ãŒåŒã‚«ãƒ¼ãƒ–
 		return pow(10.0, (FLOAT_T)(ret - 0x60) * DIV_32 * XG_SEND_RETURN_DB * DIV_20); // -18db~6db
 #endif
 	}
@@ -22182,7 +22182,7 @@ static void conv_gs_3tap_delay(struct insertion_effect_gs_t *st, EffectList *ef)
 	dly->dtime[0] = (double)delay_time_1_table[st->parameter[0]];
 	dly->dtime[1] = (double)delay_time_1_table[st->parameter[1]];
 	dly->dtime[2] = (double)delay_time_1_table[st->parameter[2]];
-	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x40;
 	dly->pan[1] = 0x00;
 	dly->pan[2] = 0x7F;
@@ -22218,7 +22218,7 @@ static void conv_gs_4tap_delay(struct insertion_effect_gs_t *st, EffectList *ef)
 	dly->dtime[1] = (double)delay_time_1_table[st->parameter[1]];
 	dly->dtime[2] = (double)delay_time_1_table[st->parameter[2]];
 	dly->dtime[3] = (double)delay_time_1_table[st->parameter[3]];
-	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x50;
 	dly->pan[1] = 0x30;
 	dly->pan[2] = 0x70;
@@ -22479,7 +22479,7 @@ static void conv_gs_3d_delay(struct insertion_effect_gs_t *st, EffectList *ef)
 	dly->dtime[0] = (double)delay_time_3_table[st->parameter[0]];
 	dly->dtime[1] = (double)delay_time_3_table[st->parameter[1]];
 	dly->dtime[2] = (double)delay_time_3_table[st->parameter[2]];
-	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x40;
 	dly->pan[1] = 0x00;
 	dly->pan[2] = 0x7F;
@@ -29380,7 +29380,7 @@ static void conv_sd_3tap_delay(struct mfx_effect_sd_t *st, EffectList *ef)
 	dly->dtime[1] = (double)delay_time_1_table[clip_int(st->parameter[0], 0, 125)];
 	dly->dtime[2] = (double)delay_time_1_table[clip_int(st->parameter[1], 0, 125)];
 	dly->dtime[0] = (double)delay_time_1_table[clip_int(st->parameter[2], 0, 125)];
-	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x40;
 	dly->pan[1] = 0x00;
 	dly->pan[2] = 0x7F;
@@ -29423,7 +29423,7 @@ static void conv_sd_4tap_delay(struct mfx_effect_sd_t *st, EffectList *ef)
 	dly->dtime[1] = (double)delay_time_1_table[clip_int(st->parameter[1], 0, 125)];
 	dly->dtime[2] = (double)delay_time_1_table[clip_int(st->parameter[2], 0, 125)];
 	dly->dtime[3] = (double)delay_time_1_table[clip_int(st->parameter[3], 0, 125)];
-	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x50;
 	dly->pan[1] = 0x30;
 	dly->pan[2] = 0x70;
@@ -30764,7 +30764,7 @@ static void conv_sd_multitap_delay(struct mfx_effect_sd_t *st, EffectList *ef)
 	dly->dtime[1] = st->parameter[0] > 1800 ? calc_note2_sd(st->parameter[0] - 1800) * 1000 : st->parameter[0];
 	dly->dtime[2] = st->parameter[0] > 1800 ? calc_note2_sd(st->parameter[0] - 1800) * 1000 : st->parameter[0];
 	dly->dtime[3] = st->parameter[0] > 1800 ? calc_note2_sd(st->parameter[0] - 1800) * 1000 : st->parameter[0];
-	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = clip_int(st->parameter[4], 0, 127);
 	dly->pan[1] = clip_int(st->parameter[5], 0, 127);
 	dly->pan[2] = clip_int(st->parameter[6], 0, 127);
@@ -30815,7 +30815,7 @@ static void conv_sd_3d_delay(struct mfx_effect_sd_t *st, EffectList *ef)
 	dly->dtime[1] = st->parameter[0] > 1800 ? calc_note2_sd(st->parameter[0] - 1800) * 1000 : st->parameter[0];
 	dly->dtime[2] = st->parameter[1] > 1800 ? calc_note2_sd(st->parameter[1] - 1800) * 1000 : st->parameter[1];
 	dly->dtime[0] = st->parameter[2] > 1800 ? calc_note2_sd(st->parameter[2] - 1800) * 1000 : st->parameter[2];
-	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x40;
 	dly->pan[1] = 0x00;
 	dly->pan[2] = 0x7F;
@@ -31582,7 +31582,7 @@ static void conv_sd_multitap_delay2(struct mfx_effect_sd_t *st, EffectList *ef)
 	dly->dtime[1] = st->parameter[0] > 3000 ? calc_note2_sd(st->parameter[0] - 3000) * 1000 : st->parameter[0];
 	dly->dtime[2] = st->parameter[0] > 3000 ? calc_note2_sd(st->parameter[0] - 3000) * 1000 : st->parameter[0];
 	dly->dtime[3] = st->parameter[0] > 3000 ? calc_note2_sd(st->parameter[0] - 3000) * 1000 : st->parameter[0];
-	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[4] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = clip_int(st->parameter[4], 0, 127);
 	dly->pan[1] = clip_int(st->parameter[5], 0, 127);
 	dly->pan[2] = clip_int(st->parameter[6], 0, 127);
@@ -31633,11 +31633,11 @@ static void conv_sd_3d_delay2(struct mfx_effect_sd_t *st, EffectList *ef)
 	dly->dtime[1] = st->parameter[0] > 3000 ? calc_note2_sd(st->parameter[0] - 3000) * 1000 : st->parameter[0];
 	dly->dtime[2] = st->parameter[1] > 3000 ? calc_note2_sd(st->parameter[1] - 3000) * 1000 : st->parameter[1];
 	dly->dtime[0] = st->parameter[2] > 3000 ? calc_note2_sd(st->parameter[2] - 3000) * 1000 : st->parameter[2];
-	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x40;
 	dly->pan[1] = 0x00;
 	dly->pan[2] = 0x7F;
-	dly->pan[3] = 0x40; // [tap] for feedback_delay // pan[0]‚Æ“¯‚¶
+	dly->pan[3] = 0x40; // [tap] for feedback_delay // pan[0]ã¨åŒã˜
 	dly->dlevel[1] = calc_option_level(st->parameter[3]);
 	dly->dlevel[2] = calc_option_level(st->parameter[4]);
 	dly->dlevel[0] = calc_option_level(st->parameter[5]);
@@ -33904,11 +33904,11 @@ static void conv_sd_delay3(struct mfx_effect_sd_t *st, EffectList *ef)
 	dly->dtime[0] = st->parameter[0] > 125 ? calc_note2_sd(st->parameter[0] - 125) * 1000 : delay_time_1_table[st->parameter[0]];
 	dly->dtime[1] = st->parameter[1] > 125 ? calc_note2_sd(st->parameter[1] - 125) * 1000 : delay_time_1_table[st->parameter[1]];
 	dly->dtime[2] = st->parameter[2] > 125 ? calc_note2_sd(st->parameter[2] - 125) * 1000 : delay_time_1_table[st->parameter[2]];
-	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]‚Æ“¯‚¶
+	dly->dtime[3] = dly->dtime[0]; // [tap] for feedback_delay // dtime[0]ã¨åŒã˜
 	dly->pan[0] = 0x40;
 	dly->pan[1] = 0x00;
 	dly->pan[2] = 0x7F;
-	dly->pan[3] = 0x40; // [tap] for feedback_delay // pan[0]‚Æ“¯‚¶
+	dly->pan[3] = 0x40; // [tap] for feedback_delay // pan[0]ã¨åŒã˜
 	dly->high_damp = EQ_FREQb_SD(st->parameter[3]);
 	dly->feedback = (double)(clip_int(st->parameter[4], 0, 98) - 49) * (2.0 * DIV_100);
 	dly->dlevel[1] = calc_option_level(st->parameter[5]);

@@ -42,7 +42,7 @@
 	as possible.
 
 	Example tool(dll)s for Win95
-		rcpcv.dll by бГцщир╩к
+		rcpcv.dll by О╬┌И┘√О╬²О╬┴О╬▓О╫╩О╬▀
 
 */
 

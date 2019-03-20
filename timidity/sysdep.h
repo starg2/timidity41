@@ -639,7 +639,7 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #endif /* NLS */
 
 ///r
-// _MSC_VER < 1600 VC2010(VC10)  stdint.h‚ª‚È‚¢ê‡
+// _MSC_VER < 1600 VC2010(VC10)  stdint.hãŒãªã„å ´åˆ
 #ifndef INT8_MAX
 #define INT8_MAX 127i8
 #endif /*INT8_MAX */

@@ -70,10 +70,10 @@ const FLOAT_T div_fraction = (FLOAT_T)1.0 / (FLOAT_T)(1L << FRACTION_BITS);
 
 
 /*
-ƒŠƒTƒ“ƒvƒ‹•”•ªŒÀ’è
-À—p”ÍˆÍ‚Å‚ÍFRACTION_BITS‚ğŠÜ‚Ü‚È‚¢ƒTƒ“ƒvƒ‹“_‚É‚Íint64•s—v‚È‚Ì‚Å
+ãƒªã‚µãƒ³ãƒ—ãƒ«éƒ¨åˆ†é™å®š
+å®Ÿç”¨ç¯„å›²ã§ã¯FRACTION_BITSã‚’å«ã¾ãªã„ã‚µãƒ³ãƒ—ãƒ«ç‚¹ã«ã¯int64ä¸è¦ãªã®ã§
 length 30[bit]=1073741824[samples] 22369[sec]@48[kHz] 
-length*2‚Ü‚Åˆµ‚¦‚ê‚Î\•ª
+length*2ã¾ã§æ‰±ãˆã‚Œã°ååˆ†
 */
 #if (SAMPLE_LENGTH_BITS <= 32)
 #define spos_t int32
@@ -82,8 +82,8 @@ length*2‚Ü‚Åˆµ‚¦‚ê‚Î\•ª
 #endif
 
 /*
-ƒŠƒTƒ“ƒvƒ‹•”•ªŒÀ’è
-ƒTƒ“ƒvƒ‹¬”“_•”•ª‚Í frac*4‚Ü‚Åˆµ‚¦‚ê‚Î\•ª
+ãƒªã‚µãƒ³ãƒ—ãƒ«éƒ¨åˆ†é™å®š
+ã‚µãƒ³ãƒ—ãƒ«å°æ•°ç‚¹éƒ¨åˆ†ã¯ frac*4ã¾ã§æ‰±ãˆã‚Œã°ååˆ†
 */
 #if (FRACTION_BITS <= 28)
 #define fract_t int32
@@ -4110,7 +4110,7 @@ static inline DATA_T resample_linear_single(Voice *vp)
 
 #if (USE_X86_EXT_INTRIN >= 9)
 // offset:int32*8, resamp:float*8
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -4119,7 +4119,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	const int32 count = req_count & req_count_mask;
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
-	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	int32 inc = resrc->increment;
 	__m256i vinit = _mm256_set_epi32(inc * 7, inc * 6, inc * 5, inc * 4, inc * 3, inc * 2, inc, 0);
 	__m256i vofs = _mm256_add_epi32(_mm256_set1_epi32(start_offset), vinit);
@@ -4127,13 +4127,13 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	__m256 vec_divo = _mm256_set1_ps(DIV_15BIT), vec_divf = _mm256_set1_ps(div_fraction);
 
 #ifdef LO_OPTIMIZE_INCREMENT
-	// Å“K‰»ƒŒ[ƒg = (ƒ[ƒhƒf[ƒ^” - ‰ŠúƒIƒtƒZƒbƒg¬”•”‚ÌÅ‘å’l(1–¢–) - •âŠÔƒ|ƒCƒ“ƒg”(linear‚Í1) ) / ƒIƒtƒZƒbƒgƒf[ƒ^”
-	// ƒ[ƒhƒf[ƒ^”‚Íint16—ppermutevar‚ª‚È‚¢‚Ì‚Å•ÏŠ·Œã‚Ì32bit(int32/float)‚Ì8ƒZƒbƒg‚É‚È‚é
-	// 256bitƒ[ƒhƒf[ƒ^(int16*16ƒZƒbƒg)‚ğ‘S‚Äg‚¤‚É‚ÍSIMD2ƒZƒbƒg‚Å‘Î‰
-	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 8; // (float*8) * 1ƒZƒbƒg
-	const int32 opt_inc2 = (1 << FRACTION_BITS) * (16 - 1 - 1) / 8; // (float*8) * 2ƒZƒbƒg
+	// æœ€é©åŒ–ãƒ¬ãƒ¼ãƒˆ = (ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•° - åˆæœŸã‚ªãƒ•ã‚»ãƒƒãƒˆå°æ•°éƒ¨ã®æœ€å¤§å€¤(1æœªæº€) - è£œé–“ãƒã‚¤ãƒ³ãƒˆæ•°(linearã¯1) ) / ã‚ªãƒ•ã‚»ãƒƒãƒˆãƒ‡ãƒ¼ã‚¿æ•°
+	// ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•°ã¯int16ç”¨permutevarãŒãªã„ã®ã§å¤‰æ›å¾Œã®32bit(int32/float)ã®8ã‚»ãƒƒãƒˆã«ãªã‚‹
+	// 256bitãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿(int16*16ã‚»ãƒƒãƒˆ)ã‚’å…¨ã¦ä½¿ã†ã«ã¯SIMD2ã‚»ãƒƒãƒˆã§å¯¾å¿œ
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 8; // (float*8) * 1ã‚»ãƒƒãƒˆ
+	const int32 opt_inc2 = (1 << FRACTION_BITS) * (16 - 1 - 1) / 8; // (float*8) * 2ã‚»ãƒƒãƒˆ
 	const __m256i vvar1 = _mm256_set1_epi32(1);
-	if(inc < opt_inc1){	// 1ƒZƒbƒg	
+	if(inc < opt_inc1){	// 1ã‚»ãƒƒãƒˆ	
 	for(i = 0; i < count; i += 8) {
 	__m256i vofsi1 = _mm256_srli_epi32(vofs, FRACTION_BITS);
 	__m256i vofsi2 = _mm256_add_epi32(vofsi1, vvar1);
@@ -4142,10 +4142,10 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi1, _mm256_setzero_si256()); 
 	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); 
 	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib); 
-	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (float•ÏŠ·‚ÅH128bit‚ÍÁ‚¦‚é
+	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (floatå¤‰æ›ã§H128bitã¯æ¶ˆãˆã‚‹
 	__m256 vv1 = _mm256_permutevar8x32_ps(vvf1, vofsub1); // v1 ofsi
 	__m256 vv2 = _mm256_permutevar8x32_ps(vvf1, vofsub2); // v2 ofsi+1
-	// ‚ ‚Æ‚Í’Êí‚Æ“¯‚¶
+	// ã‚ã¨ã¯é€šå¸¸ã¨åŒã˜
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
@@ -4166,33 +4166,33 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	}
 	}else
 #if 0 // 2set
-	if(inc < opt_inc2){ // 2ƒZƒbƒg
+	if(inc < opt_inc2){ // 2ã‚»ãƒƒãƒˆ
 	const __m256i vvar8 = _mm256_set1_epi32(8);
 	for(i = 0; i < count; i += 8) {
 	__m256i vofsi1 = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi
 	__m256i vofsi2 = _mm256_add_epi32(vofsi1, vadd1); // ofsi+1
 	int32 ofs0 = _mm_extract_epi32(_mm256_extracti128si256(vofsi1, 0x0), 0x0);
 	__m256i vin1 = _mm256_loadu_si256((__m256i *)&src[ofs0]); // int16*16
-	__m256i vin2 = _mm256_permutevar8x32_epi32(vin1, _mm256_set_epi32(3,2,1,0,7,6,5,4)); // H128bit‚ğL128bit‚ÉˆÚ“®
-	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (float•ÏŠ·‚ÅH128bit‚ÍÁ‚¦‚é
-	__m256 vvf2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin2)); // int16 to float (float•ÏŠ·‚ÅH128bit‚ÍÁ‚¦‚é	
+	__m256i vin2 = _mm256_permutevar8x32_epi32(vin1, _mm256_set_epi32(3,2,1,0,7,6,5,4)); // H128bitã‚’L128bitã«ç§»å‹•
+	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (floatå¤‰æ›ã§H128bitã¯æ¶ˆãˆã‚‹
+	__m256 vvf2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin2)); // int16 to float (floatå¤‰æ›ã§H128bitã¯æ¶ˆãˆã‚‹	
 	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi, _mm256_setzero_epi32()); // ofsi[0]
 	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); // v1 ofsi
 	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib); // v2 ofsi+1
-	__m256i vrmg1 = _mm256_cmpgt_epi32(vofsub1, vvar8); // ƒIƒtƒZƒbƒg·‚ª8’´‰ß‚ÌğŒ‚Åƒ}ƒXƒNì¬
-	__m256i vrmg2 = _mm256_cmpgt_epi32(vofsub2, vvar8); // ƒIƒtƒZƒbƒg·‚ª8’´‰ß‚ÌğŒ‚Åƒ}ƒXƒNì¬
-	__m256i vrme1 = _mm256_cmpeq_epi32(vofsub1, vvar8); // ƒIƒtƒZƒbƒg·‚ª8“¯“™‚ÌğŒ‚Åƒ}ƒXƒNì¬
-	__m256i vrme2 = _mm256_cmpeq_epi32(vofsub2, vvar8); // ƒIƒtƒZƒbƒg·‚ª8“¯“™‚ÌğŒ‚Åƒ}ƒXƒNì¬
-	__m256i vrm1 = _mm256_or_si256(vrmg1, vrme1); // 8ˆÈã‚É‚·‚é‚½‚ß‚Éƒ}ƒXƒN‡¬
-	__m256i vrm2 = _mm256_or_si256(vrmg2, vrme2); // 8ˆÈã‚É‚·‚é‚½‚ß‚Éƒ}ƒXƒN‡¬
-	// src2 offset‚ª‰ºˆÊ3bit‚Ì‚İ—LŒø‚Å‚ ‚ê‚Î8‚ğ’´‚¦‚é•”•ª‚Éƒ}ƒXƒN•s—v‚Ì‚Í‚¸
+	__m256i vrmg1 = _mm256_cmpgt_epi32(vofsub1, vvar8); // ã‚ªãƒ•ã‚»ãƒƒãƒˆå·®ãŒ8è¶…éã®æ¡ä»¶ã§ãƒã‚¹ã‚¯ä½œæˆ
+	__m256i vrmg2 = _mm256_cmpgt_epi32(vofsub2, vvar8); // ã‚ªãƒ•ã‚»ãƒƒãƒˆå·®ãŒ8è¶…éã®æ¡ä»¶ã§ãƒã‚¹ã‚¯ä½œæˆ
+	__m256i vrme1 = _mm256_cmpeq_epi32(vofsub1, vvar8); // ã‚ªãƒ•ã‚»ãƒƒãƒˆå·®ãŒ8åŒç­‰ã®æ¡ä»¶ã§ãƒã‚¹ã‚¯ä½œæˆ
+	__m256i vrme2 = _mm256_cmpeq_epi32(vofsub2, vvar8); // ã‚ªãƒ•ã‚»ãƒƒãƒˆå·®ãŒ8åŒç­‰ã®æ¡ä»¶ã§ãƒã‚¹ã‚¯ä½œæˆ
+	__m256i vrm1 = _mm256_or_si256(vrmg1, vrme1); // 8ä»¥ä¸Šã«ã™ã‚‹ãŸã‚ã«ãƒã‚¹ã‚¯åˆæˆ
+	__m256i vrm2 = _mm256_or_si256(vrmg2, vrme2); // 8ä»¥ä¸Šã«ã™ã‚‹ãŸã‚ã«ãƒã‚¹ã‚¯åˆæˆ
+	// src2 offsetãŒä¸‹ä½3bitã®ã¿æœ‰åŠ¹ã§ã‚ã‚Œã°8ã‚’è¶…ãˆã‚‹éƒ¨åˆ†ã«ãƒã‚¹ã‚¯ä¸è¦ã®ã¯ãš
 	__m256 vv11 = _mm256_permutevar8x32_ps(vvf1, vofsub1);
 	__m256 vv12 = _mm256_permutevar8x32_ps(vvf2, vofsub1);
 	__m256 vv21 = _mm256_permutevar8x32_ps(vvf1, vofsub2);
 	__m256 vv22 = _mm256_permutevar8x32_ps(vvf2, vofsub2);	
 	__m256 vv1 = _mm256_blendv_ps(vv11, vv12, vrm1); // v1 ofsi
 	__m256 vv2 = _mm256_blendv_ps(vv21, vv22, vrm2); // v2 ofsi+1
-	// ‚ ‚Æ‚Í’Êí‚Æ“¯‚¶
+	// ã‚ã¨ã¯é€šå¸¸ã¨åŒã˜
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
@@ -4224,25 +4224,25 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	__m256 vv1 = _mm256_cvtepi32_ps(vsrc0);
 	__m256 vv2 = _mm256_cvtepi32_ps(vsrc1);
 #else
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0)]); // ofsi‚Æofsi+1‚ğƒ[ƒh
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,3)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,4)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,5)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,6)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,7)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0)]); // ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,3)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,4)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,5)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,6)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,7)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
 	__m128i vin12 =	_mm_unpacklo_epi16(vin1, vin2); // [v11v21]e96,[v12v22]e96 to [v11v12v21v22]e64
 	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
-	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // “¯‚¶
-	__m128i vin78 =	_mm_unpacklo_epi16(vin7, vin8); // “¯‚¶
+	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // åŒã˜
+	__m128i vin78 =	_mm_unpacklo_epi16(vin7, vin8); // åŒã˜
 	__m128i vin1234 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
 	__m128i vin5678 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26]e64,[v17v18,v27v28]e64 to [v15v16v17v18,v25v26v27v28]e0
 	__m256i viall = MM256_SET2X_SI256(vin1234, vin5678); // 256bit =128bit+128bit	
-	__m256i vsi16_1 = _mm256_permute4x64_epi64(viall, 0xD8); // v1‚ğL128bit‚É‚Ü‚Æ‚ß
-	__m256i vsi16_2 = _mm256_permute4x64_epi64(viall, 0x8D); // v2‚ğL128bit‚É‚Ü‚Æ‚ß
-	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_1, 0))); // int16 to float (float•ÏŠ·‚ÅH128bit‚ÍÁ‚¦‚é
-	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_2, 0))); // int16 to float (float•ÏŠ·‚ÅH128bit‚ÍÁ‚¦‚é
+	__m256i vsi16_1 = _mm256_permute4x64_epi64(viall, 0xD8); // v1ã‚’L128bitã«ã¾ã¨ã‚
+	__m256i vsi16_2 = _mm256_permute4x64_epi64(viall, 0x8D); // v2ã‚’L128bitã«ã¾ã¨ã‚
+	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_1, 0))); // int16 to float (floatå¤‰æ›ã§H128bitã¯æ¶ˆãˆã‚‹
+	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_2, 0))); // int16 to float (floatå¤‰æ›ã§H128bitã¯æ¶ˆãˆã‚‹
 #endif
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
@@ -4269,7 +4269,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 
 #elif (USE_X86_EXT_INTRIN >= 3)
 // offset:int32*4, resamp:float*4
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -4278,35 +4278,35 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	const int32 count = req_count & req_count_mask;
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
-	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	const int32 inc = resrc->increment;
 	__m128i vofs = _mm_add_epi32(_mm_set1_epi32(start_offset), _mm_set_epi32(inc * 3, inc * 2, inc, 0));
 	const __m128i vinc = _mm_set1_epi32(inc * 4), vfmask = _mm_set1_epi32((int32)FRACTION_MASK);
 	const __m128 vec_divf = _mm_set1_ps(div_fraction);
 		
 #ifdef LO_OPTIMIZE_INCREMENT
-// AVX‚Å‚Íopt_inc‚Ì‚Æ‚«‚Í‘¬‚¢‚ª ”ÍˆÍ‚ª‹·‚­’á‚¢ƒTƒ“ƒvƒŒ[ƒg‚ÅŠO‚ê‚â‚·‚¢ 2ƒZƒbƒg‚Å‚Í•‰‰×‚‚¢
+// AVXã§ã¯opt_incã®ã¨ãã¯é€Ÿã„ãŒ ç¯„å›²ãŒç‹­ãä½ã„ã‚µãƒ³ãƒ—ãƒ¬ãƒ¼ãƒˆã§å¤–ã‚Œã‚„ã™ã„ 2ã‚»ãƒƒãƒˆã§ã¯è² è·é«˜ã„
 #if (USE_X86_EXT_INTRIN >= 8)
-	// Å“K‰»ƒŒ[ƒg = (ƒ[ƒhƒf[ƒ^” - ‰ŠúƒIƒtƒZƒbƒg¬”•”‚ÌÅ‘å’l(1–¢–) - •âŠÔƒ|ƒCƒ“ƒg”(linear‚Í1) ) / ƒIƒtƒZƒbƒgƒf[ƒ^”
-	// ƒ[ƒhƒf[ƒ^”‚Í_mm_permutevar_ps‚Ì•ÏŠ·Œã‚Ì(float)‚Ì4ƒZƒbƒg‚É‚È‚é
-	// 128bitƒ[ƒhƒf[ƒ^(int16*8ƒZƒbƒg)‚ğ‘S‚Äg‚¤‚É‚ÍSIMD2ƒZƒbƒg‚Å‘Î‰
-	const int32 opt_inc1 = (1 << FRACTION_BITS) * (4 - 1 - 1) / 4; // (float*4) * 1ƒZƒbƒg
-	const int32 opt_inc2 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4; // (float*4) * 2ƒZƒbƒg
+	// æœ€é©åŒ–ãƒ¬ãƒ¼ãƒˆ = (ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•° - åˆæœŸã‚ªãƒ•ã‚»ãƒƒãƒˆå°æ•°éƒ¨ã®æœ€å¤§å€¤(1æœªæº€) - è£œé–“ãƒã‚¤ãƒ³ãƒˆæ•°(linearã¯1) ) / ã‚ªãƒ•ã‚»ãƒƒãƒˆãƒ‡ãƒ¼ã‚¿æ•°
+	// ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•°ã¯_mm_permutevar_psã®å¤‰æ›å¾Œã®(float)ã®4ã‚»ãƒƒãƒˆã«ãªã‚‹
+	// 128bitãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿(int16*8ã‚»ãƒƒãƒˆ)ã‚’å…¨ã¦ä½¿ã†ã«ã¯SIMD2ã‚»ãƒƒãƒˆã§å¯¾å¿œ
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (4 - 1 - 1) / 4; // (float*4) * 1ã‚»ãƒƒãƒˆ
+	const int32 opt_inc2 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4; // (float*4) * 2ã‚»ãƒƒãƒˆ
 	const __m128i vvar1 = _mm_set1_epi32(1);
 	const __m128 vec_divo = _mm_set1_ps(DIV_15BIT);
-	if(inc < opt_inc1){	// 1ƒZƒbƒg	
+	if(inc < opt_inc1){	// 1ã‚»ãƒƒãƒˆ	
 	for(i = 0; i < count; i += 4) {
 	__m128i vofsi1 = _mm_srli_epi32(vofs, FRACTION_BITS);
 	__m128i vofsi2 = _mm_add_epi32(vofsi1, vvar1);
 	int32 ofs0 = _mm_cvtsi128_si32(vofsi1);
 	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*8
-	__m128 vvf1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin1)); // int16 to float (float•ÏŠ·‚ÅH64bit‚ÍÁ‚¦‚é
+	__m128 vvf1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin1)); // int16 to float (floatå¤‰æ›ã§H64bitã¯æ¶ˆãˆã‚‹
 	__m128i vofsib = _mm_set1_epi32(ofs0); 
 	__m128i vofsub1 = _mm_sub_epi32(vofsi1, vofsib); 
 	__m128i vofsub2 = _mm_sub_epi32(vofsi2, vofsib); 
 	__m128 vv1 = _mm_permutevar_ps(vvf1, vofsub1); // v1 ofsi
 	__m128 vv2 = _mm_permutevar_ps(vvf1, vofsub2); // v2 ofsi+1
-	// ‚ ‚Æ‚Í’Êí‚Æ“¯‚¶
+	// ã‚ã¨ã¯é€šå¸¸ã¨åŒã˜
 	__m128 vfp = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
@@ -4325,29 +4325,29 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	}
 	}else
 #if 0 // 2set
-	if(inc < opt_inc2){ // 2ƒZƒbƒg
+	if(inc < opt_inc2){ // 2ã‚»ãƒƒãƒˆ
 	const __m128i vvar3 = _mm_set1_epi32(3);
 	for(i = 0; i < count; i += 4) {
 	__m128i vofsi1 = _mm_srli_epi32(vofs, FRACTION_BITS);
 	__m128i vofsi2 = _mm_add_epi32(vofsi1, vvar1);
 	int32 ofs0 = _mm_extract_epi32(vofsi1, 0x0);
 	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*8
-	__m128i vin2 = _mm_shuffle_epi32(vin1, 0x4E); // H128bit‚ğL128bit‚ÉˆÚ“®
-	__m128 vvf1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin1)); // int16 to float (float•ÏŠ·‚ÅH64bit‚ÍÁ‚¦‚é
-	__m128 vvf2 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin2)); // int16 to float (float•ÏŠ·‚ÅH64bit‚ÍÁ‚¦‚é	
+	__m128i vin2 = _mm_shuffle_epi32(vin1, 0x4E); // H128bitã‚’L128bitã«ç§»å‹•
+	__m128 vvf1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin1)); // int16 to float (floatå¤‰æ›ã§H64bitã¯æ¶ˆãˆã‚‹
+	__m128 vvf2 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vin2)); // int16 to float (floatå¤‰æ›ã§H64bitã¯æ¶ˆãˆã‚‹	
 	__m128i vofsib = _mm_shuffle_epi32(vofsi1, 0x0); 
 	__m128i vofsub1 = _mm_sub_epi32(vofsi1, vofsib); 
 	__m128i vofsub2 = _mm_sub_epi32(vofsi2, vofsib); 
-	__m128i vrm1 = _mm_cmpgt_epi32(vofsub1, vvar3); // ƒIƒtƒZƒbƒg·‚ª4ˆÈã‚ÌğŒ‚Åƒ}ƒXƒNì¬
-	__m128i vrm2 = _mm_cmpgt_epi32(vofsub2, vvar3); // ƒIƒtƒZƒbƒg·‚ª4ˆÈã‚ÌğŒ‚Åƒ}ƒXƒNì¬
-	// src2 offset‚ª‰ºˆÊ2bit‚Ì‚İ—LŒø‚Å‚ ‚ê‚Î4‚ğ’´‚¦‚é•”•ª‚Éƒ}ƒXƒN•s—v‚Ì‚Í‚¸
+	__m128i vrm1 = _mm_cmpgt_epi32(vofsub1, vvar3); // ã‚ªãƒ•ã‚»ãƒƒãƒˆå·®ãŒ4ä»¥ä¸Šã®æ¡ä»¶ã§ãƒã‚¹ã‚¯ä½œæˆ
+	__m128i vrm2 = _mm_cmpgt_epi32(vofsub2, vvar3); // ã‚ªãƒ•ã‚»ãƒƒãƒˆå·®ãŒ4ä»¥ä¸Šã®æ¡ä»¶ã§ãƒã‚¹ã‚¯ä½œæˆ
+	// src2 offsetãŒä¸‹ä½2bitã®ã¿æœ‰åŠ¹ã§ã‚ã‚Œã°4ã‚’è¶…ãˆã‚‹éƒ¨åˆ†ã«ãƒã‚¹ã‚¯ä¸è¦ã®ã¯ãš
 	__m128 vv11 = _mm_permutevar_ps(vvf1, vofsub1); // v1 ofsi
 	__m128 vv12 = _mm_permutevar_ps(vvf2, vofsub1); // v1 ofsi
 	__m128 vv21 = _mm_permutevar_ps(vvf1, vofsub2); // v2 ofsi+1
 	__m128 vv22 = _mm_permutevar_ps(vvf2, vofsub2); // v2 ofsi+1
 	__m128 vv1 = _mm_blendv_ps(vv11, vv12, *((__m128 *)&vrm1)); // v1 ofsi
 	__m128 vv2 = _mm_blendv_ps(vv21, vv22, *((__m128 *)&vrm2)); // v2 ofsi+1
-	// ‚ ‚Æ‚Í’Êí‚Æ“¯‚¶
+	// ã‚ã¨ã¯é€šå¸¸ã¨åŒã˜
 	__m128 vfp = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
@@ -4367,12 +4367,12 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	}else
 #endif // 2set
 		
-// x86‚¾‚Æ‚Ù‚Æ‚ñ‚Ç•Ï‚í‚ç‚È‚¢ x64‚¾‚Æ‚â‚â‘¬‚¢ 1.5%EE
+// x86ã ã¨ã»ã¨ã‚“ã©å¤‰ã‚ã‚‰ãªã„ x64ã ã¨ã‚„ã‚„é€Ÿã„ 1.5%ãƒ»ãƒ»
 #elif (USE_X86_EXT_INTRIN >= 5) && defined(IX64CPU)
-	// Å“K‰»ƒŒ[ƒg = (ƒ[ƒhƒf[ƒ^” - ‰ŠúƒIƒtƒZƒbƒg¬”•”‚ÌÅ‘å’l(1–¢–) - •âŠÔƒ|ƒCƒ“ƒg”(linear‚Í1) ) / ƒIƒtƒZƒbƒgƒf[ƒ^”
-	// ƒ[ƒhƒf[ƒ^”‚Í_mm_shuffle_epi8ˆµ‚¦‚é‚Ìint16‚Ì8ƒZƒbƒg‚É‚È‚é (=int8*16)
-	// 128bitƒ[ƒhƒf[ƒ^(int16*8ƒZƒbƒg)‚ğ‘S‚Äg—p‚Å‚«‚é
-	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4; // (int32*4) * 1ƒZƒbƒg
+	// æœ€é©åŒ–ãƒ¬ãƒ¼ãƒˆ = (ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•° - åˆæœŸã‚ªãƒ•ã‚»ãƒƒãƒˆå°æ•°éƒ¨ã®æœ€å¤§å€¤(1æœªæº€) - è£œé–“ãƒã‚¤ãƒ³ãƒˆæ•°(linearã¯1) ) / ã‚ªãƒ•ã‚»ãƒƒãƒˆãƒ‡ãƒ¼ã‚¿æ•°
+	// ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•°ã¯_mm_shuffle_epi8æ‰±ãˆã‚‹ã®int16ã®8ã‚»ãƒƒãƒˆã«ãªã‚‹ (=int8*16)
+	// 128bitãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿(int16*8ã‚»ãƒƒãƒˆ)ã‚’å…¨ã¦ä½¿ç”¨ã§ãã‚‹
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4; // (int32*4) * 1ã‚»ãƒƒãƒˆ
 	const __m128i vvar1 = _mm_set1_epi32(1);
 	const __m128i vshuf = _mm_set_epi8(0x0C,0x0C,0xFF,0xFF,0x08,0x08,0xFF,0xFF, 0x04,0x04,0xFF,0xFF,0x00,0x00,0xFF,0xFF);
 	const __m128i vadd = _mm_set_epi8(1,0,0,0,1,0,0,0, 1,0,0,0,1,0,0,0); // 
@@ -4388,19 +4388,19 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	int32 ofs0 = _mm_cvtsi128_si32(vofsi1);
 	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*8
 	__m128i vofsib = _mm_shuffle_epi32(vofsi1, 0x0); 
-	__m128i vofsub1 = _mm_sub_epi32(vofsi1, vofsib); // 0~6 ‚Ì’l‚É‚È‚é ƒnƒY
-	__m128i vofsub2 = _mm_sub_epi32(vofsi2, vofsib); // 1~7 ‚Ì’l‚É‚È‚é ƒnƒY
-	__m128i vofmul1 = _mm_slli_epi32(vofsub1, 1); // 2byte’PˆÊ‚È‚Ì‚Åofset‚ğ2”{ (æZ‚¾‚Æ64bit‚É‚È‚é‚Ì‚ÅƒVƒtƒg‚Å
-	__m128i vofmul2 = _mm_slli_epi32(vofsub2, 1); // 2byte’PˆÊ‚È‚Ì‚Åofset‚ğ2”{ (æZ‚¾‚Æ64bit‚É‚È‚é‚Ì‚ÅƒVƒtƒg‚Å
-	__m128i vofshf1 = _mm_shuffle_epi8(vofmul1, vshuf); // ***4***3***2***1 to 44**33**22**11** (2byte’PˆÊ‚È‚Ì‚Å 4byteãˆÊ2byte‚ÉƒZƒbƒg
-	__m128i vofshf2 = _mm_shuffle_epi8(vofmul2, vshuf); // ***8***7***6***5 to 88**77**66**55** (2byte’PˆÊ‚È‚Ì‚Å 4byteãˆÊ2byte‚ÉƒZƒbƒg
-	__m128i vofadd1 = _mm_add_epi8(vofshf1, vadd); // 4byte’PˆÊ(ÅãˆÊbyte‚É+1 ƒIƒtƒZƒbƒg
-	__m128i vofadd2 = _mm_add_epi8(vofshf2, vadd); // 4byte’PˆÊ(ÅãˆÊbyte‚É+1 ƒIƒtƒZƒbƒg
-	__m128i vi32_1 = _mm_shuffle_epi8(vin1, vofadd1); // v1 ofsi   ƒIƒtƒZƒbƒg‚É‚æ‚Á‚Äint16ƒf[ƒ^ˆÚ“®‚Æ“¯‚Éint32‰»
+	__m128i vofsub1 = _mm_sub_epi32(vofsi1, vofsib); // 0~6 ã®å€¤ã«ãªã‚‹ ãƒã‚º
+	__m128i vofsub2 = _mm_sub_epi32(vofsi2, vofsib); // 1~7 ã®å€¤ã«ãªã‚‹ ãƒã‚º
+	__m128i vofmul1 = _mm_slli_epi32(vofsub1, 1); // 2byteå˜ä½ãªã®ã§ofsetã‚’2å€ (ä¹—ç®—ã ã¨64bitã«ãªã‚‹ã®ã§ã‚·ãƒ•ãƒˆã§
+	__m128i vofmul2 = _mm_slli_epi32(vofsub2, 1); // 2byteå˜ä½ãªã®ã§ofsetã‚’2å€ (ä¹—ç®—ã ã¨64bitã«ãªã‚‹ã®ã§ã‚·ãƒ•ãƒˆã§
+	__m128i vofshf1 = _mm_shuffle_epi8(vofmul1, vshuf); // ***4***3***2***1 to 44**33**22**11** (2byteå˜ä½ãªã®ã§ 4byteä¸Šä½2byteã«ã‚»ãƒƒãƒˆ
+	__m128i vofshf2 = _mm_shuffle_epi8(vofmul2, vshuf); // ***8***7***6***5 to 88**77**66**55** (2byteå˜ä½ãªã®ã§ 4byteä¸Šä½2byteã«ã‚»ãƒƒãƒˆ
+	__m128i vofadd1 = _mm_add_epi8(vofshf1, vadd); // 4byteå˜ä½(æœ€ä¸Šä½byteã«+1 ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+	__m128i vofadd2 = _mm_add_epi8(vofshf2, vadd); // 4byteå˜ä½(æœ€ä¸Šä½byteã«+1 ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+	__m128i vi32_1 = _mm_shuffle_epi8(vin1, vofadd1); // v1 ofsi   ã‚ªãƒ•ã‚»ãƒƒãƒˆã«ã‚ˆã£ã¦int16ãƒ‡ãƒ¼ã‚¿ç§»å‹•ã¨åŒæ™‚ã«int32åŒ–
 	__m128i vi32_2 = _mm_shuffle_epi8(vin1, vofadd2); // v2 ofsi+1
-	__m128 vv1 = _mm_cvtepi32_ps(vi32_1); // int32 to float (float•ÏŠ·‚ÅH64bit‚ÍÁ‚¦‚é
-	__m128 vv2 = _mm_cvtepi32_ps(vi32_2); // int32 to float (float•ÏŠ·‚ÅH64bit‚ÍÁ‚¦‚é
-	// ‚ ‚Æ‚Í’Êí‚Æ“¯‚¶ (float•ÏŠ·‚ªint16‚Å‚Í‚È‚­int32‚È‚Ì‚ÅƒŒƒxƒ‹•ÏŠ·‚ª•K—v vec_divo‚É•ÏŠ·ŒW”‚ğ’Ç‰Á
+	__m128 vv1 = _mm_cvtepi32_ps(vi32_1); // int32 to float (floatå¤‰æ›ã§H64bitã¯æ¶ˆãˆã‚‹
+	__m128 vv2 = _mm_cvtepi32_ps(vi32_2); // int32 to float (floatå¤‰æ›ã§H64bitã¯æ¶ˆãˆã‚‹
+	// ã‚ã¨ã¯é€šå¸¸ã¨åŒã˜ (floatå¤‰æ›ãŒint16ã§ã¯ãªãint32ãªã®ã§ãƒ¬ãƒ™ãƒ«å¤‰æ›ãŒå¿…è¦ vec_divoã«å¤‰æ›ä¿‚æ•°ã‚’è¿½åŠ 
 	__m128 vfp = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(vofs, vfmask)), vec_divf);
 	__m128 vec_out = _mm_mul_ps(MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 #if defined(DATA_T_DOUBLE)
@@ -4430,15 +4430,15 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	const __m128 vec_divo = _mm_set1_ps(DIV_15BIT);
 	for(; i < count; i += 4) {
 	__m128i vofsi = _mm_srli_epi32(vofs, FRACTION_BITS);
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,0)]); // ofsi‚Æofsi+1‚ğƒ[ƒh
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,1)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,2)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,3)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶	
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,0)]); // ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,1)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,2)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi,3)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜	
 	__m128i vin12 =	_mm_unpacklo_epi16(vin1, vin2); // [v11v21]e96,[v12v22]e96 to [v11v12v21v22]e64
 	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
 	__m128i vi16 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
 #if (USE_X86_EXT_INTRIN >= 6) // sse4.1 , _mm_ cvtepi16_epi32()
-	__m128i vi16_2 = _mm_shuffle_epi32(vi16, 0x4e); // ofsi+1‚ÍL64bit‚Ö
+	__m128i vi16_2 = _mm_shuffle_epi32(vi16, 0x4e); // ofsi+1ã¯L64bitã¸
 	__m128 vv1 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vi16)); // int16 to float
 	__m128 vv2 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vi16_2)); // int16 to float
 #else
@@ -4477,7 +4477,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 
 #elif (USE_X86_EXT_INTRIN >= 2) // SSE (not use MMX
 // offset:int32*4, resamp:float*4
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {	
 	resample_rec_t *resrc = &vp->resrc;
@@ -4532,7 +4532,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 
 #elif 1 // not use MMX/SSE/AVX 
 // offset:int32*4, resamp:float*4
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -4583,14 +4583,14 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 }
 
 #else // normal
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	int32 i;
 	resample_rec_t *resrc = &vp->resrc;	
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
-	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	int32 ofs = (int32)(resrc->offset & FRACTION_MASK);
 	const int32 inc = resrc->increment;
 
@@ -4717,7 +4717,7 @@ static inline DATA_T resample_linear_float_single(Voice *vp)
 
 #if (USE_X86_EXT_INTRIN >= 3)
 // offset:int32*4, resamp:float*4
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -4726,7 +4726,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 	const int32 count = req_count & req_count_mask;
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	float *src = (float *)vp->sample->data + (prec_offset >> FRACTION_BITS);
-	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	const int32 inc = resrc->increment;
 	__m128i vofs = _mm_add_epi32(_mm_set1_epi32(start_offset), _mm_set_epi32(inc * 3, inc * 2, inc, 0));
 	const __m128i vinc = _mm_set1_epi32(inc * 4), vfmask = _mm_set1_epi32((int32)FRACTION_MASK);
@@ -4734,10 +4734,10 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 	const __m128 vec_divo = _mm_set1_ps(M_15BIT);
 	for(; i < count; i += 4) {
 	__m128i vofsi = _mm_srli_epi32(vofs, FRACTION_BITS);
-	__m128 vin1 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,0)]); // ofsi‚Æofsi+1‚ğƒ[ƒh [v11v12v13v14]
-	__m128 vin2 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,1)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v21v22v23v24]
-	__m128 vin3 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,2)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v31v32v33v34]
-	__m128 vin4 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,3)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v41v42v43v44]	
+	__m128 vin1 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,0)]); // ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰ [v11v12v13v14]
+	__m128 vin2 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,1)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v21v22v23v24]
+	__m128 vin3 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,2)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v31v32v33v34]
+	__m128 vin4 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi,3)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v41v42v43v44]	
     __m128 vin12 = _mm_shuffle_ps(vin1, vin2, 0x44); // [v11,v12,v21,v22]
     __m128 vin34 = _mm_shuffle_ps(vin3, vin4, 0x44); // [v31,v32,v41,v42]
     __m128 vv1 = _mm_shuffle_ps(vin12, vin34, 0x88); // [v11,v21,v31,v41]
@@ -4769,14 +4769,14 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 }
 
 #else // normal
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	int32 i;
 	resample_rec_t *resrc = &vp->resrc;
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	float *src = (float *)vp->sample->data + (prec_offset >> FRACTION_BITS);
-	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	int32 ofs = (int32)(resrc->offset & FRACTION_MASK);
 	const int32 inc = resrc->increment;
 
@@ -4900,7 +4900,7 @@ static DATA_T *resample_multi_lagrange_m256(Voice *vp, DATA_T *dest, int32 *i, i
 
 	splen_t prec_offset = (resrc->offset & INTEGER_MASK) - (1 << FRACTION_BITS);
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
-	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 
 	__m256i vindices = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
 	__m256i vofs = _mm256_add_epi32(_mm256_set1_epi32(start_offset), _mm256_mullo_epi32(vindices, _mm256_set1_epi32(resrc->increment)));
@@ -5006,7 +5006,7 @@ static DATA_T *resample_multi_lagrange_m128(Voice *vp, DATA_T *dest, int32 *i, i
 
 	splen_t prec_offset = (resrc->offset & INTEGER_MASK) - (1 << FRACTION_BITS);
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
-	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	int32 start_offset = (int32)(resrc->offset - prec_offset); // (offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 
 	__m128i vindices = _mm_set_epi32(3, 2, 1, 0);
 	__m128i vofs = _mm_add_epi32(_mm_set1_epi32(start_offset), _mm_mullo_epi32(vindices, _mm_set1_epi32(resrc->increment)));
@@ -5350,7 +5350,7 @@ do_linear:
 
 #if (USE_X86_EXT_INTRIN >= 9)
 // offset:int32*8, resamp:float*8
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -5359,7 +5359,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	const int32 count = req_count & req_count_mask;
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
-	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	const int32 inc = resrc->increment;
 	const __m256i vinc = _mm256_set1_epi32(inc * 8), vfmask = _mm256_set1_epi32((int32)FRACTION_MASK);
 	__m256i vofs = _mm256_add_epi32(_mm256_set1_epi32(start_offset), _mm256_set_epi32(inc*7,inc*6,inc*5,inc*4,inc*3,inc*2,inc,0));
@@ -5372,10 +5372,10 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	const __m256i vfrac2 = _mm256_set1_epi32(ml2_fraction);
 	const __m256 vec_divo = _mm256_set1_ps(DIV_15BIT);
 #ifdef LAO_OPTIMIZE_INCREMENT
-	// Å“K‰»ƒŒ[ƒg = (ƒ[ƒhƒf[ƒ^” - ‰ŠúƒIƒtƒZƒbƒg¬”•”‚ÌÅ‘å’l(1–¢–) - •âŠÔƒ|ƒCƒ“ƒg”(lagrange‚Í3) ) / ƒIƒtƒZƒbƒgƒf[ƒ^”
-	// ƒ[ƒhƒf[ƒ^”‚Íint16—ppermutevar‚ª‚È‚¢‚Ì‚Å•ÏŠ·Œã‚Ì32bit(int32/float)‚Ì8ƒZƒbƒg‚É‚È‚é
-	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 3) / 8; // (float*8) * 1ƒZƒbƒg
-	if(inc < opt_inc1){	// 1ƒZƒbƒg
+	// æœ€é©åŒ–ãƒ¬ãƒ¼ãƒˆ = (ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•° - åˆæœŸã‚ªãƒ•ã‚»ãƒƒãƒˆå°æ•°éƒ¨ã®æœ€å¤§å€¤(1æœªæº€) - è£œé–“ãƒã‚¤ãƒ³ãƒˆæ•°(lagrangeã¯3) ) / ã‚ªãƒ•ã‚»ãƒƒãƒˆãƒ‡ãƒ¼ã‚¿æ•°
+	// ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•°ã¯int16ç”¨permutevarãŒãªã„ã®ã§å¤‰æ›å¾Œã®32bit(int32/float)ã®8ã‚»ãƒƒãƒˆã«ãªã‚‹
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 3) / 8; // (float*8) * 1ã‚»ãƒƒãƒˆ
+	if(inc < opt_inc1){	// 1ã‚»ãƒƒãƒˆ
 	const __m256i vvar1n = _mm256_set1_epi32(-1);
 	const __m256i vvar1 = _mm256_set1_epi32(1);
 	const __m256i vvar2 = _mm256_set1_epi32(2);
@@ -5396,7 +5396,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m256 vv1 = _mm256_permutevar8x32_ps(vvf1, vofsub2); // v2 ofsi
 	__m256 vv2 = _mm256_permutevar8x32_ps(vvf1, vofsub3); // v2 ofsi+1
 	__m256 vv3 = _mm256_permutevar8x32_ps(vvf1, vofsub4); // v2 ofsi+2
-	// ‚ ‚Æ‚Í’Êí‚Æ“¯‚¶
+	// ã‚ã¨ã¯é€šå¸¸ã¨åŒã˜
 	__m256i vofsf = _mm256_add_epi32(_mm256_and_si256(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m256 vtmp = _mm256_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m256 vtmp1, vtmp2, vtmp3, vtmp4;
@@ -5429,14 +5429,14 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 #endif // LAO_OPTIMIZE_INCREMENT
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0) - 1]); // ofsi-1~ofsi+2‚ğƒ[ƒh
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,3) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,4) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,5) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,6) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,7) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0) - 1]); // ofsi-1~ofsi+2ã‚’ãƒ­ãƒ¼ãƒ‰
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,3) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,4) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,5) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,6) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,7) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
 	__m128i vin12 = _mm_unpacklo_epi16(vin1, vin2); // [v11v21v31v41],[v12v22v32v42] to [v11v12v21v22v31v32v41v42]
 	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23v33v43],[v14v24v34v44] to [v13v14v23v24v33v34v43v44]
 	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // [v15v25v35v45],[v16v26v36v46] to [v15v16v25v26v35v36v45v46]
@@ -5486,7 +5486,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 
 #elif (USE_X86_EXT_INTRIN >= 3)
 // offset:int32*4*2, resamp:float*4*2 2set 15.51s (1set 16.08s
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -5495,7 +5495,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	const int32 count = req_count & req_count_mask;
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
-	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	const int32 inc = resrc->increment;
 	const __m128i vinc = _mm_set1_epi32(inc * 8), vfmask = _mm_set1_epi32((int32)FRACTION_MASK);
 	__m128i vofs1 = _mm_add_epi32(_mm_set1_epi32(start_offset), _mm_set_epi32(inc * 3, inc * 2, inc, 0));
@@ -5511,14 +5511,14 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	for(; i < count; i += 8) {
 	__m128i vofsi1 = _mm_srli_epi32(vofs1, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
 	__m128i vofsi2 = _mm_srli_epi32(vofs2, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,0) - 1]); // ofsi-1~ofsi+2‚ğƒ[ƒh
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,1) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,2) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,3) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,0) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,1) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,2) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,3) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,0) - 1]); // ofsi-1~ofsi+2ã‚’ãƒ­ãƒ¼ãƒ‰
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,1) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,2) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi1,3) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,0) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,1) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,2) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM_EXTRACT_I32(vofsi2,3) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
 	__m128i vin12 = _mm_unpacklo_epi16(vin1, vin2); // [v11v21v31v41],[v12v22v32v42] to [v11v12v21v22v31v32v41v42]
 	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23v33v43],[v14v24v34v44] to [v13v14v23v24v33v34v43v44]
 	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // [v15v25v35v45],[v16v26v36v46] to [v15v16v25v26v35v36v45v46]
@@ -5528,10 +5528,10 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m128i vi16_3 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26],[v17v18,v27v28] to [v15v16v17v18,v25v26v27v28]
 	__m128i vi16_4 = _mm_unpackhi_epi32(vin56, vin78); // [v35v36,v45v46],[v37v38v,47v48] to [v35v36v37v38,v45v46v47v48]
 #if (USE_X86_EXT_INTRIN >= 6) // sse4.1 , _mm_ cvtepi16_epi32()
-	__m128i vi16_1_2 = _mm_shuffle_epi32(vi16_1, 0x4e); // ofsi+0‚ÍL64bit‚Ö
-	__m128i vi16_2_2 = _mm_shuffle_epi32(vi16_2, 0x4e); // ofsi+2‚ÍL64bit‚Ö
-	__m128i vi16_3_2 = _mm_shuffle_epi32(vi16_3, 0x4e); // ofsi+0‚ÍL64bit‚Ö
-	__m128i vi16_4_2 = _mm_shuffle_epi32(vi16_4, 0x4e); // ofsi+2‚ÍL64bit‚Ö
+	__m128i vi16_1_2 = _mm_shuffle_epi32(vi16_1, 0x4e); // ofsi+0ã¯L64bitã¸
+	__m128i vi16_2_2 = _mm_shuffle_epi32(vi16_2, 0x4e); // ofsi+2ã¯L64bitã¸
+	__m128i vi16_3_2 = _mm_shuffle_epi32(vi16_3, 0x4e); // ofsi+0ã¯L64bitã¸
+	__m128i vi16_4_2 = _mm_shuffle_epi32(vi16_4, 0x4e); // ofsi+2ã¯L64bitã¸
 	__m128 vv01 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vi16_1)); // int16 to float
 	__m128 vv11 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vi16_1_2)); // int16 to float
 	__m128 vv21 = _mm_cvtepi32_ps(_mm_cvtepi16_epi32(vi16_2)); // int16 to float
@@ -5620,7 +5620,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 }
 
 #else // not use MMX/SSE/AVX 
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -5889,7 +5889,7 @@ do_linear:
 
 #if (USE_X86_EXT_INTRIN >= 3)
 // offset:int32*4*2, resamp:float*4*2 2set
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;
@@ -5898,7 +5898,7 @@ static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int
 	const int32 count = req_count & req_count_mask;
 	splen_t prec_offset = resrc->offset & INTEGER_MASK;
 	float *src = (float *)vp->sample->data + (prec_offset >> FRACTION_BITS);
-	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetŒvZ‚ğint32’lˆæ‚É‚·‚é(SIMD—p
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹(SIMDç”¨
 	const int32 inc = resrc->increment;
 	const __m128i vinc = _mm_set1_epi32(inc * 8), vfmask = _mm_set1_epi32((int32)FRACTION_MASK);
 	__m128i vofs1 = _mm_add_epi32(_mm_set1_epi32(start_offset), _mm_set_epi32(inc * 3, inc * 2, inc, 0));
@@ -5914,14 +5914,14 @@ static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int
 	for(; i < count; i += 8) {
 	__m128i vofsi1 = _mm_srli_epi32(vofs1, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
 	__m128i vofsi2 = _mm_srli_epi32(vofs2, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-	__m128 vin1 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,0) - 1]); // ofsi-1~ofsi+2‚ğƒ[ƒh [v11v12v13v14]
-	__m128 vin2 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,1) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v21v22v23v24]
-	__m128 vin3 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,2) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v31v32v33v34]
-	__m128 vin4 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,3) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v41v42v43v44]	
-	__m128 vin5 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,0) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v51v52v53v54]
-	__m128 vin6 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,1) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v61v62v63v64]
-	__m128 vin7 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,2) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v71v72v73v74]
-	__m128 vin8 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,3) - 1]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶ [v81v82v83v84]	
+	__m128 vin1 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,0) - 1]); // ofsi-1~ofsi+2ã‚’ãƒ­ãƒ¼ãƒ‰ [v11v12v13v14]
+	__m128 vin2 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,1) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v21v22v23v24]
+	__m128 vin3 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,2) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v31v32v33v34]
+	__m128 vin4 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi1,3) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v41v42v43v44]	
+	__m128 vin5 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,0) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v51v52v53v54]
+	__m128 vin6 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,1) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v61v62v63v64]
+	__m128 vin7 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,2) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v71v72v73v74]
+	__m128 vin8 = _mm_loadu_ps(&src[MM_EXTRACT_I32(vofsi2,3) - 1]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜ [v81v82v83v84]	
     __m128 vin12a = _mm_shuffle_ps(vin1, vin2, 0x44); // [v11,v12,v21,v22]
     __m128 vin12b = _mm_shuffle_ps(vin1, vin2, 0xEE); // [v13,v14,v23,v24]
     __m128 vin34a = _mm_shuffle_ps(vin3, vin4, 0x44); // [v31,v32,v41,v42]
@@ -6004,7 +6004,7 @@ static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int
 }
 
 #else // not use MMX/SSE/AVX 
-// ƒ‹[ƒv“à•”‚ÌoffsetŒvZ‚ğint32’lˆæ‚É‚·‚é , (sample_increment * (req_count+1)) < int32 max
+// ãƒ«ãƒ¼ãƒ—å†…éƒ¨ã®offsetè¨ˆç®—ã‚’int32å€¤åŸŸã«ã™ã‚‹ , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {
 	resample_rec_t *resrc = &vp->resrc;

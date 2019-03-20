@@ -266,11 +266,11 @@ static void gogo_buffer_reset(void)
 	gogo_unlock();
 }
 
-// “¯Šúƒm[ƒ`ƒFƒbƒN
-// gogo_buffer_cur_size ‚Ü‚Å buf  ‚É gogo_buffer ‚Ì“à—e‚ğ size ‚¾‚¯
-// ƒRƒs[‚·‚éBmoveflag ‚ª‚ ‚é‚Æ‚«‚ÍAƒRƒs[‚µ‚½•ª‚¾‚¯
-// gogo_buffer_from ‚Æ gogo_buffer_cur_size ‚ğ•Ï‰»‚³‚¹‚éB
-// ƒRƒs[‚µ‚½ƒTƒCƒY‚ğ•Ô‚·B
+// åŒæœŸãƒãƒ¼ãƒã‚§ãƒƒã‚¯
+// gogo_buffer_cur_size ã¾ã§ buf  ã« gogo_buffer ã®å†…å®¹ã‚’ size ã ã‘
+// ã‚³ãƒ”ãƒ¼ã™ã‚‹ã€‚moveflag ãŒã‚ã‚‹ã¨ãã¯ã€ã‚³ãƒ”ãƒ¼ã—ãŸåˆ†ã ã‘
+// gogo_buffer_from ã¨ gogo_buffer_cur_size ã‚’å¤‰åŒ–ã•ã›ã‚‹ã€‚
+// ã‚³ãƒ”ãƒ¼ã—ãŸã‚µã‚¤ã‚ºã‚’è¿”ã™ã€‚
 static int32 __gogo_buffer_copy(char *buf, int32 size, int moveflag)
 {
 	int i;
@@ -299,9 +299,9 @@ static int32 __gogo_buffer_copy(char *buf, int32 size, int moveflag)
 	return ret;
 }
 
-// “¯Šúƒm[ƒ`ƒFƒbƒN
-// gogo_buffer_cur_size ‚Ü‚Å buf  ‚Ì“à—e‚ğ size ‚¾‚¯ gogo_buffer ‚É
-// Ši”[‚·‚éBŠi”[‚µ‚½ƒTƒCƒY‚ğ•Ô‚·B
+// åŒæœŸãƒãƒ¼ãƒã‚§ãƒƒã‚¯
+// gogo_buffer_cur_size ã¾ã§ buf  ã®å†…å®¹ã‚’ size ã ã‘ gogo_buffer ã«
+// æ ¼ç´ã™ã‚‹ã€‚æ ¼ç´ã—ãŸã‚µã‚¤ã‚ºã‚’è¿”ã™ã€‚
 static int32 __gogo_buffer_push(const uint8 *buf, size_t size)
 {
 	int i;
@@ -406,7 +406,7 @@ void gogo_opts_reset(void)
 	gogo_opts.optUSE3DNOW = -1;
 	gogo_opts.optUSEKNI = -1;
 	gogo_opts.optUSEE3DNOW = -1;
-	gogo_opts.optADDTAGnum = 0; // ’Ç‰Á‚·‚é‚½‚Ñ‚ÉƒCƒ“ƒNƒŠƒƒ“ƒg‚³‚ê‚é‚½‚ßƒfƒtƒHƒ‹ƒg‚Í0
+	gogo_opts.optADDTAGnum = 0; // è¿½åŠ ã™ã‚‹ãŸã³ã«ã‚¤ãƒ³ã‚¯ãƒªãƒ¡ãƒ³ãƒˆã•ã‚Œã‚‹ãŸã‚ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã¯0
 	gogo_opts.optEMPHASIS = -1;
 	gogo_opts.optVBR = -1;
 	gogo_opts.optCPU = -1;
@@ -551,7 +551,7 @@ static int id3_to_buffer(mp3_id3_tag_t *id3_tag, char *buffer)
 }
 static char *id3_tag_strncpy(char *dst, const char *src, int num)
 {
-	// NULLI’[‚ğ•t‰Á‚µ‚Ä‚Í‚È‚ç‚È‚¢
+	// NULLçµ‚ç«¯ã‚’ä»˜åŠ ã—ã¦ã¯ãªã‚‰ãªã„
 	int len = strlen(src);
 	return memcpy (dst, src, (len <= num) ? len : num);
 }
@@ -562,7 +562,7 @@ int gogo_opts_id3_tag(const char *title, const char *artist, const char *album, 
 	buffer = (char *)safe_malloc(128);
 	if(buffer==NULL)
 		return -1;
-	memset(&id3_tag,0x20,128); // TAG‘S‘Ì‚ğ‹ó”’•¶š‚Åfill
+	memset(&id3_tag,0x20,128); // TAGå…¨ä½“ã‚’ç©ºç™½æ–‡å­—ã§fill
 	if(title){
 		id3_tag_strncpy(id3_tag.title,title,30);
 	}
@@ -580,7 +580,7 @@ int gogo_opts_id3_tag(const char *title, const char *artist, const char *album, 
 	}
 	if(genre>=0)
 		id3_tag.genre = (unsigned char)(genre & 0xff);
-	else // ƒWƒƒƒ“ƒ‹–¢İ’è
+	else // ã‚¸ãƒ£ãƒ³ãƒ«æœªè¨­å®š
 		id3_tag.genre = (unsigned char)0xff;
 	id3_to_buffer(&id3_tag,buffer);
 	gogo_opts.optADDTAGnum++;
@@ -590,7 +590,7 @@ int gogo_opts_id3_tag(const char *title, const char *artist, const char *album, 
 	return 0;
 }
 
-// ƒRƒ}ƒ“ƒhƒ‰ƒCƒ“‚ğ“WŠJ‚·‚é
+// ã‚³ãƒãƒ³ãƒ‰ãƒ©ã‚¤ãƒ³ã‚’å±•é–‹ã™ã‚‹
 int commandline_to_argc_argv(char *commandline, int *argc, char ***argv)
 {
 	char *p1, *p2, *p3;
@@ -972,13 +972,13 @@ void set_gogo_opts_use_commandline_options(char *commandline)
 	return;
 }
 
-// gogo.dll or gogo.lib ‚ÌŠÖ”‚ğ—p‚¢‚½ mp3 ì¬•”•ª‚Í•ÊƒXƒŒƒbƒh‚É‚Äs‚¤B@
-// ƒXƒŒƒbƒhì¬‚É‚Í CreateMPGEthread() ‚ğ—p‚¢‚éB
-// ‚»‚ÌƒXƒŒƒbƒh‚ÍAgogo_buffer_termination ‚ª”ñ 0 ‚É‚È‚Á‚½‚Æ‚«•K‚¸I—¹‚·‚éB
-// ‚»‚ÌƒXƒŒƒbƒh‚ªI—¹‚µ‚½‚±‚Æ‚ÍAIsTerminatedMPGEthread()‚É‚æ‚èŒŸ’m‚·‚éB
-// ƒXƒŒƒbƒh‚ªI—¹‚µ‚½‚±‚Æ‚ğŠm”F‚µ‚Ä‚©‚ç close_output() ‚ÍŠ®—¹‚·‚éB 
-// ƒf[ƒ^‚Ì“n‚µ‚Í gogo_buffer ‚É‚Äs‚¤‚ªAƒoƒbƒtƒ@‚ªˆê”t‚Ì‚Æ‚«‚ÍAŒ³ƒXƒŒƒbƒh‚ª
-// ’â~‚µAƒoƒbƒtƒ@‚Ì“Ç‚İ‚İ‘Ò‹@‚Í gogo —pƒXƒŒƒbƒh‚ª’â~‚·‚éB
+// gogo.dll or gogo.lib ã®é–¢æ•°ã‚’ç”¨ã„ãŸ mp3 ä½œæˆéƒ¨åˆ†ã¯åˆ¥ã‚¹ãƒ¬ãƒƒãƒ‰ã«ã¦è¡Œã†ã€‚ã€€
+// ã‚¹ãƒ¬ãƒƒãƒ‰ä½œæˆã«ã¯ CreateMPGEthread() ã‚’ç”¨ã„ã‚‹ã€‚
+// ãã®ã‚¹ãƒ¬ãƒƒãƒ‰ã¯ã€gogo_buffer_termination ãŒé 0 ã«ãªã£ãŸã¨ãå¿…ãšçµ‚äº†ã™ã‚‹ã€‚
+// ãã®ã‚¹ãƒ¬ãƒƒãƒ‰ãŒçµ‚äº†ã—ãŸã“ã¨ã¯ã€IsTerminatedMPGEthread()ã«ã‚ˆã‚Šæ¤œçŸ¥ã™ã‚‹ã€‚
+// ã‚¹ãƒ¬ãƒƒãƒ‰ãŒçµ‚äº†ã—ãŸã“ã¨ã‚’ç¢ºèªã—ã¦ã‹ã‚‰ close_output() ã¯å®Œäº†ã™ã‚‹ã€‚ 
+// ãƒ‡ãƒ¼ã‚¿ã®æ¸¡ã—ã¯ gogo_buffer ã«ã¦è¡Œã†ãŒã€ãƒãƒƒãƒ•ã‚¡ãŒä¸€æ¯ã®ã¨ãã¯ã€å…ƒã‚¹ãƒ¬ãƒƒãƒ‰ãŒ
+// åœæ­¢ã—ã€ãƒãƒƒãƒ•ã‚¡ã®èª­ã¿è¾¼ã¿å¾…æ©Ÿæ™‚ã¯ gogo ç”¨ã‚¹ãƒ¬ãƒƒãƒ‰ãŒåœæ­¢ã™ã‚‹ã€‚
 static int __stdcall MPGEthread(void)
 {
 	MERET	rval;
@@ -1010,7 +1010,7 @@ static int __stdcall MPGEthread(void)
 #else
 	gogo_ConfigDialogInfoApply();
 #endif
-	// title‚ª‚ ‚éê‡‚ÍƒfƒtƒHƒ‹ƒg‚ÅTAG•t‰Á
+	// titleãŒã‚ã‚‹å ´åˆã¯ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã§TAGä»˜åŠ 
 	if (tag_title != NULL) {
 		gogo_opts_id3_tag(tag_title, NULL, NULL, NULL, NULL, -1);
 	}
@@ -1107,7 +1107,7 @@ static int IsTerminatedMPGEthread(void)
 // Create the thread of gogo.dll
 static int CreateMPGEthread(void)
 {
-	// gogo —p‚ÌƒXƒŒƒbƒh‚ªI—¹‚µ‚Ä‚¢‚é‚©Šm”F‚·‚éB
+	// gogo ç”¨ã®ã‚¹ãƒ¬ãƒƒãƒ‰ãŒçµ‚äº†ã—ã¦ã„ã‚‹ã‹ç¢ºèªã™ã‚‹ã€‚
 	gogo_buffer_termination  = 1;
 	while(!IsTerminatedMPGEthread()){
 #ifndef __W32__
@@ -1119,11 +1119,11 @@ static int CreateMPGEthread(void)
 	}
 	gogo_buffer_termination  = 0;
 
-	// gogo —p‚ÌƒXƒŒƒbƒh‚ğì¬‚·‚éB
+	// gogo ç”¨ã®ã‚¹ãƒ¬ãƒƒãƒ‰ã‚’ä½œæˆã™ã‚‹ã€‚
 #ifndef __W32__
 
 #else
-	// ƒnƒ“ƒhƒ‹‚ÍƒNƒ[ƒY‚µ‚Ä‚¨‚­B
+	// ãƒãƒ³ãƒ‰ãƒ«ã¯ã‚¯ãƒ­ãƒ¼ã‚ºã—ã¦ãŠãã€‚
 	if(hMPGEthread!=NULL){
 		CloseHandle(hMPGEthread);
 	}
@@ -1153,7 +1153,7 @@ static int gogo_output_open(const char *fname)
 	gogo_opts.output_name[1023] = '\0';
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
 	gogo_opts_reset_tag();
-	if(w32g_interactive_id3_tag_set){	// ‰‰‘t‚ÉID3ƒ^ƒOî•ñ“ü—Íƒ_ƒCƒAƒƒO‚ğŠJ‚­B
+	if(w32g_interactive_id3_tag_set){	// æ¼”å¥æ™‚ã«ID3ã‚¿ã‚°æƒ…å ±å…¥åŠ›ãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã‚’é–‹ãã€‚
 		w32g_gogo_id3_tag_dialog();
 	}
 #endif

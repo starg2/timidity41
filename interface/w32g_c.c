@@ -104,11 +104,11 @@ static void w32g_ext_control_sub_thread(int rc, ptr_size_t value);
 static unsigned __stdcall w32g_ext_control_thread(void *param)
 {
     for (;;) {
-        WaitForSingleObject(hEventTcv, INFINITE); // ƒXƒŒƒbƒhŠJnƒCƒxƒ“ƒg‘Ò‹@
+        WaitForSingleObject(hEventTcv, INFINITE); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚¤ãƒ™ãƒ³ãƒˆå¾…æ©Ÿ
         if (thread_exit) break;
         w32g_ext_control_sub_thread(rc_thread, value_thread);
-        ResetEvent(hEventTcv); // ƒXƒŒƒbƒhŠJnƒCƒxƒ“ƒgƒŠƒZƒbƒg
-        thread_finish = 1; // ƒXƒŒƒbƒhI—¹ƒtƒ‰ƒOƒZƒbƒg
+        ResetEvent(hEventTcv); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚¤ãƒ™ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆ
+        thread_finish = 1; // ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ãƒ•ãƒ©ã‚°ã‚»ãƒƒãƒˆ
     }
 
     return 0;
@@ -170,8 +170,8 @@ static int w32g_go_ext_control_thread(int rc, ptr_size_t value)
         return RC_NONE;
     rc_thread = rc;
     value_thread = value;
-    thread_finish = 0; // ƒXƒŒƒbƒhI—¹ƒtƒ‰ƒOƒŠƒZƒbƒg
-    SetEvent(hEventTcv); // ƒXƒŒƒbƒhŠJnƒCƒxƒ“ƒgƒZƒbƒg (ÄŠJ)
+    thread_finish = 0; // ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ãƒ•ãƒ©ã‚°ãƒªã‚»ãƒƒãƒˆ
+    SetEvent(hEventTcv); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚¤ãƒ™ãƒ³ãƒˆã‚»ãƒƒãƒˆ (å†é–‹)
     return RC_NONE;
 }
 
@@ -647,13 +647,13 @@ static int ctl_refine_playlist(void)
 }
 
 /*
-w32g_ext_ext_control‚Ì–â‘è
-Ä¶’†‚ÌƒvƒŒƒCƒŠƒXƒg‘€ì“™‚Å‰¹Ø‚ê‚É‚È‚é
-ƒvƒŒƒCƒŠƒXƒg‘€ì‚Ì‚Æ‚«w32g_ext_ext_control()‚Íƒoƒbƒtƒ@¶¬compute_data()/ƒoƒbƒtƒ@“]‘—aq_soft_flush()‚ÉŠÖ‚í‚é•”•ª‚ÅŒÄ‚Ño‚³‚ê‚é
-ƒvƒŒƒCƒŠƒXƒg‘€ì‚Íˆ—ŠÔ‚ª’·‚¢‚±‚Æ‚à‚ ‚é‚Ì‚Å ‚»‚Ìê‡‰¹Ø‚ê‚É‚È‚é
-‚»‚±‚ÅƒvƒŒƒCƒ„ƒXƒŒƒbƒh‚©‚çØ‚è—£‚µ‚Ä Å¬‚ÌƒvƒŒƒCƒRƒ“ƒgƒ[ƒ‹‚¾‚¯”­s‚·‚é
-EXT_CONTROL_MAIN_THREAD GUI‚ÌƒƒCƒ“ƒXƒŒƒbƒh‚Åˆ—‚·‚é  (•ÏX‰ÓŠ‘½‚¢ ˆ—ŠÔ‚ª’·‚¢‚Æ‚«MAIN_THREAD‚ªŒÅ‚Ü‚é‚¯‚ÇEE
-EXT_CONTROL_THREAD ƒRƒ“ƒgƒ[ƒ‹—pƒXƒŒƒbƒh‚ğ’Ç‰Á‚µˆ—‚·‚é (•ÏX‰ÓŠ‚Í­‚È‚¢ ƒXƒŒƒbƒh‚Ìƒ€ƒ_H
+w32g_ext_ext_controlã®å•é¡Œ
+å†ç”Ÿä¸­ã®ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆæ“ä½œç­‰ã§éŸ³åˆ‡ã‚Œã«ãªã‚‹
+ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆæ“ä½œã®ã¨ãw32g_ext_ext_control()ã¯ãƒãƒƒãƒ•ã‚¡ç”Ÿæˆcompute_data()/ãƒãƒƒãƒ•ã‚¡è»¢é€aq_soft_flush()ã«é–¢ã‚ã‚‹éƒ¨åˆ†ã§å‘¼ã³å‡ºã•ã‚Œã‚‹
+ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆæ“ä½œã¯å‡¦ç†æ™‚é–“ãŒé•·ã„ã“ã¨ã‚‚ã‚ã‚‹ã®ã§ ãã®å ´åˆéŸ³åˆ‡ã‚Œã«ãªã‚‹
+ãã“ã§ãƒ—ãƒ¬ã‚¤ãƒ¤ã‚¹ãƒ¬ãƒƒãƒ‰ã‹ã‚‰åˆ‡ã‚Šé›¢ã—ã¦ æœ€å°ã®ãƒ—ãƒ¬ã‚¤ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã ã‘ç™ºè¡Œã™ã‚‹
+EXT_CONTROL_MAIN_THREAD GUIã®ãƒ¡ã‚¤ãƒ³ã‚¹ãƒ¬ãƒƒãƒ‰ã§å‡¦ç†ã™ã‚‹  (å¤‰æ›´ç®‡æ‰€å¤šã„ å‡¦ç†æ™‚é–“ãŒé•·ã„ã¨ãMAIN_THREADãŒå›ºã¾ã‚‹ã‘ã©ãƒ»ãƒ»
+EXT_CONTROL_THREAD ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ç”¨ã‚¹ãƒ¬ãƒƒãƒ‰ã‚’è¿½åŠ ã—å‡¦ç†ã™ã‚‹ (å¤‰æ›´ç®‡æ‰€ã¯å°‘ãªã„ ã‚¹ãƒ¬ãƒƒãƒ‰ã®ãƒ ãƒ€ï¼Ÿ
 */
 
 #if defined(EXT_CONTROL_THREAD) || defined(EXT_CONTROL_MAIN_THREAD)
@@ -728,7 +728,7 @@ void w32g_ext_control_main_thread(int rc, ptr_size_t value)
         break;
     case RC_EXT_CLEAR_PLAYLIST:
         w32g_clear_playlist();
-        if (w32g_is_playlist_ctrl_play()) { // Ä¶’†‚ÌƒvƒŒƒCƒŠƒXƒg‚È‚ç’â~
+        if (w32g_is_playlist_ctrl_play()) { // å†ç”Ÿä¸­ã®ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆãªã‚‰åœæ­¢
             ctl_panel_refresh(1);
             rrc = RC_STOP;
         }
@@ -856,7 +856,7 @@ static int w32g_ext_control(int rc, ptr_size_t value)
         break;
     case RC_EXT_CLEAR_PLAYLIST:
         w32g_clear_playlist();
-        if (w32g_is_playlist_ctrl_play()) { // Ä¶’†‚ÌƒvƒŒƒCƒŠƒXƒg‚È‚ç’â~
+        if (w32g_is_playlist_ctrl_play()) { // å†ç”Ÿä¸­ã®ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆãªã‚‰åœæ­¢
             ctl_panel_refresh(1);
             return RC_STOP;
         }

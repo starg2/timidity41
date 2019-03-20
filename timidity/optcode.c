@@ -261,7 +261,7 @@ static const char* x86_vendors[] =
 	"Unknown     ",
 };
 
-// Šg’£ƒtƒ‰ƒOæ“¾
+// æ‹¡å¼µãƒ•ãƒ©ã‚°å–å¾—
 static inline int64	xgetbv(int index)
 {
 #if defined(__GNUC__)
@@ -281,7 +281,7 @@ static inline int64	xgetbv(int index)
 	//	mov dword ptr [now+4], edx
 	//}
 	//return flg;
-	return 0xFFFFFFFFFFFFFFFF; // asm‚Åxgetbv index ‚Ç‚±EE‚í‚©‚ç‚ñ‚Ì‚ÅƒXƒ‹[
+	return 0xFFFFFFFFFFFFFFFF; // asmã§xgetbv index ã©ã“ãƒ»ãƒ»ã‚ã‹ã‚‰ã‚“ã®ã§ã‚¹ãƒ«ãƒ¼
 #elif (USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_INTRIN)
 #if _MSC_VER < 1600 // VC2010 (immintrin.h _xgetbv()
 	return 0xFFFFFFFFFFFFFFFF;
@@ -385,7 +385,7 @@ int is_x86ext_available(void)
 		flg_amd = (flg3 >> 30) & 1;
 		break;
 	case X86_3DNOW_PRO:
-		flg_amd = 1; // EE‚í‚©‚ç‚ñ‚Ì‚ÅƒXƒ‹[
+		flg_amd = 1; // ãƒ»ãƒ»ã‚ã‹ã‚‰ã‚“ã®ã§ã‚¹ãƒ«ãƒ¼
 		break;
 	case X86_SSE4A:
 		flg_amd = (flg4 >> 6) & 1;

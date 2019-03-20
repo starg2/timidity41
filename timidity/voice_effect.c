@@ -101,11 +101,11 @@ static compute_math_t compute_math[] = {
 
 /*  delay  */
 /* 
-Å‰‚ÉƒfƒBƒŒƒCƒ^ƒCƒ€(ms)‚ğw’è‚µ‚Ä‰Šú‰» init_delay()  // <500ms 384kHz
-æ‚É read_delay() // ƒfƒBƒŒƒCƒJƒEƒ“ƒg•ÏX‚È‚µ
-Ÿ‚É write_delay() // ƒfƒBƒŒƒCƒJƒEƒ“ƒgˆ—
-read/write‚Í1ƒTƒ“ƒvƒ‹‚É1‰ñ
-I—¹‚ÉƒfƒBƒŒƒCƒoƒbƒtƒ@‚ğŠJ•ú uninit_delay()
+æœ€åˆã«ãƒ‡ã‚£ãƒ¬ã‚¤ã‚¿ã‚¤ãƒ (ms)ã‚’æŒ‡å®šã—ã¦åˆæœŸåŒ– init_delay()  // <500ms 384kHz
+å…ˆã« read_delay() // ãƒ‡ã‚£ãƒ¬ã‚¤ã‚«ã‚¦ãƒ³ãƒˆå¤‰æ›´ãªã—
+æ¬¡ã« write_delay() // ãƒ‡ã‚£ãƒ¬ã‚¤ã‚«ã‚¦ãƒ³ãƒˆå‡¦ç†
+read/writeã¯1ã‚µãƒ³ãƒ—ãƒ«ã«1å›
+çµ‚äº†æ™‚ã«ãƒ‡ã‚£ãƒ¬ã‚¤ãƒãƒƒãƒ•ã‚¡ã‚’é–‹æ”¾ uninit_delay()
 */
 
 static void init_delay(Info_Delay *info, FLOAT_T delay_time_ms)
@@ -129,16 +129,16 @@ static inline void write_delay(Info_Delay *info, FLOAT_T in)
 
 /* pitch shifter */
 /* 
-Å‰‚ÉƒvƒŠƒfƒBƒŒƒCƒ^ƒCƒ€(ms),ƒfƒBƒŒƒCƒ^ƒCƒ€(ms),ƒŠ[ƒhƒŒ[ƒg(cent)‚ğw’è‚µ‚Ä‰Šú‰» init_pitch_shifter() 
-æ‚É read_pitch_shifter() // ƒŠ[ƒhƒfƒBƒŒƒCƒJƒEƒ“ƒgˆ—
-Ÿ‚É write_pitch_shifter() // ƒ‰ƒCƒgƒfƒBƒŒƒCƒJƒEƒ“ƒgˆ—
-read/write‚Í1ƒTƒ“ƒvƒ‹‚É1‰ñ
-ƒŠ[ƒhƒŒ[ƒg‚ğ‰Â•Ï‚É‚·‚éê‡ calc_pitch_shifter_rate() ‚ÅƒŒ[ƒgÄİ’è
-ƒŠ[ƒhƒŒ[ƒg‚ÍƒTƒ“ƒvƒŠƒ“ƒOƒŒ[ƒg‚É‘Î‚µ‚Ä‚Ì”ä—¦
-[cent] (100 = +1key , -1200 = -1oct = 0.5”{ , 0 = 1”{ , 1200 = +1oct = 2”{ , 2400 = +2oct = 4”{
+æœ€åˆã«ãƒ—ãƒªãƒ‡ã‚£ãƒ¬ã‚¤ã‚¿ã‚¤ãƒ (ms),ãƒ‡ã‚£ãƒ¬ã‚¤ã‚¿ã‚¤ãƒ (ms),ãƒªãƒ¼ãƒ‰ãƒ¬ãƒ¼ãƒˆ(cent)ã‚’æŒ‡å®šã—ã¦åˆæœŸåŒ– init_pitch_shifter() 
+å…ˆã« read_pitch_shifter() // ãƒªãƒ¼ãƒ‰ãƒ‡ã‚£ãƒ¬ã‚¤ã‚«ã‚¦ãƒ³ãƒˆå‡¦ç†
+æ¬¡ã« write_pitch_shifter() // ãƒ©ã‚¤ãƒˆãƒ‡ã‚£ãƒ¬ã‚¤ã‚«ã‚¦ãƒ³ãƒˆå‡¦ç†
+read/writeã¯1ã‚µãƒ³ãƒ—ãƒ«ã«1å›
+ãƒªãƒ¼ãƒ‰ãƒ¬ãƒ¼ãƒˆã‚’å¯å¤‰ã«ã™ã‚‹å ´åˆ calc_pitch_shifter_rate() ã§ãƒ¬ãƒ¼ãƒˆå†è¨­å®š
+ãƒªãƒ¼ãƒ‰ãƒ¬ãƒ¼ãƒˆã¯ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ãƒ¬ãƒ¼ãƒˆã«å¯¾ã—ã¦ã®æ¯”ç‡
+[cent] (100 = +1key , -1200 = -1oct = 0.5å€ , 0 = 1å€ , 1200 = +1oct = 2å€ , 2400 = +2oct = 4å€
 
-ƒŠ[ƒhƒJƒEƒ“ƒg‚Æƒ‰ƒCƒgƒJƒEƒ“ƒg‚Åü‰ñ·‚ª”­¶‚·‚é•”•ª‚ÌƒmƒCƒY‘Îô
-ƒŠ[ƒhƒoƒbƒtƒ@‚ğ•¡”(phase)‚É‚µ‚Ä ƒNƒƒXƒtƒF[ƒh
+ãƒªãƒ¼ãƒ‰ã‚«ã‚¦ãƒ³ãƒˆã¨ãƒ©ã‚¤ãƒˆã‚«ã‚¦ãƒ³ãƒˆã§å‘¨å›å·®ãŒç™ºç”Ÿã™ã‚‹éƒ¨åˆ†ã®ãƒã‚¤ã‚ºå¯¾ç­–
+ãƒªãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡ã‚’è¤‡æ•°(phase)ã«ã—ã¦ ã‚¯ãƒ­ã‚¹ãƒ•ã‚§ãƒ¼ãƒ‰
 */
 
 
@@ -185,7 +185,7 @@ static inline void do_pitch_shifter(FLOAT_T *inout, Info_PitchShifter *info)
 		v2 = info->ptr[(index + 1) & mask];
 		// linear interpolation
 		tmp = v1 + (v2 - v1) * (fp1 - fp2);
-		// cross fade ratio // read_delayƒTƒCƒY‚ğ1üŠú‚Æ‚·‚éOŠp”¼”g ƒJƒEƒ“ƒgƒŠƒZƒbƒg•”•ª‚ª0‚É‚È‚é
+		// cross fade ratio // read_delayã‚µã‚¤ã‚ºã‚’1å‘¨æœŸã¨ã™ã‚‹ä¸‰è§’åŠæ³¢ ã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆéƒ¨åˆ†ãŒ0ã«ãªã‚‹
 		cf = info->rscount[i] * info->div_cf;		
 		cf -= floor(cf);
 		if(cf > 0.5) cf = 1.0 - cf;
@@ -211,7 +211,7 @@ static inline void do_pitch_shifter(FLOAT_T *inout, Info_PitchShifter *info)
 		v2 = info->ptr[(index + 1) & mask];
 		// linear interpolation
 		tmp = v1 + (v2 - v1) * (fp1 - fp2);
-		// cross fade ratio // read_delayƒTƒCƒY‚ğ1üŠú‚Æ‚·‚éOŠp”¼”g ƒJƒEƒ“ƒgƒŠƒZƒbƒg•”•ª‚ª0‚É‚È‚é
+		// cross fade ratio // read_delayã‚µã‚¤ã‚ºã‚’1å‘¨æœŸã¨ã™ã‚‹ä¸‰è§’åŠæ³¢ ã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆéƒ¨åˆ†ãŒ0ã«ãªã‚‹
 		cf = info->rscount[i] * info->div_cf;		
 		cf -= floor(cf);
 		if(cf > 0.5) cf = 1.0 - cf;
@@ -231,7 +231,7 @@ static inline void do_pitch_shifter(FLOAT_T *inout, Info_PitchShifter *info)
 	}
 	// write buffer
 	info->ptr[info->wcount] = *inout;
-	// write count // 0 ~ (VFX_PS_BUFFER_SIZE-1) ‚ÌƒŠƒ“ƒOƒoƒbƒtƒ@
+	// write count // 0 ~ (VFX_PS_BUFFER_SIZE-1) ã®ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡
 	info->wcount = (++info->wcount) & mask;
 	// output
 	*inout = out;
@@ -2692,7 +2692,7 @@ static inline void do_vfx_test(int v, VoiceEffect *vfx, DATA_T *sp, int32 count)
 			index1 += info->size;
 		if(index2 < 0)
 			index2 += info->size;
-		// cross fade ratio // OŠp”g 0.0~1.0
+		// cross fade ratio // ä¸‰è§’æ³¢ 0.0~1.0
 		cf = info->rate * 2.0;
 		if(cf > 1.0)
 			cf = 2.0 - cf;
@@ -2702,7 +2702,7 @@ static inline void do_vfx_test(int v, VoiceEffect *vfx, DATA_T *sp, int32 count)
 		info->buf[info->delay_count] = input + output * info->feedback;
 		// output
 		sp[i] = input * 0.0 + output * 1.0;
-		// write count // 0 ~ size ‚ÌƒŠƒ“ƒOƒoƒbƒtƒ@
+		// write count // 0 ~ size ã®ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡
 		if (++info->delay_count >= info->size)
 			info->delay_count -= info->size;
 		// lfo count
@@ -2793,8 +2793,8 @@ struct _VFX_Engine vfx_engine[] = {
 
 /**************** interface function VFX ****************/
 
-// ‰Šú‰»/I—¹ˆ—‚ÌƒVƒ“ƒvƒ‹‚É‚·‚é‚½‚ß InfoVFX_@‚ÌŒÅ’èƒTƒCƒYƒoƒtƒ@‚ğg—p‚µ‚Äinit_vfx()‚Ì’†‚Å‚Íalloc‚µ‚È‚¢
-// ‚È‚Ì‚Å¡‚Ì‚Æ‚±‚ë uninit_vfx()‚Í•s—v
+// åˆæœŸåŒ–/çµ‚äº†å‡¦ç†ã®ã‚·ãƒ³ãƒ—ãƒ«ã«ã™ã‚‹ãŸã‚ InfoVFX_@ã®å›ºå®šã‚µã‚¤ã‚ºãƒãƒ•ã‚¡ã‚’ä½¿ç”¨ã—ã¦init_vfx()ã®ä¸­ã§ã¯allocã—ãªã„
+// ãªã®ã§ä»Šã®ã¨ã“ã‚ uninit_vfx()ã¯ä¸è¦
 
 void free_voice_effect(int v)
 {

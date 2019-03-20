@@ -928,12 +928,12 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 		__m128i vec_i128_2 = _mm_srli_si128(vec_i96_2, 4); // 16bit+24bit*2 = 64bit
 #if (USE_X86_EXT_INTRIN >= 9)
 		__m256i vec_i192 = MM256_SET2X_SI256(vec_i128_1, vec_i128_2); // 24bit*8 + emp64bit
-		_mm256_storeu_si256((__m256i *)cp, vec_i192); // 192bit/256bit unalign ’´‚¦‚é•ª‚Í–³‹	
+		_mm256_storeu_si256((__m256i *)cp, vec_i192); // 192bit/256bit unalign è¶…ãˆã‚‹åˆ†ã¯ç„¡è¦–	
 		cp += 24; // 192bit = 24byte
 #else
 		_mm_storeu_si128((__m128i *)cp, vec_i128_1); // 128bit unalign
 		cp += 16; // 128bit = 16byte
-		_mm_storeu_si128((__m128i *)cp, vec_i128_2); // 64bit/128bit unalign ’´‚¦‚é•ª‚Í–³‹	
+		_mm_storeu_si128((__m128i *)cp, vec_i128_2); // 64bit/128bit unalign è¶…ãˆã‚‹åˆ†ã¯ç„¡è¦–	
 		cp += 8; // 64bit = 8byte
 #endif
 	}
@@ -971,12 +971,12 @@ static void CALLINGCONV f64tos24(DATA_T *lp, int32 c)
 		__m128i vec_i128_2 = _mm_srli_si128(vec_i96_2, 4); // 16bit+24bit*2 = 64bit
 #if (USE_X86_EXT_INTRIN >= 9)
 		__m256i vec_i192 = MM256_SET2X_SI256(vec_i128_1, vec_i128_2); // 24bit*8 + emp64bit
-		_mm256_storeu_si256((__m256i *)cp, vec_i192); // 192bit/256bit unalign ’´‚¦‚é•ª‚Í–³‹	
+		_mm256_storeu_si256((__m256i *)cp, vec_i192); // 192bit/256bit unalign è¶…ãˆã‚‹åˆ†ã¯ç„¡è¦–	
 		cp += 24; // 192bit = 24byte
 #else
 		_mm_storeu_si128((__m128i *)cp, vec_i128_1); // 128bit unalign
 		cp += 16; // 128bit = 16byte
-		_mm_storeu_si128((__m128i *)cp, vec_i128_2); // 64bit/128bit unalign ’´‚¦‚é•ª‚Í–³‹	
+		_mm_storeu_si128((__m128i *)cp, vec_i128_2); // 64bit/128bit unalign è¶…ãˆã‚‹åˆ†ã¯ç„¡è¦–	
 		cp += 8; // 64bit = 8byte
 #endif
 	}

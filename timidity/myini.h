@@ -92,42 +92,42 @@ typedef struct tagini {
 }INIDATA;
 
 /*------------------------------------------------*
-** ƒtƒ@ƒCƒ‹ƒ[ƒh
+** ãƒ•ã‚¡ã‚¤ãƒ«ãƒ­ãƒ¼ãƒ‰
 **------------------------------------------------*/
 extern void MyIni_Load(INIDATA *Ini, const char *str);
 extern void MyIni_LoadT(INIDATA *Ini, const TCHAR *str);
 extern void MyIni_Load_timidity(INIDATA *Ini, const char *str, int decompress, int noise_mode);
 
 /*------------------------------------------------*
-** ƒtƒ@ƒCƒ‹ƒZ[ƒu
+** ãƒ•ã‚¡ã‚¤ãƒ«ã‚»ãƒ¼ãƒ–
 **------------------------------------------------*/
 extern void MyIni_Save(INIDATA *Ini, const char *fn);
 extern void MyIni_SaveT(INIDATA *Ini, const TCHAR *fn);
 
 /*------------------------------------------------*
-** ƒL[ƒNƒŠƒA
+** ã‚­ãƒ¼ã‚¯ãƒªã‚¢
 **------------------------------------------------*/
 extern void MyIni_KeyAllClear(LPINISEC Sec);
 
 /*------------------------------------------------*
-** ƒZƒNƒVƒ‡ƒ“ƒNƒŠƒA
+** ã‚»ã‚¯ã‚·ãƒ§ãƒ³ã‚¯ãƒªã‚¢
 **------------------------------------------------*/
 extern void MyIni_SectionAllClear(INIDATA *Ini);
 
 /*------------------------------------------------*
-** ƒZƒNƒVƒ‡ƒ“/ƒL[íœŠÖ”
+** ã‚»ã‚¯ã‚·ãƒ§ãƒ³/ã‚­ãƒ¼å‰Šé™¤é–¢æ•°
 **------------------------------------------------*/
 extern int MyIni_DeleteSection(INIDATA *Ini, const char *SecName);
 extern int MyIni_DeleteKey(INIDATA *Ini, const char *SecName, const char *KeyName);
 
 /*------------------------------------------------*
-** ƒZƒNƒVƒ‡ƒ“/ƒL[ŒŸõŠÖ”
+** ã‚»ã‚¯ã‚·ãƒ§ãƒ³/ã‚­ãƒ¼æ¤œç´¢é–¢æ•°
 **------------------------------------------------*/
 extern int MyIni_SectionExists(INIDATA *Ini, const char *SecName);
 extern int MyIni_KeyExists(INIDATA *Ini, const char *SecName, const char *KeyName);
 
 /*------------------------------------------------*
-** æ“¾ŠÖ”
+** å–å¾—é–¢æ•°
 **------------------------------------------------*/
 extern char *MyIni_GetString2(INIDATA *Ini, const char *Section, const char *KeyName, char *Buf, size_t Size, const char *DefParam);
 extern char *MyIni_GetString(INISEC *Sec, const char *KeyName, char *Buf, size_t Size, const char *DefParam);
@@ -148,7 +148,7 @@ extern double MyIni_GetFloat64(INISEC *Sec, const char *KeyName, double def);
 extern INT32 MyIni_GetBool(INISEC *Sec, const char *KeyName, INT32 def);
 
 /*------------------------------------------------*
-** ‘ã“üŠÖ”
+** ä»£å…¥é–¢æ•°
 **------------------------------------------------*/
 extern void MyIni_SetString2(INIDATA *Ini, const char *SecName, const char *KeyName, const char *Data);
 extern void MyIni_SetString(INISEC *Sec, const char *KeyName, const char *Data);

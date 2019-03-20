@@ -15,28 +15,28 @@ typedef int MERET;
 
 typedef	unsigned long			UPARAM;
 
-#define	ME_NOERR					(0)		// return normally;ђіЏнЏI—№
-#define	ME_EMPTYSTREAM				(1)		// stream becomes empty;ѓXѓgѓЉЃ[ѓЂ‚ЄЌЕЊг‚Й’B‚µ‚Ѕ
-#define	ME_HALTED					(2)		// stopped by user;(ѓ†Ѓ[ѓUЃ[‚МЋи‚Й‚ж‚и)’†’f‚і‚к‚Ѕ
+#define	ME_NOERR					(0)		// return normally;ж­Јеёёзµ‚дє†
+#define	ME_EMPTYSTREAM				(1)		// stream becomes empty;г‚№гѓ€гѓЄгѓјгѓ гЃЊжњЂеѕЊгЃ«йЃ”гЃ—гЃџ
+#define	ME_HALTED					(2)		// stopped by user;(гѓ¦гѓјг‚¶гѓјгЃ®ж‰‹гЃ«г‚€г‚Љ)дё­ж–­гЃ•г‚ЊгЃџ
 #define	ME_MOREDATA					(3)	
-#define	ME_INTERNALERROR			(10)	// internal error; “а•”ѓGѓ‰Ѓ[
-#define	ME_PARAMERROR				(11)	// parameters error;ђЭ’и‚Еѓpѓ‰ѓЃЃ[ѓ^Ѓ[ѓGѓ‰Ѓ[
-#define	ME_NOFPU					(12)	// no FPU;FPU‚р‘•’…‚µ‚Д‚ў‚И‚ў!!
-#define	ME_INFILE_NOFOUND			(13)	// can't open input file;“ь—Нѓtѓ@ѓCѓ‹‚рђі‚µ‚­ЉJ‚Ї‚И‚ў
-#define	ME_OUTFILE_NOFOUND			(14)	// can't open output file;Џo—Нѓtѓ@ѓCѓ‹‚рђі‚µ‚­ЉJ‚Ї‚И‚ў
-#define	ME_FREQERROR				(15)	// frequency is not good;“ьЏo—НЋь”gђ”‚Єђі‚µ‚­‚И‚ў
-#define	ME_BITRATEERROR				(16)	// bitrate is not good;Џo—НѓrѓbѓgѓЊЃ[ѓg‚Єђі‚µ‚­‚И‚ў
-#define	ME_WAVETYPE_ERR				(17)	// WAV format is not good;ѓEѓFЃ[ѓuѓ^ѓCѓv‚Єђі‚µ‚­‚И‚ў
-#define	ME_CANNOT_SEEK				(18)	// can't seek;ђі‚µ‚­ѓVЃ[ѓNЏo—€‚И‚ў
-#define	ME_BITRATE_ERR				(19)	// only for compatibility;ѓrѓbѓgѓЊЃ[ѓgђЭ’и‚Єђі‚µ‚­‚И‚ў
-#define	ME_BADMODEORLAYER			(20)	// mode/layer not good;ѓ‚Ѓ[ѓhЃEѓЊѓCѓ„‚МђЭ’и€ЩЏн
-#define	ME_NOMEMORY					(21)	// fail to allocate memory;ѓЃѓ‚ѓЉѓAѓЌЃ[ѓPЃ[ѓVѓ‡ѓ“Ћё”s
-#define	ME_CANNOT_SET_SCOPE			(22)	// thread error;ѓXѓЊѓbѓh‘®ђ«ѓGѓ‰Ѓ[(pthread only)
-#define	ME_CANNOT_CREATE_THREAD		(23)	// fail to create thear;ѓXѓЊѓbѓhђ¶ђ¬ѓGѓ‰Ѓ[
-#define	ME_WRITEERROR				(24)	// lock of capacity of disk;‹L‰Ї”}‘М‚М—e—К•s‘«
+#define	ME_INTERNALERROR			(10)	// internal error; е†…йѓЁг‚Ёгѓ©гѓј
+#define	ME_PARAMERROR				(11)	// parameters error;иЁ­е®љгЃ§гѓ‘гѓ©гѓЎгѓјг‚їгѓјг‚Ёгѓ©гѓј
+#define	ME_NOFPU					(12)	// no FPU;FPUг‚’иЈ…зќЂгЃ—гЃ¦гЃ„гЃЄгЃ„!!
+#define	ME_INFILE_NOFOUND			(13)	// can't open input file;е…ҐеЉ›гѓ•г‚Ўг‚¤гѓ«г‚’ж­ЈгЃ—гЃЏй–‹гЃ‘гЃЄгЃ„
+#define	ME_OUTFILE_NOFOUND			(14)	// can't open output file;е‡єеЉ›гѓ•г‚Ўг‚¤гѓ«г‚’ж­ЈгЃ—гЃЏй–‹гЃ‘гЃЄгЃ„
+#define	ME_FREQERROR				(15)	// frequency is not good;е…Ґе‡єеЉ›е‘Ёжіўж•°гЃЊж­ЈгЃ—гЃЏгЃЄгЃ„
+#define	ME_BITRATEERROR				(16)	// bitrate is not good;е‡єеЉ›гѓ“гѓѓгѓ€гѓ¬гѓјгѓ€гЃЊж­ЈгЃ—гЃЏгЃЄгЃ„
+#define	ME_WAVETYPE_ERR				(17)	// WAV format is not good;г‚¦г‚§гѓјгѓ–г‚їг‚¤гѓ—гЃЊж­ЈгЃ—гЃЏгЃЄгЃ„
+#define	ME_CANNOT_SEEK				(18)	// can't seek;ж­ЈгЃ—гЃЏг‚·гѓјг‚Їе‡єжќҐгЃЄгЃ„
+#define	ME_BITRATE_ERR				(19)	// only for compatibility;гѓ“гѓѓгѓ€гѓ¬гѓјгѓ€иЁ­е®љгЃЊж­ЈгЃ—гЃЏгЃЄгЃ„
+#define	ME_BADMODEORLAYER			(20)	// mode/layer not good;гѓўгѓјгѓ‰гѓ»гѓ¬г‚¤гѓ¤гЃ®иЁ­е®љз•°еёё
+#define	ME_NOMEMORY					(21)	// fail to allocate memory;гѓЎгѓўгѓЄг‚ўгѓ­гѓјг‚±гѓјг‚·гѓ§гѓіе¤±ж•—
+#define	ME_CANNOT_SET_SCOPE			(22)	// thread error;г‚№гѓ¬гѓѓгѓ‰е±ћжЂ§г‚Ёгѓ©гѓј(pthread only)
+#define	ME_CANNOT_CREATE_THREAD		(23)	// fail to create thear;г‚№гѓ¬гѓѓгѓ‰з”џж€ђг‚Ёгѓ©гѓј
+#define	ME_WRITEERROR				(24)	// lock of capacity of disk;иЁж†¶еЄ’дЅ“гЃ®е®№й‡ЏдёЌи¶і
 
 
-// definition of call-back function for user;ѓ†Ѓ[ѓUЃ[‚МѓRЃ[ѓ‹ѓoѓbѓNЉЦђ”’и‹`
+// definition of call-back function for user;гѓ¦гѓјг‚¶гѓјгЃ®г‚ігѓјгѓ«гѓђгѓѓг‚Їй–ўж•°е®љзѕ©
 typedef	MERET	(*MPGE_USERFUNC)(void *buf, unsigned long nLength );
 #define MPGE_NULL_FUNC (MPGE_USERFUNC)NULL
 
@@ -46,118 +46,118 @@ typedef	MERET	(*MPGE_USERFUNC)(void *buf, unsigned long nLength );
 // for INPUT
 #define		MC_INPUTFILE			(1)
 	// para1 choice of input device
-	#define		MC_INPDEV_FILE		(0)	// input device is file;“ь—НѓfѓoѓCѓX‚Нѓtѓ@ѓCѓ‹
-	#define		MC_INPDEV_STDIO		(1)	//                 stdin;“ь—НѓfѓoѓCѓX‚Н•WЏЂ“ь—Н
-	#define		MC_INPDEV_USERFUNC	(2)	//       defined by user;“ь—НѓfѓoѓCѓX‚Нѓ†Ѓ[ѓUЃ[’и‹`
-	#define		MC_INPDEV_LIBSND	(3) // input device is file via LIBSND ;“ь—НѓfѓoѓCѓX‚Н LIBSND Њo—R‚Еѓtѓ@ѓCѓ‹
-	// para2 (•K—v‚Е‚ ‚к‚О)ѓtѓ@ѓCѓ‹–јЃBѓ|ѓCѓ“ѓ^‚рЋw’и‚·‚й
-	// ѓЃѓ‚ѓЉ‚ж‚иѓGѓ“ѓRЃ[ѓh‚МЋћ‚Н€И‰є‚МЌ\‘ў‘М‚Мѓ|ѓCѓ“ѓ^‚рЋw’и‚·‚й.
+	#define		MC_INPDEV_FILE		(0)	// input device is file;е…ҐеЉ›гѓ‡гѓђг‚¤г‚№гЃЇгѓ•г‚Ўг‚¤гѓ«
+	#define		MC_INPDEV_STDIO		(1)	//                 stdin;е…ҐеЉ›гѓ‡гѓђг‚¤г‚№гЃЇжЁ™жє–е…ҐеЉ›
+	#define		MC_INPDEV_USERFUNC	(2)	//       defined by user;е…ҐеЉ›гѓ‡гѓђг‚¤г‚№гЃЇгѓ¦гѓјг‚¶гѓје®љзѕ©
+	#define		MC_INPDEV_LIBSND	(3) // input device is file via LIBSND ;е…ҐеЉ›гѓ‡гѓђг‚¤г‚№гЃЇ LIBSND зµЊз”±гЃ§гѓ•г‚Ўг‚¤гѓ«
+	// para2 (еї…и¦ЃгЃ§гЃ‚г‚ЊгЃ°)гѓ•г‚Ўг‚¤гѓ«еђЌгЂ‚гѓќг‚¤гѓіг‚їг‚’жЊ‡е®љгЃ™г‚‹
+	// гѓЎгѓўгѓЄг‚€г‚Љг‚Ёгѓіг‚ігѓјгѓ‰гЃ®ж™‚гЃЇд»Ґдё‹гЃ®ж§‹йЂ дЅ“гЃ®гѓќг‚¤гѓіг‚їг‚’жЊ‡е®љгЃ™г‚‹.
 	struct MCP_INPDEV_USERFUNC {
 		MPGE_USERFUNC	pUserFunc;		// pointer to user-function for call-back or MPGE_NULL_FUNC if none
-											// ѓRЃ[ѓ‹ѓoѓbѓN‘ОЏЫ‚Мѓ†Ѓ[ѓUЃ[ЉЦђ”ЃB–ў’и‹`ЋћMPGE_NULL_FUNC‚р‘г“ь
+											// г‚ігѓјгѓ«гѓђгѓѓг‚ЇеЇѕи±ЎгЃ®гѓ¦гѓјг‚¶гѓјй–ўж•°гЂ‚жњЄе®љзѕ©ж™‚MPGE_NULL_FUNCг‚’д»Је…Ґ
 		unsigned int	nSize;			// size of file or MC_INPDEV_MEMORY_NOSIZE if unknown
-											// ѓtѓ@ѓCѓ‹ѓTѓCѓYЃB•s’и‚МЋћ‚Н MC_INPDEV_MEMORY_NOSIZE‚рЋw’и
-		int				nBit;	// nBit = 8 or 16 ; PCMѓrѓbѓgђ[“x‚рЋw’и
-		int				nFreq;	// input frequency ; “ь—НЋь”gђ”‚МЋw’и
-		int				nChn;	// number of channel(1 or 2) ; ѓ`ѓѓѓlѓ‹ђ”
+											// гѓ•г‚Ўг‚¤гѓ«г‚µг‚¤г‚єгЂ‚дёЌе®љгЃ®ж™‚гЃЇ MC_INPDEV_MEMORY_NOSIZEг‚’жЊ‡е®љ
+		int				nBit;	// nBit = 8 or 16 ; PCMгѓ“гѓѓгѓ€ж·±еє¦г‚’жЊ‡е®љ
+		int				nFreq;	// input frequency ; е…ҐеЉ›е‘Ёжіўж•°гЃ®жЊ‡е®љ
+		int				nChn;	// number of channel(1 or 2) ; гѓЃгѓЈгѓЌгѓ«ж•°
 	};
 	#define		MC_INPDEV_MEMORY_NOSIZE		(0xffffffff)
 /*
   Using userfunction input;
-  ѓ†Ѓ[ѓUЃ[ЉЦђ”——pЋћ‚М‹““®
+  гѓ¦гѓјг‚¶гѓјй–ўж•°е€©з”Ёж™‚гЃ®жЊ™е‹•
   ^^^^^^^^^^^^^^^^^^^^^^^^
 
-  ѓ†Ѓ[ѓUЃ[‚Є“o^‚µ‚ЅЉЦђ” UsefFunc‚Й‘О‚µ‚ДЃADLL‚ж‚и“З‚ЭЌћ‚Э—v‹Ѓ‚ЄЌs‚н‚к‚йЃB
+  гѓ¦гѓјг‚¶гѓјгЃЊз™»йЊІгЃ—гЃџй–ўж•° UsefFuncгЃ«еЇѕгЃ—гЃ¦гЂЃDLLг‚€г‚ЉиЄ­гЃїиѕјгЃїи¦Ѓж±‚гЃЊиЎЊг‚Џг‚Њг‚‹гЂ‚
   MERET	UserFunc_input(void *buf, unsigned long nLength );
 
-  —v‹Ѓ‚рЏ€—ќ‚·‚йЌЫ‚Й
-     ЃEvoid *buf ‚Й‚Н nLength ѓoѓCѓg•Є‚МѓfЃ[ѓ^‚рЉi”[ЃA return ME_NOERR‚Е”І‚Ї‚й
-	 ЃEѓtѓ@ѓCѓ‹‚МЌЕЊг‚Й’B‚µ‚ДЃAnLength•Є“З‚ЭЌћ‚Я‚И‚ў(‚©‚ВЏ­‚И‚­‚Ж‚а1ѓoѓCѓg€ИЏг“З‚ЭЌћ‚Я‚й)ЏкЌ‡ЃA
-	    memset( buf + “З‚ЭЌћ‚с‚ѕѓfЃ[ѓ^byte, 0, nLength - “З‚ЭЌћ‚с‚ѕѓfЃ[ѓ^ѓTѓCѓY) ;
-	   ‚Ж‚µ‚Д return ME_NOERR ‚·‚йЃB
-	 ЃE‚PѓoѓCѓg‚а“З‚Я‚И‚ўЏкЌ‡‚НЃA‰Ѕ‚а‚№‚ё return ME_EMPTYSTREAM; ‚Е”І‚Ї‚й
+  и¦Ѓж±‚г‚’е‡¦зђ†гЃ™г‚‹йљ›гЃ«
+     гѓ»void *buf гЃ«гЃЇ nLength гѓђг‚¤гѓ€е€†гЃ®гѓ‡гѓјг‚їг‚’ж јзґЌгЂЃ return ME_NOERRгЃ§жЉњгЃ‘г‚‹
+	 гѓ»гѓ•г‚Ўг‚¤гѓ«гЃ®жњЂеѕЊгЃ«йЃ”гЃ—гЃ¦гЂЃnLengthе€†иЄ­гЃїиѕјг‚ЃгЃЄгЃ„(гЃ‹гЃ¤е°‘гЃЄгЃЏгЃЁг‚‚1гѓђг‚¤гѓ€д»ҐдёЉиЄ­гЃїиѕјг‚Ѓг‚‹)е ґеђ€гЂЃ
+	    memset( buf + иЄ­гЃїиѕјг‚“гЃ гѓ‡гѓјг‚їbyte, 0, nLength - иЄ­гЃїиѕјг‚“гЃ гѓ‡гѓјг‚їг‚µг‚¤г‚є) ;
+	   гЃЁгЃ—гЃ¦ return ME_NOERR гЃ™г‚‹гЂ‚
+	 гѓ»пј‘гѓђг‚¤гѓ€г‚‚иЄ­г‚ЃгЃЄгЃ„е ґеђ€гЃЇгЂЃдЅ•г‚‚гЃ›гЃљ return ME_EMPTYSTREAM; гЃ§жЉњгЃ‘г‚‹
 */
 
 ///////////////////////////////////////////////////////////////////////////
 // for OUTPUT ( now stdout is not support )
 #define		MC_OUTPUTFILE			(2)
 // para1 choice of output device
-	#define		MC_OUTDEV_FILE		(0)	// output device is file;Џo—НѓfѓoѓCѓX‚Нѓtѓ@ѓCѓ‹
-	#define		MC_OUTDEV_STDOUT	(1)	//                  stdout; Џo—НѓfѓoѓCѓX‚Н•WЏЂЏo—Н
-	#define		MC_OUTDEV_USERFUNC	(2)	//        defined by user;Џo—НѓfѓoѓCѓX‚Нѓ†Ѓ[ѓUЃ[’и‹`
-	#define		MC_OUTDEV_USERFUNC_WITHVBRTAG	(3)	//       defined by user;“ь—НѓfѓoѓCѓX‚Нѓ†Ѓ[ѓUЃ[’и‹`/VBRѓ^ѓOЏ‘‚«Џo‚µ
-// para2 pointer to file if necessary ;(•K—v‚Е‚ ‚к‚О)ѓtѓ@ѓCѓ‹–јЃBѓ|ѓCѓ“ѓ^Ћw’и
+	#define		MC_OUTDEV_FILE		(0)	// output device is file;е‡єеЉ›гѓ‡гѓђг‚¤г‚№гЃЇгѓ•г‚Ўг‚¤гѓ«
+	#define		MC_OUTDEV_STDOUT	(1)	//                  stdout; е‡єеЉ›гѓ‡гѓђг‚¤г‚№гЃЇжЁ™жє–е‡єеЉ›
+	#define		MC_OUTDEV_USERFUNC	(2)	//        defined by user;е‡єеЉ›гѓ‡гѓђг‚¤г‚№гЃЇгѓ¦гѓјг‚¶гѓје®љзѕ©
+	#define		MC_OUTDEV_USERFUNC_WITHVBRTAG	(3)	//       defined by user;е…ҐеЉ›гѓ‡гѓђг‚¤г‚№гЃЇгѓ¦гѓјг‚¶гѓје®љзѕ©/VBRг‚їг‚°ж›ёгЃЌе‡єгЃ—
+// para2 pointer to file if necessary ;(еї…и¦ЃгЃ§гЃ‚г‚ЊгЃ°)гѓ•г‚Ўг‚¤гѓ«еђЌгЂ‚гѓќг‚¤гѓіг‚їжЊ‡е®љ
 
 /*
   Using userfunction output
-  ѓ†Ѓ[ѓUЃ[ЉЦђ”——pЋћ‚М‹““®
+  гѓ¦гѓјг‚¶гѓјй–ўж•°е€©з”Ёж™‚гЃ®жЊ™е‹•
   ^^^^^^^^^^^^^^^^^^^^^^^^
 
-  ѓ†Ѓ[ѓUЃ[‚Є“o^‚µ‚ЅЉЦђ” UsefFunc‚Й‘О‚µ‚ДЃADLL‚ж‚иЏ‘Ќћ‚Э—v‹Ѓ‚ЄЌs‚н‚к‚йЃB
+  гѓ¦гѓјг‚¶гѓјгЃЊз™»йЊІгЃ—гЃџй–ўж•° UsefFuncгЃ«еЇѕгЃ—гЃ¦гЂЃDLLг‚€г‚Љж›ёиѕјгЃїи¦Ѓж±‚гЃЊиЎЊг‚Џг‚Њг‚‹гЂ‚
   MERET	UserFunc_output(void *buf, unsigned long nLength );
 
-  —v‹Ѓ‚рЏ€—ќ‚·‚йЌЫ‚Й
-     ЃEvoid *buf ‚Й‚Н nLength ѓoѓCѓg•Є‚МѓfЃ[ѓ^‚ЄЉi”[‚і‚к‚Д‚ў‚й‚М‚Е 
-	   fwrite( buf, 1, nLength, fp );‚М—l‚Й‚µ‚ДЏ‘‚«Џo‚µreturn ME_NOERR‚Е”І‚Ї‚й.
-	   Џ‘‚«Џo‚µ‚ЙЋё”s‚µ‚ЅЋћ‚НЃAreturn ME_WRITEERROR;‚Е”І‚Ї‚й.
-  ѓGѓ“ѓRЃ[ѓhЏI—№‚М’К’m/Џ€—ќ‚НMC_OUTDEV_USERFUNC‚ЖMC_OUTDEV_USERFUNC_WITHVBRTAG‚Е€Щ‚И‚й
-	(MC_OUTDEV_USERFUNC‚МЏкЌ‡)
-	 ЃEЌЕЊг‚Й buf == NULL‚Е1“xЊД‚СЏo‚і‚к‚й. return ’l‚Н‰Ѕ‚Е‚а—З‚ўЃB
-	(MC_OUTDEV_USERFUNC_WITHVBRTAG‚МЏкЌ‡)
-	 ЃEbuf == NULL‚ЕЊД‚СЏo‚і‚к‚й.‚±‚МЌЫ‚Йѓtѓ@ѓCѓ‹‚Мђж“Є‚ЦѓVЃ[ѓN‚µЃA
-	   ѓtѓ@ѓCѓ‹‘S‘М‚МѓTѓCѓY‚р return‚М’l‚Ж‚·‚йЃBfilesize<=0‚МЋћ‚НЏI—№ЃB
-	   (Њл‚Б‚Д return ME_NOERR; ‚Е”І‚Ї‚И‚ў—l‚Й’Ќ€У!! )
-	 ЃEXING-VBRѓ^ѓOѓfЃ[ѓ^‚Є buf‚ЙЃAXINGVBRѓ^ѓO‚МѓTѓCѓY‚Є nLength‚ЙЉi”[‚і‚к‚ДЊД‚СЏo‚і‚к‚й‚М‚Е
-	   ѓtѓ@ѓCѓ‹ђж“Є‚©‚з‚»‚к‚рЏ‘‚«Ќћ‚Ю.
-	 ЃEЌЕЊг‚Й‚а‚¤€к“xbuf == NULL‚ЕЊД‚СЏo‚і‚к‚й. return ’l‚Н‰Ѕ‚Е‚а—З‚ўЃB
+  и¦Ѓж±‚г‚’е‡¦зђ†гЃ™г‚‹йљ›гЃ«
+     гѓ»void *buf гЃ«гЃЇ nLength гѓђг‚¤гѓ€е€†гЃ®гѓ‡гѓјг‚їгЃЊж јзґЌгЃ•г‚ЊгЃ¦гЃ„г‚‹гЃ®гЃ§ 
+	   fwrite( buf, 1, nLength, fp );гЃ®ж§гЃ«гЃ—гЃ¦ж›ёгЃЌе‡єгЃ—return ME_NOERRгЃ§жЉњгЃ‘г‚‹.
+	   ж›ёгЃЌе‡єгЃ—гЃ«е¤±ж•—гЃ—гЃџж™‚гЃЇгЂЃreturn ME_WRITEERROR;гЃ§жЉњгЃ‘г‚‹.
+  г‚Ёгѓіг‚ігѓјгѓ‰зµ‚дє†гЃ®йЂљзџҐ/е‡¦зђ†гЃЇMC_OUTDEV_USERFUNCгЃЁMC_OUTDEV_USERFUNC_WITHVBRTAGгЃ§з•°гЃЄг‚‹
+	(MC_OUTDEV_USERFUNCгЃ®е ґеђ€)
+	 гѓ»жњЂеѕЊгЃ« buf == NULLгЃ§1еє¦е‘јгЃіе‡єгЃ•г‚Њг‚‹. return еЂ¤гЃЇдЅ•гЃ§г‚‚и‰ЇгЃ„гЂ‚
+	(MC_OUTDEV_USERFUNC_WITHVBRTAGгЃ®е ґеђ€)
+	 гѓ»buf == NULLгЃ§е‘јгЃіе‡єгЃ•г‚Њг‚‹.гЃ“гЃ®йљ›гЃ«гѓ•г‚Ўг‚¤гѓ«гЃ®е…€й ­гЃёг‚·гѓјг‚ЇгЃ—гЂЃ
+	   гѓ•г‚Ўг‚¤гѓ«е…ЁдЅ“гЃ®г‚µг‚¤г‚єг‚’ returnгЃ®еЂ¤гЃЁгЃ™г‚‹гЂ‚filesize<=0гЃ®ж™‚гЃЇзµ‚дє†гЂ‚
+	   (иЄ¤гЃЈгЃ¦ return ME_NOERR; гЃ§жЉњгЃ‘гЃЄгЃ„ж§гЃ«жіЁж„Џ!! )
+	 гѓ»XING-VBRг‚їг‚°гѓ‡гѓјг‚їгЃЊ bufгЃ«гЂЃXINGVBRг‚їг‚°гЃ®г‚µг‚¤г‚єгЃЊ nLengthгЃ«ж јзґЌгЃ•г‚ЊгЃ¦е‘јгЃіе‡єгЃ•г‚Њг‚‹гЃ®гЃ§
+	   гѓ•г‚Ўг‚¤гѓ«е…€й ­гЃ‹г‚‰гЃќг‚Њг‚’ж›ёгЃЌиѕјг‚Ђ.
+	 гѓ»жњЂеѕЊгЃ«г‚‚гЃ†дёЂеє¦buf == NULLгЃ§е‘јгЃіе‡єгЃ•г‚Њг‚‹. return еЂ¤гЃЇдЅ•гЃ§г‚‚и‰ЇгЃ„гЂ‚
 */
 
 ///////////////////////////////////////////////////////////////////////////
-// mode of encoding ;ѓGѓ“ѓRЃ[ѓhѓ^ѓCѓv
+// mode of encoding ;г‚Ёгѓіг‚ігѓјгѓ‰г‚їг‚¤гѓ—
 #define		MC_ENCODEMODE			(3)
-// para1 mode;ѓ‚Ѓ[ѓhђЭ’и
-	#define		MC_MODE_MONO		(0)		// mono;ѓ‚ѓmѓ‰ѓ‹
-	#define		MC_MODE_STEREO		(1)		// stereo;ѓXѓeѓЊѓI
-	#define		MC_MODE_JOINT		(2)		// joint-stereo;ѓWѓ‡ѓCѓ“ѓg
-	#define		MC_MODE_MSSTEREO	(3)		// mid/side stereo;ѓ~ѓbѓhѓTѓCѓh
-	#define		MC_MODE_DUALCHANNEL	(4)		// dual channel;ѓfѓ…ѓAѓ‹ѓ`ѓѓѓlѓ‹
+// para1 mode;гѓўгѓјгѓ‰иЁ­е®љ
+	#define		MC_MODE_MONO		(0)		// mono;гѓўгѓЋгѓ©гѓ«
+	#define		MC_MODE_STEREO		(1)		// stereo;г‚№гѓ†гѓ¬г‚Є
+	#define		MC_MODE_JOINT		(2)		// joint-stereo;г‚ёгѓ§г‚¤гѓігѓ€
+	#define		MC_MODE_MSSTEREO	(3)		// mid/side stereo;гѓџгѓѓгѓ‰г‚µг‚¤гѓ‰
+	#define		MC_MODE_DUALCHANNEL	(4)		// dual channel;гѓ‡гѓҐг‚ўгѓ«гѓЃгѓЈгѓЌгѓ«
 
 ///////////////////////////////////////////////////////////////////////////
-// bitrate;ѓrѓbѓgѓЊЃ[ѓgђЭ’и
+// bitrate;гѓ“гѓѓгѓ€гѓ¬гѓјгѓ€иЁ­е®љ
 #define		MC_BITRATE				(4)
-// para1 bitrate;ѓrѓbѓgѓЊЃ[ѓg ‘¦’lЋw’и
+// para1 bitrate;гѓ“гѓѓгѓ€гѓ¬гѓјгѓ€ еЌіеЂ¤жЊ‡е®љ
 
 
 ///////////////////////////////////////////////////////////////////////////
-// frequency of input file (force);“ь—Н‚Е—p‚ў‚йѓTѓ“ѓvѓ‹Ћь”gђ”‚М‹­ђ§Ћw’и
+// frequency of input file (force);е…ҐеЉ›гЃ§з”ЁгЃ„г‚‹г‚µгѓігѓ—гѓ«е‘Ёжіўж•°гЃ®еј·е€¶жЊ‡е®љ
 #define		MC_INPFREQ				(5)
-// para1 frequency;“ьЏo—Н‚Е—p‚ў‚йѓfЃ[ѓ^
+// para1 frequency;е…Ґе‡єеЉ›гЃ§з”ЁгЃ„г‚‹гѓ‡гѓјг‚ї
 
 ///////////////////////////////////////////////////////////////////////////
-// frequency of output mp3 (force);Џo—Н‚Е—p‚ў‚йѓTѓ“ѓvѓ‹Ћь”gђ”‚М‹­ђ§Ћw’и
+// frequency of output mp3 (force);е‡єеЉ›гЃ§з”ЁгЃ„г‚‹г‚µгѓігѓ—гѓ«е‘Ёжіўж•°гЃ®еј·е€¶жЊ‡е®љ
 #define		MC_OUTFREQ				(6)
-// para1 frequency;“ьЏo—Н‚Е—p‚ў‚йѓfЃ[ѓ^
+// para1 frequency;е…Ґе‡єеЉ›гЃ§з”ЁгЃ„г‚‹гѓ‡гѓјг‚ї
 
 ///////////////////////////////////////////////////////////////////////////
-// size ofheader if you ignore WAV-header (for example cda);ѓGѓ“ѓRЃ[ѓhЉJЋn€К’u‚М‹­ђ§Ћw’и(ѓwѓbѓ_‚р–іЋ‹‚·‚йЋћ)
+// size ofheader if you ignore WAV-header (for example cda);г‚Ёгѓіг‚ігѓјгѓ‰й–‹е§‹дЅЌзЅ®гЃ®еј·е€¶жЊ‡е®љ(гѓгѓѓгѓЂг‚’з„Ўи¦–гЃ™г‚‹ж™‚)
 #define		MC_STARTOFFSET			(7)
 
 ///////////////////////////////////////////////////////////////////////////
-// psycho-acoustics ON/OFF;ђS—ќ‰рђН ON/OFF
+// psycho-acoustics ON/OFF;еїѓзђ†и§Јжћђ ON/OFF
 #define		MC_USEPSY				(8)
 // PARA1 boolean(TRUE/FALSE)
 
 ///////////////////////////////////////////////////////////////////////////
-// 16kHz low-pass filter ON/OFF;16KHz’б‘С€жѓtѓBѓ‹ѓ^ ON/OFF
+// 16kHz low-pass filter ON/OFF;16KHzдЅЋеёЇеџџгѓ•г‚Јгѓ«г‚ї ON/OFF
 #define		MC_USELPF16				(9)
 // PARA1 boolean(TRUE/FALSE)
 
 ///////////////////////////////////////////////////////////////////////////
-// use special UNIT, para1:boolean; ѓ†ѓjѓbѓgЋw’и para1:BOOL’l
+// use special UNIT, para1:boolean; гѓ¦гѓ‹гѓѓгѓ€жЊ‡е®љ para1:BOOLеЂ¤
 #define		MC_USEMMX				(10)	// MMX
 #define		MC_USE3DNOW				(11)	// 3DNow!
 #define		MC_USESSE				(12)	// SSE(KNI)
-#define		MC_USEKNI				MC_USESSE	// ЊЯЊг2‚Ж‚МЊЭЉ·ђ«
+#define		MC_USEKNI				MC_USESSE	// еЌ€еѕЊ2гЃЁгЃ®дє’жЏ›жЂ§
 #define		MC_USEE3DNOW			(13)	// Enhanced 3D Now!
 #define		MC_USECMOV				(38)	// CMOV
 #define		MC_USEEMMX				(39)	// EMMX
@@ -168,21 +168,21 @@ typedef	MERET	(*MPGE_USERFUNC)(void *buf, unsigned long nLength );
 #define		MC_USESPC2				(15)	// special switch for debug
 
 ///////////////////////////////////////////////////////////////////////////
-// addition of TAG; ѓtѓ@ѓCѓ‹ѓ^ѓOЏо•с•t‰Б
+// addition of TAG; гѓ•г‚Ўг‚¤гѓ«г‚їг‚°жѓ…е ±д»еЉ 
 #define		MC_ADDTAG				(16)
-// dwPara1  length of TAG;ѓ^ѓO’·  
-// dwPara2  pointer to TAG;ѓ^ѓOѓfЃ[ѓ^‚Мѓ|ѓCѓ“ѓ^
+// dwPara1  length of TAG;г‚їг‚°й•·  
+// dwPara2  pointer to TAG;г‚їг‚°гѓ‡гѓјг‚їгЃ®гѓќг‚¤гѓіг‚ї
 
 ///////////////////////////////////////////////////////////////////////////
-// emphasis;ѓGѓ“ѓtѓ@ѓVѓXѓ^ѓCѓv‚МђЭ’и
+// emphasis;г‚Ёгѓігѓ•г‚Ўг‚·г‚№г‚їг‚¤гѓ—гЃ®иЁ­е®љ
 #define		MC_EMPHASIS				(17)	
-// para1 type of emphasis;ѓGѓ“ѓtѓ@ѓVѓXѓ^ѓCѓv‚МђЭ’и
-	#define		MC_EMP_NONE			(0)		// no empahsis;ѓGѓ“ѓtѓ@ѓVѓX‚И‚µ(dflt)
-	#define		MC_EMP_5015MS		(1)		// 50/15ms    ;ѓGѓ“ѓtѓ@ѓVѓX50/15ms
-	#define		MC_EMP_CCITT		(3)		// CCITT      ;ѓGѓ“ѓtѓ@ѓVѓXCCITT
+// para1 type of emphasis;г‚Ёгѓігѓ•г‚Ўг‚·г‚№г‚їг‚¤гѓ—гЃ®иЁ­е®љ
+	#define		MC_EMP_NONE			(0)		// no empahsis;г‚Ёгѓігѓ•г‚Ўг‚·г‚№гЃЄгЃ—(dflt)
+	#define		MC_EMP_5015MS		(1)		// 50/15ms    ;г‚Ёгѓігѓ•г‚Ўг‚·г‚№50/15ms
+	#define		MC_EMP_CCITT		(3)		// CCITT      ;г‚Ёгѓігѓ•г‚Ўг‚·г‚№CCITT
 
 ///////////////////////////////////////////////////////////////////////////
-// use VBR;VBRѓ^ѓCѓv‚МђЭ’и
+// use VBR;VBRг‚їг‚¤гѓ—гЃ®иЁ­е®љ
 #define		MC_VBR					(18)
 
 ///////////////////////////////////////////////////////////////////////////
@@ -190,8 +190,8 @@ typedef	MERET	(*MPGE_USERFUNC)(void *buf, unsigned long nLength );
 #define		MC_CPU					(19)
 
 ///////////////////////////////////////////////////////////////////////////
-// for RAW-PCM; €И‰є4‚В‚НRAW-PCM‚МђЭ’и‚М‚Ѕ‚Я
-// byte swapping for 16bitPCM; PCM“ь—НЋћ‚Мlow, high bit •ПЉ·
+// for RAW-PCM; д»Ґдё‹4гЃ¤гЃЇRAW-PCMгЃ®иЁ­е®љгЃ®гЃџг‚Ѓ
+// byte swapping for 16bitPCM; PCMе…ҐеЉ›ж™‚гЃ®low, high bit е¤‰жЏ›
 #define		MC_BYTE_SWAP			(20)
 
 ///////////////////////////////////////////////////////////////////////////
@@ -243,21 +243,21 @@ typedef	MERET	(*MPGE_USERFUNC)(void *buf, unsigned long nLength );
 #define		MC_OUTPUTDIR			(29)
 
 ///////////////////////////////////////////////////////////////////////////
-// VBR‚МЌЕ’б/ЌЕЌ‚ѓrѓbѓgѓЊЃ[ѓg‚МђЭ’и
+// VBRгЃ®жњЂдЅЋ/жњЂй«гѓ“гѓѓгѓ€гѓ¬гѓјгѓ€гЃ®иЁ­е®љ
 #define		MC_VBRBITRATE			(30)
-// para1 ЌЕ’бѓrѓbѓgѓЊЃ[ѓg (kbps)
-// para2 ЌЕЌ‚ѓrѓbѓgѓЊЃ[ѓg (kbps)
+// para1 жњЂдЅЋгѓ“гѓѓгѓ€гѓ¬гѓјгѓ€ (kbps)
+// para2 жњЂй«гѓ“гѓѓгѓ€гѓ¬гѓјгѓ€ (kbps)
 
 
 ///////////////////////////////////////////////////////////////////////////
-// Љg’ЈѓtѓBѓ‹ѓ^‚МЋg—p LPF1, LPF2
+// ж‹Ўејµгѓ•г‚Јгѓ«г‚їгЃ®дЅїз”Ё LPF1, LPF2
 #define		MC_ENHANCEDFILTER		(31)
 // para1 LPF1 (0-100)	, dflt=auto setting by outfreq
 // para2 LPF2 (0-100)	, dflt=auto setting by outfreq
 
 
 ///////////////////////////////////////////////////////////////////////////
-// Joint-stereo‚Й‚Ё‚Ї‚йЃAѓXѓeѓЊѓI/MSѓXѓeѓЊѓI‚МђШ‚и‘Ц‚¦‚Ми‡’l
+// Joint-stereoгЃ«гЃЉгЃ‘г‚‹гЂЃг‚№гѓ†гѓ¬г‚Є/MSг‚№гѓ†гѓ¬г‚ЄгЃ®е€‡г‚Љж›їгЃ€гЃ®й–ѕеЂ¤
 #define		MC_MSTHRESHOLD	 		(32)
 // para1 threshold  (0-100)	, dflt=auto setting by outfreq
 // para2 mspower    (0-100) , dflt=auto setting by outfreq
@@ -268,22 +268,22 @@ typedef	MERET	(*MPGE_USERFUNC)(void *buf, unsigned long nLength );
 // t_lang defined in message.h
 
 ///////////////////////////////////////////////////////////////////////////
-// “З‚ЭЌћ‚ЭѓfЃ[ѓ^‚МЌЕ‘еѓTѓCѓYђЭ’и / max data length ( byte )
+// иЄ­гЃїиѕјгЃїгѓ‡гѓјг‚їгЃ®жњЂе¤§г‚µг‚¤г‚єиЁ­е®љ / max data length ( byte )
 #define		MC_MAXFILELENGTH		(34)
 // para1 maxfilesize (PCM body length, not include wave heaher size.)
 //       (0-0xfffffffd)		// as byte
 		#define		MC_MAXFLEN_IGNORE		(ULONG_MAX)		// DEFAULT
-		#define		MC_MAXFLEN_WAVEHEADER	(ULONG_MAX-1)	// WAVEѓwѓbѓ_‚М’l‚рЋg—p
+		#define		MC_MAXFLEN_WAVEHEADER	(ULONG_MAX-1)	// WAVEгѓгѓѓгѓЂгЃ®еЂ¤г‚’дЅїз”Ё
 
 
 ///////////////////////////////////////////////////////////////////////////
-// Џo—НѓXѓgѓЉЃ[ѓЂ‚Мѓoѓbѓtѓ@ѓЉѓ“ѓOѓtѓ‰ѓO
+// е‡єеЉ›г‚№гѓ€гѓЄгѓјгѓ гЃ®гѓђгѓѓгѓ•г‚ЎгѓЄгѓіг‚°гѓ•гѓ©г‚°
 #define		MC_OUTSTREAM_BUFFERD	(35)
 // para1  enable(=1) or disable(=0), dflt=enable
 		#define		MC_OBUFFER_ENABLE		1				// DEFAULT
 		#define		MC_OBUFFER_DISABLE		0
 
-// €И‰є‚Н‚Х‚їЊЯЊгђVђЭ
+// д»Ґдё‹гЃЇгЃ·гЃЎеЌ€еѕЊж–°иЁ­
 
 ///////////////////////////////////////////////////////////////////////////
 // quality (same as lame-option `-q')
@@ -296,24 +296,24 @@ typedef	MERET	(*MPGE_USERFUNC)(void *buf, unsigned long nLength );
 
 
 ///////////////////////////////////////////////////////////////////////////
-// use ABR;ABRѓ^ѓCѓv‚МђЭ’и
+// use ABR;ABRг‚їг‚¤гѓ—гЃ®иЁ­е®љ
 #define		MC_ABR					(37)
 
 ///////////////////////////////////////////////////////////////////////////
-// ‘ќђЭ‚і‚к‚ЅCPUѓ^ѓCѓv‚МђЭ’и
+// еў—иЁ­гЃ•г‚ЊгЃџCPUг‚їг‚¤гѓ—гЃ®иЁ­е®љ
 // defined in `use special UNIT'
-//#define		MC_USECMOV				(38)	// CMOV Џг‚Е’и‹`ЌП‚Э
-//#define		MC_USEEMMX				(39)	// EMMX Џг‚Е’и‹`ЌП‚Э
-//#define		MC_USESSE2				(40)	// SSE2 Џг‚Е’и‹`ЌП‚Э
+//#define		MC_USECMOV				(38)	// CMOV дёЉгЃ§е®љзѕ©жё€гЃї
+//#define		MC_USEEMMX				(39)	// EMMX дёЉгЃ§е®љзѕ©жё€гЃї
+//#define		MC_USESSE2				(40)	// SSE2 дёЉгЃ§е®љзѕ©жё€гЃї
 
 ///////////////////////////////////////////////////////////////////////////
-// LAMEѓ^ѓO‚МЏo—НђЭ’и (•№‚№‚ДVBRѓ^ѓO‚МЏ‘‚«Џo‚µ‚р—LЊш‚Й‚µ‚Д‚­‚ѕ‚і‚ў)
+// LAMEг‚їг‚°гЃ®е‡єеЉ›иЁ­е®љ (дЅµгЃ›гЃ¦VBRг‚їг‚°гЃ®ж›ёгЃЌе‡єгЃ—г‚’жњ‰еЉ№гЃ«гЃ—гЃ¦гЃЏгЃ гЃ•гЃ„)
 #define		MC_WRITELAMETAG					(41)
 /// para1: 0 = disable (default)
 ///        1 = enable
 
 ///////////////////////////////////////////////////////////////////////////
-// VBRѓ^ѓO‚МЏo—НђЭ’и (CBR‚Е‚И‚Ё‚©‚Вlametag–іЊшЋћ‚НђЭ’и“а—e‚ЙЉЦЊW‚И‚­–іЊш‚Е‚·)
+// VBRг‚їг‚°гЃ®е‡єеЉ›иЁ­е®љ (CBRгЃ§гЃЄгЃЉгЃ‹гЃ¤lametagз„ЎеЉ№ж™‚гЃЇиЁ­е®ље†…е®№гЃ«й–ўдї‚гЃЄгЃЏз„ЎеЉ№гЃ§гЃ™)
 #define		MC_WRITEVBRTAG					(42)
 /// para1: 0 = disable 
 ///        1 = enable (default)
@@ -340,7 +340,7 @@ MERET	EXPORT	MPGE_endCoder(void);
 MERET	EXPORT	MPGE_getUnitStates( unsigned long *unit );
 MERET	EXPORT	MPGE_processTrack(void);
 
-// This function is effective for gogo.dll;‚±‚Мѓtѓ@ѓ“ѓNѓVѓ‡ѓ“‚НDLLѓoЃ[ѓWѓ‡ѓ“‚М‚Э—LЊш
+// This function is effective for gogo.dll;гЃ“гЃ®гѓ•г‚Ўгѓіг‚Їг‚·гѓ§гѓігЃЇDLLгѓђгѓјг‚ёгѓ§гѓігЃ®гЃїжњ‰еЉ№
 MERET	EXPORT	MPGE_getVersion( unsigned long *vercode,  char *verstring );
 #define MGV_BUFLENGTH 260
 // vercode = 0x125 ->  version 1.25
@@ -351,18 +351,18 @@ MERET	EXPORT	MPGE_getVersion( unsigned long *vercode,  char *verstring );
 // for getting configuration
 ////////////////////////////////////////////////////////////////////////////
 
-#define		MG_INPUTFILE			(1)		// name of input file ;“ь—Нѓtѓ@ѓCѓ‹–јЋж“ѕ
-#define		MG_OUTPUTFILE			(2)		// name of output file;Џo—Нѓtѓ@ѓCѓ‹–јЋж“ѕ
-#define		MG_ENCODEMODE			(3)		// type of encoding   ;ѓGѓ“ѓRЃ[ѓhѓ‚Ѓ[ѓh
-#define		MG_BITRATE				(4)		// bitrate            ;ѓrѓbѓgѓЊЃ[ѓg
-#define		MG_INPFREQ				(5)		// input frequency    ;“ь—НЋь”gђ”
-#define		MG_OUTFREQ				(6)		// output frequency   ;Џo—НЋь”gђ”
-#define		MG_STARTOFFSET			(7)		// offset of input PCM;ѓXѓ^Ѓ[ѓgѓIѓtѓZѓbѓg
-#define		MG_USEPSY				(8)		// psycho-acoustics   ;ђS—ќ‰рђН‚рЋg—p‚·‚й/‚µ‚И‚ў
+#define		MG_INPUTFILE			(1)		// name of input file ;е…ҐеЉ›гѓ•г‚Ўг‚¤гѓ«еђЌеЏ–еѕ—
+#define		MG_OUTPUTFILE			(2)		// name of output file;е‡єеЉ›гѓ•г‚Ўг‚¤гѓ«еђЌеЏ–еѕ—
+#define		MG_ENCODEMODE			(3)		// type of encoding   ;г‚Ёгѓіг‚ігѓјгѓ‰гѓўгѓјгѓ‰
+#define		MG_BITRATE				(4)		// bitrate            ;гѓ“гѓѓгѓ€гѓ¬гѓјгѓ€
+#define		MG_INPFREQ				(5)		// input frequency    ;е…ҐеЉ›е‘Ёжіўж•°
+#define		MG_OUTFREQ				(6)		// output frequency   ;е‡єеЉ›е‘Ёжіўж•°
+#define		MG_STARTOFFSET			(7)		// offset of input PCM;г‚№г‚їгѓјгѓ€г‚Єгѓ•г‚»гѓѓгѓ€
+#define		MG_USEPSY				(8)		// psycho-acoustics   ;еїѓзђ†и§Јжћђг‚’дЅїз”ЁгЃ™г‚‹/гЃ—гЃЄгЃ„
 #define		MG_USEMMX				(9)		// MMX
 #define		MG_USE3DNOW				(10)	// 3DNow!
 #define		MG_USESSE				(11)	// SSE(KNI)
-#define		MG_USEKNI				MG_USESSE	// ЊЯЊг2‚Ж‚МЊЭЉ·ђ«
+#define		MG_USEKNI				MG_USESSE	// еЌ€еѕЊ2гЃЁгЃ®дє’жЏ›жЂ§
 #define		MG_USEE3DNOW			(12)	// Enhanced 3DNow!
 #define		MG_USECMOV				(20)	// CMOV
 #define		MG_USEEMMX				(21)	// EMMX
@@ -372,13 +372,13 @@ MERET	EXPORT	MPGE_getVersion( unsigned long *vercode,  char *verstring );
 #define		MG_USESPC1				(13)	// special switch for debug
 #define		MG_USESPC2				(14)	// special switch for debug
 #define		MG_COUNT_FRAME			(15)	// amount of frame
-#define		MG_NUM_OF_SAMPLES		(16)	// number of sample for 1 frame;1ѓtѓЊЃ[ѓЂ‚ ‚Ѕ‚и‚МѓTѓ“ѓvѓ‹ђ”
+#define		MG_NUM_OF_SAMPLES		(16)	// number of sample for 1 frame;1гѓ•гѓ¬гѓјгѓ гЃ‚гЃџг‚ЉгЃ®г‚µгѓігѓ—гѓ«ж•°
 #define		MG_MPEG_VERSION			(17)	// MPEG VERSION
 #define		MG_READTHREAD_PRIORITY	(18)	// thread priority to read for BeOS
 #define		MG_FRAME				(19)	// frame number
-//#define		MG_USECMOV				(20)	// CMOV Џг‚Е’и‹`ЌП‚Э
-//#define		MG_USEEMMX				(21)	// EMMX Џг‚Е’и‹`ЌП‚Э
-//#define		MG_USESSE2				(22)	// SSE2 Џг‚Е’и‹`ЌП‚Э
+//#define		MG_USECMOV				(20)	// CMOV дёЉгЃ§е®љзѕ©жё€гЃї
+//#define		MG_USEEMMX				(21)	// EMMX дёЉгЃ§е®љзѕ©жё€гЃї
+//#define		MG_USESSE2				(22)	// SSE2 дёЉгЃ§е®љзѕ©жё€гЃї
 
 
 

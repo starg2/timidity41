@@ -1,7 +1,7 @@
 
 #define _WIN32_IE 0x500
 #define _CRT_SECURE_NO_WARNINGS
-#pragma warning(disable:4530) // ƒAƒ“ƒƒCƒ“ƒh ƒZƒ}ƒ“ƒeƒBƒNƒX‚ª–³Œø
+#pragma warning(disable:4530) // ã‚¢ãƒ³ãƒ¯ã‚¤ãƒ³ãƒ‰ ã‚»ãƒãƒ³ãƒ†ã‚£ã‚¯ã‚¹ãŒç„¡åŠ¹
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>

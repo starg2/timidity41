@@ -33,8 +33,8 @@
 ///r
 typedef struct _Sample {
   splen_t loop_start, loop_end, data_length;
-  int32 sample_rate, root_freq; /* root_freqはroot_key+tuneの機能 */
-  int8 low_key, high_key, root_key; /* root_keyは表示用 */
+  int32 sample_rate, root_freq; /* root_freq縺ｯroot_key+tune縺ｮ讖溯�ｽ */
+  int8 low_key, high_key, root_key; /* root_key縺ｯ陦ｨ遉ｺ逕ｨ */
   FLOAT_T tune;
   int8 note_to_use;
   FLOAT_T volume, cfg_amp;

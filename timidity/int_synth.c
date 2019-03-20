@@ -56,10 +56,10 @@
 #endif
 
 /*
-timidity‚Ì“®ì‚Ì‚½‚ßSampleİ’è‚Æ‰¹Fİ’è‚ğƒ[ƒh
-Sampleİ’è‚Í extract_hoge_file(file, preset_number)‚Åƒ[ƒh
-‰¹Fİ’è‚Íextract‚Åini‚©‚çƒ[ƒh
-SCC/MMS‚Í•K—v‚È•ª‚¾‚¯ƒ[ƒh SCC_DATA‚ÍSCC/MMS‹¤’Ê‚È‚Ì‚Å‘Sƒ[ƒh LA_DATA‚ÍMMS‚Ìextract‰‰ñ‚Åƒ[ƒh
+timidityã®å‹•ä½œã®ãŸã‚Sampleè¨­å®šã¨éŸ³è‰²è¨­å®šã‚’ãƒ­ãƒ¼ãƒ‰
+Sampleè¨­å®šã¯ extract_hoge_file(file, preset_number)ã§ãƒ­ãƒ¼ãƒ‰
+éŸ³è‰²è¨­å®šã¯extractã§iniã‹ã‚‰ãƒ­ãƒ¼ãƒ‰
+SCC/MMSã¯å¿…è¦ãªåˆ†ã ã‘ãƒ­ãƒ¼ãƒ‰ SCC_DATAã¯SCC/MMSå…±é€šãªã®ã§å…¨ãƒ­ãƒ¼ãƒ‰ LA_DATAã¯MMSã®extractåˆå›ã§ãƒ­ãƒ¼ãƒ‰
 */
 
 int32 opt_int_synth_sine = 0;
@@ -209,7 +209,7 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	int32 *ofsp1, *ofsp2;
 #endif
 	
-#if (USE_X86_EXT_INTRIN >= 3) && defined(IS_RS_DATA_T_FLOAT) // double‚àg‚¦‚é‚¯‚Ç‚â‚â’x‚¢‚Ì‚Åfloat‚Ì‚İ
+#if (USE_X86_EXT_INTRIN >= 3) && defined(IS_RS_DATA_T_FLOAT) // doubleã‚‚ä½¿ãˆã‚‹ã‘ã©ã‚„ã‚„é…ã„ã®ã§floatã®ã¿
 	{ // offset:int32*4, resamp:float*4
 	const int32 is_rs_count_mask = ~(0x1);	
 	const int32 count2 = count & is_rs_count_mask;	
@@ -220,11 +220,11 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	const __m128 vmout = _mm_set1_ps(is_output_level);
 
 #if (USE_X86_EXT_INTRIN >= 8)
-	// Å“K‰»ƒŒ[ƒg = (ƒ[ƒhƒf[ƒ^” - ‰ŠúƒIƒtƒZƒbƒg¬”•”‚ÌÅ‘å’l(1–¢–) - •âŠÔƒ|ƒCƒ“ƒg”(linear‚Í1) ) / ƒIƒtƒZƒbƒgƒf[ƒ^”
-	// ƒ[ƒhƒf[ƒ^”‚Í_mm_permutevar_ps‚Ì•ÏŠ·Œã‚Ì(float)‚Ì4ƒZƒbƒg‚É‚È‚é
-	const int32 opt_inc1 = (1 << FRACTION_BITS) * (4 - 1 - 1) / 4; // (float*4) * 1ƒZƒbƒg
+	// æœ€é©åŒ–ãƒ¬ãƒ¼ãƒˆ = (ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•° - åˆæœŸã‚ªãƒ•ã‚»ãƒƒãƒˆå°æ•°éƒ¨ã®æœ€å¤§å€¤(1æœªæº€) - è£œé–“ãƒã‚¤ãƒ³ãƒˆæ•°(linearã¯1) ) / ã‚ªãƒ•ã‚»ãƒƒãƒˆãƒ‡ãƒ¼ã‚¿æ•°
+	// ãƒ­ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿æ•°ã¯_mm_permutevar_psã®å¤‰æ›å¾Œã®(float)ã®4ã‚»ãƒƒãƒˆã«ãªã‚‹
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (4 - 1 - 1) / 4; // (float*4) * 1ã‚»ãƒƒãƒˆ
 	const __m128i vvar1 = _mm_set1_epi32(1);
-	if(is_rs_increment < opt_inc1){	// 1ƒZƒbƒg	
+	if(is_rs_increment < opt_inc1){	// 1ã‚»ãƒƒãƒˆ	
 	for(; i < count2; i += 2) {
 	__m128 vfp, vv1, vv2, vec_out, tmp1;
 	__m128i vofsi1, vofsi2, vofsf, vofsib, vofsub1, vofsub2;
@@ -236,9 +236,9 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vfp = _mm_mul_ps(_mm_cvtepi32_ps(vofsf), vec_divf); // int32 to float // calc fp
 	ofs0 = _mm_cvtsi128_si32(vofsi1);
 #if defined(IS_RS_DATA_T_DOUBLE)
-	tmp1 = _mm256_cvtpd_ps(_mm256_loadu_pd(&rs_buf[ofs0])); // ƒ[ƒh
+	tmp1 = _mm256_cvtpd_ps(_mm256_loadu_pd(&rs_buf[ofs0])); // ãƒ­ãƒ¼ãƒ‰
 #else // defined(IS_RS_DATA_T_FLOAT)
-	tmp1 = _mm_loadu_ps(&rs_buf[ofs0]); // ƒ[ƒh
+	tmp1 = _mm_loadu_ps(&rs_buf[ofs0]); // ãƒ­ãƒ¼ãƒ‰
 #endif // !(defined(_MSC_VER) || defined(MSC_VER))		
 	vofsib = _mm_shuffle_epi32(vofsi1, 0x0); 
 	vofsub1 = _mm_sub_epi32(vofsi1, vofsib); 
@@ -270,20 +270,20 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vofsf = _mm_and_si128(vofs, vfmask);
 	vfp = _mm_mul_ps(_mm_cvtepi32_ps(vofsf), vec_divf); // int32 to float // calc fp
 #if defined(IS_RS_DATA_T_DOUBLE)
-	tmp1 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)])); // ofsi‚Æofsi+1‚ğƒ[ƒh
-	tmp2 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)])); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)])); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp4 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)])); // ŸüƒTƒ“ƒvƒ‹‚à	
+	tmp1 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)])); // ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	tmp2 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)])); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)])); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp4 = _mm_cvtpd_ps(_mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)])); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚	
 	tmp1 = _mm_shuffle_ps(tmp1, tmp2, 0x44);
 	tmp3 = _mm_shuffle_ps(tmp3, tmp4, 0x44);
 #else // defined(IS_RS_DATA_T_FLOAT)
-	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
-	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // H64bit ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // L64bit ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // H64bit ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
+	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // H64bit æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // L64bit æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // H64bit æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
 #endif
-	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsi‚Ív1‚É
-	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1‚Ív2‚ÉˆÚ“®
+	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsiã¯v1ã«
+	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1ã¯v2ã«ç§»å‹•
 	vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);	
 	// down sampling
 	vec_out = _mm_add_ps(_mm_shuffle_ps(vec_out, vec_out, 0xD8), _mm_shuffle_ps(vec_out, vec_out, 0x8D)); // [0+1,2+3,2+0,3+1]=[0,2,1,3]+[1,3,0,2]
@@ -318,14 +318,14 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vofsf = _mm_and_si128(vofs, vfmask);
 	vfp1 = _mm_mul_pd(_mm_cvtepi32_pd(vofsf), vec_divf); // int32 to double // calc fp
 	vfp2 = _mm_mul_pd(_mm_cvtepi32_pd(_mm_shuffle_epi32(vofsf, 0x4E)), vec_divf); // int32 to double // calc fp
-	tmp1 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // ofsi‚Æofsi+1‚ğƒ[ƒh
-	tmp2 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp4 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // ŸüƒTƒ“ƒvƒ‹‚à	
-	vv11 = _mm_shuffle_pd(tmp1, tmp2, 0x00); // v1[0,1] // ofsi‚Ív1‚É
-	vv21 = _mm_shuffle_pd(tmp1, tmp2, 0x03); // v2[0,1] // ofsi+1‚Ív2‚ÉˆÚ“®
-	vv12 = _mm_shuffle_pd(tmp3, tmp4, 0x00); // v1[2,3] // ofsi‚Ív1‚É
-	vv22 = _mm_shuffle_pd(tmp3, tmp4, 0x03); // v2[2,3] // ofsi+1‚Ív2‚ÉˆÚ“®	
+	tmp1 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	tmp2 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp4 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚	
+	vv11 = _mm_shuffle_pd(tmp1, tmp2, 0x00); // v1[0,1] // ofsiã¯v1ã«
+	vv21 = _mm_shuffle_pd(tmp1, tmp2, 0x03); // v2[0,1] // ofsi+1ã¯v2ã«ç§»å‹•
+	vv12 = _mm_shuffle_pd(tmp3, tmp4, 0x00); // v1[2,3] // ofsiã¯v1ã«
+	vv22 = _mm_shuffle_pd(tmp3, tmp4, 0x03); // v2[2,3] // ofsi+1ã¯v2ã«ç§»å‹•	
 	vec_out1 = MM_FMA_PD(_mm_sub_pd(vv21, vv11), vfp1, vv11); // out[0,1]
 	vec_out2 = MM_FMA_PD(_mm_sub_pd(vv22, vv12), vfp2, vv12); // out[2,3]	
 	// down sampling
@@ -371,19 +371,19 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	__m128 tmp1, tmp2, tmp3, tmp4;
 	ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 	tmpfp[0] = (float)(rs_ofs & FRACTION_MASK);
-	tmp1 = _mm_loadu_ps(&rs_buf[ofsi]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
-	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
+	tmp1 = _mm_loadu_ps(&rs_buf[ofsi]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
 	ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 	tmpfp[1] = (float)(rs_ofs & FRACTION_MASK);
-	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // H64bit ofsi‚Æofsi+1‚ğƒ[ƒh
+	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // H64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
 	ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 	tmpfp[2] = (float)(rs_ofs & FRACTION_MASK);
-	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
+	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
 	ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 	tmpfp[3] = (float)(rs_ofs & FRACTION_MASK);
-	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // H64bit ofsi‚Æofsi+1‚ğƒ[ƒh
-	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsi‚Ív1‚É
-	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1‚Ív2‚ÉˆÚ“®	
+	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // H64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsiã¯v1ã«
+	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1ã¯v2ã«ç§»å‹•	
 	vfp = _mm_load_ps(tmpfp);
 #endif
 	vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), _mm_mul_ps(vfp, vec_divf), vv1);
@@ -670,12 +670,12 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vofsi = _mm_srli_epi32(vofs, FRACTION_BITS);
 	vosfsf = _mm_and_si128(vofs, vfmask);
 	vfp = _mm_mul_ps(_mm_cvtepi32_ps(vosfsf), vec_divf); // int32 to float // calc fp
-	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi.0)]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
-	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // H64bit ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // L64bit ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // H64bit ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsi‚Ív1‚É
-	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1‚Ív2‚ÉˆÚ“®
+	tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi.0)]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // H64bit æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // L64bit æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // H64bit æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsiã¯v1ã«
+	vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1ã¯v2ã«ç§»å‹•
 	vec_out = MM_FMA_PS(_mm_sub_ps(vv2, vv1), vfp, vv1);			
 #if	defined(DATA_T_DOUBLE)
 	_mm_storeu_pd(&is_buf[i], _mm_cvtps_pd(vec_out));
@@ -708,20 +708,20 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 	vfp2 = _mm_mul_pd(_mm_cvtepi32_pd(_mm_shuffle_epi32(vosfsf, 0x4E)), vec_divf); // int32 to double // calc fp
 #if !(defined(_MSC_VER) || defined(MSC_VER))
 	ofsp1 = (int32 *)vofsi;
-	tmp1 = _mm_loadu_pd(&rs_buf[ofsp1[0]]); // ofsi‚Æofsi+1‚ğƒ[ƒh
-	tmp2 = _mm_loadu_pd(&rs_buf[ofsp1[1]]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_loadu_pd(&rs_buf[ofsp1[2]]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp4 = _mm_loadu_pd(&rs_buf[ofsp1[3]]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶	
+	tmp1 = _mm_loadu_pd(&rs_buf[ofsp1[0]]); // ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	tmp2 = _mm_loadu_pd(&rs_buf[ofsp1[1]]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_loadu_pd(&rs_buf[ofsp1[2]]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp4 = _mm_loadu_pd(&rs_buf[ofsp1[3]]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜	
 #else
-	tmp1 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // ofsi‚Æofsi+1‚ğƒ[ƒh
-	tmp2 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp3 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // ŸüƒTƒ“ƒvƒ‹‚à“¯‚¶
-	tmp4 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // ŸüƒTƒ“ƒvƒ‹‚à	
+	tmp1 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,0)]); // ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+	tmp2 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,1)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp3 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,2)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚åŒã˜
+	tmp4 = _mm_loadu_pd(&rs_buf[MM_EXTRACT_I32(vofsi,3)]); // æ¬¡å‘¨ã‚µãƒ³ãƒ—ãƒ«ã‚‚	
 #endif // !(defined(_MSC_VER) || defined(MSC_VER))	
-	vv11 = _mm_shuffle_pd(tmp1, tmp2, 0x00); // v1[0,1] // ofsi‚Ív1‚É
-	vv21 = _mm_shuffle_pd(tmp1, tmp2, 0x03); // v2[0,1] // ofsi+1‚Ív2‚ÉˆÚ“®
-	vv12 = _mm_shuffle_pd(tmp3, tmp4, 0x00); // v1[2,3] // ofsi‚Ív1‚É
-	vv22 = _mm_shuffle_pd(tmp3, tmp4, 0x03); // v2[2,3] // ofsi+1‚Ív2‚ÉˆÚ“®	
+	vv11 = _mm_shuffle_pd(tmp1, tmp2, 0x00); // v1[0,1] // ofsiã¯v1ã«
+	vv21 = _mm_shuffle_pd(tmp1, tmp2, 0x03); // v2[0,1] // ofsi+1ã¯v2ã«ç§»å‹•
+	vv12 = _mm_shuffle_pd(tmp3, tmp4, 0x00); // v1[2,3] // ofsiã¯v1ã«
+	vv22 = _mm_shuffle_pd(tmp3, tmp4, 0x03); // v2[2,3] // ofsi+1ã¯v2ã«ç§»å‹•	
 	vec_out1 = MM_FMA_PD(_mm_sub_pd(vv21, vv11), vfp1, vv11);
 	vec_out2 = MM_FMA_PD(_mm_sub_pd(vv22, vv12), vfp2, vv12);
 #if	defined(DATA_T_DOUBLE)
@@ -767,19 +767,19 @@ static inline void is_resample_core(Info_Resample *rs, DATA_T *is_buf, IS_RS_DAT
 		__m128 tmp1, tmp2, tmp3, tmp4;
 		ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 		tmpfp[0] = (float)(rs_ofs & FRACTION_MASK);
-		tmp1 = _mm_loadu_ps(&rs_buf[ofsi]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
-		tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
+		tmp1 = _mm_loadu_ps(&rs_buf[ofsi]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+		tmp1 = _mm_loadl_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
 		ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 		tmpfp[1] = (float)(rs_ofs & FRACTION_MASK);
-		tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // H64bit ofsi‚Æofsi+1‚ğƒ[ƒh
+		tmp1 = _mm_loadh_pi(tmp1, (__m64 *)&rs_buf[ofsi]); // H64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
 		ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 		tmpfp[2] = (float)(rs_ofs & FRACTION_MASK);
-		tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // L64bit ofsi‚Æofsi+1‚ğƒ[ƒh
+		tmp3 = _mm_loadl_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // L64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
 		ofsi = (rs_ofs += is_rs_increment) >> FRACTION_BITS; 
 		tmpfp[3] = (float)(rs_ofs & FRACTION_MASK);
-		tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // H64bit ofsi‚Æofsi+1‚ğƒ[ƒh
-		vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsi‚Ív1‚É
-		vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1‚Ív2‚ÉˆÚ“®	
+		tmp3 = _mm_loadh_pi(tmp3, (__m64 *)&rs_buf[ofsi]); // H64bit ofsiã¨ofsi+1ã‚’ãƒ­ãƒ¼ãƒ‰
+		vv1 = _mm_shuffle_ps(tmp1, tmp3, 0x88); // v1[0,1,2,3]	// ofsiã¯v1ã«
+		vv2 = _mm_shuffle_ps(tmp1, tmp3, 0xdd); // v2[0,1,2,3]	// ofsi+1ã¯v2ã«ç§»å‹•	
 		vfp = _mm_load_ps(tmpfp);
 #endif
 #if defined(DATA_T_DOUBLE)
@@ -2256,8 +2256,8 @@ static void load_is_scc_data(INIDATA *ini, Preset_IS *set)
 
 	sec = MyIni_GetSection(ini, "SCC_DATA", 0);
 	for(i = 0; i < SCC_DATA_MAX; i++){
-		snprintf(name, sizeof(name), "data_%03d", i); // Œ…”w’è
-		snprintf(name2, sizeof(name2), "name_%03d", i); // Œ…”w’è
+		snprintf(name, sizeof(name), "data_%03d", i); // æ¡æ•°æŒ‡å®š
+		snprintf(name2, sizeof(name2), "name_%03d", i); // æ¡æ•°æŒ‡å®š
 		p = MyIni_GetString(sec, name, tbf, 256, "0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0");
 		config_parse_scc_data(p, set, i);	
 		p = MyIni_GetString(sec, name2, tbf, 256, "none");
@@ -2278,7 +2278,7 @@ static void load_is_scc_preset(INIDATA *ini, Preset_IS *set, int preset, int ini
 	int i = preset;
 	Preset_SCC *set2 = NULL;
 	
-	snprintf(name, sizeof(name), "SCC_%03d", i); // Œ…”w’è
+	snprintf(name, sizeof(name), "SCC_%03d", i); // æ¡æ•°æŒ‡å®š
 	sec = MyIni_GetSection(ini, name, 0);
 	if(sec == NULL && !init)
 		return;
@@ -2330,7 +2330,7 @@ static void load_is_mms_preset(INIDATA *ini, Preset_IS *set, int preset, int ini
 	int i = preset, j, k, param;
 	Preset_MMS *set2 = NULL;
 	
-	snprintf(name, sizeof(name), "MMS_%03d", i); // Œ…”w’è
+	snprintf(name, sizeof(name), "MMS_%03d", i); // æ¡æ•°æŒ‡å®š
 	sec = MyIni_GetSection(ini, name, 0);
 	if(sec == NULL && !init)
 		return;
@@ -2579,8 +2579,8 @@ static void scc_data_editor_save_ini(int num)
 	int i;
 
 	MyIni_Load(&ini, is_editor_inifile);
-	snprintf(key1, sizeof(key1), "data_%03d", num); // Œ…”w’è
-	snprintf(key2, sizeof(key2), "name_%03d", num); // Œ…”w’è	
+	snprintf(key1, sizeof(key1), "data_%03d", num); // æ¡æ•°æŒ‡å®š
+	snprintf(key2, sizeof(key2), "name_%03d", num); // æ¡æ•°æŒ‡å®š	
 	for(i = 0; i < SCC_DATA_LENGTH; i++){
 		snprintf(data, sizeof(data), "%s%d:", data, is_editor_preset.scc_data_int[num][i]);
 	}
@@ -2828,7 +2828,7 @@ static void scc_editor_delete_ini(int num)
 	char sec[30] = "";
 	
 	MyIni_Load(&ini, is_editor_inifile);	
-	snprintf(sec, sizeof(sec), "SCC_%03d", num); // Œ…”w’è
+	snprintf(sec, sizeof(sec), "SCC_%03d", num); // æ¡æ•°æŒ‡å®š
 	MyIni_DeleteSection(&ini, sec);
 	MyIni_Save(&ini, is_editor_inifile);
 	MyIni_SectionAllClear(&ini);
@@ -2847,7 +2847,7 @@ static void scc_editor_save_ini(int num)
 		return;
 	setting = is_editor_preset.scc_setting[num];
 	MyIni_Load(&ini, is_editor_inifile);	
-	snprintf(sec, sizeof(sec), "SCC_%03d", num); // Œ…”w’è
+	snprintf(sec, sizeof(sec), "SCC_%03d", num); // æ¡æ•°æŒ‡å®š
 	inisec = MyIni_GetSection(&ini, sec, 1);
 	MyIni_SetString(inisec, "name", setting->inst_name);
 	// mode
@@ -3520,7 +3520,7 @@ static void mms_editor_delete_ini(int num)
 	char sec[30] = "";
 	
 	MyIni_Load(&ini, is_editor_inifile);	
-	snprintf(sec, sizeof(sec), "MMS_%03d", num); // Œ…”w’è
+	snprintf(sec, sizeof(sec), "MMS_%03d", num); // æ¡æ•°æŒ‡å®š
 	MyIni_DeleteSection(&ini, sec);
 	MyIni_Save(&ini, is_editor_inifile);
 	MyIni_SectionAllClear(&ini);
@@ -3540,13 +3540,13 @@ static void mms_editor_save_ini(int num)
 		return;
 	setting = is_editor_preset.mms_setting[num];
 	MyIni_Load(&ini, is_editor_inifile);	
-	snprintf(sec, sizeof(sec), "MMS_%03d", num); // Œ…”w’è
+	snprintf(sec, sizeof(sec), "MMS_%03d", num); // æ¡æ•°æŒ‡å®š
 	inisec = MyIni_GetSection(&ini, sec, 1);
 	MyIni_SetString(inisec, "name", setting->inst_name);
 	MyIni_SetInt32(inisec, "op_max", setting->op_max);
 	for(j = 0; j < MMS_OP_MAX; j++){
 		if(j >= setting->op_max){
-			// g—p‚µ‚È‚¢OP‚ÌƒL[íœ
+			// ä½¿ç”¨ã—ãªã„OPã®ã‚­ãƒ¼å‰Šé™¤
 			snprintf(key, sizeof(key), "op_%d_mode", j);
 			MyIni_DeleteKey(&ini, sec, key);	
 			snprintf(key, sizeof(key), "op_%d_range", j);	
@@ -4305,7 +4305,7 @@ static Preset_IS *load_ini_file(char *ini_file, int type, int preset)
 				load_int_synth_preset(ini_file, set, type, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE);
 				set->mms_load = 1;
 			}
-#elif defined(IS_INI_LOAD_BLOCK) // block’PˆÊƒ[ƒh
+#elif defined(IS_INI_LOAD_BLOCK) // blockå˜ä½ãƒ­ãƒ¼ãƒ‰
 			if(type == IS_INI_TYPE_SCC && !(set->scc_load & bit)){
 				load_int_synth_preset(ini_file, set, type, block, IS_INI_PRESET_NONE);
 				set->scc_load |= bit;
@@ -4313,7 +4313,7 @@ static Preset_IS *load_ini_file(char *ini_file, int type, int preset)
 				load_int_synth_preset(ini_file, set, type, block, IS_INI_PRESET_NONE);
 				set->mms_load |= bit;
 			}
-#elif defined(IS_INI_LOAD_PRESET) // preset’PˆÊƒ[ƒh
+#elif defined(IS_INI_LOAD_PRESET) // presetå˜ä½ãƒ­ãƒ¼ãƒ‰
 			load_int_synth_preset(ini_file, set, type, preset, IS_INI_PRESET_NONE);
 #endif
 			return set;
@@ -4331,24 +4331,24 @@ static Preset_IS *load_ini_file(char *ini_file, int type, int preset)
 		}
 	}
 	newset->ini_file = safe_strdup(ini_file);
-#if defined(IS_INI_LOAD_ALL) // ‘S•”ƒ[ƒh
-	load_int_synth_preset(ini_file, newset, IS_INI_TYPE_ALL, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE); // ‘S•”ƒ[ƒh
+#if defined(IS_INI_LOAD_ALL) // å…¨éƒ¨ãƒ­ãƒ¼ãƒ‰
+	load_int_synth_preset(ini_file, newset, IS_INI_TYPE_ALL, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE); // å…¨éƒ¨ãƒ­ãƒ¼ãƒ‰
 	newset->scc_load = 1;
 	newset->mms_load = 1;
-#elif defined(IS_INI_LOAD_TYPE)  // type’PˆÊƒ[ƒh
-	load_int_synth_preset(ini_file, newset, type, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE); // type’PˆÊƒ[ƒh
+#elif defined(IS_INI_LOAD_TYPE)  // typeå˜ä½ãƒ­ãƒ¼ãƒ‰
+	load_int_synth_preset(ini_file, newset, type, IS_INI_PRESET_ALL, IS_INI_PRESET_NONE); // typeå˜ä½ãƒ­ãƒ¼ãƒ‰
 	if(type == IS_INI_TYPE_SCC)
 		newset->scc_load = 1;
 	else if(type == IS_INI_TYPE_MMS)
 		newset->mms_load = 1;
-#elif defined(IS_INI_LOAD_BLOCK) // block’PˆÊƒ[ƒh
-	load_int_synth_preset(ini_file, newset, type, block, IS_INI_PRESET_NONE); // preset’PˆÊƒ[ƒh
+#elif defined(IS_INI_LOAD_BLOCK) // blockå˜ä½ãƒ­ãƒ¼ãƒ‰
+	load_int_synth_preset(ini_file, newset, type, block, IS_INI_PRESET_NONE); // presetå˜ä½ãƒ­ãƒ¼ãƒ‰
 	if(type == IS_INI_TYPE_SCC)
 		newset->scc_load |= bit;
 	else if(type == IS_INI_TYPE_MMS)
 		newset->mms_load |= bit;
-#elif defined(IS_INI_LOAD_PRESET) // preset’PˆÊƒ[ƒh
-	load_int_synth_preset(ini_file, newset, type, preset, IS_INI_PRESET_NONE); // preset’PˆÊƒ[ƒh
+#elif defined(IS_INI_LOAD_PRESET) // presetå˜ä½ãƒ­ãƒ¼ãƒ‰
+	load_int_synth_preset(ini_file, newset, type, preset, IS_INI_PRESET_NONE); // presetå˜ä½ãƒ­ãƒ¼ãƒ‰
 #endif
 	return newset;
 }
@@ -4592,11 +4592,11 @@ FLOAT_T compute_osc_scc_sine(FLOAT_T in, FLOAT_T *data)
 
 /* PCM */
 /*
-rate : Šî€‚É‚È‚éƒTƒ“ƒvƒ‹ƒJƒEƒ“ƒg
-pcm_rate : •Ï’²—p‚ÌƒTƒ“ƒvƒ‹ƒJƒEƒ“ƒg
-pcm_rate = rate + mod_offset (compute_op_pm()‚Å‚Írt‚É‘Š“–
-•Ï’²‚µ‚È‚¢ê‡‚Í mod_offset = 0 ‚È‚Ì‚Å pcm_rate = rate ‚ğƒZƒbƒg
-‚Â‚¢‚Å‚Érate‚Ì’lˆæƒ`ƒFƒbƒN
+rate : åŸºæº–ã«ãªã‚‹ã‚µãƒ³ãƒ—ãƒ«ã‚«ã‚¦ãƒ³ãƒˆ
+pcm_rate : å¤‰èª¿ç”¨ã®ã‚µãƒ³ãƒ—ãƒ«ã‚«ã‚¦ãƒ³ãƒˆ
+pcm_rate = rate + mod_offset (compute_op_pm()ã§ã¯rtã«ç›¸å½“
+å¤‰èª¿ã—ãªã„å ´åˆã¯ mod_offset = 0 ãªã®ã§ pcm_rate = rate ã‚’ã‚»ãƒƒãƒˆ
+ã¤ã„ã§ã«rateã®å€¤åŸŸãƒã‚§ãƒƒã‚¯
 out : -1.0 ~ 1.0
 */
 
@@ -6025,7 +6025,7 @@ static inline void init_mms_preset_op(InfoIS_MMS *info, int v, int i)
 		info2->freq_coef = div_is_sample_rate; // +1/sr = 1Hz
 		info2->scc_ptr = compute_osc_scc_linear;
 	//	info2->scc_ptr = compute_osc_scc_sine;
-		if(!set->op_wave[i][4]) // wave4 Šg’£ƒtƒ‰ƒO
+		if(!set->op_wave[i][4]) // wave4 æ‹¡å¼µãƒ•ãƒ©ã‚°
 			break;
 		switch(set->op_wave[i][5]){ // wave5 = interpoation
 		default:
@@ -6059,7 +6059,7 @@ static inline void init_mms_preset_op(InfoIS_MMS *info, int v, int i)
 			info2->ofs_end = pcm_inf->ofs_end;
 			info2->loop_length = 0;
 		}
-		info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCM‚Ì1üŠú•ª‘Š“–
+		info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCMã®1å‘¨æœŸåˆ†ç›¸å½“
 		info2->freq_coef = div_is_sample_rate * info2->pcm_cycle; // +1/sr*pcm_rate/root_freq = 1Hz
 		info2->rate = pcm_inf->ofs_start;
 		}
@@ -6083,7 +6083,7 @@ static inline void init_mms_preset_op(InfoIS_MMS *info, int v, int i)
 			info2->ofs_end = pcm_inf->ofs_end;
 			info2->loop_length = 0;
 		}
-		info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCM‚Ì1üŠú•ª‘Š“–
+		info2->pcm_cycle = pcm_inf->sample_rate * pcm_inf->div_root_freq; // PCMã®1å‘¨æœŸåˆ†ç›¸å½“
 		info2->freq_coef = div_is_sample_rate * info2->pcm_cycle; // +1/sr*pcm_rate/root_freq = 1Hz
 		info2->rate = pcm_inf->ofs_start;
 		}

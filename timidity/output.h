@@ -27,8 +27,8 @@
 
 
 #define USE_TEMP_ENCODE
-// define : output.c general_output_convert() ƒVƒ“ƒvƒ‹‚È•ÏŠ·1‰ñ‚È‚Ì‚Å‘¬‚¢
-// undef : Šeo—Í‚Åƒoƒbƒtƒ@•ÏŠ· •ÏŠ·‚ğ2‰ñ‚·‚é•ª’x‚¢
+// define : output.c general_output_convert() ã‚·ãƒ³ãƒ—ãƒ«ãªå¤‰æ›1å›ãªã®ã§é€Ÿã„
+// undef : å„å‡ºåŠ›ã§ãƒãƒƒãƒ•ã‚¡å¤‰æ› å¤‰æ›ã‚’2å›ã™ã‚‹åˆ†é…ã„
 
 
 /* Data format encoding bits */

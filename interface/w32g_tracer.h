@@ -22,18 +22,18 @@ typedef struct w32g_tracer_wnd_t_ {
 	int updateall;
 	RECT rc_current_time;
 	RECT rc_tempo;
-	RECT rc_master_volume;	// ƒ}ƒXƒ^[ƒ{ƒŠƒ…[ƒ€
+	RECT rc_master_volume;	// ãƒžã‚¹ã‚¿ãƒ¼ãƒœãƒªãƒ¥ãƒ¼ãƒ 
 	RECT rc_maxvoices;
 
         RECT rc_head;
-        RECT rc_all_channels;           // ‚·‚×‚Ä‚Ìƒ`ƒƒƒ“ƒlƒ‹
-        int ch_height;          // ƒ`ƒƒƒ“ƒlƒ‹‚Ì•\Ž¦‚Ì‚‚³
-        int ch_space;           // ƒ`ƒƒƒ“ƒlƒ‹‚ÌŠÔ‚ÌƒXƒy[ƒX
-        RECT rc_channel_top;                    // ƒ`ƒƒƒ“ƒlƒ‹
-        RECT rc_instrument;             // ƒvƒƒOƒ‰ƒ€•¶Žš—ñ
+        RECT rc_all_channels;           // ã™ã¹ã¦ã®ãƒãƒ£ãƒ³ãƒãƒ«
+        int ch_height;          // ãƒãƒ£ãƒ³ãƒãƒ«ã®è¡¨ç¤ºã®é«˜ã•
+        int ch_space;           // ãƒãƒ£ãƒ³ãƒãƒ«ã®é–“ã®ã‚¹ãƒšãƒ¼ã‚¹
+        RECT rc_channel_top;                    // ãƒãƒ£ãƒ³ãƒãƒ«
+        RECT rc_instrument;             // ãƒ—ãƒ­ã‚°ãƒ©ãƒ æ–‡å­—åˆ—
         RECT rc_inst_map;
         RECT rc_bank;
-        RECT rc_program;                // ƒvƒƒOƒ‰ƒ€”Ô†
+        RECT rc_program;                // ãƒ—ãƒ­ã‚°ãƒ©ãƒ ç•ªå·
         RECT rc_velocity;
         RECT rc_volume;
         RECT rc_expression;

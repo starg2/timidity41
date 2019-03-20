@@ -88,7 +88,7 @@ static struct termios initial_settings, new_settings;
 static int peek_character = -1;
 #endif /* !HAVE_DOS_KEYBOARD */
 
-extern int volatile stream_max_compute; // play_event() ‚Ì compute_data() ‚ÅŒvZ‚ğ‹–‚·Å‘åŠÔ
+extern int volatile stream_max_compute; // play_event() ã® compute_data() ã§è¨ˆç®—ã‚’è¨±ã™æœ€å¤§æ™‚é–“
 extern int seq_quit; // rtsyn_common.c
 
 static int ctl_open(int using_stdin, int using_stdout);

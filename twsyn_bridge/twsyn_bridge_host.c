@@ -220,7 +220,7 @@ void init_bridge(void)
 		errortext = "bridge host error : CreateFileMapping.";
 		goto error;
 	}
-	if(GetLastError() == ERROR_ALREADY_EXISTS){ // “ñd‹N“®–hŽ~
+	if(GetLastError() == ERROR_ALREADY_EXISTS){ // äºŒé‡èµ·å‹•é˜²æ­¢
 		errortext = "bridge host error : CreateFileMapping ALREADY_EXISTS.";
 		goto error;
 	}
@@ -232,7 +232,7 @@ void init_bridge(void)
 	}
 	memset(shared_data, 0, sizeof(shared_data));
 	// send exsit flag
-	shared_data->exit = 1; // “ñd‹N“®–hŽ~ (ŒÃ‚¢ƒuƒŠƒbƒW‚ðI—¹ ƒuƒŠƒbƒW‘¤‚ÅƒXƒŒƒbƒh‹N“®‘O‚É‰ðœ
+	shared_data->exit = 1; // äºŒé‡èµ·å‹•é˜²æ­¢ (å¤ã„ãƒ–ãƒªãƒƒã‚¸ã‚’çµ‚äº† ãƒ–ãƒªãƒƒã‚¸å´ã§ã‚¹ãƒ¬ãƒƒãƒ‰èµ·å‹•å‰ã«è§£é™¤
 	// send processID	
 	shared_data->PrcsIdHost = GetCurrentProcessId();
 	// send process Version	

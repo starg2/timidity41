@@ -21,7 +21,7 @@
 
     Functions to use gogo.dll for mp3 gogo (Windows 95/98/NT).
 
-    Orignal source : stub.c by ‚o‚d‚m—‚l‚‚’‚‰‚‚…‚b‚‚” and ‚Ö‚é‚İ.
+    Orignal source : stub.c by ï¼°ï¼¥ï¼®ï¼ ï¼­ï½ï½’ï½‰ï½ï½…ï¼£ï½ï½” and ã¸ã‚‹ã¿.
 
     Modified by Daisuke Aoki <dai@y7.net>
 */
@@ -97,14 +97,14 @@ static	me_haveunit mpge_haveunit = NULL;
 
 int MPGE_available = 0;
 
-// DLL‚Ì“Ç‚İ‚İ(Å‰‚Ì1‰ñ–Ú‚Ì‚İ)‚Æƒ[ƒNƒGƒŠƒA‚Ì‰Šú‰»‚ğs‚¢‚Ü‚·B
+// DLLã®èª­ã¿è¾¼ã¿(æœ€åˆã®1å›ç›®ã®ã¿)ã¨ãƒ¯ãƒ¼ã‚¯ã‚¨ãƒªã‚¢ã®åˆæœŸåŒ–ã‚’è¡Œã„ã¾ã™ã€‚
 MERET	MPGE_initializeWork(void)
 {
 	if( hModule == NULL ){
-		// (DLL‚ª“Ç‚İ‚Ü‚ê‚Ä‚¢‚È‚¢ê‡)
-		// ƒJƒŒƒ“ƒgƒfƒBƒŒƒNƒgƒŠA‹y‚ÑsystemƒfƒBƒŒƒNƒgƒŠ‚ÌGOGO.DLL‚Ì“Ç‚İ‚İ
+		// (DLLãŒèª­ã¿è¾¼ã¾ã‚Œã¦ã„ãªã„å ´åˆ)
+		// ã‚«ãƒ¬ãƒ³ãƒˆãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã€åŠã³systemãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã®GOGO.DLLã®èª­ã¿è¾¼ã¿
 		hModule = LoadLibrary(_T("gogo.dll"));
-		if( hModule == NULL ){			// DLL‚ªŒ©‚Â‚©‚ç‚È‚¢ê‡
+		if( hModule == NULL ){			// DLLãŒè¦‹ã¤ã‹ã‚‰ãªã„å ´åˆ
 			#define Key		HKEY_CURRENT_USER
 			#define SubKey _T("Software\\MarineCat\\GOGO_DLL")
 			HKEY	hKey;
@@ -114,8 +114,8 @@ MERET	MPGE_initializeWork(void)
 			TCHAR	szPathName[ _MAX_PATH + 8];
 			dwKeySize = sizeof( szPathName );
 
-			// ƒŒƒWƒXƒgƒŠ€–Ú‚Ì HEY_CURENT_USER\Software\MarineCat\GOGO_DLLƒL[ˆÈ‰º‚Ì 
-			// INSTPATH (REG_SZ)‚ğæ“¾‚µ‚Ü‚·B
+			// ãƒ¬ã‚¸ã‚¹ãƒˆãƒªé …ç›®ã® HEY_CURENT_USER\Software\MarineCat\GOGO_DLLã‚­ãƒ¼ä»¥ä¸‹ã® 
+			// INSTPATH (REG_SZ)ã‚’å–å¾—ã—ã¾ã™ã€‚
 			if( RegOpenKeyEx(
 					Key,
 					SubKey,
@@ -132,23 +132,23 @@ MERET	MPGE_initializeWork(void)
 					&dwKeySize);
 				RegCloseKey(hKey);
 				if( lResult == ERROR_SUCCESS && REG_SZ == dwType ){
-					// ƒŒƒWƒXƒgƒŠ‚©‚çæ“¾‚µ‚½ƒpƒX‚ÅÄ“xDLL‚Ì“Ç‚İ‚İ‚ğ‚İ‚é
+					// ãƒ¬ã‚¸ã‚¹ãƒˆãƒªã‹ã‚‰å–å¾—ã—ãŸãƒ‘ã‚¹ã§å†åº¦DLLã®èª­ã¿è¾¼ã¿ã‚’è©¦ã¿ã‚‹
 					hModule = LoadLibrary( szPathName );
 				}
 			}
 			#undef Key
 			#undef SubKey
 		}
-		// DLL‚ªŒ©‚Â‚©‚ç‚È‚¢
+		// DLLãŒè¦‹ã¤ã‹ã‚‰ãªã„
 		if( hModule == NULL ){
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "can not find gogo.dll.");
 			return ME_INTERNALERROR;
-//			MessageBox( "DLL‚Ì“Ç‚İ‚İ‚ğ¸”s‚µ‚Ü‚µ‚½B\nDLL‚ğEXEƒtƒ@ƒCƒ‹‚Æ“¯‚¶ƒfƒBƒŒƒNƒgƒŠ‚Ö•¡Ê‚µ‚Ä‚­‚¾‚³‚¢\n");
-//			fprintf( stderr,"DLL‚Ì“Ç‚İ‚İ‚ğ¸”s‚µ‚Ü‚µ‚½B\nDLL‚ğEXEƒtƒ@ƒCƒ‹‚Æ“¯‚¶ƒfƒBƒŒƒNƒgƒŠ‚Ö•¡Ê‚µ‚Ä‚­‚¾‚³‚¢\n");
+//			MessageBox( "DLLã®èª­ã¿è¾¼ã¿ã‚’å¤±æ•—ã—ã¾ã—ãŸã€‚\nDLLã‚’EXEãƒ•ã‚¡ã‚¤ãƒ«ã¨åŒã˜ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã¸è¤‡å†™ã—ã¦ãã ã•ã„\n");
+//			fprintf( stderr,"DLLã®èª­ã¿è¾¼ã¿ã‚’å¤±æ•—ã—ã¾ã—ãŸã€‚\nDLLã‚’EXEãƒ•ã‚¡ã‚¤ãƒ«ã¨åŒã˜ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã¸è¤‡å†™ã—ã¦ãã ã•ã„\n");
 //			exit( -1 );
 		}
 		
-		// ƒGƒNƒXƒ|[ƒgŠÖ”‚Ìæ“¾
+		// ã‚¨ã‚¯ã‚¹ãƒãƒ¼ãƒˆé–¢æ•°ã®å–å¾—
 		mpge_init = (me_init )GetProcAddress( hModule, "MPGE_initializeWork" );
 		mpge_setconf = (me_setconf )GetProcAddress( hModule, "MPGE_setConfigure" );
 		mpge_getconf = (me_getconf )GetProcAddress( hModule, "MPGE_getConfigure" );
@@ -160,15 +160,15 @@ MERET	MPGE_initializeWork(void)
 		mpge_haveunit= (me_haveunit )GetProcAddress( hModule, "MPGE_getUnitStates" );
 	}
 
-	// ‚·‚×‚Ä‚ÌŠÖ”‚ª³í‚©Šm”F‚·‚é
+	// ã™ã¹ã¦ã®é–¢æ•°ãŒæ­£å¸¸ã‹ç¢ºèªã™ã‚‹
 	if( mpge_init && mpge_setconf && mpge_getconf &&
 		mpge_detector && mpge_processframe && mpge_end && mpge_getver && mpge_haveunit ){
 		MPGE_available = 1;
 		return (mpge_init)();
 	}
 
-	// ƒGƒ‰[
-	//fprintf( stderr, "DLL‚Ì“à—e‚ğ³‚µ‚­¯•Ê‚·‚é‚±‚Æ‚ªo—ˆ‚Ü‚¹‚ñ‚Å‚µ‚½\n");
+	// ã‚¨ãƒ©ãƒ¼
+	//fprintf( stderr, "DLLã®å†…å®¹ã‚’æ­£ã—ãè­˜åˆ¥ã™ã‚‹ã“ã¨ãŒå‡ºæ¥ã¾ã›ã‚“ã§ã—ãŸ\n");
 	FreeLibrary( hModule );
 	hModule = NULL;
 	MPGE_available = 0;
@@ -177,7 +177,7 @@ MERET	MPGE_initializeWork(void)
 	return ME_NOERR;
 }
 
-MERET	MPGE_terminateWork(void)	// ‹­§I—¹
+MERET	MPGE_terminateWork(void)	// å¼·åˆ¶çµ‚äº†
 {
 	mpge_init = NULL;
 	mpge_setconf = NULL;
@@ -247,7 +247,7 @@ MERET	MPGE_endCoder(void)
 		mpge_end	 = NULL;
 		mpge_getver	 = NULL;
 		mpge_haveunit= NULL;
-		FreeLibrary( hModule );		// DLLŠJ•ú
+		FreeLibrary( hModule );		// DLLé–‹æ”¾
 		hModule = NULL;
 		MPGE_available = 0;
 	}

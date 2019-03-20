@@ -42,7 +42,7 @@ typedef struct _fm_bridge_t {
 } fm_bridge_t;
 
 enum {
-	WMC_CLOSE_BRIDGE = 4096, // 0Ç≈Ç‡Ç¢Ç¢ÇØÇ«
+	WMC_CLOSE_BRIDGE = 4096, // 0„Åß„ÇÇ„ÅÑ„ÅÑ„Åë„Å©
 	WMC_GET_MIDI_DEVS,
 	WMC_OPEN_MIDI_DEVS,
 	WMC_CLOSE_MIDI_DEVS,

@@ -373,8 +373,8 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 	int i, j, k;
 	Sample *sp;
 
-	// timidity.c read_config_file() "soundfont" // init tonebank ‚Å reinit_tone_bank_element()
-	// soundfontƒRƒ}ƒ“ƒh‚Ì‚Æ‚«tonebank‰Šúó‘Ô‚ªall0‚É‚È‚é‚Ì‚ğ‰ñ”ğ
+	// timidity.c read_config_file() "soundfont" // init tonebank ã§ reinit_tone_bank_element()
+	// soundfontã‚³ãƒãƒ³ãƒ‰ã®ã¨ãtonebankåˆæœŸçŠ¶æ…‹ãŒall0ã«ãªã‚‹ã®ã‚’å›é¿
 
 	/* amp tuning */
 	if (tone->amp != -1) {
@@ -1208,10 +1208,10 @@ fail:
 				if(root_freq >= freq1 && root_freq < freq2)
 					sp->root_key = k;
 			}
-#if 1 // c219 ƒ‹[ƒgƒL[ü”g”‚Ætune‚ğ•ª—£
+#if 1 // c219 ãƒ«ãƒ¼ãƒˆã‚­ãƒ¼å‘¨æ³¢æ•°ã¨tuneã‚’åˆ†é›¢
 			sp->root_freq = freq_table[sp->root_key];
 			sp->tune = (FLOAT_T)sp->root_freq / (FLOAT_T)root_freq;			
-#else // root_freq‚Íƒ‹[ƒgƒL[ü”g”(freq_table[sp->root_key])‚Æ‚Ì”ä(tune)‚ªŠÜ‚Ü‚ê‚Ä‚¢‚é
+#else // root_freqã¯ãƒ«ãƒ¼ãƒˆã‚­ãƒ¼å‘¨æ³¢æ•°(freq_table[sp->root_key])ã¨ã®æ¯”(tune)ãŒå«ã¾ã‚Œã¦ã„ã‚‹
 			sp->root_freq = root_freq;	
 			sp->tune = 1.0;
 #endif
@@ -1562,7 +1562,7 @@ void load_all_instrument(void)
 	if(!opt_load_all_instrument)
 		return;
 	free_instruments_afterwards = 0;
-	init_load_soundfont(); // load_instrument()‚æ‚è‘O
+	init_load_soundfont(); // load_instrument()ã‚ˆã‚Šå‰
 	
 	for(i= 0; i < 128 + MAP_BANK_COUNT; i++){
 		if(!tonebank[i] || !tonebank[i]->tone)
@@ -1611,17 +1611,17 @@ void load_all_instrument(void)
 
 ///r
 /*
-ƒTƒ“ƒvƒ‹ƒ[ƒh‚ÌŒo˜H
+ã‚µãƒ³ãƒ—ãƒ«ãƒ­ãƒ¼ãƒ‰ã®çµŒè·¯
 
-‹N“®‚É‘S‰¹F“Ç opt_load_all_instrument
+èµ·å‹•æ™‚ã«å…¨éŸ³è‰²èª­è¾¼ opt_load_all_instrument
 load_all_instrument()
-SMFƒ[ƒh (c209–³Œø c211íœ
-readmidi.c SMFƒ[ƒhread_midi_file() groom_list() NOTE_ON‚Åƒ}[ƒN(MAGIC_LOAD_INSTRUMENT)‚µ‚½‚à‚Ì‚ğinstrum.c fill_bank()‚Åƒ[ƒh
-Ä¶‘OƒvƒŠƒXƒLƒƒƒ“(ƒCƒxƒ“ƒg‚¾‚¯‰¼Ä¶)‚ÌNOTE_ON‚Åƒ[ƒh (player‚Ìê‡ ‚±‚±‚Å‘S•”ƒ[ƒh‚µ‚½‚¢EE
-playmidi.c play_midi_prescan()‚ÌNOTE_ON‚Åfind_samples()‚Åƒ[ƒh
-Ä¶’†‚ÌNOTE_ON‚Åƒ[ƒh
+SMFãƒ­ãƒ¼ãƒ‰æ™‚ (c209ç„¡åŠ¹ c211å‰Šé™¤
+readmidi.c SMFãƒ­ãƒ¼ãƒ‰æ™‚read_midi_file() groom_list() NOTE_ONã§ãƒãƒ¼ã‚¯(MAGIC_LOAD_INSTRUMENT)ã—ãŸã‚‚ã®ã‚’instrum.c fill_bank()ã§ãƒ­ãƒ¼ãƒ‰
+å†ç”Ÿå‰ãƒ—ãƒªã‚¹ã‚­ãƒ£ãƒ³(ã‚¤ãƒ™ãƒ³ãƒˆã ã‘ä»®å†ç”Ÿ)ã®NOTE_ONã§ãƒ­ãƒ¼ãƒ‰ (playerã®å ´åˆ ã“ã“ã§å…¨éƒ¨ãƒ­ãƒ¼ãƒ‰ã—ãŸã„ãƒ»ãƒ»
+playmidi.c play_midi_prescan()ã®NOTE_ONã§find_samples()ã§ãƒ­ãƒ¼ãƒ‰
+å†ç”Ÿä¸­ã®NOTE_ONã§ãƒ­ãƒ¼ãƒ‰
 playmidi.c play_midi()
-ˆê•” ƒvƒƒOƒ‰ƒ€ƒ`ƒFƒ“ƒW ƒhƒ‰ƒ€ƒp[ƒg (å‚ÉSynth‚Ìê‡
+ä¸€éƒ¨ ãƒ—ãƒ­ã‚°ãƒ©ãƒ ãƒã‚§ãƒ³ã‚¸ ãƒ‰ãƒ©ãƒ ãƒ‘ãƒ¼ãƒˆ (ä¸»ã«Synthã®å ´åˆ
 playmidi.c midi_program_change()
 */
 Instrument *load_instrument(int dr, int b, int prog, int elm)
@@ -2071,7 +2071,7 @@ static void free_tone_bank_list(ToneBank *tb[])
 	int elm;
 	
 	//for (i = 0; i < 128 + map_bank_counter; i++)//del by Kobarin
-	for(i = 0; i < 128 + MAP_BANK_COUNT; i++)//add by Kobarin(ƒƒ‚ƒŠƒŠ[ƒNC³)
+	for(i = 0; i < 128 + MAP_BANK_COUNT; i++)//add by Kobarin(ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯ä¿®æ­£)
     {
 		bank = tb[i];
 		if (!bank)
@@ -2085,7 +2085,7 @@ static void free_tone_bank_list(ToneBank *tb[])
 				}
 			}
 
-        {//added by Kobarin(ƒƒ‚ƒŠƒŠ[ƒNC³)
+        {//added by Kobarin(ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯ä¿®æ­£)
             struct _AlternateAssign *del=bank->alt;
             struct _AlternateAssign *next;
             while(del){
@@ -2094,7 +2094,7 @@ static void free_tone_bank_list(ToneBank *tb[])
                 del=next;
             }
             bank->alt = NULL;
-        }//‚±‚±‚Ü‚Å
+        }//ã“ã“ã¾ã§
 		if (i > 0)
 		{
 			safe_free(bank);

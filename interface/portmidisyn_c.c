@@ -97,7 +97,7 @@ static struct termios initial_settings, new_settings;
 static int peek_character = -1;
 #endif /* !__W32__ */
 
-extern int volatile stream_max_compute; // play_event() ‚Ì compute_data() ‚ÅŒvZ‚ğ‹–‚·Å‘åŠÔ
+extern int volatile stream_max_compute; // play_event() ã® compute_data() ã§è¨ˆç®—ã‚’è¨±ã™æœ€å¤§æ™‚é–“
 
 ///r // define rtsyn_common.c
 // int seq_quit = ~0;

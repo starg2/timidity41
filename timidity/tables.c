@@ -698,25 +698,25 @@ static float nrpn_gs_release_data[129] = {
 };
 /*
 nrpn_xg_attack_data , nrpn_xg_release_data
-SYXG�ő��肵�Ă݂�����
-�A�^�b�N�^�C�� 0ms�`16170ms(0~74) , �����[�X�^�C�� 5ms�`10300ms(0~90)
-	���Z2��ރv���Z�b�g�ŘA�����Ă�悤�Ȃ̂� ���ꂼ��1�̌Œ�l�e�[�u���Ǝv����
-	�r���܂ł����Ȃ��̂͏����l���e�[�u���̒����l�ȏ�(�A�^�b�N�^�C��9000ms,�����[�X�^�C��1800ms)�̃v���Z�b�g���Ȃ��H�̂ő���ł��Ȃ�
-	����ȏ�͎��p�͈͊O���낤����������邩�������̂ł��̂܂܂ɂ���
-�f�B�P�C�^�C�� 5ms�` nrpn=64:1.0, nrpn<64:2^((nrpn-64)/16), nrpn>64:10^((nrpn-64)/32)
-	���Z2��ރv���Z�b�g�őS���A�����Ȃ� nrpn64�Ƃ̔䗦���ߎ�����̂ł����炭 �����l�ւ̔䗦���Ǝv����
-	�ω�����̂̓f�B�P�C2�����炵�� 
+SYXGで測定してみた結果
+アタックタイム 0ms～16170ms(0~74) , リリースタイム 5ms～10300ms(0~90)
+	長短2種類プリセットで連続してるようなので それぞれ1個の固定値テーブルと思われる
+	途中までしかないのは初期値がテーブルの中央値以上(アタックタイム9000ms,リリースタイム1800ms)のプリセットがない？ので測定できない
+	これ以上は実用範囲外だろうし上限があるかもしれんのでそのままにする
+ディケイタイム 5ms～ nrpn=64:1.0, nrpn<64:2^((nrpn-64)/16), nrpn>64:10^((nrpn-64)/32)
+	長短2種類プリセットで全く連続しない nrpn64との比率が近似するのでおそらく 初期値への比率だと思われる
+	変化するのはディケイ2だけらしい 
 
 nrpn_gs_attack_data , nrpn_gs_release_data
-VSC(VST)�ő��肵�Ă݂�����
-�A�^�b�N�^�C�� 0ms�`17850ms(0~63) , �����[�X�^�C�� 5ms�`15250ms(0~63)
-	����ȏ�͎��p�͈͊O���낤����������邩�������̂ł��̂܂܂ɂ���
-�f�B�P�C�^�C�� sc_eg_decay_table���g�p
-	���肾��nrpn64�ȉ����������Ȃ��悤��475ms���ŏ��ɂȂ����� �悭�킩���
-	�]���̃e�[�u�������̂܂܎g�p����  
+VSC(VST)で測定してみた結果
+アタックタイム 0ms～17850ms(0~63) , リリースタイム 5ms～15250ms(0~63)
+	これ以上は実用範囲外だろうし上限があるかもしれんのでそのままにする
+ディケイタイム sc_eg_decay_tableを使用
+	測定だとnrpn64以下が反応しないようで475msが最小になったり よくわからん
+	従来のテーブルをそのまま使用する  
 
-GS�̓\�[�X��SC����l�����ɂ��������l�ւ̔䗦�̃e�[�u���͂��邯��
-�A�^�b�N�^�C��/�����[�X�^�C���͂ǂ��ݒ肵�Ă�SMF�ԂŔj�]���邱�Ƃ��� �䗦�ł͂Ȃ��Œ�l�e�[�u���Ǝv����
+GSはソースにSC測定値を元にした初期値への比率のテーブルはあるけど
+アタックタイム/リリースタイムはどう設定してもSMF間で破綻することから 比率ではなく固定値テーブルと思われる
 */
 
 static inline int cnv_nrpn_param_table_num(FLOAT_T in, int mode)
@@ -777,7 +777,7 @@ static void init_nrpn_param_table(void)
 	nrpn_param_table[NRPN_PARAM_GM_DECAY][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GM_DECAY][127]; // ms
 	
 	// NRPN_PARAM_GS_DELAY
-	// 0��0�b�A37��1�b�A52��2�b�A56��3�b�A59��4�b�A61��5�b�A63��9�b���t�� max10sec?
+	// 0で0秒、37で1秒、52で2秒、56で3秒、59で4秒、61で5秒、63で9秒強付近 max10sec?
 	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){
 		if(i <= 37*2)
 			nrpn_param_table[NRPN_PARAM_GS_DELAY][i] = 1.0 * (double)i / (double)(37*2); // 0.0 ~ 1.0
@@ -795,7 +795,7 @@ static void init_nrpn_param_table(void)
 	nrpn_param_table[NRPN_PARAM_GS_DELAY][NRPN_PARAM_TABLE_LENGTH] = 10.0;
 
 	// NRPN_PARAM_GS_RATE
-	// 0��1�b��6����኱�����A-20��1�b��4��A-40��1�b��2��A-50��1�b��1��A-55��2�b��1��
+	// 0で1秒間6回より若干多く、-20で1秒に4回、-40で1秒に2回、-50で1秒に1回、-55で2秒に1回
 	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){	
 		nrpn_param_table[NRPN_PARAM_GS_RATE][i] = rate1_table[i];
 	}	
@@ -821,13 +821,13 @@ static void init_nrpn_param_table(void)
 	nrpn_param_table[NRPN_PARAM_GS_DECAY][NRPN_PARAM_TABLE_LENGTH] = nrpn_param_table[NRPN_PARAM_GS_DECAY][127]; // ms
 
 	// NRPN_PARAM_GS_CUTOFF_HPF
-	// �s���Ȃ̂�GM���}�[�W
+	// 不明なのでGMをマージ
 	for(i = 0; i <= NRPN_PARAM_TABLE_LENGTH; i++){	
 		nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i] = nrpn_param_table[NRPN_PARAM_GS_CUTOFF_HPF][i];
 	}
 
 	// NRPN_PARAM_XG_DELAY
-	// 0��0�b�A+40��1�b�A+50��2�b�A+56��3�b�A+61��4�b�t�� max5sec?
+	// 0で0秒、+40で1秒、+50で2秒、+56で3秒、+61で4秒付近 max5sec?
 	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){
 		if(i <= 40*2)
 			nrpn_param_table[NRPN_PARAM_XG_DELAY][i] = 1.0 * (double)i / (double)(40*2); // 0.0 ~ 1.0
@@ -843,9 +843,9 @@ static void init_nrpn_param_table(void)
 	nrpn_param_table[NRPN_PARAM_XG_DELAY][NRPN_PARAM_TABLE_LENGTH] = 5.0;
 
 	// NRPN_PARAM_XG_RATE
-	// 1�b��5�񋭁A-7��1�b��4��A-19��1�b��3��A-33��1�b��2��A-49��1�b��1��A-57��2�b��1��t�߂�����
+	// 1秒に5回強、-7で1秒に4回、-19で1秒に3回、-33で1秒に2回、-49で1秒に1回、-57で2秒に1回付近だった
 	// x-57:0.5 x-49:1.0 x-33:2.0 x-19:1.0 x-7:4.0 x-0:5.5
-	// x=72 �Ă��Ɓ[
+	// x=72 てきとー
 	// 15       23       39        53      65      72
 	for(i = 0; i < NRPN_PARAM_TABLE_LENGTH; i++){		
 		if(i <= 15*1)
@@ -866,7 +866,7 @@ static void init_nrpn_param_table(void)
 	nrpn_param_table[NRPN_PARAM_XG_RATE][NRPN_PARAM_TABLE_LENGTH] = 10.0;
 	
 	// NRPN_PARAM_XG_CUTOFF , NRPN_PARAM_XG_CUTOFF_HPF , NRPN_PARAM_XG_ATTACK , NRPN_PARAM_XG_DECAY , NRPN_PARAM_XG_RELEASE
-	// �s���Ȃ̂�GM���}�[�W
+	// 不明なのでGMをマージ
 	for(i = 0; i <= NRPN_PARAM_TABLE_LENGTH; i++){	
 		nrpn_param_table[NRPN_PARAM_XG_CUTOFF][i] = nrpn_param_table[NRPN_PARAM_GM_CUTOFF][i];
 		nrpn_param_table[NRPN_PARAM_XG_CUTOFF_HPF][i] = nrpn_param_table[NRPN_PARAM_GM_CUTOFF_HPF][i];
@@ -2791,7 +2791,7 @@ int8 delay_out_type_xg[128][9] = {
 // 1 : filter (300ms
 // 2 : multi filter + any (600ms
 // 3 : pre_delay + feedback (chorus/flanger/phaser (1500ms
-// 4 : delay // long delay + max feedback���Ƒ���Ȃ����� (6000ms
+// 4 : delay // long delay + max feedbackだと足りないかも (6000ms
 // 5 : reverb (12000ms
 // 6 : system reverb (30000ms
 */

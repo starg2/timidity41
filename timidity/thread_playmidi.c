@@ -82,7 +82,7 @@ int cdmt_ofs_0 = 3;
 int cdmt_ofs_1 = 2;
 int cdmt_ofs_2 = 1;
 int cdmt_ofs_3 = 0;
-// cdmt_buf in/out‚Ì‚Ý
+// cdmt_buf in/outã®ã¿
 int cdmt_buf_i = 1;
 int cdmt_buf_o = 0;
 
@@ -257,7 +257,7 @@ static void reset_midi_thread(void)
 
 
 /*
-do_compute_data_midi_threadˆÈ‰º‚ð‰¼ƒXƒŒƒbƒh”16‚Å•ªŠ„
+do_compute_data_midi_threadä»¥ä¸‹ã‚’ä»®ã‚¹ãƒ¬ãƒƒãƒ‰æ•°16ã§åˆ†å‰²
 
 job_num
  0; // do_master_effect_thread
@@ -265,25 +265,25 @@ job_num
  2; // do effect // sd_mx0 // gm2_cho // gs_ins // xg_dly
  3; // do effect // sd_mx1 // gm2_mx0 // gs_cho // xg_cho
  4; // do effect // sd_mx2 // gm2_mx1 // gs_dly // xg_meq
- 5; // do effect // sd_cho // gm2_mx2 // gs_peq // ‹ó    
- 6; // do effect // sd_meq // gm2_meq // ‹ó     // ‹ó    
+ 5; // do effect // sd_cho // gm2_mx2 // gs_peq // ç©º    
+ 6; // do effect // sd_meq // gm2_meq // ç©º     // ç©º    
  7; // send effect // master,eq                          
  8; // send effect // reverb                             
  9; // send effect // chorus							 
 10; // send effect // gs_dly // xg_var // sd_mfx         
-11; // send effect // gs_ins // XG ‹ó // SD ‹ó
+11; // send effect // gs_ins // XG ç©º // SD ç©º
 12; // compute_var
-4-20:ƒ{ƒCƒX/ƒ`ƒƒƒ“ƒlƒ‹‚Í16•ªŠ„
-‚±‚ê‚Æ‚Í•Ê‚ÉƒGƒtƒFƒNƒg—pƒXƒŒƒbƒh‚Í1;2;ˆÈ~‚Ì‹ó‚¢‚½‚Æ‚±‚ë‚É’Ç‰Á‚³‚ê‚é (RevExModŽg—p‚Ìê‡
+4-20:ãƒœã‚¤ã‚¹/ãƒãƒ£ãƒ³ãƒãƒ«ã¯16åˆ†å‰²
+ã“ã‚Œã¨ã¯åˆ¥ã«ã‚¨ãƒ•ã‚§ã‚¯ãƒˆç”¨ã‚¹ãƒ¬ãƒƒãƒ‰ã¯1;2;ä»¥é™ã®ç©ºã„ãŸã¨ã“ã‚ã«è¿½åŠ ã•ã‚Œã‚‹ (RevExModä½¿ç”¨ã®å ´åˆ
 
-effect‚Í(ˆê”Ô•ªŠ„”‚ª‘½‚¢‚à‚Ì‚É‡‚í‚¹‚Ä‚é‚Ì‚ÅMIDIƒVƒXƒeƒ€‚É‚æ‚Á‚Ä‹ó‚ª‚ ‚é
-“¯‚¶job_num‚Í1ƒZƒbƒg‚ÌƒWƒ‡ƒu (effect‚Í”‚ª­‚È‚¢‚Ì‚Æ‹ó‚«‚ ‚é‚Ì‚Åƒ{ƒCƒX/ƒ`ƒƒƒ“ƒlƒ‹‚¾‚¯‚Ì‚à‚ ‚é
-(‘S•”‚ðƒoƒ‰‚É‚·‚é‚ÆŠ„‚è“–‚ÄƒI[ƒo[ƒwƒbƒh‚ª‘å‚«‚­‚È‚éH
-(effect‚Íˆê•”œ‚¢‚ÄŒy•‰‰× OFF‚É‚È‚Á‚Ä‚é‚±‚Æ‚à‚ ‚é ‹ó‚Ìƒ€ƒ_H
-(‘SCPUƒRƒA‚É“¯‚¶ˆ—(ƒ{ƒCƒX/ƒ`ƒƒƒ“ƒlƒ‹)‚ðŠ„‚è“–‚Ä‚é‚Æ‘¬‚¢ (ƒLƒƒƒbƒVƒ…Œø—¦H
-(XG_INS*4(•ÊCH)‚Ìê‡‚Í16‚ªÅ“K
-•‰‰×‚Ì‚‚¢‰Â”\«‚Ì‚ ‚é 3ˆÈ‰º‚Í ƒ{ƒCƒX/ƒ`ƒƒƒ“ƒlƒ‹‚Æ•ª—£
-‚È‚Ç‚¢‚ë‚¢‚ë‚ ‚Á‚Ä 20•ªŠ„	
+effectã¯(ä¸€ç•ªåˆ†å‰²æ•°ãŒå¤šã„ã‚‚ã®ã«åˆã‚ã›ã¦ã‚‹ã®ã§MIDIã‚·ã‚¹ãƒ†ãƒ ã«ã‚ˆã£ã¦ç©ºãŒã‚ã‚‹
+åŒã˜job_numã¯1ã‚»ãƒƒãƒˆã®ã‚¸ãƒ§ãƒ– (effectã¯æ•°ãŒå°‘ãªã„ã®ã¨ç©ºãã‚ã‚‹ã®ã§ãƒœã‚¤ã‚¹/ãƒãƒ£ãƒ³ãƒãƒ«ã ã‘ã®ã‚‚ã‚ã‚‹
+(å…¨éƒ¨ã‚’ãƒãƒ©ã«ã™ã‚‹ã¨å‰²ã‚Šå½“ã¦ã‚ªãƒ¼ãƒãƒ¼ãƒ˜ãƒƒãƒ‰ãŒå¤§ãããªã‚‹ï¼Ÿ
+(effectã¯ä¸€éƒ¨é™¤ã„ã¦è»½è² è· OFFã«ãªã£ã¦ã‚‹ã“ã¨ã‚‚ã‚ã‚‹ ç©ºã®ãƒ ãƒ€ï¼Ÿ
+(å…¨CPUã‚³ã‚¢ã«åŒã˜å‡¦ç†(ãƒœã‚¤ã‚¹/ãƒãƒ£ãƒ³ãƒãƒ«)ã‚’å‰²ã‚Šå½“ã¦ã‚‹ã¨é€Ÿã„ (ã‚­ãƒ£ãƒƒã‚·ãƒ¥åŠ¹çŽ‡ï¼Ÿ
+(XG_INS*4(åˆ¥CH)ã®å ´åˆã¯16ãŒæœ€é©
+è² è·ã®é«˜ã„å¯èƒ½æ€§ã®ã‚ã‚‹ 3ä»¥ä¸‹ã¯ ãƒœã‚¤ã‚¹/ãƒãƒ£ãƒ³ãƒãƒ«ã¨åˆ†é›¢
+ãªã©ã„ã‚ã„ã‚ã‚ã£ã¦ 20åˆ†å‰²	
 
 
 */
@@ -1068,7 +1068,7 @@ void do_compute_data_midi_thread_block1(int thread_num)
 
 
 /* do_compute_data_midi() with DSP Effect */
-// count‚ª•Ï‰»‚µ‚È‚¢‚±‚Æ
+// countãŒå¤‰åŒ–ã—ãªã„ã“ã¨
 static void do_compute_data_midi_thread(int32 count)
 {
 	int i, j, uv = upper_voices, max_ch = current_file_info->max_channel;

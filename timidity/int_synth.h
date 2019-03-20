@@ -44,10 +44,10 @@ typedef float IS_RS_DATA_T;
 #define IS_INI_PRESET_NONE    (0)
 #define IS_INI_PRESET_INIT    (1)
 
-//#define IS_INI_LOAD_ALL 1 // ‘S•”ƒ[ƒh , load_1_inst slowest , worst memory
-//#define IS_INI_LOAD_TYPE 1 // type’PˆÊƒ[ƒh
-#define IS_INI_LOAD_BLOCK (32) // block’PˆÊƒ[ƒh 1block=32/64/128preset
-//#define IS_INI_LOAD_PRESET 1 // preset’PˆÊƒ[ƒh , load_all_inst very slow , load_1_inst fast , best memory
+//#define IS_INI_LOAD_ALL 1 // å…¨éƒ¨ãƒ­ãƒ¼ãƒ‰ , load_1_inst slowest , worst memory
+//#define IS_INI_LOAD_TYPE 1 // typeå˜ä½ãƒ­ãƒ¼ãƒ‰
+#define IS_INI_LOAD_BLOCK (32) // blockå˜ä½ãƒ­ãƒ¼ãƒ‰ 1block=32/64/128preset
+//#define IS_INI_LOAD_PRESET 1 // presetå˜ä½ãƒ­ãƒ¼ãƒ‰ , load_all_inst very slow , load_1_inst fast , best memory
 
 
 // SCC

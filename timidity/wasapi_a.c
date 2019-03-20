@@ -943,15 +943,15 @@ int open_output(void)
 			acp.eCategory  = opt_wasapi_stream_category;
 		
 			if (opt_wasapi_stream_option & 4) {
-				if (ver >= 6) // win10ˆÈã
+				if (ver >= 6) // win10ä»¥ä¸Š
 					acp.Options |= 4 /* AUDCLNT_STREAMOPTIONS_AMBISONICS */;
 			}
 			if (opt_wasapi_stream_option & 2) {
-				if (ver >= 6) // win10ˆÈã
+				if (ver >= 6) // win10ä»¥ä¸Š
 					acp.Options |= 2 /* AUDCLNT_STREAMOPTIONS_MATCH_FORMAT */;
 			}
 			if (opt_wasapi_stream_option & 1){
-				if(ver >= 4) // win8.1ˆÈã
+				if(ver >= 4) // win8.1ä»¥ä¸Š
 					acp.Options |= 1 /* AUDCLNT_STREAMOPTIONS_RAW */;
 			}
 

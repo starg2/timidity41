@@ -110,12 +110,12 @@ osc_type_t get_osc_ptr(int tmpi)
 
 ///////////////// Oscillator /////////////////
 /*
-ƒIƒVƒŒ[ƒ^‚Ì‰Šú‰» (•K{
-freq[Hz] : ƒIƒVƒŒ[ƒ^ü”g”
-delay_count[samples] : ”­UŠJn‚Ü‚Å‚ÌŠÔ (‚»‚ÌŠÔo—Í 0.0
-attack_count[samples] : ”­UŠJn‚©‚çU•Å‘å(1.0)‚É‚È‚é‚Ü‚Å‚ÌŠÔ
-wave_type : ”gŒ`ƒ^ƒCƒv see oscillator.h // OSC_TYPE
-init_phase : ‰ŠúˆÊ‘Š 0.0 ~ 1.0
+ã‚ªã‚·ãƒ¬ãƒ¼ã‚¿ã®åˆæœŸåŒ– (å¿…é ˆ
+freq[Hz] : ã‚ªã‚·ãƒ¬ãƒ¼ã‚¿å‘¨æ³¢æ•°
+delay_count[samples] : ç™ºæŒ¯é–‹å§‹ã¾ã§ã®æ™‚é–“ (ãã®é–“å‡ºåŠ› 0.0
+attack_count[samples] : ç™ºæŒ¯é–‹å§‹ã‹ã‚‰æŒ¯å¹…æœ€å¤§(1.0)ã«ãªã‚‹ã¾ã§ã®æ™‚é–“
+wave_type : æ³¢å½¢ã‚¿ã‚¤ãƒ— see oscillator.h // OSC_TYPE
+init_phase : åˆæœŸä½ç›¸ 0.0 ~ 1.0
 */
 void init_oscillator(Oscillator *osc, FLOAT_T freq, int32 delay_count, int32 attack_count, int wave_type, FLOAT_T init_phase)
 {	
@@ -133,15 +133,15 @@ void init_oscillator(Oscillator *osc, FLOAT_T freq, int32 delay_count, int32 att
 }
 
 /*
-ƒIƒVƒŒ[ƒ^ü”g”‚ğ•ÏX‚·‚é‚Æ‚«‚Ég—p
-freq[Hz] : ƒIƒVƒŒ[ƒ^ü”g”
+ã‚ªã‚·ãƒ¬ãƒ¼ã‚¿å‘¨æ³¢æ•°ã‚’å¤‰æ›´ã™ã‚‹ã¨ãã«ä½¿ç”¨
+freq[Hz] : ã‚ªã‚·ãƒ¬ãƒ¼ã‚¿å‘¨æ³¢æ•°
 */
 void reset_oscillator(Oscillator *osc, FLOAT_T freq)
 {
 	if(freq > 0.0)
 		osc->freq = div_playmode_rate * freq; // 1/sr = 1Hz
 	else{
-		osc->mode = 2; // ’â~ƒtƒ‰ƒO
+		osc->mode = 2; // åœæ­¢ãƒ•ãƒ©ã‚°
 		reset_envelope3(&osc->env, 0.0, playmode_rate_ms * 100.0); // 100ms
 	}
 }
@@ -183,8 +183,8 @@ void compute_oscillator(Oscillator *osc, int32 count)
 
 ///////////////// Oscillator2 /////////////////
 /*
-2phase—p (freq,wave_type‹¤’Ê‚ÅˆÊ‘Š‚¾‚¯ˆá‚¤ê‡
-phase_diff : phase1‚Æphase2‚ÌˆÊ‘Š· (phase2rate = phase1rate + phase_diff
+2phaseç”¨ (freq,wave_typeå…±é€šã§ä½ç›¸ã ã‘é•ã†å ´åˆ
+phase_diff : phase1ã¨phase2ã®ä½ç›¸å·® (phase2rate = phase1rate + phase_diff
 */
 void init_oscillator2(Oscillator2 *osc, FLOAT_T freq, int wave_type, FLOAT_T init_phase, FLOAT_T phase_diff)
 {	
@@ -205,7 +205,7 @@ void reset_oscillator2(Oscillator2 *osc, FLOAT_T freq)
 	if(freq > 0.0)
 		osc->freq = div_playmode_rate * freq; // 1/sr = 1Hz
 	else
-		osc->mode = 2; // ’â~
+		osc->mode = 2; // åœæ­¢
 }
 
 void compute_oscillator2(Oscillator2 *osc, int32 count)
@@ -233,11 +233,11 @@ void compute_oscillator2(Oscillator2 *osc, int32 count)
 
 ///////////////// OscillatorMulti /////////////////
 /*
-multi_phase—p (freq‹¤’Ê‚ÅˆÊ‘Š‚¾‚¯ˆá‚¤ê‡
-sin‚Ì‚İ 
-‰ŠúˆÊ‘Š0‚Ì‚İ  (phase_diff‚Å‘ã‘Ö‰Â”\
-sin SIMD‚Æ‚©‚ ‚ê‚ÎEE?
-–¢g—p
+multi_phaseç”¨ (freqå…±é€šã§ä½ç›¸ã ã‘é•ã†å ´åˆ
+sinã®ã¿ 
+åˆæœŸä½ç›¸0ã®ã¿  (phase_diffã§ä»£æ›¿å¯èƒ½
+sin SIMDã¨ã‹ã‚ã‚Œã°ãƒ»ãƒ»?
+æœªä½¿ç”¨
 */
 #if 0
 void init_oscillator_multi(Oscillator *osc, int phase_num, FLOAT_T freq, FLOAT_T *phase_diff)
@@ -261,7 +261,7 @@ void reset_oscillator_multi(Oscillator *osc, FLOAT_T freq)
 	if(freq > 0.0)
 		osc->freq = div_playmode_rate * freq; // 1/sr = 1Hz
 	else
-		osc->mode = 0; // ’â~
+		osc->mode = 0; // åœæ­¢
 }
 
 void compute_oscillator_multi(Oscillator *osc, int32 count)

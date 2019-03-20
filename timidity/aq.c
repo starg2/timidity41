@@ -642,7 +642,7 @@ int aq_flush(int discard)
 			const uint32 max_wait = 200 * 1000;
 			uint32 wait = (timeout_expect - t) * 100000;
 //			usleep((uint32)((double)aq_filled() * div_playmode_rate * 1000000.0)); // while aq_filled() > 0
-//			usleep((unsigned long)(200000)); // �Ă��Ɓ[�ȌŒ�l 20ms
+//			usleep((unsigned long)(200000)); // てきとーな固定値 20ms
 			usleep(wait < max_wait ? wait : max_wait);
 		}else
 		  aq_wait_ticks();

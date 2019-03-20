@@ -180,7 +180,7 @@ int rtsyn_ws_synth_start(){
 		}
 
 #ifdef __W32__
-		// HACK:midiInOpen()‚ÅƒŠƒZƒbƒg‚³‚ê‚Ä‚µ‚Ü‚¤‚½‚ßAÄİ’è
+		// HACK:midiInOpen()ã§ãƒªã‚»ãƒƒãƒˆã•ã‚Œã¦ã—ã¾ã†ãŸã‚ã€å†è¨­å®š
 		SetPriorityClass(GetCurrentProcess(), processPriority);
 #endif
 		for(port=0;port<rtsyn_portnumber;port++){

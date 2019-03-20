@@ -29,31 +29,31 @@ public:
 	CMyFileDialog();
 	~CMyFileDialog();
 
-	// "�J��" �_�C�A���O�̕W���ݒ��ǂݍ���
+	// "開く" ダイアログの標準設定を読み込む
 	void setOpenDlgDefaultSetting(void);
 
-	// "���O��t���ĕۑ�" �_�C�A���O�̕W���ݒ��ǂݍ���
+	// "名前を付けて保存" ダイアログの標準設定を読み込む
 	void setSaveDlgDefaultSetting(void);
 
-	// �_�C�A���O�̃^�C�g���������ݒ肷��
+	// ダイアログのタイトル文字列を設定する
 	void setTitle(const char*);
 
-	// �_�C�A���O�̕W���g���q��ݒ肷��
+	// ダイアログの標準拡張子を設定する
 	void setDefaultExt(const char*);
 
-	// �_�C�A���O�̃t�B���^�[�������ݒ肷��
+	// ダイアログのフィルター文字列を設定する
 	void setFilter(const char*);
 
-	//�_�C�A���O�̏��L�E�B���h�E��ݒ肷��
+	//ダイアログの所有ウィンドウを設定する
 	void setOwner(HWND);
 
-	// �_�C�A���O��W�J����
+	// ダイアログを展開する
 	bool Execute(void);
 
-	// �o�b�t�@���̃t�@�C���p�X�������o��
+	// バッファ内のファイルパス名を取り出す
 	const char *getFile(int);
 
-	// �o�b�t�@���̃��X�g���������o��
+	// バッファ内のリスト総数を取り出す
 	int getIndex(void);
 };
 

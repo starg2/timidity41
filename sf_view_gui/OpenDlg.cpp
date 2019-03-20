@@ -137,7 +137,7 @@ void CMyFileDialog::setFilter(const char *filter)
 	memcpy(m_filter, filter, length);
 }
 
-//ƒ_ƒCƒAƒƒO‚ÌŠ—LƒEƒBƒ“ƒhƒE‚ğİ’è‚·‚é
+//ãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã®æ‰€æœ‰ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’è¨­å®šã™ã‚‹
 void CMyFileDialog::setOwner(HWND hWnd)
 {
 	m_hOwnerWnd = hWnd;

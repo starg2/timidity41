@@ -46,18 +46,18 @@
 
 
 /*
-winˆÈŠO‚Ìunix/linux/mac“™‚Å‚Íposix
+winä»¥å¤–ã®unix/linux/macç­‰ã§ã¯posix
 
-Win‚Å‚ÌƒXƒŒƒbƒh\‘¢ƒeƒXƒg
-test1 –ˆ‰ñbeginthread ”ñí‚É’x‚¢
-test2 –ˆ‰ñResumeThread/SuspendThread ‘½ƒXƒŒƒbƒh‚Å’x‚¢ Sleepƒ‹[ƒv‚É‚æ‚é•s—v‚È‹ó‰ñ‚è‚ª‚ÅCPU•‰‰×‚‚¢
-test3 ‚¸‚Á‚ÆƒXƒŒƒbƒh‰ñ‚µ‚Á‚Ï‚È‚µ ‚â‚â’x‚¢ “®ì‚ª‰ö‚µ‚¢ ƒ{ƒc
-test4 Ä¶’†‚Ü‚í‚µ‚Á‚Ï‚È‚µˆê’èŠÔŒãƒXƒŒƒbƒhI—¹ CPUƒXƒŒƒbƒh”‚Ì‚Æ‚«’x‚­‚È‚é (ƒRƒ“ƒgƒ[ƒ‹—pƒXƒŒƒbƒh’Ç‰Á‚Ì•ª CPUƒXƒŒƒbƒh”‚æ‚èÀsƒXƒŒƒbƒh‚ª‘½‚­‚È‚é
-test5 Event‚ÅƒXƒŒƒbƒh‚ğƒRƒ“ƒgƒ[ƒ‹ ‘½ƒXƒŒƒbƒh‚Å‘¬‚¢ Sleepƒ‹[ƒv‚É‚æ‚é•s—v‚È‹ó‰ñ‚è‚ª‚È‚¢‚Ì‚ÅCPU•‰‰×­‚È‚¢ ƒXƒŒƒbƒhI—¹ƒCƒxƒ“ƒg‘Ò‹@‚ÌWaitForMulti‚ª’x‚¢‚æ‚¤‚ÈEEH
-test6 test5‚ÌƒXƒŒƒbƒhI—¹ƒCƒxƒ“ƒg‘Ò‹@‚ğ_mm_pause()ƒ‹[ƒv‚É‚µ‚½‚à‚Ì test5‚æ‚è‘¬‚¢ ƒƒCƒ“ƒXƒŒƒbƒh‚Ì•‰‰×‚Í‘‚¦‚é
-test7 test6+load_balance ×‚©‚­•ªŠ„‚µ‚½job‚ğ‹ó‚¢‚Ä‚éƒXƒŒƒbƒh‚ÉŠ„‚è“–‚Ä ƒXƒŒƒbƒhŠÔ‚Ìˆ——Ê‚Ì·‚ğŒ¸‚ç‚· mutexg—p test6‚æ‚è‘¬‚¢
-test8 test7‚Ìmutex‚ğCRITICAL_SECTION‚É•ÏX  test7‚æ‚è‘¬‚¢
-test9 test8+reload ˆê“xÀs‚µ‚½ƒXƒŒƒbƒhŠ„‚è“–‚Ä‚ğ‹L˜^‚µ ˆê’èŠÔ“¯Šú‚È‚µ‚ÅÀs test7‚­‚ç‚¢‚É’x‚­‚È‚Á‚½ ƒ{ƒc
+Winã§ã®ã‚¹ãƒ¬ãƒƒãƒ‰æ§‹é€ ãƒ†ã‚¹ãƒˆ
+test1 æ¯å›beginthread éå¸¸ã«é…ã„
+test2 æ¯å›ResumeThread/SuspendThread å¤šã‚¹ãƒ¬ãƒƒãƒ‰ã§é…ã„ Sleepãƒ«ãƒ¼ãƒ—ã«ã‚ˆã‚‹ä¸è¦ãªç©ºå›ã‚ŠãŒã§CPUè² è·é«˜ã„
+test3 ãšã£ã¨ã‚¹ãƒ¬ãƒƒãƒ‰å›ã—ã£ã±ãªã— ã‚„ã‚„é…ã„ å‹•ä½œãŒæ€ªã—ã„ ãƒœãƒ„
+test4 å†ç”Ÿä¸­ã¾ã‚ã—ã£ã±ãªã—ä¸€å®šæ™‚é–“å¾Œã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº† CPUã‚¹ãƒ¬ãƒƒãƒ‰æ•°ã®ã¨ãé…ããªã‚‹ (ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ç”¨ã‚¹ãƒ¬ãƒƒãƒ‰è¿½åŠ ã®åˆ† CPUã‚¹ãƒ¬ãƒƒãƒ‰æ•°ã‚ˆã‚Šå®Ÿè¡Œã‚¹ãƒ¬ãƒƒãƒ‰ãŒå¤šããªã‚‹
+test5 Eventã§ã‚¹ãƒ¬ãƒƒãƒ‰ã‚’ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ« å¤šã‚¹ãƒ¬ãƒƒãƒ‰ã§é€Ÿã„ Sleepãƒ«ãƒ¼ãƒ—ã«ã‚ˆã‚‹ä¸è¦ãªç©ºå›ã‚ŠãŒãªã„ã®ã§CPUè² è·å°‘ãªã„ ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ã‚¤ãƒ™ãƒ³ãƒˆå¾…æ©Ÿã®WaitForMultiãŒé…ã„ã‚ˆã†ãªãƒ»ãƒ»ï¼Ÿ
+test6 test5ã®ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ã‚¤ãƒ™ãƒ³ãƒˆå¾…æ©Ÿã‚’_mm_pause()ãƒ«ãƒ¼ãƒ—ã«ã—ãŸã‚‚ã® test5ã‚ˆã‚Šé€Ÿã„ ãƒ¡ã‚¤ãƒ³ã‚¹ãƒ¬ãƒƒãƒ‰ã®è² è·ã¯å¢—ãˆã‚‹
+test7 test6+load_balance ç´°ã‹ãåˆ†å‰²ã—ãŸjobã‚’ç©ºã„ã¦ã‚‹ã‚¹ãƒ¬ãƒƒãƒ‰ã«å‰²ã‚Šå½“ã¦ ã‚¹ãƒ¬ãƒƒãƒ‰é–“ã®å‡¦ç†é‡ã®å·®ã‚’æ¸›ã‚‰ã™ mutexä½¿ç”¨ test6ã‚ˆã‚Šé€Ÿã„
+test8 test7ã®mutexã‚’CRITICAL_SECTIONã«å¤‰æ›´  test7ã‚ˆã‚Šé€Ÿã„
+test9 test8+reload ä¸€åº¦å®Ÿè¡Œã—ãŸã‚¹ãƒ¬ãƒƒãƒ‰å‰²ã‚Šå½“ã¦ã‚’è¨˜éŒ²ã— ä¸€å®šæ™‚é–“åŒæœŸãªã—ã§å®Ÿè¡Œ test7ãã‚‰ã„ã«é…ããªã£ãŸ ãƒœãƒ„
 */
 
 
@@ -103,8 +103,8 @@ void set_compute_thread_priority(DWORD var)
 #else
 #define THREAD_WAIT_MAIN Sleep(0);
 #define THREAD_WAIT_SUB Sleep(0);
-// ‘¼‚ÌƒXƒŒƒbƒh‚Éˆ—‚ğ“n‚·(Å¬ŠÔ) ‚±‚ê‚ª‚È‚¢‚Æ•‰‰×‘‰Á
-// OSƒfƒtƒHƒ‹ƒg‚Å‚Í1~15‚Ìw’è 15.6ms 
+// ä»–ã®ã‚¹ãƒ¬ãƒƒãƒ‰ã«å‡¦ç†ã‚’æ¸¡ã™(æœ€å°æ™‚é–“) ã“ã‚ŒãŒãªã„ã¨è² è·å¢—åŠ 
+// OSãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã§ã¯1~15ã®æŒ‡å®šæ™‚ 15.6ms 
 #endif
 
 
@@ -139,7 +139,7 @@ static void compute_thread_core(int thread_num)
 		if(job_num >= compute_thread_job && job_nums0 >= mtcs_job_num0 && job_nums1 >= mtcs_job_num1)
 			break;
 	}
-#elif 1 // load_balance // ‹ó‚¢‚Ä‚éƒXƒŒƒbƒh‚ÉƒWƒ‡ƒuŠ„‚è“–‚Ä
+#elif 1 // load_balance // ç©ºã„ã¦ã‚‹ã‚¹ãƒ¬ãƒƒãƒ‰ã«ã‚¸ãƒ§ãƒ–å‰²ã‚Šå½“ã¦
 	for(;;){
 		int job_num;
 		EnterCriticalSection(&critThread); // single thread ~
@@ -148,7 +148,7 @@ static void compute_thread_core(int thread_num)
 		if(job_num >= compute_thread_job) break;
 		do_compute_func(job_num);
 	}
-#else // normal // ƒXƒŒƒbƒh‚É‹Ï“™‚ÉƒWƒ‡ƒuŠ„‚è“–‚Ä
+#else // normal // ã‚¹ãƒ¬ãƒƒãƒ‰ã«å‡ç­‰ã«ã‚¸ãƒ§ãƒ–å‰²ã‚Šå½“ã¦
 	int i;
 	for (i = thread_num; i < compute_thread_job; i += compute_thread_ready)
 		do_compute_func(i);
@@ -160,11 +160,11 @@ static void WINAPI ComputeThread(void *arglist)
 	const int thread_num = (int)arglist;
 	
 	for(;;){		
-		WaitForSingleObject(hEventTcv[thread_num], INFINITE); // ƒXƒŒƒbƒhŠJnƒCƒxƒ“ƒg‘Ò‹@
+		WaitForSingleObject(hEventTcv[thread_num], INFINITE); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚¤ãƒ™ãƒ³ãƒˆå¾…æ©Ÿ
 		if(thread_exit) break;		
 		compute_thread_core(thread_num + 1); // 1~15
-		ResetEvent(hEventTcv[thread_num]); // ƒXƒŒƒbƒhŠJnƒCƒxƒ“ƒgƒŠƒZƒbƒg
-		thread_finish[thread_num] = 1; // ƒXƒŒƒbƒhI—¹ƒtƒ‰ƒOƒZƒbƒg
+		ResetEvent(hEventTcv[thread_num]); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚¤ãƒ™ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆ
+		thread_finish[thread_num] = 1; // ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ãƒ•ãƒ©ã‚°ã‚»ãƒƒãƒˆ
 	}
 	crt_endthread();
 }
@@ -173,7 +173,7 @@ static void WINAPI ComputeThread(void *arglist)
 static inline void compute_thread_sub_wait(int8 *ptr)
 {
 // (MTC2_JOB_MAX == 16)
-	// byte*8‚ğ64bit’PˆÊ‚Å”äŠr 
+	// byte*8ã‚’64bitå˜ä½ã§æ¯”è¼ƒ 
 	uint64 *ptr1 = (uint64 *)ptr;
 	while(ptr1[0] || ptr1[1])
 		THREAD_WAIT_MAIN
@@ -224,12 +224,12 @@ static inline void compute_thread_wait(void)
 {	
 // (MAX_THREADS == 16)
 #if (USE_X86_EXT_INTRIN >= 6)
-	// byte*8‚ğ128bit’PˆÊ‚Å”äŠr
+	// byte*8ã‚’128bitå˜ä½ã§æ¯”è¼ƒ
 	__m128i vec = _mm_load_si128((__m128i *)thread_finish_all);
 	while(!_mm_testc_si128(_mm_load_si128((__m128i *)thread_finish), vec)) // SSE4.1 !(finish == finish_all)
 		THREAD_WAIT_MAIN
 #else
-	// byte*8‚ğ64bit’PˆÊ‚Å”äŠr 
+	// byte*8ã‚’64bitå˜ä½ã§æ¯”è¼ƒ 
 	uint64 *ptr1 = (uint64 *)&thread_finish, *ptr2 = (uint64 *)&thread_finish_all;
 	while(ptr1[0] != ptr2[0] || ptr1[1] != ptr2[1])
 		THREAD_WAIT_MAIN
@@ -255,17 +255,17 @@ void go_compute_thread(thread_func_t fnc, int num)
 	memset(mtcs_job_flg1, 0, sizeof(mtcs_job_flg1));
 #endif // MULTI_THREAD_COMPUTE2
 #if (USE_X86_EXT_INTRIN >= 3) && (MAX_THREADS == 16)
-	_mm_store_si128((__m128i *)thread_finish, _mm_setzero_si128());  // ƒXƒŒƒbƒhI—¹ƒtƒ‰ƒOƒŠƒZƒbƒg
+	_mm_store_si128((__m128i *)thread_finish, _mm_setzero_si128());  // ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ãƒ•ãƒ©ã‚°ãƒªã‚»ãƒƒãƒˆ
 	for(i = 0; i < thread; i++)
-		SetEvent(hEventTcv[i]); // ƒXƒŒƒbƒhŠJnƒCƒxƒ“ƒgƒZƒbƒg (ÄŠJ)
+		SetEvent(hEventTcv[i]); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚¤ãƒ™ãƒ³ãƒˆã‚»ãƒƒãƒˆ (å†é–‹)
 #else
 	for(i = 0; i < thread; i++){
-		thread_finish[i] = 0;  // ƒXƒŒƒbƒhI—¹ƒtƒ‰ƒOƒŠƒZƒbƒg
-		SetEvent(hEventTcv[i]); // ƒXƒŒƒbƒhŠJnƒCƒxƒ“ƒgƒZƒbƒg (ÄŠJ)
+		thread_finish[i] = 0;  // ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ãƒ•ãƒ©ã‚°ãƒªã‚»ãƒƒãƒˆ
+		SetEvent(hEventTcv[i]); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚¤ãƒ™ãƒ³ãƒˆã‚»ãƒƒãƒˆ (å†é–‹)
 	}
 #endif
 	compute_thread_core(0);
-	compute_thread_wait(); // ‘SƒXƒŒƒbƒhI—¹‘Ò‹@
+	compute_thread_wait(); // å…¨ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†å¾…æ©Ÿ
 }
 
 static void init_compute_thread_param(void)
@@ -308,11 +308,11 @@ void terminate_compute_thread(void)
 	DWORD status;
 	
 	thread_exit = 1;
-	compute_thread_job = 0; // ƒfƒbƒhƒƒbƒN‘Îô
+	compute_thread_job = 0; // ãƒ‡ãƒƒãƒ‰ãƒ­ãƒƒã‚¯å¯¾ç­–
 #ifdef MULTI_THREAD_COMPUTE2
-	mtcs_job_num0 = 0; // ƒfƒbƒhƒƒbƒN‘Îô
+	mtcs_job_num0 = 0; // ãƒ‡ãƒƒãƒ‰ãƒ­ãƒƒã‚¯å¯¾ç­–
 	memset(mtcs_job_flg0, 0, sizeof(mtcs_job_flg0));
-	mtcs_job_num1 = 0; // ƒfƒbƒhƒƒbƒN‘Îô
+	mtcs_job_num1 = 0; // ãƒ‡ãƒƒãƒ‰ãƒ­ãƒƒã‚¯å¯¾ç­–
 	memset(mtcs_job_flg1, 0, sizeof(mtcs_job_flg1));
 #endif // MULTI_THREAD_COMPUTE2
 	for(i = 0; i < (MAX_THREADS - 1); i++){
@@ -348,7 +348,7 @@ void terminate_compute_thread(void)
 	uninit_compute_data_midi_thread();
 }
 
-// load ini, load config , init_playmidi()... ‚ÌŒã‚É‚·‚é
+// load ini, load config , init_playmidi()... ã®å¾Œã«ã™ã‚‹
 void begin_compute_thread(void)
 {
 	int i, pnum, error = 0;			
@@ -435,28 +435,28 @@ void reset_compute_thread(void)
 
 #elif 0 // defined(MULTI_THREAD_COMPUTE) && (defined(HAVE_PTHREAD_H) || defined(HAVE_PTHREADS_H)) && defined(HAVE_PTHREAD_CREATE)
 /*
-ˆê‰“®‚¢‚Ä‚Í‚¢‚é‚ª”ñí‚É’x‚¢EECPUg—p—¦‚ª‘S‘Rã‚ª‚ç‚È‚¢EE
-cond_wait/cond_signal‚ª’x‚¢‚Ì‚Å‚ÍEEH
-Linux‚Å‚Í‚‘¬‚ÈƒXƒŒƒbƒh‹@”\‚Í‚È‚¢‚Ì‚©H ‘¼‚É‰½‚©‚ ‚é‚Ì‚©H
+ä¸€å¿œå‹•ã„ã¦ã¯ã„ã‚‹ãŒéå¸¸ã«é…ã„ãƒ»ãƒ»CPUä½¿ç”¨ç‡ãŒå…¨ç„¶ä¸ŠãŒã‚‰ãªã„ãƒ»ãƒ»
+cond_wait/cond_signalãŒé…ã„ã®ã§ã¯ãƒ»ãƒ»ï¼Ÿ
+Linuxã§ã¯é«˜é€Ÿãªã‚¹ãƒ¬ãƒƒãƒ‰æ©Ÿèƒ½ã¯ãªã„ã®ã‹ï¼Ÿ ä»–ã«ä½•ã‹ã‚ã‚‹ã®ã‹ï¼Ÿ
 
-g—p‚·‚éê‡‚ÍŠeƒtƒ@ƒ“ƒNƒVƒ‡ƒ“‚Ìd—l‚ğŠm”F‚µ‚½ã‚Å“®ìƒeƒXƒg‚·‚é
-Ql‚É‚µ‚½‚Ì‚Í PTHREADS-WIN32 RELEASE 2.8.0 (2006-12-22) ‚Å POSIX‚»‚Ì‚à‚Ì‚Å‚Í‚È‚¢‚Ì‚ÅEE
-Winê—p•”•ª‚ğPTHREADƒtƒ@ƒ“ƒNƒVƒ‡ƒ“‚É’u‚«Š·‚¦‚½‚à‚Ì
+ä½¿ç”¨ã™ã‚‹å ´åˆã¯å„ãƒ•ã‚¡ãƒ³ã‚¯ã‚·ãƒ§ãƒ³ã®ä»•æ§˜ã‚’ç¢ºèªã—ãŸä¸Šã§å‹•ä½œãƒ†ã‚¹ãƒˆã™ã‚‹
+å‚è€ƒã«ã—ãŸã®ã¯ PTHREADS-WIN32 RELEASE 2.8.0 (2006-12-22) ã§ POSIXãã®ã‚‚ã®ã§ã¯ãªã„ã®ã§ãƒ»ãƒ»
+Winå°‚ç”¨éƒ¨åˆ†ã‚’PTHREADãƒ•ã‚¡ãƒ³ã‚¯ã‚·ãƒ§ãƒ³ã«ç½®ãæ›ãˆãŸã‚‚ã®
 
-CRITICAL_SECTION‚Ípthread_mutex_ , EVENT‚Ípthread_cond_“™‚Å‘ã‘Ö
+CRITICAL_SECTIONã¯pthread_mutex_ , EVENTã¯pthread_cond_ç­‰ã§ä»£æ›¿
 
-pthread_create()		ˆÈ‘O‚©‚çg—p‚µ‚Ä‚é‚Ì‚Å‚½‚Ô‚ñOK
-pthread_join()			ˆÈ‘O‚©‚çg—p‚µ‚Ä‚é‚Ì‚Å‚½‚Ô‚ñOK
-pthread_????			ƒXƒŒƒbƒh‚ª‚ ‚é/‚È‚µ‚Ìó‘Ôæ“¾ •s–¾ (‚È‚­‚Ä‚à“®‚­
-pthread_mutex_init()	ˆø”‚ª‚ ‚â‚µ‚¢ ‹¤—Lƒtƒ‰ƒOHH
-pthread_mutex_destroy()	CloseHandle()‚Æ“¯‚¶ 
-pthread_mutex_lock()	WaitForSingleObject()‚Æ“¯‚¶
-pthread_mutex_unlock()	ReleaseMutex()‚Æ“¯‚¶
-pthread_cond_init()		ˆø”‚ª‚ ‚â‚µ‚¢ ‹¤—Lƒtƒ‰ƒOHH
-pthread_cond_destroy()	CloseHandle()‚Æ“¯‚¶ 
-pthread_cond_wait()		WaitForSingleObject()‚Æ“¯‚¶HH CPUŠÔÁ”ï‚·‚é‚Ì‚©‚Ç‚¤‚©H mutex_lock‚ª•K—v‚ç‚µ‚¢
-pthread_cond_signal()	SetEvent()‚Æ“¯‚¶HH
-pthread_????			ResetEvent()‘Š“–‚Ì‚à‚Ì–³‚¢H ƒVƒOƒiƒ‹‚Í©“®ƒŠƒZƒbƒgH 
+pthread_create()		ä»¥å‰ã‹ã‚‰ä½¿ç”¨ã—ã¦ã‚‹ã®ã§ãŸã¶ã‚“OK
+pthread_join()			ä»¥å‰ã‹ã‚‰ä½¿ç”¨ã—ã¦ã‚‹ã®ã§ãŸã¶ã‚“OK
+pthread_????			ã‚¹ãƒ¬ãƒƒãƒ‰ãŒã‚ã‚‹/ãªã—ã®çŠ¶æ…‹å–å¾— ä¸æ˜ (ãªãã¦ã‚‚å‹•ã
+pthread_mutex_init()	å¼•æ•°ãŒã‚ã‚„ã—ã„ å…±æœ‰ãƒ•ãƒ©ã‚°ï¼Ÿï¼Ÿ
+pthread_mutex_destroy()	CloseHandle()ã¨åŒã˜ 
+pthread_mutex_lock()	WaitForSingleObject()ã¨åŒã˜
+pthread_mutex_unlock()	ReleaseMutex()ã¨åŒã˜
+pthread_cond_init()		å¼•æ•°ãŒã‚ã‚„ã—ã„ å…±æœ‰ãƒ•ãƒ©ã‚°ï¼Ÿï¼Ÿ
+pthread_cond_destroy()	CloseHandle()ã¨åŒã˜ 
+pthread_cond_wait()		WaitForSingleObject()ã¨åŒã˜ï¼Ÿï¼Ÿ CPUæ™‚é–“æ¶ˆè²»ã™ã‚‹ã®ã‹ã©ã†ã‹ï¼Ÿ mutex_lockãŒå¿…è¦ã‚‰ã—ã„
+pthread_cond_signal()	SetEvent()ã¨åŒã˜ï¼Ÿï¼Ÿ
+pthread_????			ResetEvent()ç›¸å½“ã®ã‚‚ã®ç„¡ã„ï¼Ÿ ã‚·ã‚°ãƒŠãƒ«ã¯è‡ªå‹•ãƒªã‚»ãƒƒãƒˆï¼Ÿ 
 */
 
 static int thread_exit = 0;
@@ -479,16 +479,16 @@ static void compute_thread_core(int thread_num)
 		if(thread_num < compute_thread_job)
 			do_compute_func(thread_num);
 	}else{	
-#if 1 // load_balancer	// ‹ó‚¢‚Ä‚éƒXƒŒƒbƒh‚ÉƒWƒ‡ƒuŠ„‚è“–‚Ä
+#if 1 // load_balancer	// ç©ºã„ã¦ã‚‹ã‚¹ãƒ¬ãƒƒãƒ‰ã«ã‚¸ãƒ§ãƒ–å‰²ã‚Šå½“ã¦
 		for(;;){
 			int job_num;
-			pthread_mutex_lock(&mutex_job); // ƒ~ƒ…[ƒeƒbƒNƒXæ“¾
+			pthread_mutex_lock(&mutex_job); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹å–å¾—
 			job_num = (compute_thread_job_cnt++);
-			pthread_mutex_unlock(&mutex_job); // ƒ~ƒ…[ƒeƒbƒNƒX‰ğ•ú			
+			pthread_mutex_unlock(&mutex_job); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹è§£æ”¾			
 			if(job_num >= compute_thread_job) break;
 			do_compute_func(job_num);
 		}
-#else // normal // ƒXƒŒƒbƒh‚É‹Ï“™‚ÉƒWƒ‡ƒuŠ„‚è“–‚Ä
+#else // normal // ã‚¹ãƒ¬ãƒƒãƒ‰ã«å‡ç­‰ã«ã‚¸ãƒ§ãƒ–å‰²ã‚Šå½“ã¦
 		int i;
 		for (i = thread_num; i < compute_thread_job; i += compute_thread_ready)
 			do_compute_func(i);
@@ -501,12 +501,12 @@ static void *ComputeThread(void *arglist)
 	const int thread_num = (int)arglist;
 	
 	for(;;){
-	//	pthread_mutex_lock(&mutex_thread[thread_num]); // ƒ~ƒ…[ƒeƒbƒNƒXæ“¾
-		pthread_cond_wait(&cond_thread[thread_num], &mutex_thread[thread_num]); // ƒXƒŒƒbƒhŠJnƒVƒOƒiƒ‹‘Ò‹@ . ƒVƒOƒiƒ‹Œã‘Ò‹@ó‘Ô‚É–ß‚éH
+	//	pthread_mutex_lock(&mutex_thread[thread_num]); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹å–å¾—
+		pthread_cond_wait(&cond_thread[thread_num], &mutex_thread[thread_num]); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚·ã‚°ãƒŠãƒ«å¾…æ©Ÿ . ã‚·ã‚°ãƒŠãƒ«å¾Œå¾…æ©ŸçŠ¶æ…‹ã«æˆ»ã‚‹ï¼Ÿ
 	//	pthread_mutex_unlock(&mutex_thread[thread_num]);
 		if(thread_exit) break;		
 		compute_thread_core(thread_num + 1); // 1~15
-		// ƒƒbƒN—p‚ÌƒVƒOƒiƒ‹‚È‚¢H cond_wait‚Í©“®ƒŠƒZƒbƒgH
+		// ãƒ­ãƒƒã‚¯ç”¨ã®ã‚·ã‚°ãƒŠãƒ«ãªã„ï¼Ÿ cond_waitã¯è‡ªå‹•ãƒªã‚»ãƒƒãƒˆï¼Ÿ
 		thread_finish[thread_num] = 1;
 	}
 	return 0;
@@ -516,11 +516,11 @@ static inline void compute_thread_wait(void)
 {	
 // (MAX_THREADS == 16)
 #if (USE_X86_EXT_INTRIN >= 6)
-	 // byte*8‚ğ128bit’PˆÊ‚Å”äŠr
+	 // byte*8ã‚’128bitå˜ä½ã§æ¯”è¼ƒ
 	__m128i vec = _mm_load_si128((__m128i *)thread_finish_all);
 	while(!_mm_testc_si128(_mm_load_si128((__m128i *)thread_finish), vec)) // SSE4.1 !(finish == finish_all)
 		THREAD_WAIT_MAIN
-#else // byte*8‚ğ64bit’PˆÊ‚Å”äŠr
+#else // byte*8ã‚’64bitå˜ä½ã§æ¯”è¼ƒ
 	uint64 *ptr1 = (uint64 *)&thread_finish, *ptr2 = (uint64 *)&thread_finish_all;
 	while(ptr1[0] != ptr2[0] || ptr1[1] != ptr2[1])
 		THREAD_WAIT_MAIN
@@ -536,22 +536,22 @@ void go_compute_thread(thread_func_t fnc, int num)
 	compute_thread_job = num;
 	compute_thread_job_cnt = 0;
 #if (USE_X86_EXT_INTRIN >= 3) && (MAX_THREADS == 16)
-	_mm_store_si128((__m128i *)thread_finish, _mm_setzero_si128());  // ƒXƒŒƒbƒhI—¹ƒtƒ‰ƒOƒŠƒZƒbƒg
+	_mm_store_si128((__m128i *)thread_finish, _mm_setzero_si128());  // ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ãƒ•ãƒ©ã‚°ãƒªã‚»ãƒƒãƒˆ
 	for(i = 0; i < thread; i++){		
-		pthread_mutex_lock(&mutex_thread[i]); // ƒ~ƒ…[ƒeƒbƒNƒXæ“¾
-		pthread_cond_signal(&cond_thread[i]); // ƒXƒŒƒbƒhŠJnƒVƒOƒiƒ‹ƒZƒbƒg (ÄŠJ)
-		pthread_mutex_unlock(&mutex_thread[i]); // ƒ~ƒ…[ƒeƒbƒNƒX‰ğ•ú
+		pthread_mutex_lock(&mutex_thread[i]); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹å–å¾—
+		pthread_cond_signal(&cond_thread[i]); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚·ã‚°ãƒŠãƒ«ã‚»ãƒƒãƒˆ (å†é–‹)
+		pthread_mutex_unlock(&mutex_thread[i]); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹è§£æ”¾
 	}
 #else
 	for (i = 0; i < thread; i++) {
-		thread_finish[i] = 0;  // ƒXƒŒƒbƒhI—¹ƒtƒ‰ƒOƒŠƒZƒbƒg		
-		pthread_mutex_lock(&mutex_thread[i]); // ƒ~ƒ…[ƒeƒbƒNƒXæ“¾
-		pthread_cond_signal(&cond_thread[i]); // ƒXƒŒƒbƒhŠJnƒVƒOƒiƒ‹ƒZƒbƒg (ÄŠJ)
-		pthread_mutex_unlock(&mutex_thread[i]); // ƒ~ƒ…[ƒeƒbƒNƒX‰ğ•ú
+		thread_finish[i] = 0;  // ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†ãƒ•ãƒ©ã‚°ãƒªã‚»ãƒƒãƒˆ		
+		pthread_mutex_lock(&mutex_thread[i]); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹å–å¾—
+		pthread_cond_signal(&cond_thread[i]); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚·ã‚°ãƒŠãƒ«ã‚»ãƒƒãƒˆ (å†é–‹)
+		pthread_mutex_unlock(&mutex_thread[i]); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹è§£æ”¾
 	}
 #endif
 	compute_thread_core(0); // thread 0
-	compute_thread_wait(); // ‘SƒXƒŒƒbƒhI—¹‘Ò‹@
+	compute_thread_wait(); // å…¨ã‚¹ãƒ¬ãƒƒãƒ‰çµ‚äº†å¾…æ©Ÿ
 }
 
 static void init_compute_thread_param(void)
@@ -562,7 +562,7 @@ static void init_compute_thread_param(void)
 	if (thread_init)
 		return;
 	//for (i = 0; i < (MAX_THREADS - 1); i++){
-	//	// ƒnƒ“ƒhƒ‹‚©‚È‚É‚©‚Ì‰Šú‰»
+	//	// ãƒãƒ³ãƒ‰ãƒ«ã‹ãªã«ã‹ã®åˆæœŸåŒ–
 	//}
 	memset(thread_finish, 0, MAX_THREADS);
 	memset(thread_finish_all, 0, MAX_THREADS);	
@@ -574,9 +574,9 @@ static int check_compute_thread(void)
 {
 	int i, flg = 0;
 	
-	// ‚±‚±‚ÅƒXƒŒƒbƒh‚ªc‚Á‚Ä‚é‚±‚Æ‚Í‚È‚¢‚Í‚¸
+	// ã“ã“ã§ã‚¹ãƒ¬ãƒƒãƒ‰ãŒæ®‹ã£ã¦ã‚‹ã“ã¨ã¯ãªã„ã¯ãš
 	//for (i = 0; i < (MAX_THREADS - 1); i++) {
-	//	if () // ƒXƒŒƒbƒh‚ª‚ ‚é‚ÌğŒ ƒnƒ“ƒhƒ‹‚©‚È‚É‚©‚Ìƒ`ƒFƒbƒNH
+	//	if () // ã‚¹ãƒ¬ãƒƒãƒ‰ãŒã‚ã‚‹ã®æ¡ä»¶ ãƒãƒ³ãƒ‰ãƒ«ã‹ãªã«ã‹ã®ãƒã‚§ãƒƒã‚¯ï¼Ÿ
 	//		flg++;
 	//}
 	//if(flg){
@@ -593,12 +593,12 @@ void terminate_compute_thread(void)
 	int i;
 		
 	thread_exit = 1;
-	compute_thread_job = 0; // ƒfƒbƒhƒƒbƒN‘Îô
+	compute_thread_job = 0; // ãƒ‡ãƒƒãƒ‰ãƒ­ãƒƒã‚¯å¯¾ç­–
 	for(i = 0; i < (MAX_THREADS - 1); i++){
-		//if() // ƒXƒŒƒbƒh‚ª‚È‚¢‚ÌğŒ
+		//if() // ã‚¹ãƒ¬ãƒƒãƒ‰ãŒãªã„ã®æ¡ä»¶
 		//	continue;	
 		pthread_mutex_lock(&mutex_thread[i]);
-		pthread_cond_signal(&cond_thread[i]); // ƒXƒŒƒbƒhŠJnƒVƒOƒiƒ‹ƒZƒbƒg (ÄŠJ)
+		pthread_cond_signal(&cond_thread[i]); // ã‚¹ãƒ¬ãƒƒãƒ‰é–‹å§‹ã‚·ã‚°ãƒŠãƒ«ã‚»ãƒƒãƒˆ (å†é–‹)
 		pthread_mutex_unlock(&mutex_thread[i]);
 		pthread_join(handle_thread[i], NULL);
 		handle_thread[i] = NULL;
@@ -615,7 +615,7 @@ void terminate_compute_thread(void)
 	uninit_compute_data_midi_thread();
 }
 
-// load ini, load config , init_playmidi()... ‚ÌŒã‚É‚·‚é
+// load ini, load config , init_playmidi()... ã®å¾Œã«ã™ã‚‹
 void begin_compute_thread(void)
 {
 	int i, error = 0;
@@ -638,7 +638,7 @@ void begin_compute_thread(void)
 			error++;
 			break;
 		}
-		if(pthread_cond_init(&cond_thread[i], NULL)){ // attr‚Í‹¤—Lİ’èH 
+		if(pthread_cond_init(&cond_thread[i], NULL)){ // attrã¯å…±æœ‰è¨­å®šï¼Ÿ 
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "ERROR ComputeThread : pthread_cond_init %d error.", i);
 			error++;
 			break;
@@ -671,10 +671,10 @@ void reset_compute_thread(void)
 
 #elif defined(MULTI_THREAD_COMPUTE) && (defined(HAVE_PTHREAD_H) || defined(HAVE_PTHREADS_H)) && defined(HAVE_PTHREAD_CREATE)
 /*
-ˆê‰“®‚¢‚Ä‚Í‚¢‚é‚ªEE’x‚¢‚æ‚¤‚ÈEEH
+ä¸€å¿œå‹•ã„ã¦ã¯ã„ã‚‹ãŒãƒ»ãƒ»é…ã„ã‚ˆã†ãªãƒ»ãƒ»ï¼Ÿ
 
-–ˆ‰ñpthread_create/pthread_join
-load_balancer (mutex)  // CRITICAL_SECTION‚ª‚È‚¢H‚Ì‚Åmutexg—p
+æ¯å›pthread_create/pthread_join
+load_balancer (mutex)  // CRITICAL_SECTIONãŒãªã„ï¼Ÿã®ã§mutexä½¿ç”¨
 */
 
 static pthread_t handle_thread[MAX_THREADS - 1];
@@ -686,16 +686,16 @@ static void compute_thread_core(int thread_num)
 		if(thread_num < compute_thread_job)
 			do_compute_func(thread_num);
 	}else{	
-#if 1 // load_balancer	// ‹ó‚¢‚Ä‚éƒXƒŒƒbƒh‚ÉƒWƒ‡ƒuŠ„‚è“–‚Ä
+#if 1 // load_balancer	// ç©ºã„ã¦ã‚‹ã‚¹ãƒ¬ãƒƒãƒ‰ã«ã‚¸ãƒ§ãƒ–å‰²ã‚Šå½“ã¦
 		for(;;){
 			int job_num;
-			pthread_mutex_lock(&mutex_job); // ƒ~ƒ…[ƒeƒbƒNƒXæ“¾
+			pthread_mutex_lock(&mutex_job); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹å–å¾—
 			job_num = (compute_thread_job_cnt++);
-			pthread_mutex_unlock(&mutex_job); // ƒ~ƒ…[ƒeƒbƒNƒX‰ğ•ú			
+			pthread_mutex_unlock(&mutex_job); // ãƒŸãƒ¥ãƒ¼ãƒ†ãƒƒã‚¯ã‚¹è§£æ”¾			
 			if(job_num >= compute_thread_job) break;
 			do_compute_func(job_num);
 		}
-#else // normal // ƒXƒŒƒbƒh‚É‹Ï“™‚ÉƒWƒ‡ƒuŠ„‚è“–‚Ä
+#else // normal // ã‚¹ãƒ¬ãƒƒãƒ‰ã«å‡ç­‰ã«ã‚¸ãƒ§ãƒ–å‰²ã‚Šå½“ã¦
 		int i;
 		for (i = thread_num; i < compute_thread_job; i += compute_thread_ready)
 			do_compute_func(i);
@@ -741,7 +741,7 @@ void terminate_compute_thread(void)
 	uninit_compute_data_midi_thread();
 }
 
-// load ini, load config , init_playmidi()... ‚ÌŒã‚É‚·‚é
+// load ini, load config , init_playmidi()... ã®å¾Œã«ã™ã‚‹
 void begin_compute_thread(void)
 {
 	int i, error = 0;

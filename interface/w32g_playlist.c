@@ -493,7 +493,7 @@ int w32g_shuffle_playlist_next(int skip_invalid_file)
     return 0;
 }
 
-// void w32g_rotate_playlist(int dest) —p
+// void w32g_rotate_playlist(int dest) ç”¨
 static int w32g_shuffle_playlist_rotate(int dest, int i1, int i2)
 {
     int i, save;
@@ -518,7 +518,7 @@ static int w32g_shuffle_playlist_rotate(int dest, int i1, int i2)
         return 0;
 }
 
-// int w32g_delete_playlist(int pos) —p
+// int w32g_delete_playlist(int pos) ç”¨
 static int w32g_shuffle_playlist_delete(int n)
 {
         int i;
@@ -595,7 +595,7 @@ void w32g_update_playlist_pos(int pos)
 #ifdef LISTVIEW_PLAYLIST
 
 
-// LVITEM volatile ‚ª‚È‚¢‚ÆReleaseƒrƒ‹ƒh‚ÅpszText‚ªƒoƒO‚é
+// LVITEM volatile ãŒãªã„ã¨Releaseãƒ“ãƒ«ãƒ‰ã§pszTextãŒãƒã‚°ã‚‹
 
     int i, cur, modified;
     HWND hList;
@@ -709,7 +709,7 @@ void w32g_update_playlist_pos(int pos)
         else
             snprintf(item1, maxlen, "   %-80s      (%s)", title, filename);
         }
-        item2_len = ListBox_GetTextLen(hList, i); // ‘O‰ñ‹óƒvƒŒƒCƒŠƒXƒg‘Îô
+        item2_len = ListBox_GetTextLen(hList, i); // å‰å›žç©ºãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆå¯¾ç­–
         if (item2_len > 0) {
                 item2 = (char*) new_segment(&tmpbuffer, item2_len + 1);
                 ListBox_GetText(hList, i, item2);
@@ -1379,7 +1379,7 @@ void w32g_paste_playlist(int uniq, int refine)
                         playlist_ctrl->allocated *= 2;
                         playlist_ctrl->list = (PlayListEntry*) safe_realloc(playlist_ctrl->list,playlist_ctrl->allocated * sizeof(PlayListEntry));
                 }
-                // insert 1ŒÂ•ªƒXƒy[ƒXì‚é
+                // insert 1å€‹åˆ†ã‚¹ãƒšãƒ¼ã‚¹ä½œã‚‹
                 if (playlist_ctrl->nfiles && pos < playlist_ctrl->nfiles)
                         for (i = playlist_ctrl->nfiles - 1; i >= pos; i--)
                                 playlist_ctrl->list[i + 1] = playlist_ctrl->list[i];

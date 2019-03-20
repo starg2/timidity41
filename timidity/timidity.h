@@ -487,7 +487,7 @@
 #define MAX_AMPLIFICATION 800
 #define MAX_CHANNELS 64
 /*#define MAX_CHANNELS 256*/
-/* safe MAX_CHANNELS < 0x7F (SysEx broadcast, disable channel“™ */
+/* safe MAX_CHANNELS < 0x7F (SysEx broadcast, disable channelç­‰ */
 #define MAXMIDIPORT 16
 
 /* you cannot but use safe_malloc(). */

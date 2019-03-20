@@ -86,7 +86,7 @@ double rtsyn_latency = RTSYN_LATENCY;   //ratency (sec)
 int32 rtsyn_start_sample;
 int rtsyn_sample_time_mode = 0;
 int rtsyn_skip_aq = 0;
-double max_compute = RTSYN_LATENCY;     // play_event() ‚Ì compute_data() ‚ÅŒvZ‚ğ‹–‚·Å‘åŠÔ
+double max_compute = RTSYN_LATENCY;     // play_event() ã® compute_data() ã§è¨ˆç®—ã‚’è¨±ã™æœ€å¤§æ™‚é–“
 
 int rtsyn_portnumber = 1;
 unsigned int portID[MAX_PORT];

@@ -250,7 +250,7 @@ void apply_envelope0_param(Envelope0 *env){
 			env->follow[i] = 1.0;
 		env->add_vol[i] = env->rate[i] * env->follow[i];
 	}
-	//if(special_curve){ // ADDSRˆÈŠO‚Ìê‡ LINEAR_CURVE‚Ì‚İ (stage•ÏX‚ª•¡G‚É‚È‚é‚Ì‚Å
+	//if(special_curve){ // ADDSRä»¥å¤–ã®å ´åˆ LINEAR_CURVEã®ã¿ (stageå¤‰æ›´ãŒè¤‡é›‘ã«ãªã‚‹ã®ã§
 	//	for(i = 0; i < ENV0_STAGE_LIST_MAX; i++)
 	//		env->curve[i] = LINEAR_CURVE;
 	//}
@@ -260,7 +260,7 @@ void apply_envelope0_param(Envelope0 *env){
 }
 
 
-// stage•ÏX‚Í‚±‚ÌŠÖ”‚ÌŒã‚É‚·‚é (•ÏX‘O‚Ìstage‚ª•K—v‚È‚Ì‚Å
+// stageå¤‰æ›´ã¯ã“ã®é–¢æ•°ã®å¾Œã«ã™ã‚‹ (å¤‰æ›´å‰ã®stageãŒå¿…è¦ãªã®ã§
 static inline void set_noteoff_recalc_release_rate(Envelope0 *env){	
 	int i;
 	if(env->status < ENV0_NOTE_OFF || env->status == ENV0_NOTE_CUT_WAIT){
@@ -268,10 +268,10 @@ static inline void set_noteoff_recalc_release_rate(Envelope0 *env){
 			env->status = ENV0_NOTE_CUT;
 		else
 			env->status = ENV0_NOTE_OFF;	
-		// ƒJ[ƒu‚ª•Ï‚í‚é‚Ævol‚Í“¯‚¶‚Å‚ào—Ívolume‚Íˆá‚¤‚Ì‚Å ŸƒXƒe[ƒW‚ÌƒJ[ƒu‚Åvolume‚ªˆê’v‚·‚évol’l‚É•ÏX
+		// ã‚«ãƒ¼ãƒ–ãŒå¤‰ã‚ã‚‹ã¨volã¯åŒã˜ã§ã‚‚å‡ºåŠ›volumeã¯é•ã†ã®ã§ æ¬¡ã‚¹ãƒ†ãƒ¼ã‚¸ã®ã‚«ãƒ¼ãƒ–ã§volumeãŒä¸€è‡´ã™ã‚‹volå€¤ã«å¤‰æ›´
 		if(env->curve[env->stage] != env->curve[ENV0_RELEASE1_STAGE])
 			env->vol = calc_rev_envelope0_curve(env->volume, env->curve[ENV0_RELEASE1_STAGE]);		
-		// RELEASE1‚Ì“ü—Írate‚Íoffset·‚ªOFFSET_MAX‚ÅŒvZ‚³‚ê‚Ä‚é‚Ì‚Å vol‚Æ‚Ì·•ª‚Årate’²®
+		// RELEASE1ã®å…¥åŠ›rateã¯offsetå·®ãŒOFFSET_MAXã§è¨ˆç®—ã•ã‚Œã¦ã‚‹ã®ã§ volã¨ã®å·®åˆ†ã§rateèª¿æ•´
 		if(env->vol == env->target_vol[ENV0_RELEASE1_STAGE])
 			env->rate[ENV0_RELEASE1_STAGE] *= -DIV_ENV0_OFFSET_MAX;
 		else
@@ -289,8 +289,8 @@ void reset_envelope0_release(Envelope0 *env, int32 rate){
 	}else if(env->status >= ENV0_NOTE_CUT){
 		return;
 	}else{ // if set cut_rate 
-		if(env->status == ENV0_NOTE_OFF && env->stage >= ENV0_RELEASE1_STAGE) // ‚·‚Å‚Éƒm[ƒgƒIƒtŒãƒŠƒŠ[ƒX‚Ìê‡
-			env->status = ENV0_NOTE_CUT; // ‚»‚Ì‚Ü‚ÜƒJƒbƒgƒm[ƒg‚ÉˆÚs
+		if(env->status == ENV0_NOTE_OFF && env->stage >= ENV0_RELEASE1_STAGE) // ã™ã§ã«ãƒãƒ¼ãƒˆã‚ªãƒ•å¾Œãƒªãƒªãƒ¼ã‚¹ã®å ´åˆ
+			env->status = ENV0_NOTE_CUT; // ãã®ã¾ã¾ã‚«ãƒƒãƒˆãƒãƒ¼ãƒˆã«ç§»è¡Œ
 		else
 			env->status = ENV0_NOTE_CUT_WAIT;
 		for(i = ENV0_RELEASE1_STAGE; i < ENV0_STAGE_LIST_MAX; i++){
@@ -320,7 +320,7 @@ void reset_envelope0_damper(Envelope0 *env, int8 damper){
 		double rate = 0;
 		double ratio1 = (double)damper * DIV_127;
 		double ratio2 = 1.0 - ratio1;
-		set_noteoff_recalc_release_rate(env); // release rate‚ª•K—v‚È‚Ì‚Å
+		set_noteoff_recalc_release_rate(env); // release rateãŒå¿…è¦ãªã®ã§
 		env->stage = ENV0_SUSTAIN_STAGE; // set noteon stage		
 		adjust_envelope0_stage(env);	
 		for(i = ENV0_RELEASE1_STAGE; i < ENV0_RELEASE4_STAGE; i++){
@@ -360,10 +360,10 @@ static int compute_envelope0_stage(Envelope0 *env, int cnt){
 			int next_stage = env->stage + 1;
 			env->vol = env->target_vol[env->stage];	
 			env->volume = calc_envelope0_curve(env->vol, env->curve[env->stage]);
-			// ƒJ[ƒu‚ª•Ï‚í‚é‚Ævol‚Í“¯‚¶‚Å‚ào—Ívolume‚Íˆá‚¤‚Ì‚Å ŸƒXƒe[ƒW‚ÌƒJ[ƒu‚Åvolume‚ªˆê’v‚·‚évol‚É•ÏX
+			// ã‚«ãƒ¼ãƒ–ãŒå¤‰ã‚ã‚‹ã¨volã¯åŒã˜ã§ã‚‚å‡ºåŠ›volumeã¯é•ã†ã®ã§ æ¬¡ã‚¹ãƒ†ãƒ¼ã‚¸ã®ã‚«ãƒ¼ãƒ–ã§volumeãŒä¸€è‡´ã™ã‚‹volã«å¤‰æ›´
 			if(env->curve[env->stage] != env->curve[next_stage]){
 				env->vol = calc_rev_envelope0_curve(env->volume, env->curve[next_stage]);	
-				// add_vol‚Íoffset·‚ÅŒvZ‚³‚ê‚Ä‚é‚Ì‚Å init_vol‚Ævol·•ª‚ğadd_vol‚Ö”½‰f
+				// add_volã¯offsetå·®ã§è¨ˆç®—ã•ã‚Œã¦ã‚‹ã®ã§ init_volã¨volå·®åˆ†ã‚’add_volã¸åæ˜ 
 				if(env->init_vol[next_stage] != env->vol && env->init_vol[next_stage] != env->target_vol[next_stage]){
 					if(env->init_vol[next_stage] > env->target_vol[next_stage])
 						env->add_vol[next_stage] *= (env->vol - env->target_vol[next_stage]) / (env->init_vol[next_stage] - env->target_vol[next_stage]);
@@ -399,7 +399,7 @@ int compute_envelope0(Envelope0 *env, int32 cnt){
 		env->delay = 0;
 		env->status = ENV0_NOTE_ON;
 	}else if(env->status == ENV0_NOTE_OFF_WAIT || env->status == ENV0_NOTE_CUT_WAIT){
-#if 1 // ƒm[ƒgŠÔ‚ğÅ’á1ƒoƒbƒtƒ@•ªŠm•Û ‚©‚í‚è‚Éoffdelayˆ—‚Íƒoƒbƒtƒ@’PˆÊ‚É‚È‚é
+#if 1 // ãƒãƒ¼ãƒˆæ™‚é–“ã‚’æœ€ä½1ãƒãƒƒãƒ•ã‚¡åˆ†ç¢ºä¿ ã‹ã‚ã‚Šã«offdelayå‡¦ç†ã¯ãƒãƒƒãƒ•ã‚¡å˜ä½ã«ãªã‚‹
 		if(env->offdelay < 0)
 			set_noteoff_recalc_release_rate(env); // set noteoff / release stage
 		else{
@@ -412,7 +412,7 @@ int compute_envelope0(Envelope0 *env, int32 cnt){
 			cnt -= env->delay;
 			env->delay = 0;
 		}		
-#else // offdelayˆ—‚ÍƒTƒ“ƒvƒ‹’PˆÊ‚É‚È‚é ƒm[ƒgŠÔ<ƒoƒbƒtƒ@‚Ì‚Æ‚«‰¹”²‚¯‚·‚é‚©‚à
+#else // offdelayå‡¦ç†ã¯ã‚µãƒ³ãƒ—ãƒ«å˜ä½ã«ãªã‚‹ ãƒãƒ¼ãƒˆæ™‚é–“<ãƒãƒƒãƒ•ã‚¡ã®ã¨ãéŸ³æŠœã‘ã™ã‚‹ã‹ã‚‚
 		if(cnt < env->offdelay){
 			env->offdelay -= cnt;			
 			if(cnt <= env->delay){

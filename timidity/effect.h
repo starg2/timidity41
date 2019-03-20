@@ -635,7 +635,7 @@ typedef struct _InfoFreeverb{
 
 
 // reverb_ex
-#define REV_EX_UNITS 64 // ER,RV‹¤’Ê
+#define REV_EX_UNITS 64 // ER,RVå…±é€š
 #define REV_EX_AP_MAX 8
 enum{
 	REV_EX_ER_L1 = 0, // er left

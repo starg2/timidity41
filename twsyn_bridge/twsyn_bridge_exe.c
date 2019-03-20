@@ -295,7 +295,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		errortext = "bridge.exe error : CreateMutex.";
 		goto error;	
 	}	
-	if(GetLastError() == ERROR_ALREADY_EXISTS){ // “ñd‹N“®–h~ ‚±‚Ì“_‚ÅŒÃ‚¢ƒuƒŠƒbƒW‚ÍI—¹‚µ‚Ä‚¢‚é‚©‚àH
+	if(GetLastError() == ERROR_ALREADY_EXISTS){ // äºŒé‡èµ·å‹•é˜²æ­¢ ã“ã®æ™‚ç‚¹ã§å¤ã„ãƒ–ãƒªãƒƒã‚¸ã¯çµ‚äº†ã—ã¦ã„ã‚‹ã‹ã‚‚ï¼Ÿ
 		errortext = "bridge.exe error : CreateMutex ALREADY_EXISTS.";
 		goto error;
 	}
@@ -328,7 +328,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hControlWndHost = (HWND)shared_data->hControlWndHost;
 	uControlMessHost = shared_data->uControlMessHost;
 	// create thread
-	shared_data->exit = 0; // ‰ğœ (ƒ[ƒh‚ÅŠÔ‚©‚©‚é‚Ì‚ÅSleep‚Í•s—v
+	shared_data->exit = 0; // è§£é™¤ (ãƒ­ãƒ¼ãƒ‰ã§æ™‚é–“ã‹ã‹ã‚‹ã®ã§Sleepã¯ä¸è¦
 	thread_exit = 0;
 	hThread = (HANDLE)_beginthreadex(NULL, 0, CheckProcessThread, (void *)0, 0, &dwThreadID);
 	if(!hThread){
@@ -342,7 +342,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	// send ctrl message
 	shared_data->uControlMess = uControlMess;
 	// send win handle	
-	shared_data->hControlWnd = (unsigned long long)hControlWnd; // winhandle‚ğhost‘¤‚Ö“n‚· ‰Šú‰»Š®—¹ƒtƒ‰ƒO
+	shared_data->hControlWnd = (unsigned long long)hControlWnd; // winhandleã‚’hostå´ã¸æ¸¡ã™ åˆæœŸåŒ–å®Œäº†ãƒ•ãƒ©ã‚°
 	return TRUE;
 error:
 	uninit_bridge();

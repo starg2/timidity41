@@ -41,13 +41,13 @@
 
 
 /*
-‘¼‚Ì—p“r‚Å‚àg‚¦‚é‚æ‚¤‚É‚µ‚½‚ªEE
+ä»–ã®ç”¨é€”ã§ã‚‚ä½¿ãˆã‚‹ã‚ˆã†ã«ã—ãŸãŒãƒ»ãƒ»
 
-winˆÈŠO‚Ìunix/linux/mac“™‚Å‚Íposix‚Å?
-winCUI window handle ? ‚í‚©‚ç‚ñ
+winä»¥å¤–ã®unix/linux/macç­‰ã§ã¯posixã§?
+winCUI window handle ? ã‚ã‹ã‚‰ã‚“
 
-config‚Ì®”õ‚à‚µ‚Ä‚È‚¢ HAVE_TIMER‚Æ‚©?
-posix•”•ª‚Í‚½‚¾‚Ì„‘ª
+configã®æ•´å‚™ã‚‚ã—ã¦ãªã„ HAVE_TIMERã¨ã‹?
+posixéƒ¨åˆ†ã¯ãŸã ã®æ¨æ¸¬
 */
 
 #ifdef __W32__
@@ -119,7 +119,7 @@ static inline void timer_event(UINT id)
 		timer_func[id]();
 }
 
-// signo ‚ÉTIMER_IDİ’è‚Å‚«‚é‚È‚çƒnƒ“ƒhƒ‰‚Í1ŒÂ‚Å‚¢‚¢‚Ì‚©‚à
+// signo ã«TIMER_IDè¨­å®šã§ãã‚‹ãªã‚‰ãƒãƒ³ãƒ‰ãƒ©ã¯1å€‹ã§ã„ã„ã®ã‹ã‚‚
 
 #define CREATE_HANDLER_FUNCTION(id) \
 	void TimerHandler##id(int signo){timer_event(##id);}
@@ -136,7 +136,7 @@ timer_handler_t timer_handler[MAX_TIMER_ID] = {
 
 static int init_timer(void) // 0:ok 1:error
 {
-	// ƒnƒ“ƒhƒ‰“o˜^/İ’è
+	// ãƒãƒ³ãƒ‰ãƒ©ç™»éŒ²/è¨­å®š
 	for(i = 0; i < MAX_TIMER_ID; i++){
 		sa[id].sa_handler = timer_handler[id];
 		sa[id].sa_flags = 0;
@@ -158,7 +158,7 @@ int start_timer(uint32 id, timer_func_t fnc, uint32 ms)
 			return 1;
 	if(timer_func[id] != NULL)
 		return 0; // already start timer
-	// ƒ^ƒCƒ}[ì¬/İ’è
+	// ã‚¿ã‚¤ãƒãƒ¼ä½œæˆ/è¨­å®š
 	nsec = ms * 1000;
 	timer_spec[id].it_interval.tv_sec = 0;
     timer_spec[id].it_interval.tv_nsec = nsec;
@@ -181,7 +181,7 @@ void stop_timer(uint32 id)
 {
 	if(timer_func[id] == NULL)
 		return; // not start timer
-	// ƒ^ƒCƒ}[íœ
+	// ã‚¿ã‚¤ãƒãƒ¼å‰Šé™¤
 	if(timer_delete(timerID[id]) == -1)	{
 		timer_func[id] = NULL;
 		return; // error

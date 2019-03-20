@@ -34,44 +34,44 @@ typedef struct _Bitset
 #define BIT_CHUNK_SIZE ((unsigned int)(8 * sizeof(unsigned int)))
 
 /*
- * Bitset ‚Ì‰Šú‰»
- * ‰Šú‰»ŒãA‘S‚Ä‚Ìƒrƒbƒg‚Í 0 ‚É‰Šú‰»‚³‚ê‚é
+ * Bitset ã®åˆæœŸåŒ–
+ * åˆæœŸåŒ–å¾Œã€å…¨ã¦ã®ãƒ“ãƒƒãƒˆã¯ 0 ã«åˆæœŸåŒ–ã•ã‚Œã‚‹
  */
 extern void init_bitset(Bitset *bitset, int nbits);
 
 /*
- * Bitset ‚Ì‰ğ•ú
+ * Bitset ã®è§£æ”¾
  */
 extern void finalize_bitset(Bitset *bitset);
 
 /*
- * start ”Ô–Ú‚Ìƒrƒbƒg‚©‚çAnbit •ªA0 ‚ÉƒZƒbƒg‚·‚éB
+ * start ç•ªç›®ã®ãƒ“ãƒƒãƒˆã‹ã‚‰ã€nbit åˆ†ã€0 ã«ã‚»ãƒƒãƒˆã™ã‚‹ã€‚
  */
 extern void clear_bitset(Bitset *bitset, int start_bit, int nbits);
 
 /*
- * start ƒrƒbƒg‚©‚çAnbits •ªA“¾‚é
+ * start ãƒ“ãƒƒãƒˆã‹ã‚‰ã€nbits åˆ†ã€å¾—ã‚‹
  */
 extern void get_bitset(const Bitset *bitset, unsigned int *bits_return,
 		       int start_bit, int nbits);
-/* get_bitset ‚Ì 1 ƒrƒbƒg”Å */
+/* get_bitset ã® 1 ãƒ“ãƒƒãƒˆç‰ˆ */
 extern int get_bitset1(Bitset *bitset, int n);
 
 /*
- * start ƒrƒbƒg‚©‚çAnbits •ªAbits ‚ÉƒZƒbƒg‚·‚é
+ * start ãƒ“ãƒƒãƒˆã‹ã‚‰ã€nbits åˆ†ã€bits ã«ã‚»ãƒƒãƒˆã™ã‚‹
  */
 extern void set_bitset(Bitset *bitset, const unsigned int *bits,
 		       int start_bit, int nbits);
-/* set_bitset ‚Ì 1 ƒrƒbƒg”Å */
+/* set_bitset ã® 1 ãƒ“ãƒƒãƒˆç‰ˆ */
 extern void set_bitset1(Bitset *bitset, int n, int bit);
 
 /*
- * bitset ‚Ì’†‚É 1 ƒrƒbƒg‚àŠÜ‚Ü‚ê‚Ä‚¢‚È‚¯‚ê‚Î 0 ‚ğ•Ô‚µC
- * 1 ƒrƒbƒg‚Å‚àŠÜ‚Ü‚ê‚Ä‚¢‚éê‡‚Í 0 ˆÈŠO‚Ì’l‚ğ•Ô‚·D
+ * bitset ã®ä¸­ã« 1 ãƒ“ãƒƒãƒˆã‚‚å«ã¾ã‚Œã¦ã„ãªã‘ã‚Œã° 0 ã‚’è¿”ã—ï¼Œ
+ * 1 ãƒ“ãƒƒãƒˆã§ã‚‚å«ã¾ã‚Œã¦ã„ã‚‹å ´åˆã¯ 0 ä»¥å¤–ã®å€¤ã‚’è¿”ã™ï¼
  */
 extern unsigned int has_bitset(const Bitset *bitset);
 
-/* bitset ‚Ì’†‚ğ•\¦ */
+/* bitset ã®ä¸­ã‚’è¡¨ç¤º */
 extern void print_bitset(Bitset *bitset);
 
 #endif /* ___BITSET_H_ */

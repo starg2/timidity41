@@ -771,11 +771,11 @@ static void free_layer(SFHeader *hdr)
 		/*if (layp->nlists > 0)
 			safe_free(layp->list);
         */
-        //ƒƒ‚ƒŠƒŠ[ƒNC³ by Kobarin
-        //generate_layers ‚Å layp->nlists==0 ‚Ì‚Æ‚«‚É safe_malloc(0) ‚µ‚Ä‚¢‚é
-        //safe_malloc(0) ‚Í“à•”“I‚É 1 ƒoƒCƒg malloc ‚µ‚Ä‚¢‚é
+        //ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯ä¿®æ­£ by Kobarin
+        //generate_layers ã§ layp->nlists==0 ã®ã¨ãã« safe_malloc(0) ã—ã¦ã„ã‚‹
+        //safe_malloc(0) ã¯å†…éƒ¨çš„ã« 1 ãƒã‚¤ãƒˆ malloc ã—ã¦ã„ã‚‹
         //
-        //layp->nlists<0 ‚Ìê‡‚Í safe_malloc ‚µ‚Ä‚¢‚È‚¢ & layp->list==NULL ‚Æ‚ÍŒÀ‚ç‚È‚¢
+        //layp->nlists<0 ã®å ´åˆã¯ safe_malloc ã—ã¦ã„ãªã„ & layp->list==NULL ã¨ã¯é™ã‚‰ãªã„
         if (layp->nlists >= 0) {
             safe_free(layp->list);
             layp->list = NULL;

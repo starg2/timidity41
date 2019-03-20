@@ -739,7 +739,7 @@ static int32 calc_volenv_sustain(int sust_cB)
 	if (sust_cB <= 0) { return 65533; }
 	else if (sust_cB >= 1440) { return 0; }
 	else { return (1440 - sust_cB) * 65533 / 1440; }
-	/* ampenv ƒ{ƒŠƒ…[ƒ€ƒJ[ƒu’Ê‰ß‚Å cb•ÏŠ·‚³‚ê‚é */
+	/* ampenv ãƒœãƒªãƒ¥ãƒ¼ãƒ ã‚«ãƒ¼ãƒ–é€šéã§ cbå¤‰æ›ã•ã‚Œã‚‹ */
 #else
 	if (sust_cB <= 0) { return 65533; }
 	else if (sust_cB >= 1000) { return 0; }
@@ -900,7 +900,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 			tmp_data = (float *)sample->data;
 		    for(j = 0; j < frames; j++) {
 				// 24bit to int32full
-			    int32 tmp_i = 0; // 1byte 00‚Å‚¢‚¢‚ç‚µ‚¢H
+			    int32 tmp_i = 0; // 1byte 00ã§ã„ã„ã‚‰ã—ã„ï¼Ÿ
 				tmp_i |= (uint32)lowbit[j] << 8; // 2byte
 			    tmp_i |= (uint32)highbit[j] << 16; // 3-4byte
 #ifndef LITTLE_ENDIAN
@@ -939,7 +939,7 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 				tmp_data = (uint32 *)sample->data;
 				for (j = 0; j < frames; j++) {
 					// 24bit to int32full
-					uint32 tmp_i = 0; // 1byte 00‚Å‚¢‚¢‚ç‚µ‚¢H
+					uint32 tmp_i = 0; // 1byte 00ã§ã„ã„ã‚‰ã—ã„ï¼Ÿ
 					tmp_i |= (uint32)lowbit[j] << 8; // 2byte
 					tmp_i |= (uint32)highbit[j] << 16; // 3-4byte
 #ifndef LITTLE_ENDIAN
