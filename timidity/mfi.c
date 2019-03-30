@@ -203,8 +203,12 @@ static int read_mfi_information(int infoLength, int *mfiVersion, int *noteType, 
 					return 1;
 				}
 				title[length] = '\0';
-				current_file_info->seq_name = title;
-				ctl->cmsg(CMSG_TEXT, VERB_VERBOSE, "Title: %s", title);
+				size_t convlen = SAFE_CONVERT_LENGTH(length + 1);
+				char *convtitle = safe_malloc(convlen);
+				code_convert(title, convtitle, convlen, NULL, NULL);
+				safe_free(title);
+				current_file_info->seq_name = convtitle;
+				ctl->cmsg(CMSG_TEXT, VERB_VERBOSE, "Title: %s", convtitle);
 			}	break;
 			case BE_FCC(0x736F7263 /*sorc*/): {	/* source */
 				const char		*srcInfo;
@@ -257,7 +261,11 @@ static int read_mfi_information(int infoLength, int *mfiVersion, int *noteType, 
 				if (lengthToRead > 0 && tf_read(buf, lengthToRead, 1, tf) != 1)
 					return 1;
 				buf[lengthToRead] = '\0';
-				ctl->cmsg(CMSG_TEXT, VERB_VERBOSE, "Copyright: %s", buf);
+				size_t convlen = SAFE_CONVERT_LENGTH(lengthToRead + 1);
+				char* convbuf = safe_malloc(convlen);
+				code_convert(buf, convbuf, convlen, NULL, NULL);
+				ctl->cmsg(CMSG_TEXT, VERB_VERBOSE, "Copyright: %s", convbuf);
+				safe_free(convbuf);
 				if (lengthToRead < length && tf_seek(tf, length - lengthToRead, SEEK_CUR) == -1)
 					return 1;
 			}	break;

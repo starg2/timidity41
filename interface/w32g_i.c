@@ -5110,8 +5110,9 @@ static char *DlgFileOpen(HWND hwnd, const TCHAR *title, const TCHAR *filter, con
 
 static void DlgMidiFileOpen(HWND hwnd)
 {
-    char *dir, *file;
-    const char *filter,
+    TCHAR* dir;
+    char *file;
+    const TCHAR *filter,
         filter_en[] = _T("timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0")
             _T("midi file\0*.mid;*.midi;*.smf;*.rmi\0")
             _T("rcp file\0*.rcp;*.r36;*.g18;*.g36\0")
