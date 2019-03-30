@@ -1893,12 +1893,33 @@ int IsAvailableFilename(char *filename)
 		strcasecmp(p,".zip")==0 ||
 		strcasecmp(p,".gz")==0	||
 		strcasecmp(p,".mid")==0 ||
+		strcasecmp(p,".midi")==0 ||
+		strcasecmp(p,".rmi")==0 ||
 		strcasecmp(p,".rcp")==0 ||
 		strcasecmp(p,".r36")==0 ||
 		strcasecmp(p,".g18")==0 ||
 		strcasecmp(p,".g36")==0 ||
+		strcasecmp(p,".mld")==0 ||
 		strcasecmp(p,".mod")==0 ||
+		strcasecmp(p,".xm")==0 ||
+		strcasecmp(p,".s3m")==0 ||
+		strcasecmp(p,".it")==0 ||
+		strcasecmp(p,".669")==0 ||
+		strcasecmp(p,".amf")==0 ||
+		strcasecmp(p,".dsm")==0 ||
+		strcasecmp(p,".far")==0 ||
+		strcasecmp(p,".gdm")==0 ||
+		strcasecmp(p,".imf")==0 ||
+		strcasecmp(p,".med")==0 ||
+		strcasecmp(p,".mtm")==0 ||
+		strcasecmp(p,".stm")==0 ||
+		strcasecmp(p,".stx")==0 ||
+		strcasecmp(p,".ult")==0 ||
+		strcasecmp(p,".uni")==0 ||
 //		strcasecmp(p,".hqx")==0 ||
+		strcasecmp(p,".pls")==0 ||
+		strcasecmp(p,".m3u")==0 ||
+		strcasecmp(p,".asx")==0 ||
 		strcasecmp(p,".tar")==0 ||
 		strcasecmp(p,".tgz")==0 ||
 		strcasecmp(p,".lha")==0 ||

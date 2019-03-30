@@ -232,7 +232,7 @@ static int read_mfi_information(int infoLength, int *mfiVersion, int *noteType, 
 					case BE_FCC(0x30333030 /*0300*/):	*mfiVersion = 3;	break;
 					default:
 						ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "Unknown MFi version.");
-						return 1;
+						//return 1;
 				}
 				ctl->cmsg(CMSG_TEXT, VERB_VERBOSE, "MFi Version: %d", *mfiVersion);
 				/*
