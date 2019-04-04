@@ -82,7 +82,7 @@ typedef struct _ArchiveHandler {
 
 extern ArchiveHandler arc_handler;
 extern ArchiveEntryNode *arc_parse_entry(URL url, int archive_type);
-extern ArchiveEntryNode *new_entry_node(const char *name, int len);
+extern ArchiveEntryNode *new_entry_node(const char *name, int len, int utf8);
 extern ArchiveEntryNode *next_tar_entry(void);
 extern ArchiveEntryNode *next_zip_entry(void);
 extern ArchiveEntryNode *next_lzh_entry(void);

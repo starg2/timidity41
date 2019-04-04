@@ -319,7 +319,7 @@ ArchiveEntryNode *next_mime_entry(void)
 	if (data_start == data_end)
 	  {
 	    ArchiveEntryNode *entry;
-	    entry = new_entry_node(filename, strlen(filename));
+	    entry = new_entry_node(filename, strlen(filename), 0);
 	    entry->comptype = ARCHIVEC_STORED;
 	    entry->compsize = 0;
 	    entry->origsize = 0;
@@ -354,7 +354,7 @@ ArchiveEntryNode *next_mime_entry(void)
 	    }
 	  else
 	    gz = 0;
-	  entry = new_entry_node(filename, strlen(filename));
+	  entry = new_entry_node(filename, strlen(filename), 0);
 
 	  if (gz)
 	    gzmethod = parse_gzip_header_bytes(part_data, part_data_size,

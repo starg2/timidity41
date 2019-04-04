@@ -544,11 +544,24 @@ char **expand_archive_names(int *nfiles_in_out, char **files)
     return NULL;
 }
 
-ArchiveEntryNode *new_entry_node(const char *name, int len)
+ArchiveEntryNode *new_entry_node(const char *name, int len, int utf8)
 {
     ArchiveEntryNode *entry;
     entry = (ArchiveEntryNode*) safe_malloc(sizeof(ArchiveEntryNode));
     memset(entry, 0, sizeof(ArchiveEntryNode));
+#ifdef __W32__
+#ifdef UNICODE
+	if (!utf8) {
+		entry->name = w32_mbs_to_utf8(name);
+		return entry;
+	}
+#else
+	if (utf8) {
+		entry->name = w32_utf8_to_mbs(name);
+		return entry;
+	}
+#endif
+#endif
     entry->name = (char*) safe_malloc(len + 1);
     memcpy(entry->name, name, len);
     entry->name[len] = '\0';

@@ -522,7 +522,7 @@ ArchiveEntryNode *next_lzh_entry(void)
 	    break;
     if (!lzh_methods[i])
 	return NULL;
-    entry = new_entry_node(filename, name_length);
+    entry = new_entry_node(filename, name_length, 0);
     if (!entry)
 	return NULL;
     entry->comptype = i + ARCHIVEC_LZHED + 1;

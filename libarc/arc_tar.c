@@ -95,7 +95,7 @@ ArchiveEntryNode *next_tar_entry(void)
 	goto retry_read;
     }
 
-    entry = new_entry_node(hdr, flen);
+    entry = new_entry_node(hdr, flen, 1);
     if (!entry)
 	return NULL;
     sizeb = (((size) + (TARBLKSIZ - 1)) & ~(TARBLKSIZ - 1));

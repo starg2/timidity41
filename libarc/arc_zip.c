@@ -204,7 +204,7 @@ ArchiveEntryNode *next_zip_entry(void)
 	  arc_handler.pos += hdrsiz;
 	goto retry_read;
     }
-    entry = new_entry_node(buff, flen);
+	entry = new_entry_node(buff, flen, (flags >> 11) & 1);
     if (!entry)
 	return NULL;
 
