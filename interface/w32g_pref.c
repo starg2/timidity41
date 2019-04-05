@@ -8640,6 +8640,7 @@ int asioConfigDialog(int deviceID)
 	return 0;
 	
 error1:
+	;
 //  	free_portaudio_dll();
 	TCHAR *t = char_to_tchar(Pa_GetErrorText(err));
 	MessageBox(NULL, t, _T("Port Audio (asio) error"), MB_OK | MB_ICONEXCLAMATION);
