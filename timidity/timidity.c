@@ -8352,7 +8352,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 #ifdef __W32__
     /* Windows */
     char *strp;
-    int check;
+    struct timidity_file *tf;
     char local[FILEPATH_MAX] = { 0 };
     const char cfgname[] = CONFIG_FILE_NAME_P;
 
@@ -8365,9 +8365,9 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
         strlcat(ConfigFile, cfgname, sizeof(local));
     }
     strlcpy(local, ConfigFile, sizeof(local) - 1);
-    if ((check = open(local, 0)) >= 0)
+    if ((tf = open_file(local, 1, OF_NORMAL)))
     {
-        close(check);
+        close_file(tf);
         if (!read_config_file(local, 0, 0)) {
             got_a_configuration = 1;
             return 0;
@@ -8385,9 +8385,9 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
         {
             *(strp) = '\0';
             strlcat(local, cfgname, sizeof(local));
-            if ((check = open(local, 0)) >= 0)
+            if ((tf = open_file(local, 1, OF_NORMAL)))
             {
-                close(check);
+                close_file(tf);
                 if (!read_config_file(local, 0, 0)) {
 #if defined(IA_W32GUI) || defined(IA_W32G_SYN)
                     if (firstStartup) {
@@ -8405,9 +8405,9 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
          */
         GetWindowsDirectoryA(local, FILEPATH_MAX - strlen(cfgname) - 1);
         strlcat(local, cfgname, sizeof(local));
-        if ((check = open(local, 0)) >= 0)
+        if ((tf = open_file(local, 1, OF_NORMAL)))
         {
-            close(check);
+            close_file(tf);
             if (!read_config_file(local, 0, 0)) {
                 got_a_configuration = 1;
                 return 0;
