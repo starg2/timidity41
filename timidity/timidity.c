@@ -8906,7 +8906,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 }
 
 #ifdef IA_W32GUI
-int w32gSecondTiMidity(int opt, int argc, char **argv);
+int w32gSecondTiMidity(int opt, int argc, char **argv, int nfiles, char **files);
 int w32gSecondTiMidityExit(void);
 int w32gLoadDefaultPlaylist(void);
 int w32gSaveDefaultPlaylist(void);
@@ -9075,19 +9075,6 @@ int main(int argc, char **argv)
 	if (CoInitialize(NULL) == S_OK)
 		CoInitializeOK = 1;
 	w32g_initialize();
-#ifdef IA_W32GUI
-	/* Secondary TiMidity Execute */
-	/*	FirstLoadIniFile(); */
-	if (w32gSecondTiMidity(SecondMode, argc, argv) == FALSE) {
-		w32gSecondTiMidityExit();
-		if (CoInitializeOK)
-			CoUninitialize();
-		w32g_free_playlist();
-		w32g_uninitialize();
-		w32g_free_doc();
-		return 0;
-	}
-#endif
 	for (c = 1; c < argc; c++)
 		if (is_directory(argv[c])) {
 			char *p;
@@ -9159,6 +9146,21 @@ int main(int argc, char **argv)
 		return 1; /* problems with command line */
 #endif
 	}
+	nfiles = argc - optind;
+	files  = argv + optind;
+#ifdef IA_W32GUI
+	/* Secondary TiMidity Execute */
+	/*	FirstLoadIniFile(); */
+	if (w32gSecondTiMidity(SecondMode, argc, argv, nfiles, files) == FALSE) {
+		w32gSecondTiMidityExit();
+		if (CoInitializeOK)
+			CoUninitialize();
+		w32g_free_playlist();
+		w32g_uninitialize();
+		w32g_free_doc();
+		return 0;
+	}
+#endif
 	timidity_init_player();
 ///r
 	load_all_instrument();
@@ -9169,8 +9171,6 @@ int main(int argc, char **argv)
 #endif
 	begin_compute_thread();
 #endif
-	nfiles = argc - optind;
-	files  = argv + optind;
 	if (nfiles > 0
 			&& ctl->id_character != 'r' && ctl->id_character != 'A'
 			&& ctl->id_character != 'W' && ctl->id_character != 'N'

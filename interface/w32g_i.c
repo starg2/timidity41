@@ -273,7 +273,7 @@ int32 SetValue(int32 value, int32 min, int32 max)
   return v;
 }
 
-int w32gSecondTiMidity(int opt, int argc, char **argv);
+int w32gSecondTiMidity(int opt, int argc, char **argv, int nfiles, char **files);
 int w32gSecondTiMidityExit(void);
 int SecondMode = 1;
 

@@ -906,7 +906,7 @@ int PauseOldTiMidity(void)
 // opt==5 : ２重に起動する
 // 自分が終了するべきときは FALSE を返す
 // 自分が終了するべきでないときは TRUE を返す
-int w32gSecondTiMidity(int opt, int argc, char **argv)
+int w32gSecondTiMidity(int opt, int argc, char **argv, int nfiles, char **files)
 {
     int i;
     switch (opt) {
@@ -918,7 +918,7 @@ int w32gSecondTiMidity(int opt, int argc, char **argv)
                 return FALSE;
             if (opt==0)
                 ClearPlaylistOldTiMidity();
-            SendFilesToOldTiMidity(argc > 0 ? argc-1 : 0, argv+1);
+            SendFilesToOldTiMidity(nfiles, files);
             return FALSE;
         } else {
             if (TryUniqTiMidity(20)==TRUE) {
