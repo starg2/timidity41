@@ -526,6 +526,7 @@ static int w32g_shuffle_playlist_delete(int n)
         for ( i = 0; i < playlist_shuffle.max; i++ ) {
                 if ( playlist_shuffle.list[i] == n ) {
                         delete_flag = 1;
+						i++;
                         break;
                 }
         }

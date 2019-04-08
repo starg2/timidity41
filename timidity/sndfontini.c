@@ -119,8 +119,6 @@ void OverrideSFSettingLoad()
 	memcpy(sfini_path, fn, FILEPATH_MAX);
 
 #include "loadsndfontini.h"
-
-	printf("\n**********************************\nsoundfont.ini load ... ok\n");
 }
 
 #endif
