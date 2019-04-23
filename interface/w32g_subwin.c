@@ -2016,7 +2016,7 @@ stage1_end:
     case LANGUAGE_JAPANESE:
     default:
         strncpy(out,buffer,MAX2(buffer_size-1,out_size-1));
-        nkf_convert(buffer,out,out_size-1,NULL,"SJIS");
+        code_convert(buffer,out,out_size-1,NULL,NULL);
         out[out_size-1] = '\0';
         safe_free(buffer);
         break;
