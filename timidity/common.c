@@ -1468,11 +1468,28 @@ static char **expand_file_lists(char **files, int *nfiles_in_out)
 		    	*pfile = '\0';
 		    if ((pfile = strchr(input_line, '\n')))
 		    	*pfile = '\0';
-		    one_file[0] = input_line;
 		    one = 1;
+#if defined(UNICODE) && defined(JAPANESE)
+			struct timidity_file* tf = open_file(input_line, 1, OF_NORMAL);
+			if (tf) {
+				close_file(tf);
+				one_file[0] = input_line;
+				depth++;
+				expand_file_lists(one_file, &one);
+				depth--;
+			} else {
+				one_file[0] = w32_mbs_to_utf8(input_line);
+				depth++;
+				expand_file_lists(one_file, &one);
+				depth--;
+				safe_free(one_file[0]);
+			}
+#else
+			one_file[0] = input_line;
 		    depth++;
 		    expand_file_lists(one_file, &one);
 		    depth--;
+#endif
 		}
                 close_file(list_file);
             }

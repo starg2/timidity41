@@ -281,6 +281,10 @@ URL url_file_open(const char *fname)
 	if (!fp) { /*try original name*/
 		fp = fopen(name, "rb");
 	}
+#elif defined(__W32__) && defined(UNICODE)
+	const wchar_t* wname = w32_utf8_to_utf16(name);
+	fp = _wfopen(wname, L"rb");
+	safe_free(wname);
 #else
 	fp = fopen(name, "rb");
 #endif
