@@ -210,10 +210,6 @@ EXPORTS
     typeahead
     untouchwin
     use_env
-    vidattr
-    vid_attr
-    vidputs
-    vid_puts
     vline
     vw_printw
     vwprintw
@@ -295,10 +291,8 @@ EXPORTS
     mouse_on
     mouse_off
     request_mouse_pos
-    map_button
     wmouse_position
     getmouse
-    getbmap
     assume_default_colors
     curses_version
     has_key
@@ -356,20 +350,3 @@ EXPORTS
     PDC_get_key_modifiers
     PDC_save_key_modifiers
     PDC_return_key_modifiers
-    cur_term
-    del_curterm
-    putp
-    restartterm
-    set_curterm
-    setterm
-    setupterm
-    tgetent
-    tgetflag
-    tgetnum
-    tgetstr
-    tgoto
-    tigetflag
-    tigetnum
-    tigetstr
-    tparm
-    tputs

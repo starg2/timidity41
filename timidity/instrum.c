@@ -2250,7 +2250,7 @@ void free_instruments(int reload_default_inst)
 				if(bank->tone[j][elm] == NULL)
 					continue;
 				ip = bank->tone[j][elm]->instrument;
-				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ) &&
+				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ || ip->type == INST_DLS) &&
 					(i == 0 || !tonebank[0]->tone[j][elm] || ip != tonebank[0]->tone[j][elm]->instrument) )
 						free_instrument(ip);
 				bank->tone[j][elm]->instrument = NULL;
@@ -2262,7 +2262,7 @@ void free_instruments(int reload_default_inst)
 				if(bank->tone[j][elm] == NULL)
 					continue;
 				ip = bank->tone[j][elm]->instrument;
-				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ) &&
+				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ || ip->type == INST_DLS) &&
 				   (i == 0 || !drumset[0]->tone[j][elm] || ip != drumset[0]->tone[j][elm]->instrument) )
 					free_instrument(ip);
 				bank->tone[j][elm]->instrument = NULL;
