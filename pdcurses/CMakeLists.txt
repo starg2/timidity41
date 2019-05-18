@@ -14,7 +14,6 @@ add_library(
     pdcurses/debug.c
     pdcurses/delch.c
     pdcurses/deleteln.c
-    pdcurses/deprec.c
     pdcurses/getch.c
     pdcurses/getstr.c
     pdcurses/getyx.c
@@ -47,7 +46,6 @@ add_library(
     pdcurses/scroll.c
     pdcurses/slk.c
     pdcurses/termattr.c
-    pdcurses/terminfo.c
     pdcurses/touch.c
     pdcurses/util.c
     pdcurses/window.c
@@ -56,7 +54,6 @@ add_library(
     curspriv.h
     panel.h
     win32/pdcwin.h
-    term.h
 
     pdcurses.def
     win32/pdcurses.rc
