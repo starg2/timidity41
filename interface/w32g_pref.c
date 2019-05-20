@@ -6195,9 +6195,22 @@ volatile wave_ConfigDialogInfo_t wave_ConfigDialogInfo;
 	else \
 		wave_ConfigDialogInfo.opt##id = 0; \
 // id のエディットを設定する。
-#define EDIT_SET(id) SendDlgItemMessageA(hwnd, id, WM_SETTEXT, 0, (LPARAM)wave_ConfigDialogInfo.opt##id);
+#define EDIT_SET(id) \
+{ \
+	TCHAR* tstr = char_to_tchar(wave_ConfigDialogInfo.opt ## id); \
+	SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)tstr); \
+	safe_free(tstr); \
+}
 // id のエディットを変数に代入する。
-#define EDIT_GET(id, size) SendDlgItemMessageA(hwnd, id, WM_GETTEXT, (WPARAM)size, (LPARAM)wave_ConfigDialogInfo.opt##id);
+#define EDIT_GET(id,size) \
+{ \
+	TCHAR tbuffer[1024]; \
+	SendDlgItemMessage(hwnd,id,WM_GETTEXT,1024,(LPARAM)tbuffer); \
+	char *str = tchar_to_char(tbuffer); \
+	strncpy(wave_ConfigDialogInfo.opt ## id, str, size - 1); \
+	wave_ConfigDialogInfo.opt ## id[size - 1] = '\0'; \
+	safe_free(str); \
+}
 #define EDIT_GET_RANGE(id, size, min, max) \
 { \
 	char tmpbuf[1024]; \
@@ -6519,9 +6532,22 @@ CB_INFO_TYPE2_END
 	else \
 		gogo_ConfigDialogInfo.opt ## id = 0; \
 // id のエディットを設定する。
-#define EDIT_SET(id) SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)gogo_ConfigDialogInfo.opt ## id);
+#define EDIT_SET(id) \
+{ \
+	TCHAR *tstr = char_to_tchar(gogo_ConfigDialogInfo.opt ## id); \
+	SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)tstr); \
+	safe_free(tstr); \
+}
 // id のエディットを変数に代入する。
-#define EDIT_GET(id,size) SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)gogo_ConfigDialogInfo.opt ## id);
+#define EDIT_GET(id,size) \
+{ \
+	TCHAR tbuffer[1024]; \
+	SendDlgItemMessage(hwnd,id,WM_GETTEXT,1024,(LPARAM)tbuffer); \
+	char *str = tchar_to_char(tbuffer); \
+	strncpy(gogo_ConfigDialogInfo.opt ## id, str, size - 1); \
+	gogo_ConfigDialogInfo.opt ## id[size - 1] = '\0'; \
+	safe_free(str); \
+}
 #define EDIT_GET_RANGE(id,size,min,max) \
 { \
 	char tmpbuf[1024]; \
@@ -6546,7 +6572,7 @@ static int gogo_ConfigDialogInfoLock();
 static int gogo_ConfigDialogInfoUnLock();
 static LRESULT APIENTRY CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
-	char buff[1024];
+	TCHAR buff[1024];
 	switch (uMess){
 	case WM_INITDIALOG:
 	{
@@ -6556,11 +6582,11 @@ static LRESULT APIENTRY CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPA
 			SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_FORMAT,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_OUTPUT_FORMAT[i]);
 		}
 		for(i=0;cb_info_IDC_COMBO_MPEG1_AUDIO_BITRATE[i]>=0;i++){
-			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_MPEG1_AUDIO_BITRATE[i]);
+			_stprintf(buff,_T("%d kbit/sec"),cb_info_IDC_COMBO_MPEG1_AUDIO_BITRATE[i]);
 			SendDlgItemMessage(hwnd,IDC_COMBO_MPEG1_AUDIO_BITRATE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
 		}
 		for(i=0;cb_info_IDC_COMBO_MPEG2_AUDIO_BITRATE[i]>=0;i++){
-			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_MPEG2_AUDIO_BITRATE[i]);
+			_stprintf(buff,_T("%d kbit/sec"),cb_info_IDC_COMBO_MPEG2_AUDIO_BITRATE[i]);
 			SendDlgItemMessage(hwnd,IDC_COMBO_MPEG2_AUDIO_BITRATE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
 		}
 		for(i=0;cb_info_IDC_COMBO_ENCODE_MODE[i];i+=2){
@@ -6570,11 +6596,11 @@ static LRESULT APIENTRY CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPA
 			SendDlgItemMessage(hwnd,IDC_COMBO_EMPHASIS_TYPE,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)cb_info_IDC_COMBO_EMPHASIS_TYPE[i]);
 		}
 		for(i=0;cb_info_IDC_COMBO_VBR_BITRATE_LOW[i]>=0;i++){
-			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_VBR_BITRATE_LOW[i]);
+			_stprintf(buff,_T("%d kbit/sec"),cb_info_IDC_COMBO_VBR_BITRATE_LOW[i]);
 			SendDlgItemMessage(hwnd,IDC_COMBO_VBR_BITRATE_LOW,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
 		}
 		for(i=0;cb_info_IDC_COMBO_VBR_BITRATE_HIGH[i]>=0;i++){
-			sprintf(buff,"%d kbit/sec",cb_info_IDC_COMBO_VBR_BITRATE_HIGH[i]);
+			_stprintf(buff,_T("%d kbit/sec"),cb_info_IDC_COMBO_VBR_BITRATE_HIGH[i]);
 			SendDlgItemMessage(hwnd,IDC_COMBO_VBR_BITRATE_HIGH,CB_INSERTSTRING,(WPARAM)-1,(LPARAM)buff);
 		}
 		for(i=0;cb_info_IDC_COMBO_VBR[i];i+=2){
@@ -7445,9 +7471,22 @@ static const TCHAR **cb_info_IDC_COMBO_MODE;
 	else \
 		vorbis_ConfigDialogInfo.opt ## id = 0; \
 // id のエディットを設定する。
-#define EDIT_SET(id) SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)vorbis_ConfigDialogInfo.opt ## id);
+#define EDIT_SET(id) \
+{ \
+	TCHAR* tstr = char_to_tchar(vorbis_ConfigDialogInfo.opt ## id); \
+	SendDlgItemMessage(hwnd,id,WM_SETTEXT,0,(LPARAM)tstr); \
+	safe_free(tstr); \
+}
 // id のエディットを変数に代入する。
-#define EDIT_GET(id,size) SendDlgItemMessage(hwnd,id,WM_GETTEXT,(WPARAM)size,(LPARAM)vorbis_ConfigDialogInfo.opt ## id);
+#define EDIT_GET(id,size) \
+{ \
+	TCHAR tbuffer[1024]; \
+	SendDlgItemMessage(hwnd,id,WM_GETTEXT,1024,(LPARAM)tbuffer); \
+	char *str = tchar_to_char(tbuffer); \
+	strncpy(vorbis_ConfigDialogInfo.opt ## id, str, size - 1); \
+	vorbis_ConfigDialogInfo.opt ## id[size - 1] = '\0'; \
+	safe_free(str); \
+}
 #define EDIT_GET_RANGE(id,size,min,max) \
 { \
 	char tmpbuf[1024]; \
