@@ -402,8 +402,8 @@ static pref_page_t pref_pages_en[] = {
 	{ 3, TEXT("Output"), (HWND)NULL, IDD_PREF_TIMIDITY3_EN, (DLGPROC) PrefTiMidity3DialogProc, 0 },
 	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1_EN, (DLGPROC) PrefSFINI1DialogProc, 0 },
 	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2_EN, (DLGPROC) PrefSFINI2DialogProc, 0 },
-	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, (DLGPROC) PrefCustom1DialogProc, 0 },
-	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, (DLGPROC) PrefCustom2DialogProc, 0 },
+	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1_EN, (DLGPROC) PrefCustom1DialogProc, 0 },
+	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2_EN, (DLGPROC) PrefCustom2DialogProc, 0 },
 	{ 8, TEXT("InternalSynth"), (HWND)NULL, IDD_PREF_INT_SYNTH_EN, (DLGPROC) PrefIntSynthDialogProc, 0 },
 #endif
 };
