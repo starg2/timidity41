@@ -402,8 +402,8 @@ static pref_page_t pref_pages_en[] = {
 	{ 3, TEXT("Output"), (HWND)NULL, IDD_PREF_TIMIDITY3_EN, (DLGPROC) PrefTiMidity3DialogProc, 0 },
 	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1_EN, (DLGPROC) PrefSFINI1DialogProc, 0 },
 	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2_EN, (DLGPROC) PrefSFINI2DialogProc, 0 },
-	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, (DLGPROC) PrefCustom1DialogProc, 0 },
-	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, (DLGPROC) PrefCustom2DialogProc, 0 },
+	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1_EN, (DLGPROC) PrefCustom1DialogProc, 0 },
+	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2_EN, (DLGPROC) PrefCustom2DialogProc, 0 },
 	{ 8, TEXT("InternalSynth"), (HWND)NULL, IDD_PREF_INT_SYNTH_EN, (DLGPROC) PrefIntSynthDialogProc, 0 },
 #endif
 };
@@ -553,6 +553,7 @@ static void PrefWndDelayLoad(void)
 
 void PrefWndCreate(HWND hwnd, UINT cid)
 {
+    CurrentPlayerLanguage = PlayerLanguage;
     UINT page = cid ? PrefSearchPageFromCID(cid) : PrefInitialPage;
 
     VOLATILE_TOUCH(PrefWndDoing);
@@ -562,7 +563,6 @@ void PrefWndCreate(HWND hwnd, UINT cid)
     PrefWndSetOK = 1;
 
     PrefInitialPage = page;
-    CurrentPlayerLanguage = PlayerLanguage;
 #if defined(KBTIM_SETUP) || defined(WINDRV_SETUP)
 	switch(CurrentPlayerLanguage) {
 		case LANGUAGE_JAPANESE:
@@ -8345,13 +8345,6 @@ static const TCHAR *cb_info_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY[] = {
     TEXT("Media"),
 };
 
-#define cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION 3
-static const TCHAR *cb_info_IDC_COMBO_PA_WASAPI_STREAM_OPTION[] = {
-    TEXT("None"),
-    TEXT("Raw"),
-    TEXT("MatchFormat"),
-};
-
 
 LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -8394,21 +8387,20 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				DI_DISABLE(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
 			}
 			// WASAPI StreamOption
-			if(winver >= 6) // win10
-				max = cb_num_IDC_COMBO_PA_WASAPI_STREAM_OPTION;
-			else if(winver >= 4) // win8.1
-				max = 2;
-			else
-				max = 1;
-			for (i = 0; i < max; i++)
-				CB_INSSTR(IDC_COMBO_PA_WASAPI_STREAM_OPTION, cb_info_IDC_COMBO_PA_WASAPI_STREAM_OPTION[i]);
-			if(winver >= 6){ // win10
-				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option));
-			}else if(winver >= 4){ // win8.1
-				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, (st_temp->pa_wasapi_stream_option >= 2 ? 0 : st_temp->pa_wasapi_stream_option));
-			}else{
-				CB_SET(IDC_COMBO_PA_WASAPI_STREAM_OPTION, 0);
-				DI_DISABLE(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
+			if (winver >= 6) { // win10
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_RAW, BM_SETCHECK, (st_temp->pa_wasapi_stream_option & 1) ? BST_CHECKED : BST_UNCHECKED, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_MATCH_FORMAT, BM_SETCHECK, (st_temp->pa_wasapi_stream_option & 2) ? BST_CHECKED : BST_UNCHECKED, 0);
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_AMBISONICS, BM_SETCHECK, (st_temp->pa_wasapi_stream_option & 4) ? BST_CHECKED : BST_UNCHECKED, 0);
+			}
+			else if (winver >= 4) { // win8.1
+				SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_RAW, BM_SETCHECK, (st_temp->pa_wasapi_stream_option & 1) ? BST_CHECKED : BST_UNCHECKED, 0);
+				DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_MATCH_FORMAT);
+				DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_AMBISONICS);
+			}
+			else {
+				DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_RAW);
+				DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_MATCH_FORMAT);
+				DI_DISABLE(IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_AMBISONICS);
 			}
 
 
@@ -8585,7 +8577,13 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 				// WASAPI StreamCategory
 				st_temp->pa_wasapi_stream_category = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_CATEGORY);
 				// WASAPI StreamOption
-				st_temp->pa_wasapi_stream_option = CB_GET(IDC_COMBO_PA_WASAPI_STREAM_OPTION);
+				st_temp->pa_wasapi_stream_option = 0;
+				if (SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_RAW, BM_GETCHECK, 0, 0))
+					st_temp->pa_wasapi_stream_option |= 1;
+				if (SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_MATCH_FORMAT, BM_GETCHECK, 0, 0))
+					st_temp->pa_wasapi_stream_option |= 2;
+				if (SendDlgItemMessage(hwnd, IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_AMBISONICS, BM_GETCHECK, 0, 0))
+					st_temp->pa_wasapi_stream_option |= 4;
 
 				EndDialog(hwnd,TRUE);
 				break;
