@@ -553,6 +553,7 @@ static void PrefWndDelayLoad(void)
 
 void PrefWndCreate(HWND hwnd, UINT cid)
 {
+    CurrentPlayerLanguage = PlayerLanguage;
     UINT page = cid ? PrefSearchPageFromCID(cid) : PrefInitialPage;
 
     VOLATILE_TOUCH(PrefWndDoing);
@@ -562,7 +563,6 @@ void PrefWndCreate(HWND hwnd, UINT cid)
     PrefWndSetOK = 1;
 
     PrefInitialPage = page;
-    CurrentPlayerLanguage = PlayerLanguage;
 #if defined(KBTIM_SETUP) || defined(WINDRV_SETUP)
 	switch(CurrentPlayerLanguage) {
 		case LANGUAGE_JAPANESE:
