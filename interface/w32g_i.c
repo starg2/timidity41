@@ -279,7 +279,7 @@ int SecondMode = 1;
 
 void FirstLoadIniFile(void);
 
-#if (defined(__W32G__) && !defined(TWSYNG32)) && !defined(WIN32GCC)
+#if (defined(__W32G__) && !defined(TWSYNG32))
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
 int WINAPI
@@ -338,7 +338,7 @@ LPTSTR lpCmdLine, int nCmdShow)
 	return errcode;
 #endif
 }
-#endif /* (__W32G__ && !TWSYNG32) && !WIN32GCC */
+#endif /* (__W32G__ && !TWSYNG32) */
 
 // ***************************************************************************
 // System Function

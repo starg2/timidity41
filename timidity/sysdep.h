@@ -35,6 +35,10 @@
 
 #include <stdio.h>
 
+#ifdef __W32__
+#include <tchar.h>
+#endif
+
 /* Architectures */
 #if defined(_M_IX86) || defined(__i386__) || defined(__i386) || \
 	defined(_X86_) || defined(__X86__) || defined(__I86__)
@@ -1021,6 +1025,20 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #endif
 #ifndef _MAX_PATH
 #define _MAX_PATH 260
+#endif
+
+// workaround for mingw
+#ifndef _ttof
+#ifdef UNICODE
+#define _ttof  _wtof
+#else
+#define _ttof  atof
+#endif
+#endif
+
+#ifdef UNICODE
+#undef _stprintf
+#define _stprintf  _swprintf
 #endif
 #endif /* __GNUC__ */
 

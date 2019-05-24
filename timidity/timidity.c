@@ -8936,8 +8936,7 @@ static int CoInitializeOK = 0;
 
 #if !defined(ANOTHER_MAIN) || defined(__W32__)
 #ifdef __W32__ /* Windows */
-#if defined(IA_W32GUI) && !defined(__CYGWIN32__) && !defined(__MINGW32__) \
-		|| defined(IA_W32G_SYN) /* _MSC_VER, _BORLANDC_, __WATCOMC__ */
+#if defined(IA_W32GUI) || defined(IA_W32G_SYN) /* _MSC_VER, _BORLANDC_, __WATCOMC__ */
 int win_main(int argc, char **argv)
 #else /* Cygwin, MinGW or console */
 int __cdecl main(int argc, char **argv)

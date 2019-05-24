@@ -1336,6 +1336,7 @@ int pa_device_list(PA_DEVICELIST *device, int HostApiTypeId)
 	}
 	return num;
 error1:
+	;
 //  	free_portaudio_dll();
 #ifdef __W32__
 	TCHAR *t = char_to_tchar(Pa_GetErrorText(err));

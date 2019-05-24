@@ -272,7 +272,7 @@ add_executable(
 
 add_dependencies(timw32g_u8 UpdateTim41Version)
 target_compile_definitions(timw32g_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_W32GUI -D__W32G__)
-target_link_libraries(timw32g_u8 ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(timw32g_u8 ${TIMIDITY_COMMON_LIBS} -municode)
 DisableMSManifest(timw32g_u8)
 
 # twsyng_u8
@@ -290,5 +290,5 @@ add_executable(
 
 add_dependencies(twsyng_u8 UpdateTim41Version)
 target_compile_definitions(twsyng_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
-target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS} pdcurses)
+target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS} pdcurses -municode)
 DisableMSManifest(twsyng_u8)
