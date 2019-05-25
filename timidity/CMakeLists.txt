@@ -217,7 +217,7 @@ add_executable(
 
 add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
-target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS} pdcurses)
+target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS})
 
 if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
     # timw32g
@@ -253,7 +253,7 @@ if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
 
     add_dependencies(twsyng UpdateTim41Version)
     target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
-    target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS} pdcurses)
+    target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS})
     DisableMSManifest(twsyng)
 endif()
 
@@ -272,7 +272,12 @@ add_executable(
 
 add_dependencies(timw32g_u8 UpdateTim41Version)
 target_compile_definitions(timw32g_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_W32GUI -D__W32G__)
-target_link_libraries(timw32g_u8 ${TIMIDITY_COMMON_LIBS} -municode)
+target_link_libraries(timw32g_u8 ${TIMIDITY_COMMON_LIBS})
+
+if(NOT "${MSVC}")
+    target_link_libraries(timw32g_u8 -municode)
+endif()
+
 DisableMSManifest(timw32g_u8)
 
 # twsyng_u8
@@ -290,5 +295,10 @@ add_executable(
 
 add_dependencies(twsyng_u8 UpdateTim41Version)
 target_compile_definitions(twsyng_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
-target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS} pdcurses -municode)
+target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS})
+
+if(NOT "${MSVC}")
+    target_link_libraries(twsyng_u8 -municode)
+endif()
+
 DisableMSManifest(twsyng_u8)
