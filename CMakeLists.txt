@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.9)
 project(timidity41)
 
 set(TIM41_USE_AVX2 FALSE CACHE BOOL "Enable use of Intel AVX2 enhanced instructions")
+set(TIM41_SPECTRE_MITIGATION FALSE CACHE BOOL "Enable Spectre mitigation")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
@@ -164,7 +165,7 @@ if(MSVC)
 
     add_compile_options(/W4 /Zi /GS /fp:fast)
 
-    if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
+    if("${TIM41_SPECTRE_MITIGATION}")
         add_compile_options(/Qspectre)
     endif()
 
