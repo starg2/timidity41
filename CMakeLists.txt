@@ -218,6 +218,8 @@ if(MSVC)
         string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO " /OPT:REF /DEBUG:FASTLINK")
     endif()
 
+    string(APPEND CMAKE_RC_FLAGS " /nologo")
+
     add_definitions(
         -DSTDOUT_FILENO=1
     )
