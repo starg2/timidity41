@@ -353,5 +353,6 @@ extern int is_last_path_sep(const char *path);
 
 extern char *timidity_window_inifile;
 extern char *timidity_output_inifile;
+extern char *timidity_history_inifile;
 
 #endif /* ___W32G_UTL_H_ */
