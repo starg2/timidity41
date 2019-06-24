@@ -6193,7 +6193,7 @@ static void LoadCfgHistoryINI(HWND hwnd, int cb_id)
 {
 	TCHAR buffer1[FILEPATH_MAX + 1] = {0};
 	TCHAR buffer2[FILEPATH_MAX + 1] = {0};
-	LPCTSTR inifile = timidity_history_inifile;
+	LPCTSTR inifile = char_to_tchar(timidity_history_inifile);
 	int count = GetPrivateProfileInt(_T("cfg"), _T("count"), 0, inifile);
 
 	// remove old items
@@ -6212,13 +6212,15 @@ static void LoadCfgHistoryINI(HWND hwnd, int cb_id)
 			CB_INSSTR(cb_id, buffer2);
 		}
 	}
+
+	safe_free(inifile);
 }
 
 static void SaveCfgHistoryINI(HWND hwnd, int cb_id)
 {
 	TCHAR buffer1[FILEPATH_MAX + 1] = {0};
 	TCHAR buffer2[FILEPATH_MAX + 1] = {0};
-	LPCTSTR inifile = timidity_history_inifile;
+	LPCTSTR inifile = char_to_tchar(timidity_history_inifile);
 	int count = SendDlgItemMessage(hwnd, cb_id, CB_GETCOUNT, 0, 0);
 
 	_sntprintf(buffer1, FILEPATH_MAX, _T("%d"), count);
@@ -6237,6 +6239,7 @@ static void SaveCfgHistoryINI(HWND hwnd, int cb_id)
 	}
 
 	WritePrivateProfileString(NULL, NULL, NULL, inifile);	// flush
+	safe_free(inifile);
 }
 
 static void AddCurrentTextToCfgHistory(HWND hwnd, int cb_id)
