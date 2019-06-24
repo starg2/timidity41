@@ -278,6 +278,11 @@ static int w32_reset_exe_directory(void)
 #endif
 #endif
 
+#define MAX_CFG_HISTORY  10
+
+static void LoadCfgHistoryINI(HWND hwnd, int cb_id);
+static void SaveCfgHistoryINI(HWND hwnd, int cb_id);
+static void AddCurrentTextToCfgHistory(HWND hwnd, int cb_id);
 
 extern int waveConfigDialog(void);
 #ifdef AU_W32
@@ -1355,12 +1360,14 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			strcpy(sp_temp->ConfigFile, ConfigFile);
 		}
 		TCHAR *tConfigFile = char_to_tchar(sp_temp->ConfigFile);
-		EB_SETTEXT(IDC_EDIT_CONFIG_FILE, tConfigFile);
+		EB_SETTEXT(IDC_COMBO_CONFIG_FILE, tConfigFile);
 		safe_free(tConfigFile);
-		tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
-		SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM)tmp, (LPARAM)tmp); // A/W
+		tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+		SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
 		safe_free(CurrentConfigFile);
 		CurrentConfigFile = safe_strdup(sp_temp->ConfigFile);
+
+		LoadCfgHistoryINI(hwnd, IDC_COMBO_CONFIG_FILE);
 
         switch (CurrentPlayerLanguage) {
         case LANGUAGE_ENGLISH:
@@ -1466,11 +1473,16 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			{
 				TCHAR filename[FILEPATH_MAX];
 				filename[0] = '\0';
-				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
+				SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE,WM_GETTEXT,
 					(WPARAM)FILEPATH_MAX-1,(LPARAM)filename);
 				if(!DlgOpenConfigFile(filename,hwnd))
-				if(filename[0]!='\0')
-						SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,filename);
+                    if (filename[0] != '\0') {
+                        SetDlgItemText(hwnd, IDC_COMBO_CONFIG_FILE, filename);
+                        tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+                        SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
+                        AddCurrentTextToCfgHistory(hwnd, IDC_COMBO_CONFIG_FILE);
+                        SaveCfgHistoryINI(hwnd, IDC_COMBO_CONFIG_FILE);
+                    }
 	   }
 			break;
 		case IDC_BUTTON_CFG_EDIT:
@@ -1537,11 +1549,13 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		char *p;
 		int flag;
 		TCHAR tbuff[FILEPATH_MAX];
-		SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
+		SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE,WM_GETTEXT,
 			(WPARAM)FILEPATH_MAX,(LPARAM)tbuff);
 		char *s = tchar_to_char(tbuff);
 		strncpy(sp_temp->ConfigFile, s, FILEPATH_MAX - 1);
 		sp_temp->ConfigFile[FILEPATH_MAX - 1] = '\0';
+        AddCurrentTextToCfgHistory(hwnd, IDC_COMBO_CONFIG_FILE);
+        SaveCfgHistoryINI(hwnd, IDC_COMBO_CONFIG_FILE);
 
 		if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_ENGLISH,BM_GETCHECK,0,0))
 			sp_temp->PlayerLanguage = LANGUAGE_ENGLISH;
@@ -1718,19 +1732,20 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	switch (uMess){
     case WM_INITDIALOG:
         if (hFixedPointFont != NULL)
-            SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_SETFONT, (WPARAM) hFixedPointFont, MAKELPARAM(TRUE, 0));
+            SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_SETFONT, (WPARAM) hFixedPointFont, MAKELPARAM(TRUE, 0));
 
 
         if (!sp_temp->ConfigFile[0]) {
             strcpy(sp_temp->ConfigFile, ConfigFile);
         }
 		TCHAR *tConfigFile = char_to_tchar(sp_temp->ConfigFile);
-        EB_SETTEXT(IDC_EDIT_CONFIG_FILE, tConfigFile);
+        EB_SETTEXT(IDC_COMBO_CONFIG_FILE, tConfigFile);
 		safe_free(tConfigFile);
-        tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
-        SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
+        tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+        SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
         safe_free(CurrentConfigFile);
         CurrentConfigFile = safe_strdup(sp_temp->ConfigFile);
+		LoadCfgHistoryINI(hwnd, IDC_COMBO_CONFIG_FILE);
 
 #if defined(WINDRV_SETUP)
         DI_DISABLE(IDC_BUTTON_CFG_RELOAD);
@@ -1756,11 +1771,11 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	      				FIXED_PITCH|FF_DONTCARE,NULL);
 			ReleaseDC(hwnd, hdc);
 			if(hFontConfigFile != NULL){
-				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_SETFONT,(WPARAM)hFontConfigFile,(LPARAM)MAKELPARAM(TRUE,0));
+				SendDlgItemMessage(hwnd,IDC_COMBO_CONFIG_FILE,WM_SETFONT,(WPARAM)hFontConfigFile,(LPARAM)MAKELPARAM(TRUE,0));
 			}
 		}
 		TCHAR *t = char_to_tchar(sp_temp->ConfigFile);
-		SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,t);
+		SetDlgItemText(hwnd,IDC_COMBO_CONFIG_FILE,t);
 		safe_free(t);
 
 		switch(sp_temp->PlayerLanguage){
@@ -1912,11 +1927,16 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			{
 				TCHAR filename[FILEPATH_MAX] = _T("");
 				filename[0] = _T('\0');
-				SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
+				SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE,WM_GETTEXT,
 					(WPARAM)FILEPATH_MAX-1,(LPARAM)filename);
 				if(!DlgOpenConfigFile(filename,hwnd))
-				if(filename[0]!=_T('\0'))
-					SetDlgItemText(hwnd,IDC_EDIT_CONFIG_FILE,filename);
+                    if (filename[0] != _T('\0')) {
+                        SetDlgItemText(hwnd, IDC_COMBO_CONFIG_FILE, filename);
+                        tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+                        SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
+                        AddCurrentTextToCfgHistory(hwnd, IDC_COMBO_CONFIG_FILE);
+                        SaveCfgHistoryINI(hwnd, IDC_COMBO_CONFIG_FILE);
+                    }
 	   }
 			break;
 		case IDC_BUTTON_CFG_EDIT:
@@ -1959,14 +1979,16 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		if ( initflag ) break;
 		{
 			TCHAR tfile[FILEPATH_MAX] = _T("");
-			SendDlgItemMessage(hwnd,IDC_EDIT_CONFIG_FILE,WM_GETTEXT,
+			SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE,WM_GETTEXT,
 				(WPARAM)FILEPATH_MAX,(LPARAM)tfile);
 			char *s = tchar_to_char(tfile);
 			strncpy(sp_temp->ConfigFile, s, FILEPATH_MAX - 1);
 			safe_free(s);
 			sp_temp->ConfigFile[FILEPATH_MAX - 1] = '\0';
 		}
-		if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_ENGLISH,BM_GETCHECK,0,0)){
+        AddCurrentTextToCfgHistory(hwnd, IDC_COMBO_CONFIG_FILE);
+        SaveCfgHistoryINI(hwnd, IDC_COMBO_CONFIG_FILE);
+        if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_ENGLISH,BM_GETCHECK,0,0)){
 			sp_temp->PlayerLanguage = LANGUAGE_ENGLISH;
 		} else if(SendDlgItemMessage(hwnd,IDC_RADIOBUTTON_JAPANESE,BM_GETCHECK,0,0)){
 			sp_temp->PlayerLanguage = LANGUAGE_JAPANESE;
@@ -6165,6 +6187,71 @@ volatile int w32g_interactive_id3_tag_set = 0;
 int w32g_gogo_id3_tag_dialog(void)
 {
 	return 0;
+}
+
+static void LoadCfgHistoryINI(HWND hwnd, int cb_id)
+{
+	TCHAR buffer1[FILEPATH_MAX + 1] = {0};
+	TCHAR buffer2[FILEPATH_MAX + 1] = {0};
+	LPCTSTR inifile = timidity_history_inifile;
+	int count = GetPrivateProfileInt(_T("cfg"), _T("count"), 0, inifile);
+
+	// remove old items
+	for (int i = SendDlgItemMessage(hwnd, cb_id, CB_GETCOUNT, 0, 0) - 1; i >= 0; i--) {
+		SendDlgItemMessage(hwnd, cb_id, CB_DELETESTRING, i, 0);
+	}
+
+	if (count > MAX_CFG_HISTORY)
+		count = MAX_CFG_HISTORY;
+
+	for (int i = 0; i < count; i++) {
+		_sntprintf(buffer1, FILEPATH_MAX, _T("item%02d"), i);
+		GetPrivateProfileString(_T("cfg"), buffer1, _T(""), buffer2, FILEPATH_MAX, inifile);
+
+		if (buffer2[0] != _T('\0')) {
+			CB_INSSTR(cb_id, buffer2);
+		}
+	}
+}
+
+static void SaveCfgHistoryINI(HWND hwnd, int cb_id)
+{
+	TCHAR buffer1[FILEPATH_MAX + 1] = {0};
+	TCHAR buffer2[FILEPATH_MAX + 1] = {0};
+	LPCTSTR inifile = timidity_history_inifile;
+	int count = SendDlgItemMessage(hwnd, cb_id, CB_GETCOUNT, 0, 0);
+
+	_sntprintf(buffer1, FILEPATH_MAX, _T("%d"), count);
+	SetLastError(0);
+	WritePrivateProfileString(_T("cfg"), _T("count"), buffer1, inifile);
+
+	DWORD e = GetLastError();
+
+	for (int i = 0; i < count; i++) {
+		_sntprintf(buffer1, FILEPATH_MAX, _T("item%02d"), i);
+
+		if (SendDlgItemMessage(hwnd, cb_id, CB_GETLBTEXTLEN, i, 0) < FILEPATH_MAX) {
+			SendDlgItemMessage(hwnd, cb_id, CB_GETLBTEXT, i, (LPARAM)buffer2);
+			WritePrivateProfileString(_T("cfg"), buffer1, buffer2, inifile);
+		}
+	}
+
+	WritePrivateProfileString(NULL, NULL, NULL, inifile);	// flush
+}
+
+static void AddCurrentTextToCfgHistory(HWND hwnd, int cb_id)
+{
+	TCHAR buffer[FILEPATH_MAX + 1] = {0};
+	EB_GETTEXT(cb_id, buffer, FILEPATH_MAX);
+
+	int index = SendDlgItemMessage(hwnd, cb_id, CB_FINDSTRINGEXACT, -1, (LPARAM)buffer);
+
+	if (index != CB_ERR)
+		SendDlgItemMessage(hwnd, cb_id, CB_DELETESTRING, index, 0);
+
+	SendDlgItemMessage(hwnd, cb_id, CB_INSERTSTRING, 0, buffer);
+	SendDlgItemMessage(hwnd, cb_id, CB_DELETESTRING, MAX_CFG_HISTORY, 0);
+	EB_SETTEXT(cb_id, buffer);
 }
 
 

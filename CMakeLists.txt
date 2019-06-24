@@ -163,7 +163,7 @@ if(MSVC)
     string(REGEX REPLACE "/W[0-4]" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-    add_compile_options(/W4 /Zi /GS /fp:fast)
+    add_compile_options(/W4 /GS /fp:fast)
 
     if("${TIM41_SPECTRE_MITIGATION}")
         add_compile_options(/Qspectre)
@@ -186,13 +186,15 @@ if(MSVC)
     endif()
     
 	string(APPEND CMAKE_CXX_FLAGS " /EHsc /std:c++17")
+    string(APPEND CMAKE_C_FLAGS_RELEASE " /Zi /guard:cf")
+    string(APPEND CMAKE_CXX_FLAGS_RELEASE " /Zi /guard:cf")
 
     if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
-        string(APPEND CMAKE_C_FLAGS_RELEASE " -flto=thin /guard:cf")
-        string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto=thin /guard:cf")
+        string(APPEND CMAKE_C_FLAGS_RELEASE " -flto=thin")
+        string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto=thin")
     else()
-        string(APPEND CMAKE_C_FLAGS_RELEASE " /GL /guard:cf")
-        string(APPEND CMAKE_CXX_FLAGS_RELEASE " /GL /guard:cf")
+        string(APPEND CMAKE_C_FLAGS_RELEASE " /GL")
+        string(APPEND CMAKE_CXX_FLAGS_RELEASE " /GL")
 
         if ("${CMAKE_C_COMPILER_VERSION}" VERSION_GREATER_EQUAL "19.20")
             string(REGEX REPLACE "/Ob[0-2]" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")

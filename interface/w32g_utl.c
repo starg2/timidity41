@@ -1243,6 +1243,7 @@ InitSettingTiMidity(SETTING_TIMIDITY *st)
 static char S_IniFile[FILEPATH_MAX];
 static char S_timidity_window_inifile[FILEPATH_MAX];
 static char S_timidity_output_inifile[FILEPATH_MAX];
+static char S_timidity_history_inifile[FILEPATH_MAX];
 static char S_ConfigFile[FILEPATH_MAX];
 static char S_PlaylistFile[FILEPATH_MAX];
 static char S_PlaylistHistoryFile[FILEPATH_MAX];
@@ -1285,6 +1286,7 @@ SETTING_PLAYER *sp_default=NULL, *sp_current=NULL, *sp_temp=NULL;
 SETTING_TIMIDITY *st_default=NULL, *st_current=NULL, *st_temp=NULL;
 char *timidity_window_inifile;
 char *timidity_output_inifile;
+char *timidity_history_inifile;
 
 #ifdef AU_GOGO
 extern int gogo_ConfigDialogInfoInit(void);
@@ -1526,6 +1528,11 @@ void w32g_initialize(void)
 	strncpy(timidity_output_inifile, buffer, FILEPATH_MAX);
     timidity_output_inifile[FILEPATH_MAX - 1] = '\0';
     strlcat(timidity_output_inifile,"timidity_output.ini", FILEPATH_MAX);
+	// timidity_history.ini
+	timidity_history_inifile = S_timidity_history_inifile;
+	strncpy(timidity_history_inifile, buffer, FILEPATH_MAX);
+	timidity_history_inifile[FILEPATH_MAX - 1] = '\0';
+	strlcat(timidity_history_inifile,"timidity_history.ini", FILEPATH_MAX);
 	// default playlist
 	{
 		int i, len;
