@@ -156,7 +156,7 @@
 //// player
 // cfg
 #define IDC_BUTTON_CONFIG_FILE         3000
-#define IDC_EDIT_CONFIG_FILE           3001
+#define IDC_COMBO_CONFIG_FILE          3001
 #define IDC_BUTTON_CFG_EDIT            3002
 #define IDC_BUTTON_CFG_RELOAD          3003
 // player

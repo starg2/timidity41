@@ -1356,9 +1356,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         if (!sp_temp->ConfigFile[0]) {
             strcpy(sp_temp->ConfigFile, ConfigFile);
         }
-        EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, sp_temp->ConfigFile);
-        tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
-        SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
+        EB_SETTEXTA(IDC_COMBO_CONFIG_FILE, sp_temp->ConfigFile);
+        tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+        SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
         safe_free(CurrentConfigFile);
         CurrentConfigFile = safe_strdup(sp_temp->ConfigFile);
 
@@ -1465,12 +1465,12 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         case IDC_BUTTON_CONFIG_FILE: {
             char filename[FILEPATH_MAX];
             filename[0] = '\0';
-            EB_GETTEXTA(IDC_EDIT_CONFIG_FILE, filename, FILEPATH_MAX - 1);
+            EB_GETTEXTA(IDC_COMBO_CONFIG_FILE, filename, FILEPATH_MAX - 1);
             if (!DlgOpenConfigFile(filename, hwnd))
                 if (filename[0] != '\0') {
-                    EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, filename);
-                    tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
-                    SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
+                    EB_SETTEXTA(IDC_COMBO_CONFIG_FILE, filename);
+                    tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+                    SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
                 }
             break; }
 
@@ -1486,7 +1486,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             }
 
             filename[0] = '\0';
-            EB_GETTEXTA(IDC_EDIT_CONFIG_FILE, filename, FILEPATH_MAX - 1);
+            EB_GETTEXTA(IDC_COMBO_CONFIG_FILE, filename, FILEPATH_MAX - 1);
 
             w32_reset_exe_directory();
 
@@ -1552,7 +1552,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         if (initflag)
             break;
 
-        EB_GETTEXTA(IDC_EDIT_CONFIG_FILE, sp_temp->ConfigFile, FILEPATH_MAX - 1);
+        EB_GETTEXTA(IDC_COMBO_CONFIG_FILE, sp_temp->ConfigFile, FILEPATH_MAX - 1);
 
         if (CH_GET(IDC_RADIOBUTTON_ENGLISH))
             sp_temp->PlayerLanguage = LANGUAGE_ENGLISH;
@@ -1729,15 +1729,15 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	switch (uMess){
     case WM_INITDIALOG:
         if (hFixedPointFont != NULL)
-            SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_SETFONT, (WPARAM) hFixedPointFont, MAKELPARAM(TRUE, 0));
+            SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_SETFONT, (WPARAM) hFixedPointFont, MAKELPARAM(TRUE, 0));
 
 
         if (!sp_temp->ConfigFile[0]) {
             strcpy(sp_temp->ConfigFile, ConfigFile);
         }
-        EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, sp_temp->ConfigFile);
-        tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
-        SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
+        EB_SETTEXTA(IDC_COMBO_CONFIG_FILE, sp_temp->ConfigFile);
+        tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+        SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
         safe_free(CurrentConfigFile);
         CurrentConfigFile = safe_strdup(sp_temp->ConfigFile);
 
@@ -1890,12 +1890,12 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         case IDC_BUTTON_CONFIG_FILE: {
             char filename[FILEPATH_MAX];
             filename[0] = '\0';
-            EB_GETTEXTA(IDC_EDIT_CONFIG_FILE, filename, FILEPATH_MAX - 1);
+            EB_GETTEXTA(IDC_COMBO_CONFIG_FILE, filename, FILEPATH_MAX - 1);
             if (!DlgOpenConfigFile(filename, hwnd))
                 if (filename[0] != '\0') {
-                    EB_SETTEXTA(IDC_EDIT_CONFIG_FILE, filename); // A
-                    tmp = SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
-                    SendDlgItemMessage(hwnd, IDC_EDIT_CONFIG_FILE, EM_SETSEL, (WPARAM) tmp, (LPARAM) tmp); // A/W
+                    EB_SETTEXTA(IDC_COMBO_CONFIG_FILE, filename); // A
+                    tmp = SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, WM_GETTEXTLENGTH, 0, 0); // A/W
+                    SendDlgItemMessage(hwnd, IDC_COMBO_CONFIG_FILE, CB_SETEDITSEL, 0, MAKELPARAM(tmp, tmp)); // A/W
                 }
             break; }
         case IDC_BUTTON_CFG_EDIT: {
@@ -1910,7 +1910,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
             }
 
             filename[0] = '\0';
-            EB_GETTEXTA(IDC_EDIT_CONFIG_FILE, filename, FILEPATH_MAX - 1);
+            EB_GETTEXTA(IDC_COMBO_CONFIG_FILE, filename, FILEPATH_MAX - 1);
 
             w32_reset_exe_directory();
 
@@ -1955,7 +1955,7 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         if (initflag)
             break;
 
-        EB_GETTEXTA(IDC_EDIT_CONFIG_FILE, sp_temp->ConfigFile, FILEPATH_MAX - 1);
+        EB_GETTEXTA(IDC_COMBO_CONFIG_FILE, sp_temp->ConfigFile, FILEPATH_MAX - 1);
         if (CH_GET(IDC_RADIOBUTTON_ENGLISH)) {
             sp_temp->PlayerLanguage = LANGUAGE_ENGLISH;
         } else if (CH_GET(IDC_RADIOBUTTON_JAPANESE)) {
