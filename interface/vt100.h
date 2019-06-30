@@ -32,6 +32,7 @@
 extern void vt100_init_screen(void);
 extern void vt100_refresh(void);
 extern void vt100_clrtoeol(void);
+extern void vt100_free_screen(void);
 extern void vt100_move(int row, int col);
 extern void vt100_set_attr(int attr);
 extern void vt100_reset_attr(void);

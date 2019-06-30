@@ -610,6 +610,7 @@ static void ctl_close(void)
     {
         ctl.opened = 0;
         vt100_move(24, 0);
+        vt100_free_screen();
         vt100_refresh();
     }
 
