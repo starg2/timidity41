@@ -96,8 +96,8 @@ extern int seq_quit;
 
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(int32 *valp);
-static int cmsg(int type, int verbosity_level, char *fmt, ...);
+static int ctl_read(ptr_size_t*valp);
+static int cmsg(int type, int verbosity_level, const char *fmt, ...);
 static void ctl_event(CtlEvent *e);
 static int ctl_pass_playing_list(int n, char *args[]);
 
@@ -155,7 +155,7 @@ static void ctl_close(void)
   ctl.opened=0;
 }
 
-static int ctl_read(int32 *valp)
+static int ctl_read(ptr_size_t *valp)
 {
     return RC_NONE;
 }
@@ -164,7 +164,7 @@ static int ctl_read(int32 *valp)
 extern void PutsConsoleWnd(const char *str);
 extern int ConsoleWndFlag;
 #endif
-static int cmsg(int type, int verbosity_level, char *fmt, ...)
+static int cmsg(int type, int verbosity_level, const char *fmt, ...)
 {
 #ifndef IA_W32G_SYN
 

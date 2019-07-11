@@ -153,7 +153,7 @@ typedef struct {
   void (*close)(void);
   int (*pass_playing_list)(int number_of_files, char *list_of_files[]);
   int  (*read)(ptr_size_t *valp);
-  int  (*write)(const uint8 *buf, int size);
+  int  (*write)(const uint8 *buf, size_t size);
   int  (*cmsg)(int type, int verbosity_level, const char *fmt, ...);
   void (*event)(CtlEvent *ev);	/* Control events */
 
