@@ -39,7 +39,7 @@ extern int compute_thread_num;
 extern int compute_thread_ready;
 
 #ifdef MULTI_THREAD_COMPUTE
-#if defined(__W32__)
+#if defined(__W32__) && !defined(CFG_FOR_SF)
 extern void set_compute_thread_priority(DWORD var);
 #endif // __W32__
 extern void begin_compute_thread(void);

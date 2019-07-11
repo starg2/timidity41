@@ -52,7 +52,7 @@ void rewind_memb(MemBuffer *b)
     }
 }
 
-void push_memb(MemBuffer *b, char *buff, long buff_size)
+void push_memb(MemBuffer *b, char *buff, ptr_size_t buff_size)
 {
     b->total_size += buff_size;
     if(b->head == NULL)
@@ -64,7 +64,7 @@ void push_memb(MemBuffer *b, char *buff, long buff_size)
     }
     while(buff_size > 0)
     {
-	long n;
+	ptr_size_t n;
 	MemBufferNode *p;
 
 	p = b->tail;
@@ -87,9 +87,9 @@ void push_memb(MemBuffer *b, char *buff, long buff_size)
     }
 }
 
-long read_memb(MemBuffer *b, char *buff, long buff_size)
+ptr_size_t read_memb(MemBuffer *b, char *buff, ptr_size_t buff_size)
 {
-    long n;
+	ptr_size_t n;
 
     if(b->head == NULL)
 	return 0;
@@ -101,7 +101,7 @@ long read_memb(MemBuffer *b, char *buff, long buff_size)
     n = 0;
     while(n < buff_size)
     {
-	long i;
+	ptr_size_t i;
 	MemBufferNode *p;
 
 	p = b->cur;
@@ -124,9 +124,9 @@ long read_memb(MemBuffer *b, char *buff, long buff_size)
     return n;
 }
 
-long skip_read_memb(MemBuffer *b, long size)
+ptr_size_t skip_read_memb(MemBuffer *b, ptr_size_t size)
 {
-    long n;
+	ptr_size_t n;
 
     if(size <= 0 || b->head == NULL)
 	return 0;
@@ -138,7 +138,7 @@ long skip_read_memb(MemBuffer *b, long size)
     n = 0;
     while(n < size)
     {
-	long i;
+		ptr_size_t i;
 	MemBufferNode *p;
 
 	p = b->cur;
@@ -164,14 +164,14 @@ typedef struct _URL_memb
 {
     char common[sizeof(struct _URL)];
     MemBuffer *b;
-    long pos;
+	off_size_t pos;
     int autodelete;
 } URL_memb;
 
-static long url_memb_read(URL url, void *buff, long n);
+static ptr_size_t url_memb_read(URL url, void *buff, ptr_size_t n);
 static int url_memb_fgetc(URL url);
-static long url_memb_seek(URL url, long offset, int whence);
-static long url_memb_tell(URL url);
+static off_size_t url_memb_seek(URL url, off_size_t offset, int whence);
+static off_size_t url_memb_tell(URL url);
 static void url_memb_close(URL url);
 
 URL memb_open_stream(MemBuffer *b, int autodelete)
@@ -205,7 +205,7 @@ URL memb_open_stream(MemBuffer *b, int autodelete)
     return (URL)url;
 }
 
-static long url_memb_read(URL url, void *buff, long n)
+static ptr_size_t url_memb_read(URL url, void *buff, ptr_size_t n)
 {
     URL_memb *urlp = (URL_memb *)url;
     if((n = read_memb(urlp->b, buff, n)) > 0)
@@ -233,11 +233,11 @@ static int url_memb_fgetc(URL url)
     return (int)((unsigned char *)p->base)[p->pos++];
 }
 
-static long url_memb_seek(URL url, long offset, int whence)
+static off_size_t url_memb_seek(URL url, off_size_t offset, int whence)
 {
     URL_memb *urlp = (URL_memb *)url;
     MemBuffer *b = urlp->b;
-    long ret, newpos = 0, n;
+	off_size_t ret, newpos = 0, n;
 
     ret = urlp->pos;
     switch(whence)
@@ -268,7 +268,7 @@ static long url_memb_seek(URL url, long offset, int whence)
     return ret;
 }
 
-static long url_memb_tell(URL url)
+static off_size_t url_memb_tell(URL url)
 {
     return ((URL_memb *)url)->pos;
 }

@@ -958,7 +958,7 @@ int open_output(void)
 					acp.Options |= 1 /* AUDCLNT_STREAMOPTIONS_RAW */;
 			}
 
-			hr = IAudioClient2_SetClientProperties(pAudioClient2, &acp);
+			hr = IAudioClient2_SetClientProperties(pAudioClient2, (AudioClientProperties *)&acp);
 			IAudioClient2_Release(pAudioClient2);
 			if (FAILED(hr))
 				goto error;
@@ -1004,8 +1004,35 @@ int open_output(void)
 			goto error;
 		hr = IAudioClient_Initialize(pAudioClient, ShareMode, StreamFlags, BufferDuration, Periodicity,	(WAVEFORMATEX *)&wfe, NULL);
 	}
-	if(FAILED(hr))
-		goto error;
+ 	if(FAILED(hr)){
+ 		switch(hr){
+ #define HANDLE_HRESULT(hresult) \
+ 	case hresult: \
+ 		ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = %s", #hresult); \
+ 		break;
+ 
+ 			HANDLE_HRESULT(AUDCLNT_E_ALREADY_INITIALIZED);
+ 			HANDLE_HRESULT(AUDCLNT_E_WRONG_ENDPOINT_TYPE);
+ 			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED);
+ 			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_ERROR);
+ 			HANDLE_HRESULT(AUDCLNT_E_CPUUSAGE_EXCEEDED);
+ 			HANDLE_HRESULT(AUDCLNT_E_DEVICE_INVALIDATED);
+ 			HANDLE_HRESULT(AUDCLNT_E_DEVICE_IN_USE);
+ 			HANDLE_HRESULT(AUDCLNT_E_ENDPOINT_CREATE_FAILED);
+ 			HANDLE_HRESULT(AUDCLNT_E_INVALID_DEVICE_PERIOD);
+ 			HANDLE_HRESULT(AUDCLNT_E_UNSUPPORTED_FORMAT);
+ 			HANDLE_HRESULT(AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED);
+ 			HANDLE_HRESULT(AUDCLNT_E_BUFDURATION_PERIOD_NOT_EQUAL);
+ 			HANDLE_HRESULT(AUDCLNT_E_SERVICE_NOT_RUNNING);
+ 			HANDLE_HRESULT(E_OUTOFMEMORY);
+ 
+ #undef HANDLE_HRESULT
+ 
+ 		default:
+ 			ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = 0x%X", hr);
+ 			break;
+ 		}
+	}
 	if(FAILED(IAudioClient_GetBufferSize(pAudioClient, &BufferFrames)))
 		goto error;
 	if(!IsPolling)

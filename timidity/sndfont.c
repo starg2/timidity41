@@ -1700,7 +1700,8 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->v.vel_to_fc = -2400; /* SF2 default value */
 	vp->v.vel_to_fc_threshold = 0; ///r c214  def64
 	vp->v.key_to_fc = vp->v.vel_to_resonance = 0;
-	vp->v.envelope_velf_bpo = vp->v.modenv_velf_bpo = 64;		
+	vp->v.envelope_velf_bpo = vp->v.modenv_velf_bpo = 64;	
+	vp->v.envelope_keyf_bpo = vp->v.modenv_keyf_bpo = 60;		
 	vp->v.key_to_fc_bpo = 60;
 	memset(vp->v.envelope_velf, 0, sizeof(vp->v.envelope_velf));
 	memset(vp->v.modenv_velf, 0, sizeof(vp->v.modenv_velf));

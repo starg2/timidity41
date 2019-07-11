@@ -444,7 +444,9 @@
 
 ///r
 #define VOICE_EFFECT
+#ifndef CFG_FOR_SF
 #define INT_SYNTH
+#endif
 //#define ENABLE_SFZ
 //#define ENABLE_DLS
 

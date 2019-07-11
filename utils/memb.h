@@ -38,14 +38,14 @@ typedef struct _MemBuffer
     MemBufferNode *head;	/* start buffer node pointer */
     MemBufferNode *tail;	/* last buffer node pointer */
     MemBufferNode *cur;		/* current buffer node pointer */
-    long total_size;
+    ptr_size_t total_size;
     MBlockList pool;
 } MemBuffer;
 
 extern void init_memb(MemBuffer *b);
-extern void push_memb(MemBuffer *b, char *buff, long buff_size);
-extern long read_memb(MemBuffer *b, char *buff, long buff_size);
-extern long skip_read_memb(MemBuffer *b, long size);
+extern void push_memb(MemBuffer *b, char *buff, ptr_size_t buff_size);
+extern ptr_size_t read_memb(MemBuffer *b, char *buff, ptr_size_t buff_size);
+extern ptr_size_t skip_read_memb(MemBuffer *b, ptr_size_t size);
 extern void rewind_memb(MemBuffer *b);
 extern void delete_memb(MemBuffer *b);
 extern URL memb_open_stream(MemBuffer *b, int autodelete);

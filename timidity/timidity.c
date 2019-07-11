@@ -866,6 +866,8 @@ static inline int parse_opt_od_level_gs(const char *arg);
 static inline int parse_opt_od_drive_gs(const char *arg);
 static inline int parse_opt_od_level_xg(const char *arg);
 static inline int parse_opt_od_drive_xg(const char *arg);
+static inline int parse_opt_od_level_sd(const char *arg);
+static inline int parse_opt_od_drive_sd(const char *arg);
 
 #if defined(__W32__)
 static inline int parse_opt_process_priority(const char *arg);
@@ -2299,7 +2301,7 @@ MAIN_INTERFACE int read_config_file(const char *name, int self, int allow_missin
         tf = open_with_constmem(name, strlen(name), OF_VERBOSE);
         name = "(configuration)";
     }
-    else if (check_file_extension(name, ".sf2", 0) == 1)
+    else if (check_file_extension(name, ".sf2", 0) == 1 || check_file_extension(name, ".sf3", 0) == 1)
     {
         const char fmt[] = "soundfont \"%s\"\n";
         onmemory = (char*) safe_malloc(strlen(fmt) + strlen(name) + 1);

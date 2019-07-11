@@ -326,6 +326,7 @@
     <ClInclude Include="..\interface.h" />
     <ClInclude Include="..\configs\msc-config.h" />
     <ClInclude Include="..\configs\msc-twsyn-interface.h" />
+    <ClInclude Include="..\interface\rtsyn.h" />
     <ClInclude Include="..\timidity\int_synth.h" />
     <ClInclude Include="..\timidity\loadsndfontini.h" />
     <ClInclude Include="..\timidity\myini.h" />

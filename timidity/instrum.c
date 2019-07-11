@@ -1128,6 +1128,7 @@ fail:
 		sp->modenv_to_pitch = sp->modenv_to_fc = 0;
 		sp->vel_to_fc = sp->key_to_fc = sp->vel_to_resonance = 0;
 		sp->envelope_velf_bpo = sp->modenv_velf_bpo = 64;
+		sp->envelope_keyf_bpo = sp->modenv_keyf_bpo = 60;
 		sp->vel_to_fc_threshold = 0;
 		sp->key_to_fc_bpo = 60;
 		sp->envelope_delay = sp->modenv_delay = 0;

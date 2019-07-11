@@ -381,7 +381,7 @@ static int is_abs_path(const char *name)
 	return 0;
 }
 
-struct timidity_file *open_with_mem(char *mem, int32 memlen, int noise_mode)
+struct timidity_file *open_with_mem(char *mem, ptr_size_t memlen, int noise_mode)
 {
     URL url;
     struct timidity_file *tf;

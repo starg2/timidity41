@@ -24,10 +24,10 @@
 
 #ifdef DEFINE_GLOBALS
 /* #define MID_OFFICIAL_NAME */
-static unsigned char *mid_charset = (unsigned char *)"あ";
-				/* このソ〖スコ〖ドの泣塑胳コ〖ドが
-				 * 恃わっても·この≈あ∽のコ〖ドも
-				 * 恃わるから OKˉ
+static unsigned char *mid_charset = (unsigned char *)"偁";
+				/* 偙偺僜乕僗僐乕僪偺擔杮岅僐乕僪偑
+				 * 曄傢偭偰傕丆偙偺乽偁乿偺僐乕僪傕
+				 * 曄傢傞偐傜 OK丏
 				 */
 char *mid2name(int mid)
 {
@@ -100,39 +100,39 @@ char *mid2name(int mid)
 	{0x3C, "Avab Electronik"},
 	{0x3D, "Digigram"},
 	{0x3E, "Waldorf Electronics"},
-	{0x40, "カワイ"},
+	{0x40, "僇儚僀"},
 
 #ifdef MID_OFFICIAL_NAME
-	{0x41, "ロ〖ランド"},
+	{0x41, "儘乕儔儞僪"},
 #else
 	{0x41, "GS"},
 #endif
 
-	{0x42, "コルグ"},
+	{0x42, "僐儖僌"},
 
 #if MID_OFFICIAL_NAME
-	{0x43, "ヤマハ"},
+	{0x43, "儎儅僴"},
 #else
 	{0x43, "XG"},
 #endif
 
-	{0x44, "カシオ"},
-	{0x45, "モリダイラ弛达"},
-	{0x46, "カミヤスタジオ"},
-	{0x47, "アカイ"},
-	{0x48, "泣塑ビクタ〖"},
-	{0x49, "汤料家"},
-	{0x4A, "辣填弛达"},
-	{0x4B, "少晃奶"},
-	{0x4C, "ソニ〖"},
-	{0x4D, "泣凯不侨"},
-	{0x4E, "ティアック"},
-	{0x50, "揪布排达"},
-	{0x51, "フォステック"},
-	{0x52, "ズ〖ム"},
-	{0x53, "涡排灰"},
-	{0x54, "揪布奶慨供度"},
-	{0x55, "坞腾弛达澜侯疥"},
+	{0x44, "僇僔僆"},
+	{0x45, "儌儕僟僀儔妝婍"},
+	{0x46, "僇儈儎僗僞僕僆"},
+	{0x47, "傾僇僀"},
+	{0x48, "擔杮價僋僞乕"},
+	{0x49, "柧憂幮"},
+	{0x4A, "惎栰妝婍"},
+	{0x4B, "晉巑捠"},
+	{0x4C, "僜僯乕"},
+	{0x4D, "擔怢壒攇"},
+	{0x4E, "僥傿傾僢僋"},
+	{0x50, "徏壓揹婍"},
+	{0x51, "僼僅僗僥僢僋"},
+	{0x52, "僘乕儉"},
+	{0x53, "椢揹巕"},
+	{0x54, "徏壓捠怣岺嬈"},
+	{0x55, "楅栘妝婍惢嶌強"},
 	{0x7D, "Non-Commercial"},
 
 #if MID_OFFICIAL_NAME

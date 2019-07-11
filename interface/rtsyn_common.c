@@ -29,7 +29,6 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
-
 #include "interface.h"
 
 #if defined(IA_NPSYN) || defined(IA_PORTMIDISYN) || defined(IA_WINSYN) || defined(IA_W32G_SYN)
@@ -110,232 +109,235 @@ static double active_sensing_time = 0;
 
 /*
 #define EX_RESET_NO 7
-static uint8 sysex_resets[EX_RESET_NO][11] = {
-        '\xf0','\x7e','\x7f','\x09','\x00','\xf7','\x00','\x00','\x00','\x00','\x00',
-        '\xf0','\x7e','\x7f','\x09','\x01','\xf7','\x00','\x00','\x00','\x00','\x00',
-        '\xf0','\x7e','\x7f','\x09','\x03','\xf7','\x00','\x00','\x00','\x00','\x00',
-        '\xf0','\x41','\x10','\x42','\x12','\x40','\x00','\x7f','\x00','\x41','\xf7',
-        '\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x00','\x01','\xf7',
-        '\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x01','\x00','\xf7',
-        '\xf0','\x43','\x10','\x4c','\x00','\x00','\x7E','\x00','\xf7','\x00','\x00' };
+static char sysex_resets[EX_RESET_NO][11]={
+		'\xf0','\x7e','\x7f','\x09','\x00','\xf7','\x00','\x00','\x00','\x00','\x00',
+		'\xf0','\x7e','\x7f','\x09','\x01','\xf7','\x00','\x00','\x00','\x00','\x00',
+		'\xf0','\x7e','\x7f','\x09','\x03','\xf7','\x00','\x00','\x00','\x00','\x00',
+		'\xf0','\x41','\x10','\x42','\x12','\x40','\x00','\x7f','\x00','\x41','\xf7',
+		'\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x00','\x01','\xf7',
+		'\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x01','\x00','\xf7',
+		'\xf0','\x43','\x10','\x4c','\x00','\x00','\x7E','\x00','\xf7','\x00','\x00' };
 */
 /*
 #define EX_RESET_NO 9
-static uint8 sysex_resets[EX_RESET_NO][11] = {
-        '\xf0','\x7e','\x7f','\x09','\x00','\xf7','\x00','\x00','\x00','\x00','\x00', //gm off
-        '\xf0','\x7e','\x7f','\x09','\x01','\xf7','\x00','\x00','\x00','\x00','\x00', //gm1
-        '\xf0','\x7e','\x7f','\x09','\x02','\xf7','\x00','\x00','\x00','\x00','\x00', //gm off
-        '\xf0','\x7e','\x7f','\x09','\x03','\xf7','\x00','\x00','\x00','\x00','\x00', //gm2
-        '\xf0','\x41','\x10','\x42','\x12','\x40','\x00','\x7f','\x00','\x41','\xf7', //GS
-        '\xf0','\x41','\x10','\x42','\x12','\x40','\x00','\x7f','\x7f','\x41','\xf7', //GS off
-        '\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x00','\x01','\xf7', //88
-        '\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x01','\x00','\xf7', //88
-        '\xf0','\x43','\x10','\x4c','\x00','\x00','\x7E','\x00','\xf7','\x00','\x00'  //XG on
-        };
+static char sysex_resets[EX_RESET_NO][11]={
+	'\xf0','\x7e','\x7f','\x09','\x00','\xf7','\x00','\x00','\x00','\x00','\x00', //gm off
+	'\xf0','\x7e','\x7f','\x09','\x01','\xf7','\x00','\x00','\x00','\x00','\x00', //gm1
+	'\xf0','\x7e','\x7f','\x09','\x02','\xf7','\x00','\x00','\x00','\x00','\x00', //gm off
+	'\xf0','\x7e','\x7f','\x09','\x03','\xf7','\x00','\x00','\x00','\x00','\x00', //gm2
+	'\xf0','\x41','\x10','\x42','\x12','\x40','\x00','\x7f','\x00','\x41','\xf7', //GS
+	'\xf0','\x41','\x10','\x42','\x12','\x40','\x00','\x7f','\x7f','\x41','\xf7', //GS off
+	'\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x00','\x01','\xf7', //88
+	'\xf0','\x41','\x10','\x42','\x12','\x00','\x00','\x7f','\x01','\x00','\xf7', //88
+	'\xf0','\x43','\x10','\x4c','\x00','\x00','\x7E','\x00','\xf7','\x00','\x00'  //XG on
+	};
 */
 
 void rtsyn_seq_set_time(MidiEvent *ev, double event_time);
 
-void rtsyn_gm_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = GM_SYSTEM_MODE;
-    rtsyn_play_event(&ev);
+void rtsyn_gm_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=GM_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+
 }
 
-void rtsyn_gs_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = GS_SYSTEM_MODE;
-    rtsyn_play_event(&ev);
+void rtsyn_gs_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=GS_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
 }
 
-void rtsyn_xg_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = XG_SYSTEM_MODE;
-    ev.time = 0;
-    rtsyn_play_event(&ev);
+void rtsyn_xg_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=XG_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
 }
 
-void rtsyn_gm2_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = GM2_SYSTEM_MODE;
-    ev.time = 0;
-    rtsyn_play_event(&ev);
+
+void rtsyn_gm2_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=GM2_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
 }
 
-void rtsyn_sd_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = SD_SYSTEM_MODE;
-    ev.time = 0;
-    rtsyn_play_event(&ev);
+
+void rtsyn_sd_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=SD_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
 }
 
-void rtsyn_kg_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = KG_SYSTEM_MODE;
-    ev.time = 0;
-    rtsyn_play_event(&ev);
+void rtsyn_kg_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=KG_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
 }
 
-void rtsyn_cm_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = CM_SYSTEM_MODE;
-    ev.time = 0;
-    rtsyn_play_event(&ev);
+
+void rtsyn_cm_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=CM_SYSTEM_MODE;
+	ev.time=0;
+	rtsyn_play_event(&ev);
 }
 
-void rtsyn_normal_reset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
+void rtsyn_normal_reset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	ev.type=ME_RESET;
+	ev.a=rtsyn_system_mode;
+	rtsyn_play_event(&ev);
+}
+void rtsyn_gm_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=GM_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=GM_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_gm_modeset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    rtsyn_system_mode = GM_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
+void rtsyn_gs_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=GS_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=GS_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_gs_modeset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    rtsyn_system_mode = GS_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
+void rtsyn_xg_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=XG_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=XG_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_xg_modeset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    rtsyn_system_mode = XG_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
+void rtsyn_gm2_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=GM2_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=GM2_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_gm2_modeset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    rtsyn_system_mode = GM2_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
+void rtsyn_sd_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=SD_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=SD_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_sd_modeset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    rtsyn_system_mode = SD_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
+
+void rtsyn_kg_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=KG_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=KG_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_kg_modeset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    rtsyn_system_mode = KG_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
+
+void rtsyn_cm_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=CM_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=CM_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_cm_modeset(void)
-{
-    MidiEvent ev;
 
-    rtsyn_server_reset();
-    rtsyn_system_mode = CM_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
+void rtsyn_normal_modeset(){
+	MidiEvent ev;
+
+	rtsyn_server_reset();
+	rtsyn_system_mode=DEFAULT_SYSTEM_MODE;
+	ev.type=ME_RESET;
+	ev.a=GS_SYSTEM_MODE;
+	rtsyn_play_event(&ev);
+	change_system_mode(rtsyn_system_mode);
+	reset_midi(1);
 }
 
-void rtsyn_normal_modeset(void)
-{
-    MidiEvent ev;
-
-    rtsyn_server_reset();
-    rtsyn_system_mode = DEFAULT_SYSTEM_MODE;
-    ev.type = ME_RESET;
-    ev.a = rtsyn_system_mode;
-    rtsyn_play_event(&ev);
-    change_system_mode(rtsyn_system_mode);
-    reset_midi(1);
-}
-
-double rtsyn_set_latency(double latency)
-{
-    if (latency < 1.0 / TICKTIME_HZ * 4.0)
-        latency = 1.0 / TICKTIME_HZ * 4.0;
-    rtsyn_latency = latency;
-    return latency;
+double rtsyn_set_latency(double latency){
+	if(latency < 1.0 / TICKTIME_HZ * 4.0)
+		latency = 1.0 / TICKTIME_HZ * 4.0;
+	rtsyn_latency = latency;
+	return latency;
 }
 
 void rtsyn_set_skip_aq(int flg)
 {
-    rtsyn_skip_aq = flg ? 1 : 0;
+	rtsyn_skip_aq = flg ? 1 : 0;
 }
 
 void rtsyn_init(void)
@@ -449,7 +451,7 @@ void rtsyn_play_event_time(MidiEvent *ev, double event_time)
 
 void rtsyn_play_event(MidiEvent *ev)
 {
-    rtsyn_play_event_time(ev, get_current_calender_time());
+	rtsyn_play_event_time(ev, get_current_calender_time());
 }
 
 void rtsyn_wot_reset(void)
@@ -501,171 +503,173 @@ void rtsyn_server_reset(void)
 
 void rtsyn_stop_playing(void)
 {
-    if (upper_voices) {
-        const double tail = (rtsyn_latency > 0.1) ? 0.1 : rtsyn_latency;
-        MidiEvent ev;
-        ev.type = ME_EOT;
-        ev.time = 0;
-        ev.a = 0;
-        ev.b = 0;
-        rtsyn_play_event_time(&ev, tail + get_current_calender_time());
-        sleep(tail * 10.0);
-//      rtsyn_play_event_time(&ev, rtsyn_latency + get_current_calender_time());
-//      sleep(rtsyn_latency * 1000.0);
-        aq_flush(0);
-    }
-    trace_flush();
+	if(upper_voices) {
+		const double tail = (rtsyn_latency > 0.1) ? 0.1 : rtsyn_latency;
+		MidiEvent ev;
+		ev.type = ME_EOT;
+		ev.time = 0;
+		ev.a = 0;
+		ev.b = 0;
+		rtsyn_play_event_time(&ev, tail + get_current_calender_time());
+		sleep(tail * 10.0);
+	//	rtsyn_play_event_time(&ev, rtsyn_latency + get_current_calender_time());
+	//	sleep(rtsyn_latency * 1000.0);
+		aq_flush(0);
+	}
+	trace_flush();
 }
 
 void rtsyn_seq_set_time(MidiEvent *ev, double event_time)
 {
-    double currenttime, time_div;
-
-    time_div = event_time  - rtsyn_start_time;
-    ev->time = rtsyn_start_sample
-             + (int32)((double)(play_mode->rate) * time_div + 0.5);
+	double currenttime, time_div;
+	
+	time_div = event_time  - rtsyn_start_time;
+	ev->time = rtsyn_start_sample
+		+(int32) ((double)(play_mode->rate) * time_div+0.5);
 }
+
 
 void rtsyn_play_calculate(void)
 {
-    MidiEvent ev;
-    double currenet_event_time, current_time;
+	MidiEvent ev;
+	double currenet_event_time, current_time;
+	
+	current_time = get_current_calender_time();
+	currenet_event_time = current_time + rtsyn_latency;
+	
+	if( (rtsyn_played == 0)  && (currenet_event_time > last_calc_time + 1.0/(double)TICKTIME_HZ) /* event buffer is empty */
+		||  (current_time + 1.0/(double)TICKTIME_HZ*2.0 > last_event_time) /* near miss */
+	){
+		ev.type = ME_NONE;
+		rtsyn_play_event_time(&ev, currenet_event_time);
+		last_calc_time=currenet_event_time;
+	}
+	rtsyn_played = 0;	
 
-    current_time = get_current_calender_time();
-    currenet_event_time = current_time + rtsyn_latency;
-
-    if ((rtsyn_played == 0 && currenet_event_time > last_calc_time + 1.0 / (double) TICKTIME_HZ) /* event buffer is empty */
-        ||  (current_time + 1.0 / (double) TICKTIME_HZ * 2.0 > last_event_time) /* near miss */
-    ) {
-        ev.type = ME_NONE;
-        rtsyn_play_event_time(&ev, currenet_event_time);
-        last_calc_time = currenet_event_time;
-    }
-    rtsyn_played = 0;
-
-    if (active_sensing_flag==~0 && (get_current_calender_time() > active_sensing_time + 0.5)) {
-        //normaly acitive sensing expiering time is 330ms(>300ms) but this loop is heavy
-        play_mode->close_output();
-        play_mode->open_output();
-        ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Active Sensing Expired");
-        rtsyn_server_reset();
-        active_sensing_flag = 0;
-    }
+	if(active_sensing_flag==~0 && (get_current_calender_time() > active_sensing_time+0.5)){
+//normaly acitive sensing expiering time is 330ms(>300ms) but this loop is heavy
+		play_mode->close_output();
+		play_mode->open_output();
+		ctl->cmsg(  CMSG_ERROR, VERB_NORMAL,"Active Sensing Expired\n");
+		rtsyn_server_reset();
+		active_sensing_flag=0;
+	}
 }
-
-int rtsyn_play_one_data(int port, uint32 dwParam1, double event_time)
+	
+int rtsyn_play_one_data (int port, uint32 dwParam1, double event_time)
 {
-    MidiEvent ev;
-
-    if (rtsyn_sample_time_mode != 1) {
-        event_time += rtsyn_latency;
-    }
-    ev.type = ME_NONE;
-    ev.channel = dwParam1 & 0x0000000f;
-    ev.channel = ev.channel + (port << 4);
-    ev.a = (dwParam1 >> 8) & 0xff;
-    ev.b = (dwParam1 >> 16) & 0xff;
-    switch ((int)(dwParam1 & 0x000000f0)) {
-    case 0x80:
-        ev.type = ME_NOTEOFF;
-//      rtsyn_play_event(&ev);
-        break;
-    case 0x90:
-        ev.type = (ev.b) ? ME_NOTEON : ME_NOTEOFF;
-//      rtsyn_play_event(&ev);
-        break;
-    case 0xa0:
-        ev.type = ME_KEYPRESSURE;
-//      rtsyn_play_event(&ev);
-        break;
-    case 0xb0:
-        if (!convert_midi_control_change(ev.channel, ev.a, ev.b, &ev))
-        ev.type = ME_NONE;
-        break;
-    case 0xc0:
-        ev.type = ME_PROGRAM;
-//      rtsyn_play_event(&ev);
-        break;
-    case 0xd0:
-        ev.type = ME_CHANNEL_PRESSURE;
-//      rtsyn_play_event(&ev);
-        break;
-    case 0xe0:
-        ev.type = ME_PITCHWHEEL;
-//      rtsyn_play_event(&ev);
-        break;
-    case 0xf0:
+	MidiEvent ev;
+	
+	if(rtsyn_sample_time_mode != 1){
+		event_time += rtsyn_latency;
+	}
+	ev.type = ME_NONE;
+	ev.channel = dwParam1 & 0x0000000f;
+	ev.channel = ev.channel+(port<<4);
+	ev.a = (dwParam1 >> 8) & 0xff;
+	ev.b = (dwParam1 >> 16) & 0xff;
+	switch ((int) (dwParam1 & 0x000000f0)) {
+	case 0x80:
+		ev.type = ME_NOTEOFF;
+//		rtsyn_play_event(&ev);
+		break;
+	case 0x90:
+		ev.type = (ev.b) ? ME_NOTEON : ME_NOTEOFF;
+//		rtsyn_play_event(&ev);
+		break;
+	case 0xa0:
+		ev.type = ME_KEYPRESSURE;
+//		rtsyn_play_event(&ev);
+		break;
+	case 0xb0:
+		if (! convert_midi_control_change(ev.channel, ev.a, ev.b, &ev))
+		ev.type = ME_NONE;
+		break;
+	case 0xc0:
+		ev.type = ME_PROGRAM;
+//		rtsyn_play_event(&ev);
+		break;
+	case 0xd0:
+		ev.type = ME_CHANNEL_PRESSURE;
+//		rtsyn_play_event(&ev);
+		break;
+	case 0xe0:
+		ev.type = ME_PITCHWHEEL;
+//		rtsyn_play_event(&ev);
+		break;
+	case 0xf0:
 #ifdef IA_PORTMIDISYN
-        if ((dwParam1 & 0x000000ff) == 0xf0) {
-            //SysEx
-            return 1;
-        }
+		if ( (dwParam1 & 0x000000ff) == 0xf0) {
+			//SysEx
+			return 1;
+		}
 #endif
-        if ((dwParam1 & 0x000000ff) == 0xf2) {
-            ev.type = ME_PROGRAM;
-//          rtsyn_play_event(&ev);
-        }
+		if ((dwParam1 & 0x000000ff) == 0xf2) {
+			ev.type = ME_PROGRAM;
+//			rtsyn_play_event(&ev);
+		}
 #if 0
-        if ((dwParam1 & 0x000000ff) == 0xf1)
-            //MIDI Time Code Qtr. Frame (not need)
-            ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "MIDI Time Code Qtr");
-        if ((dwParam1 & 0x000000ff) == 0xf3)
-            //Song Select(Song #) (not need)
+		if ((dwParam1 & 0x000000ff) == 0xf1)
+			//MIDI Time Code Qtr. Frame (not need)
+			printf("MIDI Time Code Qtr\n");
+		if ((dwParam1 & 0x000000ff) == 0xf3)
+			//Song Select(Song #) (not need)
 #endif
-        if ((dwParam1 & 0x000000ff) == 0xf6) {
-            //Tune request  but use to make TiMidity++  to calculate.
-            if (rtsyn_sample_time_mode == 1) {
-                ev.type = ME_NONE;
-                rtsyn_play_event_sample(&ev, event_time);
-                aq_fill_nonblocking();
-                //aq_soft_flush();
-            } else {
-                //ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Tune request");
-            }
-        }
+		if ((dwParam1 & 0x000000ff) == 0xf6){
+			//Tune request  but use to make TiMidity++  to calculate.
+			if(rtsyn_sample_time_mode == 1){
+				ev.type = ME_NONE;
+				rtsyn_play_event_sample(&ev, event_time);
+				aq_fill_nonblocking();
+				//aq_soft_flush();
+			}else{
+				//printf("Tune request\n");
+			}
+		}
 #if 0
-        if ((dwParam1 & 0x000000ff) == 0xf8)
-            //Timing Clock (not need)
-            ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Timing Clock");
-        if ((dwParam1 & 0x000000ff) == 0xfa)
-            {}//Start
-        if ((dwParam1 & 0x000000ff) == 0xfb)
-            {}//Continue
-        if ((dwParam1 & 0x000000ff) == 0xfc) {
-            //Stop
-            ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Stop");
-        }
+		if ((dwParam1 & 0x000000ff) == 0xf8)
+			//Timing Clock (not need)
+			printf("Timing Clock\n");
+		if ((dwParam1&0x000000ff)==0xfa)
+			//Start
+		if ((dwParam1 & 0x000000ff) == 0xfb)
+			//Continue
+		if ((dwParam1 & 0x000000ff) == 0xfc) {
+			//Stop
+			printf("Stop\n");
+		}
 #endif
-        if ((dwParam1 & 0x000000ff) == 0xfe) {
-            //Active Sensing
-//          ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Active Sensing");
-            active_sensing_flag = ~0;
-            active_sensing_time = get_current_calender_time();
-        }
-        if ((dwParam1 & 0x000000ff) == 0xff) {
-            //System Reset  use for TiMidity++  timer  reset
-            if (rtsyn_sample_time_mode == 1) {
-                rtsyn_tmr_reset();
-            } else {
-                //ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "System Reset");
-            }
-        }
-        break;
-    default:
-//      ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Unsupported event %d", aevp->type);
-        break;
-    }
-    if (ev.type != ME_NONE) {
-        if (rtsyn_sample_time_mode != 1) {
-            rtsyn_play_event_time(&ev, event_time);
-        } else {
-            rtsyn_play_event_sample(&ev, event_time);
-        }
-    }
-    return 0;
+		if ((dwParam1 & 0x000000ff) == 0xfe) {
+			//Active Sensing
+//			printf("Active Sensing\n");
+			active_sensing_flag = ~0;
+			active_sensing_time = get_current_calender_time();
+		}
+		if ((dwParam1 & 0x000000ff) == 0xff) {
+			//System Reset  use for TiMidity++  timer  reset
+			if(rtsyn_sample_time_mode == 1){
+				rtsyn_tmr_reset();
+			}else{
+				//printf("System Reset\n");
+			}
+		}
+		break;
+	default:
+//		printf("Unsup/ed event %d\n", aevp->type);
+		break;
+	}
+	if (ev.type != ME_NONE) {
+		if(rtsyn_sample_time_mode != 1){
+				rtsyn_play_event_time(&ev, event_time);
+		}else{
+				rtsyn_play_event_sample(&ev, event_time);
+		}
+	}
+	return 0;
 }
 
-void rtsyn_play_one_sysex(uint8 *sysexbuffer, int exlen, double event_time)
+
+void rtsyn_play_one_sysex (uint8 *sysexbuffer, int exlen, double event_time )
 {
     int i, j, chk, ne;
     MidiEvent ev;
@@ -778,4 +782,3 @@ int rtsyn_buf_check(void)
 }
 
 #endif /* IA_NPSYN || IA_PORTMIDISYN || IA_WINSYN || IA_W32G_SYN */
-

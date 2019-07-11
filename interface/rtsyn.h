@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2002 Masanao Izumo <mo@goice.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -33,12 +33,18 @@
 #include <stdarg.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif /* HAVE_UNISTD_H */
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
-#include "_systime.h"
-#include "_string.h"
+#ifdef TIME_WITH_SYS_TIME
+#include <sys/time.h>
+#endif
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 #include <math.h>
 #include <signal.h>
 
@@ -47,14 +53,14 @@
 #ifdef __W32__
 #include <windows.h>
 #include <mmsystem.h>
-#endif /* __W32__ */
+#endif
 
 
 #ifndef __W32__
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif /* HAVE_STDLIB_H */
-#endif /* !__W32__ */
+#endif
+#endif
 
 
 
@@ -94,7 +100,6 @@ extern VOLATILE int intr;
 
 #define MAX_RTSYN_PORTLIST_NUM 32
 #define MAX_RTSYN_PORTLIST_LEN 80
-
 
 extern double rtsyn_latency;   /* = RTYSN_LATENCY */
 extern int rtsyn_system_mode;
@@ -199,18 +204,19 @@ const char* rtsyn_np_get_pipe_path(void);
 
 #ifdef USE_WINSYN_TIMER_I
 
-#ifdef __W32__
+#if defined(__W32__)
 typedef CRITICAL_SECTION  rtsyn_mutex_t;
-#define rtsyn_mutex_init(_m)    InitializeCriticalSection(&_m)
+#define rtsyn_mutex_init(_m)	InitializeCriticalSection(&_m)
 #define rtsyn_mutex_destroy(_m) DeleteCriticalSection(&_m)
 #define rtsyn_mutex_lock(_m)    EnterCriticalSection(&_m)
 #define rtsyn_mutex_unlock(_m)  LeaveCriticalSection(&_m)
+
 #else
 typedef pthread_mutex_t rtsyn_mutex_t;
-#define rtsyn_mutex_init(_m)    pthread_mutex_init(&(_m), NULL)
-#define rtsyn_mutex_destroy(_m) pthread_mutex_destroy(&(_m))
-#define rtsyn_mutex_lock(_m)    pthread_mutex_lock(&(_m))
-#define rtsyn_mutex_unlock(_m)  pthread_mutex_unlock(&(_m))
+#define rtsyn_mutex_init(_m)      pthread_mutex_init(&(_m), NULL)
+#define rtsyn_mutex_destroy(_m)   pthread_mutex_destroy(&(_m))
+#define rtsyn_mutex_lock(_m)      pthread_mutex_lock(&(_m))
+#define rtsyn_mutex_unlock(_m)    pthread_mutex_unlock(&(_m))
 #endif
 
 #endif

@@ -3158,7 +3158,7 @@ static void mms_editor_set_default_param_op(Preset_MMS *set, int op_num)
 			num = 0;
 			break;
 		}
-		set->op_wave[op_num][i] = 0;
+		set->op_wave[op_num][i] = num;
 	}
 	for(i = 0; i < MMS_OP_SUB_MAX; i++)
 		set->op_sub[op_num][i] = 0;
@@ -4194,6 +4194,8 @@ static void init_sample_param(Sample *sample)
 	sample->vel_to_resonance = 0;
 	sample->envelope_velf_bpo = 64;
 	sample->modenv_velf_bpo = 64;
+	sample->envelope_keyf_bpo = 60;
+	sample->modenv_keyf_bpo = 60;
 	sample->vel_to_fc_threshold = 0;
 	sample->key_to_fc_bpo = 60;
 	sample->scale_freq = 60;

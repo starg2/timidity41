@@ -317,9 +317,7 @@ int timiwp_main_close(void)
 #ifdef INT_SYNTH
     free_int_synth();
 #endif
-    free_voices();
-    safe_free(voice);
-    voice = NULL;
+    free_voice_pointer();
     uninitialize_resampler_coeffs();
     for (i = 0; i < MAX_CHANNELS; i++)
 	free_drum_effect(i);

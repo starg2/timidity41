@@ -56,7 +56,11 @@ extern unsigned int sleep(unsigned int);
 
 #include <stdarg.h>
 #include <ctype.h>
-#include "_string.h"
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 #include <math.h>
 
 #ifdef __W32__
@@ -3015,7 +3019,7 @@ static int ctl_read(ptr_size_t *valp)
   return RC_NONE;
 }
 
-static int32 ctl_write(const uint8 *valp, int32 size)
+static int32 ctl_write(const uint8 *valp, size_t size)
 {
   static int warned = 0;
   if (!warned) {

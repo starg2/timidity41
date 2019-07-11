@@ -39,7 +39,7 @@ void rtsyn_init(void);
 void rtsyn_stop_playing(void);
 void rtsyn_close(void);
 void rtsyn_reset(void);
-int rtsyn_play_one_data(int port, int32 dwParam1, double event_time);
+int rtsyn_play_one_data(int port, uint32 dwParam1, double event_time);
 void rtsyn_play_one_sysex(uint8 *sysexbuffer, int exlen, double event_time);
 void rtsyn_play_calculate(void);
 	

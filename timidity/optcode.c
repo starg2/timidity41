@@ -222,7 +222,7 @@ int32 imuldiv28(int32 a, int32 b) {
 /*****************************************************************************/
 #if (USE_X86_EXT_ASM || USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_ASM || USE_X86_AMD_EXT_INTRIN)
 #ifdef __GNUC__
-inline void CPUID(int32 *regs, uint32 eax)
+void CPUID(int32 *regs, uint32 eax)
 {
 	uint32 ebx,ecx,edx;
 	__asm__ __volatile__ (

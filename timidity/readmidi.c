@@ -4983,7 +4983,7 @@ static void smf_time_signature(int32 at, struct timidity_file *tf, int len)
     c = tf_getc(tf);
     b = tf_getc(tf);
 
-    if(n == 0 || d == 0)
+    if(n == 0 || (uint8) d == 0)
     {
 	ctl->cmsg(CMSG_WARNING, VERB_VERBOSE, "Invalid time signature");
 	return;
