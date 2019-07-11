@@ -32,6 +32,7 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
+#include <stdio.h>
 
 #ifdef IA_PORTMIDISYN
 

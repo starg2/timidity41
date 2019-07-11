@@ -1018,7 +1018,7 @@ static void OutputString(const char *format, ...)
 	va_end(va);
 }
 
-void PutsConsoleWnd(char *str)
+void PutsConsoleWnd(const char *str)
 {
 	OutputString("%s", str);
 }

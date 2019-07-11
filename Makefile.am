@@ -38,6 +38,8 @@ EXTRA_DIST = \
 	ChangeLog.3 \
 	INSTALL.ja \
 	README.ja \
+	TiMidity-uj.ad.in \
+	TiMidity.ad.in \
 	autogen.sh
 
 TOOLSDIR = timidity-tools

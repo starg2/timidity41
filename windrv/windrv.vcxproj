@@ -354,6 +354,7 @@
   <ItemGroup>
     <ClInclude Include="..\config.h" />
     <ClInclude Include="..\interface.h" />
+    <ClInclude Include="..\interface\rtsyn.h" />
     <ClInclude Include="..\timidity\aenc.h" />
     <ClInclude Include="..\timidity\aq.h" />
     <ClInclude Include="..\timidity\audio_cnv.h" />
