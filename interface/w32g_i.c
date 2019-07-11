@@ -643,9 +643,9 @@ static void InitMainMenu(HWND hWnd)
 	mii.wID = IDM_OUTPUT_OPTIONS;
 	mii.fType = MFT_STRING;
 	if (PlayerLanguage == LANGUAGE_JAPANESE) {
-		mii.dwTypeData = "オプション(&O)";
+		mii.dwTypeData = _T("オプション(&O)");
 	} else {
-		mii.dwTypeData = "&Options";
+		mii.dwTypeData = _T("&Options");
 	}
 	InsertMenuItem(hMenuOutput, 0, TRUE, &mii);
 	mii.fMask = MIIM_TYPE;
@@ -660,8 +660,10 @@ static void InitMainMenu(HWND hWnd)
 		} else {
 			mii.fState = MFS_UNCHECKED;
 		}
-		mii.dwTypeData = play_mode_list[i]->id_name;
+		TCHAR* t = char_to_tchar(play_mode_list[i]->id_name);
+		mii.dwTypeData = t;
 		InsertMenuItem(hMenuOutput, outputItemStart + i, TRUE, &mii);
+		safe_free(t);
 	}	
 	SetMenu(hWnd , hMenu);
 	// system menu
@@ -670,13 +672,13 @@ static void InitMainMenu(HWND hWnd)
 	//RemoveMenu(hSystemMenu,SC_SIZE,MF_BYCOMMAND); // comment out for Resize MainWindow 
 	EnableMenuItem(hSystemMenu, SC_MOVE, MF_BYCOMMAND | MF_GRAYED);
 	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0); // 7
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION, SC_SCREENSAVE, "Screen Saver"); // 6
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION, SC_SCREENSAVE, _T("Screen Saver")); // 6
 	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_SEPARATOR, 0, 0); // 5
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_STOP, "Stop"); // 4
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PAUSE, "Pause"); // 3
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PREV, "Prev"); // 2
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_NEXT, "Next"); // 1
-	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PLAY, "Play"); // 0	
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_STOP, _T("Stop")); // 4
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PAUSE, _T("Pause")); // 3
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PREV, _T("Prev")); // 2
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_NEXT, _T("Next")); // 1
+	InsertMenu(hSystemMenu, 0, MF_BYPOSITION | MF_STRING, IDM_PLAY, _T("Play")); // 0	
 
 	DrawMenuBar(hWnd);
 }
@@ -711,11 +713,11 @@ static void UpdateModuleMenu(HWND hWnd, UINT wId)
 
 static void UpdateOutputMenu(HWND hWnd, UINT wId)
 {
-	MENUITEMINFOA mii;
+	MENUITEMINFO mii;
 	int i, num = -1, oldnum;
 
 	for (i = 0; play_mode_list[i] != 0; i++) {
-		mii.cbSize = sizeof(MENUITEMINFOA);
+		mii.cbSize = sizeof(MENUITEMINFO);
 		mii.fMask = MIIM_STATE | MIIM_ID;
 		GetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
 		if (wId == mii.wID) {
@@ -752,11 +754,11 @@ static void RefreshModuleMenu(HWND hWnd)
 
 static void RefreshOutputMenu(HWND hWnd)
 {
-	MENUITEMINFOA mii;
+	MENUITEMINFO mii;
 	int i;
 
 	for (i = 0; play_mode_list[i] != 0; i++) {
-		mii.cbSize = sizeof(MENUITEMINFOA);
+		mii.cbSize = sizeof(MENUITEMINFO);
 		mii.fMask = MIIM_STATE | MIIM_ID;
 		GetMenuItemInfo(hMenuOutput, outputItemStart + i, TRUE, &mii);
 		if (st_temp->opt_playmode[0] == play_mode_list[i]->id_character) {
@@ -1292,7 +1294,7 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	}
 		break;
       default:
-		if (uMess == RegisterWindowMessage("TaskbarCreated")) {
+		  if (uMess == RegisterWindowMessage(_T("TaskbarCreated"))) {
 			ShowWindow(hMainWnd, SW_HIDE);
 			ShowWindow(hMainWnd, SW_SHOWNOACTIVATE);
 			return 0;
