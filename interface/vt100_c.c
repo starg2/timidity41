@@ -30,6 +30,11 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <sys/types.h>
+#ifndef NO_STRING_H
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -125,7 +130,7 @@ static void ctl_reset(void);
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
 static int ctl_read(ptr_size_t *valp);
-static int32 ctl_write(const uint8 *valp, int32 size);
+static int32 ctl_write(const uint8 *valp, size_t size);
 static int cmsg(int type, int verbosity_level, const char *fmt, ...);
 static void ctl_event(CtlEvent *e);
 
@@ -610,6 +615,7 @@ static void ctl_close(void)
     {
         ctl.opened = 0;
         vt100_move(24, 0);
+        vt100_free_screen();
         vt100_refresh();
     }
 
@@ -770,7 +776,7 @@ static int ctl_read(ptr_size_t *valp)
     return RC_NONE;
 }
 
-static int32 ctl_write(const uint8 *valp, int32 size)
+static int32 ctl_write(const uint8 *valp, size_t size)
 {
         static int warned = 0;
 

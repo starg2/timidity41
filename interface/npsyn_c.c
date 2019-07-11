@@ -160,7 +160,7 @@ static int ctl_read(ptr_size_t *valp)
 }
 
 #ifdef IA_W32G_SYN
-extern void PutsConsoleWnd(char *str);
+extern void PutsConsoleWnd(const char *str);
 extern int ConsoleWndFlag;
 #endif
 static int cmsg(int type, int verbosity_level, const char *fmt, ...)

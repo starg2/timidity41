@@ -4167,7 +4167,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	}else
 #if 0 // 2set
 	if(inc < opt_inc2){ // 2セット
-	const __m256i vvar8 = _mm256_set1_epi32(8);
+	const __m256i vvar7 = _mm256_set1_epi32(7);
 	for(i = 0; i < count; i += 8) {
 	__m256i vofsi1 = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi
 	__m256i vofsi2 = _mm256_add_epi32(vofsi1, vadd1); // ofsi+1
@@ -4179,12 +4179,8 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi, _mm256_setzero_epi32()); // ofsi[0]
 	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); // v1 ofsi
 	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib); // v2 ofsi+1
-	__m256i vrmg1 = _mm256_cmpgt_epi32(vofsub1, vvar8); // オフセット差が8超過の条件でマスク作成
-	__m256i vrmg2 = _mm256_cmpgt_epi32(vofsub2, vvar8); // オフセット差が8超過の条件でマスク作成
-	__m256i vrme1 = _mm256_cmpeq_epi32(vofsub1, vvar8); // オフセット差が8同等の条件でマスク作成
-	__m256i vrme2 = _mm256_cmpeq_epi32(vofsub2, vvar8); // オフセット差が8同等の条件でマスク作成
-	__m256i vrm1 = _mm256_or_si256(vrmg1, vrme1); // 8以上にするためにマスク合成
-	__m256i vrm2 = _mm256_or_si256(vrmg2, vrme2); // 8以上にするためにマスク合成
+	__m256i vrm1 = _mm256_cmpgt_epi32(vofsub1, vvar7); // オフセット差が8以上の条件でマスク作成
+	__m256i vrm2 = _mm256_cmpgt_epi32(vofsub2, vvar7); // オフセット差が8以上の条件でマスク作成
 	// src2 offsetが下位3bitのみ有効であれば8を超える部分にマスク不要のはず
 	__m256 vv11 = _mm256_permutevar8x32_ps(vvf1, vofsub1);
 	__m256 vv12 = _mm256_permutevar8x32_ps(vvf2, vofsub1);

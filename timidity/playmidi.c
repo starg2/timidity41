@@ -3851,6 +3851,8 @@ static int init_channel_portamento(MidiEvent *e)
 			"Portamento Control: start note:%d to base note:%d (CH:%d NOTE:%d)", 
 			channel[ch].portamento_control, note, ch, note);	
 		channel[ch].portamento_control = -1;
+		channel[ch].portamento = 127;
+		channel[ch].porta_dpb = (double)(12000 * PORTAMENTO_CONTROL_RATIO) * div_playmode_rate; // 12000st/s instant
 	}else if(channel[ch].portamento){ // portament
 		update_portamento_controls(ch);	
 		channel[ch].porta_status = 1;

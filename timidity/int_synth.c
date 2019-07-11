@@ -3158,7 +3158,7 @@ static void mms_editor_set_default_param_op(Preset_MMS *set, int op_num)
 			num = 0;
 			break;
 		}
-		set->op_wave[op_num][i] = 0;
+		set->op_wave[op_num][i] = num;
 	}
 	for(i = 0; i < MMS_OP_SUB_MAX; i++)
 		set->op_sub[op_num][i] = 0;

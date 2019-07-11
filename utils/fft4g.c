@@ -366,7 +366,7 @@ void rdft_simd(int n, int isgn, float *a, int *ip, float *w)
     void bitrv2(int n, int *ip, float *a);
     void cftfsub(int n, float* a, float* w);
     void cftbsub(int n, float* a, float* w);
-	void cftfsub_simd(int n, float *a, float *w);
+    void cftfsub_simd(int n, float *a, float *w);
     void cftbsub_simd(int n, float *a, float *w);
     void rftfsub(int n, float *a, int nc, float *c);
     void rftbsub(int n, float *a, int nc, float *c);

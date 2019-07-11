@@ -13952,9 +13952,9 @@ static void do_phaser_multi(DATA_T *buf, int32 count, InfoPhaser *info)
 #define AW_LEVEL (1.0)
 #define AW_LPF_LEVEL (2.5 * AW_LEVEL)
 #define AW_BPF_LEVEL (5.0 * AW_LEVEL)
-#define AW_PEAK_TIME (20.0) // ms
+#define AW_PEAK_TIME (10.0) // ms
 #define AW_SENS_ATTACK_TIME (20.0) // min ms 
-#define AW_SENS_RELEASE_TIME (200.0) // min ms 
+#define AW_SENS_RELEASE_TIME (10.0) // min ms 
 #define AW_MAN_ENV_TIME (100.0) // ms
 #define AW_FLT_ENV_TIME (10.0) // ms
 #define AW_BPF_WIDTH (0.85)
@@ -13969,7 +13969,7 @@ static FLOAT_T calc_auto_wah_sens_xg(int in){
 }
 
 static FLOAT_T calc_auto_wah_manual_gs(int in){
-	return manual_table[in]; // Hz
+	return (double)manual_table[in] * pow((double)0.5, (double)in * DIV_100); // Hz
 }
 
 static FLOAT_T calc_auto_wah_manual_xg(int in){
@@ -13978,11 +13978,11 @@ static FLOAT_T calc_auto_wah_manual_xg(int in){
 }
 
 static FLOAT_T calc_auto_wah_peak_gs(int in){
-	return (double)clip_int(in, 0, 127) * DIV_127 * 12.0; // dB
+	return (double)clip_int(in, 0, 127) * DIV_127 * 18.0 * 1.5; // 18dB *1.5
 }
 
 static FLOAT_T calc_auto_wah_peak_xg(int in){
-	return (double)clip_int(in, 10, 120) * DIV_10; // 12dB
+	return (double)clip_int(in, 10, 120) * DIV_10 * 1.5; // 12dB *1.5
 }
 
 static void do_auto_wah_multi(DATA_T *buf, int32 count, InfoAutoWah *info)
