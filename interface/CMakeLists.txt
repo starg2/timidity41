@@ -130,7 +130,7 @@ add_library(
 add_dependencies(interface_synsrv twsyn_bridge)
 target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 
-if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
+if("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
     # for timw32g
 
     add_library(

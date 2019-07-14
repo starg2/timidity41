@@ -219,7 +219,7 @@ add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS})
 
-if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
+if("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
     # timw32g
 
     add_executable(
