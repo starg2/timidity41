@@ -4128,7 +4128,8 @@ static void recompute_mod_envelope_follow(int v, int ch)
 		time_ms = calc_nrpn_param(time_ms, (double)add_param[EG_GUS_ATTACK] * env_attack_calc, nrpn_env_attack_mode);
 		if(time_ms <= 0.0) 
 			vp->mod_env.rate[ENV0_ATTACK_STAGE] = ENV0_OFFSET_MAX;
-		vp->mod_env.rate[ENV0_ATTACK_STAGE] = sub_ofs_div_cr / time_ms;
+		else
+			vp->mod_env.rate[ENV0_ATTACK_STAGE] = sub_ofs_div_cr / time_ms;
 	}
 	if(add_param[EG_GUS_DECAY]){
 		FLOAT_T sub_ofs_div_cr = fabs(vp->mod_env.offset[ENV0_ATTACK_STAGE] - vp->mod_env.offset[ENV0_HOLD_STAGE]) * div_playmode_rate * 1000.0;
