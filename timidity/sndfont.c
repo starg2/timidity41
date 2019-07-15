@@ -471,13 +471,17 @@ static void init_sf(SFInsts *rec)
 		int bank = sfinfo.preset[i].bank;
 		int preset = sfinfo.preset[i].preset;
 
-		if (bank == 128)
+		if (bank == 128 && 0 <= preset && preset < 128 + MAP_BANK_COUNT)
 		    /* FIXME: why not allow exclusion of drumsets? */
 		    alloc_instrument_bank(1, preset);
-		else {
+		else if (0 <= bank && bank < 128 + MAP_BANK_COUNT) {
 			if (is_excluded(rec, bank, preset, -1))
 				continue;
 			alloc_instrument_bank(0, bank);
+		} else {
+			ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "%s: bank/preset is out of range [bank = %d, preset = %d]",
+				FILENAME_REDUCED(rec->fname), bank, preset);
+			continue;
 		}
 		load_font(&sfinfo, i);
 	}
