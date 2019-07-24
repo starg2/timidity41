@@ -1376,6 +1376,11 @@ static void free_tone_bank_list(ToneBank *tb[])
 			continue;
 		for (j = 0; j < 128; j++)
 			free_tone_bank_element(&bank->tone[j]);
+
+		if (bank->alt)
+			free(bank->alt);
+		bank->alt = NULL;
+
 		if (i > 0)
 		{
 			free(bank);
