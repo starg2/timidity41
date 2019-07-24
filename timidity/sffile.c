@@ -222,6 +222,11 @@ int load_soundfont(SFInfo *sf, struct timidity_file *fd)
 	if (inbags.bag) free(inbags.bag);
 	if (inbags.gen) free(inbags.gen);
 
+	prbags.bag = NULL;
+	prbags.gen = NULL;
+	inbags.bag = NULL;
+	inbags.gen = NULL;
+
 	return 0;
 }
 

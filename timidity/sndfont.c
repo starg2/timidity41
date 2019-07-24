@@ -303,6 +303,8 @@ void free_soundfonts()
 		next = sf->next;
 		free(sf);
 	}
+	sfrecs = NULL;
+	current_sfrec = NULL;
 }
 
 char *soundfont_preset_name(int bank, int preset, int keynote,

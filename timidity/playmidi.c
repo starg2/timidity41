@@ -9008,5 +9008,6 @@ static int32 get_rx_drum(struct DrumParts *p, int32 rx)
 void free_reverb_buffer(void)
 {
 	free(reverb_buffer);
+	reverb_buffer = NULL;
 }
 

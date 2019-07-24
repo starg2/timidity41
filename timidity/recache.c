@@ -87,6 +87,7 @@ static void loop_connect(sample_t *, int32, int32);
 
 void free_cache_data(void) {
 	free(cache_data);
+	cache_data = NULL;
 	reuse_mblock(&hash_entry_pool);
 }
 
