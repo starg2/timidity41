@@ -384,18 +384,22 @@ void begin_compute_thread(void)
 			break;
 		}
 		hComputeThread[i] = crt_beginthreadex(
-				NULL, 
-				0,
-				(LPTHREAD_START_ROUTINE)ComputeThread, 
-				(LPVOID)i, /* void *arglist = thread_num */
-				0, /* initflag = NULL or CREATE_SUSPENDED */
-				&(ComputeThreadID[i])
-				);
+			NULL, 
+			0,
+			(LPTHREAD_START_ROUTINE)ComputeThread, 
+			(LPVOID)i, /* void *arglist = thread_num */
+			0, /* initflag = NULL or CREATE_SUSPENDED */
+			&(ComputeThreadID[i])
+		);
 		if(hComputeThread[i] == NULL){
 			++error;
 			ctl->cmsg(CMSG_INFO, VERB_NORMAL, "ERROR ComputeThread : beginthread(%d) error.", i);
 			break;
 		}
+
+		char thread_desc[64] = "";
+		snprintf(thread_desc, sizeof(thread_desc) / sizeof(thread_desc[0]), "Compute Thread #%d", i);
+		set_thread_description((ptr_size_t)hComputeThread[i], thread_desc);
 	}	
 	if(error){
 		terminate_compute_thread();

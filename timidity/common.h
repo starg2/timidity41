@@ -188,6 +188,8 @@ extern char *w32_mbs_to_utf8(const char *str);
 extern char *w32_utf8_to_mbs(const char *str);
 #endif
 
+extern void set_thread_description(ptr_size_t handle, const char *str);
+
 #ifdef __cplusplus
 }
 #endif

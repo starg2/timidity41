@@ -963,6 +963,7 @@ static int start_syn_thread(void)
 				    NULL, 0, & w32g_syn.syn_dwThreadId);
 	if (!w32g_syn.syn_hThread)
 		return -1;
+	set_thread_description((ptr_size_t)w32g_syn.syn_hThread, "Syn Thread");
 	for (;;) {
 		if (syn_thread_started == 1)
 			break;
