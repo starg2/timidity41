@@ -162,9 +162,6 @@ extern int fp_equals(float a, float b, float tolerance);
 #define FP_EQ(a, b) (fp_equals(a, b, 0.001f))
 #define FP_EQ_0(a) (FP_EQ(a, 0.0f))
 #define FP_NE_0(a) ((a) > 0.0 || (a) < 0.0)
-#ifdef __W32__
-extern int w32_reset_dll_directory(void);
-#endif
 
 
 /* code:

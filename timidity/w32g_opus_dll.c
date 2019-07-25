@@ -6,26 +6,12 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
+#include "common.h"
 
 #ifdef AU_OPUS_DLL
 
 #include <windows.h>
 #include <opus/opus.h>
-
-typedef BOOL (WINAPI *SetDllDirectoryAProc)(LPCSTR lpPathName);
-
-/*! Remove the current directory for the search path of LoadLibrary. Returns 0 if failed. */
-static int w32_reset_dll_directory(void)
-{
-	HMODULE module;
-	SetDllDirectoryAProc setDllDirectory;
-	if ((module = GetModuleHandle(TEXT("Kernel32.dll"))) == NULL)
-		return 0;
-	if ((setDllDirectory = (SetDllDirectoryAProc)GetProcAddress(module, "SetDllDirectoryA")) == NULL)
-		return 0;
-	/* Microsoft Security Advisory 2389418 */
-	return (*setDllDirectory)("") != 0;
-}
 
 extern int load_opus_dll(void);
 extern void free_opus_dll(void);
