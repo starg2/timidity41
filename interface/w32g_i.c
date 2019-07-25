@@ -289,7 +289,7 @@ LPSTR lpCmdLine, int nCmdShow)
 	static int first = 0;
 
 	Sleep(100); // Restartで前プロセスの終了待機
-#ifdef _CRTDBG_MAP_ALLOC
+#ifdef TIMIDITY_LEAK_CHECK
 	_CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
 	CmdLineToArgv(lpCmdLine,&argc,&argv);

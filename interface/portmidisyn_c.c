@@ -96,7 +96,7 @@ extern int seq_quit;
 
 static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
-static int ctl_read(ptr_size_t*valp);
+static int ctl_read(ptr_size_t *valp);
 static int cmsg(int type, int verbosity_level, const char *fmt, ...);
 static void ctl_event(CtlEvent *e);
 static int ctl_pass_playing_list(int n, char *args[]);
@@ -135,24 +135,26 @@ static FILE *outfp;
 
 static int ctl_open(int using_stdin, int using_stdout)
 {
-	ctl.opened = 1;
-	ctl.flags &= ~(CTLF_LIST_RANDOM|CTLF_LIST_SORT);
-	if (using_stdout)
-		outfp = stderr;
-	else
-		outfp = stdout;
-	return 0;
+    rtsyn_pm_setup();
+
+    ctl.opened = 1;
+    ctl.flags &= ~(CTLF_LIST_RANDOM | CTLF_LIST_SORT);
+    if (using_stdout)
+        outfp = stderr;
+    else
+        outfp = stdout;
+    return 0;
 }
 
 static void ctl_close(void)
 {
-  fflush(outfp);
-  if(seq_quit==0){
-  	rtsyn_synth_stop();
-  	rtsyn_close();
-  	seq_quit=~0;
-  }	
-  ctl.opened=0;
+    fflush(outfp);
+    if (seq_quit == 0) {
+        rtsyn_synth_stop();
+        rtsyn_close();
+        seq_quit = ~0;
+    }
+    ctl.opened = 0;
 }
 
 static int ctl_read(ptr_size_t *valp)
@@ -167,47 +169,44 @@ extern int ConsoleWndFlag;
 static int cmsg(int type, int verbosity_level, const char *fmt, ...)
 {
 #ifndef IA_W32G_SYN
-
-	va_list ap;
-
-  if ((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
-      ctl.verbosity<verbosity_level)
-    return 0;
-  va_start(ap, fmt);
-  if(type == CMSG_WARNING || type == CMSG_ERROR || type == CMSG_FATAL)
-      dumb_error_count++;
-  if (!ctl.opened)
-    {
-      vfprintf(stderr, fmt, ap);
-      fputs(NLS, stderr);
-    }
-  else
-    {
-      vfprintf(outfp, fmt, ap);
-      fputs(NLS, outfp);
-      fflush(outfp);
-    }
-  va_end(ap);
-
-#else
-	if ( !ConsoleWndFlag ) return 0;
-	{
-    char buffer[1024];
     va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, ap);
-    va_end(ap);
 
-    if((type==CMSG_TEXT || type==CMSG_INFO || type==CMSG_WARNING) &&
-       ctl.verbosity<verbosity_level) 
-	return 0;
-//    if(type == CMSG_FATAL)
-//	w32g_msg_box(buffer, "TiMidity Error", MB_OK);
-    PutsConsoleWnd(buffer);
-    PutsConsoleWnd("\n");
-    return 0;
-	}
-#endif
+    if ((type == CMSG_TEXT || type == CMSG_INFO || type == CMSG_WARNING) &&
+            ctl.verbosity < verbosity_level)
+        return 0;
+    va_start(ap, fmt);
+    if (type == CMSG_WARNING || type == CMSG_ERROR || type == CMSG_FATAL)
+        dumb_error_count++;
+    if (!ctl.opened) {
+        vfprintf(stderr, fmt, ap);
+        fputs(NLS, stderr);
+    }
+    else {
+        vfprintf(outfp, fmt, ap);
+        fputs(NLS, outfp);
+        fflush(outfp);
+    }
+    va_end(ap);
+#else
+    if (!ConsoleWndFlag) return 0;
+
+    {
+        char buffer[1024];
+        va_list ap;
+        va_start(ap, fmt);
+        vsnprintf(buffer, sizeof(buffer), fmt, ap);
+        va_end(ap);
+
+        if ((type == CMSG_TEXT || type == CMSG_INFO || type == CMSG_WARNING) &&
+                ctl.verbosity < verbosity_level)
+            return 0;
+//      if (type == CMSG_FATAL)
+//          w32g_msg_box(buffer, "TiMidity Error", MB_OK);
+        PutsConsoleWnd(buffer);
+        PutsConsoleWnd("\n");
+        return 0;
+    }
+#endif /* !IA_W32G_SYN */
 
     return 0;
 }
@@ -218,206 +217,221 @@ static void ctl_event(CtlEvent *e)
 
 static void doit(void);
 
-#ifdef IA_W32G_SYN
-extern void w32g_syn_doit(void);
-extern int w32g_syn_ctl_pass_playing_list(int n_, char *args_[]);
-
-
-static int ctl_pass_playing_list(int n, char *args[])
-{
-	return w32g_syn_ctl_pass_playing_list ( n, args );
-}
-#endif
-
 #ifndef IA_W32G_SYN
 static int ctl_pass_playing_list(int n, char *args[])
 #else
 // 0: OK, 2: Require to reset.
-static int ctl_pass_playing_list2(int n, char *args[])
+int ctl_pass_playing_list2(int n, char *args[])
 #endif
 {
-	int i, j,devnum,devok;
-	unsigned int port=0 ;
-	int started;
-	char cbuf[80];
+    int i, j, devnum, devok;
+    unsigned int port = 0;
+    int started;
+    char cbuf[80];
 #if defined(__W32__) && defined(FORCE_TIME_PERIOD)
-	TIMECAPS tcaps;
+    TIMECAPS tcaps;
 #endif /* __W32__ && FORCE_TIME_PERIOD */
 
-rtsyn_get_port_list();
+    rtsyn_get_port_list();
 
 #ifndef IA_W32G_SYN
-	if(n > MAX_PORT ){
-		printf( "Usage: timidity -iW [Midi interface No s]\n");
-		return 1;
-	}
+    if (n > MAX_PORT) {
+        ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                 "Usage: timidity -i%c [Midi interface No s]" NLS, ctl.id_character);
+        return 1;
+    }
 #endif
 
-	if(n>0){
-		port=0;
-		while(port<n && n!=0){
-			if( (portID[port] = atoi(args[port]))==0 ){
-				n=0;
-			}else{
-				devok=0;
-				for(i=0;i<rtsyn_nportlist;i++){
-					sscanf( rtsyn_portlist[i],"%d:%s",&devnum,cbuf);
-					if(devnum==portID[port]) devok=1;
-				}
-				if(devok==0){
-					n=0;
+    if (rtsyn_nportlist == 0) {
+        ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                 "Opening Device drivers:" "MIDI IN device is not found" NLS);
+        return 2;
+    }
+
+    if (n > 0) {
+        port = 0;
+        while (port < n && n != 0) {
+            if ((portID[port] = atoi(args[port])) == 0) {
+                n = 0;
+            } else {
+                devok = 0;
+                for (i = 0; i < rtsyn_nportlist; i++) {
+                    sscanf(rtsyn_portlist[i], "%d:%s", &devnum, cbuf);
+                    if (devnum == portID[port]) devok = 1;
+                }
+                if (devok == 0) {
+                    n = 0;
 #ifdef IA_W32G_SYN
-					{
-						char buff[1024];
-						sprintf ( buff, "MIDI IN Device ID %d is not available. So set a proper ID for the MIDI port %d and restart.", portID[port], port );
-						MessageBox ( NULL, buff, "Error", MB_OK );
-						return 2;
-					}
+                    {
+                        char buff[1024];
+                        sprintf(buff, "MIDI IN Device ID %d is not available. So set a proper ID for the MIDI port %d and restart.", portID[port], port);
+                        MessageBoxA(NULL, buff, "Error", MB_OK);
+                        return 2;
+                    }
 #endif
-				}
-			}
-		port++;
-		}
-	}
-	if(n==0){
-		rtsyn_portnumber=0;
-	}else{
-		rtsyn_portnumber=port;
-	}
+                }
+            }
+            port++;
+        }
+    }
+    if (n == 0) {
+        rtsyn_portnumber = 0;
+    } else {
+        rtsyn_portnumber = port;
+    }
 
 #if !defined(IA_W32G_SYN) && !defined(USE_GTK_GUI)
-	if(n==0){
-		char cbuf[80];
-		printf("Whow many ports do you use?(max %d)\n",MAX_PORT);
-		do{
-			if (0==scanf("%u",&rtsyn_portnumber)) scanf("%s",cbuf);
-		}while(rtsyn_portnumber == 0 ||rtsyn_portnumber > MAX_PORT);
-		printf("\n");
-		printf("Opening Device drivers:");
-		printf("Available Midi Input devices:\n");
+    if (n == 0) {
+        char cbuf[MAX_RTSYN_PORTLIST_LEN + 8], fmt[64];
+        ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                 "Whow many ports do you use?(max %d)" NLS, MAX_PORT);
+        do {
+            snprintf(fmt, sizeof(fmt), "%%.%ds", MAX_RTSYN_PORTLIST_LEN - 1);
+            if (0 == scanf("%u", &rtsyn_portnumber)) { scanf(fmt, cbuf); }
+        } while (intr == 0 &&
+                 (rtsyn_portnumber == 0 || rtsyn_portnumber > MAX_PORT));
+        ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                 "\nOpening Device drivers:" "Available Midi Input devices:" "%d" NLS, rtsyn_nportlist);
 
-		for(i=0;i<rtsyn_nportlist;i++){
-			printf("%s\n",rtsyn_portlist[i]);
-		}
-		for(port=0;port<rtsyn_portnumber;port++){
-			printf("Keyin Input Device Number of port%d\n",port+1);
-			do{
-				devok=0;
-				if (0==scanf("%u",&portID[port])) scanf("%s",cbuf);
-				for(i=0;i<rtsyn_nportlist;i++){
-					sscanf( rtsyn_portlist[i],"%d:%s",&devnum,cbuf);
-					if(devnum==portID[port]) devok=1;
-				}
-			}while(devok==0);
-			printf("\n");			
-		}
-	}
+        ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                 "NUM:NAME");
+        for (i = 0; i < rtsyn_nportlist; i++) {
+            ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                     "%s", rtsyn_portlist[i]);
+        }
+        ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                 "");
+
+        for (port = 0; port < rtsyn_portnumber; port++) {
+            ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                     "Keyin Input Device Number of port%d", port + 1);
+            do {
+                devok = 0;
+                snprintf(fmt, sizeof(fmt), "%%.%ds", MAX_RTSYN_PORTLIST_LEN - 1);
+                if (0 == scanf("%u", &portID[port])) { scanf(fmt, cbuf); }
+                for (i = 0; intr == 0 && i < rtsyn_nportlist; i++) {
+                    snprintf(fmt, sizeof(fmt), "%%d:%%.%ds", MAX_RTSYN_PORTLIST_LEN - 1);
+                    sscanf(rtsyn_portlist[i], fmt, &devnum, cbuf);
+                    if (devnum == portID[port]) devok = 1;
+                }
+            } while (devok == 0);
+            ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+                     "");
+        }
+    }
 #endif
 
-	for(port=0;port<rtsyn_portnumber;port++){
-		portID[port]=portID[port]-1;
-	}
-
+    for (port = 0; port < rtsyn_portnumber; port++) {
+        portID[port] = portID[port] - 1;
+    }
 
 #if !defined(IA_W32G_SYN) && !defined(USE_GTK_GUI)
-	printf("TiMidity starting in PortMIDI Synthesizer mode\n");
-	printf("Usage: timidity -iP [Midi interface No]\n");
-	printf("\n");
-	printf("N (Normal mode) M(GM mode) S(GS mode) X(XG mode) \n");
-	printf("(Only in Normal mode, Mode can be changed by MIDI data)\n");
-	printf("m(GM reset) s(GS reset) x(XG reset)\n");
-	printf("\n");
-	printf("Press 'q' key to stop\n");
+    ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+             "TiMidity starting in PortMIDI Synthesizer mode");
+    ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+             "Usage: timidity -i%c [Midi interface No]" NLS, ctl.id_character);
+    ctl.cmsg(CMSG_WARNING, VERB_NORMAL, "c(Reset)");
+    ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+             "N(Normal mode) M(GM mode) S(GS mode) X(XG mode) G(GM2 mode) D(SD mode) K(KG mode) J(CM mode)");
+    ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+             "(Only in Normal mode, Mode can be changed by MIDI data)");
+    ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+             "m(GM reset) s(GS reset) x(XG reset) g(GM2 reset) d(SD reset) k(KG reset) j(CM reset)" NLS);
+    ctl.cmsg(CMSG_WARNING, VERB_NORMAL,
+             "Press 'q' key to stop");
 #endif
 
-	rtsyn_init();
+    rtsyn_init();
+
+#if defined(__W32__) && defined(FORCE_TIME_PERIOD)
+    if (timeGetDevCaps(&tcaps, sizeof(TIMECAPS)) != TIMERR_NOERROR)
+        tcaps.wPeriodMin = 10;
+    timeBeginPeriod(tcaps.wPeriodMin);
+#endif /* __W32__ && FORCE_TIME_PERIOD */
 
 #ifdef USE_GTK_GUI
-	twgtk_main();
-#else 
-#if defined(__W32__) && defined(FORCE_TIME_PERIOD)
-	if (timeGetDevCaps(&tcaps, sizeof(TIMECAPS)) != TIMERR_NOERROR)
-		tcaps.wPeriodMin = 10;
-	timeBeginPeriod(tcaps.wPeriodMin);
-#endif /* __W32__ && FORCE_TIME_PERIOD */
-#ifdef IA_W32G_SYN
-	if(0!=rtsyn_synth_start()){
-		seq_quit=0;
-		while(seq_quit==0) {
-			w32g_syn_doit();
-		}
-		rtsyn_synth_stop();
-	}
+    twgtk_main();
 #else
-	if(0!=rtsyn_synth_start()){
-		seq_quit=0;
-		while(seq_quit==0) {
-			doit();
-		}
-		rtsyn_synth_stop();
-	}
+#ifdef IA_W32G_SYN
+    if (0 != rtsyn_synth_start()) {
+        seq_quit = 0;
+        while (seq_quit == 0) {
+            w32g_syn_doit();
+        }
+        rtsyn_synth_stop();
+    }
+#else
+    if (0 != rtsyn_synth_start()) {
+        seq_quit = 0;
+        while (seq_quit == 0) {
+            doit();
+        }
+        rtsyn_synth_stop();
+    }
 #endif /* IA_W32G_SYN */
-#if defined(__W32__) && defined(FORCE_TIME_PERIOD)
-	timeEndPeriod(tcaps.wPeriodMin);
-#endif /* __W32__ && FORCE_TIME_PERIOD */
 #endif /* USE_GTK_GUI */
-	rtsyn_close();
 
-	return 0;
+#if defined(__W32__) && defined(FORCE_TIME_PERIOD)
+    timeEndPeriod(tcaps.wPeriodMin);
+#endif /* __W32__ && FORCE_TIME_PERIOD */
+    rtsyn_close();
+
+    return 0;
 }
 
 
 #ifndef IA_W32G_SYN
 
-
 #ifndef __W32__
-static void init_keybord(void){
-	tcgetattr(0,&initial_settings);
-	tcgetattr(0,&new_settings);
-	new_settings.c_lflag &= ~ICANON;
-	new_settings.c_lflag &= ~ECHO;
-	new_settings.c_lflag &= ~ISIG;
-	new_settings.c_cc[VMIN] = 1;
-	new_settings.c_cc[VTIME] = 0;
-	tcsetattr(0, TCSANOW, &new_settings);
+static void init_keybord(void)
+{
+    tcgetattr(0, &initial_settings);
+    tcgetattr(0, &new_settings);
+    new_settings.c_lflag &= ~ICANON;
+    new_settings.c_lflag &= ~ECHO;
+    new_settings.c_lflag &= ~ISIG;
+    new_settings.c_cc[VMIN] = 1;
+    new_settings.c_cc[VTIME] = 0;
+    tcsetattr(0, TCSANOW, &new_settings);
 }
 
-static void close_keybord(void){
-	tcsetattr(0, TCSANOW, &initial_settings);
+static void close_keybord(void)
+{
+    tcsetattr(0, TCSANOW, &initial_settings);
 }
 
-static int kbhit(void){
-	char ch;
-	int nread;
-	
-	if(peek_character != -1)
-		return 1;
-	new_settings.c_cc[VMIN]=0;
-	tcsetattr(0,TCSANOW, &new_settings);
-	nread = read(0, &ch, 1);
-	new_settings.c_cc[VMIN]=1;
-	tcsetattr(0,TCSANOW, &new_settings);
-	
-	if(nread == 1) {
-		peek_character = ch;
-		return 1;
-	}
-	return 0;
+static int kbhit(void)
+{
+    char ch;
+    int nread;
+
+    if (peek_character != -1)
+        return 1;
+    new_settings.c_cc[VMIN] = 0;
+    tcsetattr(0, TCSANOW, &new_settings);
+    nread = read(0, &ch, 1);
+    new_settings.c_cc[VMIN] = 1;
+    tcsetattr(0, TCSANOW, &new_settings);
+
+    if (nread == 1) {
+        peek_character = ch;
+        return 1;
+    }
+    return 0;
 }
 
-
-static char readch(void){
-	char ch;
-	if(peek_character != -1){
-		ch = peek_character;
-		peek_character = -1;
-		return ch;
-	}
-	read(0,&ch,1);
-	return ch;
+static char readch(void)
+{
+    char ch;
+    if (peek_character != -1) {
+        ch = peek_character;
+        peek_character = -1;
+        return ch;
+    }
+    read(0, &ch, 1);
+    return ch;
 }
-#endif		
-
+#endif /* !__W32__ */
 
 static void doit(void)
 {

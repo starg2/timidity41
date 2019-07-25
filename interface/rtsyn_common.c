@@ -109,7 +109,7 @@ static double active_sensing_time = 0;
 
 /*
 #define EX_RESET_NO 7
-static char sysex_resets[EX_RESET_NO][11]={
+static uint8 sysex_resets[EX_RESET_NO][11]={
 		'\xf0','\x7e','\x7f','\x09','\x00','\xf7','\x00','\x00','\x00','\x00','\x00',
 		'\xf0','\x7e','\x7f','\x09','\x01','\xf7','\x00','\x00','\x00','\x00','\x00',
 		'\xf0','\x7e','\x7f','\x09','\x03','\xf7','\x00','\x00','\x00','\x00','\x00',
@@ -120,7 +120,7 @@ static char sysex_resets[EX_RESET_NO][11]={
 */
 /*
 #define EX_RESET_NO 9
-static char sysex_resets[EX_RESET_NO][11]={
+static uint8 sysex_resets[EX_RESET_NO][11]={
 	'\xf0','\x7e','\x7f','\x09','\x00','\xf7','\x00','\x00','\x00','\x00','\x00', //gm off
 	'\xf0','\x7e','\x7f','\x09','\x01','\xf7','\x00','\x00','\x00','\x00','\x00', //gm1
 	'\xf0','\x7e','\x7f','\x09','\x02','\xf7','\x00','\x00','\x00','\x00','\x00', //gm off
@@ -611,7 +611,7 @@ int rtsyn_play_one_data (int port, uint32 dwParam1, double event_time)
 #if 0
 		if ((dwParam1 & 0x000000ff) == 0xf1)
 			//MIDI Time Code Qtr. Frame (not need)
-			printf("MIDI Time Code Qtr\n");
+			ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "MIDI Time Code Qtr");
 		if ((dwParam1 & 0x000000ff) == 0xf3)
 			//Song Select(Song #) (not need)
 #endif
@@ -629,19 +629,19 @@ int rtsyn_play_one_data (int port, uint32 dwParam1, double event_time)
 #if 0
 		if ((dwParam1 & 0x000000ff) == 0xf8)
 			//Timing Clock (not need)
-			printf("Timing Clock\n");
+			ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Timing Clock");
 		if ((dwParam1&0x000000ff)==0xfa)
-			//Start
+			{}//Start
 		if ((dwParam1 & 0x000000ff) == 0xfb)
-			//Continue
+			{}//Continue
 		if ((dwParam1 & 0x000000ff) == 0xfc) {
 			//Stop
-			printf("Stop\n");
+			ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Stop");
 		}
 #endif
 		if ((dwParam1 & 0x000000ff) == 0xfe) {
 			//Active Sensing
-//			printf("Active Sensing\n");
+//			ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Active Sensing");
 			active_sensing_flag = ~0;
 			active_sensing_time = get_current_calender_time();
 		}
@@ -650,12 +650,12 @@ int rtsyn_play_one_data (int port, uint32 dwParam1, double event_time)
 			if(rtsyn_sample_time_mode == 1){
 				rtsyn_tmr_reset();
 			}else{
-				//printf("System Reset\n");
+				//ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "System Reset");
 			}
 		}
 		break;
 	default:
-//		printf("Unsup/ed event %d\n", aevp->type);
+//		ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Unsupported event %d", aevp->type);
 		break;
 	}
 	if (ev.type != ME_NONE) {
@@ -669,7 +669,7 @@ int rtsyn_play_one_data (int port, uint32 dwParam1, double event_time)
 }
 
 
-void rtsyn_play_one_sysex (uint8 *sysexbuffer, int exlen, double event_time )
+void rtsyn_play_one_sysex(uint8 *sysexbuffer, int exlen, double event_time )
 {
     int i, j, chk, ne;
     MidiEvent ev;
