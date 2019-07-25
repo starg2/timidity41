@@ -168,9 +168,6 @@ extern int fp_equals(float a, float b, float tolerance);
 #define FP_EQ(a, b) (fp_equals(a, b, 0.001f))
 #define FP_EQ_0(a) (FP_EQ(a, 0.0f))
 #define FP_NE_0(a) ((a) > 0.0 || (a) < 0.0)
-#ifdef __W32__
-extern int w32_reset_dll_directory(void);
-#endif
 
 
 /* code:
@@ -203,6 +200,8 @@ extern char *w32_utf16_to_utf8(const wchar_t *str);
 // converts UTF8 <-> UTF16 in Unicode mode, does nothing (just duplicates input) in ANSI mode
 extern TCHAR *char_to_tchar(const char *str);
 extern char *tchar_to_char(const TCHAR *str);
+
+extern void set_thread_description(ptr_size_t handle, const char *str);
 
 #ifdef __cplusplus
 }

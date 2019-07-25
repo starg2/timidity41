@@ -564,10 +564,11 @@ int w32gStartMailslotThread(void)
     DWORD dwThreadID;
     HANDLE hThread;
     hThread = (HANDLE) crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE) w32gMailslotThread,NULL,0,&dwThreadID);
-        if ((ULONG_PTR) hThread == -1) {
+    if ((ULONG_PTR) hThread == -1) {
         return FALSE;   // Error!
     }
-    return TRUE;
+	set_thread_description((ptr_size_t)hThread, "W32G Mailslot Thread");
+	return TRUE;
 }
 
 int ReadFromMailslot(HANDLE hmailslot, char *buffer, int *size)

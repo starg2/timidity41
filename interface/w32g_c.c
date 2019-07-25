@@ -163,6 +163,7 @@ static void w32g_init_ext_control_thread(void)
 	hThread = crt_beginthreadex(NULL, 0, w32g_ext_control_thread, 0, 0, &ThreadID);
 	if(hThread == NULL)
 		return;
+	set_thread_description((ptr_size_t)hThread, "W32G Ext Control Thread");
 }
 
 static int w32g_go_ext_control_thread(int rc, ptr_size_t value)

@@ -136,21 +136,6 @@ static void *url2mem(URL url,long *lenp)
 	return (void *)buffer;
 }
 
-typedef BOOL (WINAPI *SetDllDirectoryAProc)(LPCSTR lpPathName);
-
-/*! Remove the current directory for the search path of LoadLibrary. Returns 0 if failed. */
-static int w32_reset_dll_directory(void)
-{
-	HMODULE module;
-	SetDllDirectoryAProc setDllDirectory;
-	if ((module = GetModuleHandle(TEXT("Kernel32.dll"))) == NULL)
-		return 0;
-	if ((setDllDirectory = (SetDllDirectoryAProc)GetProcAddress(module, "SetDllDirectoryA")) == NULL)
-		return 0;
-	/* Microsoft Security Advisory 2389418 */
-	return (*setDllDirectory)("") != 0;
-}
-
 /* return not NULL (exist)
           NULL (not exist) */
 static int exist_rcpcv_dll(void)

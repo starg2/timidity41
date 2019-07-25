@@ -289,7 +289,7 @@ LPTSTR lpCmdLine, int nCmdShow)
 	static int first = 0;
 
 	Sleep(100); // Restartで前プロセスの終了待機
-#ifdef _CRTDBG_MAP_ALLOC
+#ifdef TIMIDITY_LEAK_CHECK
 	_CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
 	char *cmdline = tchar_to_char(lpCmdLine);
@@ -1842,6 +1842,7 @@ void DebugThreadInit(void)
 	if(!DebugThreadExit)
    	return;
 	hDebugThread = crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)DebugThread,0,0,&dwThreadID);	
+	set_thread_description((ptr_size_t)hDebugThread, "W32G Debug Thread");
 }
 #endif
 
@@ -5720,6 +5721,7 @@ int w32g_open(void)
     hPlayerThread = GetCurrentThread();
     w32g_wait_for_init = 1;
     hMainThread = crt_beginthreadex(NULL, 0, (LPTHREAD_START_ROUTINE)MainThread, NULL, 0, &dwMainThreadID);
+	set_thread_description((ptr_size_t)hMainThread, "W32G Main Thread");
 
     while(w32g_wait_for_init)
     {

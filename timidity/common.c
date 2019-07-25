@@ -1962,3 +1962,40 @@ extern char *tchar_to_char(const TCHAR *str)
 }
 
 #endif
+
+#ifdef __W32__
+
+void set_thread_description(ptr_size_t handle, const char* str)
+{
+	HMODULE module;
+	typedef HRESULT (WINAPI *SetThreadDescriptionProc)(HANDLE hThread, PCWSTR lpThreadDescription);
+	SetThreadDescriptionProc setThreadDescription;
+	if ((module = GetModuleHandle(TEXT("Kernel32.dll"))) == NULL)
+		return;
+	if ((setThreadDescription = (SetThreadDescriptionProc)GetProcAddress(module, "SetThreadDescription")) == NULL)
+		return;
+
+#ifdef UNICODE
+	UINT codePage = CP_UTF8;
+#else
+	UINT codePage = CP_ACP;
+#endif
+
+	const int str_size = strlen(str);
+	int buff16_size = MultiByteToWideChar(codePage, 0, str, str_size, NULL, 0);
+
+	wchar_t *buff16 = (wchar_t *)safe_calloc(sizeof(wchar_t), buff16_size + 1);
+	if (!buff16) return;
+	MultiByteToWideChar(codePage, 0, str, str_size, buff16, buff16_size);
+
+	(*setThreadDescription)((HANDLE)handle, buff16);
+	safe_free(buff16);
+}
+
+#else
+
+void set_thread_description(ptr_size_t handle, const char* str)
+{
+}
+
+#endif
