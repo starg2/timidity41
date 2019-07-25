@@ -33,7 +33,6 @@
 #include <strings.h>
 #endif
 
-#include "interface.h"
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -4640,9 +4639,10 @@ static void lo_rs_loop(Voice *vp, DATA_T *dest, int32 count)
 	dest = resample_linear_multi(vp, dest, j, &i);
 	for(; i < count; i++) {
 		*dest++ = resample_linear_single(vp);
-		if((resrc->offset += resrc->increment) >= resrc->loop_end)
+		resrc->offset += resrc->increment;
+		while(resrc->offset >= resrc->loop_end)
 			resrc->offset -= resrc->loop_end - resrc->loop_start;
-		/* Hopefully the loop is longer than an increment. */
+		/* The loop may not be longer than an increment. */
 	}
 }
 
@@ -4825,9 +4825,10 @@ static void lo_rs_loop_float(Voice *vp, DATA_T *dest, int32 count)
 	dest = resample_linear_float_multi(vp, dest, j, &i);
 	for(; i < count; i++) {
 		*dest++ = resample_linear_float_single(vp);
-		if((resrc->offset += resrc->increment) >= resrc->loop_end)
+		resrc->offset += resrc->increment;
+		while(resrc->offset >= resrc->loop_end)
 			resrc->offset -= resrc->loop_end - resrc->loop_start;
-		/* Hopefully the loop is longer than an increment. */
+		/* The loop may not be longer than an increment. */
 	}
 }
 
@@ -5704,9 +5705,10 @@ static void lao_rs_loop(Voice *vp, DATA_T *dest, int32 count)
 	}
 	for(; i < count; i++) {
 		*dest++ = resample_lagrange_single(vp);
-		if((resrc->offset += resrc->increment) >= resrc->loop_end)
+		resrc->offset += resrc->increment;
+		while(resrc->offset >= resrc->loop_end)
 			resrc->offset -= resrc->loop_end - resrc->loop_start;
-		/* Hopefully the loop is longer than an increment. */
+		/* The loop may not be longer than an increment. */
 	}
 }
 
@@ -6088,9 +6090,10 @@ static void lao_rs_loop_float(Voice *vp, DATA_T *dest, int32 count)
 	}
 	for(; i < count; i++) {
 		*dest++ = resample_lagrange_float_single(vp);
-		if((resrc->offset += resrc->increment) >= resrc->loop_end)
+		resrc->offset += resrc->increment;
+		while(resrc->offset >= resrc->loop_end)
 			resrc->offset -= resrc->loop_end - resrc->loop_start;
-		/* Hopefully the loop is longer than an increment. */
+		/* The loop may not be longer than an increment. */
 	}
 }
 

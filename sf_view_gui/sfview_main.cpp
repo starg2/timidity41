@@ -3,6 +3,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #pragma warning(disable:4530) // アンワインド セマンティクスが無効
 #include <windows.h>
+#include <windowsx.h>
 #include <commctrl.h>
 #include "resource.h"
 #pragma comment(lib, "shlwapi.lib")
@@ -17,6 +18,7 @@ extern "C" {
 #include <string>
 struct sfvSFInst
 {
+	BOOL dls;
 	unsigned char bank;
 	unsigned char preset;
 	std::string str;
@@ -25,6 +27,7 @@ struct sfvSFInst
 std::map< int, std::map< int, sfvSFInst > > g_sfInst;
 struct sfvSFDrum
 {
+	BOOL dls;
 	unsigned char bank;
 	unsigned char preset;
 	unsigned char note;
@@ -33,12 +36,13 @@ struct sfvSFDrum
 };
 std::map< int, std::map< int, sfvSFDrum > > g_sfDrum;
 
-extern "C" void InsertInst(int bank, int preset, char *str, const char *sfname)
+extern "C" void InsertInst(BOOL dls, int bank, int preset, char *str, const char *sfname)
 {
 	std::map< int, std::map< int, sfvSFInst > >::iterator it = g_sfInst.find(bank);
 	if (it != g_sfInst.end()) {
 
 		sfvSFInst newdata;
+        newdata.dls = dls;
 		newdata.bank		= bank;
 		newdata.preset		= preset;
 		newdata.str		= sfname;
@@ -52,16 +56,17 @@ extern "C" void InsertInst(int bank, int preset, char *str, const char *sfname)
 		}
 	} else {
 		g_sfInst.insert(std::make_pair(bank, std::map< int, sfvSFInst >()));
-		InsertInst(bank, preset, str, sfname);
+		InsertInst(dls, bank, preset, str, sfname);
 	}
 }
 
-extern "C" void InsertDrum(int bank, int preset, int note, const char *str, const char *sfname)
+extern "C" void InsertDrum(BOOL dls, int bank, int preset, int note, const char *str, const char *sfname)
 {
 	std::map< int, std::map< int, sfvSFDrum > >::iterator it = g_sfDrum.find(preset);
 	if (it != g_sfDrum.end()) {
 
 		sfvSFDrum newdata;
+        newdata.dls = dls;
 		newdata.bank		= bank;
 		newdata.preset		= preset;
 		newdata.note		= note;
@@ -76,19 +81,21 @@ extern "C" void InsertDrum(int bank, int preset, int note, const char *str, cons
 		}
 	} else {
 		g_sfDrum.insert(std::make_pair(preset, std::map< int, sfvSFDrum >()));
-		InsertDrum(bank, preset, note, str, sfname);
+		InsertDrum(dls, bank, preset, note, str, sfname);
 	}
 }
 
-void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outComment, int outSpace, int keepFullPath)
+void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outComment, int outSpace, int keepFullPath, int prependBaseDir)
 {
 	FILE *fp = fopen(outFileName, "w");
+	if (!outListEnable && prependBaseDir)
+		fprintf(fp, "\ndir \"${basedir}\"\n");
 	for (std::map< int, std::map< int, sfvSFInst > >::iterator it =  g_sfInst.begin(); it != g_sfInst.end(); ++it) {
-		if (outListEnable)
-			fprintf(fp, "bank %d\n", (*it).first);
-		else
-			fprintf(fp, "bank %d\n", (*it).first);
+		if (!outListEnable)
+			fprintf(fp, "\n");
+		fprintf(fp, "bank %d\n", (*it).first);
 		for (std::map< int, sfvSFInst >::iterator itc = (*it).second.begin(); itc != (*it).second.end(); ++itc) {
+			BOOL dls = (*itc).second.dls;
 			const char *file = (*itc).second.str.c_str();
 			const int program = (*itc).first;
 			const int bank = (*itc).second.bank;
@@ -102,22 +109,22 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 				fprintf(fp, "%03d:%03d %s (%s)\n", bank, preset, comment, file);
 			else {
 				if (strstr(file, " "))
-					fprintf(fp, "%d %%font \"%s\" %d %d", program, file, bank, preset);
+					fprintf(fp, "%d %s \"%s\" %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset);
 				else
-					fprintf(fp, "%d %%font %s %d %d", program, file, bank, preset);
-				if (outComment)
-					fprintf(fp, " # %s ", comment);
+					fprintf(fp, "%d %s %s %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset);
+				if (outComment && comment && strlen(comment))
+					fprintf(fp, " # %s", comment);
 				fprintf(fp, "\n");
 			}
 		}
 	}
 
 	for (std::map< int, std::map< int, sfvSFDrum > >::iterator it =  g_sfDrum.begin(); it != g_sfDrum.end(); ++it) {
-		if (outListEnable)
-			fprintf(fp, "drumset %d\n", (*it).first);
-		else
-			fprintf(fp, "drumset %d\n", (*it).first);
+		if (!outListEnable)
+			fprintf(fp, "\n");
+		fprintf(fp, "drumset %d\n", (*it).first);
 		for (std::map< int, sfvSFDrum >::iterator itc = (*it).second.begin(); itc != (*it).second.end(); ++itc) {
+			BOOL dls = (*itc).second.dls;
 			const char *file = (*itc).second.str.c_str();
 			const int program = (*itc).first;
 			const int bank = (*itc).second.bank;
@@ -132,11 +139,11 @@ void SFView_ExportConfigFile(char *outFileName, int outListEnable, int outCommen
 				fprintf(fp, "%03d:%03d %s (%s)\n", preset, note, comment, file);
 			else {
 				if (strstr(file, " "))
-					fprintf(fp, "%d %%font \"%s\" %d %d %d", program, file, bank, preset, note);
+					fprintf(fp, "%d %s \"%s\" %d %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset, note);
 				else
-					fprintf(fp, "%d %%font %s %d %d %d", program, file, bank, preset, note);
-				if (outComment)
-					fprintf(fp, " # %s ", comment);
+					fprintf(fp, "%d %s %s %d %d %d", program, (dls ? "%dls" : "%font"), file, bank, preset, note);
+				if (outComment && comment && strlen(comment))
+					fprintf(fp, " # %s", comment);
 				fprintf(fp, "\n");
 			}
 		}
@@ -152,8 +159,8 @@ void ExportFile(HWND hDlg, bool bExportList)
 {
 	MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
 	HMENU hMenu = GetMenu(hDlg);
-	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH };
-	BOOL states[] = { FALSE, FALSE, FALSE };
+	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH, IDM_OPT_PREPEND_BASEDIR};
+	BOOL states[] = { FALSE, FALSE, FALSE, FALSE };
 	CMyFileDialog fd;
 	fd.setSaveDlgDefaultSetting();
 	fd.setTitle("Export filename ..");
@@ -172,13 +179,15 @@ void ExportFile(HWND hDlg, bool bExportList)
 		fd.setDefaultExt("cfg");
 		fd.setFilter("TiMidity++ Config File (*.cfg)\0*.cfg\0\0");
 	}
-	if (fd.Execute()) {
-		SFView_ExportConfigFile((char*)fd.getFile(0),
-					(int)bExportList,
-					(int)states[0],
-					(int)states[1],
-					(int)states[2]);
-	}
+    if (fd.Execute()) {
+        SFView_ExportConfigFile((char*)fd.getFile(0),
+            (int)bExportList,
+            (int)states[0],
+            (int)states[1],
+            (int)states[2],
+            (int)states[3]
+        );
+    }
 }
 
 HIMAGELIST g_hil = NULL;
@@ -188,8 +197,8 @@ LRESULT DlgMainProc_INITDIALOG(HWND hDlg, WPARAM wParam, LPARAM lParam)
 {
 	MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
 	HMENU hMenu = GetMenu(hDlg);
-	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH };
-	CONST UINT states[] = { MFS_UNCHECKED, MFS_UNCHECKED, MFS_CHECKED };
+	CONST UINT menuIDs[] = { IDM_OPT_APPEND_COMMENT, IDM_OPT_APPEND_FSPACES, IDM_OPT_KEEP_FULLPATH, IDM_OPT_PREPEND_BASEDIR};
+	CONST UINT states[] = { MFS_CHECKED, MFS_UNCHECKED, MFS_UNCHECKED, MFS_CHECKED };
 
 	if (__argc == 2) {
 		ResetSoundFontTree(hDlg);
@@ -247,7 +256,18 @@ LRESULT DlgMainProc_COMMAND(HWND hDlg, WPARAM wParam, LPARAM lParam)
 		CMyFileDialog fd;
 		fd.setOpenDlgDefaultSetting();
 		fd.setTitle("open soundfont");
-		fd.setFilter("soundfont (*.sf2;*.sf3)\0*.sf2;*.sf3\0All files (*.*)\0*.*\0\0");
+		fd.setFilter(
+#ifdef ENABLE_DLS
+            "Supported files (*.dls;*.sf2;*.sf3)\0*.dls;*.sf2;*.sf3\0"
+#else
+            "Supported files (*.sf2;*.sf3)\0*.sf2;*.sf3\0"
+#endif
+            "Soundfont (*.sf2;*.sf3)\0*.sf2;*.sf3\0"
+#ifdef ENABLE_DLS
+            "DLS (*.dls)\0*.dls\0"
+#endif
+            "All files (*.*)\0*.*\0\0"
+        );
 		fd.setOwner(hDlg);
 		if (fd.Execute()) {
 			const int n = fd.getIndex();
@@ -276,6 +296,7 @@ LRESULT DlgMainProc_COMMAND(HWND hDlg, WPARAM wParam, LPARAM lParam)
 	case IDM_OPT_APPEND_COMMENT:
 	case IDM_OPT_APPEND_FSPACES:
 	case IDM_OPT_KEEP_FULLPATH:
+    case IDM_OPT_PREPEND_BASEDIR:
 		hMenu = GetMenu(hDlg);
 		mii.fMask = MIIM_STATE | MIIM_ID;
 		GetMenuItemInfo(hMenu, LOWORD(wParam), FALSE, &mii);
@@ -297,6 +318,43 @@ LRESULT DlgMainProc_CLOSE(HWND hDlg, WPARAM wParam, LPARAM lParam)
 	return TRUE;
 }
 
+LRESULT DlgMainProc_SIZE(HWND hDlg, WPARAM wParam, LPARAM lParam)
+{
+    if (wParam != SC_MINIMIZE) {
+        SetWindowPos(
+            GetDlgItem(hDlg, IDC_TREE1),
+            NULL,
+            0,
+            0,
+            GET_X_LPARAM(lParam),
+            GET_Y_LPARAM(lParam) - 17,
+            SWP_NOACTIVATE | SWP_NOZORDER
+        );
+
+        SetWindowPos(
+            GetDlgItem(hDlg, IDC_EDSFLABEL),
+            NULL,
+            0,
+            GET_Y_LPARAM(lParam) - 16,
+            99,
+            16,
+            SWP_NOACTIVATE | SWP_NOZORDER
+        );
+
+        SetWindowPos(
+            GetDlgItem(hDlg, IDC_EDSFNAME),
+            NULL,
+            100,
+            GET_Y_LPARAM(lParam) - 16,
+            GET_X_LPARAM(lParam) - 100,
+            16,
+            SWP_NOACTIVATE | SWP_NOZORDER
+        );
+    }
+
+    return TRUE;
+}
+
 LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 #define SET_MYWINMSG(VN) case WM_ ## VN: return DlgMainProc_## VN(hDlg, wParam, lParam);
@@ -305,6 +363,7 @@ LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		SET_MYWINMSG(DROPFILES);
 		SET_MYWINMSG(COMMAND);
 		SET_MYWINMSG(CLOSE);
+		SET_MYWINMSG(SIZE);
 	}
 #undef  SET_MYWINMSG
 	return FALSE;

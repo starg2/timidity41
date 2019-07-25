@@ -28,6 +28,7 @@ Instrument *extract_sample_file(char *sample_file);
 #include <cstring>
 
 #include <algorithm>
+#include <deque>
 #include <exception>
 #include <iterator>
 #include <memory>
@@ -795,7 +796,7 @@ private:
     };
 
     std::vector<std::string> m_FileNames;
-    std::vector<TextBuffer> m_InBuffers;
+    std::deque<TextBuffer> m_InBuffers;
     std::stack<InputStackItem, std::vector<InputStackItem>> m_InputStack;
     TextBuffer m_OutBuffer;
     std::unordered_map<std::string, TextBuffer::View> m_DefinedMacros;
@@ -810,6 +811,8 @@ enum class OpCodeKind
     AmpEG_Hold,
     AmpEG_Release,
     AmpEG_Sustain,
+    AmpKeyCenter,
+    AmpKeyTrack,
     AmpVelTrack,
     DefaultPath,
     HiKey,
@@ -821,8 +824,10 @@ enum class OpCodeKind
     LoVelocity,
     Offset,
     Key,
+    Pan,
     PitchKeyCenter,
     Sample,
+    Transpose,
     Trigger,
     Tune,
     Volume
@@ -951,6 +956,7 @@ public:
                     {
                         switch (opVal.OpCode)
                         {
+                        case OpCodeKind::AmpKeyCenter:
                         case OpCodeKind::HiKey:
                         case OpCodeKind::LoKey:
                         case OpCodeKind::PitchKeyCenter:
@@ -975,12 +981,15 @@ public:
                         case OpCodeKind::AmpEG_Hold:
                         case OpCodeKind::AmpEG_Release:
                         case OpCodeKind::AmpEG_Sustain:
+                        case OpCodeKind::AmpKeyTrack:
                         case OpCodeKind::AmpVelTrack:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
+                        case OpCodeKind::Pan:
+                        case OpCodeKind::Transpose:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
                             try
@@ -1111,19 +1120,23 @@ private:
             {"ampeg_hold"sv, OpCodeKind::AmpEG_Hold},
             {"ampeg_release"sv, OpCodeKind::AmpEG_Release},
             {"ampeg_sustain"sv, OpCodeKind::AmpEG_Sustain},
+            {"amp_keycenter"sv, OpCodeKind::AmpKeyCenter},
+            {"amp_keytrack"sv, OpCodeKind::AmpKeyTrack},
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"default_path"sv, OpCodeKind::DefaultPath},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hivel"sv, OpCodeKind::HiVelocity},
+            {"key"sv, OpCodeKind::Key},
             {"lokey"sv, OpCodeKind::LoKey},
             {"loop_end"sv, OpCodeKind::LoopEnd},
             {"loop_mode"sv, OpCodeKind::LoopMode},
             {"loop_start"sv, OpCodeKind::LoopStart},
             {"lovel"sv, OpCodeKind::LoVelocity},
             {"offset"sv, OpCodeKind::Offset},
-            {"key"sv, OpCodeKind::Key},
+            {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample},
+            {"transpose"sv, OpCodeKind::Transpose},
             {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
             {"volume"sv, OpCodeKind::Volume}
@@ -1503,6 +1516,7 @@ private:
 
                 case LoopModeKind::LoopContinuous:
                     s.modes |= MODES_LOOPING | MODES_SUSTAIN;
+                    s.data_length = s.loop_end;
                     break;
 
                 case LoopModeKind::LoopSustain:
@@ -1511,40 +1525,45 @@ private:
                 }
 
                 s.volume = std::pow(10.0, flatSection.GetAs<double>(OpCodeKind::Volume).value_or(0.0) / 10.0);
-                s.tune = std::pow(2.0, std::clamp(flatSection.GetAs<double>(OpCodeKind::Tune).value_or(0.0), -100.0, 100.0) / 1200.0);
+                s.tune = std::pow(
+                    2.0,
+                    std::clamp(flatSection.GetAs<double>(OpCodeKind::Transpose).value_or(0.0), -127.0, 127.0) / 12.0
+                        + std::clamp(flatSection.GetAs<double>(OpCodeKind::Tune).value_or(0.0), -100.0, 100.0) / 1200.0
+                );
 
-                s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * ::play_mode->rate);
+                s.sample_pan = std::clamp(flatSection.GetAs<double>(OpCodeKind::Pan).value_or(0.0), -100.0, 100.0) / 200.0;
+
+                s.envelope_keyf_bpo = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::AmpKeyCenter).value_or(60), -127, 127));
+                s.envelope_velf_bpo = 0;
+                s.modenv_velf_bpo = 0;
+
+                s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * s.sample_rate);
 
                 TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack);
 
                 if (trigger == TriggerKind::Release)
                 {
-                    // HACK: don't play the sample if trigger=release
                     // FIXME: modify playmidi.c to implement this correctly
 
-                    auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
-                    ctl->cmsg(
-                        CMSG_WARNING,
-                        VERB_VERBOSE,
-                        "%s(%u): 'trigger=release' is not implemented yet",
-                        std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                        loc.Line
-                    );
-
-                    s.envelope_offset[0] = ToOffset(65535);
-                    s.envelope_rate[0] = CalcRate(65535, 0.0);
-                    s.envelope_offset[1] = ToOffset(65534);
+                    s.envelope_offset[0] = ToOffset(3);
+                    s.envelope_rate[0] = CalcRate(1, 0.0);
+                    s.envelope_offset[1] = ToOffset(2);
                     s.envelope_rate[1] = CalcRate(1, 0.0);
+                    s.envelope_offset[2] = ToOffset(1);
+                    s.envelope_rate[2] = CalcRate(1, 0.0);
 
-                    s.envelope_offset[2] = ToOffset(0);
-                    s.envelope_rate[2] = CalcRate(65534, 0.0);
+                    s.envelope_offset[3] = ToOffset(65535);
+                    s.envelope_rate[3] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
+                    s.envelope_offset[4] = ToOffset(65534);
+                    s.envelope_rate[4] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
 
-                    s.envelope_offset[3] = 0;
-                    s.envelope_rate[3] = CalcRate(0, 0.0);
-                    s.envelope_offset[4] = s.envelope_offset[3];
-                    s.envelope_rate[4] = s.envelope_rate[3];
-                    s.envelope_offset[5] = s.envelope_offset[3];
-                    s.envelope_rate[5] = s.envelope_rate[3];
+                    std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
+                    s.envelope_offset[5] = ToOffset(sustainLevel);
+                    s.envelope_rate[5] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+
+                    s.modes |= MODES_LOOPING | MODES_SUSTAIN | MODES_RELEASE;
+                    s.loop_start = 0;
+                    s.loop_end = std::clamp<splen_t>(s.loop_start + (1 << FRACTION_BITS), 0, s.data_length);
                 }
                 else
                 {
@@ -1573,17 +1592,22 @@ private:
 
                     double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
                     s.envelope_offset[3] = 0;
-                    s.envelope_rate[3] = CalcRate(sustainLevel, releaseTime);
+                    s.envelope_rate[3] = CalcRate(65535, releaseTime);
                     s.envelope_offset[4] = s.envelope_offset[3];
                     s.envelope_rate[4] = s.envelope_rate[3];
                     s.envelope_offset[5] = s.envelope_offset[3];
                     s.envelope_rate[5] = s.envelope_rate[3];
                 }
 
+                if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
+                {
+                    std::fill(std::begin(s.envelope_keyf), std::end(s.envelope_keyf), std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0));
+                }
+
                 if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
                 {
                     // convert percent to rate
-                    std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0));
+                    std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0);
                 }
             }
 
@@ -1623,11 +1647,11 @@ private:
             switch (i.Header)
             {
             case HeaderKind::Control:
-                controlOpCodes.insert(controlOpCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
+                controlOpCodes = i.OpCodes;
                 break;
 
             case HeaderKind::Global:
-                globalOpCodes.insert(globalOpCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
+                globalOpCodes = i.OpCodes;
                 break;
 
             case HeaderKind::Group:
@@ -1686,12 +1710,10 @@ private:
 
 struct InstrumentCacheEntry
 {
-    InstrumentCacheEntry(std::string_view filePath, std::unique_ptr<Instrument, InstrumentDeleter> pInstrument)
-        : FilePath(filePath), pInstrument(std::move(pInstrument))
+    InstrumentCacheEntry(std::unique_ptr<Instrument, InstrumentDeleter> pInstrument) : pInstrument(std::move(pInstrument))
     {
     }
 
-    std::string FilePath;
     std::unique_ptr<Instrument, InstrumentDeleter> pInstrument;
     std::vector<Instrument*> RefInstruments;
 };
@@ -1701,14 +1723,7 @@ class InstrumentCache
 public:
     Instrument* LoadSFZ(std::string filePath)
     {
-        auto it = std::find_if(
-            m_Instruments.begin(),
-            m_Instruments.end(),
-            [&filePath] (auto&& x)
-            {
-                return x.FilePath == filePath;
-            }
-        );
+        auto it = m_Instruments.find(filePath);
 
         if (it == m_Instruments.end())
         {
@@ -1719,7 +1734,7 @@ public:
                 TimSFZ::Parser parser(pp);
                 parser.Parse();
                 TimSFZ::InstrumentBuilder builder(parser, filePath);
-                m_Instruments.emplace_back(filePath, builder.BuildInstrument());
+                it = m_Instruments.emplace(filePath, builder.BuildInstrument()).first;
             }
             catch (const std::exception& e)
             {
@@ -1732,12 +1747,12 @@ public:
         }
 
         std::unique_ptr<Instrument, InstrumentDeleter> pInstRef(reinterpret_cast<Instrument*>(safe_calloc(sizeof(Instrument), 1)));
-        it->RefInstruments.push_back(pInstRef.get());
-        pInstRef->type = it->pInstrument->type;
-        pInstRef->instname = safe_strdup(it->pInstrument->instname);
-        pInstRef->samples = it->pInstrument->samples;
-        pInstRef->sample = reinterpret_cast<Sample*>(safe_calloc(sizeof(Sample), it->pInstrument->samples));
-        std::copy_n(it->pInstrument->sample, it->pInstrument->samples, pInstRef->sample);
+        it->second.RefInstruments.push_back(pInstRef.get());
+        pInstRef->type = it->second.pInstrument->type;
+        pInstRef->instname = safe_strdup(it->second.pInstrument->instname);
+        pInstRef->samples = it->second.pInstrument->samples;
+        pInstRef->sample = reinterpret_cast<Sample*>(safe_calloc(sizeof(Sample), it->second.pInstrument->samples));
+        std::copy_n(it->second.pInstrument->sample, it->second.pInstrument->samples, pInstRef->sample);
         std::for_each(pInstRef->sample, pInstRef->sample + pInstRef->samples, [] (auto&& x) { x.data_alloced = false; });
 
         return pInstRef.release();
@@ -1753,16 +1768,16 @@ public:
             m_Instruments.end(),
             [pInstrument] (auto&& x)
             {
-                auto it = std::find(x.RefInstruments.begin(), x.RefInstruments.end(), pInstrument);
-                return it != x.RefInstruments.end();
+                auto it = std::find(x.second.RefInstruments.begin(), x.second.RefInstruments.end(), pInstrument);
+                return it != x.second.RefInstruments.end();
             }
         );
 
         if (it != m_Instruments.end())
         {
-            it->RefInstruments.erase(std::find(it->RefInstruments.begin(), it->RefInstruments.end(), pInstrument));
+            it->second.RefInstruments.erase(std::find(it->second.RefInstruments.begin(), it->second.RefInstruments.end(), pInstrument));
 
-            if (it->RefInstruments.empty())
+            if (it->second.RefInstruments.empty())
             {
                 m_Instruments.erase(it);
             }
@@ -1775,7 +1790,7 @@ public:
     }
 
 private:
-    std::vector<InstrumentCacheEntry> m_Instruments;
+    std::unordered_map<std::string, InstrumentCacheEntry> m_Instruments;
 };
 
 InstrumentCache GlobalInstrumentCache;

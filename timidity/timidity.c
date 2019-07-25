@@ -5776,7 +5776,7 @@ static int parse_opt_h(const char *arg)
 #endif
 {
 	static char *help_list[] = {
-"TiMidity++ %s (C) 1999-2004 Masanao Izumo <iz@onicos.co.jp>",
+"TiMidity++ %s (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>",
 "The original version (C) 1995 Tuukka Toivonen <tt@cgs.fi>",
 "TiMidity is free software and comes with ABSOLUTELY NO WARRANTY.",
 "",
@@ -6258,64 +6258,64 @@ static int parse_opt_h(const char *arg)
 				fprintf(fp, "%s", h);
 		} else
 			fputs(h, fp);
-		fputs(NLS, fp);
+		fputs("\n", fp);
 	}
-	fputs(NLS, fp);
-	fputs("Effect options (-EF, --ext=F option):" NLS
-"  -EFdelay=d   Disable delay effect (default)" NLS
-"  -EFdelay=D   Enable delay effect" NLS
-"  -EFchorus=d  Disable MIDI chorus effect control" NLS
-"  -EFchorus=n  Enable Normal MIDI chorus effect control" NLS
-"    [,level]     `level' is optional to specify chorus level [0..127]" NLS
-"                 (default)" NLS
-"  -EFchorus=s  Surround sound, chorus detuned to a lesser degree" NLS
-"    [,level]     `level' is optional to specify chorus level [0..127]" NLS
-"  -EFreverb=d  Disable MIDI reverb effect control" NLS
+	fputs("\n", fp);
+	fputs("Effect options (-EF, --ext=F option):" "\n"
+"  -EFdelay=d   Disable delay effect (default)" "\n"
+"  -EFdelay=D   Enable delay effect" "\n"
+"  -EFchorus=d  Disable MIDI chorus effect control" "\n"
+"  -EFchorus=n  Enable Normal MIDI chorus effect control" "\n"
+"    [,level]     `level' is optional to specify chorus level [0..127]" "\n"
+"                 (default)" "\n"
+"  -EFchorus=s  Surround sound, chorus detuned to a lesser degree" "\n"
+"    [,level]     `level' is optional to specify chorus level [0..127]" "\n"
+"  -EFreverb=d  Disable MIDI reverb effect control" "\n"
 #if !defined(REVERB_CONTROL_ALLOW) && !defined(FREEVERB_CONTROL_ALLOW)
-"                 (default)" NLS
+"                 (default)" "\n"
 #endif
-"  -EFreverb=n  Enable Normal MIDI reverb effect control" NLS
-"    [,level]     `level' is optional to specify reverb level [1..127]" NLS
+"  -EFreverb=n  Enable Normal MIDI reverb effect control" "\n"
+"    [,level]     `level' is optional to specify reverb level [1..127]" "\n"
 #if defined(REVERB_CONTROL_ALLOW)
-"                 (default)" NLS
+"                 (default)" "\n"
 #endif
-"  -EFreverb=g  Global reverb effect" NLS
-"    [,level]     `level' is optional to specify reverb level [1..127]" NLS
-"  -EFreverb=f  Enable Freeverb MIDI reverb effect control" NLS
-"    [,level]     `level' is optional to specify reverb level [1..127]" NLS
+"  -EFreverb=g  Global reverb effect" "\n"
+"    [,level]     `level' is optional to specify reverb level [1..127]" "\n"
+"  -EFreverb=f  Enable Freeverb MIDI reverb effect control" "\n"
+"    [,level]     `level' is optional to specify reverb level [1..127]" "\n"
 #if !defined(REVERB_CONTROL_ALLOW) && defined(FREEVERB_CONTROL_ALLOW)
-"                 (default)" NLS
+"                 (default)" "\n"
 #endif
-"  -EFreverb=G  Global Freeverb effect" NLS
-"    [,level]     `level' is optional to specify reverb level [1..127]" NLS
-"  -EFvlpf=d    Disable voice LPF" NLS
+"  -EFreverb=G  Global Freeverb effect" "\n"
+"    [,level]     `level' is optional to specify reverb level [1..127]" "\n"
+"  -EFvlpf=d    Disable voice LPF" "\n"
 #if !defined(VOICE_MOOG_LPF_ALLOW) && !defined(VOICE_CHAMBERLIN_LPF_ALLOW)
-"                 (default)" NLS
+"                 (default)" "\n"
 #endif
-"  -EFvlpf=c    Enable Chamberlin resonant LPF (12dB/oct)" NLS
+"  -EFvlpf=c    Enable Chamberlin resonant LPF (12dB/oct)" "\n"
 #if defined(VOICE_CHAMBERLIN_LPF_ALLOW)
-"                 (default)" NLS
+"                 (default)" "\n"
 #endif
-"  -EFvlpf=m    Enable Moog resonant lowpass VCF (24dB/oct)" NLS
+"  -EFvlpf=m    Enable Moog resonant lowpass VCF (24dB/oct)" "\n"
 #if defined(VOICE_MOOG_LPF_ALLOW) && !defined(VOICE_CHAMBERLIN_LPF_ALLOW)
-"                 (default)" NLS
+"                 (default)" "\n"
 #endif
-"  -EFvlpf=b    Enable ButterworthFilter resonant lowpass (butterworth)" NLS
-"  -EFvlpf=i    Enable Resonant IIR lowpass VCF (12dB/oct)-2" NLS
-"  -EFvlpf=a    Enable amSynth resonant lowpass VCF (24dB/oct)-2" NLS
-"  -EFvlpf=o    Enable 1 pole 6db/oct resonant lowpass VCF (6dB/oct)" NLS
-"  -EFvlpf=e    Enable resonant 3 pole lowpass VCF (18dB/oct)" NLS
-"  -EFvlpf=t    Enable two first order lowpass VCF " NLS
-"  -EFvlpf=h    Enable HPF ButterworthFilter VCF (butterworth)" NLS
-"  -EFvlpf=B    Enable BPF ButterworthFilter VCF (butterworth)" NLS
-"  -EFns=n      Enable the n'th degree (type) noise shaping filter" NLS
-"                 n:[0..4] (for 8-bit linear encoding, default is 4)" NLS
-"                 n:[0..4] (for 16-bit linear encoding, default is 4)" NLS
-"                 n:[0] (for 24-bit linear encoding, default is 0)" NLS
-"                 n:[0] (for 32-bit linear encoding, default is 0)" NLS
-"                 n:[0] (for 64-bit linear encoding, default is 0)" NLS
-"                 n:[0] (for float 32-bit linear encoding, default is 0)" NLS
-"                 n:[0] (for float 64-bit linear encoding, default is 0)" NLS, fp);
+"  -EFvlpf=b    Enable ButterworthFilter resonant lowpass (butterworth)" "\n"
+"  -EFvlpf=i    Enable Resonant IIR lowpass VCF (12dB/oct)-2" "\n"
+"  -EFvlpf=a    Enable amSynth resonant lowpass VCF (24dB/oct)-2" "\n"
+"  -EFvlpf=o    Enable 1 pole 6db/oct resonant lowpass VCF (6dB/oct)" "\n"
+"  -EFvlpf=e    Enable resonant 3 pole lowpass VCF (18dB/oct)" "\n"
+"  -EFvlpf=t    Enable two first order lowpass VCF " "\n"
+"  -EFvlpf=h    Enable HPF ButterworthFilter VCF (butterworth)" "\n"
+"  -EFvlpf=B    Enable BPF ButterworthFilter VCF (butterworth)" "\n"
+"  -EFns=n      Enable the n'th degree (type) noise shaping filter" "\n"
+"                 n:[0..4] (for 8-bit linear encoding, default is 4)" "\n"
+"                 n:[0..4] (for 16-bit linear encoding, default is 4)" "\n"
+"                 n:[0] (for 24-bit linear encoding, default is 0)" "\n"
+"                 n:[0] (for 32-bit linear encoding, default is 0)" "\n"
+"                 n:[0] (for 64-bit linear encoding, default is 0)" "\n"
+"                 n:[0] (for float 32-bit linear encoding, default is 0)" "\n"
+"                 n:[0] (for float 64-bit linear encoding, default is 0)" "\n", fp);
 #ifndef FIXED_RESAMPLATION
 #ifdef HAVE_STRINGIZE
 #define tim_str_internal(x) #x
@@ -6326,147 +6326,147 @@ static int parse_opt_h(const char *arg)
 	fputs("  -EFresamp=d  Disable resamplation", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_none"))
 		fputs(" (default)", fp);
-	fputs(NLS, fp);
+	fputs("\n", fp);
 	fputs("  -EFresamp=l  Enable Linear resample algorithm", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_linear"))
 		fputs(" (default)", fp);
-	fputs(NLS, fp);
+	fputs("\n", fp);
 	fputs("  -EFresamp=c  Enable C-spline resample algorithm", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_cspline"))
 		fputs(" (default)", fp);
-	fputs(NLS, fp);
+	fputs("\n", fp);
 	fputs("  -EFresamp=L  Enable Lagrange resample algorithm", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_lagrange"))
 		fputs(" (default)", fp);
-	fputs(NLS, fp);
+	fputs("\n", fp);
 	fputs("  -EFresamp=n  Enable Newton resample algorithm", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_newton"))
 		fputs(" (default)", fp);
-	fputs(NLS, fp);
+	fputs("\n", fp);
 	fputs("  -EFresamp=g  Enable Gauss-like resample algorithm", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_gauss"))
 		fputs(" (default)", fp);
 ///r
-	fputs(NLS, fp);
+	fputs("\n", fp);
 	fputs("  -EFresamp=s  Enable Sharp resample algorithm", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_sharp"))
 		fputs(" (default)", fp);
-	fputs(NLS, fp);
+	fputs("\n", fp);
 	fputs("  -EFresamp=p  Enable LinearP resample algorithm", fp);
 	if (! strcmp(tim_str(DEFAULT_RESAMPLATION), "resample_linear_p"))
 		fputs(" (default)", fp);
-	fputs(NLS
-"                 -EFresamp affects the behavior of -N option" NLS, fp);
+	fputs("\n"
+"                 -EFresamp affects the behavior of -N option" "\n", fp);
 #endif
-	fputs(NLS, fp);
-	fputs("Alternative TiMidity sequencer extensional mode long options:" NLS
-"  --[no-]mod-wheel" NLS
-"  --[no-]portamento" NLS
-"  --[no-]vibrato" NLS
-"  --[no-]ch-pressure" NLS
-"  --[no-]mod-envelope" NLS
-"  --[no-]trace-text-meta" NLS
-"  --[no-]overlap-voice" NLS
+	fputs("\n", fp);
+	fputs("Alternative TiMidity sequencer extensional mode long options:" "\n"
+"  --[no-]mod-wheel" "\n"
+"  --[no-]portamento" "\n"
+"  --[no-]vibrato" "\n"
+"  --[no-]ch-pressure" "\n"
+"  --[no-]mod-envelope" "\n"
+"  --[no-]trace-text-meta" "\n"
+"  --[no-]overlap-voice" "\n"
 ///r
-"  --overlap-voice-count=n" NLS
-"  --[no-]temper-control" NLS
-"  --default-mid=<HH>" NLS
-"  --system-mid=<HH>" NLS
-"  --default-bank=n" NLS
-"  --force-bank=n" NLS
-"  --default-program=n/m" NLS
-"  --force-program=n/m" NLS
-"  --delay=(d|D)" NLS
-"  --chorus=(d|n|s|w|W|b|B|t|T|h|H|e|E)[,level]" NLS
-"  --reverb=(d|n|g|f|G)[,level]" NLS
-"  --reverb=(f|G)[,level[,scaleroom[,offsetroom[,predelay]]]]" NLS
-"  --voice-lpf=(d|c|m|b|i|a|o|e|t|h|B)" NLS
-"  --noise-shaping=n" NLS, fp);
+"  --overlap-voice-count=n" "\n"
+"  --[no-]temper-control" "\n"
+"  --default-mid=<HH>" "\n"
+"  --system-mid=<HH>" "\n"
+"  --default-bank=n" "\n"
+"  --force-bank=n" "\n"
+"  --default-program=n/m" "\n"
+"  --force-program=n/m" "\n"
+"  --delay=(d|D)" "\n"
+"  --chorus=(d|n|s|w|W|b|B|t|T|h|H|e|E)[,level]" "\n"
+"  --reverb=(d|n|g|f|G)[,level]" "\n"
+"  --reverb=(f|G)[,level[,scaleroom[,offsetroom[,predelay]]]]" "\n"
+"  --voice-lpf=(d|c|m|b|i|a|o|e|t|h|B)" "\n"
+"  --noise-shaping=n" "\n", fp);
 #ifndef FIXED_RESAMPLATION
-	fputs("  --resample=(d|l|c|L|n|g|s|p)" NLS, fp);
+	fputs("  --resample=(d|l|c|L|n|g|s|p)" "\n", fp);
 #endif
-	fputs(NLS, fp);
-	fputs("Available interfaces (-i, --interface option):" NLS, fp);
+	fputs("\n", fp);
+	fputs("Available interfaces (-i, --interface option):" "\n", fp);
 	for (cmpp = ctl_list; (cmp = *cmpp) != NULL; cmpp++)
-		fprintf(fp, "  -i%c          %s" NLS,
+		fprintf(fp, "  -i%c          %s" "\n",
 				cmp->id_character, cmp->id_name);
 #ifdef IA_DYNAMIC
-	fprintf(fp, "Supported dynamic load interfaces (%s):" NLS,
+	fprintf(fp, "Supported dynamic load interfaces (%s):" "\n",
 			dynamic_lib_root);
 	memset(mark, 0, sizeof(mark));
 	for (cmpp = ctl_list; (cmp = *cmpp) != NULL; cmpp++)
 		mark[(int) cmp->id_character] = 1;
 	list_dyna_interface(fp, dynamic_lib_root, mark);
 #endif	/* IA_DYNAMIC */
-	fputs(NLS, fp);
-	fputs("Interface options (append to -i? option):" NLS
-"  `v'          more verbose (cumulative)" NLS
-"  `q'          quieter (cumulative)" NLS
-"  `t'          trace playing" NLS
-"  `l'          loop playing (some interface ignore this option)" NLS
-"  `r'          randomize file list arguments before playing" NLS
-"  `s'          sorting file list arguments before playing" NLS, fp);
+	fputs("\n", fp);
+	fputs("Interface options (append to -i? option):" "\n"
+"  `v'          more verbose (cumulative)" "\n"
+"  `q'          quieter (cumulative)" "\n"
+"  `t'          trace playing" "\n"
+"  `l'          loop playing (some interface ignore this option)" "\n"
+"  `r'          randomize file list arguments before playing" "\n"
+"  `s'          sorting file list arguments before playing" "\n", fp);
 #ifdef IA_ALSASEQ
 	fputs("  `D'          daemonize TiMidity++ in background "
-			"(for alsaseq only)" NLS, fp);
+			"(for alsaseq only)" "\n", fp);
 #endif
-	fputs(NLS, fp);
-	fputs("Alternative interface long options:" NLS
-"  --verbose=n" NLS
-"  --quiet=n" NLS
-"  --[no-]trace" NLS
-"  --[no-]loop" NLS
-"  --[no-]random" NLS
-"  --[no-]sort" NLS, fp);
+	fputs("\n", fp);
+	fputs("Alternative interface long options:" "\n"
+"  --verbose=n" "\n"
+"  --quiet=n" "\n"
+"  --[no-]trace" "\n"
+"  --[no-]loop" "\n"
+"  --[no-]random" "\n"
+"  --[no-]sort" "\n", fp);
 #ifdef IA_ALSASEQ
-	fputs("  --[no-]background" NLS, fp);
+	fputs("  --[no-]background" "\n", fp);
 #endif
-	fputs(NLS, fp);
-	fputs("Available output modes (-O, --output-mode option):" NLS, fp);
+	fputs("\n", fp);
+	fputs("Available output modes (-O, --output-mode option):" "\n", fp);
 	for (pmpp = play_mode_list; (pmp = *pmpp) != NULL; pmpp++)
-		fprintf(fp, "  -O%c          %s" NLS,
+		fprintf(fp, "  -O%c          %s" "\n",
 				pmp->id_character, pmp->id_name);
-	fputs(NLS, fp);
-	fputs("Output format options (append to -O? option):" NLS
-"  `S'          stereo" NLS
-"  `M'          monophonic" NLS
-"  `s'          signed output" NLS
-"  `u'          unsigned output" NLS
-"  `1'          16-bit sample width" NLS
-"  `2'          24-bit sample width" NLS
-"  `3'          32-bit sample width" NLS
-"  `6'          64-bit sample width" NLS
-"  `8'          8-bit sample width" NLS
-"  `f'          float 32-bit sample width" NLS
-"  `D'          float 64-bit sample width" NLS
-"  `l'          linear encoding" NLS
-"  `U'          U-Law encoding" NLS
-"  `A'          A-Law encoding" NLS
-"  `x'          byte-swapped output" NLS, fp);
-	fputs(NLS, fp);
-	fputs("Alternative output format long options:" NLS
-"  --output-stereo" NLS
-"  --output-mono" NLS
-"  --output-signed" NLS
-"  --output-unsigned" NLS
-"  --output-16bit" NLS
-"  --output-24bit" NLS
-"  --output-32bit" NLS
-"  --output-64bit" NLS
-"  --output-8bit" NLS
-"  --output-f32bit" NLS
-"  --output-float32bit" NLS
-"  --output-f64bit" NLS
-"  --output-float64bit" NLS
-"  --output-linear" NLS
-"  --output-ulaw" NLS
-"  --output-alaw" NLS
-"  --[no-]output-swab" NLS, fp);
-	fputs(NLS, fp);
-	fputs("Available WRD interfaces (-W, --wrd option):" NLS, fp);
+	fputs("\n", fp);
+	fputs("Output format options (append to -O? option):" "\n"
+"  `S'          stereo" "\n"
+"  `M'          monophonic" "\n"
+"  `s'          signed output" "\n"
+"  `u'          unsigned output" "\n"
+"  `1'          16-bit sample width" "\n"
+"  `2'          24-bit sample width" "\n"
+"  `3'          32-bit sample width" "\n"
+"  `6'          64-bit sample width" "\n"
+"  `8'          8-bit sample width" "\n"
+"  `f'          float 32-bit sample width" "\n"
+"  `D'          float 64-bit sample width" "\n"
+"  `l'          linear encoding" "\n"
+"  `U'          U-Law encoding" "\n"
+"  `A'          A-Law encoding" "\n"
+"  `x'          byte-swapped output" "\n", fp);
+	fputs("\n", fp);
+	fputs("Alternative output format long options:" "\n"
+"  --output-stereo" "\n"
+"  --output-mono" "\n"
+"  --output-signed" "\n"
+"  --output-unsigned" "\n"
+"  --output-16bit" "\n"
+"  --output-24bit" "\n"
+"  --output-32bit" "\n"
+"  --output-64bit" "\n"
+"  --output-8bit" "\n"
+"  --output-f32bit" "\n"
+"  --output-float32bit" "\n"
+"  --output-f64bit" "\n"
+"  --output-float64bit" "\n"
+"  --output-linear" "\n"
+"  --output-ulaw" "\n"
+"  --output-alaw" "\n"
+"  --[no-]output-swab" "\n", fp);
+	fputs("\n", fp);
+	fputs("Available WRD interfaces (-W, --wrd option):" "\n", fp);
 	for (wlpp = wrdt_list; (wlp = *wlpp) != NULL; wlpp++)
-		fprintf(fp, "  -W%c          %s" NLS, wlp->id, wlp->name);
-	fputs(NLS, fp);
+		fprintf(fp, "  -W%c          %s" "\n", wlp->id, wlp->name);
+	fputs("\n", fp);
 	close_pager(fp);
 	exit(EXIT_SUCCESS);
 	return 0; // dummy call

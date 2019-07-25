@@ -268,15 +268,13 @@ long SetValue(int32 value, int32 min, int32 max)
   return v;
 }
 
-int w32gSecondTiMidity(int opt, int argc, char **argv);
+int w32gSecondTiMidity(int opt, int argc, char **argv, int nfiles, char **files);
 int w32gSecondTiMidityExit(void);
 int SecondMode = 1;
 
 void FirstLoadIniFile(void);
 
-#if (defined(IA_W32GUI) || defined(IA_W32G_SYN)) && \
-    (!defined(__GNUC__) || /* _MSC_VER, _BORLANDC_, __WATCOMC__ */ \
-        (defined(__GNUC__) && defined(SUPPORT_WINMAIN)))
+#if (defined(__W32G__) && !defined(TWSYNG32)) && !defined(WIN32GCC)
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
 int WINAPI
@@ -291,7 +289,7 @@ LPSTR lpCmdLine, int nCmdShow)
 	static int first = 0;
 
 	Sleep(100); // Restartで前プロセスの終了待機
-#ifdef _CRTDBG_MAP_ALLOC
+#ifdef TIMIDITY_LEAK_CHECK
 	_CrtSetDbgFlag(CRTDEBUGFLAGS);
 #endif
 	CmdLineToArgv(lpCmdLine,&argc,&argv);
@@ -334,7 +332,7 @@ LPSTR lpCmdLine, int nCmdShow)
 	return errcode;
 #endif
 }
-#endif /* __W32G__ && SUPPORT_WINMAIN */
+#endif /* (__W32G__ && !TWSYNG32) && !WIN32GCC */
 
 // ***************************************************************************
 // System Function
@@ -5118,23 +5116,25 @@ static char *DlgFileOpen(HWND hwnd, const char *title, const char *filter, const
 static void DlgMidiFileOpen(HWND hwnd)
 {
     char *dir, *file;
-    const char *filter;
-    const char *filter_en = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
-		"midi file\0*.mid;*.midi;*.smf;*.rmi\0"
-		"rcp file\0*.rcp;*.r36;*.g18;*.g36\0"
-		"mod file\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
-		"archive file\0*.lzh;*.zip;*.gz\0"
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
-    const char *filter_jp = "Timidity サポート済みファイル\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
-		"SMF/RMID (*.mid;*.midi;*.smf;*.rmi)\0*.mid;*.midi;*.smf;*.rmi\0"
-		"RCP (*.rcp;*.r36;*.g18;*.g36)\0*.rcp;*.r36;*.g18;*.g36\0"
-		"MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
-		"圧縮済みアーカイブ (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0"
-		"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
-		"すべてのファイル (*.*)\0*.*\0"
-		"\0\0";
+    const char *filter,
+        filter_en[] = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
+            "midi file\0*.mid;*.midi;*.smf;*.rmi\0"
+            "rcp file\0*.rcp;*.r36;*.g18;*.g36\0"
+            "mfi file\0*.mld\0"
+            "mod file\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
+            "archive file\0*.lzh;*.zip;*.gz\0"
+            "playlist file\0*.pls;*.m3u;*.asx\0"
+            "all files\0*.*\0"
+            "\0\0",
+        filter_jp[] = "Timidity サポート済みファイル\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
+            "SMF/RMID (*.mid;*.midi;*.smf;*.rmi)\0*.mid;*.midi;*.smf;*.rmi\0"
+            "RCP (*.rcp;*.r36;*.g18;*.g36)\0*.rcp;*.r36;*.g18;*.g36\0"
+            "MFi (*.mld)\0*.mld\0"
+            "MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
+            "圧縮済みアーカイブ (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0"
+            "プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
+            "すべてのファイル (*.*)\0*.*\0"
+            "\0\0";
 
     if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
 		filter = filter_jp;

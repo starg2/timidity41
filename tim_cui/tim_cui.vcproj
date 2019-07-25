@@ -283,6 +283,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\interface\rtsyn_portmidi.c"
+				>
+			</File>
+			<File
 				RelativePath="..\interface\rtsyn_winmm.c"
 				>
 			</File>

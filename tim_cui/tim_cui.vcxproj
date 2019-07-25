@@ -330,6 +330,7 @@
     <ClCompile Include="..\interface\portmidisyn_c.c" />
     <ClCompile Include="..\interface\rtsyn_common.c" />
     <ClCompile Include="..\interface\rtsyn_npipe.c" />
+    <ClCompile Include="..\interface\rtsyn_portmidi.c" />
     <ClCompile Include="..\interface\rtsyn_winmm.c" />
     <ClCompile Include="..\interface\vt100.c" />
     <ClCompile Include="..\interface\vt100_c.c" />

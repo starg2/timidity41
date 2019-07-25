@@ -47,7 +47,8 @@ d0|vt100|vt100-am|vt100am|Digital VT100:\
 
 void vt100_init_screen(void)
 {
-    vt100_reset_attr();
+	fputs("\033[?1049h", stdout);
+	vt100_reset_attr();
     fputs("\033[H\033[J", stdout);
 }
 
@@ -59,7 +60,13 @@ void vt100_refresh(void)
 
 void vt100_clrtoeol(void)
 {
-    fputs("\033[K", stdout);
+	fputs("\033[K", stdout);
+}
+
+void vt100_free_screen(void)
+{
+	fputs("\033[?1049l", stdout);
+	fputs("\033[H\033[J", stdout);
 }
 
 void vt100_move(int row, int col)
@@ -91,6 +98,7 @@ void vt100_reset_attr(void)
 void vt100_init_screen(void) { }
 void vt100_refresh(void) { fflush(stdout); }
 void vt100_clrtoeol(void) { }
+void vt100_free_screen(void) { }
 void vt100_move(int row, int col) { }
 void vt100_set_attr(int attr) { }
 void vt100_reset_attr(void) { }

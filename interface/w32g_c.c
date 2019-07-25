@@ -68,7 +68,7 @@ extern void MPanelReset(void);
 extern void MPanelUpdate(void);
 extern void MPanelUpdateAll(void);
 extern void MPanelPaint(void);
-extern int is_directory(char *path);
+extern int is_directory(const char *path);
 extern int directory_form(char *buffer);
 extern int TracerWndDrawSkip;
 

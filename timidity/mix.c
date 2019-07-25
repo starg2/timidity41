@@ -531,7 +531,6 @@ void mix_voice(DATA_T *buf, int v, int32 c)
 		recompute_resample_filter(v);
 	}
 	apply_envelope_to_amp(v);
-#ifdef INT_SYNTH
 	switch(vp->sample->inst_type){
 	case INST_GUS:
 	case INST_SF2:
@@ -553,24 +552,15 @@ void mix_voice(DATA_T *buf, int v, int32 c)
 			resample_filter(v, sp, c);
 		}
 		break;
+#ifdef INT_SYNTH
 	case INST_MMS:
 		compute_voice_mms(v, sp, c);
 		break;
 	case INST_SCC:
 		compute_voice_scc(v, sp, c);
 		break;
-	}
-#else
-	if(opt_resample_over_sampling){
-		int32 c2 = c * opt_resample_over_sampling;
-		resample_voice(v, sp, c2);
-		resample_filter(v, sp, c2);
-		resample_down_sampling(sp, c);
-	}else{
-		resample_voice(v, sp, c);
-		resample_filter(v, sp, c);
-	}
 #endif
+	}
 #ifdef VOICE_EFFECT
 	voice_effect(v, sp, c);
 #endif

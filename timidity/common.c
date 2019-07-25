@@ -421,7 +421,7 @@ struct timidity_file *open_with_constmem(const char *mem, ptr_size_t memlen, int
  * This is meant to find and open files for reading, possibly piping
  * them through a decompressor.
  */
-struct timidity_file *open_file(char *name, int decompress, int noise_mode)
+struct timidity_file *open_file(const char *name, int decompress, int noise_mode)
 {
 	struct timidity_file *tf;
 	PathList *plp = pathlist;
@@ -496,7 +496,7 @@ struct timidity_file *open_file(char *name, int decompress, int noise_mode)
  * This is meant to find and open regular files for reading, possibly
  * piping them through a decompressor.
  */
-struct timidity_file *open_file_r(char *name, int decompress, int noise_mode)
+struct timidity_file *open_file_r(const char *name, int decompress, int noise_mode)
 {
 	struct stat st;
 	struct timidity_file *tf;
