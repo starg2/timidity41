@@ -1637,14 +1637,14 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
             const TCHAR *msg,
-                   msg_en[] = TEXT("Press the Reload button to apply instruments"),
-                   msg_jp[] = TEXT("音色情報は強制再読込ボタンを押すと反映されます");
+                   msg_en[] = TEXT("Config file was changed. Do you want to reload it?"),
+                   msg_jp[] = TEXT("Config ファイルが変更されました。再読み込みしますか?");
             switch (CurrentPlayerLanguage) {
             case LANGUAGE_ENGLISH: msg = msg_en; break;
             case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
             }
-            if (get_verbosity_level() >= VERB_NORMAL)
-                MessageBox(hMainWnd, msg, TEXT("TiMidity"), MB_OK | MB_ICONWARNING);
+            if (MessageBox(hMainWnd, msg, TEXT("TiMidity"), MB_YESNO | MB_ICONQUESTION) == IDYES)
+                reload_cfg();
         }
         safe_free(CurrentConfigFile);
         CurrentConfigFile = 0;
@@ -2054,14 +2054,14 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
             const TCHAR *msg,
-                   msg_en[] = TEXT("Press the Reload button to apply instruments"),
-                   msg_jp[] = TEXT("音色情報は強制再読込ボタンを押すと反映されます");
+                   msg_en[] = TEXT("Config file was changed. Do you want to reload it?"),
+                   msg_jp[] = TEXT("Config ファイルが変更されました。再読み込みしますか?");
             switch (CurrentPlayerLanguage) {
             case LANGUAGE_ENGLISH: msg = msg_en; break;
             case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
             }
-            if (get_verbosity_level() >= VERB_NORMAL)
-                MessageBox(hwnd, msg, TEXT(""), MB_OK | MB_ICONWARNING);
+            if (MessageBox(hMainWnd, msg, TEXT("TiMidity"), MB_YESNO | MB_ICONQUESTION) == IDYES)
+                reload_cfg();
         }
         safe_free(CurrentConfigFile);
         CurrentConfigFile = 0;

@@ -1742,8 +1742,6 @@ public:
                 ctl->cmsg(CMSG_ERROR, VERB_NORMAL, str, e.what());
                 return nullptr;
             }
-
-            it = std::prev(m_Instruments.end());
         }
 
         std::unique_ptr<Instrument, InstrumentDeleter> pInstRef(reinterpret_cast<Instrument*>(safe_calloc(sizeof(Instrument), 1)));
