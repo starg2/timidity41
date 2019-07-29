@@ -4250,26 +4250,22 @@ void MPanelUpdate(void)
 		SetTextAlign(MPanel.hmdc, TA_LEFT | TA_TOP | TA_NOUPDATECP);
 		TCHAR *t = char_to_tchar(MPanelMessageData.buff);
 		switch ( MPanelMessageData.curmode ) {
-		case 0:
-			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
-				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-    			t,_tcslen(t),NULL);
 		case 1:
-			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
+			ExtTextOut(MPanel.hmdc, MPanel.rcMessage.left - (MPanelMessageData.pointer - MPanelMessageData.len) * (MPanel.rcMessage.bottom - MPanel.rcMessage.top + 1) / 2, MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			t,_tcslen(t),NULL);
-//			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left-(MPanel.rcMessage.bottom-MPanel.rcMessage.top)*2,
-//				MPanel.rcMessage.top, ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-//    			t,_tcslen(t),NULL);
+			break;
+		case 3:
+		case 4:
+			// FIXME: implement this
+
 		case 2:
-			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
-				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
-    			t,_tcslen(t),NULL);
 		case -1:
 		default:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			t,_tcslen(t),NULL);
+			break;
 		}
 		safe_free(t);
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
@@ -4547,6 +4543,7 @@ void MPanelMessageUpdate(void)
 		break;
 	case 1:
 		if ( MPanelMessageData.prevtime == -1 ){
+			strcpy(MPanelMessageData.buff, MPanelMessageData.curbuff);
 			MPanelMessageData.prevtime = curtime;
 			MPanelMessageData.msec = MPanelMessageData.curmsec;
 	     	MPanel.UpdateFlag |= MP_UPDATE_MESSAGE;
@@ -4564,18 +4561,7 @@ void MPanelMessageUpdate(void)
 		pointer = MPanelMessageData.len - 8 + ( MPanelMessageData.curmsec - MPanelMessageData.msec ) / 1000 * 2;
 		pointer = (int)( pointer / 2 ) * 2;
 		if ( MPanelMessageData.pointer != pointer ) {
-			int p = MPanelMessageData.len - pointer;
-			MPanelMessageData.buff[0] = '\0';
 			MPanelMessageData.pointer = pointer;
-			if ( p >= 0 ) {
-				memset( MPanelMessageData.buff, 0x20, p );
-				MPanelMessageData.buff[p] = '\0';
-				strcat( MPanelMessageData.buff, MPanelMessageData.curbuff);
-			} else if ( MPanelMessageData.curbuffsize + p > 0 ) { 
-				strcpy( MPanelMessageData.buff, MPanelMessageData.curbuff - p);
-			} else {
-				MPanelMessageData.buff[0] = '\0';
-			}
 	     	MPanel.UpdateFlag |= MP_UPDATE_MESSAGE;
 		}
 		break;
@@ -4602,6 +4588,7 @@ void MPanelMessageUpdate(void)
 		break;
 	case 3:
 		if ( MPanelMessageData.prevtime == -1 ){
+			strcpy(MPanelMessageData.buff, MPanelMessageData.curbuff);
 			MPanelMessageData.prevtime = curtime;
 			MPanelMessageData.msec = MPanelMessageData.curmsec;
 	     	MPanel.UpdateFlag |= MP_UPDATE_MESSAGE;
@@ -4618,23 +4605,13 @@ void MPanelMessageUpdate(void)
 		pointer = MPanelMessageData.len * 3 / 4 + ( MPanelMessageData.len / 4 + MPanelMessageData.curbuffsize ) * ( MPanelMessageData.curmsec - MPanelMessageData.msec ) / MPanelMessageData.curmsec;
 		pointer = ((int)(pointer / 2)) * 2;
 		if ( MPanelMessageData.pointer != pointer ) {
-			int p = MPanelMessageData.len - pointer;
-			MPanelMessageData.buff[0] = '\0';
 			MPanelMessageData.pointer = pointer;
-			if ( p >= 0 ) {
-				memset( MPanelMessageData.buff, 0x20, p );
-				MPanelMessageData.buff[p] = '\0';
-				strcat( MPanelMessageData.buff, MPanelMessageData.curbuff);
-			} else if ( MPanelMessageData.curbuffsize + p > 0 ) { 
-				strcpy( MPanelMessageData.buff, MPanelMessageData.curbuff - p);
-			} else {
-				MPanelMessageData.buff[0] = '\0';
-			}
 	     	MPanel.UpdateFlag |= MP_UPDATE_MESSAGE;
 		}
 		break;
 	case 4:
 		if ( MPanelMessageData.prevtime == -1 ){
+			strcpy(MPanelMessageData.buff, MPanelMessageData.curbuff);
 			MPanelMessageData.prevtime = curtime;
 #define MPANELMESSAGE_MODE2_SLEEPMSEC 1000
 			if ( MPanelMessageData.curmsec < MPANELMESSAGE_MODE2_SLEEPMSEC * 2 ) {
@@ -4659,13 +4636,7 @@ void MPanelMessageUpdate(void)
 		}
 		pointer = ((int)(pointer / 2)) * 2;
 		if ( MPanelMessageData.pointer != pointer ) {
-			MPanelMessageData.buff[0] = '\0';
 			MPanelMessageData.pointer = pointer;
-			if ( pointer < MPanelMessageData.curbuffsize ) { 
-				strcpy( MPanelMessageData.buff, MPanelMessageData.curbuff + pointer );
-			} else {
-				MPanelMessageData.buff[0] = '\0';
-			}
 	     	MPanel.UpdateFlag |= MP_UPDATE_MESSAGE;
 		}
 		break;
