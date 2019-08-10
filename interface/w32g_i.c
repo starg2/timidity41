@@ -5389,7 +5389,12 @@ static void DlgPlaylistOpen(HWND hwnd)
             _T("すべてのファイル (*.*)\0*.*\0")
             _T("\0\0");
 
-    if(w32g_lock_open_file)
+	if (PlayerLanguage == LANGUAGE_JAPANESE)
+		filter = filter_jp;
+	else
+		filter = filter_en;
+
+	if(w32g_lock_open_file)
 		return;
 
     if(MidiFileOpenDir[0])
@@ -5453,6 +5458,11 @@ static void DlgPlaylistSave(HWND hwnd)
             _T("すべてのファイル (*.*)\0*.*\0")
             _T("\0\0");
 	TCHAR tfilename[DialogMaxFileName] = _T("");
+
+	if (PlayerLanguage == LANGUAGE_JAPANESE)
+		filter = filter_jp;
+	else
+		filter = filter_en;
 
     if(w32g_lock_open_file)
 		return;
