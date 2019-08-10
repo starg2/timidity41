@@ -4243,6 +4243,7 @@ void MPanelUpdate(void)
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		case 1:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
@@ -4250,15 +4251,18 @@ void MPanelUpdate(void)
 //			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left-(MPanel.rcMessage.bottom-MPanel.rcMessage.top)*2,
 //				MPanel.rcMessage.top, ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
 //    			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		case 2:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		case -1:
 		default:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		}
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
 			SelectObject(MPanel.hmdc,hgdiobj);
