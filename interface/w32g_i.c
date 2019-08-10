@@ -5357,12 +5357,22 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 static void DlgPlaylistOpen(HWND hwnd)
 {
     char *dir, *file;
-    char *filter =
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
+	const char* filter,
+		filter_en[] =
+			"playlist file\0*.pls;*.m3u;*.asx\0"
+			"all files\0*.*\0"
+			"\0\0",
+		filter_jp[] =
+			"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
+			"すべてのファイル (*.*)\0*.*\0"
+			"\0\0";
 
-    if(w32g_lock_open_file)
+	if (PlayerLanguage == LANGUAGE_JAPANESE)
+		filter = filter_jp;
+	else
+		filter = filter_en;
+
+	if(w32g_lock_open_file)
 		return;
 
     if(MidiFileOpenDir[0])
@@ -5411,10 +5421,20 @@ static void DlgPlaylistSave(HWND hwnd)
 {
 	OPENFILENAME ofn;
 	static char *dir;
-    char *filter =
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
+	const char* filter,
+		filter_en[] =
+			"playlist file\0*.pls;*.m3u;*.asx\0"
+			"all files\0*.*\0"
+			"\0\0",
+		filter_jp[] =
+			"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
+			"すべてのファイル (*.*)\0*.*\0"
+			"\0\0";
+
+	if (PlayerLanguage == LANGUAGE_JAPANESE)
+		filter = filter_jp;
+	else
+		filter = filter_en;
 
     if(w32g_lock_open_file)
 		return;
