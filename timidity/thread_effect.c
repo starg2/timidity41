@@ -379,7 +379,7 @@ void mix_insertion_effect_gs_thread(DATA_T *buf, int32 count, int32 byte, int eq
 		MM256_LS_FMA_PD(&delay_effect_buffer_thread[cdmt_ofs_0][i + 4], out, send_delay);
 		MM256_LS_FMA_PD(&reverb_effect_buffer_thread[cdmt_ofs_0][i + 4], out, send_reverb);
 	}
-	memset(insertion_effect_buffer, 0, byte);
+	memset(insertion_effect_buffer_sub[cdmt_buf_o], 0, byte);
 }
 #elif (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
 void mix_insertion_effect_gs_thread(DATA_T *buf, int32 count, int32 byte, int eq_enable)
