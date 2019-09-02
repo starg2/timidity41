@@ -240,8 +240,8 @@ extern int RestartTimidity;
 #endif
 
 static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd);
-static int DlgOpenOutputFile(char *Filename, HWND hwnd);
-static int DlgOpenOutputDir(char *Dirname, HWND hwnd);
+static int DlgOpenOutputFile(TCHAR *Filename, HWND hwnd);
+static int DlgOpenOutputDir(TCHAR *Dirname, HWND hwnd);
 
 static HFONT hFixedPointFont;
 
@@ -4677,38 +4677,38 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDC_BUTTON_OUTPUT_FILE:
 			{
-			char filename[FILEPATH_MAX];
-			filename[0] = filename[FILEPATH_MAX - 1] = '\0';
-			EB_GETTEXTA(IDC_EDIT_OUTPUT_FILE, filename, FILEPATH_MAX - 1);
+			TCHAR filename[FILEPATH_MAX];
+			filename[0] = filename[FILEPATH_MAX - 1] = _T('\0');
+			EB_GETTEXT(IDC_EDIT_OUTPUT_FILE, filename, FILEPATH_MAX - 1);
 			if (st_temp->auto_output_mode > 0) {
-			    if (!DlgOpenOutputDir(filename, hwnd) && filename[0] != '\0')
-				EB_SETTEXTA(IDC_EDIT_OUTPUT_FILE, filename);
+				if (!DlgOpenOutputDir(filename, hwnd) && filename[0] != _T('\0'))
+				EB_SETTEXT(IDC_EDIT_OUTPUT_FILE, filename);
 			}
 			else {
-			    if (!DlgOpenOutputFile(filename, hwnd) && filename[0] != '\0')
-				EB_SETTEXTA(IDC_EDIT_OUTPUT_FILE, filename);
+				if (!DlgOpenOutputFile(filename, hwnd) && filename[0] != _T('\0'))
+				EB_SETTEXT(IDC_EDIT_OUTPUT_FILE, filename);
 			}
 			}
 			break;
 		case IDC_BUTTON_OUTPUT_FILE_DEL:
 		    {
-			char filename[FILEPATH_MAX];
+			TCHAR filename[FILEPATH_MAX];
 			DWORD res;
 			if (st_temp->auto_output_mode > 0) {
 				break;
 			}
-			filename[0] = filename[FILEPATH_MAX - 1] = '\0';
-			EB_GETTEXTA(IDC_EDIT_OUTPUT_FILE, filename, FILEPATH_MAX - 1);
-			res = GetFileAttributesA(filename);
+			filename[0] = filename[FILEPATH_MAX - 1] = _T('\0');
+			EB_GETTEXT(IDC_EDIT_OUTPUT_FILE, filename, FILEPATH_MAX - 1);
+			res = GetFileAttributes(filename);
 			if (res != 0xFFFFFFFF && !(res & FILE_ATTRIBUTE_DIRECTORY)) {
-				if (DeleteFileA(filename) != TRUE) {
-					char buffer[FILEPATH_MAX + 128];
-					sprintf(buffer, "Can't delete file %s !", filename);
-					MessageBoxA(NULL, buffer, "Error!", MB_OK);
+				if (DeleteFile(filename) != TRUE) {
+					TCHAR buffer[FILEPATH_MAX + 128];
+					wsprintf(buffer, _T("Can't delete file %s !"), filename);
+					MessageBox(NULL, buffer, _T("Error!"), MB_OK);
 				} else {
-					char buffer[FILEPATH_MAX + 128];
-					sprintf(buffer, "Delete file %s !", filename);
-					MessageBoxA(NULL, buffer, "Delete!", MB_OK);
+					TCHAR buffer[FILEPATH_MAX + 128];
+					wsprintf(buffer, _T("Delete file %s !"), filename);
+					MessageBox(NULL, buffer, _T("Delete!"), MB_OK);
 				}
 			}
 		    }
@@ -6040,7 +6040,7 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 	}
 }
 
-static int DlgOpenOutputFile(char *Filename, HWND hwnd)
+static int DlgOpenOutputFile(TCHAR *Filename, HWND hwnd)
 {
 	OPENFILENAME ofn;
 	TCHAR filename[FILEPATH_MAX],
@@ -6074,9 +6074,7 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 	}
 	_tcsncpy(dir, OutputFileOpenDir, FILEPATH_MAX);
 	dir[FILEPATH_MAX - 1] = _T('\0');
-	TCHAR *tfilename = char_to_tchar(Filename);
-	_tcsncpy(filename, tfilename, FILEPATH_MAX);
-	safe_free(tfilename);
+	_tcsncpy(filename, Filename, FILEPATH_MAX - 1);
 	filename[FILEPATH_MAX - 1] = _T('\0');
 	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1]))
 		_tcsncat(filename, _T("output.wav"), FILEPATH_MAX - _tcslen(filename) - 1);
@@ -6108,13 +6106,11 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 	_tcsncpy(OutputFileOpenDir, dir, FILEPATH_MAX);
 	OutputFileOpenDir[FILEPATH_MAX - 1] = _T('\0');
 	if (res != FALSE) {
-		char *s = tchar_to_char(filename);
-		strncpy(Filename, s, FILEPATH_MAX);
-		safe_free(s);
-		Filename[FILEPATH_MAX - 1] = '\0';
+		_tcsncpy(Filename, filename, FILEPATH_MAX - 1);
+		Filename[FILEPATH_MAX - 1] = _T('\0');
 		return 0;
 	} else {
-		Filename[0] = '\0';
+		Filename[0] = _T('\0');
 		return -1;
 	}
 }
@@ -6134,7 +6130,7 @@ DlgOpenOutputDirBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM l
     return 0;
 }
 
-static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
+static int DlgOpenOutputDir(TCHAR *Dirname, HWND hwnd)
 {
 	static int initflag = 1;
 	static TCHAR biBuffer[FILEPATH_MAX];
@@ -6151,7 +6147,7 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 		title = title_en;
 
 	if (initflag == 1) {
-		biBuffer[0] = '\0';
+		biBuffer[0] = _T('\0');
 		initflag = 0;
 	}
 	ZeroMemory(&bi, sizeof(bi));
@@ -6169,19 +6165,22 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 		return -1; /* Cancel */
 
 	SHGetPathFromIDList(itemidlist, Buffer);
-	_tcsncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
 
 	if (itemidlist_pre)
 		CoTaskMemFree(itemidlist_pre);
 	itemidlist_pre = itemidlist;
 
-	char buf[FILEPATH_MAX];
+	char sbuf[FILEPATH_MAX] = "";
 	char *s = tchar_to_char(Buffer);
-	strncpy(buf, s, FILEPATH_MAX);
+	strncpy(sbuf, s, FILEPATH_MAX - 1);
 	safe_free(s);
-	buf[FILEPATH_MAX - 1] = '\0';
-	directory_form(buf);
-	strcpy(Dirname, buf);
+	sbuf[FILEPATH_MAX - 1] = '\0';
+	directory_form(sbuf);
+
+	TCHAR *t = char_to_tchar(sbuf);
+	_tcsncpy(Dirname, t, FILEPATH_MAX - 1);
+	safe_free(t);
+	Dirname[FILEPATH_MAX - 1] = _T('\0');
 	return 0;
 }
 
