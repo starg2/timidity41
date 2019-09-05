@@ -484,6 +484,8 @@ typedef struct {
   uint8 detune_param;
   FLOAT_T detune; /* in Hz */
 
+  int32 *seq_counters[MAX_ELEMENT];
+  int seq_num_counters[MAX_ELEMENT];
 } Channel;
 
 /* Causes the instrument's default panning to be used. */

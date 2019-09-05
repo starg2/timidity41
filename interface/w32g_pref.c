@@ -4471,6 +4471,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			safe_free(t);
 		}
 		PostMessage(hwnd, WM_COMMAND, IDC_COMBO_OUTPUT_MODE, 0);	// force updating IDC_BUTTON_OUTPUT_FILE text
+		PostMessage(hwnd, WM_COMMAND, IDC_COMBO_OUTPUT, 0);
 #endif
 		opt = st_temp->opt_playmode + 1;	
 		if(strchr(opt, 'U')){
@@ -4817,6 +4818,23 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendDlgItemMessage(hwnd,IDC_RADIO_MONO,BM_SETCHECK,0,0);
 		 }
 			break;
+		case IDC_COMBO_OUTPUT:
+			{
+				int num = CB_GET(IDC_COMBO_OUTPUT);
+				if (num < 0) {
+					num = 0;
+				}
+
+				EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_OPTIONS), !!strchr("wdxkvgoPpWKLF", play_mode_list[num]->id_character));
+
+				BOOL is_file_output = !!(play_mode_list[num]->flag & PF_FILE_OUTPUT);
+				BOOL enable_path_setting = is_file_output && st_temp->auto_output_mode != 1;
+				EnableWindow(GetDlgItem(hwnd, IDC_COMBO_OUTPUT_MODE), is_file_output);
+				EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE), enable_path_setting);
+				EnableWindow(GetDlgItem(hwnd, IDC_EDIT_OUTPUT_FILE), enable_path_setting);
+				EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE_DEL), is_file_output && st_temp->auto_output_mode == 0);
+			}
+			break;
 		case IDC_BUTTON_OUTPUT_OPTIONS:
 			{
 				int num;
@@ -4926,6 +4944,10 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				safe_free(t);
 				}
 			}
+			BOOL enable_path_setting = st_temp->auto_output_mode != 1;
+			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE), enable_path_setting);
+			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_OUTPUT_FILE), enable_path_setting);
+			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE_DEL), st_temp->auto_output_mode == 0);
 		}
 			break;
 ///r

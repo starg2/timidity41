@@ -695,8 +695,19 @@ public:
 
                     continue;
                 }
-                else if (Word(curView, "#include"))
+                else if (auto defView = curView; Word(curView, "#include"))
                 {
+                    m_IncludeCount++;
+
+                    if (m_IncludeCount > 10000)
+                    {
+                        throw ParserException(
+                            m_FileNames[curView.GetLocationInfo().FileID],
+                            curView.GetLocationInfo().Line,
+                            "too many #include directives (possible recursion?)"
+                        );
+                    }
+
                     DoSkips(curView);
 
                     TextBuffer::View pathView;
@@ -800,6 +811,7 @@ private:
     std::stack<InputStackItem, std::vector<InputStackItem>> m_InputStack;
     TextBuffer m_OutBuffer;
     std::unordered_map<std::string, TextBuffer::View> m_DefinedMacros;
+    std::int32_t m_IncludeCount = 0;
 };
 
 enum class OpCodeKind
@@ -816,17 +828,21 @@ enum class OpCodeKind
     AmpVelTrack,
     DefaultPath,
     HiKey,
+    HiRand,
     HiVelocity,
     LoKey,
     LoopEnd,
     LoopMode,
     LoopStart,
+    LoRand,
     LoVelocity,
     Offset,
     Key,
     Pan,
     PitchKeyCenter,
     Sample,
+    SequenceLength,
+    SequencePosition,
     Transpose,
     Trigger,
     Tune,
@@ -860,6 +876,7 @@ enum class HeaderKind
 {
     Control,
     Global,
+    Master,
     Group,
     Region
 };
@@ -983,12 +1000,16 @@ public:
                         case OpCodeKind::AmpEG_Sustain:
                         case OpCodeKind::AmpKeyTrack:
                         case OpCodeKind::AmpVelTrack:
+                        case OpCodeKind::HiRand:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
+                        case OpCodeKind::LoRand:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
+                        case OpCodeKind::SequenceLength:
+                        case OpCodeKind::SequencePosition:
                         case OpCodeKind::Transpose:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
@@ -1078,6 +1099,7 @@ private:
             {"control"sv, HeaderKind::Control},
             {"global"sv, HeaderKind::Global},
             {"group"sv, HeaderKind::Group},
+            {"master"sv, HeaderKind::Master},
             {"region"sv, HeaderKind::Region}
         };
 
@@ -1125,17 +1147,21 @@ private:
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"default_path"sv, OpCodeKind::DefaultPath},
             {"hikey"sv, OpCodeKind::HiKey},
+            {"hirand"sv, OpCodeKind::HiRand},
             {"hivel"sv, OpCodeKind::HiVelocity},
             {"key"sv, OpCodeKind::Key},
             {"lokey"sv, OpCodeKind::LoKey},
             {"loop_end"sv, OpCodeKind::LoopEnd},
             {"loop_mode"sv, OpCodeKind::LoopMode},
             {"loop_start"sv, OpCodeKind::LoopStart},
+            {"lorand"sv, OpCodeKind::LoRand},
             {"lovel"sv, OpCodeKind::LoVelocity},
             {"offset"sv, OpCodeKind::Offset},
             {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample},
+            {"seq_length"sv, OpCodeKind::SequenceLength},
+            {"seq_position"sv, OpCodeKind::SequencePosition},
             {"transpose"sv, OpCodeKind::Transpose},
             {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
@@ -1609,6 +1635,63 @@ private:
                     // convert percent to rate
                     std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0);
                 }
+
+                if (auto seqLen = flatSection.GetAs<double>(OpCodeKind::SequenceLength))
+                {
+                    s.seq_length = std::clamp(static_cast<int32>(std::round(seqLen.value())), 1, 100);
+
+                    if (auto seqPos = flatSection.GetAs<double>(OpCodeKind::SequencePosition))
+                    {
+                        s.seq_position = std::clamp(static_cast<int32>(std::round(seqPos.value())), 1, 100);
+
+                        if (s.seq_length < s.seq_position)
+                        {
+                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
+                            ctl->cmsg(
+                                CMSG_WARNING,
+                                VERB_VERBOSE,
+                                "%s(%u): 'seq_position' is larger than 'seq_length'; this region will never be played",
+                                std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                loc.Line
+                            );
+                        }
+                    }
+                    else
+                    {
+                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequenceLength);
+                        ctl->cmsg(
+                            CMSG_WARNING,
+                            VERB_VERBOSE,
+                            "%s(%u): 'seq_length' was specified but 'seq_position' was not; this region will never be played",
+                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                            loc.Line
+                        );
+                    }
+                }
+                else if (auto seqPos = flatSection.GetAs<double>(OpCodeKind::SequencePosition))
+                {
+                    auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
+                    ctl->cmsg(
+                        CMSG_WARNING,
+                        VERB_VERBOSE,
+                        "%s(%u): 'seq_position' was specified but 'seq_length' was not",
+                        std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                        loc.Line
+                    );
+                }
+
+                if (auto loRand = flatSection.GetAs<double>(OpCodeKind::LoRand))
+                {
+                    s.enable_rand = 1;
+                    s.lorand = std::clamp(loRand.value(), 0.0, 1.0);
+                    s.hirand = std::clamp(flatSection.GetAs<double>(OpCodeKind::HiRand).value_or(1.0), 0.0, 1.0);
+                }
+                else if (auto hiRand = flatSection.GetAs<double>(OpCodeKind::HiRand))
+                {
+                    s.enable_rand = 1;
+                    s.lorand = 0.0;
+                    s.hirand = std::clamp(hiRand.value(), 0.0, 1.0);
+                }
             }
 
             return pSampleInstrument;
@@ -1640,6 +1723,7 @@ private:
         std::vector<Section> flatSections;
         std::vector<OpCodeAndValue> controlOpCodes;
         std::vector<OpCodeAndValue> globalOpCodes;
+        std::vector<OpCodeAndValue> masterOpCodes;
         std::vector<OpCodeAndValue> groupOpCodes;
 
         for (auto&& i : sections)
@@ -1652,6 +1736,13 @@ private:
 
             case HeaderKind::Global:
                 globalOpCodes = i.OpCodes;
+                masterOpCodes.clear();
+                groupOpCodes.clear();
+                break;
+
+            case HeaderKind::Master:
+                masterOpCodes = i.OpCodes;
+                groupOpCodes.clear();
                 break;
 
             case HeaderKind::Group:
@@ -1664,9 +1755,10 @@ private:
                 newSection.HeaderLocation = i.HeaderLocation;
                 auto& opCodes = newSection.OpCodes;
                 opCodes.clear();
-                opCodes.reserve(controlOpCodes.size() + globalOpCodes.size() + groupOpCodes.size() + i.OpCodes.size());
+                opCodes.reserve(controlOpCodes.size() + globalOpCodes.size() + masterOpCodes.size() + groupOpCodes.size() + i.OpCodes.size());
                 opCodes.insert(opCodes.end(), controlOpCodes.begin(), controlOpCodes.end());
                 opCodes.insert(opCodes.end(), globalOpCodes.begin(), globalOpCodes.end());
+                opCodes.insert(opCodes.end(), masterOpCodes.begin(), masterOpCodes.end());
                 opCodes.insert(opCodes.end(), groupOpCodes.begin(), groupOpCodes.end());
                 opCodes.insert(opCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
                 break;

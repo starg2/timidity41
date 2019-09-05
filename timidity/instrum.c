@@ -940,6 +940,28 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 				}
 			}
 	}
+	if (tone->seq_length > 0)
+		for (i = 0; i < ip->samples; i++) {
+			ip->sample[i].seq_length = tone->seq_length;
+		}
+	if (tone->seq_position > 0)
+		for (i = 0; i < ip->samples; i++) {
+			ip->sample[i].seq_position = tone->seq_position;
+		}
+	//if (tone->lorand >= 0 || tone->hirand >= 0)
+	//	for (i = 0; i < ip->samples; i++) {
+	//		sp = &ip->sample[i];
+	//		if (sp->enable_rand) {
+	//			if (tone->lorand >= 0 && sp->lorand < tone->lorand)
+	//				sp->lorand = tone->lorand;
+	//			if (tone->hirand >= 0 && tone->hirand < sp->hirand)
+	//				sp->hirand = tone->hirand;
+	//		} else {
+	//			sp->enable_rand = 1;
+	//			sp->lorand = (tone->lorand >= 0 ? tone->lorand : 0);
+	//			sp->hirand = (tone->hirand >= 0 ? tone->hirand : 1);
+	//		}
+	//	}
 }
 
 #define READ_CHAR(thing) { \
@@ -2458,6 +2480,10 @@ static void init_tone_bank_element(ToneBankElement *tone)
 	tone->sample_pan = -1;
 	tone->sample_width = -1;
 	tone->vfxe_num = 0;
+	tone->seq_length = 0;
+	tone->seq_position = 0;
+	//tone->lorand = -1;
+	//tone->hirand = -1;
 }
 
 ///r
