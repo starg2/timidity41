@@ -816,11 +816,13 @@ enum class OpCodeKind
     AmpVelTrack,
     DefaultPath,
     HiKey,
+    HiRand,
     HiVelocity,
     LoKey,
     LoopEnd,
     LoopMode,
     LoopStart,
+    LoRand,
     LoVelocity,
     Offset,
     Key,
@@ -985,9 +987,11 @@ public:
                         case OpCodeKind::AmpEG_Sustain:
                         case OpCodeKind::AmpKeyTrack:
                         case OpCodeKind::AmpVelTrack:
+                        case OpCodeKind::HiRand:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
                         case OpCodeKind::LoopStart:
+                        case OpCodeKind::LoRand:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
@@ -1129,12 +1133,14 @@ private:
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"default_path"sv, OpCodeKind::DefaultPath},
             {"hikey"sv, OpCodeKind::HiKey},
+            {"hirand"sv, OpCodeKind::HiRand},
             {"hivel"sv, OpCodeKind::HiVelocity},
             {"key"sv, OpCodeKind::Key},
             {"lokey"sv, OpCodeKind::LoKey},
             {"loop_end"sv, OpCodeKind::LoopEnd},
             {"loop_mode"sv, OpCodeKind::LoopMode},
             {"loop_start"sv, OpCodeKind::LoopStart},
+            {"lorand"sv, OpCodeKind::LoRand},
             {"lovel"sv, OpCodeKind::LoVelocity},
             {"offset"sv, OpCodeKind::Offset},
             {"pan"sv, OpCodeKind::Pan},
@@ -1658,6 +1664,19 @@ private:
                         std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
                         loc.Line
                     );
+                }
+
+                if (auto loRand = flatSection.GetAs<double>(OpCodeKind::LoRand))
+                {
+                    s.enable_rand = 1;
+                    s.lorand = std::clamp(loRand.value(), 0.0, 1.0);
+                    s.hirand = std::clamp(flatSection.GetAs<double>(OpCodeKind::HiRand).value_or(1.0), 0.0, 1.0);
+                }
+                else if (auto hiRand = flatSection.GetAs<double>(OpCodeKind::HiRand))
+                {
+                    s.enable_rand = 1;
+                    s.lorand = 0.0;
+                    s.hirand = std::clamp(hiRand.value(), 0.0, 1.0);
                 }
             }
 

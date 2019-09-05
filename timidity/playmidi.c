@@ -66,6 +66,7 @@
 #include "resample.h"
 #include "thread.h"
 #include "sndfontini.h"
+#include "mt19937ar.h"
 
 extern int convert_mod_to_midi_file(MidiEvent * ev);
 
@@ -3367,9 +3368,22 @@ static int select_play_sample(Sample *splist,
 サンプル指定は ノーナンバー,ベロシティ が各レンジ内にあるもの全て
 次に指定のサンプル設定(scale_factor)を元に再生周波数を指定
 */
+	int rand_calculated = 0;
+	FLOAT_T rand_val;
+
 	for (i = 0, sp = splist; i < nsp; i++, sp++) {
 		if (((sp->low_key <= *note && sp->high_key >= *note))
 			&& sp->low_vel <= vel && sp->high_vel >= vel) {	
+
+			if (sp->enable_rand) {
+				if (!rand_calculated) {
+					rand_val = genrand_real2();
+					rand_calculated = 1;
+				}
+
+				if (rand_val < sp->lorand || sp->hirand <= rand_val)
+					continue;
+			}
 
 			if (sp->seq_length > 0) {
 				int32 seq_count = channel[ch].seq_counters[elm][i];

@@ -81,6 +81,9 @@ typedef struct _Sample {
 
   int32 seq_length;	/* length of the round robin, 0 == disabled */
   int32 seq_position;	/* 1-based position within the round robin, 0 == disabled */
+  int8 enable_rand;
+  FLOAT_T lorand;
+  FLOAT_T hirand;
 } Sample;
 
 ///r
@@ -208,6 +211,8 @@ typedef struct {
 	int sample_pan, sample_width;
 	int32 seq_length;
 	int32 seq_position;
+	FLOAT_T lorand;
+	FLOAT_T hirand;
 } ToneBankElement;
 
 #define MAGIC_ERROR_INSTRUMENT ((Instrument *)(-1))
