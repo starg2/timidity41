@@ -940,6 +940,14 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 				}
 			}
 	}
+	if (tone->seq_length > 0)
+		for (i = 0; i < ip->samples; i++) {
+			ip->sample[i].seq_length = tone->seq_length;
+		}
+	if (tone->seq_position > 0)
+		for (i = 0; i < ip->samples; i++) {
+			ip->sample[i].seq_position = tone->seq_position;
+		}
 }
 
 #define READ_CHAR(thing) { \
@@ -2458,6 +2466,8 @@ static void init_tone_bank_element(ToneBankElement *tone)
 	tone->sample_pan = -1;
 	tone->sample_width = -1;
 	tone->vfxe_num = 0;
+	tone->seq_length = 0;
+	tone->seq_position = 0;
 }
 
 ///r

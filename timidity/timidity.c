@@ -1705,6 +1705,10 @@ static int set_gus_patchconf_opts(const char *name,
 		tone->rx_note_off = atoi(cp);
 	else if (! strcmp(opts, "lpf"))		/* lpf type */
 		tone->lpf_type = atoi(cp);
+	else if (! strcmp(opts, "seqlen"))
+		tone->seq_length = atoi(cp);
+	else if (! strcmp(opts, "seqpos"))
+		tone->seq_position = atoi(cp);
 	else if (! strcmp(opts, "hpf")){		/* hpf */
 		if(tone->hpfnum)
 			free_ptr_list(tone->hpf, tone->hpfnum);

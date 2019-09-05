@@ -827,6 +827,8 @@ enum class OpCodeKind
     Pan,
     PitchKeyCenter,
     Sample,
+    SequenceLength,
+    SequencePosition,
     Transpose,
     Trigger,
     Tune,
@@ -989,6 +991,8 @@ public:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
+                        case OpCodeKind::SequenceLength:
+                        case OpCodeKind::SequencePosition:
                         case OpCodeKind::Transpose:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
@@ -1136,6 +1140,8 @@ private:
             {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"sample"sv, OpCodeKind::Sample},
+            {"seq_length"sv, OpCodeKind::SequenceLength},
+            {"seq_position"sv, OpCodeKind::SequencePosition},
             {"transpose"sv, OpCodeKind::Transpose},
             {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
@@ -1608,6 +1614,50 @@ private:
                 {
                     // convert percent to rate
                     std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0);
+                }
+
+                if (auto seqLen = flatSection.GetAs<double>(OpCodeKind::SequenceLength))
+                {
+                    s.seq_length = std::clamp(static_cast<int32>(std::round(seqLen.value())), 1, 100);
+
+                    if (auto seqPos = flatSection.GetAs<double>(OpCodeKind::SequencePosition))
+                    {
+                        s.seq_position = std::clamp(static_cast<int32>(std::round(seqPos.value())), 1, 100);
+
+                        if (s.seq_length < s.seq_position)
+                        {
+                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
+                            ctl->cmsg(
+                                CMSG_WARNING,
+                                VERB_VERBOSE,
+                                "%s(%u): 'seq_position' is larger than 'seq_length'; this region will never be played",
+                                std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                loc.Line
+                            );
+                        }
+                    }
+                    else
+                    {
+                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequenceLength);
+                        ctl->cmsg(
+                            CMSG_WARNING,
+                            VERB_VERBOSE,
+                            "%s(%u): 'seq_length' was specified but 'seq_position' was not; this region will never be played",
+                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                            loc.Line
+                        );
+                    }
+                }
+                else if (auto seqPos = flatSection.GetAs<double>(OpCodeKind::SequencePosition))
+                {
+                    auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
+                    ctl->cmsg(
+                        CMSG_WARNING,
+                        VERB_VERBOSE,
+                        "%s(%u): 'seq_position' was specified but 'seq_length' was not",
+                        std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                        loc.Line
+                    );
                 }
             }
 

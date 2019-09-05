@@ -377,7 +377,7 @@ static double compensation_ratio = 1.0; /* compensation ratio */
 static int32 compute_skip_count = -1; // def use do_compute_data_midi()
 
 static int find_samples(MidiEvent *, int *);
-static int select_play_sample(Sample *, int, int *, int *, MidiEvent *, int);
+static int select_play_sample(Sample *, int, int *, int *, MidiEvent *, int, int);
 static double get_play_note_ratio(int, int);
 static int find_voice(MidiEvent *);
 static void finish_note(int i);
@@ -719,6 +719,14 @@ void free_playmidi(void)
 		}
 	}
 #endif
+
+	for(i = 0; i < MAX_CHANNELS; i++){
+		for (int j = 0; j < MAX_ELEMENT; j++) {
+			safe_free(channel[i].seq_counters[j]);
+			channel[i].seq_counters[j] = NULL;
+			channel[i].seq_num_counters[j] = 0;
+		}
+	}
 	
 #ifdef VOICE_EFFECT
 	if (!voice)
@@ -1243,6 +1251,11 @@ static void initialize_controllers(int c)
 	memset(channel[c].reverb_part_param, 0, sizeof(channel[c].reverb_part_param));
 	channel[c].reverb_part_efx_level = 100;
 	
+	for (int i = 0; i < MAX_ELEMENT; i++) {
+		safe_free(channel[c].seq_counters[i]);
+		channel[c].seq_counters[i] = NULL;
+		channel[c].seq_num_counters[i] = 0;
+	}
 }
 
 /* Process the Reset All Controllers event CC#121 */
@@ -3138,7 +3151,7 @@ static int find_samples(MidiEvent *e, int *vlist)
 		}
 		note = e->a + channel[ch].key_shift + note_key_offset;
 		note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
-		return select_play_sample(s->sample, s->samples, &note, vlist, e, nv);
+		return select_play_sample(s->sample, s->samples, &note, vlist, e, nv, 0);
 	}
 	bank = channel[ch].bank;
 	if (ISDRUMCHANNEL(ch)) {
@@ -3164,7 +3177,7 @@ static int find_samples(MidiEvent *e, int *vlist)
 			if (ip->sample->note_to_use)
 				note = ip->sample->note_to_use;
 			nvo = nv;
-			nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv);
+			nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv, elm);
 			nvt += nv;
 			/* Replace the sample if the sample is cached. */
 			if (! prescanning_flag) {
@@ -3189,7 +3202,7 @@ static int find_samples(MidiEvent *e, int *vlist)
 		ip = default_instrument;
 		note = ((ip->sample->note_to_use) ? ip->sample->note_to_use : e->a) + channel[ch].key_shift + note_key_offset;
 		note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
-		nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv);
+		nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv, 0);
 		nvt += nv;
 	} else {
 		instrument_map(channel[ch].mapID, &bank, &prog);
@@ -3206,7 +3219,7 @@ static int find_samples(MidiEvent *e, int *vlist)
 			note = ((ip->sample->note_to_use) ? ip->sample->note_to_use : e->a) + channel[ch].key_shift + note_key_offset;
 			note = (note < 0) ? 0 : ((note > 127) ? 127 : note);
 			nvo = nv;
-			nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv);
+			nv = select_play_sample(ip->sample, ip->samples, &note, vlist, e, nv, elm);
 			nvt += nv;
 			/* Replace the sample if the sample is cached. */
 			if (! prescanning_flag) {
@@ -3257,7 +3270,7 @@ elm_max : 未定義バンクの場合,代替先バンクのelement_numが必要なのでplay_midi_load
 }
 ///r
 static int select_play_sample(Sample *splist,
-		int nsp, int *note, int *vlist, MidiEvent *e, int nv)
+		int nsp, int *note, int *vlist, MidiEvent *e, int nv, int elm)
 {
 	int ch = e->channel, kn = e->a & 0x7f, vel = e->b;
 	int32 f, fs, ft, fst, fc, fr, cdiff, diff, sample_link;
@@ -3340,6 +3353,15 @@ static int select_play_sample(Sample *splist,
 		vel = rvel;
 	}
 #endif
+
+	// allocate round robin counters
+	if (channel[ch].seq_num_counters[elm] == 0) {
+		channel[ch].seq_num_counters[elm] = nsp;
+		channel[ch].seq_counters[elm] = (int32 *)safe_malloc(sizeof(int32) * nsp);
+		for (int i = 0; i < nsp; i++)
+			channel[ch].seq_counters[elm][i] = 1;
+	}
+
 #if 1
 /*
 サンプル指定は ノーナンバー,ベロシティ が各レンジ内にあるもの全て
@@ -3348,6 +3370,18 @@ static int select_play_sample(Sample *splist,
 	for (i = 0, sp = splist; i < nsp; i++, sp++) {
 		if (((sp->low_key <= *note && sp->high_key >= *note))
 			&& sp->low_vel <= vel && sp->high_vel >= vel) {	
+
+			if (sp->seq_length > 0) {
+				int32 seq_count = channel[ch].seq_counters[elm][i];
+				channel[ch].seq_counters[elm][i]++;
+
+				if (channel[ch].seq_counters[elm][i] > sp->seq_length)
+					channel[ch].seq_counters[elm][i] = 1;
+
+				if (seq_count != sp->seq_position)
+					continue;
+			}
+
 			/* GUS/SF2 - Scale Tuning */
 			if ((sf = sp->scale_factor) != 1024) {
 				sn = sp->scale_freq;
@@ -5855,6 +5889,13 @@ void midi_program_change(int ch, int prog)
 		newbank = channel[ch].bank_msb;
 		break;
 	}
+
+	for (int i = 0; i < MAX_ELEMENT; i++) {
+		safe_free(channel[ch].seq_counters[i]);
+		channel[ch].seq_counters[i] = NULL;
+		channel[ch].seq_num_counters[i] = 0;
+	}
+
 	if (dr) {
 		channel[ch].bank = prog;	// newbank is ignored
 		channel[ch].program = prog;

@@ -1496,6 +1496,9 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 		sample->modenv_rate[4] = convert_envelope_rate(64);
 		sample->modenv_offset[5] = 0;
 		sample->modenv_rate[5] = convert_envelope_rate(64);
+
+		sample->seq_length = 0;
+		sample->seq_position = 0;
 	}
 	if (samples <= 6 && (panning = gen_pan_list[samples - 1]) != NULL)
 	{
