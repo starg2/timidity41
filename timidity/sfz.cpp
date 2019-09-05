@@ -695,8 +695,19 @@ public:
 
                     continue;
                 }
-                else if (Word(curView, "#include"))
+                else if (auto defView = curView; Word(curView, "#include"))
                 {
+                    m_IncludeCount++;
+
+                    if (m_IncludeCount > 10000)
+                    {
+                        throw ParserException(
+                            m_FileNames[curView.GetLocationInfo().FileID],
+                            curView.GetLocationInfo().Line,
+                            "too many #include directives (possible recursion?)"
+                        );
+                    }
+
                     DoSkips(curView);
 
                     TextBuffer::View pathView;
@@ -800,6 +811,7 @@ private:
     std::stack<InputStackItem, std::vector<InputStackItem>> m_InputStack;
     TextBuffer m_OutBuffer;
     std::unordered_map<std::string, TextBuffer::View> m_DefinedMacros;
+    std::int32_t m_IncludeCount = 0;
 };
 
 enum class OpCodeKind
