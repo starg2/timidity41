@@ -864,6 +864,7 @@ enum class HeaderKind
 {
     Control,
     Global,
+    Master,
     Group,
     Region
 };
@@ -1086,6 +1087,7 @@ private:
             {"control"sv, HeaderKind::Control},
             {"global"sv, HeaderKind::Global},
             {"group"sv, HeaderKind::Group},
+            {"master"sv, HeaderKind::Master},
             {"region"sv, HeaderKind::Region}
         };
 
@@ -1709,6 +1711,7 @@ private:
         std::vector<Section> flatSections;
         std::vector<OpCodeAndValue> controlOpCodes;
         std::vector<OpCodeAndValue> globalOpCodes;
+        std::vector<OpCodeAndValue> masterOpCodes;
         std::vector<OpCodeAndValue> groupOpCodes;
 
         for (auto&& i : sections)
@@ -1721,6 +1724,13 @@ private:
 
             case HeaderKind::Global:
                 globalOpCodes = i.OpCodes;
+                masterOpCodes.clear();
+                groupOpCodes.clear();
+                break;
+
+            case HeaderKind::Master:
+                masterOpCodes = i.OpCodes;
+                groupOpCodes.clear();
                 break;
 
             case HeaderKind::Group:
@@ -1733,9 +1743,10 @@ private:
                 newSection.HeaderLocation = i.HeaderLocation;
                 auto& opCodes = newSection.OpCodes;
                 opCodes.clear();
-                opCodes.reserve(controlOpCodes.size() + globalOpCodes.size() + groupOpCodes.size() + i.OpCodes.size());
+                opCodes.reserve(controlOpCodes.size() + globalOpCodes.size() + masterOpCodes.size() + groupOpCodes.size() + i.OpCodes.size());
                 opCodes.insert(opCodes.end(), controlOpCodes.begin(), controlOpCodes.end());
                 opCodes.insert(opCodes.end(), globalOpCodes.begin(), globalOpCodes.end());
+                opCodes.insert(opCodes.end(), masterOpCodes.begin(), masterOpCodes.end());
                 opCodes.insert(opCodes.end(), groupOpCodes.begin(), groupOpCodes.end());
                 opCodes.insert(opCodes.end(), i.OpCodes.begin(), i.OpCodes.end());
                 break;
