@@ -211,8 +211,8 @@ typedef struct {
 	int sample_pan, sample_width;
 	int32 seq_length;
 	int32 seq_position;
-	FLOAT_T lorand;
-	FLOAT_T hirand;
+	//FLOAT_T lorand;
+	//FLOAT_T hirand;
 } ToneBankElement;
 
 #define MAGIC_ERROR_INSTRUMENT ((Instrument *)(-1))
