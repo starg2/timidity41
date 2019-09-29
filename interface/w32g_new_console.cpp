@@ -459,6 +459,8 @@ public:
     {
         auto lock = m_Lock.LockUnique();
         m_Buffer.Clear();
+        m_SelStart.reset();
+        m_SelEnd.reset();
     }
 
     void Write(LPCTSTR pText)
