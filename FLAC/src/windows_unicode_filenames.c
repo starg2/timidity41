@@ -34,6 +34,7 @@
 #endif
 
 #include <io.h>
+#include <stdlib.h>
 #include <windows.h>
 #include "share/windows_unicode_filenames.h"
 
