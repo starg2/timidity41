@@ -13,6 +13,7 @@
 
 DWORD pdc_last_blink;
 static bool blinked_off = FALSE;
+static bool in_italic = FALSE;
 
 /* position hardware cursor at (y, x) */
 
@@ -33,11 +34,12 @@ void _set_ansi_color(short f, short b, attr_t attr)
 {
     char esc[64], *p;
     short tmp, underline;
+    bool italic;
 
-    if (f < 16)
+    if (f < 16 && !pdc_color[f].mapped)
         f = pdc_curstoansi[f];
 
-    if (b < 16)
+    if (b < 16 && !pdc_color[b].mapped)
         b = pdc_curstoansi[b];
 
     if (attr & A_REVERSE)
@@ -46,18 +48,28 @@ void _set_ansi_color(short f, short b, attr_t attr)
         f = b;
         b = tmp;
     }
+    attr &= SP->termattrs;
+    italic = !!(attr & A_ITALIC);
     underline = !!(attr & A_UNDERLINE);
 
     p = esc + sprintf(esc, "\x1b[");
 
     if (f != pdc_oldf)
     {
-        if (f < 8)
+        if (f < 8 && !pdc_color[f].mapped)
             p += sprintf(p, "%d", f + 30);
-        else if (f < 16)
+        else if (f < 16 && !pdc_color[f].mapped)
             p += sprintf(p, "%d", f + 82);
-        else
+        else if (f < 256 && !pdc_color[f].mapped)
             p += sprintf(p, "38;5;%d", f);
+        else
+        {
+            short red = DIVROUND(pdc_color[f].r * 255, 1000);
+            short green = DIVROUND(pdc_color[f].g * 255, 1000);
+            short blue = DIVROUND(pdc_color[f].b * 255, 1000);
+
+            p += sprintf(p, "38;2;%d;%d;%d", red, green, blue);
+        }
 
         pdc_oldf = f;
     }
@@ -67,14 +79,35 @@ void _set_ansi_color(short f, short b, attr_t attr)
         if (strlen(esc) > 2)
             p += sprintf(p, ";");
 
-        if (b < 8)
+        if (b < 8 && !pdc_color[b].mapped)
             p += sprintf(p, "%d", b + 40);
-        else if (b < 16)
+        else if (b < 16 && !pdc_color[b].mapped)
             p += sprintf(p, "%d", b + 92);
-        else
+        else if (b < 256 && !pdc_color[b].mapped)
             p += sprintf(p, "48;5;%d", b);
+        else
+        {
+            short red = DIVROUND(pdc_color[b].r * 255, 1000);
+            short green = DIVROUND(pdc_color[b].g * 255, 1000);
+            short blue = DIVROUND(pdc_color[b].b * 255, 1000);
+
+            p += sprintf(p, "48;2;%d;%d;%d", red, green, blue);
+        }
 
         pdc_oldb = b;
+    }
+
+    if (italic != in_italic)
+    {
+        if (strlen(esc) > 2)
+            p += sprintf(p, ";");
+
+        if (italic)
+            p += sprintf(p, "3");
+        else
+            p += sprintf(p, "23");
+
+        in_italic = italic;
     }
 
     if (underline != pdc_oldu)
@@ -109,8 +142,7 @@ void _new_packet(attr_t attr, int lineno, int x, int len, const chtype *srcp)
     short fore, back;
     bool blink, ansi;
 
-    if (pdc_conemu && pdc_ansi &&
-        (lineno == (SP->lines - 1)) && ((x + len) == SP->cols))
+    if (pdc_ansi && (lineno == (SP->lines - 1)) && ((x + len) == SP->cols))
     {
         len--;
         if (len)

@@ -13,6 +13,10 @@
 # define _CRT_SECURE_NO_DEPRECATE 1   /* kill nonsense warnings */
 #endif
 
+typedef struct {short r, g, b; bool mapped;} PDCCOLOR;
+
+extern PDCCOLOR pdc_color[PDC_MAXCOL];
+
 extern HANDLE pdc_con_out, pdc_con_in;
 extern DWORD pdc_quick_edit;
 extern DWORD pdc_last_blink;

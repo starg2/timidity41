@@ -44,6 +44,11 @@ attr
 
     chtype getattrs(WINDOW *win);
 
+    int underend(void);
+    int wunderend(WINDOW *win);
+    int underscore(void);
+    int wunderscore(WINDOW *win);
+
 ### Description
 
    These functions manipulate the current attributes and/or colors of
@@ -83,12 +88,15 @@ attr
    change to the edge of the window. The changes take effect
    immediately. opts is unused.
 
+   wunderscore() turns on the A_UNDERLINE attribute; wunderend() turns
+   it off. underscore() and underend() are the stdscr versions.
+
 ### Return Value
 
    All functions return OK on success and ERR on error.
 
 ### Portability
-                             X/Open    BSD    SYS V
+                             X/Open  ncurses  NetBSD
     attroff                     Y       Y       Y
     wattroff                    Y       Y       Y
     attron                      Y       Y       Y
@@ -99,21 +107,25 @@ attr
     wstandend                   Y       Y       Y
     standout                    Y       Y       Y
     wstandout                   Y       Y       Y
-    color_set                   Y
-    wcolor_set                  Y
-    attr_get                    Y
-    wattr_get                   Y
-    attr_on                     Y
-    wattr_on                    Y
-    attr_off                    Y
-    wattr_off                   Y
-    attr_set                    Y
-    wattr_set                   Y
-    chgat                       Y
-    wchgat                      Y
-    mvchgat                     Y
-    mvwchgat                    Y
-    getattrs                    -
+    color_set                   Y       Y       Y
+    wcolor_set                  Y       Y       Y
+    attr_get                    Y       Y       Y
+    wattr_get                   Y       Y       Y
+    attr_on                     Y       Y       Y
+    wattr_on                    Y       Y       Y
+    attr_off                    Y       Y       Y
+    wattr_off                   Y       Y       Y
+    attr_set                    Y       Y       Y
+    wattr_set                   Y       Y       Y
+    chgat                       Y       Y       Y
+    wchgat                      Y       Y       Y
+    mvchgat                     Y       Y       Y
+    mvwchgat                    Y       Y       Y
+    getattrs                    -       Y       Y
+    underend                    -       -       Y
+    wunderend                   -       -       Y
+    underscore                  -       -       Y
+    wunderscore                 -       -       Y
 
 **man-end****************************************************************/
 
@@ -366,4 +378,32 @@ int mvwchgat(WINDOW *win, int y, int x, int n, attr_t attr, short color,
         return ERR;
 
     return wchgat(win, n, attr, color, opts);
+}
+
+int underend(void)
+{
+    PDC_LOG(("underend() - called\n"));
+
+    return wattroff(stdscr, A_UNDERLINE);
+}
+
+int wunderend(WINDOW *win)
+{
+    PDC_LOG(("wunderend() - called\n"));
+
+    return wattroff(win, A_UNDERLINE);
+}
+
+int underscore(void)
+{
+    PDC_LOG(("underscore() - called\n"));
+
+    return wattron(stdscr, A_UNDERLINE);
+}
+
+int wunderscore(WINDOW *win)
+{
+    PDC_LOG(("wunderscore() - called\n"));
+
+    return wattron(win, A_UNDERLINE);
 }
