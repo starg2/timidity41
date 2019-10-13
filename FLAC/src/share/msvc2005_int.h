@@ -1,5 +1,5 @@
 /* libFLAC - Free Lossless Audio Codec library
- * Copyright (C) 2012-2016  Xiph.org Foundation
+ * Copyright (C) 2017  Xiph.org Foundation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,44 +29,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef FLAC__PRIVATE__MACROS_H
-#define FLAC__PRIVATE__MACROS_H
+/* This header file defines integer [u]intNN_t types.
+ * It is auto-included in all files via "Force Includes" (/FI)
+ * option in all *.vcproj files (Visual Studio 2005, 2008)
+ */
 
-#if defined(__GNUC__) && (__GNUC__ > 4 || ( __GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+#ifndef FLAC__SHARE__MSVC2005_INT_H
+#define FLAC__SHARE__MSVC2005_INT_H
 
-#define flac_max(a,b) \
-	({ __typeof__ (a) _a = (a); \
-	__typeof__ (b) _b = (b); \
-	_a > _b ? _a : _b; })
+#if defined _MSC_VER && _MSC_VER < 1600
 
-#define MIN_PASTE(A,B) A##B
-#define MIN_IMPL(A,B,L) ({ \
-	__typeof__(A) MIN_PASTE(__a,L) = (A); \
-	__typeof__(B) MIN_PASTE(__b,L) = (B); \
-	MIN_PASTE(__a,L) < MIN_PASTE(__b,L) ? MIN_PASTE(__a,L) : MIN_PASTE(__b,L); \
-	})
-
-#define flac_min(A,B) MIN_IMPL(A,B,__COUNTER__)
-
-/* Whatever other unix that has sys/param.h */
-#elif defined(HAVE_SYS_PARAM_H)
-#include <sys/param.h>
-#define flac_max(a,b) MAX(a,b)
-#define flac_min(a,b) MIN(a,b)
-
-/* Windows VS has them in stdlib.h.. XXX:Untested */
-#elif defined(_MSC_VER)
-#include <stdlib.h>
-#define flac_max(a,b) __max(a,b)
-#define flac_min(a,b) __min(a,b)
-#endif
-
-#ifndef flac_min
-#define flac_min(x,y)	((x) <= (y) ? (x) : (y))
-#endif
-
-#ifndef flac_max
-#define flac_max(x,y)	((x) >= (y) ? (x) : (y))
-#endif
+typedef signed __int8 int8_t;
+typedef signed __int16 int16_t;
+typedef signed __int32 int32_t;
+typedef signed __int64 int64_t;
+typedef unsigned __int8 uint8_t;
+typedef unsigned __int16 uint16_t;
+typedef unsigned __int32 uint32_t;
+typedef unsigned __int64 uint64_t;
 
 #endif
+
+#endif /* FLAC__SHARE__MSVC2005_INT_H */
