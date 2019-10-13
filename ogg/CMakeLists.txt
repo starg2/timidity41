@@ -8,5 +8,7 @@ add_library(
     src/bitwise.c
     src/framing.c
 
+    src/crctable.h
+
     win32/ogg.def
 )

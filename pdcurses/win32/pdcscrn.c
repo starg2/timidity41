@@ -8,6 +8,10 @@
 
 static struct {short f, b;} atrtab[PDC_COLOR_PAIRS];
 
+/* Color component table */
+
+PDCCOLOR pdc_color[PDC_MAXCOL];
+
 HANDLE std_con_out = INVALID_HANDLE_VALUE;
 HANDLE pdc_con_out = INVALID_HANDLE_VALUE;
 HANDLE pdc_con_in = INVALID_HANDLE_VALUE;
@@ -430,6 +434,8 @@ int PDC_scr_open(int argc, char **argv)
     SP->audible = TRUE;
 
     SP->termattrs = A_COLOR | A_REVERSE;
+    if (pdc_ansi)
+        SP->termattrs |= A_UNDERLINE | A_ITALIC;
 
     if (SP->lines < 2 || SP->lines > csbi.dwMaximumWindowSize.Y)
     {
@@ -628,7 +634,7 @@ void PDC_reset_shell_mode(void)
         SetConsoleActiveScreenBuffer(pdc_con_out);
     }
 
-    SetConsoleMode(pdc_con_in, old_console_mode);
+    SetConsoleMode(pdc_con_in, old_console_mode | 0x0080);
 }
 
 void PDC_restore_screen_mode(int i)
@@ -655,12 +661,12 @@ int PDC_pair_content(short pair, short *fg, short *bg)
 
 bool PDC_can_change_color(void)
 {
-    return is_nt && !pdc_conemu;
+    return is_nt;
 }
 
 int PDC_color_content(short color, short *red, short *green, short *blue)
 {
-    if (color < 16)
+    if (color < 16 && !pdc_conemu)
     {
         COLORREF *color_table = _get_colors();
 
@@ -671,17 +677,35 @@ int PDC_color_content(short color, short *red, short *green, short *blue)
             *red = DIVROUND(GetRValue(col) * 1000, 255);
             *green = DIVROUND(GetGValue(col) * 1000, 255);
             *blue = DIVROUND(GetBValue(col) * 1000, 255);
-
-            return OK;
         }
+        else
+            return ERR;
+    }
+    else
+    {
+        if (!pdc_color[color].mapped)
+        {
+            *red = *green = *blue = -1;
+            return ERR;
+        }
+
+        *red = pdc_color[color].r;
+        *green = pdc_color[color].g;
+        *blue = pdc_color[color].b;
     }
 
-    return ERR;
+    return OK;
 }
 
 int PDC_init_color(short color, short red, short green, short blue)
 {
-    if (color < 16)
+    if (red == -1 && green == -1 && blue == -1)
+    {
+        pdc_color[color].mapped = FALSE;
+        return OK;
+    }
+
+    if (color < 16 && !pdc_conemu)
     {
         COLORREF *color_table = _get_colors();
 
@@ -694,7 +718,16 @@ int PDC_init_color(short color, short red, short green, short blue)
 
             return _set_colors();
         }
+
+        return ERR;
+    }
+    else
+    {
+        pdc_color[color].r = red;
+        pdc_color[color].g = green;
+        pdc_color[color].b = blue;
+        pdc_color[color].mapped = TRUE;
     }
 
-    return ERR;
+    return OK;
 }
