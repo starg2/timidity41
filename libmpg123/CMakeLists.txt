@@ -10,6 +10,7 @@ add_library(
     src/compat/compat_str.c
 
     src/libmpg123/dct64.c
+    src/libmpg123/dither.c
     src/libmpg123/equalizer.c
     src/libmpg123/feature.c
     src/libmpg123/format.c
@@ -18,9 +19,11 @@ add_library(
     src/libmpg123/icy2utf8.c
     src/libmpg123/id3.c
     src/libmpg123/index.c
+    # src/libmpg123/lfs_alias.c
     src/libmpg123/layer1.c
     src/libmpg123/layer2.c
     src/libmpg123/layer3.c
+    # src/libmpg123/lfs_wrap.c
     src/libmpg123/libmpg123.c
     src/libmpg123/ntom.c
     src/libmpg123/optimize.c
@@ -41,12 +44,16 @@ add_library(
     src/libmpg123/abi_align.h
     src/libmpg123/debug.h
     src/libmpg123/decode.h
+    src/libmpg123/dither.h
+    src/libmpg123/dither_impl.h
     src/libmpg123/fmt123.h
     src/libmpg123/frame.h
     src/libmpg123/gapless.h
     src/libmpg123/getbits.h
     src/libmpg123/getcpuflags.h
     src/libmpg123/huffman.h
+    src/libmpg123/l12_integer_tables.h
+    src/libmpg123/l3_integer_tables.h
     src/libmpg123/icy.h
     src/libmpg123/icy2utf8.h
     src/libmpg123/id3.h
