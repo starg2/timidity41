@@ -348,5 +348,4 @@ EXPORTS
     PDC_setclipboard
     PDC_get_input_fd
     PDC_get_key_modifiers
-    PDC_save_key_modifiers
     PDC_return_key_modifiers
