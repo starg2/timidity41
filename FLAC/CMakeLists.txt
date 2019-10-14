@@ -98,4 +98,12 @@ add_library(
     src/windows_unicode_filenames.c
 )
 
+if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND NOT TIM41_USE_AVX2)
+    set_source_files_properties(
+        src/lpc_intrin_avx2.c src/stream_encoder_intrin_avx2.c
+        PROPERTIES
+            COMPILE_OPTIONS /arch:AVX2
+    )
+endif()
+
 target_link_libraries(FLAC ogg)
