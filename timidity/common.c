@@ -516,10 +516,10 @@ struct timidity_file *open_file_r(const char *name, int decompress, int noise_mo
 	if (noise_mode)
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Trying to open %s",
 				current_filename);
-	stat(current_filename, &st);
-	if (!S_ISDIR(st.st_mode))
-		if ((tf = try_to_open(current_filename, decompress)))
-			return tf;
+	if (!stat(current_filename, &st))
+		if (!S_ISDIR(st.st_mode))
+			if ((tf = try_to_open(current_filename, decompress)))
+				return tf;
 #ifdef __MACOS__
 	if (errno) {
 #else
@@ -548,10 +548,10 @@ struct timidity_file *open_file_r(const char *name, int decompress, int noise_mo
 			if (noise_mode)
 				ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 						"Trying to open %s", current_filename);
-			stat(current_filename, &st);
-			if (!S_ISDIR(st.st_mode))
-				if ((tf = try_to_open(current_filename, decompress)))
-					 return tf;
+			if (!stat(current_filename, &st))
+				if (!S_ISDIR(st.st_mode))
+					if ((tf = try_to_open(current_filename, decompress)))
+						 return tf;
 #ifdef __MACOS__
 			if (errno) {
 #else
