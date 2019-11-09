@@ -1731,7 +1731,7 @@ void MainWndUpdateSoundSpecButton(void)
 #undef SUBWINDOW_POS_IS_OLD_CLOSED_WINDOW
 void ShowSubWindow(HWND hwnd,int showflag)
 {
-	int i, num;
+	int i, num = 0;
 	RECT rc;
 #ifdef SUBWINDOW_POS_IS_OLD_CLOSED_WINDOW
 	RECT rc2;

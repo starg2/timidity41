@@ -6,6 +6,11 @@ add_definitions(
 # calcnewton
 
 add_executable(calcnewton calcnewt.c)
+
+if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+    target_compile_options(calcnewton PRIVATE /Oi-)
+endif()
+
 add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c"
     COMMAND calcnewton "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c"

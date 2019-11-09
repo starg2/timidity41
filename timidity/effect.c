@@ -24505,7 +24505,7 @@ const int8 cab_type_xg[] = {0, 1, 2, 3, 3, 1, 1};
 
 static double ins_xg_revchar_to_roomsize(struct effect_xg_t *st)
 {
-	double rs;
+	double rs = 1.0;
 	switch(st->type_msb) {
 	case 0x01:
 		switch(st->type_lsb) {
@@ -24559,7 +24559,7 @@ static double ins_xg_revchar_to_roomsize(struct effect_xg_t *st)
 
 static double ins_xg_revchar_to_level(struct effect_xg_t *st)
 {
-	double level;
+	double level = 1.0;
 	switch(st->type_msb) {
 	case 0x01:
 		switch(st->type_lsb) {
@@ -24902,7 +24902,7 @@ static void conv_xg_reverb1(struct effect_xg_t *st, EffectList *ef)
 		rvb->rev_wet = ins_xg_revchar_to_level(st);
 		rvb->rev_width = initialwidth;
 	}else{ // StandardReverb
-		int type;
+		int type = 0;
 		if(st->connection == XG_CONN_SYSTEM_REVERB){
 			rvb0->mode = CH_STEREO;
 		}else{
@@ -33571,7 +33571,7 @@ static void conv_sd_reverb2(struct mfx_effect_sd_t *st, EffectList *ef)
 		rvb->rev_level = 0.55;
 		rvb->rev_dif = 1.0;
 	}else{ // StandardReverb
-		int type;
+		int type = 0;
 		info->rev_type = 0;
 		rvb3->mode = CH_STEREO;
 		switch(*reverb_status_sd.type) {

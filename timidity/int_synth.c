@@ -3607,6 +3607,7 @@ static void mms_editor_save_ini(int num)
 		}
 		// mode
 		snprintf(key, sizeof(key), "op_%d_mode", j);
+		flg = 0;
 		if(setting->op_mode[j][0] > 0){
 			memset(data, 0, sizeof(data));
 			for(i = 0; i < MMS_OP_MODE_MAX; i++){

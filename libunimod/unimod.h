@@ -43,7 +43,9 @@ extern "C"
  */
 
 #ifdef __W32__
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #if defined(__POCC__) && defined(RC_NONE)
 #undef RC_NONE
 #endif
