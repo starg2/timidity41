@@ -221,7 +221,7 @@ URL url_file_open(const char *fname)
     ptr_size_t mapsize;
     FILE *fp;			/* Non NULL if mmap is failure */
 #ifdef __W32__
-    HANDLE hFile, hMap;
+    HANDLE hFile = INVALID_HANDLE_VALUE, hMap = 0;
 #endif /* __W32__ */
 
 #ifdef DEBUG
