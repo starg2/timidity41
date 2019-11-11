@@ -8,8 +8,7 @@
 #define HAVE_STRDUP
 #define HAVE_STDLIB_H
 #define HAVE_STDINT_H
-//#define HAVE_INTTYPES_H
-#define HAVE_SYS_STAT_H
+#define HAVE_INTTYPES_H
 #define HAVE_STRING_H
 
 #ifdef _M_ARM
@@ -41,4 +40,3 @@
 
 /* use the unicode support within libmpg123 */
 #define WANT_WIN32_UNICODE
-
