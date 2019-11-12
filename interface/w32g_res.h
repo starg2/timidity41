@@ -14,11 +14,11 @@
 #define IDD_DIALOG_SIMPLE_LIST          110
 #define IDD_DIALOG_WRD                  111
 #define IDD_DIALOG_SOUNDSPEC_EN         112
-#define IDD_DIALOG_SOUNDSPEC            112
-#define IDD_DIALOG_WAVEFORM             113
-#define IDD_DIALOG_PLAYLIST_EN          114
-#define IDD_DIALOG_PLAYLIST             115
-#define IDD_DIALOG_SEARCHBOX            116
+#define IDD_DIALOG_SOUNDSPEC            113
+#define IDD_DIALOG_WAVEFORM             114
+#define IDD_DIALOG_PLAYLIST_EN          115
+#define IDD_DIALOG_PLAYLIST             116
+#define IDD_DIALOG_SEARCHBOX            117
 #define IDD_DIALOG_ONE_LINE_EN          118
 #define IDD_DIALOG_ONE_LINE             119
 #define IDD_DIALOG_PREF_EN              120
@@ -156,7 +156,7 @@
 //// player
 // cfg
 #define IDC_BUTTON_CONFIG_FILE         3000
-#define IDC_EDIT_CONFIG_FILE           3001
+#define IDC_COMBO_CONFIG_FILE          3001
 #define IDC_BUTTON_CFG_EDIT            3002
 #define IDC_BUTTON_CFG_RELOAD          3003
 // player
@@ -711,7 +711,9 @@
 #define IDC_CHECKBOX_PA_WASAPI_POLLING     8109
 #define IDC_COMBO_PA_WASAPI_PRIORITY       8110
 #define IDC_COMBO_PA_WASAPI_STREAM_CATEGORY  8115
-#define IDC_COMBO_PA_WASAPI_STREAM_OPTION  8120
+#define IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_RAW  8120
+#define IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_MATCH_FORMAT  8121
+#define IDC_CHECKBOX_PA_WASAPI_STREAM_OPTIONS_AMBISONICS  8122
 
 // lame
 #define IDC_LAME_CBPRESET				8200

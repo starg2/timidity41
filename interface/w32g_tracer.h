@@ -3,26 +3,27 @@
 ///r
 #define TRACER_CHANNELS MAX_CHANNELS
 typedef struct w32g_tracer_wnd_t_ {
-        HWND hwnd;
-        HWND hParentWnd;
-        HDC hdc;
-        HDC hmdc;
-        HGDIOBJ hgdiobj_hmdcprev;
-        HBITMAP hbitmap;
-        HFONT hFontCommon;
-        HFONT hFontHalf;
-        RECT rc;
-        int font_common_height;
-        int font_common_width;
-        int height;
-        int width;
-        int valid;
-        int active;
-        int updateall;
-        RECT rc_current_time;
-        RECT rc_tempo;
-        RECT rc_master_volume;  // マスターボリューム
-        RECT rc_maxvoices;
+	HWND hwnd;
+	HWND hParentWnd;
+	HWND hTool;
+	HDC hdc;
+	HDC hmdc;
+	HGDIOBJ hgdiobj_hmdcprev;
+	HBITMAP hbitmap;
+	HFONT hFontCommon;
+	HFONT hFontHalf;
+	RECT rc;
+	int font_common_height;
+	int font_common_width;
+	int height;
+	int width;
+	int valid;
+	int active;
+	int updateall;
+	RECT rc_current_time;
+	RECT rc_tempo;
+	RECT rc_master_volume;	// マスターボリューム
+	RECT rc_maxvoices;
 
         RECT rc_head;
         RECT rc_all_channels;           // すべてのチャンネル
@@ -90,6 +91,7 @@ typedef struct w32g_tracer_wnd_t_ {
 
 extern void TracerWndReset(void);
 extern void TracerWndClear(int lockflag);
+extern void TracerWndRecalcLayout(int lockflag);
 extern void TracerWndPaintAll(int lockflag);
 extern void TracerWndPaintDo(int flag);
 extern w32g_tracer_wnd_t w32g_tracer_wnd;

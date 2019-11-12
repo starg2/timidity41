@@ -2171,6 +2171,7 @@ int open_output(void)
 		hRenderThread = (HANDLE)_beginthreadex(NULL, 0, &render_thread, NULL, 0, NULL);
 		if(!hRenderThread)
 			goto error;
+		set_thread_description((ptr_size_t)hRenderThread, "WDMKS Render Thread");
 	}
 	if(!IsStarted){
 		int count = 20; // 200ms

@@ -77,7 +77,13 @@ typedef struct _Sample {
   int vfx[VOICE_EFFECT_NUM][VOICE_EFFECT_PARAM_NUM];
   int8 keep_voice;
   int8 def_pan;
-  FLOAT_T sample_pan; 
+  FLOAT_T sample_pan;
+
+  int32 seq_length;	/* length of the round robin, 0 == disabled */
+  int32 seq_position;	/* 1-based position within the round robin, 0 == disabled */
+  int8 enable_rand;
+  FLOAT_T lorand;
+  FLOAT_T hirand;
 } Sample;
 
 ///r
@@ -203,6 +209,10 @@ typedef struct {
 	int8 element_num;
 	int8 def_pan;
 	int sample_pan, sample_width;
+	int32 seq_length;
+	int32 seq_position;
+	//FLOAT_T lorand;
+	//FLOAT_T hirand;
 } ToneBankElement;
 
 #define MAGIC_ERROR_INSTRUMENT ((Instrument *)(-1))

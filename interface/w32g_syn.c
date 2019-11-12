@@ -104,6 +104,7 @@ typedef struct w32g_syn_t_ {
 static w32g_syn_t w32g_syn;
 
 // ŠeŽí•Ï” (^^;;;
+HWND hMainWnd = 0;
 HINSTANCE hInst = NULL;
 int PlayerLanguage = LANGUAGE_ENGLISH;
 int IniFileAutoSave = 1;
@@ -465,7 +466,7 @@ static int w32g_syn_main(void)
 	return 0;
 }
 
-static VOID CALLBACK forced_exit(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
+static VOID CALLBACK forced_exit(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	exit(0);
 }
@@ -1015,6 +1016,7 @@ static int start_syn_thread(void)
 				    NULL, 0, & w32g_syn.syn_dwThreadId);
 	if (!w32g_syn.syn_hThread)
 		return -1;
+	set_thread_description((ptr_size_t)w32g_syn.syn_hThread, "Syn Thread");
 	for (;;) {
 		if (syn_thread_started == 1)
 			break;
@@ -1815,7 +1817,7 @@ static void ConsoleWndVerbosityUpdate(void);
 static void ConsoleWndVerbosityApply(void);
 static void ConsoleWndValidUpdate(void);
 static void ConsoleWndValidApply(void);
-static void ConsoleWndVerbosityApplyIncDec(int num);
+static void ConsoleWndVerbosityApplySet(int num);
 static int ConsoleWndInfoReset(HWND hwnd);
 static int ConsoleWndInfoApply(void);
 
@@ -1849,7 +1851,7 @@ void InitConsoleWnd(HWND hParentWnd)
 	ShowWindow(hConsoleWnd, ConsoleWndStartFlag ? SW_SHOW : SW_HIDE);
 	UpdateWindow(hConsoleWnd);
 
-	ConsoleWndVerbosityApplyIncDec(0);
+	ConsoleWndVerbosityApply();
 	CheckDlgButton(hConsoleWnd, IDC_CHECKBOX_VALID, ConsoleWndFlag);
 	Edit_LimitText(GetDlgItem(hConsoleWnd, IDC_EDIT), ConsoleWndMaxSize);
 }
@@ -1878,10 +1880,18 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			ConsoleWndVerbosityApply();
 			break;
 		case IDC_BUTTON_INC:
-			ConsoleWndVerbosityApplyIncDec(1);
+			{
+				int n = (int)GetDlgItemInt(hwnd, IDC_EDIT_VERBOSITY, NULL, TRUE);
+				n++;
+				ConsoleWndVerbosityApplySet(n);
+			}
 			break;
 		case IDC_BUTTON_DEC:
-			ConsoleWndVerbosityApplyIncDec(-1);
+			{
+				int n = (int)GetDlgItemInt(hwnd, IDC_EDIT_VERBOSITY, NULL, TRUE);
+				n--;
+				ConsoleWndVerbosityApplySet(n);
+			}
 			break;
 		default:
 			break;
@@ -2092,10 +2102,10 @@ static void ConsoleWndVerbosityApply(void)
 	ConsoleWndVerbosityUpdate();
 }
 
-static void ConsoleWndVerbosityApplyIncDec(int num)
+static void ConsoleWndVerbosityApplySet(int num)
 {
 	if (!IsWindow(hConsoleWnd)) return;
-	ctl->verbosity += num;
+	ctl->verbosity = num;
 	RANGE(ctl->verbosity, -1, 4);
 	ConsoleWndVerbosityUpdate();
 }

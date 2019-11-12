@@ -1133,6 +1133,7 @@ static int CreateMPGEthread(void)
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "gogo_a : cannot create thread.");
 		return -1;
 	}
+	set_thread_description((ptr_size_t)hMPGEthread, "GOGO MPGE Thread");
 #endif
 	return 0;
 }

@@ -31,7 +31,6 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
-
 #include "interface.h"
 
 #ifdef IA_NPSYN
@@ -87,7 +86,6 @@ static double mim_start_time;
 
 static uint8 npipe_buffer[2 * PIPE_BUFFER_SIZE];
 static int npipe_len = 0;
-
 static void rtsyn_np_get_port_list(void);
 static int  rtsyn_np_synth_start(void);
 static void rtsyn_np_synth_stop(void);
@@ -191,9 +189,9 @@ static int rtsyn_np_buf_check(void)
 
 static int rtsyn_np_play_some_data(void)
 {
-    UINT wMsg;
-    DWORD dwParam1;
-    DWORD dwParam2;
+	UINT wMsg;
+	DWORD	dwParam1;
+	DWORD	dwParam2;
     FLOAT fParam2;
     MidiEvent ev;
     MidiEvent evm[260];
@@ -205,7 +203,7 @@ static int rtsyn_np_play_some_data(void)
     static DWORD pre_time;
     static DWORD timeoffset;
     double event_time;
-
+	
 //  rtsyn_play_one_data(0, 0x007f3c90, get_current_calender_time());
     if (0 != read_pipe_data()) return 0;
 
@@ -268,17 +266,17 @@ static int rtsyn_np_play_some_data(void)
 
 static void parse_ev(uint8 *buffer, int *len)
 {
-    UINT   wMsg;
-    UINT   port;
-    DWORD  dwParam1;
-    DWORD  dwParam2;
+	UINT wMsg;
+	UINT port;
+	DWORD	dwParam1;
+	DWORD	dwParam2;
     FLOAT  fParam2;
     int    exlen;
     uint8 *exbuffer = 0;
     uint8 *bp, *sp;
     UINT   evbpoint;
     RtsynNpEvBuf *npevbuf;
-
+	
 /*
     ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "buhihi %d ", *len);
     {
@@ -420,3 +418,4 @@ static void rtsyn_np_midiports_close(void)
 }
 
 #endif /* IA_NPSYN */
+

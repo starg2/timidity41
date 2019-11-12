@@ -1648,14 +1648,14 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
             const TCHAR *msg,
-                   msg_en[] = TEXT("Press the Reload button to apply instruments"),
-                   msg_jp[] = TEXT("音色情報は強制再読込ボタンを押すと反映されます");
+                   msg_en[] = TEXT("Config file was changed. Do you want to reload it?"),
+                   msg_jp[] = TEXT("Config ファイルが変更されました。再読み込みしますか?");
             switch (CurrentPlayerLanguage) {
             case LANGUAGE_ENGLISH: msg = msg_en; break;
             case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
             }
-            if (get_verbosity_level() >= VERB_NORMAL)
-                MessageBox(hMainWnd, msg, TEXT("TiMidity"), MB_OK | MB_ICONWARNING);
+            if (MessageBox(hMainWnd, msg, TEXT("TiMidity"), MB_YESNO | MB_ICONQUESTION) == IDYES)
+                reload_cfg();
         }
         safe_free(CurrentConfigFile);
         CurrentConfigFile = 0;
@@ -2041,14 +2041,14 @@ PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         if (strcmp(sp_temp->ConfigFile, CurrentConfigFile) != 0) {
             const TCHAR *msg,
-                   msg_en[] = TEXT("Press the Reload button to apply instruments"),
-                   msg_jp[] = TEXT("音色情報は強制再読込ボタンを押すと反映されます");
+                   msg_en[] = TEXT("Config file was changed. Do you want to reload it?"),
+                   msg_jp[] = TEXT("Config ファイルが変更されました。再読み込みしますか?");
             switch (CurrentPlayerLanguage) {
             case LANGUAGE_ENGLISH: msg = msg_en; break;
             case LANGUAGE_JAPANESE: default: msg = msg_jp; break;
             }
-            if (get_verbosity_level() >= VERB_NORMAL)
-                MessageBox(hwnd, msg, TEXT(""), MB_OK | MB_ICONWARNING);
+            if (MessageBox(hMainWnd, msg, TEXT("TiMidity"), MB_YESNO | MB_ICONQUESTION) == IDYES)
+                reload_cfg();
         }
         safe_free(CurrentConfigFile);
         CurrentConfigFile = 0;
@@ -4452,6 +4452,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		} else
 			SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputDirName);	
 		PostMessage(hwnd, WM_COMMAND, IDC_COMBO_OUTPUT_MODE, 0);	// force updating IDC_BUTTON_OUTPUT_FILE text
+		PostMessage(hwnd, WM_COMMAND, IDC_COMBO_OUTPUT, 0);
 #endif
 		opt = st_temp->opt_playmode + 1;	
 		if(strchr(opt, 'U')){
@@ -4791,6 +4792,24 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendDlgItemMessage(hwnd,IDC_RADIO_STEREO,BM_SETCHECK,1,0);
 				SendDlgItemMessage(hwnd,IDC_RADIO_MONO,BM_SETCHECK,0,0);
 		 }
+			break;
+		case IDC_COMBO_OUTPUT:
+			{
+				BOOL is_file_output, enable_path_setting;
+				int num = CB_GET(IDC_COMBO_OUTPUT);
+				if (num < 0) {
+					num = 0;
+				}
+
+				EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_OPTIONS), !!strchr("wdxkvgoPpWKLF", play_mode_list[num]->id_character));
+
+				is_file_output = !!(play_mode_list[num]->flag & PF_FILE_OUTPUT);
+				enable_path_setting = is_file_output && st_temp->auto_output_mode != 1;
+				EnableWindow(GetDlgItem(hwnd, IDC_COMBO_OUTPUT_MODE), is_file_output);
+				EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE), enable_path_setting);
+				EnableWindow(GetDlgItem(hwnd, IDC_EDIT_OUTPUT_FILE), enable_path_setting);
+				EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE_DEL), is_file_output && st_temp->auto_output_mode == 0);
+			}
 			break;
 		case IDC_BUTTON_OUTPUT_OPTIONS:
 			{
@@ -8555,8 +8574,6 @@ int portaudioConfigDialog(void)
 ///r
 int asioConfigDialog(int deviceID)
 {
-	extern HWND hMainWnd;
-
 	PaHostApiTypeId HostApiTypeId;
 	const PaHostApiInfo  *HostApiInfo;
 	PaDeviceIndex DeviceIndex;

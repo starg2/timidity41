@@ -85,11 +85,6 @@ static uint32 bytes_output, next_bytes;
 static int already_warning_lseek;
 static int comm_chunk_offset, comm_chunk_size;
 
-///r
-#ifdef __W32G__
-extern char *w32g_output_dir;
-extern int w32g_auto_output_mode;
-#endif
 
 /*************************************************************************/
 

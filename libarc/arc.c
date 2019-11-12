@@ -731,9 +731,12 @@ URL url_arc_open(const char *name)
 
     if ((afl = find_arc_filelist(base)) == NULL)
 	afl = regist_archive(base);
-    reuse_mblock(&arc_buffer);	/* free `base' */
-    if (!afl)
+    if(afl == NULL)
+    {
+	reuse_mblock(&arc_buffer);	/* free `base' */
+
 	return NULL;
+    }
     name += len + 1;
 
     /* skip path separators right after '#' */
@@ -760,16 +763,22 @@ URL url_arc_open(const char *name)
 	    break;
     }
     safe_free(file);
-    if (!entry)
+    if(entry == NULL)
+    {
+	reuse_mblock(&arc_buffer);	/* free `base' */
 	return NULL;
+    }
 
     if (entry->cache)
 	instream = url_mem_open((char*)entry->cache + entry->start,
 				entry->compsize, 0);
     else
     {
-	if ((instream = url_file_open(base)) == NULL)
+	if((instream = url_file_open(base)) == NULL)
+	{
+	    reuse_mblock(&arc_buffer);	/* free `base' */
 	    return NULL;
+	}
 	url_seek(instream, entry->start, 0);
     }
 
@@ -777,6 +786,7 @@ URL url_arc_open(const char *name)
     if (!url)
     {
 	url_errno = errno;
+	reuse_mblock(&arc_buffer);	/* free `base' */
 	return NULL;
     }
 
@@ -813,6 +823,7 @@ URL url_arc_open(const char *name)
 	if (!url->decoder)
 	{
 	    url_arc_close((URL)url);
+	    reuse_mblock(&arc_buffer);	/* free `base' */
 	    return NULL;
 	}
 	break;
@@ -835,11 +846,13 @@ URL url_arc_open(const char *name)
 	if (!url->decoder)
 	{
 	    url_arc_close((URL)url);
+	    reuse_mblock(&arc_buffer);	/* free `base' */
 	    return NULL;
 	}
 	break;
       default:
 	url_arc_close((URL)url);
+	reuse_mblock(&arc_buffer);	/* free `base' */
 	return NULL;
     }
 
@@ -858,6 +871,8 @@ URL url_arc_open(const char *name)
     url->pos = 0;
     url->size = entry->origsize;
     url->comptype = entry->comptype;
+    reuse_mblock(&arc_buffer);	/* free `base' */
+
     return (URL)url;
 }
 

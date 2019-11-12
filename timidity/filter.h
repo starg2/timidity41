@@ -113,7 +113,7 @@ enum{
 #define FILTER_T FLOAT_T
 #endif
 
-#define FILTER_CF_NUM (24) // >= 8*3 (AVX
+#define FILTER_CF_NUM (40) // >= 8*3 (AVX
 #define FILTER_FB_NUM (25) // >= 8*3+1 (AVX
 #define FILTER_FB_L (0)
 #define FILTER_FB_R (FILTER_FB_NUM) 

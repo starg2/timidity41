@@ -192,7 +192,7 @@ static int ctl_open(int using_stdin, int using_stdout);
 static void ctl_close(void);
 static int ctl_pass_playing_list(int number_of_files, char *list_of_files[]);
 static int ctl_read(ptr_size_t *valp);
-static int32 ctl_write(const uint8 *valp, int32 size);
+static int32 ctl_write(const uint8 *valp, size_t size);
 static int cmsg(int type, int verbosity_level, const char *fmt, ...);
 static void ctl_event(CtlEvent *e);
 

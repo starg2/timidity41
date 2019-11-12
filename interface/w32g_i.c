@@ -734,6 +734,20 @@ static void UpdateOutputMenu(HWND hWnd, UINT wId)
 	}
 }
 
+static void RefreshModuleMenu(HWND hWnd)
+{
+    UINT flags;
+    int i;
+
+    for (i = 0; i < module_list_num; i++) {
+        flags = MF_STRING;
+        if (st_temp->opt_default_module == module_list[i].num) {
+            flags |= MFS_CHECKED;
+        }
+        CheckMenuItem(hMenuModule, IDM_MODULE + i, MF_BYCOMMAND | flags);
+    }
+}
+
 static void RefreshOutputMenu(HWND hWnd)
 {
 	MENUITEMINFOA mii;
@@ -1602,6 +1616,7 @@ static void CallPrefWnd(UINT_PTR cId)
 		 W32G_VOLUME_MAX - output_amplification, TRUE);
 
     RefreshOutputMenu(hMainWnd);
+    RefreshModuleMenu(hMainWnd);
 }
 
 
@@ -1710,7 +1725,7 @@ void MainWndUpdateSoundSpecButton(void)
 #undef SUBWINDOW_POS_IS_OLD_CLOSED_WINDOW
 void ShowSubWindow(HWND hwnd,int showflag)
 {
-	int i, num;
+	int i, num = 0;
 	RECT rc;
 #ifdef SUBWINDOW_POS_IS_OLD_CLOSED_WINDOW
 	RECT rc2;
@@ -1820,7 +1835,8 @@ void DebugThreadInit(void)
 	DWORD dwThreadID;
 	if(!DebugThreadExit)
    	return;
-	hDebugThread = crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)DebugThread,0,0,&dwThreadID);	
+	hDebugThread = crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)DebugThread,0,0,&dwThreadID);
+	set_thread_description((ptr_size_t)hDebugThread, "W32G Debug Thread");	
 }
 #endif
 
@@ -4227,6 +4243,7 @@ void MPanelUpdate(void)
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		case 1:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
@@ -4234,15 +4251,18 @@ void MPanelUpdate(void)
 //			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left-(MPanel.rcMessage.bottom-MPanel.rcMessage.top)*2,
 //				MPanel.rcMessage.top, ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
 //    			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		case 2:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		case -1:
 		default:
 			ExtTextOut(MPanel.hmdc,MPanel.rcMessage.left,MPanel.rcMessage.top,
 				ETO_CLIPPED	| ETO_OPAQUE,&(MPanel.rcMessage),
     			MPanelMessageData.buff,strlen(MPanelMessageData.buff),NULL);
+			break;
 		}
 		if((HGDIOBJ)hgdiobj!=(HGDIOBJ)NULL && (HGDIOBJ)hgdiobj!=(HGDIOBJ)GDI_ERROR)
 			SelectObject(MPanel.hmdc,hgdiobj);
@@ -5341,12 +5361,22 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 static void DlgPlaylistOpen(HWND hwnd)
 {
     char *dir, *file;
-    char *filter =
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
+	const char* filter,
+		filter_en[] =
+			"playlist file\0*.pls;*.m3u;*.asx\0"
+			"all files\0*.*\0"
+			"\0\0",
+		filter_jp[] =
+			"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
+			"すべてのファイル (*.*)\0*.*\0"
+			"\0\0";
 
-    if(w32g_lock_open_file)
+	if (PlayerLanguage == LANGUAGE_JAPANESE)
+		filter = filter_jp;
+	else
+		filter = filter_en;
+
+	if(w32g_lock_open_file)
 		return;
 
     if(MidiFileOpenDir[0])
@@ -5395,10 +5425,20 @@ static void DlgPlaylistSave(HWND hwnd)
 {
 	OPENFILENAME ofn;
 	static char *dir;
-    char *filter =
-		"playlist file\0*.pls;*.m3u;*.asx\0"
-		"all files\0*.*\0"
-		"\0\0";
+	const char* filter,
+		filter_en[] =
+			"playlist file\0*.pls;*.m3u;*.asx\0"
+			"all files\0*.*\0"
+			"\0\0",
+		filter_jp[] =
+			"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
+			"すべてのファイル (*.*)\0*.*\0"
+			"\0\0";
+
+	if (PlayerLanguage == LANGUAGE_JAPANESE)
+		filter = filter_jp;
+	else
+		filter = filter_en;
 
     if(w32g_lock_open_file)
 		return;
@@ -5627,6 +5667,7 @@ int w32g_open(void)
     hPlayerThread = GetCurrentThread();
     w32g_wait_for_init = 1;
     hMainThread = crt_beginthreadex(NULL, 0, (LPTHREAD_START_ROUTINE)MainThread, NULL, 0, &dwMainThreadID);
+	set_thread_description((ptr_size_t)hMainThread, "W32G Main Thread");
 
     while(w32g_wait_for_init)
     {

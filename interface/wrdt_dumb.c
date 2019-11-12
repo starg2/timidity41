@@ -23,7 +23,6 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 #include <stdio.h>
-#include "_string.h"
 #include "timidity.h"
 #include "common.h"
 #include "instrum.h"
@@ -208,11 +207,11 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
       case WRD_OFFSET: /* Never call */
         break;
       case WRD_PAL:
-        p = (char*) new_segment(&tmpbuffer, MIN_MBLOCK_SIZE);
+        p = (char *)new_segment(&tmpbuffer, MIN_MBLOCK_SIZE);
         snprintf(p, MIN_MBLOCK_SIZE, "@PAL(%03x", wrd_args[0]);
-        for (i = 1; i < 17; i++) {
+        for(i = 1; i < 17; i++) {
             char q[5];
-            snprintf(q, sizeof(q) -1, ",%03x", wrd_args[i]);
+            snprintf(q, sizeof(q), ",%03x", wrd_args[i]);
             strncat(p, q, MIN_MBLOCK_SIZE - strlen(p) - 1);
         }
         strncat(p, ")", MIN_MBLOCK_SIZE - strlen(p) - 1);

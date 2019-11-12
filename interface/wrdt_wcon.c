@@ -36,7 +36,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "_string.h"
 #ifndef __CYGWIN32__
 #include <conio.h>
 #endif

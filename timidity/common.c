@@ -516,10 +516,10 @@ struct timidity_file *open_file_r(const char *name, int decompress, int noise_mo
 	if (noise_mode)
 		ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Trying to open %s",
 				current_filename);
-	stat(current_filename, &st);
-	if (!S_ISDIR(st.st_mode))
-		if ((tf = try_to_open(current_filename, decompress)))
-			return tf;
+	if (!stat(current_filename, &st))
+		if (!S_ISDIR(st.st_mode))
+			if ((tf = try_to_open(current_filename, decompress)))
+				return tf;
 #ifdef __MACOS__
 	if (errno) {
 #else
@@ -548,10 +548,10 @@ struct timidity_file *open_file_r(const char *name, int decompress, int noise_mo
 			if (noise_mode)
 				ctl->cmsg(CMSG_INFO, VERB_DEBUG,
 						"Trying to open %s", current_filename);
-			stat(current_filename, &st);
-			if (!S_ISDIR(st.st_mode))
-				if ((tf = try_to_open(current_filename, decompress)))
-					 return tf;
+			if (!stat(current_filename, &st))
+				if (!S_ISDIR(st.st_mode))
+					if ((tf = try_to_open(current_filename, decompress)))
+						 return tf;
 #ifdef __MACOS__
 			if (errno) {
 #else
@@ -1777,4 +1777,43 @@ char *w32_utf8_to_mbs(const char *str)
 	buff8[buff8_size] = '\0';
 	return buff8;
 }
+#endif
+
+#ifdef __W32__
+
+void set_thread_description(ptr_size_t handle, const char* str)
+{
+	HMODULE module;
+	typedef HRESULT (WINAPI *SetThreadDescriptionProc)(HANDLE hThread, PCWSTR lpThreadDescription);
+	SetThreadDescriptionProc setThreadDescription;
+	if ((module = GetModuleHandle(TEXT("Kernel32.dll"))) == NULL)
+		return;
+	if ((setThreadDescription = (SetThreadDescriptionProc)GetProcAddress(module, "SetThreadDescription")) == NULL)
+		return;
+
+	{
+#ifdef UNICODE
+	UINT codePage = CP_UTF8;
+#else
+	UINT codePage = CP_ACP;
+#endif
+
+	const int str_size = strlen(str);
+	int buff16_size = MultiByteToWideChar(codePage, 0, str, str_size, NULL, 0);
+
+	wchar_t *buff16 = (wchar_t *)safe_calloc(sizeof(wchar_t), buff16_size + 1);
+	if (!buff16) return;
+	MultiByteToWideChar(codePage, 0, str, str_size, buff16, buff16_size);
+
+	(*setThreadDescription)((HANDLE)handle, buff16);
+	safe_free(buff16);
+	}
+}
+
+#else
+
+void set_thread_description(ptr_size_t handle, const char* str)
+{
+}
+
 #endif

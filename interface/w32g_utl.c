@@ -1120,6 +1120,7 @@ InitSettingTiMidity(SETTING_TIMIDITY *st)
 static char S_IniFile[FILEPATH_MAX];
 static char S_timidity_window_inifile[FILEPATH_MAX];
 static char S_timidity_output_inifile[FILEPATH_MAX];
+static char S_timidity_history_inifile[FILEPATH_MAX];
 static char S_ConfigFile[FILEPATH_MAX];
 static char S_PlaylistFile[FILEPATH_MAX];
 static char S_PlaylistHistoryFile[FILEPATH_MAX];
@@ -1162,6 +1163,7 @@ SETTING_PLAYER *sp_default=NULL, *sp_current=NULL, *sp_temp=NULL;
 SETTING_TIMIDITY *st_default=NULL, *st_current=NULL, *st_temp=NULL;
 char *timidity_window_inifile;
 char *timidity_output_inifile;
+char *timidity_history_inifile;
 
 #ifdef AU_GOGO
 extern int gogo_ConfigDialogInfoInit(void);
@@ -1398,6 +1400,11 @@ void w32g_initialize(void)
 	strncpy(timidity_output_inifile, buffer, FILEPATH_MAX);
     timidity_output_inifile[FILEPATH_MAX - 1] = '\0';
     strlcat(timidity_output_inifile,"timidity_output.ini", FILEPATH_MAX);
+	// timidity_history.ini
+	timidity_history_inifile = S_timidity_history_inifile;
+	strncpy(timidity_history_inifile, buffer, FILEPATH_MAX);
+	timidity_history_inifile[FILEPATH_MAX - 1] = '\0';
+	strlcat(timidity_history_inifile,"timidity_history.ini", FILEPATH_MAX);
 	// default playlist
 	{
 		int i, len;
@@ -1527,7 +1534,7 @@ int IniVersionCheck(void)
     return 0;
 }
 
-void BitBltRect(HDC dst, HDC src, RECT *rc)
+void BitBltRect(HDC dst, HDC src, const RECT *rc)
 {
     BitBlt(dst, rc->left, rc->top,
 	   rc->right - rc->left, rc->bottom - rc->top,
@@ -1646,7 +1653,7 @@ void TmFillRect(HDC hdc, RECT *rc, int color)
 #ifndef S_ISDIR
 #define S_ISDIR(mode)   (((mode)&0xF000) == 0x4000)
 #endif /* S_ISDIR */
-int is_directory(char *path)
+int is_directory(const char *path)
 {
 	struct stat st;
 	if(*path == '@') /* special identifire for playlist file */
@@ -1741,12 +1748,33 @@ int IsAvailableFilename(char *filename)
 		strcasecmp(p,".zip")==0 ||
 		strcasecmp(p,".gz")==0	||
 		strcasecmp(p,".mid")==0 ||
+		strcasecmp(p,".midi")==0 ||
+		strcasecmp(p,".rmi")==0 ||
 		strcasecmp(p,".rcp")==0 ||
 		strcasecmp(p,".r36")==0 ||
 		strcasecmp(p,".g18")==0 ||
 		strcasecmp(p,".g36")==0 ||
+		strcasecmp(p,".mld")==0 ||
 		strcasecmp(p,".mod")==0 ||
+		strcasecmp(p,".xm")==0 ||
+		strcasecmp(p,".s3m")==0 ||
+		strcasecmp(p,".it")==0 ||
+		strcasecmp(p,".669")==0 ||
+		strcasecmp(p,".amf")==0 ||
+		strcasecmp(p,".dsm")==0 ||
+		strcasecmp(p,".far")==0 ||
+		strcasecmp(p,".gdm")==0 ||
+		strcasecmp(p,".imf")==0 ||
+		strcasecmp(p,".med")==0 ||
+		strcasecmp(p,".mtm")==0 ||
+		strcasecmp(p,".stm")==0 ||
+		strcasecmp(p,".stx")==0 ||
+		strcasecmp(p,".ult")==0 ||
+		strcasecmp(p,".uni")==0 ||
 //		strcasecmp(p,".hqx")==0 ||
+		strcasecmp(p,".pls")==0 ||
+		strcasecmp(p,".m3u")==0 ||
+		strcasecmp(p,".asx")==0 ||
 		strcasecmp(p,".tar")==0 ||
 		strcasecmp(p,".tgz")==0 ||
 		strcasecmp(p,".lha")==0 ||
