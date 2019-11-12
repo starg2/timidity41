@@ -705,7 +705,7 @@ void init_playmidi(void){
 
 void free_playmidi(void)
 {
-	int i;
+	int i, j;
 
 #if 0 // dim ch buffer
 #else // malloc ch buffer
@@ -720,9 +720,9 @@ void free_playmidi(void)
 		}
 	}
 #endif
-
+	
 	for(i = 0; i < MAX_CHANNELS; i++){
-		for (int j = 0; j < MAX_ELEMENT; j++) {
+		for (j = 0; j < MAX_ELEMENT; j++) {
 			safe_free(channel[i].seq_counters[j]);
 			channel[i].seq_counters[j] = NULL;
 			channel[i].seq_num_counters[j] = 0;
@@ -3357,9 +3357,11 @@ static int select_play_sample(Sample *splist,
 
 	// allocate round robin counters
 	if (channel[ch].seq_num_counters[elm] == 0) {
+		int i;
+
 		channel[ch].seq_num_counters[elm] = nsp;
 		channel[ch].seq_counters[elm] = (int32 *)safe_malloc(sizeof(int32) * nsp);
-		for (int i = 0; i < nsp; i++)
+		for (i = 0; i < nsp; i++)
 			channel[ch].seq_counters[elm][i] = 1;
 	}
 
@@ -3368,6 +3370,7 @@ static int select_play_sample(Sample *splist,
 サンプル指定は ノーナンバー,ベロシティ が各レンジ内にあるもの全て
 次に指定のサンプル設定(scale_factor)を元に再生周波数を指定
 */
+	{
 	int rand_calculated = 0;
 	FLOAT_T rand_val;
 
@@ -3419,6 +3422,7 @@ static int select_play_sample(Sample *splist,
 	//	ctl->cmsg(CMSG_WARNING, VERB_NOISY, 
 	//		"Strange: ch %d note %d can't select play sample.", ch, *note);
 	return nv;
+	}
 #else
 //	nv = 0;	
 	for (i = 0, sp = splist; i < nsp; i++, sp++) {
@@ -5903,11 +5907,14 @@ void midi_program_change(int ch, int prog)
 		newbank = channel[ch].bank_msb;
 		break;
 	}
-
-	for (int i = 0; i < MAX_ELEMENT; i++) {
-		safe_free(channel[ch].seq_counters[i]);
-		channel[ch].seq_counters[i] = NULL;
-		channel[ch].seq_num_counters[i] = 0;
+	
+	{
+		int i;
+		for (i = 0; i < MAX_ELEMENT; i++) {
+			safe_free(channel[ch].seq_counters[i]);
+			channel[ch].seq_counters[i] = NULL;
+			channel[ch].seq_num_counters[i] = 0;
+		}
 	}
 
 	if (dr) {

@@ -56,7 +56,6 @@
       (http://www.suse.de/~mana/alsa090_howto.html#sect05 ).
 */
 
-#ifdef IA_PORTMIDISYN
 
 //#define  USE_PORTMIDI 1
 //#define USE_GTK_GUI 1
@@ -64,6 +63,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
+
+
+#ifdef IA_PORTMIDISYN
 
 
 #include "rtsyn.h"
@@ -543,3 +545,4 @@ ControlMode *interface_P_loader(void)
 }
 
 #endif
+

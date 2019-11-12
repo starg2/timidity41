@@ -1835,7 +1835,7 @@ void DebugThreadInit(void)
 	DWORD dwThreadID;
 	if(!DebugThreadExit)
    	return;
-	hDebugThread = crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)DebugThread,0,0,&dwThreadID);	
+	hDebugThread = crt_beginthreadex(NULL,0,(LPTHREAD_START_ROUTINE)DebugThread,0,0,&dwThreadID);
 	set_thread_description((ptr_size_t)hDebugThread, "W32G Debug Thread");
 }
 #endif

@@ -104,6 +104,7 @@ typedef struct w32g_syn_t_ {
 static w32g_syn_t w32g_syn;
 
 // Šeí•Ï” (^^;;;
+HWND hMainWnd = 0;
 HINSTANCE hInst = NULL;
 extern int RestartTimidity;
 
