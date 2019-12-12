@@ -5,8 +5,8 @@ add_library(
     vorbis SHARED
 
     include/vorbis/codec.h
-    include/vorbis/vorbisenc.h
-    include/vorbis/vorbisfile.h
+    # include/vorbis/vorbisenc.h
+    # include/vorbis/vorbisfile.h
 
     lib/analysis.c
     lib/backends.h
@@ -47,8 +47,8 @@ add_library(
     lib/smallft.c
     lib/smallft.h
     lib/synthesis.c
-    lib/vorbisenc.c
-    lib/vorbisfile.c
+    # lib/vorbisenc.c
+    # lib/vorbisfile.c
     lib/window.c
     lib/window.h
     lib/books/coupled/res_books_51.h
@@ -76,8 +76,28 @@ add_library(
     lib/modes/setup_X.h
 
     win32/vorbis.def
-    win32/vorbisenc.def
-    win32/vorbisfile.def
+    # win32/vorbisenc.def
+    # win32/vorbisfile.def
 )
 
 target_link_libraries(vorbis ogg)
+
+add_library(
+    vorbisenc SHARED
+
+    include/vorbis/vorbisenc.h
+    lib/vorbisenc.c
+    win32/vorbisenc.def
+)
+
+target_link_libraries(vorbisenc vorbis)
+
+add_library(
+    vorbisfile SHARED
+
+    include/vorbis/vorbisfile.h
+    lib/vorbisfile.c
+    win32/vorbisfile.def
+)
+
+target_link_libraries(vorbisfile ogg vorbis)
