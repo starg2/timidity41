@@ -107,6 +107,9 @@ static	vorbis_info	 vi; /* struct that stores all the static vorbis bitstream
 				settings */
 static	vorbis_comment	 vc; /* struct that stores all the user comments */
 
+static int32 loopstart;
+static int32 looplength;
+
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
 extern char *w32g_output_dir;
 extern int w32g_auto_output_mode;
@@ -519,6 +522,13 @@ static int acntl(int request, void *arg)
       close_output();
     return 0;
   case PM_REQ_DISCARD:
+    return 0;
+  case PM_REQ_LOOP_START:
+	loopstart = (int32)arg;
+	looplength = 0;
+    return 0;
+  case PM_REQ_LOOP_END:
+	looplength = (int32)arg - loopstart;
     return 0;
   }
   return -1;

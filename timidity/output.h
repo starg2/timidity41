@@ -125,6 +125,13 @@ enum {
 
     PM_REQ_DIVISIONS,	  /* ARG: int32* - pointer to divisions number
 			  */
+
+    PM_REQ_LOOP_START,    /* ARG: int32
+              * offset of ME_LOOP_EXPANSION_START in samples
+              */
+    PM_REQ_LOOP_END,      /* ARG: int32
+              * offset of ME_LOOP_EXPANSION_END in samples
+              */
 };
 
 
