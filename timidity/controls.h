@@ -148,6 +148,8 @@ typedef struct {
 #define CTLF_AUTOREFINE		(1u<<7)	/* -i?R */
 #define CTLF_NOT_CONTINUE	(1u<<8)	/* -i?C */
 #define CTLF_DAEMONIZE		(1u<<9) /* -i?D */
+#define CTLF_NO_SLEEP		(1u<<10) /* -i?p */
+#define CTLF_NO_DISPLAY_OFF	(1u<<11) /* -i?k */
 
   int  (*open)(int using_stdin, int using_stdout);
   void (*close)(void);

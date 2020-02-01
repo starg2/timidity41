@@ -6419,6 +6419,12 @@ static int parse_opt_h(const char *arg)
 	fputs("  `D'          daemonize TiMidity++ in background "
 			"(for alsaseq only)" "\n", fp);
 #endif
+#ifdef IA_W32GUI
+	fputs("  `p'          prevent sleep "
+		"(for w32gui only)" "\n", fp);
+	fputs("  `k'          keep display on "
+		"(for w32gui only)" "\n", fp);
+#endif
 	fputs("\n", fp);
 	fputs("Alternative interface long options:" "\n"
 "  --verbose=n" "\n"
@@ -6635,6 +6641,12 @@ static inline int parse_opt_i(const char *arg)
 			break;
 		case 'D':
 			cmp->flags ^= CTLF_DAEMONIZE;
+			break;
+		case 'p':
+			cmp->flags ^= CTLF_NO_SLEEP;
+			break;
+		case 'k':
+			cmp->flags ^= CTLF_NO_DISPLAY_OFF;
 			break;
 		default:
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,

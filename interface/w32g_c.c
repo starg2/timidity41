@@ -1188,6 +1188,17 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		    tcaps.wPeriodMin = 10;
 		timeBeginPeriod(tcaps.wPeriodMin);
 #endif
+		{
+			EXECUTION_STATE es = ES_CONTINUOUS;
+
+			if(ctl.flags & CTLF_NO_SLEEP)
+				es |= ES_SYSTEM_REQUIRED;
+			if(ctl.flags & CTLF_NO_DISPLAY_OFF)
+				es |= ES_DISPLAY_REQUIRED;
+
+			SetThreadExecutionState(es);
+		}
+
 		rc = play_midi_file(w32g_get_playlist_play(selected));
 
 #ifdef FORCE_TIME_PERIOD
@@ -1235,7 +1246,8 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		if(ctl.flags & CTLF_AUTOEXIT) {
 		    if(play_mode->fd != -1)
 			aq_flush(0);
-		    return 0;
+			SetThreadExecutionState(ES_CONTINUOUS);
+			return 0;
 		}
 		break;
 	    }
@@ -1259,7 +1271,8 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		if(ctl.flags & CTLF_AUTOEXIT){
 		    if(play_mode->fd != -1)
 			aq_flush(0);
-		    return 0;
+			SetThreadExecutionState(ES_CONTINUOUS);
+			return 0;
 		}
 		if((ctl.flags & CTLF_LIST_LOOP) && w32g_nvalid_playlist())
 		{
@@ -1279,7 +1292,8 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		if((ctl.flags & CTLF_LIST_RANDOM) && w32g_nvalid_playlist())
 			w32g_shuffle_playlist_reset(0);
 	    }
-	    break;
+		SetThreadExecutionState(ES_CONTINUOUS);
+		break;
 
 	  case RC_REALLY_PREVIOUS:
 		TracerWndDrawSkip = 1;
@@ -1297,7 +1311,8 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 		TracerWndDrawSkip = 1;
 	    if(play_mode->fd != -1)
 		aq_flush(1);
-	    return 0;
+		SetThreadExecutionState(ES_CONTINUOUS);
+		return 0;
 ///r
 	  case RC_CHANGE_VOLUME:
 	    output_amplification += value;
@@ -1313,7 +1328,8 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 #endif
 		if(play_mode->close_output)
 			play_mode->close_output();
-	    break;
+		SetThreadExecutionState(ES_CONTINUOUS);
+		break;
 
 	  default:
 #ifndef EXT_CONTROL_MAIN_THREAD
