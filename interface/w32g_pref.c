@@ -1393,6 +1393,8 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NOT_LOOPING, strchr(st_temp->opt_ctl + 1, 'l'));
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_RANDOM, strchr(st_temp->opt_ctl + 1, 'r'));
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_CTL_TRACE_PLAYING, strchr(st_temp->opt_ctl + 1, 't'));
+		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NO_SLEEP, strchr(st_temp->opt_ctl + 1, 'p'));
+		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NO_DISPLAY_OFF, strchr(st_temp->opt_ctl + 1, 'k'));
 		// console
 		tmp = char_count(st_temp->opt_ctl + 1, 'v') - char_count(st_temp->opt_ctl + 1, 'q') + 1;
 		for (i = 0; i < CB_NUM(cb_info_IDC_COMBO_CTL_VEBOSITY_num); i++)
@@ -1419,9 +1421,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_AUTOSAVE_PLAYLIST, sp_temp->AutosavePlaylist);
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_POS_SIZE_SAVE, sp_temp->PosSizeSave);
 		
-		for (i = 0; i <= cb_num_IDC_COMBO_SUBWINDOW_MAX; i++)
-			CB_INSSTR(IDC_COMBO_SUBWINDOW_MAX, cb_info_IDC_COMBO_SUBWINDOW_MAX[i]);
-		CB_SET(IDC_COMBO_SUBWINDOW_MAX, RANGE(sp_temp->SubWindowMax, 0, cb_num_IDC_COMBO_SUBWINDOW_MAX));
+		//for (i = 0; i <= cb_num_IDC_COMBO_SUBWINDOW_MAX; i++)
+		//	CB_INSSTR(IDC_COMBO_SUBWINDOW_MAX, cb_info_IDC_COMBO_SUBWINDOW_MAX[i]);
+		//CB_SET(IDC_COMBO_SUBWINDOW_MAX, RANGE(sp_temp->SubWindowMax, 0, cb_num_IDC_COMBO_SUBWINDOW_MAX));
 
 		if(CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 			for (i = 0; i < CB_NUM(process_priority_num); i++)
@@ -1582,6 +1584,8 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		SettingCtlFlag(st_temp, 'l', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NOT_LOOPING,tmp));
 		SettingCtlFlag(st_temp, 'r', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_RANDOM,tmp));
 		SettingCtlFlag(st_temp, 't', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_CTL_TRACE_PLAYING,tmp));
+		SettingCtlFlag(st_temp, 'p', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NO_SLEEP,tmp));
+		SettingCtlFlag(st_temp, 'k', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NO_DISPLAY_OFF,tmp));
 				/* remove 'v' and 'q' from st_temp->opt_ctl */
 		while(strchr(st_temp->opt_ctl + 1, 'v'))
 			 SettingCtlFlag(st_temp, 'v', 0);
@@ -1614,7 +1618,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_AUTOSAVE_PLAYLIST, sp_temp->AutosavePlaylist);
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_POS_SIZE_SAVE, sp_temp->PosSizeSave);
 		
-		sp_temp->SubWindowMax = CB_GETS(IDC_COMBO_SUBWINDOW_MAX, 5);
+		//sp_temp->SubWindowMax = CB_GETS(IDC_COMBO_SUBWINDOW_MAX, 5);
 
 		// Set process priority
 		st_temp->processPriority = process_priority_num[CB_GETS(IDC_COMBO_PROCESS_PRIORITY, 2)];
