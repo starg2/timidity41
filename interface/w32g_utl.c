@@ -1465,12 +1465,15 @@ void w32g_initialize(void)
 	w32g_output_dir[0] = '\0';
 
     strcpy(DocFileExt,DEFAULT_DOCFILEEXT);
-    strcpy(SystemFont,"ＭＳ 明朝");
-    strcpy(PlayerFont,"ＭＳ 明朝");
-    strcpy(WrdFont,"ＭＳ 明朝");
-    strcpy(DocFont,"ＭＳ 明朝");
-    strcpy(ListFont,"ＭＳ 明朝");
-    strcpy(TracerFont,"ＭＳ 明朝");
+
+	char *tstr = tchar_to_char(_T("ＭＳ 明朝"));
+    strcpy(SystemFont, tstr);
+    strcpy(PlayerFont, tstr);
+    strcpy(WrdFont, tstr);
+    strcpy(DocFont, tstr);
+    strcpy(ListFont, tstr);
+    strcpy(TracerFont, tstr);
+	safe_free(tstr);
 
 #if defined(WINDRV)
     if (GetWindowsDirectory(buffer, FILEPATH_MAX - 12 - 1))
