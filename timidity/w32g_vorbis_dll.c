@@ -70,6 +70,7 @@ typedef int     (*type_vorbis_synthesis)(vorbis_block *vb, ogg_packet *op);
 typedef int     (*type_vorbis_synthesis_blockin)(vorbis_dsp_state *v, vorbis_block *vb);
 typedef int     (*type_vorbis_synthesis_pcmout)(vorbis_dsp_state *v, float ***pcm);
 typedef int     (*type_vorbis_synthesis_read)(vorbis_dsp_state *v, int samples);
+typedef long    (*type_vorbis_packet_blocksize)(vorbis_info *vi, ogg_packet *op);
 
 #ifdef VORBIS_DLL_INCLUDE_VORBISENC
 typedef int(*type_vorbis_encode_init)(vorbis_info *vi, long channels, long rate, long max_bitrate, long nominal_bitrate, long min_bitrate);
@@ -108,12 +109,13 @@ static struct vorbis_dll_ {
 	 type_vorbis_analysis vorbis_analysis;
 	 type_vorbis_bitrate_addblock vorbis_bitrate_addblock;
      type_vorbis_bitrate_flushpacket vorbis_bitrate_flushpacket;
-//	 type_vorbis_synthesis_headerin vorbis_synthesis_headerin;
+	 type_vorbis_synthesis_headerin vorbis_synthesis_headerin;
 //	 type_vorbis_synthesis_init vorbis_synthesis_init;
 //	 type_vorbis_synthesis vorbis_synthesis;
 //	 type_vorbis_synthesis_blockin vorbis_synthesis_blockin;
 //	 type_vorbis_synthesis_pcmout vorbis_synthesis_pcmout;
 //	 type_vorbis_synthesis_read vorbis_synthesis_read;
+	 type_vorbis_packet_blocksize vorbis_packet_blocksize;
 #ifdef VORBIS_DLL_INCLUDE_VORBISENC
 	 type_vorbis_encode_init vorbis_encode_init;
 	 type_vorbis_encode_init_vbr vorbis_encode_init_vbr;
@@ -185,8 +187,8 @@ int load_vorbis_dll(void)
         if (!vorbis_dll.vorbis_bitrate_addblock) { free_vorbis_dll(); return -1; }
         vorbis_dll.vorbis_bitrate_flushpacket = (type_vorbis_bitrate_flushpacket)GetProcAddress(h_vorbis_dll, "vorbis_bitrate_flushpacket");
         if (!vorbis_dll.vorbis_bitrate_flushpacket) { free_vorbis_dll(); return -1; }
-        //	vorbis_dll.vorbis_synthesis_headerin = (type_vorbis_synthesis_headerin) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_headerin");
-        //	if (!vorbis_dll.vorbis_synthesis_headerin) { free_vorbis_dll(); return -1; }
+        vorbis_dll.vorbis_synthesis_headerin = (type_vorbis_synthesis_headerin) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_headerin");
+        if (!vorbis_dll.vorbis_synthesis_headerin) { free_vorbis_dll(); return -1; }
         //	vorbis_dll.vorbis_synthesis_init = (type_vorbis_synthesis_init) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_init");
         //	if (!vorbis_dll.vorbis_synthesis_init) { free_vorbis_dll(); return -1; }
         //	vorbis_dll.vorbis_synthesis = (type_vorbis_synthesis) GetProcAddress(h_vorbis_dll, "vorbis_synthesis");
@@ -197,6 +199,8 @@ int load_vorbis_dll(void)
         //	if (!vorbis_dll.vorbis_synthesis_pcmout) { free_vorbis_dll(); return -1; }
         //	vorbis_dll.vorbis_synthesis_read = (type_vorbis_synthesis_read) GetProcAddress(h_vorbis_dll, "vorbis_synthesis_read");
         //	if (!vorbis_dll.vorbis_synthesis_read) { free_vorbis_dll(); return -1; }
+		vorbis_dll.vorbis_packet_blocksize = (type_vorbis_packet_blocksize)GetProcAddress(h_vorbis_dll, "vorbis_packet_blocksize");
+		if (!vorbis_dll.vorbis_packet_blocksize) { free_vorbis_dll(); return -1; }
 #ifdef VORBIS_DLL_INCLUDE_VORBISENC
         vorbis_dll.vorbis_encode_init = (type_vorbis_encode_init)GetProcAddress(h_vorbis_dll, "vorbis_encode_init");
         if (!vorbis_dll.vorbis_encode_init) { free_vorbis_dll(); return -1; }
@@ -376,7 +380,6 @@ int     vorbis_bitrate_flushpacket(vorbis_dsp_state *vd, ogg_packet *op)
 	return (int)0;
 }
 
-#if 0
 int     vorbis_synthesis_headerin(vorbis_info *vi, vorbis_comment *vc, ogg_packet *op)
 {
 	if (h_vorbis_dll) {
@@ -385,6 +388,7 @@ int     vorbis_synthesis_headerin(vorbis_info *vi, vorbis_comment *vc, ogg_packe
 	return (int)0;
 }
 
+#if 0
 int     vorbis_synthesis_init(vorbis_dsp_state *v, vorbis_info *vi)
 {
 	if (h_vorbis_dll) {
@@ -425,6 +429,15 @@ int     vorbis_synthesis_read(vorbis_dsp_state *v, int samples)
 	return (int)0;
 }
 #endif
+
+long     vorbis_packet_blocksize(vorbis_info *vi, ogg_packet *op)
+{
+	if (h_vorbis_dll) {
+		return vorbis_dll.vorbis_packet_blocksize(vi, op);
+	}
+
+	return 0;
+}
 
 #ifdef VORBIS_DLL_INCLUDE_VORBISENC
 int vorbis_encode_init(vorbis_info *vi, long channels, long rate, long max_bitrate, long nominal_bitrate, long min_bitrate)

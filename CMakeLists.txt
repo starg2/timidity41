@@ -271,6 +271,7 @@ include_directories(
 	twsyn_bridge
     utils
     vorbis/include
+    vorbis-tools/include
 )
 
 add_subdirectory(FLAC)
