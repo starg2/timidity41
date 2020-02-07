@@ -6906,7 +6906,6 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 
         if (loop_startflag) {
 			if (loop_startflag == 2) {
-				*lp = meep->event;
 				lp->time = st;
 				lp->type = ME_LOOP_EXPANSION_START;
 				lp->a = loop_type;
@@ -6916,7 +6915,6 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 			}
 			else if (loop_startflag == 1) {
 				if (loop_startmeep) {
-					*lp = meep->event;
 					lp->time = st;
 					lp->type = ME_LOOP_EXPANSION_END;
 					lp->a = loop_type;

@@ -537,20 +537,24 @@ static int acntl(int request, void *arg)
 	loopstart = (int32)arg;
 	looplength = 0;
 	has_loopinfo = 0;
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPSTART=%d", loopstart);
     return 0;
   case PM_REQ_LOOP_END:
 	looplength = (int32)arg - loopstart;
 	has_loopinfo = 1;
-    return 0;
+	ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPLENGTH=%d", looplength);
+	return 0;
   }
   return -1;
 }
 
 static int insert_loop_tags(void)
 {
+	lseek(dpm.fd, 0, SEEK_SET);
+
 	vcedit_state *state = vcedit_new_state();
-	FILE* ftemp = tmpfile();
-	FILE *fin = fdopen(dup(dpm.fd), "rb");
+	FILE *ftemp = tmpfile();
+	FILE *fin = fdopen(dup(dpm.fd), "wb");
 
 	if (!ftemp) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; tmpfile() failed");
@@ -561,8 +565,6 @@ static int insert_loop_tags(void)
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; fdopen() failed");
 		return 0;
 	}
-
-	fseek(fin, 0, SEEK_SET);
 
 	if (vcedit_open(state, fin) < 0) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; vcedit_open() failed");
@@ -608,6 +610,8 @@ static int insert_loop_tags(void)
 #else
 	ftruncate(dpm.fd, fsize);
 #endif
+
+	ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Ogg Vorbis loop was inserted (LOOPSTART=%d, LOOPLENGTH=%d).", loopstart, looplength);
 	return 1;
 
 failed:
