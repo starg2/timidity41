@@ -217,7 +217,7 @@ static int ogg_output_open(const char *fname, const char *comment)
       comment = "(stdout)";
   } else {
     /* Open the audio file */
-    fd = open(fname, FILE_OUTPUT_MODE);
+    fd = open(fname, FILE_UPDATE_MODE);
     if(fd < 0) {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		fname, strerror(errno));
@@ -554,7 +554,7 @@ static int insert_loop_tags(void)
 
 	vcedit_state *state = vcedit_new_state();
 	FILE *ftemp = tmpfile();
-	FILE *fin = fdopen(dup(dpm.fd), "wb");
+	FILE *fin = fdopen(dup(dpm.fd), "w+b");
 
 	if (!ftemp) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; tmpfile() failed");
