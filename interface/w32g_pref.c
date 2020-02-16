@@ -7722,7 +7722,9 @@ static void vorbisConfigDialogProcControlReset(HWND hwnd)
 	EDIT_SET(IDC_EDIT1);
 	EDIT_SET(IDC_EDIT2);
 	EDIT_SET(IDC_EDIT3);
-	// コントロールの有効 / 無効化
+	// チェックボックスの設定
+	CHECKBOX_SET(IDC_CHECK_EMBED_LOOP)
+		// コントロールの有効 / 無効化
 	vorbisConfigDialogProcControlEnableDisable(hwnd);
 }
 
@@ -7736,7 +7738,9 @@ static void vorbisConfigDialogProcControlApply(HWND hwnd)
 	EDIT_GET(IDC_EDIT1,256-1);
 	EDIT_GET(IDC_EDIT2,256-1);
 	EDIT_GET(IDC_EDIT3,256-1);
-	// コントロールの有効 / 無効化
+	// チェックボックスの設定
+	CHECKBOX_GET(IDC_CHECK_EMBED_LOOP)
+		// コントロールの有効 / 無効化
 	vorbisConfigDialogProcControlEnableDisable(hwnd);
 	// リセット
 	vorbisConfigDialogProcControlReset(hwnd);
@@ -7789,19 +7793,20 @@ int vorbis_ConfigDialogInfoInit(void)
 	vorbis_ConfigDialogInfo.optIDC_EDIT1[0] = '\0';
 	vorbis_ConfigDialogInfo.optIDC_EDIT2[0] = '\0';
 	vorbis_ConfigDialogInfo.optIDC_EDIT3[0] = '\0';
+	vorbis_ConfigDialogInfo.optIDC_CHECK_EMBED_LOOP = 0;
 	return 0;
 }
 
 extern volatile int ogg_vorbis_mode;
+extern int ogg_vorbis_embed_loop;
 int vorbis_ConfigDialogInfoApply(void)
 {
 	vorbis_ConfigDialogInfoLock();
-	if(vorbis_ConfigDialogInfo.optIDC_CHECK_DEFAULT>0){
+	if(vorbis_ConfigDialogInfo.optIDC_CHECK_DEFAULT == 0){
 //		vorbis_opts_reset();
-		vorbis_ConfigDialogInfoUnLock();
-		return 0;
+		ogg_vorbis_mode = vorbis_ConfigDialogInfo.optIDC_COMBO_MODE;
 	}
-	ogg_vorbis_mode = vorbis_ConfigDialogInfo.optIDC_COMBO_MODE;
+	ogg_vorbis_embed_loop = vorbis_ConfigDialogInfo.optIDC_CHECK_EMBED_LOOP;
 	vorbis_ConfigDialogInfoUnLock();
 	return 0;
 }
@@ -7827,6 +7832,7 @@ int vorbis_ConfigDialogInfoSaveINI(void)
 	STRSAVE(optIDC_EDIT1,256)
 	STRSAVE(optIDC_EDIT2,256)
 	STRSAVE(optIDC_EDIT3,256)
+	NUMSAVE(optIDC_CHECK_EMBED_LOOP)
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
 #undef NUMSAVE
 #undef STRSAVE
@@ -7857,6 +7863,7 @@ int vorbis_ConfigDialogInfoLoadINI(void)
 	STRLOAD(optIDC_EDIT1,256)
 	STRLOAD(optIDC_EDIT2,256)
 	STRLOAD(optIDC_EDIT3,256)
+	NUMLOAD(optIDC_CHECK_EMBED_LOOP)
 #undef NUMLOAD
 #undef STRLOAD
 	safe_free(inifile);

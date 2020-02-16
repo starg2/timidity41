@@ -104,6 +104,7 @@ typedef struct vorbis_ConfigDialogInfo_t_ {
 	char optIDC_EDIT1[256];
 	char optIDC_EDIT2[256];
 	char optIDC_EDIT3[256];
+	int optIDC_CHECK_EMBED_LOOP;
 } vorbis_ConfigDialogInfo_t;
 
 extern int vorbis_ConfigDialogInfoInit(void);

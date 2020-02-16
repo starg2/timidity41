@@ -725,6 +725,7 @@
 #define IDC_EDIT_TITLE			        8303
 #define IDC_EDIT_ARTIST			        8304
 #define IDC_EDIT_ALBUM			        8305
+#define IDC_CHECK_EMBED_LOOP            8306
 // flac
 // #define IDC_COMBO_ENCODE_MODE         8410 // gogo
 #define IDC_CHECKBOX_OGGFLAC_CONTAINER  8411

@@ -72,20 +72,20 @@ typedef int     (*type_ogg_stream_destroy)(ogg_stream_state *os);
 typedef int     (*type_ogg_stream_eos)(ogg_stream_state *os);
 typedef int     (*type_ogg_page_version)(ogg_page *og);
 typedef int     (*type_ogg_page_continued)(ogg_page *og);
-typedef int     (*type_ogg_page_bos)(ogg_page *og);
-typedef int     (*type_ogg_page_eos)(ogg_page *og);
+typedef int     (*type_ogg_page_bos)(const ogg_page *og);
+typedef int     (*type_ogg_page_eos)(const ogg_page *og);
 typedef ogg_int64_t (*type_ogg_page_granulepos)(ogg_page *og);
-typedef int     (*type_ogg_page_serialno)(ogg_page *og);
+typedef int     (*type_ogg_page_serialno)(const ogg_page *og);
 typedef long    (*type_ogg_page_pageno)(ogg_page *og);
 typedef int     (*type_ogg_page_packets)(ogg_page *og);
 //typedef void    (*type_ogg_packet_clear)(ogg_packet *op);
 
 static struct ogg_dll_ {
-//	 type_oggpack_writeinit oggpack_writeinit;
+	 type_oggpack_writeinit oggpack_writeinit;
 //	 type_oggpack_reset oggpack_reset;
-//	 type_oggpack_writeclear oggpack_writeclear;
+	 type_oggpack_writeclear oggpack_writeclear;
 //	 type_oggpack_readinit oggpack_readinit;
-//	 type_oggpack_write oggpack_write;
+	 type_oggpack_write oggpack_write;
 //	 type_oggpack_look oggpack_look;
 //	 type_oggpack_look_huff oggpack_look_huff;
 //	 type_oggpack_look1 oggpack_look1;
@@ -94,23 +94,23 @@ static struct ogg_dll_ {
 //	 type_oggpack_adv1 oggpack_adv1;
 //	 type_oggpack_read oggpack_read;
 //	 type_oggpack_read1 oggpack_read1;
-//	 type_oggpack_bytes oggpack_bytes;
+	 type_oggpack_bytes oggpack_bytes;
 //	 type_oggpack_bits oggpack_bits;
 //	 type_oggpack_get_buffer oggpack_get_buffer;
 	 type_ogg_stream_packetin ogg_stream_packetin;
 	 type_ogg_stream_pageout ogg_stream_pageout;
 ///r
 	 type_ogg_stream_flush ogg_stream_flush;
-//	 type_ogg_sync_init ogg_sync_init;
-//	 type_ogg_sync_clear ogg_sync_clear;
+	 type_ogg_sync_init ogg_sync_init;
+	 type_ogg_sync_clear ogg_sync_clear;
 //	 type_ogg_sync_reset ogg_sync_reset;
 //	 type_ogg_sync_destroy ogg_sync_destroy;
-//	 type_ogg_sync_buffer ogg_sync_buffer;
-//	 type_ogg_sync_wrote ogg_sync_wrote;
+	 type_ogg_sync_buffer ogg_sync_buffer;
+	 type_ogg_sync_wrote ogg_sync_wrote;
 //	 type_ogg_sync_pageseek ogg_sync_pageseek;
-//	 type_ogg_sync_pageout ogg_sync_pageout;
-//	 type_ogg_stream_pagein ogg_stream_pagein;
-//	 type_ogg_stream_packetout ogg_stream_packetout;
+	 type_ogg_sync_pageout ogg_sync_pageout;
+	 type_ogg_stream_pagein ogg_stream_pagein;
+	 type_ogg_stream_packetout ogg_stream_packetout;
 	 type_ogg_stream_init ogg_stream_init;
 	 type_ogg_stream_clear ogg_stream_clear;
 //	 type_ogg_stream_reset ogg_stream_reset;
@@ -118,10 +118,10 @@ static struct ogg_dll_ {
 //	 type_ogg_stream_eos ogg_stream_eos;
 //	 type_ogg_page_version ogg_page_version;
 //	 type_ogg_page_continued ogg_page_continued;
-//	 type_ogg_page_bos ogg_page_bos;
+	 type_ogg_page_bos ogg_page_bos;
 	 type_ogg_page_eos ogg_page_eos;
 //	 type_ogg_page_granulepos ogg_page_granulepos;
-//	 type_ogg_page_serialno ogg_page_serialno;
+	 type_ogg_page_serialno ogg_page_serialno;
 //	 type_ogg_page_pageno ogg_page_pageno;
 //	 type_ogg_page_packets ogg_page_packets;
 //	 type_ogg_packet_clear ogg_packet_clear;
@@ -143,16 +143,16 @@ int load_ogg_dll(void)
 		h_ogg_dll = LoadLibrary(TEXT("ogg.dll"));
 		if(!h_ogg_dll) h_ogg_dll = LoadLibrary(TEXT("libogg.dll"));
 		if(!h_ogg_dll) return -1;
-	//	ogg_dll.oggpack_writeinit = (type_oggpack_writeinit)GetProcAddress(h_ogg_dll,"oggpack_writeinit");
-	//	if(!ogg_dll.oggpack_writeinit){ free_ogg_dll(); return -1; }
+		ogg_dll.oggpack_writeinit = (type_oggpack_writeinit)GetProcAddress(h_ogg_dll,"oggpack_writeinit");
+		if(!ogg_dll.oggpack_writeinit){ free_ogg_dll(); return -1; }
 	//	ogg_dll.oggpack_reset = (type_oggpack_reset)GetProcAddress(h_ogg_dll,"oggpack_reset");
 	//	if(!ogg_dll.oggpack_reset){ free_ogg_dll(); return -1; }
-	//	ogg_dll.oggpack_writeclear = (type_oggpack_writeclear)GetProcAddress(h_ogg_dll,"oggpack_writeclear");
-	//	if(!ogg_dll.oggpack_writeclear){ free_ogg_dll(); return -1; }
+		ogg_dll.oggpack_writeclear = (type_oggpack_writeclear)GetProcAddress(h_ogg_dll,"oggpack_writeclear");
+		if(!ogg_dll.oggpack_writeclear){ free_ogg_dll(); return -1; }
 	//	ogg_dll.oggpack_readinit = (type_oggpack_readinit)GetProcAddress(h_ogg_dll,"oggpack_readinit");
 	//	if(!ogg_dll.oggpack_readinit){ free_ogg_dll(); return -1; }
-	//	ogg_dll.oggpack_write = (type_oggpack_write)GetProcAddress(h_ogg_dll,"oggpack_write");
-	//	if(!ogg_dll.oggpack_write){ free_ogg_dll(); return -1; }
+		ogg_dll.oggpack_write = (type_oggpack_write)GetProcAddress(h_ogg_dll,"oggpack_write");
+		if(!ogg_dll.oggpack_write){ free_ogg_dll(); return -1; }
 	//	ogg_dll.oggpack_look = (type_oggpack_look)GetProcAddress(h_ogg_dll,"oggpack_look");
 	//	if(!ogg_dll.oggpack_look){ free_ogg_dll(); return -1; }
 	//	ogg_dll.oggpack_look_huff = (type_oggpack_look_huff)GetProcAddress(h_ogg_dll,"oggpack_look_huff");
@@ -169,8 +169,8 @@ int load_ogg_dll(void)
 	//	if(!ogg_dll.oggpack_read){ free_ogg_dll(); return -1; }
 	//	ogg_dll.oggpack_read1 = (type_oggpack_read1)GetProcAddress(h_ogg_dll,"oggpack_read1");
 	//	if(!ogg_dll.oggpack_read1){ free_ogg_dll(); return -1; }
-	//	ogg_dll.oggpack_bytes = (type_oggpack_bytes)GetProcAddress(h_ogg_dll,"oggpack_bytes");
-	//	if(!ogg_dll.oggpack_bytes){ free_ogg_dll(); return -1; }
+		ogg_dll.oggpack_bytes = (type_oggpack_bytes)GetProcAddress(h_ogg_dll,"oggpack_bytes");
+		if(!ogg_dll.oggpack_bytes){ free_ogg_dll(); return -1; }
 	//	ogg_dll.oggpack_bits = (type_oggpack_bits)GetProcAddress(h_ogg_dll,"oggpack_bits");
 	//	if(!ogg_dll.oggpack_bits){ free_ogg_dll(); return -1; }
 	//	ogg_dll.oggpack_get_buffer = (type_oggpack_get_buffer)GetProcAddress(h_ogg_dll,"oggpack_get_buffer");
@@ -181,27 +181,27 @@ int load_ogg_dll(void)
 		if(!ogg_dll.ogg_stream_pageout){ free_ogg_dll(); return -1; }
 	///r
 		ogg_dll.ogg_stream_flush = (type_ogg_stream_flush)GetProcAddress(h_ogg_dll,"ogg_stream_flush");
-	//	if(!ogg_dll.ogg_stream_flush){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_sync_init = (type_ogg_sync_init)GetProcAddress(h_ogg_dll,"ogg_sync_init");
-	//	if(!ogg_dll.ogg_sync_init){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_sync_clear = (type_ogg_sync_clear)GetProcAddress(h_ogg_dll,"ogg_sync_clear");
-	//	if(!ogg_dll.ogg_sync_clear){ free_ogg_dll(); return -1; }
+		if(!ogg_dll.ogg_stream_flush){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_sync_init = (type_ogg_sync_init)GetProcAddress(h_ogg_dll,"ogg_sync_init");
+		if(!ogg_dll.ogg_sync_init){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_sync_clear = (type_ogg_sync_clear)GetProcAddress(h_ogg_dll,"ogg_sync_clear");
+		if(!ogg_dll.ogg_sync_clear){ free_ogg_dll(); return -1; }
 	//	ogg_dll.ogg_sync_reset = (type_ogg_sync_reset)GetProcAddress(h_ogg_dll,"ogg_sync_reset");
 	//	if(!ogg_dll.ogg_sync_reset){ free_ogg_dll(); return -1; }
 	//	ogg_dll.ogg_sync_destroy = (type_ogg_sync_destroy)GetProcAddress(h_ogg_dll,"ogg_sync_destroy");
 	//	if(!ogg_dll.ogg_sync_destroy){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_sync_buffer = (type_ogg_sync_buffer)GetProcAddress(h_ogg_dll,"ogg_sync_buffer");
-	//	if(!ogg_dll.ogg_sync_buffer){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_sync_wrote = (type_ogg_sync_wrote)GetProcAddress(h_ogg_dll,"ogg_sync_wrote");
-	//	if(!ogg_dll.ogg_sync_wrote){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_sync_buffer = (type_ogg_sync_buffer)GetProcAddress(h_ogg_dll,"ogg_sync_buffer");
+		if(!ogg_dll.ogg_sync_buffer){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_sync_wrote = (type_ogg_sync_wrote)GetProcAddress(h_ogg_dll,"ogg_sync_wrote");
+		if(!ogg_dll.ogg_sync_wrote){ free_ogg_dll(); return -1; }
 	//	ogg_dll.ogg_sync_pageseek = (type_ogg_sync_pageseek)GetProcAddress(h_ogg_dll,"ogg_sync_pageseek");
 	//	if(!ogg_dll.ogg_sync_pageseek){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_sync_pageout = (type_ogg_sync_pageout)GetProcAddress(h_ogg_dll,"ogg_sync_pageout");
-	//	if(!ogg_dll.ogg_sync_pageout){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_stream_pagein = (type_ogg_stream_pagein)GetProcAddress(h_ogg_dll,"ogg_stream_pagein");
-	//	if(!ogg_dll.ogg_stream_pagein){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_stream_packetout = (type_ogg_stream_packetout)GetProcAddress(h_ogg_dll,"ogg_stream_packetout");
-	//	if(!ogg_dll.ogg_stream_packetout){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_sync_pageout = (type_ogg_sync_pageout)GetProcAddress(h_ogg_dll,"ogg_sync_pageout");
+		if(!ogg_dll.ogg_sync_pageout){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_stream_pagein = (type_ogg_stream_pagein)GetProcAddress(h_ogg_dll,"ogg_stream_pagein");
+		if(!ogg_dll.ogg_stream_pagein){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_stream_packetout = (type_ogg_stream_packetout)GetProcAddress(h_ogg_dll,"ogg_stream_packetout");
+		if(!ogg_dll.ogg_stream_packetout){ free_ogg_dll(); return -1; }
 		ogg_dll.ogg_stream_init = (type_ogg_stream_init)GetProcAddress(h_ogg_dll,"ogg_stream_init");
 		if(!ogg_dll.ogg_stream_init){ free_ogg_dll(); return -1; }
 		ogg_dll.ogg_stream_clear = (type_ogg_stream_clear)GetProcAddress(h_ogg_dll,"ogg_stream_clear");
@@ -216,14 +216,14 @@ int load_ogg_dll(void)
 	//	if(!ogg_dll.ogg_page_version){ free_ogg_dll(); return -1; }
 	//	ogg_dll.ogg_page_continued = (type_ogg_page_continued)GetProcAddress(h_ogg_dll,"ogg_page_continued");
 	//	if(!ogg_dll.ogg_page_continued){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_page_bos = (type_ogg_page_bos)GetProcAddress(h_ogg_dll,"ogg_page_bos");
-	//	if(!ogg_dll.ogg_page_bos){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_page_bos = (type_ogg_page_bos)GetProcAddress(h_ogg_dll,"ogg_page_bos");
+		if(!ogg_dll.ogg_page_bos){ free_ogg_dll(); return -1; }
 		ogg_dll.ogg_page_eos = (type_ogg_page_eos)GetProcAddress(h_ogg_dll,"ogg_page_eos");
 		if(!ogg_dll.ogg_page_eos){ free_ogg_dll(); return -1; }
 	//	ogg_dll.ogg_page_granulepos = (type_ogg_page_granulepos)GetProcAddress(h_ogg_dll,"ogg_page_granulepos");
 	//	if(!ogg_dll.ogg_page_granulepos){ free_ogg_dll(); return -1; }
-	//	ogg_dll.ogg_page_serialno = (type_ogg_page_serialno)GetProcAddress(h_ogg_dll,"ogg_page_serialno");
-	//	if(!ogg_dll.ogg_page_serialno){ free_ogg_dll(); return -1; }
+		ogg_dll.ogg_page_serialno = (type_ogg_page_serialno)GetProcAddress(h_ogg_dll,"ogg_page_serialno");
+		if(!ogg_dll.ogg_page_serialno){ free_ogg_dll(); return -1; }
 	//	ogg_dll.ogg_page_pageno = (type_ogg_page_pageno)GetProcAddress(h_ogg_dll,"ogg_page_pageno");
 	//	if(!ogg_dll.ogg_page_pageno){ free_ogg_dll(); return -1; }
 	//	ogg_dll.ogg_page_packets = (type_ogg_page_packets)GetProcAddress(h_ogg_dll,"ogg_page_packets");
@@ -234,7 +234,6 @@ int load_ogg_dll(void)
 	return 0;
 }
 
-#if 0
 void oggpack_writeinit(oggpack_buffer *b)
 {
 	if(h_ogg_dll){
@@ -242,12 +241,14 @@ void oggpack_writeinit(oggpack_buffer *b)
 	}
 }
 
+#if 0
 void oggpack_reset(oggpack_buffer *b)
 {
 	if(h_ogg_dll){
 		ogg_dll.oggpack_reset(b);
 	}
 }
+#endif
 
 void oggpack_writeclear(oggpack_buffer *b)
 {
@@ -256,12 +257,14 @@ void oggpack_writeclear(oggpack_buffer *b)
 	}
 }
 
+#if 0
 void oggpack_readinit(oggpack_buffer *b,unsigned char *buf,int bytes)
 {
 	if(h_ogg_dll){
 		ogg_dll.oggpack_readinit(b,buf,bytes);
 	}
 }
+#endif
 
 void oggpack_write(oggpack_buffer *b,unsigned long value,int bits)
 {
@@ -270,6 +273,7 @@ void oggpack_write(oggpack_buffer *b,unsigned long value,int bits)
 	}
 }
 
+#if 0
 long oggpack_look(oggpack_buffer *b,int bits)
 {
 	if(h_ogg_dll){
@@ -331,6 +335,7 @@ long oggpack_read1(oggpack_buffer *b)
 	}
 	return (long )0;
 }
+#endif
 
 long oggpack_bytes(oggpack_buffer *b)
 {
@@ -340,6 +345,7 @@ long oggpack_bytes(oggpack_buffer *b)
 	return (long )0;
 }
 
+#if 0
 long oggpack_bits(oggpack_buffer *b)
 {
 	if(h_ogg_dll){
@@ -381,7 +387,7 @@ int     ogg_stream_flush(ogg_stream_state *os, ogg_page *og)
 	}
 	return (int     )0;
 }
-#if 0
+
 int     ogg_sync_init(ogg_sync_state *oy)
 {
 	if(h_ogg_dll){
@@ -398,6 +404,7 @@ int     ogg_sync_clear(ogg_sync_state *oy)
 	return (int     )0;
 }
 
+#if 0
 int     ogg_sync_reset(ogg_sync_state *oy)
 {
 	if(h_ogg_dll){
@@ -413,6 +420,7 @@ intogg_sync_destroy(ogg_sync_state *oy)
 	}
 	return (int)0;
 }
+#endif
 
 char   *ogg_sync_buffer(ogg_sync_state *oy, long size)
 {
@@ -430,6 +438,7 @@ int     ogg_sync_wrote(ogg_sync_state *oy, long bytes)
 	return (int     )0;
 }
 
+#if 0
 long    ogg_sync_pageseek(ogg_sync_state *oy,ogg_page *og)
 {
 	if(h_ogg_dll){
@@ -437,6 +446,7 @@ long    ogg_sync_pageseek(ogg_sync_state *oy,ogg_page *og)
 	}
 	return (long    )0;
 }
+#endif
 
 int     ogg_sync_pageout(ogg_sync_state *oy, ogg_page *og)
 {
@@ -461,7 +471,6 @@ int     ogg_stream_packetout(ogg_stream_state *os,ogg_packet *op)
 	}
 	return (int     )0;
 }
-#endif
 
 int     ogg_stream_init(ogg_stream_state *os,int serialno)
 {
@@ -519,15 +528,15 @@ int     ogg_page_continued(ogg_page *og)
 	}
 	return (int     )0;
 }
+#endif
 
-int     ogg_page_bos(ogg_page *og)
+int     ogg_page_bos(const ogg_page *og)
 {
 	if(h_ogg_dll){
 		return ogg_dll.ogg_page_bos(og);
 	}
 	return (int     )0;
 }
-#endif
 
 int     ogg_page_eos(const ogg_page *og)
 {
@@ -545,8 +554,9 @@ ogg_int64_t ogg_page_granulepos(ogg_page *og)
 	}
 	return (ogg_int64_t )0;
 }
+#endif
 
-int     ogg_page_serialno(ogg_page *og)
+int     ogg_page_serialno(const ogg_page *og)
 {
 	if(h_ogg_dll){
 		return ogg_dll.ogg_page_serialno(og);
@@ -554,6 +564,7 @@ int     ogg_page_serialno(ogg_page *og)
 	return (int     )0;
 }
 
+#if 0
 long    ogg_page_pageno(ogg_page *og)
 {
 	if(h_ogg_dll){

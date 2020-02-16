@@ -125,8 +125,8 @@ set(
     -DAU_GOGO_DLL
     -DAU_VORBIS
     -DAU_VORBIS_DLL
-    -DVORBIS_DLL_INCLUDE_VORBISENC
-    -DVORBIS_DLL_INCLUDE_VORBISFILE
+    # -DVORBIS_DLL_INCLUDE_VORBISENC
+    # -DVORBIS_DLL_INCLUDE_VORBISFILE
     -DAU_FLAC
     -DAU_FLAC_DLL
     -DAU_OGGFLAC
@@ -275,6 +275,7 @@ include_directories(
 	twsyn_bridge
     utils
     vorbis/include
+    vorbis-tools/include
 )
 
 add_subdirectory(FLAC)

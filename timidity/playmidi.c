@@ -841,6 +841,8 @@ static char *event_name(int type)
 	EVENT_NAME(ME_SHERRY);
 	EVENT_NAME(ME_BARMARKER);
 	EVENT_NAME(ME_STEP);
+	EVENT_NAME(ME_LOOP_EXPANSION_START);
+	EVENT_NAME(ME_LOOP_EXPANSION_END);
 	EVENT_NAME(ME_LAST);
 	EVENT_NAME(ME_EOT);
 	}
@@ -13169,6 +13171,14 @@ int play_event(MidiEvent *ev){
 		
 	case ME_CUEPOINT:
 		set_cuepoint(ch, current_event->a, current_event->b);
+		break;
+
+	case ME_LOOP_EXPANSION_START:
+		play_mode->acntl(PM_REQ_LOOP_START, (void *)current_event->time);
+		break;
+
+	case ME_LOOP_EXPANSION_END:
+		play_mode->acntl(PM_REQ_LOOP_END, (void *)current_event->time);
 		break;
 
 	case ME_EOT:

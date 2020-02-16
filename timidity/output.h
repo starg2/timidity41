@@ -125,6 +125,13 @@ enum {
 
     PM_REQ_DIVISIONS,	  /* ARG: int32* - pointer to divisions number
 			  */
+
+    PM_REQ_LOOP_START,    /* ARG: int32
+              * offset of ME_LOOP_EXPANSION_START in samples
+              */
+    PM_REQ_LOOP_END,      /* ARG: int32
+              * offset of ME_LOOP_EXPANSION_END in samples
+              */
 };
 
 
@@ -228,6 +235,14 @@ extern char *create_auto_output_name(const char *input_filename, const char *ext
 #define FILE_OUTPUT_MODE	O_WRONLY|O_CREAT|O_TRUNC
 #else /* UNIX */
 #define FILE_OUTPUT_MODE	O_WRONLY|O_CREAT|O_TRUNC, 0644
+#endif
+
+#if defined(__W32__)
+#define FILE_UPDATE_MODE	O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0644
+#elif defined(__MACOS__)
+#define FILE_UPDATE_MODE	O_RDWR|O_CREAT|O_TRUNC
+#else /* UNIX */
+#define FILE_UPDATE_MODE	O_RDWR|O_CREAT|O_TRUNC, 0644
 #endif
 
 extern void set_temporary_encoding(uint32 enc); // called open_output()

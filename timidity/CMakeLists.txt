@@ -173,6 +173,9 @@ set(
     w32_libOggFLAC_dll_i.h
 	wasapi_a.h
     wdmks_a.h
+
+    ../vorbis-tools/vorbiscomment/vcedit.c
+    ../vorbis-tools/vorbiscomment/vcedit.h
 )
 
 add_library(timidity_common OBJECT ${TIMIDITY_COMMON_SOURCES})
