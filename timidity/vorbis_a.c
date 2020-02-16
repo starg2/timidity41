@@ -120,6 +120,7 @@ extern int w32g_auto_output_mode;
 extern int vorbis_ConfigDialogInfoApply(void);
 int ogg_vorbis_mode = 8;	/* initial mode. */
 #endif
+int ogg_vorbis_embed_loop = 0;
 
 /*************************************************************************/
 
@@ -499,7 +500,7 @@ static void close_output(void)
   vorbis_comment_clear(&vc);
   vorbis_info_clear(&vi);
 
-  if (has_loopinfo)
+  if (ogg_vorbis_embed_loop && has_loopinfo)
 	  insert_loop_tags();
 
   close(dpm.fd);
@@ -534,15 +535,19 @@ static int acntl(int request, void *arg)
   case PM_REQ_DISCARD:
     return 0;
   case PM_REQ_LOOP_START:
-	loopstart = (int32)arg;
-	looplength = 0;
-	has_loopinfo = 0;
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPSTART=%d", loopstart);
+	if (ogg_vorbis_embed_loop) {
+		loopstart = (int32)arg;
+		looplength = 0;
+		has_loopinfo = 0;
+		ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPSTART=%d", loopstart);
+	}
     return 0;
   case PM_REQ_LOOP_END:
-	looplength = (int32)arg - loopstart;
-	has_loopinfo = 1;
-	ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPLENGTH=%d", looplength);
+	if (ogg_vorbis_embed_loop) {
+		looplength = (int32)arg - loopstart;
+		has_loopinfo = 1;
+		ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPLENGTH=%d", looplength);
+	}
 	return 0;
   }
   return -1;
