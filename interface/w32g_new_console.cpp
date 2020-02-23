@@ -498,7 +498,7 @@ public:
     void WriteV(const char* pFormat, va_list args)
     {
         std::array<char, BUFSIZ> buf;
-        std::snprintf(buf.data(), buf.size(), pFormat, args);
+        std::vsnprintf(buf.data(), buf.size(), pFormat, args);
         Write(NormalColor, buf.data(), false);
     }
 
