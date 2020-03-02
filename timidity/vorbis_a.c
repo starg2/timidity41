@@ -121,6 +121,10 @@ extern int vorbis_ConfigDialogInfoApply(void);
 int ogg_vorbis_mode = 8;	/* initial mode. */
 #endif
 int ogg_vorbis_embed_loop = 0;
+int ogg_vorbis_embed_tags = 0;
+char ogg_vorbis_tag_title[256];
+char ogg_vorbis_tag_artist[256];
+char ogg_vorbis_tag_album[256];
 
 /*************************************************************************/
 
@@ -281,21 +285,25 @@ static int ogg_output_open(const char *fname, const char *comment)
     free(location_string);
 #endif
   }
+  if (ogg_vorbis_embed_tags) {
+	  vorbis_comment_add_tag(&vc, "TITLE", ogg_vorbis_tag_title);
+	  vorbis_comment_add_tag(&vc, "ARTIST", ogg_vorbis_tag_artist);
+	  vorbis_comment_add_tag(&vc, "ALBUM", ogg_vorbis_tag_album);
+  } else if (tag_title != NULL) {
   /* add default tag */
-  if (tag_title != NULL) {
 #if defined(__W32__) && (defined(VORBIS_DLL_UNICODE) && (defined(_UNICODE) || defined(UNICODE)))
 	{
 		char* tag_title_utf8 = w32_mbs_to_utf8 ( tag_title );
 		if ( tag_title_utf8 == NULL ) {
-			vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
+			vorbis_comment_add_tag(&vc, "TITLE", (char *)tag_title);
 		} else {
-			vorbis_comment_add_tag(&vc, "title", (char *)tag_title_utf8);
+			vorbis_comment_add_tag(&vc, "TITLE", (char *)tag_title_utf8);
 			if ( tag_title_utf8 != tag_title )
 				free ( tag_title_utf8 );
 		}
 	}
 #else
-	vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
+	vorbis_comment_add_tag(&vc, "TITLE", (char *)tag_title);
 #endif
   }
 	

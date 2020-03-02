@@ -101,9 +101,9 @@ typedef struct vorbis_ConfigDialogInfo_t_ {
 	int optIDC_CHECK_DEFAULT;
 	int optIDC_COMBO_MODE;
 	int optIDC_CHECK_USE_TAG;
-	char optIDC_EDIT1[256];
-	char optIDC_EDIT2[256];
-	char optIDC_EDIT3[256];
+	char optIDC_EDIT_TITLE[256];
+	char optIDC_EDIT_ARTIST[256];
+	char optIDC_EDIT_ALBUM[256];
 	int optIDC_CHECK_EMBED_LOOP;
 } vorbis_ConfigDialogInfo_t;
 
