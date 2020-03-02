@@ -6212,7 +6212,8 @@ static int parse_opt_h(const char *arg)
 "                      m : Mark A - B",
 "                      l : Mark Loop_Start - Loop_End",
 "                      2 : CC#2 - CC#4",
-"                  All: --loop-filter=1ml2",
+"                      s : Mark loopStart - loopEnd",
+"                  All: --loop-filter=1ml2s",
 #endif /* SUPPORT_LOOPEVENT */
 #ifdef ENABLE_THREAD
 "  --compute-thread-num=n",
@@ -7678,7 +7679,12 @@ static inline int parse_opt_midi_loop_filter(const char *arg)
             opt_use_midi_loop_repeat |= LF_CC2_TO_CC4;
             break;
 
-        default:
+		case 's':
+			/* Mark `loopStart'-`loopEnd'*/
+			opt_use_midi_loop_repeat |= LF_MARK_LS_TO_LE;
+			break;
+
+		default:
             ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
                       "--loop-filter: Illegal mode `%c'", *arg);
             err++;
