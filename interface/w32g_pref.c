@@ -1357,6 +1357,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         DI_DISABLE(IDC_CHECKBOX_LOOP_AB_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_SE_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_CC2);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_LSLE_MARK);
         DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
 #endif
 		
@@ -1458,6 +1459,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         CH_SET(IDC_CHECKBOX_LOOP_AB_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_A_TO_B) != 0);
         CH_SET(IDC_CHECKBOX_LOOP_SE_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_S_TO_E) != 0);
         CH_SET(IDC_CHECKBOX_LOOP_CC2, (st_temp->opt_use_midi_loop_repeat & LF_CC2_TO_CC4) != 0);
+        CH_SET(IDC_CHECKBOX_LOOP_LSLE_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_LS_TO_LE) != 0);
         SendMessage(hwnd, WM_COMMAND, IDC_CHECKBOX_LOOP_CC111, 0);
         EB_SET_INT(IDC_EDIT_LOOP_REPEAT, st_temp->opt_midi_loop_repeat);
 
@@ -1466,6 +1468,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         DI_DISABLE(IDC_CHECKBOX_LOOP_AB_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_SE_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_CC2);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_LSLE_MARK);
         DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
 #endif
 
@@ -1544,8 +1547,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         case IDC_CHECKBOX_LOOP_AB_MARK:
         case IDC_CHECKBOX_LOOP_SE_MARK:
         case IDC_CHECKBOX_LOOP_CC2:
+        case IDC_CHECKBOX_LOOP_LSLE_MARK:
             if (CH_GET(IDC_CHECKBOX_LOOP_CC111) || CH_GET(IDC_CHECKBOX_LOOP_AB_MARK) ||
-                    CH_GET(IDC_CHECKBOX_LOOP_SE_MARK) || CH_GET(IDC_CHECKBOX_LOOP_CC2))
+                    CH_GET(IDC_CHECKBOX_LOOP_SE_MARK) || CH_GET(IDC_CHECKBOX_LOOP_CC2) || CH_GET(IDC_CHECKBOX_LOOP_LSLE_MARK))
                 DI_ENABLE(IDC_EDIT_LOOP_REPEAT);
             else
                 DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
@@ -1642,7 +1646,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         st_temp->opt_use_midi_loop_repeat |= LF_MARK_S_TO_E * flag;
         flag = CH_GET(IDC_CHECKBOX_LOOP_CC2) ? 1 : 0;
         st_temp->opt_use_midi_loop_repeat |= LF_CC2_TO_CC4 * flag;
-        st_temp->opt_midi_loop_repeat = EB_GET_INT(IDC_EDIT_LOOP_REPEAT);
+		flag = CH_GET(IDC_CHECKBOX_LOOP_LSLE_MARK) ? 1 : 0;
+		st_temp->opt_use_midi_loop_repeat |= LF_MARK_LS_TO_LE * flag;
+		st_temp->opt_midi_loop_repeat = EB_GET_INT(IDC_EDIT_LOOP_REPEAT);
 #endif
 
         break; }

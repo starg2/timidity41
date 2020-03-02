@@ -211,6 +211,7 @@
 #define IDC_CHECKBOX_LOOP_AB_MARK      3953
 #define IDC_CHECKBOX_LOOP_SE_MARK      3954
 #define IDC_CHECKBOX_LOOP_CC2          3955
+#define IDC_CHECKBOX_LOOP_LSLE_MARK    3956
 
 //// synth
 // port
