@@ -5724,6 +5724,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
         LOOP_TYPE_MARK_A_TO_B,
         LOOP_TYPE_MARK_S_TO_E,
         LOOP_TYPE_CC2_TO_CC4,
+		LOOP_TYPE_MARK_LS_TO_LE
     };
     int loop_type;
     const int loop_filter = opt_use_midi_loop_repeat;
@@ -6766,6 +6767,43 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
                     ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
                               "ME_MARKER(%c): %d", 'E', meep->event.time);
                     if (loop_type == LOOP_TYPE_MARK_S_TO_E && loop_startmeep)
+                    {
+                        if (loop_end_event_count == 0) {
+                            loop_end_event_count = i;
+                            groomed_list = lp =
+                                (MidiEvent*) safe_large_realloc(groomed_list, sizeof(MidiEvent) * (event_count +
+                                    (loop_end_event_count - loop_begin_event_count + 2) *
+                                        loop_repeat_counter + 1));
+                            lp += our_event_count;
+                        }
+
+                        loop_startflag = 1;
+                    }
+                    skip_this_event = 1;
+                }
+
+                /* loopStart-loopEnd */
+                if (strcmp(text + 1, "(loopStart)") == 0) {
+                    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                              "ME_MARKER(loopStart): %d", meep->event.time);
+                    if ((loop_filter & LF_MARK_LS_TO_LE) != 0 &&
+                        (loop_type == LOOP_TYPE_UNKNOWN || loop_type == LOOP_TYPE_MARK_LS_TO_LE))
+                    {
+						if (loop_end_event_count == 0 && loop_startmeep != meep)
+						{
+							loop_type = LOOP_TYPE_MARK_LS_TO_LE;
+							loop_begin_time = meep->event.time;
+							loop_startmeep = meep;
+							loop_begin_event_count = i;
+						}
+						loop_startflag = 2;
+					}
+                    skip_this_event = 1;
+                }
+                if (strcmp(text + 1, "(loopEnd)") == 0) {
+                    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY,
+                              "ME_MARKER(loopEnd): %d", meep->event.time);
+                    if (loop_type == LOOP_TYPE_MARK_LS_TO_LE && loop_startmeep)
                     {
                         if (loop_end_event_count == 0) {
                             loop_end_event_count = i;
