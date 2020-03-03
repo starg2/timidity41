@@ -121,12 +121,52 @@ extern int vorbis_ConfigDialogInfoApply(void);
 int ogg_vorbis_mode = 8;	/* initial mode. */
 #endif
 int ogg_vorbis_embed_loop = 0;
-int ogg_vorbis_embed_tags = 0;
-char ogg_vorbis_tag_title[256];
-char ogg_vorbis_tag_artist[256];
-char ogg_vorbis_tag_album[256];
+
+typedef struct VorbisCommentInfo {
+	struct VorbisCommentInfo *next;
+	char tag[64];
+	char contents[256];
+} VorbisCommentInfo;
+
+static VorbisCommentInfo *ogg_vorbis_comment_list = NULL;
 
 /*************************************************************************/
+
+void vorbis_set_option_vorbis_comment(const char *tag, const char *contents)
+{
+	VorbisCommentInfo *newInfo = (VorbisCommentInfo *)safe_malloc(sizeof(VorbisCommentInfo));
+	newInfo->next = NULL;
+	strncpy(newInfo->tag, tag, sizeof(newInfo->tag) - 1);
+	newInfo->tag[sizeof(newInfo->tag) - 1] = '\0';
+	strncpy(newInfo->contents, contents, sizeof(newInfo->contents) - 1);
+	newInfo->contents[sizeof(newInfo->contents) - 1] = '\0';
+
+	VorbisCommentInfo *last = ogg_vorbis_comment_list;
+
+	if (last) {
+		while (last->next)
+			last = last->next;
+
+		last->next = newInfo;
+	} else
+		ogg_vorbis_comment_list = newInfo;
+}
+
+void vorbis_clear_option_vorbis_comment(void)
+{
+	VorbisCommentInfo *info = ogg_vorbis_comment_list;
+
+	if (info) {
+		while (info->next) {
+			VorbisCommentInfo *next = info->next;
+			safe_free(info);
+			info = next;
+		}
+
+		safe_free(info);
+		ogg_vorbis_comment_list = NULL;
+	}
+}
 
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
 static int
@@ -258,11 +298,28 @@ static int ogg_output_open(const char *fname, const char *comment)
   }
 #endif
 
+  vorbis_comment_init(&vc);
+
+  int location_commented = 0;
+  int title_commented = 0;
+  if (ogg_vorbis_comment_list) {
+	  VorbisCommentInfo *info = ogg_vorbis_comment_list;
+
+	  while (info) {
+		  if (strcmp(info->tag, "LOCATION") == 0)
+			  location_commented = 1;
+		  if (strcmp(info->tag, "TITLE") == 0)
+			  title_commented = 1;
+
+		  vorbis_comment_add_tag(&vc, info->tag, info->contents);
+		  info = info->next;
+	  }
+  }
+
+  if (!location_commented)
   {
     /* add a comment */
     char *location_string;
-
-    vorbis_comment_init(&vc);
 
     location_string =
       (char *)safe_malloc(strlen(comment) + sizeof("LOCATION=") + 2);
@@ -285,11 +342,8 @@ static int ogg_output_open(const char *fname, const char *comment)
     free(location_string);
 #endif
   }
-  if (ogg_vorbis_embed_tags) {
-	  vorbis_comment_add_tag(&vc, "TITLE", ogg_vorbis_tag_title);
-	  vorbis_comment_add_tag(&vc, "ARTIST", ogg_vorbis_tag_artist);
-	  vorbis_comment_add_tag(&vc, "ALBUM", ogg_vorbis_tag_album);
-  } else if (tag_title != NULL) {
+
+  if (tag_title != NULL && !title_commented) {
   /* add default tag */
 #if defined(__W32__) && (defined(VORBIS_DLL_UNICODE) && (defined(_UNICODE) || defined(UNICODE)))
 	{

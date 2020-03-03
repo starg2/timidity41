@@ -7681,10 +7681,8 @@ int vorbis_ConfigDialogInfoInit(void)
 
 extern volatile int ogg_vorbis_mode;
 extern int ogg_vorbis_embed_loop;
-extern int ogg_vorbis_embed_tags;
-extern char ogg_vorbis_tag_title[256];
-extern char ogg_vorbis_tag_artist[256];
-extern char ogg_vorbis_tag_album[256];
+void vorbis_set_option_vorbis_comment(const char *tag, const char *contents);
+void vorbis_clear_option_vorbis_comment(void);
 
 int vorbis_ConfigDialogInfoApply(void)
 {
@@ -7695,10 +7693,15 @@ int vorbis_ConfigDialogInfoApply(void)
 	}else{
 		ogg_vorbis_mode = 8;
 	}
-	ogg_vorbis_embed_tags = vorbis_ConfigDialogInfo.optIDC_CHECK_USE_TAG;
-	strcpy(ogg_vorbis_tag_title, vorbis_ConfigDialogInfo.optIDC_EDIT_TITLE);
-	strcpy(ogg_vorbis_tag_artist, vorbis_ConfigDialogInfo.optIDC_EDIT_ARTIST);
-	strcpy(ogg_vorbis_tag_album, vorbis_ConfigDialogInfo.optIDC_EDIT_ALBUM);
+
+	vorbis_clear_option_vorbis_comment();
+
+	if(vorbis_ConfigDialogInfo.optIDC_CHECK_USE_TAG){
+		vorbis_set_option_vorbis_comment("TITLE", vorbis_ConfigDialogInfo.optIDC_EDIT_TITLE);
+		vorbis_set_option_vorbis_comment("ARTIST", vorbis_ConfigDialogInfo.optIDC_EDIT_ARTIST);
+		vorbis_set_option_vorbis_comment("ALBUM", vorbis_ConfigDialogInfo.optIDC_EDIT_ALBUM);
+	}
+
 	ogg_vorbis_embed_loop = vorbis_ConfigDialogInfo.optIDC_CHECK_EMBED_LOOP;
 	vorbis_ConfigDialogInfoUnLock();
 	return 0;
