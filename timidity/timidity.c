@@ -6062,7 +6062,14 @@ static int parse_opt_h(const char *arg)
 "             --speex-nframes=n (for Ogg Speex only)",
 "               Number of frames per Ogg packet n:[0-10]",
 #endif
-"             --output-device-id=n",
+#ifdef AU_VORBIS
+"             --vorbis-comment=\"TAG=contents\" (for Ogg Vorbis only)",
+"               Embed vorbis comments",
+#ifdef SUPPORT_LOOPEVENT
+"             --vorbis-embed-loop (for Ogg Vorbis only)",
+"               Embed loop information",
+#endif /* SUPPORT_LOOPEVENT */
+#endif /* AU_VORBIS */
 #ifdef AU_W32
 "             --wmme-device-id=n (for Windows only)",
 "               Number of WMME device ID (-1: Default device, 0..19: other)",
@@ -6140,6 +6147,7 @@ static int parse_opt_h(const char *arg)
 "  -o file    --output-file=file",
 "               Output to another file (or device/server) (Use \"-\" for stdout)",
 #if defined(AU_PORTAUDIO) || defined(AU_WIN32)
+"             --output-device-id=n",
 "               Set the output device no. (-1 shows available device no. list)",
 #endif
 "  -P file    --patch-file=file",
