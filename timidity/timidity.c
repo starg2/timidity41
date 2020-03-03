@@ -8780,7 +8780,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 
     if(opt_output_name)
     {
-	play_mode->name = opt_output_name;
+	play_mode->name = safe_strdup(opt_output_name);
     if(!strcmp(opt_output_name, "-")){
 	    need_stdout = 1;
 #ifdef __W32__
