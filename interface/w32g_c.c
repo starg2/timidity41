@@ -1660,9 +1660,11 @@ static void ctl_event(CtlEvent *e)
 			else
 			sec = sec / play_mode->rate;
 		}
-		ctl_current_time(sec, (int)e->v2);
+		if(!flg)
+			ctl_current_time(sec, (int)e->v2);
 		display_aq_ratio();
-		MainWndScrollbarProgressUpdate(sec);
+		if(!flg)
+			MainWndScrollbarProgressUpdate(sec);
 		ctl_panel_refresh(flg);
 		}
 		break;
