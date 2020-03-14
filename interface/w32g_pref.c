@@ -1422,9 +1422,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_AUTOSAVE_PLAYLIST, sp_temp->AutosavePlaylist);
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_POS_SIZE_SAVE, sp_temp->PosSizeSave);
 		
-		//for (i = 0; i <= cb_num_IDC_COMBO_SUBWINDOW_MAX; i++)
-		//	CB_INSSTR(IDC_COMBO_SUBWINDOW_MAX, cb_info_IDC_COMBO_SUBWINDOW_MAX[i]);
-		//CB_SET(IDC_COMBO_SUBWINDOW_MAX, RANGE(sp_temp->SubWindowMax, 0, cb_num_IDC_COMBO_SUBWINDOW_MAX));
+		for (i = 0; i <= cb_num_IDC_COMBO_SUBWINDOW_MAX; i++)
+			CB_INSSTR(IDC_COMBO_SUBWINDOW_MAX, cb_info_IDC_COMBO_SUBWINDOW_MAX[i]);
+		CB_SET(IDC_COMBO_SUBWINDOW_MAX, RANGE(sp_temp->SubWindowMax, 0, cb_num_IDC_COMBO_SUBWINDOW_MAX));
 
 		if(CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 			for (i = 0; i < CB_NUM(process_priority_num); i++)
@@ -1622,7 +1622,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_AUTOSAVE_PLAYLIST, sp_temp->AutosavePlaylist);
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_POS_SIZE_SAVE, sp_temp->PosSizeSave);
 		
-		//sp_temp->SubWindowMax = CB_GETS(IDC_COMBO_SUBWINDOW_MAX, 5);
+		sp_temp->SubWindowMax = CB_GETS(IDC_COMBO_SUBWINDOW_MAX, 5);
 
 		// Set process priority
 		st_temp->processPriority = process_priority_num[CB_GETS(IDC_COMBO_PROCESS_PRIORITY, 2)];
