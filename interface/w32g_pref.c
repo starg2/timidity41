@@ -1422,9 +1422,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_AUTOSAVE_PLAYLIST, sp_temp->AutosavePlaylist);
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECK_POS_SIZE_SAVE, sp_temp->PosSizeSave);
 		
-		//for (i = 0; i <= cb_num_IDC_COMBO_SUBWINDOW_MAX; i++)
-		//	CB_INSSTR(IDC_COMBO_SUBWINDOW_MAX, cb_info_IDC_COMBO_SUBWINDOW_MAX[i]);
-		//CB_SET(IDC_COMBO_SUBWINDOW_MAX, RANGE(sp_temp->SubWindowMax, 0, cb_num_IDC_COMBO_SUBWINDOW_MAX));
+		for (i = 0; i <= cb_num_IDC_COMBO_SUBWINDOW_MAX; i++)
+			CB_INSSTR(IDC_COMBO_SUBWINDOW_MAX, cb_info_IDC_COMBO_SUBWINDOW_MAX[i]);
+		CB_SET(IDC_COMBO_SUBWINDOW_MAX, RANGE(sp_temp->SubWindowMax, 0, cb_num_IDC_COMBO_SUBWINDOW_MAX));
 
 		if(CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 			for (i = 0; i < CB_NUM(process_priority_num); i++)
@@ -1613,7 +1613,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_AUTOSAVE_PLAYLIST, sp_temp->AutosavePlaylist);
 		DLG_CHECKBUTTON_TO_FLAG(hwnd, IDC_CHECK_POS_SIZE_SAVE, sp_temp->PosSizeSave);
 		
-		//sp_temp->SubWindowMax = CB_GETS(IDC_COMBO_SUBWINDOW_MAX, 5);
+		sp_temp->SubWindowMax = CB_GETS(IDC_COMBO_SUBWINDOW_MAX, 5);
 
 		// Set process priority
 		st_temp->processPriority = process_priority_num[CB_GETS(IDC_COMBO_PROCESS_PRIORITY, 2)];
@@ -4918,6 +4918,8 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		case IDC_COMBO_OUTPUT_MODE:
 		{
 			int cb_num1, cb_num2;
+			BOOL enable_path_setting;
+
 			cb_num1 = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
 			if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 				cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
@@ -4954,7 +4956,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				safe_free(t);
 				}
 			}
-			BOOL enable_path_setting = st_temp->auto_output_mode != 1;
+			enable_path_setting = st_temp->auto_output_mode != 1;
 			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE), enable_path_setting);
 			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_OUTPUT_FILE), enable_path_setting);
 			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE_DEL), st_temp->auto_output_mode == 0);
