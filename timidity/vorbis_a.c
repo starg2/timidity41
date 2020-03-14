@@ -69,6 +69,7 @@ extern void free_vorbisenc_dll(void);
 #endif
 
 #include <vorbis/vorbisenc.h>
+#include "../vorbis-tools/vorbiscomment/vcedit.h"
 
 #include "timidity.h"
 #include "common.h"
@@ -82,6 +83,8 @@ static int open_output(void); /* 0=success, 1=warning, -1=fatal error */
 static void close_output(void);
 static int output_data(const uint8 *buf, size_t bytes);
 static int acntl(int request, void *arg);
+
+static int insert_loop_tags(void);
 
 /* export the playback mode */
 #define dpm vorbis_play_mode
@@ -107,14 +110,64 @@ static	vorbis_info	 vi; /* struct that stores all the static vorbis bitstream
 				settings */
 static	vorbis_comment	 vc; /* struct that stores all the user comments */
 
+static int has_loopinfo = 0;
+static int32 loopstart;
+static int32 looplength;
+
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
 extern char *w32g_output_dir;
 extern int w32g_auto_output_mode;
 extern int vorbis_ConfigDialogInfoApply(void);
 int ogg_vorbis_mode = 8;	/* initial mode. */
 #endif
+int ogg_vorbis_embed_loop = 0;
+
+typedef struct VorbisCommentInfo {
+	struct VorbisCommentInfo *next;
+	char tag[64];
+	char contents[256];
+} VorbisCommentInfo;
+
+static VorbisCommentInfo *ogg_vorbis_comment_list = NULL;
 
 /*************************************************************************/
+
+void vorbis_set_option_vorbis_comment(const char *tag, const char *contents)
+{
+	VorbisCommentInfo *last = NULL;
+	VorbisCommentInfo *newInfo = (VorbisCommentInfo *)safe_malloc(sizeof(VorbisCommentInfo));
+	newInfo->next = NULL;
+	strncpy(newInfo->tag, tag, sizeof(newInfo->tag) - 1);
+	newInfo->tag[sizeof(newInfo->tag) - 1] = '\0';
+	strncpy(newInfo->contents, contents, sizeof(newInfo->contents) - 1);
+	newInfo->contents[sizeof(newInfo->contents) - 1] = '\0';
+
+	last = ogg_vorbis_comment_list;
+
+	if (last) {
+		while (last->next)
+			last = last->next;
+
+		last->next = newInfo;
+	} else
+		ogg_vorbis_comment_list = newInfo;
+}
+
+void vorbis_clear_option_vorbis_comment(void)
+{
+	VorbisCommentInfo *info = ogg_vorbis_comment_list;
+
+	if (info) {
+		while (info->next) {
+			VorbisCommentInfo *next = info->next;
+			safe_free(info);
+			info = next;
+		}
+
+		safe_free(info);
+		ogg_vorbis_comment_list = NULL;
+	}
+}
 
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
 static int
@@ -181,7 +234,9 @@ static int ogg_output_open(const char *fname, const char *comment)
 #if !defined ( IA_W32GUI ) && !defined ( IA_W32G_SYN )
   int bitrate;
 #endif
-
+  int location_commented = 0;
+  int title_commented = 0;
+  
 #ifdef AU_VORBIS_DLL
   {
 	  int flag = 0;
@@ -210,7 +265,7 @@ static int ogg_output_open(const char *fname, const char *comment)
       comment = "(stdout)";
   } else {
     /* Open the audio file */
-    fd = open(fname, FILE_OUTPUT_MODE);
+    fd = open(fname, FILE_UPDATE_MODE);
     if(fd < 0) {
       ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "%s: %s",
 		fname, strerror(errno));
@@ -219,6 +274,8 @@ static int ogg_output_open(const char *fname, const char *comment)
     if(comment == NULL)
       comment = fname;
   }
+
+  has_loopinfo = 0;
 
 #if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
   vorbis_ConfigDialogInfoApply();
@@ -244,11 +301,26 @@ static int ogg_output_open(const char *fname, const char *comment)
   }
 #endif
 
+  vorbis_comment_init(&vc);
+
+  if (ogg_vorbis_comment_list) {
+	  VorbisCommentInfo *info = ogg_vorbis_comment_list;
+
+	  while (info) {
+		  if (strcmp(info->tag, "LOCATION") == 0)
+			  location_commented = 1;
+		  if (strcmp(info->tag, "TITLE") == 0)
+			  title_commented = 1;
+
+		  vorbis_comment_add_tag(&vc, info->tag, info->contents);
+		  info = info->next;
+	  }
+  }
+
+  if (!location_commented)
   {
     /* add a comment */
     char *location_string;
-
-    vorbis_comment_init(&vc);
 
     location_string =
       (char *)safe_malloc(strlen(comment) + sizeof("LOCATION=") + 2);
@@ -271,21 +343,22 @@ static int ogg_output_open(const char *fname, const char *comment)
     free(location_string);
 #endif
   }
+
+  if (tag_title != NULL && !title_commented) {
   /* add default tag */
-  if (tag_title != NULL) {
 #if defined(__W32__) && (defined(VORBIS_DLL_UNICODE) && (defined(_UNICODE) || defined(UNICODE)))
 	{
 		char* tag_title_utf8 = w32_mbs_to_utf8 ( tag_title );
 		if ( tag_title_utf8 == NULL ) {
-			vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
+			vorbis_comment_add_tag(&vc, "TITLE", (char *)tag_title);
 		} else {
-			vorbis_comment_add_tag(&vc, "title", (char *)tag_title_utf8);
+			vorbis_comment_add_tag(&vc, "TITLE", (char *)tag_title_utf8);
 			if ( tag_title_utf8 != tag_title )
 				free ( tag_title_utf8 );
 		}
 	}
 #else
-	vorbis_comment_add_tag(&vc, "title", (char *)tag_title);
+	vorbis_comment_add_tag(&vc, "TITLE", (char *)tag_title);
 #endif
   }
 	
@@ -489,6 +562,10 @@ static void close_output(void)
   vorbis_dsp_clear(&vd);
   vorbis_comment_clear(&vc);
   vorbis_info_clear(&vi);
+
+  if (ogg_vorbis_embed_loop && has_loopinfo)
+	  insert_loop_tags();
+
   close(dpm.fd);
 
 #ifdef AU_VORBIS_DLL
@@ -520,8 +597,101 @@ static int acntl(int request, void *arg)
     return 0;
   case PM_REQ_DISCARD:
     return 0;
+  case PM_REQ_LOOP_START:
+	if (ogg_vorbis_embed_loop) {
+		loopstart = (int32)arg;
+		looplength = 0;
+		has_loopinfo = 0;
+		ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPSTART=%d", loopstart);
+	}
+    return 0;
+  case PM_REQ_LOOP_END:
+	if (ogg_vorbis_embed_loop) {
+		looplength = (int32)arg - loopstart;
+		has_loopinfo = 1;
+		ctl->cmsg(CMSG_INFO, VERB_NOISY, "LOOPLENGTH=%d", looplength);
+	}
+	return 0;
   }
   return -1;
+}
+
+static int insert_loop_tags(void)
+{
+	vcedit_state *state;
+	FILE *ftemp, *fin;
+	vorbis_comment *vc;
+	char buf[4096];
+	long fsize;
+
+	lseek(dpm.fd, 0, SEEK_SET);
+
+	state = vcedit_new_state();
+	ftemp = tmpfile();
+	fin = fdopen(dup(dpm.fd), "w+b");
+
+	if (!ftemp) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; tmpfile() failed");
+		goto failed;
+	}
+
+	if (!fin) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; fdopen() failed");
+		return 0;
+	}
+
+	if (vcedit_open(state, fin) < 0) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; vcedit_open() failed");
+		goto failed;
+	}
+
+	vc = vcedit_comments(state);
+	snprintf(buf, _countof(buf), "LOOPSTART=%d", loopstart);
+	vorbis_comment_add(vc, buf);
+	snprintf(buf, _countof(buf), "LOOPLENGTH=%d", looplength);
+	vorbis_comment_add(vc, buf);
+
+	if (vcedit_write(state, ftemp) < 0) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; vcedit_write() failed");
+		goto failed;
+	}
+
+	vcedit_clear(state);
+	state = NULL;
+	fclose(fin);
+	fin = NULL;
+
+	lseek(dpm.fd, 0, SEEK_SET);
+	fseek(ftemp, 0, SEEK_SET);
+
+	while (1) {
+		size_t len = fread(buf, 1, _countof(buf), ftemp);
+
+		if (len == 0) {
+			break;
+		}
+
+		write(dpm.fd, buf, len);
+	}
+
+	fclose(ftemp);
+	ftemp = NULL;
+	fsize = lseek(dpm.fd, 0, SEEK_CUR);
+
+#ifdef __W32__
+	_chsize(dpm.fd, fsize);
+#else
+	ftruncate(dpm.fd, fsize);
+#endif
+
+	ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Ogg Vorbis loop was inserted (LOOPSTART=%d, LOOPLENGTH=%d).", loopstart, looplength);
+	return 1;
+
+failed:
+	fclose(ftemp);
+	fclose(fin);
+	vcedit_clear(state);
+	return 0;
 }
 
 #endif

@@ -18,6 +18,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "timidity", "timidity\timidi
 	ProjectSection(ProjectDependencies) = postProject
 		{7D19161F-9206-4637-AFE6-C82951FFDD8E} = {7D19161F-9206-4637-AFE6-C82951FFDD8E}
 		{4F65093E-E5C5-46C1-819D-0987086BF312} = {4F65093E-E5C5-46C1-819D-0987086BF312}
+		{F4BDECA3-C17C-40B4-9E09-0F504466F6B1} = {F4BDECA3-C17C-40B4-9E09-0F504466F6B1}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "timw32g", "timw32g\timw32g.vcproj", "{76D0CE5A-A349-4022-8727-195719E4B93E}"
@@ -97,6 +98,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "twsyng_bridge", "twsyn_bridge\twsyn_bridge.vcproj", "{4D6B6788-F7B8-4FFB-B15F-DC5C665ABB5C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libmpg123", "libmpg123\libmpg123.vcproj", "{7D19161F-9206-4637-AFE6-C82951FFDD8E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vorbis-tools", "vorbis-tools\vorbis-tools.vcproj", "{F4BDECA3-C17C-40B4-9E09-0F504466F6B1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -188,6 +191,10 @@ Global
 		{7D19161F-9206-4637-AFE6-C82951FFDD8E}.Debug|Win32.Build.0 = Debug|Win32
 		{7D19161F-9206-4637-AFE6-C82951FFDD8E}.Release|Win32.ActiveCfg = Release|Win32
 		{7D19161F-9206-4637-AFE6-C82951FFDD8E}.Release|Win32.Build.0 = Release|Win32
+		{F4BDECA3-C17C-40B4-9E09-0F504466F6B1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F4BDECA3-C17C-40B4-9E09-0F504466F6B1}.Debug|Win32.Build.0 = Debug|Win32
+		{F4BDECA3-C17C-40B4-9E09-0F504466F6B1}.Release|Win32.ActiveCfg = Release|Win32
+		{F4BDECA3-C17C-40B4-9E09-0F504466F6B1}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

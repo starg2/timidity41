@@ -297,6 +297,8 @@ enum {
 	TIM_OPT_SPEEX_DTX,
 	TIM_OPT_SPEEX_COMPLEXITY,
 	TIM_OPT_SPEEX_NFRAMES,
+	TIM_OPT_VORBIS_COMMENT,
+	TIM_OPT_VORBIS_EMBED_LOOP,
 	TIM_OPT_OUTPUT_FILE,
 	TIM_OPT_PATCH_FILE,
 	TIM_OPT_POLYPHONY,
@@ -552,6 +554,12 @@ static const struct option longopts[] = {
 	{ "speex-complexity",       required_argument, NULL, TIM_OPT_SPEEX_COMPLEXITY },
 	{ "speex-nframes",          required_argument, NULL, TIM_OPT_SPEEX_NFRAMES },
 #endif /* AU_SPEEX */
+#ifdef AU_VORBIS
+	{ "vorbis-comment",         required_argument, NULL, TIM_OPT_VORBIS_COMMENT },
+#ifdef SUPPORT_LOOPEVENT
+	{ "vorbis-embed-loop",      no_argument,       NULL, TIM_OPT_VORBIS_EMBED_LOOP },
+#endif /* SUPPORT_LOOPEVENT */
+#endif /* AU_VORBIS */
 	{ "output-file",            required_argument, NULL, TIM_OPT_OUTPUT_FILE },
 	{ "patch-file",             required_argument, NULL, TIM_OPT_PATCH_FILE },
 	{ "polyphony",              required_argument, NULL, TIM_OPT_POLYPHONY },
@@ -796,6 +804,12 @@ static inline int parse_opt_speex_dtx(const char *);
 static inline int parse_opt_speex_complexity(const char *);
 static inline int parse_opt_speex_nframes(const char *);
 #endif /* AU_SPEEX */
+#ifdef AU_VORBIS
+static inline int parse_opt_vorbis_comment(const char *);
+#ifdef SUPPORT_LOOPEVENT
+static inline int parse_opt_vorbis_embed_loop(const char*);
+#endif /* SUPPORT_LOOPEVENT */
+#endif /* AU_VORBIS */
 static inline int parse_opt_o(const char *);
 static inline int parse_opt_P(const char *);
 static inline int parse_opt_p(const char *);
@@ -1707,6 +1721,14 @@ static int set_gus_patchconf_opts(const char *name,
 		tone->rx_note_off = atoi(cp);
 	else if (! strcmp(opts, "lpf"))		/* lpf type */
 		tone->lpf_type = atoi(cp);
+	else if (! strcmp(opts, "seqlen"))
+		tone->seq_length = atoi(cp);
+	else if (! strcmp(opts, "seqpos"))
+		tone->seq_position = atoi(cp);
+	//else if (! strcmp(opts, "lorand"))
+	//	tone->lorand = atof(cp);
+	//else if (! strcmp(opts, "hirand"))
+	//	tone->hirand = atof(cp);
 	else if (! strcmp(opts, "hpf")){		/* hpf */
 		if(tone->hpfnum)
 			free_ptr_list(tone->hpf, tone->hpfnum);
@@ -4435,6 +4457,14 @@ MAIN_INTERFACE int set_tim_opt_long(int c, const char *optarg, int index)
 	case TIM_OPT_SPEEX_NFRAMES:
 		return parse_opt_speex_nframes(arg);
 #endif /* AU_SPEEX */
+#ifdef AU_VORBIS
+	case TIM_OPT_VORBIS_COMMENT:
+		return parse_opt_vorbis_comment(arg);
+#ifdef SUPPORT_LOOPEVENT
+	case TIM_OPT_VORBIS_EMBED_LOOP:
+		return parse_opt_vorbis_embed_loop(arg);
+#endif /* SUPPORT_LOOPEVENT */
+#endif /* AU_VORBIS */
 	case TIM_OPT_OUTPUT_FILE:
 		return parse_opt_o(arg);
 	case TIM_OPT_PATCH_FILE:
@@ -5921,6 +5951,9 @@ static int parse_opt_h(const char *arg)
 "             --rtsyn-latency=sec (for rtsyn only)",
 "               Set the realtime latency (sec)",
 "                 (default is 0.2 sec, minimum is 0.04 sec)",
+"             --rtsyn-skip-aq=n",
+"             --rtsyn-print-ports, --rtsyn-list",
+"               Print a list of MIDI ports and devices",
 #endif
 "  -j         --[no-]realtime-load",
 "               Realtime load instrument (toggle on/off)",
@@ -5985,6 +6018,8 @@ static int parse_opt_h(const char *arg)
 "                   n+1 point Sharp interpolation, n=2-8 (default 6)",
 "                 linearP:",
 "                   n=0-100 (default 100)",
+"  -n n       --polyphony-queue=n",
+"               Specify audio queue time limit to reduce polyphony",
 "  -O mode    --output-mode=mode",
 "               Select output mode and format (see below for list)",
 "             --wave-extensible (for RIFF WAVE file only)",
@@ -6032,6 +6067,14 @@ static int parse_opt_h(const char *arg)
 "             --speex-nframes=n (for Ogg Speex only)",
 "               Number of frames per Ogg packet n:[0-10]",
 #endif
+#ifdef AU_VORBIS
+"             --vorbis-comment=\"TAG=contents\" (for Ogg Vorbis only)",
+"               Embed vorbis comments",
+#ifdef SUPPORT_LOOPEVENT
+"             --vorbis-embed-loop (for Ogg Vorbis only)",
+"               Embed loop information",
+#endif /* SUPPORT_LOOPEVENT */
+#endif /* AU_VORBIS */
 "             --output-device-id=n",
 #ifdef AU_W32
 "             --wmme-device-id=n (for Windows only)",
@@ -6193,7 +6236,10 @@ static int parse_opt_h(const char *arg)
 "                   96-98   : SD series",
 "                   99-111  : other systhesizer modules",
 "                   112-127 : TiMidity++ specification purposes",
+"  --max-channel-voices=n",
+"               Set the manimum number of voices per channel",
 " --mix-envelope=n",
+"  --modulation-update=n",
 " --cut-short-time=msec",
 " --limiter=n (gain per)",
 #ifdef SUPPORT_LOOPEVENT
@@ -6206,13 +6252,26 @@ static int parse_opt_h(const char *arg)
 "                      m : Mark A - B",
 "                      l : Mark Loop_Start - Loop_End",
 "                      2 : CC#2 - CC#4",
-"                  All: --loop-filter=1ml2",
+"                      s : Mark loopStart - loopEnd",
+"                  All: --loop-filter=1ml2s",
 #endif /* SUPPORT_LOOPEVENT */
 #ifdef ENABLE_THREAD
 "  --compute-thread-num=n",
 "               Set number of divide multi-threads (0..16)",
 "                 (0..1 means single-thread, default is 0)",
 #endif /* ENABLE_THREAD */
+"  --load-all-instrument=n",
+"  --trace-mode-update-time=n",
+#ifdef INT_SYNTH
+"  --int-synth-rate=n",
+"               Set the sampling rate of the internal synthesizer",
+"  --int-synth-update=n",
+"  --int-synth-sine=n",
+"               Set the type of sine waves used by the internal synthesizer",
+"                 n=0: math function",
+"                   1: 10 bit table",
+"                   2: 10 bit table with linear interpolation",
+#endif
 "  --od-level-gs=n",
 "               Set GS overdrive-amplify-level (1..400:default=100)",
 "  --od-drive-gs=n",
@@ -6409,6 +6468,12 @@ static int parse_opt_h(const char *arg)
 #ifdef IA_ALSASEQ
 	fputs("  `D'          daemonize TiMidity++ in background "
 			"(for alsaseq only)" "\n", fp);
+#endif
+#ifdef IA_W32GUI
+	fputs("  `p'          prevent sleep "
+		"(for w32gui only)" "\n", fp);
+	fputs("  `k'          keep display on "
+		"(for w32gui only)" "\n", fp);
 #endif
 	fputs("\n", fp);
 	fputs("Alternative interface long options:" "\n"
@@ -6626,6 +6691,12 @@ static inline int parse_opt_i(const char *arg)
 			break;
 		case 'D':
 			cmp->flags ^= CTLF_DAEMONIZE;
+			break;
+		case 'p':
+			cmp->flags ^= CTLF_NO_SLEEP;
+			break;
+		case 'k':
+			cmp->flags ^= CTLF_NO_DISPLAY_OFF;
 			break;
 		default:
 			ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -7386,6 +7457,45 @@ static inline int parse_opt_speex_nframes(const char *arg)
 }
 #endif /* AU_SPEEX */
 
+#ifdef AU_VORBIS
+
+extern void vorbis_set_option_vorbis_comment(const char *tag, const char *contents);
+
+static inline int parse_opt_vorbis_comment(const char *arg)
+{
+	const char *eq, *tagend;
+	char tag[64] = {0};
+	char contents[256] = {0};
+	ptr_size_t taglen;
+
+	if (!arg) return 0;
+
+	eq = strchr(arg, '=');
+	tagend = eq ? eq : arg;
+	taglen = tagend - arg < sizeof(tag) ? tagend - arg : sizeof(tag) - 1;
+	strncpy(tag, arg, taglen);
+	tag[taglen] = '\0';
+
+	strncpy(contents, eq ? eq + 1 : arg, sizeof(contents) - 1);
+	contents[sizeof(contents) - 1] = '\0';
+
+	vorbis_set_option_vorbis_comment(tag, contents);
+	return 0;
+}
+
+#ifdef SUPPORT_LOOPEVENT
+
+extern int ogg_vorbis_embed_loop;
+
+static inline int parse_opt_vorbis_embed_loop(const char *arg)
+{
+	ogg_vorbis_embed_loop = 1;
+	return 0;
+}
+
+#endif /* SUPPORT_LOOPEVENT */
+#endif /* AU_VORBIS */
+
 static inline int parse_opt_o(const char *arg)
 {
 	if (!arg) return 0;
@@ -7659,6 +7769,11 @@ static inline int parse_opt_midi_loop_filter(const char *arg)
             /* Control change #2 - CC#4 */
             opt_use_midi_loop_repeat |= LF_CC2_TO_CC4;
             break;
+
+		case 's':
+			/* Mark `loopStart'-`loopEnd'*/
+			opt_use_midi_loop_repeat |= LF_MARK_LS_TO_LE;
+			break;
 
         default:
             ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
@@ -8206,7 +8321,7 @@ static RETSIGTYPE sigterm_exit(int sig)
 }
 #endif /* HAVE_SIGNAL */
 
-static void timidity_arc_error_handler(char *error_message)
+static void timidity_arc_error_handler(const char *error_message)
 {
     extern int open_file_noise_mode;
     if(open_file_noise_mode)
@@ -8354,7 +8469,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
 #ifdef __W32__
     /* Windows */
     char *strp;
-    int check;
+    struct timidity_file *tf;
     char local[FILEPATH_MAX] = { 0 };
     const char cfgname[] = CONFIG_FILE_NAME_P;
 
@@ -8367,9 +8482,9 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
         strlcat(ConfigFile, cfgname, sizeof(local));
     }
     strlcpy(local, ConfigFile, sizeof(local) - 1);
-    if ((check = open(local, 0)) >= 0)
+    if ((tf = open_file(local, 1, OF_NORMAL)))
     {
-        close(check);
+        close_file(tf);
         if (!read_config_file(local, 0, 0)) {
             got_a_configuration = 1;
             return 0;
@@ -8387,9 +8502,9 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
         {
             *(strp) = '\0';
             strlcat(local, cfgname, sizeof(local));
-            if ((check = open(local, 0)) >= 0)
+            if ((tf = open_file(local, 1, OF_NORMAL)))
             {
-                close(check);
+                close_file(tf);
                 if (!read_config_file(local, 0, 0)) {
 #if defined(IA_W32GUI) || defined(IA_W32G_SYN)
                     if (firstStartup) {
@@ -8407,9 +8522,9 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
          */
         GetWindowsDirectoryA(local, FILEPATH_MAX - strlen(cfgname) - 1);
         strlcat(local, cfgname, sizeof(local));
-        if ((check = open(local, 0)) >= 0)
+        if ((tf = open_file(local, 1, OF_NORMAL)))
         {
-            close(check);
+            close_file(tf);
             if (!read_config_file(local, 0, 0)) {
                 got_a_configuration = 1;
                 return 0;
@@ -8695,7 +8810,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 
     if(opt_output_name)
     {
-	play_mode->name = opt_output_name;
+	play_mode->name = safe_strdup(opt_output_name);
     if(!strcmp(opt_output_name, "-")){
 	    need_stdout = 1;
 #ifdef __W32__
@@ -8908,7 +9023,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 }
 
 #ifdef IA_W32GUI
-int w32gSecondTiMidity(int opt, int argc, char **argv);
+int w32gSecondTiMidity(int opt, int argc, char **argv, int nfiles, char **files);
 int w32gSecondTiMidityExit(void);
 int w32gLoadDefaultPlaylist(void);
 int w32gSaveDefaultPlaylist(void);
@@ -9080,7 +9195,7 @@ int main(int argc, char **argv)
 #ifdef IA_W32GUI
 	/* Secondary TiMidity Execute */
 	/*	FirstLoadIniFile(); */
-	if (w32gSecondTiMidity(SecondMode, argc, argv) == FALSE) {
+	if (w32gSecondTiMidity(SecondMode, argc, argv, nfiles, files) == FALSE) {
 		w32gSecondTiMidityExit();
 		if (CoInitializeOK)
 			CoUninitialize();

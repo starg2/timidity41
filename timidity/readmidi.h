@@ -60,9 +60,10 @@
 
 #ifdef SUPPORT_LOOPEVENT
 #define LF_CC111_TO_EOT         (1L << 0)
-#define LF_MARK_A_TO_B          (1L << 1)
-#define LF_MARK_S_TO_E          (1L << 2)
+#define LF_MARK_A_TO_B          (1L << 1)  /* A - B */
+#define LF_MARK_S_TO_E          (1L << 2)  /* Loop_Start - Loop_End */
 #define LF_CC2_TO_CC4           (1L << 3)
+#define LF_MARK_LS_TO_LE        (1L << 4)  /* loopStart - loopEnd */
 #endif /* SUPPORT_LOOPEVENT */
 
 ///r

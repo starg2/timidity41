@@ -165,6 +165,8 @@
 #define IDC_CHECKBOX_NOT_DRAG_START    3102
 #define IDC_CHECKBOX_NOT_LOOPING       3103
 #define IDC_CHECKBOX_AUTOSTART         3104
+#define IDC_CHECKBOX_NO_SLEEP          3105
+#define IDC_CHECKBOX_NO_DISPLAY_OFF    3106
 // main panel
 #define IDC_EDIT_MAIN_PANEL_UPDATE     3152
 #define IDC_COMBO_MAIN_PANEL_UPDATE    3153
@@ -209,6 +211,7 @@
 #define IDC_CHECKBOX_LOOP_AB_MARK      3953
 #define IDC_CHECKBOX_LOOP_SE_MARK      3954
 #define IDC_CHECKBOX_LOOP_CC2          3955
+#define IDC_CHECKBOX_LOOP_LSLE_MARK    3956
 
 //// synth
 // port
@@ -723,6 +726,7 @@
 #define IDC_EDIT_TITLE			        8303
 #define IDC_EDIT_ARTIST			        8304
 #define IDC_EDIT_ALBUM			        8305
+#define IDC_CHECK_EMBED_LOOP            8306
 // flac
 // #define IDC_COMBO_ENCODE_MODE         8410 // gogo
 #define IDC_CHECKBOX_OGGFLAC_CONTAINER  8411

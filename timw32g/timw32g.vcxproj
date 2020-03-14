@@ -90,8 +90,8 @@
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VCInstallDir)atlmfc\lib\amd64;$(VCInstallDir)lib\amd64;$(WindowsSdkDir)lib\x64;$(FrameworkSDKDir)\lib\x64;$(WindowsSdkDir)\lib\x64;C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\x64;</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VCInstallDir)lib;$(VCInstallDir)atlmfc\lib;$(WindowsSdkDir)lib;$(FrameworkSDKDir)\lib;$(DXSDK_DIR)\ILib\x86;</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VCInstallDir)atlmfc\lib\amd64;$(VCInstallDir)lib\amd64;$(WindowsSdkDir)lib\x64;$(FrameworkSDKDir)\lib\x64;$(WindowsSdkDir)\lib\x64;C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\x64;</LibraryPath>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">timw32g_c226</TargetName>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">timw32g_x64_c226</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">timw32g_c230</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">timw32g_x64_c230</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -224,7 +224,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\libspeex;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\vorbis-tools;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\libspeex;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>TW32G;NDEBUG;_WINDOWS;WIN32;HAVE_CONFIG_H;_MT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
@@ -421,6 +421,9 @@
     <ProjectReference Include="..\utils\utils.vcxproj">
       <Project>{b05f8aa0-6140-4335-ad39-e276d17002cb}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\vorbis-tools\vorbis-tools.vcxproj">
+      <Project>{713b55dd-e56f-4e06-a1c7-09ce86750ac0}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

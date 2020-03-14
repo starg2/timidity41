@@ -217,7 +217,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..\..\include;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\vorbis-tools;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..\..\include;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_MD;_CONSOLE;WIN32;HAVE_CONFIG_H;TIM_CUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
@@ -277,7 +277,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..\..\include;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\vorbis-tools;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\portaudio\pa_common;..\pdcurses;..\pdcurses\win32;..\portmidi\pm_common;..\portmidi\porttime;..\..\include;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WIN64;NDEBUG;_MD;_CONSOLE;WIN32;HAVE_CONFIG_H;TIM_CUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
@@ -501,6 +501,9 @@
     </ProjectReference>
     <ProjectReference Include="..\utils\utils.vcxproj">
       <Project>{b05f8aa0-6140-4335-ad39-e276d17002cb}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\vorbis-tools\vorbis-tools.vcxproj">
+      <Project>{713b55dd-e56f-4e06-a1c7-09ce86750ac0}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

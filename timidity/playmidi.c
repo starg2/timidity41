@@ -841,6 +841,8 @@ static char *event_name(int type)
 	EVENT_NAME(ME_SHERRY);
 	EVENT_NAME(ME_BARMARKER);
 	EVENT_NAME(ME_STEP);
+	EVENT_NAME(ME_LOOP_EXPANSION_START);
+	EVENT_NAME(ME_LOOP_EXPANSION_END);
 	EVENT_NAME(ME_LAST);
 	EVENT_NAME(ME_EOT);
 	}
@@ -1252,6 +1254,11 @@ static void initialize_controllers(int c)
 	memset(channel[c].reverb_part_param, 0, sizeof(channel[c].reverb_part_param));
 	channel[c].reverb_part_efx_level = 100;
 	
+	for (i = 0; i < MAX_ELEMENT; i++) {
+		safe_free(channel[c].seq_counters[i]);
+		channel[c].seq_counters[i] = NULL;
+		channel[c].seq_num_counters[i] = 0;
+	}
 }
 
 /* Process the Reset All Controllers event CC#121 */
@@ -13164,6 +13171,14 @@ int play_event(MidiEvent *ev){
 		
 	case ME_CUEPOINT:
 		set_cuepoint(ch, current_event->a, current_event->b);
+		break;
+
+	case ME_LOOP_EXPANSION_START:
+		play_mode->acntl(PM_REQ_LOOP_START, (void *)current_event->time);
+		break;
+
+	case ME_LOOP_EXPANSION_END:
+		play_mode->acntl(PM_REQ_LOOP_END, (void *)current_event->time);
 		break;
 
 	case ME_EOT:

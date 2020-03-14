@@ -172,7 +172,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories);..\..\lame\dll</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\vorbis-tools;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories);..\..\lame\dll</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_MT;_WINDOWS;_LIB;WIN32;HAVE_CONFIG_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
@@ -216,7 +216,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories);..\..\lame\dll</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\vorbis-tools;..\interface;..\libarc;..\libunimod;..\timidity;..\utils;..;..\..\include;..\portaudio\pa_common;..\rcpcv;..\libmpg123\include;%(AdditionalIncludeDirectories);..\..\lame\dll</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WIN64;NDEBUG;_MT;_WINDOWS;_LIB;WIN32;HAVE_CONFIG_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>

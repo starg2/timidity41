@@ -256,6 +256,10 @@
 			ReferencedProjectIdentifier="{B05F8AA0-6140-4335-AD39-E276D17002CB}"
 			RelativePathToProject=".\utils\utils.vcproj"
 		/>
+		<ProjectReference
+			ReferencedProjectIdentifier="{F4BDECA3-C17C-40B4-9E09-0F504466F6B1}"
+			RelativePathToProject=".\vorbis-tools\vorbis-tools.vcproj"
+		/>
 	</References>
 	<Files>
 		<Filter

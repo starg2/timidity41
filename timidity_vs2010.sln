@@ -12,12 +12,14 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "timidity", "timidity\timidity.vcxproj", "{45579E0F-6A19-4E8C-B638-945E0FB44D36}"
 	ProjectSection(ProjectDependencies) = postProject
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D} = {D3CD5655-ECDB-41A2-A310-7B931E9E495D}
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0} = {713B55DD-E56F-4E06-A1C7-09CE86750AC0}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "timw32g", "timw32g\timw32g.vcxproj", "{76D0CE5A-A349-4022-8727-195719E4B93E}"
 	ProjectSection(ProjectDependencies) = postProject
 		{11CDD90A-20E1-45AF-879E-F355742B38B7} = {11CDD90A-20E1-45AF-879E-F355742B38B7}
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D} = {D3CD5655-ECDB-41A2-A310-7B931E9E495D}
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0} = {713B55DD-E56F-4E06-A1C7-09CE86750AC0}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "twsyng", "twsyng\twsyng.vcxproj", "{49D11476-D08C-43D6-8C7D-3820607E140F}"
@@ -63,6 +65,7 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tim_cui", "tim_cui\tim_cui.vcxproj", "{2B113C99-C484-4724-8918-169A495ADF9B}"
 	ProjectSection(ProjectDependencies) = postProject
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D} = {D3CD5655-ECDB-41A2-A310-7B931E9E495D}
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0} = {713B55DD-E56F-4E06-A1C7-09CE86750AC0}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "timdrvsetup", "timdrvsetup\timdrvsetup.vcxproj", "{1A91001F-E3EF-4FC1-925B-C00013BB6C98}"
@@ -70,6 +73,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "twsyn_bridge", "twsyn_bridge\twsyn_bridge.vcxproj", "{D6D9295A-4A29-4753-88E9-A9D8B589A3D0}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libmpg123", "libmpg123\libmpg123.vcxproj", "{D3CD5655-ECDB-41A2-A310-7B931E9E495D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vorbis-tools", "vorbis-tools\vorbis-tools.vcxproj", "{713B55DD-E56F-4E06-A1C7-09CE86750AC0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -262,6 +267,13 @@ Global
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D}.Release|Win32.Build.0 = Release|Win32
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D}.Release|x64.ActiveCfg = Release|x64
 		{D3CD5655-ECDB-41A2-A310-7B931E9E495D}.Release|x64.Build.0 = Release|x64
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0}.Debug|Win32.Build.0 = Debug|Win32
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0}.Debug|x64.ActiveCfg = Debug|Win32
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0}.Release|Win32.ActiveCfg = Release|Win32
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0}.Release|Win32.Build.0 = Release|Win32
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0}.Release|x64.ActiveCfg = Release|x64
+		{713B55DD-E56F-4E06-A1C7-09CE86750AC0}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

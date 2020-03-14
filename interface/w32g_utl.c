@@ -929,6 +929,10 @@ SaveSettingTiMidity(SETTING_TIMIDITY *st)
 	st->opt_ctl[j++] = 'R';
     if(ctl->flags & CTLF_NOT_CONTINUE)
 	st->opt_ctl[j++] = 'C';
+    if(ctl->flags & CTLF_NO_SLEEP)
+	st->opt_ctl[j++] = 'p';
+    if(ctl->flags & CTLF_NO_DISPLAY_OFF)
+	st->opt_ctl[j++] = 'k';
     st->opt_ctl[j] = '\0';
     st->opt_realtime_playing = SetFlag(opt_realtime_playing);
 

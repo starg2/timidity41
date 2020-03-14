@@ -1359,6 +1359,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         DI_DISABLE(IDC_CHECKBOX_LOOP_AB_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_SE_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_CC2);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_LSLE_MARK);
         DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
 #endif
 		
@@ -1395,6 +1396,8 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NOT_LOOPING, strchr(st_temp->opt_ctl + 1, 'l'));
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_RANDOM, strchr(st_temp->opt_ctl + 1, 'r'));
 		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_CTL_TRACE_PLAYING, strchr(st_temp->opt_ctl + 1, 't'));
+		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NO_SLEEP, strchr(st_temp->opt_ctl + 1, 'p'));
+		DLG_FLAG_TO_CHECKBUTTON(hwnd,IDC_CHECKBOX_NO_DISPLAY_OFF, strchr(st_temp->opt_ctl + 1, 'k'));
 		// console
 		tmp = char_count(st_temp->opt_ctl + 1, 'v') - char_count(st_temp->opt_ctl + 1, 'q') + 1;
 		for (i = 0; i < CB_NUM(cb_info_IDC_COMBO_CTL_VEBOSITY_num); i++)
@@ -1458,6 +1461,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         CH_SET(IDC_CHECKBOX_LOOP_AB_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_A_TO_B) != 0);
         CH_SET(IDC_CHECKBOX_LOOP_SE_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_S_TO_E) != 0);
         CH_SET(IDC_CHECKBOX_LOOP_CC2, (st_temp->opt_use_midi_loop_repeat & LF_CC2_TO_CC4) != 0);
+        CH_SET(IDC_CHECKBOX_LOOP_LSLE_MARK, (st_temp->opt_use_midi_loop_repeat & LF_MARK_LS_TO_LE) != 0);
         SendMessage(hwnd, WM_COMMAND, IDC_CHECKBOX_LOOP_CC111, 0);
         EB_SET_INT(IDC_EDIT_LOOP_REPEAT, st_temp->opt_midi_loop_repeat);
 
@@ -1466,6 +1470,7 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         DI_DISABLE(IDC_CHECKBOX_LOOP_AB_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_SE_MARK);
         DI_DISABLE(IDC_CHECKBOX_LOOP_CC2);
+        DI_DISABLE(IDC_CHECKBOX_LOOP_LSLE_MARK);
         DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
 #endif
 
@@ -1544,8 +1549,9 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         case IDC_CHECKBOX_LOOP_AB_MARK:
         case IDC_CHECKBOX_LOOP_SE_MARK:
         case IDC_CHECKBOX_LOOP_CC2:
+        case IDC_CHECKBOX_LOOP_LSLE_MARK:
             if (CH_GET(IDC_CHECKBOX_LOOP_CC111) || CH_GET(IDC_CHECKBOX_LOOP_AB_MARK) ||
-                    CH_GET(IDC_CHECKBOX_LOOP_SE_MARK) || CH_GET(IDC_CHECKBOX_LOOP_CC2))
+                    CH_GET(IDC_CHECKBOX_LOOP_SE_MARK) || CH_GET(IDC_CHECKBOX_LOOP_CC2) || CH_GET(IDC_CHECKBOX_LOOP_LSLE_MARK))
                 DI_ENABLE(IDC_EDIT_LOOP_REPEAT);
             else
                 DI_DISABLE(IDC_EDIT_LOOP_REPEAT);
@@ -1584,6 +1590,8 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		SettingCtlFlag(st_temp, 'l', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NOT_LOOPING,tmp));
 		SettingCtlFlag(st_temp, 'r', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_RANDOM,tmp));
 		SettingCtlFlag(st_temp, 't', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_CTL_TRACE_PLAYING,tmp));
+		SettingCtlFlag(st_temp, 'p', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NO_SLEEP,tmp));
+		SettingCtlFlag(st_temp, 'k', DLG_CHECKBUTTON_TO_FLAG(hwnd,IDC_CHECKBOX_NO_DISPLAY_OFF,tmp));
 				/* remove 'v' and 'q' from st_temp->opt_ctl */
 		while(strchr(st_temp->opt_ctl + 1, 'v'))
 			 SettingCtlFlag(st_temp, 'v', 0);
@@ -1640,6 +1648,8 @@ PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
         st_temp->opt_use_midi_loop_repeat |= LF_MARK_S_TO_E * flag;
         flag = CH_GET(IDC_CHECKBOX_LOOP_CC2) ? 1 : 0;
         st_temp->opt_use_midi_loop_repeat |= LF_CC2_TO_CC4 * flag;
+		flag = CH_GET(IDC_CHECKBOX_LOOP_LSLE_MARK) ? 1 : 0;
+		st_temp->opt_use_midi_loop_repeat |= LF_MARK_LS_TO_LE * flag;
         st_temp->opt_midi_loop_repeat = EB_GET_INT(IDC_EDIT_LOOP_REPEAT);
 #endif
 
@@ -4884,6 +4894,8 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		case IDC_COMBO_OUTPUT_MODE:
 		{
 			int cb_num1, cb_num2;
+			BOOL enable_path_setting;
+
 			cb_num1 = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
 			if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 				cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
@@ -4912,6 +4924,10 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
 				}
 			}
+			enable_path_setting = st_temp->auto_output_mode != 1;
+			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE), enable_path_setting);
+			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_OUTPUT_FILE), enable_path_setting);
+			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE_DEL), st_temp->auto_output_mode == 0);
 		}
 			break;
 ///r
@@ -7576,13 +7592,13 @@ static void vorbisConfigDialogProcControlEnableDisable(HWND hwnd)
 		ENABLE_CONTROL(IDC_COMBO_MODE);
 	}
 	if(IS_CHECK(IDC_CHECK_USE_TAG)){
-		ENABLE_CONTROL(IDC_EDIT1);
-		ENABLE_CONTROL(IDC_EDIT2);
-		ENABLE_CONTROL(IDC_EDIT3);
+		ENABLE_CONTROL(IDC_EDIT_TITLE);
+		ENABLE_CONTROL(IDC_EDIT_ARTIST);
+		ENABLE_CONTROL(IDC_EDIT_ALBUM);
 	} else {
-		DISABLE_CONTROL(IDC_EDIT1);
-		DISABLE_CONTROL(IDC_EDIT2);
-		DISABLE_CONTROL(IDC_EDIT3);
+		DISABLE_CONTROL(IDC_EDIT_TITLE);
+		DISABLE_CONTROL(IDC_EDIT_ARTIST);
+		DISABLE_CONTROL(IDC_EDIT_ALBUM);
 	}
 }
 
@@ -7592,11 +7608,14 @@ static void vorbisConfigDialogProcControlReset(HWND hwnd)
 	CB_SETCURSEL_TYPE2(IDC_COMBO_MODE)
 	// チェックボックスの設定
 	CHECKBOX_SET(IDC_CHECK_DEFAULT)
+	CHECKBOX_SET(IDC_CHECK_USE_TAG)
 	// エディットの設定
-	EDIT_SET(IDC_EDIT1);
-	EDIT_SET(IDC_EDIT2);
-	EDIT_SET(IDC_EDIT3);
-	// コントロールの有効 / 無効化
+	EDIT_SET(IDC_EDIT_TITLE);
+	EDIT_SET(IDC_EDIT_ARTIST);
+	EDIT_SET(IDC_EDIT_ALBUM);
+	// チェックボックスの設定
+	CHECKBOX_SET(IDC_CHECK_EMBED_LOOP)
+		// コントロールの有効 / 無効化
 	vorbisConfigDialogProcControlEnableDisable(hwnd);
 }
 
@@ -7606,11 +7625,14 @@ static void vorbisConfigDialogProcControlApply(HWND hwnd)
 	CB_GETCURSEL_TYPE2(IDC_COMBO_MODE)
 	// チェックボックスの設定
 	CHECKBOX_GET(IDC_CHECK_DEFAULT)
+	CHECKBOX_GET(IDC_CHECK_USE_TAG)
 	// エディットの設定
-	EDIT_GET(IDC_EDIT1,256-1);
-	EDIT_GET(IDC_EDIT2,256-1);
-	EDIT_GET(IDC_EDIT3,256-1);
-	// コントロールの有効 / 無効化
+	EDIT_GET(IDC_EDIT_TITLE,256-1);
+	EDIT_GET(IDC_EDIT_ARTIST,256-1);
+	EDIT_GET(IDC_EDIT_ALBUM,256-1);
+	// チェックボックスの設定
+	CHECKBOX_GET(IDC_CHECK_EMBED_LOOP)
+		// コントロールの有効 / 無効化
 	vorbisConfigDialogProcControlEnableDisable(hwnd);
 	// リセット
 	vorbisConfigDialogProcControlReset(hwnd);
@@ -7660,22 +7682,37 @@ int vorbis_ConfigDialogInfoInit(void)
 	vorbis_ConfigDialogInfo.optIDC_CHECK_DEFAULT = 1;
 	vorbis_ConfigDialogInfo.optIDC_COMBO_MODE = 0;
 	vorbis_ConfigDialogInfo.optIDC_CHECK_USE_TAG = 0;
-	vorbis_ConfigDialogInfo.optIDC_EDIT1[0] = '\0';
-	vorbis_ConfigDialogInfo.optIDC_EDIT2[0] = '\0';
-	vorbis_ConfigDialogInfo.optIDC_EDIT3[0] = '\0';
+	vorbis_ConfigDialogInfo.optIDC_EDIT_TITLE[0] = '\0';
+	vorbis_ConfigDialogInfo.optIDC_EDIT_ARTIST[0] = '\0';
+	vorbis_ConfigDialogInfo.optIDC_EDIT_ALBUM[0] = '\0';
+	vorbis_ConfigDialogInfo.optIDC_CHECK_EMBED_LOOP = 0;
 	return 0;
 }
 
 extern volatile int ogg_vorbis_mode;
+extern int ogg_vorbis_embed_loop;
+void vorbis_set_option_vorbis_comment(const char *tag, const char *contents);
+void vorbis_clear_option_vorbis_comment(void);
+
 int vorbis_ConfigDialogInfoApply(void)
 {
 	vorbis_ConfigDialogInfoLock();
-	if(vorbis_ConfigDialogInfo.optIDC_CHECK_DEFAULT>0){
+	if(vorbis_ConfigDialogInfo.optIDC_CHECK_DEFAULT == 0){
 //		vorbis_opts_reset();
-		vorbis_ConfigDialogInfoUnLock();
-		return 0;
+		ogg_vorbis_mode = vorbis_ConfigDialogInfo.optIDC_COMBO_MODE;
+	}else{
+		ogg_vorbis_mode = 8;
 	}
-	ogg_vorbis_mode = vorbis_ConfigDialogInfo.optIDC_COMBO_MODE;
+
+	vorbis_clear_option_vorbis_comment();
+	
+	if(vorbis_ConfigDialogInfo.optIDC_CHECK_USE_TAG){
+		vorbis_set_option_vorbis_comment("TITLE", vorbis_ConfigDialogInfo.optIDC_EDIT_TITLE);
+		vorbis_set_option_vorbis_comment("ARTIST", vorbis_ConfigDialogInfo.optIDC_EDIT_ARTIST);
+		vorbis_set_option_vorbis_comment("ALBUM", vorbis_ConfigDialogInfo.optIDC_EDIT_ALBUM);
+	}
+
+	ogg_vorbis_embed_loop = vorbis_ConfigDialogInfo.optIDC_CHECK_EMBED_LOOP;
 	vorbis_ConfigDialogInfoUnLock();
 	return 0;
 }
@@ -7696,9 +7733,10 @@ int vorbis_ConfigDialogInfoSaveINI(void)
 	NUMSAVE(optIDC_CHECK_DEFAULT)
 	NUMSAVE(optIDC_COMBO_MODE)
 	NUMSAVE(optIDC_CHECK_USE_TAG)
-	STRSAVE(optIDC_EDIT1,256)
-	STRSAVE(optIDC_EDIT2,256)
-	STRSAVE(optIDC_EDIT3,256)
+	STRSAVE(optIDC_EDIT_TITLE,256)
+	STRSAVE(optIDC_EDIT_ARTIST,256)
+	STRSAVE(optIDC_EDIT_ALBUM,256)
+	NUMSAVE(optIDC_CHECK_EMBED_LOOP)
 	WritePrivateProfileString(NULL,NULL,NULL,inifile);		// Write Flush
 #undef NUMSAVE
 #undef STRSAVE
@@ -7722,9 +7760,10 @@ int vorbis_ConfigDialogInfoLoadINI(void)
 	NUMLOAD(optIDC_CHECK_DEFAULT)
 	NUMLOAD(optIDC_COMBO_MODE)
 	NUMLOAD(optIDC_CHECK_USE_TAG)
-	STRLOAD(optIDC_EDIT1,256)
-	STRLOAD(optIDC_EDIT2,256)
-	STRLOAD(optIDC_EDIT3,256)
+	STRLOAD(optIDC_EDIT_TITLE,256)
+	STRLOAD(optIDC_EDIT_ARTIST,256)
+	STRLOAD(optIDC_EDIT_ALBUM,256)
+	NUMLOAD(optIDC_CHECK_EMBED_LOOP)
 #undef NUMLOAD
 #undef STRLOAD
 	vorbis_ConfigDialogInfoUnLock();

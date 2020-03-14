@@ -119,19 +119,21 @@ static void compute_thread_core(int thread_num)
 		if(job_num < compute_thread_job)
 			do_compute_func(job_num);
 		if(mtcs_job_num0){
-			EnterCriticalSection(&critThread); // single thread ~
-			job_nums0 = (mtcs_job_cnt0++);
-			LeaveCriticalSection(&critThread); // ~ single thread
-			if(job_nums0 < mtcs_job_num0){
+			for(;;){
+				EnterCriticalSection(&critThread); // single thread ~
+				job_nums0 = (mtcs_job_cnt0++);
+				LeaveCriticalSection(&critThread); // ~ single thread
+				if(job_nums0 >= mtcs_job_num0) break;
 				mtcs_func0(job_nums0);
 				mtcs_job_flg0[job_nums0] = 0;
 			}
 		}
 		if(mtcs_job_num1){
-			EnterCriticalSection(&critThread); // single thread ~
-			job_nums1 = (mtcs_job_cnt1++);
-			LeaveCriticalSection(&critThread); // ~ single thread
-			if(job_nums1 < mtcs_job_num1){
+			for(;;){
+				EnterCriticalSection(&critThread); // single thread ~
+				job_nums1 = (mtcs_job_cnt1++);
+				LeaveCriticalSection(&critThread); // ~ single thread
+				if(job_nums1 >= mtcs_job_num1) break;
 				mtcs_func1(job_nums1);
 				mtcs_job_flg1[job_nums1] = 0;
 			}
@@ -159,7 +161,8 @@ static void WINAPI ComputeThread(void *arglist)
 {
 	const int thread_num = (int)arglist;
 	
-	for(;;){		
+	for(;;){	
+		int num;	
 		WaitForSingleObject(hEventTcv[thread_num], INFINITE); // スレッド開始イベント待機
 		if(thread_exit) break;		
 		compute_thread_core(thread_num + 1); // 1~15
@@ -376,6 +379,8 @@ void begin_compute_thread(void)
 	// beginthread after CreateEvent
 	InitializeCriticalSection(&critThread);	
 	for(i = 0; i < (compute_thread_num - 1); i++){	
+		char thread_desc[64] = "";
+
 		hEventTcv[i] = CreateEvent(NULL,FALSE,FALSE,NULL); // reset manual
 		thread_finish_all[i] = 1; // 1byte full bit
 		if(hEventTcv[i] == NULL){
@@ -396,6 +401,9 @@ void begin_compute_thread(void)
 			ctl->cmsg(CMSG_INFO, VERB_NORMAL, "ERROR ComputeThread : beginthread(%d) error.", i);
 			break;
 		}
+
+		snprintf(thread_desc, sizeof(thread_desc) / sizeof(thread_desc[0]), "Compute Thread #%d", i);
+		set_thread_description((ptr_size_t)hComputeThread[i], thread_desc);
 	}	
 	if(error){
 		terminate_compute_thread();
