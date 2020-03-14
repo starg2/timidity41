@@ -6661,7 +6661,7 @@ static MidiEvent *groom_list(int32 divisions, int32 *eventsp, int32 *samplesp)
 			}
             skip_this_event = 1;
             break;
-
+			
           /* CC#2 - CC#4 */
           case ME_BREATH: /* CC#2 */
             if ((loop_filter & LF_CC2_TO_CC4) != 0) {

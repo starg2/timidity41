@@ -1254,7 +1254,7 @@ static void initialize_controllers(int c)
 	memset(channel[c].reverb_part_param, 0, sizeof(channel[c].reverb_part_param));
 	channel[c].reverb_part_efx_level = 100;
 	
-	for (int i = 0; i < MAX_ELEMENT; i++) {
+	for (i = 0; i < MAX_ELEMENT; i++) {
 		safe_free(channel[c].seq_counters[i]);
 		channel[c].seq_counters[i] = NULL;
 		channel[c].seq_num_counters[i] = 0;

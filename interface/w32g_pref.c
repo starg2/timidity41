@@ -4891,6 +4891,8 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		case IDC_COMBO_OUTPUT_MODE:
 		{
 			int cb_num1, cb_num2;
+			BOOL enable_path_setting;
+
 			cb_num1 = SendDlgItemMessage(hwnd,IDC_COMBO_OUTPUT_MODE,CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
 			if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 				cb_info_IDC_COMBO_OUTPUT_MODE = cb_info_IDC_COMBO_OUTPUT_MODE_jp;
@@ -4919,7 +4921,7 @@ PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SetDlgItemText(hwnd,IDC_EDIT_OUTPUT_FILE,st_temp->OutputName);
 				}
 			}
-			BOOL enable_path_setting = st_temp->auto_output_mode != 1;
+			enable_path_setting = st_temp->auto_output_mode != 1;
 			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE), enable_path_setting);
 			EnableWindow(GetDlgItem(hwnd, IDC_EDIT_OUTPUT_FILE), enable_path_setting);
 			EnableWindow(GetDlgItem(hwnd, IDC_BUTTON_OUTPUT_FILE_DEL), st_temp->auto_output_mode == 0);

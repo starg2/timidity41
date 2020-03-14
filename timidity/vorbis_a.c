@@ -134,6 +134,7 @@ static VorbisCommentInfo *ogg_vorbis_comment_list = NULL;
 
 void vorbis_set_option_vorbis_comment(const char *tag, const char *contents)
 {
+	VorbisCommentInfo *last = NULL;
 	VorbisCommentInfo *newInfo = (VorbisCommentInfo *)safe_malloc(sizeof(VorbisCommentInfo));
 	newInfo->next = NULL;
 	strncpy(newInfo->tag, tag, sizeof(newInfo->tag) - 1);
@@ -141,7 +142,7 @@ void vorbis_set_option_vorbis_comment(const char *tag, const char *contents)
 	strncpy(newInfo->contents, contents, sizeof(newInfo->contents) - 1);
 	newInfo->contents[sizeof(newInfo->contents) - 1] = '\0';
 
-	VorbisCommentInfo *last = ogg_vorbis_comment_list;
+	last = ogg_vorbis_comment_list;
 
 	if (last) {
 		while (last->next)
@@ -233,7 +234,9 @@ static int ogg_output_open(const char *fname, const char *comment)
 #if !defined ( IA_W32GUI ) && !defined ( IA_W32G_SYN )
   int bitrate;
 #endif
-
+  int location_commented = 0;
+  int title_commented = 0;
+  
 #ifdef AU_VORBIS_DLL
   {
 	  int flag = 0;
@@ -300,8 +303,6 @@ static int ogg_output_open(const char *fname, const char *comment)
 
   vorbis_comment_init(&vc);
 
-  int location_commented = 0;
-  int title_commented = 0;
   if (ogg_vorbis_comment_list) {
 	  VorbisCommentInfo *info = ogg_vorbis_comment_list;
 
@@ -617,11 +618,17 @@ static int acntl(int request, void *arg)
 
 static int insert_loop_tags(void)
 {
+	vcedit_state *state;
+	FILE *ftemp, *fin;
+	vorbis_comment *vc;
+	char buf[4096];
+	long fsize;
+
 	lseek(dpm.fd, 0, SEEK_SET);
 
-	vcedit_state *state = vcedit_new_state();
-	FILE *ftemp = tmpfile();
-	FILE *fin = fdopen(dup(dpm.fd), "w+b");
+	state = vcedit_new_state();
+	ftemp = tmpfile();
+	fin = fdopen(dup(dpm.fd), "w+b");
 
 	if (!ftemp) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; tmpfile() failed");
@@ -638,8 +645,7 @@ static int insert_loop_tags(void)
 		goto failed;
 	}
 
-	vorbis_comment *vc = vcedit_comments(state);
-	char buf[4096];
+	vc = vcedit_comments(state);
 	snprintf(buf, _countof(buf), "LOOPSTART=%d", loopstart);
 	vorbis_comment_add(vc, buf);
 	snprintf(buf, _countof(buf), "LOOPLENGTH=%d", looplength);
@@ -670,7 +676,7 @@ static int insert_loop_tags(void)
 
 	fclose(ftemp);
 	ftemp = NULL;
-	long fsize = lseek(dpm.fd, 0, SEEK_CUR);
+	fsize = lseek(dpm.fd, 0, SEEK_CUR);
 
 #ifdef __W32__
 	_chsize(dpm.fd, fsize);

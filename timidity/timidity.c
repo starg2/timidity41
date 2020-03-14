@@ -7469,14 +7469,16 @@ extern void vorbis_set_option_vorbis_comment(const char *tag, const char *conten
 
 static inline int parse_opt_vorbis_comment(const char *arg)
 {
-	if (!arg) return 0;
-
-	const char *eq = strchr(arg, '=');
-	const char *tagend = eq ? eq : arg;
-
+	const char *eq, *tagend;
 	char tag[64] = {0};
 	char contents[256] = {0};
-	ptr_size_t taglen = tagend - arg < sizeof(tag) ? tagend - arg : sizeof(tag) - 1;
+	ptr_size_t taglen;
+
+	if (!arg) return 0;
+
+	eq = strchr(arg, '=');
+	tagend = eq ? eq : arg;
+	taglen = tagend - arg < sizeof(tag) ? tagend - arg : sizeof(tag) - 1;
 	strncpy(tag, arg, taglen);
 	tag[taglen] = '\0';
 
@@ -7779,7 +7781,7 @@ static inline int parse_opt_midi_loop_filter(const char *arg)
 			opt_use_midi_loop_repeat |= LF_MARK_LS_TO_LE;
 			break;
 
-		default:
+        default:
             ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
                       "--loop-filter: Illegal mode `%c'", *arg);
             err++;

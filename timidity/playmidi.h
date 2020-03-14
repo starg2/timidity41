@@ -166,6 +166,9 @@ enum midi_event_t
 	ME_LOOP_EXPANSION_START, /* start of expanded loops */
 	ME_LOOP_EXPANSION_END,  /* end of expanded loops */
 	
+	ME_LOOP_EXPANSION_START, /* start of expanded loops */
+	ME_LOOP_EXPANSION_END,  /* end of expanded loops */
+
 	ME_LAST = 254,			/* Last sequence of MIDI list.
 							 * This event is reserved for realtime player.
 							 */
