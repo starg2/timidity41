@@ -144,14 +144,6 @@ void InitConsoleWnd(HWND hParentWnd)
 #ifdef TIMW32G_USE_NEW_CONSOLE
 	InitializeNewConsole();
 #endif
-	
-#ifdef TIMW32G_USE_NEW_CONSOLE
-	InitializeNewConsole();
-#endif
-
-#ifdef TIMW32G_USE_NEW_CONSOLE
-	InitializeNewConsole();
-#endif
 
 	switch(PlayerLanguage){
   	case LANGUAGE_ENGLISH:
