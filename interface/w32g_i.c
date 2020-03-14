@@ -877,6 +877,8 @@ extern void ShowPrefWnd ( void );
 extern void HidePrefWnd ( void );
 extern BOOL IsVisiblePrefWnd ( void );
 
+#define WM_UPDATE_SCROLLBAR_PROGRESS  (WM_APP + 100)  // (int)lParam: sec
+
 LRESULT CALLBACK
 MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
@@ -1289,6 +1291,24 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 		break;
+	case WM_UPDATE_SCROLLBAR_PROGRESS:
+	{
+		int sec = (int)lParam;
+
+		if (sec == -1)
+		{
+			EnableWindow(hMainWndScrollbarProgressWnd, FALSE);
+			progress_jump = -1;
+		}
+		else
+		{
+			EnableWindow(hMainWndScrollbarProgressWnd, TRUE);
+			if (progress_jump == -1)
+				SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL, sec, TRUE);
+		}
+		return TRUE;
+	}
+
       default:
 		if (uMess == RegisterWindowMessage("TaskbarCreated")) {
 			ShowWindow(hMainWnd, SW_HIDE);
@@ -3125,7 +3145,7 @@ static void CanvasPaintDo(void)
 void CanvasPaint(void)
 {
 	Canvas.PaintDone = 0;
-	UpdateWindow(hCanvasWnd);
+	//UpdateWindow(hCanvasWnd);
 }
 void CanvasPaintAll(void)
 {
@@ -4291,7 +4311,7 @@ static void MPanelPaintDo(void)
 // •`‰æ
 void MPanelPaint(void)
 {
-	UpdateWindow(hPanelWnd);
+	//UpdateWindow(hPanelWnd);
 }
 
 // Š®‘S•`‰æ
@@ -5773,27 +5793,12 @@ void w32g_ctle_play_start(int sec)
 
 void MainWndScrollbarProgressUpdate(int sec)
 {
-    static int lastsec = -1, enabled = 0;
+    static int lastsec = -1;
 
     if(sec == lastsec)
 	return;
 
-    if(sec == -1)
-    {
-  	EnableWindow(hMainWndScrollbarProgressWnd, FALSE);
-	enabled = 0;
-	progress_jump = -1;
-    }
-    else
-    {
-	if(!enabled)
-	{
-	    EnableWindow(hMainWndScrollbarProgressWnd, TRUE);
-	    enabled = 1;
-	}
-	if(progress_jump == -1)
-	    SetScrollPos(hMainWndScrollbarProgressWnd, SB_CTL, sec, TRUE);
-    }
+	PostMessage(hMainWnd, WM_UPDATE_SCROLLBAR_PROGRESS, 0, (LPARAM)sec);
     lastsec = sec;
 }
 
