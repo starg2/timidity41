@@ -234,7 +234,6 @@ static int ogg_output_open(const char *fname, const char *comment)
 #if !defined ( IA_W32GUI ) && !defined ( IA_W32G_SYN )
   int bitrate;
 #endif
-  int location_commented = 0;
   int title_commented = 0;
   
 #ifdef AU_VORBIS_DLL
@@ -261,8 +260,6 @@ static int ogg_output_open(const char *fname, const char *comment)
 
   if(strcmp(fname, "-") == 0) {
     fd = 1; /* data to stdout */
-    if(comment == NULL)
-      comment = "(stdout)";
   } else {
     /* Open the audio file */
 #ifdef __W32__
@@ -277,8 +274,6 @@ static int ogg_output_open(const char *fname, const char *comment)
 		fname, strerror(errno));
       return -1;
     }
-    if(comment == NULL)
-      comment = fname;
   }
 
   has_loopinfo = 0;
@@ -313,8 +308,6 @@ static int ogg_output_open(const char *fname, const char *comment)
 	  VorbisCommentInfo *info = ogg_vorbis_comment_list;
 
 	  while (info) {
-		  if (strcmp(info->tag, "LOCATION") == 0)
-			  location_commented = 1;
 		  if (strcmp(info->tag, "TITLE") == 0)
 			  title_commented = 1;
 
@@ -323,36 +316,9 @@ static int ogg_output_open(const char *fname, const char *comment)
 	  }
   }
 
-  if (!location_commented)
-  {
-    /* add a comment */
-    char *location_string;
-
-    location_string =
-      (char *)safe_malloc(strlen(comment) + sizeof("LOCATION=") + 2);
-    strcpy(location_string, "LOCATION=");
-    strcat(location_string, comment);
-#if defined(__W32__) && (defined(VORBIS_DLL_UNICODE) && (defined(_UNICODE) || defined(UNICODE)))
-	{
-		char* location_string_utf8 = w32_mbs_to_utf8 ( location_string );
-		if ( location_string_utf8 == NULL ) {
-		vorbis_comment_add(&vc, (char *)location_string);
-		} else {
-		vorbis_comment_add(&vc, (char *)location_string_utf8);
-			if ( location_string_utf8 != location_string )
-				free ( location_string_utf8 );
-		}
-		free(location_string);
-	}
-#else
-    vorbis_comment_add(&vc, (char *)location_string);
-    free(location_string);
-#endif
-  }
-
   if (tag_title != NULL && !title_commented) {
   /* add default tag */
-#if defined(__W32__) && (defined(VORBIS_DLL_UNICODE) && (defined(_UNICODE) || defined(UNICODE)))
+#if defined(__W32__) && !(defined(_UNICODE) || defined(UNICODE))
 	{
 		char* tag_title_utf8 = w32_mbs_to_utf8 ( tag_title );
 		if ( tag_title_utf8 == NULL ) {

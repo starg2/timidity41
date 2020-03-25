@@ -4393,7 +4393,7 @@ void MPanelReadPanelInfo(int flag)
 		MPanel.Beat = Panel->beat;
 		MPanel.UpdateFlag |= MP_UPDATE_METRONOME;
 	}
-	if (flag || MPanel.Keysig != Panel->keysig) {
+	if (flag || strcmp(MPanel.Keysig, Panel->keysig) != 0) {
 		strcpy(MPanel.Keysig, Panel->keysig);
 		MPanel.UpdateFlag |= MP_UPDATE_KEYSIG;
 	}
