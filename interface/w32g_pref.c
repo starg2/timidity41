@@ -7724,7 +7724,6 @@ int vorbis_ConfigDialogInfoSaveINI(void)
 	char *inifile = timidity_output_inifile;
 	char buffer[1024];
 //	int len;
-//	int len;
 #define NUMSAVE(name) \
 		sprintf(buffer,"%d",vorbis_ConfigDialogInfo.name ); \
 		WritePrivateProfileString(section, #name ,buffer,inifile);

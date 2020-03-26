@@ -335,7 +335,7 @@ extern void ApplySettingTiMidity(SETTING_TIMIDITY *st);
 extern void SaveSettingTiMidity(SETTING_TIMIDITY *st);
 extern void SettingCtlFlag(SETTING_TIMIDITY *st, int opt_id, int onoff);
 extern int IniVersionCheck(void);
-extern void BitBltRect(HDC dst, HDC src, RECT *rc);
+extern void BitBltRect(HDC dst, HDC src, const RECT *rc);
 extern BOOL SafeGetOpenFileName(LPOPENFILENAMEA lpofn);
 extern BOOL SafeGetSaveFileName(LPOPENFILENAMEA lpofn);
 #if 0

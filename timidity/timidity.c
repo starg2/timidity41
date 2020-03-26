@@ -6075,7 +6075,6 @@ static int parse_opt_h(const char *arg)
 "               Embed loop information",
 #endif /* SUPPORT_LOOPEVENT */
 #endif /* AU_VORBIS */
-"             --output-device-id=n",
 #ifdef AU_W32
 "             --wmme-device-id=n (for Windows only)",
 "               Number of WMME device ID (-1: Default device, 0..19: other)",
@@ -6153,6 +6152,7 @@ static int parse_opt_h(const char *arg)
 "  -o file    --output-file=file",
 "               Output to another file (or device/server) (Use \"-\" for stdout)",
 #if defined(AU_PORTAUDIO) || defined(AU_WIN32)
+"             --output-device-id=n",
 "               Set the output device no. (-1 shows available device no. list)",
 #endif
 "  -P file    --patch-file=file",
@@ -6217,12 +6217,16 @@ static int parse_opt_h(const char *arg)
 #endif /* __W32__ */
 "  -x str     --config-string=str",
 "               Read configuration str from command line argument",
+"  -Y n       --compute-buffer=n",
+"               Set the size of the compute buffer",
 "  -Z file    --freq-table=file",
 "               Load frequency table (Use \"pure\" for pure intonation)",
 "  pure<n>(m) --pure-intonation=n(m)",
 "               Initial keysig number <n> of sharp(+)/flat(-) (-7..7)",
 "                 'm' stands for minor mode",
 ///r
+"  --master-volume=n",
+"               Amplify output volume by n percent",
 "  --module=n",
 "               Simulate behavior of specific synthesizer module by n",
 "                 n=0       : TiMidity++ Default (default)",
@@ -6238,10 +6242,10 @@ static int parse_opt_h(const char *arg)
 "                   112-127 : TiMidity++ specification purposes",
 "  --max-channel-voices=n",
 "               Set the manimum number of voices per channel",
-" --mix-envelope=n",
+"  --mix-envelope=n",
 "  --modulation-update=n",
-" --cut-short-time=msec",
-" --limiter=n (gain per)",
+"  --cut-short-time=msec",
+"  --limiter=n (gain per)",
 #ifdef SUPPORT_LOOPEVENT
 "  --loop-repeat=n",
 "               Set number of unwind repeat count",
@@ -9192,19 +9196,6 @@ int main(int argc, char **argv)
 	if (CoInitialize(NULL) == S_OK)
 		CoInitializeOK = 1;
 	w32g_initialize();
-#ifdef IA_W32GUI
-	/* Secondary TiMidity Execute */
-	/*	FirstLoadIniFile(); */
-	if (w32gSecondTiMidity(SecondMode, argc, argv, nfiles, files) == FALSE) {
-		w32gSecondTiMidityExit();
-		if (CoInitializeOK)
-			CoUninitialize();
-		w32g_free_playlist();
-		w32g_uninitialize();
-		w32g_free_doc();
-		return 0;
-	}
-#endif
 	for (c = 1; c < argc; c++)
 		if (is_directory(argv[c])) {
 			char *p;
@@ -9276,6 +9267,21 @@ int main(int argc, char **argv)
 		return 1; /* problems with command line */
 #endif
 	}
+	nfiles = argc - optind;
+	files  = argv + optind;
+#ifdef IA_W32GUI
+	/* Secondary TiMidity Execute */
+	/*	FirstLoadIniFile(); */
+	if (w32gSecondTiMidity(SecondMode, argc, argv, nfiles, files) == FALSE) {
+		w32gSecondTiMidityExit();
+		if (CoInitializeOK)
+			CoUninitialize();
+		w32g_free_playlist();
+		w32g_uninitialize();
+		w32g_free_doc();
+		return 0;
+	}
+#endif
 	timidity_init_player();
 ///r
 	load_all_instrument();
@@ -9286,8 +9292,6 @@ int main(int argc, char **argv)
 #endif
 	begin_compute_thread();
 #endif
-	nfiles = argc - optind;
-	files  = argv + optind;
 	if (nfiles > 0
 			&& ctl->id_character != 'r' && ctl->id_character != 'A'
 			&& ctl->id_character != 'W' && ctl->id_character != 'N'

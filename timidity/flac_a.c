@@ -571,20 +571,6 @@ static int flac_output_open(const char *fname, const char *comment)
   }
 #endif
 
-  metadata[num_metadata] = FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT);
-  if (metadata[num_metadata]) {
-    const char *vendor_string = "Encoded with Timidity++";
-    /* Location=output_name */
-    memset(&commentry, 0, sizeof(commentry));
-    FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&commentry, "LOCATION", comment);
-    FLAC__metadata_object_vorbiscomment_append_comment(metadata[num_metadata], commentry, false);
-    /* Comment=vendor_string */
-    memset(&vendentry, 0, sizeof(vendentry));
-    FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&vendentry, "COMMENT", vendor_string);
-    FLAC__metadata_object_vorbiscomment_append_comment(metadata[num_metadata], vendentry, false);
-    num_metadata++;
-  }
-
   if (0 < flac_options.padding) {
     metadata[num_metadata] = FLAC__metadata_object_new(FLAC__METADATA_TYPE_PADDING);
     if (metadata[num_metadata]) {
