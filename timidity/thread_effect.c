@@ -1970,6 +1970,8 @@ void init_effect_buffer_thread(void)
 	memset(delay_effect_buffer_sub, 0, sizeof(delay_effect_buffer_sub));
 	memset(reverb_effect_buffer_sub, 0, sizeof(reverb_effect_buffer_sub));
 
+	memset(master_effect_buffer_thread, 0, sizeof(master_effect_buffer_thread));
+
 	reset_effect_thread_var();
 }
 
