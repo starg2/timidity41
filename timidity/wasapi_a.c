@@ -578,6 +578,10 @@ static int get_device(IMMDevice **ppMMDevice, int devnum)
 		goto error; 		
 	if(pszDeviceId)
 		CoTaskMemFree(pszDeviceId);
+	if(pdev)
+		IMMDevice_Release(pdev);
+	if(pdc)
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	return TRUE;
@@ -585,6 +589,10 @@ static int get_device(IMMDevice **ppMMDevice, int devnum)
 error:	
 	if(pszDeviceId)
 		CoTaskMemFree(pszDeviceId);
+	if(pdev)
+		IMMDevice_Release(pdev);
+	if(pdc)
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	return FALSE;
@@ -637,7 +645,7 @@ static void print_device_list(void)
 	device[0].LatencyMax = LatencyMax;
 	device[0].LatencyMin = LatencyMin;
 	if(tmpClient){
-		tmpClient->lpVtbl->Release(tmpClient);
+		IAudioClient_Release(tmpClient);
 		tmpClient = NULL;
 	}	
 	if(defdev){
@@ -688,7 +696,7 @@ static void print_device_list(void)
 		device[i+1].LatencyMax = LatencyMax;
 		device[i+1].LatencyMin = LatencyMin;
 		if(tmpClient){
-			tmpClient->lpVtbl->Release(tmpClient);
+			IAudioClient_Release(tmpClient);
 			tmpClient = NULL;
 		}		
 		if(dev){
@@ -696,12 +704,12 @@ static void print_device_list(void)
 			dev = NULL;
 		}
 		if(pps){
-			pps->lpVtbl->Release(pps); 
+			IPropertyStore_Release(pps);
 			pps = NULL;
 		}
 	}
 	if(pdc)
-		pdc->lpVtbl->Release(pdc); 
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	for(i = 0; i < num; i++){
@@ -713,9 +721,9 @@ static void print_device_list(void)
 	return;
 error1:
 	if(tmpClient)
-		tmpClient->lpVtbl->Release(tmpClient);
+		IAudioClient_Release(tmpClient);
 	if(pdc){
-		pdc->lpVtbl->Release(pdc);
+		IMMDeviceCollection_Release(pdc);
 	}
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
@@ -1226,7 +1234,7 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 	device[0].LatencyMax = LatencyMax;
 	device[0].LatencyMin = LatencyMin;
 	if(tmpClient){
-		tmpClient->lpVtbl->Release(tmpClient);
+		IAudioClient_Release(tmpClient);
 		tmpClient = NULL;
 	}	
 	if(defdev){
@@ -1277,7 +1285,7 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 		device[i+1].LatencyMax = LatencyMax;
 		device[i+1].LatencyMin = LatencyMin;
 		if(tmpClient){
-			tmpClient->lpVtbl->Release(tmpClient);
+			IAudioClient_Release(tmpClient);
 			tmpClient = NULL;
 		}		
 		if(dev){
@@ -1285,21 +1293,21 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 			dev = NULL;
 		}
 		if(pps){
-			pps->lpVtbl->Release(pps); 
+			IPropertyStore_Release(pps);
 			pps = NULL;
 		}
 	}
 	if(pdc)
-		pdc->lpVtbl->Release(pdc); 
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	return num + 1; // +1 def dev
 
 error1:
 	if(tmpClient)
-		tmpClient->lpVtbl->Release(tmpClient);
+		IAudioClient_Release(tmpClient);
 	if(pdc){
-		pdc->lpVtbl->Release(pdc);
+		IMMDeviceCollection_Release(pdc);
 	}
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);

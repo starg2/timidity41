@@ -2506,23 +2506,9 @@ static void do_drive_mono(Drive *drv, DATA_T *inout)
 	int32 index;
 	FLOAT_T in, sign, v1, v2, fp;
 
-	static FLOAT_T max = 0, avg = 0, sum = 0;
-	static int32 tc = 0;
-
-
-
-
 	in = *inout;
 	sign = (in < 0) ? (-1.0) : (1.0);
 	in *= drv->cnv * sign;
-	
-	if(in > 1 && in > max)
-		max = in;
-	++tc;
-	sum += in;
-	avg = sum / (FLOAT_T)tc;
-
-
 	fp = floor(in);
 	index = fp;
 	fp = in - fp;
