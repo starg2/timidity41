@@ -594,66 +594,7 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		}
 		break;
 	case 1:
-#if 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		const __m256 vvq = _mm256_set1_ps(0.25);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = MM256_SET2X_PS(
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i])),
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4])) ); 			
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain); _mm256_cmp_ps(
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1)
-			vtmp1 = _mm256_sub_ps(vtmp1, vvp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vvq);
-			vtmp1 = _mm256_add_ps(vtmp1, vvp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x0)));
-			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x1)));
-		}
-		}
-#elif 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		const __m256 vvq = _mm256_set1_ps(0.25);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = _mm256_loadu_ps(&sp[i]);
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain);
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1)
-			vtmp1 = _mm256_sub_ps(vtmp1, vvp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vvq);
-			vtmp1 = _mm256_add_ps(vtmp1, vvp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_ps(&sp[i], vtmp1);
-		}
-		}		
-#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 2) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 		{
 		const int32 req_count_mask = ~(0x7);
 		int32 count2 = count & req_count_mask;
@@ -663,86 +604,71 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		const __m128 vvn1 = _mm_set1_ps(-1.0);
 		const __m128 vvq = _mm_set1_ps(0.25);
 		for (i = 0; i < count2; i += 8) {
+/* 
+tmp = sp[i] * info->velgain;
+sp = tmp >= 0 ? (1.0) : (0.0);
+sn = tmp < 0 ? (-1.0) : (0.0);
+sign = sp | sn;
+base = tmp = tmp * sign;
+tmp = 1.0 + (tmp - 1.0) * 0.25;
+sp = base > 1.0 ? tmp : 0;
+sn = base <= 1.0 ? base : 0;
+tmp = sp | sn;
+sp[i] = tmp * sign * info->level;
+*/
 			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			vtmp1 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i]));
+			vtmp2 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4]));
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			vtmp1 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 2])), 0x44);
 			vtmp2 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 4])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 6])), 0x44);
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+			vtmp1 = _mm_loadu_ps(&sp[i]);
+			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
+#endif
 			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
+			vtmp2 = _mm_mul_ps(vtmp2, vgain);			
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp1, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, _mm_setzero_ps()));	
+			vsign1 = _mm_or_ps(vsp, vsn);
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp2, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, _mm_setzero_ps()));	
+			vsign2 = _mm_or_ps(vsp, vsn);		
+			vbase1 = vtmp1 = _mm_mul_ps(vtmp1, vsign1);
+			vbase2 = vtmp2 = _mm_mul_ps(vtmp2, vsign2);
 			vtmp1 = _mm_sub_ps(vtmp1, vvp1);
 			vtmp2 = _mm_sub_ps(vtmp2, vvp1);
 			vtmp1 = _mm_mul_ps(vtmp1, vvq);
 			vtmp2 = _mm_mul_ps(vtmp2, vvq);
 			vtmp1 = _mm_add_ps(vtmp1, vvp1);
-			vtmp2 = _mm_add_ps(vtmp2, vvp1);
+			vtmp2 = _mm_add_ps(vtmp2, vvp1);			
+			vsp = _mm_and_ps(vtmp1, _mm_cmpgt_ps(vbase1, vvp1));	
+			vsn = _mm_and_ps(vbase1, _mm_cmple_ps(vbase1, vvp1));	
+			vtmp1 = _mm_or_ps(vsp, vsn);					
+			vsp = _mm_and_ps(vtmp2, _mm_cmpgt_ps(vbase2, vvp1));	
+			vsn = _mm_and_ps(vbase2, _mm_cmple_ps(vbase2, vvp1));	
+			vtmp2 = _mm_or_ps(vsp, vsn);
 			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
 			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_add_ps(vtmp1, vbase1);
-			vtmp2 = _mm_add_ps(vtmp2, vbase2);
 			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
 			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(vtmp1));
+			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(vtmp2));	
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			_mm_storeu_pd(&sp[i], _mm_cvtps_pd(vtmp1));
 			_mm_storeu_pd(&sp[i + 2], _mm_cvtps_pd(_mm_movehl_ps(vtmp1,vtmp1)));
 			_mm_storeu_pd(&sp[i + 4], _mm_cvtps_pd(vtmp2));
 			_mm_storeu_pd(&sp[i + 6], _mm_cvtps_pd(_mm_movehl_ps(vtmp2,vtmp2)));
-		}
-		}
 #elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m128 vgain = _mm_set1_ps((float)info->velgain);
-		__m128 vlevel = _mm_set1_ps((float)info->level);
-		const __m128 vvp1 = _mm_set1_ps(1.0);
-		const __m128 vvn1 = _mm_set1_ps(-1.0);
-		const __m128 vvq = _mm_set1_ps(0.25);
-		for (i = 0; i < count2; i += 8) {
-			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
-			vtmp1 = _mm_loadu_ps(&sp[i]);
-			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
-			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_sub_ps(vtmp1, vvp1);
-			vtmp2 = _mm_sub_ps(vtmp2, vvp1);
-			vtmp1 = _mm_mul_ps(vtmp1, vvq);
-			vtmp2 = _mm_mul_ps(vtmp2, vvq);
-			vtmp1 = _mm_add_ps(vtmp1, vvp1);
-			vtmp2 = _mm_add_ps(vtmp2, vvp1);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_add_ps(vtmp1, vbase1);
-			vtmp2 = _mm_add_ps(vtmp2, vbase2);
-			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
-			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
 			_mm_storeu_ps(&sp[i], vtmp1);
 			_mm_storeu_ps(&sp[i + 4], vtmp2);
+#endif
 		}
 		}
 #endif // USE_X86_EXT_INTRIN
@@ -756,60 +682,7 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		}
 		break;
 	case 2:
-#if 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = MM256_SET2X_PS(
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i])),
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4])) ); 			
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain);
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1)
-			vtmp1 = _mm256_sqrt_ps(vtmp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x0)));
-			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x1)));
-		}
-		}
-#elif 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = _mm256_loadu_ps(&sp[i]);
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain);
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_sqrt_ps(vtmp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_ps(&sp[i], vtmp1);
-		}
-		}		
-#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 2) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 		{
 		const int32 req_count_mask = ~(0x7);
 		int32 count2 = count & req_count_mask;
@@ -817,44 +690,87 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		__m128 vlevel = _mm_set1_ps((float)info->level);
 		const __m128 vvp1 = _mm_set1_ps(1.0);
 		const __m128 vvn1 = _mm_set1_ps(-1.0);
+		const __m128 vvq = _mm_set1_ps(0.25);
 		for (i = 0; i < count2; i += 8) {
+/* 
+tmp = sp[i] * info->velgain;
+sp = tmp >= 0 ? (1.0) : (0.0);
+sn = tmp < 0 ? (-1.0) : (0.0);
+sign = sp | sn;
+base = tmp = tmp * sign;
+tmp = 1.0 - (tmp - 1.0) * 0.25;
+sp = base > 1.0 ? tmp : 0;
+sn = base <= 1.0 ? base : 0;
+tmp = sp | sn;
+sp[i] = tmp * sign * info->level;
+*/
 			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
-			__m128d vtmpd1, vtmpd2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			vtmp1 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i]));
+			vtmp2 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4]));
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			vtmp1 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 2])), 0x44);
 			vtmp2 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 4])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 6])), 0x44);
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+			vtmp1 = _mm_loadu_ps(&sp[i]);
+			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
+#endif
 			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
+			vtmp2 = _mm_mul_ps(vtmp2, vgain);			
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp1, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, _mm_setzero_ps()));	
+			vsign1 = _mm_or_ps(vsp, vsn);
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp2, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, _mm_setzero_ps()));	
+			vsign2 = _mm_or_ps(vsp, vsn);		
+			vbase1 = vtmp1 = _mm_mul_ps(vtmp1, vsign1);
+			vbase2 = vtmp2 = _mm_mul_ps(vtmp2, vsign2);
+			vtmp1 = _mm_sub_ps(vtmp1, vvp1);
+			vtmp2 = _mm_sub_ps(vtmp2, vvp1);
+			vtmp1 = _mm_mul_ps(vtmp1, vvq);
+			vtmp2 = _mm_mul_ps(vtmp2, vvq);
+			vtmp1 = _mm_sub_ps(vvp1, vtmp1);
+			vtmp2 = _mm_sub_ps(vvp1, vtmp2);			
+			vsp = _mm_and_ps(vtmp1, _mm_cmpgt_ps(vbase1, vvp1));	
+			vsn = _mm_and_ps(vbase1, _mm_cmple_ps(vbase1, vvp1));	
+			vtmp1 = _mm_or_ps(vsp, vsn);					
+			vsp = _mm_and_ps(vtmp2, _mm_cmpgt_ps(vbase2, vvp1));	
+			vsn = _mm_and_ps(vbase2, _mm_cmple_ps(vbase2, vvp1));	
+			vtmp2 = _mm_or_ps(vsp, vsn);
 			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
 			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_sqrt_ps(vtmp1);
-			vtmp2 = _mm_sqrt_ps(vtmp2);	
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_add_ps(vtmp1, vbase1);
-			vtmp2 = _mm_add_ps(vtmp2, vbase2);
 			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
 			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(vtmp1));
+			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(vtmp2));	
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			_mm_storeu_pd(&sp[i], _mm_cvtps_pd(vtmp1));
 			_mm_storeu_pd(&sp[i + 2], _mm_cvtps_pd(_mm_movehl_ps(vtmp1,vtmp1)));
 			_mm_storeu_pd(&sp[i + 4], _mm_cvtps_pd(vtmp2));
 			_mm_storeu_pd(&sp[i + 6], _mm_cvtps_pd(_mm_movehl_ps(vtmp2,vtmp2)));
-		}
-		}
 #elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+			_mm_storeu_ps(&sp[i], vtmp1);
+			_mm_storeu_ps(&sp[i + 4], vtmp2);
+#endif
+		}
+		}
+#endif // USE_X86_EXT_INTRIN
+		for (; i < count; i++) {
+			FLOAT_T tmp = sp[i] * info->velgain;
+			if(tmp > 1.0)
+				tmp = 1.0 + (tmp - 1.0) * 0.25;
+			else if(tmp < -1.0)
+				tmp = -1.0 - (tmp + 1.0) * 0.25;
+			sp[i] = tmp * info->level;
+		}
+		break;
+	case 3:
+#if (USE_X86_EXT_INTRIN >= 2) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 		{
 		const int32 req_count_mask = ~(0x7);
 		int32 count2 = count & req_count_mask;
@@ -863,33 +779,67 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		const __m128 vvp1 = _mm_set1_ps(1.0);
 		const __m128 vvn1 = _mm_set1_ps(-1.0);
 		for (i = 0; i < count2; i += 8) {
+/* 
+tmp = sp[i] * info->velgain;
+sp = tmp >= 0 ? (1.0) : 0;
+sn = tmp < 0 ? (-1.0) : 0;
+sign = sp | sn;
+base = tmp = tmp * sign;
+tmp = sqrt(tmp);
+sp = base > 1.0 ? tmp : 0;
+sn = base <= 1.0 ? base : 0;
+tmp = sp | sn;
+sp[i] = tmp * sign * info->level;
+*/
 			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			vtmp1 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i]));
+			vtmp2 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4]));
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			vtmp1 = _mm_shuffle_ps(
+				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i])), 
+				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 2])), 0x44);
+			vtmp2 = _mm_shuffle_ps(
+				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 4])), 
+				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 6])), 0x44);
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
 			vtmp1 = _mm_loadu_ps(&sp[i]);
 			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
+#endif
 			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
+			vtmp2 = _mm_mul_ps(vtmp2, vgain);			
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp1, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, _mm_setzero_ps()));	
+			vsign1 = _mm_or_ps(vsp, vsn);
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp2, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, _mm_setzero_ps()));	
+			vsign2 = _mm_or_ps(vsp, vsn);		
+			vbase1 = vtmp1 = _mm_mul_ps(vtmp1, vsign1);
+			vbase2 = vtmp2 = _mm_mul_ps(vtmp2, vsign2);			
 			vtmp1 = _mm_sqrt_ps(vtmp1);
 			vtmp2 = _mm_sqrt_ps(vtmp2);	
+			vsp = _mm_and_ps(vtmp1, _mm_cmpgt_ps(vbase1, vvp1));	
+			vsn = _mm_and_ps(vbase1, _mm_cmple_ps(vbase1, vvp1));	
+			vtmp1 = _mm_or_ps(vsp, vsn);					
+			vsp = _mm_and_ps(vtmp2, _mm_cmpgt_ps(vbase2, vvp1));	
+			vsn = _mm_and_ps(vbase2, _mm_cmple_ps(vbase2, vvp1));	
+			vtmp2 = _mm_or_ps(vsp, vsn);
 			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
 			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_add_ps(vtmp1, vbase1);
-			vtmp2 = _mm_add_ps(vtmp2, vbase2);
 			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
 			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(vtmp1));
+			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(vtmp2));	
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+			_mm_storeu_pd(&sp[i], _mm_cvtps_pd(vtmp1));
+			_mm_storeu_pd(&sp[i + 2], _mm_cvtps_pd(_mm_movehl_ps(vtmp1,vtmp1)));
+			_mm_storeu_pd(&sp[i + 4], _mm_cvtps_pd(vtmp2));
+			_mm_storeu_pd(&sp[i + 6], _mm_cvtps_pd(_mm_movehl_ps(vtmp2,vtmp2)));
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
 			_mm_storeu_ps(&sp[i], vtmp1);
 			_mm_storeu_ps(&sp[i + 4], vtmp2);
+#endif
 		}
 		}
 #endif // USE_X86_EXT_INTRIN
@@ -903,64 +853,7 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		}
 		break;
 	case 4:
-#if 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		const __m256 vvp2 = _mm256_set1_ps(2.0);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = MM256_SET2X_PS(
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i])),
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4])) ); 			
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain);
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1)
-			vtmp1 = _mm256_sqrt_ps(vtmp1);
-			vtmp1 = _mm256_sub_ps(vvp2, vtmp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x0)));
-			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x1)));
-		}
-		}
-#elif 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		const __m256 vvp2 = _mm256_set1_ps(2.0);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = _mm256_loadu_ps(&sp[i]);
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain);
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1)
-			vtmp1 = _mm256_sqrt_ps(vtmp1);
-			vtmp1 = _mm256_sub_ps(vvp2, vtmp1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_ps(&sp[i], vtmp1);
-		}
-		}		
-#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 2) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 		{
 		const int32 req_count_mask = ~(0x7);
 		int32 count2 = count & req_count_mask;
@@ -970,83 +863,69 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		const __m128 vvn1 = _mm_set1_ps(-1.0);
 		const __m128 vvp2 = _mm_set1_ps(2.0);
 		for (i = 0; i < count2; i += 8) {
+/* 
+tmp = sp[i] * info->velgain;
+sp = tmp >= 0 ? (1.0) : (0.0);
+sn = tmp < 0 ? (-1.0) : (0.0);
+sign = sp | sn;
+base = tmp = tmp * sign;
+tmp = 2.0 - sqrt(tmp);
+sp = base > 1.0 ? tmp : 0;
+sn = base <= 1.0 ? base : 0;
+tmp = sp | sn;
+sp[i] = tmp * sign * info->level;
+*/
 			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
-			__m128d vtmpd1, vtmpd2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			vtmp1 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i]));
+			vtmp2 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4]));
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			vtmp1 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 2])), 0x44);
 			vtmp2 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 4])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 6])), 0x44);
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+			vtmp1 = _mm_loadu_ps(&sp[i]);
+			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
+#endif
 			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
+			vtmp2 = _mm_mul_ps(vtmp2, vgain);			
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp1, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, _mm_setzero_ps()));	
+			vsign1 = _mm_or_ps(vsp, vsn);
+			vsp = _mm_and_ps(vvp1, _mm_cmpge_ps(vtmp2, _mm_setzero_ps()));	
+			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, _mm_setzero_ps()));	
+			vsign2 = _mm_or_ps(vsp, vsn);		
+			vbase1 = vtmp1 = _mm_mul_ps(vtmp1, vsign1);
+			vbase2 = vtmp2 = _mm_mul_ps(vtmp2, vsign2);			
 			vtmp1 = _mm_sqrt_ps(vtmp1);
 			vtmp2 = _mm_sqrt_ps(vtmp2);
 			vtmp1 = _mm_sub_ps(vvp2, vtmp1);
 			vtmp2 = _mm_sub_ps(vvp2, vtmp2);
+			vsp = _mm_and_ps(vtmp1, _mm_cmpgt_ps(vbase1, vvp1));	
+			vsn = _mm_and_ps(vbase1, _mm_cmple_ps(vbase1, vvp1));	
+			vtmp1 = _mm_or_ps(vsp, vsn);					
+			vsp = _mm_and_ps(vtmp2, _mm_cmpgt_ps(vbase2, vvp1));	
+			vsn = _mm_and_ps(vbase2, _mm_cmple_ps(vbase2, vvp1));	
+			vtmp2 = _mm_or_ps(vsp, vsn);
 			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
 			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_add_ps(vtmp1, vbase1);
-			vtmp2 = _mm_add_ps(vtmp2, vbase2);
 			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
 			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(vtmp1));
+			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(vtmp2));	
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			_mm_storeu_pd(&sp[i], _mm_cvtps_pd(vtmp1));
 			_mm_storeu_pd(&sp[i + 2], _mm_cvtps_pd(_mm_movehl_ps(vtmp1,vtmp1)));
 			_mm_storeu_pd(&sp[i + 4], _mm_cvtps_pd(vtmp2));
 			_mm_storeu_pd(&sp[i + 6], _mm_cvtps_pd(_mm_movehl_ps(vtmp2,vtmp2)));
-		}
-		}
 #elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m128 vgain = _mm_set1_ps((float)info->velgain);
-		__m128 vlevel = _mm_set1_ps((float)info->level);
-		const __m128 vvp1 = _mm_set1_ps(1.0);
-		const __m128 vvn1 = _mm_set1_ps(-1.0);
-		const __m128 vvp2 = _mm_set1_ps(2.0);
-		for (i = 0; i < count2; i += 8) {
-			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
-			vtmp1 = _mm_loadu_ps(&sp[i]);
-			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
-			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_sqrt_ps(vtmp1);
-			vtmp2 = _mm_sqrt_ps(vtmp2);
-			vtmp1 = _mm_sub_ps(vvp2, vtmp1);
-			vtmp2 = _mm_sub_ps(vvp2, vtmp2);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_add_ps(vtmp1, vbase1);
-			vtmp2 = _mm_add_ps(vtmp2, vbase2);
-			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
-			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
 			_mm_storeu_ps(&sp[i], vtmp1);
 			_mm_storeu_ps(&sp[i + 4], vtmp2);
+#endif
 		}
 		}
 #endif // USE_X86_EXT_INTRIN
@@ -1068,163 +947,55 @@ static inline void do_vfx_distortion(int v, VoiceEffect *vfx, DATA_T *sp, int32 
 		}
 		break;
 	case 6:
-#if 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		const __m256 vvq = _mm256_set1_ps(-0.15);
-		const __m256 vv11 = _mm256_set1_ps(1.1);
-		const __m256 vmsign = _mm256_set1_ps(-0.0f);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = MM256_SET2X_PS(
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i])),
-				_mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4])) ); 			
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain);
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1)
-			vtmp1 = _mm256_andnot_ps(vtmp1, vmsign);
-			vtmp1 = _mm256_mul_ps(vtmp1, vvq);
-			vtmp1 = _mm256_add_ps(vtmp1, vv11);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x0)));
-			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(_mm256_extract_ps(vtmp1, 0x1)));
-		}
-		}
-#elif 0 && (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_FLOAT)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m256 vgain = _mm256_set1_ps((float)info->velgain);
-		__m256 vlevel = _mm256_set1_ps((float)info->level);
-		const __m256 vvp1 = _mm256_set1_ps(1.0);
-		const __m256 vvn1 = _mm256_set1_ps(-1.0);
-		const __m256 vvq = _mm256_set1_ps(-0.15);
-		const __m256 vv11 = _mm256_set1_ps(1.1);
-		const __m256 vmsign = _mm256_set1_ps(-0.0f);
-		for (i = 0; i < count2; i += 8) {
-			__m256 vtmp1, vme, vsp, vsn, vsign1, vbase1;
-			vtmp1 = _mm256_loadu_ps(&sp[i]);
-			vtmp1 = _mm256_mul_ps(vtmp1, vgain);
-			vsp = _mm256_and_ps(vvp1, _mm256_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm256_and_ps(vvn1, _mm256_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm256_or_ps(vsp, vsn);			
-			vme = _mm256_and_ps(_mm256_cmple_ps(vtmp1, vvp1), _mm256_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm256_and_ps(vtmp1, vme);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1)
-			vtmp1 = _mm256_andnot_ps(vtmp1, vmsign);
-			vtmp1 = _mm256_mul_ps(vtmp1, vvq);
-			vtmp1 = _mm256_add_ps(vtmp1, vv11);
-			vtmp1 = _mm256_mul_ps(vtmp1, vsign1);
-			vtmp1 = _mm256_add_ps(vtmp1, vbase1);
-			vtmp1 = _mm256_mul_ps(vtmp1, vlevel);
-			_mm256_storeu_ps(&sp[i], vtmp1);
-		}
-		}		
-#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 2) && (defined(DATA_T_DOUBLE) || defined(DATA_T_FLOAT))
 		{
 		const int32 req_count_mask = ~(0x7);
 		int32 count2 = count & req_count_mask;
 		__m128 vgain = _mm_set1_ps((float)info->velgain);
 		__m128 vlevel = _mm_set1_ps((float)info->level);
-		const __m128 vvp1 = _mm_set1_ps(1.0);
-		const __m128 vvn1 = _mm_set1_ps(-1.0);
 		const __m128 vvq = _mm_set1_ps(-0.15);
 		const __m128 vv11 = _mm_set1_ps(1.1);
 		const __m128 vmsign = _mm_set1_ps(-0.0f);
 		for (i = 0; i < count2; i += 8) {
-			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
+			__m128 vtmp1, vtmp2, vbase1, vbase2;
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			vtmp1 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i]));
+			vtmp2 = _mm256_cvtpd_ps(_mm256_loadu_pd(&sp[i + 4]));
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			vtmp1 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 2])), 0x44);
 			vtmp2 = _mm_shuffle_ps(
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 4])), 
 				_mm_cvtpd_ps(_mm_loadu_pd(&sp[i + 6])), 0x44);
-			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_andnot_ps(vtmp1, vmsign);
-			vtmp2 = _mm_andnot_ps(vtmp2, vmsign);
+#elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
+			vtmp1 = _mm_loadu_ps(&sp[i]);
+			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
+#endif
+			vbase1 = vtmp1 = _mm_mul_ps(vtmp1, vgain);
+			vbase2 = vtmp2 = _mm_mul_ps(vtmp2, vgain);
+			vtmp1 = _mm_andnot_ps(vtmp1, vmsign); // fabs
+			vtmp2 = _mm_andnot_ps(vtmp2, vmsign); // fabs
 			vtmp1 = _mm_mul_ps(vtmp1, vvq);
 			vtmp2 = _mm_mul_ps(vtmp2, vvq);
 			vtmp1 = _mm_add_ps(vtmp1, vv11);
 			vtmp2 = _mm_add_ps(vtmp2, vv11);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
 			vtmp1 = _mm_add_ps(vtmp1, vbase1);
 			vtmp2 = _mm_add_ps(vtmp2, vbase2);
 			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
 			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE)
+			_mm256_storeu_pd(&sp[i], _mm256_cvtps_pd(vtmp1));
+			_mm256_storeu_pd(&sp[i + 4], _mm256_cvtps_pd(vtmp2));	
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE)
 			_mm_storeu_pd(&sp[i], _mm_cvtps_pd(vtmp1));
 			_mm_storeu_pd(&sp[i + 2], _mm_cvtps_pd(_mm_movehl_ps(vtmp1,vtmp1)));
 			_mm_storeu_pd(&sp[i + 4], _mm_cvtps_pd(vtmp2));
 			_mm_storeu_pd(&sp[i + 6], _mm_cvtps_pd(_mm_movehl_ps(vtmp2,vtmp2)));
-		}
-		}
 #elif (USE_X86_EXT_INTRIN >= 2) && defined(DATA_T_FLOAT)
-		{
-		const int32 req_count_mask = ~(0x7);
-		int32 count2 = count & req_count_mask;
-		__m128 vgain = _mm_set1_ps((float)info->velgain);
-		__m128 vlevel = _mm_set1_ps((float)info->level);
-		const __m128 vvp1 = _mm_set1_ps(1.0);
-		const __m128 vvn1 = _mm_set1_ps(-1.0);
-		const __m128 vvq = _mm_set1_ps(-0.15);
-		const __m128 vv11 = _mm_set1_ps(1.1);
-		const __m128 vmsign = _mm_set1_ps(-0.0f);
-		for (i = 0; i < count2; i += 8) {
-			__m128 vtmp1, vtmp2, vme, vsp, vsn, vsign1, vsign2, vbase1, vbase2;
-			vtmp1 = _mm_loadu_ps(&sp[i]);
-			vtmp2 = _mm_loadu_ps(&sp[i + 4]);
-			vtmp1 = _mm_mul_ps(vtmp1, vgain);
-			vtmp2 = _mm_mul_ps(vtmp2, vgain);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp1, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp1, vvn1));	
-			vsign1 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp1, vvp1), _mm_cmpge_ps(vtmp1, vvn1));
-			vbase1 = _mm_and_ps(vtmp1, vme);
-			vsp = _mm_and_ps(vvp1, _mm_cmpgt_ps(vtmp2, vvp1));	
-			vsn = _mm_and_ps(vvn1, _mm_cmplt_ps(vtmp2, vvn1));	
-			vsign2 = _mm_or_ps(vsp, vsn);			
-			vme = _mm_and_ps(_mm_cmple_ps(vtmp2, vvp1), _mm_cmpge_ps(vtmp2, vvn1));
-			vbase2 = _mm_and_ps(vtmp2, vme);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_andnot_ps(vtmp1, vmsign);
-			vtmp2 = _mm_andnot_ps(vtmp2, vmsign);
-			vtmp1 = _mm_mul_ps(vtmp1, vvq);
-			vtmp2 = _mm_mul_ps(vtmp2, vvq);
-			vtmp1 = _mm_add_ps(vtmp1, vv11);
-			vtmp2 = _mm_add_ps(vtmp2, vv11);
-			vtmp1 = _mm_mul_ps(vtmp1, vsign1);
-			vtmp2 = _mm_mul_ps(vtmp2, vsign2);
-			vtmp1 = _mm_add_ps(vtmp1, vbase1);
-			vtmp2 = _mm_add_ps(vtmp2, vbase2);
-			vtmp1 = _mm_mul_ps(vtmp1, vlevel);
-			vtmp2 = _mm_mul_ps(vtmp2, vlevel);
 			_mm_storeu_ps(&sp[i], vtmp1);
 			_mm_storeu_ps(&sp[i + 4], vtmp2);
+#endif
 		}
 		}
 #endif // USE_X86_EXT_INTRIN
