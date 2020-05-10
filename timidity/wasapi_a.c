@@ -629,11 +629,12 @@ static void print_device_list(void)
 		goto error1;	
 	LatencyMax = 100000;
 	LatencyMin = 30000;
-	if(FAILED(IMMDevice_Activate(defdev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
-		LatencyMin = LatencyMin;
-	}else if(FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))){
-		LatencyMin = LatencyMin;
-	}	
+	if(SUCCEEDED(IMMDevice_Activate(defdev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
+		if (FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))) {
+			LatencyMax = 100000;
+			LatencyMin = 30000;
+		}
+	}
 	LatencyMax /= 10000; // hns to ms
 	LatencyMin /= 10000; // hns to ms
 	if(LatencyMax > 1000)
@@ -682,8 +683,11 @@ static void print_device_list(void)
 		PropVariantClear(&value);
 		LatencyMax = 100000;
 		LatencyMin = 30000;
-		if(FAILED(IMMDevice_Activate(dev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
-		}else if(FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))){
+		if(SUCCEEDED(IMMDevice_Activate(dev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
+			if (FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))) {
+				LatencyMax = 100000;
+				LatencyMin = 30000;
+			}
 		}
 		LatencyMax /= 10000; // hns to ms
 		LatencyMin /= 10000; // hns to ms
@@ -1218,11 +1222,12 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 		goto error1;	
 	LatencyMax = 100000;
 	LatencyMin = 30000;
-	if(FAILED(IMMDevice_Activate(defdev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
-		LatencyMin = LatencyMin;
-	}else if(FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))){
-		LatencyMin = LatencyMin;
-	}	
+	if(SUCCEEDED(IMMDevice_Activate(defdev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
+		if (FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))) {
+			LatencyMax = 100000;
+			LatencyMin = 30000;
+		}
+	}
 	LatencyMax /= 10000; // hns to ms
 	LatencyMin /= 10000; // hns to ms
 	if(LatencyMax > 1000)
@@ -1271,8 +1276,11 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 		PropVariantClear(&value);
 		LatencyMax = 100000;
 		LatencyMin = 30000;
-		if(FAILED(IMMDevice_Activate(dev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
-		}else if(FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))){
+		if(SUCCEEDED(IMMDevice_Activate(dev, &tim_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&tmpClient))){
+			if (FAILED(IAudioClient_GetDevicePeriod(tmpClient, &LatencyMax, &LatencyMin))) {
+				LatencyMax = 100000;
+				LatencyMin = 30000;
+			}
 		}
 		LatencyMax /= 10000; // hns to ms
 		LatencyMin /= 10000; // hns to ms
