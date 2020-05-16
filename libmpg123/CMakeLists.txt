@@ -41,6 +41,7 @@ add_library(
     src/config.h
     src/intsym.h
     src/compat/compat.h
+    src/compat/wpathconv.h
     src/libmpg123/abi_align.h
     src/libmpg123/debug.h
     src/libmpg123/decode.h
@@ -68,6 +69,7 @@ add_library(
     src/libmpg123/parse.h
     src/libmpg123/reader.h
     src/libmpg123/sample.h
+    src/libmpg123/swap_bytes_impl.h
     src/libmpg123/synth.h
     src/libmpg123/synth_8bit.h
     src/libmpg123/synth_mono.h
