@@ -1991,6 +1991,9 @@ WrdCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		case WM_PAINT:
 	      	WrdWndPaintDo(FALSE);
 	    	return 0;
+		case WM_APPCOMMAND:
+			SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+			return TRUE;
 		case WM_DROPFILES:
 			SendMessage(hMainWnd,WM_DROPFILES,wParam,lParam);
 			return 0;
@@ -2072,6 +2075,9 @@ WrdWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				WrdWndInfo.PosY = rc.top;
 			}
 			break;
+		case WM_APPCOMMAND:
+			SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+			return TRUE;
 		case WM_CLOSE:
 			ShowWindow(hWrdWnd, SW_HIDE);
 			MainWndUpdateWrdButton();
