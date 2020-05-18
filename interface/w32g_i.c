@@ -274,6 +274,8 @@ int SecondMode = 1;
 
 void FirstLoadIniFile(void);
 
+extern int TracerWndDrawSkip;
+
 #if (defined(__W32G__) && !defined(TWSYNG32))
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
 extern int win_main(int argc, char **argv); /* timidity.c */
@@ -1209,6 +1211,62 @@ MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		SetScrollPos(hMainWndScrollbarVolumeWnd, SB_CTL, pos, TRUE);
 		break;
       }
+	  case WM_APPCOMMAND:
+		  switch (GET_APPCOMMAND_LPARAM(lParam)) {
+		  case APPCOMMAND_MEDIA_PAUSE:
+			  TracerWndDrawSkip = 1;
+			  SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_MAIN,
+				  TB_CHECKBUTTON, IDM_PAUSE,
+				  (LPARAM)MAKELONG(TRUE, 0));
+			  w32g_send_rc(RC_PAUSE, 0);
+			  return TRUE;
+
+		  case APPCOMMAND_MEDIA_PLAY:
+			  TracerWndDrawSkip = 0;
+			  if (play_pause_flag)
+			  {
+				  SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_MAIN,
+					  TB_CHECKBUTTON, IDM_PAUSE,
+					  (LPARAM)MAKELONG(FALSE, 0));
+				  w32g_send_rc(RC_TOGGLE_PAUSE, 0);
+			  }
+			  if (!w32g_play_active)
+				  w32g_send_rc(RC_LOAD_FILE, 0);
+			  return TRUE;
+
+		  case APPCOMMAND_MEDIA_PLAY_PAUSE:
+			  if (!w32g_play_active) {
+				  TracerWndDrawSkip = 0;
+				  w32g_send_rc(RC_LOAD_FILE, 0);
+			  } else {
+				  TracerWndDrawSkip = !TracerWndDrawSkip;
+				  SendDlgItemMessage(hMainWnd, IDC_TOOLBARWINDOW_MAIN,
+					  TB_CHECKBUTTON, IDM_PAUSE,
+					  (LPARAM)MAKELONG(!play_pause_flag, 0));
+				  w32g_send_rc(RC_TOGGLE_PAUSE, 0);
+			  }
+			  return TRUE;
+
+		  case APPCOMMAND_MEDIA_STOP:
+			  TracerWndDrawSkip = 1;
+			  w32g_send_rc(RC_STOP, 0);
+			  return TRUE;
+
+		  case APPCOMMAND_MEDIA_PREVIOUSTRACK:
+			  TracerWndDrawSkip = 1;
+			  w32g_send_rc(RC_REALLY_PREVIOUS, 0);
+			  return TRUE;
+
+		  case APPCOMMAND_MEDIA_NEXTTRACK:
+			  TracerWndDrawSkip = 1;
+			  w32g_send_rc(RC_NEXT, 0);
+			  return TRUE;
+
+		  default:
+			  break;
+		  }
+		  return FALSE;
+
 	  case WM_SYSCOMMAND:
 		switch(wParam){
 		  case IDM_STOP:
@@ -1369,7 +1427,6 @@ static void MainWndItemResize(void)
     CanvasPaintAll();
 }
 
-extern int TracerWndDrawSkip;
 void PrefWndCreate(HWND hwnd, UINT cid);
 
 void MainCmdProc(HWND hwnd, int wId, HWND hwndCtl, UINT wNotifyCode)

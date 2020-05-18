@@ -2519,6 +2519,9 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		case WM_PAINT:
 	      	TracerWndPaintDo(FALSE);
 	    	return 0;
+		case WM_APPCOMMAND:
+			SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+			return TRUE;
 		case WM_DROPFILES:
 			SendMessage(hMainWnd, WM_DROPFILES, wParam, lParam);
 			return 0;
@@ -2883,6 +2886,9 @@ TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		default:
 			return FALSE;
 		}
+	case WM_APPCOMMAND:
+		SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+		return TRUE;
 	case WM_GETMINMAXINFO:
 		{
 			RECT rc = { 0 };
