@@ -25,7 +25,7 @@ typedef int (*type_mpg123_format)(mpg123_handle *mh, long rate, int channels, in
 typedef int (*type_mpg123_replace_reader_handle)(mpg123_handle *mh, ssize_t (*r_read)(void *, void *, size_t), off_t (*r_lseek)(void *, off_t, int), void (*cleanup)(void *));
 typedef int (*type_mpg123_open_handle)(mpg123_handle *mh, void *iohandle);
 typedef int (*type_mpg123_getformat)(mpg123_handle *mh, long *rate, int *channels, int *encoding);
-typedef int (*type_mpg123_read)(mpg123_handle *mh, unsigned char *out, size_t size, size_t *done);
+typedef int (*type_mpg123_read)(mpg123_handle *mh, void *out, size_t size, size_t *done);
 
 static struct {
 	type_mpg123_init mpg123_init;
@@ -167,7 +167,7 @@ int mpg123_getformat(mpg123_handle *mh, long *rate, int *channels, int *encoding
 	}
 }
 
-int mpg123_read(mpg123_handle *mh, unsigned char *out, size_t size, size_t *done)
+int mpg123_read(mpg123_handle *mh, void *out, size_t size, size_t *done)
 {
 	if (mpg123_dll.mpg123_read) {
 		return (*mpg123_dll.mpg123_read)(mh, out, size, done);
