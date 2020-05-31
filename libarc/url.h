@@ -115,7 +115,7 @@ extern off_size_t url_seek_uint64(URL url, uint64 offset, int whence);
 extern off_size_t url_tell(URL url);
 
 /* skip n bytes */
-extern void url_skip(URL url, ptr_size_t n);
+extern void url_skip(URL url, off_size_t n);
 
 /* seek to first position */
 extern void url_rewind(URL url);
@@ -248,9 +248,7 @@ enum url_news_conn_type
 #define IS_URL_SEEK_SAFE(url) ((url)->url_seek && \
 			       (url)->type != URL_buff_t)
 
-#if -1L != (-1L >> 1)
-#define URL_MAX_READLIMIT ((~(off_size_t)0L) >> 1)
-#elif _FILE_OFFSET_BITS > 32
+#ifdef HAVE_OFF_SIZE_T_64BIT
 #define URL_MAX_READLIMIT ((off_size_t)0x7fffffffffffffffLL)
 #else
 #define URL_MAX_READLIMIT ((off_size_t)0x7fffffffL)

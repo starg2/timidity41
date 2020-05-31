@@ -360,7 +360,7 @@ off_size_t url_tell(URL url)
     return url->url_tell(url);
 }
 
-void url_skip(URL url, ptr_size_t n)
+void url_skip(URL url, off_size_t n)
 {
     char tmp[BUFSIZ];
 
@@ -383,7 +383,7 @@ void url_skip(URL url, ptr_size_t n)
 
     while (n > 0)
     {
-	ptr_size_t c;
+		off_size_t c;
 
 	c = n;
 	if (c > sizeof(tmp))
