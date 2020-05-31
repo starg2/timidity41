@@ -279,7 +279,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 						//				if (x_cfg_info.d_rom[x_preset][x_keynote])
 						//					sprintf(str_, "Bank%03d Note%03d[ROM] %s\0\0", x_preset, x_keynote, pname_);
 						//				else
-						sprintf(str_, "%03d:%03d %s\0\0", x_preset, x_keynote, pname_);
+						snprintf(str_, sizeof(str_) / sizeof(str_[0]), "%03d:%03d %s\0\0", x_preset, x_keynote, pname_);
 
 						tv.item.pszText = str_;
 						tv.item.cchTextMax = strlen(str_);
