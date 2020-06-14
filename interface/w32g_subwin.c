@@ -226,6 +226,9 @@ ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		break;
+ 	case WM_APPCOMMAND:
+ 		SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+ 		return TRUE;
 ///r
 	case WM_GETMINMAXINFO:
 		{
@@ -972,6 +975,9 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		}
 		}
 		break;
+ 	case WM_APPCOMMAND:
+ 		SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+ 		return TRUE;
 	case WM_DESTROY:
 #ifdef LISTVIEW_PLAYLIST
 		{
@@ -1773,6 +1779,9 @@ DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		return FALSE;
+ 	case WM_APPCOMMAND:
+ 		SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+ 		return TRUE;
 	// See PreDispatchMessage() in w32g2_main.c
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
@@ -2585,6 +2594,9 @@ SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		ShowWindow(hSoundSpecWnd, SW_HIDE);
 		MainWndUpdateSoundSpecButton();
 		break;
+ 	case WM_APPCOMMAND:
+ 		SendMessage(hMainWnd, WM_APPCOMMAND, wParam, lParam);
+ 		return TRUE;
 	case WM_CHAR:
 	{
 		int nVirtKey = (int)wParam;

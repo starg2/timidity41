@@ -124,6 +124,22 @@ enum {
 ///r
 #define MAX_W32G_MIDI_CHANNELS	MAX_CHANNELS
 
+#if(WINVER < 0x0500)
+#define FAPPCOMMAND_MASK  0xF000
+#define GET_APPCOMMAND_LPARAM(lParam) ((short)(HIWORD(lParam) & ~FAPPCOMMAND_MASK))
+#define WM_APPCOMMAND                   0x0319
+#define APPCOMMAND_VOLUME_MUTE            8
+#define APPCOMMAND_VOLUME_DOWN            9
+#define APPCOMMAND_VOLUME_UP              10
+#define APPCOMMAND_MEDIA_NEXTTRACK        11
+#define APPCOMMAND_MEDIA_PREVIOUSTRACK    12
+#define APPCOMMAND_MEDIA_STOP             13
+#define APPCOMMAND_MEDIA_PLAY_PAUSE       14
+#endif
+#if(_WIN32_WINNT < 0x0501)
+#define APPCOMMAND_MEDIA_PLAY             46
+#define APPCOMMAND_MEDIA_PAUSE            47
+#endif
 
 // Toolbar Macros
 #define IDM_STOP		2501
