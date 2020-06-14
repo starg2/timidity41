@@ -127,7 +127,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 				tv.hInsertAfter = TVI_LAST;
 				tv.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
 				tv.hParent = hBank;
-				sprintf(str_, "Bank %03u", b->bank);
+				snprintf(str_, sizeof(str_) / sizeof(str_[0]), "Bank %03u", b->bank);
 				tv.item.pszText = str_;
 				tv.item.iImage = 0;
 				tv.item.iSelectedImage = 1;
@@ -139,7 +139,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 					tv.hInsertAfter = TVI_LAST;
 					tv.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
 					tv.hParent = hBankSub;
-					sprintf(str_, "%03u:%03u %s", b->bank, p->program, p->name);
+					snprintf(str_, sizeof(str_) / sizeof(str_[0]), "%03u:%03u %s", b->bank, p->program, p->name);
 					tv.item.pszText = str_;
 					tv.item.iImage = 2;
 					tv.item.iSelectedImage = 3;
@@ -155,7 +155,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 				tv.hInsertAfter = TVI_LAST;
 				tv.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
 				tv.hParent = hDrum;
-				sprintf(str_, "Drumset %03u (%s)", d->program, d->name);
+				snprintf(str_, sizeof(str_) / sizeof(str_[0]), "Drumset %03u (%s)", d->program, d->name);
 				tv.item.pszText = str_;
 				tv.item.iImage = 0;
 				tv.item.iSelectedImage = 1;
@@ -165,7 +165,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 					tv.hInsertAfter = TVI_LAST;
 					tv.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
 					tv.hParent = hDrumSub;
-					sprintf(str_, "%03u:%03u", d->program, d->notes[j]);
+					snprintf(str_, sizeof(str_) / sizeof(str_[0]), "%03u:%03u", d->program, d->notes[j]);
 					tv.item.pszText = str_;
 					tv.item.iImage = 2;
 					tv.item.iSelectedImage = 3;
@@ -204,7 +204,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 				tv.hInsertAfter = TVI_LAST;
 				tv.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
 				tv.hParent = hBank;
-				sprintf(str_, "Bank %03d", x_bank);
+				snprintf(str_, sizeof(str_) / sizeof(str_[0]), "Bank %03d", x_bank);
 				tv.item.pszText = str_;
 				tv.item.iImage = 0;
 				tv.item.iSelectedImage = 1;
@@ -220,9 +220,9 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 
 						pname_ =sf_preset_name[x_bank][x_preset];
 						//				if (x_cfg_info.m_rom[x_bank][x_preset])
-						//					sprintf(str_, "%03d:%03d[ROM] %s\0\0", x_bank, x_preset, pname_);
+						//					snprintf(str_, sizeof(str_) / sizeof(str_[0]), "%03d:%03d[ROM] %s\0\0", x_bank, x_preset, pname_);
 						//				else
-						sprintf(str_, "%03d:%03d %s\0\0", x_bank, x_preset, pname_);
+						snprintf(str_, sizeof(str_) / sizeof(str_[0]), "%03d:%03d %s\0\0", x_bank, x_preset, pname_);
 
 						tv.item.pszText = str_;
 						tv.item.cchTextMax = strlen(str_);
@@ -255,7 +255,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 				tv.hInsertAfter = TVI_LAST;
 				tv.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
 				tv.hParent = hDrum;
-				sprintf(str_, "Drumset %03d (%s)", x_preset, sf_preset_name[128][x_preset]);
+				snprintf(str_, sizeof(str_) / sizeof(str_[0]), "Drumset %03d (%s)", x_preset, sf_preset_name[128][x_preset]);
 				tv.item.pszText = str_;
 				tv.item.iImage = 0;
 				tv.item.iSelectedImage = 1;
@@ -277,7 +277,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 						} else pname_ = "";
 
 						//				if (x_cfg_info.d_rom[x_preset][x_keynote])
-						//					sprintf(str_, "Bank%03d Note%03d[ROM] %s\0\0", x_preset, x_keynote, pname_);
+						//					snprintf(str_, sizeof(str_) / sizeof(str_[0]), "Bank%03d Note%03d[ROM] %s\0\0", x_preset, x_keynote, pname_);
 						//				else
 						snprintf(str_, sizeof(str_) / sizeof(str_[0]), "%03d:%03d %s\0\0", x_preset, x_keynote, pname_);
 
