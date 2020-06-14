@@ -879,6 +879,8 @@ extern void ShowPrefWnd ( void );
 extern void HidePrefWnd ( void );
 extern BOOL IsVisiblePrefWnd ( void );
 
+extern int TracerWndDrawSkip;
+
 #define WM_UPDATE_SCROLLBAR_PROGRESS  (WM_APP + 100)  // (int)lParam: sec
 
 LRESULT CALLBACK
