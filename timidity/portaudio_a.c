@@ -764,7 +764,7 @@ static int open_output(void)
 		tmp_enc |= PE_32BIT;
 		set_temporary_encoding(tmp_enc);
 		data_nbyte = data_nbyte * 4 / 3;
-	}else if(conv16_32 == 2){			
+	}else if(conv16_32){			
 		int tmp_enc = dpm.encoding;
 		tmp_enc &= ~PE_16BIT;
 		tmp_enc |= PE_32BIT;
@@ -832,6 +832,7 @@ static int open_output(void)
 	}else if (dpm.encoding & PE_16BIT) {
 		if(nativeSampleFormats & paInt16){
 			SampleFormat = paInt16;
+			conv16_32 = 0;
 			data_nbyte = 2;
 		}else{
 			SampleFormat = paInt32;
@@ -875,7 +876,7 @@ static int open_output(void)
 		tmp_enc |= PE_32BIT;
 		set_temporary_encoding(tmp_enc);
 		data_nbyte = data_nbyte * 4 / 3;
-	}else if(conv16_32 == 2){			
+	}else if(conv16_32){			
 		int tmp_enc = dpm.encoding;
 		tmp_enc &= ~PE_16BIT;
 		tmp_enc |= PE_32BIT;
