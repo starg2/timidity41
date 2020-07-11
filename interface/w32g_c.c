@@ -1159,6 +1159,7 @@ static int ctl_pass_playing_list(int number_of_files, char *list_of_files[])
 					 play_mode->id_name,
 					 play_mode->id_character,
 					 play_mode->name ? play_mode->name : "");
+				w32g_play_active = 0;
 				break;
 		    }
 		    aq_setup();
