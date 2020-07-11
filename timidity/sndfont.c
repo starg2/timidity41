@@ -830,23 +830,18 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 		}
 		tf = sp->sfrom ? sfrom_sfrec->tf : rec->tf; ///r
 
-		if (rec->version >= 4) {
-			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unsupported soundfont version: %d", rec->version);
-		} else if (rec->version == 3) {
-			off_size_t length = sp->len / 2;
-			off_size_t start_offset = (sp->start - rec->samplepos) / 2;
-            char *compressed_data = (char *)safe_large_malloc(length);
-			// sp->start is SAMPLEPOS + START * 2 but we want SAMPLEPOS + START
-			tf_seek(tf, sp->start - start_offset, SEEK_SET);
-            tf_read(compressed_data, length, 1, tf);
+		if (sample->sample_type & SF_SAMPLETYPE_COMPRESSED) {
+            char *compressed_data = (char *)safe_large_malloc(sp->len);
+			tf_seek(tf, sp->start, SEEK_SET);
+            tf_read(compressed_data, sp->len, 1, tf);
 
-            struct timidity_file *ctf = open_with_mem(compressed_data, length, OF_VERBOSE);
+            struct timidity_file *ctf = open_with_mem(compressed_data, sp->len, OF_VERBOSE);
 
             if (ctf) {
                 SampleDecodeResult sdr = decode_oggvorbis(ctf);
                 close_file(ctf);
 
-				if (sdr.channels != 1) {
+				if (sdr.channels > 1) {
 					ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "error: sf3 contains multichannel sample");
 				}
 
@@ -1630,7 +1625,7 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->v.loop_start = sp->startloop;
 	vp->v.loop_end = sp->endloop;
 
-	if (sf->version < 3) {
+	if (!(sp->sampletype & SF_SAMPLETYPE_COMPRESSED)) {
 		vp->v.loop_start -= vp->start;
 		vp->v.loop_end -= vp->start;
 	}
@@ -1641,7 +1636,7 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     /* set data length */
     vp->v.data_length = vp->len + 1;
 
-	if (sf->version < 3) {
+	if (!(sp->sampletype & SF_SAMPLETYPE_COMPRESSED)) {
 		/* fix loop position */
 		if (vp->v.loop_end > vp->len + 1)
 			vp->v.loop_end = vp->len + 1;
@@ -1697,9 +1692,14 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     vp->v.loop_end <<= FRACTION_BITS;
 
     /* point to the file position */
-	vp->start = vp->start * 2 + (is_rom ? sfrom_sfinfo.samplepos : sf->samplepos); ///r
-    vp->lowbit = is_rom ? sfrom_sfinfo.lowbitpos : sf->lowbitpos; ///r
-    vp->len *= 2;
+	if (sp->sampletype & SF_SAMPLETYPE_COMPRESSED) {
+		vp->start += (is_rom ? sfrom_sfinfo.samplepos : sf->samplepos); ///r
+		vp->lowbit = is_rom ? sfrom_sfinfo.lowbitpos : sf->lowbitpos; ///r
+	} else {
+		vp->start = vp->start * 2 + (is_rom ? sfrom_sfinfo.samplepos : sf->samplepos); ///r
+		vp->lowbit = is_rom ? sfrom_sfinfo.lowbitpos : sf->lowbitpos; ///r
+		vp->len *= 2;
+	}
 
 	vp->v.vel_to_fc = -2400; /* SF2 default value */
 	vp->v.vel_to_fc_threshold = 0; ///r c214  def64
