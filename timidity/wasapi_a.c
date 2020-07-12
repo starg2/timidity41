@@ -581,6 +581,10 @@ static int get_device(IMMDevice **ppMMDevice, int devnum)
 		goto error; 		
 	if(pszDeviceId)
 		CoTaskMemFree(pszDeviceId);
+	if(pdev)
+		IMMDevice_Release(pdev);
+	if(pdc)
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	return TRUE;
@@ -703,12 +707,12 @@ static void print_device_list(void)
 			dev = NULL;
 		}
 		if(pps){
-			pps->lpVtbl->Release(pps); 
+			IPropertyStore_Release(pps);
 			pps = NULL;
 		}
 	}
 	if(pdc)
-		pdc->lpVtbl->Release(pdc); 
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	for(i = 0; i < num; i++){
@@ -720,9 +724,9 @@ static void print_device_list(void)
 	return;
 error1:
 	if(tmpClient)
-		tmpClient->lpVtbl->Release(tmpClient);
+		IAudioClient_Release(tmpClient);
 	if(pdc){
-		pdc->lpVtbl->Release(pdc);
+		IMMDeviceCollection_Release(pdc);
 	}
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);

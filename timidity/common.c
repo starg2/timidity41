@@ -601,7 +601,7 @@ void close_file(struct timidity_file *tf)
 /* This is meant for skipping a few bytes. */
 void skip(struct timidity_file *tf, size_t len)
 {
-    url_skip(tf->url, (long)len);
+    url_skip(tf->url, (off_size_t)len);
 }
 
 char *tf_gets(char *buff, size_t n, struct timidity_file *tf)

@@ -3919,7 +3919,7 @@ static void init_mail_addr(void)
 static int read_user_config_file(void)
 {
     char *home;
-    char path[BUFSIZ];
+    char path[FILEPATH_MAX];
     int status;
 
     home = getenv("HOME");
@@ -3937,18 +3937,18 @@ static int read_user_config_file(void)
 
 #ifdef __W32__
 /* timidity.cfg or _timidity.cfg or .timidity.cfg*/
-    sprintf(path, "%s" PATH_STRING "timidity.cfg", home);
+    snprintf(path, sizeof(path) / sizeof(path[0]), "%s" PATH_STRING "timidity.cfg", home);
     status = read_config_file(path, 0, 1);
     if (status != READ_CONFIG_FILE_NOT_FOUND)
         return status;
 
-    sprintf(path, "%s" PATH_STRING "_timidity.cfg", home);
+    snprintf(path, sizeof(path) / sizeof(path[0]), "%s" PATH_STRING "_timidity.cfg", home);
     status = read_config_file(path, 0, 1);
     if (status != READ_CONFIG_FILE_NOT_FOUND)
         return status;
 #endif
 
-    sprintf(path, "%s" PATH_STRING ".timidity.cfg", home);
+    snprintf(path, sizeof(path) / sizeof(path[0]), "%s" PATH_STRING ".timidity.cfg", home);
     status = read_config_file(path, 0, 1);
     if (status != READ_CONFIG_FILE_NOT_FOUND)
         return status;

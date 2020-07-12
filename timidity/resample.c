@@ -4624,7 +4624,9 @@ static void lo_rs_plain(Voice *vp, DATA_T *dest, int32 count)
 		*dest++ = resample_linear_single(vp);
 		resrc->offset += resrc->increment;
 	}
-	for(; i < count; i++) { *dest++ = 0; vp->finish_voice = 1;}
+	for(; i < count; i++) { *dest++ = 0; }
+	if (resrc->offset >= resrc->data_length)
+		vp->finish_voice = 1;
 }
 
 static void lo_rs_loop(Voice *vp, DATA_T *dest, int32 count)
@@ -4810,7 +4812,9 @@ static void lo_rs_plain_float(Voice *vp, DATA_T *dest, int32 count)
 		*dest++ = resample_linear_float_single(vp);
 		resrc->offset += resrc->increment;
 	}
-	for(; i < count; i++) { *dest++ = 0; vp->finish_voice = 1;}
+	for(; i < count; i++) { *dest++ = 0; }
+	if (resrc->offset >= resrc->data_length)
+		vp->finish_voice = 1;
 }
 
 static void lo_rs_loop_float(Voice *vp, DATA_T *dest, int32 count)
@@ -5688,7 +5692,9 @@ static void lao_rs_plain(Voice *vp, DATA_T *dest, int32 count)
 		*dest++ = resample_lagrange_single(vp);
 		resrc->offset += resrc->increment;
 	}
-	for(; i < count; i++) { *dest++ = 0; vp->finish_voice = 1;}
+	for(; i < count; i++) { *dest++ = 0; }
+	if (resrc->offset >= resrc->data_length)
+		vp->finish_voice = 1;
 }
 
 static void lao_rs_loop(Voice *vp, DATA_T *dest, int32 count)
@@ -6073,7 +6079,9 @@ static void lao_rs_plain_float(Voice *vp, DATA_T *dest, int32 count)
 		*dest++ = resample_lagrange_float_single(vp);
 		resrc->offset += resrc->increment;
 	}
-	for(; i < count; i++) { *dest++ = 0; vp->finish_voice = 1;}
+	for(; i < count; i++) { *dest++ = 0; }
+	if (resrc->offset >= resrc->data_length)
+		vp->finish_voice = 1;
 }
 
 static void lao_rs_loop_float(Voice *vp, DATA_T *dest, int32 count)
