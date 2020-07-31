@@ -2370,7 +2370,7 @@ void ClearDocWnd(void)
 
 //****************************************************************************
 // List Search Dialog
-#define ListSearchStringMax 256
+#define ListSearchStringMax 1024
 static char ListSearchString[ListSearchStringMax];
 
 LRESULT CALLBACK ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
@@ -2434,29 +2434,29 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		{
 			int selected, nfiles, cursel;
 			SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,
-				WM_GETTEXT,(WPARAM)250,(LPARAM)ListSearchString);
+				WM_GETTEXT,(WPARAM)ListSearchStringMax,(LPARAM)ListSearchString);
 			w32g_get_playlist_index(&selected, &nfiles, &cursel);
+			if (LOWORD(wParam) == IDC_BUTTON_1)
+				cursel = 0;
 			if ( LOWORD(wParam) == IDC_BUTTON_2 )
 				cursel++;
 			if ( strlen ( ListSearchString ) > 0 ) {
-				char buff[ListSearchStringBuffSize];
 				for ( ; cursel < nfiles; cursel ++ ) {
-					int result = SendDlgItemMessage(hListWnd,IDC_LISTBOX_PLAYLIST,
-						LB_GETTEXTLEN,(WPARAM)cursel, 0 );
-					if ( result < ListSearchStringBuffSize ) {
-						result = SendDlgItemMessage(hListWnd,IDC_LISTBOX_PLAYLIST,
-							LB_GETTEXT,(WPARAM)cursel,(LPARAM)buff);
-						if ( result == LB_ERR ) {
-							cursel = LB_ERR;
-							break;
-						}
-						if ( strstr ( buff, ListSearchString ) != NULL ) {
-							break;
-						}
-					} else if ( result == LB_ERR ) {
-						cursel = LB_ERR;
+					const char *str = w32g_get_playlist(cursel);
+					if (str != NULL && strstr(str, ListSearchString) != NULL) {
 						break;
 					}
+
+					str = w32g_get_playlist_title(cursel);
+					if (str != NULL && strstr(str, ListSearchString) != NULL) {
+						break;
+					}
+#ifdef LISTVIEW_PLAYLIST
+					str = w32g_get_playlist_artist(cursel);
+					if (str != NULL && strstr(str, ListSearchString) != NULL) {
+						break;
+					}
+#endif
 				}
 				if ( cursel >= nfiles ) {
 					cursel = LB_ERR;
@@ -2465,11 +2465,15 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				cursel = LB_ERR;
 			}
 			if ( cursel != LB_ERR ) {
-				SendDlgItemMessage(hListWnd,IDC_LISTBOX_PLAYLIST,
-					LB_SETCURSEL,(WPARAM)cursel,0);
-				SetNumListWnd(cursel,nfiles);
-				if ( LOWORD(wParam) == IDC_BUTTON_1 )
-					HideListSearch();
+				w32g_focus_playlist_index(cursel);
+				//if ( LOWORD(wParam) == IDC_BUTTON_1 )
+				//	HideListSearch();
+			} else {
+				if (PlayerLanguage == LANGUAGE_JAPANESE) {
+					MessageBox(hwnd, "一致する項目が見つかりません", "プレイリストの検索", MB_ICONINFORMATION);
+				} else {
+					MessageBox(hwnd, "No matches found.", "Playlist Search", MB_ICONINFORMATION);
+				}
 			}
 		}
 			break;

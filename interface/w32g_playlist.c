@@ -575,6 +575,22 @@ int w32g_goto_playlist(int num, int skip_invalid_file)
     return 0;
 }
 
+void w32g_focus_playlist_index(int idx)
+{
+	HWND hList;
+
+	if (!(hList = playlist_box()))
+		return;
+
+#ifdef LISTVIEW_PLAYLIST
+	ListView_SetItemState(hList, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+	ListView_SetItemState(hList, idx, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+	ListView_EnsureVisible(hList, idx, FALSE);
+#else
+	ListBox_SetCurSel(hList, cur);
+#endif
+}
+
 int w32g_isempty_playlist(void)
 {
     return playlist_ctrl->nfiles == 0;
@@ -1252,6 +1268,13 @@ char *w32g_get_playlist(int idx)
     return playlist_ctrl->list[idx].filepath;
 }
 
+char *w32g_get_playlist_title(int idx)
+{
+	if (idx < 0 || idx >= playlist_ctrl->nfiles)
+		return NULL;
+	return playlist_ctrl->list[idx].title;
+}
+
 char *w32g_get_playlist_play(int idx)
 {
     if (idx < 0 || idx >= playlist_play->nfiles)
@@ -1260,6 +1283,14 @@ char *w32g_get_playlist_play(int idx)
 }
 
 #ifdef LISTVIEW_PLAYLIST
+
+char *w32g_get_playlist_artist(int idx)
+{
+	if (idx < 0 || idx >= playlist_ctrl->nfiles)
+		return NULL;
+	return playlist_ctrl->list[idx].artist;
+}
+
 void w32g_copy_playlist(void)
 {
     int i, num, pos, selnum = 0;
