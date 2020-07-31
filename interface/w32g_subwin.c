@@ -2372,6 +2372,7 @@ void ClearDocWnd(void)
 // List Search Dialog
 #define ListSearchStringMax 1024
 static char ListSearchString[ListSearchStringMax];
+static int ListSearchContinue;
 
 LRESULT CALLBACK ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitListSearchWnd(HWND hParentWnd)
@@ -2403,6 +2404,7 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
 	case WM_INITDIALOG:
+		ListSearchContinue = FALSE;
 		switch(PlayerLanguage){
 		case LANGUAGE_JAPANESE:
 			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)"プレイリストの検索");
@@ -2436,10 +2438,11 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,
 				WM_GETTEXT,(WPARAM)ListSearchStringMax,(LPARAM)ListSearchString);
 			w32g_get_playlist_index(&selected, &nfiles, &cursel);
-			if (LOWORD(wParam) == IDC_BUTTON_1)
+			if (LOWORD(wParam) == IDC_BUTTON_1 && !ListSearchContinue) {
 				cursel = 0;
-			if ( LOWORD(wParam) == IDC_BUTTON_2 )
+			} else {
 				cursel++;
+			}
 			if ( strlen ( ListSearchString ) > 0 ) {
 				for ( ; cursel < nfiles; cursel ++ ) {
 					const char *str = w32g_get_playlist(cursel);
@@ -2466,9 +2469,12 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			}
 			if ( cursel != LB_ERR ) {
 				w32g_focus_playlist_index(cursel);
+				ListSearchContinue = TRUE;
 				//if ( LOWORD(wParam) == IDC_BUTTON_1 )
 				//	HideListSearch();
 			} else {
+				ListSearchContinue = FALSE;
+
 				if (PlayerLanguage == LANGUAGE_JAPANESE) {
 					MessageBox(hwnd, "一致する項目が見つかりません", "プレイリストの検索", MB_ICONINFORMATION);
 				} else {
@@ -2479,6 +2485,11 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDC_BUTTON_3:
 			HideListSearch();
+			break;
+		case IDC_EDIT_ONE_LINE:
+			if (HIWORD(wParam) == EN_CHANGE) {
+				ListSearchContinue = FALSE;
+			}
 			break;
 		default:
 			return FALSE;
@@ -2495,6 +2506,7 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 void ShowListSearch(void)
 {
+	ListSearchContinue = FALSE;
 	ShowWindow(hListSearchWnd, SW_SHOW);
 }
 void HideListSearch(void)
