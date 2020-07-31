@@ -809,7 +809,22 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendMessage(hwnd,WM_COMMAND,(WPARAM)IDM_LISTWND_PLAY,0);
 				break;
 			case NM_CLICK:
-			case NM_RCLICK:	
+				break;
+			case NM_RCLICK:
+				{
+					POINT pt;
+					GetCursorPos(&pt);
+					TrackPopupMenu(
+						ListWndInfo.hPopupMenu,
+						(GetSystemMetrics(SM_MENUDROPALIGNMENT) ? TPM_RIGHTALIGN : TPM_LEFTALIGN) | TPM_RIGHTBUTTON,
+						pt.x,
+						pt.y,
+						0,
+						hwnd,
+						NULL
+					);
+				}
+				break;
 			case NM_HOVER:
 				break;
 			case LVN_MARQUEEBEGIN:
@@ -997,6 +1012,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		ListWndInfo.hFontList = NULL;
 		INISaveListWnd();
 		break;
+#ifndef LISTVIEW_PLAYLIST
 		/* マウス入力がキャプチャされていないための処理 */
 	case WM_SETCURSOR:
 		switch(HIWORD(lParam)){
@@ -1025,6 +1041,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				res = TrackPopupMenu(ListWndInfo.hPopupMenu,TPM_TOPALIGN|TPM_LEFTALIGN,
 					point.x,point.y,0,hwnd,NULL);				
 				PostMessage ( hwnd, WM_NULL, 0, 0 );
+				SetWindowLongPtr(hwnd, DWLP_MSGRESULT, TRUE);
 				return TRUE;
 			}
 			break;
@@ -1032,6 +1049,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		break;
+#endif
 	case WM_CHOOSEFONT_DIAG:
 		{
 			char fontName[LF_FULLFACESIZE + 1];
