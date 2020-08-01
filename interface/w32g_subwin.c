@@ -809,7 +809,22 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				SendMessage(hwnd,WM_COMMAND,(WPARAM)IDM_LISTWND_PLAY,0);
 				break;
 			case NM_CLICK:
-			case NM_RCLICK:	
+				break;
+			case NM_RCLICK:
+				{
+					POINT pt;
+					GetCursorPos(&pt);
+					TrackPopupMenu(
+						ListWndInfo.hPopupMenu,
+						(GetSystemMetrics(SM_MENUDROPALIGNMENT) ? TPM_RIGHTALIGN : TPM_LEFTALIGN) | TPM_RIGHTBUTTON,
+						pt.x,
+						pt.y,
+						0,
+						hwnd,
+						NULL
+					);
+				}
+				break;
 			case NM_HOVER:
 				break;
 			case LVN_MARQUEEBEGIN:
@@ -997,6 +1012,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 		ListWndInfo.hFontList = NULL;
 		INISaveListWnd();
 		break;
+#ifndef LISTVIEW_PLAYLIST
 		/* マウス入力がキャプチャされていないための処理 */
 	case WM_SETCURSOR:
 		switch(HIWORD(lParam)){
@@ -1025,6 +1041,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				res = TrackPopupMenu(ListWndInfo.hPopupMenu,TPM_TOPALIGN|TPM_LEFTALIGN,
 					point.x,point.y,0,hwnd,NULL);				
 				PostMessage ( hwnd, WM_NULL, 0, 0 );
+				SetWindowLongPtr(hwnd, DWLP_MSGRESULT, TRUE);
 				return TRUE;
 			}
 			break;
@@ -1032,6 +1049,7 @@ ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		break;
+#endif
 	case WM_CHOOSEFONT_DIAG:
 		{
 			char fontName[LF_FULLFACESIZE + 1];
@@ -2366,8 +2384,9 @@ void ClearDocWnd(void)
 
 //****************************************************************************
 // List Search Dialog
-#define ListSearchStringMax 256
+#define ListSearchStringMax 1024
 static char ListSearchString[ListSearchStringMax];
+static int ListSearchContinue;
 
 LRESULT CALLBACK ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitListSearchWnd(HWND hParentWnd)
@@ -2399,6 +2418,7 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
 	case WM_INITDIALOG:
+		ListSearchContinue = FALSE;
 		switch(PlayerLanguage){
 		case LANGUAGE_JAPANESE:
 			SendMessage(hwnd,WM_SETTEXT,0,(LPARAM)_T("プレイリストの検索"));
@@ -2418,6 +2438,8 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)_T("CLOSE"));
 			break;
 		}
+		SendDlgItemMessage(hwnd, IDC_BUTTON_1, BM_SETSTYLE, BS_DEFPUSHBUTTON, (LONG)TRUE);
+		SendMessage(hwnd, DM_SETDEFID, IDC_BUTTON_1, 0);
 		SetFocus(GetDlgItem(hwnd,IDC_EDIT_ONE_LINE));
 		return FALSE;
 	case WM_COMMAND:
@@ -2431,33 +2453,34 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			int selected, nfiles, cursel;
 			TCHAR tListSearchString[ListSearchStringMax] = _T("");
 			SendDlgItemMessage(hwnd,IDC_EDIT_ONE_LINE,
-				WM_GETTEXT,(WPARAM)250,(LPARAM)tListSearchString);
+				WM_GETTEXT,(WPARAM)ListSearchStringMax,(LPARAM)tListSearchString);
 			char *s = tchar_to_char(tListSearchString);
 			strncpy(ListSearchString, s, ListSearchStringMax - 1);
 			safe_free(s);
 			ListSearchString[ListSearchStringMax - 1] = '\0';
 			w32g_get_playlist_index(&selected, &nfiles, &cursel);
-			if ( LOWORD(wParam) == IDC_BUTTON_2 )
+			if (LOWORD(wParam) == IDC_BUTTON_1 && !ListSearchContinue) {
+				cursel = 0;
+			} else {
 				cursel++;
+			}
 			if ( strlen ( ListSearchString ) > 0 ) {
-				char buff[ListSearchStringBuffSize];
 				for ( ; cursel < nfiles; cursel ++ ) {
-					int result = SendDlgItemMessage(hListWnd,IDC_LISTBOX_PLAYLIST,
-						LB_GETTEXTLEN,(WPARAM)cursel, 0 );
-					if ( result < ListSearchStringBuffSize ) {
-						result = SendDlgItemMessage(hListWnd,IDC_LISTBOX_PLAYLIST,
-							LB_GETTEXT,(WPARAM)cursel,(LPARAM)buff);
-						if ( result == LB_ERR ) {
-							cursel = LB_ERR;
-							break;
-						}
-						if ( strstr ( buff, ListSearchString ) != NULL ) {
-							break;
-						}
-					} else if ( result == LB_ERR ) {
-						cursel = LB_ERR;
+					const char *str = w32g_get_playlist(cursel);
+					if (str != NULL && strstr(str, ListSearchString) != NULL) {
 						break;
 					}
+
+					str = w32g_get_playlist_title(cursel);
+					if (str != NULL && strstr(str, ListSearchString) != NULL) {
+						break;
+					}
+#ifdef LISTVIEW_PLAYLIST
+					str = w32g_get_playlist_artist(cursel);
+					if (str != NULL && strstr(str, ListSearchString) != NULL) {
+						break;
+					}
+#endif
 				}
 				if ( cursel >= nfiles ) {
 					cursel = LB_ERR;
@@ -2466,16 +2489,28 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				cursel = LB_ERR;
 			}
 			if ( cursel != LB_ERR ) {
-				SendDlgItemMessage(hListWnd,IDC_LISTBOX_PLAYLIST,
-					LB_SETCURSEL,(WPARAM)cursel,0);
-				SetNumListWnd(cursel,nfiles);
-				if ( LOWORD(wParam) == IDC_BUTTON_1 )
-					HideListSearch();
+				w32g_focus_playlist_index(cursel);
+				ListSearchContinue = TRUE;
+				//if ( LOWORD(wParam) == IDC_BUTTON_1 )
+				//	HideListSearch();
+			} else {
+				ListSearchContinue = FALSE;
+
+				if (PlayerLanguage == LANGUAGE_JAPANESE) {
+					MessageBox(hwnd, "一致する項目が見つかりません", "プレイリストの検索", MB_ICONINFORMATION);
+				} else {
+					MessageBox(hwnd, "No matches found.", "Playlist Search", MB_ICONINFORMATION);
+				}
 			}
 		}
 			break;
 		case IDC_BUTTON_3:
 			HideListSearch();
+			break;
+		case IDC_EDIT_ONE_LINE:
+			if (HIWORD(wParam) == EN_CHANGE) {
+				ListSearchContinue = FALSE;
+			}
 			break;
 		default:
 			return FALSE;
@@ -2492,6 +2527,7 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 void ShowListSearch(void)
 {
+	ListSearchContinue = FALSE;
 	ShowWindow(hListSearchWnd, SW_SHOW);
 }
 void HideListSearch(void)

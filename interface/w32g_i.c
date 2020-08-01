@@ -5139,8 +5139,16 @@ void WINAPI MainThread(void *arglist)
 			} else if ( msg.hwnd == hSoundSpecWnd || IsChild ( hSoundSpecWnd, msg.hwnd ) ) {
 				ToggleSubWindow(hSoundSpecWnd);
 			}
+
+			continue;
 		}
 #endif
+		if ((WM_KEYFIRST <= msg.message && msg.message <= WM_KEYLAST) || (WM_MOUSEFIRST <= msg.message && msg.message <= WM_MOUSELAST)) {
+			if (IsDialogMessage(GetActiveWindow(), &msg)) {
+				continue;
+			}
+		}
+
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
