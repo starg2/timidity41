@@ -2497,9 +2497,9 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 				ListSearchContinue = FALSE;
 
 				if (PlayerLanguage == LANGUAGE_JAPANESE) {
-					MessageBox(hwnd, "一致する項目が見つかりません", "プレイリストの検索", MB_ICONINFORMATION);
+					MessageBox(hwnd, _T("一致する項目が見つかりません"), _T("プレイリストの検索"), MB_ICONINFORMATION);
 				} else {
-					MessageBox(hwnd, "No matches found.", "Playlist Search", MB_ICONINFORMATION);
+					MessageBox(hwnd, _T("No matches found."), _T("Playlist Search"), MB_ICONINFORMATION);
 				}
 			}
 		}
