@@ -2424,6 +2424,8 @@ ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 			SendMessage(GetDlgItem(hwnd,IDC_BUTTON_3),WM_SETTEXT,0,(LPARAM)"CLOSE");
 			break;
 		}
+		SendDlgItemMessage(hwnd, IDC_BUTTON_1, BM_SETSTYLE, BS_DEFPUSHBUTTON, (LONG)TRUE);
+		SendMessage(hwnd, DM_SETDEFID, IDC_BUTTON_1, 0);
 		SetFocus(GetDlgItem(hwnd,IDC_EDIT_ONE_LINE));
 		return FALSE;
 	case WM_COMMAND:
