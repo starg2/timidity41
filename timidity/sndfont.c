@@ -831,11 +831,12 @@ static Instrument *load_from_file(SFInsts *rec, InstList *ip)
 		tf = sp->sfrom ? sfrom_sfrec->tf : rec->tf; ///r
 
 		if (sample->sample_type & SF_SAMPLETYPE_COMPRESSED) {
+			struct timidity_file *ctf = NULL;
             char *compressed_data = (char *)safe_large_malloc(sp->len);
 			tf_seek(tf, sp->start, SEEK_SET);
             tf_read(compressed_data, sp->len, 1, tf);
 
-            struct timidity_file *ctf = open_with_mem(compressed_data, sp->len, OF_VERBOSE);
+            ctf = open_with_mem(compressed_data, sp->len, OF_VERBOSE);
 
             if (ctf) {
                 SampleDecodeResult sdr = decode_oggvorbis(ctf);
