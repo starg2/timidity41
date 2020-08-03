@@ -578,8 +578,10 @@ static const struct option longopts[] = {
 	{ "compute-thread-num",     required_argument, NULL, TIM_OPT_COMPUTE_THREAD_NUM },
 	{ "trace-mode-update-time", required_argument, NULL, TIM_OPT_TRACE_MODE_UPDATE },	
 	{ "load-all-instrument",    required_argument, NULL, TIM_OPT_LOAD_ALL_INSTRUMENT },	
+#ifdef SUPPORT_LOOPEVENT
 	{ "loop-repeat",            required_argument, NULL, TIM_OPT_LOOP_REPEAT },
     { "loop-filter",            required_argument, NULL, TIM_OPT_LOOP_FILTER },
+#endif /* SUPPORT_LOOPEVENT */
 
 	{ "cache-size",             required_argument, NULL, TIM_OPT_CACHE_SIZE },
 	{ "sampling-freq",          required_argument, NULL, TIM_OPT_SAMPLE_FREQ },

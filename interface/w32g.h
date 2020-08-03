@@ -303,6 +303,7 @@ extern void MPanelStartLoad(const char *filename);
 extern int w32g_add_playlist(int nfiles, char **files, int expand_flag,
 			     int autouniq, int autorefine);
 extern char *w32g_get_playlist(int idx);
+extern char *w32g_get_playlist_title(int idx);
 extern int w32g_next_playlist(int skip_invalid_file);
 extern int w32g_prev_playlist(int skip_invalid_file);
 extern int w32g_random_playlist(int skip_invalid_file);
@@ -314,6 +315,7 @@ extern char *w32g_curr_playlist(void);
 extern void w32g_update_playlist(void);
 extern void w32g_get_playlist_index(int *selected, int *nfiles, int *cursel);
 extern int w32g_goto_playlist(int num, int skip_invalid_file);
+extern void w32g_focus_playlist_index(int idx);
 extern int w32g_delete_playlist(int pos);
 extern int w32g_nvalid_playlist(void);
 extern int w32g_ismidi_playlist(int n);
@@ -337,6 +339,7 @@ extern void w32g_set_playmode_rate(int32 rate);
 extern char *w32g_get_playlist_play(int idx);
 extern void w32g_get_playlist_play_index(int *selected);
 #ifdef LISTVIEW_PLAYLIST
+extern char *w32g_get_playlist_artist(int idx);
 extern void w32g_copy_playlist(void);
 extern void w32g_paste_playlist(int uniq, int refine);
 #endif

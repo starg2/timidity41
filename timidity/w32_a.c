@@ -269,7 +269,7 @@ static void PutBuffer(struct MMBuffer * b)
 
 static void CALLBACK OnPlaybackEvent(HWAVE hWave, UINT Msg, DWORD_PTR UserData, DWORD_PTR Param1, DWORD_PTR Param2)
 {
-    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Msg: 0x%08X, Num. buffers in use: %d", Msg, NumBuffersInUse);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG_SILLY, "Msg: 0x%08X, Num. buffers in use: %d", Msg, NumBuffersInUse);
     switch (Msg)
     {
     case WOM_OPEN:
