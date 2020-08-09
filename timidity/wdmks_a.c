@@ -1951,6 +1951,8 @@ int open_output(void)
 		}else{
 			pwf->wFormatTag = WAVE_FORMAT_PCM;
 			pwf->wBitsPerSample = (WORD) 24;
+			if(IsWaveRT)
+				CvtMode = 2;
 		}
 	}else if(dpm.encoding & PE_32BIT){
 		if(opt_wdmks_format_ext){
@@ -2220,7 +2222,7 @@ int output_data(const uint8 *buf, size_t nbytes)
 		if(get_filled_byte() < QueueSize)
 			break;
 		if(max_count <= 0){
-			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "WASAPI error: timeout output_data().");
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "WDMKS error: timeout output_data().");
 			return -1; 
 		}
 		Sleep(WaitTime);
