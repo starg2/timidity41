@@ -490,7 +490,11 @@ static int open_output(void)
     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Manufacture ID: %d",         woc.wMid);
     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Product ID: %d",             woc.wPid);
     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Driver version: %d",         woc.vDriverVersion);
-    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Product name: %s",           woc.szPname);
+
+	char *pname = tchar_to_char(woc.szPname);
+    ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Product name: %s",           pname);
+	safe_free(pname);
+
     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Formats supported: 0x%08X",  woc.dwFormats);
     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Max. channels: %d",          woc.wChannels);
     ctl->cmsg(CMSG_INFO, VERB_DEBUG, "Supported features: 0x%08X", woc.dwSupport);

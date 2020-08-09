@@ -373,7 +373,7 @@ static void free_ksuser(void)
 
 /*****************************************************************************************************************************/
 
-typedef HANDLE (WINAPI *fAvSetMmThreadCharacteristics)(LPCSTR,LPDWORD);
+typedef HANDLE (WINAPI *fAvSetMmThreadCharacteristics)(LPCTSTR,LPDWORD);
 typedef BOOL   (WINAPI *fAvRevertMmThreadCharacteristics)(HANDLE);
 
 static HINSTANCE hDllAvrt = NULL;
@@ -1740,8 +1740,10 @@ static UINT WINAPI render_thread(void *arglist)
 	if(!IsWaveRT)
 		SetThreadPriority(hRenderThread, ThreadPriorityNum);
 	else if(pAvSetMmThreadCharacteristics && RTPriorityNum){
-		hMmCss = (pAvSetMmThreadCharacteristics)(RTThreadPriorityName[RTPriorityNum], &mmCssTaskIndex);
-		if(!hMmCss){			
+		TCHAR *t = char_to_tchar(RTThreadPriorityName[ThreadPriorityNum]);
+		hMmCss = (pAvSetMmThreadCharacteristics)(t, &mmCssTaskIndex);
+		safe_free(t);
+		if(!hMmCss){
 			ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "WDMKS ERROR! : Failed to set RT Priority.");
 			goto thread_exit;
 		}
