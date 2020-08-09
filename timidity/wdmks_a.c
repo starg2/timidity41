@@ -1951,6 +1951,8 @@ int open_output(void)
 		}else{
 			pwf->wFormatTag = WAVE_FORMAT_PCM;
 			pwf->wBitsPerSample = (WORD) 24;
+			if(IsWaveRT)
+				CvtMode = 2;
 		}
 	}else if(dpm.encoding & PE_32BIT){
 		if(opt_wdmks_format_ext){
