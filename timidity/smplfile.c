@@ -1499,7 +1499,6 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 
 		sample->seq_length = 0;
 		sample->seq_position = 0;
-		sample->enable_rand = 0;
 		sample->lorand = -1;
 		sample->hirand = -1;
 	}

@@ -1690,13 +1690,13 @@ private:
 
                 if (auto loRand = flatSection.GetAs<double>(OpCodeKind::LoRand))
                 {
-                    s.enable_rand = 1;
+                    s.modes |= MODES_TRIGGER_RANDOM;
                     s.lorand = std::clamp(loRand.value(), 0.0, 1.0);
                     s.hirand = std::clamp(flatSection.GetAs<double>(OpCodeKind::HiRand).value_or(1.0), 0.0, 1.0);
                 }
                 else if (auto hiRand = flatSection.GetAs<double>(OpCodeKind::HiRand))
                 {
-                    s.enable_rand = 1;
+                    s.modes |= MODES_TRIGGER_RANDOM;
                     s.lorand = 0.0;
                     s.hirand = std::clamp(hiRand.value(), 0.0, 1.0);
                 }

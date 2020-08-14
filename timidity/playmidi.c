@@ -3380,7 +3380,7 @@ static int select_play_sample(Sample *splist,
 		if (((sp->low_key <= *note && sp->high_key >= *note))
 			&& sp->low_vel <= vel && sp->high_vel >= vel) {	
 
-			if (sp->enable_rand) {
+			if (sp->modes & MODES_TRIGGER_RANDOM) {
 				if (!rand_calculated) {
 					rand_val = genrand_real2();
 					rand_calculated = 1;

@@ -81,7 +81,6 @@ typedef struct _Sample {
 
   int32 seq_length;	/* length of the round robin, 0 == disabled */
   int32 seq_position;	/* 1-based position within the round robin, 0 == disabled */
-  int8 enable_rand;
   FLOAT_T lorand;
   FLOAT_T hirand;
 } Sample;
@@ -99,6 +98,7 @@ enum {
 
 ///r
 /* Bits in modes: */
+/* GUS-compatible flags */
 #define MODES_16BIT	    (1<<0)
 #define MODES_UNSIGNED	(1<<1)
 #define MODES_LOOPING	(1<<2)
@@ -107,7 +107,9 @@ enum {
 #define MODES_SUSTAIN	(1<<5)
 #define MODES_ENVELOPE	(1<<6)
 #define MODES_CLAMPED	(1<<7) /* ?? (for last envelope??) */
+/* Flags not defined by GUS */
 #define MODES_RELEASE   (1<<8)
+#define MODES_TRIGGER_RANDOM    (1<<9)
 
 #define INST_GUS	0
 #define INST_SF2	1
