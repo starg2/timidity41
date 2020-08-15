@@ -827,6 +827,7 @@ enum class OpCodeKind
     AmpKeyTrack,
     AmpVelTrack,
     DefaultPath,
+    End,
     HiKey,
     HiRand,
     HiVelocity,
@@ -1000,6 +1001,7 @@ public:
                         case OpCodeKind::AmpEG_Sustain:
                         case OpCodeKind::AmpKeyTrack:
                         case OpCodeKind::AmpVelTrack:
+                        case OpCodeKind::End:
                         case OpCodeKind::HiRand:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
@@ -1146,6 +1148,7 @@ private:
             {"amp_keytrack"sv, OpCodeKind::AmpKeyTrack},
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"default_path"sv, OpCodeKind::DefaultPath},
+            {"end"sv, OpCodeKind::End},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hirand"sv, OpCodeKind::HiRand},
             {"hivel"sv, OpCodeKind::HiVelocity},
@@ -1463,6 +1466,15 @@ private:
 
                 s.high_vel = static_cast<uint8>(std::clamp(std::lround(flatSection.GetAs<double>(OpCodeKind::HiVelocity).value_or(127.0)), 0L, 127L));
                 s.low_vel = static_cast<uint8>(std::clamp(std::lround(flatSection.GetAs<double>(OpCodeKind::LoVelocity).value_or(0.0)), 0L, 127L));
+
+                if (auto end = flatSection.GetAs<double>(OpCodeKind::End))
+                {
+                    s.data_length = std::clamp(
+                        std::llround(end.value() * (1 << FRACTION_BITS)),
+                        static_cast<splen_t>(0),
+                        s.data_length
+                    );
+                }
 
                 s.loop_start = std::clamp(
                     static_cast<splen_t>(flatSection.GetAs<double>(OpCodeKind::LoopStart).value_or(0) * (1 << FRACTION_BITS)),
