@@ -4505,8 +4505,12 @@ static void finish_note(int i)
 		
 		if(voice[i].status & (VOICE_FREE | VOICE_DIE | VOICE_OFF))
 			return;
-		voice[i].status = VOICE_OFF;
-		voice[i].update_voice = UPDATE_VOICE_FINISH_NOTE ; // finish note
+		
+		if(!(voice[i].sample->modes & MODES_NO_NOTEOFF))
+		{
+			voice[i].status = VOICE_OFF;
+			voice[i].update_voice = UPDATE_VOICE_FINISH_NOTE; // finish note
+		}
 		ctl_note_event(i);
 	}
     else
@@ -4523,8 +4527,9 @@ static void finish_note(int i)
 				hits the end of its data (ofs>=data_length). */
 			if(voice[i].status != VOICE_OFF)
 			{
-			voice[i].status = VOICE_OFF;
-			ctl_note_event(i);
+				if(!(voice[i].sample->modes & MODES_NO_NOTEOFF))
+					voice[i].status = VOICE_OFF;
+				ctl_note_event(i);
 			}
 		}
     }

@@ -1486,7 +1486,7 @@ private:
                 }
 
                 s.modes |= MODES_ENVELOPE;
-                s.modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN);
+                s.modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN | MODES_RELEASE);
 
                 LoopModeKind defaultLoopModeKind = 
                     flatSection.GetAs<double>(OpCodeKind::LoopStart).has_value() || flatSection.GetAs<double>(OpCodeKind::LoopEnd).has_value()
@@ -1499,16 +1499,7 @@ private:
                     break;
 
                 case LoopModeKind::OneShot:
-                    {
-                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::LoopMode);
-                        ctl->cmsg(
-                            CMSG_WARNING,
-                            VERB_VERBOSE,
-                            "%s(%u): 'loop_mode=one_shot' is not implemented yet",
-                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                            static_cast<std::uint32_t>(loc.Line)
-                        );
-                    }
+                    s.modes |= MODES_NO_NOTEOFF;
                     break;
 
                 case LoopModeKind::LoopContinuous:

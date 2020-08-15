@@ -110,6 +110,7 @@ enum {
 /* Flags not defined by GUS */
 #define MODES_RELEASE   (1<<8)
 #define MODES_TRIGGER_RANDOM    (1<<9)
+#define MODES_NO_NOTEOFF        (1<<10)
 
 #define INST_GUS	0
 #define INST_SF2	1
