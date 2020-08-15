@@ -6539,7 +6539,7 @@ void resample_voice(int v, DATA_T *ptr, int32 count)
 void init_voice_resample(int v)
 {
 	Voice *vp = voice + v; 
-	vp->resrc.offset = vp->reserve_offset;
+	vp->resrc.offset = vp->reserve_offset + vp->sample->offset;
 	vp->resrc.increment = 0; /* make sure it isn't negative */
 	vp->resrc.loop_start = vp->sample->loop_start;
 	vp->resrc.loop_end = vp->sample->loop_end;

@@ -4155,6 +4155,7 @@ static void init_sample_param(Sample *sample)
 	sample->data = NULL;
 	sample->data_type = SAMPLE_TYPE_INT16;
 	sample->data_alloced = 0; // use Preset_SCC Preset_MMS ptr , see instrum.c free_instrument()
+	sample->offset = 0;
 	sample->loop_start = 0;
 	sample->loop_end = INT_MAX;
 	sample->data_length = INT_MAX;

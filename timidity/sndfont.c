@@ -1622,6 +1622,8 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->start = llabs(vp->start);
 	vp->len = llabs(vp->len);
 
+	vp->v.offset = 0;
+
     /* set loop position */
 	vp->v.loop_start = sp->startloop;
 	vp->v.loop_end = sp->endloop;
@@ -1688,6 +1690,7 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	}
 
     /* convert to fractional samples */
+    vp->v.offset <<= FRACTION_BITS;
     vp->v.data_length <<= FRACTION_BITS;
     vp->v.loop_start <<= FRACTION_BITS;
     vp->v.loop_end <<= FRACTION_BITS;

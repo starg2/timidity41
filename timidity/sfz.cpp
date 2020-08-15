@@ -1478,39 +1478,10 @@ private:
 
                 if (auto offset = flatSection.GetAs<double>(OpCodeKind::Offset))
                 {
-                    // shift sample data, data length, and loop offsets
-
-                    splen_t offsetInt = std::clamp(
-                        std::llround(offset.value()),
-                        static_cast<splen_t>(0),
-                        s.data_length >> FRACTION_BITS
-                    );
-
-                    splen_t offsetFixed = offsetInt << FRACTION_BITS;
-                    std::size_t bufferSizeInSamples = static_cast<std::size_t>(s.data_length >> FRACTION_BITS);
-                    s.data_length -= offsetFixed;
-
-                    std::size_t sampleSizeAfterShift = static_cast<std::size_t>(s.data_length >> FRACTION_BITS);
-                    std::size_t sampleSize = (s.data_type == SAMPLE_TYPE_DOUBLE ? 8 : (s.data_type == SAMPLE_TYPE_FLOAT || s.data_type == SAMPLE_TYPE_INT32 ? 4 : 2));
-
-                    std::memmove(s.data, reinterpret_cast<std::byte*>(s.data) + offsetInt * sampleSize, sampleSizeAfterShift * sampleSize);
-
-                    std::memset(
-                        reinterpret_cast<std::byte*>(s.data) + sampleSizeAfterShift * sampleSize,
-                        0,
-                        (bufferSizeInSamples - sampleSizeAfterShift) * sampleSize
-                    );
-
-                    s.loop_start = std::clamp(
-                        s.loop_start - offsetFixed,
+                    s.offset = std::clamp(
+                        std::llround(offset.value() * (1 << FRACTION_BITS)),
                         static_cast<splen_t>(0),
                         std::max(static_cast<splen_t>(0), s.data_length - (1 << FRACTION_BITS))
-                    );
-
-                    s.loop_end = std::clamp(
-                        s.loop_end - offsetFixed,
-                        s.loop_start,
-                        s.data_length
                     );
                 }
 
