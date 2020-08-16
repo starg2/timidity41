@@ -1508,10 +1508,14 @@ private:
                 switch (flatSection.GetAs<LoopModeKind>(OpCodeKind::LoopMode).value_or(defaultLoopModeKind))
                 {
                 case LoopModeKind::NoLoop:
+                    s.loop_start = s.data_length;
+                    s.loop_end = s.data_length;
                     break;
 
                 case LoopModeKind::OneShot:
                     s.modes |= MODES_NO_NOTEOFF;
+                    s.loop_start = s.data_length;
+                    s.loop_end = s.data_length;
                     break;
 
                 case LoopModeKind::LoopContinuous:
