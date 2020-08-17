@@ -121,7 +121,7 @@ struct FileInfo
 struct FileLocationInfo
 {
     std::size_t FileID;
-    std::uint32_t Line; // 1-based
+    std::size_t Line; // 1-based
 };
 
 class TextBuffer
@@ -311,13 +311,13 @@ private:
 class ParserException : public std::runtime_error
 {
 public:
-    ParserException(std::string_view fileName, std::uint32_t line, std::string_view msg)
+    ParserException(std::string_view fileName, std::size_t line, std::string_view msg)
         : runtime_error(FormatErrorMessage(fileName, line, msg))
     {
     }
 
 private:
-    std::string FormatErrorMessage(std::string_view fileName, std::uint32_t line, std::string_view msg)
+    std::string FormatErrorMessage(std::string_view fileName, std::size_t line, std::string_view msg)
     {
         std::ostringstream oss;
         oss << fileName << "(" << line << "): " << msg << "\n";
@@ -395,14 +395,14 @@ public:
 
     bool WordStartChar(TextBuffer::View& view)
     {
-        return CharIf(view, [] (char x) { return 'A' <= x && x <= 'Z' || 'a' <= x && x <= 'z' || x == '_'; });
+        return CharIf(view, [] (char x) { return ('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z') || x == '_'; });
     }
 
     bool WordContinueChar(TextBuffer::View& view)
     {
         return CharIf(
             view,
-            [] (char x) { return 'A' <= x && x <= 'Z' || 'a' <= x && x <= 'z' || '0' <= x && x <= '9' || x == '_'; }
+            [] (char x) { return ('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z') || ('0' <= x && x <= '9') || x == '_'; }
         );
     }
 
@@ -695,7 +695,7 @@ public:
 
                     continue;
                 }
-                else if (auto defView = curView; Word(curView, "#include"))
+                else if (Word(curView, "#include"))
                 {
                     m_IncludeCount++;
 
@@ -1177,7 +1177,7 @@ private:
                 VERB_VERBOSE,
                 "%s(%u): ignoring unsupported opcode '%s'",
                 std::string(m_Preprocessor.GetFileNameFromID(word.GetLocationInfo().FileID)).c_str(),
-                word.GetLocationInfo().Line,
+                static_cast<std::uint32_t>(word.GetLocationInfo().Line),
                 word.ToString().c_str()
             );
 
@@ -1535,7 +1535,7 @@ private:
                             VERB_VERBOSE,
                             "%s(%u): 'loop_mode=one_shot' is not implemented yet",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                            loc.Line
+                            static_cast<std::uint32_t>(loc.Line)
                         );
                     }
                     break;
@@ -1603,7 +1603,7 @@ private:
                             VERB_VERBOSE,
                             "%s(%u): 'trigger=legato' and 'trigger=first' are not implemented yet",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                            loc.Line
+                            static_cast<std::uint32_t>(loc.Line)
                         );
                     }
 
@@ -1627,13 +1627,21 @@ private:
 
                 if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
                 {
-                    std::fill(std::begin(s.envelope_keyf), std::end(s.envelope_keyf), std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0));
+                    std::fill(
+                        std::begin(s.envelope_keyf),
+                        std::end(s.envelope_keyf),
+                        static_cast<int16>(std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0))
+                    );
                 }
 
                 if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
                 {
                     // convert percent to rate
-                    std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0);
+                    std::fill(
+                        std::begin(s.envelope_velf),
+                        std::end(s.envelope_velf),
+                        static_cast<int16>(std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0)
+                    );
                 }
 
                 if (auto seqLen = flatSection.GetAs<double>(OpCodeKind::SequenceLength))
@@ -1652,7 +1660,7 @@ private:
                                 VERB_VERBOSE,
                                 "%s(%u): 'seq_position' is larger than 'seq_length'; this region will never be played",
                                 std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                                loc.Line
+                                static_cast<std::uint32_t>(loc.Line)
                             );
                         }
                     }
@@ -1664,7 +1672,7 @@ private:
                             VERB_VERBOSE,
                             "%s(%u): 'seq_length' was specified but 'seq_position' was not; this region will never be played",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                            loc.Line
+                            static_cast<std::uint32_t>(loc.Line)
                         );
                     }
                 }
@@ -1676,7 +1684,7 @@ private:
                         VERB_VERBOSE,
                         "%s(%u): 'seq_position' was specified but 'seq_length' was not",
                         std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                        loc.Line
+                        static_cast<std::uint32_t>(loc.Line)
                     );
                 }
 

@@ -102,7 +102,7 @@ typedef struct resample_rec {
 	int8 mode; // 0:plain 1:loop 2:bidir_loop
 	int8 plain_flag;
 	int buffer_offset;
-	DATA_T (*current_resampler)(sample_t*, splen_t, struct resample_rec *);
+	DATA_T (*current_resampler)(const sample_t*, splen_t, struct resample_rec *);
 	// newton
 #ifdef RESAMPLE_NEWTON_VOICE
 	int newt_grow;
