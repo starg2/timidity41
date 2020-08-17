@@ -1619,8 +1619,8 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
     vp->len = sp->endsample - vp->start;
 	vp->len += (tbl->val[SF_endAddrsHi] << 15)	+ tbl->val[SF_endAddrs];
 
-	vp->start = abs(vp->start);
-	vp->len = abs(vp->len);
+	vp->start = llabs(vp->start);
+	vp->len = llabs(vp->len);
 
     /* set loop position */
 	vp->v.loop_start = sp->startloop;
