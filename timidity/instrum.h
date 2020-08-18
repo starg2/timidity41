@@ -40,7 +40,7 @@ typedef struct _Sample {
   FLOAT_T volume, cfg_amp;
   sample_t *data;
   int data_type;
-  int modes;
+  uint32 modes;
   uint8 data_alloced, low_vel, high_vel;
   int32 cutoff_freq, cutoff_low_limit, cutoff_low_keyf;	/* in Hz, [1, 20000] */
   int16 resonance;	/* in centibels, [0, 960] */
@@ -109,8 +109,9 @@ enum {
 #define MODES_CLAMPED	(1<<7) /* ?? (for last envelope??) */
 /* Flags not defined by GUS */
 #define MODES_RELEASE   (1<<8)
-#define MODES_TRIGGER_RANDOM    (1<<9)
-#define MODES_NO_NOTEOFF        (1<<10)
+#define MODES_TRIGGER_RANDOM      (1<<9)
+#define MODES_NO_NOTEOFF          (1<<10)
+#define MODES_TRIGGER_RELEASE     (1<<11)
 
 #define INST_GUS	0
 #define INST_SF2	1

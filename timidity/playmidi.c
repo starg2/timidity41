@@ -2775,7 +2775,7 @@ static int reduce_voice_CPU(void)
 	/* skip notes that don't need resampling (most drums) */
 	if (voice[j].sample->note_to_use)
 	    continue;
-	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
+	if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
 	{
 	    /* Choose note with longest decay time remaining */
 	    /* This frees more CPU than choosing lowest volume */
@@ -2809,7 +2809,7 @@ static int reduce_voice_CPU(void)
     {
       if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
 	    continue;
-      if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
+      if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_SUSTAINED))
       {
 	/* continue protecting non-resample decays */
 	if (voice[j].status & ~(VOICE_DIE) && voice[j].sample->note_to_use)
@@ -2946,7 +2946,7 @@ static int reduce_voice(void)
 	   (voice[j].sample->note_to_use && ISDRUMCHANNEL(voice[j].channel)))
 	    continue;
 	
-	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
+	if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
 	{
 	    /* find lowest volume */
 	    v = voice[j].left_mix;
@@ -2980,7 +2980,7 @@ static int reduce_voice(void)
     {
       if(voice[j].status & VOICE_FREE)
 	    continue;
-      if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
+      if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_SUSTAINED))
       {
 	/* continue protecting drum decays */
 	if (voice[j].status & ~(VOICE_DIE) &&
@@ -3415,7 +3415,7 @@ static int select_play_sample(Sample *splist,
 			voice[j].orig_frequency = ft;
 			MYCHECK(voice[j].orig_frequency);
 			voice[j].sample = sp;
-			voice[j].status = VOICE_ON;
+			voice[j].status = (sp->modes & MODES_TRIGGER_RELEASE ? VOICE_PENDING : VOICE_ON);
 			nv++;
 		}
 	}
@@ -4451,7 +4451,7 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt, int add_delay_cnt)
 	int j;
 
 	/* status , control */
-	vp->status = VOICE_ON;
+	vp->status = (vp->sample->modes & MODES_TRIGGER_RELEASE ? VOICE_PENDING : VOICE_ON);
 	vp->channel = ch;
 	vp->note = note;
 	vp->velocity = e->b;
@@ -4751,20 +4751,30 @@ static void note_off(MidiEvent *e)
       return;
   for (i = 0; i < uv; i++)
   {	  
-      if(voice[i].status == VOICE_ON && voice[i].channel == ch && voice[i].note == note && voice[i].vid == vid)
+	  if ((voice[i].status & (VOICE_PENDING | VOICE_ON)) && voice[i].channel == ch && voice[i].note == note && voice[i].vid == vid)
       {
-		  if(voice[i].sostenuto){
-			  voice[i].status = VOICE_SUSTAINED;
-			  ctl_note_event(i);
-		  }else if(channel[ch].sustain){
-			  voice[i].status = VOICE_SUSTAINED;
-			  if(channel[ch].damper_mode){
-				reset_envelope0_damper(&voice[i].amp_env, channel[ch].sustain);
-				reset_envelope0_damper(&voice[i].mod_env, channel[ch].sustain);
+		  if(voice[i].sample->modes & MODES_TRIGGER_RELEASE){
+			  if(voice[i].status & VOICE_PENDING){
+				  voice[i].status = VOICE_ON;
 			  }
-			  ctl_note_event(i);
 		  }else{
-			  finish_note(i);
+			  if (voice[i].status & VOICE_ON) {
+				  if (voice[i].sostenuto) {
+					  voice[i].status = VOICE_SUSTAINED;
+					  ctl_note_event(i);
+				  }
+				  else if (channel[ch].sustain) {
+					  voice[i].status = VOICE_SUSTAINED;
+					  if (channel[ch].damper_mode) {
+						  reset_envelope0_damper(&voice[i].amp_env, channel[ch].sustain);
+						  reset_envelope0_damper(&voice[i].mod_env, channel[ch].sustain);
+					  }
+					  ctl_note_event(i);
+				  }
+				  else {
+					  finish_note(i);
+				  }
+			  }
 		  }
       }
   }
@@ -12316,7 +12326,7 @@ static void reduce_control(void)
 			for(i = kill_nv = 0; i < upper_voices; i++) {
 				if(voice[i].status & VOICE_FREE || voice[i].cache != NULL)
 					continue;		      
-				if((voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
+				if((voice[i].status & ~(VOICE_PENDING|VOICE_ON|VOICE_SUSTAINED) &&
 					!(voice[i].status & ~(VOICE_DIE) && voice[i].sample->note_to_use)))
 					kill_nv++;
 			}

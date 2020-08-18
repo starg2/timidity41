@@ -1543,65 +1543,48 @@ private:
 
                 s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * s.sample_rate);
 
-                TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack);
-
-                if (trigger == TriggerKind::Release)
+                switch (flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack))
                 {
-                    // FIXME: modify playmidi.c to implement this correctly
+                case TriggerKind::Attack:
+                    break;
 
-                    s.envelope_offset[0] = ToOffset(3);
-                    s.envelope_rate[0] = CalcRate(1, 0.0);
-                    s.envelope_offset[1] = ToOffset(2);
-                    s.envelope_rate[1] = CalcRate(1, 0.0);
-                    s.envelope_offset[2] = ToOffset(1);
-                    s.envelope_rate[2] = CalcRate(1, 0.0);
+                case TriggerKind::Release:
+                    s.modes |= MODES_TRIGGER_RELEASE;
+                    break;
 
-                    s.envelope_offset[3] = ToOffset(65535);
-                    s.envelope_rate[3] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
-                    s.envelope_offset[4] = ToOffset(65534);
-                    s.envelope_rate[4] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
-
-                    std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
-                    s.envelope_offset[5] = ToOffset(sustainLevel);
-                    s.envelope_rate[5] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
-
-                    s.modes |= MODES_LOOPING | MODES_SUSTAIN | MODES_RELEASE;
-                    s.loop_start = 0;
-                    s.loop_end = std::clamp<splen_t>(s.loop_start + (1 << FRACTION_BITS), 0, s.data_length);
-                }
-                else
-                {
-                    // TODO: support trigger=legato and trigger=first
-
-                    if (trigger != TriggerKind::Attack)
+                // TODO: support trigger=legato, trigger=first, and trigger=release_key
+                case TriggerKind::First:
+                case TriggerKind::Legato:
+                default:
                     {
                         auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
                         ctl->cmsg(
                             CMSG_WARNING,
                             VERB_VERBOSE,
-                            "%s(%u): 'trigger=legato' and 'trigger=first' are not implemented yet",
+                            "%s(%u): unsupported trigger mode",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
                             static_cast<std::uint32_t>(loc.Line)
                         );
                     }
-
-                    s.envelope_offset[0] = ToOffset(65535);
-                    s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
-                    s.envelope_offset[1] = ToOffset(65534);
-                    s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
-
-                    std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
-                    s.envelope_offset[2] = ToOffset(sustainLevel);
-                    s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
-
-                    double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
-                    s.envelope_offset[3] = 0;
-                    s.envelope_rate[3] = CalcRate(65535, releaseTime);
-                    s.envelope_offset[4] = s.envelope_offset[3];
-                    s.envelope_rate[4] = s.envelope_rate[3];
-                    s.envelope_offset[5] = s.envelope_offset[3];
-                    s.envelope_rate[5] = s.envelope_rate[3];
+                    break;
                 }
+
+                s.envelope_offset[0] = ToOffset(65535);
+                s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
+                s.envelope_offset[1] = ToOffset(65534);
+                s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
+
+                std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
+                s.envelope_offset[2] = ToOffset(sustainLevel);
+                s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+
+                double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
+                s.envelope_offset[3] = 0;
+                s.envelope_rate[3] = CalcRate(65535, releaseTime);
+                s.envelope_offset[4] = s.envelope_offset[3];
+                s.envelope_rate[4] = s.envelope_rate[3];
+                s.envelope_offset[5] = s.envelope_offset[3];
+                s.envelope_rate[5] = s.envelope_rate[3];
 
                 if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
                 {
