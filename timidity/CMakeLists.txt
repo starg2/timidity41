@@ -105,7 +105,7 @@ add_library(
     sfitem.c
     sfz.cpp
     benchmark_a.c
-    smfconv.c
+    # smfconv.c
     smplfile.c
     sndfont.c
     tables.c
@@ -162,7 +162,7 @@ add_library(
     sfitem.h
     sflayer.h
     sfz.h
-    smfconv.h
+    # smfconv.h
     sndfontini.h
     sysdep.h
     tables.h
