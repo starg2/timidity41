@@ -745,7 +745,7 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 
 	/* If necessary do some anti-aliasing filtering  */
 	if (antialiasing_allowed)
-	  antialiasing((int16 *)sp->data, sp->data_length / 2,
+	  antialiasing((int16 *)sp->data, sp->data_length >> FRACTION_BITS,
 		       sp->sample_rate, play_mode->rate);
 
 	s->data = NULL;		/* Avoid free-ing */
