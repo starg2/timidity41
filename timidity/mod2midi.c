@@ -739,18 +739,13 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->sf_sample_link = -1;
 	sp->sf_sample_index = 0;
 
-	if (sp->data_length >= (1 << (31 - FRACTION_BITS)) - 1)
-	    shrink_huge_sample(sp);
-	else
-	{
-	    sp->data_length <<= FRACTION_BITS;
-	    sp->loop_start <<= FRACTION_BITS;
-	    sp->loop_end <<= FRACTION_BITS;
-	}
+	sp->data_length <<= FRACTION_BITS;
+	sp->loop_start <<= FRACTION_BITS;
+	sp->loop_end <<= FRACTION_BITS;
 
 	/* If necessary do some anti-aliasing filtering  */
 	if (antialiasing_allowed)
-	  antialiasing((int16 *)sp->data, sp->data_length / 2,
+	  antialiasing((int16 *)sp->data, sp->data_length >> FRACTION_BITS,
 		       sp->sample_rate, play_mode->rate);
 
 	s->data = NULL;		/* Avoid free-ing */

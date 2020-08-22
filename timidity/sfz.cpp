@@ -121,7 +121,7 @@ struct FileInfo
 struct FileLocationInfo
 {
     std::size_t FileID;
-    std::uint32_t Line; // 1-based
+    std::size_t Line; // 1-based
 };
 
 class TextBuffer
@@ -311,13 +311,13 @@ private:
 class ParserException : public std::runtime_error
 {
 public:
-    ParserException(std::string_view fileName, std::uint32_t line, std::string_view msg)
+    ParserException(std::string_view fileName, std::size_t line, std::string_view msg)
         : runtime_error(FormatErrorMessage(fileName, line, msg))
     {
     }
 
 private:
-    std::string FormatErrorMessage(std::string_view fileName, std::uint32_t line, std::string_view msg)
+    std::string FormatErrorMessage(std::string_view fileName, std::size_t line, std::string_view msg)
     {
         std::ostringstream oss;
         oss << fileName << "(" << line << "): " << msg << "\n";
@@ -395,14 +395,14 @@ public:
 
     bool WordStartChar(TextBuffer::View& view)
     {
-        return CharIf(view, [] (char x) { return 'A' <= x && x <= 'Z' || 'a' <= x && x <= 'z' || x == '_'; });
+        return CharIf(view, [] (char x) { return ('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z') || x == '_'; });
     }
 
     bool WordContinueChar(TextBuffer::View& view)
     {
         return CharIf(
             view,
-            [] (char x) { return 'A' <= x && x <= 'Z' || 'a' <= x && x <= 'z' || '0' <= x && x <= '9' || x == '_'; }
+            [] (char x) { return ('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z') || ('0' <= x && x <= '9') || x == '_'; }
         );
     }
 
@@ -695,7 +695,7 @@ public:
 
                     continue;
                 }
-                else if (auto defView = curView; Word(curView, "#include"))
+                else if (Word(curView, "#include"))
                 {
                     m_IncludeCount++;
 
@@ -827,6 +827,7 @@ enum class OpCodeKind
     AmpKeyTrack,
     AmpVelTrack,
     DefaultPath,
+    End,
     HiKey,
     HiRand,
     HiVelocity,
@@ -1000,6 +1001,7 @@ public:
                         case OpCodeKind::AmpEG_Sustain:
                         case OpCodeKind::AmpKeyTrack:
                         case OpCodeKind::AmpVelTrack:
+                        case OpCodeKind::End:
                         case OpCodeKind::HiRand:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
@@ -1146,6 +1148,7 @@ private:
             {"amp_keytrack"sv, OpCodeKind::AmpKeyTrack},
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"default_path"sv, OpCodeKind::DefaultPath},
+            {"end"sv, OpCodeKind::End},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hirand"sv, OpCodeKind::HiRand},
             {"hivel"sv, OpCodeKind::HiVelocity},
@@ -1177,7 +1180,7 @@ private:
                 VERB_VERBOSE,
                 "%s(%u): ignoring unsupported opcode '%s'",
                 std::string(m_Preprocessor.GetFileNameFromID(word.GetLocationInfo().FileID)).c_str(),
-                word.GetLocationInfo().Line,
+                static_cast<std::uint32_t>(word.GetLocationInfo().Line),
                 word.ToString().c_str()
             );
 
@@ -1464,6 +1467,15 @@ private:
                 s.high_vel = static_cast<uint8>(std::clamp(std::lround(flatSection.GetAs<double>(OpCodeKind::HiVelocity).value_or(127.0)), 0L, 127L));
                 s.low_vel = static_cast<uint8>(std::clamp(std::lround(flatSection.GetAs<double>(OpCodeKind::LoVelocity).value_or(0.0)), 0L, 127L));
 
+                if (auto end = flatSection.GetAs<double>(OpCodeKind::End))
+                {
+                    s.data_length = std::clamp(
+                        std::llround(end.value() * (1 << FRACTION_BITS)),
+                        static_cast<splen_t>(0),
+                        s.data_length
+                    );
+                }
+
                 s.loop_start = std::clamp(
                     static_cast<splen_t>(flatSection.GetAs<double>(OpCodeKind::LoopStart).value_or(0) * (1 << FRACTION_BITS)),
                     static_cast<splen_t>(0),
@@ -1478,44 +1490,15 @@ private:
 
                 if (auto offset = flatSection.GetAs<double>(OpCodeKind::Offset))
                 {
-                    // shift sample data, data length, and loop offsets
-
-                    splen_t offsetInt = std::clamp(
-                        std::llround(offset.value()),
-                        static_cast<splen_t>(0),
-                        s.data_length >> FRACTION_BITS
-                    );
-
-                    splen_t offsetFixed = offsetInt << FRACTION_BITS;
-                    std::size_t bufferSizeInSamples = static_cast<std::size_t>(s.data_length >> FRACTION_BITS);
-                    s.data_length -= offsetFixed;
-
-                    std::size_t sampleSizeAfterShift = static_cast<std::size_t>(s.data_length >> FRACTION_BITS);
-                    std::size_t sampleSize = (s.data_type == SAMPLE_TYPE_DOUBLE ? 8 : (s.data_type == SAMPLE_TYPE_FLOAT || s.data_type == SAMPLE_TYPE_INT32 ? 4 : 2));
-
-                    std::memmove(s.data, reinterpret_cast<std::byte*>(s.data) + offsetInt * sampleSize, sampleSizeAfterShift * sampleSize);
-
-                    std::memset(
-                        reinterpret_cast<std::byte*>(s.data) + sampleSizeAfterShift * sampleSize,
-                        0,
-                        (bufferSizeInSamples - sampleSizeAfterShift) * sampleSize
-                    );
-
-                    s.loop_start = std::clamp(
-                        s.loop_start - offsetFixed,
+                    s.offset = std::clamp(
+                        std::llround(offset.value() * (1 << FRACTION_BITS)),
                         static_cast<splen_t>(0),
                         std::max(static_cast<splen_t>(0), s.data_length - (1 << FRACTION_BITS))
-                    );
-
-                    s.loop_end = std::clamp(
-                        s.loop_end - offsetFixed,
-                        s.loop_start,
-                        s.data_length
                     );
                 }
 
                 s.modes |= MODES_ENVELOPE;
-                s.modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN);
+                s.modes &= ~(MODES_LOOPING | MODES_PINGPONG | MODES_REVERSE | MODES_SUSTAIN | MODES_RELEASE);
 
                 LoopModeKind defaultLoopModeKind = 
                     flatSection.GetAs<double>(OpCodeKind::LoopStart).has_value() || flatSection.GetAs<double>(OpCodeKind::LoopEnd).has_value()
@@ -1525,19 +1508,14 @@ private:
                 switch (flatSection.GetAs<LoopModeKind>(OpCodeKind::LoopMode).value_or(defaultLoopModeKind))
                 {
                 case LoopModeKind::NoLoop:
+                    s.loop_start = s.data_length;
+                    s.loop_end = s.data_length;
                     break;
 
                 case LoopModeKind::OneShot:
-                    {
-                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::LoopMode);
-                        ctl->cmsg(
-                            CMSG_WARNING,
-                            VERB_VERBOSE,
-                            "%s(%u): 'loop_mode=one_shot' is not implemented yet",
-                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                            loc.Line
-                        );
-                    }
+                    s.modes |= MODES_NO_NOTEOFF;
+                    s.loop_start = s.data_length;
+                    s.loop_end = s.data_length;
                     break;
 
                 case LoopModeKind::LoopContinuous:
@@ -1603,7 +1581,7 @@ private:
                             VERB_VERBOSE,
                             "%s(%u): 'trigger=legato' and 'trigger=first' are not implemented yet",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                            loc.Line
+                            static_cast<std::uint32_t>(loc.Line)
                         );
                     }
 
@@ -1627,13 +1605,21 @@ private:
 
                 if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
                 {
-                    std::fill(std::begin(s.envelope_keyf), std::end(s.envelope_keyf), std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0));
+                    std::fill(
+                        std::begin(s.envelope_keyf),
+                        std::end(s.envelope_keyf),
+                        static_cast<int16>(std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0))
+                    );
                 }
 
                 if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
                 {
                     // convert percent to rate
-                    std::fill(std::begin(s.envelope_velf), std::end(s.envelope_velf), std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0);
+                    std::fill(
+                        std::begin(s.envelope_velf),
+                        std::end(s.envelope_velf),
+                        static_cast<int16>(std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0)
+                    );
                 }
 
                 if (auto seqLen = flatSection.GetAs<double>(OpCodeKind::SequenceLength))
@@ -1652,7 +1638,7 @@ private:
                                 VERB_VERBOSE,
                                 "%s(%u): 'seq_position' is larger than 'seq_length'; this region will never be played",
                                 std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                                loc.Line
+                                static_cast<std::uint32_t>(loc.Line)
                             );
                         }
                     }
@@ -1664,7 +1650,7 @@ private:
                             VERB_VERBOSE,
                             "%s(%u): 'seq_length' was specified but 'seq_position' was not; this region will never be played",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                            loc.Line
+                            static_cast<std::uint32_t>(loc.Line)
                         );
                     }
                 }
@@ -1676,19 +1662,19 @@ private:
                         VERB_VERBOSE,
                         "%s(%u): 'seq_position' was specified but 'seq_length' was not",
                         std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                        loc.Line
+                        static_cast<std::uint32_t>(loc.Line)
                     );
                 }
 
                 if (auto loRand = flatSection.GetAs<double>(OpCodeKind::LoRand))
                 {
-                    s.enable_rand = 1;
+                    s.modes |= MODES_TRIGGER_RANDOM;
                     s.lorand = std::clamp(loRand.value(), 0.0, 1.0);
                     s.hirand = std::clamp(flatSection.GetAs<double>(OpCodeKind::HiRand).value_or(1.0), 0.0, 1.0);
                 }
                 else if (auto hiRand = flatSection.GetAs<double>(OpCodeKind::HiRand))
                 {
-                    s.enable_rand = 1;
+                    s.modes |= MODES_TRIGGER_RANDOM;
                     s.lorand = 0.0;
                     s.hirand = std::clamp(hiRand.value(), 0.0, 1.0);
                 }

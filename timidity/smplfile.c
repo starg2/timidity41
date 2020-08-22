@@ -1412,6 +1412,7 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 	{
 		sample = &inst->sample[i];
 		sample->data_alloced = 0;
+		sample->offset = 0;
 		sample->loop_start = 0;
 		sample->loop_end = sample->data_length = (splen_t)frames << FRACTION_BITS;
 		sample->sample_rate = sample_rate;
@@ -1499,7 +1500,6 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 
 		sample->seq_length = 0;
 		sample->seq_position = 0;
-		sample->enable_rand = 0;
 		sample->lorand = -1;
 		sample->hirand = -1;
 	}

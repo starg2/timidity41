@@ -22,14 +22,14 @@ void __stdcall effectProcessingDoubleMono(double *buff, long count, float freq);
 // Channel VST float/double
 typedef void (WINAPI *channel_vst_sendF)(float **buff, long count, float freq, float *directbuff);
 typedef void (WINAPI *channel_vst_sendD)(double **buff, long count, float freq, double *directbuff);
-typedef float * (WINAPI *channel_vst_returnF)();
-typedef double * (WINAPI *channel_vst_returnD)();
+typedef float * (WINAPI *channel_vst_returnF)(void);
+typedef double * (WINAPI *channel_vst_returnD)(void);
 typedef void (WINAPI *mix_vst_channel_effectF)(const unsigned long c, float *buff, long count, float freq);
 typedef void (WINAPI *mix_vst_channel_effectD)(const unsigned long c, double *buff, long count, float freq);
 void __stdcall channelEffect_InOutF(float **buff, long count, float freq, float *directbuff);
 void __stdcall channelEffect_InOutD(double **buff, long count, float freq, double *directbuff);
-float * __stdcall channelEffect_GetInOutResultBufferF();
-double * __stdcall channelEffect_GetInOutResultBufferD();
+float * __stdcall channelEffect_GetInOutResultBufferF(void);
+double * __stdcall channelEffect_GetInOutResultBufferD(void);
 void __stdcall effectChannelProcessingFloat(const unsigned long c, float *buff, long count, float freq);
 void __stdcall effectChannelProcessingDouble(const unsigned long c, double *buff, long count, float freq);
 // Reverb VST int32/float/double
@@ -66,17 +66,17 @@ void __stdcall effectProcessingInt32Mono(long *buff, long count, float freq);
 void __stdcall effectProcessingFloatMono(float *buff, long count, float freq);
 // Channel VST int32
 typedef void (WINAPI *channel_vst_send32)(long **buff, long count, float freq, long *directbuff);
-typedef long * (WINAPI *channel_vst_return32)();
+typedef long * (WINAPI *channel_vst_return32)(void);
 typedef void (WINAPI *channel_vst_effect32)(const unsigned long c, long *buff, long count, float freq);	
 void __stdcall channelEffect_InOut(long **buff, long count, float freq, long *directbuff);
-long * __stdcall channelEffect_GetInOutResultBuffer();
+long * __stdcall channelEffect_GetInOutResultBuffer(void);
 void __stdcall effectChannelProcessingInt32(const unsigned long c, long *buff, long count, float freq);
 
 void __stdcall openEffectEditorAll(HWND hwnd);
 typedef void (WINAPI *vst_open_config_all)(HWND);
-typedef int (WINAPI *vst_open)();
-typedef void (WINAPI *vst_close)();
-typedef void (WINAPI *vst_processing_init)();
+typedef int (WINAPI *vst_open)(void);
+typedef void (WINAPI *vst_close)(void);
+typedef void (WINAPI *vst_processing_init)(void);
 typedef void (WINAPI *open_vst_mgr)(HWND hwnd);
 
 

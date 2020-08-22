@@ -993,10 +993,6 @@ extern char* pcm_alternate_file;
  * filename:     use the one.
  */
 
-#ifndef atof
-extern double atof(const char *);
-#endif
-
 ///r
 /*! copy bank and, if necessary, map appropriately */
 static void copybank(ToneBank *to, ToneBank *from, int mapid, int bankmapfrom, int bankno)
