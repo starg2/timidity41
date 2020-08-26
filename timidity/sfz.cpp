@@ -863,7 +863,8 @@ enum class TriggerKind
     Attack,
     Legato,
     First,
-    Release
+    Release,
+    ReleaseKey
 };
 
 struct OpCodeAndValue
@@ -1351,7 +1352,8 @@ private:
                 {"attack"sv, TriggerKind::Attack},
                 {"first"sv, TriggerKind::First},
                 {"legato"sv, TriggerKind::Legato},
-                {"release"sv, TriggerKind::Release}
+                {"release"sv, TriggerKind::Release},
+                {"release_key"sv, TriggerKind::ReleaseKey}
             };
 
             auto it = TriggerKindMap.find(word.ToStringView());
@@ -1548,11 +1550,27 @@ private:
                 case TriggerKind::Attack:
                     break;
 
+                // TODO: support trigger=release
                 case TriggerKind::Release:
+                    {
+                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
+                        ctl->cmsg(
+                            CMSG_WARNING,
+                            VERB_VERBOSE,
+                            "%s(%u): trigger=release is not implemented yet and will be treated as trigger=release_key",
+                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                            static_cast<std::uint32_t>(loc.Line)
+                        );
+                    }
+
                     s.modes |= MODES_TRIGGER_RELEASE;
                     break;
 
-                // TODO: support trigger=legato, trigger=first, and trigger=release_key
+                case TriggerKind::ReleaseKey:
+                    s.modes |= MODES_TRIGGER_RELEASE;
+                    break;
+
+                // TODO: support trigger=legato and trigger=first
                 case TriggerKind::First:
                 case TriggerKind::Legato:
                 default:
