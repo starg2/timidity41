@@ -506,6 +506,7 @@ typedef struct {
   int8 paf_ctrl;
   int32 orig_frequency, frequency;
   Sample *sample;
+  int32 elapsed_count;
     
   /* for pan */
   int8 panned;

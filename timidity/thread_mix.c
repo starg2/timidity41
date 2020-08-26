@@ -388,6 +388,8 @@ void mix_voice_thread(DATA_T *buf, int v, int32 c, int thread)
 	DATA_T *sp = voice_buffer_thread[thread];
 	int delay_cnt = 0, env = vp->sample->modes & MODES_ENVELOPE;
 
+	vp->elapsed_count += c;
+
 	if(vp->status & (VOICE_FREE | VOICE_PENDING))
 		return;
 

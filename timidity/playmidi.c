@@ -2144,6 +2144,12 @@ static void init_voice_amp(int v)
 	if (vp->fc.type != 0) {
 		tempamp *= vp->lpf_gain;
 	}
+
+	/* rt_decay */
+	if (vp->sample->modes & MODES_TRIGGER_RELEASE) {
+		tempamp *= pow(10.0, -vp->sample->rt_decay / 10.0 * vp->elapsed_count / (FLOAT_T)play_mode->rate);
+	}
+
 	/* init_amp */
 	vp->init_amp = tempamp;
 }
@@ -4456,6 +4462,7 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt, int add_delay_cnt)
 	vp->note = note;
 	vp->velocity = e->b;
 	vp->vid = vid;  
+	vp->elapsed_count = 0;
 	vp->sostenuto = 0;
 	vp->paf_ctrl = 0;
 	vp->overlap_count = opt_overlap_voice_count;

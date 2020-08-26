@@ -841,6 +841,7 @@ enum class OpCodeKind
     Key,
     Pan,
     PitchKeyCenter,
+    RtDecay,
     Sample,
     SequenceLength,
     SequencePosition,
@@ -1011,6 +1012,7 @@ public:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
+                        case OpCodeKind::RtDecay:
                         case OpCodeKind::SequenceLength:
                         case OpCodeKind::SequencePosition:
                         case OpCodeKind::Transpose:
@@ -1163,6 +1165,7 @@ private:
             {"offset"sv, OpCodeKind::Offset},
             {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
+            {"rt_decay"sv, OpCodeKind::RtDecay},
             {"sample"sv, OpCodeKind::Sample},
             {"seq_length"sv, OpCodeKind::SequenceLength},
             {"seq_position"sv, OpCodeKind::SequencePosition},
@@ -1586,6 +1589,8 @@ private:
                     }
                     break;
                 }
+
+                s.rt_decay = std::clamp(flatSection.GetAs<double>(OpCodeKind::RtDecay).value_or(0.0), 0.0, 200.0);
 
                 s.envelope_offset[0] = ToOffset(65535);
                 s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));

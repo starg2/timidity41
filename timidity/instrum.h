@@ -83,6 +83,8 @@ typedef struct _Sample {
   int32 seq_position;	/* 1-based position within the round robin, 0 == disabled */
   FLOAT_T lorand;
   FLOAT_T hirand;
+
+  FLOAT_T rt_decay; /* valid only if MODES_TRIGGER_RELEASE is enabled */
 } Sample;
 
 ///r
