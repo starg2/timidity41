@@ -40,7 +40,7 @@ typedef struct _Sample {
   FLOAT_T volume, cfg_amp;
   sample_t *data;
   int data_type;
-  int modes;
+  uint32 modes;
   uint8 data_alloced, low_vel, high_vel;
   int32 cutoff_freq, cutoff_low_limit, cutoff_low_keyf;	/* in Hz, [1, 20000] */
   int16 resonance;	/* in centibels, [0, 960] */
@@ -83,6 +83,12 @@ typedef struct _Sample {
   int32 seq_position;	/* 1-based position within the round robin, 0 == disabled */
   FLOAT_T lorand;
   FLOAT_T hirand;
+
+  FLOAT_T rt_decay; /* valid only if MODES_TRIGGER_RELEASE is enabled */
+
+  // crossfade
+  int8 xfmode_key, xfin_lokey, xfin_hikey, xfout_lokey, xfout_hikey;
+  int8 xfmode_vel, xfin_lovel, xfin_hivel, xfout_lovel, xfout_hivel;
 } Sample;
 
 ///r
@@ -109,8 +115,9 @@ enum {
 #define MODES_CLAMPED	(1<<7) /* ?? (for last envelope??) */
 /* Flags not defined by GUS */
 #define MODES_RELEASE   (1<<8)
-#define MODES_TRIGGER_RANDOM    (1<<9)
-#define MODES_NO_NOTEOFF        (1<<10)
+#define MODES_TRIGGER_RANDOM      (1<<9)
+#define MODES_NO_NOTEOFF          (1<<10)
+#define MODES_TRIGGER_RELEASE     (1<<11)
 
 #define INST_GUS	0
 #define INST_SF2	1
@@ -129,6 +136,13 @@ enum {
 #define SF_SAMPLETYPE_LINKED 8
 #define SF_SAMPLETYPE_COMPRESSED 0x10
 #define SF_SAMPLETYPE_ROM 0x8000
+
+/* crossfade: xfmode_key, xfmode_vel */
+enum {
+	CROSSFADE_NONE = 0,
+	CROSSFADE_GAIN,   /* linear */
+	CROSSFADE_POWER   /* square root */
+};
 
 typedef struct {
   int type;

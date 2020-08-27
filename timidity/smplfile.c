@@ -1502,6 +1502,7 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 		sample->seq_position = 0;
 		sample->lorand = -1;
 		sample->hirand = -1;
+		sample->rt_decay = 0;
 	}
 	if (samples <= 6 && (panning = gen_pan_list[samples - 1]) != NULL)
 	{

@@ -841,13 +841,24 @@ enum class OpCodeKind
     Key,
     Pan,
     PitchKeyCenter,
+    RtDecay,
     Sample,
     SequenceLength,
     SequencePosition,
     Transpose,
     Trigger,
     Tune,
-    Volume
+    Volume,
+    XfInHiKey,
+    XfInHiVel,
+    XfInLoKey,
+    XfInLoVel,
+    XfKeyCurve,
+    XfOutHiKey,
+    XfOutHiVel,
+    XfOutLoKey,
+    XfOutLoVel,
+    XfVelCurve
 };
 
 enum class LoopModeKind
@@ -863,14 +874,21 @@ enum class TriggerKind
     Attack,
     Legato,
     First,
-    Release
+    Release,
+    ReleaseKey
+};
+
+enum class CrossfadeCurveKind
+{
+    Gain,
+    Power
 };
 
 struct OpCodeAndValue
 {
     FileLocationInfo Location;
     OpCodeKind OpCode;
-    std::variant<std::int32_t, double, LoopModeKind, TriggerKind, std::string> Value;
+    std::variant<std::int32_t, double, LoopModeKind, TriggerKind, CrossfadeCurveKind, std::string> Value;
 };
 
 enum class HeaderKind
@@ -979,6 +997,10 @@ public:
                         case OpCodeKind::LoKey:
                         case OpCodeKind::PitchKeyCenter:
                         case OpCodeKind::Key:
+                        case OpCodeKind::XfInHiKey:
+                        case OpCodeKind::XfInLoKey:
+                        case OpCodeKind::XfOutHiKey:
+                        case OpCodeKind::XfOutLoKey:
                             if (std::int32_t n; ParseMIDINoteNumber(valView, n))
                             {
                                 opVal.Value = n;
@@ -1010,11 +1032,16 @@ public:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
+                        case OpCodeKind::RtDecay:
                         case OpCodeKind::SequenceLength:
                         case OpCodeKind::SequencePosition:
                         case OpCodeKind::Transpose:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
+                        case OpCodeKind::XfInHiVel:
+                        case OpCodeKind::XfInLoVel:
+                        case OpCodeKind::XfOutHiVel:
+                        case OpCodeKind::XfOutLoVel:
                             try
                             {
                                 opVal.Value = std::stod(valView.ToString());
@@ -1043,6 +1070,11 @@ public:
 
                         case OpCodeKind::Trigger:
                             opVal.Value = GetTriggerKind(valView);
+                            break;
+
+                        case OpCodeKind::XfKeyCurve:
+                        case OpCodeKind::XfVelCurve:
+                            opVal.Value = GetCrossfadeCurveKind(valView);
                             break;
 
                         default:
@@ -1162,13 +1194,24 @@ private:
             {"offset"sv, OpCodeKind::Offset},
             {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
+            {"rt_decay"sv, OpCodeKind::RtDecay},
             {"sample"sv, OpCodeKind::Sample},
             {"seq_length"sv, OpCodeKind::SequenceLength},
             {"seq_position"sv, OpCodeKind::SequencePosition},
             {"transpose"sv, OpCodeKind::Transpose},
             {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
-            {"volume"sv, OpCodeKind::Volume}
+            {"volume"sv, OpCodeKind::Volume},
+            {"xf_keycurve"sv, OpCodeKind::XfKeyCurve},
+            {"xf_velcurve"sv, OpCodeKind::XfVelCurve},
+            {"xfin_hikey"sv, OpCodeKind::XfInHiKey},
+            {"xfin_hivel"sv, OpCodeKind::XfInHiVel},
+            {"xfin_lokey"sv, OpCodeKind::XfInLoKey},
+            {"xfin_lovel"sv, OpCodeKind::XfInLoVel},
+            {"xfout_hikey"sv, OpCodeKind::XfOutHiKey},
+            {"xfout_hivel"sv, OpCodeKind::XfOutHiVel},
+            {"xfout_lokey"sv, OpCodeKind::XfOutLoKey},
+            {"xfout_lovel"sv, OpCodeKind::XfOutLoVel}
         };
 
         auto it = OpCodeMap.find(word.ToStringView());
@@ -1351,7 +1394,8 @@ private:
                 {"attack"sv, TriggerKind::Attack},
                 {"first"sv, TriggerKind::First},
                 {"legato"sv, TriggerKind::Legato},
-                {"release"sv, TriggerKind::Release}
+                {"release"sv, TriggerKind::Release},
+                {"release_key"sv, TriggerKind::ReleaseKey}
             };
 
             auto it = TriggerKindMap.find(word.ToStringView());
@@ -1366,6 +1410,31 @@ private:
             m_Preprocessor.GetFileNameFromID(view.GetLocationInfo().FileID),
             view.GetLocationInfo().Line,
             "unknown trigger mode '"s.append(view.ToStringView()).append("'")
+        );
+    }
+
+    CrossfadeCurveKind GetCrossfadeCurveKind(TextBuffer::View view)
+    {
+        auto curView = view;
+        if (TextBuffer::View word; AnyWord(curView, word))
+        {
+            static const std::unordered_map<std::string_view, CrossfadeCurveKind> CrossfadeCurveKindMap{
+                {"gain"sv, CrossfadeCurveKind::Gain},
+                {"power"sv, CrossfadeCurveKind::Power}
+            };
+
+            auto it = CrossfadeCurveKindMap.find(word.ToStringView());
+
+            if (it != CrossfadeCurveKindMap.end())
+            {
+                return it->second;
+            }
+        }
+
+        throw ParserException(
+            m_Preprocessor.GetFileNameFromID(view.GetLocationInfo().FileID),
+            view.GetLocationInfo().Line,
+            "unknown crossfade curve '"s.append(view.ToStringView()).append("'")
         );
     }
 
@@ -1543,65 +1612,66 @@ private:
 
                 s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * s.sample_rate);
 
-                TriggerKind trigger = flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack);
-
-                if (trigger == TriggerKind::Release)
+                switch (flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack))
                 {
-                    // FIXME: modify playmidi.c to implement this correctly
+                case TriggerKind::Attack:
+                    break;
 
-                    s.envelope_offset[0] = ToOffset(3);
-                    s.envelope_rate[0] = CalcRate(1, 0.0);
-                    s.envelope_offset[1] = ToOffset(2);
-                    s.envelope_rate[1] = CalcRate(1, 0.0);
-                    s.envelope_offset[2] = ToOffset(1);
-                    s.envelope_rate[2] = CalcRate(1, 0.0);
-
-                    s.envelope_offset[3] = ToOffset(65535);
-                    s.envelope_rate[3] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
-                    s.envelope_offset[4] = ToOffset(65534);
-                    s.envelope_rate[4] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
-
-                    std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
-                    s.envelope_offset[5] = ToOffset(sustainLevel);
-                    s.envelope_rate[5] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
-
-                    s.modes |= MODES_LOOPING | MODES_SUSTAIN | MODES_RELEASE;
-                    s.loop_start = 0;
-                    s.loop_end = std::clamp<splen_t>(s.loop_start + (1 << FRACTION_BITS), 0, s.data_length);
-                }
-                else
-                {
-                    // TODO: support trigger=legato and trigger=first
-
-                    if (trigger != TriggerKind::Attack)
+                // TODO: support trigger=release
+                case TriggerKind::Release:
                     {
                         auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
                         ctl->cmsg(
                             CMSG_WARNING,
                             VERB_VERBOSE,
-                            "%s(%u): 'trigger=legato' and 'trigger=first' are not implemented yet",
+                            "%s(%u): trigger=release is not implemented yet and will be treated as trigger=release_key",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
                             static_cast<std::uint32_t>(loc.Line)
                         );
                     }
 
-                    s.envelope_offset[0] = ToOffset(65535);
-                    s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
-                    s.envelope_offset[1] = ToOffset(65534);
-                    s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
+                    s.modes |= MODES_TRIGGER_RELEASE;
+                    break;
 
-                    std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
-                    s.envelope_offset[2] = ToOffset(sustainLevel);
-                    s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+                case TriggerKind::ReleaseKey:
+                    s.modes |= MODES_TRIGGER_RELEASE;
+                    break;
 
-                    double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
-                    s.envelope_offset[3] = 0;
-                    s.envelope_rate[3] = CalcRate(65535, releaseTime);
-                    s.envelope_offset[4] = s.envelope_offset[3];
-                    s.envelope_rate[4] = s.envelope_rate[3];
-                    s.envelope_offset[5] = s.envelope_offset[3];
-                    s.envelope_rate[5] = s.envelope_rate[3];
+                // TODO: support trigger=legato and trigger=first
+                case TriggerKind::First:
+                case TriggerKind::Legato:
+                default:
+                    {
+                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
+                        ctl->cmsg(
+                            CMSG_WARNING,
+                            VERB_VERBOSE,
+                            "%s(%u): unsupported trigger mode",
+                            std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                            static_cast<std::uint32_t>(loc.Line)
+                        );
+                    }
+                    break;
                 }
+
+                s.rt_decay = std::clamp(flatSection.GetAs<double>(OpCodeKind::RtDecay).value_or(0.0), 0.0, 200.0);
+
+                s.envelope_offset[0] = ToOffset(65535);
+                s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
+                s.envelope_offset[1] = ToOffset(65534);
+                s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
+
+                std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
+                s.envelope_offset[2] = ToOffset(sustainLevel);
+                s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+
+                double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
+                s.envelope_offset[3] = 0;
+                s.envelope_rate[3] = CalcRate(65535, releaseTime);
+                s.envelope_offset[4] = s.envelope_offset[3];
+                s.envelope_rate[4] = s.envelope_rate[3];
+                s.envelope_offset[5] = s.envelope_offset[3];
+                s.envelope_rate[5] = s.envelope_rate[3];
 
                 if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
                 {
@@ -1677,6 +1747,64 @@ private:
                     s.modes |= MODES_TRIGGER_RANDOM;
                     s.lorand = 0.0;
                     s.hirand = std::clamp(hiRand.value(), 0.0, 1.0);
+                }
+
+                auto xfInHiKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfInHiKey);
+                auto xfInLoKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfInLoKey);
+                auto xfOutHiKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfOutHiKey);
+                auto xfOutLoKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfOutLoKey);
+
+                if (xfInHiKey.has_value() || xfInLoKey.has_value() || xfOutHiKey.has_value() || xfOutLoKey.has_value())
+                {
+                    switch (flatSection.GetAs<CrossfadeCurveKind>(OpCodeKind::XfKeyCurve).value_or(CrossfadeCurveKind::Power))
+                    {
+                    case CrossfadeCurveKind::Gain:
+                        s.xfmode_key = CROSSFADE_GAIN;
+                        break;
+
+                    case CrossfadeCurveKind::Power:
+                    default:
+                        s.xfmode_key = CROSSFADE_POWER;
+                        break;
+                    }
+
+                    s.xfin_hikey = static_cast<int8>(std::clamp(xfInHiKey.value_or(0), 0, 127));
+                    s.xfin_lokey = static_cast<int8>(std::clamp(xfInLoKey.value_or(0), 0, 127));
+                    s.xfout_hikey = static_cast<int8>(std::clamp(xfOutHiKey.value_or(127), 0, 127));
+                    s.xfout_lokey = static_cast<int8>(std::clamp(xfOutLoKey.value_or(127), 0, 127));
+                }
+                else
+                {
+                    s.xfmode_key = CROSSFADE_NONE;
+                }
+
+                auto xfInHiVel = flatSection.GetAs<double>(OpCodeKind::XfInHiVel);
+                auto xfInLoVel = flatSection.GetAs<double>(OpCodeKind::XfInLoVel);
+                auto xfOutHiVel = flatSection.GetAs<double>(OpCodeKind::XfOutHiVel);
+                auto xfOutLoVel = flatSection.GetAs<double>(OpCodeKind::XfOutLoVel);
+
+                if (xfInHiVel.has_value() || xfInLoVel.has_value() || xfOutHiVel.has_value() || xfOutLoVel.has_value())
+                {
+                    switch (flatSection.GetAs<CrossfadeCurveKind>(OpCodeKind::XfVelCurve).value_or(CrossfadeCurveKind::Power))
+                    {
+                    case CrossfadeCurveKind::Gain:
+                        s.xfmode_vel = CROSSFADE_GAIN;
+                        break;
+
+                    case CrossfadeCurveKind::Power:
+                    default:
+                        s.xfmode_vel = CROSSFADE_POWER;
+                        break;
+                    }
+
+                    s.xfin_hivel = static_cast<int8>(std::clamp(std::lround(xfInHiVel.value_or(0.0)), 0L, 127L));
+                    s.xfin_lovel = static_cast<int8>(std::clamp(std::lround(xfInLoVel.value_or(0.0)), 0L, 127L));
+                    s.xfout_hivel = static_cast<int8>(std::clamp(std::lround(xfOutHiVel.value_or(127.0)), 0L, 127L));
+                    s.xfout_lovel = static_cast<int8>(std::clamp(std::lround(xfOutLoVel.value_or(127.0)), 0L, 127L));
+                }
+                else
+                {
+                    s.xfmode_vel = CROSSFADE_NONE;
                 }
             }
 

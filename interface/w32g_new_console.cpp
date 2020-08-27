@@ -348,9 +348,21 @@ public:
         return m_Lines.size();
     }
 
+    std::size_t GetLastLineNumber() const
+    {
+        std::size_t n = GetLineCount();
+        return n > 0 ? n - 1 : 0;
+    }
+
     std::size_t GetMaxColumnLength() const
     {
         return m_MaxColumnLength;
+    }
+
+    std::size_t GetMaxLastColumnNumber() const
+    {
+        std::size_t n = GetMaxColumnLength();
+        return n > 0 ? n - 1 : 0;
     }
 
     std::size_t GetColumnLength(std::size_t line) const
@@ -388,6 +400,12 @@ public:
 #endif
             }
         );
+    }
+
+    std::size_t GetLastColumnNumber(std::size_t line) const
+    {
+        std::size_t n = GetColumnLength(line);
+        return n > 0 ? n - 1 : 0;
     }
 
     TStringView GetString() const
@@ -488,6 +506,8 @@ public:
         m_Buffer.Clear();
         m_SelStart.reset();
         m_SelEnd.reset();
+        m_CurrentTopLineNumber = 0;
+        m_CurrentLeftColumnNumber = 0;
     }
 
     void Write(const char* pText)
@@ -893,8 +913,8 @@ private:
             if (::GetKeyState(VK_CONTROL) < 0)
             {
                 m_SelStart = {0, 0};
-                std::size_t lastLine = std::max(static_cast<std::size_t>(0), m_Buffer.GetLineCount() - 1);
-                m_SelEnd = {lastLine, std::max(static_cast<std::size_t>(0), m_Buffer.GetColumnLength(lastLine) - 1)};
+                std::size_t lastLine = m_Buffer.GetLastLineNumber();
+                m_SelEnd = {lastLine, m_Buffer.GetLastColumnNumber(lastLine)};
                 CopyTextToClipboard(m_Buffer.CopySubstring(*m_SelStart, *m_SelEnd));
             }
             break;
@@ -1124,15 +1144,15 @@ private:
         siv.cbSize = sizeof(SCROLLINFO);
         siv.fMask = SIF_ALL | SIF_DISABLENOSCROLL;
         siv.nMin = 0;
-        siv.nMax = m_Buffer.GetLineCount() - 1;
+        siv.nMax = m_Buffer.GetLastLineNumber();
         siv.nPage = static_cast<UINT>(GetVisibleLinesInWindow());
         siv.nPos = m_CurrentTopLineNumber;
 
         sih.cbSize = sizeof(SCROLLINFO);
         sih.fMask = SIF_ALL | SIF_DISABLENOSCROLL;
         sih.nMin = 0;
-        sih.nMax = m_Buffer.GetMaxColumnLength() - 1;
-        sih.nPage = static_cast<UINT>(GetVisibleColumnsInWindow());
+        sih.nMax = m_Buffer.GetMaxLastColumnNumber();
+        sih.nPage = static_cast<UINT>(GetVisileColumnsInWindow());
         sih.nPos = m_CurrentLeftColumnNumber;
 
         ::SetScrollInfo(m_hWnd, SB_VERT, &siv, true);
@@ -1145,7 +1165,15 @@ private:
 
         if (!exact)
         {
-            line = std::clamp(line, 0, std::max(static_cast<int>(m_Buffer.GetLineCount() - 1), 0));
+            if (line < 0 || m_Buffer.GetLineCount() == 0)
+            {
+                return TextLocationInfo{static_cast<std::size_t>(0), static_cast<std::size_t>(0)};
+            }
+            else if (m_Buffer.GetLineCount() <= line)
+            {
+                std::size_t lastLine = m_Buffer.GetLastLineNumber();
+                return TextLocationInfo{lastLine, m_Buffer.GetLastColumnNumber(lastLine)};
+            }
         }
 
         if (0 <= line && line < m_Buffer.GetLineCount())
@@ -1180,7 +1208,10 @@ private:
 
             if (!exact)
             {
-                col = std::clamp(col, 0, std::max(static_cast<int>(m_Buffer.GetColumnLength(line) - 1), 0));
+                return TextLocationInfo{
+                    static_cast<std::size_t>(line),
+                    static_cast<std::size_t>(std::clamp(col, 0, static_cast<int>(m_Buffer.GetLastColumnNumber(line))))
+                };
             }
 
             if (0 <= col && col < m_Buffer.GetColumnLength(line))

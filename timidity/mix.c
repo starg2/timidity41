@@ -489,7 +489,12 @@ void mix_voice(DATA_T *buf, int v, int32 c)
 	Voice *vp = voice + v;
 	DATA_T *sp = voice_buffer;
 	int delay_cnt, env = vp->sample->modes & MODES_ENVELOPE;
-			
+
+	vp->elapsed_count += c;
+
+	if(vp->status & (VOICE_FREE | VOICE_PENDING))
+		return;
+
 	if(!vp->init_voice)
 		init_voice(v);
 	else if(vp->update_voice)

@@ -2144,6 +2144,80 @@ static void init_voice_amp(int v)
 	if (vp->fc.type != 0) {
 		tempamp *= vp->lpf_gain;
 	}
+
+	/* key crossfade */
+	switch (vp->sample->xfmode_key) {
+	case CROSSFADE_GAIN:
+		if (vp->note <= vp->sample->xfin_lokey) {
+			tempamp = 0.0;
+		} else if (vp->note < vp->sample->xfin_hikey) {
+			tempamp *= (vp->note - vp->sample->xfin_lokey) / (FLOAT_T)(vp->sample->xfin_hikey - vp->sample->xfin_lokey);
+		}
+
+		if (vp->sample->xfout_hikey <= vp->note) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lokey < vp->note) {
+			tempamp *= (vp->sample->xfout_hikey - vp->note) / (FLOAT_T)(vp->sample->xfout_hikey - vp->sample->xfout_lokey);
+		}
+		break;
+
+	case CROSSFADE_POWER:
+		if (vp->note <= vp->sample->xfin_lokey) {
+			tempamp = 0.0;
+		} else if (vp->note < vp->sample->xfin_hikey) {
+			tempamp *= sqrt((vp->note - vp->sample->xfin_lokey) / (FLOAT_T)(vp->sample->xfin_hikey - vp->sample->xfin_lokey));
+		}
+
+		if (vp->sample->xfout_hikey <= vp->note) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lokey < vp->note) {
+			tempamp *= sqrt((vp->sample->xfout_hikey - vp->note) / (FLOAT_T)(vp->sample->xfout_hikey - vp->sample->xfout_lokey));
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	/* velocity crossfade */
+	switch (vp->sample->xfmode_vel) {
+	case CROSSFADE_GAIN:
+		if (vp->velocity <= vp->sample->xfin_lovel) {
+			tempamp = 0.0;
+		} else if (vp->velocity < vp->sample->xfin_hivel) {
+			tempamp *= (vp->velocity - vp->sample->xfin_lovel) / (FLOAT_T)(vp->sample->xfin_hivel - vp->sample->xfin_lovel);
+		}
+
+		if (vp->sample->xfout_hivel <= vp->velocity) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lovel < vp->velocity) {
+			tempamp *= (vp->sample->xfout_hivel - vp->velocity) / (FLOAT_T)(vp->sample->xfout_hivel - vp->sample->xfout_lovel);
+		}
+		break;
+
+	case CROSSFADE_POWER:
+		if (vp->velocity <= vp->sample->xfin_lovel) {
+			tempamp = 0.0;
+		} else if (vp->velocity < vp->sample->xfin_hivel) {
+			tempamp *= sqrt((vp->velocity - vp->sample->xfin_lovel) / (FLOAT_T)(vp->sample->xfin_hivel - vp->sample->xfin_lovel));
+		}
+
+		if (vp->sample->xfout_hivel <= vp->velocity) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lovel < vp->velocity) {
+			tempamp *= sqrt((vp->sample->xfout_hivel - vp->velocity) / (FLOAT_T)(vp->sample->xfout_hivel - vp->sample->xfout_lovel));
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	/* rt_decay */
+	if (vp->sample->modes & MODES_TRIGGER_RELEASE) {
+		tempamp *= pow(10.0, -vp->sample->rt_decay / 10.0 * vp->elapsed_count / (FLOAT_T)play_mode->rate);
+	}
+
 	/* init_amp */
 	vp->init_amp = tempamp;
 }
@@ -2775,7 +2849,7 @@ static int reduce_voice_CPU(void)
 	/* skip notes that don't need resampling (most drums) */
 	if (voice[j].sample->note_to_use)
 	    continue;
-	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
+	if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
 	{
 	    /* Choose note with longest decay time remaining */
 	    /* This frees more CPU than choosing lowest volume */
@@ -2809,7 +2883,7 @@ static int reduce_voice_CPU(void)
     {
       if(voice[j].status & VOICE_FREE || voice[j].cache != NULL)
 	    continue;
-      if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
+      if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_SUSTAINED))
       {
 	/* continue protecting non-resample decays */
 	if (voice[j].status & ~(VOICE_DIE) && voice[j].sample->note_to_use)
@@ -2946,7 +3020,7 @@ static int reduce_voice(void)
 	   (voice[j].sample->note_to_use && ISDRUMCHANNEL(voice[j].channel)))
 	    continue;
 	
-	if(voice[j].status & ~(VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
+	if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_DIE | VOICE_SUSTAINED))
 	{
 	    /* find lowest volume */
 	    v = voice[j].left_mix;
@@ -2980,7 +3054,7 @@ static int reduce_voice(void)
     {
       if(voice[j].status & VOICE_FREE)
 	    continue;
-      if(voice[j].status & ~(VOICE_ON | VOICE_SUSTAINED))
+      if(voice[j].status & ~(VOICE_PENDING | VOICE_ON | VOICE_SUSTAINED))
       {
 	/* continue protecting drum decays */
 	if (voice[j].status & ~(VOICE_DIE) &&
@@ -3415,7 +3489,7 @@ static int select_play_sample(Sample *splist,
 			voice[j].orig_frequency = ft;
 			MYCHECK(voice[j].orig_frequency);
 			voice[j].sample = sp;
-			voice[j].status = VOICE_ON;
+			voice[j].status = (sp->modes & MODES_TRIGGER_RELEASE ? VOICE_PENDING : VOICE_ON);
 			nv++;
 		}
 	}
@@ -4451,11 +4525,12 @@ static void start_note(MidiEvent *e, int i, int vid, int cnt, int add_delay_cnt)
 	int j;
 
 	/* status , control */
-	vp->status = VOICE_ON;
+	vp->status = (vp->sample->modes & MODES_TRIGGER_RELEASE ? VOICE_PENDING : VOICE_ON);
 	vp->channel = ch;
 	vp->note = note;
 	vp->velocity = e->b;
 	vp->vid = vid;  
+	vp->elapsed_count = 0;
 	vp->sostenuto = 0;
 	vp->paf_ctrl = 0;
 	vp->overlap_count = opt_overlap_voice_count;
@@ -4751,20 +4826,30 @@ static void note_off(MidiEvent *e)
       return;
   for (i = 0; i < uv; i++)
   {	  
-      if(voice[i].status == VOICE_ON && voice[i].channel == ch && voice[i].note == note && voice[i].vid == vid)
+	  if ((voice[i].status & (VOICE_PENDING | VOICE_ON)) && voice[i].channel == ch && voice[i].note == note && voice[i].vid == vid)
       {
-		  if(voice[i].sostenuto){
-			  voice[i].status = VOICE_SUSTAINED;
-			  ctl_note_event(i);
-		  }else if(channel[ch].sustain){
-			  voice[i].status = VOICE_SUSTAINED;
-			  if(channel[ch].damper_mode){
-				reset_envelope0_damper(&voice[i].amp_env, channel[ch].sustain);
-				reset_envelope0_damper(&voice[i].mod_env, channel[ch].sustain);
+		  if(voice[i].sample->modes & MODES_TRIGGER_RELEASE){
+			  if(voice[i].status & VOICE_PENDING){
+				  voice[i].status = VOICE_ON;
 			  }
-			  ctl_note_event(i);
 		  }else{
-			  finish_note(i);
+			  if (voice[i].status & VOICE_ON) {
+				  if (voice[i].sostenuto) {
+					  voice[i].status = VOICE_SUSTAINED;
+					  ctl_note_event(i);
+				  }
+				  else if (channel[ch].sustain) {
+					  voice[i].status = VOICE_SUSTAINED;
+					  if (channel[ch].damper_mode) {
+						  reset_envelope0_damper(&voice[i].amp_env, channel[ch].sustain);
+						  reset_envelope0_damper(&voice[i].mod_env, channel[ch].sustain);
+					  }
+					  ctl_note_event(i);
+				  }
+				  else {
+					  finish_note(i);
+				  }
+			  }
 		  }
       }
   }
@@ -12316,7 +12401,7 @@ static void reduce_control(void)
 			for(i = kill_nv = 0; i < upper_voices; i++) {
 				if(voice[i].status & VOICE_FREE || voice[i].cache != NULL)
 					continue;		      
-				if((voice[i].status & ~(VOICE_ON|VOICE_SUSTAINED) &&
+				if((voice[i].status & ~(VOICE_PENDING|VOICE_ON|VOICE_SUSTAINED) &&
 					!(voice[i].status & ~(VOICE_DIE) && voice[i].sample->note_to_use)))
 					kill_nv++;
 			}
