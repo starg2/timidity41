@@ -1085,7 +1085,7 @@ private:
 
     int GetMaxLeftColumnNumber() const
     {
-        return m_Buffer.GetMaxColumnLength() - GetVisibleColumnsInWindow();
+        return std::max(0, static_cast<int>(m_Buffer.GetMaxColumnLength() - GetVisibleColumnsInWindow()));
     }
 
     int GetVisibleLinesInWindow() const
@@ -1152,7 +1152,7 @@ private:
         sih.fMask = SIF_ALL | SIF_DISABLENOSCROLL;
         sih.nMin = 0;
         sih.nMax = m_Buffer.GetMaxLastColumnNumber();
-        sih.nPage = static_cast<UINT>(GetVisileColumnsInWindow());
+        sih.nPage = static_cast<UINT>(GetVisibleColumnsInWindow());
         sih.nPos = m_CurrentLeftColumnNumber;
 
         ::SetScrollInfo(m_hWnd, SB_VERT, &siv, true);
