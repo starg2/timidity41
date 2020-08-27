@@ -848,7 +848,17 @@ enum class OpCodeKind
     Transpose,
     Trigger,
     Tune,
-    Volume
+    Volume,
+    XfInHiKey,
+    XfInHiVel,
+    XfInLoKey,
+    XfInLoVel,
+    XfKeyCurve,
+    XfOutHiKey,
+    XfOutHiVel,
+    XfOutLoKey,
+    XfOutLoVel,
+    XfVelCurve
 };
 
 enum class LoopModeKind
@@ -868,11 +878,17 @@ enum class TriggerKind
     ReleaseKey
 };
 
+enum class CrossfadeCurveKind
+{
+    Gain,
+    Power
+};
+
 struct OpCodeAndValue
 {
     FileLocationInfo Location;
     OpCodeKind OpCode;
-    std::variant<std::int32_t, double, LoopModeKind, TriggerKind, std::string> Value;
+    std::variant<std::int32_t, double, LoopModeKind, TriggerKind, CrossfadeCurveKind, std::string> Value;
 };
 
 enum class HeaderKind
@@ -981,6 +997,10 @@ public:
                         case OpCodeKind::LoKey:
                         case OpCodeKind::PitchKeyCenter:
                         case OpCodeKind::Key:
+                        case OpCodeKind::XfInHiKey:
+                        case OpCodeKind::XfInLoKey:
+                        case OpCodeKind::XfOutHiKey:
+                        case OpCodeKind::XfOutLoKey:
                             if (std::int32_t n; ParseMIDINoteNumber(valView, n))
                             {
                                 opVal.Value = n;
@@ -1018,6 +1038,10 @@ public:
                         case OpCodeKind::Transpose:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
+                        case OpCodeKind::XfInHiVel:
+                        case OpCodeKind::XfInLoVel:
+                        case OpCodeKind::XfOutHiVel:
+                        case OpCodeKind::XfOutLoVel:
                             try
                             {
                                 opVal.Value = std::stod(valView.ToString());
@@ -1046,6 +1070,11 @@ public:
 
                         case OpCodeKind::Trigger:
                             opVal.Value = GetTriggerKind(valView);
+                            break;
+
+                        case OpCodeKind::XfKeyCurve:
+                        case OpCodeKind::XfVelCurve:
+                            opVal.Value = GetCrossfadeCurveKind(valView);
                             break;
 
                         default:
@@ -1172,7 +1201,17 @@ private:
             {"transpose"sv, OpCodeKind::Transpose},
             {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
-            {"volume"sv, OpCodeKind::Volume}
+            {"volume"sv, OpCodeKind::Volume},
+            {"xf_keycurve"sv, OpCodeKind::XfKeyCurve},
+            {"xf_velcurve"sv, OpCodeKind::XfVelCurve},
+            {"xfin_hikey"sv, OpCodeKind::XfInHiKey},
+            {"xfin_hivel"sv, OpCodeKind::XfInHiVel},
+            {"xfin_lokey"sv, OpCodeKind::XfInLoKey},
+            {"xfin_lovel"sv, OpCodeKind::XfInLoVel},
+            {"xfout_hikey"sv, OpCodeKind::XfOutHiKey},
+            {"xfout_hivel"sv, OpCodeKind::XfOutHiVel},
+            {"xfout_lokey"sv, OpCodeKind::XfOutLoKey},
+            {"xfout_lovel"sv, OpCodeKind::XfOutLoVel}
         };
 
         auto it = OpCodeMap.find(word.ToStringView());
@@ -1371,6 +1410,31 @@ private:
             m_Preprocessor.GetFileNameFromID(view.GetLocationInfo().FileID),
             view.GetLocationInfo().Line,
             "unknown trigger mode '"s.append(view.ToStringView()).append("'")
+        );
+    }
+
+    CrossfadeCurveKind GetCrossfadeCurveKind(TextBuffer::View view)
+    {
+        auto curView = view;
+        if (TextBuffer::View word; AnyWord(curView, word))
+        {
+            static const std::unordered_map<std::string_view, CrossfadeCurveKind> CrossfadeCurveKindMap{
+                {"gain"sv, CrossfadeCurveKind::Gain},
+                {"power"sv, CrossfadeCurveKind::Power}
+            };
+
+            auto it = CrossfadeCurveKindMap.find(word.ToStringView());
+
+            if (it != CrossfadeCurveKindMap.end())
+            {
+                return it->second;
+            }
+        }
+
+        throw ParserException(
+            m_Preprocessor.GetFileNameFromID(view.GetLocationInfo().FileID),
+            view.GetLocationInfo().Line,
+            "unknown crossfade curve '"s.append(view.ToStringView()).append("'")
         );
     }
 
@@ -1683,6 +1747,64 @@ private:
                     s.modes |= MODES_TRIGGER_RANDOM;
                     s.lorand = 0.0;
                     s.hirand = std::clamp(hiRand.value(), 0.0, 1.0);
+                }
+
+                auto xfInHiKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfInHiKey);
+                auto xfInLoKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfInLoKey);
+                auto xfOutHiKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfOutHiKey);
+                auto xfOutLoKey = flatSection.GetAs<std::int32_t>(OpCodeKind::XfOutLoKey);
+
+                if (xfInHiKey.has_value() || xfInLoKey.has_value() || xfOutHiKey.has_value() || xfOutLoKey.has_value())
+                {
+                    switch (flatSection.GetAs<CrossfadeCurveKind>(OpCodeKind::XfKeyCurve).value_or(CrossfadeCurveKind::Power))
+                    {
+                    case CrossfadeCurveKind::Gain:
+                        s.xfmode_key = CROSSFADE_GAIN;
+                        break;
+
+                    case CrossfadeCurveKind::Power:
+                    default:
+                        s.xfmode_key = CROSSFADE_POWER;
+                        break;
+                    }
+
+                    s.xfin_hikey = static_cast<int8>(std::clamp(xfInHiKey.value_or(0), 0, 127));
+                    s.xfin_lokey = static_cast<int8>(std::clamp(xfInLoKey.value_or(0), 0, 127));
+                    s.xfout_hikey = static_cast<int8>(std::clamp(xfOutHiKey.value_or(127), 0, 127));
+                    s.xfout_lokey = static_cast<int8>(std::clamp(xfOutLoKey.value_or(127), 0, 127));
+                }
+                else
+                {
+                    s.xfmode_key = CROSSFADE_NONE;
+                }
+
+                auto xfInHiVel = flatSection.GetAs<double>(OpCodeKind::XfInHiVel);
+                auto xfInLoVel = flatSection.GetAs<double>(OpCodeKind::XfInLoVel);
+                auto xfOutHiVel = flatSection.GetAs<double>(OpCodeKind::XfOutHiVel);
+                auto xfOutLoVel = flatSection.GetAs<double>(OpCodeKind::XfOutLoVel);
+
+                if (xfInHiVel.has_value() || xfInLoVel.has_value() || xfOutHiVel.has_value() || xfOutLoVel.has_value())
+                {
+                    switch (flatSection.GetAs<CrossfadeCurveKind>(OpCodeKind::XfVelCurve).value_or(CrossfadeCurveKind::Power))
+                    {
+                    case CrossfadeCurveKind::Gain:
+                        s.xfmode_vel = CROSSFADE_GAIN;
+                        break;
+
+                    case CrossfadeCurveKind::Power:
+                    default:
+                        s.xfmode_vel = CROSSFADE_POWER;
+                        break;
+                    }
+
+                    s.xfin_hivel = static_cast<int8>(std::clamp(std::lround(xfInHiVel.value_or(0.0)), 0L, 127L));
+                    s.xfin_lovel = static_cast<int8>(std::clamp(std::lround(xfInLoVel.value_or(0.0)), 0L, 127L));
+                    s.xfout_hivel = static_cast<int8>(std::clamp(std::lround(xfOutHiVel.value_or(127.0)), 0L, 127L));
+                    s.xfout_lovel = static_cast<int8>(std::clamp(std::lround(xfOutLoVel.value_or(127.0)), 0L, 127L));
+                }
+                else
+                {
+                    s.xfmode_vel = CROSSFADE_NONE;
                 }
             }
 

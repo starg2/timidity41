@@ -2145,6 +2145,74 @@ static void init_voice_amp(int v)
 		tempamp *= vp->lpf_gain;
 	}
 
+	/* key crossfade */
+	switch (vp->sample->xfmode_key) {
+	case CROSSFADE_GAIN:
+		if (vp->note <= vp->sample->xfin_lokey) {
+			tempamp = 0.0;
+		} else if (vp->note < vp->sample->xfin_hikey) {
+			tempamp *= (vp->note - vp->sample->xfin_lokey) / (FLOAT_T)(vp->sample->xfin_hikey - vp->sample->xfin_lokey);
+		}
+
+		if (vp->sample->xfout_hikey <= vp->note) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lokey < vp->note) {
+			tempamp *= (vp->sample->xfout_hikey - vp->note) / (FLOAT_T)(vp->sample->xfout_hikey - vp->sample->xfout_lokey);
+		}
+		break;
+
+	case CROSSFADE_POWER:
+		if (vp->note <= vp->sample->xfin_lokey) {
+			tempamp = 0.0;
+		} else if (vp->note < vp->sample->xfin_hikey) {
+			tempamp *= sqrt((vp->note - vp->sample->xfin_lokey) / (FLOAT_T)(vp->sample->xfin_hikey - vp->sample->xfin_lokey));
+		}
+
+		if (vp->sample->xfout_hikey <= vp->note) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lokey < vp->note) {
+			tempamp *= sqrt((vp->sample->xfout_hikey - vp->note) / (FLOAT_T)(vp->sample->xfout_hikey - vp->sample->xfout_lokey));
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	/* velocity crossfade */
+	switch (vp->sample->xfmode_vel) {
+	case CROSSFADE_GAIN:
+		if (vp->velocity <= vp->sample->xfin_lovel) {
+			tempamp = 0.0;
+		} else if (vp->velocity < vp->sample->xfin_hivel) {
+			tempamp *= (vp->velocity - vp->sample->xfin_lovel) / (FLOAT_T)(vp->sample->xfin_hivel - vp->sample->xfin_lovel);
+		}
+
+		if (vp->sample->xfout_hivel <= vp->velocity) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lovel < vp->velocity) {
+			tempamp *= (vp->sample->xfout_hivel - vp->velocity) / (FLOAT_T)(vp->sample->xfout_hivel - vp->sample->xfout_lovel);
+		}
+		break;
+
+	case CROSSFADE_POWER:
+		if (vp->velocity <= vp->sample->xfin_lovel) {
+			tempamp = 0.0;
+		} else if (vp->velocity < vp->sample->xfin_hivel) {
+			tempamp *= sqrt((vp->velocity - vp->sample->xfin_lovel) / (FLOAT_T)(vp->sample->xfin_hivel - vp->sample->xfin_lovel));
+		}
+
+		if (vp->sample->xfout_hivel <= vp->velocity) {
+			tempamp = 0.0;
+		} else if (vp->sample->xfout_lovel < vp->velocity) {
+			tempamp *= sqrt((vp->sample->xfout_hivel - vp->velocity) / (FLOAT_T)(vp->sample->xfout_hivel - vp->sample->xfout_lovel));
+		}
+		break;
+
+	default:
+		break;
+	}
+
 	/* rt_decay */
 	if (vp->sample->modes & MODES_TRIGGER_RELEASE) {
 		tempamp *= pow(10.0, -vp->sample->rt_decay / 10.0 * vp->elapsed_count / (FLOAT_T)play_mode->rate);

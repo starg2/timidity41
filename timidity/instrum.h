@@ -85,6 +85,10 @@ typedef struct _Sample {
   FLOAT_T hirand;
 
   FLOAT_T rt_decay; /* valid only if MODES_TRIGGER_RELEASE is enabled */
+
+  // crossfade
+  int8 xfmode_key, xfin_lokey, xfin_hikey, xfout_lokey, xfout_hikey;
+  int8 xfmode_vel, xfin_lovel, xfin_hivel, xfout_lovel, xfout_hivel;
 } Sample;
 
 ///r
@@ -132,6 +136,13 @@ enum {
 #define SF_SAMPLETYPE_LINKED 8
 #define SF_SAMPLETYPE_COMPRESSED 0x10
 #define SF_SAMPLETYPE_ROM 0x8000
+
+/* crossfade: xfmode_key, xfmode_vel */
+enum {
+	CROSSFADE_NONE = 0,
+	CROSSFADE_GAIN,   /* linear */
+	CROSSFADE_POWER   /* square root */
+};
 
 typedef struct {
   int type;
