@@ -1795,8 +1795,8 @@ BOOL ShowFileDialog(
 						}
 					}
 
-					pResult[pos] = L'\0';
-					pResult[pos + 1] = L'\0';
+					pResult[pos] = '\0';
+					pResult[pos + 1] = '\0';
 					pShellItemArray->lpVtbl->Release(pShellItemArray);
 				}
 
