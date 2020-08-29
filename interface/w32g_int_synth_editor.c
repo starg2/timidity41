@@ -1728,82 +1728,46 @@ static void ISEditorWndCreatePage(HWND hwnd, UINT page)
 
 static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 {
-	OPENFILENAME ofn;
-	TCHAR filename[FILEPATH_MAX];
-	static TCHAR dir[FILEPATH_MAX];
-	int res;
-	const TCHAR *filter,
-		   *filter_en = _T("Ini file (*.ini)\0*.ini\0")
-				_T("All files (*.*)\0*.*\0")
-				_T("\0\0"),
-		   *filter_jp = _T("Ini ファイル (*.ini)\0*.ini\0")
-				_T("すべてのファイル (*.*)\0*.*\0")
-				_T("\0\0");
-	const TCHAR *title,
-		   *title_en = _T("Open Ini File"),
-		   *title_jp = _T("Iniファイルを開く");
+		// {9D0D50B8-C6A4-471E-A6F7-7913597CE3E0}
+		static const GUID GUID_ISIniFileDialog = 
+		{ 0x9d0d50b8, 0xc6a4, 0x471e, { 0xa6, 0xf7, 0x79, 0x13, 0x59, 0x7c, 0xe3, 0xe0 } };
+		char filename[FILEPATH_MAX];
+        const COMDLG_FILTERSPEC *filter,
+			filter_en[] = {
+				{L"Ini file (*.ini)", L"*.ini"},
+				{L"All files (*.*)", L"*.*"}
+			},
+			filter_jp[] = {
+				{L"Ini ファイル (*.ini)", L"*.ini"},
+				{L"すべてのファイル (*.*)", L"*.*"}
+			};
+        LPCWSTR title,
+                   title_en = L"Open Ini File",
+                   title_jp = L"Iniファイルを開く";
 
-	if (PlayerLanguage == LANGUAGE_JAPANESE) {
-		filter = filter_jp;
-		title = title_jp;
-	}
-	else {
-		filter = filter_en;
-		title = title_en;
-	}
-	if(ISIniFileOpenDir[0] == '\0')
-		strncpy(ISIniFileOpenDir, ConfigFileOpenDir, FILEPATH_MAX);
-	TCHAR *tinidir = char_to_tchar(ISIniFileOpenDir);
-	_tcsncpy(dir, tinidir, FILEPATH_MAX);
-	safe_free(tinidir);
-	dir[FILEPATH_MAX - 1] = _T('\0');
-	TCHAR *tfilename = char_to_tchar(Filename);
-	_tcsncpy(filename, tfilename, FILEPATH_MAX);
-	safe_free(tfilename);
-	filename[FILEPATH_MAX - 1] = _T('\0');
-	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1]))
-		_tcsncat(filename, _T("int_synth.ini"), FILEPATH_MAX - _tcslen(filename) - 1);
+        if (PlayerLanguage == LANGUAGE_JAPANESE) {
+                filter = filter_jp;
+                title = title_jp;
+        }
+        else {
+                filter = filter_en;
+                title = title_en;
+        }
+        strncpy(filename, Filename, FILEPATH_MAX);
+        filename[FILEPATH_MAX - 1] = '\0';
+        if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
+                strlcat(filename, "int_synth.ini", FILEPATH_MAX);
+        }
 
-	ZeroMemory(&ofn, sizeof(OPENFILENAME));
-	ofn.lStructSize = sizeof(OPENFILENAME);
-	ofn.hwndOwner = hwnd;
-	ofn.hInstance = hInst;
-	ofn.lpstrFilter = filter;
-	ofn.lpstrCustomFilter = NULL;
-	ofn.nMaxCustFilter = 0;
-	ofn.nFilterIndex = 1;
-	ofn.lpstrFile = filename;
-	ofn.nMaxFile = FILEPATH_MAX;
-	ofn.lpstrFileTitle = NULL;
-	ofn.nMaxFileTitle = 0;
-	if (dir[0] != _T('\0'))
-		ofn.lpstrInitialDir	= dir;
-	else
-		ofn.lpstrInitialDir	= 0;
-	ofn.lpstrTitle	= title;
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER
-	| OFN_READONLY | OFN_HIDEREADONLY;
-	ofn.lpstrDefExt = 0;
-	ofn.lCustData = 0;
-	ofn.lpfnHook = 0;
-	ofn.lpTemplateName = 0;
-
-	res = SafeGetOpenFileName(&ofn);
-	char *inidir = tchar_to_char(dir);
-	strncpy(ISIniFileOpenDir, inidir, FILEPATH_MAX);
-	safe_free(inidir);
-	ISIniFileOpenDir[FILEPATH_MAX - 1] = '\0';
-	if (res != FALSE) {
-		char *fname = tchar_to_char(filename);
-		strncpy(Filename, fname, FILEPATH_MAX);
-		safe_free(fname);
-		Filename[FILEPATH_MAX - 1] = '\0';
-		return 0;
-	}
-	else {
-		Filename[0] = '\0';
-		return -1;
-	}
+		if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_ISIniFileDialog)) {
+                strncpy(Filename, filename, FILEPATH_MAX);
+                Filename[FILEPATH_MAX - 1] = '\0';
+                return 0;
+        }
+        else {
+                Filename[0] = '\0';
+                return -1;
+        }
 }
 
 INT_PTR CALLBACK ISEditorWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)

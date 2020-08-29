@@ -30,6 +30,7 @@
 ///r
 #include "timidity.h"
 #include "w32g.h"
+#include <shtypes.h>
 
 // ini & config
 #define IniVersion "2.2"
@@ -336,8 +337,26 @@ extern void SaveSettingTiMidity(SETTING_TIMIDITY *st);
 extern void SettingCtlFlag(SETTING_TIMIDITY *st, int opt_id, int onoff);
 extern int IniVersionCheck(void);
 extern void BitBltRect(HDC dst, HDC src, const RECT *rc);
-extern BOOL SafeGetOpenFileName(LPOPENFILENAME lpofn);
-extern BOOL SafeGetSaveFileName(LPOPENFILENAME lpofn);
+
+// mode option for ShowFileDialog()
+enum {
+	FILEDIALOG_OPEN_FILE,
+	FILEDIALOG_OPEN_MULTIPLE_FILES,
+	FILEDIALOG_OPEN_FOLDER,
+	FILEDIALOG_SAVE_FILE
+};
+
+// pDirectory and pResult must point to an array of at least FILEPATH_MAX length!
+extern BOOL ShowFileDialog(
+	int mode,
+	HWND hParentWindow,
+	LPCWSTR pTitle,
+	char *pResult,
+	UINT filterCount,
+	const COMDLG_FILTERSPEC *pFilters,
+	REFGUID guid
+);
+
 #if 0
 extern TmColors tm_colors[ /* TMCC_SIZE */ ];
 #define TmCc(c) (tm_colors[c].color)

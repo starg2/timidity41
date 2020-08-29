@@ -79,6 +79,9 @@
 #include "miditrace.h"
 #include "rtsyn.h"
 
+#include <wchar.h>
+#include <shobjidl.h>
+
 ///r
 extern int opt_default_mid;
 extern int effect_lr_mode;
@@ -1689,47 +1692,141 @@ void BitBltRect(HDC dst, HDC src, const RECT *rc)
 	   src, rc->left, rc->top, SRCCOPY);
 }
 
-static void SafeGetFileName_DeleteSep(TCHAR *str)
+BOOL ShowFileDialog(
+	int mode,
+	HWND hParentWindow,
+	LPCWSTR pTitle,
+	char *pResult,
+	UINT filterCount,
+	const COMDLG_FILTERSPEC *pFilters,
+	REFGUID guid
+)
 {
-	if (str) {
-		size_t len = _tcslen(str);
-		if (IS_PATH_SEP(str[len - 1])) {
-			str[len - 1] = _T('\0');
+	IFileDialog *pFileDialog = NULL;
+	HRESULT hr = CoCreateInstance(
+		mode == FILEDIALOG_SAVE_FILE ? &CLSID_FileSaveDialog : &CLSID_FileOpenDialog,
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		&IID_IFileDialog,
+		(void **)&pFileDialog
+	);
+
+	if (FAILED(hr))
+		return FALSE;
+
+	if (guid)
+		pFileDialog->lpVtbl->SetClientGuid(pFileDialog, guid);
+
+	if (pTitle)
+		pFileDialog->lpVtbl->SetTitle(pFileDialog, pTitle);
+
+	if (filterCount > 0 && pFilters)
+		pFileDialog->lpVtbl->SetFileTypes(pFileDialog, filterCount, pFilters);
+
+	FILEOPENDIALOGOPTIONS options;
+	pFileDialog->lpVtbl->GetOptions(pFileDialog, &options);
+	options |= FOS_NOCHANGEDIR | FOS_FORCEFILESYSTEM;
+
+	switch (mode) {
+	case FILEDIALOG_OPEN_MULTIPLE_FILES:
+		options |= FOS_ALLOWMULTISELECT;
+		break;
+
+	case FILEDIALOG_OPEN_FOLDER:
+		options |= FOS_PICKFOLDERS;
+		break;
+
+	default:
+		break;
+	}
+
+	pFileDialog->lpVtbl->SetOptions(pFileDialog, options);
+
+	hr = pFileDialog->lpVtbl->Show(pFileDialog, hParentWindow);
+
+	if (hr == S_OK) {
+		if (mode == FILEDIALOG_OPEN_MULTIPLE_FILES) {
+			IFileOpenDialog *pFileOpenDialog;
+
+			if (SUCCEEDED(pFileDialog->lpVtbl->QueryInterface(pFileDialog, &IID_IFileOpenDialog, (void**)&pFileOpenDialog))) {
+				IShellItemArray *pShellItemArray;
+
+				if (SUCCEEDED(pFileOpenDialog->lpVtbl->GetResults(pFileOpenDialog, &pShellItemArray))) {
+					size_t pos = 0;
+					DWORD count = 0;
+					pShellItemArray->lpVtbl->GetCount(pShellItemArray, &count);
+
+					for (DWORD i = 0; i < count; i++) {
+						IShellItem *pShellItem;
+
+						if (SUCCEEDED(pShellItemArray->lpVtbl->GetItemAt(pShellItemArray, i, &pShellItem))) {
+							wchar_t *pBuffer;
+
+							if (SUCCEEDED(pShellItem->lpVtbl->GetDisplayName(pShellItem, i == 0 ? SIGDN_FILESYSPATH : SIGDN_PARENTRELATIVEPARSING, &pBuffer))) {
+								int len = wcslen(pBuffer);
+
+								if (i == 0) {
+									wchar_t *p = wcsrchr(pBuffer, L'\\');
+
+									if (p)
+										*p = L'\0';
+								}
+
+								int c = WideCharToMultiByte(
+									CP_ACP,
+									0,
+									pBuffer,
+									len + 1, // including terminating null character
+									pResult + pos,
+									FILEPATH_MAX - 2 - pos,
+									NULL,
+									NULL
+								);
+
+								pos += c;
+								CoTaskMemFree(pBuffer);
+							}
+
+							pShellItem->lpVtbl->Release(pShellItem);
+						}
+					}
+
+					pResult[pos] = L'\0';
+					pResult[pos + 1] = L'\0';
+					pShellItemArray->lpVtbl->Release(pShellItemArray);
+				}
+
+				pFileOpenDialog->lpVtbl->Release(pFileOpenDialog);
+			}
+		} else {
+			IShellItem* pShellItem;
+
+			if (SUCCEEDED(pFileDialog->lpVtbl->GetResult(pFileDialog, &pShellItem))) {
+				wchar_t* pBuffer;
+
+				if (SUCCEEDED(pShellItem->lpVtbl->GetDisplayName(pShellItem, SIGDN_FILESYSPATH, &pBuffer))) {
+					int c = WideCharToMultiByte(
+						CP_ACP,
+						0,
+						pBuffer,
+						-1,
+						pResult,
+						FILEPATH_MAX - 1,
+						NULL,
+						NULL
+					);
+
+					pResult[c] = '\0';
+					CoTaskMemFree(pBuffer);
+				}
+
+				pShellItem->lpVtbl->Release(pShellItem);
+			}
 		}
 	}
-}
 
-#ifdef __W32G__
-BOOL SafeGetOpenFileName(LPOPENFILENAME lpofn)
-{
-    BOOL result;
-    TCHAR currentdir[FILEPATH_MAX];
-
-    if (lpofn->lpstrFile) {
-	SafeGetFileName_DeleteSep(lpofn->lpstrFile);
-    }
-
-    GetCurrentDirectory(FILEPATH_MAX, currentdir);
-    result = GetOpenFileName(lpofn);
-    SetCurrentDirectory(currentdir);
-
-    return result;
-}
-
-BOOL SafeGetSaveFileName(LPOPENFILENAME lpofn)
-{
-    BOOL result;
-    TCHAR currentdir[FILEPATH_MAX];
-
-    if (lpofn->lpstrFile) {
-	SafeGetFileName_DeleteSep(lpofn->lpstrFile);
-    }
-
-    GetCurrentDirectory(FILEPATH_MAX, currentdir);
-    result = GetSaveFileName(lpofn);
-    SetCurrentDirectory(currentdir);
-
-    return result;
+	pFileDialog->lpVtbl->Release(pFileDialog);
+	return hr == S_OK;
 }
 #endif
 

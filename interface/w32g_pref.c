@@ -5997,24 +5997,25 @@ BOOL IsVisiblePrefWnd ( void )
 
 static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 {
-	OPENFILENAME ofn;
-	TCHAR filename[FILEPATH_MAX],
-	     dir[FILEPATH_MAX];
-	int res;
-	const TCHAR *filter,
-		*filter_en = _T("All Supported files (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0")
-                _T("SoundFont file (*.sf2;*.sf3)\0*.sf2;*.sf3\0")
-                _T("Config file (*.cfg;*.config)\0*.cfg;*.config\0")
-				_T("All files (*.*)\0*.*\0")
-				_T("\0\0"),
-		   *filter_jp = _T("すべての対応ファイル (*.cfg;*.config;*.sf2;*.sf3)\0*.cfg;*.config;*.sf2;*.sf3\0")
-                _T("SoundFont ファイル (*.sf2;*.sf3)\0*.sf2;*.sf3\0")
-                _T("Config ファイル (*.cfg;*.config)\0*.cfg;*.config\0")
-				_T("すべてのファイル (*.*)\0*.*\0")
-				_T("\0\0");
-	const TCHAR *title,
-		   *title_en = _T("Open Config File"),
-		   *title_jp = _T("Config ファイルを開く");
+	// {4F9BC9AC-6831-4A74-B380-E1FD6C985F5E}
+	static const GUID GUID_ConfigFileOpenDialog =
+	{ 0x4f9bc9ac, 0x6831, 0x4a74, { 0xb3, 0x80, 0xe1, 0xfd, 0x6c, 0x98, 0x5f, 0x5e } };
+	const COMDLG_FILTERSPEC *filter,
+		filter_en[] = {
+			{L"All Supported files (*.cfg;*.config;*.sf2;*.sf3)", L"*.cfg;*.config;*.sf2;*.sf3"},
+			{L"SoundFont file (*.sf2;*.sf3)", L"*.sf2;*.sf3"},
+			{L"Config file (*.cfg;*.config)", L"*.cfg;*.config"},
+			{L"All files (*.*)", L"*.*"}
+		},
+		filter_jp[] = {
+			{L"すべての対応ファイル (*.cfg;*.config;*.sf2;*.sf3)", L"*.cfg;*.config;*.sf2;*.sf3"},
+			{L"SoundFont ファイル (*.sf2;*.sf3)", L"*.sf2;*.sf3"},
+			{L"Config ファイル (*.cfg;*.config)", L"*.cfg;*.config"},
+			{L"すべてのファイル (*.*)", L"*.*"}
+		};
+    LPCWSTR title,
+           title_en = L"Open Config File",
+           title_jp = L"Config ファイルを開く";
 
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -6025,49 +6026,8 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 		title = title_en;
 	}
 
-	TCHAR *t = char_to_tchar(ConfigFileOpenDir);
-	_tcsncpy(dir, t, FILEPATH_MAX);
-	safe_free(t);
-	dir[FILEPATH_MAX - 1] = _T('\0');
-	_tcsncpy(filename, Filename, FILEPATH_MAX);
-	filename[FILEPATH_MAX - 1] = _T('\0');
-	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1]))
-		_tcsncat(filename, _T("timidity.cfg"), FILEPATH_MAX - _tcslen(filename) - 1);
-
-	ZeroMemory(&ofn, sizeof(OPENFILENAME));
-	ofn.lStructSize = sizeof(OPENFILENAME);
-	ofn.hwndOwner = hwnd;
-	ofn.hInstance = hInst;
-	ofn.lpstrFilter = filter;
-	ofn.lpstrCustomFilter = NULL;
-	ofn.nMaxCustFilter = 0;
-	ofn.nFilterIndex = 1;
-	ofn.lpstrFile = filename;
-	ofn.nMaxFile = FILEPATH_MAX;
-	ofn.lpstrFileTitle = NULL;
-	ofn.nMaxFileTitle = 0;
-	if (dir[0] != _T('\0'))
-		ofn.lpstrInitialDir	= dir;
-	else
-		ofn.lpstrInitialDir	= 0;
-	ofn.lpstrTitle	= title;
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER
-	| OFN_READONLY | OFN_HIDEREADONLY;
-	ofn.lpstrDefExt = 0;
-	ofn.lCustData = 0;
-	ofn.lpfnHook = 0;
-	ofn.lpTemplateName = 0;
-
-	res = SafeGetOpenFileName(&ofn);
-	char *cfgdir = tchar_to_char(dir);
-	strncpy(ConfigFileOpenDir, cfgdir, FILEPATH_MAX);
-	safe_free(cfgdir);
-	ConfigFileOpenDir[FILEPATH_MAX - 1] = '\0';
-	if (res != FALSE) {
-		_tcsncpy(Filename, filename, FILEPATH_MAX);
-		Filename[FILEPATH_MAX - 1] = _T('\0');
+	if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, Filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_ConfigFileOpenDialog))
 		return 0;
-	}
 	else {
 		Filename[0] = _T('\0');
 		return -1;
@@ -6076,22 +6036,23 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 
 static int DlgOpenOutputFile(TCHAR *Filename, HWND hwnd)
 {
-	OPENFILENAME ofn;
-	TCHAR filename[FILEPATH_MAX],
-	     dir[FILEPATH_MAX];
-	int res;
-	static TCHAR OutputFileOpenDir[FILEPATH_MAX];
-	static int initflag = 1;
-	const TCHAR *filter,
-		   *filter_en = _T("wave file\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0")
-				_T("all files\0*.*\0")
-				_T("\0\0"),
-		   *filter_jp = _T("波形ファイル (*.wav;*.aif)\0*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio\0")
-				_T("すべてのファイル (*.*)\0*.*\0")
-				_T("\0\0");
-	const TCHAR *title,
-		   *title_en = _T("Output File"),
-		   *title_jp = _T("出力ファイルを選ぶ");
+	// {9237CB29-664B-40CA-8336-4C8D58475C1E}
+	static const GUID GUID_OutputFileDialog =
+	{ 0x9237cb29, 0x664b, 0x40ca, { 0x83, 0x36, 0x4c, 0x8d, 0x58, 0x47, 0x5c, 0x1e } };
+	char filename[FILEPATH_MAX];
+	static char OutputFileOpenDir[FILEPATH_MAX];
+	const COMDLG_FILTERSPEC *filter,
+		filter_en[] = {
+			{L"Wave Files (*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio)", L"*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio"},
+			{L"All Files (*.*)", L"*.*"}
+		},
+		filter_jp[] = {
+			{L"波形ファイル (*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio)", L"*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio"},
+			{L"すべてのファイル (*.*)", L"*.*"}
+		};
+	LPCWSTR title,
+		title_en = L"Output File",
+		title_jp = L"出力ファイルを選ぶ";
 
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -6102,46 +6063,15 @@ static int DlgOpenOutputFile(TCHAR *Filename, HWND hwnd)
 		title = title_en;
 	}
 
-	if (initflag) {
-		OutputFileOpenDir[0] = _T('\0');
-		initflag = 0;
+	strncpy(filename, Filename, FILEPATH_MAX);
+	filename[FILEPATH_MAX - 1] = '\0';
+	if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
+		strlcat(filename, "output.wav", FILEPATH_MAX);
 	}
-	_tcsncpy(dir, OutputFileOpenDir, FILEPATH_MAX);
-	dir[FILEPATH_MAX - 1] = _T('\0');
-	_tcsncpy(filename, Filename, FILEPATH_MAX - 1);
-	filename[FILEPATH_MAX - 1] = _T('\0');
-	if (_tcslen(filename) > 0 && IS_PATH_SEP(filename[_tcslen(filename) - 1]))
-		_tcsncat(filename, _T("output.wav"), FILEPATH_MAX - _tcslen(filename) - 1);
 
-	ZeroMemory(&ofn, sizeof(OPENFILENAME));
-	ofn.lStructSize = sizeof(OPENFILENAME);
-	ofn.hwndOwner = hwnd;
-	ofn.hInstance = hInst;
-	ofn.lpstrFilter = filter;
-	ofn.lpstrCustomFilter = NULL;
-	ofn.nMaxCustFilter = 0;
-	ofn.nFilterIndex = 1;
-	ofn.lpstrFile = filename;
-	ofn.nMaxFile = FILEPATH_MAX;
-	ofn.lpstrFileTitle = NULL;
-	ofn.nMaxFileTitle = 0;
-	if (dir[0] != _T('\0'))
-		ofn.lpstrInitialDir	= dir;
-	else
-		ofn.lpstrInitialDir	= 0;
-	ofn.lpstrTitle	= title;
-	ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY;
-	ofn.lpstrDefExt = 0;
-	ofn.lCustData = 0;
-	ofn.lpfnHook = 0;
-	ofn.lpTemplateName = 0;
-
-	res = SafeGetSaveFileName(&ofn);
-	_tcsncpy(OutputFileOpenDir, dir, FILEPATH_MAX);
-	OutputFileOpenDir[FILEPATH_MAX - 1] = _T('\0');
-	if (res != FALSE) {
-		_tcsncpy(Filename, filename, FILEPATH_MAX - 1);
-		Filename[FILEPATH_MAX - 1] = _T('\0');
+	if (ShowFileDialog(FILEDIALOG_SAVE_FILE, hwnd, title, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_OutputFileDialog)) {
+		strncpy(Filename, filename, FILEPATH_MAX);
+		Filename[FILEPATH_MAX - 1] = '\0';
 		return 0;
 	} else {
 		Filename[0] = _T('\0');
@@ -6149,72 +6079,25 @@ static int DlgOpenOutputFile(TCHAR *Filename, HWND hwnd)
 	}
 }
 
-static volatile LPITEMIDLIST itemidlist_pre;
-int CALLBACK
-DlgOpenOutputDirBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
-{
-    switch (uMsg) {
-    case BFFM_INITIALIZED:
-	if (itemidlist_pre)
-	    SendMessage(hwnd, BFFM_SETSELECTION, (WPARAM)0, (LPARAM)itemidlist_pre);
-	break;
-    default:
-	break;
-    }
-    return 0;
-}
-
 static int DlgOpenOutputDir(TCHAR *Dirname, HWND hwnd)
 {
-	static int initflag = 1;
-	static TCHAR biBuffer[FILEPATH_MAX];
-	TCHAR Buffer[FILEPATH_MAX];
-	BROWSEINFO bi;
-	LPITEMIDLIST itemidlist;
-	const TCHAR *title,
-		   *title_en = _T("Select output directory."),
-		   *title_jp = _T("出力先のディレクトリを選択してください。");
+	// {E4E528CA-6985-4652-AC3D-A9C0B9327C30}
+	static const GUID GUID_OutputDirDialog =
+	{ 0xe4e528ca, 0x6985, 0x4652, { 0xac, 0x3d, 0xa9, 0xc0, 0xb9, 0x32, 0x7c, 0x30 } };
+	static char OutputFileOpenDir[FILEPATH_MAX];
+	LPCWSTR title,
+		   title_en = L"Select output directory.",
+		   title_jp = L"出力先のディレクトリを選択してください。";
 
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
 		title = title_jp;
 	else
 		title = title_en;
 
-	if (initflag == 1) {
-		biBuffer[0] = _T('\0');
-		initflag = 0;
-	}
-	ZeroMemory(&bi, sizeof(bi));
-	bi.hwndOwner = hwnd;
-	bi.pidlRoot = NULL;
-	bi.pszDisplayName = biBuffer;
-	bi.lpszTitle = title;
-	bi.ulFlags = 0;
-	bi.lpfn = DlgOpenOutputDirBrowseCallbackProc;
-	bi.lParam = 0;
-	bi.iImage = 0;
-	itemidlist = SHBrowseForFolder(&bi);
+	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, title, Dirname, 0, NULL, &GUID_OutputDirDialog))
+		return -1;
 
-	if (!itemidlist)
-		return -1; /* Cancel */
-
-	SHGetPathFromIDList(itemidlist, Buffer);
-
-	if (itemidlist_pre)
-		CoTaskMemFree(itemidlist_pre);
-	itemidlist_pre = itemidlist;
-
-	char sbuf[FILEPATH_MAX] = "";
-	char *s = tchar_to_char(Buffer);
-	strncpy(sbuf, s, FILEPATH_MAX - 1);
-	safe_free(s);
-	sbuf[FILEPATH_MAX - 1] = '\0';
-	directory_form(sbuf);
-
-	TCHAR *t = char_to_tchar(sbuf);
-	_tcsncpy(Dirname, t, FILEPATH_MAX - 1);
-	safe_free(t);
-	Dirname[FILEPATH_MAX - 1] = _T('\0');
+	directory_form(Dirname);
 	return 0;
 }
 
