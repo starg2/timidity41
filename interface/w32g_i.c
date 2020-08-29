@@ -5183,65 +5183,31 @@ void WINAPI MainThread(void *arglist)
 
 // **************************************************************************
 // Misc Dialog
-#if FILEPATH_MAX < 16536
-#define DialogMaxFileName 16536
-#else
-#define DialogMaxFileName FILEPATH_MAX
-#endif
-static char DialogFileNameBuff[DialogMaxFileName];
-static char *DlgFileOpen(HWND hwnd, const char *title, const char *filter, const char *dir)
-{
-	OPENFILENAME ofn;
-    memset(DialogFileNameBuff, 0, sizeof(DialogFileNameBuff));
-	memset(&ofn, 0, sizeof(OPENFILENAME));
-	ofn.lStructSize = sizeof(OPENFILENAME);
-	ofn.hwndOwner = hwnd;
-	ofn.hInstance = hInst ;
-	ofn.lpstrFilter = filter;
-	ofn.lpstrCustomFilter = NULL;
-	ofn.nMaxCustFilter = 0;
-	ofn.nFilterIndex = 1 ;
-	ofn.lpstrFile = DialogFileNameBuff;
-	ofn.nMaxFile = sizeof(DialogFileNameBuff) / sizeof(DialogFileNameBuff[0]);
-	ofn.lpstrFileTitle = 0;
-	ofn.nMaxFileTitle = 0;
-	ofn.lpstrInitialDir	= dir;
-	ofn.lpstrTitle = title;
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
-		| OFN_ALLOWMULTISELECT | OFN_EXPLORER | OFN_READONLY;
-	ofn.lpstrDefExt = 0;
-	ofn.lCustData = 0;
-	ofn.lpfnHook = 0;
-	ofn.lpTemplateName= 0;
-
-	if(GetOpenFileName(&ofn)==TRUE)
-		return DialogFileNameBuff;
-	else
-		return NULL;
-}
 
 static void DlgMidiFileOpen(HWND hwnd)
 {
-    char *dir, *file;
-    const char *filter,
-        filter_en[] = "timidity file\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
-            "midi file\0*.mid;*.midi;*.smf;*.rmi\0"
-            "rcp file\0*.rcp;*.r36;*.g18;*.g36\0"
-            "mfi file\0*.mld\0"
-            "mod file\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
-            "archive file\0*.lzh;*.zip;*.gz\0"
-            "playlist file\0*.pls;*.m3u;*.asx\0"
-            "all files\0*.*\0"
-            "\0\0",
-        filter_jp[] = "Timidity サポート済みファイル\0*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx\0"
-            "SMF/RMID (*.mid;*.midi;*.smf;*.rmi)\0*.mid;*.midi;*.smf;*.rmi\0"
-            "RCP (*.rcp;*.r36;*.g18;*.g36)\0*.rcp;*.r36;*.g18;*.g36\0"
-            "MFi (*.mld)\0*.mld\0"
-            "MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)\0*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni\0"
-            "圧縮済みアーカイブ (*.lzh;*.zip;*.gz)\0*.lzh;*.zip;*.gz\0"
-            "プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
-            "すべてのファイル (*.*)\0*.*\0"
-            "\0\0";
+	static char files[FILEPATH_MAX];
+    const COMDLG_FILTERSPEC *filter,
+        filter_en[] = {
+			{L"Timidity Files (*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx)", L"*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx"},
+			{L"SMF/RMID (*.mid;*.midi;*.smf;*.rmi)", L"*.mid;*.midi;*.smf;*.rmi"},
+			{L"RCP (*.rcp;*.r36;*.g18;*.g36)", L"*.rcp;*.r36;*.g18;*.g36"},
+			{L"MFi (*.mld)", L"*.mld"},
+			{L"MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)", L"*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni"},
+			{L"Archive Files (*.lzh;*.zip;*.gz)", L"*.lzh;*.zip;*.gz"},
+			{L"Playlist Files (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
+			{L"All Files (*.*)", L"*.*"}
+        },
+		filter_jp[] = {
+			{L"Timidity サポート済みファイル (*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx)", L"*.mid;*.smf;*.rcp;*.r36;*.g18;*.g36;*.rmi;*.mld;*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni;*.lzh;*.zip;*.gz;*.pls;*.m3u;*.asx"},
+			{L"SMF/RMID (*.mid;*.midi;*.smf;*.rmi)", L"*.mid;*.midi;*.smf;*.rmi"},
+			{L"RCP (*.rcp;*.r36;*.g18;*.g36)", L"*.rcp;*.r36;*.g18;*.g36"},
+			{L"MFi (*.mld)", L"*.mld"},
+			{L"MOD (*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni)", L"*.mod;*.xm;*.s3m;*.it;*.669;*.amf;*.dsm;*.far;*.gdm;*.imf;*.med;*.mtm;*.stm;*.stx;*.ult;*.uni"},
+			{L"圧縮済みアーカイブ (*.lzh;*.zip;*.gz)", L"*.lzh;*.zip;*.gz"},
+			{L"プレイリストファイル (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
+			{L"すべてのファイル (*.*)", L"*.*"}
+		};
 
     if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
 		filter = filter_jp;
@@ -5251,72 +5217,33 @@ static void DlgMidiFileOpen(HWND hwnd)
     if(w32g_lock_open_file)
 		return;
 
-    if(MidiFileOpenDir[0])
-		dir = MidiFileOpenDir;
-    else
-		dir = NULL;
-
-	if((file = DlgFileOpen(hwnd, NULL, filter, dir)) == NULL)
+	if(!ShowFileDialog(FILEDIALOG_OPEN_MULTIPLE_FILES, hwnd, NULL, MidiFileOpenDir, files, sizeof(filter_en) / sizeof(filter_en[0]), filter))
 		return;
 
     w32g_lock_open_file = 1;
 #ifdef EXT_CONTROL_MAIN_THREAD
-	w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t)file);
+	w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t)files);
 #else
-	w32g_send_rc(RC_EXT_LOAD_FILE, (ptr_size_t)file);
+	w32g_send_rc(RC_EXT_LOAD_FILE, (ptr_size_t)files);
 #endif
-}
-
-static volatile LPITEMIDLIST itemidlist_pre = NULL;
-int CALLBACK DlgDirOpenBrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
-{
-	switch(uMsg){
-	case BFFM_INITIALIZED:
-		if(itemidlist_pre)
-			SendMessage(hwnd,BFFM_SETSELECTION,(WPARAM)0,(LPARAM)itemidlist_pre);
-		break;
-	default:
-		break;
-	}
-	return 0;
 }
 
 static void DlgDirOpen(HWND hwnd)
 {
-	static int initflag = 1;
-	static char biBuffer[FILEPATH_MAX];
 	static char Buffer[FILEPATH_MAX];
-	BROWSEINFO bi;
-	LPITEMIDLIST itemidlist;
+	LPCWSTR pTitle;
 
 	if(w32g_lock_open_file)
 	    return;
 
-	if(initflag==1){
-		biBuffer[0] = '\0';
-		initflag = 0;
-	}
-	memset(&bi, 0, sizeof(bi));
-	bi.hwndOwner = hwnd;
-	bi.pidlRoot = NULL;
-    bi.pszDisplayName = biBuffer;
 	if ( PlayerLanguage == LANGUAGE_JAPANESE ) 
-		bi.lpszTitle = "MIDI ファイルのあるディレクトリを御選択なされますよう。";
+		pTitle = L"MIDI ファイルのあるディレクトリを御選択なされますよう。";
 	else
-		bi.lpszTitle = "Select a directory with MIDI files.";
-	bi.ulFlags = 0;
-	bi.lpfn = DlgDirOpenBrowseCallbackProc;
-    bi.lParam = 0;
-    bi.iImage = 0;
-	itemidlist = SHBrowseForFolder(&bi);
-	if(!itemidlist)
-		return; /* Cancel */
-	memset(Buffer, 0, sizeof(Buffer));
-	SHGetPathFromIDList(itemidlist, Buffer);
-	strncpy(biBuffer, Buffer, sizeof(Buffer) - 1);
-	if(itemidlist_pre)
-		CoTaskMemFree(itemidlist_pre);
-	itemidlist_pre = itemidlist;
+		pTitle = L"Select a directory with MIDI files.";
+
+	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, pTitle, MidiFileOpenDir, Buffer, 0, NULL))
+		return;
+
     w32g_lock_open_file = 1;
 	directory_form(Buffer);
 #ifdef EXT_CONTROL_MAIN_THREAD
@@ -5447,16 +5374,16 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 static void DlgPlaylistOpen(HWND hwnd)
 {
-    char *dir, *file;
-	const char* filter,
-		filter_en[] =
-			"playlist file\0*.pls;*.m3u;*.asx\0"
-			"all files\0*.*\0"
-			"\0\0",
-		filter_jp[] =
-			"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
-			"すべてのファイル (*.*)\0*.*\0"
-			"\0\0";
+    static char file[FILEPATH_MAX];
+	const COMDLG_FILTERSPEC *filter,
+		filter_en[] = {
+			{L"Playlist Files (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
+			{L"All Files (*.*)", L"*.*"}
+		},
+		filter_jp[] = {
+			{L"プレイリストファイル (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
+			{L"すべてのファイル (*.*)", L"*.*"}
+		};
 
 	if (PlayerLanguage == LANGUAGE_JAPANESE)
 		filter = filter_jp;
@@ -5466,12 +5393,7 @@ static void DlgPlaylistOpen(HWND hwnd)
 	if(w32g_lock_open_file)
 		return;
 
-    if(MidiFileOpenDir[0])
-		dir = MidiFileOpenDir;
-    else
-		dir = NULL;
-
-	if((file = DlgFileOpen(hwnd, NULL, filter, dir)) == NULL)
+	if(!ShowFileDialog(FILEDIALOG_OPEN_MULTIPLE_FILES, hwnd, NULL, PlaylistFileOpenDir, file, sizeof(filter_en) / sizeof(filter_en[0]), filter))
 		return;
 
     w32g_lock_open_file = 1;
@@ -5510,17 +5432,16 @@ static int CheckOverWrite(HWND hwnd, char *filename)
 
 static void DlgPlaylistSave(HWND hwnd)
 {
-	OPENFILENAME ofn;
-	static char *dir;
-	const char* filter,
-		filter_en[] =
-			"playlist file\0*.pls;*.m3u;*.asx\0"
-			"all files\0*.*\0"
-			"\0\0",
-		filter_jp[] =
-			"プレイリストファイル (*.pls;*.m3u;*.asx)\0*.pls;*.m3u;*.asx\0"
-			"すべてのファイル (*.*)\0*.*\0"
-			"\0\0";
+    static char file[FILEPATH_MAX];
+	const COMDLG_FILTERSPEC *filter,
+		filter_en[] = {
+			{L"Playlist Files (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
+			{L"All Files (*.*)", L"*.*"}
+		},
+		filter_jp[] = {
+			{L"プレイリストファイル (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
+			{L"すべてのファイル (*.*)", L"*.*"}
+		};
 
 	if (PlayerLanguage == LANGUAGE_JAPANESE)
 		filter = filter_jp;
@@ -5530,42 +5451,16 @@ static void DlgPlaylistSave(HWND hwnd)
     if(w32g_lock_open_file)
 		return;
 
-    if(MidiFileOpenDir[0])
-		dir = MidiFileOpenDir;
-    else
-		dir = NULL;
-
-	memset(DialogFileNameBuff, 0, sizeof(DialogFileNameBuff));
-	memset(&ofn, 0, sizeof(OPENFILENAME));
-	ofn.lStructSize = sizeof(OPENFILENAME);
-	ofn.hwndOwner = hwnd;
-	ofn.hInstance = hInst;
-	ofn.lpstrFilter = filter;
-	ofn.lpstrCustomFilter = NULL;
-	ofn.nMaxCustFilter = 0;
-	ofn.nFilterIndex = 1 ;
-	ofn.lpstrFile = DialogFileNameBuff;
-	ofn.nMaxFile = sizeof(DialogFileNameBuff);
-	ofn.lpstrFileTitle = NULL;
-	ofn.nMaxFileTitle = 0;
-	ofn.lpstrInitialDir	= dir;
-	ofn.lpstrTitle	= "Save Playlist File";
-	ofn.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_HIDEREADONLY;
-// ofn.lpstrDefExt = 0;
-	ofn.lpstrDefExt = "pls";
-	ofn.lCustData = 0;
-	ofn.lpfnHook = 0;
-	ofn.lpTemplateName= 0;
-
-	if(GetSaveFileName(&ofn) != TRUE)
+	if (!ShowFileDialog(FILEDIALOG_SAVE_FILE, hwnd, NULL, PlaylistFileOpenDir, file, sizeof(filter_en) / sizeof(filter_en[0]), filter))
 		return;
-	if(!CheckOverWrite(hwnd, DialogFileNameBuff))
-		return;
+
+	//if(!CheckOverWrite(hwnd, file))
+	//	return;
     w32g_lock_open_file = 1;
 #ifdef EXT_CONTROL_MAIN_THREAD
-	w32g_ext_control_main_thread(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DialogFileNameBuff);
+	w32g_ext_control_main_thread(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)file);
 #else
-	w32g_send_rc(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)DialogFileNameBuff);
+	w32g_send_rc(RC_EXT_SAVE_PLAYLIST, (ptr_size_t)file);
 #endif
 }
 

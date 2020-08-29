@@ -1603,20 +1603,19 @@ static void ISEditorWndCreatePage(HWND hwnd, UINT page)
 
 static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 {
-        OPENFILENAMEA ofn;
-        char filename[FILEPATH_MAX];
-        static char dir[FILEPATH_MAX];
-        int res;
-        const char *filter,
-                   *filter_en = "Ini file (*.ini)\0*.ini\0"
-                                "All files (*.*)\0*.*\0"
-                                "\0\0",
-                   *filter_jp = "Ini ファイル (*.ini)\0*.ini\0"
-                                "すべてのファイル (*.*)\0*.*\0"
-                                "\0\0";
-        const char *title,
-                   *title_en = "Open Ini File",
-                   *title_jp = "Iniファイルを開く";
+		char filename[FILEPATH_MAX];
+        const COMDLG_FILTERSPEC *filter,
+			filter_en[] = {
+				{L"Ini file (*.ini)", L"*.ini"},
+				{L"All files (*.*)", L"*.*"}
+			},
+			filter_jp[] = {
+				{L"Ini ファイル (*.ini)", L"*.ini"},
+				{L"すべてのファイル (*.*)", L"*.*"}
+			};
+        LPCWSTR title,
+                   title_en = L"Open Ini File",
+                   title_jp = L"Iniファイルを開く";
 
         if (PlayerLanguage == LANGUAGE_JAPANESE) {
                 filter = filter_jp;
@@ -1628,41 +1627,13 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
         }
         if (ISIniFileOpenDir[0] == '\0')
                 strncpy(ISIniFileOpenDir, ConfigFileOpenDir, FILEPATH_MAX);
-        strncpy(dir, ISIniFileOpenDir, FILEPATH_MAX);
-        dir[FILEPATH_MAX - 1] = '\0';
         strncpy(filename, Filename, FILEPATH_MAX);
         filename[FILEPATH_MAX - 1] = '\0';
         if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
                 strlcat(filename, "int_synth.ini", FILEPATH_MAX);
         }
-        ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
-        ofn.lStructSize = sizeof(OPENFILENAMEA);
-        ofn.hwndOwner = hwnd;
-        ofn.hInstance = hInst;
-        ofn.lpstrFilter = filter;
-        ofn.lpstrCustomFilter = NULL;
-        ofn.nMaxCustFilter = 0;
-        ofn.nFilterIndex = 1;
-        ofn.lpstrFile = filename;
-        ofn.nMaxFile = FILEPATH_MAX;
-        ofn.lpstrFileTitle = NULL;
-        ofn.nMaxFileTitle = 0;
-        if (dir[0] != '\0')
-                ofn.lpstrInitialDir     = dir;
-        else
-                ofn.lpstrInitialDir     = 0;
-        ofn.lpstrTitle  = title;
-        ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER
-        | OFN_READONLY | OFN_HIDEREADONLY;
-        ofn.lpstrDefExt = 0;
-        ofn.lCustData = 0;
-        ofn.lpfnHook = 0;
-        ofn.lpTemplateName = 0;
 
-        res = SafeGetOpenFileName(&ofn);
-        strncpy(ISIniFileOpenDir, dir, FILEPATH_MAX);
-        ISIniFileOpenDir[FILEPATH_MAX - 1] = '\0';
-        if (res != FALSE) {
+		if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, ISIniFileOpenDir, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter)) {
                 strncpy(Filename, filename, FILEPATH_MAX);
                 Filename[FILEPATH_MAX - 1] = '\0';
                 return 0;
