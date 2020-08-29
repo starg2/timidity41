@@ -1668,12 +1668,13 @@ BOOL ShowFileDialog(
 						pBuffer,
 						-1,
 						pResult,
-						FILEPATH_MAX - 1,
+						FILEPATH_MAX - 2,
 						NULL,
 						NULL
 					);
 
 					pResult[c] = '\0';
+					pResult[c + 1] = '\0';
 					CoTaskMemFree(pBuffer);
 				}
 
