@@ -6016,6 +6016,7 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
     LPCWSTR title,
            title_en = L"Open Config File",
            title_jp = L"Config ファイルを開く";
+	char filename[FILEPATH_MAX];
 
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE) {
 		filter = filter_jp;
@@ -6026,9 +6027,17 @@ static int DlgOpenConfigFile(TCHAR *Filename, HWND hwnd)
 		title = title_en;
 	}
 
-	if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, Filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_ConfigFileOpenDialog))
+	char *s = tchar_to_char(Filename);
+	strncpy(filename, s, FILEPATH_MAX - 1);
+	safe_free(s);
+	filename[FILEPATH_MAX - 1] = '\0';
+	if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_ConfigFileOpenDialog)) {
+		TCHAR *t = char_to_tchar(filename);
+		_tcsncpy(Filename, t, FILEPATH_MAX - 1);
+		safe_free(t);
+		Filename[FILEPATH_MAX - 1] = _T('\0');
 		return 0;
-	else {
+	} else {
 		Filename[0] = _T('\0');
 		return -1;
 	}
@@ -6040,7 +6049,6 @@ static int DlgOpenOutputFile(TCHAR *Filename, HWND hwnd)
 	static const GUID GUID_OutputFileDialog =
 	{ 0x9237cb29, 0x664b, 0x40ca, { 0x83, 0x36, 0x4c, 0x8d, 0x58, 0x47, 0x5c, 0x1e } };
 	char filename[FILEPATH_MAX];
-	static char OutputFileOpenDir[FILEPATH_MAX];
 	const COMDLG_FILTERSPEC *filter,
 		filter_en[] = {
 			{L"Wave Files (*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio)", L"*.wav;*.wave;*.aif;*.aiff;*.aifc;*.au;*.snd;*.audio"},
@@ -6063,15 +6071,19 @@ static int DlgOpenOutputFile(TCHAR *Filename, HWND hwnd)
 		title = title_en;
 	}
 
-	strncpy(filename, Filename, FILEPATH_MAX);
+	char *s = tchar_to_char(Filename);
+	strncpy(filename, s, FILEPATH_MAX);
+	safe_free(s);
 	filename[FILEPATH_MAX - 1] = '\0';
 	if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
 		strlcat(filename, "output.wav", FILEPATH_MAX);
 	}
 
 	if (ShowFileDialog(FILEDIALOG_SAVE_FILE, hwnd, title, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_OutputFileDialog)) {
-		strncpy(Filename, filename, FILEPATH_MAX);
-		Filename[FILEPATH_MAX - 1] = '\0';
+		TCHAR *t = char_to_tchar(filename);
+		_tcsncpy(Filename, t, FILEPATH_MAX);
+		safe_free(t);
+		Filename[FILEPATH_MAX - 1] = _T('\0');
 		return 0;
 	} else {
 		Filename[0] = _T('\0');
@@ -6084,7 +6096,7 @@ static int DlgOpenOutputDir(TCHAR *Dirname, HWND hwnd)
 	// {E4E528CA-6985-4652-AC3D-A9C0B9327C30}
 	static const GUID GUID_OutputDirDialog =
 	{ 0xe4e528ca, 0x6985, 0x4652, { 0xac, 0x3d, 0xa9, 0xc0, 0xb9, 0x32, 0x7c, 0x30 } };
-	static char OutputFileOpenDir[FILEPATH_MAX];
+	char dir[FILEPATH_MAX];
 	LPCWSTR title,
 		   title_en = L"Select output directory.",
 		   title_jp = L"出力先のディレクトリを選択してください。";
@@ -6094,10 +6106,18 @@ static int DlgOpenOutputDir(TCHAR *Dirname, HWND hwnd)
 	else
 		title = title_en;
 
-	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, title, Dirname, 0, NULL, &GUID_OutputDirDialog))
+	char* s = tchar_to_char(Dirname);
+	strncpy(dir, s, FILEPATH_MAX - 1);
+	safe_free(s);
+	dir[FILEPATH_MAX - 1] = '\0';
+	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, title, dir, 0, NULL, &GUID_OutputDirDialog))
 		return -1;
 
-	directory_form(Dirname);
+	directory_form(dir);
+	TCHAR* t = char_to_tchar(dir);
+	_tcsncpy(Dirname, t, FILEPATH_MAX - 1);
+	safe_free(t);
+	Dirname[FILEPATH_MAX - 1] = _T('\0');
 	return 0;
 }
 

@@ -5247,10 +5247,6 @@ static void DlgDirOpen(HWND hwnd)
 		return;
 
     w32g_lock_open_file = 1;
-	char *s = tchar_to_char(tBuffer);
-	strncpy(Buffer, s, sizeof(Buffer) / sizeof(char) - 1);
-	safe_free(s);
-	Buffer[sizeof(Buffer) / sizeof(char) - 1] = '\0';
 	directory_form(Buffer);
 #ifdef EXT_CONTROL_MAIN_THREAD
 	w32g_ext_control_main_thread(RC_EXT_LOAD_FILE, (ptr_size_t)Buffer);

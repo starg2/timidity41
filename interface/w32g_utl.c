@@ -1773,7 +1773,11 @@ BOOL ShowFileDialog(
 								}
 
 								int c = WideCharToMultiByte(
+#ifdef UNICODE
+									CP_UTF8,
+#else
 									CP_ACP,
+#endif
 									0,
 									pBuffer,
 									len + 1, // including terminating null character
@@ -1806,7 +1810,11 @@ BOOL ShowFileDialog(
 
 				if (SUCCEEDED(pShellItem->lpVtbl->GetDisplayName(pShellItem, SIGDN_FILESYSPATH, &pBuffer))) {
 					int c = WideCharToMultiByte(
+#ifdef UNICODE
+						CP_UTF8,
+#else
 						CP_ACP,
+#endif
 						0,
 						pBuffer,
 						-1,
@@ -1828,7 +1836,6 @@ BOOL ShowFileDialog(
 	pFileDialog->lpVtbl->Release(pFileDialog);
 	return hr == S_OK;
 }
-#endif
 
 #if 0
 /*
