@@ -351,10 +351,10 @@ extern BOOL ShowFileDialog(
 	int mode,
 	HWND hParentWindow,
 	LPCWSTR pTitle,
-	char *pDirectory,
 	char *pResult,
 	UINT filterCount,
-	const COMDLG_FILTERSPEC *pFilters
+	const COMDLG_FILTERSPEC *pFilters,
+	REFGUID guid
 );
 
 #if 0

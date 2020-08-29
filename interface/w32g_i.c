@@ -5186,6 +5186,9 @@ void WINAPI MainThread(void *arglist)
 
 static void DlgMidiFileOpen(HWND hwnd)
 {
+	// {77FE1E25-2195-4345-BA0F-4B51C6FA6D7B}
+	static const GUID GUID_MidiFileDialog =
+	{ 0x77fe1e25, 0x2195, 0x4345, { 0xba, 0xf, 0x4b, 0x51, 0xc6, 0xfa, 0x6d, 0x7b } };
 	static char files[FILEPATH_MAX];
     const COMDLG_FILTERSPEC *filter,
         filter_en[] = {
@@ -5217,7 +5220,7 @@ static void DlgMidiFileOpen(HWND hwnd)
     if(w32g_lock_open_file)
 		return;
 
-	if(!ShowFileDialog(FILEDIALOG_OPEN_MULTIPLE_FILES, hwnd, NULL, MidiFileOpenDir, files, sizeof(filter_en) / sizeof(filter_en[0]), filter))
+	if(!ShowFileDialog(FILEDIALOG_OPEN_MULTIPLE_FILES, hwnd, NULL, files, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_MidiFileDialog))
 		return;
 
     w32g_lock_open_file = 1;
@@ -5230,6 +5233,9 @@ static void DlgMidiFileOpen(HWND hwnd)
 
 static void DlgDirOpen(HWND hwnd)
 {
+	// {BF88E8E0-D7F7-4C46-A0C9-F920EAAD26F6}
+	static const GUID GUID_DirDialog =
+	{ 0xbf88e8e0, 0xd7f7, 0x4c46, { 0xa0, 0xc9, 0xf9, 0x20, 0xea, 0xad, 0x26, 0xf6 } };
 	static char Buffer[FILEPATH_MAX];
 	LPCWSTR pTitle;
 
@@ -5241,7 +5247,7 @@ static void DlgDirOpen(HWND hwnd)
 	else
 		pTitle = L"Select a directory with MIDI files.";
 
-	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, pTitle, MidiFileOpenDir, Buffer, 0, NULL))
+	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, pTitle, Buffer, 0, NULL, &GUID_DirDialog))
 		return;
 
     w32g_lock_open_file = 1;
@@ -5374,7 +5380,10 @@ UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 static void DlgPlaylistOpen(HWND hwnd)
 {
-    static char file[FILEPATH_MAX];
+	// {85FC24EC-732B-418F-A496-E69C6149A6F9}
+	static const GUID GUID_PlaylistOpenDialog =
+	{ 0x85fc24ec, 0x732b, 0x418f, { 0xa4, 0x96, 0xe6, 0x9c, 0x61, 0x49, 0xa6, 0xf9 } };
+	static char file[FILEPATH_MAX];
 	const COMDLG_FILTERSPEC *filter,
 		filter_en[] = {
 			{L"Playlist Files (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
@@ -5393,7 +5402,7 @@ static void DlgPlaylistOpen(HWND hwnd)
 	if(w32g_lock_open_file)
 		return;
 
-	if(!ShowFileDialog(FILEDIALOG_OPEN_MULTIPLE_FILES, hwnd, NULL, PlaylistFileOpenDir, file, sizeof(filter_en) / sizeof(filter_en[0]), filter))
+	if(!ShowFileDialog(FILEDIALOG_OPEN_MULTIPLE_FILES, hwnd, NULL, file, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_PlaylistOpenDialog))
 		return;
 
     w32g_lock_open_file = 1;
@@ -5432,7 +5441,10 @@ static int CheckOverWrite(HWND hwnd, char *filename)
 
 static void DlgPlaylistSave(HWND hwnd)
 {
-    static char file[FILEPATH_MAX];
+	// {79254194-CB57-46BE-8ED6-740CBB8AF41F}
+	static const GUID GUID_PlaylistSaveDialog =
+	{ 0x79254194, 0xcb57, 0x46be, { 0x8e, 0xd6, 0x74, 0xc, 0xbb, 0x8a, 0xf4, 0x1f } };
+	static char file[FILEPATH_MAX];
 	const COMDLG_FILTERSPEC *filter,
 		filter_en[] = {
 			{L"Playlist Files (*.pls;*.m3u;*.asx)", L"*.pls;*.m3u;*.asx"},
@@ -5451,7 +5463,7 @@ static void DlgPlaylistSave(HWND hwnd)
     if(w32g_lock_open_file)
 		return;
 
-	if (!ShowFileDialog(FILEDIALOG_SAVE_FILE, hwnd, NULL, PlaylistFileOpenDir, file, sizeof(filter_en) / sizeof(filter_en[0]), filter))
+	if (!ShowFileDialog(FILEDIALOG_SAVE_FILE, hwnd, NULL, file, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_PlaylistSaveDialog))
 		return;
 
 	//if(!CheckOverWrite(hwnd, file))

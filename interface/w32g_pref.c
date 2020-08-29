@@ -5929,7 +5929,10 @@ BOOL IsVisiblePrefWnd ( void )
 
 static int DlgOpenConfigFile(char *Filename, HWND hwnd)
 {
-    const COMDLG_FILTERSPEC *filter,
+	// {4F9BC9AC-6831-4A74-B380-E1FD6C985F5E}
+	static const GUID GUID_ConfigFileOpenDialog =
+	{ 0x4f9bc9ac, 0x6831, 0x4a74, { 0xb3, 0x80, 0xe1, 0xfd, 0x6c, 0x98, 0x5f, 0x5e } };
+	const COMDLG_FILTERSPEC *filter,
 		filter_en[] = {
 			{L"All Supported files (*.cfg;*.config;*.sf2;*.sf3)", L"*.cfg;*.config;*.sf2;*.sf3"},
 			{L"SoundFont file (*.sf2;*.sf3)", L"*.sf2;*.sf3"},
@@ -5955,7 +5958,7 @@ static int DlgOpenConfigFile(char *Filename, HWND hwnd)
 		title = title_en;
 	}
 
-	if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, ConfigFileOpenDir, Filename, sizeof(filter_en) / sizeof(filter_en[0]), filter))
+	if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, Filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_ConfigFileOpenDialog))
 		return 0;
 	else {
 		Filename[0] = '\0';
@@ -5965,6 +5968,9 @@ static int DlgOpenConfigFile(char *Filename, HWND hwnd)
 
 static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 {
+	// {9237CB29-664B-40CA-8336-4C8D58475C1E}
+	static const GUID GUID_OutputFileDialog =
+	{ 0x9237cb29, 0x664b, 0x40ca, { 0x83, 0x36, 0x4c, 0x8d, 0x58, 0x47, 0x5c, 0x1e } };
 	char filename[FILEPATH_MAX];
 	static char OutputFileOpenDir[FILEPATH_MAX];
 	const COMDLG_FILTERSPEC *filter,
@@ -5995,7 +6001,7 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 		strlcat(filename, "output.wav", FILEPATH_MAX);
 	}
 
-	if (ShowFileDialog(FILEDIALOG_SAVE_FILE, hwnd, title, OutputFileOpenDir, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter)) {
+	if (ShowFileDialog(FILEDIALOG_SAVE_FILE, hwnd, title, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_OutputFileDialog)) {
 		strncpy(Filename, filename, FILEPATH_MAX);
 		Filename[FILEPATH_MAX - 1] = '\0';
 		return 0;
@@ -6007,6 +6013,9 @@ static int DlgOpenOutputFile(char *Filename, HWND hwnd)
 
 static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 {
+	// {E4E528CA-6985-4652-AC3D-A9C0B9327C30}
+	static const GUID GUID_OutputDirDialog =
+	{ 0xe4e528ca, 0x6985, 0x4652, { 0xac, 0x3d, 0xa9, 0xc0, 0xb9, 0x32, 0x7c, 0x30 } };
 	static char OutputFileOpenDir[FILEPATH_MAX];
 	LPCWSTR title,
 		   title_en = L"Select output directory.",
@@ -6017,7 +6026,7 @@ static int DlgOpenOutputDir(char *Dirname, HWND hwnd)
 	else
 		title = title_en;
 
-	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, title, OutputFileOpenDir, Dirname, 0, NULL))
+	if (!ShowFileDialog(FILEDIALOG_OPEN_FOLDER, hwnd, title, Dirname, 0, NULL, &GUID_OutputDirDialog))
 		return -1;
 
 	directory_form(Dirname);

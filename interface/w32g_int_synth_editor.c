@@ -1603,6 +1603,9 @@ static void ISEditorWndCreatePage(HWND hwnd, UINT page)
 
 static int DlgOpenISIniFile(char *Filename, HWND hwnd)
 {
+		// {9D0D50B8-C6A4-471E-A6F7-7913597CE3E0}
+		static const GUID GUID_ISIniFileDialog = 
+		{ 0x9d0d50b8, 0xc6a4, 0x471e, { 0xa6, 0xf7, 0x79, 0x13, 0x59, 0x7c, 0xe3, 0xe0 } };
 		char filename[FILEPATH_MAX];
         const COMDLG_FILTERSPEC *filter,
 			filter_en[] = {
@@ -1625,15 +1628,13 @@ static int DlgOpenISIniFile(char *Filename, HWND hwnd)
                 filter = filter_en;
                 title = title_en;
         }
-        if (ISIniFileOpenDir[0] == '\0')
-                strncpy(ISIniFileOpenDir, ConfigFileOpenDir, FILEPATH_MAX);
         strncpy(filename, Filename, FILEPATH_MAX);
         filename[FILEPATH_MAX - 1] = '\0';
         if (strlen(filename) > 0 && IS_PATH_SEP(filename[strlen(filename) - 1])) {
                 strlcat(filename, "int_synth.ini", FILEPATH_MAX);
         }
 
-		if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, ISIniFileOpenDir, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter)) {
+		if (ShowFileDialog(FILEDIALOG_OPEN_FILE, hwnd, title, filename, sizeof(filter_en) / sizeof(filter_en[0]), filter, &GUID_ISIniFileDialog)) {
                 strncpy(Filename, filename, FILEPATH_MAX);
                 Filename[FILEPATH_MAX - 1] = '\0';
                 return 0;

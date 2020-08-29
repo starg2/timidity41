@@ -1553,10 +1553,10 @@ BOOL ShowFileDialog(
 	int mode,
 	HWND hParentWindow,
 	LPCWSTR pTitle,
-	char *pDirectory,
 	char *pResult,
 	UINT filterCount,
-	const COMDLG_FILTERSPEC *pFilters
+	const COMDLG_FILTERSPEC *pFilters,
+	REFGUID guid
 )
 {
 	IFileDialog *pFileDialog = NULL;
@@ -1571,27 +1571,11 @@ BOOL ShowFileDialog(
 	if (FAILED(hr))
 		return FALSE;
 
+	if (guid)
+		pFileDialog->lpVtbl->SetClientGuid(pFileDialog, guid);
+
 	if (pTitle)
 		pFileDialog->lpVtbl->SetTitle(pFileDialog, pTitle);
-
-	if (pDirectory && pDirectory[0]) {
-		wchar_t wbuffer[FILEPATH_MAX];
-		IShellItem *pShellItem;
-
-		MultiByteToWideChar(
-			CP_ACP,
-			0,
-			pDirectory,
-			-1,
-			wbuffer,
-			FILEPATH_MAX
-		);
-
-		if (SUCCEEDED(SHCreateItemFromParsingName(wbuffer, NULL, &IID_IShellItem, (void**)&pShellItem))) {
-			pFileDialog->lpVtbl->SetFolder(pFileDialog, pShellItem);
-			pShellItem->lpVtbl->Release(pShellItem);
-		}
-	}
 
 	if (filterCount > 0 && pFilters)
 		pFileDialog->lpVtbl->SetFileTypes(pFileDialog, filterCount, pFilters);
@@ -1694,17 +1678,6 @@ BOOL ShowFileDialog(
 				}
 
 				pShellItem->lpVtbl->Release(pShellItem);
-			}
-		}
-
-		if (pDirectory) {
-			strcpy(pDirectory, pResult);
-
-			if (mode == FILEDIALOG_OPEN_FILE || mode == FILEDIALOG_SAVE_FILE) {
-				char *p = pathsep_strrchr(pDirectory);
-
-				if (p)
-					*p = '\0';
 			}
 		}
 	}
