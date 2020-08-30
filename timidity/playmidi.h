@@ -489,6 +489,10 @@ typedef struct {
 
   int32 *seq_counters[MAX_ELEMENT];
   int seq_num_counters[MAX_ELEMENT];
+
+  uint32 key_pressed[4]; /* 128 bit vector */
+  int32 key_history[128];
+  int32 last_key_history_index;
 } Channel;
 
 /* Causes the instrument's default panning to be used. */

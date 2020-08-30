@@ -89,6 +89,9 @@ typedef struct _Sample {
   // crossfade
   int8 xfmode_key, xfin_lokey, xfin_hikey, xfout_lokey, xfout_hikey;
   int8 xfmode_vel, xfin_lovel, xfin_hivel, xfout_lovel, xfout_hivel;
+
+  // keyswitches (requires MODES_KEYSWITCHES)
+  int8 sw_lokey, sw_hikey, sw_default, sw_down, sw_up, sw_previous, sw_lolast, sw_hilast;
 } Sample;
 
 ///r
@@ -118,6 +121,7 @@ enum {
 #define MODES_TRIGGER_RANDOM      (1<<9)
 #define MODES_NO_NOTEOFF          (1<<10)
 #define MODES_TRIGGER_RELEASE     (1<<11)
+#define MODES_KEYSWITCH           (1<<12)
 
 #define INST_GUS	0
 #define INST_SF2	1

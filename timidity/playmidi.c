@@ -388,7 +388,7 @@ static void update_rpn_map(int ch, int addr, int update_now);
 static void ctl_prog_event(int ch);
 ///r
 static void ctl_note_event(int noteID);
-static void ctl_note_event2(uint8 channel, uint8 note, uint8 status, uint8 velocity);
+static void ctl_note_event2(uint8 ch, uint8 note, uint8 status, uint8 velocity);
 static void ctl_timestamp(void);
 static void ctl_updatetime(int32 samples);
 static void ctl_pause_event(int pause, int32 samples);
@@ -722,6 +722,9 @@ void free_playmidi(void)
 #endif
 	
 	for(i = 0; i < MAX_CHANNELS; i++){
+		memset(channel[i].key_history, 0, sizeof(channel[i].key_history));
+		channel[i].last_key_history_index = 0;
+
 		for (j = 0; j < MAX_ELEMENT; j++) {
 			safe_free(channel[i].seq_counters[j]);
 			channel[i].seq_counters[j] = NULL;
@@ -1254,6 +1257,10 @@ static void initialize_controllers(int c)
 	memset(channel[c].reverb_part_param, 0, sizeof(channel[c].reverb_part_param));
 	channel[c].reverb_part_efx_level = 100;
 	
+	memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
+	memset(channel[c].key_history, 0, sizeof(channel[c].key_history));
+	channel[c].last_key_history_index = 0;
+
 	for (i = 0; i < MAX_ELEMENT; i++) {
 		safe_free(channel[c].seq_counters[i]);
 		channel[c].seq_counters[i] = NULL;
@@ -1276,6 +1283,16 @@ static void reset_controllers(int c)
 	channel[c].lastlrpn = channel[c].lastmrpn = 0;
 	channel[c].nrpn = -1;
 	channel[c].rpn_7f7f_flag = 1;
+
+	memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
+	memset(channel[c].key_history, 0, sizeof(channel[c].key_history));
+	channel[c].last_key_history_index = 0;
+
+	for (int i = 0; i < MAX_ELEMENT; i++) {
+		safe_free(channel[c].seq_counters[i]);
+		channel[c].seq_counters[i] = NULL;
+		channel[c].seq_num_counters[i] = 0;
+	}
 }
 
 static void redraw_controllers(int c)
@@ -3454,6 +3471,38 @@ static int select_play_sample(Sample *splist,
 		if (((sp->low_key <= *note && sp->high_key >= *note))
 			&& sp->low_vel <= vel && sp->high_vel >= vel) {	
 
+			if (sp->modes & MODES_KEYSWITCH) {
+				if (sp->sw_down >= 0 && !(channel[ch].key_pressed[sp->sw_down >> 5] & (1 << (sp->sw_down & 31))))
+					continue;
+				if (sp->sw_up >= 0 && (channel[ch].key_pressed[sp->sw_up >> 5] & (1 << (sp->sw_up & 31))))
+					continue;
+
+				if (sp->sw_lolast >= 0 || sp->sw_previous >= 0) {
+					// TODO: check if sw_default applies to sw_previous as well
+					int8 last = sp->sw_default, prev = -1;
+					int32 last_index = 0, prev_index = 0;
+
+					if (channel[ch].key_history) {
+						for (int j = 0; j < 128; j++) {
+							if (sp->sw_lokey <= j && j <= sp->sw_hikey && channel[ch].key_history[j] > last_index) {
+								last = j;
+								last_index = channel[ch].key_history[j];
+							}
+
+							if (channel[ch].key_history[j] > prev_index) {
+								prev = j;
+								prev_index = channel[ch].key_history[j];
+							}
+						}
+					}
+
+					if (sp->sw_lolast >= 0 && !(sp->sw_lolast <= last && last <= sp->sw_hilast))
+						continue;
+					if (sp->sw_previous >= 0 && prev != sp->sw_previous)
+						continue;
+				}
+			}
+
 			if (sp->modes & MODES_TRIGGER_RANDOM) {
 				if (!rand_calculated) {
 					rand_val = genrand_real2();
@@ -3493,6 +3542,9 @@ static int select_play_sample(Sample *splist,
 			nv++;
 		}
 	}
+
+	channel[ch].last_key_history_index++;
+	channel[ch].key_history[*note] = channel[ch].last_key_history_index;
 	// move to find_samples() (for add_elm
 	//if(nv == 0)
 	//	ctl->cmsg(CMSG_WARNING, VERB_NOISY, 
@@ -4687,6 +4739,8 @@ static void note_on(MidiEvent *e)
 	ch = e->channel;
 	note = MIDI_EVENT_NOTE(e);
 	
+	channel[ch].key_pressed[note >> 5] |= 1 << (note & 31);
+
 	if(dr &&  channel[ch].drums[note] != NULL &&
 	   !get_rx_drum(channel[ch].drums[note], RX_NOTE_ON)) {	/* Rx. Note On */
 		return;
@@ -4784,6 +4838,8 @@ static void note_off(MidiEvent *e)
   ch = e->channel;
   note = MIDI_EVENT_NOTE(e);
 
+  channel[ch].key_pressed[note >> 5] &= ~(1 << (note & 31));
+
   if(ISDRUMCHANNEL(ch))
   {
       int nbank, nprog;
@@ -4875,6 +4931,8 @@ static void all_notes_off(int c)
       }
   for(i = 0; i < 128; i++)
       vidq_head[c * 128 + i] = vidq_tail[c * 128 + i] = 0;
+
+  memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
 }
 
 /* Process the All Sounds Off event */
@@ -4889,6 +4947,7 @@ static void all_sounds_off(int c)
       }
   for(i = 0; i < 128; i++)
       vidq_head[c * 128 + i] = vidq_tail[c * 128 + i] = 0;
+  memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
 }
 
 /*! adjust polyphonic key pressure (PAf, PAT) */
@@ -6000,6 +6059,8 @@ void midi_program_change(int ch, int prog)
 		break;
 	}
 	
+	memset(channel[ch].key_history, 0, sizeof(channel[ch].key_history));
+	channel[ch].last_key_history_index = 0;
 	{
 		int i;
 		for (i = 0; i < MAX_ELEMENT; i++) {
@@ -13869,26 +13930,16 @@ void ctl_mode_event(int type, int trace, ptr_size_t arg1, ptr_size_t arg2)
 
 static void ctl_note_event(int noteID)
 {
-    CtlEvent ce;
-
-    ce.type = CTLE_NOTE;
-    ce.v1 = voice[noteID].status;
-    ce.v2 = voice[noteID].channel;
-    ce.v3 = voice[noteID].note;
-    ce.v4 = voice[noteID].velocity;
-    if(ctl->trace_playing)
-	push_midi_trace_ce(ctl->event, &ce);
-    else
-	ctl->event(&ce);
+	ctl_note_event2(voice[noteID].channel, voice[noteID].note, voice[noteID].status, voice[noteID].velocity);
 }
 ///r
-static void ctl_note_event2(uint8 channel, uint8 note, uint8 status, uint8 velocity)
+static void ctl_note_event2(uint8 ch, uint8 note, uint8 status, uint8 velocity)
 {
     CtlEvent ce;
 
     ce.type = CTLE_NOTE;
     ce.v1 = status;
-    ce.v2 = channel;
+    ce.v2 = ch;
     ce.v3 = note;
     ce.v4 = velocity;
     if(ctl->trace_playing)
