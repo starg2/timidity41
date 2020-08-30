@@ -722,11 +722,8 @@ void free_playmidi(void)
 #endif
 	
 	for(i = 0; i < MAX_CHANNELS; i++){
-		if (channel[i].key_history) {
-			safe_free(channel[i].key_history);
-			channel[i].key_history = NULL;
-			channel[i].last_key_history_index = 0;
-		}
+		memset(channel[i].key_history, 0, sizeof(channel[i].key_history));
+		channel[i].last_key_history_index = 0;
 
 		for (j = 0; j < MAX_ELEMENT; j++) {
 			safe_free(channel[i].seq_counters[j]);
@@ -1260,13 +1257,11 @@ static void initialize_controllers(int c)
 	memset(channel[c].reverb_part_param, 0, sizeof(channel[c].reverb_part_param));
 	channel[c].reverb_part_efx_level = 100;
 	
-	for (i = 0; i < MAX_ELEMENT; i++) {
-		if (channel[i].key_history) {
-			safe_free(channel[i].key_history);
-			channel[i].key_history = NULL;
-			channel[i].last_key_history_index = 0;
-		}
+	memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
+	memset(channel[c].key_history, 0, sizeof(channel[c].key_history));
+	channel[c].last_key_history_index = 0;
 
+	for (i = 0; i < MAX_ELEMENT; i++) {
 		safe_free(channel[c].seq_counters[i]);
 		channel[c].seq_counters[i] = NULL;
 		channel[c].seq_num_counters[i] = 0;
@@ -1289,13 +1284,11 @@ static void reset_controllers(int c)
 	channel[c].nrpn = -1;
 	channel[c].rpn_7f7f_flag = 1;
 
-	for (int i = 0; i < MAX_ELEMENT; i++) {
-		if (channel[i].key_history) {
-			safe_free(channel[i].key_history);
-			channel[i].key_history = NULL;
-			channel[i].last_key_history_index = 0;
-		}
+	memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
+	memset(channel[c].key_history, 0, sizeof(channel[c].key_history));
+	channel[c].last_key_history_index = 0;
 
+	for (int i = 0; i < MAX_ELEMENT; i++) {
 		safe_free(channel[c].seq_counters[i]);
 		channel[c].seq_counters[i] = NULL;
 		channel[c].seq_num_counters[i] = 0;
@@ -3547,16 +3540,11 @@ static int select_play_sample(Sample *splist,
 			voice[j].sample = sp;
 			voice[j].status = (sp->modes & MODES_TRIGGER_RELEASE ? VOICE_PENDING : VOICE_ON);
 			nv++;
-
-			if ((sp->modes & MODES_KEYSWITCH) && (sp->sw_lolast >= 0 || sp->sw_previous >= 0)) { // key_history required
-				if (!channel[ch].key_history)
-					channel[ch].key_history = (int32 *)safe_calloc(sizeof(int32), 128);
-
-				channel[ch].last_key_history_index++;
-				channel[ch].key_history[*note] = channel[ch].last_key_history_index;
-			}
 		}
 	}
+
+	channel[ch].last_key_history_index++;
+	channel[ch].key_history[*note] = channel[ch].last_key_history_index;
 	// move to find_samples() (for add_elm
 	//if(nv == 0)
 	//	ctl->cmsg(CMSG_WARNING, VERB_NOISY, 
@@ -4751,6 +4739,8 @@ static void note_on(MidiEvent *e)
 	ch = e->channel;
 	note = MIDI_EVENT_NOTE(e);
 	
+	channel[ch].key_pressed[note >> 5] |= 1 << (note & 31);
+
 	if(dr &&  channel[ch].drums[note] != NULL &&
 	   !get_rx_drum(channel[ch].drums[note], RX_NOTE_ON)) {	/* Rx. Note On */
 		return;
@@ -4848,6 +4838,8 @@ static void note_off(MidiEvent *e)
   ch = e->channel;
   note = MIDI_EVENT_NOTE(e);
 
+  channel[ch].key_pressed[note >> 5] &= ~(1 << (note & 31));
+
   if(ISDRUMCHANNEL(ch))
   {
       int nbank, nprog;
@@ -4939,6 +4931,8 @@ static void all_notes_off(int c)
       }
   for(i = 0; i < 128; i++)
       vidq_head[c * 128 + i] = vidq_tail[c * 128 + i] = 0;
+
+  memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
 }
 
 /* Process the All Sounds Off event */
@@ -4953,6 +4947,7 @@ static void all_sounds_off(int c)
       }
   for(i = 0; i < 128; i++)
       vidq_head[c * 128 + i] = vidq_tail[c * 128 + i] = 0;
+  memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
 }
 
 /*! adjust polyphonic key pressure (PAf, PAT) */
@@ -6064,15 +6059,11 @@ void midi_program_change(int ch, int prog)
 		break;
 	}
 	
+	memset(channel[ch].key_history, 0, sizeof(channel[ch].key_history));
+	channel[ch].last_key_history_index = 0;
 	{
 		int i;
 		for (i = 0; i < MAX_ELEMENT; i++) {
-			if (channel[i].key_history) {
-				safe_free(channel[i].key_history);
-				channel[i].key_history = NULL;
-				channel[i].last_key_history_index = 0;
-			}
-
 			safe_free(channel[ch].seq_counters[i]);
 			channel[ch].seq_counters[i] = NULL;
 			channel[ch].seq_num_counters[i] = 0;
@@ -13955,11 +13946,6 @@ static void ctl_note_event2(uint8 ch, uint8 note, uint8 status, uint8 velocity)
 	push_midi_trace_ce(ctl->event, &ce);
     else
 	ctl->event(&ce);
-
-	if (status & (VOICE_PENDING | VOICE_ON))
-		channel[ch].key_pressed[note >> 5] |= 1 << (note & 31);
-	else
-		channel[ch].key_pressed[note >> 5] &= ~(1 << (note & 31));
 }
 
 static void ctl_timestamp(void)
