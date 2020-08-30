@@ -845,6 +845,15 @@ enum class OpCodeKind
     Sample,
     SequenceLength,
     SequencePosition,
+    SwDefault,
+    SwDown,
+    SwHiLast,
+    SwHiKey,
+    SwLast,
+    SwLoLast,
+    SwLoKey,
+    SwPrevious,
+    SwUp,
     Transpose,
     Trigger,
     Tune,
@@ -997,6 +1006,15 @@ public:
                         case OpCodeKind::LoKey:
                         case OpCodeKind::PitchKeyCenter:
                         case OpCodeKind::Key:
+                        case OpCodeKind::SwDefault:
+                        case OpCodeKind::SwDown:
+                        case OpCodeKind::SwHiKey:
+                        case OpCodeKind::SwHiLast:
+                        case OpCodeKind::SwLast:
+                        case OpCodeKind::SwLoKey:
+                        case OpCodeKind::SwLoLast:
+                        case OpCodeKind::SwPrevious:
+                        case OpCodeKind::SwUp:
                         case OpCodeKind::XfInHiKey:
                         case OpCodeKind::XfInLoKey:
                         case OpCodeKind::XfOutHiKey:
@@ -1198,6 +1216,15 @@ private:
             {"sample"sv, OpCodeKind::Sample},
             {"seq_length"sv, OpCodeKind::SequenceLength},
             {"seq_position"sv, OpCodeKind::SequencePosition},
+            {"sw_default"sv, OpCodeKind::SwDefault},
+            {"sw_down"sv, OpCodeKind::SwDown},
+            {"sw_hikey"sv, OpCodeKind::SwHiKey},
+            {"sw_hilast"sv, OpCodeKind::SwHiLast},
+            {"sw_last"sv, OpCodeKind::SwLast},
+            {"sw_lokey"sv, OpCodeKind::SwLoKey},
+            {"sw_lolast"sv, OpCodeKind::SwLoLast},
+            {"sw_previous"sv, OpCodeKind::SwPrevious},
+            {"sw_up"sv, OpCodeKind::SwUp},
             {"transpose"sv, OpCodeKind::Transpose},
             {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
@@ -1805,6 +1832,88 @@ private:
                 else
                 {
                     s.xfmode_vel = CROSSFADE_NONE;
+                }
+
+                auto swDefault = flatSection.GetAs<std::int32_t>(OpCodeKind::SwDefault);
+                auto swDown = flatSection.GetAs<std::int32_t>(OpCodeKind::SwDown);
+                auto swHiKey = flatSection.GetAs<std::int32_t>(OpCodeKind::SwHiKey);
+                auto swHiLast = flatSection.GetAs<std::int32_t>(OpCodeKind::SwHiLast);
+                auto swLast = flatSection.GetAs<std::int32_t>(OpCodeKind::SwLast);
+                auto swLoKey = flatSection.GetAs<std::int32_t>(OpCodeKind::SwLoKey);
+                auto swLoLast = flatSection.GetAs<std::int32_t>(OpCodeKind::SwLoLast);
+                auto swPrevious = flatSection.GetAs<std::int32_t>(OpCodeKind::SwPrevious);
+                auto swUp = flatSection.GetAs<std::int32_t>(OpCodeKind::SwUp);
+
+                if (swDown.has_value() || swHiLast.has_value() || swLast.has_value() || swLoLast.has_value() || swPrevious.has_value() || swUp.has_value())
+                {
+                    s.modes |= MODES_KEYSWITCH;
+                    s.sw_lokey = static_cast<int8>(std::clamp(swLoKey.value_or(0), 0, 127));
+                    s.sw_hikey = static_cast<int8>(std::clamp(swHiKey.value_or(127), 0, 127));
+
+                    if (swDown.has_value())
+                    {
+                        s.sw_down = static_cast<int8>(std::clamp(*swDown, 0, 127));
+
+                        if (!(s.sw_lokey <= s.sw_down && s.sw_down <= s.sw_hikey))
+                        {
+                            // sw_down is invalid; disable it
+                            s.sw_down = -1;
+
+                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SwDown);
+
+                            ctl->cmsg(
+                                CMSG_WARNING,
+                                VERB_VERBOSE,
+                                "%s(%u): 'sw_down' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
+                                std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                static_cast<std::uint32_t>(loc.Line)
+                            );
+                        }
+                    }
+                    else
+                    {
+                        s.sw_down = -1;
+                    }
+
+                    if (swUp.has_value())
+                    {
+                        s.sw_up = static_cast<int8>(std::clamp(*swUp, 0, 127));
+
+                        if (!(s.sw_lokey <= s.sw_up && s.sw_up <= s.sw_hikey))
+                        {
+                            // sw_up is invalid; disable it
+                            s.sw_up = -1;
+
+                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SwUp);
+
+                            ctl->cmsg(
+                                CMSG_WARNING,
+                                VERB_VERBOSE,
+                                "%s(%u): 'sw_up' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
+                                std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                static_cast<std::uint32_t>(loc.Line)
+                            );
+                        }
+                    }
+                    else
+                    {
+                        s.sw_up = -1;
+                    }
+
+                    s.sw_default = (swDefault.has_value() ? static_cast<int8>(std::clamp(*swDefault, 0, 127)) : -1);
+
+                    if (swLoLast.has_value() || swHiLast.has_value())
+                    {
+                        s.sw_lolast = static_cast<int8>(std::clamp(swLoLast.value_or(0), 0, 127));
+                        s.sw_hilast = static_cast<int8>(std::clamp(swHiLast.value_or(127), 0, 127));
+                    }
+                    else
+                    {
+                        s.sw_lolast = (swLast.has_value() ? static_cast<int8>(std::clamp(*swLast, 0, 127)) : -1);
+                        s.sw_hilast = s.sw_lolast;
+                    }
+
+                    s.sw_previous = (swPrevious.has_value() ? static_cast<int8>(std::clamp(*swPrevious, 0, 127)) : -1);
                 }
             }
 
