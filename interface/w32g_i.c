@@ -5592,19 +5592,33 @@ static struct
 } rc_queue[RC_QUEUE_SIZE];
 static volatile int rc_queue_len, rc_queue_beg, rc_queue_end;
 
+#define TIMW32G_USE_USERMODE_LOCKS
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+static SRWLOCK w32g_lock_srwlock = SRWLOCK_INIT;
+static CONDITION_VARIABLE w32g_lock_cv = CONDITION_VARIABLE_INIT;
+#else
 static HANDLE w32g_lock_sem = NULL;
 static HANDLE w32g_empty_sem = NULL;
+#endif
 
 void w32g_lock(void)
 {
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	AcquireSRWLockExclusive(&w32g_lock_srwlock);
+#else
 	if(w32g_lock_sem)
 	    WaitForSingleObject(w32g_lock_sem, INFINITE);
+#endif
 }
 
 void w32g_unlock(void)
 {
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	ReleaseSRWLockExclusive(&w32g_lock_srwlock);
+#else
 	if(w32g_lock_sem)
 	    ReleaseSemaphore(w32g_lock_sem, 1, NULL);
+#endif
 }
 
 void w32g_send_rc(int rc, ptr_size_t value)
@@ -5622,26 +5636,45 @@ void w32g_send_rc(int rc, ptr_size_t value)
     rc_queue[rc_queue_end].rc = rc;
     rc_queue[rc_queue_end].value = value;
     rc_queue_end = (rc_queue_end + 1) % RC_QUEUE_SIZE;
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	w32g_unlock();
+	WakeConditionVariable(&w32g_lock_cv);
+#else
 	if(w32g_empty_sem)
 	    ReleaseSemaphore(w32g_empty_sem, 1, NULL);
     w32g_unlock();
+#endif
 }
 
 int w32g_get_rc(ptr_size_t *value, int wait_if_empty)
 {
     int rc;
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	w32g_lock();
+#endif
 
     while(rc_queue_len == 0)
     {
 	if(!wait_if_empty)
-	    return RC_NONE;
+	{
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+		w32g_unlock();
+#endif
+		return RC_NONE;
+	}
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	SleepConditionVariableSRW(&w32g_lock_cv, &w32g_lock_srwlock, INFINITE, 0);
+#else
 	if(w32g_empty_sem)
 		WaitForSingleObject(w32g_empty_sem, INFINITE);
+#endif
 	VOLATILE_TOUCH(rc_queue_len);
     } 
 
-    w32g_lock();
-    rc = rc_queue[rc_queue_beg].rc;
+#ifndef TIMW32G_USE_USERMODE_LOCKS
+	w32g_lock();
+#endif
+	rc = rc_queue[rc_queue_beg].rc;
     *value = rc_queue[rc_queue_beg].value;
     rc_queue_len--;
     rc_queue_beg = (rc_queue_beg + 1) % RC_QUEUE_SIZE;
@@ -5655,8 +5688,10 @@ int w32g_open(void)
     SaveSettingTiMidity(st_current);
     memcpy(st_temp, st_current, sizeof(SETTING_TIMIDITY));
 
+#ifndef TIMW32G_USE_USERMODE_LOCKS
     w32g_lock_sem = CreateSemaphore(NULL, 1, 1, "TiMidity Mutex Lock");
     w32g_empty_sem = CreateSemaphore(NULL, 0, 8, "TiMidity Empty Lock");
+#endif
 
     hPlayerThread = GetCurrentThread();
     w32g_wait_for_init = 1;
@@ -5694,6 +5729,7 @@ static void terminate_main_thread(void)
 void w32g_close(void)
 {	
 	terminate_main_thread();
+#ifndef TIMW32G_USE_USERMODE_LOCKS
 	if(w32g_lock_sem){
 	    CloseHandle(w32g_lock_sem);
 		w32g_lock_sem = NULL;
@@ -5702,6 +5738,7 @@ void w32g_close(void)
 	    CloseHandle(w32g_empty_sem);
 		w32g_empty_sem = NULL;
 	}
+#endif
 }
 
 void w32g_restart(void)
@@ -5709,6 +5746,7 @@ void w32g_restart(void)
 	w32g_restart_gui_flag = 1;
 
 	terminate_main_thread();
+#ifndef TIMW32G_USE_USERMODE_LOCKS
 	if(w32g_lock_sem){
 	    CloseHandle(w32g_lock_sem);
 		w32g_lock_sem = NULL;
@@ -5717,6 +5755,7 @@ void w32g_restart(void)
 	    CloseHandle(w32g_empty_sem);
 		w32g_empty_sem = NULL;
 	}
+#endif
 
 	/* Reset variable */
     hDebugEditWnd = 0;
