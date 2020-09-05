@@ -1646,6 +1646,7 @@ private:
 
                 // TODO: support trigger=release
                 case TriggerKind::Release:
+                    if (i == 0)
                     {
                         auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
                         ctl->cmsg(
@@ -1668,6 +1669,7 @@ private:
                 case TriggerKind::First:
                 case TriggerKind::Legato:
                 default:
+                    if (i == 0)
                     {
                         auto loc = flatSection.GetLocationForOpCode(OpCodeKind::Trigger);
                         ctl->cmsg(
@@ -1729,38 +1731,47 @@ private:
 
                         if (s.seq_length < s.seq_position)
                         {
-                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
+                            if (i == 0)
+                            {
+                                auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
+                                ctl->cmsg(
+                                    CMSG_WARNING,
+                                    VERB_VERBOSE,
+                                    "%s(%u): 'seq_position' is larger than 'seq_length'; this region will never be played",
+                                    std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                    static_cast<std::uint32_t>(loc.Line)
+                                );
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (i == 0)
+                        {
+                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequenceLength);
                             ctl->cmsg(
                                 CMSG_WARNING,
                                 VERB_VERBOSE,
-                                "%s(%u): 'seq_position' is larger than 'seq_length'; this region will never be played",
+                                "%s(%u): 'seq_length' was specified but 'seq_position' was not; this region will never be played",
                                 std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
                                 static_cast<std::uint32_t>(loc.Line)
                             );
                         }
                     }
-                    else
+                }
+                else if (auto seqPos = flatSection.GetAs<double>(OpCodeKind::SequencePosition))
+                {
+                    if (i == 0)
                     {
-                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequenceLength);
+                        auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
                         ctl->cmsg(
                             CMSG_WARNING,
                             VERB_VERBOSE,
-                            "%s(%u): 'seq_length' was specified but 'seq_position' was not; this region will never be played",
+                            "%s(%u): 'seq_position' was specified but 'seq_length' was not",
                             std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
                             static_cast<std::uint32_t>(loc.Line)
                         );
                     }
-                }
-                else if (auto seqPos = flatSection.GetAs<double>(OpCodeKind::SequencePosition))
-                {
-                    auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SequencePosition);
-                    ctl->cmsg(
-                        CMSG_WARNING,
-                        VERB_VERBOSE,
-                        "%s(%u): 'seq_position' was specified but 'seq_length' was not",
-                        std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                        static_cast<std::uint32_t>(loc.Line)
-                    );
                 }
 
                 if (auto loRand = flatSection.GetAs<double>(OpCodeKind::LoRand))
@@ -1859,15 +1870,18 @@ private:
                             // sw_down is invalid; disable it
                             s.sw_down = -1;
 
-                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SwDown);
+                            if (i == 0)
+                            {
+                                auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SwDown);
 
-                            ctl->cmsg(
-                                CMSG_WARNING,
-                                VERB_VERBOSE,
-                                "%s(%u): 'sw_down' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
-                                std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                                static_cast<std::uint32_t>(loc.Line)
-                            );
+                                ctl->cmsg(
+                                    CMSG_WARNING,
+                                    VERB_VERBOSE,
+                                    "%s(%u): 'sw_down' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
+                                    std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                    static_cast<std::uint32_t>(loc.Line)
+                                );
+                            }
                         }
                     }
                     else
@@ -1884,15 +1898,18 @@ private:
                             // sw_up is invalid; disable it
                             s.sw_up = -1;
 
-                            auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SwUp);
+                            if (i == 0)
+                            {
+                                auto loc = flatSection.GetLocationForOpCode(OpCodeKind::SwUp);
 
-                            ctl->cmsg(
-                                CMSG_WARNING,
-                                VERB_VERBOSE,
-                                "%s(%u): 'sw_up' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
-                                std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
-                                static_cast<std::uint32_t>(loc.Line)
-                            );
+                                ctl->cmsg(
+                                    CMSG_WARNING,
+                                    VERB_VERBOSE,
+                                    "%s(%u): 'sw_up' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
+                                    std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                    static_cast<std::uint32_t>(loc.Line)
+                                );
+                            }
                         }
                     }
                     else
