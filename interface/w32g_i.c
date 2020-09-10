@@ -5825,13 +5825,23 @@ void w32g_show_console(void)
 //
 // GDI アクセスを単一スレッドに限定するためのロック機構
 
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+static SRWLOCK w32g_gdi_lock = SRWLOCK_INIT;
+#else
 static HANDLE volatile hMutexGDI = NULL;
+#endif
 // static int volatile lock_num = 0;
 int gdi_lock_ex ( DWORD timeout )
 {
 // lock_num++;
 // ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 // 		  "gdi_lock<%d %d>", GetCurrentThreadId(),lock_num );
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	if (timeout == INFINITE)
+		AcquireSRWLockExclusive(&w32g_gdi_lock);
+	else
+		return TryAcquireSRWLockExclusive(&w32g_gdi_lock) ? 0 : -1;
+#else
 	if(hMutexGDI==NULL){
 		hMutexGDI = CreateMutex(NULL,FALSE,NULL);
 		if(hMutexGDI==NULL)
@@ -5840,6 +5850,7 @@ int gdi_lock_ex ( DWORD timeout )
 	if(WaitForSingleObject(hMutexGDI,timeout)==WAIT_FAILED){
 		return -1;
 	}
+#endif
 	return 0;
 }
 int gdi_lock(void)
@@ -5852,8 +5863,12 @@ extern int gdi_unlock(void)
 //lock_num--;
 //ctl->cmsg(CMSG_INFO, VERB_VERBOSE,
 //		  "gdi_unlock<%d %d>", GetCurrentThreadId(),lock_num );
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	ReleaseSRWLockExclusive(&w32g_gdi_lock);
+#else
 	if(hMutexGDI!=NULL){
 		ReleaseMutex(hMutexGDI);
 	}
+#endif
 	return 0;
 }
