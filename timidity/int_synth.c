@@ -4273,7 +4273,12 @@ static void init_sample_param(Sample *sample)
 	sample->modenv_velf[2] = 0;
 	sample->modenv_velf[3] = 0;
 	sample->modenv_velf[4] = 0;
-	sample->modenv_velf[5] = 0;
+	sample->modenv_velf[5] = 0;	
+	sample->seq_length = 0;
+	sample->seq_position = 0;
+	sample->lorand = -1;
+	sample->hirand = -1;
+	sample->rt_decay = 0;
 }
 
 

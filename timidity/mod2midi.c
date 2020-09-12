@@ -738,7 +738,13 @@ void load_module_samples (SAMPLE * s, int numsamples, int ntsc)
 	sp->sample_type = SF_SAMPLETYPE_MONO;
 	sp->sf_sample_link = -1;
 	sp->sf_sample_index = 0;
-
+	sp->offset = 0;
+	sp->seq_length = 0;
+	sp->seq_position = 0;
+	sp->lorand = -1;
+	sp->hirand = -1;
+	sp->rt_decay = 0;
+	
 	sp->data_length <<= FRACTION_BITS;
 	sp->loop_start <<= FRACTION_BITS;
 	sp->loop_end <<= FRACTION_BITS;
