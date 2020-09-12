@@ -951,13 +951,13 @@ static void apply_bank_parameter(Instrument *ip, ToneBankElement *tone)
 	//if (tone->lorand >= 0 || tone->hirand >= 0)
 	//	for (i = 0; i < ip->samples; i++) {
 	//		sp = &ip->sample[i];
-	//		if (sp->enable_rand) {
+	//		if (sp->modes & MODES_TRIGGER_RANDOM) {
 	//			if (tone->lorand >= 0 && sp->lorand < tone->lorand)
 	//				sp->lorand = tone->lorand;
 	//			if (tone->hirand >= 0 && tone->hirand < sp->hirand)
 	//				sp->hirand = tone->hirand;
 	//		} else {
-	//			sp->enable_rand = 1;
+	//			sp->modes |= MODES_TRIGGER_RANDOM;
 	//			sp->lorand = (tone->lorand >= 0 ? tone->lorand : 0);
 	//			sp->hirand = (tone->hirand >= 0 ? tone->hirand : 1);
 	//		}
@@ -1194,7 +1194,13 @@ fail:
 		sp->modenv_rate[4] = to_rate(64);
 		sp->modenv_offset[5] = 0;
 		sp->modenv_rate[5] = to_rate(64);
-
+		
+		sp->offset = 0;
+		sp->seq_length = 0;
+		sp->seq_position = 0;
+		sp->lorand = -1;
+		sp->hirand = -1;
+		sp->rt_decay = 0;
 		READ_LONG(sp->data_length);
 		READ_LONG(sp->loop_start);
 		READ_LONG(sp->loop_end);

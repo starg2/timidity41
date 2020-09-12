@@ -106,6 +106,7 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
 	sdr.data[1] = DummySampleData;
 	sdr.data_type = SAMPLE_TYPE_INT16;
 
+#ifdef AU_VORBIS_DLL
     if (load_vorbis_dll() != 0) {
         ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "unable to load vorbis dll");
         return sdr;
@@ -116,6 +117,8 @@ SampleDecodeResult decode_oggvorbis(struct timidity_file *tf)
         return sdr;
     }
 #endif
+#endif
+
 	vf.callbacks.read_func = &oggvorbis_read_callback;
 	vf.callbacks.seek_func = &oggvorbis_seek_callback;
 	vf.callbacks.tell_func = &oggvorbis_tell_callback;

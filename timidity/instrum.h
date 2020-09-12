@@ -32,7 +32,7 @@
 
 ///r
 typedef struct _Sample {
-  splen_t loop_start, loop_end, data_length;
+  splen_t offset, loop_start, loop_end, data_length;
   int32 sample_rate, root_freq; /* root_freqはroot_key+tuneの機能 */
   int8 low_key, high_key, root_key; /* root_keyは表示用 */
   FLOAT_T tune;
@@ -40,7 +40,7 @@ typedef struct _Sample {
   FLOAT_T volume, cfg_amp;
   sample_t *data;
   int data_type;
-  int modes;
+  uint32 modes;
   uint8 data_alloced, low_vel, high_vel;
   int32 cutoff_freq, cutoff_low_limit, cutoff_low_keyf;	/* in Hz, [1, 20000] */
   int16 resonance;	/* in centibels, [0, 960] */
@@ -84,6 +84,15 @@ typedef struct _Sample {
   int8 enable_rand;
   FLOAT_T lorand;
   FLOAT_T hirand;
+
+  FLOAT_T rt_decay; /* valid only if MODES_TRIGGER_RELEASE is enabled */
+
+  // crossfade
+  int8 xfmode_key, xfin_lokey, xfin_hikey, xfout_lokey, xfout_hikey;
+  int8 xfmode_vel, xfin_lovel, xfin_hivel, xfout_lovel, xfout_hivel;
+
+  // keyswitches (requires MODES_KEYSWITCHES)
+  int8 sw_lokey, sw_hikey, sw_default, sw_down, sw_up, sw_previous, sw_lolast, sw_hilast;
 } Sample;
 
 ///r
@@ -99,6 +108,7 @@ enum {
 
 ///r
 /* Bits in modes: */
+/* GUS-compatible flags */
 #define MODES_16BIT	    (1<<0)
 #define MODES_UNSIGNED	(1<<1)
 #define MODES_LOOPING	(1<<2)
@@ -107,7 +117,12 @@ enum {
 #define MODES_SUSTAIN	(1<<5)
 #define MODES_ENVELOPE	(1<<6)
 #define MODES_CLAMPED	(1<<7) /* ?? (for last envelope??) */
+/* Flags not defined by GUS */
 #define MODES_RELEASE   (1<<8)
+#define MODES_TRIGGER_RANDOM      (1<<9)
+#define MODES_NO_NOTEOFF          (1<<10)
+#define MODES_TRIGGER_RELEASE     (1<<11)
+#define MODES_KEYSWITCH           (1<<12)
 
 #define INST_GUS	0
 #define INST_SF2	1
@@ -126,6 +141,13 @@ enum {
 #define SF_SAMPLETYPE_LINKED 8
 #define SF_SAMPLETYPE_COMPRESSED 0x10
 #define SF_SAMPLETYPE_ROM 0x8000
+
+/* crossfade: xfmode_key, xfmode_vel */
+enum {
+	CROSSFADE_NONE = 0,
+	CROSSFADE_GAIN,   /* linear */
+	CROSSFADE_POWER   /* square root */
+};
 
 typedef struct {
   int type;

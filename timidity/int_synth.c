@@ -4155,6 +4155,7 @@ static void init_sample_param(Sample *sample)
 	sample->data = NULL;
 	sample->data_type = SAMPLE_TYPE_INT16;
 	sample->data_alloced = 0; // use Preset_SCC Preset_MMS ptr , see instrum.c free_instrument()
+	sample->offset = 0;
 	sample->loop_start = 0;
 	sample->loop_end = INT_MAX;
 	sample->data_length = INT_MAX;
@@ -4272,7 +4273,12 @@ static void init_sample_param(Sample *sample)
 	sample->modenv_velf[2] = 0;
 	sample->modenv_velf[3] = 0;
 	sample->modenv_velf[4] = 0;
-	sample->modenv_velf[5] = 0;
+	sample->modenv_velf[5] = 0;	
+	sample->seq_length = 0;
+	sample->seq_position = 0;
+	sample->lorand = -1;
+	sample->hirand = -1;
+	sample->rt_decay = 0;
 }
 
 

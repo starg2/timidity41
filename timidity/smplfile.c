@@ -1418,6 +1418,7 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 	{
 		sample = &inst->sample[i];
 		sample->data_alloced = 0;
+		sample->offset = 0;
 		sample->loop_start = 0;
 		sample->loop_end = sample->data_length = (splen_t)frames << FRACTION_BITS;
 		sample->sample_rate = sample_rate;
@@ -1502,6 +1503,12 @@ static void initialize_sample(Instrument *inst, int frames, int sample_bits, int
 		sample->modenv_rate[4] = convert_envelope_rate(64);
 		sample->modenv_offset[5] = 0;
 		sample->modenv_rate[5] = convert_envelope_rate(64);
+		
+		sample->seq_length = 0;
+		sample->seq_position = 0;
+		sample->lorand = -1;
+		sample->hirand = -1;
+		sample->rt_decay = 0;
 	}
 	if (samples <= 6 && (panning = gen_pan_list[samples - 1]) != NULL)
 	{

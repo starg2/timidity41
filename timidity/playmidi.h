@@ -489,6 +489,10 @@ typedef struct {
 
   int32 *seq_counters[MAX_ELEMENT];
   int seq_num_counters[MAX_ELEMENT];
+  
+  uint32 key_pressed[4]; /* 128 bit vector */
+  int32 key_history[128];
+  int32 last_key_history_index;
 } Channel;
 
 /* Causes the instrument's default panning to be used. */
@@ -506,6 +510,7 @@ typedef struct {
   int8 paf_ctrl;
   int32 orig_frequency, frequency;
   Sample *sample;
+  int32 elapsed_count;
     
   /* for pan */
   int8 panned;
@@ -582,10 +587,11 @@ typedef struct {
 
 /* Voice status options: */
 #define VOICE_FREE	(1<<0)
-#define VOICE_ON	(1<<1)
-#define VOICE_SUSTAINED	(1<<2)
-#define VOICE_OFF	(1<<3)
-#define VOICE_DIE	(1<<4)
+#define VOICE_PENDING (1<<1)
+#define VOICE_ON	(1<<2)
+#define VOICE_SUSTAINED	(1<<3)
+#define VOICE_OFF	(1<<4)
+#define VOICE_DIE	(1<<5)
 
 /* Voice panned options: */
 #define PANNED_MYSTERY 0

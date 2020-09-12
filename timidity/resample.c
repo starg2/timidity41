@@ -4616,7 +4616,7 @@ static void lo_rs_plain(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j;
 
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 2; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	dest = resample_linear_multi(vp, dest, j, &i);
@@ -4804,7 +4804,7 @@ static void lo_rs_plain_float(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j;
 
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 2; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	dest = resample_linear_float_multi(vp, dest, j, &i);
@@ -5683,7 +5683,7 @@ static void lao_rs_plain(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j = 0;	
 	
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 4; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	if((resrc->offset >> FRACTION_BITS) >= 1)
@@ -6070,7 +6070,7 @@ static void lao_rs_plain_float(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j = 0;	
 	
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 4; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	if((resrc->offset >> FRACTION_BITS) >= 1)
@@ -6539,7 +6539,7 @@ void resample_voice(int v, DATA_T *ptr, int32 count)
 void init_voice_resample(int v)
 {
 	Voice *vp = voice + v; 
-	vp->resrc.offset = vp->reserve_offset;
+	vp->resrc.offset = vp->reserve_offset + vp->sample->offset;
 	vp->resrc.increment = 0; /* make sure it isn't negative */
 	vp->resrc.loop_start = vp->sample->loop_start;
 	vp->resrc.loop_end = vp->sample->loop_end;

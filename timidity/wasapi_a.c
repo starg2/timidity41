@@ -592,6 +592,10 @@ static int get_device(IMMDevice **ppMMDevice, int devnum)
 error:	
 	if(pszDeviceId)
 		CoTaskMemFree(pszDeviceId);
+	if(pdev)
+		IMMDevice_Release(pdev);
+	if(pdc)
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	return FALSE;
@@ -699,7 +703,7 @@ static void print_device_list(void)
 		device[i+1].LatencyMax = LatencyMax;
 		device[i+1].LatencyMin = LatencyMin;
 		if(tmpClient){
-			tmpClient->lpVtbl->Release(tmpClient);
+			IAudioClient_Release(tmpClient);
 			tmpClient = NULL;
 		}		
 		if(dev){
@@ -872,6 +876,8 @@ int open_output(void)
 		}else{
 			pwf->wFormatTag = WAVE_FORMAT_PCM;
 			pwf->wBitsPerSample = (WORD) 24;
+			if(IsExclusive)
+				CvtMode = 2;
 		}
 	}else if(dpm.encoding & PE_32BIT){
 		if(opt_wasapi_format_ext){
@@ -1012,34 +1018,35 @@ int open_output(void)
 			goto error;
 		hr = IAudioClient_Initialize(pAudioClient, ShareMode, StreamFlags, BufferDuration, Periodicity,	(WAVEFORMATEX *)&wfe, NULL);
 	}
- 	if(FAILED(hr)){
- 		switch(hr){
- #define HANDLE_HRESULT(hresult) \
- 	case hresult: \
- 		ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = %s", #hresult); \
- 		break;
- 
- 			HANDLE_HRESULT(AUDCLNT_E_ALREADY_INITIALIZED);
- 			HANDLE_HRESULT(AUDCLNT_E_WRONG_ENDPOINT_TYPE);
- 			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED);
- 			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_ERROR);
- 			HANDLE_HRESULT(AUDCLNT_E_CPUUSAGE_EXCEEDED);
- 			HANDLE_HRESULT(AUDCLNT_E_DEVICE_INVALIDATED);
- 			HANDLE_HRESULT(AUDCLNT_E_DEVICE_IN_USE);
- 			HANDLE_HRESULT(AUDCLNT_E_ENDPOINT_CREATE_FAILED);
- 			HANDLE_HRESULT(AUDCLNT_E_INVALID_DEVICE_PERIOD);
- 			HANDLE_HRESULT(AUDCLNT_E_UNSUPPORTED_FORMAT);
- 			HANDLE_HRESULT(AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED);
- 			HANDLE_HRESULT(AUDCLNT_E_BUFDURATION_PERIOD_NOT_EQUAL);
- 			HANDLE_HRESULT(AUDCLNT_E_SERVICE_NOT_RUNNING);
- 			HANDLE_HRESULT(E_OUTOFMEMORY);
- 
- #undef HANDLE_HRESULT
- 
- 		default:
- 			ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = 0x%X", hr);
- 			break;
- 		}
+	if(FAILED(hr)){
+		switch(hr){
+#define HANDLE_HRESULT(hresult) \
+	case hresult: \
+		ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = %s", #hresult); \
+		break;
+
+			HANDLE_HRESULT(AUDCLNT_E_ALREADY_INITIALIZED);
+			HANDLE_HRESULT(AUDCLNT_E_WRONG_ENDPOINT_TYPE);
+			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED);
+			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_ERROR);
+			HANDLE_HRESULT(AUDCLNT_E_CPUUSAGE_EXCEEDED);
+			HANDLE_HRESULT(AUDCLNT_E_DEVICE_INVALIDATED);
+			HANDLE_HRESULT(AUDCLNT_E_DEVICE_IN_USE);
+			HANDLE_HRESULT(AUDCLNT_E_ENDPOINT_CREATE_FAILED);
+			HANDLE_HRESULT(AUDCLNT_E_INVALID_DEVICE_PERIOD);
+			HANDLE_HRESULT(AUDCLNT_E_UNSUPPORTED_FORMAT);
+			HANDLE_HRESULT(AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED);
+			HANDLE_HRESULT(AUDCLNT_E_BUFDURATION_PERIOD_NOT_EQUAL);
+			HANDLE_HRESULT(AUDCLNT_E_SERVICE_NOT_RUNNING);
+			HANDLE_HRESULT(E_OUTOFMEMORY);
+
+#undef HANDLE_HRESULT
+
+		default:
+			ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = 0x%X", hr);
+			break;
+		}
+		goto error;
 	}
 	if(FAILED(IAudioClient_GetBufferSize(pAudioClient, &BufferFrames)))
 		goto error;
@@ -1237,7 +1244,7 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 	device[0].LatencyMax = LatencyMax;
 	device[0].LatencyMin = LatencyMin;
 	if(tmpClient){
-		tmpClient->lpVtbl->Release(tmpClient);
+		IAudioClient_Release(tmpClient);
 		tmpClient = NULL;
 	}	
 	if(defdev){
@@ -1291,7 +1298,7 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 		device[i+1].LatencyMax = LatencyMax;
 		device[i+1].LatencyMin = LatencyMin;
 		if(tmpClient){
-			tmpClient->lpVtbl->Release(tmpClient);
+			IAudioClient_Release(tmpClient);
 			tmpClient = NULL;
 		}		
 		if(dev){
@@ -1299,21 +1306,21 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 			dev = NULL;
 		}
 		if(pps){
-			pps->lpVtbl->Release(pps); 
+			IPropertyStore_Release(pps);
 			pps = NULL;
 		}
 	}
 	if(pdc)
-		pdc->lpVtbl->Release(pdc); 
+		IMMDeviceCollection_Release(pdc);
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);
 	return num + 1; // +1 def dev
 
 error1:
 	if(tmpClient)
-		tmpClient->lpVtbl->Release(tmpClient);
+		IAudioClient_Release(tmpClient);
 	if(pdc){
-		pdc->lpVtbl->Release(pdc);
+		IMMDeviceCollection_Release(pdc);
 	}
 	if(pde)
 		IMMDeviceEnumerator_Release(pde);

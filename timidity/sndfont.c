@@ -1617,9 +1617,11 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 		vp->start += (tbl->val[SF_startAddrsHi] << 15) + tbl->val[SF_startAddrs];
     vp->len = sp->endsample - vp->start;
 	vp->len += (tbl->val[SF_endAddrsHi] << 15)	+ tbl->val[SF_endAddrs];
+	
+	vp->start = llabs(vp->start);
+	vp->len = llabs(vp->len);
 
-	vp->start = abs(vp->start);
-	vp->len = abs(vp->len);
+	vp->v.offset = 0;
 
     /* set loop position */
 	vp->v.loop_start = sp->startloop;
@@ -1687,6 +1689,7 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	}
 
     /* convert to fractional samples */
+    vp->v.offset <<= FRACTION_BITS;
     vp->v.data_length <<= FRACTION_BITS;
     vp->v.loop_start <<= FRACTION_BITS;
     vp->v.loop_end <<= FRACTION_BITS;
@@ -1740,6 +1743,12 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->v.pitch_envelope[6] = 0; // 125ms dcy3
 	vp->v.pitch_envelope[7] = 0; // 0cent rls
 	vp->v.pitch_envelope[8] = 0; // 125ms rls
+	vp->v.offset = 0;
+	vp->v.seq_length = 0;
+	vp->v.seq_position = 0;
+	vp->v.lorand = -1;
+	vp->v.hirand = -1;
+	vp->v.rt_decay = 0;
 }
 
 /*----------------------------------------------------------------*/
