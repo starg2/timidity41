@@ -313,12 +313,14 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 	for (int i = 0; i < sdr->channels; i++) {
 		switch (sdr->data_type) {
 		case SAMPLE_TYPE_INT32:
-			memcpy(((FLAC__int32 *)sdr->data[i]) + context->current_size_in_samples, buffer[i], frame->header.blocksize * sizeof(FLAC__int32));
+			for (unsigned int j = 0; j < frame->header.blocksize; j++) {
+				((FLAC__int32*)sdr->data[i])[context->current_size_in_samples + j] = buffer[i][j] << (32 - frame->header.bits_per_sample);
+			}
 			break;
 
 		case SAMPLE_TYPE_INT16:
 			for (unsigned int j = 0; j < frame->header.blocksize; j++) {
-				sdr->data[i][context->current_size_in_samples + j] = (FLAC__int16)buffer[i][j];
+				sdr->data[i][context->current_size_in_samples + j] = (FLAC__int16)(buffer[i][j] << (16 - frame->header.bits_per_sample));
 			}
 			break;
 		}
