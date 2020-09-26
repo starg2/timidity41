@@ -170,9 +170,27 @@ static void wrd_text_update ( int x_from, int y_from, int x_to, int y_to, int lo
 
 static int volatile wrd_graphic_pal_init_flag = 0;
 
+#define TIMW32G_USE_USERMODE_LOCKS
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+static CRITICAL_SECTION *w32g_wrd_wnd_lock = NULL;
+#else
 static HANDLE volatile hMutexWrd = NULL;
+#endif
+
 static BOOL wrd_wnd_lock_ex ( DWORD timeout )
 {
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	static CRITICAL_SECTION cs;
+
+	if (w32g_wrd_wnd_lock == NULL) {
+		InitializeCriticalSection(&cs);
+		w32g_wrd_wnd_lock = &cs;
+	}
+	if (timeout == INFINITE)
+		EnterCriticalSection(w32g_wrd_wnd_lock);
+	else
+		return TryEnterCriticalSection(w32g_wrd_wnd_lock);
+#else
 	if ( hMutexWrd == NULL ) {
 		hMutexWrd = CreateMutex ( NULL, FALSE, NULL );
 		if ( hMutexWrd == NULL )
@@ -181,6 +199,7 @@ static BOOL wrd_wnd_lock_ex ( DWORD timeout )
 	if ( WaitForSingleObject ( hMutexWrd, timeout )== WAIT_FAILED ) {
 		return FALSE;
 	}
+#endif
 	return TRUE;
 }
 static BOOL wrd_wnd_lock (void)
@@ -189,7 +208,11 @@ static BOOL wrd_wnd_lock (void)
 }
 static void wrd_wnd_unlock (void)
 {
+#ifdef TIMW32G_USE_USERMODE_LOCKS
+	LeaveCriticalSection(w32g_wrd_wnd_lock);
+#else
 	ReleaseMutex ( hMutexWrd );
+#endif
 }
 
 

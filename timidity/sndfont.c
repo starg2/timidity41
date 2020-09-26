@@ -1624,6 +1624,8 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 
 	vp->v.offset = 0;
 
+	vp->v.offset = 0;
+
     /* set loop position */
 	vp->v.loop_start = sp->startloop;
 	vp->v.loop_end = sp->endloop;
@@ -1744,6 +1746,12 @@ static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->v.pitch_envelope[6] = 0; // 125ms dcy3
 	vp->v.pitch_envelope[7] = 0; // 0cent rls
 	vp->v.pitch_envelope[8] = 0; // 125ms rls
+	vp->v.offset = 0;
+	vp->v.seq_length = 0;
+	vp->v.seq_position = 0;
+	vp->v.lorand = -1;
+	vp->v.hirand = -1;
+	vp->v.rt_decay = 0;
 }
 
 /*----------------------------------------------------------------*/

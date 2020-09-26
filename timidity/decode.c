@@ -313,12 +313,47 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 	for (int i = 0; i < sdr->channels; i++) {
 		switch (sdr->data_type) {
 		case SAMPLE_TYPE_INT32:
-			memcpy(((FLAC__int32 *)sdr->data[i]) + context->current_size_in_samples, buffer[i], frame->header.blocksize * sizeof(FLAC__int32));
+			{
+				// MSVC can't figure out this does not change during the loop.
+				int s = 32 - frame->header.bits_per_sample;
+				int32 *src = buffer[i];
+				int32 *dest = (int32 *)sdr->data[i] + context->current_size_in_samples;
+				int n = frame->header.blocksize;
+
+				// This loop should be auto-vectorized.
+				for (int j = 0; j < n; j++) {
+					dest[j] = src[j] << s;
+				}
+			}
 			break;
 
 		case SAMPLE_TYPE_INT16:
-			for (unsigned int j = 0; j < frame->header.blocksize; j++) {
-				sdr->data[i][context->current_size_in_samples + j] = (FLAC__int16)buffer[i][j];
+			{
+				int s = 16 - frame->header.bits_per_sample;
+				int32 *src = buffer[i];
+				int16 *dest = (int16 *)sdr->data[i] + context->current_size_in_samples;
+				int n = frame->header.blocksize;
+
+				int j = 0;
+
+#if USE_X86_EXT_INTRIN >= 3
+				int n8 = n & ~7;
+				__m128i vs = _mm_cvtsi32_si128(s);
+
+				while (j < n8) {
+					__m128i v0 = _mm_loadu_si128((const __m128i *)(src + j));
+					__m128i v1 = _mm_loadu_si128((const __m128i *)(src + j + 4));
+					__m128i v01 = _mm_packs_epi32(v0, v1);
+					v01 = _mm_sll_epi16(v01, vs);
+					_mm_storeu_si128((__m128i *)(dest + j), v01);
+					j += 8;
+				}
+#endif
+
+				while (j < n) {
+					dest[j] = (int16)(src[j] << s);
+					j++;
+				}
 			}
 			break;
 		}

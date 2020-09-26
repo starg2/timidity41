@@ -1271,6 +1271,8 @@ static void initialize_controllers(int c)
 /* Process the Reset All Controllers event CC#121 */
 static void reset_controllers(int c)
 {
+	int i;
+
 	channel[c].expression = 127; /* SCC-1 does this. */
 	channel[c].sustain = 0;
 	channel[c].sostenuto = 0;
@@ -1283,12 +1285,12 @@ static void reset_controllers(int c)
 	channel[c].lastlrpn = channel[c].lastmrpn = 0;
 	channel[c].nrpn = -1;
 	channel[c].rpn_7f7f_flag = 1;
-
+	
 	memset(channel[c].key_pressed, 0, sizeof(channel[c].key_pressed));
 	memset(channel[c].key_history, 0, sizeof(channel[c].key_history));
 	channel[c].last_key_history_index = 0;
 
-	for (int i = 0; i < MAX_ELEMENT; i++) {
+	for (i = 0; i < MAX_ELEMENT; i++) {
 		safe_free(channel[c].seq_counters[i]);
 		channel[c].seq_counters[i] = NULL;
 		channel[c].seq_num_counters[i] = 0;
