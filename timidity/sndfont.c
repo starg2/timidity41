@@ -1602,6 +1602,10 @@ static void set_envelope_parameters(SampleList *vp)
 
 /* set sample address */
 
+#ifndef llabs
+#define llabs _abs64
+#endif
+
 static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
     SFSampleInfo *sp = &sf->sample[tbl->val[SF_sampleId]];
