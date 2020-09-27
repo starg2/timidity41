@@ -320,9 +320,34 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 				int32 *dest = (int32 *)sdr->data[i] + context->current_size_in_samples;
 				int n = frame->header.blocksize;
 
-				// This loop should be auto-vectorized.
-				for (int j = 0; j < n; j++) {
+				int j = 0;
+
+#if USE_X86_EXT_INTRIN >= 9
+				int n8 = n & ~7;
+				__m128i vs = _mm_cvtsi32_si128(s);
+
+				while (j < n8) {
+					__m256i v = _mm256_loadu_si256((const __m256i *)(src + j));
+					v = _mm256_sll_epi32(v, vs);
+					_mm256_storeu_si256((__m256i *)(dest + j), v);
+					j += 8;
+				}
+
+#elif USE_X86_EXT_INTRIN >= 3
+				int n4 = n & ~3;
+				__m128i vs = _mm_cvtsi32_si128(s);
+
+				while (j < n4) {
+					__m128i v = _mm_loadu_si128((const __m128i *)(src + j));
+					v = _mm_sll_epi32(v, vs);
+					_mm_storeu_si128((__m128i *)(dest + j), v);
+					j += 4;
+				}
+#endif
+
+				while (j < n) {
 					dest[j] = src[j] << s;
+					j++;
 				}
 			}
 			break;
@@ -336,7 +361,25 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 
 				int j = 0;
 
-#if USE_X86_EXT_INTRIN >= 3
+#if USE_X86_EXT_INTRIN >= 9
+				int n16 = n & ~15;
+				__m128i vs = _mm_cvtsi32_si128(s);
+
+				while (j < n16) {
+					__m256i v01 = _mm256_loadu_si256((const __m256i *)(src + j));
+					__m256i v23 = _mm256_loadu_si256((const __m256i *)(src + j + 8));
+
+					__m256i v02 = _mm256_permute2x128_si256(v01, v23, (2 << 4) | 0);
+					__m256i v13 = _mm256_permute2x128_si256(v01, v23, (3 << 4) | 1);
+
+					__m256i v = _mm256_packs_epi32(v02, v13);
+					v = _mm256_sll_epi16(v, vs);
+					_mm256_storeu_si256((__m256i *)(dest + j), v);
+
+					j += 16;
+				}
+
+#elif USE_X86_EXT_INTRIN >= 3
 				int n8 = n & ~7;
 				__m128i vs = _mm_cvtsi32_si128(s);
 
