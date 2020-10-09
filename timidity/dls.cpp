@@ -134,18 +134,22 @@ struct DLSConnectionBlock
 {
     enum class SourceKind : std::uint16_t
     {
-        None,
-        LFO,
-        KeyOnVelocity,
-        KeyNumber,
-        EG1,
-        EG2,
-        PitchWheel,
+        None = 0,
+        LFO = 1,
+        KeyOnVelocity = 2,
+        KeyNumber = 3,
+        EG1 = 4,
+        EG2 = 5,
+        PitchWheel = 6,
 
         CC1 = 0x81,
         CC7 = 0x87,
         CC10 = 0x8A,
-        CC11 = 0x8B
+        CC11 = 0x8B,
+
+        RPN0 = 0x100,
+        RPN1 = 0x101,
+        RPN2 = 0x102
     };
 
     SourceKind Source;
@@ -153,31 +157,31 @@ struct DLSConnectionBlock
 
     enum class DestinationKind : std::uint16_t
     {
-        None,
-        Attenuation,
+        None = 0,
+        Attenuation = 1,
         Pitch = 3,
-        Pan,
+        Pan = 4,
 
         LFOFrequency = 0x104,
-        LFOStartDelay,
+        LFOStartDelay = 0x105,
 
         EG1AttackTime = 0x206,
-        EG1DecayTime,
+        EG1DecayTime = 0x297,
         EG1ReleaseTime = 0x209,
-        EG1SustainLevel,
+        EG1SustainLevel = 0x20A,
 
         EG2AttackTime = 0x30A,
-        EG2DecayTime,
+        EG2DecayTime = 0x30B,
         EG2ReleaseTime = 0x30D,
-        EG2SustainLevel
+        EG2SustainLevel = 0x30E
     };
 
     DestinationKind Destination;
 
     enum class TransformKind : std::uint16_t
     {
-        None,
-        Concave
+        None = 0,
+        Concave = 1
     };
 
     TransformKind Transform;
