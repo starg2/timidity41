@@ -90,7 +90,7 @@ typedef struct _Sample {
   int8 xfmode_key, xfin_lokey, xfin_hikey, xfout_lokey, xfout_hikey;
   int8 xfmode_vel, xfin_lovel, xfin_hivel, xfout_lovel, xfout_hivel;
 
-  // keyswitches (requires MODES_KEYSWITCHES)
+  // keyswitches (requires MODES_KEYSWITCH)
   int8 sw_lokey, sw_hikey, sw_default, sw_down, sw_up, sw_previous, sw_lolast, sw_hilast;
 } Sample;
 
