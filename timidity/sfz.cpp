@@ -826,6 +826,7 @@ enum class OpCodeKind
     AmpKeyCenter,
     AmpKeyTrack,
     AmpVelTrack,
+    Cutoff,
     DefaultPath,
     End,
     HiKey,
@@ -842,6 +843,7 @@ enum class OpCodeKind
     Pan,
     PitchKeyCenter,
     Position,
+    Resonance,
     RtDecay,
     Sample,
     SequenceLength,
@@ -1043,6 +1045,7 @@ public:
                         case OpCodeKind::AmpEG_Sustain:
                         case OpCodeKind::AmpKeyTrack:
                         case OpCodeKind::AmpVelTrack:
+                        case OpCodeKind::Cutoff:
                         case OpCodeKind::End:
                         case OpCodeKind::HiRand:
                         case OpCodeKind::HiVelocity:
@@ -1053,6 +1056,7 @@ public:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
                         case OpCodeKind::Position:
+                        case OpCodeKind::Resonance:
                         case OpCodeKind::RtDecay:
                         case OpCodeKind::SequenceLength:
                         case OpCodeKind::SequencePosition:
@@ -1201,6 +1205,7 @@ private:
             {"amp_keycenter"sv, OpCodeKind::AmpKeyCenter},
             {"amp_keytrack"sv, OpCodeKind::AmpKeyTrack},
             {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
+            {"cutoff"sv, OpCodeKind::Cutoff},
             {"default_path"sv, OpCodeKind::DefaultPath},
             {"end"sv, OpCodeKind::End},
             {"hikey"sv, OpCodeKind::HiKey},
@@ -1217,6 +1222,7 @@ private:
             {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"position"sv, OpCodeKind::Position},
+            {"resonance"sv, OpCodeKind::Resonance},
             {"rt_decay"sv, OpCodeKind::RtDecay},
             {"sample"sv, OpCodeKind::Sample},
             {"seq_length"sv, OpCodeKind::SequenceLength},
@@ -1765,6 +1771,17 @@ private:
                         std::end(s.envelope_velf),
                         static_cast<int16>(std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0)
                     );
+                }
+
+                if (auto cutoff = flatSection.GetAs<double>(OpCodeKind::Cutoff))
+                {
+                    s.cutoff_freq = std::clamp(static_cast<int32>(std::round(cutoff.value())), 1, 20000);
+                }
+
+                if (auto resonance = flatSection.GetAs<double>(OpCodeKind::Resonance))
+                {
+                    int resoCB = static_cast<int>(std::round(std::clamp(resonance.value(), 0.0, 40.0) * 10.0));
+                    s.resonance = static_cast<int16>(std::clamp(resoCB, 0, 960));
                 }
 
                 if (auto seqLen = flatSection.GetAs<double>(OpCodeKind::SequenceLength))
