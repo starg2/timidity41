@@ -613,7 +613,7 @@ public:
                         case DLSConnectionBlock::DestinationKind::Pan:
                             if (b.Source == DLSConnectionBlock::SourceKind::None && b.Control == DLSConnectionBlock::SourceKind::None && b.Transform == DLSConnectionBlock::TransformKind::None)
                             {
-                                pSample->sample_pan = std::clamp(b.Scale / 65536.0 / 1000.0, -0.5, 0.5);
+                                pSample->sample_pan = std::clamp(b.Scale / 1000.0, -0.5, 0.5);
                                 continue;
                             }
                             break;

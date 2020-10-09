@@ -841,6 +841,7 @@ enum class OpCodeKind
     Key,
     Pan,
     PitchKeyCenter,
+    Position,
     RtDecay,
     Sample,
     SequenceLength,
@@ -858,6 +859,7 @@ enum class OpCodeKind
     Trigger,
     Tune,
     Volume,
+    Width,
     XfInHiKey,
     XfInHiVel,
     XfInLoKey,
@@ -1050,12 +1052,14 @@ public:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
+                        case OpCodeKind::Position:
                         case OpCodeKind::RtDecay:
                         case OpCodeKind::SequenceLength:
                         case OpCodeKind::SequencePosition:
                         case OpCodeKind::Transpose:
                         case OpCodeKind::Tune:
                         case OpCodeKind::Volume:
+                        case OpCodeKind::Width:
                         case OpCodeKind::XfInHiVel:
                         case OpCodeKind::XfInLoVel:
                         case OpCodeKind::XfOutHiVel:
@@ -1212,6 +1216,7 @@ private:
             {"offset"sv, OpCodeKind::Offset},
             {"pan"sv, OpCodeKind::Pan},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
+            {"position"sv, OpCodeKind::Position},
             {"rt_decay"sv, OpCodeKind::RtDecay},
             {"sample"sv, OpCodeKind::Sample},
             {"seq_length"sv, OpCodeKind::SequenceLength},
@@ -1229,6 +1234,7 @@ private:
             {"trigger"sv, OpCodeKind::Trigger},
             {"tune"sv, OpCodeKind::Tune},
             {"volume"sv, OpCodeKind::Volume},
+            {"width"sv, OpCodeKind::Width},
             {"xf_keycurve"sv, OpCodeKind::XfKeyCurve},
             {"xf_velcurve"sv, OpCodeKind::XfVelCurve},
             {"xfin_hikey"sv, OpCodeKind::XfInHiKey},
@@ -1631,7 +1637,47 @@ private:
                         + std::clamp(flatSection.GetAs<double>(OpCodeKind::Tune).value_or(0.0), -100.0, 100.0) / 1200.0
                 );
 
-                s.sample_pan = std::clamp(flatSection.GetAs<double>(OpCodeKind::Pan).value_or(0.0), -100.0, 100.0) / 200.0;
+
+                double panValue = std::clamp(flatSection.GetAs<double>(OpCodeKind::Pan).value_or(0.0) / 200.0, -0.5, 0.5);
+
+                if (pSampleInstrument->samples == 2)    // stereo
+                {
+                    s.volume *= std::clamp((i == 0 ? 0.5 - panValue : panValue + 0.5) * 2.0, 0.0, 2.0);
+
+                    s.sample_pan = std::clamp(
+                        s.sample_pan * flatSection.GetAs<double>(OpCodeKind::Width).value_or(100.0) / 100.0,
+                        -0.5,
+                        0.5
+                    );
+
+                    s.sample_pan = std::clamp(
+                        s.sample_pan + flatSection.GetAs<double>(OpCodeKind::Position).value_or(0.0) / 100.0,
+                        -0.5,
+                        0.5
+                    );
+                }
+                else
+                {
+                    s.sample_pan = panValue;
+
+                    if (i == 0)
+                    {
+                        for (auto op : {OpCodeKind::Width, OpCodeKind::Position})
+                        {
+                            if (flatSection.GetAs<double>(op).has_value())
+                            {
+                                auto loc = flatSection.GetLocationForOpCode(op);
+                                ctl->cmsg(
+                                    CMSG_WARNING,
+                                    VERB_VERBOSE,
+                                    "%s(%u): 'width' and 'position' opcodes are only operational for stereo samples",
+                                    std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
+                                    static_cast<std::uint32_t>(loc.Line)
+                                );
+                            }
+                        }
+                    }
+                }
 
                 s.envelope_keyf_bpo = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::AmpKeyCenter).value_or(60), -127, 127));
                 s.envelope_velf_bpo = 0;
