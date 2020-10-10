@@ -166,7 +166,7 @@ struct DLSConnectionBlock
         LFOStartDelay = 0x105,
 
         EG1AttackTime = 0x206,
-        EG1DecayTime = 0x297,
+        EG1DecayTime = 0x207,
         EG1ReleaseTime = 0x209,
         EG1SustainLevel = 0x20A,
 
