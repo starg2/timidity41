@@ -1940,7 +1940,7 @@ private:
                                 ctl->cmsg(
                                     CMSG_WARNING,
                                     VERB_VERBOSE,
-                                    "%s(%u): 'sw_down' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
+                                    "%s(%u): 'sw_down' was specified but is out of the range specified by 'sw_lokey' and 'sw_hikey'",
                                     std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
                                     static_cast<std::uint32_t>(loc.Line)
                                 );
@@ -1968,7 +1968,7 @@ private:
                                 ctl->cmsg(
                                     CMSG_WARNING,
                                     VERB_VERBOSE,
-                                    "%s(%u): 'sw_up' was specified but it is outside the range specified by 'sw_lokey' and 'sw_hikey'",
+                                    "%s(%u): 'sw_up' was specified but is out of the range specified by 'sw_lokey' and 'sw_hikey'",
                                     std::string(m_Parser.GetPreprocessor().GetFileNameFromID(loc.FileID)).c_str(),
                                     static_cast<std::uint32_t>(loc.Line)
                                 );
