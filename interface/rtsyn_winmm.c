@@ -62,10 +62,6 @@
 #include "twsyn_bridge_host.h"
 #endif
 
-unsigned int portID[MAX_PORT];
-char rtsyn_portlist[32][80];
-int rtsyn_nportlist;
-
 #define MAX_EXBUF 20
 #define BUFF_SIZE 512
 

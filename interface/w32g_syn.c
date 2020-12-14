@@ -104,7 +104,6 @@ typedef struct w32g_syn_t_ {
 static w32g_syn_t w32g_syn;
 
 // 各種変数 (^^;;;
-HINSTANCE hInst = NULL;
 extern int RestartTimidity;
 
 extern void CmdLineToArgv(LPSTR lpCmdLine, int *argc, CHAR ***argv);
@@ -162,11 +161,9 @@ static int w32g_syn_create_win(void);
 
 
 #ifdef HAVE_SYN_CONSOLE
-HWND hConsoleWnd;
 void InitConsoleWnd(HWND hParentWnd);
 #endif /* HAVE_SYN_CONSOLE */
 #ifdef HAVE_SYN_SOUNDSPEC
-HWND hSoundSpecWnd;
 void InitSoundSpecWnd(HWND hParentWnd);
 #endif /* HAVE_SYN_SOUNDSPEC */
 

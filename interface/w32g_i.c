@@ -219,7 +219,7 @@ char *PlaylistFileOpenDir;
 //int PlayerThreadPriority;
 int MidiPlayerThreadPriority;
 int MainThreadPriority;
-int GUIThreadPriority;
+//int GUIThreadPriority;
 int TracerThreadPriority;
 int WrdThreadPriority;
 
