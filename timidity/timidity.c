@@ -151,9 +151,8 @@ extern DWORD processPriority;
 DWORD processPriority = NORMAL_PRIORITY_CLASS;	// プロセスのプライオリティ
 #if defined(IA_W32G_SYN) || defined(WINDRV)
 DWORD syn_ThreadPriority = THREAD_PRIORITY_NORMAL;
-#else
-int GUIThreadPriority = THREAD_PRIORITY_NORMAL;
 #endif
+int GUIThreadPriority = THREAD_PRIORITY_NORMAL;
 int PlayerThreadPriority = THREAD_PRIORITY_NORMAL;
 
 /* option enums */
