@@ -1021,6 +1021,7 @@ int w32g_uniq_playlist(int *is_selected_removed)
     for (i = 0; i < n - 1; i++)
     {
         int save_n;
+		int n_sel_advance = 0;
 
         /* remove list[i] from list[i+1 .. n-1] */
         j1 = j2 = i + 1;
@@ -1043,10 +1044,10 @@ int w32g_uniq_playlist(int *is_selected_removed)
                     !*is_selected_removed)
                 {
                     *is_selected_removed = 1;
-                    playlist_ctrl->selected = j1;
-                }
+					n_sel_advance++;
+				}
                 if (j2 < playlist_ctrl->selected)
-                    playlist_ctrl->selected--;
+					n_sel_advance++;
                 if (j2 < cursel)
                     cursel--;
             }
@@ -1057,6 +1058,7 @@ int w32g_uniq_playlist(int *is_selected_removed)
             }
             j2++;
         }
+		playlist_ctrl->selected -= n_sel_advance;
     }
     if (nremoved)
     {
