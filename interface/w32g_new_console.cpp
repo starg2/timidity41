@@ -1280,6 +1280,7 @@ extern "C" void ClearNewConsoleBuffer(void)
         if (pConsoleWindow)
         {
             pConsoleWindow->Clear();
+            return;
         }
     }
 
