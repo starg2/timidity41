@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.9)
 
 project(timidity41)
 
-set(TIM41_USE_AVX2 FALSE CACHE BOOL "Enable use of Intel AVX2 enhanced instructions")
+set(TIM41_X86_SIMD_LEVEL SSE42 CACHE BOOL "x86 SIMD instruction set extension to use")
+set_property(CACHE TIM41_X86_SIMD_LEVEL PROPERTY STRINGS SSE2 SSE42 AVX AVX2 AVX512)
+
 set(TIM41_SPECTRE_MITIGATION FALSE CACHE BOOL "Enable Spectre mitigation")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
@@ -153,10 +155,16 @@ else()
     add_definitions(-DVST_LIBRARY_NAME="timvstwrap.dll")
 endif()
 
-if(TIM41_USE_AVX2)
+if("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX512")
+    add_definitions(-DUSE_AVX512)
+elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX2")
     add_definitions(-DUSE_AVX2)
-else()
+elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX")
+    add_definitions(-DUSE_AVX)
+elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE42")
     add_definitions(-DUSE_SSE42)
+elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE2")
+    add_definitions(-DUSE_SSE2)
 endif()
 
 if(MSVC)
@@ -174,11 +182,15 @@ if(MSVC)
     add_compile_options(/we4028)    # formal parameter %d different from declaration
     add_compile_options(/we4133)    # 'function': incompatible types - from '%s' to '%s'
 
-    if(TIM41_USE_AVX2)
+    if("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX512")
+        add_compile_options(/arch:AVX512)
+    elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX2")
         add_compile_options(/arch:AVX2)
-    else()
+    elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX")
+        add_compile_options(/arch:AVX)
+    elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE42")
         if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
-            add_compile_options(-msse4.2)
+            add_compile_options(-msse4.2 -mpclmul -mpopcnt)
         endif()
     endif()
     
@@ -230,10 +242,19 @@ if(MSVC)
 else()
     add_compile_options(-Wall -Wextra -Wno-missing-braces -ffast-math)
 
-    if(TIM41_USE_AVX2)
-        add_compile_options(-mavx2 -mfma)
-    else()
-        add_compile_options(-msse4.2)
+    if("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX512")
+        add_compile_options(
+            -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw # -mavx512ifma -mavx512vbmi # -mavx512vpopcntdq -mavx512vnni -mavx512vbmi2 -mavx512bitalg -mvpclmulqdq -mgfni -mvaes
+            -mpclmul -mpopcnt -maes -mavx2 -mfma -mfsgsbase -mf16c -mmovbe -mrdrnd -mlzcnt -mbmi -mbmi2 -mprfchw -mrdseed -madx
+        )
+    elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX2")
+        add_compile_options(-mavx2 -mpclmul -mpopcnt -maes -mavx2 -mfma -mfsgsbase -mf16c -mmovbe -mrdrnd -mlzcnt -mbmi -mbmi2)
+    elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX")
+        add_compile_options(-mavx -mpclmul -mpopcnt -maes)
+    elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE42")
+        add_compile_options(-msse4.2 -mpclmul -mpopcnt)
+    elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE2")
+        add_compile_options(-msse2)
     endif()
 
 	string(APPEND CMAKE_CXX_FLAGS " -std=c++17")
