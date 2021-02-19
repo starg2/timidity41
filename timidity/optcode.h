@@ -680,7 +680,13 @@ static inline int32 signlong(int32 a)
 
 #ifdef __GNUC__
 
-#if ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
+#if ((USE_X86_EXT_ASM >= 10) || (USE_X86_EXT_INTRIN >= 10)) // AVX512 64byte
+#define ALIGN_SIZE 64
+#define ALIGN __attribute__((aligned(ALIGN_SIZE)))
+#define ALIGN32 __attribute__((aligned(32)))
+#define ALIGN16 __attribute__((aligned(16)))
+#define ALIGN8 __attribute__((aligned(8)))
+#elif ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
 #define ALIGN_SIZE 32
 #define ALIGN __attribute__((aligned(ALIGN_SIZE)))
 #define ALIGN32 __attribute__((aligned(32)))
@@ -702,7 +708,13 @@ static inline int32 signlong(int32 a)
 
 #elif defined(_MSC_VER) || defined(MSC_VER)
 
-#if ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
+#if ((USE_X86_EXT_ASM >= 10) || (USE_X86_EXT_INTRIN >= 10)) // AVX512 64byte
+#define ALIGN_SIZE 64
+#define ALIGN _declspec(align(ALIGN_SIZE))
+#define ALIGN32 _declspec(align(32))
+#define ALIGN16 _declspec(align(16))
+#define ALIGN8 _declspec(align(8))
+#elif ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
 #define ALIGN_SIZE 32
 #define ALIGN _declspec(align(ALIGN_SIZE))
 #define ALIGN32 _declspec(align(32))
