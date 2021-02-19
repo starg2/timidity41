@@ -130,6 +130,7 @@ AVX2以上のビルド環境がないので 動作は不明 (VC2013?以降
 //#define USE_SSE42 // テスト用
 //#define USE_AVX // テスト用
 //#define USE_AVX2 // テスト用
+//#define USE_AVX512 // テスト用
 
 /* x86 extension define */
 /* 
@@ -145,6 +146,7 @@ AVX2以上のビルド環境がないので 動作は不明 (VC2013?以降
   USE_SSE4 (SSE4.1 +SSE4.2
   USE_AVX  // include PCLMULQDQ
   USE_AVX2 // include FMA BMI1 BMI2 F16C RDRAND
+  USE_AVX512 // F, CD, VL, DQ, BW
 */
 /* x86 AMD extension define */
 /*	
@@ -169,6 +171,7 @@ enum{
 	X86_SSE42,
 	X86_AVX,
 	X86_AVX2,
+	X86_AVX512,
 };
 //x86 AMD extension number
 enum{
@@ -213,9 +216,14 @@ enum{
 #ifndef __AVX2__
 #undef  USE_AVX2
 #endif
+#if !defined(__AVX512F__) || !defined(__AVX512CD__) || !defined(__AVX512VL__) || !defined(__AVX512DQ__) || !defined(__AVX512BW__)
+#undef  USE_AVX512
+#endif
 #endif /* __GNUC__ */
 
-#if defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
+#if defined(USE_AVX512) // _MSC_VER >= 1910 VC2017?
+#define USE_X86_EXT_INTRIN  10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
 #define USE_X86_EXT_INTRIN  9
 #elif defined(USE_AVX) // _MSC_VER >= 1600 VC2010?
 #define USE_X86_EXT_INTRIN  8
@@ -241,7 +249,9 @@ enum{
 #undef USE_PENTIUM_4
 #endif
 
-#if defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
+#if defined(USE_AVX512) // _MSC_VER >= 1910 VC2017?
+#define USE_X64_EXT_INTRIN  10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
 #define USE_X64_EXT_INTRIN  9
 #elif defined(USE_AVX) // _MSC_VER >= 1600 VC2010?
 #define USE_X64_EXT_INTRIN  8
@@ -279,7 +289,9 @@ enum{
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
-#if defined(USE_AVX2)
+#if defined(USE_AVX512)
+#define USE_X86_EXT_ASM     10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2)
 #define USE_X86_EXT_ASM     9
 #elif defined(USE_AVX)
 #define USE_X86_EXT_ASM     8
@@ -301,7 +313,9 @@ enum{
 #define USE_X86_EXT_ASM     0
 #endif
 
-#if defined(USE_AVX2)
+#if defined(USE_AVX512)
+#define USE_X64_EXT_ASM     10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2)
 #define USE_X64_EXT_ASM     9
 #elif defined(USE_AVX)
 #define USE_X64_EXT_ASM     8
