@@ -5468,7 +5468,156 @@ do_linear:
 #endif
 }
 
-#if (USE_X86_EXT_INTRIN >= 9)
+#if (USE_X86_EXT_INTRIN >= 10)
+// offset:int32*16, resamp:float*16
+// ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
+static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const int32 req_count_mask = ~15;
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offset計算をint32値域にする(SIMD用
+	const int32 inc = resrc->increment;
+	const __m512i vinc = _mm512_set1_epi32(inc * 16), vfmask = _mm512_set1_epi32((int32)FRACTION_MASK);
+	__m512i vofs = _mm512_add_epi32(_mm512_set1_epi32(start_offset), _mm512_mullo_epi32(_mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0), _mm512_set1_epi32(inc)));
+	const __m512 vdivf = _mm512_set1_ps(div_fraction);	
+	const __m512 vfrac_6 = _mm512_set1_ps(div_fraction * DIV_6);
+	const __m512 vfrac_2 = _mm512_set1_ps(div_fraction * DIV_2);
+	const __m512 v3n = _mm512_set1_ps(-3);
+	const __m512 v3p = _mm512_set1_ps(3);
+	const __m512i vfrac = _mm512_set1_epi32(mlt_fraction);
+	const __m512i vfrac2 = _mm512_set1_epi32(ml2_fraction);
+	const __m512 vec_divo = _mm512_set1_ps(DIV_15BIT);
+#ifdef LAO_OPTIMIZE_INCREMENT
+	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(lagrangeは3) ) / オフセットデータ数
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (16 - 1 - 3) / 16; // (float*16) * 1セット
+	if(inc < opt_inc1){	// 1セット
+	const __m512i vvar1n = _mm512_set1_epi32(-1);
+	const __m512i vvar1 = _mm512_set1_epi32(1);
+	const __m512i vvar2 = _mm512_set1_epi32(2);
+	for(i = 0; i < count; i += 16) {
+	__m512i vofsi2 = _mm512_srli_epi32(vofs, FRACTION_BITS); // ofsi
+	__m512i vofsi1 = _mm512_add_epi32(vofsi2, vvar1n); // ofsi-1
+	__m512i vofsi3 = _mm512_add_epi32(vofsi2, vvar1); // ofsi+1
+	__m512i vofsi4 = _mm512_add_epi32(vofsi2, vvar2); // ofsi+2
+	int32 ofs0 = _mm_cvtsi128_si32(_mm512_castsi512_si128(vofsi1));
+	__m256i vin1 = _mm256_loadu_si256((__m256i *)&src[ofs0]); // int16*16
+	__m512i vofsib = _mm512_broadcastd_epi32(_mm512_castsi512_si128(vofsi1));
+	__m512i vofsub1 = _mm512_sub_epi32(vofsi1, vofsib); 
+	__m512i vofsub2 = _mm512_sub_epi32(vofsi2, vofsib);  
+	__m512i vofsub3 = _mm512_sub_epi32(vofsi3, vofsib); 
+	__m512i vofsub4 = _mm512_sub_epi32(vofsi4, vofsib);
+	__m512 vvf1 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(vin1)); // int16 to float (i16*16->i32*16->f32*16
+	__m512 vv0 = _mm512_permutexvar_ps(vofsub1, vvf1); // v1 ofsi-1
+	__m512 vv1 = _mm512_permutexvar_ps(vofsub2, vvf1); // v2 ofsi
+	__m512 vv2 = _mm512_permutexvar_ps(vofsub3, vvf1); // v2 ofsi+1
+	__m512 vv3 = _mm512_permutexvar_ps(vofsub4, vvf1); // v2 ofsi+2
+	// あとは通常と同じ
+	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
+	__m512 vtmp1, vtmp2, vtmp3, vtmp4;
+	vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	vtmp1 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	vtmp2 = _mm512_sub_ps(_mm512_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
+	vtmp3 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	vtmp4 = _mm512_mul_ps(_mm512_cvtepi32_ps(vofsf), vdivf); // tmp4 = (FLOAT_T)ofsf * div_fraction;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp1, vtmp2); // v[3] = v[3] * tmp1 + tmp2
+	vv3 = _mm512_fmadd_ps(vv3, vtmp3, vtmp); // v[3] = v[3] * tmp3 + tmp;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
+#if defined(DATA_T_DOUBLE)
+	vv3 = _mm512_mul_ps(vv3, vec_divo);
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vv3)));
+	dest += 8;
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vv3, 0x1)));
+	dest += 8;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	_mm512_storeu_ps(dest, _mm512_mul_ps(vv3, vec_divo));
+	dest += 16;
+#else // DATA_T_IN32
+	_mm512_storeu_si512((__m512i *)dest, _mm512_cvtps_epi32(vv3));
+	dest += 16;
+#endif
+	vofs = _mm512_add_epi32(vofs, vinc); // ofs += inc;
+	}
+	}else
+#endif // LAO_OPTIMIZE_INCREMENT
+	for(; i < count; i += 16) {
+	__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
+#if 1
+	__m512i vsrc0123_0123 = _mm512_i32gather_epi64(_mm512_castsi512_si256(vofsi), (const int*)(src - 1), 2);
+	__m512i vsrc4567_0123 = _mm512_i32gather_epi64(_mm512_extracti32x8_epi32(vofsi, 1), (const int*)(src - 1), 2);
+	const __m512i vpermi2mask = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12 ,10, 8, 6, 4, 2, 0);
+	__m512i vsrc01 = _mm512_permutex2var_epi32(vsrc0123_0123, vpermi2mask, vsrc4567_0123);
+	__m512i vsrc23 = _mm512_permutex2var_epi32(vsrc0123_0123, _mm512_add_epi32(vpermi2mask, _mm512_set1_epi32(1)), vsrc4567_0123);
+	__m512i vsrc0 = _mm512_srai_epi32(_mm512_slli_epi32(vsrc01, 16), 16);
+	__m512i vsrc1 = _mm512_srai_epi32(vsrc01, 16);
+	__m512i vsrc2 = _mm512_srai_epi32(_mm512_slli_epi32(vsrc23, 16), 16);
+	__m512i vsrc3 = _mm512_srai_epi32(vsrc23, 16);
+	__m512 vv0 = _mm512_cvtepi32_ps(vsrc0);
+	__m512 vv1 = _mm512_cvtepi32_ps(vsrc1);
+	__m512 vv2 = _mm512_cvtepi32_ps(vsrc2);
+	__m512 vv3 = _mm512_cvtepi32_ps(vsrc3);
+#else
+	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0) - 1]); // ofsi-1~ofsi+2をロード
+	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1) - 1]); // 次周サンプルも同じ
+	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2) - 1]); // 次周サンプルも同じ
+	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,3) - 1]); // 次周サンプルも同じ
+	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,4) - 1]); // 次周サンプルも同じ
+	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,5) - 1]); // 次周サンプルも同じ
+	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,6) - 1]); // 次周サンプルも同じ
+	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,7) - 1]); // 次周サンプルも同じ
+	__m128i vin12 = _mm_unpacklo_epi16(vin1, vin2); // [v11v21v31v41],[v12v22v32v42] to [v11v12v21v22v31v32v41v42]
+	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23v33v43],[v14v24v34v44] to [v13v14v23v24v33v34v43v44]
+	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // [v15v25v35v45],[v16v26v36v46] to [v15v16v25v26v35v36v45v46]
+	__m128i vin78 =	_mm_unpacklo_epi16(vin7, vin8); // [v17v27v37v47],[v18v28v38v48] to [v17v18v27v28v37v38v47v48]
+	__m128i vin1121 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22],[v13v14,v23v24] to [v11v12v13v14,v21v22v23v24]
+	__m128i vin3141 = _mm_unpackhi_epi32(vin12, vin34); // [v31v32,v41v42],[v33v34v,43v44] to [v31v32v33v34,v41v42v43v44]
+	__m128i vin1525 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26],[v17v18,v27v28] to [v15v16v17v18,v25v26v27v28]
+	__m128i vin3545 = _mm_unpackhi_epi32(vin56, vin78); // [v35v36,v45v46],[v37v38v,47v48] to [v35v36v37v38,v45v46v47v48]
+	__m128i vi16_1 = _mm_unpacklo_epi64(vin1121, vin1525); // [v11v12v13v14,v21v22v23v24],[v15v16v17v18,v25v26v27v28] to [v11v12v13v14v15v16v17v18]
+	__m128i vi16_2 = _mm_unpackhi_epi64(vin1121, vin1525); // [v11v12v13v14,v21v22v23v24],[v15v16v17v18,v25v26v27v28] to [v21v22v23v24v25v26v27v28]
+	__m128i vi16_3 = _mm_unpacklo_epi64(vin3141, vin3545); // [v31v32v33v34,v41v42v43v44],[v35v36v37v38,v45v46v47v48] to [v31v32v33v34v35v36v37v38]
+	__m128i vi16_4 = _mm_unpackhi_epi64(vin3141, vin3545); // [v31v32v33v34,v41v42v43v44],[v35v36v37v38,v45v46v47v48] to [v41v42v43v44v45v46v47v48]
+	__m256 vv0 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_1)); // int16 to float (16bit*8 -> 32bit*8 > float*8
+	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_2)); // int16 to float (16bit*8 -> 32bit*8 > float*8
+	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_3)); // int16 to float (16bit*8 -> 32bit*8 > float*8
+	__m256 vv3 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_4)); // int16 to float (16bit*8 -> 32bit*8 > float*8
+#endif
+	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
+	__m512 vtmp1, vtmp2, vtmp3, vtmp4;
+	vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	vtmp1 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	vtmp2 = _mm512_sub_ps(_mm512_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
+	vtmp3 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	vtmp4 = _mm512_mul_ps(_mm512_cvtepi32_ps(vofsf), vdivf); // tmp4 = (FLOAT_T)ofsf * div_fraction;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp1, vtmp2); // v[3] = v[3] * tmp1 + tmp2
+	vv3 = _mm512_fmadd_ps(vv3, vtmp3, vtmp); // v[3] = v[3] * tmp3 + tmp;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
+#if defined(DATA_T_DOUBLE)
+	vv3 = _mm512_mul_ps(vv3, vec_divo);
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vv3)));
+	dest += 8;
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vv3, 0x1)));
+	dest += 8;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	_mm512_storeu_ps(dest, _mm512_mul_ps(vv3, vec_divo));
+	dest += 16;
+#else // DATA_T_IN32
+	_mm512_storeu_si256((__m512i *)dest, _mm512_cvtps_epi32(vv3));
+	dest += 8;
+#endif
+	vofs = _mm512_add_epi32(vofs, vinc); // ofs += inc;
+	}
+	resrc->offset = prec_offset + (splen_t)(_mm_cvtsi128_si32(_mm512_castsi512_si128(vofs)));
+	*out_count = i;
+    return dest;
+}
+
+#elif (USE_X86_EXT_INTRIN >= 9)
 // offset:int32*8, resamp:float*8
 // ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
