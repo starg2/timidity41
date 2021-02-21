@@ -4255,9 +4255,9 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	for(i = 0; i < count; i += 8) {
 	__m256i vofsi1 = _mm256_srli_epi32(vofs, FRACTION_BITS);
 	__m256i vofsi2 = _mm256_add_epi32(vofsi1, vvar1);
-	int32 ofs0 = _mm_cvtsi128_si32(_mm256_extracti128_si256(vofsi1, 0x0));
+	int32 ofs0 = _mm_cvtsi128_si32(_mm256_castsi256_si128(vofsi1));
 	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[ofs0]); // int16*16
-	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi1, _mm256_setzero_si256()); 
+	__m256i vofsib = _mm256_broadcastd_epi32(_mm256_castsi256_si128(vofsi1));
 	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); 
 	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib); 
 	__m256 vvf1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vin1)); // int16 to float (float•ÏŠ·‚ÅH128bit‚ÍÁ‚¦‚é
@@ -4267,7 +4267,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
-	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
 	dest += 4;
@@ -4361,7 +4361,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
-	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
 	dest += 4;
