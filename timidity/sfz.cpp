@@ -823,12 +823,22 @@ enum class OpCodeKind
     AmpEG_Hold,
     AmpEG_Release,
     AmpEG_Sustain,
-    AmpKeyCenter,
-    AmpKeyTrack,
-    AmpVelTrack,
+    //AmpKeyCenter,
+    //AmpKeyTrack,
+    //AmpVelTrack,
     Cutoff,
     DefaultPath,
     End,
+    FilterEG_Attack,
+    FilterEG_Decay,
+    FilterEG_Delay,
+    FilterEG_Depth,
+    FilterEG_Hold,
+    FilterEG_Release,
+    FilterEG_Sustain,
+    //FilterKeyCenter,
+    //FilterKeyTrack,
+    //FilterVelTrack,
     HiKey,
     HiRand,
     HiVelocity,
@@ -841,6 +851,13 @@ enum class OpCodeKind
     Offset,
     Key,
     Pan,
+    PitchEG_Attack,
+    PitchEG_Decay,
+    PitchEG_Depth,
+    PitchEG_Hold,
+    PitchEG_Release,
+    PitchEG_Start,
+    PitchEG_Sustain,
     PitchKeyCenter,
     Position,
     Resonance,
@@ -1005,7 +1022,8 @@ public:
                     {
                         switch (opVal.OpCode)
                         {
-                        case OpCodeKind::AmpKeyCenter:
+                        //case OpCodeKind::AmpKeyCenter:
+                        //case OpCodeKind::FilterKeyCenter:
                         case OpCodeKind::HiKey:
                         case OpCodeKind::LoKey:
                         case OpCodeKind::PitchKeyCenter:
@@ -1043,10 +1061,19 @@ public:
                         case OpCodeKind::AmpEG_Hold:
                         case OpCodeKind::AmpEG_Release:
                         case OpCodeKind::AmpEG_Sustain:
-                        case OpCodeKind::AmpKeyTrack:
-                        case OpCodeKind::AmpVelTrack:
+                        //case OpCodeKind::AmpKeyTrack:
+                        //case OpCodeKind::AmpVelTrack:
                         case OpCodeKind::Cutoff:
                         case OpCodeKind::End:
+                        case OpCodeKind::FilterEG_Attack:
+                        case OpCodeKind::FilterEG_Decay:
+                        case OpCodeKind::FilterEG_Delay:
+                        case OpCodeKind::FilterEG_Depth:
+                        case OpCodeKind::FilterEG_Hold:
+                        case OpCodeKind::FilterEG_Release:
+                        case OpCodeKind::FilterEG_Sustain:
+                        //case OpCodeKind::FilterKeyTrack:
+                        //case OpCodeKind::FilterVelTrack:
                         case OpCodeKind::HiRand:
                         case OpCodeKind::HiVelocity:
                         case OpCodeKind::LoopEnd:
@@ -1055,6 +1082,13 @@ public:
                         case OpCodeKind::LoVelocity:
                         case OpCodeKind::Offset:
                         case OpCodeKind::Pan:
+                        case OpCodeKind::PitchEG_Attack:
+                        case OpCodeKind::PitchEG_Decay:
+                        case OpCodeKind::PitchEG_Depth:
+                        case OpCodeKind::PitchEG_Hold:
+                        case OpCodeKind::PitchEG_Release:
+                        case OpCodeKind::PitchEG_Start:
+                        case OpCodeKind::PitchEG_Sustain:
                         case OpCodeKind::Position:
                         case OpCodeKind::Resonance:
                         case OpCodeKind::RtDecay:
@@ -1202,12 +1236,22 @@ private:
             {"ampeg_hold"sv, OpCodeKind::AmpEG_Hold},
             {"ampeg_release"sv, OpCodeKind::AmpEG_Release},
             {"ampeg_sustain"sv, OpCodeKind::AmpEG_Sustain},
-            {"amp_keycenter"sv, OpCodeKind::AmpKeyCenter},
-            {"amp_keytrack"sv, OpCodeKind::AmpKeyTrack},
-            {"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
+            //{"amp_keycenter"sv, OpCodeKind::AmpKeyCenter},
+            //{"amp_keytrack"sv, OpCodeKind::AmpKeyTrack},
+            //{"amp_veltrack"sv, OpCodeKind::AmpVelTrack},
             {"cutoff"sv, OpCodeKind::Cutoff},
             {"default_path"sv, OpCodeKind::DefaultPath},
             {"end"sv, OpCodeKind::End},
+            {"fileg_attack"sv, OpCodeKind::FilterEG_Attack},
+            {"fileg_decay"sv, OpCodeKind::FilterEG_Decay},
+            {"fileg_delay"sv, OpCodeKind::FilterEG_Delay},
+            {"fileg_depth"sv, OpCodeKind::FilterEG_Depth},
+            {"fileg_hold"sv, OpCodeKind::FilterEG_Hold},
+            {"fileg_release"sv, OpCodeKind::FilterEG_Release},
+            {"fileg_sustain"sv, OpCodeKind::FilterEG_Sustain},
+            //{"fil_keycenter"sv, OpCodeKind::FilterKeyCenter},
+            //{"fil_keytrack"sv, OpCodeKind::FilterKeyTrack},
+            //{"fil_veltrack"sv, OpCodeKind::FilterVelTrack},
             {"hikey"sv, OpCodeKind::HiKey},
             {"hirand"sv, OpCodeKind::HiRand},
             {"hivel"sv, OpCodeKind::HiVelocity},
@@ -1220,6 +1264,13 @@ private:
             {"lovel"sv, OpCodeKind::LoVelocity},
             {"offset"sv, OpCodeKind::Offset},
             {"pan"sv, OpCodeKind::Pan},
+            {"pitcheg_attack"sv, OpCodeKind::PitchEG_Attack},
+            {"pitcheg_decay"sv, OpCodeKind::PitchEG_Decay},
+            {"pitcheg_depth"sv, OpCodeKind::PitchEG_Depth},
+            {"pitcheg_hold"sv, OpCodeKind::PitchEG_Hold},
+            {"pitcheg_release"sv, OpCodeKind::PitchEG_Release},
+            {"pitcheg_start"sv, OpCodeKind::PitchEG_Start},
+            {"pitcheg_sustain"sv, OpCodeKind::PitchEG_Sustain},
             {"pitch_keycenter"sv, OpCodeKind::PitchKeyCenter},
             {"position"sv, OpCodeKind::Position},
             {"resonance"sv, OpCodeKind::Resonance},
@@ -1685,12 +1736,6 @@ private:
                     }
                 }
 
-                s.envelope_keyf_bpo = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::AmpKeyCenter).value_or(60), -127, 127));
-                s.envelope_velf_bpo = 0;
-                s.modenv_velf_bpo = 0;
-
-                s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * s.sample_rate);
-
                 switch (flatSection.GetAs<TriggerKind>(OpCodeKind::Trigger).value_or(TriggerKind::Attack))
                 {
                 case TriggerKind::Attack:
@@ -1737,41 +1782,109 @@ private:
 
                 s.rt_decay = std::clamp(flatSection.GetAs<double>(OpCodeKind::RtDecay).value_or(0.0), 0.0, 200.0);
 
+                // amp envelope
+                s.envelope_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Delay).value_or(0.0), 0.0, 100.0) * s.sample_rate);
+
                 s.envelope_offset[0] = ToOffset(65535);
                 s.envelope_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Attack).value_or(0.0), 0.0, 100.0));
                 s.envelope_offset[1] = ToOffset(65534);
                 s.envelope_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Hold).value_or(0.0), 0.0, 100.0));
 
-                std::int32_t sustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
-                s.envelope_offset[2] = ToOffset(sustainLevel);
-                s.envelope_rate[2] = CalcRate(65534 - sustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
+                std::int32_t ampEnvSustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
+                s.envelope_offset[2] = ToOffset(ampEnvSustainLevel);
+                s.envelope_rate[2] = CalcRate(65534 - ampEnvSustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Decay).value_or(0.0), 0.0, 100.0));
 
-                double releaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
+                double ampEnvReleaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::AmpEG_Release).value_or(0.0), 0.0, 100.0);
                 s.envelope_offset[3] = 0;
-                s.envelope_rate[3] = CalcRate(65535, releaseTime);
+                s.envelope_rate[3] = CalcRate(65535, ampEnvReleaseTime);
                 s.envelope_offset[4] = s.envelope_offset[3];
                 s.envelope_rate[4] = s.envelope_rate[3];
                 s.envelope_offset[5] = s.envelope_offset[3];
                 s.envelope_rate[5] = s.envelope_rate[3];
 
-                if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
-                {
-                    std::fill(
-                        std::begin(s.envelope_keyf),
-                        std::end(s.envelope_keyf),
-                        static_cast<int16>(std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0))
-                    );
-                }
+                //s.envelope_keyf_bpo = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::AmpKeyCenter).value_or(60), 0, 127));
+                s.envelope_keyf_bpo = 0;
+                s.envelope_velf_bpo = 0;
 
-                if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
-                {
-                    // convert percent to rate
-                    std::fill(
-                        std::begin(s.envelope_velf),
-                        std::end(s.envelope_velf),
-                        static_cast<int16>(std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0)
-                    );
-                }
+                // filter envelope (implemented with modenv)
+                s.modenv_to_pitch = 0;
+                s.modenv_to_fc = static_cast<int16>(std::round(std::clamp(flatSection.GetAs<double>(OpCodeKind::FilterEG_Depth).value_or(0.0), -12000.0, 12000.0)));
+
+                s.modenv_delay = std::lround(std::clamp(flatSection.GetAs<double>(OpCodeKind::FilterEG_Delay).value_or(0.0), 0.0, 100.0) * s.sample_rate);
+
+                s.modenv_offset[0] = ToOffset(65535);
+                s.modenv_rate[0] = CalcRate(65535, std::clamp(flatSection.GetAs<double>(OpCodeKind::FilterEG_Attack).value_or(0.0), 0.0, 100.0));
+                s.modenv_offset[1] = ToOffset(65534);
+                s.modenv_rate[1] = CalcRate(1, std::clamp(flatSection.GetAs<double>(OpCodeKind::FilterEG_Hold).value_or(0.0), 0.0, 100.0));
+
+                std::int32_t filEnvSustainLevel = std::lround(65533.0 * std::clamp(flatSection.GetAs<double>(OpCodeKind::FilterEG_Sustain).value_or(100.0), 0.0, 100.0) / 100.0);
+                s.modenv_offset[2] = ToOffset(filEnvSustainLevel);
+                s.modenv_rate[2] = CalcRate(65534 - filEnvSustainLevel, std::clamp(flatSection.GetAs<double>(OpCodeKind::FilterEG_Decay).value_or(0.0), 0.0, 100.0));
+
+                double filEnvReleaseTime = std::clamp(flatSection.GetAs<double>(OpCodeKind::FilterEG_Release).value_or(0.0), 0.0, 100.0);
+                s.modenv_offset[3] = 0;
+                s.modenv_rate[3] = CalcRate(65535, filEnvReleaseTime);
+                s.modenv_offset[4] = s.modenv_offset[3];
+                s.modenv_rate[4] = s.modenv_rate[3];
+                s.modenv_offset[5] = s.modenv_offset[3];
+                s.modenv_rate[5] = s.modenv_rate[3];
+
+                //s.modenv_keyf_bpo = static_cast<int8>(std::clamp(flatSection.GetAs<std::int32_t>(OpCodeKind::FilterKeyCenter).value_or(60), 0, 127));
+                s.modenv_keyf_bpo = 0;
+                s.modenv_velf_bpo = 0;
+
+                // pitch envelope
+                double pitchEnvDepth = std::clamp(flatSection.GetAs<double>(OpCodeKind::PitchEG_Depth).value_or(0.0), -12000.0, 12000.0);
+                s.pitch_envelope[0] = static_cast<int32>(
+                    std::round(pitchEnvDepth * std::clamp(flatSection.GetAs<double>(OpCodeKind::PitchEG_Start).value_or(0.0), 0.0, 100.0) / 100.0)
+                );
+                s.pitch_envelope[1] = static_cast<int32>(std::round(pitchEnvDepth));
+                s.pitch_envelope[2] = static_cast<int32>(std::round(std::clamp(flatSection.GetAs<double>(OpCodeKind::PitchEG_Attack).value_or(0.0), 0.0, 100.0) * 1000.0));
+                s.pitch_envelope[3] = static_cast<int32>(std::round(pitchEnvDepth));
+                s.pitch_envelope[4] = static_cast<int32>(std::round(std::clamp(flatSection.GetAs<double>(OpCodeKind::PitchEG_Hold).value_or(0.0), 0.0, 100.0) * 1000.0));
+                s.pitch_envelope[5] = static_cast<int32>(
+                    std::round(pitchEnvDepth * std::clamp(flatSection.GetAs<double>(OpCodeKind::PitchEG_Sustain).value_or(0.0), 0.0, 100.0) / 100.0)
+                );
+                s.pitch_envelope[6] = static_cast<int32>(std::round(std::clamp(flatSection.GetAs<double>(OpCodeKind::PitchEG_Decay).value_or(0.0), 0.0, 100.0) * 1000.0));
+                s.pitch_envelope[7] = 0;
+                s.pitch_envelope[8] = static_cast<int32>(std::round(std::clamp(flatSection.GetAs<double>(OpCodeKind::PitchEG_Release).value_or(0.0), 0.0, 100.0) * 1000.0));
+
+                //if (auto ampKeyTrack = flatSection.GetAs<double>(OpCodeKind::AmpKeyTrack))
+                //{
+                //    std::fill(
+                //        std::begin(s.envelope_keyf),
+                //        std::end(s.envelope_keyf),
+                //        static_cast<int16>(std::round(std::clamp(ampKeyTrack.value(), -96.0, 12.0) * 0.1 * std::log2(10.0)))
+                //    );
+                //}
+
+                //if (auto ampVelTrack = flatSection.GetAs<double>(OpCodeKind::AmpVelTrack))
+                //{
+                //    // convert percent to rate
+                //    std::fill(
+                //        std::begin(s.envelope_velf),
+                //        std::end(s.envelope_velf),
+                //        static_cast<int16>(std::round(std::clamp(ampVelTrack.value() * 0.01, -1.0, 1.0) * 1200.0 / 127.0))
+                //    );
+                //}
+
+                //if (auto filterKeyTrack = flatSection.GetAs<double>(OpCodeKind::FilterKeyTrack))
+                //{
+                //    std::fill(
+                //        std::begin(s.modenv_keyf),
+                //        std::end(s.modenv_keyf),
+                //        static_cast<int16>(std::round(std::clamp(filterKeyTrack.value(), 0.0, 1200.0)))
+                //    );
+                //}
+
+                //if (auto filterVelTrack = flatSection.GetAs<double>(OpCodeKind::FilterVelTrack))
+                //{
+                //    std::fill(
+                //        std::begin(s.modenv_velf),
+                //        std::end(s.modenv_velf),
+                //        static_cast<int16>(std::round(std::clamp(filterVelTrack.value(), -9600.0, 9600.0)))
+                //    );
+                //}
 
                 if (auto cutoff = flatSection.GetAs<double>(OpCodeKind::Cutoff))
                 {

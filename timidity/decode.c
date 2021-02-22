@@ -322,6 +322,7 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 
 				int j = 0;
 
+#if 0	// Let the auto-vectorizer do its job.
 #if USE_X86_EXT_INTRIN >= 9
 				int n8 = n & ~7;
 				__m128i vs = _mm_cvtsi32_si128(s);
@@ -343,6 +344,7 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 					_mm_storeu_si128((__m128i *)(dest + j), v);
 					j += 4;
 				}
+#endif
 #endif
 
 				while (j < n) {

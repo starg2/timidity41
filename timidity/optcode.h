@@ -91,15 +91,15 @@
 
 /*****************************************************************************/
 /*
-intrinsicを使用してみるテスト gccでも使えるらしいし
-CPUの拡張機能の対応の違い,ビルド環境のasm/intrin対応の違いがあるので
-arch_ext_asm/intrinを個別に指定できるようにする
-asm/intrin両対応の場合 asmを優先して使用する
-x86_ext/x86_AMD_ext両対応の場合 x86_AMD_extを優先して使用する
-intrinは一部除いてx86/x64共通なので USE_X86_EXT_INTRINはx64でも有効化 
- x86/x64専用命令は USE_X64_EXT_INTRIN/IX64CPU等で区別 (gather等
+intrinsic��g�p���Ă݂�e�X�g gcc�ł�g����炵����
+CPU�̊g���@�\�̑Ή��̈Ⴂ,�r���h����asm/intrin�Ή��̈Ⴂ������̂�
+arch_ext_asm/intrin��ʂɎw��ł���悤�ɂ���
+asm/intrin���Ή��̏ꍇ asm��D�悵�Ďg�p����
+x86_ext/x86_AMD_ext���Ή��̏ꍇ x86_AMD_ext��D�悵�Ďg�p����
+intrin�͈ꕔ������x86/x64���ʂȂ̂� USE_X86_EXT_INTRIN��x64�ł�L���� 
+ x86/x64��p���߂� USE_X64_EXT_INTRIN/IX64CPU���ŋ�� (gather��
 
-分岐の順序は
+����̏�����
 1 OPT_MODE or USE_X86_AMD_EXT_ASM or USE_X64_AMD_EXT_ASM
 2 OPT_MODE or USE_X86_EXT_ASM or USE_X64_EXT_ASM
 3 USE_X64_AMD_EXT_INTRIN
@@ -108,12 +108,12 @@ intrinは一部除いてx86/x64共通なので USE_X86_EXT_INTRINはx64でも有
 6 USE_X86_EXT_INTRIN
 
 
-問題点
-AMDわからん・・たぶん違うので要修正 (今のところ必要ないし使う予定もないけど
-対応機能チェック いろいろ怪しい (optcode.c is_x86ext_available() 未使用
-OPT_MODEとの関係をどうするか・・ (今のところOPT_MODE優先
- まとめるなら, 1: x86 asm / no intrin にして以下ずらす, intrin非対応になる条件を変更, _EXTを_OPTに変更 とか
-AVX2以上のビルド環境がないので 動作は不明 (VC2013?以降
+���_
+AMD�킩���E�E���Ԃ�Ⴄ�̂ŗv�C�� (���̂Ƃ���K�v�Ȃ����g���\���Ȃ�����
+�Ή��@�\�`�F�b�N ���낢������� (optcode.c is_x86ext_available() ���g�p
+OPT_MODE�Ƃ̊֌W��ǂ����邩�E�E (���̂Ƃ���OPT_MODE�D��
+ �܂Ƃ߂�Ȃ�, 1: x86 asm / no intrin �ɂ��Ĉȉ����炷, intrin��Ή��ɂȂ�����ύX, _EXT��_OPT�ɕύX �Ƃ�
+AVX2�ȏ�̃r���h�����Ȃ��̂� ����͕s�� (VC2013?�ȍ~
 
 */
 #define USE_PENTIUM_4 // for pentium 4 (northwood steppingA) float/double denormal fix
@@ -122,18 +122,19 @@ AVX2以上のビルド環境がないので 動作は不明 (VC2013?以降
 #undef USE_PENTIUM_4
 #endif
 
-//#define USE_SSE // テスト用
-//#define USE_SSE2 // テスト用
-//#define USE_SSE3 // テスト用
-//#define USE_SSSE3 // テスト用
-//#define USE_SSE41 // テスト用
-//#define USE_SSE42 // テスト用
-//#define USE_AVX // テスト用
-//#define USE_AVX2 // テスト用
+//#define USE_SSE // �e�X�g�p
+//#define USE_SSE2 // �e�X�g�p
+//#define USE_SSE3 // �e�X�g�p
+//#define USE_SSSE3 // �e�X�g�p
+//#define USE_SSE41 // �e�X�g�p
+//#define USE_SSE42 // �e�X�g�p
+//#define USE_AVX // �e�X�g�p
+//#define USE_AVX2 // �e�X�g�p
+//#define USE_AVX512 // �e�X�g�p
 
 /* x86 extension define */
 /* 
-  使用する拡張機能を指定する (下位の拡張機能を含む
+  �g�p����g���@�\��w�肷�� (���ʂ̊g���@�\��܂�
   USE_MMX
   USE_MMX2
   USE_SSE // include MMX2
@@ -145,11 +146,12 @@ AVX2以上のビルド環境がないので 動作は不明 (VC2013?以降
   USE_SSE4 (SSE4.1 +SSE4.2
   USE_AVX  // include PCLMULQDQ
   USE_AVX2 // include FMA BMI1 BMI2 F16C RDRAND
+  USE_AVX512 // F, CD, VL, DQ, BW
 */
 /* x86 AMD extension define */
 /*	
-  使用する拡張機能を指定する (下位の拡張機能を含む
-  x86 extensionも合わせて指定する
+  �g�p����g���@�\��w�肷�� (���ʂ̊g���@�\��܂�
+  x86 extension����킹�Ďw�肷��
   USE_3DNOW
   USE_3DNOW_ENH (3DNow+
   USE_3DNOW_PRO (3DNow?
@@ -169,6 +171,7 @@ enum{
 	X86_SSE42,
 	X86_AVX,
 	X86_AVX2,
+	X86_AVX512,
 };
 //x86 AMD extension number
 enum{
@@ -213,9 +216,14 @@ enum{
 #ifndef __AVX2__
 #undef  USE_AVX2
 #endif
+#if !defined(__AVX512F__) || !defined(__AVX512CD__) || !defined(__AVX512VL__) || !defined(__AVX512DQ__) || !defined(__AVX512BW__)
+#undef  USE_AVX512
+#endif
 #endif /* __GNUC__ */
 
-#if defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
+#if defined(USE_AVX512) // _MSC_VER >= 1910 VC2017?
+#define USE_X86_EXT_INTRIN  10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
 #define USE_X86_EXT_INTRIN  9
 #elif defined(USE_AVX) // _MSC_VER >= 1600 VC2010?
 #define USE_X86_EXT_INTRIN  8
@@ -241,7 +249,9 @@ enum{
 #undef USE_PENTIUM_4
 #endif
 
-#if defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
+#if defined(USE_AVX512) // _MSC_VER >= 1910 VC2017?
+#define USE_X64_EXT_INTRIN  10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2) // _MSC_VER >= 1700 VC2013?
 #define USE_X64_EXT_INTRIN  9
 #elif defined(USE_AVX) // _MSC_VER >= 1600 VC2010?
 #define USE_X64_EXT_INTRIN  8
@@ -279,7 +289,9 @@ enum{
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
-#if defined(USE_AVX2)
+#if defined(USE_AVX512)
+#define USE_X86_EXT_ASM     10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2)
 #define USE_X86_EXT_ASM     9
 #elif defined(USE_AVX)
 #define USE_X86_EXT_ASM     8
@@ -301,7 +313,9 @@ enum{
 #define USE_X86_EXT_ASM     0
 #endif
 
-#if defined(USE_AVX2)
+#if defined(USE_AVX512)
+#define USE_X64_EXT_ASM     10  // F, CD, VL, DQ, BW
+#elif defined(USE_AVX2)
 #define USE_X64_EXT_ASM     9
 #elif defined(USE_AVX)
 #define USE_X64_EXT_ASM     8
@@ -337,7 +351,7 @@ enum{
 #define USE_X86_AMD_EXT_ASM     0
 #endif
 
-/* asm/intrin不可条件 他にあれば追加 */
+/* asm/intrin�s��� ���ɂ���Βǉ� */
 #if !defined(IX64CPU)
 #undef USE_X64_EXT_INTRIN
 #define USE_X64_EXT_INTRIN   0
@@ -666,7 +680,13 @@ static inline int32 signlong(int32 a)
 
 #ifdef __GNUC__
 
-#if ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
+#if ((USE_X86_EXT_ASM >= 10) || (USE_X86_EXT_INTRIN >= 10)) // AVX512 64byte
+#define ALIGN_SIZE 64
+#define ALIGN __attribute__((aligned(ALIGN_SIZE)))
+#define ALIGN32 __attribute__((aligned(32)))
+#define ALIGN16 __attribute__((aligned(16)))
+#define ALIGN8 __attribute__((aligned(8)))
+#elif ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
 #define ALIGN_SIZE 32
 #define ALIGN __attribute__((aligned(ALIGN_SIZE)))
 #define ALIGN32 __attribute__((aligned(32)))
@@ -688,7 +708,13 @@ static inline int32 signlong(int32 a)
 
 #elif defined(_MSC_VER) || defined(MSC_VER)
 
-#if ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
+#if ((USE_X86_EXT_ASM >= 10) || (USE_X86_EXT_INTRIN >= 10)) // AVX512 64byte
+#define ALIGN_SIZE 64
+#define ALIGN _declspec(align(ALIGN_SIZE))
+#define ALIGN32 _declspec(align(32))
+#define ALIGN16 _declspec(align(16))
+#define ALIGN8 _declspec(align(8))
+#elif ((USE_X86_EXT_ASM >= 8) || (USE_X86_EXT_INTRIN >= 8)) // AVX 32byte
 #define ALIGN_SIZE 32
 #define ALIGN _declspec(align(ALIGN_SIZE))
 #define ALIGN32 _declspec(align(32))
@@ -711,7 +737,7 @@ static inline int32 signlong(int32 a)
 #endif /* __GNUC__, MSC_VER */
 
 /*
-以下のFMAのマクロは CPUにFMAの実装がない場合はMADD (丸め有無の精度の違いは考慮してない ミスった・・
+�ȉ���FMA�̃}�N���� CPU��FMA�̎������Ȃ��ꍇ��MADD (�ۂߗL���̐��x�̈Ⴂ�͍l�����ĂȂ� �~�X�����E�E
 FMA(vec_a, vec_b, vec_c) : vec_a * vec_b + vec_c
 FMA2(vec_a, vec_b, vec_c, vec_d) : vec_a * vec_b + vec_c * vec_d
 LS_FMA(ptr, vec_a, vec_b) : store(ptr, load(ptr) + vec_a * vec_b) // *ptr += vec_a * vec_b
