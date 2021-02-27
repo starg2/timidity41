@@ -91,6 +91,7 @@ length*2まで扱えれば十分
 #define fract_t int64
 #endif
 
+#define USE_PERMUTEX2
 
 static inline int32 imuldiv_fraction(int32 a, int32 b) {
 #if (OPT_MODE == 1) && defined(SUPPORT_ASM_INTEL) /* fixed-point implementation */
@@ -4144,13 +4145,12 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 			__m512i vofsib = _mm512_broadcastd_epi32(_mm512_castsi512_si128(vofsi1));
 			__m512i vofsub1 = _mm512_sub_epi32(vofsi1, vofsib);
 			__m512i vofsub2 = _mm512_sub_epi32(vofsi2, vofsib);
-#ifdef USE_PERMUTEX2
 			__m512 vvf1 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(vin1));
+#ifdef USE_PERMUTEX2
 			__m512 vvf2 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(vin2));
 			__m512 vv1 = _mm512_permutex2var_ps(vvf1, vofsub1, vvf2); // v1 ofsi
 			__m512 vv2 = _mm512_permutex2var_ps(vvf1, vofsub2, vvf2); // v2 ofsi+1
 #else
-			__m512 vvf1 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(vin1));
 			__m512 vv1 = _mm512_permutexvar_ps(vofsub1, vvf1); // v1 ofsi
 			__m512 vv2 = _mm512_permutexvar_ps(vofsub2, vvf1); // v2 ofsi+1
 #endif
@@ -5493,7 +5493,11 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	const __m512 vec_divo = _mm512_set1_ps(DIV_15BIT);
 #ifdef LAO_OPTIMIZE_INCREMENT
 	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(lagrangeは3) ) / オフセットデータ数
+#ifdef USE_PERMUTEX2
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (32 - 1 - 3) / 16; // (float*16) * 1セット
+#else
 	const int32 opt_inc1 = (1 << FRACTION_BITS) * (16 - 1 - 3) / 16; // (float*16) * 1セット
+#endif
 	if(inc < opt_inc1){	// 1セット
 	const __m512i vvar1n = _mm512_set1_epi32(-1);
 	const __m512i vvar1 = _mm512_set1_epi32(1);
@@ -5505,16 +5509,27 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m512i vofsi4 = _mm512_add_epi32(vofsi2, vvar2); // ofsi+2
 	int32 ofs0 = _mm_cvtsi128_si32(_mm512_castsi512_si128(vofsi1));
 	__m256i vin1 = _mm256_loadu_si256((__m256i *)&src[ofs0]); // int16*16
+#ifdef USE_PERMUTEX2
+	__m256i vin2 = _mm256_loadu_si256((__m256i *)&src[ofs0 + 16]); // int16*6
+#endif
 	__m512i vofsib = _mm512_broadcastd_epi32(_mm512_castsi512_si128(vofsi1));
 	__m512i vofsub1 = _mm512_sub_epi32(vofsi1, vofsib); 
 	__m512i vofsub2 = _mm512_sub_epi32(vofsi2, vofsib);  
 	__m512i vofsub3 = _mm512_sub_epi32(vofsi3, vofsib); 
 	__m512i vofsub4 = _mm512_sub_epi32(vofsi4, vofsib);
 	__m512 vvf1 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(vin1)); // int16 to float (i16*16->i32*16->f32*16
+#ifdef USE_PERMUTEX2
+	__m512 vvf2 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(vin2));
+	__m512 vv0 = _mm512_permutex2var_ps(vvf1, vofsub1, vvf2);
+	__m512 vv1 = _mm512_permutex2var_ps(vvf1, vofsub2, vvf2);
+	__m512 vv2 = _mm512_permutex2var_ps(vvf1, vofsub3, vvf2);
+	__m512 vv3 = _mm512_permutex2var_ps(vvf1, vofsub4, vvf2);
+#else
 	__m512 vv0 = _mm512_permutexvar_ps(vofsub1, vvf1); // v1 ofsi-1
 	__m512 vv1 = _mm512_permutexvar_ps(vofsub2, vvf1); // v2 ofsi
 	__m512 vv2 = _mm512_permutexvar_ps(vofsub3, vvf1); // v2 ofsi+1
 	__m512 vv3 = _mm512_permutexvar_ps(vofsub4, vvf1); // v2 ofsi+2
+#endif
 	// あとは通常と同じ
 	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
