@@ -746,9 +746,34 @@ LS_MUL(ptr, vec_a) : store(ptr, load(ptr) * vec_a) // *ptr *= vec_a
 LSU : Unalignment (use loadu/storeu
 */
 
+#if (USE_X86_EXT_INTRIN >= 10)
+#define MM512_FMA_PD(vec_a, vec_b, vec_c) _mm512_fmadd_pd(vec_a, vec_b, vec_c)
+#define MM512_FMA2_PD(vec_a, vec_b, vec_c, vec_d) _mm512_fmadd_pd(vec_a, vec_b, _mm512_mul_pd(vec_c, vec_d))
+#define MM512_FMA3_PD(v00, v01, v10, v11, v20, v21) _mm512_fmadd_pd(v20, v21, _mm512_fmadd_pd(v10, v11, _mm512_mul_pd(v00, v01)))
+#define MM512_FMA4_PD(v00, v01, v10, v11, v20, v21, v30, v31) _mm512_add_pd(\
+	_mm512_fmadd_pd(v30, v31, _mm512_mul_pd(v20, v21)), _mm512_fmadd_pd(v10, v11, _mm512_mul_pd(v00, v01)) )
+#define MM512_LS_FMA_PD(ptr, vec_a, vec_b) _mm512_store_pd(ptr, _mm512_fmadd_pd(vec_a, vec_b, _mm512_load_pd(ptr)))
+#define MM512_LSU_FMA_PD(ptr, vec_a, vec_b) _mm512_storeu_pd(ptr, _mm512_fmadd_pd(vec_a, vec_b, _mm512_loadu_pd(ptr)))
+#define MM512_MSUB_PD(vec_a, vec_b, vec_c) _mm512_fmsub_pd(vec_a, vec_b, vec_c)
+#define MM512_FMA_PS(vec_a, vec_b, vec_c) _mm512_fmadd_ps(vec_a, vec_b, vec_c)
+#define MM512_FMA2_PS(vec_a, vec_b, vec_c, vec_d) _mm512_fmadd_ps(vec_a, vec_b, _mm512_mul_ps(vec_c, vec_d))
+#define MM512_FMA3_PS(v00, v01, v10, v11, v20, v21) _mm512_fmadd_ps(v20, v21, _mm512_fmadd_ps(v10, v11, _mm512_mul_ps(v00, v01))
+#define MM512_LS_FMA_PS(ptr, vec_a, vec_b) _mm512_store_ps(ptr, _mm512_fmadd_ps(vec_a, vec_b, _mm512_load_ps(ptr)))
+#define MM512_LSU_FMA_PS(ptr, vec_a, vec_b) _mm512_storeu_ps(ptr, _mm512_fmadd_ps(vec_a, vec_b, _mm512_loadu_ps(ptr)))
+#define MM512_MSUB_PS(vec_a, vec_b, vec_c) _mm512_fmsub_ps(vec_a, vec_b, vec_c)
+#define MM512_LS_ADD_PD(ptr, vec_a) _mm512_store_pd(ptr, _mm512_add_pd(_mm512_load_pd(ptr), vec_a))
+#define MM512_LSU_ADD_PD(ptr, vec_a) _mm512_storeu_pd(ptr, _mm512_add_pd(_mm512_loadu_pd(ptr), vec_a))
+#define MM512_LS_MUL_PD(ptr, vec_a) _mm512_store_pd(ptr, _mm512_mul_pd(_mm512_load_pd(ptr), vec_a))
+#define MM512_LSU_MUL_PD(ptr, vec_a) _mm512_storeu_pd(ptr, _mm512_mul_pd(_mm512_loadu_pd(ptr), vec_a))
+#define MM512_LS_ADD_PS(ptr, vec_a) _mm512_store_ps(ptr, _mm512_add_ps(_mm512_load_ps(ptr), vec_a))
+#define MM512_LSU_ADD_PS(ptr, vec_a) _mm512_storeu_ps(ptr, _mm512_add_ps(_mm512_loadu_ps(ptr), vec_a))
+#define MM512_LS_MUL_PS(ptr, vec_a) _mm512_store_ps(ptr, _mm512_mul_ps(_mm512_load_ps(ptr), vec_a))
+#define MM512_LSU_MUL_PS(ptr, vec_a) _mm512_storeu_ps(ptr, _mm512_mul_ps(_mm512_loadu_ps(ptr), vec_a))
+#endif // (USE_X86_EXT_INTRIN >= 10)
+
 #if (USE_X86_EXT_INTRIN >= 9)
 #define MM256_SET2X_SI256(vec_a, vec_b) \
-	_mm256_inserti128_si256(_mm256_inserti128_si256(_mm256_setzero_si256(), vec_a, 0x0), vec_b, 0x1)
+	_mm256_inserti128_si256(_mm256_castsi128_si256(vec_a), vec_b, 0x1)
 #endif
 
 #if (USE_X86_EXT_INTRIN >= 8)
@@ -794,9 +819,9 @@ LSU : Unalignment (use loadu/storeu
 #define MM256_LS_MUL_PS(ptr, vec_a) _mm256_store_ps(ptr, _mm256_mul_ps(_mm256_load_ps(ptr), vec_a))
 #define MM256_LSU_MUL_PS(ptr, vec_a) _mm256_storeu_ps(ptr, _mm256_mul_ps(_mm256_loadu_ps(ptr), vec_a))
 #define MM256_SET2X_PS(vec_a, vec_b) \
-	_mm256_insertf128_ps(_mm256_insertf128_ps(_mm256_setzero_ps(), vec_a, 0x0), vec_b, 0x1)
+	_mm256_insertf128_ps(_mm256_castps128_ps256(vec_a), vec_b, 0x1)
 #define MM256_SET2X_PD(vec_a, vec_b) \
-	_mm256_insertf128_pd(_mm256_insertf128_pd(_mm256_setzero_pd(), vec_a, 0x0), vec_b, 0x1)
+	_mm256_insertf128_pd(_mm256_castpd128_pd256(vec_a), vec_b, 0x1)
 #endif // (USE_X86_EXT_INTRIN >= 8)
 
 #if (USE_X86_EXT_INTRIN >= 3)
@@ -903,6 +928,9 @@ LSU : Unalignment (use loadu/storeu
 #define MM256_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_permute_pd(_mm256_extractf128_ps(reg, idx >= 2), idx % 2))
 #endif
 #define MM256_EXTRACT_I32(reg,idx) _mm256_extract_epi32(reg,idx)
+#define MM512_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_permute_ps(_mm512_extractf32x4_ps(reg, idx >> 2), idx & 3)))
+#define MM512_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_permute_pd(_mm512_extractf64x2_pd(reg, idx >> 1), idx & 1))
+#define MM512_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_bsrli_si128(_mm512_extracti32x4_epi32(reg, idx >> 2), (idx & 3) * 4))
 #else
 #define MM_EXTRACT_F32(reg,idx) reg.m128_f32[idx]
 #define MM_EXTRACT_F64(reg,idx) reg.m128d_f64[idx]
@@ -910,6 +938,9 @@ LSU : Unalignment (use loadu/storeu
 #define MM256_EXTRACT_F32(reg,idx) reg.m256_f32[idx]
 #define MM256_EXTRACT_F64(reg,idx) reg.m256d_f64[idx]
 #define MM256_EXTRACT_I32(reg,idx) reg.m256i_i32[idx]
+#define MM512_EXTRACT_F32(reg,idx) reg.m512_f32[idx]
+#define MM512_EXTRACT_F64(reg,idx) reg.m512d_f64[idx]
+#define MM512_EXTRACT_I32(reg,idx) reg.m512i_i32[idx]
 #endif
 #endif // (USE_X86_EXT_INTRIN >= 1)
 
