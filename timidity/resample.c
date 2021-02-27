@@ -5486,7 +5486,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	const __m512 vdivf = _mm512_set1_ps(div_fraction);	
 	const __m512 vfrac_6 = _mm512_set1_ps(div_fraction * DIV_6);
 	const __m512 vfrac_2 = _mm512_set1_ps(div_fraction * DIV_2);
-	const __m512 v3n = _mm512_set1_ps(-3);
+	//const __m512 v3n = _mm512_set1_ps(-3);
 	const __m512 v3p = _mm512_set1_ps(3);
 	const __m512i vfrac = _mm512_set1_epi32(mlt_fraction);
 	const __m512i vfrac2 = _mm512_set1_epi32(ml2_fraction);
@@ -5534,7 +5534,8 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m512 vtmp1, vtmp2, vtmp3, vtmp4;
-	vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	//vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	vv3 = _mm512_add_ps(vv3, _mm512_fmsub_ps(v3p, _mm512_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
 	vtmp1 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
 	vtmp2 = _mm512_sub_ps(_mm512_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
 	vtmp3 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
@@ -5604,7 +5605,8 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m512 vtmp1, vtmp2, vtmp3, vtmp4;
-	vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	//vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	vv3 = _mm512_add_ps(vv3, _mm512_fmsub_ps(v3p, _mm512_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
 	vtmp1 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
 	vtmp2 = _mm512_sub_ps(_mm512_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
 	vtmp3 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
@@ -5650,7 +5652,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	const __m256 vdivf = _mm256_set1_ps(div_fraction);	
 	const __m256 vfrac_6 = _mm256_set1_ps(div_fraction * DIV_6);
 	const __m256 vfrac_2 = _mm256_set1_ps(div_fraction * DIV_2);
-	const __m256 v3n = _mm256_set1_ps(-3);
+	//const __m256 v3n = _mm256_set1_ps(-3);
 	const __m256 v3p = _mm256_set1_ps(3);
 	const __m256i vfrac = _mm256_set1_epi32(mlt_fraction);
 	const __m256i vfrac2 = _mm256_set1_epi32(ml2_fraction);
@@ -5684,7 +5686,12 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m256i vofsf = _mm256_add_epi32(_mm256_and_si256(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m256 vtmp = _mm256_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m256 vtmp1, vtmp2, vtmp3, vtmp4;
-	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	//vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+#if (USE_X86_EXT_INTRIN >= 9)
+	vv3 = _mm256_add_ps(vv3, _mm256_fmsub_ps(v3p, _mm256_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#else
+	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(_mm256_mul_ps(v3p, _mm256_sub_ps(vv1, vv2)), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#endif
 	vtmp1 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
 	vtmp2 = _mm256_sub_ps(_mm256_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
 	vtmp3 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
@@ -5694,7 +5701,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	vv3 = MM256_FMA_PS(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
 #if defined(DATA_T_DOUBLE)
 	vv3 = _mm256_mul_ps(vv3, vec_divo);
-	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vv3, 0x0)));
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vv3)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vv3, 0x1)));
 	dest += 4;
@@ -5740,7 +5747,12 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m256i vofsf = _mm256_add_epi32(_mm256_and_si256(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m256 vtmp = _mm256_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m256 vtmp1, vtmp2, vtmp3, vtmp4;
-	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	//vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+#if (USE_X86_EXT_INTRIN >= 9)
+	vv3 = _mm256_add_ps(vv3, _mm256_fmsub_ps(v3p, _mm256_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#else
+	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(_mm256_mul_ps(v3p, _mm256_sub_ps(vv1, vv2)), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#endif
 	vtmp1 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
 	vtmp2 = _mm256_sub_ps(_mm256_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
 	vtmp3 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
@@ -5750,7 +5762,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	vv3 = MM256_FMA_PS(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
 #if defined(DATA_T_DOUBLE)
 	vv3 = _mm256_mul_ps(vv3, vec_divo);
-	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vv3, 0x0)));
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vv3)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vv3, 0x1)));
 	dest += 4;
