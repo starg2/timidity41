@@ -4154,7 +4154,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 			__m512 vv1 = _mm512_permutexvar_ps(vofsub1, vvf1); // v1 ofsi
 			__m512 vv2 = _mm512_permutexvar_ps(vofsub2, vvf1); // v2 ofsi+1
 #endif
-			// ���Ƃ͒ʏ�Ɠ���
+			// あとは通常と同じ
 			__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 			__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
