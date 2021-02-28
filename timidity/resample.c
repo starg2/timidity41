@@ -6926,7 +6926,317 @@ do_linear:
 #endif
 }
 
-#if (USE_X86_EXT_INTRIN >= 3)
+#if (USE_X86_EXT_INTRIN >= 10)
+// offset:int32*16, resamp:float*16
+// ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
+static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const int32 req_count_mask = ~15;
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	float *src = (float *)vp->sample->data + (prec_offset >> FRACTION_BITS);
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offset計算をint32値域にする(SIMD用
+	const int32 inc = resrc->increment;
+	const __m512i vinc = _mm512_set1_epi32(inc * 16), vfmask = _mm512_set1_epi32((int32)FRACTION_MASK);
+	__m512i vofs = _mm512_add_epi32(_mm512_set1_epi32(start_offset), _mm512_mullo_epi32(_mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0), _mm512_set1_epi32(inc)));
+	const __m512 vdivf = _mm512_set1_ps(div_fraction);	
+	const __m512 vfrac_6 = _mm512_set1_ps(div_fraction * DIV_6);
+	const __m512 vfrac_2 = _mm512_set1_ps(div_fraction * DIV_2);
+	//const __m512 v3n = _mm512_set1_ps(-3);
+	const __m512 v3p = _mm512_set1_ps(3);
+	const __m512i vfrac = _mm512_set1_epi32(mlt_fraction);
+	const __m512i vfrac2 = _mm512_set1_epi32(ml2_fraction);
+	const __m512 vec_divo = _mm512_set1_ps(M_15BIT);
+#ifdef LAO_OPTIMIZE_INCREMENT
+	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(lagrangeは3) ) / オフセットデータ数
+#ifdef USE_PERMUTEX2
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (32 - 1 - 3) / 16; // (float*16) * 1セット
+#else
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (16 - 1 - 3) / 16; // (float*16) * 1セット
+#endif
+	if(inc < opt_inc1){	// 1セット
+	const __m512i vvar1n = _mm512_set1_epi32(-1);
+	const __m512i vvar1 = _mm512_set1_epi32(1);
+	const __m512i vvar2 = _mm512_set1_epi32(2);
+	for(i = 0; i < count; i += 16) {
+	__m512i vofsi2 = _mm512_srli_epi32(vofs, FRACTION_BITS); // ofsi
+	__m512i vofsi1 = _mm512_add_epi32(vofsi2, vvar1n); // ofsi-1
+	__m512i vofsi3 = _mm512_add_epi32(vofsi2, vvar1); // ofsi+1
+	__m512i vofsi4 = _mm512_add_epi32(vofsi2, vvar2); // ofsi+2
+	int32 ofs0 = _mm_cvtsi128_si32(_mm512_castsi512_si128(vofsi1));
+	__m512 vin1 = _mm512_loadu_ps(&src[ofs0]); // float*16
+#ifdef USE_PERMUTEX2
+	__m512 vin2 = _mm512_loadu_ps(&src[ofs0 + 16]); // float*16
+#endif
+	__m512i vofsib = _mm512_broadcastd_epi32(_mm512_castsi512_si128(vofsi1));
+	__m512i vofsub1 = _mm512_sub_epi32(vofsi1, vofsib); 
+	__m512i vofsub2 = _mm512_sub_epi32(vofsi2, vofsib);  
+	__m512i vofsub3 = _mm512_sub_epi32(vofsi3, vofsib); 
+	__m512i vofsub4 = _mm512_sub_epi32(vofsi4, vofsib);
+	__m512 vvf1 = vin1;
+#ifdef USE_PERMUTEX2
+	__m512 vvf2 = vin2;
+	__m512 vv0 = _mm512_permutex2var_ps(vvf1, vofsub1, vvf2);
+	__m512 vv1 = _mm512_permutex2var_ps(vvf1, vofsub2, vvf2);
+	__m512 vv2 = _mm512_permutex2var_ps(vvf1, vofsub3, vvf2);
+	__m512 vv3 = _mm512_permutex2var_ps(vvf1, vofsub4, vvf2);
+#else
+	__m512 vv0 = _mm512_permutexvar_ps(vofsub1, vvf1); // v1 ofsi-1
+	__m512 vv1 = _mm512_permutexvar_ps(vofsub2, vvf1); // v2 ofsi
+	__m512 vv2 = _mm512_permutexvar_ps(vofsub3, vvf1); // v2 ofsi+1
+	__m512 vv3 = _mm512_permutexvar_ps(vofsub4, vvf1); // v2 ofsi+2
+#endif
+	// あとは通常と同じ
+	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
+	__m512 vtmp1, vtmp2, vtmp3, vtmp4;
+	//vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	vv3 = _mm512_add_ps(vv3, _mm512_fmsub_ps(v3p, _mm512_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+	vtmp1 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	vtmp2 = _mm512_sub_ps(_mm512_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
+	vtmp3 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	vtmp4 = _mm512_mul_ps(_mm512_cvtepi32_ps(vofsf), vdivf); // tmp4 = (FLOAT_T)ofsf * div_fraction;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp1, vtmp2); // v[3] = v[3] * tmp1 + tmp2
+	vv3 = _mm512_fmadd_ps(vv3, vtmp3, vtmp); // v[3] = v[3] * tmp3 + tmp;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
+#if defined(DATA_T_DOUBLE)
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vv3)));
+	dest += 8;
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vv3, 0x1)));
+	dest += 8;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	_mm512_storeu_ps(dest, vv3);
+	dest += 16;
+#else // DATA_T_IN32
+	_mm512_storeu_si512((__m512i *)dest, _mm512_cvtps_epi32(_mm512_mul_ps(vv3, vec_divo)));
+	dest += 16;
+#endif
+	vofs = _mm512_add_epi32(vofs, vinc); // ofs += inc;
+	}
+	}else
+#endif // LAO_OPTIMIZE_INCREMENT
+	for(; i < count; i += 16) {
+	__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
+#if 1
+	__m512 vv0 = _mm512_i32gather_ps(_mm512_sub_epi32(vofsi, _mm512_set1_epi32(1)), src, 4);
+	__m512 vv1 = _mm512_i32gather_ps(vofsi, src, 4);
+	__m512 vv2 = _mm512_i32gather_ps(_mm512_add_epi32(vofsi, _mm512_set1_epi32(1)), src, 4);
+	__m512 vv3 = _mm512_i32gather_ps(_mm512_add_epi32(vofsi, _mm512_set1_epi32(2)), src, 4);
+#else
+	__m128 vin1 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 0) - 1]);
+	__m128 vin2 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 1) - 1]);
+	__m128 vin3 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 2) - 1]);
+	__m128 vin4 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 3) - 1]);
+	__m128 vin5 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 4) - 1]);
+	__m128 vin6 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 5) - 1]);
+	__m128 vin7 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 6) - 1]);
+	__m128 vin8 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 7) - 1]);
+	__m128 vin9 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 8) - 1]);
+	__m128 vin10 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 9) - 1]);
+	__m128 vin11 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 10) - 1]);
+	__m128 vin12 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 11) - 1]);
+	__m128 vin13 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 12) - 1]);
+	__m128 vin14 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 13) - 1]);
+	__m128 vin15 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 14) - 1]);
+	__m128 vin16 = _mm_loadu_ps(&src[MM512_EXTRACT_I32(vofsi, 15) - 1]);
+	__m256 vin1_5 = _mm256_insertf32x4(_mm256_castps128_ps256(vin1), vin5, 1);
+	__m256 vin2_6 = _mm256_insertf32x4(_mm256_castps128_ps256(vin2), vin6, 1);
+	__m256 vin3_7 = _mm256_insertf32x4(_mm256_castps128_ps256(vin3), vin7, 1);
+	__m256 vin4_8 = _mm256_insertf32x4(_mm256_castps128_ps256(vin4), vin8, 1);
+	__m256 vin9_13 = _mm256_insertf32x4(_mm256_castps128_ps256(vin9), vin13, 1);
+	__m256 vin10_14 = _mm256_insertf32x4(_mm256_castps128_ps256(vin10), vin14, 1);
+	__m256 vin11_15 = _mm256_insertf32x4(_mm256_castps128_ps256(vin11), vin15, 1);
+	__m256 vin12_16 = _mm256_insertf32x4(_mm256_castps128_ps256(vin12), vin16, 1);
+	__m512 vin1_5_9_13 = _mm512_insertf32x8(_mm512_castps256_ps512(vin1_5), vin9_13, 1);
+	__m512 vin2_6_10_14 = _mm512_insertf32x8(_mm512_castps256_ps512(vin2_6), vin10_14, 1);
+	__m512 vin3_7_11_15 = _mm512_insertf32x8(_mm512_castps256_ps512(vin3_7), vin11_15, 1);
+	__m512 vin4_8_12_16 = _mm512_insertf32x8(_mm512_castps256_ps512(vin4_8), vin12_16, 1);
+	__m512 vin1_2_5_6_9_10_13_14_01 = _mm512_unpacklo_ps(vin1_5_9_13, vin2_6_10_14);
+	__m512 vin3_4_7_8_11_12_15_16_01 = _mm512_unpacklo_ps(vin3_7_11_15, vin4_8_12_16);
+	__m512 vin1_2_5_6_9_10_13_14_23 = _mm512_unpackhi_ps(vin1_5_9_13, vin2_6_10_14);
+	__m512 vin3_4_7_8_11_12_15_16_23 = _mm512_unpackhi_ps(vin3_7_11_15, vin4_8_12_16);
+	__m512 vv0 = _mm512_shuffle_ps(vin1_2_5_6_9_10_13_14_01, vin3_4_7_8_11_12_15_16_01, _MM_SHUFFLE(1, 0, 1, 0));
+	__m512 vv1 = _mm512_shuffle_ps(vin1_2_5_6_9_10_13_14_01, vin3_4_7_8_11_12_15_16_01, _MM_SHUFFLE(3, 2, 3, 2));
+	__m512 vv2 = _mm512_shuffle_ps(vin1_2_5_6_9_10_13_14_23, vin3_4_7_8_11_12_15_16_23, _MM_SHUFFLE(1, 0, 1, 0));
+	__m512 vv3 = _mm512_shuffle_ps(vin1_2_5_6_9_10_13_14_23, vin3_4_7_8_11_12_15_16_23, _MM_SHUFFLE(3, 2, 3, 2));
+#endif
+	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
+	__m512 vtmp1, vtmp2, vtmp3, vtmp4;
+	//vv3 = _mm512_add_ps(vv3, _mm512_sub_ps(_mm512_fmadd_ps(vv2, v3n, _mm512_mul_ps(vv1, v3p)), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+	vv3 = _mm512_add_ps(vv3, _mm512_fmsub_ps(v3p, _mm512_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+	vtmp1 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	vtmp2 = _mm512_sub_ps(_mm512_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
+	vtmp3 = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	vtmp4 = _mm512_mul_ps(_mm512_cvtepi32_ps(vofsf), vdivf); // tmp4 = (FLOAT_T)ofsf * div_fraction;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp1, vtmp2); // v[3] = v[3] * tmp1 + tmp2
+	vv3 = _mm512_fmadd_ps(vv3, vtmp3, vtmp); // v[3] = v[3] * tmp3 + tmp;
+	vv3 = _mm512_fmadd_ps(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
+#if defined(DATA_T_DOUBLE)
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vv3)));
+	dest += 8;
+	_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vv3, 0x1)));
+	dest += 8;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	_mm512_storeu_ps(dest, vv3);
+	dest += 16;
+#else // DATA_T_IN32
+	_mm512_storeu_si256((__m512i *)dest, _mm512_cvtps_epi32(_mm512_mul_ps(vv3, vec_divo)));
+	dest += 8;
+#endif
+	vofs = _mm512_add_epi32(vofs, vinc); // ofs += inc;
+	}
+	resrc->offset = prec_offset + (splen_t)(_mm_cvtsi128_si32(_mm512_castsi512_si128(vofs)));
+	*out_count = i;
+    return dest;
+}
+
+#elif (USE_X86_EXT_INTRIN >= 9)
+// offset:int32*8, resamp:float*8
+// ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
+static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const int32 req_count_mask = ~(0x7);
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	float *src = (float *)vp->sample->data + (prec_offset >> FRACTION_BITS);
+	const int32 start_offset = (int32)(resrc->offset - prec_offset); // offset計算をint32値域にする(SIMD用
+	const int32 inc = resrc->increment;
+	const __m256i vinc = _mm256_set1_epi32(inc * 8), vfmask = _mm256_set1_epi32((int32)FRACTION_MASK);
+	__m256i vofs = _mm256_add_epi32(_mm256_set1_epi32(start_offset), _mm256_set_epi32(inc*7,inc*6,inc*5,inc*4,inc*3,inc*2,inc,0));
+	const __m256 vdivf = _mm256_set1_ps(div_fraction);	
+	const __m256 vfrac_6 = _mm256_set1_ps(div_fraction * DIV_6);
+	const __m256 vfrac_2 = _mm256_set1_ps(div_fraction * DIV_2);
+	//const __m256 v3n = _mm256_set1_ps(-3);
+	const __m256 v3p = _mm256_set1_ps(3);
+	const __m256i vfrac = _mm256_set1_epi32(mlt_fraction);
+	const __m256i vfrac2 = _mm256_set1_epi32(ml2_fraction);
+	const __m256 vec_divo = _mm256_set1_ps(M_15BIT);
+#ifdef LAO_OPTIMIZE_INCREMENT
+	// 最適化レート = (ロードデータ数 - 初期オフセット小数部の最大値(1未満) - 補間ポイント数(lagrangeは3) ) / オフセットデータ数
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 3) / 8; // (float*8) * 1セット
+	if(inc < opt_inc1){	// 1セット
+	const __m256i vvar1n = _mm256_set1_epi32(-1);
+	const __m256i vvar1 = _mm256_set1_epi32(1);
+	const __m256i vvar2 = _mm256_set1_epi32(2);
+	for(i = 0; i < count; i += 8) {
+	__m256i vofsi2 = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi
+	__m256i vofsi1 = _mm256_add_epi32(vofsi2, vvar1n); // ofsi-1
+	__m256i vofsi3 = _mm256_add_epi32(vofsi2, vvar1); // ofsi+1
+	__m256i vofsi4 = _mm256_add_epi32(vofsi2, vvar2); // ofsi+2
+	int32 ofs0 = _mm_cvtsi128_si32(_mm256_extracti128_si256(vofsi1, 0x0));
+	__m256 vin1 = _mm256_loadu_ps(&src[ofs0]); // float*8
+	__m256i vofsib = _mm256_permutevar8x32_epi32(vofsi1, _mm256_setzero_si256()); 
+	__m256i vofsub1 = _mm256_sub_epi32(vofsi1, vofsib); 
+	__m256i vofsub2 = _mm256_sub_epi32(vofsi2, vofsib);  
+	__m256i vofsub3 = _mm256_sub_epi32(vofsi3, vofsib); 
+	__m256i vofsub4 = _mm256_sub_epi32(vofsi4, vofsib);
+	__m256 vvf1 = vin1;
+	__m256 vv0 = _mm256_permutevar8x32_ps(vvf1, vofsub1); // v1 ofsi-1
+	__m256 vv1 = _mm256_permutevar8x32_ps(vvf1, vofsub2); // v2 ofsi
+	__m256 vv2 = _mm256_permutevar8x32_ps(vvf1, vofsub3); // v2 ofsi+1
+	__m256 vv3 = _mm256_permutevar8x32_ps(vvf1, vofsub4); // v2 ofsi+2
+	// あとは通常と同じ
+	__m256i vofsf = _mm256_add_epi32(_mm256_and_si256(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m256 vtmp = _mm256_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
+	__m256 vtmp1, vtmp2, vtmp3, vtmp4;
+	//vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+#if (USE_X86_EXT_INTRIN >= 9)
+	vv3 = _mm256_add_ps(vv3, _mm256_fmsub_ps(v3p, _mm256_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#else
+	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(_mm256_mul_ps(v3p, _mm256_sub_ps(vv1, vv2)), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#endif
+	vtmp1 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	vtmp2 = _mm256_sub_ps(_mm256_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
+	vtmp3 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	vtmp4 = _mm256_mul_ps(_mm256_cvtepi32_ps(vofsf), vdivf); // tmp4 = (FLOAT_T)ofsf * div_fraction;
+	vv3 = MM256_FMA_PS(vv3, vtmp1, vtmp2); // v[3] = v[3] * tmp1 + tmp2
+	vv3 = MM256_FMA_PS(vv3, vtmp3, vtmp); // v[3] = v[3] * tmp3 + tmp;
+	vv3 = MM256_FMA_PS(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
+#if defined(DATA_T_DOUBLE)
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vv3)));
+	dest += 4;
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vv3, 0x1)));
+	dest += 4;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	_mm256_storeu_ps(dest, vv3);
+	dest += 8;
+#else // DATA_T_IN32
+	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(_mm256_mul_ps(vv3, vec_divo)));
+	dest += 8;
+#endif
+	vofs = _mm256_add_epi32(vofs, vinc); // ofs += inc;
+	}
+	}else
+#endif // LAO_OPTIMIZE_INCREMENT
+	for(; i < count; i += 8) {
+	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
+#if 0
+	__m256 vv0 = _mm256_i32gather_ps(src, _mm256_sub_epi32(vofsi, _mm256_set1_epi32(1)), 4);
+	__m256 vv1 = _mm256_i32gather_ps(src, vofsi, 4);
+	__m256 vv2 = _mm256_i32gather_ps(src, _mm256_add_epi32(vofsi, _mm256_set1_epi32(1)), 4);
+	__m256 vv3 = _mm256_i32gather_ps(src, _mm256_add_epi32(vofsi, _mm256_set1_epi32(2)), 4);
+#else
+	__m128 vin1 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,0) - 1]);
+	__m128 vin2 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,1) - 1]);
+	__m128 vin3 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,2) - 1]);
+	__m128 vin4 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,3) - 1]);
+	__m128 vin5 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,4) - 1]);
+	__m128 vin6 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,5) - 1]);
+	__m128 vin7 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,6) - 1]);
+	__m128 vin8 = _mm_loadu_ps(&src[MM256_EXTRACT_I32(vofsi,7) - 1]);
+	__m256 vin15 = _mm256_insertf128_ps(_mm256_castps128_ps256(vin1), vin5, 1);
+	__m256 vin26 = _mm256_insertf128_ps(_mm256_castps128_ps256(vin2), vin6, 1);
+	__m256 vin37 = _mm256_insertf128_ps(_mm256_castps128_ps256(vin3), vin7, 1);
+	__m256 vin48 = _mm256_insertf128_ps(_mm256_castps128_ps256(vin4), vin8, 1);
+	__m256 vin1256_01 = _mm256_unpacklo_ps(vin15, vin26);
+	__m256 vin3478_01 = _mm256_unpacklo_ps(vin37, vin48);
+	__m256 vin1256_23 = _mm256_unpackhi_ps(vin15, vin26);
+	__m256 vin3478_23 = _mm256_unpackhi_ps(vin37, vin48);
+	__m256 vv0 = _mm256_shuffle_ps(vin1256_01, vin3478_01, _MM_SHUFFLE(1, 0, 1, 0));
+	__m256 vv1 = _mm256_shuffle_ps(vin1256_01, vin3478_01, _MM_SHUFFLE(3, 2, 3, 2));
+	__m256 vv2 = _mm256_shuffle_ps(vin1256_23, vin3478_23, _MM_SHUFFLE(1, 0, 1, 0));
+	__m256 vv3 = _mm256_shuffle_ps(vin1256_23, vin3478_23, _MM_SHUFFLE(3, 2, 3, 2));
+#endif
+	__m256i vofsf = _mm256_add_epi32(_mm256_and_si256(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
+	__m256 vtmp = _mm256_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
+	__m256 vtmp1, vtmp2, vtmp3, vtmp4;
+	//vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(MM256_FMA2_PS(vv2, v3n, vv1, v3p), vv0)); // v[3] += -3 * v[2] + 3 * v[1] - v[0];
+#if (USE_X86_EXT_INTRIN >= 9)
+	vv3 = _mm256_add_ps(vv3, _mm256_fmsub_ps(v3p, _mm256_sub_ps(vv1, vv2), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#else
+	vv3 = _mm256_add_ps(vv3, _mm256_sub_ps(_mm256_mul_ps(v3p, _mm256_sub_ps(vv1, vv2)), vv0)); // v[3] += 3 * (v[1] - v[2]) - v[0];
+#endif
+	vtmp1 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac2)), vfrac_6); // tmp1 = (float)(ofsf - ml2_fraction) * DIV_6 * div_fraction;
+	vtmp2 = _mm256_sub_ps(_mm256_sub_ps(vv2, vv1), vtmp); // tmp2 = v[2] - v[1] - tmp);
+	vtmp3 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_sub_epi32(vofsf, vfrac)), vfrac_2); // tmp3 = (FLOAT_T)(ofsf - mlt_fraction) * DIV_2 * div_fraction;
+	vtmp4 = _mm256_mul_ps(_mm256_cvtepi32_ps(vofsf), vdivf); // tmp4 = (FLOAT_T)ofsf * div_fraction;
+	vv3 = MM256_FMA_PS(vv3, vtmp1, vtmp2); // v[3] = v[3] * tmp1 + tmp2
+	vv3 = MM256_FMA_PS(vv3, vtmp3, vtmp); // v[3] = v[3] * tmp3 + tmp;
+	vv3 = MM256_FMA_PS(vv3, vtmp4, vv0); // v[3] = v[3] * tmp4 + vv0;
+#if defined(DATA_T_DOUBLE)
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vv3)));
+	dest += 4;
+	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vv3, 0x1)));
+	dest += 4;
+#elif defined(DATA_T_FLOAT) // DATA_T_FLOAT
+	_mm256_storeu_ps(dest, vv3);
+	dest += 8;
+#else // DATA_T_IN32
+	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(_mm256_mul_ps(vv3, vec_divo)));
+	dest += 8;
+#endif
+	vofs = _mm256_add_epi32(vofs, vinc); // ofs += inc;
+	}
+	resrc->offset = prec_offset + (splen_t)(MM256_EXTRACT_I32(vofs,0));
+	*out_count = i;
+    return dest;
+}
+#elif (USE_X86_EXT_INTRIN >= 3)
 // offset:int32*4*2, resamp:float*4*2 2set
 // ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
@@ -7027,8 +7337,8 @@ static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int
 	_mm_storeu_ps(dest, vv32);
 	dest += 4;
 #else // DATA_T_IN32
-	vv31 = _mm_mul_ps(vv31, vdivo);
-	vv32 = _mm_mul_ps(vv32, vdivo);
+	vv31 = _mm_mul_ps(vv31, vec_divo);
+	vv32 = _mm_mul_ps(vv32, vec_divo);
 	_mm_storeu_si128((__m128i *)dest, _mm_cvtps_epi32(vv31));
 	dest += 4;
 	_mm_storeu_si128((__m128i *)dest, _mm_cvtps_epi32(vv32));
