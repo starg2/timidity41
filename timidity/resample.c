@@ -4157,7 +4157,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 			// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 			__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-			__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1), vec_divo);
+			__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 			_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vec_out)));
 			dest += 8;
 			_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vec_out, 1)));
@@ -4167,7 +4167,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 			_mm512_storeu_ps(dest, vec_out);
 			dest += 16;
 #else // DATA_T_IN32
-			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 			_mm512_storeu_epi32((__m512i *)dest, _mm512_cvtps_epi32(vec_out));
 			dest += 16;
 #endif
@@ -4206,7 +4206,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 #endif
 		__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-		__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1), vec_divo);
+		__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 		_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vec_out)));
 		dest += 8;
 		_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vec_out, 1)));
@@ -4216,7 +4216,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 		_mm512_storeu_ps(dest, vec_out);
 		dest += 16;
 #else // DATA_T_IN32
-		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 		_mm512_storeu_epi32((__m512i *)dest, _mm512_cvtps_epi32(vec_out));
 		dest += 16;
 #endif
@@ -4266,7 +4266,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -4276,7 +4276,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256(__m256i *)dest, _mm256_cvtps_epi32(vec_out));
 	dest += 8;
 #endif
@@ -4309,7 +4309,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -4319,7 +4319,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(vec_out));
 	dest += 8;
 #endif
@@ -4360,7 +4360,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 #endif
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -4370,7 +4370,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(vec_out));
 	dest += 8;
 #endif
@@ -4880,7 +4880,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 			// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 			__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-			__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1), vec_divo);
+			__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 			_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vec_out)));
 			dest += 8;
 			_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vec_out, 1)));
@@ -4890,7 +4890,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 			_mm512_storeu_ps(dest, vec_out);
 			dest += 16;
 #else // DATA_T_IN32
-			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 			_mm512_storeu_epi32((__m512i *)dest, _mm512_cvtps_epi32(vec_out));
 			dest += 16;
 #endif
@@ -4939,7 +4939,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 #endif
 		__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-		__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1), vec_divo);
+		__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 		_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vec_out)));
 		dest += 8;
 		_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vec_out, 1)));
@@ -4949,7 +4949,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 		_mm512_storeu_ps(dest, vec_out);
 		dest += 16;
 #else // DATA_T_IN32
-		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 		_mm512_storeu_epi32((__m512i *)dest, _mm512_cvtps_epi32(vec_out));
 		dest += 16;
 #endif
@@ -4999,7 +4999,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 	// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -5009,7 +5009,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256(__m256i *)dest, _mm256_cvtps_epi32(vec_out));
 	dest += 8;
 #endif
@@ -5042,7 +5042,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 	// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -5052,7 +5052,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(vec_out));
 	dest += 8;
 #endif
@@ -5064,7 +5064,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
-#if 1
+#if 0
 	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_i32gather_epi32(src, vofsi, 4));
 	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_i32gather_epi32(src, _mm256_add_epi32(vofsi, _mm256_set1_epi32(1)), 4));
 #else
@@ -5087,7 +5087,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 #endif
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1), vec_divo);
+	__m256 vec_out = _mm256_mul_ps(MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -5097,7 +5097,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(vec_out));
 	dest += 8;
 #endif
@@ -5345,7 +5345,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 			// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 			__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 			_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vec_out)));
 			dest += 8;
 			_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vec_out, 1)));
@@ -5355,7 +5355,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 			_mm512_storeu_ps(dest, vec_out);
 			dest += 16;
 #else // DATA_T_IN32
-			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+			__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 			_mm512_storeu_epi32((__m512i *)dest, _mm512_cvtps_epi32(_mm512_mul_ps(vec_out, vec_divo)));
 			dest += 16;
 #endif
@@ -5404,7 +5404,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 #endif
 		__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 		_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_castps512_ps256(vec_out)));
 		dest += 8;
 		_mm512_storeu_pd(dest, _mm512_cvtps_pd(_mm512_extractf32x8_ps(vec_out, 1)));
@@ -5414,7 +5414,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 		_mm512_storeu_ps(dest, vec_out);
 		dest += 16;
 #else // DATA_T_IN32
-		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), _mm512_mul_ps(vfp, vec_divf), vv1);
+		__m512 vec_out = _mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1);
 		_mm512_storeu_epi32((__m512i *)dest, _mm512_cvtps_epi32(_mm512_mul_ps(vec_out, vec_divo)));
 		dest += 16;
 #endif
@@ -5464,7 +5464,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 	// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -5474,7 +5474,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(_mm256_mul_ps(vec_out, vec_divo)));
 	dest += 8;
 #endif
@@ -5507,7 +5507,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 	// Ç†Ç∆ÇÕí èÌÇ∆ìØÇ∂
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 0)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -5517,7 +5517,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(_mm256_mul_ps(vec_out, vec_divo)));
 	dest += 8;
 #endif
@@ -5552,7 +5552,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 #endif
 	__m256 vfp = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_and_si256(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_castps256_ps128(vec_out)));
 	dest += 4;
 	_mm256_storeu_pd(dest, _mm256_cvtps_pd(_mm256_extractf128_ps(vec_out, 1)));	
@@ -5562,7 +5562,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 	_mm256_storeu_ps(dest, vec_out);
 	dest += 8;
 #else // DATA_T_IN32
-	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), _mm256_mul_ps(vfp, vec_divf), vv1);
+	__m256 vec_out = MM256_FMA_PS(_mm256_sub_ps(vv2, vv1), vfp, vv1);
 	_mm256_storeu_si256((__m256i *)dest, _mm256_cvtps_epi32(_mm256_mul_ps(vec_out, vec_divo)));
 	dest += 8;
 #endif
