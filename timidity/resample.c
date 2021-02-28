@@ -6237,6 +6237,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	const int32 opt_inc1 = (1 << FRACTION_BITS) * (32 - 1 - 3) / 16; // (float*16) * 1セット
 #else
 	const int32 opt_inc1 = (1 << FRACTION_BITS) * (16 - 1 - 3) / 16; // (float*16) * 1セット
+#endif
 	if(inc < opt_inc1){	// 1セット
 	const __m512i vvar1n = _mm512_set1_epi32(-1);
 	const __m512i vvar1 = _mm512_set1_epi32(1);
