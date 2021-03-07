@@ -508,7 +508,9 @@ void mix_voice(DATA_T *buf, int v, int32 c)
 	if (delay_cnt) {
 		if(delay_cnt == c)
 			return;
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+		delay_cnt &= ~(0x3); // for filter SIMD optimaize (filter.c buffer_filter()
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 		delay_cnt &= ~(0x1); // for filter SIMD optimaize (filter.c buffer_filter()
 #endif
 		if (play_mode->encoding & PE_MONO)
