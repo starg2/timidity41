@@ -184,5 +184,5 @@ target_compile_definitions(interface_w32gsyn_u8 PRIVATE -DUNICODE -D_UNICODE -DI
 
 if("${CMAKE_C_COMPILER_ID}" MATCHES "Intel")
     # Workaround for xilink: error #10014: problem during multi-file optimization compilation (code 4)
-    set_source_files_properties(w32g_c.c PROPERTIES COMPILE_OPTIONS "/Qipo-")
+    set_source_files_properties(w32g_c.c w32g_i.c PROPERTIES COMPILE_OPTIONS "/Qipo-")
 endif()
