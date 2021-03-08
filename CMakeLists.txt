@@ -179,7 +179,9 @@ if(MSVC)
         add_compile_options(/Qspectre)
 	endif()
 
-    if(NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang"))
+    if("${CMAKE_C_COMPILER_ID}" MATCHES "Intel")
+        add_compile_options(-Qoption,cpp,--unicode_source_kind,UTF-8)
+    elseif("${CMAKE_C_COMPILER_ID}" MATCHES "MSVC")
         add_compile_options(/source-charset:UTF-8)
     endif()
 
