@@ -1918,7 +1918,42 @@ static inline void recalc_filter_LPF12_2(FilterCoefficients *fc)
 	}
 }
 
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_X86_EXT_INTRIN >= 8) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+// SIMD optimization (double * 2)
+static inline void buffer_filter_LPF12_2(FILTER_T* dc, FILTER_T* db, DATA_T* sp, int32 count)
+{
+	int32 i;
+	__m256d vcx0 = _mm256_broadcast_pd((__m128d *)(dc + 2));
+	__m256d vcx1 = _mm256_broadcast_pd((__m128d *)(dc + 4));
+	__m128d vcym2 = _mm_loadu_pd(dc + 6);
+	__m128d vcym1 = _mm_loadu_pd(dc + 8);
+	__m128d vy = _mm_loadu_pd(db + 2);
+	__m128d vym2 = _mm_unpacklo_pd(vy, vy);
+	__m128d vym1 = _mm_unpackhi_pd(vy, vy);
+
+	for (i = 0; i < count; i += 4)
+	{
+		__m256d vin = _mm256_loadu_pd(sp + i);
+		__m256d vx0 = _mm256_unpacklo_pd(vin, vin);
+		__m256d vx1 = _mm256_unpackhi_pd(vin, vin);
+		__m256d vfma2x = MM256_FMA2_PD(vcx0, vx0, vcx1, vx1);
+
+		__m128d vy0 = _mm_add_pd(_mm256_castpd256_pd128(vfma2x), MM_FMA2_PD(vcym2, vym2, vcym1, vym1));
+		_mm_storeu_pd(sp + i, vy0);
+		vym2 = _mm_unpacklo_pd(vy0, vy0);
+		vym1 = _mm_unpackhi_pd(vy0, vy0);
+
+		__m128d vy1 = _mm_add_pd(_mm256_extractf128_pd(vfma2x, 1), MM_FMA2_PD(vcym2, vym2, vcym1, vym1));
+		_mm_storeu_pd(sp + i + 2, vy1);
+		vym2 = _mm_unpacklo_pd(vy1, vy1);
+		vym1 = _mm_unpackhi_pd(vy1, vy1);
+		vy = vy1;
+	}
+
+	_mm_storeu_pd(db + 2, vy);
+}
+
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 // SIMD optimization (double * 2)
 static inline void buffer_filter_LPF12_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp, int32 count)
 {
