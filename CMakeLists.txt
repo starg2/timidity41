@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.9)
 
 project(timidity41)
 
-set(TIM41_X86_SIMD_LEVEL SSE42 CACHE BOOL "x86 SIMD instruction set extension to use")
+set(TIM41_X86_SIMD_LEVEL SSE42 CACHE STRING "x86 SIMD instruction set extension to use")
 set_property(CACHE TIM41_X86_SIMD_LEVEL PROPERTY STRINGS SSE2 SSE42 AVX AVX2 AVX512)
 
 set(TIM41_SPECTRE_MITIGATION FALSE CACHE BOOL "Enable Spectre mitigation")
