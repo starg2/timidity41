@@ -56,6 +56,7 @@ extern "C"
 /*========== Error handling */
 
 #define _mm_errno ML_errno
+#define _mm_malloc ML_malloc
 
 /*========== Memory allocation */
 
