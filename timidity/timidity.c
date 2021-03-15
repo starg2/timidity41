@@ -104,6 +104,7 @@
 #include "miditrace.h"
 #include "flac_a.h"
 #include "dls.h"
+#include "ecw.h"
 #include "sfz.h"
 ///r
 #ifdef __BORLANDC__
@@ -1906,6 +1907,47 @@ static int set_gus_patchconf(const char *name, int line,
 				opts += 3;
 			}
 		}
+	}
+#endif
+#ifdef ENABLE_ECW
+	else if (strcmp(pat, "%ecw") == 0) /* ecw extension */
+	{
+	/* %ecw filename bank prog [note-to-use]
+	 * %ecw filename 128 bank key
+	 */
+
+	 if (opts[0] == NULL || opts[1] == NULL || opts[2] == NULL ||
+		 (atoi(opts[1]) == 128 && opts[3] == NULL))
+	 {
+		 ctl->cmsg(CMSG_ERROR, VERB_NORMAL,
+			 "%s: line %d: Syntax error", name, line);
+		 return 1;
+	 }
+	 tone->name = safe_strdup(opts[0]);
+	 tone->instype = 7; // ecw
+	 if (atoi(opts[1]) == 128) /* drum */
+	 {
+		 tone->font_bank = 128;
+		 tone->font_preset = atoi(opts[2]);
+		 tone->font_keynote = atoi(opts[3]);
+		 opts += 4;
+	 }
+	 else
+	 {
+		 tone->font_bank = atoi(opts[1]);
+		 tone->font_preset = atoi(opts[2]);
+
+		 if (opts[3] && isdigit(opts[3][0]))
+		 {
+			 tone->font_keynote = atoi(opts[3]);
+			 opts += 4;
+		 }
+		 else
+		 {
+			 tone->font_keynote = -1;
+			 opts += 3;
+		 }
+	 }
 	}
 #endif
 	else if(strcmp(pat, "%pat") == 0) /* pat extention */
@@ -8729,6 +8771,9 @@ MAIN_INTERFACE void timidity_init_player(void)
 #ifdef ENABLE_DLS
 	init_dls();
 #endif
+#ifdef ENABLE_ECW
+	init_ecw();
+#endif
 #ifdef ENABLE_SFZ
 	init_sfz();
 #endif
@@ -9407,6 +9452,9 @@ int main(int argc, char **argv)
 #ifdef ENABLE_SFZ
 	free_sfz();
 #endif
+#ifdef ENABLE_ECW
+	free_ecw();
+#endif
 #ifdef ENABLE_DLS
 	free_dls();
 #endif
@@ -9520,6 +9568,9 @@ static void w32_exit(void)
 ///r
 #ifdef ENABLE_SFZ
 	free_sfz();
+#endif
+#ifdef ENABLE_ECW
+	free_ecw();
 #endif
 #ifdef ENABLE_DLS
 	free_dls();

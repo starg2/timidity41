@@ -67,6 +67,7 @@
 #include "mix.h"
 #include "thread.h"
 #include "dls.h"
+#include "ecw.h"
 #include "sfz.h"
 
 #include <tchar.h>
@@ -853,6 +854,9 @@ void PrefSettingApplyReally(void)
 #ifdef ENABLE_DLS
 	init_dls();
 #endif
+#ifdef ENABLE_ECW
+	init_ecw();
+#endif
 #ifdef ENABLE_SFZ
 	init_sfz();
 #endif
@@ -938,6 +942,9 @@ static void PrefSettingApply(void)
 #ifdef ENABLE_DLS
 	init_dls();
 #endif
+#ifdef ENABLE_ECW
+	init_ecw();
+#endif
 #ifdef ENABLE_SFZ
 	init_sfz();
 #endif
@@ -986,6 +993,9 @@ void reload_cfg(void)
     free_soundfonts();
 #ifdef ENABLE_SFZ
 	free_sfz();
+#endif
+#ifdef ENABLE_ECW
+	free_ecw();
 #endif
 #ifdef ENABLE_DLS
 	free_dls();

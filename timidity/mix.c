@@ -549,6 +549,9 @@ void mix_voice(DATA_T *buf, int v, int32 c)
 #ifdef ENABLE_DLS
 	case INST_DLS:
 #endif
+#ifdef ENABLE_ECW
+	case INST_ECW:
+#endif
 		if(opt_resample_over_sampling){
 			int32 c2 = c * opt_resample_over_sampling;
 			resample_voice(v, sp, c2);
