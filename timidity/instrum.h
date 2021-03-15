@@ -132,6 +132,7 @@ enum {
 #define INST_SCC	5	/* %scc */
 #define INST_SFZ	6	/* %sfz */
 #define INST_DLS	7	/* %dls */
+#define INST_ECW	8	/* %ecw */
 
 /* sfSampleType */
 #define SF_SAMPLETYPE_MONO 1
@@ -174,7 +175,8 @@ typedef struct {
 	4: %scc
 	5: %sfz
 	6: %dls
-	7-255: reserved
+	7: %ecw
+	8-255: reserved
 */
 	int16 amp;
 	int8 amp_normalize;

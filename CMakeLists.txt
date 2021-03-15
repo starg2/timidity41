@@ -113,6 +113,7 @@ set(
     -DHAVE_LIBMPG123
     -DENABLE_SFZ
 	-DENABLE_DLS
+	-DENABLE_ECW
     -DSNDFNT_INITFILE_NAME="soundfont.ini"
 
 # TiMidity++ audio

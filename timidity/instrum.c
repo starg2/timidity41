@@ -51,6 +51,7 @@
 #include "freq.h"
 #include "support.h"
 #include "dls.h"
+#include "ecw.h"
 #include "sfz.h"
 
 #define INSTRUMENT_HASH_SIZE 128
@@ -182,6 +183,11 @@ void free_instrument(Instrument *ip)
 #ifdef ENABLE_DLS
 	case INST_DLS:
 		free_dls_file(ip);
+		break;
+#endif
+#ifdef ENABLE_ECW
+	case INST_ECW:
+		free_ecw_file(ip);
 		break;
 #endif
 	}
@@ -1721,6 +1727,14 @@ Instrument *load_instrument(int dr, int b, int prog, int elm)
 		ip = extract_dls_file(bank->tone[prog][elm]->name, font_bank, font_preset, font_keynote);
 		break;
 #endif
+#ifdef ENABLE_ECW
+	case 7: /* ecw extension */
+		font_bank = bank->tone[prog][elm]->font_bank;
+		font_preset = bank->tone[prog][elm]->font_preset;
+		font_keynote = bank->tone[prog][elm]->font_keynote;
+		ip = extract_ecw_file(bank->tone[prog][elm]->name, font_bank, font_preset, font_keynote);
+		break;
+#endif
 	default:
 		goto TONEBANK_INSTRUMENT_NULL;
 		break;
@@ -2278,7 +2292,7 @@ void free_instruments(int reload_default_inst)
 				if(bank->tone[j][elm] == NULL)
 					continue;
 				ip = bank->tone[j][elm]->instrument;
-				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ || ip->type == INST_DLS) &&
+				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ || ip->type == INST_DLS || ip->type == INST_ECW) &&
 					(i == 0 || !tonebank[0]->tone[j][elm] || ip != tonebank[0]->tone[j][elm]->instrument) )
 						free_instrument(ip);
 				bank->tone[j][elm]->instrument = NULL;
@@ -2290,7 +2304,7 @@ void free_instruments(int reload_default_inst)
 				if(bank->tone[j][elm] == NULL)
 					continue;
 				ip = bank->tone[j][elm]->instrument;
-				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ || ip->type == INST_DLS) &&
+				if(ip && (ip->type == INST_SF2 || ip->type == INST_PCM || ip->type == INST_MMS || ip->type == INST_SCC || ip->type == INST_SFZ || ip->type == INST_DLS || ip->type == INST_ECW) &&
 				   (i == 0 || !drumset[0]->tone[j][elm] || ip != drumset[0]->tone[j][elm]->instrument) )
 					free_instrument(ip);
 				bank->tone[j][elm]->instrument = NULL;

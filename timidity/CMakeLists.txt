@@ -81,6 +81,7 @@ add_library(
     common.c
     decode.c
 	dls.cpp
+	ecw.cpp
     effect.c
     envelope.c
     filter.c
@@ -143,6 +144,7 @@ add_library(
     decode.h
 	dls.h
     dlutils.h
+	ecw.h
     filter.h
     freq.h
     instrum.h
