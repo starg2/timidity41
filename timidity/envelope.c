@@ -900,18 +900,20 @@ void reset_envelope2(Envelope2 *env, FLOAT_T target_vol1, FLOAT_T target_vol2, F
 	env->stage = ENV1_DELAY_STAGE; // env_on
 	env->count = 0;
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-	_mm_storeu_pd(env->init_vol, _mm_loadu_pd(env->vol));
-	env->target_vol[0] = target_vol1;
-	env->target_vol[1] = target_vol2;
+	__m128d vvol = _mm_loadu_pd(env->vol);
+	_mm_storeu_pd(env->init_vol, vvol);
+	__m128d vtarget_vol = _mm_set_pd(target_vol2, target_vol1);
+	_mm_storeu_pd(env->target_vol, vtarget_vol);
 	if(time_cnt < 0 || env->length == time_cnt){		
 		_mm_storeu_pd(env->mlt_vol, _mm_mul_pd(
-			_mm_sub_pd(_mm_loadu_pd(env->target_vol), _mm_loadu_pd(env->init_vol)), MM_LOAD1_PD(&env->div_length)));
+			_mm_sub_pd(vtarget_vol, vvol), MM_LOAD1_PD(&env->div_length)));
 		return;
 	}
 	env->length = time_cnt;
-	env->div_length = time_cnt ? (1.0 / env->length) : MIN_ENV1_LENGTH;		
+	FLOAT_T div_length = time_cnt ? (1.0 / env->length) : MIN_ENV1_LENGTH;
+	env->div_length = div_length;
 	_mm_storeu_pd(env->mlt_vol, _mm_mul_pd(
-		_mm_sub_pd(_mm_loadu_pd(env->target_vol), _mm_loadu_pd(env->init_vol)), MM_LOAD1_PD(&env->div_length)));
+		_mm_sub_pd(vtarget_vol, vvol), _mm_set1_pd(div_length)));
 #else
 	env->init_vol[0] = env->vol[0];
 	env->init_vol[1] = env->vol[1];
