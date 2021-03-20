@@ -86,14 +86,22 @@ const int32 max_amp_value = MAX_AMP_VALUE;
 #endif // DATA_T_INT32
 
 
+void mix_mystery_signal(DATA_T *sp, DATA_T *lp, int v, int count);
 void mix_voice(DATA_T *, int, int32);
-
 
 #if 0 // dim voice buffer
 static ALIGN DATA_T voice_buffer[AUDIO_BUFFER_SIZE * RESAMPLE_OVER_SAMPLING_MAX];
 #else // malloc voice buffer
 static DATA_T *voice_buffer = NULL;
 #endif // malloc voice buffer
+
+#ifdef MIX_VOICE_BATCH
+static int voice_buffer_batch_current_count;
+static int voice_buffer_batch_v[MIX_VOICE_BATCH_SIZE]; // voice id
+static int32 voice_buffer_batch_count[MIX_VOICE_BATCH_SIZE];
+static DATA_T *voice_buffer_batch_data[MIX_VOICE_BATCH_SIZE];
+static DATA_T *voice_buffer_batch_dest[MIX_VOICE_BATCH_SIZE];
+#endif
 
 
 /*************** mix.c initialize uninitialize *****************/
@@ -124,12 +132,42 @@ void init_mix_c(void)
 		voice_buffer = NULL;
 	}
 	voice_buffer = (DATA_T *)aligned_malloc(byte, ALIGN_SIZE);
+
+#ifdef MIX_VOICE_BATCH
+	voice_buffer_batch_current_count = 0;
+	memset(voice_buffer_batch_v, 0, sizeof(voice_buffer_batch_v));
+	memset(voice_buffer_batch_count, 0, sizeof(voice_buffer_batch_count));
+	memset(voice_buffer_batch_dest, 0, sizeof(voice_buffer_batch_dest));
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i++) {
+		if (voice_buffer_batch_data[i]) {
+			aligned_free(voice_buffer_batch_data[i]);
+			voice_buffer_batch_data[i] = NULL;
+		}
+		voice_buffer_batch_data[i] = (DATA_T *)aligned_malloc(byte, ALIGN_SIZE);
+		memset(voice_buffer_batch_data[i], 0, byte);
+	}
+#endif
 #else
 	if(voice_buffer){
 		safe_free(voice_buffer);
 		voice_buffer = NULL;
 	}
 	voice_buffer = (DATA_T *)safe_malloc(byte);
+
+#ifdef MIX_VOICE_BATCH
+	voice_buffer_batch_current_count = 0;
+	memset(voice_buffer_batch_v, 0, sizeof(voice_buffer_batch_v));
+	memset(voice_buffer_batch_count, 0, sizeof(voice_buffer_batch_count));
+	memset(voice_buffer_batch_dest, 0, sizeof(voice_buffer_batch_dest));
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i++) {
+		if (voice_buffer_batch_data[i]) {
+			safe_free(voice_buffer_batch_data[i]);
+			voice_buffer_batch_data[i] = NULL;
+		}
+		voice_buffer_batch_data[i] = (DATA_T *)safe_malloc(byte);
+		memset(voice_buffer_batch_data[i], 0, byte);
+	}
+#endif
 #endif
 #endif // malloc voice_buffer
 	memset(voice_buffer, 0, byte);
@@ -149,11 +187,35 @@ void free_mix_c(void)
 		aligned_free(voice_buffer);
 		voice_buffer = NULL;
 	}
+#ifdef MIX_VOICE_BATCH
+	voice_buffer_batch_current_count = 0;
+	memset(voice_buffer_batch_v, 0, sizeof(voice_buffer_batch_v));
+	memset(voice_buffer_batch_count, 0, sizeof(voice_buffer_batch_count));
+	memset(voice_buffer_batch_dest, 0, sizeof(voice_buffer_batch_dest));
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i++) {
+		if (voice_buffer_batch_data[i]) {
+			aligned_free(voice_buffer_batch_data[i]);
+			voice_buffer_batch_data[i] = NULL;
+		}
+	}
+#endif
 #else
 	if(voice_buffer){
 		safe_free(voice_buffer);
 		voice_buffer = NULL;
 	}
+#ifdef MIX_VOICE_BATCH
+	voice_buffer_batch_current_count = 0;
+	memset(voice_buffer_batch_v, 0, sizeof(voice_buffer_batch_v));
+	memset(voice_buffer_batch_count, 0, sizeof(voice_buffer_batch_count));
+	memset(voice_buffer_batch_dest, 0, sizeof(voice_buffer_batch_dest));
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i++) {
+		if (voice_buffer_batch_data[i]) {
+			safe_free(voice_buffer_batch_data[i]);
+			voice_buffer_batch_data[i] = NULL;
+		}
+	}
+#endif
 #endif
 #endif
 #ifdef MULTI_THREAD_COMPUTE
@@ -165,6 +227,59 @@ void free_mix_c(void)
 
 /****************  ****************/
 
+#ifdef MIX_VOICE_BATCH
+
+void mix_voice_flush_batch(void)
+{
+	voice_filter_batch(voice_buffer_batch_current_count, voice_buffer_batch_v, voice_buffer_batch_data, voice_buffer_batch_count);
+
+	for (int i= 0; i < voice_buffer_batch_current_count; i++) {
+		Voice *vp = voice + voice_buffer_batch_v[i];
+		mix_mystery_signal(voice_buffer_batch_data[i], voice_buffer_batch_dest[i], voice_buffer_batch_v[i], voice_buffer_batch_count[i]);
+		if (vp->finish_voice >= 2 || vp->finish_voice && !vp->sample->keep_voice)
+			free_voice(voice_buffer_batch_v[i]);
+	}
+
+	voice_buffer_batch_current_count = 0;
+}
+
+static int mix_voice_batch_is_filter_type_supported(int8 type)
+{
+	switch (type) {
+	case FILTER_NONE:
+	case FILTER_LPF12_2:
+		return 1;
+
+	default:
+		return 0;
+	}
+}
+
+static int mix_voice_try_enqueue_batch(DATA_T *sp, DATA_T *lp, int v, int32 c)
+{
+	Voice *vp = voice + v;
+
+	if (!(mix_voice_batch_is_filter_type_supported(vp->fc.type) && mix_voice_batch_is_filter_type_supported(vp->fc2.type)))
+		return 0;
+
+	Voice *vp0 = voice + voice_buffer_batch_v[0];
+
+	if (voice_buffer_batch_current_count > 0 && !(vp->fc.type == vp0->fc.type && vp->fc2.type == vp0->fc2.type))
+		mix_voice_flush_batch();
+
+	voice_buffer_batch_v[voice_buffer_batch_current_count] = v;
+	voice_buffer_batch_count[voice_buffer_batch_current_count] = c;
+	memcpy(voice_buffer_batch_data[voice_buffer_batch_current_count], sp, c * sizeof(DATA_T));
+	voice_buffer_batch_dest[voice_buffer_batch_current_count] = lp;
+	voice_buffer_batch_current_count++;
+
+	if (voice_buffer_batch_current_count >= MIX_VOICE_BATCH_SIZE)
+		mix_voice_flush_batch();
+
+	return 1;
+}
+
+#endif // MIX_VOICE_BATCH
 
 static void compute_portament(int v, int32 c)
 {
@@ -573,6 +688,10 @@ void mix_voice(DATA_T *buf, int v, int32 c)
 	}
 #ifdef VOICE_EFFECT
 	voice_effect(v, sp, c);
+#endif
+#ifdef MIX_VOICE_BATCH
+	if(mix_voice_try_enqueue_batch(sp, buf, v, c))
+		return;
 #endif
 	voice_filter(v, sp, c);
 	mix_mystery_signal(sp, buf, v, c);	

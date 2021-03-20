@@ -11825,6 +11825,10 @@ static void do_compute_data_midi(int32 count)
 		}
 	}
 
+#ifdef MIX_VOICE_BATCH
+	mix_voice_flush_batch();
+#endif
+
 	while(uv > 0 && voice[uv - 1].status == VOICE_FREE)	{uv--;}
 	upper_voices = uv;
 
