@@ -4143,6 +4143,108 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 		}
 	}
 }
+
+static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 4) {
+		if (i >= batch_size)
+			break;
+
+		__m128i vcounts = _mm_set_epi32(
+			i + 3 < batch_size ? counts[i + 3] : 0,
+			i + 2 < batch_size ? counts[i + 2] : 0,
+			i + 1 < batch_size ? counts[i + 1] : 0,
+			counts[i]
+		);
+
+		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
+		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
+		__m128d vdb01_2 = i + 2 < batch_size ? _mm_loadu_pd(dbs[i + 2]) : _mm_setzero_pd();
+		__m128d vdb01_3 = i + 3 < batch_size ? _mm_loadu_pd(dbs[i + 3]) : _mm_setzero_pd();
+
+		__m256d vdb01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_0), vdb01_2, 1);
+		__m256d vdb01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_1), vdb01_3, 1);
+
+		__m256d vdb0 = _mm256_unpacklo_pd(vdb01_02, vdb01_13);
+		__m256d vdb1 = _mm256_unpackhi_pd(vdb01_02, vdb01_13);
+
+		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
+		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
+		__m128d vdc01_2 = i + 2 < batch_size ? _mm_loadu_pd(dcs[i + 2]) : _mm_setzero_pd();
+		__m128d vdc01_3 = i + 3 < batch_size ? _mm_loadu_pd(dcs[i + 3]) : _mm_setzero_pd();
+
+		__m256d vdc01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_0), vdc01_2, 1);
+		__m256d vdc01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_1), vdc01_3, 1);
+
+		__m256d vdc0 = _mm256_unpacklo_pd(vdc01_02, vdc01_13);
+		__m256d vdc1 = _mm256_unpackhi_pd(vdc01_02, vdc01_13);
+
+		__m128i vcounts_halfmax = _mm_max_epi32(vcounts, _mm_shuffle_epi32(vcounts, (3 << 2) | 2));
+		int32 count_max = _mm_cvtsi128_si32(_mm_max_epi32(vcounts_halfmax, _mm_shuffle_epi32(vcounts_halfmax, 1)));
+
+		for (int32 j = 0; j < count_max; j += 4) {
+			__m256d vsp0123_0 = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
+			__m256d vsp0123_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm256_loadu_pd(&sps[i + 1][j]) : _mm256_setzero_pd();
+			__m256d vsp0123_2 = i + 2 < batch_size && j < counts[i + 2] ? _mm256_loadu_pd(&sps[i + 2][j]) : _mm256_setzero_pd();
+			__m256d vsp0123_3 = i + 3 < batch_size && j < counts[i + 3] ? _mm256_loadu_pd(&sps[i + 3][j]) : _mm256_setzero_pd();
+
+			__m256d vsp01_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (2 << 4) | 0);
+			__m256d vsp01_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (2 << 4) | 0);
+			__m256d vsp23_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (3 << 4) | 1);
+			__m256d vsp23_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (3 << 4) | 1);
+
+			__m256d vsps[4];
+			vsps[0] = _mm256_unpacklo_pd(vsp01_02, vsp01_13);
+			vsps[1] = _mm256_unpackhi_pd(vsp01_02, vsp01_13);
+			vsps[2] = _mm256_unpacklo_pd(vsp23_02, vsp23_13);
+			vsps[3] = _mm256_unpackhi_pd(vsp23_02, vsp23_13);
+
+			for (int k = 0; k < 4; k++) {
+				vdb1 = MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb0), vdc1, vdb1);
+				vdb0 = _mm256_add_pd(vdb0, vdb1);
+				vdb1 = _mm256_mul_pd(vdb1, vdc0);
+				vsps[k] = _mm256_sub_pd(vsps[k], vdb0);
+			}
+
+			vsp01_02 = _mm256_unpacklo_pd(vsps[0], vsps[1]);
+			vsp01_13 = _mm256_unpackhi_pd(vsps[0], vsps[1]);
+			vsp23_02 = _mm256_unpacklo_pd(vsps[2], vsps[3]);
+			vsp23_13 = _mm256_unpackhi_pd(vsps[2], vsps[3]);
+
+			vsp0123_0 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (2 << 4) | 0);
+			vsp0123_1 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (2 << 4) | 0);
+			vsp0123_2 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (3 << 4) | 1);
+			vsp0123_3 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (3 << 4) | 1);
+
+			if (j < counts[i])
+				_mm256_storeu_pd(&sps[i][j], vsp0123_0);
+
+			if (i + 1 < batch_size && j < counts[i + 1])
+				_mm256_storeu_pd(&sps[i + 1][j], vsp0123_1);
+
+			if (i + 2 < batch_size && j < counts[i + 2])
+				_mm256_storeu_pd(&sps[i + 2][j], vsp0123_2);
+
+			if (i + 3 < batch_size && j < counts[i + 3])
+				_mm256_storeu_pd(&sps[i + 3][j], vsp0123_3);
+		}
+
+		vdb01_02 = _mm256_unpacklo_pd(vdb0, vdb1);
+		vdb01_13 = _mm256_unpackhi_pd(vdb0, vdb1);
+
+		_mm_storeu_pd(dbs[i], _mm256_castpd256_pd128(vdb01_02));
+
+		if (i + 1 < batch_size)
+			_mm_storeu_pd(dbs[i + 1], _mm256_castpd256_pd128(vdb01_13));
+
+		if (i + 2 < batch_size)
+			_mm_storeu_pd(dbs[i + 2], _mm256_extractf128_pd(vdb01_02, 1));
+
+		if (i + 3 < batch_size)
+			_mm_storeu_pd(dbs[i + 3], _mm256_extractf128_pd(vdb01_13, 1));
+	}
+}
+
 #endif
 
 void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps, int32 *counts)
@@ -4179,8 +4281,10 @@ void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps,
 		sample_filter_LPF12_2_batch(batch_size, dcs, dbs, sps, counts);
 		break;
 
-	//case FILTER_HPF12_2:
-	//	break;
+	case FILTER_HPF12_2:
+		recalc_filter_LPF12_2_batch(batch_size, fcs);
+		sample_filter_HPF12_2_batch(batch_size, dcs, dbs, sps, counts);
+		break;
 
 	default:
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "buffer_filter_batch(): error: unsupported filter type");
