@@ -5508,12 +5508,16 @@ static inline int parse_opt_voice_hpf(const char *arg)
 		opt_hpf_def = 1;
 		break;
 	case '2':
-	case 'c':	/* lpf12-3 */
+	case 'c':	/* hpf12-3 */
 		opt_hpf_def = 2;
 		break;
 	case '3':
 	case 'o':	/* 1 pole 6db/oct */
 		opt_hpf_def = 3;
+		break;
+	case '4':
+	case 'i':	/* Resonant IIR */
+		opt_hpf_def = 4;
 		break;
 	default:
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "Invalid voice HPF type %s", arg);
