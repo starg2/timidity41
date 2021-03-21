@@ -32,7 +32,7 @@
 
 #include "sysdep.h"
 
-
+#include "mix.h"
 
 enum{
 	FILTER_NONE =0,
@@ -174,7 +174,9 @@ extern void set_resample_filter_ext_rate(FilterCoefficients *fc, FLOAT_T freq);
 extern void set_resample_filter_freq(FilterCoefficients *fc, FLOAT_T freq);
 extern void resample_filter(int v, DATA_T *sp, int32 count);
 
-
+#ifdef MIX_VOICE_BATCH
+extern void voice_filter_batch(int batch_size, int *vs, DATA_T **sps, int32 *counts);
+#endif // MIX_VOICE_BATCH
 
 
 /*************** antialiasing ********************/

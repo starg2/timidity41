@@ -4734,7 +4734,7 @@ static void lo_rs_plain(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j;
 
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment);
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	dest = resample_linear_multi(vp, dest, j, &i);
@@ -5199,7 +5199,7 @@ static void lo_rs_plain_int32(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j;
 
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment);
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	dest = resample_linear_int32_multi(vp, dest, j, &i);
@@ -5662,7 +5662,7 @@ static void lo_rs_plain_float(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j;
 
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment);
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	dest = resample_linear_float_multi(vp, dest, j, &i);
@@ -6747,7 +6747,7 @@ static void lao_rs_plain(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j = 0;	
 	
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment);
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	if((resrc->offset >> FRACTION_BITS) >= 1)
@@ -7449,7 +7449,7 @@ static void lao_rs_plain_int32(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j = 0;	
 	
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment);
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	if((resrc->offset >> FRACTION_BITS) >= 1)
@@ -8122,7 +8122,7 @@ static void lao_rs_plain_float(Voice *vp, DATA_T *dest, int32 count)
 	int32 i = 0, j = 0;	
 	
 	if (resrc->increment < 0) resrc->increment = -resrc->increment; /* In case we're coming out of a bidir loop */
-	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment) + 1; // safe end+128 sample
+	j = PRECALC_LOOP_COUNT(resrc->offset, resrc->data_length, resrc->increment);
 	if (j > count) {j = count;}
 	else if(j < 0) {j = 0;}	
 	if((resrc->offset >> FRACTION_BITS) >= 1)

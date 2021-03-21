@@ -25,8 +25,18 @@
 #ifndef ___MIX_H_
 #define ___MIX_H_
 
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#define MIX_VOICE_BATCH
+#define MIX_VOICE_BATCH_SIZE   8
+#endif
+
 ///r
 extern void mix_voice(DATA_T *, int, int32);
+
+#ifdef MIX_VOICE_BATCH
+extern void mix_voice_flush_batch(void);
+#endif // MIX_VOICE_BATCH
+
 
 extern int recompute_envelope(int);
 extern int apply_envelope_to_amp(int);
