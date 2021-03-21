@@ -4280,19 +4280,19 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs)
 {
 	__m256d vfcrange0123_0 = _mm256_loadu_pd(fcs[0]->range);
-	__m256d vfcrange0123_1 = 1 < batch_size ? _mm256_loadu_pd(fcs[1]->range) : vfcrange0123_0;
-	__m256d vfcrange0123_2 = 2 < batch_size ? _mm256_loadu_pd(fcs[2]->range) : vfcrange0123_0;
-	__m256d vfcrange0123_3 = 3 < batch_size ? _mm256_loadu_pd(fcs[3]->range) : vfcrange0123_0;
-	__m256d vfcrange0123_4 = 4 < batch_size ? _mm256_loadu_pd(fcs[4]->range) : vfcrange0123_0;
-	__m256d vfcrange0123_5 = 5 < batch_size ? _mm256_loadu_pd(fcs[5]->range) : vfcrange0123_0;
-	__m256d vfcrange0123_6 = 6 < batch_size ? _mm256_loadu_pd(fcs[6]->range) : vfcrange0123_0;
-	__m256d vfcrange0123_7 = 7 < batch_size ? _mm256_loadu_pd(fcs[7]->range) : vfcrange0123_0;
-																						
+	__m256d vfcrange0123_1 = 1 < batch_size ? _mm256_loadu_pd(fcs[1]->range) : _mm256_setzero_pd();
+	__m256d vfcrange0123_2 = 2 < batch_size ? _mm256_loadu_pd(fcs[2]->range) : _mm256_setzero_pd();
+	__m256d vfcrange0123_3 = 3 < batch_size ? _mm256_loadu_pd(fcs[3]->range) : _mm256_setzero_pd();
+	__m256d vfcrange0123_4 = 4 < batch_size ? _mm256_loadu_pd(fcs[4]->range) : _mm256_setzero_pd();
+	__m256d vfcrange0123_5 = 5 < batch_size ? _mm256_loadu_pd(fcs[5]->range) : _mm256_setzero_pd();
+	__m256d vfcrange0123_6 = 6 < batch_size ? _mm256_loadu_pd(fcs[6]->range) : _mm256_setzero_pd();
+	__m256d vfcrange0123_7 = 7 < batch_size ? _mm256_loadu_pd(fcs[7]->range) : _mm256_setzero_pd();
+
 	__m512d vfcrange0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_0), vfcrange0123_2, 1);
 	__m512d vfcrange0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_1), vfcrange0123_3, 1);
 	__m512d vfcrange0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_4), vfcrange0123_6, 1);
 	__m512d vfcrange0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_5), vfcrange0123_7, 1);
-																						
+
 	__m512d vfcrange01_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
 	__m512d vfcrange01_1357 = _mm512_shuffle_f64x2(vfcrange0123_13, vfcrange0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
 	__m512d vfcrange23_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
@@ -4304,40 +4304,40 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 	__m512d vfcrange3 = _mm512_unpackhi_pd(vfcrange23_0246, vfcrange23_1357);
 
 	__m512d vfcfreq = _mm512_set_pd(
-		7 < batch_size ? fcs[7]->freq : fcs[0]->freq,
-		6 < batch_size ? fcs[6]->freq : fcs[0]->freq,
-		5 < batch_size ? fcs[5]->freq : fcs[0]->freq,
-		4 < batch_size ? fcs[4]->freq : fcs[0]->freq,
-		3 < batch_size ? fcs[3]->freq : fcs[0]->freq,
-		2 < batch_size ? fcs[2]->freq : fcs[0]->freq,
-		1 < batch_size ? fcs[1]->freq : fcs[0]->freq,
+		7 < batch_size ? fcs[7]->freq : 0.0,
+		6 < batch_size ? fcs[6]->freq : 0.0,
+		5 < batch_size ? fcs[5]->freq : 0.0,
+		4 < batch_size ? fcs[4]->freq : 0.0,
+		3 < batch_size ? fcs[3]->freq : 0.0,
+		2 < batch_size ? fcs[2]->freq : 0.0,
+		1 < batch_size ? fcs[1]->freq : 0.0,
 		fcs[0]->freq
 	);
 
 	__m512d vfcreso_DB = _mm512_set_pd(
-		7 < batch_size ? fcs[7]->reso_dB : fcs[0]->reso_dB,
-		6 < batch_size ? fcs[6]->reso_dB : fcs[0]->reso_dB,
-		5 < batch_size ? fcs[5]->reso_dB : fcs[0]->reso_dB,
-		4 < batch_size ? fcs[4]->reso_dB : fcs[0]->reso_dB,
-		3 < batch_size ? fcs[3]->reso_dB : fcs[0]->reso_dB,
-		2 < batch_size ? fcs[2]->reso_dB : fcs[0]->reso_dB,
-		1 < batch_size ? fcs[1]->reso_dB : fcs[0]->reso_dB,
+		7 < batch_size ? fcs[7]->reso_dB : 0.0,
+		6 < batch_size ? fcs[6]->reso_dB : 0.0,
+		5 < batch_size ? fcs[5]->reso_dB : 0.0,
+		4 < batch_size ? fcs[4]->reso_dB : 0.0,
+		3 < batch_size ? fcs[3]->reso_dB : 0.0,
+		2 < batch_size ? fcs[2]->reso_dB : 0.0,
+		1 < batch_size ? fcs[1]->reso_dB : 0.0,
 		fcs[0]->reso_dB
 	);
 
-	__mmask8 kmask = _kor_mask8(
+	uint8 imask = _kor_mask8(
 		_kor_mask8(_mm512_cmp_pd_mask(vfcfreq, vfcrange0, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcfreq, vfcrange1, _CMP_GT_OS)),
 		_kor_mask8(_mm512_cmp_pd_mask(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcreso_DB, vfcrange3, _CMP_GT_OS))
-	);
+	) & ((1 << batch_size) - 1);
 
-	if (!_ktestz_mask8_u8(kmask, kmask)) {
+	if (imask) {
 		__m512d v1mmargin = _mm512_set1_pd(1.0 - ext_filter_margin);
 		__m512d v1pmargin = _mm512_set1_pd(1.0 + ext_filter_margin);
 
-		vfcrange0 = _mm512_mask_mov_pd(vfcrange0, kmask, _mm512_mul_pd(vfcfreq, v1mmargin));
-		vfcrange1 = _mm512_mask_mov_pd(vfcrange1, kmask, _mm512_mul_pd(vfcfreq, v1pmargin));
-		vfcrange2 = _mm512_mask_mov_pd(vfcrange2, kmask, _mm512_mul_pd(vfcreso_DB, v1mmargin));
-		vfcrange3 = _mm512_mask_mov_pd(vfcrange3, kmask, _mm512_mul_pd(vfcreso_DB, v1pmargin));
+		vfcrange0 = _mm512_mul_pd(vfcfreq, v1mmargin);
+		vfcrange1 = _mm512_mul_pd(vfcfreq, v1pmargin);
+		vfcrange2 = _mm512_mul_pd(vfcreso_DB, v1mmargin);
+		vfcrange3 = _mm512_mul_pd(vfcreso_DB, v1pmargin);
 
 		vfcrange01_0246 = _mm512_unpacklo_pd(vfcrange0, vfcrange1);
 		vfcrange01_1357 = _mm512_unpackhi_pd(vfcrange0, vfcrange1);
@@ -4356,27 +4356,28 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 		__m512d vfcrange0123_37 = _mm512_mask_permutex_pd(vfcrange01_1357, 0x33, vfcrange23_1357, (3 << 2) | 2);
 #endif
 
-		_mm256_storeu_pd(fcs[0]->range, _mm512_castpd512_pd256(vfcrange0123_04));
+		if (imask & 1)
+			_mm256_storeu_pd(fcs[0]->range, _mm512_castpd512_pd256(vfcrange0123_04));
 
-		if (1 < batch_size)
+		if (imask & (1 << 1))
 			_mm256_storeu_pd(fcs[1]->range, _mm512_castpd512_pd256(vfcrange0123_15));
 
-		if (2 < batch_size)
+		if (imask & (1 << 2))
 			_mm256_storeu_pd(fcs[2]->range, _mm512_castpd512_pd256(vfcrange0123_26));
 
-		if (3 < batch_size)
+		if (imask & (1 << 3))
 			_mm256_storeu_pd(fcs[3]->range, _mm512_castpd512_pd256(vfcrange0123_37));
 
-		if (4 < batch_size)
+		if (imask & (1 << 4))
 			_mm256_storeu_pd(fcs[4]->range, _mm512_extractf64x4_pd(vfcrange0123_04, 1));
 
-		if (5 < batch_size)
+		if (imask & (1 << 5))
 			_mm256_storeu_pd(fcs[5]->range, _mm512_extractf64x4_pd(vfcrange0123_15, 1));
 
-		if (6 < batch_size)
+		if (imask & (1 << 6))
 			_mm256_storeu_pd(fcs[6]->range, _mm512_extractf64x4_pd(vfcrange0123_26, 1));
 
-		if (7 < batch_size)
+		if (imask & (1 << 7))
 			_mm256_storeu_pd(fcs[7]->range, _mm512_extractf64x4_pd(vfcrange0123_37, 1));
 
 		__m512d vfcdiv_flt_rate = _mm512_set_pd(
@@ -4422,21 +4423,22 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 
 		__m512d vdc0246 = _mm512_unpacklo_pd(vc0, vc1);
 		__m512d vdc1357 = _mm512_unpackhi_pd(vc0, vc1);
-		_mm_storeu_pd(fcs[0]->dc, _mm512_castpd512_pd128(vdc0246));
 
-		if (1 < batch_size)
+		if (imask & 1)
+			_mm_storeu_pd(fcs[0]->dc, _mm512_castpd512_pd128(vdc0246));
+		if (imask & (1 << 1))
 			_mm_storeu_pd(fcs[1]->dc, _mm512_castpd512_pd128(vdc1357));
-		if (2 < batch_size)
+		if (imask & (1 << 2))
 			_mm_storeu_pd(fcs[2]->dc, _mm256_extractf128_pd(_mm512_castpd512_pd256(vdc0246), 1));
-		if (3 < batch_size)
+		if (imask & (1 << 3))
 			_mm_storeu_pd(fcs[3]->dc, _mm256_extractf128_pd(_mm512_castpd512_pd256(vdc1357), 1));
-		if (4 < batch_size)
+		if (imask & (1 << 4))
 			_mm_storeu_pd(fcs[4]->dc, _mm512_extractf64x2_pd(vdc0246, 2));
-		if (5 < batch_size)
+		if (imask & (1 << 5))
 			_mm_storeu_pd(fcs[5]->dc, _mm512_extractf64x2_pd(vdc1357, 2));
-		if (6 < batch_size)
+		if (imask & (1 << 6))
 			_mm_storeu_pd(fcs[6]->dc, _mm512_extractf64x2_pd(vdc0246, 3));
-		if (7 < batch_size)
+		if (imask & (1 << 7))
 			_mm_storeu_pd(fcs[7]->dc, _mm512_extractf64x2_pd(vdc1357, 3));
 	}
 }
@@ -4450,9 +4452,9 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			break;
 
 		__m256d vfcrange0123_0 = _mm256_loadu_pd(fcs[i]->range);
-		__m256d vfcrange0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(fcs[i + 1]->range) : vfcrange0123_0;
-		__m256d vfcrange0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(fcs[i + 2]->range) : vfcrange0123_0;
-		__m256d vfcrange0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(fcs[i + 3]->range) : vfcrange0123_0;
+		__m256d vfcrange0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(fcs[i + 1]->range) : _mm256_setzero_pd();
+		__m256d vfcrange0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(fcs[i + 2]->range) : _mm256_setzero_pd();
+		__m256d vfcrange0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(fcs[i + 3]->range) : _mm256_setzero_pd();
 
 		__m256d vfcrange01_02 = _mm256_permute2f128_pd(vfcrange0123_0, vfcrange0123_2, (2 << 4) | 0);
 		__m256d vfcrange01_13 = _mm256_permute2f128_pd(vfcrange0123_1, vfcrange0123_3, (2 << 4) | 0);
@@ -4465,16 +4467,16 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 		__m256d vfcrange3 = _mm256_unpackhi_pd(vfcrange23_02, vfcrange23_13);
 
 		__m256d vfcfreq = _mm256_set_pd(
-			i + 3 < batch_size ? fcs[i + 3]->freq : fcs[i]->freq,
-			i + 2 < batch_size ? fcs[i + 2]->freq : fcs[i]->freq,
-			i + 1 < batch_size ? fcs[i + 1]->freq : fcs[i]->freq,
+			i + 3 < batch_size ? fcs[i + 3]->freq : 0.0,
+			i + 2 < batch_size ? fcs[i + 2]->freq : 0.0,
+			i + 1 < batch_size ? fcs[i + 1]->freq : 0.0,
 			fcs[i]->freq
 		);
 
 		__m256d vfcreso_DB = _mm256_set_pd(
-			i + 3 < batch_size ? fcs[i + 3]->reso_dB : fcs[i]->reso_dB,
-			i + 2 < batch_size ? fcs[i + 2]->reso_dB : fcs[i]->reso_dB,
-			i + 1 < batch_size ? fcs[i + 1]->reso_dB : fcs[i]->reso_dB,
+			i + 3 < batch_size ? fcs[i + 3]->reso_dB : 0.0,
+			i + 2 < batch_size ? fcs[i + 2]->reso_dB : 0.0,
+			i + 1 < batch_size ? fcs[i + 1]->reso_dB : 0.0,
 			fcs[i]->reso_dB
 		);
 
@@ -4483,14 +4485,16 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange3, _CMP_GT_OS))
 		);
 
-		if (!_mm256_testz_pd(vmask, vmask)) {
+		int imask = _mm256_movemask_pd(vmask) & ((1 << (batch_size - i)) - 1);
+
+		if (imask) {
 			__m256d v1mmargin = _mm256_set1_pd(1.0 - ext_filter_margin);
 			__m256d v1pmargin = _mm256_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm256_blendv_pd(vfcrange0, _mm256_mul_pd(vfcfreq, v1mmargin), vmask);
-			vfcrange1 = _mm256_blendv_pd(vfcrange1, _mm256_mul_pd(vfcfreq, v1pmargin), vmask);
-			vfcrange2 = _mm256_blendv_pd(vfcrange2, _mm256_mul_pd(vfcreso_DB, v1mmargin), vmask);
-			vfcrange3 = _mm256_blendv_pd(vfcrange3, _mm256_mul_pd(vfcreso_DB, v1pmargin), vmask);
+			vfcrange0 = _mm256_mul_pd(vfcfreq, v1mmargin);
+			vfcrange1 = _mm256_mul_pd(vfcfreq, v1pmargin);
+			vfcrange2 = _mm256_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange3 = _mm256_mul_pd(vfcreso_DB, v1pmargin);
 
 			vfcrange01_02 = _mm256_unpacklo_pd(vfcrange0, vfcrange1);
 			vfcrange01_13 = _mm256_unpackhi_pd(vfcrange0, vfcrange1);
@@ -4502,15 +4506,16 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			vfcrange0123_2 = _mm256_permute2f128_pd(vfcrange01_02, vfcrange23_02, (3 << 4) | 1);
 			vfcrange0123_3 = _mm256_permute2f128_pd(vfcrange01_13, vfcrange23_13, (3 << 4) | 1);
 
-			_mm256_storeu_pd(fcs[i]->range, vfcrange0123_0);
+			if (imask & 1)
+				_mm256_storeu_pd(fcs[i]->range, vfcrange0123_0);
 
-			if (i + 1 < batch_size)
+			if (imask & (1 << 1))
 				_mm256_storeu_pd(fcs[i + 1]->range, vfcrange0123_1);
 
-			if (i + 2 < batch_size)
+			if (imask & (1 << 2))
 				_mm256_storeu_pd(fcs[i + 2]->range, vfcrange0123_2);
 
-			if (i + 3 < batch_size)
+			if (imask & (1 << 3))
 				_mm256_storeu_pd(fcs[i + 3]->range, vfcrange0123_3);
 
 			__m256d vfcdiv_flt_rate = _mm256_set_pd(
@@ -4548,13 +4553,14 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 
 			__m256d vdc02 = _mm256_unpacklo_pd(vc0, vc1);
 			__m256d vdc13 = _mm256_unpackhi_pd(vc0, vc1);
-			_mm_storeu_pd(fcs[i]->dc, _mm256_castpd256_pd128(vdc02));
 
-			if (i + 1 < batch_size)
+			if (imask & 1)
+				_mm_storeu_pd(fcs[i]->dc, _mm256_castpd256_pd128(vdc02));
+			if (imask & (1 << 1))
 				_mm_storeu_pd(fcs[i + 1]->dc, _mm256_castpd256_pd128(vdc13));
-			if (i + 2 < batch_size)
+			if (imask & (1 << 2))
 				_mm_storeu_pd(fcs[i + 2]->dc, _mm256_extractf128_pd(vdc02, 1));
-			if (i + 3 < batch_size)
+			if (imask & (1 << 3))
 				_mm_storeu_pd(fcs[i + 3]->dc, _mm256_extractf128_pd(vdc13, 1));
 		}
 	}
@@ -4570,8 +4576,8 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 
 		__m128d vfcrange01_0 = _mm_loadu_pd(fcs[i]->range);
 		__m128d vfcrange23_0 = _mm_loadu_pd(&fcs[i]->range[2]);
-		__m128d vfcrange01_1 = i + 1 < batch_size ? _mm_loadu_pd(fcs[i + 1]->range) : vfcrange01_0;
-		__m128d vfcrange23_1 = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : vfcrange23_0;
+		__m128d vfcrange01_1 = i + 1 < batch_size ? _mm_loadu_pd(fcs[i + 1]->range) : _mm_setzero_pd();
+		__m128d vfcrange23_1 = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
 
 		__m128d vfcrange0 = _mm_unpacklo_pd(vfcrange01_0, vfcrange01_1);
 		__m128d vfcrange1 = _mm_unpackhi_pd(vfcrange01_0, vfcrange01_1);
@@ -4579,12 +4585,12 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 		__m128d vfcrange3 = _mm_unpackhi_pd(vfcrange23_0, vfcrange23_1);
 
 		__m128d vfcfreq = _mm_set_pd(
-			i + 1 < batch_size ? fcs[i + 1]->freq : fcs[i]->freq,
+			i + 1 < batch_size ? fcs[i + 1]->freq : 0.0,
 			fcs[i]->freq
 		);
 
 		__m128d vfcreso_DB = _mm_set_pd(
-			i + 1 < batch_size ? fcs[i + 1]->reso_dB : fcs[i]->reso_dB,
+			i + 1 < batch_size ? fcs[i + 1]->reso_dB : 0.0,
 			fcs[i]->reso_dB
 		);
 
@@ -4593,31 +4599,28 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
 		);
 
-		if (_mm_movemask_pd(vmask)) {
+		int imask = _mm_movemask_pd(vmask) & ((1 << (batch_size - i)) - 1);
+
+		if (imask) {
 			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
 			__m128d v1pmargin = _mm_set1_pd(1.0 + ext_filter_margin);
 
-#if USE_X86_EXT_INTRIN >= 6
-			vfcrange0 = _mm_blendv_pd(vfcrange0, _mm_mul_pd(vfcfreq, v1mmargin), vmask);
-			vfcrange1 = _mm_blendv_pd(vfcrange1, _mm_mul_pd(vfcfreq, v1pmargin), vmask);
-			vfcrange2 = _mm_blendv_pd(vfcrange2, _mm_mul_pd(vfcreso_DB, v1mmargin), vmask);
-			vfcrange3 = _mm_blendv_pd(vfcrange3, _mm_mul_pd(vfcreso_DB, v1pmargin), vmask);
-#else
-			vfcrange0 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange0), _mm_and_pd(vmask, _mm_mul_pd(vfcfreq, v1mmargin)));
-			vfcrange1 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange1), _mm_and_pd(vmask, _mm_mul_pd(vfcfreq, v1pmargin)));
-			vfcrange2 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange2), _mm_and_pd(vmask, _mm_mul_pd(vfcreso_DB, v1mmargin)));
-			vfcrange3 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange3), _mm_and_pd(vmask, _mm_mul_pd(vfcreso_DB, v1pmargin)));
-#endif
+			vfcrange0 = _mm_mul_pd(vfcfreq, v1mmargin);
+			vfcrange1 = _mm_mul_pd(vfcfreq, v1pmargin);
+			vfcrange2 = _mm_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange3 = _mm_mul_pd(vfcreso_DB, v1pmargin);
 
 			vfcrange01_0 = _mm_unpacklo_pd(vfcrange0, vfcrange1);
 			vfcrange01_1 = _mm_unpackhi_pd(vfcrange0, vfcrange1);
 			vfcrange23_0 = _mm_unpacklo_pd(vfcrange2, vfcrange3);
 			vfcrange23_1 = _mm_unpackhi_pd(vfcrange2, vfcrange3);
 
-			_mm_storeu_pd(fcs[i]->range, vfcrange01_0);
-			_mm_storeu_pd(&fcs[i]->range[2], vfcrange23_0);
+			if (imask & 1) {
+				_mm_storeu_pd(fcs[i]->range, vfcrange01_0);
+				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23_0);
+			}
 
-			if (i + 1 < batch_size) {
+			if (imask & (1 << 1)) {
 				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01_1);
 				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23_1);
 			}
@@ -4653,9 +4656,11 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 
 			__m128d vdc0 = _mm_unpacklo_pd(vc0, vc1);
 			__m128d vdc1 = _mm_unpackhi_pd(vc0, vc1);
-			_mm_storeu_pd(fcs[i]->dc, vdc0);
 
-			if (i + 1 < batch_size)
+			if (imask & 1)
+				_mm_storeu_pd(fcs[i]->dc, vdc0);
+
+			if (imask & (1 << 1))
 				_mm_storeu_pd(fcs[i + 1]->dc, vdc1);
 		}
 	}
