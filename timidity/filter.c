@@ -4154,9 +4154,11 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			vsps[3] = _mm256_unpackhi_pd(vsp23_02, vsp23_13);
 
 			for (int k = 0; k < 4; k++) {
-				vdb1 = MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb0), vdc1, vdb1);
-				vdb0 = _mm256_add_pd(vdb0, vdb1);
-				vdb1 = _mm256_mul_pd(vdb1, vdc0);
+				__m256d vmask = _mm256_castsi256_pd(_mm256_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
+
+				vdb1 = _mm256_blendv_pd(vdb1, MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
+				vdb0 = _mm256_blendv_pd(vdb0, _mm256_add_pd(vdb0, vdb1), vmask);
+				vdb1 = _mm256_blendv_pd(vdb1, _mm256_mul_pd(vdb1, vdc0), vmask);
 				vsps[k] = vdb0;
 			}
 
@@ -4196,6 +4198,78 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 
 		if (i + 3 < batch_size)
 			_mm_storeu_pd(dbs[i + 3], _mm256_extractf128_pd(vdb01_13, 1));
+	}
+}
+
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		__m128i vcounts = _mm_set_epi32(
+			0,
+			0,
+			i + 1 < batch_size ? counts[i + 1] : 0,
+			counts[i]
+		);
+
+		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
+		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
+
+		__m128d vdb0 = _mm_unpacklo_pd(vdb01_0, vdb01_1);
+		__m128d vdb1 = _mm_unpackhi_pd(vdb01_0, vdb01_1);
+
+		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
+		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
+
+		__m128d vdc0 = _mm_unpacklo_pd(vdc01_0, vdc01_1);
+		__m128d vdc1 = _mm_unpackhi_pd(vdc01_0, vdc01_1);
+
+		int32 count_max = _mm_cvtsi128_si32(_mm_max_epi32(vcounts, _mm_shuffle_epi32(vcounts, 1)));
+
+		for (int32 j = 0; j < count_max; j += 2) {
+			__m128d vsp01_0 = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
+			__m128d vsp01_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
+
+			__m128d vsps[2];
+			vsps[0] = _mm_unpacklo_pd(vsp01_0, vsp01_1);
+			vsps[1] = _mm_unpackhi_pd(vsp01_0, vsp01_1);
+
+			for (int k = 0; k < 2; k++) {
+				__m128d vmask = _mm_castsi128_pd(_mm_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
+
+#if USE_X86_EXT_INTRIN >= 6
+				vdb1 = _mm_blendv_pd(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
+				vdb0 = _mm_blendv_pd(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
+				vdb1 = _mm_blendv_pd(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
+#else
+				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1)));
+				vdb0 = _mm_or_pd(_mm_andnot_pd(vmask, vdb0), _mm_and_pd(vmask, _mm_add_pd(vdb0, vdb1)));
+				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, _mm_mul_pd(vdb1, vdc0)));
+#endif
+				vsps[k] = vdb0;
+			}
+
+			vsp01_0 = _mm_unpacklo_pd(vsps[0], vsps[1]);
+			vsp01_1 = _mm_unpackhi_pd(vsps[0], vsps[1]);
+
+			if (j < counts[i])
+				_mm_storeu_pd(&sps[i][j], vsp01_0);
+
+			if (i + 1 < batch_size && j < counts[i + 1])
+				_mm_storeu_pd(&sps[i + 1][j], vsp01_1);
+		}
+
+		vdb01_0 = _mm_unpacklo_pd(vdb0, vdb1);
+		vdb01_1 = _mm_unpackhi_pd(vdb0, vdb1);
+
+		_mm_storeu_pd(dbs[i], vdb01_0);
+
+		if (i + 1 < batch_size)
+			_mm_storeu_pd(dbs[i + 1], vdb01_1);
 	}
 }
 
@@ -4486,6 +4560,107 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 	}
 }
 
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		__m128d vfcrange01_0 = _mm_loadu_pd(fcs[i]->range);
+		__m128d vfcrange23_0 = _mm_loadu_pd(&fcs[i]->range[2]);
+		__m128d vfcrange01_1 = i + 1 < batch_size ? _mm_loadu_pd(fcs[i + 1]->range) : vfcrange01_0;
+		__m128d vfcrange23_1 = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : vfcrange23_0;
+
+		__m128d vfcrange0 = _mm_unpacklo_pd(vfcrange01_0, vfcrange01_1);
+		__m128d vfcrange1 = _mm_unpackhi_pd(vfcrange01_0, vfcrange01_1);
+		__m128d vfcrange2 = _mm_unpacklo_pd(vfcrange23_0, vfcrange23_1);
+		__m128d vfcrange3 = _mm_unpackhi_pd(vfcrange23_0, vfcrange23_1);
+
+		__m128d vfcfreq = _mm_set_pd(
+			i + 1 < batch_size ? fcs[i + 1]->freq : fcs[i]->freq,
+			fcs[i]->freq
+		);
+
+		__m128d vfcreso_DB = _mm_set_pd(
+			i + 1 < batch_size ? fcs[i + 1]->reso_dB : fcs[i]->reso_dB,
+			fcs[i]->reso_dB
+		);
+
+		__m128d vmask = _mm_or_pd(
+			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange0), _mm_cmpgt_pd(vfcfreq, vfcrange1)),
+			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
+		);
+
+		if (_mm_movemask_pd(vmask)) {
+			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
+			__m128d v1pmargin = _mm_set1_pd(1.0 + ext_filter_margin);
+
+#if USE_X86_EXT_INTRIN >= 6
+			vfcrange0 = _mm_blendv_pd(vfcrange0, _mm_mul_pd(vfcfreq, v1mmargin), vmask);
+			vfcrange1 = _mm_blendv_pd(vfcrange1, _mm_mul_pd(vfcfreq, v1pmargin), vmask);
+			vfcrange2 = _mm_blendv_pd(vfcrange2, _mm_mul_pd(vfcreso_DB, v1mmargin), vmask);
+			vfcrange3 = _mm_blendv_pd(vfcrange3, _mm_mul_pd(vfcreso_DB, v1pmargin), vmask);
+#else
+			vfcrange0 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange0), _mm_and_pd(vmask, _mm_mul_pd(vfcfreq, v1mmargin)));
+			vfcrange1 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange1), _mm_and_pd(vmask, _mm_mul_pd(vfcfreq, v1pmargin)));
+			vfcrange2 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange2), _mm_and_pd(vmask, _mm_mul_pd(vfcreso_DB, v1mmargin)));
+			vfcrange3 = _mm_or_pd(_mm_andnot_pd(vmask, vfcrange3), _mm_and_pd(vmask, _mm_mul_pd(vfcreso_DB, v1pmargin)));
+#endif
+
+			vfcrange01_0 = _mm_unpacklo_pd(vfcrange0, vfcrange1);
+			vfcrange01_1 = _mm_unpackhi_pd(vfcrange0, vfcrange1);
+			vfcrange23_0 = _mm_unpacklo_pd(vfcrange2, vfcrange3);
+			vfcrange23_1 = _mm_unpackhi_pd(vfcrange2, vfcrange3);
+
+			_mm_storeu_pd(fcs[i]->range, vfcrange01_0);
+			_mm_storeu_pd(&fcs[i]->range[2], vfcrange23_0);
+
+			if (i + 1 < batch_size) {
+				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01_1);
+				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23_1);
+			}
+
+			__m128d vfcdiv_flt_rate = _mm_set_pd(
+				i + 1 < batch_size ? fcs[i + 1]->div_flt_rate : fcs[i]->div_flt_rate,
+				fcs[i]->div_flt_rate
+			);
+
+			__m128d vf = _mm_mul_pd(_mm_mul_pd(_mm_set1_pd(M_PI2), vfcfreq), vfcdiv_flt_rate);
+
+			FLOAT_T reso_db_cf_p = RESO_DB_CF_P(fcs[i]->reso_dB);
+
+			__m128d vreso_db_cf_p = _mm_set_pd(
+				i + 1 < batch_size ? RESO_DB_CF_P(fcs[i + 1]->reso_dB) : reso_db_cf_p,
+				reso_db_cf_p
+			);
+
+			__m128d v1 = _mm_set1_pd(1.0);
+			__m128d v2 = _mm_set1_pd(2.0);
+			__m128d v0_5 = _mm_set1_pd(0.5);
+
+			__m128d vq = _mm_sub_pd(v1, _mm_div_pd(vf, MM_FMA_PD(v2, _mm_add_pd(vreso_db_cf_p, _mm_div_pd(v0_5, _mm_add_pd(v1, vf))), _mm_sub_pd(vf, v2))));
+			__m128d vc0 = _mm_mul_pd(vq, vq);
+#ifdef USE_SVML
+			__m128d vcosf = _mm_cos_pd(vf);
+#else
+			ALIGN FLOAT_T af[2];
+			_mm_storeu_pd(af, vf);
+			__m128d vcosf = _mm_set_pd(cos(af[1]), cos(af[0]));
+#endif
+			__m128d vc1 = _mm_sub_pd(_mm_add_pd(vc0, v1), _mm_mul_pd(_mm_mul_pd(v2, vcosf), vq));
+
+			__m128d vdc0 = _mm_unpacklo_pd(vc0, vc1);
+			__m128d vdc1 = _mm_unpackhi_pd(vc0, vc1);
+			_mm_storeu_pd(fcs[i]->dc, vdc0);
+
+			if (i + 1 < batch_size)
+				_mm_storeu_pd(fcs[i + 1]->dc, vdc1);
+		}
+	}
+}
+
 #endif
 
 #if (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
@@ -4699,9 +4874,11 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			vsps[3] = _mm256_unpackhi_pd(vsp23_02, vsp23_13);
 
 			for (int k = 0; k < 4; k++) {
-				vdb1 = MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb0), vdc1, vdb1);
-				vdb0 = _mm256_add_pd(vdb0, vdb1);
-				vdb1 = _mm256_mul_pd(vdb1, vdc0);
+				__m256d vmask = _mm256_castsi256_pd(_mm256_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
+
+				vdb1 = _mm256_blendv_pd(vdb1, MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
+				vdb0 = _mm256_blendv_pd(vdb0, _mm256_add_pd(vdb0, vdb1), vmask);
+				vdb1 = _mm256_blendv_pd(vdb1, _mm256_mul_pd(vdb1, vdc0), vmask);
 				vsps[k] = _mm256_sub_pd(vsps[k], vdb0);
 			}
 
@@ -4741,6 +4918,78 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 
 		if (i + 3 < batch_size)
 			_mm_storeu_pd(dbs[i + 3], _mm256_extractf128_pd(vdb01_13, 1));
+	}
+}
+
+#elif (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		__m128i vcounts = _mm_set_epi32(
+			0,
+			0,
+			i + 1 < batch_size ? counts[i + 1] : 0,
+			counts[i]
+		);
+
+		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
+		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
+
+		__m128d vdb0 = _mm_unpacklo_pd(vdb01_0, vdb01_1);
+		__m128d vdb1 = _mm_unpackhi_pd(vdb01_0, vdb01_1);
+
+		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
+		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
+
+		__m128d vdc0 = _mm_unpacklo_pd(vdc01_0, vdc01_1);
+		__m128d vdc1 = _mm_unpackhi_pd(vdc01_0, vdc01_1);
+
+		int32 count_max = _mm_cvtsi128_si32(_mm_max_epi32(vcounts, _mm_shuffle_epi32(vcounts, 1)));
+
+		for (int32 j = 0; j < count_max; j += 2) {
+			__m128d vsp01_0 = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
+			__m128d vsp01_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
+
+			__m128d vsps[2];
+			vsps[0] = _mm_unpacklo_pd(vsp01_0, vsp01_1);
+			vsps[1] = _mm_unpackhi_pd(vsp01_0, vsp01_1);
+
+			for (int k = 0; k < 2; k++) {
+				__m128d vmask = _mm_castsi128_pd(_mm_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
+
+#if USE_X86_EXT_INTRIN >= 6
+				vdb1 = _mm_blendv_pd(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
+				vdb0 = _mm_blendv_pd(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
+				vdb1 = _mm_blendv_pd(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
+#else
+				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1)));
+				vdb0 = _mm_or_pd(_mm_andnot_pd(vmask, vdb0), _mm_and_pd(vmask, _mm_add_pd(vdb0, vdb1)));
+				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, _mm_mul_pd(vdb1, vdc0)));
+#endif
+				vsps[k] = _mm_sub_pd(vsps[k], vdb0);
+			}
+
+			vsp01_0 = _mm_unpacklo_pd(vsps[0], vsps[1]);
+			vsp01_1 = _mm_unpackhi_pd(vsps[0], vsps[1]);
+
+			if (j < counts[i])
+				_mm_storeu_pd(&sps[i][j], vsp01_0);
+
+			if (i + 1 < batch_size && j < counts[i + 1])
+				_mm_storeu_pd(&sps[i + 1][j], vsp01_1);
+		}
+
+		vdb01_0 = _mm_unpacklo_pd(vdb0, vdb1);
+		vdb01_1 = _mm_unpackhi_pd(vdb0, vdb1);
+
+		_mm_storeu_pd(dbs[i], vdb01_0);
+
+		if (i + 1 < batch_size)
+			_mm_storeu_pd(dbs[i + 1], vdb01_1);
 	}
 }
 
