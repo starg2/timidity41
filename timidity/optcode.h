@@ -289,7 +289,7 @@ enum{
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
-#if (defined(_MSC_VER) && _MSC_VER >= 1920) || defined(__INTEL_COMPILER)
+#if (defined(_MSC_VER) && _MSC_VER >= 1920 && !defined(__clang__)) || defined(__INTEL_COMPILER)
 #define USE_SVML
 #endif
 
