@@ -3923,10 +3923,6 @@ void resample_filter(int v, DATA_T *sp, int32 count)
 
 #ifdef MIX_VOICE_BATCH
 
-#if MIX_VOICE_BATCH_SIZE != 8
-#error invalid MIX_VOICE_BATCH_SIZE
-#endif
-
 #if (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static inline __mmask8 generate_mask8_for_count(int32 offset, int32 count)
