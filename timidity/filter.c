@@ -4369,29 +4369,16 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 			for (int k = 0; k < 2; k++) {
 				__m128d vmask = _mm_castsi128_pd(_mm_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
 
-#if USE_X86_EXT_INTRIN >= 6
-				vdb0 = _mm_blendv_pd(vdb0, vsps[k], vmask);
-				vdb2 = _mm_blendv_pd(vdb2, MM_FMA5_PD(vdc0, vdb0, vdc1, vdb1, vdc2, vdb2, vdc3, vdb3, vdc4, vdb4), vmask);
+				vdb0 = MM_BLENDV_PD(vdb0, vsps[k], vmask);
+				vdb2 = MM_BLENDV_PD(vdb2, MM_FMA5_PD(vdc0, vdb0, vdc1, vdb1, vdc2, vdb2, vdc3, vdb3, vdc4, vdb4), vmask);
 
 #ifdef DENORMAL_FIX
-				vdb2 = _mm_blendv_pd(vdb2, _mm_add_pd(vdb2, _mm_set1_pd(denormal_add)), vmask);
+				vdb2 = MM_BLENDV_PD(vdb2, _mm_add_pd(vdb2, _mm_set1_pd(denormal_add)), vmask);
 #endif
-				vdb4 = _mm_blendv_pd(vdb4, vdb3, vmask);
-				vdb3 = _mm_blendv_pd(vdb3, vdb2, vmask);
-				vdb2 = _mm_blendv_pd(vdb2, vdb1, vmask);
-				vdb1 = _mm_blendv_pd(vdb1, vdb0, vmask);
-#else
-				vdb0 = _mm_or_pd(_mm_andnot_pd(vmask, vdb0), _mm_and_pd(vmask, vsps[k]));
-				vdb2 = _mm_or_pd(_mm_andnot_pd(vmask, vdb2), _mm_and_pd(vmask, MM_FMA5_PD(vdc0, vdb0, vdc1, vdb1, vdc2, vdb2, vdc3, vdb3, vdc4, vdb4)));
-
-#ifdef DENORMAL_FIX
-				vdb2 = _mm_or_pd(_mm_andnot_pd(vmask, vdb2), _mm_and_pd(vmask, _mm_add_pd(vdb2, _mm_set1_pd(denormal_add))));
-#endif
-				vdb4 = _mm_or_pd(_mm_andnot_pd(vmask, vdb4), _mm_and_pd(vmask, vdb3));
-				vdb3 = _mm_or_pd(_mm_andnot_pd(vmask, vdb3), _mm_and_pd(vmask, vdb2));
-				vdb2 = _mm_or_pd(_mm_andnot_pd(vmask, vdb2), _mm_and_pd(vmask, vdb1));
-				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, vdb0));
-#endif
+				vdb4 = MM_BLENDV_PD(vdb4, vdb3, vmask);
+				vdb3 = MM_BLENDV_PD(vdb3, vdb2, vmask);
+				vdb2 = MM_BLENDV_PD(vdb2, vdb1, vmask);
+				vdb1 = MM_BLENDV_PD(vdb1, vdb0, vmask);
 				vsps[k] = vdb3;
 			}
 
@@ -5191,15 +5178,9 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			for (int k = 0; k < 2; k++) {
 				__m128d vmask = _mm_castsi128_pd(_mm_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
 
-#if USE_X86_EXT_INTRIN >= 6
-				vdb1 = _mm_blendv_pd(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
-				vdb0 = _mm_blendv_pd(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
-				vdb1 = _mm_blendv_pd(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
-#else
-				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1)));
-				vdb0 = _mm_or_pd(_mm_andnot_pd(vmask, vdb0), _mm_and_pd(vmask, _mm_add_pd(vdb0, vdb1)));
-				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, _mm_mul_pd(vdb1, vdc0)));
-#endif
+				vdb1 = MM_BLENDV_PD(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
+				vdb0 = MM_BLENDV_PD(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
+				vdb1 = MM_BLENDV_PD(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
 				vsps[k] = vdb0;
 			}
 
@@ -5916,15 +5897,9 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			for (int k = 0; k < 2; k++) {
 				__m128d vmask = _mm_castsi128_pd(_mm_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
 
-#if USE_X86_EXT_INTRIN >= 6
-				vdb1 = _mm_blendv_pd(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
-				vdb0 = _mm_blendv_pd(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
-				vdb1 = _mm_blendv_pd(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
-#else
-				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1)));
-				vdb0 = _mm_or_pd(_mm_andnot_pd(vmask, vdb0), _mm_and_pd(vmask, _mm_add_pd(vdb0, vdb1)));
-				vdb1 = _mm_or_pd(_mm_andnot_pd(vmask, vdb1), _mm_and_pd(vmask, _mm_mul_pd(vdb1, vdc0)));
-#endif
+				vdb1 = MM_BLENDV_PD(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
+				vdb0 = MM_BLENDV_PD(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
+				vdb1 = MM_BLENDV_PD(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
 				vsps[k] = _mm_sub_pd(vsps[k], vdb0);
 			}
 

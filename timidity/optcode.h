@@ -879,6 +879,15 @@ LSU : Unalignment (use loadu/storeu
 #define MM_EXTRACT_EPI32(vec,num) _mm_cvtsi128_si32(_mm_shuffle_epi32(vec, num)) // num:0~3
 #endif // (USE_X86_EXT_INTRIN >= 6)
 
+#if (USE_X86_EXT_INTRIN >= 6) // sse4.1
+#define MM_BLENDV_PS(va, vb, vmask)  _mm_blendv_ps(va, vb, vmask)
+#define MM_BLENDV_PD(va, vb, vmask)  _mm_blendv_pd(va, vb, vmask)
+#else
+// Every element of vmask must be either 0 or -1!
+#define MM_BLENDV_PS(va, vb, vmask)  _mm_or_ps(_mm_andnot_ps(vmask, va), _mm_and_ps(vmask, vb))
+#define MM_BLENDV_PD(va, vb, vmask)  _mm_or_pd(_mm_andnot_pd(vmask, va), _mm_and_pd(vmask, vb))
+#endif
+
 #endif // (USE_X86_EXT_INTRIN >= 3)
 
 #if (USE_X86_EXT_INTRIN >= 2)
