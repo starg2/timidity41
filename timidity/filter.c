@@ -4649,7 +4649,10 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange3, _CMP_GT_OS))
 		);
 
-		int imask = _mm256_movemask_pd(vmask) & ((1 << (batch_size - i)) - 1);
+		int imask = _mm256_movemask_pd(vmask);
+
+		if (batch_size - i < 4)
+			imask &= (1 << (batch_size - i)) - 1;
 
 		if (imask) {
 			__m256d v1mmargin = _mm256_set1_pd(1.0 - ext_filter_margin);
@@ -4787,7 +4790,10 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
 		);
 
-		int imask = _mm_movemask_pd(vmask) & ((1 << (batch_size - i)) - 1);
+		int imask = _mm_movemask_pd(vmask);
+
+		if (batch_size - i < 2)
+			imask &= (1 << (batch_size - i)) - 1;
 
 		if (imask) {
 			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
@@ -5419,7 +5425,10 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange3, _CMP_GT_OS))
 		);
 
-		int imask = _mm256_movemask_pd(vmask) & ((1 << (batch_size - i)) - 1);
+		int imask = _mm256_movemask_pd(vmask);
+
+		if (batch_size - i < 4)
+			imask &= (1 << (batch_size - i)) - 1;
 
 		if (imask) {
 			__m256d v1mmargin = _mm256_set1_pd(1.0 - ext_filter_margin);
@@ -5533,7 +5542,10 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
 		);
 
-		int imask = _mm_movemask_pd(vmask) & ((1 << (batch_size - i)) - 1);
+		int imask = _mm_movemask_pd(vmask);
+
+		if (batch_size - i < 2)
+			imask &= (1 << (batch_size - i)) - 1;
 
 		if (imask) {
 			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
