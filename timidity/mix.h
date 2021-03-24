@@ -27,7 +27,7 @@
 
 #if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 #define MIX_VOICE_BATCH
-#define MIX_VOICE_BATCH_SIZE   8
+#define MIX_VOICE_BATCH_SIZE   32
 #endif
 
 ///r
