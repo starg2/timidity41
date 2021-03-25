@@ -5969,7 +5969,7 @@ void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps,
 	FILTER_T *dbs[MIX_VOICE_BATCH_SIZE];
 
 	for (int i = 0; i < batch_size; i++) {
-		dcs[i] = &fcs[i]->dc;
+		dcs[i] = fcs[i]->dc;
 		dbs[i] = &fcs[i]->db[FILTER_FB_L];
 	}
 
