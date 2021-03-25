@@ -4100,7 +4100,7 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 			vout[3] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (2 << 6) | (0 << 4) | (2 << 2) | 0);
 			vout[7] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (3 << 6) | (1 << 4) | (3 << 2) | 1);
 
-			for (int k = 0; k < batch_size; k++)
+			for (int k = 0; k < 8; k++)
 				_mm512_mask_storeu_pd(&sps[i + k][j], generate_mask8_for_count(j, counts[i + k]), vout[k]);
 		}
 
@@ -4428,25 +4428,25 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 		__m512d vfcrange3 = _mm512_unpackhi_pd(vfcrange23_0246, vfcrange23_1357);
 
 		__m512d vfcfreq = _mm512_set_pd(
-			7 < batch_size ? fcs[7]->freq : 0.0,
-			6 < batch_size ? fcs[6]->freq : 0.0,
-			5 < batch_size ? fcs[5]->freq : 0.0,
-			4 < batch_size ? fcs[4]->freq : 0.0,
-			3 < batch_size ? fcs[3]->freq : 0.0,
-			2 < batch_size ? fcs[2]->freq : 0.0,
-			1 < batch_size ? fcs[1]->freq : 0.0,
-			fcs[0]->freq
+			i + 7 < batch_size ? fcs[i + 7]->freq : 0.0,
+			i + 6 < batch_size ? fcs[i + 6]->freq : 0.0,
+			i + 5 < batch_size ? fcs[i + 5]->freq : 0.0,
+			i + 4 < batch_size ? fcs[i + 4]->freq : 0.0,
+			i + 3 < batch_size ? fcs[i + 3]->freq : 0.0,
+			i + 2 < batch_size ? fcs[i + 2]->freq : 0.0,
+			i + 1 < batch_size ? fcs[i + 1]->freq : 0.0,
+			fcs[i]->freq
 		);
 
 		__m512d vfcreso_DB = _mm512_set_pd(
-			7 < batch_size ? fcs[7]->reso_dB : 0.0,
-			6 < batch_size ? fcs[6]->reso_dB : 0.0,
-			5 < batch_size ? fcs[5]->reso_dB : 0.0,
-			4 < batch_size ? fcs[4]->reso_dB : 0.0,
-			3 < batch_size ? fcs[3]->reso_dB : 0.0,
-			2 < batch_size ? fcs[2]->reso_dB : 0.0,
-			1 < batch_size ? fcs[1]->reso_dB : 0.0,
-			fcs[0]->reso_dB
+			i + 7 < batch_size ? fcs[i + 7]->reso_dB : 0.0,
+			i + 6 < batch_size ? fcs[i + 6]->reso_dB : 0.0,
+			i + 5 < batch_size ? fcs[i + 5]->reso_dB : 0.0,
+			i + 4 < batch_size ? fcs[i + 4]->reso_dB : 0.0,
+			i + 3 < batch_size ? fcs[i + 3]->reso_dB : 0.0,
+			i + 2 < batch_size ? fcs[i + 2]->reso_dB : 0.0,
+			i + 1 < batch_size ? fcs[i + 1]->reso_dB : 0.0,
+			fcs[i]->reso_dB
 		);
 
 		uint8 imask = _kor_mask8(
@@ -4484,38 +4484,38 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 #endif
 
 			if (imask & 1)
-				_mm256_storeu_pd(fcs[0]->range, _mm512_castpd512_pd256(vfcrange0123_04));
+				_mm256_storeu_pd(fcs[i]->range, _mm512_castpd512_pd256(vfcrange0123_04));
 
 			if (imask & (1 << 1))
-				_mm256_storeu_pd(fcs[1]->range, _mm512_castpd512_pd256(vfcrange0123_15));
+				_mm256_storeu_pd(fcs[i + 1]->range, _mm512_castpd512_pd256(vfcrange0123_15));
 
 			if (imask & (1 << 2))
-				_mm256_storeu_pd(fcs[2]->range, _mm512_castpd512_pd256(vfcrange0123_26));
+				_mm256_storeu_pd(fcs[i + 2]->range, _mm512_castpd512_pd256(vfcrange0123_26));
 
 			if (imask & (1 << 3))
-				_mm256_storeu_pd(fcs[3]->range, _mm512_castpd512_pd256(vfcrange0123_37));
+				_mm256_storeu_pd(fcs[i + 3]->range, _mm512_castpd512_pd256(vfcrange0123_37));
 
 			if (imask & (1 << 4))
-				_mm256_storeu_pd(fcs[4]->range, _mm512_extractf64x4_pd(vfcrange0123_04, 1));
+				_mm256_storeu_pd(fcs[i + 4]->range, _mm512_extractf64x4_pd(vfcrange0123_04, 1));
 
 			if (imask & (1 << 5))
-				_mm256_storeu_pd(fcs[5]->range, _mm512_extractf64x4_pd(vfcrange0123_15, 1));
+				_mm256_storeu_pd(fcs[i + 5]->range, _mm512_extractf64x4_pd(vfcrange0123_15, 1));
 
 			if (imask & (1 << 6))
-				_mm256_storeu_pd(fcs[6]->range, _mm512_extractf64x4_pd(vfcrange0123_26, 1));
+				_mm256_storeu_pd(fcs[i + 6]->range, _mm512_extractf64x4_pd(vfcrange0123_26, 1));
 
 			if (imask & (1 << 7))
-				_mm256_storeu_pd(fcs[7]->range, _mm512_extractf64x4_pd(vfcrange0123_37, 1));
+				_mm256_storeu_pd(fcs[i + 7]->range, _mm512_extractf64x4_pd(vfcrange0123_37, 1));
 
 			__m512d vfcdiv_flt_rate = _mm512_set_pd(
-				7 < batch_size ? fcs[7]->div_flt_rate : fcs[0]->div_flt_rate,
-				6 < batch_size ? fcs[6]->div_flt_rate : fcs[0]->div_flt_rate,
-				5 < batch_size ? fcs[5]->div_flt_rate : fcs[0]->div_flt_rate,
-				4 < batch_size ? fcs[4]->div_flt_rate : fcs[0]->div_flt_rate,
-				3 < batch_size ? fcs[3]->div_flt_rate : fcs[0]->div_flt_rate,
-				2 < batch_size ? fcs[2]->div_flt_rate : fcs[0]->div_flt_rate,
-				1 < batch_size ? fcs[1]->div_flt_rate : fcs[0]->div_flt_rate,
-				fcs[0]->div_flt_rate
+				i + 7 < batch_size ? fcs[i + 7]->div_flt_rate : fcs[i]->div_flt_rate,
+				i + 6 < batch_size ? fcs[i + 6]->div_flt_rate : fcs[i]->div_flt_rate,
+				i + 5 < batch_size ? fcs[i + 5]->div_flt_rate : fcs[i]->div_flt_rate,
+				i + 4 < batch_size ? fcs[i + 4]->div_flt_rate : fcs[i]->div_flt_rate,
+				i + 3 < batch_size ? fcs[i + 3]->div_flt_rate : fcs[i]->div_flt_rate,
+				i + 2 < batch_size ? fcs[i + 2]->div_flt_rate : fcs[i]->div_flt_rate,
+				i + 1 < batch_size ? fcs[i + 1]->div_flt_rate : fcs[i]->div_flt_rate,
+				fcs[i]->div_flt_rate
 			);
 
 			__m512d vf = _mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(M_PI), vfcfreq), vfcdiv_flt_rate);
@@ -5002,7 +5002,7 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			vout[3] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (2 << 6) | (0 << 4) | (2 << 2) | 0);
 			vout[7] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (3 << 6) | (1 << 4) | (3 << 2) | 1);
 
-			for (int k = 0; k < batch_size; k++)
+			for (int k = 0; k < 8; k++)
 				_mm512_mask_storeu_pd(&sps[i + k][j], generate_mask8_for_count(j, counts[i + k]), vout[k]);
 		}
 
@@ -5740,7 +5740,7 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			vout[3] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (2 << 6) | (0 << 4) | (2 << 2) | 0);
 			vout[7] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (3 << 6) | (1 << 4) | (3 << 2) | 1);
 
-			for (int k = 0; k < batch_size; k++)
+			for (int k = 0; k < 8; k++)
 				_mm512_mask_storeu_pd(&sps[i + k][j], generate_mask8_for_count(j, counts[i + k]), vout[k]);
 		}
 
@@ -5969,7 +5969,7 @@ void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps,
 	FILTER_T *dbs[MIX_VOICE_BATCH_SIZE];
 
 	for (int i = 0; i < batch_size; i++) {
-		dcs[i] = &fcs[i]->dc;
+		dcs[i] = fcs[i]->dc;
 		dbs[i] = &fcs[i]->db[FILTER_FB_L];
 	}
 
