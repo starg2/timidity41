@@ -943,7 +943,7 @@ LSU : Unalignment (use loadu/storeu
 #define MM256_EXTRACT_I32(reg,idx) _mm256_extract_epi32(reg,idx)
 #define MM512_EXTRACT_F32(reg,idx) _mm_cvtss_f32(_mm_permute_ps(_mm512_extractf32x4_ps(reg, idx >> 2), idx & 3)))
 #define MM512_EXTRACT_F64(reg,idx) _mm_cvtsd_f64(_mm_permute_pd(_mm512_extractf64x2_pd(reg, idx >> 1), idx & 1))
-#define MM512_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_bsrli_si128(_mm512_extracti32x4_epi32(reg, idx >> 2), (idx & 3) * 4))
+#define MM512_EXTRACT_I32(reg,idx) _mm_cvtsi128_si32(_mm_shuffle_epi32(_mm512_extracti32x4_epi32(reg, idx >> 2), idx & 3))
 #else
 #define MM_EXTRACT_F32(reg,idx) reg.m128_f32[idx]
 #define MM_EXTRACT_F64(reg,idx) reg.m128d_f64[idx]
