@@ -311,6 +311,13 @@ typedef long off_size_t;
 #    define lseek  _lseek
 typedef off_t off_size_t; /* off_t is 32-bit signed */
 #  endif /* _MSC_VER >= 1400 */
+#elif defined(__MINGW32__)
+#  include <io.h>
+#  define fseeko _fseeki64
+#  define ftello _ftelli64
+#  define lseek  _lseeki64
+typedef int64 off_size_t;
+#  define HAVE_OFF_SIZE_T_64BIT 1
 #elif defined(_LARGEFILE_SOURCE) || \
     (defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64) || \
     (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) || \
