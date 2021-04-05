@@ -86,7 +86,7 @@ const int32 max_amp_value = MAX_AMP_VALUE;
 #endif // DATA_T_INT32
 
 
-void mix_mystery_signal(DATA_T *sp, DATA_T *lp, int v, int count);
+static inline void mix_mystery_signal(DATA_T *sp, DATA_T *lp, int v, int count);
 void mix_voice(DATA_T *, int, int32);
 
 #if 0 // dim voice buffer
