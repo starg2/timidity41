@@ -363,11 +363,33 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 
 				int j = 0;
 
-#if USE_X86_EXT_INTRIN >= 9
+#if USE_X86_EXT_INTRIN >= 10
+				int n32 = n & ~31;
+				__m128i vs = _mm_cvtsi32_si128(s);
+
+				while (j < n32) {
+					__m512i v0123 = _mm512_loadu_epi32(src + j);
+					__m512i v4567 = _mm512_loadu_epi32(src + j + 16);
+
+					__m512i v0246 = _mm512_shuffle_i32x4(v0123, v4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
+					__m512i v1357 = _mm512_shuffle_i32x4(v0123, v4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+
+					__m512i v = _mm512_packs_epi32(v0246, v1357);
+					v = _mm512_sll_epi16(v, vs);
+					_mm512_storeu_epi16(dest + j, v);
+
+					j += 32;
+				}
+
+#elif USE_X86_EXT_INTRIN >= 9
 				int n16 = n & ~15;
 				__m128i vs = _mm_cvtsi32_si128(s);
 
 				while (j < n16) {
+#if USE_X86_EXT_INTRIN >= 10
+					__m512i vin = _mm512_loadu_epi32(src + j);
+					__m256i v = _mm512_cvtepi32_epi16(vin);
+#else
 					__m256i v01 = _mm256_loadu_si256((const __m256i *)(src + j));
 					__m256i v23 = _mm256_loadu_si256((const __m256i *)(src + j + 8));
 
@@ -375,6 +397,8 @@ static FLAC__StreamDecoderWriteStatus flac_write_callback(const FLAC__StreamDeco
 					__m256i v13 = _mm256_permute2x128_si256(v01, v23, (3 << 4) | 1);
 
 					__m256i v = _mm256_packs_epi32(v02, v13);
+#endif
+
 					v = _mm256_sll_epi16(v, vs);
 					_mm256_storeu_si256((__m256i *)(dest + j), v);
 
