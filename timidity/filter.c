@@ -3939,6 +3939,228 @@ static inline __mmask8 generate_mask8_for_count(int32 offset, int32 count)
 
 #endif
 
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		int32 count0 = counts[i];
+		int32 count1 = i + 1 < batch_size ? counts[i + 1] : 0;
+
+		__m128i vcounts = _mm_set_epi32(
+			0,
+			0,
+			count1,
+			count0
+		);
+
+		__m128d vdb01_0 = _mm_loadu_pd(&dbs[i][0]);
+		__m128d vdb23_0 = _mm_loadu_pd(&dbs[i][2]);
+		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][0]) : _mm_setzero_pd();
+		__m128d vdb23_1 = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][2]) : _mm_setzero_pd();
+
+		__m128d vdb0 = _mm_unpacklo_pd(vdb01_0, vdb01_1);
+		__m128d vdb1 = _mm_unpackhi_pd(vdb01_0, vdb01_1);
+		__m128d vdb2 = _mm_unpacklo_pd(vdb23_0, vdb23_1);
+		__m128d vdb3 = _mm_unpackhi_pd(vdb23_0, vdb23_1);
+		__m128d vdb4 = _mm_set_pd(
+			i + 1 < batch_size ? dbs[i + 1][4] : 0.0,
+			dbs[i][4]
+		);
+
+		__m128d vdc01_0 = _mm_loadu_pd(&dcs[i][0]);
+		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][0]) : _mm_setzero_pd();
+
+		__m128d vdc0 = _mm_unpacklo_pd(vdc01_0, vdc01_1);
+		__m128d vdc1 = _mm_unpackhi_pd(vdc01_0, vdc01_1);
+		__m128d vdc2 = _mm_set_pd(
+			i + 1 < batch_size ? dcs[i + 1][2] : 0.0,
+			dcs[i][2]
+		);
+
+		int32 count_max = count0 < count1 ? count1 : count0;
+
+		for (int32 j = 0; j < count_max; j += 2) {
+			__m128d vsp01_0 = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
+			__m128d vsp01_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
+
+			__m128d vsps[2];
+			vsps[0] = _mm_unpacklo_pd(vsp01_0, vsp01_1);
+			vsps[1] = _mm_unpackhi_pd(vsp01_0, vsp01_1);
+
+			for (int k = 0; k < 2; k++) {
+				__m128i vmask32 = _mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts);
+				__m128d vmask = _mm_castsi128_pd(_mm_unpacklo_epi32(vmask32, vmask32));
+
+				__m128d vdas[4];
+
+#if USE_X86_EXT_INTRIN >= 9
+				vdas[0] = _mm_fnmadd_pd(vdc2, vdb4, vsps[k]);
+#else
+				vdas[0] = _mm_sub_pd(vsps[k], _mm_mul_pd(vdc2, vdb4));
+#endif
+
+				vdas[1] = vdb1;
+				vdas[2] = vdb2;
+				vdas[3] = vdb3;
+
+#if USE_X86_EXT_INTRIN >= 9
+				vdb1 = _mm_blendv_pd(vdb1, _mm_fmsub_pd(_mm_add_pd(vdb0, vdas[0]), vdc0, _mm_mul_pd(vdb1, vdc1)), vmask);
+				vdb2 = _mm_blendv_pd(vdb2, _mm_fmsub_pd(_mm_add_pd(vdb1, vdas[1]), vdc0, _mm_mul_pd(vdb2, vdc1)), vmask);
+				vdb3 = _mm_blendv_pd(vdb3, _mm_fmsub_pd(_mm_add_pd(vdb2, vdas[2]), vdc0, _mm_mul_pd(vdb3, vdc1)), vmask);
+				vdb4 = _mm_blendv_pd(vdb4, _mm_fmsub_pd(_mm_add_pd(vdb3, vdas[3]), vdc0, _mm_mul_pd(vdb4, vdc1)), vmask);
+#else
+				vdb1 = MM_BLENDV_PD(vdb1, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb0, vdas[0]), vdc0), _mm_mul_pd(vdb1, vdc1)), vmask);
+				vdb2 = MM_BLENDV_PD(vdb2, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb1, vdas[1]), vdc0), _mm_mul_pd(vdb2, vdc1)), vmask);
+				vdb3 = MM_BLENDV_PD(vdb3, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb2, vdas[2]), vdc0), _mm_mul_pd(vdb3, vdc1)), vmask);
+				vdb4 = MM_BLENDV_PD(vdb4, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb3, vdas[3]), vdc0), _mm_mul_pd(vdb4, vdc1)), vmask);
+#endif
+				vdb0 = MM_BLENDV_PD(vdb0, vdas[0], vmask);
+				vsps[k] = vdb4;
+			}
+
+			vsp01_0 = _mm_unpacklo_pd(vsps[0], vsps[1]);
+			vsp01_1 = _mm_unpackhi_pd(vsps[0], vsps[1]);
+
+			if (j < counts[i])
+				_mm_storeu_pd(&sps[i][j], vsp01_0);
+
+			if (i + 1 < batch_size && j < counts[i + 1])
+				_mm_storeu_pd(&sps[i + 1][j], vsp01_1);
+		}
+
+		vdb01_0 = _mm_unpacklo_pd(vdb0, vdb1);
+		vdb01_1 = _mm_unpackhi_pd(vdb0, vdb1);
+		vdb23_0 = _mm_unpacklo_pd(vdb2, vdb3);
+		vdb23_1 = _mm_unpackhi_pd(vdb2, vdb3);
+
+		_mm_storeu_pd(&dbs[i][0], vdb01_0);
+		_mm_storeu_pd(&dbs[i][2], vdb23_0);
+		dbs[i][4] = MM_EXTRACT_F64(vdb4, 0);
+
+		if (i + 1 < batch_size) {
+			_mm_storeu_pd(&dbs[i + 1][0], vdb01_1);
+			_mm_storeu_pd(&dbs[i + 1][2], vdb23_1);
+			dbs[i + 1][4] = MM_EXTRACT_F64(vdb4, 1);
+		}
+	}
+} 
+
+#endif
+
+#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		__m128d vfcrange01_0 = _mm_loadu_pd(fcs[i]->range);
+		__m128d vfcrange23_0 = _mm_loadu_pd(&fcs[i]->range[2]);
+		__m128d vfcrange01_1 = i + 1 < batch_size ? _mm_loadu_pd(fcs[i + 1]->range) : _mm_setzero_pd();
+		__m128d vfcrange23_1 = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
+
+		__m128d vfcrange0 = _mm_unpacklo_pd(vfcrange01_0, vfcrange01_1);
+		__m128d vfcrange1 = _mm_unpackhi_pd(vfcrange01_0, vfcrange01_1);
+		__m128d vfcrange2 = _mm_unpacklo_pd(vfcrange23_0, vfcrange23_1);
+		__m128d vfcrange3 = _mm_unpackhi_pd(vfcrange23_0, vfcrange23_1);
+
+		__m128d vfcfreq = _mm_set_pd(
+			i + 1 < batch_size ? fcs[i + 1]->freq : 0.0,
+			fcs[i]->freq
+		);
+
+		__m128d vfcreso_DB = _mm_set_pd(
+			i + 1 < batch_size ? fcs[i + 1]->reso_dB : 0.0,
+			fcs[i]->reso_dB
+		);
+
+		__m128d vmask = _mm_or_pd(
+			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange0), _mm_cmpgt_pd(vfcfreq, vfcrange1)),
+			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
+		);
+
+		int imask = _mm_movemask_pd(vmask);
+
+		if (batch_size - i < 2)
+			imask &= (1 << (batch_size - i)) - 1;
+
+		if (imask) {
+			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
+			__m128d v1pmargin = _mm_set1_pd(1.0 + ext_filter_margin);
+
+			vfcrange0 = _mm_mul_pd(vfcfreq, v1mmargin);
+			vfcrange1 = _mm_mul_pd(vfcfreq, v1pmargin);
+			vfcrange2 = _mm_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange3 = _mm_mul_pd(vfcreso_DB, v1pmargin);
+
+			vfcrange01_0 = _mm_unpacklo_pd(vfcrange0, vfcrange1);
+			vfcrange01_1 = _mm_unpackhi_pd(vfcrange0, vfcrange1);
+			vfcrange23_0 = _mm_unpacklo_pd(vfcrange2, vfcrange3);
+			vfcrange23_1 = _mm_unpackhi_pd(vfcrange2, vfcrange3);
+
+			if (imask & 1) {
+				_mm_storeu_pd(fcs[i]->range, vfcrange01_0);
+				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23_0);
+			}
+
+			if (imask & (1 << 1)) {
+				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01_1);
+				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23_1);
+			}
+
+			__m128d vfcdiv_flt_rate = _mm_set_pd(
+				i + 1 < batch_size ? fcs[i + 1]->div_flt_rate : fcs[i]->div_flt_rate,
+				fcs[i]->div_flt_rate
+			);
+
+			__m128d v0_5 = _mm_set1_pd(0.5);
+			__m128d v0_8 = _mm_set1_pd(0.8);
+			__m128d v1 = _mm_set1_pd(1.0);
+			__m128d v2 = _mm_set1_pd(2.0);
+			__m128d v5_6 = _mm_set1_pd(5.6);
+
+			__m128d vf = _mm_mul_pd(_mm_mul_pd(v2, vfcfreq), vfcdiv_flt_rate);
+			__m128d vp = _mm_sub_pd(v1, vf);
+
+			FLOAT_T reso_db_cf_m = RESO_DB_CF_M(fcs[i]->reso_dB);
+
+			__m128d vreso_db_cf_m = _mm_set_pd(
+				i + 1 < batch_size ? RESO_DB_CF_M(fcs[i + 1]->reso_dB) : reso_db_cf_m,
+				reso_db_cf_m
+			);
+
+			__m128d vq = _mm_mul_pd(v0_8, _mm_sub_pd(v1, vreso_db_cf_m));
+			__m128d vdc0 = MM_FMA_PD(_mm_mul_pd(v0_8, vf), vp, vf);
+#if USE_X86_EXT_INTRIN >= 9
+			__m128d vdc1 = _mm_fmsub_pd(vdc0, v2, v1);
+#else
+			__m128d vdc1 = _mm_sub_pd(_mm_add_pd(vdc0, vdc0), v1);
+#endif
+			__m128d vdc2 = _mm_mul_pd(vq, MM_FMA_PD(_mm_mul_pd(v0_5, vp), _mm_sub_pd(MM_FMA_PD(_mm_mul_pd(v5_6, vp), vp, v1), vp), v1));
+
+			__m128d vdc01_0 = _mm_unpacklo_pd(vdc0, vdc1);
+			__m128d vdc01_1 = _mm_unpackhi_pd(vdc0, vdc1);
+
+			if (imask & 1) {
+				_mm_storeu_pd(&fcs[i]->dc[0], vdc01_0);
+				fcs[i]->dc[2] = MM_EXTRACT_F64(vdc2, 0);
+			}
+
+			if (imask & (1 << 1)) {
+				_mm_storeu_pd(&fcs[i + 1]->dc[0], vdc01_1);
+				fcs[i + 1]->dc[2] = MM_EXTRACT_F64(vdc2, 1);
+			}
+		}
+	}
+}
+
+#endif
+
 #if (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
@@ -6013,6 +6235,11 @@ void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps,
 	}
 
 	switch (fcs[0]->type) {
+	case FILTER_LPF24:
+		recalc_filter_LPF24_batch(batch_size, fcs);
+		sample_filter_LPF24_batch(batch_size, dcs, dbs, sps, counts);
+		break;
+
 	case FILTER_LPF_BW:
 		recalc_filter_LPF_BW_batch(batch_size, fcs);
 		sample_filter_LPF_BW_batch(batch_size, dcs, dbs, sps, counts);
