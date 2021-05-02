@@ -4334,6 +4334,7 @@ static Preset_IS *load_ini_file(char *ini_file, int type, int preset)
 		for (set = is_preset; set; set = set->next){
 			if(!set->next){
 				set->next = newset;
+				break;
 			}
 		}
 	}
