@@ -4545,20 +4545,20 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m512d v2 = _mm512_set1_pd(2.0);
 			__m512d vp = _mm512_div_pd(v1, vtanf);
 
-			FLOAT_T reso_db_cf_p = RESO_DB_CF_P(fcs[i]->reso_dB);
+			FLOAT_T reso_db_cf_m = RESO_DB_CF_M(fcs[i]->reso_dB);
 
-			__m512d vreso_db_cf_p = _mm512_set_pd(
-				i + 7 < batch_size ? RESO_DB_CF_P(fcs[i + 7]->reso_dB) : reso_db_cf_p,
-				i + 6 < batch_size ? RESO_DB_CF_P(fcs[i + 6]->reso_dB) : reso_db_cf_p,
-				i + 5 < batch_size ? RESO_DB_CF_P(fcs[i + 5]->reso_dB) : reso_db_cf_p,
-				i + 4 < batch_size ? RESO_DB_CF_P(fcs[i + 4]->reso_dB) : reso_db_cf_p,
-				i + 3 < batch_size ? RESO_DB_CF_P(fcs[i + 3]->reso_dB) : reso_db_cf_p,
-				i + 2 < batch_size ? RESO_DB_CF_P(fcs[i + 2]->reso_dB) : reso_db_cf_p,
-				i + 1 < batch_size ? RESO_DB_CF_P(fcs[i + 1]->reso_dB) : reso_db_cf_p,
-				reso_db_cf_p
+			__m512d vreso_db_cf_m = _mm512_set_pd(
+				i + 7 < batch_size ? RESO_DB_CF_M(fcs[i + 7]->reso_dB) : reso_db_cf_m,
+				i + 6 < batch_size ? RESO_DB_CF_M(fcs[i + 6]->reso_dB) : reso_db_cf_m,
+				i + 5 < batch_size ? RESO_DB_CF_M(fcs[i + 5]->reso_dB) : reso_db_cf_m,
+				i + 4 < batch_size ? RESO_DB_CF_M(fcs[i + 4]->reso_dB) : reso_db_cf_m,
+				i + 3 < batch_size ? RESO_DB_CF_M(fcs[i + 3]->reso_dB) : reso_db_cf_m,
+				i + 2 < batch_size ? RESO_DB_CF_M(fcs[i + 2]->reso_dB) : reso_db_cf_m,
+				i + 1 < batch_size ? RESO_DB_CF_M(fcs[i + 1]->reso_dB) : reso_db_cf_m,
+				reso_db_cf_m
 			);
 
-			__m512d vq = _mm512_mul_pd(vreso_db_cf_p, _mm512_set1_pd(SQRT_2));
+			__m512d vq = _mm512_mul_pd(vreso_db_cf_m, _mm512_set1_pd(SQRT_2));
 			__m512d vp2 = _mm512_mul_pd(vp, vp);
 			__m512d vqp = _mm512_mul_pd(vq, vp);
 			__m512d vdc0 = _mm512_div_pd(v1, _mm512_add_pd(_mm512_add_pd(v1, vqp), vp2));
@@ -4719,16 +4719,16 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m256d v2 = _mm256_set1_pd(2.0);
 			__m256d vp = _mm256_div_pd(v1, vtanf);
 
-			FLOAT_T reso_db_cf_p = RESO_DB_CF_P(fcs[i]->reso_dB);
+			FLOAT_T reso_db_cf_m = RESO_DB_CF_M(fcs[i]->reso_dB);
 
-			__m256d vreso_db_cf_p = _mm256_set_pd(
-				i + 3 < batch_size ? RESO_DB_CF_P(fcs[i + 3]->reso_dB) : reso_db_cf_p,
-				i + 2 < batch_size ? RESO_DB_CF_P(fcs[i + 2]->reso_dB) : reso_db_cf_p,
-				i + 1 < batch_size ? RESO_DB_CF_P(fcs[i + 1]->reso_dB) : reso_db_cf_p,
-				reso_db_cf_p
+			__m256d vreso_db_cf_m = _mm256_set_pd(
+				i + 3 < batch_size ? RESO_DB_CF_M(fcs[i + 3]->reso_dB) : reso_db_cf_m,
+				i + 2 < batch_size ? RESO_DB_CF_M(fcs[i + 2]->reso_dB) : reso_db_cf_m,
+				i + 1 < batch_size ? RESO_DB_CF_M(fcs[i + 1]->reso_dB) : reso_db_cf_m,
+				reso_db_cf_m
 			);
 
-			__m256d vq = _mm256_mul_pd(vreso_db_cf_p, _mm256_set1_pd(SQRT_2));
+			__m256d vq = _mm256_mul_pd(vreso_db_cf_m, _mm256_set1_pd(SQRT_2));
 			__m256d vp2 = _mm256_mul_pd(vp, vp);
 			__m256d vqp = _mm256_mul_pd(vq, vp);
 			__m256d vdc0 = _mm256_div_pd(v1, _mm256_add_pd(_mm256_add_pd(v1, vqp), vp2));
@@ -4851,14 +4851,14 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m128d v2 = _mm_set1_pd(2.0);
 			__m128d vp = _mm_div_pd(v1, vtanf);
 
-			FLOAT_T reso_db_cf_p = RESO_DB_CF_P(fcs[i]->reso_dB);
+			FLOAT_T reso_db_cf_m = RESO_DB_CF_M(fcs[i]->reso_dB);
 
-			__m128d vreso_db_cf_p = _mm_set_pd(
-				i + 1 < batch_size ? RESO_DB_CF_P(fcs[i + 1]->reso_dB) : reso_db_cf_p,
-				reso_db_cf_p
+			__m128d vreso_db_cf_m = _mm_set_pd(
+				i + 1 < batch_size ? RESO_DB_CF_M(fcs[i + 1]->reso_dB) : reso_db_cf_m,
+				reso_db_cf_m
 			);
 
-			__m128d vq = _mm_mul_pd(vreso_db_cf_p, _mm_set1_pd(SQRT_2));
+			__m128d vq = _mm_mul_pd(vreso_db_cf_m, _mm_set1_pd(SQRT_2));
 			__m128d vp2 = _mm_mul_pd(vp, vp);
 			__m128d vqp = _mm_mul_pd(vq, vp);
 			__m128d vdc0 = _mm_div_pd(v1, _mm_add_pd(_mm_add_pd(v1, vqp), vp2));
