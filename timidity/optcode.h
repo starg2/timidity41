@@ -1003,8 +1003,8 @@ LSU : Unalignment (use loadu/storeu
 		v01_46 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[4]), (vin)[6], 1); \
 		v01_57 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[5]), (vin)[7], 1); \
 		\
-		v01_0246 = _mm512_insertf64x4(_mm512_castpd256_pd512(vin01_02), vin01_46, 1); \
-		v01_1357 = _mm512_insertf64x4(_mm512_castpd256_pd512(vin01_13), vin01_57, 1); \
+		v01_0246 = _mm512_insertf64x4(_mm512_castpd256_pd512(v01_02), v01_46, 1); \
+		v01_1357 = _mm512_insertf64x4(_mm512_castpd256_pd512(v01_13), v01_57, 1); \
 		\
 		(vout)[0] = MM512_UNPACKLO_PD(v01_0246, v01_1357); \
 		(vout)[1] = MM512_UNPACKHI_PD(v01_0246, v01_1357); \
@@ -1153,12 +1153,12 @@ LSU : Unalignment (use loadu/storeu
 
 #define MM_TRANSPOSE4X2_PD(vin, vout01, vout23) do { \
 		MM_TRANSPOSE2X2_PD(vin, vout01); \
-		MM_TRANSPOSE2X2_PD(&vin[2], vout23); \
+		MM_TRANSPOSE2X2_PD(&(vin)[2], vout23); \
 	} while(0)
 
 #define MM_TRANSPOSE2X4_PD(vin01, vin23, vout) do { \
-		MM_TRANSPOSE2X2_PD(vin01, vout0_01, vout); \
-		MM_TRANSPOSE2X2_PD(vin23, vout2_01, &vout[2]); \
+		MM_TRANSPOSE2X2_PD(vin01, vout); \
+		MM_TRANSPOSE2X2_PD(vin23, &(vout)[2]); \
 	} while(0)
 
 #endif // (USE_X86_EXT_INTRIN >= 3)
