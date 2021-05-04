@@ -4235,17 +4235,10 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 				vdas[2] = vdb2;
 				vdas[3] = vdb3;
 
-#if USE_X86_EXT_INTRIN >= 9
-				vdb1 = _mm256_blendv_pd(vdb1, _mm256_fmsub_pd(_mm256_add_pd(vdb0, vdas[0]), vdc0, _mm256_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = _mm256_blendv_pd(vdb2, _mm256_fmsub_pd(_mm256_add_pd(vdb1, vdas[1]), vdc0, _mm256_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = _mm256_blendv_pd(vdb3, _mm256_fmsub_pd(_mm256_add_pd(vdb2, vdas[2]), vdc0, _mm256_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = _mm256_blendv_pd(vdb4, _mm256_fmsub_pd(_mm256_add_pd(vdb3, vdas[3]), vdc0, _mm256_mul_pd(vdb4, vdc1)), vmask);
-#else
-				vdb1 = _mm256_blendv_pd(vdb1, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb0, vdas[0]), vdc0), _mm256_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = _mm256_blendv_pd(vdb2, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb1, vdas[1]), vdc0), _mm256_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = _mm256_blendv_pd(vdb3, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb2, vdas[2]), vdc0), _mm256_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = _mm256_blendv_pd(vdb4, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb3, vdas[3]), vdc0), _mm256_mul_pd(vdb4, vdc1)), vmask);
-#endif
+				vdb1 = _mm256_blendv_pd(vdb1, MM256_MSUB_PD(_mm256_add_pd(vdb0, vdas[0]), vdc0, _mm256_mul_pd(vdb1, vdc1)), vmask);
+				vdb2 = _mm256_blendv_pd(vdb2, MM256_MSUB_PD(_mm256_add_pd(vdb1, vdas[1]), vdc0, _mm256_mul_pd(vdb2, vdc1)), vmask);
+				vdb3 = _mm256_blendv_pd(vdb3, MM256_MSUB_PD(_mm256_add_pd(vdb2, vdas[2]), vdc0, _mm256_mul_pd(vdb3, vdc1)), vmask);
+				vdb4 = _mm256_blendv_pd(vdb4, MM256_MSUB_PD(_mm256_add_pd(vdb3, vdas[3]), vdc0, _mm256_mul_pd(vdb4, vdc1)), vmask);
 				vdb0 = _mm256_blendv_pd(vdb0, vdas[0], vmask);
 				vsps[k] = vdb4;
 			}
@@ -4371,17 +4364,10 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 				vdas[2] = vdb2;
 				vdas[3] = vdb3;
 
-#if USE_X86_EXT_INTRIN >= 9
-				vdb1 = _mm_blendv_pd(vdb1, _mm_fmsub_pd(_mm_add_pd(vdb0, vdas[0]), vdc0, _mm_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = _mm_blendv_pd(vdb2, _mm_fmsub_pd(_mm_add_pd(vdb1, vdas[1]), vdc0, _mm_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = _mm_blendv_pd(vdb3, _mm_fmsub_pd(_mm_add_pd(vdb2, vdas[2]), vdc0, _mm_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = _mm_blendv_pd(vdb4, _mm_fmsub_pd(_mm_add_pd(vdb3, vdas[3]), vdc0, _mm_mul_pd(vdb4, vdc1)), vmask);
-#else
-				vdb1 = MM_BLENDV_PD(vdb1, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb0, vdas[0]), vdc0), _mm_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = MM_BLENDV_PD(vdb2, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb1, vdas[1]), vdc0), _mm_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = MM_BLENDV_PD(vdb3, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb2, vdas[2]), vdc0), _mm_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = MM_BLENDV_PD(vdb4, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb3, vdas[3]), vdc0), _mm_mul_pd(vdb4, vdc1)), vmask);
-#endif
+				vdb1 = MM_BLENDV_PD(vdb1, MM_MSUB_PD(_mm_add_pd(vdb0, vdas[0]), vdc0, _mm_mul_pd(vdb1, vdc1)), vmask);
+				vdb2 = MM_BLENDV_PD(vdb2, MM_MSUB_PD(_mm_add_pd(vdb1, vdas[1]), vdc0, _mm_mul_pd(vdb2, vdc1)), vmask);
+				vdb3 = MM_BLENDV_PD(vdb3, MM_MSUB_PD(_mm_add_pd(vdb2, vdas[2]), vdc0, _mm_mul_pd(vdb3, vdc1)), vmask);
+				vdb4 = MM_BLENDV_PD(vdb4, MM_MSUB_PD(_mm_add_pd(vdb3, vdas[3]), vdc0, _mm_mul_pd(vdb4, vdc1)), vmask);
 				vdb0 = MM_BLENDV_PD(vdb0, vdas[0], vmask);
 				vsps[k] = vdb4;
 			}
