@@ -1928,25 +1928,25 @@ static inline void buffer_filter_LPF12_2(FILTER_T* dc, FILTER_T* db, DATA_T* sp,
 	__m128d vcym2 = _mm_loadu_pd(dc + 6);
 	__m128d vcym1 = _mm_loadu_pd(dc + 8);
 	__m128d vy = _mm_loadu_pd(db + 2);
-	__m128d vym2 = _mm_unpacklo_pd(vy, vy);
-	__m128d vym1 = _mm_unpackhi_pd(vy, vy);
+	__m128d vym2 = MM_UNPACKLO_PD(vy, vy);
+	__m128d vym1 = MM_UNPACKHI_PD(vy, vy);
 
 	for (i = 0; i < count; i += 4)
 	{
 		__m256d vin = _mm256_loadu_pd(sp + i);
-		__m256d vx0 = _mm256_unpacklo_pd(vin, vin);
-		__m256d vx1 = _mm256_unpackhi_pd(vin, vin);
+		__m256d vx0 = MM256_UNPACKLO_PD(vin, vin);
+		__m256d vx1 = MM256_UNPACKHI_PD(vin, vin);
 		__m256d vfma2x = MM256_FMA2_PD(vcx0, vx0, vcx1, vx1);
 
 		__m128d vy0 = _mm_add_pd(_mm256_castpd256_pd128(vfma2x), MM_FMA2_PD(vcym2, vym2, vcym1, vym1));
 		_mm_storeu_pd(sp + i, vy0);
-		vym2 = _mm_unpacklo_pd(vy0, vy0);
-		vym1 = _mm_unpackhi_pd(vy0, vy0);
+		vym2 = MM_UNPACKLO_PD(vy0, vy0);
+		vym1 = MM_UNPACKHI_PD(vy0, vy0);
 
 		__m128d vy1 = _mm_add_pd(_mm256_extractf128_pd(vfma2x, 1), MM_FMA2_PD(vcym2, vym2, vcym1, vym1));
 		_mm_storeu_pd(sp + i + 2, vy1);
-		vym2 = _mm_unpacklo_pd(vy1, vy1);
-		vym1 = _mm_unpackhi_pd(vy1, vy1);
+		vym2 = MM_UNPACKLO_PD(vy1, vy1);
+		vym1 = MM_UNPACKHI_PD(vy1, vy1);
 		vy = vy1;
 	}
 
@@ -1963,17 +1963,17 @@ static inline void buffer_filter_LPF12_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp,
 	__m128d vcym2 = _mm_loadu_pd(dc + 6);
 	__m128d vcym1 = _mm_loadu_pd(dc + 8);
 	__m128d vy = _mm_loadu_pd(db + 2);
-	__m128d vym2 = _mm_unpacklo_pd(vy, vy);
-	__m128d vym1 = _mm_unpackhi_pd(vy, vy);
+	__m128d vym2 = MM_UNPACKLO_PD(vy, vy);
+	__m128d vym1 = MM_UNPACKHI_PD(vy, vy);
 
 	for (i = 0; i < count; i += 2) {
 		__m128d vin = _mm_loadu_pd(sp + i);
-		__m128d vx0 = _mm_unpacklo_pd(vin, vin);
-		__m128d vx1 = _mm_unpackhi_pd(vin, vin);
+		__m128d vx0 = MM_UNPACKLO_PD(vin, vin);
+		__m128d vx1 = MM_UNPACKHI_PD(vin, vin);
 		vy = MM_FMA4_PD(vcx0, vx0,  vcx1, vx1,  vcym2, vym2,  vcym1, vym1);
 		_mm_storeu_pd(sp + i, vy);
-		vym2 = _mm_unpacklo_pd(vy, vy);
-		vym1 = _mm_unpackhi_pd(vy, vy);
+		vym2 = MM_UNPACKLO_PD(vy, vy);
+		vym1 = MM_UNPACKHI_PD(vy, vy);
 	}
 	_mm_storeu_pd(db + 2, vy);
 }
