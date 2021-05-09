@@ -1,11 +1,12 @@
 /*
 	frame: Heap of routines dealing with the core mpg123 data structure.
 
-	copyright 2008-2020 by the mpg123 project - free software under the terms of the LGPL 2.1
+	copyright 2008-2021 by the mpg123 project - free software under the terms of the LGPL 2.1
 	see COPYING and AUTHORS files in distribution or http://mpg123.org
 	initially written by Thomas Orgis
 */
 
+#define WANT_GETCPUFLAGS
 #include "mpg123lib_intern.h"
 #include "getcpuflags.h"
 #include "debug.h"
@@ -83,6 +84,9 @@ void frame_init_par(mpg123_handle *fr, mpg123_pars *mp)
 	fr->rawbuffss = 0;
 	fr->rawdecwin = NULL;
 	fr->rawdecwins = 0;
+#ifdef REAL_IS_FIXED
+	fr->gainpow2 = NULL; // At least crash early if I get it wrong.
+#endif
 #ifndef NO_8BIT
 	fr->conv16to8_buf = NULL;
 #endif
@@ -91,6 +95,9 @@ void frame_init_par(mpg123_handle *fr, mpg123_pars *mp)
 #endif
 	fr->layerscratch = NULL;
 	fr->xing_toc = NULL;
+#ifdef OPT_CPU_FLAGS
+	wrap_getcpuflags(&(fr->cpu_flags));
+#endif
 	fr->cpu_opts.type = defdec();
 	fr->cpu_opts.class = decclass(fr->cpu_opts.type);
 #ifndef NO_NTOM
@@ -873,10 +880,10 @@ void frame_gapless_update(mpg123_handle *fr, off_t total_samples)
 	off_t gapless_samples = fr->gapless_frames*fr->spf;
 	if(fr->gapless_frames < 1) return;
 
-	debug2("gapless update with new sample count %"OFF_P" as opposed to known %"OFF_P, total_samples, gapless_samples);
+	debug2("gapless update with new sample count %"OFF_P" as opposed to known %"OFF_P, (off_p)total_samples, (off_p)gapless_samples);
 	if(NOQUIET && total_samples != gapless_samples)
 	fprintf(stderr, "\nWarning: Real sample count %"OFF_P" differs from given gapless sample count %"OFF_P". Frankenstein stream?\n"
-	, total_samples, gapless_samples);
+	, (off_p)total_samples, (off_p)gapless_samples);
 
 	if(gapless_samples > total_samples)
 	{
