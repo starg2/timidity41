@@ -33,6 +33,7 @@
 
 
 #define PORTAUDIO_V19 1
+#define PORTAUDIO_UTF8
 
 #ifdef __POCC__
 #include <sys/types.h>
@@ -1184,22 +1185,20 @@ error:
 #if defined(__W32__) && defined(PORTAUDIO_V19)
 static char *convert_device_name_dup(const char *name, PaHostApiIndex hostApi)
 {
+#if defined(_UNICODE) || defined(UNICODE) || defined(PORTAUDIO_UTF8)
+	return w32_utf8_to_mbs(name);
+#else
 	const PaHostApiIndex paIdxDirectSound = Pa_HostApiTypeIdToHostApiIndex(paDirectSound);
 	const PaHostApiIndex paIdxMME = Pa_HostApiTypeIdToHostApiIndex(paMME);
 	const PaHostApiIndex paIdxASIO = Pa_HostApiTypeIdToHostApiIndex(paASIO);
 	const PaHostApiIndex paIdxWDMKS = Pa_HostApiTypeIdToHostApiIndex(paWDMKS);
 	const PaHostApiIndex paIdxWASAPI = Pa_HostApiTypeIdToHostApiIndex(paWASAPI);
 
-	if (hostApi == paIdxWDMKS || hostApi == paIdxWASAPI /* || hostApi == paIdxASIO */
-#if defined(_UNICODE) || defined(UNICODE)
-	    || hostApi == paIdxDirectSound || hostApi == paIdxMME
-#endif /* UNICODE */
-	    )
-	{
+	if (hostApi == paIdxWDMKS || hostApi == paIdxWASAPI /* || hostApi == paIdxASIO */)
 		return (char *)w32_utf8_to_mbs(name);
-	}
 
 	return safe_strdup(name);
+#endif
 }
 #else
 static char *convert_device_name_dup(const char *name, PaHostApiIndex hostApi)
