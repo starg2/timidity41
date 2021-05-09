@@ -840,7 +840,6 @@ LSU : Unalignment (use loadu/storeu
 #define MM_FMA6_PD(v00, v01, v10, v11, v20, v21, v30, v31, v40, v41, v50, v51) _mm_add_pd(\
 	_mm_fmadd_pd(v50, v51, _mm_fmadd_pd(v40, v41, _mm_mul_pd(v30, v31))), \
 	_mm_fmadd_pd(v20, v21, _mm_fmadd_pd(v10, v11, _mm_mul_pd(v00, v01))) )
-#define MM_MSUB_PD(vec_a, vec_b, vec_c) _mm_fmsub_pd(vec_a, vec_b, vec_c)
 #define MM_LS_FMA_PD(ptr, vec_a, vec_b) _mm_store_pd(ptr, _mm_fmadd_pd(vec_a, vec_b, _mm_load_pd(ptr)))
 #define MM_LSU_FMA_PD(ptr, vec_a, vec_b) _mm_storeu_pd(ptr, _mm_fmadd_pd(vec_a, vec_b, _mm_loadu_pd(ptr)))
 #define MM_MSUB_PD(vec_a, vec_b, vec_c) _mm_fmsub_pd(vec_a, vec_b, vec_c)
@@ -956,6 +955,213 @@ LSU : Unalignment (use loadu/storeu
 #define MM512_EXTRACT_I32(reg,idx) reg.m512i_i32[idx]
 #endif
 #endif // (USE_X86_EXT_INTRIN >= 1)
+
+#if 1 // Faster on Ice Lake
+
+#if (USE_X86_EXT_INTRIN >= 10)
+#define MM512_UNPACKLO_PD(va, vb) _mm512_shuffle_pd(va, vb, 0)
+#define MM512_UNPACKHI_PD(va, vb) _mm512_shuffle_pd(va, vb, 0xFF)
+#endif // (USE_X86_EXT_INTRIN >= 10)
+
+#if (USE_X86_EXT_INTRIN >= 8)
+#define MM256_UNPACKLO_PD(va, vb) _mm256_shuffle_pd(va, vb, 0)
+#define MM256_UNPACKHI_PD(va, vb) _mm256_shuffle_pd(va, vb, 0xF)
+#endif // (USE_X86_EXT_INTRIN >= 8)
+
+#if (USE_X86_EXT_INTRIN >= 3)
+#define MM_UNPACKLO_PD(va, vb) _mm_shuffle_pd(va, vb, 0)
+#define MM_UNPACKHI_PD(va, vb) _mm_shuffle_pd(va, vb, 3)
+#endif // (USE_X86_EXT_INTRIN >= 3)
+
+#else
+
+#if (USE_X86_EXT_INTRIN >= 10)
+#define MM512_UNPACKLO_PD(va, vb) _mm512_unpacklo_pd(va, vb)
+#define MM512_UNPACKHI_PD(va, vb) _mm512_unpackhi_pd(va, vb)
+#endif // (USE_X86_EXT_INTRIN >= 10)
+
+#if (USE_X86_EXT_INTRIN >= 8)
+#define MM256_UNPACKLO_PD(va, vb) _mm256_unpacklo_pd(va, vb)
+#define MM256_UNPACKHI_PD(va, vb) _mm256_unpackhi_pd(va, vb)
+#endif // (USE_X86_EXT_INTRIN >= 8)
+
+#if (USE_X86_EXT_INTRIN >= 3)
+#define MM_UNPACKLO_PD(va, vb) _mm_unpacklo_pd(va, vb)
+#define MM_UNPACKHI_PD(va, vb) _mm_unpackhi_pd(va, vb)
+#endif // (USE_X86_EXT_INTRIN >= 3)
+
+#endif
+
+#if (USE_X86_EXT_INTRIN >= 10)
+
+#define MM512_TRANSPOSE8X2_PD(vin, vout)  do { \
+		__m256d v01_02, v01_13, v01_46, v01_57; \
+		__m512d v01_0246, v01_1357; \
+		\
+		v01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[0]), (vin)[2], 1); \
+		v01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[1]), (vin)[3], 1); \
+		v01_46 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[4]), (vin)[6], 1); \
+		v01_57 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[5]), (vin)[7], 1); \
+		\
+		v01_0246 = _mm512_insertf64x4(_mm512_castpd256_pd512(v01_02), v01_46, 1); \
+		v01_1357 = _mm512_insertf64x4(_mm512_castpd256_pd512(v01_13), v01_57, 1); \
+		\
+		(vout)[0] = MM512_UNPACKLO_PD(v01_0246, v01_1357); \
+		(vout)[1] = MM512_UNPACKHI_PD(v01_0246, v01_1357); \
+	} while(0)
+
+#define MM512_TRANSPOSE2X8_PD(vin, vout)  do { \
+		__m512d v0246_01, v1357_01; \
+		v0246_01 = MM512_UNPACKLO_PD((vin)[0], (vin)[1]); \
+		v1357_01 = MM512_UNPACKHI_PD((vin)[0], (vin)[1]); \
+		\
+		(vout)[0] = _mm512_castpd512_pd128(v0246_01); \
+		(vout)[1] = _mm512_castpd512_pd128(v1357_01); \
+		(vout)[2] = _mm256_extractf128_pd(_mm512_castpd512_pd256(v0246_01), 1); \
+		(vout)[3] = _mm256_extractf128_pd(_mm512_castpd512_pd256(v1357_01), 1); \
+		(vout)[4] = _mm512_extractf64x2_pd(v0246_01, 2); \
+		(vout)[5] = _mm512_extractf64x2_pd(v1357_01, 2); \
+		(vout)[6] = _mm512_extractf64x2_pd(v0246_01, 3); \
+		(vout)[7] = _mm512_extractf64x2_pd(v1357_01, 3); \
+	} while (0)
+
+#define MM512_TRANSPOSE8X4_PD(vin, vout) do { \
+		__m512d v0123_02, v0123_13, v0123_46, v0123_57; \
+		__m512d v01_0246, v01_1357, v23_0246, v23_1357; \
+		\
+		v0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512((vin)[0]), (vin)[2], 1); \
+		v0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512((vin)[1]), (vin)[3], 1); \
+		v0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512((vin)[4]), (vin)[6], 1); \
+		v0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512((vin)[5]), (vin)[7], 1); \
+		\
+		v01_0246 = _mm512_shuffle_f64x2(v0123_02, v0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		v01_1357 = _mm512_shuffle_f64x2(v0123_13, v0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		v23_0246 = _mm512_shuffle_f64x2(v0123_02, v0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		v23_1357 = _mm512_shuffle_f64x2(v0123_13, v0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		\
+		(vout)[0] = MM512_UNPACKLO_PD(v01_0246, v01_1357); \
+		(vout)[1] = MM512_UNPACKHI_PD(v01_0246, v01_1357); \
+		(vout)[2] = MM512_UNPACKLO_PD(v23_0246, v23_1357); \
+		(vout)[3] = MM512_UNPACKHI_PD(v23_0246, v23_1357); \
+	} while (0)
+
+#define MM512_TRANSPOSE4X8_PD(vin, vout) do { \
+		__m512d v0246_01, v1357_01, v0246_23, v1357_23; \
+		__m512d v04_0123, v15_0123, v26_0123, v37_0123; \
+		\
+		v0246_01 = MM512_UNPACKLO_PD((vin)[0], (vin)[1]); \
+		v1357_01 = MM512_UNPACKHI_PD((vin)[0], (vin)[1]); \
+		v0246_23 = MM512_UNPACKLO_PD((vin)[2], (vin)[3]); \
+		v1357_23 = MM512_UNPACKHI_PD((vin)[2], (vin)[3]); \
+		\
+		v04_0123 = _mm512_mask_permutex_pd(v0246_01, 0xCC, v0246_23, (1 << 6) | (0 << 4)); \
+		v15_0123 = _mm512_mask_permutex_pd(v1357_01, 0xCC, v1357_23, (1 << 6) | (0 << 4)); \
+		v26_0123 = _mm512_mask_permutex_pd(v0246_23, 0x33, v0246_01, (3 << 2) | 2); \
+		v37_0123 = _mm512_mask_permutex_pd(v1357_23, 0x33, v1357_01, (3 << 2) | 2); \
+		\
+		(vout)[0] = _mm512_castpd512_pd256(v04_0123); \
+		(vout)[1] = _mm512_castpd512_pd256(v15_0123); \
+		(vout)[2] = _mm512_castpd512_pd256(v26_0123); \
+		(vout)[3] = _mm512_castpd512_pd256(v37_0123); \
+		(vout)[4] = _mm512_extractf64x4_pd(v04_0123, 1); \
+		(vout)[5] = _mm512_extractf64x4_pd(v15_0123, 1); \
+		(vout)[6] = _mm512_extractf64x4_pd(v26_0123, 1); \
+		(vout)[7] = _mm512_extractf64x4_pd(v37_0123, 1); \
+	} while(0)
+
+#define MM512_TRANSPOSE8X8_PD(vin, vout) do { \
+		__m512d v0246_01, v1357_01, v0246_23, v1357_23, v0246_45, v1357_45, v0246_67, v1357_67; \
+		__m512d v04_0123, v26_0123, v15_0123, v37_0123, v04_4567, v26_4567, v15_4567, v37_4567; \
+		\
+		v0246_01 = MM512_UNPACKLO_PD((vin)[0], (vin)[1]); \
+		v1357_01 = MM512_UNPACKHI_PD((vin)[0], (vin)[1]); \
+		v0246_23 = MM512_UNPACKLO_PD((vin)[2], (vin)[3]); \
+		v1357_23 = MM512_UNPACKHI_PD((vin)[2], (vin)[3]); \
+		v0246_45 = MM512_UNPACKLO_PD((vin)[4], (vin)[5]); \
+		v1357_45 = MM512_UNPACKHI_PD((vin)[4], (vin)[5]); \
+		v0246_67 = MM512_UNPACKLO_PD((vin)[6], (vin)[7]); \
+		v1357_67 = MM512_UNPACKHI_PD((vin)[6], (vin)[7]); \
+		\
+		v04_0123 = _mm512_shuffle_f64x2(v0246_01, v0246_23, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		v26_0123 = _mm512_shuffle_f64x2(v0246_01, v0246_23, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		v15_0123 = _mm512_shuffle_f64x2(v1357_01, v1357_23, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		v37_0123 = _mm512_shuffle_f64x2(v1357_01, v1357_23, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		v04_4567 = _mm512_shuffle_f64x2(v0246_45, v0246_67, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		v26_4567 = _mm512_shuffle_f64x2(v0246_45, v0246_67, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		v15_4567 = _mm512_shuffle_f64x2(v1357_45, v1357_67, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		v37_4567 = _mm512_shuffle_f64x2(v1357_45, v1357_67, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		\
+		(vout)[0] = _mm512_shuffle_f64x2(v04_0123, v04_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		(vout)[4] = _mm512_shuffle_f64x2(v04_0123, v04_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		(vout)[1] = _mm512_shuffle_f64x2(v15_0123, v15_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		(vout)[5] = _mm512_shuffle_f64x2(v15_0123, v15_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		(vout)[2] = _mm512_shuffle_f64x2(v26_0123, v26_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		(vout)[6] = _mm512_shuffle_f64x2(v26_0123, v26_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+		(vout)[3] = _mm512_shuffle_f64x2(v37_0123, v37_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0); \
+		(vout)[7] = _mm512_shuffle_f64x2(v37_0123, v37_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1); \
+	} while(0)
+
+#endif // (USE_X86_EXT_INTRIN >= 10)
+
+#if (USE_X86_EXT_INTRIN >= 8)
+
+#define MM256_TRANSPOSE4X2_PD(vin, vout) do { \
+		__m256d v01_02, v01_13; \
+		v01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[0]), (vin)[2], 1); \
+		v01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256((vin)[1]), (vin)[3], 1); \
+		\
+		(vout)[0] = MM256_UNPACKLO_PD(v01_02, v01_13); \
+		(vout)[1] = MM256_UNPACKHI_PD(v01_02, v01_13); \
+	} while (0)
+
+#define MM256_TRANSPOSE2X4_PD(vin, vout) do { \
+		__m256d v02_01, v13_01; \
+		v02_01 = MM256_UNPACKLO_PD((vin)[0], (vin)[1]); \
+		v13_01 = MM256_UNPACKHI_PD((vin)[0], (vin)[1]); \
+		\
+		(vout)[0] = _mm256_castpd256_pd128(v02_01); \
+		(vout)[1] = _mm256_castpd256_pd128(v13_01); \
+		(vout)[2] = _mm256_extractf128_pd(v02_01, 1); \
+		(vout)[3] = _mm256_extractf128_pd(v13_01, 1); \
+	} while(0)
+
+#define MM256_TRANSPOSE4X4_PD(vin, vout) do { \
+		__m256d v01_02, v01_13, v23_02, v23_13; \
+		v01_02 = _mm256_insertf128_pd((vin)[0], _mm256_castpd256_pd128((vin)[2]), 1); \
+		v01_13 = _mm256_insertf128_pd((vin)[1], _mm256_castpd256_pd128((vin)[3]), 1); \
+		v23_02 = _mm256_permute2f128_pd((vin)[0], (vin)[2], (3 << 4) | 1); \
+		v23_13 = _mm256_permute2f128_pd((vin)[1], (vin)[3], (3 << 4) | 1); \
+		\
+		(vout)[0] = MM256_UNPACKLO_PD(v01_02, v01_13); \
+		(vout)[1] = MM256_UNPACKHI_PD(v01_02, v01_13); \
+		(vout)[2] = MM256_UNPACKLO_PD(v23_02, v23_13); \
+		(vout)[3] = MM256_UNPACKHI_PD(v23_02, v23_13); \
+	} while(0)
+
+#endif // (USE_X86_EXT_INTRIN >= 8)
+
+#if (USE_X86_EXT_INTRIN >= 3)
+
+#define MM_TRANSPOSE2X2_PD(vin, vout) do { \
+		__m128d v0_01, v1_01; \
+		v0_01 = MM_UNPACKLO_PD((vin)[0], (vin)[1]); \
+		v1_01 = MM_UNPACKHI_PD((vin)[0], (vin)[1]); \
+		\
+		(vout)[0] = v0_01; \
+		(vout)[1] = v1_01; \
+	} while(0)
+
+#define MM_TRANSPOSE4X2_PD(vin, vout01, vout23) do { \
+		MM_TRANSPOSE2X2_PD(vin, vout01); \
+		MM_TRANSPOSE2X2_PD(&(vin)[2], vout23); \
+	} while(0)
+
+#define MM_TRANSPOSE2X4_PD(vin01, vin23, vout) do { \
+		MM_TRANSPOSE2X2_PD(vin01, vout); \
+		MM_TRANSPOSE2X2_PD(vin23, &(vout)[2]); \
+	} while(0)
+
+#endif // (USE_X86_EXT_INTRIN >= 3)
 
 #define IS_ALIGN(ptr) (!((int32)ptr & (ALIGN_SIZE - 1)))
 extern int is_x86ext_available(void);

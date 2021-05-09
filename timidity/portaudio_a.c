@@ -33,6 +33,7 @@
 
 
 #define PORTAUDIO_V19 1
+#define PORTAUDIO_UTF8
 
 #ifdef __POCC__
 #include <sys/types.h>
@@ -1184,6 +1185,13 @@ error:
 #if defined(__W32__) && defined(PORTAUDIO_V19)
 static char *convert_device_name_dup(const char *name, PaHostApiIndex hostApi)
 {
+#ifdef PORTAUDIO_UTF8
+#ifdef UNICODE
+	return safe_strdup(name);
+#else
+	return w32_utf8_to_mbs(name);
+#endif
+#else /* PORTAUDIO_UTF8 */
 	const PaHostApiIndex paIdxDirectSound = Pa_HostApiTypeIdToHostApiIndex(paDirectSound);
 	const PaHostApiIndex paIdxMME = Pa_HostApiTypeIdToHostApiIndex(paMME);
 	const PaHostApiIndex paIdxASIO = Pa_HostApiTypeIdToHostApiIndex(paASIO);
@@ -1213,6 +1221,7 @@ static char *convert_device_name_dup(const char *name, PaHostApiIndex hostApi)
 		return safe_strdup(name);
 	}
 #endif
+#endif /* PORTAUDIO_UTF8 */
 }
 #else
 static char *convert_device_name_dup(const char *name, PaHostApiIndex hostApi)

@@ -1928,25 +1928,25 @@ static inline void buffer_filter_LPF12_2(FILTER_T* dc, FILTER_T* db, DATA_T* sp,
 	__m128d vcym2 = _mm_loadu_pd(dc + 6);
 	__m128d vcym1 = _mm_loadu_pd(dc + 8);
 	__m128d vy = _mm_loadu_pd(db + 2);
-	__m128d vym2 = _mm_unpacklo_pd(vy, vy);
-	__m128d vym1 = _mm_unpackhi_pd(vy, vy);
+	__m128d vym2 = MM_UNPACKLO_PD(vy, vy);
+	__m128d vym1 = MM_UNPACKHI_PD(vy, vy);
 
 	for (i = 0; i < count; i += 4)
 	{
 		__m256d vin = _mm256_loadu_pd(sp + i);
-		__m256d vx0 = _mm256_unpacklo_pd(vin, vin);
-		__m256d vx1 = _mm256_unpackhi_pd(vin, vin);
+		__m256d vx0 = MM256_UNPACKLO_PD(vin, vin);
+		__m256d vx1 = MM256_UNPACKHI_PD(vin, vin);
 		__m256d vfma2x = MM256_FMA2_PD(vcx0, vx0, vcx1, vx1);
 
 		__m128d vy0 = _mm_add_pd(_mm256_castpd256_pd128(vfma2x), MM_FMA2_PD(vcym2, vym2, vcym1, vym1));
 		_mm_storeu_pd(sp + i, vy0);
-		vym2 = _mm_unpacklo_pd(vy0, vy0);
-		vym1 = _mm_unpackhi_pd(vy0, vy0);
+		vym2 = MM_UNPACKLO_PD(vy0, vy0);
+		vym1 = MM_UNPACKHI_PD(vy0, vy0);
 
 		__m128d vy1 = _mm_add_pd(_mm256_extractf128_pd(vfma2x, 1), MM_FMA2_PD(vcym2, vym2, vcym1, vym1));
 		_mm_storeu_pd(sp + i + 2, vy1);
-		vym2 = _mm_unpacklo_pd(vy1, vy1);
-		vym1 = _mm_unpackhi_pd(vy1, vy1);
+		vym2 = MM_UNPACKLO_PD(vy1, vy1);
+		vym1 = MM_UNPACKHI_PD(vy1, vy1);
 		vy = vy1;
 	}
 
@@ -1963,17 +1963,17 @@ static inline void buffer_filter_LPF12_2(FILTER_T *dc, FILTER_T *db, DATA_T *sp,
 	__m128d vcym2 = _mm_loadu_pd(dc + 6);
 	__m128d vcym1 = _mm_loadu_pd(dc + 8);
 	__m128d vy = _mm_loadu_pd(db + 2);
-	__m128d vym2 = _mm_unpacklo_pd(vy, vy);
-	__m128d vym1 = _mm_unpackhi_pd(vy, vy);
+	__m128d vym2 = MM_UNPACKLO_PD(vy, vy);
+	__m128d vym1 = MM_UNPACKHI_PD(vy, vy);
 
 	for (i = 0; i < count; i += 2) {
 		__m128d vin = _mm_loadu_pd(sp + i);
-		__m128d vx0 = _mm_unpacklo_pd(vin, vin);
-		__m128d vx1 = _mm_unpackhi_pd(vin, vin);
+		__m128d vx0 = MM_UNPACKLO_PD(vin, vin);
+		__m128d vx1 = MM_UNPACKHI_PD(vin, vin);
 		vy = MM_FMA4_PD(vcx0, vx0,  vcx1, vx1,  vcym2, vym2,  vcym1, vym1);
 		_mm_storeu_pd(sp + i, vy);
-		vym2 = _mm_unpacklo_pd(vy, vy);
-		vym1 = _mm_unpackhi_pd(vy, vy);
+		vym2 = MM_UNPACKLO_PD(vy, vy);
+		vym1 = MM_UNPACKHI_PD(vy, vy);
 	}
 	_mm_storeu_pd(db + 2, vy);
 }
@@ -3949,30 +3949,16 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 
 		__m256i vcounts = _mm256_maskz_loadu_epi32(generate_mask8_for_count(i, batch_size), &counts[i]);
 
-		__m256d vdb0123_0 = _mm256_loadu_pd(&dbs[i][0]);
-		__m256d vdb0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dbs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dbs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dbs[i + 3][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_4 = i + 4 < batch_size ? _mm256_loadu_pd(&dbs[i + 4][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_5 = i + 5 < batch_size ? _mm256_loadu_pd(&dbs[i + 5][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_6 = i + 6 < batch_size ? _mm256_loadu_pd(&dbs[i + 6][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_7 = i + 7 < batch_size ? _mm256_loadu_pd(&dbs[i + 7][0]) : _mm256_setzero_pd();
+		__m256d vdb0123[8];
+		vdb0123[0] = _mm256_loadu_pd(&dbs[i][0]);
 
-		__m512d vdb0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_0), vdb0123_2, 1);
-		__m512d vdb0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_1), vdb0123_3, 1);
-		__m512d vdb0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_4), vdb0123_6, 1);
-		__m512d vdb0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_5), vdb0123_7, 1);
+		for (int j = 1; j < 8; j++)
+			vdb0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dbs[i + j][0]) : _mm256_setzero_pd();
 
-		__m512d vdb01_0246 = _mm512_shuffle_f64x2(vdb0123_02, vdb0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdb01_1357 = _mm512_shuffle_f64x2(vdb0123_13, vdb0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdb23_0246 = _mm512_shuffle_f64x2(vdb0123_02, vdb0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-		__m512d vdb23_1357 = _mm512_shuffle_f64x2(vdb0123_13, vdb0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+		__m512d vdb[5];
+		MM512_TRANSPOSE8X4_PD(vdb0123, vdb);
 
-		__m512d vdb0 = _mm512_unpacklo_pd(vdb01_0246, vdb01_1357);
-		__m512d vdb1 = _mm512_unpackhi_pd(vdb01_0246, vdb01_1357);
-		__m512d vdb2 = _mm512_unpacklo_pd(vdb23_0246, vdb23_1357);
-		__m512d vdb3 = _mm512_unpackhi_pd(vdb23_0246, vdb23_1357);
-		__m512d vdb4 = _mm512_set_pd(
+		vdb[4] = _mm512_set_pd(
 			i + 7 < batch_size ? dbs[i + 7][4] : 0.0,
 			i + 6 < batch_size ? dbs[i + 6][4] : 0.0,
 			i + 5 < batch_size ? dbs[i + 5][4] : 0.0,
@@ -3983,28 +3969,14 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 			dbs[i][4]
 		);
 
-		__m256d vdc0123_0 = _mm256_loadu_pd(&dcs[i][0]);
-		__m256d vdc0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dcs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dcs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dcs[i + 3][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_4 = i + 4 < batch_size ? _mm256_loadu_pd(&dcs[i + 4][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_5 = i + 5 < batch_size ? _mm256_loadu_pd(&dcs[i + 5][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_6 = i + 6 < batch_size ? _mm256_loadu_pd(&dcs[i + 6][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_7 = i + 7 < batch_size ? _mm256_loadu_pd(&dcs[i + 7][0]) : _mm256_setzero_pd();
+		__m256d vdc0123[8];
+		vdc0123[0] = _mm256_loadu_pd(&dcs[i][0]);
 
-		__m512d vdc0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_0), vdc0123_2, 1);
-		__m512d vdc0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_1), vdc0123_3, 1);
-		__m512d vdc0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_4), vdc0123_6, 1);
-		__m512d vdc0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_5), vdc0123_7, 1);
+		for (int j = 1; j < 8; j++)
+			vdc0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dcs[i + j][0]) : _mm256_setzero_pd();
 
-		__m512d vdc01_0246 = _mm512_shuffle_f64x2(vdc0123_02, vdc0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdc01_1357 = _mm512_shuffle_f64x2(vdc0123_13, vdc0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdc23_0246 = _mm512_shuffle_f64x2(vdc0123_02, vdc0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-		__m512d vdc23_1357 = _mm512_shuffle_f64x2(vdc0123_13, vdc0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
-		__m512d vdc0 = _mm512_unpacklo_pd(vdc01_0246, vdc01_1357);
-		__m512d vdc1 = _mm512_unpackhi_pd(vdc01_0246, vdc01_1357);
-		__m512d vdc2 = _mm512_unpacklo_pd(vdc23_0246, vdc23_1357);
+		__m512d vdc[4];
+		MM512_TRANSPOSE8X4_PD(vdc0123, vdc);
 
 		__m128i vcounts_halfmax = _mm_max_epi32(_mm256_castsi256_si128(vcounts), _mm256_extracti128_si256(vcounts, 1));
 		vcounts_halfmax = _mm_max_epi32(vcounts_halfmax, _mm_shuffle_epi32(vcounts_halfmax, (3 << 2) | 2));
@@ -4015,133 +3987,49 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 			vin[0] = _mm512_maskz_loadu_pd(generate_mask8_for_count(j, counts[i]), &sps[i][j]);
 
 			for (int k = 1; k < 8; k++)
-				vin[k] = _mm512_maskz_loadu_pd(i + k < batch_size ? generate_mask8_for_count(j, counts[i + k]) : 0, & sps[i + k][j]);
-
-			__m512d vsp0246_01 = _mm512_unpacklo_pd(vin[0], vin[1]);
-			__m512d vsp1357_01 = _mm512_unpackhi_pd(vin[0], vin[1]);
-			__m512d vsp0246_23 = _mm512_unpacklo_pd(vin[2], vin[3]);
-			__m512d vsp1357_23 = _mm512_unpackhi_pd(vin[2], vin[3]);
-			__m512d vsp0246_45 = _mm512_unpacklo_pd(vin[4], vin[5]);
-			__m512d vsp1357_45 = _mm512_unpackhi_pd(vin[4], vin[5]);
-			__m512d vsp0246_67 = _mm512_unpacklo_pd(vin[6], vin[7]);
-			__m512d vsp1357_67 = _mm512_unpackhi_pd(vin[6], vin[7]);
-
-			__m512d vsp04_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp04_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+				vin[k] = _mm512_maskz_loadu_pd(i + k < batch_size ? generate_mask8_for_count(j, counts[i + k]) : 0, &sps[i + k][j]);
 
 			__m512d vsps[8];
-			vsps[0] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[4] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[1] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[5] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[2] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[6] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[3] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[7] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vin, vsps);
 
 			for (int k = 0; k < 8; k++) {
 				__mmask8 kmask = _mm256_cmplt_epi32_mask(_mm256_set1_epi32(j + k), vcounts);
 				__m512d vdas[4];
 
-				vdas[0] = _mm512_fnmadd_pd(vdc2, vdb4, vsps[k]);
-				vdas[1] = vdb1;
-				vdas[2] = vdb2;
-				vdas[3] = vdb3;
+				vdas[0] = _mm512_fnmadd_pd(vdc[2], vdb[4], vsps[k]);
+				vdas[1] = vdb[1];
+				vdas[2] = vdb[2];
+				vdas[3] = vdb[3];
 
-				vdb1 = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb0, vdas[0]), vdc0, _mm512_mask_mul_pd(vdb1, kmask, vdb1, vdc1), kmask);
-				vdb2 = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb1, vdas[1]), vdc0, _mm512_mask_mul_pd(vdb2, kmask, vdb2, vdc1), kmask);
-				vdb3 = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb2, vdas[2]), vdc0, _mm512_mask_mul_pd(vdb3, kmask, vdb3, vdc1), kmask);
-				vdb4 = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb3, vdas[3]), vdc0, _mm512_mask_mul_pd(vdb4, kmask, vdb4, vdc1), kmask);
+				vdb[1] = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb[0], vdas[0]), vdc[0], _mm512_mask_mul_pd(vdb[1], kmask, vdb[1], vdc[1]), kmask);
+				vdb[2] = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb[1], vdas[1]), vdc[0], _mm512_mask_mul_pd(vdb[2], kmask, vdb[2], vdc[1]), kmask);
+				vdb[3] = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb[2], vdas[2]), vdc[0], _mm512_mask_mul_pd(vdb[3], kmask, vdb[3], vdc[1]), kmask);
+				vdb[4] = _mm512_mask3_fmsub_pd(_mm512_add_pd(vdb[3], vdas[3]), vdc[0], _mm512_mask_mul_pd(vdb[4], kmask, vdb[4], vdc[1]), kmask);
 
-				vdb0 = _mm512_mask_mov_pd(vdb0, kmask, vdas[0]);
-				vsps[k] = vdb4;
+				vdb[0] = _mm512_mask_mov_pd(vdb[0], kmask, vdas[0]);
+				vsps[k] = vdb[4];
 			}
 
-			__m512d vsp01_0246 = _mm512_unpacklo_pd(vsps[0], vsps[1]);
-			__m512d vsp01_1357 = _mm512_unpackhi_pd(vsps[0], vsps[1]);
-			__m512d vsp23_0246 = _mm512_unpacklo_pd(vsps[2], vsps[3]);
-			__m512d vsp23_1357 = _mm512_unpackhi_pd(vsps[2], vsps[3]);
-			__m512d vsp45_0246 = _mm512_unpacklo_pd(vsps[4], vsps[5]);
-			__m512d vsp45_1357 = _mm512_unpackhi_pd(vsps[4], vsps[5]);
-			__m512d vsp67_0246 = _mm512_unpacklo_pd(vsps[6], vsps[7]);
-			__m512d vsp67_1357 = _mm512_unpackhi_pd(vsps[6], vsps[7]);
-
-			__m512d vsp0123_04 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_26 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp0123_15 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_37 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_04 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_26 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_15 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_37 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
 			__m512d vout[8];
-			vout[0] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[4] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[1] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[5] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[2] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[6] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[3] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[7] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vsps, vout);
 
 			for (int k = 0; k < 8; k++)
 				_mm512_mask_storeu_pd(&sps[i + k][j], generate_mask8_for_count(j, counts[i + k]), vout[k]);
 		}
 
-		vdb01_0246 = _mm512_unpacklo_pd(vdb0, vdb1);
-		vdb01_1357 = _mm512_unpackhi_pd(vdb0, vdb1);
-		vdb23_0246 = _mm512_unpacklo_pd(vdb2, vdb3);
-		vdb23_1357 = _mm512_unpackhi_pd(vdb2, vdb3);
+		MM512_TRANSPOSE4X8_PD(vdb, vdb0123);
 
-		__m512d vdb0123_04 = _mm512_permutex2var_pd(vdb01_0246, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdb23_0246);
-		__m512d vdb0123_15 = _mm512_permutex2var_pd(vdb01_1357, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdb23_1357);
-		__m512d vdb0123_26 = _mm512_permutex2var_pd(vdb01_0246, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdb23_0246);
-		__m512d vdb0123_37 = _mm512_permutex2var_pd(vdb01_1357, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdb23_1357);
+		ALIGN double adb4[8];
+		_mm512_storeu_pd(adb4, vdb[4]);
 
-		_mm256_storeu_pd(&dbs[i][0], _mm512_castpd512_pd256(vdb0123_04));
-		dbs[i][4] = MM512_EXTRACT_F64(vdb4, 0);
+		_mm256_storeu_pd(&dbs[i][0], vdb0123[0]);
+		dbs[i][4] = adb4[0];
 
-		if (i + 1 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 1][0], _mm512_castpd512_pd256(vdb0123_15));
-			dbs[i + 1][4] = MM512_EXTRACT_F64(vdb4, 1);
-		}
-
-		if (i + 2 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 2][0], _mm512_castpd512_pd256(vdb0123_26));
-			dbs[i + 2][4] = MM512_EXTRACT_F64(vdb4, 2);
-		}
-
-		if (i + 3 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 3][0], _mm512_castpd512_pd256(vdb0123_37));
-			dbs[i + 3][4] = MM512_EXTRACT_F64(vdb4, 3);
-		}
-
-		if (i + 4 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 4][0], _mm512_extractf64x4_pd(vdb0123_04, 1));
-			dbs[i + 4][4] = MM512_EXTRACT_F64(vdb4, 4);
-		}
-
-		if (i + 5 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 5][0], _mm512_extractf64x4_pd(vdb0123_15, 1));
-			dbs[i + 5][4] = MM512_EXTRACT_F64(vdb4, 5);
-		}
-
-		if (i + 6 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 6][0], _mm512_extractf64x4_pd(vdb0123_26, 1));
-			dbs[i + 6][4] = MM512_EXTRACT_F64(vdb4, 6);
-		}
-
-		if (i + 7 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 7][0], _mm512_extractf64x4_pd(vdb0123_37, 1));
-			dbs[i + 7][4] = MM512_EXTRACT_F64(vdb4, 7);
-		}
+		for (int j = 1; j < 8; j++)
+			if (i + j < batch_size) {
+				_mm256_storeu_pd(&dbs[i + j][0], vdb0123[j]);
+				dbs[i + j][4] = adb4[j];
+			}
 	}
 }
 
@@ -4160,67 +4048,50 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 			counts[i]
 		);
 
-		__m256d vdb0123_0 = _mm256_loadu_pd(&dbs[i][0]);
-		__m256d vdb0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dbs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dbs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dbs[i + 3][0]) : _mm256_setzero_pd();
+		__m256d vdb0123[4];
+		vdb0123[0] = _mm256_loadu_pd(&dbs[i][0]);
 
-		__m256d vdb01_02 = _mm256_permute2f128_pd(vdb0123_0, vdb0123_2, (2 << 4) | 0);
-		__m256d vdb01_13 = _mm256_permute2f128_pd(vdb0123_1, vdb0123_3, (2 << 4) | 0);
-		__m256d vdb23_02 = _mm256_permute2f128_pd(vdb0123_0, vdb0123_2, (3 << 4) | 1);
-		__m256d vdb23_13 = _mm256_permute2f128_pd(vdb0123_1, vdb0123_3, (3 << 4) | 1);
+		for (int j = 1; j < 4; j++)
+			vdb0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dbs[i + j][0]) : _mm256_setzero_pd();
 
-		__m256d vdb0 = _mm256_unpacklo_pd(vdb01_02, vdb01_13);
-		__m256d vdb1 = _mm256_unpackhi_pd(vdb01_02, vdb01_13);
-		__m256d vdb2 = _mm256_unpacklo_pd(vdb23_02, vdb23_13);
-		__m256d vdb3 = _mm256_unpackhi_pd(vdb23_02, vdb23_13);
-		__m256d vdb4 = _mm256_set_pd(
+		__m256d vdb[5];
+		MM256_TRANSPOSE4X4_PD(vdb0123, vdb);
+
+		vdb[4] = _mm256_set_pd(
 			i + 3 < batch_size ? dbs[i + 3][4] : 0.0,
 			i + 2 < batch_size ? dbs[i + 2][4] : 0.0,
 			i + 1 < batch_size ? dbs[i + 1][4] : 0.0,
 			dbs[i][4]
 		);
 
-		__m256d vdc0123_0 = _mm256_loadu_pd(&dcs[i][0]);
-		__m256d vdc0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dcs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dcs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dcs[i + 3][0]) : _mm256_setzero_pd();
+		__m256d vdc0123[4];
+		vdc0123[0] = _mm256_loadu_pd(&dcs[i][0]);
 
-		__m256d vdc01_02 = _mm256_permute2f128_pd(vdc0123_0, vdc0123_2, (2 << 4) | 0);
-		__m256d vdc01_13 = _mm256_permute2f128_pd(vdc0123_1, vdc0123_3, (2 << 4) | 0);
-		__m256d vdc23_02 = _mm256_permute2f128_pd(vdc0123_0, vdc0123_2, (3 << 4) | 1);
-		__m256d vdc23_13 = _mm256_permute2f128_pd(vdc0123_1, vdc0123_3, (3 << 4) | 1);
+		for (int j = 1; j < 4; j++)
+			vdc0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dcs[i + j][0]) : _mm256_setzero_pd();
 
-		__m256d vdc0 = _mm256_unpacklo_pd(vdc01_02, vdc01_13);
-		__m256d vdc1 = _mm256_unpackhi_pd(vdc01_02, vdc01_13);
-		__m256d vdc2 = _mm256_unpacklo_pd(vdc23_02, vdc23_13);
+		__m256d vdc[4];
+		MM256_TRANSPOSE4X4_PD(vdc0123, vdc);
 
 		__m128i vcounts_halfmax = _mm_max_epi32(vcounts, _mm_shuffle_epi32(vcounts, (3 << 2) | 2));
 		int32 count_max = _mm_cvtsi128_si32(_mm_max_epi32(vcounts_halfmax, _mm_shuffle_epi32(vcounts_halfmax, 1)));
 
 		for (int32 j = 0; j < count_max; j += 4) {
-			__m256d vsp0123_0 = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm256_loadu_pd(&sps[i + 1][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_2 = i + 1 < batch_size && j < counts[i + 2] ? _mm256_loadu_pd(&sps[i + 2][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_3 = i + 1 < batch_size && j < counts[i + 3] ? _mm256_loadu_pd(&sps[i + 3][j]) : _mm256_setzero_pd();
+			__m256d vsp0123[4];
+			vsp0123[0] = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
 
-			__m256d vsp01_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (2 << 4) | 0);
-			__m256d vsp01_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (2 << 4) | 0);
-			__m256d vsp23_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (3 << 4) | 1);
-			__m256d vsp23_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (3 << 4) | 1);
+			for (int k = 1; k < 4; k++)
+				vsp0123[k] = i + k < batch_size && j < counts[i + k] ? _mm256_loadu_pd(&sps[i + k][j]) : _mm256_setzero_pd();
 
 			__m256d vsps[4];
-			vsps[0] = _mm256_unpacklo_pd(vsp01_02, vsp01_13);
-			vsps[1] = _mm256_unpackhi_pd(vsp01_02, vsp01_13);
-			vsps[2] = _mm256_unpacklo_pd(vsp23_02, vsp23_13);
-			vsps[3] = _mm256_unpackhi_pd(vsp23_02, vsp23_13);
+			MM256_TRANSPOSE4X4_PD(vsp0123, vsps);
 
 			for (int k = 0; k < 4; k++) {
 				__m256d vdas[4];
 
 #if USE_X86_EXT_INTRIN >= 9
 				__m256d vmask = _mm256_castsi256_pd(_mm256_cvtepi32_epi64(_mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts)));
-				vdas[0] = _mm256_fnmadd_pd(vdc2, vdb4, vsps[k]);
+				vdas[0] = _mm256_fnmadd_pd(vdc[2], vdb[4], vsps[k]);
 #else
 				__m128i vmask32 = _mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts);
 				__m256d vmask = _mm256_insertf128_pd(
@@ -4231,75 +4102,41 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 				vdas[0] = _mm256_sub_pd(vsps[k], _mm256_mul_pd(vdc2, vdb4));
 #endif
 
-				vdas[1] = vdb1;
-				vdas[2] = vdb2;
-				vdas[3] = vdb3;
+				vdas[1] = vdb[1];
+				vdas[2] = vdb[2];
+				vdas[3] = vdb[3];
 
-#if USE_X86_EXT_INTRIN >= 9
-				vdb1 = _mm256_blendv_pd(vdb1, _mm256_fmsub_pd(_mm256_add_pd(vdb0, vdas[0]), vdc0, _mm256_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = _mm256_blendv_pd(vdb2, _mm256_fmsub_pd(_mm256_add_pd(vdb1, vdas[1]), vdc0, _mm256_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = _mm256_blendv_pd(vdb3, _mm256_fmsub_pd(_mm256_add_pd(vdb2, vdas[2]), vdc0, _mm256_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = _mm256_blendv_pd(vdb4, _mm256_fmsub_pd(_mm256_add_pd(vdb3, vdas[3]), vdc0, _mm256_mul_pd(vdb4, vdc1)), vmask);
-#else
-				vdb1 = _mm256_blendv_pd(vdb1, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb0, vdas[0]), vdc0), _mm256_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = _mm256_blendv_pd(vdb2, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb1, vdas[1]), vdc0), _mm256_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = _mm256_blendv_pd(vdb3, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb2, vdas[2]), vdc0), _mm256_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = _mm256_blendv_pd(vdb4, _mm256_sub_pd(_mm256_mul_pd(_mm256_add_pd(vdb3, vdas[3]), vdc0), _mm256_mul_pd(vdb4, vdc1)), vmask);
-#endif
-				vdb0 = _mm256_blendv_pd(vdb0, vdas[0], vmask);
-				vsps[k] = vdb4;
+				vdb[1] = _mm256_blendv_pd(vdb[1], MM256_MSUB_PD(_mm256_add_pd(vdb[0], vdas[0]), vdc[0], _mm256_mul_pd(vdb[1], vdc[1])), vmask);
+				vdb[2] = _mm256_blendv_pd(vdb[2], MM256_MSUB_PD(_mm256_add_pd(vdb[1], vdas[1]), vdc[0], _mm256_mul_pd(vdb[2], vdc[1])), vmask);
+				vdb[3] = _mm256_blendv_pd(vdb[3], MM256_MSUB_PD(_mm256_add_pd(vdb[2], vdas[2]), vdc[0], _mm256_mul_pd(vdb[3], vdc[1])), vmask);
+				vdb[4] = _mm256_blendv_pd(vdb[4], MM256_MSUB_PD(_mm256_add_pd(vdb[3], vdas[3]), vdc[0], _mm256_mul_pd(vdb[4], vdc[1])), vmask);
+				vdb[0] = _mm256_blendv_pd(vdb[0], vdas[0], vmask);
+				vsps[k] = vdb[4];
 			}
 
-			vsp01_02 = _mm256_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_13 = _mm256_unpackhi_pd(vsps[0], vsps[1]);
-			vsp23_02 = _mm256_unpacklo_pd(vsps[2], vsps[3]);
-			vsp23_13 = _mm256_unpackhi_pd(vsps[2], vsps[3]);
-
-			vsp0123_0 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (2 << 4) | 0);
-			vsp0123_1 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (2 << 4) | 0);
-			vsp0123_2 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (3 << 4) | 1);
-			vsp0123_3 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (3 << 4) | 1);
+			__m256d vout[4];
+			MM256_TRANSPOSE4X4_PD(vsps, vout);
 
 			if (j < counts[i])
-				_mm256_storeu_pd(&sps[i][j], vsp0123_0);
+				_mm256_storeu_pd(&sps[i][j], vsp0123[0]);
 
-			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm256_storeu_pd(&sps[i + 1][j], vsp0123_1);
-
-			if (i + 2 < batch_size && j < counts[i + 2])
-				_mm256_storeu_pd(&sps[i + 2][j], vsp0123_2);
-
-			if (i + 3 < batch_size && j < counts[i + 3])
-				_mm256_storeu_pd(&sps[i + 3][j], vsp0123_3);
+			for (int k = 1; k < 4; k++)
+				if (i + k < batch_size && j < counts[i + k])
+					_mm256_storeu_pd(&sps[i + k][j], vsp0123[k]);
 		}
 
-		vdb01_02 = _mm256_unpacklo_pd(vdb0, vdb1);
-		vdb01_13 = _mm256_unpackhi_pd(vdb0, vdb1);
-		vdb23_02 = _mm256_unpacklo_pd(vdb2, vdb3);
-		vdb23_13 = _mm256_unpackhi_pd(vdb2, vdb3);
+		MM256_TRANSPOSE4X4_PD(vdb, vdb0123);
+		ALIGN double adb4[4];
+		_mm256_storeu_pd(adb4, vdb[4]);
 
-		vdb0123_0 = _mm256_permute2f128_pd(vdb01_02, vdb23_02, (2 << 4) | 0);
-		vdb0123_1 = _mm256_permute2f128_pd(vdb01_13, vdb23_13, (2 << 4) | 0);
-		vdb0123_2 = _mm256_permute2f128_pd(vdb01_02, vdb23_02, (3 << 4) | 1);
-		vdb0123_3 = _mm256_permute2f128_pd(vdb01_13, vdb23_13, (3 << 4) | 1);
+		_mm256_storeu_pd(&dbs[i][0], vdb0123[0]);
+		dbs[i][4] = adb4[0];
 
-		_mm256_storeu_pd(&dbs[i][0], vdb0123_0);
-		dbs[i][4] = MM256_EXTRACT_F64(vdb4, 0);
-
-		if (i + 1 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 1][0], vdb0123_1);
-			dbs[i + 1][4] = MM256_EXTRACT_F64(vdb4, 1);
-		}
-
-		if (i + 2 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 2][0], vdb0123_2);
-			dbs[i + 2][4] = MM256_EXTRACT_F64(vdb4, 2);
-		}
-
-		if (i + 3 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 3][0], vdb0123_3);
-			dbs[i + 3][4] = MM256_EXTRACT_F64(vdb4, 3);
-		}
+		for (int j = 1; j < 4; j++)
+			if (i + j < batch_size) {
+				_mm256_storeu_pd(&dbs[i + j][0], vdb0123[j]);
+				dbs[i + j][4] = adb4[j];
+			}
 	}
 }
 
@@ -4321,26 +4158,30 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 			count0
 		);
 
-		__m128d vdb01_0 = _mm_loadu_pd(&dbs[i][0]);
-		__m128d vdb23_0 = _mm_loadu_pd(&dbs[i][2]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][0]) : _mm_setzero_pd();
-		__m128d vdb23_1 = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][2]) : _mm_setzero_pd();
+		__m128d vdb01[2];
+		vdb01[0] = _mm_loadu_pd(&dbs[i][0]);
+		vdb01[1] = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][0]) : _mm_setzero_pd();
 
-		__m128d vdb0 = _mm_unpacklo_pd(vdb01_0, vdb01_1);
-		__m128d vdb1 = _mm_unpackhi_pd(vdb01_0, vdb01_1);
-		__m128d vdb2 = _mm_unpacklo_pd(vdb23_0, vdb23_1);
-		__m128d vdb3 = _mm_unpackhi_pd(vdb23_0, vdb23_1);
-		__m128d vdb4 = _mm_set_pd(
+		__m128d vdb23[2];
+		vdb23[0] = _mm_loadu_pd(&dbs[i][2]);
+		vdb23[1] = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][2]) : _mm_setzero_pd();
+
+		__m128d vdb[5];
+		MM_TRANSPOSE2X4_PD(vdb01, vdb23, vdb);
+
+		vdb[4] = _mm_set_pd(
 			i + 1 < batch_size ? dbs[i + 1][4] : 0.0,
 			dbs[i][4]
 		);
 
-		__m128d vdc01_0 = _mm_loadu_pd(&dcs[i][0]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][0]) : _mm_setzero_pd();
+		__m128d vdc01[2];
+		vdc01[0] = _mm_loadu_pd(&dcs[i][0]);
+		vdc01[1] = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][0]) : _mm_setzero_pd();
 
-		__m128d vdc0 = _mm_unpacklo_pd(vdc01_0, vdc01_1);
-		__m128d vdc1 = _mm_unpackhi_pd(vdc01_0, vdc01_1);
-		__m128d vdc2 = _mm_set_pd(
+		__m128d vdc[3];
+		MM_TRANSPOSE2X2_PD(vdc01, vdc);
+
+		vdc[2] = _mm_set_pd(
 			i + 1 < batch_size ? dcs[i + 1][2] : 0.0,
 			dcs[i][2]
 		);
@@ -4348,12 +4189,12 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 		int32 count_max = count0 < count1 ? count1 : count0;
 
 		for (int32 j = 0; j < count_max; j += 2) {
-			__m128d vsp01_0 = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
-			__m128d vsp01_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
+			__m128d vsp01[2];
+			vsp01[0] = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
+			vsp01[1] = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
 
 			__m128d vsps[2];
-			vsps[0] = _mm_unpacklo_pd(vsp01_0, vsp01_1);
-			vsps[1] = _mm_unpackhi_pd(vsp01_0, vsp01_1);
+			MM_TRANSPOSE2X2_PD(vsp01, vsps);
 
 			for (int k = 0; k < 2; k++) {
 				__m128i vmask32 = _mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts);
@@ -4362,56 +4203,45 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 				__m128d vdas[4];
 
 #if USE_X86_EXT_INTRIN >= 9
-				vdas[0] = _mm_fnmadd_pd(vdc2, vdb4, vsps[k]);
+				vdas[0] = _mm_fnmadd_pd(vdc[2], vdb[4], vsps[k]);
 #else
-				vdas[0] = _mm_sub_pd(vsps[k], _mm_mul_pd(vdc2, vdb4));
+				vdas[0] = _mm_sub_pd(vsps[k], _mm_mul_pd(vdc[2], vdb[4]));
 #endif
 
-				vdas[1] = vdb1;
-				vdas[2] = vdb2;
-				vdas[3] = vdb3;
+				vdas[1] = vdb[1];
+				vdas[2] = vdb[2];
+				vdas[3] = vdb[3];
 
-#if USE_X86_EXT_INTRIN >= 9
-				vdb1 = _mm_blendv_pd(vdb1, _mm_fmsub_pd(_mm_add_pd(vdb0, vdas[0]), vdc0, _mm_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = _mm_blendv_pd(vdb2, _mm_fmsub_pd(_mm_add_pd(vdb1, vdas[1]), vdc0, _mm_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = _mm_blendv_pd(vdb3, _mm_fmsub_pd(_mm_add_pd(vdb2, vdas[2]), vdc0, _mm_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = _mm_blendv_pd(vdb4, _mm_fmsub_pd(_mm_add_pd(vdb3, vdas[3]), vdc0, _mm_mul_pd(vdb4, vdc1)), vmask);
-#else
-				vdb1 = MM_BLENDV_PD(vdb1, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb0, vdas[0]), vdc0), _mm_mul_pd(vdb1, vdc1)), vmask);
-				vdb2 = MM_BLENDV_PD(vdb2, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb1, vdas[1]), vdc0), _mm_mul_pd(vdb2, vdc1)), vmask);
-				vdb3 = MM_BLENDV_PD(vdb3, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb2, vdas[2]), vdc0), _mm_mul_pd(vdb3, vdc1)), vmask);
-				vdb4 = MM_BLENDV_PD(vdb4, _mm_sub_pd(_mm_mul_pd(_mm_add_pd(vdb3, vdas[3]), vdc0), _mm_mul_pd(vdb4, vdc1)), vmask);
-#endif
-				vdb0 = MM_BLENDV_PD(vdb0, vdas[0], vmask);
-				vsps[k] = vdb4;
+				vdb[1] = MM_BLENDV_PD(vdb[1], MM_MSUB_PD(_mm_add_pd(vdb[0], vdas[0]), vdc[0], _mm_mul_pd(vdb[1], vdc[1])), vmask);
+				vdb[2] = MM_BLENDV_PD(vdb[2], MM_MSUB_PD(_mm_add_pd(vdb[1], vdas[1]), vdc[0], _mm_mul_pd(vdb[2], vdc[1])), vmask);
+				vdb[3] = MM_BLENDV_PD(vdb[3], MM_MSUB_PD(_mm_add_pd(vdb[2], vdas[2]), vdc[0], _mm_mul_pd(vdb[3], vdc[1])), vmask);
+				vdb[4] = MM_BLENDV_PD(vdb[4], MM_MSUB_PD(_mm_add_pd(vdb[3], vdas[3]), vdc[0], _mm_mul_pd(vdb[4], vdc[1])), vmask);
+				vdb[0] = MM_BLENDV_PD(vdb[0], vdas[0], vmask);
+				vsps[k] = vdb[4];
 			}
 
-			vsp01_0 = _mm_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_1 = _mm_unpackhi_pd(vsps[0], vsps[1]);
+			MM_TRANSPOSE2X2_PD(vsps, vsp01);
 
 			if (j < counts[i])
-				_mm_storeu_pd(&sps[i][j], vsp01_0);
+				_mm_storeu_pd(&sps[i][j], vsp01[0]);
 
 			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm_storeu_pd(&sps[i + 1][j], vsp01_1);
+				_mm_storeu_pd(&sps[i + 1][j], vsp01[1]);
 		}
 
-		vdb01_0 = _mm_unpacklo_pd(vdb0, vdb1);
-		vdb01_1 = _mm_unpackhi_pd(vdb0, vdb1);
-		vdb23_0 = _mm_unpacklo_pd(vdb2, vdb3);
-		vdb23_1 = _mm_unpackhi_pd(vdb2, vdb3);
+		MM_TRANSPOSE4X2_PD(vdb, vdb01, vdb23);
 
-		_mm_storeu_pd(&dbs[i][0], vdb01_0);
-		_mm_storeu_pd(&dbs[i][2], vdb23_0);
-		dbs[i][4] = MM_EXTRACT_F64(vdb4, 0);
+		_mm_storeu_pd(&dbs[i][0], vdb01[0]);
+		_mm_storeu_pd(&dbs[i][2], vdb23[0]);
+		dbs[i][4] = MM_EXTRACT_F64(vdb[4], 0);
 
 		if (i + 1 < batch_size) {
-			_mm_storeu_pd(&dbs[i + 1][0], vdb01_1);
-			_mm_storeu_pd(&dbs[i + 1][2], vdb23_1);
-			dbs[i + 1][4] = MM_EXTRACT_F64(vdb4, 1);
+			_mm_storeu_pd(&dbs[i + 1][0], vdb01[1]);
+			_mm_storeu_pd(&dbs[i + 1][2], vdb23[1]);
+			dbs[i + 1][4] = MM_EXTRACT_F64(vdb[4], 1);
 		}
 	}
-} 
+}
 
 #endif
 
@@ -4429,20 +4259,8 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 		for (int j = 1; j < 8; j++)
 			vfcrange0123[j] = i + j < batch_size ? _mm256_loadu_pd(fcs[i + j]->range) : _mm256_setzero_pd();
 
-		__m512d vfcrange0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[0]), vfcrange0123[2], 1);
-		__m512d vfcrange0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[1]), vfcrange0123[3], 1);
-		__m512d vfcrange0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[4]), vfcrange0123[6], 1);
-		__m512d vfcrange0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[5]), vfcrange0123[7], 1);
-
-		__m512d vfcrange01_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vfcrange01_1357 = _mm512_shuffle_f64x2(vfcrange0123_13, vfcrange0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vfcrange23_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-		__m512d vfcrange23_1357 = _mm512_shuffle_f64x2(vfcrange0123_13, vfcrange0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
-		__m512d vfcrange0 = _mm512_unpacklo_pd(vfcrange01_0246, vfcrange01_1357);
-		__m512d vfcrange1 = _mm512_unpackhi_pd(vfcrange01_0246, vfcrange01_1357);
-		__m512d vfcrange2 = _mm512_unpacklo_pd(vfcrange23_0246, vfcrange23_1357);
-		__m512d vfcrange3 = _mm512_unpackhi_pd(vfcrange23_0246, vfcrange23_1357);
+		__m512d vfcrange[4];
+		MM512_TRANSPOSE8X4_PD(vfcrange0123, vfcrange);
 
 		__m512d vfcfreq = _mm512_set_pd(
 			i + 7 < batch_size ? fcs[i + 7]->freq : 0.0,
@@ -4467,8 +4285,8 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 		);
 
 		uint8 imask = _kor_mask8(
-			_kor_mask8(_mm512_cmp_pd_mask(vfcfreq, vfcrange0, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcfreq, vfcrange1, _CMP_GT_OS)),
-			_kor_mask8(_mm512_cmp_pd_mask(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcreso_DB, vfcrange3, _CMP_GT_OS))
+			_kor_mask8(_mm512_cmp_pd_mask(vfcfreq, vfcrange[0], _CMP_LT_OS), _mm512_cmp_pd_mask(vfcfreq, vfcrange[1], _CMP_GT_OS)),
+			_kor_mask8(_mm512_cmp_pd_mask(vfcreso_DB, vfcrange[2], _CMP_LT_OS), _mm512_cmp_pd_mask(vfcreso_DB, vfcrange[3], _CMP_GT_OS))
 		);
 
 		if (batch_size - i < 8)
@@ -4478,51 +4296,16 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 			__m512d v1mmargin = _mm512_set1_pd(1.0 - ext_filter_margin);
 			__m512d v1pmargin = _mm512_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm512_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm512_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm512_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm512_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm512_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm512_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm512_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm512_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_0246 = _mm512_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_1357 = _mm512_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_0246 = _mm512_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_1357 = _mm512_unpackhi_pd(vfcrange2, vfcrange3);
+			MM512_TRANSPOSE4X8_PD(vfcrange, vfcrange0123);
 
-#if 1
-			__m512d vfcrange0123_04 = _mm512_permutex2var_pd(vfcrange01_0246, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vfcrange23_0246);
-			__m512d vfcrange0123_26 = _mm512_permutex2var_pd(vfcrange01_0246, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vfcrange23_0246);
-			__m512d vfcrange0123_15 = _mm512_permutex2var_pd(vfcrange01_1357, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vfcrange23_1357);
-			__m512d vfcrange0123_37 = _mm512_permutex2var_pd(vfcrange01_1357, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vfcrange23_1357);
-#else
-			__m512d vfcrange0123_04 = _mm512_mask_permutex_pd(vfcrange01_0246, 0xCC, vfcrange23_0246, (1 << 6) | (0 << 4) | 0);
-			__m512d vfcrange0123_26 = _mm512_mask_permutex_pd(vfcrange01_0246, 0x33, vfcrange23_0246, (3 << 2) | 2);
-			__m512d vfcrange0123_15 = _mm512_mask_permutex_pd(vfcrange01_1357, 0xCC, vfcrange23_1357, (1 << 6) | (0 << 4) | 0);
-			__m512d vfcrange0123_37 = _mm512_mask_permutex_pd(vfcrange01_1357, 0x33, vfcrange23_1357, (3 << 2) | 2);
-#endif
-
-			if (imask & 1)
-				_mm256_storeu_pd(fcs[i]->range, _mm512_castpd512_pd256(vfcrange0123_04));
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(fcs[i + 1]->range, _mm512_castpd512_pd256(vfcrange0123_15));
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(fcs[i + 2]->range, _mm512_castpd512_pd256(vfcrange0123_26));
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(fcs[i + 3]->range, _mm512_castpd512_pd256(vfcrange0123_37));
-
-			if (imask & (1 << 4))
-				_mm256_storeu_pd(fcs[i + 4]->range, _mm512_extractf64x4_pd(vfcrange0123_04, 1));
-
-			if (imask & (1 << 5))
-				_mm256_storeu_pd(fcs[i + 5]->range, _mm512_extractf64x4_pd(vfcrange0123_15, 1));
-
-			if (imask & (1 << 6))
-				_mm256_storeu_pd(fcs[i + 6]->range, _mm512_extractf64x4_pd(vfcrange0123_26, 1));
-
-			if (imask & (1 << 7))
-				_mm256_storeu_pd(fcs[i + 7]->range, _mm512_extractf64x4_pd(vfcrange0123_37, 1));
+			for (int j = 0; j < 8; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(fcs[i + j]->range, vfcrange0123[j]);
 
 			__m512d vfcdiv_flt_rate = _mm512_set_pd(
 				i + 7 < batch_size ? fcs[i + 7]->div_flt_rate : fcs[i]->div_flt_rate,
@@ -4558,44 +4341,19 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 			);
 
 			__m512d vq = _mm512_mul_pd(v0_8, _mm512_sub_pd(v1, vreso_db_cf_m));
-			__m512d vdc0 = _mm512_fmadd_pd(_mm512_mul_pd(v0_8, vf), vp, vf);
-			__m512d vdc1 = _mm512_fmsub_pd(vdc0, v2, v1);
-			__m512d vdc2 = _mm512_mul_pd(vq, _mm512_fmadd_pd(_mm512_mul_pd(v0_5, vp), _mm512_sub_pd(_mm512_fmadd_pd(_mm512_mul_pd(v5_6, vp), vp, v1), vp), v1));
-			__m512d vdc3 = _mm512_setzero_pd();
 
-			__m512d vdc01_0246 = _mm512_unpacklo_pd(vdc0, vdc1);
-			__m512d vdc01_1357 = _mm512_unpackhi_pd(vdc0, vdc1);
-			__m512d vdc23_0246 = _mm512_unpacklo_pd(vdc2, vdc3);
-			__m512d vdc23_1357 = _mm512_unpackhi_pd(vdc2, vdc3);
+			__m512d vdc[4];
+			vdc[0] = _mm512_fmadd_pd(_mm512_mul_pd(v0_8, vf), vp, vf);
+			vdc[1] = _mm512_fmsub_pd(vdc[0], v2, v1);
+			vdc[2] = _mm512_mul_pd(vq, _mm512_fmadd_pd(_mm512_mul_pd(v0_5, vp), _mm512_sub_pd(_mm512_fmadd_pd(_mm512_mul_pd(v5_6, vp), vp, v1), vp), v1));
+			vdc[3] = _mm512_setzero_pd();
 
-			__m512d vdc0123_04 = _mm512_permutex2var_pd(vdc01_0246, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdc23_0246);
-			__m512d vdc0123_26 = _mm512_permutex2var_pd(vdc01_0246, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdc23_0246);
-			__m512d vdc0123_15 = _mm512_permutex2var_pd(vdc01_1357, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdc23_1357);
-			__m512d vdc0123_37 = _mm512_permutex2var_pd(vdc01_1357, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdc23_1357);
+			__m256d vdc0123[8];
+			MM512_TRANSPOSE4X8_PD(vdc, vdc0123);
 
-			if (imask & 1)
-				_mm256_storeu_pd(&fcs[i]->dc[0], _mm512_castpd512_pd256(vdc0123_04));
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(&fcs[i + 1]->dc[0], _mm512_castpd512_pd256(vdc0123_15));
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(&fcs[i + 2]->dc[0], _mm512_castpd512_pd256(vdc0123_26));
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(&fcs[i + 3]->dc[0], _mm512_castpd512_pd256(vdc0123_37));
-
-			if (imask & (1 << 4))
-				_mm256_storeu_pd(&fcs[i + 4]->dc[0], _mm512_extractf64x4_pd(vdc0123_04, 1));
-
-			if (imask & (1 << 5))
-				_mm256_storeu_pd(&fcs[i + 5]->dc[0], _mm512_extractf64x4_pd(vdc0123_15, 1));
-
-			if (imask & (1 << 6))
-				_mm256_storeu_pd(&fcs[i + 6]->dc[0], _mm512_extractf64x4_pd(vdc0123_26, 1));
-
-			if (imask & (1 << 7))
-				_mm256_storeu_pd(&fcs[i + 7]->dc[0], _mm512_extractf64x4_pd(vdc0123_37, 1));
+			for (int j = 0; j < 8; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(&fcs[i + j]->dc[0], vdc0123[j]);
 		}
 	}
 }
@@ -4608,20 +4366,14 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 		if (i >= batch_size)
 			break;
 
-		__m256d vfcrange0123_0 = _mm256_loadu_pd(fcs[i]->range);
-		__m256d vfcrange0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(fcs[i + 1]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(fcs[i + 2]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(fcs[i + 3]->range) : _mm256_setzero_pd();
+		__m256d vfcrange0123[4];
+		vfcrange0123[0] = _mm256_loadu_pd(fcs[i]->range);
 
-		__m256d vfcrange01_02 = _mm256_permute2f128_pd(vfcrange0123_0, vfcrange0123_2, (2 << 4) | 0);
-		__m256d vfcrange01_13 = _mm256_permute2f128_pd(vfcrange0123_1, vfcrange0123_3, (2 << 4) | 0);
-		__m256d vfcrange23_02 = _mm256_permute2f128_pd(vfcrange0123_0, vfcrange0123_2, (3 << 4) | 1);
-		__m256d vfcrange23_13 = _mm256_permute2f128_pd(vfcrange0123_1, vfcrange0123_3, (3 << 4) | 1);
+		for (int j = 1; j < 4; j++)
+			vfcrange0123[j] = i + j < batch_size ? _mm256_loadu_pd(fcs[i + j]->range) : _mm256_setzero_pd();
 
-		__m256d vfcrange0 = _mm256_unpacklo_pd(vfcrange01_02, vfcrange01_13);
-		__m256d vfcrange1 = _mm256_unpackhi_pd(vfcrange01_02, vfcrange01_13);
-		__m256d vfcrange2 = _mm256_unpacklo_pd(vfcrange23_02, vfcrange23_13);
-		__m256d vfcrange3 = _mm256_unpackhi_pd(vfcrange23_02, vfcrange23_13);
+		__m256d vfcrange[4];
+		MM256_TRANSPOSE4X4_PD(vfcrange0123, vfcrange);
 
 		__m256d vfcfreq = _mm256_set_pd(
 			i + 3 < batch_size ? fcs[i + 3]->freq : 0.0,
@@ -4638,8 +4390,8 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 		);
 
 		__m256d vmask = _mm256_or_pd(
-			_mm256_or_pd(_mm256_cmp_pd(vfcfreq, vfcrange0, _CMP_LT_OS), _mm256_cmp_pd(vfcfreq, vfcrange1, _CMP_GT_OS)),
-			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange3, _CMP_GT_OS))
+			_mm256_or_pd(_mm256_cmp_pd(vfcfreq, vfcrange[0], _CMP_LT_OS), _mm256_cmp_pd(vfcfreq, vfcrange[1], _CMP_GT_OS)),
+			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange[2], _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange[3], _CMP_GT_OS))
 		);
 
 		int imask = _mm256_movemask_pd(vmask);
@@ -4651,32 +4403,16 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 			__m256d v1mmargin = _mm256_set1_pd(1.0 - ext_filter_margin);
 			__m256d v1pmargin = _mm256_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm256_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm256_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm256_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm256_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm256_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm256_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm256_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm256_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_02 = _mm256_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_13 = _mm256_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_02 = _mm256_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_13 = _mm256_unpackhi_pd(vfcrange2, vfcrange3);
+			MM256_TRANSPOSE4X4_PD(vfcrange, vfcrange0123);
 
-			vfcrange0123_0 = _mm256_permute2f128_pd(vfcrange01_02, vfcrange23_02, (2 << 4) | 0);
-			vfcrange0123_1 = _mm256_permute2f128_pd(vfcrange01_13, vfcrange23_13, (2 << 4) | 0);
-			vfcrange0123_2 = _mm256_permute2f128_pd(vfcrange01_02, vfcrange23_02, (3 << 4) | 1);
-			vfcrange0123_3 = _mm256_permute2f128_pd(vfcrange01_13, vfcrange23_13, (3 << 4) | 1);
-
-			if (imask & 1)
-				_mm256_storeu_pd(fcs[i]->range, vfcrange0123_0);
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(fcs[i + 1]->range, vfcrange0123_1);
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(fcs[i + 2]->range, vfcrange0123_2);
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(fcs[i + 3]->range, vfcrange0123_3);
+			for (int j = 0; j < 4; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(fcs[i + j]->range, vfcrange0123[j]);
 
 			__m256d vfcdiv_flt_rate = _mm256_set_pd(
 				i + 3 < batch_size ? fcs[i + 3]->div_flt_rate : fcs[i]->div_flt_rate,
@@ -4704,36 +4440,23 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 			);
 
 			__m256d vq = _mm256_mul_pd(v0_8, _mm256_sub_pd(v1, vreso_db_cf_m));
-			__m256d vdc0 = MM256_FMA_PD(_mm256_mul_pd(v0_8, vf), vp, vf);
+
+			__m256d vdc[4];
+			vdc[0] = MM256_FMA_PD(_mm256_mul_pd(v0_8, vf), vp, vf);
 #if USE_X86_EXT_INTRIN >= 9
-			__m256d vdc1 = _mm256_fmsub_pd(vdc0, v2, v1);
+			vdc[1] = _mm256_fmsub_pd(vdc[0], v2, v1);
 #else
-			__m256d vdc1 = _mm256_sub_pd(_mm256_add_pd(vdc0, vdc0), v1);
+			vdc[1] = _mm256_sub_pd(_mm256_add_pd(vdc[0], vdc[0]), v1);
 #endif
-			__m256d vdc2 = _mm256_mul_pd(vq, MM256_FMA_PD(_mm256_mul_pd(v0_5, vp), _mm256_sub_pd(MM256_FMA_PD(_mm256_mul_pd(v5_6, vp), vp, v1), vp), v1));
-			__m256d vdc3 = _mm256_setzero_pd();
+			vdc[2] = _mm256_mul_pd(vq, MM256_FMA_PD(_mm256_mul_pd(v0_5, vp), _mm256_sub_pd(MM256_FMA_PD(_mm256_mul_pd(v5_6, vp), vp, v1), vp), v1));
+			vdc[3] = _mm256_setzero_pd();
 
-			__m256d vdc01_02 = _mm256_unpacklo_pd(vdc0, vdc1);
-			__m256d vdc01_13 = _mm256_unpackhi_pd(vdc0, vdc1);
-			__m256d vdc23_02 = _mm256_unpacklo_pd(vdc2, vdc3);
-			__m256d vdc23_13 = _mm256_unpackhi_pd(vdc2, vdc3);
+			__m256d vdc0123[4];
+			MM256_TRANSPOSE4X4_PD(vdc, vdc0123);
 
-			__m256d vdc0123_0 = _mm256_permute2f128_pd(vdc01_02, vdc23_02, (2 << 4) | 0);
-			__m256d vdc0123_1 = _mm256_permute2f128_pd(vdc01_13, vdc23_13, (2 << 4) | 0);
-			__m256d vdc0123_2 = _mm256_permute2f128_pd(vdc01_02, vdc23_02, (3 << 4) | 1);
-			__m256d vdc0123_3 = _mm256_permute2f128_pd(vdc01_13, vdc23_13, (3 << 4) | 1);
-
-			if (imask & 1)
-				_mm256_storeu_pd(&fcs[i]->dc[0], vdc0123_0);
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(&fcs[i + 1]->dc[0], vdc0123_1);
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(&fcs[i + 2]->dc[0], vdc0123_2);
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(&fcs[i + 3]->dc[0], vdc0123_3);
+			for (int j = 0; j < 8; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(&fcs[i + j]->dc[0], vdc0123[j]);
 		}
 	}
 }
@@ -4746,15 +4469,16 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 		if (i >= batch_size)
 			break;
 
-		__m128d vfcrange01_0 = _mm_loadu_pd(fcs[i]->range);
-		__m128d vfcrange23_0 = _mm_loadu_pd(&fcs[i]->range[2]);
-		__m128d vfcrange01_1 = i + 1 < batch_size ? _mm_loadu_pd(fcs[i + 1]->range) : _mm_setzero_pd();
-		__m128d vfcrange23_1 = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
+		__m128d vfcrange01[2];
+		vfcrange01[0] = _mm_loadu_pd(&fcs[i]->range[0]);
+		vfcrange01[1] = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[0]) : _mm_setzero_pd();
 
-		__m128d vfcrange0 = _mm_unpacklo_pd(vfcrange01_0, vfcrange01_1);
-		__m128d vfcrange1 = _mm_unpackhi_pd(vfcrange01_0, vfcrange01_1);
-		__m128d vfcrange2 = _mm_unpacklo_pd(vfcrange23_0, vfcrange23_1);
-		__m128d vfcrange3 = _mm_unpackhi_pd(vfcrange23_0, vfcrange23_1);
+		__m128d vfcrange23[2];
+		vfcrange23[0] = _mm_loadu_pd(&fcs[i]->range[2]);
+		vfcrange23[1] = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
+
+		__m128d vfcrange[4];
+		MM_TRANSPOSE2X4_PD(vfcrange01, vfcrange23, vfcrange);
 
 		__m128d vfcfreq = _mm_set_pd(
 			i + 1 < batch_size ? fcs[i + 1]->freq : 0.0,
@@ -4767,8 +4491,8 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 		);
 
 		__m128d vmask = _mm_or_pd(
-			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange0), _mm_cmpgt_pd(vfcfreq, vfcrange1)),
-			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
+			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange[0]), _mm_cmpgt_pd(vfcfreq, vfcrange[1])),
+			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange[2]), _mm_cmpgt_pd(vfcreso_DB, vfcrange[3]))
 		);
 
 		int imask = _mm_movemask_pd(vmask);
@@ -4780,24 +4504,21 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
 			__m128d v1pmargin = _mm_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_0 = _mm_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_1 = _mm_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_0 = _mm_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_1 = _mm_unpackhi_pd(vfcrange2, vfcrange3);
+			MM_TRANSPOSE4X2_PD(vfcrange, vfcrange01, vfcrange23);
 
 			if (imask & 1) {
-				_mm_storeu_pd(fcs[i]->range, vfcrange01_0);
-				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23_0);
+				_mm_storeu_pd(&fcs[i]->range[0], vfcrange01[0]);
+				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23[0]);
 			}
 
 			if (imask & (1 << 1)) {
-				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01_1);
-				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23_1);
+				_mm_storeu_pd(&fcs[i + 1]->range[0], vfcrange01[1]);
+				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23[1]);
 			}
 
 			__m128d vfcdiv_flt_rate = _mm_set_pd(
@@ -4822,25 +4543,27 @@ static void recalc_filter_LPF24_batch(int batch_size, FilterCoefficients **fcs)
 			);
 
 			__m128d vq = _mm_mul_pd(v0_8, _mm_sub_pd(v1, vreso_db_cf_m));
-			__m128d vdc0 = MM_FMA_PD(_mm_mul_pd(v0_8, vf), vp, vf);
-#if USE_X86_EXT_INTRIN >= 9
-			__m128d vdc1 = _mm_fmsub_pd(vdc0, v2, v1);
-#else
-			__m128d vdc1 = _mm_sub_pd(_mm_add_pd(vdc0, vdc0), v1);
-#endif
-			__m128d vdc2 = _mm_mul_pd(vq, MM_FMA_PD(_mm_mul_pd(v0_5, vp), _mm_sub_pd(MM_FMA_PD(_mm_mul_pd(v5_6, vp), vp, v1), vp), v1));
 
-			__m128d vdc01_0 = _mm_unpacklo_pd(vdc0, vdc1);
-			__m128d vdc01_1 = _mm_unpackhi_pd(vdc0, vdc1);
+			__m128d vdc[3];
+			vdc[0] = MM_FMA_PD(_mm_mul_pd(v0_8, vf), vp, vf);
+#if USE_X86_EXT_INTRIN >= 9
+			vdc[1] = _mm_fmsub_pd(vdc[0], v2, v1);
+#else
+			vdc[1] = _mm_sub_pd(_mm_add_pd(vdc[0], vdc[0]), v1);
+#endif
+			vdc[2] = _mm_mul_pd(vq, MM_FMA_PD(_mm_mul_pd(v0_5, vp), _mm_sub_pd(MM_FMA_PD(_mm_mul_pd(v5_6, vp), vp, v1), vp), v1));
+
+			__m128d vdc01[2];
+			MM_TRANSPOSE2X2_PD(vdc, vdc01);
 
 			if (imask & 1) {
-				_mm_storeu_pd(&fcs[i]->dc[0], vdc01_0);
-				fcs[i]->dc[2] = MM_EXTRACT_F64(vdc2, 0);
+				_mm_storeu_pd(&fcs[i]->dc[0], vdc01[0]);
+				fcs[i]->dc[2] = MM_EXTRACT_F64(vdc[2], 0);
 			}
 
 			if (imask & (1 << 1)) {
-				_mm_storeu_pd(&fcs[i + 1]->dc[0], vdc01_1);
-				fcs[i + 1]->dc[2] = MM_EXTRACT_F64(vdc2, 1);
+				_mm_storeu_pd(&fcs[i + 1]->dc[0], vdc01[1]);
+				fcs[i + 1]->dc[2] = MM_EXTRACT_F64(vdc[2], 1);
 			}
 		}
 	}
@@ -4858,30 +4581,16 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 
 		__m256i vcounts = _mm256_maskz_loadu_epi32(generate_mask8_for_count(i, batch_size), &counts[i]);
 
-		__m256d vdb0123_0 = _mm256_loadu_pd(&dbs[i][0]);
-		__m256d vdb0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dbs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dbs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dbs[i + 3][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_4 = i + 4 < batch_size ? _mm256_loadu_pd(&dbs[i + 4][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_5 = i + 5 < batch_size ? _mm256_loadu_pd(&dbs[i + 5][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_6 = i + 6 < batch_size ? _mm256_loadu_pd(&dbs[i + 6][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_7 = i + 7 < batch_size ? _mm256_loadu_pd(&dbs[i + 7][0]) : _mm256_setzero_pd();
+		__m256d vdb0123[8];
+		vdb0123[0] = _mm256_loadu_pd(&dbs[i][0]);
 
-		__m512d vdb0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_0), vdb0123_2, 1);
-		__m512d vdb0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_1), vdb0123_3, 1);
-		__m512d vdb0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_4), vdb0123_6, 1);
-		__m512d vdb0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb0123_5), vdb0123_7, 1);
+		for (int j = 1; j < 8; j++)
+			vdb0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dbs[i + j][0]) : _mm256_setzero_pd();
 
-		__m512d vdb01_0246 = _mm512_shuffle_f64x2(vdb0123_02, vdb0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdb01_1357 = _mm512_shuffle_f64x2(vdb0123_13, vdb0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdb23_0246 = _mm512_shuffle_f64x2(vdb0123_02, vdb0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-		__m512d vdb23_1357 = _mm512_shuffle_f64x2(vdb0123_13, vdb0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+		__m512d vdb[5];
+		MM512_TRANSPOSE8X4_PD(vdb0123, vdb);
 
-		__m512d vdb0 = _mm512_unpacklo_pd(vdb01_0246, vdb01_1357);
-		__m512d vdb1 = _mm512_unpackhi_pd(vdb01_0246, vdb01_1357);
-		__m512d vdb2 = _mm512_unpacklo_pd(vdb23_0246, vdb23_1357);
-		__m512d vdb3 = _mm512_unpackhi_pd(vdb23_0246, vdb23_1357);
-		__m512d vdb4 = _mm512_set_pd(
+		vdb[4] = _mm512_set_pd(
 			i + 7 < batch_size ? dbs[i + 7][4] : 0.0,
 			i + 6 < batch_size ? dbs[i + 6][4] : 0.0,
 			i + 5 < batch_size ? dbs[i + 5][4] : 0.0,
@@ -4892,30 +4601,16 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 			dbs[i][4]
 		);
 
-		__m256d vdc0123_0 = _mm256_loadu_pd(&dcs[i][0]);
-		__m256d vdc0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dcs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dcs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dcs[i + 3][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_4 = i + 4 < batch_size ? _mm256_loadu_pd(&dcs[i + 4][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_5 = i + 5 < batch_size ? _mm256_loadu_pd(&dcs[i + 5][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_6 = i + 6 < batch_size ? _mm256_loadu_pd(&dcs[i + 6][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_7 = i + 7 < batch_size ? _mm256_loadu_pd(&dcs[i + 7][0]) : _mm256_setzero_pd();
+		__m256d vdc0123[8];
+		vdc0123[0] = _mm256_loadu_pd(&dcs[i][0]);
 
-		__m512d vdc0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_0), vdc0123_2, 1);
-		__m512d vdc0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_1), vdc0123_3, 1);
-		__m512d vdc0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_4), vdc0123_6, 1);
-		__m512d vdc0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc0123_5), vdc0123_7, 1);
+		for (int j = 1; j < 8; j++)
+			vdc0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dcs[i + j][0]) : _mm256_setzero_pd();
 
-		__m512d vdc01_0246 = _mm512_shuffle_f64x2(vdc0123_02, vdc0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdc01_1357 = _mm512_shuffle_f64x2(vdc0123_13, vdc0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vdc23_0246 = _mm512_shuffle_f64x2(vdc0123_02, vdc0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-		__m512d vdc23_1357 = _mm512_shuffle_f64x2(vdc0123_13, vdc0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+		__m512d vdc[5];
+		MM512_TRANSPOSE8X4_PD(vdc0123, vdc);
 
-		__m512d vdc0 = _mm512_unpacklo_pd(vdc01_0246, vdc01_1357);
-		__m512d vdc1 = _mm512_unpackhi_pd(vdc01_0246, vdc01_1357);
-		__m512d vdc2 = _mm512_unpacklo_pd(vdc23_0246, vdc23_1357);
-		__m512d vdc3 = _mm512_unpackhi_pd(vdc23_0246, vdc23_1357);
-		__m512d vdc4 = _mm512_set_pd(
+		vdc[4] = _mm512_set_pd(
 			i + 7 < batch_size ? dcs[i + 7][4] : 0.0,
 			i + 6 < batch_size ? dcs[i + 6][4] : 0.0,
 			i + 5 < batch_size ? dcs[i + 5][4] : 0.0,
@@ -4937,129 +4632,44 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 			for (int k = 1; k < 8; k++)
 				vin[k] = _mm512_maskz_loadu_pd(i + k < batch_size ? generate_mask8_for_count(j, counts[i + k]) : 0, & sps[i + k][j]);
 
-			__m512d vsp0246_01 = _mm512_unpacklo_pd(vin[0], vin[1]);
-			__m512d vsp1357_01 = _mm512_unpackhi_pd(vin[0], vin[1]);
-			__m512d vsp0246_23 = _mm512_unpacklo_pd(vin[2], vin[3]);
-			__m512d vsp1357_23 = _mm512_unpackhi_pd(vin[2], vin[3]);
-			__m512d vsp0246_45 = _mm512_unpacklo_pd(vin[4], vin[5]);
-			__m512d vsp1357_45 = _mm512_unpackhi_pd(vin[4], vin[5]);
-			__m512d vsp0246_67 = _mm512_unpacklo_pd(vin[6], vin[7]);
-			__m512d vsp1357_67 = _mm512_unpackhi_pd(vin[6], vin[7]);
-
-			__m512d vsp04_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp04_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
 			__m512d vsps[8];
-			vsps[0] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[4] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[1] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[5] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[2] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[6] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[3] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[7] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vin, vsps);
 
 			for (int k = 0; k < 8; k++) {
 				__mmask8 kmask = _mm256_cmplt_epi32_mask(_mm256_set1_epi32(j + k), vcounts);
 
-				vdb0 = _mm512_mask_mov_pd(vdb0, kmask, vsps[k]);
-				vdb2 = _mm512_mask_fmadd_pd(vdb2, kmask, vdc2, _mm512_add_pd(_mm512_fmadd_pd(vdc0, vdb0, _mm512_mul_pd(vdc1, vdb1)), _mm512_fmadd_pd(vdc3, vdb3, _mm512_mul_pd(vdc4, vdb4))));
+				vdb[0] = _mm512_mask_mov_pd(vdb[0], kmask, vsps[k]);
+				vdb[2] = _mm512_mask_fmadd_pd(vdb[2], kmask, vdc[2], _mm512_add_pd(_mm512_fmadd_pd(vdc[0], vdb[0], _mm512_mul_pd(vdc[1], vdb[1])), _mm512_fmadd_pd(vdc[3], vdb[3], _mm512_mul_pd(vdc[4], vdb[4]))));
 
 #ifdef DENORMAL_FIX
-				vdb2 = _mm512_mask_add_pd(vdb2, kmask, vdb2, _mm512_set1_pd(denormal_add));
+				vdb[2] = _mm512_mask_add_pd(vdb[2], kmask, vdb[2], _mm512_set1_pd(denormal_add));
 #endif
-				vdb4 = _mm512_mask_mov_pd(vdb4, kmask, vdb3);
-				vdb3 = _mm512_mask_mov_pd(vdb3, kmask, vdb2);
-				vdb2 = _mm512_mask_mov_pd(vdb2, kmask, vdb1);
-				vdb1 = _mm512_mask_mov_pd(vdb1, kmask, vdb0);
-				vsps[k] = vdb3;
+				vdb[4] = _mm512_mask_mov_pd(vdb[4], kmask, vdb[3]);
+				vdb[3] = _mm512_mask_mov_pd(vdb[3], kmask, vdb[2]);
+				vdb[2] = _mm512_mask_mov_pd(vdb[2], kmask, vdb[1]);
+				vdb[1] = _mm512_mask_mov_pd(vdb[1], kmask, vdb[0]);
+				vsps[k] = vdb[3];
 			}
 
-			__m512d vsp01_0246 = _mm512_unpacklo_pd(vsps[0], vsps[1]);
-			__m512d vsp01_1357 = _mm512_unpackhi_pd(vsps[0], vsps[1]);
-			__m512d vsp23_0246 = _mm512_unpacklo_pd(vsps[2], vsps[3]);
-			__m512d vsp23_1357 = _mm512_unpackhi_pd(vsps[2], vsps[3]);
-			__m512d vsp45_0246 = _mm512_unpacklo_pd(vsps[4], vsps[5]);
-			__m512d vsp45_1357 = _mm512_unpackhi_pd(vsps[4], vsps[5]);
-			__m512d vsp67_0246 = _mm512_unpacklo_pd(vsps[6], vsps[7]);
-			__m512d vsp67_1357 = _mm512_unpackhi_pd(vsps[6], vsps[7]);
-
-			__m512d vsp0123_04 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_26 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp0123_15 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_37 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_04 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_26 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_15 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_37 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
 			__m512d vout[8];
-			vout[0] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[4] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[1] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[5] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[2] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[6] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[3] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[7] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vsps, vout);
 
 			for (int k = 0; k < 8; k++)
 				_mm512_mask_storeu_pd(&sps[i + k][j], generate_mask8_for_count(j, counts[i + k]), vout[k]);
 		}
 
-		vdb01_0246 = _mm512_unpacklo_pd(vdb0, vdb1);
-		vdb01_1357 = _mm512_unpackhi_pd(vdb0, vdb1);
-		vdb23_0246 = _mm512_unpacklo_pd(vdb2, vdb3);
-		vdb23_1357 = _mm512_unpackhi_pd(vdb2, vdb3);
+		MM512_TRANSPOSE4X8_PD(vdb, vdb0123);
+		ALIGN double adb4[8];
+		_mm512_storeu_pd(adb4, vdb[4]);
 
-		__m512d vdb0123_04 = _mm512_permutex2var_pd(vdb01_0246, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdb23_0246);
-		__m512d vdb0123_15 = _mm512_permutex2var_pd(vdb01_1357, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdb23_1357);
-		__m512d vdb0123_26 = _mm512_permutex2var_pd(vdb01_0246, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdb23_0246);
-		__m512d vdb0123_37 = _mm512_permutex2var_pd(vdb01_1357, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdb23_1357);
+		_mm256_storeu_pd(&dbs[i][0], vdb0123[0]);
+		dbs[i][4] = adb4[0];
 
-		_mm256_storeu_pd(&dbs[i][0], _mm512_castpd512_pd256(vdb0123_04));
-		dbs[i][4] = MM512_EXTRACT_F64(vdb4, 0);
-
-		if (i + 1 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 1][0], _mm512_castpd512_pd256(vdb0123_15));
-			dbs[i + 1][4] = MM512_EXTRACT_F64(vdb4, 1);
-		}
-
-		if (i + 2 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 2][0], _mm512_castpd512_pd256(vdb0123_26));
-			dbs[i + 2][4] = MM512_EXTRACT_F64(vdb4, 2);
-		}
-
-		if (i + 3 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 3][0], _mm512_castpd512_pd256(vdb0123_37));
-			dbs[i + 3][4] = MM512_EXTRACT_F64(vdb4, 3);
-		}
-
-		if (i + 4 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 4][0], _mm512_extractf64x4_pd(vdb0123_04, 1));
-			dbs[i + 4][4] = MM512_EXTRACT_F64(vdb4, 4);
-		}
-
-		if (i + 5 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 5][0], _mm512_extractf64x4_pd(vdb0123_15, 1));
-			dbs[i + 5][4] = MM512_EXTRACT_F64(vdb4, 5);
-		}
-
-		if (i + 6 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 6][0], _mm512_extractf64x4_pd(vdb0123_26, 1));
-			dbs[i + 6][4] = MM512_EXTRACT_F64(vdb4, 6);
-		}
-
-		if (i + 7 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 7][0], _mm512_extractf64x4_pd(vdb0123_37, 1));
-			dbs[i + 7][4] = MM512_EXTRACT_F64(vdb4, 7);
-		}
+		for (int j = 1; j < 8; j++)
+			if (i + j < batch_size) {
+				_mm256_storeu_pd(&dbs[i + j][0], vdb0123[j]);
+				dbs[i + j][4] = adb4[j];
+			}
 	}
 }
 
@@ -5078,42 +4688,32 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 			counts[i]
 		);
 
-		__m256d vdb0123_0 = _mm256_loadu_pd(&dbs[i][0]);
-		__m256d vdb0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dbs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dbs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdb0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dbs[i + 3][0]) : _mm256_setzero_pd();
+		__m256d vdb0123[4];
+		vdb0123[0] = _mm256_loadu_pd(&dbs[i][0]);
 
-		__m256d vdb01_02 = _mm256_permute2f128_pd(vdb0123_0, vdb0123_2, (2 << 4) | 0);
-		__m256d vdb01_13 = _mm256_permute2f128_pd(vdb0123_1, vdb0123_3, (2 << 4) | 0);
-		__m256d vdb23_02 = _mm256_permute2f128_pd(vdb0123_0, vdb0123_2, (3 << 4) | 1);
-		__m256d vdb23_13 = _mm256_permute2f128_pd(vdb0123_1, vdb0123_3, (3 << 4) | 1);
+		for (int j = 1; j < 4; j++)
+			vdb0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dbs[i + j][0]) : _mm256_setzero_pd();
 
-		__m256d vdb0 = _mm256_unpacklo_pd(vdb01_02, vdb01_13);
-		__m256d vdb1 = _mm256_unpackhi_pd(vdb01_02, vdb01_13);
-		__m256d vdb2 = _mm256_unpacklo_pd(vdb23_02, vdb23_13);
-		__m256d vdb3 = _mm256_unpackhi_pd(vdb23_02, vdb23_13);
-		__m256d vdb4 = _mm256_set_pd(
+		__m256d vdb[5];
+		MM256_TRANSPOSE4X4_PD(vdb0123, vdb);
+
+		vdb[4] = _mm256_set_pd(
 			i + 3 < batch_size ? dbs[i + 3][4] : 0.0,
 			i + 2 < batch_size ? dbs[i + 2][4] : 0.0,
 			i + 1 < batch_size ? dbs[i + 1][4] : 0.0,
 			dbs[i][4]
 		);
 
-		__m256d vdc0123_0 = _mm256_loadu_pd(&dcs[i][0]);
-		__m256d vdc0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(&dcs[i + 1][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(&dcs[i + 2][0]) : _mm256_setzero_pd();
-		__m256d vdc0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(&dcs[i + 3][0]) : _mm256_setzero_pd();
+		__m256d vdc0123[4];
+		vdc0123[0] = _mm256_loadu_pd(&dcs[i][0]);
 
-		__m256d vdc01_02 = _mm256_permute2f128_pd(vdc0123_0, vdc0123_2, (2 << 4) | 0);
-		__m256d vdc01_13 = _mm256_permute2f128_pd(vdc0123_1, vdc0123_3, (2 << 4) | 0);
-		__m256d vdc23_02 = _mm256_permute2f128_pd(vdc0123_0, vdc0123_2, (3 << 4) | 1);
-		__m256d vdc23_13 = _mm256_permute2f128_pd(vdc0123_1, vdc0123_3, (3 << 4) | 1);
+		for (int j = 1; j < 4; j++)
+			vdc0123[j] = i + j < batch_size ? _mm256_loadu_pd(&dcs[i + j][0]) : _mm256_setzero_pd();
 
-		__m256d vdc0 = _mm256_unpacklo_pd(vdc01_02, vdc01_13);
-		__m256d vdc1 = _mm256_unpackhi_pd(vdc01_02, vdc01_13);
-		__m256d vdc2 = _mm256_unpacklo_pd(vdc23_02, vdc23_13);
-		__m256d vdc3 = _mm256_unpackhi_pd(vdc23_02, vdc23_13);
-		__m256d vdc4 = _mm256_set_pd(
+		__m256d vdc[5];
+		MM256_TRANSPOSE4X4_PD(vdc0123, vdc);
+
+		vdc[4] = _mm256_set_pd(
 			i + 3 < batch_size ? dcs[i + 3][4] : 0.0,
 			i + 2 < batch_size ? dcs[i + 2][4] : 0.0,
 			i + 1 < batch_size ? dcs[i + 1][4] : 0.0,
@@ -5124,21 +4724,14 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 		int32 count_max = _mm_cvtsi128_si32(_mm_max_epi32(vcounts_halfmax, _mm_shuffle_epi32(vcounts_halfmax, 1)));
 
 		for (int32 j = 0; j < count_max; j += 4) {
-			__m256d vsp0123_0 = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm256_loadu_pd(&sps[i + 1][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_2 = i + 1 < batch_size && j < counts[i + 2] ? _mm256_loadu_pd(&sps[i + 2][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_3 = i + 1 < batch_size && j < counts[i + 3] ? _mm256_loadu_pd(&sps[i + 3][j]) : _mm256_setzero_pd();
+			__m256d vsp0123[4];
+			vsp0123[0] = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
 
-			__m256d vsp01_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (2 << 4) | 0);
-			__m256d vsp01_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (2 << 4) | 0);
-			__m256d vsp23_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (3 << 4) | 1);
-			__m256d vsp23_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (3 << 4) | 1);
+			for (int k = 1; k < 4; k++)
+				vsp0123[k] = i + k < batch_size && j < counts[i + k] ? _mm256_loadu_pd(&sps[i + k][j]) : _mm256_setzero_pd();
 
 			__m256d vsps[4];
-			vsps[0] = _mm256_unpacklo_pd(vsp01_02, vsp01_13);
-			vsps[1] = _mm256_unpackhi_pd(vsp01_02, vsp01_13);
-			vsps[2] = _mm256_unpacklo_pd(vsp23_02, vsp23_13);
-			vsps[3] = _mm256_unpackhi_pd(vsp23_02, vsp23_13);
+			MM256_TRANSPOSE4X4_PD(vsp0123, vsps);
 
 			for (int k = 0; k < 4; k++) {
 #if USE_X86_EXT_INTRIN >= 9
@@ -5152,69 +4745,38 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 				);
 #endif
 
-				vdb0 = _mm256_blendv_pd(vdb0, vsps[k], vmask);
-				vdb2 = _mm256_blendv_pd(vdb2, MM256_FMA_PD(vdc0, vdb0, MM256_FMA4_PD(vdc1, vdb1, vdc2, vdb2, vdc3, vdb3, vdc4, vdb4)), vmask);
+				vdb[0] = _mm256_blendv_pd(vdb[0], vsps[k], vmask);
+				vdb[2] = _mm256_blendv_pd(vdb[2], MM256_FMA_PD(vdc[0], vdb[0], MM256_FMA4_PD(vdc[1], vdb[1], vdc[2], vdb[2], vdc[3], vdb[3], vdc[4], vdb[4])), vmask);
 
 #ifdef DENORMAL_FIX
-				vdb2 = _mm256_blendv_pd(vdb2, _mm256_add_pd(vdb2, _mm_set1_pd(denormal_add)), vmask);
+				vdb[2] = _mm256_blendv_pd(vdb[2], _mm256_add_pd(vdb[2], _mm_set1_pd(denormal_add)), vmask);
 #endif
-				vdb4 = _mm256_blendv_pd(vdb4, vdb3, vmask);
-				vdb3 = _mm256_blendv_pd(vdb3, vdb2, vmask);
-				vdb2 = _mm256_blendv_pd(vdb2, vdb1, vmask);
-				vdb1 = _mm256_blendv_pd(vdb1, vdb0, vmask);
-				vsps[k] = vdb3;
+				vdb[4] = _mm256_blendv_pd(vdb[4], vdb[3], vmask);
+				vdb[3] = _mm256_blendv_pd(vdb[3], vdb[2], vmask);
+				vdb[2] = _mm256_blendv_pd(vdb[2], vdb[1], vmask);
+				vdb[1] = _mm256_blendv_pd(vdb[1], vdb[0], vmask);
+				vsps[k] = vdb[3];
 			}
 
-			vsp01_02 = _mm256_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_13 = _mm256_unpackhi_pd(vsps[0], vsps[1]);
-			vsp23_02 = _mm256_unpacklo_pd(vsps[2], vsps[3]);
-			vsp23_13 = _mm256_unpackhi_pd(vsps[2], vsps[3]);
+			MM256_TRANSPOSE4X4_PD(vsps, vsp0123);
 
-			vsp0123_0 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (2 << 4) | 0);
-			vsp0123_1 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (2 << 4) | 0);
-			vsp0123_2 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (3 << 4) | 1);
-			vsp0123_3 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (3 << 4) | 1);
-
-			if (j < counts[i])
-				_mm256_storeu_pd(&sps[i][j], vsp0123_0);
-
-			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm256_storeu_pd(&sps[i + 1][j], vsp0123_1);
-
-			if (i + 2 < batch_size && j < counts[i + 2])
-				_mm256_storeu_pd(&sps[i + 2][j], vsp0123_2);
-
-			if (i + 3 < batch_size && j < counts[i + 3])
-				_mm256_storeu_pd(&sps[i + 3][j], vsp0123_3);
+			for (int k = 0; k < 4; k++)
+				if (i + k < batch_size && j < counts[i + k])
+					_mm256_storeu_pd(&sps[i + k][j], vsp0123[k]);
 		}
 
-		vdb01_02 = _mm256_unpacklo_pd(vdb0, vdb1);
-		vdb01_13 = _mm256_unpackhi_pd(vdb0, vdb1);
-		vdb23_02 = _mm256_unpacklo_pd(vdb2, vdb3);
-		vdb23_13 = _mm256_unpackhi_pd(vdb2, vdb3);
+		MM256_TRANSPOSE4X4_PD(vdb, vdb0123);
+		ALIGN double adb4[4];
+		_mm256_storeu_pd(adb4, vdb[4]);
 
-		vdb0123_0 = _mm256_permute2f128_pd(vdb01_02, vdb23_02, (2 << 4) | 0);
-		vdb0123_1 = _mm256_permute2f128_pd(vdb01_13, vdb23_13, (2 << 4) | 0);
-		vdb0123_2 = _mm256_permute2f128_pd(vdb01_02, vdb23_02, (3 << 4) | 1);
-		vdb0123_3 = _mm256_permute2f128_pd(vdb01_13, vdb23_13, (3 << 4) | 1);
+		_mm256_storeu_pd(&dbs[i][0], vdb0123[0]);
+		dbs[i][4] = adb4[0];
 
-		_mm256_storeu_pd(&dbs[i][0], vdb0123_0);
-		dbs[i][4] = MM256_EXTRACT_F64(vdb4, 0);
-
-		if (i + 1 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 1][0], vdb0123_1);
-			dbs[i + 1][4] = MM256_EXTRACT_F64(vdb4, 1);
-		}
-
-		if (i + 2 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 2][0], vdb0123_2);
-			dbs[i + 2][4] = MM256_EXTRACT_F64(vdb4, 2);
-		}
-
-		if (i + 3 < batch_size) {
-			_mm256_storeu_pd(&dbs[i + 3][0], vdb0123_3);
-			dbs[i + 3][4] = MM256_EXTRACT_F64(vdb4, 3);
-		}
+		for (int j = 1; j < 4; j++)
+			if (i + j < batch_size) {
+				_mm256_storeu_pd(&dbs[i + j][0], vdb0123[j]);
+				dbs[i + j][4] = adb4[j];
+			}
 	}
 }
 
@@ -5236,30 +4798,34 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 			count0
 		);
 
-		__m128d vdb01_0 = _mm_loadu_pd(&dbs[i][0]);
-		__m128d vdb23_0 = _mm_loadu_pd(&dbs[i][2]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][0]) : _mm_setzero_pd();
-		__m128d vdb23_1 = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][2]) : _mm_setzero_pd();
+		__m128d vdb01[2];
+		vdb01[0] = _mm_loadu_pd(&dbs[i][0]);
+		vdb01[1] = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][0]) : _mm_setzero_pd();
 
-		__m128d vdb0 = _mm_unpacklo_pd(vdb01_0, vdb01_1);
-		__m128d vdb1 = _mm_unpackhi_pd(vdb01_0, vdb01_1);
-		__m128d vdb2 = _mm_unpacklo_pd(vdb23_0, vdb23_1);
-		__m128d vdb3 = _mm_unpackhi_pd(vdb23_0, vdb23_1);
-		__m128d vdb4 = _mm_set_pd(
+		__m128d vdb23[2];
+		vdb23[0] = _mm_loadu_pd(&dbs[i][2]);
+		vdb23[1] = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][2]) : _mm_setzero_pd();
+
+		__m128d vdb[5];
+		MM_TRANSPOSE2X4_PD(vdb01, vdb23, vdb);
+
+		vdb[4] = _mm_set_pd(
 			i + 1 < batch_size ? dbs[i + 1][4] : 0.0,
 			dbs[i][4]
 		);
 
-		__m128d vdc01_0 = _mm_loadu_pd(&dcs[i][0]);
-		__m128d vdc23_0 = _mm_loadu_pd(&dcs[i][2]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][0]) : _mm_setzero_pd();
-		__m128d vdc23_1 = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][2]) : _mm_setzero_pd();
+		__m128d vdc01[2];
+		vdc01[0] = _mm_loadu_pd(&dcs[i][0]);
+		vdc01[1] = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][0]) : _mm_setzero_pd();
 
-		__m128d vdc0 = _mm_unpacklo_pd(vdc01_0, vdc01_1);
-		__m128d vdc1 = _mm_unpackhi_pd(vdc01_0, vdc01_1);
-		__m128d vdc2 = _mm_unpacklo_pd(vdc23_0, vdc23_1);
-		__m128d vdc3 = _mm_unpackhi_pd(vdc23_0, vdc23_1);
-		__m128d vdc4 = _mm_set_pd(
+		__m128d vdc23[2];
+		vdc23[0] = _mm_loadu_pd(&dcs[i][2]);
+		vdc23[1] = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][2]) : _mm_setzero_pd();
+
+		__m128d vdc[5];
+		MM_TRANSPOSE2X4_PD(vdc01, vdc23, vdc);
+
+		vdc[4] = _mm_set_pd(
 			i + 1 < batch_size ? dcs[i + 1][4] : 0.0,
 			dcs[i][4]
 		);
@@ -5267,53 +4833,49 @@ static void sample_filter_LPF_BW_batch(int batch_size, FILTER_T **dcs, FILTER_T 
 		int32 count_max = count0 < count1 ? count1 : count0;
 
 		for (int32 j = 0; j < count_max; j += 2) {
-			__m128d vsp01_0 = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
-			__m128d vsp01_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
+			__m128d vsp01[2];
+			vsp01[0] = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
+			vsp01[1] = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
 
 			__m128d vsps[2];
-			vsps[0] = _mm_unpacklo_pd(vsp01_0, vsp01_1);
-			vsps[1] = _mm_unpackhi_pd(vsp01_0, vsp01_1);
+			MM_TRANSPOSE2X2_PD(vsp01, vsps);
 
 			for (int k = 0; k < 2; k++) {
 				__m128i vmask32 = _mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts);
 				__m128d vmask = _mm_castsi128_pd(_mm_unpacklo_epi32(vmask32, vmask32));
 
-				vdb0 = MM_BLENDV_PD(vdb0, vsps[k], vmask);
-				vdb2 = MM_BLENDV_PD(vdb2, MM_FMA5_PD(vdc0, vdb0, vdc1, vdb1, vdc2, vdb2, vdc3, vdb3, vdc4, vdb4), vmask);
+				vdb[0] = MM_BLENDV_PD(vdb[0], vsps[k], vmask);
+				vdb[2] = MM_BLENDV_PD(vdb[2], MM_FMA5_PD(vdc[0], vdb[0], vdc[1], vdb[1], vdc[2], vdb[2], vdc[3], vdb[3], vdc[4], vdb[4]), vmask);
 
 #ifdef DENORMAL_FIX
-				vdb2 = MM_BLENDV_PD(vdb2, _mm_add_pd(vdb2, _mm_set1_pd(denormal_add)), vmask);
+				vdb[2] = MM_BLENDV_PD(vdb[2], _mm_add_pd(vdb[2], _mm_set1_pd(denormal_add)), vmask);
 #endif
-				vdb4 = MM_BLENDV_PD(vdb4, vdb3, vmask);
-				vdb3 = MM_BLENDV_PD(vdb3, vdb2, vmask);
-				vdb2 = MM_BLENDV_PD(vdb2, vdb1, vmask);
-				vdb1 = MM_BLENDV_PD(vdb1, vdb0, vmask);
-				vsps[k] = vdb3;
+				vdb[4] = MM_BLENDV_PD(vdb[4], vdb[3], vmask);
+				vdb[3] = MM_BLENDV_PD(vdb[3], vdb[2], vmask);
+				vdb[2] = MM_BLENDV_PD(vdb[2], vdb[1], vmask);
+				vdb[1] = MM_BLENDV_PD(vdb[1], vdb[0], vmask);
+				vsps[k] = vdb[3];
 			}
 
-			vsp01_0 = _mm_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_1 = _mm_unpackhi_pd(vsps[0], vsps[1]);
+			MM_TRANSPOSE2X2_PD(vsps, vsp01);
 
 			if (j < counts[i])
-				_mm_storeu_pd(&sps[i][j], vsp01_0);
+				_mm_storeu_pd(&sps[i][j], vsp01[0]);
 
 			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm_storeu_pd(&sps[i + 1][j], vsp01_1);
+				_mm_storeu_pd(&sps[i + 1][j], vsp01[1]);
 		}
 
-		vdb01_0 = _mm_unpacklo_pd(vdb0, vdb1);
-		vdb01_1 = _mm_unpackhi_pd(vdb0, vdb1);
-		vdb23_0 = _mm_unpacklo_pd(vdb2, vdb3);
-		vdb23_1 = _mm_unpackhi_pd(vdb2, vdb3);
+		MM_TRANSPOSE4X2_PD(vdb, vdb01, vdb23);
 
-		_mm_storeu_pd(&dbs[i][0], vdb01_0);
-		_mm_storeu_pd(&dbs[i][2], vdb23_0);
-		dbs[i][4] = MM_EXTRACT_F64(vdb4, 0);
+		_mm_storeu_pd(&dbs[i][0], vdb01[0]);
+		_mm_storeu_pd(&dbs[i][2], vdb23[0]);
+		dbs[i][4] = MM_EXTRACT_F64(vdb[4], 0);
 
 		if (i + 1 < batch_size) {
-			_mm_storeu_pd(&dbs[i + 1][0], vdb01_1);
-			_mm_storeu_pd(&dbs[i + 1][2], vdb23_1);
-			dbs[i + 1][4] = MM_EXTRACT_F64(vdb4, 1);
+			_mm_storeu_pd(&dbs[i + 1][0], vdb01[1]);
+			_mm_storeu_pd(&dbs[i + 1][2], vdb23[1]);
+			dbs[i + 1][4] = MM_EXTRACT_F64(vdb[4], 1);
 		}
 	}
 } 
@@ -5334,20 +4896,8 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 		for (int j = 1; j < 8; j++)
 			vfcrange0123[j] = i + j < batch_size ? _mm256_loadu_pd(fcs[i + j]->range) : _mm256_setzero_pd();
 
-		__m512d vfcrange0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[0]), vfcrange0123[2], 1);
-		__m512d vfcrange0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[1]), vfcrange0123[3], 1);
-		__m512d vfcrange0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[4]), vfcrange0123[6], 1);
-		__m512d vfcrange0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123[5]), vfcrange0123[7], 1);
-
-		__m512d vfcrange01_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vfcrange01_1357 = _mm512_shuffle_f64x2(vfcrange0123_13, vfcrange0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vfcrange23_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-		__m512d vfcrange23_1357 = _mm512_shuffle_f64x2(vfcrange0123_13, vfcrange0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
-		__m512d vfcrange0 = _mm512_unpacklo_pd(vfcrange01_0246, vfcrange01_1357);
-		__m512d vfcrange1 = _mm512_unpackhi_pd(vfcrange01_0246, vfcrange01_1357);
-		__m512d vfcrange2 = _mm512_unpacklo_pd(vfcrange23_0246, vfcrange23_1357);
-		__m512d vfcrange3 = _mm512_unpackhi_pd(vfcrange23_0246, vfcrange23_1357);
+		__m512d vfcrange[4];
+		MM512_TRANSPOSE8X4_PD(vfcrange0123, vfcrange);
 
 		__m512d vfcfreq = _mm512_set_pd(
 			i + 7 < batch_size ? fcs[i + 7]->freq : 0.0,
@@ -5372,8 +4922,8 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 		);
 
 		uint8 imask = _kor_mask8(
-			_kor_mask8(_mm512_cmp_pd_mask(vfcfreq, vfcrange0, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcfreq, vfcrange1, _CMP_GT_OS)),
-			_kor_mask8(_mm512_cmp_pd_mask(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcreso_DB, vfcrange3, _CMP_GT_OS))
+			_kor_mask8(_mm512_cmp_pd_mask(vfcfreq, vfcrange[0], _CMP_LT_OS), _mm512_cmp_pd_mask(vfcfreq, vfcrange[1], _CMP_GT_OS)),
+			_kor_mask8(_mm512_cmp_pd_mask(vfcreso_DB, vfcrange[2], _CMP_LT_OS), _mm512_cmp_pd_mask(vfcreso_DB, vfcrange[3], _CMP_GT_OS))
 		);
 
 		if (batch_size - i < 8)
@@ -5383,51 +4933,16 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m512d v1mmargin = _mm512_set1_pd(1.0 - ext_filter_margin);
 			__m512d v1pmargin = _mm512_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm512_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm512_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm512_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm512_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm512_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm512_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm512_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm512_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_0246 = _mm512_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_1357 = _mm512_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_0246 = _mm512_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_1357 = _mm512_unpackhi_pd(vfcrange2, vfcrange3);
+			MM512_TRANSPOSE4X8_PD(vfcrange, vfcrange0123);
 
-#if 1
-			__m512d vfcrange0123_04 = _mm512_permutex2var_pd(vfcrange01_0246, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vfcrange23_0246);
-			__m512d vfcrange0123_26 = _mm512_permutex2var_pd(vfcrange01_0246, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vfcrange23_0246);
-			__m512d vfcrange0123_15 = _mm512_permutex2var_pd(vfcrange01_1357, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vfcrange23_1357);
-			__m512d vfcrange0123_37 = _mm512_permutex2var_pd(vfcrange01_1357, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vfcrange23_1357);
-#else
-			__m512d vfcrange0123_04 = _mm512_mask_permutex_pd(vfcrange01_0246, 0xCC, vfcrange23_0246, (1 << 6) | (0 << 4) | 0);
-			__m512d vfcrange0123_26 = _mm512_mask_permutex_pd(vfcrange01_0246, 0x33, vfcrange23_0246, (3 << 2) | 2);
-			__m512d vfcrange0123_15 = _mm512_mask_permutex_pd(vfcrange01_1357, 0xCC, vfcrange23_1357, (1 << 6) | (0 << 4) | 0);
-			__m512d vfcrange0123_37 = _mm512_mask_permutex_pd(vfcrange01_1357, 0x33, vfcrange23_1357, (3 << 2) | 2);
-#endif
-
-			if (imask & 1)
-				_mm256_storeu_pd(fcs[i]->range, _mm512_castpd512_pd256(vfcrange0123_04));
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(fcs[i + 1]->range, _mm512_castpd512_pd256(vfcrange0123_15));
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(fcs[i + 2]->range, _mm512_castpd512_pd256(vfcrange0123_26));
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(fcs[i + 3]->range, _mm512_castpd512_pd256(vfcrange0123_37));
-
-			if (imask & (1 << 4))
-				_mm256_storeu_pd(fcs[i + 4]->range, _mm512_extractf64x4_pd(vfcrange0123_04, 1));
-
-			if (imask & (1 << 5))
-				_mm256_storeu_pd(fcs[i + 5]->range, _mm512_extractf64x4_pd(vfcrange0123_15, 1));
-
-			if (imask & (1 << 6))
-				_mm256_storeu_pd(fcs[i + 6]->range, _mm512_extractf64x4_pd(vfcrange0123_26, 1));
-
-			if (imask & (1 << 7))
-				_mm256_storeu_pd(fcs[i + 7]->range, _mm512_extractf64x4_pd(vfcrange0123_37, 1));
+			for (int j = 0; j < 8; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(fcs[i + j]->range, vfcrange0123[j]);
 
 			__m512d vfcdiv_flt_rate = _mm512_set_pd(
 				i + 7 < batch_size ? fcs[i + 7]->div_flt_rate : fcs[i]->div_flt_rate,
@@ -5470,61 +4985,25 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m512d vq = _mm512_mul_pd(vreso_db_cf_m, _mm512_set1_pd(SQRT_2));
 			__m512d vp2 = _mm512_mul_pd(vp, vp);
 			__m512d vqp = _mm512_mul_pd(vq, vp);
-			__m512d vdc0 = _mm512_div_pd(v1, _mm512_add_pd(_mm512_add_pd(v1, vqp), vp2));
-			__m512d vdc1 = _mm512_mul_pd(v2, vdc0);
-			__m512d vdc2 = vdc0;
-			__m512d vdc3 = _mm512_mul_pd(_mm512_mul_pd(v2, _mm512_sub_pd(vp2, v1)), vdc0);
-			__m512d vdc4 = _mm512_mul_pd(_mm512_sub_pd(_mm512_sub_pd(vqp, v1), vp2), vdc0);
 
-			__m512d vdc01_0246 = _mm512_unpacklo_pd(vdc0, vdc1);
-			__m512d vdc01_1357 = _mm512_unpackhi_pd(vdc0, vdc1);
-			__m512d vdc23_0246 = _mm512_unpacklo_pd(vdc2, vdc3);
-			__m512d vdc23_1357 = _mm512_unpackhi_pd(vdc2, vdc3);
+			__m512d vdc[5];
+			vdc[0] = _mm512_div_pd(v1, _mm512_add_pd(_mm512_add_pd(v1, vqp), vp2));
+			vdc[1] = _mm512_mul_pd(v2, vdc[0]);
+			vdc[2] = vdc[0];
+			vdc[3] = _mm512_mul_pd(_mm512_mul_pd(v2, _mm512_sub_pd(vp2, v1)), vdc[0]);
+			vdc[4] = _mm512_mul_pd(_mm512_sub_pd(_mm512_sub_pd(vqp, v1), vp2), vdc[0]);
 
-			__m512d vdc0123_04 = _mm512_permutex2var_pd(vdc01_0246, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdc23_0246);
-			__m512d vdc0123_26 = _mm512_permutex2var_pd(vdc01_0246, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdc23_0246);
-			__m512d vdc0123_15 = _mm512_permutex2var_pd(vdc01_1357, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vdc23_1357);
-			__m512d vdc0123_37 = _mm512_permutex2var_pd(vdc01_1357, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vdc23_1357);
+			__m256d vdc0123[8];
+			MM512_TRANSPOSE4X8_PD(vdc, vdc0123);
 
-			if (imask & 1) {
-				_mm256_storeu_pd(&fcs[i]->dc[0], _mm512_castpd512_pd256(vdc0123_04));
-				fcs[i]->dc[4] = MM512_EXTRACT_F64(vdc4, 0);
-			}
+			ALIGN double adc4[8];
+			_mm512_storeu_pd(adc4, vdc[4]);
 
-			if (imask & (1 << 1)) {
-				_mm256_storeu_pd(&fcs[i + 1]->dc[0], _mm512_castpd512_pd256(vdc0123_15));
-				fcs[i + 1]->dc[4] = MM512_EXTRACT_F64(vdc4, 1);
-			}
-
-			if (imask & (1 << 2)) {
-				_mm256_storeu_pd(&fcs[i + 2]->dc[0], _mm512_castpd512_pd256(vdc0123_26));
-				fcs[i + 2]->dc[4] = MM512_EXTRACT_F64(vdc4, 2);
-			}
-
-			if (imask & (1 << 3)) {
-				_mm256_storeu_pd(&fcs[i + 3]->dc[0], _mm512_castpd512_pd256(vdc0123_37));
-				fcs[i + 3]->dc[4] = MM512_EXTRACT_F64(vdc4, 3);
-			}
-
-			if (imask & (1 << 4)) {
-				_mm256_storeu_pd(&fcs[i + 4]->dc[0], _mm512_extractf64x4_pd(vdc0123_04, 1));
-				fcs[i + 4]->dc[4] = MM512_EXTRACT_F64(vdc4, 4);
-			}
-
-			if (imask & (1 << 5)) {
-				_mm256_storeu_pd(&fcs[i + 5]->dc[0], _mm512_extractf64x4_pd(vdc0123_15, 1));
-				fcs[i + 5]->dc[4] = MM512_EXTRACT_F64(vdc4, 5);
-			}
-
-			if (imask & (1 << 6)) {
-				_mm256_storeu_pd(&fcs[i + 6]->dc[0], _mm512_extractf64x4_pd(vdc0123_26, 1));
-				fcs[i + 6]->dc[4] = MM512_EXTRACT_F64(vdc4, 6);
-			}
-
-			if (imask & (1 << 7)) {
-				_mm256_storeu_pd(&fcs[i + 7]->dc[0], _mm512_extractf64x4_pd(vdc0123_37, 1));
-				fcs[i + 7]->dc[4] = MM512_EXTRACT_F64(vdc4, 7);
-			}
+			for (int j = 0; j < 8; j++)
+				if (imask & (1 << j)) {
+					_mm256_storeu_pd(&fcs[i + j]->dc[0], vdc0123[j]);
+					fcs[i + j]->dc[4] = adc4[j];
+				}
 		}
 	}
 }
@@ -5537,20 +5016,14 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 		if (i >= batch_size)
 			break;
 
-		__m256d vfcrange0123_0 = _mm256_loadu_pd(fcs[i]->range);
-		__m256d vfcrange0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(fcs[i + 1]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(fcs[i + 2]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(fcs[i + 3]->range) : _mm256_setzero_pd();
+		__m256d vfcrange0123[4];
+		vfcrange0123[0] = _mm256_loadu_pd(fcs[i]->range);
 
-		__m256d vfcrange01_02 = _mm256_permute2f128_pd(vfcrange0123_0, vfcrange0123_2, (2 << 4) | 0);
-		__m256d vfcrange01_13 = _mm256_permute2f128_pd(vfcrange0123_1, vfcrange0123_3, (2 << 4) | 0);
-		__m256d vfcrange23_02 = _mm256_permute2f128_pd(vfcrange0123_0, vfcrange0123_2, (3 << 4) | 1);
-		__m256d vfcrange23_13 = _mm256_permute2f128_pd(vfcrange0123_1, vfcrange0123_3, (3 << 4) | 1);
+		for (int j = 1; j < 4; j++)
+			vfcrange0123[j] = i + j < batch_size ? _mm256_loadu_pd(fcs[i + j]->range) : _mm256_setzero_pd();
 
-		__m256d vfcrange0 = _mm256_unpacklo_pd(vfcrange01_02, vfcrange01_13);
-		__m256d vfcrange1 = _mm256_unpackhi_pd(vfcrange01_02, vfcrange01_13);
-		__m256d vfcrange2 = _mm256_unpacklo_pd(vfcrange23_02, vfcrange23_13);
-		__m256d vfcrange3 = _mm256_unpackhi_pd(vfcrange23_02, vfcrange23_13);
+		__m256d vfcrange[4];
+		MM256_TRANSPOSE4X4_PD(vfcrange0123, vfcrange);
 
 		__m256d vfcfreq = _mm256_set_pd(
 			i + 3 < batch_size ? fcs[i + 3]->freq : 0.0,
@@ -5567,8 +5040,8 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 		);
 
 		__m256d vmask = _mm256_or_pd(
-			_mm256_or_pd(_mm256_cmp_pd(vfcfreq, vfcrange0, _CMP_LT_OS), _mm256_cmp_pd(vfcfreq, vfcrange1, _CMP_GT_OS)),
-			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange3, _CMP_GT_OS))
+			_mm256_or_pd(_mm256_cmp_pd(vfcfreq, vfcrange[0], _CMP_LT_OS), _mm256_cmp_pd(vfcfreq, vfcrange[1], _CMP_GT_OS)),
+			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange[2], _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange[3], _CMP_GT_OS))
 		);
 
 		int imask = _mm256_movemask_pd(vmask);
@@ -5580,32 +5053,16 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m256d v1mmargin = _mm256_set1_pd(1.0 - ext_filter_margin);
 			__m256d v1pmargin = _mm256_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm256_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm256_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm256_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm256_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm256_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm256_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm256_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm256_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_02 = _mm256_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_13 = _mm256_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_02 = _mm256_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_13 = _mm256_unpackhi_pd(vfcrange2, vfcrange3);
+			MM256_TRANSPOSE4X4_PD(vfcrange, vfcrange0123);
 
-			vfcrange0123_0 = _mm256_permute2f128_pd(vfcrange01_02, vfcrange23_02, (2 << 4) | 0);
-			vfcrange0123_1 = _mm256_permute2f128_pd(vfcrange01_13, vfcrange23_13, (2 << 4) | 0);
-			vfcrange0123_2 = _mm256_permute2f128_pd(vfcrange01_02, vfcrange23_02, (3 << 4) | 1);
-			vfcrange0123_3 = _mm256_permute2f128_pd(vfcrange01_13, vfcrange23_13, (3 << 4) | 1);
-
-			if (imask & 1)
-				_mm256_storeu_pd(fcs[i]->range, vfcrange0123_0);
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(fcs[i + 1]->range, vfcrange0123_1);
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(fcs[i + 2]->range, vfcrange0123_2);
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(fcs[i + 3]->range, vfcrange0123_3);
+			for (int j = 0; j < 4; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(fcs[i + j]->range, vfcrange0123[j]);
 
 			__m256d vfcdiv_flt_rate = _mm256_set_pd(
 				i + 3 < batch_size ? fcs[i + 3]->div_flt_rate : fcs[i]->div_flt_rate,
@@ -5640,41 +5097,25 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m256d vq = _mm256_mul_pd(vreso_db_cf_m, _mm256_set1_pd(SQRT_2));
 			__m256d vp2 = _mm256_mul_pd(vp, vp);
 			__m256d vqp = _mm256_mul_pd(vq, vp);
-			__m256d vdc0 = _mm256_div_pd(v1, _mm256_add_pd(_mm256_add_pd(v1, vqp), vp2));
-			__m256d vdc1 = _mm256_mul_pd(v2, vdc0);
-			__m256d vdc2 = vdc0;
-			__m256d vdc3 = _mm256_mul_pd(_mm256_mul_pd(v2, _mm256_sub_pd(vp2, v1)), vdc0);
-			__m256d vdc4 = _mm256_mul_pd(_mm256_sub_pd(_mm256_sub_pd(vqp, v1), vp2), vdc0);
 
-			__m256d vdc01_02 = _mm256_unpacklo_pd(vdc0, vdc1);
-			__m256d vdc01_13 = _mm256_unpackhi_pd(vdc0, vdc1);
-			__m256d vdc23_02 = _mm256_unpacklo_pd(vdc2, vdc3);
-			__m256d vdc23_13 = _mm256_unpackhi_pd(vdc2, vdc3);
+			__m256d vdc[5];
+			vdc[0] = _mm256_div_pd(v1, _mm256_add_pd(_mm256_add_pd(v1, vqp), vp2));
+			vdc[1] = _mm256_mul_pd(v2, vdc[0]);
+			vdc[2] = vdc[0];
+			vdc[3] = _mm256_mul_pd(_mm256_mul_pd(v2, _mm256_sub_pd(vp2, v1)), vdc[0]);
+			vdc[4] = _mm256_mul_pd(_mm256_sub_pd(_mm256_sub_pd(vqp, v1), vp2), vdc[0]);
 
-			__m256d vdc0123_0 = _mm256_permute2f128_pd(vdc01_02, vdc23_02, (2 << 4) | 0);
-			__m256d vdc0123_1 = _mm256_permute2f128_pd(vdc01_13, vdc23_13, (2 << 4) | 0);
-			__m256d vdc0123_2 = _mm256_permute2f128_pd(vdc01_02, vdc23_02, (3 << 4) | 1);
-			__m256d vdc0123_3 = _mm256_permute2f128_pd(vdc01_13, vdc23_13, (3 << 4) | 1);
+			__m256d vdc0123[4];
+			MM256_TRANSPOSE4X4_PD(vdc, vdc0123);
 
-			if (imask & 1) {
-				_mm256_storeu_pd(&fcs[i]->dc[0], vdc0123_0);
-				fcs[i]->dc[4] = MM256_EXTRACT_F64(vdc4, 0);
-			}
+			ALIGN double adc4[4];
+			_mm256_storeu_pd(adc4, vdc[4]);
 
-			if (imask & (1 << 1)) {
-				_mm256_storeu_pd(&fcs[i + 1]->dc[0], vdc0123_1);
-				fcs[i + 1]->dc[4] = MM256_EXTRACT_F64(vdc4, 1);
-			}
-
-			if (imask & (1 << 2)) {
-				_mm256_storeu_pd(&fcs[i + 2]->dc[0], vdc0123_2);
-				fcs[i + 2]->dc[4] = MM256_EXTRACT_F64(vdc4, 2);
-			}
-
-			if (imask & (1 << 3)) {
-				_mm256_storeu_pd(&fcs[i + 3]->dc[0], vdc0123_3);
-				fcs[i + 3]->dc[4] = MM256_EXTRACT_F64(vdc4, 3);
-			}
+			for (int j = 0; j < 4; j++)
+				if (imask & (1 << j)) {
+					_mm256_storeu_pd(&fcs[i + j]->dc[0], vdc0123[j]);
+					fcs[i + j]->dc[4] = adc4[j];
+				}
 		}
 	}
 }
@@ -5687,15 +5128,16 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 		if (i >= batch_size)
 			break;
 
-		__m128d vfcrange01_0 = _mm_loadu_pd(fcs[i]->range);
-		__m128d vfcrange23_0 = _mm_loadu_pd(&fcs[i]->range[2]);
-		__m128d vfcrange01_1 = i + 1 < batch_size ? _mm_loadu_pd(fcs[i + 1]->range) : _mm_setzero_pd();
-		__m128d vfcrange23_1 = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
+		__m128d vfcrange01[2];
+		vfcrange01[0] = _mm_loadu_pd(&fcs[i]->range[0]);
+		vfcrange01[1] = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[0]) : _mm_setzero_pd();
 
-		__m128d vfcrange0 = _mm_unpacklo_pd(vfcrange01_0, vfcrange01_1);
-		__m128d vfcrange1 = _mm_unpackhi_pd(vfcrange01_0, vfcrange01_1);
-		__m128d vfcrange2 = _mm_unpacklo_pd(vfcrange23_0, vfcrange23_1);
-		__m128d vfcrange3 = _mm_unpackhi_pd(vfcrange23_0, vfcrange23_1);
+		__m128d vfcrange23[2];
+		vfcrange23[0] = _mm_loadu_pd(&fcs[i]->range[2]);
+		vfcrange23[1] = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
+
+		__m128d vfcrange[4];
+		MM_TRANSPOSE2X4_PD(vfcrange01, vfcrange23, vfcrange);
 
 		__m128d vfcfreq = _mm_set_pd(
 			i + 1 < batch_size ? fcs[i + 1]->freq : 0.0,
@@ -5708,8 +5150,8 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 		);
 
 		__m128d vmask = _mm_or_pd(
-			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange0), _mm_cmpgt_pd(vfcfreq, vfcrange1)),
-			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
+			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange[0]), _mm_cmpgt_pd(vfcfreq, vfcrange[1])),
+			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange[2]), _mm_cmpgt_pd(vfcreso_DB, vfcrange[3]))
 		);
 
 		int imask = _mm_movemask_pd(vmask);
@@ -5721,24 +5163,21 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
 			__m128d v1pmargin = _mm_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_0 = _mm_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_1 = _mm_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_0 = _mm_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_1 = _mm_unpackhi_pd(vfcrange2, vfcrange3);
+			MM_TRANSPOSE4X2_PD(vfcrange, vfcrange01, vfcrange23);
 
 			if (imask & 1) {
-				_mm_storeu_pd(fcs[i]->range, vfcrange01_0);
-				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23_0);
+				_mm_storeu_pd(fcs[i]->range, vfcrange01[0]);
+				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23[0]);
 			}
 
 			if (imask & (1 << 1)) {
-				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01_1);
-				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23_1);
+				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01[1]);
+				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23[1]);
 			}
 
 			__m128d vfcdiv_flt_rate = _mm_set_pd(
@@ -5770,27 +5209,28 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 			__m128d vq = _mm_mul_pd(vreso_db_cf_m, _mm_set1_pd(SQRT_2));
 			__m128d vp2 = _mm_mul_pd(vp, vp);
 			__m128d vqp = _mm_mul_pd(vq, vp);
-			__m128d vdc0 = _mm_div_pd(v1, _mm_add_pd(_mm_add_pd(v1, vqp), vp2));
-			__m128d vdc1 = _mm_mul_pd(v2, vdc0);
-			__m128d vdc2 = vdc0;
-			__m128d vdc3 = _mm_mul_pd(_mm_mul_pd(v2, _mm_sub_pd(vp2, v1)), vdc0);
-			__m128d vdc4 = _mm_mul_pd(_mm_sub_pd(_mm_sub_pd(vqp, v1), vp2), vdc0);
 
-			__m128d vdc01_0 = _mm_unpacklo_pd(vdc0, vdc1);
-			__m128d vdc01_1 = _mm_unpackhi_pd(vdc0, vdc1);
-			__m128d vdc23_0 = _mm_unpacklo_pd(vdc2, vdc3);
-			__m128d vdc23_1 = _mm_unpackhi_pd(vdc2, vdc3);
+			__m128d vdc[5];
+			vdc[0] = _mm_div_pd(v1, _mm_add_pd(_mm_add_pd(v1, vqp), vp2));
+			vdc[1] = _mm_mul_pd(v2, vdc[0]);
+			vdc[2] = vdc[0];
+			vdc[3] = _mm_mul_pd(_mm_mul_pd(v2, _mm_sub_pd(vp2, v1)), vdc[0]);
+			vdc[4] = _mm_mul_pd(_mm_sub_pd(_mm_sub_pd(vqp, v1), vp2), vdc[0]);
+
+			__m128d vdc01[2];
+			__m128d vdc23[2];
+			MM_TRANSPOSE4X2_PD(vdc, vdc01, vdc23);
 
 			if (imask & 1) {
-				_mm_storeu_pd(&fcs[i]->dc[0], vdc01_0);
-				_mm_storeu_pd(&fcs[i]->dc[2], vdc23_0);
-				fcs[i]->dc[4] = MM_EXTRACT_F64(vdc4, 0);
+				_mm_storeu_pd(&fcs[i]->dc[0], vdc01[0]);
+				_mm_storeu_pd(&fcs[i]->dc[2], vdc23[0]);
+				fcs[i]->dc[4] = MM_EXTRACT_F64(vdc[4], 0);
 			}
 
 			if (imask & (1 << 1)) {
-				_mm_storeu_pd(&fcs[i + 1]->dc[0], vdc01_1);
-				_mm_storeu_pd(&fcs[i + 1]->dc[2], vdc23_1);
-				fcs[i + 1]->dc[4] = MM_EXTRACT_F64(vdc4, 1);
+				_mm_storeu_pd(&fcs[i + 1]->dc[0], vdc01[1]);
+				_mm_storeu_pd(&fcs[i + 1]->dc[2], vdc23[1]);
+				fcs[i + 1]->dc[4] = MM_EXTRACT_F64(vdc[4], 1);
 			}
 		}
 	}
@@ -5808,45 +5248,23 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 
 		__m256i vcounts = _mm256_maskz_loadu_epi32(generate_mask8_for_count(i, batch_size), &counts[i]);
 
-		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
-		__m128d vdb01_2 = i + 2 < batch_size ? _mm_loadu_pd(dbs[i + 2]) : _mm_setzero_pd();
-		__m128d vdb01_3 = i + 3 < batch_size ? _mm_loadu_pd(dbs[i + 3]) : _mm_setzero_pd();
-		__m128d vdb01_4 = i + 4 < batch_size ? _mm_loadu_pd(dbs[i + 4]) : _mm_setzero_pd();
-		__m128d vdb01_5 = i + 5 < batch_size ? _mm_loadu_pd(dbs[i + 5]) : _mm_setzero_pd();
-		__m128d vdb01_6 = i + 6 < batch_size ? _mm_loadu_pd(dbs[i + 6]) : _mm_setzero_pd();
-		__m128d vdb01_7 = i + 7 < batch_size ? _mm_loadu_pd(dbs[i + 7]) : _mm_setzero_pd();
+		__m128d vdb01[8];
+		vdb01[0] = _mm_loadu_pd(&dbs[i][0]);
 
-		__m256d vdb01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_0), vdb01_2, 1);
-		__m256d vdb01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_1), vdb01_3, 1);
-		__m256d vdb01_46 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_4), vdb01_6, 1);
-		__m256d vdb01_57 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_5), vdb01_7, 1);
+		for (int j = 1; j < 8; j++)
+			vdb01[j] = i + j < batch_size ? _mm_loadu_pd(&dbs[i + j][0]) : _mm_setzero_pd();
 
-		__m512d vdb01_0246 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb01_02), vdb01_46, 1);
-		__m512d vdb01_1357 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb01_13), vdb01_57, 1);
+		__m512d vdb[2];
+		MM512_TRANSPOSE8X2_PD(vdb01, vdb);
 
-		__m512d vdb0 = _mm512_unpacklo_pd(vdb01_0246, vdb01_1357);
-		__m512d vdb1 = _mm512_unpackhi_pd(vdb01_0246, vdb01_1357);
+		__m128d vdc01[8];
+		vdc01[0] = _mm_loadu_pd(&dcs[i][0]);
 
-		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
-		__m128d vdc01_2 = i + 2 < batch_size ? _mm_loadu_pd(dcs[i + 2]) : _mm_setzero_pd();
-		__m128d vdc01_3 = i + 3 < batch_size ? _mm_loadu_pd(dcs[i + 3]) : _mm_setzero_pd();
-		__m128d vdc01_4 = i + 4 < batch_size ? _mm_loadu_pd(dcs[i + 4]) : _mm_setzero_pd();
-		__m128d vdc01_5 = i + 5 < batch_size ? _mm_loadu_pd(dcs[i + 5]) : _mm_setzero_pd();
-		__m128d vdc01_6 = i + 6 < batch_size ? _mm_loadu_pd(dcs[i + 6]) : _mm_setzero_pd();
-		__m128d vdc01_7 = i + 7 < batch_size ? _mm_loadu_pd(dcs[i + 7]) : _mm_setzero_pd();
+		for (int j = 1; j < 8; j++)
+			vdc01[j] = i + j < batch_size ? _mm_loadu_pd(&dcs[i + j][0]) : _mm_setzero_pd();
 
-		__m256d vdc01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_0), vdc01_2, 1);
-		__m256d vdc01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_1), vdc01_3, 1);
-		__m256d vdc01_46 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_4), vdc01_6, 1);
-		__m256d vdc01_57 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_5), vdc01_7, 1);
-
-		__m512d vdc01_0246 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc01_02), vdc01_46, 1);
-		__m512d vdc01_1357 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc01_13), vdc01_57, 1);
-
-		__m512d vdc0 = _mm512_unpacklo_pd(vdc01_0246, vdc01_1357);
-		__m512d vdc1 = _mm512_unpackhi_pd(vdc01_0246, vdc01_1357);
+		__m512d vdc[2];
+		MM512_TRANSPOSE8X2_PD(vdc01, vdc);
 
 		__m128i vcounts_max = _mm_max_epi32(_mm256_castsi256_si128(vcounts), _mm256_extracti128_si256(vcounts, 1));
 		vcounts_max = _mm_max_epi32(vcounts_max, _mm_shuffle_epi32(vcounts_max, (3 << 2) | 2));
@@ -5859,100 +5277,32 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			for (int k = 1; k < 8; k++)
 				vin[k] = _mm512_maskz_loadu_pd(i + k < batch_size ? generate_mask8_for_count(j, counts[i + k]) : 0, & sps[i + k][j]);
 
-			__m512d vsp0246_01 = _mm512_unpacklo_pd(vin[0], vin[1]);
-			__m512d vsp1357_01 = _mm512_unpackhi_pd(vin[0], vin[1]);
-			__m512d vsp0246_23 = _mm512_unpacklo_pd(vin[2], vin[3]);
-			__m512d vsp1357_23 = _mm512_unpackhi_pd(vin[2], vin[3]);
-			__m512d vsp0246_45 = _mm512_unpacklo_pd(vin[4], vin[5]);
-			__m512d vsp1357_45 = _mm512_unpackhi_pd(vin[4], vin[5]);
-			__m512d vsp0246_67 = _mm512_unpacklo_pd(vin[6], vin[7]);
-			__m512d vsp1357_67 = _mm512_unpackhi_pd(vin[6], vin[7]);
-
-			__m512d vsp04_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp04_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
 			__m512d vsps[8];
-			vsps[0] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[4] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[1] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[5] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[2] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[6] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[3] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[7] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vin, vsps);
 
 			for (int k = 0; k < 8; k++) {
 				__mmask8 kmask = _mm256_cmplt_epi32_mask(_mm256_set1_epi32(j + k), vcounts);
 
-				vdb1 = _mm512_mask3_fmadd_pd(_mm512_sub_pd(vsps[k], vdb0), vdc1, vdb1, kmask);
-				vdb0 = _mm512_mask_add_pd(vdb0, kmask, vdb0, vdb1);
-				vdb1 = _mm512_mask_mul_pd(vdb1, kmask, vdb1, vdc0);
-				vsps[k] = vdb0;
+				vdb[1] = _mm512_mask3_fmadd_pd(_mm512_sub_pd(vsps[k], vdb[0]), vdc[1], vdb[1], kmask);
+				vdb[0] = _mm512_mask_add_pd(vdb[0], kmask, vdb[0], vdb[1]);
+				vdb[1] = _mm512_mask_mul_pd(vdb[1], kmask, vdb[1], vdc[0]);
+				vsps[k] = vdb[0];
 			}
 
-			__m512d vsp01_0246 = _mm512_unpacklo_pd(vsps[0], vsps[1]);
-			__m512d vsp01_1357 = _mm512_unpackhi_pd(vsps[0], vsps[1]);
-			__m512d vsp23_0246 = _mm512_unpacklo_pd(vsps[2], vsps[3]);
-			__m512d vsp23_1357 = _mm512_unpackhi_pd(vsps[2], vsps[3]);
-			__m512d vsp45_0246 = _mm512_unpacklo_pd(vsps[4], vsps[5]);
-			__m512d vsp45_1357 = _mm512_unpackhi_pd(vsps[4], vsps[5]);
-			__m512d vsp67_0246 = _mm512_unpacklo_pd(vsps[6], vsps[7]);
-			__m512d vsp67_1357 = _mm512_unpackhi_pd(vsps[6], vsps[7]);
-
-			__m512d vsp0123_04 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_26 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp0123_15 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_37 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_04 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_26 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_15 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_37 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
 			__m512d vout[8];
-			vout[0] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[4] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[1] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[5] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[2] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[6] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[3] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[7] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vsps, vout);
 
 			for (int k = 0; k < 8; k++)
 				_mm512_mask_storeu_pd(&sps[i + k][j], generate_mask8_for_count(j, counts[i + k]), vout[k]);
 		}
 
-		vdb01_0246 = _mm512_unpacklo_pd(vdb0, vdb1);
-		vdb01_1357 = _mm512_unpackhi_pd(vdb0, vdb1);
+		MM512_TRANSPOSE2X8_PD(vdb, vdb01);
 
-		_mm_storeu_pd(dbs[i], _mm512_castpd512_pd128(vdb01_0246));
+		_mm_storeu_pd(dbs[i], vdb01[0]);
 
-		if (i + 1 < batch_size)
-			_mm_storeu_pd(dbs[i + 1], _mm512_castpd512_pd128(vdb01_1357));
-
-		if (i + 2 < batch_size)
-			_mm_storeu_pd(dbs[i + 2], _mm256_extractf128_pd(_mm512_castpd512_pd256(vdb01_0246), 1));
-
-		if (i + 3 < batch_size)
-			_mm_storeu_pd(dbs[i + 3], _mm256_extractf128_pd(_mm512_castpd512_pd256(vdb01_1357), 1));
-
-		if (i + 4 < batch_size)
-			_mm_storeu_pd(dbs[i + 4], _mm512_extractf64x2_pd(vdb01_0246, 2));
-
-		if (i + 5 < batch_size)
-			_mm_storeu_pd(dbs[i + 5], _mm512_extractf64x2_pd(vdb01_1357, 2));
-
-		if (i + 6 < batch_size)
-			_mm_storeu_pd(dbs[i + 6], _mm512_extractf64x2_pd(vdb01_0246, 3));
-
-		if (i + 7 < batch_size)
-			_mm_storeu_pd(dbs[i + 7], _mm512_extractf64x2_pd(vdb01_1357, 3));
+		for (int j = 1; j < 8; j++)
+			if (i + j < batch_size)
+				_mm_storeu_pd(dbs[i + j], vdb01[j]);
 	}
 }
 
@@ -5971,47 +5321,36 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			counts[i]
 		);
 
-		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
-		__m128d vdb01_2 = i + 2 < batch_size ? _mm_loadu_pd(dbs[i + 2]) : _mm_setzero_pd();
-		__m128d vdb01_3 = i + 3 < batch_size ? _mm_loadu_pd(dbs[i + 3]) : _mm_setzero_pd();
+		__m128d vdb01[4];
+		vdb01[0] = _mm_loadu_pd(&dbs[i][0]);
 
-		__m256d vdb01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_0), vdb01_2, 1);
-		__m256d vdb01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_1), vdb01_3, 1);
+		for (int j = 1; j < 4; j++)
+			vdb01[j] = i + j < batch_size ? _mm_loadu_pd(&dbs[i + j][0]) : _mm_setzero_pd();
 
-		__m256d vdb0 = _mm256_unpacklo_pd(vdb01_02, vdb01_13);
-		__m256d vdb1 = _mm256_unpackhi_pd(vdb01_02, vdb01_13);
+		__m256d vdb[2];
+		MM256_TRANSPOSE4X2_PD(vdb01, vdb);
 
-		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
-		__m128d vdc01_2 = i + 2 < batch_size ? _mm_loadu_pd(dcs[i + 2]) : _mm_setzero_pd();
-		__m128d vdc01_3 = i + 3 < batch_size ? _mm_loadu_pd(dcs[i + 3]) : _mm_setzero_pd();
+		__m128d vdc01[4];
+		vdc01[0] = _mm_loadu_pd(&dcs[i][0]);
 
-		__m256d vdc01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_0), vdc01_2, 1);
-		__m256d vdc01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_1), vdc01_3, 1);
+		for (int j = 1; j < 4; j++)
+			vdc01[j] = i + j < batch_size ? _mm_loadu_pd(&dcs[i + j][0]) : _mm_setzero_pd();
 
-		__m256d vdc0 = _mm256_unpacklo_pd(vdc01_02, vdc01_13);
-		__m256d vdc1 = _mm256_unpackhi_pd(vdc01_02, vdc01_13);
+		__m256d vdc[2];
+		MM256_TRANSPOSE4X2_PD(vdc01, vdc);
 
 		__m128i vcounts_halfmax = _mm_max_epi32(vcounts, _mm_shuffle_epi32(vcounts, (3 << 2) | 2));
 		int32 count_max = _mm_cvtsi128_si32(_mm_max_epi32(vcounts_halfmax, _mm_shuffle_epi32(vcounts_halfmax, 1)));
 
 		for (int32 j = 0; j < count_max; j += 4) {
-			__m256d vsp0123_0 = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm256_loadu_pd(&sps[i + 1][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_2 = i + 2 < batch_size && j < counts[i + 2] ? _mm256_loadu_pd(&sps[i + 2][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_3 = i + 3 < batch_size && j < counts[i + 3] ? _mm256_loadu_pd(&sps[i + 3][j]) : _mm256_setzero_pd();
+			__m256d vsp0123[4];
+			vsp0123[0] = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
 
-			__m256d vsp01_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (2 << 4) | 0);
-			__m256d vsp01_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (2 << 4) | 0);
-			__m256d vsp23_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (3 << 4) | 1);
-			__m256d vsp23_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (3 << 4) | 1);
+			for (int k = 1; k < 4; k++)
+				vsp0123[k] = i + k < batch_size && j < counts[i + k] ? _mm256_loadu_pd(&sps[i + k][j]) : _mm256_setzero_pd();
 
 			__m256d vsps[4];
-			vsps[0] = _mm256_unpacklo_pd(vsp01_02, vsp01_13);
-			vsps[1] = _mm256_unpackhi_pd(vsp01_02, vsp01_13);
-			vsps[2] = _mm256_unpacklo_pd(vsp23_02, vsp23_13);
-			vsps[3] = _mm256_unpackhi_pd(vsp23_02, vsp23_13);
+			MM256_TRANSPOSE4X4_PD(vsp0123, vsps);
 
 			for (int k = 0; k < 4; k++) {
 #if USE_X86_EXT_INTRIN >= 9
@@ -6025,48 +5364,25 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 				);
 #endif
 
-				vdb1 = _mm256_blendv_pd(vdb1, MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
-				vdb0 = _mm256_blendv_pd(vdb0, _mm256_add_pd(vdb0, vdb1), vmask);
-				vdb1 = _mm256_blendv_pd(vdb1, _mm256_mul_pd(vdb1, vdc0), vmask);
-				vsps[k] = vdb0;
+				vdb[1] = _mm256_blendv_pd(vdb[1], MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb[0]), vdc[1], vdb[1]), vmask);
+				vdb[0] = _mm256_blendv_pd(vdb[0], _mm256_add_pd(vdb[0], vdb[1]), vmask);
+				vdb[1] = _mm256_blendv_pd(vdb[1], _mm256_mul_pd(vdb[1], vdc[0]), vmask);
+				vsps[k] = vdb[0];
 			}
 
-			vsp01_02 = _mm256_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_13 = _mm256_unpackhi_pd(vsps[0], vsps[1]);
-			vsp23_02 = _mm256_unpacklo_pd(vsps[2], vsps[3]);
-			vsp23_13 = _mm256_unpackhi_pd(vsps[2], vsps[3]);
+			MM256_TRANSPOSE4X4_PD(vsps, vsp0123);
 
-			vsp0123_0 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (2 << 4) | 0);
-			vsp0123_1 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (2 << 4) | 0);
-			vsp0123_2 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (3 << 4) | 1);
-			vsp0123_3 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (3 << 4) | 1);
-
-			if (j < counts[i])
-				_mm256_storeu_pd(&sps[i][j], vsp0123_0);
-
-			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm256_storeu_pd(&sps[i + 1][j], vsp0123_1);
-
-			if (i + 2 < batch_size && j < counts[i + 2])
-				_mm256_storeu_pd(&sps[i + 2][j], vsp0123_2);
-
-			if (i + 3 < batch_size && j < counts[i + 3])
-				_mm256_storeu_pd(&sps[i + 3][j], vsp0123_3);
+			for (int k = 0; k < 4; k++)
+				if (i + k < batch_size && j < counts[i + k])
+					_mm256_storeu_pd(&sps[i + k][j], vsp0123[k]);
 		}
 
-		vdb01_02 = _mm256_unpacklo_pd(vdb0, vdb1);
-		vdb01_13 = _mm256_unpackhi_pd(vdb0, vdb1);
+		MM256_TRANSPOSE2X4_PD(vdb, vdb01);
+		_mm_storeu_pd(dbs[i], vdb01[0]);
 
-		_mm_storeu_pd(dbs[i], _mm256_castpd256_pd128(vdb01_02));
-
-		if (i + 1 < batch_size)
-			_mm_storeu_pd(dbs[i + 1], _mm256_castpd256_pd128(vdb01_13));
-
-		if (i + 2 < batch_size)
-			_mm_storeu_pd(dbs[i + 2], _mm256_extractf128_pd(vdb01_02, 1));
-
-		if (i + 3 < batch_size)
-			_mm_storeu_pd(dbs[i + 3], _mm256_extractf128_pd(vdb01_13, 1));
+		for (int j = 1; j < 4; j++)
+			if (i + j < batch_size)
+				_mm_storeu_pd(dbs[i + j], vdb01[j]);
 	}
 }
 
@@ -6088,55 +5404,55 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			count0
 		);
 
-		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
+		__m128d vdb01[2];
+		vdb01[0] = _mm_loadu_pd(&dbs[i][0]);
+		vdb01[1] = i + 1 < batch_size ? _mm_loadu_pd(&dbs[i + 1][0]) : _mm_setzero_pd();
 
-		__m128d vdb0 = _mm_unpacklo_pd(vdb01_0, vdb01_1);
-		__m128d vdb1 = _mm_unpackhi_pd(vdb01_0, vdb01_1);
+		__m128d vdb[2];
+		MM_TRANSPOSE2X2_PD(vdb01, vdb);
 
-		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
+		__m128d vdc01[2];
+		vdc01[0] = _mm_loadu_pd(&dcs[i][0]);
+		vdc01[1] = i + 1 < batch_size ? _mm_loadu_pd(&dcs[i + 1][0]) : _mm_setzero_pd();
 
-		__m128d vdc0 = _mm_unpacklo_pd(vdc01_0, vdc01_1);
-		__m128d vdc1 = _mm_unpackhi_pd(vdc01_0, vdc01_1);
+		__m128d vdc[2];
+		MM_TRANSPOSE2X2_PD(vdc01, vdc);
 
 		int32 count_max = count0 < count1 ? count1 : count0;
 
 		for (int32 j = 0; j < count_max; j += 2) {
-			__m128d vsp01_0 = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
-			__m128d vsp01_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
+			__m128d vsp01[2];
+			vsp01[0] = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
+			vsp01[1] = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
 
 			__m128d vsps[2];
-			vsps[0] = _mm_unpacklo_pd(vsp01_0, vsp01_1);
-			vsps[1] = _mm_unpackhi_pd(vsp01_0, vsp01_1);
+			MM_TRANSPOSE2X2_PD(vsp01, vsps);
 
 			for (int k = 0; k < 2; k++) {
 				__m128i vmask32 = _mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts);
 				__m128d vmask = _mm_castsi128_pd(_mm_unpacklo_epi32(vmask32, vmask32));
 
-				vdb1 = MM_BLENDV_PD(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
-				vdb0 = MM_BLENDV_PD(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
-				vdb1 = MM_BLENDV_PD(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
-				vsps[k] = vdb0;
+				vdb[1] = MM_BLENDV_PD(vdb[1], MM_FMA_PD(_mm_sub_pd(vsps[k], vdb[0]), vdc[1], vdb[1]), vmask);
+				vdb[0] = MM_BLENDV_PD(vdb[0], _mm_add_pd(vdb[0], vdb[1]), vmask);
+				vdb[1] = MM_BLENDV_PD(vdb[1], _mm_mul_pd(vdb[1], vdc[0]), vmask);
+				vsps[k] = vdb[0];
 			}
 
-			vsp01_0 = _mm_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_1 = _mm_unpackhi_pd(vsps[0], vsps[1]);
+			MM_TRANSPOSE2X2_PD(vsps, vsp01);
 
 			if (j < counts[i])
-				_mm_storeu_pd(&sps[i][j], vsp01_0);
+				_mm_storeu_pd(&sps[i][j], vsp01[0]);
 
 			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm_storeu_pd(&sps[i + 1][j], vsp01_1);
+				_mm_storeu_pd(&sps[i + 1][j], vsp01[1]);
 		}
 
-		vdb01_0 = _mm_unpacklo_pd(vdb0, vdb1);
-		vdb01_1 = _mm_unpackhi_pd(vdb0, vdb1);
+		MM_TRANSPOSE2X2_PD(vdb, vdb01);
 
-		_mm_storeu_pd(dbs[i], vdb01_0);
+		_mm_storeu_pd(dbs[i], vdb01[0]);
 
 		if (i + 1 < batch_size)
-			_mm_storeu_pd(dbs[i + 1], vdb01_1);
+			_mm_storeu_pd(dbs[i + 1], vdb01[1]);
 	}
 }
 
@@ -6150,29 +5466,14 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 		if (i >= batch_size)
 			break;
 
-		__m256d vfcrange0123_0 = _mm256_loadu_pd(fcs[i]->range);
-		__m256d vfcrange0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(fcs[i + 1]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(fcs[i + 2]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(fcs[i + 3]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_4 = i + 4 < batch_size ? _mm256_loadu_pd(fcs[i + 4]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_5 = i + 5 < batch_size ? _mm256_loadu_pd(fcs[i + 5]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_6 = i + 6 < batch_size ? _mm256_loadu_pd(fcs[i + 6]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_7 = i + 7 < batch_size ? _mm256_loadu_pd(fcs[i + 7]->range) : _mm256_setzero_pd();
+		__m256d vfcrange0123[8];
+		vfcrange0123[0] = _mm256_loadu_pd(fcs[i]->range);
 
-		__m512d vfcrange0123_02 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_0), vfcrange0123_2, 1);
-		__m512d vfcrange0123_13 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_1), vfcrange0123_3, 1);
-		__m512d vfcrange0123_46 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_4), vfcrange0123_6, 1);
-		__m512d vfcrange0123_57 = _mm512_insertf64x4(_mm512_castpd256_pd512(vfcrange0123_5), vfcrange0123_7, 1);
+		for (int j = 1; j < 8; j++)
+			vfcrange0123[j] = i + j < batch_size ? _mm256_loadu_pd(fcs[i + j]->range) : _mm256_setzero_pd();
 
-		__m512d vfcrange01_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vfcrange01_1357 = _mm512_shuffle_f64x2(vfcrange0123_13, vfcrange0123_57, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-		__m512d vfcrange23_0246 = _mm512_shuffle_f64x2(vfcrange0123_02, vfcrange0123_46, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-		__m512d vfcrange23_1357 = _mm512_shuffle_f64x2(vfcrange0123_13, vfcrange0123_57, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
-		__m512d vfcrange0 = _mm512_unpacklo_pd(vfcrange01_0246, vfcrange01_1357);
-		__m512d vfcrange1 = _mm512_unpackhi_pd(vfcrange01_0246, vfcrange01_1357);
-		__m512d vfcrange2 = _mm512_unpacklo_pd(vfcrange23_0246, vfcrange23_1357);
-		__m512d vfcrange3 = _mm512_unpackhi_pd(vfcrange23_0246, vfcrange23_1357);
+		__m512d vfcrange[4];
+		MM512_TRANSPOSE8X4_PD(vfcrange0123, vfcrange);
 
 		__m512d vfcfreq = _mm512_set_pd(
 			i + 7 < batch_size ? fcs[i + 7]->freq : 0.0,
@@ -6197,8 +5498,8 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 		);
 
 		uint8 imask = _kor_mask8(
-			_kor_mask8(_mm512_cmp_pd_mask(vfcfreq, vfcrange0, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcfreq, vfcrange1, _CMP_GT_OS)),
-			_kor_mask8(_mm512_cmp_pd_mask(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm512_cmp_pd_mask(vfcreso_DB, vfcrange3, _CMP_GT_OS))
+			_kor_mask8(_mm512_cmp_pd_mask(vfcfreq, vfcrange[0], _CMP_LT_OS), _mm512_cmp_pd_mask(vfcfreq, vfcrange[1], _CMP_GT_OS)),
+			_kor_mask8(_mm512_cmp_pd_mask(vfcreso_DB, vfcrange[2], _CMP_LT_OS), _mm512_cmp_pd_mask(vfcreso_DB, vfcrange[3], _CMP_GT_OS))
 		);
 
 		if (batch_size - i < 8)
@@ -6208,51 +5509,16 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 			__m512d v1mmargin = _mm512_set1_pd(1.0 - ext_filter_margin);
 			__m512d v1pmargin = _mm512_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm512_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm512_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm512_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm512_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm512_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm512_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm512_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm512_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_0246 = _mm512_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_1357 = _mm512_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_0246 = _mm512_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_1357 = _mm512_unpackhi_pd(vfcrange2, vfcrange3);
+			MM512_TRANSPOSE4X8_PD(vfcrange, vfcrange0123);
 
-#if 1
-			__m512d vfcrange0123_04 = _mm512_permutex2var_pd(vfcrange01_0246, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vfcrange23_0246);
-			__m512d vfcrange0123_26 = _mm512_permutex2var_pd(vfcrange01_0246, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vfcrange23_0246);
-			__m512d vfcrange0123_15 = _mm512_permutex2var_pd(vfcrange01_1357, _mm512_set_epi64(13, 12, 5, 4, 9, 8, 1, 0), vfcrange23_1357);
-			__m512d vfcrange0123_37 = _mm512_permutex2var_pd(vfcrange01_1357, _mm512_set_epi64(15, 14, 7, 6, 11, 10, 3, 2), vfcrange23_1357);
-#else
-			__m512d vfcrange0123_04 = _mm512_mask_permutex_pd(vfcrange01_0246, 0xCC, vfcrange23_0246, (1 << 6) | (0 << 4) | 0);
-			__m512d vfcrange0123_26 = _mm512_mask_permutex_pd(vfcrange01_0246, 0x33, vfcrange23_0246, (3 << 2) | 2);
-			__m512d vfcrange0123_15 = _mm512_mask_permutex_pd(vfcrange01_1357, 0xCC, vfcrange23_1357, (1 << 6) | (0 << 4) | 0);
-			__m512d vfcrange0123_37 = _mm512_mask_permutex_pd(vfcrange01_1357, 0x33, vfcrange23_1357, (3 << 2) | 2);
-#endif
-
-			if (imask & 1)
-				_mm256_storeu_pd(fcs[i]->range, _mm512_castpd512_pd256(vfcrange0123_04));
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(fcs[i + 1]->range, _mm512_castpd512_pd256(vfcrange0123_15));
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(fcs[i + 2]->range, _mm512_castpd512_pd256(vfcrange0123_26));
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(fcs[i + 3]->range, _mm512_castpd512_pd256(vfcrange0123_37));
-
-			if (imask & (1 << 4))
-				_mm256_storeu_pd(fcs[i + 4]->range, _mm512_extractf64x4_pd(vfcrange0123_04, 1));
-
-			if (imask & (1 << 5))
-				_mm256_storeu_pd(fcs[i + 5]->range, _mm512_extractf64x4_pd(vfcrange0123_15, 1));
-
-			if (imask & (1 << 6))
-				_mm256_storeu_pd(fcs[i + 6]->range, _mm512_extractf64x4_pd(vfcrange0123_26, 1));
-
-			if (imask & (1 << 7))
-				_mm256_storeu_pd(fcs[i + 7]->range, _mm512_extractf64x4_pd(vfcrange0123_37, 1));
+			for (int j = 0; j < 8; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(fcs[i + j]->range, vfcrange0123[j]);
 
 			__m512d vfcdiv_flt_rate = _mm512_set_pd(
 				i + 7 < batch_size ? fcs[i + 7]->div_flt_rate : fcs[i]->div_flt_rate,
@@ -6285,7 +5551,9 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 			__m512d v0_5 = _mm512_set1_pd(0.5);
 
 			__m512d vq = _mm512_sub_pd(v1, _mm512_div_pd(vf, _mm512_fmadd_pd(v2, _mm512_add_pd(vreso_db_cf_p, _mm512_div_pd(v0_5, _mm512_add_pd(v1, vf))), _mm512_sub_pd(vf, v2))));
-			__m512d vc0 = _mm512_mul_pd(vq, vq);
+
+			__m512d vdc[2];
+			vdc[0] = _mm512_mul_pd(vq, vq);
 #ifdef USE_SVML
 			__m512d vcosf = _mm512_cos_pd(vf);
 #else
@@ -6293,27 +5561,14 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs
 			_mm512_storeu_pd(af, vf);
 			__m512d vcosf = _mm512_set_pd(cos(af[7]), cos(af[6]), cos(af[5]), cos(af[4]), cos(af[3]), cos(af[2]), cos(af[1]), cos(af[0]));
 #endif
-			__m512d vc1 = _mm512_sub_pd(_mm512_add_pd(vc0, v1), _mm512_mul_pd(_mm512_mul_pd(v2, vcosf), vq));
+			vdc[1] = _mm512_sub_pd(_mm512_add_pd(vdc[0], v1), _mm512_mul_pd(_mm512_mul_pd(v2, vcosf), vq));
 
-			__m512d vdc0246 = _mm512_unpacklo_pd(vc0, vc1);
-			__m512d vdc1357 = _mm512_unpackhi_pd(vc0, vc1);
+			__m128d vdc01[8];
+			MM512_TRANSPOSE2X8_PD(vdc, vdc01);
 
-			if (imask & 1)
-				_mm_storeu_pd(fcs[i]->dc, _mm512_castpd512_pd128(vdc0246));
-			if (imask & (1 << 1))
-				_mm_storeu_pd(fcs[i + 1]->dc, _mm512_castpd512_pd128(vdc1357));
-			if (imask & (1 << 2))
-				_mm_storeu_pd(fcs[i + 2]->dc, _mm256_extractf128_pd(_mm512_castpd512_pd256(vdc0246), 1));
-			if (imask & (1 << 3))
-				_mm_storeu_pd(fcs[i + 3]->dc, _mm256_extractf128_pd(_mm512_castpd512_pd256(vdc1357), 1));
-			if (imask & (1 << 4))
-				_mm_storeu_pd(fcs[i + 4]->dc, _mm512_extractf64x2_pd(vdc0246, 2));
-			if (imask & (1 << 5))
-				_mm_storeu_pd(fcs[i + 5]->dc, _mm512_extractf64x2_pd(vdc1357, 2));
-			if (imask & (1 << 6))
-				_mm_storeu_pd(fcs[i + 6]->dc, _mm512_extractf64x2_pd(vdc0246, 3));
-			if (imask & (1 << 7))
-				_mm_storeu_pd(fcs[i + 7]->dc, _mm512_extractf64x2_pd(vdc1357, 3));
+			for (int j = 0; j < 8; j++)
+				if (imask & (1 << j))
+					_mm_storeu_pd(fcs[i + j]->dc, vdc01[j]);
 		}
 	}
 }
@@ -6326,20 +5581,14 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 		if (i >= batch_size)
 			break;
 
-		__m256d vfcrange0123_0 = _mm256_loadu_pd(fcs[i]->range);
-		__m256d vfcrange0123_1 = i + 1 < batch_size ? _mm256_loadu_pd(fcs[i + 1]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_2 = i + 2 < batch_size ? _mm256_loadu_pd(fcs[i + 2]->range) : _mm256_setzero_pd();
-		__m256d vfcrange0123_3 = i + 3 < batch_size ? _mm256_loadu_pd(fcs[i + 3]->range) : _mm256_setzero_pd();
+		__m256d vfcrange0123[4];
+		vfcrange0123[0] = _mm256_loadu_pd(fcs[i]->range);
 
-		__m256d vfcrange01_02 = _mm256_permute2f128_pd(vfcrange0123_0, vfcrange0123_2, (2 << 4) | 0);
-		__m256d vfcrange01_13 = _mm256_permute2f128_pd(vfcrange0123_1, vfcrange0123_3, (2 << 4) | 0);
-		__m256d vfcrange23_02 = _mm256_permute2f128_pd(vfcrange0123_0, vfcrange0123_2, (3 << 4) | 1);
-		__m256d vfcrange23_13 = _mm256_permute2f128_pd(vfcrange0123_1, vfcrange0123_3, (3 << 4) | 1);
+		for (int j = 1; j < 4; j++)
+			vfcrange0123[j] = i + j < batch_size ? _mm256_loadu_pd(fcs[i + j]->range) : _mm256_setzero_pd();
 
-		__m256d vfcrange0 = _mm256_unpacklo_pd(vfcrange01_02, vfcrange01_13);
-		__m256d vfcrange1 = _mm256_unpackhi_pd(vfcrange01_02, vfcrange01_13);
-		__m256d vfcrange2 = _mm256_unpacklo_pd(vfcrange23_02, vfcrange23_13);
-		__m256d vfcrange3 = _mm256_unpackhi_pd(vfcrange23_02, vfcrange23_13);
+		__m256d vfcrange[4];
+		MM256_TRANSPOSE4X4_PD(vfcrange0123, vfcrange);
 
 		__m256d vfcfreq = _mm256_set_pd(
 			i + 3 < batch_size ? fcs[i + 3]->freq : 0.0,
@@ -6356,8 +5605,8 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 		);
 
 		__m256d vmask = _mm256_or_pd(
-			_mm256_or_pd(_mm256_cmp_pd(vfcfreq, vfcrange0, _CMP_LT_OS), _mm256_cmp_pd(vfcfreq, vfcrange1, _CMP_GT_OS)),
-			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange2, _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange3, _CMP_GT_OS))
+			_mm256_or_pd(_mm256_cmp_pd(vfcfreq, vfcrange[0], _CMP_LT_OS), _mm256_cmp_pd(vfcfreq, vfcrange[1], _CMP_GT_OS)),
+			_mm256_or_pd(_mm256_cmp_pd(vfcreso_DB, vfcrange[2], _CMP_LT_OS), _mm256_cmp_pd(vfcreso_DB, vfcrange[3], _CMP_GT_OS))
 		);
 
 		int imask = _mm256_movemask_pd(vmask);
@@ -6369,32 +5618,16 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			__m256d v1mmargin = _mm256_set1_pd(1.0 - ext_filter_margin);
 			__m256d v1pmargin = _mm256_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm256_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm256_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm256_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm256_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm256_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm256_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm256_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm256_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_02 = _mm256_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_13 = _mm256_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_02 = _mm256_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_13 = _mm256_unpackhi_pd(vfcrange2, vfcrange3);
+			MM256_TRANSPOSE4X4_PD(vfcrange, vfcrange0123);
 
-			vfcrange0123_0 = _mm256_permute2f128_pd(vfcrange01_02, vfcrange23_02, (2 << 4) | 0);
-			vfcrange0123_1 = _mm256_permute2f128_pd(vfcrange01_13, vfcrange23_13, (2 << 4) | 0);
-			vfcrange0123_2 = _mm256_permute2f128_pd(vfcrange01_02, vfcrange23_02, (3 << 4) | 1);
-			vfcrange0123_3 = _mm256_permute2f128_pd(vfcrange01_13, vfcrange23_13, (3 << 4) | 1);
-
-			if (imask & 1)
-				_mm256_storeu_pd(fcs[i]->range, vfcrange0123_0);
-
-			if (imask & (1 << 1))
-				_mm256_storeu_pd(fcs[i + 1]->range, vfcrange0123_1);
-
-			if (imask & (1 << 2))
-				_mm256_storeu_pd(fcs[i + 2]->range, vfcrange0123_2);
-
-			if (imask & (1 << 3))
-				_mm256_storeu_pd(fcs[i + 3]->range, vfcrange0123_3);
+			for (int j = 0; j < 4; j++)
+				if (imask & (1 << j))
+					_mm256_storeu_pd(fcs[i + j]->range, vfcrange0123[j]);
 
 			__m256d vfcdiv_flt_rate = _mm256_set_pd(
 				i + 3 < batch_size ? fcs[i + 3]->div_flt_rate : fcs[i]->div_flt_rate,
@@ -6419,7 +5652,9 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			__m256d v0_5 = _mm256_set1_pd(0.5);
 
 			__m256d vq = _mm256_sub_pd(v1, _mm256_div_pd(vf, MM256_FMA_PD(v2, _mm256_add_pd(vreso_db_cf_p, _mm256_div_pd(v0_5, _mm256_add_pd(v1, vf))), _mm256_sub_pd(vf, v2))));
-			__m256d vc0 = _mm256_mul_pd(vq, vq);
+
+			__m256d vdc[2];
+			vdc[0] = _mm256_mul_pd(vq, vq);
 #ifdef USE_SVML
 			__m256d vcosf = _mm256_cos_pd(vf);
 #else
@@ -6427,19 +5662,14 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			_mm256_storeu_pd(af, vf);
 			__m256d vcosf = _mm256_set_pd(cos(af[3]), cos(af[2]), cos(af[1]), cos(af[0]));
 #endif
-			__m256d vc1 = _mm256_sub_pd(_mm256_add_pd(vc0, v1), _mm256_mul_pd(_mm256_mul_pd(v2, vcosf), vq));
+			vdc[1] = _mm256_sub_pd(_mm256_add_pd(vdc[0], v1), _mm256_mul_pd(_mm256_mul_pd(v2, vcosf), vq));
 
-			__m256d vdc02 = _mm256_unpacklo_pd(vc0, vc1);
-			__m256d vdc13 = _mm256_unpackhi_pd(vc0, vc1);
+			__m128d vdc01[4];
+			MM256_TRANSPOSE2X4_PD(vdc, vdc01);
 
-			if (imask & 1)
-				_mm_storeu_pd(fcs[i]->dc, _mm256_castpd256_pd128(vdc02));
-			if (imask & (1 << 1))
-				_mm_storeu_pd(fcs[i + 1]->dc, _mm256_castpd256_pd128(vdc13));
-			if (imask & (1 << 2))
-				_mm_storeu_pd(fcs[i + 2]->dc, _mm256_extractf128_pd(vdc02, 1));
-			if (imask & (1 << 3))
-				_mm_storeu_pd(fcs[i + 3]->dc, _mm256_extractf128_pd(vdc13, 1));
+			for (int j = 0; j < 4; j++)
+				if (imask & (1 << j))
+					_mm_storeu_pd(fcs[i + j]->dc, vdc01[j]);
 		}
 	}
 }
@@ -6452,15 +5682,16 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 		if (i >= batch_size)
 			break;
 
-		__m128d vfcrange01_0 = _mm_loadu_pd(fcs[i]->range);
-		__m128d vfcrange23_0 = _mm_loadu_pd(&fcs[i]->range[2]);
-		__m128d vfcrange01_1 = i + 1 < batch_size ? _mm_loadu_pd(fcs[i + 1]->range) : _mm_setzero_pd();
-		__m128d vfcrange23_1 = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
+		__m128d vfcrange01[2];
+		vfcrange01[0] = _mm_loadu_pd(&fcs[i]->range[0]);
+		vfcrange01[1] = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[0]) : _mm_setzero_pd();
 
-		__m128d vfcrange0 = _mm_unpacklo_pd(vfcrange01_0, vfcrange01_1);
-		__m128d vfcrange1 = _mm_unpackhi_pd(vfcrange01_0, vfcrange01_1);
-		__m128d vfcrange2 = _mm_unpacklo_pd(vfcrange23_0, vfcrange23_1);
-		__m128d vfcrange3 = _mm_unpackhi_pd(vfcrange23_0, vfcrange23_1);
+		__m128d vfcrange23[2];
+		vfcrange23[0] = _mm_loadu_pd(&fcs[i]->range[2]);
+		vfcrange23[1] = i + 1 < batch_size ? _mm_loadu_pd(&fcs[i + 1]->range[2]) : _mm_setzero_pd();
+
+		__m128d vfcrange[4];
+		MM_TRANSPOSE2X4_PD(vfcrange01, vfcrange23, vfcrange);
 
 		__m128d vfcfreq = _mm_set_pd(
 			i + 1 < batch_size ? fcs[i + 1]->freq : 0.0,
@@ -6473,8 +5704,8 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 		);
 
 		__m128d vmask = _mm_or_pd(
-			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange0), _mm_cmpgt_pd(vfcfreq, vfcrange1)),
-			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange2), _mm_cmpgt_pd(vfcreso_DB, vfcrange3))
+			_mm_or_pd(_mm_cmplt_pd(vfcfreq, vfcrange[0]), _mm_cmpgt_pd(vfcfreq, vfcrange[1])),
+			_mm_or_pd(_mm_cmplt_pd(vfcreso_DB, vfcrange[2]), _mm_cmpgt_pd(vfcreso_DB, vfcrange[3]))
 		);
 
 		int imask = _mm_movemask_pd(vmask);
@@ -6486,24 +5717,21 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			__m128d v1mmargin = _mm_set1_pd(1.0 - ext_filter_margin);
 			__m128d v1pmargin = _mm_set1_pd(1.0 + ext_filter_margin);
 
-			vfcrange0 = _mm_mul_pd(vfcfreq, v1mmargin);
-			vfcrange1 = _mm_mul_pd(vfcfreq, v1pmargin);
-			vfcrange2 = _mm_mul_pd(vfcreso_DB, v1mmargin);
-			vfcrange3 = _mm_mul_pd(vfcreso_DB, v1pmargin);
+			vfcrange[0] = _mm_mul_pd(vfcfreq, v1mmargin);
+			vfcrange[1] = _mm_mul_pd(vfcfreq, v1pmargin);
+			vfcrange[2] = _mm_mul_pd(vfcreso_DB, v1mmargin);
+			vfcrange[3] = _mm_mul_pd(vfcreso_DB, v1pmargin);
 
-			vfcrange01_0 = _mm_unpacklo_pd(vfcrange0, vfcrange1);
-			vfcrange01_1 = _mm_unpackhi_pd(vfcrange0, vfcrange1);
-			vfcrange23_0 = _mm_unpacklo_pd(vfcrange2, vfcrange3);
-			vfcrange23_1 = _mm_unpackhi_pd(vfcrange2, vfcrange3);
+			MM_TRANSPOSE4X2_PD(vfcrange, vfcrange01, vfcrange23);
 
 			if (imask & 1) {
-				_mm_storeu_pd(fcs[i]->range, vfcrange01_0);
-				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23_0);
+				_mm_storeu_pd(fcs[i]->range, vfcrange01[0]);
+				_mm_storeu_pd(&fcs[i]->range[2], vfcrange23[0]);
 			}
 
 			if (imask & (1 << 1)) {
-				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01_1);
-				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23_1);
+				_mm_storeu_pd(fcs[i + 1]->range, vfcrange01[1]);
+				_mm_storeu_pd(&fcs[i + 1]->range[2], vfcrange23[1]);
 			}
 
 			__m128d vfcdiv_flt_rate = _mm_set_pd(
@@ -6525,7 +5753,9 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			__m128d v0_5 = _mm_set1_pd(0.5);
 
 			__m128d vq = _mm_sub_pd(v1, _mm_div_pd(vf, MM_FMA_PD(v2, _mm_add_pd(vreso_db_cf_p, _mm_div_pd(v0_5, _mm_add_pd(v1, vf))), _mm_sub_pd(vf, v2))));
-			__m128d vc0 = _mm_mul_pd(vq, vq);
+
+			__m128d vdc[2];
+			vdc[0] = _mm_mul_pd(vq, vq);
 #ifdef USE_SVML
 			__m128d vcosf = _mm_cos_pd(vf);
 #else
@@ -6533,16 +5763,16 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			_mm_storeu_pd(af, vf);
 			__m128d vcosf = _mm_set_pd(cos(af[1]), cos(af[0]));
 #endif
-			__m128d vc1 = _mm_sub_pd(_mm_add_pd(vc0, v1), _mm_mul_pd(_mm_mul_pd(v2, vcosf), vq));
+			vdc[1] = _mm_sub_pd(_mm_add_pd(vdc[0], v1), _mm_mul_pd(_mm_mul_pd(v2, vcosf), vq));
 
-			__m128d vdc0 = _mm_unpacklo_pd(vc0, vc1);
-			__m128d vdc1 = _mm_unpackhi_pd(vc0, vc1);
+			__m128d vdc01[2];
+			MM_TRANSPOSE2X2_PD(vdc, vdc01);
 
 			if (imask & 1)
-				_mm_storeu_pd(fcs[i]->dc, vdc0);
+				_mm_storeu_pd(fcs[i]->dc, vdc01[0]);
 
 			if (imask & (1 << 1))
-				_mm_storeu_pd(fcs[i + 1]->dc, vdc1);
+				_mm_storeu_pd(fcs[i + 1]->dc, vdc01[1]);
 		}
 	}
 }
@@ -6559,45 +5789,23 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 
 		__m256i vcounts = _mm256_maskz_loadu_epi32(generate_mask8_for_count(i, batch_size), &counts[i]);
 
-		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
-		__m128d vdb01_2 = i + 2 < batch_size ? _mm_loadu_pd(dbs[i + 2]) : _mm_setzero_pd();
-		__m128d vdb01_3 = i + 3 < batch_size ? _mm_loadu_pd(dbs[i + 3]) : _mm_setzero_pd();
-		__m128d vdb01_4 = i + 4 < batch_size ? _mm_loadu_pd(dbs[i + 4]) : _mm_setzero_pd();
-		__m128d vdb01_5 = i + 5 < batch_size ? _mm_loadu_pd(dbs[i + 5]) : _mm_setzero_pd();
-		__m128d vdb01_6 = i + 6 < batch_size ? _mm_loadu_pd(dbs[i + 6]) : _mm_setzero_pd();
-		__m128d vdb01_7 = i + 7 < batch_size ? _mm_loadu_pd(dbs[i + 7]) : _mm_setzero_pd();
+		__m128d vdb01[8];
+		vdb01[0] = _mm_loadu_pd(&dbs[i][0]);
 
-		__m256d vdb01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_0), vdb01_2, 1);
-		__m256d vdb01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_1), vdb01_3, 1);
-		__m256d vdb01_46 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_4), vdb01_6, 1);
-		__m256d vdb01_57 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_5), vdb01_7, 1);
+		for (int j = 1; j < 8; j++)
+			vdb01[j] = i + j < batch_size ? _mm_loadu_pd(&dbs[i + j][0]) : _mm_setzero_pd();
 
-		__m512d vdb01_0246 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb01_02), vdb01_46, 1);
-		__m512d vdb01_1357 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdb01_13), vdb01_57, 1);
+		__m512d vdb[2];
+		MM512_TRANSPOSE8X2_PD(vdb01, vdb);
 
-		__m512d vdb0 = _mm512_unpacklo_pd(vdb01_0246, vdb01_1357);
-		__m512d vdb1 = _mm512_unpackhi_pd(vdb01_0246, vdb01_1357);
+		__m128d vdc01[8];
+		vdc01[0] = _mm_loadu_pd(&dcs[i][0]);
 
-		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
-		__m128d vdc01_2 = i + 2 < batch_size ? _mm_loadu_pd(dcs[i + 2]) : _mm_setzero_pd();
-		__m128d vdc01_3 = i + 3 < batch_size ? _mm_loadu_pd(dcs[i + 3]) : _mm_setzero_pd();
-		__m128d vdc01_4 = i + 4 < batch_size ? _mm_loadu_pd(dcs[i + 4]) : _mm_setzero_pd();
-		__m128d vdc01_5 = i + 5 < batch_size ? _mm_loadu_pd(dcs[i + 5]) : _mm_setzero_pd();
-		__m128d vdc01_6 = i + 6 < batch_size ? _mm_loadu_pd(dcs[i + 6]) : _mm_setzero_pd();
-		__m128d vdc01_7 = i + 7 < batch_size ? _mm_loadu_pd(dcs[i + 7]) : _mm_setzero_pd();
+		for (int j = 1; j < 8; j++)
+			vdc01[j] = i + j < batch_size ? _mm_loadu_pd(&dcs[i + j][0]) : _mm_setzero_pd();
 
-		__m256d vdc01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_0), vdc01_2, 1);
-		__m256d vdc01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_1), vdc01_3, 1);
-		__m256d vdc01_46 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_4), vdc01_6, 1);
-		__m256d vdc01_57 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_5), vdc01_7, 1);
-
-		__m512d vdc01_0246 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc01_02), vdc01_46, 1);
-		__m512d vdc01_1357 = _mm512_insertf64x4(_mm512_castpd256_pd512(vdc01_13), vdc01_57, 1);
-
-		__m512d vdc0 = _mm512_unpacklo_pd(vdc01_0246, vdc01_1357);
-		__m512d vdc1 = _mm512_unpackhi_pd(vdc01_0246, vdc01_1357);
+		__m512d vdc[2];
+		MM512_TRANSPOSE8X2_PD(vdc01, vdc);
 
 		__m128i vcounts_max = _mm_max_epi32(_mm256_castsi256_si128(vcounts), _mm256_extracti128_si256(vcounts, 1));
 		vcounts_max = _mm_max_epi32(vcounts_max, _mm_shuffle_epi32(vcounts_max, (3 << 2) | 2));
@@ -6610,100 +5818,32 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			for (int k = 1; k < 8; k++)
 				vin[k] = _mm512_maskz_loadu_pd(i + k < batch_size ? generate_mask8_for_count(j, counts[i + k]) : 0, & sps[i + k][j]);
 
-			__m512d vsp0246_01 = _mm512_unpacklo_pd(vin[0], vin[1]);
-			__m512d vsp1357_01 = _mm512_unpackhi_pd(vin[0], vin[1]);
-			__m512d vsp0246_23 = _mm512_unpacklo_pd(vin[2], vin[3]);
-			__m512d vsp1357_23 = _mm512_unpackhi_pd(vin[2], vin[3]);
-			__m512d vsp0246_45 = _mm512_unpacklo_pd(vin[4], vin[5]);
-			__m512d vsp1357_45 = _mm512_unpackhi_pd(vin[4], vin[5]);
-			__m512d vsp0246_67 = _mm512_unpacklo_pd(vin[6], vin[7]);
-			__m512d vsp1357_67 = _mm512_unpackhi_pd(vin[6], vin[7]);
-
-			__m512d vsp04_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_0123 = _mm512_shuffle_f64x2(vsp0246_01, vsp0246_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_0123 = _mm512_shuffle_f64x2(vsp1357_01, vsp1357_23, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp04_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp26_4567 = _mm512_shuffle_f64x2(vsp0246_45, vsp0246_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp15_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp37_4567 = _mm512_shuffle_f64x2(vsp1357_45, vsp1357_67, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
 			__m512d vsps[8];
-			vsps[0] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[4] = _mm512_shuffle_f64x2(vsp04_0123, vsp04_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[1] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[5] = _mm512_shuffle_f64x2(vsp15_0123, vsp15_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[2] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[6] = _mm512_shuffle_f64x2(vsp26_0123, vsp26_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vsps[3] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vsps[7] = _mm512_shuffle_f64x2(vsp37_0123, vsp37_4567, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vin, vsps);
 
 			for (int k = 0; k < 8; k++) {
 				__mmask8 kmask = _mm256_cmplt_epi32_mask(_mm256_set1_epi32(j + k), vcounts);
 
-				vdb1 = _mm512_mask3_fmadd_pd(_mm512_sub_pd(vsps[k], vdb0), vdc1, vdb1, kmask);
-				vdb0 = _mm512_mask_add_pd(vdb0, kmask, vdb0, vdb1);
-				vdb1 = _mm512_mask_mul_pd(vdb1, kmask, vdb1, vdc0);
-				vsps[k] = _mm512_sub_pd(vsps[k], vdb0);
+				vdb[1] = _mm512_mask3_fmadd_pd(_mm512_sub_pd(vsps[k], vdb[0]), vdc[1], vdb[1], kmask);
+				vdb[0] = _mm512_mask_add_pd(vdb[0], kmask, vdb[0], vdb[1]);
+				vdb[1] = _mm512_mask_mul_pd(vdb[1], kmask, vdb[1], vdc[0]);
+				vsps[k] = _mm512_sub_pd(vsps[k], vdb[0]);
 			}
 
-			__m512d vsp01_0246 = _mm512_unpacklo_pd(vsps[0], vsps[1]);
-			__m512d vsp01_1357 = _mm512_unpackhi_pd(vsps[0], vsps[1]);
-			__m512d vsp23_0246 = _mm512_unpacklo_pd(vsps[2], vsps[3]);
-			__m512d vsp23_1357 = _mm512_unpackhi_pd(vsps[2], vsps[3]);
-			__m512d vsp45_0246 = _mm512_unpacklo_pd(vsps[4], vsps[5]);
-			__m512d vsp45_1357 = _mm512_unpackhi_pd(vsps[4], vsps[5]);
-			__m512d vsp67_0246 = _mm512_unpacklo_pd(vsps[6], vsps[7]);
-			__m512d vsp67_1357 = _mm512_unpackhi_pd(vsps[6], vsps[7]);
-
-			__m512d vsp0123_04 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_26 = _mm512_shuffle_f64x2(vsp01_0246, vsp23_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp0123_15 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp0123_37 = _mm512_shuffle_f64x2(vsp01_1357, vsp23_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_04 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_26 = _mm512_shuffle_f64x2(vsp45_0246, vsp67_0246, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			__m512d vsp4567_15 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			__m512d vsp4567_37 = _mm512_shuffle_f64x2(vsp45_1357, vsp67_1357, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-
 			__m512d vout[8];
-			vout[0] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[4] = _mm512_shuffle_f64x2(vsp0123_04, vsp4567_04, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[1] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[5] = _mm512_shuffle_f64x2(vsp0123_15, vsp4567_15, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[2] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[6] = _mm512_shuffle_f64x2(vsp0123_26, vsp4567_26, (3 << 6) | (1 << 4) | (3 << 2) | 1);
-			vout[3] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (2 << 6) | (0 << 4) | (2 << 2) | 0);
-			vout[7] = _mm512_shuffle_f64x2(vsp0123_37, vsp4567_37, (3 << 6) | (1 << 4) | (3 << 2) | 1);
+			MM512_TRANSPOSE8X8_PD(vsps, vout);
 
 			for (int k = 0; k < 8; k++)
 				_mm512_mask_storeu_pd(&sps[i + k][j], generate_mask8_for_count(j, counts[i + k]), vout[k]);
 		}
 
-		vdb01_0246 = _mm512_unpacklo_pd(vdb0, vdb1);
-		vdb01_1357 = _mm512_unpackhi_pd(vdb0, vdb1);
+		MM512_TRANSPOSE2X8_PD(vdb, vdb01);
 
-		_mm_storeu_pd(dbs[i], _mm512_castpd512_pd128(vdb01_0246));
+		_mm_storeu_pd(dbs[i], vdb01[0]);
 
-		if (i + 1 < batch_size)
-			_mm_storeu_pd(dbs[i + 1], _mm512_castpd512_pd128(vdb01_1357));
-
-		if (i + 2 < batch_size)
-			_mm_storeu_pd(dbs[i + 2], _mm256_extractf128_pd(_mm512_castpd512_pd256(vdb01_0246), 1));
-
-		if (i + 3 < batch_size)
-			_mm_storeu_pd(dbs[i + 3], _mm256_extractf128_pd(_mm512_castpd512_pd256(vdb01_1357), 1));
-
-		if (i + 4 < batch_size)
-			_mm_storeu_pd(dbs[i + 4], _mm512_extractf64x2_pd(vdb01_0246, 2));
-
-		if (i + 5 < batch_size)
-			_mm_storeu_pd(dbs[i + 5], _mm512_extractf64x2_pd(vdb01_1357, 2));
-
-		if (i + 6 < batch_size)
-			_mm_storeu_pd(dbs[i + 6], _mm512_extractf64x2_pd(vdb01_0246, 3));
-
-		if (i + 7 < batch_size)
-			_mm_storeu_pd(dbs[i + 7], _mm512_extractf64x2_pd(vdb01_1357, 3));
+		for (int j = 1; j < 8; j++)
+			if (i + j < batch_size)
+				_mm_storeu_pd(dbs[i + j], vdb01[j]);
 	}
 }
 
@@ -6722,47 +5862,36 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			counts[i]
 		);
 
-		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
-		__m128d vdb01_2 = i + 2 < batch_size ? _mm_loadu_pd(dbs[i + 2]) : _mm_setzero_pd();
-		__m128d vdb01_3 = i + 3 < batch_size ? _mm_loadu_pd(dbs[i + 3]) : _mm_setzero_pd();
+		__m128d vdb01[4];
+		vdb01[0] = _mm_loadu_pd(&dbs[i][0]);
 
-		__m256d vdb01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_0), vdb01_2, 1);
-		__m256d vdb01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdb01_1), vdb01_3, 1);
+		for (int j = 1; j < 4; j++)
+			vdb01[j] = i + j < batch_size ? _mm_loadu_pd(&dbs[i + j][0]) : _mm_setzero_pd();
 
-		__m256d vdb0 = _mm256_unpacklo_pd(vdb01_02, vdb01_13);
-		__m256d vdb1 = _mm256_unpackhi_pd(vdb01_02, vdb01_13);
+		__m256d vdb[2];
+		MM256_TRANSPOSE4X2_PD(vdb01, vdb);
 
-		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
-		__m128d vdc01_2 = i + 2 < batch_size ? _mm_loadu_pd(dcs[i + 2]) : _mm_setzero_pd();
-		__m128d vdc01_3 = i + 3 < batch_size ? _mm_loadu_pd(dcs[i + 3]) : _mm_setzero_pd();
+		__m128d vdc01[4];
+		vdc01[0] = _mm_loadu_pd(&dcs[i][0]);
 
-		__m256d vdc01_02 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_0), vdc01_2, 1);
-		__m256d vdc01_13 = _mm256_insertf128_pd(_mm256_castpd128_pd256(vdc01_1), vdc01_3, 1);
+		for (int j = 1; j < 4; j++)
+			vdc01[j] = i + j < batch_size ? _mm_loadu_pd(&dcs[i + j][0]) : _mm_setzero_pd();
 
-		__m256d vdc0 = _mm256_unpacklo_pd(vdc01_02, vdc01_13);
-		__m256d vdc1 = _mm256_unpackhi_pd(vdc01_02, vdc01_13);
+		__m256d vdc[2];
+		MM256_TRANSPOSE4X2_PD(vdc01, vdc);
 
 		__m128i vcounts_halfmax = _mm_max_epi32(vcounts, _mm_shuffle_epi32(vcounts, (3 << 2) | 2));
 		int32 count_max = _mm_cvtsi128_si32(_mm_max_epi32(vcounts_halfmax, _mm_shuffle_epi32(vcounts_halfmax, 1)));
 
 		for (int32 j = 0; j < count_max; j += 4) {
-			__m256d vsp0123_0 = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm256_loadu_pd(&sps[i + 1][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_2 = i + 2 < batch_size && j < counts[i + 2] ? _mm256_loadu_pd(&sps[i + 2][j]) : _mm256_setzero_pd();
-			__m256d vsp0123_3 = i + 3 < batch_size && j < counts[i + 3] ? _mm256_loadu_pd(&sps[i + 3][j]) : _mm256_setzero_pd();
+			__m256d vsp0123[4];
+			vsp0123[0] = j < counts[i] ? _mm256_loadu_pd(&sps[i][j]) : _mm256_setzero_pd();
 
-			__m256d vsp01_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (2 << 4) | 0);
-			__m256d vsp01_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (2 << 4) | 0);
-			__m256d vsp23_02 = _mm256_permute2f128_pd(vsp0123_0, vsp0123_2, (3 << 4) | 1);
-			__m256d vsp23_13 = _mm256_permute2f128_pd(vsp0123_1, vsp0123_3, (3 << 4) | 1);
+			for (int k = 1; k < 4; k++)
+				vsp0123[k] = i + k < batch_size&& j < counts[i + k] ? _mm256_loadu_pd(&sps[i + k][j]) : _mm256_setzero_pd();
 
 			__m256d vsps[4];
-			vsps[0] = _mm256_unpacklo_pd(vsp01_02, vsp01_13);
-			vsps[1] = _mm256_unpackhi_pd(vsp01_02, vsp01_13);
-			vsps[2] = _mm256_unpacklo_pd(vsp23_02, vsp23_13);
-			vsps[3] = _mm256_unpackhi_pd(vsp23_02, vsp23_13);
+			MM256_TRANSPOSE4X4_PD(vsp0123, vsps);
 
 			for (int k = 0; k < 4; k++) {
 #if USE_X86_EXT_INTRIN >= 9
@@ -6776,48 +5905,25 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 				);
 #endif
 
-				vdb1 = _mm256_blendv_pd(vdb1, MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
-				vdb0 = _mm256_blendv_pd(vdb0, _mm256_add_pd(vdb0, vdb1), vmask);
-				vdb1 = _mm256_blendv_pd(vdb1, _mm256_mul_pd(vdb1, vdc0), vmask);
-				vsps[k] = _mm256_sub_pd(vsps[k], vdb0);
+				vdb[1] = _mm256_blendv_pd(vdb[1], MM256_FMA_PD(_mm256_sub_pd(vsps[k], vdb[0]), vdc[1], vdb[1]), vmask);
+				vdb[0] = _mm256_blendv_pd(vdb[0], _mm256_add_pd(vdb[0], vdb[1]), vmask);
+				vdb[1] = _mm256_blendv_pd(vdb[1], _mm256_mul_pd(vdb[1], vdc[0]), vmask);
+				vsps[k] = _mm256_sub_pd(vsps[k], vdb[0]);
 			}
 
-			vsp01_02 = _mm256_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_13 = _mm256_unpackhi_pd(vsps[0], vsps[1]);
-			vsp23_02 = _mm256_unpacklo_pd(vsps[2], vsps[3]);
-			vsp23_13 = _mm256_unpackhi_pd(vsps[2], vsps[3]);
+			MM256_TRANSPOSE4X4_PD(vsps, vsp0123);
 
-			vsp0123_0 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (2 << 4) | 0);
-			vsp0123_1 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (2 << 4) | 0);
-			vsp0123_2 = _mm256_permute2f128_pd(vsp01_02, vsp23_02, (3 << 4) | 1);
-			vsp0123_3 = _mm256_permute2f128_pd(vsp01_13, vsp23_13, (3 << 4) | 1);
-
-			if (j < counts[i])
-				_mm256_storeu_pd(&sps[i][j], vsp0123_0);
-
-			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm256_storeu_pd(&sps[i + 1][j], vsp0123_1);
-
-			if (i + 2 < batch_size && j < counts[i + 2])
-				_mm256_storeu_pd(&sps[i + 2][j], vsp0123_2);
-
-			if (i + 3 < batch_size && j < counts[i + 3])
-				_mm256_storeu_pd(&sps[i + 3][j], vsp0123_3);
+			for (int k = 0; k < 4; k++)
+				if (i + k < batch_size && j < counts[i + k])
+					_mm256_storeu_pd(&sps[i + k][j], vsp0123[k]);
 		}
 
-		vdb01_02 = _mm256_unpacklo_pd(vdb0, vdb1);
-		vdb01_13 = _mm256_unpackhi_pd(vdb0, vdb1);
+		MM256_TRANSPOSE2X4_PD(vdb, vdb01);
+		_mm_storeu_pd(dbs[i], vdb01[0]);
 
-		_mm_storeu_pd(dbs[i], _mm256_castpd256_pd128(vdb01_02));
-
-		if (i + 1 < batch_size)
-			_mm_storeu_pd(dbs[i + 1], _mm256_castpd256_pd128(vdb01_13));
-
-		if (i + 2 < batch_size)
-			_mm_storeu_pd(dbs[i + 2], _mm256_extractf128_pd(vdb01_02, 1));
-
-		if (i + 3 < batch_size)
-			_mm_storeu_pd(dbs[i + 3], _mm256_extractf128_pd(vdb01_13, 1));
+		for (int j = 1; j < 4; j++)
+			if (i + j < batch_size)
+				_mm_storeu_pd(dbs[i + j], vdb01[j]);
 	}
 }
 
@@ -6839,55 +5945,55 @@ static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 			count0
 		);
 
-		__m128d vdb01_0 = _mm_loadu_pd(dbs[i]);
-		__m128d vdb01_1 = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
+		__m128d vdb01[2];
+		vdb01[0] = _mm_loadu_pd(dbs[i]);
+		vdb01[1] = i + 1 < batch_size ? _mm_loadu_pd(dbs[i + 1]) : _mm_setzero_pd();
 
-		__m128d vdb0 = _mm_unpacklo_pd(vdb01_0, vdb01_1);
-		__m128d vdb1 = _mm_unpackhi_pd(vdb01_0, vdb01_1);
+		__m128d vdb[2];
+		MM_TRANSPOSE2X2_PD(vdb01, vdb);
 
-		__m128d vdc01_0 = _mm_loadu_pd(dcs[i]);
-		__m128d vdc01_1 = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
+		__m128d vdc01[2];
+		vdc01[0] = _mm_loadu_pd(dcs[i]);
+		vdc01[1] = i + 1 < batch_size ? _mm_loadu_pd(dcs[i + 1]) : _mm_setzero_pd();
 
-		__m128d vdc0 = _mm_unpacklo_pd(vdc01_0, vdc01_1);
-		__m128d vdc1 = _mm_unpackhi_pd(vdc01_0, vdc01_1);
+		__m128d vdc[2];
+		MM_TRANSPOSE2X2_PD(vdc01, vdc);
 
 		int32 count_max = count0 < count1 ? count1 : count0;
 
 		for (int32 j = 0; j < count_max; j += 2) {
-			__m128d vsp01_0 = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
-			__m128d vsp01_1 = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
+			__m128d vsp01[2];
+			vsp01[0] = j < counts[i] ? _mm_loadu_pd(&sps[i][j]) : _mm_setzero_pd();
+			vsp01[1] = i + 1 < batch_size && j < counts[i + 1] ? _mm_loadu_pd(&sps[i + 1][j]) : _mm_setzero_pd();
 
 			__m128d vsps[2];
-			vsps[0] = _mm_unpacklo_pd(vsp01_0, vsp01_1);
-			vsps[1] = _mm_unpackhi_pd(vsp01_0, vsp01_1);
+			MM_TRANSPOSE2X2_PD(vsp01, vsps);
 
 			for (int k = 0; k < 2; k++) {
 				__m128i vmask32 = _mm_cmplt_epi32(_mm_set1_epi32(j + k), vcounts);
 				__m128d vmask = _mm_castsi128_pd(_mm_unpacklo_epi32(vmask32, vmask32));
 
-				vdb1 = MM_BLENDV_PD(vdb1, MM_FMA_PD(_mm_sub_pd(vsps[k], vdb0), vdc1, vdb1), vmask);
-				vdb0 = MM_BLENDV_PD(vdb0, _mm_add_pd(vdb0, vdb1), vmask);
-				vdb1 = MM_BLENDV_PD(vdb1, _mm_mul_pd(vdb1, vdc0), vmask);
-				vsps[k] = _mm_sub_pd(vsps[k], vdb0);
+				vdb[1] = MM_BLENDV_PD(vdb[1], MM_FMA_PD(_mm_sub_pd(vsps[k], vdb[0]), vdc[1], vdb[1]), vmask);
+				vdb[0] = MM_BLENDV_PD(vdb[0], _mm_add_pd(vdb[0], vdb[1]), vmask);
+				vdb[1] = MM_BLENDV_PD(vdb[1], _mm_mul_pd(vdb[1], vdc[0]), vmask);
+				vsps[k] = _mm_sub_pd(vsps[k], vdb[0]);
 			}
 
-			vsp01_0 = _mm_unpacklo_pd(vsps[0], vsps[1]);
-			vsp01_1 = _mm_unpackhi_pd(vsps[0], vsps[1]);
+			MM_TRANSPOSE2X2_PD(vsps, vsp01);
 
 			if (j < counts[i])
-				_mm_storeu_pd(&sps[i][j], vsp01_0);
+				_mm_storeu_pd(&sps[i][j], vsp01[0]);
 
 			if (i + 1 < batch_size && j < counts[i + 1])
-				_mm_storeu_pd(&sps[i + 1][j], vsp01_1);
+				_mm_storeu_pd(&sps[i + 1][j], vsp01[1]);
 		}
 
-		vdb01_0 = _mm_unpacklo_pd(vdb0, vdb1);
-		vdb01_1 = _mm_unpackhi_pd(vdb0, vdb1);
+		MM_TRANSPOSE2X2_PD(vdb, vdb01);
 
-		_mm_storeu_pd(dbs[i], vdb01_0);
+		_mm_storeu_pd(dbs[i], vdb01[0]);
 
 		if (i + 1 < batch_size)
-			_mm_storeu_pd(dbs[i + 1], vdb01_1);
+			_mm_storeu_pd(dbs[i + 1], vdb01[1]);
 	}
 }
 

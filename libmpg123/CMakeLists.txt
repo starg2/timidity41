@@ -53,8 +53,6 @@ add_library(
     src/libmpg123/getbits.h
     src/libmpg123/getcpuflags.h
     src/libmpg123/huffman.h
-    src/libmpg123/l12_integer_tables.h
-    src/libmpg123/l3_integer_tables.h
     src/libmpg123/icy.h
     src/libmpg123/icy2utf8.h
     src/libmpg123/id3.h
