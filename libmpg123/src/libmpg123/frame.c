@@ -6,7 +6,7 @@
 	initially written by Thomas Orgis
 */
 
-#define WANT_GETCPUFLAGS
+/* #define WANT_GETCPUFLAGS */
 #include "mpg123lib_intern.h"
 #include "getcpuflags.h"
 #include "debug.h"
