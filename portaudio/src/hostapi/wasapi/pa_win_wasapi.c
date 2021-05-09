@@ -182,10 +182,6 @@
         #define NONAMELESSUNION
     #endif
 
-    #ifndef NT_SUCCESS
-        typedef LONG NTSTATUS;
-    #endif
-
     #ifndef WAVE_FORMAT_IEEE_FLOAT
         #define WAVE_FORMAT_IEEE_FLOAT 0x0003 // 32-bit floating-point
     #endif
@@ -210,6 +206,10 @@
     #undef INITGUID
 
 #endif // NTDDI_VERSION
+
+#ifndef NT_SUCCESS
+		typedef LONG NTSTATUS;
+#endif
 
 // Missing declarations for WinRT
 #ifdef PA_WINRT
