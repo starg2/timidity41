@@ -155,7 +155,7 @@ add_library(
 add_dependencies(interface_w32gsyn UpdateTim41Version twsyn_bridge)
 target_compile_definitions(interface_w32gsyn PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
 
-if("${CMAKE_C_COMPILER_ID}" MATCHES "Intel")
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
     # Workaround for xilink: error #10014: problem during multi-file optimization compilation (code 4)
     set_source_files_properties(w32g_c.c PROPERTIES COMPILE_OPTIONS "/Qipo-")
 endif()
