@@ -74,21 +74,29 @@ bool CopyTextToClipboard(TStringView text)
         if (hGlobal)
         {
             auto p = reinterpret_cast<LPTSTR>(::GlobalLock(hGlobal));
-            text.copy(p, text.size());
-            p[text.size()] = _T('\0');
-            ::GlobalUnlock(hGlobal);
 
-            ::EmptyClipboard();
+            if (p)
+            {
+                text.copy(p, text.size());
+                p[text.size()] = _T('\0');
+                ::GlobalUnlock(hGlobal);
+
+                ::EmptyClipboard();
 
 #ifdef UNICODE
-            UINT format = CF_UNICODETEXT;
+                UINT format = CF_UNICODETEXT;
 #else
-            UINT format = CF_TEXT;
+                UINT format = CF_TEXT;
 #endif
 
-            if (::SetClipboardData(format, hGlobal))
-            {
-                ret = true;
+                if (::SetClipboardData(format, hGlobal))
+                {
+                    ret = true;
+                }
+                else
+                {
+                    ::GlobalFree(hGlobal);
+                }
             }
             else
             {
