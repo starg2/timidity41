@@ -2514,6 +2514,8 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 					NULL
 				);
 
+				SetWindowPos(w32g_tracer_wnd.hTool, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
 				TTTOOLINFO ti = {0};
 				ti.cbSize = sizeof(ti);
 				ti.uFlags = TTF_SUBCLASS;
