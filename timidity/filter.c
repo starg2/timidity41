@@ -4099,7 +4099,7 @@ static void sample_filter_LPF24_batch(int batch_size, FILTER_T **dcs, FILTER_T *
 					_mm_castsi128_pd(_mm_unpackhi_epi32(vmask32, vmask32)),
 					1
 				);
-				vdas[0] = _mm256_sub_pd(vsps[k], _mm256_mul_pd(vdc2, vdb4));
+				vdas[0] = _mm256_sub_pd(vsps[k], _mm256_mul_pd(vdc[2], vdb[4]));
 #endif
 
 				vdas[1] = vdb[1];
