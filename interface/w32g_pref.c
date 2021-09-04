@@ -4313,12 +4313,7 @@ static const TCHAR *cb_info_IDC_COMBO_FRAGMENTS_jp[] = {
 // IDC_COMBO_OUTPUT_MODE
 static const TCHAR *cb_info_IDC_COMBO_OUTPUT_MODE_jp[] = {
 	TEXT("以下のファイルに出力"), (TCHAR*)0,
-#if defined(__CYGWIN32__) || defined(__MINGW32__)
-	TEXT("ファイル名を自動で決定し、ソ\ースと同じフォルダに出力"), (TCHAR*)1,
-#else
 	TEXT("ファイル名を自動で決定し、ソースと同じフォルダに出力"), (TCHAR*)1,
-#endif
-
 	TEXT("ファイル名を自動で決定し、以下のフォルダに出力"), (TCHAR*)2,
 	TEXT("ファイル名を自動で決定し、以下のフォルダに出力(フォルダ名付き)"), (TCHAR*)3,
 	NULL,
