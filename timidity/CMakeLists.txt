@@ -190,11 +190,6 @@ add_library(
     ../vorbis-tools/vorbiscomment/vcedit.h
 )
 
-if("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
-    # Workaround for xilink: error #10014: problem during multi-file optimization compilation (code 4)
-    set_source_files_properties(ecw.cpp effect.c filter.c PROPERTIES COMPILE_OPTIONS "/Qipo-")
-endif()
-
 set(
     TIMIDITY_COMMON_LIBS
 
