@@ -274,7 +274,7 @@ else()
     add_compile_options(-Wall -Wextra -Wno-missing-braces -ffast-math)
 
     if("${TIM41_GCC_WITH_LIBICONV}")
-        add_compile_options(-finput-charset=cp932 -fexec-charset=cp932)
+        add_compile_options(-fexec-charset=cp932)
     endif()
 
     if("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX512")
