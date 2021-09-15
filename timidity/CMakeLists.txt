@@ -290,12 +290,6 @@ add_dependencies(timw32g_u8 UpdateTim41Version)
 target_compile_definitions(timw32g_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_W32GUI -D__W32G__)
 target_link_libraries(timw32g_u8 ${TIMIDITY_COMMON_LIBS})
 
-if("${CMAKE_C_COMPILER_ID}" MATCHES "Intel")
-    # Workaround for link error
-    target_sources(timw32g_u8 PRIVATE wchar.c)
-    set_source_files_properties(wchar.c PROPERTIES COMPILE_OPTIONS "/Qipo-")
-endif()
-
 if(NOT "${MSVC}")
     target_link_libraries(timw32g_u8 -municode)
 endif()
@@ -318,12 +312,6 @@ add_executable(
 add_dependencies(twsyng_u8 UpdateTim41Version)
 target_compile_definitions(twsyng_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
 target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS})
-
-if("${CMAKE_C_COMPILER_ID}" MATCHES "Intel")
-    # Workaround for link error
-    target_sources(twsyng_u8 PRIVATE wchar.c)
-    set_source_files_properties(wchar.c PROPERTIES COMPILE_OPTIONS "/Qipo-")
-endif()
 
 if(NOT "${MSVC}")
     target_link_libraries(twsyng_u8 -municode)
