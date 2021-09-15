@@ -130,7 +130,7 @@ add_library(
 add_dependencies(interface_synsrv twsyn_bridge)
 target_compile_definitions(interface_synsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 
-if(("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")) OR (NOT "${MSVC}" AND "${TIM41_GCC_WITH_LIBICONV}"))
+if(("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_C_COMPILER_ID}" MATCHES "IntelLLVM")) OR (NOT "${MSVC}" AND "${TIM41_GCC_WITH_LIBICONV}"))
     # for timw32g
 
     add_library(
