@@ -1071,7 +1071,7 @@ typedef ptrdiff_t ssize_t;
 #endif
 
 
-#ifndef _MSC_VER
+#ifndef _WIN32
 #define _set_errno(val) (errno = val)
 #endif
 
