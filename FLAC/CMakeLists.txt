@@ -107,3 +107,5 @@ if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND NOT TIM41_USE_AVX2)
 endif()
 
 target_link_libraries(FLAC ogg)
+
+install(TARGETS FLAC)

@@ -68,3 +68,5 @@ add_library(
 
     libspeex.def
 )
+
+install(TARGETS speex)

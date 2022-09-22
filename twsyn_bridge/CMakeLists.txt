@@ -17,3 +17,5 @@ else()
 endif()
 
 target_link_libraries(twsyn_bridge shlwapi winmm)
+
+install(TARGETS twsyn_bridge)

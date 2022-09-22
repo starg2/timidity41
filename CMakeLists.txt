@@ -1,6 +1,9 @@
 
 cmake_minimum_required(VERSION 3.20)
 
+cmake_policy(SET CMP0091 NEW)   # MSVC runtime library flags are selected by an abstraction.
+cmake_policy(SET CMP0092 NEW)   # Don't add /W3 flag in CMAKE_C_FLAGS by default.
+
 project(timidity41)
 
 set(TIM41_X86_SIMD_LEVEL SSE42 CACHE STRING "x86 SIMD instruction set extension to use")
@@ -12,20 +15,9 @@ set(TIM41_GCC_WITH_LIBICONV TRUE CACHE BOOL "GCC supports charset conversion")
 
 set(TIM41_SPECTRE_MITIGATION FALSE CACHE BOOL "Enable Spectre mitigation")
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel/bin")
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel/bin")
-
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/bin" CACHE PATH "Where to put all the RUNTIME target files when built.")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/lib" CACHE PATH "Where to put all the ARCHIVE target files when built.")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/lib" CACHE PATH "Where to put all the LIBRARY target files when built.")
 
 find_package(Git)
 
@@ -173,10 +165,6 @@ elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE2")
 endif()
 
 if(MSVC)
-    # remove existing /W3 options
-    string(REGEX REPLACE "/W[0-4]" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
     add_compile_options(/W4 /GS /fp:fast)
 
     if("${TIM41_SPECTRE_MITIGATION}")

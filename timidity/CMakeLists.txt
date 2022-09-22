@@ -215,6 +215,8 @@ add_dependencies(timidity UpdateTim41Version)
 target_compile_definitions(timidity PRIVATE -DIA_NCURSES -DIA_VT100)
 target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS} pdcurses)
 
+install(TARGETS timidity)
+
 # twsynsrv
 
 add_executable(
@@ -228,6 +230,8 @@ add_executable(
 add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS})
+
+install(TARGETS twsynsrv)
 
 # timw32g
 
@@ -244,6 +248,8 @@ target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
 target_link_libraries(timw32g ${TIMIDITY_COMMON_LIBS})
 DisableMSManifest(timw32g)
 
+install(TARGETS timw32g)
+
 # twsyng
 
 add_executable(
@@ -258,3 +264,5 @@ add_dependencies(twsyng UpdateTim41Version)
 target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
 target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS})
 DisableMSManifest(twsyng)
+
+install(TARGETS twsyng)

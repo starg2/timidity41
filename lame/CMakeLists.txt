@@ -75,3 +75,5 @@ add_library(
 )
 
 set_target_properties(lame_enc PROPERTIES PREFIX "")
+
+install(TARGETS lame_enc)

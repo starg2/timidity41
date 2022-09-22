@@ -28,3 +28,5 @@ add_executable(
 
 add_dependencies(sfviewer UpdateTim41Version)
 target_link_libraries(sfviewer comctl32 shlwapi ws2_32)
+
+install(TARGETS sfviewer)

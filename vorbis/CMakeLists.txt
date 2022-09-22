@@ -101,3 +101,5 @@ add_library(
 )
 
 target_link_libraries(vorbisfile ogg vorbis)
+
+install(TARGETS vorbis vorbisenc vorbisfile)

@@ -78,3 +78,5 @@ add_library(
 
 target_compile_definitions(mpg123 PRIVATE -DBUILD_MPG123_DLL INTERFACE -DLINK_MPG123_DLL)
 target_link_libraries(mpg123 shlwapi)
+
+install(TARGETS mpg123)

@@ -95,3 +95,5 @@ else()
 endif()
 
 target_link_libraries(portaudio ole32 advapi32 setupapi winmm)
+
+install(TARGETS portaudio)
