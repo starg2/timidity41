@@ -1,0 +1,7 @@
+.vs/
+.vscode/
+build/
+inst/
+tools/private/
+CMakeSettings.json
+CMakeUserPresets.json
