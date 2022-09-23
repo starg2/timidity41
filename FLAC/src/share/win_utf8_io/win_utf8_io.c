@@ -33,6 +33,7 @@
 #  include <config.h>
 #endif
 
+#include <stdlib.h>
 #include <io.h>
 #include <windows.h>
 #include "share/win_utf8_io.h"
