@@ -358,3 +358,5 @@ add_subdirectory(sf_view_gui)
 add_subdirectory(timidity)
 add_subdirectory(twsyn_bridge)
 add_subdirectory(utils)
+
+install(FILES gpl-2.0.txt lgpl-2.0.txt lgpl-2.1.txt tim41-readme.txt DESTINATION .)
