@@ -254,7 +254,7 @@ void init_bridge(void)
 	ShowWindow(hControlWndHost, SW_HIDE);
 //	ShowWindow(hControlWndHost, SW_SHOW);
 	// send win handle	
-	shared_data->hControlWndHost = hControlWndHost;
+	shared_data->hControlWndHost = (unsigned long long)hControlWndHost;
 	// run bridge
 	si.cb			= sizeof(si);
 	si.lpReserved	= NULL;
