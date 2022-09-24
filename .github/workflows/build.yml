@@ -74,6 +74,7 @@ jobs:
           mingw64\x86_64-w64-mingw32\lib32
           timidity41\build\out\bin
           libgcc_s*.dll libstdc++*.dll
+          ; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
 
       - name: Build
         run: ninja -C timidity41\build
@@ -87,11 +88,12 @@ jobs:
           "mingw64\x86_64-w64-mingw32\$(if ('${{ matrix.arch }}' -eq 'x86') { 'lib32' } else { 'lib' })"
           timidity41\inst\bin
           libgcc_s*.dll libstdc++*.dll
+          ; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
 
       - name: Create release archive
         run: |
-          robocopy timidity41\inst "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" /E /XD lib
-          robocopy mingw64\licenses\mingw-w64 "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" COPYING.MinGW-w64-runtime.txt
+          robocopy timidity41\inst "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" /E /XD lib; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
+          robocopy mingw64\licenses\mingw-w64 "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" COPYING.MinGW-w64-runtime.txt; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
           7z a "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}.zip" "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}"
 
       - uses: actions/upload-artifact@v3
