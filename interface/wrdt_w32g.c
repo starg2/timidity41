@@ -572,7 +572,6 @@ static void wrdt_apply(int cmd, int wrd_argc, int wrd_args[])
     char *p;
     char *text;
     int i, len;
-    static txtclr_preserve = 0;
 
     if ( !w32g_wrd_wnd.active ) return;
 
