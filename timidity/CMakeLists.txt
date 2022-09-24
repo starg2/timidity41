@@ -22,7 +22,7 @@ add_custom_command(
     COMMAND calcnewton "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c"
 )
 
-set_source_files_properties(resample.c OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c")
+set_source_files_properties(resample.c PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # timidity common
@@ -190,6 +190,10 @@ add_library(timidity_common OBJECT ${TIMIDITY_COMMON_SOURCES})
 add_library(timidity_common_u8 OBJECT ${TIMIDITY_COMMON_SOURCES})
 target_compile_definitions(timidity_common_u8 PRIVATE -DUNICODE -D_UNICODE)
 
+set_source_files_properties(version.c PROPERTIES OBJECT_DEPENDS "${PROJECT_BINARY_DIR}/version.h")
+add_dependencies(timidity_common UpdateTim41Version)
+add_dependencies(timidity_common_u8 UpdateTim41Version)
+
 set(
     TIMIDITY_COMMON_LIBS
 
@@ -202,131 +206,87 @@ set(
 )
 
 # timidity
-
 add_executable(
     timidity
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-    $<TARGET_OBJECTS:interface>
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:timidity_common>
-    $<TARGET_OBJECTS:utils>
 )
 
-add_dependencies(timidity UpdateTim41Version)
 target_compile_definitions(timidity PRIVATE -DIA_NCURSES -DIA_VT100)
-target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS} pdcurses)
-
+target_link_libraries(timidity interface libarc libunimod utils timidity_common ${TIMIDITY_COMMON_LIBS} pdcurses)
 install(TARGETS timidity)
 
 # twsynsrv
-
 add_executable(
     twsynsrv
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-    $<TARGET_OBJECTS:interface_synsrv>
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:timidity_common>
-    $<TARGET_OBJECTS:utils>
 )
 
-add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
-target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS})
-
+target_link_libraries(twsynsrv interface_synsrv libarc libunimod utils timidity_common ${TIMIDITY_COMMON_LIBS})
 install(TARGETS twsynsrv)
 
 if(("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_C_COMPILER_ID}" MATCHES "IntelLLVM")) OR (NOT "${MSVC}" AND "${TIM41_GCC_WITH_LIBICONV}"))
     # timw32g
-
     add_executable(
         timw32g WIN32
 
         ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-        $<TARGET_OBJECTS:interface_w32g>
-        $<TARGET_OBJECTS:libarc>
-        $<TARGET_OBJECTS:libunimod>
-        $<TARGET_OBJECTS:timidity_common>
-        $<TARGET_OBJECTS:utils>
     )
 
     add_dependencies(timw32g UpdateTim41Version)
     target_compile_definitions(timw32g PRIVATE -DIA_W32GUI -D__W32G__)
-    target_link_libraries(timw32g ${TIMIDITY_COMMON_LIBS})
+    target_link_libraries(timw32g interface_w32g libarc libunimod timidity_common utils ${TIMIDITY_COMMON_LIBS})
     DisableMSManifest(timw32g)
-
     install(TARGETS timw32g)
 
     # twsyng
-
     add_executable(
         twsyng WIN32
 
         ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-        $<TARGET_OBJECTS:interface_w32gsyn>
-        $<TARGET_OBJECTS:libarc>
-        $<TARGET_OBJECTS:libunimod>
-        $<TARGET_OBJECTS:timidity_common>
-        $<TARGET_OBJECTS:utils>
     )
 
     add_dependencies(twsyng UpdateTim41Version)
     target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
-    target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS})
+    target_link_libraries(twsyng interface_w32gsyn libarc libunimod utils timidity_common ${TIMIDITY_COMMON_LIBS})
     DisableMSManifest(twsyng)
-
     install(TARGETS twsyng)
 endif()
 
 # timw32g_u8
-
 add_executable(
     timw32g_u8 WIN32
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-    $<TARGET_OBJECTS:interface_w32g_u8>
-    $<TARGET_OBJECTS:libarc_u8>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:timidity_common_u8>
-    $<TARGET_OBJECTS:utils_u8>
 )
 
 add_dependencies(timw32g_u8 UpdateTim41Version)
 target_compile_definitions(timw32g_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_W32GUI -D__W32G__)
-target_link_libraries(timw32g_u8 ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(timw32g_u8 interface_w32g_u8 libarc_u8 libunimod utils_u8 timidity_common_u8 ${TIMIDITY_COMMON_LIBS})
 
 if(NOT "${MSVC}")
     target_link_libraries(timw32g_u8 -municode)
 endif()
 
 DisableMSManifest(timw32g_u8)
-
 install(TARGETS timw32g_u8)
 
 # twsyng_u8
-
 add_executable(
     twsyng_u8 WIN32
 
     ${TIMIDITY_INTERFACE_DEPENDENT_SOURCE}
-    $<TARGET_OBJECTS:interface_w32gsyn_u8>
-    $<TARGET_OBJECTS:libarc_u8>
-    $<TARGET_OBJECTS:libunimod>
-    $<TARGET_OBJECTS:timidity_common_u8>
-    $<TARGET_OBJECTS:utils_u8>
 )
 
 add_dependencies(twsyng_u8 UpdateTim41Version)
 target_compile_definitions(twsyng_u8 PRIVATE -DUNICODE -D_UNICODE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
-target_link_libraries(twsyng_u8 ${TIMIDITY_COMMON_LIBS})
+target_link_libraries(twsyng_u8 interface_w32gsyn_u8 libarc_u8 libunimod utils_u8 timidity_common_u8 ${TIMIDITY_COMMON_LIBS})
 
 if(NOT "${MSVC}")
     target_link_libraries(twsyng_u8 -municode)
 endif()
 
 DisableMSManifest(twsyng_u8)
-
 install(TARGETS twsyng_u8)

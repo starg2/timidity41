@@ -36,17 +36,14 @@ add_library(
     ../timidity/timidity.h
 )
 
+set_source_files_properties(../timidity/version.c PROPERTIES OBJECT_DEPENDS "${PROJECT_BINARY_DIR}/version.h")
+add_dependencies(timidity_cfgforsf UpdateTim41Version)
+
 add_executable(
     cfgforsf
     
     ../timidity/sndfont.c
-
-    $<TARGET_OBJECTS:timidity_cfgforsf>
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:utils>
 )
 
-add_dependencies(cfgforsf UpdateTim41Version)
-target_link_libraries(cfgforsf ws2_32)
-
+target_link_libraries(cfgforsf timidity_cfgforsf libarc utils ws2_32)
 install(TARGETS cfgforsf)

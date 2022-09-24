@@ -20,13 +20,7 @@ add_executable(
     ../timidity/myini.h
 
     sfview_dlg.rc
-
-    $<TARGET_OBJECTS:timidity_cfgforsf>
-    $<TARGET_OBJECTS:libarc>
-    $<TARGET_OBJECTS:utils>
 )
 
-add_dependencies(sfviewer UpdateTim41Version)
-target_link_libraries(sfviewer comctl32 shlwapi ws2_32)
-
+target_link_libraries(sfviewer timidity_cfgforsf libarc utils comctl32 shlwapi ws2_32)
 install(TARGETS sfviewer)
