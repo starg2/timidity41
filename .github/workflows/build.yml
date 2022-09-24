@@ -1,0 +1,127 @@
+
+name: build
+
+on:
+  push:
+    branches-ignore:
+      - 'develop'
+      - 'master'
+      - 'unkotim'
+    tags:
+      - 'tim*'
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        arch: ['x86', 'x64']
+        simd: ['sse42', 'avx', 'avx2', 'avx512']
+
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: timidity41
+
+      - name: Run "git describe"
+        run: echo "TIM41_DESCRIBE=$(git describe --first-parent)" >> $GITHUB_ENV
+        shell: bash
+        working-directory: timidity41
+
+      - name: Install toolchain
+        run: |
+          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-09-24/gcc-12.2.0_x86_64-win32-sjlj-ucrt.zip
+          7z x gcc-12.2.0_x86_64-win32-sjlj-ucrt.zip
+          7z x x86_64-12.2.0-static-release-win32-sjlj-rt_v10.7z
+
+      - name: Add PATH
+        run: |
+          $vsdir = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          "$vsdir\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin" >> $env:GITHUB_PATH
+          "$vsdir\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja" >> $env:GITHUB_PATH
+          "$env:GITHUB_WORKSPACE\mingw64\bin" >> $env:GITHUB_PATH
+
+      - name: Configure
+        run: >-
+          cmake
+          -G Ninja
+          -DCMAKE_C_COMPILER="$env:GITHUB_WORKSPACE/mingw64/bin/gcc.exe"
+          -DCMAKE_CXX_COMPILER="$env:GITHUB_WORKSPACE/mingw64/bin/g++.exe"
+          $(if ('${{ matrix.arch }}' -eq 'x86') { '-DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32"' })
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE/timidity41/inst"
+          -DTIM41_X86_SIMD_LEVEL="$('${{ matrix.simd }}'.ToUpperInvariant())"
+          -S timidity41
+          -B timidity41/build
+
+      - name: Copy runtime DLLs
+        if: ${{ matrix.arch == 'x86' }}
+        run: >-
+          robocopy
+          mingw64\x86_64-w64-mingw32\lib32
+          timidity41\build\out\bin
+          libgcc_s*.dll libstdc++*.dll
+
+      - name: Build
+        run: ninja -C timidity41\build
+
+      - name: Install
+        run: ninja -C timidity41\build install
+
+      - name: Install runtime DLLs
+        run: >-
+          robocopy
+          "mingw64\x86_64-w64-mingw32\$(if ('${{ matrix.arch }}' -eq 'x86') { 'lib32' } else { 'lib' })"
+          timidity41\inst\bin
+          libgcc_s*.dll libstdc++*.dll
+
+      - name: Create release archive
+        run: |
+          robocopy timidity41\inst "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" /E /XD lib
+          robocopy mingw64\licenses\mingw-w64 "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" COPYING.MinGW-w64-runtime.txt
+          7z a "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}.zip" "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: timidity41-${{ matrix.arch }}-${{ matrix.simd }}
+          path: ${{ env.TIM41_DESCRIBE }}-${{ matrix.arch }}-${{ matrix.simd }}.zip
+
+  release:
+    if: ${{ startsWith(github.ref_name, 'tim41') }}
+    needs: build
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          path: artifact
+
+      - name: Move artifacts
+        run: mv artifact/timidity41-*/*.zip .
+
+      - name: Generate release name
+        run: echo "RELEASE_NAME='$GITHUB_REF_NAME'" | sed 's/tim/TiMidity++ Version v/' >> $GITHUB_ENV
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ env.RELEASE_NAME }}
+          files: *.zip
