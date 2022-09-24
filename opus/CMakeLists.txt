@@ -242,3 +242,5 @@ add_library(
     silk/x86/VQ_WMat_EC_sse4_1.c
     silk/x86/x86_silk_map.c
 )
+
+install(TARGETS opus)

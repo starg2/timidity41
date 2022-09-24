@@ -4,7 +4,7 @@ add_definitions(
     -DFLAC__HAS_X86INTRIN
     -DFLAC__HAS_OGG
 
-    -DPACKAGE_VERSION="1.3.2"
+    -DPACKAGE_VERSION="1.4.1"
 )
 
 if(MINGW)
@@ -62,7 +62,6 @@ add_library(
     src/share/replaygain_synthesis.h
     src/share/safe_str.h
     src/share/utf8.h
-    src/share/windows_unicode_filenames.h
     src/share/win_utf8_io.h
 
     src/bitmath.c
@@ -77,7 +76,7 @@ add_library(
     src/format.c
     src/lpc.c
     src/lpc_intrin_avx2.c
-    src/lpc_intrin_sse.c
+    src/lpc_intrin_fma.c
     src/lpc_intrin_sse2.c
     src/lpc_intrin_sse41.c
     src/md5.c
@@ -95,7 +94,8 @@ add_library(
     src/stream_encoder_intrin_sse2.c
     src/stream_encoder_intrin_ssse3.c
     src/window.c
-    src/windows_unicode_filenames.c
+
+    src/share/win_utf8_io/win_utf8_io.c
 )
 
 if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND NOT TIM41_USE_AVX2)
@@ -107,3 +107,5 @@ if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND NOT TIM41_USE_AVX2)
 endif()
 
 target_link_libraries(FLAC ogg)
+
+install(TARGETS FLAC)

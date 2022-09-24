@@ -3,7 +3,7 @@
 
 Fork of TiMidity++ <http://timidity.sourceforge.net/>, based on UnkoTim215 <http://jbbs.shitaraba.net/bbs/read.cgi/computer/42137/1499269478/86>.
 
-Source code is available at <https://osdn.net/projects/timidity41/scm/git/timidity41/>.
+Source code is available at <https://github.com/starg2/timidity41>.
 
 
 License

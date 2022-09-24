@@ -7,10 +7,10 @@ execute_process(
 
 string(REPLACE "tim" "" tim41VersionStr "${gitDescribeResult}")
 
-if("${gitDescribeResult}" MATCHES "[0-9.]+\\.[0-9.]+\\.[0-9.]+-[0-9]+")
-    string(REGEX MATCH "[0-9.]+\\.[0-9.]+\\.[0-9.]+-[0-9]+" tim41Version4 "${gitDescribeResult}")
+if("${gitDescribeResult}" MATCHES "[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+")
+    string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+" tim41Version4 "${gitDescribeResult}")
 else()
-    string(REGEX MATCH "[0-9.]+\\.[0-9.]+\\.[0-9.]+" tim41Version4 "${gitDescribeResult}")
+    string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" tim41Version4 "${gitDescribeResult}")
     string(APPEND tim41Version4 ".0")
 endif()
 

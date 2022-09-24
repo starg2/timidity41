@@ -58,3 +58,5 @@ add_library(
     pdcurses.def
     win32/pdcurses.rc
 )
+
+install(TARGETS pdcurses)

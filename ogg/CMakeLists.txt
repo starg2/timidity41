@@ -12,3 +12,5 @@ add_library(
 
     win32/ogg.def
 )
+
+install(TARGETS ogg)

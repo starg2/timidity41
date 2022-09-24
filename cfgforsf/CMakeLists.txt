@@ -48,3 +48,5 @@ add_executable(
 
 add_dependencies(cfgforsf UpdateTim41Version)
 target_link_libraries(cfgforsf ws2_32)
+
+install(TARGETS cfgforsf)
