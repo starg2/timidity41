@@ -1044,7 +1044,7 @@ void reload_cfg(void)
 // 以下 コンボ関連メッセージ短縮形
 // must WHND hwnd , cb_id : IDC_COMBO_hoge , error : then CB_ERROR value
 // CB_SETCURSEL
-#define CB_SET(cb_id, set_num)		(SendDlgItemMessage(hwnd, cb_id, CB_SETCURSEL, (WPARAM) set_num, (LPARAM) 0))
+#define CB_SET(cb_id, set_num)		(SendDlgItemMessage(hwnd, cb_id, CB_SETCURSEL, (WPARAM) (set_num), (LPARAM) 0))
 // CB_GETCURSEL
 #define CB_GET(cb_id)				((int)SendDlgItemMessage(hwnd, cb_id, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0))
 // CB_GETCURSEL check CB_ERROR(-1) , error : then CB_ERROR value
@@ -1052,9 +1052,9 @@ void reload_cfg(void)
 // CB_RESETCONTENT
 #define CB_RESET(cb_id)				(SendDlgItemMessage(hwnd, cb_id, CB_RESETCONTENT, (WPARAM) 0, (LPARAM) 0))
 // CB_INSERTSTRING(ANSI)
-#define CB_INSSTRA(cb_id, str)		(SendDlgItemMessageA(hwnd, cb_id, CB_INSERTSTRING, (WPARAM) -1, (LPARAM) str))
+#define CB_INSSTRA(cb_id, str)		(SendDlgItemMessageA(hwnd, cb_id, CB_INSERTSTRING, (WPARAM) -1, (LPARAM) (str)))
 // CB_INSERTSTRING(UNICODE)
-#define CB_INSSTRW(cb_id, str)		(SendDlgItemMessageW(hwnd, cb_id, CB_INSERTSTRING, (WPARAM) -1, (LPARAM) str))
+#define CB_INSSTRW(cb_id, str)		(SendDlgItemMessageW(hwnd, cb_id, CB_INSERTSTRING, (WPARAM) -1, (LPARAM) (str)))
 #ifdef UNICODE
 #define CB_INSSTR(cb_id, cstr)			CB_INSSTRW(cb_id, cstr)
 #else
