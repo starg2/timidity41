@@ -90,21 +90,22 @@ set(
 	../twsyn_bridge/twsyn_bridge_host.h
 )
 
-set_source_files_properties(
-    w32g_res.rc
+set(
+    W32GRES_DEPS
 
-    PROPERTIES
-        OBJECT_DEPENDS
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_btn.bmp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon.ico"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_gray.ico"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_normal.ico"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_silver.ico"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_playlist_play.ico"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_sleep.bmp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_subbtn.bmp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/w32g_tracer.bmp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_btn.bmp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon.ico"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_gray.ico"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_normal.ico"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_icon_silver.ico"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_playlist_play.ico"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_sleep.bmp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_subbtn.bmp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/w32g_tracer.bmp"
+    "${PROJECT_BINARY_DIR}/version.h"
 )
+
+set_source_files_properties(w32g_res.rc PROPERTIES OBJECT_DEPENDS "${W32GRES_DEPS}")
 
 # for timidity
 
