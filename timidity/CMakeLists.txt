@@ -218,6 +218,8 @@ add_dependencies(timidity UpdateTim41Version)
 target_compile_definitions(timidity PRIVATE -DIA_NCURSES -DIA_VT100)
 target_link_libraries(timidity ${TIMIDITY_COMMON_LIBS} pdcurses)
 
+install(TARGETS timidity)
+
 # twsynsrv
 
 add_executable(
@@ -234,6 +236,8 @@ add_executable(
 add_dependencies(twsynsrv UpdateTim41Version)
 target_compile_definitions(twsynsrv PRIVATE -DIA_WINSYN -DTWSYNSRV -DTWSYNG32INI)
 target_link_libraries(twsynsrv ${TIMIDITY_COMMON_LIBS})
+
+install(TARGETS twsynsrv)
 
 if(("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_C_COMPILER_ID}" MATCHES "IntelLLVM")) OR (NOT "${MSVC}" AND "${TIM41_GCC_WITH_LIBICONV}"))
     # timw32g
@@ -254,6 +258,8 @@ if(("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_C_CO
     target_link_libraries(timw32g ${TIMIDITY_COMMON_LIBS})
     DisableMSManifest(timw32g)
 
+    install(TARGETS timw32g)
+
     # twsyng
 
     add_executable(
@@ -271,6 +277,8 @@ if(("${MSVC}" AND NOT ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_C_CO
     target_compile_definitions(twsyng PRIVATE -DIA_WINSYN -DIA_W32G_SYN -D__W32G__ -DTWSYNG32 -DTWSYNG32INI)
     target_link_libraries(twsyng ${TIMIDITY_COMMON_LIBS})
     DisableMSManifest(twsyng)
+
+    install(TARGETS twsyng)
 endif()
 
 # timw32g_u8
@@ -296,6 +304,8 @@ endif()
 
 DisableMSManifest(timw32g_u8)
 
+install(TARGETS timw32g_u8)
+
 # twsyng_u8
 
 add_executable(
@@ -318,3 +328,5 @@ if(NOT "${MSVC}")
 endif()
 
 DisableMSManifest(twsyng_u8)
+
+install(TARGETS twsyng_u8)
