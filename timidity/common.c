@@ -1137,7 +1137,7 @@ static DWORD w32_code_page_from_id(const char *code)
 void w32_code_convert_japanese(char *in, char *out, size_t outsiz, char *icode, char *ocode)
 {
 	DWORD in_code = icode ? w32_code_page_from_id(icode) : w32_detect_code_page(in);
-	int wlen = MultiByteToWideChar(in_code, 0, in, -1, NULL, NULL);	// includes a null terminator
+	int wlen = MultiByteToWideChar(in_code, 0, in, -1, NULL, 0);	// includes a null terminator
 	wchar_t *wstr = (wchar_t *)safe_malloc(wlen * sizeof(wchar_t));
 	MultiByteToWideChar(in_code, 0, in, -1, wstr, wlen);
 
