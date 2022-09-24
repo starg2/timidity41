@@ -58,11 +58,11 @@ jobs:
         run: >-
           cmake
           -G Ninja
-          -DCMAKE_C_COMPILER="$env:GITHUB_WORKSPACE/mingw64/bin/gcc.exe"
-          -DCMAKE_CXX_COMPILER="$env:GITHUB_WORKSPACE/mingw64/bin/g++.exe"
+          -DCMAKE_C_COMPILER="$($env:GITHUB_WORKSPACE -replace '\\', '/')/mingw64/bin/gcc.exe"
+          -DCMAKE_CXX_COMPILER="$($env:GITHUB_WORKSPACE -replace '\\', '/')/mingw64/bin/g++.exe"
           $(if ('${{ matrix.arch }}' -eq 'x86') { '-DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32"' })
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE/timidity41/inst"
+          -DCMAKE_INSTALL_PREFIX="$($env:GITHUB_WORKSPACE -replace '\\', '/')/timidity41/inst"
           -DTIM41_X86_SIMD_LEVEL="$('${{ matrix.simd }}'.ToUpperInvariant())"
           -S timidity41
           -B timidity41/build
