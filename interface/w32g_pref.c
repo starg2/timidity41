@@ -6104,7 +6104,7 @@ static void AddCurrentTextToCfgHistory(HWND hwnd, int cb_id)
 	if (index != CB_ERR)
 		SendDlgItemMessage(hwnd, cb_id, CB_DELETESTRING, index, 0);
 
-	SendDlgItemMessage(hwnd, cb_id, CB_INSERTSTRING, 0, buffer);
+	SendDlgItemMessage(hwnd, cb_id, CB_INSERTSTRING, 0, (LPARAM)buffer);
 	SendDlgItemMessage(hwnd, cb_id, CB_DELETESTRING, MAX_CFG_HISTORY, 0);
 	EB_SETTEXT(cb_id, buffer);
 }
