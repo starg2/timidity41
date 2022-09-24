@@ -306,7 +306,7 @@ else()
     string(APPEND CMAKE_EXE_LINKER_FLAGS " -Wl,--stack,16777216")
     string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -s")
     string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " -s")
-    string(APPEND CMAKE_RC_FLAGS " -O coff")
+    string(PREPEND CMAKE_RC_FLAGS "-O coff ")
 endif()
 
 function(DisableMSManifest targetName)
