@@ -301,7 +301,7 @@ static void print_device_list(void)
 		if (MMSYSERR_NOERROR == waveOutGetDevCaps((UINT)i, &woc, sizeof(woc)) ){
 			device[list_num].deviceID=i;
 			char *s = tchar_to_char(woc.szPname);
-			strncpy(device[list_num].name, WMME_DEVICE_NAME_MAX_LENGTH, s);
+			strncpy(device[list_num].name, s, WMME_DEVICE_NAME_MAX_LENGTH);
 			device[list_num].name[WMME_DEVICE_NAME_MAX_LENGTH - 1] = '\0';
 			safe_free(s);
 			list_num++;
