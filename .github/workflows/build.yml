@@ -124,7 +124,7 @@ jobs:
         run: mv artifact/timidity41-*/*.zip .
 
       - name: Generate release name
-        run: echo "RELEASE_NAME='$GITHUB_REF_NAME'" | sed 's/tim/TiMidity++ Version v/' >> $GITHUB_ENV
+        run: echo "RELEASE_NAME=$GITHUB_REF_NAME" | sed 's/tim/TiMidity++ Version v/' >> $GITHUB_ENV
 
       - uses: softprops/action-gh-release@v1
         with:
