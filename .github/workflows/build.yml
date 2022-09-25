@@ -36,6 +36,11 @@ jobs:
           path: timidity41
           fetch-depth: 0
 
+      - name: Fetch tags
+        run: git fetch --tags --force
+        shell: bash
+        working-directory: timidity41
+
       - name: Run "git describe"
         run: echo "TIM41_DESCRIBE=$(git describe --first-parent)" >> $GITHUB_ENV
         shell: bash
