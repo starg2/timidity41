@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run "git describe"
-        run: echo "TIM41_DESCRIBE=$(git describe --first-parent --tags)" >> $GITHUB_ENV
+        run: echo "TIM41_DESCRIBE=$(git describe --first-parent)" >> $GITHUB_ENV
         shell: bash
         working-directory: timidity41
 
