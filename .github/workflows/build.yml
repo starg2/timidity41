@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run "git describe"
-        run: echo "TIM41_DESCRIBE=$(git describe --first-parent)" >> $GITHUB_ENV
+        run: echo "TIM41_DESCRIBE=$(git describe --first-parent --tags)" >> $GITHUB_ENV
         shell: bash
         working-directory: timidity41
 
@@ -124,7 +124,7 @@ jobs:
         run: mv artifact/timidity41-*/*.zip .
 
       - name: Generate release name
-        run: echo "RELEASE_NAME='$GITHUB_REF_NAME'" | sed 's/tim/TiMidity++ Version v/' >> $GITHUB_ENV
+        run: echo "RELEASE_NAME=$GITHUB_REF_NAME" | sed 's/tim/TiMidity++ Version v/' >> $GITHUB_ENV
 
       - uses: softprops/action-gh-release@v1
         with:
