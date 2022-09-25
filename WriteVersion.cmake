@@ -1,6 +1,6 @@
 
 execute_process(
-    COMMAND "${GIT_EXECUTABLE}" describe --first-parent --tags
+    COMMAND "${GIT_EXECUTABLE}" describe --first-parent
     OUTPUT_VARIABLE gitDescribeResult
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
