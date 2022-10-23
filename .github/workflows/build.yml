@@ -46,7 +46,15 @@ jobs:
         shell: bash
         working-directory: timidity41
 
+      - name: Cache toolchain
+        id: cache-toolchain
+        uses: actions/cache@v3
+        with:
+          path: mingw64
+          key: v2022-09-24/gcc-12.2.0_x86_64-win32-sjlj-ucrt
+
       - name: Install toolchain
+        if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
         run: |
           curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-09-24/gcc-12.2.0_x86_64-win32-sjlj-ucrt.zip
           7z x gcc-12.2.0_x86_64-win32-sjlj-ucrt.zip
