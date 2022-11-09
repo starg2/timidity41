@@ -46,50 +46,59 @@ jobs:
         shell: bash
         working-directory: timidity41
 
-      - name: Cache toolchain
-        id: cache-toolchain
+      - name: Cache toolchain (x86)
+        id: cache-toolchain-mingw32
+        if: ${{ matrix.arch == 'x86' }}
+        uses: actions/cache@v3
+        with:
+          path: mingw32
+          key: v2022-11-09/gcc-12.2.0_i686-win32-dwarf-ucrt
+
+      - name: Install toolchain (x86)
+        if: ${{ matrix.arch == 'x86' && steps.cache-toolchain-mingw32.outputs.cache-hit != 'true' }}
+        run: |
+          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-11-09/gcc-12.2.0_i686-win32-dwarf-ucrt.zip
+          7z e gcc-12.2.0_i686-win32-dwarf-ucrt.zip i686-12.2.0-release-win32-dwarf-rt_v11.7z
+          7z x i686-12.2.0-release-win32-dwarf-rt_v11.7z
+
+      - name: Cache toolchain (x64)
+        id: cache-toolchain-mingw64
+        if: ${{ matrix.arch == 'x64' }}
         uses: actions/cache@v3
         with:
           path: mingw64
-          key: v2022-09-24/gcc-12.2.0_x86_64-win32-sjlj-ucrt
+          key: v2022-11-09/gcc-12.2.0_x86_64-win32-seh-ucrt
 
-      - name: Install toolchain
-        if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
+      - name: Install toolchain (x64)
+        if: ${{ matrix.arch == 'x64' && steps.cache-toolchain-mingw64.outputs.cache-hit != 'true' }}
         run: |
-          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-09-24/gcc-12.2.0_x86_64-win32-sjlj-ucrt.zip
-          7z x gcc-12.2.0_x86_64-win32-sjlj-ucrt.zip
-          7z x x86_64-12.2.0-static-release-win32-sjlj-rt_v10.7z
+          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-11-09/gcc-12.2.0_x86_64-win32-seh-ucrt.zip
+          7z e gcc-12.2.0_x86_64-win32-seh-ucrt.zip x86_64-12.2.0-release-win32-seh-rt_v11.7z
+          7z x x86_64-12.2.0-release-win32-seh-rt_v11.7z
+
+      - name: Set Toolchain Path
+        run: |
+          "TOOLCHAINDIR=$($env:GITHUB_WORKSPACE -replace '\\', '/')/$(if ('${{ matrix.arch }}' -eq 'x86') { 'mingw32' } else { 'mingw64' })" >> $env:GITHUB_ENV
+          "TOOLCHAINDIR_W=$env:GITHUB_WORKSPACE\$(if ('${{ matrix.arch }}' -eq 'x86') { 'mingw32' } else { 'mingw64' })" >> $env:GITHUB_ENV
 
       - name: Add PATH
         run: |
           $vsdir = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           "$vsdir\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin" >> $env:GITHUB_PATH
           "$vsdir\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja" >> $env:GITHUB_PATH
-          "$env:GITHUB_WORKSPACE\mingw64\bin" >> $env:GITHUB_PATH
+          "$env:TOOLCHAINDIR_W\bin" >> $env:GITHUB_PATH
 
       - name: Configure
         run: >-
           cmake
           -G Ninja
-          -DCMAKE_C_COMPILER="$($env:GITHUB_WORKSPACE -replace '\\', '/')/mingw64/bin/gcc.exe"
-          -DCMAKE_CXX_COMPILER="$($env:GITHUB_WORKSPACE -replace '\\', '/')/mingw64/bin/g++.exe"
-          $(if ('${{ matrix.arch }}' -eq 'x86') { '-DCMAKE_C_FLAGS="-m32"' })
-          $(if ('${{ matrix.arch }}' -eq 'x86') { '-DCMAKE_CXX_FLAGS="-m32"' })
-          $(if ('${{ matrix.arch }}' -eq 'x86') { '-DCMAKE_RC_FLAGS="--target=pe-i386"' })
+          -DCMAKE_C_COMPILER="$env:TOOLCHAINDIR/bin/gcc.exe"
+          -DCMAKE_CXX_COMPILER="$env:TOOLCHAINDIR/bin/g++.exe"
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX="$($env:GITHUB_WORKSPACE -replace '\\', '/')/timidity41/inst"
           -DTIM41_X86_SIMD_LEVEL="$('${{ matrix.simd }}'.ToUpperInvariant())"
           -S timidity41
           -B timidity41/build
-
-      - name: Copy runtime DLLs
-        if: ${{ matrix.arch == 'x86' }}
-        run: >-
-          robocopy
-          mingw64\x86_64-w64-mingw32\lib32
-          timidity41\build\out\bin
-          libgcc_s*.dll libstdc++*.dll
-          ; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
 
       - name: Build
         run: ninja -C timidity41\build
@@ -100,15 +109,15 @@ jobs:
       - name: Install runtime DLLs
         run: >-
           robocopy
-          "mingw64\x86_64-w64-mingw32\$(if ('${{ matrix.arch }}' -eq 'x86') { 'lib32' } else { 'lib' })"
+          "$env:TOOLCHAINDIR_W\bin"
           timidity41\inst\bin
           libgcc_s*.dll libstdc++*.dll
-          ; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
+          ; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 }
 
       - name: Create release archive
         run: |
-          robocopy timidity41\inst "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" /E /XD lib; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
-          robocopy mingw64\licenses\mingw-w64 "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" COPYING.MinGW-w64-runtime.txt; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 } else { $LASTEXITCODE = 1 }
+          robocopy timidity41\inst "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" /E /XD lib; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 }
+          robocopy "$env:TOOLCHAINDIR_W\licenses\mingw-w64" "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" COPYING.MinGW-w64-runtime.txt; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 }
           7z a "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}.zip" "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}"
 
       - uses: actions/upload-artifact@v3
