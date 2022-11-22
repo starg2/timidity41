@@ -52,12 +52,12 @@ jobs:
         uses: actions/cache@v3
         with:
           path: mingw32
-          key: v2022-11-09/gcc-12.2.0_i686-win32-dwarf-ucrt
+          key: v2022-11-22/gcc-12.2.0_i686-win32-dwarf-ucrt
 
       - name: Install toolchain (x86)
         if: ${{ matrix.arch == 'x86' && steps.cache-toolchain-mingw32.outputs.cache-hit != 'true' }}
         run: |
-          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-11-09/gcc-12.2.0_i686-win32-dwarf-ucrt.zip
+          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-11-22/gcc-12.2.0_i686-win32-dwarf-ucrt.zip
           7z e gcc-12.2.0_i686-win32-dwarf-ucrt.zip i686-12.2.0-release-win32-dwarf-rt_v11.7z
           7z x i686-12.2.0-release-win32-dwarf-rt_v11.7z
 
@@ -67,12 +67,12 @@ jobs:
         uses: actions/cache@v3
         with:
           path: mingw64
-          key: v2022-11-09/gcc-12.2.0_x86_64-win32-seh-ucrt
+          key: v2022-11-22/gcc-12.2.0_x86_64-win32-seh-ucrt
 
       - name: Install toolchain (x64)
         if: ${{ matrix.arch == 'x64' && steps.cache-toolchain-mingw64.outputs.cache-hit != 'true' }}
         run: |
-          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-11-09/gcc-12.2.0_x86_64-win32-seh-ucrt.zip
+          curl.exe -L -O https://github.com/starg2/mingw64-builds-GHA/releases/download/v2022-11-22/gcc-12.2.0_x86_64-win32-seh-ucrt.zip
           7z e gcc-12.2.0_x86_64-win32-seh-ucrt.zip x86_64-12.2.0-release-win32-seh-rt_v11.7z
           7z x x86_64-12.2.0-release-win32-seh-rt_v11.7z
 
