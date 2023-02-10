@@ -62,11 +62,12 @@ yes) i_dlfcn=define;;
 *)   i_dlfcn=undef;;
 esac
 cat > dyna.c <<EOM
-fred () { }
+int fred () { }
 EOM
 
 cat > fred.c <<EOM
 #include <stdio.h>
+#include <stdlib.h>
 #$i_dlfcn I_DLFCN
 #ifdef I_DLFCN
 #include <dlfcn.h>      /* the dynamic linker include file for Sunos/Solaris */
@@ -78,7 +79,7 @@ cat > fred.c <<EOM
 
 extern int fred() ;
 
-main()
+int main()
 {
     void * handle ;
     void * symbol ;
