@@ -272,7 +272,8 @@ if(MSVC)
         -DSTDOUT_FILENO=1
     )
 else()
-    add_compile_options(-Wall -Wextra -Wno-missing-braces -ffast-math)
+    add_compile_definitions(_FORTIFY_SOURCE=2)
+    add_compile_options(-Wall -Wextra -Wno-missing-braces -ffast-math -fstack-protector-strong)
 
     if("${TIM41_GCC_WITH_LIBICONV}")
         add_compile_options(-finput-charset=cp932 -fexec-charset=cp932)
