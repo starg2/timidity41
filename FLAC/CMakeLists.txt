@@ -105,7 +105,7 @@ add_library(
 
     src/share/win_utf8_io/win_utf8_io.c
 
-    src/version.rc
+    # src/version.rc
 )
 
 if(MSVC AND NOT TIM41_USE_AVX2)
