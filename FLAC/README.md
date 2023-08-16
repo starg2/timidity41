@@ -1,7 +1,7 @@
 <!---
 /* FLAC - Free Lossless Audio Codec
  * Copyright (C) 2001-2009  Josh Coalson
- * Copyright (C) 2011-2022  Xiph.Org Foundation
+ * Copyright (C) 2011-2023  Xiph.Org Foundation
  *
  * This file is part the FLAC project.  FLAC is comprised of several
  * components distributed under different licenses.  The codec libraries
@@ -42,7 +42,6 @@ FLAC is comprised of
   * `flac`, a command-line program for encoding and decoding files
   * `metaflac`, a command-line program for viewing and editing FLAC
     metadata
-  * player plugin for XMMS
   * user and API documentation
 
 The libraries (libFLAC, libFLAC++) are licensed under Xiph.org's

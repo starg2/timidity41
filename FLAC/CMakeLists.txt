@@ -4,7 +4,7 @@ add_definitions(
     -DFLAC__HAS_X86INTRIN
     -DFLAC__HAS_OGG
 
-    -DPACKAGE_VERSION="1.4.1"
+    -DPACKAGE_VERSION="1.4.3"
 )
 
 if(MINGW)
@@ -70,7 +70,9 @@ add_library(
     src/cpu.c
     src/crc.c
     src/fixed.c
+    src/fixed_intrin_avx2.c
     src/fixed_intrin_sse2.c
+    src/fixed_intrin_sse42.c
     src/fixed_intrin_ssse3.c
     src/float.c
     src/format.c
@@ -96,11 +98,16 @@ add_library(
     src/window.c
 
     src/share/win_utf8_io/win_utf8_io.c
+
+    src/version.rc
 )
 
 if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND NOT TIM41_USE_AVX2)
     set_source_files_properties(
-        src/lpc_intrin_avx2.c src/stream_encoder_intrin_avx2.c
+        src/fixed_intrin_avx2.c
+        src/lpc_intrin_avx2.c
+        src/lpc_intrin_fma.c
+        src/stream_encoder_intrin_avx2.c
         PROPERTIES
             COMPILE_OPTIONS /arch:AVX2
     )
