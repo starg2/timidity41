@@ -1,5 +1,5 @@
 #include <winver.h>
-#include "config.h"
+
 #include "FLAC/export.h"
 
 #if (defined GIT_COMMIT_HASH && defined GIT_COMMIT_DATE)

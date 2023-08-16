@@ -14,6 +14,12 @@ if(MINGW)
     )
 endif()
 
+if(${CMAKE_SIZEOF_VOID_P} GREATER_EQUAL 8)
+    add_definitions(-DENABLE_64_BIT_WORDS=1)
+else()
+    add_definitions(-DENABLE_64_BIT_WORDS=0)
+endif()
+
 include_directories(src)
 
 add_library(
@@ -102,7 +108,7 @@ add_library(
     src/version.rc
 )
 
-if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND NOT TIM41_USE_AVX2)
+if(MSVC AND NOT TIM41_USE_AVX2)
     set_source_files_properties(
         src/fixed_intrin_avx2.c
         src/lpc_intrin_avx2.c
