@@ -6334,7 +6334,7 @@ static int parse_opt_h(const char *arg)
 	};
 	void show_ao_device_info(FILE *fp);
 	FILE *fp;
-	char version[64], *help_args[7], per_mark[2];
+	char version[128], *help_args[7], per_mark[2];
 	int i, j;
 	char *h;
 	ControlMode *cmp, **cmpp;
