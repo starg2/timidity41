@@ -92,6 +92,7 @@ length*2まで扱えれば十分
 #endif
 
 #define USE_PERMUTEX2
+//#define USE_GATHER
 
 static inline int32 imuldiv_fraction(int32 a, int32 b) {
 #if (OPT_MODE == 1) && defined(SUPPORT_ASM_INTEL) /* fixed-point implementation */
@@ -4177,33 +4178,35 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 #endif // LO_OPTIMIZE_INCREMENT
 	for (; i < count; i += 16) {
 		__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS);
-#if 1
+#if USE_GATHER
 		__m512i vsrc01 = _mm512_i32gather_epi32(vofsi, (const int*)src, 2);
+#else
+		ALIGN int32 ofsi[16];
+		_mm512_store_epi32(ofsi, vofsi);
+
+		__m128i vinj2_0101xxxx[8];
+
+		for (int j = 0; j < 8; j++) {
+			vinj2_0101xxxx[j] = _mm_unpacklo_epi32(_mm_loadu_si128((__m128i *)&src[ofsi[2 * j]]), _mm_loadu_si128((__m128i *)&src[ofsi[2 * j + 1]]));
+		}
+
+		__m128i vinj4_01010101[4];
+
+		for (int j = 0; j < 4; j++) {
+			vinj4_01010101[j] = _mm_unpacklo_epi64(vinj2_0101xxxx[2 * j], vinj2_0101xxxx[2 * j + 1]);
+		}
+
+		__m512i vsrc01 = _mm512_inserti64x4(
+			_mm512_castsi256_si512(_mm256_inserti128_si256(_mm256_castsi128_si256(vinj4_01010101[0]), vinj4_01010101[1], 1)),
+			_mm256_inserti128_si256(_mm256_castsi128_si256(vinj4_01010101[2]), vinj4_01010101[3], 1),
+			1
+		);
+#endif
 		__m512i vsrc0 = _mm512_srai_epi32(_mm512_slli_epi32(vsrc01, 16), 16);
 		__m512i vsrc1 = _mm512_srai_epi32(vsrc01, 16);
 		__m512 vv1 = _mm512_cvtepi32_ps(vsrc0);
 		__m512 vv2 = _mm512_cvtepi32_ps(vsrc1);
-#else
-		__m128i vin1 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 0)]); // ofsiとofsi+1をロード
-		__m128i vin2 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 1)]); // 次周サンプルも同じ
-		__m128i vin3 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 2)]); // 次周サンプルも同じ
-		__m128i vin4 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 3)]); // 次周サンプルも同じ
-		__m128i vin5 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 4)]); // 次周サンプルも同じ
-		__m128i vin6 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 5)]); // 次周サンプルも同じ
-		__m128i vin7 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 6)]); // 次周サンプルも同じ
-		__m128i vin8 = _mm_loadu_si128((__m128i*) & src[MM256_EXTRACT_I32(vofsi, 7)]); // 次周サンプルも同じ
-		__m128i vin12 = _mm_unpacklo_epi16(vin1, vin2); // [v11v21]e96,[v12v22]e96 to [v11v12v21v22]e64
-		__m128i vin34 = _mm_unpacklo_epi16(vin3, vin4); // [v13v23]e96,[v14v24]e96 to [v13v14v23v24]e64
-		__m128i vin56 = _mm_unpacklo_epi16(vin5, vin6); // 同じ
-		__m128i vin78 = _mm_unpacklo_epi16(vin7, vin8); // 同じ
-		__m128i vin1234 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22]e64,[v13v14,v23v24]e64 to [v11v12v13v14,v21v22v23v24]e0
-		__m128i vin5678 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26]e64,[v17v18,v27v28]e64 to [v15v16v17v18,v25v26v27v28]e0
-		__m256i viall = MM256_SET2X_SI256(vin1234, vin5678); // 256bit =128bit+128bit	
-		__m256i vsi16_1 = _mm256_permute4x64_epi64(viall, 0xD8); // v1をL128bitにまとめ
-		__m256i vsi16_2 = _mm256_permute4x64_epi64(viall, 0x8D); // v2をL128bitにまとめ
-		__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_1, 0))); // int16 to float (float変換でH128bitは消える
-		__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(vsi16_2, 0))); // int16 to float (float変換でH128bitは消える
-#endif
+
 		__m512 vfp = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_and_epi32(vofs, vfmask)), vec_divf);
 #if defined(DATA_T_DOUBLE)
 		__m512 vec_out = _mm512_mul_ps(_mm512_fmadd_ps(_mm512_sub_ps(vv2, vv1), vfp, vv1), vec_divo);
@@ -4331,7 +4334,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
-#if 0
+#if USE_GATHER
 	__m256i vsrc01 = _mm256_i32gather_epi32((const int*)src, vofsi, 2);
 	__m256i vsrc0 = _mm256_srai_epi32(_mm256_slli_epi32(vsrc01, 16), 16);
 	__m256i vsrc1 = _mm256_srai_epi32(vsrc01, 16);
@@ -4900,7 +4903,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 #endif // LO_OPTIMIZE_INCREMENT
 	for (; i < count; i += 16) {
 		__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS);
-#if 1
+#if USE_GATHER
 		__m512 vv1 = _mm512_cvtepi32_ps(_mm512_i32gather_epi32(vofsi, src, 4));
 		__m512 vv2 = _mm512_cvtepi32_ps(_mm512_i32gather_epi32(_mm512_add_epi32(vofsi, _mm512_set1_epi32(1)), src, 4));
 #else
@@ -5064,7 +5067,7 @@ static inline DATA_T *resample_linear_int32_multi(Voice *vp, DATA_T *dest, int32
 
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
-#if 0
+#if USE_GATHER
 	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_i32gather_epi32(src, vofsi, 4));
 	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_i32gather_epi32(src, _mm256_add_epi32(vofsi, _mm256_set1_epi32(1)), 4));
 #else
@@ -5365,7 +5368,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 #endif // LO_OPTIMIZE_INCREMENT
 	for (; i < count; i += 16) {
 		__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS);
-#if 1
+#if USE_GATHER
 		__m512 vv1 = _mm512_i32gather_ps(vofsi, src, 4);
 		__m512 vv2 = _mm512_i32gather_ps(_mm512_add_epi32(vofsi, _mm512_set1_epi32(1)), src, 4);
 #else
@@ -5529,7 +5532,7 @@ static inline DATA_T *resample_linear_float_multi(Voice *vp, DATA_T *dest, int32
 
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS);
-#if 0
+#if USE_GATHER
 	__m256 vv1 = _mm256_i32gather_ps(src, vofsi, 4);
 	__m256 vv2 = _mm256_i32gather_ps(src, _mm256_add_epi32(vofsi, _mm256_set1_epi32(1)), 4);
 #else
@@ -6302,12 +6305,32 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 #endif // LAO_OPTIMIZE_INCREMENT
 	for(; i < count; i += 16) {
 	__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-#if 1
-	__m512i vsrc0123_0123 = _mm512_i32gather_epi64(_mm512_castsi512_si256(vofsi), (const int*)(src - 1), 2);
-	__m512i vsrc4567_0123 = _mm512_i32gather_epi64(_mm512_extracti32x8_epi32(vofsi, 1), (const int*)(src - 1), 2);
+#if USE_GATHER
+	__m512i vsrc0to7_0123 = _mm512_i32gather_epi64(_mm512_castsi512_si256(vofsi), (const int*)(src - 1), 2);
+	__m512i vsrc8tof_0123 = _mm512_i32gather_epi64(_mm512_extracti32x8_epi32(vofsi, 1), (const int*)(src - 1), 2);
+#else
+	ALIGN int32 ofsim1[16];
+	_mm512_store_epi32(ofsim1, _mm512_sub_epi32(vofsi, _mm512_set1_epi32(1)));
+
+	__m128i vinj2_0123[8];
+
+	for (int j = 0; j < 8; j++) {
+		vinj2_0123[j] = _mm_unpacklo_epi64(_mm_loadu_si128((__m128i *)&src[ofsim1[2 * j]]), _mm_loadu_si128((__m128i *)&src[ofsim1[2 * j + 1]]));
+	}
+
+	__m256i vinj4_0123[4];
+
+	for (int j = 0; j < 4; j++) {
+		vinj4_0123[j] = _mm256_inserti128_si256(_mm256_castsi128_si256(vinj2_0123[2 * j]), vinj2_0123[2 * j + 1], 1);
+	}
+
+	__m512i vsrc0to7_0123 = _mm512_inserti64x4(_mm512_castsi256_si512(vinj4_0123[0]), vinj4_0123[1], 1);
+	__m512i vsrc8tof_0123 = _mm512_inserti64x4(_mm512_castsi256_si512(vinj4_0123[2]), vinj4_0123[3], 1);
+#endif
+
 	const __m512i vpermi2mask = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12 ,10, 8, 6, 4, 2, 0);
-	__m512i vsrc01 = _mm512_permutex2var_epi32(vsrc0123_0123, vpermi2mask, vsrc4567_0123);
-	__m512i vsrc23 = _mm512_permutex2var_epi32(vsrc0123_0123, _mm512_add_epi32(vpermi2mask, _mm512_set1_epi32(1)), vsrc4567_0123);
+	__m512i vsrc01 = _mm512_permutex2var_epi32(vsrc0to7_0123, vpermi2mask, vsrc8tof_0123);
+	__m512i vsrc23 = _mm512_permutex2var_epi32(vsrc0to7_0123, _mm512_add_epi32(vpermi2mask, _mm512_set1_epi32(1)), vsrc8tof_0123);
 	__m512i vsrc0 = _mm512_srai_epi32(_mm512_slli_epi32(vsrc01, 16), 16);
 	__m512i vsrc1 = _mm512_srai_epi32(vsrc01, 16);
 	__m512i vsrc2 = _mm512_srai_epi32(_mm512_slli_epi32(vsrc23, 16), 16);
@@ -6316,32 +6339,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	__m512 vv1 = _mm512_cvtepi32_ps(vsrc1);
 	__m512 vv2 = _mm512_cvtepi32_ps(vsrc2);
 	__m512 vv3 = _mm512_cvtepi32_ps(vsrc3);
-#else
-	__m128i vin1 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,0) - 1]); // ofsi-1~ofsi+2をロード
-	__m128i vin2 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,1) - 1]); // 次周サンプルも同じ
-	__m128i vin3 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,2) - 1]); // 次周サンプルも同じ
-	__m128i vin4 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,3) - 1]); // 次周サンプルも同じ
-	__m128i vin5 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,4) - 1]); // 次周サンプルも同じ
-	__m128i vin6 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,5) - 1]); // 次周サンプルも同じ
-	__m128i vin7 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,6) - 1]); // 次周サンプルも同じ
-	__m128i vin8 = _mm_loadu_si128((__m128i *)&src[MM256_EXTRACT_I32(vofsi,7) - 1]); // 次周サンプルも同じ
-	__m128i vin12 = _mm_unpacklo_epi16(vin1, vin2); // [v11v21v31v41],[v12v22v32v42] to [v11v12v21v22v31v32v41v42]
-	__m128i vin34 =	_mm_unpacklo_epi16(vin3, vin4); // [v13v23v33v43],[v14v24v34v44] to [v13v14v23v24v33v34v43v44]
-	__m128i vin56 =	_mm_unpacklo_epi16(vin5, vin6); // [v15v25v35v45],[v16v26v36v46] to [v15v16v25v26v35v36v45v46]
-	__m128i vin78 =	_mm_unpacklo_epi16(vin7, vin8); // [v17v27v37v47],[v18v28v38v48] to [v17v18v27v28v37v38v47v48]
-	__m128i vin1121 = _mm_unpacklo_epi32(vin12, vin34); // [v11v12,v21v22],[v13v14,v23v24] to [v11v12v13v14,v21v22v23v24]
-	__m128i vin3141 = _mm_unpackhi_epi32(vin12, vin34); // [v31v32,v41v42],[v33v34v,43v44] to [v31v32v33v34,v41v42v43v44]
-	__m128i vin1525 = _mm_unpacklo_epi32(vin56, vin78); // [v15v16,v25v26],[v17v18,v27v28] to [v15v16v17v18,v25v26v27v28]
-	__m128i vin3545 = _mm_unpackhi_epi32(vin56, vin78); // [v35v36,v45v46],[v37v38v,47v48] to [v35v36v37v38,v45v46v47v48]
-	__m128i vi16_1 = _mm_unpacklo_epi64(vin1121, vin1525); // [v11v12v13v14,v21v22v23v24],[v15v16v17v18,v25v26v27v28] to [v11v12v13v14v15v16v17v18]
-	__m128i vi16_2 = _mm_unpackhi_epi64(vin1121, vin1525); // [v11v12v13v14,v21v22v23v24],[v15v16v17v18,v25v26v27v28] to [v21v22v23v24v25v26v27v28]
-	__m128i vi16_3 = _mm_unpacklo_epi64(vin3141, vin3545); // [v31v32v33v34,v41v42v43v44],[v35v36v37v38,v45v46v47v48] to [v31v32v33v34v35v36v37v38]
-	__m128i vi16_4 = _mm_unpackhi_epi64(vin3141, vin3545); // [v31v32v33v34,v41v42v43v44],[v35v36v37v38,v45v46v47v48] to [v41v42v43v44v45v46v47v48]
-	__m256 vv0 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_1)); // int16 to float (16bit*8 -> 32bit*8 > float*8
-	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_2)); // int16 to float (16bit*8 -> 32bit*8 > float*8
-	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_3)); // int16 to float (16bit*8 -> 32bit*8 > float*8
-	__m256 vv3 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(vi16_4)); // int16 to float (16bit*8 -> 32bit*8 > float*8
-#endif
+
 	__m512i vofsf = _mm512_add_epi32(_mm512_and_epi32(vofs, vfmask), vfrac); // ofsf = (ofs & FRACTION_MASK) + mlt_fraction;
 	__m512 vtmp = _mm512_sub_ps(vv1, vv0); // tmp = v[1] - v[0];
 	__m512 vtmp1, vtmp2, vtmp3, vtmp4;
@@ -6458,7 +6456,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 #endif // LAO_OPTIMIZE_INCREMENT
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-#if 0
+#if USE_GATHER
 	__m256i vin01 = _mm256_i32gather_epi32((const int *)(src - 1), vofsi, 2);
 	__m256i vin23 = _mm256_i32gather_epi32((const int *)(src + 1), vofsi, 2);
 	__m256 vv0 = _mm256_cvtepi32_ps(_mm256_srai_epi32(_mm256_slli_epi32(vin01, 16), 16));
@@ -7049,7 +7047,7 @@ static inline DATA_T *resample_lagrange_int32_multi(Voice *vp, DATA_T *dest, int
 #endif // LAO_OPTIMIZE_INCREMENT
 	for(; i < count; i += 16) {
 	__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-#if 1
+#if USE_GATHER
 	__m512 vv0 = _mm512_cvtepi32_ps(_mm512_i32gather_epi32(_mm512_sub_epi32(vofsi, _mm512_set1_epi32(1)), src, 4));
 	__m512 vv1 = _mm512_cvtepi32_ps(_mm512_i32gather_epi32(vofsi, src, 4));
 	__m512 vv2 = _mm512_cvtepi32_ps(_mm512_i32gather_epi32(_mm512_add_epi32(vofsi, _mm512_set1_epi32(1)), src, 4));
@@ -7207,7 +7205,7 @@ static inline DATA_T *resample_lagrange_int32_multi(Voice *vp, DATA_T *dest, int
 #endif // LAO_OPTIMIZE_INCREMENT
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-#if 0
+#if USE_GATHER
 	__m256 vv0 = _mm256_cvtepi32_ps(_mm256_i32gather_epi32(src, _mm256_sub_epi32(vofsi, _mm256_set1_epi32(1)), 4));
 	__m256 vv1 = _mm256_cvtepi32_ps(_mm256_i32gather_epi32(src, vofsi, 4));
 	__m256 vv2 = _mm256_cvtepi32_ps(_mm256_i32gather_epi32(src, _mm256_add_epi32(vofsi, _mm256_set1_epi32(1)), 4));
@@ -7727,7 +7725,7 @@ static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int
 #endif // LAO_OPTIMIZE_INCREMENT
 	for(; i < count; i += 16) {
 	__m512i vofsi = _mm512_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-#if 1
+#if USE_GATHER
 	__m512 vv0 = _mm512_i32gather_ps(_mm512_sub_epi32(vofsi, _mm512_set1_epi32(1)), src, 4);
 	__m512 vv1 = _mm512_i32gather_ps(vofsi, src, 4);
 	__m512 vv2 = _mm512_i32gather_ps(_mm512_add_epi32(vofsi, _mm512_set1_epi32(1)), src, 4);
@@ -7883,7 +7881,7 @@ static inline DATA_T *resample_lagrange_float_multi(Voice *vp, DATA_T *dest, int
 #endif // LAO_OPTIMIZE_INCREMENT
 	for(; i < count; i += 8) {
 	__m256i vofsi = _mm256_srli_epi32(vofs, FRACTION_BITS); // ofsi = ofs >> FRACTION_BITS
-#if 0
+#if USE_GATHER
 	__m256 vv0 = _mm256_i32gather_ps(src, _mm256_sub_epi32(vofsi, _mm256_set1_epi32(1)), 4);
 	__m256 vv1 = _mm256_i32gather_ps(src, vofsi, 4);
 	__m256 vv2 = _mm256_i32gather_ps(src, _mm256_add_epi32(vofsi, _mm256_set1_epi32(1)), 4);
