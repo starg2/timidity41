@@ -1207,7 +1207,7 @@ static int tracer_ch_program_draw(int ch, int bank, int program, char *instrumen
 	}
 
 	if (!instrument) { instrument = " ----"; }
-	strncpy(w32g_tracer_wnd.instrument[ch], (char*)instrument, 250);
+	if (w32g_tracer_wnd.instrument[ch] != instrument) { strncpy(w32g_tracer_wnd.instrument[ch], (char*)instrument, 250); }
 	w32g_tracer_wnd.instrument[ch][250] = '\0';
 	if (w32g_tracer_wnd.instrument[ch][0] != ' ') {
 		char instbuff[255] = "";
