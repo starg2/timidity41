@@ -280,16 +280,13 @@ else()
     endif()
 
     if("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX512")
-        add_compile_options(
-            -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw # -mavx512ifma -mavx512vbmi # -mavx512vpopcntdq -mavx512vnni -mavx512vbmi2 -mavx512bitalg -mvpclmulqdq -mgfni -mvaes
-            -mpclmul -mpopcnt -maes -mavx2 -mfma -mfsgsbase -mf16c -mmovbe -mrdrnd -mlzcnt -mbmi -mbmi2 -mprfchw -mrdseed -madx
-        )
+        add_compile_options(-march=skylake-avx512 -mtune=znver4)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX2")
-        add_compile_options(-mavx2 -mpclmul -mpopcnt -maes -mavx2 -mfma -mfsgsbase -mf16c -mmovbe -mrdrnd -mlzcnt -mbmi -mbmi2)
+        add_compile_options(-march=haswell -mtune=znver2)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX")
-        add_compile_options(-mavx -mpclmul -mpopcnt -maes)
+        add_compile_options(-march=sandybridge -mtune=sandybridge)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE42")
-        add_compile_options(-msse4.2 -mpclmul -mpopcnt)
+        add_compile_options(-march=nehalem -mtune=silvermont)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE2")
         add_compile_options(-msse2)
     endif()
