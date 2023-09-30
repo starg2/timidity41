@@ -1,5 +1,5 @@
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 
 cmake_policy(SET CMP0091 NEW)   # MSVC runtime library flags are selected by an abstraction.
 cmake_policy(SET CMP0092 NEW)   # Don't add /W3 flag in CMAKE_C_FLAGS by default.
@@ -284,16 +284,13 @@ else()
     endif()
 
     if("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX512")
-        add_compile_options(
-            -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw # -mavx512ifma -mavx512vbmi # -mavx512vpopcntdq -mavx512vnni -mavx512vbmi2 -mavx512bitalg -mvpclmulqdq -mgfni -mvaes
-            -mpclmul -mpopcnt -maes -mavx2 -mfma -mfsgsbase -mf16c -mmovbe -mrdrnd -mlzcnt -mbmi -mbmi2 -mprfchw -mrdseed -madx
-        )
+        add_compile_options(-march=skylake-avx512 -mtune=znver4)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX2")
-        add_compile_options(-mavx2 -mpclmul -mpopcnt -maes -mavx2 -mfma -mfsgsbase -mf16c -mmovbe -mrdrnd -mlzcnt -mbmi -mbmi2)
+        add_compile_options(-march=haswell -mtune=znver2)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "AVX")
-        add_compile_options(-mavx -mpclmul -mpopcnt -maes)
+        add_compile_options(-march=sandybridge -mtune=sandybridge)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE42")
-        add_compile_options(-msse4.2 -mpclmul -mpopcnt)
+        add_compile_options(-march=nehalem -mtune=silvermont)
     elseif("${TIM41_X86_SIMD_LEVEL}" STREQUAL "SSE2")
         add_compile_options(-msse2)
     endif()
@@ -303,9 +300,18 @@ else()
     if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
         string(APPEND CMAKE_C_FLAGS_RELEASE " -flto=thin")
         string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto=thin")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -flto=thin")
+        string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " -flto=thin")
+    elseif(("${CMAKE_C_COMPILER_ID}" MATCHES "GNU") AND ("${CMAKE_C_COMPILER_VERSION}" VERSION_GREATER_EQUAL "11.0"))
+        string(APPEND CMAKE_C_FLAGS_RELEASE " -flto=auto")
+        string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto=auto")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -flto=auto")
+        string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " -flto=auto")
     else()
         string(APPEND CMAKE_C_FLAGS_RELEASE " -flto")
         string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -flto")
+        string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " -flto")
     endif()
 
     string(APPEND CMAKE_EXE_LINKER_FLAGS " -Wl,--stack,16777216")

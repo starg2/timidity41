@@ -34,7 +34,7 @@
 const char *arch_string =
 #ifdef IX64CPU
 	#if USE_X64_EXT_INTRIN == 10
-		"[x64 AVX512(F, CD, VL, DQ, BW)]"
+		"[x64 AVX512]"
 	#elif USE_X64_EXT_INTRIN == 9
 		"[x64 AVX2]"
 	#elif USE_X64_EXT_INTRIN == 8
@@ -58,7 +58,7 @@ const char *arch_string =
 	#endif
 #elif defined(IX86CPU)
 	#if USE_X86_EXT_INTRIN == 10
-		"[x86 AVX512(F, CD, VL, DQ, BW)]"
+		"[x86 AVX512]"
 	#elif USE_X86_EXT_INTRIN == 9
 		"[x86 AVX2]"
 	#elif USE_X86_EXT_INTRIN == 8
