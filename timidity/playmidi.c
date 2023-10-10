@@ -14320,14 +14320,14 @@ static void init_rx(int ch)
 
 static void set_rx(int ch, int32 rx, int flag)
 {
-	if(ch > MAX_CHANNELS) {return;}
+	if(ch >= MAX_CHANNELS) {return;}
 	if(flag) {channel[ch].rx |= rx;}
 	else {channel[ch].rx &= ~rx;}
 }
 
 static int32 get_rx(int ch, int32 rx)
 {
-	if(ch > MAX_CHANNELS) {return 0;}
+	if(ch >= MAX_CHANNELS) {return 0;}
 	return (channel[ch].rx & rx);
 }
 
