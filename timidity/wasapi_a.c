@@ -570,12 +570,9 @@ static unsigned int WINAPI render_thread(void *arglist)
 	if(!hMmCss)
 		goto thread_exit;
 	IsThreadStart = 1;
-	WaitForSingleObject(hEventTcv, INFINITE); // wait initialize open_output
-	ResetEvent(hEventTcv);
 	if(!IsPolling){
 		for(;;){ // event
 			WaitForSingleObject(hEventTcv, INFINITE);
-			ResetEvent(hEventTcv);
 			if(IsThreadExit) break;		
 			EnterCriticalSection(&critSect);
 			write_buffer_event();
@@ -584,7 +581,6 @@ static unsigned int WINAPI render_thread(void *arglist)
 	}else{
 		for(;;){ // polling
 			WaitForSingleObject(hEventTcv, ThreadWaitTime);
-			ResetEvent(hEventTcv);
 			if(IsThreadExit) break;
 			EnterCriticalSection(&critSect);
 			write_buffer_polling();
@@ -897,7 +893,7 @@ int open_output(void)
 	}
 	IsExclusive = opt_wasapi_exclusive;
 	IsPolling = opt_wasapi_polling;
-	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // reset manual
+	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // auto reset
 	if(!hEventTcv)
 		goto error;	
     if(check_hresult_failed(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE), "CoInitializeEx()"))
@@ -1135,7 +1131,6 @@ int open_output(void)
 			goto error;
 		if(check_hresult_failed(IAudioClient_Start(pAudioClient), "IAudioClient::Start()"))
 			goto error;	
-		SetEvent(hEventTcv); // start process
 		IsStarted = TRUE;
 	}
 	return 0;
