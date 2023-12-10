@@ -151,6 +151,14 @@ typedef struct {
 #define SPEAKER_MONO	          (SPEAKER_FRONT_CENTER)
 #define SPEAKER_STEREO	          (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT)
 
+#ifndef AUDCLNT_E_EFFECT_NOT_AVAILABLE
+#define AUDCLNT_E_EFFECT_NOT_AVAILABLE  AUDCLNT_ERR(0x041)
+#endif
+
+#ifndef AUDCLNT_E_EFFECT_STATE_READ_ONLY
+#define AUDCLNT_E_EFFECT_STATE_READ_ONLY  AUDCLNT_ERR(0x042)
+#endif
+
 static HRESULT check_hresult(HRESULT hr, const char *operation)
 {
 	if (FAILED(hr)) {
