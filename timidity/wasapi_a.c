@@ -151,6 +151,92 @@ typedef struct {
 #define SPEAKER_MONO	          (SPEAKER_FRONT_CENTER)
 #define SPEAKER_STEREO	          (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT)
 
+#ifndef AUDCLNT_E_EFFECT_NOT_AVAILABLE
+#define AUDCLNT_E_EFFECT_NOT_AVAILABLE  AUDCLNT_ERR(0x041)
+#endif
+
+#ifndef AUDCLNT_E_EFFECT_STATE_READ_ONLY
+#define AUDCLNT_E_EFFECT_STATE_READ_ONLY  AUDCLNT_ERR(0x042)
+#endif
+
+static HRESULT check_hresult(HRESULT hr, const char *operation)
+{
+	if (FAILED(hr)) {
+		switch (hr) {
+		
+#define HANDLE_HRESULT(hresult) \
+	case hresult: \
+		ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: %s failed with HRESULT = %s", operation, #hresult); \
+		break;
+
+			HANDLE_HRESULT(E_UNEXPECTED);
+			HANDLE_HRESULT(E_NOTIMPL);
+			HANDLE_HRESULT(E_OUTOFMEMORY);
+			HANDLE_HRESULT(E_INVALIDARG);
+			HANDLE_HRESULT(E_NOINTERFACE);
+			HANDLE_HRESULT(E_POINTER);
+			HANDLE_HRESULT(E_HANDLE);
+			HANDLE_HRESULT(E_ABORT);
+			HANDLE_HRESULT(E_FAIL);
+			HANDLE_HRESULT(E_ACCESSDENIED);
+
+			HANDLE_HRESULT(CO_E_NOTINITIALIZED);
+
+			HANDLE_HRESULT(AUDCLNT_E_NOT_INITIALIZED);
+			HANDLE_HRESULT(AUDCLNT_E_ALREADY_INITIALIZED);
+			HANDLE_HRESULT(AUDCLNT_E_WRONG_ENDPOINT_TYPE);
+			HANDLE_HRESULT(AUDCLNT_E_DEVICE_INVALIDATED);
+			HANDLE_HRESULT(AUDCLNT_E_NOT_STOPPED);
+			HANDLE_HRESULT(AUDCLNT_E_BUFFER_TOO_LARGE);
+			HANDLE_HRESULT(AUDCLNT_E_OUT_OF_ORDER);
+			HANDLE_HRESULT(AUDCLNT_E_UNSUPPORTED_FORMAT);
+			HANDLE_HRESULT(AUDCLNT_E_INVALID_SIZE);
+			HANDLE_HRESULT(AUDCLNT_E_DEVICE_IN_USE);
+			HANDLE_HRESULT(AUDCLNT_E_BUFFER_OPERATION_PENDING);
+			HANDLE_HRESULT(AUDCLNT_E_THREAD_NOT_REGISTERED);
+			HANDLE_HRESULT(AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED);
+			HANDLE_HRESULT(AUDCLNT_E_ENDPOINT_CREATE_FAILED);
+			HANDLE_HRESULT(AUDCLNT_E_SERVICE_NOT_RUNNING);
+			HANDLE_HRESULT(AUDCLNT_E_EVENTHANDLE_NOT_EXPECTED);
+			HANDLE_HRESULT(AUDCLNT_E_EXCLUSIVE_MODE_ONLY);
+			HANDLE_HRESULT(AUDCLNT_E_BUFDURATION_PERIOD_NOT_EQUAL);
+			HANDLE_HRESULT(AUDCLNT_E_EVENTHANDLE_NOT_SET);
+			HANDLE_HRESULT(AUDCLNT_E_INCORRECT_BUFFER_SIZE);
+			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_ERROR);
+			HANDLE_HRESULT(AUDCLNT_E_CPUUSAGE_EXCEEDED);
+			HANDLE_HRESULT(AUDCLNT_E_BUFFER_ERROR);
+			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED);
+			HANDLE_HRESULT(AUDCLNT_E_INVALID_DEVICE_PERIOD);
+			HANDLE_HRESULT(AUDCLNT_E_INVALID_STREAM_FLAG);
+			HANDLE_HRESULT(AUDCLNT_E_ENDPOINT_OFFLOAD_NOT_CAPABLE);
+			HANDLE_HRESULT(AUDCLNT_E_OUT_OF_OFFLOAD_RESOURCES);
+			HANDLE_HRESULT(AUDCLNT_E_OFFLOAD_MODE_ONLY);
+			HANDLE_HRESULT(AUDCLNT_E_NONOFFLOAD_MODE_ONLY);
+			HANDLE_HRESULT(AUDCLNT_E_RESOURCES_INVALIDATED);
+			HANDLE_HRESULT(AUDCLNT_E_RAW_MODE_UNSUPPORTED);
+			HANDLE_HRESULT(AUDCLNT_E_ENGINE_PERIODICITY_LOCKED);
+			HANDLE_HRESULT(AUDCLNT_E_ENGINE_FORMAT_LOCKED);
+			HANDLE_HRESULT(AUDCLNT_E_HEADTRACKING_ENABLED);
+			HANDLE_HRESULT(AUDCLNT_E_HEADTRACKING_UNSUPPORTED);
+			HANDLE_HRESULT(AUDCLNT_E_EFFECT_NOT_AVAILABLE);
+			HANDLE_HRESULT(AUDCLNT_E_EFFECT_STATE_READ_ONLY);
+
+#undef HANDLE_HRESULT
+
+		default:
+			ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: %s failed with HRESULT = 0x%X", operation, hr);
+			break;
+		}
+	}
+
+	return hr;
+}
+
+static BOOL check_hresult_failed(HRESULT hr, const char *operation)
+{
+	return FAILED(check_hresult(hr, operation));
+}
+
 /*****************************************************************************************************************************/
 
 typedef struct WABufferBlock_t {
@@ -441,7 +527,7 @@ static int write_buffer_event(void)
 	BYTE *buf = NULL;
 
 	if(!IsExclusive)
-		if(FAILED(IAudioClient_GetCurrentPadding(pAudioClient, &padding)))
+		if(check_hresult_failed(IAudioClient_GetCurrentPadding(pAudioClient, &padding), "IAudioClient::GetCurrentPadding()"))
 			return FALSE;
 	out_bytes = calc_output_bytes((BufferFrames - padding) * FrameBytes);
 	out_frames = out_bytes / FrameBytes;
@@ -456,7 +542,7 @@ static int write_buffer_event(void)
 		out_bytes = FrameBytes;
 		out_frames = 1;
 	}
-	if(FAILED(IAudioRenderClient_GetBuffer(pAudioRenderClient, out_frames, &buf)))
+	if(check_hresult_failed(IAudioRenderClient_GetBuffer(pAudioRenderClient, out_frames, &buf), "IAudioRenderClient::GetBuffer()"))
 		return FALSE;
 	output_buffer((uint8 *)buf, out_bytes);
 	IAudioRenderClient_ReleaseBuffer(pAudioRenderClient, out_frames, 0);
@@ -469,11 +555,11 @@ static int write_buffer_polling(void)
 	size_t out_bytes, out_frames;
 	BYTE *buf = NULL;
 
-	if(FAILED(IAudioClient_GetCurrentPadding(pAudioClient, &padding)))
+	if(check_hresult_failed(IAudioClient_GetCurrentPadding(pAudioClient, &padding), "IAudioClient::GetCurrentPadding()"))
 		return FALSE;
 	out_bytes = calc_output_bytes((BufferFrames - padding) * FrameBytes);
 	out_frames = out_bytes / FrameBytes;
-	if(FAILED(IAudioRenderClient_GetBuffer(pAudioRenderClient, out_frames, &buf)))
+	if(check_hresult_failed(IAudioRenderClient_GetBuffer(pAudioRenderClient, out_frames, &buf), "IAudioRenderClient::GetBuffer()"))
 		return FALSE;
 	output_buffer((uint8 *)buf, out_bytes);
 	IAudioRenderClient_ReleaseBuffer(pAudioRenderClient, out_frames, 0);
@@ -486,7 +572,7 @@ static unsigned int WINAPI render_thread(void *arglist)
 	HANDLE hMmCss = NULL;
 	DWORD mmCssTaskIndex = 0;	
 		
-	if(FAILED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED)))
+	if(check_hresult_failed(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE), "CoInitializeEx()"))
 		return 1;
 	TCHAR *t = char_to_tchar(RTThreadPriorityName[ThreadPriorityNum]);
 	hMmCss = (pAvSetMmThreadCharacteristics)(t, &mmCssTaskIndex);
@@ -494,12 +580,9 @@ static unsigned int WINAPI render_thread(void *arglist)
 	if(!hMmCss)
 		goto thread_exit;
 	IsThreadStart = 1;
-	WaitForSingleObject(hEventTcv, INFINITE); // wait initialize open_output
-	ResetEvent(hEventTcv);
 	if(!IsPolling){
 		for(;;){ // event
 			WaitForSingleObject(hEventTcv, INFINITE);
-			ResetEvent(hEventTcv);
 			if(IsThreadExit) break;		
 			EnterCriticalSection(&critSect);
 			write_buffer_event();
@@ -508,7 +591,6 @@ static unsigned int WINAPI render_thread(void *arglist)
 	}else{
 		for(;;){ // polling
 			WaitForSingleObject(hEventTcv, ThreadWaitTime);
-			ResetEvent(hEventTcv);
 			if(IsThreadExit) break;
 			EnterCriticalSection(&critSect);
 			write_buffer_polling();
@@ -531,9 +613,9 @@ static int get_default_device(IMMDevice** ppMMDevice)
 {
 	IMMDeviceEnumerator *pEnumerator = NULL;
 
-	if(FAILED(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void**)&pEnumerator)))
+	if(check_hresult_failed(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void**)&pEnumerator), "CoCreateInstance(CLSID_MMDeviceEnumerator, ...)"))
 		goto error;
-	if(FAILED(IMMDeviceEnumerator_GetDefaultAudioEndpoint(pEnumerator, eRender, eConsole, ppMMDevice)))
+	if(check_hresult_failed(IMMDeviceEnumerator_GetDefaultAudioEndpoint(pEnumerator, eRender, eConsole, ppMMDevice), "IMMDeviceEnumerator::GetDefaultAudioEndpoint()"))
 		goto error;
 	if(pEnumerator)
 		IMMDeviceEnumerator_Release(pEnumerator);
@@ -558,11 +640,11 @@ static int get_device(IMMDevice **ppMMDevice, int devnum)
 		devnum = -1;
 	if(devnum < 0)
 		return get_default_device(ppMMDevice);		
-	if(FAILED(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void **)&pde)))
+	if(check_hresult_failed(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void **)&pde), "CoCreateInstance(CLSID_MMDeviceEnumerator, ...)"))
 		goto error;
-	if(FAILED(IMMDeviceEnumerator_EnumAudioEndpoints(pde, eRender, DEVICE_STATE_ACTIVE, &pdc)))
+	if(check_hresult_failed(IMMDeviceEnumerator_EnumAudioEndpoints(pde, eRender, DEVICE_STATE_ACTIVE, &pdc), "IMMDeviceEnumerator::EnumAudioEndpoints()"))
 		goto error;	
-	if(FAILED(IMMDeviceCollection_GetCount(pdc, &num)))
+	if(check_hresult_failed(IMMDeviceCollection_GetCount(pdc, &num), "IMMDeviceCollection::GetCount()"))
 		goto error;
 	if(num <= 0)
 		goto error;
@@ -570,11 +652,11 @@ static int get_device(IMMDevice **ppMMDevice, int devnum)
 		num = WASAPI_DEVLIST_MAX - 2;
 	if(devnum > num)
 		goto error;
-	if(FAILED(IMMDeviceCollection_Item(pdc, devnum, &pdev)))
+	if(check_hresult_failed(IMMDeviceCollection_Item(pdc, devnum, &pdev), "IMMDeviceCollection::Item()"))
 		goto error;  
-	if(FAILED(IMMDevice_GetId(pdev, &pszDeviceId)))
+	if(check_hresult_failed(IMMDevice_GetId(pdev, &pszDeviceId), "IMMDevice::GetId()"))
 		goto error;
-	if(FAILED(IMMDeviceEnumerator_GetDevice(pde, pszDeviceId, ppMMDevice)))
+	if(check_hresult_failed(IMMDeviceEnumerator_GetDevice(pde, pszDeviceId, ppMMDevice), "IMMDeviceEnumerator::GetDevice()"))
 		goto error; 		
 	if(pszDeviceId)
 		CoTaskMemFree(pszDeviceId);
@@ -625,9 +707,9 @@ static void print_device_list(void)
 	device[0].LatencyMax = 10;
 	device[0].LatencyMin = 3;
 	strcpy(device[0].name, "Default Render Device");	
-	if(FAILED(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void **)&pde)))
+	if(check_hresult_failed(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void **)&pde), "CoCreateInstance(CLSID_MMDeviceEnumerator, ...)"))
 		goto error1;
-	if(FAILED(IMMDeviceEnumerator_EnumAudioEndpoints(pde, eRender, DEVICE_STATE_ACTIVE, &pdc)))
+	if(check_hresult_failed(IMMDeviceEnumerator_EnumAudioEndpoints(pde, eRender, DEVICE_STATE_ACTIVE, &pdc), "IMMDeviceEnumerator::EnumAudioEndpoints()"))
 		goto error1;	
 	LatencyMax = 100000;
 	LatencyMin = 30000;
@@ -653,7 +735,7 @@ static void print_device_list(void)
 		IMMDevice_Release(defdev);
 		defdev = NULL;
 	}
-	if(FAILED(IMMDeviceCollection_GetCount(pdc, &num)))
+	if(check_hresult_failed(IMMDeviceCollection_GetCount(pdc, &num), "IMMDeviceCollection::GetCount()"))
 		goto error1;
 	if(num <= 0)
 		goto error1;
@@ -664,13 +746,13 @@ static void print_device_list(void)
 		PROPVARIANT value;
 		IAudioClient *tmpClient = NULL;
 
-		if(FAILED(IMMDeviceCollection_Item(pdc, i, &dev)))
+		if(check_hresult_failed(IMMDeviceCollection_Item(pdc, i, &dev), "IMMDeviceCollection::Item()"))
 			goto error1;	
 		device[i+1].deviceID = i;
-		if(FAILED(IMMDevice_OpenPropertyStore(dev, STGM_READ, &pps)))
+		if(check_hresult_failed(IMMDevice_OpenPropertyStore(dev, STGM_READ, &pps), "IMMDevice::OpenPropertyStore()"))
 			goto error1;
 		PropVariantInit(&value);
-		if(FAILED(IPropertyStore_GetValue(pps, &PKEY_Device_FriendlyName, &value))){
+		if(check_hresult_failed(IPropertyStore_GetValue(pps, &PKEY_Device_FriendlyName, &value), "IPropertyStore::GetValue()")) {
 			PropVariantClear(&value);
 		}else{
 			if(value.pwszVal)
@@ -821,19 +903,16 @@ int open_output(void)
 	}
 	IsExclusive = opt_wasapi_exclusive;
 	IsPolling = opt_wasapi_polling;
-	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // reset manual
+	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // auto reset
 	if(!hEventTcv)
 		goto error;	
-	hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    if(FAILED(hr) && hr != RPC_E_CHANGED_MODE)
+    if(check_hresult_failed(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE), "CoInitializeEx()"))
 		goto error;	
-    if(hr != RPC_E_CHANGED_MODE){
-		IsCoInit = 1;
-		CoInitThreadId = GetCurrentThreadId();
-    }
+	IsCoInit = 1;
+	CoInitThreadId = GetCurrentThreadId();
 	if(!get_device(&pMMDevice, device_id))
 		goto error;
-	if(FAILED(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient)))
+	if(check_hresult_failed(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient), "IMMDevice::Activate()"))
 		goto error;	
 	include_enc = PE_SIGNED;
 	exclude_enc = PE_BYTESWAP | PE_ULAW | PE_ALAW;	
@@ -971,7 +1050,7 @@ int open_output(void)
 
 			hr = IAudioClient2_SetClientProperties(pAudioClient2, (AudioClientProperties *)&acp);
 			IAudioClient2_Release(pAudioClient2);
-			if (FAILED(hr))
+			if (check_hresult_failed(hr, "IAudioClient2::SetClientProperties()"))
 				goto error;
 		}
 	}
@@ -1005,52 +1084,24 @@ int open_output(void)
 	if(hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED){
 		UINT32 bufferSize;
 
-		if(FAILED(IAudioClient_GetBufferSize(pAudioClient, &bufferSize)))
+		if(check_hresult_failed(IAudioClient_GetBufferSize(pAudioClient, &bufferSize), "IAudioClient::GetBufferSize()"))
 			goto error;
 		IAudioClient_Release(pAudioClient);
 		pAudioClient = NULL;
 		BufferDuration = (REFERENCE_TIME)(10000.0f * 1000 * bufferSize / pwf->nSamplesPerSec + 0.5);
 		Periodicity = IsExclusive ? BufferDuration : 0;
-		if(FAILED(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient)))
+		if(check_hresult_failed(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient), "IMMDevice::Activate()"))
 			goto error;
 		hr = IAudioClient_Initialize(pAudioClient, ShareMode, StreamFlags, BufferDuration, Periodicity,	(WAVEFORMATEX *)&wfe, NULL);
 	}
-	if(FAILED(hr)){
-		switch(hr){
-#define HANDLE_HRESULT(hresult) \
-	case hresult: \
-		ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = %s", #hresult); \
-		break;
-
-			HANDLE_HRESULT(AUDCLNT_E_ALREADY_INITIALIZED);
-			HANDLE_HRESULT(AUDCLNT_E_WRONG_ENDPOINT_TYPE);
-			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED);
-			HANDLE_HRESULT(AUDCLNT_E_BUFFER_SIZE_ERROR);
-			HANDLE_HRESULT(AUDCLNT_E_CPUUSAGE_EXCEEDED);
-			HANDLE_HRESULT(AUDCLNT_E_DEVICE_INVALIDATED);
-			HANDLE_HRESULT(AUDCLNT_E_DEVICE_IN_USE);
-			HANDLE_HRESULT(AUDCLNT_E_ENDPOINT_CREATE_FAILED);
-			HANDLE_HRESULT(AUDCLNT_E_INVALID_DEVICE_PERIOD);
-			HANDLE_HRESULT(AUDCLNT_E_UNSUPPORTED_FORMAT);
-			HANDLE_HRESULT(AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED);
-			HANDLE_HRESULT(AUDCLNT_E_BUFDURATION_PERIOD_NOT_EQUAL);
-			HANDLE_HRESULT(AUDCLNT_E_SERVICE_NOT_RUNNING);
-			HANDLE_HRESULT(E_OUTOFMEMORY);
-
-#undef HANDLE_HRESULT
-
-		default:
-			ctl->cmsg(CMSG_ERROR, VERB_VERBOSE, "WASAPI: IAudioClient::Initialize() failed with HRESULT = 0x%X", hr);
-			break;
-		}
+	if(check_hresult_failed(hr, "IAudioClient::Initialize()"))
 		goto error;
-	}
-	if(FAILED(IAudioClient_GetBufferSize(pAudioClient, &BufferFrames)))
+	if(check_hresult_failed(IAudioClient_GetBufferSize(pAudioClient, &BufferFrames), "IAudioClient::GetBufferSize()"))
 		goto error;
 	if(!IsPolling)
-		if(FAILED(IAudioClient_SetEventHandle(pAudioClient, hEventTcv)))
+		if(check_hresult_failed(IAudioClient_SetEventHandle(pAudioClient, hEventTcv), "IAudioClient::SetEventHandle()"))
 			goto error;
-	if(FAILED(IAudioClient_GetService(pAudioClient, &tim_IID_IAudioRenderClient, (void**)&pAudioRenderClient)))
+	if(check_hresult_failed(IAudioClient_GetService(pAudioClient, &tim_IID_IAudioRenderClient, (void**)&pAudioRenderClient), "IAudioClient::GetService(..., IID_IAudioRenderClient, ...)"))
 		goto error;
 	
 	if(dpm.extra_param[0] < 2){
@@ -1079,7 +1130,7 @@ int open_output(void)
 	}
 	if(!IsStarted){
 		int count = 20; // 200ms
-		if(FAILED(IAudioRenderClient_GetBuffer(pAudioRenderClient, BufferFrames, &buf)))
+		if(check_hresult_failed(IAudioRenderClient_GetBuffer(pAudioRenderClient, BufferFrames, &buf), "IAudioRenderClient::GetBuffer()"))
 			goto error;
 		IAudioRenderClient_ReleaseBuffer(pAudioRenderClient, BufferFrames, AUDCLNT_BUFFERFLAGS_SILENT);
 		while(!IsThreadStart && count > 0){ // 
@@ -1088,9 +1139,8 @@ int open_output(void)
 		}
 		if(count <= 0) // time out
 			goto error;
-		if(FAILED(IAudioClient_Start(pAudioClient)))
+		if(check_hresult_failed(IAudioClient_Start(pAudioClient), "IAudioClient::Start()"))
 			goto error;	
-		SetEvent(hEventTcv); // start process
 		IsStarted = TRUE;
 	}
 	return 0;
@@ -1220,9 +1270,9 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 		goto error0;	
 	if(!get_default_device(&defdev))
 		goto error0;	
-	if(FAILED(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void **)&pde)))
+	if(check_hresult_failed(CoCreateInstance(&tim_CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &tim_IID_IMMDeviceEnumerator, (void **)&pde), "CoCreateInstance(CLSID_MMDeviceEnumerator, ...)"))
 		goto error1;
-	if(FAILED(IMMDeviceEnumerator_EnumAudioEndpoints(pde, eRender, DEVICE_STATE_ACTIVE, &pdc)))
+	if(check_hresult_failed(IMMDeviceEnumerator_EnumAudioEndpoints(pde, eRender, DEVICE_STATE_ACTIVE, &pdc), "IMMDeviceEnumerator::EnumAudioEndpoints()"))
 		goto error1;	
 	LatencyMax = 100000;
 	LatencyMin = 30000;
@@ -1248,7 +1298,7 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 		IMMDevice_Release(defdev);
 		defdev = NULL;
 	}
-	if(FAILED(IMMDeviceCollection_GetCount(pdc, &num)))
+	if(check_hresult_failed(IMMDeviceCollection_GetCount(pdc, &num), "IMMDeviceCollection::GetCount()"))
 		goto error1;
 	if(num <= 0)
 		goto error1;
@@ -1259,13 +1309,13 @@ int wasapi_device_list(WASAPI_DEVICELIST *device)
 		PROPVARIANT value;
 		IAudioClient *tmpClient = NULL;
 
-		if(FAILED(IMMDeviceCollection_Item(pdc, i, &dev)))
+		if(check_hresult_failed(IMMDeviceCollection_Item(pdc, i, &dev), "IMMDeviceCollection::Item()"))
 			goto error1;	
 		device[i+1].deviceID = i;
-		if(FAILED(IMMDevice_OpenPropertyStore(dev, STGM_READ, &pps)))
+		if(check_hresult_failed(IMMDevice_OpenPropertyStore(dev, STGM_READ, &pps), "IMMDevice::OpenPropertyStore()"))
 			goto error1;
 		PropVariantInit(&value);
-		if(FAILED(IPropertyStore_GetValue(pps, &PKEY_Device_FriendlyName, &value))){
+		if(check_hresult_failed(IPropertyStore_GetValue(pps, &PKEY_Device_FriendlyName, &value), "IPropertyStore::GetValue()")) {
 			PropVariantClear(&value);
 		}else{
 			if(value.pwszVal)

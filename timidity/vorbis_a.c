@@ -590,8 +590,8 @@ static int acntl(int request, void *arg)
 
 static int insert_loop_tags(void)
 {
-	vcedit_state *state;
-	FILE *ftemp, *fin;
+	vcedit_state *state = NULL;
+	FILE *ftemp = NULL, *fin = NULL;
 	vorbis_comment *vc;
 	char buf[4096];
 	long fsize;
@@ -609,7 +609,7 @@ static int insert_loop_tags(void)
 
 	if (!fin) {
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; fdopen() failed");
-		return 0;
+		goto failed;
 	}
 
 	if (vcedit_open(state, fin) < 0) {
@@ -639,11 +639,13 @@ static int insert_loop_tags(void)
 	while (1) {
 		size_t len = fread(buf, 1, _countof(buf), ftemp);
 
-		if (len == 0) {
+		if (len == 0)
 			break;
-		}
 
-		write(dpm.fd, buf, len);
+		if (write(dpm.fd, buf, len) != len) {
+			ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; write() failed");
+			goto failed;
+		}
 	}
 
 	fclose(ftemp);
@@ -651,18 +653,27 @@ static int insert_loop_tags(void)
 	fsize = lseek(dpm.fd, 0, SEEK_CUR);
 
 #ifdef __W32__
-	_chsize(dpm.fd, fsize);
+	if (_chsize(dpm.fd, fsize) < 0) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; _chsize() failed");
+		goto failed;
+	}
 #else
-	ftruncate(dpm.fd, fsize);
+	if (ftruncate(dpm.fd, fsize) < 0) {
+		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "failed to insert loop info; ftruncate() failed");
+		goto failed;
+	}
 #endif
 
 	ctl->cmsg(CMSG_INFO, VERB_NORMAL, "Ogg Vorbis loop was inserted (LOOPSTART=%d, LOOPLENGTH=%d).", loopstart, looplength);
 	return 1;
 
 failed:
-	fclose(ftemp);
-	fclose(fin);
-	vcedit_clear(state);
+	if (ftemp)
+		fclose(ftemp);
+	if (fin)
+		fclose(fin);
+	if (state)
+		vcedit_clear(state);
 	return 0;
 }
 

@@ -9251,7 +9251,7 @@ int main(int argc, char **argv)
 	}
 	timidity_start_initialize();
 #if defined (IA_W32GUI) || defined (IA_W32G_SYN)
-	if (CoInitialize(NULL) == S_OK)
+	if (SUCCEEDED(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE)))
 		CoInitializeOK = 1;
 	w32g_initialize();
 	for (c = 1; c < argc; c++)

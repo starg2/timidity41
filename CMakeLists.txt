@@ -19,6 +19,17 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/bin" CACHE PATH "Whe
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/lib" CACHE PATH "Where to put all the ARCHIVE target files when built.")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/lib" CACHE PATH "Where to put all the LIBRARY target files when built.")
 
+# ====
+
+include(ProcessorCount)
+ProcessorCount(numberOfCores)
+
+if(numberOfCores EQUAL 0)
+    set(numberOfCores 1)
+endif()
+
+# ====
+
 find_package(Git)
 
 if("${Git_FOUND}" AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
@@ -303,10 +314,11 @@ else()
         string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -flto=thin")
         string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " -flto=thin")
     elseif(("${CMAKE_C_COMPILER_ID}" MATCHES "GNU") AND ("${CMAKE_C_COMPILER_VERSION}" VERSION_GREATER_EQUAL "11.0"))
-        string(APPEND CMAKE_C_FLAGS_RELEASE " -flto=auto")
-        string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto=auto")
-        string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -flto=auto")
-        string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " -flto=auto")
+        math(EXPR ltoThreads "${numberOfCores} / 4 + 1")
+        string(APPEND CMAKE_C_FLAGS_RELEASE " -flto=${ltoThreads}")
+        string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto=${ltoThreads}")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -flto=${ltoThreads}")
+        string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " -flto=${ltoThreads}")
     else()
         string(APPEND CMAKE_C_FLAGS_RELEASE " -flto")
         string(APPEND CMAKE_CXX_FLAGS_RELEASE " -flto")
