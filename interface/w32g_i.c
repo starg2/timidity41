@@ -5115,6 +5115,10 @@ void WINAPI MainThread(void *arglist)
 	SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_NORMAL);
 //	SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_ABOVE_NORMAL);
 
+	if (FAILED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE))) {
+		MessageBoxA(NULL, "CoInitializeEx() failed.", "TiMidity++ W32G", MB_ICONSTOP);
+		crt_endthread();
+	}
 
     InitStartWnd(SW_HIDE);
 
@@ -5175,6 +5179,7 @@ void WINAPI MainThread(void *arglist)
 		OnExitReady();
 		w32g_send_rc(RC_QUIT, 0);
 	}
+	CoUninitialize();
 	crt_endthread();
 }
 

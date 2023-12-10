@@ -371,6 +371,11 @@ static int w32g_syn_main(void)
 	int i;
 	MSG msg;
 
+	if (FAILED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE))) {
+		MessageBoxA(NULL, "CoInitializeEx() failed.", "TiMidity++ W32GSYN", MB_ICONSTOP);
+		return -1;
+	}
+
 	InitCommonControls();
 
 	w32g_syn.nid_uID = W32G_SYN_NID_UID;
@@ -407,6 +412,7 @@ static int w32g_syn_main(void)
 		Sleep(300);
 	}
 	
+	CoUninitialize();
 	return 0;
 }
 

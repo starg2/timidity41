@@ -564,7 +564,7 @@ static unsigned int WINAPI render_thread(void *arglist)
 	HANDLE hMmCss = NULL;
 	DWORD mmCssTaskIndex = 0;	
 		
-	if(check_hresult_failed(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED), "CoInitializeEx()"))
+	if(check_hresult_failed(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE), "CoInitializeEx()"))
 		return 1;
 	hMmCss = (pAvSetMmThreadCharacteristics)(RTThreadPriorityName[ThreadPriorityNum], &mmCssTaskIndex);
 	if(!hMmCss)
@@ -900,15 +900,10 @@ int open_output(void)
 	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // reset manual
 	if(!hEventTcv)
 		goto error;	
-	hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    if(FAILED(hr) && hr != RPC_E_CHANGED_MODE){
-		check_hresult(hr, "CoInitializeEx()");
+    if(check_hresult_failed(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE), "CoInitializeEx()"))
 		goto error;	
-	}
-    if(hr != RPC_E_CHANGED_MODE){
-		IsCoInit = 1;
-		CoInitThreadId = GetCurrentThreadId();
-    }
+	IsCoInit = 1;
+	CoInitThreadId = GetCurrentThreadId();
 	if(!get_device(&pMMDevice, device_id))
 		goto error;
 	if(check_hresult_failed(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient), "IMMDevice::Activate()"))
