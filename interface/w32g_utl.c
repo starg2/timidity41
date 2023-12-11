@@ -80,6 +80,8 @@
 #include "rtsyn.h"
 
 #include <wchar.h>
+#define CINTERFACE
+#define COBJMACROS
 #include <shobjidl.h>
 
 ///r
@@ -1550,7 +1552,7 @@ void BitBltRect(HDC dst, HDC src, const RECT *rc)
 }
 
 BOOL ShowFileDialog(
-	int mode,
+	FILEDIALOG_MODE mode,
 	HWND hParentWindow,
 	LPCWSTR pTitle,
 	char *pResult,
@@ -1572,16 +1574,16 @@ BOOL ShowFileDialog(
 		return FALSE;
 
 	if (guid)
-		pFileDialog->lpVtbl->SetClientGuid(pFileDialog, guid);
+		IFileDialog_SetClientGuid(pFileDialog, guid);
 
 	if (pTitle)
-		pFileDialog->lpVtbl->SetTitle(pFileDialog, pTitle);
+		IFileDialog_SetTitle(pFileDialog, pTitle);
 
 	if (filterCount > 0 && pFilters)
-		pFileDialog->lpVtbl->SetFileTypes(pFileDialog, filterCount, pFilters);
+		IFileDialog_SetFileTypes(pFileDialog, filterCount, pFilters);
 
 	FILEOPENDIALOGOPTIONS options;
-	pFileDialog->lpVtbl->GetOptions(pFileDialog, &options);
+	IFileDialog_GetOptions(pFileDialog, &options);
 	options |= FOS_NOCHANGEDIR | FOS_FORCEFILESYSTEM;
 
 	switch (mode) {
@@ -1597,29 +1599,29 @@ BOOL ShowFileDialog(
 		break;
 	}
 
-	pFileDialog->lpVtbl->SetOptions(pFileDialog, options);
+	IFileDialog_SetOptions(pFileDialog, options);
 
-	hr = pFileDialog->lpVtbl->Show(pFileDialog, hParentWindow);
+	hr = IFileDialog_Show(pFileDialog, hParentWindow);
 
 	if (hr == S_OK) {
 		if (mode == FILEDIALOG_OPEN_MULTIPLE_FILES) {
 			IFileOpenDialog *pFileOpenDialog;
 
-			if (SUCCEEDED(pFileDialog->lpVtbl->QueryInterface(pFileDialog, &IID_IFileOpenDialog, (void**)&pFileOpenDialog))) {
+			if (SUCCEEDED(IFileDialog_QueryInterface(pFileDialog, &IID_IFileOpenDialog, (void**)&pFileOpenDialog))) {
 				IShellItemArray *pShellItemArray;
 
-				if (SUCCEEDED(pFileOpenDialog->lpVtbl->GetResults(pFileOpenDialog, &pShellItemArray))) {
+				if (SUCCEEDED(IFileOpenDialog_GetResults(pFileOpenDialog, &pShellItemArray))) {
 					size_t pos = 0;
 					DWORD count = 0;
-					pShellItemArray->lpVtbl->GetCount(pShellItemArray, &count);
+					IShellItemArray_GetCount(pShellItemArray, &count);
 
 					for (DWORD i = 0; i < count; i++) {
 						IShellItem *pShellItem;
 
-						if (SUCCEEDED(pShellItemArray->lpVtbl->GetItemAt(pShellItemArray, i, &pShellItem))) {
+						if (SUCCEEDED(IShellItemArray_GetItemAt(pShellItemArray, i, &pShellItem))) {
 							wchar_t *pBuffer;
 
-							if (SUCCEEDED(pShellItem->lpVtbl->GetDisplayName(pShellItem, i == 0 ? SIGDN_FILESYSPATH : SIGDN_PARENTRELATIVEPARSING, &pBuffer))) {
+							if (SUCCEEDED(IShellItem_GetDisplayName(pShellItem, i == 0 ? SIGDN_FILESYSPATH : SIGDN_PARENTRELATIVEPARSING, &pBuffer))) {
 								int len = wcslen(pBuffer);
 
 								if (i == 0) {
@@ -1644,24 +1646,24 @@ BOOL ShowFileDialog(
 								CoTaskMemFree(pBuffer);
 							}
 
-							pShellItem->lpVtbl->Release(pShellItem);
+							IShellItem_Release(pShellItem);
 						}
 					}
 
 					pResult[pos] = '\0';
 					pResult[pos + 1] = '\0';
-					pShellItemArray->lpVtbl->Release(pShellItemArray);
+					IShellItemArray_Release(pShellItemArray);
 				}
 
-				pFileOpenDialog->lpVtbl->Release(pFileOpenDialog);
+				IFileOpenDialog_Release(pFileOpenDialog);
 			}
 		} else {
 			IShellItem* pShellItem;
 
-			if (SUCCEEDED(pFileDialog->lpVtbl->GetResult(pFileDialog, &pShellItem))) {
+			if (SUCCEEDED(IFileDialog_GetResult(pFileDialog, &pShellItem))) {
 				wchar_t* pBuffer;
 
-				if (SUCCEEDED(pShellItem->lpVtbl->GetDisplayName(pShellItem, SIGDN_FILESYSPATH, &pBuffer))) {
+				if (SUCCEEDED(IShellItem_GetDisplayName(pShellItem, SIGDN_FILESYSPATH, &pBuffer))) {
 					int c = WideCharToMultiByte(
 						CP_ACP,
 						0,
@@ -1678,12 +1680,12 @@ BOOL ShowFileDialog(
 					CoTaskMemFree(pBuffer);
 				}
 
-				pShellItem->lpVtbl->Release(pShellItem);
+				IShellItem_Release(pShellItem);
 			}
 		}
 	}
 
-	pFileDialog->lpVtbl->Release(pFileDialog);
+	IFileDialog_Release(pFileDialog);
 	return hr == S_OK;
 }
 
