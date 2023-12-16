@@ -1021,7 +1021,6 @@ int open_output(void)
 		reset_temporary_encoding();
 	}
 #endif
-#ifdef __IAudioClient2_INTERFACE_DEFINED__	
 	{
 		IAudioClient2 *pAudioClient2;
 		int ver = get_winver();
@@ -1035,15 +1034,15 @@ int open_output(void)
 		
 			if (opt_wasapi_stream_option & 4) {
 				if (ver >= 6) // win10à»è„
-					acp.Options |= 4 /* AUDCLNT_STREAMOPTIONS_AMBISONICS */;
+					acp.Options |= AUDCLNT_STREAMOPTIONS_AMBISONICS;
 			}
 			if (opt_wasapi_stream_option & 2) {
 				if (ver >= 6) // win10à»è„
-					acp.Options |= 2 /* AUDCLNT_STREAMOPTIONS_MATCH_FORMAT */;
+					acp.Options |= AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;
 			}
 			if (opt_wasapi_stream_option & 1){
 				if(ver >= 4) // win8.1à»è„
-					acp.Options |= 1 /* AUDCLNT_STREAMOPTIONS_RAW */;
+					acp.Options |= AUDCLNT_STREAMOPTIONS_RAW;
 			}
 
 			hr = IAudioClient2_SetClientProperties(pAudioClient2, (AudioClientProperties *)&acp);
@@ -1052,7 +1051,6 @@ int open_output(void)
 				goto error;
 		}
 	}
-#endif
 	if(opt_wasapi_priority <= 0 || opt_wasapi_priority > 7)
 		ThreadPriorityNum = IsExclusive ? 6 : 1;
 	else
