@@ -339,16 +339,16 @@ extern int IniVersionCheck(void);
 extern void BitBltRect(HDC dst, HDC src, const RECT *rc);
 
 // mode option for ShowFileDialog()
-enum {
+typedef enum {
 	FILEDIALOG_OPEN_FILE,
 	FILEDIALOG_OPEN_MULTIPLE_FILES,
 	FILEDIALOG_OPEN_FOLDER,
 	FILEDIALOG_SAVE_FILE
-};
+} FILEDIALOG_MODE;
 
 // pDirectory and pResult must point to an array of at least FILEPATH_MAX length!
 extern BOOL ShowFileDialog(
-	int mode,
+	FILEDIALOG_MODE mode,
 	HWND hParentWindow,
 	LPCWSTR pTitle,
 	char *pResult,

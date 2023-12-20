@@ -9162,7 +9162,7 @@ int main(int argc, char **argv)
 
 			if (GetConsoleMode(hStdOut, &mode))
 			{
-				SetConsoleMode(hStdOut, mode | 0x0004 /* ENABLE_VIRTUAL_TERMINAL_PROCESSING */);
+				SetConsoleMode(hStdOut, mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 			}
 		}
 	}
