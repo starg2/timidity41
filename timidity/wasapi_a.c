@@ -524,6 +524,7 @@ static int write_buffer_event(void)
 {	
 	UINT32 padding = 0;
 	size_t out_bytes, out_frames;
+	size_t short_bytes = 0, short_frames = 0;
 	BYTE *buf = NULL;
 
 	if(!IsExclusive)
@@ -532,20 +533,15 @@ static int write_buffer_event(void)
 	out_bytes = calc_output_bytes((BufferFrames - padding) * FrameBytes);
 	out_frames = out_bytes / FrameBytes;
 	if(IsExclusive && out_frames < BufferFrames){
-		if(!input_buffer(NULL, BufferFrames * FrameBytes - out_bytes))
-			return FALSE;
-		out_bytes = BufferFrames * FrameBytes;
-		out_frames = out_bytes / FrameBytes;
-	}else if(out_frames == 0){
-		if(!input_buffer(NULL, FrameBytes - out_bytes))
-			return FALSE;		
-		out_bytes = FrameBytes;
-		out_frames = 1;
+		short_frames = BufferFrames - out_frames;
+		short_bytes = short_frames * FrameBytes;
 	}
-	if(check_hresult_failed(IAudioRenderClient_GetBuffer(pAudioRenderClient, out_frames, &buf), "IAudioRenderClient::GetBuffer()"))
+	if(check_hresult_failed(IAudioRenderClient_GetBuffer(pAudioRenderClient, out_frames + short_frames, &buf), "IAudioRenderClient::GetBuffer()"))
 		return FALSE;
 	output_buffer((uint8 *)buf, out_bytes);
-	IAudioRenderClient_ReleaseBuffer(pAudioRenderClient, out_frames, 0);
+	if(short_bytes > 0)
+		memset(buf + out_bytes, 0, short_bytes);
+	IAudioRenderClient_ReleaseBuffer(pAudioRenderClient, out_frames + short_frames, 0);
 	return TRUE;
 }
 

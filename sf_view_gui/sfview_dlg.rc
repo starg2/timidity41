@@ -2,6 +2,7 @@
 #include <wingdi.h>
 #include <commctrl.h>
 #include "resource.h"
+#include "version.h"
 
 IDB_TREEICON BITMAP "bitmap1.bmp"
 
@@ -30,7 +31,7 @@ END
 101 DIALOGEX 0, 0, 255, 195
 STYLE WS_OVERLAPPEDWINDOW | DS_CENTER
 EXSTYLE WS_EX_ACCEPTFILES
-CAPTION "Soundfont Viewer 1.01"
+CAPTION SFVIEWER_TITLE_WITH_VERSION
 MENU IDR_MENU1
 LANGUAGE LANG_JAPANESE, 0x1
 FONT 9, "MS UI Gothic", FW_NORMAL, 0, 128
@@ -43,3 +44,41 @@ END
 IDI_ICON1 ICON "icon1.ico"
 
 
+//
+// Version Information resources
+//
+#ifdef _MSC_VER
+LANGUAGE LANG_JAPANESE, SUBLANG_JAPANESE_JAPAN
+#endif
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     TIMID_VERSION4_COMMA
+PRODUCTVERSION  TIMID_VERSION4_COMMA
+FILEOS          VOS__WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+FILEFLAGSMASK   0x0000003F
+FILEFLAGS       0x00000000
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "000004E4"
+		BEGIN
+			VALUE "Comments", "\0"
+			VALUE "CompanyName", "\0"
+			VALUE "FileVersion", TIMID_VERSION4_RESSTR
+			VALUE "FileDescription", "Soundfont Viewer\0"
+			VALUE "InternalName", "sfviewer\0"
+			VALUE "OriginalFilename", "sfviewer.exe\0"
+			VALUE "ProductName", "TiMidity++\0"
+			VALUE "LegalCopyright", "Copyright (C) 1999-2018 Masanao Izumo <mo@goice.co.jp>\r\nCopyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>\0"
+			VALUE "LegalTrademarks", "\0"
+			VALUE "PrivateBuild", "\0"
+			VALUE "ProductVersion", TIMID_VERSION_RESSTR
+			VALUE "SpecialBuild", "\0"
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x0000, 0x04E4
+	END
+END

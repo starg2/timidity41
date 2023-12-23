@@ -23,7 +23,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #define ___VERSION_H_
 
 #define TIMID_VERSION "${tim41VersionStr}"
+#define TIMID_VERSION_RESSTR "${tim41VersionStr}\0"
 #define TIMID_VERSION4_COMMA ${tim41Version4Comma}
-#define TIMID_VERSION_RESSTR "${tim41Version4Comma}\0"
+#define TIMID_VERSION4_RESSTR "${tim41Version4Comma}\0"
+
+#define SFVIEWER_TITLE_WITH_VERSION "Soundfont Viewer v${tim41VersionStr}"
 
 #endif /* !___VERSION_H_ */
