@@ -22,5 +22,6 @@ add_executable(
     sfview_dlg.rc
 )
 
+add_dependencies(sfviewer UpdateTim41Version)
 target_link_libraries(sfviewer timidity_cfgforsf libarc utils comctl32 shlwapi ws2_32)
 install(TARGETS sfviewer)

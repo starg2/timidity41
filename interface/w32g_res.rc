@@ -4158,22 +4158,21 @@ VS_VERSION_INFO VERSIONINFO
         {
             VALUE "Comments", "\0"
             VALUE "CompanyName", "\0"
-            VALUE "FileVersion", TIMID_VERSION_RESSTR
+            VALUE "FileVersion", TIMID_VERSION4_RESSTR
 #ifdef TWSYNG32
             VALUE "FileDescription", "TiMidity++ Win32GUI Synthesizer\0"
             VALUE "InternalName", "twsyng\0"
             VALUE "OriginalFilename", "twsyng.exe\0"
-            VALUE "ProductName", "TiMidity++ Win32GUI Synthesizer Version\0"
 #else
             VALUE "FileDescription", "TiMidity++ Win32GUI\0"
             VALUE "InternalName", "timw32g\0"
             VALUE "OriginalFilename", "timw32g.exe\0"
-            VALUE "ProductName", "TiMidity++ Win32GUI Version\0"
 #endif
+            VALUE "ProductName", "TiMidity++\0"
             VALUE "LegalCopyright", "Copyright (C) 1999-2018 Masanao Izumo <mo@goice.co.jp>\r\nCopyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "PrivateBuild", "\0"
-            VALUE "ProductVersion", TIMID_VERSION
+            VALUE "ProductVersion", TIMID_VERSION_RESSTR
             VALUE "SpecialBuild", "\0"
         }
     }
