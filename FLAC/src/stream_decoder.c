@@ -34,6 +34,7 @@
 #  include <config.h>
 #endif
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memset/memcpy() */
