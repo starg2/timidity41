@@ -854,15 +854,15 @@ void close_output(void)
 		CloseHandle(hEventTcv);
 		hEventTcv = NULL;
 	}
-	if(IsCoInit && CoInitThreadId == GetCurrentThreadId()){
-		CoUninitialize();
-		IsCoInit = 0;
-	}
 	BufferFrames = 0;
 	free_avrt();
 #ifdef USE_TEMP_ENCODE
 	reset_temporary_encoding();
 #endif
+	if(IsCoInit && CoInitThreadId == GetCurrentThreadId()){
+		CoUninitialize();
+		IsCoInit = 0;
+	}
 	IsOpened = 0;
 }
 
@@ -881,7 +881,11 @@ int open_output(void)
 	int device_id;
 
 	close_output();	
-		
+
+	if(check_hresult_failed(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE), "CoInitializeEx()"))
+		goto error;	
+	IsCoInit = 1;
+	CoInitThreadId = GetCurrentThreadId();
 	if(!get_winver()){
 		ctl->cmsg(CMSG_WARNING, VERB_NORMAL, "WASAPI ERROR! WASAPI require Windows Vista and later.");
 		return -1;
@@ -900,10 +904,6 @@ int open_output(void)
 	hEventTcv = CreateEvent(NULL,FALSE,FALSE,NULL); // auto reset
 	if(!hEventTcv)
 		goto error;	
-    if(check_hresult_failed(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE), "CoInitializeEx()"))
-		goto error;	
-	IsCoInit = 1;
-	CoInitThreadId = GetCurrentThreadId();
 	if(!get_device(&pMMDevice, device_id))
 		goto error;
 	if(check_hresult_failed(IMMDevice_Activate(pMMDevice, &tim_IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**)&pAudioClient), "IMMDevice::Activate()"))

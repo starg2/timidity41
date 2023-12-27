@@ -9081,7 +9081,7 @@ extern int volatile save_playlist_once_before_exit_flag;
 #endif /* IA_W32GUI */
 
 
-#if defined ( IA_W32GUI ) || defined ( IA_W32G_SYN )
+#ifdef __W32__
 static int CoInitializeOK = 0;
 #endif
 
@@ -9238,9 +9238,11 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	timidity_start_initialize();
-#if defined (IA_W32GUI) || defined (IA_W32G_SYN)
+#ifdef __W32__
 	if (SUCCEEDED(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE)))
 		CoInitializeOK = 1;
+#endif
+#if defined (IA_W32GUI) || defined (IA_W32G_SYN)
 	w32g_initialize();
 	for (c = 1; c < argc; c++)
 		if (is_directory(argv[c])) {
@@ -9367,9 +9369,9 @@ int main(int argc, char **argv)
 	/* CUI, SYN */
 	main_ret = timidity_play_main(nfiles, files);
 	w32_atexit = 0;
-#ifdef IA_W32G_SYN
 	if (CoInitializeOK)
 		CoUninitialize();
+#ifdef IA_W32G_SYN
 	w32g_uninitialize();
 #endif /* IA_W32G_SYN */
 #else
