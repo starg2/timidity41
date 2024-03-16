@@ -248,9 +248,7 @@ add_library(
     silk/float/structs_FLP.h
     silk/float/warped_autocorrelation_FLP.c
     silk/float/wrappers_FLP.c
-    silk/float/x86/inner_product_FLP_avx2.c
     silk/x86/main_sse.h
-    silk/x86/NSQ_del_dec_avx2.c
     silk/x86/NSQ_del_dec_sse4_1.c
     silk/x86/NSQ_sse4_1.c
     silk/x86/SigProc_FIX_sse.h
@@ -258,5 +256,14 @@ add_library(
     silk/x86/VQ_WMat_EC_sse4_1.c
     silk/x86/x86_silk_map.c
 )
+
+if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$" OR MSVC)
+    target_sources(
+        opus
+        PRIVATE
+            silk/float/x86/inner_product_FLP_avx2.c
+            silk/x86/NSQ_del_dec_avx2.c
+    )
+endif()
 
 install(TARGETS opus)
