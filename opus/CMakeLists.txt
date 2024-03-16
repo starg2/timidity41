@@ -12,15 +12,25 @@ add_definitions(
     -DOPUS_BUILD
     -DFLOAT_APPROX
     -DDLL_EXPORT
-    -DOPUS_HAVE_RTCD
     -DOPUS_X86_MAY_HAVE_SSE
     -DOPUS_X86_MAY_HAVE_SSE2
     -DOPUS_X86_MAY_HAVE_SSE4_1
-    -DOPUS_X86_MAY_HAVE_AVX2
     -DOPUS_X86_PRESUME_SSE
     -DOPUS_X86_PRESUME_SSE2
     -DOPUS_X86_PRESUME_SSE4_1
 )
+
+if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$")
+    add_definitions(
+        -DOPUS_X86_MAY_HAVE_AVX2
+        -DOPUS_X86_PRESUME_AVX2
+    )
+elseif(MSVC)
+    add_definitions(
+        -DOPUS_HAVE_RTCD
+        -DOPUS_X86_MAY_HAVE_AVX2
+    )
+endif()
 
 add_library(
     opus SHARED
