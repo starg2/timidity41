@@ -443,7 +443,8 @@ static int opus_multistream_encoder_init_impl(
    char *ptr;
 
    if ((channels>255) || (channels<1) || (coupled_streams>streams) ||
-       (streams<1) || (coupled_streams<0) || (streams>255-coupled_streams))
+       (streams<1) || (coupled_streams<0) || (streams>255-coupled_streams) ||
+       (streams+coupled_streams>channels))
       return OPUS_BAD_ARG;
 
    st->arch = opus_select_arch();
@@ -459,8 +460,7 @@ static int opus_multistream_encoder_init_impl(
       st->layout.mapping[i] = mapping[i];
    if (!validate_layout(&st->layout))
       return OPUS_BAD_ARG;
-   if (mapping_type == MAPPING_TYPE_SURROUND &&
-       !validate_encoder_layout(&st->layout))
+   if (!validate_encoder_layout(&st->layout))
       return OPUS_BAD_ARG;
    if (mapping_type == MAPPING_TYPE_AMBISONICS &&
        !validate_ambisonics(st->layout.nb_channels, NULL, NULL))
@@ -595,7 +595,8 @@ OpusMSEncoder *opus_multistream_encoder_create(
    int ret;
    OpusMSEncoder *st;
    if ((channels>255) || (channels<1) || (coupled_streams>streams) ||
-       (streams<1) || (coupled_streams<0) || (streams>255-coupled_streams))
+       (streams<1) || (coupled_streams<0) || (streams>255-coupled_streams) ||
+       (streams+coupled_streams>channels))
    {
       if (error)
          *error = OPUS_BAD_ARG;
@@ -1002,7 +1003,7 @@ int opus_multistream_encode_native
          return OPUS_INTERNAL_ERROR;
       }
       len = opus_repacketizer_out_range_impl(&rp, 0, opus_repacketizer_get_nb_frames(&rp),
-            data, max_data_bytes-tot_size, s != st->layout.nb_streams-1, !vbr && s == st->layout.nb_streams-1);
+            data, max_data_bytes-tot_size, s != st->layout.nb_streams-1, !vbr && s == st->layout.nb_streams-1, NULL, 0);
       data += len;
       tot_size += len;
    }

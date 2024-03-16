@@ -32,6 +32,7 @@ add_library(
 
     src/analysis.c
     src/analysis.h
+    src/extensions.c
     src/mlp.c
     src/mlp.h
     src/mlp_data.c
@@ -43,7 +44,6 @@ add_library(
     src/opus_multistream_encoder.c
     src/opus_private.h
     src/repacketizer.c
-    src/tansig_table.h
 
     celt/arch.h
     celt/bands.c
@@ -95,12 +95,14 @@ add_library(
     celt/_kiss_fft_guts.h
     celt/x86/celt_lpc_sse4_1.c
     celt/x86/celt_lpc_sse.h
+    celt/x86/pitch_avx.c
     celt/x86/pitch_sse.c
     celt/x86/pitch_sse.h
     celt/x86/pitch_sse2.c
     celt/x86/pitch_sse4_1.c
     celt/x86/vq_sse.h
     celt/x86/vq_sse2.c
+    celt/x86/x86_arch_macros.h
     celt/x86/x86cpu.c
     celt/x86/x86cpu.h
     celt/x86/x86_celt_map.c
@@ -234,7 +236,9 @@ add_library(
     silk/float/structs_FLP.h
     silk/float/warped_autocorrelation_FLP.c
     silk/float/wrappers_FLP.c
+    silk/float/x86/inner_product_FLP_avx2.c
     silk/x86/main_sse.h
+    silk/x86/NSQ_del_dec_avx2.c
     silk/x86/NSQ_del_dec_sse4_1.c
     silk/x86/NSQ_sse4_1.c
     silk/x86/SigProc_FIX_sse.h
