@@ -41,7 +41,7 @@
   (defined(OPUS_X86_MAY_HAVE_SSE4_1) && !defined(OPUS_X86_PRESUME_SSE4_1)) || \
   (defined(OPUS_X86_MAY_HAVE_AVX2) && !defined(OPUS_X86_PRESUME_AVX2)))
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 
 #include <intrin.h>
 static _inline void cpuid(unsigned int CPUInfo[4], unsigned int InfoType)
