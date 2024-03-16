@@ -20,6 +20,18 @@ add_definitions(
     -DOPUS_X86_PRESUME_SSE4_1
 )
 
+if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$")
+    add_definitions(
+        -DOPUS_X86_MAY_HAVE_AVX2
+        -DOPUS_X86_PRESUME_AVX2
+    )
+elseif(MSVC)
+    add_definitions(
+        -DOPUS_HAVE_RTCD
+        -DOPUS_X86_MAY_HAVE_AVX2
+    )
+endif()
+
 add_library(
     opus SHARED
 
@@ -32,6 +44,7 @@ add_library(
 
     src/analysis.c
     src/analysis.h
+    src/extensions.c
     src/mlp.c
     src/mlp.h
     src/mlp_data.c
@@ -43,7 +56,6 @@ add_library(
     src/opus_multistream_encoder.c
     src/opus_private.h
     src/repacketizer.c
-    src/tansig_table.h
 
     celt/arch.h
     celt/bands.c
@@ -95,12 +107,14 @@ add_library(
     celt/_kiss_fft_guts.h
     celt/x86/celt_lpc_sse4_1.c
     celt/x86/celt_lpc_sse.h
+    celt/x86/pitch_avx.c
     celt/x86/pitch_sse.c
     celt/x86/pitch_sse.h
     celt/x86/pitch_sse2.c
     celt/x86/pitch_sse4_1.c
     celt/x86/vq_sse.h
     celt/x86/vq_sse2.c
+    celt/x86/x86_arch_macros.h
     celt/x86/x86cpu.c
     celt/x86/x86cpu.h
     celt/x86/x86_celt_map.c
@@ -242,5 +256,14 @@ add_library(
     silk/x86/VQ_WMat_EC_sse4_1.c
     silk/x86/x86_silk_map.c
 )
+
+if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$" OR MSVC)
+    target_sources(
+        opus
+        PRIVATE
+            silk/float/x86/inner_product_FLP_avx2.c
+            silk/x86/NSQ_del_dec_avx2.c
+    )
+endif()
 
 install(TARGETS opus)
