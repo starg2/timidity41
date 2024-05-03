@@ -152,3 +152,4 @@ jobs:
         with:
           name: ${{ env.RELEASE_NAME }}
           files: '*.zip'
+          draft: true
