@@ -99,8 +99,8 @@ typedef struct _SFPatchRec {
 typedef struct _SampleList {
 	Sample v;
 	struct _SampleList *next;
-	int32 start;
-	int32 len;
+	long start; /* file offset */
+	uint32 len;
 	int32 cutoff_freq;
 	int16 resonance;
 	int16 root, tune;
@@ -1147,7 +1147,7 @@ static int make_patch(SFInfo *sf, int pridx, LayerTable *tbl)
     else
     {
 	SampleList *cur, *prev;
-	int32 start;
+	long start;
 
 	/* Insert sample */
 	start = sp->start;
@@ -1248,17 +1248,18 @@ static void set_envelope_parameters(SampleList *vp)
 static void set_sample_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 {
     SFSampleInfo *sp = &sf->sample[tbl->val[SF_sampleId]];
+    int32 len;
 
     /* set sample position */
     vp->start = (tbl->val[SF_startAddrsHi] << 15)
 	+ tbl->val[SF_startAddrs]
 	+ sp->startsample;
-    vp->len = (tbl->val[SF_endAddrsHi] << 15)
+    len = (tbl->val[SF_endAddrsHi] << 15)
 	+ tbl->val[SF_endAddrs]
 	+ sp->endsample - vp->start;
 
 	vp->start = abs(vp->start);
-	vp->len = abs(vp->len);
+	vp->len = abs(len);
 
     /* set loop position */
     vp->v.loop_start = (tbl->val[SF_startloopAddrsHi] << 15)
@@ -1452,8 +1453,10 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 
     /* initial cutoff & resonance */
     vp->cutoff_freq = 0;
-    if((int)tbl->val[SF_initialFilterFc] < 0)
-	tbl->set[SF_initialFilterFc] = tbl->val[SF_initialFilterFc] = 0;
+    if((int)tbl->val[SF_initialFilterFc] < 0) {
+	tbl->set[SF_initialFilterFc] = 0;
+	tbl->val[SF_initialFilterFc] = 0;
+    }
     if(current_sfrec->def_cutoff_allowed && tbl->set[SF_initialFilterFc]
 		&& (int)tbl->val[SF_initialFilterFc] >= 1500 && (int)tbl->val[SF_initialFilterFc] <= 13500)
     {
@@ -1477,8 +1480,7 @@ static void set_init_info(SFInfo *sf, SampleList *vp, LayerTable *tbl)
 	vp->resonance = 0;
     if(current_sfrec->def_resonance_allowed && tbl->set[SF_initialFilterQ])
     {
-	val = (int)tbl->val[SF_initialFilterQ];
-	vp->resonance = val;
+	vp->resonance = tbl->val[SF_initialFilterQ];
 	}
 	vp->v.resonance = vp->resonance;
 
