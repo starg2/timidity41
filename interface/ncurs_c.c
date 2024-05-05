@@ -1,6 +1,6 @@
 /*
     TiMidity++ -- MIDI to WAVE converter and player
-    Copyright (C) 1999-2018 Masanao Izumo <iz@onicos.co.jp>
+    Copyright (C) 1999-2024 Masanao Izumo <iz@onicos.co.jp>
     Copyright (C) 1995 Tuukka Toivonen <tt@cgs.fi>
 
     This program is free software; you can redistribute it and/or modify
@@ -459,7 +459,7 @@ static void N_ctl_scrinit(void)
     	waddch(dftwin, 'v');
     waddstr(dftwin, timidity_version);
     wmove(dftwin, VERSION_LINE,COLS-51);
-    waddstr(dftwin, "(C) 1995,1999-2018 Tuukka Toivonen, Masanao Izumo");
+    waddstr(dftwin, "(C) 1995,1999-2024 Tuukka Toivonen, Masanao Izumo");
     wmove(dftwin, FILE_LINE,0);
     waddstr(dftwin, "File:");
 #ifdef MIDI_TITLE
