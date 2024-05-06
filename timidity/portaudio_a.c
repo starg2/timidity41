@@ -529,7 +529,6 @@ error2:
 }
 static int output_data(char *buf, int32 nbytes)
 {
-	unsigned int i;
 	int32 samplesToGo;
 	char *bufepoint;
 

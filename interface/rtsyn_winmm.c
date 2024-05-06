@@ -213,15 +213,12 @@ int rtsyn_play_some_data(void){
 	DWORD	dwInstance;
 	DWORD	dwParam1;
 	DWORD	dwParam2;
-	DWORD	timestamp;
-	MidiEvent ev;
-	MidiEvent evm[260];
 	int port;
 	UINT evbpoint;
 	MIDIHDR *IIMidiHdr;
 	int exlen;
 	char *sysexbuffer;
-	int ne,i,j,chk,played;
+	int played;
 		
 	played=0;
 		if( !rtsyn_buf_check() ){ 

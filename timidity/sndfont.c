@@ -2183,7 +2183,7 @@ int main(int argc, char **argv)
 					if(IS_SET_PROG_MAP(fft_range, x_preset, x_keynote)) {
 						Instrument *inst;
 						float freq;
-						int chord, note;
+						int chord;
 						
 						inst = try_load_soundfont(sf, -1, 128, x_preset, x_keynote);
 						if(inst != NULL) {

@@ -223,7 +223,6 @@ double rtsyn_set_latency(double latency){
 
 void rtsyn_init(void){
 	int i,j;
-	MidiEvent ev;
 		/* set constants */
 	opt_realtime_playing = 1; /* Enable loading patch while playing */
 	allocate_cache_size = 0; /* Don't use pre-calclated samples */
@@ -261,7 +260,7 @@ rtsyn_play_event_sample(MidiEvent *ev, int32 event_sample_time){
 
 void rtsyn_play_event_time(MidiEvent *ev, double event_time){
 	int gch;
-	double current_event_time, buf_time;
+	double buf_time;
 	int32 max_compute;
 	MidiEvent nev;
 
@@ -307,7 +306,6 @@ void rtsyn_play_event(MidiEvent *ev){
 }
 
 void rtsyn_wot_reset(void){
-	int i;
 	kill_all_voices();
 	if (free_instruments_afterwards){
 		free_instruments(0);
@@ -363,7 +361,7 @@ void rtsyn_stop_playing(void)
 
 void rtsyn_seq_set_time(MidiEvent *ev, double event_time)
 {
-	double currenttime, time_div;
+	double time_div;
 	
 	time_div = event_time  - rtsyn_start_time;
 	ev->time = rtsyn_start_sample

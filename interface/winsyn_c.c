@@ -229,9 +229,8 @@ static int ctl_pass_playing_list(int n, char *args[])
 int ctl_pass_playing_list2(int n, char *args[])
 #endif
 {
-	int i, j,devnum,devok;
+	int i, devnum,devok;
 	unsigned int port=0 ;
-	int started;
 	char cbuf[80];
 
 rtsyn_get_port_list();
