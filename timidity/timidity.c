@@ -58,6 +58,7 @@
 #ifdef BORLANDC_EXCEPTION
 #include <excpt.h>
 #endif /* BORLANDC_EXCEPTION */
+#include <math.h>
 #include <signal.h>
 
 #if defined(__FreeBSD__) && !defined(__alpha__)
@@ -639,10 +640,6 @@ extern char* pcm_alternate_file;
  * "auto":       automatically selected
  * filename:     use the one.
  */
-
-#ifndef atof
-extern double atof(const char *);
-#endif
 
 /*! copy bank and, if necessary, map appropriately */
 static void copybank(ToneBank *to, ToneBank *from, int mapid, int bankmapfrom, int bankno)

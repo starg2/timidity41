@@ -1904,7 +1904,8 @@ static int cmsg(int type, int verbosity_level, char *fmt, ...)
 static void ctl_event(CtlEvent *e) {}
 ControlMode w32gui_control_mode =
 {
-	"w32gui interface", 'd',
+    "Win32 GUI interface", 'w',
+    "w32gui",
     1,0,0,
     0,
     ctl_open,

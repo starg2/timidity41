@@ -392,7 +392,7 @@ void reload_cfg(void)
 	free_instruments(0);
 	tmdy_free_config();
 	timidity_start_initialize();
-	read_config_file ( sp_temp->ConfigFile, 0 );
+	read_config_file(sp_temp->ConfigFile, 0, 0);
 	PrefSettingApply();
 #ifndef IA_W32G_SYN
 	TracerWndApplyQuietChannel(st_temp->quietchannels);
