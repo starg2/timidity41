@@ -101,8 +101,9 @@
 #define inline
 #endif
 
-#ifdef IA_W32GUI
+#if defined(IA_W32GUI) || defined(IA_W32G_SYN)
 #include "w32g.h"
+#include "w32g_subwin.h"
 #include "w32g_utl.h"
 #endif
 

@@ -67,7 +67,9 @@
 #include "wsgtk_main.h"
 #endif
 
-#ifndef __W32__
+#ifdef __W32__
+#include <conio.h>
+#else
 #include <stdio.h>
 #include <termios.h>
 //#include <term.h>

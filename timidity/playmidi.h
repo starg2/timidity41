@@ -585,6 +585,7 @@ extern int play_midi_file(char *fn);
 extern int dumb_pass_playing_list(int number_of_files, char *list_of_files[]);
 extern void default_ctl_lyric(int lyricid);
 extern int check_apply_control(void);
+extern void kill_all_voices(void);
 extern void recompute_freq(int v);
 extern int midi_drumpart_change(int ch, int isdrum);
 extern void ctl_note_event(int noteID);
@@ -602,6 +603,7 @@ extern void play_midi_setup_drums(int ch,int note);
 /* For stream player */
 extern void playmidi_stream_init(void);
 extern void playmidi_tmr_reset(void);
+extern void playmidi_stream_free(void);
 extern int play_event(MidiEvent *ev);
 
 extern void recompute_voice_filter(int);

@@ -78,6 +78,7 @@ int WINAPI timeKillEvent(UINT uTimerID);
 #include "instrum.h"
 #include "playmidi.h"
 #include "readmidi.h"
+#include "rtsyn.h"
 #include "output.h"
 #include "controls.h"
 

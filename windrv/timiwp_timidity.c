@@ -47,6 +47,8 @@ extern char def_instr_name[256];
 extern CRITICAL_SECTION critSect;
 extern int opt_evil_mode;
 
+extern void free_gauss_table(void);
+extern void free_wrd(void);
 
 
 

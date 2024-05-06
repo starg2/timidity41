@@ -73,6 +73,10 @@ extern void w32g_restart(void);
 #endif
 extern void set_gogo_opts_use_commandline_options(char *commandline);
 
+extern void timidity_start_initialize(void);
+extern int read_config_file(char *name, int self, int allow_missing_file);
+extern void tmdy_free_config(void);
+
 extern void restore_voices(int save_voices);
 
 extern void TracerWndApplyQuietChannel( ChannelBitMask quietchannels_ );

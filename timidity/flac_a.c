@@ -33,7 +33,6 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #include <fcntl.h>
-#include "common.h"
 
 #ifdef __W32__
 #include <io.h>
