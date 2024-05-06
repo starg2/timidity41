@@ -396,16 +396,18 @@ typedef struct {
 #define PAN_DELAY_BUF_MAX 48	/* 0.5ms in 96kHz */
 #endif	/* ENABLE_PAN_DELAY */
 
+#if SAMPLE_LENGTH_BITS == 32 && TIMIDITY_HAVE_INT64
+typedef int64 spoff_fixed_t;	/* sample offset must be signed */
+#else
+typedef splen_t spoff_fixed_t;
+#endif
+
 typedef struct {
   uint8
     status, channel, note, velocity;
   int vid, temper_instant;
   Sample *sample;
-#if SAMPLE_LENGTH_BITS == 32 && TIMIDITY_HAVE_INT64
-  int64 sample_offset;	/* sample_offset must be signed */
-#else
-  splen_t sample_offset;
-#endif
+  spoff_fixed_t sample_offset;
   int32
     orig_frequency, frequency, sample_increment,
     envelope_volume, envelope_target, envelope_increment,
