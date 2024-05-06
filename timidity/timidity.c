@@ -5506,6 +5506,7 @@ MAIN_INTERFACE int timidity_pre_load_configuration(void)
       strcat(ConfigFile, "\\TIMIDITY.CFG");
     }
     strncpy(local, ConfigFile, sizeof(local) - 1);
+    local[sizeof(local) - 1] = '\0';
     if((check = open(local, 0)) >= 0)
     {
 	close(check);
