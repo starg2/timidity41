@@ -15,7 +15,7 @@
 
 #pragma warning(pop)
 
-void sfgui_str_free(void **p)
+void sfgui_str_free(char **p)
 {
 	if (!*p) return;
 	free(*p);

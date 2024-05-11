@@ -416,7 +416,7 @@ void free_soundfonts()
 }
 
 char *soundfont_preset_name(int bank, int preset, int keynote,
-			    char **sndfile)
+			    const char **sndfile)
 {
     SFInsts *rec;
     if (sndfile)

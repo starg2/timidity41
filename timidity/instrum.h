@@ -429,7 +429,7 @@ extern Instrument *extract_soundfont(char *sf_file, int bank, int preset,
 extern int exclude_soundfont(int bank, int preset, int keynote);
 extern int order_soundfont(int bank, int preset, int keynote, int order);
 extern char *soundfont_preset_name(int bank, int preset, int keynote,
-				   char **sndfile);
+				   const char **sndfile);
 extern void free_soundfonts(void);
 
 /* instrum.c */
