@@ -61,7 +61,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 add_definitions(
 # TiMidity++ common
     -DWIN32
-    -DRETSIGTYPE=int
+    -DRETSIGTYPE=void
     -DSTDC_HEADERS
     -DHAVE_GETCWD
     -DHAVE_POPEN
