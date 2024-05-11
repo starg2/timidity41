@@ -141,6 +141,32 @@ CHAR *INI_SEC_TIMIDITY = "TIMIDITY";
 
 ///r
 int
+IniGetKeyUInt32(char *section, char *key,uint32 *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  GetPrivateProfileString
+    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
+  if(strcasecmp(buffer,INI_INVALID)){
+    *n =strtoul(buffer, NULL, 10);
+    return 0;
+  } else
+    return 1;
+}
+
+int
+IniGetKeyULong(char *section, char *key,unsigned long *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  GetPrivateProfileString
+    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
+  if(strcasecmp(buffer,INI_INVALID)){
+    *n =strtoul(buffer, NULL, 10);
+    return 0;
+  } else
+    return 1;
+}
+
+int
 IniGetKeyInt64(char *section, char *key,int64 *n)
 {
   CHAR buffer[INI_MAXLEN];
@@ -283,6 +309,26 @@ IniGetKeyStringN(char *section, char *key,char *str, int size)
     return 1;
 }
 ///r
+int
+IniPutKeyUInt32(char *section, char *key,uint32 *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  sprintf(buffer,"%u",*n);
+  WritePrivateProfileString
+    (section,key,buffer,IniFile);
+  return 0;
+}
+
+int
+IniPutKeyULong(char *section, char *key,unsigned long *n)
+{
+  CHAR buffer[INI_MAXLEN];
+  sprintf(buffer,"%lu",*n);
+  WritePrivateProfileString
+    (section,key,buffer,IniFile);
+  return 0;
+}
+
 int
 IniPutKeyInt64(char *section, char *key,int64 *n)
 {

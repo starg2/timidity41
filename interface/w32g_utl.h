@@ -310,6 +310,8 @@ extern int DocFontSize;
 extern int ListFontSize;
 extern int TracerFontSize;
 ///r
+extern int IniGetKeyUInt32(char *section, char *key,uint32 *n);
+extern int IniGetKeyULong(char *section, char *key,unsigned long *n);
 extern int IniGetKeyInt64(char *section, char *key,int64 *n);
 extern int IniGetKeyInt32(char *section, char *key,int32 *n);
 extern int IniGetKeyInt32Array(char *section, char *key, int32 *n, int arraysize);
@@ -320,6 +322,8 @@ extern int IniGetKeyIntArray(char *section, char *key, int *n, int arraysize);
 extern int IniGetKeyString(char *section, char *key,char *str);
 extern int IniGetKeyStringN(char *section, char *key,char *str, int size);
 extern int IniGetKeyFloat(char *section, char *key, FLOAT_T *n);
+extern int IniPutKeyUInt32(char *section, char *key,uint32 *n);
+extern int IniPutKeyULong(char *section, char *key,unsigned long *n);
 extern int IniPutKeyInt64(char *section, char *key,int64 *n);
 extern int IniPutKeyInt32(char *section, char *key,int32 *n);
 extern int IniPutKeyInt32Array(char *section, char *key, int32 *n, int arraysize);
