@@ -143,11 +143,17 @@ CHAR *INI_SEC_TIMIDITY = "TIMIDITY";
 int
 IniGetKeyUInt32(char *section, char *key,uint32 *n)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    *n =strtoul(buffer, NULL, 10);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    *n =_tcstoul(buffer, NULL, 10);
     return 0;
   } else
     return 1;
@@ -156,11 +162,17 @@ IniGetKeyUInt32(char *section, char *key,uint32 *n)
 int
 IniGetKeyULong(char *section, char *key,unsigned long *n)
 {
-  CHAR buffer[INI_MAXLEN];
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
   GetPrivateProfileString
-    (section,key,INI_INVALID,buffer,INI_MAXLEN-1,IniFile);
-  if(strcasecmp(buffer,INI_INVALID)){
-    *n =strtoul(buffer, NULL, 10);
+    (tSection,tKey,INI_INVALID,buffer,INI_MAXLEN-1,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
+  if(_tcsicmp(buffer,INI_INVALID)){
+    *n =_tcstoul(buffer, NULL, 10);
     return 0;
   } else
     return 1;
@@ -370,20 +382,32 @@ IniGetKeyStringN(char *section, char *key,char *str, int size)
 int
 IniPutKeyUInt32(char *section, char *key,uint32 *n)
 {
-  CHAR buffer[INI_MAXLEN];
-  sprintf(buffer,"%u",*n);
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  _stprintf(buffer, _T("%u"), *n);
   WritePrivateProfileString
-    (section,key,buffer,IniFile);
+    (tSection,tKey,buffer,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
 int
 IniPutKeyULong(char *section, char *key,unsigned long *n)
 {
-  CHAR buffer[INI_MAXLEN];
-  sprintf(buffer,"%lu",*n);
+  TCHAR *tIniFile = char_to_tchar(IniFile);
+  TCHAR *tSection = char_to_tchar(section);
+  TCHAR *tKey = char_to_tchar(key);
+  TCHAR buffer[INI_MAXLEN];
+  _stprintf(buffer, _T("%lu"), *n);
   WritePrivateProfileString
-    (section,key,buffer,IniFile);
+    (tSection,tKey,buffer,tIniFile);
+  safe_free(tKey);
+  safe_free(tSection);
+  safe_free(tIniFile);
   return 0;
 }
 
