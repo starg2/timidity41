@@ -546,10 +546,10 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 	
 #if defined(WINDRV_SETUP)
     IniGetKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));	
+    IniGetKeyULong(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
     IniGetKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
 		if ( st->SynShTime < 0 ) st->SynShTime = 0;
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
+    IniGetKeyUInt32(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
     if ( st->opt_rtsyn_latency < 1 ) st->opt_rtsyn_latency = 1;
     if ( st->opt_rtsyn_latency > 1000 ) st->opt_rtsyn_latency = 1000;	
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
@@ -557,11 +557,11 @@ void LoadIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
     IniGetKeyIntArray(INI_SEC_TIMIDITY,"SynIDPort",st->SynIDPort,MAX_PORT);
     IniGetKeyInt(INI_SEC_TIMIDITY,"syn_AutoStart",&(st->syn_AutoStart));
     IniGetKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
-    IniGetKeyInt(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
+    IniGetKeyULong(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
     IniGetKeyInt(INI_SEC_TIMIDITY,"SynPortNum",&(st->SynPortNum));
     IniGetKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
 		if ( st->SynShTime < 0 ) st->SynShTime = 0;
-    IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
+    IniGetKeyUInt32(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
     if ( st->opt_rtsyn_latency < 1 ) st->opt_rtsyn_latency = 1;
     if ( st->opt_rtsyn_latency > 1000 ) st->opt_rtsyn_latency = 1000;
     IniGetKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));
@@ -797,18 +797,18 @@ SaveIniFile(SETTING_PLAYER *sp,  SETTING_TIMIDITY *st)
 	
 #if defined(WINDRV_SETUP)
     IniPutKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));	
+    IniPutKeyULong(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));	
+    IniPutKeyUInt32(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
 #elif defined(IA_W32G_SYN)
     IniPutKeyIntArray(INI_SEC_TIMIDITY,"SynIDPort",st->SynIDPort,MAX_PORT);
     IniPutKeyInt(INI_SEC_TIMIDITY,"syn_AutoStart",&(st->syn_AutoStart));
     IniPutKeyInt(INI_SEC_TIMIDITY,"processPriority",&(st->processPriority));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
+    IniPutKeyULong(INI_SEC_TIMIDITY,"syn_ThreadPriority",&(st->syn_ThreadPriority));
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynPortNum",&(st->SynPortNum));
     IniPutKeyInt(INI_SEC_TIMIDITY,"SynShTime",&(st->SynShTime));
-    IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));	
+    IniPutKeyUInt32(INI_SEC_TIMIDITY,"opt_rtsyn_latency",&(st->opt_rtsyn_latency));	
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_rtsyn_skip_aq",&(st->opt_rtsyn_skip_aq));	
     IniPutKeyInt(INI_SEC_TIMIDITY,"opt_use_twsyn_bridge",&(st->opt_use_twsyn_bridge));
 #else

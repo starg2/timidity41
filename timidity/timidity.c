@@ -8375,7 +8375,7 @@ static RETSIGTYPE sigterm_exit(int sig)
     dummy += write(2, s, 3);
 
     safe_exit(1);
-	return 0;
+	return (RETSIGTYPE)0;
 }
 #endif /* HAVE_SIGNAL */
 
