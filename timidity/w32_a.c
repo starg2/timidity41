@@ -30,6 +30,7 @@
 #ifdef __W32__
 #include "interface.h"
 #endif
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef NO_STRING_H
@@ -799,10 +800,9 @@ static void DebugPrint(const char *format, ...)
 	CHAR b[256];
 	va_list ap;
 	
-	va_begin(ap, format);
+	va_start(ap, format);
 	wvsprintf(b, format, ap);
 	va_end(ap);
 	OutputDebugString(b);
 #endif
 }
-
