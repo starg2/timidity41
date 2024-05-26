@@ -266,7 +266,8 @@ static struct tm_jack jack_ctx;
 static int detect(void)
 {
 	jack_client_t *client;
-	client = jack_client_new(TIMIDITY_JACK_CLIENT_NAME);
+	jack_status_t status;
+	client = jack_client_open(TIMIDITY_JACK_CLIENT_NAME, JackNullOption, &status);
 	if (! client)
 		return 0;
 	jack_client_close(client);
@@ -279,10 +280,11 @@ static int open_jack(void)
 	int ret_val = 0;
 	struct tm_jack *ctx = &jack_ctx;
 	const char **dst_ports;
+	jack_status_t status;
 
 	memset(ctx, 0, sizeof(*ctx));
 
-	ctx->client = jack_client_new(TIMIDITY_JACK_CLIENT_NAME);
+	ctx->client = jack_client_open(TIMIDITY_JACK_CLIENT_NAME, JackNullOption, &status);
 	if (! ctx->client)
 		return -1;
 
