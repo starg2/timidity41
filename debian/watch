@@ -1,3 +1,0 @@
-version=3
-opts=uversionmangle=s/(tar|gz|tgz|bz2|\.\.)//g \
-http://sf.net/timidity/TiMidity\+\+-?_?([\w+\d+\.]+|\d+)(\.tar|\.tgz)(\.gz|\.bz2|) debian false

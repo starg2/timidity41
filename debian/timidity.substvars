@@ -1,2 +1,0 @@
-shlibs:Depends=libasound2 (>> 1.0.18), libaudio2, libc6 (>= 2.7), libesd0 (>= 0.2.35), libflac8 (>= 1.2.1), libice6 (>= 1:1.0.0), libjack-jackd2-0 (>= 1.9.5~dfsg-14) | libjack-0.116, libmpg123-0 (>= 1.20.1-2), libncurses5 (>= 5.7+20100313), libogg0 (>= 1.0rc3), libpng12-0 (>= 1.2.13-4), libportaudio0, libportmidi0 (>= 1:184-2.2), libsm6, libspeex1 (>= 1.2~beta3-1), libvorbis0a (>= 1.1.2), libvorbisenc2 (>= 1.1.2), libvorbisfile3 (>= 1.3.4-2), libx11-6, libxaw7, libxext6, libxft2 (>> 2.1.1), libxmu6, libxt6, zlib1g (>= 1:1.1.4)
-misc:Depends=
