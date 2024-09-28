@@ -13,6 +13,7 @@ set(TIM41_INTEL_ONLY FALSE CACHE BOOL "Optimize exclusively for Intel CPU; resul
 
 set(TIM41_GCC_WITH_LIBICONV TRUE CACHE BOOL "GCC supports charset conversion")
 
+set(TIM41_REGENERATE_NEWTON_TABLE FALSE CACHE BOOL "Regenerate newton_table.c")
 set(TIM41_SPECTRE_MITIGATION FALSE CACHE BOOL "Enable Spectre mitigation")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/bin" CACHE PATH "Where to put all the RUNTIME target files when built.")

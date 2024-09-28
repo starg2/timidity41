@@ -3,27 +3,28 @@ add_definitions(
     [[-DDEFAULT_PATH="./"]]
 )
 
-# calcnewton
+if("${TIM41_REGENERATE_NEWTON_TABLE}")
+    # calcnewton
+    add_executable(calcnewton calcnewt.c)
 
-add_executable(calcnewton calcnewt.c)
+    if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+        target_compile_options(calcnewton PRIVATE /Oi-)
+    endif()
 
-if(MSVC AND "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
-    target_compile_options(calcnewton PRIVATE /Oi-)
+    if(MSVC)
+        target_compile_options(calcnewton PRIVATE /Od)
+    else()
+        target_compile_options(calcnewton PRIVATE -O0)
+    endif()
+
+    add_custom_command(
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c"
+        COMMAND calcnewton "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c"
+    )
+
+    set_source_files_properties(resample.c PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c")
+    include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 endif()
-
-if(MSVC)
-    target_compile_options(calcnewton PRIVATE /Od)
-else()
-    target_compile_options(calcnewton PRIVATE -O0)
-endif()
-
-add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c"
-    COMMAND calcnewton "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c"
-)
-
-set_source_files_properties(resample.c PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/newton_table.c")
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # timidity common
 
