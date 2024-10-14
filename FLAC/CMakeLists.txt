@@ -76,17 +76,9 @@ add_library(
     src/cpu.c
     src/crc.c
     src/fixed.c
-    src/fixed_intrin_avx2.c
-    src/fixed_intrin_sse2.c
-    src/fixed_intrin_sse42.c
-    src/fixed_intrin_ssse3.c
     src/float.c
     src/format.c
     src/lpc.c
-    src/lpc_intrin_avx2.c
-    src/lpc_intrin_fma.c
-    src/lpc_intrin_sse2.c
-    src/lpc_intrin_sse41.c
     src/md5.c
     src/memory.c
     src/metadata_iterators.c
@@ -98,9 +90,6 @@ add_library(
     src/stream_decoder.c
     src/stream_encoder.c
     src/stream_encoder_framing.c
-    src/stream_encoder_intrin_avx2.c
-    src/stream_encoder_intrin_sse2.c
-    src/stream_encoder_intrin_ssse3.c
     src/window.c
 
     src/share/win_utf8_io/win_utf8_io.c
@@ -108,15 +97,33 @@ add_library(
     # src/version.rc
 )
 
-if(MSVC AND NOT TIM41_USE_AVX2)
-    set_source_files_properties(
-        src/fixed_intrin_avx2.c
-        src/lpc_intrin_avx2.c
-        src/lpc_intrin_fma.c
-        src/stream_encoder_intrin_avx2.c
-        PROPERTIES
-            COMPILE_OPTIONS /arch:AVX2
+if(NOT ("${TIM41_X86_SIMD_LEVEL}" STREQUAL "NONE"))
+    target_sources(
+        FLAC
+        PRIVATE
+            src/fixed_intrin_avx2.c
+            src/fixed_intrin_sse2.c
+            src/fixed_intrin_sse42.c
+            src/fixed_intrin_ssse3.c
+            src/lpc_intrin_avx2.c
+            src/lpc_intrin_fma.c
+            src/lpc_intrin_sse2.c
+            src/lpc_intrin_sse41.c
+            src/stream_encoder_intrin_avx2.c
+            src/stream_encoder_intrin_sse2.c
+            src/stream_encoder_intrin_ssse3.c
     )
+
+    if(MSVC AND NOT ("${TIM41_X86_SIMD_LEVEL}" MATCHES "^AVX.*"))
+        set_source_files_properties(
+            src/fixed_intrin_avx2.c
+            src/lpc_intrin_avx2.c
+            src/lpc_intrin_fma.c
+            src/stream_encoder_intrin_avx2.c
+            PROPERTIES
+                COMPILE_OPTIONS /arch:AVX2
+        )
+    endif()
 endif()
 
 target_link_libraries(FLAC ogg)

@@ -5693,17 +5693,7 @@ static void do_reverb_ex_mod_chSTMS_thread(DATA_T *buf, int32 count, InfoReverbE
 		info->tcount = count;
 		info->tibuf = buf; //in
 		go_effect_sub_thread(do_reverb_ex_mod_chSTMS_thread1, info, 2);
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
-		for (i = 0; i < count; i += 2){		
-			_mm_store_pd(&buf[i], _mm_load_pd(&info->tobuf[i])); // out
-		}
-#else
-		for (i = 0; i < count; i++){			
-			buf[i] = info->tbuf[i];	
-			i++;
-			buf[i] = info->tbuf[i];	
-		}
-#endif
+		memcpy(buf, info->tobuf, sizeof(DATA_T) * count);
 		return;
 	}
 }
@@ -7095,17 +7085,17 @@ void free_reverb_ex2(InfoReverbEX2 *info)
 		if(info->fftw[i] != NULL){ aligned_free(info->fftw[i]); info->fftw[i] = NULL; }
 		if(info->ffti[i] != NULL){ aligned_free(info->ffti[i]); info->ffti[i] = NULL; }
 #else
-		if(info->rvs[i] != NULL){ safe_freeinfo->rvs[i]); info->rvs[i] = NULL; }
-		if(info->rs[i] != NULL){ safe_freeinfo->rs[i]); info->rs[i] = NULL; }
-		if(info->is[i] != NULL){ safe_freeinfo->is[i]); info->is[i] = NULL; }
-		if(info->ss[i] != NULL){ safe_freeinfo->ss[i]); info->ss[i] = NULL; }
-		if(info->os[i] != NULL){ safe_freeinfo->os[i]); info->os[i] = NULL; }
-		if(info->fs[i] != NULL){ safe_freeinfo->fs[i]); info->fs[i] = NULL; }
-		if(info->fi[i] != NULL){ safe_freeinfo->fi[i]); info->fi[i] = NULL; }
-		if(info->bd[i] != NULL){ safe_freeinfo->bd[i]); info->bd[i] = NULL; }	
-		if(info->ios[i] != NULL){ safe_freeinfo->ios[i]); info->ios[i] = NULL; }	
-		if(info->fftw[i] != NULL){ safe_freeinfo->fftw[i]); info->fftw[i] = NULL; }
-		if(info->ffti[i] != NULL){ safe_freeinfo->ffti[i]); info->ffti[i] = NULL; }
+		if(info->rvs[i] != NULL){ safe_free(info->rvs[i]); info->rvs[i] = NULL; }
+		if(info->rs[i] != NULL){ safe_free(info->rs[i]); info->rs[i] = NULL; }
+		if(info->is[i] != NULL){ safe_free(info->is[i]); info->is[i] = NULL; }
+		if(info->ss[i] != NULL){ safe_free(info->ss[i]); info->ss[i] = NULL; }
+		if(info->os[i] != NULL){ safe_free(info->os[i]); info->os[i] = NULL; }
+		if(info->fs[i] != NULL){ safe_free(info->fs[i]); info->fs[i] = NULL; }
+		if(info->fi[i] != NULL){ safe_free(info->fi[i]); info->fi[i] = NULL; }
+		if(info->bd[i] != NULL){ safe_free(info->bd[i]); info->bd[i] = NULL; }
+		if(info->ios[i] != NULL){ safe_free(info->ios[i]); info->ios[i] = NULL; }
+		if(info->fftw[i] != NULL){ safe_free(info->fftw[i]); info->fftw[i] = NULL; }
+		if(info->ffti[i] != NULL){ safe_free(info->ffti[i]); info->ffti[i] = NULL; }
 #endif // USE_X86_EXT_INTRIN
 	}
 #if defined(MULTI_THREAD_COMPUTE2) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)	
@@ -7480,7 +7470,7 @@ static void do_reverb_ex2_process(int ch, int32 scount, int32 ecount, InfoReverb
 	{
 		for (i = scount; i < ecount; i++){
 			float sum = 0;
-			float tmpbuf = buf + bcount;
+			float *tmpbuf = buf + bcount;
 			for (k = 0; k < info->frame; k++)
 				sum += tmpbuf[k] * irdata[k];
 			if((--bcount) < 0)

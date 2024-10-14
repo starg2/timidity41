@@ -12,24 +12,39 @@ add_definitions(
     -DOPUS_BUILD
     -DFLOAT_APPROX
     -DDLL_EXPORT
-    -DOPUS_X86_MAY_HAVE_SSE
-    -DOPUS_X86_MAY_HAVE_SSE2
-    -DOPUS_X86_MAY_HAVE_SSE4_1
-    -DOPUS_X86_PRESUME_SSE
-    -DOPUS_X86_PRESUME_SSE2
-    -DOPUS_X86_PRESUME_SSE4_1
 )
 
-if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$")
+if(NOT ("${TIM41_X86_SIMD_LEVEL}" STREQUAL "NONE"))
     add_definitions(
-        -DOPUS_X86_MAY_HAVE_AVX2
-        -DOPUS_X86_PRESUME_AVX2
+        -DOPUS_X86_MAY_HAVE_SSE
+        -DOPUS_X86_MAY_HAVE_SSE2
+        -DOPUS_X86_MAY_HAVE_SSE4_1
     )
-elseif(MSVC)
-    add_definitions(
-        -DOPUS_HAVE_RTCD
-        -DOPUS_X86_MAY_HAVE_AVX2
-    )
+
+    if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(SSE2|SSE42|AVX.*)$")
+        add_definitions(
+            -DOPUS_X86_PRESUME_SSE
+            -DOPUS_X86_PRESUME_SSE2
+        )
+    endif()
+
+    if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(SSE42|AVX.*)$")
+        add_definitions(
+            -DOPUS_X86_PRESUME_SSE4_1
+        )
+    endif()
+
+    if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$")
+        add_definitions(
+            -DOPUS_X86_MAY_HAVE_AVX2
+            -DOPUS_X86_PRESUME_AVX2
+        )
+    elseif(MSVC)
+        add_definitions(
+            -DOPUS_HAVE_RTCD
+            -DOPUS_X86_MAY_HAVE_AVX2
+        )
+    endif()
 endif()
 
 add_library(
@@ -105,19 +120,6 @@ add_library(
     celt/vq.c
     celt/vq.h
     celt/_kiss_fft_guts.h
-    celt/x86/celt_lpc_sse4_1.c
-    celt/x86/celt_lpc_sse.h
-    celt/x86/pitch_avx.c
-    celt/x86/pitch_sse.c
-    celt/x86/pitch_sse.h
-    celt/x86/pitch_sse2.c
-    celt/x86/pitch_sse4_1.c
-    celt/x86/vq_sse.h
-    celt/x86/vq_sse2.c
-    celt/x86/x86_arch_macros.h
-    celt/x86/x86cpu.c
-    celt/x86/x86cpu.h
-    celt/x86/x86_celt_map.c
 
     silk/A2NLSF.c
     silk/ana_filt_bank_1.c
@@ -248,22 +250,43 @@ add_library(
     silk/float/structs_FLP.h
     silk/float/warped_autocorrelation_FLP.c
     silk/float/wrappers_FLP.c
-    silk/x86/main_sse.h
-    silk/x86/NSQ_del_dec_sse4_1.c
-    silk/x86/NSQ_sse4_1.c
-    silk/x86/SigProc_FIX_sse.h
-    silk/x86/VAD_sse4_1.c
-    silk/x86/VQ_WMat_EC_sse4_1.c
-    silk/x86/x86_silk_map.c
 )
 
-if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$" OR MSVC)
+if(NOT ("${TIM41_X86_SIMD_LEVEL}" STREQUAL "NONE"))
     target_sources(
         opus
         PRIVATE
-            silk/float/x86/inner_product_FLP_avx2.c
-            silk/x86/NSQ_del_dec_avx2.c
+            celt/x86/celt_lpc_sse4_1.c
+            celt/x86/celt_lpc_sse.h
+            celt/x86/pitch_avx.c
+            celt/x86/pitch_sse.c
+            celt/x86/pitch_sse.h
+            celt/x86/pitch_sse2.c
+            celt/x86/pitch_sse4_1.c
+            celt/x86/vq_sse.h
+            celt/x86/vq_sse2.c
+            celt/x86/x86_arch_macros.h
+            celt/x86/x86cpu.c
+            celt/x86/x86cpu.h
+            celt/x86/x86_celt_map.c
+
+            silk/x86/main_sse.h
+            silk/x86/NSQ_del_dec_sse4_1.c
+            silk/x86/NSQ_sse4_1.c
+            silk/x86/SigProc_FIX_sse.h
+            silk/x86/VAD_sse4_1.c
+            silk/x86/VQ_WMat_EC_sse4_1.c
+            silk/x86/x86_silk_map.c
     )
+
+    if("${TIM41_X86_SIMD_LEVEL}" MATCHES "^(AVX2|AVX512)$" OR MSVC)
+        target_sources(
+            opus
+            PRIVATE
+                silk/float/x86/inner_product_FLP_avx2.c
+                silk/x86/NSQ_del_dec_avx2.c
+        )
+    endif()
 endif()
 
 install(TARGETS opus)
