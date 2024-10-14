@@ -53,7 +53,7 @@
 #define ARMCPU 1
 #endif
 
-#if defined(__aarch64__)
+#if defined(_M_ARM64) || defined(__aarch64__)
 #undef  ARMCPU
 #define ARM64CPU 1
 #endif
@@ -269,7 +269,7 @@ typedef double LDBL_T;
 /* pointer size is not long in WIN64 and x86_64 */
 #if (defined(SIZEOF_POINTER) && SIZEOF_POINTER == 8) || \
     (defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8) || \
-    (defined(__W32__) && defined(_AMD64_))
+    defined(_WIN64)
 /* 64bit arch */
 typedef  int64   ptr_size_t;
 typedef uint64 u_ptr_size_t;

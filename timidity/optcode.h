@@ -42,6 +42,10 @@
 #undef IX64CPU
 #endif
 
+#if defined(_M_ARM64) || defined(__aarch64__)
+#define ARM64CPU 1
+#endif
+
 /* optimizing mode */
 /* 0: none         */
 /* 1: x86 asm      */
