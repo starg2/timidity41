@@ -94,6 +94,14 @@
 
 
 /*****************************************************************************/
+
+#if defined(ARM64CPU) && defined(LITTLE_ENDIAN) // ARMv8 NEON (little endian only)
+#define USE_ARM64_EXT_INTRIN  1
+#else
+#define USE_ARM64_EXT_INTRIN  0
+#endif
+
+/*****************************************************************************/
 /*
 intrinsicを使用してみるテスト gccでも使えるらしいし
 CPUの拡張機能の対応の違い,ビルド環境のasm/intrin対応の違いがあるので
@@ -670,6 +678,12 @@ static inline int32 signlong(int32 a)
 #endif /* OPT_MODE != 0 */
 
 
+
+/*****************************************************************************/
+
+#if (USE_ARM64_EXT_INTRIN >= 1)
+#include <arm64_neon.h>
+#endif
 
 /*****************************************************************************/
 #if (USE_X86_EXT_ASM || USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_ASM || USE_X86_AMD_EXT_INTRIN)
