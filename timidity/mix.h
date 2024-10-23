@@ -25,7 +25,7 @@
 #ifndef ___MIX_H_
 #define ___MIX_H_
 
-#if (USE_X86_EXT_INTRIN >= 3) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if ((USE_ARM64_EXT_INTRIN >= 1) || (USE_X86_EXT_INTRIN >= 3)) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 #define MIX_VOICE_BATCH
 #define MIX_VOICE_BATCH_SIZE   32
 #endif
