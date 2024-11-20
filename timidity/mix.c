@@ -252,10 +252,8 @@ static int mix_voice_batch_is_filter_type_supported(int8 type)
 	case FILTER_LPF_BW:
 #endif
 	case FILTER_LPF12_2:
-#if USE_X86_EXT_INTRIN >= 3
 	case FILTER_HPF12_2:
-#endif
-	return 1;
+		return 1;
 
 	default:
 		return 0;

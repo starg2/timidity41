@@ -5925,7 +5925,69 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 
 #endif
 
-#if (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_ARM64_EXT_INTRIN >= 1) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T** dcs, FILTER_T** dbs, DATA_T** sps, int32* counts)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		int32 acounts[2] = {counts[i], i + 1 < batch_size ? counts[i + 1] : 0};
+		int32x2_t vcounts = vld1_s32(acounts);
+
+		float64x2_t vdb01[2];
+		vdb01[0] = vld1q_f64(&dbs[i][0]);
+		vdb01[1] = i + 1 < batch_size ? vld1q_f64(&dbs[i + 1][0]) : vdupq_n_f64(0.0);
+
+		float64x2_t vdb[2];
+		vdb[0] = vtrn1q_f64(vdb01[0], vdb01[1]);
+		vdb[1] = vtrn2q_f64(vdb01[0], vdb01[1]);
+
+		float64x2_t vdc01[2];
+		vdc01[0] = vld1q_f64(&dcs[i][0]);
+		vdc01[1] = i + 1 < batch_size ? vld1q_f64(&dcs[i + 1][0]) : vdupq_n_f64(0.0);
+
+		float64x2_t vdc[2];
+		vdc[0] = vtrn1q_f64(vdc01[0], vdc01[1]);
+		vdc[1] = vtrn2q_f64(vdc01[0], vdc01[1]);
+
+		int32 count_max = acounts[0] < acounts[1] ? acounts[1] : acounts[0];
+
+		for (int32 j = 0; j < count_max; j += 2) {
+			float64x2_t vsp01[2];
+			vsp01[0] = j < counts[i] ? vld1q_f64(&sps[i][j]) : vdupq_n_f64(0.0);
+			vsp01[1] = i + 1 < batch_size && j < counts[i + 1] ? vld1q_f64(&sps[i + 1][j]) : vdupq_n_f64(0.0);
+
+			float64x2_t vsps[2];
+			vsps[0] = vtrn1q_f64(vsp01[0], vsp01[1]);
+			vsps[1] = vtrn2q_f64(vsp01[0], vsp01[1]);
+
+			for (int k = 0; k < 2; k++) {
+				int32x2_t vmask32 = vreinterpret_s32_u32(vclt_s32(vdup_n_s32(j + k), vcounts));
+				uint64x2_t vmask = vreinterpretq_u64_s64(vmovl_s32(vmask32));
+
+				vdb[1] = vbslq_f64(vmask, vfmaq_f64(vdb[1], vsubq_f64(vsps[k], vdb[0]), vdc[1]), vdb[1]);
+				vdb[0] = vbslq_f64(vmask, vaddq_f64(vdb[0], vdb[1]), vdb[0]);
+				vdb[1] = vbslq_f64(vmask, vmulq_f64(vdb[1], vdc[0]), vdb[1]);
+				vsps[k] = vsubq_f64(vsps[k], vdb[0]);
+			}
+
+			if (j < counts[i])
+				vst1q_f64(&sps[i][j], vtrn1q_f64(vsps[0], vsps[1]));
+
+			if (i + 1 < batch_size && j < counts[i + 1])
+				vst1q_f64(&sps[i + 1][j], vtrn2q_f64(vsps[0], vsps[1]));
+		}
+
+		vst1q_f64(dbs[i], vtrn1q_f64(vdb[0], vdb[1]));
+
+		if (i + 1 < batch_size)
+			vst1q_f64(dbs[i + 1], vtrn2q_f64(vdb[0], vdb[1]));
+	}
+}
+
+#elif (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
 {
@@ -6191,12 +6253,10 @@ void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps,
 		sample_filter_LPF12_2_batch(batch_size, dcs, dbs, sps, counts);
 		break;
 
-#if USE_X86_EXT_INTRIN >= 3
 	case FILTER_HPF12_2:
 		recalc_filter_LPF12_2_batch(batch_size, fcs);
 		sample_filter_HPF12_2_batch(batch_size, dcs, dbs, sps, counts);
 		break;
-#endif
 
 	default:
 		ctl->cmsg(CMSG_ERROR, VERB_NORMAL, "buffer_filter_batch(): error: unsupported filter type");
