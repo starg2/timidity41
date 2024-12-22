@@ -6308,7 +6308,112 @@ do_linear:
 #endif
 }
 
-#if (USE_X86_EXT_INTRIN >= 10)
+#if (USE_ARM64_EXT_INTRIN >= 1)
+
+static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const int32 req_count_mask = ~(0x7);
+	const int32 count = req_count & req_count_mask;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
+	const int32 start_offset = (int32)(resrc->offset - prec_offset);
+	const int32 inc = resrc->increment;
+	const int32x4_t vinc = vdupq_n_s32(inc * 8);
+	const int32x4_t vfmask = vdupq_n_s32((int32)FRACTION_MASK);
+	const int32 aindex[4] = {0, 1, 2, 3};
+	int32x4_t vofs1 = vmlaq_n_s32(vdupq_n_s32(start_offset), vld1q_s32(aindex), inc);
+	int32x4_t vofs2 = vaddq_s32(vofs1, vdupq_n_s32(inc * 4));
+
+	const int32x4_t vfrac = vdupq_n_s32(mlt_fraction);
+	const int32x4_t vfrac2 = vdupq_n_s32(ml2_fraction);
+
+	for (; i < count; i += 8) {
+		int32x4_t vofsi1 = vreinterpretq_s32_u32(vshrq_n_u32(vreinterpretq_u32_s32(vofs1), FRACTION_BITS));
+		int32x4_t vofsi2 = vreinterpretq_s32_u32(vshrq_n_u32(vreinterpretq_u32_s32(vofs2), FRACTION_BITS));
+		int16x4_t vin1 = vld1_s16(&src[vofsi1.n128_i32[0] - 1]); // [h11, h12, h13, h14]
+		int16x4_t vin2 = vld1_s16(&src[vofsi1.n128_i32[1] - 1]); // [h21, h22, h23, h24]
+		int16x4_t vin3 = vld1_s16(&src[vofsi1.n128_i32[2] - 1]); // [h31, h32, h33, h34]
+		int16x4_t vin4 = vld1_s16(&src[vofsi1.n128_i32[3] - 1]); // [h41, h42, h43, h44]
+		int16x4_t vin5 = vld1_s16(&src[vofsi2.n128_i32[0] - 1]); // [h51, h52, h53, h54]
+		int16x4_t vin6 = vld1_s16(&src[vofsi2.n128_i32[1] - 1]); // [h61, h62, h63, h64]
+		int16x4_t vin7 = vld1_s16(&src[vofsi2.n128_i32[2] - 1]); // [h71, h72, h73, h74]
+		int16x4_t vin8 = vld1_s16(&src[vofsi2.n128_i32[3] - 1]); // [h81, h82, h83, h84]
+		int16x8_t vin15 = vcombine_s16(vin1, vin5); // [h11, h12, h13, h14, h51, h52, h53, h54]
+		int16x8_t vin26 = vcombine_s16(vin2, vin6); // [h21, h22, h23, h24, h61, h62, h63, h64]
+		int16x8_t vin37 = vcombine_s16(vin3, vin7); // [h31, h32, h33, h34, h71, h72, h73, h74]
+		int16x8_t vin48 = vcombine_s16(vin4, vin8); // [h41, h42, h43, h44, h81, h82, h83, h84]
+		int32x4x2_t vin1357 = vtrnq_s32(vreinterpretq_s32_s16(vin15), vreinterpretq_s32_s16(vin37)); // [h11, h12, h31, h32, h51, h52, h71, h72], [h13, h14, h33, h34, h53, h54, h73, h74]
+		int32x4x2_t vin2468 = vtrnq_s32(vreinterpretq_s32_s16(vin26), vreinterpretq_s32_s16(vin48)); // [h21, h22, h41, h42, h61, h62, h81, h82], [h23, h24, h43, h44, h63, h64, h83, h84]
+		int16x8x2_t vh12 = vtrnq_s16(vreinterpretq_s16_s32(vin1357.val[0]), vreinterpretq_s16_s32(vin2468.val[0])); // [h11, h21, h31, h41, h51, h61, h71, h81], [h12, h22, h32, h42, h52, h62, h72, h82]
+		int16x8x2_t vh34 = vtrnq_s16(vreinterpretq_s16_s32(vin1357.val[1]), vreinterpretq_s16_s32(vin2468.val[1])); // [h13, h23, h33, h43, h53, h63, h73, h83], [h14, h24, h34, h44, h54, h64, h74, h84]
+		float32x4_t vv01 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vh12.val[0]))); // [s11, s21, s31, s41]
+		float32x4_t vv11 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vh12.val[1]))); // [s12, s22, s32, s42]
+		float32x4_t vv21 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vh34.val[0]))); // [s13, s23, s33, s43]
+		float32x4_t vv31 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vh34.val[1]))); // [s14, s24, s34, s44]
+		float32x4_t vv02 = vcvtq_f32_s32(vmovl_high_s16(vh12.val[0])); // [s51, s61, s71, s81]
+		float32x4_t vv12 = vcvtq_f32_s32(vmovl_high_s16(vh12.val[1])); // [s52, s62, s72, s82]
+		float32x4_t vv22 = vcvtq_f32_s32(vmovl_high_s16(vh34.val[0])); // [s53, s63, s73, s83]
+		float32x4_t vv32 = vcvtq_f32_s32(vmovl_high_s16(vh34.val[1])); // [s54, s64, s74, s84]
+
+		int32x4_t vofsf1 = vaddq_s32(vandq_s32(vofs1, vfmask), vfrac);
+		int32x4_t vofsf2 = vaddq_s32(vandq_s32(vofs2, vfmask), vfrac);
+		float32x4_t vtmp1 = vsubq_f32(vv11, vv01);
+		float32x4_t vtmp2 = vsubq_f32(vv12, vv02);
+		vv31 = vsubq_f32(vfmaq_n_f32(vv31, vsubq_f32(vv11, vv21), 3), vv01); // v[3] += -3 * v[2] + 3 * v[1] - v[0]; => v[3] = v[3] + 3 * (v[1] - v[2]) - v[0]
+		vv32 = vsubq_f32(vfmaq_n_f32(vv32, vsubq_f32(vv12, vv22), 3), vv02);
+		float32x4_t vtmpi1 = vcvtq_f32_s32(vsubq_s32(vofsf1, vfrac2));
+		float32x4_t vtmpi2 = vcvtq_f32_s32(vsubq_s32(vofsf2, vfrac2));
+		float32x4_t vtmpx11 = vmulq_n_f32(vtmpi1, div_fraction * DIV_6);
+		float32x4_t vtmpx12 = vmulq_n_f32(vtmpi2, div_fraction * DIV_6);
+		float32x4_t vtmpx21 = vsubq_f32(vsubq_f32(vv21, vv11), vtmp1);
+		float32x4_t vtmpx22 = vsubq_f32(vsubq_f32(vv22, vv12), vtmp2);
+		vtmpi1 = vcvtq_f32_s32(vsubq_s32(vofsf1, vfrac));
+		vtmpi2 = vcvtq_f32_s32(vsubq_s32(vofsf2, vfrac));
+		float32x4_t vtmpx31 = vmulq_n_f32(vtmpi1, div_fraction * DIV_2);
+		float32x4_t vtmpx32 = vmulq_n_f32(vtmpi2, div_fraction * DIV_2);
+		vtmpi1 = vcvtq_f32_s32(vofsf1);
+		vtmpi2 = vcvtq_f32_s32(vofsf2);
+		float32x4_t vtmpx41 = vmulq_n_f32(vtmpi1, div_fraction);
+		float32x4_t vtmpx42 = vmulq_n_f32(vtmpi2, div_fraction);
+		vv31 = vfmaq_f32(vtmpx21, vv31, vtmpx11);
+		vv32 = vfmaq_f32(vtmpx22, vv32, vtmpx12);
+		vv31 = vfmaq_f32(vtmp1, vv31, vtmpx31);
+		vv32 = vfmaq_f32(vtmp2, vv32, vtmpx32);
+		vv31 = vfmaq_f32(vv01, vv31, vtmpx41);
+		vv32 = vfmaq_f32(vv02, vv32, vtmpx42);
+#if defined(DATA_T_DOUBLE)
+		vv31 = vmulq_n_f32(vv31, DIV_15BIT);
+		vv32 = vmulq_n_f32(vv32, DIV_15BIT);
+		vst1q_f64(dest, vcvt_f64_f32(vget_low_f32(vv31)));
+		dest += 2;
+		vst1q_f64(dest, vcvt_high_f64_f32(vv31));
+		dest += 2;
+		vst1q_f64(dest, vcvt_f64_f32(vget_low_f32(vv32)));
+		dest += 2;
+		vst1q_f64(dest, vcvt_high_f64_f32(vv32));
+		dest += 2;
+#elif defined(DATA_T_FLOAT)
+		vst1q_f32(dest, vmulq_n_f32(vv31, DIV_15BIT));
+		dest += 4;
+		vst1q_f32(dest, vmulq_n_f32(vv32, DIV_15BIT));
+		dest += 4;
+#else
+		vst1q_s32(dest, vcvtq_s32_f32(vv31));
+		dest += 4;
+		vst1q_s32(dest, vcvtq_s32_f32(vv32));
+		dest += 4;
+#endif
+		vofs1 = vaddq_s32(vofs1, vinc);
+		vofs2 = vaddq_s32(vofs2, vinc);
+	}
+	resrc->offset = prec_offset + (splen_t)vofs1.n128_i32[0];
+	*out_count = i;
+	return dest;
+}
+
+#elif (USE_X86_EXT_INTRIN >= 10)
 // offset:int32*16, resamp:float*16
 // ループ内部のoffset計算をint32値域にする , (sample_increment * (req_count+1)) < int32 max
 static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
