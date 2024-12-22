@@ -4128,8 +4128,6 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	int32x4_t vofs = vmlaq_n_s32(vdupq_n_s32(start_offset), vindex, inc);
 	int32x4_t vinc = vdupq_n_s32(inc * 4);
 	const int32x4_t vfmask = vdupq_n_s32((int32)FRACTION_MASK);
-	const float32x4_t vec_divo = vdupq_n_f32(DIV_15BIT);
-	const float32x4_t vec_divf = vdupq_n_f32(div_fraction);
 
 #ifdef LO_OPTIMIZE_INCREMENT
 	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4;
@@ -4139,7 +4137,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 
 	if (inc < opt_inc1) {
 		for (i = 0; i < count; i += 4) {
-			int32x4_t vofsi1 = vshrq_n_s32(vofs, FRACTION_BITS); // [i0, i1, i2, i3]
+			int32x4_t vofsi1 = vreinterpretq_s32_u32(vshrq_n_u32(vreinterpretq_u32_s32(vofs), FRACTION_BITS)); // [i0, i1, i2, i3]
 			int32 ofs0 = vgetq_lane_s32(vofsi1, 0); // i0
 			uint8x16_t vin1 = vreinterpretq_u8_s16(vld1q_s16(&src[ofs0]));
 			int32x4_t vofsib = vdupq_laneq_s32(vofsi1, 0); // [i0, i0, i0, i0]
@@ -4153,15 +4151,15 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 			int32x4_t vi32_2 = vmovl_s16(vmovn_s32(vi16_2));
 			float32x4_t vv1 = vcvtq_f32_s32(vi32_1);
 			float32x4_t vv2 = vcvtq_f32_s32(vi32_2);
-			float32x4_t vfp = vmulq_f32(vcvtq_f32_s32(vandq_s32(vofs, vfmask)), vec_divf);
+			float32x4_t vfp = vmulq_n_f32(vcvtq_f32_s32(vandq_s32(vofs, vfmask)), div_fraction);
 #if defined(DATA_T_DOUBLE)
-			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			float32x4_t vec_out = vmulq_n_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), DIV_15BIT);
 			vst1q_f64(dest, vcvt_f64_f32(vget_low_f32(vec_out)));
 			dest += 2;
 			vst1q_f64(dest, vcvt_high_f64_f32(vec_out));
 			dest += 2;
 #elif defined(DATA_T_FLOAT)
-			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			float32x4_t vec_out = vmulq_n_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), DIV_15BIT);
 			vst1q_f32(dest, vec_out);
 			dest += 4;
 #else
@@ -4175,7 +4173,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 #endif // LO_OPTIMIZE_INCREMENT
 	{
 		for (; i < count; i += 4) {
-			int32x4_t vofsi = vshrq_n_s32(vofs, FRACTION_BITS);
+			int32x4_t vofsi = vreinterpretq_s32_u32(vshrq_n_u32(vreinterpretq_u32_s32(vofs), FRACTION_BITS));
 			int16x4_t vin0 = vld1_s16(&src[vofsi.n128_i32[0]]); // [h00, h01, h02, h03]
 			int16x4_t vin1 = vld1_s16(&src[vofsi.n128_i32[1]]); // [h10, h11, h12, h13]
 			int16x4_t vin2 = vld1_s16(&src[vofsi.n128_i32[2]]); // [h20, h21, h22, h23]
@@ -4185,15 +4183,15 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 			int16x4x2_t vi16 = vtrn_s16(vreinterpret_s16_s32(vin02), vreinterpret_s16_s32(vin13)); // [h00, h10, h20, h30], [h01, h11, h21, h31]
 			float32x4_t vv1 = vcvtq_f32_s32(vmovl_s16(vi16.val[0]));
 			float32x4_t vv2 = vcvtq_f32_s32(vmovl_s16(vi16.val[1]));
-			float32x4_t vfp = vmulq_f32(vcvtq_f32_s32(vandq_s32(vofs, vfmask)), vec_divf);
+			float32x4_t vfp = vmulq_n_f32(vcvtq_f32_s32(vandq_s32(vofs, vfmask)), div_fraction);
 #if defined(DATA_T_DOUBLE)
-			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			float32x4_t vec_out = vmulq_n_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), DIV_15BIT);
 			vst1q_f64(dest, vcvt_f64_f32(vget_low_f32(vec_out)));
 			dest += 2;
 			vst1q_f64(dest, vcvt_high_f64_f32(vec_out));
 			dest += 2;
 #elif defined(DATA_T_FLOAT)
-			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			float32x4_t vec_out = vmulq_n_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), DIV_15BIT);
 			vst1q_f32(dest, vec_out);
 			dest += 4;
 #else
