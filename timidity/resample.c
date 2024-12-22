@@ -4174,10 +4174,10 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 	{
 		for (; i < count; i += 4) {
 			int32x4_t vofsi = vreinterpretq_s32_u32(vshrq_n_u32(vreinterpretq_u32_s32(vofs), FRACTION_BITS));
-			int16x4_t vin0 = vld1_s16(&src[vofsi.n128_i32[0]]); // [h00, h01, h02, h03]
-			int16x4_t vin1 = vld1_s16(&src[vofsi.n128_i32[1]]); // [h10, h11, h12, h13]
-			int16x4_t vin2 = vld1_s16(&src[vofsi.n128_i32[2]]); // [h20, h21, h22, h23]
-			int16x4_t vin3 = vld1_s16(&src[vofsi.n128_i32[3]]); // [h30, h31, h32, h33]
+			int16x4_t vin0 = vld1_s16(&src[vgetq_lane_s32(vofsi, 0)]); // [h00, h01, h02, h03]
+			int16x4_t vin1 = vld1_s16(&src[vgetq_lane_s32(vofsi, 1)]); // [h10, h11, h12, h13]
+			int16x4_t vin2 = vld1_s16(&src[vgetq_lane_s32(vofsi, 2)]); // [h20, h21, h22, h23]
+			int16x4_t vin3 = vld1_s16(&src[vgetq_lane_s32(vofsi, 3)]); // [h30, h31, h32, h33]
 			int32x2_t vin02 = vtrn1_s32(vreinterpret_s32_s16(vin0), vreinterpret_s32_s16(vin2)); // [h00, h01, h20, h21]
 			int32x2_t vin13 = vtrn1_s32(vreinterpret_s32_s16(vin1), vreinterpret_s32_s16(vin3)); // [h10, h11, h30, h31]
 			int16x4x2_t vi16 = vtrn_s16(vreinterpret_s16_s32(vin02), vreinterpret_s16_s32(vin13)); // [h00, h10, h20, h30], [h01, h11, h21, h31]
@@ -4202,7 +4202,7 @@ static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_c
 			vofs = vaddq_s32(vofs, vinc);
 		}
 	}
-	resrc->offset = prec_offset + (splen_t)vofs.n128_i32[0];
+	resrc->offset = prec_offset + (splen_t)vgetq_lane_s32(vofs, 0);
 	*out_count = i;
 	return dest;
 }
@@ -6332,14 +6332,14 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 	for (; i < count; i += 8) {
 		int32x4_t vofsi1 = vreinterpretq_s32_u32(vshrq_n_u32(vreinterpretq_u32_s32(vofs1), FRACTION_BITS));
 		int32x4_t vofsi2 = vreinterpretq_s32_u32(vshrq_n_u32(vreinterpretq_u32_s32(vofs2), FRACTION_BITS));
-		int16x4_t vin1 = vld1_s16(&src[vofsi1.n128_i32[0] - 1]); // [h11, h12, h13, h14]
-		int16x4_t vin2 = vld1_s16(&src[vofsi1.n128_i32[1] - 1]); // [h21, h22, h23, h24]
-		int16x4_t vin3 = vld1_s16(&src[vofsi1.n128_i32[2] - 1]); // [h31, h32, h33, h34]
-		int16x4_t vin4 = vld1_s16(&src[vofsi1.n128_i32[3] - 1]); // [h41, h42, h43, h44]
-		int16x4_t vin5 = vld1_s16(&src[vofsi2.n128_i32[0] - 1]); // [h51, h52, h53, h54]
-		int16x4_t vin6 = vld1_s16(&src[vofsi2.n128_i32[1] - 1]); // [h61, h62, h63, h64]
-		int16x4_t vin7 = vld1_s16(&src[vofsi2.n128_i32[2] - 1]); // [h71, h72, h73, h74]
-		int16x4_t vin8 = vld1_s16(&src[vofsi2.n128_i32[3] - 1]); // [h81, h82, h83, h84]
+		int16x4_t vin1 = vld1_s16(&src[vgetq_lane_s32(vofsi1, 0) - 1]); // [h11, h12, h13, h14]
+		int16x4_t vin2 = vld1_s16(&src[vgetq_lane_s32(vofsi1, 1) - 1]); // [h21, h22, h23, h24]
+		int16x4_t vin3 = vld1_s16(&src[vgetq_lane_s32(vofsi1, 2) - 1]); // [h31, h32, h33, h34]
+		int16x4_t vin4 = vld1_s16(&src[vgetq_lane_s32(vofsi1, 3) - 1]); // [h41, h42, h43, h44]
+		int16x4_t vin5 = vld1_s16(&src[vgetq_lane_s32(vofsi2, 0) - 1]); // [h51, h52, h53, h54]
+		int16x4_t vin6 = vld1_s16(&src[vgetq_lane_s32(vofsi2, 1) - 1]); // [h61, h62, h63, h64]
+		int16x4_t vin7 = vld1_s16(&src[vgetq_lane_s32(vofsi2, 2) - 1]); // [h71, h72, h73, h74]
+		int16x4_t vin8 = vld1_s16(&src[vgetq_lane_s32(vofsi2, 3) - 1]); // [h81, h82, h83, h84]
 		int16x8_t vin15 = vcombine_s16(vin1, vin5); // [h11, h12, h13, h14, h51, h52, h53, h54]
 		int16x8_t vin26 = vcombine_s16(vin2, vin6); // [h21, h22, h23, h24, h61, h62, h63, h64]
 		int16x8_t vin37 = vcombine_s16(vin3, vin7); // [h31, h32, h33, h34, h71, h72, h73, h74]
@@ -6408,7 +6408,7 @@ static inline DATA_T *resample_lagrange_multi(Voice *vp, DATA_T *dest, int32 req
 		vofs1 = vaddq_s32(vofs1, vinc);
 		vofs2 = vaddq_s32(vofs2, vinc);
 	}
-	resrc->offset = prec_offset + (splen_t)vofs1.n128_i32[0];
+	resrc->offset = prec_offset + (splen_t)vgetq_lane_s32(vofs1, 0);
 	*out_count = i;
 	return dest;
 }
