@@ -2,7 +2,6 @@
 add_definitions(
     -DHAVE_CONFIG_H
     -DLAME_LIBRARY_BUILD
-    -DHAVE_XMMINTRIN_H
     -DSTDC_HEADERS
     -DHAVE_ERRNO_H
     -DHAVE_FCNTL_H
@@ -13,6 +12,12 @@ add_definitions(
     -DHAVE_STRCHR
     -DHAVE_MEMCPY
 )
+
+if(NOT ("${TIM41_X86_SIMD_LEVEL}" STREQUAL "NONE"))
+    add_definitions(
+        -DHAVE_XMMINTRIN_H
+    )
+endif()
 
 include_directories(.)
 

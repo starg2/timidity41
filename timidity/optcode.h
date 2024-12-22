@@ -42,6 +42,10 @@
 #undef IX64CPU
 #endif
 
+#if defined(_M_ARM64) || defined(__aarch64__)
+#define ARM64CPU 1
+#endif
+
 /* optimizing mode */
 /* 0: none         */
 /* 1: x86 asm      */
@@ -88,6 +92,14 @@
 
 
 
+
+/*****************************************************************************/
+
+#if defined(ARM64CPU) && defined(LITTLE_ENDIAN) // ARMv8 NEON (little endian only)
+#define USE_ARM64_EXT_INTRIN  1
+#else
+#define USE_ARM64_EXT_INTRIN  0
+#endif
 
 /*****************************************************************************/
 /*
@@ -289,8 +301,10 @@ enum{
 #define USE_X86_AMD_EXT_INTRIN  0
 #endif
 
+#if USE_X86_EXT_INTRIN > 0
 #if (defined(_MSC_VER) && _MSC_VER >= 1920 && !defined(__clang__)) || defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
 #define USE_SVML
+#endif
 #endif
 
 #if defined(USE_AVX512)
@@ -664,6 +678,12 @@ static inline int32 signlong(int32 a)
 #endif /* OPT_MODE != 0 */
 
 
+
+/*****************************************************************************/
+
+#if (USE_ARM64_EXT_INTRIN >= 1)
+#include <arm64_neon.h>
+#endif
 
 /*****************************************************************************/
 #if (USE_X86_EXT_ASM || USE_X86_EXT_INTRIN || USE_X86_AMD_EXT_ASM || USE_X86_AMD_EXT_INTRIN)

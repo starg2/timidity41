@@ -7,12 +7,13 @@ cmake_policy(SET CMP0092 NEW)   # Don't add /W3 flag in CMAKE_C_FLAGS by default
 project(timidity41)
 
 set(TIM41_X86_SIMD_LEVEL SSE42 CACHE STRING "x86 SIMD instruction set extension to use")
-set_property(CACHE TIM41_X86_SIMD_LEVEL PROPERTY STRINGS SSE2 SSE42 AVX AVX2 AVX512)
+set_property(CACHE TIM41_X86_SIMD_LEVEL PROPERTY STRINGS NONE SSE2 SSE42 AVX AVX2 AVX512)
 
 set(TIM41_INTEL_ONLY FALSE CACHE BOOL "Optimize exclusively for Intel CPU; resulting binaries won't run on non-Intel CPUs")
 
 set(TIM41_GCC_WITH_LIBICONV TRUE CACHE BOOL "GCC supports charset conversion")
 
+set(TIM41_REGENERATE_NEWTON_TABLE FALSE CACHE BOOL "Regenerate newton_table.c")
 set(TIM41_SPECTRE_MITIGATION FALSE CACHE BOOL "Enable Spectre mitigation")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out/bin" CACHE PATH "Where to put all the RUNTIME target files when built.")

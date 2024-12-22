@@ -32,7 +32,9 @@
 #include "common.h"
 
 const char *arch_string =
-#ifdef IX64CPU
+#ifdef ARM64CPU
+	"[ARM64]"
+#elif defined(IX64CPU)
 	#if USE_X64_EXT_INTRIN == 10
 		"[x64 AVX512]"
 	#elif USE_X64_EXT_INTRIN == 9

@@ -4110,7 +4110,106 @@ static inline DATA_T resample_linear_single(Voice *vp)
 #endif
 }
 
-#if (USE_X86_EXT_INTRIN >= 10)
+#if (USE_ARM64_EXT_INTRIN >= 1)
+
+// offset:int32*4, resamp:float*4
+static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
+{
+	resample_rec_t *resrc = &vp->resrc;
+	int32 i = 0;
+	const int32 count = req_count & ~3;
+	splen_t prec_offset = resrc->offset & INTEGER_MASK;
+	sample_t *src = vp->sample->data + (prec_offset >> FRACTION_BITS);
+	int32 start_offset = (int32)(resrc->offset - prec_offset);
+	int32 inc = resrc->increment;
+
+	const int32 aindex[4] = {0, 1, 2, 3};
+	const int32x4_t vindex = vld1q_s32(aindex);
+	int32x4_t vofs = vmlaq_n_s32(vdupq_n_s32(start_offset), vindex, inc);
+	int32x4_t vinc = vdupq_n_s32(inc * 4);
+	const int32x4_t vfmask = vdupq_n_s32((int32)FRACTION_MASK);
+	const float32x4_t vec_divo = vdupq_n_f32(DIV_15BIT);
+	const float32x4_t vec_divf = vdupq_n_f32(div_fraction);
+
+#ifdef LO_OPTIMIZE_INCREMENT
+	const int32 opt_inc1 = (1 << FRACTION_BITS) * (8 - 1 - 1) / 4;
+	const uint8x16_t vb2 = vdupq_n_u8(2);
+	const uint8 ab01xx[16] = {0, 1, 255, 255, 0, 1, 255, 255, 0, 1, 255, 255, 0, 1, 255, 255};
+	const uint8x16_t vb01xx = vld1q_u8(ab01xx);
+
+	if (inc < opt_inc1) {
+		for (i = 0; i < count; i += 4) {
+			int32x4_t vofsi1 = vshrq_n_s32(vofs, FRACTION_BITS); // [i0, i1, i2, i3]
+			int32 ofs0 = vgetq_lane_s32(vofsi1, 0); // i0
+			uint8x16_t vin1 = vreinterpretq_u8_s16(vld1q_s16(&src[ofs0]));
+			int32x4_t vofsib = vdupq_laneq_s32(vofsi1, 0); // [i0, i0, i0, i0]
+			int32x4_t vofsub1 = vsubq_s32(vofsi1, vofsib); // [0, i1 - i0, i2 - i0, i3 - i0]
+			int32x4_t vofsh = vshlq_n_s32(vofsub1, 1); // 00_00_00_xx
+			int32x4_t vofshh00 = vorrq_s32(vofsh, vshlq_n_s32(vofsh, 8));  // 00_00_xx_xx
+			uint8x16_t vofsb = vqaddq_u8(vreinterpretq_u8_s32(vofshh00), vb01xx); // FF_FF_yy_xx
+			int32x4_t vi16_1 = vreinterpretq_s32_u8(vqtbl1q_u8(vin1, vofsb));
+			int32x4_t vi16_2 = vreinterpretq_s32_u8(vqtbl1q_u8(vin1, vqaddq_u8(vofsb, vb2)));
+			int32x4_t vi32_1 = vmovl_s16(vmovn_s32(vi16_1));
+			int32x4_t vi32_2 = vmovl_s16(vmovn_s32(vi16_2));
+			float32x4_t vv1 = vcvtq_f32_s32(vi32_1);
+			float32x4_t vv2 = vcvtq_f32_s32(vi32_2);
+			float32x4_t vfp = vmulq_f32(vcvtq_f32_s32(vandq_s32(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			vst1q_f64(dest, vcvt_f64_f32(vget_low_f32(vec_out)));
+			dest += 2;
+			vst1q_f64(dest, vcvt_high_f64_f32(vec_out));
+			dest += 2;
+#elif defined(DATA_T_FLOAT)
+			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			vst1q_f32(dest, vec_out);
+			dest += 4;
+#else
+			float32x4_t vec_out = vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp);
+			vst1q_s32(dest, vcvtq_s32_f32(vec_out));
+			dest += 4;
+#endif
+			vofs = vaddq_s32(vofs, vinc);
+		}
+	} else
+#endif // LO_OPTIMIZE_INCREMENT
+	{
+		for (; i < count; i += 4) {
+			int32x4_t vofsi = vshrq_n_s32(vofs, FRACTION_BITS);
+			int16x4_t vin0 = vld1_s16(&src[vofsi.n128_i32[0]]); // [h00, h01, h02, h03]
+			int16x4_t vin1 = vld1_s16(&src[vofsi.n128_i32[1]]); // [h10, h11, h12, h13]
+			int16x4_t vin2 = vld1_s16(&src[vofsi.n128_i32[2]]); // [h20, h21, h22, h23]
+			int16x4_t vin3 = vld1_s16(&src[vofsi.n128_i32[3]]); // [h30, h31, h32, h33]
+			int32x2_t vin02 = vtrn1_s32(vreinterpret_s32_s16(vin0), vreinterpret_s32_s16(vin2)); // [h00, h01, h20, h21]
+			int32x2_t vin13 = vtrn1_s32(vreinterpret_s32_s16(vin1), vreinterpret_s32_s16(vin3)); // [h10, h11, h30, h31]
+			int16x4x2_t vi16 = vtrn_s16(vreinterpret_s16_s32(vin02), vreinterpret_s16_s32(vin13)); // [h00, h10, h20, h30], [h01, h11, h21, h31]
+			float32x4_t vv1 = vcvtq_f32_s32(vmovl_s16(vi16.val[0]));
+			float32x4_t vv2 = vcvtq_f32_s32(vmovl_s16(vi16.val[1]));
+			float32x4_t vfp = vmulq_f32(vcvtq_f32_s32(vandq_s32(vofs, vfmask)), vec_divf);
+#if defined(DATA_T_DOUBLE)
+			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			vst1q_f64(dest, vcvt_f64_f32(vget_low_f32(vec_out)));
+			dest += 2;
+			vst1q_f64(dest, vcvt_high_f64_f32(vec_out));
+			dest += 2;
+#elif defined(DATA_T_FLOAT)
+			float32x4_t vec_out = vmulq_f32(vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp), vec_divo);
+			vst1q_f32(dest, vec_out);
+			dest += 4;
+#else
+			float32x4_t vec_out = vfmaq_f32(vv1, vsubq_f32(vv2, vv1), vfp);
+			vst1q_s32(dest, vcvtq_s32_f32(vec_out));
+			dest += 4;
+#endif
+			vofs = vaddq_s32(vofs, vinc);
+		}
+	}
+	resrc->offset = prec_offset + (splen_t)vofs.n128_i32[0];
+	*out_count = i;
+	return dest;
+}
+
+#elif (USE_X86_EXT_INTRIN >= 10)
 // offset:int32*16, resamp:float*16
 static inline DATA_T *resample_linear_multi(Voice *vp, DATA_T *dest, int32 req_count, int32 *out_count)
 {

@@ -5238,7 +5238,69 @@ static void recalc_filter_LPF_BW_batch(int batch_size, FilterCoefficients **fcs)
 
 #endif
 
-#if (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_ARM64_EXT_INTRIN >= 1) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T** dcs, FILTER_T** dbs, DATA_T** sps, int32* counts)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		int32 acounts[2] = {counts[i], i + 1 < batch_size ? counts[i + 1] : 0};
+		int32x2_t vcounts = vld1_s32(acounts);
+
+		float64x2_t vdb01[2];
+		vdb01[0] = vld1q_f64(&dbs[i][0]);
+		vdb01[1] = i + 1 < batch_size ? vld1q_f64(&dbs[i + 1][0]) : vdupq_n_f64(0.0);
+
+		float64x2_t vdb[2];
+		vdb[0] = vtrn1q_f64(vdb01[0], vdb01[1]);
+		vdb[1] = vtrn2q_f64(vdb01[0], vdb01[1]);
+
+		float64x2_t vdc01[2];
+		vdc01[0] = vld1q_f64(&dcs[i][0]);
+		vdc01[1] = i + 1 < batch_size ? vld1q_f64(&dcs[i + 1][0]) : vdupq_n_f64(0.0);
+
+		float64x2_t vdc[2];
+		vdc[0] = vtrn1q_f64(vdc01[0], vdc01[1]);
+		vdc[1] = vtrn2q_f64(vdc01[0], vdc01[1]);
+
+		int32 count_max = acounts[0] < acounts[1] ? acounts[1] : acounts[0];
+
+		for (int32 j = 0; j < count_max; j += 2) {
+			float64x2_t vsp01[2];
+			vsp01[0] = j < counts[i] ? vld1q_f64(&sps[i][j]) : vdupq_n_f64(0.0);
+			vsp01[1] = i + 1 < batch_size && j < counts[i + 1] ? vld1q_f64(&sps[i + 1][j]) : vdupq_n_f64(0.0);
+
+			float64x2_t vsps[2];
+			vsps[0] = vtrn1q_f64(vsp01[0], vsp01[1]);
+			vsps[1] = vtrn2q_f64(vsp01[0], vsp01[1]);
+
+			for (int k = 0; k < 2; k++) {
+				int32x2_t vmask32 = vreinterpret_s32_u32(vclt_s32(vdup_n_s32(j + k), vcounts));
+				uint64x2_t vmask = vreinterpretq_u64_s64(vmovl_s32(vmask32));
+
+				vdb[1] = vbslq_f64(vmask, vfmaq_f64(vdb[1], vsubq_f64(vsps[k], vdb[0]), vdc[1]), vdb[1]);
+				vdb[0] = vbslq_f64(vmask, vaddq_f64(vdb[0], vdb[1]), vdb[0]);
+				vdb[1] = vbslq_f64(vmask, vmulq_f64(vdb[1], vdc[0]), vdb[1]);
+				vsps[k] = vdb[0];
+			}
+
+			if (j < counts[i])
+				vst1q_f64(&sps[i][j], vtrn1q_f64(vsps[0], vsps[1]));
+
+			if (i + 1 < batch_size && j < counts[i + 1])
+				vst1q_f64(&sps[i + 1][j], vtrn2q_f64(vsps[0], vsps[1]));
+		}
+
+		vst1q_f64(dbs[i], vtrn1q_f64(vdb[0], vdb[1]));
+
+		if (i + 1 < batch_size)
+			vst1q_f64(dbs[i + 1], vtrn2q_f64(vdb[0], vdb[1]));
+	}
+}
+
+#elif (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
 {
@@ -5458,7 +5520,91 @@ static void sample_filter_LPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T
 
 #endif
 
-#if (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_ARM64_EXT_INTRIN >= 1) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		float64x2_t vfcrange01[2];
+		vfcrange01[0] = vld1q_f64(&fcs[i]->range[0]); // [r00, r01]
+		vfcrange01[1] = i + 1 < batch_size ? vld1q_f64(&fcs[i + 1]->range[0]) : vdupq_n_f64(0);	// [r10, r11]
+
+		float64x2_t vfcrange23[2];
+		vfcrange23[0] = vld1q_f64(&fcs[i]->range[2]); // [r02, r03]
+		vfcrange23[1] = i + 1 < batch_size ? vld1q_f64(&fcs[i + 1]->range[2]) : vdupq_n_f64(0); // [r12, r13]
+
+		float64x2_t vfcrange[4];
+		vfcrange[0] = vtrn1q_f64(vfcrange01[0], vfcrange01[1]); // [r00, r10]
+		vfcrange[1] = vtrn2q_f64(vfcrange01[0], vfcrange01[1]); // [r01, r11]
+		vfcrange[2] = vtrn1q_f64(vfcrange23[0], vfcrange23[1]); // [r02, r12]
+		vfcrange[3] = vtrn2q_f64(vfcrange23[0], vfcrange23[1]); // [r03, r13]
+
+		double afcfreq[2] = {fcs[i]->freq, i + 1 < batch_size ? fcs[i + 1]->freq : 0.0};
+		float64x2_t vfcfreq = vld1q_f64(afcfreq);
+
+		double afcreso_DB[2] = {fcs[i]->reso_dB, i + 1 < batch_size ? fcs[i + 1]->reso_dB : 0.0};
+		float64x2_t vfcreso_dB = vld1q_f64(afcreso_DB);
+
+		uint64x2_t vmask = vorrq_u64(
+			vorrq_u64(vcltq_f64(vfcfreq, vfcrange[0]), vcgtq_f64(vfcfreq, vfcrange[1])),
+			vorrq_u64(vcltq_f64(vfcreso_dB, vfcrange[2]), vcgtq_f64(vfcreso_dB, vfcrange[3]))
+		);
+
+		int amask[2] = {!!vmask.n128_u64[0], i + 1 < batch_size ? !!vmask.n128_u64[1] : 0};
+
+		if (amask[0] || amask[1]) {
+			// vfcfreq * (1.0 - ext_filter_margin) = vfcfreq - vfcfreq * ext_filter_margin
+			vfcrange[0] = vfmsq_n_f64(vfcfreq, vfcfreq, ext_filter_margin);
+			vfcrange[1] = vfmaq_n_f64(vfcfreq, vfcfreq, ext_filter_margin);
+			vfcrange[2] = vfmsq_n_f64(vfcreso_dB, vfcreso_dB, ext_filter_margin);
+			vfcrange[3] = vfmaq_n_f64(vfcreso_dB, vfcreso_dB, ext_filter_margin);
+
+			vfcrange01[0] = vtrn1q_f64(vfcrange[0], vfcrange[1]);
+			vfcrange01[1] = vtrn2q_f64(vfcrange[0], vfcrange[1]);
+			vfcrange23[0] = vtrn1q_f64(vfcrange[2], vfcrange[3]);
+			vfcrange23[1] = vtrn2q_f64(vfcrange[2], vfcrange[3]);
+
+			if (amask[0]) {
+				vst1q_f64(fcs[i]->range, vfcrange01[0]);
+				vst1q_f64(&fcs[i]->range[2], vfcrange23[0]);
+			}
+
+			if (amask[1]) {
+				vst1q_f64(fcs[i + 1]->range, vfcrange01[1]);
+				vst1q_f64(&fcs[i + 1]->range[2], vfcrange23[1]);
+			}
+
+			double afcdiv_flt_rate[2] = {fcs[i]->div_flt_rate, i + 1 < batch_size ? fcs[i + 1]->div_flt_rate : fcs[i]->div_flt_rate};
+			float64x2_t vf = vmulq_f64(vmulq_n_f64(vfcfreq, M_PI2), vld1q_f64(afcdiv_flt_rate));
+
+			FLOAT_T reso_db_cf_p = RESO_DB_CF_P(fcs[i]->reso_dB);
+			double areso_db_cf_p[2] = {reso_db_cf_p, i + 1 < batch_size ? RESO_DB_CF_P(fcs[i + 1]->reso_dB) : reso_db_cf_p};
+
+			float64x2_t v1 = vdupq_n_f64(1.0);
+			float64x2_t v2 = vdupq_n_f64(2.0);
+			float64x2_t v0_5 = vdupq_n_f64(0.5);
+
+			float64x2_t vq = vsubq_f64(v1, vdivq_f64(vf, vfmaq_f64(vsubq_f64(vf, v2), vaddq_f64(vld1q_f64(areso_db_cf_p), vdivq_f64(v0_5, vaddq_f64(v1, vf))), v2)));
+
+			float64x2_t vdc[2];
+			vdc[0] = vmulq_f64(vq, vq);
+
+			double acosf[2] = {cos(vf.n128_f64[0]), cos(vf.n128_f64[1])};
+			vdc[1] = vfmsq_f64(vaddq_f64(vdc[0], v1), vmulq_f64(v2, vld1q_f64(acosf)), vq);
+
+			if (amask[0])
+				vst1q_f64(fcs[i]->dc, vtrn1q_f64(vdc[0], vdc[1]));
+
+			if (amask[1])
+				vst1q_f64(fcs[i + 1]->dc, vtrn2q_f64(vdc[0], vdc[1]));
+		}
+	}
+}
+
+#elif (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients **fcs)
 {
@@ -5779,7 +5925,69 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 
 #endif
 
-#if (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+#if (USE_ARM64_EXT_INTRIN >= 1) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
+
+static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T** dcs, FILTER_T** dbs, DATA_T** sps, int32* counts)
+{
+	for (int i = 0; i < MIX_VOICE_BATCH_SIZE; i += 2) {
+		if (i >= batch_size)
+			break;
+
+		int32 acounts[2] = {counts[i], i + 1 < batch_size ? counts[i + 1] : 0};
+		int32x2_t vcounts = vld1_s32(acounts);
+
+		float64x2_t vdb01[2];
+		vdb01[0] = vld1q_f64(&dbs[i][0]);
+		vdb01[1] = i + 1 < batch_size ? vld1q_f64(&dbs[i + 1][0]) : vdupq_n_f64(0.0);
+
+		float64x2_t vdb[2];
+		vdb[0] = vtrn1q_f64(vdb01[0], vdb01[1]);
+		vdb[1] = vtrn2q_f64(vdb01[0], vdb01[1]);
+
+		float64x2_t vdc01[2];
+		vdc01[0] = vld1q_f64(&dcs[i][0]);
+		vdc01[1] = i + 1 < batch_size ? vld1q_f64(&dcs[i + 1][0]) : vdupq_n_f64(0.0);
+
+		float64x2_t vdc[2];
+		vdc[0] = vtrn1q_f64(vdc01[0], vdc01[1]);
+		vdc[1] = vtrn2q_f64(vdc01[0], vdc01[1]);
+
+		int32 count_max = acounts[0] < acounts[1] ? acounts[1] : acounts[0];
+
+		for (int32 j = 0; j < count_max; j += 2) {
+			float64x2_t vsp01[2];
+			vsp01[0] = j < counts[i] ? vld1q_f64(&sps[i][j]) : vdupq_n_f64(0.0);
+			vsp01[1] = i + 1 < batch_size && j < counts[i + 1] ? vld1q_f64(&sps[i + 1][j]) : vdupq_n_f64(0.0);
+
+			float64x2_t vsps[2];
+			vsps[0] = vtrn1q_f64(vsp01[0], vsp01[1]);
+			vsps[1] = vtrn2q_f64(vsp01[0], vsp01[1]);
+
+			for (int k = 0; k < 2; k++) {
+				int32x2_t vmask32 = vreinterpret_s32_u32(vclt_s32(vdup_n_s32(j + k), vcounts));
+				uint64x2_t vmask = vreinterpretq_u64_s64(vmovl_s32(vmask32));
+
+				vdb[1] = vbslq_f64(vmask, vfmaq_f64(vdb[1], vsubq_f64(vsps[k], vdb[0]), vdc[1]), vdb[1]);
+				vdb[0] = vbslq_f64(vmask, vaddq_f64(vdb[0], vdb[1]), vdb[0]);
+				vdb[1] = vbslq_f64(vmask, vmulq_f64(vdb[1], vdc[0]), vdb[1]);
+				vsps[k] = vsubq_f64(vsps[k], vdb[0]);
+			}
+
+			if (j < counts[i])
+				vst1q_f64(&sps[i][j], vtrn1q_f64(vsps[0], vsps[1]));
+
+			if (i + 1 < batch_size && j < counts[i + 1])
+				vst1q_f64(&sps[i + 1][j], vtrn2q_f64(vsps[0], vsps[1]));
+		}
+
+		vst1q_f64(dbs[i], vtrn1q_f64(vdb[0], vdb[1]));
+
+		if (i + 1 < batch_size)
+			vst1q_f64(dbs[i + 1], vtrn2q_f64(vdb[0], vdb[1]));
+	}
+}
+
+#elif (USE_X86_EXT_INTRIN >= 10) && defined(DATA_T_DOUBLE) && defined(FLOAT_T_DOUBLE)
 
 static void sample_filter_HPF12_2_batch(int batch_size, FILTER_T **dcs, FILTER_T **dbs, DATA_T **sps, int32 *counts)
 {
@@ -6028,6 +6236,7 @@ void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps,
 	}
 
 	switch (fcs[0]->type) {
+#if USE_X86_EXT_INTRIN >= 3
 	case FILTER_LPF24:
 		recalc_filter_LPF24_batch(batch_size, fcs);
 		sample_filter_LPF24_batch(batch_size, dcs, dbs, sps, counts);
@@ -6037,6 +6246,7 @@ void buffer_filter_batch(int batch_size, FilterCoefficients **fcs, DATA_T **sps,
 		recalc_filter_LPF_BW_batch(batch_size, fcs);
 		sample_filter_LPF_BW_batch(batch_size, dcs, dbs, sps, counts);
 		break;
+#endif
 
 	case FILTER_LPF12_2:
 		recalc_filter_LPF12_2_batch(batch_size, fcs);
