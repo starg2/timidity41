@@ -682,7 +682,11 @@ static inline int32 signlong(int32 a)
 /*****************************************************************************/
 
 #if (USE_ARM64_EXT_INTRIN >= 1)
+#ifdef _MSC_VER
 #include <arm64_neon.h>
+#else
+#include <arm_neon.h>
+#endif
 #endif
 
 /*****************************************************************************/

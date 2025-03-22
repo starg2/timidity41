@@ -5553,7 +5553,7 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			vorrq_u64(vcltq_f64(vfcreso_dB, vfcrange[2]), vcgtq_f64(vfcreso_dB, vfcrange[3]))
 		);
 
-		int amask[2] = {!!vmask.n128_u64[0], i + 1 < batch_size ? !!vmask.n128_u64[1] : 0};
+		int amask[2] = {!!vgetq_lane_u64(vmask, 0), i + 1 < batch_size ? !!vgetq_lane_u64(vmask, 1) : 0};
 
 		if (amask[0] || amask[1]) {
 			// vfcfreq * (1.0 - ext_filter_margin) = vfcfreq - vfcfreq * ext_filter_margin
@@ -5587,13 +5587,13 @@ static void recalc_filter_LPF12_2_batch(int batch_size, FilterCoefficients** fcs
 			float64x2_t v2 = vdupq_n_f64(2.0);
 			float64x2_t v0_5 = vdupq_n_f64(0.5);
 
-			float64x2_t vq = vsubq_f64(v1, vdivq_f64(vf, vfmaq_f64(vsubq_f64(vf, v2), vaddq_f64(vld1q_f64(areso_db_cf_p), vdivq_f64(v0_5, vaddq_f64(v1, vf))), v2)));
+			float64x2_t vq = vsubq_f64(v1, vdivq_f64(vf, vfmaq_n_f64(vsubq_f64(vf, v2), vaddq_f64(vld1q_f64(areso_db_cf_p), vdivq_f64(v0_5, vaddq_f64(v1, vf))), 2.0)));
 
 			float64x2_t vdc[2];
 			vdc[0] = vmulq_f64(vq, vq);
 
-			double acosf[2] = {cos(vf.n128_f64[0]), cos(vf.n128_f64[1])};
-			vdc[1] = vfmsq_f64(vaddq_f64(vdc[0], v1), vmulq_f64(v2, vld1q_f64(acosf)), vq);
+			double acosf[2] = {cos(vgetq_lane_f64(vf, 0)), cos(vgetq_lane_f64(vf, 1))};
+			vdc[1] = vfmsq_f64(vaddq_f64(vdc[0], v1), vmulq_n_f64(vld1q_f64(acosf), 2.0), vq);
 
 			if (amask[0])
 				vst1q_f64(fcs[i]->dc, vtrn1q_f64(vdc[0], vdc[1]));

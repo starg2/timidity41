@@ -649,6 +649,9 @@ private:
 
         ::ShowScrollBar(m_hWnd, SB_BOTH, true);
         InitializeGDIResource();
+
+        // Scroll to bottom
+        m_CurrentTopLineNumber = GetMaxTopLineNumber();
         InvalidateRect(m_hWnd, nullptr, true);
     }
 
