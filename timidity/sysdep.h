@@ -1046,6 +1046,9 @@ int usleep(unsigned int useconds); /* shut gcc warning up */
 #ifdef UNICODE
 #undef _stprintf
 #define _stprintf  _swprintf
+#else
+#undef _stprintf
+#define _stprintf  sprintf
 #endif
 #endif /* __GNUC__ */
 
