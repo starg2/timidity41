@@ -147,55 +147,55 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 #endif
 IDM_MENU_MAIN_EN MENU
 {
-    POPUP "File(&F)"
+    POPUP "&File"
     {
-        MENUITEM "Open File(&F)", IDM_MFOPENFILE
-        MENUITEM "Open Directory(&D)", IDM_MFOPENDIR
-        MENUITEM "Open Internet URL(&U)", IDM_MFOPENURL
+        MENUITEM "Open &File", IDM_MFOPENFILE
+        MENUITEM "Open &Directory", IDM_MFOPENDIR
+        MENUITEM "Open Internet &URL", IDM_MFOPENURL
         MENUITEM SEPARATOR
-        MENUITEM "Load Playlist(&P)", IDM_MFLOADPLAYLIST
-        MENUITEM "Save Playlist as(&S)", IDM_MFSAVEPLAYLISTAS
+        MENUITEM "Load &Playlist", IDM_MFLOADPLAYLIST
+        MENUITEM "&Save Playlist as", IDM_MFSAVEPLAYLISTAS
         MENUITEM SEPARATOR
-        MENUITEM "Restart(&R)", IDM_MFRESTART
-        MENUITEM "Exit(&X)", IDM_MFEXIT
+        MENUITEM "&Restart", IDM_MFRESTART
+        MENUITEM "E&xit", IDM_MFEXIT
     }
-    POPUP "Config(&C)"
+    POPUP "&Config"
     {
-        MENUITEM "Preference(&P)", IDM_SETTING
+        MENUITEM "&Preference", IDM_SETTING
         MENUITEM SEPARATOR
-        MENUITEM "Load ini file(&L)", IDM_MCLOADINIFILE
-        MENUITEM "Save ini file(&S)", IDM_MCSAVEINIFILE
+        MENUITEM "&Load ini file", IDM_MCLOADINIFILE
+        MENUITEM "&Save ini file", IDM_MCSAVEINIFILE
         MENUITEM SEPARATOR
-        MENUITEM "Reload cfg file(&F)", IDM_FORCE_RELOAD
+        MENUITEM "Reload cfg &file", IDM_FORCE_RELOAD
     }
-    POPUP "Window(&W)"
+    POPUP "&Window"
     {
-        MENUITEM "Play List(&L)", IDM_MWPLAYLIST
-        MENUITEM "Tracer(&T)", IDM_MWTRACER
-        MENUITEM "Document(&D)", IDM_MWDOCUMENT
-        MENUITEM "Wrd tracer(&W)", IDM_MWWRDTRACER
-        MENUITEM "Console(&C)", IDM_MWCONSOLE
-        MENUITEM "VST Manager(&V)", IDM_MWVSTMGR
-        MENUITEM "Sound Spectrogram(&S)", IDM_MWSOUNDSPEC
-        MENUITEM "Int Synth Editor(&E)", IDM_MWISEDITOR
+        MENUITEM "Play &List", IDM_MWPLAYLIST
+        MENUITEM "&Tracer", IDM_MWTRACER
+        MENUITEM "&Document", IDM_MWDOCUMENT
+        MENUITEM "&Wrd tracer", IDM_MWWRDTRACER
+        MENUITEM "&Console", IDM_MWCONSOLE
+        MENUITEM "&VST Manager", IDM_MWVSTMGR
+        MENUITEM "&Sound Spectrogram", IDM_MWSOUNDSPEC
+        MENUITEM "Int Synth &Editor", IDM_MWISEDITOR
     }
-    POPUP "Module(&M)"
-    {
-        MENUITEM SEPARATOR
-    }
-    POPUP "Output(&O)"
+    POPUP "&Module"
     {
         MENUITEM SEPARATOR
     }
-    POPUP "Help(&H)"
+    POPUP "&Output"
     {
-        MENUITEM "Online Help(&O)", IDM_MHONLINEHELP
-        MENUITEM "Bug Tracking System(&B)", IDM_MHBTS
         MENUITEM SEPARATOR
-        MENUITEM "TiMidity++(&T)", IDM_MHTIMIDITY
-        MENUITEM "Version(&V)", IDM_MHVERSION
+    }
+    POPUP "&Help"
+    {
+        MENUITEM "&Online Help", IDM_MHONLINEHELP
+        MENUITEM "&Bug Tracking System", IDM_MHBTS
         MENUITEM SEPARATOR
-        MENUITEM "Supplement(&S)", IDM_MHSUPPLEMENT
+        MENUITEM "&TiMidity++", IDM_MHTIMIDITY
+        MENUITEM "&Version", IDM_MHVERSION
+        MENUITEM SEPARATOR
+        MENUITEM "&Supplement", IDM_MHSUPPLEMENT
     }
 }
 
