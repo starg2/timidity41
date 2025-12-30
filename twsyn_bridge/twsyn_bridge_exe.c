@@ -212,7 +212,7 @@ winmmerror:
 	return;
 }
 
-LRESULT APIENTRY CALLBACK CtrlWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK CtrlWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	if(uMess == uControlMess){
 		switch(wParam){
@@ -284,7 +284,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		goto error;	
 	}
 	// create window
-	hControlWnd = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG_DUMMY), NULL, (DLGPROC)CtrlWndProc);
+	hControlWnd = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG_DUMMY), NULL, CtrlWndProc);
 	if(!hControlWnd){
 		errortext = "bridge.exe error : CreateDialog.";
 		goto error;	

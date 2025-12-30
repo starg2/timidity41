@@ -86,14 +86,6 @@ add_library(
     portaudio.def
 )
 
-set_target_properties(portaudio PROPERTIES PREFIX "")
-
-if(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
-    set_target_properties(portaudio PROPERTIES OUTPUT_NAME "portaudio_x64")
-else()
-    set_target_properties(portaudio PROPERTIES OUTPUT_NAME "portaudio_x86")
-endif()
-
 target_link_libraries(portaudio ole32 advapi32 setupapi winmm)
 
 install(TARGETS portaudio)

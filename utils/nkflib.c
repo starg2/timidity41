@@ -386,7 +386,7 @@ static char            kanji_intro = DEFAULT_J,
 
 /* Folding */
 
-int line_fold();
+int line_fold(int c2, int c1);
 #define FOLD_MARGIN  10
 #define DEFAULT_FOLD 60
 

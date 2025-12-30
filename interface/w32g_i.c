@@ -455,7 +455,7 @@ static TOOLINFO SBVolumeTooltipInfo, SBProgressTooltipInfo;
 static TCHAR SBVolumeTooltipText[8], // "0000 %\0"
 	     SBProgressTooltipText[20]; // "000:00:00/000:00:00\0"
 
-LRESULT CALLBACK MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void update_subwindow(void);
 void OnShow(void);
 void OnHide(void);
@@ -565,65 +565,65 @@ static void InitMainMenu(HWND hWnd)
         AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("補足(&S)"));
 	}else{
 		mii.hSubMenu = hMenuFile;
-		mii.dwTypeData = TEXT("File(&F)");
+		mii.dwTypeData = TEXT("&File");
 		InsertMenuItem(hMenu, 0, TRUE, &mii);
 		mii.hSubMenu = hMenuConfig;
-		mii.dwTypeData = TEXT("Config(&C)");
+		mii.dwTypeData = TEXT("&Config");
 		InsertMenuItem(hMenu, 1, TRUE, &mii);
 		mii.hSubMenu = hMenuWindow;
-		mii.dwTypeData = TEXT("Window(&W)");
+		mii.dwTypeData = TEXT("&Window");
 		InsertMenuItem(hMenu, 2, TRUE, &mii);
 		mii.hSubMenu = hMenuModule;
-		mii.dwTypeData = TEXT("Module(&M)");
+		mii.dwTypeData = TEXT("&Module");
 		InsertMenuItem(hMenu, 3, TRUE, &mii);
 		mii.hSubMenu = hMenuOutput;
-		mii.dwTypeData = TEXT("Output(&O)");
+		mii.dwTypeData = TEXT("&Output");
 		InsertMenuItem(hMenu, 4, TRUE, &mii);
 		mii.hSubMenu = hMenuHelp;
-		mii.dwTypeData = TEXT("Help(&H)");
+		mii.dwTypeData = TEXT("&Help");
 		InsertMenuItem(hMenu, 5, TRUE, &mii);
 		// File
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENFILE, TEXT("Open File(&F)"));
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENDIR, TEXT("Open Directory(&D)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENFILE, TEXT("Open &File"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENDIR, TEXT("Open &Directory"));
 #ifdef SUPPORT_SOCKET
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENURL, TEXT("Open Internet URL(&U)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFOPENURL, TEXT("Open Internet &URL"));
 #endif
 		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFLOADPLAYLIST, TEXT("Load Playlist(&P)"));
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFSAVEPLAYLISTAS, TEXT("Save Playlist as(&S)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFLOADPLAYLIST, TEXT("Load &Playlist"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFSAVEPLAYLISTAS, TEXT("&Save Playlist as"));
 		AppendMenu(hMenuFile, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFRESTART, TEXT("Restart(&R)"));
-		AppendMenu(hMenuFile, MF_STRING, IDM_MFEXIT, TEXT("Exit(&X)"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFRESTART, TEXT("&Restart"));
+		AppendMenu(hMenuFile, MF_STRING, IDM_MFEXIT, TEXT("E&xit"));
 		// Config
-		AppendMenu(hMenuConfig, MF_STRING, IDM_SETTING, TEXT("Preference(&P)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_SETTING, TEXT("&Preference"));
 		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuConfig, MF_STRING, IDM_MCLOADINIFILE, TEXT("Load ini file(&L)"));
-		AppendMenu(hMenuConfig, MF_STRING, IDM_MCSAVEINIFILE, TEXT("Save ini file(&S)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCLOADINIFILE, TEXT("&Load ini file"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_MCSAVEINIFILE, TEXT("&Save ini file"));
 		AppendMenu(hMenuConfig, MF_SEPARATOR, 0, 0);
-		AppendMenu(hMenuConfig, MF_STRING, IDM_FORCE_RELOAD, TEXT("Reload cfg file(&F)"));
+		AppendMenu(hMenuConfig, MF_STRING, IDM_FORCE_RELOAD, TEXT("Reload cfg &file"));
 		// Window
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWPLAYLIST, TEXT("Play List(&L)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("Tracer(&T)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("Document(&D)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWWRDTRACER, TEXT("Wrd tracer(&W)"));
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("Console(&C)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWPLAYLIST, TEXT("Play &List"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWTRACER, TEXT("&Tracer"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWDOCUMENT, TEXT("&Document"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWWRDTRACER, TEXT("&Wrd tracer"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWCONSOLE, TEXT("&Console"));
 #ifdef VST_LOADER_ENABLE
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("VST Manager(&V)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWVSTMGR, TEXT("&VST Manager"));
 #endif /* VST_LOADER_ENABLE */
 #ifdef HAVE_SOUNDSPEC
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWSOUNDSPEC, TEXT("Sound Spectrogram(&S)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWSOUNDSPEC, TEXT("&Sound Spectrogram"));
 #endif
 #ifdef INT_SYNTH
-        AppendMenu(hMenuWindow, MF_STRING, IDM_MWISEDITOR, TEXT("Internal Synth Editor(&E)"));
+        AppendMenu(hMenuWindow, MF_STRING, IDM_MWISEDITOR, TEXT("Internal Synth &Editor"));
 #endif
 		// Help
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELP, TEXT("Online Help(&O)"));
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHBTS, TEXT("Bug Tracking System(&B)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHONLINEHELP, TEXT("&Online Help"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHBTS, TEXT("&Bug Tracking System"));
 		AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHTIMIDITY, TEXT("TiMidity++(&T)"));
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHVERSION, TEXT("Version(&V)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHTIMIDITY, TEXT("&TiMidity++"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHVERSION, TEXT("&Version"));
 		AppendMenu(hMenuHelp, MF_SEPARATOR, 0, 0);
-        AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("Supplement(&S)"));
+        AppendMenu(hMenuHelp, MF_STRING, IDM_MHSUPPLEMENT, TEXT("&Supplement"));
 	}
 	// Module
 	for (i = 0; i < module_list_num; i++) {
@@ -889,7 +889,7 @@ extern int TracerWndDrawSkip;
 
 #define WM_UPDATE_SCROLLBAR_PROGRESS  (WM_APP + 100)  // (int)lParam: sec
 
-LRESULT CALLBACK
+INT_PTR CALLBACK
 MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static BOOL PrefWndShow;
@@ -4917,7 +4917,7 @@ int32 test_var[10] = {0};
 // Debug Window
 #ifdef W32GUI_DEBUG
 
-BOOL CALLBACK DebugWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK DebugWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitDebugEditWnd(HWND hParentWnd);
 
 void InitDebugWnd(HWND hParentWnd)
@@ -4928,7 +4928,7 @@ void InitDebugWnd(HWND hParentWnd)
 	UpdateWindow(hDebugWnd);
 }
 
-BOOL CALLBACK
+INT_PTR CALLBACK
 DebugWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -5260,7 +5260,7 @@ static void DlgDirOpen(HWND hwnd)
 #endif
 }
 
-LRESULT CALLBACK UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void DlgUrlOpen(HWND hwnd)
 {
     if(w32g_lock_open_file)
@@ -5284,7 +5284,7 @@ static void DlgUrlOpen(HWND hwnd)
 #endif
 
 volatile argc_argv_t UrlArgcArgv;
-LRESULT CALLBACK
+INT_PTR CALLBACK
 UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static volatile argc_argv_t UrlArgcArgv;

@@ -116,7 +116,7 @@ CONSOLEWNDINFO ConsoleWndInfo;
 
 // ---------------------------------------------------------------------------
 // prototypes of functions
-static LRESULT CALLBACK ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void ConsoleWndAllUpdate(void);
 static void ConsoleWndVerbosityUpdate(void);
 static void ConsoleWndVerbosityApply(void);
@@ -172,7 +172,7 @@ void InitConsoleWnd(HWND hParentWnd)
 }
 
 // Window Procedure
-static LRESULT CALLBACK
+static INT_PTR CALLBACK
 ConsoleWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -540,7 +540,7 @@ HIMAGELIST hImageList = NULL;
 
 // ---------------------------------------------------------------------------
 // Prototypes
-static LRESULT CALLBACK ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static int ListWndInfoReset(HWND hwnd);
 static int ListWndInfoApply(void);
 static int ListWndSetFontListBox(char *fontName, int fontWidth, int fontHeght);
@@ -689,7 +689,7 @@ static void ListWndCreateTabItems(HWND hwnd)
     }
 }
 
-LRESULT CALLBACK
+INT_PTR CALLBACK
 ListNameWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	int num;
@@ -740,7 +740,7 @@ ListNameWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
-static LRESULT CALLBACK
+static INT_PTR CALLBACK
 ListWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static BOOL ListSearchWndShow;
@@ -1620,7 +1620,7 @@ void SetNumListWnd(int cursel, int nfiles)
 // ***************************************************************************
 // Tracer Window
 
-BOOL CALLBACK TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitTracerWnd(HWND hParentWnd)
 {
 	if (hTracerWnd != NULL) {
@@ -1633,7 +1633,7 @@ void InitTracerWnd(HWND hParentWnd)
 	UpdateWindow(hTracerWnd);
 }
 
-BOOL CALLBACK
+INT_PTR CALLBACK
 TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -1671,7 +1671,7 @@ int DocWndIndependent = 0; /* Independent document viewer mode.(独立ドキュ�
 int DocWndAutoPopup = 0;
 DOCWNDINFO DocWndInfo;
 
-static LRESULT CALLBACK DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void InitDocEditWnd(HWND hParentWnd);
 static void DocWndConvertText(char *in, int in_size, char *out, int out_size);
 static void DocWndSetText(char *text, int text_size);
@@ -1737,7 +1737,7 @@ void InitDocWnd(HWND hParentWnd)
 	EnableWindow(GetDlgItem(hDocWnd,IDC_BUTTON_NEXT),FALSE);
 }
 
-static LRESULT CALLBACK
+static INT_PTR CALLBACK
 DocWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -2388,7 +2388,7 @@ void ClearDocWnd(void)
 static char ListSearchString[ListSearchStringMax];
 static int ListSearchContinue;
 
-LRESULT CALLBACK ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitListSearchWnd(HWND hParentWnd)
 {
 	strcpy(ListSearchString,"");
@@ -2413,7 +2413,7 @@ void InitListSearchWnd(HWND hParentWnd)
 
 #define ListSearchStringBuffSize 1024*2
 
-LRESULT CALLBACK
+INT_PTR CALLBACK
 ListSearchWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -2544,7 +2544,7 @@ SOUNDSPECWNDINFO SoundSpecWndInfo;
 
 // ---------------------------------------------------------------------------
 // prototypes of functions
-LRESULT CALLBACK SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 #ifdef SUPPORT_SOUNDSPEC
 void TargetSpectrogramCanvas(HWND hwnd);
 void HandleSpecKeydownEvent(long message, short modifiers);
@@ -2584,7 +2584,7 @@ void InitSoundSpecWnd(HWND hParentWnd)
 	SoundSpecWndInfoApply();
 }
 
-LRESULT CALLBACK
+INT_PTR CALLBACK
 SoundSpecWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){

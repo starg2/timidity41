@@ -134,12 +134,8 @@ void free_portaudio_dll(void)
 int load_portaudio_dll(int a)
 {
 	if(!h_portaudio_dll){		
-#ifdef _WIN64
-		h_portaudio_dll = LoadLibrary(_T("portaudio_x64"));
-#else
-		h_portaudio_dll = LoadLibrary(_T("portaudio_x86"));
-#endif
-		if (!h_portaudio_dll) h_portaudio_dll = LoadLibrary(_T("portaudio"));
+		h_portaudio_dll = LoadLibrary(_T("portaudio.dll"));
+		if(!h_portaudio_dll) h_portaudio_dll = LoadLibrary(_T("libportaudio.dll"));
 		if(!h_portaudio_dll) return -1;
 	}
 	portaudio_dll.Pa_GetVersion = (type_Pa_GetVersion)GetProcAddress(h_portaudio_dll,"Pa_GetVersion");

@@ -1618,15 +1618,15 @@ typedef struct is_editor_page_t_ {
 } is_editor_page_t;
 
 static is_editor_page_t is_editor_pages_ja[] = {
-        { 0, TEXT("SCC_DATA"), (HWND) NULL, IDD_ISEDITOR_SCC_DATA, (DLGPROC) ISEditorSCCDATAProc, 0 },
-        { 1, TEXT("SCC"), (HWND) NULL, IDD_ISEDITOR_SCC, (DLGPROC) ISEditorSCCProc, 0 },
-        { 2, TEXT("MMS"), (HWND) NULL, IDD_ISEDITOR_MMS, (DLGPROC) ISEditorMMSProc, 0 },
+        { 0, TEXT("SCC_DATA"), (HWND) NULL, IDD_ISEDITOR_SCC_DATA, ISEditorSCCDATAProc, 0 },
+        { 1, TEXT("SCC"), (HWND) NULL, IDD_ISEDITOR_SCC, ISEditorSCCProc, 0 },
+        { 2, TEXT("MMS"), (HWND) NULL, IDD_ISEDITOR_MMS, ISEditorMMSProc, 0 },
 };
 
 static is_editor_page_t is_editor_pages_en[] = {
-        { 0, TEXT("SCC_DATA"), (HWND) NULL, IDD_ISEDITOR_SCC_DATA_EN, (DLGPROC) ISEditorSCCDATAProc, 0 },
-        { 1, TEXT("SCC"), (HWND) NULL, IDD_ISEDITOR_SCC_EN, (DLGPROC) ISEditorSCCProc, 0 },
-        { 2, TEXT("MMS"), (HWND) NULL, IDD_ISEDITOR_MMS_EN, (DLGPROC) ISEditorMMSProc, 0 },
+        { 0, TEXT("SCC_DATA"), (HWND) NULL, IDD_ISEDITOR_SCC_DATA_EN, ISEditorSCCDATAProc, 0 },
+        { 1, TEXT("SCC"), (HWND) NULL, IDD_ISEDITOR_SCC_EN, ISEditorSCCProc, 0 },
+        { 2, TEXT("MMS"), (HWND) NULL, IDD_ISEDITOR_MMS_EN, ISEditorMMSProc, 0 },
 };
 
 #define ISEDITOR_PAGE_MAX 3
