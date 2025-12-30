@@ -355,7 +355,7 @@ LRESULT DlgMainProc_SIZE(HWND hDlg, WPARAM wParam, LPARAM lParam)
     return TRUE;
 }
 
-LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 #define SET_MYWINMSG(VN) case WM_ ## VN: return DlgMainProc_## VN(hDlg, wParam, lParam);
 	switch (msg) {
@@ -373,7 +373,7 @@ LRESULT CALLBACK DlgMainProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR lpCmdLine, int ShowCmd)
 {
 	g_hInst = hInstance;
-	DialogBoxA(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, (DLGPROC)DlgMainProc);
+	DialogBoxA(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DlgMainProc);
 	return 0;
 }
 

@@ -87,7 +87,7 @@ static int check_bridge(void)
 	return 1;
 }
 
-LRESULT APIENTRY CALLBACK CtrlWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK CtrlWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	if(!run_bridge)
 		return FALSE;
@@ -242,7 +242,7 @@ void init_bridge(void)
 	// send ctrl message	
 	shared_data->uControlMessHost = uControlMessHost;
 	// create window
-	hControlWndHost = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG_TWSYN_BRIDGE), NULL, (DLGPROC)CtrlWndProc);
+	hControlWndHost = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG_TWSYN_BRIDGE), NULL, CtrlWndProc);
 	if(!hControlWndHost){
 		errortext = "bridge host error : CreateDialog.";
 		goto error;	

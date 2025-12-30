@@ -319,7 +319,7 @@ BOOL SetTracerWndActive(void)
 	return w32g_tracer_wnd.active;
 }
 
-LRESULT CALLBACK TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitTracerWnd(HWND hParentWnd)
 {
@@ -2866,7 +2866,7 @@ TracerCanvasWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 
 extern void MainWndUpdateTracerButton(void);
 
-LRESULT CALLBACK
+INT_PTR CALLBACK
 TracerWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess) {

@@ -453,7 +453,7 @@ static TOOLINFO SBVolumeTooltipInfo, SBProgressTooltipInfo;
 static TCHAR SBVolumeTooltipText[8], // "0000 %\0"
 	     SBProgressTooltipText[20]; // "000:00:00/000:00:00\0"
 
-LRESULT CALLBACK MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void update_subwindow(void);
 void OnShow(void);
 void OnHide(void);
@@ -883,7 +883,7 @@ extern int TracerWndDrawSkip;
 
 #define WM_UPDATE_SCROLLBAR_PROGRESS  (WM_APP + 100)  // (int)lParam: sec
 
-LRESULT CALLBACK
+INT_PTR CALLBACK
 MainProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static BOOL PrefWndShow;
@@ -4921,7 +4921,7 @@ int32 test_var[10] = {0};
 // Debug Window
 #ifdef W32GUI_DEBUG
 
-BOOL CALLBACK DebugWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK DebugWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 void InitDebugEditWnd(HWND hParentWnd);
 
 void InitDebugWnd(HWND hParentWnd)
@@ -4932,7 +4932,7 @@ void InitDebugWnd(HWND hParentWnd)
 	UpdateWindow(hDebugWnd);
 }
 
-BOOL CALLBACK
+INT_PTR CALLBACK
 DebugWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
@@ -5264,7 +5264,7 @@ static void DlgDirOpen(HWND hwnd)
 #endif
 }
 
-LRESULT CALLBACK UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 static void DlgUrlOpen(HWND hwnd)
 {
     if(w32g_lock_open_file)
@@ -5288,7 +5288,7 @@ static void DlgUrlOpen(HWND hwnd)
 #endif
 
 volatile argc_argv_t UrlArgcArgv;
-LRESULT CALLBACK
+INT_PTR CALLBACK
 UrlOpenWndProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static volatile argc_argv_t UrlArgcArgv;

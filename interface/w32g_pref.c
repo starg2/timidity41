@@ -340,21 +340,21 @@ static TCHAR **GetMidiINDrivers(void);
 
 static volatile int PrefWndSetOK = 0;
 static HWND hPrefWnd = NULL;
-static LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 #if (defined(IA_W32G_SYN) || defined(WINDRV_SETUP))
-static BOOL APIENTRY PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 #else
-static LRESULT APIENTRY PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 #endif
-static LRESULT APIENTRY PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
-static LRESULT APIENTRY PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
-static LRESULT APIENTRY PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 
-static LRESULT APIENTRY PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
-static LRESULT APIENTRY PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
-static LRESULT APIENTRY PrefCustom1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
-static LRESULT APIENTRY PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
-static LRESULT APIENTRY PrefIntSynthDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK PrefIntSynthDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam);
 
 typedef struct pref_page_t_ {
 	int index;
@@ -368,49 +368,49 @@ typedef struct pref_page_t_ {
 ///r
 static pref_page_t pref_pages_ja[] = {
 #if defined(IA_W32G_SYN) || defined(WINDRV_SETUP)
-	{ 0, TEXT("シンセサイザ"), (HWND)NULL, IDD_PREF_SYN1, (DLGPROC) PrefSyn1DialogProc, 0 },
-	{ 1, TEXT("エフェクト"), (HWND)NULL, IDD_PREF_TIMIDITY1, (DLGPROC) PrefTiMidity1DialogProc, 0 },
-	{ 2, TEXT("その他"), (HWND)NULL, IDD_PREF_TIMIDITY2, (DLGPROC) PrefTiMidity2DialogProc, 0 },
-	{ 3, TEXT("出力"), (HWND)NULL, IDD_PREF_TIMIDITY3, (DLGPROC) PrefTiMidity3DialogProc, 0 },
-	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1, (DLGPROC) PrefSFINI1DialogProc, 0 },
-	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2, (DLGPROC) PrefSFINI2DialogProc, 0 },
-	{ 6, TEXT("Custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, (DLGPROC) PrefCustom1DialogProc, 0 },
-	{ 7, TEXT("Custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, (DLGPROC) PrefCustom2DialogProc, 0 },
-	{ 8, TEXT("内蔵シンセ"), (HWND)NULL, IDD_PREF_INT_SYNTH, (DLGPROC) PrefIntSynthDialogProc, 0 },
+	{ 0, TEXT("シンセサイザ"), (HWND)NULL, IDD_PREF_SYN1, PrefSyn1DialogProc, 0 },
+	{ 1, TEXT("エフェクト"), (HWND)NULL, IDD_PREF_TIMIDITY1, PrefTiMidity1DialogProc, 0 },
+	{ 2, TEXT("その他"), (HWND)NULL, IDD_PREF_TIMIDITY2, PrefTiMidity2DialogProc, 0 },
+	{ 3, TEXT("出力"), (HWND)NULL, IDD_PREF_TIMIDITY3, PrefTiMidity3DialogProc, 0 },
+	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1, PrefSFINI1DialogProc, 0 },
+	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2, PrefSFINI2DialogProc, 0 },
+	{ 6, TEXT("Custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, PrefCustom1DialogProc, 0 },
+	{ 7, TEXT("Custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, PrefCustom2DialogProc, 0 },
+	{ 8, TEXT("内蔵シンセ"), (HWND)NULL, IDD_PREF_INT_SYNTH, PrefIntSynthDialogProc, 0 },
 #else
-	{ 0, TEXT("プレイヤ"), (HWND)NULL, IDD_PREF_PLAYER, (DLGPROC) PrefPlayerDialogProc, 0 },
-	{ 1, TEXT("エフェクト"), (HWND)NULL, IDD_PREF_TIMIDITY1, (DLGPROC) PrefTiMidity1DialogProc, 0 },
-	{ 2, TEXT("その他"), (HWND)NULL, IDD_PREF_TIMIDITY2, (DLGPROC) PrefTiMidity2DialogProc, 0 },
-	{ 3, TEXT("出力"), (HWND)NULL, IDD_PREF_TIMIDITY3, (DLGPROC) PrefTiMidity3DialogProc, 0 },
-	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1, (DLGPROC) PrefSFINI1DialogProc, 0 },
-	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2, (DLGPROC) PrefSFINI2DialogProc, 0 },
-	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, (DLGPROC) PrefCustom1DialogProc, 0 },
-	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, (DLGPROC) PrefCustom2DialogProc, 0 },
-	{ 8, TEXT("内蔵シンセ"), (HWND)NULL, IDD_PREF_INT_SYNTH, (DLGPROC) PrefIntSynthDialogProc, 0 },
+	{ 0, TEXT("プレイヤ"), (HWND)NULL, IDD_PREF_PLAYER, PrefPlayerDialogProc, 0 },
+	{ 1, TEXT("エフェクト"), (HWND)NULL, IDD_PREF_TIMIDITY1, PrefTiMidity1DialogProc, 0 },
+	{ 2, TEXT("その他"), (HWND)NULL, IDD_PREF_TIMIDITY2, PrefTiMidity2DialogProc, 0 },
+	{ 3, TEXT("出力"), (HWND)NULL, IDD_PREF_TIMIDITY3, PrefTiMidity3DialogProc, 0 },
+	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1, PrefSFINI1DialogProc, 0 },
+	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2, PrefSFINI2DialogProc, 0 },
+	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1, PrefCustom1DialogProc, 0 },
+	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2, PrefCustom2DialogProc, 0 },
+	{ 8, TEXT("内蔵シンセ"), (HWND)NULL, IDD_PREF_INT_SYNTH, PrefIntSynthDialogProc, 0 },
 #endif
 };
 ///r
 static pref_page_t pref_pages_en[] = {
 #if defined(IA_W32G_SYN) || defined(WINDRV_SETUP)
-	{ 0, TEXT("Synthesizer"), (HWND)NULL, IDD_PREF_SYN1_EN, (DLGPROC) PrefSyn1DialogProc, 0 },
-	{ 1, TEXT("Effect"), (HWND)NULL, IDD_PREF_TIMIDITY1_EN, (DLGPROC) PrefTiMidity1DialogProc, 0 },
-	{ 2, TEXT("Misc"), (HWND)NULL, IDD_PREF_TIMIDITY2_EN, (DLGPROC) PrefTiMidity2DialogProc, 0 },
-	{ 3, TEXT("Output"), (HWND)NULL, IDD_PREF_TIMIDITY3_EN, (DLGPROC) PrefTiMidity3DialogProc, 0 },
-	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1_EN, (DLGPROC) PrefSFINI1DialogProc, 0 },
-	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2_EN, (DLGPROC) PrefSFINI2DialogProc, 0 },
-	{ 6, TEXT("Custom1"), (HWND)NULL, IDD_PREF_CUSTOM1_EN, (DLGPROC) PrefCustom1DialogProc, 0 },
-	{ 7, TEXT("Custom2"), (HWND)NULL, IDD_PREF_CUSTOM2_EN, (DLGPROC) PrefCustom2DialogProc, 0 },
-	{ 8, TEXT("InternalSynth"), (HWND)NULL, IDD_PREF_INT_SYNTH_EN, (DLGPROC) PrefIntSynthDialogProc, 0 },
+	{ 0, TEXT("Synthesizer"), (HWND)NULL, IDD_PREF_SYN1_EN, PrefSyn1DialogProc, 0 },
+	{ 1, TEXT("Effect"), (HWND)NULL, IDD_PREF_TIMIDITY1_EN, PrefTiMidity1DialogProc, 0 },
+	{ 2, TEXT("Misc"), (HWND)NULL, IDD_PREF_TIMIDITY2_EN, PrefTiMidity2DialogProc, 0 },
+	{ 3, TEXT("Output"), (HWND)NULL, IDD_PREF_TIMIDITY3_EN, PrefTiMidity3DialogProc, 0 },
+	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1_EN, PrefSFINI1DialogProc, 0 },
+	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2_EN, PrefSFINI2DialogProc, 0 },
+	{ 6, TEXT("Custom1"), (HWND)NULL, IDD_PREF_CUSTOM1_EN, PrefCustom1DialogProc, 0 },
+	{ 7, TEXT("Custom2"), (HWND)NULL, IDD_PREF_CUSTOM2_EN, PrefCustom2DialogProc, 0 },
+	{ 8, TEXT("InternalSynth"), (HWND)NULL, IDD_PREF_INT_SYNTH_EN, PrefIntSynthDialogProc, 0 },
 #else
-	{ 0, TEXT("Player"), (HWND)NULL, IDD_PREF_PLAYER_EN, (DLGPROC) PrefPlayerDialogProc, 0 },
-	{ 1, TEXT("Effect"), (HWND)NULL, IDD_PREF_TIMIDITY1_EN, (DLGPROC) PrefTiMidity1DialogProc, 0 },
-	{ 2, TEXT("Misc"), (HWND)NULL, IDD_PREF_TIMIDITY2_EN, (DLGPROC) PrefTiMidity2DialogProc, 0 },
-	{ 3, TEXT("Output"), (HWND)NULL, IDD_PREF_TIMIDITY3_EN, (DLGPROC) PrefTiMidity3DialogProc, 0 },
-	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1_EN, (DLGPROC) PrefSFINI1DialogProc, 0 },
-	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2_EN, (DLGPROC) PrefSFINI2DialogProc, 0 },
-	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1_EN, (DLGPROC) PrefCustom1DialogProc, 0 },
-	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2_EN, (DLGPROC) PrefCustom2DialogProc, 0 },
-	{ 8, TEXT("InternalSynth"), (HWND)NULL, IDD_PREF_INT_SYNTH_EN, (DLGPROC) PrefIntSynthDialogProc, 0 },
+	{ 0, TEXT("Player"), (HWND)NULL, IDD_PREF_PLAYER_EN, PrefPlayerDialogProc, 0 },
+	{ 1, TEXT("Effect"), (HWND)NULL, IDD_PREF_TIMIDITY1_EN, PrefTiMidity1DialogProc, 0 },
+	{ 2, TEXT("Misc"), (HWND)NULL, IDD_PREF_TIMIDITY2_EN, PrefTiMidity2DialogProc, 0 },
+	{ 3, TEXT("Output"), (HWND)NULL, IDD_PREF_TIMIDITY3_EN, PrefTiMidity3DialogProc, 0 },
+	{ 4, TEXT("sf_ini1"), (HWND)NULL, IDD_PREF_SFINI1_EN, PrefSFINI1DialogProc, 0 },
+	{ 5, TEXT("sf_ini2"), (HWND)NULL, IDD_PREF_SFINI2_EN, PrefSFINI2DialogProc, 0 },
+	{ 6, TEXT("custom1"), (HWND)NULL, IDD_PREF_CUSTOM1_EN, PrefCustom1DialogProc, 0 },
+	{ 7, TEXT("custom2"), (HWND)NULL, IDD_PREF_CUSTOM2_EN, PrefCustom2DialogProc, 0 },
+	{ 8, TEXT("InternalSynth"), (HWND)NULL, IDD_PREF_INT_SYNTH_EN, PrefIntSynthDialogProc, 0 },
 #endif
 };
 
@@ -605,7 +605,7 @@ extern void config_gui_save(void);
 extern void config_gui_main_close(void);
 #endif
 
-LRESULT APIENTRY CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK PrefWndDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	int i;
 
@@ -1329,7 +1329,7 @@ static const TCHAR *cb_info_IDC_COMBO_SECOND_MODE[] = {
 
 extern DWORD processPriority;
 
-static LRESULT APIENTRY
+static INT_PTR CALLBACK
 PrefPlayerDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
     static int initflag = 1;
@@ -1749,7 +1749,7 @@ static TCHAR **GetMidiINDrivers( void )
 	return MidiINDrivers;
 }
 
-static BOOL APIENTRY
+static INT_PTR CALLBACK
 PrefSyn1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
     static int initflag = 1;
@@ -2992,7 +2992,7 @@ static const TCHAR *cb_info_IDC_COMBO_RESAMPLE_OVER_SAMPLING[] = {
 	TEXT("x16"),
 };
 
-static LRESULT APIENTRY
+static INT_PTR CALLBACK
 PrefTiMidity1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static int initflag = 1; 
@@ -3671,7 +3671,7 @@ static const TCHAR *cb_info_IDC_COMBO_KEY_ADJUST[] = {
 	TEXT("+12"),
 };
 
-static LRESULT APIENTRY
+static INT_PTR CALLBACK
 PrefTiMidity2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static int initflag = 1;
@@ -4395,7 +4395,7 @@ static const TCHAR *cb_info_IDC_COMBO_CACHE_SIZE[] = {
 
 
 
-static LRESULT APIENTRY
+static INT_PTR CALLBACK
 PrefTiMidity3DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	static int initflag = 1;
@@ -5223,7 +5223,7 @@ static const TCHAR *cb_info_IDC_CHOC_EX_PHASE_NUM[] = {
 };
 
 
-static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess) {
 	case WM_INITDIALOG:
@@ -5388,7 +5388,7 @@ static LRESULT APIENTRY CALLBACK PrefSFINI1DialogProc(HWND hwnd, UINT uMess, WPA
 }
 
 
-static LRESULT APIENTRY CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess) {
 	case WM_INITDIALOG:
@@ -5502,7 +5502,7 @@ static LRESULT APIENTRY CALLBACK PrefSFINI2DialogProc(HWND hwnd, UINT uMess, WPA
 }
 
 
-static LRESULT APIENTRY CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	int i;
 	switch (uMess) {
@@ -5712,7 +5712,7 @@ static LRESULT APIENTRY CALLBACK PrefCustom1DialogProc(HWND hwnd, UINT uMess, WP
 	return FALSE;
 }
 
-static LRESULT APIENTRY CALLBACK PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK PrefCustom2DialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess) {
 	case WM_INITDIALOG:
@@ -5880,7 +5880,7 @@ static const TCHAR *cb_info_IDC_COMBO_INT_SYNTH_SINE_jp[] = {
 	TEXT("10bitテーブル リニア補間"),
 };
 
-static LRESULT APIENTRY CALLBACK PrefIntSynthDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK PrefIntSynthDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	int i;
 	switch (uMess) {
@@ -6162,7 +6162,7 @@ static void waveConfigDialogProcControlApply(HWND hwnd);
 static void waveConfigDialogProcControlReset(HWND hwnd);
 static int wave_ConfigDialogInfoLock();
 static int wave_ConfigDialogInfoUnLock();
-static LRESULT APIENTRY CALLBACK waveConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK waveConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess) {
 	case WM_INITDIALOG:
@@ -6245,9 +6245,9 @@ int waveConfigDialog(void)
 {
 	int changed = 0;
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_RIFFWAVE), hPrefWnd, (DLGPROC)waveConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_RIFFWAVE), hPrefWnd, waveConfigDialogProc);
 	else
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_RIFFWAVE_EN), hPrefWnd, (DLGPROC)waveConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_RIFFWAVE_EN), hPrefWnd, waveConfigDialogProc);
 	return changed;
 }
 
@@ -6486,7 +6486,7 @@ static void gogoConfigDialogProcControlApply(HWND hwnd);
 static void gogoConfigDialogProcControlReset(HWND hwnd);
 static int gogo_ConfigDialogInfoLock();
 static int gogo_ConfigDialogInfoUnLock();
-static LRESULT APIENTRY CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK gogoConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	char buff[1024];
 	switch (uMess){
@@ -6984,9 +6984,9 @@ int gogoConfigDialog(void)
 	int changed = 0;
 #ifdef AU_GOGO
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_GOGO), hPrefWnd, (DLGPROC)gogoConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_GOGO), hPrefWnd, gogoConfigDialogProc);
 	else
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_GOGO_EN), hPrefWnd, (DLGPROC)gogoConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_GOGO_EN), hPrefWnd, gogoConfigDialogProc);
 #endif
 	return changed;
 }
@@ -7405,7 +7405,7 @@ static void vorbisConfigDialogProcControlApply(HWND hwnd);
 static void vorbisConfigDialogProcControlReset(HWND hwnd);
 static int vorbis_ConfigDialogInfoLock();
 static int vorbis_ConfigDialogInfoUnLock();
-static LRESULT APIENTRY CALLBACK vorbisConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK vorbisConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
 	case WM_INITDIALOG:
@@ -7547,9 +7547,9 @@ int vorbisConfigDialog(void)
 	int changed = 0;
 #ifdef AU_VORBIS
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_VORBIS), hPrefWnd, (DLGPROC)vorbisConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_VORBIS), hPrefWnd, vorbisConfigDialogProc);
 	else
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_VORBIS_EN), hPrefWnd, (DLGPROC)vorbisConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_VORBIS_EN), hPrefWnd, vorbisConfigDialogProc);
 #endif
 	return changed;
 }
@@ -7732,7 +7732,7 @@ static void lameConfigDialogProcControlApply(HWND hwnd);
 static void lameConfigDialogProcControlReset(HWND hwnd);
 static int lame_ConfigDialogInfoLock();
 static int lame_ConfigDialogInfoUnLock();
-static LRESULT APIENTRY CALLBACK lameConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK lameConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
 	case WM_INITDIALOG:
@@ -7811,7 +7811,7 @@ int lameConfigDialog(void)
 {
 	int changed = 0;
 #ifdef AU_LAME
-	changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_LAME), hPrefWnd, (DLGPROC)lameConfigDialogProc);
+	changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_LAME), hPrefWnd, lameConfigDialogProc);
 #endif
 	return changed;
 }
@@ -7983,7 +7983,7 @@ static void flacConfigDialogProcControlApply(HWND hwnd);
 static void flacConfigDialogProcControlReset(HWND hwnd);
 static int flac_ConfigDialogInfoLock();
 static int flac_ConfigDialogInfoUnLock();
-static LRESULT APIENTRY CALLBACK flacConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK flacConfigDialogProc(HWND hwnd, UINT uMess, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMess){
 	case WM_INITDIALOG:
@@ -8084,9 +8084,9 @@ int flacConfigDialog(void)
 	int changed = 0;
 #ifdef AU_FLAC
 	if (CurrentPlayerLanguage == LANGUAGE_JAPANESE)
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_FLAC), hPrefWnd, (DLGPROC)flacConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_FLAC), hPrefWnd, flacConfigDialogProc);
 	else
-		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_FLAC_EN), hPrefWnd, (DLGPROC)flacConfigDialogProc);
+		changed = DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG_FLAC_EN), hPrefWnd, flacConfigDialogProc);
 #endif
 	return changed;
 }
@@ -8252,7 +8252,7 @@ static const TCHAR *cb_info_IDC_COMBO_PA_WASAPI_STREAM_CATEGORY[] = {
 };
 
 
-LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	int i = 0, cb_num = 0, cb_sel = 0, flag;
 
@@ -8493,7 +8493,7 @@ LRESULT WINAPI portaudioConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
 int portaudioConfigDialog(void)
 {
 	int changed = 0;
-	changed = DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_PORTAUDIO), hPrefWnd, (DLGPROC)portaudioConfigDialogProc);
+	changed = DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_PORTAUDIO), hPrefWnd, portaudioConfigDialogProc);
 	return changed;
 }
 ///r
@@ -8590,7 +8590,7 @@ error2:
 
 DEVICELIST cb_info_IDC_COMBO_WMME_NAME[DEVLIST_MAX];
 
-LRESULT WINAPI wmmeConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK wmmeConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	int i = 0, cb_num = 0;
 
@@ -8645,7 +8645,7 @@ LRESULT WINAPI wmmeConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
 void wmmeConfigDialog(HWND hwnd)
 {
-	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WMME), hwnd, (DLGPROC)wmmeConfigDialogProc);
+	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WMME), hwnd, wmmeConfigDialogProc);
 }
 #endif
 
@@ -8688,7 +8688,7 @@ static const TCHAR *cb_info_IDC_COMBO_WASAPI_STREAM_CATEGORY[] = {
     TEXT("Media"),
 };
 
-LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	int i = 0, cb_num = 0, cb_sel = 0, flag;
 
@@ -8827,7 +8827,7 @@ LRESULT WINAPI wasapiConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
 void wasapiConfigDialog(void)
 {
-	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WASAPI), hPrefWnd, (DLGPROC)wasapiConfigDialogProc);
+	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WASAPI), hPrefWnd, wasapiConfigDialogProc);
 }
 
 #endif // AU_WASAPI
@@ -8862,7 +8862,7 @@ static const TCHAR *cb_info_IDC_COMBO_WDMKS_RT_PRIORITY[] = {
     TEXT("WindowManager"),
 };
 
-LRESULT WINAPI wdmksConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK wdmksConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	int i = 0, cb_num = 0, cb_sel = 0, flag;
 
@@ -8993,7 +8993,7 @@ LRESULT WINAPI wdmksConfigDialogProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
 void wdmksConfigDialog(void)
 {
-	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WDMKS), hPrefWnd, (DLGPROC)wdmksConfigDialogProc);
+	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_WDMKS), hPrefWnd, wdmksConfigDialogProc);
 }
 
 #endif // AU_WDMKS
