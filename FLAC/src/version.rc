@@ -1,5 +1,5 @@
 #include <winver.h>
-
+#include "config.h"
 #include "FLAC/export.h"
 
 #if (defined GIT_COMMIT_HASH && defined GIT_COMMIT_DATE)
@@ -30,7 +30,7 @@ BEGIN
             VALUE "ProductName", "Free Lossless Audio Codec"
             VALUE "ProductVersion", VERSIONSTRING
             VALUE "CompanyName", "Xiph.Org"
-            VALUE "LegalCopyright", "2000-2009 Josh Coalson, 2011-2023 Xiph.Org Foundation"
+            VALUE "LegalCopyright", "2000-2009 Josh Coalson, 2011-2025 Xiph.Org Foundation"
         END
     END
     BLOCK "VarFileInfo"
