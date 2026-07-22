@@ -36,10 +36,6 @@
 #include "opus_types.h"
 #include "opus_projection.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct MappingMatrix
 {
     int rows; /* number of channels outputted from matrix. */
@@ -66,7 +62,7 @@ void mapping_matrix_multiply_channel_in_float(
     const MappingMatrix *matrix,
     const float *input,
     int input_rows,
-    opus_val16 *output,
+    opus_res *output,
     int output_row,
     int output_rows,
     int frame_size
@@ -74,7 +70,7 @@ void mapping_matrix_multiply_channel_in_float(
 
 void mapping_matrix_multiply_channel_out_float(
     const MappingMatrix *matrix,
-    const opus_val16 *input,
+    const opus_res *input,
     int input_row,
     int input_rows,
     float *output,
@@ -87,7 +83,7 @@ void mapping_matrix_multiply_channel_in_short(
     const MappingMatrix *matrix,
     const opus_int16 *input,
     int input_rows,
-    opus_val16 *output,
+    opus_res *output,
     int output_row,
     int output_rows,
     int frame_size
@@ -95,7 +91,7 @@ void mapping_matrix_multiply_channel_in_short(
 
 void mapping_matrix_multiply_channel_out_short(
     const MappingMatrix *matrix,
-    const opus_val16 *input,
+    const opus_res *input,
     int input_row,
     int input_rows,
     opus_int16 *output,
@@ -103,6 +99,26 @@ void mapping_matrix_multiply_channel_out_short(
     int frame_size
 );
 
+
+void mapping_matrix_multiply_channel_in_int24(
+    const MappingMatrix *matrix,
+    const opus_int32 *input,
+    int input_rows,
+    opus_res *output,
+    int output_row,
+    int output_rows,
+    int frame_size
+);
+
+void mapping_matrix_multiply_channel_out_int24(
+    const MappingMatrix *matrix,
+    const opus_res *input,
+    int input_row,
+    int input_rows,
+    opus_int32 *output,
+    int output_rows,
+    int frame_size
+);
 /* Pre-computed mixing and demixing matrices for 1st to 3rd-order ambisonics.
  *   foa: first-order ambisonics
  *   soa: second-order ambisonics
@@ -137,9 +153,5 @@ extern const opus_int16 mapping_matrix_fourthoa_demixing_data[729];
 
 extern const MappingMatrix mapping_matrix_fifthoa_demixing;
 extern const opus_int16 mapping_matrix_fifthoa_demixing_data[1444];
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* MAPPING_MATRIX_H */

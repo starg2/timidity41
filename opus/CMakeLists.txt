@@ -70,6 +70,7 @@ add_library(
     src/opus_multistream_decoder.c
     src/opus_multistream_encoder.c
     src/opus_private.h
+    src/qext_compare.c
     src/repacketizer.c
 
     celt/arch.h
@@ -103,6 +104,7 @@ add_library(
     celt/mdct.c
     celt/mdct.h
     celt/mfrngcod.h
+    #celt/mini_kfft.c
     celt/modes.c
     celt/modes.h
     celt/os_support.h
