@@ -21,6 +21,8 @@
 #ifndef OPTCODE_H_INCLUDED
 #define OPTCODE_H_INCLUDED 1
 
+#include "sysdep.h" /* for LITTLE_ENDIAN */
+
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmacro-redefined"

@@ -30,20 +30,6 @@ void sfgui_str_free(char **p)
 void InsertInst(BOOL dls, int bank, int preset, const char *str, const char *sfname);
 void InsertDrum(BOOL dls, int bank, int preset, int note, const char *str, const char *sfname);
 
-BOOL IsDLSFile(LPCSTR filename)
-{
-	struct timidity_file *tf = open_file(filename, 1, OF_NORMAL);
-	char buf[12];
-	BOOL isDLS = FALSE;
-
-	if (tf_read(buf, 1, 12, tf) == 12 && memcmp(&buf[0], "RIFF", 4) == 0 && memcmp(&buf[8], "DLS ", 4) == 0) {
-		isDLS = TRUE;
-	}
-
-	close_file(tf);
-	return isDLS;
-}
-
 void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 {
 	HWND hTree = GetDlgItem(hDlg, IDC_TREE1);
@@ -56,6 +42,7 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 	char str_[1024] = "";
 	int flag = 0;
 	char *pname_ = NULL, *pname_b_ = NULL;
+	int inst_type = INST_SF2;
 
 	//TreeView_DeleteAllItems(hTree);
 
@@ -117,7 +104,9 @@ void CreateSoundFontTree(HWND hDlg, LPCSTR x_sf_filename_)
 	initialize_resampler_coeffs();
 	control_ratio = play_mode->rate / CONTROLS_PER_SECOND;
 
-	if (IsDLSFile(x_sf_filename_)) {
+	inst_type = DetectInstrumentType(x_sf_filename_);
+
+	if (inst_type == INST_DLS) {
 #ifdef ENABLE_DLS
 		DLSCollectionInfo *list = get_dls_instrument_list(x_sf_filename_);
 		if (list) {

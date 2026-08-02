@@ -1,5 +1,8 @@
 
-add_definitions(-DCFG_FOR_SF)
+add_definitions(
+    -DCFG_FOR_SF
+    -DENABLE_DLS
+)
 
 add_library(
     timidity_cfgforsf OBJECT
@@ -7,6 +10,7 @@ add_library(
     ../timidity/common.c
     ../timidity/controls.c
     ../timidity/decode.c
+    ../timidity/dls.cpp
     ../timidity/filter.c
     ../timidity/freq.c
     ../timidity/instrum.c
@@ -23,6 +27,7 @@ add_library(
     ../timidity/common.h
     ../timidity/controls.h
     ../timidity/decode.h
+    ../timidity/dls.h
     ../timidity/filter.h
     ../timidity/freq.h
     ../timidity/instrum.h

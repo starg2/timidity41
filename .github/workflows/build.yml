@@ -31,7 +31,7 @@ jobs:
         shell: pwsh
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: timidity41
           fetch-depth: 0
@@ -49,7 +49,7 @@ jobs:
       - name: Cache toolchain (x86)
         id: cache-toolchain-mingw32
         if: ${{ matrix.arch == 'x86' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: mingw32
           key: v2025-12-14/gcc-15.2.0_i686-win32-dwarf-ucrt
@@ -64,7 +64,7 @@ jobs:
       - name: Cache toolchain (x64)
         id: cache-toolchain-mingw64
         if: ${{ matrix.arch == 'x64' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: mingw64
           key: v2025-12-14/gcc-15.2.0_x86_64-win32-seh-ucrt
@@ -120,10 +120,11 @@ jobs:
           robocopy "$env:TOOLCHAINDIR_W\licenses\mingw-w64" "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}" COPYING.MinGW-w64-runtime.txt; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 }
           7z a "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}.zip" "$env:TIM41_DESCRIBE-${{ matrix.arch }}-${{ matrix.simd }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: timidity41-${{ matrix.arch }}-${{ matrix.simd }}
           path: ${{ env.TIM41_DESCRIBE }}-${{ matrix.arch }}-${{ matrix.simd }}.zip
+          compression-level: 0
+          archive: false
 
   release:
     if: ${{ startsWith(github.ref, 'refs/tags/tim41') }}
@@ -138,12 +139,9 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
-          path: artifact
-
-      - name: Move artifacts
-        run: mv artifact/timidity41-*/*.zip .
+          merge-multiple: true
 
       - name: Generate release name
         run: echo "RELEASE_NAME=$GITHUB_REF_NAME" | sed 's/tim/TiMidity++ 41 version /' >> $GITHUB_ENV

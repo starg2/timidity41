@@ -1778,15 +1778,23 @@ DLSCollectionInfo *get_dls_instrument_list(const char *sample_file)
         pList->drumsets = reinterpret_cast<DLSDrumsetInfo*>(safe_malloc(sizeof(DLSDrumsetInfo) * drumsets.size()));
         pList->drumset_count = static_cast<int>(drumsets.size());
 
+        std::vector<std::uint8_t> noteBuffer;
+
         for (std::size_t i = 0; i < drumsets.size(); i++)
         {
             auto& ds = drumsets[i];
             pList->drumsets[i].name = safe_strdup(ds.Name.c_str());
             pList->drumsets[i].program = ds.DrumsetNumber;
-            pList->drumsets[i].notes = reinterpret_cast<uint8*>(safe_malloc(sizeof(uint8) * ds.Notes.size()));
-            pList->drumsets[i].note_count = static_cast<int>(ds.Notes.size());
 
-            std::uninitialized_copy(ds.Notes.begin(), ds.Notes.end(), pList->drumsets[i].notes);
+            noteBuffer = ds.Notes;
+            std::sort(noteBuffer.begin(), noteBuffer.end());
+            auto it = std::unique(noteBuffer.begin(), noteBuffer.end());
+            noteBuffer.erase(it, noteBuffer.end());
+
+            pList->drumsets[i].notes = reinterpret_cast<uint8*>(safe_malloc(sizeof(uint8) * noteBuffer.size()));
+            pList->drumsets[i].note_count = static_cast<int>(noteBuffer.size());
+
+            std::uninitialized_copy(noteBuffer.begin(), noteBuffer.end(), pList->drumsets[i].notes);
         }
 
         return pList.release();
