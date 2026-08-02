@@ -122,8 +122,9 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: timidity41-${{ matrix.arch }}-${{ matrix.simd }}
           path: ${{ env.TIM41_DESCRIBE }}-${{ matrix.arch }}-${{ matrix.simd }}.zip
+          compression-level: 0
+          archive: false
 
   release:
     if: ${{ startsWith(github.ref, 'refs/tags/tim41') }}
@@ -140,10 +141,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          path: artifact
-
-      - name: Move artifacts
-        run: mv artifact/timidity41-*/*.zip .
+          merge-multiple: true
 
       - name: Generate release name
         run: echo "RELEASE_NAME=$GITHUB_REF_NAME" | sed 's/tim/TiMidity++ 41 version /' >> $GITHUB_ENV
