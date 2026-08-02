@@ -1,27 +1,4 @@
 
-add_definitions(
-    -DFLAC_API_EXPORTS
-    -DFLAC__HAS_X86INTRIN
-    -DFLAC__HAS_OGG
-
-    -DPACKAGE_VERSION="1.4.3"
-)
-
-if(MINGW)
-    add_definitions(
-        -DHAVE_FSEEKO
-        -DHAVE_LROUND
-    )
-endif()
-
-if(${CMAKE_SIZEOF_VOID_P} GREATER_EQUAL 8)
-    add_definitions(-DENABLE_64_BIT_WORDS=1)
-else()
-    add_definitions(-DENABLE_64_BIT_WORDS=0)
-endif()
-
-include_directories(src)
-
 add_library(
     FLAC SHARED
 
@@ -97,6 +74,34 @@ add_library(
     # src/version.rc
 )
 
+target_include_directories(FLAC PRIVATE src)
+
+target_compile_definitions(
+    FLAC
+
+    PRIVATE
+        FLAC_API_EXPORTS
+        FLAC__HAS_OGG
+
+        PACKAGE_VERSION="1.5.0"
+)
+
+if(MINGW)
+    target_compile_definitions(
+        FLAC
+
+        PRIVATE
+            HAVE_FSEEKO
+            HAVE_LROUND
+    )
+endif()
+
+if(${CMAKE_SIZEOF_VOID_P} GREATER_EQUAL 8)
+    target_compile_definitions(FLAC PRIVATE ENABLE_64_BIT_WORDS=1)
+else()
+    target_compile_definitions(FLAC PRIVATE ENABLE_64_BIT_WORDS=0)
+endif()
+
 if(NOT ("${TIM41_X86_SIMD_LEVEL}" STREQUAL "NONE"))
     target_sources(
         FLAC
@@ -112,6 +117,14 @@ if(NOT ("${TIM41_X86_SIMD_LEVEL}" STREQUAL "NONE"))
             src/stream_encoder_intrin_avx2.c
             src/stream_encoder_intrin_sse2.c
             src/stream_encoder_intrin_ssse3.c
+    )
+
+    target_compile_definitions(
+        FLAC
+
+        PRIVATE
+            FLAC__HAS_X86INTRIN
+            FLAC__USE_AVX
     )
 
     if(MSVC AND NOT ("${TIM41_X86_SIMD_LEVEL}" MATCHES "^AVX.*"))
