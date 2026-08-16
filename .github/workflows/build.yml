@@ -93,7 +93,9 @@ jobs:
           cmake
           -G Ninja
           -DCMAKE_C_COMPILER="$env:TOOLCHAINDIR/bin/gcc.exe"
+          -DCMAKE_C_FLAGS="-Wa,-muse-unaligned-vector-move"
           -DCMAKE_CXX_COMPILER="$env:TOOLCHAINDIR/bin/g++.exe"
+          -DCMAKE_CXX_FLAGS="-Wa,-muse-unaligned-vector-move"
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX="$($env:GITHUB_WORKSPACE -replace '\\', '/')/timidity41/inst"
           -DTIM41_X86_SIMD_LEVEL="$('${{ matrix.simd }}'.ToUpperInvariant())"
