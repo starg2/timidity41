@@ -93,7 +93,9 @@ jobs:
           cmake
           -G Ninja
           -DCMAKE_C_COMPILER="$env:TOOLCHAINDIR/bin/gcc.exe"
+          -DCMAKE_C_FLAGS="-Wa,-muse-unaligned-vector-move"
           -DCMAKE_CXX_COMPILER="$env:TOOLCHAINDIR/bin/g++.exe"
+          -DCMAKE_CXX_FLAGS="-Wa,-muse-unaligned-vector-move"
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX="$($env:GITHUB_WORKSPACE -replace '\\', '/')/timidity41/inst"
           -DTIM41_X86_SIMD_LEVEL="$('${{ matrix.simd }}'.ToUpperInvariant())"
@@ -126,9 +128,99 @@ jobs:
           compression-level: 0
           archive: false
 
+  build-arm64:
+    if: ${{ startsWith(github.ref, 'refs/heads/unicode') || startsWith(github.ref, 'refs/tags/tim41') }}
+    runs-on: windows-11-arm
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: timidity41
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+        shell: bash
+        working-directory: timidity41
+
+      - name: Run "git describe"
+        run: echo "TIM41_DESCRIBE=$(git describe --first-parent)" >> $GITHUB_ENV
+        shell: bash
+        working-directory: timidity41
+
+      - name: Cache toolchain (ARM64)
+        id: cache-toolchain-clangarm64
+        uses: actions/cache@v6
+        with:
+          path: clangarm64
+          key: v2026-06-16/llvm-mingw-20260616-ucrt-aarch64
+
+      - name: Install toolchain (ARM64)
+        if: ${{ steps.cache-toolchain-clangarm64.outputs.cache-hit != 'true' }}
+        run: |
+          curl.exe -L -O https://github.com/mstorsjo/llvm-mingw/releases/download/20260616/llvm-mingw-20260616-ucrt-aarch64.zip
+          7z x llvm-mingw-20260616-ucrt-aarch64.zip
+          mv llvm-mingw-20260616-ucrt-aarch64 clangarm64
+
+      - name: Set Toolchain Path
+        run: |
+          "TOOLCHAINDIR=$($env:GITHUB_WORKSPACE -replace '\\', '/')/clangarm64" >> $env:GITHUB_ENV
+          "TOOLCHAINDIR_W=$env:GITHUB_WORKSPACE\clangarm64" >> $env:GITHUB_ENV
+
+      - name: Add PATH
+        run: |
+          $vsdir = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          "$vsdir\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin" >> $env:GITHUB_PATH
+          "$vsdir\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja" >> $env:GITHUB_PATH
+          "$env:TOOLCHAINDIR_W\bin" >> $env:GITHUB_PATH
+
+      - name: Configure
+        run: >-
+          cmake
+          -G Ninja
+          -DCMAKE_C_COMPILER="$env:TOOLCHAINDIR/bin/aarch64-w64-mingw32-clang.exe"
+          -DCMAKE_CXX_COMPILER="$env:TOOLCHAINDIR/bin/aarch64-w64-mingw32-clang++.exe"
+          -DCMAKE_RC_COMPILER="$env:TOOLCHAINDIR/bin/aarch64-w64-mingw32-windres.exe"
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX="$($env:GITHUB_WORKSPACE -replace '\\', '/')/timidity41/inst"
+          -DTIM41_X86_SIMD_LEVEL="NONE"
+          -DTIM41_GCC_WITH_LIBICONV=OFF
+          -S timidity41
+          -B timidity41/build
+
+      - name: Build
+        run: ninja -C timidity41\build
+
+      - name: Install
+        run: ninja -C timidity41\build install
+
+      - name: Install runtime DLLs
+        run: >-
+          robocopy
+          "$env:TOOLCHAINDIR_W\aarch64-w64-mingw32\bin"
+          timidity41\inst\bin
+          libc++.dll libunwind.dll
+          ; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 }
+
+      - name: Create release archive
+        run: |
+          robocopy timidity41\inst "$env:TIM41_DESCRIBE-arm64" /E /XD lib; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 }
+          robocopy "$env:TOOLCHAINDIR_W\aarch64-w64-mingw32\share\mingw32" "$env:TIM41_DESCRIBE-arm64" COPYING.MinGW-w64-runtime.txt; if ($LASTEXITCODE -le 1) { $LASTEXITCODE = 0 }
+          7z a "$env:TIM41_DESCRIBE-arm64.zip" "$env:TIM41_DESCRIBE-arm64"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.TIM41_DESCRIBE }}-arm64.zip
+          compression-level: 0
+          archive: false
+
   release:
     if: ${{ startsWith(github.ref, 'refs/tags/tim41') }}
-    needs: build
+    needs: [build, build-arm64]
 
     runs-on: ubuntu-latest
     defaults:
@@ -142,6 +234,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
+          path: ./
 
       - name: Generate release name
         run: echo "RELEASE_NAME=$GITHUB_REF_NAME" | sed 's/tim/TiMidity++ 41 version /' >> $GITHUB_ENV
